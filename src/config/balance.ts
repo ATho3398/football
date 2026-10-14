@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 8;
+export const BALANCE_VERSION = 9;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -162,8 +162,8 @@ export const BALANCE = {
     ] as [number, number][],
     /** 이 나이부터 노화 대상. 그 전에는 면제 */
     agingFromAge: 35,
-    /** 노화 시 기술/멘탈 하락 확률에 곱하는 값 */
-    agingFactor: 0.5,
+    /** 노화 시 기술/멘탈 하락 확률에 곱하는 값. 기획서 0.5, 부록 C.8 */
+    agingFactor: 0.4,
   },
 
   // ── 은퇴 (1) ──
@@ -321,6 +321,69 @@ export const BALANCE = {
     stagnationChance: 0.05,
     /** 변화량 배분 시 핵심 능력치 가중 */
     keyAttributeWeight: 3,
+  },
+
+  // ── 팀 로스터 생성기 (23번, R단계) ──
+  roster: {
+    /** 팀당 24명 포지션 구성. 윙 3명은 포메이션 측면 포지션 2명 + 랜덤 1명 */
+    squad: { GK: 3, CB: 4, FB: 4, CDM: 2, CM: 3, CAM: 2, WING: 3, ST: 3 },
+    /** 가상 선수 목표 OVR = 팀 레이팅 + 오프셋 + N(0, sd). 주전 / 1차 백업 / 그 외 */
+    starterOffset: 0, starterSd: 2,
+    backupOffset: -5, backupSd: 3,
+    reserveOffset: -11, reserveSd: 3,
+    /** 팀 레이팅을 목표 ±fitTolerance 안으로 맞출 때까지 주전 OVR 을 조정 (최대 fitIterations 회) */
+    fitTolerance: 0.3,
+    fitIterations: 30,
+    /** 가상 선수 나이 N(mean, sd), [min, max] */
+    age: { mean: 26, sd: 4, min: 18, max: 36 },
+    /** 전성기 전 가상 선수의 전성기 OVR = 현재 OVR + 남은 시즌 × U(min, max), 최대 maxPeak */
+    youthGrowthPerSeason: { min: 0, max: 0.8 },
+    maxPeak: 94,
+    /** 충성도 N(mean, sd) 0~100, 계약 만료 1~5년 후 (18.6) */
+    loyalty: { mean: 60, sd: 20 },
+    contractYears: { min: 1, max: 5 },
+    /** 라인업 선택: 포지션군이 다르면 선택 점수에서 뺀다 (가까운 군은 near) */
+    outOfGroupPenalty: 6,
+    nearGroupPenalty: 2,
+    /** 벤치 7명: GK 1 + 수비/미드/공격 최소 2명씩 */
+    bench: { GK: 1, DEF: 2, MID: 2, ATT: 2 },
+    /** 은퇴 확률 (가상 선수, 시즌 종료 후 나이 기준): [이 나이부터, 확률]. 38세는 강제 */
+    retireChance: [
+      [33, 0.12],
+      [35, 0.3],
+      [37, 0.6],
+    ] as [number, number][],
+    /** 은퇴 자리 보충 가상 선수: 나이 min~max, 전성기 OVR = 팀 장기 평균 레이팅 + N(peakOffset, peakSd) */
+    rookie: { minAge: 18, maxAge: 23, peakOffset: -1, peakSd: 3, minOvr: 45 },
+    /**
+     * 시즌 팀 컨디션: 2시즌째부터 리그 팀 레이팅 = 로스터 레이팅 + N(0, sd).
+     * 로스터 레이팅만 쓰면 시즌 간 변동(σ 약 0.6)이 이전 방식(σ 약 1.7)보다 작아 약팀 돌풍이 줄어든다 (부록 C.8)
+     */
+    seasonFormSd: 1.5,
+    /** 계약이 끝나면 재계약 1~4년 (이적은 5-4 단계) */
+    renewYears: { min: 1, max: 4 },
+  },
+
+  // ── 골키퍼 (부록 E.9) ──
+  goalkeeper: {
+    /** GK OVR = 4능력치 가중 평균. 유형별 */
+    ovrWeights: {
+      classic: { shotStopping: 0.45, handling: 0.3, commandOfArea: 0.15, distribution: 0.1 },
+      sweeper: { shotStopping: 0.4, handling: 0.2, commandOfArea: 0.2, distribution: 0.2 },
+    },
+    sweeperChance: 0.4,
+    /** 능력치 생성: 목표 OVR + 가중치 높은 능력치일수록 높게 + N(0, sd) */
+    attrSd: 4,
+    /** GK 성장: 전성기 나이 27~31, 이 나이부터 하락 */
+    peakAge: { min: 27, max: 31 },
+    agingFrom: 32,
+    /** 하락 시즌당 OVR (나이별): [이 나이부터, 하락] */
+    aging: [
+      [32, 1],
+      [35, 2],
+    ] as [number, number][],
+    /** 필드 선수가 GK 를 볼 때 능력치 (부록 E.10) */
+    fieldPlayerAsGk: { shotStopping: 20, handling: 20, commandOfArea: 30, distribution: 30 },
   },
 } as const;
 

@@ -74,20 +74,34 @@ export function attributeOvrWeight(pos: FieldPosition, attr: FieldAttribute): nu
   return 0;
 }
 
+/** 포지션별 OVR 계산 구조 캐시 (묶음마다 능력치와 배수). 계산 순서는 그대로라 결과가 같다 */
+type OvrPlan = { weight: number; attrs: FieldAttribute[]; ks: number[] }[];
+const OVR_PLANS = new Map<FieldPosition, OvrPlan>();
+function ovrPlan(pos: FieldPosition): OvrPlan {
+  let plan = OVR_PLANS.get(pos);
+  if (!plan) {
+    const { weights, keys } = profileOf(pos);
+    plan = GROUP_NAMES.filter((g) => weights[g] !== 0).map((g) => {
+      const attrs = [...(ATTRIBUTE_GROUPS[g] as readonly FieldAttribute[])];
+      return { weight: weights[g], attrs, ks: attrs.map((a) => (keys.includes(a) ? 2 : 1)) };
+    });
+    OVR_PLANS.set(pos, plan);
+  }
+  return plan;
+}
+
 /** 포지션 OVR (소수). 화면 표시는 positionOvr 사용 */
 export function positionOvrExact(attrs: FieldAttributes, pos: FieldPosition): number {
-  const { weights, keys } = profileOf(pos);
   let ovr = 0;
-  for (const g of GROUP_NAMES) {
-    if (weights[g] === 0) continue;
+  for (const { weight, attrs: as, ks } of ovrPlan(pos)) {
     let sum = 0;
     let n = 0;
-    for (const a of ATTRIBUTE_GROUPS[g] as readonly FieldAttribute[]) {
-      const k = keys.includes(a) ? 2 : 1;
-      sum += attrs[a] * k;
+    for (let i = 0; i < as.length; i++) {
+      const k = ks[i]!;
+      sum += attrs[as[i]!] * k;
       n += k;
     }
-    ovr += ((sum / n) * weights[g]) / 100;
+    ovr += ((sum / n) * weight) / 100;
   }
   return ovr;
 }

@@ -8,20 +8,23 @@ import {
   type AttributeDelta,
 } from './growth';
 import {
-  CLUB_TO_TEAM, createLeague, leaguePosition, nextSeasonLeague, recordResult, simulateScore, teamById,
+  CLUB_TO_TEAM, createLeague, initialTeams, leaguePosition, nextSeasonLeague, recordResult, simulateScore, teamById,
   type LeagueState,
 } from './league';
 import { simulateMatch, type MatchResult } from './match';
 import { formBonus, pushRating } from './form';
 import { healWeek, rollInjury } from './injury';
 import { createNpc, growNpc, type NpcState } from './npc';
+import {
+  createRosters, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+} from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
-import { createRng, hashSeed, type Rng } from './rng';
+import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats } from './types';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 4;
+export const SAVE_FORMAT_VERSION = 5;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -73,6 +76,10 @@ export interface GameState {
   player: PlayerState;
   league: LeagueState;
   npcs: NpcState[];
+  /** 팀 로스터 세이브 정보 (23번): 시즌 갱신 횟수. 로스터 자체는 시드로 다시 만든다 */
+  roster: { updates: number };
+  /** 팀별 로스터. 세이브에 담지 않고 불러올 때 rebuildRosters 로 재생성한다 */
+  rosters: Rosters;
   lastMatch?: MatchReport;
   lastSeasonSummary?: SeasonSummary;
 }
@@ -98,11 +105,43 @@ export function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
 }
 
+/** 내 선수를 뺀 실제 A등급 NPC 초기 상태 */
+function initialNpcs(worldSeed: string, realPlayerId: string | undefined): NpcState[] {
+  return A_GRADE_PLAYERS.filter((p) => p.id !== realPlayerId).map((p) => createNpc(p, worldSeed, BALANCE.newGame.startYear));
+}
+
+/**
+ * 로스터 재생성 (23번): 시작 로스터를 시드로 만들고 시즌 갱신을 updates 번 다시 적용한다.
+ * 성장, 노화, 은퇴, 신인 보충은 모두 시드로 정해지므로 세이브에는 updates 만 있으면 된다.
+ * 실제 선수 능력치는 마지막에 세이브의 NPC 상태와 맞춘다
+ */
+export function rebuildRosters(
+  worldSeed: string, realPlayerId: string | undefined, updates: number, savedNpcs?: NpcState[],
+): Rosters {
+  const start = BALANCE.newGame.startYear;
+  const teams = initialTeams();
+  const base = Object.fromEntries(teams.map((t) => [t.id, t.baseRating]));
+  let npcs = initialNpcs(worldSeed, realPlayerId);
+  let rosters = createRosters(worldSeed, start, teams, npcs);
+  for (let k = 0; k < updates; k++) {
+    npcs = npcs.map((n) => growNpc(n, worldSeed, start + k));
+    rosters = updateRostersForSeason(rosters, worldSeed, start + k, base, npcs);
+  }
+  if (savedNpcs) syncRealPlayers(rosters, savedNpcs);
+  return rosters;
+}
+
 export function newGame(opts: NewGameOptions): GameState {
   const worldSeed = opts.seed?.trim() || randomSeed();
   const season = BALANCE.newGame.startYear;
   const league = createLeague(worldSeed, season);
   const rng = rngFor(worldSeed, 'new-player');
+  // 팀 레이팅 = 로스터 라인업 평균 (23번). 내 선수(실제 선수)는 로스터에서 빠진다
+  const realPlayerId = opts.mode === 'real' ? opts.playerId : undefined;
+  const npcs = initialNpcs(worldSeed, realPlayerId);
+  const rosters = rebuildRosters(worldSeed, realPlayerId, 0);
+  const ratings = teamRatings(rosters);
+  for (const t of league.teams) t.rating = ratings[t.id] ?? t.rating;
 
   let player: PlayerState;
   const base = {
@@ -146,8 +185,6 @@ export function newGame(opts: NewGameOptions): GameState {
     };
   }
 
-  const npcs = A_GRADE_PLAYERS.filter((p) => p.id !== player.realPlayerId).map((p) => createNpc(p, worldSeed, season));
-
   return {
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,
@@ -157,6 +194,8 @@ export function newGame(opts: NewGameOptions): GameState {
     player,
     league,
     npcs,
+    roster: { updates: 0 },
+    rosters,
   };
 }
 
@@ -350,6 +389,9 @@ export function endSeason(state: GameState): SeasonSummary {
 
   // NPC
   state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season));
+  const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
+  state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
+  state.roster.updates++;
 
   const summary: SeasonSummary = {
     season, age, leaguePosition: pos, achievements, achievementXp, levelsGained,
@@ -363,10 +405,20 @@ export function endSeason(state: GameState): SeasonSummary {
   return summary;
 }
 
+/** 다음 시즌 리그 팀 레이팅 = 로스터 레이팅 + 시즌 팀 컨디션 (23번, 부록 C.8) */
+export function seasonTeamRatings(state: GameState): Record<string, number> {
+  const season = state.league.season + 1;
+  const out = teamRatings(state.rosters);
+  for (const id of Object.keys(out)) {
+    out[id] = out[id]! + gaussian(rngFor(state.worldSeed, 'team-form', season, id)) * BALANCE.roster.seasonFormSd;
+  }
+  return out;
+}
+
 /** 비시즌 → 다음 시즌 */
 export function startNextSeason(state: GameState): void {
   if (state.phase !== 'offseason') throw new Error('비시즌이 아님');
-  state.league = nextSeasonLeague(state.league, state.worldSeed);
+  state.league = nextSeasonLeague(state.league, state.worldSeed, seasonTeamRatings(state));
   state.player.season = emptySeasonStats();
   state.player.fatigue = 0;
   healWeek(state.player, BALANCE.injury.offseasonWeeks);

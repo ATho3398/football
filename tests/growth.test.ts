@@ -144,10 +144,12 @@ describe('노화 (6.1)', () => {
     expect(avgDrop(37, other)).toBe(2);
   });
 
-  it('노련함 능력치: 34세까지 면제, 35세부터 기술/멘탈 하락의 절반', () => {
+  // 기획서 6.1.1은 절반(0.5). 실제 값은 BALANCE.veteran.agingFactor (부록 C.8)
+  it('노련함 능력치: 34세까지 면제, 35세부터 기술/멘탈 하락 × agingFactor', () => {
+    const f = BALANCE.veteran.agingFactor;
     expect(avgDrop(34, veteran)).toBe(0);
-    expect(avgDrop(35, veteran)).toBeCloseTo(0.5, 1);
-    expect(avgDrop(37, veteran)).toBe(1);
+    expect(avgDrop(35, veteran)).toBeCloseTo(1 * f, 1);
+    expect(avgDrop(37, veteran)).toBeCloseTo(2 * f, 1);
   });
 });
 

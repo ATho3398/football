@@ -2,7 +2,7 @@
 
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
-import { SAVE_FORMAT_VERSION, type GameState } from './game';
+import { rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
 import { positionOvr } from './positions';
@@ -33,8 +33,10 @@ function storage(): Storage | null {
   }
 }
 
+/** 로스터(rosters)는 시드로 다시 만들 수 있으므로 담지 않는다 (23번) */
 export function serialize(state: GameState): string {
-  return JSON.stringify(state);
+  const { rosters: _r, ...rest } = state;
+  return JSON.stringify(rest);
 }
 
 /**
@@ -62,6 +64,11 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     const gen = generatePlayer(data, s.worldSeed);
     s.player.peakTarget = realPeakTarget(positionOvr(gen.attributes, data.position), BALANCE.newGame.startYear - data.birthYear);
   },
+  // 4 → 5: 팀 로스터 (23번). 지난 시즌 수만큼 시즌 갱신을 다시 적용한다. 이번 시즌 팀 레이팅은 세이브 값을 유지
+  4: (s) => {
+    const done = s.league.season - BALANCE.newGame.startYear + (s.phase === 'season' ? 0 : 1);
+    s.roster = { updates: Math.max(0, done) };
+  },
 };
 
 export function migrate(raw: any): GameState {
@@ -75,7 +82,9 @@ export function migrate(raw: any): GameState {
     step(raw);
     raw.saveFormat = v + 1;
   }
-  return raw as GameState;
+  const state = raw as GameState;
+  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs);
+  return state;
 }
 
 export function deserialize(json: string): GameState {
@@ -94,7 +103,7 @@ export function saveGame(slot: SaveSlot, state: GameState): boolean {
     age: state.player.age,
   };
   try {
-    s.setItem(PREFIX + slot, JSON.stringify({ meta, state } satisfies SaveFile));
+    s.setItem(PREFIX + slot, `{"meta":${JSON.stringify(meta)},"state":${serialize(state)}}`);
     return true;
   } catch {
     return false;
