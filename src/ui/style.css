@@ -193,3 +193,4 @@ nav.tabs button.on { color: var(--accent); font-weight: 700; }
 }
 .form-veryGood, .form-good { color: var(--accent); }
 .form-bad, .form-veryBad { color: var(--bad); }
+.notice.injury { background: #2d1a1a; border-color: #6b2b2b; color: #ffb4a8; }

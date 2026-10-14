@@ -17,6 +17,8 @@ export interface MatchInput {
   bigMatch?: boolean;
   /** 폼 보정 (7.2). 평점에 그대로 더한다 */
   formBonus?: number;
+  /** 부상으로 결장 (7.3). 출전하지 않고 재활 XP 를 받는다 */
+  injured?: boolean;
 }
 
 export type MatchOutcome = 'win' | 'draw' | 'loss';
@@ -66,9 +68,9 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   const R = BALANCE.rating;
 
   // 출전 판정
-  const started = rng() < startProbability(input.ovr, input.teamRating, input.fatigue);
+  const started = !input.injured && rng() < startProbability(input.ovr, input.teamRating, input.fatigue);
   let minutes = 90;
-  if (!started) minutes = rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
+  if (!started) minutes = !input.injured && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const share = minutes / 90;
 
   // 팀 득점. 내 선수는 출전 시간만큼 팀 전력에 작게 반영
@@ -78,7 +80,8 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   const outcome: MatchOutcome = goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw';
 
   if (minutes === 0) {
-    const xp = Math.round(BALANCE.matchXp.bench * BALANCE.difficulty[input.difficulty].xp);
+    const weekXp = input.injured ? BALANCE.injury.rehabXp : BALANCE.matchXp.bench;
+    const xp = Math.round(weekXp * BALANCE.difficulty[input.difficulty].xp);
     return { goalsFor, goalsAgainst, outcome, started, minutes, goals: 0, assists: 0, rating: null, mom: false, xp };
   }
 

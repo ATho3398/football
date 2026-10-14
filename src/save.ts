@@ -42,6 +42,14 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.player.recentRatings = [];
     if (s.lastMatch) s.lastMatch.formBonus = 0;
   },
+  // 2 → 3: 부상 (부록 D.2). 부상 없음, 기록은 0
+  2: (s) => {
+    s.player.injury = null;
+    for (const st of [s.player.season, ...s.player.history]) {
+      st.injuries = 0;
+      st.injuredWeeks = 0;
+    }
+  },
 };
 
 export function migrate(raw: any): GameState {

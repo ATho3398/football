@@ -1,0 +1,129 @@
+import { describe, expect, it } from 'vitest';
+import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
+import { BALANCE } from '../src/config/balance';
+import { newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason } from '../src/game';
+import { healWeek, injuryChance, rollInjury } from '../src/injury';
+import { createRng } from '../src/rng';
+import { deserialize, serialize } from '../src/save';
+
+const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
+
+describe('부상 확률 (부록 D.2)', () => {
+  const p = { attributes: flat(50), age: 25, fatigue: 0 };
+
+  it('0.02 × 출전 비율 × 난이도 × 피로 × 신체 × 나이', () => {
+    // 신체 보정 = 1.3 - 0.6 × 0.5 = 1.0
+    expect(injuryChance(p, 90, 'normal')).toBeCloseTo(0.02);
+    expect(injuryChance(p, 45, 'normal')).toBeCloseTo(0.01);
+    expect(injuryChance(p, 0, 'normal')).toBe(0);
+    expect(injuryChance(p, 90, 'easy')).toBeCloseTo(0.014);
+    expect(injuryChance(p, 90, 'hard')).toBeCloseTo(0.026);
+    expect(injuryChance({ ...p, fatigue: 30 }, 90, 'normal')).toBeCloseTo(0.02);
+    expect(injuryChance({ ...p, fatigue: 55 }, 90, 'normal')).toBeCloseTo(0.03);
+    expect(injuryChance({ ...p, attributes: flat(100) }, 90, 'normal')).toBeCloseTo(0.014);
+    expect(injuryChance({ ...p, age: 30 }, 90, 'normal')).toBeCloseTo(0.026);
+  });
+});
+
+describe('부상 등급과 영구 하락', () => {
+  function rolls(age: number, n: number) {
+    const out = { minor: 0, major: 0, seasonEnding: 0, permanent: 0, weeks: { minor: [99, 0], major: [99, 0] } };
+    const pl = newGame({ mode: 'prospect', position: 'CB', seed: 'inj', difficulty: 'normal' }).player;
+    for (let i = 0; i < n; i++) {
+      pl.age = age;
+      pl.attributes = flat(50);
+      // 확률을 1로 만들기 위해 피로를 크게
+      pl.fatigue = 10000;
+      const inj = rollInjury(pl, 90, 'normal', 10, { season: 2018, round: 1 }, createRng(i))!;
+      out[inj.grade]++;
+      if (inj.grade !== 'seasonEnding') {
+        const w = out.weeks[inj.grade];
+        w[0] = Math.min(w[0]!, inj.weeksTotal);
+        w[1] = Math.max(w[1]!, inj.weeksTotal);
+      } else {
+        expect(inj.weeksTotal).toBe(BALANCE.injury.grades.seasonEnding.minWeeks);
+      }
+      const drops = Object.entries(inj.permanent);
+      if (drops.length) {
+        out.permanent++;
+        expect(inj.grade).not.toBe('minor');
+        expect(drops.length).toBeLessThanOrEqual(2);
+        for (const [, d] of drops) expect(d).toBeGreaterThanOrEqual(-3);
+      }
+    }
+    return out;
+  }
+
+  it('경상 70% (1~3주) / 중상 27% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20%', () => {
+    const n = 4000;
+    const r = rolls(25, n);
+    expect(r.minor / n).toBeCloseTo(0.7, 1);
+    expect(r.major / n).toBeCloseTo(0.27, 1);
+    expect(r.seasonEnding / n).toBeCloseTo(0.03, 1);
+    expect(r.weeks.minor).toEqual([1, 3]);
+    expect(r.weeks.major).toEqual([8, 16]);
+    expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.2, 1);
+  });
+
+  it('30세 이상은 영구 하락 확률 × 1.5', () => {
+    const n = 4000;
+    const r = rolls(31, n);
+    expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.3, 1);
+  });
+});
+
+describe('부상 진행', () => {
+  it('부상 중에는 출전하지 않고 재활 XP 만 받으며, 기간이 지나면 복귀한다', () => {
+    const s = newGame({ mode: 'prospect', position: 'ST', seed: 'heal', difficulty: 'normal' });
+    s.player.injury = { grade: 'minor', weeksTotal: 2, weeksLeft: 2, season: 2018, round: 0, permanent: {} };
+    const a = playRound(s);
+    expect(a).toMatchObject({ injured: true, recovered: false, result: { minutes: 0, xp: BALANCE.injury.rehabXp } });
+    const b = playRound(s);
+    expect(b).toMatchObject({ injured: true, recovered: true });
+    expect(s.player.injury).toBeNull();
+    expect(s.player.season.injuredWeeks).toBe(2);
+  });
+
+  it('시즌아웃은 남은 시즌 전체, 비시즌에 offseasonWeeks 만큼 회복', () => {
+    const s = newGame({ mode: 'prospect', position: 'ST', seed: 'out', difficulty: 'normal' });
+    for (let r = 0; r < 30; r++) playRound(s);
+    s.player.injury = { grade: 'seasonEnding', weeksTotal: 20, weeksLeft: 20, season: 2018, round: 30, permanent: {} };
+    while (s.phase === 'season') expect(playRound(s).result.minutes).toBe(0);
+    expect(s.player.injury?.weeksLeft).toBe(12);
+    startNextSeason(s);
+    expect(s.player.injury?.weeksLeft).toBe(12 - BALANCE.injury.offseasonWeeks);
+    expect(healWeek(s.player, 4)).toBe(true);
+  });
+
+  it('부상 기록과 결정성: 세이브 왕복 후에도 같은 결과', () => {
+    const run = (viaSave: boolean) => {
+      let s = newGame({ mode: 'real', playerId: 'kane', seed: 'inj-det', difficulty: 'hard' });
+      for (let r = 0; r < 38; r++) {
+        playRound(s);
+        if (viaSave && r % 7 === 0) s = deserialize(serialize(s));
+      }
+      return s;
+    };
+    expect(serialize(run(false))).toEqual(serialize(run(true)));
+  });
+});
+
+describe('세이브 변환 2 → 3', () => {
+  it('부상 필드를 채운다', () => {
+    const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig3', difficulty: 'normal' });
+    for (let r = 0; r < 38; r++) playRound(s);
+    const old = JSON.parse(serialize(s));
+    old.saveFormat = 2;
+    delete old.player.injury;
+    for (const st of [old.player.season, ...old.player.history]) {
+      delete st.injuries;
+      delete st.injuredWeeks;
+    }
+    const loaded = deserialize(JSON.stringify(old));
+    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
+    expect(loaded.player.injury).toBeNull();
+    expect(loaded.player.history[0]).toMatchObject({ injuries: 0, injuredWeeks: 0 });
+    startNextSeason(loaded);
+    playRound(loaded);
+  });
+});

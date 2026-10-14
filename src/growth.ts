@@ -125,7 +125,8 @@ export function applyAutoGrowth(attrs: FieldAttributes, age: number, tier: Tier,
   return delta;
 }
 
-const PHYSICAL: readonly FieldAttribute[] = [
+/** 신체 능력치: 속도, 가속, 민첩성, 체력, 근력, 점프 */
+export const PHYSICAL: readonly FieldAttribute[] = [
   ...ATTRIBUTE_GROUPS.pace, ...ATTRIBUTE_GROUPS.physical,
 ];
 

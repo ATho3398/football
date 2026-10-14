@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 4;
+export const BALANCE_VERSION = 5;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -218,12 +218,45 @@ export const BALANCE = {
     veryBad: -0.2,
   },
 
+  // ── 부상 (7.3, 부록 D.2) ──
+  // 출전 경기마다 확률 = base × 출전 비율 × 난이도 배율 × 피로 보정 × 신체 보정 × 나이 보정
+  injury: {
+    base: 0.02,
+    /** 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint */
+    fatigueFrom: 30,
+    fatiguePerPoint: 0.02,
+    /** 신체 보정 = physicalBase - physicalSlope × (근력 + 체력) / 2 / 100 */
+    physicalBase: 1.3,
+    physicalSlope: 0.6,
+    /** 나이 보정: 이 나이 이상이면 × ageMultiplier */
+    ageFrom: 30,
+    ageMultiplier: 1.3,
+    /** 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks */
+    grades: {
+      minor: { chance: 0.7, weeks: [1, 3] as [number, number] },
+      major: { chance: 0.27, weeks: [8, 16] as [number, number] },
+      seasonEnding: { chance: 0.03, minWeeks: 20 },
+    },
+    /** 부상 중 주당 재활 XP (출전 대신) */
+    rehabXp: 4,
+    /** 비시즌 동안 줄어드는 부상 기간 (기획서 미정, 코드 세션 결정) */
+    offseasonWeeks: 8,
+    /** 영구 하락: 중상 이상에서 chance (ageFrom 이상이면 × ageMultiplier) 확률로 신체 능력치 attrs개가 각 -drop */
+    permanent: {
+      chance: 0.2,
+      ageFrom: 30,
+      ageMultiplier: 1.5,
+      attrs: [1, 2] as [number, number],
+      drop: [1, 3] as [number, number],
+    },
+  },
+
   // ── 피로 (7.1) ──
   fatigue: {
     max: 100,
     /** 90분 출전 시 증가량 */
     perMatch90: 22,
-    /** 경기가 있는 주의 회복량 (경기 전에 적용). 1단계는 주당 1경기라 피로가 거의 쌓이지 않는다 */
+    /** 경기가 있는 주의 회복량 (경기 전에 적용). 주당 1경기라 피로가 거의 쌓이지 않는다. 부상 중인 주는 noMatchWeekRecovery */
     weeklyRecovery: 25,
     noMatchWeekRecovery: 40,
     /** 이 값을 넘으면 평점/선발 확률 페널티 */

@@ -48,17 +48,19 @@ describe('폼 (부록 D.1)', () => {
 });
 
 describe('세이브 변환', () => {
-  it('형식 1 세이브를 현재 형식으로 변환한다', () => {
+  it('형식 1 세이브를 현재 형식으로 변환한다 (1 → 2 → 3)', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig', difficulty: 'normal' });
     playRound(s);
     const old = JSON.parse(serialize(s));
     old.saveFormat = 1;
     delete old.player.recentRatings;
     delete old.lastMatch.formBonus;
+    delete old.player.injury;
     const loaded = deserialize(JSON.stringify(old));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(loaded.player.recentRatings).toEqual([]);
     expect(loaded.lastMatch?.formBonus).toBe(0);
+    expect(loaded.player.injury).toBeNull();
     playRound(loaded);
   });
 
