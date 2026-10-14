@@ -10,13 +10,14 @@ import {
 } from '../game';
 import { generatePlayer } from '../generate';
 import {
-  autoAllocate, playerOvr, pointCost, raiseAttribute, raiseBlock, reputationTier, skillTier, TIER_NAMES_KO,
-  type AttributeDelta,
+  autoAllocate, costTier, nextReputationTier, playerOvr, pointCost, raiseAttribute, raiseBlock, reputationTier,
+  skillTier, TIER_NAMES_KO, type AttributeDelta,
 } from '../growth';
 import { sortedTable, teamById } from '../league';
 import { npcOvr } from '../npc';
 import {
-  allPositionOvrs, attributeOvrWeight, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, profileOf, type PlayablePosition,
+  allPositionOvrs, attributeOvrWeight, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, positionOvrExact, profileOf,
+  type PlayablePosition,
 } from '../positions';
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
 import type { Tier } from '../types';
@@ -34,6 +35,8 @@ const ui = {
   game: null as GameState | null,
   toast: '' as string,
   coachComment: false,
+  /** 포인트 화면에 들어올 때의 OVR (소수). "OVR 현재 → 예상" 미리보기 기준 */
+  allocStartOvr: 0,
   form: {
     mode: 'prospect' as 'prospect' | 'real',
     name: '',
@@ -255,7 +258,7 @@ function matchView(g: GameState): string {
         <div><b class="gold">+${r.xp}</b><span>XP</span></div>
         <div><b>${r.mom ? '⭐' : '-'}</b><span>MOM</span></div>
       </div>
-      ${m.levelsGained > 0 ? `<div class="notice">레벨 업! Lv.${g.player.level} · 능력치 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel}</div>` : ''}
+      ${m.levelsGained > 0 ? `<div class="notice">레벨 업! Lv.${g.player.level} · 능력치 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel} · 현재 OVR ${playerOvr(g.player)}</div>` : ''}
     </div>
     ${g.player.unspentPoints > 0 ? `<button class="primary block" data-act="go" data-to="allocate">포인트 찍기 (${g.player.unspentPoints})</button>` : ''}
     ${seasonOver
@@ -268,9 +271,10 @@ function allocateView(g: GameState): string {
   const p = g.player;
   const keys = profileOf(p.position).keys;
   const cap = p.allocation.levels * BALANCE.growth.maxRaisePerLevel;
+  const tier = costTier(p);
   // 포인트 1개당 OVR 상승량. 가장 효율 좋은 능력치 대비 비율로 ●●● 표시
   const efficiency = (a: FieldAttribute) =>
-    attributeOvrWeight(p.position, a) / pointCost(p.attributes[a], p.potentialTier);
+    attributeOvrWeight(p.position, a) / pointCost(p.attributes[a], tier);
   const maxEff = Math.max(...FIELD_ATTRIBUTES.map(efficiency));
   const effDots = (a: FieldAttribute) => {
     const r = efficiency(a) / maxEff;
@@ -283,12 +287,14 @@ function allocateView(g: GameState): string {
       const v = p.attributes[a];
       const block = raiseBlock(p, a);
       const raised = p.allocation.raised[a] ?? 0;
-      const costLabel = v >= BALANCE.growth.maxAttribute ? '최대' : `비용 ${pointCost(v, p.potentialTier)}`;
+      const costLabel = v >= BALANCE.growth.maxAttribute ? '최대' : `비용 ${pointCost(v, tier)}`;
+      const perPoint = attributeOvrWeight(p.position, a);
       return `
         <div class="attr-row ${keys.includes(a) ? 'key' : ''}">
           <span class="name">${ATTRIBUTE_NAMES_KO[a]}</span>
           ${raised > 0 ? `<span class="small up">+${raised}</span>` : ''}
           <span class="val">${v}</span>
+          <span class="per small muted">${perPoint > 0 ? `+${perPoint.toFixed(2)}` : ''}</span>
           ${effDots(a)}
           <span class="cost">${costLabel}</span>
           <button class="mini" data-act="raise" data-attr="${a}" ${block ? 'disabled' : ''}>+</button>
@@ -300,11 +306,13 @@ function allocateView(g: GameState): string {
   return `
     <div class="card" style="position:sticky;top:0;z-index:2">
       <div class="row between">
-        <div><h2 style="margin:0">포인트 찍기</h2><div class="small muted">한 능력치 최대 +${cap} (레벨업 ${p.allocation.levels}회분) · ★ 핵심 능력치 · ●●● OVR 효율</div></div>
+        <div><h2 style="margin:0">포인트 찍기</h2><div class="small muted">한 능력치 최대 +${cap} (레벨업 ${p.allocation.levels}회분) · ★ 핵심 능력치 · +0.00 능력치 +1당 OVR · ●●● 포인트당 효율</div></div>
         <div class="center"><div class="ovr" style="font-size:30px">${p.unspentPoints}</div><div class="small muted">남은 포인트</div></div>
       </div>
-      <div class="small" style="margin-top:6px">${p.position} OVR <b>${playerOvr(p)}</b></div>
-      ${ui.coachComment ? `<div class="notice">코치: "이제부터는 성장이 더뎌질 거야. 한 단계 올리는 데 포인트가 더 들어."</div>` : ''}
+      <div style="margin-top:6px">${p.position} OVR <b>${Math.round(ui.allocStartOvr)}</b> → <b class="gold">${playerOvr(p)}</b>
+        <span class="small muted">(${ui.allocStartOvr.toFixed(1)} → ${positionOvrExact(p.attributes, p.position).toFixed(1)})</span></div>
+      <div class="small muted">비용 구간: ${tierBadge(tier, '위상 ')} 기준 · 비용 1 ~${BALANCE.growth.costBands[tier].cost1Max} / 비용 2 ~${BALANCE.growth.costBands[tier].cost2Max}</div>
+      ${ui.coachComment ? `<div class="notice">코치: "여기서부터는 성장이 더뎌져. 더 큰 무대에서 활약해서 이름을 알리면 다시 길이 열릴 거야."</div>` : ''}
     </div>
     <div class="card">${groups.join('')}</div>
     <button class="block" data-act="auto-alloc" ${p.unspentPoints > 0 ? '' : 'disabled'}>자동 배분 (포지션 OVR 우선)</button>
@@ -386,6 +394,17 @@ function deltaList(d: AttributeDelta): string {
   return `<div class="row wrap small">${entries.map(([a, v]) => `<span class="${deltaClass(v)}">${ATTRIBUTE_NAMES_KO[a]} ${signed(v)}</span>`).join('<span class="muted">·</span>')}</div>`;
 }
 
+/** 위상 진행도와 다음 티어에서 열리는 비용 구간 (6.3) */
+function reputationProgress(rep: number): string {
+  const next = nextReputationTier(rep);
+  if (!next) return '<p class="small muted">최고 위상 티어입니다. 성장 구간이 모두 열렸습니다.</p>';
+  const cur = BALANCE.reputation.tierCuts[reputationTier(rep)];
+  const band = BALANCE.growth.costBands[next.tier];
+  return `
+    <div class="bar" style="margin-top:6px"><i style="width:${((rep - cur) / (next.cut - cur)) * 100}%"></i></div>
+    <p class="small muted">다음 티어 ${TIER_NAMES_KO[next.tier]}까지 ${rep} / ${next.cut} · 열리는 구간: 비용 1 ~${band.cost1Max}, 비용 2 ~${band.cost2Max}</p>`;
+}
+
 function seasonView(g: GameState): string {
   const s = g.lastSeasonSummary;
   if (!s) return homeView(g);
@@ -422,12 +441,15 @@ function seasonView(g: GameState): string {
       <div class="row between small muted" style="margin-top:6px"><span>지급 XP (난이도 반영)</span><span>${s.achievementXp}</span></div>
       ${s.levelsGained ? `<div class="notice">레벨 업 ${s.levelsGained}회!</div>` : ''}
       <div class="row between" style="margin-top:8px"><span>위상</span><span>${s.reputationBefore} → <b>${s.reputationAfter}</b> ${tierBadge(reputationTier(s.reputationAfter))}</span></div>
+      ${reputationProgress(s.reputationAfter)}
     </div>
     <div class="card">
       <h2>능력치 변화</h2>
       <div class="row between"><span>${g.player.position} OVR</span><span>${s.ovrBefore} → <b>${s.ovrAfter}</b> <span class="${deltaClass(ovrDiff)}">(${signed(ovrDiff)})</span></span></div>
       <h3>자동 성장 (${BALANCE.growth.autoGrowth.minAge}~${BALANCE.growth.autoGrowth.maxAge}세)</h3>
       ${deltaList(s.autoGrowth)}
+      <h3>노련함 (경험으로 오르는 능력치)</h3>
+      ${deltaList(s.veteranGrowth ?? {})}
       <h3>노화</h3>
       ${deltaList(s.aging)}
       <p class="small muted">나이 ${s.age} → ${g.player.age}세</p>
@@ -534,7 +556,10 @@ app.addEventListener('click', (ev) => {
   switch (act) {
     case 'go':
       if (ui.screen === 'new') readFormInputs();
-      if (el.dataset.to === 'allocate') ui.coachComment = false;
+      if (el.dataset.to === 'allocate' && g) {
+        ui.coachComment = false;
+        ui.allocStartOvr = positionOvrExact(g.player.attributes, g.player.position);
+      }
       go(el.dataset.to as Screen);
       return;
     case 'continue': {

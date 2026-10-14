@@ -2,10 +2,11 @@
 // 모든 수치는 초기값이다. 이 파일만 고치면 게임에 반영된다.
 // 세이브 필드 구조를 바꾸는 변경은 src/save.ts 의 SAVE_FORMAT_VERSION 을 올린다.
 
+import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 2;
+export const BALANCE_VERSION = 3;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -17,7 +18,10 @@ export const BALANCE = {
     /** 한 번의 레벨업에서 한 능력치에 올릴 수 있는 최대치 */
     maxRaisePerLevel: 3,
     maxAttribute: 99,
-    /** 포인트 비용 구간: 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3 */
+    /**
+     * 포인트 비용 구간: 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3.
+     * 내 선수는 현재 위상 티어(reputation.tierCuts)의 구간을 쓴다 (6.2 성장 해금, 부록 D.0 #1)
+     */
     costBands: {
       normal: { cost1Max: 70, cost2Max: 84 },
       special: { cost1Max: 73, cost2Max: 86 },
@@ -28,6 +32,7 @@ export const BALANCE = {
     /**
      * 시즌 종료 자동 성장 (17~21세): 전 능력치 +min~max.
      * 기획서 기본은 전 티어 +0~2. 잠재력 티어 차이가 30세 OVR 에 드러나도록 티어별로 나눴다.
+     * 내 선수의 숨은 잠재력은 이 자동 성장 폭에만 쓴다 (6.2)
      */
     autoGrowth: {
       minAge: 17,
@@ -55,6 +60,12 @@ export const BALANCE = {
     /** 출전하지 못한 주에도 받는 훈련 XP */
     bench: 8,
     bigMatchMultiplier: 1.5,
+    /** 고령 XP 감쇠 (6.1): [이 나이부터, 배율]. 경기 XP와 결장 주 훈련 XP에만 적용 */
+    veteranMultiplier: [
+      [33, 0.8],
+      [35, 0.6],
+      [37, 0.4],
+    ] as [number, number][],
   },
 
   // ── 시즌 업적 XP (5.3), 위상 (8.1) ──
@@ -66,6 +77,13 @@ export const BALANCE = {
       [4, 120],
     ] as [number, number][],
     highAvgRating: { minAvg: 7.5, minApps: 10, xp: 150 },
+    // 팀 내 활약 업적 (5.3, 부록 D.0 #5)
+    /** 내 골+어시스트가 팀 득점의 share 이상 */
+    teamAttack: { minApps: 15, share: 0.25, xp: 100 },
+    /** 시즌 평균 평점 minAvg 이상 highAvgRating.minAvg 미만 */
+    steadyRating: { minApps: 10, minAvg: 7.0, xp: 80 },
+    /** 최종 순위가 시즌 전 팀 레이팅 순위보다 minPlacesAbove 계단 이상 위 */
+    underdog: { minPlacesAbove: 3, xp: 100 },
   },
   reputation: {
     max: 1000,
@@ -94,6 +112,29 @@ export const BALANCE = {
       [35, 1],
       [37, 2],
     ] as [number, number][],
+    /**
+     * 노화를 포지션 OVR 에 중요한 능력치에 몰아주는 정도 (0 = 고르게, 1 = OVR 비중에 정비례).
+     * 능력치별 배율 = (1 - s) + s × (OVR 비중 / 25개 평균 비중). 평균 배율이 1이라 총 하락량은 그대로다.
+     * 고르게 깎으면 포인트를 OVR 능력치에만 찍는 선수는 30대에도 OVR 이 떨어지지 않는다 (부록 D.0 점검)
+     */
+    positionFocus: 0.8,
+  },
+
+  // ── 노련함 능력치 (6.1.1, 부록 D.0 #4) ──
+  veteran: {
+    attributes: [
+      'offTheBall', 'defensivePositioning', 'vision', 'composure', 'bigMatch', 'leadership', 'interception', 'marking',
+    ] as readonly FieldAttribute[],
+    /** 시즌 종료 때 능력치마다 +1 확률: [이 나이부터, 확률]. 포인트 비용과 무관 */
+    growth: [
+      [27, 0.5],
+      [32, 0.3],
+      [35, 0],
+    ] as [number, number][],
+    /** 이 나이부터 노화 대상. 그 전에는 면제 */
+    agingFromAge: 36,
+    /** 노화 시 기술/멘탈 하락 확률에 곱하는 값 */
+    agingFactor: 0.5,
   },
 
   // ── 은퇴 (1) ──
