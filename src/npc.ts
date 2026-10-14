@@ -85,7 +85,7 @@ export function growNpc(n: NpcState, worldSeed: string, season: number): NpcStat
     // 전성기 이후: 노련함 성장 + 노화 곡선 + 시즌 운 (6.1.1).
     // 전성기 전에는 전성기 OVR 접근 곡선에 노련함이 이미 포함된 것으로 본다
     applyVeteranGrowth(attrs, n.age, rng);
-    applyAging(attrs, n.age, rng);
+    applyAging(attrs, n.age, rng, n.position);
     shiftOvr(attrs, n.position, Math.round(gaussian(rng) * N.seasonLuck * 0.5), rng);
   }
 

@@ -138,18 +138,31 @@ export function agingRate(curve: readonly (readonly [number, number])[], age: nu
   return rate;
 }
 
+/** 포지션별 노화 배율: OVR 비중이 큰 능력치일수록 크고, 25개 평균은 1 (aging.positionFocus) */
+export function agingFocus(pos: FieldPosition): Record<FieldAttribute, number> {
+  const s = BALANCE.aging.positionFocus;
+  const weights = FIELD_ATTRIBUTES.map((a) => attributeOvrWeight(pos, a));
+  const mean = weights.reduce((t, x) => t + x, 0) / weights.length;
+  const out = {} as Record<FieldAttribute, number>;
+  FIELD_ATTRIBUTES.forEach((a, i) => (out[a] = 1 - s + (s * weights[i]!) / mean));
+  return out;
+}
+
 /**
  * 노화 (6.1, 내 선수와 NPC 공통). age 는 그 시즌의 나이. 소수 하락은 능력치마다 확률로.
- * 노련함 능력치는 veteran.agingFromAge 전까지 면제, 그 뒤로는 기술/멘탈 하락 × agingFactor (6.1.1)
+ * 노련함 능력치는 veteran.agingFromAge 전까지 면제, 그 뒤로는 기술/멘탈 하락 × agingFactor (6.1.1).
+ * pos 를 주면 포지션 OVR 에 중요한 능력치가 더 많이 떨어진다 (aging.positionFocus)
  */
-export function applyAging(attrs: FieldAttributes, age: number, rng: Rng): AttributeDelta {
+export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition): AttributeDelta {
   const A = BALANCE.aging;
   const V = BALANCE.veteran;
+  const focus = pos ? agingFocus(pos) : null;
   const delta: AttributeDelta = {};
   for (const a of FIELD_ATTRIBUTES) {
     let rate: number;
     if (isVeteranAttribute(a)) rate = age < V.agingFromAge ? 0 : agingRate(A.other, age) * V.agingFactor;
     else rate = agingRate(PHYSICAL.includes(a) ? A.physical : A.other, age);
+    if (focus) rate *= focus[a];
     if (rate === 0) continue;
     const lo = Math.floor(rate);
     bump(attrs, delta, a, -(lo + (rng() < rate - lo ? 1 : 0)));

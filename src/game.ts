@@ -289,7 +289,7 @@ export function endSeason(state: GameState): SeasonSummary {
   // 3~4. 자동 성장, 노련함, 노화
   const autoGrowth = applyAutoGrowth(player.attributes, age, player.potentialTier, rng);
   const veteranGrowth = applyVeteranGrowth(player.attributes, age, rng);
-  const aging = applyAging(player.attributes, age, rng);
+  const aging = applyAging(player.attributes, age, rng, player.position);
 
   // 5. 나이
   player.age = age + 1;
