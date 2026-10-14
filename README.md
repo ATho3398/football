@@ -1,6 +1,6 @@
 # football
 
-선수 시점 축구 커리어 게임 (1단계: 최소 플레이 루프). 기획은 `docs/game-design.md`.
+선수 시점 축구 커리어 게임. 기획과 개발 순서는 `docs/game-design.md`(17번 로드맵).
 
 ```bash
 npm install
