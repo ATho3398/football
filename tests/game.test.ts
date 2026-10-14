@@ -159,11 +159,12 @@ describe('팀 내 활약 업적 (5.3)', () => {
 });
 
 describe('위상 개인 기록 가산 (8.1, 부록 D.6 #3)', () => {
-  it('MOM 1회 +3, 골+어시 10개당 +10, 시즌 최대 +120', () => {
+  it('MOM 1회당, 골+어시 10개당 가산, 시즌 상한', () => {
+    const P = BALANCE.reputation.personal;
     const s = (goals: number, assists: number, moms: number) => ({ ...emptySeasonStats(), goals, assists, moms });
     expect(personalReputation(s(5, 4, 0))).toBe(0);
-    expect(personalReputation(s(12, 9, 2))).toBe(26);
-    expect(personalReputation(s(40, 30, 20))).toBe(120);
+    expect(personalReputation(s(12, 9, 2))).toBe(2 * P.perMom + 2 * P.goalInvolvements.points);
+    expect(personalReputation(s(60, 40, 30))).toBe(P.max);
   });
 });
 

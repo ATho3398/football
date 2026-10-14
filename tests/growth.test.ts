@@ -31,13 +31,14 @@ describe('레벨업', () => {
     expect(p).toMatchObject({ level: 3, unspentPoints: 15, xp: 10, totalXp: XP * 3 + 10 });
   });
 
-  it('OVR 80 을 넘으면 필요 XP 가 늘어난다: 기본 × (1 + (OVR - 80) × 0.04) (부록 D.6 #2)', () => {
+  it('OVR 80 을 넘으면 필요 XP 가 늘어난다: 기본 × (1 + (OVR - 80) × perOvr) (부록 D.6 #2)', () => {
     expect(xpToLevel(player({ attributes: flat(80) }))).toBe(XP);
     const p = player({ attributes: flat(90) });
     expect(playerOvr(p)).toBe(90);
-    expect(xpToLevel(p)).toBe(Math.round(XP * 1.4));
-    expect(addXp(p, XP)).toBe(0);
-    expect(addXp(p, Math.round(XP * 0.4))).toBe(1);
+    const need = Math.round(XP * (1 + 10 * BALANCE.growth.xpByOvr.perOvr));
+    expect(xpToLevel(p)).toBe(need);
+    expect(addXp(p, need - 1)).toBe(0);
+    expect(addXp(p, 1)).toBe(1);
   });
 });
 
@@ -130,10 +131,10 @@ describe('노화 (6.1)', () => {
     expect(a).toEqual(flat(80));
   });
 
-  it('신체: 30세 0.7, 32세 1.3, 36세 매년 -2 (부록 D.6 #6)', () => {
-    expect(avgDrop(30, physical)).toBeCloseTo(0.7, 1);
-    expect(avgDrop(32, physical)).toBeCloseTo(1.3, 1);
-    expect(avgDrop(36, physical)).toBe(2);
+  it('신체: 30세 -1, 32세 -2.2, 36세 -3 (부록 D.6 #6, 코드 세션 조정)', () => {
+    expect(avgDrop(30, physical)).toBe(1);
+    expect(avgDrop(32, physical)).toBeCloseTo(2.2, 1);
+    expect(avgDrop(36, physical)).toBe(3);
   });
 
   it('기술/수비/멘탈: 32세까지 변화 없음, 33세 2년에 -1꼴, 35세 -1, 37세 -2', () => {
@@ -180,7 +181,7 @@ describe('노련함 성장 (6.1.1)', () => {
 });
 
 describe('고령 XP 감쇠 (6.1)', () => {
-  it('29세 ×1, 30세 ×0.9, 32세 ×0.8, 34세 ×0.65, 36세 ×0.5 (부록 D.6 #4)', () => {
-    expect([29, 30, 31, 32, 34, 36, 37].map(veteranXpMultiplier)).toEqual([1, 0.9, 0.9, 0.8, 0.65, 0.5, 0.5]);
+  it('29세 ×1, 30세 ×0.75, 32세 ×0.6, 34세 ×0.45, 36세 ×0.3 (부록 D.6 #4, 코드 세션 조정)', () => {
+    expect([29, 30, 31, 32, 34, 36, 37].map(veteranXpMultiplier)).toEqual([1, 0.75, 0.75, 0.6, 0.45, 0.3, 0.3]);
   });
 });

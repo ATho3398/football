@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 6;
+export const BALANCE_VERSION = 7;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -15,7 +15,7 @@ export const BALANCE = {
   growth: {
     xpPerLevel: 200,
     /** OVR 연동 XP 요구량 (5.1, 부록 D.6 #2): 필요 XP = xpPerLevel × (1 + max(0, OVR - fromOvr) × perOvr) */
-    xpByOvr: { fromOvr: 80, perOvr: 0.04 },
+    xpByOvr: { fromOvr: 80, perOvr: 0.06 }, // 기획서 0.04, 부록 C.6
     pointsPerLevel: 5,
     /** 한 번의 레벨업에서 한 능력치에 올릴 수 있는 최대치 */
     maxRaisePerLevel: 3,
@@ -68,12 +68,12 @@ export const BALANCE = {
     /** 출전하지 못한 주에도 받는 훈련 XP */
     bench: 8,
     bigMatchMultiplier: 1.5,
-    /** 고령 XP 감쇠 (6.1): [이 나이부터, 배율]. 경기 XP와 결장 주 훈련 XP에만 적용 */
+    /** 고령 XP 감쇠 (6.1): [이 나이부터, 배율]. 경기 XP와 결장 주 훈련 XP에만 적용. 기획서 0.9/0.8/0.65/0.5, 부록 C.6 */
     veteranMultiplier: [
-      [30, 0.9],
-      [32, 0.8],
-      [34, 0.65],
-      [36, 0.5],
+      [30, 0.75],
+      [32, 0.6],
+      [34, 0.45],
+      [36, 0.3],
     ] as [number, number][],
   },
 
@@ -99,7 +99,7 @@ export const BALANCE = {
     /** 업적 XP 중 위상 점수로 쌓이는 비율 */
     fromAchievementXp: 1 / 2,
     /** 개인 기록 가산 (8.1, 부록 D.6 #3): MOM 1회당, 시즌 골+어시 per 개당 points, 시즌 합계 최대 max */
-    personal: { perMom: 3, goalInvolvements: { per: 10, points: 10 }, max: 120 },
+    personal: { perMom: 5, goalInvolvements: { per: 10, points: 25 }, max: 200 }, // 기획서 3 / 10 / 120, 부록 C.6
     /** 시즌당 감소 비율 */
     seasonDecay: 0.02,
     tierCuts: { normal: 0, special: 150, topClass: 350, worldClass: 600, legendary: 850 } satisfies Record<Tier, number>,
@@ -111,11 +111,11 @@ export const BALANCE = {
   // ── 노화 (6.1) ──
   // 능력치마다 [이 나이부터, 시즌당 평균 하락]. 소수는 확률 (0.5 = 능력치마다 50% 확률로 -1, 즉 2년에 -1꼴)
   aging: {
-    /** 속도, 가속, 민첩성, 체력, 근력, 점프 */
+    /** 속도, 가속, 민첩성, 체력, 근력, 점프. 기획서 0.7/1.3/2, 부록 C.6 */
     physical: [
-      [30, 0.7],
-      [32, 1.3],
-      [36, 2],
+      [30, 1],
+      [32, 2.2],
+      [36, 3],
     ] as [number, number][],
     /** 기술/수비/멘탈 */
     other: [
