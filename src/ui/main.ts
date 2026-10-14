@@ -1,7 +1,7 @@
 // 1단계 웹 UI (B.7): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임
 
 import {
-  ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup, type FieldAttribute,
+  ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute,
 } from '../attributes';
 import { BALANCE, type Difficulty } from '../config/balance';
 import {
@@ -16,7 +16,7 @@ import {
 import { sortedTable, teamById } from '../league';
 import { npcOvr } from '../npc';
 import {
-  allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, profileOf, type PlayablePosition,
+  allPositionOvrs, attributeOvrWeight, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, profileOf, type PlayablePosition,
 } from '../positions';
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
 import type { Tier } from '../types';
@@ -268,6 +268,16 @@ function allocateView(g: GameState): string {
   const p = g.player;
   const keys = profileOf(p.position).keys;
   const cap = p.allocation.levels * BALANCE.growth.maxRaisePerLevel;
+  // 포인트 1개당 OVR 상승량. 가장 효율 좋은 능력치 대비 비율로 ●●● 표시
+  const efficiency = (a: FieldAttribute) =>
+    attributeOvrWeight(p.position, a) / pointCost(p.attributes[a], p.potentialTier);
+  const maxEff = Math.max(...FIELD_ATTRIBUTES.map(efficiency));
+  const effDots = (a: FieldAttribute) => {
+    const r = efficiency(a) / maxEff;
+    if (r === 0) return '<span class="eff muted">OVR 무관</span>';
+    const n = r >= 0.66 ? 3 : r >= 0.33 ? 2 : 1;
+    return `<span class="eff eff-${n}">${'●'.repeat(n)}${'○'.repeat(3 - n)}</span>`;
+  };
   const groups = GROUP_NAMES.map((grp) => {
     const rows = (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => {
       const v = p.attributes[a];
@@ -279,6 +289,7 @@ function allocateView(g: GameState): string {
           <span class="name">${ATTRIBUTE_NAMES_KO[a]}</span>
           ${raised > 0 ? `<span class="small up">+${raised}</span>` : ''}
           <span class="val">${v}</span>
+          ${effDots(a)}
           <span class="cost">${costLabel}</span>
           <button class="mini" data-act="raise" data-attr="${a}" ${block ? 'disabled' : ''}>+</button>
         </div>`;
@@ -289,7 +300,7 @@ function allocateView(g: GameState): string {
   return `
     <div class="card" style="position:sticky;top:0;z-index:2">
       <div class="row between">
-        <div><h2 style="margin:0">포인트 찍기</h2><div class="small muted">한 능력치 최대 +${cap} (레벨업 ${p.allocation.levels}회분) · ★ 핵심 능력치</div></div>
+        <div><h2 style="margin:0">포인트 찍기</h2><div class="small muted">한 능력치 최대 +${cap} (레벨업 ${p.allocation.levels}회분) · ★ 핵심 능력치 · ●●● OVR 효율</div></div>
         <div class="center"><div class="ovr" style="font-size:30px">${p.unspentPoints}</div><div class="small muted">남은 포인트</div></div>
       </div>
       <div class="small" style="margin-top:6px">${p.position} OVR <b>${playerOvr(p)}</b></div>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BALANCE } from '../src/config/balance';
 import { autoAllocate, playerOvr } from '../src/growth';
 import { newGame, playRound, startNextSeason, type GameState } from '../src/game';
 import { buildSchedule } from '../src/league';
@@ -25,15 +26,17 @@ describe('경기 시뮬', () => {
     for (let s = 0; s < 20; s++) expect(simulateMatch(input, createRng(s))).toEqual(simulateMatch(input, createRng(s)));
   });
 
-  it('평점은 3.0~10.0, 출전하지 않으면 평점/XP 없음', () => {
+  it('평점은 3.0~10.0, 출전하지 않으면 평점 없이 훈련 XP 만', () => {
     for (let s = 0; s < 300; s++) {
       const r = simulateMatch(input, createRng(s));
       if (r.minutes === 0) {
-        expect(r).toMatchObject({ rating: null, xp: 0, goals: 0, assists: 0 });
+        expect(r).toMatchObject({ rating: null, xp: BALANCE.matchXp.bench, goals: 0, assists: 0 });
       } else {
         expect(r.rating).toBeGreaterThanOrEqual(3);
         expect(r.rating).toBeLessThanOrEqual(10);
         expect(r.goals + r.assists).toBeLessThanOrEqual(r.goalsFor);
+        // 지더라도 출전하면 XP 를 받는다
+        expect(r.xp).toBeGreaterThan(0);
       }
     }
   });

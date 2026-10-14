@@ -119,25 +119,22 @@ const PHYSICAL: readonly FieldAttribute[] = [
   ...ATTRIBUTE_GROUPS.pace, ...ATTRIBUTE_GROUPS.physical,
 ];
 
-/** 하락 폭에 배율을 곱하고 소수점은 확률로 반올림 */
-function scaledDrop(rng: Rng, base: number, mult: number): number {
-  const v = base * mult;
-  const lo = Math.floor(v);
-  return lo + (rng() < v - lo ? 1 : 0);
+/** 나이별 시즌당 평균 하락 (곡선 표에서 해당 나이의 마지막 구간) */
+export function agingRate(curve: readonly (readonly [number, number])[], age: number): number {
+  let rate = 0;
+  for (const [from, r] of curve) if (age >= from) rate = r;
+  return rate;
 }
 
-/** 노화 (6.1, 내 선수와 NPC 공통). age 는 그 시즌의 나이 */
+/** 노화 (6.1, 내 선수와 NPC 공통). age 는 그 시즌의 나이. 소수 하락은 능력치마다 확률로 */
 export function applyAging(attrs: FieldAttributes, age: number, rng: Rng): AttributeDelta {
   const A = BALANCE.aging;
   const delta: AttributeDelta = {};
-  const mult = age >= A.lateAge ? A.lateMultiplier : 1;
   for (const a of FIELD_ATTRIBUTES) {
-    const physical = PHYSICAL.includes(a);
-    if (physical && age >= A.physicalStartAge) {
-      bump(attrs, delta, a, -scaledDrop(rng, randInt(rng, A.physicalDrop.min, A.physicalDrop.max), mult));
-    } else if (!physical && age >= A.otherStartAge) {
-      bump(attrs, delta, a, -scaledDrop(rng, randInt(rng, A.otherDrop.min, A.otherDrop.max), mult));
-    }
+    const rate = agingRate(PHYSICAL.includes(a) ? A.physical : A.other, age);
+    if (rate === 0) continue;
+    const lo = Math.floor(rate);
+    bump(attrs, delta, a, -(lo + (rng() < rate - lo ? 1 : 0)));
   }
   return delta;
 }

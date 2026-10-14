@@ -81,40 +81,33 @@ describe('노화 (6.1)', () => {
   const physical = [...ATTRIBUTE_GROUPS.pace, ...ATTRIBUTE_GROUPS.physical] as FieldAttribute[];
   const other = FIELD_ATTRIBUTES.filter((a) => !physical.includes(a));
 
-  it('28세까지는 변화 없음', () => {
+  /** 시드 여러 개로 능력치 묶음별 평균 하락 */
+  function avgDrop(age: number, attrs: FieldAttribute[]): number {
+    let drop = 0;
+    for (let s = 0; s < 200; s++) {
+      const a = flat(80);
+      applyAging(a, age, createRng(s));
+      for (const k of attrs) drop += 80 - a[k];
+    }
+    return drop / (200 * attrs.length);
+  }
+
+  it('29세까지는 변화 없음', () => {
     const a = flat(80);
-    expect(applyAging(a, 28, createRng(1))).toEqual({});
+    expect(applyAging(a, 29, createRng(1))).toEqual({});
     expect(a).toEqual(flat(80));
   });
 
-  it('29세: 신체 능력치만 -1~2', () => {
-    const a = flat(80);
-    applyAging(a, 29, createRng(2));
-    for (const k of physical) expect(80 - a[k]).toBeGreaterThanOrEqual(1);
-    for (const k of physical) expect(80 - a[k]).toBeLessThanOrEqual(2);
-    for (const k of other) expect(a[k]).toBe(80);
+  it('신체: 30세 2년에 -1꼴, 32세 매년 -1, 36세 매년 -2', () => {
+    expect(avgDrop(30, physical)).toBeCloseTo(0.5, 1);
+    expect(avgDrop(32, physical)).toBe(1);
+    expect(avgDrop(36, physical)).toBe(2);
   });
 
-  it('33세: 기술/멘탈/수비도 -1', () => {
-    const a = flat(80);
-    applyAging(a, 33, createRng(3));
-    for (const k of other) expect(a[k]).toBe(79);
-  });
-
-  it('35세 이후 하락 폭 1.5배', () => {
-    let drop33 = 0;
-    let drop35 = 0;
-    for (let s = 0; s < 50; s++) {
-      const a = flat(80);
-      const b = flat(80);
-      applyAging(a, 33, createRng(s));
-      applyAging(b, 35, createRng(s));
-      for (const k of FIELD_ATTRIBUTES) {
-        drop33 += 80 - a[k];
-        drop35 += 80 - b[k];
-      }
-    }
-    expect(drop35 / drop33).toBeGreaterThan(1.35);
-    expect(drop35 / drop33).toBeLessThan(1.65);
+  it('기술/수비/멘탈: 32세까지 변화 없음, 33세 2년에 -1꼴, 35세 -1, 37세 -2', () => {
+    expect(avgDrop(32, other)).toBe(0);
+    expect(avgDrop(33, other)).toBeCloseTo(0.5, 1);
+    expect(avgDrop(35, other)).toBe(1);
+    expect(avgDrop(37, other)).toBe(2);
   });
 });

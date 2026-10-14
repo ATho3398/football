@@ -12,7 +12,7 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 export const BALANCE = {
   // ── 성장 (5.1, 6.2, B.5) ──
   growth: {
-    xpPerLevel: 160,
+    xpPerLevel: 200,
     pointsPerLevel: 5,
     /** 한 번의 레벨업에서 한 능력치에 올릴 수 있는 최대치 */
     maxRaisePerLevel: 3,
@@ -46,10 +46,14 @@ export const BALANCE = {
   matchXp: {
     ratingBase: 4.0,
     perRatingPoint: 10,
-    win: 5,
-    draw: 2,
-    loss: 0,
-    mom: 10,
+    /** 출전하면 결과와 무관하게 받는 XP (90분 기준, 출전 시간 비례) */
+    appearance: 8,
+    win: 8,
+    draw: 5,
+    loss: 3,
+    mom: 15,
+    /** 출전하지 못한 주에도 받는 훈련 XP */
+    bench: 8,
     bigMatchMultiplier: 1.5,
   },
 
@@ -76,13 +80,20 @@ export const BALANCE = {
   skillTierCuts: { normal: 0, special: 70, topClass: 77, worldClass: 84, legendary: 90 } satisfies Record<Tier, number>,
 
   // ── 노화 (6.1) ──
+  // 능력치마다 [이 나이부터, 시즌당 평균 하락]. 소수는 확률 (0.5 = 능력치마다 50% 확률로 -1, 즉 2년에 -1꼴)
   aging: {
-    physicalStartAge: 29,
-    physicalDrop: { min: 1, max: 2 },
-    otherStartAge: 33,
-    otherDrop: { min: 1, max: 1 },
-    lateAge: 35,
-    lateMultiplier: 1.5,
+    /** 속도, 가속, 민첩성, 체력, 근력, 점프 */
+    physical: [
+      [30, 0.5],
+      [32, 1],
+      [36, 2],
+    ] as [number, number][],
+    /** 기술/수비/멘탈 */
+    other: [
+      [33, 0.5],
+      [35, 1],
+      [37, 2],
+    ] as [number, number][],
   },
 
   // ── 은퇴 (1) ──

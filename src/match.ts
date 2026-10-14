@@ -50,7 +50,7 @@ export function startProbability(ovr: number, teamRating: number, fatigue: numbe
 /** 경기 XP (5.2) */
 export function matchXp(rating: number, outcome: MatchOutcome, mom: boolean, minutes: number, bigMatch: boolean, difficulty: Difficulty): number {
   const X = BALANCE.matchXp;
-  let xp = Math.max(0, (rating - X.ratingBase) * X.perRatingPoint);
+  let xp = Math.max(0, (rating - X.ratingBase) * X.perRatingPoint) + X.appearance;
   xp += outcome === 'win' ? X.win : outcome === 'draw' ? X.draw : X.loss;
   if (mom) xp += X.mom;
   xp *= Math.min(1, minutes / 90);
@@ -76,7 +76,8 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   const outcome: MatchOutcome = goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw';
 
   if (minutes === 0) {
-    return { goalsFor, goalsAgainst, outcome, started, minutes, goals: 0, assists: 0, rating: null, mom: false, xp: 0 };
+    const xp = Math.round(BALANCE.matchXp.bench * BALANCE.difficulty[input.difficulty].xp);
+    return { goalsFor, goalsAgainst, outcome, started, minutes, goals: 0, assists: 0, rating: null, mom: false, xp };
   }
 
   // 골/어시스트: 우리 팀 골마다 추첨

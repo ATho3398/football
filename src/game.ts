@@ -203,7 +203,6 @@ export function playRound(state: GameState): MatchReport {
 
   // 기록, XP, 피로
   const s = player.season;
-  let levelsGained = 0;
   if (result.minutes > 0) {
     s.apps++;
     if (result.started) s.starts++;
@@ -211,11 +210,12 @@ export function playRound(state: GameState): MatchReport {
     s.goals += result.goals;
     s.assists += result.assists;
     s.ratingSum += result.rating ?? 0;
-    s.matchXp += result.xp;
     if (result.mom) s.moms++;
-    levelsGained = addXp(player, result.xp);
     updateFatigueForMatch(player, result.minutes);
   }
+  // 결장한 주도 훈련 XP 를 받는다
+  s.matchXp += result.xp;
+  const levelsGained = addXp(player, result.xp);
 
   league.round++;
   const report: MatchReport = {
