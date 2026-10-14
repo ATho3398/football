@@ -11,7 +11,7 @@ import {
 import { deserialize, serialize } from '../src/save';
 
 function playSeason(s: GameState) {
-  while (s.phase === 'season') playRound(s);
+  while (s.phase === 'season') playRound(s, { engine: 'quick' });
 }
 
 describe('능력치 자동 생성 (23번)', () => {

@@ -23,6 +23,7 @@ import {
 } from '../positions';
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
 import type { Tier } from '../types';
+import { matchSummaryView } from './views/matchSummary';
 
 type Screen =
   | 'title' | 'new' | 'home' | 'match' | 'allocate' | 'player' | 'table' | 'stars' | 'season' | 'saves' | 'retired';
@@ -37,6 +38,8 @@ const ui = {
   game: null as GameState | null,
   toast: '' as string,
   coachComment: false,
+  /** 시즌 자동 진행 중 */
+  busy: false,
   /** 포인트 화면에 들어올 때의 OVR (소수). "OVR 현재 → 예상" 미리보기 기준 */
   allocStartOvr: 0,
   form: {
@@ -274,6 +277,7 @@ function matchView(g: GameState): string {
   const [hg, ag] = m.home ? [r.goalsFor, r.goalsAgainst] : [r.goalsAgainst, r.goalsFor];
   const outcome = r.outcome === 'win' ? '<span class="up">승리</span>' : r.outcome === 'loss' ? '<span class="down">패배</span>' : '<span class="muted">무승부</span>';
   const appearance = m.injured ? '부상으로 결장 (재활)'
+    : m.suspended ? '출장 정지로 결장'
     : r.minutes === 0 ? '결장 (벤치)' : r.started ? '선발 90분' : `교체 출전 ${r.minutes}분`;
   const ratingCls = r.rating === null ? '' : r.rating >= 7 ? 'good' : r.rating < 6 ? 'bad' : '';
   const seasonOver = g.phase !== 'season';
@@ -297,6 +301,7 @@ function matchView(g: GameState): string {
         <div><b class="gold">+${r.xp}</b><span>XP</span></div>
         <div><b>${r.mom ? '⭐' : '-'}</b><span>MOM</span></div>
       </div>
+      ${matchSummaryView({ engine: m.engine, cards: m.cards, banned: g.player.suspended > 0 && g.phase === 'season' })}
       ${m.injury ? `<div class="notice injury">🚑 부상! ${INJURY_NAMES_KO[m.injury.grade]} ${m.injury.weeksTotal}주 결장${
         Object.keys(m.injury.permanent).length ? `<div class="small">후유증: ${deltaList(m.injury.permanent)}</div>` : ''}</div>` : ''}
       ${m.recovered ? '<div class="notice">부상에서 회복했습니다. 다음 경기부터 출전할 수 있습니다.</div>' : ''}
@@ -639,14 +644,27 @@ app.addEventListener('click', (ev) => {
       afterRound();
       return;
     case 'sim-rest': {
-      if (!g || g.phase !== 'season') return;
+      if (!g || g.phase !== 'season' || ui.busy) return;
       if (!confirm('남은 경기를 모두 진행합니다. 포인트는 자동 배분됩니다. 계속할까요?')) return;
-      while (g.phase === 'season') {
+      // 경기 엔진은 한 경기에 약 0.5초가 걸리므로 라운드마다 화면에 진행 상황을 그린다
+      ui.busy = true;
+      const next = () => {
+        if (g.phase !== 'season') {
+          ui.busy = false;
+          ui.toast = '';
+          autosave();
+          go('season');
+          return;
+        }
         playRound(g);
         autoAllocate(g.player);
-      }
-      autosave();
-      go('season');
+        ui.toast = `자동 진행 중… ${g.league.round}/${g.league.schedule.length}라운드`;
+        render();
+        setTimeout(next, 0);
+      };
+      ui.toast = '자동 진행 중…';
+      render();
+      setTimeout(next, 0);
       return;
     }
     case 'raise': {

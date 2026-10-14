@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 9;
+export const BALANCE_VERSION = 10;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -278,6 +278,14 @@ export const BALANCE = {
       attrs: [1, 2] as [number, number],
       drop: [1, 3] as [number, number],
     },
+  },
+
+  // ── 징계 (부록 E.10) ──
+  discipline: {
+    /** 시즌 옐로 누적 이 장수마다 출장 정지 */
+    yellowBanEvery: 5,
+    /** 퇴장/누적 시 출장 정지 경기 수 */
+    banMatches: 1,
   },
 
   // ── 피로 (7.1) ──

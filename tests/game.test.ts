@@ -12,7 +12,7 @@ import { A_GRADE_PLAYERS } from '../data/players';
 
 function playSeason(s: GameState) {
   while (s.phase === 'season') {
-    playRound(s);
+    playRound(s, { engine: 'quick' });
     autoAllocate(s.player);
   }
 }
@@ -107,7 +107,7 @@ describe('시즌 진행', () => {
       let s = newGame({ mode: 'prospect', position: 'LW', name: 'A', seed: 'det', difficulty: 'hard' });
       for (let season = 0; season < 2; season++) {
         for (let r = 0; r < 38; r++) {
-          playRound(s);
+          playRound(s, { engine: 'quick' });
           autoAllocate(s.player);
           if (viaSave && r % 10 === 0) s = deserialize(serialize(s));
         }

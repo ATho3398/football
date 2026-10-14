@@ -52,6 +52,8 @@ export interface Agent {
   /** 경기 출전 시작/끝 시각 (초) */
   enteredAt: number;
   leftAt: number | null;
+  /** 평점 계산용 내부 기록 (E.12) */
+  rt: { forward: number; lost: number; dangerLost: number; conceded: number };
 }
 
 export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';
@@ -91,10 +93,13 @@ export interface Ball {
 }
 
 export type RestartType = 'kickoff' | 'throwIn' | 'goalKick' | 'corner' | 'freeKick' | 'penalty';
+export type CardType = 'yellow' | 'red';
 
 export interface Restart {
   type: RestartType;
   team: 0 | 1;
+  /** 간접 프리킥 (오프사이드 등): 직접 슛 불가 */
+  indirect?: boolean;
   x: number;
   y: number;
   at: number;
@@ -114,6 +119,8 @@ export interface SimState {
   input: EngineInput;
   seed: number;
   t: number;
+  /** 킥오프부터 실제 경과 시간 (초, 추가시간 포함). 출전 시간 계산용 */
+  elapsed: number;
   tick: number;
   half: 1 | 2;
   /** 이번 하프 종료 시각 (추가시간 포함) */
@@ -129,6 +136,18 @@ export interface SimState {
   possTeam: 0 | 1;
   possSince: number;
   restart: Restart | null;
+  /** 어드밴티지 보류 중인 파울 (E.10) */
+  advantage: { t: number; team: 0 | 1; x: number; y: number; card: CardType | null; fouler: number; value: number } | null;
+  /** 다음 경기 중단 때 줄 카드 */
+  pendingCards: { agent: number; card: CardType }[];
+  /** 스로인/골킥/코너 직후 첫 패스 (오프사이드 면제) */
+  exemptPass: boolean;
+  /** 마지막으로 공을 소유한 선수 (소유 상실 기록) */
+  lastOwner: number;
+  /** 마지막 소유 종료가 슈팅이었는가 (소유 상실로 치지 않음) */
+  lastWasShot: boolean;
+  /** 다음 교체 판단 시각 */
+  nextSubCheck: number;
   /** 마지막 성공 패스 (어시스트, 키패스) */
   lastPass: { passer: number; receiver: number; t: number } | null;
   events: MatchEvent[];

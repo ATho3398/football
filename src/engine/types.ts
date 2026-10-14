@@ -54,6 +54,8 @@ export interface EngineInput {
   neutral?: boolean;
   /** 내 선수 출전 구간(분). 선발이 아니면 교체 투입 */
   myMinutes?: { start: number; end: number };
+  /** 캘리브레이션/테스트용: 그 분에 해당 팀 미드필더 1명 퇴장 (E.15 퇴장 후 득점 차) */
+  forceRed?: { team: 0 | 1; minute: number };
 }
 
 export type EventType =

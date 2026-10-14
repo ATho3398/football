@@ -50,12 +50,16 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
   if (phase >= 0) x += F.attackShift[a.line] * phase * attackShiftScale;
   else x += F.defendShift[a.line] * -phase;
   x += F.blockX * (bx - 0.5);
-  y += F.blockY * (by - 0.5);
+  if (phase < 0 && a.line !== 0) {
+    // 수비 블록: 가로로 좁히고 공 쪽으로 쏠린다
+    const k = -phase;
+    y = 0.5 + (y - 0.5) * (1 - (1 - F.defendWidth) * k) + (F.blockY + (F.defendBlockY - F.blockY) * k) * (by - 0.5);
+  } else y += F.blockY * (by - 0.5);
   if (phase > 0 && a.line !== 0) {
     x += a.role.dx * phase;
     // dy: 측면 선호(+) / 중앙(−). 슬롯이 있는 쪽 터치라인 방향
     const side = a.sy < 0.5 ? -1 : a.sy > 0.5 ? 1 : 0;
-    y += a.role.dy * 0.1 * side * phase;
+    y += a.role.dy * F.roleDyScale * side * phase;
   }
   // 공 반대쪽 측면은 좁힌다
   if (Math.abs(a.sy - 0.5) > 0.25 && Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5)) {

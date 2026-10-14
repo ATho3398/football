@@ -40,7 +40,7 @@ export function ownGoal(dir: 1 | -1): [number, number] {
 /** 위치 가치 맵 (E.7). nx, ny 는 공격 방향 정규화 */
 export function positionValue(nx: number, ny: number): number {
   const O = ENGINE.onball;
-  const x = clamp(nx, 0, 1);
+  const x = clamp(nx, 0, O.valueXCap);
   return O.valueA + O.valueB * Math.pow(x, O.valueExp) * (1 - O.valueYk * Math.abs(clamp(ny, 0, 1) - 0.5));
 }
 

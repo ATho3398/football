@@ -7,6 +7,7 @@ import { manDiff } from './formation';
 import { claimProb, keeperOf, saveProb } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
+import { offsideRisk } from './referee';
 import type { Agent, Flight, SimState } from './state';
 
 const O = ENGINE.onball;
@@ -77,8 +78,13 @@ export function laneRisk(s: SimState, a: Agent, tx: number, ty: number): LaneInf
 export function passProbability(s: SimState, a: Agent, tx: number, ty: number, kind: 'pass' | 'cross', lane: LaneInfo): number {
   const d = dist(a.x, a.y, tx, ty);
   const skill = kind === 'cross' ? a.attrs.crossing : d <= PR.shortPassMax ? a.attrs.shortPassing : a.attrs.longPassing;
-  const p = PR.passBase - PR.passPerM * d + (PR.passSkill * (skill - 60)) / 100 - lane.risk - PR.pressurePenalty * pressureAt(s, a);
+  const p = PR.passBase - PR.passPerM * d + (PR.passSkill * (skill - 60)) / 100 - lane.risk - PR.pressurePenalty * pressureAt(s, a) + formBonus(a);
   return clamp(p, PR.passMin, PR.passMax);
+}
+
+/** 폼 보정 (E.16): 내 선수의 성공 확률에 ±3%p (폼 보정 ±0.3 × 0.1) */
+export function formBonus(a: Agent): number {
+  return a.spec.form * ENGINE.match.formToProb;
 }
 
 /** 소유 상실 비용: 상대가 그 위치에서 갖는 가치 */
@@ -114,12 +120,14 @@ function goalAngle(x: number, y: number, gx: number): number {
   return Math.abs(a2 - a1);
 }
 
-export function shotModel(s: SimState, a: Agent, header = false): ShotModel {
+export function shotModel(s: SimState, a: Agent, header = false, at?: { x: number; y: number }): ShotModel {
   const dir = attackDir(a.team, s.half);
   const [gx, gy] = oppGoal(dir);
-  const d = dist(a.x, a.y, gx, gy);
+  const px = at?.x ?? a.x;
+  const py = at?.y ?? a.y;
+  const d = dist(px, py, gx, gy);
   const t = a.attrs;
-  const pressure = pressureAt(s, a);
+  const pressure = pressureAt(s, a, px, py);
   let pOn: number;
   let speed: number;
   if (header) {
@@ -129,15 +137,15 @@ export function shotModel(s: SimState, a: Agent, header = false): ShotModel {
     const skill = d >= PR.longShotFrom
       ? t.longShots * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15
       : t.shooting * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15;
-    pOn = clamp(PR.shotBase + (PR.shotSkill * skill) / 100 - PR.shotPerM * d - PR.shotPressure * pressure, PR.shotMin, PR.shotMax);
+    pOn = clamp(PR.shotBase + (PR.shotSkill * skill) / 100 - PR.shotPerM * d - PR.shotPressure * pressure + formBonus(a), PR.shotMin, PR.shotMax);
     speed = B.shotSpeedMin + ((B.shotSpeedMax - B.shotSpeedMin) * t.shooting) / 100;
   }
-  pOn *= Math.min(1, goalAngle(a.x, a.y, gx) / PR.shotAngleRef);
+  pOn *= Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
   let blockers = 0;
   if (!header) {
     for (const o of s.agents) {
       if (!o.onPitch || o.team === a.team || o.line === 0) continue;
-      const [cd, ct] = segDist(o.x, o.y, a.x, a.y, gx, gy);
+      const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
     }
   }
@@ -177,6 +185,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const safeMul = manDiff(s, a.team) < 0 ? ENGINE.referee.shortSafe : 1;
   const isGk = a.line === 0;
   const out: Candidate[] = [];
+  const [gx0, gy0] = oppGoal(dir);
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -188,12 +197,23 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const tx = clamp(r.x + r.vx * lead, 1, L - 1);
     const ty = clamp(r.y + r.vy * lead, 1, W - 1);
     const lane = laneRisk(s, a, tx, ty);
-    const p = passProbability(s, a, tx, ty, 'pass', lane);
+    const rp = Math.max(0, 1 - nearestOpponent(s, r, tx, ty)[1] / PR.receiverPressureDist);
+    const p = clamp(passProbability(s, a, tx, ty, 'pass', lane) - PR.receiverPressure * rp, PR.passMin, PR.passMax);
     const [rx, ry] = toNorm(tx, ty, dir);
-    const value = positionValue(rx, ry) - pressureAt(s, r, tx, ty) * 0.01;
+    let value = positionValue(rx, ry) - rp * PR.receiverValueCost;
+    // 받는 자리에서 슛을 노릴 수 있으면 그 기대값도 가치로 본다 (컷백, 레이오프)
+    if (dist(tx, ty, gx0, gy0) <= PR.shotMaxDist && rx > 0.6) {
+      value = Math.max(value, shotModel(s, r, false, { x: tx, y: ty }).xg * PR.shotValue + PR.shotBias * O.passShotShare);
+    }
     let u = p * value + (1 - p) * lossCost(rx, ry);
+    // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
+    const pOff = offsideRisk(s, a, r);
+    if (pOff > 0) u = (1 - pOff) * u + pOff * lossCost(rx, ry);
     const forward = rx > ax + 0.03;
     u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul));
+    const lp = s.lastPass;
+    if (lp && lp.passer === r.idx && lp.receiver === a.idx && s.t - lp.t < O.returnPassWindow) u -= O.returnPassPenalty;
+    if (value <= here) u -= O.noGainCost;
     out.push({ type: running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value });
   }
 
@@ -222,7 +242,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       }
       const value = positionValue(nx, ny);
       if (def) {
-        const p = dribbleProb(a, def, second ? -PR.spaceSecondPenalty : 0);
+        const p = clamp(dribbleProb(a, def, second ? -PR.spaceSecondPenalty : 0) + formBonus(a), 0.02, 0.98);
         const u = weight(p * (value + 0.01) + (1 - p) * lossHere, a.role.pref.dribble) - O.dribbleCost;
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
@@ -236,7 +256,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const [gx, gy] = oppGoal(dir);
     if (dist(a.x, a.y, gx, gy) <= PR.shotMaxDist && ax > 0.6) {
       const m = shotModel(s, a);
-      const u = weight(m.xg * PR.shotValue + (1 - m.xg) * -O.lossBase * 0.5, a.role.pref.shoot);
+      const u = weight(m.xg * PR.shotValue + (m.d >= PR.longShotFrom && a.line >= 2 && a.pos !== 'ST' && a.pos !== 'CF' ? PR.shotBias : 0) + (1 - m.xg) * -O.lossBase * 0.5, a.role.pref.shoot);
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.xg });
     }
 

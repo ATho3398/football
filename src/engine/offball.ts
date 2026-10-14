@@ -122,6 +122,7 @@ export function updateOffball(s: SimState, a: Agent): void {
       keeperTarget(s, a);
       return;
     }
+    if (setPieceTarget(s, a)) return;
     const [nx, ny] = slotTarget(s, a);
     // 프리킥/코너 등에서 공 근처 9 m 밖
     let [x, y] = toPitch(nx, ny, dir);
@@ -175,11 +176,18 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 라인을 타는 정확도: 능력치가 낮을수록 라인보다 앞에 설 확률이 높다
   const sigma = ((100 - a.attrs.offTheBall) * O.offsideSigma) / L;
   if (running) {
-    nx = line + a.errX * sigma * 3;
+    nx = line + a.errX * sigma * O.runLineError;
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
   } else if (a.line >= 2) {
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
+  }
+  // 박스 진입: 공이 최종 3분의 1이면 침투 성향 미드/윙어가 박스 안으로 (오프사이드 라인 안쪽)
+  if (!running && owner && owner.team === a.team && owner !== a && a.line >= 2 && a.role.run >= O.boxArrivalRun && bnx > O.boxArrivalFrom) {
+    nx = Math.max(nx, Math.min(O.boxArrivalX, line - 0.5 / L));
+    ny = 0.5 + (a.sy - 0.5) * 0.45;
+    const [px, py] = toPitch(nx, ny, dir);
+    urgent = dist(px, py, a.x, a.y) > 12;
   }
   // 내려와서 받기 / 지원 간격
   if (owner && owner.team === a.team && owner !== a) {
@@ -197,7 +205,6 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       ny += (oy - ny) * 0.15;
     }
   }
-  void bnx;
   void bny;
   setTarget(a, nx, ny, dir, urgent);
 }
@@ -251,9 +258,16 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   if (mark) {
     const [gx, gy] = ownGoal(dir);
     const gd = dist(mark.x, mark.y, gx, gy) || 1;
+    const bd = dist(mark.x, mark.y, b.x, b.y) || 1;
+    // 골 쪽과 공 쪽 사이 (패스 경로를 막는 위치)
+    let ux = ((gx - mark.x) / gd) * (1 - O.markBallSide) + ((b.x - mark.x) / bd) * O.markBallSide;
+    let uy = ((gy - mark.y) / gd) * (1 - O.markBallSide) + ((b.y - mark.y) / bd) * O.markBallSide;
+    const un = Math.sqrt(ux * ux + uy * uy) || 1;
+    ux /= un;
+    uy /= un;
     const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
-    const mx = mark.x + ((gx - mark.x) / gd) * O.markGoalSide + a.errX * sigma;
-    const my = mark.y + ((gy - mark.y) / gd) * O.markGoalSide + a.errY * sigma;
+    const mx = mark.x + ux * O.markGoalSide + a.errX * sigma;
+    const my = mark.y + uy * O.markGoalSide + a.errY * sigma;
     const [mnx, mny] = toNorm(mx, my, dir);
     if (a.line === 1) {
       ny = ny * 0.5 + mny * 0.5;
@@ -275,4 +289,41 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 export function refreshErrors(s: SimState, a: Agent): void {
   a.errX = randn(s.seed, s.tick, a.idx, Purpose.Mark, 0);
   a.errY = randn(s.seed, s.tick, a.idx, Purpose.Mark, 1);
+}
+
+/**
+ * 세트피스 위치 (코너, 상대 골 35 m 안 프리킥): 공격 팀은 CB·공격수·공중볼 좋은 미드가 박스로,
+ * 수비 팀은 공격수 1명을 빼고 박스 안으로
+ */
+function setPieceTarget(s: SimState, a: Agent): boolean {
+  const r = s.restart!;
+  const attTeam = r.team;
+  const dirAtt = attackDir(attTeam, s.half);
+  const [gx, gy] = [dirAtt > 0 ? L : 0, W / 2];
+  const near = r.type === 'corner' || (r.type === 'freeKick' && dist(r.x, r.y, gx, gy) < 35);
+  if (!near) return false;
+  const mates = s.agents
+    .filter((o) => o.onPitch && o.team === a.team && o.line !== 0 && o.idx !== r.taker)
+    .sort((x, y) => (y.attrs.heading + y.attrs.jumping) - (x.attrs.heading + x.attrs.jumping));
+  const k = mates.indexOf(a);
+  if (k < 0) return false;
+  if (a.team === attTeam) {
+    // 공중볼 상위 5명 박스 안, 2명 박스 바깥, 나머지 하프라인 쪽
+    if (k < 5) {
+      a.tx = gx - dirAtt * (6 + (k % 3) * 3);
+      a.ty = gy - 8 + k * 4;
+    } else if (k < 7) {
+      a.tx = gx - dirAtt * 20;
+      a.ty = gy + (k === 5 ? -10 : 10);
+    } else return false;
+    a.urgent = false;
+    return true;
+  }
+  // 수비: 가장 앞선 공격수 1명은 남고 나머지는 박스 안
+  const forward = mates.slice().sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
+  if (a === forward) return false;
+  a.tx = gx - dirAtt * (3 + (k % 4) * 3);
+  a.ty = gy - 10 + (k % 7) * 3.3;
+  a.urgent = false;
+  return true;
 }

@@ -5,7 +5,8 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb } from './duel';
 import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
-import { makePass, shotModel, type Candidate } from './onball';
+import { crossTarget, makePass, shotModel, type Candidate } from './onball';
+import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, Flight, SimState } from './state';
@@ -36,7 +37,15 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
     case 'through': {
       a.stats.passes++;
       team.stats.passes++;
-      launch(s, a, makePass(s, a, c));
+      const fl = makePass(s, a, c);
+      const receiver = s.agents[c.receiver]!;
+      const offside = fl.outcome === 'receive' && isOffside(s, a, receiver);
+      s.exemptPass = false;
+      if (offside) {
+        callOffside(s, a, receiver);
+        return;
+      }
+      launch(s, a, fl);
       return;
     }
     case 'dribble':
@@ -94,13 +103,15 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
     a.ty = c.y;
     a.urgent = true;
     a.cooldown = Math.max(ENGINE.onball.carryTime, reaction(a));
+    // 제쳐진 수비수의 파울 (태클 실패)
+    if (r(s, def.idx, Purpose.Foul, 1) < ENGINE.referee.tackleFoul * foulFactor(s, a, a.x, a.y, def)) foul(s, def, a, a.x, a.y);
     return;
   }
   tackleWon(s, a, def);
 }
 
 /** 수비수가 시도하는 태클 (E.8). 성공 = 1 − 드리블 성공. 실패하면 제쳐짐 (파울은 E3 referee) */
-export function tryTackles(s: SimState, onFoul?: (att: Agent, def: Agent) => boolean): void {
+export function tryTackles(s: SimState): void {
   const o = s.agents[s.ball.owner];
   if (!o || o.line === 0) return;
   for (const d of s.agents) {
@@ -117,7 +128,10 @@ export function tryTackles(s: SimState, onFoul?: (att: Agent, def: Agent) => boo
     d.stats.tackles++;
     s.teams[d.team].stats.tackles++;
     d.beatenUntil = s.t + PR.beatenTime;
-    if (onFoul?.(o, d)) return;
+    if (r(s, d.idx, Purpose.Foul) < ENGINE.referee.tackleFoul * foulFactor(s, o, o.x, o.y, d)) {
+      foul(s, d, o, o.x, o.y);
+      return;
+    }
   }
 }
 
@@ -135,6 +149,8 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
   a.cooldown = 1;
   s.ball.lastTouch = a.idx;
   s.ball.lastTeam = a.team;
+  s.lastWasShot = true;
+  s.exemptPass = false;
 
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
@@ -224,6 +240,7 @@ function goal(s: SimState, scorer: Agent): void {
     home: s.teams[0].stats.goals, away: s.teams[1].stats.goals,
   });
   s.lastPass = null;
+  for (const o of s.agents) if (o.onPitch && o.team !== scorer.team) o.rt.conceded++;
   setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, ENGINE.restart.goalDelay);
 }
 
@@ -234,6 +251,13 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   a.stats.passes++;
   t.stats.passes++;
   t.stats.crosses++;
+  const target = s.agents[c.receiver];
+  const exempt = s.exemptPass;
+  s.exemptPass = false;
+  if (target && !exempt && isOffside(s, a, target)) {
+    callOffside(s, a, target);
+    return;
+  }
   const [, nd] = nearestOppOf(s, a);
   if (nd < 2.5 && r(s, a.idx, Purpose.Cross, 2) < PR.crossBlockCorner) {
     t.stats.corners++;
@@ -252,6 +276,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
 }
 
 export function longBall(s: SimState, a: Agent, x: number, y: number, kind: 'clear' | 'long'): void {
+  s.exemptPass = false;
   const err = (100 - a.attrs.longPassing) * 0.08 + 2;
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
@@ -297,7 +322,14 @@ function resolveAerial(s: SimState, fl: Flight): void {
   if (bestA && bestD) {
     s.teams[0].stats.aerials++;
     s.teams[1].stats.aerials++;
-    winner = r(s, bestA.idx, Purpose.Aerial) < aerialWin(bestA, bestD) ? bestA : bestD;
+    if (r(s, bestA.idx, Purpose.Foul, 2) < ENGINE.referee.aerialFoul * foulFactor(s, bestA, b.x, b.y)) {
+      // 공중볼 몸싸움 파울: 대부분 수비 쪽 파울
+      const defFoul = r(s, bestA.idx, Purpose.Foul, 3) < 0.7;
+      foul(s, defFoul ? bestD : bestA, defFoul ? bestA : bestD, b.x, b.y);
+      return;
+    }
+    const pA = 1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0))));
+    winner = r(s, bestA.idx, Purpose.Aerial) < pA ? bestA : bestD;
     winner.stats.aerialsWon++;
   } else winner = (bestA ?? bestD)!;
 
@@ -385,6 +417,7 @@ export function resolveFlight(s: SimState): void {
         passer.stats.passesCompleted++;
         s.teams[passer.team].stats.passesCompleted++;
         s.lastPass = { passer: passer.idx, receiver: rc.idx, t: s.t };
+        if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
         return;
       }
       break;
@@ -423,4 +456,100 @@ function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {
     }
   }
   return [best, bd];
+}
+
+// ── 세트피스 (E.10) ──
+
+/** 코너: 박스 안 공중볼 최고 동료에게 크로스 (가끔 짧은 패스) */
+export function takeCorner(s: SimState, a: Agent): boolean {
+  if (rand(s.seed, s.tick, a.idx, Purpose.Corner) < ENGINE.setPiece.shortCorner) return false;
+  const ct = crossTarget(s, a);
+  if (!ct) return false;
+  s.exemptPass = true;
+  cross(s, a, { type: 'cross', p: 0.3, u: 0, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
+  return true;
+}
+
+/** 직접 프리킥: 30 m 이내, 골문이 보이면 슛 (벽 블록 확률), 측면이면 크로스. 아니면 일반 판단 */
+export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean {
+  const dir = attackDir(a.team, s.half);
+  const [gx, gy] = oppGoal(dir);
+  const d = dist(a.x, a.y, gx, gy);
+  const central = Math.abs(a.y - gy) < 15;
+  if (!indirect && d <= ENGINE.setPiece.directMax && central && r(s, a.idx, Purpose.FreeKick, 9) < ENGINE.setPiece.directChance) {
+    const t = s.teams[a.team];
+    a.stats.shots++;
+    t.stats.shots++;
+    s.lastWasShot = true;
+    event(s, 'freeKick', a.team, [a.id], { direct: 1 });
+    if (r(s, a.idx, Purpose.FreeKick) < ENGINE.setPiece.wallBlock) {
+      event(s, 'block', a.team, [a.id]);
+      const ang = r(s, a.idx, Purpose.FreeKick, 1) * Math.PI * 2;
+      looseBall(s, a.x + dir * 9, a.y, Math.cos(ang) * 6, Math.sin(ang) * 6, (1 - a.team) as 0 | 1);
+      return true;
+    }
+    const skill = a.attrs.freeKick * 0.7 + a.attrs.composure * 0.3;
+    const pOn = clamp(PR.shotBase + (PR.shotSkill * skill) / 100 - PR.shotPerM * d, PR.shotMin, PR.shotMax) * ENGINE.setPiece.directAccuracy;
+    const speed = ENGINE.ball.shotSpeedMin + ((ENGINE.ball.shotSpeedMax - ENGINE.ball.shotSpeedMin) * a.attrs.freeKick) / 100;
+    const side = r(s, a.idx, Purpose.FreeKick, 2) < 0.5 ? -1 : 1;
+    if (r(s, a.idx, Purpose.FreeKick, 3) < pOn) {
+      t.stats.shotsOnTarget++;
+      a.stats.shotsOnTarget++;
+      const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * (0.6 + (0.6 * a.attrs.freeKick) / 100), 0, 1);
+      s.ball.owner = -1;
+      s.ball.flight = {
+        kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,
+        passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d, header: false },
+      };
+    } else {
+      s.ball.owner = -1;
+      s.ball.flight = {
+        kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: gy + side * (G / 2 + 1 + r(s, a.idx, Purpose.FreeKick, 5) * 4),
+        t0: s.t, dur: (d + 3) / speed, air: true, passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
+      };
+    }
+    return true;
+  }
+  // 측면 프리킥: 크로스
+  const [nx] = [dir > 0 ? a.x / L : 1 - a.x / L];
+  if (nx > 0.65 && d < 40) {
+    const ct = crossTarget(s, a);
+    if (ct) {
+      cross(s, a, { type: 'cross', p: 0.3, u: 0, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
+      return true;
+    }
+  }
+  return false;
+}
+
+/** PK (E.10): 키커의 슈팅과 침착성, GK 선방 */
+export function takePenalty(s: SimState, a: Agent): void {
+  const SP = ENGINE.setPiece;
+  const def = (1 - a.team) as 0 | 1;
+  const gk = keeperOf(s, def);
+  const kick = (a.attrs.shooting + a.attrs.composure) / 2;
+  const p = clamp(SP.penaltyBase + (SP.penaltySkill * (kick - 75)) / 100 - (SP.penaltyKeeper * ((gk?.gk?.attrs.shotStopping ?? 20) - 70)) / 100, 0.4, 0.95);
+  const t = s.teams[a.team];
+  a.stats.shots++;
+  t.stats.shots++;
+  s.lastWasShot = true;
+  event(s, 'penalty', a.team, [a.id]);
+  const dir = attackDir(a.team, s.half);
+  if (r(s, a.idx, Purpose.Penalty) < p) {
+    t.stats.shotsOnTarget++;
+    a.stats.shotsOnTarget++;
+    s.lastPass = null;
+    goal(s, a);
+    return;
+  }
+  if (r(s, a.idx, Purpose.Penalty, 1) < SP.penaltySaveShare) {
+    t.stats.shotsOnTarget++;
+    a.stats.shotsOnTarget++;
+    s.teams[def].stats.saves++;
+    event(s, 'save', def, [gk?.id ?? '', a.id]);
+    const ang = (r(s, a.idx, Purpose.Penalty, 2) - 0.5) * 2;
+    looseBall(s, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
+    return;
+  }
+  setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, ENGINE.restart.goalKickDelay);
 }

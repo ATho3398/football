@@ -42,7 +42,7 @@ describe('폼 (부록 D.1)', () => {
   it('경기를 치르면 출전 경기 평점이 쌓인다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'form', difficulty: 'normal' });
     let apps = 0;
-    for (let i = 0; i < 10; i++) if (playRound(s).result.minutes > 0) apps++;
+    for (let i = 0; i < 10; i++) if (playRound(s, { engine: 'quick' }).result.minutes > 0) apps++;
     expect(s.player.recentRatings).toHaveLength(Math.min(5, apps));
   });
 });

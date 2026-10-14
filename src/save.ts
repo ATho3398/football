@@ -69,6 +69,14 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     const done = s.league.season - BALANCE.newGame.startYear + (s.phase === 'season' ? 0 : 1);
     s.roster = { updates: Math.max(0, done) };
   },
+  // 5 → 6: 카드와 출장 정지 (부록 E.10). 기록은 0, 정지 없음
+  5: (s) => {
+    s.player.suspended = 0;
+    for (const st of [s.player.season, ...s.player.history]) {
+      st.yellows = 0;
+      st.reds = 0;
+    }
+  },
 };
 
 export function migrate(raw: any): GameState {

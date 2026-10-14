@@ -4,7 +4,10 @@ import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../at
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
 import { lineOf } from './formation';
-import { execute, resolveFlight, tryTackles } from './actions';
+import { execute, resolveFlight, takeCorner, takeFreeKick, takePenalty, tryTackles } from './actions';
+import { computeRatings } from './rating';
+import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
+import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
@@ -65,6 +68,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false,
     stats: emptyPlayerStats(spec.id, team, pos), enteredAt: 0, leftAt: null,
+    rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 },
   };
   initPhysics(a);
   a.judgement = judgementOf(a);
@@ -84,7 +88,7 @@ export function createState(input: EngineInput): SimState {
   });
   const added1 = 60 * (T.addedFirst[0] + Math.floor(rand(input.seed, 0, 0, Purpose.Added) * (T.addedFirst[1] - T.addedFirst[0] + 1)));
   const s: SimState = {
-    input, seed: input.seed >>> 0, t: 0, tick: 0, half: 1, halfEnd: T.halfSeconds + added1,
+    input, seed: input.seed >>> 0, t: 0, elapsed: 0, tick: 0, half: 1, halfEnd: T.halfSeconds + added1,
     agents, bench,
     ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0 },
     bsx: L / 2, bsy: W / 2,
@@ -92,7 +96,8 @@ export function createState(input: EngineInput): SimState {
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
       tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3,
     })) as SimState['teams'],
-    possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [], done: false, offsideX: [0.5, 0.5],
+    possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
+    advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5],
   };
   kickoffPositions(s);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
@@ -110,8 +115,13 @@ function executeRestart(s: SimState): void {
   setOwner(s, taker);
   taker.cooldown = 0;
   s.possSince = s.t - ENGINE.formation.attackPhaseDelay * 0.5;
-  const typeEvent = r.type === 'kickoff' ? null : r.type;
-  if (typeEvent) event(s, typeEvent, r.team, [taker.id]);
+  if (r.type !== 'kickoff' && r.type !== 'penalty' && r.type !== 'freeKick') event(s, r.type, r.team, [taker.id]);
+  s.exemptPass = r.type === 'throwIn' || r.type === 'goalKick' || r.type === 'corner';
+  if (r.type === 'penalty') takePenalty(s, taker);
+  else if (r.type === 'corner') takeCorner(s, taker);
+  else if (r.type === 'freeKick') {
+    if (!takeFreeKick(s, taker, r.indirect ?? false)) event(s, 'freeKick', r.team, [taker.id]);
+  }
 }
 
 /** 소유자 결정 */
@@ -189,13 +199,23 @@ function startSecondHalf(s: SimState): void {
 
 function finish(s: SimState): void {
   s.done = true;
-  for (const a of s.agents) a.leftAt ??= s.t;
+  for (const a of s.agents) a.leftAt ??= s.elapsed;
   event(s, 'fulltime', 0, []);
 }
 
 export function step(s: SimState): void {
   if (s.done) return;
   const dt = T.dt;
+
+  checkAdvantage(s);
+  if (s.restart && s.pendingCards.length) issuePendingCards(s);
+  const fr = s.input.forceRed;
+  if (fr && Math.abs(s.t - fr.minute * 60) < dt / 2) {
+    const victim = s.agents.find((a) => a.onPitch && a.team === fr.team && a.line === 2 && !a.spec.isMe);
+    if (victim) giveCard(s, victim, 'red');
+  }
+  aiSubs(s);
+  myMinutes(s);
 
   if (s.restart && s.t >= s.restart.at) {
     const taker = s.agents[s.restart.taker];
@@ -218,7 +238,7 @@ export function step(s: SimState): void {
   if (b.owner >= 0 && !s.restart) {
     const o = s.agents[b.owner]!;
     if (o.cooldown <= 0) decide(s, o);
-    else tryTackles(s);
+    else if (!contactFouls(s)) tryTackles(s);
   }
 
   // 이동
@@ -253,6 +273,7 @@ export function step(s: SimState): void {
   s.bsy += (b.y - s.bsy) * k;
 
   s.t += dt;
+  s.elapsed += dt;
   s.tick++;
   if (s.t >= s.halfEnd) {
     if (s.half === 1) {
@@ -272,13 +293,13 @@ export function frameOf(s: SimState): Frame {
 }
 
 export function buildResult(s: SimState): EngineResult {
-  const firstHalf = s.events.find((e) => e.type === 'halftime')?.t ?? T.halfSeconds;
-  const duration = firstHalf + Math.max(0, s.t - T.halfSeconds);
+  const duration = Math.max(1, s.elapsed);
   const all = [...s.agents, ...s.bench[0], ...s.bench[1]];
-  const players = all
-    .filter((a) => a.leftAt !== null || a.onPitch)
+  const played = all.filter((a) => a.leftAt !== null || a.onPitch);
+  computeRatings(s, played, duration);
+  const players = played
     .map((a) => {
-      const played = (a.leftAt ?? s.t) - a.enteredAt;
+      const played = (a.leftAt ?? s.elapsed) - a.enteredAt;
       return { ...a.stats, minutes: Math.round(Math.min(90, (played / duration) * 90)) };
     });
   const myId = s.input.myPlayerId;

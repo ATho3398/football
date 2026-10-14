@@ -15,8 +15,21 @@ export function reaction(a: Agent): number {
   return T.reactionBase - T.reactionSlope * a.judgement;
 }
 
+/** 소유 팀이 바뀔 때 마지막 소유자의 소유 상실 기록 (슈팅으로 끝난 경우 제외, E.12) */
+function recordLoss(s: SimState, newTeam: 0 | 1): void {
+  if (s.possTeam === newTeam || s.lastOwner < 0 || s.lastWasShot) return;
+  const lo = s.agents[s.lastOwner];
+  if (!lo || lo.team === newTeam) return;
+  lo.rt.lost++;
+  const nx = attackDir(lo.team, s.half) > 0 ? lo.x / L : 1 - lo.x / L;
+  if (nx < 1 / 3) lo.rt.dangerLost++;
+}
+
 export function setOwner(s: SimState, a: Agent): void {
   const b = s.ball;
+  recordLoss(s, a.team);
+  s.lastOwner = a.idx;
+  s.lastWasShot = false;
   b.owner = a.idx;
   b.flight = null;
   b.vx = b.vy = 0;
@@ -81,6 +94,8 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
       }
     }
   }
+  if (type !== 'kickoff') recordLoss(s, team);
+  s.lastWasShot = false;
   s.restart = { type, team, x: b.x, y: b.y, at: s.t + delay, taker: pick };
   if (s.possTeam !== team) s.possSince = s.t;
   s.possTeam = team;
