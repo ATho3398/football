@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { autoAllocate, playerOvr } from '../src/growth';
-import { newGame, playRound, ratingRank, seasonAchievements, startNextSeason, type GameState } from '../src/game';
+import { emptySeasonStats, newGame, personalReputation, playRound, ratingRank, seasonAchievements, startNextSeason, type GameState } from '../src/game';
 import { buildSchedule } from '../src/league';
 import { simulateMatch, type MatchInput } from '../src/match';
 import { createNpc, growNpc, npcOvr } from '../src/npc';
@@ -155,6 +155,15 @@ describe('팀 내 활약 업적 (5.3)', () => {
     g.league.table.find((r) => r.teamId === g.player.teamId)!.points = 100;
     expect(expected).toBeGreaterThanOrEqual(4);
     expect(labels(g)).toContain('언더독 돌풍');
+  });
+});
+
+describe('위상 개인 기록 가산 (8.1, 부록 D.6 #3)', () => {
+  it('MOM 1회 +3, 골+어시 10개당 +10, 시즌 최대 +120', () => {
+    const s = (goals: number, assists: number, moms: number) => ({ ...emptySeasonStats(), goals, assists, moms });
+    expect(personalReputation(s(5, 4, 0))).toBe(0);
+    expect(personalReputation(s(12, 9, 2))).toBe(26);
+    expect(personalReputation(s(40, 30, 20))).toBe(120);
   });
 });
 

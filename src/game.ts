@@ -301,6 +301,13 @@ export function seasonAchievements(player: PlayerState, league: LeagueState): { 
   return out;
 }
 
+/** 개인 기록 위상 가산 (8.1): MOM, 골+어시. 시즌 상한 있음 */
+export function personalReputation(s: SeasonStats): number {
+  const P = BALANCE.reputation.personal;
+  const gi = Math.floor((s.goals + s.assists) / P.goalInvolvements.per) * P.goalInvolvements.points;
+  return Math.min(P.max, s.moms * P.perMom + gi);
+}
+
 /** 시즌 종료 (B.5): 업적 XP → 위상 → 자동 성장 → 노련함 → 노화 → 나이 +1 → 기록 저장 */
 export function endSeason(state: GameState): SeasonSummary {
   const { player, league } = state;
@@ -319,7 +326,8 @@ export function endSeason(state: GameState): SeasonSummary {
 
   // 2. 위상
   const reputationBefore = player.reputation;
-  player.reputation = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + baseXp * R.fromAchievementXp));
+  const repGain = baseXp * R.fromAchievementXp + personalReputation(player.season);
+  player.reputation = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
 
   // 3~4. 자동 성장, 노련함, 노화
   const autoGrowth = applyAutoGrowth(player.attributes, age, player.potentialTier, rng);

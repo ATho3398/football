@@ -97,7 +97,9 @@ export const BALANCE = {
   reputation: {
     max: 1000,
     /** 업적 XP 중 위상 점수로 쌓이는 비율 */
-    fromAchievementXp: 1 / 3,
+    fromAchievementXp: 1 / 2,
+    /** 개인 기록 가산 (8.1, 부록 D.6 #3): MOM 1회당, 시즌 골+어시 per 개당 points, 시즌 합계 최대 max */
+    personal: { perMom: 3, goalInvolvements: { per: 10, points: 10 }, max: 120 },
     /** 시즌당 감소 비율 */
     seasonDecay: 0.02,
     tierCuts: { normal: 0, special: 150, topClass: 350, worldClass: 600, legendary: 850 } satisfies Record<Tier, number>,
