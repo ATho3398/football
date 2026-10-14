@@ -12,3 +12,5 @@ npm run balance    # 잠재력 티어별 17~30세 OVR 추이 (밸런스 점검)
 ```
 
 밸런스 수치는 모두 `src/config/balance.ts` 한 곳에 있다.
+
+플레이: https://atho3398.github.io/football/ (main 브랜치에 푸시하면 GitHub Actions 가 자동 배포)
