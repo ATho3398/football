@@ -57,6 +57,21 @@ export type PlayerData = FieldPlayerData | GoalkeeperData;
 // ── 게임 진행 상태 (1단계) ──
 
 
+export type InjuryGrade = 'minor' | 'major' | 'seasonEnding';
+
+/** 부상 (7.3) */
+export interface Injury {
+  grade: InjuryGrade;
+  weeksTotal: number;
+  /** 남은 결장 주. 0 이 되면 회복 */
+  weeksLeft: number;
+  /** 다친 시즌과 라운드(1부터) */
+  season: number;
+  round: number;
+  /** 영구 하락한 신체 능력치 */
+  permanent: Partial<Record<FieldAttribute, number>>;
+}
+
 /** 시즌 중 누적 기록 */
 export interface SeasonStats {
   apps: number;
@@ -67,6 +82,9 @@ export interface SeasonStats {
   ratingSum: number;
   matchXp: number;
   moms: number;
+  /** 부상 횟수와 부상으로 결장한 주 */
+  injuries: number;
+  injuredWeeks: number;
 }
 
 /** 시즌 종료 시 저장되는 기록 */
@@ -101,6 +119,10 @@ export interface PlayerState {
   allocation: { levels: number; raised: Partial<Record<FieldAttribute, number>> };
   fatigue: number;
   reputation: number;
+  /** 현재 부상. 없으면 null */
+  injury: Injury | null;
+  /** 최근 출전 경기 평점 (폼 계산용, 최근 BALANCE.form.games 경기) */
+  recentRatings: number[];
   /** 비용 2 구간 코치 코멘트를 이미 봤는지 (6.3) */
   coachWarned: boolean;
   season: SeasonStats;

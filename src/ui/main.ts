@@ -8,7 +8,9 @@ import {
   averageRating, careerTotals, newGame, nextFixture, playRound, retire, selectableRealPlayers, startNextSeason,
   type GameState,
 } from '../game';
+import { FORM_ICONS, FORM_NAMES_KO, formBonus, formLevel } from '../form';
 import { generatePlayer } from '../generate';
+import { INJURY_NAMES_KO } from '../injury';
 import {
   autoAllocate, costTier, nextReputationTier, playerOvr, pointCost, raiseAttribute, raiseBlock, reputationTier,
   skillTier, TIER_NAMES_KO, type AttributeDelta,
@@ -173,8 +175,21 @@ function playerCard(g: GameState): string {
         <span class="tier">Lv.${p.level}</span>
       </div>
       <div class="row small"><span class="muted" style="width:52px">컨디션</span><div class="bar grow ${condClass}"><i style="width:${condition}%"></i></div><span style="width:38px;text-align:right">${condition}%</span></div>
+      ${formRow(p.recentRatings)}
       <div class="row small" style="margin-top:6px"><span class="muted" style="width:52px">XP</span><div class="bar grow"><i style="width:${xpPct}%"></i></div><span style="width:38px;text-align:right">${p.xp}</span></div>
     </div>`;
+}
+
+/** 폼 5단계 (부록 D.1). 출전 경기가 모자라면 보정 없음 */
+function formRow(recent: number[]): string {
+  const level = formLevel(recent);
+  const enough = recent.length >= BALANCE.form.games;
+  const bonus = formBonus(recent);
+  const detail = enough
+    ? `평점 ${bonus >= 0 ? '+' : ''}${bonus.toFixed(2)}`
+    : `${recent.length}/${BALANCE.form.games}경기`;
+  return `<div class="row small" style="margin-top:6px"><span class="muted" style="width:52px">폼</span>
+    <span class="grow form-${level}">${FORM_ICONS[level]} ${FORM_NAMES_KO[level]}</span><span class="muted">${detail}</span></div>`;
 }
 
 function seasonStatsGrid(g: GameState): string {
@@ -187,6 +202,27 @@ function seasonStatsGrid(g: GameState): string {
       <div><b>${s.assists}</b><span>도움</span></div>
       <div><b>${avg === null ? '-' : avg.toFixed(2)}</b><span>평균 평점</span></div>
     </div>`;
+}
+
+/** 복귀 예정 시점. 비시즌에 BALANCE.injury.offseasonWeeks 만큼 회복된다 */
+function returnLabel(g: GameState): string {
+  const inj = g.player.injury!;
+  const { round, schedule } = g.league;
+  if (g.phase === 'season') {
+    const target = round + inj.weeksLeft; // 이 라운드(0부터)까지 결장
+    if (target < schedule.length) return `${seasonLabel(g.league.season)} ${target + 1}라운드`;
+    const carry = inj.weeksLeft - (schedule.length - round) - BALANCE.injury.offseasonWeeks;
+    return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 ${carry + 1}라운드`;
+  }
+  const carry = inj.weeksLeft - BALANCE.injury.offseasonWeeks;
+  return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 ${carry + 1}라운드`;
+}
+
+function injuryBanner(g: GameState): string {
+  const inj = g.player.injury;
+  if (!inj) return '';
+  return `<div class="notice injury">🚑 부상 (${INJURY_NAMES_KO[inj.grade]}) · 남은 기간 ${inj.weeksLeft}주 · 복귀 예정 ${returnLabel(g)}
+    <div class="small">부상 중에는 경기에 나가지 못하고 재활 XP(주 ${BALANCE.injury.rehabXp})만 받습니다.</div></div>`;
 }
 
 function homeView(g: GameState): string {
@@ -222,6 +258,7 @@ function homeView(g: GameState): string {
 
   return `
     ${playerCard(g)}
+    ${injuryBanner(g)}
     ${pointsBtn}
     ${week}
     <div class="card"><h2>이번 시즌</h2>${seasonStatsGrid(g)}</div>`;
@@ -236,7 +273,8 @@ function matchView(g: GameState): string {
   const [homeName, awayName] = m.home ? [my, opp] : [opp, my];
   const [hg, ag] = m.home ? [r.goalsFor, r.goalsAgainst] : [r.goalsAgainst, r.goalsFor];
   const outcome = r.outcome === 'win' ? '<span class="up">승리</span>' : r.outcome === 'loss' ? '<span class="down">패배</span>' : '<span class="muted">무승부</span>';
-  const appearance = r.minutes === 0 ? '결장 (벤치)' : r.started ? '선발 90분' : `교체 출전 ${r.minutes}분`;
+  const appearance = m.injured ? '부상으로 결장 (재활)'
+    : r.minutes === 0 ? '결장 (벤치)' : r.started ? '선발 90분' : `교체 출전 ${r.minutes}분`;
   const ratingCls = r.rating === null ? '' : r.rating >= 7 ? 'good' : r.rating < 6 ? 'bad' : '';
   const seasonOver = g.phase !== 'season';
 
@@ -249,7 +287,8 @@ function matchView(g: GameState): string {
     </div>
     <div class="card">
       <div class="row between">
-        <div><h2>내 활약</h2><div class="muted small">${appearance}</div></div>
+        <div><h2>내 활약</h2><div class="muted small">${appearance}</div>
+          ${r.minutes > 0 && m.formBonus ? `<div class="small ${m.formBonus > 0 ? 'up' : 'down'}">폼 보정 ${m.formBonus > 0 ? '+' : ''}${m.formBonus.toFixed(2)}</div>` : ''}</div>
         <div class="center"><div class="rating ${ratingCls}">${r.rating === null ? '-' : r.rating.toFixed(1)}</div><div class="small muted">평점</div></div>
       </div>
       <div class="stat-grid" style="margin-top:10px">
@@ -258,6 +297,9 @@ function matchView(g: GameState): string {
         <div><b class="gold">+${r.xp}</b><span>XP</span></div>
         <div><b>${r.mom ? '⭐' : '-'}</b><span>MOM</span></div>
       </div>
+      ${m.injury ? `<div class="notice injury">🚑 부상! ${INJURY_NAMES_KO[m.injury.grade]} ${m.injury.weeksTotal}주 결장${
+        Object.keys(m.injury.permanent).length ? `<div class="small">후유증: ${deltaList(m.injury.permanent)}</div>` : ''}</div>` : ''}
+      ${m.recovered ? '<div class="notice">부상에서 회복했습니다. 다음 경기부터 출전할 수 있습니다.</div>' : ''}
       ${m.levelsGained > 0 ? `<div class="notice">레벨 업! Lv.${g.player.level} · 능력치 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel} · 현재 OVR ${playerOvr(g.player)}</div>` : ''}
     </div>
     ${g.player.unspentPoints > 0 ? `<button class="primary block" data-act="go" data-to="allocate">포인트 찍기 (${g.player.unspentPoints})</button>` : ''}
@@ -434,7 +476,9 @@ function seasonView(g: GameState): string {
         <div><b>${rec.assists}</b><span>도움</span></div>
         <div><b>${avg}</b><span>평균 평점</span></div>
       </div>
+      ${rec.injuries || rec.injuredWeeks ? `<p class="small muted">부상 ${rec.injuries}회 · 부상 결장 ${rec.injuredWeeks}주</p>` : ''}
     </div>
+    ${g.phase === 'offseason' ? injuryBanner(g) : ''}
     <div class="card">
       <h2>업적 XP</h2>
       ${s.achievements.length ? s.achievements.map((a) => `<div class="row between"><span>${a.label}</span><b class="gold">+${a.xp}</b></div>`).join('') : '<p class="muted small">이번 시즌 업적 없음</p>'}
