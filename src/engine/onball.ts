@@ -256,7 +256,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const [gx, gy] = oppGoal(dir);
     if (dist(a.x, a.y, gx, gy) <= PR.shotMaxDist && ax > 0.6) {
       const m = shotModel(s, a);
-      const u = weight(m.xg * PR.shotValue + (m.d >= PR.longShotFrom && a.line >= 2 && a.pos !== 'ST' && a.pos !== 'CF' ? PR.shotBias : 0) + (1 - m.xg) * -O.lossBase * 0.5, a.role.pref.shoot);
+      const u = weight(m.xg * PR.shotValue * O.shotScale + (m.d >= PR.longShotFrom && a.line >= 2 && a.pos !== 'ST' && a.pos !== 'CF' ? PR.shotBias : 0) + (1 - m.xg) * -O.lossBase * 0.5, a.role.pref.shoot);
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.xg });
     }
 
@@ -312,7 +312,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const dur = Math.max(0.2, d / speed);
   const fl: Flight = {
     kind: air ? 'long' : 'pass', fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
-    passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1,
+    passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',
   };
   if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < c.p) return fl;
 

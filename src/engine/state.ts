@@ -74,6 +74,8 @@ export interface Flight {
   outcome: 'receive' | 'intercept' | 'loose' | 'shot' | 'aerial';
   /** 인터셉트 선수 */
   interceptor: number;
+  /** 침투 패스 (측정용) */
+  through?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */
   fromCross?: boolean;
   /** 유효 슈팅 정보 */
@@ -152,6 +154,12 @@ export interface SimState {
   lastPass: { passer: number; receiver: number; t: number } | null;
   events: MatchEvent[];
   done: boolean;
+  /** 현재 소유가 시작된 방식과 시각 (측정용: 역습 슈팅, 골킥 직후 슈팅) */
+  possOrigin: 'open' | RestartType;
+  possStartT: number;
+  /** 75분 이동 거리 기록 여부 */
+  snap75: boolean;
+  elapsed75: number;
   /** 마지막 오프사이드 라인 계산값 캐시 (팀별 상대 수비 라인 x) */
   offsideX: [number, number];
 }
@@ -161,6 +169,8 @@ export function emptyTeamStats(): TeamStats {
     goals: 0, possessionTicks: 0, passes: 0, passesCompleted: 0, shots: 0, shotsOnTarget: 0, corners: 0,
     fouls: 0, yellows: 0, reds: 0, offsides: 0, advantages: 0, tackles: 0, tacklesWon: 0, interceptions: 0,
     dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
+    throwIns: 0, goalKicks: 0, longPasses: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
+    centralShots: 0, oppHalfWins: 0, keyPasses: 0,
   };
 }
 
@@ -169,5 +179,7 @@ export function emptyPlayerStats(id: string, team: 0 | 1, position: Position): P
     id, team, position, minutes: 0, distance: 0, sprints: 0, passes: 0, passesCompleted: 0, keyPasses: 0, shots: 0,
     shotsOnTarget: 0, goals: 0, assists: 0, tackles: 0, tacklesWon: 0, interceptions: 0, dribbles: 0, dribblesWon: 0,
     aerialsWon: 0, fouls: 0, yellows: 0, red: false, offsides: 0, rating: 6,
+    received: 0, throughReceived: 0, aerialDuels: 0, crosses: 0, crossesCompleted: 0, dribblesFaced: 0, dribbledPast: 0,
+    distance75: 0, offMinute: null, slot: -1,
   };
 }

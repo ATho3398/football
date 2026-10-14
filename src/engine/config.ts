@@ -192,6 +192,9 @@ export const ENGINE = {
     dribbleCost: 0.01,
     /** 효용 스케일: softmax 전에 곱한다 (τ 는 이 스케일 기준) */
     utilityScale: 10,
+    /** 판단 민감도 점검용 배수 (E.15): 위치 가치 맵 전체 / 슛 효용. 기본 1, 측정할 때만 1.05 */
+    valueScale: 1,
+    shotScale: 1,
   },
 
   // ── 확률 모델 (E.8) ──

@@ -11,9 +11,12 @@
     "test": "vitest run",
     "balance": "vite-node scripts/balance.ts",
     "balance:check": "vite-node scripts/balance.ts -- --check",
-    "balance:engine": "vite-node scripts/balance-engine.ts"
+    "balance:engine": "vite-node scripts/balance-engine.ts --",
+    "balance:engine:check": "vite-node scripts/balance-engine.ts -- --light --check",
+    "balance:sweep": "vite-node scripts/balance-sweep.ts --"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "typescript": "^5.6.0",
     "vite": "^5.4.21",
     "vitest": "^2.1.0"

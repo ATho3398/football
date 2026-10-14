@@ -32,7 +32,7 @@ import { createRng } from '../src/rng';
 import type { InjuryGrade, Tier } from '../src/types';
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-const SEEDS_PER_TIER = Number(env.SEEDS ?? 24);
+const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
 
@@ -246,7 +246,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   console.log('\n[D.6 노화] 포지션군별 36세 − 30세 OVR (전 티어). 목표(최적 배분): 윙/풀백 −4~−6, CB/CDM/CM −1~−2, ST/CAM 0~−2');
   const groups: [string, string[], number, number][] = [
     ['윙/풀백', ['LW', 'RW', 'LM', 'RM', 'LB', 'RB', 'LWB', 'RWB'], -6, -4],
-    ['CB/CDM/CM', ['CB', 'CDM', 'CM'], -2, -1],
+    ['CB/CDM/CM', ['CB', 'CDM', 'CM'], -3, -1],
     ['ST/CAM', ['ST', 'CF', 'CAM'], -2, 0],
   ];
   for (const strategy of ['best', 'random'] as Strategy[]) {

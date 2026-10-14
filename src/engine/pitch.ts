@@ -41,7 +41,7 @@ export function ownGoal(dir: 1 | -1): [number, number] {
 export function positionValue(nx: number, ny: number): number {
   const O = ENGINE.onball;
   const x = clamp(nx, 0, O.valueXCap);
-  return O.valueA + O.valueB * Math.pow(x, O.valueExp) * (1 - O.valueYk * Math.abs(clamp(ny, 0, 1) - 0.5));
+  return O.valueScale * (O.valueA + O.valueB * Math.pow(x, O.valueExp) * (1 - O.valueYk * Math.abs(clamp(ny, 0, 1) - 0.5)));
 }
 
 /** 점 (px, py) 에서 선분 (ax, ay)-(bx, by) 까지 거리와 선분 위 위치 비율 t */

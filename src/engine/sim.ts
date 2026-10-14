@@ -67,7 +67,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false,
-    stats: emptyPlayerStats(spec.id, team, pos), enteredAt: 0, leftAt: null,
+    stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 },
   };
   initPhysics(a);
@@ -98,6 +98,7 @@ export function createState(input: EngineInput): SimState {
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5],
+    possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
   };
   kickoffPositions(s);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
@@ -115,6 +116,10 @@ function executeRestart(s: SimState): void {
   setOwner(s, taker);
   taker.cooldown = 0;
   s.possSince = s.t - ENGINE.formation.attackPhaseDelay * 0.5;
+  s.possOrigin = r.type;
+  s.possStartT = s.t;
+  if (r.type === 'throwIn') s.teams[r.team].stats.throwIns++;
+  else if (r.type === 'goalKick') s.teams[r.team].stats.goalKicks++;
   if (r.type !== 'kickoff' && r.type !== 'penalty' && r.type !== 'freeKick') event(s, r.type, r.team, [taker.id]);
   s.exemptPass = r.type === 'throwIn' || r.type === 'goalKick' || r.type === 'corner';
   if (r.type === 'penalty') takePenalty(s, taker);
@@ -272,6 +277,12 @@ export function step(s: SimState): void {
   s.bsx += (b.x - s.bsx) * k;
   s.bsy += (b.y - s.bsy) * k;
 
+  if (!s.snap75 && s.t >= 75 * 60) {
+    s.snap75 = true;
+    s.elapsed75 = s.elapsed;
+    for (const a of [...s.agents, ...s.bench[0], ...s.bench[1]]) a.stats.distance75 = a.stats.distance;
+  }
+
   s.t += dt;
   s.elapsed += dt;
   s.tick++;
@@ -300,7 +311,8 @@ export function buildResult(s: SimState): EngineResult {
   const players = played
     .map((a) => {
       const played = (a.leftAt ?? s.elapsed) - a.enteredAt;
-      return { ...a.stats, minutes: Math.round(Math.min(90, (played / duration) * 90)) };
+      const off = a.leftAt !== null && a.leftAt < s.elapsed - 1 ? Math.round((a.leftAt / duration) * 90) : null;
+      return { ...a.stats, minutes: Math.round(Math.min(90, (played / duration) * 90)), offMinute: off, distance75: s.snap75 ? a.stats.distance75 : a.stats.distance };
     });
   const myId = s.input.myPlayerId;
   return {
@@ -312,6 +324,8 @@ export function buildResult(s: SimState): EngineResult {
     events: s.events,
     decisions: [],
     duration,
+    elapsed75: s.elapsed75,
+    liveSeconds: (s.teams[0].stats.possessionTicks + s.teams[1].stats.possessionTicks) * T.dt,
   };
 }
 

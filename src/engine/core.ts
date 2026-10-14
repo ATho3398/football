@@ -39,6 +39,10 @@ export function setOwner(s: SimState, a: Agent): void {
   if (s.possTeam !== a.team) {
     s.possTeam = a.team;
     s.possSince = s.t;
+    s.possOrigin = 'open';
+    s.possStartT = s.t;
+    const nx = attackDir(a.team, s.half) > 0 ? b.x / L : 1 - b.x / L;
+    if (nx > 0.5) s.teams[a.team].stats.oppHalfWins++;
   }
   a.cooldown = ENGINE.ball.receiveTime + reaction(a) * 0.5;
   a.tx = a.x;
