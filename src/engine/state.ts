@@ -1,0 +1,173 @@
+// 엔진 내부 상태. 시뮬 함수들이 공유한다 (전역 상태 없음)
+
+import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
+import type { Position } from '../types';
+import type { Role } from './roles';
+import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
+
+/** 0 GK, 1 수비, 2 중원, 3 공격 */
+export type Line = 0 | 1 | 2 | 3;
+
+export interface Agent {
+  idx: number;
+  id: string;
+  team: 0 | 1;
+  spec: PlayerSpec;
+  attrs: FieldAttributes;
+  gk: { attrs: GkAttributes; type: GkType } | null;
+  pos: Position;
+  line: Line;
+  role: Role;
+  /** 포메이션 슬롯 기본 위치 (정규화) */
+  sx: number;
+  sy: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  /** 이동 목표와 목표 속도 */
+  tx: number;
+  ty: number;
+  urgent: boolean;
+  maxSpeed: number;
+  accel: number;
+  turnKeep: number;
+  stamina: number;
+  /** 판단 품질 0~1 (E.7) */
+  judgement: number;
+  /** 다음 온더볼 결정까지 남은 시간 */
+  cooldown: number;
+  /** 다음 오프더볼 목표 갱신 시각 */
+  nextOffball: number;
+  /** 침투 종료 시각 */
+  runUntil: number;
+  /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
+  errX: number;
+  errY: number;
+  /** 제쳐진 뒤 이 시각까지 태클 불가 */
+  beatenUntil: number;
+  onPitch: boolean;
+  sprinting: boolean;
+  stats: PlayerStats;
+  /** 경기 출전 시작/끝 시각 (초) */
+  enteredAt: number;
+  leftAt: number | null;
+  /** 평점 계산용 내부 기록 (E.12) */
+  rt: { forward: number; lost: number; dangerLost: number; conceded: number };
+}
+
+export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';
+
+export interface Flight {
+  kind: FlightKind;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  t0: number;
+  dur: number;
+  air: boolean;
+  passer: number;
+  /** 받을 선수 (성공 시) */
+  receiver: number;
+  /** 끝났을 때: 'receive' 받는 선수 소유, 'intercept' 가로챔, 'loose' 루즈볼, 'shot' 골문 도착(세이브 판정), 'aerial' 착지점 공중볼 경합 */
+  outcome: 'receive' | 'intercept' | 'loose' | 'shot' | 'aerial';
+  /** 인터셉트 선수 */
+  interceptor: number;
+  /** 크로스였으면 true (크로스 성공 집계) */
+  fromCross?: boolean;
+  /** 유효 슈팅 정보 */
+  shot?: { speed: number; corner: number; d: number; header: boolean };
+}
+
+export interface Ball {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  owner: number;
+  flight: Flight | null;
+  lastTouch: number;
+  lastTeam: 0 | 1;
+}
+
+export type RestartType = 'kickoff' | 'throwIn' | 'goalKick' | 'corner' | 'freeKick' | 'penalty';
+export type CardType = 'yellow' | 'red';
+
+export interface Restart {
+  type: RestartType;
+  team: 0 | 1;
+  /** 간접 프리킥 (오프사이드 등): 직접 슛 불가 */
+  indirect?: boolean;
+  x: number;
+  y: number;
+  at: number;
+  taker: number;
+}
+
+export interface TeamState {
+  setup: { teamId: string; tactics: Tactics; rating: number };
+  tactics: Tactics;
+  stats: TeamStats;
+  /** 팀 phase −1(수비) ~ +1(공격) */
+  phase: number;
+  subsLeft: number;
+}
+
+export interface SimState {
+  input: EngineInput;
+  seed: number;
+  t: number;
+  /** 킥오프부터 실제 경과 시간 (초, 추가시간 포함). 출전 시간 계산용 */
+  elapsed: number;
+  tick: number;
+  half: 1 | 2;
+  /** 이번 하프 종료 시각 (추가시간 포함) */
+  halfEnd: number;
+  agents: Agent[];
+  bench: [Agent[], Agent[]];
+  ball: Ball;
+  /** 대형 쏠림용으로 부드럽게 따라가는 공 위치 */
+  bsx: number;
+  bsy: number;
+  teams: [TeamState, TeamState];
+  /** 마지막으로 공을 소유한 팀과 그 시각 */
+  possTeam: 0 | 1;
+  possSince: number;
+  restart: Restart | null;
+  /** 어드밴티지 보류 중인 파울 (E.10) */
+  advantage: { t: number; team: 0 | 1; x: number; y: number; card: CardType | null; fouler: number; value: number } | null;
+  /** 다음 경기 중단 때 줄 카드 */
+  pendingCards: { agent: number; card: CardType }[];
+  /** 스로인/골킥/코너 직후 첫 패스 (오프사이드 면제) */
+  exemptPass: boolean;
+  /** 마지막으로 공을 소유한 선수 (소유 상실 기록) */
+  lastOwner: number;
+  /** 마지막 소유 종료가 슈팅이었는가 (소유 상실로 치지 않음) */
+  lastWasShot: boolean;
+  /** 다음 교체 판단 시각 */
+  nextSubCheck: number;
+  /** 마지막 성공 패스 (어시스트, 키패스) */
+  lastPass: { passer: number; receiver: number; t: number } | null;
+  events: MatchEvent[];
+  done: boolean;
+  /** 마지막 오프사이드 라인 계산값 캐시 (팀별 상대 수비 라인 x) */
+  offsideX: [number, number];
+}
+
+export function emptyTeamStats(): TeamStats {
+  return {
+    goals: 0, possessionTicks: 0, passes: 0, passesCompleted: 0, shots: 0, shotsOnTarget: 0, corners: 0,
+    fouls: 0, yellows: 0, reds: 0, offsides: 0, advantages: 0, tackles: 0, tacklesWon: 0, interceptions: 0,
+    dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
+  };
+}
+
+export function emptyPlayerStats(id: string, team: 0 | 1, position: Position): PlayerStats {
+  return {
+    id, team, position, minutes: 0, distance: 0, sprints: 0, passes: 0, passesCompleted: 0, keyPasses: 0, shots: 0,
+    shotsOnTarget: 0, goals: 0, assists: 0, tackles: 0, tacklesWon: 0, interceptions: 0, dribbles: 0, dribblesWon: 0,
+    aerialsWon: 0, fouls: 0, yellows: 0, red: false, offsides: 0, rating: 6,
+  };
+}

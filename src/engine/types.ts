@@ -1,0 +1,141 @@
+// 경기 엔진 입출력과 내부 상태 (부록 E.2, E.13)
+
+import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
+import type { Difficulty } from '../config/balance';
+import type { Formation } from '../formations';
+import type { Position } from '../types';
+
+export interface Tactics {
+  /** 0~1 */
+  lineHeight: number;
+  /** 0~1 */
+  pressing: number;
+  /** 0~1 */
+  tempo: number;
+}
+
+export interface PlayerSpec {
+  id: string;
+  name?: string;
+  /** 포메이션 슬롯 인덱스 (벤치는 -1) */
+  slot: number;
+  position: Position;
+  role?: string;
+  attrs: FieldAttributes;
+  /** GK 만 */
+  gk?: { attrs: GkAttributes; type: GkType };
+  /** 경기 시작 스태미나 0~100 */
+  stamina: number;
+  /** 폼 보정 (E.16, 결정 순간 성공 확률 %p 는 E4) */
+  form: number;
+  isMe: boolean;
+}
+
+export interface TeamSetup {
+  teamId: string;
+  formation: Formation;
+  lineup: PlayerSpec[];
+  bench: PlayerSpec[];
+  tactics: Tactics;
+  /** 팀 레이팅 (압박 초기값 계산, 기록용) */
+  rating: number;
+}
+
+export interface EngineInput {
+  home: TeamSetup;
+  away: TeamSetup;
+  mode: 'auto' | 'live';
+  myPlayerId?: string;
+  myRole?: string;
+  difficulty: Difficulty;
+  seed: number;
+  bigMatch: boolean;
+  /** 중립 경기면 홈 보정 없음 (캘리브레이션용) */
+  neutral?: boolean;
+  /** 내 선수 출전 구간(분). 선발이 아니면 교체 투입 */
+  myMinutes?: { start: number; end: number };
+  /** 캘리브레이션/테스트용: 그 분에 해당 팀 미드필더 1명 퇴장 (E.15 퇴장 후 득점 차) */
+  forceRed?: { team: 0 | 1; minute: number };
+}
+
+export type EventType =
+  | 'kickoff' | 'halftime' | 'fulltime' | 'pass' | 'shot' | 'goal' | 'save' | 'block' | 'miss'
+  | 'foul' | 'advantage' | 'card' | 'corner' | 'freeKick' | 'penalty' | 'throwIn' | 'goalKick'
+  | 'offside' | 'sub' | 'injury' | 'decision';
+
+export interface MatchEvent {
+  t: number;
+  type: EventType;
+  team: 0 | 1;
+  players: string[];
+  params?: Record<string, number | string>;
+}
+
+export interface TeamStats {
+  goals: number;
+  possessionTicks: number;
+  passes: number;
+  passesCompleted: number;
+  shots: number;
+  shotsOnTarget: number;
+  corners: number;
+  fouls: number;
+  yellows: number;
+  reds: number;
+  offsides: number;
+  advantages: number;
+  tackles: number;
+  tacklesWon: number;
+  interceptions: number;
+  dribbles: number;
+  dribblesWon: number;
+  crosses: number;
+  crossesCompleted: number;
+  aerials: number;
+  saves: number;
+}
+
+export interface PlayerStats {
+  id: string;
+  team: 0 | 1;
+  position: Position;
+  minutes: number;
+  distance: number;
+  sprints: number;
+  passes: number;
+  passesCompleted: number;
+  keyPasses: number;
+  shots: number;
+  shotsOnTarget: number;
+  goals: number;
+  assists: number;
+  tackles: number;
+  tacklesWon: number;
+  interceptions: number;
+  dribbles: number;
+  dribblesWon: number;
+  aerialsWon: number;
+  fouls: number;
+  yellows: number;
+  red: boolean;
+  offsides: number;
+  rating: number;
+}
+
+export interface Frame {
+  t: number;
+  ball: { x: number; y: number; z: number; carrier: string | null };
+  players: { id: string; x: number; y: number }[];
+}
+
+export interface EngineResult {
+  homeGoals: number;
+  awayGoals: number;
+  teamStats: [TeamStats, TeamStats];
+  players: PlayerStats[];
+  myStats: PlayerStats | null;
+  events: MatchEvent[];
+  decisions: unknown[];
+  /** 실제 경기 시간 (초, 추가시간 포함) */
+  duration: number;
+}

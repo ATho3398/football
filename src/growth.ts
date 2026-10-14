@@ -156,7 +156,16 @@ export function agingRate(curve: readonly (readonly [number, number])[], age: nu
 }
 
 /** 포지션별 노화 배율: OVR 비중이 큰 능력치일수록 크고, 25개 평균은 1 (aging.positionFocus) */
+const FOCUS_CACHE = new Map<FieldPosition, Record<FieldAttribute, number>>();
 export function agingFocus(pos: FieldPosition): Record<FieldAttribute, number> {
+  const cached = FOCUS_CACHE.get(pos);
+  if (cached) return cached;
+  const out = computeAgingFocus(pos);
+  FOCUS_CACHE.set(pos, out);
+  return out;
+}
+
+function computeAgingFocus(pos: FieldPosition): Record<FieldAttribute, number> {
   const s = BALANCE.aging.positionFocus;
   const weights = FIELD_ATTRIBUTES.map((a) => attributeOvrWeight(pos, a));
   const mean = weights.reduce((t, x) => t + x, 0) / weights.length;

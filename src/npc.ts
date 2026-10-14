@@ -46,15 +46,25 @@ export function createNpc(data: FieldPlayerData, worldSeed: string, season: numb
 
 export const npcOvr = (n: NpcState): number => positionOvr(n.attributes, n.position);
 
+const SHIFT_WEIGHTS = new Map<FieldPosition, { weights: number[]; total: number }>();
+function shiftWeights(pos: FieldPosition): { weights: number[]; total: number } {
+  let w = SHIFT_WEIGHTS.get(pos);
+  if (!w) {
+    const keys = profileOf(pos).keys;
+    const weights = FIELD_ATTRIBUTES.map((a: FieldAttribute) => {
+      const base = attributeOvrWeight(pos, a);
+      return base === 0 ? 0 : base * (keys.includes(a) ? BALANCE.npc.keyAttributeWeight : 1);
+    });
+    w = { weights, total: weights.reduce((t, x) => t + x, 0) };
+    SHIFT_WEIGHTS.set(pos, w);
+  }
+  return w;
+}
+
 /** OVR 을 d 만큼 바꾸도록 능력치를 하나씩 조정. 핵심 능력치일수록 자주 뽑힌다 */
 export function shiftOvr(attrs: FieldAttributes, pos: FieldPosition, d: number, rng: Rng): void {
   if (d === 0) return;
-  const keys = profileOf(pos).keys;
-  const weights = FIELD_ATTRIBUTES.map((a: FieldAttribute) => {
-    const base = attributeOvrWeight(pos, a);
-    return base === 0 ? 0 : base * (keys.includes(a) ? BALANCE.npc.keyAttributeWeight : 1);
-  });
-  const total = weights.reduce((t, x) => t + x, 0);
+  const { weights, total } = shiftWeights(pos);
   const target = positionOvr(attrs, pos) + d;
   for (let guard = 0; guard < 500 && positionOvr(attrs, pos) !== target; guard++) {
     let r = rng() * total;

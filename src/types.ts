@@ -85,6 +85,9 @@ export interface SeasonStats {
   /** 부상 횟수와 부상으로 결장한 주 */
   injuries: number;
   injuredWeeks: number;
+  /** 카드 (E.10). 이전 세이브는 0 */
+  yellows: number;
+  reds: number;
 }
 
 /** 시즌 종료 시 저장되는 기록 */
@@ -125,6 +128,8 @@ export interface PlayerState {
   injury: Injury | null;
   /** 최근 출전 경기 평점 (폼 계산용, 최근 BALANCE.form.games 경기) */
   recentRatings: number[];
+  /** 남은 출장 정지 경기 수 (E.10) */
+  suspended: number;
   /** 비용 2 구간 코치 코멘트를 이미 봤는지 (6.3) */
   coachWarned: boolean;
   season: SeasonStats;

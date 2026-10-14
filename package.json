@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "balance": "vite-node scripts/balance.ts",
-    "balance:check": "vite-node scripts/balance.ts -- --check"
+    "balance:check": "vite-node scripts/balance.ts -- --check",
+    "balance:engine": "vite-node scripts/balance-engine.ts"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

@@ -86,9 +86,9 @@ describe('부상 진행', () => {
 
   it('시즌아웃은 남은 시즌 전체, 비시즌에 offseasonWeeks 만큼 회복', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'out', difficulty: 'normal' });
-    for (let r = 0; r < 30; r++) playRound(s);
+    for (let r = 0; r < 30; r++) playRound(s, { engine: 'quick' });
     s.player.injury = { grade: 'seasonEnding', weeksTotal: 20, weeksLeft: 20, season: 2018, round: 30, permanent: {} };
-    while (s.phase === 'season') expect(playRound(s).result.minutes).toBe(0);
+    while (s.phase === 'season') expect(playRound(s, { engine: 'quick' }).result.minutes).toBe(0);
     expect(s.player.injury?.weeksLeft).toBe(12);
     startNextSeason(s);
     expect(s.player.injury?.weeksLeft).toBe(12 - BALANCE.injury.offseasonWeeks);
@@ -99,7 +99,7 @@ describe('부상 진행', () => {
     const run = (viaSave: boolean) => {
       let s = newGame({ mode: 'real', playerId: 'kane', seed: 'inj-det', difficulty: 'hard' });
       for (let r = 0; r < 38; r++) {
-        playRound(s);
+        playRound(s, { engine: 'quick' });
         if (viaSave && r % 7 === 0) s = deserialize(serialize(s));
       }
       return s;
@@ -111,7 +111,7 @@ describe('부상 진행', () => {
 describe('세이브 변환 2 → 3', () => {
   it('부상 필드를 채운다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig3', difficulty: 'normal' });
-    for (let r = 0; r < 38; r++) playRound(s);
+    for (let r = 0; r < 38; r++) playRound(s, { engine: 'quick' });
     const old = JSON.parse(serialize(s));
     old.saveFormat = 2;
     delete old.player.injury;

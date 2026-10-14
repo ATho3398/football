@@ -71,8 +71,13 @@ export const CLUB_TO_TEAM: Record<string, string> = Object.fromEntries(
   PREMIER_LEAGUE_2018.map((t) => [t.name, t.id]),
 );
 
+/** 2018-19 시작 팀 목록 (레이팅 = 로스터 생성 목표) */
+export function initialTeams(): Team[] {
+  return PREMIER_LEAGUE_2018.map((t) => ({ ...t, baseRating: t.rating }));
+}
+
 export function createLeague(worldSeed: string, season: number): LeagueState {
-  const teams = PREMIER_LEAGUE_2018.map((t) => ({ ...t, baseRating: t.rating }));
+  const teams = initialTeams();
   return {
     name: 'Premier League',
     season,
@@ -179,13 +184,16 @@ export function leaguePosition(league: LeagueState, teamId: string): number {
   return sortedTable(league).findIndex((r) => r.teamId === teamId) + 1;
 }
 
-/** 다음 시즌: 팀 레이팅을 팀별 장기 평균으로 회귀 + 랜덤, 새 일정, 빈 순위표 */
-export function nextSeasonLeague(league: LeagueState, worldSeed: string): LeagueState {
+/**
+ * 다음 시즌: 새 일정, 빈 순위표. 팀 레이팅은 로스터에서 계산한 값(ratings, 23번)을 쓰고,
+ * 주지 않으면 이전 방식(팀별 장기 평균으로 회귀 + 랜덤)
+ */
+export function nextSeasonLeague(league: LeagueState, worldSeed: string, ratings?: Record<string, number>): LeagueState {
   const L = BALANCE.league;
   const season = league.season + 1;
   const rng = createRng(hashSeed(`${worldSeed}:ratings:${season}`));
   const teams = league.teams.map((t) => {
-    const r = t.baseRating + (t.rating - t.baseRating) * L.ratingKeep + gaussian(rng) * L.ratingNoiseSd;
+    const r = ratings?.[t.id] ?? t.baseRating + (t.rating - t.baseRating) * L.ratingKeep + gaussian(rng) * L.ratingNoiseSd;
     return { ...t, rating: Math.round(Math.min(L.ratingMax, Math.max(L.ratingMin, r)) * 10) / 10 };
   });
   return {

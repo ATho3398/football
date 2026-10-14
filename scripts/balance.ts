@@ -1,6 +1,7 @@
 // 밸런스 점검 (B.10): 잠재력 티어별 가상 유망주를 시드 고정으로 17~33세까지 자동 시뮬
 // 실행: npm run balance (출력만) / npm run balance:check (목표를 벗어나면 종료 코드 1, 부록 A.1)
 // 30세 OVR 기대 범위 (부록 D.7 #3): 최적 배분 일반 74~78 / 레전더리 84~88, 무작위 배분 일반 68~72 / 레전더리 79~83
+// 커리어 시뮬은 수십만 경기라 내 경기도 빠른 경기(통계 방식)로 계산한다. 엔진 경기 평점/XP 비교는 npm run balance:engine (부록 C.11)
 // 포인트 배분은 두 가지로 본다: 최적(포지션 OVR 효율 순 자동 배분) / 무작위(25개 능력치 중 아무 데나)
 // 가상 유망주는 모두 약팀(레이팅 순위 8~20위)에 배정되므로 평균이 곧 약팀 배정 평균이다 (부록 D.0)
 // 추가 점검 (부록 D.0): 위상 티어 분포(성장 해금), 30세 이후 OVR 추이(고령 XP 감쇠), 포지션별 30→36세 변화(노련함)
@@ -68,7 +69,7 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number) {
   const seasonLog: { age: number; apps: number; starts: number; minutes: number; injuries: number; injuredWeeks: number }[] = [];
   while (state.player.age < END_AGE) {
     while (state.phase === 'season') {
-      const report = playRound(state);
+      const report = playRound(state, { engine: 'quick' });
       const inj = report.injury;
       if (inj) {
         const permanent = Object.values(inj.permanent).reduce((t, d) => t + (d ?? 0), 0);
