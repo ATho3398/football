@@ -73,14 +73,52 @@ describe('경기 엔진 코어 (E1)', () => {
     expect(s.agents.filter((a) => a.onPitch)).toHaveLength(22);
   });
 
-  it('이동 거리: 필드 선수 90분 5.5~14 km, GK 는 훨씬 적다', () => {
+  it('이동 거리: 필드 선수 90분 6.5~13.5 km, GK 는 훨씬 적다', () => {
     for (const p of result.players) {
       if (p.minutes < 85) continue;
       if (p.position === 'GK') expect(p.distance).toBeLessThan(5000);
       else {
-        expect(p.distance).toBeGreaterThan(5500);
-        expect(p.distance).toBeLessThan(14000);
+        expect(p.distance).toBeGreaterThan(6500);
+        expect(p.distance).toBeLessThan(13500);
       }
+    }
+  });
+});
+
+describe('결정과 듀얼 (E2)', () => {
+  const results = Array.from({ length: 6 }, (_, i) => createMatch(input(100 + i)).runToEnd());
+
+  it('기록 정합성: 골 ≤ 유효 슈팅 ≤ 슈팅, 선방 = 상대 유효 슈팅 − 상대 골, 골 이벤트 수 = 득점', () => {
+    for (const r of results) {
+      const [h, a] = r.teamStats;
+      for (const [own, opp] of [[h, a], [a, h]] as const) {
+        expect(own.goals).toBeLessThanOrEqual(own.shotsOnTarget);
+        expect(own.shotsOnTarget).toBeLessThanOrEqual(own.shots);
+        expect(opp.saves).toBe(own.shotsOnTarget - own.goals);
+        expect(own.dribblesWon).toBeLessThanOrEqual(own.dribbles);
+        expect(own.tacklesWon).toBeLessThanOrEqual(own.tackles);
+        expect(own.crossesCompleted).toBeLessThanOrEqual(own.crosses);
+      }
+      expect(r.homeGoals).toBe(h.goals);
+      expect(r.events.filter((e) => e.type === 'goal' && e.team === 0)).toHaveLength(h.goals);
+      expect(r.events.filter((e) => e.type === 'goal' && e.team === 1)).toHaveLength(a.goals);
+      const scorers = r.players.reduce((t, p) => t + p.goals, 0);
+      expect(scorers).toBe(h.goals + a.goals);
+    }
+  });
+
+  it('여러 경기 평균이 현실 범위: 팀당 슈팅 6~20, 득점 0.5~2.5, 선방률 55~85%, 태클/드리블/크로스/공중볼이 있다', () => {
+    const all = results.flatMap((r) => r.teamStats);
+    const avg = (f: (t: (typeof all)[number]) => number) => all.reduce((x, t) => x + f(t), 0) / all.length;
+    expect(avg((t) => t.shots)).toBeGreaterThan(6);
+    expect(avg((t) => t.shots)).toBeLessThan(20);
+    expect(avg((t) => t.goals)).toBeGreaterThan(0.5);
+    expect(avg((t) => t.goals)).toBeLessThan(2.5);
+    const saveRate = avg((t) => t.saves) / avg((t) => t.shotsOnTarget);
+    expect(saveRate).toBeGreaterThan(0.55);
+    expect(saveRate).toBeLessThan(0.85);
+    for (const f of [(t: (typeof all)[number]) => t.tackles, (t: (typeof all)[number]) => t.dribbles, (t: (typeof all)[number]) => t.crosses, (t: (typeof all)[number]) => t.aerials, (t: (typeof all)[number]) => t.interceptions]) {
+      expect(avg(f)).toBeGreaterThan(3);
     }
   });
 });

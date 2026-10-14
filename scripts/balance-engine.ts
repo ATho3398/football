@@ -67,6 +67,23 @@ line('이동 거리 수비수 km', dist(['CB', 'LB', 'RB']), 9.5, 10.5, 2);
 line('이동 거리 ST km', dist(['ST', 'CF']), 9, 10, 2);
 line('경기 계산 ms', ms, 0, 2000, 0);
 
+// 레이팅 차 (E.15: 1.35 × exp(0.05Δ), 점유율 Δ+10 약 56%)
+const N2 = Math.max(4, Number(env?.env.DIFF_MATCHES ?? N));
+const diff8 = Array.from({ length: N2 }, (_, i) => play(79, 71, 500 + i, true));
+console.log(`\n[레이팅 차 Δ=+8 (79 vs 71), 중립, ${N2}경기]`);
+line('강팀 득점 (Δ+8)', avg(diff8.map((r) => r.homeGoals)), 1.8, 2.2, 2);
+line('약팀 득점 (Δ−8)', avg(diff8.map((r) => r.awayGoals)), 0.75, 1.05, 2);
+const diff10 = Array.from({ length: N2 }, (_, i) => play(80, 70, 700 + i, true));
+line('점유율 Δ+10 (%)', avg(diff10.map(poss)), 53, 59);
+
+// 홈 어드밴티지 (동레이팅, 홈)
+const home = Array.from({ length: N }, (_, i) => play(75, 75, 900 + i, false));
+const w = home.filter((r) => r.homeGoals > r.awayGoals).length / home.length * 100;
+const d = home.filter((r) => r.homeGoals === r.awayGoals).length / home.length * 100;
+console.log(`\n[동레이팅, 홈 경기, ${N}경기] 승/무/패 ${w.toFixed(0)} / ${d.toFixed(0)} / ${(100 - w - d).toFixed(0)} (목표 약 45 / 27 / 28)`);
+line('홈 승률 %', w, 38, 52, 0);
+line('무승부 %', d, 20, 34, 0);
+
 const failed = checks.filter((c) => c.v < c.lo || c.v > c.hi);
 console.log(`\n[엔진 통계] ${checks.length - failed.length}/${checks.length} 목표 안`);
 if (CHECK && failed.length) (env as unknown as { exit(c: number): never }).exit(1);

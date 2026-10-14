@@ -68,10 +68,14 @@ export interface Flight {
   passer: number;
   /** 받을 선수 (성공 시) */
   receiver: number;
-  /** 끝났을 때: 'receive' 받는 선수 소유, 'intercept' 가로챔, 'loose' 루즈볼 */
-  outcome: 'receive' | 'intercept' | 'loose' | 'shot';
+  /** 끝났을 때: 'receive' 받는 선수 소유, 'intercept' 가로챔, 'loose' 루즈볼, 'shot' 골문 도착(세이브 판정), 'aerial' 착지점 공중볼 경합 */
+  outcome: 'receive' | 'intercept' | 'loose' | 'shot' | 'aerial';
   /** 인터셉트 선수 */
   interceptor: number;
+  /** 크로스였으면 true (크로스 성공 집계) */
+  fromCross?: boolean;
+  /** 유효 슈팅 정보 */
+  shot?: { speed: number; corner: number; d: number; header: boolean };
 }
 
 export interface Ball {
@@ -125,6 +129,8 @@ export interface SimState {
   possTeam: 0 | 1;
   possSince: number;
   restart: Restart | null;
+  /** 마지막 성공 패스 (어시스트, 키패스) */
+  lastPass: { passer: number; receiver: number; t: number } | null;
   events: MatchEvent[];
   done: boolean;
   /** 마지막 오프사이드 라인 계산값 캐시 (팀별 상대 수비 라인 x) */

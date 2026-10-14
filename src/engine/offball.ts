@@ -46,13 +46,13 @@ function defensiveLine(s: SimState, team: 0 | 1): number {
   if (phase < 0) nx += F.defendShift[1] * -phase;
   else nx += F.attackShift[1] * phase;
   if (phase < 0) nx = Math.min(nx, bx - F.lineBehindBall / L);
-  return clamp(nx, 0.04, 0.7);
+  return clamp(nx, F.lineMin, 0.7);
 }
 
 function setTarget(a: Agent, nx: number, ny: number, dir: 1 | -1, urgent: boolean): void {
   const [x, y] = toPitch(clamp(nx, 0.005, 0.995), clamp(ny, 0.01, 0.99), dir);
-  a.tx = x;
-  a.ty = y;
+  a.tx = clamp(x + a.errY * O.jitter, 0.3, L - 0.3);
+  a.ty = clamp(y + a.errX * O.jitter, 0.3, W - 0.3);
   a.urgent = urgent;
 }
 
@@ -176,7 +176,8 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const sigma = ((100 - a.attrs.offTheBall) * O.offsideSigma) / L;
   if (running) {
     nx = line + a.errX * sigma * 3;
-    urgent = true;
+    const [px, py] = toPitch(nx, ny, dir);
+    urgent = dist(px, py, a.x, a.y) > 3;
   } else if (a.line >= 2) {
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
   }
@@ -209,10 +210,12 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 압박: 공에 가까운 1~2명 (2번째는 압박 성향이 높을 때)
   if (owner && owner.team !== a.team) {
     const rank = ballRank(s, a, b.x, b.y);
-    const pressDist = O.pressDistBase + t.pressing * O.pressDistRange;
+    const pressDist = (O.pressDistBase + t.pressing * O.pressDistRange) * (a.line === 3 ? O.attackerPress : 1);
     const d = dist(a.x, a.y, b.x, b.y);
-    const wants = rank === 0 || (rank === 1 && t.pressing * (0.5 + a.role.press) > 0.6);
-    if (wants && d < pressDist * (rank === 0 ? 1 : 0.6)) {
+    const [gx0, gy0] = ownGoal(dir);
+    const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
+    const wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
+    if (wants && (danger && rank < 2 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
       // 공과 자기 골 사이에서 압박
       const [gx, gy] = ownGoal(dir);
       const gd = dist(b.x, b.y, gx, gy) || 1;
@@ -224,10 +227,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   let [nx, ny] = slotTarget(s, a);
+  const lineX = defensiveLine(s, a.team);
+  if (a.line === 2) nx = Math.min(nx, lineX + F.midGap);
+  else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   if (a.line === 1) {
     // 수비 라인 동기화. 오차는 수비 포지셔닝과 마킹
     const sigma = ((100 - (a.attrs.defensivePositioning + a.attrs.marking) / 2) * O.markSigma) / L;
-    nx = defensiveLine(s, a.team) + a.errX * sigma;
+    nx = lineX + a.errX * sigma;
   }
 
   // 마킹: 존 근처의 위협적인 상대

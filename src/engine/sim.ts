@@ -4,14 +4,16 @@ import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../at
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
 import { lineOf } from './formation';
+import { execute, resolveFlight, tryTackles } from './actions';
+import { event, kickoffPositions, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
-import { candidates, choose, judgementOf, makePass, type Candidate } from './onball';
+import { candidates, choose, judgementOf } from './onball';
 import { initPhysics, moveAgent } from './physics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
 import { defaultRole, roleById } from './roles';
-import { emptyPlayerStats, emptyTeamStats, type Agent, type RestartType, type SimState } from './state';
-import type { EngineInput, EngineResult, Frame, MatchEvent, PlayerSpec, TeamSetup } from './types';
+import { emptyPlayerStats, emptyTeamStats, type Agent, type SimState } from './state';
+import type { EngineInput, EngineResult, Frame, PlayerSpec, TeamSetup } from './types';
 
 const T = ENGINE.time;
 const B = ENGINE.ball;
@@ -90,78 +92,12 @@ export function createState(input: EngineInput): SimState {
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
       tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3,
     })) as SimState['teams'],
-    possTeam: 0, possSince: 0, restart: null, events: [], done: false, offsideX: [0.5, 0.5],
+    possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [], done: false, offsideX: [0.5, 0.5],
   };
   kickoffPositions(s);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
   event(s, 'kickoff', 0, []);
   return s;
-}
-
-export function event(s: SimState, type: MatchEvent['type'], team: 0 | 1, players: string[], params?: MatchEvent['params']): void {
-  s.events.push({ t: Math.round(s.t * 10) / 10, type, team, players, ...(params ? { params } : {}) });
-}
-
-/** 킥오프 대형: 슬롯 위치를 자기 진영으로 */
-function kickoffPositions(s: SimState): void {
-  for (const a of s.agents) {
-    if (!a.onPitch) continue;
-    const dir = attackDir(a.team, s.half);
-    const nx = Math.min(a.sx * 0.9, 0.46);
-    [a.x, a.y] = toPitch(nx, a.sy, dir);
-    a.vx = a.vy = 0;
-    a.tx = a.x;
-    a.ty = a.y;
-  }
-}
-
-/** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수) */
-export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delay: number, taker?: number): void {
-  const b = s.ball;
-  b.owner = -1;
-  b.flight = null;
-  b.vx = b.vy = 0;
-  b.z = 0;
-  b.x = clamp(x, 0, L);
-  b.y = clamp(y, 0, W);
-  let pick = taker ?? -1;
-  if (pick < 0) {
-    let bd = Infinity;
-    for (const a of s.agents) {
-      if (!a.onPitch || a.team !== team) continue;
-      if (type === 'goalKick' && a.line !== 0) continue;
-      if (type !== 'goalKick' && a.line === 0 && type !== 'freeKick') continue;
-      const d = type === 'kickoff' ? -a.sx : dist(a.x, a.y, b.x, b.y);
-      if (d < bd) {
-        bd = d;
-        pick = a.idx;
-      }
-    }
-  }
-  s.restart = { type, team, x: b.x, y: b.y, at: s.t + delay, taker: pick };
-  s.possTeam = team;
-  s.possSince = s.t;
-}
-
-function setOwner(s: SimState, a: Agent): void {
-  const b = s.ball;
-  b.owner = a.idx;
-  b.flight = null;
-  b.vx = b.vy = 0;
-  b.z = 0;
-  b.lastTouch = a.idx;
-  b.lastTeam = a.team;
-  if (s.possTeam !== a.team) {
-    s.possTeam = a.team;
-    s.possSince = s.t;
-  }
-  a.cooldown = B.receiveTime + reaction(a) * 0.5;
-  a.tx = a.x;
-  a.ty = a.y;
-}
-
-function reaction(a: Agent): number {
-  return T.reactionBase - T.reactionSlope * a.judgement;
 }
 
 function executeRestart(s: SimState): void {
@@ -180,83 +116,7 @@ function executeRestart(s: SimState): void {
 
 /** 소유자 결정 */
 function decide(s: SimState, a: Agent): void {
-  const cands = candidates(s, a);
-  const c = choose(s, a, cands);
-  execute(s, a, c);
-}
-
-function execute(s: SimState, a: Agent, c: Candidate): void {
-  const team = s.teams[a.team];
-  switch (c.type) {
-    case 'pass':
-    case 'through': {
-      const fl = makePass(s, a, c);
-      s.ball.owner = -1;
-      s.ball.flight = fl;
-      s.ball.lastTouch = a.idx;
-      s.ball.lastTeam = a.team;
-      a.stats.passes++;
-      team.stats.passes++;
-      // 받을 선수/가로챌 선수는 즉시 도착점으로
-      const who = fl.outcome === 'receive' ? fl.receiver : fl.outcome === 'intercept' ? fl.interceptor : -1;
-      if (who >= 0) updateOffball(s, s.agents[who]!);
-      a.cooldown = reaction(a);
-      return;
-    }
-    case 'carry':
-      a.tx = c.x;
-      a.ty = c.y;
-      a.urgent = true;
-      a.cooldown = Math.max(ENGINE.onball.minHold, reaction(a));
-      return;
-    case 'hold':
-    default:
-      a.tx = a.x;
-      a.ty = a.y;
-      a.urgent = false;
-      a.cooldown = Math.max(ENGINE.onball.minHold, reaction(a));
-  }
-}
-
-function resolveFlight(s: SimState): void {
-  const b = s.ball;
-  const fl = b.flight!;
-  const k = clamp((s.t - fl.t0) / fl.dur, 0, 1);
-  b.x = fl.fromX + (fl.toX - fl.fromX) * k;
-  b.y = fl.fromY + (fl.toY - fl.fromY) * k;
-  b.z = fl.air ? Math.sin(Math.PI * k) * 3 : 0;
-  if (k < 1) return;
-  b.flight = null;
-  b.z = 0;
-  const passer = s.agents[fl.passer]!;
-  if (fl.outcome === 'receive') {
-    const r = s.agents[fl.receiver]!;
-    if (r.onPitch && dist(r.x, r.y, b.x, b.y) < 4) {
-      setOwner(s, r);
-      r.x = b.x;
-      r.y = b.y;
-      passer.stats.passesCompleted++;
-      s.teams[passer.team].stats.passesCompleted++;
-      return;
-    }
-  } else if (fl.outcome === 'intercept') {
-    const r = s.agents[fl.interceptor]!;
-    if (r.onPitch) {
-      setOwner(s, r);
-      r.x = b.x;
-      r.y = b.y;
-      r.stats.interceptions++;
-      s.teams[r.team].stats.interceptions++;
-      return;
-    }
-  }
-  // 루즈볼: 진행 방향으로 굴러간다
-  const dx = fl.toX - fl.fromX;
-  const dy = fl.toY - fl.fromY;
-  const d = Math.sqrt(dx * dx + dy * dy) || 1;
-  const sp = fl.air ? 2 : 4;
-  b.vx = (dx / d) * sp;
-  b.vy = (dy / d) * sp;
+  execute(s, a, choose(s, a, candidates(s, a)));
 }
 
 function updateLooseBall(s: SimState): void {
@@ -352,12 +212,13 @@ export function step(s: SimState): void {
     }
   }
 
-  // 소유자 결정
+  // 소유자 결정, 수비 태클
   const b = s.ball;
-  if (b.owner >= 0) {
+  for (const a of s.agents) if (a.cooldown > 0) a.cooldown -= dt;
+  if (b.owner >= 0 && !s.restart) {
     const o = s.agents[b.owner]!;
-    o.cooldown -= dt;
     if (o.cooldown <= 0) decide(s, o);
+    else tryTackles(s);
   }
 
   // 이동

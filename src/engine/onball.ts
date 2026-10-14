@@ -1,14 +1,18 @@
 // 온더볼 의사결정 (E.7): 후보 행동의 효용 U = P × V + (1 − P) × C 를 softmax 로 고른다
+// 후보: 패스(각 동료), 침투 패스, 몰고 가기/드리블 돌파(전진·좌·우), 슛, 크로스, 클리어링, 유지
 
 import { ENGINE } from './config';
+import { aerialWin, dribbleProb } from './duel';
 import { manDiff } from './formation';
-import { attackDir, clamp, dist, L, positionValue, segDist, toNorm, W } from './pitch';
+import { claimProb, keeperOf, saveProb } from './keeper';
+import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, Flight, SimState } from './state';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
 const B = ENGINE.ball;
+const G = ENGINE.pitch.goalWidth;
 
 export type ActionType = 'pass' | 'through' | 'carry' | 'hold' | 'shoot' | 'cross' | 'clear' | 'dribble';
 
@@ -22,8 +26,10 @@ export interface Candidate {
   x: number;
   y: number;
   receiver: number;
-  /** 성공 시 위치 가치 (또는 xG) */
+  /** 성공 시 위치 가치 (슛은 xG) */
   value: number;
+  /** 드리블 돌파 상대 */
+  opponent?: number;
 }
 
 /** 가장 가까운 상대와 거리 */
@@ -49,7 +55,6 @@ export function pressureAt(s: SimState, a: Agent, x = a.x, y = a.y): number {
 
 export interface LaneInfo {
   risk: number;
-  /** 레인 근처 수비수와 가중치, 레인 위 위치 */
   cutters: { idx: number; w: number; t: number }[];
 }
 
@@ -81,7 +86,6 @@ export function lossCost(nx: number, ny: number): number {
   return -(O.lossBase + positionValue(1 - nx, 1 - ny) * O.lossOppScale);
 }
 
-/** 효용 배수 (양수는 곱하고 음수는 나눈다) */
 function weight(u: number, m: number): number {
   return u >= 0 ? u * m : u / m;
 }
@@ -91,7 +95,79 @@ export function judgementOf(a: Agent): number {
   return (t.vision * 0.5 + t.composure * 0.3 + t.shortPassing * 0.2) / 100;
 }
 
-/** 후보 행동 생성 (E1: 패스, 침투 패스, 몰고 가기, 유지) */
+// ── 슈팅 모델 (E.8, E.9) ──
+
+export interface ShotModel {
+  d: number;
+  pOn: number;
+  pBlock: number;
+  /** 유효 슈팅이 골이 될 기대 확률 (구석 0.5 기준) */
+  pGoal: number;
+  xg: number;
+  speed: number;
+  blockers: number;
+}
+
+function goalAngle(x: number, y: number, gx: number): number {
+  const a1 = Math.atan2(W / 2 - G / 2 - y, Math.abs(gx - x));
+  const a2 = Math.atan2(W / 2 + G / 2 - y, Math.abs(gx - x));
+  return Math.abs(a2 - a1);
+}
+
+export function shotModel(s: SimState, a: Agent, header = false): ShotModel {
+  const dir = attackDir(a.team, s.half);
+  const [gx, gy] = oppGoal(dir);
+  const d = dist(a.x, a.y, gx, gy);
+  const t = a.attrs;
+  const pressure = pressureAt(s, a);
+  let pOn: number;
+  let speed: number;
+  if (header) {
+    pOn = clamp(PR.headerBase + (PR.headerSkill * t.heading) / 100 - PR.headerPerM * d, PR.shotMin, PR.shotMax);
+    speed = PR.headerSpeed;
+  } else {
+    const skill = d >= PR.longShotFrom
+      ? t.longShots * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15
+      : t.shooting * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15;
+    pOn = clamp(PR.shotBase + (PR.shotSkill * skill) / 100 - PR.shotPerM * d - PR.shotPressure * pressure, PR.shotMin, PR.shotMax);
+    speed = B.shotSpeedMin + ((B.shotSpeedMax - B.shotSpeedMin) * t.shooting) / 100;
+  }
+  pOn *= Math.min(1, goalAngle(a.x, a.y, gx) / PR.shotAngleRef);
+  let blockers = 0;
+  if (!header) {
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+      const [cd, ct] = segDist(o.x, o.y, a.x, a.y, gx, gy);
+      if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
+    }
+  }
+  const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const pGoal = 1 - saveProb(gk, speed, 0.5, d, ENGINE.keeper.perceivedSaveBase);
+  return { d, pOn, pBlock, pGoal, xg: (1 - pBlock) * pOn * pGoal, speed, blockers };
+}
+
+/** 같은 팀 동료 중 상대 박스 안 */
+function boxTeammates(s: SimState, a: Agent, dir: 1 | -1): Agent[] {
+  return s.agents.filter((o) => o.onPitch && o.team === a.team && o !== a && o.line !== 0 && inOppBox(o.x, o.y, dir));
+}
+
+/** 크로스 대상: 박스 안 동료 중 공중볼 승산 × 헤더 기대 가치가 가장 큰 선수 */
+export function crossTarget(s: SimState, a: Agent): { r: Agent; pWin: number; value: number } | null {
+  const dir = attackDir(a.team, s.half);
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  let best: { r: Agent; pWin: number; value: number } | null = null;
+  for (const r of boxTeammates(s, a, dir)) {
+    const [def, dd] = nearestOpponent(s, r);
+    let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def) : 0.85;
+    if (gk && dist(gk.x, gk.y, r.x, r.y) < ENGINE.keeper.claimRange) pWin *= 1 - claimProb(gk);
+    const value = shotModel(s, r, true).xg * PR.shotValue * r.role.pref.header;
+    if (!best || pWin * value > best.pWin * best.value) best = { r, pWin, value };
+  }
+  return best;
+}
+
+/** 후보 행동 생성 */
 export function candidates(s: SimState, a: Agent): Candidate[] {
   const dir = attackDir(a.team, s.half);
   const [ax, ay] = toNorm(a.x, a.y, dir);
@@ -99,8 +175,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const pressure = pressureAt(s, a);
   const lossHere = lossCost(ax, ay);
   const safeMul = manDiff(s, a.team) < 0 ? ENGINE.referee.shortSafe : 1;
+  const isGk = a.line === 0;
   const out: Candidate[] = [];
 
+  // 패스 / 침투 패스
   for (const r of s.agents) {
     if (r === a || !r.onPitch || r.team !== a.team) continue;
     const d0 = dist(a.x, a.y, r.x, r.y);
@@ -119,16 +197,68 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     out.push({ type: running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value });
   }
 
-  // 몰고 가기: 전진 / 대각 좌우
-  const keep = clamp(1 - pressure * 0.6, 0.05, 0.98);
-  for (const ang of [0, 0.6, -0.6]) {
-    const cx = clamp(a.x + Math.cos(ang) * dir * O.carryDist, 1, L - 1);
-    const cy = clamp(a.y + Math.sin(ang) * O.carryDist, 1, W - 1);
-    const [nx, ny] = toNorm(cx, cy, dir);
-    const p = clamp(keep - pressureAt(s, a, cx, cy) * 0.3, 0.05, 0.98);
-    const value = positionValue(nx, ny);
-    const u = weight(p * value + (1 - p) * lossHere, a.role.pref.dribble);
-    out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
+  if (!isGk) {
+    // 몰고 가기 / 드리블 돌파: 앞쪽에 수비수가 가까우면 돌파 (E.8 드리블 1대1)
+    for (const ang of [0, 0.6, -0.6]) {
+      const ux = Math.cos(ang) * dir;
+      const uy = Math.sin(ang);
+      const cx = clamp(a.x + ux * O.carryDist, 1, L - 1);
+      const cy = clamp(a.y + uy * O.carryDist, 1, W - 1);
+      const [nx, ny] = toNorm(cx, cy, dir);
+      let def: Agent | null = null;
+      let second = false;
+      let dd = Infinity;
+      for (const o of s.agents) {
+        if (!o.onPitch || o.team === a.team || o.line === 0 || s.t < o.beatenUntil) continue;
+        const ox = o.x - a.x;
+        const oy = o.y - a.y;
+        const od = Math.sqrt(ox * ox + oy * oy);
+        if (od > PR.dribbleRange || ox * ux + oy * uy < 0) continue;
+        if (od < dd) {
+          second = def !== null || second;
+          def = o;
+          dd = od;
+        } else second = true;
+      }
+      const value = positionValue(nx, ny);
+      if (def) {
+        const p = dribbleProb(a, def, second ? -PR.spaceSecondPenalty : 0);
+        const u = weight(p * (value + 0.01) + (1 - p) * lossHere, a.role.pref.dribble) - O.dribbleCost;
+        out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
+      } else {
+        const p = clamp(0.98 - pressure * O.carryPressure, 0.05, 0.98);
+        const u = weight(p * value + (1 - p) * lossHere, a.role.pref.dribble);
+        out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
+      }
+    }
+
+    // 슛
+    const [gx, gy] = oppGoal(dir);
+    if (dist(a.x, a.y, gx, gy) <= PR.shotMaxDist && ax > 0.6) {
+      const m = shotModel(s, a);
+      const u = weight(m.xg * PR.shotValue + (1 - m.xg) * -O.lossBase * 0.5, a.role.pref.shoot);
+      out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.xg });
+    }
+
+    // 크로스: 측면 최종 3분의 1, 박스 안 동료 1명 이상
+    if (ax >= PR.crossMinX && (ay < PR.crossWide || ay > 1 - PR.crossWide)) {
+      const ct = crossTarget(s, a);
+      if (ct) {
+        const acc = clamp(0.5 + (0.5 * a.attrs.crossing) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
+        const p = acc * ct.pWin;
+        const u = weight(p * ct.value * PR.crossValue + (1 - p) * lossCost(ax, ay) * PR.crossLossScale, a.role.pref.cross);
+        out.push({ type: 'cross', p, u, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
+      }
+    }
+
+    // 클리어링: 수비 3분의 1, 압박이 심할 때
+    if (ax < PR.clearMaxX && pressure > PR.clearPressure) {
+      const [tx, ty] = toPitch(clamp(ax + 0.42, 0, 0.9), 0.5 + (ay - 0.5) * 0.5, dir);
+      const p = 0.45;
+      const [nx, ny] = toNorm(tx, ty, dir);
+      const u = weight(p * positionValue(nx, ny) + (1 - p) * lossCost(nx, ny), a.role.pref.clear);
+      out.push({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
+    }
   }
 
   // 유지
@@ -142,7 +272,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
 /** softmax 선택. 온도 τ = tempBase + tempSlope × (1 − 판단 품질) */
 export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
   const tau = O.tempBase + O.tempSlope * (1 - a.judgement);
-  const maxU = Math.max(...cands.map((c) => c.u));
+  let maxU = -Infinity;
+  for (const c of cands) maxU = Math.max(maxU, c.u);
   const ws = cands.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau));
   const total = ws.reduce((t, w) => t + w, 0);
   let r = rand(s.seed, s.tick, a.idx, Purpose.Decide) * total;
@@ -154,13 +285,13 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
 }
 
 /** 패스 실행: 결과(성공/인터셉트/루즈볼)는 차는 순간 정하고 공은 도착점까지 날아간다 */
-export function makePass(s: SimState, a: Agent, c: Candidate, kind: 'pass' | 'cross' | 'long' = 'pass'): Flight {
+export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const d = dist(a.x, a.y, c.x, c.y);
-  const air = kind !== 'pass' || d > 30;
+  const air = d > 30;
   const speed = air ? B.airSpeed : clamp(B.passSpeedBase + B.passSpeedPerM * d, B.passSpeedMin, B.passSpeedMax);
   const dur = Math.max(0.2, d / speed);
   const fl: Flight = {
-    kind: kind === 'pass' && d > 30 ? 'long' : kind, fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
+    kind: air ? 'long' : 'pass', fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1,
   };
   if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < c.p) return fl;
