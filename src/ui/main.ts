@@ -12,7 +12,7 @@ import { FORM_ICONS, FORM_NAMES_KO, formBonus, formLevel } from '../form';
 import { generatePlayer } from '../generate';
 import { INJURY_NAMES_KO } from '../injury';
 import {
-  autoAllocate, costTier, nextReputationTier, playerOvr, pointCost, raiseAttribute, raiseBlock, reputationTier,
+  autoAllocate, costTier, nextReputationTier, playerOvr, pointCost, raiseAttribute, raiseBlock, reputationTier, xpToLevel,
   skillTier, TIER_NAMES_KO, type AttributeDelta,
 } from '../growth';
 import { sortedTable, teamById } from '../league';
@@ -159,7 +159,7 @@ function playerCard(g: GameState): string {
   const ovr = playerOvr(p);
   const condition = Math.round(100 - p.fatigue);
   const condClass = condition < 50 ? 'bad' : condition < 75 ? 'warn' : '';
-  const xpPct = Math.round((p.xp / BALANCE.growth.xpPerLevel) * 100);
+  const xpPct = Math.round((p.xp / xpToLevel(p)) * 100);
   return `
     <div class="card player-card">
       <div class="row between">

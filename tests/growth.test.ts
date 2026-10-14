@@ -3,8 +3,8 @@ import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttr
 import { BALANCE } from '../src/config/balance';
 import { emptySeasonStats } from '../src/game';
 import {
-  addXp, applyAging, applyVeteranGrowth, autoAllocate, costTier, pointCost, raiseAttribute, raiseBlock,
-  veteranXpMultiplier,
+  addXp, applyAging, applyVeteranGrowth, autoAllocate, costTier, playerOvr, pointCost, raiseAttribute, raiseBlock,
+  veteranXpMultiplier, xpToLevel,
 } from '../src/growth';
 import { createRng } from '../src/rng';
 import type { PlayerState } from '../src/types';
@@ -30,13 +30,28 @@ describe('레벨업', () => {
     expect(addXp(p, XP * 2 + 10)).toBe(2);
     expect(p).toMatchObject({ level: 3, unspentPoints: 15, xp: 10, totalXp: XP * 3 + 10 });
   });
+
+  it('OVR 80 을 넘으면 필요 XP 가 늘어난다: 기본 × (1 + (OVR - 80) × 0.04) (부록 D.6 #2)', () => {
+    expect(xpToLevel(player({ attributes: flat(80) }))).toBe(XP);
+    const p = player({ attributes: flat(90) });
+    expect(playerOvr(p)).toBe(90);
+    expect(xpToLevel(p)).toBe(Math.round(XP * 1.4));
+    expect(addXp(p, XP)).toBe(0);
+    expect(addXp(p, Math.round(XP * 0.4))).toBe(1);
+  });
 });
 
 describe('포인트 비용 구간 (6.2)', () => {
   it('티어별 구간 경계', () => {
     expect([70, 71, 84, 85].map((v) => pointCost(v, 'normal'))).toEqual([1, 2, 2, 3]);
-    expect([80, 81, 92, 93].map((v) => pointCost(v, 'legendary'))).toEqual([1, 2, 2, 3]);
+    expect([80, 81, 92].map((v) => pointCost(v, 'legendary'))).toEqual([1, 2, 2]);
     expect([76, 77, 89, 90].map((v) => pointCost(v, 'topClass'))).toEqual([1, 2, 2, 3]);
+  });
+
+  it('고값 추가 비용: 93~95 → 4, 96~97 → 6, 98 → 9 (위상 무관, 부록 D.6 #1)', () => {
+    for (const tier of ['normal', 'legendary'] as const) {
+      expect([92, 93, 95, 96, 97, 98].map((v) => pointCost(v, tier))).toEqual([tier === 'normal' ? 3 : 2, 4, 4, 6, 6, 9]);
+    }
   });
 
   it('내 선수의 비용 구간은 숨은 잠재력이 아니라 현재 위상 티어로 정한다 (성장 해금)', () => {
@@ -115,9 +130,9 @@ describe('노화 (6.1)', () => {
     expect(a).toEqual(flat(80));
   });
 
-  it('신체: 30세 2년에 -1꼴, 32세 매년 -1, 36세 매년 -2', () => {
-    expect(avgDrop(30, physical)).toBeCloseTo(0.5, 1);
-    expect(avgDrop(32, physical)).toBe(1);
+  it('신체: 30세 0.7, 32세 1.3, 36세 매년 -2 (부록 D.6 #6)', () => {
+    expect(avgDrop(30, physical)).toBeCloseTo(0.7, 1);
+    expect(avgDrop(32, physical)).toBeCloseTo(1.3, 1);
     expect(avgDrop(36, physical)).toBe(2);
   });
 
@@ -128,9 +143,9 @@ describe('노화 (6.1)', () => {
     expect(avgDrop(37, other)).toBe(2);
   });
 
-  it('노련함 능력치: 35세까지 면제, 36세부터 기술/멘탈 하락의 절반', () => {
-    expect(avgDrop(35, veteran)).toBe(0);
-    expect(avgDrop(36, veteran)).toBeCloseTo(0.5, 1);
+  it('노련함 능력치: 34세까지 면제, 35세부터 기술/멘탈 하락의 절반', () => {
+    expect(avgDrop(34, veteran)).toBe(0);
+    expect(avgDrop(35, veteran)).toBeCloseTo(0.5, 1);
     expect(avgDrop(37, veteran)).toBe(1);
   });
 });
@@ -146,12 +161,13 @@ describe('노련함 성장 (6.1.1)', () => {
     return gain / (200 * BALANCE.veteran.attributes.length);
   }
 
-  it('26세 이하와 35세 이후는 없음, 27~31세 50%, 32~34세 30%. 노련함 능력치만 오른다', () => {
+  it('26세 이하와 34세 이후는 없음, 27~30세 50%, 31~33세 25%. 노련함 능력치만 오른다', () => {
     expect(avgGain(26)).toBe(0);
     expect(avgGain(27)).toBeCloseTo(0.5, 1);
-    expect(avgGain(31)).toBeCloseTo(0.5, 1);
-    expect(avgGain(32)).toBeCloseTo(0.3, 1);
-    expect(avgGain(35)).toBe(0);
+    expect(avgGain(30)).toBeCloseTo(0.5, 1);
+    expect(avgGain(31)).toBeCloseTo(0.25, 1);
+    expect(avgGain(33)).toBeCloseTo(0.25, 1);
+    expect(avgGain(34)).toBe(0);
     const a = flat(80);
     const d = applyVeteranGrowth(a, 28, createRng(3));
     for (const k of Object.keys(d)) expect(BALANCE.veteran.attributes).toContain(k);
@@ -164,7 +180,7 @@ describe('노련함 성장 (6.1.1)', () => {
 });
 
 describe('고령 XP 감쇠 (6.1)', () => {
-  it('32세 ×1, 33세 ×0.8, 35세 ×0.6, 37세 ×0.4', () => {
-    expect([32, 33, 34, 35, 36, 37].map(veteranXpMultiplier)).toEqual([1, 0.8, 0.8, 0.6, 0.6, 0.4]);
+  it('29세 ×1, 30세 ×0.9, 32세 ×0.8, 34세 ×0.65, 36세 ×0.5 (부록 D.6 #4)', () => {
+    expect([29, 30, 31, 32, 34, 36, 37].map(veteranXpMultiplier)).toEqual([1, 0.9, 0.9, 0.8, 0.65, 0.5, 0.5]);
   });
 });

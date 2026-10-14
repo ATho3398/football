@@ -36,12 +36,17 @@ export function nextReputationTier(rep: number): { tier: Tier; cut: number } | n
 /** 내 선수의 포인트 비용 구간 티어: 현재 위상 티어 (6.2 성장 해금) */
 export const costTier = (p: Pick<PlayerState, 'reputation'>): Tier => reputationTier(p.reputation);
 
-/** 현재 값에서 1 올리는 포인트 비용 (6.2) */
+/** 현재 값에서 1 올리는 포인트 비용 (6.2): max(위상 구간 비용, 고값 비용) */
 export function pointCost(value: number, tier: Tier): number {
   const band = G.costBands[tier];
-  if (value <= band.cost1Max) return 1;
-  if (value <= band.cost2Max) return 2;
-  return 3;
+  const bandCost = value <= band.cost1Max ? 1 : value <= band.cost2Max ? 2 : 3;
+  return Math.max(bandCost, agingRate(G.highValueCost, value));
+}
+
+/** 다음 레벨업에 필요한 XP (5.1): OVR 이 높을수록 늘어난다 */
+export function xpToLevel(p: Pick<PlayerState, 'attributes' | 'position'>): number {
+  const { fromOvr, perOvr } = G.xpByOvr;
+  return Math.round(G.xpPerLevel * (1 + Math.max(0, playerOvr(p) - fromOvr) * perOvr));
 }
 
 /** XP 추가. 레벨업 횟수를 돌려준다 */
@@ -50,8 +55,8 @@ export function addXp(p: PlayerState, amount: number): number {
   p.xp += xp;
   p.totalXp += xp;
   let levels = 0;
-  while (p.xp >= G.xpPerLevel) {
-    p.xp -= G.xpPerLevel;
+  for (let need = xpToLevel(p); p.xp >= need; need = xpToLevel(p)) {
+    p.xp -= need;
     p.level += 1;
     p.unspentPoints += G.pointsPerLevel;
     p.allocation.levels += 1;

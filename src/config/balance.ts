@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 5;
+export const BALANCE_VERSION = 6;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -14,6 +14,8 @@ export const BALANCE = {
   // ── 성장 (5.1, 6.2, B.5) ──
   growth: {
     xpPerLevel: 200,
+    /** OVR 연동 XP 요구량 (5.1, 부록 D.6 #2): 필요 XP = xpPerLevel × (1 + max(0, OVR - fromOvr) × perOvr) */
+    xpByOvr: { fromOvr: 80, perOvr: 0.04 },
     pointsPerLevel: 5,
     /** 한 번의 레벨업에서 한 능력치에 올릴 수 있는 최대치 */
     maxRaisePerLevel: 3,
@@ -29,6 +31,12 @@ export const BALANCE = {
       worldClass: { cost1Max: 78, cost2Max: 91 },
       legendary: { cost1Max: 80, cost2Max: 92 },
     } satisfies Record<Tier, { cost1Max: number; cost2Max: number }>,
+    /** 고값 추가 비용 (6.2, 부록 D.6 #1, 위상 무관): [현재 값이 이 값 이상, 비용]. 실제 비용 = max(구간 비용, 고값 비용) */
+    highValueCost: [
+      [93, 4],
+      [96, 6],
+      [98, 9],
+    ] as [number, number][],
     /**
      * 시즌 종료 자동 성장 (17~21세): 전 능력치 +min~max.
      * 기획서 기본은 전 티어 +0~2. 잠재력 티어 차이가 30세 OVR 에 드러나도록 티어별로 나눴다.
@@ -62,9 +70,10 @@ export const BALANCE = {
     bigMatchMultiplier: 1.5,
     /** 고령 XP 감쇠 (6.1): [이 나이부터, 배율]. 경기 XP와 결장 주 훈련 XP에만 적용 */
     veteranMultiplier: [
-      [33, 0.8],
-      [35, 0.6],
-      [37, 0.4],
+      [30, 0.9],
+      [32, 0.8],
+      [34, 0.65],
+      [36, 0.5],
     ] as [number, number][],
   },
 
@@ -102,8 +111,8 @@ export const BALANCE = {
   aging: {
     /** 속도, 가속, 민첩성, 체력, 근력, 점프 */
     physical: [
-      [30, 0.5],
-      [32, 1],
+      [30, 0.7],
+      [32, 1.3],
       [36, 2],
     ] as [number, number][],
     /** 기술/수비/멘탈 */
@@ -128,11 +137,11 @@ export const BALANCE = {
     /** 시즌 종료 때 능력치마다 +1 확률: [이 나이부터, 확률]. 포인트 비용과 무관 */
     growth: [
       [27, 0.5],
-      [32, 0.3],
-      [35, 0],
+      [31, 0.25],
+      [34, 0],
     ] as [number, number][],
     /** 이 나이부터 노화 대상. 그 전에는 면제 */
-    agingFromAge: 36,
+    agingFromAge: 35,
     /** 노화 시 기술/멘탈 하락 확률에 곱하는 값 */
     agingFactor: 0.5,
   },
