@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 3;
+export const BALANCE_VERSION = 4;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -201,6 +201,21 @@ export const BALANCE = {
     momMin: 8.0,
     /** 교체 출전은 평점 변동을 출전 비율만큼 줄이되 최소 이 비율 */
     subDampenMin: 0.4,
+  },
+
+  // ── 폼 (7.2, 부록 D.1) ──
+  form: {
+    /** 최근 출전 N경기 평점 평균. N경기 미만이면 보정 없음 */
+    games: 5,
+    /** 보정 = clamp((평균 - pivot) × perPoint, -max, +max) 를 다음 경기 평점에 더한다 */
+    pivot: 6.5,
+    perPoint: 0.3,
+    max: 0.3,
+    /** 화면 5단계: 보정이 이 값 이상이면 매우 좋음 / 좋음, 이 값 이하면 매우 나쁨 / 나쁨 */
+    veryGood: 0.2,
+    good: 0.07,
+    bad: -0.07,
+    veryBad: -0.2,
   },
 
   // ── 피로 (7.1) ──

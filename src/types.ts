@@ -101,6 +101,8 @@ export interface PlayerState {
   allocation: { levels: number; raised: Partial<Record<FieldAttribute, number>> };
   fatigue: number;
   reputation: number;
+  /** 최근 출전 경기 평점 (폼 계산용, 최근 BALANCE.form.games 경기) */
+  recentRatings: number[];
   /** 비용 2 구간 코치 코멘트를 이미 봤는지 (6.3) */
   coachWarned: boolean;
   season: SeasonStats;

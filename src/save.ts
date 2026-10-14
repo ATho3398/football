@@ -32,12 +32,34 @@ export function serialize(state: GameState): string {
   return JSON.stringify(state);
 }
 
-export function deserialize(json: string): GameState {
-  const state = JSON.parse(json) as GameState;
-  if (state.saveFormat !== SAVE_FORMAT_VERSION) {
-    throw new Error(`세이브 형식이 맞지 않습니다 (세이브 ${state.saveFormat}, 게임 ${SAVE_FORMAT_VERSION})`);
+/**
+ * 이전 형식 세이브 변환. 키 = 변환 전 형식, 값 = 다음 형식으로 바꾸는 함수.
+ * SAVE_FORMAT_VERSION 을 올릴 때마다 하나씩 추가한다.
+ */
+const MIGRATIONS: Record<number, (s: any) => void> = {
+  // 1 → 2: 폼 (부록 D.1). 이전 경기 평점은 남아 있지 않으므로 빈 기록에서 시작
+  1: (s) => {
+    s.player.recentRatings = [];
+    if (s.lastMatch) s.lastMatch.formBonus = 0;
+  },
+};
+
+export function migrate(raw: any): GameState {
+  const from = raw.saveFormat;
+  if (typeof from !== 'number' || from > SAVE_FORMAT_VERSION) {
+    throw new Error(`세이브 형식이 맞지 않습니다 (세이브 ${from}, 게임 ${SAVE_FORMAT_VERSION})`);
   }
-  return state;
+  for (let v = from; v < SAVE_FORMAT_VERSION; v++) {
+    const step = MIGRATIONS[v];
+    if (!step) throw new Error(`세이브 형식 ${v} 을 변환할 수 없습니다`);
+    step(raw);
+    raw.saveFormat = v + 1;
+  }
+  return raw as GameState;
+}
+
+export function deserialize(json: string): GameState {
+  return migrate(JSON.parse(json));
 }
 
 export function saveGame(slot: SaveSlot, state: GameState): boolean {

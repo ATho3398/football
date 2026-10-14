@@ -8,6 +8,7 @@ import {
   averageRating, careerTotals, newGame, nextFixture, playRound, retire, selectableRealPlayers, startNextSeason,
   type GameState,
 } from '../game';
+import { FORM_ICONS, FORM_NAMES_KO, formBonus, formLevel } from '../form';
 import { generatePlayer } from '../generate';
 import {
   autoAllocate, costTier, nextReputationTier, playerOvr, pointCost, raiseAttribute, raiseBlock, reputationTier,
@@ -173,8 +174,21 @@ function playerCard(g: GameState): string {
         <span class="tier">Lv.${p.level}</span>
       </div>
       <div class="row small"><span class="muted" style="width:52px">컨디션</span><div class="bar grow ${condClass}"><i style="width:${condition}%"></i></div><span style="width:38px;text-align:right">${condition}%</span></div>
+      ${formRow(p.recentRatings)}
       <div class="row small" style="margin-top:6px"><span class="muted" style="width:52px">XP</span><div class="bar grow"><i style="width:${xpPct}%"></i></div><span style="width:38px;text-align:right">${p.xp}</span></div>
     </div>`;
+}
+
+/** 폼 5단계 (부록 D.1). 출전 경기가 모자라면 보정 없음 */
+function formRow(recent: number[]): string {
+  const level = formLevel(recent);
+  const enough = recent.length >= BALANCE.form.games;
+  const bonus = formBonus(recent);
+  const detail = enough
+    ? `평점 ${bonus >= 0 ? '+' : ''}${bonus.toFixed(2)}`
+    : `${recent.length}/${BALANCE.form.games}경기`;
+  return `<div class="row small" style="margin-top:6px"><span class="muted" style="width:52px">폼</span>
+    <span class="grow form-${level}">${FORM_ICONS[level]} ${FORM_NAMES_KO[level]}</span><span class="muted">${detail}</span></div>`;
 }
 
 function seasonStatsGrid(g: GameState): string {
@@ -249,7 +263,8 @@ function matchView(g: GameState): string {
     </div>
     <div class="card">
       <div class="row between">
-        <div><h2>내 활약</h2><div class="muted small">${appearance}</div></div>
+        <div><h2>내 활약</h2><div class="muted small">${appearance}</div>
+          ${r.minutes > 0 && m.formBonus ? `<div class="small ${m.formBonus > 0 ? 'up' : 'down'}">폼 보정 ${m.formBonus > 0 ? '+' : ''}${m.formBonus.toFixed(2)}</div>` : ''}</div>
         <div class="center"><div class="rating ${ratingCls}">${r.rating === null ? '-' : r.rating.toFixed(1)}</div><div class="small muted">평점</div></div>
       </div>
       <div class="stat-grid" style="margin-top:10px">

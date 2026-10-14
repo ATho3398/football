@@ -15,6 +15,8 @@ export interface MatchInput {
   home: boolean;
   difficulty: Difficulty;
   bigMatch?: boolean;
+  /** 폼 보정 (7.2). 평점에 그대로 더한다 */
+  formBonus?: number;
 }
 
 export type MatchOutcome = 'win' | 'draw' | 'loss';
@@ -99,6 +101,7 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   if (!started) delta *= Math.max(R.subDampenMin, share);
   delta += goals * R.goal + assists * R.assist;
   delta += BALANCE.difficulty[input.difficulty].rating;
+  delta += input.formBonus ?? 0;
   delta -= fatiguePenalty(input.fatigue) * BALANCE.fatigue.ratingPenaltyPerPoint;
   const rating = Math.round(clamp(R.base + delta, R.min, R.max) * 10) / 10;
 

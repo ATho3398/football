@@ -191,3 +191,5 @@ nav.tabs button.on { color: var(--accent); font-weight: 700; }
   font-size: 14px;
   z-index: 10;
 }
+.form-veryGood, .form-good { color: var(--accent); }
+.form-bad, .form-veryBad { color: var(--bad); }

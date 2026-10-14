@@ -12,6 +12,7 @@ import {
   type LeagueState,
 } from './league';
 import { simulateMatch, type MatchResult } from './match';
+import { formBonus, pushRating } from './form';
 import { createNpc, growNpc, type NpcState } from './npc';
 import type { PlayablePosition } from './positions';
 import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
@@ -19,7 +20,7 @@ import { createRng, hashSeed, type Rng } from './rng';
 import type { FieldPlayerData, PlayerState, SeasonRecord, SeasonStats } from './types';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 1;
+export const SAVE_FORMAT_VERSION = 2;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -32,6 +33,8 @@ export interface MatchReport {
   result: MatchResult;
   levelsGained: number;
   ovr: number;
+  /** 이 경기에 적용된 폼 보정 */
+  formBonus: number;
 }
 
 export interface SeasonSummary {
@@ -95,7 +98,7 @@ export function newGame(opts: NewGameOptions): GameState {
   let player: PlayerState;
   const base = {
     xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
-    fatigue: 0, coachWarned: false, season: emptySeasonStats(), history: [],
+    fatigue: 0, coachWarned: false, recentRatings: [], season: emptySeasonStats(), history: [],
   };
 
   if (opts.mode === 'prospect') {
@@ -185,10 +188,12 @@ export function playRound(state: GameState): MatchReport {
   const myTeam = teamById(league, player.teamId);
   const opp = teamById(league, fx.opponentId);
   const ovr = playerOvr(player);
+  const form = formBonus(player.recentRatings);
   const result = simulateMatch(
     {
       ovr, position: player.position, fatigue: player.fatigue,
       teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
+      formBonus: form,
     },
     rngFor(seed, 'match', league.season, roundIdx),
   );
@@ -214,6 +219,7 @@ export function playRound(state: GameState): MatchReport {
     s.assists += result.assists;
     s.ratingSum += result.rating ?? 0;
     if (result.mom) s.moms++;
+    player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
     updateFatigueForMatch(player, result.minutes);
   }
   // 결장한 주도 훈련 XP 를 받는다. 33세부터 고령 감쇠 (6.1)
@@ -224,6 +230,7 @@ export function playRound(state: GameState): MatchReport {
   league.round++;
   const report: MatchReport = {
     season: league.season, round: roundIdx + 1, opponentId: opp.id, home: fx.home, result, levelsGained, ovr,
+    formBonus: form,
   };
   state.lastMatch = report;
 
