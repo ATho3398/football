@@ -1,4 +1,4 @@
-// 성장, 레벨업, 포인트 비용, 자동 성장, 노화 (5.1, 6.1, 6.2, B.5)
+// 성장, 레벨업, 포인트 비용, 자동 성장, 노화, 노련함 (5.1, 6.1, 6.1.1, 6.2, B.5)
 
 import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './attributes';
 import { BALANCE } from './config/balance';
@@ -26,6 +26,15 @@ export const skillTier = (ovr: number): Tier => tierFromCuts(ovr, BALANCE.skillT
 export const reputationTier = (rep: number): Tier => tierFromCuts(rep, BALANCE.reputation.tierCuts);
 
 export const randInt = (rng: Rng, min: number, max: number): number => min + Math.floor(rng() * (max - min + 1));
+
+/** 다음 위상 티어와 그 컷. 최고 티어면 null */
+export function nextReputationTier(rep: number): { tier: Tier; cut: number } | null {
+  const next = TIERS_ASC[TIERS_ASC.indexOf(reputationTier(rep)) + 1];
+  return next ? { tier: next, cut: BALANCE.reputation.tierCuts[next] } : null;
+}
+
+/** 내 선수의 포인트 비용 구간 티어: 현재 위상 티어 (6.2 성장 해금) */
+export const costTier = (p: Pick<PlayerState, 'reputation'>): Tier => reputationTier(p.reputation);
 
 /** 현재 값에서 1 올리는 포인트 비용 (6.2) */
 export function pointCost(value: number, tier: Tier): number {
@@ -57,7 +66,7 @@ export type RaiseBlock = 'max' | 'points' | 'cap';
 export function raiseBlock(p: PlayerState, attr: FieldAttribute): RaiseBlock | null {
   const v = p.attributes[attr];
   if (v >= G.maxAttribute) return 'max';
-  if (pointCost(v, p.potentialTier) > p.unspentPoints) return 'points';
+  if (pointCost(v, costTier(p)) > p.unspentPoints) return 'points';
   if ((p.allocation.raised[attr] ?? 0) >= p.allocation.levels * G.maxRaisePerLevel) return 'cap';
   return null;
 }
@@ -69,10 +78,11 @@ export function raiseBlock(p: PlayerState, attr: FieldAttribute): RaiseBlock | n
 export function raiseAttribute(p: PlayerState, attr: FieldAttribute): boolean {
   if (raiseBlock(p, attr)) return false;
   const v = p.attributes[attr];
-  p.unspentPoints -= pointCost(v, p.potentialTier);
+  const tier = costTier(p);
+  p.unspentPoints -= pointCost(v, tier);
   p.attributes[attr] = v + 1;
   p.allocation.raised[attr] = (p.allocation.raised[attr] ?? 0) + 1;
-  if (pointCost(v + 1, p.potentialTier) >= 2) p.coachWarned = true;
+  if (pointCost(v + 1, tier) >= 2) p.coachWarned = true;
   if (p.unspentPoints === 0) p.allocation = { levels: 0, raised: {} };
   return true;
 }
@@ -84,7 +94,7 @@ export function autoAllocate(p: PlayerState): void {
     let bestScore = 0;
     for (const a of FIELD_ATTRIBUTES) {
       if (raiseBlock(p, a)) continue;
-      const score = attributeOvrWeight(p.position, a) / pointCost(p.attributes[a], p.potentialTier);
+      const score = attributeOvrWeight(p.position, a) / pointCost(p.attributes[a], costTier(p));
       if (score > bestScore) {
         bestScore = score;
         best = a;
@@ -119,24 +129,48 @@ const PHYSICAL: readonly FieldAttribute[] = [
   ...ATTRIBUTE_GROUPS.pace, ...ATTRIBUTE_GROUPS.physical,
 ];
 
-/** 나이별 시즌당 평균 하락 (곡선 표에서 해당 나이의 마지막 구간) */
+export const isVeteranAttribute = (a: FieldAttribute): boolean => BALANCE.veteran.attributes.includes(a);
+
+/** 나이별 값 (곡선 표에서 해당 나이의 마지막 구간). 노화 하락, 노련함 확률, 고령 XP 배율 */
 export function agingRate(curve: readonly (readonly [number, number])[], age: number): number {
   let rate = 0;
   for (const [from, r] of curve) if (age >= from) rate = r;
   return rate;
 }
 
-/** 노화 (6.1, 내 선수와 NPC 공통). age 는 그 시즌의 나이. 소수 하락은 능력치마다 확률로 */
+/**
+ * 노화 (6.1, 내 선수와 NPC 공통). age 는 그 시즌의 나이. 소수 하락은 능력치마다 확률로.
+ * 노련함 능력치는 veteran.agingFromAge 전까지 면제, 그 뒤로는 기술/멘탈 하락 × agingFactor (6.1.1)
+ */
 export function applyAging(attrs: FieldAttributes, age: number, rng: Rng): AttributeDelta {
   const A = BALANCE.aging;
+  const V = BALANCE.veteran;
   const delta: AttributeDelta = {};
   for (const a of FIELD_ATTRIBUTES) {
-    const rate = agingRate(PHYSICAL.includes(a) ? A.physical : A.other, age);
+    let rate: number;
+    if (isVeteranAttribute(a)) rate = age < V.agingFromAge ? 0 : agingRate(A.other, age) * V.agingFactor;
+    else rate = agingRate(PHYSICAL.includes(a) ? A.physical : A.other, age);
     if (rate === 0) continue;
     const lo = Math.floor(rate);
     bump(attrs, delta, a, -(lo + (rng() < rate - lo ? 1 : 0)));
   }
   return delta;
+}
+
+/** 노련함 능력치 성장 (6.1.1, 내 선수와 NPC 공통). age 는 그 시즌의 나이. 능력치마다 확률로 +1 */
+export function applyVeteranGrowth(attrs: FieldAttributes, age: number, rng: Rng): AttributeDelta {
+  const delta: AttributeDelta = {};
+  const chance = agingRate(BALANCE.veteran.growth, age);
+  if (chance === 0) return delta;
+  for (const a of BALANCE.veteran.attributes) if (rng() < chance) bump(attrs, delta, a, 1);
+  return delta;
+}
+
+/** 고령 XP 감쇠 배율 (6.1). 경기 XP와 결장 주 훈련 XP에 곱한다 */
+export function veteranXpMultiplier(age: number): number {
+  let m = 1;
+  for (const [from, x] of BALANCE.matchXp.veteranMultiplier) if (age >= from) m = x;
+  return m;
 }
 
 export function playerOvr(p: Pick<PlayerState, 'attributes' | 'position'>): number {

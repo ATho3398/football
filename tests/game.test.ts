@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { autoAllocate, playerOvr } from '../src/growth';
-import { newGame, playRound, startNextSeason, type GameState } from '../src/game';
+import { newGame, playRound, ratingRank, seasonAchievements, startNextSeason, type GameState } from '../src/game';
 import { buildSchedule } from '../src/league';
 import { simulateMatch, type MatchInput } from '../src/match';
 import { createNpc, growNpc, npcOvr } from '../src/npc';
@@ -121,6 +121,43 @@ describe('시즌 진행', () => {
   });
 });
 
+describe('팀 내 활약 업적 (5.3)', () => {
+  /** 시즌을 끝까지 돌리지 않고 기록과 순위표만 꾸민 상태 */
+  function staged(): GameState {
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'ach', difficulty: 'normal' });
+    const myRow = g.league.table.find((r) => r.teamId === g.player.teamId)!;
+    myRow.gf = 40;
+    return g;
+  }
+  const labels = (g: GameState) => seasonAchievements(g.player, g.league).map((a) => a.label.split(' (')[0]);
+
+  it('팀 공격 기여: 15경기 이상, 골+어시가 팀 득점의 25% 이상', () => {
+    const g = staged();
+    Object.assign(g.player.season, { apps: 15, goals: 6, assists: 4, ratingSum: 15 * 6.5 });
+    expect(labels(g)).toContain('팀 공격 기여');
+    g.player.season.assists = 3;
+    expect(labels(g)).not.toContain('팀 공격 기여');
+  });
+
+  it('안정적인 활약: 평균 7.0 이상 7.5 미만만. 7.5 이상은 기존 업적', () => {
+    const g = staged();
+    Object.assign(g.player.season, { apps: 10, ratingSum: 72 });
+    expect(labels(g)).toContain('안정적인 활약');
+    g.player.season.ratingSum = 76;
+    expect(labels(g)).not.toContain('안정적인 활약');
+    expect(labels(g)).toContain(`시즌 평균 평점 ${BALANCE.achievements.highAvgRating.minAvg} 이상`);
+  });
+
+  it('언더독 돌풍: 최종 순위가 시즌 전 레이팅 순위보다 3계단 이상 위', () => {
+    const g = staged();
+    const expected = ratingRank(g.league, g.player.teamId);
+    // 내 팀만 승점을 주어 1위로 만든다
+    g.league.table.find((r) => r.teamId === g.player.teamId)!.points = 100;
+    expect(expected).toBeGreaterThanOrEqual(4);
+    expect(labels(g)).toContain('언더독 돌풍');
+  });
+});
+
 describe('NPC 성장', () => {
   it('어린 선수는 전성기 OVR 을 향해 오르고, 결과는 시드로 재현된다', () => {
     const young = A_GRADE_PLAYERS.find((p) => p.id === 'foden')!;
@@ -135,10 +172,10 @@ describe('NPC 성장', () => {
     expect(again).toEqual(growNpc(createNpc(young, 'npc', 2018), 'npc', 2018));
   });
 
-  it('30대 선수는 하락한다', () => {
+  it('30대 선수는 하락한다 (노련함 능력치가 있어 미드필더는 완만하게)', () => {
     let n = createNpc(A_GRADE_PLAYERS.find((p) => p.id === 'modric')!, 'npc', 2018);
     const start = npcOvr(n);
-    for (let y = 2018; y < 2022; y++) n = growNpc(n, 'npc', y);
+    for (let y = 2018; y < 2023; y++) n = growNpc(n, 'npc', y);
     expect(npcOvr(n)).toBeLessThan(start - 3);
   });
 });

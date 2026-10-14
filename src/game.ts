@@ -4,7 +4,8 @@ import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
 import { generatePlayer } from './generate';
 import {
-  addXp, applyAging, applyAutoGrowth, playerOvr, randInt, type AttributeDelta,
+  addXp, applyAging, applyAutoGrowth, applyVeteranGrowth, playerOvr, randInt, veteranXpMultiplier,
+  type AttributeDelta,
 } from './growth';
 import {
   CLUB_TO_TEAM, createLeague, leaguePosition, nextSeasonLeague, recordResult, simulateScore, teamById,
@@ -44,6 +45,8 @@ export interface SeasonSummary {
   reputationBefore: number;
   reputationAfter: number;
   autoGrowth: AttributeDelta;
+  /** 노련함 능력치 성장 (6.1.1). 이전 버전 세이브에는 없다 */
+  veteranGrowth?: AttributeDelta;
   aging: AttributeDelta;
   ovrBefore: number;
   ovrAfter: number;
@@ -213,7 +216,8 @@ export function playRound(state: GameState): MatchReport {
     if (result.mom) s.moms++;
     updateFatigueForMatch(player, result.minutes);
   }
-  // 결장한 주도 훈련 XP 를 받는다
+  // 결장한 주도 훈련 XP 를 받는다. 33세부터 고령 감쇠 (6.1)
+  result.xp = Math.round(result.xp * veteranXpMultiplier(player.age));
   s.matchXp += result.xp;
   const levelsGained = addXp(player, result.xp);
 
@@ -231,10 +235,40 @@ export function averageRating(s: SeasonStats): number | null {
   return s.apps > 0 ? s.ratingSum / s.apps : null;
 }
 
-/** 시즌 종료 (B.5): 업적 XP → 위상 → 자동 성장 → 노화 → 나이 +1 → 기록 저장 */
+/** 시즌 전 팀 레이팅 순위 (1 = 최강). 레이팅은 시즌 중에 바뀌지 않는다 */
+export function ratingRank(league: LeagueState, teamId: string): number {
+  const own = teamById(league, teamId).rating;
+  return 1 + league.teams.filter((t) => t.rating > own).length;
+}
+
+/** 시즌 업적 (5.3): 리그 순위, 평균 평점, 팀 내 활약 */
+export function seasonAchievements(player: PlayerState, league: LeagueState): { label: string; xp: number }[] {
+  const A = BALANCE.achievements;
+  const s = player.season;
+  const out: { label: string; xp: number }[] = [];
+  const pos = leaguePosition(league, player.teamId);
+  const posAch = A.leaguePosition.find(([maxPos]) => pos <= maxPos);
+  if (posAch) out.push({ label: `리그 ${pos}위`, xp: posAch[1] });
+  const avg = averageRating(s);
+  if (avg !== null && avg >= A.highAvgRating.minAvg && s.apps >= A.highAvgRating.minApps) {
+    out.push({ label: `시즌 평균 평점 ${A.highAvgRating.minAvg} 이상`, xp: A.highAvgRating.xp });
+  } else if (avg !== null && avg >= A.steadyRating.minAvg && s.apps >= A.steadyRating.minApps) {
+    out.push({ label: `안정적인 활약 (평균 평점 ${A.steadyRating.minAvg} 이상)`, xp: A.steadyRating.xp });
+  }
+  const teamGoals = league.table.find((r) => r.teamId === player.teamId)?.gf ?? 0;
+  if (s.apps >= A.teamAttack.minApps && teamGoals > 0 && (s.goals + s.assists) / teamGoals >= A.teamAttack.share) {
+    out.push({ label: `팀 공격 기여 (팀 득점 ${teamGoals} 중 ${s.goals + s.assists} 관여)`, xp: A.teamAttack.xp });
+  }
+  const expected = ratingRank(league, player.teamId);
+  if (expected - pos >= A.underdog.minPlacesAbove) {
+    out.push({ label: `언더독 돌풍 (예상 ${expected}위 → ${pos}위)`, xp: A.underdog.xp });
+  }
+  return out;
+}
+
+/** 시즌 종료 (B.5): 업적 XP → 위상 → 자동 성장 → 노련함 → 노화 → 나이 +1 → 기록 저장 */
 export function endSeason(state: GameState): SeasonSummary {
   const { player, league } = state;
-  const A = BALANCE.achievements;
   const R = BALANCE.reputation;
   const season = league.season;
   const age = player.age;
@@ -243,13 +277,7 @@ export function endSeason(state: GameState): SeasonSummary {
 
   // 1. 업적 XP
   const pos = leaguePosition(league, player.teamId);
-  const achievements: { label: string; xp: number }[] = [];
-  const posAch = A.leaguePosition.find(([maxPos]) => pos <= maxPos);
-  if (posAch) achievements.push({ label: `리그 ${pos}위`, xp: posAch[1] });
-  const avg = averageRating(player.season);
-  if (avg !== null && avg >= A.highAvgRating.minAvg && player.season.apps >= A.highAvgRating.minApps) {
-    achievements.push({ label: `시즌 평균 평점 ${A.highAvgRating.minAvg} 이상`, xp: A.highAvgRating.xp });
-  }
+  const achievements = seasonAchievements(player, league);
   const baseXp = achievements.reduce((t, a) => t + a.xp, 0);
   const achievementXp = Math.round(baseXp * BALANCE.difficulty[state.difficulty].xp);
   const levelsGained = addXp(player, achievementXp);
@@ -258,8 +286,9 @@ export function endSeason(state: GameState): SeasonSummary {
   const reputationBefore = player.reputation;
   player.reputation = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + baseXp * R.fromAchievementXp));
 
-  // 3~4. 자동 성장, 노화
+  // 3~4. 자동 성장, 노련함, 노화
   const autoGrowth = applyAutoGrowth(player.attributes, age, player.potentialTier, rng);
+  const veteranGrowth = applyVeteranGrowth(player.attributes, age, rng);
   const aging = applyAging(player.attributes, age, rng);
 
   // 5. 나이
@@ -277,7 +306,7 @@ export function endSeason(state: GameState): SeasonSummary {
 
   const summary: SeasonSummary = {
     season, age, leaguePosition: pos, achievements, achievementXp, levelsGained,
-    reputationBefore, reputationAfter: player.reputation, autoGrowth, aging,
+    reputationBefore, reputationAfter: player.reputation, autoGrowth, veteranGrowth, aging,
     ovrBefore, ovrAfter: playerOvr(player),
     canRetire: age >= BALANCE.retirement.optionalAge,
     forcedRetire: player.age >= BALANCE.retirement.forcedAge,
