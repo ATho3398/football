@@ -17,7 +17,7 @@ export const messi: FieldPlayerData = {
   subPositions: ['CF', 'CAM'],
   traits: ['playmaker', 'dribbler'],
   potentialTier: 'legendary',
-  reputation: 100,
+  reputation: 1000,
   legendBadge: true,
   attributes: {
     dribbling: 95, ballControl: 95,
