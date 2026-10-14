@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 7;
+export const BALANCE_VERSION = 8;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -42,6 +42,24 @@ export const BALANCE = {
      * 기획서 기본은 전 티어 +0~2. 잠재력 티어 차이가 30세 OVR 에 드러나도록 티어별로 나눴다.
      * 내 선수의 숨은 잠재력은 이 자동 성장 폭에만 쓴다 (6.2)
      */
+    /**
+     * 실제 선수 성장 여지 (부록 D.7 #1, 실제 선수만): 정점 목표 = 시작 OVR + 시작 나이별 여지.
+     * 필요 XP에 × (1 + max(0, OVR - (정점 목표 - softBelow)) × perOvr) 를 더 곱해 목표 근처에서 성장이 느려진다.
+     * roomByStartAge: [이 나이부터, 여지]
+     */
+    realPeak: {
+      roomByStartAge: [
+        [0, 10],
+        [21, 8],
+        [24, 7],
+        [27, 4],
+        [30, 2],
+      ] as [number, number][],
+      softBelow: 2,
+      perOvr: 3.0,
+      /** OVR 이 정점 목표 - 이 값 이상이면 17~21세 자동 성장을 받지 않는다 */
+      autoGrowthStopBelow: 6,
+    },
     autoGrowth: {
       minAge: 17,
       maxAge: 21,

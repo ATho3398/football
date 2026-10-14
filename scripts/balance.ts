@@ -1,11 +1,25 @@
 // 밸런스 점검 (B.10): 잠재력 티어별 가상 유망주를 시드 고정으로 17~33세까지 자동 시뮬
-// 실행: npm run balance
-// 기대 범위(참고): 일반 → 30세 OVR 65~72, 레전더리 → 85 이상
+// 실행: npm run balance (출력만) / npm run balance:check (목표를 벗어나면 종료 코드 1, 부록 A.1)
+// 30세 OVR 기대 범위 (부록 D.7 #3): 최적 배분 일반 74~78 / 레전더리 84~88, 무작위 배분 일반 68~72 / 레전더리 79~83
 // 포인트 배분은 두 가지로 본다: 최적(포지션 OVR 효율 순 자동 배분) / 무작위(25개 능력치 중 아무 데나)
 // 가상 유망주는 모두 약팀(레이팅 순위 8~20위)에 배정되므로 평균이 곧 약팀 배정 평균이다 (부록 D.0)
 // 추가 점검 (부록 D.0): 위상 티어 분포(성장 해금), 30세 이후 OVR 추이(고령 XP 감쇠), 포지션별 30→36세 변화(노련함)
 // 부상 점검 (부록 D.5): 주전(시즌 선발 30경기 이상 출전 가능 수준)의 시즌당 부상 횟수 목표 약 0.4~0.8회
 // 1.6단계 점검 (부록 D.6): 실제 선수(케인, 래시포드, 손흥민 + A등급 전체) 고능력치 개수, 약팀 유망주 30세 위상 중앙값, 포지션군별 30→36세
+// 1.7단계 점검 (부록 D.7): 실제 선수 정점 = 시작 OVR + 시작 나이별 여지(±1.5), 레전더리 위상 중앙값 500 전후
+
+/** 회귀 가드 (부록 A.1): 지표마다 기대 범위 */
+const CHECK = (globalThis as { process?: { argv: string[] } }).process?.argv.includes('--check') ?? false;
+const checks: { name: string; value: number; min: number; max: number }[] = [];
+function check(name: string, value: number, min: number, max: number): string {
+  const v = Math.round(value * 10) / 10;
+  checks.push({ name, value: v, min, max });
+  return v >= min && v <= max ? '✓' : '✗';
+}
+const OVR30_TARGET: Record<Strategy, Partial<Record<Tier, [number, number]>>> = {
+  best: { normal: [74, 78], legendary: [84, 88] },
+  random: { normal: [68, 72], legendary: [79, 83] },
+};
 
 import { FIELD_ATTRIBUTES } from '../src/attributes';
 import {
@@ -93,12 +107,15 @@ for (const strategy of ['best', 'random'] as Strategy[]) {
     const avgAt = (age: number) => runs.reduce((t, r) => t + (r.ovrByAge[age] ?? 0), 0) / runs.length;
     const at30 = runs.map((r) => r.ovrByAge[30] ?? 0);
     const starts = runs.reduce((t, r) => t + r.starts, 0) / runs.length;
+    const target = OVR30_TARGET[strategy][tier];
+    const mark = target ? `  목표 ${target[0]}~${target[1]} ${check(`30세 OVR ${strategy} ${tier}`, avgAt(30), ...target)}` : '';
     console.log(
       [
         TIER_NAMES_KO[tier].padEnd(6),
         ...ages.map((a) => avgAt(a).toFixed(0).padStart(4)),
         starts.toFixed(1).padStart(10),
         `   ${Math.min(...at30)}~${Math.max(...at30)}`,
+        mark,
       ].join(''),
     );
   }
@@ -151,7 +168,7 @@ for (const strategy of ['best', 'random'] as Strategy[]) {
     (ss.reduce((t, x) => t + x.injuries, 0) / ss.reduce((t, x) => t + x.minutes, 0)) * 90 * 38;
   const target = per38(seasonsAll);
   console.log(`  38경기 풀타임 환산: 전체 ${target.toFixed(2)}회 · 29세 이하 ${per38(seasonsAll.filter((x) => x.age < 30)).toFixed(2)}회 · 30세 이상 ${per38(seasonsAll.filter((x) => x.age >= 30)).toFixed(2)}회`);
-  console.log(`  목표: 주전 시즌당 0.4~0.8회 → 풀타임 환산 ${target.toFixed(2)}회 ${target >= 0.4 && target <= 0.8 ? '(범위 안)' : '(범위 밖)'}`);
+  console.log(`  목표: 주전 시즌당 0.4~0.8회 → 풀타임 환산 ${target.toFixed(2)}회 ${check('부상 풀타임 환산', target, 0.4, 0.8)}`);
   const grades: InjuryGrade[] = ['minor', 'major', 'seasonEnding'];
   const names: Record<InjuryGrade, string> = { minor: '경상', major: '중상', seasonEnding: '시즌아웃' };
   console.log(`  등급: ${grades.map((g) => {
@@ -171,8 +188,9 @@ const REAL_SEEDS = Number(env.REAL_SEEDS ?? 12);
 const realRuns = (id: string, strategy: Strategy) =>
   Array.from({ length: REAL_SEEDS }, (_, i) =>
     runCareer(newGame({ mode: 'real', playerId: id, seed: `real-${id}-${i}`, difficulty: 'normal' }), strategy, i));
+const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
 {
-  console.log(`\n[D.6 실제 선수] 최적 배분, 시드 ${REAL_SEEDS}개 평균. 목표: 케인 30세 OVR 91~94, 95+ 4개 이하, 99 1개 이하 / 정점 ≈ 시작 OVR + 6~8`);
+  console.log(`\n[D.6/D.7 실제 선수] 최적 배분, 시드 ${REAL_SEEDS}개 평균. 목표(D.7): 정점 = 시작 OVR + 시작 나이별 여지 (≤20 +10 / 21~23 +8 / 24~26 +7 / 27~29 +4 / 30+ +2, ±1.5)`);
   for (const id of ['kane', 'rashford', 'son']) {
     const runs = realRuns(id, 'best');
     const age0 = Math.min(...Object.keys(runs[0]!.ovrByAge).map(Number));
@@ -185,38 +203,66 @@ const realRuns = (id: string, strategy: Strategy) =>
         ` · 정점 ${peak.toFixed(1)} (+${(peak - start).toFixed(1)}) · 커리어 최대 99 ${max99}개 · 36세 ${at(36, 'ovrByAge').toFixed(1)}`,
     );
   }
-  // 목표: 실제 선수는 어떤 경우에도 99 능력치가 2개를 넘지 않는다
+  // 목표: 실제 선수는 어떤 경우에도 99 능력치가 2개를 넘지 않는다 / 정점 여지가 나이별 목표 ±1.5 안
   const all = selectableRealPlayers();
   let over2 = 0;
   let worst = { id: '', n: 0 };
+  let inRange = 0;
+  const misses: string[] = [];
   for (const d of all) {
-    const r = runCareer(newGame({ mode: 'real', playerId: d.id, seed: `real-all-${d.id}`, difficulty: 'normal' }), 'best', 1);
-    const n = Math.max(...Object.values(r.max99ByAge));
-    if (n > 2) over2++;
-    if (n > worst.n) worst = { id: d.id, n };
+    const deltas: number[] = [];
+    let room = 0;
+    for (let i = 0; i < ALL_REAL_SEEDS; i++) {
+      const state = newGame({ mode: 'real', playerId: d.id, seed: `real-all-${d.id}-${i}`, difficulty: 'normal' });
+      const start = playerOvr(state.player);
+      room = state.player.peakTarget! - start;
+      const r = runCareer(state, 'best', i);
+      deltas.push(Math.max(...Object.values(r.ovrByAge)) - start);
+      const n = Math.max(...Object.values(r.max99ByAge));
+      if (n > 2) over2++;
+      if (n > worst.n) worst = { id: d.id, n };
+    }
+    const delta = avg(deltas);
+    if (Math.abs(delta - room) <= 1.5) inRange++;
+    else misses.push(`${d.id} ${2018 - d.birthYear}세 목표 +${room.toFixed(0)} 결과 +${delta.toFixed(1)}`);
   }
-  console.log(`  A등급 전체 ${all.length}명 (최적 배분, 시드 1개): 커리어 중 99 능력치 3개 이상 ${over2}명 · 최대 ${worst.n}개 (${worst.id || '-'})`);
+  console.log(`  A등급 전체 ${all.length}명 × 시드 ${ALL_REAL_SEEDS}개: 커리어 중 99 능력치 3개 이상 ${over2}건 · 최대 ${worst.n}개 (${worst.id || '-'}) ${check('실제 선수 99 능력치 3개 이상', over2, 0, 0)}`);
+  const share = inRange / all.length;
+  console.log(`  정점 여지 ±1.5 안: ${inRange}/${all.length}명 (${(share * 100).toFixed(0)}%) ${check('실제 선수 정점 여지 적중률', share, 0.8, 1)}${misses.length ? ` · 벗어남: ${misses.join(', ')}` : ''}`);
 }
 {
-  console.log('\n[D.6 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표: 일반 150~350 (스페셜), 레전더리 600 전후 (월드클래스)');
+  console.log('\n[D.7 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표: 최적 배분 일반 150~350 (스페셜), 레전더리 500 전후 (450~550)');
   for (const strategy of ['best', 'random'] as Strategy[]) {
     const perTier = (tier: Tier) => allRuns[strategy].slice(TIERS_ASC.indexOf(tier) * SEEDS_PER_TIER, (TIERS_ASC.indexOf(tier) + 1) * SEEDS_PER_TIER);
-    console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${median(perTier(t).map((r) => r.repByAge[30] ?? 0)).toFixed(0)}`).join(' / ')}`);
+    const med = (t: Tier) => median(perTier(t).map((r) => r.repByAge[30] ?? 0));
+    const marks = strategy === 'best'
+      ? ` · ${check('위상 중앙값 일반', med('normal'), 150, 350)}${check('위상 중앙값 레전더리', med('legendary'), 450, 550)}`
+      : '';
+    console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${med(t).toFixed(0)}`).join(' / ')}${marks}`);
   }
 }
 {
-  console.log('\n[D.6 노화] 포지션군별 36세 − 30세 OVR (전 티어). 목표: 윙/풀백 −4~−6, CB/CDM/CM −1~−2, ST/CAM 0~−2');
-  const groups: [string, string[]][] = [
-    ['윙/풀백', ['LW', 'RW', 'LM', 'RM', 'LB', 'RB', 'LWB', 'RWB']],
-    ['CB/CDM/CM', ['CB', 'CDM', 'CM']],
-    ['ST/CAM', ['ST', 'CF', 'CAM']],
+  console.log('\n[D.6 노화] 포지션군별 36세 − 30세 OVR (전 티어). 목표(최적 배분): 윙/풀백 −4~−6, CB/CDM/CM −1~−2, ST/CAM 0~−2');
+  const groups: [string, string[], number, number][] = [
+    ['윙/풀백', ['LW', 'RW', 'LM', 'RM', 'LB', 'RB', 'LWB', 'RWB'], -6, -4],
+    ['CB/CDM/CM', ['CB', 'CDM', 'CM'], -2, -1],
+    ['ST/CAM', ['ST', 'CF', 'CAM'], -2, 0],
   ];
   for (const strategy of ['best', 'random'] as Strategy[]) {
-    const line = groups.map(([name, ps]) => {
+    const line = groups.map(([name, ps, lo, hi]) => {
       const rs = allRuns[strategy].filter((r) => ps.includes(r.position) && r.ovrByAge[36] !== undefined);
       const d = avg(rs.map((r) => r.ovrByAge[36]! - r.ovrByAge[30]!));
-      return `${name} ${d >= 0 ? '+' : ''}${d.toFixed(1)}`;
+      const mark = strategy === 'best' ? ` ${check(`36-30 ${name}`, d, lo, hi)}` : '';
+      return `${name} ${d >= 0 ? '+' : ''}${d.toFixed(1)}${mark}`;
     });
     console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${line.join(' / ')}`);
   }
+}
+
+// ── 회귀 가드 결과 (부록 A.1) ──
+{
+  const failed = checks.filter((c) => c.value < c.min || c.value > c.max);
+  console.log(`\n[회귀 가드] ${checks.length - failed.length}/${checks.length} 통과`);
+  for (const c of failed) console.log(`  ✗ ${c.name}: ${c.value} (목표 ${c.min}~${c.max})`);
+  if (CHECK && failed.length) (globalThis as { process?: { exit(code: number): never } }).process?.exit(1);
 }

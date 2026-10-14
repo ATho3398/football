@@ -104,6 +104,8 @@ export interface PlayerState {
   name: string;
   /** 실제 선수로 시작했으면 그 선수 id */
   realPlayerId?: string;
+  /** 실제 선수의 정점 목표 OVR (부록 D.7 #1). 가상 유망주는 없음 */
+  peakTarget?: number;
   position: FieldPosition;
   age: number;
   teamId: string;

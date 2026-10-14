@@ -43,10 +43,21 @@ export function pointCost(value: number, tier: Tier): number {
   return Math.max(bandCost, agingRate(G.highValueCost, value));
 }
 
-/** 다음 레벨업에 필요한 XP (5.1): OVR 이 높을수록 늘어난다 */
-export function xpToLevel(p: Pick<PlayerState, 'attributes' | 'position'>): number {
+/** 실제 선수 정점 목표 = 시작 OVR + 시작 나이별 성장 여지 (부록 D.7 #1) */
+export function realPeakTarget(startOvr: number, startAge: number): number {
+  return Math.round((startOvr + agingRate(G.realPeak.roomByStartAge, startAge)) * 10) / 10;
+}
+
+/** 다음 레벨업에 필요한 XP (5.1): OVR 이 높을수록, 실제 선수는 정점 목표에 가까울수록 늘어난다 */
+export function xpToLevel(p: Pick<PlayerState, 'attributes' | 'position'> & { peakTarget?: number }): number {
   const { fromOvr, perOvr } = G.xpByOvr;
-  return Math.round(G.xpPerLevel * (1 + Math.max(0, playerOvr(p) - fromOvr) * perOvr));
+  const ovr = playerOvr(p);
+  let m = 1 + Math.max(0, ovr - fromOvr) * perOvr;
+  if (p.peakTarget !== undefined) {
+    const R = G.realPeak;
+    m *= 1 + Math.max(0, ovr - (p.peakTarget - R.softBelow)) * R.perOvr;
+  }
+  return Math.round(G.xpPerLevel * m);
 }
 
 /** XP 추가. 레벨업 횟수를 돌려준다 */

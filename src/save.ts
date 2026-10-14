@@ -1,6 +1,11 @@
 // 저장/불러오기 (B.8): 브라우저 localStorage
 
+import { A_GRADE_PLAYERS } from '../data/players';
+import { BALANCE } from './config/balance';
 import { SAVE_FORMAT_VERSION, type GameState } from './game';
+import { generatePlayer } from './generate';
+import { realPeakTarget } from './growth';
+import { positionOvr } from './positions';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -49,6 +54,13 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
       st.injuries = 0;
       st.injuredWeeks = 0;
     }
+  },
+  // 3 → 4: 실제 선수 정점 목표 (부록 D.7 #1). 시작 능력치는 시드로 다시 만들 수 있다
+  3: (s) => {
+    const data = A_GRADE_PLAYERS.find((d) => d.id === s.player.realPlayerId);
+    if (!data) return;
+    const gen = generatePlayer(data, s.worldSeed);
+    s.player.peakTarget = realPeakTarget(positionOvr(gen.attributes, data.position), BALANCE.newGame.startYear - data.birthYear);
   },
 };
 

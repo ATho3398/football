@@ -4,7 +4,7 @@ import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
 import { generatePlayer } from './generate';
 import {
-  addXp, applyAging, applyAutoGrowth, applyVeteranGrowth, playerOvr, randInt, veteranXpMultiplier,
+  addXp, applyAging, applyAutoGrowth, applyVeteranGrowth, playerOvr, randInt, realPeakTarget, veteranXpMultiplier,
   type AttributeDelta,
 } from './growth';
 import {
@@ -15,13 +15,13 @@ import { simulateMatch, type MatchResult } from './match';
 import { formBonus, pushRating } from './form';
 import { healWeek, rollInjury } from './injury';
 import { createNpc, growNpc, type NpcState } from './npc';
-import type { PlayablePosition } from './positions';
+import { positionOvr, type PlayablePosition } from './positions';
 import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
 import { createRng, hashSeed, type Rng } from './rng';
 import type { FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats } from './types';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 3;
+export const SAVE_FORMAT_VERSION = 4;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -131,12 +131,14 @@ export function newGame(opts: NewGameOptions): GameState {
     const data = selectableRealPlayers().find((p) => p.id === opts.playerId);
     if (!data) throw new Error(`선택할 수 없는 선수: ${opts.playerId}`);
     const gen = generatePlayer(data, worldSeed);
+    const age = season - data.birthYear;
     player = {
       ...base,
       name: data.nameKo,
       realPlayerId: data.id,
+      peakTarget: realPeakTarget(positionOvr(gen.attributes, data.position), age),
       position: data.position,
-      age: season - data.birthYear,
+      age,
       teamId: CLUB_TO_TEAM[data.club]!,
       attributes: gen.attributes,
       potentialTier: data.potentialTier,
@@ -330,7 +332,9 @@ export function endSeason(state: GameState): SeasonSummary {
   player.reputation = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
 
   // 3~4. 자동 성장, 노련함, 노화
-  const autoGrowth = applyAutoGrowth(player.attributes, age, player.potentialTier, rng);
+  // 실제 선수는 정점 목표 근처에 오면 자동 성장을 멈춘다 (부록 D.7 #1)
+  const nearPeak = player.peakTarget !== undefined && ovrBefore >= player.peakTarget - BALANCE.growth.realPeak.autoGrowthStopBelow;
+  const autoGrowth = nearPeak ? {} : applyAutoGrowth(player.attributes, age, player.potentialTier, rng);
   const veteranGrowth = applyVeteranGrowth(player.attributes, age, rng);
   const aging = applyAging(player.attributes, age, rng, player.position);
 
