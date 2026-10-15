@@ -248,6 +248,8 @@ export const ENGINE = {
     lateRunDepth: 11,
     /** 세트피스 (E.22 B): 코너·측면 프리킥 때 박스에 들어가는 CB 최대 수 */
     setPieceCB: 2,
+    /** 세트피스 수비 대인 마크 인원 (E.22 B, 나머지는 지역 수비) */
+    setPieceMark: 3,
     /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율) */
     boxRunDepth: 13,
     /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스 */
@@ -274,8 +276,32 @@ export const ENGINE = {
     valueFarK: 80,
     valueNearB: 0.357,
     valueNearK: 7.6,
-    tempBase: 0.06,
-    tempSlope: 0.18,
+    /**
+     * 판단 온도 (E.22 C): τ = tempBase × exp(tempSlope × (0.7 − 판단 품질)). 목표는 공격 진영에서 판단 70 선수가 효용 1위를 약 60%,
+     * 85 는 약 70%, 55 는 약 45% (tempBase 0.03, tempSlope 3 이면 56 / 69 / 48). 그 값에서 동레이팅 득점 2.37, 슈팅 23.6 이라 (부록 C.18)
+     * 기획 결정 전까지 이전 온도(0.06 + 0.18 × (1 − 판단))와 같은 값을 쓴다 (판단 70 → 최선 29%)
+     */
+    tempBase: 0.114,
+    tempSlope: 1.42,
+    /**
+     * 판단 후보 (E.22 C): 효용 1위에서 plausibleGap(골 단위, 효용 스케일 전) 안의 후보와, 실제로 나오는 실수(유지로 공 끌기,
+     * 안전한 백패스, 무리한 슛)만 고를 수 있다. 엉뚱한 선택(먼 옆 패스 등)은 후보에서 뺀다
+     */
+    plausibleGap: 0.015,
+    /**
+     * 시야 제한 (E.22 C): 몸 방향(움직이는 방향, 등지고 받았으면 자기 골 쪽, 서 있으면 공격 방향)에서 visionCone + visionConeSlope × (시야 − 50) 도
+     * 밖이거나 옆으로 switchDist m 넘게 가는 패스(반대편 전환)는 scanBase + scanSlope × (시야 − 50)/50 확률로만 보인다.
+     * 침투 패스는 throughSeeBase + throughSeeSlope × (시야 − 50)/50 확률로 보인다 (시야 좋은 선수가 더 자주 찾는다)
+     */
+    /** 슛 효용에 실패 시 상실 비용을 넣는다 (E.22 C, 1 = 넣음, 0 = 이전처럼 xG 만) */
+    shotLoss: 1,
+    visionCone: 100,
+    visionConeSlope: 1,
+    switchDist: 30,
+    scanBase: 0.3,
+    scanSlope: 0.4,
+    throughSeeBase: 0.5,
+    throughSeeSlope: 0.4,
     /** 유지 시 빼앗길 확률: 3 m 안 수비수마다 holdLose × (1 − 거리/3) (독립 합성) */
     holdLose: 0.5,
     /** 드리블(공 몰고 전진) 거리 (m) */
@@ -580,7 +606,7 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95) */
-    saveBase: 1.8,
+    saveBase: 1.79,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,

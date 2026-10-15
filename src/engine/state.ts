@@ -96,7 +96,7 @@ export interface Flight {
   /** 크로스였으면 true (크로스 성공 집계) */
   fromCross?: boolean;
   /** 유효 슈팅 정보 */
-  shot?: { speed: number; corner: number; d: number; header: boolean };
+  shot?: { speed: number; corner: number; d: number; header: boolean; penalty?: boolean };
 }
 
 export interface Ball {

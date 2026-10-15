@@ -352,7 +352,7 @@ function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null 
  * 공이 상대 최종 3분의 1 측면일 때의 역할 (E.18 A2): 침투 성향(run ≥ 0.4) CM/CAM 중 공에 가장 가까운 1명은 컷백 존,
  * 다음 미드 1명은 박스 경계 바깥(세컨드 볼, 중거리), ST/CF 2명은 니어/파 포스트 (공에 가까운 쪽이 니어)
  */
-export function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
+function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
   const mates = s.agents.filter((o) => o.onPitch && o.team === a.team && o !== owner);
   const bd = (o: Agent) => dist(o.x, o.y, s.ball.x, s.ball.y);
   // 윙어: 공이 반대쪽 측면이면 먼 포스트로, 공이 중앙이면 같은 쪽 하프스페이스로 파고든다
@@ -772,6 +772,22 @@ function setPieceTarget(s: SimState, a: Agent): boolean {
   // 수비: 가장 앞선 공격수 1명은 남고 나머지는 박스 안
   const forward = mates.slice().sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
   if (a === forward) return false;
+  // 대인 마크 (E.22 B): 공중볼 상위 수비 setPieceMark 명이 박스 안 상대 공중볼 상위 선수를 골 쪽 1 m 에서 맡는다 (같은 순위끼리)
+  const markers = mates.filter((o) => o !== forward).slice(0, O.setPieceMark);
+  const mi = markers.indexOf(a);
+  if (mi >= 0) {
+    const opp = s.agents
+      .filter((o) => o.onPitch && o.team === attTeam && o.line !== 0 && o.idx !== r.taker && Math.abs(o.x - gx) < ENGINE.pitch.boxDepth + 2)
+      .sort((x, y) => (y.attrs.heading + y.attrs.jumping) - (x.attrs.heading + x.attrs.jumping));
+    const t = opp[mi];
+    if (t) {
+      const gd = dist(t.x, t.y, gx, gy) || 1;
+      a.tx = t.x + ((gx - t.x) / gd) * 1;
+      a.ty = t.y + ((gy - t.y) / gd) * 1;
+      a.urgent = false;
+      return true;
+    }
+  }
   a.tx = gx - dirAtt * (3 + (k % 4) * 3);
   a.ty = gy - 10 + (k % 7) * 3.3;
   a.urgent = false;

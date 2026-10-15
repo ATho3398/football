@@ -317,7 +317,7 @@ function shotArrives(s: SimState, fl: Flight): void {
   const gk = keeperOf(s, defTeam);
   const sh = fl.shot!;
   const dir = attackDir(shooter.team, s.half);
-  if (r(s, shooter.idx, Purpose.Save) < saveProb(gk, sh.speed, sh.corner, sh.d)) {
+  if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < saveProb(gk, sh.speed, sh.corner, sh.d)) {
     s.teams[defTeam].stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
     if (gk && r(s, shooter.idx, Purpose.Save, 1) < catchProb(gk)) {
@@ -636,7 +636,7 @@ function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {
 /** 코너: 박스 안 공중볼 최고 동료에게 크로스 (가끔 짧은 패스) */
 export function takeCorner(s: SimState, a: Agent): boolean {
   if (rand(s.seed, s.tick, a.idx, Purpose.Corner) < ENGINE.setPiece.shortCorner) return false;
-  const ct = crossTarget(s, a);
+  const ct = crossTarget(s, a, rand(s.seed, s.tick, a.idx, Purpose.Corner, 1));
   if (!ct) return false;
   s.exemptPass = true;
   cross(s, a, { type: 'cross', p: 0.3, u: 0, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
@@ -686,7 +686,7 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
   // 측면 프리킥: 크로스
   const [nx] = [dir > 0 ? a.x / L : 1 - a.x / L];
   if (nx > 0.65 && d < 40) {
-    const ct = crossTarget(s, a);
+    const ct = crossTarget(s, a, r(s, a.idx, Purpose.FreeKick, 8));
     if (ct) {
       cross(s, a, { type: 'cross', p: 0.3, u: 0, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
       return true;
@@ -713,7 +713,16 @@ export function takePenalty(s: SimState, a: Agent): void {
     t.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     s.lastPass = null;
-    goal(s, a);
+    // 공이 골문까지 날아간 뒤 골 (재생에서 공이 골문에 들어가는 장면이 보이게, 판정은 이미 끝났다)
+    const [gx, gy] = oppGoal(dir);
+    const side = r(s, a.idx, Purpose.Penalty, 3) < 0.5 ? -1 : 1;
+    const speed = ENGINE.ball.shotSpeed;
+    const d = dist(a.x, a.y, gx, gy);
+    s.ball.owner = -1;
+    s.ball.flight = {
+      kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * (G / 2 - 0.6), t0: s.t, dur: d / speed, air: false,
+      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner: 1, d, header: false, penalty: true },
+    };
     return;
   }
   if (r(s, a.idx, Purpose.Penalty, 1) < SP.penaltySaveShare) {

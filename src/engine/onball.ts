@@ -269,19 +269,31 @@ function boxTeammates(s: SimState, a: Agent, dir: 1 | -1): Agent[] {
   return s.agents.filter((o) => o.onPitch && o.team === a.team && o !== a && o.line !== 0 && inOppBox(o.x, o.y, dir));
 }
 
-/** 크로스 대상: 박스 안 동료 중 공중볼 승산 × 헤더 기대 가치가 가장 큰 선수 */
-export function crossTarget(s: SimState, a: Agent): { r: Agent; pWin: number; value: number } | null {
+/**
+ * 크로스 대상: 박스 안 동료 중 공중볼 승산 × 헤더 기대 가치가 가장 큰 선수.
+ * 세트피스(roll 을 주면)는 키커가 한 선수만 노리지 않는다: 승산 × 가치에 비례한 확률로 고른다 (E.22 B, 한 선수가 코너 골을 독차지하지 않게)
+ */
+export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; pWin: number; value: number } | null {
   const dir = attackDir(a.team, s.half);
   const gk = keeperOf(s, (1 - a.team) as 0 | 1);
   let best: { r: Agent; pWin: number; value: number } | null = null;
+  const all: { r: Agent; pWin: number; value: number }[] = [];
   for (const r of boxTeammates(s, a, dir)) {
     const [def, dd] = nearestOpponent(s, r);
     let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def) : 0.85;
     if (gk && dist(gk.x, gk.y, r.x, r.y) < ENGINE.keeper.claimRange) pWin *= 1 - claimProb(gk);
     const value = shotModel(s, r, true).value * r.role.pref.header;
+    all.push({ r, pWin, value });
     if (!best || pWin * value > best.pWin * best.value) best = { r, pWin, value };
   }
-  return best;
+  if (roll === undefined || all.length < 2) return best;
+  const tot = all.reduce((t, c) => t + c.pWin * c.value, 0);
+  let x = roll * tot;
+  for (const c of all) {
+    x -= c.pWin * c.value;
+    if (x <= 0) return c;
+  }
+  return all[all.length - 1]!;
 }
 
 /** 타깃 ST: 헤더 + 근력이 가장 높은 공격수 (직선 성향, E.19) */
@@ -506,7 +518,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       // 티키타카: xG 0.05 미만 슛 × 0.7 (확실한 기회까지 돌린다), 게겐프레싱 탈취 직후
       const tikiMul = tac.tendency === 'tikitaka' && m.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
       const gegenMul = tac.tendency === 'gegenpress' ? winMul : 1;
-      const u = weight(vj * O.shotScale, a.role.pref.shoot * tikiMul * gegenMul * (m.d > TA.farShot ? risk : 1));
+      // 슛이 골이 아니면(빗나감·선방·블록) 공은 대개 상대 골 앞에서 상대에게 간다: 다른 후보와 같은 식 U = P × V + (1 − P) × C (E.22 C)
+      const shotLoss = O.shotLoss ? loss(0.97, 0.5) : 0;
+      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * tikiMul * gegenMul * (m.d > TA.farShot ? risk : 1));
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
     }
 
@@ -553,35 +567,72 @@ export function leadTempoMul(s: SimState, team: 0 | 1): number {
   return lead >= 3 ? TA.leadTempo3 : lead >= 2 ? TA.leadTempo2 : 1;
 }
 
-/** softmax 선택. 온도 τ = tempBase + tempSlope × (1 − 판단 품질) */
+/** 판단 온도 (E.22 C): τ = tempBase × exp(tempSlope × (0.7 − 판단 품질)) */
+export function decisionTemp(a: Agent): number {
+  return O.tempBase * Math.exp(O.tempSlope * (0.7 - a.judgement));
+}
+
+/**
+ * 시야 제한 (E.22 C): 이 후보가 보이는가. 패스·크로스만 가려질 수 있다 (유지, 몰고 가기, 돌파, 슛, 클리어링은 항상 보인다).
+ * 몸 방향 밖이거나 반대편 전환이면 scan 확률, 침투 패스는 throughSee 확률 (시야 능력치)
+ */
+function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean {
+  if (c.receiver < 0 || c.type === 'layoff') return true;
+  const dir = attackDir(a.team, s.half);
+  const sp = Math.hypot(a.vx, a.vy);
+  const [fx, fy] = a.backToGoal ? [-dir, 0] : sp > 0.5 ? [a.vx / sp, a.vy / sp] : [dir, 0];
+  const dx = c.x - a.x;
+  const dy = c.y - a.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const ang = (Math.acos(clamp((dx * fx + dy * fy) / d, -1, 1)) * 180) / Math.PI;
+  const v = (a.attrs.vision - 50) / 50;
+  let p = 1;
+  if (ang > (O.visionCone + O.visionConeSlope * (a.attrs.vision - 50)) / 2 || Math.abs(dy) > O.switchDist) p *= clamp(O.scanBase + O.scanSlope * v, 0.05, 1);
+  if (c.type === 'through') p *= clamp(O.throughSeeBase + O.throughSeeSlope * v, 0.05, 1);
+  return p >= 1 || rand(s.seed, s.tick, a.idx, Purpose.Vision, k) < p;
+}
+
+/** 실제로 나오는 실수 (E.22 C): 유지로 공 끌기, 안전한 백패스, 무리한 슛. 효용이 낮아도 고를 수 있다 */
+function isMistake(s: SimState, a: Agent, c: Candidate): boolean {
+  if (c.type === 'hold' || c.type === 'shoot') return true;
+  return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) < -2;
+}
+
+/**
+ * softmax 선택 (E.22 C): 보이는 후보 중 효용 1위에서 plausibleGap 안의 후보와 실수 유형만, 온도 τ (판단 품질)로 고른다.
+ * 보이는 후보가 없으면 (유지는 항상 보인다) 전체에서
+ */
 export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
-  const tau = O.tempBase + O.tempSlope * (1 - a.judgement);
+  const vis = cands.filter((c, k) => visible(s, a, c, k));
+  const pool0 = vis.length ? vis : cands;
   let maxU = -Infinity;
-  for (const c of cands) maxU = Math.max(maxU, c.u);
-  const ws = cands.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau));
+  for (const c of pool0) maxU = Math.max(maxU, c.u);
+  const pool = pool0.filter((c) => c.u >= maxU - O.plausibleGap || isMistake(s, a, c));
+  const tau = decisionTemp(a);
+  const ws = pool.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau));
   const total = ws.reduce((t, w) => t + w, 0);
   let r = rand(s.seed, s.tick, a.idx, Purpose.Decide) * total;
-  let pick = cands.length - 1;
-  for (let i = 0; i < cands.length; i++) {
+  let pick = pool.length - 1;
+  for (let i = 0; i < pool.length; i++) {
     r -= ws[i]!;
     if (r <= 0) {
       pick = i;
       break;
     }
   }
-  recordDecision(s, a, cands, pick);
-  return cands[pick]!;
+  recordDecision(s, a, pool0, pool[pick]!);
+  return pool[pick]!;
 }
 
-/** 측정용 (E.22 0번): 상대 진영 결정에서 고른 후보의 효용 순위 (판단 품질 55 / 70 / 85 구간별 최선·차선·나머지) */
-function recordDecision(s: SimState, a: Agent, cands: Candidate[], pick: number): void {
+/** 측정용 (E.22 0번): 상대 진영 결정에서 고른 후보의 효용 순위 (보이는 후보 중) (판단 품질 55 / 70 / 85 구간별 최선·차선·나머지) */
+function recordDecision(s: SimState, a: Agent, cands: Candidate[], chosen: Candidate): void {
   if (a.line === 0 || cands.length < 3) return;
   const [nx] = toNorm(a.x, a.y, attackDir(a.team, s.half));
   if (nx <= 0.5) return;
   const j = a.judgement - (a.duelEdge > 0 ? ENGINE.match.homeJudgement : 0);
   const band = j >= 0.5 && j < 0.6 ? 0 : j >= 0.65 && j < 0.75 ? 1 : j >= 0.8 && j < 0.9 ? 2 : -1;
   if (band < 0) return;
-  const u = cands[pick]!.u;
+  const u = chosen.u;
   let above = 0;
   for (const c of cands) if (c.u > u) above++;
   s.teams[a.team].stats.decisions[band * 3 + Math.min(2, above)]!++;
