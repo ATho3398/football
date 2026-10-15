@@ -93,6 +93,22 @@ export interface TeamStats {
   crossesCompleted: number;
   aerials: number;
   saves: number;
+  // ── 측정용 (E.15, E3.5) ──
+  throwIns: number;
+  goalKicks: number;
+  /** 30 m 이상 패스 시도 */
+  longPasses: number;
+  throughPasses: number;
+  throughReceived: number;
+  /** 오픈 플레이 소유 시작 10초 안 슈팅 (역습) */
+  counterShots: number;
+  /** 골킥 소유 시작 15초 안 슈팅 */
+  goalKickShots: number;
+  /** 골대 폭 안(중앙)에서 쏜 슈팅 */
+  centralShots: number;
+  /** 상대 진영에서 소유를 빼앗은 횟수 */
+  oppHalfWins: number;
+  keyPasses: number;
 }
 
 export interface PlayerStats {
@@ -120,6 +136,21 @@ export interface PlayerStats {
   red: boolean;
   offsides: number;
   rating: number;
+  // ── 측정용 (E.15.1 스탯 반응) ──
+  received: number;
+  throughReceived: number;
+  aerialDuels: number;
+  crosses: number;
+  crossesCompleted: number;
+  /** 이 선수를 상대로 한 드리블 돌파 시도 / 성공 */
+  dribblesFaced: number;
+  dribbledPast: number;
+  /** 75분까지 이동 거리 (m) */
+  distance75: number;
+  /** 교체/퇴장으로 나간 분 (끝까지 뛰면 null) */
+  offMinute: number | null;
+  /** 슬롯 인덱스 (벤치에서 들어오면 들어간 슬롯) */
+  slot: number;
 }
 
 export interface Frame {
@@ -138,4 +169,8 @@ export interface EngineResult {
   decisions: unknown[];
   /** 실제 경기 시간 (초, 추가시간 포함) */
   duration: number;
+  /** 공이 살아 있던 시간 (초) */
+  liveSeconds: number;
+  /** 75분 시점의 실제 경과 시간 (초, 전반 추가시간 포함) */
+  elapsed75: number;
 }

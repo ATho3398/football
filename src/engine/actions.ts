@@ -37,6 +37,8 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
     case 'through': {
       a.stats.passes++;
       team.stats.passes++;
+      if (dist(a.x, a.y, c.x, c.y) >= 30) team.stats.longPasses++;
+      if (c.type === 'through') team.stats.throughPasses++;
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
       const offside = fl.outcome === 'receive' && isOffside(s, a, receiver);
@@ -95,8 +97,10 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
   const def = s.agents[c.opponent!]!;
   a.stats.dribbles++;
   s.teams[a.team].stats.dribbles++;
+  def.stats.dribblesFaced++;
   if (r(s, a.idx, Purpose.Dribble) < c.p) {
     a.stats.dribblesWon++;
+    def.stats.dribbledPast++;
     s.teams[a.team].stats.dribblesWon++;
     def.beatenUntil = s.t + PR.beatenTime;
     a.tx = c.x;
@@ -145,7 +149,13 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
   a.stats.shots++;
   team.stats.shots++;
   const lp = s.lastPass;
-  if (lp && lp.receiver === a.idx && lp.t >= s.possSince) s.agents[lp.passer]!.stats.keyPasses++;
+  if (lp && lp.receiver === a.idx && lp.t >= s.possSince) {
+    s.agents[lp.passer]!.stats.keyPasses++;
+    team.stats.keyPasses++;
+  }
+  if (s.possOrigin === 'open' && s.t - s.possStartT < 10) team.stats.counterShots++;
+  if (s.possOrigin === 'goalKick' && s.t - s.possStartT < 15) team.stats.goalKickShots++;
+  if (Math.abs(a.y - W / 2) <= G / 2) team.stats.centralShots++;
   a.cooldown = 1;
   s.ball.lastTouch = a.idx;
   s.ball.lastTeam = a.team;
@@ -251,6 +261,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   a.stats.passes++;
   t.stats.passes++;
   t.stats.crosses++;
+  a.stats.crosses++;
   const target = s.agents[c.receiver];
   const exempt = s.exemptPass;
   s.exemptPass = false;
@@ -322,6 +333,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
   if (bestA && bestD) {
     s.teams[0].stats.aerials++;
     s.teams[1].stats.aerials++;
+    bestA.stats.aerialDuels++;
+    bestD.stats.aerialDuels++;
     if (r(s, bestA.idx, Purpose.Foul, 2) < ENGINE.referee.aerialFoul * foulFactor(s, bestA, b.x, b.y)) {
       // 공중볼 몸싸움 파울: 대부분 수비 쪽 파울
       const defFoul = r(s, bestA.idx, Purpose.Foul, 3) < 0.7;
@@ -336,6 +349,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
   if (winner.team === att) {
     if (fl.fromCross) {
       s.teams[att].stats.crossesCompleted++;
+      passer.stats.crossesCompleted++;
+      winner.stats.received++;
       passer.stats.passesCompleted++;
       s.teams[att].stats.passesCompleted++;
       s.lastPass = { passer: passer.idx, receiver: winner.idx, t: s.t };
@@ -403,6 +418,8 @@ export function resolveFlight(s: SimState): void {
           if (def && dd < PR.longContest) {
             s.teams[0].stats.aerials++;
             s.teams[1].stats.aerials++;
+            rc.stats.aerialDuels++;
+            def.stats.aerialDuels++;
             if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
               def.stats.aerialsWon++;
               setOwner(s, def);
@@ -416,6 +433,11 @@ export function resolveFlight(s: SimState): void {
         rc.y = b.y;
         passer.stats.passesCompleted++;
         s.teams[passer.team].stats.passesCompleted++;
+        rc.stats.received++;
+        if (fl.through) {
+          rc.stats.throughReceived++;
+          s.teams[rc.team].stats.throughReceived++;
+        }
         s.lastPass = { passer: passer.idx, receiver: rc.idx, t: s.t };
         if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
         return;

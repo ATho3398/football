@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 10;
+export const BALANCE_VERSION = 11;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -68,7 +68,7 @@ export const BALANCE = {
         special: [0, 2],
         topClass: [1, 2],
         worldClass: [2, 3],
-        legendary: [2, 4],
+        legendary: [3, 4],
       } satisfies Record<Tier, [number, number]>,
     },
   },

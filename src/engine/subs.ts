@@ -51,6 +51,7 @@ export function substitute(s: SimState, out: Agent, inA: Agent): void {
   inA.sx = out.sx;
   inA.sy = out.sy;
   inA.stats.position = out.pos;
+  inA.stats.slot = out.stats.slot;
   // 터치라인 하프라인 근처에서 들어온다
   const dir = attackDir(out.team, s.half);
   [inA.x] = toPitch(0.45, 0, dir);
