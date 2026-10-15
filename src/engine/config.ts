@@ -137,10 +137,24 @@ export const ENGINE = {
     attackerPress: 0.4,
     pressDistBase: 8,
     pressDistRange: 14,
-    /** 복귀 달리기: 공보다 recoverBehind(정규화) 이상 앞에 있으면 확률 recoverBase + 노력/100 × workRateSpeed 로 급히 복귀 */
-    recoverBehind: 0.1,
-    recoverBase: 0.1,
-    workRateSpeed: 0.2,
+    /**
+     * 역압박 (E.18 A3): 공을 잃은 순간부터 (counterBase + counterPerPress × pressing)초, 공에서 counterRadius m 안 최대
+     * counterMax 명. 가담 확률 = counterJoin + counterJoinPress × 역할 press + counterJoinWork × 노력/100
+     */
+    counterBase: 3,
+    counterPerPress: 2,
+    counterRadius: 10,
+    counterMax: 3,
+    counterJoin: 0.4,
+    counterJoinPress: 0.4,
+    counterJoinWork: 0.2,
+    /** 패스 길 압박 위치: 소유자에서 가까운 동료까지의 비율 */
+    counterLane: 0.35,
+    /** 복귀: 목표가 자기 골 쪽으로 recoverRun m 이상이면 러닝 이상, recoverSprint m 이상이면 최대 속도 (긴급 복귀 판단 확률 recoverJudge + recoverWork × 노력/100) */
+    recoverRun: 10,
+    recoverSprint: 20,
+    recoverJudge: 0.6,
+    recoverWork: 0.4,
     /** 내려와서 받기: drop × 이 거리만큼 공 쪽으로 (m) */
     dropDist: 8,
     /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 */

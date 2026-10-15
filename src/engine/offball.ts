@@ -94,6 +94,7 @@ export function keeperTarget(s: SimState, a: Agent): void {
 
 /** 오프더볼 목표 갱신 */
 export function updateOffball(s: SimState, a: Agent): void {
+  a.minRun = false;
   const dir = attackDir(a.team, s.half);
   const b = s.ball;
   const fl = b.flight;
@@ -248,6 +249,30 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const b = s.ball;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
 
+  // 역압박 (E.18 A3): 가담 선수 중 가장 가까운 1명은 소유자, 나머지는 소유자와 가까운 동료 사이 패스 길을 최대 속도로
+  const tm = s.teams[a.team];
+  if (owner && owner.team !== a.team && s.t < tm.counterUntil) {
+    const k = tm.counterPressers.indexOf(a.idx);
+    if (k === 0) {
+      a.tx = owner.x;
+      a.ty = owner.y;
+      a.urgent = true;
+      return;
+    }
+    if (k > 0) {
+      const mates = s.agents
+        .filter((o) => o.onPitch && o.team === owner.team && o !== owner && o.line !== 0)
+        .sort((x, y) => dist(x.x, x.y, owner.x, owner.y) - dist(y.x, y.y, owner.x, owner.y));
+      const m = mates[k - 1];
+      if (m) {
+        a.tx = owner.x + (m.x - owner.x) * O.counterLane;
+        a.ty = owner.y + (m.y - owner.y) * O.counterLane;
+        a.urgent = true;
+        return;
+      }
+    }
+  }
+
   // 압박: 공에 가까운 1~2명 (2번째는 압박 성향이 높을 때)
   if (owner && owner.team !== a.team) {
     const rank = ballRank(s, a, b.x, b.y);
@@ -312,11 +337,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       ny = ny * (1 - w) + mny * w;
     }
   }
-  // 복귀: 공보다 앞에 있는 미드/수비는 급히 돌아온다
+  // 복귀 (E.18 A3): 목표가 자기 골 쪽으로 10 m 이상이면 러닝 이상, 20 m 이상이면 (긴급 복귀 판단 시) 최대 속도
   const [ax] = toNorm(a.x, a.y, dir);
-  const urgent = a.line <= 2 && ax > bnx + O.recoverBehind && rand(s.seed, s.tick, a.idx, Purpose.Offball) < O.recoverBase + (a.attrs.workRate / 100) * O.workRateSpeed;
+  const back = (ax - nx) * L;
+  void bnx;
   void bny;
-  setTarget(a, nx, ny, dir, urgent);
+  setTarget(a, nx, ny, dir, back >= O.recoverSprint && a.recoverUrgent);
+  a.minRun = back >= O.recoverRun;
 }
 
 /** 오프더볼 갱신 때 위치 오차를 새로 뽑는다 */

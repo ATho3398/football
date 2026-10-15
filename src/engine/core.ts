@@ -1,7 +1,9 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
 import { ENGINE } from './config';
+import { effectiveTactics } from './offball';
 import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
+import { Purpose, rand } from './rng';
 import type { Agent, RestartType, SimState } from './state';
 import type { MatchEvent } from './types';
 
@@ -41,6 +43,7 @@ export function setOwner(s: SimState, a: Agent): void {
     s.possSince = s.t;
     s.possOrigin = 'open';
     s.possStartT = s.t;
+    turnover(s, (1 - a.team) as 0 | 1, true);
     const nx = attackDir(a.team, s.half) > 0 ? b.x / L : 1 - b.x / L;
     if (nx > 0.5) s.teams[a.team].stats.oppHalfWins++;
   }
@@ -48,6 +51,32 @@ export function setOwner(s: SimState, a: Agent): void {
   a.backToGoal = false;
   a.tx = a.x;
   a.ty = a.y;
+}
+
+/**
+ * 소유를 잃은 팀 (E.18 A3): 오픈 플레이면 공 근처 최대 3명이 역압박, 모든 선수는 긴급 복귀 판단을 새로 한다
+ */
+export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
+  const O = ENGINE.offball;
+  const tm = s.teams[team];
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== team) continue;
+    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100;
+  }
+  tm.counterPressers = [];
+  tm.counterUntil = 0;
+  if (!open) return;
+  const b = s.ball;
+  const near = s.agents
+    .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
+    .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
+  const max = O.counterMax;
+  for (const a of near) {
+    if (tm.counterPressers.length >= max) break;
+    const p = O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100;
+    if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
+  }
+  if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing;
 }
 
 /** 공을 놓는다 (루즈볼). 속도 (vx, vy) */
@@ -100,6 +129,7 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
     }
   }
   if (type !== 'kickoff') recordLoss(s, team);
+  if (s.possTeam !== team) turnover(s, s.possTeam, false);
   s.lastWasShot = false;
   s.restart = { type, team, x: b.x, y: b.y, at: s.t + delay, taker: pick };
   if (s.possTeam !== team) s.possSince = s.t;

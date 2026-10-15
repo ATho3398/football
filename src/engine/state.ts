@@ -54,6 +54,10 @@ export interface Agent {
   leftAt: number | null;
   /** 상대 골을 등지고 받았다 (포스트플레이 후보, E.18 A2). 다음 결정 후 해제 */
   backToGoal: boolean;
+  /** 소유를 잃었을 때 긴급 복귀를 판단했는가 (확률 0.6 + 0.4 × 노력/100, 소유가 바뀔 때마다 새로, E.18 A3) */
+  recoverUrgent: boolean;
+  /** 복귀: 러닝 이상으로 달린다 (목표가 자기 골 쪽 10 m 이상) */
+  minRun: boolean;
   /** 평점 계산용 내부 기록 (E.12) */
   rt: { forward: number; lost: number; dangerLost: number; conceded: number };
 }
@@ -119,6 +123,9 @@ export interface TeamState {
   /** 팀 phase −1(수비) ~ +1(공격) */
   phase: number;
   subsLeft: number;
+  /** 역압박 (E.18 A3): 이 시각까지, 가담 선수 idx (공에 가까운 순) */
+  counterUntil: number;
+  counterPressers: number[];
 }
 
 export interface SimState {

@@ -28,6 +28,8 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   else if (d < P.jogDist) v = P.jog;
   else if (d < P.runDist) v = P.run;
   else v = Math.max(P.run, cap * 0.9);
+  // 복귀 (E.18 A3): 러닝 이상
+  if (a.minRun && d >= P.walkDist) v = Math.max(v, P.run);
   // 멈출 수 있는 속도
   v = Math.min(v, Math.sqrt(2 * a.accel * d), cap);
   return v;
