@@ -60,6 +60,8 @@ export interface Agent {
   minRun: boolean;
   /** 스태미나 소모 배율 (수적 열세 1.15, E.18 A6) */
   drainMul: number;
+  /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
+  duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
   rt: { forward: number; lost: number; dangerLost: number; conceded: number };
 }

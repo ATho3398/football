@@ -329,8 +329,14 @@ export const ENGINE = {
 
   // ── 경기 (E.8, E.10) ──
   match: {
-    /** 홈 팀 능력치 보정 (팀 레이팅 +1.5 상당) */
-    homeAttrBonus: 1.5,
+    /**
+     * 홈 이점 (E.18 A7, 능력치 가산 대신 세 갈래): ① 판단 품질 + homeJudgement ② 듀얼(드리블, 태클, 공중볼, 버티기) 로짓 + homeDuel
+     * ③ 원정 팀 행위의 파울 판정 확률 × awayFoul, 카드 확률 × awayCard. 빠른 경기는 기존 +1.5 레이팅
+     */
+    homeJudgement: 0.03,
+    homeDuel: 0.06,
+    awayFoul: 1.08,
+    awayCard: 1.15,
     /** 폼 보정(±0.3) → 성공 확률 ±3%p */
     formToProb: 0.1,
     /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue */

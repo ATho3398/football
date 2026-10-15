@@ -115,7 +115,7 @@ export function holdupProb(s: SimState, att: Agent, def: Agent): number {
   const atk = a.strength * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
   const dfn = d.strength * 0.45 + d.tackling * 0.35 + d.defensivePositioning * 0.2;
   void s;
-  return 1 / (1 + Math.exp(-(atk - dfn) / O.holdupScale));
+  return 1 / (1 + Math.exp(-((atk - dfn) / O.holdupScale + att.duelEdge - def.duelEdge)));
 }
 
 export function judgementOf(a: Agent): number {

@@ -107,8 +107,9 @@ export function issuePendingCards(s: SimState): void {
 
 function rollCard(s: SimState, fouler: Agent): CardType | null {
   const x = r(s, fouler.idx, Purpose.Card);
-  if (x < R.redShare) return 'red';
-  if (x < R.redShare + R.yellowShare) {
+  const k = isAway(s, fouler) ? ENGINE.match.awayCard : 1;
+  if (x < R.redShare * k) return 'red';
+  if (x < (R.redShare + R.yellowShare) * k) {
     if (fouler.stats.yellows > 0 && r(s, fouler.idx, Purpose.Card, 1) >= R.secondYellow) return null;
     return 'yellow';
   }
@@ -124,7 +125,13 @@ function rollCard(s: SimState, fouler: Agent): CardType | null {
 /** 파울 확률 배율: 피해 팀의 공격 박스 안이면 boxFoulFactor */
 export function foulFactor(s: SimState, victim: Agent, x: number, y: number, fouler?: Agent): number {
   const box = inOppBox(x, y, attackDir(victim.team, s.half)) ? R.boxFoulFactor : 1;
-  return box * (fouler && fouler.stats.yellows > 0 ? R.bookedCare : 1);
+  // 홈 이점 (E.18 A7): 원정 팀 행위의 파울 판정 × awayFoul
+  const away = fouler ? (isAway(s, fouler) ? ENGINE.match.awayFoul : 1) : 1;
+  return box * away * (fouler && fouler.stats.yellows > 0 ? R.bookedCare : 1);
+}
+
+function isAway(s: SimState, a: Agent): boolean {
+  return !s.input.neutral && a.team === 1;
 }
 
 export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: number): boolean {

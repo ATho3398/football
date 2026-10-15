@@ -53,25 +53,25 @@ export interface MatchSim {
   step(): void;
 }
 
-function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, homeBonus: number): Agent {
+function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, home: boolean): Agent {
   const slots = FORMATION_SLOTS[setup.formation];
   const slot = slots[spec.slot] ?? slots[0]!;
   const attrs = { ...spec.attrs };
-  if (homeBonus) for (const k of FIELD_ATTRIBUTES) attrs[k] = Math.min(99, attrs[k] + homeBonus);
   const gk = spec.gk ? { type: spec.gk.type, attrs: { ...spec.gk.attrs } } : null;
-  if (gk && homeBonus) for (const k of Object.keys(gk.attrs) as (keyof GkAttributes)[]) gk.attrs[k] = Math.min(99, gk.attrs[k] + homeBonus);
   const pos = spec.slot >= 0 ? slot.pos : spec.position;
   const a: Agent = {
     idx, id: spec.id, team, spec, attrs, gk, pos, line: lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1,
+    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0,
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 },
   };
   initPhysics(a);
-  a.judgement = judgementOf(a);
+  // 홈 이점 (E.18 A7): 판단 품질 + homeJudgement, 듀얼 로짓 + homeDuel (능력치 가산 없음)
+  a.judgement = judgementOf(a) + (home ? ENGINE.match.homeJudgement : 0);
+  a.duelEdge = home ? ENGINE.match.homeDuel : 0;
   return a;
 }
 
@@ -79,12 +79,12 @@ export function createState(input: EngineInput): SimState {
   const agents: Agent[] = [];
   const bench: [Agent[], Agent[]] = [[], []];
   const setups = [input.home, input.away] as const;
-  const homeBonus = input.neutral ? 0 : ENGINE.match.homeAttrBonus;
+  const home = (team: number) => !input.neutral && team === 0;
   setups.forEach((setup, team) => {
-    for (const spec of setup.lineup) agents.push(makeAgent(spec, team as 0 | 1, agents.length, setup, team === 0 ? homeBonus : 0));
+    for (const spec of setup.lineup) agents.push(makeAgent(spec, team as 0 | 1, agents.length, setup, home(team)));
   });
   setups.forEach((setup, team) => {
-    for (const spec of setup.bench) bench[team]!.push(makeAgent({ ...spec, slot: -1 }, team as 0 | 1, -1, setup, team === 0 ? homeBonus : 0));
+    for (const spec of setup.bench) bench[team]!.push(makeAgent({ ...spec, slot: -1 }, team as 0 | 1, -1, setup, home(team)));
   });
   const added1 = 60 * (T.addedFirst[0] + Math.floor(rand(input.seed, 0, 0, Purpose.Added) * (T.addedFirst[1] - T.addedFirst[0] + 1)));
   const s: SimState = {
