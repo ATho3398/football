@@ -62,13 +62,13 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const tm = s.teams[team];
   for (const a of s.agents) {
     if (!a.onPitch || a.team !== team) continue;
-    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100;
+    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a);
   }
   tm.counterPressers = [];
   tm.counterUntil = 0;
   if (!open) return;
   s.teams[team === 0 ? 1 : 0].wonAt = s.t;
-  // 성향 (E.19): 게겐프레싱 +1.5초·최대 4명, 역습·수비 블록은 역압박 없이 즉시 복귀
+  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록은 역압박 없이 즉시 복귀
   const tendency = tm.tactics.tendency;
   if (tendency === 'counter' || tendency === 'block') return;
   const b = s.ball;
@@ -78,10 +78,17 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.counterMax;
   for (const a of near) {
     if (tm.counterPressers.length >= max) break;
-    const p = O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100;
+    const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a);
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
   }
   if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);
+}
+
+/** 지친 선수는 역압박 가담·긴급 복귀를 덜 한다 (E.20 5번): 스태미나 staminaLowFrom 아래에서 비례, 0 이면 tiredFloor */
+function tiredness(a: Agent): number {
+  const P = ENGINE.physics;
+  if (a.stamina >= P.staminaLowFrom) return 1;
+  return P.tiredFloor + (1 - P.tiredFloor) * (a.stamina / P.staminaLowFrom);
 }
 
 function manDiffCount(s: SimState, team: 0 | 1): number {

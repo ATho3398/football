@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { BALANCE_VERSION } from '../../src/config/balance';
 import { ENGINE_VERSION } from '../../src/engine/config';
-import { rowPass, type SuiteResult } from './suite';
+import { RESP_SHARE, rowPass, type SuiteResult } from './suite';
 
 const DATA_RE = /<!-- report-data (.*?) -->/s;
 
@@ -22,6 +22,11 @@ function signed(v: number, d: number): string {
   return `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
 }
 
+/** 통과 규칙 설명 (D.12): 방향 확실(단측 95%) + 기준의 70% 이상 */
+function passRule(x: SuiteResult['responses'][number]): string {
+  return x.need === 0 ? '방향 확실' : `방향 확실 + ${signed(RESP_SHARE * x.need, 2)}${x.unit} 이상`;
+}
+
 export function printResult(r: SuiteResult, guard = false): void {
   let section = '';
   for (const row of r.rows) {
@@ -37,7 +42,7 @@ export function printResult(r: SuiteResult, guard = false): void {
     console.log('\n[스탯 반응 (E.15.1, 짝지은 비교)]');
     for (const x of r.responses) {
       const ok = guard && x.guard !== undefined ? x.change >= x.guard : x.pass;
-      console.log(`  ${x.target.padEnd(8)} ${x.attrs.padEnd(18)} ${x.metric.padEnd(30)} ${fmt(x.base, 2)} → ${fmt(x.mod, 2)} (${signed(x.change, 2)}${x.unit})  ${guard && x.guard !== undefined ? `가드 ${x.guard} 이상` : x.criterion} ${ok ? '✓' : '✗'}`);
+      console.log(`  ${x.target.padEnd(8)} ${x.attrs.padEnd(18)} ${x.metric.padEnd(30)} ${fmt(x.base, 2)} → ${fmt(x.mod, 2)} (${signed(x.change, 2)}${x.unit}, 단측 95% ${signed(x.bound, 2)})  ${guard && x.guard !== undefined ? `가드 ${x.guard} 이상` : `${x.criterion} → ${passRule(x)}`} ${ok ? '✓' : '✗'}`);
     }
   }
   for (const e of r.extra) console.log(`  ${e}`);
@@ -87,10 +92,13 @@ export function writeReport(path: string, r: SuiteResult, note: string): void {
   if (r.responses.length) {
     L.push('');
     L.push('## 스탯 반응 (E.15.1, 같은 시드 짝지은 비교, 양 팀 같은 슬롯 선수 1명씩 +10)');
-    L.push('| 바꾼 능력치 | 대상 | 지표 | 기준 경기 | +10 경기 | 변화 | 통과 기준 | 통과 |');
-    L.push('|---|---|---|---|---|---|---|---|');
+    L.push('');
+    L.push('통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(짝지은 부트스트랩 단측 95% 한계가 기준 방향), 크기가 표 기준값의 70% 이상.');
+    L.push('');
+    L.push('| 바꾼 능력치 | 대상 | 지표 | 기준 경기 | +10 경기 | 변화 | 단측 95% 한계 | 표 기준 | 통과 규칙 | 통과 |');
+    L.push('|---|---|---|---|---|---|---|---|---|---|');
     for (const x of r.responses) {
-      L.push(`| ${x.attrs} | ${x.target} | ${x.metric} | ${fmt(x.base, 2)} | ${fmt(x.mod, 2)} | ${signed(x.change, 2)}${x.unit} | ${x.criterion} | ${x.pass ? '✓' : '✗'} |`);
+      L.push(`| ${x.attrs} | ${x.target} | ${x.metric} | ${fmt(x.base, 2)} | ${fmt(x.mod, 2)} | ${signed(x.change, 2)}${x.unit} | ${signed(x.bound, 2)} | ${x.criterion} | ${passRule(x)} | ${x.pass ? '✓' : '✗'} |`);
     }
   }
   if (r.extra.length) {

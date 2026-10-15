@@ -2,7 +2,7 @@
 
 import { ENGINE } from './config';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
-import { attackDir, clamp, dist, L, ownGoal, toNorm, toPitch, W } from './pitch';
+import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { TENDENCY } from './tactics';
 import type { Agent, SimState } from './state';
@@ -91,6 +91,17 @@ export function keeperTarget(s: SimState, a: Agent): void {
   a.tx = gx + dir * depth;
   a.ty = clamp(gy + (s.ball.y - gy) * K.lateral, gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
   a.urgent = false;
+  // 각 좁히기: 상대 소유자가 박스 안 골 가까이 들어오면 공과 골 사이로 나간다
+  const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
+  if (owner && owner.team !== a.team && !s.restart) {
+    const gd = dist(owner.x, owner.y, gx, gy);
+    const inBox = Math.abs(owner.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(owner.y - gy) <= ENGINE.pitch.boxWidth / 2;
+    if (inBox && gd < K.rushDist && gd > 0.1) {
+      a.tx = owner.x + ((gx - owner.x) / gd) * K.rushGap;
+      a.ty = owner.y + ((gy - owner.y) / gd) * K.rushGap;
+      a.urgent = true;
+    }
+  }
 }
 
 /** 오프더볼 목표 갱신 */
@@ -321,7 +332,8 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' 
   if (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM') {
     const by = toNorm(s.ball.x, s.ball.y, attackDir(a.team, s.half))[1];
     if (Math.abs(by - 0.5) >= O.lateRunWide) return Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5) ? 'backPost' : null;
-    return 'halfSpace';
+    // 공이 중앙이면 공에서 먼 쪽 윙어는 먼 포스트로 파고들고, 가까운 쪽은 하프스페이스 (E.20, 박스 도착 인원)
+    return Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5) ? 'backPost' : 'halfSpace';
   }
   if (a.pos === 'ST' || a.pos === 'CF') {
     const sts = mates.filter((o) => o.pos === 'ST' || o.pos === 'CF');
@@ -329,8 +341,10 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' 
     return sts.sort((x, y) => bd(x) - bd(y))[0] === a ? 'near' : 'far';
   }
   if (a.pos !== 'CM' && a.pos !== 'CAM' && a.pos !== 'CDM') return null;
-  const runners = mates.filter((o) => (o.pos === 'CM' || o.pos === 'CAM') && o.role.run >= O.lateRunRun).sort((x, y) => bd(x) - bd(y));
-  const runner = runners[0];
+  // 침투 성향(run ≥ lateRunRun) CM/CAM 중 공에 가장 가까운 1명. 없으면 run 이 가장 높은 CM/CAM (누군가는 2선에서 도착한다, E.20)
+  const mids = mates.filter((o) => o.pos === 'CM' || o.pos === 'CAM');
+  const runners = mids.filter((o) => o.role.run >= O.lateRunRun).sort((x, y) => bd(x) - bd(y));
+  const runner = runners[0] ?? mids.slice().sort((x, y) => y.role.run - x.role.run || bd(x) - bd(y))[0];
   if (runner === a) return 'cutback';
   const rest = mates.filter((o) => (o.pos === 'CM' || o.pos === 'CAM' || o.pos === 'CDM') && o !== runner).sort((x, y) => bd(x) - bd(y));
   return rest[0] === a ? 'edge' : null;
@@ -365,12 +379,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  const [gx0, gy0] = ownGoal(dir);
+  const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
   // 압박: 공에 가까운 1~2명 (2번째는 압박 성향이 높을 때)
   if (owner && owner.team !== a.team) {
     const rank = ballRank(s, a, b.x, b.y);
     const pressDist = (O.pressDistBase + t.pressing * O.pressDistRange) * (a.line === 3 ? Math.max(0.1, O.attackerPress + O.attackerPressPer * (t.pressing - 0.55)) : 1);
     const d = dist(a.x, a.y, b.x, b.y);
-    const [gx0, gy0] = ownGoal(dir);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
     let wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
     // 수비 블록: 공격 줄은 1명만 압박 / 역습: 남는 최전방은 압박하지 않는다 (E.19)
@@ -387,6 +402,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       return;
     }
   }
+
+  // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
+  if (a.line === 1 && dist(b.x, b.y, gx0, gy0) < Math.max(O.boxZone, O.stMarkZone) && boxDefense(s, a, dir, boxZone)) return;
 
   let [nx, ny] = slotTarget(s, a);
   const tendency = s.teams[a.team].tactics.tendency;
@@ -446,6 +464,74 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   void bny;
   setTarget(a, nx, ny, dir, back >= O.recoverSprint && a.recoverUrgent);
   a.minRun = back >= O.recoverRun;
+}
+
+/**
+ * 박스 앞 수비 블록의 수비수 배치 (E.20 3번). 공에 가장 가까운 2명(압박)을 뺀 수비 줄에서
+ * ① 가장 위협적인 상대 ST(소유자 제외, 위치 가치가 가장 큰 ST/CF, 없으면 공격 줄)에게 가장 가까운 CB 가 골과 ST 를 잇는 선상 1.5 m 마크
+ * ② 나머지는 니어 포스트, 페널티 지점, 파 포스트 순서로 가까운 자리를 덮는다 (자리가 모자라면 평소 라인)
+ * 같은 상태에서 팀의 모든 수비수가 같은 배치를 계산한다. 배치가 정해지면 true
+ */
+function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean {
+  const b = s.ball;
+  const [gx, gy] = ownGoal(dir);
+  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 1 && ballRank(s, o, b.x, b.y) >= 2);
+  if (!defs.includes(a)) return false;
+  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+  const oppDir = (-dir) as 1 | -1;
+  let threat: Agent | null = null;
+  let tv = -Infinity;
+  for (const pass of [true, false]) {
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team === a.team || o === owner || o.line === 0) continue;
+      if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
+      const v = positionValue(...toNorm(o.x, o.y, oppDir));
+      if (v > tv) {
+        tv = v;
+        threat = o;
+      }
+    }
+    if (threat) break;
+  }
+  let rest = defs;
+  if (threat) {
+    const cbs = defs.filter((o) => o.pos === 'CB');
+    const pool = cbs.length ? cbs : defs;
+    const marker = pool.slice().sort((x, y) => dist(x.x, x.y, threat!.x, threat!.y) - dist(y.x, y.y, threat!.x, threat!.y) || x.idx - y.idx)[0]!;
+    if (marker === a) {
+      const gd = dist(threat.x, threat.y, gx, gy) || 1;
+      a.tx = clamp(threat.x + ((gx - threat.x) / gd) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
+      a.ty = clamp(threat.y + ((gy - threat.y) / gd) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
+      a.minRun = false;
+      return true;
+    }
+    rest = defs.filter((o) => o !== marker);
+  }
+  if (!cover) return false;
+  // 덮는 자리: 니어 포스트(공 쪽), 페널티 지점, 파 포스트
+  const side = b.y < gy ? -1 : 1;
+  const spots: [number, number][] = [
+    [gx + dir * O.coverPostDepth, gy + side * O.coverPostY],
+    [gx + dir * O.coverSpot, gy],
+    [gx + dir * (O.coverPostDepth + 1), gy - side * O.coverPostY],
+  ];
+  // 자리 순서대로, 아직 배정되지 않은 수비수 중 가장 가까운 선수
+  const free = rest.slice().sort((x, y) => x.idx - y.idx);
+  for (const [sx, sy] of spots) {
+    if (!free.length) break;
+    let k = 0;
+    for (let i = 1; i < free.length; i++) if (dist(free[i]!.x, free[i]!.y, sx, sy) < dist(free[k]!.x, free[k]!.y, sx, sy)) k = i;
+    if (free[k] === a) {
+      a.tx = clamp(sx + a.errX * O.markSigma * 10, 0.3, L - 0.3);
+      a.ty = clamp(sy + a.errY * O.markSigma * 10, 0.3, W - 0.3);
+      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 4;
+      a.minRun = false;
+      return true;
+    }
+    free.splice(k, 1);
+  }
+  return false;
 }
 
 /** 팀의 가장 앞 공격수 (슬롯 x 기준, 같으면 idx) */

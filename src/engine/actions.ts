@@ -7,7 +7,7 @@ import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
 import { crossTarget, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
-import { attackDir, clamp, dist, inOppBox, L, oppGoal, W } from './pitch';
+import { attackDir, clamp, dist, inOppBox, L, oppGoal, segDist, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, Flight, SimState } from './state';
 
@@ -100,8 +100,9 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
   let def: Agent | null = null;
   let bd: number = ENGINE.prob.pressureDist;
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0 || s.t < o.beatenUntil) continue;
-    const d = dist(o.x, o.y, a.x, a.y);
+    if (!o.onPitch || o.team === a.team || s.t < o.beatenUntil) continue;
+    // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에서 가장 가까운 수비수, 유지는 지금 위치에서 가장 가까운 수비수
+    const d = c.type === 'carry' ? segDist(o.x, o.y, a.x, a.y, c.x, c.y)[0] : dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
       bd = d;
       def = o;
@@ -242,7 +243,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     a.stats.shotsOnTarget++;
     // 구석일수록 막기 어렵다. 능력치가 높으면 구석으로
     const skill = header ? a.attrs.heading : a.attrs.shooting;
-    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * (0.6 + (0.6 * skill) / 100), 0, 1);
+    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * (PR.cornerBase + (PR.cornerSkill * skill) / 100), 0, 1);
     const ty = gy + side * corner * (G / 2 - 0.3);
     s.ball.owner = -1;
     s.ball.flight = {
@@ -586,13 +587,13 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       return true;
     }
     const skill = a.attrs.freeKick * 0.7 + a.attrs.composure * 0.3;
-    const pOn = clamp(PR.shotBase + (PR.shotSkill * skill) / 100 - PR.shotPerM * d, PR.shotMin, PR.shotMax) * ENGINE.setPiece.directAccuracy;
+    const pOn = clamp(PR.shotBase + (PR.shotSkill * (skill - PR.skillCenter)) / 100 - PR.shotPerM * d, PR.shotMin, PR.shotMax) * ENGINE.setPiece.directAccuracy;
     const speed = ENGINE.ball.shotSpeedMin + ((ENGINE.ball.shotSpeedMax - ENGINE.ball.shotSpeedMin) * a.attrs.freeKick) / 100;
     const side = r(s, a.idx, Purpose.FreeKick, 2) < 0.5 ? -1 : 1;
     if (r(s, a.idx, Purpose.FreeKick, 3) < pOn) {
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
-      const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * (0.6 + (0.6 * a.attrs.freeKick) / 100), 0, 1);
+      const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * (PR.cornerBase + (PR.cornerSkill * a.attrs.freeKick) / 100), 0, 1);
       s.ball.owner = -1;
       s.ball.flight = {
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,

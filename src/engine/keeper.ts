@@ -25,7 +25,7 @@ export function saveDifficulty(speed: number, corner: number, d: number): number
 
 export function saveProb(gk: Agent | null, speed: number, corner: number, d: number, base: number = K.saveBase): number {
   const g = gkAttrs(gk);
-  return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (g.shotStopping - 60)) / 100, 0.05, 0.95);
+  return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (g.shotStopping - K.saveCenter)) / 100, 0.05, 0.95);
 }
 
 export function catchProb(gk: Agent | null): number {

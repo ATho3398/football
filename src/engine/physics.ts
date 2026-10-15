@@ -16,7 +16,7 @@ export function initPhysics(a: Agent): void {
 /** 스태미나에 따른 유효 최대 속도 */
 export function effectiveMax(a: Agent): number {
   if (a.stamina >= P.staminaLowFrom) return a.maxSpeed;
-  return a.maxSpeed * (0.85 + (0.15 * a.stamina) / P.staminaLowFrom);
+  return a.maxSpeed * (P.tiredMaxFloor + ((1 - P.tiredMaxFloor) * a.stamina) / P.staminaLowFrom);
 }
 
 /** 목표 속도: 거리별 걷기/조깅/러닝, 긴급하면 최대 속도. 목표 근처에서는 감속 */
@@ -27,7 +27,7 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   else if (d < P.walkDist) v = P.walk;
   else if (d < P.jogDist) v = P.jog;
   else if (d < P.runDist) v = P.run;
-  else v = Math.max(P.run, cap * 0.9);
+  else v = Math.max(P.run, cap * P.farPace);
   // 복귀 (E.18 A3): 러닝 이상
   if (a.minRun && d >= P.walkDist) v = Math.max(v, P.run);
   // 지치면 조깅·러닝 강도가 떨어진다 (스태미나 staminaLowFrom 아래에서, 0 이면 1 − fatigueIntensity)
@@ -80,5 +80,5 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1):
   // 스태미나 (E.4)
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * dt * 10);
-  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * (1.6 - (0.8 * a.attrs.stamina) / 100) * dt * 10);
+  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * (P.drainAttrBase - (P.drainAttrSlope * a.attrs.stamina) / 100) * dt * 10);
 }

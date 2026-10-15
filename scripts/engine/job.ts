@@ -47,6 +47,8 @@ export interface SeasonJob {
   playerId: string;
   seed: string;
   engine: 'agent' | 'quick';
+  /** 엔진 상수 덮어쓰기 (상수 스윕) */
+  overrides?: Record<string, number>;
 }
 
 export type Job = MatchJob | SeasonJob;
@@ -161,15 +163,20 @@ export function runMatchJob(j: MatchJob): MatchOut {
 }
 
 export function runSeasonJob(j: SeasonJob): SeasonOut {
-  const g = newGame({ mode: 'real', playerId: j.playerId, seed: j.seed, difficulty: 'normal' });
-  const ratings: number[] = [];
-  while (g.phase === 'season') {
-    const rep = playRound(g, { engine: j.engine });
-    if (rep.result.rating !== null && rep.result.minutes >= 45) ratings.push(rep.result.rating);
-    autoAllocate(g.player);
+  const restore = applyOverrides(j.overrides);
+  try {
+    const g = newGame({ mode: 'real', playerId: j.playerId, seed: j.seed, difficulty: 'normal' });
+    const ratings: number[] = [];
+    while (g.phase === 'season') {
+      const rep = playRound(g, { engine: j.engine });
+      if (rep.result.rating !== null && rep.result.minutes >= 45) ratings.push(rep.result.rating);
+      autoAllocate(g.player);
+    }
+    const h = g.player.history.at(-1)!;
+    return { kind: 'season', rating: h.apps ? h.ratingSum / h.apps : 0, xp: h.matchXp, apps: h.apps, goals: h.goals, assists: h.assists, ratings };
+  } finally {
+    restore();
   }
-  const h = g.player.history.at(-1)!;
-  return { kind: 'season', rating: h.apps ? h.ratingSum / h.apps : 0, xp: h.matchXp, apps: h.apps, goals: h.goals, assists: h.assists, ratings };
 }
 
 export function runJob(j: Job): JobOut {

@@ -30,29 +30,37 @@ export const ENGINE = {
 
   // ── 선수 물리 (E.4) ──
   physics: {
-    maxSpeedBase: 5.5,
-    maxSpeedSlope: 4.0,
-    accelBase: 2.5,
-    accelSlope: 3.5,
+    maxSpeedBase: 6.6,
+    maxSpeedSlope: 2.5,
+    accelBase: 3.5,
+    accelSlope: 2.2,
     turnKeepBase: 0.6,
     turnKeepSlope: 0.4,
     walk: 1.5,
-    jog: 3.8,
-    run: 6.0,
+    jog: 3.1,
+    run: 5.5,
     /** 목표까지 거리별 이동 강도: 이 거리 이하면 멈춤 / 걷기 / 조깅 / 러닝, 넘으면 스프린트(긴급할 때만) */
     arriveDist: 0.3,
-    walkDist: 2.5,
+    walkDist: 4.5,
     jogDist: 9,
     runDist: 20,
+    /** 긴급하지 않은 먼 이동(runDist 넘게)의 속도 = max(run, 최대 속도 × farPace). 대형 이동은 스프린트가 아니다 (E.20 5번) */
+    farPace: 0.9,
     /** 스프린트 판정 속도 비율 (스프린트 횟수 기록) */
     sprintRatio: 0.85,
     radius: 0.5,
-    /** 스태미나 소모 = (속도/최대 속도)² × drain × (1.6 − 0.8 × 체력/100) / 초 */
-    staminaDrain: 0.012,
+    /** 스태미나 소모 = (속도/최대 속도)² × drain × (drainAttrBase − drainAttrSlope × 체력/100) / 초 */
+    staminaDrain: 0.016,
+    drainAttrBase: 2.2,
+    drainAttrSlope: 1.65,
     staminaRecover: 0.0005,
     staminaLowFrom: 60,
     /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율) */
     fatigueIntensity: 0.35,
+    /** 지친 선수의 최대 속도 비율 (스태미나 0 일 때, staminaLowFrom 에서 1) */
+    tiredMaxFloor: 0.85,
+    /** 스태미나 0 일 때 역압박 가담·긴급 복귀 판단 확률 배율 (staminaLowFrom 에서 1) */
+    tiredFloor: 0.3,
     halftimeRecover: 10,
   },
 
@@ -67,8 +75,9 @@ export const ENGINE = {
     passSpeedMax: 26,
     /** 공중볼(크로스, 롱볼) 평균 속도 */
     airSpeed: 18,
-    shotSpeedMin: 20,
-    shotSpeedMax: 32,
+    /** 슈팅 속도 = shotSpeedMin + (shotSpeedMax − shotSpeedMin) × 슈팅/100 (리그 평균 75 에서 29 m/s) */
+    shotSpeedMin: 24.5,
+    shotSpeedMax: 30.5,
     controlDist: 0.9,
     controlMaxSpeed: 12,
     controlBase: 0.8,
@@ -160,6 +169,19 @@ export const ENGINE = {
     pressers: 2,
     /** 공이 자기 골에서 이 거리 안이면 가까운 2명은 항상 압박 (m) */
     dangerPress: 30,
+    /**
+     * 박스 앞 수비 블록 (E.20 3번): 공이 자기 골 boxZone m 안이면 수비 라인은 공보다 lineBehindBall m 골 쪽까지 물러나고,
+     * 공에 가장 가까운 2명이 압박, CB 1명은 가장 위협적인 ST 에게 stMark m 마크(골과 ST 를 잇는 선상),
+     * 나머지 수비수는 박스 안 공간(니어·파 포스트, 페널티 지점)을 덮는다
+     */
+    boxZone: 25,
+    stMark: 1.5,
+    /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
+    stMarkZone: 25,
+    /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
+    coverPostDepth: 5,
+    coverPostY: 3.5,
+    coverSpot: 11,
     /** 공격 줄 선수의 압박 거리 배율 */
     attackerPress: 0.4,
     /** 공격 줄 압박 거리 배율 = attackerPress + attackerPressPer × (pressing − 0.55) (압박 전술, E.19 ③) */
@@ -181,7 +203,7 @@ export const ENGINE = {
     counterLane: 0.35,
     /** 복귀: 목표가 자기 골 쪽으로 recoverRun m 이상이면 러닝 이상, recoverSprint m 이상이면 최대 속도 (긴급 복귀 판단 확률 recoverJudge + recoverWork × 노력/100) */
     recoverRun: 10,
-    recoverSprint: 20,
+    recoverSprint: 25,
     recoverJudge: 0.6,
     recoverWork: 0.4,
     /** 내려와서 받기: drop × 이 거리만큼 공 쪽으로 (m) */
@@ -218,7 +240,7 @@ export const ENGINE = {
     valueNearB: 0.357,
     valueNearK: 7.6,
     tempBase: 0.06,
-    tempSlope: 0.25,
+    tempSlope: 0.18,
     /** 유지 시 빼앗길 확률: 3 m 안 수비수마다 holdLose × (1 − 거리/3) (독립 합성) */
     holdLose: 0.5,
     /** 드리블(공 몰고 전진) 거리 (m) */
@@ -227,6 +249,14 @@ export const ENGINE = {
     passMaxDist: 50,
     /** 리시버 앞쪽 리드 (초 × 리시버 속도) */
     leadTime: 0.6,
+    /**
+     * 침투 패스 목표 (E.20 4번): 오프사이드 라인 뒤 공간으로. 깊이 = clamp(throughShare × (라인 뒤 공간 − throughStop), throughMin, throughMax) m.
+     * 라인이 높을수록 뒷공간이 넓어 달리기 경쟁 거리가 길어진다 (빠른 공격수 유리, 느린 CB 불리)
+     */
+    throughShare: 0.5,
+    throughStop: 8,
+    throughMin: 3,
+    throughMax: 20,
     /** 컷백 (E.18 A2): 소유자 x ≥ cutbackFromX, 측면 |y − 0.5| ≥ cutbackWide. 대상은 골에서 cutbackMin~cutbackMax m */
     cutbackFromX: 0.88,
     cutbackWide: 0.12,
@@ -236,7 +266,7 @@ export const ENGINE = {
     backAngle: 100,
     layoffDist: 8,
     holdupRange: 2.5,
-    holdupScale: 12,
+    holdupScale: 16,
     holdupTime: 1.0,
     /** 공을 몰고 갈 때 최대 속도 배율 */
     carrySpeed: 0.8,
@@ -252,6 +282,18 @@ export const ENGINE = {
      * 0.03골이면 약 77:23 (E.18 A1)
      */
     utilityScale: 4,
+    /**
+     * 판단용 성공 확률 (E.20 1번): P판단 = judgeSelf × P(본인) + (1 − judgeSelf) × P(같은 상황의 리그 평균 선수, 능력치 judgeAvgAttr).
+     * 실제 판정은 본인 100%. 능력치가 높은 선수가 자기 능력을 과신해 더 어려운 선택을 하는 선택 효과를 절반으로 줄인다
+     */
+    judgeSelf: 0.5,
+    judgeAvgAttr: 70,
+    /** 전환 위험 (E.20 2번): 상실 비용 C = −(상대 기준 위치 가치 + T), T = transitionRisk × (상실 지점보다 상대 골 쪽 우리 필드 선수 수 ÷ 10) */
+    transitionRisk: 0.02,
+    /** 패스 수신 지원도 (E.20 2번): 받는 자리 가치 × (supportBase + (1 − supportBase) × min(1, 받는 선수 supportDist m 안 동료 수 ÷ supportNeed)) */
+    supportBase: 0.7,
+    supportDist: 15,
+    supportNeed: 2,
     /** 판단 민감도 점검용 배수 (E.15): 위치 가치 맵 전체 / 슛 효용. 기본 1, 측정할 때만 1.05 */
     valueScale: 1,
     shotScale: 1,
@@ -262,22 +304,37 @@ export const ENGINE = {
     /** 능력치 체감 (effSkill): 중심, 폭 */
     skillMid: 70,
     skillSpan: 25,
-    passBase: 1.05,
+    /** 슈팅 능력치 체감 폭 (E.20 5번): 슈팅은 매우 높은 값의 추가 이득을 더 줄인다 (실제 팀 최상위 공격수 증폭) */
+    shotSpan: 25,
+    /** 능력치 식의 중심 (리그 평균 선수, E.20): 계수(기울기)를 바꿔도 평균 선수의 확률은 그대로 */
+    skillCenter: 70,
+    passBase: 1.35,
     passPerM: 0.0055,
-    passSkill: 1.4,
+    /**
+     * 패스 능력치 (E.20 5번): 실패 확률 × exp(−passSkill × (effSkill − skillCenter) / 10). 더하는 식은 쉬운 패스가 상한에 붙어
+     * 능력치가 성공률을 바꾸지 못했다. 곱하는 식은 쉬운 패스·어려운 패스 모두에서 능력치가 실패를 같은 비율로 줄인다 (평균 선수는 그대로)
+     */
+    passSkill: 0.4,
     passMin: 0.1,
-    passMax: 0.98,
+    /** 능력치 반영 전 상한 / 반영 후 상한 */
+    passMax: 0.97,
+    passCap: 0.99,
     /** 침투 패스 달리기 경쟁: 도착 시간 차 1초당 성공 확률 가감, 차의 상한 (초) */
     raceGain: 0.35,
     raceCap: 1.5,
+    /** 수비수는 돌아서 뛰어야 한다: 달리기 경쟁에서 수비수 도착 시간에 더하는 시간 (초) */
+    raceTurn: 0.3,
     /** 이 거리(m)를 넘는 패스는 공중볼 (착지점 경합) */
     airPass: 30,
     shortPassMax: 25,
+    /** 패스 능력치: skillBlendFrom m 까지 숏패스, skillBlendTo m 부터 롱패스, 그 사이는 거리 비례로 섞는다 (E.20 5번) */
+    skillBlendFrom: 25,
+    skillBlendTo: 45,
     /** 25 m 너머 m당 감쇠 (롱패스 정확도, E3.5 B) */
     longPerM: 0.025,
     laneWidth: 1.8,
     laneBase: 0.25,
-    laneIntercept: 0.25,
+    laneIntercept: 0.15,
     /** 레인 위험 × (1 + laneVision × (60 − 시야)/100) */
     laneVision: 1.0,
     pressurePenalty: 0.4,
@@ -287,15 +344,15 @@ export const ENGINE = {
     receiverPressureDist: 5,
     pressureDist: 3,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
-    interceptShare: 0.68,
+    interceptShare: 0.4,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 
     // 드리블 1대1 (E.8): L((공격 점수 − 수비 점수)/dribbleScale + dribbleBias + 공간 보정)
-    dribbleScale: 16,
+    dribbleScale: 22,
     dribbleBias: -0.2,
     /** 앞쪽 이 거리 안에 수비수가 있으면 몰고 가기가 드리블 돌파가 된다 (m) */
-    dribbleRange: 4.5,
+    dribbleRange: 3,
     /** 공간 보정: 두 번째 수비수가 가까우면 감점 */
     spaceSecondPenalty: 0.4,
     /** 돌파 성공 후 수비수가 다시 태클할 수 없는 시간 (초) */
@@ -309,9 +366,12 @@ export const ENGINE = {
 
     // 슈팅 (E.8)
     shotMaxDist: 30,
-    shotBase: -0.14,
-    shotSkill: 1.1,
-    shotPerM: 0.02,
+    /** 유효 슈팅이 가는 구석 = 난수 × (cornerBase + cornerSkill × 슈팅/100) (리그 평균 75 에서 1.05) */
+    cornerBase: 0.825,
+    cornerSkill: 0.3,
+    shotBase: 0.6,
+    shotSkill: 0.85,
+    shotPerM: 0.015,
     shotPressure: 0.15,
     shotMin: 0.05,
     shotMax: 0.85,
@@ -326,16 +386,16 @@ export const ENGINE = {
     blockCorner: 0.7,
 
     // 헤더 슈팅
-    headerBase: 0.3,
-    headerSkill: 0.4,
+    headerBase: 0.58,
+    headerSkill: 0.3,
     headerPerM: 0.025,
     headerSpeed: 22,
 
     // 크로스
     crossMinX: 0.68,
-    /** 크로스 정확도 = crossBase + crossSkill × 크로스/100 − 압박 */
-    crossBase: 0.17,
-    crossSkill: 1.0,
+    /** 크로스 정확도 = crossBase + crossSkill × (크로스 − skillCenter)/100 − 압박 */
+    crossBase: 0.87,
+    crossSkill: 1.2,
     /** 크로스가 가까운 수비수에 맞고 코너가 될 확률 */
     crossBlockCorner: 0.3,
     crossWide: 0.25,
@@ -345,7 +405,7 @@ export const ENGINE = {
     aerialRadius: 2,
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
-    aerialScale: 12,
+    aerialScale: 16,
     /** 크로스 경합에서 공격수(공을 향해 뛰어드는 쪽) 보정 (로지스틱 입력) */
     aerialAttackBonus: 0.9,
     /** 공격수가 이긴 공중볼을 박스 안 이 거리 안이면 헤더 슈팅 */
@@ -445,37 +505,38 @@ export const ENGINE = {
     yellow: -0.2,
     red: -0.8,
     /** 실점 1골당 수비/중원(과 GK) */
-    conceded: -0.15,
+    conceded: -0.1,
     /** 수비수(GK 포함) 클린시트, 60분 이상 출전 */
-    cleanSheet: 0.4,
+    cleanSheet: 0.25,
     cleanSheetMinMinutes: 60,
     /** GK 세이브 1회 (기획서에 없음, GK 평점이 패스만으로 정해지지 않게) */
     save: 0.12,
-    win: 0.4,
+    win: 0.2,
     draw: 0,
-    loss: -0.4,
+    loss: -0.2,
     min: 3,
     max: 10,
     /**
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
      * center 는 포지션군의 평균 델타 합 (balance:engine 으로 보정), scale 은 전체 σ 약 0.7
      */
-    center: { GK: 0.71, CB: 0.66, FB: 0.8, CDM: 1.58, CM: 2.06, CAM: 1.89, WING: 1.45, ST: 2.3 } as Record<string, number>,
-    scale: 0.8,
+    center: { GK: 1.06, CB: 1.33, FB: 1.11, CDM: 2.37, CM: 2.5, CAM: 1.95, WING: 1.62, ST: 2.56 } as Record<string, number>,
+    scale: 0.7,
     mean: 6.5,
   },
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − 60)/100, 0.05, 0.95) */
-    saveBase: 1.735,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95) */
+    saveBase: 1.8,
+    saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
     leagueHandling: 75,
     /** 쳐낸 공(리바운드)을 공격 팀이 다시 잡을 확률 (판단용 리바운드 기대값) */
     reboundOwn: 0.4,
     saveDelta: 1.1,
-    saveSkill: 0.6,
+    saveSkill: 0.45,
     /** δ = speedW × 속도/30 + cornerW × 구석 + distW × (1 − 거리 계수), 거리 계수 = 거리/distRef */
     speedW: 0.45,
     cornerW: 0.35,
@@ -497,6 +558,9 @@ export const ENGINE = {
     sweeperMax: 14,
     /** 공 y 를 따라가는 비율 */
     lateral: 0.25,
+    /** 각 좁히기 (E.20): 상대가 공을 가지고 박스 안 골에서 rushDist m 안이면 GK 는 공과 골 사이 rushGap m 앞까지 나온다 */
+    rushDist: 12,
+    rushGap: 1.5,
   },
 
   // ── 심판, 수적 열세 (E.10) ──

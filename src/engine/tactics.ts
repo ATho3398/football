@@ -27,6 +27,11 @@ export const LEVELS = {
 } as const;
 export type Detail = keyof typeof LEVELS;
 export const DETAILS: readonly Detail[] = ['lineHeight', 'pressing', 'style', 'width'];
+export const DETAIL_NAMES_KO: Record<Detail, string> = { lineHeight: '수비 라인', pressing: '압박', style: '빌드업', width: '공격 폭' };
+/** 단계 이름 (I.16 세그먼트): 빌드업은 짧게 / 혼합 / 직선, 폭은 좁게 / 보통 / 넓게 */
+export const LEVEL_NAMES_KO: Record<Detail, [string, string, string]> = {
+  lineHeight: ['낮음', '보통', '높음'], pressing: ['낮음', '보통', '높음'], style: ['짧게', '혼합', '직선'], width: ['좁게', '보통', '넓게'],
+};
 /** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게) */
 export type Level = 0 | 1 | 2;
 
@@ -39,6 +44,12 @@ const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
   direct: [1, 1, 2, 2],
   block: [0, 0, 2, 0],
 };
+
+/** 성향의 세부 전술 기본 단계 (E.19 ①) */
+export function tendencyLevels(tendency: Tendency): Record<Detail, Level> {
+  const [lineHeight, pressing, style, width] = TENDENCY_LEVELS[tendency];
+  return { lineHeight, pressing, style, width };
+}
 
 export function tacticsOf(tendency: Tendency, levels?: Partial<Record<Detail, Level>>): Tactics {
   const [l, p, b, w] = TENDENCY_LEVELS[tendency];
@@ -162,24 +173,24 @@ export function teamPlan(teamId: string, rating: number, formation: Formation, w
   return { tendency, formation: data?.formation ?? formation, tactics: { ...tacticsOf(tendency), style } };
 }
 
-/** 성향 고유 행동의 수치 (E.19 ①, 세부 전술로 표현되지 않는 부분) */
+/** 성향 고유 행동의 수치 (E.19 ①, 세부 전술로 표현되지 않는 부분). 배수는 E.20 4번에서 축소 (1.15 → 1.08, 1.2 → 1.1, 1.25 → 1.12, 역압박 +1초, 가담 최대 3명) */
 export const TENDENCY = {
   /** 티키타카: 지원 간격 (m), xG 0.05 미만 슛 효용 배수 */
   tikiSupport: [10, 18] as [number, number],
   tikiLowXg: 0.05,
   tikiLowShot: 0.7,
   /** 게겐프레싱: 역압박 +초, 최대 인원, 탈취 후 전진 패스·슛 효용 배수와 시간 */
-  gegenExtra: 1.5,
-  gegenMax: 4,
-  gegenWinMul: 1.15,
+  gegenExtra: 1,
+  gegenMax: 3,
+  gegenWinMul: 1.08,
   gegenWinTime: 4,
   /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
-  counterWinMul: 1.25,
+  counterWinMul: 1.12,
   counterWinTime: 6,
   counterStayX: 0.48,
   /** 직선: 타깃 ST 롱볼 효용 배수, 크로스 효용 배수, 세컨드볼 위치 (착지점 뒤 m) */
-  directTargetMul: 1.2,
-  directCrossMul: 1.15,
+  directTargetMul: 1.1,
+  directCrossMul: 1.08,
   directSecond: [10, 15] as [number, number],
   /** 수비 블록: 수비-중원 간격 상한 (m), 수비 라인 상한 (박스 경계, m) */
   blockGap: 12,
