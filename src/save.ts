@@ -18,6 +18,8 @@ export interface SaveMeta {
   season: number;
   round: number;
   age: number;
+  /** 세이브를 시작한 패치 (21.5.1, 슬롯 목록 표시용). 이 필드가 생기기 전 슬롯은 없다 */
+  startPatch?: string | null;
 }
 
 interface SaveFile {
@@ -113,6 +115,7 @@ export function saveGame(slot: SaveSlot, state: GameState): boolean {
     season: state.league.season,
     round: state.league.round,
     age: state.player.age,
+    startPatch: state.startPatch,
   };
   try {
     s.setItem(PREFIX + slot, `{"meta":${JSON.stringify(meta)},"state":${serialize(state)}}`);

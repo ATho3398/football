@@ -381,6 +381,16 @@ export const BALANCE = {
     renewYears: { min: 1, max: 4 },
   },
 
+  // ── 경기 후 전술 리포트 판정 경계 (21.5.2, 부록 C.22). 실제 시즌 380경기 빈도로 조정. 경기 결과에는 영향 없음 ──
+  tacticalReport: {
+    counter: { okShare: 0.15, okMin: 3, badMax: 0 },
+    gegenpress: { okMin: 25, okRatio: 1.5 },
+    tikitaka: { okPoss: 60, okPassPct: 85, badPoss: 52 },
+    direct: { okLongShare: 26, okLongPct: 62, badLongPct: 58 },
+    block: { okOppOnMax: 5, okOppCentralMax: 6, badOppOn: 9 },
+    common: { oppCounter: 4, possNoShots: 55, longShare: 30, offsides: 5, crosses: 15, crossPct: 20, pressWins: 24 },
+  },
+
   // ── 골키퍼 (부록 E.9) ──
   goalkeeper: {
     /** GK OVR = 4능력치 가중 평균. 유형별 */

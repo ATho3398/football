@@ -1,8 +1,8 @@
 // 경기 재생 데이터 (E5-lite, 24번, 부록 E.13): 엔진이 매 틱 계산한 22명과 공의 위치를 샘플링한 프레임과 이벤트 로그.
 // 연출을 따로 만들지 않고 엔진 위치를 그대로 그린다. 보간과 이벤트 문구는 순수 함수 (24.5). 세이브에 담지 않는다.
 
-import type { EngineResult, MatchEvent, PlayerSpec, TeamSetup } from './engine/types';
-import type { SimState } from './engine/state';
+import type { EngineResult, MatchEvent, PlayerSpec, Tactics, TeamSetup, TeamStats } from './engine/types';
+import type { RestartType, SimState } from './engine/state';
 
 /** 재생용 위치 프레임. e = 경기 시작부터 흐른 시간(초, 추가시간 포함 단조 증가), t = 경기 시계(초) */
 export interface ReplayFrame {
@@ -11,6 +11,8 @@ export interface ReplayFrame {
   ball: { x: number; y: number; z: number };
   carrier: string | null;
   players: { id: string; x: number; y: number }[];
+  /** 공이 죽어 있으면 재개 종류 (21.5.2 3번 재개 대기 라벨). 엔진의 리스타트 상태 그대로 */
+  restart?: RestartType;
 }
 
 export interface ReplayPlayer {
@@ -42,6 +44,8 @@ export interface ReplayEvent {
   /** 슈팅 xG (슈팅 이벤트) */
   xg?: number;
   onTarget?: boolean;
+  /** 카드 이벤트: 색 */
+  card?: 'yellow' | 'red';
 }
 
 export interface Replay {
@@ -55,6 +59,9 @@ export interface Replay {
   /** 전반이 끝난 흐른 시간 (후반 시계 표시용) */
   halfE: number;
   final: [number, number];
+  /** 경기 후 전술 리포트 입력 (21.5.2): 엔진 팀 통계와 양 팀이 쓴 전술 [홈, 원정]. 세이브에 담지 않는다 */
+  stats: [TeamStats, TeamStats];
+  tactics: [{ tendency: Tactics['tendency']; formation: string }, { tendency: Tactics['tendency']; formation: string }];
 }
 
 /** 샘플링 간격 (초). 엔진 time.frameInterval (E.13: 2~10Hz) */
@@ -66,6 +73,7 @@ export function captureFrame(s: SimState): ReplayFrame {
     ball: { x: b.x, y: b.y, z: b.z },
     carrier: b.owner >= 0 ? s.agents[b.owner]!.id : null,
     players: s.agents.filter((a) => a.onPitch).map((a) => ({ id: a.id, x: Math.round(a.x * 100) / 100, y: Math.round(a.y * 100) / 100 })),
+    ...(s.restart ? { restart: s.restart.type } : {}),
   };
 }
 
@@ -108,16 +116,16 @@ export function replayEvents(events: MatchEvent[], players: ReplayPlayer[], team
       case 'fulltime': text = `경기 종료 ${score[0]} : ${score[1]}`; break;
       case 'goal': {
         score = [Number(ev.params?.home ?? score[0]), Number(ev.params?.away ?? score[1])];
-        text = `⚽ 골! ${nm(ev.players[0])} (${team})${ev.players[1] ? ` · 도움 ${nm(ev.players[1])}` : ''} — ${score[0]} : ${score[1]}`;
+        text = `골! ${nm(ev.players[0])} (${team})${ev.players[1] ? ` · 도움 ${nm(ev.players[1])}` : ''} — ${score[0]} : ${score[1]}`;
         big = true;
         break;
       }
       case 'shot': text = Number(ev.params?.onTarget) ? `슈팅 (유효) ${nm(ev.players[0])}` : `슈팅 ${nm(ev.players[0])} — 빗나감`; break;
-      case 'save': text = `🧤 선방 ${nm(ev.players[0])}`; break;
+      case 'save': text = `선방 ${nm(ev.players[0])}`; break;
       case 'block': text = `블록 — ${nm(ev.players[0])}의 슈팅`; break;
-      case 'card': text = `${ev.params?.card === 'red' ? '🟥 퇴장' : '🟨 경고'} ${nm(ev.players[0])} (${team})`; big = ev.params?.card === 'red'; break;
-      case 'sub': text = `🔁 교체 (${team}) ${nm(ev.players[1])} → ${nm(ev.players[0])}`; break;
-      case 'injury': text = `🚑 부상 ${nm(ev.players[0])}`; break;
+      case 'card': text = `${ev.params?.card === 'red' ? '퇴장' : '경고'} ${nm(ev.players[0])} (${team})`; big = ev.params?.card === 'red'; break;
+      case 'sub': text = `교체 (${team}) ${nm(ev.players[1])} → ${nm(ev.players[0])}`; break;
+      case 'injury': text = `부상 ${nm(ev.players[0])}`; break;
       case 'penalty': text = `페널티킥 — ${nm(ev.players[0])} (${team})`; big = true; break;
       case 'corner': text = `코너킥 (${team})`; break;
       case 'offside': text = `오프사이드 ${nm(ev.players[0])}`; break;
@@ -130,6 +138,7 @@ export function replayEvents(events: MatchEvent[], players: ReplayPlayer[], team
         e: elapsedOf(ev.t, idx), minute: minuteLabel(ev.t, half), type: ev.type, team: ev.team, text, big, players: ev.players,
         ...(ev.type === 'goal' ? { score: [...score] as [number, number] } : {}),
         ...(ev.type === 'shot' ? { xg: Number(ev.params?.xg ?? 0), onTarget: !!Number(ev.params?.onTarget) } : {}),
+        ...(ev.type === 'card' ? { card: ev.params?.card === 'red' ? 'red' as const : 'yellow' as const } : {}),
       });
     }
   });
@@ -154,6 +163,11 @@ export function buildReplay(home: TeamSetup, away: TeamSetup, teams: [string, st
     events: replayEvents(r.events, players, teams, elapsedMapper(r.events, halfSeconds)),
     duration: frames.at(-1)?.e ?? r.duration,
     final: [r.homeGoals, r.awayGoals],
+    stats: r.teamStats,
+    tactics: [
+      { tendency: home.tactics.tendency, formation: home.formation },
+      { tendency: away.tactics.tendency, formation: away.formation },
+    ],
   };
 }
 
@@ -176,6 +190,7 @@ export function interpolateFrame(prev: ReplayFrame, next: ReplayFrame, alpha: nu
     ball: { x: lerp(prev.ball.x, next.ball.x, k), y: lerp(prev.ball.y, next.ball.y, k), z: lerp(prev.ball.z, next.ball.z, k) },
     carrier: k < 0.5 ? prev.carrier : next.carrier,
     players,
+    ...(prev.restart ? { restart: prev.restart } : {}),
   };
 }
 
@@ -223,3 +238,18 @@ export function clockLabel(f: ReplayFrame, secondHalf: boolean): string {
 
 /** 배속 (24.3 개정: 1× = 실제 속도, 장면 안에서만) */
 export const SPEEDS = [1, 2, 4] as const;
+
+/** 재개 대기 라벨 문구 (21.5.2 3번). 킥오프는 직전 골이 있을 때만 "골 세리머니" */
+const RESTART_LABELS: Record<RestartType, string> = {
+  throwIn: '스로인 준비', goalKick: '골킥', freeKick: '프리킥 준비', corner: '코너킥 준비', penalty: '페널티킥 준비', kickoff: '골 세리머니',
+};
+
+/** 공이 죽어 있는 동안 상단에 띄울 라벨. 공이 살아 있으면 null. 재개를 기다리는 사이 교체가 있으면 "교체" */
+export function restartLabel(r: Replay, f: ReplayFrame, e: number): string | null {
+  const rs = f.restart;
+  if (!rs) return null;
+  const recent = (type: ReplayEvent['type'], window: number) => r.events.some((x) => x.type === type && x.e <= e && x.e > e - window);
+  if (recent('sub', 20)) return '교체';
+  if (rs === 'kickoff') return recent('goal', 90) ? RESTART_LABELS.kickoff : null;
+  return RESTART_LABELS[rs];
+}
