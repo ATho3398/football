@@ -24,9 +24,10 @@ import {
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
 import type { Tier } from '../types';
 import { matchSummaryView } from './views/matchSummary';
+import { ReplayPlayer, replayView } from './views/replay';
 
 type Screen =
-  | 'title' | 'new' | 'home' | 'match' | 'allocate' | 'player' | 'table' | 'stars' | 'season' | 'saves' | 'retired';
+  | 'title' | 'new' | 'home' | 'match' | 'replay' | 'allocate' | 'player' | 'table' | 'stars' | 'season' | 'saves' | 'retired';
 
 const GROUP_NAMES_KO: Record<AttributeGroup, string> = {
   ballHandling: '볼 다루기', finishing: '마무리', passing: '패스·시야', defending: '수비',
@@ -40,6 +41,8 @@ const ui = {
   coachComment: false,
   /** 시즌 자동 진행 중 */
   busy: false,
+  /** 방금 치른 내 경기 재생 (E5-lite). 세이브에 담지 않는다 */
+  replay: null as ReplayPlayer | null,
   /** 포인트 화면에 들어올 때의 OVR (소수). "OVR 현재 → 예상" 미리보기 기준 */
   allocStartOvr: 0,
   form: {
@@ -571,6 +574,9 @@ function render(): void {
       html = {
         home: () => homeView(g),
         match: () => matchView(g),
+        replay: () => (ui.replay
+          ? replayView({ teams: ui.replay.replay.teams, side: ui.replay.replay.side, speed: ui.replay.speed, paused: ui.replay.paused, ended: ui.replay.ended })
+          : matchView(g)),
         allocate: () => allocateView(g),
         player: () => playerView(g),
         table: () => tableView(g),
@@ -580,6 +586,8 @@ function render(): void {
       }[ui.screen as 'home']();
   }
   app.innerHTML = html + tabs() + (ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : '');
+  if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
+  else ui.replay?.stop();
 }
 
 // ── 동작 ──
@@ -589,11 +597,6 @@ function readFormInputs(): void {
   const seed = document.getElementById('f-seed') as HTMLInputElement | null;
   if (name) ui.form.name = name.value;
   if (seed) ui.form.seed = seed.value;
-}
-
-function afterRound(): void {
-  autosave();
-  go('match');
 }
 
 app.addEventListener('click', (ev) => {
@@ -640,8 +643,26 @@ app.addEventListener('click', (ev) => {
     }
     case 'play':
       if (!g || g.phase !== 'season') return;
-      playRound(g);
-      afterRound();
+      ui.replay = null;
+      playRound(g, { onReplay: (r) => { ui.replay = new ReplayPlayer(r, () => render()); } });
+      autosave();
+      go(ui.replay ? 'replay' : 'match');
+      return;
+    case 'rp-toggle':
+      if (!ui.replay) return;
+      if (ui.replay.ended) ui.replay.e = 0;
+      ui.replay.paused = !ui.replay.paused && !ui.replay.ended ? true : false;
+      render();
+      return;
+    case 'rp-speed':
+      if (!ui.replay) return;
+      ui.replay.speed = Number(el.dataset.v);
+      render();
+      return;
+    case 'rp-skip':
+      // 건너뛰기는 즉시 최종 결과로 (24.3)
+      ui.replay?.skip();
+      go('match');
       return;
     case 'sim-rest': {
       if (!g || g.phase !== 'season' || ui.busy) return;
