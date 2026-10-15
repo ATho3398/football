@@ -129,7 +129,15 @@ export function playMyMatch(m: EngineMatchInput, capture?: { teams: [string, str
     const frames: ReplayFrame[] = [captureFrame(s)];
     let next = ENGINE.time.frameInterval;
     while (!s.done) {
+      // 골 순간 (24.8): 엔진은 골과 같은 틱에 공을 킥오프 자리로 옮기므로, 골 직전 공 위치로 골 시각 프레임을 하나 더 남긴다
+      const goals = s.teams[0].stats.goals + s.teams[1].stats.goals;
+      const [bx, by, e0] = [s.ball.x, s.ball.y, s.elapsed];
       sim.step();
+      if (s.teams[0].stats.goals + s.teams[1].stats.goals > goals) {
+        const f = captureFrame(s);
+        const e = Math.round(e0 * 10) / 10;
+        if (e > frames.at(-1)!.e) frames.push({ ...f, e, t: Math.round((s.t - (s.elapsed - e0)) * 10) / 10, ball: { x: bx, y: by, z: 0 } });
+      }
       if (s.elapsed + 1e-9 >= next) {
         frames.push(captureFrame(s));
         next += ENGINE.time.frameInterval;
