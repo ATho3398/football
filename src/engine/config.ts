@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 8;
+export const ENGINE_VERSION = 9;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -79,6 +79,13 @@ export const ENGINE = {
     shotSpeed: 29,
     controlDist: 0.9,
     controlMaxSpeed: 12,
+    /** 받기 (C.24): 받을 선수가 snapReceive m 안이면 바로 소유, 그 밖이면 reserveRoll m/s 로 굴려 보내고 reserveCatch m 안에서 잡는다.
+     * 상대는 reserveSteal m 안에 먼저 닿을 때만 뺏는다. reserveTime 초가 지나면 보통 루즈볼 */
+    snapReceive: 1.0,
+    reserveRoll: [4, 6] as [number, number],
+    reserveCatch: 1.0,
+    reserveSteal: 0.9,
+    reserveTime: 2.0,
     controlBase: 0.8,
     controlSlope: 0.2,
     controlSpeedPenalty: 0.05,
@@ -592,6 +599,19 @@ export const ENGINE = {
     clearSpreadDeg: 35,
     tackleBounce: [6, 12] as [number, number],
     wideBias: 3,
+    // ── 골 뒤 세리머니·걸어서 복귀, 재개 키커 (C.24) ──
+    /** 세리머니 길이 (초): 득점자는 가까운 코너 쪽으로 celebrateRun m, 가까운 동료 celebrateJoin 명이 반경 celebrateSpread m 안으로 */
+    celebrate: [15, 20] as [number, number],
+    celebrateRun: [8, 12] as [number, number],
+    celebrateJoin: [3, 5] as [number, number],
+    celebrateSpread: 1.5,
+    /** 복귀 속도: 킥오프 returnMargin 초 전에 도착하는 속도, strollMin(느린 걸음) ~ 러닝 */
+    strollMin: 1.0,
+    returnMargin: 4,
+    /** 키커가 공 takerReach m 안이어야 재개. 늦으면 최대 lateMax 초 미루며 repick 초마다 가장 가까운 선수로 다시 고른다 */
+    takerReach: 1.0,
+    lateMax: 10,
+    repick: 1,
   },
 
   // ── 평점 (E.12) ──

@@ -35,6 +35,7 @@ export function setOwner(s: SimState, a: Agent): void {
   s.lastWasShot = false;
   b.owner = a.idx;
   b.flight = null;
+  b.reserve = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.lastTouch = a.idx;
@@ -104,6 +105,7 @@ export function looseBall(s: SimState, x: number, y: number, vx: number, vy: num
   const b = s.ball;
   b.owner = -1;
   b.flight = null;
+  b.reserve = null;
   b.x = x;
   b.y = y;
   b.z = 0;
@@ -113,16 +115,35 @@ export function looseBall(s: SimState, x: number, y: number, vx: number, vy: num
   b.lastTouch = lastTouch;
 }
 
-/** 킥오프 대형: 슬롯 위치를 자기 진영으로 */
-export function kickoffPositions(s: SimState): void {
+/** 킥오프 키커: 그 팀에서 가장 앞선 필드 선수 (슬롯 기준) */
+export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
+  let best: Agent | null = null;
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== team || a.line === 0) continue;
+    if (!best || a.sx > best.sx) best = a;
+  }
+  return best;
+}
+
+/** 킥오프 대형: 슬롯 위치를 자기 진영으로. 킥오프 팀의 키커는 중앙 점, 그다음 앞선 선수는 1.5 m 옆 (C.24) */
+export function kickoffPositions(s: SimState, team: 0 | 1): void {
+  const taker = kickoffTaker(s, team);
+  let mate: Agent | null = null;
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== team || a.line === 0 || a === taker) continue;
+    if (!mate || a.sx > mate.sx) mate = a;
+  }
   for (const a of s.agents) {
     if (!a.onPitch) continue;
     const dir = attackDir(a.team, s.half);
     const nx = Math.min(a.sx * 0.9, 0.46);
     [a.x, a.y] = toPitch(nx, a.sy, dir);
+    if (a === taker) [a.x, a.y] = [L / 2, W / 2];
+    else if (a === mate) [a.x, a.y] = [L / 2 - dir * 0.3, W / 2 + (a.sy < 0.5 ? -1.5 : 1.5)];
     a.vx = a.vy = 0;
     a.tx = a.x;
     a.ty = a.y;
+    a.paceCap = 0;
   }
 }
 
@@ -154,29 +175,35 @@ export function delayRestart(s: SimState, range: readonly [number, number], k: n
   if (s.restart) s.restart.at += restartWait(s, range, k);
 }
 
+/** 재개 키커 후보 중 (x, y)에 가장 가까운 선수 (골킥은 GK, 그 밖은 필드 선수) */
+export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number): number {
+  let pick = -1;
+  let bd = Infinity;
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== team) continue;
+    if (type === 'goalKick' ? a.line !== 0 : a.line === 0) continue;
+    const d = dist(a.x, a.y, x, y);
+    if (d < bd) {
+      bd = d;
+      pick = a.idx;
+    }
+  }
+  return pick;
+}
+
 /** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수, 골킥은 GK). delay 'auto' = 종류별 대기 시간 */
 export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delayArg: number | 'auto' | 'offside', taker?: number): void {
   const delay = typeof delayArg === 'number' ? delayArg : autoDelay(s, type, x, y, delayArg === 'offside');
   const b = s.ball;
   b.owner = -1;
   b.flight = null;
+  b.reserve = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.x = clamp(x, 0, L);
   b.y = clamp(y, 0, W);
   let pick = taker ?? -1;
-  if (pick < 0) {
-    let bd = Infinity;
-    for (const a of s.agents) {
-      if (!a.onPitch || a.team !== team) continue;
-      if (type === 'goalKick' ? a.line !== 0 : a.line === 0) continue;
-      const d = type === 'kickoff' ? -a.sx : dist(a.x, a.y, b.x, b.y);
-      if (d < bd) {
-        bd = d;
-        pick = a.idx;
-      }
-    }
-  }
+  if (pick < 0) pick = type === 'kickoff' ? (kickoffTaker(s, team)?.idx ?? -1) : nearestTaker(s, type, team, b.x, b.y);
   if (type !== 'kickoff') recordLoss(s, team);
   if (s.possTeam !== team) turnover(s, s.possTeam, false);
   s.lastWasShot = false;

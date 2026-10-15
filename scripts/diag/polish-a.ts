@@ -1,4 +1,5 @@
 // 진단 (12단계 A): 순간이동, 골 뒤 킥오프 대기·정지, GK 루즈볼 무반응을 틱 단위로 센다.
+// C.24: 공 순간이동(비행 중이 아닌 공의 틱당 3 m 초과)과 킥오프 순간 자기 진영 측정을 더했다.
 // 실행: npx vite-node scripts/diag/polish-a.ts -- [경기수=10] [홈레이팅=78] [원정레이팅=76]
 // 엔진 코드는 건드리지 않고 createMatch().step() 을 한 틱씩 돌리며 상태를 읽는다.
 import { ENGINE } from '../../src/engine/config';
@@ -32,6 +33,13 @@ const bump = (k: string, d: number) => {
   j.max = Math.max(j.max, d);
 };
 
+// 공 순간이동 (C.24): 비행 중이 아닌 공이 틱당 BALL_JUMP m 넘게 이동 (재개 배치·하프타임 제외, 직전 공 속도 × 0.1초는 빼고 본다)
+const BALL_JUMP = 3.0;
+const ballJumps: Record<string, { n: number; sum: number; max: number }> = {};
+// 킥오프 순간 양 팀 전원이 자기 진영인가 (C.24)
+let kickoffs = 0;
+let kickoffsOk = 0;
+let kickoffOut = 0;
 // 골 뒤 킥오프
 const kick: { wait: number; settle: number; settleAll: number }[] = [];
 // GK 루즈볼 에피소드
@@ -52,6 +60,9 @@ for (let i = 0; i < N; i++) {
   let prevRestart = s.restart;
   let prevHalf = s.half;
   let prevEvents = s.events.length;
+  let prevBall: [number, number] = [s.ball.x, s.ball.y];
+  let prevFlight = !!s.ball.flight;
+  let prevSpeed = 0;
   let goalAt = -1;
   let settled = -1;
   let cur: Ep | null = null;
@@ -76,6 +87,36 @@ for (let i = 0; i < N; i++) {
       else if (newOwner === a.idx) k = '공 소유 시작 (받기/가로채기/공중볼)';
       else if (newEvents.some((e) => e.type === 'shot' && e.players[0] === a.id)) k = '헤더 슈팅 전 착지점 이동';
       bump(k, d);
+    }
+    // 공 순간이동
+    {
+      // 구르는 공은 직전 속도만큼 움직이는 것이 정상: 그만큼 빼고 본다
+      const bd = dist(prevBall[0], prevBall[1], s.ball.x, s.ball.y) - (prevOwner >= 0 ? 0 : prevSpeed * ENGINE.time.dt);
+      const restartSet = !!s.restart && s.restart !== prevRestart;
+      if (bd > BALL_JUMP && !s.ball.flight && !halfFlip && !restartSet) {
+        const ev = newEvents.map((e) => e.type).join(',');
+        const own = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
+        const k = restartDone ? `재개 실행 ${prevRestart!.type}`
+          : prevFlight ? '비행 끝'
+          : own && newOwner >= 0 ? `소유 시작 (${own.line === 0 ? 'GK' : '필드'}${ev ? ' ' + ev : ''})`
+          : own ? `소유 중 (${ev || '이벤트 없음'})`
+          : `루즈볼 (${prevOwner >= 0 ? '직전 소유' : '직전 루즈'}${ev ? ' ' + ev : ''})`;
+        const j = (ballJumps[k] ??= { n: 0, sum: 0, max: 0 });
+        j.n++;
+        j.sum += bd;
+        j.max = Math.max(j.max, bd);
+      }
+    }
+    // 킥오프 순간 자기 진영 (공에서 1 m 안 키커는 센터 서클 점 허용)
+    if (restartDone && prevRestart!.type === 'kickoff') {
+      kickoffs++;
+      let ok = true;
+      for (const a of s.agents) {
+        if (!a.onPitch) continue;
+        const own = (a.x - L / 2) * attackDir(a.team, s.half) <= (a.idx === prevRestart!.taker ? 1.0 : 0.05);
+        if (!own) { ok = false; kickoffOut++; }
+      }
+      if (ok) kickoffsOk++;
     }
     // 골 → 킥오프
     for (const e of newEvents) if (e.type === 'goal') { goalAt = s.t; settled = -1; }
@@ -144,6 +185,10 @@ for (let i = 0; i < N; i++) {
       }
     }
     prev = new Map(s.agents.map((a) => [a, [a.x, a.y] as [number, number]]));
+    prevBall = [s.ball.x, s.ball.y];
+    prevFlight = !!s.ball.flight;
+    // 비행 중이면 비행 속도 (마지막 비행 틱의 이동은 정상)
+    prevSpeed = s.ball.flight ? Math.hypot(s.ball.flight.toX - s.ball.flight.fromX, s.ball.flight.toY - s.ball.flight.fromY) / Math.max(0.05, s.ball.flight.dur) : Math.hypot(s.ball.vx, s.ball.vy);
     prevOwner = s.ball.owner;
     prevRestart = s.restart;
     prevHalf = s.half;
@@ -155,6 +200,14 @@ console.log(`\n== 순간이동 (틱당 ${JUMP} m 초과 이동), ${N}경기 ${RH
 for (const [k, j] of Object.entries(jumps).sort((a, b) => b[1].n - a[1].n)) {
   console.log(`  ${k.padEnd(32)} 경기당 ${(j.n / N).toFixed(1)}회  평균 ${(j.sum / j.n).toFixed(1)} m  최대 ${j.max.toFixed(1)} m`);
 }
+const nJump = Object.entries(jumps).filter(([k]) => !k.startsWith('하프타임')).reduce((t, [, j]) => t + j.n, 0);
+console.log(`  → 하프타임 제외 합계 ${nJump}회`);
+console.log(`\n== 공 순간이동 (비행 중이 아닌 공, 틱당 ${BALL_JUMP} m 초과, 재개 배치·하프타임 제외) ==`);
+for (const [k, j] of Object.entries(ballJumps).sort((a, b) => b[1].n - a[1].n)) {
+  console.log(`  ${k.padEnd(32)} 경기당 ${(j.n / N).toFixed(1)}회  평균 ${(j.sum / j.n).toFixed(1)} m  최대 ${j.max.toFixed(1)} m`);
+}
+console.log(`  → 합계 ${Object.values(ballJumps).reduce((t, j) => t + j.n, 0)}회`);
+console.log(`\n== 킥오프 순간 전원 자기 진영: ${kickoffsOk}/${kickoffs} (${((100 * kickoffsOk) / Math.max(1, kickoffs)).toFixed(0)}%), 벗어난 선수 ${kickoffOut}명 ==`);
 const mean = (xs: number[]) => (xs.length ? xs.reduce((t, x) => t + x, 0) / xs.length : NaN);
 console.log(`\n== 골 뒤 킥오프 (${kick.length}골) ==`);
 console.log(`  골 → 킥오프 대기 평균 ${mean(kick.map((k) => k.wait)).toFixed(1)}초 (범위 ${Math.min(...kick.map((k) => k.wait)).toFixed(0)}~${Math.max(...kick.map((k) => k.wait)).toFixed(0)})`);

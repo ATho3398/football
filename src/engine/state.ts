@@ -72,6 +72,8 @@ export interface Agent {
   /** 수비 1대1 판단 (E.23): 다음 판단 시각, 패스길 막기 유지 시각 */
   duelNext: number;
   laneUntil: number;
+  /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
+  paceCap: number;
 }
 
 export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';
@@ -88,8 +90,8 @@ export interface Flight {
   passer: number;
   /** 받을 선수 (성공 시) */
   receiver: number;
-  /** 끝났을 때: 'receive' 받는 선수 소유, 'intercept' 가로챔, 'loose' 루즈볼, 'shot' 골문 도착(세이브 판정), 'aerial' 착지점 공중볼 경합 */
-  outcome: 'receive' | 'intercept' | 'loose' | 'shot' | 'aerial';
+  /** 끝났을 때: 'receive' 받는 선수 소유, 'intercept' 가로챔, 'loose' 루즈볼, 'shot' GK 깊이 도착(세이브 판정), 'goal' 골라인 도착(골), 'aerial' 착지점 공중볼 경합 */
+  outcome: 'receive' | 'intercept' | 'loose' | 'shot' | 'goal' | 'aerial';
   /** 인터셉트 선수 */
   interceptor: number;
   /** 침투 패스 (측정용) */
@@ -98,8 +100,12 @@ export interface Flight {
   quick?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */
   fromCross?: boolean;
+  /** 끝나면 이 속도로 튄다 (벽·GK, C.24) */
+  after?: { vx: number; vy: number; team: 0 | 1; touch: number };
   /** 유효 슈팅 정보 */
-  shot?: { speed: number; corner: number; d: number; header: boolean; penalty?: boolean };
+  shot?: { speed: number; corner: number; d: number; header: boolean; penalty?: boolean;
+    /** 2단계 비행 (C.24): 세이브 실패 시 골라인 도착점과 남은 비행 시간 */
+    goalX?: number; goalY?: number; rest?: number };
 }
 
 export interface Ball {
@@ -112,6 +118,18 @@ export interface Ball {
   flight: Flight | null;
   lastTouch: number;
   lastTeam: 0 | 1;
+  /** 이 선수에게 굴러가는 공 (C.24): 받기·가로채기·공중볼 승자·GK 처리. 그 선수는 컨트롤 판정 없이 잡는다 */
+  reserve: BallReserve | null;
+}
+
+export interface BallReserve {
+  idx: number;
+  until: number;
+  kind: 'receive' | 'intercept' | 'claim' | 'win' | 'gain';
+  /** 공을 잃은 선수 (빼앗기·캐치): 굴러가는 동안 다시 잡지 못한다 */
+  from: number;
+  /** 'receive' 의 원래 패스 (집계는 실제로 잡는 순간) */
+  fl?: Flight;
 }
 
 export type RestartType = 'kickoff' | 'throwIn' | 'goalKick' | 'corner' | 'freeKick' | 'penalty';
@@ -126,6 +144,10 @@ export interface Restart {
   y: number;
   at: number;
   taker: number;
+  /** 원래 실행 시각 (키커가 늦으면 at 을 최대 restart.lateMax 초까지 미룬다, C.24) */
+  at0?: number;
+  /** 골 뒤 킥오프 (C.24): 득점자, 골 시각, 세리머니 끝 시각, 세리머니 지점, 함께하는 동료 */
+  goal?: { scorer: number; t: number; until: number; cx: number; cy: number; joiners: number[] };
 }
 
 export interface TeamState {

@@ -28,6 +28,8 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   else if (d < P.jogDist) v = P.jog;
   else if (d < P.runDist) v = P.run;
   else v = Math.max(P.run, cap * P.farPace);
+  // 골 뒤 세리머니·걸어서 복귀 (C.24): 긴급하지 않으면 속도 상한
+  if (!a.urgent && a.paceCap > 0) v = Math.min(v, a.paceCap);
   // 복귀 (E.18 A3): 러닝 이상
   if (a.minRun && d >= P.walkDist) v = Math.max(v, P.run);
   // 지치면 조깅·러닝 강도가 떨어진다 (스태미나 staminaLowFrom 아래에서, 0 이면 1 − fatigueIntensity)

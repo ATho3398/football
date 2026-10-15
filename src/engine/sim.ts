@@ -4,11 +4,11 @@ import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../at
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
 import { lineOf } from './formation';
-import { defendDuels, execute, resolveFlight, takeCorner, takeFreeKick, takePenalty } from './actions';
+import { caught, defendDuels, execute, resolveFlight, takeCorner, takeFreeKick, takePenalty } from './actions';
 import { computeRatings } from './rating';
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
-import { event, kickoffPositions, setOwner, setRestart } from './core';
+import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
 import { initPhysics, moveAgent } from './physics';
@@ -83,7 +83,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0,
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
-    rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 }, gotBy: 'gain', lastMoveT: -100, shotPath: 6, duelNext: 0, laneUntil: 0,
+    rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 }, gotBy: 'gain', lastMoveT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0,
   };
   initPhysics(a);
   // 홈 이점 (E.18 A7): 판단 품질 + homeJudgement, 듀얼 로짓 + homeDuel (능력치 가산 없음)
@@ -107,7 +107,7 @@ export function createState(input: EngineInput): SimState {
   const s: SimState = {
     input, seed: input.seed >>> 0, t: 0, elapsed: 0, tick: 0, half: 1, halfEnd: T.halfSeconds + added1,
     agents, bench,
-    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0 },
+    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null },
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
@@ -117,7 +117,7 @@ export function createState(input: EngineInput): SimState {
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
   };
-  kickoffPositions(s);
+  kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
   event(s, 'kickoff', 0, []);
   return s;
@@ -127,9 +127,8 @@ function executeRestart(s: SimState): void {
   const r = s.restart!;
   const taker = s.agents[r.taker];
   s.restart = null;
+  for (const a of s.agents) a.paceCap = 0;
   if (!taker || !taker.onPitch) return;
-  taker.x = r.x;
-  taker.y = r.y;
   setOwner(s, taker);
   taker.cooldown = 0;
   s.possSince = s.t - ENGINE.formation.attackPhaseDelay * 0.5;
@@ -144,6 +143,37 @@ function executeRestart(s: SimState): void {
   else if (r.type === 'freeKick') {
     if (!takeFreeKick(s, taker, r.indirect ?? false)) event(s, 'freeKick', r.team, [taker.id]);
   }
+}
+
+/**
+ * 재개 시각이 됐다 (C.24): 키커가 공 takerReach m 안이면 실행. 아니면 repick 초마다 미루며 가장 가까운 선수로 다시 고르고,
+ * lateMax 초가 지나도 멀면 (나올 수 없지만 방어적으로) 공을 키커 자리로 옮겨 실행한다 (스로인은 라인 위)
+ */
+function restartDue(s: SimState): void {
+  const r = s.restart!;
+  const R = ENGINE.restart;
+  let taker = s.agents[r.taker];
+  if (!taker || !taker.onPitch) return executeRestart(s);
+  if (dist(taker.x, taker.y, r.x, r.y) < R.takerReach) return executeRestart(s);
+  r.at0 ??= r.at;
+  if (s.t >= r.at0 + R.lateMax) {
+    if (r.type !== 'kickoff' && r.type !== 'penalty') {
+      r.x = clamp(taker.x, 0.5, L - 0.5);
+      if (r.type !== 'throwIn') r.y = clamp(taker.y, 0.5, W - 0.5);
+    }
+    s.ball.x = r.x;
+    s.ball.y = r.y;
+    return executeRestart(s);
+  }
+  r.at = s.t + R.repick;
+  if (r.type !== 'kickoff' && r.type !== 'penalty') {
+    const pick = nearestTaker(s, r.type, r.team, r.x, r.y);
+    if (pick >= 0) r.taker = pick;
+    taker = s.agents[r.taker]!;
+  }
+  taker.tx = r.x;
+  taker.ty = r.y;
+  taker.urgent = true;
 }
 
 /** 소유자 결정 */
@@ -164,12 +194,25 @@ function updateLooseBall(s: SimState): void {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
   }
+  // 받기로 한 선수에게 굴러가는 공 (C.24): 그 선수는 컨트롤 판정 없이 잡는다. 패스·공중볼 승자 받기만 상대가 reserveSteal m 안에서
+  // 먼저 뺏을 수 있고, 이미 판정이 끝난 공(빼앗기·가로채기·GK 처리)은 아무도 끼어들지 못한다
+  const res = b.reserve;
+  if (res && s.t > res.until) b.reserve = null;
+  else if (res) {
+    const rc = s.agents[res.idx]!;
+    if (rc.onPitch && dist(rc.x, rc.y, b.x, b.y) <= B.reserveCatch) {
+      caught(s, rc, res);
+      return;
+    }
+    if (rc.onPitch && res.kind !== 'receive' && res.kind !== 'win') return;
+  }
   if (sp >= B.controlMaxSpeed) return;
   // 공 컨트롤 시도 (E.4)
   let winner: Agent | null = null;
   let bestRoll = Infinity;
   for (const a of s.agents) {
-    if (!a.onPitch || dist(a.x, a.y, b.x, b.y) > B.controlDist) continue;
+    if (!a.onPitch || dist(a.x, a.y, b.x, b.y) > (b.reserve ? B.reserveSteal : B.controlDist)) continue;
+    if (b.reserve && (a.team === s.agents[b.reserve.idx]!.team || a.idx === b.reserve.from)) continue;
     const pressure = nearestOpponentDist(s, a) < 2 ? 0.1 : 0;
     const p = B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure;
     const roll = rand(s.seed, s.tick, a.idx, Purpose.Control);
@@ -217,7 +260,7 @@ function startSecondHalf(s: SimState): void {
     a.runUntil = 0;
     a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover);
   }
-  kickoffPositions(s);
+  kickoffPositions(s, 1);
   setRestart(s, 'kickoff', 1, L / 2, W / 2, 0);
 }
 
@@ -242,10 +285,7 @@ export function step(s: SimState): void {
   myMinutes(s);
   aiAdjust(s);
 
-  if (s.restart && s.t >= s.restart.at) {
-    const taker = s.agents[s.restart.taker];
-    if (!taker || dist(taker.x, taker.y, s.restart.x, s.restart.y) < 1.5 || s.t >= s.restart.at + 4) executeRestart(s);
-  }
+  if (s.restart && s.t >= s.restart.at) restartDue(s);
 
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
   for (const a of s.agents) {
@@ -280,9 +320,13 @@ export function step(s: SimState): void {
     b.x = o.x + (sp > 0.1 ? (o.vx / sp) * 0.5 : 0);
     b.y = o.y + (sp > 0.1 ? (o.vy / sp) * 0.5 : 0);
     if (outOfPlay(b.x, b.y)) {
-      // 공을 가진 채 라인 밖으로 나가지 않게 안쪽으로
-      o.x = clamp(o.x, 0.5, L - 0.5);
-      o.y = clamp(o.y, 0.5, W - 0.5);
+      // 공을 가진 채 라인 밖으로 나가지 않게 안쪽으로 (C.24: 틱당 0.4 m 까지, 바깥쪽 속도는 없앤다)
+      const ix = clamp(o.x, 0.5, L - 0.5) - o.x;
+      const iy = clamp(o.y, 0.5, W - 0.5) - o.y;
+      o.x += clamp(ix, -0.4, 0.4);
+      o.y += clamp(iy, -0.4, 0.4);
+      if (ix * o.vx < 0) o.vx = 0;
+      if (iy * o.vy < 0) o.vy = 0;
       b.x = clamp(b.x, 0.3, L - 0.3);
       b.y = clamp(b.y, 0.3, W - 0.3);
     }

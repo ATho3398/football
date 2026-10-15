@@ -9,9 +9,10 @@ import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receiv
 import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
-import type { Agent, Flight, SimState } from './state';
+import type { Agent, BallReserve, Flight, SimState } from './state';
 
 const PR = ENGINE.prob;
+const B = ENGINE.ball;
 const K = ENGINE.keeper;
 const G = ENGINE.pitch.goalWidth;
 
@@ -23,6 +24,7 @@ function launch(s: SimState, a: Agent, fl: Flight): void {
   const b = s.ball;
   b.owner = -1;
   b.flight = fl;
+  b.reserve = null;
   b.lastTouch = a.idx;
   b.lastTeam = a.team;
   const who = fl.outcome === 'receive' ? fl.receiver : fl.outcome === 'intercept' ? fl.interceptor : -1;
@@ -129,7 +131,8 @@ function tackleWon(s: SimState, att: Agent, def: Agent, tackle = true): void {
     s.teams[def.team].stats.tacklesWon++;
   } else s.teams[att.team].stats.dispossessed++;
   if (r(s, def.idx, Purpose.Tackle, 3) < PR.tackleKeep) {
-    setOwner(s, def);
+    // 빼앗은 공 (C.24): 수비수가 멀면 공이 수비수 쪽으로 튄다 (빼앗긴 선수는 다시 잡지 못한다)
+    giveBall(s, def, 'gain', undefined, att.idx);
   } else {
     // 태클로 튄 공 (E.18 A4): 무작위 방향, 속도 6~12 m/s
     const ang = r(s, def.idx, Purpose.Tackle, 4) * Math.PI * 2;
@@ -374,22 +377,52 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번)
     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1);
     const ty = gy + side * corner * (G / 2 - 0.3);
-    s.ball.owner = -1;
-    s.ball.flight = {
+    shotFlight(s, a, {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d: m.d, header },
-    };
+    });
     event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
     return;
   }
   // 빗나감: 골라인 밖으로 → 골킥
   const missY = gy + side * (G / 2 + 0.5 + r(s, a.idx, Purpose.Shot, 4) * 6);
   s.ball.owner = -1;
+  s.ball.reserve = null;
   s.ball.flight = {
     kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: missY, t0: s.t, dur: Math.max(0.15, (m.d + 3) / speed), air: true,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
   };
   event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
+}
+
+/**
+ * 유효 슈팅 비행 (C.24): 1단계는 슈팅 길에서 GK 에 가장 가까운 점까지 (거기서 세이브 판정), 세이브 실패면 2단계로 골라인까지.
+ * 슈팅 순간 GK 는 1단계 도착점으로 몸을 날린다 (긴급 이동). 그 점이 골라인 가까이거나 슈터 뒤면 한 단계
+ */
+function shotFlight(s: SimState, a: Agent, fl: Flight): void {
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const sh = fl.shot!;
+  const ux = fl.toX - fl.fromX;
+  const uy = fl.toY - fl.fromY;
+  const len2 = ux * ux + uy * uy;
+  const k = gk && len2 > 1 ? ((gk.x - fl.fromX) * ux + (gk.y - fl.fromY) * uy) / len2 : 1;
+  if (gk && !sh.penalty && k > 0.05 && k < 1 - 0.3 / Math.sqrt(len2)) {
+    sh.goalX = fl.toX;
+    sh.goalY = fl.toY;
+    sh.rest = fl.dur * (1 - k);
+    fl.toX = fl.fromX + (fl.toX - fl.fromX) * k;
+    fl.toY = fl.fromY + (fl.toY - fl.fromY) * k;
+    fl.dur *= k;
+  }
+  const b = s.ball;
+  b.owner = -1;
+  b.reserve = null;
+  b.flight = fl;
+  if (gk && !sh.penalty) {
+    gk.tx = fl.toX;
+    gk.ty = fl.toY;
+    gk.urgent = true;
+  }
 }
 
 /** 유효 슈팅 도착: GK 세이브 판정 (E.9) */
@@ -403,10 +436,8 @@ function shotArrives(s: SimState, fl: Flight): void {
     s.teams[defTeam].stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
     if (gk && r(s, shooter.idx, Purpose.Save, 1) < catchProb(gk)) {
-      gk.x = s.ball.x - dir * 0.5;
-      gk.y = s.ball.y;
-      setOwner(s, gk);
-      gk.cooldown = K.holdTime;
+      // 캐치 (C.24): GK 는 몸을 날린 자리 그대로, 공이 GK 에게 (멀면 굴러서) 간다
+      giveBall(s, gk, 'claim', undefined, shooter.idx);
       return;
     }
     // 쳐내기: 코너 또는 리바운드
@@ -417,6 +448,11 @@ function shotArrives(s: SimState, fl: Flight): void {
     }
     const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * 2.4;
     looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * 7, Math.sin(ang) * 7, defTeam, gk?.idx ?? -1);
+    return;
+  }
+  // 세이브 실패: 2단계 비행으로 골라인까지 (C.24)
+  if (sh.goalX !== undefined && sh.goalY !== undefined) {
+    s.ball.flight = { ...fl, fromX: s.ball.x, fromY: s.ball.y, toX: sh.goalX, toY: sh.goalY, t0: s.t, dur: Math.max(0.05, sh.rest ?? 0.1), outcome: 'goal' };
     return;
   }
   goal(s, shooter);
@@ -439,6 +475,32 @@ function goal(s: SimState, scorer: Agent): void {
   s.lastPass = null;
   for (const o of s.agents) if (o.onPitch && o.team !== scorer.team) o.rt.conceded++;
   setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, 'auto');
+  celebration(s, scorer);
+}
+
+/**
+ * 골 세리머니 (C.24): 득점자는 가까운 코너 쪽으로 8~12 m, 가까운 동료 3~5명이 함께한다. 세리머니 길이 15~20초.
+ * 이동은 offball 의 재개 분기가 맡는다 (긴급하지 않은 조깅·걷기)
+ */
+function celebration(s: SimState, scorer: Agent): void {
+  const R = ENGINE.restart;
+  const u = (k: number): number => rand(s.seed, s.tick, scorer.idx, Purpose.Restart, 20 + k);
+  const dir = attackDir(scorer.team, s.half);
+  const [gx] = oppGoal(dir);
+  const cy = scorer.y < W / 2 ? 0 : W;
+  const d = dist(scorer.x, scorer.y, gx, cy) || 1;
+  const run = Math.min(R.celebrateRun[0] + (R.celebrateRun[1] - R.celebrateRun[0]) * u(0), Math.max(0, d - 3));
+  const nJoin = R.celebrateJoin[0] + Math.floor(u(1) * (R.celebrateJoin[1] - R.celebrateJoin[0] + 1));
+  const joiners = s.agents
+    .filter((o) => o.onPitch && o.team === scorer.team && o !== scorer && o.line !== 0)
+    .sort((x, y) => dist(x.x, x.y, scorer.x, scorer.y) - dist(y.x, y.y, scorer.x, scorer.y))
+    .slice(0, nJoin)
+    .map((o) => o.idx);
+  s.restart!.goal = {
+    scorer: scorer.idx, t: s.t, until: s.t + R.celebrate[0] + (R.celebrate[1] - R.celebrate[0]) * u(2),
+    cx: clamp(scorer.x + ((gx - scorer.x) / d) * run, 2, L - 2), cy: clamp(scorer.y + ((cy - scorer.y) / d) * run, 2, W - 2), joiners,
+  };
+  for (const o of s.agents) if (o.onPitch) updateOffball(s, o);
 }
 
 // ── 크로스, 롱볼, 공중볼 ──
@@ -532,8 +594,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
   const gk = keeperOf(s, def);
   if (gk && inOppBox(b.x, b.y, dirAtt) && dist(gk.x, gk.y, b.x, b.y) < K.claimRange) {
     if (r(s, gk.idx, Purpose.Keeper) < claimProb(gk)) {
-      setOwner(s, gk);
-      gk.cooldown = K.holdTime;
+      giveBall(s, gk, 'claim');
       return;
     }
   }
@@ -581,15 +642,16 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     const [gx, gy] = oppGoal(dirAtt);
     if (inOppBox(b.x, b.y, dirAtt) && dist(b.x, b.y, gx, gy) < PR.headerMaxDist) {
+      // 헤더는 공이 있는 자리에서 (판정은 착지점 기준, 선수는 옮기지 않는다, C.24)
+      const [wx, wy] = [winner.x, winner.y];
       winner.x = b.x;
       winner.y = b.y;
       shoot(s, winner, true);
+      winner.x = wx;
+      winner.y = wy;
       return;
     }
-    winner.x = b.x;
-    winner.y = b.y;
-    setOwner(s, winner);
-    winner.gotBy = 'receive';
+    giveBall(s, winner, 'win');
     return;
   }
   // 수비가 이김: 헤더 걷어내기 (가끔 코너)
@@ -600,9 +662,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
     return;
   }
   if (!fl.fromCross && r(s, winner.idx, Purpose.Header, 2) < 0.4) {
-    winner.x = b.x;
-    winner.y = b.y;
-    setOwner(s, winner);
+    giveBall(s, winner, 'gain');
     return;
   }
   const [lo, hi] = PR.clearDist;
@@ -633,6 +693,9 @@ export function resolveFlight(s: SimState): void {
     case 'shot':
       shotArrives(s, fl);
       return;
+    case 'goal':
+      goal(s, passer);
+      return;
     case 'aerial':
       resolveAerial(s, fl);
       return;
@@ -649,29 +712,13 @@ export function resolveFlight(s: SimState): void {
             def.stats.aerialDuels++;
             if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
               def.stats.aerialsWon++;
-              setOwner(s, def);
+              giveBall(s, def, 'gain');
               return;
             }
             rc.stats.aerialsWon++;
           }
         }
-        setOwner(s, rc);
-        rc.gotBy = 'receive';
-        // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
-        rc.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(rc.team, s.half));
-        if (fl.quick) rc.cooldown = reaction(rc);
-        rc.x = b.x;
-        rc.y = b.y;
-        passer.stats.passesCompleted++;
-        s.teams[passer.team].stats.passesCompleted++;
-        rc.stats.received++;
-        if (Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30) s.teams[rc.team].stats.longCompleted++;
-        if (fl.through) {
-          rc.stats.throughReceived++;
-          s.teams[rc.team].stats.throughReceived++;
-        }
-        s.lastPass = { passer: passer.idx, receiver: rc.idx, t: s.t };
-        if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
+        giveBall(s, rc, 'receive', fl);
         return;
       }
       break;
@@ -679,15 +726,19 @@ export function resolveFlight(s: SimState): void {
     case 'intercept': {
       const rc = s.agents[fl.interceptor]!;
       if (rc.onPitch) {
-        setOwner(s, rc);
-        rc.x = b.x;
-        rc.y = b.y;
-        rc.stats.interceptions++;
-        s.teams[rc.team].stats.interceptions++;
+        giveBall(s, rc, 'intercept');
         return;
       }
       break;
     }
+  }
+  // 벽·GK 에 맞고 튄 공 (C.24)
+  if (fl.after) {
+    b.vx = fl.after.vx;
+    b.vy = fl.after.vy;
+    b.lastTeam = fl.after.team;
+    b.lastTouch = fl.after.touch;
+    return;
   }
   // 루즈볼: 진행 방향으로 굴러간다. 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 (E.18 A4 빗나간 패스)
   const dx = fl.toX - fl.fromX;
@@ -697,6 +748,69 @@ export function resolveFlight(s: SimState): void {
   const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(4, v0 - ENGINE.ball.groundDecel * fl.dur);
   b.vx = (dx / d) * sp;
   b.vy = (dy / d) * sp;
+}
+
+/**
+ * 공을 선수에게 (C.24): snapReceive m 안이면 바로 소유, 그 밖이면 선수를 옮기지 않고 공을 그 선수 쪽으로 굴린다
+ * (reserveRoll m/s, 그 선수는 컨트롤 판정 없이 잡는다. 받기 집계는 실제로 잡는 순간, ballReserved)
+ */
+function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight, from = -1): void {
+  const b = s.ball;
+  const res: BallReserve = { idx: a.idx, until: s.t + B.reserveTime, kind, from, ...(fl ? { fl } : {}) };
+  const d = dist(a.x, a.y, b.x, b.y);
+  if (d <= B.snapReceive) {
+    caught(s, a, res);
+    return;
+  }
+  const [lo, hi] = B.reserveRoll;
+  const sp = lo + (hi - lo) * clamp((d - B.snapReceive) / 3, 0, 1);
+  b.owner = -1;
+  b.flight = null;
+  b.z = 0;
+  b.vx = ((a.x - b.x) / d) * sp;
+  b.vy = ((a.y - b.y) / d) * sp;
+  b.reserve = res;
+  a.tx = b.x;
+  a.ty = b.y;
+  a.urgent = true;
+}
+
+/** 굴러간 공을 받기로 한 선수가 잡았다 (C.24): 소유와 받기 종류별 집계 */
+export function caught(s: SimState, a: Agent, res: BallReserve): void {
+  const b = s.ball;
+  setOwner(s, a);
+  switch (res.kind) {
+    case 'claim':
+      a.cooldown = K.holdTime;
+      return;
+    case 'intercept':
+      a.stats.interceptions++;
+      s.teams[a.team].stats.interceptions++;
+      return;
+    case 'win':
+      a.gotBy = 'receive';
+      return;
+    case 'gain':
+      return;
+    case 'receive': {
+      const fl = res.fl!;
+      const passer = s.agents[fl.passer]!;
+      a.gotBy = 'receive';
+      // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
+      a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
+      if (fl.quick) a.cooldown = reaction(a);
+      passer.stats.passesCompleted++;
+      s.teams[passer.team].stats.passesCompleted++;
+      a.stats.received++;
+      if (Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30) s.teams[a.team].stats.longCompleted++;
+      if (fl.through) {
+        a.stats.throughReceived++;
+        s.teams[a.team].stats.throughReceived++;
+      }
+      s.lastPass = { passer: passer.idx, receiver: a.idx, t: s.t };
+      if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
+    }
+  }
 }
 
 function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {
@@ -741,7 +855,7 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
     if (r(s, a.idx, Purpose.FreeKick) < ENGINE.setPiece.wallBlock) {
       event(s, 'block', a.team, [a.id]);
       const ang = r(s, a.idx, Purpose.FreeKick, 1) * Math.PI * 2;
-      looseBall(s, a.x + dir * 9, a.y, Math.cos(ang) * 6, Math.sin(ang) * 6, (1 - a.team) as 0 | 1);
+      bounceAt(s, a, a.x + dir * 9, a.y, Math.cos(ang) * 6, Math.sin(ang) * 6, (1 - a.team) as 0 | 1, -1);
       return true;
     }
     const pOn = Math.min(PR.shotCap, clamp(PR.shotBase - PR.shotPerM * d, PR.shotMin, PR.shotMax) * ENGINE.setPiece.directAccuracy * finishMult(a.attrs, 'freeKick'));
@@ -751,13 +865,13 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
       const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * PR.cornerRange, 0, 1);
-      s.ball.owner = -1;
-      s.ball.flight = {
+      shotFlight(s, a, {
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,
         passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d, header: false },
-      };
+      });
     } else {
       s.ball.owner = -1;
+      s.ball.reserve = null;
       s.ball.flight = {
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: gy + side * (G / 2 + 1 + r(s, a.idx, Purpose.FreeKick, 5) * 4),
         t0: s.t, dur: (d + 3) / speed, air: true, passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
@@ -775,6 +889,18 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
     }
   }
   return false;
+}
+
+/** 벽·GK 에 맞고 튀는 공 (C.24): 공이 (x, y)까지 슈팅 속도로 날아간 뒤 (vx, vy)로 튄다 (공을 옮기지 않는다) */
+function bounceAt(s: SimState, a: Agent, x: number, y: number, vx: number, vy: number, lastTeam: 0 | 1, lastTouch: number): void {
+  const d = dist(a.x, a.y, x, y);
+  const b = s.ball;
+  b.owner = -1;
+  b.reserve = null;
+  b.flight = {
+    kind: 'shot', fromX: a.x, fromY: a.y, toX: x, toY: y, t0: s.t, dur: Math.max(0.1, d / ENGINE.ball.shotSpeed), air: false,
+    passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1, after: { vx, vy, team: lastTeam, touch: lastTouch },
+  };
 }
 
 /** PK (E.10): 키커의 슈팅과 침착성, GK 선방 */
@@ -801,6 +927,7 @@ export function takePenalty(s: SimState, a: Agent): void {
     const speed = ENGINE.ball.shotSpeed;
     const d = dist(a.x, a.y, gx, gy);
     s.ball.owner = -1;
+    s.ball.reserve = null;
     s.ball.flight = {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * (G / 2 - 0.6), t0: s.t, dur: d / speed, air: false,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner: 1, d, header: false, penalty: true },
@@ -813,7 +940,7 @@ export function takePenalty(s: SimState, a: Agent): void {
     s.teams[def].stats.saves++;
     event(s, 'save', def, [gk?.id ?? '', a.id]);
     const ang = (r(s, a.idx, Purpose.Penalty, 2) - 0.5) * 2;
-    looseBall(s, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
+    bounceAt(s, a, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
     return;
   }
   setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, 'auto');

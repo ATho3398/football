@@ -6,6 +6,7 @@ import { matchXp } from '../match';
 import { posGroup, type TeamRoster } from '../roster';
 import type { FieldPosition } from '../positions';
 import type { FieldAttributes } from '../attributes';
+import { proficiencyPenalty } from '../proficiency';
 import { ENGINE } from './config';
 import { teamSetupFromRoster } from './setup';
 import { buildResult, createMatch } from './sim';
@@ -27,6 +28,8 @@ export interface MyPlayerInput {
   fatigue: number;
   /** 폼 보정 (D.1, ±0.3) */
   form: number;
+  /** 지금 포지션 숙련도 0~100 (없으면 100) */
+  proficiency?: number;
 }
 
 export interface EngineMatchInput {
@@ -59,11 +62,20 @@ function mySlot(setup: TeamSetup, pos: FieldPosition): number {
   return pool[pool.length - 1]!.i;
 }
 
+/** 숙련도 페널티 (C.24): 내 선수 필드 능력치 전부에서 포지션 OVR 페널티 점수만큼 뺀다 (빠른 경기의 proficientOvr 와 같은 의미) */
+export function proficientAttrs(attrs: FieldAttributes, proficiency = 100): FieldAttributes {
+  const pen = proficiencyPenalty(proficiency);
+  if (pen <= 0) return { ...attrs };
+  const out = {} as FieldAttributes;
+  for (const [k, v] of Object.entries(attrs) as [keyof FieldAttributes, number][]) out[k] = Math.max(1, v - pen);
+  return out;
+}
+
 export function buildMyMatch(m: EngineMatchInput) {
   const mySetup = teamSetupFromRoster(m.myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
   const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
   const meSpec: PlayerSpec = {
-    id: MY_ID, name: '나', slot: -1, position: m.me.position, attrs: { ...m.me.attributes },
+    id: MY_ID, name: '나', slot: -1, position: m.me.position, attrs: proficientAttrs(m.me.attributes, m.me.proficiency),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,
   };
   if (m.plan.minutes) {

@@ -119,12 +119,66 @@ export function keeperTarget(s: SimState, a: Agent): void {
   }
 }
 
+/** (x, y)가 그 팀 자기 박스 안인가 */
+function inOwnBox(team: 0 | 1, half: 1 | 2, x: number, y: number): boolean {
+  const [gx, gy] = ownGoal(attackDir(team, half));
+  return Math.abs(x - gx) <= ENGINE.pitch.boxDepth && Math.abs(y - gy) <= ENGINE.pitch.boxWidth / 2;
+}
+
+/** 골 뒤 복귀 속도 (C.24): 킥오프 returnMargin 초 전에 목표에 닿는 속도, 느린 걸음(strollMin) ~ 러닝 */
+function returnPace(s: SimState, a: Agent): number {
+  const R = ENGINE.restart;
+  const left = Math.max(0.5, s.restart!.at - R.returnMargin - s.t);
+  return clamp(dist(a.x, a.y, a.tx, a.ty) / left, R.strollMin, ENGINE.physics.run);
+}
+
+/** 골 세리머니 (C.24): 득점자는 세리머니 지점, 함께하는 동료는 그 주변에 모여 조깅. 그 밖이면 false */
+function celebrate(s: SimState, a: Agent, g: NonNullable<NonNullable<SimState['restart']>['goal']>): boolean {
+  const k = g.joiners.indexOf(a.idx);
+  if (a.idx !== g.scorer && k < 0) return false;
+  const R = ENGINE.restart;
+  // 모여서 조금씩 움직인다: 오프더볼 갱신마다 자리 주변 0.6 m 안 새 점
+  const j = rand(s.seed, s.tick, a.idx, Purpose.Restart, 30) * Math.PI * 2;
+  const jr = 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Restart, 31);
+  const ang = k < 0 ? 0 : (2 * Math.PI * k) / g.joiners.length;
+  const rad = k < 0 ? 0 : R.celebrateSpread;
+  a.tx = clamp(g.cx + Math.cos(ang) * rad + Math.cos(j) * jr, 0.3, L - 0.3);
+  a.ty = clamp(g.cy + Math.sin(ang) * rad + Math.sin(j) * jr, 0.3, W - 0.3);
+  a.urgent = false;
+  a.paceCap = ENGINE.physics.jog;
+  return true;
+}
+
 /** 오프더볼 목표 갱신 */
 export function updateOffball(s: SimState, a: Agent): void {
   a.minRun = false;
+  a.paceCap = 0;
   const dir = attackDir(a.team, s.half);
   const b = s.ball;
   const fl = b.flight;
+
+  // 굴러오는 공을 받기로 한 선수 (C.24): 공으로
+  if (b.reserve && b.reserve.idx === a.idx && b.owner < 0 && !fl) {
+    a.tx = b.x;
+    a.ty = b.y;
+    a.urgent = true;
+    return;
+  }
+  // 유효 슈팅 (C.24): 막는 GK 는 1단계 도착점으로 몸을 날린다
+  if (fl && (fl.outcome === 'shot' || fl.outcome === 'goal') && a.line === 0 && s.agents[fl.passer]?.team !== a.team && !fl.shot?.penalty) {
+    a.tx = fl.outcome === 'shot' ? fl.toX : fl.fromX;
+    a.ty = fl.outcome === 'shot' ? fl.toY : fl.fromY;
+    a.urgent = true;
+    return;
+  }
+  // 공중볼 GK 처리 (C.24): 우리 박스 안 착지점이 처리 범위 안이면 GK 가 착지점으로 미리 나간다
+  if (fl && fl.outcome === 'aerial' && a.line === 0 && s.agents[fl.passer]?.team !== a.team && !s.restart
+    && inOwnBox(a.team, s.half, fl.toX, fl.toY) && dist(a.x, a.y, fl.toX, fl.toY) < ENGINE.keeper.claimRange) {
+    a.tx = clamp(fl.toX, 0.3, L - 0.3);
+    a.ty = clamp(fl.toY, 0.3, W - 0.3);
+    a.urgent = true;
+    return;
+  }
 
   // 패스를 받을/가로챌 선수는 도착점으로
   if (fl && (fl.outcome === 'receive' && fl.receiver === a.idx || fl.outcome === 'intercept' && fl.interceptor === a.idx)) {
@@ -150,16 +204,20 @@ export function updateOffball(s: SimState, a: Agent): void {
 
   // 리스타트 대기: 키커는 공으로, 나머지는 대형
   if (s.restart) {
+    const goal = s.restart.type === 'kickoff' ? s.restart.goal : undefined;
     if (s.restart.taker === a.idx) {
       a.tx = s.restart.x;
       a.ty = s.restart.y;
-      a.urgent = true;
+      a.urgent = !goal;
+      // 골 뒤 킥오프 키커는 걸어서 (C.24). 늦으면 재개 처리(restartDue)가 긴급으로 바꾼다
+      if (goal) a.paceCap = returnPace(s, a);
       return;
     }
     if (a.line === 0) {
       keeperTarget(s, a);
       return;
     }
+    if (goal && s.t < goal.until && celebrate(s, a, goal)) return;
     if (setPieceTarget(s, a)) return;
     const [nx, ny] = slotTarget(s, a);
     // 프리킥/코너 등에서 공 근처 9 m 밖
@@ -177,12 +235,14 @@ export function updateOffball(s: SimState, a: Agent): void {
     a.tx = clamp(x, 0.5, L - 0.5);
     a.ty = clamp(y, 0.5, W - 0.5);
     a.urgent = false;
+    if (goal) a.paceCap = returnPace(s, a);
     return;
   }
 
   // 루즈볼: 팀별 가장 가까운 chasers 명이 쫓는다
   const loose = b.owner < 0 && (!fl || fl.outcome === 'loose');
-  if (loose) {
+  // 동료에게 굴러가는 공 (C.24)은 쫓지 않는다
+  if (loose && !(b.reserve && s.agents[b.reserve.idx]?.team === a.team)) {
     const [cx, cy] = ballChasePoint(s);
     if (ballRank(s, a, cx, cy) < ENGINE.ball.chasers) {
       a.tx = cx;

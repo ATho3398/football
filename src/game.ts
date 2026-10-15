@@ -21,7 +21,7 @@ import {
   createRosters, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
-import { decayFormerPosition, gainProficiency, initialProficiency } from './proficiency';
+import { decayFormerPosition, gainProficiency, initialProficiency, proficiencyOf } from './proficiency';
 import { awardBadges } from './badges';
 import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
@@ -314,7 +314,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     engineOut = playMyMatch({
       myRoster: state.rosters[player.teamId]!, oppRoster: state.rosters[opp.id]!,
       myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
-      me: { position: player.position, attributes: player.attributes, fatigue: player.fatigue, form },
+      me: { position: player.position, attributes: player.attributes, fatigue: player.fatigue, form, proficiency: proficiencyOf(player, player.position) },
       plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
       leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
     }, opts.onReplay ? { teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] } : undefined);
