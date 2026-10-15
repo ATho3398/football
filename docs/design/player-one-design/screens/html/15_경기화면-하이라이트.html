@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기화면-하이라이트</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기화면-하이라이트 (I.4 경기 화면) · 390×844 · 원본 Match6-Highlight.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{zero}}" away-score="{{zero}}" minute="{{minute}}" speed="1×" view="highlight" scene="{{scene}}"></x-import>
+  <div style="padding: 8px 16px 4px;">
+    <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" marks="{{marks}}" label="하이라이트 장면 3: 23분 역습, 우리 진영에서 공을 뺏은 순간부터"></x-import>
+  </div>
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 16px 8px; font-size: 12px; font-weight: 700; color: var(--ink-muted);">
+    <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--brand);"></span>장면 3 · 실제 속도 1×</span>
+    <span style="display: inline-flex; align-items: center; gap: 10px;">
+      <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 9px; height: 9px; border-radius: 50%; background: var(--team-home);"></span>우리</span>
+      <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 9px; height: 9px; border-radius: 50%; background: #2c2f37; box-shadow: inset 0 0 0 1.5px var(--team-away);"></span>상대</span>
+      <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--mine);"></span>나</span>
+    </span>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 8px; margin: 0 16px 10px; padding: 12px; border-radius: 16px; background: var(--surface-1);">
+    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 800;">
+      <span>오늘의 하이라이트</span>
+      <span style="font-weight: 600; color: var(--ink-muted);">7장면 · 약 90초 · 장면당 10~15초</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;">
+      <sc-for list="{{scenes}}" as="sc" hint-placeholder-count="7">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 46px; border-radius: 9px; background: {{sc.bg}}; color: {{sc.fg}}; box-shadow: {{sc.ring}};">
+          <span style="font-family: var(--font-display); font-size: 12px; font-weight: 700;">{{sc.min}}</span>
+          <span style="font-size: 10px; font-weight: 800;">{{sc.label}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 4px; padding: 0 16px 8px;">
+    <sc-for list="{{feed}}" as="item" hint-placeholder-count="2">
+      <x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{item.minute}}" kind="{{item.kind}}" mine="{{item.mine}}" text="{{item.text}}" score="{{item.score}}"></x-import>
+    </sc-for>
+  </div>
+  <div style="display: flex; align-items: center; gap: 10px; margin: 0 16px; padding: 10px 12px; border-radius: 16px; background: var(--surface-1);">
+    <x-import component-from-global-scope="PlayerOne.Avatar" size="{{avatar}}" ring="{{yes}}"></x-import>
+    <div style="display: flex; flex-direction: column; flex-grow: 1;">
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800;">김민준 <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; background: var(--mine-soft); color: var(--mine); font-size: 11px; font-weight: 800;">ST 슬롯 · 포처</span></span>
+      <x-import component-from-global-scope="PlayerOne.FatigueGauge" value="{{fatigue}}" compact="{{yes}}"></x-import>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.RatingBadge" value="{{rating}}" delta="{{ratingDelta}}"></x-import>
+  </div>
+  <div style="margin-top: auto; padding-top: 12px; border-radius: 20px 20px 0 0; background: var(--surface-1);">
+    <div style="display: flex; justify-content: space-between; padding: 0 16px; font-size: 12px; font-weight: 700;">
+      <span>내 패 <span style="font-family: var(--font-display);">5</span></span>
+      <span style="color: var(--ink-muted);">결정 순간에 쓸 수 있어요</span>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.CardHand" cards="{{hand}}"></x-import>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (list, team, dim) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, dim, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const tac = { homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' } };
+    const hand = [
+      { id: 'calm', name: '침착한 마무리', type: 'passive', rarity: 'common' },
+      { id: 'fk', name: '프리킥 스페셜', type: 'setpiece', rarity: 'rare' },
+      { id: 'mom', name: '기세', type: 'combo', rarity: 'rare' },
+      { id: 'pan', name: '파넨카', type: 'setpiece', rarity: 'epic' },
+      { id: 'focus', name: '집중', type: 'manage', rarity: 'common' }
+    ];
+    const HOME = [[16,50,1],[34,18,2],[30,40,4],[31,62,5],[36,84,3],[40,34,8],[46,56,6],[55,72,10],[60,22,7],[58,44,9,1],[52,82,11]];
+    const AWAY = [[95,50,1],[62,26,2],[64,44,5],[66,62,4],[60,80,3],[44,30,7],[42,46,8],[48,64,6],[40,76,11],[30,46,9],[34,58,10]];
+    return Object.assign({
+      scene: { index: 3, total: 7, minute: 23, label: '역습' },
+      yes: true, zero: 0, minute: 23, avatar: 36, fatigue: 18, rating: 6.9, ratingDelta: 0.1,
+      players: mk(HOME, 'home', false).concat(mk(AWAY, 'away', false)),
+      ball: [46.6, 54.6],
+      arrows: [{ from: [46, 56], to: [57, 45], kind: 'pass', tone: 'safe' }, { from: [58, 44], to: [74, 38], kind: 'dribble', tone: 'balanced', ghost: true }],
+      marks: [{ x: 46, y: 66, text: '공 뺏음', tone: 'brand' }],
+      scenes: [
+        { min: "6'", label: '빌드업', bg: 'var(--surface-3)', fg: 'var(--ink-muted)', ring: 'none' },
+        { min: "14'", label: '압박', bg: 'var(--surface-3)', fg: 'var(--ink-muted)', ring: 'none' },
+        { min: "23'", label: '역습', bg: 'var(--brand)', fg: 'var(--on-brand)', ring: 'none' },
+        { min: '·', label: '4', bg: 'transparent', fg: 'var(--ink-faint)', ring: 'inset 0 0 0 1px var(--line)' },
+        { min: '·', label: '5', bg: 'transparent', fg: 'var(--ink-faint)', ring: 'inset 0 0 0 1px var(--line)' },
+        { min: '·', label: '6', bg: 'transparent', fg: 'var(--ink-faint)', ring: 'inset 0 0 0 1px var(--line)' },
+        { min: '·', label: '7', bg: 'transparent', fg: 'var(--ink-faint)', ring: 'inset 0 0 0 1px var(--line)' }
+      ],
+      feed: [
+        { minute: 23, kind: 'normal', text: '박서진, 중원에서 가로채기 — 역습 시작' }
+      ],
+      hand
+    }, tac);
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

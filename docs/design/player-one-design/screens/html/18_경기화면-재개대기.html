@@ -19,7 +19,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
-  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" ff="{{yes}}" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×"></x-import>
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" ff="{{yes}}" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" view="highlight" scene="{{scene}}" scene-note="스로인 준비"></x-import>
   <div style="padding: 8px 16px 4px;">
     <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" marks="{{marks}}" label="경기 중단: 스로인 준비, 선수들이 걸어서 자리를 잡는 중"></x-import>
   </div>
@@ -64,6 +64,7 @@ class Component extends DCLogic {
     const HOME = [[6,50,1],[30,16,2],[28,40,4],[28,60,5],[31,84,3],[47,30,8],[44,52,6],[52,70,10],[66,20,7],[70,48,9,1],[63,80,11]];
     const AWAY = [[95,50,1],[81,22,2],[79,42,5],[80,60,4],[82,80,3],[68,28,7],[63,46,8],[64,62,6],[69,76,11],[54,38,9],[55,60,10]];
     return {
+      scene: { index: 6, total: 7, minute: 72, label: '역습 전개' },
       homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
       yes: true, one: 1, zero: 0, minute: 72, avatar: 36, fatigue: 28, rating: 7.1, ratingDelta: 0.2, poss: 56,
       players: mk(HOME, 'home').concat(mk(AWAY, 'away')),
@@ -76,7 +77,6 @@ class Component extends DCLogic {
         { from: [81, 22], to: [74, 14], kind: 'pass', ghost: true }
       ],
       feed: [
-        { minute: 46, kind: 'half', text: '하프타임 전술 변경: 라인 보통으로' },
         { minute: 63, kind: 'chance', mine: true, text: '김민준, 버티기 성공 → 레이오프' },
         { minute: 71, kind: 'tactic', text: '상대가 라인을 올립니다' }
       ],

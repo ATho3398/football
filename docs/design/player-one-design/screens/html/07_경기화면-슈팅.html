@@ -19,7 +19,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
-  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="1×"></x-import>
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="1×" view="highlight" scene="{{scene}}"></x-import>
   <div style="padding: 8px 16px 4px;">
     <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" marks="{{marks}}" label="김민준 슈팅"></x-import>
   </div>
@@ -65,6 +65,7 @@ class Component extends DCLogic {
     const HOME = [[10,50,1],[40,18,2],[38,40,4],[38,60,5],[42,82,3],[58,32,8],[56,52,6],[64,70,10],[82,24,7],[84,44,9,1],[80,74,11]];
     const AWAY = [[96,50,1],[90,30,2],[88,40,5],[89,58,4],[86,72,3],[76,30,7],[74,48,8],[75,62,6],[78,82,11],[62,40,9],[64,60,10]];
     return {
+      scene: { index: 5, total: 7, minute: 57, label: '박스 침투' },
       homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
       yes: true, one: 1, zero: 0, minute: 57, iconSize: 22, stroke: 2.4, avatar: 36, fatigue: 41, rating: 7.2,
       players: mk(HOME, 'home').concat(mk(AWAY, 'away')),
@@ -72,7 +73,6 @@ class Component extends DCLogic {
       arrows: [{ from: [84, 44], to: [99, 46.5], kind: 'shot' }],
       marks: [{ x: 84, y: 60, text: '슈팅!', tone: 'white' }],
       feed: [
-        { minute: 55, kind: 'chance', mine: true, text: '결정: 드리블 돌파 → 성공' },
         { minute: 56, kind: 'normal', text: '김민준, 박스 안으로 파고듭니다' },
         { minute: 57, kind: 'shot', mine: true, text: '김민준 슈팅 — 왼발' }
       ],

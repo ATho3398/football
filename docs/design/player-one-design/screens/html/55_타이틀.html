@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>타이틀</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 타이틀 (요청 4 · 디자인 없던 화면) · 390×844 · 원본 Title.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <div style="display: flex; flex-direction: column; flex-grow: 1; padding: 0 24px;">
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 148px;">
+      <span style="align-self: flex-start; height: 24px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; background: var(--surface-3); color: var(--brand-ink); font-size: 11px; font-weight: 800;">축구 커리어 · 1인용</span>
+      <span style="font-family: var(--font-display); font-size: 76px; line-height: 68px; font-weight: 800; letter-spacing: -0.045em;">PLAYER<br><span style="color: var(--brand);">ONE</span></span>
+      <span style="font-size: 15px; line-height: 22px; font-weight: 600; color: var(--ink-muted);">17세 유망주에서 은퇴까지.<br>결정 순간마다 고르는 건 나.</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: auto;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand-ink);">
+        <x-import component-from-global-scope="PlayerOne.Avatar" name="김민준" size="{{i40}}" ring="{{yes}}"></x-import>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+          <span style="font-size: 14px; font-weight: 800;">김민준 · 리버사이드 FC</span>
+          <span style="font-size: 11px; font-weight: 600; color: var(--ink-muted);">시즌 1 · 5주차 · OVR 60 · 자동 저장 오늘 14:32</span>
+        </div>
+      </div>
+      <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="play">이어하기</x-import>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="plus">새 게임</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="disk">불러오기</x-import>
+      </div>
+      <x-import component-from-global-scope="PlayerOne.Button" variant="ghost" block="{{yes}}" icon="settings">설정</x-import>
+    </div>
+    <p style="margin: 10px 0 20px; text-align: center; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--ink-faint);">버전 C.18 · 엔진 6 · 밸런스 14 · 2026-10-15 배포 (커밋 82e27e0)</p>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    return { yes: true, i40: 40 };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

@@ -19,7 +19,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
-  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" paused="{{yes}}" status="부상"></x-import>
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" paused="{{yes}}" status="부상" view="highlight" scene="{{scene}}"></x-import>
   <div style="padding: 12px 16px 0;">
     <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" marks="{{marks}}" label="자동 정지: 김민준 부상"></x-import>
   </div>
@@ -43,6 +43,7 @@ class Component extends DCLogic {
     const HOME = [[10,50,1],[38,18,2],[36,40,4],[36,60,5],[40,82,3],[54,30,8],[52,52,6],[60,70,10],[74,22,7],[76,46,9,1],[72,78,11]];
     const AWAY = [[95,50,1],[82,24,2],[80,42,5],[81,58,4],[83,76,3],[70,30,7],[78,50,8],[68,64,6],[72,84,11],[58,40,9],[60,60,10]];
     return {
+      scene: { index: 5, total: 7, minute: 67, label: '부상' },
       homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
       yes: true, one: 1, zero: 0, minute: 67, fatigue: 72, rating: 7.1, keep: 70,
       keepOk: { text: '이상 없이 계속', rating: 0 }, keepBad: { text: '부상 악화 · 교체', rating: -0.3 },

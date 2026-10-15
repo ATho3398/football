@@ -16,6 +16,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.SceneStrip" view="halftime"></x-import>
   <x-import component-from-global-scope="PlayerOne.HeroPanel" title="하프타임" right="리버사이드 1-0" on-back="{{no}}" eyebrow="전반 내 평점" value="7.4" progress="{{no}}"></x-import>
   <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
   <div style="position: absolute; left: 0; right: 0; bottom: 0;">

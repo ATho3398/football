@@ -16,7 +16,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
-  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" paused="{{yes}}"></x-import>
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" paused="{{yes}}" view="highlight" scene="{{scene}}"></x-import>
   <div style="padding: 8px 16px 4px;">
     <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}"></x-import>
   </div>
@@ -26,11 +26,12 @@ body{margin:0;background:#16171b}
     </sc-for>
   </div>
   <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--scrim);">
-    <x-import component-from-global-scope="PlayerOne.Modal" inline="{{yes}}" icon="skip" tone="warning" title="경기를 건너뛸까요?">
-      <p style="margin: 0;">남은 27분은 자동으로 진행돼요. 결정 순간도 자동으로 고르고 카드는 쓰지 않아요.</p>
+    <x-import component-from-global-scope="PlayerOne.Modal" inline="{{yes}}" icon="skip" tone="warning" title="경기 결과로 건너뛸까요?">
+      <p style="margin: 0;">남은 경기는 자동으로 진행돼요. 결과는 보던 것과 같아요.</p>
+      <p style="margin: 8px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 13px; line-height: 19px; color: var(--ink);">남은 결정 순간은 엔진이 대신 골라요. 카드는 쓰지 않아요.</p>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 20px;">
-        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}">계속 보기</x-import>
         <x-import component-from-global-scope="PlayerOne.Button" block="{{yes}}">건너뛰기</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}">계속 보기</x-import>
       </div>
     </x-import>
   </div>
@@ -43,6 +44,7 @@ class Component extends DCLogic {
     const HOME = [[6,50,1],[30,16,2],[28,40,4],[28,60,5],[31,84,3],[47,30,8],[44,52,6],[52,70,10],[66,20,7],[70,48,9,1],[63,80,11]];
     const AWAY = [[95,50,1],[81,22,2],[79,42,5],[80,60,4],[82,80,3],[68,28,7],[63,46,8],[64,62,6],[69,76,11],[54,38,9],[55,60,10]];
     return {
+      scene: { index: 5, total: 7, minute: 63, label: '측면 돌파' },
       homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
       yes: true, one: 1, zero: 0, minute: 63,
       players: mk(HOME, 'home').concat(mk(AWAY, 'away')),

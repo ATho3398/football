@@ -15,19 +15,23 @@
 body{margin:0;background:#16171b}
 </style>
 </helmet>
-<div style="position: relative; width: 390px; height: 1880px; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<div style="position: relative; width: 390px; height: 1750px; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
   <x-import component-from-global-scope="PlayerOne.HeroPanel" title="덱 편집" eyebrow="내 덱 · 경기 전 확정" value="{{deckCount}}" total="{{deckMax}}" chips="{{chips}}"></x-import>
   <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 24px;">
     <div style="display: flex; flex-direction: column; gap: 8px;">
       <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{sets}}" value="s1" label="덱 세트"></x-import>
       <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-muted);">짝지은 전술 <x-import component-from-global-scope="PlayerOne.TacticChip" size="xs" tactic="counter" formation="기본 · 4-2-3-1"></x-import></span>
     </div>
-    <x-import component-from-global-scope="PlayerOne.Banner" tone="warning" title="덱이 가득 찼어요 · 12/12">새 카드를 넣으려면 슬롯의 카드를 먼저 빼 주세요. 슬롯은 능력치 총합이 오르면 늘어나요.</x-import>
-    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="덱 슬롯 · 12/12"></x-import>
+    <x-import component-from-global-scope="PlayerOne.Banner" tone="warning" title="덱이 가득 찼어요 · 8/8">새 카드를 넣으려면 슬롯의 카드를 먼저 빼 주세요. 슬롯은 위상 티어가 오르면 늘어나요(최대 14장).</x-import>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="덱 슬롯 · 8/8"></x-import>
     <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px;">
-      <sc-for list="{{slots}}" as="s" hint-placeholder-count="12">
+      <sc-for list="{{slots}}" as="s" hint-placeholder-count="8">
         <x-import component-from-global-scope="PlayerOne.DeckSlot" card="{{s.card}}"></x-import>
       </sc-for>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-faint); text-align: center;">
+        <x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{lockIcon}}"></x-import>
+        <span style="font-size: 11px; line-height: 15px; font-weight: 700;">다음 위상 티어<br>슬롯 +1</span>
+      </div>
     </div>
     <div style="height: 4px;"></div>
     <x-import component-from-global-scope="PlayerOne.SectionTitle" title="카드 풀"></x-import>
@@ -54,7 +58,7 @@ body{margin:0;background:#16171b}
   
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1880}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1750}}'>
 class Component extends DCLogic {
   renderVals() {
     const C = {
@@ -73,9 +77,9 @@ class Component extends DCLogic {
       vision: { id: 'vision', pos: 'mid', name: '킬 패스', type: 'passive', rarity: 'epic', level: 1, effect: { pre: '침투 패스 성공 확률이 ', hi: '+9%p', post: ' 올라가요.' }, condition: { text: '시야 60 이상', met: true, current: 62 } }
     };
     const S = (o) => Object.assign({}, C[o.c], o.extra || {});
-    const deck = ['calm','calm','mom','mom','tackle','tackle','focus','focus','fk','press','press','header'];
+    const deck = ['calm','calm','mom','mom','tackle','tackle','focus','fk'];
     const slots = deck.map((k) => ({ card: C[k] }));
-    while (slots.length < 12) slots.push({ card: null });
+    while (slots.length < 8) slots.push({ card: null });
     const count = (k) => deck.filter((d) => d === k).length;
     const pool = [{ c: 'calm', state: 'disabled', reason: '같은 카드 2장' }, { c: 'header', state: 'disabled', reason: '덱 가득 참' }, { c: 'vision', state: 'disabled', reason: '덱 가득 참' }, { c: 'fk', state: 'disabled', reason: '덱 가득 참' }].map((o) => {
       const n = count(o.c);
@@ -88,7 +92,7 @@ class Component extends DCLogic {
         btnIcon: blocked ? 'lock' : 'plus', btnVariant: blocked ? 'ghost' : 'secondary', btnDisabled: blocked };
     });
 
-    return { yes: true, no: false, slots, pool, deckCount: deck.length, deckMax: 12, chips: ['같은 카드 최대 2장', '세트피스 1/3', '빈 슬롯 0'], tabs: [{ id: 'all', label: '전체' }, { id: 'play', label: '플레이', icon: 'newchoice' }, { id: 'setpiece', label: '세트피스' }, { id: 'passive', label: '패시브' }, { id: 'combo', label: '콤보' }, { id: 'manage', label: '관리' }, { id: 'signature', label: '시그니처' }, { id: 'order', label: '지시', icon: 'lock' }], postabs: [{ id: 'any', label: '모든 포지션' }, { id: 'all', label: '공용', icon: 'pos-all' }, { id: 'att', label: '공격', icon: 'pos-att' }, { id: 'mid', label: '미드', icon: 'pos-mid' }, { id: 'def', label: '수비', icon: 'defense' }], sets: [{ id: 's1', label: '세트 1 · 기본' }, { id: 's2', label: '세트 2 · 강팀' }, { id: 's3', label: '세트 3 · 약팀' }] };
+    return { lockIcon: 16, yes: true, no: false, slots, pool, deckCount: deck.length, deckMax: 8, chips: ['같은 카드 최대 2장', '세트피스 1/3', '빈 슬롯 0'], tabs: [{ id: 'all', label: '전체' }, { id: 'play', label: '플레이', icon: 'newchoice' }, { id: 'setpiece', label: '세트피스' }, { id: 'passive', label: '패시브' }, { id: 'combo', label: '콤보' }, { id: 'manage', label: '관리' }, { id: 'signature', label: '시그니처' }, { id: 'order', label: '지시', icon: 'lock' }], postabs: [{ id: 'any', label: '모든 포지션' }, { id: 'all', label: '공용', icon: 'pos-all' }, { id: 'att', label: '공격', icon: 'pos-att' }, { id: 'mid', label: '미드', icon: 'pos-mid' }, { id: 'def', label: '수비', icon: 'defense' }], sets: [{ id: 's1', label: '세트 1 · 기본' }, { id: 's2', label: '세트 2 · 강팀' }, { id: 's3', label: '세트 3 · 약팀' }] };
   }
 }
 </script>

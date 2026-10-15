@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>은퇴 요약</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1400px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="은퇴" on-back="{{no}}" right="2043/44" eyebrow="김민준 · 커리어 평균 평점" value="7.2" pad="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+      <sc-for list="{{totals}}" as="s" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 0; border-radius: 14px; background: var(--surface-1);">
+          <b style="font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 26px; color: {{s.ink}};">{{s.v}}</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{s.l}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">최고 위상</span>
+        <x-import component-from-global-scope="PlayerOne.TierBadge" tier="world" score="{{peakTier}}"></x-import>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">최고 OVR · 28세</span>
+        <b style="font-family: var(--font-display); font-weight: 700; font-size: 32px; line-height: 34px; color: var(--brand-ink);">87</b>
+      </div>
+    </div>
+    <div style="height: 6px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="우승" action="5회"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+      <sc-for list="{{trophies}}" as="t" hint-placeholder-count="4">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: {{t.bg}}; color: {{t.fg}};"><x-import component-from-global-scope="PlayerOne.Icon" name="star" size="{{i16}}" filled="{{yes}}"></x-import></span>
+          <span style="flex-grow: 1; font-size: 13px; font-weight: 700;">{{t.t}}</span>
+          <span style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">{{t.when}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="height: 6px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="커리어 흐름"></x-import>
+    <div style="display: flex; flex-direction: column; padding: 6px 14px; border-radius: 16px; background: var(--surface-1);">
+      <sc-for list="{{clubs}}" as="c" hint-placeholder-count="4">
+        <div style="display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid var(--line);">
+          <x-import component-from-global-scope="PlayerOne.Crest" name="{{c.team}}" size="{{i22}}"></x-import>
+          <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 800;">{{c.team}}</span><span style="font-size: 11px; font-weight: 600; color: var(--ink-muted);">{{c.years}} · {{c.apps}}경기 {{c.goals}}골</span></div>
+          <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{c.note}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2);">
+      <x-import component-from-global-scope="PlayerOne.Icon" name="info" size="{{i18}}"></x-import>
+      <span style="font-size: 12px; line-height: 17px; color: var(--ink-muted);">은퇴한 세이브는 기록 보기만 할 수 있어요. 다른 슬롯의 진행에는 영향이 없어요.</span>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: auto; padding: 20px 16px 24px;">
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="download">기록 저장</x-import>
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="plus">새 커리어</x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true, no: false, i16: 16, i18: 18, i22: 22, peakTier: 742,
+      chips: ['18시즌 · 34세 은퇴', '클럽 3곳', { label: '명예의 전당 후보', soft: true }],
+      totals: [
+        { v: 512, l: '경기', ink: 'var(--ink)' }, { v: 231, l: '골', ink: 'var(--brand-ink)' },
+        { v: 98, l: '도움', ink: 'var(--ink)' }, { v: 41, l: 'MOM', ink: 'var(--ink)' }
+      ],
+      trophies: [
+        { t: '리그 우승 ×2', when: '2031 · 2033', bg: 'var(--brand)', fg: 'var(--on-brand)' },
+        { t: '컵 대회 우승 ×2', when: '2030 · 2036', bg: 'var(--surface-3)', fg: 'var(--brand-ink)' },
+        { t: '대륙 대회 우승', when: '2034', bg: 'var(--surface-3)', fg: 'var(--brand-ink)' },
+        { t: '리그 득점왕', when: '2033', bg: 'var(--surface-3)', fg: 'var(--ink)' }
+      ],
+      clubs: [
+        { team: '리버사이드 FC', years: '2026–2030', apps: 132, goals: 48, note: '유스 · 데뷔' },
+        { team: '레드힐 시티', years: '2030–2037', apps: 241, goals: 129, note: '주장 · 전성기' },
+        { team: '포트 유나이티드', years: '2037–2041', apps: 98, goals: 41, note: '' },
+        { team: '리버사이드 FC', years: '2041–2044', apps: 41, goals: 13, note: '복귀 · 은퇴' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

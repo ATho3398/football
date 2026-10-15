@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>새 게임 - 실제 선수</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 980px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="새 게임" eyebrow="선택한 선수 · 한도윤 OVR" value="{{ovr}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">시작 방식</span>
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{modes}}" value="{{mode}}" label="시작 방식"></x-import>
+    <div style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border-radius: 14px; background: var(--surface-1);">
+      <x-import component-from-global-scope="PlayerOne.Icon" name="search" size="{{i18}}"></x-import>
+      <span style="flex-grow: 1; font-size: 14px; font-weight: 600; color: var(--ink-faint);">선수 이름 · 팀</span>
+      <x-import component-from-global-scope="PlayerOne.Icon" name="filter" size="{{i18}}"></x-import>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{posTabs}}" value="att" label="포지션군"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <sc-for list="{{players}}" as="p" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--surface-1); box-shadow: {{p.ring}};">
+          <x-import component-from-global-scope="PlayerOne.Avatar" name="{{p.name}}" size="{{i40}}"></x-import>
+          <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+            <span style="font-size: 14px; font-weight: 800;">{{p.name}}</span>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--ink-muted);"><x-import component-from-global-scope="PlayerOne.Crest" name="{{p.team}}" size="{{i14}}"></x-import>{{p.team}} · {{p.age}}세 · {{p.pos}}</span>
+          </div>
+          <x-import component-from-global-scope="PlayerOne.TierBadge" tier="{{p.tier}}" size="sm"></x-import>
+          <span style="display: flex; flex-direction: column; align-items: flex-end; min-width: 34px;"><b style="font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 22px;">{{p.ovr}}</b><span style="font-size: 9px; font-weight: 800; color: var(--ink-faint);">OVR</span></span>
+        </div>
+      </sc-for>
+    </div>
+    <span style="font-size: 12px; line-height: 17px; color: var(--ink-muted);">실제 선수는 지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요.</span>
+  </div>
+  <div style="margin-top: auto; padding: 20px 16px 24px;">
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon-right="chevron-right">한도윤으로 시작</x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pl = (name, team, age, pos, ovr, tier, on) => ({ name, team, age, pos, ovr, tier, ring: on ? 'inset 0 0 0 1.5px var(--brand-ink)' : 'none' });
+    return {
+      yes: true, mode: 'real', ovr: 63, i14: 14, i18: 18, i40: 40,
+      modes: [{ id: 'prospect', label: '가상 유망주' }, { id: 'real', label: '실제 선수' }],
+      chips: ['공격수 248명', { label: '난이도는 다음 단계', soft: true }],
+      posTabs: [{ id: 'all', label: '전체' }, { id: 'att', label: '공격', icon: 'pos-att' }, { id: 'mid', label: '미드', icon: 'pos-mid' }, { id: 'def', label: '수비', icon: 'defense' }, { id: 'gk', label: 'GK' }],
+      players: [
+        pl('한도윤', '리버사이드 FC', 19, 'ST', 63, 'normal', true),
+        pl('서지호', '노스게이트', 21, 'LW', 68, 'key'),
+        pl('이태경', '포트 유나이티드', 24, 'ST', 74, 'top'),
+        pl('마르코 실바', '레드힐 시티', 27, 'RW', 81, 'world'),
+        pl('윤재석', '하버 애슬레틱', 18, 'CAM', 58, 'normal')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

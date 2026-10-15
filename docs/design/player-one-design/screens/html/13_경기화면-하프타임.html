@@ -19,6 +19,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.SceneStrip" view="halftime"></x-import>
   <x-import component-from-global-scope="PlayerOne.HeroPanel" title="하프타임" right="리버사이드 1-0" on-back="{{no}}" eyebrow="전반 내 평점" value="7.4" progress="{{no}}" chips="{{chips}}"></x-import>
   <div style="display: flex; flex-direction: column; gap: 10px; padding: 20px 16px 0;">
     <x-import component-from-global-scope="PlayerOne.SectionTitle" title="전반 흐름" action="점유율 56%"></x-import>
@@ -55,7 +56,6 @@ class Component extends DCLogic {
       yes: true, no: false, poss: 56, fatigue: 28,
       chips: ['골 1', '슈팅 2', '패스 18/22', '결정 3회 중 2회 성공'],
       feed: [
-        { minute: 12, kind: 'advantage', text: '어드밴티지 — 플레이 계속' },
         { minute: 23, kind: 'shot', mine: true, text: '김민준 슈팅 — 세이브' },
         { minute: 24, kind: 'corner', text: '코너킥 — 오른쪽' },
         { minute: 25, kind: 'goal', mine: true, text: '골! 김민준', score: '1-0' }
