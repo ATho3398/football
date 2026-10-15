@@ -77,6 +77,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
       st.reds = 0;
     }
   },
+  // 6 → 7: 세이브 시작 버전 (21.5.1). 이전 세이브는 시작 버전을 모른다
+  6: (s) => {
+    s.startPatch = null;
+  },
 };
 
 export function migrate(raw: any): GameState {

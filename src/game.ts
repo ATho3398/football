@@ -24,9 +24,10 @@ import { positionOvr, type PlayablePosition } from './positions';
 import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats } from './types';
+import { PATCH_LABEL } from './version';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 6;
+export const SAVE_FORMAT_VERSION = 7;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -87,6 +88,8 @@ export interface SeasonSummary {
 export interface GameState {
   saveFormat: number;
   balanceVersion: number;
+  /** 새 게임을 시작한 패치 이름 (21.5.1). null 이면 기록하기 전 세이브 */
+  startPatch: string | null;
   worldSeed: string;
   difficulty: Difficulty;
   phase: Phase;
@@ -206,6 +209,7 @@ export function newGame(opts: NewGameOptions): GameState {
   return {
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,
+    startPatch: PATCH_LABEL,
     worldSeed,
     difficulty: opts.difficulty,
     phase: 'season',
