@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>전술 - 커스텀 편집(끄는 중)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="커스텀 포메이션" right="리버풀전" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 0;">
+    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-muted);">
+      <span>가로 5레인 × 세로 6줄 · 놓으면 칸에 붙어요</span>
+      <span style="color: var(--ink);">4-2-3-1 변형</span>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.FormationPitch" grid="{{yes}}" height="{{ph}}" slots="{{slots}}" cells="{{cells}}" label="커스텀 포메이션 편집"></x-import>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--brand-soft);">
+      <span style="flex-grow: 1; font-size: 12px; line-height: 17px;"><b>서준영 CAM → CF</b><br><span style="color: var(--ink-muted);">손을 떼면 라임 칸에 붙어요. 역할은 CF 기본값(섀도 스트라이커)으로 바뀌어요.</span></span>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 2px;">
+      <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}">취소</x-import>
+      <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="check">커스텀 1로 저장</x-import>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true, ph: 530, chips: ['커스텀 1', '4-2-3-1 기반', '끄는 중'],
+      slots: [{"id": "gk", "pos": "GK", "x": 50, "y": 8.3, "name": "오세훈"}, {"id": "lb", "pos": "LB", "x": 10, "y": 25, "name": "정우진"}, {"id": "cb1", "pos": "CB", "x": 30, "y": 25, "name": "한도윤"}, {"id": "cb2", "pos": "CB", "x": 70, "y": 25, "name": "박재성"}, {"id": "rb", "pos": "RB", "x": 90, "y": 25, "name": "이현수"}, {"id": "dm1", "pos": "CDM", "x": 30, "y": 41.7, "name": "최민호"}, {"id": "dm2", "pos": "CDM", "x": 70, "y": 41.7, "name": "윤태경"}, {"id": "lw", "pos": "LW", "x": 10, "y": 75, "name": "강지훈"}, {"id": "rw", "pos": "RW", "x": 90, "y": 75, "name": "임성빈"}, {"id": "st", "pos": "ST", "x": 50, "y": 91.7, "name": "김민준", "me": true}, {"id": "amg", "pos": "CAM", "x": 50, "y": 58.3, "name": "", "ghost": true}, {"id": "am", "pos": "CF", "x": 53, "y": 73, "name": "서준영", "drag": true}],
+      cells: [{"col": 2, "row": 4, "tone": "target", "label": "CF"}]
+    };
+  }
+}
+</script>
+</body>
+</html>

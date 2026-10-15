@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>전술 - 성향 변경 확인</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="전술" right="리버풀전" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="① 전술 성향" action="상대: 게겐프레싱 4-3-3"></x-import>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+      <sc-for list="{{styles}}" as="s" hint-placeholder-count="6">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" tactic="{{s.id}}" fit="{{s.fit}}" selected="{{s.on}}" on-click="{{noop}}"></x-import>
+      </sc-for>
+    </div>
+  </div>
+  <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="전술 성향 변경 · 역습 → 게겐프레싱" title="세부 전술과 역할을 성향 기본값으로 바꿀까요?">
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 14px; background: var(--surface-1);">
+        <sc-for list="{{diff}}" as="d" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: 72px 1fr auto 1fr; align-items: center; gap: 8px; font-size: 13px;">
+            <span style="font-weight: 700; color: var(--ink-muted);">{{d.label}}</span>
+            <span style="font-weight: 600;">{{d.from}}</span>
+            <span style="color: var(--ink-faint);">→</span>
+            <b style="font-weight: 800; color: var(--brand-ink);">{{d.to}}</b>
+          </div>
+        </sc-for>
+      </div>
+      <span style="display: block; margin-top: 10px; font-size: 12px; line-height: 17px; color: var(--ink-muted);">직접 바꾼 역할 2개(ST 침투형 스트라이커, CB 스토퍼)도 기본값으로 돌아가요. 포메이션과 내 위치는 그대로예요.</span>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}">성향만 바꾸기</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}">기본값으로 바꾸기</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const SLOTS = [
+      { id: 'gk', pos: 'GK', x: 50, y: 9, name: '오세훈', role: '스위퍼 키퍼' },
+      { id: 'lb', pos: 'LB', x: 14, y: 26, name: '정우진', role: '수비형 풀백' },
+      { id: 'cb1', pos: 'CB', x: 37, y: 22, name: '한도윤', role: '스토퍼' },
+      { id: 'cb2', pos: 'CB', x: 63, y: 22, name: '박재성', role: '커버 CB' },
+      { id: 'rb', pos: 'RB', x: 86, y: 26, name: '이현수', role: '수비형 풀백' },
+      { id: 'dm1', pos: 'CDM', x: 38, y: 43, name: '최민호', role: '앵커' },
+      { id: 'dm2', pos: 'CDM', x: 62, y: 43, name: '윤태경', role: '박스투박스' },
+      { id: 'lw', pos: 'LW', x: 16, y: 66, name: '강지훈', role: '윙포워드' },
+      { id: 'am', pos: 'CAM', x: 50, y: 63, name: '서준영', role: '섀도 스트라이커' },
+      { id: 'rw', pos: 'RW', x: 84, y: 66, name: '임성빈', role: '정통 윙어' },
+      { id: 'st', pos: 'ST', x: 50, y: 85, name: '김민준', role: '포처', me: true, ovr: 56 }
+    ];
+    const slot = (id, extra) => SLOTS.map((s) => s.id === id ? Object.assign({}, s, extra) : s);
+    const fitOf = { balanced: 'ok', tikitaka: 'bad', gegen: 'ok', counter: 'good', direct: 'ok', block: 'bad' };
+    const styles = (on) => ['balanced', 'tikitaka', 'gegen', 'counter', 'direct', 'block'].map((id) => ({ id, fit: fitOf[id], on: id === on }));
+    const forms = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2', '4-3-1-2', '4-1-4-1', '3-4-3'].map((l) => ({ id: l.replace(/-/g, ''), label: l })).concat([{ id: 'custom', label: '커스텀', icon: 'plus' }]);
+    const forms8 = forms.slice(0, 8);
+    const seg = (a, b, c) => [{ id: a, label: a }, { id: b, label: b }, { id: c, label: c }];
+    const settings = (line, press, build, width, tag) => [
+      { label: '수비 라인', hint: tag, items: seg('낮음', '보통', '높음'), value: line },
+      { label: '압박', hint: tag, items: seg('낮음', '보통', '높음'), value: press },
+      { label: '빌드업', hint: tag, items: seg('짧게', '혼합', '직선'), value: build },
+      { label: '공격 폭', hint: tag, items: seg('좁게', '보통', '넓게'), value: width }
+    ];
+    const myOvr = { gk: 22, lb: 38, cb1: 35, cb2: 35, rb: 38, dm1: 41, dm2: 41, lw: 49, am: 52, rw: 49 };
+    return {
+      yes: true, noop: () => {},
+      chips: ['역습', '4-2-3-1', '변경 중'], styles: styles('gegen'),
+      diff: [
+        { label: '수비 라인', from: '낮음', to: '높음' },
+        { label: '압박', from: '보통', to: '높음' },
+        { label: '빌드업', from: '직선', to: '혼합' },
+        { label: '공격 폭', from: '보통', to: '보통' },
+        { label: '역할', from: '직접 바꾼 2개', to: '기본값' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

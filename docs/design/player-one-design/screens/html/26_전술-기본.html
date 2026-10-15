@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>전술-기본</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 전술-기본 (전술 화면) · 390×1830 · 원본 Tactic-Default.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1830px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <div>
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="전술" right="리버풀전" eyebrow="팀 전술 · 내가 정해요" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{sets}}" value="base" label="전술 세트"></x-import>
+      <span style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-muted);"><span>짝지은 덱 · <b style="color: var(--ink);">세트 1 · 기본 덱</b> (12장)</span><span style="color: var(--brand-ink);">덱 바꾸기 ›</span></span>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="상대 정보" action="다음 경기 · 리버풀"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="gegen" team="리버풀" formation="4-3-3" away="{{yes}}"></x-import>
+        <span style="display: inline-flex; gap: 3px;">
+          <sc-for list="{{recent}}" as="r" hint-placeholder-count="5"><span style="display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: {{r.bg}}; color: {{r.ink}}; font-size: 10px; font-weight: 800;">{{r.l}}</span></sc-for>
+        </span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <sc-for list="{{hints}}" as="hn" hint-placeholder-count="3">
+          <div style="display: flex; gap: 8px; font-size: 12px; line-height: 17px;"><span style="flex: none; color: {{hn.c}}; font-weight: 800;">{{hn.s}}</span><span>{{hn.t}}</span></div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="height: 4px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="① 전술 성향" action="상대: 게겐프레싱 4-3-3"></x-import>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+      <sc-for list="{{styles}}" as="s" hint-placeholder-count="6">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" tactic="{{s.id}}" fit="{{s.fit}}" selected="{{s.on}}" on-click="{{noop}}"></x-import>
+      </sc-for>
+    </div>
+    <span style="font-size: 12px; line-height: 17px; color: var(--ink-muted);">성향을 고르면 세부 전술과 역할의 기본값이 채워지고, 그 위에서 바꿀 수 있어요.</span>
+    <div style="height: 8px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="② 포메이션과 역할" action="슬롯을 탭해 역할 변경"></x-import>
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{forms}}" value="4231" label="포메이션"></x-import>
+    <x-import component-from-global-scope="PlayerOne.FormationPitch" slots="{{slotsOvr}}" label="4-2-3-1 포메이션, 내 위치 ST"></x-import>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; border-radius: 14px; background: var(--surface-1);">
+      <div style="display: flex; flex-direction: column; flex-grow: 1; gap: 2px;">
+        <span style="font-size: 13px; font-weight: 800;">내 위치 <span style="color: var(--mine);">ST · 포처</span></span>
+        <span style="font-size: 11px; color: var(--ink-muted);">원 위 숫자는 그 슬롯에서의 내 OVR이에요. 주 포지션 밖이면 낮아져요.</span>
+      </div>
+      <x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" icon="player">내 위치 지정</x-import>
+    </div>
+    <div style="height: 8px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="③ 세부 전술" action="역습 기본값에서 0개 바꿈"></x-import>
+    <sc-for list="{{settings}}" as="st" hint-placeholder-count="4">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 800;"><span>{{st.label}}</span><span style="font-size: 11px; font-weight: 600; color: var(--ink-faint);">{{st.hint}}</span></div>
+        <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{st.items}}" value="{{st.value}}" label="{{st.label}}"></x-import>
+      </div>
+    </sc-for>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: auto; padding: 20px 16px;">
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="restore">기본값으로</x-import>
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="check">저장</x-import>
+  </div>
+  </div>
+
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const SLOTS = [
+      { id: 'gk', pos: 'GK', x: 50, y: 9, name: '오세훈', role: '스위퍼 키퍼' },
+      { id: 'lb', pos: 'LB', x: 14, y: 26, name: '정우진', role: '수비형 풀백' },
+      { id: 'cb1', pos: 'CB', x: 37, y: 22, name: '한도윤', role: '스토퍼' },
+      { id: 'cb2', pos: 'CB', x: 63, y: 22, name: '박재성', role: '커버 CB' },
+      { id: 'rb', pos: 'RB', x: 86, y: 26, name: '이현수', role: '수비형 풀백' },
+      { id: 'dm1', pos: 'CDM', x: 38, y: 43, name: '최민호', role: '앵커' },
+      { id: 'dm2', pos: 'CDM', x: 62, y: 43, name: '윤태경', role: '박스투박스' },
+      { id: 'lw', pos: 'LW', x: 16, y: 66, name: '강지훈', role: '윙포워드' },
+      { id: 'am', pos: 'CAM', x: 50, y: 63, name: '서준영', role: '섀도 스트라이커' },
+      { id: 'rw', pos: 'RW', x: 84, y: 66, name: '임성빈', role: '정통 윙어' },
+      { id: 'st', pos: 'ST', x: 50, y: 85, name: '김민준', role: '포처', me: true, ovr: 56 }
+    ];
+    const slot = (id, extra) => SLOTS.map((s) => s.id === id ? Object.assign({}, s, extra) : s);
+    const fitOf = { balanced: 'ok', tikitaka: 'bad', gegen: 'ok', counter: 'good', direct: 'ok', block: 'bad' };
+    const styles = (on) => ['balanced', 'tikitaka', 'gegen', 'counter', 'direct', 'block'].map((id) => ({ id, fit: fitOf[id], on: id === on }));
+    const forms = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2', '4-3-1-2', '4-1-4-1', '3-4-3'].map((l) => ({ id: l.replace(/-/g, ''), label: l })).concat([{ id: 'custom', label: '커스텀', icon: 'plus' }]);
+    const forms8 = forms.slice(0, 8);
+    const seg = (a, b, c) => [{ id: a, label: a }, { id: b, label: b }, { id: c, label: c }];
+    const settings = (line, press, build, width, tag) => [
+      { label: '수비 라인', hint: tag, items: seg('낮음', '보통', '높음'), value: line },
+      { label: '압박', hint: tag, items: seg('낮음', '보통', '높음'), value: press },
+      { label: '빌드업', hint: tag, items: seg('짧게', '혼합', '직선'), value: build },
+      { label: '공격 폭', hint: tag, items: seg('좁게', '보통', '넓게'), value: width }
+    ];
+    const myOvr = { gk: 22, lb: 38, cb1: 35, cb2: 35, rb: 38, dm1: 41, dm2: 41, lw: 49, am: 52, rw: 49 };
+    const slotsOvr = SLOTS.map((s) => s.me ? s : Object.assign({}, s, { ovr: myOvr[s.id], ovrDown: true }));
+    return {
+      yes: true, noop: () => {},
+      chips: ['역습', '4-2-3-1', '라인 낮음', '압박 보통', '빌드업 직선', '폭 보통'], styles: styles('counter'), forms, settings: settings('낮음', '보통', '직선', '보통', '역습 기본값'),
+      slotsOvr,
+      sets: [{ id: 'base', label: '기본' }, { id: 'strong', label: '강팀 상대' }, { id: 'weak', label: '약팀 상대' }],
+      recent: ['W', 'W', 'D', 'L', 'W'].map((l) => ({ l: l === 'W' ? '승' : l === 'D' ? '무' : '패', bg: l === 'W' ? 'var(--brand-soft)' : l === 'D' ? 'var(--surface-3)' : 'var(--fail-soft)', ink: l === 'W' ? 'var(--brand-ink)' : l === 'D' ? 'var(--ink-muted)' : 'var(--fail)' })),
+      hints: [
+        { s: '!', c: 'var(--warning)', t: '상대 공격진이 빨라요(속도 평균 78) → 높은 라인이면 뒷공간 위험.' },
+        { s: '✓', c: 'var(--brand-ink)', t: '상대 압박이 높아요 → 직선 빌드업과 역습이 잘 맞아요.' },
+        { s: '!', c: 'var(--warning)', t: '상대 중원 피지컬 우세 → 중앙보다 측면 전개가 안전해요.' }
+      ], z: 0
+    };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기전-덱경고</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기전-덱경고 (I.9 덱 편집 · 경기 전) · 390×844 · 원본 PreMatch-DeckWarn.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="경기 전" right="리그 5R" eyebrow="리버사이드 FC vs 리버풀 · 토 15:00 · 홈" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="전술 세트" action="상대가 강팀이라 추천"></x-import>
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{sets}}" value="strong" label="전술 세트"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 16px; background: var(--surface-1);">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="block" formation="4-4-2"></x-import>
+        <span style="font-size: 12px; font-weight: 700; color: var(--mine);">ST · 포처</span>
+      </div>
+      <div style="height: 1px; background: var(--line);"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700;">
+        <span style="color: var(--ink-muted);">짝지은 덱</span><span>세트 2 · 강팀 덱 (12장)</span>
+      </div>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.Banner" tone="warning" title="이 덱에 못 쓰는 카드 2장" action="덱 편집">연속 제치기(크랙형 윙어 전용), 접고 감아차기(윙포워드 전용)는 지금 역할(ST 포처)과 맞지 않아 경기에서 나오지 않아요.</x-import>
+    <div style="display: flex; gap: 6px; overflow: hidden;">
+      <sc-for list="{{hand}}" as="c" hint-placeholder-count="6">
+        <x-import component-from-global-scope="PlayerOne.GameCard" card="{{c.card}}" size="hand" state="{{c.state}}" reason="{{c.reason}}"></x-import>
+      </sc-for>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; background: var(--surface-1);">
+      <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="gegen" team="리버풀" formation="4-3-3" away="{{yes}}"></x-import>
+      <span style="font-size: 11px; font-weight: 700; color: var(--warning);">빠른 공격진 주의</span>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; margin-top: auto; padding: 16px;">
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="tactic">전술</x-import>
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="play">경기 시작</x-import>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const c = (name, type, rarity, st, reason) => ({ card: { name, type, rarity }, state: st || 'normal', reason });
+    return {
+      yes: true,
+      chips: ['선발 발표 전', '선발 확률 24%', { label: '피로 18', soft: true }],
+      sets: [{ id: 'base', label: '기본' }, { id: 'strong', label: '강팀 상대' }, { id: 'weak', label: '약팀 상대' }],
+      hand: [c('연속 제치기', 'signature', 'rare', 'disabled', '역할 불일치'), c('접고 감아차기', 'signature', 'rare', 'disabled', '역할 불일치'), c('감아차기', 'play', 'epic'), c('강슛 집중', 'combo', 'rare'), c('침착한 마무리', 'passive', 'common')]
+    };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

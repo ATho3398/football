@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기후-리플레이</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기후-리플레이 (경기 후) · 390×844 · 원본 PostMatch-Replay.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="경기 결과" right="리그 5R" eyebrow="리버풀전 2-1 승 · 내 평점" value="7.6" progress="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="underline" items="{{rtabs}}" value="log"></x-import>
+    <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-muted);"><span>결정 6번 · 성공 4 · 맡김 1 · 자동 1</span><span>탭하면 리플레이</span></div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <sc-for list="{{log}}" as="d" hint-placeholder-count="6">
+        <div style="display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: {{d.bg}}; box-shadow: {{d.ring}};">
+          <span style="font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--ink-muted); text-align: right;">{{d.min}}'</span>
+          <span style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{d.scene}}</span>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800;">
+              <sc-if value="{{d.badge}}" hint-placeholder-val="{{no}}"><span style="height: 18px; padding: 0 6px; display: inline-flex; align-items: center; border-radius: 5px; background: var(--surface-3); color: var(--ink-muted); font-size: 10px; font-weight: 800;">{{d.badge}}</span></sc-if>
+              {{d.choice}} <span style="font-family: var(--font-display); font-size: 13px; color: var(--ink-muted);">{{d.prob}}%</span>
+              <sc-if value="{{d.card}}" hint-placeholder-val="{{no}}"><span style="font-size: 10px; font-weight: 800; color: var(--success);">+카드</span></sc-if>
+            </span>
+          </span>
+          <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+            <span style="font-size: 12px; font-weight: 800; color: {{d.rc}};">{{d.res}}</span>
+            <span style="font-family: var(--font-display); font-size: 13px; font-weight: 700; color: {{d.rc}};">{{d.dr}}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="85' · 리플레이" title="박스 앞 · 직접 슛 26%">
+      <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" marks="{{marks}}" label="85분 리플레이: 직접 슛 골"></x-import>
+      <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px;">
+        <span style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--brand); color: var(--on-brand);"><x-import component-from-global-scope="PlayerOne.Icon" name="pause" size="{{ic}}"></x-import></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 5px;">
+          <div style="position: relative; height: 6px; border-radius: 3px; background: var(--surface-3);">
+            <i style="position: absolute; left: 0; top: 0; bottom: 0; width: 58%; border-radius: 3px; background: var(--brand);"></i>
+            <i style="position: absolute; left: 38%; top: -3px; width: 2px; height: 12px; background: var(--ink);"></i>
+            <span style="position: absolute; left: 58%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px var(--surface-0);"></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--ink-muted);"><span>0:03.5 / 0:06</span><span>│ 결정 순간</span></div>
+        </div>
+        <span style="height: 28px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 8px; background: var(--surface-3); font-family: var(--font-display); font-size: 12px; font-weight: 700;">0.5×</span>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;">
+        <x-import component-from-global-scope="PlayerOne.StatChip" icon="check" label="골" tone="success"></x-import>
+        <x-import component-from-global-scope="PlayerOne.StatChip" label="평점" value="+0.8" tone="success"></x-import>
+        <x-import component-from-global-scope="PlayerOne.StatChip" icon="combo" label="강슛 집중 +8%p" tone="neutral"></x-import>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="replay">처음부터</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon-right="chevron-right">다음 장면</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const ok = 'var(--success)', bad = 'var(--fail)';
+    const r = (min, scene, choice, prob, res, good, dr, extra) => Object.assign({ min, scene, choice, prob, res: (good ? '✓ ' : '✕ ') + res, rc: good ? ok : bad, dr, bg: 'var(--surface-1)', ring: 'none' }, extra || {});
+    const log = [
+      r(18, '역습 1대1 · 박스 오른쪽', '직접 슛', 46, '골', true, '+0.9'),
+      r(33, '측면 경합 · 등지고 받음', '옆 패스', 78, '점유 유지', true, '+0.1', { badge: '맡김' }),
+      r(52, '하프라인 · 뒷공간', '침투 패스', 31, '오프사이드', false, '−0.25'),
+      r(63, '박스 앞 · 등지고', '버티기', 55, '레이오프', true, '+0.3'),
+      r(71, '수비 전환', '태클', 40, '빗나감', false, '−0.2', { badge: '자동' }),
+      r(85, '박스 앞 · 수비 한 명', '직접 슛', 26, '골', true, '+0.8', { card: true })
+    ];
+    log[5] = Object.assign({}, log[5], { ring: 'inset 0 0 0 2px var(--brand-ink)' });
+    const mk = (list, team) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[14,50,1],[44,20,2],[42,42,4],[42,58,5],[46,80,3],[62,32,8],[60,54,6],[68,72,10],[80,24,7],[86,46,9,1],[78,74,11]];
+    const AWAY = [[97,50,1],[90,34,2],[89,44,5],[90,56,4],[87,70,3],[76,30,7],[85,50,8],[75,64,6],[78,84,11],[64,40,9],[66,60,10]];
+    return { yes: true, no: false, ic: 18, log, chips: ['골 1'], rtabs: [{ id: 'report', label: '전술 리포트' }, { id: 'log', label: '내 결정 기록', badge: 6 }],
+      players: mk(HOME, 'home').concat(mk(AWAY, 'away')), ball: [92, 46.5],
+      arrows: [{ from: [82, 46], to: [86, 46], kind: 'dribble', tone: 'balanced' }, { from: [86, 46], to: [99.4, 49], kind: 'shot' }],
+      marks: [{ x: 70, y: 12, text: '26% → 골', tone: 'brand' }] };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

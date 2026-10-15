@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>덱 편집 - 조건 미달 카드</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1850px; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="덱 편집" eyebrow="내 덱 · 경기 전 확정" value="{{deckCount}}" total="{{deckMax}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 24px;">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{sets}}" value="s1" label="덱 세트"></x-import>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-muted);">짝지은 전술 <x-import component-from-global-scope="PlayerOne.TacticChip" size="xs" tactic="counter" formation="기본 · 4-2-3-1"></x-import></span>
+    </div>
+    
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="덱 슬롯 · 능력치가 오르면 늘어나요"></x-import>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px;">
+      <sc-for list="{{slots}}" as="s" hint-placeholder-count="12">
+        <x-import component-from-global-scope="PlayerOne.DeckSlot" card="{{s.card}}"></x-import>
+      </sc-for>
+    </div>
+    <div style="height: 4px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="카드 풀 · 조건 미달 포함"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <span style="font-size: 11px; font-weight: 800; color: var(--ink-muted);">종류</span>
+      <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{tabs}}" value="setpiece" label="카드 종류"></x-import>
+      <span style="font-size: 11px; font-weight: 800; color: var(--ink-muted); margin-top: 4px;">포지션군</span>
+      <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{postabs}}" value="any" label="포지션군 태그"></x-import>
+      <span style="font-size: 11px; color: var(--ink-faint);">지시 카드는 5단계부터 덱에 넣을 수 있어요.</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--fail-soft); font-size: 12px; line-height: 17px;">
+      <b style="color: var(--fail); white-space: nowrap;">✕ 파넨카</b>
+      <span style="flex-grow: 1;">조건 · 침착성 70 이상 <span style="color: var(--ink-muted);">(현재 55, 15 부족)</span></span>
+      <x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="ghost" icon-right="chevron-right">능력치</x-import>
+    </div>
+    <div style="display: grid; grid-template-columns: 168px 168px; justify-content: space-between; row-gap: 14px;">
+      <sc-for list="{{pool}}" as="p" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <x-import component-from-global-scope="PlayerOne.GameCard" card="{{p.card}}" size="deck" state="{{p.state}}" reason="{{p.reason}}"></x-import>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 32px;">
+            <span style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">덱에 <b style="font-family: var(--font-display); color: var(--ink);">{{p.inDeck}}</b>/2</span>
+            <x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="{{p.btnVariant}}" icon="{{p.btnIcon}}" disabled="{{p.btnDisabled}}">{{p.btnLabel}}</x-import>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1850}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const C = {
+      fk: { id: 'fk', pos: 'all', name: '프리킥 스페셜', type: 'setpiece', rarity: 'rare', level: 2, effect: { pre: '프리킥에서 직접 슈팅을 고르면 성공 확률이 ', hi: '+12%p', post: ' 올라가요.' }, condition: { text: '프리킥 능력치 60 이상', met: true, current: 64 } },
+      mom: { id: 'mom', pos: 'all', name: '기세', type: 'combo', rarity: 'rare', level: 2, effect: { pre: '경합에 연속으로 성공할 때마다 성공 확률이 ', hi: '+5%p', post: '씩 쌓여요.' }, condition: { text: '결정력 55 이상', met: true, current: 58 } },
+      calm: { id: 'calm', pos: 'att', name: '침착한 마무리', type: 'passive', rarity: 'common', level: 3, effect: { pre: '박스 안에서 슈팅할 때 성공 확률이 ', hi: '+6%p', post: ' 올라가요.' }, condition: { text: '침착성 50 이상', met: true, current: 55 } },
+      tackle: { id: 'tackle', pos: 'att', name: '칩슛', type: 'play', rarity: 'common', level: 1, effect: { pre: '골키퍼가 나오면 결정 순간에 ', hi: '칩슛', post: ' 선택지가 하나 더 생겨요.' }, condition: { text: '침착성 50 이상', met: true, current: 55 } },
+      rabona: { id: 'rabona', pos: 'att', name: '연속 제치기', type: 'signature', rarity: 'rare', level: 1, effect: { pre: '1대1에서 ', hi: '연속 제치기', post: ' 선택지가 생겨요.' }, condition: { text: '역할: 크랙형 윙어', met: false, current: 'ST 포처' } },
+      poach: { id: 'poach', pos: 'att', name: '원터치 마무리', type: 'signature', rarity: 'rare', level: 1, effect: { pre: '박스 안 패스를 받으면 ', hi: '원터치 마무리', post: ' 선택지가 생겨요.' }, condition: { text: '역할: 포처', met: true, current: 'ST 포처' } },
+      labona: { id: 'labona', pos: 'att', name: '라보나 크로스', type: 'play', rarity: 'epic', level: 1, effect: { pre: '측면 깊은 곳에서 ', hi: '라보나 크로스', post: ' 선택지가 생겨요.' }, condition: { text: '크로스 55 이상', met: true, current: 57 } },
+      curl: { id: 'curl', pos: 'att', name: '감아차기', type: 'play', rarity: 'epic', level: 1, effect: { pre: '박스 앞에서 ', hi: '먼 포스트 감아차기', post: ' 선택지가 생겨요.' }, condition: { text: '중거리 슛 55 이상', met: true, current: 57 } },
+      focus: { id: 'focus', pos: 'all', name: '집중', type: 'manage', rarity: 'common', level: 1, effect: { pre: '이번 경기 피로가 ', hi: '−10', post: ' 줄어요.' }, condition: { text: '조건 없음', met: true, current: '-' } },
+      pan: { id: 'pan', pos: 'att', name: '파넨카', type: 'setpiece', rarity: 'epic', level: 1, effect: { pre: '페널티킥을 넣으면 평점이 ', hi: '+0.5', post: ' 더 올라가요.' }, condition: { text: '침착성 70 이상', met: false, current: 55 } },
+      press: { id: 'press', pos: 'def', name: '전방 압박', type: 'play', rarity: 'rare', level: 1, effect: { pre: '상대가 공을 잡으면 ', hi: '전방 압박', post: ' 선택지가 생겨요.' }, condition: { text: '체력 60 이상', met: true, current: 66 } },
+      header: { id: 'header', pos: 'att', name: '헤더 경합', type: 'combo', rarity: 'common', level: 1, effect: { pre: '크로스 헤더 경합에서 성공 확률이 ', hi: '+6%p', post: ' 올라가요.' }, condition: { text: '점프 50 이상', met: true, current: 61 } },
+      vision: { id: 'vision', pos: 'mid', name: '킬 패스', type: 'passive', rarity: 'epic', level: 1, effect: { pre: '침투 패스 성공 확률이 ', hi: '+9%p', post: ' 올라가요.' }, condition: { text: '시야 60 이상', met: true, current: 62 } }
+    };
+    const S = (o) => Object.assign({}, C[o.c], o.extra || {});
+    const deck = ['calm','calm','mom','mom','tackle','tackle','focus','focus','fk'];
+    const slots = deck.map((k) => ({ card: C[k] }));
+    while (slots.length < 12) slots.push({ card: null });
+    const count = (k) => deck.filter((d) => d === k).length;
+    const pool = [{ c: 'pan', state: 'locked', reason: '침착성 70 필요' }, { c: 'fk' }, { c: 'pan', extra: { level: 2, name: '파넨카' }, state: 'locked', reason: '침착성 70 필요' }, { c: 'fk', extra: { name: '감아차기', rarity: 'epic', condition: { text: '프리킥 능력치 75 이상', met: false, current: 64 } }, state: 'locked', reason: '프리킥 75 필요' }].map((o) => {
+      const n = count(o.c);
+      const card = S(o);
+      const st = o.state || 'normal';
+      if (st === 'role') return { card, state: 'disabled', reason: o.reason, inDeck: n, btnLabel: '교체 제안', btnIcon: 'restore', btnVariant: 'secondary', btnDisabled: false };
+      const blocked = st !== 'normal';
+      return { card, state: st, reason: o.reason, inDeck: n,
+        btnLabel: blocked ? (st === 'locked' ? '잠김' : '불가') : '넣기',
+        btnIcon: blocked ? 'lock' : 'plus', btnVariant: blocked ? 'ghost' : 'secondary', btnDisabled: blocked };
+    });
+
+    return { yes: true, no: false, slots, pool, deckCount: deck.length, deckMax: 12, chips: ['같은 카드 최대 2장', '세트피스 1/3', { label: '잠긴 카드 3', soft: true }], tabs: [{ id: 'all', label: '전체' }, { id: 'play', label: '플레이', icon: 'newchoice' }, { id: 'setpiece', label: '세트피스' }, { id: 'passive', label: '패시브' }, { id: 'combo', label: '콤보' }, { id: 'manage', label: '관리' }, { id: 'signature', label: '시그니처' }, { id: 'order', label: '지시', icon: 'lock' }], postabs: [{ id: 'any', label: '모든 포지션' }, { id: 'all', label: '공용', icon: 'pos-all' }, { id: 'att', label: '공격', icon: 'pos-att' }, { id: 'mid', label: '미드', icon: 'pos-mid' }, { id: 'def', label: '수비', icon: 'defense' }], sets: [{ id: 's1', label: '세트 1 · 기본' }, { id: 's2', label: '세트 2 · 강팀' }, { id: 's3', label: '세트 3 · 약팀' }] };
+  }
+}
+</script>
+</body>
+</html>

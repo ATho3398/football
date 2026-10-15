@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>홈 - 하루 진행 중</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" right="하루 진행 중" eyebrow="9월 · 수요일 · 시즌 1 5주차" value="9" pad="{{no}}" progress="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 0;">
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;">
+      <sc-for list="{{week}}" as="d" hint-placeholder-count="7">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 0 6px; border-radius: 10px; background: {{d.bg}}; color: {{d.ink}}; box-shadow: {{d.ring}};">
+          <span style="font-size: 10px; font-weight: 700; opacity: .8;">{{d.w}}</span>
+          <b style="font-family: var(--font-display); font-size: 15px; line-height: 18px;">{{d.n}}</b>
+          <span style="display: inline-flex; height: 14px; color: {{d.ic}};"><x-import component-from-global-scope="PlayerOne.Icon" name="{{d.icon}}" size="{{s14}}"></x-import></span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 20px; background: var(--surface-1);">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <b style="font-size: 15px;">다른 경기 계산 중</b>
+        <span style="font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--brand-ink);">오늘 경기 3/5</span>
+      </div>
+      <x-import component-from-global-scope="PlayerOne.Meter" value="{{p}}" max="{{max}}"></x-import>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <sc-for list="{{games}}" as="g" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: 12px; font-weight: 700; opacity: {{g.op}};">
+            <span>{{g.h}}</span><b style="font-family: var(--font-display); font-size: 13px; color: {{g.sc}};">{{g.s}}</b><span style="text-align: right;">{{g.a}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <span style="font-size: 12px; color: var(--ink-muted);">끝나면 순위표와 뉴스가 갱신되고 목요일(휴식)로 넘어가요.</span>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="stop">중단</x-import>
+  </div>
+  <div style="margin-top: auto;">
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="nav" items="{{nav}}" value="home"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const day = (w, n, icon, kind, today) => ({ w, n, icon, bg: today ? 'var(--brand)' : kind === 'match' ? 'var(--surface-2)' : kind === 'off' ? 'transparent' : 'var(--surface-1)', ink: today ? 'var(--on-brand)' : 'var(--ink)', ic: today ? 'var(--on-brand)' : kind === 'match' ? 'var(--brand-ink)' : 'var(--ink-muted)', ring: kind === 'off' ? 'inset 0 0 0 1px var(--line)' : 'none' });
+    const g = (h, s, a, st) => ({ h, s, a, sc: st === 'run' ? 'var(--brand-ink)' : 'var(--ink)', op: st === 'wait' ? 0.45 : 1 });
+    return {
+      yes: true, no: false, s14: 14, p: 3, max: 5,
+      chips: ['훈련 끝 · XP +1.0', { label: '리그 다른 경기 진행 중', soft: true }],
+      week: [day('월', 7, 'recover', 'train'), day('화', 8, 'train', 'train'), day('수', 9, 'train', 'train', true), day('목', 10, 'rest', 'off'), day('금', 11, 'video', 'train'), day('토', 12, 'ball', 'match'), day('일', 13, 'recover', 'train')],
+      games: [g('맨체스터', '2-1', '첼시', 'done'), g('아스널', '0-0', '토트넘', 'done'), g('뉴캐슬', '1-1 · 67\'', '브라이턴', 'run'), g('에버턴', '대기', '풀럼', 'wait'), g('울버햄튼', '대기', '번리', 'wait')],
+      nav: [{ id: 'home', label: '홈', icon: 'home' }, { id: 'match', label: '경기', icon: 'match' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'career', label: '커리어', icon: 'career' }, { id: 'world', label: '세계', icon: 'world' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

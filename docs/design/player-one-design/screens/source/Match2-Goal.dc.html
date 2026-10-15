@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>경기 화면 - 골 직후</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{two}}" away-score="{{zero}}" minute="{{minute}}" speed="1×" paused="{{yes}}" status="골"></x-import>
+  <div style="padding: 8px 16px 4px;">
+    <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" marks="{{marks}}" label="골 직후: 우리 팀 세리머니"></x-import>
+  </div>
+  <section style="display: flex; flex-direction: column; gap: 10px; margin: 6px 16px 10px; padding: 18px 18px 16px; border-radius: 20px; background: var(--brand); color: var(--on-brand);">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+      <div style="display: flex; flex-direction: column;">
+        <span style="font-family: var(--font-display); font-size: 64px; line-height: 56px; font-weight: 700; letter-spacing: -0.04em;">GOAL</span>
+        <span style="margin-top: 6px; font-size: 15px; font-weight: 800;">김민준 · 시즌 2호 골</span>
+        <span style="font-size: 12px; font-weight: 600; opacity: 0.7;">57' · 제치고 슛 → 왼발 낮게 구석</span>
+      </div>
+      <span style="font-family: var(--font-display); font-size: 40px; line-height: 40px; font-weight: 700;">2-0</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--on-brand); color: #f3f4f6; font-size: 12px; font-weight: 700;">평점 <b style="font-family: var(--font-display); color: #d6ff3c;">7.9</b> <b style="font-family: var(--font-display); color: #d6ff3c;">▲+0.9</b></span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; background: var(--on-brand-soft); font-size: 12px; font-weight: 800;">XP <b style="font-family: var(--font-display);">+12</b></span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 2px;">
+      <button type="button" style="height: 44px; border: 0; border-radius: 22px; background: var(--on-brand-soft); color: var(--on-brand); font-family: var(--font-sans); font-size: 14px; font-weight: 700;">다시 보기</button>
+      <button type="button" style="height: 44px; border: 0; border-radius: 22px; background: var(--on-brand); color: #d6ff3c; font-family: var(--font-sans); font-size: 14px; font-weight: 700;">킥오프 · 계속</button>
+    </div>
+  </section>
+  <div style="display: flex; flex-direction: column; gap: 4px; padding: 0 16px 8px;">
+    <sc-for list="{{feed}}" as="item" hint-placeholder-count="3">
+      <x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{item.minute}}" kind="{{item.kind}}" mine="{{item.mine}}" text="{{item.text}}" score="{{item.score}}"></x-import>
+    </sc-for>
+  </div>
+  <div style="margin-top: auto; padding-top: 12px; border-radius: 20px 20px 0 0; background: var(--surface-1); opacity: 0.55;">
+    <div style="display: flex; justify-content: space-between; padding: 0 16px; font-size: 12px; font-weight: 700;">
+      <span>내 패 <span style="font-family: var(--font-display);">4</span></span>
+      <span style="color: var(--ink-muted);">일시정지</span>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.CardHand" cards="{{hand}}"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (list, team, dim) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, dim: dim, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[12,50,1],[44,20,2],[42,42,4],[42,58,5],[46,80,3],[76,36,8],[78,26,6],[74,62,10],[84,16,7],[88,12,9,1],[82,22,11]];
+    const AWAY = [[97,42,1],[92,34,2],[91,46,5],[90,58,4],[86,70,3],[78,46,7],[72,54,8],[70,66,6],[76,80,11],[60,44,9],[62,58,10]];
+    return {
+      homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
+      yes: true, two: 2, zero: 0, minute: 57,
+      players: mk(HOME, 'home', false).concat(mk(AWAY, 'away', true)),
+      ball: [99.4, 52],
+      marks: [{ x: 66, y: 12, text: 'GOAL', tone: 'brand' }],
+      feed: [
+        { minute: 57, kind: 'goal', mine: true, text: '골! 김민준', score: '2-0' }
+      ],
+      hand: [
+        { id: 'fk', name: '프리킥 스페셜', type: 'setpiece', rarity: 'rare' },
+        { id: 'mom', name: '기세', type: 'combo', rarity: 'rare' },
+        { id: 'pan', name: '파넨카', type: 'setpiece', rarity: 'epic' },
+        { id: 'focus', name: '집중', type: 'manage', rarity: 'common' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

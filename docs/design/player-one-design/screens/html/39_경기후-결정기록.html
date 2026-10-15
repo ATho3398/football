@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기후-결정기록</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기후-결정기록 (경기 후) · 390×844 · 원본 PostMatch-Decisions.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="경기 결과" right="리그 5R" eyebrow="리버풀전 2-1 승 · 내 평점" value="7.6" progress="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="underline" items="{{rtabs}}" value="log"></x-import>
+    <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-muted);"><span>결정 6번 · 성공 4 · 맡김 1 · 자동 1</span><span>탭하면 리플레이</span></div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <sc-for list="{{log}}" as="d" hint-placeholder-count="6">
+        <div style="display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: {{d.bg}}; box-shadow: {{d.ring}};">
+          <span style="font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--ink-muted); text-align: right;">{{d.min}}'</span>
+          <span style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{d.scene}}</span>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800;">
+              <sc-if value="{{d.badge}}" hint-placeholder-val="{{no}}"><span style="height: 18px; padding: 0 6px; display: inline-flex; align-items: center; border-radius: 5px; background: var(--surface-3); color: var(--ink-muted); font-size: 10px; font-weight: 800;">{{d.badge}}</span></sc-if>
+              {{d.choice}} <span style="font-family: var(--font-display); font-size: 13px; color: var(--ink-muted);">{{d.prob}}%</span>
+              <sc-if value="{{d.card}}" hint-placeholder-val="{{no}}"><span style="font-size: 10px; font-weight: 800; color: var(--success);">+카드</span></sc-if>
+            </span>
+          </span>
+          <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+            <span style="font-size: 12px; font-weight: 800; color: {{d.rc}};">{{d.res}}</span>
+            <span style="font-family: var(--font-display); font-size: 13px; font-weight: 700; color: {{d.rc}};">{{d.dr}}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const ok = 'var(--success)', bad = 'var(--fail)';
+    const r = (min, scene, choice, prob, res, good, dr, extra) => Object.assign({ min, scene, choice, prob, res: (good ? '✓ ' : '✕ ') + res, rc: good ? ok : bad, dr, bg: 'var(--surface-1)', ring: 'none' }, extra || {});
+    const log = [
+      r(18, '역습 1대1 · 박스 오른쪽', '직접 슛', 46, '골', true, '+0.9'),
+      r(33, '측면 경합 · 등지고 받음', '옆 패스', 78, '점유 유지', true, '+0.1', { badge: '맡김' }),
+      r(52, '하프라인 · 뒷공간', '침투 패스', 31, '오프사이드', false, '−0.25'),
+      r(63, '박스 앞 · 등지고', '버티기', 55, '레이오프', true, '+0.3'),
+      r(71, '수비 전환', '태클', 40, '빗나감', false, '−0.2', { badge: '자동' }),
+      r(85, '박스 앞 · 수비 한 명', '직접 슛', 26, '골', true, '+0.8', { card: true })
+    ];
+    return { no: false, log, chips: ['골 1', '결정 4회 중 3회 성공', { label: 'MOM 후보', soft: true }], rtabs: [{ id: 'report', label: '전술 리포트' }, { id: 'log', label: '내 결정 기록', badge: 6 }] };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

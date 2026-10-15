@@ -1,0 +1,17 @@
+<!-- @dsCard group="Feedback" height=330 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Banner — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:8,width:358}},
+  h(P.Banner,{tone:'injury',title:'햄스트링 부상',action:'상세'},'복귀 예정 3주 후(15주차). 경기에 나갈 수 없어요.'),
+  h(P.Banner,{tone:'warning',title:'피로 누적'},'피로가 70을 넘으면 부상 확률이 올라가요.'),
+  h(P.Banner,{tone:'info',title:'경기 없는 주',action:'훈련'},'훈련으로 XP를 얻을 수 있어요.'),
+  h(P.Banner,{tone:'success',title:'계약 연장 완료'})));
+</script>
+</body>
+</html>

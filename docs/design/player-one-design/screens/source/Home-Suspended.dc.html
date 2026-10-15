@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>홈 - 출장정지</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" right="5주차" eyebrow="김민준 · ST · 17세 · OVR" value="{{ovr}}" pad="{{no}}" progress="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.Banner" tone="warning" title="출장 정지 1경기">지난 경기 레드카드로 리버풀전에 나설 수 없어요. 팀 전술은 그대로 정할 수 있어요.</x-import>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="다음 경기" action="리그 5R · 토 15:00 · 홈"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 20px; background: var(--surface-1);">
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800;"><x-import component-from-global-scope="PlayerOne.Crest" name="리버사이드 FC" size="{{crest}}"></x-import>리버사이드 FC</span>
+        <span style="font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--ink-faint);">VS</span>
+        <span style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 15px; font-weight: 800;">리버풀<x-import component-from-global-scope="PlayerOne.Crest" name="리버풀" size="{{crest}}" color="var(--away)"></x-import></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">우리 전술</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px;"><x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="counter" formation="4-2-3-1"></x-import><span style="font-size: 12px; font-weight: 700; color: var(--mine);">· ST 포처</span></span>
+        </div>
+        <div style="height: 1px; background: var(--line);"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">상대 전술</span>
+          <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="gegen" team="리버풀" formation="4-3-3" away="{{yes}}"></x-import>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="tactic">전술</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="match">결장(관전)</x-import>
+      </div>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="내 상태"></x-import>
+    <div style="display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+      <x-import component-from-global-scope="PlayerOne.Meter" label="감독 신뢰도" value="{{trust}}" show-value="{{yes}}" tone="mine"></x-import>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <x-import component-from-global-scope="PlayerOne.FatigueGauge" value="{{fatigue}}"></x-import>
+        <x-import component-from-global-scope="PlayerOne.StatChip" icon="card" label="경고" value="{{yellow}}" tone="{{yellowTone}}"></x-import>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: auto;">
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="nav" items="{{nav}}" value="home"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true, no: false, ovr: 56, crest: 28, trust: 62, fatigue: 18,
+      yellow: '2/5', yellowTone: 'neutral',
+      chips: ['출장 정지 1경기', '폼 보통', { label: '레드카드 1', soft: true }],
+      nav: [{ id: 'home', label: '홈', icon: 'home' }, { id: 'match', label: '경기', icon: 'match' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'career', label: '커리어', icon: 'career' }, { id: 'world', label: '세계', icon: 'world' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

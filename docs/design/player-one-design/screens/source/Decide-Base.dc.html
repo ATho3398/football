@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>결정 패널 - 기본</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" home="리버사이드 FC" away="리버풀" home-score="{{zero}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" mode="manual" paused="{{yes}}" status="결정 순간" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}"></x-import>
+  <div style="width: 250px; margin: 10px auto 0;">
+    <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" offside-x="{{offX}}" label="결정 순간: 박스 앞"></x-import>
+  </div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="85' · 0-0 · 박스 앞, 수비 한 명">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <x-import component-from-global-scope="PlayerOne.ChoiceButton" compact="{{yes}}" kind="safe" name="옆 패스" chance="{{c1}}" success="{{s1}}" fail="{{f1}}"></x-import>
+        <x-import component-from-global-scope="PlayerOne.ChoiceButton" compact="{{yes}}" kind="balanced" name="직접 슛" chance="{{c2}}" success="{{s2}}" fail="{{f2}}"></x-import>
+        <x-import component-from-global-scope="PlayerOne.ChoiceButton" compact="{{yes}}" kind="gamble" name="침투 패스" chance="{{c3}}" success="{{s3}}" fail="{{f3}}" offside="mid"></x-import>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; font-weight: 700;">
+        <span>내 패 <span style="font-family: var(--font-display);">4</span></span>
+        <span style="color: var(--ink-muted);">확률 카드를 누르면 확률이 바로 바뀌어요</span>
+      </div>
+      <div style="display: flex; gap: 8px; padding: 6px 0 2px;">
+        <sc-for list="{{hand}}" as="c" hint-placeholder-count="4">
+          <x-import component-from-global-scope="PlayerOne.GameCard" card="{{c.card}}" size="hand" state="{{c.state}}" reason="{{c.reason}}"></x-import>
+        </sc-for>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1.7fr; gap: 8px; margin-top: 10px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="auto">맡기기</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" disabled="{{yes}}">선택지를 골라 주세요</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (list, team) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[14,50,1],[44,20,2],[42,42,4],[42,58,5],[46,80,3],[62,32,8],[60,54,6],[68,72,10],[80,24,7],[82,46,9,1],[78,74,11]];
+    const AWAY = [[97,50,1],[90,34,2],[89,44,5],[90,56,4],[87,70,3],[76,30,7],[86,48,8],[75,64,6],[78,84,11],[64,40,9],[66,60,10]];
+    const me = [82, 46];
+    const card = (name, type, rarity, st, reason) => ({ card: { name, type, rarity }, state: st || 'normal', reason });
+    return {
+      homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' },
+      yes: true, zero: 0, minute: 85, offX: 89.5,
+      players: mk(HOME, 'home').concat(mk(AWAY, 'away')), ball: [83.4, 47.4], arrows: [{ from: me, to: [80, 24], kind: 'pass', tone: 'safe', ghost: true }, { from: me, to: [99, 47], kind: 'shot', ghost: true }, { from: me, to: [91, 32], kind: 'through', tone: 'gamble', ghost: true }],
+      c1: 78, s1: { text: '점유 유지', rating: 0.1 }, f1: { text: '차단', rating: -0.2 },
+      c2: 18, dShot: 8, s2: { text: '골', rating: 0.8 }, f2: { text: '빗나감', rating: -0.15 },
+      c3: 42, dThru: -4, s3: { text: '1대1 찬스', rating: 0.6 }, f3: { text: '오프사이드', rating: -0.25 },
+      c4: 21, s4: { text: '골', rating: 1.0 }, f4: { text: '빗나감', rating: -0.2 },
+      hand: [
+        card('강슛 집중', 'combo', 'rare', 'normal'),
+        card('감아차기', 'play', 'epic', 'normal'),
+        card('집중', 'manage', 'common'),
+        card('원터치 마무리', 'signature', 'rare', 'disabled', '상황 아님')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

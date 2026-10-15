@@ -1,0 +1,17 @@
+<!-- @dsCard group="Feedback" height=335 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Toast — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:10,width:358}},
+  h(P.Toast,{kind:'levelup',title:'레벨 업! LV 4',body:'능력치 포인트 3개를 얻었어요',action:'찍기'}),
+  h(P.Toast,{kind:'badge',title:'배지 획득: 프리킥 마스터',body:'프리킥 골 5회 달성'}),
+  h(P.Toast,{kind:'card',title:'새 카드 해금: 파넨카',body:'에픽 · 세트피스'}),
+  h(P.Toast,{kind:'info',title:'저장했어요'})));
+</script>
+</body>
+</html>
