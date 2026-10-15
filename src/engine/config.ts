@@ -151,30 +151,21 @@ export const ENGINE = {
 
   // ── 온더볼 의사결정 (E.7) ──
   onball: {
-    /** value(x, y) = a + b × x^exp × (1 − yk × |y − 0.5|) */
-    valueA: 0.02,
-    valueB: 0.22,
-    valueExp: 3.2,
-    valueYk: 0.8,
-    /** 위치 가치의 x 상한 (박스 경계 ≈ 0.84). 박스 안에서는 위치보다 슈팅 기대값으로 판단하게 한다 */
-    valueXCap: 0.84,
+    /**
+     * 위치 가치 맵 (E.18 A1, 단위 "골 = 1"): 그 위치에서 우리 팀이 공을 가졌을 때 이번 공격이 골로 끝날 확률.
+     * value = farC × exp(−d / farK) + nearB × exp(−d / nearK), d = 상대 골 중앙까지 거리 (m).
+     * 앵커: 자기 진영 0.005~0.01, 중앙선 약 0.015, 25 m 약 0.04, 18 m 약 0.07, 11 m 약 0.12, 골라인 측면 약 0.04
+     */
+    valueFarC: 0.045,
+    valueFarK: 47.8,
+    valueNearB: 0.357,
+    valueNearK: 7.6,
     tempBase: 0.06,
     tempSlope: 0.25,
-    /** 소유 상실 비용 = −(lossBase + 상대 위치 가치 × lossOppScale) */
-    lossBase: 0.05,
-    lossOppScale: 1.0,
-    /** 소유 유지 효용 (압박이 없을 때). 압박이 있으면 holdPressure × 압박만큼 감소 */
-    holdValue: 0.055,
-    holdPressure: 0.03,
+    /** 유지 시 빼앗길 확률: 3 m 안 수비수마다 holdLose × (1 − 거리/3) (독립 합성) */
+    holdLose: 0.5,
     /** 드리블(공 몰고 전진) 거리 (m) */
     carryDist: 6,
-    /** 방금 패스를 준 선수에게 4초 안에 되돌려주는 패스 효용 감점 (핑퐁 방지) */
-    returnPassPenalty: 0.03,
-    returnPassWindow: 4,
-    /** 위치 가치가 늘지 않는 패스의 효용 감점 */
-    noGainCost: 0.01,
-    /** 받는 선수의 슈팅 기대값을 패스 가치로 볼 때 슈팅 성향 가산을 반영하는 비율 */
-    passShotShare: 0,
     /** 패스 후보 최대 거리 (m) */
     passMaxDist: 50,
     /** 리시버 앞쪽 리드 (초 × 리시버 속도) */
@@ -188,10 +179,11 @@ export const ENGINE = {
     /** 몰고 가기 성공 = 0.98 − 압박 × carryPressure */
     carryPressure: 0.5,
     holdTime: 1.0,
-    /** 드리블 돌파 효용에서 빼는 값 (위험/체력 비용) */
-    dribbleCost: 0.01,
-    /** 효용 스케일: softmax 전에 곱한다 (τ 는 이 스케일 기준) */
-    utilityScale: 10,
+    /**
+     * 효용 스케일: softmax 전에 곱한다 (τ 는 이 스케일 기준). 골 단위에서 τ 0.06 선수가 효용 차 0.01골이면 약 60:40,
+     * 0.03골이면 약 77:23 (E.18 A1)
+     */
+    utilityScale: 2.4,
     /** 판단 민감도 점검용 배수 (E.15): 위치 가치 맵 전체 / 슛 효용. 기본 1, 측정할 때만 1.05 */
     valueScale: 1,
     shotScale: 1,
@@ -213,8 +205,7 @@ export const ENGINE = {
     receiverPressure: 0.3,
     /** 받는 선수 압박 거리 기준 (m) */
     receiverPressureDist: 5,
-    receiverValueCost: 0.04,
-    pressureDist: 3,
+    pressureDist: 5,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
     interceptShare: 0.68,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
@@ -238,10 +229,10 @@ export const ENGINE = {
 
     // 슈팅 (E.8)
     shotMaxDist: 30,
-    shotBase: 0.5,
+    shotBase: 0.4,
     shotSkill: 0.35,
-    shotPerM: 0.012,
-    shotPressure: 0.15,
+    shotPerM: 0.02,
+    shotPressure: 0.8,
     shotMin: 0.05,
     shotMax: 0.85,
     longShotFrom: 20,
@@ -253,10 +244,6 @@ export const ENGINE = {
     coneWidth: 1.2,
     /** 블록된 공이 라인 밖(코너)으로 나갈 확률 */
     blockCorner: 0.7,
-    /** 슈팅 효용 = xG × shotValue (위치 가치와 같은 단위로) */
-    shotValue: 0.35,
-    /** 중거리 슛 성향: 골에서 longShotFrom m 이상이면 슛 효용에 더한다 (2선 미드/윙어만, ST/CF 제외. 박스 밖 슈팅 비중) */
-    shotBias: 0.025,
 
     // 헤더 슈팅
     headerBase: 0.3,
@@ -266,11 +253,8 @@ export const ENGINE = {
 
     // 크로스
     crossMinX: 0.68,
-    /** 크로스 효용 = P × 헤더 가치 × crossValue + (1 − P) × 상실 비용 × crossLossScale */
-    crossValue: 7.5,
     /** 크로스가 가까운 수비수에 맞고 코너가 될 확률 */
     crossBlockCorner: 0.3,
-    crossLossScale: 0.3,
     crossWide: 0.25,
     /** 크로스 착지 오차 σ = (100 − 크로스) × crossError (m) */
     crossError: 0.03,
@@ -383,15 +367,18 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − 60)/100, 0.05, 0.95) */
-    saveBase: 1.38,
-    /** 슛/크로스 판단에 쓰는 체감 세이브 기본값 (실제 세이브 상수와 분리해 보정을 독립시킨다) */
-    perceivedSaveBase: 1.43,
+    saveBase: 1.72,
+    /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
+    leagueShotStopping: 76,
+    leagueHandling: 75,
+    /** 쳐낸 공(리바운드)을 공격 팀이 다시 잡을 확률 (판단용 리바운드 기대값) */
+    reboundOwn: 0.4,
     saveDelta: 1.1,
     saveSkill: 0.3,
     /** δ = speedW × 속도/30 + cornerW × 구석 + distW × (1 − 거리 계수), 거리 계수 = 거리/distRef */
     speedW: 0.45,
     cornerW: 0.35,
-    distW: 0.2,
+    distW: 0.9,
     distRef: 30,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
     catchBase: 0.3,

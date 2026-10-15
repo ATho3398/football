@@ -4,7 +4,7 @@
 import { ENGINE } from './config';
 import { aerialWin, dribbleProb } from './duel';
 import { manDiff } from './formation';
-import { claimProb, keeperOf, saveProb } from './keeper';
+import { claimProb, keeperOf, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { offsideRisk } from './referee';
@@ -87,9 +87,20 @@ export function formBonus(a: Agent): number {
   return a.spec.form * ENGINE.match.formToProb;
 }
 
-/** 소유 상실 비용: 상대가 그 위치에서 갖는 가치 */
+/** 소유 상실 비용 C (E.18 A1): 상대가 그 위치(상대 기준 좌표)에서 공을 가졌을 때의 가치 */
 export function lossCost(nx: number, ny: number): number {
-  return -(O.lossBase + positionValue(1 - nx, 1 - ny) * O.lossOppScale);
+  return -positionValue(1 - nx, 1 - ny);
+}
+
+/** 유지하는 동안 빼앗길 확률: 3 m 안 상대마다 holdLose × (1 − 거리/3) 를 독립으로 합성 (압박 수비수 수와 거리) */
+export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
+  let keep = 1;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team) continue;
+    const d = dist(o.x, o.y, x, y);
+    if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
+  }
+  return 1 - keep;
 }
 
 function weight(u: number, m: number): number {
@@ -107,9 +118,11 @@ export interface ShotModel {
   d: number;
   pOn: number;
   pBlock: number;
-  /** 유효 슈팅이 골이 될 기대 확률 (구석 0.5 기준) */
+  /** 유효 슈팅이 골이 될 기대 확률 (구석 0.5, 리그 평균 GK 기준) */
   pGoal: number;
   xg: number;
+  /** 판단용 xG = xg + 리바운드 기대값 (E.18 A1) */
+  value: number;
   speed: number;
   blockers: number;
 }
@@ -150,9 +163,19 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     }
   }
   const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
-  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
-  const pGoal = 1 - saveProb(gk, speed, 0.5, d, ENGINE.keeper.perceivedSaveBase);
-  return { d, pOn, pBlock, pGoal, xg: (1 - pBlock) * pOn * pGoal, speed, blockers };
+  const pGoal = 1 - leagueSaveProb(speed, 0.5, d);
+  const xg = (1 - pBlock) * pOn * pGoal;
+  // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
+  const K = ENGINE.keeper;
+  const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
+  const rebound = (1 - pBlock) * pOn * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
+  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers };
+}
+
+/** 리그 평균 GK 의 세이브 확률 (판단용. 실제 판정은 상대 GK 능력치) */
+function leagueSaveProb(speed: number, corner: number, d: number): number {
+  const K = ENGINE.keeper;
+  return clamp(K.saveBase - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (K.leagueShotStopping - 60)) / 100, 0.05, 0.95);
 }
 
 /** 같은 팀 동료 중 상대 박스 안 */
@@ -169,7 +192,7 @@ export function crossTarget(s: SimState, a: Agent): { r: Agent; pWin: number; va
     const [def, dd] = nearestOpponent(s, r);
     let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def) : 0.85;
     if (gk && dist(gk.x, gk.y, r.x, r.y) < ENGINE.keeper.claimRange) pWin *= 1 - claimProb(gk);
-    const value = shotModel(s, r, true).xg * PR.shotValue * r.role.pref.header;
+    const value = shotModel(s, r, true).value * r.role.pref.header;
     if (!best || pWin * value > best.pWin * best.value) best = { r, pWin, value };
   }
   return best;
@@ -200,20 +223,20 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const rp = Math.max(0, 1 - nearestOpponent(s, r, tx, ty)[1] / PR.receiverPressureDist);
     const p = clamp(passProbability(s, a, tx, ty, 'pass', lane) - PR.receiverPressure * rp, PR.passMin, PR.passMax);
     const [rx, ry] = toNorm(tx, ty, dir);
-    let value = positionValue(rx, ry) - rp * PR.receiverValueCost;
-    // 받는 자리에서 슛을 노릴 수 있으면 그 기대값도 가치로 본다 (컷백, 레이오프)
+    // 받는 자리의 가치. 받는 순간 압박이 있으면 그만큼 다음 결정 전에 빼앗길 수 있다 (유지 효용과 같은 식)
+    const pLoseR = O.holdLose * rp;
+    let value = positionValue(rx, ry);
+    // 받는 자리에서 슛을 노릴 수 있으면 그 기대값도 가치로 본다 (같은 골 단위)
     if (dist(tx, ty, gx0, gy0) <= PR.shotMaxDist && rx > 0.6) {
-      value = Math.max(value, shotModel(s, r, false, { x: tx, y: ty }).xg * PR.shotValue + PR.shotBias * O.passShotShare);
+      value = Math.max(value, shotModel(s, r, false, { x: tx, y: ty }).value);
     }
+    value = value * (1 - pLoseR) + pLoseR * lossCost(rx, ry);
     let u = p * value + (1 - p) * lossCost(rx, ry);
     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
     const pOff = offsideRisk(s, a, r);
     if (pOff > 0) u = (1 - pOff) * u + pOff * lossCost(rx, ry);
     const forward = rx > ax + 0.03;
     u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul));
-    const lp = s.lastPass;
-    if (lp && lp.passer === r.idx && lp.receiver === a.idx && s.t - lp.t < O.returnPassWindow) u -= O.returnPassPenalty;
-    if (value <= here) u -= O.noGainCost;
     out.push({ type: running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value });
   }
 
@@ -243,7 +266,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const value = positionValue(nx, ny);
       if (def) {
         const p = clamp(dribbleProb(a, def, second ? -PR.spaceSecondPenalty : 0) + formBonus(a), 0.02, 0.98);
-        const u = weight(p * (value + 0.01) + (1 - p) * lossHere, a.role.pref.dribble) - O.dribbleCost;
+        const u = weight(p * value + (1 - p) * lossHere, a.role.pref.dribble);
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
         const p = clamp(0.98 - pressure * O.carryPressure, 0.05, 0.98);
@@ -256,8 +279,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const [gx, gy] = oppGoal(dir);
     if (dist(a.x, a.y, gx, gy) <= PR.shotMaxDist && ax > 0.6) {
       const m = shotModel(s, a);
-      const u = weight(m.xg * PR.shotValue * O.shotScale + (m.d >= PR.longShotFrom && a.line >= 2 && a.pos !== 'ST' && a.pos !== 'CF' ? PR.shotBias : 0) + (1 - m.xg) * -O.lossBase * 0.5, a.role.pref.shoot);
-      out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.xg });
+      const u = weight(m.value * O.shotScale, a.role.pref.shoot);
+      out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
     }
 
     // 크로스: 측면 최종 3분의 1, 박스 안 동료 1명 이상
@@ -266,7 +289,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       if (ct) {
         const acc = clamp(0.5 + (0.5 * a.attrs.crossing) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
         const p = acc * ct.pWin;
-        const u = weight(p * ct.value * PR.crossValue + (1 - p) * lossCost(ax, ay) * PR.crossLossScale, a.role.pref.cross);
+        const u = weight(p * ct.value + (1 - p) * lossCost(ax, ay), a.role.pref.cross);
         out.push({ type: 'cross', p, u, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
       }
     }
@@ -281,11 +304,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     }
   }
 
-  // 유지
-  const tempo = s.teams[a.team].tactics.tempo;
-  const pHold = clamp(1 - pressure * 0.5, 0.05, 1);
-  const holdU = pHold * (here + O.holdValue * (1.5 - tempo)) + (1 - pHold) * lossHere - O.holdPressure * pressure;
-  out.push({ type: 'hold', p: pHold, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
+  // 유지: 지금 위치 가치 × (1 − 다음 결정까지 빼앗길 확률). 빼앗기면 상실 비용 (다른 후보와 같은 식)
+  const pLose = loseProb(s, a);
+  const holdU = (1 - pLose) * here + pLose * lossHere;
+  out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
   return out;
 }
 

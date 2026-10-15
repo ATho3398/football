@@ -106,8 +106,8 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (!inBox && owner && owner.team === team && card !== 'red') {
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
-    const playOn = positionValue(ox, oy) + (ox > 0.66 ? 0.02 : 0);
-    const fk = positionValue(nx, ny) + (nx > 0.7 ? 0.03 : 0);
+    const playOn = positionValue(ox, oy) * (ox > 0.66 ? 1.22 : 1);
+    const fk = positionValue(nx, ny) * (nx > 0.7 ? 1.33 : 1);
     const bias = R.advantageBias * (nx > 0.66 ? R.advantageFinalThird : 1);
     if (playOn > fk * 0.9 && r(s, victim.idx, Purpose.Advantage) < bias) {
       s.advantage = { t: s.t, team, x, y, card, fouler: fouler.idx, value: playOn };

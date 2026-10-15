@@ -193,7 +193,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d: m.d, header },
     };
-    event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100 });
+    event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
     return;
   }
   // 빗나감: 골라인 밖으로 → 골킥
@@ -203,7 +203,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: missY, t0: s.t, dur: Math.max(0.15, (m.d + 3) / speed), air: true,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
   };
-  event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100 });
+  event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
 }
 
 /** 유효 슈팅 도착: GK 세이브 판정 (E.9) */

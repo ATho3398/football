@@ -131,7 +131,10 @@ function executeRestart(s: SimState): void {
 
 /** 소유자 결정 */
 function decide(s: SimState, a: Agent): void {
-  execute(s, a, choose(s, a, candidates(s, a)));
+  const cs = candidates(s, a);
+  const c = choose(s, a, cs);
+  (globalThis as { __decide?: (s: SimState, a: Agent, cs: unknown[], c: unknown) => void }).__decide?.(s, a, cs, c); // DEBUG
+  execute(s, a, c);
 }
 
 function updateLooseBall(s: SimState): void {
