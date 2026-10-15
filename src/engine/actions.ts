@@ -39,7 +39,10 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
     case 'layoff': {
       a.stats.passes++;
       team.stats.passes++;
-      if (c.type === 'cutback') team.stats.cutbacks++;
+      if (c.type === 'cutback') {
+        team.stats.cutbacks++;
+        countBox(s, a);
+      }
       if (c.type === 'layoff') team.stats.layoffs++;
       if (dist(a.x, a.y, c.x, c.y) >= 30) {
         team.stats.longPasses++;
@@ -74,6 +77,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       return;
     case 'carry':
       if (pressureLoss(s, a, c)) return;
+      a.lastMoveT = s.t;
       a.tx = c.x;
       a.ty = c.y;
       a.urgent = true;
@@ -131,6 +135,25 @@ function tackleWon(s: SimState, att: Agent, def: Agent): void {
   att.cooldown = 0.6;
 }
 
+/** 돌파 후 커버 (E.22 A): 제쳐진 수비수 대신 (x, y)에 가장 가까운 동료 필드 선수(제쳐지지 않은)가 진행 방향을 막으러 간다 */
+function callCover(s: SimState, beaten: Agent, x: number, y: number): void {
+  let best: Agent | null = null;
+  let bd = Infinity;
+  for (const o of s.agents) {
+    if (o === beaten || !o.onPitch || o.team !== beaten.team || o.line === 0 || s.t < o.beatenUntil) continue;
+    const d = dist(o.x, o.y, x, y);
+    if (d < bd) {
+      bd = d;
+      best = o;
+    }
+  }
+  if (!best) return;
+  const tm = s.teams[beaten.team];
+  tm.coverAgent = best.idx;
+  tm.coverUntil = s.t + ENGINE.offball.coverTime;
+  updateOffball(s, best);
+}
+
 /** 드리블 돌파 (E.8): 성공하면 수비수를 제치고 전진, 실패하면 태클 */
 function dribble(s: SimState, a: Agent, c: Candidate): void {
   const def = s.agents[c.opponent!]!;
@@ -142,6 +165,8 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
     def.stats.dribbledPast++;
     s.teams[a.team].stats.dribblesWon++;
     def.beatenUntil = s.t + PR.beatenTime;
+    callCover(s, def, c.x, c.y);
+    a.lastMoveT = s.t;
     a.tx = c.x;
     a.ty = c.y;
     a.urgent = true;
@@ -189,6 +214,7 @@ export function tryTackles(s: SimState): void {
     d.stats.tackles++;
     s.teams[d.team].stats.tackles++;
     d.beatenUntil = s.t + PR.beatenTime;
+    callCover(s, d, o.x, o.y);
     if (r(s, d.idx, Purpose.Foul) < ENGINE.referee.tackleFoul * foulFactor(s, o, o.x, o.y, d)) {
       foul(s, d, o, o.x, o.y);
       return;
@@ -198,11 +224,32 @@ export function tryTackles(s: SimState): void {
 
 // ── 슛 ──
 
+/**
+ * 슈팅 경로 (E.22 0번 측정, 판정에는 쓰지 않는다): 세트피스(코너·프리킥 소유 15초 안, PK) → 리바운드(같은 팀 슈팅 5초 안)
+ * → 몰고 가기·돌파 후(3초 안) → 패스 받고 → 그 밖(루즈볼·가로채기로 얻은 공)
+ */
+function shotPath(s: SimState, a: Agent, penalty = false): number {
+  if (penalty) return 4;
+  const sp = s.t - s.possStartT < 15;
+  if (sp && s.possOrigin === 'corner') return 2;
+  if (sp && s.possOrigin === 'freeKick') return 3;
+  if (s.t - s.lastShotT[a.team] < 5) return 5;
+  if (s.t - a.lastMoveT < 3) return 1;
+  return a.gotBy === 'receive' ? 0 : 6;
+}
+
+function recordShot(s: SimState, a: Agent, penalty = false): void {
+  a.shotPath = shotPath(s, a, penalty);
+  s.teams[a.team].stats.shotPaths[a.shotPath]!++;
+  s.lastShotT[a.team] = s.t;
+}
+
 export function shoot(s: SimState, a: Agent, header: boolean): void {
   const dir = attackDir(a.team, s.half);
   const [gx, gy] = oppGoal(dir);
   const m = shotModel(s, a, header);
   const team = s.teams[a.team];
+  recordShot(s, a);
   a.stats.shots++;
   team.stats.shots++;
   const lp = s.lastPass;
@@ -296,6 +343,7 @@ function shotArrives(s: SimState, fl: Flight): void {
 function goal(s: SimState, scorer: Agent): void {
   const team = s.teams[scorer.team];
   team.stats.goals++;
+  team.stats.goalPaths[scorer.shotPath]!++;
   scorer.stats.goals++;
   const lp = s.lastPass;
   let assist: Agent | null = null;
@@ -313,12 +361,22 @@ function goal(s: SimState, scorer: Agent): void {
 
 // ── 크로스, 롱볼, 공중볼 ──
 
+/** 측정용 (E.22 B): 크로스·컷백 순간 상대 박스 안 우리 선수 수 */
+function countBox(s: SimState, a: Agent): void {
+  const dir = attackDir(a.team, s.half);
+  let n = 0;
+  for (const o of s.agents) if (o.onPitch && o.team === a.team && o !== a && inOppBox(o.x, o.y, dir)) n++;
+  s.teams[a.team].stats.boxAtCross += n;
+  s.teams[a.team].stats.boxCrossN++;
+}
+
 function cross(s: SimState, a: Agent, c: Candidate): void {
   const t = s.teams[a.team];
   a.stats.passes++;
   t.stats.passes++;
   t.stats.crosses++;
   a.stats.crosses++;
+  if (s.t > s.possStartT) countBox(s, a);
   const target = s.agents[c.receiver];
   const exempt = s.exemptPass;
   s.exemptPass = false;
@@ -341,6 +399,19 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
     kind: 'cross', fromX: a.x, fromY: a.y, toX: tx, toY: ty, t0: s.t, dur: Math.max(0.4, d / ENGINE.ball.airSpeed), air: true,
     passer: a.idx, receiver: c.receiver, outcome: 'aerial', interceptor: -1, fromCross: true,
   });
+  // 헤더 경합 (E.22 B): 대상과 착지점에 가장 가까운 수비 필드 선수가 바로 뛰어든다
+  if (target?.onPitch) updateOffball(s, target);
+  let def: Agent | null = null;
+  let dd = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    const od = dist(o.x, o.y, tx, ty);
+    if (od < dd) {
+      dd = od;
+      def = o;
+    }
+  }
+  if (def) updateOffball(s, def);
 }
 
 export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'clear' | 'long'): void {
@@ -416,6 +487,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
   } else winner = (bestA ?? bestD)!;
 
   if (winner.team === att) {
+    winner.gotBy = 'receive';
+    winner.lastMoveT = -100;
     if (fl.fromCross) {
       s.teams[att].stats.crossesCompleted++;
       passer.stats.crossesCompleted++;
@@ -434,6 +507,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
     winner.x = b.x;
     winner.y = b.y;
     setOwner(s, winner);
+    winner.gotBy = 'receive';
     return;
   }
   // 수비가 이김: 헤더 걷어내기 (가끔 코너)
@@ -500,6 +574,7 @@ export function resolveFlight(s: SimState): void {
           }
         }
         setOwner(s, rc);
+        rc.gotBy = 'receive';
         // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
         rc.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(rc.team, s.half));
         if (fl.quick) rc.cooldown = reaction(rc);
@@ -576,6 +651,7 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
   const central = Math.abs(a.y - gy) < 15;
   if (!indirect && d <= ENGINE.setPiece.directMax && central && r(s, a.idx, Purpose.FreeKick, 9) < ENGINE.setPiece.directChance) {
     const t = s.teams[a.team];
+    recordShot(s, a);
     a.stats.shots++;
     t.stats.shots++;
     s.lastWasShot = true;
@@ -627,6 +703,7 @@ export function takePenalty(s: SimState, a: Agent): void {
   const kick = (a.attrs.shooting + a.attrs.composure) / 2;
   const p = clamp(SP.penaltyBase + (SP.penaltySkill * (kick - 75)) / 100 - (SP.penaltyKeeper * ((gk?.gk?.attrs.shotStopping ?? 20) - 70)) / 100, 0.4, 0.95);
   const t = s.teams[a.team];
+  recordShot(s, a, true);
   a.stats.shots++;
   t.stats.shots++;
   s.lastWasShot = true;

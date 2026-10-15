@@ -561,11 +561,30 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
   const ws = cands.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau));
   const total = ws.reduce((t, w) => t + w, 0);
   let r = rand(s.seed, s.tick, a.idx, Purpose.Decide) * total;
+  let pick = cands.length - 1;
   for (let i = 0; i < cands.length; i++) {
     r -= ws[i]!;
-    if (r <= 0) return cands[i]!;
+    if (r <= 0) {
+      pick = i;
+      break;
+    }
   }
-  return cands[cands.length - 1]!;
+  recordDecision(s, a, cands, pick);
+  return cands[pick]!;
+}
+
+/** 측정용 (E.22 0번): 상대 진영 결정에서 고른 후보의 효용 순위 (판단 품질 55 / 70 / 85 구간별 최선·차선·나머지) */
+function recordDecision(s: SimState, a: Agent, cands: Candidate[], pick: number): void {
+  if (a.line === 0 || cands.length < 3) return;
+  const [nx] = toNorm(a.x, a.y, attackDir(a.team, s.half));
+  if (nx <= 0.5) return;
+  const j = a.judgement - (a.duelEdge > 0 ? ENGINE.match.homeJudgement : 0);
+  const band = j >= 0.5 && j < 0.6 ? 0 : j >= 0.65 && j < 0.75 ? 1 : j >= 0.8 && j < 0.9 ? 2 : -1;
+  if (band < 0) return;
+  const u = cands[pick]!.u;
+  let above = 0;
+  for (const c of cands) if (c.u > u) above++;
+  s.teams[a.team].stats.decisions[band * 3 + Math.min(2, above)]!++;
 }
 
 /** 패스 실행: 결과(성공/인터셉트/루즈볼)는 차는 순간 정하고 공은 도착점까지 날아간다 */

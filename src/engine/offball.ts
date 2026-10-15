@@ -68,6 +68,21 @@ function ballRank(s: SimState, a: Agent, bx: number, by: number): number {
   return rank;
 }
 
+/** 팀의 필드 선수 중 (x, y)에 가장 가까운 선수 */
+function nearestTo(s: SimState, team: 0 | 1, x: number, y: number): Agent | null {
+  let best: Agent | null = null;
+  let bd = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line === 0) continue;
+    const d = dist(o.x, o.y, x, y);
+    if (d < bd) {
+      bd = d;
+      best = o;
+    }
+  }
+  return best;
+}
+
 /** 루즈볼이면 공이 멈출 지점 근처를 예측 */
 function ballChasePoint(s: SimState): [number, number] {
   const b = s.ball;
@@ -117,6 +132,16 @@ export function updateOffball(s: SimState, a: Agent): void {
     a.ty = fl.toY;
     a.urgent = true;
     return;
+  }
+  // 크로스 공중볼 (E.22 B 헤더 경합): 대상 선수와 착지점에 가장 가까운 상대 필드 선수가 착지점으로 뛰어든다
+  if (fl && fl.outcome === 'aerial' && fl.fromCross && a.line !== 0) {
+    const passer = s.agents[fl.passer];
+    if (fl.receiver === a.idx || (passer && a.team !== passer.team && nearestTo(s, a.team, fl.toX, fl.toY) === a)) {
+      a.tx = clamp(fl.toX, 0.3, L - 0.3);
+      a.ty = clamp(fl.toY, 0.3, W - 0.3);
+      a.urgent = true;
+      return;
+    }
   }
   if (a.line === 0 && !s.restart) {
     keeperTarget(s, a);
@@ -214,7 +239,8 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const third = owner && owner.team === a.team && owner !== a && bnx >= O.lateRunFromX;
   const wide = third && Math.abs(bny - 0.5) >= O.lateRunWide;
   let job: ReturnType<typeof finalThirdJob> = null;
-  if (third && !running) {
+  // 측면 공이면 침투 중인 선수도 박스 안 역할 자리로 (E.22 B: 침투 중인 반대편 윙어가 자기 측면 라인에 머물러 박스 인원이 모자랐다)
+  if (third && (!running || wide)) {
     const side = bny < 0.5 ? -1 : 1;
     job = finalThirdJob(s, a, owner);
     // 중앙이면 ST 는 그대로, 침투 미드는 공 반대편 박스 채널로 늦게 들어간다 (2선 박스 도착, E.15.1)
@@ -224,7 +250,8 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       nx = 1 - O.boxRunDepth / L;
       ny = 0.5 - side * O.boxRunSpread;
     } else if (job === 'cutback') {
-      nx = 1 - O.cutbackZone / L;
+      // 2선 늦은 침투 (E.22 B): 측면 공이면 페널티 지점 부근 박스 안으로 (컷백·크로스 모두 받는 자리)
+      nx = 1 - O.lateRunDepth / L;
       ny = 0.5 + side * 0.04;
     } else if (job === 'edge') {
       nx = 1 - O.edgeZone / L;
@@ -325,7 +352,7 @@ function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null 
  * 공이 상대 최종 3분의 1 측면일 때의 역할 (E.18 A2): 침투 성향(run ≥ 0.4) CM/CAM 중 공에 가장 가까운 1명은 컷백 존,
  * 다음 미드 1명은 박스 경계 바깥(세컨드 볼, 중거리), ST/CF 2명은 니어/파 포스트 (공에 가까운 쪽이 니어)
  */
-function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
+export function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
   const mates = s.agents.filter((o) => o.onPitch && o.team === a.team && o !== owner);
   const bd = (o: Agent) => dist(o.x, o.y, s.ball.x, s.ball.y);
   // 윙어: 공이 반대쪽 측면이면 먼 포스트로, 공이 중앙이면 같은 쪽 하프스페이스로 파고든다
@@ -337,7 +364,8 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' 
   }
   if (a.pos === 'ST' || a.pos === 'CF') {
     const sts = mates.filter((o) => o.pos === 'ST' || o.pos === 'CF');
-    if (sts.length < 2) return null;
+    // 1톱이면 니어 포스트 (E.22 B: 크로스 순간 박스 안 인원)
+    if (sts.length < 2) return 'near';
     return sts.sort((x, y) => bd(x) - bd(y))[0] === a ? 'near' : 'far';
   }
   if (a.pos !== 'CM' && a.pos !== 'CAM' && a.pos !== 'CDM') return null;
@@ -379,6 +407,16 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  // 돌파 후 커버 (E.22 A): 동료가 제쳐졌으면 돌파한 선수의 골 쪽 진행 방향을 막는다
+  if (owner && owner.team !== a.team && tm.coverAgent === a.idx && s.t < tm.coverUntil) {
+    const [cgx, cgy] = ownGoal(dir);
+    const cd = dist(owner.x, owner.y, cgx, cgy) || 1;
+    a.tx = owner.x + ((cgx - owner.x) / cd) * O.coverAhead;
+    a.ty = owner.y + ((cgy - owner.y) / cd) * O.coverAhead;
+    a.urgent = true;
+    return;
+  }
+
   const [gx0, gy0] = ownGoal(dir);
   const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
   // 압박: 공에 가까운 1~2명 (2번째는 압박 성향이 높을 때)
@@ -393,11 +431,24 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (a.line === 3 && tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
     if (a.line === 3 && tendency === 'counter' && isTopForward(s, a)) wants = false;
     if (wants && (danger && rank < 2 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
-      // 공과 자기 골 사이에서 압박
+      // 공과 자기 골 사이에서 압박. 첫 압박 선수는 가장 위험한 전진 패스 대상을 등 뒤로 가리는 각도 (커버 섀도, E.22 A)
       const [gx, gy] = ownGoal(dir);
       const gd = dist(b.x, b.y, gx, gy) || 1;
-      a.tx = b.x + ((gx - b.x) / gd) * 1.0;
-      a.ty = b.y + ((gy - b.y) / gd) * 1.0;
+      let ux = (gx - b.x) / gd;
+      let uy = (gy - b.y) / gd;
+      let gap = 1.0;
+      const lane = rank === 0 ? shadowTarget(s, owner, dir) : null;
+      if (lane) {
+        const ld = dist(lane.x, lane.y, b.x, b.y) || 1;
+        ux = ux * (1 - O.shadowW) + ((lane.x - b.x) / ld) * O.shadowW;
+        uy = uy * (1 - O.shadowW) + ((lane.y - b.y) / ld) * O.shadowW;
+        const un = Math.sqrt(ux * ux + uy * uy) || 1;
+        ux /= un;
+        uy /= un;
+        gap = O.shadowGap;
+      }
+      a.tx = b.x + ux * gap;
+      a.ty = b.y + uy * gap;
       a.urgent = true;
       return;
     }
@@ -416,6 +467,14 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   // 역습 (E.19): 최전방 1명은 하프라인 부근에 남는다
   if (tendency === 'counter' && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
+  // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목
+  if (a.pos === 'CDM' && owner && owner.team !== a.team) {
+    const spot = screenSpot(s, a, owner, dir, lineX);
+    if (spot) {
+      setTarget(a, spot[0], spot[1], dir, false);
+      return;
+    }
+  }
   if (a.line === 1) {
     // 수비 라인 동기화. 오차는 수비 포지셔닝과 마킹
     const sigma = ((100 - (a.attrs.defensivePositioning + a.attrs.marking) / 2) * O.markSigma) / L;
@@ -511,8 +570,20 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = t === focusThreat(s, a.team) ? O.focusMark : 1;
     if (marker === a) {
-      a.tx = clamp(t.x + ((gx - t.x) / gd) * O.stMark * focus + a.errX * O.markSigma, 0.3, L - 0.3);
-      a.ty = clamp(t.y + ((gy - t.y) / gd) * O.stMark * focus + a.errY * O.markSigma, 0.3, W - 0.3);
+      // 볼 쪽 마크 (E.22 A): 공이 측면이면 골 쪽에서 공 쪽으로 반 발
+      let ux = (gx - t.x) / gd;
+      let uy = (gy - t.y) / gd;
+      const wideB = Math.abs(toNorm(b.x, b.y, dir)[1] - 0.5) >= O.wideBall;
+      if (wideB) {
+        const bd = dist(t.x, t.y, b.x, b.y) || 1;
+        ux = ux * (1 - O.stBallSide) + ((b.x - t.x) / bd) * O.stBallSide;
+        uy = uy * (1 - O.stBallSide) + ((b.y - t.y) / bd) * O.stBallSide;
+        const un = Math.sqrt(ux * ux + uy * uy) || 1;
+        ux /= un;
+        uy /= un;
+      }
+      a.tx = clamp(t.x + ux * O.stMark * focus + a.errX * O.markSigma, 0.3, L - 0.3);
+      a.ty = clamp(t.y + uy * O.stMark * focus + a.errY * O.markSigma, 0.3, W - 0.3);
       a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
       a.minRun = false;
       return true;
@@ -582,6 +653,61 @@ export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   return best;
 }
 
+/**
+ * 커버 섀도 대상 (E.22 A): 소유자 팀의 필드 선수 중 공보다 우리 골에 가깝고 공에서 passMaxDist 안,
+ * 그 팀 기준 위치 가치가 가장 큰 선수 (대개 ST). 위치로만 고른다
+ */
+function shadowTarget(s: SimState, owner: Agent, defDir: 1 | -1): Agent | null {
+  const [gx, gy] = ownGoal(defDir);
+  const bd = dist(owner.x, owner.y, gx, gy);
+  const oppDir = (-defDir) as 1 | -1;
+  let best: Agent | null = null;
+  let bv = -Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== owner.team || o === owner || o.line === 0) continue;
+    if (dist(o.x, o.y, gx, gy) > bd - 2 || dist(o.x, o.y, owner.x, owner.y) > ENGINE.onball.passMaxDist) continue;
+    const v = positionValue(...toNorm(o.x, o.y, oppDir));
+    if (v > bv) {
+      bv = v;
+      best = o;
+    }
+  }
+  return best;
+}
+
+/**
+ * CDM 스크린 자리 (E.22 A): 공과 상대 최전방(우리 골에 가장 가까운 상대 ST/CF, 없으면 공격 줄)을 잇는 선에서 공 쪽 screenFrac 지점.
+ * 수비 라인 앞 screenGap m 보다 골 쪽으로 내려가지 않는다. 팀에 CDM 이 둘이면 그 자리에 가까운 1명. 정규화 좌표를 돌려준다
+ */
+function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: number): [number, number] | null {
+  const [gx, gy] = ownGoal(dir);
+  let top: Agent | null = null;
+  for (const pass of [true, false]) {
+    let bd = Infinity;
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team === a.team || o === owner || o.line === 0) continue;
+      if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
+      const d = dist(o.x, o.y, gx, gy);
+      if (d < bd) {
+        bd = d;
+        top = o;
+      }
+    }
+    if (top) break;
+  }
+  if (!top || dist(top.x, top.y, gx, gy) >= dist(owner.x, owner.y, gx, gy) - 3) return null;
+  const px = owner.x + (top.x - owner.x) * O.screenFrac;
+  const py = owner.y + (top.y - owner.y) * O.screenFrac;
+  let [nx, ny] = toNorm(px, py, dir);
+  nx = Math.max(nx, lineX + O.screenGap / L);
+  const [qx, qy] = toPitch(nx, ny, dir);
+  for (const o of s.agents) {
+    if (o === a || !o.onPitch || o.team !== a.team || o.pos !== 'CDM') continue;
+    if (dist(o.x, o.y, qx, qy) < dist(a.x, a.y, qx, qy)) return null;
+  }
+  return [nx, ny];
+}
+
 /** 팀의 가장 앞 공격수 (슬롯 x 기준, 같으면 idx) */
 function isTopForward(s: SimState, a: Agent): boolean {
   for (const o of s.agents) {
@@ -603,6 +729,9 @@ export function refreshErrors(s: SimState, a: Agent): void {
   a.errY = randn(s.seed, s.tick, a.idx, Purpose.Mark, 1);
 }
 
+/** 세트피스 박스 안 자리 [골라인에서 m, 공 쪽 + / 반대쪽 − y m] (E.22 B) */
+const SP_SPOTS: [number, number][] = [[6, 0], [9, 4], [12, 0], [6, -4], [9, -8]];
+
 /**
  * 세트피스 위치 (코너, 상대 골 35 m 안 프리킥): 공격 팀은 CB·공격수·공중볼 좋은 미드가 박스로,
  * 수비 팀은 공격수 1명을 빼고 박스 안으로
@@ -620,14 +749,23 @@ function setPieceTarget(s: SimState, a: Agent): boolean {
   const k = mates.indexOf(a);
   if (k < 0) return false;
   if (a.team === attTeam) {
-    // 공중볼 상위 5명 박스 안, 2명 박스 바깥, 나머지 하프라인 쪽
-    if (k < 5) {
-      a.tx = gx - dirAtt * (6 + (k % 3) * 3);
-      a.ty = gy - 8 + k * 4;
-    } else if (k < 7) {
+    // 박스 가담 (E.22 B): 공중볼 좋은 CB 최대 setPieceCB 명 + 공중볼 상위 선수로 5명 박스 안, 2명 박스 바깥, 나머지 하프라인 쪽.
+    // 박스 안 자리: 중앙 7 m, 니어 포스트, 파 포스트, 페널티 지점, 니어 쪽 9 m (공중볼 순서대로)
+    const cbs = mates.filter((o) => o.pos === 'CB').slice(0, O.setPieceCB);
+    const box = [...cbs, ...mates.filter((o) => !cbs.includes(o))].slice(0, 5).sort((x, y) => mates.indexOf(x) - mates.indexOf(y));
+    const rest = mates.filter((o) => !box.includes(o));
+    const side = r.y < gy ? -1 : 1;
+    const bk = box.indexOf(a);
+    if (bk >= 0) {
+      const [dx, dy] = SP_SPOTS[bk]!;
+      a.tx = gx - dirAtt * dx;
+      a.ty = gy + side * dy;
+    } else {
+      const ek = rest.indexOf(a);
+      if (ek >= 2) return false;
       a.tx = gx - dirAtt * 20;
-      a.ty = gy + (k === 5 ? -10 : 10);
-    } else return false;
+      a.ty = gy + (ek === 0 ? -10 : 10);
+    }
     a.urgent = false;
     return true;
   }

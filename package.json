@@ -13,7 +13,8 @@
     "balance:check": "vite-node scripts/balance.ts -- --check",
     "balance:engine": "vite-node scripts/balance-engine.ts --",
     "balance:engine:check": "vite-node scripts/balance-engine.ts -- --light --check",
-    "balance:sweep": "vite-node scripts/balance-sweep.ts --"
+    "balance:sweep": "vite-node scripts/balance-sweep.ts --",
+    "balance:quick": "vite-node scripts/balance-quick.ts --"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

@@ -49,6 +49,8 @@ export function setOwner(s: SimState, a: Agent): void {
     if (nx > 0.5) s.teams[a.team].stats.oppHalfWins++;
   }
   a.cooldown = ENGINE.ball.receiveTime + reaction(a) * 0.5;
+  a.gotBy = 'gain';
+  a.lastMoveT = -100;
   a.backToGoal = false;
   a.tx = a.x;
   a.ty = a.y;

@@ -64,6 +64,11 @@ export interface Agent {
   duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
   rt: { forward: number; lost: number; dangerLost: number; conceded: number };
+  /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */
+  gotBy: 'receive' | 'gain';
+  lastMoveT: number;
+  /** 지금 슈팅의 경로 (골이 되면 골 경로로 센다) */
+  shotPath: number;
 }
 
 export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';
@@ -132,6 +137,9 @@ export interface TeamState {
   counterPressers: number[];
   /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
   wonAt: number;
+  /** 돌파 후 커버 (E.22 A): 이 시각까지 이 선수가 돌파한 상대의 진행 방향을 막는다 */
+  coverUntil: number;
+  coverAgent: number;
 }
 
 export interface SimState {
@@ -179,6 +187,8 @@ export interface SimState {
   elapsed75: number;
   /** 마지막 오프사이드 라인 계산값 캐시 (팀별 상대 수비 라인 x) */
   offsideX: [number, number];
+  /** 팀별 마지막 슈팅 시각 (측정용: 리바운드 경로) */
+  lastShotT: [number, number];
 }
 
 export function emptyTeamStats(): TeamStats {
@@ -188,6 +198,7 @@ export function emptyTeamStats(): TeamStats {
     dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
     throwIns: 0, goalKicks: 0, longPasses: 0, longCompleted: 0, longPSum: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
     centralShots: 0, oppHalfWins: 0, keyPasses: 0, cutbacks: 0, layoffs: 0, holdups: 0, holdupsWon: 0,
+    shotPaths: [0, 0, 0, 0, 0, 0, 0], goalPaths: [0, 0, 0, 0, 0, 0, 0], decisions: [0, 0, 0, 0, 0, 0, 0, 0, 0], boxAtCross: 0, boxCrossN: 0,
   };
 }
 

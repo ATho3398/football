@@ -124,6 +124,15 @@ export interface TeamStats {
   layoffs: number;
   holdups: number;
   holdupsWon: number;
+  // ── 측정용 (E.22 0번) ──
+  /** 슈팅 / 골 경로: 0 패스 받고, 1 몰고 가기·돌파 후, 2 코너, 3 프리킥, 4 PK, 5 리바운드, 6 그 밖(세컨드 볼) */
+  shotPaths: number[];
+  goalPaths: number[];
+  /** 공격 진영(상대 진영) 결정의 선택 순위: 판단 품질 구간 [55, 70, 85] × [최선, 차선, 나머지] */
+  decisions: number[];
+  /** 크로스·컷백 순간 상대 박스 안 우리 선수 수 합 / 횟수 */
+  boxAtCross: number;
+  boxCrossN: number;
 }
 
 export interface PlayerStats {

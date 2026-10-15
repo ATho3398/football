@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 5;
+export const ENGINE_VERSION = 6;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -197,6 +197,21 @@ export const ENGINE = {
     coverPostDepth: 5,
     coverPostY: 3.5,
     coverSpot: 11,
+    /**
+     * 커버 섀도 (E.22 A): 첫 압박 선수는 공과 자기 골 사이가 아니라, 가장 위험한 전진 패스 대상(상대 위치 가치가 가장 큰 공 앞쪽 선수)을
+     * 등 뒤로 가리는 각도로 선다. 방향 = 골 방향 × (1 − shadowW) + 그 선수 방향 × shadowW, 공에서 shadowGap m
+     */
+    shadowW: 0.6,
+    shadowGap: 1.2,
+    /** CDM 스크린 (E.22 A): 수비 시 CDM 1명은 공과 상대 최전방을 잇는 선에서 공 쪽 screenFrac 지점 (수비 라인 앞 screenGap m 보다 앞) */
+    screenFrac: 0.5,
+    screenGap: 5,
+    /** 볼 쪽 마크 (E.22 A): 공이 측면(|y − 0.5| ≥ wideBall)이면 ST 를 맡은 CB 의 위치 방향 = 골 × (1 − stBallSide) + 공 × stBallSide */
+    wideBall: 0.2,
+    stBallSide: 0.35,
+    /** 돌파 후 커버 (E.22 A): 제쳐진 수비수의 가장 가까운 동료가 coverTime 초 동안 돌파한 선수의 골 쪽 coverAhead m 로 */
+    coverTime: 2,
+    coverAhead: 2.5,
     /** 공격 줄 선수의 압박 거리 배율 */
     attackerPress: 0.4,
     /** 공격 줄 압박 거리 배율 = attackerPress + attackerPressPer × (pressing − 0.55) (압박 전술, E.19 ③) */
@@ -223,12 +238,16 @@ export const ENGINE = {
     recoverWork: 0.4,
     /** 내려와서 받기: drop × 이 거리만큼 공 쪽으로 (m) */
     dropDist: 8,
-    /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 */
-    lateRunFromX: 0.75,
+    /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 (E.22 B: 시작 0.75 → 크로스 가능 구역 0.68) */
+    lateRunFromX: 0.68,
     lateRunWide: 0.2,
     lateRunRun: 0.4,
     /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
     cutbackZone: 15,
+    /** 2선 늦은 침투 (E.22 B): 공이 측면이면 침투 미드는 골에서 lateRunDepth m (박스 안) */
+    lateRunDepth: 11,
+    /** 세트피스 (E.22 B): 코너·측면 프리킥 때 박스에 들어가는 CB 최대 수 */
+    setPieceCB: 2,
     /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율) */
     boxRunDepth: 13,
     /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스 */
@@ -379,8 +398,8 @@ export const ENGINE = {
     dribbleRange: 3,
     /** 공간 보정: 두 번째 수비수가 가까우면 감점 */
     spaceSecondPenalty: 0.4,
-    /** 돌파 성공 후 수비수가 다시 태클할 수 없는 시간 (초) */
-    beatenTime: 1.2,
+    /** 돌파 성공 후 수비수가 다시 태클할 수 없는 시간 (초, E.22 A: 1.2 → 0.6) */
+    beatenTime: 0.6,
     /** 태클에 진 공격수의 공이 수비수 소유가 될 확률 (나머지 루즈볼) */
     tackleKeep: 0.7,
     /** 수비수 태클 시도: 1.5 m 안에서 틱마다 tackleRate × (0.5 + 역할 압박) × (0.5 + 노력/200) × pressing 보정 */
@@ -436,8 +455,11 @@ export const ENGINE = {
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
     aerialScale: 16,
-    /** 크로스 경합에서 공격수(공을 향해 뛰어드는 쪽) 보정 (로지스틱 입력) */
-    aerialAttackBonus: 0.9,
+    /**
+     * 크로스 경합에서 공격수 보정 (로지스틱 입력). E.22 B: 크로스 대상과 가장 가까운 수비수가 실제로 착지점으로 뛰어들어 경합이 생기면서
+     * 0.9 → −1.0 (수비가 공을 마주 보고 먼저 닿는다. 크로스 성공률 25~30%, 코너 약 30개당 1골에 맞춘 묶음 B 보정)
+     */
+    aerialAttackBonus: -1.0,
     /** 공격수가 이긴 공중볼을 박스 안 이 거리 안이면 헤더 슈팅 */
     headerMaxDist: 14,
     /** 수비 걷어내기 거리 (m) */
@@ -602,8 +624,8 @@ export const ENGINE = {
     /** 압박 몸싸움 파울: 소유자 1 m 안 수비수마다 틱당 확률 */
     contactFoulRate: 0.005,
     contactDist: 1.0,
-    /** 수비수가 자기 박스 안에서는 파울을 조심한다 (파울 확률 배율) */
-    boxFoulFactor: 0.004,
+    /** 수비수가 자기 박스 안에서는 파울을 조심한다 (파울 확률 배율). E.22 B: 0.004 → 0.06 (PK 팀당 경기당 약 0.13, 세트피스 골 비중) */
+    boxFoulFactor: 0.06,
     /** 경고를 받은 선수의 파울 확률 배율, 두 번째 경고를 실제로 줄 확률 */
     bookedCare: 0.5,
     secondYellow: 0.5,

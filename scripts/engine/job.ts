@@ -96,6 +96,13 @@ export interface LeagueMatchOut {
   awayGoals: number;
   /** 득점한 선수 id → 골 */
   scorers: Record<string, number>;
+  /** 득점한 선수 id → 포지션 (E.22 0번 득점 상위 10명 포지션) */
+  pos: Record<string, string>;
+  /** 슈팅한 선수 id → 슈팅 수 */
+  shots: Record<string, number>;
+  /** 팀 슈팅·골 경로 합 (양 팀) */
+  shotPaths: number[];
+  goalPaths: number[];
 }
 
 export type JobOut = MatchOut | SeasonOut | LeagueMatchOut;
@@ -218,8 +225,17 @@ export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
     const away = teamSetupFromRoster(w.rosters[j.away]!, ra, rh, j.worldSeed, undefined, leagueAvg);
     const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
     const scorers: Record<string, number> = {};
-    for (const p of r.players) if (p.goals) scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
-    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers };
+    const pos: Record<string, string> = {};
+    const shots: Record<string, number> = {};
+    for (const p of r.players) {
+      if (p.goals) {
+        scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
+        pos[p.id] = p.position;
+      }
+      if (p.shots) shots[p.id] = (shots[p.id] ?? 0) + p.shots;
+    }
+    const add = (k: 'shotPaths' | 'goalPaths') => r.teamStats[0][k].map((v, i) => v + r.teamStats[1][k][i]!);
+    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths') };
   } finally {
     restore();
   }
