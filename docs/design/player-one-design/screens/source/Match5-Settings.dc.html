@@ -16,7 +16,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
-  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}"></x-import>
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" view="highlight" scene="{{scene}}" settings-on="{{yes}}"></x-import>
   <div style="padding: 8px 16px 0;"><x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}"></x-import></div>
   <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
   <div style="position: absolute; left: 0; right: 0; bottom: 0;">
@@ -35,6 +35,7 @@ body{margin:0;background:#16171b}
       <div style="margin-top: 18px;">
         <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}">완료</x-import>
       </div>
+      <p style="margin: 12px 0 0; text-align: center; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--ink-faint);">버전 C.18 · 엔진 6 · 밸런스 14 · 2026-10-15 배포 (커밋 82e27e0)</p>
     </x-import>
   </div>
 </div>
@@ -48,6 +49,7 @@ class Component extends DCLogic {
     const HOME0 = HOME.map((p) => [p[0] - 5, p[1], p[2], p[3]]);
     const players = (h, dim) => mk(h, 'home', dim).concat(mk(AWAY, 'away', dim));
     return {
+      scene: { index: 3, total: 7, minute: 34, label: '측면 빌드업' },
       homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' },
       yes: true, noop: () => {}, one: 1, zero: 0, minute: 34, players: players(HOME0, false), ball: [72, 40],
       freq: [

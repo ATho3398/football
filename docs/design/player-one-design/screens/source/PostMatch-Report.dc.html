@@ -15,7 +15,7 @@
 body{margin:0;background:#16171b}
 </style>
 </helmet>
-<div style="position: relative; width: 390px; height: 1150px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<div style="position: relative; width: 390px; height: 1440px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
   <x-import component-from-global-scope="PlayerOne.HeroPanel" title="경기 결과" right="리그 5R" eyebrow="리버풀전 2-1 승 · 내 평점" value="7.6" progress="{{no}}" chips="{{chips}}"></x-import>
   <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
     <x-import component-from-global-scope="PlayerOne.SectionTitle" title="하이라이트" action="내 장면 3"></x-import>
@@ -45,6 +45,17 @@ body{margin:0;background:#16171b}
             </div>
           </div>
         </sc-for>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line);">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 10px;">
+          <span style="font-size: 13px; font-weight: 800;">평균 위치</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--ink-muted);">우리 공격 방향 <x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{twelve}}"></x-import></span>
+        </div>
+        <x-import component-from-global-scope="PlayerOne.Pitch" players="{{avg}}" label="평균 위치 지도: 리버사이드 FC는 오른쪽으로 공격"></x-import>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--ink-muted);">
+          <span>우리 수비 라인 평균 <b style="font-family: var(--font-display); color: var(--ink);">24m</b></span>
+          <span>상대 수비 라인 평균 <b style="font-family: var(--font-display); color: var(--away);">40m</b></span>
+        </div>
+      </div>
       <div style="display: flex; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--brand-soft); font-size: 12px; line-height: 17px;">
         <b style="flex: none; color: var(--brand-ink);">✓ 역습이 통했어요</b>
         <span style="color: var(--ink);">슈팅 9개 중 5개가 역습에서 나왔어요. 상대 압박에 공은 자주 뺏겼어요.</span>
@@ -62,13 +73,17 @@ body{margin:0;background:#16171b}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1150}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1440}}'>
 class Component extends DCLogic {
   renderVals() {
     const pct = (a, b) => [Math.round(a / Math.max(a, b) * 100) + '%', Math.round(b / Math.max(a, b) * 100) + '%'];
     const row = (label, home, away, a, b) => { const p = pct(a, b); return { label, home, away, hw: p[0], aw: p[1] }; };
+    const mk = (list, team) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[5,50,1],[26,16,2],[22,38,4],[22,60,5],[27,84,3],[36,40,8],[35,60,6],[50,74,10],[52,22,7],[61,48,9,1],[46,52,11]];
+    const AWAY = [[95,50,1],[66,82,2],[60,62,5],[58,34,4],[66,18,3],[50,30,8],[56,52,6],[50,66,10],[36,80,7],[34,50,9],[38,22,11]];
     return {
-      rtabs: [{ id: 'report', label: '전술 리포트' }, { id: 'log', label: '내 결정 기록', badge: 6 }],
+      twelve: 12, avg: mk(HOME, 'home').concat(mk(AWAY, 'away')),
+      rtabs: [{ id: 'report', label: '전술 리포트 · 평균 위치' }, { id: 'log', label: '내 결정 기록', badge: 6 }],
       yes: true, no: false, poss: 41, xp: 120, xpGain: 25, xpMax: 200, trust: 62, trustGain: 4,
       chips: ['골 1', '결정 4회 중 3회 성공', { label: 'MOM 후보', soft: true }],
       feed: [

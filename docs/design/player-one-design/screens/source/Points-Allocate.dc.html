@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>포인트 찍기</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1230px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="능력치 포인트" right="Lv 12" eyebrow="남은 포인트" value="{{left}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 120px;">
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 14px 16px; border-radius: 16px; background: var(--surface-1);">
+      <div style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">지금 OVR</span><b style="font-family: var(--font-display); font-weight: 700; font-size: 36px; line-height: 38px;">60</b></div>
+      <x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{i22}}"></x-import>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">확정하면</span><b style="font-family: var(--font-display); font-weight: 700; font-size: 36px; line-height: 38px; color: var(--brand-ink);">61</b></div>
+      <span style="grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--ink-muted);"><span>ST 기준 계산 · 포처</span><span>다음 OVR까지 +0.4</span></span>
+    </div>
+    <div style="display: flex; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); box-shadow: inset 3px 0 0 var(--warning);">
+      <x-import component-from-global-scope="PlayerOne.Avatar" name="코치" size="{{i32}}"></x-import>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <span style="font-size: 11px; font-weight: 800; color: var(--warning);">코치 · 비용 구간</span>
+        <span style="font-size: 13px; line-height: 19px; font-weight: 600;">"마무리가 70을 넘으면 1칸에 2P가 들어. 지금은 위치 선정이 싸고 OVR에도 더 잘 붙어."</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; font-weight: 700; color: var(--ink-muted);">
+      <span style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; background: var(--surface-1);">~59 <b style="color: var(--ink);">1P</b></span>
+      <span style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; background: var(--surface-1);">60~69 <b style="color: var(--ink);">1P</b></span>
+      <span style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; background: var(--warning-soft); color: var(--warning);">70~79 <b>2P</b></span>
+      <span style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; background: var(--fail-soft); color: var(--fail);">80~ <b>3P</b></span>
+      <span style="margin-left: auto; align-self: center;">능력치 1칸당 비용</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 8px 10px; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand-ink);">
+      <div style="display: flex; align-items: center; justify-content: space-between; height: 44px;">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800;">공격 <span style="height: 20px; padding: 0 7px; display: inline-flex; align-items: center; border-radius: 6px; background: var(--brand); color: var(--on-brand); font-size: 10px; font-weight: 800;">ST 핵심</span></span>
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--ink-muted);">5개 · <b style="color: var(--brand-ink);">+3 예정</b><x-import component-from-global-scope="PlayerOne.Icon" name="chevron-down" size="{{i18}}" style="transform: rotate(180deg);"></x-import></span>
+      </div>
+      <sc-for list="{{attack}}" as="s" hint-placeholder-count="5">
+        <x-import component-from-global-scope="PlayerOne.StatBar" label="{{s.label}}" value="{{s.v}}" add="{{s.add}}" editable="{{yes}}" cost="{{s.cost}}" ovr-delta="{{s.ovr}}" highlight="{{s.hi}}"></x-import>
+      </sc-for>
+    </div>
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+      <div style="display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 14px; border-radius: 16px; background: var(--surface-1);">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+          <span style="font-size: 15px; font-weight: 800;">{{g.name}}</span>
+          <span style="font-size: 11px; font-weight: 600; color: var(--ink-muted);">{{g.list}}</span>
+        </div>
+        <span style="display: flex; flex-direction: column; align-items: flex-end;"><b style="font-family: var(--font-display); font-weight: 700; font-size: 18px;">{{g.avg}}</b><span style="font-size: 10px; font-weight: 700; color: var(--ink-faint);">평균 · 1칸 {{g.cost}}</span></span>
+        <x-import component-from-global-scope="PlayerOne.Icon" name="chevron-down" size="{{i18}}"></x-import>
+      </div>
+    </sc-for>
+  </div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; padding: 14px 16px 24px; border-radius: 20px 20px 0 0; background: var(--surface-1); box-shadow: 0 -1px 0 var(--line);">
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="restore">초기화</x-import>
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="check">확정 · 3P 사용</x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1230}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = (label, v, add, cost, ovr, hi) => ({ label, v, add, cost, ovr, hi: !!hi });
+    return {
+      yes: true, left: 4, i18: 18, i22: 22, i32: 32,
+      chips: ['보유 7P', { label: '이번 배분 3P', soft: true }],
+      attack: [
+        st('마무리', 69, 1, 1, 0.3, true),
+        st('위치 선정', 64, 2, 1, 0.3, true),
+        st('슈팅 파워', 58, 0, 1, 0.1),
+        st('헤더', 50, 0, 1, 0.1),
+        st('침착함', 71, 0, 2, 0.2)
+      ],
+      groups: [
+        { name: '패스', list: '짧은 패스 · 긴 패스 · 크로스 · 시야 · 퍼스트 터치', avg: 55, cost: '1P' },
+        { name: '드리블', list: '드리블 · 볼 컨트롤 · 민첩성 · 가속 · 균형', avg: 61, cost: '1P' },
+        { name: '피지컬', list: '속력 · 체력 · 몸싸움 · 점프 · 회복', avg: 63, cost: '1P' },
+        { name: '수비 · 정신', list: '태클 · 마킹 · 가로채기 · 집중력 · 리더십', avg: 41, cost: '1P' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

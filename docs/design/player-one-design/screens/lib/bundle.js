@@ -272,7 +272,7 @@
   function typeLabel(c) { return c.type === 'order' ? '지시 · ' + (c.order === 'solo' ? '독단' : '이행') : CTYPES[c.type] || c.type; }
   function typeIcon(c) { return c.type === 'play' ? 'newchoice' : c.type === 'order' ? (c.order === 'solo' ? 'solo' : 'order') : c.type; }
   var RARITY = { common: '일반', rare: '희귀', epic: '에픽', legend: '전설' };
-  var CARD_W = 280, CARD_H = 392;
+  var CARD_W = 280, CARD_H = 392, ART_H = 210;
   var TRAJ = { setpiece: 'M44 268 Q 120 70 200 150', passive: 'M44 268 Q 110 200 180 170', combo: 'M44 268 Q 90 120 170 130', defense: 'M44 268 Q 150 230 190 160', manage: 'M44 268 Q 160 120 210 190', order: 'M44 268 Q 100 150 150 150 Q 190 150 205 110', solo: 'M44 268 Q 60 170 120 200 Q 190 236 220 120', play: 'M44 268 Q 70 120 140 140 Q 200 160 214 108', signature: 'M44 268 Q 140 40 206 168' };
   /* 스크린톤 없음. 그림은 날카로운 사선에서 잘리고, 경계 아래 희귀도 색 줄무늬 2줄(사선 분할). */
   var CUT = { clip: 'M0 0H280V172L0 206Z', overlay: [{ d: 'M0 211L280 177V182L0 216Z' }, { d: 'M0 221L280 187V189L0 223Z', op: 0.5 }] };
@@ -287,7 +287,19 @@
   function useUid(prefix) { var ref = React.useRef(null); if (!ref.current) ref.current = prefix + (++uidSeq); return ref.current; }
   /* 기본 그림: 조명 아래 골문, 수비벽, 공의 궤적. card.art(이미지 URL)가 있으면 그것을 쓴다. */
   function CardScene(props) {
-    if (props.art) return h('image', { href: props.art, x: 0, y: 0, width: CARD_W, height: 320, preserveAspectRatio: 'xMidYMid slice' });
+    /* 카드 그림 이미지는 4:3(280×210) 칸에 꽉 채운다. 3:2 원본이면 좌우가 조금 잘린다. */
+    /* card.artPos { x, y, zoom }: x = 오른쪽으로 이동(%), y = 위로 올림(%), 둘 다 그림 칸 크기 기준. zoom = 확대 배율(1 = 꽉 채움). */
+    if (props.art) {
+      var p = props.pos || {}, z = Math.max(1, Math.min(4, +p.zoom || 1)), iw = CARD_W * z, ih = ART_H * z;
+      var ix = (CARD_W - iw) / 2 + (+p.x || 0) * CARD_W / 100, iy = (ART_H - ih) / 2 - (+p.y || 0) * ART_H / 100;
+      var img = function (k, t) { return h('image', { key: k, href: props.art, x: ix, y: iy, width: iw, height: ih, preserveAspectRatio: 'xMidYMid slice', transform: t }); };
+      /* 옮겨서 드러난 가장자리는 그림을 거울처럼 이어 붙여 채운다(대부분 사선 아래 글자 패널에 가려진다). */
+      var moved = (+p.x || 0) !== 0 || (+p.y || 0) !== 0;
+      return h(F, null, h('rect', { x: 0, y: 0, width: CARD_W, height: ART_H, fill: '#121317' }),
+        moved && [img('b', 'translate(0 ' + 2 * (iy + ih) + ') scale(1 -1)'), img('t', 'translate(0 ' + 2 * iy + ') scale(1 -1)'),
+          img('l', 'translate(' + 2 * ix + ' 0) scale(-1 1)'), img('r', 'translate(' + 2 * (ix + iw) + ' 0) scale(-1 1)')],
+        img('m'));
+    }
     var a = 'var(--r)', thin = props.mini;
     return h(F, null,
       h('rect', { x: 0, y: 0, width: CARD_W, height: 440, fill: '#1a1d24' }),
@@ -320,7 +332,7 @@
     return h('div', { className: 'po-gc' },
       h('svg', { className: 'po-gc__art', width: CARD_W, height: CARD_H, viewBox: '0 0 ' + CARD_W + ' ' + CARD_H, 'aria-hidden': true },
         h('defs', null, h('clipPath', { id: clipId }, h('path', { d: L.clip }))),
-        h('g', { clipPath: 'url(#' + clipId + ')' }, h('g', { transform: 'translate(0 -10)' }, h(CardScene, { type: type, art: c.art }))),
+        h('g', { clipPath: 'url(#' + clipId + ')' }, h('g', { transform: c.art ? undefined : 'translate(0 -10)' }, h(CardScene, { type: type, art: c.art, pos: c.artPos }))),
         L.overlay.map(function (o, i) {
           return h('path', { key: i, d: o.d, style: { fill: 'var(--r)' }, opacity: o.op });
         })),
@@ -343,7 +355,7 @@
   function MiniCard(props) {
     var c = normCard(props.card), type = c.type || 'passive';
     return h(F, null,
-      h('svg', { className: 'po-mc__art', viewBox: '20 90 240 300', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true }, h(CardScene, { type: type, art: c.art, mini: true })),
+      h('svg', { className: 'po-mc__art', viewBox: c.art ? '0 0 280 210' : '20 90 240 300', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true }, h(CardScene, { type: type, art: c.art, pos: c.artPos, mini: true })),
       h('span', { className: 'po-mc__band' }),
       h('span', { className: 'po-mc__dot' }),
       c.pos && c.pos !== 'all' && POS[c.pos] && h('span', { className: cx('po-mc__pos', 'po-pos--' + c.pos), title: POS[c.pos].l }, h(Icon, { name: POS[c.pos].i, size: 10, strokeWidth: 2.6 })),
@@ -429,9 +441,32 @@
     return h('span', { className: 'po-score__red', 'aria-label': '레드카드 ' + red + '장, ' + (players || 11 - red) + '명' },
       h('i', { className: 'po-score__redcard' }), h('b', { className: 'po-num' }, (players || 11 - red) + '명'));
   }
+  function sceneStrip(props, solo) {
+    var view = props.view, sc = props.scene || {}, total = sc.total || 7, idx = sc.index || 0;
+    return h('div', { className: cx('po-strip', view && 'po-strip--' + view, solo && 'po-strip--solo', solo && props.className) },
+      h('div', { className: 'po-strip__row' },
+        h('span', { className: 'po-strip__lead' },
+          view === 'live' ? h('i', { className: 'po-live' }) : view === 'halftime' ? h(Icon, { name: 'clock', size: 13 }) : view && h(Icon, { name: 'video', size: 13 }),
+          view === 'live' ? h('span', null, h('b', null, '실시간'), ' · ', h('span', { className: 'po-num' }, (sc.minute != null ? sc.minute : props.minute) + "'")) :
+          view === 'halftime' ? h('b', null, '하프타임') :
+          view === 'transition' ? h('span', null, h('b', null, '장면 전환'), ' · 다음 ', h('span', { className: 'po-num' }, (idx + 1) + '/' + total)) :
+          view ? h('span', null, h('b', null, '하이라이트'), ' · 장면 ', h('span', { className: 'po-num' }, idx + '/' + total), sc.minute != null && [' · ', h('span', { key: 'm', className: 'po-num' }, sc.minute + "'")], sc.label && ' ' + sc.label) : null),
+        h('span', { className: 'po-strip__acts' },
+          (view === 'highlight' || view === 'transition') && h('button', { type: 'button', className: 'po-strip__btn', disabled: view === 'transition', onClick: props.onLive }, h(Icon, { name: 'play', size: 11, filled: true }), '여기서부터 실시간'),
+          view === 'live' && h('button', { type: 'button', className: 'po-strip__btn', onClick: props.onHighlight }, h(Icon, { name: 'video', size: 11 }), '하이라이트로 돌아가기'),
+          h('button', { type: 'button', className: cx('po-strip__gear', props.settingsOn && 'is-on'), 'aria-label': '경기 설정', 'aria-expanded': props.settingsOn || undefined, onClick: props.onSettings }, h(Icon, { name: 'settings', size: 17 })))),
+      (view === 'highlight' || view === 'transition') && h('div', { className: 'po-strip__ticks', 'aria-hidden': true },
+        Array.from({ length: total }, function (_, i) { return h('i', { key: i, className: cx(i + 1 < idx && 'is-done', i + 1 === idx && (view === 'transition' ? 'is-done' : 'is-on'), view === 'transition' && i === idx && 'is-next') }); })),
+      props.sceneNote && h('span', { className: 'po-strip__note' }, h(Icon, { name: props.sceneNoteIcon || 'throwin', size: 12 }), props.sceneNote));
+  }
+  function SceneStrip(props) { return sceneStrip(props, true); }
   function ScoreBar(props) {
     var speeds = props.speeds || ['1×', '2×', '4×'];
-    return h('div', { className: cx('po-score', props.paused && 'is-paused', props.mode && 'po-score--mode', props.className) },
+    var view = props.view;
+    var strip = (view || props.onSettings || props.settings) && sceneStrip(props);
+    var lockSpeed = view === 'transition' || view === 'halftime';
+    return h('div', { className: cx('po-score', props.paused && 'is-paused', props.mode && 'po-score--mode', view && 'po-score--strip', props.className) },
+      strip,
       h('div', { className: 'po-score__teams' },
         h('span', { className: 'po-score__team' }, h('span', { className: 'po-score__id' }, h(Crest, { name: props.home, size: 22 }), h('span', null, props.home)), redTag(props.homeRed, props.homePlayers)),
         h('span', { className: 'po-score__board' },
@@ -440,12 +475,12 @@
       h('div', { className: 'po-score__row' },
         h('span', { className: cx('po-score__min', props.status && !props.ff && 'has-status', props.ff && 'is-ff') },
           props.ff ? h(Icon, { name: 'ff', size: 12, filled: true }) : props.paused ? h(Icon, { name: 'pause', size: 12, strokeWidth: 3 }) : h('i', { className: 'po-live' }),
-          h('span', { className: 'po-num' }, props.minute + "'"), props.ff ? h('span', null, '빨리 감기') : props.status && h('span', null, props.status)),
+          h('span', { className: 'po-num' }, props.minute + "'"), props.minuteTo != null && h('span', { className: 'po-num po-score__to' }, '→ ' + props.minuteTo + "'"), props.ff ? h('span', null, '빨리 감기') : props.status && h('span', null, props.status)),
         props.mode && h('span', { className: 'po-mode', role: 'group', 'aria-label': '진행 방식' },
           ['manual', 'auto'].map(function (m) {
             return h('button', { key: m, type: 'button', className: cx('po-mode__btn', props.mode === m && 'is-on'), 'aria-pressed': props.mode === m, onClick: props.onMode && function () { props.onMode(m); } }, m === 'manual' ? '직접' : '자동');
           })),
-        props.speed !== false && h('span', { className: 'po-speed', role: 'group', 'aria-label': '경기 속도' },
+        props.speed !== false && h('span', { className: cx('po-speed', lockSpeed && 'is-disabled'), role: 'group', 'aria-label': '경기 속도', 'aria-disabled': lockSpeed || undefined },
           h('button', { type: 'button', className: 'po-speed__btn', 'aria-label': props.paused ? '재생' : '일시정지', onClick: props.onPause },
             h(Icon, { name: props.paused ? 'play' : 'pause', size: 14, strokeWidth: 2.5 })),
           speeds.map(function (s) {
@@ -710,7 +745,7 @@
   var api = {
     Button: Button, Icon: Icon, Avatar: Avatar, Crest: Crest, TierBadge: TierBadge, RatingBadge: RatingBadge, StatChip: StatChip,
     Meter: Meter, FatigueGauge: FatigueGauge, FormIndicator: FormIndicator, StatBar: StatBar, PlayerCard: PlayerCard,
-    GameCard: GameCard, CardHand: CardHand, ChoiceButton: ChoiceButton, FeedItem: FeedItem, ScoreBar: ScoreBar,
+    GameCard: GameCard, CardHand: CardHand, ChoiceButton: ChoiceButton, FeedItem: FeedItem, ScoreBar: ScoreBar, SceneStrip: SceneStrip,
     PossessionBar: PossessionBar, AppBar: AppBar, Tabs: Tabs, Banner: Banner, Toast: Toast, BottomSheet: BottomSheet,
     Modal: Modal, ResultSplash: ResultSplash, DeckSlot: DeckSlot, HeroPanel: HeroPanel, SectionTitle: SectionTitle, Pitch: Pitch,
     FitBadge: FitBadge, TacticEmblem: TacticEmblem, TacticChip: TacticChip, FormationPitch: FormationPitch, OptionRow: OptionRow, Slider: Slider, Switch: Switch, CellGauge: CellGauge,

@@ -16,7 +16,7 @@ body{margin:0;background:#16171b}
 </style>
 </helmet>
 <div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
-  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{two}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" away-red="{{one}}"></x-import>
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{two}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" away-red="{{one}}" view="highlight" scene="{{scene}}"></x-import>
   <div style="padding: 8px 16px 4px;">
     <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" label="퇴장 후: 리버풀 10명, 수비 3명"></x-import>
   </div>
@@ -58,12 +58,12 @@ class Component extends DCLogic {
     // 상대 4번 퇴장: 4번 마커를 빼고 수비를 3명으로 재정렬
     const AWAY = [[95,50,1],[80,28,2],[81,50,5],[80,72,3],[68,22,7],[65,42,8],[66,60,6],[70,80,11],[57,40,9],[59,60,10]];
     return {
+      scene: { index: 6, total: 7, minute: 72, label: '퇴장 이후' },
       homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
       yes: true, two: 2, zero: 0, one: 1, minute: 72, poss: 63,
       players: mk(HOME, 'home').concat(mk(AWAY, 'away')),
       ball: [49.4, 53.4],
       feed: [
-        { minute: 71, kind: 'foul', text: '파울: 상대 4번 — 김민준 저지' },
         { minute: 71, kind: 'red', text: '퇴장: 상대 4번 (두 번째 경고)' },
         { minute: 72, kind: 'normal', text: '리버풀이 수비를 3명으로 바꿉니다' }
       ],

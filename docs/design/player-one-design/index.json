@@ -156,13 +156,13 @@
  {
   "no": 15,
   "group": "I.4 경기 화면",
-  "name": "경기화면-자동모드",
-  "file": "Match3-AutoMode.dc.html",
+  "name": "경기화면-하이라이트",
+  "file": "Match6-Highlight.dc.html",
   "w": 390,
   "h": 844,
-  "html": "screens/html/15_경기화면-자동모드.html",
-  "png": "screens/png/15_경기화면-자동모드.png",
-  "source": "screens/source/Match3-AutoMode.dc.html"
+  "html": "screens/html/15_경기화면-하이라이트.html",
+  "png": "screens/png/15_경기화면-하이라이트.png",
+  "source": "screens/source/Match6-Highlight.dc.html"
  },
  {
   "no": 16,
@@ -214,7 +214,7 @@
   "name": "경기화면-결정전환",
   "file": "Match5-Transition.dc.html",
   "w": 390,
-  "h": 1170,
+  "h": 1230,
   "html": "screens/html/20_경기화면-결정전환.html",
   "png": "screens/png/20_경기화면-결정전환.png",
   "source": "screens/source/Match5-Transition.dc.html"
@@ -236,7 +236,7 @@
   "name": "홈-기본",
   "file": "Home-Default.dc.html",
   "w": 390,
-  "h": 1340,
+  "h": 1300,
   "html": "screens/html/22_홈-기본.html",
   "png": "screens/png/22_홈-기본.png",
   "source": "screens/source/Home-Default.dc.html"
@@ -346,7 +346,7 @@
   "name": "덱편집-기본",
   "file": "Deck2-Default.dc.html",
   "w": 390,
-  "h": 1850,
+  "h": 1720,
   "html": "screens/html/32_덱편집-기본.html",
   "png": "screens/png/32_덱편집-기본.png",
   "source": "screens/source/Deck2-Default.dc.html"
@@ -357,7 +357,7 @@
   "name": "덱편집-조건미달",
   "file": "Deck2-Locked.dc.html",
   "w": 390,
-  "h": 1850,
+  "h": 1720,
   "html": "screens/html/33_덱편집-조건미달.html",
   "png": "screens/png/33_덱편집-조건미달.png",
   "source": "screens/source/Deck2-Locked.dc.html"
@@ -368,7 +368,7 @@
   "name": "덱편집-가득참",
   "file": "Deck2-Full.dc.html",
   "w": 390,
-  "h": 1880,
+  "h": 1750,
   "html": "screens/html/34_덱편집-가득참.html",
   "png": "screens/png/34_덱편집-가득참.png",
   "source": "screens/source/Deck2-Full.dc.html"
@@ -379,7 +379,7 @@
   "name": "덱편집-신규카드",
   "file": "Deck2-NewCards.dc.html",
   "w": 390,
-  "h": 1780,
+  "h": 1660,
   "html": "screens/html/35_덱편집-신규카드.html",
   "png": "screens/png/35_덱편집-신규카드.png",
   "source": "screens/source/Deck2-NewCards.dc.html"
@@ -412,7 +412,7 @@
   "name": "경기후-리포트",
   "file": "PostMatch-Report.dc.html",
   "w": 390,
-  "h": 1150,
+  "h": 1440,
   "html": "screens/html/38_경기후-리포트.html",
   "png": "screens/png/38_경기후-리포트.png",
   "source": "screens/source/PostMatch-Report.dc.html"
@@ -515,5 +515,104 @@
   "html": "screens/html/47_카드-지시이행·독단.html",
   "png": "screens/png/47_카드-지시이행·독단.png",
   "source": "screens/source/Card3-Orders.dc.html"
+ },
+ {
+  "no": 48,
+  "group": "I.4 경기 화면",
+  "name": "경기화면-장면전환",
+  "file": "Match6-SceneTransition.dc.html",
+  "w": 390,
+  "h": 844,
+  "html": "screens/html/48_경기화면-장면전환.html",
+  "png": "screens/png/48_경기화면-장면전환.png",
+  "source": "screens/source/Match6-SceneTransition.dc.html"
+ },
+ {
+  "no": 49,
+  "group": "I.4 경기 화면",
+  "name": "경기화면-실시간시청",
+  "file": "Match6-Live.dc.html",
+  "w": 390,
+  "h": 844,
+  "html": "screens/html/49_경기화면-실시간시청.html",
+  "png": "screens/png/49_경기화면-실시간시청.png",
+  "source": "screens/source/Match6-Live.dc.html"
+ },
+ {
+  "no": 50,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "포인트찍기",
+  "file": "Points-Allocate.dc.html",
+  "w": 390,
+  "h": 1230,
+  "html": "screens/html/50_포인트찍기.html",
+  "png": "screens/png/50_포인트찍기.png",
+  "source": "screens/source/Points-Allocate.dc.html"
+ },
+ {
+  "no": 51,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "시즌종료-요약",
+  "file": "Season-Summary.dc.html",
+  "w": 390,
+  "h": 1300,
+  "html": "screens/html/51_시즌종료-요약.html",
+  "png": "screens/png/51_시즌종료-요약.png",
+  "source": "screens/source/Season-Summary.dc.html"
+ },
+ {
+  "no": 52,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "새게임-가상유망주",
+  "file": "NewGame-Prospect.dc.html",
+  "w": 390,
+  "h": 1120,
+  "html": "screens/html/52_새게임-가상유망주.html",
+  "png": "screens/png/52_새게임-가상유망주.png",
+  "source": "screens/source/NewGame-Prospect.dc.html"
+ },
+ {
+  "no": 53,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "새게임-실제선수",
+  "file": "NewGame-RealPlayer.dc.html",
+  "w": 390,
+  "h": 980,
+  "html": "screens/html/53_새게임-실제선수.html",
+  "png": "screens/png/53_새게임-실제선수.png",
+  "source": "screens/source/NewGame-RealPlayer.dc.html"
+ },
+ {
+  "no": 54,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "순위표·리그스타",
+  "file": "League-Table.dc.html",
+  "w": 390,
+  "h": 1430,
+  "html": "screens/html/54_순위표·리그스타.html",
+  "png": "screens/png/54_순위표·리그스타.png",
+  "source": "screens/source/League-Table.dc.html"
+ },
+ {
+  "no": 55,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "타이틀",
+  "file": "Title.dc.html",
+  "w": 390,
+  "h": 844,
+  "html": "screens/html/55_타이틀.html",
+  "png": "screens/png/55_타이틀.png",
+  "source": "screens/source/Title.dc.html"
+ },
+ {
+  "no": 56,
+  "group": "요청 4 · 디자인 없던 화면",
+  "name": "은퇴-요약",
+  "file": "Retire-Summary.dc.html",
+  "w": 390,
+  "h": 1400,
+  "html": "screens/html/56_은퇴-요약.html",
+  "png": "screens/png/56_은퇴-요약.png",
+  "source": "screens/source/Retire-Summary.dc.html"
  }
 ]

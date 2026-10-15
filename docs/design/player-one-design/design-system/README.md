@@ -66,9 +66,9 @@ PLAYER ONE은 선수 한 명을 17세부터 은퇴까지 키우는 싱글 플레
 ## 화면 골격
 
 - 목록·편집 화면: `HeroPanel` → `SectionTitle` + 내용(좌우 16px) → 하단 버튼 두 개 또는 `Tabs` `nav`.
-- 경기 화면: `ScoreBar` → `Pitch`(22명이 실시간으로 움직이는 코트) → `FeedItem` 최근 몇 줄 → 내 선수 상태 줄 → `CardHand`. 경기는 계속 흐르고, 내 선수가 공을 잡는 결정 순간에만 멈춘다.
+- 경기 화면: `ScoreBar`(맨 위 하이라이트 띠 + 설정 톱니) → `Pitch` → `FeedItem` 최근 몇 줄 → 내 선수 상태 줄 → `CardHand`. 경기는 **약 90초 하이라이트**로 본다: 장면 6~8개(각 10~15초, 공격이 시작되는 순간부터, 1× 실제 속도), 장면 사이 약 1초 전환(선수가 다음 위치로 미끄러지고, 시계가 넘어가고, 피드에 요약 한 줄). [여기서부터 실시간]을 누르면 그 뒤를 끊김 없이 본다. 장면 안에서 내 선수가 공을 잡는 결정 순간에 멈춘다.
 - 결정 순간 패널: 위에서부터 선택지 3개(안전/균형/도박) → 패 카드 줄 → [맡기기](보조) [확정](주). 확률 카드를 고르면 확률이 바로 바뀌어 보이고(▲초록/▼빨강 + 출처), 플레이 카드를 고르면 카드 색 테두리의 4번째 선택지가 생긴다. 선택지를 누르면 `Pitch`에 화살표 미리보기. 침투 패스에는 오프사이드 위험을 붙인다. 진입은 0.5초 슬로모션 후 정지.
-- 경기 진행: `ScoreBar`에 직접/자동 토글, 재개 대기 구간은 자동 4배속 빨리 감기(`ff`).
+- 경기 진행: `ScoreBar`에 직접/자동 토글과 배속 1×/2×/4×(장면 안에서만), 건너뛰기(⏭ = 경기 전체를 계산하고 결과 화면으로). 재개 대기 구간은 빨리 감기(`ff`). 하프타임은 띠에 "하프타임"만, 재개 대기는 띠 아래 "스로인 준비" 같은 라벨(`sceneNote`).
 - 퇴장: 그 팀 마커를 `Pitch`에서 빼고, `ScoreBar`에 레드카드 + "10명"을 붙인다.
 
 ## 아이콘과 이미지
@@ -81,4 +81,4 @@ PLAYER ONE은 선수 한 명을 17세부터 은퇴까지 키우는 싱글 플레
 
 요청서의 공통 컴포넌트: `PlayerCard`, `StatBar`, `GameCard`(full·deck·mini·hand), `ChoiceButton`, `FeedItem`, `StatChip`, `Banner`, `BottomSheet`, `Toast`, `Tabs`, `Modal`.
 
-함께 둔 것: `Pitch`, `TacticEmblem`, `TacticChip`, `FitBadge`, `FormationPitch`, `OptionRow`, `Slider`, `Switch`, `CellGauge`, `HeroPanel`(라임 헤더), `SectionTitle`, `DeckSlot`, `CardHand`, `TierBadge`, `RatingBadge`, `FatigueGauge`, `FormIndicator`, `Meter`, `ScoreBar`, `PossessionBar`, `ResultSplash`, `AppBar`, `Button`, `Icon`, `Avatar`, `Crest`.
+함께 둔 것: `SceneStrip`(경기 상단 띠 단독), `Pitch`, `TacticEmblem`, `TacticChip`, `FitBadge`, `FormationPitch`, `OptionRow`, `Slider`, `Switch`, `CellGauge`, `HeroPanel`(라임 헤더), `SectionTitle`, `DeckSlot`, `CardHand`, `TierBadge`, `RatingBadge`, `FatigueGauge`, `FormIndicator`, `Meter`, `ScoreBar`, `PossessionBar`, `ResultSplash`, `AppBar`, `Button`, `Icon`, `Avatar`, `Crest`.
