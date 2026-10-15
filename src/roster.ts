@@ -177,6 +177,35 @@ function shiftPlayer(p: RosterPlayer, d: number, rng: Rng): void {
   else shiftOvr(p.attributes!, p.position as FieldPosition, d, rng);
 }
 
+/** 팀 실제 선수 능력치 최대값. 가상 선수 능력치 상한(E.25)에 쓴다. 실제 주전이 없으면 undefined */
+export type AttrCap = Partial<FieldAttributes>;
+
+export function realAttrMax(reals: RosterPlayer[], rating: number): AttrCap | undefined {
+  const field = reals.filter((p) => p.real && p.attributes);
+  if (!field.some((p) => naturalOvr(p) >= rating - BALANCE.roster.virtualCapStarterGap)) return undefined;
+  const max = {} as AttrCap;
+  for (const a of FIELD_ATTRIBUTES) max[a] = Math.max(...field.map((p) => p.attributes![a]));
+  return max;
+}
+
+/**
+ * 가상 선수 능력치 상한 (E.25 1번): 각 능력치 ≤ 자기 OVR + virtualAttrOverOvr, teamMax 가 있으면 ≤ 그 값.
+ * GK 는 GK 능력치끼리 본다 (실제 GK 데이터가 없어 팀 상한은 필드 능력치에만). 깎인 만큼 다른 능력치로 옮기지 않는다
+ */
+export function capVirtualAttributes(p: RosterPlayer, teamMax?: AttrCap): void {
+  if (p.real) return;
+  // 깎으면 OVR 이 내려가 상한도 내려가므로 더 깎을 것이 없을 때까지 반복한다 (단조 감소라 금방 멈춘다)
+  for (let changed = true, k = 0; changed && k < 20; k++) {
+    changed = false;
+    const lim = naturalOvr(p) + BALANCE.roster.virtualAttrOverOvr;
+    const vals: Record<string, number> = p.gk ? p.gk.attrs : p.attributes!;
+    for (const a of Object.keys(vals)) {
+      const v = Math.min(vals[a]!, lim, p.gk ? Infinity : teamMax?.[a as keyof AttrCap] ?? Infinity);
+      if (v < vals[a]!) { vals[a] = v; changed = true; }
+    }
+  }
+}
+
 // ── 이름, 나이, 숨김 값 ──
 
 function pickName(rng: Rng): { name: string; nameKo: string; nationality: string } {
@@ -214,6 +243,8 @@ interface VirtualSpec {
   age: number;
   ovr: number;
   season: number;
+  /** 팀 실제 선수 능력치 최대값 (E.25) */
+  teamMax?: AttrCap;
 }
 
 function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
@@ -223,7 +254,7 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
   const isGk = spec.position === 'GK';
   const type: GkType = rng() < G.sweeperChance ? 'sweeper' : 'classic';
   const peakAge = isGk ? randInt(rng, G.peakAge.min, G.peakAge.max) : randInt(rng, BALANCE.npc.peakAge.min, BALANCE.npc.peakAge.max);
-  return {
+  const p: RosterPlayer = {
     id: spec.id,
     real: false,
     ...pickName(rng),
@@ -239,6 +270,8 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
     contractEnd: spec.season + randInt(rng, R.contractYears.min, R.contractYears.max),
     joined: spec.season,
   };
+  capVirtualAttributes(p, spec.teamMax);
+  return p;
 }
 
 function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
@@ -388,6 +421,8 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
   const cap = R.virtualCapToReal && realStarters.length
     ? Math.floor(realStarters.reduce((t, v) => t + v, 0) / realStarters.length)
     : Infinity;
+  // 능력치 상한 (E.25 1번): 실제 주전이 있는 팀은 실제 선수 같은 능력치 최대값
+  const teamMax = realAttrMax([...realEntries.values()], team.rating);
   let n = 0;
   for (const g of POS_GROUPS) {
     for (const real of realByGroup[g]) players.push(realEntries.get(real.id)!);
@@ -400,19 +435,19 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
         : [R.reserveOffset, R.reserveSd];
       const position = positions[g][rank % positions[g].length]!;
       players.push(makeVirtual(
-        { id: `v:${team.id}:${n++}`, teamId: team.id, position, age: rollAge(rng), ovr: Math.min(cap, team.rating + off + gaussian(rng) * sd), season },
+        { id: `v:${team.id}:${n++}`, teamId: team.id, position, age: rollAge(rng), ovr: Math.min(cap, team.rating + off + gaussian(rng) * sd), season, teamMax },
         rng,
       ));
     }
   }
   const roster: TeamRoster = { teamId: team.id, formation, players };
-  fitRating(roster, team.rating, rng, cap);
+  fitRating(roster, team.rating, rng, cap, teamMax);
   for (const p of players) if (!p.real) setPeak(p, rng);
   return roster;
 }
 
 /** 라인업 평균이 목표 ±fitTolerance 가 될 때까지 가상 주전의 OVR 을 조정. 올릴 때는 cap 을 넘기지 않는다 (못 맞추면 목표보다 낮게 둔다) */
-function fitRating(roster: TeamRoster, target: number, rng: Rng, cap = Infinity): void {
+function fitRating(roster: TeamRoster, target: number, rng: Rng, cap = Infinity, teamMax?: AttrCap): void {
   const R = BALANCE.roster;
   for (let it = 0; it < R.fitIterations; it++) {
     const lu = pickLineup(roster);
@@ -433,12 +468,14 @@ function fitRating(roster: TeamRoster, target: number, rng: Rng, cap = Infinity)
       const d = per + (extra > 0 ? Math.sign(units) : 0);
       if (extra > 0) extra--;
       shiftPlayer(p, d > 0 ? Math.min(d, cap - naturalOvr(p)) : d, rng);
+      capVirtualAttributes(p, teamMax);
     });
   }
   // 능력치 조정의 반올림으로 상한을 넘은 가상 선수는 상한으로 되돌린다
   for (const p of roster.players) {
-    if (p.real || cap === Infinity) continue;
-    for (let k = 0; k < 3 && naturalOvr(p) > cap; k++) shiftPlayer(p, cap - naturalOvr(p), rng);
+    if (p.real) continue;
+    for (let k = 0; cap !== Infinity && k < 3 && naturalOvr(p) > cap; k++) shiftPlayer(p, cap - naturalOvr(p), rng);
+    capVirtualAttributes(p, teamMax);
   }
 }
 

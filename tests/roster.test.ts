@@ -6,7 +6,7 @@ import { initialTeams } from '../src/league';
 import { PLAYABLE_POSITIONS, positionOvr } from '../src/positions';
 import { createRng } from '../src/rng';
 import {
-  attributesFromOvr, gkAttributesFromOvr, gkOvr, naturalOvr, pickLineup, posGroup, rosterRating,
+  attributesFromOvr, capVirtualAttributes, gkAttributesFromOvr, gkOvr, naturalOvr, pickLineup, posGroup, rosterRating,
 } from '../src/roster';
 import { deserialize, serialize } from '../src/save';
 
@@ -72,6 +72,49 @@ describe('팀 로스터 생성 (23번)', () => {
       const cap = Math.floor(starters.reduce((a, b) => a + b, 0) / starters.length);
       for (const p of r.players.filter((x) => !x.real)) expect(naturalOvr(p)).toBeLessThanOrEqual(cap);
     }
+  });
+
+  it('가상 선수 각 능력치 ≤ 자기 OVR + virtualAttrOverOvr, 실제 주전이 있는 팀은 ≤ 실제 선수 같은 능력치 최대값 (E.25 1번)', () => {
+    const over = BALANCE.roster.virtualAttrOverOvr;
+    const games = [g, newGame({ mode: 'real', playerId: 'salah', seed: 'r4', difficulty: 'normal' })];
+    let capped = 0;
+    for (const s of games) {
+      for (const t of s.league.teams) {
+        const r = s.rosters[t.id]!;
+        const reals = r.players.filter((p) => p.real);
+        const hasStarter = reals.some((p) => naturalOvr(p) >= init[t.id]! - BALANCE.roster.virtualCapStarterGap);
+        for (const p of r.players.filter((x) => !x.real)) {
+          const lim = naturalOvr(p) + over;
+          const vals = p.gk ? Object.values(p.gk.attrs) : Object.values(p.attributes!);
+          for (const v of vals) expect(v).toBeLessThanOrEqual(lim);
+          if (!p.attributes || !hasStarter) continue;
+          for (const [a, v] of Object.entries(p.attributes)) {
+            const max = Math.max(...reals.map((x) => x.attributes![a as keyof typeof p.attributes]));
+            expect(v).toBeLessThanOrEqual(max);
+          }
+          capped++;
+        }
+      }
+    }
+    expect(capped).toBeGreaterThan(0);
+    // 리버풀 생성 ST: 슈팅이 살라·피르미누·마네 최고치를 넘지 않는다 (C.20 v:liv:17 슈팅 91)
+    const liv = g.rosters.liv!.players;
+    const realShot = Math.max(...liv.filter((p) => p.real).map((p) => p.attributes!.shooting));
+    for (const p of liv.filter((x) => !x.real && x.attributes)) expect(p.attributes!.shooting).toBeLessThanOrEqual(realShot);
+  });
+
+  it('capVirtualAttributes: 깎기만 하고 다른 능력치로 옮기지 않는다', () => {
+    const p = g.rosters.bur!.players.find((x) => !x.real && x.position === 'ST')!;
+    const copy = { ...p, attributes: { ...p.attributes! } };
+    copy.attributes.shooting = 99;
+    const before = { ...copy.attributes };
+    capVirtualAttributes(copy, { pace: 10 });
+    // 최종 OVR 기준으로 상한이 지켜지고, 슈팅은 정확히 그 상한에 걸린다
+    const lim = positionOvr(copy.attributes, 'ST') + BALANCE.roster.virtualAttrOverOvr;
+    expect(copy.attributes.shooting).toBe(lim);
+    for (const v of Object.values(copy.attributes)) expect(v).toBeLessThanOrEqual(lim);
+    expect(copy.attributes.pace).toBe(Math.min(10, before.pace));
+    for (const [a, v] of Object.entries(copy.attributes)) expect(v).toBeLessThanOrEqual(before[a as keyof typeof before]);
   });
 
   it('실제 A등급 선수는 소속팀 로스터에 있고, 내 선수(실제 선수)는 빠진다', () => {

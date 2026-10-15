@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 16;
+export const BALANCE_VERSION = 17;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -345,6 +345,11 @@ export const BALANCE = {
     virtualCapToReal: true,
     /** 상한 계산에 넣는 실제 주전: 팀 레이팅 − 이 값 이상인 실제 선수 (어린 유망주 제외) */
     virtualCapStarterGap: 10,
+    /**
+     * 가상 선수 능력치 상한 (E.25 1번): 각 능력치 ≤ 자기 OVR + 이 값 (GK 는 GK 능력치끼리, 필드는 필드끼리).
+     * 실제 주전이 있는 팀은 추가로 ≤ 그 팀 실제 선수의 같은 능력치 최대값. 깎인 만큼은 다른 능력치로 옮기지 않는다
+     */
+    virtualAttrOverOvr: 8,
     fitIterations: 30,
     /** 가상 선수 나이 N(mean, sd), [min, max] */
     age: { mean: 26, sd: 4, min: 18, max: 36 },
