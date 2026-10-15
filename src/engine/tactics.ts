@@ -1,0 +1,218 @@
+// 전술 시스템 엔진 층 (E.19, E.18 A8): 전술 성향 6종, 세부 전술 4개(3단계), 슬롯별 역할, AI 팀 전술과 경기 중 조정.
+// 전술은 선수의 움직임과 판단 방식만 바꾼다. 결과는 능력치와 위치에서 나온다 (E.15.1). 시너지·상성 보너스 표는 없다.
+
+import type { FieldAttributes } from '../attributes';
+import { FORMATION_SLOTS, FORMATIONS, type Formation } from '../formations';
+import { createRng, hashSeed } from '../rng';
+import type { Position } from '../types';
+import { ENGINE } from './config';
+import { clamp } from './pitch';
+import { defaultRole, ROLES, type Role } from './roles';
+import type { SimState } from './state';
+import { TEAM_STYLE, TEAM_TACTICS } from './teamData';
+import type { Tactics, Tendency } from './types';
+
+export const TENDENCIES: readonly Tendency[] = ['balanced', 'tikitaka', 'gegenpress', 'counter', 'direct', 'block'];
+
+export const TENDENCY_NAMES_KO: Record<Tendency, string> = {
+  balanced: '균형', tikitaka: '티키타카', gegenpress: '게겐프레싱', counter: '역습', direct: '직선(롱볼)', block: '수비 블록',
+};
+
+/** 세부 전술 3단계 값 (E.19 ③). 빌드업은 짧게 / 혼합 / 직선 순 */
+export const LEVELS = {
+  lineHeight: [0.35, 0.5, 0.65],
+  pressing: [0.3, 0.55, 0.8],
+  style: [0.85, 0.5, 0.2],
+  width: [0.85, 1.0, 1.15],
+} as const;
+export type Detail = keyof typeof LEVELS;
+export const DETAILS: readonly Detail[] = ['lineHeight', 'pressing', 'style', 'width'];
+/** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게) */
+export type Level = 0 | 1 | 2;
+
+/** 성향별 세부 전술 기본값 [라인, 압박, 빌드업, 폭] (E.19 ①) */
+const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
+  balanced: [1, 1, 1, 1],
+  tikitaka: [2, 2, 0, 2],
+  gegenpress: [2, 2, 1, 1],
+  counter: [0, 0, 2, 1],
+  direct: [1, 1, 2, 2],
+  block: [0, 0, 2, 0],
+};
+
+export function tacticsOf(tendency: Tendency, levels?: Partial<Record<Detail, Level>>): Tactics {
+  const [l, p, b, w] = TENDENCY_LEVELS[tendency];
+  const lv = { lineHeight: l, pressing: p, style: b, width: w, ...levels };
+  return {
+    tendency,
+    lineHeight: LEVELS.lineHeight[lv.lineHeight],
+    pressing: LEVELS.pressing[lv.pressing],
+    style: LEVELS.style[lv.style],
+    width: LEVELS.width[lv.width],
+  };
+}
+
+/** 값에 가장 가까운 단계 */
+export function levelOf(detail: Detail, v: number): Level {
+  const xs = LEVELS[detail];
+  let best: Level = 0;
+  for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i]! - v) < Math.abs(xs[best]! - v)) best = i as Level;
+  return best;
+}
+
+// ── 역할 ──
+
+/** 성향별 추천 역할 (E.19 ②). 포지션군마다 후보, 여럿이면 능력치 적합도가 높은 쪽 */
+const RECOMMENDED: Partial<Record<Tendency, Partial<Record<string, string[]>>>> = {
+  tikitaka: { CB: ['ballPlayingCB'], FB: ['invertedFullback'], CM: ['deepPlaymaker', 'boxToBox'], WING: ['insideForward'], ST: ['linkUp'] },
+  gegenpress: { CDM: ['ballWinner'], CM: ['boxToBox'], FB: ['attackingFullback'], ST: ['poacher'] },
+  counter: { CB: ['coverCB'], CDM: ['anchor'], WING: ['winger'], ST: ['poacher'] },
+  direct: { CB: ['stopper'], FB: ['attackingFullback'], WING: ['winger'], ST: ['targetMan'] },
+  block: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], ST: ['targetMan'] },
+};
+
+/** 포지션별로 고를 수 있는 역할 (E.6 역할 표) */
+export const ROLE_OPTIONS: Record<string, string[]> = {
+  GK: ['goalkeeper'],
+  CB: ['stopper', 'ballPlayingCB', 'coverCB'],
+  FB: ['attackingFullback', 'defensiveFullback', 'invertedFullback'],
+  CDM: ['anchor', 'ballWinner', 'dlpDm'],
+  CM: ['boxToBox', 'deepPlaymaker', 'advanced8'],
+  CAM: ['playmaker', 'shadowStriker', 'boxCrasher'],
+  WING: ['winger', 'insideForward'],
+  ST: ['poacher', 'targetMan', 'linkUp'],
+};
+
+export function roleGroup(pos: Position): string {
+  switch (pos) {
+    case 'GK': return 'GK';
+    case 'CB': return 'CB';
+    case 'LB': case 'RB': case 'LWB': case 'RWB': return 'FB';
+    case 'CDM': return 'CDM';
+    case 'CM': return 'CM';
+    case 'CAM': return 'CAM';
+    case 'LW': case 'RW': case 'LM': case 'RM': return 'WING';
+    case 'ST': case 'CF': return 'ST';
+  }
+}
+
+/** 역할 적합도 (18.1, 안내와 기본값 채우기용): 역할 핵심 능력치 평균 */
+const ROLE_KEYS: Record<string, (keyof FieldAttributes)[]> = {
+  poacher: ['shooting', 'offTheBall', 'composure', 'acceleration'],
+  targetMan: ['heading', 'strength', 'jumping', 'ballControl'],
+  linkUp: ['shortPassing', 'vision', 'ballControl', 'shooting'],
+  winger: ['crossing', 'dribbling', 'pace', 'acceleration'],
+  insideForward: ['shooting', 'dribbling', 'acceleration', 'offTheBall'],
+  playmaker: ['vision', 'shortPassing', 'ballControl', 'composure'],
+  shadowStriker: ['shooting', 'offTheBall', 'acceleration', 'composure'],
+  boxCrasher: ['offTheBall', 'stamina', 'shooting', 'strength'],
+  boxToBox: ['stamina', 'workRate', 'shortPassing', 'tackling'],
+  deepPlaymaker: ['shortPassing', 'longPassing', 'vision', 'composure'],
+  advanced8: ['shortPassing', 'offTheBall', 'longShots', 'dribbling'],
+  anchor: ['defensivePositioning', 'interception', 'marking', 'composure'],
+  ballWinner: ['tackling', 'workRate', 'stamina', 'strength'],
+  dlpDm: ['shortPassing', 'longPassing', 'vision', 'interception'],
+  attackingFullback: ['crossing', 'stamina', 'pace', 'dribbling'],
+  defensiveFullback: ['marking', 'tackling', 'defensivePositioning', 'strength'],
+  invertedFullback: ['shortPassing', 'vision', 'composure', 'interception'],
+  stopper: ['tackling', 'strength', 'heading', 'jumping'],
+  ballPlayingCB: ['shortPassing', 'longPassing', 'composure', 'vision'],
+  coverCB: ['pace', 'defensivePositioning', 'interception', 'acceleration'],
+};
+
+export function roleFit(roleId: string, a: FieldAttributes): number {
+  const keys = ROLE_KEYS[roleId];
+  if (!keys) return 0;
+  return keys.reduce((t, k) => t + a[k], 0) / keys.length;
+}
+
+/** 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②) */
+export function recommendedRole(tendency: Tendency, pos: Position, attrs: FieldAttributes): Role {
+  if (pos === 'GK') return ROLES.goalkeeper!;
+  const cands = RECOMMENDED[tendency]?.[roleGroup(pos)];
+  if (!cands?.length) return defaultRole(pos, attrs);
+  const best = cands.slice().sort((x, y) => roleFit(y, attrs) - roleFit(x, attrs))[0]!;
+  return ROLES[best]!;
+}
+
+// ── AI 팀 전술 ──
+
+export interface TeamPlan {
+  tendency: Tendency;
+  formation: Formation;
+  tactics: Tactics;
+}
+
+/**
+ * 팀 데이터 전술 (E.19 AI 팀 전술): 실제 팀은 데이터의 성향·포메이션, 빌드업은 E.18 A5 연속 값.
+ * 데이터가 없는 팀은 시드로 성향을 고른다 (레이팅이 리그 평균 +3 이상 / −3 이하 / 그 사이). 포메이션은 로스터 값
+ */
+export function teamPlan(teamId: string, rating: number, formation: Formation, worldSeed = '', leagueAvg: number = ENGINE.tactics.leagueAvg): TeamPlan {
+  const T = ENGINE.tactics;
+  const data = TEAM_TACTICS[teamId];
+  let tendency: Tendency;
+  if (data) tendency = data.tendency;
+  else {
+    const rng = createRng(hashSeed(`${worldSeed}:tendency:${teamId}`));
+    const pool: readonly Tendency[] = rating >= leagueAvg + 3 ? ['tikitaka', 'gegenpress', 'balanced']
+      : rating <= leagueAvg - 3 ? ['block', 'direct', 'counter'] : TENDENCIES;
+    tendency = pool[Math.floor(rng() * pool.length)]!;
+  }
+  const style = TEAM_STYLE[teamId] ?? clamp(0.5 + T.stylePerRating * (rating - leagueAvg), T.styleMin, T.styleMax);
+  return { tendency, formation: data?.formation ?? formation, tactics: { ...tacticsOf(tendency), style } };
+}
+
+/** 성향 고유 행동의 수치 (E.19 ①, 세부 전술로 표현되지 않는 부분) */
+export const TENDENCY = {
+  /** 티키타카: 지원 간격 (m), xG 0.05 미만 슛 효용 배수 */
+  tikiSupport: [10, 18] as [number, number],
+  tikiLowXg: 0.05,
+  tikiLowShot: 0.7,
+  /** 게겐프레싱: 역압박 +초, 최대 인원, 탈취 후 전진 패스·슛 효용 배수와 시간 */
+  gegenExtra: 1.5,
+  gegenMax: 4,
+  gegenWinMul: 1.15,
+  gegenWinTime: 4,
+  /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
+  counterWinMul: 1.25,
+  counterWinTime: 6,
+  counterStayX: 0.48,
+  /** 직선: 타깃 ST 롱볼 효용 배수, 크로스 효용 배수, 세컨드볼 위치 (착지점 뒤 m) */
+  directTargetMul: 1.2,
+  directCrossMul: 1.15,
+  directSecond: [10, 15] as [number, number],
+  /** 수비 블록: 수비-중원 간격 상한 (m), 수비 라인 상한 (박스 경계, m) */
+  blockGap: 12,
+  blockLineMax: 16.5,
+};
+
+/** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */
+export function widthCrossMul(width: number): number {
+  return 1 + (width - 1) * (0.1 / 0.15);
+}
+
+/**
+ * 경기 중 AI 조정 (E.19): 70분 이후 1골 차로 지고 있으면 라인과 압박을 한 단계 올리고, 1골 차로 이기고 있으면 라인을 한 단계 내린다.
+ * 모든 팀에 같은 규칙 (직접 모드의 내 팀은 E4 이후 사용자가 바꾼다)
+ */
+export function aiAdjust(s: SimState): void {
+  if (s.t < 70 * 60 || s.tick % 600 !== 0) return;
+  for (const team of [0, 1] as const) {
+    const T = s.teams[team];
+    if (s.input.mode === 'live' && s.input.myTeam === team) continue;
+    const base = T.setup.tactics;
+    const diff = T.stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
+    const step = (d: Detail, by: number) => LEVELS[d][clamp(levelOf(d, base[d]) + by, 0, 2)]!;
+    T.tactics = { ...base };
+    if (diff === -1) {
+      T.tactics.lineHeight = step('lineHeight', 1);
+      T.tactics.pressing = step('pressing', 1);
+    } else if (diff === 1) T.tactics.lineHeight = step('lineHeight', -1);
+  }
+}
+
+export function formationSlots(f: Formation) {
+  return FORMATION_SLOTS[f];
+}
+
+export { FORMATIONS };

@@ -130,6 +130,8 @@ export interface TeamState {
   /** 역압박 (E.18 A3): 이 시각까지, 가담 선수 idx (공에 가까운 순) */
   counterUntil: number;
   counterPressers: number[];
+  /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
+  wonAt: number;
 }
 
 export interface SimState {

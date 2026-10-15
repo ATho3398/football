@@ -4,6 +4,7 @@ import { ENGINE } from './config';
 import { effectiveTactics } from './offball';
 import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
+import { TENDENCY } from './tactics';
 import type { Agent, RestartType, SimState } from './state';
 import type { MatchEvent } from './types';
 
@@ -66,17 +67,21 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   tm.counterPressers = [];
   tm.counterUntil = 0;
   if (!open) return;
+  s.teams[team === 0 ? 1 : 0].wonAt = s.t;
+  // 성향 (E.19): 게겐프레싱 +1.5초·최대 4명, 역습·수비 블록은 역압박 없이 즉시 복귀
+  const tendency = tm.tactics.tendency;
+  if (tendency === 'counter' || tendency === 'block') return;
   const b = s.ball;
   const near = s.agents
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
     .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
-  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : O.counterMax;
+  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.counterMax;
   for (const a of near) {
     if (tm.counterPressers.length >= max) break;
     const p = O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100;
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
   }
-  if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing;
+  if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);
 }
 
 function manDiffCount(s: SimState, team: 0 | 1): number {

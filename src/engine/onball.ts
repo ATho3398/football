@@ -8,6 +8,7 @@ import { claimProb, keeperOf, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { offsideRisk } from './referee';
+import { TENDENCY, widthCrossMul } from './tactics';
 import type { Agent, Flight, SimState } from './state';
 
 const O = ENGINE.onball;
@@ -209,6 +210,16 @@ export function crossTarget(s: SimState, a: Agent): { r: Agent; pWin: number; va
   return best;
 }
 
+/** 타깃 ST: 헤더 + 근력이 가장 높은 공격수 (직선 성향, E.19) */
+function targetForward(s: SimState, a: Agent): Agent | null {
+  let best: Agent | null = null;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== a.team || o.line !== 3) continue;
+    if (!best || o.attrs.heading + o.attrs.strength > best.attrs.heading + best.attrs.strength) best = o;
+  }
+  return best;
+}
+
 /** 후보 행동 생성 */
 export function candidates(s: SimState, a: Agent): Candidate[] {
   const dir = attackDir(a.team, s.half);
@@ -220,9 +231,15 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const isGk = a.line === 0;
   const out: Candidate[] = [];
   const [gx0, gy0] = oppGoal(dir);
-  const style = s.teams[a.team].tactics.style;
+  const tac = s.teams[a.team].tactics;
+  const style = tac.style;
   const mPoss = TA.possBase + TA.possSlope * style;
   const mDirect = TA.directBase - TA.possSlope * style;
+  // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛 × 1.15, 역습 6초 전진·침투 패스 × 1.25
+  const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
+  const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
+    : tac.tendency === 'counter' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
+  const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
 
@@ -254,7 +271,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const forward = rx > ax + 0.03;
     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
-    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss));
+    // 직선(롱볼): 타깃 ST 에게 가는 롱볼 × 1.2
+    const tMul = target === r && d0 >= TA.longBall ? TENDENCY.directTargetMul : 1;
+    const wMul = forward ? winMul : 1;
+    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul);
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -321,7 +341,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const [gx, gy] = oppGoal(dir);
     if (dist(a.x, a.y, gx, gy) <= PR.shotMaxDist && ax > 0.6) {
       const m = shotModel(s, a);
-      const u = weight(m.value * O.shotScale, a.role.pref.shoot);
+      // 티키타카: xG 0.05 미만 슛 × 0.7 (확실한 기회까지 돌린다), 게겐프레싱 탈취 직후 × 1.15
+      const tikiMul = tac.tendency === 'tikitaka' && m.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
+      const gegenMul = tac.tendency === 'gegenpress' ? winMul : 1;
+      const u = weight(m.value * O.shotScale, a.role.pref.shoot * tikiMul * gegenMul);
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
     }
 
@@ -331,7 +354,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       if (ct) {
         const acc = clamp(0.5 + (0.5 * a.attrs.crossing) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
         const p = acc * ct.pWin;
-        const u = weight(p * ct.value + (1 - p) * lossCost(ax, ay), a.role.pref.cross);
+        // 공격 폭 (좁게 0.9 / 넓게 1.1), 직선 성향 × 1.15 (E.19)
+        const cMul = widthCrossMul(tac.width) * (tac.tendency === 'direct' ? TENDENCY.directCrossMul : 1);
+        const u = weight(p * ct.value + (1 - p) * lossCost(ax, ay), a.role.pref.cross * cMul);
         out.push({ type: 'cross', p, u, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
       }
     }

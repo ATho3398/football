@@ -4,6 +4,7 @@ import { ENGINE } from './config';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
+import { TENDENCY } from './tactics';
 import type { Agent, SimState } from './state';
 
 const O = ENGINE.offball;
@@ -155,6 +156,21 @@ export function updateOffball(s: SimState, a: Agent): void {
     }
   }
 
+  // 직선(롱볼) 세컨드볼 (E.19): 우리 팀 롱볼이 떠 있으면 착지점에 가까운 2선 2명은 착지점 10~15 m 뒤로
+  if (fl && (fl.kind === 'long' || fl.kind === 'clear') && s.agents[fl.passer]?.team === a.team && a.line === 2
+    && s.teams[a.team].tactics.tendency === 'direct') {
+    const mids = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 2)
+      .sort((x, y) => dist(x.x, x.y, fl.toX, fl.toY) - dist(y.x, y.y, fl.toX, fl.toY));
+    const k = mids.indexOf(a);
+    if (k >= 0 && k < 2) {
+      const back = TENDENCY.directSecond[k]!;
+      a.tx = clamp(fl.toX - dir * back, 1, L - 1);
+      a.ty = clamp(fl.toY + (k === 0 ? -3 : 3), 1, W - 1);
+      a.urgent = true;
+      return;
+    }
+  }
+
   const attacking = s.possTeam === a.team;
   const [bnx, bny] = ballNorm(s, a.team);
   if (attacking) attackTarget(s, a, dir, bnx, bny);
@@ -204,17 +220,20 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       urgent = dist(px, py, a.x, a.y) > 6;
     }
   }
-  // 내려와서 받기 / 지원 간격
+  // 내려와서 받기 / 지원 간격 (티키타카는 지원 삼각형 간격이 좁다, E.19)
+  const tiki = s.teams[a.team].tactics.tendency === 'tikitaka';
+  const supMin = tiki ? TENDENCY.tikiSupport[0] : O.supportMin;
+  const supMax = tiki ? TENDENCY.tikiSupport[1] : O.supportMax;
   if (owner && owner.team === a.team && owner !== a) {
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
     if (!running && a.role.drop > 0 && nx > ox) nx -= (a.role.drop * O.dropDist) / L * 0.5;
     const [px, py] = toPitch(nx, ny, dir);
     const d = dist(px, py, owner.x, owner.y);
-    if (d < O.supportMin && d > 0.1) {
-      const k = O.supportMin / d;
+    if (d < supMin && d > 0.1) {
+      const k = supMin / d;
       const [qx, qy] = [owner.x + (px - owner.x) * k, owner.y + (py - owner.y) * k];
       [nx, ny] = toNorm(qx, qy, dir);
-    } else if (d > O.supportMax + 15 && a.line >= 2) {
+    } else if (d > supMax + 15 && a.line >= 2) {
       // 너무 멀면 공 쪽으로 약간
       nx += (ox - nx) * 0.15;
       ny += (oy - ny) * 0.15;
@@ -326,7 +345,11 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const d = dist(a.x, a.y, b.x, b.y);
     const [gx0, gy0] = ownGoal(dir);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
-    const wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
+    let wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
+    // 수비 블록: 공격 줄은 1명만 압박 / 역습: 남는 최전방은 압박하지 않는다 (E.19)
+    const tendency = s.teams[a.team].tactics.tendency;
+    if (a.line === 3 && tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
+    if (a.line === 3 && tendency === 'counter' && isTopForward(s, a)) wants = false;
     if (wants && (danger && rank < 2 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
       // 공과 자기 골 사이에서 압박
       const [gx, gy] = ownGoal(dir);
@@ -339,9 +362,15 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   let [nx, ny] = slotTarget(s, a);
-  const lineX = defensiveLine(s, a.team);
-  if (a.line === 2) nx = Math.min(nx, lineX + F.midGap);
+  const tendency = s.teams[a.team].tactics.tendency;
+  let lineX = defensiveLine(s, a.team);
+  // 수비 블록 (E.19): 수비 라인은 박스 경계 앞으로 나가지 않고, 수비-중원 간격 12 m 이하
+  if (tendency === 'block') lineX = Math.min(lineX, TENDENCY.blockLineMax / L);
+  const midGap = tendency === 'block' ? Math.min(F.midGap, TENDENCY.blockGap / L) : F.midGap;
+  if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
+  // 역습 (E.19): 최전방 1명은 하프라인 부근에 남는다
+  if (tendency === 'counter' && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
   if (a.line === 1) {
     // 수비 라인 동기화. 오차는 수비 포지셔닝과 마킹
     const sigma = ((100 - (a.attrs.defensivePositioning + a.attrs.marking) / 2) * O.markSigma) / L;
@@ -390,6 +419,21 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   void bny;
   setTarget(a, nx, ny, dir, back >= O.recoverSprint && a.recoverUrgent);
   a.minRun = back >= O.recoverRun;
+}
+
+/** 팀의 가장 앞 공격수 (슬롯 x 기준, 같으면 idx) */
+function isTopForward(s: SimState, a: Agent): boolean {
+  for (const o of s.agents) {
+    if (o === a || !o.onPitch || o.team !== a.team || o.line !== 3) continue;
+    if (o.sx > a.sx || (o.sx === a.sx && o.idx < a.idx)) return false;
+  }
+  return true;
+}
+
+/** 공에 더 가까운 같은 팀 공격수가 있는가 */
+function closerForward(s: SimState, a: Agent, bx: number, by: number): boolean {
+  const d = dist(a.x, a.y, bx, by);
+  return s.agents.some((o) => o !== a && o.onPitch && o.team === a.team && o.line === 3 && dist(o.x, o.y, bx, by) < d);
 }
 
 /** 오프더볼 갱신 때 위치 오차를 새로 뽑는다 */

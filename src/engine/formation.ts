@@ -56,6 +56,8 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
     y = 0.5 + (y - 0.5) * (1 - (1 - F.defendWidth) * k) + (F.blockY + (F.defendBlockY - F.blockY) * k) * (by - 0.5);
   } else y += F.blockY * (by - 0.5);
   if (phase > 0 && a.line !== 0) {
+    // 공격 폭 (E.19 ③): 슬롯 y 의 중앙 기준 간격 배수
+    y = 0.5 + (y - 0.5) * (1 + (s.teams[a.team].tactics.width - 1) * phase);
     x += a.role.dx * phase;
     // dy: 측면 선호(+) / 중앙(−). 슬롯이 있는 쪽 터치라인 방향
     const side = a.sy < 0.5 ? -1 : a.sy > 0.5 ? 1 : 0;

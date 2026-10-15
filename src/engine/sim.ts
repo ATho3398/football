@@ -12,6 +12,7 @@ import { event, kickoffPositions, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
 import { initPhysics, moveAgent } from './physics';
+import { aiAdjust } from './tactics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
 import { defaultRole, roleById } from './roles';
@@ -94,7 +95,7 @@ export function createState(input: EngineInput): SimState {
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[],
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100,
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5],
@@ -225,6 +226,7 @@ export function step(s: SimState): void {
   }
   aiSubs(s);
   myMinutes(s);
+  aiAdjust(s);
 
   if (s.restart && s.t >= s.restart.at) {
     const taker = s.agents[s.restart.taker];
@@ -253,7 +255,8 @@ export function step(s: SimState): void {
   // 이동
   for (const a of s.agents) {
     if (!a.onPitch) continue;
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1);
+    // 압박 전술의 스태미나 소모 × (0.95 + 0.15 × pressing) (E.19 ③)
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, 0.95 + 0.15 * s.teams[a.team].tactics.pressing);
   }
 
   // 공
