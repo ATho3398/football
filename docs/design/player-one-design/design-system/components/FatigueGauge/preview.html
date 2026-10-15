@@ -1,0 +1,13 @@
+<!-- @dsCard group="Status" height=155 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>FatigueGauge — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:12}}, h(P.FatigueGauge,{value:18}), h(P.FatigueGauge,{value:55}), h(P.FatigueGauge,{value:84}), h(P.FatigueGauge,{value:18,compact:true})));
+</script>
+</body>
+</html>

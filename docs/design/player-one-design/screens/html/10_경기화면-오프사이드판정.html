@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기화면-오프사이드판정</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기화면-오프사이드판정 (I.4 경기 화면) · 390×844 · 원본 Match2-Offside.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{two}}" away-score="{{zero}}" minute="{{minute}}" speed="1×" paused="{{yes}}" status="오프사이드"></x-import>
+  <div style="padding: 8px 16px 4px;">
+    <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" offside-x="{{offsideX}}" marks="{{marks}}" label="오프사이드 판정: 김민준이 수비 라인보다 앞"></x-import>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 10px; margin: 6px 16px 10px; padding: 14px; border-radius: 16px; background: var(--warning-soft);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--warning); color: #121317;">
+        <x-import component-from-global-scope="PlayerOne.Icon" name="offside" size="{{iconSize}}"></x-import>
+      </span>
+      <div style="display: flex; flex-direction: column; flex-grow: 1;">
+        <span style="font-size: 15px; font-weight: 800;">오프사이드 — 김민준</span>
+        <span style="font-size: 12px; color: var(--ink-muted);">패스 순간 수비 라인보다 1.2m 앞에 있었어요</span>
+      </div>
+      <x-import component-from-global-scope="PlayerOne.RatingBadge" value="{{rating}}" delta="{{ratingDelta}}" size="sm"></x-import>
+    </div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <span style="height: 24px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; background: var(--surface-1); font-size: 11px; font-weight: 700;">결정: 침투 패스 받기 (도박)</span>
+      <span style="height: 24px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; background: var(--surface-1); font-size: 11px; font-weight: 700;">오프사이드 위험 중간이었어요</span>
+      <span style="height: 24px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 7px; background: var(--surface-1); font-size: 11px; font-weight: 700;">상대 간접 프리킥</span>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 4px; padding: 0 16px 8px;">
+    <sc-for list="{{feed}}" as="item" hint-placeholder-count="3">
+      <x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{item.minute}}" kind="{{item.kind}}" mine="{{item.mine}}" text="{{item.text}}" score="{{item.score}}"></x-import>
+    </sc-for>
+  </div>
+  <div style="margin-top: auto; padding-top: 12px; border-radius: 20px 20px 0 0; background: var(--surface-1);">
+    <div style="display: flex; justify-content: space-between; padding: 0 16px; font-size: 12px; font-weight: 700;">
+      <span>내 패 <span style="font-family: var(--font-display);">4</span></span>
+      <span style="color: var(--ink-muted);">판정 후 바로 재개돼요</span>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.CardHand" cards="{{hand}}"></x-import>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (list, team) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, me: !!p[3], flag: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[12,50,1],[38,18,2],[36,40,4],[36,60,5],[40,82,3],[64,44,8],[52,52,6],[60,70,10],[74,20,7],[82.5,34,9,1],[72,78,11]];
+    const AWAY = [[95,50,1],[80,26,2],[79,42,5],[80,58,4],[81,76,3],[70,30,7],[66,52,8],[68,64,6],[72,84,11],[56,40,9],[58,60,10]];
+    return {
+      homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
+      yes: true, two: 2, zero: 0, minute: 71, iconSize: 22, offsideX: 79, rating: 7.8, ratingDelta: -0.1,
+      players: mk(HOME, 'home').concat(mk(AWAY, 'away')),
+      ball: [65.4, 44.2],
+      arrows: [{ from: [64, 44], to: [88, 30], kind: 'through', tone: 'gamble', curve: [-1, -4] }],
+      marks: [{ x: 88, y: 18, text: '+1.2m', tone: 'warning' }],
+      feed: [
+        { minute: 70, kind: 'chance', mine: true, text: '결정: 침투 패스 받기 (31%)' },
+        { minute: 71, kind: 'offside', mine: true, text: '오프사이드 — 김민준' },
+        { minute: 71, kind: 'freekick', text: '리버풀 간접 프리킥' }
+      ],
+      hand: [
+        { id: 'fk', name: '프리킥 스페셜', type: 'setpiece', rarity: 'rare' },
+        { id: 'mom', name: '기세', type: 'combo', rarity: 'rare' },
+        { id: 'pan', name: '파넨카', type: 'setpiece', rarity: 'epic' },
+        { id: 'focus', name: '집중', type: 'manage', rarity: 'common' }
+      ]
+    };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

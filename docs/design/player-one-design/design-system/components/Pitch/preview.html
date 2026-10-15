@@ -1,0 +1,19 @@
+<!-- @dsCard group="Match" height=520 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Pitch — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  var HOME = [[5,50,1],[26,14,2],[24,38,4],[24,62,5],[26,86,3],[46,28,8],[44,52,6],[48,74,10],[68,18,7],[72,50,9,1],[66,82,11]];
+var AWAY = [[95,50,1],[80,20,2],[78,42,5],[79,60,4],[81,82,3],[66,24,7],[64,44,8],[64,60,6],[67,78,11],[52,38,9],[54,62,10]];
+function mk(list, team){ return list.map(function(p){ return { x:p[0], y:p[1], num:p[2], team:team, me: !!p[3], label: p[3] ? '김민준' : undefined }; }); }
+render(h('div',{style:{display:'grid',gap:12,width:358}},
+  h(P.Pitch,{players:mk(HOME,'home').concat(mk(AWAY,'away')),ball:[73.5,52]}),
+  h(P.Pitch,{players:mk(HOME,'home').concat(mk(AWAY,'away')),ball:[73.5,52],offsideX:78,
+    arrows:[{from:[72,50],to:[88,36],kind:'through',tone:'gamble'},{from:[72,50],to:[84,62],kind:'dribble',tone:'balanced',ghost:true},{from:[72,50],to:[66,82],kind:'pass',tone:'safe',ghost:true}]})));
+</script>
+</body>
+</html>

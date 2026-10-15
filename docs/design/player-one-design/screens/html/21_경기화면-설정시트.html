@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기화면-설정시트</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기화면-설정시트 (I.4 경기 화면) · 390×844 · 원본 Match5-Settings.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}"></x-import>
+  <div style="padding: 8px 16px 0;"><x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}"></x-import></div>
+  <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="경기 중에도 바꿀 수 있어요" title="경기 설정">
+      <span style="display: block; margin-bottom: 8px; font-size: 13px; font-weight: 800;">정지 빈도</span>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <sc-for list="{{freq}}" as="o" hint-placeholder-count="3">
+          <x-import component-from-global-scope="PlayerOne.OptionRow" title="{{o.title}}" desc="{{o.desc}}" tag="{{o.tag}}" radio="{{yes}}" selected="{{o.on}}" on-click="{{noop}}"></x-import>
+        </sc-for>
+      </div>
+      <div style="height: 1px; margin: 16px 0; background: var(--line);"></div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <x-import component-from-global-scope="PlayerOne.Switch" label="빨리 감기" desc="스로인·골킥·세리머니 같은 재개 대기 구간을 약 4배속으로 넘겨요." on="{{yes}}"></x-import>
+        <x-import component-from-global-scope="PlayerOne.Switch" label="결정 순간 슬로모션" desc="멈추기 전 0.5초 동안 느리게 보여 줘요." on="{{yes}}"></x-import>
+      </div>
+      <div style="margin-top: 18px;">
+        <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}">완료</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (list, team, dim) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, dim, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[14,50,1],[44,20,2],[42,42,4],[42,58,5],[46,80,3],[62,32,8],[60,54,6],[68,72,10],[80,24,7],[82,46,9,1],[78,74,11]];
+    const AWAY = [[97,50,1],[90,34,2],[89,44,5],[90,56,4],[87,70,3],[76,30,7],[86,48,8],[75,64,6],[78,84,11],[64,40,9],[66,60,10]];
+    const HOME0 = HOME.map((p) => [p[0] - 5, p[1], p[2], p[3]]);
+    const players = (h, dim) => mk(h, 'home', dim).concat(mk(AWAY, 'away', dim));
+    return {
+      homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' },
+      yes: true, noop: () => {}, one: 1, zero: 0, minute: 34, players: players(HOME0, false), ball: [72, 40],
+      freq: [
+        { title: '모든 결정 순간', desc: '공을 잡을 때마다 멈춰요. 경기당 약 12~16번.', on: false },
+        { title: '중요한 순간만', desc: '찬스·위기·세트피스에서만 멈춰요. 경기당 약 6~8번.', tag: '기본', on: true },
+        { title: '결정적 순간만', desc: '골과 실점이 걸린 순간에만 멈춰요. 경기당 약 2~4번.', on: false }
+      ]
+    };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

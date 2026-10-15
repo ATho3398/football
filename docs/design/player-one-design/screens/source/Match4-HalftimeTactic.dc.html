@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>경기 화면 - 하프타임 전술</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="하프타임" right="리버사이드 1-0" on-back="{{no}}" eyebrow="전반 내 평점" value="7.4" progress="{{no}}"></x-import>
+  <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="하프타임 · 1-0" title="후반 전술" subtitle="경기 중에는 포메이션·세부 전술·역할만 바꿀 수 있어요. 성향(역습)은 그대로예요.">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{forms8}}" value="4231" label="포메이션"></x-import>
+        <x-import component-from-global-scope="PlayerOne.FormationPitch" compact="{{yes}}" height="{{pitchH}}" slots="{{slotsHT}}" label="포메이션 4-2-3-1, 탭해서 역할 변경"></x-import>
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
+          <span style="color: var(--ink-muted);">슬롯을 탭하면 역할을 바꿀 수 있어요</span>
+          <span style="font-weight: 700; color: var(--mine);">내 위치 ST · 포처</span>
+        </div>
+        <sc-for list="{{settings}}" as="st" hint-placeholder-count="4">
+          <div style="display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 800;">{{st.label}}</span>
+            <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{st.items}}" value="{{st.value}}" label="{{st.label}}"></x-import>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 14px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}">닫기</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="check">후반에 적용</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const SLOTS = [
+      { id: 'gk', pos: 'GK', x: 50, y: 9, name: '오세훈', role: '스위퍼 키퍼' },
+      { id: 'lb', pos: 'LB', x: 14, y: 26, name: '정우진', role: '수비형 풀백' },
+      { id: 'cb1', pos: 'CB', x: 37, y: 22, name: '한도윤', role: '스토퍼' },
+      { id: 'cb2', pos: 'CB', x: 63, y: 22, name: '박재성', role: '커버 CB' },
+      { id: 'rb', pos: 'RB', x: 86, y: 26, name: '이현수', role: '수비형 풀백' },
+      { id: 'dm1', pos: 'CDM', x: 38, y: 43, name: '최민호', role: '앵커' },
+      { id: 'dm2', pos: 'CDM', x: 62, y: 43, name: '윤태경', role: '박스투박스' },
+      { id: 'lw', pos: 'LW', x: 16, y: 66, name: '강지훈', role: '윙포워드' },
+      { id: 'am', pos: 'CAM', x: 50, y: 63, name: '서준영', role: '섀도 스트라이커' },
+      { id: 'rw', pos: 'RW', x: 84, y: 66, name: '임성빈', role: '정통 윙어' },
+      { id: 'st', pos: 'ST', x: 50, y: 85, name: '김민준', role: '포처', me: true, ovr: 56 }
+    ];
+    const slot = (id, extra) => SLOTS.map((s) => s.id === id ? Object.assign({}, s, extra) : s);
+    const fitOf = { balanced: 'ok', tikitaka: 'bad', gegen: 'ok', counter: 'good', direct: 'ok', block: 'bad' };
+    const styles = (on) => ['balanced', 'tikitaka', 'gegen', 'counter', 'direct', 'block'].map((id) => ({ id, fit: fitOf[id], on: id === on }));
+    const forms = ['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '5-3-2', '4-3-1-2', '4-1-4-1', '3-4-3'].map((l) => ({ id: l.replace(/-/g, ''), label: l })).concat([{ id: 'custom', label: '커스텀', icon: 'plus' }]);
+    const forms8 = forms.slice(0, 8);
+    const seg = (a, b, c) => [{ id: a, label: a }, { id: b, label: b }, { id: c, label: c }];
+    const settings = (line, press, build, width, tag) => [
+      { label: '수비 라인', hint: tag, items: seg('낮음', '보통', '높음'), value: line },
+      { label: '압박', hint: tag, items: seg('낮음', '보통', '높음'), value: press },
+      { label: '빌드업', hint: tag, items: seg('짧게', '혼합', '직선'), value: build },
+      { label: '공격 폭', hint: tag, items: seg('좁게', '보통', '넓게'), value: width }
+    ];
+    const myOvr = { gk: 22, lb: 38, cb1: 35, cb2: 35, rb: 38, dm1: 41, dm2: 41, lw: 49, am: 52, rw: 49 };
+    return {
+      yes: true, no: false, forms, forms8, pitchH: 160,
+      slotsHT: slot('st', {}),
+      settings: settings('보통', '보통', '직선', '보통', '').map((s, i) => i === 0 ? Object.assign({}, s, { value: '보통' }) : s)
+    };
+  }
+}
+</script>
+</body>
+</html>

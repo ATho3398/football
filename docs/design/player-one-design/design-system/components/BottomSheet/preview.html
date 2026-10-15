@@ -1,0 +1,18 @@
+<!-- @dsCard group="Overlays" height=510 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>BottomSheet — preview</title></head>
+<body>
+<div id="root" style="padding:0"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{width:390,paddingTop:16}},
+  h(P.BottomSheet,{inline:true,eyebrow:"85' · 슈팅 찬스",title:'박스 앞, 수비 한 명',subtitle:'0-0 · 경기 종료 5분 전, 긴장도 높음',
+    footer:h(P.Button,{size:'lg',block:true},'확정')},
+    h(P.ChoiceButton,{name:'직접 슛',chance:26,success:{text:'골',rating:0.8},fail:{text:'빗나감',rating:-0.15}}),
+    h(P.ChoiceButton,{name:'동료에게 패스',chance:42,success:{text:'어시스트',rating:0.5},fail:{text:'차단',rating:-0.2}}),
+    h(P.ChoiceButton,{name:'제치고 슛',chance:40,chanceDelta:8,selected:true,risk:'역습 위험',success:{text:'골',rating:0.9},fail:{text:'뺏김',rating:-0.35}}))));
+</script>
+</body>
+</html>

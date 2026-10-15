@@ -1,0 +1,43 @@
+<!-- @dsCard height=320 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PLAYER ONE — cover</title>
+<style>
+  html, body { margin: 0; background: var(--surface-0); }
+  .cover { position: relative; width: 960px; height: 320px; overflow: hidden; background: var(--surface-0); }
+  .cover svg { position: absolute; inset: 0; }
+  .brand { fill: var(--brand); }
+  .s1 { fill: var(--surface-1); }
+  .s3 { fill: var(--surface-3); }
+  .epic { fill: var(--rarity-epic); }
+  .glyph { fill: var(--on-brand); font-family: var(--font-display); font-weight: 700; }
+  .tile { rx: var(--radius-lg); }
+  .pill { rx: 26px; }
+  .text { position: absolute; left: 40px; bottom: 40px; max-width: 440px; }
+  .name { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 84px; line-height: .95; letter-spacing: -0.03em; color: var(--ink); }
+  .tag { margin: 12px 0 0; font-family: var(--font-sans); font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+  <svg viewBox="0 0 960 320" width="960" height="320" aria-hidden="true">
+    <!--
+      blocks: brand 232×300 slab, surface-1 216×136, surface-3 104×104, rarity-epic 104×52 pill (button-h)
+      arrangement: one tall lime slab bleeding off the top with graphite satellites stepping right and bleeding off the right edge
+      pattern: oversized numeral — a giant Poppins "1" (PLAYER ONE, the numerals face) cut from the lime slab, as the hero header cuts its number
+      scales: gaps space-4 (16px), radii radius-lg (20px) and the 52px button pill
+    -->
+    <defs><clipPath id="slab"><rect class="tile" x="520" y="-20" width="232" height="300"/></clipPath></defs>
+    <rect class="brand tile" x="520" y="-20" width="232" height="300"/>
+    <text class="glyph" x="560" y="300" font-size="360" clip-path="url(#slab)">1</text>
+    <rect class="s1 tile" x="768" y="40" width="216" height="136"/>
+    <rect class="s3 tile" x="768" y="192" width="104" height="104"/>
+    <rect class="epic pill" x="888" y="192" width="104" height="52"/>
+  </svg>
+  <div class="text">
+    <p class="name">PLAYER<br>ONE</p>
+    <p class="tag">열일곱 살부터 은퇴까지, 한 선수의 커리어를 키우는 축구 게임</p>
+  </div>
+</div>
+</body>
+</html>

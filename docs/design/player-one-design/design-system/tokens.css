@@ -1,0 +1,137 @@
+/* PLAYER ONE — generated from tokens.json */
+:root, [data-theme="dark"] {
+  --surface-0: #16171b;
+  --surface-1: #1d1f25;
+  --surface-2: #23252c;
+  --surface-3: #2c2f37;
+  --card-bg: #121317;
+  --line: #2a2c33;
+  --line-strong: #6b707c;
+  --ink: #f3f4f6;
+  --ink-muted: #a3a8b2;
+  --ink-faint: #8b909b;
+  --brand: #d6ff3c;
+  --on-brand: #121317;
+  --on-brand-soft: rgba(18, 19, 23, 0.15);
+  --brand-ink: #d6ff3c;
+  --brand-soft: rgba(214, 255, 60, 0.14);
+  --mine: #5ee0ff;
+  --on-mine: #121317;
+  --mine-soft: rgba(94, 224, 255, 0.12);
+  --success: #4ade80;
+  --fail: #ff7a6b;
+  --warning: #ffb020;
+  --injury: #ff7ab8;
+  --neutral: #a3a8b2;
+  --success-soft: rgba(74, 222, 128, 0.14);
+  --fail-soft: rgba(255, 122, 107, 0.16);
+  --warning-soft: rgba(255, 176, 32, 0.14);
+  --injury-soft: rgba(255, 122, 184, 0.14);
+  --tier-normal: #a9aeb7;
+  --tier-key: #5cb2ff;
+  --tier-top: #b69cff;
+  --tier-world: #ff8a3d;
+  --tier-legend: #ffd23f;
+  --rarity-common: #a9aeb7;
+  --rarity-rare: var(--brand);
+  --rarity-epic: #b69cff;
+  --rarity-legend: #ffd23f;
+  --rating-1: #ff7a6b;
+  --rating-2: #ff9a3d;
+  --rating-3: #ffd23f;
+  --rating-4: #9be15d;
+  --rating-5: #5ee0ff;
+  --on-fill: #121317;
+  --form-1: var(--fail);
+  --form-2: #ff9a3d;
+  --form-3: var(--neutral);
+  --form-4: var(--success);
+  --form-5: var(--brand-ink);
+  --fatigue-low: #4ade80;
+  --fatigue-mid: #ffb020;
+  --fatigue-high: #ff7a6b;
+  --away: #ff8a3d;
+  --scrim: rgba(8, 9, 11, 0.72);
+  --choice-safe: #5ee0ff;
+  --choice-balanced: #d6ff3c;
+  --choice-gamble: #ff9a3d;
+  --pitch: #1b1e24;
+  --team-home: #d6ff3c;
+  --team-away: #ff8a3d;
+  --card-yellow: #ffd23f;
+  --card-red: #ff4d4d;
+  --focus: #5ee0ff;
+  --shadow-card: 0 10px 24px rgba(0, 0, 0, 0.35);
+  --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, 0.5);
+}
+[data-theme="light"] {
+  --surface-0: #f1f2f4;
+  --surface-1: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #e5e7eb;
+  --card-bg: #121317;
+  --line: #dcdfe4;
+  --line-strong: #7b8190;
+  --ink: #121317;
+  --ink-muted: #4b5160;
+  --ink-faint: #5c6270;
+  --brand: #d6ff3c;
+  --on-brand: #121317;
+  --on-brand-soft: rgba(18, 19, 23, 0.15);
+  --brand-ink: #4f6b00;
+  --brand-soft: rgba(110, 150, 0, 0.14);
+  --mine: #006690;
+  --on-mine: #ffffff;
+  --mine-soft: rgba(0, 102, 144, 0.10);
+  --success: #0b6e36;
+  --fail: #c62828;
+  --warning: #8a5a00;
+  --injury: #b8155a;
+  --neutral: #4b5160;
+  --success-soft: rgba(11, 110, 54, 0.10);
+  --fail-soft: rgba(198, 40, 40, 0.09);
+  --warning-soft: rgba(138, 90, 0, 0.10);
+  --injury-soft: rgba(184, 21, 90, 0.09);
+  --form-2: #a84f00;
+  --fatigue-low: #1f9d55;
+  --fatigue-mid: #e0a100;
+  --fatigue-high: #d93a3a;
+  --away: #d9661a;
+  --scrim: rgba(18, 19, 23, 0.48);
+  --choice-safe: #006690;
+  --choice-balanced: #4f6b00;
+  --choice-gamble: #a84f00;
+  --card-yellow: #e0a800;
+  --card-red: #d32f2f;
+  --focus: #006690;
+  --shadow-card: 0 4px 14px rgba(18, 19, 23, 0.10);
+  --shadow-sheet: 0 -8px 32px rgba(18, 19, 23, 0.16);
+}
+:root {
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+  --tap-min: 44px;
+  --button-h: 52px;
+  --card-w: 280px;
+  --slot-h: 116px;
+  --hand-w: 76px;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-display: Poppins, "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+@font-face { font-family: "Pretendard Variable"; src: url("fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-display: swap; }
+@font-face { font-family: "Poppins"; src: url("fonts/Poppins-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Poppins"; src: url("fonts/Poppins-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Poppins"; src: url("fonts/Poppins-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Poppins"; src: url("fonts/Poppins-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }

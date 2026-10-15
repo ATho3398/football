@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>훈련-주간계획</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 훈련-주간계획 (훈련 · 세이브) · 390×1240 · 원본 Training-Week.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1240px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="훈련" right="9월 3주차" eyebrow="이번 주 XP · 상한 6" value="{{xpNow}}" total="{{xpMax}}" pad="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="오늘 훈련 · 9/16 수" action="기술 · 마무리"></x-import>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <x-import component-from-global-scope="PlayerOne.StatChip" label="XP" value="+1.0" tone="brand"></x-import>
+      <x-import component-from-global-scope="PlayerOne.StatChip" label="피로" value="−3.5" tone="warning"></x-import>
+      <x-import component-from-global-scope="PlayerOne.StatChip" label="마무리 게이지" value="+1칸" tone="success"></x-import>
+    </div>
+    <div style="height: 6px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="주간 템플릿" action="날짜를 누르면 그날만 바꿔요"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <sc-for list="{{days}}" as="r" hint-placeholder-count="7">
+        <div style="display: grid; grid-template-columns: 42px 34px 1fr auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; border-radius: 14px; background: {{r.bg}}; color: {{r.ink}};">
+          <span style="display: flex; flex-direction: column; line-height: 1.1;"><b style="font-size: 14px;">{{r.d}}</b><span style="font-family: var(--font-display); font-size: 11px; color: {{r.mut}};">{{r.date}}</span></span>
+          <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: {{r.ib}}; color: {{r.ic}};"><x-import component-from-global-scope="PlayerOne.Icon" name="{{r.icon}}" size="{{s18}}"></x-import></span>
+          <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0;"><b style="font-size: 14px;">{{r.name}}</b><span style="font-size: 11px; font-weight: 600; color: {{r.mut}};">{{r.xp}}</span></span>
+          <span style="display: inline-flex; color: {{r.mut}};"><x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{s16}}"></x-import></span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="height: 6px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="묶음별 훈련 게이지" action="하루 +1칸 · 30칸이면 능력치 +1"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+      <sc-for list="{{gauges}}" as="g" hint-placeholder-count="7">
+        <x-import component-from-global-scope="PlayerOne.CellGauge" label="{{g.label}}" value="{{g.v}}" add="{{g.add}}"></x-import>
+      </sc-for>
+    </div>
+  </div>
+  <div style="margin-top: auto; height: 20px;"></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const T = {
+      tech: { icon: 'ball', name: '기술', xp: '+1.0', fat: '−3.5' }, hi: { icon: 'combo', name: '고강도', xp: '+1.5', fat: '−2' },
+      role: { icon: 'player', name: '포지션·역할', xp: '+0.5', fat: '−4' }, set: { icon: 'setpiece', name: '세트피스·카드', xp: '+0.5', fat: '−4' },
+      video: { icon: 'video', name: '영상 분석', xp: '+0.5', fat: '−4.5' }, rec: { icon: 'recover', name: '회복', xp: '0', fat: '−5.5' },
+      rest: { icon: 'rest', name: '휴식', xp: '0', fat: '−6' }, match: { icon: 'match', name: '경기', xp: '경기', fat: '' }
+    };
+    const row = (d, date, k, sub, today) => { const t = T[k]; return { d, date, icon: t.icon, name: t.name + (sub ? ' · ' + sub : ''), xp: k === 'match' ? '리그 6R (원정)' : 'XP ' + t.xp + (t.fat ? ' · 피로 ' + t.fat : ''),
+      bg: today ? 'var(--brand)' : 'var(--surface-1)', ink: today ? 'var(--on-brand)' : 'var(--ink)', mut: today ? 'var(--on-brand)' : 'var(--ink-muted)', ib: today ? 'var(--on-brand)' : 'var(--surface-3)', ic: today ? 'var(--brand)' : k === 'match' ? 'var(--brand-ink)' : 'var(--ink-muted)' }; };
+    const days = [
+      row('월', '9/14', 'rec'), row('화', '9/15', 'tech', '마무리'), row('수', '9/16', 'tech', '마무리', true), row('목', '9/17', 'rest'),
+      row('금', '9/18', 'video'), row('토', '9/19', 'match'), row('일', '9/20', 'rec')
+    ];
+    return {
+      no: false, s16: 16, s18: 18, xpNow: '1.0', xpMax: 6, days,
+      chips: ['오늘 끝나면 2.0', '남은 XP 5.0', { label: '기술: 마무리', soft: true }],
+      gauges: [
+        { label: '볼 다루기', v: 9, add: 0 }, { label: '마무리', v: 17, add: 1 }, { label: '패스·시야', v: 6, add: 0 }, { label: '수비', v: 3, add: 0 },
+        { label: '스피드·민첩', v: 21, add: 0 }, { label: '피지컬', v: 12, add: 0 }, { label: '멘탈', v: 14, add: 0 }
+      ]
+    };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

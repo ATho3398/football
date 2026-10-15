@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>훈련 - 하루 변경</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1000px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="훈련" right="9월 3주차" eyebrow="이번 주 XP · 상한 6" value="{{xpNow}}" total="{{xpMax}}" pad="{{no}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 6px; padding: 16px 16px 0;">
+      <sc-for list="{{days}}" as="r" hint-placeholder-count="7">
+        <div style="display: grid; grid-template-columns: 42px 34px 1fr auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; border-radius: 14px; background: {{r.bg}}; color: {{r.ink}};">
+          <span style="display: flex; flex-direction: column; line-height: 1.1;"><b style="font-size: 14px;">{{r.d}}</b><span style="font-family: var(--font-display); font-size: 11px; color: {{r.mut}};">{{r.date}}</span></span>
+          <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: {{r.ib}}; color: {{r.ic}};"><x-import component-from-global-scope="PlayerOne.Icon" name="{{r.icon}}" size="{{s18}}"></x-import></span>
+          <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0;"><b style="font-size: 14px;">{{r.name}}</b><span style="font-size: 11px; font-weight: 600; color: {{r.mut}};">{{r.xp}}</span></span>
+          <span style="display: inline-flex; color: {{r.mut}};"><x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{s16}}"></x-import></span>
+        </div>
+      </sc-for>
+  </div>
+  <div style="position: absolute; inset: 0; background: var(--scrim);"></div>
+  <div style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="9/17 목 · 이날만 바꿔요" title="훈련 고르기" subtitle="주간 템플릿은 그대로예요.">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <sc-for list="{{opts}}" as="o" hint-placeholder-count="7">
+          <x-import component-from-global-scope="PlayerOne.OptionRow" icon="{{o.icon}}" title="{{o.title}}" desc="{{o.desc}}" radio="{{yes}}" selected="{{o.on}}" on-click="{{noop}}"></x-import>
+        </sc-for>
+      </div>
+      <span style="display: block; margin: 12px 0 6px; font-size: 12px; font-weight: 800;">기술 묶음</span>
+      <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{groups}}" value="fin" label="기술 묶음"></x-import>
+      <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: 14px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}">취소</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}">이날만 바꾸기</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const T = {
+      tech: { icon: 'ball', name: '기술', xp: '+1.0', fat: '−3.5' }, hi: { icon: 'combo', name: '고강도', xp: '+1.5', fat: '−2' },
+      role: { icon: 'player', name: '포지션·역할', xp: '+0.5', fat: '−4' }, set: { icon: 'setpiece', name: '세트피스·카드', xp: '+0.5', fat: '−4' },
+      video: { icon: 'video', name: '영상 분석', xp: '+0.5', fat: '−4.5' }, rec: { icon: 'recover', name: '회복', xp: '0', fat: '−5.5' },
+      rest: { icon: 'rest', name: '휴식', xp: '0', fat: '−6' }, match: { icon: 'match', name: '경기', xp: '경기', fat: '' }
+    };
+    const row = (d, date, k, sub, today) => { const t = T[k]; return { d, date, icon: t.icon, name: t.name + (sub ? ' · ' + sub : ''), xp: k === 'match' ? '리그 6R (원정)' : 'XP ' + t.xp + (t.fat ? ' · 피로 ' + t.fat : ''),
+      bg: today ? 'var(--brand)' : 'var(--surface-1)', ink: today ? 'var(--on-brand)' : 'var(--ink)', mut: today ? 'var(--on-brand)' : 'var(--ink-muted)', ib: today ? 'var(--on-brand)' : 'var(--surface-3)', ic: today ? 'var(--brand)' : k === 'match' ? 'var(--brand-ink)' : 'var(--ink-muted)' }; };
+    const days = [
+      row('월', '9/14', 'rec'), row('화', '9/15', 'tech', '마무리'), row('수', '9/16', 'tech', '마무리', true), row('목', '9/17', 'rest'),
+      row('금', '9/18', 'video'), row('토', '9/19', 'match'), row('일', '9/20', 'rec')
+    ];
+    const o = (k, desc, on) => ({ icon: T[k].icon, title: T[k].name, desc: (T[k].xp === '0' ? 'XP 0 · ' : 'XP ' + T[k].xp + ' · ') + ('피로 ' + T[k].fat) + ' · ' + desc, on: !!on });
+    return {
+      yes: true, no: false, noop: () => {}, s16: 16, s18: 18, xpNow: '1.0', xpMax: 6, days,
+      opts: [o('tech', '고른 묶음 게이지 +1칸', true), o('hi', '모든 묶음 조금씩, 부상 위험'), o('role', '역할 적합도와 시그니처 숙련'), o('set', '세트피스·카드 숙련도'), o('video', '다음 상대 분석, 결정 확률 소폭 ↑'), o('rec', '피로를 많이 덜어요'), o('rest', '아무것도 안 해요')],
+      groups: [{ id: 'ball', label: '볼 다루기' }, { id: 'fin', label: '마무리' }, { id: 'pass', label: '패스·시야' }, { id: 'def', label: '수비' }, { id: 'spd', label: '스피드·민첩' }, { id: 'phy', label: '피지컬' }, { id: 'men', label: '멘탈' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

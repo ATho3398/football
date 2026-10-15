@@ -1,0 +1,16 @@
+<!-- @dsCard group="Navigation" height=205 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Tabs — preview</title></head>
+<body>
+<div id="root" style="padding:16px 0 0"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:16,width:390}},
+  h('div',{style:{padding:'0 16px'}},h(P.Tabs,{variant:'segment',value:'all',items:[{id:'all',label:'전체'},{id:'p',label:'패시브'},{id:'s',label:'세트피스'},{id:'c',label:'콤보'}]})),
+  h('div',{style:{padding:'0 16px'}},h(P.Tabs,{variant:'underline',value:'stats',items:[{id:'stats',label:'능력치'},{id:'pos',label:'포지션'},{id:'rec',label:'기록',badge:2}]})),
+  h(P.Tabs,{variant:'nav',value:'match',items:[{id:'home',label:'홈',icon:'home'},{id:'match',label:'경기',icon:'match'},{id:'player',label:'선수',icon:'player',badge:3},{id:'career',label:'커리어',icon:'career'},{id:'world',label:'월드',icon:'world'}]})));
+</script>
+</body>
+</html>

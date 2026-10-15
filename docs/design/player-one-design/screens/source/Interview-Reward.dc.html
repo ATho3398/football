@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>면담 - 보상 선택</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="감독 면담" eyebrow="감독 신뢰도" value="{{trust}}" total="{{max}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0;">
+    <div style="display: flex; gap: 10px; align-items: flex-start;">
+      <x-import component-from-global-scope="PlayerOne.Avatar" size="{{av}}" name="감독"></x-import>
+      <div style="padding: 12px 14px; border-radius: 4px 16px 16px 16px; background: var(--surface-1); font-size: 14px; line-height: 21px; font-weight: 600;">"요즘 경기력 좋다. 팀에 잘 녹아들고 있어. 원하는 게 있으면 하나 말해 봐."</div>
+    </div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="보상 고르기" action="1개"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <sc-for list="{{opts}}" as="o" hint-placeholder-count="3">
+        <x-import component-from-global-scope="PlayerOne.OptionRow" icon="{{o.icon}}" title="{{o.title}}" desc="{{o.desc}}" tag="{{o.tag}}" radio="{{yes}}" selected="{{o.on}}" on-click="{{noop}}"></x-import>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin-top: auto; padding: 20px 16px;">
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}">다음에요</x-import>
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}">이걸로 할게요</x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true, noop: () => {}, trust: 82, max: 100, av: 44,
+      chips: ['신뢰도 높음', { label: '보상 면담', soft: true }],
+      opts: [
+        { icon: 'player', title: '선호 슬롯 보장', desc: '다음 5경기 동안 내가 고른 위치(ST)에서 선발로 나가요.', tag: '신뢰도 80+', on: true },
+        { icon: 'card', title: '덱 슬롯 +1', desc: '이번 시즌 동안 덱에 한 장 더 넣을 수 있어요(최대 14장).', on: false },
+        { icon: 'star', title: '주전 보장', desc: '주전 경쟁 점수와 상관없이 선발로 나가요.', on: false }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

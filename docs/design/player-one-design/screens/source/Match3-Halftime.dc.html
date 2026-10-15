@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>경기 화면 - 하프타임</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="하프타임" right="리버사이드 1-0" on-back="{{no}}" eyebrow="전반 내 평점" value="7.4" progress="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 20px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="전반 흐름" action="점유율 56%"></x-import>
+    <x-import component-from-global-scope="PlayerOne.PossessionBar" home="{{poss}}" label="{{no}}"></x-import>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; background: var(--surface-1);">
+      <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="counter" formation="4-2-3-1"></x-import>
+      <span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">vs</span>
+      <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="gegen" formation="4-3-3" away="{{yes}}"></x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <sc-for list="{{feed}}" as="item" hint-placeholder-count="4">
+        <x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{item.minute}}" kind="{{item.kind}}" mine="{{item.mine}}" text="{{item.text}}" score="{{item.score}}"></x-import>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 20px 16px 0;">
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="감독 한마디"></x-import>
+    <div style="padding: 14px 16px; border-radius: 16px; background: var(--surface-1); font-size: 15px; line-height: 22px; font-weight: 600;">"박스 앞 침투 좋았어. 후반엔 상대 라인이 더 올라올 거야. 뒷공간 노려."</div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px;">
+      <x-import component-from-global-scope="PlayerOne.FatigueGauge" value="{{fatigue}}"></x-import>
+      <span style="font-size: 12px; font-weight: 600; color: var(--ink-muted);">전술은 포메이션·세부 전술·역할만 바꿀 수 있어요</span>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: auto; padding: 20px 16px;">
+    <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="tactic">전술</x-import>
+    <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="play">후반 시작</x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true, no: false, poss: 56, fatigue: 28,
+      chips: ['골 1', '슈팅 2', '패스 18/22', '결정 3회 중 2회 성공'],
+      feed: [
+        { minute: 12, kind: 'advantage', text: '어드밴티지 — 플레이 계속' },
+        { minute: 23, kind: 'shot', mine: true, text: '김민준 슈팅 — 세이브' },
+        { minute: 24, kind: 'corner', text: '코너킥 — 오른쪽' },
+        { minute: 25, kind: 'goal', mine: true, text: '골! 김민준', score: '1-0' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

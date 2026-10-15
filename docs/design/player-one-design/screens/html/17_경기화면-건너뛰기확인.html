@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기화면-건너뛰기확인</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기화면-건너뛰기확인 (I.4 경기 화면) · 390×844 · 원본 Match3-SkipConfirm.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home-tactic="{{homeTactic}}" away-tactic="{{awayTactic}}" home="리버사이드 FC" away="리버풀" home-score="{{one}}" away-score="{{zero}}" minute="{{minute}}" speed="2×" paused="{{yes}}"></x-import>
+  <div style="padding: 8px 16px 4px;">
+    <x-import component-from-global-scope="PlayerOne.Pitch" players="{{players}}" ball="{{ball}}"></x-import>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 16px;">
+    <sc-for list="{{feed}}" as="item" hint-placeholder-count="3">
+      <x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{item.minute}}" kind="{{item.kind}}" mine="{{item.mine}}" text="{{item.text}}" score="{{item.score}}"></x-import>
+    </sc-for>
+  </div>
+  <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--scrim);">
+    <x-import component-from-global-scope="PlayerOne.Modal" inline="{{yes}}" icon="skip" tone="warning" title="경기를 건너뛸까요?">
+      <p style="margin: 0;">남은 27분은 자동으로 진행돼요. 결정 순간도 자동으로 고르고 카드는 쓰지 않아요.</p>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 20px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}">계속 보기</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" block="{{yes}}">건너뛰기</x-import>
+      </div>
+    </x-import>
+  </div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const mk = (list, team) => list.map((p) => ({ x: p[0], y: p[1], num: p[2], team, me: !!p[3], label: p[3] ? '김민준' : undefined }));
+    const HOME = [[6,50,1],[30,16,2],[28,40,4],[28,60,5],[31,84,3],[47,30,8],[44,52,6],[52,70,10],[66,20,7],[70,48,9,1],[63,80,11]];
+    const AWAY = [[95,50,1],[81,22,2],[79,42,5],[80,60,4],[82,80,3],[68,28,7],[63,46,8],[64,62,6],[69,76,11],[54,38,9],[55,60,10]];
+    return {
+      homeTactic: { tactic: 'counter', formation: '4-2-3-1' }, awayTactic: { tactic: 'gegen', formation: '4-3-3' }, 
+      yes: true, one: 1, zero: 0, minute: 63,
+      players: mk(HOME, 'home').concat(mk(AWAY, 'away')),
+      ball: [52.6, 68.4],
+      feed: [
+        { minute: 57, kind: 'sub', text: '교체: 이도윤 OUT' },
+        { minute: 61, kind: 'foul', text: '파울: 상대 6번' },
+        { minute: 63, kind: 'normal', text: '박서진이 왼쪽으로 전개합니다' }
+      ]
+    };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

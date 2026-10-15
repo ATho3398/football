@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>홈 - 기본</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1340px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+  <x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" right="리그 5R" eyebrow="9월 · 토요일 · 시즌 1 5주차" value="12" pad="{{no}}" progress="{{no}}" chips="{{chips}}"></x-import>
+  <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 0;">
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;">
+      <sc-for list="{{week}}" as="d" hint-placeholder-count="7">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 0 6px; border-radius: 10px; background: {{d.bg}}; color: {{d.ink}}; box-shadow: {{d.ring}};">
+          <span style="font-size: 10px; font-weight: 700; opacity: .8;">{{d.w}}</span>
+          <b style="font-family: var(--font-display); font-size: 15px; line-height: 18px;">{{d.n}}</b>
+          <span style="display: inline-flex; height: 14px; color: {{d.ic}};"><x-import component-from-global-scope="PlayerOne.Icon" name="{{d.icon}}" size="{{s14}}"></x-import></span>
+        </div>
+      </sc-for>
+    </div>
+    <span style="font-size: 12px; color: var(--ink-muted);">다음 일정 · <b style="color: var(--ink);">오늘 15:00 리그 5R 리버풀전</b></span>
+    <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px;">
+      <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="calendar">하루 진행</x-import>
+      <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="play">계속 · 경기까지</x-import>
+    </div>
+    <div style="height: 6px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="다음 경기" action="오늘 15:00 · 홈"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 20px; background: var(--surface-1);">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="counter" formation="4-2-3-1"></x-import>
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">vs</span>
+        <x-import component-from-global-scope="PlayerOne.TacticChip" size="sm" tactic="gegen" team="리버풀" formation="4-3-3" away="{{yes}}"></x-import>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px;">
+        <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="tactic">전술</x-import>
+        <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="match">경기 전 준비</x-import>
+      </div>
+    </div>
+    <div style="height: 6px;"></div>
+    <x-import component-from-global-scope="PlayerOne.SectionTitle" title="주전 경쟁 · ST" action="선발 확률 24%"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 20px; background: var(--surface-1);">
+      <x-import component-from-global-scope="PlayerOne.Meter" label="감독 신뢰도" value="{{trust}}" show-value="{{yes}}" tone="mine"></x-import>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <sc-for list="{{rivals}}" as="r" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; font-size: 13px;">
+              <span style="font-weight: 800; color: {{r.nameInk}};">{{r.name}} <span style="font-size: 11px; font-weight: 600; color: var(--ink-muted);">{{r.detail}}</span></span>
+              <b style="font-family: var(--font-display); font-size: 16px; color: {{r.nameInk}};">{{r.total}}</b>
+            </div>
+            <div style="display: flex; height: 10px; border-radius: 3px; background: var(--surface-3); overflow: hidden;">
+              <i style="width: {{r.w0}}; background: var(--ink-faint);"></i><i style="width: {{r.w1}}; background: var(--mine);"></i><i style="width: {{r.w2}}; background: var(--brand);"></i><i style="width: {{r.w3}}; background: var(--fail);"></i>
+            </div>
+          </div>
+        </sc-for>
+        <div style="display: flex; gap: 12px; font-size: 10px; font-weight: 700; color: var(--ink-muted);">
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--ink-faint);"></i>슬롯 OVR</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--mine);"></i>신뢰도</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--brand);"></i>폼</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--fail);"></i>피로</span>
+          <span style="margin-left: auto;">막대 50점부터</span>
+        </div>
+      </div>
+      <div style="height: 1px; background: var(--line);"></div>
+      <span style="font-size: 12px; font-weight: 800;">최근 신뢰도 변화</span>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <sc-for list="{{why}}" as="y" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; font-size: 12px;"><b style="font-family: var(--font-display); color: {{y.c}};">{{y.v}}</b><span>{{y.t}}</span><span style="color: var(--ink-faint);">{{y.when}}</span></div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2);">
+        <x-import component-from-global-scope="PlayerOne.Icon" name="player" size="{{s18}}"></x-import>
+        <span style="flex-grow: 1; font-size: 12px; line-height: 17px;"><b>보상 면담</b> · 신뢰도 80 이상 <span style="color: var(--ink-muted);">(지금 62, 18 남음)</span></span>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: auto;">
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="nav" items="{{nav}}" value="home"></x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1340}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const day = (w, n, icon, kind, today) => ({ w, n, icon, bg: today ? 'var(--brand)' : kind === 'match' ? 'var(--surface-2)' : kind === 'off' ? 'transparent' : 'var(--surface-1)', ink: today ? 'var(--on-brand)' : 'var(--ink)', ic: today ? 'var(--on-brand)' : kind === 'match' ? 'var(--brand-ink)' : 'var(--ink-muted)', ring: kind === 'off' ? 'inset 0 0 0 1px var(--line)' : 'none' });
+    const span = 16; const w = (v) => Math.max(0, v / span * 100).toFixed(1) + '%';
+    const rv = (name, who, ovr, tr, form, fat, me) => ({ name, detail: who + ' · OVR ' + ovr + ' 신뢰 +' + tr + ' 폼 +' + form + (fat ? ' 피로 −' + Math.abs(fat) : ''), total: (ovr + tr + form + fat).toFixed(1), nameInk: me ? 'var(--mine)' : 'var(--ink)',
+      w0: w(ovr - 50), w1: w(tr), w2: w(form), w3: w(-fat) });
+    return {
+      yes: true, no: false, s14: 14, s18: 18, trust: 62,
+      chips: ['오늘 경기', { label: '리그 5R 리버풀전', soft: true }],
+      week: [day('월', 7, 'recover', 'train'), day('화', 8, 'train', 'train'), day('수', 9, 'train', 'train'), day('목', 10, 'rest', 'off'), day('금', 11, 'video', 'train'), day('토', 12, 'ball', 'match', true), day('일', 13, 'recover', 'train')],
+      rivals: [rv('오현우', '22세', 61, 0.6, 2.5, 0), rv('김민준', '나', 60, 0.6, 1.8, 0, true), rv('박태양', '25세 · 피로 72', 58, 0.6, 1.4, -2)],
+      why: [{ v: '+2', c: 'var(--success)', t: '평점 7.4 (애스턴전)', when: '3일 전' }, { v: '+1', c: 'var(--success)', t: '승리 (애스턴전)', when: '3일 전' }, { v: '−1', c: 'var(--fail)', t: '독단 플레이 실패 (71\')', when: '1주 전' }, { v: '+1', c: 'var(--success)', t: '역할대로 레이오프 연계', when: '1주 전' }, { v: '−2', c: 'var(--fail)', t: '교체 아웃에 불만 표시', when: '2주 전' }],
+      nav: [{ id: 'home', label: '홈', icon: 'home' }, { id: 'match', label: '경기', icon: 'match' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'career', label: '커리어', icon: 'career' }, { id: 'world', label: '세계', icon: 'world' }]
+    };
+  }
+}
+</script>
+</body>
+</html>
