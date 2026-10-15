@@ -1902,7 +1902,7 @@ E3.6 다음, E4 전에 한다. 엔진 층 구조는 E.1.1을 따른다.
 - **간이 획득 경로(3단계 플레이 검증용)**: 시즌 종료 보상으로 카드 3택 1, 레벨업 5레벨마다 카드 선택권, 역할 시그니처는 그 역할 10경기 출전. 돈 상점은 5-7에서 추가한다. 이 경로가 없으면 3단계 완료 시점에 카드가 늘지 않아 재미를 검증할 수 없다.
 
 ### F.2 카드 데이터 구조
-`id, name, kind(setPiece|passive|combo|defense|manage|directive), rarity, sceneTags(사용 가능한 장면), positionTags, requirements(능력치 최소값), effect(확률 %p, 평점 보정, 피로 보정 등), duration(1턴/남은 경기/다음 장면), downside(부작용), masteryBonus`
+`id, name, kind(play|setPiece|passive|combo|manage|signature|directive), positionGroup(공용|공격|미드|수비) (D.13: 예전 `defense` 종류는 없애고 "수비"는 포지션군 태그로 옮겼다. 수비 플레이 카드는 kind=play, positionGroup=수비), rarity, sceneTags(사용 가능한 장면), positionTags, requirements(능력치 최소값), effect(확률 %p, 평점 보정, 피로 보정 등), duration(1턴/남은 경기/다음 장면), downside(부작용), masteryBonus`
 
 ### F.2.1 카드 효과 스키마와 장면/선택지 id
 - **장면 id**(결정 순간 분류는 부록 E.11): `shot`, `dribble`, `keyPass`, `aerial`, `cross`, `counter`, `press`, `duel`, `freeKick`, `penalty`, `corner`, `oppShot`, `oppFreeKick`, `oppCorner`, (D.13) `lineCall`, `holdUp`, `rebound`.
