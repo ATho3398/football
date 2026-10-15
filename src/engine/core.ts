@@ -106,8 +106,37 @@ export function kickoffPositions(s: SimState): void {
   }
 }
 
-/** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수, 골킥은 GK) */
-export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delay: number, taker?: number): void {
+/** 범위 [lo, hi] 안 대기 시간 (시드) */
+export function restartWait(s: SimState, range: readonly [number, number], k = 0): number {
+  return range[0] + (range[1] - range[0]) * rand(s.seed, s.tick, 0, Purpose.Restart, k);
+}
+
+/** 재개 종류별 대기 시간 (E.18 A4) */
+function autoDelay(s: SimState, type: RestartType, x: number, y: number, offside: boolean): number {
+  const R = ENGINE.restart;
+  switch (type) {
+    case 'throwIn': return restartWait(s, R.throwIn);
+    case 'goalKick': return restartWait(s, R.goalKick);
+    case 'corner': return restartWait(s, R.corner);
+    case 'kickoff': return restartWait(s, R.kickoff);
+    case 'penalty': return restartWait(s, R.penalty);
+    case 'freeKick': {
+      if (offside) return restartWait(s, R.offside);
+      const gx = x > L / 2 ? L : 0;
+      const direct = dist(x, y, gx, W / 2) <= ENGINE.setPiece.directMax && Math.abs(y - W / 2) < 15;
+      return restartWait(s, direct ? R.directFreeKick : R.freeKick);
+    }
+  }
+}
+
+/** 진행 중인 재개를 늦춘다 (카드, 교체) */
+export function delayRestart(s: SimState, range: readonly [number, number], k: number): void {
+  if (s.restart) s.restart.at += restartWait(s, range, k);
+}
+
+/** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수, 골킥은 GK). delay 'auto' = 종류별 대기 시간 */
+export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delayArg: number | 'auto' | 'offside', taker?: number): void {
+  const delay = typeof delayArg === 'number' ? delayArg : autoDelay(s, type, x, y, delayArg === 'offside');
   const b = s.ball;
   b.owner = -1;
   b.flight = null;

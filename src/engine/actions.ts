@@ -93,8 +93,11 @@ function tackleWon(s: SimState, att: Agent, def: Agent): void {
   if (r(s, def.idx, Purpose.Tackle, 3) < PR.tackleKeep) {
     setOwner(s, def);
   } else {
+    // 태클로 튄 공 (E.18 A4): 무작위 방향, 속도 6~12 m/s
     const ang = r(s, def.idx, Purpose.Tackle, 4) * Math.PI * 2;
-    looseBall(s, att.x, att.y, Math.cos(ang) * 4, Math.sin(ang) * 4, def.team, def.idx);
+    const [lo, hi] = ENGINE.restart.tackleBounce;
+    const sp = lo + (hi - lo) * r(s, def.idx, Purpose.Tackle, 5);
+    looseBall(s, att.x, att.y, Math.cos(ang) * sp, Math.sin(ang) * sp, def.team, def.idx);
   }
   att.cooldown = 0.6;
 }
@@ -195,7 +198,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     const defTeam = (1 - a.team) as 0 | 1;
     if (r(s, a.idx, Purpose.Block, 1) < PR.blockCorner) {
       s.teams[a.team].stats.corners++;
-      setRestart(s, 'corner', a.team, gx, a.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+      setRestart(s, 'corner', a.team, gx, a.y < W / 2 ? 0 : W, 'auto');
       return;
     }
     const ang = r(s, a.idx, Purpose.Block, 2) * Math.PI * 2;
@@ -251,7 +254,7 @@ function shotArrives(s: SimState, fl: Flight): void {
     // 쳐내기: 코너 또는 리바운드
     if (r(s, shooter.idx, Purpose.Save, 2) < K.parryCorner) {
       s.teams[shooter.team].stats.corners++;
-      setRestart(s, 'corner', shooter.team, dir > 0 ? L : 0, s.ball.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+      setRestart(s, 'corner', shooter.team, dir > 0 ? L : 0, s.ball.y < W / 2 ? 0 : W, 'auto');
       return;
     }
     const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * 2.4;
@@ -276,7 +279,7 @@ function goal(s: SimState, scorer: Agent): void {
   });
   s.lastPass = null;
   for (const o of s.agents) if (o.onPitch && o.team !== scorer.team) o.rt.conceded++;
-  setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, ENGINE.restart.goalDelay);
+  setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, 'auto');
 }
 
 // ── 크로스, 롱볼, 공중볼 ──
@@ -298,7 +301,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   if (nd < 2.5 && r(s, a.idx, Purpose.Cross, 2) < PR.crossBlockCorner) {
     t.stats.corners++;
     const dir = attackDir(a.team, s.half);
-    setRestart(s, 'corner', a.team, dir > 0 ? L : 0, a.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+    setRestart(s, 'corner', a.team, dir > 0 ? L : 0, a.y < W / 2 ? 0 : W, 'auto');
     return;
   }
   const err = (100 - a.attrs.crossing) * PR.crossError;
@@ -311,8 +314,18 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   });
 }
 
-export function longBall(s: SimState, a: Agent, x: number, y: number, kind: 'clear' | 'long'): void {
+export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'clear' | 'long'): void {
   s.exemptPass = false;
+  let x = x0;
+  let y = y0;
+  if (kind === 'clear') {
+    // 클리어링 방향 산포 σ (E.18 A4)
+    const ang = randn(s.seed, s.tick, a.idx, Purpose.Clear, 2) * ((ENGINE.restart.clearSpreadDeg * Math.PI) / 180);
+    const dx = x0 - a.x;
+    const dy = y0 - a.y;
+    x = a.x + dx * Math.cos(ang) - dy * Math.sin(ang);
+    y = a.y + dx * Math.sin(ang) + dy * Math.cos(ang);
+  }
   const err = (100 - a.attrs.longPassing) * 0.08 + 2;
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
@@ -351,7 +364,9 @@ function resolveAerial(s: SimState, fl: Flight): void {
     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
   }
   if (!bestA && !bestD) {
-    looseBall(s, b.x, b.y, (fl.toX - fl.fromX) * 0.05, (fl.toY - fl.fromY) * 0.05, att, passer.idx);
+    // 측면에서 튄 공은 바깥쪽으로 (E.18 A4)
+    const out = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * ENGINE.restart.wideBias : 0;
+    looseBall(s, b.x, b.y, (fl.toX - fl.fromX) * 0.05, (fl.toY - fl.fromY) * 0.05 + out, att, passer.idx);
     return;
   }
   let winner: Agent;
@@ -396,7 +411,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
   const dirDef = attackDir(def, s.half);
   if (fl.fromCross && r(s, winner.idx, Purpose.Header) < PR.clearCorner) {
     s.teams[att].stats.corners++;
-    setRestart(s, 'corner', att, dirAtt > 0 ? L : 0, b.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+    setRestart(s, 'corner', att, dirAtt > 0 ? L : 0, b.y < W / 2 ? 0 : W, 'auto');
     return;
   }
   if (!fl.fromCross && r(s, winner.idx, Purpose.Header, 2) < 0.4) {
@@ -407,7 +422,9 @@ function resolveAerial(s: SimState, fl: Flight): void {
   }
   const [lo, hi] = PR.clearDist;
   const len = lo + (hi - lo) * r(s, winner.idx, Purpose.Header, 1);
-  const ang = (r(s, winner.idx, Purpose.Header, 3) - 0.5) * 1.6;
+  // 걷어내기 방향 산포 σ (E.18 A4). 측면 경합이면 바깥쪽 편향
+  const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
+  const ang = randn(s.seed, s.tick, winner.idx, Purpose.Header, 3) * ((ENGINE.restart.clearSpreadDeg * Math.PI) / 180) + wideOut;
   looseBall(s, b.x, b.y, 0, 0, def, winner.idx);
   s.ball.flight = {
     kind: 'clear', fromX: b.x, fromY: b.y, toX: b.x + dirDef * Math.cos(ang) * len, toY: clamp(b.y + Math.sin(ang) * len, -2, W + 2),
@@ -489,11 +506,12 @@ export function resolveFlight(s: SimState): void {
       break;
     }
   }
-  // 루즈볼: 진행 방향으로 굴러간다
+  // 루즈볼: 진행 방향으로 굴러간다. 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 (E.18 A4 빗나간 패스)
   const dx = fl.toX - fl.fromX;
   const dy = fl.toY - fl.fromY;
   const d = Math.sqrt(dx * dx + dy * dy) || 1;
-  const sp = fl.air ? 2 : 4;
+  const v0 = d / Math.max(0.1, fl.dur);
+  const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(4, v0 - ENGINE.ball.groundDecel * fl.dur);
   b.vx = (dx / d) * sp;
   b.vy = (dy / d) * sp;
 }
@@ -605,5 +623,5 @@ export function takePenalty(s: SimState, a: Agent): void {
     looseBall(s, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
     return;
   }
-  setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, ENGINE.restart.goalKickDelay);
+  setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, 'auto');
 }

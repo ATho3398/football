@@ -57,6 +57,8 @@ export const ENGINE = {
   // ── 공 (E.4) ──
   ball: {
     groundDecel: 1.2,
+    /** 공중볼이 땅에 떨어진 뒤 남는 수평 속도 비율 */
+    airBounce: 0.3,
     passSpeedBase: 8,
     passSpeedPerM: 0.55,
     passSpeedMin: 10,
@@ -347,12 +349,24 @@ export const ENGINE = {
     /** 75분 이후에는 스태미나와 무관하게 이 확률로 교체 (판단마다) */
     lateChance: 0.25,
   },
+  /** 재개 대기 시간 (E.18 A4, 초, 시드로 범위 안 추첨). 시계는 계속 가고 선수들은 세트피스 위치로 걸어간다 */
   restart: {
-    throwInDelay: 6,
-    goalKickDelay: 10,
-    cornerDelay: 14,
-    freeKickDelay: 12,
-    goalDelay: 45,
+    throwIn: [8, 12] as [number, number],
+    goalKick: [15, 25] as [number, number],
+    corner: [25, 35] as [number, number],
+    freeKick: [20, 35] as [number, number],
+    /** 직접 프리킥 거리(setPiece.directMax 안, 골대 중앙 15 m 안) */
+    directFreeKick: [40, 60] as [number, number],
+    offside: [15, 25] as [number, number],
+    /** 골 후 킥오프 */
+    kickoff: [45, 75] as [number, number],
+    card: [10, 20] as [number, number],
+    sub: [20, 40] as [number, number],
+    penalty: [60, 90] as [number, number],
+    /** 터치라인 아웃 (E.18 A4): 클리어링 방향 산포 σ (도), 태클로 튄 공 속도 (m/s), 측면 경합 바깥쪽 편향 (m/s) */
+    clearSpreadDeg: 35,
+    tackleBounce: [6, 12] as [number, number],
+    wideBias: 3,
   },
 
   // ── 평점 (E.12) ──

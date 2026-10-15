@@ -178,7 +178,7 @@ function ballOut(s: SimState): void {
   const last = b.lastTeam;
   const other = (1 - last) as 0 | 1;
   if (b.y < 0 || b.y > W) {
-    setRestart(s, 'throwIn', other, clamp(b.x, 0.5, L - 0.5), b.y < 0 ? 0 : W, ENGINE.restart.throwInDelay);
+    setRestart(s, 'throwIn', other, clamp(b.x, 0.5, L - 0.5), b.y < 0 ? 0 : W, 'auto');
     return;
   }
   // 골라인: 넘은 쪽 골을 지키는 팀
@@ -186,10 +186,10 @@ function ballOut(s: SimState): void {
   const attacking = (1 - defending) as 0 | 1;
   if (last === defending) {
     s.teams[attacking].stats.corners++;
-    setRestart(s, 'corner', attacking, b.x > L ? L : 0, b.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+    setRestart(s, 'corner', attacking, b.x > L ? L : 0, b.y < W / 2 ? 0 : W, 'auto');
   } else {
     const gx = b.x > L ? L - 5.5 : 5.5;
-    setRestart(s, 'goalKick', defending, gx, W / 2 + (b.y < W / 2 ? -9 : 9), ENGINE.restart.goalKickDelay);
+    setRestart(s, 'goalKick', defending, gx, W / 2 + (b.y < W / 2 ? -9 : 9), 'auto');
   }
 }
 

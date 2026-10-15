@@ -1,7 +1,7 @@
 // 심판 (E.10): 파울, 어드밴티지, 카드와 퇴장(수적 열세), 오프사이드
 
 import { ENGINE } from './config';
-import { event, setRestart } from './core';
+import { delayRestart, event, setRestart } from './core';
 import { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } from './pitch';
 import { Purpose, rand } from './rng';
 import type { Agent, CardType, SimState } from './state';
@@ -48,6 +48,7 @@ function respace(s: SimState, team: 0 | 1, line: number): void {
 
 export function giveCard(s: SimState, a: Agent, card: CardType): void {
   if (!a.onPitch) return;
+  delayRestart(s, ENGINE.restart.card, 1);
   if (card === 'yellow') {
     a.stats.yellows++;
     s.teams[a.team].stats.yellows++;
@@ -119,9 +120,9 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
   if (card) s.pendingCards.push({ agent: fouler.idx, card });
   if (inBox) {
     const [gx] = [dir > 0 ? L - 11 : 11];
-    setRestart(s, 'penalty', team, gx, W / 2, ENGINE.restart.freeKickDelay);
+    setRestart(s, 'penalty', team, gx, W / 2, 'auto');
   } else {
-    setRestart(s, 'freeKick', team, clamp(x, 1, L - 1), clamp(y, 1, W - 1), ENGINE.restart.freeKickDelay);
+    setRestart(s, 'freeKick', team, clamp(x, 1, L - 1), clamp(y, 1, W - 1), 'auto');
   }
   issuePendingCards(s);
   return true;
@@ -141,7 +142,7 @@ export function checkAdvantage(s: SimState): void {
   if (lost && s.t - adv.t <= R.advantageWindow) {
     s.advantage = null;
     if (adv.card) s.pendingCards.push({ agent: adv.fouler, card: adv.card });
-    setRestart(s, 'freeKick', adv.team, clamp(adv.x, 1, L - 1), clamp(adv.y, 1, W - 1), ENGINE.restart.freeKickDelay);
+    setRestart(s, 'freeKick', adv.team, clamp(adv.x, 1, L - 1), clamp(adv.y, 1, W - 1), 'auto');
     issuePendingCards(s);
     return;
   }
@@ -207,7 +208,7 @@ export function callOffside(s: SimState, passer: Agent, receiver: Agent): void {
   s.teams[passer.team].stats.offsides++;
   event(s, 'offside', passer.team, [receiver.id]);
   const def = (1 - passer.team) as 0 | 1;
-  setRestart(s, 'freeKick', def, clamp(receiver.x, 1, L - 1), clamp(receiver.y, 1, W - 1), ENGINE.restart.freeKickDelay);
+  setRestart(s, 'freeKick', def, clamp(receiver.x, 1, L - 1), clamp(receiver.y, 1, W - 1), 'offside');
   if (s.restart) s.restart.indirect = true;
   issuePendingCards(s);
 }
