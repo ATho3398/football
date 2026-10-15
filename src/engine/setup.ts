@@ -37,16 +37,20 @@ export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpe
 }
 
 /**
- * 약팀의 상대별 대응 (E.20 9번, AI 감독): 상대 레이팅이 underdogGap 이상 높으면 라인·압박을 한 단계 내리고,
- * underdogSwitch 확률(시드)로 성향을 수비 블록/역습으로 바꾼다. 내 팀(사용자 전술)에는 쓰지 않는다
+ * 약팀의 상대별 대응 (E.20 9번, C.17 결정 4, AI 감독): 상대 레이팅이 underdogGap 이상 높으면 라인·압박을 한 단계 내리고,
+ * underdogSwitch 확률(시드)로 성향을 수비 블록/역습으로 바꾼다. underdogBigGap 이상이면 수비 블록/역습을 확정하고 두 단계 내린다.
+ * 내 팀(사용자 전술)에는 쓰지 않는다
  */
 export function underdogPlan(teamId: string, rating: number, oppRating: number, tactics: Tactics, worldSeed: string): Tactics {
   const T = ENGINE.tactics;
-  if (oppRating - rating < T.underdogGap) return tactics;
+  const gap = oppRating - rating;
+  if (gap < T.underdogGap) return tactics;
+  const big = gap >= T.underdogBigGap;
   const rng = createRng(hashSeed(`${worldSeed}:underdog:${teamId}:${Math.round(oppRating * 10)}`));
-  const tendency: Tendency = rng() < T.underdogSwitch ? (rng() < 0.5 ? 'block' : 'counter') : tactics.tendency;
+  const tendency: Tendency = big || rng() < T.underdogSwitch ? (rng() < 0.5 ? 'block' : 'counter') : tactics.tendency;
   const base = tendency === tactics.tendency ? tactics : { ...tacticsOf(tendency), style: tactics.style };
-  const down = (d: 'lineHeight' | 'pressing') => LEVELS[d][Math.max(0, levelOf(d, base[d]) - 1)]!;
+  const steps = big ? 2 : 1;
+  const down = (d: 'lineHeight' | 'pressing') => LEVELS[d][Math.max(0, levelOf(d, base[d]) - steps)]!;
   return { ...base, lineHeight: down('lineHeight'), pressing: down('pressing') };
 }
 

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 4;
+export const ENGINE_VERSION = 5;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -145,6 +145,8 @@ export const ENGINE = {
     /** 약팀 대응 (E.20 9번): 상대가 이만큼 이상 강하면, 성향 전환 확률 */
     underdogGap: 5,
     underdogSwitch: 0.5,
+    /** 큰 차이 (C.17 결정 4): 상대가 이만큼 이상 강하면 수비 블록/역습 확정, 라인·압박 두 단계 아래 */
+    underdogBigGap: 12,
     /** 경기 상황 (E.20 10번): 2골 / 3골 이상 앞선 팀의 위험한 선택(침투 패스, 드리블 돌파, 먼 슛) 효용 배수와 유지 템포 배수 */
     leadRisk2: 0.85,
     leadRisk3: 0.75,
@@ -290,6 +292,12 @@ export const ENGINE = {
     carryTime: 1.0,
     /** 몰고 가기 성공 = 0.98 − 압박 × carryPressure */
     carryPressure: 0.5,
+    /**
+     * 몰고 가기 실패 (C.17 결정 3): 수비수가 몰고 가는 동안 좁히는 거리 = carryClose(초) × 최대 속도.
+     * 공을 지키는 능력(드리블·볼 컨트롤) 10 마다 실패 × exp(−carrySkill)
+     */
+    carryClose: 0.3,
+    carrySkill: 0.3,
     holdTime: 1.0,
     /**
      * 효용 스케일: softmax 전에 곱한다 (C.16 결정 3: 상한을 풀고 4·5·6·8·12 를 측정했다. 1 올릴 때마다 롱패스 비율 −1.7%p, 득점 +0.3골이라 4 유지) (τ 는 이 스케일 기준). 골 단위에서 τ 0.06 선수가 효용 차 0.01골이면 약 60:40,
@@ -347,7 +355,7 @@ export const ENGINE = {
     skillBlendFrom: 25,
     skillBlendTo: 45,
     /** 25 m 너머 m당 감쇠 (롱패스 정확도, E3.5 B) */
-    longPerM: 0.025,
+    longPerM: 0.04,
     laneWidth: 1.8,
     laneBase: 0.25,
     laneIntercept: 0.15,

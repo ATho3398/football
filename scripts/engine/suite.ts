@@ -1,8 +1,11 @@
 // 엔진 통계 점검 스위트 (E.15, E.15.1, E.18 0번): 표본 구성 → 병렬 실행 → 지표 계산
 // 전체 점검(balance:engine), 경량 회귀 가드(balance:engine:check), 상수 스윕(balance:sweep)이 같이 쓴다.
 
+import type { FieldAttribute, GkAttributes } from '../../src/attributes';
 import { FORMATION_SLOTS, FORMATIONS, type Formation } from '../../src/formations';
-import { posGroup, type PosGroup } from '../../src/roster';
+import { createTeamRoster, posGroup, rosterRating, type PosGroup } from '../../src/roster';
+import { teamSetupFromRoster } from '../../src/engine/setup';
+import { curveAttr } from '../../src/engine/sim';
 import type { TeamStats } from '../../src/engine/types';
 import type { AttrMod, CompactPlayer, Job, JobOut, LeagueMatchOut, MatchJob, MatchOut, SeasonOut, TeamSpec } from './job';
 import { runJobs } from './pool';
@@ -48,7 +51,7 @@ export interface ResponseRow {
 /** 스탯 반응 통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(단측 95%), 크기가 기준값의 70% 이상 */
 export const RESP_SHARE = 0.7;
 
-/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, 2026-10-15 추가 확정 6번). E3.5 2차 보정이 끝나면 false 로 되돌린다 */
+/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, C.17 결정 5: 시즌 XP 비 상한만 1.2, 득점·ST 반응은 원래 범위). 보정이 끝나면 false 로 되돌린다 */
 export const TEMP_GUARD = true;
 const BOOT = 400;
 
@@ -315,6 +318,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'throwIns', '스로인', '15~22', perTeam(eq, (s) => s.throwIns), 15, 22);
     add(S, 'goalKicks', '골킥', '6~10', perTeam(eq, (s) => s.goalKicks), 6, 10);
     add(S, 'longPct', '롱패스(30 m 이상) 비율 %', '10~16', ratio(totTeam(eq, (s) => s.longPasses), totTeam(eq, (s) => s.passes)) * 100, 10, 16);
+    // C.17 결정 2: 30 m 이상 패스 성공률 (실제 약 50~60%)
+    add(S, 'longDone', '롱패스(30 m 이상) 성공률 %', '50~60', ratio(totTeam(eq, (s) => s.longCompleted), totTeam(eq, (s) => s.longPasses)) * 100, 50, 60);
     add(S, 'counterPct', '역습 슈팅(소유 10초 안) %', '15~25', ratio(totTeam(eq, (s) => s.counterShots), totTeam(eq, (s) => s.shots)) * 100, 15, 25);
     add(S, 'gkShotPct', '골킥 직후 15초 안 슈팅 %', '5 이하', ratio(totTeam(eq, (s) => s.goalKickShots), totTeam(eq, (s) => s.shots)) * 100, 0, 5);
     add(S, 'ms', '경기 계산 시간 ms (워커)', '2000 이하', msPerMatch, 0, 2000, 0);
@@ -429,7 +434,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const total = avg(sa.map((x) => x.xp)) / Math.max(1, avg(sq.map((x) => x.xp)));
     add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
       // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
-      guard: TEMP_GUARD ? [0.85, 1.3] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
+      guard: TEMP_GUARD ? [0.85, 1.2] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
     });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
@@ -482,18 +487,45 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       const champ = rows.reduce((x, y) => (y[1].pts > x[1].pts || (y[1].pts === x[1].pts && y[1].gf - y[1].ga > x[1].gf - x[1].ga) ? y : x));
       const boot = [...sc.entries()].reduce((x, y) => (y[1] > x[1] ? y : x), ['', 0] as [string, number]);
       const goals = rows.reduce((t2, r) => t2 + r[1].gf, 0) / ms.length / 2;
-      return { top, leak, champ, boot, goals };
+      return { top, leak, champ, boot, goals, kane: sc.get('kane') ?? 0 };
     });
     const m = (f: (x: (typeof per)[number]) => number) => avg(per.map(f));
     add(S, 'lgTopGF', '최다 득점 팀 골', '85~105', m((x) => x.top[1].gf), 85, 105, 0, { note: per.map((x) => `${x.top[0]} ${x.top[1].gf}`).join(', ') });
     add(S, 'lgTopGA', '최다 실점 팀 실점', '60~85', m((x) => x.leak[1].ga), 60, 85, 0, { note: per.map((x) => `${x.leak[0]} ${x.leak[1].ga}`).join(', ') });
     add(S, 'lgBoot', '득점왕 골', '22~38', m((x) => x.boot[1]), 22, 38, 0, { note: per.map((x) => `${x.boot[0]} ${x.boot[1]}`).join(', ') });
     add(S, 'lgChamp', '우승팀 승점', '85~100', m((x) => x.champ[1].pts), 85, 100, 0, { note: per.map((x) => `${x.champ[0]} ${x.champ[1].pts}`).join(', ') });
+    // C.17: 실제 플레이에서 확인된 케인 시즌 50~60골 (45골 이상이면 멈춤 조건)
+    add(S, 'lgKane', '케인 시즌 골', '득점왕 범위 22~38 (45 이상 멈춤)', m((x) => x.kane), 10, 38, 0, { note: per.map((x) => `${x.kane}`).join(', ') });
     add(S, 'lgGoals', '리그 경기당 팀 득점 (참고)', '약 1.4', m((x) => x.goals), 1.2, 1.6, 2);
   }
 
   const responses = eq.length ? analyzeResponses(res, eq) : [];
   return { mode, rows, responses, matches: nMatches, seconds, msPerMatch, extra };
+}
+
+/**
+ * 스탯 반응 기준의 실효 환산 (C.17 결정 1): 엔진은 모든 능력치에 S자 곡선(E.20 11번)을 쓰므로 +10 이 실제로는 그보다 작다.
+ * 반응 표본과 같은 팀·슬롯 선수의 바꾼 능력치마다 (곡선(능력치 + 10) − 곡선(능력치)) / 10 을 평균한 비율을 기준값에 곱한다
+ */
+function effectiveRatio(r: ResponseDef, n: number): number {
+  let tot = 0;
+  let cnt = 0;
+  for (let i = 0; i < n; i++) {
+    for (const side of ['a', 'b']) {
+      const t = std(side, i);
+      const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
+      roster.formation = '4-4-2';
+      const p = teamSetupFromRoster(roster, rosterRating(roster), 75, `w${1000 + i}`).lineup.find((x) => x.slot === r.slot);
+      if (!p) continue;
+      for (const k of r.attrs) {
+        const v = k.startsWith('gk.') ? p.gk?.attrs[k.slice(3) as keyof GkAttributes] : p.attrs[k as FieldAttribute];
+        if (v === undefined) continue;
+        tot += (curveAttr(Math.min(99, v + 10)) - curveAttr(v)) / 10;
+        cnt++;
+      }
+    }
+  }
+  return cnt ? tot / cnt : 1;
 }
 
 function analyzeResponses(res: Map<string, JobOut[]>, eqAll: MatchOut[]): ResponseRow[] {
@@ -502,9 +534,13 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqAll: MatchOut[]): Respon
     const mod = res.get(`resp:${r.key}`) as MatchOut[] | undefined;
     if (!mod?.length) continue;
     const eq = eqAll.slice(0, mod.length);
+    const eff = effectiveRatio(r, Math.min(mod.length, 100));
     const B = tracked(eq, r.slot);
     const X = tracked(mod, r.slot);
-    const push = (metric: string, criterion: string, f: (ps: CompactPlayer[], ms: MatchOut[]) => number, unit: ResponseRow['unit'], need: number, guard?: number) => {
+    const push = (metric: string, criterion0: string, f: (ps: CompactPlayer[], ms: MatchOut[]) => number, unit: ResponseRow['unit'], need0: number, guard?: number) => {
+      const scaled = Math.abs(need0) >= 0.001;
+      const need = scaled ? need0 * eff : need0;
+      const criterion = scaled ? `${criterion0} (실효 ×${eff.toFixed(2)} → ${need >= 0 ? '+' : ''}${need.toFixed(1)}${unit})` : criterion0;
       const diff = (b: number, m: number) => (unit === '%' ? (m / Math.max(1e-9, b) - 1) * 100 : m - b);
       const base = f(B, eq);
       const m = f(X, mod);
@@ -525,8 +561,7 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqAll: MatchOut[]): Respon
     switch (r.key) {
       case 'st_shoot':
         push('유효 슈팅률 %', '+4%p 이상', rate((p) => p.shotsOnTarget, (p) => p.shots), '%p', 4);
-        // 엔진 보정 중 임시 가드 (부록 C.13): 수비 주의 집중으로 반응이 음수가 되어 배포를 막지 않게 −30 이상
-        push('경기당 득점', '+12% 이상', perP((p) => p.goals), '%', 12, TEMP_GUARD ? -30 : 5);
+        push('경기당 득점', '+12% 이상', perP((p) => p.goals), '%', 12, 5);
         break;
       case 'cm_pass':
         push('패스 성공률 %', '+2%p 이상', rate((p) => p.passesCompleted, (p) => p.passes), '%p', 2, 0);

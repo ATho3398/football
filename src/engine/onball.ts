@@ -147,17 +147,26 @@ export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
 }
 
 /**
- * 몰고 가기 동안 빼앗길 확률 (E.20): 지금 위치에서 도착 지점까지 가는 길에서 3 m 안 상대마다 holdLose × (1 − 길까지 거리/3) 를 독립 합성.
- * 도착 지점만 보면 바로 옆이나 길목의 수비수를 무시하고 골문 앞까지 몰고 들어간다
+ * 몰고 가기 동안 빼앗길 확률 (E.20, C.17 결정 3): 지금 위치에서 도착 지점까지 가는 길에서, 상대마다
+ * 몰고 가는 동안 좁힐 수 있는 거리(carryClose × 최대 속도)를 뺀 실효 거리가 3 m 안이면 holdLose × (1 − 실효 거리/3) 를 독립 합성.
+ * 공을 지키는 능력(드리블 0.5 + 볼 컨트롤 0.5)이 실패를 exp(−carrySkill × (능력치 − 70)/10) 배로 줄이거나 늘린다 (평균 선수는 그대로)
  */
-export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number): number {
+export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who: Agent = a): number {
   let keep = 1;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === a.team) continue;
-    const [d] = segDist(o.x, o.y, a.x, a.y, cx, cy);
+    const d = carryReachDist(s, o, a, cx, cy);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
   }
-  return 1 - keep;
+  const skill = who.attrs.dribbling * 0.5 + who.attrs.ballControl * 0.5;
+  return clamp((1 - keep) * Math.exp((-O.carrySkill * (skill - PR.skillCenter)) / 10), 0, 0.95);
+}
+
+/** 상대 o 가 몰고 가는 길(a → (cx, cy))에 닿는 실효 거리: 길까지 거리 − 몰고 가는 동안 좁히는 거리 (돌파당한 수비수는 좁히지 못한다) */
+export function carryReachDist(s: SimState, o: Agent, a: Agent, cx: number, cy: number): number {
+  const [d] = segDist(o.x, o.y, a.x, a.y, cx, cy);
+  const close = s.t < o.beatenUntil ? 0 : O.carryClose * o.maxSpeed;
+  return Math.max(0, d - close);
 }
 
 function weight(u: number, m: number): number {
@@ -480,9 +489,11 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
         const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk);
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
-        // 몰고 가기: 가는 길 주변 수비수 전원의 압박으로 빼앗길 확률 (유지와 같은 식, 능력치와 무관)
-        const p = clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy)), 0.05, 0.98);
-        const u = weight(p * value + (1 - p) * lossHere, a.role.pref.dribble);
+        // 몰고 가기: 가는 길로 좁혀 오는 수비수들의 압박으로 빼앗길 확률. 공을 지키는 능력치가 줄인다 (C.17 결정 3)
+        const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
+        const p = cp(a);
+        const pj = judgedP(p, cp(av));
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble);
         out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
       }
     }

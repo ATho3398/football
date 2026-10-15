@@ -5,7 +5,7 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb } from './duel';
 import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
-import { crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, segDist, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -101,8 +101,8 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
   let bd: number = ENGINE.prob.pressureDist;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === a.team || s.t < o.beatenUntil) continue;
-    // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에서 가장 가까운 수비수, 유지는 지금 위치에서 가장 가까운 수비수
-    const d = c.type === 'carry' ? segDist(o.x, o.y, a.x, a.y, c.x, c.y)[0] : dist(o.x, o.y, a.x, a.y);
+    // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에 가장 먼저 닿는 수비수(실효 거리), 유지는 지금 위치에서 가장 가까운 수비수
+    const d = c.type === 'carry' ? carryReachDist(s, o, a, c.x, c.y) : dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
       bd = d;
       def = o;
