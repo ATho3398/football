@@ -108,6 +108,19 @@ await act('sim-rest-ok');
 await page.waitForSelector('.screen-season', { timeout: 120000 });
 await shot('51_시즌종료-요약');
 
+// 비시즌 홈: 주 포지션 변경 요청 (D.3)
+await page.goto(URL_);
+await act('continue');
+await page.waitForTimeout(400);
+await shot('22c_홈-비시즌');
+await act('pos-open');
+await act('pos-pick', '[data-v="CF"]');
+await shot('D3_주포지션변경-시트', false);
+await act('pos-change');
+await page.waitForTimeout(300);
+await act('go-tab', '[data-v="player"]');
+await shot('44b_선수-숙련도·배지');
+
 // 은퇴 (56): 30세 실제 선수로 한 시즌 뒤 은퇴
 await page.goto(URL_);
 await act('go', '[data-to="new"]');

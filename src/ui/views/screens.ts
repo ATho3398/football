@@ -166,6 +166,7 @@ export function seasonView(vm: SeasonVM): string {
     : '<p class="muted small">최고 위상 티어예요. 성장 구간이 모두 열렸어요.</p>';
   return `${hero}<div class="body">
     ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
+    ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 100점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${SectionTitle({ title: '내 시즌', action: `${vm.apps}경기` })}
     ${statTiles([{ value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }, { value: vm.injuries, label: `부상 (${vm.injuredWeeks}주)` }])}

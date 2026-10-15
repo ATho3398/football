@@ -13,13 +13,15 @@ import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
 import type { PlayerState } from '../types';
+import { BADGE_NAMES_KO } from '../badges';
 import { Button, Modal, Toast, type ToastProps } from './components';
 import {
-  allocateVM, homeVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
+  allocateVM, homeVM, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
 import { navBar } from './views/common';
-import { homeView } from './views/home';
+import { homeView, positionChangeSection, positionSheet } from './views/home';
+import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
@@ -41,6 +43,8 @@ const ui = {
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
   alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; open: Set<string> },
   worldTab: 'table' as 'table' | 'stars',
+  /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
+  posSheet: null as string | null,
   form: { mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '' },
 };
 
@@ -69,6 +73,12 @@ function showToast(t: ToastProps | string, ms = 2200): void {
   }, ms);
 }
 
+/** 레전드 배지 알림 (D.4) */
+function badgeToast(g: GameState): void {
+  const b = g.lastSeasonSummary?.badges ?? [];
+  if (b.length) showToast({ kind: 'badge', title: `레전드 배지 · ${BADGE_NAMES_KO[b[0]!.id]}`, body: '위상이 100점 올랐어요.' }, 3500);
+}
+
 function confirmModal(m: ModalState): void {
   ui.modal = m;
   render();
@@ -95,7 +105,11 @@ function screenHtml(): string {
   if (!g) return titleScreen();
   if (g.phase === 'retired' && !['retired', 'season', 'saves', 'player'].includes(ui.screen)) return retiredView(retiredVM(g));
   switch (ui.screen) {
-    case 'home': return homeView(homeVM(g));
+    case 'home': {
+      const pos = g.phase === 'offseason' ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position))) : '';
+      const sheet = ui.posSheet && g.phase === 'offseason' ? positionSheet(positionOptionsVM(g), ui.posSheet) : '';
+      return homeView(homeVM(g), pos) + sheet;
+    }
     case 'player': return playerView(playerVM(g));
     case 'world': return worldView(worldVM(g), ui.worldTab);
     case 'replay':
@@ -177,6 +191,7 @@ function startSimRest(g: GameState): void {
       ui.toast = null;
       autosave();
       go('season');
+      badgeToast(g);
       return;
     }
     playRound(g);
@@ -200,6 +215,29 @@ app.addEventListener('click', (ev) => {
   const v = el.dataset.v;
 
   switch (act) {
+    case 'pos-open':
+      if (!g) return;
+      ui.posSheet = g.player.position;
+      render();
+      return;
+    case 'pos-pick':
+      ui.posSheet = v ?? null;
+      render();
+      return;
+    case 'sheet-close':
+      ui.posSheet = null;
+      render();
+      return;
+    case 'pos-change': {
+      if (!g || !v) return;
+      const from = g.player.position;
+      if (requestPositionChange(g.player, v as PlayablePosition, g.phase === 'offseason')) {
+        autosave();
+        ui.posSheet = null;
+        showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: '다음 시즌부터 새 포지션으로 뛰어요.' }, 2600);
+      }
+      return;
+    }
     case 'modal-close':
       ui.modal = null;
       render();
@@ -252,6 +290,7 @@ app.addEventListener('click', (ev) => {
       const report = playRound(g, { onReplay: (r) => { ui.replay = new ReplayPlayer(r, () => render()); } });
       autosave();
       go(ui.replay ? 'replay' : 'match');
+      if (g.phase !== 'season') badgeToast(g);
       if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 3000);
       return;
     }

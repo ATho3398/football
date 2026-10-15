@@ -4,6 +4,7 @@ import { BALANCE } from '../src/config/balance';
 import { emptySeasonStats, newGame, playRound, SAVE_FORMAT_VERSION } from '../src/game';
 import { playerOvr, realPeakTarget, xpToLevel } from '../src/growth';
 import { deserialize, serialize } from '../src/save';
+import { initialProficiency } from '../src/proficiency';
 import type { PlayerState } from '../src/types';
 
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
@@ -30,6 +31,7 @@ describe('실제 선수 정점 목표 (부록 D.7 #1)', () => {
       name: 't', position: 'ST', age: 25, teamId: 'x', attributes: flat(75), potentialTier: 'normal',
       xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
       fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], season: emptySeasonStats(), history: [], suspended: 0,
+    proficiency: initialProficiency('ST'), badges: [],
     };
     const R = BALANCE.growth.realPeak;
     expect(xpToLevel({ ...base, peakTarget: 75 + R.softBelow })).toBe(xpToLevel(base));

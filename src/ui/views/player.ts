@@ -1,7 +1,7 @@
 // 선수 (I.8, 디자인 44): 경고와 출장, 위상·레벨, 능력치, 포지션별 OVR, 시즌 기록.
 // 성향 슬라이더·역할(전술 화면 링크)은 아직 없는 기능이라 숨긴다 (I.19)
 
-import { esc, FormIndicator, HeroPanel, Meter, SectionTitle, StatBar, TierBadge } from '../components';
+import { esc, FormIndicator, HeroPanel, Meter, OptionRow, SectionTitle, StatBar, TierBadge } from '../components';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
 import { panel } from './common';
 
@@ -44,8 +44,11 @@ export function playerView(vm: PlayerVM, extra = ''): string {
         ${rep}
         ${Meter({ value: vm.xp, max: vm.xpMax, label: `Lv ${vm.level} → ${vm.level + 1}`, showValue: true, tone: 'xp' })}`)}
       ${extra}
-      ${SectionTitle({ title: '포지션별 OVR', action: `주 포지션 ${vm.position}` })}
-      ${panel(`<div class="pos-grid">${vm.posOvrs.map((p) => `<div class="${p.main ? 'main' : ''}"><span>${p.pos}</span><b class="po-num">${p.ovr}</b></div>`).join('')}</div>`)}
+      ${SectionTitle({ title: '포지션별 OVR · 숙련도', action: `주 포지션 ${vm.position}` })}
+      ${panel(`<div class="pos-grid">${vm.posOvrs.map((p) => `<div class="${p.main ? 'main' : ''}"><span>${p.pos}</span><b class="po-num">${p.ovr}</b><small class="prof"><i style="width:${p.prof}%"></i></small><em class="po-num">숙련 ${p.prof}</em></div>`).join('')}</div>
+        <span class="muted small">숙련도가 100보다 낮으면 그 포지션 OVR이 (100 − 숙련도) × 0.25만큼 낮아져요. 그 포지션으로 뛰면 숙련도가 올라요.</span>`)}
+      ${SectionTitle({ title: '레전드 배지', action: `${vm.badges.filter((b) => b.earned).length}/${vm.badges.length}` })}
+      <div class="opts">${vm.badges.map((b) => OptionRow({ icon: b.earned ? 'star' : 'lock', title: b.name, desc: b.earned ? `${b.desc} · ${b.earned}` : b.desc, right: `<b class="po-num small${b.earned ? ' hi' : ' muted'}">${b.earned ? '획득' : esc(b.progress)}</b>`, disabled: !b.earned })).join('')}</div>
       ${SectionTitle({ title: '능력치', action: '★ 핵심 능력치' })}
       ${vm.groups.map((g) => panel(`<h3 class="grp">${esc(g.name)}</h3>${g.rows.map((r) => StatBar({ label: `${r.key ? '★ ' : ''}${r.label}`, value: r.value, highlight: r.key })).join('')}`)).join('')}
       ${SectionTitle({ title: '시즌별 기록' })}

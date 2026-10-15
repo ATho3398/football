@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 17;
+export const BALANCE_VERSION = 18;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -379,6 +379,39 @@ export const BALANCE = {
     seasonFormSd: 1.5,
     /** 계약이 끝나면 재계약 1~4년 (이적은 5-4 단계) */
     renewYears: { min: 1, max: 4 },
+  },
+
+  // ── 포지션 전환 (4.3, 부록 D.3) ──
+  proficiency: {
+    /** 포지션 인접 관계 (LWB/RWB 는 LB/RB 와 같은 포지션으로 본다). 거리 = 최단 걸음 수 */
+    edges: [
+      ['ST', 'CF'], ['CF', 'CAM'], ['CF', 'LW'], ['CF', 'RW'], ['LW', 'LM'], ['RW', 'RM'], ['LM', 'CM'], ['RM', 'CM'],
+      ['CAM', 'CM'], ['CM', 'CDM'], ['CDM', 'CB'], ['LB', 'LM'], ['RB', 'RM'], ['LB', 'CB'], ['RB', 'CB'],
+    ] as [string, string][],
+    /** 거리별 초기 숙련도: [거리 0(주 포지션), 1, 2, 3, 4 이상] */
+    initialByDistance: [100, 70, 50, 30, 15],
+    /** 선수 데이터의 서브 포지션 */
+    subPosition: 70,
+    /** 포지션 OVR 페널티 = (100 − 숙련도) × perPoint */
+    penaltyPerPoint: 0.25,
+    /** 출전 1경기(90분)당 숙련도 상승: [거리 1, 2, 3 이상] (이전 주 포지션에서의 거리) × 출전 비율 */
+    gainByDistance: [4, 2, 1],
+    /** 이전 주 포지션 숙련도: 시즌마다 감소, 최소값 */
+    formerDecay: 2,
+    formerMin: 30,
+  },
+
+  // ── 레전드 배지 (8.2, 부록 D.4): 부여 시 위상 + reputation ──
+  badges: {
+    reputation: 100,
+    careerGoals: 500,
+    leagueTitles: 5,
+    sameTeamSeasons: 10,
+    /**
+     * "한 팀 10시즌" 판정을 켤지 (부록 C.22). 이적(5-4단계)이 없는 지금은 모든 선수가 10시즌째에 자동으로 받아
+     * 30세 위상이 약 +100 올라 회귀 가드(레전더리 위상 중앙값)가 깨진다. 이적이 생기면 켠다
+     */
+    oneClubEnabled: false,
   },
 
   // ── 경기 후 전술 리포트 판정 경계 (21.5.2, 부록 C.22). 실제 시즌 380경기 빈도로 조정. 경기 결과에는 영향 없음 ──

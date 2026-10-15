@@ -132,3 +132,27 @@ export function Modal(p: ModalProps): string {
     p.children ? `<div class="po-modal__body">${esc(p.children)}</div>` : ''}${p.actions ? `<div class="po-modal__actions">${p.actions.join('')}</div>` : ''}</div>`;
   return p.inline ? box : `<div class="po-overlay" data-overlay="1"${actAttrs(p.onClose ?? {})}>${box}</div>`;
 }
+
+// ── FitBadge / OptionRow (4단계 잔여: 주 포지션 변경 요청 시트, 배지 목록) ──
+
+const FIT = { good: ['잘 맞음', '✓'], ok: ['보통', '–'], bad: ['안 맞음', '✕'] } as const;
+
+export function FitBadge(p: { fit: 'good' | 'ok' | 'bad'; label?: string }): string {
+  const [l, s] = FIT[p.fit];
+  return `<span class="po-fit po-fit--${p.fit}" aria-label="적합도 ${l}"><i aria-hidden="true">${s}</i>${p.label ? `${esc(p.label)} ${l}` : l}</span>`;
+}
+
+export interface OptionRowProps extends Action {
+  title: string; desc?: string; note?: string; icon?: IconName; fit?: 'good' | 'ok' | 'bad'; tag?: string; right?: string;
+  selected?: boolean; radio?: boolean; disabled?: boolean;
+}
+
+export function OptionRow(p: OptionRowProps): string {
+  const el = p.act ? 'button' : 'div';
+  const right = p.right || p.fit || p.tag
+    ? `<span class="po-option__right">${p.tag ? `<span class="po-option__tag">${esc(p.tag)}</span>` : ''}${p.fit ? FitBadge({ fit: p.fit }) : ''}${p.right ?? ''}</span>`
+    : '';
+  return `<${el}${el === 'button' ? ' type="button"' : ''} class="${cx('po-option', p.selected && 'is-on', p.disabled && 'is-disabled')}"${p.radio ? ` role="radio" aria-checked="${!!p.selected}"` : ''}${actAttrs(p)}${p.disabled && el === 'button' ? ' disabled' : ''}>${
+    p.icon ? `<span class="po-option__icon">${Icon({ name: p.icon, size: 20 })}</span>` : ''}<span class="po-option__main"><b>${esc(p.title)}</b>${p.desc ? `<span>${esc(p.desc)}</span>` : ''}${
+    p.note ? `<em class="po-option__note">${Icon({ name: 'signature', size: 12, strokeWidth: 2.2 })}${esc(p.note)}</em>` : ''}</span>${right}${p.radio ? '<span class="po-option__radio" aria-hidden="true"></span>' : ''}</${el}>`;
+}

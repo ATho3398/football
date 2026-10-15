@@ -20,7 +20,9 @@ import { npcOvr } from '../npc';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
 import type { SaveMeta } from '../save';
 import { reportInput, tacticalReport, type TacticalReport, type Tendency } from '../tacticalReport';
-import type { Tier } from '../types';
+import type { BadgeId, Tier } from '../types';
+import { activeBadges, BADGE_DESC_KO, BADGE_NAMES_KO } from '../badges';
+import { proficiencyOf, proficiencyPenalty, proficientOvr } from '../proficiency';
 import { saveStartNotice, versionLabel } from '../version';
 import type { DesignTier, FeedKind, TacticStyle } from './components';
 
@@ -178,11 +180,41 @@ export interface PlayerVM {
   suspended: number;
   nextOpp: string | null;
   groups: { name: string; rows: AttrRowVM[] }[];
-  posOvrs: { pos: string; ovr: number; main: boolean }[];
+  posOvrs: { pos: string; ovr: number; main: boolean; prof: number; penalty: number }[];
+  badges: { id: string; name: string; desc: string; earned: string | null; progress: string }[];
   history: HistoryRowVM[];
 }
 
 export interface HistoryRowVM { season: string; age: number; ovr: number; apps: number; goals: number; assists: number; avg: string; pos: number }
+
+/** 레전드 배지 (D.4): 받은 것은 시즌, 아직이면 진행 상황 */
+function badgesVM(g: GameState): PlayerVM['badges'] {
+  const p = g.player;
+  const B = BALANCE.badges;
+  const h = p.history;
+  const goals = h.reduce((t, r) => t + r.goals, 0) + p.season.goals;
+  const titles = h.filter((r) => r.leaguePosition === 1).length;
+  let streak = 0;
+  for (let i = h.length - 1; i >= 0 && h[i]!.teamId === p.teamId; i--) streak++;
+  const progress: Record<BadgeId, string> = {
+    goals500: `${goals} / ${B.careerGoals}골`, titles5: `${titles} / ${B.leagueTitles}회`, oneClub10: `${streak} / ${B.sameTeamSeasons}시즌`,
+  };
+  return activeBadges().map((id) => {
+    const b = (p.badges ?? []).find((x) => x.id === id);
+    return { id, name: BADGE_NAMES_KO[id], desc: BADGE_DESC_KO[id], earned: b ? `${seasonLabel(b.season)} 시즌` : null, progress: progress[id] };
+  });
+}
+
+/** 비시즌 주 포지션 변경 요청 (D.3): 포지션마다 숙련도와 바꾼 뒤 OVR */
+export interface PositionOptionVM { pos: string; ko: string; prof: number; ovr: number; penalty: number; current: boolean }
+
+export function positionOptionsVM(g: GameState): PositionOptionVM[] {
+  const p = g.player;
+  return PLAYABLE_POSITIONS.map((pos) => {
+    const prof = Math.floor(proficiencyOf(p, pos));
+    return { pos, ko: POSITION_NAMES_KO[pos], prof, ovr: proficientOvr(p, pos), penalty: Math.round(proficiencyPenalty(prof) * 10) / 10, current: pos === p.position };
+  }).sort((a, b) => Number(b.current) - Number(a.current) || b.ovr - a.ovr);
+}
 
 const GROUP_NAMES_KO: Record<AttributeGroup, string> = {
   ballHandling: '볼 다루기', finishing: '마무리', passing: '패스·시야', defending: '수비',
@@ -215,7 +247,11 @@ export function playerVM(g: GameState): PlayerVM {
       name: GROUP_NAMES_KO[grp],
       rows: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => ({ label: ATTRIBUTE_NAMES_KO[a], value: p.attributes[a], key: keys.includes(a) })),
     })),
-    posOvrs: PLAYABLE_POSITIONS.map((pos) => ({ pos, ovr: ovrs[pos], main: pos === p.position })),
+    posOvrs: PLAYABLE_POSITIONS.map((pos) => {
+      const prof = Math.floor(proficiencyOf(p, pos));
+      return { pos, ovr: proficientOvr(p, pos), main: pos === p.position, prof, penalty: Math.round(proficiencyPenalty(prof) * 10) / 10 };
+    }),
+    badges: badgesVM(g),
     history: historyVM(g),
   };
 }
@@ -467,6 +503,7 @@ export interface SeasonVM {
   growthAges: string; ageFrom: number; ageTo: number;
   retired: boolean; forcedRetire: boolean; canRetire: boolean; points: number;
   injury: BannerVM | null;
+  badges: { name: string; desc: string }[];
 }
 
 export function seasonVM(g: GameState): SeasonVM | null {
@@ -488,6 +525,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
     growthAges: `${A.minAge}~${A.maxAge}세`, ageFrom: s.age, ageTo: g.player.age,
     retired: g.phase === 'retired', forcedRetire: s.forcedRetire, canRetire: s.canRetire, points: g.player.unspentPoints,
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
+    badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
   };
 }
 
