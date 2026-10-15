@@ -52,6 +52,16 @@ export interface Agent {
   /** 경기 출전 시작/끝 시각 (초) */
   enteredAt: number;
   leftAt: number | null;
+  /** 상대 골을 등지고 받았다 (포스트플레이 후보, E.18 A2). 다음 결정 후 해제 */
+  backToGoal: boolean;
+  /** 소유를 잃었을 때 긴급 복귀를 판단했는가 (확률 0.6 + 0.4 × 노력/100, 소유가 바뀔 때마다 새로, E.18 A3) */
+  recoverUrgent: boolean;
+  /** 복귀: 러닝 이상으로 달린다 (목표가 자기 골 쪽 10 m 이상) */
+  minRun: boolean;
+  /** 스태미나 소모 배율 (수적 열세 1.15, E.18 A6) */
+  drainMul: number;
+  /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
+  duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
   rt: { forward: number; lost: number; dangerLost: number; conceded: number };
 }
@@ -76,6 +86,8 @@ export interface Flight {
   interceptor: number;
   /** 침투 패스 (측정용) */
   through?: boolean;
+  /** 컷백/레이오프: 받는 선수가 반응 시간만에 다음 결정 (원터치, E.18 A2) */
+  quick?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */
   fromCross?: boolean;
   /** 유효 슈팅 정보 */
@@ -115,6 +127,11 @@ export interface TeamState {
   /** 팀 phase −1(수비) ~ +1(공격) */
   phase: number;
   subsLeft: number;
+  /** 역압박 (E.18 A3): 이 시각까지, 가담 선수 idx (공에 가까운 순) */
+  counterUntil: number;
+  counterPressers: number[];
+  /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
+  wonAt: number;
 }
 
 export interface SimState {
@@ -169,8 +186,8 @@ export function emptyTeamStats(): TeamStats {
     goals: 0, possessionTicks: 0, passes: 0, passesCompleted: 0, shots: 0, shotsOnTarget: 0, corners: 0,
     fouls: 0, yellows: 0, reds: 0, offsides: 0, advantages: 0, tackles: 0, tacklesWon: 0, interceptions: 0,
     dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
-    throwIns: 0, goalKicks: 0, longPasses: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
-    centralShots: 0, oppHalfWins: 0, keyPasses: 0,
+    throwIns: 0, goalKicks: 0, longPasses: 0, longCompleted: 0, longPSum: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
+    centralShots: 0, oppHalfWins: 0, keyPasses: 0, cutbacks: 0, layoffs: 0, holdups: 0, holdupsWon: 0,
   };
 }
 

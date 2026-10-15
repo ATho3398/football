@@ -12,7 +12,7 @@ export function dribbleProb(att: Agent, def: Agent, space = 0): number {
   const d = def.attrs;
   const atk = a.dribbling * 0.5 + a.agility * 0.2 + a.acceleration * 0.15 + a.ballControl * 0.15;
   const dfn = d.tackling * 0.45 + d.defensivePositioning * 0.25 + d.pace * 0.15 + d.marking * 0.15;
-  return L1((atk - dfn) / PR.dribbleScale + PR.dribbleBias + space);
+  return L1((atk - dfn) / PR.dribbleScale + PR.dribbleBias + space + att.duelEdge - def.duelEdge);
 }
 
 export function aerialScore(a: Agent): number {
@@ -21,5 +21,5 @@ export function aerialScore(a: Agent): number {
 
 /** a 가 b 를 이길 확률 */
 export function aerialWin(a: Agent, b: Agent): number {
-  return L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale);
+  return L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + a.duelEdge - b.duelEdge);
 }

@@ -2,6 +2,7 @@
 
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
+import type { Replay } from './replay';
 import { generatePlayer } from './generate';
 import {
   addXp, applyAging, applyAutoGrowth, applyVeteranGrowth, playerOvr, randInt, realPeakTarget, veteranXpMultiplier,
@@ -246,6 +247,8 @@ export interface PlayOptions {
    * 밸런스 커리어 시뮬(`npm run balance`)은 수십만 경기를 돌리므로 'quick' 을 쓴다 (부록 C.11)
    */
   engine?: 'agent' | 'quick';
+  /** 내 경기의 재생 데이터를 받는다 (E5-lite 경기 화면). 세이브에는 담지 않는다 */
+  onReplay?: (replay: Replay) => void;
 }
 
 /** 한 라운드(한 주) 진행. 마지막 라운드면 시즌 종료 처리까지 한다 */
@@ -293,7 +296,12 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
       myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
       me: { position: player.position, attributes: player.attributes, fatigue: player.fatigue, form },
       plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
-    });
+      leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
+    }, opts.onReplay ? { teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] } : undefined);
+    if (opts.onReplay && engineOut.replay) {
+      for (const p of engineOut.replay.players) if (p.isMe) p.name = player.name;
+      opts.onReplay(engineOut.replay);
+    }
     result = engineOut.result;
     if (injured || suspended) {
       const weekXp = injured ? BALANCE.injury.rehabXp : BALANCE.matchXp.bench;

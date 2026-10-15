@@ -4,7 +4,7 @@ import { BALANCE } from '../config/balance';
 import { positionOvr, type FieldPosition } from '../positions';
 import { gkOvr, posGroup } from '../roster';
 import { ENGINE } from './config';
-import { event } from './core';
+import { delayRestart, event } from './core';
 import { lineOf } from './formation';
 import { attackDir, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
@@ -39,6 +39,7 @@ export function bestBench(s: SimState, team: 0 | 1, pos: Agent['pos']): Agent | 
 export function substitute(s: SimState, out: Agent, inA: Agent): void {
   const team = s.teams[out.team];
   team.subsLeft--;
+  delayRestart(s, ENGINE.restart.sub, 2);
   out.onPitch = false;
   out.leftAt = s.elapsed;
   inA.idx = s.agents.length;
@@ -47,7 +48,8 @@ export function substitute(s: SimState, out: Agent, inA: Agent): void {
   inA.onPitch = true;
   inA.enteredAt = s.elapsed;
   inA.pos = out.pos;
-  inA.line = lineOf(out.pos);
+  inA.line = out.line;
+  inA.drainMul = out.drainMul;
   inA.sx = out.sx;
   inA.sy = out.sy;
   inA.stats.position = out.pos;

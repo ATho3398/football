@@ -5,13 +5,20 @@ import type { Difficulty } from '../config/balance';
 import type { Formation } from '../formations';
 import type { Position } from '../types';
 
+/** 전술 성향 6종 (E.19 ①) */
+export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
+
 export interface Tactics {
-  /** 0~1 */
+  /** 전술 성향: 세부 전술 기본값과 고유 행동 (E.19) */
+  tendency: Tendency;
+  /** 수비 라인 0~1 (0.35 / 0.5 / 0.65) */
   lineHeight: number;
   /** 0~1 */
   pressing: number;
-  /** 0~1 */
-  tempo: number;
+  /** 빌드업 성향 0 직선형 ~ 1 점유형 (E.18 A5). 템포는 이 값에서 파생한다 */
+  style: number;
+  /** 공격 폭: 공격 시 슬롯 y 의 중앙 기준 간격 배수 (0.85 / 1.0 / 1.15) */
+  width: number;
 }
 
 export interface PlayerSpec {
@@ -47,6 +54,8 @@ export interface EngineInput {
   mode: 'auto' | 'live';
   myPlayerId?: string;
   myRole?: string;
+  /** 내 팀 쪽 (직접 모드에서 AI 전술 조정을 하지 않는다, E.19) */
+  myTeam?: 0 | 1;
   difficulty: Difficulty;
   seed: number;
   bigMatch: boolean;
@@ -96,8 +105,10 @@ export interface TeamStats {
   // ── 측정용 (E.15, E3.5) ──
   throwIns: number;
   goalKicks: number;
-  /** 30 m 이상 패스 시도 */
+  /** 30 m 이상 패스 시도 / 성공, 판단 시점 성공 확률 합 */
   longPasses: number;
+  longCompleted: number;
+  longPSum: number;
   throughPasses: number;
   throughReceived: number;
   /** 오픈 플레이 소유 시작 10초 안 슈팅 (역습) */
@@ -109,6 +120,10 @@ export interface TeamStats {
   /** 상대 진영에서 소유를 빼앗은 횟수 */
   oppHalfWins: number;
   keyPasses: number;
+  cutbacks: number;
+  layoffs: number;
+  holdups: number;
+  holdupsWon: number;
 }
 
 export interface PlayerStats {

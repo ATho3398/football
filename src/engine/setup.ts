@@ -1,11 +1,11 @@
 // 로스터 → 엔진 입력 (E.2 TeamSetup)
 
-import { ENGINE } from './config';
 import { pickLineup, type RosterPlayer, type TeamRoster } from '../roster';
-import { clamp } from './pitch';
+import { ENGINE } from './config';
 import { gkFieldAttributes } from './sim';
-import type { PlayerSpec, Tactics, TeamSetup } from './types';
 import { createRng, hashSeed } from '../rng';
+import { LEVELS, levelOf, recommendedRole, tacticsOf, teamPlan } from './tactics';
+import type { PlayerSpec, Tactics, TeamSetup, Tendency } from './types';
 
 export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec {
   return {
@@ -21,26 +21,52 @@ export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec
   };
 }
 
-/** 전술 초기값 (E.5): pressing = clamp(0.5 + 0.02 × 레이팅 차), lineHeight = 0.5 ± 0.1 (팀별 시드) */
-export function defaultTactics(teamId: string, rating: number, oppRating: number, worldSeed = ''): Tactics {
-  const F = ENGINE.formation;
-  const rng = createRng(hashSeed(`${worldSeed}:tactics:${teamId}`));
-  return {
-    pressing: clamp(F.pressingBase + F.pressingPerRating * (rating - oppRating), F.pressingMin, F.pressingMax),
-    lineHeight: F.lineHeightBase + (rng() * 2 - 1) * F.lineHeightSpread,
-    tempo: 0.5,
-  };
+/** 팀 빌드업 성향 style (E.18 A5): 실제 팀은 팀 데이터, 없으면 clamp(0.5 + 0.04 × (팀 레이팅 − 리그 평균), 0.2, 0.8) */
+export function teamStyle(teamId: string, rating: number, leagueAvg: number = ENGINE.tactics.leagueAvg): number {
+  return teamPlan(teamId, rating, '4-4-2', '', leagueAvg).tactics.style;
 }
 
-export function teamSetupFromRoster(roster: TeamRoster, rating: number, oppRating: number, worldSeed = '', exclude: ReadonlySet<string> = new Set()): TeamSetup {
+/** 팀 데이터 전술 (E.19): 성향 기본값의 세부 전술, 빌드업은 A5 연속 값 */
+export function defaultTactics(teamId: string, rating: number, _oppRating = rating, worldSeed = '', leagueAvg?: number): Tactics {
+  return teamPlan(teamId, rating, '4-4-2', worldSeed, leagueAvg).tactics;
+}
+
+/** 슬롯 역할을 성향 추천 역할로 채운다 (E.19 ②). 이미 정한 역할은 둔다 */
+export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpec['position']): void {
+  for (const p of setup.lineup) p.role ??= recommendedRole(setup.tactics.tendency, slotPos(p.slot), p.attrs).id;
+}
+
+/**
+ * 약팀의 상대별 대응 (E.20 9번, AI 감독): 상대 레이팅이 underdogGap 이상 높으면 라인·압박을 한 단계 내리고,
+ * underdogSwitch 확률(시드)로 성향을 수비 블록/역습으로 바꾼다. 내 팀(사용자 전술)에는 쓰지 않는다
+ */
+export function underdogPlan(teamId: string, rating: number, oppRating: number, tactics: Tactics, worldSeed: string): Tactics {
+  const T = ENGINE.tactics;
+  if (oppRating - rating < T.underdogGap) return tactics;
+  const rng = createRng(hashSeed(`${worldSeed}:underdog:${teamId}:${Math.round(oppRating * 10)}`));
+  const tendency: Tendency = rng() < T.underdogSwitch ? (rng() < 0.5 ? 'block' : 'counter') : tactics.tendency;
+  const base = tendency === tactics.tendency ? tactics : { ...tacticsOf(tendency), style: tactics.style };
+  const down = (d: 'lineHeight' | 'pressing') => LEVELS[d][Math.max(0, levelOf(d, base[d]) - 1)]!;
+  return { ...base, lineHeight: down('lineHeight'), pressing: down('pressing') };
+}
+
+export function teamSetupFromRoster(
+  roster: TeamRoster, rating: number, oppRating: number, worldSeed = '', exclude: ReadonlySet<string> = new Set(), leagueAvg?: number,
+  aiAdapt = true,
+): TeamSetup {
   const lu = pickLineup(roster, exclude);
   const byId = new Map(roster.players.map((p) => [p.id, p]));
-  return {
+  const plan = teamPlan(roster.teamId, rating, roster.formation, worldSeed, leagueAvg);
+  if (aiAdapt) plan.tactics = underdogPlan(roster.teamId, rating, oppRating, plan.tactics, worldSeed);
+  const setup: TeamSetup = {
     teamId: roster.teamId,
     formation: roster.formation,
     lineup: lu.slots.map((s) => specOf(byId.get(s.playerId)!, s.slot)),
     bench: lu.bench.map((id) => specOf(byId.get(id)!, -1)),
-    tactics: defaultTactics(roster.teamId, rating, oppRating, worldSeed),
+    tactics: plan.tactics,
     rating,
   };
+  const slotPos = new Map(lu.slots.map((s) => [s.slot, s.pos]));
+  fillRoles(setup, (slot) => slotPos.get(slot) ?? 'CM');
+  return setup;
 }

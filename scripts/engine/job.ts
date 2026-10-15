@@ -3,13 +3,13 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../src/attributes';
 import { ENGINE } from '../../src/engine/config';
-import { teamSetupFromRoster } from '../../src/engine/setup';
+import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
-import type { Formation } from '../../src/formations';
-import { newGame, playRound } from '../../src/game';
+import { FORMATION_SLOTS, type Formation } from '../../src/formations';
+import { newGame, playRound, rebuildRosters } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
-import { createTeamRoster, rosterRating } from '../../src/roster';
+import { createTeamRoster, rosterRating, teamRatings, type Rosters } from '../../src/roster';
 
 export interface TeamSpec {
   /** 팀 id (데이터 전술이 있는 실제 팀 id 를 쓰면 그 팀 데이터를 따른다) */
@@ -47,9 +47,21 @@ export interface SeasonJob {
   playerId: string;
   seed: string;
   engine: 'agent' | 'quick';
+  /** 엔진 상수 덮어쓰기 (상수 스윕) */
+  overrides?: Record<string, number>;
 }
 
-export type Job = MatchJob | SeasonJob;
+/** 실제 선수 리그 경기 (E.20 5번 실제 시즌 목표): 실제 로스터 두 팀을 엔진으로 (홈 이점 포함, 양 팀 데이터 전술) */
+export interface LeagueMatchJob {
+  kind: 'league';
+  worldSeed: string;
+  home: string;
+  away: string;
+  seed: number;
+  overrides?: Record<string, number>;
+}
+
+export type Job = MatchJob | SeasonJob | LeagueMatchJob;
 
 export type CompactPlayer = Omit<PlayerStats, 'id'> & { starter: boolean };
 
@@ -76,10 +88,20 @@ export interface SeasonOut {
   ratings: number[];
 }
 
-export type JobOut = MatchOut | SeasonOut;
+export interface LeagueMatchOut {
+  kind: 'league';
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  /** 득점한 선수 id → 골 */
+  scorers: Record<string, number>;
+}
+
+export type JobOut = MatchOut | SeasonOut | LeagueMatchOut;
 
 /** 균형 전술 (E.19 균형: 라인 보통 / 압박 보통 / 빌드업 혼합 / 폭 보통) */
-export const BALANCED: Partial<Tactics> = { lineHeight: 0.5, pressing: 0.55, tempo: 0.5 };
+export const BALANCED: Partial<Tactics> = { tendency: 'balanced', lineHeight: 0.5, pressing: 0.55, style: 0.5, width: 1 };
 
 function applyOverrides(o: Record<string, number> | undefined): () => void {
   if (!o) return () => {};
@@ -104,8 +126,15 @@ function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup
   const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
   if (t.formation) roster.formation = t.formation;
   const setup = teamSetupFromRoster(roster, rosterRating(roster), oppRating, worldSeed);
+  const before = setup.tactics.tendency;
   if (t.tactics === 'balanced') setup.tactics = { ...setup.tactics, ...BALANCED };
   else if (t.tactics && t.tactics !== 'data') setup.tactics = { ...setup.tactics, ...t.tactics };
+  if (setup.tactics.tendency !== before) {
+    // 성향을 바꿨으면 슬롯 역할도 그 성향 기본값으로 (E.19 ②)
+    const slots = FORMATION_SLOTS[roster.formation];
+    for (const p of setup.lineup) delete p.role;
+    fillRoles(setup, (slot) => slots[slot]!.pos);
+  }
   return setup;
 }
 
@@ -154,17 +183,48 @@ export function runMatchJob(j: MatchJob): MatchOut {
 }
 
 export function runSeasonJob(j: SeasonJob): SeasonOut {
-  const g = newGame({ mode: 'real', playerId: j.playerId, seed: j.seed, difficulty: 'normal' });
-  const ratings: number[] = [];
-  while (g.phase === 'season') {
-    const rep = playRound(g, { engine: j.engine });
-    if (rep.result.rating !== null && rep.result.minutes >= 45) ratings.push(rep.result.rating);
-    autoAllocate(g.player);
+  const restore = applyOverrides(j.overrides);
+  try {
+    const g = newGame({ mode: 'real', playerId: j.playerId, seed: j.seed, difficulty: 'normal' });
+    const ratings: number[] = [];
+    while (g.phase === 'season') {
+      const rep = playRound(g, { engine: j.engine });
+      if (rep.result.rating !== null && rep.result.minutes >= 45) ratings.push(rep.result.rating);
+      autoAllocate(g.player);
+    }
+    const h = g.player.history.at(-1)!;
+    return { kind: 'season', rating: h.apps ? h.ratingSum / h.apps : 0, xp: h.matchXp, apps: h.apps, goals: h.goals, assists: h.assists, ratings };
+  } finally {
+    restore();
   }
-  const h = g.player.history.at(-1)!;
-  return { kind: 'season', rating: h.apps ? h.ratingSum / h.apps : 0, xp: h.matchXp, apps: h.apps, goals: h.goals, assists: h.assists, ratings };
+}
+
+const worlds = new Map<string, { rosters: Rosters; ratings: Record<string, number> }>();
+
+export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
+  const restore = applyOverrides(j.overrides);
+  try {
+    let w = worlds.get(j.worldSeed);
+    if (!w) {
+      const rosters = rebuildRosters(j.worldSeed, undefined, 0);
+      w = { rosters, ratings: teamRatings(rosters) };
+      worlds.set(j.worldSeed, w);
+    }
+    const ids = Object.keys(w.ratings);
+    const leagueAvg = ids.reduce((t, id) => t + w!.ratings[id]!, 0) / ids.length;
+    const rh = w.ratings[j.home]!;
+    const ra = w.ratings[j.away]!;
+    const home = teamSetupFromRoster(w.rosters[j.home]!, rh, ra, j.worldSeed, undefined, leagueAvg);
+    const away = teamSetupFromRoster(w.rosters[j.away]!, ra, rh, j.worldSeed, undefined, leagueAvg);
+    const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
+    const scorers: Record<string, number> = {};
+    for (const p of r.players) if (p.goals) scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
+    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers };
+  } finally {
+    restore();
+  }
 }
 
 export function runJob(j: Job): JobOut {
-  return j.kind === 'match' ? runMatchJob(j) : runSeasonJob(j);
+  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : runLeagueMatchJob(j);
 }

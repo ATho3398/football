@@ -194,3 +194,19 @@ nav.tabs button.on { color: var(--accent); font-weight: 700; }
 .form-veryGood, .form-good { color: var(--accent); }
 .form-bad, .form-veryBad { color: var(--bad); }
 .notice.injury { background: #2d1a1a; border-color: #6b2b2b; color: #ffb4a8; }
+
+/* 경기 화면 (E5-lite) */
+.replay { padding: 10px; }
+.replay-head { margin-bottom: 8px; }
+.replay-score { font-size: 28px; font-weight: 800; letter-spacing: 2px; }
+.team-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 6px; vertical-align: middle; }
+canvas.pitch { display: block; width: 100%; border-radius: 8px; background: #2e7d3a; }
+.replay-ctl { margin-top: 8px; gap: 6px; }
+.feed { max-height: 260px; overflow-y: auto; }
+.feed-item { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.feed-item:last-child { border-bottom: 0; }
+.feed-item.big { color: var(--gold); font-weight: 700; }
+.feed-item .min { display: inline-block; width: 44px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.replay-status { margin-top: 6px; }
+.feed-item.summary { color: var(--muted); font-style: italic; }
+.avg-map { margin-top: 12px; }

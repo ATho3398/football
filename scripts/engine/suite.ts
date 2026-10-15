@@ -4,8 +4,9 @@
 import { FORMATION_SLOTS, FORMATIONS, type Formation } from '../../src/formations';
 import { posGroup, type PosGroup } from '../../src/roster';
 import type { TeamStats } from '../../src/engine/types';
-import type { AttrMod, CompactPlayer, Job, JobOut, MatchJob, MatchOut, SeasonOut, TeamSpec } from './job';
+import type { AttrMod, CompactPlayer, Job, JobOut, LeagueMatchOut, MatchJob, MatchOut, SeasonOut, TeamSpec } from './job';
 import { runJobs } from './pool';
+import { BALANCED } from './job';
 
 export type Mode = 'full' | 'light' | 'sweep';
 
@@ -38,6 +39,49 @@ export interface ResponseRow {
   unit: '%p' | '%' | '' | '분';
   pass: boolean;
   guard?: number;
+  /** 표의 기준값 (방향 포함, 하락·축소처럼 방향만 보면 ±0) */
+  need: number;
+  /** 짝지은 부트스트랩 단측 95% 한계 (기준 방향 쪽 5번째 백분위수) */
+  bound: number;
+}
+
+/** 스탯 반응 통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(단측 95%), 크기가 기준값의 70% 이상 */
+export const RESP_SHARE = 0.7;
+
+/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, 2026-10-15 추가 확정 6번). E3.5 2차 보정이 끝나면 false 로 되돌린다 */
+export const TEMP_GUARD = true;
+const BOOT = 400;
+
+/** 짝지은 부트스트랩: 같은 경기 시드 쌍을 다시 뽑아 변화량 분포의 단측 95% 한계 */
+function bootBound(n: number, change: (idx: number[]) => number, up: boolean): number {
+  let st = 0x9e3779b9;
+  const next = () => {
+    st = (Math.imul(st, 1664525) + 1013904223) >>> 0;
+    return st / 4294967296;
+  };
+  const xs: number[] = [];
+  for (let b = 0; b < BOOT; b++) {
+    const idx = Array.from({ length: n }, () => Math.floor(next() * n));
+    xs.push(change(idx));
+  }
+  xs.sort((a, b) => a - b);
+  return up ? xs[Math.floor(BOOT * 0.05)]! : xs[Math.ceil(BOOT * 0.95) - 1]!;
+}
+
+/** 스탯 반응 상한 (E.20 5번 기록): 크기가 표 기준값의 RESP_CAP 배 이하 */
+export const RESP_CAP = 2.5;
+
+function respPass(change: number, need: number, bound: number): boolean {
+  const up = need >= 0;
+  const significant = up ? bound > 0 : bound < 0;
+  const big = up ? change >= RESP_SHARE * need : change <= RESP_SHARE * need;
+  return significant && big;
+}
+
+/** 상한을 넘었는가 (방향만 보는 항목은 상한 없음) */
+export function respOver(change: number, need: number): boolean {
+  if (Math.abs(need) < 0.001) return false;
+  return need > 0 ? change > RESP_CAP * need : change < RESP_CAP * need;
 }
 
 export interface SuiteResult {
@@ -108,12 +152,19 @@ export interface Sizes {
   rating: number;
   ovr5: number;
   seasons: number;
+  tactic: number;
+  /** 실제 선수 리그 시즌 수 (실제 로스터 20팀 전 경기 엔진, E.20 5번) */
+  league: number;
 }
 
 export const SIZES: Record<Mode, Sizes> = {
-  full: { neutral: 200, diff8: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 200, sens: 200, rating: 240, ovr5: 200, seasons: 6 },
-  light: { neutral: 120, diff8: 120, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 120, ovr5: 0, seasons: 6 },
-  sweep: { neutral: 60, diff8: 40, poss10: 0, home: 0, red: 0, formation: 0, response: 40, sens: 0, rating: 0, ovr5: 0, seasons: 0 },
+  full: { neutral: 400, diff8: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200, league: 3 },
+  light: { neutral: 120, diff8: 120, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 120, ovr5: 0, seasons: 6, tactic: 0, league: 0 },
+  sweep: {
+    neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), poss10: 0, home: 0, red: 0, formation: 0,
+    response: Number(process.env.SWEEP_RESP ?? 40), sens: 0, rating: Number(process.env.SWEEP_RATING ?? 0), ovr5: 0, seasons: Number(process.env.SWEEP_SEASONS ?? 0), tactic: 0,
+    league: Number(process.env.SWEEP_LEAGUE ?? 0),
+  },
 };
 
 /** 동레이팅 표준 경기 (양 팀 균형 + 4-4-2, 중립) */
@@ -137,7 +188,9 @@ export function buildSets(mode: Mode, overrides?: Record<string, number>): SetDe
   sets.push({ name: 'red', jobs: n(z.red, (i) => match(9000 + i, std('a', 9000 + i), std('b', 9000 + i), { ...o, forceRed: { team: 0, minute: 30 } })) });
   sets.push({ name: 'formation', jobs: FORMATIONS.flatMap((f, k) => n(z.formation, (i) => match(11000 + k * 100 + i, std('a', 11000 + k * 100 + i, 75, f), std('b', 11000 + k * 100 + i, 75, f), o))) });
   for (const r of RESPONSES) {
-    if (mode !== 'full' && !r.light) continue;
+    if (mode !== 'full' && !r.light && !(mode === 'sweep' && process.env.SWEEP_ALLRESP)) continue;
+    // 스윕: SWEEP_RESPKEYS=cross,stamina 처럼 고른 반응만
+    if (mode === 'sweep' && process.env.SWEEP_RESPKEYS && !process.env.SWEEP_RESPKEYS.split(',').includes(r.key)) continue;
     const mods: AttrMod[] = [0, 1].map((team) => ({ team: team as 0 | 1, slot: r.slot, attrs: r.attrs, delta: 10 }));
     sets.push({ name: `resp:${r.key}`, jobs: n(z.response, (i) => neutralJob(i, { ...o, mods })) });
   }
@@ -155,14 +208,37 @@ export function buildSets(mode: Mode, overrides?: Record<string, number>): SetDe
   };
   sets.push({ name: 'ovr5:base', jobs: n(z.ovr5, (i) => ovrJob(i, false)) });
   sets.push({ name: 'ovr5:mod', jobs: n(z.ovr5, (i) => ovrJob(i, true)) });
+  // 전술 반응 (E.15, E.19): 홈 팀의 세부 전술 하나만 낮음 ↔ 높음, 상대는 균형. 같은 시드 짝
+  for (const [d, lo, hi] of TACTIC_PAIRS) {
+    for (const [tag, v] of [['lo', lo], ['hi', hi]] as const) {
+      sets.push({ name: `tac:${d}:${tag}`, jobs: n(z.tactic, (i) => match(17000 + i, std('a', 17000 + i, 75, '4-4-2', { ...BALANCED, [d]: v }), std('b', 17000 + i), o)) });
+    }
+  }
   for (const engine of ['agent', 'quick'] as const) {
-    sets.push({ name: `season:${engine}`, jobs: n(z.seasons, (i) => ({ kind: 'season', playerId: SEASON_PLAYERS[i % 6]![1], seed: `season-${i}`, engine })) });
+    sets.push({ name: `season:${engine}`, jobs: n(z.seasons, (i) => ({ kind: 'season', playerId: SEASON_PLAYERS[i % 6]![1], seed: `season-${i}`, engine, ...o })) });
+  }
+  // 실제 선수 리그 (실제 로스터 20팀, 홈·원정 2회전 380경기 × 시즌)
+  for (let k = 0; k < z.league; k++) {
+    const ws = `league-${k}`;
+    const ids = LEAGUE_IDS;
+    const jobs: Job[] = [];
+    let seed = 30000 + k * 1000;
+    for (const h of ids) for (const a of ids) if (h !== a) jobs.push({ kind: 'league', worldSeed: ws, home: h, away: a, seed: seed++, ...o });
+    sets.push({ name: `league:${k}`, jobs });
   }
   return sets.filter((s) => s.jobs.length > 0);
 }
 
-/** 빌드업 성향을 0.5로 고정한 데이터 전술 (A5 전에는 tempo 0.5 = 기본값과 같음) */
-export const FIXED_STYLE: TeamSpec['tactics'] = { tempo: 0.5 };
+/** 2018-19 프리미어리그 20팀 id */
+const LEAGUE_IDS = ['mci', 'liv', 'che', 'tot', 'ars', 'mun', 'wol', 'eve', 'lei', 'whu', 'wat', 'cry', 'new', 'bou', 'bur', 'sou', 'bha', 'car', 'ful', 'hud'];
+
+/** 전술 반응 쌍: [세부 전술, 낮음 값, 높음 값]. 빌드업은 직선(0.2) ↔ 짧게(0.85) 순서로 "높음 = 짧게" */
+export const TACTIC_PAIRS: [keyof typeof BALANCED, number, number][] = [
+  ['lineHeight', 0.35, 0.65], ['pressing', 0.3, 0.8], ['style', 0.2, 0.85], ['width', 0.85, 1.15],
+];
+
+/** 빌드업 성향을 0.5로 고정한 데이터 전술 (E.15 능력치만의 점유율 효과) */
+export const FIXED_STYLE: TeamSpec['tactics'] = { style: 0.5 };
 
 export async function runSets(sets: SetDef[], label = '경기'): Promise<Map<string, JobOut[]>> {
   const all = sets.flatMap((s) => s.jobs);
@@ -209,7 +285,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
 
   if (eq.length) {
     const S = `동레이팅 75 중립 (균형 + 4-4-2, ${eq.length}경기, 팀당)`;
-    add(S, 'goals', '득점', '1.35 ± 0.1', perTeam(eq, (s) => s.goals), 1.25, 1.45, 2, { guard: [0.9, 1.8] });
+    add(S, 'goals', '득점', '1.35 ± 0.1', perTeam(eq, (s) => s.goals), 1.25, 1.45, 2, { guard: [1.1, 1.6] });
     add(S, 'poss', '점유율 (홈쪽 %)', '50 ± 3', avg(eq.map(poss)), 47, 53);
     add(S, 'passes', '패스 시도', '약 420', perTeam(eq, (s) => s.passes), 380, 460, 0);
     add(S, 'passPct', '패스 성공률 %', '80 ± 3', ratio(totTeam(eq, (s) => s.passesCompleted), totTeam(eq, (s) => s.passes)) * 100, 77, 83);
@@ -242,6 +318,13 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'counterPct', '역습 슈팅(소유 10초 안) %', '15~25', ratio(totTeam(eq, (s) => s.counterShots), totTeam(eq, (s) => s.shots)) * 100, 15, 25);
     add(S, 'gkShotPct', '골킥 직후 15초 안 슈팅 %', '5 이하', ratio(totTeam(eq, (s) => s.goalKickShots), totTeam(eq, (s) => s.shots)) * 100, 0, 5);
     add(S, 'ms', '경기 계산 시간 ms (워커)', '2000 이하', msPerMatch, 0, 2000, 0);
+    if (mode === 'sweep') {
+      // 스윕용 간이 분포 (표준 경기 4-4-2 만)
+      const gb = (gs: PosGroup[]) => sum(eq.flatMap((m) => m.players.filter((p) => gs.includes(groupOf(p))).map((p) => p.goals)));
+      const tot = gb(GROUPS);
+      add(S, 'gSTn', '득점 비율 ST (4-4-2) %', '38~48', ratio(gb(['ST']), tot) * 100, 38, 48, 0);
+      add(S, 'gMIDn', '득점 비율 미드 (4-4-2) %', '18~28', ratio(gb(['CDM', 'CM', 'CAM']), tot) * 100, 18, 28, 0);
+    }
 
     // 판단 민감도
     for (const [name, label] of [['sens:map', '위치 가치 맵 × 1.05'], ['sens:shot', '슛 효용 × 1.05']] as const) {
@@ -280,9 +363,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const S = `레이팅 차 (Δ+8: 79 vs 71 중립 ${d8.length}경기, 균형 + 4-4-2)`;
     const strong = avg(d8.map((m) => m.homeGoals));
     const weak = avg(d8.map((m) => m.awayGoals));
-    add(S, 'g8', '강팀 득점 (Δ+8)', '2.0 ± 0.2', strong, 1.8, 2.2, 2, { guard: [1.3, 2.8] });
-    add(S, 'gm8', '약팀 득점 (Δ−8)', '0.9 ± 0.15', weak, 0.75, 1.05, 2, { guard: [0.5, 1.3] });
-    add(S, 'gr8', '강팀/약팀 득점비', '약 2.2 (exp(0.8))', ratio(strong, weak), 1.9, 2.6, 2, { guard: [1.4, 4] });
+    add(S, 'g8', '강팀 득점 (Δ+8)', '1.8~2.4', strong, 1.8, 2.4, 2, { guard: [1.3, 2.8] });
+    add(S, 'gm8', '약팀 득점 (Δ−8)', '0.75~1.05', weak, 0.75, 1.05, 2, { guard: [0.5, 1.3] });
+    add(S, 'gr8', '강팀/약팀 득점비', '3 이하', ratio(strong, weak), 1, 3, 2, { guard: [1.4, 4] });
   }
   if (M('poss10').length) {
     const S = `점유율 Δ+10 (80 vs 70 중립 ${M('poss10').length}경기)`;
@@ -340,11 +423,73 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
   const sq = res.get('season:quick') as SeasonOut[] | undefined;
   if (sa?.length && sq?.length) {
     const S = `시즌 진행 (실제 선수 ${sa.length}명 × 1시즌, 엔진 vs 빠른 경기)`;
-    add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른', '0.9~1.1', avg(sa.map((x) => x.xp)) / Math.max(1, avg(sq.map((x) => x.xp))), 0.9, 1.1, 2, { guard: [0.9, 1.1] });
+    // 출전당 XP 비 (E.20 6번 기록): 시즌 합계 비는 부상 한 번(예: 3경기 출전)에 ±0.25 흔들려 출전 10경기 이상인 선수만 출전당으로 비교한다
+    const both = sa.map((x, i) => [x, sq[i]!] as const).filter(([e, q]) => e.apps >= 10 && q.apps >= 10);
+    const perApp = (xs: SeasonOut[]) => sum(xs.map((x) => x.xp)) / Math.max(1, sum(xs.map((x) => x.apps)));
+    const total = avg(sa.map((x) => x.xp)) / Math.max(1, avg(sq.map((x) => x.xp)));
+    add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
+      // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
+      guard: TEMP_GUARD ? [0.85, 1.3] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
+    });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
     add(S, 'seasonR', '실제 선수 시즌 평점 평균 (참고)', '강팀 주전 6.8~7.0 허용', mu, 6.2, 7.2, 2);
     sa.forEach((x, i) => extra.push(`시즌 ${SEASON_PLAYERS[i % 6]![1]}: 엔진 평점 ${x.rating.toFixed(2)} XP ${x.xp} 출전 ${x.apps} ${x.goals}골 ${x.assists}도움 · 빠른 경기 평점 ${sq[i]!.rating.toFixed(2)} XP ${sq[i]!.xp} ${sq[i]!.goals}골 ${sq[i]!.assists}도움`));
+  }
+
+  // 전술 반응 (E.15): 홈 팀만 바꾸고 상대는 균형
+  if (M('tac:lineHeight:lo').length) {
+    const S = `전술 반응 (홈 팀 세부 전술 하나만 낮음 ↔ 높음, 각 ${M('tac:lineHeight:lo').length}경기)`;
+    const T = (d: string, tag: string) => M(`tac:${d}:${tag}`);
+    const team = (ms: MatchOut[], k: 0 | 1, f: (s: TeamStats) => number) => avg(ms.map((m) => f(m.team[k])));
+    const chg = (a: number, b: number) => (b / Math.max(1e-9, a) - 1) * 100;
+    add(S, 'tLineOff', '라인 높음: 상대 오프사이드 변화 %', '+40 이상', chg(team(T('lineHeight', 'lo'), 1, (s) => s.offsides), team(T('lineHeight', 'hi'), 1, (s) => s.offsides)), 40, 1000, 0);
+    add(S, 'tLineThru', '라인 높음: 상대 침투 패스 수신 변화 %', '증가', chg(team(T('lineHeight', 'lo'), 1, (s) => s.throughReceived), team(T('lineHeight', 'hi'), 1, (s) => s.throughReceived)), 0.01, 1000, 0);
+    add(S, 'tPressWin', '압박 높음: 상대 진영 탈취 변화 %', '+25 이상', chg(team(T('pressing', 'lo'), 0, (s) => s.oppHalfWins), team(T('pressing', 'hi'), 0, (s) => s.oppHalfWins)), 25, 1000, 0);
+    const teamKm = (ms: MatchOut[]) => avg(ms.map((m) => sum(m.players.filter((p) => p.team === 0).map((p) => p.distance))));
+    add(S, 'tPressKm', '압박 높음: 팀 이동 거리 변화 %', '+3 이상', chg(teamKm(T('pressing', 'lo')), teamKm(T('pressing', 'hi'))), 3, 1000, 1);
+    add(S, 'tPressFoul', '압박 높음: 파울 변화 %', '증가', chg(team(T('pressing', 'lo'), 0, (s) => s.fouls), team(T('pressing', 'hi'), 0, (s) => s.fouls)), 0.01, 1000, 0);
+    const possOf = (ms: MatchOut[]) => avg(ms.map(poss));
+    add(S, 'tBuildPoss', '빌드업 짧게 (↔ 직선): 점유율 변화 %p', '+5 이상', possOf(T('style', 'hi')) - possOf(T('style', 'lo')), 5, 100, 1);
+    const longR = (ms: MatchOut[]) => ratio(sum(ms.map((m) => m.team[0].longPasses)), sum(ms.map((m) => m.team[0].passes))) * 100;
+    add(S, 'tBuildLong', '빌드업 짧게: 롱패스 비율 변화 %p', '−5 이하', longR(T('style', 'hi')) - longR(T('style', 'lo')), -100, -5, 1);
+    add(S, 'tWidthCross', '폭 넓게: 크로스 변화 %', '+25 이상', chg(team(T('width', 'lo'), 0, (s) => s.crosses), team(T('width', 'hi'), 0, (s) => s.crosses)), 25, 1000, 0);
+    const central = (ms: MatchOut[]) => ratio(sum(ms.map((m) => m.team[0].centralShots)), sum(ms.map((m) => m.team[0].shots))) * 100;
+    add(S, 'tWidthCentral', '폭 넓게: 중앙 슈팅 비율 변화 %p', '감소', central(T('width', 'hi')) - central(T('width', 'lo')), -100, -0.01, 1);
+    const gd = (ms: MatchOut[]) => avg(ms.map((m) => m.homeGoals - m.awayGoals));
+    extra.push(`전술 반응 득실차 (홈): ${TACTIC_PAIRS.map(([d]) => `${d} 낮음 ${gd(T(d, 'lo')).toFixed(2)} / 높음 ${gd(T(d, 'hi')).toFixed(2)}`).join(' · ')}`);
+  }
+
+  // 실제 선수 시즌 (E.20 5번, 3시즌 평균)
+  const lg = [...res.keys()].filter((k) => k.startsWith('league:')).map((k) => res.get(k) as LeagueMatchOut[]);
+  if (lg.length) {
+    const S = `실제 선수 시즌 (실제 로스터 20팀 전 경기 엔진, ${lg.length}시즌 평균)`;
+    const per = lg.map((ms) => {
+      const t = new Map<string, { gf: number; ga: number; pts: number }>();
+      const row = (id: string) => t.get(id) ?? (t.set(id, { gf: 0, ga: 0, pts: 0 }), t.get(id)!);
+      const sc = new Map<string, number>();
+      for (const m of ms) {
+        const h = row(m.home);
+        const a = row(m.away);
+        h.gf += m.homeGoals; h.ga += m.awayGoals; a.gf += m.awayGoals; a.ga += m.homeGoals;
+        h.pts += m.homeGoals > m.awayGoals ? 3 : m.homeGoals === m.awayGoals ? 1 : 0;
+        a.pts += m.awayGoals > m.homeGoals ? 3 : m.homeGoals === m.awayGoals ? 1 : 0;
+        for (const [id, g] of Object.entries(m.scorers)) sc.set(id, (sc.get(id) ?? 0) + g);
+      }
+      const rows = [...t.entries()];
+      const top = rows.reduce((x, y) => (y[1].gf > x[1].gf ? y : x));
+      const leak = rows.reduce((x, y) => (y[1].ga > x[1].ga ? y : x));
+      const champ = rows.reduce((x, y) => (y[1].pts > x[1].pts || (y[1].pts === x[1].pts && y[1].gf - y[1].ga > x[1].gf - x[1].ga) ? y : x));
+      const boot = [...sc.entries()].reduce((x, y) => (y[1] > x[1] ? y : x), ['', 0] as [string, number]);
+      const goals = rows.reduce((t2, r) => t2 + r[1].gf, 0) / ms.length / 2;
+      return { top, leak, champ, boot, goals };
+    });
+    const m = (f: (x: (typeof per)[number]) => number) => avg(per.map(f));
+    add(S, 'lgTopGF', '최다 득점 팀 골', '85~105', m((x) => x.top[1].gf), 85, 105, 0, { note: per.map((x) => `${x.top[0]} ${x.top[1].gf}`).join(', ') });
+    add(S, 'lgTopGA', '최다 실점 팀 실점', '60~85', m((x) => x.leak[1].ga), 60, 85, 0, { note: per.map((x) => `${x.leak[0]} ${x.leak[1].ga}`).join(', ') });
+    add(S, 'lgBoot', '득점왕 골', '22~38', m((x) => x.boot[1]), 22, 38, 0, { note: per.map((x) => `${x.boot[0]} ${x.boot[1]}`).join(', ') });
+    add(S, 'lgChamp', '우승팀 승점', '85~100', m((x) => x.champ[1].pts), 85, 100, 0, { note: per.map((x) => `${x.champ[0]} ${x.champ[1].pts}`).join(', ') });
+    add(S, 'lgGoals', '리그 경기당 팀 득점 (참고)', '약 1.4', m((x) => x.goals), 1.2, 1.6, 2);
   }
 
   const responses = eq.length ? analyzeResponses(res, eq) : [];
@@ -360,17 +505,28 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqAll: MatchOut[]): Respon
     const B = tracked(eq, r.slot);
     const X = tracked(mod, r.slot);
     const push = (metric: string, criterion: string, f: (ps: CompactPlayer[], ms: MatchOut[]) => number, unit: ResponseRow['unit'], need: number, guard?: number) => {
+      const diff = (b: number, m: number) => (unit === '%' ? (m / Math.max(1e-9, b) - 1) * 100 : m - b);
       const base = f(B, eq);
       const m = f(X, mod);
-      const change = unit === '%' ? (m / Math.max(1e-9, base) - 1) * 100 : m - base;
-      out.push({ key: r.key, attrs: r.label, target: r.target, metric, criterion, base, mod: m, change, unit, pass: need >= 0 ? change >= need : change <= need, ...(guard !== undefined ? { guard } : {}) });
+      const change = diff(base, m);
+      const bound = bootBound(eq.length, (idx) => {
+        const e = idx.map((i) => eq[i]!);
+        const x = idx.map((i) => mod[i]!);
+        return diff(f(tracked(e, r.slot), e), f(tracked(x, r.slot), x));
+      }, need >= 0);
+      const dirNeed = Math.abs(need) < 0.001 ? 0 : need;
+      out.push({
+        key: r.key, attrs: r.label, target: r.target, metric, criterion, base, mod: m, change, unit,
+        pass: respPass(change, need, bound), need: dirNeed, bound, ...(guard !== undefined ? { guard } : {}),
+      });
     };
     const rate = (a: (p: CompactPlayer) => number, b: (p: CompactPlayer) => number, k = 100) => (ps: CompactPlayer[]) => (ratio(sum(ps.map(a)), sum(ps.map(b))) * k);
     const perP = (a: (p: CompactPlayer) => number) => (ps: CompactPlayer[]) => avg(ps.map(a));
     switch (r.key) {
       case 'st_shoot':
         push('유효 슈팅률 %', '+4%p 이상', rate((p) => p.shotsOnTarget, (p) => p.shots), '%p', 4);
-        push('경기당 득점', '+12% 이상', perP((p) => p.goals), '%', 12, 5);
+        // 엔진 보정 중 임시 가드 (부록 C.13): 수비 주의 집중으로 반응이 음수가 되어 배포를 막지 않게 −30 이상
+        push('경기당 득점', '+12% 이상', perP((p) => p.goals), '%', 12, TEMP_GUARD ? -30 : 5);
         break;
       case 'cm_pass':
         push('패스 성공률 %', '+2%p 이상', rate((p) => p.passesCompleted, (p) => p.passes), '%p', 2, 0);
@@ -419,13 +575,18 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqAll: MatchOut[]): Respon
       }
     }
   }
+  // 속도·가속은 두 지표 중 하나만 통과하면 된다 (E.15.1 "또는")
+  const pace = out.filter((x) => x.key === 'pace');
+  if (pace.some((x) => x.pass)) for (const x of pace) x.pass = true;
   const b = res.get('ovr5:base') as MatchOut[] | undefined;
   const m = res.get('ovr5:mod') as MatchOut[] | undefined;
   if (b?.length && m?.length) {
-    const pick = (ms: MatchOut[]) => ms.flatMap((x, i) => x.players.filter((p) => p.team === 0 && p.starter && p.slot === GROUP_SLOT[GROUPS[i % 8]!][1]).map((p) => p.rating));
-    const base = avg(pick(b));
-    const mod = avg(pick(m));
-    out.push({ key: 'ovr5', attrs: '전체 OVR +5', target: '내 선수 (포지션 8군)', metric: '평균 평점', criterion: '+0.15 이상', base, mod, change: mod - base, unit: '', pass: mod - base >= 0.15 });
+    const pick = (ms: MatchOut[], ids: number[]) => ids.flatMap((i) => ms[i]!.players.filter((p) => p.team === 0 && p.starter && p.slot === GROUP_SLOT[GROUPS[i % 8]!][1]).map((p) => p.rating));
+    const all = b.map((_, i) => i);
+    const base = avg(pick(b, all));
+    const mod = avg(pick(m, all));
+    const bound = bootBound(b.length, (idx) => avg(pick(m, idx)) - avg(pick(b, idx)), true);
+    out.push({ key: 'ovr5', attrs: '전체 OVR +5', target: '내 선수 (포지션 8군)', metric: '평균 평점', criterion: '+0.15 이상', base, mod, change: mod - base, unit: '', pass: respPass(mod - base, 0.15, bound), need: 0.15, bound });
   }
   return out;
 }

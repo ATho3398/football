@@ -29,25 +29,39 @@ function liveState(seed = 1): SimState {
 
 describe('퇴장과 수적 열세 (E.10)', () => {
   it('퇴장하면 10명, 같은 줄 간격을 다시 나누고 전술이 바뀐다 (열세 라인/압박 −0.15, 우세 +0.05)', () => {
-    const s = createState(input(3, { forceRed: { team: 0, minute: 10 } }));
-    while (s.t < 10 * 60 + 1) step(s);
-    const onPitch = (team: 0 | 1) => s.agents.filter((a) => a.onPitch && a.team === team);
-    expect(onPitch(0)).toHaveLength(10);
-    expect(onPitch(1)).toHaveLength(11);
-    expect(s.teams[0].stats.reds).toBe(1);
-    const base0 = s.teams[0].tactics;
-    const base1 = s.teams[1].tactics;
-    expect(effectiveTactics(s, 0).lineHeight).toBeCloseTo(Math.max(0, base0.lineHeight - ENGINE.referee.shortLine), 6);
-    expect(effectiveTactics(s, 0).pressing).toBeCloseTo(Math.max(0, base0.pressing - ENGINE.referee.shortPress), 6);
-    expect(effectiveTactics(s, 1).lineHeight).toBeCloseTo(Math.min(1, base1.lineHeight + ENGINE.referee.extraLine), 6);
-    // 퇴장한 줄(미드)의 y 슬롯이 균등하다
-    const mids = onPitch(0).filter((a) => a.line === 2).map((a) => a.sy).sort((x, y) => x - y);
-    const gaps = mids.slice(1).map((y, i) => y - mids[i]!);
-    for (const g of gaps) expect(g).toBeCloseTo(gaps[0]!, 6);
-    while (!s.done) step(s);
-    expect(s.agents.filter((a) => a.onPitch && a.team === 0).length).toBeLessThanOrEqual(10);
+    // 강제 퇴장 1장만 보도록 경기 중 자연 퇴장(직접 레드, 두 번째 경고)은 이 테스트에서 끈다
+    const R = ENGINE.referee as { redShare: number; secondYellow: number };
+    const saved = { redShare: R.redShare, secondYellow: R.secondYellow };
+    R.redShare = 0;
+    R.secondYellow = 0;
+    try {
+      forcedRed();
+    } finally {
+      Object.assign(R, saved);
+    }
   });
 });
+
+/** 10분에 홈 팀 미드필더 1명 강제 퇴장 뒤 인원·전술·대형 점검 */
+function forcedRed(): void {
+  const s = createState(input(3, { forceRed: { team: 0, minute: 10 } }));
+  while (s.t < 10 * 60 + 1) step(s);
+  const onPitch = (team: 0 | 1) => s.agents.filter((a) => a.onPitch && a.team === team);
+  expect(onPitch(0)).toHaveLength(10);
+  expect(onPitch(1)).toHaveLength(11);
+  expect(s.teams[0].stats.reds).toBe(1);
+  const base0 = s.teams[0].tactics;
+  const base1 = s.teams[1].tactics;
+  expect(effectiveTactics(s, 0).lineHeight).toBeCloseTo(Math.max(0, base0.lineHeight - ENGINE.referee.shortLine), 6);
+  expect(effectiveTactics(s, 0).pressing).toBeCloseTo(Math.max(0, base0.pressing - ENGINE.referee.shortPress), 6);
+  expect(effectiveTactics(s, 1).lineHeight).toBeCloseTo(Math.min(1, base1.lineHeight + ENGINE.referee.extraLine), 6);
+  // 퇴장한 줄(미드)의 y 슬롯이 균등하다
+  const mids = onPitch(0).filter((a) => a.line === 2).map((a) => a.sy).sort((x, y) => x - y);
+  const gaps = mids.slice(1).map((y, i) => y - mids[i]!);
+  for (const g of gaps) expect(g).toBeCloseTo(gaps[0]!, 6);
+  while (!s.done) step(s);
+  expect(s.agents.filter((a) => a.onPitch && a.team === 0).length).toBeLessThanOrEqual(10);
+}
 
 describe('오프사이드 (E.10)', () => {
   it('상대 진영에서 공과 뒤에서 두 번째 수비수보다 앞이면 오프사이드, 스로인/골킥/코너 직후 첫 패스는 면제', () => {

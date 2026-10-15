@@ -77,3 +77,12 @@ export function defaultRole(pos: Position, a: FieldAttributes): Role {
 export function roleById(id: string | undefined): Role | undefined {
   return id ? ROLES[id] : undefined;
 }
+
+/** 역할 이름 (E3.6 까지는 기존 역할 이름, E.19 ②) */
+export const ROLE_NAMES_KO: Record<string, string> = {
+  poacher: '골잡이', targetMan: '타겟맨', linkUp: '연계형', winger: '윙어', insideForward: '인사이드 포워드',
+  playmaker: '플레이메이커', shadowStriker: '섀도 스트라이커', boxCrasher: '박스 침투형', boxToBox: '박스투박스',
+  deepPlaymaker: '딥라잉 플레이메이커', advanced8: '공격형 8번', anchor: '앵커', ballWinner: '볼 위너',
+  dlpDm: '딥라잉 플레이메이커(CDM)', attackingFullback: '공격적 풀백', defensiveFullback: '수비형 풀백',
+  invertedFullback: '인버티드 풀백', stopper: '스토퍼', ballPlayingCB: '볼 플레잉 CB', coverCB: '커버 CB', goalkeeper: '골키퍼',
+};
