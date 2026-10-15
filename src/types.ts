@@ -1,5 +1,6 @@
 import type { FieldAttribute, FieldAttributes, GkAttributes, GkType } from './attributes';
 import type { FieldPosition } from './positions';
+import type { Proficiency } from './proficiency';
 
 export type Foot = 'left' | 'right' | 'both';
 export type Tier = 'legendary' | 'worldClass' | 'topClass' | 'special' | 'normal';
@@ -134,4 +135,18 @@ export interface PlayerState {
   coachWarned: boolean;
   season: SeasonStats;
   history: SeasonRecord[];
+  /** 포지션별 숙련도 0~100 (부록 D.3) */
+  proficiency: Proficiency;
+  /** 주 포지션 변경 요청 전 포지션 (숙련도 상승 거리, 시즌 감소 대상) */
+  formerPosition?: FieldPosition;
+  /** 레전드 배지 (부록 D.4, 영구) */
+  badges: Badge[];
+}
+
+export type BadgeId = 'goals500' | 'titles5' | 'oneClub10';
+
+export interface Badge {
+  id: BadgeId;
+  /** 받은 시즌 */
+  season: number;
 }

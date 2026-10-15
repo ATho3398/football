@@ -1,5 +1,6 @@
 // 성장, 레벨업, 포인트 비용, 자동 성장, 노화, 노련함 (5.1, 6.1, 6.1.1, 6.2, B.5)
 
+import { proficientOvr } from './proficiency';
 import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './attributes';
 import { BALANCE } from './config/balance';
 import { attributeOvrWeight, positionOvr, type FieldPosition } from './positions';
@@ -212,6 +213,7 @@ export function veteranXpMultiplier(age: number): number {
   return m;
 }
 
-export function playerOvr(p: Pick<PlayerState, 'attributes' | 'position'>): number {
-  return positionOvr(p.attributes, p.position as FieldPosition);
+/** 내 선수 OVR = 주 포지션 OVR − 숙련도 페널티 (부록 D.3). 숙련도 기록이 없으면 페널티 없음 */
+export function playerOvr(p: Pick<PlayerState, 'attributes' | 'position'> & { proficiency?: PlayerState['proficiency'] }): number {
+  return proficientOvr(p, p.position as FieldPosition);
 }

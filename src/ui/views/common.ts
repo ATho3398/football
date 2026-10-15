@@ -1,0 +1,48 @@
+// 화면 공통 조각: 패널, 하단 탭, 버전 표시, 배너 목록. 컴포넌트(src/ui/components)만 조합한다
+
+import { Banner, esc, Tabs, type TabItem } from '../components';
+import type { BannerVM, VersionVM } from '../viewModels';
+
+export function panel(inner: string, cls = ''): string {
+  return `<div class="panel ${cls}">${inner}</div>`;
+}
+
+export function banners(list: BannerVM[]): string {
+  return list.map((b) => Banner({
+    tone: b.tone, title: b.title, ...(b.body ? { children: b.body } : {}),
+    ...(b.action ? { action: b.action, onAction: { act: b.act!, data: b.to ? { to: b.to } : {} } } : {}),
+  })).join('');
+}
+
+/** 버전 표시 (21.5.1, I.19 5번): 맨 아래 작은 보조 글씨 */
+export function versionFooter(v: VersionVM): string {
+  return `<p class="ver">${esc(v.label)}</p>`;
+}
+
+/** 세이브 시작 버전이 다르면 중립 배너 (디자인 22) */
+export function startNotice(v: VersionVM): string {
+  if (!v.notice) return '';
+  const [title, ...rest] = v.notice.split('. ');
+  return Banner({ tone: 'info', title: title!.replace(/\.$/, ''), ...(rest.length ? { children: rest.join('. ') } : {}) });
+}
+
+/** 하단 탭 (I.1): 구현된 탭만 (홈, 선수, 월드). 경기·커리어 탭은 숨긴다 */
+export const NAV_ITEMS: TabItem[] = [
+  { id: 'home', label: '홈', icon: 'home' },
+  { id: 'player', label: '선수', icon: 'player' },
+  { id: 'world', label: '월드', icon: 'world' },
+];
+
+export function navBar(value: string): string {
+  return `<nav class="nav">${Tabs({ items: NAV_ITEMS, value, variant: 'nav', act: 'go-tab' })}</nav>`;
+}
+
+/** 4칸 숫자 타일 (디자인 51·56) */
+export function statTiles(items: { value: string | number; label: string; hi?: boolean }[]): string {
+  return `<div class="tiles">${items.map((t) => `<div class="tile"><b class="po-num${t.hi ? ' hi' : ''}">${esc(t.value)}</b><span>${esc(t.label)}</span></div>`).join('')}</div>`;
+}
+
+/** 버튼 두 개 하단 줄 (보조 1 : 주 1.6) */
+export function actionRow(secondary: string, primary: string): string {
+  return `<div class="btn-row">${secondary}${primary}</div>`;
+}

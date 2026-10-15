@@ -1,65 +1,88 @@
-// 경기 화면 (E5-lite, 24번, 24.3 개정): 실제 속도 전개 하이라이트. 장면 6~8개(각 10~15초)를 1× 실제 속도로 보여 주고,
+// 경기 화면 (E5-lite, 24번, 24.3 개정, 디자인 15·48·49·18): 실제 속도 전개 하이라이트. 장면 6~8개(각 10~15초)를 1× 실제 속도로 보여 주고,
 // 장면 사이에는 약 1초 동안 선수들이 다음 장면 위치로 미끄러지며 시계만 넘어간다. [여기서부터 실시간]은 그 뒤를 끊김 없이 재생한다.
-// 결정 순간 정지와 선택 패널은 없다 (E4). 화면 모듈은 뷰모델만 받아 HTML 을 만들고(부록 H.2), 캔버스 갱신은 ReplayPlayer 가 한다.
+// 결정 순간 정지와 선택 패널, 패, 직접/자동 토글은 없다 (E4). 설정 항목이 없어 톱니도 숨긴다.
+// 화면 모듈은 뷰모델만 받아 HTML 을 만들고(부록 H.2), 캔버스와 자주 바뀌는 값은 ReplayPlayer 가 갱신한다.
 
 import { HL, possessionSummary, selectScenes, type Scene } from '../../highlights';
-import { clockLabel, eventsUntil, frameAt, interpolateFrame, scoreAt, SPEEDS, type Replay, type ReplayFrame } from '../../replay';
-import { drawFrame, numberCircleRenderer, pitchSize, playerMap, TEAM_COLORS, type MarkerRenderer } from '../pitch/renderer';
+import { clockLabel, frameAt, interpolateFrame, scoreAt, SPEEDS, type Replay, type ReplayFrame } from '../../replay';
+import {
+  Avatar, Button, esc, FeedItem, Icon, Pitch, PitchLegend, PossessionBar, ScoreBar, StatChip, type ScoreView,
+} from '../components';
+import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
+import { drawFrame, fitCanvas, numberCircleRenderer, playerMap, readPalette, type MarkerRenderer } from '../pitch/renderer';
 
 export type ReplayMode = 'scene' | 'transition' | 'live' | 'ended';
 
-export interface ReplayVM {
-  teams: [string, string];
-  side: 0 | 1;
+export interface ReplayVM extends ReplayStaticVM {
   speed: number;
   paused: boolean;
   mode: ReplayMode;
   /** 지금 장면 번호 (1부터)와 장면 수 */
   scene: number;
-  scenes: number;
+  scenes: { minute: string; label: string }[];
+  sceneLabel: string;
+  /** 장면 전환 중: 넘어가는 시계와 요약 */
+  transition: { from: string; to: string; summary: string } | null;
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', me: '내 장면', opponent: '상대', shot: '슈팅' };
+
+export function sceneTiles(r: Replay, scenes: Scene[]): { minute: string; label: string }[] {
+  return scenes.map((sc) => {
+    const ev = r.events.find((x) => x.e >= sc.key - 0.01 && (x.type === 'shot' || x.type === 'goal'));
+    return { minute: ev ? `${ev.minute}'` : '', label: sc.kind === 'goal' && sc.team !== r.side ? '실점' : SCENE_SHORT[sc.kind] };
+  });
+}
 
 export function replayView(vm: ReplayVM): string {
-  const dot = (i: 0 | 1) => `<i class="team-dot" style="background:${TEAM_COLORS[i]}"></i>`;
   const ended = vm.mode === 'ended';
-  const status = ended ? '경기 종료'
-    : vm.mode === 'live' ? '실시간'
-    : `하이라이트 ${vm.scene}/${vm.scenes}`;
-  // 배속은 장면(과 실시간) 안에서만 의미가 있다 (24.3)
-  const speedOn = vm.mode === 'scene' || vm.mode === 'live';
+  const view: ScoreView | undefined = ended ? undefined : vm.mode === 'live' ? 'live' : vm.mode === 'transition' ? 'transition' : 'highlight';
+  const total = vm.scenes.length;
+  const score = ScoreBar({
+    idPrefix: 'rp', home: vm.home, away: vm.away, homeScore: 0, awayScore: 0, minute: '0',
+    ...(vm.homeTactic ? { homeTactic: vm.homeTactic } : {}), ...(vm.awayTactic ? { awayTactic: vm.awayTactic } : {}),
+    ...(view ? { view } : {}),
+    scene: { index: vm.mode === 'transition' ? vm.scene : vm.scene, total, ...(vm.mode === 'scene' ? { label: vm.sceneLabel } : {}) },
+    ...(vm.transition ? { minuteTo: vm.transition.to } : {}),
+    speed: ended ? false : `${vm.speed}×`, speeds: SPEEDS.map((s) => `${s}×`), paused: vm.paused,
+    onSpeed: { act: 'rp-speed' }, onPause: { act: 'rp-toggle' }, onSkip: { act: 'rp-skip' },
+    onLive: { act: 'rp-live' }, onHighlight: { act: 'rp-highlight' },
+  });
+  const overlay = vm.transition ? `<div class="tr-clock po-num">${esc(vm.transition.from)}' ${Icon({ name: 'arrow-flat', size: 22 })} ${esc(vm.transition.to)}'</div>` : '';
+  const legendLeft = vm.mode === 'transition' ? '<i class="dot faint"></i>다음 장면으로 넘어가는 중 · 약 1초'
+    : vm.mode === 'live' ? `<i class="dot"></i>실시간 · 실제 속도 ${vm.speed}×`
+    : ended ? '<i class="dot faint"></i>경기 종료'
+    : `<i class="dot"></i>장면 ${vm.scene} · 실제 속도 ${vm.speed}×`;
+  const tiles = total
+    ? `<div class="panel hl-panel"><div class="kv small"><b>오늘의 하이라이트</b><span class="muted">${total}장면 · 약 ${Math.round(total * 13)}초 · 장면당 10~15초</span></div>
+      <div class="scene-tiles" style="grid-template-columns:repeat(${total},minmax(0,1fr))">${vm.scenes.map((s, i) => {
+        const n = i + 1;
+        const cls = vm.mode === 'live' || ended ? 'done' : n < vm.scene ? 'done' : n === vm.scene ? (vm.mode === 'transition' ? 'done' : 'on') : vm.mode === 'transition' && n === vm.scene + 1 ? 'next' : '';
+        return `<div class="scene-tile ${cls}"><span class="po-num">${n <= vm.scene || cls === 'done' ? esc(s.minute) : '·'}</span><span>${n <= vm.scene || cls === 'done' ? esc(s.label) : n}</span></div>`;
+      }).join('')}</div></div>`
+    : '';
+  const trCard = vm.transition
+    ? `<div class="tr-card"><span class="tr-card__icon">${Icon({ name: 'ff', size: 18 })}</span><span><small>${esc(vm.transition.from)}' ~ ${esc(vm.transition.to)}' 요약</small><b>${esc(vm.transition.summary)}</b></span></div>`
+    : '';
+  const me = vm.me
+    ? `<div class="me-row">${Avatar({ size: 44, ring: true })}<div class="grow"><span class="me-row__name">${esc(vm.me.name)} <span class="slot-chip">${esc(vm.me.position)}</span></span><span id="rp-my" class="chips"></span></div></div>`
+    : '';
   return `
-    <div class="card replay">
-      <div class="row between replay-head">
-        <div class="grow">${dot(0)}<b>${esc(vm.teams[0])}</b>${vm.side === 0 ? ' <span class="small muted">(내 팀)</span>' : ''}</div>
-        <div class="center"><div class="replay-score" id="rp-score">0 : 0</div><div class="small muted" id="rp-clock">0:00</div></div>
-        <div class="grow" style="text-align:right">${vm.side === 1 ? '<span class="small muted">(내 팀)</span> ' : ''}<b>${esc(vm.teams[1])}</b>${dot(1)}</div>
-      </div>
-      <canvas id="rp-canvas" class="pitch"></canvas>
-      <div class="row between small muted replay-status"><span id="rp-status">${status}</span><span id="rp-scene"></span></div>
-      <div class="row wrap replay-ctl">
-        <button class="mini" data-act="rp-toggle" ${ended ? 'disabled' : ''}>${vm.paused ? '▶' : '⏸'}</button>
-        ${SPEEDS.map((s) => `<button class="chip ${vm.speed === s ? 'on' : ''}" data-act="rp-speed" data-v="${s}" ${speedOn ? '' : 'disabled'}>${s}×</button>`).join('')}
-        <span class="grow"></span>
-        ${vm.mode === 'scene' || vm.mode === 'transition' ? '<button class="mini" data-act="rp-live">여기서부터 실시간</button>' : ''}
-        <button class="mini" data-act="rp-skip">${ended ? '결과 보기' : '건너뛰기 ⏭'}</button>
-      </div>
-    </div>
-    <div class="card"><h2>이벤트</h2><div id="rp-feed" class="feed"></div></div>`;
+    <div class="match">
+      ${score}
+      <div class="pitch-wrap">${Pitch({ canvasId: 'rp-canvas', label: '경기장', children: overlay })}</div>
+      ${PitchLegend(`<span id="rp-legend">${legendLeft}</span>`)}
+      ${tiles}
+      ${trCard}
+      <div id="rp-feed" class="feed"></div>
+      ${me}
+      <div class="poss-wrap" id="rp-poss">${PossessionBar({ home: 50 })}</div>
+      ${ended ? `<div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'rp-result', children: '결과 보기' })}</div>` : ''}
+    </div>`;
 }
 
-interface FeedLine {
+interface Extra extends FeedVM {
   e: number;
-  minute: string;
-  text: string;
-  big: boolean;
-  summary?: boolean;
-}
-
-export function feedHtml(lines: FeedLine[]): string {
-  if (!lines.length) return '<div class="small muted">킥오프를 기다리는 중</div>';
-  return lines.slice(0, 40).map((e) => `<div class="feed-item ${e.big ? 'big' : ''} ${e.summary ? 'summary' : ''}"><span class="min">${e.summary ? '⏩' : `${esc(e.minute)}'`}</span>${esc(e.text)}</div>`).join('');
 }
 
 /**
@@ -77,7 +100,7 @@ export class ReplayPlayer {
   private tr = 0;
   private trFrom: ReplayFrame | null = null;
   private trTo: ReplayFrame | null = null;
-  private readonly summaries: FeedLine[] = [];
+  private readonly summaries: Extra[] = [];
   private last = 0;
   private raf = 0;
   private shown = '';
@@ -95,8 +118,25 @@ export class ReplayPlayer {
     return this.mode === 'ended';
   }
 
+  /** 화면 뷰모델 (모드가 바뀔 때마다 다시 그린다) */
+  vm(base: ReplayStaticVM): ReplayVM {
+    const r = this.replay;
+    const sc = this.scenes[this.idx];
+    let transition: ReplayVM['transition'] = null;
+    if (this.mode === 'transition' && this.trFrom && this.trTo) {
+      const next = this.scenes[this.idx + 1]!;
+      const m = (f: ReplayFrame, e: number) => clockLabel(f, e > r.halfE).split(':')[0]!.replace(/'$/, '');
+      transition = { from: m(this.trFrom, sc!.end), to: m(this.trTo, next.start), summary: possessionSummary(r, sc!.end, next.start) };
+    }
+    return {
+      ...base, speed: this.speed, paused: this.paused, mode: this.mode, scene: this.idx + 1,
+      scenes: sceneTiles(r, this.scenes), sceneLabel: sc ? sceneName(r, sc).replace(/^\S+' /, '') : '', transition,
+    };
+  }
+
   attach(): void {
     cancelAnimationFrame(this.raf);
+    readPalette();
     this.shown = '';
     this.last = performance.now();
     this.draw();
@@ -114,7 +154,7 @@ export class ReplayPlayer {
     cancelAnimationFrame(this.raf);
   }
 
-  /** 건너뛰기: 즉시 최종 결과 (24.3) */
+  /** 건너뛰기: 경기 전체를 건너뛰고 최종 결과로 (24.3, 디자인 17) */
   skip(): void {
     this.e = this.replay.duration;
     this.mode = 'ended';
@@ -125,6 +165,16 @@ export class ReplayPlayer {
     if (this.mode === 'transition' && this.trTo) this.e = this.trTo.e;
     this.mode = 'live';
     this.paused = false;
+  }
+
+  /** [하이라이트로 돌아가기] (디자인 49): 지금 시점 뒤의 다음 장면부터. 남은 장면이 없으면 실시간 그대로 */
+  backToHighlight(): void {
+    const next = this.scenes.findIndex((s) => s.start > this.e);
+    if (next < 0) return;
+    this.summaries.push(this.summary(this.e, this.scenes[next]!.start));
+    this.idx = next;
+    this.e = this.scenes[next]!.start;
+    this.mode = 'scene';
   }
 
   /** 실제 시간 dt 초만큼 진행 */
@@ -166,8 +216,8 @@ export class ReplayPlayer {
     this.onChange();
   }
 
-  private summary(from: number, to: number): FeedLine {
-    return { e: to, minute: '', text: possessionSummary(this.replay, from, to), big: false, summary: true };
+  private summary(from: number, to: number): Extra {
+    return { e: to, text: possessionSummary(this.replay, from, to), kind: 'advantage', mine: false };
   }
 
   /** 지금 그릴 프레임 (전환 중이면 두 장면 사이 보간) */
@@ -179,31 +229,40 @@ export class ReplayPlayer {
   private draw(): boolean {
     const canvas = document.getElementById('rp-canvas') as HTMLCanvasElement | null;
     if (!canvas) return false;
-    const dpr = window.devicePixelRatio || 1;
-    const [w, h] = pitchSize(canvas.clientWidth || 340);
-    if (canvas.width !== Math.round(w * dpr)) {
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      canvas.style.height = `${h}px`;
-    }
-    const ctx = canvas.getContext('2d')!;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { ctx, w, h } = fitCanvas(canvas);
     const f = this.current();
-    drawFrame(ctx, w, h, f, this.players, this.renderer);
+    drawFrame(ctx, w, h, f, this.players, this.renderer, this.replay.side);
     const at = this.mode === 'transition' ? f.e : this.e;
     const score = scoreAt(this.replay, at);
-    const sc = document.getElementById('rp-score');
-    if (sc) sc.textContent = `${score[0]} : ${score[1]}`;
-    const cl = document.getElementById('rp-clock');
-    if (cl) cl.textContent = this.ended ? '경기 종료' : clockLabel(f, at > this.replay.halfE);
-    const sl = document.getElementById('rp-scene');
-    if (sl) sl.textContent = this.mode === 'scene' ? this.scenes[this.idx]!.label : this.mode === 'transition' ? '다음 장면으로' : '';
-    const lines: FeedLine[] = [...eventsUntil(this.replay, at), ...this.summaries.filter((x) => x.e <= at + 0.01)].sort((a, b) => b.e - a.e);
-    const key = `${lines.length}:${this.mode}`;
+    const set = (id: string, text: string) => {
+      const el = document.getElementById(id);
+      if (el && el.textContent !== text) el.textContent = text;
+    };
+    set('rp-h', String(score[0]));
+    set('rp-a', String(score[1]));
+    const clock = clockLabel(f, at > this.replay.halfE);
+    const minute = this.ended ? '90+' : clock.includes(':') ? `${Number(clock.split(':')[0]) + 1}` : clock.replace(/'$/, '');
+    set('rp-clock', `${minute}'`);
+    set('rp-strip-min', `${minute}'`);
+    const live = replayLiveVM(this.replay, f, at, this.summaries.filter((x) => x.e <= at + 0.01));
+    // 재개 대기 라벨 (21.5.2 3번): 공이 죽어 있는 동안만
+    const note = document.getElementById('rp-note');
+    const label = this.mode === 'transition' ? null : live.restart;
+    if (note) {
+      note.hidden = !label;
+      set('rp-note-text', label ?? '');
+    }
+    if (label) set('rp-legend', `경기 중단 · ${label}`);
+    const key = `${live.feed.length}:${this.mode}:${live.possession}:${label}`;
     if (key !== this.shown) {
       this.shown = key;
       const feed = document.getElementById('rp-feed');
-      if (feed) feed.innerHTML = feedHtml(lines);
+      const lines = [...live.feed].sort((a, b) => (a.e ?? 0) - (b.e ?? 0));
+      if (feed) feed.innerHTML = lines.length ? lines.slice(-3).map((x) => FeedItem(x)).join('') : FeedItem({ text: '킥오프를 기다리는 중', kind: 'normal' });
+      const poss = document.getElementById('rp-poss');
+      if (poss) poss.innerHTML = PossessionBar({ home: this.replay.side === 0 ? live.possession : 100 - live.possession });
+      const my = document.getElementById('rp-my');
+      if (my) my.innerHTML = `${StatChip({ icon: 'shot', label: '슈팅', value: live.my.shots, tone: 'mine' })}${StatChip({ icon: 'ball', label: '골', value: live.my.goals, tone: live.my.goals ? 'success' : 'neutral' })}`;
     }
     return true;
   }

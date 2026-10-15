@@ -6,6 +6,7 @@ import { rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
 import { positionOvr } from './positions';
+import { initialProficiency } from './proficiency';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -18,6 +19,8 @@ export interface SaveMeta {
   season: number;
   round: number;
   age: number;
+  /** 세이브를 시작한 패치 (21.5.1, 슬롯 목록 표시용). 이 필드가 생기기 전 슬롯은 없다 */
+  startPatch?: string | null;
 }
 
 interface SaveFile {
@@ -81,6 +84,12 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   6: (s) => {
     s.startPatch = null;
   },
+  // 7 → 8: 포지션 숙련도와 레전드 배지 (부록 D.3, D.4). 주 포지션 100·거리 기준 초기값, 실제 선수는 서브 포지션 70. 배지는 없음에서 시작
+  7: (s) => {
+    const data = A_GRADE_PLAYERS.find((d) => d.id === s.player.realPlayerId);
+    s.player.proficiency = initialProficiency(s.player.position, data?.subPositions ?? []);
+    s.player.badges = [];
+  },
 };
 
 export function migrate(raw: any): GameState {
@@ -113,6 +122,7 @@ export function saveGame(slot: SaveSlot, state: GameState): boolean {
     season: state.league.season,
     round: state.league.round,
     age: state.player.age,
+    startPatch: state.startPatch,
   };
   try {
     s.setItem(PREFIX + slot, `{"meta":${JSON.stringify(meta)},"state":${serialize(state)}}`);

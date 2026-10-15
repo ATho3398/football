@@ -51,8 +51,8 @@ export interface ResponseRow {
 /** 스탯 반응 통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(단측 95%), 크기가 기준값의 70% 이상 */
 export const RESP_SHARE = 0.7;
 
-/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, C.17 결정 5, E.23 1번: 시즌 XP 비 상한만 1.25, 득점·ST 반응은 원래 범위). 보정이 끝나면 false 로 되돌린다 */
-export const TEMP_GUARD = true;
+/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, C.17 결정 5, E.23 1번: 시즌 XP 비 상한만 1.25). D.16 2번으로 원복(false, 상한 1.15) */
+export const TEMP_GUARD = false;
 const BOOT = 400;
 
 /** 짝지은 부트스트랩: 같은 경기 시드 쌍을 다시 뽑아 변화량 분포의 단측 95% 한계 */

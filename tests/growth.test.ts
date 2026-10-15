@@ -7,6 +7,7 @@ import {
   veteranXpMultiplier, xpToLevel,
 } from '../src/growth';
 import { createRng } from '../src/rng';
+import { initialProficiency } from '../src/proficiency';
 import type { PlayerState } from '../src/types';
 
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
@@ -17,6 +18,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     name: 't', position: 'ST', age: 20, teamId: 'x', attributes: flat(60), potentialTier: 'normal',
     xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
     fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], season: emptySeasonStats(), history: [], suspended: 0,
+    proficiency: initialProficiency('ST'), badges: [],
     ...overrides,
   };
 }
