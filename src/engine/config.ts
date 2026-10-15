@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 1;
+export const ENGINE_VERSION = 2;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -48,9 +48,11 @@ export const ENGINE = {
     sprintRatio: 0.85,
     radius: 0.5,
     /** 스태미나 소모 = (속도/최대 속도)² × drain × (1.6 − 0.8 × 체력/100) / 초 */
-    staminaDrain: 0.022,
-    staminaRecover: 0.002,
+    staminaDrain: 0.012,
+    staminaRecover: 0.0005,
     staminaLowFrom: 60,
+    /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율) */
+    fatigueIntensity: 0.35,
     halftimeRecover: 10,
   },
 
@@ -73,7 +75,7 @@ export const ENGINE = {
     controlSlope: 0.2,
     controlSpeedPenalty: 0.05,
     /** 소유 직후 공을 다루는 시간(초) */
-    receiveTime: 0.5,
+    receiveTime: 0.9,
     /** 루즈볼을 따라가는 팀별 인원 */
     chasers: 2,
   },
@@ -83,7 +85,7 @@ export const ENGINE = {
     /** 줄별 x 시프트: [GK, 수비, 중원, 공격] */
     defendShift: [0, -0.06, -0.08, -0.1] as [number, number, number, number],
     attackShift: [0, 0.14, 0.25, 0.1] as [number, number, number, number],
-    blockX: 0.3,
+    blockX: 0.45,
     /** 대형이 공을 따라가는 시간 상수 (초) */
     ballSmoothing: 1.5,
     blockY: 0.2,
@@ -101,7 +103,7 @@ export const ENGINE = {
     lineHeightBase: 0.5,
     lineHeightSpread: 0.1,
     /** 수비 라인 x(정규화) = lineBase + (lineHeight − 0.5) × lineRange, 공보다 lineBehindBall m 뒤까지만 */
-    lineBase: 0.2,
+    lineBase: 0.28,
     lineRange: 0.2,
     lineBehindBall: 4,
     /** 수비 라인 최소 깊이 (정규화) */
@@ -109,6 +111,10 @@ export const ENGINE = {
     /** 수비 시 중원/공격 줄은 수비 라인에서 이 간격 안으로 (블록 간격) */
     midGap: 0.13,
     attGap: 0.46,
+    /** 압박 전술: 수비 시 중원·공격 줄 x 를 pressBlock × (pressing − 0.55) 만큼 올린다 (E.19 ③, 정규화) */
+    pressBlock: 0.2,
+    /** 빌드업 전술: 지원 간격 배수 = 1 + styleSupport × (0.5 − style) (짧게일수록 가깝게, E.19 ③) */
+    styleSupport: 0.5,
     /** 팀 phase: 소유 후 이 시간이 지나면 공격 대형 (초) */
     attackPhaseDelay: 2.5,
   },
@@ -137,6 +143,8 @@ export const ENGINE = {
     supportMax: 25,
     /** 침투 확률(오프더볼 갱신마다) = run × 공격 위치선정/100 × runChance */
     runChance: 0.035,
+    /** 침투 확률에 곱하는 속도 보정 = 1 + runPace × (속도 − 70)/100 (빠를수록 뒷공간을 더 노린다) */
+    runPace: 2.5,
     runSeconds: 3,
     /** 침투 중 라인 오차 배율 (오프사이드 빈도) */
     runLineError: 3,
@@ -154,6 +162,8 @@ export const ENGINE = {
     dangerPress: 30,
     /** 공격 줄 선수의 압박 거리 배율 */
     attackerPress: 0.4,
+    /** 공격 줄 압박 거리 배율 = attackerPress + attackerPressPer × (pressing − 0.55) (압박 전술, E.19 ③) */
+    attackerPressPer: 1.2,
     pressDistBase: 8,
     pressDistRange: 14,
     /**
@@ -182,6 +192,14 @@ export const ENGINE = {
     lateRunRun: 0.4,
     /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
     cutbackZone: 15,
+    /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율) */
+    boxRunDepth: 13,
+    /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스 */
+    backPostDepth: 8,
+    backPostSpread: 0.1,
+    halfSpaceDepth: 17,
+    halfSpaceSpread: 0.18,
+    boxRunSpread: 0.12,
     edgeZone: 22,
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
@@ -233,7 +251,7 @@ export const ENGINE = {
      * 효용 스케일: softmax 전에 곱한다 (τ 는 이 스케일 기준). 골 단위에서 τ 0.06 선수가 효용 차 0.01골이면 약 60:40,
      * 0.03골이면 약 77:23 (E.18 A1)
      */
-    utilityScale: 2.4,
+    utilityScale: 4,
     /** 판단 민감도 점검용 배수 (E.15): 위치 가치 맵 전체 / 슛 효용. 기본 1, 측정할 때만 1.05 */
     valueScale: 1,
     shotScale: 1,
@@ -241,21 +259,33 @@ export const ENGINE = {
 
   // ── 확률 모델 (E.8) ──
   prob: {
-    passBase: 1.14,
+    /** 능력치 체감 (effSkill): 중심, 폭 */
+    skillMid: 70,
+    skillSpan: 25,
+    passBase: 1.05,
     passPerM: 0.0055,
-    passSkill: 0.8,
+    passSkill: 1.4,
     passMin: 0.1,
     passMax: 0.98,
+    /** 침투 패스 달리기 경쟁: 도착 시간 차 1초당 성공 확률 가감, 차의 상한 (초) */
+    raceGain: 0.35,
+    raceCap: 1.5,
+    /** 이 거리(m)를 넘는 패스는 공중볼 (착지점 경합) */
+    airPass: 30,
     shortPassMax: 25,
+    /** 25 m 너머 m당 감쇠 (롱패스 정확도, E3.5 B) */
+    longPerM: 0.025,
     laneWidth: 1.8,
     laneBase: 0.25,
     laneIntercept: 0.25,
+    /** 레인 위험 × (1 + laneVision × (60 − 시야)/100) */
+    laneVision: 1.0,
     pressurePenalty: 0.4,
     /** 받는 선수 압박(마크) 패널티: 성공 확률에서 빼는 값과 위치 가치에서 빼는 값 */
     receiverPressure: 0.3,
     /** 받는 선수 압박 거리 기준 (m) */
     receiverPressureDist: 5,
-    pressureDist: 5,
+    pressureDist: 3,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
     interceptShare: 0.68,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
@@ -279,10 +309,10 @@ export const ENGINE = {
 
     // 슈팅 (E.8)
     shotMaxDist: 30,
-    shotBase: 0.4,
-    shotSkill: 0.35,
+    shotBase: -0.14,
+    shotSkill: 1.1,
     shotPerM: 0.02,
-    shotPressure: 0.8,
+    shotPressure: 0.15,
     shotMin: 0.05,
     shotMax: 0.85,
     longShotFrom: 20,
@@ -299,10 +329,13 @@ export const ENGINE = {
     headerBase: 0.3,
     headerSkill: 0.4,
     headerPerM: 0.025,
-    headerSpeed: 15,
+    headerSpeed: 22,
 
     // 크로스
     crossMinX: 0.68,
+    /** 크로스 정확도 = crossBase + crossSkill × 크로스/100 − 압박 */
+    crossBase: 0.17,
+    crossSkill: 1.0,
     /** 크로스가 가까운 수비수에 맞고 코너가 될 확률 */
     crossBlockCorner: 0.3,
     crossWide: 0.25,
@@ -427,7 +460,7 @@ export const ENGINE = {
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
      * center 는 포지션군의 평균 델타 합 (balance:engine 으로 보정), scale 은 전체 σ 약 0.7
      */
-    center: { GK: 0.6, CB: 0.31, FB: 0.64, CDM: 1.53, CM: 1.56, CAM: 1.35, WING: 1.56, ST: 2.3 } as Record<string, number>,
+    center: { GK: 0.71, CB: 0.66, FB: 0.8, CDM: 1.58, CM: 2.06, CAM: 1.89, WING: 1.45, ST: 2.3 } as Record<string, number>,
     scale: 0.8,
     mean: 6.5,
   },
@@ -435,18 +468,18 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − 60)/100, 0.05, 0.95) */
-    saveBase: 1.72,
+    saveBase: 1.735,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
     leagueHandling: 75,
     /** 쳐낸 공(리바운드)을 공격 팀이 다시 잡을 확률 (판단용 리바운드 기대값) */
     reboundOwn: 0.4,
     saveDelta: 1.1,
-    saveSkill: 0.3,
+    saveSkill: 0.6,
     /** δ = speedW × 속도/30 + cornerW × 구석 + distW × (1 − 거리 계수), 거리 계수 = 거리/distRef */
     speedW: 0.45,
     cornerW: 0.35,
-    distW: 0.9,
+    distW: 0.55,
     distRef: 30,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
     catchBase: 0.3,

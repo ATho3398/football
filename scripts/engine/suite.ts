@@ -113,9 +113,9 @@ export interface Sizes {
 }
 
 export const SIZES: Record<Mode, Sizes> = {
-  full: { neutral: 200, diff8: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 200, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200 },
+  full: { neutral: 400, diff8: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200 },
   light: { neutral: 120, diff8: 120, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 120, ovr5: 0, seasons: 6, tactic: 0 },
-  sweep: { neutral: 60, diff8: 40, poss10: 0, home: 0, red: 0, formation: 0, response: 40, sens: 0, rating: 0, ovr5: 0, seasons: 0, tactic: 0 },
+  sweep: { neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), poss10: 0, home: 0, red: 0, formation: 0, response: Number(process.env.SWEEP_RESP ?? 40), sens: 0, rating: 0, ovr5: 0, seasons: 0, tactic: 0 },
 };
 
 /** 동레이팅 표준 경기 (양 팀 균형 + 4-4-2, 중립) */
@@ -255,6 +255,13 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'counterPct', '역습 슈팅(소유 10초 안) %', '15~25', ratio(totTeam(eq, (s) => s.counterShots), totTeam(eq, (s) => s.shots)) * 100, 15, 25);
     add(S, 'gkShotPct', '골킥 직후 15초 안 슈팅 %', '5 이하', ratio(totTeam(eq, (s) => s.goalKickShots), totTeam(eq, (s) => s.shots)) * 100, 0, 5);
     add(S, 'ms', '경기 계산 시간 ms (워커)', '2000 이하', msPerMatch, 0, 2000, 0);
+    if (mode === 'sweep') {
+      // 스윕용 간이 분포 (표준 경기 4-4-2 만)
+      const gb = (gs: PosGroup[]) => sum(eq.flatMap((m) => m.players.filter((p) => gs.includes(groupOf(p))).map((p) => p.goals)));
+      const tot = gb(GROUPS);
+      add(S, 'gSTn', '득점 비율 ST (4-4-2) %', '38~48', ratio(gb(['ST']), tot) * 100, 38, 48, 0);
+      add(S, 'gMIDn', '득점 비율 미드 (4-4-2) %', '18~28', ratio(gb(['CDM', 'CM', 'CAM']), tot) * 100, 18, 28, 0);
+    }
 
     // 판단 민감도
     for (const [name, label] of [['sens:map', '위치 가치 맵 × 1.05'], ['sens:shot', '슛 효용 × 1.05']] as const) {
@@ -455,6 +462,9 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqAll: MatchOut[]): Respon
       }
     }
   }
+  // 속도·가속은 두 지표 중 하나만 통과하면 된다 (E.15.1 "또는")
+  const pace = out.filter((x) => x.key === 'pace');
+  if (pace.some((x) => x.pass)) for (const x of pace) x.pass = true;
   const b = res.get('ovr5:base') as MatchOut[] | undefined;
   const m = res.get('ovr5:mod') as MatchOut[] | undefined;
   if (b?.length && m?.length) {

@@ -48,7 +48,11 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
   let x = a.sx;
   let y = a.sy;
   if (phase >= 0) x += F.attackShift[a.line] * phase * attackShiftScale;
-  else x += F.defendShift[a.line] * -phase;
+  else {
+    x += F.defendShift[a.line] * -phase;
+    // 압박 전술: 수비 시 중원·공격 줄을 올리거나 내린다 (E.19 ③)
+    if (a.line >= 2) x += F.pressBlock * (s.teams[a.team].tactics.pressing - 0.55) * -phase;
+  }
   x += F.blockX * (bx - 0.5);
   if (phase < 0 && a.line !== 0) {
     // 수비 블록: 가로로 좁히고 공 쪽으로 쏠린다

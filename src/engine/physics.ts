@@ -30,6 +30,8 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   else v = Math.max(P.run, cap * 0.9);
   // 복귀 (E.18 A3): 러닝 이상
   if (a.minRun && d >= P.walkDist) v = Math.max(v, P.run);
+  // 지치면 조깅·러닝 강도가 떨어진다 (스태미나 staminaLowFrom 아래에서, 0 이면 1 − fatigueIntensity)
+  if (v > P.walk && a.stamina < P.staminaLowFrom) v *= 1 - (P.fatigueIntensity * (P.staminaLowFrom - a.stamina)) / P.staminaLowFrom;
   // 멈출 수 있는 속도
   v = Math.min(v, Math.sqrt(2 * a.accel * d), cap);
   return v;

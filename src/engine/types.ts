@@ -105,8 +105,10 @@ export interface TeamStats {
   // ── 측정용 (E.15, E3.5) ──
   throwIns: number;
   goalKicks: number;
-  /** 30 m 이상 패스 시도 */
+  /** 30 m 이상 패스 시도 / 성공, 판단 시점 성공 확률 합 */
   longPasses: number;
+  longCompleted: number;
+  longPSum: number;
   throughPasses: number;
   throughReceived: number;
   /** 오픈 플레이 소유 시작 10초 안 슈팅 (역습) */

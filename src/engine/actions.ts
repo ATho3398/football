@@ -5,7 +5,7 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb } from './duel';
 import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
-import { crossTarget, makePass, shotModel, type Candidate } from './onball';
+import { crossTarget, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -41,7 +41,10 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       team.stats.passes++;
       if (c.type === 'cutback') team.stats.cutbacks++;
       if (c.type === 'layoff') team.stats.layoffs++;
-      if (dist(a.x, a.y, c.x, c.y) >= 30) team.stats.longPasses++;
+      if (dist(a.x, a.y, c.x, c.y) >= 30) {
+        team.stats.longPasses++;
+        team.stats.longPSum += c.p;
+      }
       if (c.type === 'through') team.stats.throughPasses++;
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
@@ -70,6 +73,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       longBall(s, a, c.x, c.y, 'clear');
       return;
     case 'carry':
+      if (pressureLoss(s, a, c)) return;
       a.tx = c.x;
       a.ty = c.y;
       a.urgent = true;
@@ -77,12 +81,35 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       return;
     case 'hold':
     default:
+      if (pressureLoss(s, a, c)) return;
       a.tx = a.x;
       a.ty = a.y;
       a.urgent = false;
       // 템포 (E.18 A5): 점유형일수록 유지 간격이 길다
       a.cooldown = (reaction(a) + ENGINE.onball.holdTime) * (ENGINE.tactics.possBase + ENGINE.tactics.possSlope * s.teams[a.team].tactics.style);
   }
+}
+
+/**
+ * 몰고 가기/유지의 실패 판정: 판단에 쓴 성공 확률 P 그대로 (E.18 A1, P 는 실제 판정과 같아야 한다).
+ * 실패하면 가장 가까운 압박 수비수가 태클로 빼앗는다
+ */
+function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
+  if (c.p >= 1 || a.line === 0) return false;
+  if (r(s, a.idx, Purpose.Tackle, 7) < c.p) return false;
+  let def: Agent | null = null;
+  let bd: number = ENGINE.prob.pressureDist;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0 || s.t < o.beatenUntil) continue;
+    const d = dist(o.x, o.y, a.x, a.y);
+    if (d < bd) {
+      bd = d;
+      def = o;
+    }
+  }
+  if (!def) return false;
+  tackleWon(s, a, def);
+  return true;
 }
 
 /** 태클에 이긴 수비수: 공을 갖거나 (tackleKeep) 루즈볼 */
@@ -473,17 +500,14 @@ export function resolveFlight(s: SimState): void {
         }
         setOwner(s, rc);
         // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
-        const dirR = attackDir(rc.team, s.half);
-        const fx = fl.fromX - b.x;
-        const fy = fl.fromY - b.y;
-        const fn = Math.hypot(fx, fy) || 1;
-        rc.backToGoal = (Math.acos(clamp((fx * dirR) / fn, -1, 1)) * 180) / Math.PI >= ENGINE.onball.backAngle;
+        rc.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(rc.team, s.half));
         if (fl.quick) rc.cooldown = reaction(rc);
         rc.x = b.x;
         rc.y = b.y;
         passer.stats.passesCompleted++;
         s.teams[passer.team].stats.passesCompleted++;
         rc.stats.received++;
+        if (Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30) s.teams[rc.team].stats.longCompleted++;
         if (fl.through) {
           rc.stats.throughReceived++;
           s.teams[rc.team].stats.throughReceived++;

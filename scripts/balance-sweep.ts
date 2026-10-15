@@ -44,10 +44,14 @@ for (const c of combos) {
 const res = await runSets(all, `스윕 ${combos.length}조합`);
 const sec = (Date.now() - t0) / 1000;
 
-const cols: [string, string, number][] = [
-  ['goals', '득점', 2], ['g8', 'Δ+8', 2], ['gm8', 'Δ−8', 2], ['poss', '점유', 1], ['passes', '패스', 0], ['passPct', '패스%', 1],
-  ['shots', '슈팅', 1], ['sot', '유효', 1], ['savePct', '선방%', 1], ['live', '살아있는 분', 1], ['throwIns', '스로인', 1],
-];
+const COLS = (process.env.COLS ?? 'goals,g8,gm8,passes,passPct,longPct,shots,sot,savePct,live,throwIns,goalKicks,tackles,ints,dribbles,crosses,aerials,fouls,offsides,distCM,gSTn,gMIDn').split(',');
+const NAMES: Record<string, [string, number]> = {
+  goals: ['득점', 2], g8: ['Δ+8', 2], gm8: ['Δ−8', 2], poss: ['점유', 1], passes: ['패스', 0], passPct: ['패스%', 1], longPct: ['롱%', 1],
+  shots: ['슈팅', 1], sot: ['유효', 1], savePct: ['선방%', 1], live: ['살아있는 분', 1], throwIns: ['스로인', 1], goalKicks: ['골킥', 1],
+  tackles: ['태클', 1], ints: ['인터셉트', 1], dribbles: ['드리블', 1], crosses: ['크로스', 1], aerials: ['공중볼', 1], fouls: ['파울', 1],
+  offsides: ['오프사이드', 1], distCM: ['CM km', 1], gSTn: ['ST골%', 0], gMIDn: ['미드골%', 0], corners: ['코너', 1], counterPct: ['역습%', 0],
+};
+const cols: [string, string, number][] = COLS.map((k) => [k, NAMES[k]?.[0] ?? k, NAMES[k]?.[1] ?? 1]);
 const respCols: [string, string][] = [['st_shoot:경기당 득점', 'ST 득점%'], ['cm_pass:패스 성공률 %', 'CM 패스%p'], ['cb_def:태클 성공률 % (이긴 태클 / (태클 + 돌파 허용))', 'CB 태클%p']];
 const lines: string[] = [];
 lines.push('# 상수 스윕 결과 (`npm run balance:sweep`)');

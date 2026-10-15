@@ -186,7 +186,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 
   // 침투: 공격 위치선정 × run 비례 확률로 수비 라인 근처로 달린다
   if (s.t >= a.runUntil && a.line >= 2 && owner && owner.team === a.team) {
-    const chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance;
+    const chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance * Math.max(0.3, 1 + (O.runPace * (a.attrs.pace - 70)) / 100);
     if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) a.runUntil = s.t + O.runSeconds;
   }
   const running = s.t < a.runUntil;
@@ -200,11 +200,19 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
   }
   // 공이 상대 최종 3분의 1 측면 (E.18 A2): 2선 늦은 침투(컷백 존), 세컨드 볼 담당, ST 니어/파 포스트
-  const wide = owner && owner.team === a.team && owner !== a && bnx >= O.lateRunFromX && Math.abs(bny - 0.5) >= O.lateRunWide;
-  if (wide && !running) {
+  const third = owner && owner.team === a.team && owner !== a && bnx >= O.lateRunFromX;
+  const wide = third && Math.abs(bny - 0.5) >= O.lateRunWide;
+  let job: ReturnType<typeof finalThirdJob> = null;
+  if (third && !running) {
     const side = bny < 0.5 ? -1 : 1;
-    const job = finalThirdJob(s, a, owner);
-    if (job === 'cutback') {
+    job = finalThirdJob(s, a, owner);
+    // 중앙이면 ST 는 그대로, 침투 미드는 공 반대편 박스 채널로 늦게 들어간다 (2선 박스 도착, E.15.1)
+    if (!wide && (job === 'near' || job === 'far')) job = null;
+    if (wide && job === 'halfSpace') job = null;
+    if (job === 'cutback' && !wide) {
+      nx = 1 - O.boxRunDepth / L;
+      ny = 0.5 - side * O.boxRunSpread;
+    } else if (job === 'cutback') {
       nx = 1 - O.cutbackZone / L;
       ny = 0.5 + side * 0.04;
     } else if (job === 'edge') {
@@ -213,6 +221,12 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     } else if (job === 'near' || job === 'far') {
       nx = 1 - O.postDepth / L;
       ny = 0.5 + (job === 'near' ? side : -side) * (O.postSpread / W);
+    } else if (job === 'backPost') {
+      nx = 1 - O.backPostDepth / L;
+      ny = 0.5 - side * O.backPostSpread;
+    } else if (job === 'halfSpace') {
+      nx = 1 - O.halfSpaceDepth / L;
+      ny = 0.5 + Math.sign(a.sy - 0.5) * O.halfSpaceSpread;
     }
     if (job) {
       nx = Math.min(nx, line - 0.5 / L);
@@ -222,15 +236,22 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   // 내려와서 받기 / 지원 간격 (티키타카는 지원 삼각형 간격이 좁다, E.19)
   const tiki = s.teams[a.team].tactics.tendency === 'tikitaka';
-  const supMin = tiki ? TENDENCY.tikiSupport[0] : O.supportMin;
-  const supMax = tiki ? TENDENCY.tikiSupport[1] : O.supportMax;
-  if (owner && owner.team === a.team && owner !== a) {
+  // 빌드업 전술: 짧게일수록 지원 간격이 좁다 (E.19 ③)
+  const sk = 1 + F.styleSupport * (0.5 - s.teams[a.team].tactics.style);
+  const supMin = (tiki ? TENDENCY.tikiSupport[0] : O.supportMin) * sk;
+  const supMax = (tiki ? TENDENCY.tikiSupport[1] : O.supportMax) * sk;
+  if (owner && owner.team === a.team && owner !== a && !job) {
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
     if (!running && a.role.drop > 0 && nx > ox) nx -= (a.role.drop * O.dropDist) / L * 0.5;
     const [px, py] = toPitch(nx, ny, dir);
     const d = dist(px, py, owner.x, owner.y);
     if (d < supMin && d > 0.1) {
       const k = supMin / d;
+      const [qx, qy] = [owner.x + (px - owner.x) * k, owner.y + (py - owner.y) * k];
+      [nx, ny] = toNorm(qx, qy, dir);
+    } else if (d > supMax && a.line === 2 && !running) {
+      // 지원 간격 (E.6): 중원 줄은 소유자에게서 supportMax 안에서 받을 자리를 잡는다
+      const k = supMax / d;
       const [qx, qy] = [owner.x + (px - owner.x) * k, owner.y + (py - owner.y) * k];
       [nx, ny] = toNorm(qx, qy, dir);
     } else if (d > supMax + 15 && a.line >= 2) {
@@ -293,9 +314,15 @@ function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null 
  * 공이 상대 최종 3분의 1 측면일 때의 역할 (E.18 A2): 침투 성향(run ≥ 0.4) CM/CAM 중 공에 가장 가까운 1명은 컷백 존,
  * 다음 미드 1명은 박스 경계 바깥(세컨드 볼, 중거리), ST/CF 2명은 니어/파 포스트 (공에 가까운 쪽이 니어)
  */
-function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | null {
+function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
   const mates = s.agents.filter((o) => o.onPitch && o.team === a.team && o !== owner);
   const bd = (o: Agent) => dist(o.x, o.y, s.ball.x, s.ball.y);
+  // 윙어: 공이 반대쪽 측면이면 먼 포스트로, 공이 중앙이면 같은 쪽 하프스페이스로 파고든다
+  if (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM') {
+    const by = toNorm(s.ball.x, s.ball.y, attackDir(a.team, s.half))[1];
+    if (Math.abs(by - 0.5) >= O.lateRunWide) return Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5) ? 'backPost' : null;
+    return 'halfSpace';
+  }
   if (a.pos === 'ST' || a.pos === 'CF') {
     const sts = mates.filter((o) => o.pos === 'ST' || o.pos === 'CF');
     if (sts.length < 2) return null;
@@ -341,7 +368,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 압박: 공에 가까운 1~2명 (2번째는 압박 성향이 높을 때)
   if (owner && owner.team !== a.team) {
     const rank = ballRank(s, a, b.x, b.y);
-    const pressDist = (O.pressDistBase + t.pressing * O.pressDistRange) * (a.line === 3 ? O.attackerPress : 1);
+    const pressDist = (O.pressDistBase + t.pressing * O.pressDistRange) * (a.line === 3 ? Math.max(0.1, O.attackerPress + O.attackerPressPer * (t.pressing - 0.55)) : 1);
     const d = dist(a.x, a.y, b.x, b.y);
     const [gx0, gy0] = ownGoal(dir);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;

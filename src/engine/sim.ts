@@ -132,10 +132,8 @@ function executeRestart(s: SimState): void {
 
 /** 소유자 결정 */
 function decide(s: SimState, a: Agent): void {
-  const cs = candidates(s, a);
-  const c = choose(s, a, cs);
-  (globalThis as { __decide?: (s: SimState, a: Agent, cs: unknown[], c: unknown) => void }).__decide?.(s, a, cs, c); // DEBUG
-  if ((c as { type: string }).type !== 'holdup') a.backToGoal = false;
+  const c = choose(s, a, candidates(s, a));
+  if (c.type !== 'holdup') a.backToGoal = false;
   execute(s, a, c);
 }
 
