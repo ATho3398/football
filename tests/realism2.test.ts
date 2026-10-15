@@ -67,10 +67,13 @@ describe('E3.5 2차 7번: 슈팅 결과 = 기회의 질 × 마무리 배수', ()
     expect(finishMult(at(99), 'shot')).toBe(ENGINE.prob.finishMax);
     expect(finishMult(at(40), 'shot')).toBe(ENGINE.prob.finishMin);
   });
-  it('능력치 체감 S자 곡선: 80 까지 그대로, 80→90 은 0.7배, 그 위는 0.4배', () => {
-    expect(curveAttr(75)).toBe(75);
-    expect(curveAttr(90)).toBeCloseTo(87, 10);
-    expect(curveAttr(99)).toBeCloseTo(87 + 0.4 * 9, 10);
+  it('능력치 곡선 (E.24): 70 은 그대로, 50~90 은 차이를 k 배, 90 위는 0.5k, 50 아래는 k', () => {
+    const k = ENGINE.prob.curveK;
+    expect(curveAttr(70)).toBeCloseTo(70, 10);
+    expect(curveAttr(80)).toBeCloseTo(70 + 10 * k, 10);
+    expect(curveAttr(90)).toBeCloseTo(70 + 20 * k, 10);
+    expect(curveAttr(99)).toBeCloseTo(70 + 20 * k + 0.5 * k * 9, 10);
+    expect(curveAttr(40)).toBeCloseTo(70 - 20 * k - 10 * k, 10);
   });
 });
 

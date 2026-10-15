@@ -2,7 +2,7 @@
 
 import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
-import { aerialScore, aerialWin, dribbleProb } from './duel';
+import { aerialScore, aerialWin, dribbleProb, duelTail } from './duel';
 import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
@@ -563,7 +563,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       foul(s, defFoul ? bestD : bestA, defFoul ? bestA : bestD, b.x, b.y);
       return;
     }
-    const pA = 1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + bestA.duelEdge - bestD.duelEdge)));
+    const pA = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + bestA.duelEdge - bestD.duelEdge))));
     winner = r(s, bestA.idx, Purpose.Aerial) < pA ? bestA : bestD;
     winner.stats.aerialsWon++;
   } else winner = (bestA ?? bestD)!;

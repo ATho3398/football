@@ -22,12 +22,13 @@ import type { EngineInput, EngineResult, Frame, PlayerSpec, TeamSetup } from './
 const T = ENGINE.time;
 const B = ENGINE.ball;
 
-/** 능력치 체감 곡선: 80 까지 그대로, 80→90 은 curveMid 배, 90 넘게는 curveTop 배 (70→80 100%, 80→90 약 70%, 90→99 약 40%) */
+/** 능력치 곡선 (E.24): 70 을 중심으로 차이를 curveK 배로 줄인다. 90 넘게는 그 절반 기울기, 50 아래는 같은 기울기 */
 export function curveAttr(x: number): number {
   const C = ENGINE.prob;
-  if (x <= C.curveKnee1) return x;
-  if (x <= C.curveKnee2) return C.curveKnee1 + C.curveMid * (x - C.curveKnee1);
-  return C.curveKnee1 + C.curveMid * (C.curveKnee2 - C.curveKnee1) + C.curveTop * (x - C.curveKnee2);
+  const at = (v: number): number => C.curveCenter + C.curveK * (v - C.curveCenter);
+  if (x > C.curveHigh) return at(C.curveHigh) + C.curveTopRatio * C.curveK * (x - C.curveHigh);
+  if (x < C.curveLow) return at(C.curveLow) + C.curveK * (x - C.curveLow);
+  return at(x);
 }
 
 function curveAttrs<T extends object>(a: T): T {

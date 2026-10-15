@@ -42,7 +42,7 @@ describe('팀 로스터 생성 (23번)', () => {
     expect(counts).toEqual(BALANCE.roster.squad);
   });
 
-  it('팀 레이팅(라인업 11명 평균)이 기존 팀 레이팅 ±0.5 이내 (여러 시드, 실제 선수 모드 포함)', () => {
+  it('팀 레이팅(라인업 11명 평균)이 기존 팀 레이팅 ±0.5 이내 (여러 시드, 실제 선수 모드 포함). 가상 선수 상한(E.24) 때문에 실제 선수가 있는 팀만 더 낮을 수 있다', () => {
     const games = [
       g,
       newGame({ mode: 'prospect', position: 'ST', seed: 'r2', difficulty: 'normal' }),
@@ -51,9 +51,26 @@ describe('팀 로스터 생성 (23번)', () => {
     ];
     for (const s of games) {
       for (const t of s.league.teams) {
-        expect(Math.abs(rosterRating(s.rosters[t.id]!) - init[t.id]!)).toBeLessThanOrEqual(0.5);
-        expect(t.rating).toBe(rosterRating(s.rosters[t.id]!));
+        const r = s.rosters[t.id]!;
+        const diff = rosterRating(r) - init[t.id]!;
+        expect(diff).toBeLessThanOrEqual(0.5);
+        if (diff < -0.5) {
+          const reals = r.players.filter((p) => p.real).map(naturalOvr);
+          expect(reals.length).toBeGreaterThan(0);
+          for (const p of r.players.filter((x) => !x.real)) expect(naturalOvr(p)).toBeLessThanOrEqual(Math.max(...reals));
+        }
+        expect(t.rating).toBe(rosterRating(r));
       }
+    }
+  });
+
+  it('가상 선수는 그 팀 실제 주전 평균 OVR 을 넘지 않는다 (E.24 3번)', () => {
+    for (const t of g.league.teams) {
+      const r = g.rosters[t.id]!;
+      const starters = r.players.filter((p) => p.real).map(naturalOvr).filter((v) => v >= init[t.id]! - BALANCE.roster.virtualCapStarterGap);
+      if (!starters.length) continue;
+      const cap = Math.floor(starters.reduce((a, b) => a + b, 0) / starters.length);
+      for (const p of r.players.filter((x) => !x.real)) expect(naturalOvr(p)).toBeLessThanOrEqual(cap);
     }
   });
 

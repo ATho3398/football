@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 15;
+export const BALANCE_VERSION = 16;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -341,6 +341,10 @@ export const BALANCE = {
     reserveOffset: -11, reserveSd: 3,
     /** 팀 레이팅을 목표 ±fitTolerance 안으로 맞출 때까지 주전 OVR 을 조정 (최대 fitIterations 회) */
     fitTolerance: 0.3,
+    /** 실제 선수가 있는 팀의 가상 선수 OVR 상한 = 그 팀 실제 선수 평균 OVR (E.24 3번). 이 때문에 팀 레이팅이 목표보다 낮아질 수 있다 */
+    virtualCapToReal: true,
+    /** 상한 계산에 넣는 실제 주전: 팀 레이팅 − 이 값 이상인 실제 선수 (어린 유망주 제외) */
+    virtualCapStarterGap: 10,
     fitIterations: 30,
     /** 가상 선수 나이 N(mean, sd), [min, max] */
     age: { mean: 26, sd: 4, min: 18, max: 36 },

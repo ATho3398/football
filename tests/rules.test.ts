@@ -157,8 +157,10 @@ describe('내 선수 출전 구간과 어댑터 (E.14, E.16)', () => {
     expect(full.my?.minutes).toBe(90);
     expect(full.result).toMatchObject({ started: true, minutes: 90 });
     const sub = playMyMatch({ ...base, plan: { started: false, minutes: { start: 70, end: 90 } } });
-    expect(sub.my!.minutes).toBeGreaterThanOrEqual(15);
-    expect(sub.my!.minutes).toBeLessThanOrEqual(25);
+    // 교체 투입 뒤 퇴장당하면 그 시점까지만 뛴다
+    const red = sub.engine.events.find((e) => e.type === 'card' && e.players[0] === MY_ID && e.params?.card === 'red');
+    expect(sub.my!.minutes).toBeGreaterThanOrEqual(red ? Math.floor(red.t / 60) - 71 : 15);
+    expect(sub.my!.minutes).toBeLessThanOrEqual(red ? Math.ceil(red.t / 60) - 69 : 25);
     const hurt = playMyMatch({ ...base, plan: { started: true, minutes: { start: 0, end: 30 } } });
     expect(hurt.my!.minutes).toBeGreaterThanOrEqual(28);
     expect(hurt.my!.minutes).toBeLessThanOrEqual(33);

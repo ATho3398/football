@@ -149,6 +149,8 @@ export interface SetDef {
 export interface Sizes {
   neutral: number;
   diff8: number;
+  /** 레이팅 차 15 (E.24 2번) */
+  diff15: number;
   poss10: number;
   home: number;
   red: number;
@@ -164,10 +166,10 @@ export interface Sizes {
 }
 
 export const SIZES: Record<Mode, Sizes> = {
-  full: { neutral: 400, diff8: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200, league: 3 },
-  light: { neutral: 120, diff8: 120, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 120, ovr5: 0, seasons: 6, tactic: 0, league: 0 },
+  full: { neutral: 400, diff8: 200, diff15: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200, league: 3 },
+  light: { neutral: 120, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 120, ovr5: 0, seasons: 6, tactic: 0, league: 0 },
   sweep: {
-    neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), poss10: 0, home: Number(process.env.SWEEP_HOME ?? 0), red: 0, formation: 0,
+    neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), diff15: Number(process.env.SWEEP_D15 ?? 0), poss10: 0, home: Number(process.env.SWEEP_HOME ?? 0), red: 0, formation: 0,
     response: Number(process.env.SWEEP_RESP ?? 40), sens: 0, rating: Number(process.env.SWEEP_RATING ?? 0), ovr5: 0, seasons: Number(process.env.SWEEP_SEASONS ?? 0), tactic: 0,
     league: Number(process.env.SWEEP_LEAGUE ?? 0),
   },
@@ -190,6 +192,7 @@ export function buildSets(mode: Mode, overrides?: Record<string, number>): SetDe
   sets.push({ name: 'neutral', jobs: n(z.neutral, (i) => neutralJob(i, o)) });
   if (z.response > 0) sets.push({ name: 'resp:base', jobs: n(z.response, (i) => respJob(i, o)) });
   sets.push({ name: 'diff8', jobs: n(z.diff8, (i) => match(3000 + i, std('a', i, 79), std('b', i, 71), o)) });
+  sets.push({ name: 'diff15', jobs: n(z.diff15, (i) => match(4000 + i, std('a', i, 82), std('b', i, 67), o)) });
   // Δ+10 점유율: 팀 데이터 전술(성향 포함, 자기 포메이션) / 빌드업 성향 0.5 고정
   sets.push({ name: 'poss10', jobs: n(z.poss10, (i) => match(5000 + i, { id: `pa${i}`, rating: 80, seed: `poss-a-${i}`, tactics: 'data' }, { id: `pb${i}`, rating: 70, seed: `poss-b-${i}`, tactics: 'data' }, o)) });
   sets.push({ name: 'poss10fixed', jobs: n(z.poss10, (i) => match(5000 + i, { id: `pa${i}`, rating: 80, seed: `poss-a-${i}`, tactics: FIXED_STYLE }, { id: `pb${i}`, rating: 70, seed: `poss-b-${i}`, tactics: FIXED_STYLE }, o)) });
@@ -414,6 +417,12 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'g8', '강팀 득점 (Δ+8)', '1.8~2.4', strong, 1.8, 2.4, 2, { guard: [1.3, 2.8] });
     add(S, 'gm8', '약팀 득점 (Δ−8)', '0.75~1.05', weak, 0.75, 1.05, 2, { guard: [0.5, 1.3] });
     add(S, 'gr8', '강팀/약팀 득점비', '3 이하', ratio(strong, weak), 1, 3, 2, { guard: [1.4, 4] });
+  }
+  const d15 = M('diff15');
+  if (d15.length) {
+    const S = `레이팅 차 (Δ+15: 82 vs 67 중립 ${d15.length}경기, 균형 + 4-4-2)`;
+    add(S, 'g15', '강팀 득점 (Δ+15)', '2.3~3.0', avg(d15.map((m) => m.homeGoals)), 2.3, 3.0, 2);
+    add(S, 'gm15', '약팀 득점 (Δ−15)', '0.4~0.8', avg(d15.map((m) => m.awayGoals)), 0.4, 0.8, 2);
   }
   if (M('poss10').length) {
     const S = `점유율 Δ+10 (80 vs 70 중립 ${M('poss10').length}경기)`;

@@ -3,7 +3,7 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
-import { aerialWin, dribbleProb } from './duel';
+import { aerialWin, dribbleProb, duelTail } from './duel';
 import { manDiff } from './formation';
 import { claimProb, keeperOf, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
@@ -180,7 +180,7 @@ export function holdupProb(s: SimState, att: Agent, def: Agent): number {
   const atk = a.strength * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
   const dfn = d.strength * 0.45 + d.tackling * 0.35 + d.defensivePositioning * 0.2;
   void s;
-  return 1 / (1 + Math.exp(-((atk - dfn) / O.holdupScale + att.duelEdge - def.duelEdge)));
+  return duelTail(1 / (1 + Math.exp(-((atk - dfn) / O.holdupScale + att.duelEdge - def.duelEdge))));
 }
 
 export function judgementOf(a: Agent): number {

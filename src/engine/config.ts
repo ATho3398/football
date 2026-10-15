@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 7;
+export const ENGINE_VERSION = 8;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -393,11 +393,15 @@ export const ENGINE = {
 
   // ── 확률 모델 (E.8) ──
   prob: {
-    /** 능력치 체감 S자 곡선 (E.20 11번, sim.ts curveAttr): 꺾이는 점과 그 위 구간 배율 */
-    curveKnee1: 80,
-    curveKnee2: 90,
-    curveMid: 0.7,
-    curveTop: 0.4,
+    /**
+     * 능력치 곡선 평탄화 (E.24, sim.ts curveAttr): 실효 = curveCenter + curveK × (능력치 − curveCenter), curveLow~curveHigh 구간.
+     * curveHigh 이상은 기울기 curveK × curveTopRatio, curveLow 미만은 기울기 curveK. 리그 평균(70) 선수의 실효는 그대로
+     */
+    curveCenter: 70,
+    curveK: 0.6,
+    curveLow: 50,
+    curveHigh: 90,
+    curveTopRatio: 0.5,
     /** 능력치 식의 중심 (리그 평균 선수, E.20): 계수(기울기)를 바꿔도 평균 선수의 확률은 그대로 */
     skillCenter: 70,
     passBase: 1.35,
@@ -443,6 +447,13 @@ export const ENGINE = {
     // 드리블 1대1 (E.8): L((공격 점수 − 수비 점수)/dribbleScale + dribbleBias + 공간 보정)
     dribbleScale: 22,
     dribbleBias: -0.2,
+    /**
+     * 1대1 경합 확률의 끝 (E.24 4번, duel.ts duelTail): 드리블·버티기·공중볼 확률이 duelKnee 를 넘으면 duelMax 쪽으로 눕힌다
+     * (p' = knee + (max − knee) × tanh((p − knee)/(max − knee)), 아래쪽도 대칭). duelTail 0 이면 끈다
+     */
+    duelTail: 0,
+    duelKnee: 0.6,
+    duelMax: 0.7,
     /** 앞쪽 이 거리 안에 수비수가 있으면 몰고 가기가 드리블 돌파가 된다 (m) */
     dribbleRange: 3,
     /** 공간 보정: 두 번째 수비수가 가까우면 감점 */
@@ -626,7 +637,7 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95) */
-    saveBase: 1.76,
+    saveBase: 1.77,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,

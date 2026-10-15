@@ -382,9 +382,15 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
   }
 
   const players: RosterPlayer[] = [];
+  const realEntries = new Map(POS_GROUPS.flatMap((g) => realByGroup[g]).map((real) => [real.id, realEntry(real, season, rng)] as const));
+  // 가상 선수 OVR 상한 (E.24 3번): 실제 주전(팀 레이팅 − virtualCapStarterGap 이상)이 있는 팀은 그 평균 OVR 을 넘지 않는다
+  const realStarters = [...realEntries.values()].map(naturalOvr).filter((v) => v >= team.rating - R.virtualCapStarterGap);
+  const cap = R.virtualCapToReal && realStarters.length
+    ? Math.floor(realStarters.reduce((t, v) => t + v, 0) / realStarters.length)
+    : Infinity;
   let n = 0;
   for (const g of POS_GROUPS) {
-    for (const real of realByGroup[g]) players.push(realEntry(real, season, rng));
+    for (const real of realByGroup[g]) players.push(realEntries.get(real.id)!);
     const r = realByGroup[g].length;
     for (let i = 0; i < virtualCount[g]; i++) {
       const rank = r + i;
@@ -394,28 +400,28 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
         : [R.reserveOffset, R.reserveSd];
       const position = positions[g][rank % positions[g].length]!;
       players.push(makeVirtual(
-        { id: `v:${team.id}:${n++}`, teamId: team.id, position, age: rollAge(rng), ovr: team.rating + off + gaussian(rng) * sd, season },
+        { id: `v:${team.id}:${n++}`, teamId: team.id, position, age: rollAge(rng), ovr: Math.min(cap, team.rating + off + gaussian(rng) * sd), season },
         rng,
       ));
     }
   }
   const roster: TeamRoster = { teamId: team.id, formation, players };
-  fitRating(roster, team.rating, rng);
+  fitRating(roster, team.rating, rng, cap);
   for (const p of players) if (!p.real) setPeak(p, rng);
   return roster;
 }
 
-/** 라인업 평균이 목표 ±fitTolerance 가 될 때까지 가상 주전의 OVR 을 조정 */
-function fitRating(roster: TeamRoster, target: number, rng: Rng): void {
+/** 라인업 평균이 목표 ±fitTolerance 가 될 때까지 가상 주전의 OVR 을 조정. 올릴 때는 cap 을 넘기지 않는다 (못 맞추면 목표보다 낮게 둔다) */
+function fitRating(roster: TeamRoster, target: number, rng: Rng, cap = Infinity): void {
   const R = BALANCE.roster;
   for (let it = 0; it < R.fitIterations; it++) {
     const lu = pickLineup(roster);
     const diff = target - lu.rating;
-    if (Math.abs(diff) <= R.fitTolerance) return;
+    if (Math.abs(diff) <= R.fitTolerance) break;
     const starters = lu.slots
       .map((s) => roster.players.find((p) => p.id === s.playerId)!)
-      .filter((p) => !p.real);
-    if (!starters.length) return;
+      .filter((p) => !p.real && (diff < 0 || naturalOvr(p) < cap));
+    if (!starters.length) break;
     let units = Math.round(diff * lu.slots.length);
     if (units === 0) units = Math.sign(diff);
     const per = Math.trunc(units / starters.length);
@@ -426,8 +432,13 @@ function fitRating(roster: TeamRoster, target: number, rng: Rng): void {
       const p = starters[(start + k) % starters.length]!;
       const d = per + (extra > 0 ? Math.sign(units) : 0);
       if (extra > 0) extra--;
-      shiftPlayer(p, d, rng);
+      shiftPlayer(p, d > 0 ? Math.min(d, cap - naturalOvr(p)) : d, rng);
     });
+  }
+  // 능력치 조정의 반올림으로 상한을 넘은 가상 선수는 상한으로 되돌린다
+  for (const p of roster.players) {
+    if (p.real || cap === Infinity) continue;
+    for (let k = 0; k < 3 && naturalOvr(p) > cap; k++) shiftPlayer(p, cap - naturalOvr(p), rng);
   }
 }
 
