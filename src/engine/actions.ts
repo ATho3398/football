@@ -34,9 +34,13 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
   const team = s.teams[a.team];
   switch (c.type) {
     case 'pass':
-    case 'through': {
+    case 'through':
+    case 'cutback':
+    case 'layoff': {
       a.stats.passes++;
       team.stats.passes++;
+      if (c.type === 'cutback') team.stats.cutbacks++;
+      if (c.type === 'layoff') team.stats.layoffs++;
       if (dist(a.x, a.y, c.x, c.y) >= 30) team.stats.longPasses++;
       if (c.type === 'through') team.stats.throughPasses++;
       const fl = makePass(s, a, c);
@@ -52,6 +56,9 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
     }
     case 'dribble':
       dribble(s, a, c);
+      return;
+    case 'holdup':
+      holdup(s, a, c);
       return;
     case 'shoot':
       shoot(s, a, false);
@@ -109,6 +116,24 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
     a.cooldown = Math.max(ENGINE.onball.carryTime, reaction(a));
     // 제쳐진 수비수의 파울 (태클 실패)
     if (r(s, def.idx, Purpose.Foul, 1) < ENGINE.referee.tackleFoul * foulFactor(s, a, a.x, a.y, def)) foul(s, def, a, a.x, a.y);
+    return;
+  }
+  tackleWon(s, a, def);
+}
+
+/** 버티기 (E.18 A2): 성공하면 1초 동안 공을 지킨다 (수비수 도전 실패 → 파울 판정), 실패하면 태클 */
+function holdup(s: SimState, a: Agent, c: Candidate): void {
+  const def = s.agents[c.opponent!]!;
+  s.teams[a.team].stats.holdups++;
+  if (r(s, a.idx, Purpose.Dribble, 5) < c.p) {
+    s.teams[a.team].stats.holdupsWon++;
+    a.tx = a.x;
+    a.ty = a.y;
+    a.urgent = false;
+    a.cooldown = ENGINE.onball.holdupTime;
+    a.backToGoal = true;
+    def.beatenUntil = s.t + ENGINE.onball.holdupTime * 0.5;
+    if (r(s, def.idx, Purpose.Foul, 6) < ENGINE.referee.tackleFoul * foulFactor(s, a, a.x, a.y, def)) foul(s, def, a, a.x, a.y);
     return;
   }
   tackleWon(s, a, def);
@@ -429,6 +454,13 @@ export function resolveFlight(s: SimState): void {
           }
         }
         setOwner(s, rc);
+        // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
+        const dirR = attackDir(rc.team, s.half);
+        const fx = fl.fromX - b.x;
+        const fy = fl.fromY - b.y;
+        const fn = Math.hypot(fx, fy) || 1;
+        rc.backToGoal = (Math.acos(clamp((fx * dirR) / fn, -1, 1)) * 180) / Math.PI >= ENGINE.onball.backAngle;
+        if (fl.quick) rc.cooldown = reaction(rc);
         rc.x = b.x;
         rc.y = b.y;
         passer.stats.passesCompleted++;

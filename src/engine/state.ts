@@ -52,6 +52,8 @@ export interface Agent {
   /** 경기 출전 시작/끝 시각 (초) */
   enteredAt: number;
   leftAt: number | null;
+  /** 상대 골을 등지고 받았다 (포스트플레이 후보, E.18 A2). 다음 결정 후 해제 */
+  backToGoal: boolean;
   /** 평점 계산용 내부 기록 (E.12) */
   rt: { forward: number; lost: number; dangerLost: number; conceded: number };
 }
@@ -76,6 +78,8 @@ export interface Flight {
   interceptor: number;
   /** 침투 패스 (측정용) */
   through?: boolean;
+  /** 컷백/레이오프: 받는 선수가 반응 시간만에 다음 결정 (원터치, E.18 A2) */
+  quick?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */
   fromCross?: boolean;
   /** 유효 슈팅 정보 */
@@ -170,7 +174,7 @@ export function emptyTeamStats(): TeamStats {
     fouls: 0, yellows: 0, reds: 0, offsides: 0, advantages: 0, tackles: 0, tacklesWon: 0, interceptions: 0,
     dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
     throwIns: 0, goalKicks: 0, longPasses: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
-    centralShots: 0, oppHalfWins: 0, keyPasses: 0,
+    centralShots: 0, oppHalfWins: 0, keyPasses: 0, cutbacks: 0, layoffs: 0, holdups: 0, holdupsWon: 0,
   };
 }
 

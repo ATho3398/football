@@ -109,6 +109,10 @@ export interface TeamStats {
   /** 상대 진영에서 소유를 빼앗은 횟수 */
   oppHalfWins: number;
   keyPasses: number;
+  cutbacks: number;
+  layoffs: number;
+  holdups: number;
+  holdupsWon: number;
 }
 
 export interface PlayerStats {

@@ -66,7 +66,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false,
+    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false,
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 },
   };
@@ -134,6 +134,7 @@ function decide(s: SimState, a: Agent): void {
   const cs = candidates(s, a);
   const c = choose(s, a, cs);
   (globalThis as { __decide?: (s: SimState, a: Agent, cs: unknown[], c: unknown) => void }).__decide?.(s, a, cs, c); // DEBUG
+  if ((c as { type: string }).type !== 'holdup') a.backToGoal = false;
   execute(s, a, c);
 }
 

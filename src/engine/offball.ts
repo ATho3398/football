@@ -182,12 +182,26 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   } else if (a.line >= 2) {
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
   }
-  // 박스 진입: 공이 최종 3분의 1이면 침투 성향 미드/윙어가 박스 안으로 (오프사이드 라인 안쪽)
-  if (!running && owner && owner.team === a.team && owner !== a && a.line >= 2 && a.role.run >= O.boxArrivalRun && bnx > O.boxArrivalFrom) {
-    nx = Math.max(nx, Math.min(O.boxArrivalX, line - 0.5 / L));
-    ny = 0.5 + (a.sy - 0.5) * 0.45;
-    const [px, py] = toPitch(nx, ny, dir);
-    urgent = dist(px, py, a.x, a.y) > 12;
+  // 공이 상대 최종 3분의 1 측면 (E.18 A2): 2선 늦은 침투(컷백 존), 세컨드 볼 담당, ST 니어/파 포스트
+  const wide = owner && owner.team === a.team && owner !== a && bnx >= O.lateRunFromX && Math.abs(bny - 0.5) >= O.lateRunWide;
+  if (wide && !running) {
+    const side = bny < 0.5 ? -1 : 1;
+    const job = finalThirdJob(s, a, owner);
+    if (job === 'cutback') {
+      nx = 1 - O.cutbackZone / L;
+      ny = 0.5 + side * 0.04;
+    } else if (job === 'edge') {
+      nx = 1 - O.edgeZone / L;
+      ny = 0.5 - side * 0.05;
+    } else if (job === 'near' || job === 'far') {
+      nx = 1 - O.postDepth / L;
+      ny = 0.5 + (job === 'near' ? side : -side) * (O.postSpread / W);
+    }
+    if (job) {
+      nx = Math.min(nx, line - 0.5 / L);
+      const [px, py] = toPitch(nx, ny, dir);
+      urgent = dist(px, py, a.x, a.y) > 6;
+    }
   }
   // 내려와서 받기 / 지원 간격
   if (owner && owner.team === a.team && owner !== a) {
@@ -207,6 +221,26 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/**
+ * 공이 상대 최종 3분의 1 측면일 때의 역할 (E.18 A2): 침투 성향(run ≥ 0.4) CM/CAM 중 공에 가장 가까운 1명은 컷백 존,
+ * 다음 미드 1명은 박스 경계 바깥(세컨드 볼, 중거리), ST/CF 2명은 니어/파 포스트 (공에 가까운 쪽이 니어)
+ */
+function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | null {
+  const mates = s.agents.filter((o) => o.onPitch && o.team === a.team && o !== owner);
+  const bd = (o: Agent) => dist(o.x, o.y, s.ball.x, s.ball.y);
+  if (a.pos === 'ST' || a.pos === 'CF') {
+    const sts = mates.filter((o) => o.pos === 'ST' || o.pos === 'CF');
+    if (sts.length < 2) return null;
+    return sts.sort((x, y) => bd(x) - bd(y))[0] === a ? 'near' : 'far';
+  }
+  if (a.pos !== 'CM' && a.pos !== 'CAM' && a.pos !== 'CDM') return null;
+  const runners = mates.filter((o) => (o.pos === 'CM' || o.pos === 'CAM') && o.role.run >= O.lateRunRun).sort((x, y) => bd(x) - bd(y));
+  const runner = runners[0];
+  if (runner === a) return 'cutback';
+  const rest = mates.filter((o) => (o.pos === 'CM' || o.pos === 'CAM' || o.pos === 'CDM') && o !== runner).sort((x, y) => bd(x) - bd(y));
+  return rest[0] === a ? 'edge' : null;
 }
 
 function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {

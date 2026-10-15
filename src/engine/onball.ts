@@ -15,7 +15,7 @@ const PR = ENGINE.prob;
 const B = ENGINE.ball;
 const G = ENGINE.pitch.goalWidth;
 
-export type ActionType = 'pass' | 'through' | 'carry' | 'hold' | 'shoot' | 'cross' | 'clear' | 'dribble';
+export type ActionType = 'pass' | 'through' | 'cutback' | 'layoff' | 'holdup' | 'carry' | 'hold' | 'shoot' | 'cross' | 'clear' | 'dribble';
 
 export interface Candidate {
   type: ActionType;
@@ -105,6 +105,16 @@ export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
 
 function weight(u: number, m: number): number {
   return u >= 0 ? u * m : u / m;
+}
+
+/** 버티기 성공 확률 (E.18 A2): L((근력 0.45 + 볼 컨트롤 0.35 + 민첩성 0.2 − (근력 0.45 + 태클 0.35 + 수비 포지셔닝 0.2)) / 12) */
+export function holdupProb(s: SimState, att: Agent, def: Agent): number {
+  const a = att.attrs;
+  const d = def.attrs;
+  const atk = a.strength * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
+  const dfn = d.strength * 0.45 + d.tackling * 0.35 + d.defensivePositioning * 0.2;
+  void s;
+  return 1 / (1 + Math.exp(-(atk - dfn) / O.holdupScale));
 }
 
 export function judgementOf(a: Agent): number {
@@ -209,6 +219,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const isGk = a.line === 0;
   const out: Candidate[] = [];
   const [gx0, gy0] = oppGoal(dir);
+  // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
+  const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -237,7 +249,31 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (pOff > 0) u = (1 - pOff) * u + pOff * lossCost(rx, ry);
     const forward = rx > ax + 0.03;
     u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul));
-    out.push({ type: running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value });
+    // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
+    const gd = dist(tx, ty, gx0, gy0);
+    const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
+    out.push({ type: cutback ? 'cutback' : running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value });
+  }
+
+  // 포스트플레이 (E.18 A2): 등지고 받은 ST/CF 의 버티기와 레이오프
+  if (a.backToGoal && (a.pos === 'ST' || a.pos === 'CF')) {
+    for (const r of s.agents) {
+      if (r === a || !r.onPitch || r.team !== a.team || r.line < 2) continue;
+      const d = dist(a.x, a.y, r.x, r.y);
+      if (d > O.layoffDist || d < 2) continue;
+      const [rx, ry] = toNorm(r.x, r.y, dir);
+      if (rx >= ax) continue; // 앞을 보고 받을 2선 (공보다 자기 골 쪽)
+      const p = clamp(PR.passBase - PR.passPerM * d + (PR.passSkill * (a.attrs.shortPassing - 60)) / 100 + formBonus(a), PR.passMin, PR.passMax);
+      let value = positionValue(rx, ry);
+      if (dist(r.x, r.y, gx0, gy0) <= PR.shotMaxDist) value = Math.max(value, shotModel(s, r, false).value);
+      const u = weight(p * value + (1 - p) * lossCost(rx, ry), a.role.pref.pass);
+      out.push({ type: 'layoff', p, u, x: r.x, y: r.y, receiver: r.idx, value });
+    }
+    const [def, dd] = nearestOpponent(s, a);
+    if (def && dd <= O.holdupRange) {
+      const p = holdupProb(s, a, def);
+      out.push({ type: 'holdup', p, u: weight(p * here + (1 - p) * lossHere, a.role.pref.pass), x: a.x, y: a.y, receiver: -1, value: here, opponent: def.idx });
+    }
   }
 
   if (!isGk) {
@@ -335,6 +371,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const fl: Flight = {
     kind: air ? 'long' : 'pass', fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',
+    quick: c.type === 'cutback' || c.type === 'layoff',
   };
   if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < c.p) return fl;
 

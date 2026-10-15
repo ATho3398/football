@@ -141,12 +141,18 @@ export const ENGINE = {
     recoverBehind: 0.1,
     recoverBase: 0.1,
     workRateSpeed: 0.2,
-    /** 박스 진입: 공이 상대 진영 boxArrivalFrom 넘으면 침투 성향(run ≥ boxArrivalRun) 미드/윙어가 박스로 */
-    boxArrivalFrom: 0.6,
-    boxArrivalRun: 0.4,
-    boxArrivalX: 0.85,
     /** 내려와서 받기: drop × 이 거리만큼 공 쪽으로 (m) */
     dropDist: 8,
+    /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 */
+    lateRunFromX: 0.75,
+    lateRunWide: 0.2,
+    lateRunRun: 0.4,
+    /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
+    cutbackZone: 15,
+    edgeZone: 22,
+    /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
+    postDepth: 6,
+    postSpread: 4,
   },
 
   // ── 온더볼 의사결정 (E.7) ──
@@ -170,6 +176,17 @@ export const ENGINE = {
     passMaxDist: 50,
     /** 리시버 앞쪽 리드 (초 × 리시버 속도) */
     leadTime: 0.6,
+    /** 컷백 (E.18 A2): 소유자 x ≥ cutbackFromX, 측면 |y − 0.5| ≥ cutbackWide. 대상은 골에서 cutbackMin~cutbackMax m */
+    cutbackFromX: 0.88,
+    cutbackWide: 0.12,
+    cutbackMin: 9,
+    cutbackMax: 18,
+    /** 포스트플레이: 몸 방향과 공격 방향 각도가 이 값 이상이면 등지고 받음 (도). 레이오프 거리 (m), 버티기 상대 거리 (m) */
+    backAngle: 100,
+    layoffDist: 8,
+    holdupRange: 2.5,
+    holdupScale: 12,
+    holdupTime: 1.0,
     /** 공을 몰고 갈 때 최대 속도 배율 */
     carrySpeed: 0.8,
     /** 선택 직후 다음 결정까지 최소 간격 (초) */
