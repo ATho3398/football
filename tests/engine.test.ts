@@ -70,7 +70,8 @@ describe('경기 엔진 코어 (E1)', () => {
       expect(m(1)).toBeLessThan(m(2));
       expect(m(2)).toBeLessThan(m(3));
     }
-    expect(s.agents.filter((a) => a.onPitch)).toHaveLength(22);
+    // 퇴장(E3) 이 나오면 그만큼 줄어든다
+    expect(s.agents.filter((a) => a.onPitch)).toHaveLength(22 - s.teams[0].stats.reds - s.teams[1].stats.reds);
   });
 
   it('이동 거리: 필드 선수 90분 6.5~13.5 km, GK 는 훨씬 적다', () => {

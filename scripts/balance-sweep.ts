@@ -49,7 +49,7 @@ const NAMES: Record<string, [string, number]> = {
   goals: ['득점', 2], g8: ['Δ+8', 2], gm8: ['Δ−8', 2], poss: ['점유', 1], passes: ['패스', 0], passPct: ['패스%', 1], longPct: ['롱%', 1],
   shots: ['슈팅', 1], sot: ['유효', 1], savePct: ['선방%', 1], live: ['살아있는 분', 1], throwIns: ['스로인', 1], goalKicks: ['골킥', 1],
   tackles: ['태클', 1], ints: ['인터셉트', 1], dribbles: ['드리블', 1], crosses: ['크로스', 1], aerials: ['공중볼', 1], fouls: ['파울', 1],
-  offsides: ['오프사이드', 1], distCM: ['CM km', 1], xpRatio: ['XP 비', 2], rMean: ['평점', 2], rSd: ['평점σ', 2], gr8: ['득점비', 2], gSTn: ['ST골%', 0], gMIDn: ['미드골%', 0], corners: ['코너', 1], counterPct: ['역습%', 0],
+  offsides: ['오프사이드', 1], distCM: ['CM km', 1], lgTopGF: ['최다득점팀', 0], lgTopGA: ['최다실점팀', 0], lgBoot: ['득점왕', 0], lgChamp: ['우승승점', 0], lgGoals: ['리그득점', 2], xpRatio: ['XP 비', 2], rMean: ['평점', 2], rSd: ['평점σ', 2], gr8: ['득점비', 2], gSTn: ['ST골%', 0], gMIDn: ['미드골%', 0], corners: ['코너', 1], counterPct: ['역습%', 0],
 };
 const cols: [string, string, number][] = COLS.map((k) => [k, NAMES[k]?.[0] ?? k, NAMES[k]?.[1] ?? 1]);
 // RESPCOLS=키:지표앞부분,… 로 스탯 반응 열을 고른다 (SWEEP_ALLRESP=1 이면 9개 반응 모두 돌린다)

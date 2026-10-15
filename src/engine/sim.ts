@@ -22,6 +22,20 @@ import type { EngineInput, EngineResult, Frame, PlayerSpec, TeamSetup } from './
 const T = ENGINE.time;
 const B = ENGINE.ball;
 
+/** 능력치 체감 곡선: 80 까지 그대로, 80→90 은 curveMid 배, 90 넘게는 curveTop 배 (70→80 100%, 80→90 약 70%, 90→99 약 40%) */
+export function curveAttr(x: number): number {
+  const C = ENGINE.prob;
+  if (x <= C.curveKnee1) return x;
+  if (x <= C.curveKnee2) return C.curveKnee1 + C.curveMid * (x - C.curveKnee1);
+  return C.curveKnee1 + C.curveMid * (C.curveKnee2 - C.curveKnee1) + C.curveTop * (x - C.curveKnee2);
+}
+
+function curveAttrs<T extends object>(a: T): T {
+  const out = {} as Record<string, number>;
+  for (const [k, v] of Object.entries(a)) out[k] = curveAttr(v as number);
+  return out as T;
+}
+
 /** GK 의 필드 능력치 (이동, 패스에 쓴다): 킥은 패스, 나머지는 보통 수준 */
 export function gkFieldAttributes(gk: GkAttributes): FieldAttributes {
   const out = {} as FieldAttributes;
@@ -57,8 +71,9 @@ export interface MatchSim {
 function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, home: boolean): Agent {
   const slots = FORMATION_SLOTS[setup.formation];
   const slot = slots[spec.slot] ?? slots[0]!;
-  const attrs = { ...spec.attrs };
-  const gk = spec.gk ? { type: spec.gk.type, attrs: { ...spec.gk.attrs } } : null;
+  // 능력치 체감 (E.20 11번): 모든 능력치에 같은 S자 곡선을 여기 한 곳에서 적용한다
+  const attrs = curveAttrs(spec.attrs);
+  const gk = spec.gk ? { type: spec.gk.type, attrs: curveAttrs(spec.gk.attrs) } : null;
   const pos = spec.slot >= 0 ? slot.pos : spec.position;
   const a: Agent = {
     idx, id: spec.id, team, spec, attrs, gk, pos, line: lineOf(pos),

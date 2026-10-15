@@ -3,8 +3,9 @@
 import { pickLineup, type RosterPlayer, type TeamRoster } from '../roster';
 import { ENGINE } from './config';
 import { gkFieldAttributes } from './sim';
-import { recommendedRole, teamPlan } from './tactics';
-import type { PlayerSpec, Tactics, TeamSetup } from './types';
+import { createRng, hashSeed } from '../rng';
+import { LEVELS, levelOf, recommendedRole, tacticsOf, teamPlan } from './tactics';
+import type { PlayerSpec, Tactics, TeamSetup, Tendency } from './types';
 
 export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec {
   return {
@@ -35,13 +36,28 @@ export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpe
   for (const p of setup.lineup) p.role ??= recommendedRole(setup.tactics.tendency, slotPos(p.slot), p.attrs).id;
 }
 
+/**
+ * 약팀의 상대별 대응 (E.20 9번, AI 감독): 상대 레이팅이 underdogGap 이상 높으면 라인·압박을 한 단계 내리고,
+ * underdogSwitch 확률(시드)로 성향을 수비 블록/역습으로 바꾼다. 내 팀(사용자 전술)에는 쓰지 않는다
+ */
+export function underdogPlan(teamId: string, rating: number, oppRating: number, tactics: Tactics, worldSeed: string): Tactics {
+  const T = ENGINE.tactics;
+  if (oppRating - rating < T.underdogGap) return tactics;
+  const rng = createRng(hashSeed(`${worldSeed}:underdog:${teamId}:${Math.round(oppRating * 10)}`));
+  const tendency: Tendency = rng() < T.underdogSwitch ? (rng() < 0.5 ? 'block' : 'counter') : tactics.tendency;
+  const base = tendency === tactics.tendency ? tactics : { ...tacticsOf(tendency), style: tactics.style };
+  const down = (d: 'lineHeight' | 'pressing') => LEVELS[d][Math.max(0, levelOf(d, base[d]) - 1)]!;
+  return { ...base, lineHeight: down('lineHeight'), pressing: down('pressing') };
+}
+
 export function teamSetupFromRoster(
   roster: TeamRoster, rating: number, oppRating: number, worldSeed = '', exclude: ReadonlySet<string> = new Set(), leagueAvg?: number,
+  aiAdapt = true,
 ): TeamSetup {
   const lu = pickLineup(roster, exclude);
   const byId = new Map(roster.players.map((p) => [p.id, p]));
   const plan = teamPlan(roster.teamId, rating, roster.formation, worldSeed, leagueAvg);
-  void oppRating;
+  if (aiAdapt) plan.tactics = underdogPlan(roster.teamId, rating, oppRating, plan.tactics, worldSeed);
   const setup: TeamSetup = {
     teamId: roster.teamId,
     formation: roster.formation,

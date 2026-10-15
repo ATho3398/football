@@ -5,7 +5,7 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb } from './duel';
 import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
-import { crossTarget, makePass, receivesBack, shotModel, type Candidate } from './onball';
+import { crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, segDist, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -86,7 +86,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       a.ty = a.y;
       a.urgent = false;
       // 템포 (E.18 A5): 점유형일수록 유지 간격이 길다
-      a.cooldown = (reaction(a) + ENGINE.onball.holdTime) * (ENGINE.tactics.possBase + ENGINE.tactics.possSlope * s.teams[a.team].tactics.style);
+      a.cooldown = (reaction(a) + ENGINE.onball.holdTime) * (ENGINE.tactics.possBase + ENGINE.tactics.possSlope * s.teams[a.team].tactics.style) * leadTempoMul(s, a.team);
   }
 }
 
@@ -242,8 +242,8 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     team.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     // 구석일수록 막기 어렵다. 능력치가 높으면 구석으로
-    const skill = header ? a.attrs.heading : a.attrs.shooting;
-    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * (PR.cornerBase + (PR.cornerSkill * skill) / 100), 0, 1);
+    // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번)
+    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1);
     const ty = gy + side * corner * (G / 2 - 0.3);
     s.ball.owner = -1;
     s.ball.flight = {
@@ -586,14 +586,13 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       looseBall(s, a.x + dir * 9, a.y, Math.cos(ang) * 6, Math.sin(ang) * 6, (1 - a.team) as 0 | 1);
       return true;
     }
-    const skill = a.attrs.freeKick * 0.7 + a.attrs.composure * 0.3;
-    const pOn = clamp(PR.shotBase + (PR.shotSkill * (skill - PR.skillCenter)) / 100 - PR.shotPerM * d, PR.shotMin, PR.shotMax) * ENGINE.setPiece.directAccuracy;
-    const speed = ENGINE.ball.shotSpeedMin + ((ENGINE.ball.shotSpeedMax - ENGINE.ball.shotSpeedMin) * a.attrs.freeKick) / 100;
+    const pOn = Math.min(PR.shotCap, clamp(PR.shotBase - PR.shotPerM * d, PR.shotMin, PR.shotMax) * ENGINE.setPiece.directAccuracy * finishMult(a.attrs, 'freeKick'));
+    const speed = ENGINE.ball.shotSpeed;
     const side = r(s, a.idx, Purpose.FreeKick, 2) < 0.5 ? -1 : 1;
     if (r(s, a.idx, Purpose.FreeKick, 3) < pOn) {
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
-      const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * (PR.cornerBase + (PR.cornerSkill * a.attrs.freeKick) / 100), 0, 1);
+      const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * PR.cornerRange, 0, 1);
       s.ball.owner = -1;
       s.ball.flight = {
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,

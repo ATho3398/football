@@ -8,7 +8,8 @@ import type { FieldPosition } from '../positions';
 import type { FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
 import { teamSetupFromRoster } from './setup';
-import { createMatch } from './sim';
+import { buildResult, createMatch } from './sim';
+import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
 
 export const MY_ID = 'me';
@@ -59,7 +60,7 @@ function mySlot(setup: TeamSetup, pos: FieldPosition): number {
 }
 
 export function buildMyMatch(m: EngineMatchInput) {
-  const mySetup = teamSetupFromRoster(m.myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg);
+  const mySetup = teamSetupFromRoster(m.myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
   const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
   const meSpec: PlayerSpec = {
     id: MY_ID, name: '나', slot: -1, position: m.me.position, attrs: { ...m.me.attributes },
@@ -92,6 +93,8 @@ export interface MyMatchOutput {
   my: PlayerStats | null;
   /** 내 팀 쪽 (0 홈, 1 원정) */
   side: 0 | 1;
+  /** 재생 데이터 (capture 일 때만) */
+  replay?: Replay;
 }
 
 /** 엔진 결과 → 기존 MatchResult (E.2 toMatchResult) */
@@ -112,12 +115,32 @@ export function toMatchResult(r: EngineResult, side: 0 | 1, started: boolean, di
   return { goalsFor, goalsAgainst, outcome, started, minutes, goals: my.goals, assists: my.assists, rating, mom, xp };
 }
 
-export function playMyMatch(m: EngineMatchInput): MyMatchOutput {
+/**
+ * 내 경기 (E.14 어댑터). capture 면 위치 프레임을 frameInterval 마다 샘플링해 재생 데이터(E5-lite, 24번)를 만든다.
+ * 같은 계산을 그대로 기록하므로 재생과 결과가 같다 (결정성)
+ */
+export function playMyMatch(m: EngineMatchInput, capture?: { teams: [string, string] }): MyMatchOutput {
   const sim = buildMyMatch(m);
-  const engine = sim.runToEnd();
   const side: 0 | 1 = m.home ? 0 : 1;
+  let engine: EngineResult;
+  let replay: Replay | undefined;
+  if (capture) {
+    const s = sim.state;
+    const frames: ReplayFrame[] = [captureFrame(s)];
+    let next = ENGINE.time.frameInterval;
+    while (!s.done) {
+      sim.step();
+      if (s.elapsed + 1e-9 >= next) {
+        frames.push(captureFrame(s));
+        next += ENGINE.time.frameInterval;
+      }
+    }
+    engine = buildResult(s);
+    const setups = [s.input.home, s.input.away] as const;
+    replay = buildReplay(setups[0], setups[1], capture.teams, frames, engine, side, ENGINE.time.halfSeconds);
+  } else engine = sim.runToEnd();
   const result = toMatchResult(engine, side, m.plan.started, m.difficulty, m.bigMatch);
-  return { result, engine, my: engine.myStats, side };
+  return { result, engine, my: engine.myStats, side, ...(replay ? { replay } : {}) };
 }
 
 /** 경기 후 피로 증가 (E.16): 실제 이동 거리에서 환산. 90분 풀타임 평균 거리가 기존 +22 부근 */

@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { BALANCE_VERSION } from '../../src/config/balance';
 import { ENGINE_VERSION } from '../../src/engine/config';
-import { RESP_SHARE, rowPass, type SuiteResult } from './suite';
+import { RESP_CAP, RESP_SHARE, respOver, rowPass, type SuiteResult } from './suite';
 
 const DATA_RE = /<!-- report-data (.*?) -->/s;
 
@@ -42,7 +42,7 @@ export function printResult(r: SuiteResult, guard = false): void {
     console.log('\n[스탯 반응 (E.15.1, 짝지은 비교)]');
     for (const x of r.responses) {
       const ok = guard && x.guard !== undefined ? x.change >= x.guard : x.pass;
-      console.log(`  ${x.target.padEnd(8)} ${x.attrs.padEnd(18)} ${x.metric.padEnd(30)} ${fmt(x.base, 2)} → ${fmt(x.mod, 2)} (${signed(x.change, 2)}${x.unit}, 단측 95% ${signed(x.bound, 2)})  ${guard && x.guard !== undefined ? `가드 ${x.guard} 이상` : `${x.criterion} → ${passRule(x)}`} ${ok ? '✓' : '✗'}`);
+      console.log(`  ${x.target.padEnd(8)} ${x.attrs.padEnd(18)} ${x.metric.padEnd(30)} ${fmt(x.base, 2)} → ${fmt(x.mod, 2)} (${signed(x.change, 2)}${x.unit}, 단측 95% ${signed(x.bound, 2)})  ${guard && x.guard !== undefined ? `가드 ${x.guard} 이상` : `${x.criterion} → ${passRule(x)}`} ${ok ? '✓' : '✗'}${!guard && respOver(x.change, x.need) ? ` (상한 ${RESP_CAP}배 초과)` : ''}`);
     }
   }
   for (const e of r.extra) console.log(`  ${e}`);
@@ -93,12 +93,12 @@ export function writeReport(path: string, r: SuiteResult, note: string): void {
     L.push('');
     L.push('## 스탯 반응 (E.15.1, 같은 시드 짝지은 비교, 양 팀 같은 슬롯 선수 1명씩 +10)');
     L.push('');
-    L.push('통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(짝지은 부트스트랩 단측 95% 한계가 기준 방향), 크기가 표 기준값의 70% 이상.');
+    L.push(`통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(짝지은 부트스트랩 단측 95% 한계가 기준 방향), 크기가 표 기준값의 70% 이상. 상한 (E.20 추가 확정 5번, 기록만): 크기가 기준값의 ${RESP_CAP}배 이하.`);
     L.push('');
-    L.push('| 바꾼 능력치 | 대상 | 지표 | 기준 경기 | +10 경기 | 변화 | 단측 95% 한계 | 표 기준 | 통과 규칙 | 통과 |');
-    L.push('|---|---|---|---|---|---|---|---|---|---|');
+    L.push('| 바꾼 능력치 | 대상 | 지표 | 기준 경기 | +10 경기 | 변화 | 단측 95% 한계 | 표 기준 | 통과 규칙 | 통과 | 상한 |');
+    L.push('|---|---|---|---|---|---|---|---|---|---|---|');
     for (const x of r.responses) {
-      L.push(`| ${x.attrs} | ${x.target} | ${x.metric} | ${fmt(x.base, 2)} | ${fmt(x.mod, 2)} | ${signed(x.change, 2)}${x.unit} | ${signed(x.bound, 2)} | ${x.criterion} | ${passRule(x)} | ${x.pass ? '✓' : '✗'} |`);
+      L.push(`| ${x.attrs} | ${x.target} | ${x.metric} | ${fmt(x.base, 2)} | ${fmt(x.mod, 2)} | ${signed(x.change, 2)}${x.unit} | ${signed(x.bound, 2)} | ${x.criterion} | ${passRule(x)} | ${x.pass ? '✓' : '✗'} | ${x.need === 0 ? '-' : respOver(x.change, x.need) ? `✗ (${signed(RESP_CAP * x.need, 2)} 초과)` : '✓'} |`);
     }
   }
   if (r.extra.length) {

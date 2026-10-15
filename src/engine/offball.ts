@@ -5,6 +5,7 @@ import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { TENDENCY } from './tactics';
+import { finishSkill } from './onball';
 import type { Agent, SimState } from './state';
 
 const O = ENGINE.offball;
@@ -422,7 +423,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     nx = lineX + a.errX * sigma;
   }
 
-  // 마킹: 존 근처의 위협적인 상대
+  // 마킹: 존 근처의 위협적인 상대. 수비 주의 집중 대상(E.20 8번)이 존 근처에 있으면 그 선수를 먼저, 더 가깝게
   const [zx, zy] = toPitch(nx, ny, dir);
   let mark: Agent | null = null;
   let best = 14;
@@ -434,6 +435,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       mark = o;
     }
   }
+  const focus = focusThreat(s, a.team);
+  if (focus && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
+  const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);
     const gd = dist(mark.x, mark.y, gx, gy) || 1;
@@ -445,8 +449,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     ux /= un;
     uy /= un;
     const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
-    const mx = mark.x + ux * O.markGoalSide + a.errX * sigma;
-    const my = mark.y + uy * O.markGoalSide + a.errY * sigma;
+    const mx = mark.x + ux * goalSide + a.errX * sigma;
+    const my = mark.y + uy * goalSide + a.errY * sigma;
     const [mnx, mny] = toNorm(mx, my, dir);
     if (a.line === 1) {
       ny = ny * 0.5 + mny * 0.5;
@@ -479,34 +483,50 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
   if (!defs.includes(a)) return false;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
   const oppDir = (-dir) as 1 | -1;
-  let threat: Agent | null = null;
-  let tv = -Infinity;
-  for (const pass of [true, false]) {
-    for (const o of s.agents) {
-      if (!o.onPitch || o.team === a.team || o === owner || o.line === 0) continue;
-      if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
-      const v = positionValue(...toNorm(o.x, o.y, oppDir));
-      if (v > tv) {
-        tv = v;
-        threat = o;
+  // 가장 위협적인 상대 (수비 주의 집중, E.20 8번): 마무리 능력치 × 골까지 가까움. 없으면 위치 가치가 가장 큰 ST/공격 줄
+  let threat: Agent | null = focusThreat(s, a.team);
+  if (!threat) {
+    let tv = -Infinity;
+    for (const pass of [true, false]) {
+      for (const o of s.agents) {
+        if (!o.onPitch || o.team === a.team || o === owner || o.line === 0) continue;
+        if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
+        const v = positionValue(...toNorm(o.x, o.y, oppDir));
+        if (v > tv) {
+          tv = v;
+          threat = o;
+        }
       }
+      if (threat) break;
     }
-    if (threat) break;
   }
   let rest = defs;
   if (threat) {
+    const t = threat;
+    const near = (x: Agent, y: Agent) => dist(x.x, x.y, t.x, t.y) - dist(y.x, y.y, t.x, t.y) || x.idx - y.idx;
     const cbs = defs.filter((o) => o.pos === 'CB');
-    const pool = cbs.length ? cbs : defs;
-    const marker = pool.slice().sort((x, y) => dist(x.x, x.y, threat!.x, threat!.y) - dist(y.x, y.y, threat!.x, threat!.y) || x.idx - y.idx)[0]!;
+    const marker = (cbs.length ? cbs : defs).slice().sort(near)[0]!;
+    // 박스 안이면 가까운 수비 1명이 더 붙는다 (공 쪽)
+    const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2;
+    const second = inBox ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+    const gd = dist(t.x, t.y, gx, gy) || 1;
+    const focus = t === focusThreat(s, a.team) ? O.focusMark : 1;
     if (marker === a) {
-      const gd = dist(threat.x, threat.y, gx, gy) || 1;
-      a.tx = clamp(threat.x + ((gx - threat.x) / gd) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
-      a.ty = clamp(threat.y + ((gy - threat.y) / gd) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+      a.tx = clamp(t.x + ((gx - t.x) / gd) * O.stMark * focus + a.errX * O.markSigma, 0.3, L - 0.3);
+      a.ty = clamp(t.y + ((gy - t.y) / gd) * O.stMark * focus + a.errY * O.markSigma, 0.3, W - 0.3);
       a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
       a.minRun = false;
       return true;
     }
-    rest = defs.filter((o) => o !== marker);
+    if (second === a) {
+      const bd = dist(t.x, t.y, b.x, b.y) || 1;
+      a.tx = clamp(t.x + ((b.x - t.x) / bd) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
+      a.ty = clamp(t.y + ((b.y - t.y) / bd) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
+      a.minRun = false;
+      return true;
+    }
+    rest = defs.filter((o) => o !== marker && o !== second);
   }
   if (!cover) return false;
   // 덮는 자리: 니어 포스트(공 쪽), 페널티 지점, 파 포스트
@@ -532,6 +552,33 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     free.splice(k, 1);
   }
   return false;
+}
+
+const focusCache = new WeakMap<SimState, { tick: number; team: number; focus: Agent | null }[]>();
+
+/**
+ * 수비 주의 집중 대상 (E.20 8번): 수비 팀 기준, 공을 갖지 않은 상대 필드 선수(미드·공격 줄) 중
+ * 위협도 = 마무리 능력치 × max(0, 1 − 골까지 거리 / focusRange) 가 가장 높은 1명. 틱마다 한 번 계산
+ */
+export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
+  let cache = focusCache.get(s);
+  if (!cache) focusCache.set(s, (cache = [{ tick: -1, team: 0, focus: null }, { tick: -1, team: 1, focus: null }]));
+  const c = cache[defTeam]!;
+  if (c.tick === s.tick) return c.focus;
+  const [gx, gy] = ownGoal(attackDir(defTeam, s.half));
+  let best: Agent | null = null;
+  let bv = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === defTeam || o.line < 2 || o.idx === s.ball.owner) continue;
+    const v = finishSkill(o.attrs, 'shot') * Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange);
+    if (v > bv) {
+      bv = v;
+      best = o;
+    }
+  }
+  c.tick = s.tick;
+  c.focus = best;
+  return best;
 }
 
 /** 팀의 가장 앞 공격수 (슬롯 x 기준, 같으면 idx) */

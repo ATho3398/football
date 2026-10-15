@@ -119,15 +119,7 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
 /** 패스 능력치 반영: 실패 확률을 능력치로 줄이거나 늘린다 (평균 선수 skillCenter 는 그대로) */
 export function passSkillApply(p: number, skill: number): number {
   const fail = 1 - clamp(p, PR.passMin, PR.passMax);
-  return clamp(1 - fail * Math.exp((-PR.passSkill * (effSkill(skill) - PR.skillCenter)) / 10), PR.passMin, PR.passCap);
-}
-
-/**
- * 능력치 체감 (슈팅, 패스): 평균(skillMid) 근처는 거의 그대로, 매우 높은 값의 추가 이득은 줄어든다.
- * eff = mid + span × tanh((x − mid) / span). 모든 선수에게 같은 식
- */
-export function effSkill(x: number, span: number = PR.skillSpan): number {
-  return PR.skillMid + span * Math.tanh((x - PR.skillMid) / span);
+  return clamp(1 - fail * Math.exp((-PR.passSkill * (skill - PR.skillCenter)) / 10), PR.passMin, PR.passCap);
 }
 
 /** 폼 보정 (E.16): 내 선수의 성공 확률에 ±3%p (폼 보정 ±0.3 × 0.1) */
@@ -213,19 +205,18 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const d = dist(px, py, gx, gy);
   const t = a.attrs;
   const pressure = pressureAt(s, a, px, py);
+  // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
   let pOn: number;
   let speed: number;
   if (header) {
-    pOn = clamp(PR.headerBase + (PR.headerSkill * (t.heading - PR.skillCenter)) / 100 - PR.headerPerM * d, PR.shotMin, PR.shotMax);
+    pOn = clamp(PR.headerBase - PR.headerPerM * d, PR.shotMin, PR.shotMax);
     speed = PR.headerSpeed;
   } else {
-    const skill = d >= PR.longShotFrom
-      ? t.longShots * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15
-      : t.shooting * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15;
-    pOn = clamp(PR.shotBase + (PR.shotSkill * (effSkill(skill, PR.shotSpan) - PR.skillCenter)) / 100 - PR.shotPerM * d - PR.shotPressure * pressure + formBonus(a), PR.shotMin, PR.shotMax);
-    speed = B.shotSpeedMin + ((B.shotSpeedMax - B.shotSpeedMin) * t.shooting) / 100;
+    pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + formBonus(a), PR.shotMin, PR.shotMax);
+    speed = B.shotSpeed;
   }
   pOn *= Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
+  pOn = Math.min(PR.shotCap, pOn * finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot'));
   let blockers = 0;
   if (!header) {
     for (const o of s.agents) {
@@ -242,6 +233,17 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
   const rebound = (1 - pBlock) * pOn * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
   return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers };
+}
+
+/** 마무리 능력치 (E.20 7번): 슈팅(중거리는 중거리 슛, 헤더는 헤더, 프리킥은 프리킥) × 0.6 + 침착성 × 0.25 + 결정력 × 0.15 */
+export function finishSkill(t: FieldAttributes, kind: 'shot' | 'long' | 'header' | 'freeKick'): number {
+  const main = kind === 'long' ? t.longShots : kind === 'header' ? t.heading : kind === 'freeKick' ? t.freeKick : t.shooting;
+  return main * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15;
+}
+
+/** 마무리 배수 = clamp(1 + finishPerPoint × (마무리 능력치 − 70), finishMin, finishMax). 유효 슈팅(= 골 확률)에 곱한다 */
+export function finishMult(t: FieldAttributes, kind: 'shot' | 'long' | 'header' | 'freeKick'): number {
+  return clamp(1 + PR.finishPerPoint * (finishSkill(t, kind) - PR.skillCenter), PR.finishMin, PR.finishMax);
 }
 
 /** 리그 평균 GK 의 세이브 확률 (판단용. 실제 판정은 상대 GK 능력치) */
@@ -352,6 +354,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
   const line = offsideLine(s, a.team);
+  // 경기 상황 (E.20 10번): 크게 앞선 팀은 위험한 선택을 덜 한다
+  const risk = leadRiskMul(s, a.team);
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -409,7 +413,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     // 직선(롱볼): 타깃 ST 에게 가는 롱볼
     const tMul = target === r && d0 >= TA.longBall ? TENDENCY.directTargetMul : 1;
     const wMul = forward ? winMul : 1;
-    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul);
+    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * (running ? risk : 1));
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -470,7 +474,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
         const dp = (who: Agent) => clamp(dribbleProb(who, def!, second ? -PR.spaceSecondPenalty : 0) + formBonus(who), 0.02, 0.98);
         const p = dp(a);
         const pj = judgedP(p, dp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble);
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk);
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
         // 몰고 가기: 가는 길 주변 수비수 전원의 압박으로 빼앗길 확률 (유지와 같은 식, 능력치와 무관)
@@ -488,7 +492,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       // 티키타카: xG 0.05 미만 슛 × 0.7 (확실한 기회까지 돌린다), 게겐프레싱 탈취 직후
       const tikiMul = tac.tendency === 'tikitaka' && m.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
       const gegenMul = tac.tendency === 'gegenpress' ? winMul : 1;
-      const u = weight(vj * O.shotScale, a.role.pref.shoot * tikiMul * gegenMul);
+      const u = weight(vj * O.shotScale, a.role.pref.shoot * tikiMul * gegenMul * (m.d > TA.farShot ? risk : 1));
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
     }
 
@@ -521,6 +525,18 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const holdU = weight((1 - pLose) * here + pLose * lossHere, mPoss);
   out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
   return out;
+}
+
+/** 앞선 골 수에 따른 위험한 선택 효용 배수 (2골 이상 leadRisk2, 3골 이상 leadRisk3) */
+export function leadRiskMul(s: SimState, team: 0 | 1): number {
+  const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
+  return lead >= 3 ? TA.leadRisk3 : lead >= 2 ? TA.leadRisk2 : 1;
+}
+
+/** 앞선 골 수에 따른 유지 템포 배수 (느려진다) */
+export function leadTempoMul(s: SimState, team: 0 | 1): number {
+  const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
+  return lead >= 3 ? TA.leadTempo3 : lead >= 2 ? TA.leadTempo2 : 1;
 }
 
 /** softmax 선택. 온도 τ = tempBase + tempSlope × (1 − 판단 품질) */

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ENGINE } from '../src/engine/config';
 import { setOwner } from '../src/engine/core';
-import { keeperTarget, updateOffball } from '../src/engine/offball';
-import { averageSelf, candidates, carryLoseProb, judgedP, loseProb, passSkillApply } from '../src/engine/onball';
+import { focusThreat, keeperTarget, updateOffball } from '../src/engine/offball';
+import { averageSelf, candidates, carryLoseProb, finishMult, judgedP, loseProb, passSkillApply } from '../src/engine/onball';
 import { dist, L, W } from '../src/engine/pitch';
 import { teamSetupFromRoster } from '../src/engine/setup';
-import { createState } from '../src/engine/sim';
+import { createState, curveAttr } from '../src/engine/sim';
 import type { Agent, SimState } from '../src/engine/state';
 import type { EngineInput } from '../src/engine/types';
 import { createTeamRoster } from '../src/roster';
@@ -58,6 +58,22 @@ describe('E3.5 2차 1번: 판단용 P = 본인 50% + 리그 평균 50%', () => {
   });
 });
 
+describe('E3.5 2차 7번: 슈팅 결과 = 기회의 질 × 마무리 배수', () => {
+  it('마무리 배수는 70 에서 1, 능력치당 0.012, 0.8~1.25 로 자른다', () => {
+    const base = createState(input(73)).agents[9]!.attrs;
+    const at = (v: number) => ({ ...base, shooting: v, composure: v, bigMatch: v });
+    expect(finishMult(at(70), 'shot')).toBeCloseTo(1, 10);
+    expect(finishMult(at(80), 'shot')).toBeCloseTo(1.12, 10);
+    expect(finishMult(at(99), 'shot')).toBe(ENGINE.prob.finishMax);
+    expect(finishMult(at(40), 'shot')).toBe(ENGINE.prob.finishMin);
+  });
+  it('능력치 체감 S자 곡선: 80 까지 그대로, 80→90 은 0.7배, 그 위는 0.4배', () => {
+    expect(curveAttr(75)).toBe(75);
+    expect(curveAttr(90)).toBeCloseTo(87, 10);
+    expect(curveAttr(99)).toBeCloseTo(87 + 0.4 * 9, 10);
+  });
+});
+
 describe('E3.5 2차 2번: 전환 위험과 수신 지원도', () => {
   it('공보다 앞에 우리 선수가 많을수록 소유를 잃는 손해가 크다 (유지 효용이 낮아진다)', () => {
     const build = (ahead: boolean) => scene((s) => {
@@ -94,7 +110,7 @@ describe('E3.5 2차 2번: 전환 위험과 수신 지원도', () => {
   });
 });
 
-describe('E3.5 2차 3번: 박스 앞 수비 블록과 ST 마크', () => {
+describe('E3.5 2차 3번 · 8번: 박스 앞 수비 블록, ST 마크, 수비 주의 집중', () => {
   const s = scene((st) => {
     // 팀 0 이 공격: CM 이 상대 골 20 m 앞에서 공을 가졌고, ST 가 12 m 지점
     const o = of(st, 0, 'CM');
@@ -114,15 +130,18 @@ describe('E3.5 2차 3번: 박스 앞 수비 블록과 ST 마크', () => {
   for (const a of s.agents) if (a.team === 1) updateOffball(s, a);
   const st = of(s, 0, 'ST');
   const defs = s.agents.filter((a) => a.team === 1 && a.line === 1);
-  it('CB 1명이 가장 위협적인 ST 의 골 쪽 1.5 m 를 맡는다', () => {
-    const marker = defs.find((a) => dist(a.tx, a.ty, st.x, st.y) < ENGINE.offball.stMark + 0.6)!;
-    expect(marker).toBeDefined();
+  it('수비 주의 집중: 가장 위협적인 ST 는 CB 가 골 쪽 1.5 × 0.6 m 에서 맡고, 박스 안이면 1명이 더 붙는다', () => {
+    const O = ENGINE.offball;
+    expect(focusThreat(s, 1)).toBe(st);
+    const close = defs.filter((a) => dist(a.tx, a.ty, st.x, st.y) < O.stMark + 0.6);
+    expect(close.length).toBe(2);
+    const marker = close.find((a) => Math.abs(dist(a.tx, a.ty, st.x, st.y) - O.stMark * O.focusMark) < 0.3)!;
     expect(marker.pos).toBe('CB');
     expect(dist(marker.tx, marker.ty, L, W / 2)).toBeLessThan(dist(st.x, st.y, L, W / 2));
   });
-  it('나머지 수비수는 니어 포스트·페널티 지점·파 포스트를 덮는다', () => {
+  it('나머지 수비수는 니어 포스트·페널티 지점 순서로 박스 안 공간을 덮는다', () => {
     const O = ENGINE.offball;
-    const spots: [number, number][] = [[L - O.coverPostDepth, W / 2 - O.coverPostY], [L - O.coverSpot, W / 2], [L - O.coverPostDepth - 1, W / 2 + O.coverPostY]];
+    const spots: [number, number][] = [[L - O.coverPostDepth, W / 2 - O.coverPostY], [L - O.coverSpot, W / 2]];
     for (const [x, y] of spots) expect(defs.some((a) => dist(a.tx, a.ty, x, y) < 1.5)).toBe(true);
   });
   it('GK 는 박스 안 12 m 안으로 들어온 소유자에게 각을 좁힌다', () => {

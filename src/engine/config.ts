@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 2;
+export const ENGINE_VERSION = 3;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -75,9 +75,8 @@ export const ENGINE = {
     passSpeedMax: 26,
     /** 공중볼(크로스, 롱볼) 평균 속도 */
     airSpeed: 18,
-    /** 슈팅 속도 = shotSpeedMin + (shotSpeedMax − shotSpeedMin) × 슈팅/100 (리그 평균 75 에서 29 m/s) */
-    shotSpeedMin: 24.5,
-    shotSpeedMax: 30.5,
+    /** 슈팅 속도 (능력치와 무관, E.20 7번: 마무리 능력은 마무리 배수 한 곳에서) */
+    shotSpeed: 29,
     controlDist: 0.9,
     controlMaxSpeed: 12,
     controlBase: 0.8,
@@ -143,6 +142,16 @@ export const ENGINE = {
     /** 롱볼 기준 거리 (m), 최전방 직행: ST/CF 에게 이 거리 이상 전진하는 패스 */
     longBall: 30,
     directForward: 15,
+    /** 약팀 대응 (E.20 9번): 상대가 이만큼 이상 강하면, 성향 전환 확률 */
+    underdogGap: 5,
+    underdogSwitch: 0.5,
+    /** 경기 상황 (E.20 10번): 2골 / 3골 이상 앞선 팀의 위험한 선택(침투 패스, 드리블 돌파, 먼 슛) 효용 배수와 유지 템포 배수 */
+    leadRisk2: 0.85,
+    leadRisk3: 0.75,
+    leadTempo2: 1.15,
+    leadTempo3: 1.3,
+    /** 먼 슛 기준 (m) */
+    farShot: 20,
   },
 
   // ── 오프더볼 (E.6) ──
@@ -176,6 +185,9 @@ export const ENGINE = {
      */
     boxZone: 25,
     stMark: 1.5,
+    /** 수비 주의 집중 (E.20 8번): 대상의 마크 거리 배수, 위협도 거리 기준 (m) */
+    focusMark: 0.6,
+    focusRange: 50,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
     stMarkZone: 25,
     /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
@@ -301,17 +313,17 @@ export const ENGINE = {
 
   // ── 확률 모델 (E.8) ──
   prob: {
-    /** 능력치 체감 (effSkill): 중심, 폭 */
-    skillMid: 70,
-    skillSpan: 25,
-    /** 슈팅 능력치 체감 폭 (E.20 5번): 슈팅은 매우 높은 값의 추가 이득을 더 줄인다 (실제 팀 최상위 공격수 증폭) */
-    shotSpan: 25,
+    /** 능력치 체감 S자 곡선 (E.20 11번, sim.ts curveAttr): 꺾이는 점과 그 위 구간 배율 */
+    curveKnee1: 80,
+    curveKnee2: 90,
+    curveMid: 0.7,
+    curveTop: 0.4,
     /** 능력치 식의 중심 (리그 평균 선수, E.20): 계수(기울기)를 바꿔도 평균 선수의 확률은 그대로 */
     skillCenter: 70,
     passBase: 1.35,
     passPerM: 0.0055,
     /**
-     * 패스 능력치 (E.20 5번): 실패 확률 × exp(−passSkill × (effSkill − skillCenter) / 10). 더하는 식은 쉬운 패스가 상한에 붙어
+     * 패스 능력치 (E.20 5번): 실패 확률 × exp(−passSkill × (능력치 − skillCenter) / 10). 더하는 식은 쉬운 패스가 상한에 붙어
      * 능력치가 성공률을 바꾸지 못했다. 곱하는 식은 쉬운 패스·어려운 패스 모두에서 능력치가 실패를 같은 비율로 줄인다 (평균 선수는 그대로)
      */
     passSkill: 0.4,
@@ -366,11 +378,18 @@ export const ENGINE = {
 
     // 슈팅 (E.8)
     shotMaxDist: 30,
-    /** 유효 슈팅이 가는 구석 = 난수 × (cornerBase + cornerSkill × 슈팅/100) (리그 평균 75 에서 1.05) */
-    cornerBase: 0.825,
-    cornerSkill: 0.3,
-    shotBase: 0.6,
-    shotSkill: 0.85,
+    /** 유효 슈팅이 가는 구석 = 난수 × cornerRange (능력치와 무관) */
+    cornerRange: 1.05,
+    /**
+     * 마무리 배수 (E.20 7번): 골 확률 = 기회의 질(xG: 위치, 각도, 압박, 슈팅 종류, 상대 GK) × clamp(1 + finishPerPoint × (마무리 능력치 − 70), finishMin, finishMax).
+     * 결정력 계열 능력치는 이 한 곳에만 들어간다. 유효 슈팅 확률에 곱하므로 골 확률도 같은 배수로 바뀐다
+     */
+    finishPerPoint: 0.012,
+    finishMin: 0.8,
+    finishMax: 1.25,
+    /** 배수를 곱한 유효 슈팅 확률 상한 */
+    shotCap: 0.9,
+    shotBase: 0.66,
     shotPerM: 0.015,
     shotPressure: 0.15,
     shotMin: 0.05,
@@ -387,7 +406,6 @@ export const ENGINE = {
 
     // 헤더 슈팅
     headerBase: 0.58,
-    headerSkill: 0.3,
     headerPerM: 0.025,
     headerSpeed: 22,
 
