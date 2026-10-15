@@ -10,8 +10,8 @@ export interface Tactics {
   lineHeight: number;
   /** 0~1 */
   pressing: number;
-  /** 0~1 */
-  tempo: number;
+  /** 빌드업 성향 0 직선형 ~ 1 점유형 (E.18 A5). 템포는 이 값에서 파생한다 */
+  style: number;
 }
 
 export interface PlayerSpec {

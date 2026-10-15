@@ -12,6 +12,7 @@ import type { Agent, Flight, SimState } from './state';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
+const TA = ENGINE.tactics;
 const B = ENGINE.ball;
 const G = ENGINE.pitch.goalWidth;
 
@@ -219,6 +220,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const isGk = a.line === 0;
   const out: Candidate[] = [];
   const [gx0, gy0] = oppGoal(dir);
+  const style = s.teams[a.team].tactics.style;
+  const mPoss = TA.possBase + TA.possSlope * style;
+  const mDirect = TA.directBase - TA.possSlope * style;
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
 
@@ -248,7 +252,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const pOff = offsideRisk(s, a, r);
     if (pOff > 0) u = (1 - pOff) * u + pOff * lossCost(rx, ry);
     const forward = rx > ax + 0.03;
-    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul));
+    // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
+    const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
+    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss));
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -335,14 +341,14 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const [tx, ty] = toPitch(clamp(ax + 0.42, 0, 0.9), 0.5 + (ay - 0.5) * 0.5, dir);
       const p = 0.45;
       const [nx, ny] = toNorm(tx, ty, dir);
-      const u = weight(p * positionValue(nx, ny) + (1 - p) * lossCost(nx, ny), a.role.pref.clear);
+      const u = weight(p * positionValue(nx, ny) + (1 - p) * lossCost(nx, ny), a.role.pref.clear * mDirect);
       out.push({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
     }
   }
 
   // 유지: 지금 위치 가치 × (1 − 다음 결정까지 빼앗길 확률). 빼앗기면 상실 비용 (다른 후보와 같은 식)
   const pLose = loseProb(s, a);
-  const holdU = (1 - pLose) * here + pLose * lossHere;
+  const holdU = weight((1 - pLose) * here + pLose * lossHere, mPoss);
   out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
   return out;
 }

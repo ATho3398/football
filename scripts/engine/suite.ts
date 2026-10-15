@@ -161,8 +161,8 @@ export function buildSets(mode: Mode, overrides?: Record<string, number>): SetDe
   return sets.filter((s) => s.jobs.length > 0);
 }
 
-/** 빌드업 성향을 0.5로 고정한 데이터 전술 (A5 전에는 tempo 0.5 = 기본값과 같음) */
-export const FIXED_STYLE: TeamSpec['tactics'] = { tempo: 0.5 };
+/** 빌드업 성향을 0.5로 고정한 데이터 전술 (E.15 능력치만의 점유율 효과) */
+export const FIXED_STYLE: TeamSpec['tactics'] = { style: 0.5 };
 
 export async function runSets(sets: SetDef[], label = '경기'): Promise<Map<string, JobOut[]>> {
   const all = sets.flatMap((s) => s.jobs);

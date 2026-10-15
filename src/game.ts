@@ -293,6 +293,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
       myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
       me: { position: player.position, attributes: player.attributes, fatigue: player.fatigue, form },
       plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
+      leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
     });
     result = engineOut.result;
     if (injured || suspended) {

@@ -80,7 +80,8 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       a.tx = a.x;
       a.ty = a.y;
       a.urgent = false;
-      a.cooldown = reaction(a) + ENGINE.onball.holdTime;
+      // 템포 (E.18 A5): 점유형일수록 유지 간격이 길다
+      a.cooldown = (reaction(a) + ENGINE.onball.holdTime) * (ENGINE.tactics.possBase + ENGINE.tactics.possSlope * s.teams[a.team].tactics.style);
   }
 }
 

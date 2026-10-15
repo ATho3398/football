@@ -113,6 +113,23 @@ export const ENGINE = {
     attackPhaseDelay: 2.5,
   },
 
+  // ── 팀 전술 성향 (E.18 A5, E.19) ──
+  tactics: {
+    /** 데이터가 없는 팀의 style = clamp(0.5 + stylePerRating × (레이팅 − 리그 평균), styleMin, styleMax) */
+    stylePerRating: 0.04,
+    styleMin: 0.2,
+    styleMax: 0.8,
+    /** 리그 평균 레이팅 (주어지지 않을 때, 2018-19 프리미어리그 초기 레이팅 평균 부근) */
+    leagueAvg: 75,
+    /** 유지·짧은 패스·백패스 효용 × (possBase + possSlope × style), 롱볼·클리어링·최전방 직행 × (directBase − possSlope × style) */
+    possBase: 0.85,
+    possSlope: 0.3,
+    directBase: 1.15,
+    /** 롱볼 기준 거리 (m), 최전방 직행: ST/CF 에게 이 거리 이상 전진하는 패스 */
+    longBall: 30,
+    directForward: 15,
+  },
+
   // ── 오프더볼 (E.6) ──
   offball: {
     /** 공 소유자와 유지할 간격 (m) */

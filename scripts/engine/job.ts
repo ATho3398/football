@@ -79,7 +79,7 @@ export interface SeasonOut {
 export type JobOut = MatchOut | SeasonOut;
 
 /** 균형 전술 (E.19 균형: 라인 보통 / 압박 보통 / 빌드업 혼합 / 폭 보통) */
-export const BALANCED: Partial<Tactics> = { lineHeight: 0.5, pressing: 0.55, tempo: 0.5 };
+export const BALANCED: Partial<Tactics> = { lineHeight: 0.5, pressing: 0.55, style: 0.5 };
 
 function applyOverrides(o: Record<string, number> | undefined): () => void {
   if (!o) return () => {};

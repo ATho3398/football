@@ -40,6 +40,8 @@ export interface EngineMatchInput {
   seed: number;
   worldSeed: string;
   bigMatch?: boolean;
+  /** 리그 평균 레이팅 (데이터가 없는 팀의 style, E.18 A5) */
+  leagueAvg?: number;
 }
 
 /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
@@ -57,8 +59,8 @@ function mySlot(setup: TeamSetup, pos: FieldPosition): number {
 }
 
 export function buildMyMatch(m: EngineMatchInput) {
-  const mySetup = teamSetupFromRoster(m.myRoster, m.myRating, m.oppRating, m.worldSeed);
-  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed);
+  const mySetup = teamSetupFromRoster(m.myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg);
+  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
   const meSpec: PlayerSpec = {
     id: MY_ID, name: '나', slot: -1, position: m.me.position, attrs: { ...m.me.attributes },
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,
