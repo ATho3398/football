@@ -22,6 +22,7 @@ import {
   type PlayablePosition,
 } from '../positions';
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
+import { saveStartNotice, versionLabel } from '../version';
 import type { Tier } from '../types';
 import { matchSummaryView } from './views/matchSummary';
 import { ReplayPlayer, replayView } from './views/replay';
@@ -104,7 +105,14 @@ function titleView(): string {
       ${auto ? `<button class="primary block" data-act="continue">이어하기 <span class="small">· ${esc(auto.name)} ${seasonLabel(auto.season)} ${auto.round}R</span></button>` : ''}
       <button class="block ${auto ? '' : 'primary'}" data-act="go" data-to="new">새 게임</button>
       <button class="block" data-act="go" data-to="saves">불러오기</button>
-    </div>`;
+    </div>
+    ${versionFooter()}`;
+}
+
+/** 버전 표시 (21.5.1): 화면 맨 아래 작은 글씨. 세이브 시작 버전이 다르면 한 줄 더 */
+function versionFooter(g?: GameState): string {
+  const notice = g ? saveStartNotice(g.startPatch) : null;
+  return `<p class="small muted center">${notice ? `${esc(notice)}<br>` : ''}${esc(versionLabel())}</p>`;
 }
 
 function newGameView(): string {
@@ -268,7 +276,8 @@ function homeView(g: GameState): string {
     ${injuryBanner(g)}
     ${pointsBtn}
     ${week}
-    <div class="card"><h2>이번 시즌</h2>${seasonStatsGrid(g)}</div>`;
+    <div class="card"><h2>이번 시즌</h2>${seasonStatsGrid(g)}</div>
+    ${versionFooter(g)}`;
 }
 
 function matchView(g: GameState): string {
@@ -554,7 +563,8 @@ function savesView(): string {
       }).join('')}
       <p class="small muted">매 라운드가 끝날 때마다 자동 저장됩니다. 저장은 이 브라우저(localStorage)에만 남습니다.</p>
     </div>
-    ${ui.game ? '' : '<button class="block" data-act="go" data-to="title">뒤로</button>'}`;
+    ${ui.game ? '' : '<button class="block" data-act="go" data-to="title">뒤로</button>'}
+    ${versionFooter(ui.game ?? undefined)}`;
 }
 
 function tabs(): string {
