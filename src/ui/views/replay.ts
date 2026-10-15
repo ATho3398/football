@@ -4,7 +4,7 @@
 // 화면 모듈은 뷰모델만 받아 HTML 을 만들고(부록 H.2), 캔버스와 자주 바뀌는 값은 ReplayPlayer 가 갱신한다.
 
 import { HL, possessionSummary, selectScenes, type Scene } from '../../highlights';
-import { clockLabel, frameAt, interpolateFrame, scoreAt, SPEEDS, type Replay, type ReplayFrame } from '../../replay';
+import { clockLabel, frameAt, frameIndex, interpolateFrame, scoreAt, settledFrames, SPEEDS, type Replay, type ReplayFrame } from '../../replay';
 import {
   Avatar, Button, esc, FeedItem, Icon, Pitch, PitchLegend, PossessionBar, ScoreBar, StatChip, type ScoreView,
 } from '../components';
@@ -67,17 +67,22 @@ export function replayView(vm: ReplayVM): string {
   const me = vm.me
     ? `<div class="me-row">${Avatar({ size: 44, ring: true })}<div class="grow"><span class="me-row__name">${esc(vm.me.name)} <span class="slot-chip">${esc(vm.me.position)}</span></span><span id="rp-my" class="chips"></span></div></div>`
     : '';
+  // 1024px 이상은 2단(왼쪽 피치, 오른쪽 점수·피드·기록), 모바일은 한 줄로 기존 순서 그대로 (부록 C.23, style.css)
   return `
     <div class="match">
-      ${score}
-      <div class="pitch-wrap">${Pitch({ canvasId: 'rp-canvas', label: '경기장', children: overlay })}</div>
-      ${PitchLegend(`<span id="rp-legend">${legendLeft}</span>`)}
-      ${tiles}
-      ${trCard}
-      <div id="rp-feed" class="feed"></div>
-      ${me}
-      <div class="poss-wrap" id="rp-poss">${PossessionBar({ home: 50 })}</div>
-      ${ended ? `<div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'rp-result', children: '결과 보기' })}</div>` : ''}
+      <div class="match-main">
+        <div class="pitch-wrap">${Pitch({ canvasId: 'rp-canvas', label: '경기장', children: overlay })}</div>
+        ${PitchLegend(`<span id="rp-legend">${legendLeft}</span>`)}
+        ${tiles}
+      </div>
+      <div class="match-side">
+        <div class="m-score">${score}</div>
+        ${trCard}
+        <div id="rp-feed" class="feed"></div>
+        ${me}
+        <div class="poss-wrap" id="rp-poss">${PossessionBar({ home: 50 })}</div>
+        ${ended ? `<div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'rp-result', children: '결과 보기' })}</div>` : ''}
+      </div>
     </div>`;
 }
 
@@ -105,8 +110,12 @@ export class ReplayPlayer {
   private raf = 0;
   private shown = '';
   private readonly players;
+  private readonly settled: boolean[];
+  /** 첫 경기 오버레이 등으로 화면이 재생을 붙잡고 있는 동안 true (21.4, 부록 C.23) */
+  hold = false;
   constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer: MarkerRenderer = numberCircleRenderer) {
     this.players = playerMap(replay);
+    this.settled = settledFrames(replay, HL.settleTol);
     this.scenes = selectScenes(replay);
     if (this.scenes.length) {
       this.e = this.scenes[0]!.start;
@@ -143,7 +152,7 @@ export class ReplayPlayer {
     const loop = (now: number) => {
       const dt = Math.min(0.25, (now - this.last) / 1000);
       this.last = now;
-      if (!this.paused) this.advance(dt);
+      if (!this.paused && !this.hold) this.advance(dt);
       if (!this.draw()) return;
       this.raf = requestAnimationFrame(loop);
     };
@@ -177,12 +186,17 @@ export class ReplayPlayer {
     this.mode = 'scene';
   }
 
+  /** 재개 대기 중 모두 자리를 잡았으면 빨리 감기 배율 (디자인 18) */
+  ffFactor(): number {
+    return this.settled[frameIndex(this.replay, this.e)] ? HL.deadBallFf : 1;
+  }
+
   /** 실제 시간 dt 초만큼 진행 */
   advance(dt: number): void {
     const r = this.replay;
     if (this.mode === 'scene') {
       const sc = this.scenes[this.idx]!;
-      this.e = Math.min(sc.end, this.e + dt * this.speed);
+      this.e = Math.min(sc.end, this.e + dt * this.speed * this.ffFactor());
       if (this.e >= sc.end) {
         const next = this.scenes[this.idx + 1];
         if (!next) {
@@ -205,7 +219,7 @@ export class ReplayPlayer {
         this.onChange();
       }
     } else if (this.mode === 'live') {
-      this.e = Math.min(r.duration, this.e + dt * this.speed);
+      this.e = Math.min(r.duration, this.e + dt * this.speed * this.ffFactor());
       if (this.e >= r.duration) this.finish();
     }
   }
@@ -231,7 +245,7 @@ export class ReplayPlayer {
     if (!canvas) return false;
     const { ctx, w, h } = fitCanvas(canvas);
     const f = this.current();
-    drawFrame(ctx, w, h, f, this.players, this.renderer, this.replay.side);
+    drawFrame(ctx, w, h, f, this.players, this.renderer, this.replay.side, performance.now() / 1000);
     const at = this.mode === 'transition' ? f.e : this.e;
     const score = scoreAt(this.replay, at);
     const set = (id: string, text: string) => {
@@ -252,13 +266,15 @@ export class ReplayPlayer {
       note.hidden = !label;
       set('rp-note-text', label ?? '');
     }
-    if (label) set('rp-legend', `경기 중단 · ${label}`);
+    if (label) set('rp-legend', `경기 중단 · ${label}${this.ffFactor() > 1 ? ` · 빨리 감기 ${HL.deadBallFf}×` : ''}`);
     const key = `${live.feed.length}:${this.mode}:${live.possession}:${label}`;
     if (key !== this.shown) {
       this.shown = key;
       const feed = document.getElementById('rp-feed');
       const lines = [...live.feed].sort((a, b) => (a.e ?? 0) - (b.e ?? 0));
-      if (feed) feed.innerHTML = lines.length ? lines.slice(-3).map((x) => FeedItem(x)).join('') : FeedItem({ text: '킥오프를 기다리는 중', kind: 'normal' });
+      // 넓은 화면(2단)은 오른쪽 칸에 더 많이 (부록 C.23)
+      const keep = window.matchMedia?.('(min-width: 1024px)').matches ? 10 : 3;
+      if (feed) feed.innerHTML = lines.length ? lines.slice(-keep).map((x) => FeedItem(x)).join('') : FeedItem({ text: '킥오프를 기다리는 중', kind: 'normal' });
       const poss = document.getElementById('rp-poss');
       if (poss) poss.innerHTML = PossessionBar({ home: this.replay.side === 0 ? live.possession : 100 - live.possession });
       const my = document.getElementById('rp-my');

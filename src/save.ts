@@ -3,6 +3,7 @@
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
 import { positionOvr } from './positions';
@@ -89,6 +90,16 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     const data = A_GRADE_PLAYERS.find((d) => d.id === s.player.realPlayerId);
     s.player.proficiency = initialProficiency(s.player.position, data?.subPositions ?? []);
     s.player.badges = [];
+  },
+  // 8 → 9 (부록 C.23): 위상 점수는 그대로, 티어는 새 기준으로 다시 계산된다(티어는 저장하지 않고 점수·수상 기록으로 계산).
+  // 수상 기록이 없으므로 레전더리였던 선수는 월드클래스가 된다. 이전 주 포지션 목록, 단계적 공개·안내 상태 추가
+  8: (s) => {
+    s.player.honors = { ballonDor: 0, trebles: 0, worldCups: 0 };
+    s.player.formerPositions = s.player.formerPosition ? [s.player.formerPosition] : [];
+    s.guide = initialGuide();
+    // 이미 경기를 치른 세이브는 첫 경기 오버레이를 건너뛴다. 열린 기능의 소개는 한 번 보여 준다
+    s.guide.firstMatchSeen = progressOf(s).matches > 0;
+    refreshUnlocks(s);
   },
 };
 

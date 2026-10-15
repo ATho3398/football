@@ -18,7 +18,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     name: 't', position: 'ST', age: 20, teamId: 'x', attributes: flat(60), potentialTier: 'normal',
     xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
     fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], season: emptySeasonStats(), history: [], suspended: 0,
-    proficiency: initialProficiency('ST'), badges: [],
+    proficiency: initialProficiency('ST'), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 },
     ...overrides,
   };
 }
@@ -57,16 +57,19 @@ describe('포인트 비용 구간 (6.2)', () => {
     }
   });
 
-  it('내 선수의 비용 구간은 숨은 잠재력이 아니라 현재 위상 티어로 정한다 (성장 해금)', () => {
-    const cuts = BALANCE.reputation.tierCuts;
-    expect(costTier(player({ potentialTier: 'legendary', reputation: 0 }))).toBe('normal');
-    expect(costTier(player({ reputation: cuts.topClass }))).toBe('topClass');
-    const p = player({ potentialTier: 'legendary', attributes: { ...flat(60), shooting: 72 } });
+  it('내 선수의 비용 구간은 숨은 잠재력도 위상도 아니라 현재 실력 티어(OVR)로 정한다 (성장 해금, 부록 C.23)', () => {
+    expect(costTier(player({ potentialTier: 'legendary', reputation: 1000 }))).toBe('normal'); // OVR 60
+    const top = player({ attributes: flat(80) });
+    expect(playerOvr(top)).toBe(80);
+    expect(costTier(top)).toBe('topClass');
+    expect(costTier(player({ attributes: flat(80), reputation: 1000 }))).toBe('topClass');
+    const p = player({ potentialTier: 'legendary', reputation: 1000, attributes: { ...flat(60), shooting: 72 } });
     addXp(p, XP);
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 일반 구간: 72 는 비용 2
+    expect(raiseAttribute(p, 'shooting')).toBe(true); // 일반 구간: 72 는 비용 2 (위상 1000 이어도)
     expect(p.unspentPoints).toBe(3);
-    p.reputation = cuts.legendary;
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 레전더리 구간: 73 은 비용 1
+    p.attributes = { ...flat(95), shooting: 73 };
+    expect(costTier(p)).toBe('legendary');
+    expect(raiseAttribute(p, 'shooting')).toBe(true); // 레전더리 실력 구간: 73 은 비용 1
     expect(p.unspentPoints).toBe(2);
   });
 

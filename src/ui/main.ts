@@ -14,6 +14,11 @@ import { teamById } from '../league';
 import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
 import type { PlayerState } from '../types';
 import { BADGE_NAMES_KO } from '../badges';
+import { BALANCE } from '../config/balance';
+import {
+  checklistItems, FIRST_MATCH_LINES, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
+} from '../unlocks';
+import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { Button, Modal, Toast, type ToastProps } from './components';
 import {
   allocateVM, homeVM, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
@@ -76,7 +81,7 @@ function showToast(t: ToastProps | string, ms = 2200): void {
 /** 레전드 배지 알림 (D.4) */
 function badgeToast(g: GameState): void {
   const b = g.lastSeasonSummary?.badges ?? [];
-  if (b.length) showToast({ kind: 'badge', title: `레전드 배지 · ${BADGE_NAMES_KO[b[0]!.id]}`, body: '위상이 100점 올랐어요.' }, 3500);
+  if (b.length) showToast({ kind: 'badge', title: `레전드 배지 · ${BADGE_NAMES_KO[b[0]!.id]}`, body: `위상이 ${BALANCE.badges.reputation}점 올랐어요.` }, 3500);
 }
 
 function confirmModal(m: ModalState): void {
@@ -108,7 +113,8 @@ function screenHtml(): string {
     case 'home': {
       const pos = g.phase === 'offseason' ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position))) : '';
       const sheet = ui.posSheet && g.phase === 'offseason' ? positionSheet(positionOptionsVM(g), ui.posSheet) : '';
-      return homeView(homeVM(g), pos) + sheet;
+      const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
+      return homeView(homeVM(g), (list ? checklistPanel(list) : '') + pos) + guideResetLink() + sheet;
     }
     case 'player': return playerView(playerVM(g));
     case 'world': return worldView(worldVM(g), ui.worldTab);
@@ -135,10 +141,38 @@ function screenHtml(): string {
   return vm ? matchResultView(vm) : homeView(homeVM(g));
 }
 
+/** 화면 → 첫 방문 말풍선 id */
+const TIP_SCREENS: Partial<Record<Screen, TipId>> = {
+  home: 'home', player: 'player', world: 'world', replay: 'replay', match: 'match', allocate: 'allocate', season: 'season',
+};
+
+/** 첫 플레이 안내 (21.4): 공개 소개 → 첫 경기 오버레이 → 말풍선 순으로 한 번에 하나만 */
+function guideHtml(g: GameState | null): { modal: string; tip: string } {
+  if (!g || ui.modal || g.phase === 'retired') return { modal: '', tip: '' };
+  const intro = NAV_SCREENS.includes(ui.screen) ? pendingIntro(g.guide) : null;
+  if (intro) {
+    return {
+      modal: Modal({
+        title: `새 기능 · ${intro.name}`, children: intro.intro, icon: 'star', tone: 'info',
+        actions: [Button({ block: true, act: 'intro-ok', data: { id: intro.id }, children: '확인' })],
+      }),
+      tip: '',
+    };
+  }
+  if (ui.screen === 'replay' && ui.replay && !g.guide.firstMatchSeen) {
+    ui.replay.hold = true;
+    return { modal: firstMatchOverlay(FIRST_MATCH_LINES), tip: '' };
+  }
+  const id = TIP_SCREENS[ui.screen];
+  const text = id ? tipFor(g.guide, id) : null;
+  return { modal: '', tip: id && text ? tipBubble(id, text) : '' };
+}
+
 function render(): void {
   const g = ui.game;
   const nav = g && NAV_SCREENS.includes(ui.screen) && !(g.phase === 'retired') ? navBar(ui.screen) : '';
   const m = ui.modal;
+  const guide = guideHtml(g);
   const modal = m
     ? Modal({
       title: m.title, ...(m.body ? { children: m.body } : {}), icon: m.tone === 'danger' ? 'danger' : 'info', tone: m.tone ?? 'info', onClose: { act: 'modal-close' },
@@ -147,10 +181,10 @@ function render(): void {
         Button({ variant: m.tone === 'danger' ? 'danger' : 'primary', block: true, act: m.act, ...(m.data ? { data: m.data } : {}), children: m.confirm }),
       ],
     })
-    : '';
+    : guide.modal;
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
-  app.className = nav ? 'has-nav' : '';
-  app.innerHTML = `<main class="screen screen-${ui.screen}">${screenHtml()}</main>${nav}${modal}${toast}`;
+  app.className = `${nav ? 'has-nav ' : ''}app-${ui.screen}`;
+  app.innerHTML = `<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${modal}${toast}`;
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
@@ -215,6 +249,37 @@ app.addEventListener('click', (ev) => {
   const v = el.dataset.v;
 
   switch (act) {
+    case 'intro-ok':
+      if (!g) return;
+      g.guide.introsSeen.push(el.dataset.id as FeatureId);
+      autosave();
+      render();
+      return;
+    case 'fm-close':
+      if (!g) return;
+      g.guide.firstMatchSeen = true;
+      if (ui.replay) ui.replay.hold = false;
+      autosave();
+      render();
+      return;
+    case 'tip-close':
+      if (!g || !v) return;
+      g.guide.tipsSeen.push(v as TipId);
+      autosave();
+      render();
+      return;
+    case 'tips-off':
+      if (!g) return;
+      g.guide.tipsOff = true;
+      autosave();
+      render();
+      return;
+    case 'tips-reset':
+      if (!g) return;
+      resetTips(g.guide);
+      autosave();
+      showToast('안내를 처음부터 다시 보여 줄게요.');
+      return;
     case 'pos-open':
       if (!g) return;
       ui.posSheet = g.player.position;
@@ -257,6 +322,7 @@ app.addEventListener('click', (ev) => {
     case 'continue': {
       try {
         ui.game = loadGame('auto');
+        if (ui.game) refreshUnlocks(ui.game);
       } catch (e) {
         showToast((e as Error).message);
         return;
@@ -379,6 +445,7 @@ app.addEventListener('click', (ev) => {
     }
     case 'alloc-done':
       if (!g) return;
+      if (ui.alloc?.raises.length) markDone(g.guide, 'allocate');
       autosave();
       go(ui.alloc?.back ?? 'home');
       ui.alloc = null;
@@ -418,6 +485,7 @@ app.addEventListener('click', (ev) => {
       try {
         const loaded = loadGame(el.dataset.slot as SaveSlot);
         if (!loaded) return;
+        refreshUnlocks(loaded);
         ui.game = loaded;
         ui.replay = null;
         autosave();

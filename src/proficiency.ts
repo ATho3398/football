@@ -84,16 +84,21 @@ export function gainProficiency(p: PlayerState, minutes: number): void {
 
 /** 시즌 종료: 이전 주 포지션 숙련도는 시즌마다 2씩 감소, 최소 30 */
 export function decayFormerPosition(p: PlayerState): void {
-  const k = p.formerPosition ? profKey(p.formerPosition) : null;
-  if (!k || !p.proficiency || k === profKey(p.position)) return;
-  const cur = p.proficiency[k];
-  if (cur > P.formerMin) p.proficiency[k] = Math.max(P.formerMin, cur - P.formerDecay);
+  if (!p.proficiency) return;
+  const main = profKey(p.position);
+  const keys = new Set((p.formerPositions ?? (p.formerPosition ? [p.formerPosition] : [])).map(profKey));
+  for (const k of keys) {
+    if (!k || k === main) continue;
+    const cur = p.proficiency[k];
+    if (cur > P.formerMin) p.proficiency[k] = Math.max(P.formerMin, cur - P.formerDecay);
+  }
 }
 
 /** 비시즌 "주 포지션 변경 요청" (D.3): 항상 허용, 비용은 숙련도 페널티뿐 */
 export function requestPositionChange(p: PlayerState, to: PlayablePosition, offseason: boolean): boolean {
   if (!offseason || to === p.position) return false;
   p.formerPosition = p.position;
+  p.formerPositions = [...(p.formerPositions ?? []).filter((f) => f !== p.position && f !== to), p.position];
   p.position = to;
   return true;
 }

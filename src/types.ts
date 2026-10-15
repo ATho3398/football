@@ -137,10 +137,20 @@ export interface PlayerState {
   history: SeasonRecord[];
   /** 포지션별 숙련도 0~100 (부록 D.3) */
   proficiency: Proficiency;
-  /** 주 포지션 변경 요청 전 포지션 (숙련도 상승 거리, 시즌 감소 대상) */
+  /** 주 포지션 변경 요청 전 포지션 (숙련도 상승 거리 기준) */
   formerPosition?: FieldPosition;
+  /** 지금까지의 이전 주 포지션 전부 (시즌 감소 대상, 부록 C.23) */
+  formerPositions: FieldPosition[];
   /** 레전드 배지 (부록 D.4, 영구) */
   badges: Badge[];
+  /** 레전더리 조건용 수상 기록 (8.1, 부록 C.23). 발롱도르·챔스·월드컵(5단계)이 생기기 전까지 0 */
+  honors: Honors;
+}
+
+export interface Honors {
+  ballonDor: number;
+  trebles: number;
+  worldCups: number;
 }
 
 export type BadgeId = 'goals500' | 'titles5' | 'oneClub10';

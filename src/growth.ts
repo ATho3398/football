@@ -5,7 +5,7 @@ import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttr
 import { BALANCE } from './config/balance';
 import { attributeOvrWeight, positionOvr, type FieldPosition } from './positions';
 import type { Rng } from './rng';
-import type { PlayerState, Tier } from './types';
+import type { Honors, PlayerState, Tier } from './types';
 
 const G = BALANCE.growth;
 
@@ -23,19 +23,45 @@ function tierFromCuts(value: number, cuts: Record<Tier, number>): Tier {
 
 /** OVR → 실력 티어 */
 export const skillTier = (ovr: number): Tier => tierFromCuts(ovr, BALANCE.skillTierCuts);
-/** 위상 점수 → 위상 티어 */
-export const reputationTier = (rep: number): Tier => tierFromCuts(rep, BALANCE.reputation.tierCuts);
+export const NO_HONORS: Honors = { ballonDor: 0, trebles: 0, worldCups: 0 };
+
+/** 레전더리 조건 하나하나 (8.1, 부록 C.23): 화면의 조건 목록과 판정에 같이 쓴다 */
+export function legendaryConditions(rep: number, h: Honors = NO_HONORS): { label: string; met: boolean }[] {
+  const L = BALANCE.reputation.legendary;
+  const cut = BALANCE.reputation.tierCuts.worldClass;
+  return [
+    { label: `위상 ${cut} 이상 (월드클래스)`, met: rep >= cut },
+    { label: `발롱도르 ${L.ballonDorMin}회 이상`, met: h.ballonDor >= L.ballonDorMin },
+    { label: '트레블', met: h.trebles > 0 },
+    { label: '월드컵 우승', met: h.worldCups > 0 },
+    { label: `발롱도르 ${L.ballonDorAlt}회 이상`, met: h.ballonDor >= L.ballonDorAlt },
+  ];
+}
+
+/** 업적 조건: 발롱도르 1회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 3회 이상). 기록이 없으면 false */
+export function legendaryHonorsMet(h: Honors | undefined): boolean {
+  if (!h) return false;
+  const L = BALANCE.reputation.legendary;
+  return h.ballonDor >= L.ballonDorMin && (h.trebles > 0 || h.worldCups > 0 || h.ballonDor >= L.ballonDorAlt);
+}
+
+/** 위상 점수(+업적) → 위상 티어. 레전더리는 월드클래스 점수 + 업적 조건 (8.1, 부록 C.23) */
+export function reputationTier(rep: number, honors?: Honors): Tier {
+  const t = tierFromCuts(rep, BALANCE.reputation.tierCuts);
+  if (t === 'legendary' && !legendaryHonorsMet(honors)) return 'worldClass';
+  return t;
+}
 
 export const randInt = (rng: Rng, min: number, max: number): number => min + Math.floor(rng() * (max - min + 1));
 
-/** 다음 위상 티어와 그 컷. 최고 티어면 null */
-export function nextReputationTier(rep: number): { tier: Tier; cut: number } | null {
-  const next = TIERS_ASC[TIERS_ASC.indexOf(reputationTier(rep)) + 1];
-  return next ? { tier: next, cut: BALANCE.reputation.tierCuts[next] } : null;
+/** 다음 위상 티어와 그 컷. 최고 티어거나 다음이 업적 조건으로만 열리는 레전더리면 null */
+export function nextReputationTier(rep: number, honors?: Honors): { tier: Tier; cut: number } | null {
+  const next = TIERS_ASC[TIERS_ASC.indexOf(reputationTier(rep, honors)) + 1];
+  return next && next !== 'legendary' ? { tier: next, cut: BALANCE.reputation.tierCuts[next] } : null;
 }
 
-/** 내 선수의 포인트 비용 구간 티어: 현재 위상 티어 (6.2 성장 해금) */
-export const costTier = (p: Pick<PlayerState, 'reputation'>): Tier => reputationTier(p.reputation);
+/** 내 선수의 포인트 비용 구간 티어: 현재 실력 티어 (6.2 성장 해금, 부록 C.23: 위상과 분리) */
+export const costTier = (p: Pick<PlayerState, 'attributes' | 'position'>): Tier => skillTier(playerOvr(p));
 
 /** 현재 값에서 1 올리는 포인트 비용 (6.2): max(위상 구간 비용, 고값 비용) */
 export function pointCost(value: number, tier: Tier): number {

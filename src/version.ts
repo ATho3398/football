@@ -4,7 +4,7 @@ import { BALANCE_VERSION } from './config/balance';
 import { ENGINE_VERSION } from './engine/config';
 
 /** 패치 이름 = 부록 C의 최신 소절 번호. 패치마다 갱신한다 (CLAUDE.md) */
-export const PATCH_LABEL = 'C.22';
+export const PATCH_LABEL = 'C.23';
 
 // 빌드 시점에 vite.config.ts 의 define 으로 채운다. 없으면(테스트 외 실행 등) dev
 declare const __BUILD_COMMIT__: string | undefined;

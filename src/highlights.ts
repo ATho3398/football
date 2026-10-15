@@ -25,6 +25,9 @@ export const HL = {
   gap: 20,
   /** 장면 사이 전환 (초) */
   transition: 1,
+  /** 재개 대기 빨리 감기 (디자인 18, 부록 C.23): 모든 선수가 재개 위치 settleTol m 안에 오면 남은 대기를 deadBallFf 배속 */
+  deadBallFf: 4,
+  settleTol: 1,
 } as const;
 
 export type SceneKind = 'goal' | 'chance' | 'me' | 'opponent' | 'shot';

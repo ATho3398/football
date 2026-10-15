@@ -31,7 +31,7 @@ describe('실제 선수 정점 목표 (부록 D.7 #1)', () => {
       name: 't', position: 'ST', age: 25, teamId: 'x', attributes: flat(75), potentialTier: 'normal',
       xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
       fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], season: emptySeasonStats(), history: [], suspended: 0,
-    proficiency: initialProficiency('ST'), badges: [],
+    proficiency: initialProficiency('ST'), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 },
     };
     const R = BALANCE.growth.realPeak;
     expect(xpToLevel({ ...base, peakTarget: 75 + R.softBelow })).toBe(xpToLevel(base));

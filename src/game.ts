@@ -5,7 +5,7 @@ import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
 import type { Replay } from './replay';
 import { generatePlayer } from './generate';
 import {
-  addXp, applyAging, applyAutoGrowth, applyVeteranGrowth, playerOvr, randInt, realPeakTarget, veteranXpMultiplier,
+  addXp, applyAging, applyAutoGrowth, applyVeteranGrowth, NO_HONORS, playerOvr, randInt, realPeakTarget, veteranXpMultiplier,
   type AttributeDelta,
 } from './growth';
 import {
@@ -27,9 +27,10 @@ import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats } from './types';
 import { PATCH_LABEL } from './version';
+import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 8;
+export const SAVE_FORMAT_VERSION = 9;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -106,6 +107,8 @@ export interface GameState {
   rosters: Rosters;
   lastMatch?: MatchReport;
   lastSeasonSummary?: SeasonSummary;
+  /** 단계적 공개와 첫 플레이 안내 상태 (21.3·21.4, 부록 C.23) */
+  guide: GuideState;
 }
 
 export type NewGameOptions =
@@ -191,7 +194,9 @@ export function newGame(opts: NewGameOptions): GameState {
       potentialTier,
       reputation: 0,
       proficiency: initialProficiency(opts.position),
+      formerPositions: [],
       badges: [],
+      honors: { ...NO_HONORS },
     };
   } else {
     const data = selectableRealPlayers().find((p) => p.id === opts.playerId);
@@ -210,7 +215,9 @@ export function newGame(opts: NewGameOptions): GameState {
       potentialTier: data.potentialTier,
       reputation: data.reputation,
       proficiency: initialProficiency(data.position, data.subPositions),
+      formerPositions: [],
       badges: [],
+      honors: { ...NO_HONORS },
     };
   }
 
@@ -226,6 +233,7 @@ export function newGame(opts: NewGameOptions): GameState {
     npcs,
     roster: { updates: 0 },
     rosters,
+    guide: initialGuide(),
   };
 }
 
@@ -406,6 +414,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   state.lastMatch = report;
 
   if (league.round >= league.schedule.length) endSeason(state);
+  refreshUnlocks(state);
   return report;
 }
 
@@ -487,7 +496,7 @@ export function endSeason(state: GameState): SeasonSummary {
 
   // 2. 위상
   const reputationBefore = player.reputation;
-  const repGain = baseXp * R.fromAchievementXp + personalReputation(player.season);
+  const repGain = Math.min(R.seasonGainMax, baseXp * R.fromAchievementXp + personalReputation(player.season));
   player.reputation = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
 
   // 3~4. 자동 성장, 노련함, 노화
@@ -507,7 +516,7 @@ export function endSeason(state: GameState): SeasonSummary {
   };
   player.history.push(record);
 
-  // 7. 이전 주 포지션 숙련도 감소 (D.3), 레전드 배지 (D.4: 부여 시 위상 +100)
+  // 7. 이전 주 포지션 숙련도 감소 (D.3), 레전드 배지 (D.4: 부여 시 위상 +BALANCE.badges.reputation)
   decayFormerPosition(player);
   const badges = awardBadges(player, season);
   record.reputation = player.reputation;

@@ -212,6 +212,45 @@ export function frameAt(r: Replay, e: number): ReplayFrame {
   return interpolateFrame(a, b, (e - a.e) / Math.max(1e-9, b.e - a.e));
 }
 
+/** e 직전(이하) 프레임 번호 */
+export function frameIndex(r: Replay, e: number): number {
+  const f = r.frames;
+  let lo = 0;
+  let hi = f.length - 1;
+  if (hi < 0 || e <= f[0]!.e) return 0;
+  if (e >= f[hi]!.e) return hi;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (f[mid]!.e <= e) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/**
+ * 재개 대기 중 "모두 자리 잡음" 프레임 (21.5.2, 디자인 18 빨리 감기, 부록 C.23): 공이 죽어 있고 모든 선수가
+ * 재개 순간(공이 다시 사는 첫 프레임) 위치에서 tol m 안. 재생 화면 전용, 엔진 결과와 무관
+ */
+export function settledFrames(r: Replay, tol: number): boolean[] {
+  const f = r.frames;
+  const out: boolean[] = new Array(f.length).fill(false);
+  let target: Map<string, { x: number; y: number }> | null = null;
+  for (let i = f.length - 1; i >= 0; i--) {
+    const fr = f[i]!;
+    if (!fr.restart) {
+      target = new Map(fr.players.map((p) => [p.id, p]));
+      continue;
+    }
+    if (!target) continue;
+    const t = target;
+    out[i] = fr.players.every((p) => {
+      const q = t.get(p.id);
+      return !q || Math.hypot(p.x - q.x, p.y - q.y) <= tol;
+    });
+  }
+  return out;
+}
+
 /** e 까지 나온 이벤트 (최신이 앞) */
 export function eventsUntil(r: Replay, e: number): ReplayEvent[] {
   return r.events.filter((x) => x.e <= e).reverse();

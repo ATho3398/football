@@ -29,7 +29,13 @@ export function playerView(vm: PlayerVM, extra = ''): string {
     : '';
   const rep = vm.next
     ? Meter({ value: vm.reputation - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점`, showValue: true, tone: 'brand' })
-    : '<p class="muted small">최고 위상 티어예요.</p>';
+    : `<p class="muted small">${vm.isLegendary ? '최고 위상 티어예요.' : '월드클래스예요. 레전더리는 점수가 아니라 아래 업적 조건으로 열려요.'}</p>`;
+  const legend = `<div class="opts">${vm.legendary.map((l, i) => OptionRow({
+    icon: l.met ? 'star' : 'lock', title: `${i === 0 ? '' : i === 1 ? '그리고 ' : '또는 '}${l.label}`,
+    desc: l.locked ? '아직 열리지 않은 대회예요' : l.met ? '달성' : '진행 중',
+    right: `<b class="po-num small${l.met ? ' hi' : ' muted'}">${l.met ? '달성' : l.locked ? '잠김' : '미달성'}</b>`, disabled: !l.met,
+  })).join('')}</div>
+    <span class="muted small">레전더리 = 위상 월드클래스 + 발롱도르 1회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 3회 이상). 한 번 달면 영구예요.</span>`;
   return `
     ${hero}
     <div class="body">
@@ -47,6 +53,8 @@ export function playerView(vm: PlayerVM, extra = ''): string {
       ${SectionTitle({ title: '포지션별 OVR · 숙련도', action: `주 포지션 ${vm.position}` })}
       ${panel(`<div class="pos-grid">${vm.posOvrs.map((p) => `<div class="${p.main ? 'main' : ''}"><span>${p.pos}</span><b class="po-num">${p.ovr}</b><small class="prof"><i style="width:${p.prof}%"></i></small><em class="po-num">숙련 ${p.prof}</em></div>`).join('')}</div>
         <span class="muted small">숙련도가 100보다 낮으면 그 포지션 OVR이 (100 − 숙련도) × 0.25만큼 낮아져요. 그 포지션으로 뛰면 숙련도가 올라요.</span>`)}
+      ${SectionTitle({ title: '레전더리 조건', action: vm.isLegendary ? '달성' : '잠김' })}
+      ${legend}
       ${SectionTitle({ title: '레전드 배지', action: `${vm.badges.filter((b) => b.earned).length}/${vm.badges.length}` })}
       <div class="opts">${vm.badges.map((b) => OptionRow({ icon: b.earned ? 'star' : 'lock', title: b.name, desc: b.earned ? `${b.desc} · ${b.earned}` : b.desc, right: `<b class="po-num small${b.earned ? ' hi' : ' muted'}">${b.earned ? '획득' : esc(b.progress)}</b>`, disabled: !b.earned })).join('')}</div>
       ${SectionTitle({ title: '능력치', action: '★ 핵심 능력치' })}

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 18;
+export const BALANCE_VERSION = 19;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -22,7 +22,7 @@ export const BALANCE = {
     maxAttribute: 99,
     /**
      * 포인트 비용 구간: 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3.
-     * 내 선수는 현재 위상 티어(reputation.tierCuts)의 구간을 쓴다 (6.2 성장 해금, 부록 D.0 #1)
+     * 내 선수는 현재 실력 티어(skillTierCuts, OVR)의 구간을 쓴다 (6.2 성장 해금, 부록 C.23: 위상과 분리)
      */
     costBands: {
       normal: { cost1Max: 70, cost2Max: 84 },
@@ -115,12 +115,20 @@ export const BALANCE = {
   reputation: {
     max: 1000,
     /** 업적 XP 중 위상 점수로 쌓이는 비율 */
-    fromAchievementXp: 1 / 2,
+    fromAchievementXp: 0.9, // C.22 1/2, 기획 1/4 → 부록 C.23 (새 컷·30세 목표에 맞춤, 아래 seasonGainMax 와 함께)
     /** 개인 기록 가산 (8.1, 부록 D.6 #3): MOM 1회당, 시즌 골+어시 per 개당 points, 시즌 합계 최대 max */
-    personal: { perMom: 5, goalInvolvements: { per: 10, points: 25 }, max: 200 }, // 기획서 3 / 10 / 120, 부록 C.6
+    personal: { perMom: 5, goalInvolvements: { per: 10, points: 10 }, max: 80 }, // C.22 5 / 25 / 200 → 부록 C.23
+    /**
+     * 한 시즌 위상 증가 상한 (업적 + 개인 기록, 배지 보너스 제외). 부록 C.23 신설: 업적 XP 는 시즌마다 0 / 100 / 200 처럼
+     * 들쭉날쭉해서 한두 시즌 대박으로 월드클래스에 닿는 꼬리를 자른다. 900 에는 여러 시즌 압도해야 닿는다
+     */
+    seasonGainMax: 110,
     /** 시즌당 감소 비율 */
     seasonDecay: 0.02,
-    tierCuts: { normal: 0, special: 150, topClass: 350, worldClass: 600, legendary: 850 } satisfies Record<Tier, number>,
+    /** 레전더리 컷은 월드클래스와 같다. 점수만으로는 오르지 않고 아래 업적 조건도 채워야 한다 (8.1, 부록 C.23) */
+    tierCuts: { normal: 0, special: 250, topClass: 550, worldClass: 900, legendary: 900 } satisfies Record<Tier, number>,
+    /** 레전더리 조건: 발롱도르 ballonDorMin 회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 ballonDorAlt 회 이상) */
+    legendary: { ballonDorMin: 1, ballonDorAlt: 3 },
   },
 
   // ── 실력 티어 (B.5): OVR 하한 ──
@@ -403,7 +411,7 @@ export const BALANCE = {
 
   // ── 레전드 배지 (8.2, 부록 D.4): 부여 시 위상 + reputation ──
   badges: {
-    reputation: 100,
+    reputation: 30, // C.22 100 → 부록 C.23
     careerGoals: 500,
     leagueTitles: 5,
     sameTeamSeasons: 10,

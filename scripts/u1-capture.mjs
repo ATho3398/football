@@ -49,8 +49,10 @@ await page.waitForTimeout(500);
 await shot('22_홈-기본');
 
 // 경기 화면 (15·48·49·18·17)
+await act('tips-off'); // C.23 첫 방문 말풍선 끄기
 await act('play');
 await page.waitForSelector('#rp-canvas');
+if (await page.locator('.fm-card [data-act="fm-close"]').count()) await page.locator('.fm-card [data-act="fm-close"]').click(); // C.23 첫 경기 오버레이
 await page.waitForTimeout(1500);
 await shot('15_경기화면-하이라이트', false);
 await act('rp-speed', '[data-v="4×"]');
@@ -72,6 +74,7 @@ await shot('38_경기후-리포트');
 
 // 선수·월드·세이브
 await act('go', '[data-to="home"]');
+if (await page.locator('[data-act="intro-ok"]').count()) await act('intro-ok'); // C.23 공개 소개
 await act('go-tab', '[data-v="player"]');
 await shot('44_선수상세-기본');
 await act('go-tab', '[data-v="world"]');

@@ -95,9 +95,9 @@ export function allocateView(vm: AllocateVM, open: Set<string>, pending: number)
   });
   const ovr = `<div class="panel ovr-cmp"><div><small>지금 OVR</small><b class="po-num">${vm.startOvr}</b><span>${esc(vm.position)} 기준 계산</span></div>${Icon({ name: 'chevron-right', size: 22 })}<div class="r"><small>확정하면</small><b class="po-num hi">${vm.ovr}</b><span>${vm.startExact.toFixed(1)} → ${vm.exact.toFixed(1)}</span></div></div>`;
   const coach = vm.coachComment
-    ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 더 큰 무대에서 활약해서 이름을 알리면 다시 길이 열릴 거야."</b></div></div>`
+    ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 실력이 한 단계 더 올라서면 다시 길이 열릴 거야."</b></div></div>`
     : '';
-  const bands = `<div class="bands"><span>~${vm.cost1Max} <b>1P</b></span><span class="warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>2P</b></span><span class="fail">${vm.cost2Max + 1}~ <b>3P</b></span><span class="muted">위상 ${esc(vm.tierName)} 기준 · 한 능력치 최대 +${vm.cap}</span></div>`;
+  const bands = `<div class="bands"><span>~${vm.cost1Max} <b>1P</b></span><span class="warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>2P</b></span><span class="fail">${vm.cost2Max + 1}~ <b>3P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 한 능력치 최대 +${vm.cap}</span></div>`;
   const groups = vm.groups.map((g) => {
     const isOpen = open.has(g.name);
     const keyN = g.rows.filter((r) => r.key).length;
@@ -162,8 +162,8 @@ export function seasonView(vm: SeasonVM): string {
   const vet = sum(vm.veteran);
   const age = sum(vm.aging);
   const rep = vm.next
-    ? `${Meter({ value: vm.repAfter - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.repAfter}점 · 비용 1 구간 ~${vm.next.cost1Max}`, showValue: true })}`
-    : '<p class="muted small">최고 위상 티어예요. 성장 구간이 모두 열렸어요.</p>';
+    ? `${Meter({ value: vm.repAfter - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.repAfter}점`, showValue: true })}`
+    : `<p class="muted small">${vm.tier === 'legend' ? '최고 위상 티어예요.' : '월드클래스예요. 레전더리는 점수가 아니라 업적 조건으로 열려요.'}</p>`;
   return `${hero}<div class="body">
     ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 100점 올랐어요.` })).join('')}

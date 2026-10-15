@@ -6,12 +6,13 @@ import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
 import { averageRating, careerTotals, nextFixture, selectableRealPlayers, type GameState } from '../game';
+import { isUnlocked } from '../unlocks';
 import { generatePlayer } from '../generate';
 import {
   attributeOvrWeight, allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, positionOvrExact, profileOf, type FieldPosition,
 } from '../positions';
 import {
-  costTier, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
+  costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
 import { INJURY_NAMES_KO } from '../injury';
@@ -27,6 +28,11 @@ import { saveStartNotice, versionLabel } from '../version';
 import type { DesignTier, FeedKind, TacticStyle } from './components';
 
 // ── 공통 변환 ──
+
+/** 성장(포인트 찍기)이 아직 안 열렸으면 포인트 버튼·배너를 숨긴다 (21.3 단계적 공개, 부록 C.23) */
+export function visiblePoints(g: GameState): number {
+  return isUnlocked(g.guide, 'growth') ? g.player.unspentPoints : 0;
+}
 
 export const seasonLabel = (y: number): string => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
 
@@ -82,7 +88,7 @@ export interface PlayerCardVM {
 function playerCardVM(g: GameState): PlayerCardVM {
   const p = g.player;
   return {
-    name: p.name, age: p.age, position: p.position, ovr: playerOvr(p), tier: designTier(reputationTier(p.reputation)), tierScore: p.reputation,
+    name: p.name, age: p.age, position: p.position, ovr: playerOvr(p), tier: designTier(reputationTier(p.reputation, p.honors)), tierScore: p.reputation,
     level: p.level, xp: p.xp, xpMax: xpToLevel(p), team: teamById(g.league, p.teamId).nameKo,
   };
 }
@@ -113,7 +119,7 @@ function injuryBanner(g: GameState): BannerVM | null {
 }
 
 function pointsBanner(g: GameState): BannerVM | null {
-  const n = g.player.unspentPoints;
+  const n = visiblePoints(g);
   return n > 0 ? { tone: 'success', title: `능력치 포인트 ${n}개`, body: '레벨업으로 얻은 포인트를 능력치에 써요.', action: '찍기', act: 'go', to: 'allocate' } : null;
 }
 
@@ -182,6 +188,9 @@ export interface PlayerVM {
   groups: { name: string; rows: AttrRowVM[] }[];
   posOvrs: { pos: string; ovr: number; main: boolean; prof: number; penalty: number }[];
   badges: { id: string; name: string; desc: string; earned: string | null; progress: string }[];
+  /** 레전더리 조건 목록 (8.1, 부록 C.23). 발롱도르·트레블·월드컵은 5단계 대회 전까지 잠김 */
+  legendary: { label: string; met: boolean; locked: boolean }[];
+  isLegendary: boolean;
   history: HistoryRowVM[];
 }
 
@@ -232,8 +241,8 @@ export function playerVM(g: GameState): PlayerVM {
   const p = g.player;
   const keys = profileOf(p.position).keys;
   const ovrs = allPositionOvrs(p.attributes);
-  const tier = reputationTier(p.reputation);
-  const nx = nextReputationTier(p.reputation);
+  const tier = reputationTier(p.reputation, p.honors);
+  const nx = nextReputationTier(p.reputation, p.honors);
   const fx = g.phase === 'season' ? nextFixture(g) : null;
   return {
     name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
@@ -252,6 +261,9 @@ export function playerVM(g: GameState): PlayerVM {
       return { pos, ovr: proficientOvr(p, pos), main: pos === p.position, prof, penalty: Math.round(proficiencyPenalty(prof) * 10) / 10 };
     }),
     badges: badgesVM(g),
+    // 발롱도르·챔스·월드컵은 5단계 대회 기능이라 아직 얻을 수 없다 (위상 조건만 열림)
+    legendary: legendaryConditions(p.reputation, p.honors).map((c, i) => ({ ...c, locked: i > 0 })),
+    isLegendary: tier === 'legendary',
     history: historyVM(g),
   };
 }
@@ -456,7 +468,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my,
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
-    seasonOver: g.phase !== 'season', points: g.player.unspentPoints,
+    seasonOver: g.phase !== 'season', points: visiblePoints(g),
   };
 }
 
@@ -497,7 +509,7 @@ export interface SeasonVM {
   injuries: number; injuredWeeks: number;
   achievements: { label: string; xp: number }[]; achievementXp: number; levelsGained: number;
   repBefore: number; repAfter: number; tierName: string; tier: DesignTier;
-  next: { name: string; cut: number; from: number; cost1Max: number; cost2Max: number } | null;
+  next: { name: string; cut: number; from: number } | null;
   position: string; ovrBefore: number; ovrAfter: number;
   autoGrowth: DeltaVM[]; veteran: DeltaVM[]; aging: DeltaVM[];
   growthAges: string; ageFrom: number; ageTo: number;
@@ -510,8 +522,8 @@ export function seasonVM(g: GameState): SeasonVM | null {
   const s = g.lastSeasonSummary;
   if (!s) return null;
   const rec = g.player.history.at(-1)!;
-  const tier = reputationTier(s.reputationAfter);
-  const nx = nextReputationTier(s.reputationAfter);
+  const tier = reputationTier(s.reputationAfter, g.player.honors);
+  const nx = nextReputationTier(s.reputationAfter, g.player.honors);
   const A = BALANCE.growth.autoGrowth;
   return {
     season: seasonLabel(s.season), nextSeason: seasonLabel(s.season + 1), team: teamById(g.league, rec.teamId).nameKo, pos: s.leaguePosition,
@@ -519,11 +531,11 @@ export function seasonVM(g: GameState): SeasonVM | null {
     injuries: rec.injuries, injuredWeeks: rec.injuredWeeks,
     achievements: s.achievements, achievementXp: s.achievementXp, levelsGained: s.levelsGained,
     repBefore: s.reputationBefore, repAfter: s.reputationAfter, tierName: TIER_NAMES_KO[tier], tier: designTier(tier),
-    next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier], ...BALANCE.growth.costBands[nx.tier] } : null,
+    next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier] } : null,
     position: g.player.position, ovrBefore: s.ovrBefore, ovrAfter: s.ovrAfter,
     autoGrowth: deltas(s.autoGrowth), veteran: deltas(s.veteranGrowth ?? {}), aging: deltas(s.aging),
     growthAges: `${A.minAge}~${A.maxAge}세`, ageFrom: s.age, ageTo: g.player.age,
-    retired: g.phase === 'retired', forcedRetire: s.forcedRetire, canRetire: s.canRetire, points: g.player.unspentPoints,
+    retired: g.phase === 'retired', forcedRetire: s.forcedRetire, canRetire: s.canRetire, points: visiblePoints(g),
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
     badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
   };
@@ -541,7 +553,7 @@ export function retiredVM(g: GameState): RetiredVM {
   return {
     card: playerCardVM(g), seasons: t.seasons, apps: t.apps, goals: t.goals, assists: t.assists,
     avg: t.avgRating === null ? '-' : t.avgRating.toFixed(2), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,
-    reputation: g.player.reputation, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation)], history: historyVM(g),
+    reputation: g.player.reputation, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation, g.player.honors)], history: historyVM(g),
   };
 }
 
