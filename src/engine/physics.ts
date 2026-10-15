@@ -78,5 +78,5 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1): void {
   // 스태미나 (E.4)
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * dt * 10);
-  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * (1.6 - (0.8 * a.attrs.stamina) / 100) * dt * 10);
+  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * (1.6 - (0.8 * a.attrs.stamina) / 100) * dt * 10);
 }

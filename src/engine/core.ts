@@ -70,13 +70,19 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const near = s.agents
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
     .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
-  const max = O.counterMax;
+  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : O.counterMax;
   for (const a of near) {
     if (tm.counterPressers.length >= max) break;
     const p = O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100;
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
   }
   if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing;
+}
+
+function manDiffCount(s: SimState, team: 0 | 1): number {
+  let d = 0;
+  for (const a of s.agents) if (a.onPitch) d += a.team === team ? 1 : -1;
+  return d;
 }
 
 /** 공을 놓는다 (루즈볼). 속도 (vx, vy) */

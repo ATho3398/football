@@ -36,9 +36,44 @@ export function sendOff(s: SimState, a: Agent): void {
       substitute(s, out, gk);
       respace(s, a.team, outLine);
     } else emergencyKeeper(s, a.team);
+    shortHanded(s, a.team);
     return;
   }
   respace(s, a.team, a.line);
+  shortHanded(s, a.team);
+}
+
+/**
+ * 수적 열세 재배치 (E.18 A6): 공격 줄 1명을 중원으로 내린다 (4-4-1 형태). 공격수가 1명뿐이면 미드필더 1명을 수비형으로.
+ * 커버할 공간이 넓어 스태미나 소모 × shortDrain
+ */
+function shortHanded(s: SimState, team: 0 | 1): void {
+  const own = s.agents.filter((x) => x.onPitch && x.team === team);
+  for (const x of own) x.drainMul = R.shortDrain;
+  if (manDiffOf(s, team) >= 0) return;
+  const att = own.filter((x) => x.line === 3).sort((x, y) => x.sx - y.sx);
+  if (att.length >= 2) {
+    // 가장 덜 전진한 공격수를 중원으로
+    const m = att[0]!;
+    m.line = 2;
+    m.sx = R.dropToMidX;
+    respace(s, team, 3);
+    respace(s, team, 2);
+    return;
+  }
+  const mids = own.filter((x) => x.line === 2).sort((x, y) => x.sx - y.sx);
+  if (mids.length >= 2) {
+    // 가장 덜 전진한 미드필더를 수비형 자리로 (중원 줄 그대로, 깊이만)
+    const m = mids[0]!;
+    m.sx = Math.min(m.sx, R.holdMidX);
+    m.sy = 0.5;
+  }
+}
+
+function manDiffOf(s: SimState, team: 0 | 1): number {
+  let d = 0;
+  for (const x of s.agents) if (x.onPitch) d += x.team === team ? 1 : -1;
+  return d;
 }
 
 function respace(s: SimState, team: 0 | 1, line: number): void {

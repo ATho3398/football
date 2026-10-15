@@ -48,7 +48,8 @@ export function substitute(s: SimState, out: Agent, inA: Agent): void {
   inA.onPitch = true;
   inA.enteredAt = s.elapsed;
   inA.pos = out.pos;
-  inA.line = lineOf(out.pos);
+  inA.line = out.line;
+  inA.drainMul = out.drainMul;
   inA.sx = out.sx;
   inA.sy = out.sy;
   inA.stats.position = out.pos;

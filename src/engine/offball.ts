@@ -220,8 +220,54 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       ny += (oy - ny) * 0.15;
     }
   }
+  // 수적 우세 프리맨 (E.18 A6): 마크가 없는 선수 중 공에 가장 가까운 1명은 공 쪽 빈 공간으로 (효용 가산 없음)
+  if (!running && owner && owner.team === a.team && owner !== a && a.line >= 1 && manDiff(s, a.team) > 0 && isFreeman(s, a, owner)) {
+    const spot = freeSpot(s, a, owner);
+    if (spot) [nx, ny] = toNorm(spot[0], spot[1], dir);
+  }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+function unmarked(s: SimState, a: Agent): boolean {
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && dist(o.x, o.y, a.x, a.y) < ENGINE.referee.freeMark) return false;
+  return true;
+}
+
+/** 마크가 없는 필드 선수 중 공에 가장 가까운 선수인가 */
+function isFreeman(s: SimState, a: Agent, owner: Agent): boolean {
+  if (!unmarked(s, a)) return false;
+  const d = dist(a.x, a.y, owner.x, owner.y);
+  for (const o of s.agents) {
+    if (o === a || o === owner || !o.onPitch || o.team !== a.team || o.line === 0) continue;
+    if (dist(o.x, o.y, owner.x, owner.y) < d && unmarked(s, o)) return false;
+  }
+  return true;
+}
+
+/** 소유자에게서 12~20 m, 가장 가까운 상대에게서 6 m 이상인 빈 곳 중 가장 여유 있는 곳 (공격 방향 앞쪽 우선) */
+function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null {
+  const R = ENGINE.referee;
+  const dir = attackDir(a.team, s.half);
+  let best: [number, number] | null = null;
+  let bestScore = -Infinity;
+  for (const r of [R.freeMin, (R.freeMin + R.freeMax) / 2, R.freeMax]) {
+    for (let k = 0; k < 12; k++) {
+      const ang = (k / 12) * Math.PI * 2;
+      const x = owner.x + Math.cos(ang) * r;
+      const y = owner.y + Math.sin(ang) * r;
+      if (x < 2 || x > L - 2 || y < 2 || y > W - 2) continue;
+      let near = Infinity;
+      for (const o of s.agents) if (o.onPitch && o.team !== a.team) near = Math.min(near, dist(o.x, o.y, x, y));
+      if (near < R.freeSpace) continue;
+      const score = near + 0.15 * (x - owner.x) * dir - 0.05 * dist(x, y, a.x, a.y);
+      if (score > bestScore) {
+        bestScore = score;
+        best = [x, y];
+      }
+    }
+  }
+  return best;
 }
 
 /**

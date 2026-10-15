@@ -486,6 +486,16 @@ export const ENGINE = {
     perceptionSlope: 0.05,
     /** 패서가 오프사이드 위험을 효용에 반영하는 정도 (1 = 완전 반영) */
     offsideAwareness: 0.3,
+    /** 수적 열세 (E.18 A6): 스태미나 소모 배율, 공격수를 내릴 중원 x, 수비형 미드 x, 역압박 최대 인원 */
+    shortDrain: 1.15,
+    dropToMidX: 0.45,
+    holdMidX: 0.33,
+    shortCounterMax: 2,
+    /** 수적 우세 프리맨: 상대 freeMark m 안에 없으면 프리맨, 소유자에게서 freeMin~freeMax m, 가장 가까운 상대에게서 freeSpace m 이상 */
+    freeMark: 5,
+    freeMin: 12,
+    freeMax: 20,
+    freeSpace: 6,
     shortLine: 0.15,
     shortPress: 0.15,
     shortAttackShift: 0.6,

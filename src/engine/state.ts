@@ -58,6 +58,8 @@ export interface Agent {
   recoverUrgent: boolean;
   /** 복귀: 러닝 이상으로 달린다 (목표가 자기 골 쪽 10 m 이상) */
   minRun: boolean;
+  /** 스태미나 소모 배율 (수적 열세 1.15, E.18 A6) */
+  drainMul: number;
   /** 평점 계산용 내부 기록 (E.12) */
   rt: { forward: number; lost: number; dangerLost: number; conceded: number };
 }
