@@ -5,7 +5,6 @@ import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { TENDENCY } from './tactics';
-import { finishSkill } from './onball';
 import type { Agent, SimState } from './state';
 
 const O = ENGINE.offball;
@@ -483,7 +482,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
   if (!defs.includes(a)) return false;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
   const oppDir = (-dir) as 1 | -1;
-  // 가장 위협적인 상대 (수비 주의 집중, E.20 8번): 마무리 능력치 × 골까지 가까움. 없으면 위치 가치가 가장 큰 ST/공격 줄
+  // 가장 위협적인 상대 (수비 주의 집중, E.20 8번): 골까지 가까움과 박스 안 여부. 없으면 위치 가치가 가장 큰 ST/공격 줄
   let threat: Agent | null = focusThreat(s, a.team);
   if (!threat) {
     let tv = -Infinity;
@@ -557,8 +556,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
 const focusCache = new WeakMap<SimState, { tick: number; team: number; focus: Agent | null }[]>();
 
 /**
- * 수비 주의 집중 대상 (E.20 8번): 수비 팀 기준, 공을 갖지 않은 상대 필드 선수(미드·공격 줄) 중
- * 위협도 = 마무리 능력치 × max(0, 1 − 골까지 거리 / focusRange) 가 가장 높은 1명. 틱마다 한 번 계산
+ * 수비 주의 집중 대상 (E.20 8번, C.16 결정 1): 수비 팀 기준, 공을 갖지 않은 상대 필드 선수(미드·공격 줄) 중
+ * 위협도 = max(0, 1 − 골까지 거리 / focusRange) + (박스 안이면 focusBox) 가 가장 높은 1명. 위치로만 고르고 능력치는 보지 않는다
+ * (좋은 마무리 선수일수록 집중 마크를 받아 득점 반응이 뒤집히던 문제). 틱마다 한 번 계산
  */
 export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   let cache = focusCache.get(s);
@@ -570,7 +570,8 @@ export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   let bv = 0;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === defTeam || o.line < 2 || o.idx === s.ball.owner) continue;
-    const v = finishSkill(o.attrs, 'shot') * Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange);
+    const inBox = Math.abs(o.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(o.y - gy) <= ENGINE.pitch.boxWidth / 2;
+    const v = Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange) + (inBox ? O.focusBox : 0);
     if (v > bv) {
       bv = v;
       best = o;

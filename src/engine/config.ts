@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 3;
+export const ENGINE_VERSION = 4;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -185,9 +185,10 @@ export const ENGINE = {
      */
     boxZone: 25,
     stMark: 1.5,
-    /** 수비 주의 집중 (E.20 8번): 대상의 마크 거리 배수, 위협도 거리 기준 (m) */
-    focusMark: 0.6,
+    /** 수비 주의 집중 (E.20 8번, C.16 결정 1): 대상의 마크 거리 배수, 위협도 거리 기준 (m), 박스 안 가산 (위치로만 고른다) */
+    focusMark: 0.75,
     focusRange: 50,
+    focusBox: 0.2,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
     stMarkZone: 25,
     /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
@@ -245,10 +246,11 @@ export const ENGINE = {
     /**
      * 위치 가치 맵 (E.18 A1, 단위 "골 = 1"): 그 위치에서 우리 팀이 공을 가졌을 때 이번 공격이 골로 끝날 확률.
      * value = farC × exp(−d / farK) + nearB × exp(−d / nearK), d = 상대 골 중앙까지 거리 (m).
-     * 앵커: 자기 진영 0.005~0.01, 중앙선 약 0.015, 25 m 약 0.04, 18 m 약 0.07, 11 m 약 0.12, 골라인 측면 약 0.04
+     * 앵커: 자기 진영 0.01~0.014, 중앙선 약 0.018, 30 m 약 0.031, 25 m 약 0.04, 18 m 약 0.06, 11 m 약 0.11, 골라인 측면 약 0.04.
+     * (C.16 결정 3) 먼 쪽 성분을 평평하게 했다 (farK 47.8 → 80, farC 0.045 → 0.035): 30 m 가치는 그대로, 자기 진영·중원의 전진 보상 약 27% 감소
      */
-    valueFarC: 0.045,
-    valueFarK: 47.8,
+    valueFarC: 0.035,
+    valueFarK: 80,
     valueNearB: 0.357,
     valueNearK: 7.6,
     tempBase: 0.06,
@@ -290,7 +292,7 @@ export const ENGINE = {
     carryPressure: 0.5,
     holdTime: 1.0,
     /**
-     * 효용 스케일: softmax 전에 곱한다 (τ 는 이 스케일 기준). 골 단위에서 τ 0.06 선수가 효용 차 0.01골이면 약 60:40,
+     * 효용 스케일: softmax 전에 곱한다 (C.16 결정 3: 상한을 풀고 4·5·6·8·12 를 측정했다. 1 올릴 때마다 롱패스 비율 −1.7%p, 득점 +0.3골이라 4 유지) (τ 는 이 스케일 기준). 골 단위에서 τ 0.06 선수가 효용 차 0.01골이면 약 60:40,
      * 0.03골이면 약 77:23 (E.18 A1)
      */
     utilityScale: 4,
@@ -300,6 +302,8 @@ export const ENGINE = {
      */
     judgeSelf: 0.5,
     judgeAvgAttr: 70,
+    /** 자기 진영 상실 비용 배수 (C.16 결정 3): 자기 골 라인에서 잃으면 상실 비용 × (1 + lossOwnHalf), 하프라인에서 × 1 */
+    lossOwnHalf: 1,
     /** 전환 위험 (E.20 2번): 상실 비용 C = −(상대 기준 위치 가치 + T), T = transitionRisk × (상실 지점보다 상대 골 쪽 우리 필드 선수 수 ÷ 10) */
     transitionRisk: 0.02,
     /** 패스 수신 지원도 (E.20 2번): 받는 자리 가치 × (supportBase + (1 − supportBase) × min(1, 받는 선수 supportDist m 안 동료 수 ÷ supportNeed)) */

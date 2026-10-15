@@ -19,13 +19,16 @@ const input = (seed: number, neutral = true): EngineInput => ({
 describe('E3.5 A1 판단 단위 (골 = 1)', () => {
   it('위치 가치 맵 앵커: 자기 진영 < 중앙선 < 25 m < 18 m < 페널티 지점', () => {
     const v = (dGoal: number) => positionValue(1 - dGoal / ENGINE.pitch.length, 0.5);
+    // C.16 결정 3: 먼 쪽 성분을 평평하게 (자기 진영·중원의 전진 보상 감소, 30 m 가치는 그대로)
     expect(v(80)).toBeGreaterThan(0.004);
-    expect(v(80)).toBeLessThan(0.011);
-    expect(v(52.5)).toBeCloseTo(0.015, 2);
+    expect(v(80)).toBeLessThan(0.014);
+    expect(v(80)).toBeLessThan(v(52.5));
+    expect(v(52.5)).toBeCloseTo(0.018, 2);
+    expect(v(30)).toBeCloseTo(0.031, 2);
     expect(v(25)).toBeCloseTo(0.04, 2);
     expect(v(18)).toBeGreaterThan(0.055);
     expect(v(18)).toBeLessThan(0.08);
-    expect(v(11)).toBeCloseTo(0.12, 2);
+    expect(v(11)).toBeCloseTo(0.115, 2);
     // 골라인 근처 측면
     expect(positionValue(1 - 2 / ENGINE.pitch.length, 0.07)).toBeGreaterThan(0.025);
     expect(positionValue(1 - 2 / ENGINE.pitch.length, 0.07)).toBeLessThan(0.05);

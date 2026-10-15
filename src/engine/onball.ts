@@ -127,9 +127,12 @@ export function formBonus(a: Agent): number {
   return a.spec.form * ENGINE.match.formToProb;
 }
 
-/** 소유 상실 비용 C (E.18 A1): 상대가 그 위치(상대 기준 좌표)에서 공을 가졌을 때의 가치 */
+/**
+ * 소유 상실 비용 C (E.18 A1): 상대가 그 위치(상대 기준 좌표)에서 공을 가졌을 때의 가치.
+ * 자기 진영에서 잃으면 × (1 + lossOwnHalf × 하프라인에서 자기 골 쪽으로 들어간 비율) (C.16 결정 3: 상대는 정리되지 않은 수비를 상대로 바로 공격한다)
+ */
 export function lossCost(nx: number, ny: number): number {
-  return -positionValue(1 - nx, 1 - ny);
+  return -positionValue(1 - nx, 1 - ny) * (1 + O.lossOwnHalf * clamp((0.5 - nx) / 0.5, 0, 1));
 }
 
 /** 유지하는 동안 빼앗길 확률: 3 m 안 상대마다 holdLose × (1 − 거리/3) 를 독립으로 합성 (압박 수비수 수와 거리) */
