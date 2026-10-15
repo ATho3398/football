@@ -51,7 +51,7 @@ export interface ResponseRow {
 /** 스탯 반응 통과 (D.12, E.20 6번): 방향이 통계적으로 확실하고(단측 95%), 크기가 기준값의 70% 이상 */
 export const RESP_SHARE = 0.7;
 
-/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, C.17 결정 5: 시즌 XP 비 상한만 1.2, 득점·ST 반응은 원래 범위). 보정이 끝나면 false 로 되돌린다 */
+/** 엔진 보정 중 임시 경량 가드 범위 (부록 C.13, C.17 결정 5, E.23 1번: 시즌 XP 비 상한만 1.25, 득점·ST 반응은 원래 범위). 보정이 끝나면 false 로 되돌린다 */
 export const TEMP_GUARD = true;
 const BOOT = 400;
 
@@ -475,7 +475,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const total = avg(sa.map((x) => x.xp)) / Math.max(1, avg(sq.map((x) => x.xp)));
     add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
       // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
-      guard: TEMP_GUARD ? [0.85, 1.2] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
+      guard: TEMP_GUARD ? [0.85, 1.25] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
     });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
