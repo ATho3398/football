@@ -426,6 +426,15 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const d = dist(a.x, a.y, b.x, b.y);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
     let wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
+    // 박스 안 압박 (E.23): 공이 우리 박스 안이면 가장 가까운 2명이 성향과 무관하게 바로 붙는다
+    const ownBox = Math.abs(b.x - gx0) <= ENGINE.pitch.boxDepth && Math.abs(b.y - gy0) <= ENGINE.pitch.boxWidth / 2;
+    if (ownBox && rank < 2) {
+      const bd0 = dist(b.x, b.y, gx0, gy0) || 1;
+      a.tx = b.x + ((gx0 - b.x) / bd0) * ENGINE.defense.boxPressGap;
+      a.ty = b.y + ((gy0 - b.y) / bd0) * ENGINE.defense.boxPressGap;
+      a.urgent = true;
+      return;
+    }
     // 수비 블록: 공격 줄은 1명만 압박 / 역습: 남는 최전방은 압박하지 않는다 (E.19)
     const tendency = s.teams[a.team].tactics.tendency;
     if (a.line === 3 && tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
@@ -437,7 +446,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       let ux = (gx - b.x) / gd;
       let uy = (gy - b.y) / gd;
       let gap = 1.0;
-      const lane = rank === 0 ? shadowTarget(s, owner, dir) : null;
+      // 패스길 막기를 고른 수비수 (E.23)도 커버 섀도 각도로
+      const lane = rank === 0 || s.t < a.laneUntil ? shadowTarget(s, owner, dir) : null;
       if (lane) {
         const ld = dist(lane.x, lane.y, b.x, b.y) || 1;
         ux = ux * (1 - O.shadowW) + ((lane.x - b.x) / ld) * O.shadowW;

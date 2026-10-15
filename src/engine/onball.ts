@@ -495,7 +495,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const qEnd = loseProb(s, a, cx, cy);
       const value = positionValue(nx, ny) * (1 - qEnd) + qEnd * loss(nx, ny);
       if (def) {
-        const dp = (who: Agent) => clamp(dribbleProb(who, def!, second ? -PR.spaceSecondPenalty : 0) + formBonus(who), 0.02, 0.98);
+        // 수비 자세 (E.23): 수비수는 바깥쪽으로 몬다. 중앙 쪽으로 꺾는 돌파는 어렵고 바깥쪽은 조금 쉽다
+        const D = ENGINE.defense;
+        const stance = ang === 0 ? 0 : Math.abs(cy - W / 2) < Math.abs(a.y - W / 2) ? -D.stanceInside : D.stanceOutside;
+        const dp = (who: Agent) => clamp(dribbleProb(who, def!, (second ? -PR.spaceSecondPenalty : 0) + stance) + formBonus(who), 0.02, 0.98);
         const p = dp(a);
         const pj = judgedP(p, dp(av));
         const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk);

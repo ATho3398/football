@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 6;
+export const ENGINE_VERSION = 7;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -264,6 +264,29 @@ export const ENGINE = {
     postSpread: 4,
   },
 
+  // ── 수비 1대1 판단 (E.23) ──
+  defense: {
+    /** 공 소유자에서 이 거리(m) 안이면 판단한다. 판단 간격 = duelInterval × (1.5 − 수비 판단 품질) 초 */
+    duelRange: 2,
+    duelInterval: 0.6,
+    /** 뒤에서 하는 태클: 성공 확률 배수, 파울 확률 배수 */
+    behindTackle: 0.6,
+    behindFoul: 2.5,
+    /** 돌파 허용 기본 비용 (골 단위, 앞으로 나간 자리 가치 상승분에 더한다), 박스 밖 파울 비용 */
+    beatenBase: 0.01,
+    foulCost: 0.02,
+    /** 따라붙기(지연)의 가치 (골 단위): 동료가 돌아오고 공격이 느려진다 */
+    jockeyValue: 0.1,
+    /** 패스길 막기: 가장 위험한 패스 대상 가치 상승분 × laneW − 돌파 허용 비용 × laneRisk */
+    laneW: 0.3,
+    laneRisk: 0.3,
+    /** 박스 안 압박 (E.23): 공이 수비 팀 박스 안이면 가장 가까운 2명이 boxPressGap m 까지 붙는다 */
+    boxPressGap: 0.6,
+    /** 수비 자세 (E.23): 1대1에서 바깥쪽으로 몬다. 중앙 쪽 돌파 로짓 − stanceInside, 바깥쪽 + stanceOutside */
+    stanceInside: 0.3,
+    stanceOutside: 0.1,
+  },
+
   // ── 온더볼 의사결정 (E.7) ──
   onball: {
     /**
@@ -428,10 +451,7 @@ export const ENGINE = {
     beatenTime: 0.6,
     /** 태클에 진 공격수의 공이 수비수 소유가 될 확률 (나머지 루즈볼) */
     tackleKeep: 0.7,
-    /** 수비수 태클 시도: 1.5 m 안에서 틱마다 tackleRate × (0.5 + 역할 압박) × (0.5 + 노력/200) × pressing 보정 */
-    tackleRange: 1.5,
-    tackleRate: 0.0008,
-    tackleCooldown: 1.0,
+    // 수비수 태클 시도는 E.23 수비 1대1 판단 (ENGINE.defense, actions defendDuels). 틱마다 고정 확률(tackleRate 0.0008)은 없앴다
 
     // 슈팅 (E.8)
     shotMaxDist: 30,
@@ -606,7 +626,7 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95) */
-    saveBase: 1.79,
+    saveBase: 1.76,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,

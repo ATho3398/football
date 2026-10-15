@@ -7,7 +7,7 @@ import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
-import { attackDir, clamp, dist, inOppBox, L, oppGoal, segDist, W } from './pitch';
+import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, Flight, SimState } from './state';
 
@@ -113,16 +113,21 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
     }
   }
   if (!def) return false;
-  tackleWon(s, a, def);
+  tackleWon(s, a, def, false);
   return true;
 }
 
-/** 태클에 이긴 수비수: 공을 갖거나 (tackleKeep) 루즈볼 */
-function tackleWon(s: SimState, att: Agent, def: Agent): void {
-  def.stats.tackles++;
-  def.stats.tacklesWon++;
-  s.teams[def.team].stats.tackles++;
-  s.teams[def.team].stats.tacklesWon++;
+/**
+ * 태클에 이긴 수비수: 공을 갖거나 (tackleKeep) 루즈볼.
+ * 집계 (E.23): tackle = 실제 태클(수비수의 태클 판단, 드리블·버티기 1대1에서 이긴 경합)이면 태클로, 아니면(몰고 가기·유지 실패) 소유 상실로만 센다
+ */
+function tackleWon(s: SimState, att: Agent, def: Agent, tackle = true): void {
+  if (tackle) {
+    def.stats.tackles++;
+    def.stats.tacklesWon++;
+    s.teams[def.team].stats.tackles++;
+    s.teams[def.team].stats.tacklesWon++;
+  } else s.teams[att.team].stats.dispossessed++;
   if (r(s, def.idx, Purpose.Tackle, 3) < PR.tackleKeep) {
     setOwner(s, def);
   } else {
@@ -171,7 +176,9 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
     a.ty = c.y;
     a.urgent = true;
     a.cooldown = Math.max(ENGINE.onball.carryTime, reaction(a));
-    // 제쳐진 수비수의 파울 (태클 실패)
+    // 제쳐진 수비수의 파울 (태클 실패). 1대1 경합에서 진 것도 태클 시도로 센다 (E.23 집계)
+    def.stats.tackles++;
+    s.teams[def.team].stats.tackles++;
     if (r(s, def.idx, Purpose.Foul, 1) < ENGINE.referee.tackleFoul * foulFactor(s, a, a.x, a.y, def)) foul(s, def, a, a.x, a.y);
     return;
   }
@@ -196,30 +203,105 @@ function holdup(s: SimState, a: Agent, c: Candidate): void {
   tackleWon(s, a, def);
 }
 
-/** 수비수가 시도하는 태클 (E.8). 성공 = 1 − 드리블 성공. 실패하면 제쳐짐 (파울은 E3 referee) */
-export function tryTackles(s: SimState): void {
+/** 수비 판단 품질 (E.23): 수비 포지셔닝 0.5 + 침착성 0.3 + 태클 0.2 */
+export function defJudgement(d: Agent): number {
+  const t = d.attrs;
+  return (t.defensivePositioning * 0.5 + t.composure * 0.3 + t.tackling * 0.2) / 100 + (d.duelEdge > 0 ? ENGINE.match.homeJudgement : 0);
+}
+
+/** 수비수가 공 소유자 뒤(소유자의 골 반대쪽)에 있는가: 소유자 → 수비수 방향이 소유자의 공격 방향과 반대 */
+function behindOwner(s: SimState, o: Agent, d: Agent): boolean {
+  return (d.x - o.x) * attackDir(o.team, s.half) < -0.3;
+}
+
+/**
+ * 수비수의 1대1 판단 (E.23): 공 소유자 duelRange m 안의 수비수는 판단 간격마다 태클 / 따라붙기 / 패스길 막기 중 하나를 고른다.
+ * 태클 U = P × 탈취 가치 − (1 − P) × (돌파 허용 + 파울 비용), 따라붙기 U = jockeyValue (지연: 동료가 돌아올 시간), 패스길 막기 U = laneW × 가장 위험한 패스 대상 가치 상승분 − 돌파 허용 위험.
+ * P = 1 − 드리블 성공 (태클·수비 포지셔닝·마킹·속도 대 드리블), 뒤에서 하는 태클은 P × behindTackle, 파울 × behindFoul.
+ * 공격 판단과 같은 효용 단위·softmax 온도 구조 (판단 = 수비 포지셔닝·침착성·태클)
+ */
+export function defendDuels(s: SimState): void {
   const o = s.agents[s.ball.owner];
   if (!o || o.line === 0) return;
+  const D = ENGINE.defense;
+  const dirA = attackDir(o.team, s.half);
+  const [ax, ay] = toNorm(o.x, o.y, dirA);
+  const here = positionValue(ax, ay);
+  const inBox = inOppBox(o.x, o.y, dirA);
+  // 돌파 허용 비용: 소유자가 carryDist 앞으로 나간 자리 가치 − 지금 가치 (박스 안이면 슛 기회)
+  const [nx2, ny2] = toNorm(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), o.y, dirA);
+  const beaten = Math.max(0, positionValue(nx2, ny2) - here) + D.beatenBase;
   for (const d of s.agents) {
-    if (!d.onPitch || d.team === o.team || d.line === 0 || d.cooldown > 0 || s.t < d.beatenUntil) continue;
-    if (dist(d.x, d.y, o.x, o.y) > PR.tackleRange) continue;
-    const pressing = s.teams[d.team].tactics.pressing;
-    const rate = PR.tackleRate * (0.5 + d.role.press) * (0.5 + d.attrs.workRate / 200) * (0.5 + pressing);
-    if (r(s, d.idx, Purpose.Tackle) >= rate) continue;
-    d.cooldown = PR.tackleCooldown;
-    if (r(s, d.idx, Purpose.Tackle, 1) < 1 - dribbleProb(o, d)) {
+    if (!d.onPitch || d.team === o.team || d.line === 0 || s.t < d.beatenUntil || s.t < d.duelNext) continue;
+    if (dist(d.x, d.y, o.x, o.y) > D.duelRange) continue;
+    const judge = defJudgement(d);
+    d.duelNext = s.t + D.duelInterval * (1.5 - judge);
+    const behind = behindOwner(s, o, d);
+    const pWin = clamp((1 - dribbleProb(o, d)) * (behind ? D.behindTackle : 1), 0.02, 0.98);
+    const pFoul = clamp(ENGINE.referee.tackleFoul * (behind ? D.behindFoul : 1) * foulFactor(s, o, o.x, o.y, d), 0, 1);
+    // 탈취 가치: 상대 공격 가치가 사라지고 우리 공격이 시작된다 (루즈볼이면 절반)
+    const [dx, dy] = toNorm(o.x, o.y, attackDir(d.team, s.half));
+    const gain = (here + positionValue(dx, dy)) * (PR.tackleKeep + (1 - PR.tackleKeep) * 0.5);
+    const foulCost = inBox ? ENGINE.setPiece.penaltyBase - here : D.foulCost;
+    const uTackle = pWin * gain - (1 - pWin) * (beaten + pFoul * foulCost);
+    const lane = shadowValue(s, o, d) - here;
+    const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
+    const us = [uTackle, D.jockeyValue, uLane];
+    const tau = O_TEMP(judge);
+    const mx = Math.max(...us);
+    const ws = us.map((u) => Math.exp(((u - mx) * ENGINE.onball.utilityScale) / tau));
+    let x = r(s, d.idx, Purpose.Tackle) * (ws[0]! + ws[1]! + ws[2]!);
+    let pick = 2;
+    for (let k = 0; k < 3; k++) {
+      x -= ws[k]!;
+      if (x <= 0) {
+        pick = k;
+        break;
+      }
+    }
+    if (pick === 2) {
+      d.laneUntil = s.t + D.duelInterval;
+      continue;
+    }
+    if (pick === 1) continue;
+    // 태클 시도
+    d.stats.tackles++;
+    s.teams[d.team].stats.tackles++;
+    s.teams[d.team].stats.tackleAttempts++;
+    if (r(s, d.idx, Purpose.Tackle, 1) < pWin) {
+      d.stats.tackles--;
+      s.teams[d.team].stats.tackles--;
       tackleWon(s, o, d);
       return;
     }
-    d.stats.tackles++;
-    s.teams[d.team].stats.tackles++;
     d.beatenUntil = s.t + PR.beatenTime;
     callCover(s, d, o.x, o.y);
-    if (r(s, d.idx, Purpose.Foul) < ENGINE.referee.tackleFoul * foulFactor(s, o, o.x, o.y, d)) {
+    if (r(s, d.idx, Purpose.Foul) < pFoul) {
       foul(s, d, o, o.x, o.y);
       return;
     }
   }
+}
+
+/** 판단 온도 (onball 과 같은 식) */
+function O_TEMP(j: number): number {
+  const O = ENGINE.onball;
+  return O.tempBase * Math.exp(O.tempSlope * (0.7 - j));
+}
+
+/** 소유자 팀의 가장 위험한 패스 대상(공보다 수비 골에 가까운 선수 중 위치 가치 최대)의 가치 */
+function shadowValue(s: SimState, o: Agent, d: Agent): number {
+  const dirA = attackDir(o.team, s.half);
+  const [ox] = toNorm(o.x, o.y, dirA);
+  let best = 0;
+  for (const m of s.agents) {
+    if (!m.onPitch || m.team !== o.team || m === o || m.line === 0) continue;
+    const [mx, my] = toNorm(m.x, m.y, dirA);
+    if (mx <= ox || dist(m.x, m.y, o.x, o.y) > ENGINE.onball.passMaxDist) continue;
+    best = Math.max(best, positionValue(mx, my));
+  }
+  void d;
+  return best;
 }
 
 // ── 슛 ──

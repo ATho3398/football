@@ -308,7 +308,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'offsides', '오프사이드', '약 2.2', perTeam(eq, (s) => s.offsides), 1.7, 2.7);
     add(S, 'adv', '어드밴티지', '약 2', perTeam(eq, (s) => s.advantages), 1.5, 2.5);
     add(S, 'advShare', '어드밴티지 / 파울 %', '15~20', ratio(totTeam(eq, (s) => s.advantages), totTeam(eq, (s) => s.fouls)) * 100, 15, 20);
-    add(S, 'tackles', '태클', '약 16', perTeam(eq, (s) => s.tackles), 13.5, 18.5);
+    add(S, 'tackles', '태클 (E.23: 태클 판단 시도 + 1대1 경합)', '약 16', perTeam(eq, (s) => s.tackles), 13.5, 18.5, 1, {
+      note: `판단 태클 ${perTeam(eq, (s) => s.tackleAttempts).toFixed(1)} · 몰고 가기·유지 실패(소유 상실, 태클 아님) ${perTeam(eq, (s) => s.dispossessed).toFixed(1)}`,
+    });
     add(S, 'ints', '인터셉트', '약 12', perTeam(eq, (s) => s.interceptions), 10, 14);
     add(S, 'dribbles', '드리블 시도', '약 14', perTeam(eq, (s) => s.dribbles), 11.5, 16.5);
     add(S, 'dribPct', '드리블 성공률 %', '약 50', ratio(totTeam(eq, (s) => s.dribblesWon), totTeam(eq, (s) => s.dribbles)) * 100, 45, 55);
