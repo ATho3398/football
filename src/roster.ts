@@ -177,14 +177,18 @@ function shiftPlayer(p: RosterPlayer, d: number, rng: Rng): void {
   else shiftOvr(p.attributes!, p.position as FieldPosition, d, rng);
 }
 
-/** 팀 실제 선수 능력치 최대값. 가상 선수 능력치 상한(E.25)에 쓴다. 실제 주전이 없으면 undefined */
+/** 팀 실제 선수 능력치 기준 가상 선수 능력치 상한 (E.25). 실제 주전이 없으면 undefined */
 export type AttrCap = Partial<FieldAttributes>;
 
-export function realAttrMax(reals: RosterPlayer[], rating: number): AttrCap | undefined {
+/**
+ * 능력치별 상한 = max(그 팀 실제 선수의 같은 능력치 최대값, floor). floor 는 가상 선수 OVR 상한(실제 주전 평균, C.20).
+ * floor 가 없으면 실제 선수가 공격수뿐인 팀의 가상 수비수 태클·마킹이 공격수 수준으로 깎여 팀이 무너진다 (C.21: 아스널 79 → 68)
+ */
+export function realAttrMax(reals: RosterPlayer[], rating: number, floor: number): AttrCap | undefined {
   const field = reals.filter((p) => p.real && p.attributes);
   if (!field.some((p) => naturalOvr(p) >= rating - BALANCE.roster.virtualCapStarterGap)) return undefined;
   const max = {} as AttrCap;
-  for (const a of FIELD_ATTRIBUTES) max[a] = Math.max(...field.map((p) => p.attributes![a]));
+  for (const a of FIELD_ATTRIBUTES) max[a] = Math.max(floor, ...field.map((p) => p.attributes![a]));
   return max;
 }
 
@@ -421,8 +425,8 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
   const cap = R.virtualCapToReal && realStarters.length
     ? Math.floor(realStarters.reduce((t, v) => t + v, 0) / realStarters.length)
     : Infinity;
-  // 능력치 상한 (E.25 1번): 실제 주전이 있는 팀은 실제 선수 같은 능력치 최대값
-  const teamMax = realAttrMax([...realEntries.values()], team.rating);
+  // 능력치 상한 (E.25 1번): 실제 주전이 있는 팀은 실제 선수 같은 능력치 최대값 (단 OVR 상한 아래로는 깎지 않는다)
+  const teamMax = cap === Infinity ? undefined : realAttrMax([...realEntries.values()], team.rating, cap);
   let n = 0;
   for (const g of POS_GROUPS) {
     for (const real of realByGroup[g]) players.push(realEntries.get(real.id)!);

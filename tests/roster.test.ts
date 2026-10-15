@@ -74,7 +74,7 @@ describe('팀 로스터 생성 (23번)', () => {
     }
   });
 
-  it('가상 선수 각 능력치 ≤ 자기 OVR + virtualAttrOverOvr, 실제 주전이 있는 팀은 ≤ 실제 선수 같은 능력치 최대값 (E.25 1번)', () => {
+  it('가상 선수 각 능력치 ≤ 자기 OVR + virtualAttrOverOvr, 실제 주전이 있는 팀은 ≤ max(실제 선수 같은 능력치 최대값, OVR 상한) (E.25 1번, C.21)', () => {
     const over = BALANCE.roster.virtualAttrOverOvr;
     const games = [g, newGame({ mode: 'real', playerId: 'salah', seed: 'r4', difficulty: 'normal' })];
     let capped = 0;
@@ -88,8 +88,10 @@ describe('팀 로스터 생성 (23번)', () => {
           const vals = p.gk ? Object.values(p.gk.attrs) : Object.values(p.attributes!);
           for (const v of vals) expect(v).toBeLessThanOrEqual(lim);
           if (!p.attributes || !hasStarter) continue;
+          const starters = reals.map(naturalOvr).filter((v) => v >= init[t.id]! - BALANCE.roster.virtualCapStarterGap);
+          const floor = Math.floor(starters.reduce((a, b) => a + b, 0) / starters.length);
           for (const [a, v] of Object.entries(p.attributes)) {
-            const max = Math.max(...reals.map((x) => x.attributes![a as keyof typeof p.attributes]));
+            const max = Math.max(floor, ...reals.map((x) => x.attributes![a as keyof typeof p.attributes]));
             expect(v).toBeLessThanOrEqual(max);
           }
           capped++;
