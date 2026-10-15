@@ -37,6 +37,11 @@ export interface ReplayEvent {
   big: boolean;
   /** 골 이벤트: 그 뒤 스코어 */
   score?: [number, number];
+  /** 관여 선수 id (하이라이트 장면 선택용) */
+  players: string[];
+  /** 슈팅 xG (슈팅 이벤트) */
+  xg?: number;
+  onTarget?: boolean;
 }
 
 export interface Replay {
@@ -120,7 +125,13 @@ export function replayEvents(events: MatchEvent[], players: ReplayPlayer[], team
       case 'freeKick': text = Number(ev.params?.direct) ? `직접 프리킥 — ${nm(ev.players[0])}` : ''; break;
       default: text = '';
     }
-    if (text) out.push({ e: elapsedOf(ev.t, idx), minute: minuteLabel(ev.t, half), type: ev.type, team: ev.team, text, big, ...(ev.type === 'goal' ? { score: [...score] as [number, number] } : {}) });
+    if (text) {
+      out.push({
+        e: elapsedOf(ev.t, idx), minute: minuteLabel(ev.t, half), type: ev.type, team: ev.team, text, big, players: ev.players,
+        ...(ev.type === 'goal' ? { score: [...score] as [number, number] } : {}),
+        ...(ev.type === 'shot' ? { xg: Number(ev.params?.xg ?? 0), onTarget: !!Number(ev.params?.onTarget) } : {}),
+      });
+    }
   });
   return out;
 }
@@ -210,6 +221,5 @@ export function clockLabel(f: ReplayFrame, secondHalf: boolean): string {
   return m >= cap ? `${cap}+${m - cap + 1}'` : `${m}:${sec}`;
 }
 
-/** 1배속 = 게임 1분이 실제 1초 (24.3) */
-export const GAME_SECONDS_PER_REAL_SECOND = 60;
+/** 배속 (24.3 개정: 1× = 실제 속도, 장면 안에서만) */
 export const SPEEDS = [1, 2, 4] as const;

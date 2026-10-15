@@ -25,6 +25,7 @@ import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } 
 import type { Tier } from '../types';
 import { matchSummaryView } from './views/matchSummary';
 import { ReplayPlayer, replayView } from './views/replay';
+import { avgMapView, drawAvgMap } from './views/avgMap';
 
 type Screen =
   | 'title' | 'new' | 'home' | 'match' | 'replay' | 'allocate' | 'player' | 'table' | 'stars' | 'season' | 'saves' | 'retired';
@@ -305,6 +306,7 @@ function matchView(g: GameState): string {
         <div><b>${r.mom ? '⭐' : '-'}</b><span>MOM</span></div>
       </div>
       ${matchSummaryView({ engine: m.engine, cards: m.cards, banned: g.player.suspended > 0 && g.phase === 'season' })}
+      ${ui.replay ? avgMapView(ui.replay.replay.teams) : ''}
       ${m.injury ? `<div class="notice injury">🚑 부상! ${INJURY_NAMES_KO[m.injury.grade]} ${m.injury.weeksTotal}주 결장${
         Object.keys(m.injury.permanent).length ? `<div class="small">후유증: ${deltaList(m.injury.permanent)}</div>` : ''}</div>` : ''}
       ${m.recovered ? '<div class="notice">부상에서 회복했습니다. 다음 경기부터 출전할 수 있습니다.</div>' : ''}
@@ -575,7 +577,10 @@ function render(): void {
         home: () => homeView(g),
         match: () => matchView(g),
         replay: () => (ui.replay
-          ? replayView({ teams: ui.replay.replay.teams, side: ui.replay.replay.side, speed: ui.replay.speed, paused: ui.replay.paused, ended: ui.replay.ended })
+          ? replayView({
+            teams: ui.replay.replay.teams, side: ui.replay.replay.side, speed: ui.replay.speed, paused: ui.replay.paused,
+            mode: ui.replay.mode, scene: ui.replay.idx + 1, scenes: ui.replay.scenes.length,
+          })
           : matchView(g)),
         allocate: () => allocateView(g),
         player: () => playerView(g),
@@ -588,6 +593,7 @@ function render(): void {
   app.innerHTML = html + tabs() + (ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : '');
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
+  if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
 }
 
 // ── 동작 ──
@@ -649,9 +655,12 @@ app.addEventListener('click', (ev) => {
       go(ui.replay ? 'replay' : 'match');
       return;
     case 'rp-toggle':
-      if (!ui.replay) return;
-      if (ui.replay.ended) ui.replay.e = 0;
-      ui.replay.paused = !ui.replay.paused && !ui.replay.ended ? true : false;
+      if (!ui.replay || ui.replay.ended) return;
+      ui.replay.paused = !ui.replay.paused;
+      render();
+      return;
+    case 'rp-live':
+      ui.replay?.goLive();
       render();
       return;
     case 'rp-speed':

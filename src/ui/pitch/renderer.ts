@@ -120,6 +120,20 @@ export function drawFrame(
   ctx.stroke();
 }
 
+/** 평균 위치 지도 (24.3): 홈 팀이 오른쪽으로 공격하는 방향으로 맞춘 선수별 평균 위치 */
+export function drawAveragePositions(
+  ctx: CanvasRenderingContext2D, w: number, h: number, avg: { id: string; x: number; y: number }[], players: Map<string, ReplayPlayer>,
+  renderer: MarkerRenderer = numberCircleRenderer,
+): void {
+  drawPitch(ctx, w, h);
+  const r = Math.max(6, Math.min(11, w / 70));
+  for (const a of avg) {
+    const info = players.get(a.id);
+    if (!info) continue;
+    renderer.draw(ctx, { teamId: info.team, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk, state: 'normal' }, (a.x / PITCH_L) * w, (a.y / PITCH_W) * h, r);
+  }
+}
+
 export function playerMap(r: Replay): Map<string, ReplayPlayer> {
   return new Map(r.players.map((p) => [p.id, p]));
 }

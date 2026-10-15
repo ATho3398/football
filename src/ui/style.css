@@ -207,3 +207,6 @@ canvas.pitch { display: block; width: 100%; border-radius: 8px; background: #2e7
 .feed-item:last-child { border-bottom: 0; }
 .feed-item.big { color: var(--gold); font-weight: 700; }
 .feed-item .min { display: inline-block; width: 44px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.replay-status { margin-top: 6px; }
+.feed-item.summary { color: var(--muted); font-style: italic; }
+.avg-map { margin-top: 12px; }
