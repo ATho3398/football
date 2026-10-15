@@ -28,13 +28,17 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   else if (d < P.jogDist) v = P.jog;
   else if (d < P.runDist) v = P.run;
   else v = Math.max(P.run, cap * 0.9);
+  // 복귀 (E.18 A3): 러닝 이상
+  if (a.minRun && d >= P.walkDist) v = Math.max(v, P.run);
+  // 지치면 조깅·러닝 강도가 떨어진다 (스태미나 staminaLowFrom 아래에서, 0 이면 1 − fatigueIntensity)
+  if (v > P.walk && a.stamina < P.staminaLowFrom) v *= 1 - (P.fatigueIntensity * (P.staminaLowFrom - a.stamina)) / P.staminaLowFrom;
   // 멈출 수 있는 속도
   v = Math.min(v, Math.sqrt(2 * a.accel * d), cap);
   return v;
 }
 
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
-export function moveAgent(a: Agent, dt: number, speedScale = 1): void {
+export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1): void {
   const dx = a.tx - a.x;
   const dy = a.ty - a.y;
   const d = Math.sqrt(dx * dx + dy * dy);
@@ -76,5 +80,5 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1): void {
   // 스태미나 (E.4)
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * dt * 10);
-  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * (1.6 - (0.8 * a.attrs.stamina) / 100) * dt * 10);
+  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * (1.6 - (0.8 * a.attrs.stamina) / 100) * dt * 10);
 }

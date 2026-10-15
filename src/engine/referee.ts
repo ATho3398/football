@@ -1,7 +1,7 @@
 // 심판 (E.10): 파울, 어드밴티지, 카드와 퇴장(수적 열세), 오프사이드
 
 import { ENGINE } from './config';
-import { event, setRestart } from './core';
+import { delayRestart, event, setRestart } from './core';
 import { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } from './pitch';
 import { Purpose, rand } from './rng';
 import type { Agent, CardType, SimState } from './state';
@@ -36,9 +36,44 @@ export function sendOff(s: SimState, a: Agent): void {
       substitute(s, out, gk);
       respace(s, a.team, outLine);
     } else emergencyKeeper(s, a.team);
+    shortHanded(s, a.team);
     return;
   }
   respace(s, a.team, a.line);
+  shortHanded(s, a.team);
+}
+
+/**
+ * 수적 열세 재배치 (E.18 A6): 공격 줄 1명을 중원으로 내린다 (4-4-1 형태). 공격수가 1명뿐이면 미드필더 1명을 수비형으로.
+ * 커버할 공간이 넓어 스태미나 소모 × shortDrain
+ */
+function shortHanded(s: SimState, team: 0 | 1): void {
+  const own = s.agents.filter((x) => x.onPitch && x.team === team);
+  for (const x of own) x.drainMul = R.shortDrain;
+  if (manDiffOf(s, team) >= 0) return;
+  const att = own.filter((x) => x.line === 3).sort((x, y) => x.sx - y.sx);
+  if (att.length >= 2) {
+    // 가장 덜 전진한 공격수를 중원으로
+    const m = att[0]!;
+    m.line = 2;
+    m.sx = R.dropToMidX;
+    respace(s, team, 3);
+    respace(s, team, 2);
+    return;
+  }
+  const mids = own.filter((x) => x.line === 2).sort((x, y) => x.sx - y.sx);
+  if (mids.length >= 2) {
+    // 가장 덜 전진한 미드필더를 수비형 자리로 (중원 줄 그대로, 깊이만)
+    const m = mids[0]!;
+    m.sx = Math.min(m.sx, R.holdMidX);
+    m.sy = 0.5;
+  }
+}
+
+function manDiffOf(s: SimState, team: 0 | 1): number {
+  let d = 0;
+  for (const x of s.agents) if (x.onPitch) d += x.team === team ? 1 : -1;
+  return d;
 }
 
 function respace(s: SimState, team: 0 | 1, line: number): void {
@@ -48,6 +83,7 @@ function respace(s: SimState, team: 0 | 1, line: number): void {
 
 export function giveCard(s: SimState, a: Agent, card: CardType): void {
   if (!a.onPitch) return;
+  delayRestart(s, ENGINE.restart.card, 1);
   if (card === 'yellow') {
     a.stats.yellows++;
     s.teams[a.team].stats.yellows++;
@@ -71,8 +107,9 @@ export function issuePendingCards(s: SimState): void {
 
 function rollCard(s: SimState, fouler: Agent): CardType | null {
   const x = r(s, fouler.idx, Purpose.Card);
-  if (x < R.redShare) return 'red';
-  if (x < R.redShare + R.yellowShare) {
+  const k = isAway(s, fouler) ? ENGINE.match.awayCard : 1;
+  if (x < R.redShare * k) return 'red';
+  if (x < (R.redShare + R.yellowShare) * k) {
     if (fouler.stats.yellows > 0 && r(s, fouler.idx, Purpose.Card, 1) >= R.secondYellow) return null;
     return 'yellow';
   }
@@ -88,7 +125,13 @@ function rollCard(s: SimState, fouler: Agent): CardType | null {
 /** 파울 확률 배율: 피해 팀의 공격 박스 안이면 boxFoulFactor */
 export function foulFactor(s: SimState, victim: Agent, x: number, y: number, fouler?: Agent): number {
   const box = inOppBox(x, y, attackDir(victim.team, s.half)) ? R.boxFoulFactor : 1;
-  return box * (fouler && fouler.stats.yellows > 0 ? R.bookedCare : 1);
+  // 홈 이점 (E.18 A7): 원정 팀 행위의 파울 판정 × awayFoul
+  const away = fouler ? (isAway(s, fouler) ? ENGINE.match.awayFoul : 1) : 1;
+  return box * away * (fouler && fouler.stats.yellows > 0 ? R.bookedCare : 1);
+}
+
+function isAway(s: SimState, a: Agent): boolean {
+  return !s.input.neutral && a.team === 1;
 }
 
 export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: number): boolean {
@@ -106,8 +149,8 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (!inBox && owner && owner.team === team && card !== 'red') {
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
-    const playOn = positionValue(ox, oy) + (ox > 0.66 ? 0.02 : 0);
-    const fk = positionValue(nx, ny) + (nx > 0.7 ? 0.03 : 0);
+    const playOn = positionValue(ox, oy) * (ox > 0.66 ? 1.22 : 1);
+    const fk = positionValue(nx, ny) * (nx > 0.7 ? 1.33 : 1);
     const bias = R.advantageBias * (nx > 0.66 ? R.advantageFinalThird : 1);
     if (playOn > fk * 0.9 && r(s, victim.idx, Purpose.Advantage) < bias) {
       s.advantage = { t: s.t, team, x, y, card, fouler: fouler.idx, value: playOn };
@@ -119,9 +162,9 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
   if (card) s.pendingCards.push({ agent: fouler.idx, card });
   if (inBox) {
     const [gx] = [dir > 0 ? L - 11 : 11];
-    setRestart(s, 'penalty', team, gx, W / 2, ENGINE.restart.freeKickDelay);
+    setRestart(s, 'penalty', team, gx, W / 2, 'auto');
   } else {
-    setRestart(s, 'freeKick', team, clamp(x, 1, L - 1), clamp(y, 1, W - 1), ENGINE.restart.freeKickDelay);
+    setRestart(s, 'freeKick', team, clamp(x, 1, L - 1), clamp(y, 1, W - 1), 'auto');
   }
   issuePendingCards(s);
   return true;
@@ -141,7 +184,7 @@ export function checkAdvantage(s: SimState): void {
   if (lost && s.t - adv.t <= R.advantageWindow) {
     s.advantage = null;
     if (adv.card) s.pendingCards.push({ agent: adv.fouler, card: adv.card });
-    setRestart(s, 'freeKick', adv.team, clamp(adv.x, 1, L - 1), clamp(adv.y, 1, W - 1), ENGINE.restart.freeKickDelay);
+    setRestart(s, 'freeKick', adv.team, clamp(adv.x, 1, L - 1), clamp(adv.y, 1, W - 1), 'auto');
     issuePendingCards(s);
     return;
   }
@@ -207,7 +250,7 @@ export function callOffside(s: SimState, passer: Agent, receiver: Agent): void {
   s.teams[passer.team].stats.offsides++;
   event(s, 'offside', passer.team, [receiver.id]);
   const def = (1 - passer.team) as 0 | 1;
-  setRestart(s, 'freeKick', def, clamp(receiver.x, 1, L - 1), clamp(receiver.y, 1, W - 1), ENGINE.restart.freeKickDelay);
+  setRestart(s, 'freeKick', def, clamp(receiver.x, 1, L - 1), clamp(receiver.y, 1, W - 1), 'offside');
   if (s.restart) s.restart.indirect = true;
   issuePendingCards(s);
 }

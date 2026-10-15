@@ -5,7 +5,7 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb } from './duel';
 import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
 import { updateOffball } from './offball';
-import { crossTarget, makePass, shotModel, type Candidate } from './onball';
+import { crossTarget, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -34,10 +34,17 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
   const team = s.teams[a.team];
   switch (c.type) {
     case 'pass':
-    case 'through': {
+    case 'through':
+    case 'cutback':
+    case 'layoff': {
       a.stats.passes++;
       team.stats.passes++;
-      if (dist(a.x, a.y, c.x, c.y) >= 30) team.stats.longPasses++;
+      if (c.type === 'cutback') team.stats.cutbacks++;
+      if (c.type === 'layoff') team.stats.layoffs++;
+      if (dist(a.x, a.y, c.x, c.y) >= 30) {
+        team.stats.longPasses++;
+        team.stats.longPSum += c.p;
+      }
       if (c.type === 'through') team.stats.throughPasses++;
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
@@ -53,6 +60,9 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
     case 'dribble':
       dribble(s, a, c);
       return;
+    case 'holdup':
+      holdup(s, a, c);
+      return;
     case 'shoot':
       shoot(s, a, false);
       return;
@@ -63,6 +73,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       longBall(s, a, c.x, c.y, 'clear');
       return;
     case 'carry':
+      if (pressureLoss(s, a, c)) return;
       a.tx = c.x;
       a.ty = c.y;
       a.urgent = true;
@@ -70,11 +81,35 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       return;
     case 'hold':
     default:
+      if (pressureLoss(s, a, c)) return;
       a.tx = a.x;
       a.ty = a.y;
       a.urgent = false;
-      a.cooldown = reaction(a) + ENGINE.onball.holdTime;
+      // 템포 (E.18 A5): 점유형일수록 유지 간격이 길다
+      a.cooldown = (reaction(a) + ENGINE.onball.holdTime) * (ENGINE.tactics.possBase + ENGINE.tactics.possSlope * s.teams[a.team].tactics.style);
   }
+}
+
+/**
+ * 몰고 가기/유지의 실패 판정: 판단에 쓴 성공 확률 P 그대로 (E.18 A1, P 는 실제 판정과 같아야 한다).
+ * 실패하면 가장 가까운 압박 수비수가 태클로 빼앗는다
+ */
+function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
+  if (c.p >= 1 || a.line === 0) return false;
+  if (r(s, a.idx, Purpose.Tackle, 7) < c.p) return false;
+  let def: Agent | null = null;
+  let bd: number = ENGINE.prob.pressureDist;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0 || s.t < o.beatenUntil) continue;
+    const d = dist(o.x, o.y, a.x, a.y);
+    if (d < bd) {
+      bd = d;
+      def = o;
+    }
+  }
+  if (!def) return false;
+  tackleWon(s, a, def);
+  return true;
 }
 
 /** 태클에 이긴 수비수: 공을 갖거나 (tackleKeep) 루즈볼 */
@@ -86,8 +121,11 @@ function tackleWon(s: SimState, att: Agent, def: Agent): void {
   if (r(s, def.idx, Purpose.Tackle, 3) < PR.tackleKeep) {
     setOwner(s, def);
   } else {
+    // 태클로 튄 공 (E.18 A4): 무작위 방향, 속도 6~12 m/s
     const ang = r(s, def.idx, Purpose.Tackle, 4) * Math.PI * 2;
-    looseBall(s, att.x, att.y, Math.cos(ang) * 4, Math.sin(ang) * 4, def.team, def.idx);
+    const [lo, hi] = ENGINE.restart.tackleBounce;
+    const sp = lo + (hi - lo) * r(s, def.idx, Purpose.Tackle, 5);
+    looseBall(s, att.x, att.y, Math.cos(ang) * sp, Math.sin(ang) * sp, def.team, def.idx);
   }
   att.cooldown = 0.6;
 }
@@ -109,6 +147,24 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
     a.cooldown = Math.max(ENGINE.onball.carryTime, reaction(a));
     // 제쳐진 수비수의 파울 (태클 실패)
     if (r(s, def.idx, Purpose.Foul, 1) < ENGINE.referee.tackleFoul * foulFactor(s, a, a.x, a.y, def)) foul(s, def, a, a.x, a.y);
+    return;
+  }
+  tackleWon(s, a, def);
+}
+
+/** 버티기 (E.18 A2): 성공하면 1초 동안 공을 지킨다 (수비수 도전 실패 → 파울 판정), 실패하면 태클 */
+function holdup(s: SimState, a: Agent, c: Candidate): void {
+  const def = s.agents[c.opponent!]!;
+  s.teams[a.team].stats.holdups++;
+  if (r(s, a.idx, Purpose.Dribble, 5) < c.p) {
+    s.teams[a.team].stats.holdupsWon++;
+    a.tx = a.x;
+    a.ty = a.y;
+    a.urgent = false;
+    a.cooldown = ENGINE.onball.holdupTime;
+    a.backToGoal = true;
+    def.beatenUntil = s.t + ENGINE.onball.holdupTime * 0.5;
+    if (r(s, def.idx, Purpose.Foul, 6) < ENGINE.referee.tackleFoul * foulFactor(s, a, a.x, a.y, def)) foul(s, def, a, a.x, a.y);
     return;
   }
   tackleWon(s, a, def);
@@ -170,7 +226,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     const defTeam = (1 - a.team) as 0 | 1;
     if (r(s, a.idx, Purpose.Block, 1) < PR.blockCorner) {
       s.teams[a.team].stats.corners++;
-      setRestart(s, 'corner', a.team, gx, a.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+      setRestart(s, 'corner', a.team, gx, a.y < W / 2 ? 0 : W, 'auto');
       return;
     }
     const ang = r(s, a.idx, Purpose.Block, 2) * Math.PI * 2;
@@ -193,7 +249,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d: m.d, header },
     };
-    event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100 });
+    event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
     return;
   }
   // 빗나감: 골라인 밖으로 → 골킥
@@ -203,7 +259,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: missY, t0: s.t, dur: Math.max(0.15, (m.d + 3) / speed), air: true,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
   };
-  event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100 });
+  event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
 }
 
 /** 유효 슈팅 도착: GK 세이브 판정 (E.9) */
@@ -226,7 +282,7 @@ function shotArrives(s: SimState, fl: Flight): void {
     // 쳐내기: 코너 또는 리바운드
     if (r(s, shooter.idx, Purpose.Save, 2) < K.parryCorner) {
       s.teams[shooter.team].stats.corners++;
-      setRestart(s, 'corner', shooter.team, dir > 0 ? L : 0, s.ball.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+      setRestart(s, 'corner', shooter.team, dir > 0 ? L : 0, s.ball.y < W / 2 ? 0 : W, 'auto');
       return;
     }
     const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * 2.4;
@@ -251,7 +307,7 @@ function goal(s: SimState, scorer: Agent): void {
   });
   s.lastPass = null;
   for (const o of s.agents) if (o.onPitch && o.team !== scorer.team) o.rt.conceded++;
-  setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, ENGINE.restart.goalDelay);
+  setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, 'auto');
 }
 
 // ── 크로스, 롱볼, 공중볼 ──
@@ -273,7 +329,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   if (nd < 2.5 && r(s, a.idx, Purpose.Cross, 2) < PR.crossBlockCorner) {
     t.stats.corners++;
     const dir = attackDir(a.team, s.half);
-    setRestart(s, 'corner', a.team, dir > 0 ? L : 0, a.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+    setRestart(s, 'corner', a.team, dir > 0 ? L : 0, a.y < W / 2 ? 0 : W, 'auto');
     return;
   }
   const err = (100 - a.attrs.crossing) * PR.crossError;
@@ -286,8 +342,18 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   });
 }
 
-export function longBall(s: SimState, a: Agent, x: number, y: number, kind: 'clear' | 'long'): void {
+export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'clear' | 'long'): void {
   s.exemptPass = false;
+  let x = x0;
+  let y = y0;
+  if (kind === 'clear') {
+    // 클리어링 방향 산포 σ (E.18 A4)
+    const ang = randn(s.seed, s.tick, a.idx, Purpose.Clear, 2) * ((ENGINE.restart.clearSpreadDeg * Math.PI) / 180);
+    const dx = x0 - a.x;
+    const dy = y0 - a.y;
+    x = a.x + dx * Math.cos(ang) - dy * Math.sin(ang);
+    y = a.y + dx * Math.sin(ang) + dy * Math.cos(ang);
+  }
   const err = (100 - a.attrs.longPassing) * 0.08 + 2;
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
@@ -326,7 +392,9 @@ function resolveAerial(s: SimState, fl: Flight): void {
     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
   }
   if (!bestA && !bestD) {
-    looseBall(s, b.x, b.y, (fl.toX - fl.fromX) * 0.05, (fl.toY - fl.fromY) * 0.05, att, passer.idx);
+    // 측면에서 튄 공은 바깥쪽으로 (E.18 A4)
+    const out = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * ENGINE.restart.wideBias : 0;
+    looseBall(s, b.x, b.y, (fl.toX - fl.fromX) * 0.05, (fl.toY - fl.fromY) * 0.05 + out, att, passer.idx);
     return;
   }
   let winner: Agent;
@@ -341,7 +409,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       foul(s, defFoul ? bestD : bestA, defFoul ? bestA : bestD, b.x, b.y);
       return;
     }
-    const pA = 1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0))));
+    const pA = 1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + bestA.duelEdge - bestD.duelEdge)));
     winner = r(s, bestA.idx, Purpose.Aerial) < pA ? bestA : bestD;
     winner.stats.aerialsWon++;
   } else winner = (bestA ?? bestD)!;
@@ -371,7 +439,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
   const dirDef = attackDir(def, s.half);
   if (fl.fromCross && r(s, winner.idx, Purpose.Header) < PR.clearCorner) {
     s.teams[att].stats.corners++;
-    setRestart(s, 'corner', att, dirAtt > 0 ? L : 0, b.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+    setRestart(s, 'corner', att, dirAtt > 0 ? L : 0, b.y < W / 2 ? 0 : W, 'auto');
     return;
   }
   if (!fl.fromCross && r(s, winner.idx, Purpose.Header, 2) < 0.4) {
@@ -382,7 +450,9 @@ function resolveAerial(s: SimState, fl: Flight): void {
   }
   const [lo, hi] = PR.clearDist;
   const len = lo + (hi - lo) * r(s, winner.idx, Purpose.Header, 1);
-  const ang = (r(s, winner.idx, Purpose.Header, 3) - 0.5) * 1.6;
+  // 걷어내기 방향 산포 σ (E.18 A4). 측면 경합이면 바깥쪽 편향
+  const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
+  const ang = randn(s.seed, s.tick, winner.idx, Purpose.Header, 3) * ((ENGINE.restart.clearSpreadDeg * Math.PI) / 180) + wideOut;
   looseBall(s, b.x, b.y, 0, 0, def, winner.idx);
   s.ball.flight = {
     kind: 'clear', fromX: b.x, fromY: b.y, toX: b.x + dirDef * Math.cos(ang) * len, toY: clamp(b.y + Math.sin(ang) * len, -2, W + 2),
@@ -429,11 +499,15 @@ export function resolveFlight(s: SimState): void {
           }
         }
         setOwner(s, rc);
+        // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
+        rc.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(rc.team, s.half));
+        if (fl.quick) rc.cooldown = reaction(rc);
         rc.x = b.x;
         rc.y = b.y;
         passer.stats.passesCompleted++;
         s.teams[passer.team].stats.passesCompleted++;
         rc.stats.received++;
+        if (Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30) s.teams[rc.team].stats.longCompleted++;
         if (fl.through) {
           rc.stats.throughReceived++;
           s.teams[rc.team].stats.throughReceived++;
@@ -457,11 +531,12 @@ export function resolveFlight(s: SimState): void {
       break;
     }
   }
-  // 루즈볼: 진행 방향으로 굴러간다
+  // 루즈볼: 진행 방향으로 굴러간다. 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 (E.18 A4 빗나간 패스)
   const dx = fl.toX - fl.fromX;
   const dy = fl.toY - fl.fromY;
   const d = Math.sqrt(dx * dx + dy * dy) || 1;
-  const sp = fl.air ? 2 : 4;
+  const v0 = d / Math.max(0.1, fl.dur);
+  const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(4, v0 - ENGINE.ball.groundDecel * fl.dur);
   b.vx = (dx / d) * sp;
   b.vy = (dy / d) * sp;
 }
@@ -573,5 +648,5 @@ export function takePenalty(s: SimState, a: Agent): void {
     looseBall(s, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
     return;
   }
-  setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, ENGINE.restart.goalKickDelay);
+  setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, 'auto');
 }

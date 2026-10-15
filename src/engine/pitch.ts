@@ -40,8 +40,8 @@ export function ownGoal(dir: 1 | -1): [number, number] {
 /** 위치 가치 맵 (E.7). nx, ny 는 공격 방향 정규화 */
 export function positionValue(nx: number, ny: number): number {
   const O = ENGINE.onball;
-  const x = clamp(nx, 0, O.valueXCap);
-  return O.valueScale * (O.valueA + O.valueB * Math.pow(x, O.valueExp) * (1 - O.valueYk * Math.abs(clamp(ny, 0, 1) - 0.5)));
+  const d = Math.hypot((1 - clamp(nx, 0, 1)) * L, (clamp(ny, 0, 1) - 0.5) * W);
+  return O.valueScale * (O.valueFarC * Math.exp(-d / O.valueFarK) + O.valueNearB * Math.exp(-d / O.valueNearK));
 }
 
 /** 점 (px, py) 에서 선분 (ax, ay)-(bx, by) 까지 거리와 선분 위 위치 비율 t */

@@ -3,10 +3,10 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../src/attributes';
 import { ENGINE } from '../../src/engine/config';
-import { teamSetupFromRoster } from '../../src/engine/setup';
+import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
-import type { Formation } from '../../src/formations';
+import { FORMATION_SLOTS, type Formation } from '../../src/formations';
 import { newGame, playRound } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { createTeamRoster, rosterRating } from '../../src/roster';
@@ -79,7 +79,7 @@ export interface SeasonOut {
 export type JobOut = MatchOut | SeasonOut;
 
 /** 균형 전술 (E.19 균형: 라인 보통 / 압박 보통 / 빌드업 혼합 / 폭 보통) */
-export const BALANCED: Partial<Tactics> = { lineHeight: 0.5, pressing: 0.55, tempo: 0.5 };
+export const BALANCED: Partial<Tactics> = { tendency: 'balanced', lineHeight: 0.5, pressing: 0.55, style: 0.5, width: 1 };
 
 function applyOverrides(o: Record<string, number> | undefined): () => void {
   if (!o) return () => {};
@@ -104,8 +104,15 @@ function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup
   const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
   if (t.formation) roster.formation = t.formation;
   const setup = teamSetupFromRoster(roster, rosterRating(roster), oppRating, worldSeed);
+  const before = setup.tactics.tendency;
   if (t.tactics === 'balanced') setup.tactics = { ...setup.tactics, ...BALANCED };
   else if (t.tactics && t.tactics !== 'data') setup.tactics = { ...setup.tactics, ...t.tactics };
+  if (setup.tactics.tendency !== before) {
+    // 성향을 바꿨으면 슬롯 역할도 그 성향 기본값으로 (E.19 ②)
+    const slots = FORMATION_SLOTS[roster.formation];
+    for (const p of setup.lineup) delete p.role;
+    fillRoles(setup, (slot) => slots[slot]!.pos);
+  }
   return setup;
 }
 

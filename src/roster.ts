@@ -12,6 +12,7 @@ import { growNpc, shiftOvr, type NpcState } from './npc';
 import { attributeOvrWeight, positionOvr, positionOvrExact, profileOf, type FieldPosition } from './positions';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Position, Tier } from './types';
+import { TEAM_TACTICS } from './engine/teamData';
 
 export type PosGroup = 'GK' | 'CB' | 'FB' | 'CDM' | 'CM' | 'CAM' | 'WING' | 'ST';
 export const POS_GROUPS: readonly PosGroup[] = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
@@ -88,13 +89,10 @@ export interface Lineup {
   rating: number;
 }
 
-/** 2018-19 팀별 포메이션 (부록 E.5 5종 중). 없으면 시드로 고른다 */
-export const TEAM_FORMATIONS: Record<string, Formation> = {
-  mci: '4-3-3', liv: '4-3-3', che: '4-3-3', tot: '4-2-3-1', mun: '4-3-3', ars: '4-2-3-1',
-  eve: '4-2-3-1', lei: '4-2-3-1', whu: '4-2-3-1', wol: '3-5-2', cry: '4-4-2', wat: '4-4-2',
-  bou: '4-4-2', new: '5-3-2', sou: '3-5-2', bur: '4-4-2', bha: '4-4-2', ful: '4-2-3-1',
-  car: '4-4-2', hud: '3-5-2',
-};
+/** 2018-19 팀별 포메이션 (부록 E.5 5종 중, E.19 AI 팀 전술 표). 없으면 시드로 고른다 */
+export const TEAM_FORMATIONS: Record<string, Formation> = Object.fromEntries(
+  Object.entries(TEAM_TACTICS).map(([id, t]) => [id, t.formation]),
+);
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const rngFor = (...parts: (string | number)[]): Rng => createRng(hashSeed(parts.join(':')));

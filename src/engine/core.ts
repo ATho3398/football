@@ -1,7 +1,10 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
 import { ENGINE } from './config';
+import { effectiveTactics } from './offball';
 import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
+import { Purpose, rand } from './rng';
+import { TENDENCY } from './tactics';
 import type { Agent, RestartType, SimState } from './state';
 import type { MatchEvent } from './types';
 
@@ -41,12 +44,50 @@ export function setOwner(s: SimState, a: Agent): void {
     s.possSince = s.t;
     s.possOrigin = 'open';
     s.possStartT = s.t;
+    turnover(s, (1 - a.team) as 0 | 1, true);
     const nx = attackDir(a.team, s.half) > 0 ? b.x / L : 1 - b.x / L;
     if (nx > 0.5) s.teams[a.team].stats.oppHalfWins++;
   }
   a.cooldown = ENGINE.ball.receiveTime + reaction(a) * 0.5;
+  a.backToGoal = false;
   a.tx = a.x;
   a.ty = a.y;
+}
+
+/**
+ * 소유를 잃은 팀 (E.18 A3): 오픈 플레이면 공 근처 최대 3명이 역압박, 모든 선수는 긴급 복귀 판단을 새로 한다
+ */
+export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
+  const O = ENGINE.offball;
+  const tm = s.teams[team];
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== team) continue;
+    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100;
+  }
+  tm.counterPressers = [];
+  tm.counterUntil = 0;
+  if (!open) return;
+  s.teams[team === 0 ? 1 : 0].wonAt = s.t;
+  // 성향 (E.19): 게겐프레싱 +1.5초·최대 4명, 역습·수비 블록은 역압박 없이 즉시 복귀
+  const tendency = tm.tactics.tendency;
+  if (tendency === 'counter' || tendency === 'block') return;
+  const b = s.ball;
+  const near = s.agents
+    .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
+    .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
+  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.counterMax;
+  for (const a of near) {
+    if (tm.counterPressers.length >= max) break;
+    const p = O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100;
+    if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
+  }
+  if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);
+}
+
+function manDiffCount(s: SimState, team: 0 | 1): number {
+  let d = 0;
+  for (const a of s.agents) if (a.onPitch) d += a.team === team ? 1 : -1;
+  return d;
 }
 
 /** 공을 놓는다 (루즈볼). 속도 (vx, vy) */
@@ -76,8 +117,37 @@ export function kickoffPositions(s: SimState): void {
   }
 }
 
-/** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수, 골킥은 GK) */
-export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delay: number, taker?: number): void {
+/** 범위 [lo, hi] 안 대기 시간 (시드) */
+export function restartWait(s: SimState, range: readonly [number, number], k = 0): number {
+  return range[0] + (range[1] - range[0]) * rand(s.seed, s.tick, 0, Purpose.Restart, k);
+}
+
+/** 재개 종류별 대기 시간 (E.18 A4) */
+function autoDelay(s: SimState, type: RestartType, x: number, y: number, offside: boolean): number {
+  const R = ENGINE.restart;
+  switch (type) {
+    case 'throwIn': return restartWait(s, R.throwIn);
+    case 'goalKick': return restartWait(s, R.goalKick);
+    case 'corner': return restartWait(s, R.corner);
+    case 'kickoff': return restartWait(s, R.kickoff);
+    case 'penalty': return restartWait(s, R.penalty);
+    case 'freeKick': {
+      if (offside) return restartWait(s, R.offside);
+      const gx = x > L / 2 ? L : 0;
+      const direct = dist(x, y, gx, W / 2) <= ENGINE.setPiece.directMax && Math.abs(y - W / 2) < 15;
+      return restartWait(s, direct ? R.directFreeKick : R.freeKick);
+    }
+  }
+}
+
+/** 진행 중인 재개를 늦춘다 (카드, 교체) */
+export function delayRestart(s: SimState, range: readonly [number, number], k: number): void {
+  if (s.restart) s.restart.at += restartWait(s, range, k);
+}
+
+/** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수, 골킥은 GK). delay 'auto' = 종류별 대기 시간 */
+export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delayArg: number | 'auto' | 'offside', taker?: number): void {
+  const delay = typeof delayArg === 'number' ? delayArg : autoDelay(s, type, x, y, delayArg === 'offside');
   const b = s.ball;
   b.owner = -1;
   b.flight = null;
@@ -99,6 +169,7 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
     }
   }
   if (type !== 'kickoff') recordLoss(s, team);
+  if (s.possTeam !== team) turnover(s, s.possTeam, false);
   s.lastWasShot = false;
   s.restart = { type, team, x: b.x, y: b.y, at: s.t + delay, taker: pick };
   if (s.possTeam !== team) s.possSince = s.t;

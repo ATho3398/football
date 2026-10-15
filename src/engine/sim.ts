@@ -12,6 +12,7 @@ import { event, kickoffPositions, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
 import { initPhysics, moveAgent } from './physics';
+import { aiAdjust } from './tactics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
 import { defaultRole, roleById } from './roles';
@@ -53,25 +54,25 @@ export interface MatchSim {
   step(): void;
 }
 
-function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, homeBonus: number): Agent {
+function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, home: boolean): Agent {
   const slots = FORMATION_SLOTS[setup.formation];
   const slot = slots[spec.slot] ?? slots[0]!;
   const attrs = { ...spec.attrs };
-  if (homeBonus) for (const k of FIELD_ATTRIBUTES) attrs[k] = Math.min(99, attrs[k] + homeBonus);
   const gk = spec.gk ? { type: spec.gk.type, attrs: { ...spec.gk.attrs } } : null;
-  if (gk && homeBonus) for (const k of Object.keys(gk.attrs) as (keyof GkAttributes)[]) gk.attrs[k] = Math.min(99, gk.attrs[k] + homeBonus);
   const pos = spec.slot >= 0 ? slot.pos : spec.position;
   const a: Agent = {
     idx, id: spec.id, team, spec, attrs, gk, pos, line: lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false,
+    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0,
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, conceded: 0 },
   };
   initPhysics(a);
-  a.judgement = judgementOf(a);
+  // 홈 이점 (E.18 A7): 판단 품질 + homeJudgement, 듀얼 로짓 + homeDuel (능력치 가산 없음)
+  a.judgement = judgementOf(a) + (home ? ENGINE.match.homeJudgement : 0);
+  a.duelEdge = home ? ENGINE.match.homeDuel : 0;
   return a;
 }
 
@@ -79,12 +80,12 @@ export function createState(input: EngineInput): SimState {
   const agents: Agent[] = [];
   const bench: [Agent[], Agent[]] = [[], []];
   const setups = [input.home, input.away] as const;
-  const homeBonus = input.neutral ? 0 : ENGINE.match.homeAttrBonus;
+  const home = (team: number) => !input.neutral && team === 0;
   setups.forEach((setup, team) => {
-    for (const spec of setup.lineup) agents.push(makeAgent(spec, team as 0 | 1, agents.length, setup, team === 0 ? homeBonus : 0));
+    for (const spec of setup.lineup) agents.push(makeAgent(spec, team as 0 | 1, agents.length, setup, home(team)));
   });
   setups.forEach((setup, team) => {
-    for (const spec of setup.bench) bench[team]!.push(makeAgent({ ...spec, slot: -1 }, team as 0 | 1, -1, setup, team === 0 ? homeBonus : 0));
+    for (const spec of setup.bench) bench[team]!.push(makeAgent({ ...spec, slot: -1 }, team as 0 | 1, -1, setup, home(team)));
   });
   const added1 = 60 * (T.addedFirst[0] + Math.floor(rand(input.seed, 0, 0, Purpose.Added) * (T.addedFirst[1] - T.addedFirst[0] + 1)));
   const s: SimState = {
@@ -94,7 +95,7 @@ export function createState(input: EngineInput): SimState {
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100,
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5],
@@ -131,7 +132,9 @@ function executeRestart(s: SimState): void {
 
 /** 소유자 결정 */
 function decide(s: SimState, a: Agent): void {
-  execute(s, a, choose(s, a, candidates(s, a)));
+  const c = choose(s, a, candidates(s, a));
+  if (c.type !== 'holdup') a.backToGoal = false;
+  execute(s, a, c);
 }
 
 function updateLooseBall(s: SimState): void {
@@ -174,7 +177,7 @@ function ballOut(s: SimState): void {
   const last = b.lastTeam;
   const other = (1 - last) as 0 | 1;
   if (b.y < 0 || b.y > W) {
-    setRestart(s, 'throwIn', other, clamp(b.x, 0.5, L - 0.5), b.y < 0 ? 0 : W, ENGINE.restart.throwInDelay);
+    setRestart(s, 'throwIn', other, clamp(b.x, 0.5, L - 0.5), b.y < 0 ? 0 : W, 'auto');
     return;
   }
   // 골라인: 넘은 쪽 골을 지키는 팀
@@ -182,10 +185,10 @@ function ballOut(s: SimState): void {
   const attacking = (1 - defending) as 0 | 1;
   if (last === defending) {
     s.teams[attacking].stats.corners++;
-    setRestart(s, 'corner', attacking, b.x > L ? L : 0, b.y < W / 2 ? 0 : W, ENGINE.restart.cornerDelay);
+    setRestart(s, 'corner', attacking, b.x > L ? L : 0, b.y < W / 2 ? 0 : W, 'auto');
   } else {
     const gx = b.x > L ? L - 5.5 : 5.5;
-    setRestart(s, 'goalKick', defending, gx, W / 2 + (b.y < W / 2 ? -9 : 9), ENGINE.restart.goalKickDelay);
+    setRestart(s, 'goalKick', defending, gx, W / 2 + (b.y < W / 2 ? -9 : 9), 'auto');
   }
 }
 
@@ -221,6 +224,7 @@ export function step(s: SimState): void {
   }
   aiSubs(s);
   myMinutes(s);
+  aiAdjust(s);
 
   if (s.restart && s.t >= s.restart.at) {
     const taker = s.agents[s.restart.taker];
@@ -249,7 +253,8 @@ export function step(s: SimState): void {
   // 이동
   for (const a of s.agents) {
     if (!a.onPitch) continue;
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1);
+    // 압박 전술의 스태미나 소모 × (0.95 + 0.15 × pressing) (E.19 ③)
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, 0.95 + 0.15 * s.teams[a.team].tactics.pressing);
   }
 
   // 공
