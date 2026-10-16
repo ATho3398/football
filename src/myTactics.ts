@@ -3,7 +3,7 @@
 // 전술은 선수의 움직임과 판단만 바꾼다. 결과는 엔진이 능력치와 위치로 만든다 (E.15.1)
 
 import type { FieldAttributes } from './attributes';
-import { FORMATION_SLOTS, FORMATIONS, type Formation } from './formations';
+import { customLabel, customProblem, customSlots, FORMATIONS, presetCells, slotsOf, type CustomCells, type Formation } from './formations';
 import { positionDistance } from './proficiency';
 import { pickLineup, posGroup, type RosterPlayer, type Rosters, type TeamRoster } from './roster';
 import { DETAILS, recommendedRole, ROLE_OPTIONS, roleGroup, tacticsOf, tendencyLevels, type Detail, type Level } from './engine/tactics';
@@ -14,7 +14,12 @@ import type { Position } from './types';
 export interface MyTactics {
   tendency: Tendency;
   formation: Formation;
-  /** 내 슬롯 (FORMATION_SLOTS 인덱스, GK 제외) */
+  /**
+   * 커스텀 포메이션 (E.5.1, E3.7): 슬롯 11개의 격자 칸 (GK -1). null 이면 프리셋 formation 그대로.
+   * 커스텀이면 formation 은 편집을 시작한 프리셋 (기본값 되돌리기용)
+   */
+  custom: CustomCells | null;
+  /** 내 슬롯 (슬롯 인덱스, GK 제외) */
   mySlot: number;
   /** 슬롯 역할 11개. null 이면 성향 추천 역할 (그 슬롯 선수 능력치에 가장 맞는 것) */
   roles: (string | null)[];
@@ -28,8 +33,8 @@ export const isFormation = (f: unknown): f is Formation => (FORMATIONS as readon
  * 내 위치 기본 슬롯: 같은 포지션 → 같은 포지션군 → 가장 가까운 포지션. 후보가 여럿이면 지금 그 자리 선발 OVR 이 가장 낮은 슬롯
  * (내 선수가 밀어내는 선수가 가장 약하게, 이전 어댑터의 자리 고르기와 같은 뜻)
  */
-export function defaultSlot(formation: Formation, pos: Position, roster?: TeamRoster): number {
-  const slots = FORMATION_SLOTS[formation];
+export function defaultSlot(formation: Formation, pos: Position, roster?: TeamRoster, custom: CustomCells | null = null): number {
+  const slots = slotsOf(formation, custom);
   const idx = slots.map((s, i) => ({ s, i })).filter(({ s }) => s.pos !== 'GK');
   let cands = idx.filter(({ s }) => s.pos === pos);
   if (!cands.length) cands = idx.filter(({ s }) => posGroup(s.pos) === posGroup(pos));
@@ -38,7 +43,7 @@ export function defaultSlot(formation: Formation, pos: Position, roster?: TeamRo
     cands = idx.filter(({ s }) => positionDistance(s.pos, pos) === best);
   }
   if (cands.length > 1 && roster) {
-    const lu = pickLineup({ ...roster, formation });
+    const lu = pickLineup(withSlots(roster, { formation, custom }));
     const ovr = new Map(lu.slots.map((x) => [x.slot, x.ovr]));
     cands = [...cands].sort((a, b) => (ovr.get(a.i) ?? 0) - (ovr.get(b.i) ?? 0) || a.i - b.i);
   }
@@ -51,7 +56,7 @@ export function emptyRoles(): (string | null)[] {
 
 /** 성향 기본값 전술 (역할은 모두 추천, 세부 전술은 성향 기본) */
 export function makeTactics(tendency: Tendency, formation: Formation, pos: Position, roster?: TeamRoster): MyTactics {
-  return { tendency, formation, mySlot: defaultSlot(formation, pos, roster), roles: emptyRoles(), levels: tendencyLevels(tendency) };
+  return { tendency, formation, custom: null, mySlot: defaultSlot(formation, pos, roster), roles: emptyRoles(), levels: tendencyLevels(tendency) };
 }
 
 /** 새 게임·팀 변경: 그 팀의 데이터 전술 (E.19 저장: "이적 등으로 팀이 바뀌면 새 팀의 데이터 전술로 초기화") */
@@ -67,9 +72,42 @@ export function migratedTactics(teamId: string, roster: TeamRoster | undefined, 
 
 /** 포메이션을 바꾸면 내 슬롯은 같은 포지션 쪽으로 옮기고, 슬롯 역할은 새 포메이션의 추천으로 */
 export function withFormation(t: MyTactics, formation: Formation, roster?: TeamRoster): MyTactics {
-  if (formation === t.formation) return t;
-  const myPos = FORMATION_SLOTS[t.formation][t.mySlot]!.pos;
-  return { ...t, formation, mySlot: defaultSlot(formation, myPos, roster), roles: emptyRoles() };
+  if (formation === t.formation && !t.custom) return t;
+  const myPos = slotPos(t, t.mySlot);
+  return { ...t, formation, custom: null, mySlot: defaultSlot(formation, myPos, roster), roles: emptyRoles() };
+}
+
+/** 로스터에 내 전술의 포메이션(커스텀이면 그 슬롯)을 붙인다 (선발 고르기·엔진 입력) */
+export function withSlots(roster: TeamRoster, t: Pick<MyTactics, 'formation' | 'custom'>): TeamRoster {
+  const { customSlots: _c, ...rest } = roster;
+  return t.custom ? { ...rest, formation: t.formation, customSlots: customSlots(t.custom) } : { ...rest, formation: t.formation };
+}
+
+/** 포메이션 이름 (커스텀이면 줄 인원, 예 "3-4-3 커스텀") */
+export function formationLabel(t: Pick<MyTactics, 'formation' | 'custom'>): string {
+  return t.custom ? `${customLabel(t.custom)} 커스텀` : t.formation;
+}
+
+/** 커스텀 편집 시작: 지금 프리셋을 격자 칸으로 옮긴다 (이미 커스텀이면 그대로) */
+export function startCustom(t: MyTactics): MyTactics {
+  return t.custom ? t : { ...t, custom: presetCells(t.formation) };
+}
+
+/**
+ * 슬롯을 칸으로 옮긴다 (E.5.1 끌어다 놓기). 다른 슬롯이 있는 칸이면 두 슬롯을 바꾼다. GK 는 못 옮긴다.
+ * 배치 규칙을 어기면 바꾸지 않고 사유를 돌려준다
+ */
+export function moveSlot(t: MyTactics, slot: number, cell: number): { tactics: MyTactics; problem: string | null } {
+  const base = startCustom(t);
+  const cells = [...base.custom!];
+  if (slot <= 0 || slot >= cells.length) return { tactics: t, problem: '골키퍼는 고정이에요.' };
+  const other = cells.indexOf(cell);
+  if (other === slot) return { tactics: base, problem: null };
+  if (other > 0) cells[other] = cells[slot]!;
+  cells[slot] = cell;
+  const problem = customProblem(cells);
+  if (problem) return { tactics: t, problem };
+  return { tactics: { ...base, custom: cells }, problem: null };
 }
 
 /** 성향 바꾸기. resetDetails 면 세부 전술과 역할도 그 성향 기본값으로 (I.16 확인) */
@@ -87,7 +125,7 @@ export function engineTactics(t: MyTactics): Tactics {
   return tacticsOf(t.tendency, t.levels);
 }
 
-export const slotPos = (t: Pick<MyTactics, 'formation'>, slot: number): Position => FORMATION_SLOTS[t.formation][slot]!.pos;
+export const slotPos = (t: Pick<MyTactics, 'formation' | 'custom'>, slot: number): Position => slotsOf(t.formation, t.custom)[slot]!.pos;
 
 /** 그 슬롯에 고를 수 있는 역할인지 */
 export function roleAllowed(pos: Position, roleId: string): boolean {
@@ -121,7 +159,8 @@ export function teamRoles(t: MyTactics, attrs: (FieldAttributes | undefined)[]):
 export function validTactics(t: unknown): t is MyTactics {
   const x = t as MyTactics | undefined;
   if (!x || !isFormation(x.formation) || !Array.isArray(x.roles) || x.roles.length !== 11 || !x.levels) return false;
-  const s = FORMATION_SLOTS[x.formation][x.mySlot];
+  if (x.custom !== null && (!Array.isArray(x.custom) || customProblem(x.custom) !== null)) return false;
+  const s = slotsOf(x.formation, x.custom)[x.mySlot];
   return !!s && s.pos !== 'GK' && DETAILS.every((d) => [0, 1, 2].includes(x.levels[d]));
 }
 
@@ -198,8 +237,8 @@ export interface PreviewSlot {
 
 /** 내 전술로 짠 선발 미리보기 (경기 때 엔진 라인업과 같은 규칙: OVR 순 자동 선발 + 내 슬롯은 내 선수) */
 export function previewLineup(t: MyTactics, roster: TeamRoster, me: { name: string; attrs: FieldAttributes }): PreviewSlot[] {
-  const slots = FORMATION_SLOTS[t.formation];
-  const lu = pickLineup({ ...roster, formation: t.formation });
+  const slots = slotsOf(t.formation, t.custom);
+  const lu = pickLineup(withSlots(roster, t));
   const bySlot = new Map(lu.slots.map((s) => [s.slot, s]));
   const byId = new Map<string, RosterPlayer>(roster.players.map((p) => [p.id, p]));
   const attrsOf = (i: number) => (i === t.mySlot ? me.attrs : (() => { const pl = bySlot.get(i); return pl ? byId.get(pl.playerId)?.attributes : undefined; })());

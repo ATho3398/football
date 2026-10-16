@@ -2,7 +2,7 @@
 
 import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
 import type { Difficulty } from '../config/balance';
-import type { Formation } from '../formations';
+import type { Formation, FormationSlot } from '../formations';
 import type { Position } from '../types';
 
 /** 전술 성향 6종 (E.19 ①) */
@@ -41,6 +41,10 @@ export interface PlayerSpec {
 export interface TeamSetup {
   teamId: string;
   formation: Formation;
+  /** 커스텀 포메이션의 슬롯 (E.5.1, 내 팀만). 있으면 formation 대신 쓴다 */
+  customSlots?: readonly FormationSlot[];
+  /** 표시용 포메이션 이름 (커스텀이면 "3-4-3 커스텀") */
+  formationName?: string;
   lineup: PlayerSpec[];
   bench: PlayerSpec[];
   tactics: Tactics;

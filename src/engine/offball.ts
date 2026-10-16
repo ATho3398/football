@@ -7,11 +7,13 @@ import { effectiveMax, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
+import { hasModule } from './roles';
 import { TENDENCY } from './tactics';
 import type { Agent, SimState } from './state';
 
 const O = ENGINE.offball;
 const F = ENGINE.formation;
+const RM = ENGINE.roles;
 
 /** 팀 전술 값 (수적 열세/우세 보정 포함, E.10) */
 export function effectiveTactics(s: SimState, team: 0 | 1): { lineHeight: number; pressing: number } {
@@ -375,7 +377,9 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 
   // 침투: 공격 위치선정 × run 비례 확률로 수비 라인 근처로 달린다
   if (s.t >= a.runUntil && a.line >= 2 && owner && owner.team === a.team) {
-    const chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance * Math.max(0.3, 1 + (O.runPace * (a.attrs.pace - 70)) / 100);
+    let chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance * Math.max(0.3, 1 + (O.runPace * (a.attrs.pace - 70)) / 100);
+    // ② 줄 사이: 펄스 나인이 내려와 비운 중앙으로 2선(침투 성향 run ≥ lateRunRun)이 더 자주 뛰어든다 (E3.7 역할 반응)
+    if (a.role.run >= O.lateRunRun && !hasModule(a.role, 'between') && s.agents.some((o) => o.onPitch && o.team === a.team && o.role.id === 'falseNine')) chance *= 1 + RM.nineVacate;
     if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) a.runUntil = s.t + O.runSeconds;
   }
   const running = s.t < a.runUntil;
@@ -425,6 +429,10 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       urgent = dist(px, py, a.x, a.y) > 6;
     }
   }
+  // 역할 움직임 모듈 (E.6 D.13): ② 줄 사이 이동, ① 빈 공간 찾기 (침투·최종 3분의 1 역할 중이 아닐 때)
+  const mate = !!owner && owner.team === a.team && owner !== a;
+  if (!running && !job && hasModule(a.role, 'between')) [nx, ny] = betweenLines(s, a, dir, nx, ny, bnx);
+  if (!running && !job && mate && hasModule(a.role, 'space')) [nx, ny] = findSpace(s, a, dir, nx, ny, line);
   // 내려와서 받기 / 지원 간격 (티키타카는 지원 삼각형 간격이 좁다, E.19)
   const tiki = s.teams[a.team].tactics.tendency === 'tikitaka';
   // 빌드업 전술: 짧게일수록 지원 간격이 좁다 (E.19 ③)
@@ -451,6 +459,15 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       ny += (oy - ny) * 0.15;
     }
   }
+  // ③ 공 요구 (E.6 D.13): 소유자 쪽으로 다가가 받을 자리를 내민다 (지원 간격 최소까지)
+  if (!running && !job && mate && hasModule(a.role, 'demand')) {
+    const [px, py] = toPitch(nx, ny, dir);
+    const d = dist(px, py, owner!.x, owner!.y);
+    if (d > supMin + 1) {
+      const k = Math.min(RM.demandApproach, (d - supMin) / d);
+      [nx, ny] = toNorm(px + (owner!.x - px) * k, py + (owner!.y - py) * k, dir);
+    }
+  }
   // 수적 우세 프리맨 (E.18 A6): 마크가 없는 선수 중 공에 가장 가까운 1명은 공 쪽 빈 공간으로 (효용 가산 없음)
   if (!running && owner && owner.team === a.team && owner !== a && a.line >= 1 && manDiff(s, a.team) > 0 && isFreeman(s, a, owner)) {
     const spot = freeSpot(s, a, owner);
@@ -458,6 +475,102 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/** 상대 팀 줄 평균 x (우리 공격 방향 정규화). 그 줄에 아무도 없으면 null */
+function oppLineX(s: SimState, team: 0 | 1, dir: 1 | -1, line: number): number | null {
+  let t = 0;
+  let n = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === team || o.line !== line) continue;
+    t += toNorm(o.x, o.y, dir)[0];
+    n++;
+  }
+  return n ? t / n : null;
+}
+
+/** 우리 팀 줄 평균 x (정규화) */
+function ownLineX(s: SimState, a: Agent, dir: 1 | -1, line: number): number | null {
+  let t = 0;
+  let n = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== a.team || o.line !== line || o === a) continue;
+    t += toNorm(o.x, o.y, dir)[0];
+    n++;
+  }
+  return n ? t / n : null;
+}
+
+/**
+ * ② 줄 사이 이동 (E.6 D.13): 펄스 나인은 상대 수비 줄과 미드 줄 사이로 내려온다. 빌드업(공이 우리 진영 쪽) 때
+ * 하프백은 CB 사이로 내려가 3백을 만들고, 인버티드 풀백은 미드 줄 하프스페이스로 좁히고, 리베로는 수비 줄과 미드 줄 사이로 올라선다
+ */
+function betweenLines(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, bnx: number): [number, number] {
+  const kind = a.role.id === 'halfBack' ? 'drop' : a.role.id === 'libero' ? 'step' : a.role.id === 'invertedFullback' ? 'invert' : 'gap';
+  if (kind === 'gap') {
+    const def = oppLineX(s, a.team, dir, 1);
+    const mid = oppLineX(s, a.team, dir, 2);
+    if (def === null || mid === null) return [nx, ny];
+    // 상대 기준 줄 x 는 우리 방향으로 뒤집혀 있다 (상대 수비 줄이 더 깊다 = 우리 기준 x 가 크다)
+    const gap = (def + mid) / 2;
+    return [nx + (gap - nx) * RM.betweenK, ny];
+  }
+  if (bnx > RM.buildupX) return [nx, ny];
+  const side = a.sy < 0.5 ? -1 : 1;
+  if (kind === 'drop') {
+    const cb = ownLineX(s, a, dir, 1);
+    return cb === null ? [nx, ny] : [cb, 0.5];
+  }
+  const mid = ownLineX(s, a, dir, 2);
+  if (mid === null) return [nx, ny];
+  if (kind === 'step') return [Math.max(nx, (nx + mid) / 2), ny];
+  return [Math.max(nx, mid - 0.02), 0.5 + side * RM.invertY];
+}
+
+/**
+ * ① 빈 공간 찾기 (E.6 D.13): 역할 목표 주변 spaceRadius m 안에서 가장 가까운 상대가 가장 먼 곳 (앞쪽 조금 우선).
+ * 오프사이드 라인은 넘지 않는다. 위치만 고르고 결과는 바꾸지 않는다 (E.15.1)
+ */
+function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, line: number): [number, number] {
+  const [cx, cy] = toPitch(nx, ny, dir);
+  let best: [number, number] = [nx, ny];
+  let bestScore = -Infinity;
+  for (let k = -1; k < 12; k++) {
+    const r = k < 0 ? 0 : RM.spaceRadius * (k % 2 ? 1 : 0.55);
+    const ang = (k / 12) * Math.PI * 2;
+    const x = clamp(cx + Math.cos(ang) * r, 2, L - 2);
+    const y = clamp(cy + Math.sin(ang) * r, 2, W - 2);
+    const [px, py] = toNorm(x, y, dir);
+    if (px > line - 0.5 / L) continue;
+    let near: number = RM.spaceCap;
+    for (const o of s.agents) if (o.onPitch && o.team !== a.team) near = Math.min(near, dist(o.x, o.y, x, y));
+    const score = near + RM.spaceForward * (px - nx) * L;
+    if (score > bestScore) {
+      bestScore = score;
+      best = [px, py];
+    }
+  }
+  return best;
+}
+
+/** ④ 커버 재배분 (E.6 D.13): 수비 의무를 면제받은 동료(중원·공격 줄)의 자리 쪽 y 로 가장 가까운 중원 동료 1명이 옮긴다 */
+function coverShiftY(s: SimState, a: Agent, ny: number): number {
+  if (a.line !== 2 || hasModule(a.role, 'exempt')) return ny;
+  for (const e of s.agents) {
+    if (!e.onPitch || e.team !== a.team || e.line < 2 || !hasModule(e.role, 'exempt')) continue;
+    let pick: Agent | null = null;
+    let pd = Infinity;
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team !== a.team || o.line !== 2 || o === e || hasModule(o.role, 'exempt')) continue;
+      const d = Math.abs(o.sy - e.sy) + Math.abs(o.sx - e.sx) * 0.5;
+      if (d < pd - 1e-9) {
+        pd = d;
+        pick = o;
+      }
+    }
+    if (pick === a) ny += (e.sy - ny) * RM.coverShift;
+  }
+  return ny;
 }
 
 function unmarked(s: SimState, a: Agent): boolean {
@@ -579,6 +692,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const d = dist(a.x, a.y, b.x, b.y);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
     let wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
+    // ④ 수비 의무 면제: 공에 가장 가깝고 아주 가까울 때만 압박한다
+    const exempt = hasModule(a.role, 'exempt');
+    if (exempt && !(rank === 0 && d < pressDist * RM.exemptPress)) wants = false;
     // 박스 안 압박 (E.23): 공이 우리 박스 안이면 가장 가까운 2명이 성향과 무관하게 바로 붙는다
     const ownBox = Math.abs(b.x - gx0) <= ENGINE.pitch.boxDepth && Math.abs(b.y - gy0) <= ENGINE.pitch.boxWidth / 2;
     if (ownBox && rank < 2) {
@@ -633,8 +749,15 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   // 역습 (E.19): 최전방 1명은 하프라인 부근에 남는다
   if (tendency === 'counter' && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
-  // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목
-  if (a.pos === 'CDM' && owner && owner.team !== a.team) {
+  // ④ 수비 의무 면제 (E.6 D.13): 깊이 복귀하지 않고 마크도 하지 않는다 (다음 공격 기점). 빈자리는 커버 재배분이 메운다
+  if (hasModule(a.role, 'exempt') && a.line >= 2) {
+    nx = Math.max(nx, a.line === 3 ? RM.exemptAttX : RM.exemptMidX);
+    setTarget(a, nx, ny, dir, false);
+    return;
+  }
+  ny = coverShiftY(s, a, ny);
+  // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목. 홀딩 CM 도 같이 (E3.7 역할 반응: 수비 역할의 수비 효과)
+  if ((a.pos === 'CDM' || a.role.id === 'holdingCM') && owner && owner.team !== a.team) {
     const spot = screenSpot(s, a, owner, dir, lineX);
     if (spot) {
       setTarget(a, spot[0], spot[1], dir, false);
@@ -875,7 +998,7 @@ function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: num
   nx = Math.max(nx, lineX + O.screenGap / L);
   const [qx, qy] = toPitch(nx, ny, dir);
   for (const o of s.agents) {
-    if (o === a || !o.onPitch || o.team !== a.team || o.pos !== 'CDM') continue;
+    if (o === a || !o.onPitch || o.team !== a.team || (o.pos !== 'CDM' && o.role.id !== 'holdingCM')) continue;
     if (dist(o.x, o.y, qx, qy) < dist(a.x, a.y, qx, qy)) return null;
   }
   return [nx, ny];

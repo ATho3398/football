@@ -5,7 +5,7 @@
 import { NAME_POOLS } from '../data/names';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
 import { BALANCE } from './config/balance';
-import { FORMATION_SLOTS, FORMATIONS, type Formation } from './formations';
+import { FORMATION_SLOTS, FORMATIONS, type Formation, type FormationSlot } from './formations';
 import { agingRate, randInt, skillTier } from './growth';
 import { CLUB_TO_TEAM } from './league';
 import { growNpc, shiftOvr, type NpcState } from './npc';
@@ -69,6 +69,8 @@ export interface TeamRoster {
   teamId: string;
   formation: Formation;
   players: RosterPlayer[];
+  /** 커스텀 포메이션 슬롯 (E.5.1, 내 팀 경기 때만 붙인다. 세이브에는 담지 않는다) */
+  customSlots?: readonly FormationSlot[];
 }
 
 export type Rosters = Record<string, TeamRoster>;
@@ -315,7 +317,7 @@ function selectionScore(p: RosterPlayer, pos: Position): number {
 
 /** 슬롯별로 OVR 이 높은 선수가 선발 (23번). 선택 점수 내림차순 탐욕 배정. 벤치 7명은 포지션군별 */
 export function pickLineup(roster: TeamRoster, exclude: ReadonlySet<string> = new Set()): Lineup {
-  const slots = FORMATION_SLOTS[roster.formation];
+  const slots = roster.customSlots ?? FORMATION_SLOTS[roster.formation];
   const pool = roster.players.filter((p) => !exclude.has(p.id));
   const pairs: { pi: number; si: number; score: number }[] = [];
   pool.forEach((p, pi) => slots.forEach((s, si) => pairs.push({ pi, si, score: selectionScore(p, s.pos) })));

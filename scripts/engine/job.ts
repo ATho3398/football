@@ -8,7 +8,10 @@ import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
-import { FORMATION_SLOTS, type Formation } from '../../src/formations';
+import { customSlots, FORMATION_SLOTS, type Formation } from '../../src/formations';
+import { attackDir, dist, toNorm } from '../../src/engine/pitch';
+import type { MatchSim } from '../../src/engine/sim';
+import type { EngineResult } from '../../src/engine/types';
 import { newGame, playRound, rebuildRosters } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { createTeamRoster, rosterRating, teamRatings, type Rosters } from '../../src/roster';
@@ -22,6 +25,28 @@ export interface TeamSpec {
   formation?: Formation;
   /** 'data' = 팀 데이터/기본 전술, 객체 = 기본 전술 위에 덮어쓰기 */
   tactics?: 'data' | 'balanced' | Partial<Tactics>;
+  /** 슬롯 역할 덮어쓰기 (E3.7 역할 반응): 슬롯 → 역할 id */
+  roles?: Record<number, string>;
+  /** 커스텀 포메이션 칸 (E.5.1, GK -1). formation 대신 쓴다 */
+  cells?: number[];
+}
+
+/** 추적 선수 요약 (E3.7 역할 반응): 위치는 그 팀 공격 방향 정규화 */
+export interface TrackOut {
+  samples: number;
+  /** 평균 위치 (전체 / 공격 시 / 수비 시) */
+  x: number; y: number; ax: number; ay: number; dx: number; dy: number;
+  attSamples: number;
+  /** 중앙에서 떨어진 정도 |y − 0.5| 평균 */
+  wide: number;
+  /** 상대 박스 안 비율, 상대 진영 1/3 비율 */
+  box: number;
+  final3: number;
+  touches: number;
+  runs: number;
+  /** 가장 가까운 상대까지 거리 평균 (공격 시, m) */
+  space: number;
+  stats: Omit<PlayerStats, 'id'>;
 }
 
 export interface AttrMod {
@@ -44,6 +69,8 @@ export interface MatchJob {
   mods?: AttrMod[];
   /** 평점 성분도 돌려준다 (C.26 평점 재보정 측정) */
   parts?: boolean;
+  /** 이 슬롯 선수의 위치·터치·침투를 추적한다 (E3.7 역할 반응) */
+  track?: { team: 0 | 1; slot: number };
 }
 
 export interface SeasonJob {
@@ -80,6 +107,7 @@ export interface MatchOut {
   duration: number;
   elapsed75: number;
   ms: number;
+  track?: TrackOut;
 }
 
 export interface SeasonOut {
@@ -138,16 +166,18 @@ function applyOverrides(o: Record<string, number> | undefined): () => void {
 function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup {
   const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
   if (t.formation) roster.formation = t.formation;
+  if (t.cells) roster.customSlots = customSlots(t.cells);
   const setup = teamSetupFromRoster(roster, rosterRating(roster), oppRating, worldSeed);
   const before = setup.tactics.tendency;
   if (t.tactics === 'balanced') setup.tactics = { ...setup.tactics, ...BALANCED };
   else if (t.tactics && t.tactics !== 'data') setup.tactics = { ...setup.tactics, ...t.tactics };
   if (setup.tactics.tendency !== before) {
     // 성향을 바꿨으면 슬롯 역할도 그 성향 기본값으로 (E.19 ②)
-    const slots = FORMATION_SLOTS[roster.formation];
+    const slots = roster.customSlots ?? FORMATION_SLOTS[roster.formation];
     for (const p of setup.lineup) delete p.role;
     fillRoles(setup, (slot) => slots[slot]!.pos);
   }
+  if (t.roles) for (const p of setup.lineup) if (t.roles[p.slot]) p.role = t.roles[p.slot];
   return setup;
 }
 
@@ -164,6 +194,55 @@ function applyMod(setup: TeamSetup, m: AttrMod): void {
   }
 }
 
+/** 경기를 끝까지 돌리며 그 슬롯 선수를 1초마다 표본으로 잰다. 돌려주는 함수에 경기 결과를 넣으면 요약 */
+function trackRun(sim: MatchSim, team: 0 | 1, slot: number): (r: EngineResult) => TrackOut {
+  const s = sim.state;
+  const acc = { n: 0, x: 0, y: 0, an: 0, ax: 0, ay: 0, dx: 0, dy: 0, wide: 0, box: 0, f3: 0, touches: 0, runs: 0, space: 0 };
+  let lastOwner = -1;
+  const runSeen = new Map<number, number>();
+  while (!s.done) {
+    sim.step();
+    const a = s.agents.find((o) => o.onPitch && o.team === team && o.stats.slot === slot);
+    if (!a) continue;
+    if (s.ball.owner === a.idx && lastOwner !== a.idx) acc.touches++;
+    lastOwner = s.ball.owner;
+    if (a.runUntil > s.t && runSeen.get(a.idx) !== a.runUntil) {
+      runSeen.set(a.idx, a.runUntil);
+      acc.runs++;
+    }
+    if (s.tick % 10 !== 0 || s.restart) continue;
+    const [nx, ny] = toNorm(a.x, a.y, attackDir(team, s.half));
+    acc.n++;
+    acc.x += nx;
+    acc.y += ny;
+    acc.wide += Math.abs(ny - 0.5);
+    if (nx > 1 - 16.5 / 105 && Math.abs(ny - 0.5) < 20.15 / 68) acc.box++;
+    if (nx > 2 / 3) acc.f3++;
+    if (s.possTeam === team) {
+      acc.an++;
+      acc.ax += nx;
+      acc.ay += ny;
+      let near = 30;
+      for (const o of s.agents) if (o.onPitch && o.team !== team) near = Math.min(near, dist(o.x, o.y, a.x, a.y));
+      acc.space += near;
+    } else {
+      acc.dx += nx;
+      acc.dy += ny;
+    }
+  }
+  return (r) => {
+    const n = Math.max(1, acc.n);
+    const an = Math.max(1, acc.an);
+    const dn = Math.max(1, acc.n - acc.an);
+    const p = r.players.find((x) => x.team === team && x.slot === slot);
+    const { id: _id, ...stats } = p ?? r.players[0]!;
+    return {
+      samples: acc.n, x: acc.x / n, y: acc.y / n, ax: acc.ax / an, ay: acc.ay / an, dx: acc.dx / dn, dy: acc.dy / dn, attSamples: acc.an,
+      wide: acc.wide / n, box: acc.box / n, final3: acc.f3 / n, touches: acc.touches, runs: acc.runs, space: acc.space / an, stats,
+    };
+  };
+}
+
 export function runMatchJob(j: MatchJob): MatchOut {
   const restore = applyOverrides(j.overrides);
   try {
@@ -177,6 +256,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false, neutral: j.neutral,
       ...(j.forceRed ? { forceRed: j.forceRed } : {}),
     });
+    const track = j.track ? trackRun(sim, j.track.team, j.track.slot) : undefined;
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -192,6 +272,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       duration: r.duration,
       elapsed75: r.elapsed75,
       ms,
+      ...(track ? { track: track(r) } : {}),
     };
   } finally {
     restore();

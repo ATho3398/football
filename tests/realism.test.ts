@@ -127,7 +127,7 @@ describe('E3.5 A5, A8 전술 엔진 층 (E.19)', () => {
     expect(setup.tactics.tendency).toBe('gegenpress');
     const roles = setup.lineup.map((p) => p.role);
     expect(roles.every((x) => typeof x === 'string')).toBe(true);
-    expect(roles).toContain('poacher');
+    expect(roles).toContain('advancedForward');
   });
   it('경기 중 AI 조정: 70분 이후 1골 차로 지면 라인·압박 한 단계 위, 이기면 라인 한 단계 아래', () => {
     const s = createState(input(51));

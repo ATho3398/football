@@ -65,7 +65,7 @@ describe('엔진 연결 (E.19 ②③)', () => {
     const t = { ...withFormation(g.tactics, '4-3-3', roster), tendency: 'counter' as const, levels: { lineHeight: 0, pressing: 2, style: 1, width: 2 } as const };
     const cm = FORMATION_SLOTS['4-3-3'].findIndex((s) => s.pos === 'CM');
     t.mySlot = cm;
-    t.roles = t.roles.map((_, i) => (i === cm ? 'advanced8' : i === 1 ? 'invertedFullback' : null));
+    t.roles = t.roles.map((_, i) => (i === cm ? 'mezzala' : i === 1 ? 'invertedFullback' : null));
     const opp = Object.keys(g.rosters).find((id) => id !== g.player.teamId)!;
     const sim = buildMyMatch({
       myRoster: roster, oppRoster: g.rosters[opp]!, myRating: 75, oppRating: 75, home: true,
@@ -78,7 +78,7 @@ describe('엔진 연결 (E.19 ②③)', () => {
     const me = home.lineup.find((p) => p.id === MY_ID)!;
     expect(me.slot).toBe(cm);
     expect(me.position).toBe('CM');
-    expect(me.role).toBe('advanced8');
+    expect(me.role).toBe('mezzala');
     expect(home.lineup.find((p) => p.slot === 1)!.role).toBe('invertedFullback');
     // 역할을 고르지 않은 슬롯은 성향 추천 (역습 CB = 커버 CB)
     const cb = home.lineup.find((p) => p.position === 'CB')!;
@@ -102,10 +102,10 @@ describe('추천 역할 (부록 C.32)', () => {
     const t = { ...g.tactics, tendency: 'tikitaka' as const, formation: '4-4-2' as const, mySlot: 6, roles: Array(11).fill(null) };
     const a = g.player.attributes;
     const roles = teamRoles(t, FORMATION_SLOTS['4-4-2'].map((s) => (s.pos === 'GK' ? undefined : a)));
-    expect(roles.filter((r) => r === 'linkUp')).toHaveLength(1);
+    expect(roles.filter((r) => r === 'falseNine')).toHaveLength(1);
     // 직접 고르면 둘 다 연계형도 된다
-    const both = teamRoles({ ...t, roles: t.roles.map((_, i) => (i === 9 || i === 10 ? 'linkUp' : null)) }, FORMATION_SLOTS['4-4-2'].map((s) => (s.pos === 'GK' ? undefined : a)));
-    expect(both.filter((r) => r === 'linkUp')).toHaveLength(2);
+    const both = teamRoles({ ...t, roles: t.roles.map((_, i) => (i === 9 || i === 10 ? 'falseNine' : null)) }, FORMATION_SLOTS['4-4-2'].map((s) => (s.pos === 'GK' ? undefined : a)));
+    expect(both.filter((r) => r === 'falseNine')).toHaveLength(2);
   });
 });
 
@@ -115,7 +115,7 @@ describe('세이브 (SAVE_FORMAT_VERSION 12)', () => {
     g.tactics = { ...g.tactics, tendency: 'block', levels: { lineHeight: 0, pressing: 0, style: 2, width: 0 } };
     const back = deserialize(serialize(g));
     expect(back.tactics).toEqual(g.tactics);
-    expect(SAVE_FORMAT_VERSION).toBe(12);
+    expect(SAVE_FORMAT_VERSION).toBe(13);
   });
 
   it('11 → 12: 균형 + 팀 데이터 포메이션 + 주 포지션 슬롯', () => {

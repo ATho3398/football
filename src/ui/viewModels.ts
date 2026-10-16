@@ -32,13 +32,14 @@ import type { DesignTier, FeedKind, FormationSlotProps, TacticStyle } from './co
 import type { FieldAttributes } from '../attributes';
 import { FORMATIONS } from '../formations';
 import {
-  customized, fitOf, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
+  customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
 } from '../myTactics';
 import {
   DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_NAMES_KO, tendencyLevels,
   type Detail,
 } from '../engine/tactics';
-import { ROLE_NAMES_KO } from '../engine/roles';
+import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
+export { ROLE_DESC_KO };
 
 // ── 공통 변환 ──
 
@@ -734,18 +735,6 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
 
 // ── 전술 (I.16, 디자인 26~29, E.19, 부록 C.32) ──
 
-export const ROLE_DESC_KO: Record<string, string> = {
-  poacher: '박스 안에서 마무리를 노리고 뒷공간으로 침투해요.', targetMan: '앞에서 버티며 공중볼과 롱볼을 받아 줘요.',
-  linkUp: '내려와서 공을 받아 동료와 연결해요.', winger: '터치라인을 타고 올라가 크로스를 올려요.',
-  insideForward: '안쪽으로 파고들어 직접 슈팅을 노려요.', playmaker: '공을 받아 패스로 기회를 만들어요.',
-  shadowStriker: '공격수 뒤에서 박스로 뛰어들어요.', boxCrasher: '늦게 박스로 침투해 세컨드볼을 노려요.',
-  boxToBox: '공수 양쪽을 오가며 많이 뛰어요.', deepPlaymaker: '뒤에서 공을 받아 경기를 조율해요.',
-  advanced8: '앞으로 올라가 슈팅과 침투를 노려요.', anchor: '수비 라인 앞을 지키며 자리를 비우지 않아요.',
-  ballWinner: '적극적으로 압박해 공을 뺏어요.', dlpDm: '수비 앞에서 긴 패스로 전개해요.',
-  attackingFullback: '측면을 높이 올라가 크로스를 올려요.', defensiveFullback: '뒤에 남아 측면 수비에 집중해요.',
-  invertedFullback: '안쪽으로 좁혀 들어와 빌드업을 도와요.', stopper: '앞으로 나가 상대 공격수와 맞붙어요.',
-  ballPlayingCB: '뒤에서 전진 패스로 빌드업을 시작해요.', coverCB: '뒤에 처져 뒷공간을 덮어요.', goalkeeper: '골문을 지켜요.',
-};
 
 export interface TacticsDraftUI {
   draft: MyTactics;
@@ -754,6 +743,9 @@ export interface TacticsDraftUI {
   /** 역할 고르기 바텀시트 (슬롯), 시트 안에서 고른 역할 (null = 자동) */
   sheet: number | null;
   sheetPick: string | null;
+  /** 커스텀 포메이션 편집 중 (E.5.1): 슬롯을 끌어다 놓거나, 눌러 고른 뒤 피치를 누른다 */
+  edit?: boolean;
+  moving?: number | null;
 }
 
 export interface TacticsVM {
@@ -763,7 +755,12 @@ export interface TacticsVM {
   tendencies: { id: Tendency; style: TacticStyle; name: string; fit: Fit; on: boolean }[];
   tendencyName: string;
   formations: { id: string; label: string }[];
+  /** 탭 값 (커스텀이면 'custom') */
   formation: string;
+  /** 표시 이름 (커스텀이면 "3-4-3 커스텀") */
+  formationName: string;
+  custom: boolean;
+  edit: boolean;
   slots: FormationSlotProps[];
   pickMe: boolean;
   me: { pos: string; role: string; ovr: number; mainPos: string; mainOvr: number; off: boolean };
@@ -814,9 +811,10 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     const ovr = s.pos === 'GK' ? undefined : proficientOvr(p, s.pos as FieldPosition);
     return {
       pos: s.pos, x: Math.round(10 + s.y * 80), y: Math.round(8 + s.x * 95), name: s.name, role: ROLE_NAMES_KO[s.role] ?? s.role, me: s.me,
-      selected: ui.sheet === s.slot, dim: ui.pickMe && s.pos === 'GK',
+      selected: ui.edit ? ui.moving === s.slot : ui.sheet === s.slot, dim: (ui.pickMe || !!ui.edit) && s.pos === 'GK',
       ...(ovr != null ? { ovr, ovrDown: ovr < mainOvr } : {}),
-      ...(ui.pickMe ? (s.pos === 'GK' ? {} : { act: 'tac-me-slot', data: { v: s.slot } }) : { act: 'tac-role-open', data: { v: s.slot } }),
+      ...(ui.edit ? (s.pos === 'GK' ? {} : { drag: s.slot })
+        : ui.pickMe ? (s.pos === 'GK' ? {} : { act: 'tac-me-slot', data: { v: s.slot } }) : { act: 'tac-role-open', data: { v: s.slot } }),
     };
   });
   let sheet: TacticsVM['sheet'] = null;
@@ -834,14 +832,17 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
   }
   return {
     opp: opp && fx ? { name: opp.nameKo, home: fx.home, ...(teamTactic(opp.id) ? { tactic: teamTactic(opp.id)! } : {}) } : null,
-    chips: [TENDENCY_NAMES_KO[t.tendency], t.formation, `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
+    chips: [TENDENCY_NAMES_KO[t.tendency], formationLabel(t), `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
     open: g.guide.tacticsDetailOpen,
     tendencies: TENDENCIES.map((id) => ({
       id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], fit: fitOf(fitScore(id, fitLineup), fitAvg[id]), on: id === t.tendency,
     })),
     tendencyName: TENDENCY_NAMES_KO[t.tendency],
-    formations: FORMATIONS.map((f) => ({ id: f, label: f })),
-    formation: t.formation,
+    formations: [...FORMATIONS.map((f) => ({ id: f, label: f })), { id: 'custom', label: '커스텀' }],
+    formation: t.custom ? 'custom' : t.formation,
+    formationName: formationLabel(t),
+    custom: !!t.custom,
+    edit: !!ui.edit,
     slots,
     pickMe: ui.pickMe,
     me: { pos: myPos, role: ROLE_NAMES_KO[lineup[t.mySlot]!.role] ?? '', ovr: myOvr, mainPos: p.position, mainOvr, off: myPos !== p.position },
@@ -857,5 +858,5 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
 
 /** 홈 "다음 경기" 카드의 우리 전술 (저장한 전술) */
 export function myTacticVM(g: GameState): TacticVM {
-  return { tactic: tacticStyle(g.tactics.tendency), formation: g.tactics.formation };
+  return { tactic: tacticStyle(g.tactics.tendency), formation: formationLabel(g.tactics) };
 }

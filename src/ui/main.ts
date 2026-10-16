@@ -33,7 +33,8 @@ import { ReplayPlayer, replayView } from './views/replay';
 import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView } from './views/screens';
 import { tacticsView } from './views/tactics';
 import { tacticsVM, type TacticsDraftUI } from './viewModels';
-import { customized, defaultSlot, slotPos, withFormation, withTendency, type MyTactics } from '../myTactics';
+import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
+import { nearestCell } from '../formations';
 import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
 import type { Formation } from '../formations';
 import type { Tendency } from '../engine/types';
@@ -280,6 +281,78 @@ function requestSimStop(): void {
 
 app.addEventListener('pointerdown', (ev) => {
   if ((ev.target as HTMLElement).closest('[data-act="sim-stop"]')) requestSimStop();
+  formationPointerDown(ev);
+});
+
+// ── 커스텀 포메이션 끌어다 놓기 (E.5.1, I.16): 보이지 않는 격자의 가장 가까운 칸에 붙는다 ──
+let fdrag: { slot: number; el: HTMLElement; pitch: HTMLElement; x0: number; y0: number; moved: boolean } | null = null;
+
+/** 미니 피치 위 화면 좌표 → 정규화 (x 0 우리 골 → 1 상대 골, y 0 왼쪽 → 1 오른쪽). FormationPitch 의 배치식 left = 10 + y × 80, top = 100 − (8 + x × 95) 의 역 */
+function pitchNorm(pitch: HTMLElement, cx: number, cy: number): [number, number, number, number] {
+  const r = pitch.getBoundingClientRect();
+  const left = Math.min(100, Math.max(0, ((cx - r.left) / r.width) * 100));
+  const top = Math.min(100, Math.max(0, ((cy - r.top) / r.height) * 100));
+  return [(100 - top - 8) / 95, (left - 10) / 80, left, top];
+}
+
+function dropSlot(slot: number, x: number, y: number): void {
+  const g = ui.game;
+  if (!ui.tac || !g) return;
+  const { tactics, problem } = moveSlot(ui.tac.draft, slot, nearestCell(x, y));
+  ui.tac.draft = tactics;
+  ui.tac.moving = null;
+  if (problem) showToast({ kind: 'info', title: '그 자리로 옮길 수 없어요', body: problem }, 2400);
+  render();
+}
+
+function formationPointerDown(ev: PointerEvent): void {
+  if (!ui.tac?.edit) return;
+  const t = ev.target as HTMLElement;
+  const pitch = t.closest<HTMLElement>('.po-fpitch.is-edit');
+  if (!pitch) return;
+  const el = t.closest<HTMLElement>('[data-drag]');
+  if (!el) {
+    // 선수를 고른 뒤 빈 곳을 누르면 그리로 옮긴다
+    if (ui.tac.moving != null) {
+      const [x, y] = pitchNorm(pitch, ev.clientX, ev.clientY);
+      dropSlot(ui.tac.moving, x, y);
+    }
+    return;
+  }
+  ev.preventDefault();
+  fdrag = { slot: Number(el.dataset.drag), el, pitch, x0: ev.clientX, y0: ev.clientY, moved: false };
+  el.setPointerCapture?.(ev.pointerId);
+}
+
+app.addEventListener('pointermove', (ev) => {
+  if (!fdrag) return;
+  if (!fdrag.moved && Math.hypot(ev.clientX - fdrag.x0, ev.clientY - fdrag.y0) < 6) return;
+  fdrag.moved = true;
+  const [, , left, top] = pitchNorm(fdrag.pitch, ev.clientX, ev.clientY);
+  fdrag.el.style.left = `${left}%`;
+  fdrag.el.style.top = `${top}%`;
+  fdrag.el.classList.add('is-drag');
+});
+
+app.addEventListener('pointerup', (ev) => {
+  const d = fdrag;
+  fdrag = null;
+  if (!d || !ui.tac) return;
+  if (d.moved) {
+    const [x, y] = pitchNorm(d.pitch, ev.clientX, ev.clientY);
+    dropSlot(d.slot, x, y);
+    return;
+  }
+  // 탭: 선수 고르기 (이미 고른 선수를 다시 누르면 취소, 다른 선수를 누르면 그 선수로)
+  ui.tac.moving = ui.tac.moving === d.slot ? null : d.slot;
+  render();
+});
+
+app.addEventListener('pointercancel', () => {
+  if (fdrag) {
+    fdrag = null;
+    render();
+  }
 });
 
 app.addEventListener('click', (ev) => {
@@ -341,7 +414,7 @@ app.addEventListener('click', (ev) => {
       const from = g.player.position;
       if (requestPositionChange(g.player, v as PlayablePosition, g.phase === 'offseason')) {
         // 내 위치도 새 주 포지션 슬롯으로 (E.19 ②). 포메이션·역할·세부 전술은 그대로
-        g.tactics = { ...g.tactics, mySlot: defaultSlot(g.tactics.formation, v as PlayablePosition, g.rosters[g.player.teamId]) };
+        g.tactics = { ...g.tactics, mySlot: defaultSlot(g.tactics.formation, v as PlayablePosition, g.rosters[g.player.teamId], g.tactics.custom) };
         autosave();
         ui.posSheet = null;
         showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: '다음 시즌부터 새 포지션으로 뛰어요.' }, 2600);
@@ -354,7 +427,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'tac-open':
       if (!g) return;
-      ui.tac = { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null };
+      ui.tac = { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null, edit: false, moving: null };
       markDone(g.guide, 'tactics');
       autosave();
       go('tactics');
@@ -403,8 +476,24 @@ app.addEventListener('click', (ev) => {
       return;
     case 'tac-form':
       if (!ui.tac || !g || !v) return;
-      ui.tac.draft = withFormation(ui.tac.draft, v as Formation, g.rosters[g.player.teamId]);
+      if (v === 'custom') {
+        // 커스텀 포메이션 (E.5.1): 지금 프리셋에서 시작해 끌어다 놓는다
+        ui.tac.draft = startCustom(ui.tac.draft);
+        ui.tac.edit = true;
+        ui.tac.moving = null;
+      } else {
+        ui.tac.draft = withFormation(ui.tac.draft, v as Formation, g.rosters[g.player.teamId]);
+        ui.tac.edit = false;
+      }
       ui.tac.sheet = null;
+      ui.tac.pickMe = false;
+      render();
+      return;
+    case 'tac-edit':
+      if (!ui.tac) return;
+      ui.tac.edit = !ui.tac.edit;
+      ui.tac.moving = null;
+      ui.tac.pickMe = false;
       render();
       return;
     case 'tac-level':

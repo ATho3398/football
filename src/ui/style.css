@@ -310,3 +310,8 @@ button.po-fslot { padding: 0; border: 0; background: none; font: inherit; color:
 .tac-me { align-items: center; }
 .tac-me > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tac-me .mine { color: var(--mine, #5ee0ff); }
+
+/* 커스텀 포메이션 편집 (E.5.1, 부록 C.33): 끌어다 놓기 */
+.po-fpitch.is-edit { touch-action: none; box-shadow: inset 0 0 0 2px rgba(214, 255, 60, .35); }
+.po-fpitch.is-edit .po-fslot[data-drag] { cursor: grab; touch-action: none; }
+.po-fpitch.is-edit .po-fslot.is-drag { cursor: grabbing; z-index: 3; opacity: .85; transition: none; }

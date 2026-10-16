@@ -70,6 +70,7 @@ export function teamSetupFromRoster(
   const setup: TeamSetup = {
     teamId: roster.teamId,
     formation: roster.formation,
+    ...(roster.customSlots ? { customSlots: roster.customSlots } : {}),
     lineup: lu.slots.map((s) => specOf(byId.get(s.playerId)!, s.slot)),
     bench: lu.bench.map((id) => specOf(byId.get(id)!, -1)),
     tactics: plan.tactics,

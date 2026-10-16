@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 15;
+export const ENGINE_VERSION = 16;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -305,6 +305,32 @@ export const ENGINE = {
     /** 수비 자세 (E.23): 1대1에서 바깥쪽으로 몬다. 중앙 쪽 돌파 로짓 − stanceInside, 바깥쪽 + stanceOutside */
     stanceInside: 0.3,
     stanceOutside: 0.1,
+  },
+
+  // ── 역할 공용 움직임 모듈 (E.6 D.13, E3.7): 위치와 판단 선호만 바꾼다 (E.1.1 층 3) ──
+  roles: {
+    /** ① 빈 공간 찾기: 역할 목표 주변 탐색 반경 (m), 이 거리 이상 떨어진 상대는 같은 여유로 본다, 앞쪽 가산 (m당) */
+    spaceRadius: 8,
+    spaceCap: 8,
+    spaceForward: 0.15,
+    /** ② 줄 사이: 상대 수비 줄과 미드 줄 사이로 옮기는 비율 (공격 줄·CAM) */
+    betweenK: 0.5,
+    /** ② 펄스 나인이 있는 팀의 2선 침투 빈도 가산 (비운 중앙으로 뛰어든다) */
+    nineVacate: 0.6,
+    /** ② 빌드업(공이 이 x 이하, 정규화) 때 하프백은 CB 사이로, 인버티드 풀백은 미드 줄 하프스페이스로, 리베로는 수비-미드 사이로 */
+    buildupX: 0.55,
+    invertY: 0.2,
+    /** ③ 공 요구: 동료가 이 선수에게 주는 패스 효용 배수, 소유자 쪽으로 다가가는 비율 (지원 간격 최소까지) */
+    demandPass: 1.1,
+    demandApproach: 0.35,
+    /** ④ 수비 의무 면제: 수비 때 이 x(정규화) 뒤로 오지 않는다 (중원 줄, 공격 줄), 압박은 공에 가장 가깝고 이 거리 비율 안일 때만 */
+    exemptMidX: 0.42,
+    exemptAttX: 0.5,
+    exemptPress: 0.5,
+    /** ④ 커버 재배분: 면제 선수 쪽(슬롯 y)으로 옮기는 비율 (가장 가까운 중원 동료 1명) */
+    coverShift: 0.3,
+    /** 중거리 슛 선호(pref.longShot)를 적용하는 골까지 거리 (m) */
+    longShotDist: 18,
   },
 
   // ── 온더볼 의사결정 (E.7) ──

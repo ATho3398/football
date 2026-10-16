@@ -65,19 +65,22 @@ export interface FormationSlotProps extends Action {
   y: number;
   name?: string; role?: string; me?: boolean; selected?: boolean; dim?: boolean; warn?: boolean;
   ovr?: number; ovrDown?: boolean;
+  /** 끌어다 놓기 편집 (E.5.1): 슬롯 인덱스. 편집 중인 미니 피치에서만 */
+  drag?: number;
 }
 
-export interface FormationPitchProps { slots: FormationSlotProps[]; compact?: boolean; height?: number; label?: string }
+export interface FormationPitchProps { slots: FormationSlotProps[]; compact?: boolean; height?: number; label?: string; edit?: boolean }
 
 export function FormationPitch(p: FormationPitchProps): string {
   const slots = p.slots.map((s) => {
-    const el = s.act ? 'button' : 'div';
-    return `<${el}${el === 'button' ? ' type="button"' : ''} class="${cx('po-fslot', s.me && 'is-me', s.selected && 'is-sel', s.dim && 'is-dim', s.warn && 'is-warn')}" style="left:${s.x}%;top:${100 - s.y}%"${actAttrs(s)}>`
+    const el = s.act || s.drag != null ? 'button' : 'div';
+    const drag = s.drag != null ? ` data-drag="${s.drag}"` : '';
+    return `<${el}${el === 'button' ? ' type="button"' : ''} class="${cx('po-fslot', s.me && 'is-me', s.selected && 'is-sel', s.dim && 'is-dim', s.warn && 'is-warn')}" style="left:${s.x}%;top:${100 - s.y}%"${actAttrs(s)}${drag}>`
       + `<span class="po-fslot__dot"><b>${esc(s.pos)}</b>${s.me ? '<span class="po-fslot__me">나</span>' : ''}</span>`
       + `${!p.compact && s.name ? `<span class="po-fslot__name">${esc(s.name)}</span>` : ''}${!p.compact && s.role ? `<span class="po-fslot__role">${esc(s.role)}</span>` : ''}`
       + `${s.ovr != null ? `<span class="${cx('po-fslot__ovr po-num', s.ovrDown && 'is-down')}">${s.ovr}</span>` : ''}</${el}>`;
   }).join('');
-  return `<div class="${cx('po-fpitch', p.compact && 'po-fpitch--compact')}"${p.height ? ` style="height:${p.height}px"` : ''} role="group" aria-label="${esc(p.label ?? '포메이션')}">`
+  return `<div class="${cx('po-fpitch', p.compact && 'po-fpitch--compact', p.edit && 'is-edit')}"${p.height ? ` style="height:${p.height}px"` : ''} role="group" aria-label="${esc(p.label ?? '포메이션')}">`
     + '<svg class="po-fpitch__lines" viewBox="0 0 68 100" preserveAspectRatio="none" aria-hidden="true"><rect x="1" y="1" width="66" height="98" rx="2"/>'
     + '<path d="M1 50H67 M20 1v14h28V1 M28 1v5h12V1 M20 99V85h28v14 M28 99v-5h12v5"/><ellipse cx="34" cy="50" rx="8" ry="6"/></svg>'
     + `${slots}</div>`;

@@ -49,6 +49,8 @@ export function substitute(s: SimState, out: Agent, inA: Agent): void {
   inA.enteredAt = s.elapsed;
   inA.pos = out.pos;
   inA.line = out.line;
+  // 슬롯 역할을 이어받는다 (E.19 ② 슬롯별 역할, E3.7)
+  if (out.line !== 0 && inA.line !== 0) inA.role = out.role;
   inA.drainMul = out.drainMul;
   inA.sx = out.sx;
   inA.sy = out.sy;

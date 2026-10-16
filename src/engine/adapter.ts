@@ -9,7 +9,7 @@ import type { FieldAttributes } from '../attributes';
 import { proficiencyPenalty } from '../proficiency';
 import { ENGINE } from './config';
 import { teamSetupFromRoster } from './setup';
-import { engineTactics, slotPos, teamRoles, type MyTactics } from '../myTactics';
+import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
 import { buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
@@ -79,7 +79,7 @@ export function proficientAttrs(attrs: FieldAttributes, proficiency = 100): Fiel
 
 export function buildMyMatch(m: EngineMatchInput) {
   const t = m.myTactics;
-  const myRoster = t ? { ...m.myRoster, formation: t.formation } : m.myRoster;
+  const myRoster = t ? withSlots(m.myRoster, t) : m.myRoster;
   const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
   const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
   const meSpec: PlayerSpec = {
@@ -89,6 +89,7 @@ export function buildMyMatch(m: EngineMatchInput) {
   if (t) {
     // 사용자 전술 (E.19): 성향·세부 전술 3단계 값, 슬롯 역할은 직접 고른 것 또는 성향 추천
     mySetup.tactics = engineTactics(t);
+    if (t.custom) mySetup.formationName = formationLabel(t);
     const bySlot = new Map(mySetup.lineup.map((p) => [p.slot, p]));
     const roles = teamRoles(t, Array.from({ length: 11 }, (_, i) => (i === t.mySlot && m.plan.started ? meSpec.attrs : bySlot.get(i)?.gk ? undefined : bySlot.get(i)?.attrs)));
     for (const p of mySetup.lineup) p.role = roles[p.slot];

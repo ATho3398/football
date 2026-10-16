@@ -19,13 +19,18 @@ export function tacticsView(vm: TacticsVM): string {
 
   const toggle = Button({
     variant: 'secondary', block: true, icon: vm.open ? 'chevron-down' : 'chevron-right', act: 'tac-detail',
-    children: vm.open ? '자세히 접기' : `자세히 · 포메이션 ${vm.formation}, 내 위치 ${vm.me.pos}, 세부 전술`,
+    children: vm.open ? '자세히 접기' : `자세히 · 포메이션 ${vm.formationName}, 내 위치 ${vm.me.pos}, 세부 전술`,
   });
 
   const detail = vm.open
-    ? `${SectionTitle({ title: '② 포메이션과 역할', action: vm.pickMe ? '내 자리를 눌러요' : '슬롯을 탭해 역할 변경' })}
+    ? `${SectionTitle({ title: '② 포메이션과 역할', action: vm.edit ? '선수를 끌어 옮겨요' : vm.pickMe ? '내 자리를 눌러요' : '슬롯을 탭해 역할 변경' })}
       ${Tabs({ variant: 'segment', items: vm.formations, value: vm.formation, act: 'tac-form', label: '포메이션' })}
-      ${FormationPitch({ slots: vm.slots, label: `${vm.formation} 포메이션, 내 위치 ${vm.me.pos}` })}
+      ${vm.custom ? panel(`<div class="kv tac-me"><span><b>${esc(vm.formationName)}</b>
+          <span class="small muted">${vm.edit
+            ? '선수를 끌어다 놓거나, 선수를 누른 뒤 놓을 곳을 눌러요. 가까운 자리에 붙고 그 자리 포지션(FW·W·CM 등)이 정해져요. 수비 3명 이상, 중원·공격 1명 이상.'
+            : '대형 편집으로 선수 자리를 바꿀 수 있어요. 역할은 자리의 포지션에 맞춰 골라요.'}</span></span>
+          ${Button({ size: 'sm', variant: vm.edit ? 'primary' : 'secondary', icon: vm.edit ? 'check' : 'player', act: 'tac-edit', children: vm.edit ? '편집 끝' : '대형 편집' })}</div>`) : ''}
+      ${FormationPitch({ slots: vm.slots, edit: vm.edit, label: `${vm.formationName} 포메이션, 내 위치 ${vm.me.pos}` })}
       ${panel(`<div class="kv tac-me"><span><b>내 위치 <span class="mine">${esc(vm.me.pos)} · ${esc(vm.me.role)}</span></b>
           <span class="small muted">원 위 숫자는 그 슬롯에서의 내 OVR이에요.${vm.me.off ? ` 주 포지션(${esc(vm.me.mainPos)} ${vm.me.mainOvr}) 밖이라 ${vm.me.ovr}로 뛰어요.` : ' 주 포지션 밖이면 낮아져요.'}</span></span>
           ${Button({ size: 'sm', variant: vm.pickMe ? 'primary' : 'secondary', icon: 'player', act: 'tac-pick-me', children: vm.pickMe ? '취소' : '내 위치 지정' })}</div>`)}
