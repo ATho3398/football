@@ -3,7 +3,7 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
-import { aerialWin, dribbleProb, duelTail } from './duel';
+import { aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { claimProb, keeperOf, keeperZone, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
@@ -381,8 +381,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
   const line = offsideLine(s, a.team);
   const oppGk = keeperOf(s, (1 - a.team) as 0 | 1);
-  // 경기 상황 (E.20 10번): 크게 앞선 팀은 위험한 선택을 덜 한다
+  // 경기 상황 (E.20 10번, C.29 fix2): 크게 앞선 팀은 전진 패스·슛·드리블을 덜 하고 안전 패스·유지로 기운다 (팀 공용 행동)
   const risk = leadRiskMul(s, a.team);
+  const safeRisk = 1 / risk;
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -423,6 +424,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
       if (def && dd < PR.longContest) aerial = aerialWin(r, def);
+    } else if (inOppBox(tx, ty, dir)) {
+      // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
+      const [def, dd] = nearestOutfield(s, r, tx, ty);
+      if (def && dd < PR.contestDist) aerial = receiveWin(r, def);
     }
     const flightP = (who: Agent) => clamp(passProbability(s, who, tx, ty, 'pass', lane, PR.receiverPressure * rp) + race, PR.passMin, PR.passCap);
     const pFlight = flightP(a);
@@ -450,7 +455,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     // 직선(롱볼): 타깃 ST 에게 가는 롱볼
     const tMul = target === r && d0 >= TA.longBall ? TENDENCY.directTargetMul : 1;
     const wMul = forward ? winMul : 1;
-    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * (running ? risk : 1));
+    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * (forward ? risk : safeRisk));
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -521,7 +526,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
         const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
         const p = cp(a);
         const pj = judgedP(p, cp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble);
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk);
         out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
       }
     }
@@ -536,7 +541,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const gegenMul = tac.tendency === 'gegenpress' ? winMul : 1;
       // 슛이 골이 아니면(빗나감·선방·블록) 공은 대개 상대 골 앞에서 상대에게 간다: 다른 후보와 같은 식 U = P × V + (1 − P) × C (E.22 C)
       const shotLoss = O.shotLoss ? loss(0.97, 0.5) : 0;
-      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * tikiMul * gegenMul * (m.d > TA.farShot ? risk : 1));
+      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * tikiMul * gegenMul * risk);
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
     }
 
@@ -549,7 +554,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
         const pj = judgedP(p, accOf(av) * ct.pWin);
         // 공격 폭 (좁게 0.9 / 넓게 1.1), 직선 성향 (E.19)
         const cMul = widthCrossMul(tac.width) * (tac.tendency === 'direct' ? TENDENCY.directCrossMul : 1);
-        const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul);
+        const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk);
         out.push({ type: 'cross', p, u, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
       }
     }
@@ -566,12 +571,12 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
 
   // 유지: 지금 위치 가치 × (1 − 다음 결정까지 빼앗길 확률). 빼앗기면 상실 비용 (다른 후보와 같은 식)
   const pLose = loseProb(s, a);
-  const holdU = weight((1 - pLose) * here + pLose * lossHere, mPoss);
+  const holdU = weight((1 - pLose) * here + pLose * lossHere, mPoss * safeRisk);
   out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
   return out;
 }
 
-/** 앞선 골 수에 따른 위험한 선택 효용 배수 (2골 이상 leadRisk2, 3골 이상 leadRisk3) */
+/** 앞선 골 수에 따른 전진 선택(전진 패스·슛·드리블·크로스) 효용 배수 (2골 이상 leadRisk2, 3골 이상 leadRisk3). 안전 패스·유지는 역수 */
 export function leadRiskMul(s: SimState, team: 0 | 1): number {
   const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
   return lead >= 3 ? TA.leadRisk3 : lead >= 2 ? TA.leadRisk2 : 1;

@@ -618,7 +618,10 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
-  if (a.line === 1 && dist(b.x, b.y, gx0, gy0) < Math.max(O.boxZone, O.stMarkZone) && boxDefense(s, a, dir, boxZone)) return;
+  // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
+  const ballGoal = dist(b.x, b.y, gx0, gy0);
+  const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
+  if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
 
   let [nx, ny] = slotTarget(s, a);
   const tendency = s.teams[a.team].tactics.tendency;
@@ -697,6 +700,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
  * ② 나머지는 니어 포스트, 페널티 지점, 파 포스트 순서로 가까운 자리를 덮는다 (자리가 모자라면 평소 라인)
  * 같은 상태에서 팀의 모든 수비수가 같은 배치를 계산한다. 배치가 정해지면 true
  */
+/** 상대 ST/CF 가 우리 박스 안에 있는가 (dir = 우리 팀 공격 방향) */
+function oppStrikerInBox(s: SimState, team: 0 | 1, dir: 1 | -1): boolean {
+  const [gx, gy] = ownGoal(dir);
+  return s.agents.some((o) => o.onPitch && o.team !== team && (o.pos === 'ST' || o.pos === 'CF')
+    && Math.abs(o.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(o.y - gy) <= ENGINE.pitch.boxWidth / 2);
+}
+
 function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean {
   const b = s.ball;
   const [gx, gy] = ownGoal(dir);
