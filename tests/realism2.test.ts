@@ -9,6 +9,7 @@ import { createState, curveAttr } from '../src/engine/sim';
 import type { Agent, SimState } from '../src/engine/state';
 import type { EngineInput } from '../src/engine/types';
 import { createTeamRoster } from '../src/roster';
+import { tacticsOf } from '../src/engine/tactics';
 
 const home = createTeamRoster({ id: 'h', rating: 75 }, 'real2-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 75 }, 'real2-a', 2018, []);
@@ -128,6 +129,8 @@ describe('E3.5 2차 3번 · 8번: 박스 앞 수비 블록, ST 마크, 수비 �
     of(st, 1, 'CM').y = 31;
     of(st, 1, 'CM', 1).x = L - 22;
     of(st, 1, 'CM', 1).y = 28;
+    // 라인 보통 (깊은 라인 맨마크는 아래 C.32 fix 테스트)
+    st.teams[1].tactics = tacticsOf('balanced');
     return o;
   });
   for (const a of s.agents) if (a.team === 1) updateOffball(s, a);
@@ -186,5 +189,37 @@ describe('E3.5 2차 4번 · 5번: 침투 패스와 몰고 가기', () => {
     const o = s.agents[s.ball.owner]!;
     expect(loseProb(s, o, 86, 34)).toBe(0);
     expect(carryLoseProb(s, o, 86, 34)).toBeGreaterThan(0.2);
+  });
+});
+
+describe('C.32 fix 가설 2: 깊은 라인(블록·라인 낮음)은 박스 안 사람을 1명씩 잡는다', () => {
+  const s = scene((st) => {
+    // 팀 0 이 공격: CM 이 상대 골 22 m 앞에서 공, ST 2명과 CM 1명이 박스 안
+    const o = of(st, 0, 'CM');
+    [o.x, o.y] = [L - 22, 30];
+    [of(st, 0, 'ST').x, of(st, 0, 'ST').y] = [L - 10, 30];
+    [of(st, 0, 'ST', 1).x, of(st, 0, 'ST', 1).y] = [L - 12, 42];
+    [of(st, 0, 'CM', 1).x, of(st, 0, 'CM', 1).y] = [L - 15, 36];
+    [of(st, 0, 'LM').x, of(st, 0, 'LM').y] = [L - 8, 24];
+    // 수비 팀 1(블록): 수비수 4명은 박스 근처, CM 2명이 공 가까이 (압박 담당)
+    st.teams[1].tactics = tacticsOf('block');
+    st.agents.filter((a) => a.team === 1 && a.line === 1).forEach((a, i) => { [a.x, a.y] = [L - 14, 20 + i * 9]; });
+    [of(st, 1, 'CM').x, of(st, 1, 'CM').y] = [L - 23, 31];
+    [of(st, 1, 'CM', 1).x, of(st, 1, 'CM', 1).y] = [L - 24, 28];
+    [of(st, 1, 'LM').x, of(st, 1, 'LM').y] = [L - 20, 15];
+    [of(st, 1, 'RM').x, of(st, 1, 'RM').y] = [L - 30, 55];
+    return o;
+  });
+  for (const a of s.agents) if (a.team === 1) updateOffball(s, a);
+  it('박스 안 상대 4명을 압박 2명을 뺀 수비수 4명이 골 쪽에서 1명씩 맡는다', () => {
+    const O = ENGINE.offball;
+    const atts = [of(s, 0, 'ST'), of(s, 0, 'ST', 1), of(s, 0, 'CM', 1), of(s, 0, 'LM')];
+    const markers = s.agents.filter((a) => a.team === 1 && a.line !== 0);
+    for (const t of atts) {
+      const m = markers.filter((a) => dist(a.tx, a.ty, t.x, t.y) < O.stMark * O.focusMark + 0.3);
+      expect(m.length).toBeGreaterThanOrEqual(1);
+      expect(dist(m[0]!.tx, m[0]!.ty, L, W / 2)).toBeLessThan(dist(t.x, t.y, L, W / 2));
+    }
+    expect(markers.filter((a) => a.line === 1 && atts.some((t) => dist(a.tx, a.ty, t.x, t.y) < O.stMark * O.focusMark + 0.3)).length).toBe(4);
   });
 });
