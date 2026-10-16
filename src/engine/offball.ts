@@ -612,7 +612,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       }
       a.tx = b.x + ux * gap;
       a.ty = b.y + uy * gap;
-      a.urgent = true;
+      // 압박 강도 = 달리기 강도 (C.32 fix 가설 3): 압박 보통 이상만 최대 속도, 낮음은 러닝
+      a.urgent = t.pressing >= O.pressSprintMin;
+      a.minRun = !a.urgent;
       return;
     }
   }

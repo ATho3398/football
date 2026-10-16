@@ -315,8 +315,8 @@ export function step(s: SimState): void {
   // 이동
   for (const a of s.agents) {
     if (!a.onPitch) continue;
-    // 압박 전술의 스태미나 소모 × (0.95 + 0.15 × pressing) (E.19 ③)
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, 0.95 + 0.15 * s.teams[a.team].tactics.pressing);
+    // 압박 전술의 스태미나 소모 × (pressDrainBase + pressDrainPer × pressing) (E.19 ③, C.32 fix)
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, ENGINE.offball.pressDrainBase + ENGINE.offball.pressDrainPer * s.teams[a.team].tactics.pressing);
   }
 
   // 공

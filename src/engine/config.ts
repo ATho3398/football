@@ -219,6 +219,11 @@ export const ENGINE = {
      * 처방의 20 m 는 공 따라 물러난 라인 기준이라 모든 팀에 걸려(동레이팅 득점 −20%) 설정 높이로 바꿨다
      */
     manMarkLine: 27,
+    /** 압박자가 최대 속도로 뛰는 압박 성향 하한 (C.32 fix 가설 3, 낮음 0.3 은 러닝) */
+    pressSprintMin: 0.55,
+    /** 압박 전술의 스태미나 소모 배수 = pressDrainBase + pressDrainPer × pressing (C.32 fix 가설 3: 0.95 + 0.15p → 0.9 + 0.3p) */
+    pressDrainBase: 0.9,
+    pressDrainPer: 0.3,
     manMarkPad: 3,
     /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
     coverPostDepth: 5,
