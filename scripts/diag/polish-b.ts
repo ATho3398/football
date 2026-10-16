@@ -6,7 +6,8 @@ import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
 import { candidates, choose } from '../../src/engine/onball';
-import { tacticsOf } from '../../src/engine/tactics';
+import { tacticsOf, type Level } from '../../src/engine/tactics';
+import type { Tendency } from '../../src/engine/types';
 import { attackDir, dist, inOppBox, oppGoal, toNorm } from '../../src/engine/pitch';
 import { keeperOf, saveProb } from '../../src/engine/keeper';
 import type { Flight } from '../../src/engine/state';
@@ -54,6 +55,7 @@ interface Side {
   recvBox: { n: number; dsum: number; within15: number; within25: number; stN: number; stWithin15: number; shots3: number; shots3Within15: number };
   /** 골 직전 점수 차(득점 팀 기준)별 골·슈팅 (C.29 재진단: 크게 앞선 뒤에도 계속 넣는가) */
   byLead: Record<string, { goals: number; shots: number }>;
+  offsides: number; distKm: number; stamina75: number; nAgents: number;
   passBins: { n: number; ok: number }[]; saveJudged: number; saveActual: number; saveN: number; gkSs: number[];
   oppHalfWins: number; ints: number; tackleAtt: number; disp: number; counterShots: number; goalKicks: number; corners: number;
 }
@@ -62,7 +64,7 @@ const side = (): Side => ({
   byGroup: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
   dec: 0, decMistake: 0, shootExists: 0, shootBest: 0, shootChosen: 0, shootChosenNotBest: 0, shootChosenGap: [0, 0, 0], shotXgChosen: [], shotXgWhenBest: [], bestTypeWhenShoot: {},
   typeMatch: 0, typeMismatch: 0, pathMine: {}, pathEngine: [0, 0, 0, 0, 0, 0, 0], goalPathEngine: [0, 0, 0, 0, 0, 0, 0], stShotsFromReceiveSec: [], stShotDist: [],
-  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, xgByNear: {} }, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
+  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, xgByNear: {} }, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
 });
 const PBINS = [0, 10, 20, 30, 40, 50];
 const pbin = (d: number) => { let b = 0; while (b + 1 < PBINS.length && d >= PBINS[b + 1]!) b++; return b; };
@@ -249,6 +251,8 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
   for (const t of [0, 1] as const) {
     const S = out[t]!; const st = s.teams[t].stats;
     S.n++; S.poss += st.possessionTicks / (s.teams[0].stats.possessionTicks + s.teams[1].stats.possessionTicks);
+    S.offsides += st.offsides;
+    for (const a of s.agents) if (a.team === t && a.onPitch) { S.distKm += a.stats.distance / 1000; S.stamina75 += a.stamina; S.nAgents++; }
     S.oppHalfWins += st.oppHalfWins; S.ints += st.interceptions; S.tackleAtt += st.tackleAttempts; S.disp += st.dispossessed; S.counterShots += st.counterShots; S.goalKicks += st.goalKicks; S.corners += st.corners;
     S.passes += st.passes; S.passOk += st.passesCompleted; S.long += st.longPasses; S.drib += st.dribbles; S.dribOk += st.dribblesWon; S.through += st.throughReceived;
   }
@@ -270,6 +274,7 @@ function report(label: string, out: [Side, Side]): void {
     console.log(`  슈팅 경로(엔진, 패스/몰고·돌파/코너/FK/PK/리바운드/그밖): ${S.pathEngine.map((v) => (100 * v / S.shots).toFixed(0)).join('/')} · 골 경로: ${S.goalPathEngine.map((v) => (100 * v / Math.max(1, S.goals)).toFixed(0)).join('/')}`);
     console.log(`  롱패스 출처(경기당): ${Object.entries(S.longByOrigin).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${q(v)}`).join(' · ')}`);
     console.log(`  파울 원인(경기당): ${Object.entries(S.foulBy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${q(v)}`).join(' · ')}`);
+    console.log(`  오프사이드 ${q(S.offsides)} · 선발 끝까지 뛴 선수 이동 거리 평균 ${(S.distKm / Math.max(1, S.nAgents)).toFixed(2)} km, 경기 끝 스태미나 평균 ${(S.stamina75 / Math.max(1, S.nAgents)).toFixed(1)}`);
     console.log(`  상대 진영 탈취 ${q(S.oppHalfWins)} 인터셉트 ${q(S.ints)} 태클 시도 ${q(S.tackleAtt)} 소유 상실(몰고·유지 실패) ${q(S.disp)} 역습 슈팅 ${q(S.counterShots)} 골킥 ${q(S.goalKicks)} 코너 ${q(S.corners)}`);
     console.log(`  침투 패스: 시도 ${q(S.thrAtt)} 수신 ${q(S.thrRecv)} (${(100 * S.thrRecv / Math.max(1, S.thrAtt)).toFixed(0)}%), 받은 곳 골까지 평균 ${mean(S.thrRecvDist).toFixed(1)} m, 받고 3초 안 슛 ${q(S.thrShot3)}, 침투로 받은 뒤 골 ${q(S.thrGoals)} (${(100 * S.thrGoals / Math.max(1, S.goals)).toFixed(0)}% of 골)`);
     console.log(`  얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGot).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
@@ -286,7 +291,7 @@ function report(label: string, out: [Side, Side]): void {
   }
 }
 
-const mkGen = (side: string, i: number, rating: number, opp: number, formation = '4-2-3-1' as const, tactics: 'balanced' | 'data' = 'balanced') => {
+const mkGen = (side: string, i: number, rating: number, opp: number, formation: '4-2-3-1' | '4-4-2' = '4-2-3-1', tactics: 'balanced' | 'data' = 'balanced') => {
   const r = createTeamRoster({ id: `v${side}${i}`, rating }, `diagB-${side}-${rating}-${i}`, 2018, []);
   r.formation = formation;
   const s = teamSetupFromRoster(r, rosterRating(r), opp, `wB${i}`);
@@ -304,6 +309,17 @@ if (MODE === 'gap') {
     const out: [Side, Side] = [side(), side()];
     for (let i = 0; i < N; i++) analyze(mkGen('a', i, rh, ra), mkGen('b', i, ra, rh), 9000 + i, out);
     report(`생성 팀 4-2-3-1 균형 중립 ${N}경기: ${rh} 대 ${ra} (Δ ${rh - ra})`, out);
+  }
+} else if (MODE === 'tac') {
+  // 전술 짝 비교 (C.32 진단): 생성 팀 75 대 75, 4-4-2, 홈 = 전술 A, 원정 = 전술 B(기본 균형). 지정: 성향@라인압박빌드업폭 (tactic-pair 와 같은 표기)
+  const tacOf = (spec: string) => { const [tn, lv] = spec.split('@') as [Tendency, string | undefined]; const levels = lv ? { lineHeight: Number(lv[0]) as Level, pressing: Number(lv[1]) as Level, style: Number(lv[2]) as Level, width: Number(lv[3]) as Level } : undefined; return tacticsOf(tn, levels); };
+  const mkT = (side: string, i: number, spec: string) => { const s = mkGen(side, i, 75, 75, '4-4-2', 'data'); s.tactics = tacOf(spec); refill(s); return s; };
+  const specs = args.length > 2 ? args.slice(2) : ['balanced', 'balanced@2111', 'balanced@0011', 'balanced@1211', 'gegenpress', 'block', 'counter'];
+  const vs = process.env.VS ?? 'balanced';
+  for (const sp of specs) {
+    const out: [Side, Side] = [side(), side()];
+    for (let i = 0; i < N; i++) analyze(mkT('a', i, sp), mkT('b', i, vs), 31000 + i, out);
+    report(`전술 ${sp} (홈) 대 ${vs} (원정) — 생성 75 대 75, 4-4-2, 중립 ${N}경기`, out);
   }
 } else if (MODE === 'liv') {
   const ws = 'league-0';
