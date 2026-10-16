@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 20;
+export const BALANCE_VERSION = 21;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -75,7 +75,7 @@ export const BALANCE = {
 
   // ── 경기 XP (5.2) ──
   matchXp: {
-    ratingBase: 4.0,
+    ratingBase: 4.4,
     perRatingPoint: 10,
     /** 출전하면 결과와 무관하게 받는 XP (90분 기준, 출전 시간 비례) */
     appearance: 8,
@@ -231,17 +231,21 @@ export const BALANCE = {
     maxInvolvement: 0.6,
   },
 
-  // ── 평점 (B.4) ──
+  // ── 평점 (B.4, C.26) ──
   rating: {
-    base: 6.0,
-    perOvrDiff: 0.03,
+    /** 평점 = base + 활약 − 포지션 보정(동레이팅에서 기대하는 골·도움·클린시트 몫, positionCenter) */
+    base: 6.5,
+    /** 내 OVR − 상대 팀 레이팅 1점당. 0.03 → 0.02 (C.26: 실제 선수 ST 20골 안팎 시즌이 7.5~7.7 로 높아서) */
+    perOvrDiff: 0.02,
     win: 0.4,
     draw: 0,
     loss: -0.4,
-    goal: 0.8,
-    assist: 0.5,
+    /** 엔진과 같게 골 약 +1.0, 도움 약 +0.6 (C.26) */
+    goal: 1.0,
+    assist: 0.6,
     cleanSheetDefender: 0.4,
-    randomSd: 0.6,
+    /** 0.6 → 0.5 (C.26: 골·도움 가치를 올린 만큼 전체 σ 0.8 근처로) */
+    randomSd: 0.5,
     min: 3.0,
     max: 10.0,
     /** MOM: 평점이 이 값 이상이고 지지 않았을 때 */

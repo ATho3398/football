@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 9;
+export const ENGINE_VERSION = 10;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -621,14 +621,17 @@ export const ENGINE = {
     forwardPass: 0.05,
     keyPass: 0.15,
     onTarget: 0.1,
-    goal: 0.8,
-    assist: 0.5,
+    /** 골·도움은 scale 을 곱해 평점 약 +1.0 / +0.6 (C.26). 골이 된 슈팅은 유효 슈팅으로 따로 세지 않는다 */
+    goal: 1.1,
+    assist: 0.65,
     dribble: 0.1,
     tackle: 0.1,
     interception: 0.08,
     aerial: 0.05,
     lost: -0.04,
     dangerLost: -0.1,
+    /** 상대 진영 마지막 1/3 에서의 공 상실은 lost × 이 비율 (C.26) */
+    attackLostFactor: 0.5,
     foul: -0.05,
     offside: -0.05,
     yellow: -0.2,
@@ -647,10 +650,11 @@ export const ENGINE = {
     max: 10,
     /**
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
-     * center 는 포지션군의 평균 델타 합 (balance:engine 으로 보정), scale 은 전체 σ 약 0.7
+     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts),
+     * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.18 (평균 약 6.68)
      */
-    center: { GK: 1.06, CB: 1.33, FB: 1.11, CDM: 2.37, CM: 2.5, CAM: 1.95, WING: 1.62, ST: 2.56 } as Record<string, number>,
-    scale: 0.7,
+    center: { GK: 0.96, CB: 1.26, FB: 1.01, CDM: 1.93, CM: 2.21, CAM: 1.69, WING: 1.34, ST: 2.07 } as Record<string, number>,
+    scale: 0.9,
     mean: 6.5,
   },
 

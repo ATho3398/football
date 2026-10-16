@@ -4,6 +4,7 @@
 import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../src/attributes';
 import { ENGINE } from '../../src/engine/config';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
+import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
 import { FORMATION_SLOTS, type Formation } from '../../src/formations';
@@ -40,6 +41,8 @@ export interface MatchJob {
   /** 엔진 상수 덮어쓰기: 'onball.utilityScale' → 값 */
   overrides?: Record<string, number>;
   mods?: AttrMod[];
+  /** 평점 성분도 돌려준다 (C.26 평점 재보정 측정) */
+  parts?: boolean;
 }
 
 export interface SeasonJob {
@@ -63,7 +66,7 @@ export interface LeagueMatchJob {
 
 export type Job = MatchJob | SeasonJob | LeagueMatchJob;
 
-export type CompactPlayer = Omit<PlayerStats, 'id'> & { starter: boolean };
+export type CompactPlayer = Omit<PlayerStats, 'id'> & { starter: boolean; parts?: RatingParts };
 
 export interface MatchOut {
   kind: 'match';
@@ -167,17 +170,20 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const away = buildTeam(j.away, j.home.rating, ws);
     for (const m of j.mods ?? []) applyMod(m.team === 0 ? home : away, m);
     const starters = new Set([...home.lineup, ...away.lineup].map((p) => `${p.id}`));
-    const r = createMatch({
+    const sim = createMatch({
       home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false, neutral: j.neutral,
       ...(j.forceRed ? { forceRed: j.forceRed } : {}),
-    }).runToEnd();
+    });
+    const r = sim.runToEnd();
+    const st = sim.state;
+    const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
     const ms = performance.now() - t0;
     return {
       kind: 'match',
       homeGoals: r.homeGoals,
       awayGoals: r.awayGoals,
       team: r.teamStats,
-      players: r.players.map(({ id, ...p }) => ({ ...p, starter: starters.has(id) })),
+      players: r.players.map(({ id, ...p }) => ({ ...p, starter: starters.has(id), ...(j.parts ? { parts: ratingParts(st, byId.get(id)!, r.duration) } : {}) })),
       goals: r.events.filter((e) => e.type === 'goal').map((e) => ({ t: e.t, team: e.team })),
       liveSeconds: r.liveSeconds,
       duration: r.duration,

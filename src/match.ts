@@ -63,6 +63,18 @@ export function matchXp(rating: number, outcome: MatchOutcome, mom: boolean, min
   return Math.round(xp);
 }
 
+/** 빠른 경기 포지션 보정 (C.26): 동레이팅 중립 경기에서 이 포지션이 받는 골·도움·클린시트 기대 평점 */
+export function positionCenter(position: FieldPosition, share: number, dampen: number): number {
+  const M = BALANCE.match;
+  const R = BALANCE.rating;
+  const lambda = M.baseGoals + M.homeBonus / 2;
+  const pGoal = Math.min(M.maxInvolvement, M.scorerShare[position] * share);
+  const pAssist = Math.min(M.maxInvolvement, M.assistShare[position] * share);
+  let c = lambda * (pGoal * R.goal + (1 - pGoal) * pAssist * R.assist);
+  if (DEFENDER_POSITIONS.includes(position)) c += Math.exp(-lambda) * R.cleanSheetDefender * dampen;
+  return c;
+}
+
 export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   const M = BALANCE.match;
   const R = BALANCE.rating;
@@ -96,13 +108,17 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
     else if (rng() < pAssist) assists++;
   }
 
-  // 평점
+  // 평점 (C.26): 6.5 + 포지션 보정 + 활약. 포지션 보정은 동레이팅 경기에서 그 포지션이 기대하는 골·도움·클린시트 몫을 빼서
+  // 포지션 평균이 6.5 근처가 되게 한다 (엔진 center 와 같은 역할)
   const resultBonus = outcome === 'win' ? R.win : outcome === 'loss' ? R.loss : R.draw;
+  const defender = DEFENDER_POSITIONS.includes(input.position);
   let delta = (input.ovr - input.oppRating) * R.perOvrDiff + resultBonus + gaussian(rng) * R.randomSd;
-  if (goalsAgainst === 0 && DEFENDER_POSITIONS.includes(input.position)) delta += R.cleanSheetDefender;
+  if (goalsAgainst === 0 && defender) delta += R.cleanSheetDefender;
   // 교체 출전은 활약 폭이 작다
-  if (!started) delta *= Math.max(R.subDampenMin, share);
+  const dampen = started ? 1 : Math.max(R.subDampenMin, share);
+  delta *= dampen;
   delta += goals * R.goal + assists * R.assist;
+  delta -= positionCenter(input.position, share, dampen);
   delta += BALANCE.difficulty[input.difficulty].rating;
   delta += input.formBonus ?? 0;
   delta -= fatiguePenalty(input.fatigue) * BALANCE.fatigue.ratingPenaltyPerPoint;

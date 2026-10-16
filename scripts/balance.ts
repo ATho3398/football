@@ -10,6 +10,7 @@
 // 1.7단계 점검 (부록 D.7): 실제 선수 정점 = 시작 OVR + 시작 나이별 여지(±1.5)
 // 13단계 점검 (부록 C.23): 30세 위상 중앙값 일반 유망주 스페셜(250~400), 레전더리 유망주 탑클래스(550~750), 레전더리 유망주 최적 배분 30세까지 900+ 도달 10~20%
 // 15단계 점검 (부록 C.25): 레전더리 유망주 최적 배분 35세 900+ 비율 25% 이하 (부진·순위 감점, 31세부터 시즌 상한 축소)
+// 16단계 점검 (부록 C.26): 실제 선수 ST/CF 시즌 20골 안팎(17~23골, 25경기 이상) 시즌 평균 평점 7.0~7.4
 
 /** 회귀 가드 (부록 A.1): 지표마다 기대 범위 */
 const CHECK = (globalThis as { process?: { argv: string[] } }).process?.argv.includes('--check') ?? false;
@@ -93,7 +94,7 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number) {
     if (state.phase !== 'offseason') break;
     startNextSeason(state);
   }
-  const hist = state.player.history.map((h) => ({ age: h.age, xp: h.achievementXp, moms: h.moms, gi: h.goals + h.assists }));
+  const hist = state.player.history.map((h) => ({ age: h.age, xp: h.achievementXp, moms: h.moms, gi: h.goals + h.assists, apps: h.apps, goals: h.goals, rating: h.apps ? h.ratingSum / h.apps : 0 }));
   const badgeAges = state.player.badges.map((b) => state.player.history.find((h) => h.season === b.season)?.age ?? 0);
   return { ovrByAge, repByAge, high95ByAge, max99ByAge, starts: starts / seasons, injuries, seasonLog, hist, badgeAges };
 }
@@ -210,6 +211,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   }
   // 목표: 실제 선수는 어떤 경우에도 99 능력치가 2개를 넘지 않는다 / 정점 여지가 나이별 목표 ±1.5 안
   const all = selectableRealPlayers();
+  const stSeasons: Run['hist'] = [];
   let over2 = 0;
   let worst = { id: '', n: 0 };
   let inRange = 0;
@@ -222,6 +224,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
       const start = playerOvr(state.player);
       room = state.player.peakTarget! - start;
       const r = runCareer(state, 'best', i);
+      if (state.player.position === 'ST' || state.player.position === 'CF') stSeasons.push(...r.hist);
       deltas.push(Math.max(...Object.values(r.ovrByAge)) - start);
       const n = Math.max(...Object.values(r.max99ByAge));
       if (n > 2) over2++;
@@ -233,6 +236,12 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   }
   console.log(`  A등급 전체 ${all.length}명 × 시드 ${ALL_REAL_SEEDS}개: 커리어 중 99 능력치 3개 이상 ${over2}건 · 최대 ${worst.n}개 (${worst.id || '-'}) ${check('실제 선수 99 능력치 3개 이상', over2, 0, 0)}`);
   const share = inRange / all.length;
+  // C.26: 시즌 20골 안팎 ST/CF (25경기 이상 출전, 17~23골) 시즌 평균 평점
+  const st20 = stSeasons.filter((h) => h.apps >= 25 && h.goals >= 17 && h.goals <= 23);
+  const stLow = stSeasons.filter((h) => h.apps >= 25 && h.goals <= 8);
+  const stHigh = stSeasons.filter((h) => h.apps >= 25 && h.goals >= 28);
+  console.log(`  [C.26 평점] 실제 선수 ST/CF 시즌 (25경기+): 17~23골 ${st20.length}시즌 평균 평점 ${st20.length ? avg(st20.map((h) => h.rating)).toFixed(2) : '-'} ${check('ST 20골 안팎 시즌 평균 평점', st20.length ? avg(st20.map((h) => h.rating)) : 0, 7.0, 7.4)}` +
+    ` · 8골 이하 ${stLow.length}시즌 ${stLow.length ? avg(stLow.map((h) => h.rating)).toFixed(2) : '-'} · 28골 이상 ${stHigh.length}시즌 ${stHigh.length ? avg(stHigh.map((h) => h.rating)).toFixed(2) : '-'}`);
   console.log(`  정점 여지 ±1.5 안: ${inRange}/${all.length}명 (${(share * 100).toFixed(0)}%) ${check('실제 선수 정점 여지 적중률', share, 0.8, 1)}${misses.length ? ` · 벗어남: ${misses.join(', ')}` : ''}`);
 }
 {

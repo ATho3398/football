@@ -26,6 +26,7 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
   lo.rt.lost++;
   const nx = attackDir(lo.team, s.half) > 0 ? lo.x / L : 1 - lo.x / L;
   if (nx < 1 / 3) lo.rt.dangerLost++;
+  else if (nx > 2 / 3) lo.rt.attackLost++;
 }
 
 export function setOwner(s: SimState, a: Agent): void {
