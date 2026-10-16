@@ -161,3 +161,13 @@
 - **C.30 지시 초안 요점**: pending 16 결정(항목 11개, 포지션별 6개 + 전체 보기, 결과 화면·경기 목록·시즌 합계, 경기별 기록 세이브 저장 → SAVE_FORMAT_VERSION 올림, 평점 불변, 엔진은 집계만) + pending 17([중단] 버튼: 그 라운드까지 끝내고 멈춤).
 - **고속 모드**: `.claude/settings.json` `fastMode: true`가 새 세션에 적용되지 않는 것으로 보인다(fix 세션 flag 없음). 새 세션을 연 뒤 `get_session`의 `flag_settings.fastMode`를 보고, 없거나 false면 사용자에게 모델 메뉴에서 켜 달라고 알린다.
 - **사용자 지시 요약**: 모든 답변 끝 시간 기록(CLAUDE.md), 질문은 추천안과 함께 묻되 답이 없으면 추천안으로 진행, `docs/automation.md` 흐름 그대로. 기획 세션 교체 기준 25만 토큰 또는 15달러.
+
+### 8.13 기획 세션 H (2026-10-16 14:53~18:25 KST, `session_01EuEWyJAeJzb5KV6aJK45Rf`, 브랜치 `claude/planning-h`) → I 교체
+- **한 일**: pending 1~19 기획서 합침(6973566, D.17~D.22·17.2 등). 19단계 C.29 배포(ENGINE 12) → 득점 분포 미달 → 엔진 관리자 진단 → fix(Fable) 실패 → 재진단 → **fix2(리드 관리, Opus) 부분 해결 배포(ENGINE 13)** → 20단계 C.30(경기 기록 확장·[중단] 버튼, SAVE 11) 배포 → 21단계 C.31(패스 곡선·득점 재정렬, ENGINE 14) 배포. 결정은 pending 20~25.
+- **득점 분포**: C.31 뒤 30골 이상 1.3명(기준 0.5~2로 완화, pending 24), 득점왕 중앙값 32, 최다 팀 99, 리그 1.42 → 사실상 해소. 남은 미해결: ST 유효 슈팅률 반응(pending 25 ④), 롱패스 19%(E3.6), 짧은 패스 6%(E3.7), looseError(다음 엔진 패치).
+- **실행 중**: 22단계 E3.6 `session_01M1PfE5trNias6WW1iDpuk3` "22단계_전술 설정 화면과 저장 (E3.6)", Opus, 브랜치 `claude/e36-tactics-screen`, 부록 C.32. 끝나면 기획 세션에 send_message(새 기획 세션 ID를 알려 둠).
+- **draft_ 처리됨**: 19단계·19 fix·19 fix2·20단계. **21단계 C.31 `session_016F72kJAbLVCMQbyDnsn9Un`도 draft_** 처리됨.
+- **엔진 관리자** `session_01Tc3v1PUjUeQb6grHociYfh`(Fable): 진단 문서 `docs/engine-diagnosis-c29.md` §1~4. 컨텍스트 50만 넘으면 요약 커밋 후 교체.
+- **다음 순서**: 22 E3.6 결과 → 23 E3.7(역할 31개·움직임 모듈 4개·포메이션 3종+커스텀·시그니처 카드 데이터, E.21, pending 25 ②) → **E4 전 "사람 확인"에서 반드시 멈춤**(사용자가 경기를 직접 본다).
+- **고속 모드**: 새 세션 `get_session`에 `flag_settings.fastMode`가 계속 없다. 열 때마다 사용자에게 모델 메뉴에서 켜 달라고 알린다.
+- **열린 문서 정리 거리**(답 없으면 추천안): 6.3 위상 진행도 문구(C.23 화면 확인 후), 8.1 위상 속도·시즌 상한 숫자를 실제 코드 값으로 정리, E.22 케인 개별 기준은 득점왕 기준으로 대체. pending 20~25도 기획서에 합칠 것.
