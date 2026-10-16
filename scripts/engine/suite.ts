@@ -167,8 +167,8 @@ export interface Sizes {
 
 export const SIZES: Record<Mode, Sizes> = {
   full: { neutral: 400, diff8: 200, diff15: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200, league: 3 },
-  // C.28: 경량 평점은 칸당 약 20명(포지션 평균 표본 오차 ±0.1), 시즌 XP 비는 12시즌(선수 6명 × 시드 2)
-  light: { neutral: 120, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 300, ovr5: 0, seasons: 12, tactic: 0, league: 0 },
+  // C.28: 경량 평점 360경기(포지션당 약 70명, 평균 표본 오차 ±0.1), 스탯 반응 240쌍, 시즌 XP 비는 12시즌(선수 6명 × 시드 2)
+  light: { neutral: 120, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 240, sens: 0, rating: 360, ovr5: 0, seasons: 12, tactic: 0, league: 0 },
   sweep: {
     neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), diff15: Number(process.env.SWEEP_D15 ?? 0), poss10: 0, home: Number(process.env.SWEEP_HOME ?? 0), red: 0, formation: 0,
     response: Number(process.env.SWEEP_RESP ?? 40), sens: 0, rating: Number(process.env.SWEEP_RATING ?? 0), ovr5: 0, seasons: Number(process.env.SWEEP_SEASONS ?? 0), tactic: 0,
@@ -465,12 +465,14 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
         cells.get(k)!.push(p.rating);
       }
     });
-    const nCell = Math.min(...GROUPS.flatMap((g) => [0, 1, 2].map((s) => cells.get(`${s}:${g}`)?.length ?? 0)));
-    const sample = [...cells.values()].flatMap((xs) => xs.slice(0, nCell));
-    const mu = avg(sample);
+    // C.28 fix: 가장 작은 칸 크기로 자르지 않고 칸마다 전원 평균 → 칸 가중(칸마다 같은 무게) 평균. 버리는 표본이 없다
+    const keys = GROUPS.flatMap((g) => [0, 1, 2].map((s) => `${s}:${g}`)).filter((k) => cells.get(k)?.length);
+    const cellAvg = (ks: string[], f: (x: number) => number = (x) => x) => avg(ks.map((k) => avg(cells.get(k)!.map(f))));
+    const nCell = Math.min(...keys.map((k) => cells.get(k)!.length));
+    const mu = cellAvg(keys);
     add(S, 'rMean', '평점 평균', '약 6.5', mu, 6.3, 6.7, 2, { guard: [6.2, 6.8] });
-    add(S, 'rSd', '평점 σ', '0.7~0.9', Math.sqrt(avg(sample.map((x) => (x - mu) ** 2))), 0.7, 0.9, 2, { guard: [0.7, 0.9] });
-    const gm = GROUPS.map((g) => [g, avg([0, 1, 2].flatMap((s) => (cells.get(`${s}:${g}`) ?? []).slice(0, nCell)))] as const);
+    add(S, 'rSd', '평점 σ', '0.7~0.9', Math.sqrt(cellAvg(keys, (x) => (x - mu) ** 2)), 0.7, 0.9, 2, { guard: [0.7, 0.9] });
+    const gm = GROUPS.map((g) => [g, cellAvg(keys.filter((k) => k.endsWith(`:${g}`)))] as const);
     // C.26: 포지션별 평균도 경량 가드 (엔진이 바뀌어 center 가 어긋나면 걸린다)
     for (const [g, m] of gm) add(S, `r${g}`, `평점 ${g}`, '6.5 ± 0.2', m, 6.3, 6.7, 2, { guard: [6.3, 6.7] });
     // ST 풀타임 선발 (양 팀): 무득점 경기 평균과 골 수별 평균 (C.26)
@@ -480,8 +482,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'rST0', 'ST 풀타임 무득점 경기 평점', '5.9 이상', stBy((g) => g === 0), 5.9, 10, 2, {
       guard: [5.9, 10], note: `1골 ${stBy((g) => g === 1).toFixed(2)} · 2골+ ${stBy((g) => g >= 2).toFixed(2)}, ${st.length}경기`,
     });
-    const byStr = [0, 1, 2].map((s) => avg(GROUPS.flatMap((g) => (cells.get(`${s}:${g}`) ?? []).slice(0, nCell))));
-    extra.push(`평점 팀 강도별 평균 (68 / 75 / 82): ${byStr.map((x) => x.toFixed(2)).join(' / ')}, 칸당 ${nCell}명`);
+    const byStr = [0, 1, 2].map((s) => cellAvg(keys.filter((k) => k.startsWith(`${s}:`))));
+    extra.push(`평점 팀 강도별 평균 (68 / 75 / 82): ${byStr.map((x) => x.toFixed(2)).join(' / ')}, 칸 가중 평균, 가장 작은 칸 ${nCell}명`);
   }
 
   // 시즌 진행 (엔진 vs 빠른 경기 XP)

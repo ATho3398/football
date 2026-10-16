@@ -697,5 +697,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   fl.outcome = 'loose';
   fl.toX = c.x + randn(s.seed, s.tick, a.idx, Purpose.Loose, 0) * PR.looseError;
   fl.toY = c.y + randn(s.seed, s.tick, a.idx, Purpose.Loose, 1) * PR.looseError;
+  // 빗나간 공도 찬 속도로 날아간다 (C.28 fix: 착지점만 옮기고 시간을 두면 최대 40 m/s 로 날았다)
+  fl.dur = Math.max(0.2, dist(a.x, a.y, fl.toX, fl.toY) / speed);
   return fl;
 }

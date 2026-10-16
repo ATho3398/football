@@ -7,6 +7,7 @@ import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { teamSetupFromRoster } from '../../src/engine/setup';
 import { keeperOf } from '../../src/engine/keeper';
+import { ballPathAt } from '../../src/engine/offball';
 import { attackDir, dist, L, W } from '../../src/engine/pitch';
 import type { SimState } from '../../src/engine/state';
 import { createTeamRoster, rosterRating } from '../../src/roster';
@@ -50,7 +51,7 @@ let kickoffOut = 0;
 // 골 뒤 킥오프
 const kick: { wait: number; settle: number; settleAll: number }[] = [];
 // GK 루즈볼 에피소드
-type Ep = { kind: string; team: 0 | 1; sweeper: boolean; gkLead: number; t0: number; gkMoved: number; outcome: string; reachable: boolean; ballSp: number; gkEta: number; outEta: number };
+type Ep = { kind: string; team: 0 | 1; sweeper: boolean; gkLead: number; t0: number; gkMoved: number; outcome: string; reachable: boolean; reachOld: boolean; ballSp: number; gkEta: number; outEta: number };
 const eps: Ep[] = [];
 
 function inBoxOf(s: SimState, team: 0 | 1, x: number, y: number): boolean {
@@ -218,7 +219,18 @@ for (let i = 0; i < N; i++) {
             if (dOut < stopD) { const disc = sp * sp - 2 * dec * dOut; outEta = (sp - Math.sqrt(Math.max(0, disc))) / dec; }
             void stopT;
           }
-          cur = { kind: fl ? `비행 착지(${fl.kind})` : '구르는 공', team, sweeper: gk.gk?.type === 'sweeper', gkLead: od - gd, t0: s.t, gkMoved: Math.hypot(gk.vx, gk.vy), outcome: '', reachable: gkEta < outEta && gkEta < flightLeft + 2, ballSp: sp, gkEta, outEta };
+          // C.28 fix: "닿을 수 있음" = 공 경로 예측(루즈 비행은 직선, 착지 뒤 등감속 굴림, 0.1초 간격) 위에
+          // GK(반응 0.5초 + 7 m/s)가 공보다 먼저 닿는 점이 라인 안에 하나라도 있음. 비행 중인 점은 제외. 예전 정의(reachOld)는 비교용
+          let reachable = false;
+          for (let i = 0; i <= 80; i++) {
+            const tt = i * 0.1;
+            const p = ballPathAt(s, tt);
+            if (p.x < 0 || p.x > L || p.y < 0 || p.y > W) break;
+            if (tt < flightLeft) continue;
+            if (0.5 + dist(gk.x, gk.y, p.x, p.y) / 7 <= tt) { reachable = true; break; }
+            if (p.sp <= 0) { reachable = true; break; } // 라인 안에서 멈춘 공은 언젠가 닿는다 (GK 가 가장 가깝다)
+          }
+          cur = { kind: fl ? `비행 착지(${fl.kind})` : '구르는 공', team, sweeper: gk.gk?.type === 'sweeper', gkLead: od - gd, t0: s.t, gkMoved: Math.hypot(gk.vx, gk.vy), outcome: '', reachable, reachOld: gkEta < outEta && gkEta < flightLeft + 2, ballSp: sp, gkEta, outEta };
           break;
         }
       }
@@ -266,8 +278,10 @@ for (const kind of [...new Set(eps.map((e) => e.kind))]) {
   for (const e of es) byK[e.outcome] = (byK[e.outcome] ?? 0) + 1;
   console.log(`  [${kind}] ${es.length}회: ${Object.entries(byK).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')} · GK 가 먼저 닿을 수 있음 ${es.filter((e) => e.reachable).length}`);
 }
+const reachOld = eps.filter((e) => e.reachOld);
+console.log(`  (예전 정의: 착지점·출발 위치 기준) ${reachOld.length}, 그중 결과: ${Object.entries(reachOld.reduce((r, e) => ((r[e.outcome] = (r[e.outcome] ?? 0) + 1), r), {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')}`);
 const reach = eps.filter((e) => e.reachable);
-console.log(`  GK 가 라인 아웃 전에 닿을 수 있는 경우(반응 0.5초 + 7 m/s): ${reach.length} (${((100 * reach.length) / eps.length).toFixed(0)}%), 그중 결과: ${Object.entries(reach.reduce((r, e) => ((r[e.outcome] = (r[e.outcome] ?? 0) + 1), r), {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')}`);
+console.log(`  GK 가 라인 아웃 전에 닿을 수 있는 경우(공 경로 예측, 반응 0.5초 + 7 m/s): ${reach.length} (${((100 * reach.length) / eps.length).toFixed(0)}%), 그중 결과: ${Object.entries(reach.reduce((r, e) => ((r[e.outcome] = (r[e.outcome] ?? 0) + 1), r), {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')}`);
 console.log(`  시작 시 공 속도 평균 ${mean(eps.map((e) => e.ballSp)).toFixed(1)} m/s, GK 도착 평균 ${mean(eps.map((e) => e.gkEta)).toFixed(1)}초, 아웃까지 평균(유한만) ${mean(eps.map((e) => e.outEta).filter((x) => Number.isFinite(x))).toFixed(1)}초, 멈추는 공(아웃 안 됨) ${eps.filter((e) => !Number.isFinite(e.outEta)).length}`);
 console.log(`\n== C.28 GK 추격 ==`);
 console.log(`  추격 ${chase.n}회 (경기당 ${(chase.n / N).toFixed(1)}), GK 가 공을 얻음 ${chase.gk} (${((100 * chase.gk) / Math.max(1, chase.n)).toFixed(0)}%), 박스 밖 추격 ${chase.outBox}, 추격 중·실패 10초 안 실점 ${chase.conceded} (경기당 ${(chase.conceded / N).toFixed(2)})`);

@@ -98,7 +98,7 @@ function ballChasePoint(s: SimState): [number, number] {
 }
 
 /** 루즈볼이 t 초 뒤 있을 곳과 속도 (C.28): 루즈 비행은 비행 끝까지 직선, 그 뒤 등감속 굴림. 공중이면 air */
-function ballPathAt(s: SimState, t: number): { x: number; y: number; sp: number; air: boolean } {
+export function ballPathAt(s: SimState, t: number): { x: number; y: number; sp: number; air: boolean } {
   const b = s.ball;
   const fl = b.flight;
   let [x, y, vx, vy] = [b.x, b.y, b.vx, b.vy];
