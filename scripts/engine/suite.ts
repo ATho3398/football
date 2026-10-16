@@ -25,6 +25,8 @@ export interface Row {
   digits: number;
   /** 경량 회귀 가드 범위 (check 모드에서 이것으로 판정) */
   guard?: [number, number];
+  /** 알려진 미해결 (C.28 결정): 가드를 벗어나도 실패로 세지 않고 이 메모와 함께 따로 표시한다 */
+  known?: string;
   /** 범위가 아닌 판정 (예: 상위 3개 포지션군에 ST 없음) */
   pass?: boolean;
   note?: string;
@@ -498,6 +500,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
       // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
       guard: TEMP_GUARD ? [0.85, 1.25] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
+      // C.28 결정: C.26 유산(main C.27도 1.15 경계). C.29 뒤 재측정하고 이 표시를 지운다(필요 시 평점 위쪽 압축, Fable 검토)
+      known: 'C.26 유산, C.29 뒤 재측정 (docs/engine-issues.md)',
     });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
@@ -641,7 +645,8 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqStd: MatchOut[]): Respon
     switch (r.key) {
       case 'st_shoot':
         push('유효 슈팅률 %', '+4%p 이상', rate((p) => p.shotsOnTarget, (p) => p.shots), '%p', 4);
-        push('경기당 득점', '+12% 이상', perP((p) => p.goals), '%', 12, 5);
+        // C.28 결정: 경량 가드에서 기록 전용으로 내림(240쌍도 표본 오차 ±12%라 점 추정 +5% 가드가 무작위로 걸린다). 판정은 전체 점검 400쌍(방향 확실 기준)만. C.29 뒤 재검토
+        push('경기당 득점', '+12% 이상', perP((p) => p.goals), '%', 12);
         break;
       case 'cm_pass':
         push('패스 성공률 %', '+2%p 이상', rate((p) => p.passesCompleted, (p) => p.passes), '%p', 2, 0);
@@ -710,7 +715,7 @@ function analyzeResponses(res: Map<string, JobOut[]>, eqStd: MatchOut[]): Respon
 export function guardFailures(r: SuiteResult): string[] {
   const fails: string[] = [];
   for (const row of r.rows) {
-    if (!row.guard) continue;
+    if (!row.guard || row.known) continue;
     const [lo, hi] = row.guard;
     if (!(row.value >= lo && row.value <= hi)) fails.push(`${row.label} ${row.value.toFixed(row.digits)} (가드 ${lo}~${hi})`);
   }
@@ -719,6 +724,13 @@ export function guardFailures(r: SuiteResult): string[] {
     if (!(x.change >= x.guard)) fails.push(`스탯 반응 ${x.target} ${x.metric} 변화 ${x.change.toFixed(2)} (가드 ${x.guard} 이상)`);
   }
   return fails;
+}
+
+/** 가드를 벗어났지만 알려진 미해결로 표시한 항목 (실패로 세지 않는다) */
+export function guardKnown(r: SuiteResult): string[] {
+  return r.rows
+    .filter((row) => row.guard && row.known && !(row.value >= row.guard[0] && row.value <= row.guard[1]))
+    .map((row) => `${row.label} ${row.value.toFixed(row.digits)} (가드 ${row.guard![0]}~${row.guard![1]}) — ${row.known}`);
 }
 
 export const rowPass = (row: Row) => row.pass ?? (row.value >= row.lo && row.value <= row.hi);

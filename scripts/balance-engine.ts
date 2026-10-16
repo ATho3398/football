@@ -6,7 +6,7 @@
 //         ⑥ 순간이동 0회 (C.24: 선수 틱당 1 m, 공 3 m, 킥오프 자기 진영)
 // 환경 변수 WORKERS 로 워커 수 (기본 코어 수)
 
-import { analyze, buildSets, guardFailures, runSets } from './engine/suite';
+import { analyze, buildSets, guardFailures, guardKnown, runSets } from './engine/suite';
 import { printResult, writeReport } from './engine/report';
 import { countTeleports } from './engine/teleport';
 
@@ -31,6 +31,8 @@ if (light) {
   const tp = countTeleports(Number(process.env.TELEPORT_N ?? 6));
   console.log(`\n[순간이동] ${tp.matches}경기: 선수 ${tp.player}회, 공 ${tp.ball}회, 킥오프 자기 진영 밖 ${tp.kickoffOut}명 (모두 0 이어야 통과)`);
   if (tp.player || tp.ball || tp.kickoffOut) fails.push(`순간이동 선수 ${tp.player} · 공 ${tp.ball} · 킥오프 진영 밖 ${tp.kickoffOut} (가드 0)`);
+  const known = guardKnown(r);
+  if (known.length) console.log(`\n[경량 가드] 알려진 미해결 ${known.length}개 (실패로 세지 않음):\n  ${known.join('\n  ')}`);
   console.log(fails.length ? `\n[경량 가드] 실패 ${fails.length}개:\n  ${fails.join('\n  ')}` : '\n[경량 가드] 모두 통과');
   if (check && fails.length) process.exit(1);
 }
