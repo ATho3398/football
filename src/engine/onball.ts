@@ -552,7 +552,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     }
 
     // 크로스: 측면 최종 3분의 1, 박스 안 동료 1명 이상
-    if (ax >= PR.crossMinX && (ay < PR.crossWide || ay > 1 - PR.crossWide)) {
+    if (ax >= PR.crossMinX - (PR.crossMinXWide * (tac.width - 1)) / 0.15 && (ay < PR.crossWide || ay > 1 - PR.crossWide)) {
       const ct = crossTarget(s, a);
       if (ct) {
         const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (who.attrs.crossing - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);

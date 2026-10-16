@@ -207,9 +207,9 @@ export const TENDENCY = {
   blockLineMax: 20,
 };
 
-/** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */
+/** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.75 / 보통 1.0 / 넓게 1.25, C.32 fix 가설 4) */
 export function widthCrossMul(width: number): number {
-  return 1 + (width - 1) * (0.1 / 0.15);
+  return 1 + (width - 1) * (0.25 / 0.15);
 }
 
 /**

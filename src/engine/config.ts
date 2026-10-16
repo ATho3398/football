@@ -541,6 +541,8 @@ export const ENGINE = {
 
     // 크로스
     crossMinX: 0.68,
+    /** 공격 폭에 따른 크로스 시작 x 이동 (C.32 fix 가설 4): crossMinX − crossMinXWide × (폭 − 1)/0.15 (넓게 0.62, 좁게 0.74) */
+    crossMinXWide: 0.06,
     /** 크로스 정확도 = crossBase + crossSkill × (크로스 − skillCenter)/100 − 압박 */
     crossBase: 0.87,
     crossSkill: 1.2,
