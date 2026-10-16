@@ -651,9 +651,9 @@ export const ENGINE = {
     /**
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
      * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts),
-     * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.18 (평균 약 6.68)
+     * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
-    center: { GK: 0.96, CB: 1.26, FB: 1.01, CDM: 1.93, CM: 2.21, CAM: 1.69, WING: 1.34, ST: 2.07 } as Record<string, number>,
+    center: { GK: 0.96, CB: 1.26, FB: 1.01, CDM: 1.93, CM: 2.21, CAM: 1.69, WING: 1.34, ST: 2.12 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
