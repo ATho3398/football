@@ -101,6 +101,11 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.guide.firstMatchSeen = progressOf(s).matches > 0;
     refreshUnlocks(s);
   },
+  // 9 → 10 (부록 C.25): 부진 연속 수(0에서 시작)와 이번 시즌 부진 감점 합계
+  9: (s) => {
+    s.player.slumpStreak = 0;
+    s.player.season.slumpPenalty = 0;
+  },
 };
 
 export function migrate(raw: any): GameState {

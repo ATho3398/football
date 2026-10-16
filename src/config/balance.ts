@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 19;
+export const BALANCE_VERSION = 20;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -122,9 +122,19 @@ export const BALANCE = {
      * 한 시즌 위상 증가 상한 (업적 + 개인 기록, 배지 보너스 제외). 부록 C.23 신설: 업적 XP 는 시즌마다 0 / 100 / 200 처럼
      * 들쭉날쭉해서 한두 시즌 대박으로 월드클래스에 닿는 꼬리를 자른다. 900 에는 여러 시즌 압도해야 닿는다
      */
-    seasonGainMax: 110,
+    seasonGainMax: 130, // C.23 110 → 부록 C.25 (부진·순위 감점을 넣은 만큼 30세 목표를 되돌림)
+    /** fromAge 세 이상 시즌의 위상 증가 상한 (부록 C.25 신설). 전성기가 지난 뒤에는 쌓이는 속도를 줄여 35세 월드클래스를 줄인다 */
+    lateSeasonGainMax: { fromAge: 31, max: 40 },
     /** 시즌당 감소 비율 */
     seasonDecay: 0.02,
+    /**
+     * 부진 감점 (8.1, 부록 C.25): 출전 경기 평점이 기준(가장 최근 minApps 경기 이상 뛴 시즌의 내 평균 − belowAvg) 미만인 경기가
+     * 연속되면 fromStreak 번째부터 그 경기 직후 위상의 perStep × (연속 − 1), 최대 maxShare 를 뺀다. 결장은 연속을 끊지도 늘리지도 않는다.
+     * 기준 시즌이 없으면(첫 시즌) fallbackAvg − belowAvg. 사용자 제안의 절대 기준 7.0 은 빠른 경기 평점의 75~97% 가 미만이라 쓰지 않는다
+     */
+    slump: { belowAvg: 0.5, minApps: 10, fallbackAvg: 6.5, fromStreak: 2, perStep: 0.002, maxShare: 0.01 },
+    /** 순위 감점 (8.1, 부록 C.25): 시즌 끝 순위가 시즌 전 팀 레이팅 순위보다 낮은 계단마다 위상의 perPlace, 최대 maxShare */
+    rankDrop: { perPlace: 0.005, maxShare: 0.03 },
     /** 레전더리 컷은 월드클래스와 같다. 점수만으로는 오르지 않고 아래 업적 조건도 채워야 한다 (8.1, 부록 C.23) */
     tierCuts: { normal: 0, special: 250, topClass: 550, worldClass: 900, legendary: 900 } satisfies Record<Tier, number>,
     /** 레전더리 조건: 발롱도르 ballonDorMin 회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 ballonDorAlt 회 이상) */

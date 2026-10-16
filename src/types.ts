@@ -89,6 +89,8 @@ export interface SeasonStats {
   /** 카드 (E.10). 이전 세이브는 0 */
   yellows: number;
   reds: number;
+  /** 부진 연속 감점으로 이번 시즌 잃은 위상 (8.1, 부록 C.25). 이전 세이브의 기록에는 없다 */
+  slumpPenalty?: number;
 }
 
 /** 시즌 종료 시 저장되는 기록 */
@@ -129,6 +131,8 @@ export interface PlayerState {
   injury: Injury | null;
   /** 최근 출전 경기 평점 (폼 계산용, 최근 BALANCE.form.games 경기) */
   recentRatings: number[];
+  /** 기준 평점 미만 출전이 이어진 횟수 (부진 연속, 8.1·부록 C.25). 기준 이상이면 0 */
+  slumpStreak: number;
   /** 남은 출장 정지 경기 수 (E.10) */
   suspended: number;
   /** 비용 2 구간 코치 코멘트를 이미 봤는지 (6.3) */

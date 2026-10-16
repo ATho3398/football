@@ -5,7 +5,7 @@ import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup,
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
-import { averageRating, careerTotals, nextFixture, selectableRealPlayers, type GameState } from '../game';
+import { averageRating, careerTotals, nextFixture, selectableRealPlayers, slumpThreshold, type GameState } from '../game';
 import { isUnlocked } from '../unlocks';
 import { generatePlayer } from '../generate';
 import {
@@ -143,6 +143,16 @@ export interface HomeVM {
   version: VersionVM;
 }
 
+/** 부진 감점 한 줄 (부록 C.25): 마지막 경기에서 위상이 깎였으면 */
+export function slumpBanner(g: GameState): BannerVM | null {
+  const s = g.lastMatch?.slump;
+  if (!s) return null;
+  return {
+    tone: 'warning', title: `위상 −${s.points} (부진 ${s.streak}경기 연속)`,
+    body: `평점 ${slumpThreshold(g.player).toFixed(1)} 미만 경기가 이어졌어요. 이 평점 이상을 받으면 감점이 멈춰요.`,
+  };
+}
+
 export function homeVM(g: GameState): HomeVM {
   const p = g.player;
   const banners: BannerVM[] = [];
@@ -161,6 +171,8 @@ export function homeVM(g: GameState): HomeVM {
       myTactic: teamTactic(my.id), oppTactic: teamTactic(opp.id), out: !!inj || p.suspended > 0,
     };
   }
+  const slump = g.phase === 'season' ? slumpBanner(g) : null;
+  if (slump) banners.push(slump);
   const pts = pointsBanner(g);
   if (pts) banners.push(pts);
   const s = p.season;
@@ -439,6 +451,8 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   if (m.recovered) banners.push({ tone: 'success', title: '부상에서 회복했어요', body: '다음 경기부터 나설 수 있어요.' });
   if (m.cards?.red) banners.push({ tone: 'warning', title: '퇴장당했어요', body: '다음 경기에 나설 수 없어요.' });
   else if (g.player.suspended > 0 && g.phase === 'season') banners.push({ tone: 'warning', title: '다음 경기 출장 정지', body: `옐로카드 ${BALANCE.discipline.yellowBanEvery}장이 쌓였어요.` });
+  const slump = slumpBanner(g);
+  if (slump) banners.push(slump);
   if (m.levelsGained > 0) {
     banners.push({ tone: 'success', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel}개 · 지금 OVR ${playerOvr(g.player)}` });
   }
@@ -509,6 +523,8 @@ export interface SeasonVM {
   injuries: number; injuredWeeks: number;
   achievements: { label: string; xp: number }[]; achievementXp: number; levelsGained: number;
   repBefore: number; repAfter: number; tierName: string; tier: DesignTier;
+  /** 위상 내역 (부록 C.25): 시즌 중 부진 감점, 시즌 끝 순위 감점. 감점이 없으면 null */
+  slumpPenalty: number; rankPenalty: { expected: number; pos: number; points: number } | null; badgeRep: number;
   next: { name: string; cut: number; from: number } | null;
   position: string; ovrBefore: number; ovrAfter: number;
   autoGrowth: DeltaVM[]; veteran: DeltaVM[]; aging: DeltaVM[];
@@ -531,6 +547,8 @@ export function seasonVM(g: GameState): SeasonVM | null {
     injuries: rec.injuries, injuredWeeks: rec.injuredWeeks,
     achievements: s.achievements, achievementXp: s.achievementXp, levelsGained: s.levelsGained,
     repBefore: s.reputationBefore, repAfter: s.reputationAfter, tierName: TIER_NAMES_KO[tier], tier: designTier(tier),
+    slumpPenalty: s.slumpPenalty ?? 0, rankPenalty: s.rankPenalty && s.rankPenalty.points > 0 ? s.rankPenalty : null,
+    badgeRep: BALANCE.badges.reputation,
     next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier] } : null,
     position: g.player.position, ovrBefore: s.ovrBefore, ovrAfter: s.ovrAfter,
     autoGrowth: deltas(s.autoGrowth), veteran: deltas(s.veteranGrowth ?? {}), aging: deltas(s.aging),

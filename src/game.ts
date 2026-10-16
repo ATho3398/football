@@ -30,7 +30,7 @@ import { PATCH_LABEL } from './version';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 9;
+export const SAVE_FORMAT_VERSION = 10;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -57,6 +57,8 @@ export interface MatchReport {
   cards?: { yellows: number; red: boolean };
   /** 엔진 경기 요약 (빠른 경기면 없음) */
   engine?: EngineSummary;
+  /** 부진 연속 감점 (부록 C.25): 이 경기로 잃은 위상과 연속 경기 수 */
+  slump?: { points: number; streak: number };
 }
 
 export interface EngineSummary {
@@ -81,6 +83,9 @@ export interface SeasonSummary {
   autoGrowth: AttributeDelta;
   /** 이번 시즌 받은 레전드 배지 (D.4). 이전 버전 세이브에는 없다 */
   badges?: Badge[];
+  /** 시즌 중 부진 감점 합계와 시즌 끝 순위 감점 (부록 C.25). 이전 버전 세이브에는 없다 */
+  slumpPenalty?: number;
+  rankPenalty?: { expected: number; pos: number; points: number };
   /** 노련함 능력치 성장 (6.1.1). 이전 버전 세이브에는 없다 */
   veteranGrowth?: AttributeDelta;
   aging: AttributeDelta;
@@ -120,7 +125,7 @@ const rngFor = (seed: string, ...parts: (string | number)[]): Rng => createRng(h
 export function emptySeasonStats(): SeasonStats {
   return {
     apps: 0, starts: 0, minutes: 0, goals: 0, assists: 0, ratingSum: 0, matchXp: 0, moms: 0, injuries: 0, injuredWeeks: 0,
-    yellows: 0, reds: 0,
+    yellows: 0, reds: 0, slumpPenalty: 0,
   };
 }
 
@@ -174,7 +179,7 @@ export function newGame(opts: NewGameOptions): GameState {
   let player: PlayerState;
   const base = {
     xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
-    fatigue: 0, coachWarned: false, injury: null, recentRatings: [], season: emptySeasonStats(), history: [], suspended: 0,
+    fatigue: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
   };
 
   if (opts.mode === 'prospect') {
@@ -352,6 +357,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
 
   // 기록, XP, 피로
   const s = player.season;
+  let slump: { points: number; streak: number } | null = null;
   if (result.minutes > 0) {
     s.apps++;
     if (result.started) s.starts++;
@@ -361,6 +367,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     s.ratingSum += result.rating ?? 0;
     if (result.mom) s.moms++;
     player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
+    slump = applySlump(player, result.rating ?? 0);
   }
   // 카드와 출장 정지 (E.10): 퇴장 1경기, 시즌 옐로 누적 yellowBanEvery 장마다 1경기
   let cards: { yellows: number; red: boolean } | undefined;
@@ -410,6 +417,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     ...(suspended ? { suspended } : {}),
     ...(cards ? { cards } : {}),
     ...(engineOut ? { engine: matchSummary(engineOut) } : {}),
+    ...(slump ? { slump } : {}),
   };
   state.lastMatch = report;
 
@@ -471,6 +479,48 @@ export function seasonAchievements(player: PlayerState, league: LeagueState): { 
   return out;
 }
 
+/** 부진 기준 평점 (부록 C.25): 가장 최근 minApps 경기 이상 뛴 시즌의 내 평균 − belowAvg. 그런 시즌이 없으면 fallbackAvg 기준 */
+export function slumpThreshold(player: PlayerState): number {
+  const S = BALANCE.reputation.slump;
+  const last = [...player.history].reverse().find((h) => h.apps >= S.minApps);
+  return (last ? last.ratingSum / last.apps : S.fallbackAvg) - S.belowAvg;
+}
+
+/** 부진 연속 streak 번째 경기의 위상 감점. fromStreak 번째부터 위상 × perStep × (연속 − 1), 최대 위상 × maxShare */
+export function slumpPenalty(reputation: number, streak: number): number {
+  const S = BALANCE.reputation.slump;
+  if (streak < S.fromStreak) return 0;
+  return Math.round(reputation * Math.min(S.maxShare, S.perStep * (streak - 1)));
+}
+
+/** 출전 경기 평점으로 부진 연속을 갱신하고 감점한다. 감점이 있으면 그 값과 연속 수 */
+function applySlump(player: PlayerState, rating: number): { points: number; streak: number } | null {
+  if (rating >= slumpThreshold(player)) {
+    player.slumpStreak = 0;
+    return null;
+  }
+  player.slumpStreak++;
+  const points = Math.min(player.reputation, slumpPenalty(player.reputation, player.slumpStreak));
+  if (points <= 0) return null;
+  player.reputation -= points;
+  player.season.slumpPenalty = (player.season.slumpPenalty ?? 0) + points;
+  return { points, streak: player.slumpStreak };
+}
+
+/** 순위 감점 (부록 C.25): 시즌 전 예상 순위보다 낮게 마친 계단마다 위상 × perPlace, 최대 위상 × maxShare */
+export function rankPenalty(reputation: number, pos: number, expected: number): number {
+  const R = BALANCE.reputation.rankDrop;
+  const below = pos - expected;
+  if (below <= 0) return 0;
+  return Math.min(reputation, Math.round(reputation * Math.min(R.maxShare, R.perPlace * below)));
+}
+
+/** 이 나이 시즌의 위상 증가 상한 (부록 C.25: 31세부터 낮아진다) */
+export function seasonGainCap(age: number): number {
+  const R = BALANCE.reputation;
+  return age >= R.lateSeasonGainMax.fromAge ? R.lateSeasonGainMax.max : R.seasonGainMax;
+}
+
 /** 개인 기록 위상 가산 (8.1): MOM, 골+어시. 시즌 상한 있음 */
 export function personalReputation(s: SeasonStats): number {
   const P = BALANCE.reputation.personal;
@@ -494,10 +544,14 @@ export function endSeason(state: GameState): SeasonSummary {
   const achievementXp = Math.round(baseXp * BALANCE.difficulty[state.difficulty].xp);
   const levelsGained = addXp(player, achievementXp);
 
-  // 2. 위상
-  const reputationBefore = player.reputation;
-  const repGain = Math.min(R.seasonGainMax, baseXp * R.fromAchievementXp + personalReputation(player.season));
+  // 2. 위상: 시즌 시작 값(시즌 중 부진 감점 전) → 감소 + 증가(나이별 상한) → 순위 감점 (부록 C.25)
+  const slumpTotal = player.season.slumpPenalty ?? 0;
+  const reputationBefore = player.reputation + slumpTotal;
+  const repGain = Math.min(seasonGainCap(age), baseXp * R.fromAchievementXp + personalReputation(player.season));
   player.reputation = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
+  const expected = ratingRank(league, player.teamId);
+  const rankPoints = rankPenalty(player.reputation, pos, expected);
+  player.reputation -= rankPoints;
 
   // 3~4. 자동 성장, 노련함, 노화
   // 실제 선수는 정점 목표 근처에 오면 자동 성장을 멈춘다 (부록 D.7 #1)
@@ -529,7 +583,8 @@ export function endSeason(state: GameState): SeasonSummary {
 
   const summary: SeasonSummary = {
     season, age, leaguePosition: pos, achievements, achievementXp, levelsGained,
-    reputationBefore, reputationAfter: player.reputation, badges, autoGrowth, veteranGrowth, aging,
+    reputationBefore, reputationAfter: player.reputation, slumpPenalty: slumpTotal,
+    rankPenalty: { expected, pos, points: rankPoints }, badges, autoGrowth, veteranGrowth, aging,
     ovrBefore, ovrAfter: playerOvr(player),
     canRetire: age >= BALANCE.retirement.optionalAge,
     forcedRetire: player.age >= BALANCE.retirement.forcedAge,

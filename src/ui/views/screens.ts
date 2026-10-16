@@ -164,9 +164,13 @@ export function seasonView(vm: SeasonVM): string {
   const rep = vm.next
     ? `${Meter({ value: vm.repAfter - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.repAfter}점`, showValue: true })}`
     : `<p class="muted small">${vm.tier === 'legend' ? '최고 위상 티어예요.' : '월드클래스예요. 레전더리는 점수가 아니라 업적 조건으로 열려요.'}</p>`;
+  const repLines = [
+    vm.slumpPenalty > 0 ? `<div class="kv small"><span>시즌 중 부진 감점</span><b class="po-num down">−${vm.slumpPenalty}</b></div>` : '',
+    vm.rankPenalty ? `<div class="kv small"><span>순위 감점 (예상 ${vm.rankPenalty.expected}위 → ${vm.rankPenalty.pos}위)</span><b class="po-num down">−${vm.rankPenalty.points}</b></div>` : '',
+  ].join('');
   return `${hero}<div class="body">
     ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
-    ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 100점 올랐어요.` })).join('')}
+    ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${SectionTitle({ title: '내 시즌', action: `${vm.apps}경기` })}
     ${statTiles([{ value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }, { value: vm.injuries, label: `부상 (${vm.injuredWeeks}주)` }])}
@@ -179,7 +183,7 @@ export function seasonView(vm: SeasonVM): string {
       <div class="kv"><b>노련함 <small class="muted">경험으로 오르는 능력치</small></b><b class="po-num up">${signedSum(vet)}</b></div>${chipList(vm.veteran)}
       <div class="kv"><b>노화</b><b class="po-num ${age < 0 ? 'down' : ''}">${signedSum(age)}</b></div>${chipList(vm.aging)}`)}
     ${SectionTitle({ title: '위상 진행도' })}
-    ${panel(`<div class="kv">${TierBadge({ tier: vm.tier, score: vm.repAfter })}<span class="small muted">시즌 시작 ${vm.repBefore}점 → <b class="ink">${vm.repAfter}점</b></span></div>${rep}`)}
+    ${panel(`<div class="kv">${TierBadge({ tier: vm.tier, score: vm.repAfter })}<span class="small muted">시즌 시작 ${vm.repBefore}점 → <b class="ink">${vm.repAfter}점</b></span></div>${repLines}${rep}`)}
     <div class="btn-col">${actions}</div>
   </div>`;
 }

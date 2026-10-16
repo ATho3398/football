@@ -9,6 +9,7 @@
 // 1.6단계 점검 (부록 D.6): 실제 선수(케인, 래시포드, 손흥민 + A등급 전체) 고능력치 개수, 약팀 유망주 30세 위상 중앙값, 포지션군별 30→36세
 // 1.7단계 점검 (부록 D.7): 실제 선수 정점 = 시작 OVR + 시작 나이별 여지(±1.5)
 // 13단계 점검 (부록 C.23): 30세 위상 중앙값 일반 유망주 스페셜(250~400), 레전더리 유망주 탑클래스(550~750), 레전더리 유망주 최적 배분 30세까지 900+ 도달 10~20%
+// 15단계 점검 (부록 C.25): 레전더리 유망주 최적 배분 35세 900+ 비율 25% 이하 (부진·순위 감점, 31세부터 시즌 상한 축소)
 
 /** 회귀 가드 (부록 A.1): 지표마다 기대 범위 */
 const CHECK = (globalThis as { process?: { argv: string[] } }).process?.argv.includes('--check') ?? false;
@@ -235,15 +236,16 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   console.log(`  정점 여지 ±1.5 안: ${inRange}/${all.length}명 (${(share * 100).toFixed(0)}%) ${check('실제 선수 정점 여지 적중률', share, 0.8, 1)}${misses.length ? ` · 벗어남: ${misses.join(', ')}` : ''}`);
 }
 {
-  console.log('\n[C.23 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표(최적 배분): 일반 250~400 (스페셜), 레전더리 550~750 (탑클래스), 레전더리 30세까지 900+ 도달 10~20%');
+  console.log('\n[C.23·C.25 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표(최적 배분): 일반 250~400 (스페셜), 레전더리 550~750 (탑클래스), 레전더리 30세까지 900+ 도달 10~20%, 레전더리 35세 900+ 25% 이하');
   for (const strategy of ['best', 'random'] as Strategy[]) {
     const perTier = (tier: Tier) => allRuns[strategy].slice(TIERS_ASC.indexOf(tier) * SEEDS_PER_TIER, (TIERS_ASC.indexOf(tier) + 1) * SEEDS_PER_TIER);
     const med = (t: Tier) => median(perTier(t).map((r) => r.repByAge[30] ?? 0));
     const wc = (t: Tier) => perTier(t).filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length / SEEDS_PER_TIER;
+    const wc35 = (t: Tier) => perTier(t).filter((r) => (r.repByAge[35] ?? 0) >= 900).length / SEEDS_PER_TIER;
     const marks = strategy === 'best'
-      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2)}`
+      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2)}${check('레전더리 35세 월드클래스 비율', wc35('legendary'), 0, 0.25)}`
       : '';
-    console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${med(t).toFixed(0)}`).join(' / ')} · 30세까지 900+ ${TIERS_ASC.map((t) => `${(wc(t) * 100).toFixed(0)}%`).join(' / ')}${marks}`);
+    console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${med(t).toFixed(0)}`).join(' / ')} · 30세까지 900+ ${TIERS_ASC.map((t) => `${(wc(t) * 100).toFixed(0)}%`).join(' / ')} · 35세 900+ ${TIERS_ASC.map((t) => `${(wc35(t) * 100).toFixed(0)}%`).join(' / ')}${marks}`);
   }
   if (env.DUMP) {
     const out = Object.fromEntries((['best', 'random'] as Strategy[]).map((st) => [st, allRuns[st].map((r, i) => ({ tier: TIERS_ASC[Math.floor(i / SEEDS_PER_TIER)], hist: r.hist, badgeAges: r.badgeAges }))]));
