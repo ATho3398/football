@@ -622,8 +622,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
   const ballGoal = dist(b.x, b.y, gx0, gy0);
-  // 깊은 라인 팀(맨마크)은 공이 stMarkZoneBox m 안이면 박스 안 사람을 잡는다 (C.32 fix 가설 2 조정 2: 박스로 넣는 패스는 대개 25 m 밖에서 나온다)
-  const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && (oppStrikerInBox(s, a.team, dir) || deepLine(s, a.team)));
+  const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
   if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
   // 깊은 라인 맨마크에서 수비수가 모자라면 가장 가까운 미드필더 1명이 내려와 맡는다 (C.32 fix 가설 2)
   if (a.line === 2 && markZone) {
