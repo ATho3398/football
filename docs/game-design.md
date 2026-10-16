@@ -2151,7 +2151,7 @@ H.6(디자인 2차 수정본 56장 기준, I.19 18:20 갱신 반영) 결과. 엔
 - [x] 5. 평점을 쓰는 곳 재측정(아래 표): 빠른 경기 평점 공식 개정(포지션 보정), 경기 XP `ratingBase` 4.0 → **4.4**(경기 XP/출전 유지), 폼 `pivot` 6.5·MOM 8.0·업적 7.0/7.5·C.25 부진 기준은 그대로(아래 이유). 엔진/빠른 경기 XP 비 1.02 → 1.11(가드 0.85~1.15 ✓). C.25 위상 가드 포함 `balance:check` **15/15** 통과.
 - [x] 6. 빠른 경기(`src/match.ts`): 평점 = **6.5 + 활약 − 포지션 보정**. 포지션 보정 `positionCenter` = 동레이팅 중립 경기(λ = 기본 득점 + 홈 보정/2)에서 그 포지션이 받는 골·도움·클린시트 기대 평점(출전 비율 반영). 골 +1.0, 도움 +0.6(엔진과 같게), `randomSd` 0.6 → 0.5, `perOvrDiff` 0.03 → 0.02.
 - [x] 테스트 `tests/rating-recalibration.test.ts`(5개): 골·도움 가치, 골 슈팅 중복 제외, 마지막 1/3 감점 절반, center 정규화와 자르기, 빠른 경기 포지션 평균 6.5와 득점 경기 차이.
-- [x] `npm run typecheck`, `npm test`(22파일 181개), `npm run balance:check`(15/15), `npm run balance:engine:check`(경량 가드 모두 통과), `npm run balance:engine`(전체 보고서 `docs/engine-report.md` 갱신, ENGINE_VERSION 10).
+- [x] `npm run typecheck`, `npm test`(22파일 181개), `npm run balance:check`(15/15), `npm run balance:engine:check`(경량 가드 모두 통과), `npm run balance:engine`(전체 보고서 `docs/engine-report.md` 갱신, ENGINE_VERSION 10). 전체 보고서는 C.21(ENGINE 8) 뒤 처음 갱신이라 C.24 엔진 변경분도 함께 들어 있다: E.15 지표 57/102, 스탯 반응 11/15(직전 보고서 13/15). 평점 계산은 경기 진행에 영향을 주지 않으므로 평점 외 지표 변화는 C.24 몫이다. 전체 OVR +5 평점 반응 +0.17 ✓.
 
 **전후 비교: 엔진 평점** (전체 보고서 평점 표본 240경기의 성분으로 옛 계수와 새 계수를 각각 계산. C.26 값은 `docs/engine-report.md`와 같다. 포지션 평균은 팀 강도 3 × 포지션 8군 균등 표본, 칸당 16명)
 
