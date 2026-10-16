@@ -11,6 +11,7 @@
 // 13단계 점검 (부록 C.23): 30세 위상 중앙값 일반 유망주 스페셜(250~400), 레전더리 유망주 탑클래스(550~750), 레전더리 유망주 최적 배분 30세까지 900+ 도달 10~20%
 // 15단계 점검 (부록 C.25): 레전더리 유망주 최적 배분 35세 900+ 비율 25% 이하 (부진·순위 감점, 31세부터 시즌 상한 축소)
 // 16단계 점검 (부록 C.26): 실제 선수 ST/CF 시즌 20골 안팎(17~23골, 25경기 이상) 시즌 평균 평점 7.0~7.4
+// 17단계 점검 (부록 C.27): 티어 하한(감점이 지금 티어 컷 밑으로 못 내림)·출전 시간 부족 감점을 넣은 뒤 같은 위상 가드 재통과
 
 /** 회귀 가드 (부록 A.1): 지표마다 기대 범위 */
 const CHECK = (globalThis as { process?: { argv: string[] } }).process?.argv.includes('--check') ?? false;
@@ -245,7 +246,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   console.log(`  정점 여지 ±1.5 안: ${inRange}/${all.length}명 (${(share * 100).toFixed(0)}%) ${check('실제 선수 정점 여지 적중률', share, 0.8, 1)}${misses.length ? ` · 벗어남: ${misses.join(', ')}` : ''}`);
 }
 {
-  console.log('\n[C.23·C.25 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표(최적 배분): 일반 250~400 (스페셜), 레전더리 550~750 (탑클래스), 레전더리 30세까지 900+ 도달 10~20%, 레전더리 35세 900+ 25% 이하');
+  console.log('\n[C.23·C.25·C.27 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표(최적 배분): 일반 250~400 (스페셜), 레전더리 550~750 (탑클래스), 레전더리 30세까지 900+ 도달 10~20%, 레전더리 35세 900+ 25% 이하');
   for (const strategy of ['best', 'random'] as Strategy[]) {
     const perTier = (tier: Tier) => allRuns[strategy].slice(TIERS_ASC.indexOf(tier) * SEEDS_PER_TIER, (TIERS_ASC.indexOf(tier) + 1) * SEEDS_PER_TIER);
     const med = (t: Tier) => median(perTier(t).map((r) => r.repByAge[30] ?? 0));

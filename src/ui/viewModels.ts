@@ -5,14 +5,14 @@ import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup,
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
-import { averageRating, careerTotals, nextFixture, selectableRealPlayers, slumpThreshold, type GameState } from '../game';
+import { averageRating, careerTotals, nextFixture, selectableRealPlayers, slumpThreshold, type GameState, type SeasonSummary } from '../game';
 import { isUnlocked } from '../unlocks';
 import { generatePlayer } from '../generate';
 import {
   attributeOvrWeight, allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, positionOvrExact, profileOf, type FieldPosition,
 } from '../positions';
 import {
-  costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
+  costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
 import { INJURY_NAMES_KO } from '../injury';
@@ -143,13 +143,21 @@ export interface HomeVM {
   version: VersionVM;
 }
 
-/** 부진 감점 한 줄 (부록 C.25): 마지막 경기에서 위상이 깎였으면 */
+/** 바닥에 막힌 감점에 붙이는 말 (부록 C.27): "(탑클래스 티어 유지)". 막히지 않았으면 빈 문자열 */
+export function floorNote(blocked: number | undefined, reputation: number): string {
+  const t = blocked ? reputationFloorTier(reputation) : null;
+  return t ? `(${TIER_NAMES_KO[t]} 티어 유지)` : '';
+}
+
+/** 부진 감점 한 줄 (부록 C.25, C.27): 마지막 경기에서 위상이 깎였거나 감점이 티어 하한에 막혔으면 */
 export function slumpBanner(g: GameState): BannerVM | null {
   const s = g.lastMatch?.slump;
   if (!s) return null;
+  const thr = (s.threshold ?? slumpThreshold(g.player)).toFixed(1);
+  const kept = floorNote(s.blocked, g.player.reputation);
   return {
-    tone: 'warning', title: `위상 −${s.points} (부진 ${s.streak}경기 연속)`,
-    body: `평점 ${slumpThreshold(g.player).toFixed(1)} 미만 경기가 이어졌어요. 이 평점 이상을 받으면 감점이 멈춰요.`,
+    tone: 'warning', title: `위상 −${s.points} ${kept || `(부진 ${s.streak}경기 연속)`}`,
+    body: `최근 경기력이 평소보다 떨어졌어요(평점 ${thr} 미만 ${s.streak}경기 연속). 다음 경기에서 ${thr} 이상이면 멈춰요.`,
   };
 }
 
@@ -525,6 +533,9 @@ export interface SeasonVM {
   repBefore: number; repAfter: number; tierName: string; tier: DesignTier;
   /** 위상 내역 (부록 C.25): 시즌 중 부진 감점, 시즌 끝 순위 감점. 감점이 없으면 null */
   slumpPenalty: number; rankPenalty: { expected: number; pos: number; points: number } | null; badgeRep: number;
+  /** 티어 하한 (부록 C.27): 위상 내역 줄(바닥에 막힌 감점은 "(○○ 티어 유지)"), 이번 시즌 처음 닿은 하한 티어 */
+  repLines: { label: string; points: number; note: string }[];
+  tierReached: string | null;
   next: { name: string; cut: number; from: number } | null;
   position: string; ovrBefore: number; ovrAfter: number;
   autoGrowth: DeltaVM[]; veteran: DeltaVM[]; aging: DeltaVM[];
@@ -532,6 +543,21 @@ export interface SeasonVM {
   retired: boolean; forcedRetire: boolean; canRetire: boolean; points: number;
   injury: BannerVM | null;
   badges: { name: string; desc: string }[];
+}
+
+/** 시즌 위상 내역 줄 (부록 C.25, C.27): 감점이 있거나 바닥에 막혔을 때만 */
+function seasonRepLines(s: SeasonSummary): SeasonVM['repLines'] {
+  const rep = s.reputationAfter;
+  const out: SeasonVM['repLines'] = [];
+  const add = (label: string, points: number, blocked: number | undefined): void => {
+    if (points > 0 || (blocked ?? 0) > 0) out.push({ label, points, note: floorNote(blocked, rep) });
+  };
+  add('시즌 중 부진 감점', s.slumpPenalty ?? 0, s.slumpBlocked);
+  if (s.decayBlocked) add(`시즌 감소 ${Math.round(BALANCE.reputation.seasonDecay * 100)}%`, 0, s.decayBlocked);
+  if (s.rankPenalty) add(`순위 감점 (예상 ${s.rankPenalty.expected}위 → ${s.rankPenalty.pos}위)`, s.rankPenalty.points, s.rankPenalty.blocked);
+  if (s.redPenalty) add(`레드카드 감점 (퇴장 ${s.redPenalty.reds}회)`, s.redPenalty.points, s.redPenalty.blocked);
+  if (s.minutesPenalty) add(`출전 시간 부족 감점 (출전 ${Math.round(s.minutesPenalty.share * 100)}%)`, s.minutesPenalty.points, s.minutesPenalty.blocked);
+  return out;
 }
 
 export function seasonVM(g: GameState): SeasonVM | null {
@@ -548,6 +574,8 @@ export function seasonVM(g: GameState): SeasonVM | null {
     achievements: s.achievements, achievementXp: s.achievementXp, levelsGained: s.levelsGained,
     repBefore: s.reputationBefore, repAfter: s.reputationAfter, tierName: TIER_NAMES_KO[tier], tier: designTier(tier),
     slumpPenalty: s.slumpPenalty ?? 0, rankPenalty: s.rankPenalty && s.rankPenalty.points > 0 ? s.rankPenalty : null,
+    repLines: seasonRepLines(s),
+    tierReached: s.tierReached ? TIER_NAMES_KO[s.tierReached] : null,
     badgeRep: BALANCE.badges.reputation,
     next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier] } : null,
     position: g.player.position, ovrBefore: s.ovrBefore, ovrAfter: s.ovrAfter,

@@ -91,6 +91,8 @@ export interface SeasonStats {
   reds: number;
   /** 부진 연속 감점으로 이번 시즌 잃은 위상 (8.1, 부록 C.25). 이전 세이브의 기록에는 없다 */
   slumpPenalty?: number;
+  /** 부진 감점 중 티어 하한에 막혀 사라진 위상 (부록 C.27). 이전 세이브에는 없다 */
+  slumpBlocked?: number;
 }
 
 /** 시즌 종료 시 저장되는 기록 */

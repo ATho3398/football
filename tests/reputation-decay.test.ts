@@ -84,8 +84,9 @@ describe('순위 감점과 시즌 상한 (부록 C.25)', () => {
     expect(rankPenalty(600, 3, 8)).toBe(0);
   });
 
-  it('시즌 증가 상한: 30세까지 130, 31세부터 40', () => {
-    expect(seasonGainCap(30)).toBe(130);
+  it('시즌 증가 상한: 29세까지 130, 30세부터 40 (부록 C.27, C.25는 31세부터)', () => {
+    expect(seasonGainCap(29)).toBe(130);
+    expect(seasonGainCap(30)).toBe(40);
     expect(seasonGainCap(31)).toBe(40);
   });
 
@@ -94,6 +95,7 @@ describe('순위 감점과 시즌 상한 (부록 C.25)', () => {
     while (g.league.round < g.league.schedule.length - 1) playRound(g, { engine: 'quick' });
     g.player.reputation = 700;
     g.player.season.slumpPenalty = 12;
+    g.player.season.minutes = g.league.schedule.length * 90; // 출전 시간 부족 감점(부록 C.27)은 빼고 본다
     // 순위 감점이 생기도록 시즌 전 예상 순위를 1위로 만든다
     const me = g.league.teams.find((t) => t.id === g.player.teamId)!;
     me.rating = 999;
@@ -101,10 +103,11 @@ describe('순위 감점과 시즌 상한 (부록 C.25)', () => {
     const sum = endSeason(g);
     expect(sum.reputationBefore).toBe(712);
     expect(ratingRank(g.league, g.player.teamId)).toBe(1);
-    expect(sum.rankPenalty).toEqual({ expected: 1, pos, points: pos > 1 ? rankPenalty(sum.reputationAfter + sum.rankPenalty!.points, pos, 1) : 0 });
+    expect(sum.rankPenalty).toEqual({ expected: 1, pos, points: pos > 1 ? rankPenalty(sum.reputationAfter + sum.rankPenalty!.points, pos, 1) : 0, blocked: 0 });
     const vm = seasonVM(g)!;
     expect(vm.slumpPenalty).toBe(12);
     if (pos > 1) expect(vm.rankPenalty).toEqual(sum.rankPenalty);
+    expect(vm.repLines[0]).toEqual({ label: '시즌 중 부진 감점', points: 12, note: '' });
   });
 });
 

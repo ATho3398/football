@@ -164,12 +164,12 @@ export function seasonView(vm: SeasonVM): string {
   const rep = vm.next
     ? `${Meter({ value: vm.repAfter - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.repAfter}점`, showValue: true })}`
     : `<p class="muted small">${vm.tier === 'legend' ? '최고 위상 티어예요.' : '월드클래스예요. 레전더리는 점수가 아니라 업적 조건으로 열려요.'}</p>`;
-  const repLines = [
-    vm.slumpPenalty > 0 ? `<div class="kv small"><span>시즌 중 부진 감점</span><b class="po-num down">−${vm.slumpPenalty}</b></div>` : '',
-    vm.rankPenalty ? `<div class="kv small"><span>순위 감점 (예상 ${vm.rankPenalty.expected}위 → ${vm.rankPenalty.pos}위)</span><b class="po-num down">−${vm.rankPenalty.points}</b></div>` : '',
-  ].join('');
+  const repLines = vm.repLines
+    .map((l) => `<div class="kv small"><span>${esc(l.label)}</span><b class="po-num down">−${l.points}${l.note ? ` <small class="muted">${esc(l.note)}</small>` : ''}</b></div>`)
+    .join('');
   return `${hero}<div class="body">
     ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
+    ${vm.tierReached ? Banner({ tone: 'success', title: `${vm.tierReached} 달성 · 이 티어는 내려가지 않아요`, children: '감점은 다음 티어까지의 진행도만 깎아요.' }) : ''}
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${SectionTitle({ title: '내 시즌', action: `${vm.apps}경기` })}

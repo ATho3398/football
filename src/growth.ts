@@ -52,6 +52,22 @@ export function reputationTier(rep: number, honors?: Honors): Tier {
   return t;
 }
 
+/** 티어 하한 (부록 C.27): 이 점수의 위상이 내려갈 수 있는 바닥 = 지금 도달한 하한 티어의 컷. 스페셜 미만이면 0 */
+export function reputationFloor(rep: number): number {
+  const C = BALANCE.reputation.tierCuts;
+  let floor = 0;
+  for (const t of BALANCE.reputation.floorTiers) if (rep >= C[t]) floor = Math.max(floor, C[t]);
+  return floor;
+}
+
+/** 하한 티어 (부록 C.27): 바닥이 된 티어. 스페셜 미만이면 null */
+export function reputationFloorTier(rep: number): Tier | null {
+  const C = BALANCE.reputation.tierCuts;
+  let out: Tier | null = null;
+  for (const t of BALANCE.reputation.floorTiers) if (rep >= C[t]) out = t;
+  return out;
+}
+
 export const randInt = (rng: Rng, min: number, max: number): number => min + Math.floor(rng() * (max - min + 1));
 
 /** 다음 위상 티어와 그 컷. 최고 티어거나 다음이 업적 조건으로만 열리는 레전더리면 null */

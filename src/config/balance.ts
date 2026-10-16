@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 21;
+export const BALANCE_VERSION = 22;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -123,8 +123,8 @@ export const BALANCE = {
      * 들쭉날쭉해서 한두 시즌 대박으로 월드클래스에 닿는 꼬리를 자른다. 900 에는 여러 시즌 압도해야 닿는다
      */
     seasonGainMax: 130, // C.23 110 → 부록 C.25 (부진·순위 감점을 넣은 만큼 30세 목표를 되돌림)
-    /** fromAge 세 이상 시즌의 위상 증가 상한 (부록 C.25 신설). 전성기가 지난 뒤에는 쌓이는 속도를 줄여 35세 월드클래스를 줄인다 */
-    lateSeasonGainMax: { fromAge: 31, max: 40 },
+    /** fromAge 세 이상 시즌의 위상 증가 상한 (부록 C.25 신설, C.27 30세부터). 전성기가 지난 뒤에는 쌓이는 속도를 줄여 35세 월드클래스를 줄인다 */
+    lateSeasonGainMax: { fromAge: 30, max: 40 }, // C.25 31세 → 부록 C.27 (티어 하한으로 900 도달이 영구가 되어 30세 시즌 증가를 줄임)
     /** 시즌당 감소 비율 */
     seasonDecay: 0.02,
     /**
@@ -135,6 +135,18 @@ export const BALANCE = {
     slump: { belowAvg: 0.5, minApps: 10, fallbackAvg: 6.5, fromStreak: 2, perStep: 0.002, maxShare: 0.01 },
     /** 순위 감점 (8.1, 부록 C.25): 시즌 끝 순위가 시즌 전 팀 레이팅 순위보다 낮은 계단마다 위상의 perPlace, 최대 maxShare */
     rankDrop: { perPlace: 0.005, maxShare: 0.03 },
+    /** 레드카드 감점 (8.1, 부록 C.27): 시즌 끝에 퇴장 1회당 위상의 perRed, 최대 maxShare */
+    redCard: { perRed: 0.01, maxShare: 0.03 },
+    /**
+     * 출전 시간 부족 감점 (8.1, 부록 C.27): 시즌 리그 전체 시간 대비 출전 시간 비율이 minShare 미만이면
+     * 모자란 step(10%p)마다 — 조금이라도 모자라면 1계단부터 — 위상의 perStep, 최대 maxShare. 부상 결장도 포함한다
+     */
+    minutesShort: { minShare: 0.5, step: 0.1, perStep: 0.01, maxShare: 0.04 },
+    /**
+     * 티어 하한 (8.1, 부록 C.27): 위상 점수는 지금 티어(스페셜/탑클래스/월드클래스) 컷 밑으로 내려가지 않는다.
+     * 모든 감점(부진·순위·시즌 감소·레드·출전 부족)이 이 바닥을 따르고, 바닥에 막힌 감점은 사라진다
+     */
+    floorTiers: ['special', 'topClass', 'worldClass'] as Tier[],
     /** 레전더리 컷은 월드클래스와 같다. 점수만으로는 오르지 않고 아래 업적 조건도 채워야 한다 (8.1, 부록 C.23) */
     tierCuts: { normal: 0, special: 250, topClass: 550, worldClass: 900, legendary: 900 } satisfies Record<Tier, number>,
     /** 레전더리 조건: 발롱도르 ballonDorMin 회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 ballonDorAlt 회 이상) */

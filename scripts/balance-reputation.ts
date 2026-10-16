@@ -1,4 +1,4 @@
-// 위상 하락 규칙 측정 (부록 C.25): 약팀 배정 가상 유망주 커리어를 돌려 경기 평점·시즌 순위 기록을 모은다.
+// 위상 하락 규칙 측정 (부록 C.25, C.27: 출전 시간·레드카드 기록 추가): 약팀 배정 가상 유망주 커리어를 돌려 경기 평점·시즌 순위 기록을 모은다.
 // 성장은 위상과 무관하므로(부록 C.23) 기록 한 번으로 여러 감점 규칙의 위상 경로를 다시 계산할 수 있다.
 // 실행: npx vite-node scripts/balance-reputation.ts -- <out.json>
 //   환경 변수 SEEDS(기본 48), ENGINE(quick | agent, 기본 quick), TIERS(쉼표, 기본 전 티어), STRATS(best,random), AGE_FROM/AGE_TO(엔진 표본 나이 구간)
@@ -52,7 +52,7 @@ for (const strategy of STRATS) {
         seasons.push({
           age, ratings, baseXp: sum.achievements.reduce((t, a) => t + a.xp, 0), personal: personalReputation(rec),
           pos: sum.leaguePosition, expected: ratingRank(state.league, state.player.teamId), badges: sum.badges?.length ?? 0,
-          rep: state.player.reputation,
+          rep: state.player.reputation, minutes: rec.minutes, totalMinutes: state.league.schedule.length * 90, reds: rec.reds,
         });
         if (state.phase !== 'offseason') break;
         startNextSeason(state);
