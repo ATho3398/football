@@ -149,3 +149,15 @@
   4. 엔진 관리자는 "어느 파일·함수·상수에서 고쳐야 하는지"와 검증 방법을 `docs/engine-diagnosis-<패치>.md`로 커밋하고 기획 세션에 send_message한다. 기획 세션은 사용자 결정이 필요한 것만 묻고, 나머지는 다음 코드 세션 지시에 넣는다.
   5. 엔진 관리자 컨텍스트가 50만을 넘으면 요약을 커밋하게 하고 새 Fable 세션으로 바꾼다(pending 8번).
 - **자동 연쇄 범위**: 18 → 19 → 20 → 21(C.31)까지 기획 세션이 알아서 연다. 22(E3.6)·23(E3.7)은 기획서 합치기(pending 1~18)를 끝낸 뒤 사용자 허락을 받고 연다. E4 앞 "사람 확인"에서는 반드시 멈춘다.
+
+### 8.12 지금 상태 (2026-10-16 14:55 KST, 기획 세션 G → H 교체 시점)
+- **사이트(main)**: C.28 배포(20bc146, ENGINE 11, BALANCE 23, SAVE 10, Pages #113). 기획 문서 커밋 abd8095까지 main에 있음.
+- **실행 중**: 19단계 `session_014Sr4QEWczve4j7e6QP1GZQ` "19단계_슛 선택·득점 분포 (C.29)", Opus, 브랜치 `claude/c29-shot-selection`. 끝나면 기획 세션에 send_message(새 기획 세션 ID를 알려 둠).
+- **정리됨(draft_)**: 18단계 `session_01YPfwGecBgmHKvFdULJZTda`, 18단계 fix `session_018N3trAPGETUhtHjY1xXT3R`, 기획 F `session_01WTtugtFHtwwq7e8KYvcvav`. 기획 G(`session_01F2JD2C1fuS6brrfDy5Fpmc`)도 교체 후 draft_.
+- **엔진 관리자**: `session_01Tc3v1PUjUeQb6grHociYfh`(Fable, 컨텍스트 약 41만 이상 → 50만 넘으면 요약 커밋 후 교체). C.28 진단 2개: `docs/engine-diagnosis-C.28.md`(main), `docs/engine-diagnosis-c28.md`(C.28 브랜치 → main에 머지됨).
+- **미해결 엔진 문제**(`docs/engine-issues.md` 맨 위): ① 시즌 XP 비 1.16(C.26 유산, C.29 뒤 재측정, 넘으면 평점 위쪽 압축을 Fable과 검토) ② ST 슈팅→득점 반응(경량 기록 전용, 전체 점검 400쌍 판정).
+- **다음 순서**(pending 18): 19 C.29 → 20 C.30(경기 기록 확장 + 자동 진행 [중단] 버튼, pending 16·17) → 21 C.31(패스 거리 10~45 m 전체 + 땅볼 하한 4 → 2 m/s, `engine-diagnosis-c28.md` §4) → 22 E3.6 → 23 E3.7(사용자가 "자동화 ㄱㄱㄱ"로 22·23까지 허락) → E4 전 사람 확인에서 멈춤.
+- **22단계 전 할 일**: pending 1~19를 기획서에 합치기(코드 세션 사이에만 main에 푸시). E.19 개정(pending 1 D.17).
+- **C.30 지시 초안 요점**: pending 16 결정(항목 11개, 포지션별 6개 + 전체 보기, 결과 화면·경기 목록·시즌 합계, 경기별 기록 세이브 저장 → SAVE_FORMAT_VERSION 올림, 평점 불변, 엔진은 집계만) + pending 17([중단] 버튼: 그 라운드까지 끝내고 멈춤).
+- **고속 모드**: `.claude/settings.json` `fastMode: true`가 새 세션에 적용되지 않는 것으로 보인다(fix 세션 flag 없음). 새 세션을 연 뒤 `get_session`의 `flag_settings.fastMode`를 보고, 없거나 false면 사용자에게 모델 메뉴에서 켜 달라고 알린다.
+- **사용자 지시 요약**: 모든 답변 끝 시간 기록(CLAUDE.md), 질문은 추천안과 함께 묻되 답이 없으면 추천안으로 진행, `docs/automation.md` 흐름 그대로. 기획 세션 교체 기준 25만 토큰 또는 15달러.
