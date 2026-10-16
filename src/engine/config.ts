@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 12;
+export const ENGINE_VERSION = 13;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -161,11 +161,13 @@ export const ENGINE = {
     underdogSwitch: 0.5,
     /** 큰 차이 (C.17 결정 4): 상대가 이만큼 이상 강하면 수비 블록/역습 확정, 라인·압박 두 단계 아래 */
     underdogBigGap: 12,
-    /** 경기 상황 (E.20 10번): 2골 / 3골 이상 앞선 팀의 위험한 선택(침투 패스, 드리블 돌파, 먼 슛) 효용 배수와 유지 템포 배수 */
-    leadRisk2: 0.85,
-    leadRisk3: 0.75,
-    leadTempo2: 1.15,
-    leadTempo3: 1.3,
+    /** 경기 상황 (E.20 10번, C.29 fix2): 2골 / 3골 이상 앞선 팀의 전진 선택(전진 패스, 슛, 드리블·몰고 가기, 크로스) 효용 배수 — 안전 패스·유지는 역수 — 와 유지 템포 배수 (상한 1.6, pending 22) */
+    leadRisk2: 0.75,
+    leadRisk3: 0.6,
+    leadTempo2: 1.3,
+    leadTempo3: 1.6,
+    /** 점수 차 전술 조정 (C.29 fix2): 이만큼 이상 앞서면 라인·압박 한 단계 아래, 뒤지면 한 단계 위 (시간 조건 없음) */
+    leadAdjustGoals: 2,
     /** 먼 슛 기준 (m) */
     farShot: 20,
   },
@@ -207,6 +209,8 @@ export const ENGINE = {
     focusBox: 0.2,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
     stMarkZone: 25,
+    /** 상대 ST/CF 가 우리 박스 안에 있으면 공이 자기 골 stMarkZoneBox m 안부터 마크한다 (C.29 fix2 가설 B: fix 브랜치 40 을 박스 안 ST 로 한정) */
+    stMarkZoneBox: 40,
     /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
     coverPostDepth: 5,
     coverPostY: 3.5,
@@ -493,7 +497,7 @@ export const ENGINE = {
     finishMax: 1.25,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
-    shotBase: 0.66,
+    shotBase: 0.71,
     shotPerM: 0.015,
     shotPressure: 0.15,
     shotMin: 0.05,
@@ -528,6 +532,13 @@ export const ENGINE = {
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
     aerialScale: 16,
+    /**
+     * 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B, duel.ts receiveWin): 착지점이 상대 박스 안이고 contestDist m 안에 상대 필드 선수가 있으면
+     * P(받음) = L1((볼 컨트롤 0.5 + 근력 0.3 + 민첩 0.2 − (마킹 0.5 + 태클 0.3 + 수비 포지셔닝 0.2)) / receiveScale + receiveBias). 판단(candidates)과 판정(resolveFlight)이 같은 식
+     */
+    contestDist: 2,
+    receiveScale: 16,
+    receiveBias: 0.5,
     /**
      * 크로스 경합에서 공격수 보정 (로지스틱 입력). E.22 B: 크로스 대상과 가장 가까운 수비수가 실제로 착지점으로 뛰어들어 경합이 생기면서
      * 0.9 → −1.0 (수비가 공을 마주 보고 먼저 닿는다. 크로스 성공률 25~30%, 코너 약 30개당 1골에 맞춘 묶음 B 보정)

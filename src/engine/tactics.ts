@@ -204,10 +204,12 @@ export function widthCrossMul(width: number): number {
 
 /**
  * 경기 중 AI 조정 (E.19): 70분 이후 1골 차로 지고 있으면 라인과 압박을 한 단계 올리고, 1골 차로 이기고 있으면 라인을 한 단계 내린다.
+ * 2골 이상 차이는 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위, C.29 fix2).
  * 모든 팀에 같은 규칙 (직접 모드의 내 팀은 E4 이후 사용자가 바꾼다)
  */
 export function aiAdjust(s: SimState): void {
-  if (s.t < 70 * 60 || s.tick % 600 !== 0) return;
+  if (s.tick % 600 !== 0) return;
+  const big = ENGINE.tactics.leadAdjustGoals;
   for (const team of [0, 1] as const) {
     const T = s.teams[team];
     if (s.input.mode === 'live' && s.input.myTeam === team) continue;
@@ -215,7 +217,13 @@ export function aiAdjust(s: SimState): void {
     const diff = T.stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
     const step = (d: Detail, by: number) => LEVELS[d][clamp(levelOf(d, base[d]) + by, 0, 2)]!;
     T.tactics = { ...base };
-    if (diff === -1) {
+    // 점수 차 (C.29 fix2): 2골 이상이면 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위)
+    if (diff <= -big || diff >= big) {
+      const by = diff > 0 ? -1 : 1;
+      T.tactics.lineHeight = step('lineHeight', by);
+      T.tactics.pressing = step('pressing', by);
+    } else if (s.t < 70 * 60) continue;
+    else if (diff === -1) {
       T.tactics.lineHeight = step('lineHeight', 1);
       T.tactics.pressing = step('pressing', 1);
     } else if (diff === 1) T.tactics.lineHeight = step('lineHeight', -1);
