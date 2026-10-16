@@ -622,7 +622,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
   const ballGoal = dist(b.x, b.y, gx0, gy0);
-  const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
+  // 깊은 라인 팀(맨마크)은 공이 stMarkZoneBox m 안이면 박스 안 사람을 잡는다 (C.32 fix 가설 2 조정 2: 박스로 넣는 패스는 대개 25 m 밖에서 나온다)
+  const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && (oppStrikerInBox(s, a.team, dir) || deepLine(s, a.team)));
   if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
   // 깊은 라인 맨마크에서 수비수가 모자라면 가장 가까운 미드필더 1명이 내려와 맡는다 (C.32 fix 가설 2)
   if (a.line === 2 && markZone) {
@@ -825,6 +826,13 @@ function coverSpots(s: SimState, a: Agent, dir: 1 | -1, rest: Agent[]): boolean 
   return false;
 }
 
+/** 깊은 라인 맨마크 조건: 블록이거나 전술 수비 라인 높이(공 따라 물러나기 전)가 자기 골 manMarkLine m 안 */
+function deepLine(s: SimState, team: 0 | 1): boolean {
+  // 라인은 전술 설정 높이로 본다: 공이 박스 앞이면 어느 팀이든 라인이 20 m 안으로 들어오기 때문
+  if (s.teams[team].tactics.tendency === 'block') return true;
+  return (F.lineBase + (effectiveTactics(s, team).lineHeight - 0.5) * F.lineRange) * L <= O.manMarkLine;
+}
+
 const markCache = new WeakMap<SimState, { tick: number; plan: Map<Agent, Agent> | null }[]>();
 
 /**
@@ -840,10 +848,7 @@ function manMarkPlan(s: SimState, team: 0 | 1, dir: 1 | -1): Map<Agent, Agent> |
   if (c.tick === s.tick) return c.plan;
   c.tick = s.tick;
   c.plan = null;
-  // 라인은 전술 설정 높이(공 따라 물러나기 전)로 본다: 공이 박스 앞이면 어느 팀이든 라인이 20 m 안으로 들어오기 때문
-  const block = s.teams[team].tactics.tendency === 'block';
-  const setLine = F.lineBase + (effectiveTactics(s, team).lineHeight - 0.5) * F.lineRange;
-  if (!block && setLine * L > O.manMarkLine) return null;
+  if (!deepLine(s, team)) return null;
   const b = s.ball;
   const [gx, gy] = ownGoal(dir);
   const pad = O.manMarkPad;
