@@ -92,6 +92,6 @@ export function landingVelocity(fl: Flight): [number, number] {
   const dy = fl.toY - fl.fromY;
   const d = Math.sqrt(dx * dx + dy * dy) || 1;
   const v0 = d / Math.max(0.1, fl.dur);
-  const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(4, v0 - ENGINE.ball.groundDecel * fl.dur);
+  const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(ENGINE.ball.landFloor, v0 - ENGINE.ball.groundDecel * fl.dur);
   return [(dx / d) * sp, (dy / d) * sp];
 }
