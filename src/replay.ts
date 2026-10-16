@@ -165,8 +165,8 @@ export function buildReplay(home: TeamSetup, away: TeamSetup, teams: [string, st
     final: [r.homeGoals, r.awayGoals],
     stats: r.teamStats,
     tactics: [
-      { tendency: home.tactics.tendency, formation: home.formation },
-      { tendency: away.tactics.tendency, formation: away.formation },
+      { tendency: home.tactics.tendency, formation: home.formationName ?? home.formation },
+      { tendency: away.tactics.tendency, formation: away.formationName ?? away.formation },
     ],
   };
 }

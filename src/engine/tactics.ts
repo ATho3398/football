@@ -7,7 +7,7 @@ import { createRng, hashSeed } from '../rng';
 import type { Position } from '../types';
 import { ENGINE } from './config';
 import { clamp } from './pitch';
-import { defaultRole, ROLES, type Role } from './roles';
+import { defaultRole, ROLE_KEYS, ROLE_OPTIONS, ROLES, type Role } from './roles';
 import type { SimState } from './state';
 import { TEAM_STYLE, TEAM_TACTICS } from './teamData';
 import type { Tactics, Tendency } from './types';
@@ -73,26 +73,17 @@ export function levelOf(detail: Detail, v: number): Level {
 
 // ── 역할 ──
 
-/** 성향별 추천 역할 (E.19 ②). 포지션군마다 후보, 여럿이면 능력치 적합도가 높은 쪽 */
+/** 성향별 추천 역할 (E.19 ②, E3.7 새 이름). 포지션군마다 후보, 여럿이면 능력치 적합도가 높은 쪽 */
 const RECOMMENDED: Partial<Record<Tendency, Partial<Record<string, string[]>>>> = {
-  tikitaka: { CB: ['ballPlayingCB'], FB: ['invertedFullback'], CM: ['deepPlaymaker', 'boxToBox'], WING: ['insideForward'], ST: ['linkUp'] },
-  gegenpress: { CDM: ['ballWinner'], CM: ['boxToBox'], FB: ['attackingFullback'], ST: ['poacher'] },
-  counter: { CB: ['coverCB'], CDM: ['anchor'], WING: ['winger'], ST: ['poacher'] },
-  direct: { CB: ['stopper'], FB: ['attackingFullback'], WING: ['winger'], ST: ['targetMan'] },
-  block: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], ST: ['targetMan'] },
+  tikitaka: { CB: ['ballPlayingCB'], FB: ['invertedFullback'], CDM: ['halfBack', 'regista'], CM: ['deepPlaymaker', 'boxToBox'], WING: ['wingForward'], ST: ['falseNine'] },
+  gegenpress: { CDM: ['ballWinner'], CM: ['boxToBox'], FB: ['attackingFullback'], ST: ['advancedForward'] },
+  counter: { CB: ['coverCB'], CDM: ['anchor'], WING: ['wingForward'], ST: ['advancedForward'] },
+  direct: { CB: ['stopper'], FB: ['attackingFullback'], WING: ['classicWinger'], ST: ['targetMan'] },
+  block: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], CM: ['holdingCM'], ST: ['targetMan'] },
 };
 
 /** 포지션별로 고를 수 있는 역할 (E.6 역할 표) */
-export const ROLE_OPTIONS: Record<string, string[]> = {
-  GK: ['goalkeeper'],
-  CB: ['stopper', 'ballPlayingCB', 'coverCB'],
-  FB: ['attackingFullback', 'defensiveFullback', 'invertedFullback'],
-  CDM: ['anchor', 'ballWinner', 'dlpDm'],
-  CM: ['boxToBox', 'deepPlaymaker', 'advanced8'],
-  CAM: ['playmaker', 'shadowStriker', 'boxCrasher'],
-  WING: ['winger', 'insideForward'],
-  ST: ['poacher', 'targetMan', 'linkUp'],
-};
+export { ROLE_OPTIONS };
 
 export function roleGroup(pos: Position): string {
   switch (pos) {
@@ -107,42 +98,29 @@ export function roleGroup(pos: Position): string {
   }
 }
 
-/** 역할 적합도 (18.1, 안내와 기본값 채우기용): 역할 핵심 능력치 평균 */
-const ROLE_KEYS: Record<string, (keyof FieldAttributes)[]> = {
-  poacher: ['shooting', 'offTheBall', 'composure', 'acceleration'],
-  targetMan: ['heading', 'strength', 'jumping', 'ballControl'],
-  linkUp: ['shortPassing', 'vision', 'ballControl', 'shooting'],
-  winger: ['crossing', 'dribbling', 'pace', 'acceleration'],
-  insideForward: ['shooting', 'dribbling', 'acceleration', 'offTheBall'],
-  playmaker: ['vision', 'shortPassing', 'ballControl', 'composure'],
-  shadowStriker: ['shooting', 'offTheBall', 'acceleration', 'composure'],
-  boxCrasher: ['offTheBall', 'stamina', 'shooting', 'strength'],
-  boxToBox: ['stamina', 'workRate', 'shortPassing', 'tackling'],
-  deepPlaymaker: ['shortPassing', 'longPassing', 'vision', 'composure'],
-  advanced8: ['shortPassing', 'offTheBall', 'longShots', 'dribbling'],
-  anchor: ['defensivePositioning', 'interception', 'marking', 'composure'],
-  ballWinner: ['tackling', 'workRate', 'stamina', 'strength'],
-  dlpDm: ['shortPassing', 'longPassing', 'vision', 'interception'],
-  attackingFullback: ['crossing', 'stamina', 'pace', 'dribbling'],
-  defensiveFullback: ['marking', 'tackling', 'defensivePositioning', 'strength'],
-  invertedFullback: ['shortPassing', 'vision', 'composure', 'interception'],
-  stopper: ['tackling', 'strength', 'heading', 'jumping'],
-  ballPlayingCB: ['shortPassing', 'longPassing', 'composure', 'vision'],
-  coverCB: ['pace', 'defensivePositioning', 'interception', 'acceleration'],
-};
-
+/** 역할 적합도 (18.1, 안내와 기본값 채우기용): 역할 적합도 능력치 평균 (E.6 표) */
 export function roleFit(roleId: string, a: FieldAttributes): number {
   const keys = ROLE_KEYS[roleId];
   if (!keys) return 0;
   return keys.reduce((t, k) => t + a[k], 0) / keys.length;
 }
 
-/** 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②) */
-export function recommendedRole(tendency: Tendency, pos: Position, attrs: FieldAttributes): Role {
+/** 팀에 한 명만 두는 추천 역할 (내려와서 연결하는 ST): 투톱 둘 다 내려오면 박스에 아무도 없다 (부록 C.32) */
+export const SOLO_ROLES: ReadonlySet<string> = new Set(['falseNine']);
+
+/**
+ * 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②).
+ * taken 에 이미 팀에 배정된 역할을 주면 SOLO_ROLES 는 두 번째 슬롯부터 능력치 기본 역할로 바꾼다
+ */
+export function recommendedRole(tendency: Tendency, pos: Position, attrs: FieldAttributes, taken?: ReadonlySet<string>): Role {
   if (pos === 'GK') return ROLES.goalkeeper!;
   const cands = RECOMMENDED[tendency]?.[roleGroup(pos)];
   if (!cands?.length) return defaultRole(pos, attrs);
   const best = cands.slice().sort((x, y) => roleFit(y, attrs) - roleFit(x, attrs))[0]!;
+  if (taken?.has(best) && SOLO_ROLES.has(best)) {
+    const alt = defaultRole(pos, attrs);
+    return alt.id === best ? ROLES.poacher! : alt;
+  }
   return ROLES[best]!;
 }
 

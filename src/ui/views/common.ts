@@ -73,3 +73,10 @@ export function seasonMatchesSection(vm: SeasonMatchesVM, title = '시즌 경기
     ${panel(`<b class="small">시즌 합계</b>${total}`)}
     ${vm.rows.length ? panel(rows, 'mlog-list') : ''}`;
 }
+
+/** "(으)로": 마지막 한글에 받침이 있으면(ㄹ 제외) "으로" (자동으로, 타겟맨으로, 골잡이로, 역습으로). 괄호 속 글자는 건너뛴다 */
+export function roJosa(word: string): string {
+  const last = word.replace(/\([^)]*\)/g, '').replace(/[^가-힣]+$/, '').slice(-1);
+  const code = last ? last.charCodeAt(0) - 0xac00 : -1;
+  return code >= 0 && code % 28 !== 0 && code % 28 !== 8 ? '으로' : '로';
+}

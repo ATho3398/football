@@ -24,17 +24,30 @@ import {
   allocateVM, homeVM, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { navBar } from './views/common';
+import { navBar, roJosa } from './views/common';
 import { homeView, positionChangeSection, positionSheet } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
 import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView } from './views/screens';
+import { tacticsView } from './views/tactics';
+import { tacticsVM, type TacticsDraftUI } from './viewModels';
+import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
+import { nearestCell } from '../formations';
+import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
+import type { Formation } from '../formations';
+import type { Tendency } from '../engine/types';
+import { proficientOvr } from '../proficiency';
+import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics';
 
-interface ModalState { title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger' }
+interface ModalState {
+  title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
+  /** 취소 버튼 대신 다른 동작 (기본은 "취소" = 닫기) */
+  cancel?: { label: string; act: string; data?: Record<string, string> };
+}
 
 const ui = {
   screen: 'title' as Screen,
@@ -52,6 +65,8 @@ const ui = {
   worldTab: 'table' as 'table' | 'stars',
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
   posSheet: null as string | null,
+  /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
+  tac: null as TacticsDraftUI | null,
   form: { mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '' },
 };
 
@@ -137,6 +152,9 @@ function screenHtml(): string {
       break;
     }
     case 'retired': return retiredView(retiredVM(g));
+    case 'tactics':
+      if (ui.tac) return tacticsView(tacticsVM(g, ui.tac));
+      break;
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
@@ -145,7 +163,7 @@ function screenHtml(): string {
 
 /** 화면 → 첫 방문 말풍선 id */
 const TIP_SCREENS: Partial<Record<Screen, TipId>> = {
-  home: 'home', player: 'player', world: 'world', replay: 'replay', match: 'match', allocate: 'allocate', season: 'season',
+  home: 'home', player: 'player', world: 'world', replay: 'replay', match: 'match', allocate: 'allocate', season: 'season', tactics: 'tactics',
 };
 
 /** 첫 플레이 안내 (21.4): 공개 소개 → 첫 경기 오버레이 → 말풍선 순으로 한 번에 하나만 */
@@ -179,7 +197,7 @@ function render(): void {
     ? Modal({
       title: m.title, ...(m.body ? { children: m.body } : {}), icon: m.tone === 'danger' ? 'danger' : 'info', tone: m.tone ?? 'info', onClose: { act: 'modal-close' },
       actions: [
-        Button({ variant: 'secondary', block: true, act: 'modal-close', children: '취소' }),
+        Button({ variant: 'secondary', block: true, act: m.cancel?.act ?? 'modal-close', ...(m.cancel?.data ? { data: m.cancel.data } : {}), children: m.cancel?.label ?? '취소' }),
         Button({ variant: m.tone === 'danger' ? 'danger' : 'primary', block: true, act: m.act, ...(m.data ? { data: m.data } : {}), children: m.confirm }),
       ],
     })
@@ -263,6 +281,78 @@ function requestSimStop(): void {
 
 app.addEventListener('pointerdown', (ev) => {
   if ((ev.target as HTMLElement).closest('[data-act="sim-stop"]')) requestSimStop();
+  formationPointerDown(ev);
+});
+
+// ── 커스텀 포메이션 끌어다 놓기 (E.5.1, I.16): 보이지 않는 격자의 가장 가까운 칸에 붙는다 ──
+let fdrag: { slot: number; el: HTMLElement; pitch: HTMLElement; x0: number; y0: number; moved: boolean } | null = null;
+
+/** 미니 피치 위 화면 좌표 → 정규화 (x 0 우리 골 → 1 상대 골, y 0 왼쪽 → 1 오른쪽). FormationPitch 의 배치식 left = 10 + y × 80, top = 100 − (8 + x × 95) 의 역 */
+function pitchNorm(pitch: HTMLElement, cx: number, cy: number): [number, number, number, number] {
+  const r = pitch.getBoundingClientRect();
+  const left = Math.min(100, Math.max(0, ((cx - r.left) / r.width) * 100));
+  const top = Math.min(100, Math.max(0, ((cy - r.top) / r.height) * 100));
+  return [(100 - top - 8) / 95, (left - 10) / 80, left, top];
+}
+
+function dropSlot(slot: number, x: number, y: number): void {
+  const g = ui.game;
+  if (!ui.tac || !g) return;
+  const { tactics, problem } = moveSlot(ui.tac.draft, slot, nearestCell(x, y));
+  ui.tac.draft = tactics;
+  ui.tac.moving = null;
+  if (problem) showToast({ kind: 'info', title: '그 자리로 옮길 수 없어요', body: problem }, 2400);
+  render();
+}
+
+function formationPointerDown(ev: PointerEvent): void {
+  if (!ui.tac?.edit) return;
+  const t = ev.target as HTMLElement;
+  const pitch = t.closest<HTMLElement>('.po-fpitch.is-edit');
+  if (!pitch) return;
+  const el = t.closest<HTMLElement>('[data-drag]');
+  if (!el) {
+    // 선수를 고른 뒤 빈 곳을 누르면 그리로 옮긴다
+    if (ui.tac.moving != null) {
+      const [x, y] = pitchNorm(pitch, ev.clientX, ev.clientY);
+      dropSlot(ui.tac.moving, x, y);
+    }
+    return;
+  }
+  ev.preventDefault();
+  fdrag = { slot: Number(el.dataset.drag), el, pitch, x0: ev.clientX, y0: ev.clientY, moved: false };
+  el.setPointerCapture?.(ev.pointerId);
+}
+
+app.addEventListener('pointermove', (ev) => {
+  if (!fdrag) return;
+  if (!fdrag.moved && Math.hypot(ev.clientX - fdrag.x0, ev.clientY - fdrag.y0) < 6) return;
+  fdrag.moved = true;
+  const [, , left, top] = pitchNorm(fdrag.pitch, ev.clientX, ev.clientY);
+  fdrag.el.style.left = `${left}%`;
+  fdrag.el.style.top = `${top}%`;
+  fdrag.el.classList.add('is-drag');
+});
+
+app.addEventListener('pointerup', (ev) => {
+  const d = fdrag;
+  fdrag = null;
+  if (!d || !ui.tac) return;
+  if (d.moved) {
+    const [x, y] = pitchNorm(d.pitch, ev.clientX, ev.clientY);
+    dropSlot(d.slot, x, y);
+    return;
+  }
+  // 탭: 선수 고르기 (이미 고른 선수를 다시 누르면 취소, 다른 선수를 누르면 그 선수로)
+  ui.tac.moving = ui.tac.moving === d.slot ? null : d.slot;
+  render();
+});
+
+app.addEventListener('pointercancel', () => {
+  if (fdrag) {
+    fdrag = null;
+    render();
+  }
 });
 
 app.addEventListener('click', (ev) => {
@@ -323,6 +413,8 @@ app.addEventListener('click', (ev) => {
       if (!g || !v) return;
       const from = g.player.position;
       if (requestPositionChange(g.player, v as PlayablePosition, g.phase === 'offseason')) {
+        // 내 위치도 새 주 포지션 슬롯으로 (E.19 ②). 포메이션·역할·세부 전술은 그대로
+        g.tactics = { ...g.tactics, mySlot: defaultSlot(g.tactics.formation, v as PlayablePosition, g.rosters[g.player.teamId], g.tactics.custom) };
         autosave();
         ui.posSheet = null;
         showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: '다음 시즌부터 새 포지션으로 뛰어요.' }, 2600);
@@ -332,6 +424,151 @@ app.addEventListener('click', (ev) => {
     case 'modal-close':
       ui.modal = null;
       render();
+      return;
+    case 'tac-open':
+      if (!g) return;
+      ui.tac = { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null, edit: false, moving: null };
+      markDone(g.guide, 'tactics');
+      autosave();
+      go('tactics');
+      return;
+    case 'tac-back':
+      if (ui.tac && g && JSON.stringify(ui.tac.draft) !== JSON.stringify(g.tactics)) {
+        confirmModal({ title: '저장하지 않고 나갈까요?', body: '바꾼 전술은 사라지고 저장한 전술로 경기해요.', confirm: '나가기', act: 'tac-leave', tone: 'warning' });
+        return;
+      }
+      ui.tac = null;
+      go('home');
+      return;
+    case 'tac-leave':
+      ui.tac = null;
+      go('home');
+      return;
+    case 'tac-detail':
+      if (!g) return;
+      g.guide.tacticsDetailOpen = !g.guide.tacticsDetailOpen;
+      autosave();
+      render();
+      return;
+    case 'tac-tend': {
+      const t = ui.tac;
+      if (!t || !v || v === t.draft.tendency) return;
+      const c = customized(t.draft);
+      if (c.details + c.roles === 0) {
+        t.draft = withTendency(t.draft, v as Tendency, true);
+        render();
+        return;
+      }
+      // I.16 상태: 바꾼 세부 전술·역할이 있으면 성향 기본값으로 바꿀지 묻는다 (디자인 28)
+      confirmModal({
+        title: `${TENDENCY_NAMES_KO[v as Tendency]}${roJosa(TENDENCY_NAMES_KO[v as Tendency])} 바꿀까요?`,
+        body: `세부 전술 ${c.details}개와 역할 ${c.roles}개를 직접 바꿔 두었어요. 성향 기본값으로 바꿀까요?`,
+        confirm: '기본값으로 바꾸기', act: 'tac-tend-ok', data: { v, reset: '1' },
+        cancel: { label: '성향만 바꾸기', act: 'tac-tend-ok', data: { v, reset: '0' } },
+      });
+      return;
+    }
+    case 'tac-tend-ok':
+      if (!ui.tac || !v) return;
+      ui.tac.draft = withTendency(ui.tac.draft, v as Tendency, el.dataset.reset === '1');
+      ui.modal = null;
+      render();
+      return;
+    case 'tac-form':
+      if (!ui.tac || !g || !v) return;
+      if (v === 'custom') {
+        // 커스텀 포메이션 (E.5.1): 지금 프리셋에서 시작해 끌어다 놓는다
+        ui.tac.draft = startCustom(ui.tac.draft);
+        ui.tac.edit = true;
+        ui.tac.moving = null;
+      } else {
+        ui.tac.draft = withFormation(ui.tac.draft, v as Formation, g.rosters[g.player.teamId]);
+        ui.tac.edit = false;
+      }
+      ui.tac.sheet = null;
+      ui.tac.pickMe = false;
+      render();
+      return;
+    case 'tac-edit':
+      if (!ui.tac) return;
+      ui.tac.edit = !ui.tac.edit;
+      ui.tac.moving = null;
+      ui.tac.pickMe = false;
+      render();
+      return;
+    case 'tac-level':
+      if (!ui.tac) return;
+      ui.tac.draft = { ...ui.tac.draft, levels: { ...ui.tac.draft.levels, [el.dataset.k as Detail]: Number(v) as Level } };
+      render();
+      return;
+    case 'tac-pick-me':
+      if (!ui.tac) return;
+      ui.tac.pickMe = !ui.tac.pickMe;
+      render();
+      return;
+    case 'tac-me-slot': {
+      const t = ui.tac;
+      if (!t || !g || v === undefined) return;
+      const slot = Number(v);
+      const pos = slotPos(t.draft, slot) as FieldPosition;
+      t.pickMe = false;
+      if (pos !== g.player.position) {
+        // 주 포지션 밖 슬롯 경고 (I.16, 디자인 29)
+        const main = proficientOvr(g.player, g.player.position);
+        const there = proficientOvr(g.player, pos);
+        confirmModal({
+          title: `${pos} 슬롯에서 뛸까요?`, tone: 'warning',
+          body: `주 포지션(${g.player.position})이 아니라서 OVR이 ${main} → ${there}로 낮아져요. 선발 확률과 경기력도 그만큼 떨어지고, 이 포지션 숙련도가 조금씩 올라요.`,
+          confirm: `${pos}로 정하기`, act: 'tac-me-ok', data: { v: String(slot) },
+        });
+        return;
+      }
+      t.draft = { ...t.draft, mySlot: slot };
+      render();
+      return;
+    }
+    case 'tac-me-ok':
+      if (!ui.tac || v === undefined) return;
+      ui.tac.draft = { ...ui.tac.draft, mySlot: Number(v) };
+      ui.modal = null;
+      render();
+      return;
+    case 'tac-role-open':
+      if (!ui.tac || v === undefined) return;
+      ui.tac.sheet = Number(v);
+      ui.tac.sheetPick = ui.tac.draft.roles[Number(v)] ?? null;
+      render();
+      return;
+    case 'tac-role-pick':
+      if (!ui.tac) return;
+      ui.tac.sheetPick = v ? v : null;
+      render();
+      return;
+    case 'tac-role-ok': {
+      const t = ui.tac;
+      if (!t || t.sheet === null) return;
+      const roles = [...t.draft.roles];
+      roles[t.sheet] = t.sheetPick;
+      t.draft = { ...t.draft, roles };
+      t.sheet = null;
+      render();
+      return;
+    }
+    case 'tac-sheet-close':
+      if (!ui.tac) return;
+      ui.tac.sheet = null;
+      render();
+      return;
+    case 'tac-reset':
+      if (!ui.tac) return;
+      ui.tac.draft = { ...ui.tac.draft, roles: ui.tac.draft.roles.map(() => null), levels: tendencyLevels(ui.tac.draft.tendency) };
+      showToast(`${TENDENCY_NAMES_KO[ui.tac.draft.tendency]} 기본값으로 되돌렸어요. 저장해야 적용돼요.`);
+      return;
+    case 'tac-save':
+      if (!g || !ui.tac) return;
+      g.tactics = structuredClone(ui.tac.draft) as MyTactics;
+      autosave();
+      showToast({ kind: 'info', title: '전술을 저장했어요', body: '바꾸기 전까지 매 경기 이 전술로 뛰어요.' });
       return;
     case 'go':
     case 'go-tab': {

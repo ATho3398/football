@@ -71,13 +71,17 @@ export function proficientOvr(p: Pick<PlayerState, 'attributes'> & { proficiency
   return Math.round(positionOvr(p.attributes, pos) - proficiencyPenalty(proficiencyOf(p, pos)));
 }
 
-/** 출전 후 주 포지션 숙련도 상승: (이전 주 포지션에서의 거리 1 → 4, 2 → 2, 3 이상 → 1) × 출전 비율. 최대 100 */
-export function gainProficiency(p: PlayerState, minutes: number): void {
-  const k = profKey(p.position);
+/**
+ * 출전 후 숙련도 상승: (이전 주 포지션에서의 거리 1 → 4, 2 → 2, 3 이상 → 1) × 출전 비율. 최대 100.
+ * 전술에서 주 포지션 밖 슬롯(played)으로 뛰면 그 포지션이 주 포지션에서의 거리만큼 오른다 (E.19 ②, 포지션 전환 진행)
+ */
+export function gainProficiency(p: PlayerState, minutes: number, played: Position = p.position): void {
+  const k = profKey(played);
   if (!k || !p.proficiency || minutes <= 0) return;
   const cur = p.proficiency[k];
   if (cur >= 100) return;
-  const d = p.formerPosition ? positionDistance(p.formerPosition, p.position) : 1;
+  const from = profKey(played) === profKey(p.position) ? p.formerPosition : p.position;
+  const d = from ? positionDistance(from, played) : 1;
   const per = P.gainByDistance[Math.min(Math.max(d, 1), P.gainByDistance.length) - 1]!;
   p.proficiency[k] = Math.min(100, Math.round((cur + per * Math.min(1, minutes / 90)) * 100) / 100);
 }

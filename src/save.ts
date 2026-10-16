@@ -3,12 +3,14 @@
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { migrateRoleId } from './engine/roles';
 import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
 import { emptyRecord } from './matchRecord';
 import { positionOvr } from './positions';
 import { initialProficiency } from './proficiency';
+import { migratedTactics, validTactics } from './myTactics';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -113,6 +115,18 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.player.season.rec = emptyRecord();
     s.player.season.recApps = 0;
   },
+  // 11 → 12 (부록 C.32, E.19 저장): 내 팀 전술. 로스터를 다시 만든 뒤 "균형 + 팀 데이터 포메이션 + 주 포지션 슬롯"으로 채운다 (migrate 끝)
+  11: (s) => {
+    s.tactics = null;
+  },
+  // 12 → 13 (부록 C.33, E.21 1번): 역할 이름 변경(인사이드 포워드 → 윙포워드, 윙어 → 정통 윙어, 연계형 → 펄스 나인,
+  // 플레이메이커 → 클래식 10번, 공격형 8번 → 메짤라, CDM 딥라잉 플레이메이커 → 레지스타)과 커스텀 포메이션(없음)
+  12: (s) => {
+    if (s.tactics) {
+      s.tactics.custom = null;
+      if (Array.isArray(s.tactics.roles)) s.tactics.roles = s.tactics.roles.map((r: string | null) => migrateRoleId(r));
+    }
+  },
 };
 
 export function migrate(raw: any): GameState {
@@ -128,6 +142,7 @@ export function migrate(raw: any): GameState {
   }
   const state = raw as GameState;
   state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs);
+  if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);
   return state;
 }
 

@@ -28,7 +28,8 @@ export function homeView(vm: HomeVM, extra = ''): string {
       ${panel(`
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}${esc(n.my)}</span><span class="vs po-num">VS</span><span class="vs-team away">${esc(n.opp)}${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
         <div class="sub-panel">
-          <div class="kv"><span>우리 전술</span>${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}</div>
+          <div class="kv"><span>우리 전술</span><span class="kv-r">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}${
+            n.tacticsOpen ? Button({ size: 'sm', variant: 'secondary', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</span></div>
           <div class="divider"></div>
           <div class="kv"><span>상대 전술</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}</div>
           <div class="divider"></div>

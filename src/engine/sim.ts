@@ -70,14 +70,15 @@ export interface MatchSim {
 }
 
 function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, home: boolean): Agent {
-  const slots = FORMATION_SLOTS[setup.formation];
+  const slots = setup.customSlots ?? FORMATION_SLOTS[setup.formation];
   const slot = slots[spec.slot] ?? slots[0]!;
   // 능력치 체감 (E.20 11번): 모든 능력치에 같은 S자 곡선을 여기 한 곳에서 적용한다
   const attrs = curveAttrs(spec.attrs);
   const gk = spec.gk ? { type: spec.gk.type, attrs: curveAttrs(spec.gk.attrs) } : null;
   const pos = spec.slot >= 0 ? slot.pos : spec.position;
   const a: Agent = {
-    idx, id: spec.id, team, spec, attrs, gk, pos, line: lineOf(pos),
+    // 줄 소속: 커스텀 칸은 칸의 줄(E.5.1), 아니면 포지션
+    idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,

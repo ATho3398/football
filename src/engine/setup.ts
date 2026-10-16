@@ -33,7 +33,12 @@ export function defaultTactics(teamId: string, rating: number, _oppRating = rati
 
 /** 슬롯 역할을 성향 추천 역할로 채운다 (E.19 ②). 이미 정한 역할은 둔다 */
 export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpec['position']): void {
-  for (const p of setup.lineup) p.role ??= recommendedRole(setup.tactics.tendency, slotPos(p.slot), p.attrs).id;
+  const taken = new Set(setup.lineup.map((p) => p.role).filter((r): r is string => !!r));
+  for (const p of [...setup.lineup].sort((a, b) => a.slot - b.slot)) {
+    if (p.role) continue;
+    p.role = recommendedRole(setup.tactics.tendency, slotPos(p.slot), p.attrs, taken).id;
+    taken.add(p.role);
+  }
 }
 
 /**
@@ -65,6 +70,7 @@ export function teamSetupFromRoster(
   const setup: TeamSetup = {
     teamId: roster.teamId,
     formation: roster.formation,
+    ...(roster.customSlots ? { customSlots: roster.customSlots } : {}),
     lineup: lu.slots.map((s) => specOf(byId.get(s.playerId)!, s.slot)),
     bench: lu.bench.map((id) => specOf(byId.get(id)!, -1)),
     tactics: plan.tactics,

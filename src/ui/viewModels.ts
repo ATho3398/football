@@ -28,7 +28,18 @@ import type { BadgeId, Tier } from '../types';
 import { activeBadges, BADGE_DESC_KO, BADGE_NAMES_KO } from '../badges';
 import { proficiencyOf, proficiencyPenalty, proficientOvr } from '../proficiency';
 import { saveStartNotice, versionLabel } from '../version';
-import type { DesignTier, FeedKind, TacticStyle } from './components';
+import type { DesignTier, FeedKind, FormationSlotProps, TacticStyle } from './components';
+import type { FieldAttributes } from '../attributes';
+import { FORMATIONS } from '../formations';
+import {
+  customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
+} from '../myTactics';
+import {
+  DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_NAMES_KO, tendencyLevels,
+  type Detail,
+} from '../engine/tactics';
+import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
+export { ROLE_DESC_KO };
 
 // ── 공통 변환 ──
 
@@ -137,6 +148,8 @@ export interface HomeVM {
   next: null | {
     my: string; opp: string; home: boolean; myRating: number; oppRating: number;
     myTactic?: TacticVM; oppTactic?: TacticVM;
+    /** 전술 화면이 열렸으면 "전술" 버튼 (21.3: 3경기 뒤) */
+    tacticsOpen: boolean;
     /** 결장(부상·출장 정지)이면 경기 버튼은 "결장(관전)" */
     out: boolean;
   };
@@ -179,7 +192,8 @@ export function homeVM(g: GameState): HomeVM {
     }
     next = {
       my: my.nameKo, opp: opp.nameKo, home: fx.home, myRating: my.rating, oppRating: opp.rating,
-      myTactic: teamTactic(my.id), oppTactic: teamTactic(opp.id), out: !!inj || p.suspended > 0,
+      myTactic: myTacticVM(g), oppTactic: teamTactic(opp.id), out: !!inj || p.suspended > 0,
+      tacticsOpen: isUnlocked(g.guide, 'tactics'),
     };
   }
   const slump = g.phase === 'season' ? slumpBanner(g) : null;
@@ -717,4 +731,132 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,
   };
+}
+
+// ── 전술 (I.16, 디자인 26~29, E.19, 부록 C.32) ──
+
+
+export interface TacticsDraftUI {
+  draft: MyTactics;
+  /** "내 위치 지정" 중: 슬롯을 누르면 내 슬롯이 된다 */
+  pickMe: boolean;
+  /** 역할 고르기 바텀시트 (슬롯), 시트 안에서 고른 역할 (null = 자동) */
+  sheet: number | null;
+  sheetPick: string | null;
+  /** 커스텀 포메이션 편집 중 (E.5.1): 슬롯을 끌어다 놓거나, 눌러 고른 뒤 피치를 누른다 */
+  edit?: boolean;
+  moving?: number | null;
+}
+
+export interface TacticsVM {
+  opp: { name: string; tactic?: TacticVM; home: boolean } | null;
+  chips: string[];
+  open: boolean;
+  tendencies: { id: Tendency; style: TacticStyle; name: string; fit: Fit; on: boolean }[];
+  tendencyName: string;
+  formations: { id: string; label: string }[];
+  /** 탭 값 (커스텀이면 'custom') */
+  formation: string;
+  /** 표시 이름 (커스텀이면 "3-4-3 커스텀") */
+  formationName: string;
+  custom: boolean;
+  edit: boolean;
+  slots: FormationSlotProps[];
+  pickMe: boolean;
+  me: { pos: string; role: string; ovr: number; mainPos: string; mainOvr: number; off: boolean };
+  details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string; base: boolean }[];
+  changed: { details: number; roles: number };
+  dirty: boolean;
+  sheet: null | {
+    slot: number; pos: string; name: string; me: boolean;
+    options: { id: string; name: string; desc: string; fit: Fit; on: boolean; rec: boolean }[];
+    auto: { on: boolean; name: string };
+    pick: string | null;
+  };
+}
+
+const LEVEL_ID = ['0', '1', '2'] as const;
+
+/** 전술 적합도 리그 평균 (로스터는 시즌 안에서 바뀌지 않으므로 세계 시드·시즌으로 기억) */
+let fitCache: { key: string; avg: Record<Tendency, number | null> } | null = null;
+function leagueFit(g: GameState): Record<Tendency, number | null> {
+  const key = `${g.worldSeed}:${g.league.season}:${g.roster.updates}`;
+  if (fitCache?.key !== key) fitCache = { key, avg: leagueFitAverages(g.rosters) };
+  return fitCache.avg;
+}
+
+/** 역할 적합도 배지: 그 선수에게 고를 수 있는 역할 중 가장 맞는 것과의 차이 (안내용) */
+function roleFits(ids: string[], attrs: FieldAttributes | undefined): Fit[] {
+  if (!attrs) return ids.map(() => 'ok');
+  const xs = ids.map((id) => roleFit(id, attrs));
+  const best = Math.max(...xs);
+  return xs.map((v) => (v >= best - 1.5 ? 'good' : v <= best - 6 ? 'bad' : 'ok'));
+}
+
+export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
+  const t = ui.draft;
+  const p = g.player;
+  const roster = g.rosters[p.teamId]!;
+  const lineup = previewLineup(t, roster, { name: p.name, attrs: p.attributes });
+  const fitAvg = leagueFit(g);
+  const fitLineup = lineup.map((s) => ({ pos: s.pos, ...(s.attrs ? { attrs: s.attrs } : {}) }));
+  const fx = g.phase === 'season' ? nextFixture(g) : null;
+  const opp = fx ? teamById(g.league, fx.opponentId) : null;
+  const lv = (d: Detail) => LEVEL_NAMES_KO[d][t.levels[d]];
+  const base = tendencyLevels(t.tendency);
+  const myPos = slotPos(t, t.mySlot) as FieldPosition;
+  const mainOvr = proficientOvr(p, p.position);
+  const myOvr = proficientOvr(p, myPos);
+  const slots: FormationSlotProps[] = lineup.map((s) => {
+    const ovr = s.pos === 'GK' ? undefined : proficientOvr(p, s.pos as FieldPosition);
+    return {
+      pos: s.pos, x: Math.round(10 + s.y * 80), y: Math.round(8 + s.x * 95), name: s.name, role: ROLE_NAMES_KO[s.role] ?? s.role, me: s.me,
+      selected: ui.edit ? ui.moving === s.slot : ui.sheet === s.slot, dim: (ui.pickMe || !!ui.edit) && s.pos === 'GK',
+      ...(ovr != null ? { ovr, ovrDown: ovr < mainOvr } : {}),
+      ...(ui.edit ? (s.pos === 'GK' ? {} : { drag: s.slot })
+        : ui.pickMe ? (s.pos === 'GK' ? {} : { act: 'tac-me-slot', data: { v: s.slot } }) : { act: 'tac-role-open', data: { v: s.slot } }),
+    };
+  });
+  let sheet: TacticsVM['sheet'] = null;
+  if (ui.sheet !== null) {
+    const s = lineup[ui.sheet]!;
+    const ids = ROLE_OPTIONS[roleGroup(s.pos)] ?? [];
+    const fits = roleFits(ids, s.attrs);
+    const rec = s.attrs ? recommendedRole(t.tendency, s.pos, s.attrs).id : null;
+    sheet = {
+      slot: s.slot, pos: s.pos, name: s.name, me: s.me,
+      options: ids.map((id, i) => ({ id, name: ROLE_NAMES_KO[id] ?? id, desc: ROLE_DESC_KO[id] ?? '', fit: fits[i]!, on: ui.sheetPick === id, rec: id === rec })),
+      auto: { on: ui.sheetPick === null, name: rec ? ROLE_NAMES_KO[rec] ?? rec : '-' },
+      pick: ui.sheetPick,
+    };
+  }
+  return {
+    opp: opp && fx ? { name: opp.nameKo, home: fx.home, ...(teamTactic(opp.id) ? { tactic: teamTactic(opp.id)! } : {}) } : null,
+    chips: [TENDENCY_NAMES_KO[t.tendency], formationLabel(t), `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
+    open: g.guide.tacticsDetailOpen,
+    tendencies: TENDENCIES.map((id) => ({
+      id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], fit: fitOf(fitScore(id, fitLineup), fitAvg[id]), on: id === t.tendency,
+    })),
+    tendencyName: TENDENCY_NAMES_KO[t.tendency],
+    formations: [...FORMATIONS.map((f) => ({ id: f, label: f })), { id: 'custom', label: '커스텀' }],
+    formation: t.custom ? 'custom' : t.formation,
+    formationName: formationLabel(t),
+    custom: !!t.custom,
+    edit: !!ui.edit,
+    slots,
+    pickMe: ui.pickMe,
+    me: { pos: myPos, role: ROLE_NAMES_KO[lineup[t.mySlot]!.role] ?? '', ovr: myOvr, mainPos: p.position, mainOvr, off: myPos !== p.position },
+    details: DETAILS.map((d) => ({
+      key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })),
+      value: LEVEL_ID[t.levels[d]]!, base: t.levels[d] === base[d],
+    })),
+    changed: customized(t),
+    dirty: JSON.stringify(t) !== JSON.stringify(g.tactics),
+    sheet,
+  };
+}
+
+/** 홈 "다음 경기" 카드의 우리 전술 (저장한 전술) */
+export function myTacticVM(g: GameState): TacticVM {
+  return { tactic: tacticStyle(g.tactics.tendency), formation: formationLabel(g.tactics) };
 }

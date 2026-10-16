@@ -77,7 +77,7 @@ describe('세이브 변환 8 → 9 (부록 C.23)', () => {
   it('위상 점수는 그대로, 티어만 새 기준으로 (예전 레전더리 850+ → 월드클래스)', () => {
     const loaded = deserialize(JSON.stringify(oldSave(950)));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(11);
+    expect(SAVE_FORMAT_VERSION).toBe(13);
     expect(loaded.player.reputation).toBe(950);
     expect(loaded.player.honors).toEqual(H(0));
     expect(reputationTier(loaded.player.reputation, loaded.player.honors)).toBe('worldClass');
@@ -99,14 +99,14 @@ describe('세이브 변환 8 → 9 (부록 C.23)', () => {
 });
 
 describe('단계적 공개 (21.3 개정안)', () => {
-  it('성장은 첫 경기 뒤에 열린다. 아직 없는 기능은 조건만 있고 열리지 않는다', () => {
+  it('성장은 첫 경기 뒤, 전술은 3경기 뒤에 열린다. 아직 없는 기능은 조건만 있고 열리지 않는다', () => {
     const s = newGame({ mode: 'prospect', position: 'CM', seed: 'unlock', difficulty: 'normal' });
     expect(isUnlocked(s.guide, 'growth')).toBe(false);
     expect(checklistItems(s.guide)!.map((c) => c.id)).toEqual(['play']);
     for (let i = 0; i < 12; i++) playRound(s, { engine: 'quick' });
-    expect(s.guide.unlocked).toEqual(['growth']);
+    expect(s.guide.unlocked).toEqual(['growth', 'tactics']);
     for (const f of FEATURES.filter((x) => !x.implemented)) expect(isUnlocked(s.guide, f.id)).toBe(false);
-    expect(checklistItems(s.guide)!.map((c) => [c.id, c.done])).toEqual([['play', true], ['allocate', false]]);
+    expect(checklistItems(s.guide)!.map((c) => [c.id, c.done])).toEqual([['play', true], ['allocate', false], ['tactics', false]]);
     expect(refreshUnlocks(s)).toEqual([]);
   });
 
