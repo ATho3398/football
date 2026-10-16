@@ -167,7 +167,8 @@ export interface Sizes {
 
 export const SIZES: Record<Mode, Sizes> = {
   full: { neutral: 400, diff8: 200, diff15: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200, league: 3 },
-  light: { neutral: 120, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 120, ovr5: 0, seasons: 6, tactic: 0, league: 0 },
+  // C.28: 경량 평점은 칸당 약 20명(포지션 평균 표본 오차 ±0.1), 시즌 XP 비는 12시즌(선수 6명 × 시드 2)
+  light: { neutral: 120, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 120, sens: 0, rating: 300, ovr5: 0, seasons: 12, tactic: 0, league: 0 },
   sweep: {
     neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), diff15: Number(process.env.SWEEP_D15 ?? 0), poss10: 0, home: Number(process.env.SWEEP_HOME ?? 0), red: 0, formation: 0,
     response: Number(process.env.SWEEP_RESP ?? 40), sens: 0, rating: Number(process.env.SWEEP_RATING ?? 0), ovr5: 0, seasons: Number(process.env.SWEEP_SEASONS ?? 0), tactic: 0,

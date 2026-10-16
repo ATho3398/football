@@ -1,6 +1,6 @@
 // 진단 (12단계 A): 순간이동, 골 뒤 킥오프 대기·정지, GK 루즈볼 무반응을 틱 단위로 센다.
 // C.24: 공 순간이동(비행 중이 아닌 공의 틱당 3 m 초과)과 킥오프 순간 자기 진영 측정을 더했다.
-// C.28: GK 추격(횟수, 추격 중 실점), 침투 패스(상대 GK 유형별 시도·수신, GK 가 끊음)를 더했다. GKTYPE=sweeper|classic 이면 양 팀 GK 유형을 고정한다.
+// C.28: GK 추격(횟수, 추격 중 실점), 침투 패스(상대 GK 유형별 시도·수신, GK 가 끊음)를 더했다. 골 → 킥오프 짝짓기에서 하프타임을 넘는 골을 뺐다. GKTYPE=sweeper|classic 이면 양 팀 GK 유형을 고정한다.
 // 실행: npx vite-node scripts/diag/polish-a.ts -- [경기수=10] [홈레이팅=78] [원정레이팅=76]
 // 엔진 코드는 건드리지 않고 createMatch().step() 을 한 틱씩 돌리며 상태를 읽는다.
 import { ENGINE } from '../../src/engine/config';
@@ -157,11 +157,13 @@ for (let i = 0; i < N; i++) {
     }
     // 골 → 킥오프
     for (const e of newEvents) if (e.type === 'goal') { goalAt = s.t; settled = -1; }
+    // 하프 끝 직전 골은 골 뒤 킥오프 대신 하프타임 킥오프가 된다 (C.28: 짝짓기에서 뺀다. 시계도 하프마다 다시 시작)
+    if (halfFlip) goalAt = -1;
     if (goalAt >= 0 && s.restart?.type === 'kickoff') {
       const moving = s.agents.filter((a) => a.onPitch && Math.hypot(a.vx, a.vy) > 0.3).length;
       if (settled < 0 && moving === 0) settled = s.t;
     }
-    if (goalAt >= 0 && restartDone && prevRestart!.type === 'kickoff') {
+    if (goalAt >= 0 && restartDone && prevRestart!.type === 'kickoff' && prevRestart!.goal) {
       kick.push({ wait: s.t - goalAt, settle: settled >= 0 ? settled - goalAt : NaN, settleAll: settled >= 0 ? s.t - settled : NaN });
       goalAt = -1;
     }
