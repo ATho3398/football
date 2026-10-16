@@ -2,7 +2,7 @@
 
 import { ENGINE } from './config';
 import { clamp, L, W } from './pitch';
-import type { Agent } from './state';
+import type { Agent, Flight } from './state';
 
 const P = ENGINE.physics;
 
@@ -83,4 +83,15 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1):
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * dt * 10);
   else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * (P.drainAttrBase - (P.drainAttrSlope * a.attrs.stamina) / 100) * dt * 10);
+}
+
+/** 루즈 비행이 끝난 뒤 공의 속도 (E.18 A4, C.24 after): 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 */
+export function landingVelocity(fl: Flight): [number, number] {
+  if (fl.after) return [fl.after.vx, fl.after.vy];
+  const dx = fl.toX - fl.fromX;
+  const dy = fl.toY - fl.fromY;
+  const d = Math.sqrt(dx * dx + dy * dy) || 1;
+  const v0 = d / Math.max(0.1, fl.dur);
+  const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(4, v0 - ENGINE.ball.groundDecel * fl.dur);
+  return [(dx / d) * sp, (dy / d) * sp];
 }

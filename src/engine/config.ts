@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 10;
+export const ENGINE_VERSION = 11;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -650,10 +650,10 @@ export const ENGINE = {
     max: 10,
     /**
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
-     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts),
+     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts. C.28: 엔진 11 로 다시 쟀다),
      * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
-    center: { GK: 0.96, CB: 1.26, FB: 1.01, CDM: 1.93, CM: 2.21, CAM: 1.69, WING: 1.34, ST: 2.12 } as Record<string, number>,
+    center: { GK: 1.14, CB: 1.32, FB: 1.04, CDM: 1.95, CM: 2.28, CAM: 1.76, WING: 1.34, ST: 2.14 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
@@ -694,6 +694,27 @@ export const ENGINE = {
     /** 각 좁히기 (E.20): 상대가 공을 가지고 박스 안 골에서 rushDist m 안이면 GK 는 공과 골 사이 rushGap m 앞까지 나온다 */
     rushDist: 12,
     rushGap: 1.5,
+    /** 루즈볼 추격 (C.28): 공 경로(chaseHorizon 초)에서 GK 가 닿는 첫 점이 처리 구역(자기 박스, 스위퍼는 박스 밖 sweepRange m 까지) 안이고
+     * GK 도착(반응 + 거리/최대 속도)이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료보다 늦지 않으면 나간다. 이미 나갔으면 여유 chaseKeep */
+    chaseHorizon: 4,
+    chaseMargin: 0.3,
+    chaseKeep: 0,
+    /** 스위퍼 박스 밖 범위 (m): 출전 범위·가속 (0.7 : 0.3) 50~90 에 비례 */
+    sweepRange: [5, 20] as [number, number],
+    /** 박스 안 손 처리 (C.28): 반경 handRange m, 공 속도 handMaxSpeed m/s 이하. 확률 = 캐치 확률 + looseCatchBonus − handSpeedPenalty × 속도/10.
+     * 같은 팀이 발로 일부러 준 공(패스·롱패스)은 손을 못 쓴다. 놓치면 공이 몸에 맞고 fumbleSpeed m/s 로 튀고 handBlock 초 동안 다시 손을 못 쓴다 */
+    handRange: 1.5,
+    handMaxSpeed: 30,
+    looseCatchBonus: 0.35,
+    handSpeedPenalty: 0.05,
+    fumbleSpeed: [1.5, 3.5] as [number, number],
+    handBlock: 0.6,
+    /** 같은 팀 백패스는 발·몸으로 막는다 (C.28): 반경 footRange m, 보통 컨트롤 식이지만 공 속도 상한은 handMaxSpeed */
+    footRange: 1.5,
+    /** 루즈볼일 때 GK 오프더볼 갱신 간격 (초, C.28) */
+    chaseRefresh: 0.2,
+    /** 침투 패스 달리기 경쟁 (C.28): 목표점이 상대 GK 처리 구역 안이면 GK 도착 시간(+throughDelay 초)도 수비 쪽 후보 */
+    throughDelay: 0.4,
   },
 
   // ── 심판, 수적 열세 (E.10) ──

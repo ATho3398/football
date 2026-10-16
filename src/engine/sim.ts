@@ -4,7 +4,7 @@ import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../at
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
 import { lineOf } from './formation';
-import { caught, defendDuels, execute, resolveFlight, takeCorner, takeFreeKick, takePenalty } from './actions';
+import { caught, defendDuels, execute, keeperHands, resolveFlight, takeCorner, takeFreeKick, takePenalty } from './actions';
 import { computeRatings } from './rating';
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
@@ -107,11 +107,11 @@ export function createState(input: EngineInput): SimState {
   const s: SimState = {
     input, seed: input.seed >>> 0, t: 0, elapsed: 0, tick: 0, half: 1, halfEnd: T.halfSeconds + added1,
     agents, bench,
-    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null },
+    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null },
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false,
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
@@ -187,6 +187,7 @@ function updateLooseBall(s: SimState): void {
   const b = s.ball;
   const dt = T.dt;
   const sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+  const [px, py] = [b.x, b.y];
   if (sp > 0) {
     const nsp = Math.max(0, sp - ENGINE.ball.groundDecel * dt);
     b.vx *= nsp / sp;
@@ -206,6 +207,7 @@ function updateLooseBall(s: SimState): void {
     }
     if (rc.onPitch && res.kind !== 'receive' && res.kind !== 'win') return;
   }
+  if (keeperHands(s, sp, px, py)) return;
   if (sp >= B.controlMaxSpeed) return;
   // 공 컨트롤 시도 (E.4)
   let winner: Agent | null = null;
@@ -288,12 +290,15 @@ export function step(s: SimState): void {
   if (s.restart && s.t >= s.restart.at) restartDue(s);
 
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
+  // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격)
+  const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
   for (const a of s.agents) {
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh)) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));
+      if (looseNow && a.line === 0) a.nextOffball = Math.min(a.nextOffball, s.t + ENGINE.keeper.chaseRefresh);
     }
   }
 
@@ -331,7 +336,11 @@ export function step(s: SimState): void {
       b.y = clamp(b.y, 0.3, W - 0.3);
     }
   } else if (b.flight) {
+    const fl = b.flight;
+    const [px, py] = [b.x, b.y];
     resolveFlight(s);
+    // 빗나간 땅볼 패스가 박스 안 GK 옆을 지나가면 GK 가 처리한다 (C.28)
+    if (b.flight === fl && fl.outcome === 'loose' && !fl.air && !s.restart) keeperHands(s, dist(fl.fromX, fl.fromY, fl.toX, fl.toY) / Math.max(0.05, fl.dur), px, py);
   } else if (!s.restart) {
     updateLooseBall(s);
   }

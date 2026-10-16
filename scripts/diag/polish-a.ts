@@ -1,5 +1,6 @@
 // 진단 (12단계 A): 순간이동, 골 뒤 킥오프 대기·정지, GK 루즈볼 무반응을 틱 단위로 센다.
 // C.24: 공 순간이동(비행 중이 아닌 공의 틱당 3 m 초과)과 킥오프 순간 자기 진영 측정을 더했다.
+// C.28: GK 추격(횟수, 추격 중 실점), 침투 패스(상대 GK 유형별 시도·수신, GK 가 끊음)를 더했다. GKTYPE=sweeper|classic 이면 양 팀 GK 유형을 고정한다.
 // 실행: npx vite-node scripts/diag/polish-a.ts -- [경기수=10] [홈레이팅=78] [원정레이팅=76]
 // 엔진 코드는 건드리지 않고 createMatch().step() 을 한 틱씩 돌리며 상태를 읽는다.
 import { ENGINE } from '../../src/engine/config';
@@ -21,8 +22,14 @@ const mk = (side: string, i: number, rating: number, opp: number) => {
   r.formation = '4-2-3-1';
   const s = teamSetupFromRoster(r, rosterRating(r), opp, `wA${i}`);
   s.tactics = { ...s.tactics, ...BALANCED };
+  const gkType = process.env.GKTYPE as 'sweeper' | 'classic' | undefined;
+  if (gkType) for (const p of [...s.lineup, ...s.bench]) if (p.gk) p.gk = { ...p.gk, type: gkType };
   return s;
 };
+// C.28: GK 추격 에피소드와 추격 중 실점, 침투 패스 (상대 GK 유형별)
+const chase = { n: 0, gk: 0, outBox: 0, conceded: 0 };
+const recvBy: Record<string, number> = { classic: 0, sweeper: 0 };
+const thru: Record<string, { tries: number; recv: number; gkCut: number }> = { classic: { tries: 0, recv: 0, gkCut: 0 }, sweeper: { tries: 0, recv: 0, gkCut: 0 } };
 
 const JUMP = 1.0; // 틱(0.1초)당 이 거리(m)를 넘으면 순간이동. 최대 속도 9.1 m/s → 0.91 m/틱
 const jumps: Record<string, { n: number; sum: number; max: number }> = {};
@@ -66,8 +73,38 @@ for (let i = 0; i < N; i++) {
   let goalAt = -1;
   let settled = -1;
   let cur: Ep | null = null;
+  const chasing: [number, number] = [-1, -1]; // 추격 시작 시각
+  const chaseFail: [number, number] = [-100, -100]; // GK 가 공을 못 얻고 끝난 추격의 끝 시각
+  let lastFlight: unknown = null;
   while (!s.done) {
     m.step();
+    for (const team of [0, 1] as const) {
+      const gk = keeperOf(s, team);
+      const on = s.teams[team].gkChase && s.ball.owner < 0 && !s.restart;
+      if (on && chasing[team] < 0) {
+        chasing[team] = s.t;
+        chase.n++;
+        if (gk && !inBoxOf(s, team, gk.tx, gk.ty)) chase.outBox++;
+      } else if (!on && chasing[team] >= 0) {
+        if (gk && s.ball.owner === gk.idx) chase.gk++;
+        else chaseFail[team] = s.t;
+        chasing[team] = -1;
+      }
+    }
+    for (const e of s.events.slice(prevEvents)) {
+      if (e.type !== 'goal') continue;
+      const conc = (1 - e.team) as 0 | 1;
+      if (chasing[conc] >= 0 || s.t - chaseFail[conc] <= 10) chase.conceded++;
+    }
+    const fl = s.ball.flight;
+    if (fl && fl !== lastFlight && fl.through) {
+      const att = s.agents[fl.passer]!.team;
+      const gk = keeperOf(s, (1 - att) as 0 | 1);
+      const k = thru[gk?.gk?.type === 'sweeper' ? 'sweeper' : 'classic']!;
+      k.tries++;
+      if (fl.outcome === 'intercept' && s.agents[fl.interceptor]?.line === 0) k.gkCut++;
+    }
+    lastFlight = fl;
     const newEvents = s.events.slice(prevEvents);
     const saved = newEvents.some((e) => e.type === 'save');
     const halfFlip = s.half !== prevHalf;
@@ -194,6 +231,10 @@ for (let i = 0; i < N; i++) {
     prevHalf = s.half;
     prevEvents = s.events.length;
   }
+  for (const team of [0, 1] as const) {
+    const gk = keeperOf(s, (1 - team) as 0 | 1);
+    recvBy[gk?.gk?.type === 'sweeper' ? 'sweeper' : 'classic']! += s.teams[team].stats.throughReceived;
+  }
 }
 
 console.log(`\n== 순간이동 (틱당 ${JUMP} m 초과 이동), ${N}경기 ${RH} 대 ${RA} 중립 ==`);
@@ -226,4 +267,7 @@ for (const kind of [...new Set(eps.map((e) => e.kind))]) {
 const reach = eps.filter((e) => e.reachable);
 console.log(`  GK 가 라인 아웃 전에 닿을 수 있는 경우(반응 0.5초 + 7 m/s): ${reach.length} (${((100 * reach.length) / eps.length).toFixed(0)}%), 그중 결과: ${Object.entries(reach.reduce((r, e) => ((r[e.outcome] = (r[e.outcome] ?? 0) + 1), r), {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')}`);
 console.log(`  시작 시 공 속도 평균 ${mean(eps.map((e) => e.ballSp)).toFixed(1)} m/s, GK 도착 평균 ${mean(eps.map((e) => e.gkEta)).toFixed(1)}초, 아웃까지 평균(유한만) ${mean(eps.map((e) => e.outEta).filter((x) => Number.isFinite(x))).toFixed(1)}초, 멈추는 공(아웃 안 됨) ${eps.filter((e) => !Number.isFinite(e.outEta)).length}`);
+console.log(`\n== C.28 GK 추격 ==`);
+console.log(`  추격 ${chase.n}회 (경기당 ${(chase.n / N).toFixed(1)}), GK 가 공을 얻음 ${chase.gk} (${((100 * chase.gk) / Math.max(1, chase.n)).toFixed(0)}%), 박스 밖 추격 ${chase.outBox}, 추격 중·실패 10초 안 실점 ${chase.conceded} (경기당 ${(chase.conceded / N).toFixed(2)})`);
+for (const [k, v] of Object.entries(thru)) console.log(`  침투 패스 (상대 GK ${k}): 시도 ${v.tries}, 수신 ${recvBy[k]} (경기당 ${(recvBy[k]! / N).toFixed(2)}), GK 가 끊음 ${v.gkCut} (${((100 * v.gkCut) / Math.max(1, v.tries)).toFixed(0)}%)`);
 process.exit(0);

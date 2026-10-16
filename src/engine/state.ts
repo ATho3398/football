@@ -120,6 +120,10 @@ export interface Ball {
   lastTeam: 0 | 1;
   /** 이 선수에게 굴러가는 공 (C.24): 받기·가로채기·공중볼 승자·GK 처리. 그 선수는 컨트롤 판정 없이 잡는다 */
   reserve: BallReserve | null;
+  /** 마지막으로 공을 찬 비행 종류와 팀 (C.28 백패스 판정: 같은 팀 pass/long 이면 GK 가 손을 못 쓴다). 소유·루즈볼이 되면 null */
+  kick: { kind: FlightKind; team: 0 | 1; receiver: number } | null;
+  /** 이 GK 는 이 시각까지 손 처리 불가 (쳐낸 공·놓친 공, C.28) */
+  handBlock: { idx: number; until: number } | null;
 }
 
 export interface BallReserve {
@@ -165,6 +169,8 @@ export interface TeamState {
   /** 돌파 후 커버 (E.22 A): 이 시각까지 이 선수가 돌파한 상대의 진행 방향을 막는다 */
   coverUntil: number;
   coverAgent: number;
+  /** GK 가 루즈볼을 쫓는 중 (C.28): 필드 추격자를 1명 줄인다 */
+  gkChase: boolean;
 }
 
 export interface SimState {

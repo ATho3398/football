@@ -1,6 +1,9 @@
 // 오프더볼 움직임 (E.6): 공격 시 슬롯 + 지원 + 침투(오프사이드 라인 인지), 수비 시 마킹 + 라인 동기화 + 압박
 
 import { ENGINE } from './config';
+import { reaction } from './core';
+import { keeperZone, sweepRange } from './keeper';
+import { effectiveMax, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -92,6 +95,86 @@ function ballChasePoint(s: SimState): [number, number] {
   const stop = (sp * sp) / (2 * ENGINE.ball.groundDecel);
   const k = Math.min(stop, 6) / sp;
   return [b.x + b.vx * k, b.y + b.vy * k];
+}
+
+/** 루즈볼이 t 초 뒤 있을 곳과 속도 (C.28): 루즈 비행은 비행 끝까지 직선, 그 뒤 등감속 굴림. 공중이면 air */
+function ballPathAt(s: SimState, t: number): { x: number; y: number; sp: number; air: boolean } {
+  const b = s.ball;
+  const fl = b.flight;
+  let [x, y, vx, vy] = [b.x, b.y, b.vx, b.vy];
+  if (fl) {
+    const left = Math.max(0, fl.t0 + fl.dur - s.t);
+    if (t < left) {
+      const k = clamp((s.t + t - fl.t0) / fl.dur, 0, 1);
+      return { x: fl.fromX + (fl.toX - fl.fromX) * k, y: fl.fromY + (fl.toY - fl.fromY) * k, sp: dist(fl.fromX, fl.fromY, fl.toX, fl.toY) / Math.max(0.05, fl.dur), air: fl.air };
+    }
+    [x, y] = [fl.toX, fl.toY];
+    [vx, vy] = landingVelocity(fl);
+    t -= left;
+  }
+  const sp = Math.sqrt(vx * vx + vy * vy);
+  if (sp < 1e-6) return { x, y, sp: 0, air: false };
+  const dec = ENGINE.ball.groundDecel;
+  const tt = Math.min(t, sp / dec);
+  const d = sp * tt - 0.5 * dec * tt * tt;
+  return { x: x + (vx / sp) * d, y: y + (vy / sp) * d, sp: sp - dec * tt, air: false };
+}
+
+/** 선수가 (x, y)에 닿는 시간: 반응 + 거리 / 유효 최대 속도. 이미 공을 보고 있었으면(ready) 반응 없이 */
+function arrival(a: Agent, x: number, y: number, ready = false): number {
+  return (ready ? 0 : reaction(a)) + dist(a.x, a.y, x, y) / effectiveMax(a);
+}
+
+/**
+ * GK 루즈볼 추격 (C.28): 공 경로에서 GK 가 닿는 첫 점이 처리 구역 안(자기 박스, 스위퍼는 박스 밖 sweepRange 까지)이고,
+ * 그 시각이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료(필드)보다 늦지 않으면 그 점. 아니면 null
+ */
+function keeperChase(s: SimState, a: Agent): [number, number] | null {
+  const b = s.ball;
+  const fl = b.flight;
+  if (b.owner >= 0 || b.reserve || (fl && fl.outcome !== 'loose')) return null;
+  const K = ENGINE.keeper;
+  const range = sweepRange(a);
+  const step = 0.1;
+  const n = Math.round(K.chaseHorizon / step);
+  const path: { x: number; y: number; sp: number; air: boolean; fly?: boolean }[] = [];
+  for (let i = 0; i <= n; i++) {
+    const p = ballPathAt(s, i * step);
+    if (p.x < 0 || p.x > L || p.y < 0 || p.y > W) break;
+    // 비행 중인 공은 필드 선수가 잡지 못한다 (착지 뒤부터). 땅볼은 GK 만 박스 안에서 처리한다 (sim keeperHands)
+    if (fl && i * step < fl.t0 + fl.dur - s.t) (p as (typeof path)[number]).fly = true;
+    path.push(p);
+  }
+  // 가장 이른 도착 (공보다 먼저 그 점에 닿는 첫 시각). 공중에 떠 있는 동안은 못 닿는다
+  const first = (o: Agent): number => {
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i]!;
+      if (!p.air && !p.fly && arrival(o, p.x, p.y) <= i * step) return i * step;
+    }
+    return Infinity;
+  };
+  // 우리 팀 패스(백패스·수비 사이 패스)가 빗나간 것이면 GK 는 이미 공을 보고 있었다
+  const ready = b.kick?.team === a.team && b.lastTeam === a.team;
+  let gi = -1;
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i]!;
+    // 자기 박스 안은 손(백패스는 발로 막기)이라 빠른 공도, 박스 밖은 보통 컨트롤 속도까지
+    const box = keeperZone(s, a, p.x, p.y, 0);
+    if (p.air || (p.fly && !box) || (box ? p.sp > K.handMaxSpeed : p.sp >= ENGINE.ball.controlMaxSpeed) || !keeperZone(s, a, p.x, p.y, range)) continue;
+    if (arrival(a, p.x, p.y, ready) <= i * step) {
+      gi = i;
+      break;
+    }
+  }
+  if (gi < 0) return null;
+  const tg = gi * step;
+  const margin = s.teams[a.team].gkChase ? K.chaseKeep : K.chaseMargin;
+  for (const o of s.agents) {
+    if (!o.onPitch || o === a) continue;
+    const to = first(o);
+    if (o.team !== a.team ? to < tg + margin : to < tg) return null;
+  }
+  return [path[gi]!.x, path[gi]!.y];
 }
 
 export function keeperTarget(s: SimState, a: Agent): void {
@@ -198,6 +281,15 @@ export function updateOffball(s: SimState, a: Agent): void {
     }
   }
   if (a.line === 0 && !s.restart) {
+    // 루즈볼 추격 (C.28): 처리 구역 안에서 상대보다 먼저 닿는 공이면 나간다
+    const chase = keeperChase(s, a);
+    s.teams[a.team].gkChase = !!chase;
+    if (chase) {
+      a.tx = clamp(chase[0], 0.3, L - 0.3);
+      a.ty = clamp(chase[1], 0.3, W - 0.3);
+      a.urgent = true;
+      return;
+    }
     keeperTarget(s, a);
     return;
   }
@@ -244,7 +336,8 @@ export function updateOffball(s: SimState, a: Agent): void {
   // 동료에게 굴러가는 공 (C.24)은 쫓지 않는다
   if (loose && !(b.reserve && s.agents[b.reserve.idx]?.team === a.team)) {
     const [cx, cy] = ballChasePoint(s);
-    if (ballRank(s, a, cx, cy) < ENGINE.ball.chasers) {
+    // GK 가 쫓으면 GK 를 추격자 1명으로 센다 (C.28)
+    if (ballRank(s, a, cx, cy) < ENGINE.ball.chasers - (s.teams[a.team].gkChase ? 1 : 0)) {
       a.tx = cx;
       a.ty = cy;
       a.urgent = true;

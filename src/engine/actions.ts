@@ -3,11 +3,12 @@
 import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail } from './duel';
-import { catchProb, claimProb, keeperOf, saveProb } from './keeper';
+import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
 import { updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
+import { landingVelocity } from './physics';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, BallReserve, Flight, SimState } from './state';
 
@@ -25,6 +26,7 @@ function launch(s: SimState, a: Agent, fl: Flight): void {
   b.owner = -1;
   b.flight = fl;
   b.reserve = null;
+  b.kick = { kind: fl.kind, team: a.team, receiver: fl.receiver };
   b.lastTouch = a.idx;
   b.lastTeam = a.team;
   const who = fl.outcome === 'receive' ? fl.receiver : fl.outcome === 'intercept' ? fl.interceptor : -1;
@@ -448,6 +450,8 @@ function shotArrives(s: SimState, fl: Flight): void {
     }
     const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * 2.4;
     looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * 7, Math.sin(ang) * 7, defTeam, gk?.idx ?? -1);
+    // 쳐낸 공은 잠깐 다시 손으로 못 잡는다 (C.28): 그 뒤에는 루즈볼 추격으로 다시 잡으러 간다
+    if (gk) s.ball.handBlock = { idx: gk.idx, until: s.t + K.handBlock };
     return;
   }
   // 세이브 실패: 2단계 비행으로 골라인까지 (C.24)
@@ -741,13 +745,7 @@ export function resolveFlight(s: SimState): void {
     return;
   }
   // 루즈볼: 진행 방향으로 굴러간다. 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 (E.18 A4 빗나간 패스)
-  const dx = fl.toX - fl.fromX;
-  const dy = fl.toY - fl.fromY;
-  const d = Math.sqrt(dx * dx + dy * dy) || 1;
-  const v0 = d / Math.max(0.1, fl.dur);
-  const sp = fl.air ? Math.max(2, v0 * ENGINE.ball.airBounce) : Math.max(4, v0 - ENGINE.ball.groundDecel * fl.dur);
-  b.vx = (dx / d) * sp;
-  b.vy = (dy / d) * sp;
+  [b.vx, b.vy] = landingVelocity(fl);
 }
 
 /**
@@ -811,6 +809,50 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
     }
   }
+}
+
+/**
+ * GK 손 처리 (C.28): 자기 박스 안 루즈볼이 handRange m 안에 오면 캐치를 시도한다. 같은 팀이 발로 일부러 준 공(패스·롱패스)은
+ * 손을 못 쓴다(발 컨트롤은 updateLooseBall 의 보통 판정). 놓치면 공이 몸에 맞고 튄다. 공을 처리했으면 true
+ */
+export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s.ball.y): boolean {
+  const b = s.ball;
+  if (sp > K.handMaxSpeed || b.reserve) return false;
+  for (const gk of s.agents) {
+    if (!gk.onPitch || gk.line !== 0) continue;
+    // 이번 틱에 공이 지나간 길 (빠른 공은 틱당 3 m 가까이 움직인다)에서 가장 가까운 거리
+    const [gd, gt] = segDist(gk.x, gk.y, fromX, fromY, b.x, b.y);
+    if (gd > K.handRange) continue;
+    const [cx, cy] = [fromX + (b.x - fromX) * gt, fromY + (b.y - fromY) * gt];
+    if (b.handBlock && b.handBlock.idx === gk.idx && s.t < b.handBlock.until) continue;
+    if (!keeperZone(s, gk, b.x, b.y, 0)) continue;
+    if (b.kick && b.kick.team === gk.team && b.lastTeam === gk.team && (b.kick.kind === 'pass' || b.kick.kind === 'long')) {
+      // 백패스: 발로 받는다 (보통 컨트롤 식, 반경 footRange. 빠른 공도 몸으로 막는다)
+      if (gd > K.footRange) continue;
+      const pf = B.controlBase + (B.controlSlope * gk.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10);
+      if (r(s, gk.idx, Purpose.Control, 1) < pf) {
+        [b.x, b.y] = [cx, cy];
+        setOwner(s, gk);
+        return true;
+      }
+      continue;
+    }
+    const p = clamp(catchProb(gk) + K.looseCatchBonus - K.handSpeedPenalty * (sp / 10), 0.05, 0.98);
+    if (r(s, gk.idx, Purpose.Keeper, 7) < p) {
+      [b.x, b.y] = [cx, cy];
+      setOwner(s, gk);
+      gk.cooldown = K.holdTime;
+      return true;
+    }
+    // 놓침: 몸에 맞고 아무 쪽으로나 튄다
+    const [lo, hi] = K.fumbleSpeed;
+    const fs = lo + (hi - lo) * r(s, gk.idx, Purpose.Keeper, 8);
+    const ang = r(s, gk.idx, Purpose.Keeper, 9) * Math.PI * 2;
+    looseBall(s, cx, cy, Math.cos(ang) * fs, Math.sin(ang) * fs, gk.team, gk.idx);
+    b.handBlock = { idx: gk.idx, until: s.t + K.handBlock };
+    return true;
+  }
+  return false;
 }
 
 function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {

@@ -475,8 +475,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     // ST 풀타임 선발 (양 팀): 무득점 경기 평균과 골 수별 평균 (C.26)
     const st = rs.flatMap((m) => m.players.filter((p) => p.starter && p.minutes >= 85 && groupOf(p) === 'ST'));
     const stBy = (f: (g: number) => boolean) => avg(st.filter((p) => f(p.goals)).map((p) => p.rating));
-    add(S, 'rST0', 'ST 풀타임 무득점 경기 평점', '6.0 이상', stBy((g) => g === 0), 6.0, 10, 2, {
-      guard: [6.0, 10], note: `1골 ${stBy((g) => g === 1).toFixed(2)} · 2골+ ${stBy((g) => g >= 2).toFixed(2)}, ${st.length}경기`,
+    // C.28: 엔진 다듬기에서 ST 평균(≤6.7)과 함께 못 지키면 5.9 까지 허용 (planning-pending 13번 1)
+    add(S, 'rST0', 'ST 풀타임 무득점 경기 평점', '5.9 이상', stBy((g) => g === 0), 5.9, 10, 2, {
+      guard: [5.9, 10], note: `1골 ${stBy((g) => g === 1).toFixed(2)} · 2골+ ${stBy((g) => g >= 2).toFixed(2)}, ${st.length}경기`,
     });
     const byStr = [0, 1, 2].map((s) => avg(GROUPS.flatMap((g) => (cells.get(`${s}:${g}`) ?? []).slice(0, nCell))));
     extra.push(`평점 팀 강도별 평균 (68 / 75 / 82): ${byStr.map((x) => x.toFixed(2)).join(' / ')}, 칸당 ${nCell}명`);

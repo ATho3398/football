@@ -37,6 +37,7 @@ export function setOwner(s: SimState, a: Agent): void {
   b.owner = a.idx;
   b.flight = null;
   b.reserve = null;
+  b.kick = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.lastTouch = a.idx;
@@ -107,6 +108,7 @@ export function looseBall(s: SimState, x: number, y: number, vx: number, vy: num
   b.owner = -1;
   b.flight = null;
   b.reserve = null;
+  b.kick = null;
   b.x = x;
   b.y = y;
   b.z = 0;
@@ -199,6 +201,8 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
   b.owner = -1;
   b.flight = null;
   b.reserve = null;
+  b.kick = null;
+  b.handBlock = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.x = clamp(x, 0, L);

@@ -5,7 +5,7 @@ import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
 import { aerialWin, dribbleProb, duelTail } from './duel';
 import { manDiff } from './formation';
-import { claimProb, keeperOf, saveDifficulty } from './keeper';
+import { claimProb, keeperOf, keeperZone, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { offsideRisk } from './referee';
@@ -37,6 +37,8 @@ export interface Candidate {
   opponent?: number;
   /** 롱패스: 착지 경합 전 성공 확률 (판정은 이것으로 하고 경합은 도착 때 실제로 한다) */
   pFlight?: number;
+  /** 침투 패스: 달리기 경쟁에서 상대 GK 가 수비 쪽 가장 빠르다 (실패하면 GK 가 끊는다, C.28) */
+  keeper?: number;
 }
 
 /** 가장 가까운 상대와 거리 */
@@ -378,6 +380,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
   const line = offsideLine(s, a.team);
+  const oppGk = keeperOf(s, (1 - a.team) as 0 | 1);
   // 경기 상황 (E.20 10번): 크게 앞선 팀은 위험한 선택을 덜 한다
   const risk = leadRiskMul(s, a.team);
 
@@ -400,10 +403,20 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const rp = Math.max(0, 1 - nearestOpponent(s, r, tx, ty)[1] / PR.receiverPressureDist);
     // 받는 쪽 조건(수신 압박, 달리기 경쟁)은 본인·평균 선수 모두 같다
     let race = 0;
+    let gkWins = -1;
     if (running) {
       // 침투 패스: 받는 선수와 가장 가까운 수비수의 달리기 경쟁 (도착 시간 차, 초). 빠른 선수가 뒷공간을 더 잘 받는다
       const [def] = nearestOutfield(s, r, tx, ty);
-      if (def) race = PR.raceGain * clamp(dist(def.x, def.y, tx, ty) / def.maxSpeed + PR.raceTurn - dist(r.x, r.y, tx, ty) / r.maxSpeed, -PR.raceCap, PR.raceCap);
+      let tDef = def ? dist(def.x, def.y, tx, ty) / def.maxSpeed + PR.raceTurn : Infinity;
+      // 목표점이 상대 GK 처리 구역 안이면 GK 도 달리기 경쟁에 들어간다 (C.28). GK 가 더 빠르면 실패한 패스는 GK 가 끊는다
+      if (oppGk && keeperZone(s, oppGk, tx, ty)) {
+        const tGk = dist(oppGk.x, oppGk.y, tx, ty) / oppGk.maxSpeed + ENGINE.keeper.throughDelay;
+        if (tGk < tDef) {
+          tDef = tGk;
+          gkWins = oppGk.idx;
+        }
+      }
+      if (Number.isFinite(tDef)) race = PR.raceGain * clamp(tDef - dist(r.x, r.y, tx, ty) / r.maxSpeed, -PR.raceCap, PR.raceCap);
     }
     // 롱패스(공중볼)는 착지점에서 가까운 수비수와 공중볼 경합을 한다 (판정과 같은 P, actions resolveFlight)
     let aerial = 1;
@@ -441,7 +454,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
-    out.push({ type: cutback ? 'cutback' : running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value, pFlight });
+    out.push({ type: cutback ? 'cutback' : running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
   }
 
   // 포스트플레이 (E.18 A2): 등지고 받은 ST/CF 의 버티기와 레이오프
@@ -656,6 +669,13 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
     quick: c.type === 'cutback' || c.type === 'layoff',
   };
   if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p)) return fl;
+
+  // 실패한 침투 패스이고 GK 가 가장 빠르면 GK 가 목표점으로 나가 끊는다 (C.28)
+  if (c.keeper !== undefined && s.agents[c.keeper]?.onPitch) {
+    fl.outcome = 'intercept';
+    fl.interceptor = c.keeper;
+    return fl;
+  }
 
   // 실패: 레인 근처 수비수가 가로채거나 루즈볼
   const lane = laneRisk(s, a, c.x, c.y);
