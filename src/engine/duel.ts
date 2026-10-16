@@ -25,6 +25,15 @@ export function dribbleProb(att: Agent, def: Agent, space = 0): number {
   return duelTail(L1((atk - dfn) / PR.dribbleScale + PR.dribbleBias + space + att.duelEdge - def.duelEdge));
 }
 
+/** 박스 안 땅볼 수신 경합 (C.29 fix 가설 2): 받는 선수 a 가 contestDist 안 수비수 b 를 이기고 공을 받을 확률 (받는 쪽 유리, 공중볼과 같은 구조) */
+export function receiveWin(a: Agent, b: Agent): number {
+  const t = a.attrs;
+  const d = b.attrs;
+  const atk = t.ballControl * 0.5 + t.strength * 0.3 + t.agility * 0.2;
+  const dfn = d.marking * 0.5 + d.tackling * 0.3 + d.defensivePositioning * 0.2;
+  return duelTail(L1((atk - dfn) / PR.receiveScale + PR.receiveBias + a.duelEdge - b.duelEdge));
+}
+
 export function aerialScore(a: Agent): number {
   return a.attrs.heading * 0.5 + a.attrs.jumping * 0.3 + a.attrs.strength * 0.2;
 }

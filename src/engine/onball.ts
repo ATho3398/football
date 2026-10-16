@@ -3,7 +3,7 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
-import { aerialWin, dribbleProb, duelTail } from './duel';
+import { aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { claimProb, keeperOf, keeperZone, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
@@ -79,10 +79,35 @@ function nearestOutfield(s: SimState, a: Agent, x: number, y: number): [Agent | 
   return [best, bd];
 }
 
-/** 압박 0~1 (가장 가까운 수비수 거리 기준, E.8) */
+/**
+ * 압박 0~pressureCrowdMax (E.8, C.29 fix 가설 1): pressureDist 안 상대마다 (1 − 거리/pressureDist) 를 더한다.
+ * 가장 가까운 1명만 보던 때는 박스를 채운 수비 블록 앞에서도 슛 질이 같았다 (`docs/engine-diagnosis-c29.md`).
+ * 밀집 합을 그대로 쓰는 곳은 슛 질(shotModel)뿐이고, 패스 성공·크로스·클리어 판단은 Math.min(1, ·) 로 기존 보정을 유지한다 (조정 1: 동레이팅 득점 1.33 → 0.94 로 과하게 떨어짐)
+ */
 export function pressureAt(s: SimState, a: Agent, x = a.x, y = a.y): number {
-  const [, d] = nearestOpponent(s, a, x, y);
-  return Math.max(0, 1 - d / PR.pressureDist);
+  let p = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team) continue;
+    const d = dist(o.x, o.y, x, y);
+    if (d < PR.pressureDist) p += 1 - d / PR.pressureDist;
+  }
+  return Math.min(PR.pressureCrowdMax, p);
+}
+
+/** 받는 선수 압박 0~1 (C.29 fix 가설 1): receiverPressureDist 안 가장 가까운 상대 + 둘째 상대 × receiverPressureSecond */
+export function receiverPressureAt(s: SimState, a: Agent, x: number, y: number): number {
+  let d1 = Infinity;
+  let d2 = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team) continue;
+    const d = dist(o.x, o.y, x, y);
+    if (d < d1) {
+      d2 = d1;
+      d1 = d;
+    } else if (d < d2) d2 = d;
+  }
+  const f = (d: number) => Math.max(0, 1 - d / PR.receiverPressureDist);
+  return Math.min(1, f(d1) + PR.receiverPressureSecond * f(d2));
 }
 
 export interface LaneInfo {
@@ -114,7 +139,7 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   const skill = kind === 'cross' ? a.attrs.crossing : a.attrs.shortPassing * (1 - wLong) + a.attrs.longPassing * wLong;
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
-  const p = PR.passBase - PR.passPerM * Math.min(d, PR.shortPassMax) - PR.longPerM * Math.max(0, d - PR.shortPassMax) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a);
+  const p = PR.passBase - PR.passPerM * Math.min(d, PR.shortPassMax) - PR.longPerM * Math.max(0, d - PR.shortPassMax) - lane.risk - PR.pressurePenalty * Math.min(1, pressureAt(s, a)) - receiverPenalty + formBonus(a);
   return passSkillApply(p, skill);
 }
 
@@ -342,7 +367,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const dir = attackDir(a.team, s.half);
   const [ax, ay] = toNorm(a.x, a.y, dir);
   const here = positionValue(ax, ay);
-  const pressure = pressureAt(s, a);
+  // 크로스 정확도·클리어 판단은 압박 1까지만 (기존 보정 유지). 밀집 합(최대 pressureCrowdMax)은 슛 질(shotModel)에만 (C.29 fix 조정 1)
+  const pressure = Math.min(1, pressureAt(s, a));
   const av = averageSelf(a);
   // 전환 위험 (E.20 2번): 상실 지점보다 상대 골 쪽에 있는 우리 필드 선수가 많을수록 역습 손해가 크다
   const mates: Agent[] = [];
@@ -400,7 +426,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       [tx, ty] = toPitch(clamp(Math.max(toNorm(r.x, r.y, dir)[0], line) + depth / L, 0, 0.97), rny, dir);
     }
     const lane = laneRisk(s, a, tx, ty);
-    const rp = Math.max(0, 1 - nearestOpponent(s, r, tx, ty)[1] / PR.receiverPressureDist);
+    const rp = receiverPressureAt(s, r, tx, ty);
     // 받는 쪽 조건(수신 압박, 달리기 경쟁)은 본인·평균 선수 모두 같다
     let race = 0;
     let gkWins = -1;
@@ -423,6 +449,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
       if (def && dd < PR.longContest) aerial = aerialWin(r, def);
+    } else if (inOppBox(tx, ty, dir)) {
+      // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix 가설 2, 판정은 actions resolveFlight 가 같은 P 로)
+      const [def, dd] = nearestOutfield(s, r, tx, ty);
+      if (def && dd < PR.contestDist) aerial = receiveWin(r, def);
     }
     const flightP = (who: Agent) => clamp(passProbability(s, who, tx, ty, 'pass', lane, PR.receiverPressure * rp) + race, PR.passMin, PR.passCap);
     const pFlight = flightP(a);

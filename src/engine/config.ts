@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 12;
+export const ENGINE_VERSION = 13;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -198,8 +198,8 @@ export const ENGINE = {
     focusMark: 0.75,
     focusRange: 50,
     focusBox: 0.2,
-    /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
-    stMarkZone: 25,
+    /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터). C.29 fix 가설 2: 25 → 40 (하프라인부터 박스 안 위협을 계속 맡는다) */
+    stMarkZone: 40,
     /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
     coverPostDepth: 5,
     coverPostY: 3.5,
@@ -319,7 +319,7 @@ export const ENGINE = {
      */
     plausibleGap: 0.015,
     /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
-    mistakeShotGap: 2,
+    mistakeShotGap: 2.5,
     /**
      * 시야 제한 (E.22 C): 몸 방향(움직이는 방향, 등지고 받았으면 자기 골 쪽, 서 있으면 공격 방향)에서 visionCone + visionConeSlope × (시야 − 50) 도
      * 밖이거나 옆으로 switchDist m 넘게 가는 패스(반대편 전환)는 scanBase + scanSlope × (시야 − 50)/50 확률로만 보인다.
@@ -447,7 +447,11 @@ export const ENGINE = {
     receiverPressure: 0.3,
     /** 받는 선수 압박 거리 기준 (m) */
     receiverPressureDist: 5,
+    /** 받는 선수 압박: 가장 가까운 상대 + 둘째 상대 × receiverPressureSecond (상한 1, C.29 fix 가설 1) */
+    receiverPressureSecond: 0.5,
     pressureDist: 3,
+    /** 압박은 pressureDist 안 상대마다 (1 − 거리/pressureDist) 를 더한 합, 상한 pressureCrowdMax (C.29 fix 가설 1: 수비 밀집이 슛·패스 질에 들어간다) */
+    pressureCrowdMax: 1.0,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
     interceptShare: 0.4,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
@@ -496,7 +500,8 @@ export const ENGINE = {
     shotAngleRef: 0.3,
     /** 슈팅 콘(공-골대 사이) 안 수비수 1명당 블록 확률, 최대 */
     blockPer: 0.15,
-    blockMax: 0.4,
+    /** C.29 fix 가설 1: 0.4 → 0.5 (콘 안 3명이면 0.45) */
+    blockMax: 0.5,
     coneWidth: 1.2,
     /** 블록된 공이 라인 밖(코너)으로 나갈 확률 */
     blockCorner: 0.7,
@@ -521,6 +526,13 @@ export const ENGINE = {
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
     aerialScale: 16,
+    /**
+     * 박스 안 땅볼 패스 수신 경합 (C.29 fix 가설 2, duel.ts receiveWin): 착지점이 상대 박스 안이고 contestDist m 안에 상대 필드 선수가 있으면
+     * P(받음) = L1((볼 컨트롤 0.5 + 근력 0.3 + 민첩 0.2 − (마킹 0.5 + 태클 0.3 + 수비 포지셔닝 0.2)) / receiveScale + receiveBias). 판단(candidates)과 판정(resolveFlight)이 같은 식
+     */
+    contestDist: 2,
+    receiveScale: 16,
+    receiveBias: 0.5,
     /**
      * 크로스 경합에서 공격수 보정 (로지스틱 입력). E.22 B: 크로스 대상과 가장 가까운 수비수가 실제로 착지점으로 뛰어들어 경합이 생기면서
      * 0.9 → −1.0 (수비가 공을 마주 보고 먼저 닿는다. 크로스 성공률 25~30%, 코너 약 30개당 1골에 맞춘 묶음 B 보정)

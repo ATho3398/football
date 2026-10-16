@@ -2,7 +2,7 @@
 
 import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
-import { aerialScore, aerialWin, dribbleProb, duelTail } from './duel';
+import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
 import { updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
@@ -725,6 +725,22 @@ export function resolveFlight(s: SimState): void {
               return;
             }
             rc.stats.aerialsWon++;
+          }
+        } else if (inOppBox(b.x, b.y, attackDir(rc.team, s.half))) {
+          // 박스 안 땅볼 패스 수신 경합 (C.29 fix 가설 2): contestDist 안 수비수가 있으면 받는 선수와 듀얼. 지면 수비 소유(tackleKeep) 또는 루즈볼
+          const [def, dd] = nearestOppOf(s, rc);
+          if (def && dd < PR.contestDist && r(s, rc.idx, Purpose.Control, 3) >= receiveWin(rc, def)) {
+            def.stats.tackles++;
+            def.stats.tacklesWon++;
+            s.teams[def.team].stats.tackles++;
+            s.teams[def.team].stats.tacklesWon++;
+            if (r(s, rc.idx, Purpose.Control, 4) < PR.tackleKeep) {
+              giveBall(s, def, 'gain');
+              return;
+            }
+            const ang = r(s, rc.idx, Purpose.Control, 5) * Math.PI * 2;
+            looseBall(s, b.x, b.y, Math.cos(ang) * 4, Math.sin(ang) * 4, def.team, def.idx);
+            return;
           }
         }
         giveBall(s, rc, 'receive', fl);
