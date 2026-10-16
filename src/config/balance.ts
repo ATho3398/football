@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 22;
+export const BALANCE_VERSION = 23;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -122,7 +122,7 @@ export const BALANCE = {
      * 한 시즌 위상 증가 상한 (업적 + 개인 기록, 배지 보너스 제외). 부록 C.23 신설: 업적 XP 는 시즌마다 0 / 100 / 200 처럼
      * 들쭉날쭉해서 한두 시즌 대박으로 월드클래스에 닿는 꼬리를 자른다. 900 에는 여러 시즌 압도해야 닿는다
      */
-    seasonGainMax: 130, // C.23 110 → 부록 C.25 (부진·순위 감점을 넣은 만큼 30세 목표를 되돌림)
+    seasonGainMax: 140, // C.23 110 → C.25 130 (부진·순위 감점만큼 30세 목표를 되돌림) → 부록 C.27 140 (MOM 8.3으로 줄어든 개인 기록 가산만큼)
     /** fromAge 세 이상 시즌의 위상 증가 상한 (부록 C.25 신설, C.27 30세부터). 전성기가 지난 뒤에는 쌓이는 속도를 줄여 35세 월드클래스를 줄인다 */
     lateSeasonGainMax: { fromAge: 30, max: 40 }, // C.25 31세 → 부록 C.27 (티어 하한으로 900 도달이 영구가 되어 30세 시즌 증가를 줄임)
     /** 시즌당 감소 비율 */
@@ -261,7 +261,7 @@ export const BALANCE = {
     min: 3.0,
     max: 10.0,
     /** MOM: 평점이 이 값 이상이고 지지 않았을 때 */
-    momMin: 8.0,
+    momMin: 8.3, // 8.0 → 부록 C.27 (C.26 뒤 엔진 MOM 3.7% → 약 2%)
     /** 교체 출전은 평점 변동을 출전 비율만큼 줄이되 최소 이 비율 */
     subDampenMin: 0.4,
   },

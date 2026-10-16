@@ -84,8 +84,8 @@ describe('순위 감점과 시즌 상한 (부록 C.25)', () => {
     expect(rankPenalty(600, 3, 8)).toBe(0);
   });
 
-  it('시즌 증가 상한: 29세까지 130, 30세부터 40 (부록 C.27, C.25는 31세부터)', () => {
-    expect(seasonGainCap(29)).toBe(130);
+  it('시즌 증가 상한: 29세까지 140, 30세부터 40 (부록 C.27, C.25는 31세부터)', () => {
+    expect(seasonGainCap(29)).toBe(140);
     expect(seasonGainCap(30)).toBe(40);
     expect(seasonGainCap(31)).toBe(40);
   });
