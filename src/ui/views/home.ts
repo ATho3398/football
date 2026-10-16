@@ -2,7 +2,7 @@
 // 캘린더·주전 경쟁·신뢰도·전술 버튼은 아직 없는 기능이라 숨긴다 (I.19)
 
 import {
-  BottomSheet, Button, Crest, OptionRow, FatigueGauge, FormIndicator, HeroPanel, IconButton, PlayerCard, SectionTitle, StatChip, TacticChip, esc,
+  BottomSheet, Button, Crest, Tabs, OptionRow, FatigueGauge, FormIndicator, HeroPanel, IconButton, PlayerCard, SectionTitle, StatChip, TacticChip, esc,
 } from '../components';
 import type { HomeVM, PositionOptionVM } from '../viewModels';
 import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
@@ -34,6 +34,11 @@ export function homeView(vm: HomeVM, extra = ''): string {
           <div class="kv"><span>상대 전술</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}</div>
           <div class="divider"></div>
           <div class="kv"><span>팀 전력</span><span class="po-num">${n.myRating} <span class="faint">vs</span> ${n.oppRating}</span></div>
+        </div>
+        <div class="sub-panel ctl-panel">
+          <div class="kv"><span>내 선수 결정</span><span class="muted small">${n.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
+          ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: n.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
+          ${n.control.mode === 'direct' ? Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: n.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' }) : ''}
         </div>`)}`;
   } else if (vm.phase === 'offseason') {
     next = `${SectionTitle({ title: '비시즌' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 시즌 요약을 보고 다음 시즌을 시작해요.</p>

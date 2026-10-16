@@ -113,7 +113,12 @@ export function nearestCell(x: number, y: number, taken: ReadonlySet<number> = n
   return best;
 }
 
-/** 배치 규칙 위반 사유 (없으면 null): GK 고정, 한 칸에 1명, 수비 줄 3명 이상(수비형 미드 측면 윙백 포함), 중원·공격 줄 각 1명 이상 */
+/**
+ * 배치 규칙 위반 사유 (없으면 null): GK 고정, 한 칸에 1명, 수비 줄 3명 이상(수비형 미드 측면 윙백 포함), 중원·공격 줄 각 1명 이상,
+ * 공격 줄(2선 공격·최전방) 최대 ATTACK_MAX 명 (C.34 임시 규칙: 공격 몰빵 대형이 엔진에서 과하게 강한 미해결 5번 대응)
+ */
+export const ATTACK_MAX = 4;
+
 export function customProblem(cells: readonly number[]): string | null {
   if (cells.length !== 11 || cells[0] !== -1) return '골키퍼는 고정이에요.';
   const field = cells.slice(1);
@@ -125,6 +130,7 @@ export function customProblem(cells: readonly number[]): string | null {
   if (def < 3) return '수비 줄에 3명 이상 있어야 해요.';
   if (mid < 1) return '중원 줄에 1명 이상 있어야 해요.';
   if (att < 1) return '공격 줄에 1명 이상 있어야 해요.';
+  if (att > ATTACK_MAX) return `공격 줄은 ${ATTACK_MAX}명까지예요 (임시 규칙).`;
   return null;
 }
 

@@ -2,6 +2,7 @@
 
 import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
 import type { Position } from '../types';
+import type { MomentState } from './moments';
 import type { Role } from './roles';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
 
@@ -225,6 +226,10 @@ export interface SimState {
   offsideX: [number, number];
   /** 팀별 마지막 슈팅 시각 (측정용: 리바운드 경로) */
   lastShotT: [number, number];
+  /** 내 선수 결정 순간 (E.11, E4): 진행 상태와 기록. 자동 모드면 쓰지 않는다 */
+  moments: MomentState;
+  /** 결정 순간에서 고른 1대1 행동 (다음 defendDuels 한 번에만) */
+  forcedDuel: { idx: number; pick: number } | null;
 }
 
 export function emptyTeamStats(): TeamStats {

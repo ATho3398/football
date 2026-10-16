@@ -11,6 +11,7 @@ import { emptyRecord } from './matchRecord';
 import { positionOvr } from './positions';
 import { initialProficiency } from './proficiency';
 import { migratedTactics, validTactics } from './myTactics';
+import { customProblem } from './formations';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -126,6 +127,12 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
       s.tactics.custom = null;
       if (Array.isArray(s.tactics.roles)) s.tactics.roles = s.tactics.roles.map((r: string | null) => migrateRoleId(r));
     }
+  },
+  // 13 → 14 (부록 C.34, E.11): 내 선수 결정 순간 설정 (직접 모드, 중요한 순간만). 이전 경기의 결정 기록은 없다
+  // 커스텀 포메이션 공격 줄 최대 4명 (C.34 임시 규칙): 넘는 대형은 프리셋으로 되돌린다 (전술의 나머지는 그대로)
+  13: (s) => {
+    s.control = { mode: 'direct', stop: 'important' };
+    if (s.tactics && Array.isArray(s.tactics.custom) && customProblem(s.tactics.custom) !== null) s.tactics.custom = null;
   },
 };
 

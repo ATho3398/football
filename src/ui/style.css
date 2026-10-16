@@ -315,3 +315,49 @@ button.po-fslot { padding: 0; border: 0; background: none; font: inherit; color:
 .po-fpitch.is-edit { touch-action: none; box-shadow: inset 0 0 0 2px rgba(214, 255, 60, .35); }
 .po-fpitch.is-edit .po-fslot[data-drag] { cursor: grab; touch-action: none; }
 .po-fpitch.is-edit .po-fslot.is-drag { cursor: grabbing; z-index: 3; opacity: .85; transition: none; }
+
+/* ── 결정 순간 (E.11, E4 최소판) ── */
+.moment { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-6); }
+.mo-top { display: flex; flex-direction: column; gap: 4px; padding: var(--space-3) var(--space-4) 0; }
+.mo-score { display: flex; align-items: center; justify-content: center; gap: var(--space-3); font-size: 13px; color: var(--ink-muted); }
+.mo-score b { font-size: 20px; color: var(--ink); }
+.mo-score .me { color: var(--ink); font-weight: 700; }
+.mo-scene { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+.mo-scene b { font-size: 17px; }
+.mo-min { font-weight: 700; color: var(--brand-ink); }
+.moment .pitch-wrap { padding: 0 var(--space-4); }
+.mo-last { margin: 0 var(--space-4); padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface-2); font-size: 12px; color: var(--ink-muted); }
+.mo-panel { display: flex; flex-direction: column; gap: var(--space-3); margin: 0 var(--space-4); padding: 14px; border-radius: var(--radius-lg); background: var(--surface-1); }
+.mo-opts { display: flex; flex-direction: column; gap: var(--space-2); }
+.mo-opt { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; padding: 10px 12px; border-radius: var(--radius-md); border: 2px solid var(--line); border-left: 6px solid var(--k); background: var(--surface-2); color: var(--ink); font: inherit; cursor: pointer; }
+.mo-opt.is-on { border-color: var(--k); background: var(--surface-3); }
+.mo-opt__head { display: flex; align-items: center; gap: var(--space-2); }
+.mo-opt__head b { flex: 1; min-width: 0; font-size: 14px; }
+.mo-kind { padding: 2px 8px; border-radius: 999px; background: var(--k); color: #fff; font-size: 11px; font-weight: 700; flex: none; }
+.mo-p { font-size: 18px; font-weight: 800; flex: none; }
+.mo-opt__body { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink-muted); }
+.mo-opt__body i { font-style: normal; font-weight: 700; }
+.mo-opt__body .ok i { color: var(--mine); }
+.mo-opt__body .bad i { color: var(--fail); }
+.mo-off { font-weight: 700; }
+.mo-off--mid { color: var(--warning); }
+.mo-off--high { color: var(--fail); }
+.mo-cards { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 8px 10px; border: 1px dashed var(--line); border-radius: var(--radius-md); }
+.mo-card-slot { font-size: 11px; color: var(--ink-faint); }
+.mo-settings { display: flex; flex-direction: column; gap: 6px; }
+.ctl-panel .po-tabs { margin-top: 2px; }
+.dec-list { display: flex; flex-direction: column; gap: 6px; }
+.dec-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; font-size: 12px; }
+.dec-min { color: var(--ink-muted); }
+.dec-main { min-width: 0; overflow-wrap: anywhere; }
+.dec-res { text-align: right; white-space: nowrap; color: var(--ink-muted); }
+.dec-success .dec-res b { color: var(--mine); }
+.dec-fail .dec-res b { color: var(--fail); }
+@media (min-width: 1024px) {
+  #app.app-moment { max-width: 1180px; }
+  .app-moment .moment { display: grid; grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: "top panel" "pitch panel" "last panel"; align-items: start; column-gap: var(--space-4); padding: var(--space-4); }
+  .app-moment .mo-top { grid-area: top; padding: 0; }
+  .app-moment .pitch-wrap { grid-area: pitch; padding: 0; }
+  .app-moment .mo-last { grid-area: last; margin: 0; }
+  .app-moment .mo-panel { grid-area: panel; margin: 0; position: sticky; top: var(--space-4); }
+}

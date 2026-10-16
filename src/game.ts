@@ -13,7 +13,8 @@ import {
   type LeagueState,
 } from './league';
 import { simulateMatch, startProbability, type MatchResult } from './match';
-import { fatigueFromDistance, playMyMatch, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
+import { fatigueFromDistance, playMyMatch, type EngineMatchInput, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
+import type { ControlMode, DecisionRecord, MomentControl, StopLevel } from './engine/moments';
 import { formBonus, pushRating } from './form';
 import { addRecord, emptyRecord, recordFromStats, type MatchLogEntry, type MatchRecord } from './matchRecord';
 import { healWeek, rollInjury } from './injury';
@@ -33,7 +34,7 @@ import { slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import type { FieldPosition } from './positions';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 13;
+export const SAVE_FORMAT_VERSION = 14;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -62,6 +63,8 @@ export interface MatchReport {
   engine?: EngineSummary;
   /** 내 선수 경기 기록 (부록 C.30). 엔진 경기에 출전했을 때만 */
   rec?: MatchRecord;
+  /** 내 결정 기록 (E.11, I.17 10번). 직접 모드로 멈춘 순간이 있었을 때만 */
+  decisions?: DecisionRecord[];
   /**
    * 부진 연속 감점 (부록 C.25): 이 경기로 잃은 위상과 연속 경기 수, 기준 평점.
    * blocked 는 티어 하한에 막혀 사라진 감점 (부록 C.27). threshold 는 C.27 이전 세이브에는 없다
@@ -137,6 +140,13 @@ export interface GameState {
   matchLog: MatchLogEntry[];
   /** 내 팀 전술 (E.19, 부록 C.32): 저장한 기본 전술. 바꾸기 전까지 매 경기 쓴다 */
   tactics: MyTactics;
+  /** 내 선수 결정 순간 설정 (E.11, 부록 C.34): 직접/자동, 정지 빈도 */
+  control: MatchControl;
+}
+
+export interface MatchControl {
+  mode: ControlMode;
+  stop: StopLevel;
 }
 
 export type NewGameOptions =
@@ -263,6 +273,7 @@ export function newGame(opts: NewGameOptions): GameState {
     rosters,
     guide: initialGuide(),
     matchLog: [],
+    control: { mode: 'direct', stop: 'important' },
     tactics: teamDefaultTactics(player.teamId, rosters[player.teamId], player.position),
   };
 }
@@ -304,6 +315,62 @@ export interface PlayOptions {
   engine?: 'agent' | 'quick';
   /** 내 경기의 재생 데이터를 받는다 (E5-lite 경기 화면). 세이브에는 담지 않는다 */
   onReplay?: (replay: Replay) => void;
+  /** 내 선수 결정 순간 (E.11): 직접/자동과 정책. 없으면 자동 */
+  control?: MomentControl;
+  /** 화면에서 결정 순간을 직접 진행한 내 경기 결과 (roundMatch 로 만든 같은 입력, E4). 있으면 다시 계산하지 않는다 */
+  engineOut?: MyMatchOutput;
+}
+
+/** 이번 라운드 내 경기의 엔진 입력 (상태를 바꾸지 않는다). 결장(부상·정지·벤치)이어도 입력은 만든다 */
+export interface RoundMatch {
+  input: EngineMatchInput;
+  plan: MyMatchPlan;
+  preInjury: Injury | null;
+  /** 재생 화면 팀 이름 [홈, 원정] */
+  teams: [string, string];
+}
+
+export function roundMatch(state: GameState): RoundMatch {
+  const { league, player } = state;
+  const roundIdx = league.round;
+  const seed = state.worldSeed;
+  const injured = player.injury !== null;
+  const suspended = !injured && player.suspended > 0;
+  // 주간 회복 후 피로 (playRound 의 weeklyRecovery 와 같은 값)
+  const F = BALANCE.fatigue;
+  const fatigue = Math.max(0, player.fatigue - (!injured ? F.weeklyRecovery : F.noMatchWeekRecovery));
+  const p = { ...player, fatigue };
+  const fx = nextFixture(state)!;
+  const myTeam = teamById(league, player.teamId);
+  const opp = teamById(league, fx.opponentId);
+  const pos = myMatchPosition(state);
+  const ovr = proficientOvr(p, pos);
+  const form = formBonus(player.recentRatings);
+  const remaining = league.schedule.length - roundIdx - 1;
+  const at = { season: league.season, round: roundIdx + 1 };
+  // 선발/교체 판정은 기존 방식 (E.10), 부상은 경기 전 판정 후 그 분에 교체 아웃 (E.16)
+  const rng = rngFor(seed, 'match', league.season, roundIdx);
+  const M = BALANCE.match;
+  const available = !injured && !suspended;
+  const started = available && rng() < startProbability(ovr, myTeam.rating, fatigue);
+  const minutes = started ? 90 : available && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
+  const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
+  let preInjury: Injury | null = null;
+  if (plan.minutes) {
+    preInjury = rollInjury(p, minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, roundIdx));
+    if (preInjury) {
+      const k = rngFor(seed, 'injury-minute', league.season, roundIdx)();
+      plan.minutes.end = Math.min(89, Math.max(plan.minutes.start + 1, Math.round(plan.minutes.start + k * minutes)));
+    }
+  }
+  const input: EngineMatchInput = {
+    myRoster: state.rosters[player.teamId]!, oppRoster: state.rosters[opp.id]!,
+    myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
+    me: { position: pos, attributes: player.attributes, fatigue, form, proficiency: proficiencyOf(player, pos) },
+    plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
+    leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
+  };
+  return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] };
 }
 
 /** 한 라운드(한 주) 진행. 마지막 라운드면 시즌 종료 처리까지 한다 */
@@ -317,6 +384,8 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
 
   const injured = player.injury !== null;
   const suspended = !injured && player.suspended > 0;
+  // 내 경기 입력은 주간 회복 전 상태에서 만든다 (roundMatch 가 회복 후 피로를 직접 계산한다)
+  const rm = useEngine ? roundMatch(state) : null;
   weeklyRecovery(player, !injured);
 
   // 내 경기
@@ -333,28 +402,9 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   let result: MatchResult;
   let preInjury: Injury | null = null;
   let engineOut: MyMatchOutput | null = null;
-  if (useEngine) {
-    // 선발/교체 판정은 기존 방식 (E.10), 부상은 경기 전 판정 후 그 분에 교체 아웃 (E.16)
-    const rng = rngFor(seed, 'match', league.season, roundIdx);
-    const M = BALANCE.match;
-    const available = !injured && !suspended;
-    const started = available && rng() < startProbability(ovr, myTeam.rating, player.fatigue);
-    const minutes = started ? 90 : available && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
-    const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
-    if (plan.minutes) {
-      preInjury = rollInjury(player, minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, roundIdx));
-      if (preInjury) {
-        const k = rngFor(seed, 'injury-minute', league.season, roundIdx)();
-        plan.minutes.end = Math.min(89, Math.max(plan.minutes.start + 1, Math.round(plan.minutes.start + k * minutes)));
-      }
-    }
-    engineOut = playMyMatch({
-      myRoster: state.rosters[player.teamId]!, oppRoster: state.rosters[opp.id]!,
-      myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
-      me: { position: pos, attributes: player.attributes, fatigue: player.fatigue, form, proficiency: proficiencyOf(player, pos) },
-      plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
-      leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
-    }, opts.onReplay ? { teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] } : undefined);
+  if (rm) {
+    preInjury = rm.preInjury;
+    engineOut = opts.engineOut ?? playMyMatch({ ...rm.input, ...(opts.control ? { control: opts.control } : {}) }, opts.onReplay ? { teams: rm.teams } : undefined);
     if (opts.onReplay && engineOut.replay) {
       for (const p of engineOut.replay.players) if (p.isMe) p.name = player.name;
       opts.onReplay(engineOut.replay);
@@ -462,6 +512,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     ...(cards ? { cards } : {}),
     ...(engineOut ? { engine: matchSummary(engineOut) } : {}),
     ...(rec ? { rec } : {}),
+    ...(engineOut?.engine.decisions.length ? { decisions: engineOut.engine.decisions } : {}),
     ...(slump ? { slump } : {}),
   };
   state.lastMatch = report;

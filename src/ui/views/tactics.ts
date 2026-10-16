@@ -27,7 +27,7 @@ export function tacticsView(vm: TacticsVM): string {
       ${Tabs({ variant: 'segment', items: vm.formations, value: vm.formation, act: 'tac-form', label: '포메이션' })}
       ${vm.custom ? panel(`<div class="kv tac-me"><span><b>${esc(vm.formationName)}</b>
           <span class="small muted">${vm.edit
-            ? '선수를 끌어다 놓거나, 선수를 누른 뒤 놓을 곳을 눌러요. 가까운 자리에 붙고 그 자리 포지션(FW·W·CM 등)이 정해져요. 수비 3명 이상, 중원·공격 1명 이상.'
+            ? '선수를 끌어다 놓거나, 선수를 누른 뒤 놓을 곳을 눌러요. 가까운 자리에 붙고 그 자리 포지션(FW·W·CM 등)이 정해져요. 수비 3명 이상, 중원·공격 1명 이상, 공격 줄은 최대 4명(임시 규칙: 공격수를 몰아넣는 대형이 지나치게 강해서 엔진을 고칠 때까지 막아 둬요).'
             : '대형 편집으로 선수 자리를 바꿀 수 있어요. 역할은 자리의 포지션에 맞춰 골라요.'}
             실험 기능: 지금은 공격수를 아주 많이 둔 대형이 실제보다 유리하게 나와요(엔진 수정 예정).</span></span>
           ${Button({ size: 'sm', variant: vm.edit ? 'primary' : 'secondary', icon: vm.edit ? 'check' : 'player', act: 'tac-edit', children: vm.edit ? '편집 끝' : '대형 편집' })}</div>`) : ''}

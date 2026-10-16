@@ -7,7 +7,11 @@ import './style.css';
 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
-import { newGame, playRound, retire, startNextSeason, type GameState } from '../game';
+import { newGame, playRound, retire, roundMatch, startNextSeason, type GameState } from '../game';
+import { MyMatchRun, type MyMatchOutput } from '../engine/adapter';
+import type { StopLevel } from '../engine/moments';
+import { replayPlayers } from '../replay';
+import { MomentPitch, momentView } from './views/moment';
 import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
@@ -41,7 +45,7 @@ import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -67,6 +71,8 @@ const ui = {
   posSheet: null as string | null,
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
   tac: null as TacticsDraftUI | null,
+  /** 직접 모드로 진행 중인 내 경기 (E.11, E4): 결정 순간마다 멈춘다. 세이브에 담지 않는다 (도중에 나가면 경기 전 상태) */
+  live: null as null | { run: MyMatchRun; teams: [string, string]; sel: number | null; pitch: MomentPitch | null; prevE: number },
   form: { mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '' },
 };
 
@@ -138,6 +144,15 @@ function screenHtml(): string {
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
+    case 'moment': {
+      const lv = ui.live;
+      const m = lv?.run.pending;
+      if (lv && m) {
+        const log = lv.run.sim.state.moments.log;
+        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1 });
+      }
+      break;
+    }
     case 'allocate': {
       const a = ui.alloc;
       if (a) {
@@ -207,7 +222,39 @@ function render(): void {
   app.innerHTML = `<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${modal}${toast}`;
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
+  if (ui.screen === 'moment' && ui.live?.pitch) ui.live.pitch.attach();
+  else ui.live?.pitch?.stop();
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
+}
+
+/** 직접 모드 경기: 다음 결정 순간까지 돌리고 멈추면 결정 화면, 끝나면 결과 처리 */
+function liveAdvance(g: GameState): void {
+  const lv = ui.live!;
+  lv.pitch?.stop();
+  const m = lv.run.advance();
+  if (m) {
+    lv.sel = null;
+    const s = lv.run.sim.state;
+    const players = new Map(replayPlayers(s.input.home, s.input.away).map((p) => [p.id, p.isMe ? { ...p, name: g.player.name } : p]));
+    const endE = lv.run.frames.at(-1)!.e;
+    // 앞 장면: 직전 결정 뒤부터 (최대 8초, 처음이거나 오래전이면 4초)
+    const fromE = lv.prevE > 0 && endE - lv.prevE <= 8 ? lv.prevE : Math.max(0, endE - 4);
+    lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, null);
+    go('moment');
+    return;
+  }
+  const out = lv.run.finish();
+  ui.live = null;
+  finishPlay(g, out);
+}
+
+/** 라운드 처리 후 재생 화면으로 (out 이 있으면 직접 모드로 이미 계산한 경기) */
+function finishPlay(g: GameState, out?: MyMatchOutput): void {
+  const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { ui.replay = new ReplayPlayer(r, () => render()); } });
+  autosave();
+  go(ui.replay ? 'replay' : 'match');
+  if (g.phase !== 'season') badgeToast(g);
+  if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 3000);
 }
 
 // ── 동작 ──
@@ -619,13 +666,66 @@ app.addEventListener('click', (ev) => {
     case 'play': {
       if (!g || g.phase !== 'season' || ui.busy) return;
       ui.replay = null;
-      const report = playRound(g, { onReplay: (r) => { ui.replay = new ReplayPlayer(r, () => render()); } });
-      autosave();
-      go(ui.replay ? 'replay' : 'match');
-      if (g.phase !== 'season') badgeToast(g);
-      if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 3000);
+      // 직접 모드 (E.11): 내가 뛰는 경기면 결정 순간마다 멈춘다. 자동 모드·결장은 기존처럼 한 번에
+      const rm = roundMatch(g);
+      if (g.control.mode === 'direct' && rm.plan.minutes) {
+        const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: g.control.stop } }, { teams: rm.teams });
+        ui.live = { run, teams: rm.teams, sel: null, pitch: null, prevE: 0 };
+        liveAdvance(g);
+        return;
+      }
+      finishPlay(g);
       return;
     }
+    case 'mo-pick': {
+      const lv = ui.live;
+      if (!lv || v === undefined) return;
+      lv.sel = lv.sel === Number(v) ? null : Number(v);
+      if (lv.pitch) lv.pitch.selected = lv.sel;
+      render();
+      return;
+    }
+    case 'mo-confirm':
+    case 'mo-delegate': {
+      const lv = ui.live;
+      if (!g || !lv || !lv.run.pending) return;
+      if (act === 'mo-confirm' && lv.sel === null) return;
+      lv.prevE = lv.run.frames.at(-1)?.e ?? 0;
+      lv.run.resolve(act === 'mo-confirm' ? lv.sel! : 'delegate');
+      liveAdvance(g);
+      return;
+    }
+    case 'mo-stop': {
+      const lv = ui.live;
+      if (!g || !v) return;
+      g.control.stop = v as StopLevel;
+      if (lv) lv.run.sim.state.moments.control.stop = v as StopLevel;
+      autosave();
+      render();
+      return;
+    }
+    case 'mo-auto': {
+      const lv = ui.live;
+      if (!g || !lv) return;
+      // 자동으로 전환 (I.17 2번): 이번 순간부터 엔진이 결정하고, 다음 경기도 자동 (홈에서 다시 바꿀 수 있다)
+      g.control.mode = 'auto';
+      lv.run.sim.state.moments.control.mode = 'auto';
+      if (lv.run.pending) lv.run.resolve('delegate');
+      liveAdvance(g);
+      return;
+    }
+    case 'ctl-mode':
+      if (!g || !v) return;
+      g.control.mode = v === 'auto' ? 'auto' : 'direct';
+      autosave();
+      render();
+      return;
+    case 'ctl-stop':
+      if (!g || !v) return;
+      g.control.stop = v as StopLevel;
+      autosave();
+      render();
+      return;
     case 'rp-toggle':
       if (!ui.replay || ui.replay.ended) return;
       ui.replay.paused = !ui.replay.paused;

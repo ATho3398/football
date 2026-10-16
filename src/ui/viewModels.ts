@@ -1,6 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { SCENE_LABEL } from '../engine/moments';
 import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
@@ -152,6 +153,8 @@ export interface HomeVM {
     tacticsOpen: boolean;
     /** 결장(부상·출장 정지)이면 경기 버튼은 "결장(관전)" */
     out: boolean;
+    /** 내 선수 결정 (E.11): 직접/자동, 정지 빈도 */
+    control: GameState['control'];
   };
   card: PlayerCardVM;
   condition: ConditionVM;
@@ -194,6 +197,7 @@ export function homeVM(g: GameState): HomeVM {
       my: my.nameKo, opp: opp.nameKo, home: fx.home, myRating: my.rating, oppRating: opp.rating,
       myTactic: myTacticVM(g), oppTactic: teamTactic(opp.id), out: !!inj || p.suspended > 0,
       tacticsOpen: isUnlocked(g.guide, 'tactics'),
+      control: g.control,
     };
   }
   const slump = g.phase === 'season' ? slumpBanner(g) : null;
@@ -452,7 +456,11 @@ export interface MatchResultVM {
   xp: { gained: number; value: number; max: number; level: number; levelsGained: number };
   seasonOver: boolean;
   points: number;
+  /** 내 결정 기록 (E.11, I.17 10번): 분, 장면, 고른 선택지, 확률, 결과, 평점 변화 */
+  decisions: { minute: string; scene: string; choice: string; label: string; p: string; result: 'success' | 'fail' | 'neutral'; delta: string }[];
 }
+
+const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', delegate: '맡김' } as const;
 
 export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | null {
   const m = g.lastMatch;
@@ -520,6 +528,11 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     hasAvgMap: !!r, my, myMore,
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
+    decisions: (m.decisions ?? []).map((d) => ({
+      minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], label: d.label,
+      p: d.p === null ? '-' : `${Math.round(d.p * 100)}%`, result: d.result,
+      delta: `${d.delta > 0 ? '+' : d.delta < 0 ? '−' : '±'}${Math.abs(d.delta).toFixed(2)}`,
+    })),
   };
 }
 
