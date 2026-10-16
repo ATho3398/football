@@ -609,8 +609,9 @@ function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean {
 }
 
 /** 실제로 나오는 실수 (E.22 C): 유지로 공 끌기, 안전한 백패스, 무리한 슛. 효용이 낮아도 고를 수 있다 */
-function isMistake(s: SimState, a: Agent, c: Candidate): boolean {
-  if (c.type === 'hold' || c.type === 'shoot') return true;
+function isMistake(s: SimState, a: Agent, c: Candidate, maxU: number): boolean {
+  if (c.type === 'hold') return true;
+  if (c.type === 'shoot') return c.u >= maxU - O.mistakeShotGap * O.plausibleGap;
   return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) < -2;
 }
 
@@ -623,7 +624,7 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
   const pool0 = vis.length ? vis : cands;
   let maxU = -Infinity;
   for (const c of pool0) maxU = Math.max(maxU, c.u);
-  const pool = pool0.filter((c) => c.u >= maxU - O.plausibleGap || isMistake(s, a, c));
+  const pool = pool0.filter((c) => c.u >= maxU - O.plausibleGap || isMistake(s, a, c, maxU));
   const tau = decisionTemp(a);
   const ws = pool.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau));
   const total = ws.reduce((t, w) => t + w, 0);

@@ -67,6 +67,9 @@ export interface Agent {
   /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */
   gotBy: 'receive' | 'gain';
   lastMoveT: number;
+  /** 측정용 (C.29 골 경로): 공을 얻은 뒤 몰고 가기 횟수, 마지막 드리블 돌파 성공 시각 */
+  carryN: number;
+  dribbleT: number;
   /** 지금 슈팅의 경로 (골이 되면 골 경로로 센다) */
   shotPath: number;
   /** 수비 1대1 판단 (E.23): 다음 판단 시각, 패스길 막기 유지 시각 */

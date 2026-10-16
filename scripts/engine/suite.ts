@@ -244,6 +244,21 @@ export function buildSets(mode: Mode, overrides?: Record<string, number>): SetDe
   return sets.filter((s) => s.jobs.length > 0);
 }
 
+/** 득점 분포용 포지션군 (C.29): ST/CF = FW, 윙 = WING, 미드필더 = MID, 수비 = DEF */
+function scoringGroup(p: string): string {
+  if (p === 'ST' || p === 'CF') return 'FW';
+  if (['LW', 'RW', 'LM', 'RM'].includes(p)) return 'WING';
+  if (['CM', 'CAM', 'CDM', 'DM', 'AM'].includes(p)) return 'MID';
+  return 'DEF';
+}
+
+function median(xs: number[]): number {
+  if (!xs.length) return 0;
+  const v = [...xs].sort((a, b) => a - b);
+  const h = v.length >> 1;
+  return v.length % 2 ? v[h]! : (v[h - 1]! + v[h]!) / 2;
+}
+
 /** 2018-19 프리미어리그 20팀 id */
 const LEAGUE_IDS = ['mci', 'liv', 'che', 'tot', 'ars', 'mun', 'wol', 'eve', 'lei', 'whu', 'wat', 'cry', 'new', 'bou', 'bur', 'sou', 'bha', 'car', 'ful', 'hud'];
 
@@ -500,8 +515,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
       // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
       guard: TEMP_GUARD ? [0.85, 1.25] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
-      // C.28 결정: C.26 유산(main C.27도 1.15 경계). C.29 뒤 재측정하고 이 표시를 지운다(필요 시 평점 위쪽 압축, Fable 검토)
-      known: 'C.26 유산, C.29 뒤 재측정 (docs/engine-issues.md)',
+      // C.28 결정: C.26 유산(main C.27도 1.15 경계). C.29 재측정 1.18 → 표시 유지, 득점 분포 fix 뒤 다시 잰다(필요 시 평점 위쪽 압축, Fable 검토)
+      known: 'C.26 유산, C.29 재측정 1.18 — 득점 분포 fix와 같이 (docs/engine-issues.md)',
     });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
@@ -563,12 +578,23 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       const boot = [...sc.entries()].reduce((x, y) => (y[1] > x[1] ? y : x), ['', 0] as [string, number]);
       const goals = rows.reduce((t2, r) => t2 + r[1].gf, 0) / ms.length / 2;
       const top10 = [...sc.entries()].sort((x, y) => y[1] - x[1]).slice(0, 10).map(([id, g]) => [id, g, pos.get(id) ?? '?'] as const);
-      return { top, leak, champ, boot, goals, kane: sc.get('kane') ?? 0, kaneShots: kaneShots / Math.max(1, kaneApps), top10 };
+      // C.29 득점 분포 (planning-pending 12): 30골 이상 인원, 포지션군별 최다 득점자
+      const over30 = [...sc.values()].filter((g) => g >= 30).length;
+      const byGroup = new Map<string, [string, number]>();
+      for (const [id, g] of sc) {
+        const grp = scoringGroup(pos.get(id) ?? '?');
+        const cur = byGroup.get(grp);
+        if (!cur || g > cur[1]) byGroup.set(grp, [id, g]);
+      }
+      return { top, leak, champ, boot, goals, kane: sc.get('kane') ?? 0, kaneShots: kaneShots / Math.max(1, kaneApps), top10, over30, byGroup };
     });
     const m = (f: (x: (typeof per)[number]) => number) => avg(per.map(f));
     add(S, 'lgTopGF', '최다 득점 팀 골', '85~105', m((x) => x.top[1].gf), 85, 105, 0, { note: per.map((x) => `${x.top[0]} ${x.top[1].gf}`).join(', ') });
     add(S, 'lgTopGA', '최다 실점 팀 실점', '60~85', m((x) => x.leak[1].ga), 60, 85, 0, { note: per.map((x) => `${x.leak[0]} ${x.leak[1].ga}`).join(', ') });
-    add(S, 'lgBoot', '득점왕 골', '22~38', m((x) => x.boot[1]), 22, 38, 0, { note: per.map((x) => `${x.boot[0]} ${x.boot[1]}`).join(', ') });
+    // C.29 (planning-pending 12): 득점왕은 개별 최대값이 아니라 빈도로 본다 — 10시즌 이상에서 30골+ 평균 0.5~1명, 득점왕 중앙값 25~35
+    add(S, 'lgOver30', '리그 시즌당 30골 이상 선수 수', '0.5~1 (10시즌 이상)', m((x) => x.over30), 0.5, 1, 2, { note: per.map((x) => `${x.over30}`).join(', ') });
+    add(S, 'lgBootMed', '득점왕 골 중앙값', '25~35 (개별 40골대 허용)', median(per.map((x) => x.boot[1])), 25, 35, 1);
+    add(S, 'lgBoot', '득점왕 골 평균 (참고)', '참고', m((x) => x.boot[1]), 0, 100, 1, { note: per.map((x) => `${x.boot[0]} ${x.boot[1]}`).join(', ') });
     add(S, 'lgChamp', '우승팀 승점', '85~100', m((x) => x.champ[1].pts), 85, 100, 0, { note: per.map((x) => `${x.champ[0]} ${x.champ[1].pts}`).join(', ') });
     // C.17: 실제 플레이에서 확인된 케인 시즌 50~60골 (45골 이상이면 멈춤 조건)
     add(S, 'lgKane', '케인 시즌 골', '득점왕 범위 22~38 (45 이상 멈춤)', m((x) => x.kane), 10, 38, 0, { note: per.map((x) => `${x.kane}`).join(', ') });
@@ -578,6 +604,10 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'lgTop10ST', '득점 상위 10명 중 ST/CF 수 (참고)', '약 5~6', st10, 4, 7, 1, {
       note: per.map((x) => x.top10.map((t) => `${t[0]} ${t[1]}(${t[2]})`).join(' ')).join(' | '),
     });
+    for (const grp of ['FW', 'WING', 'MID', 'DEF']) {
+      const xs = per.map((x) => x.byGroup.get(grp)).filter((v): v is [string, number] => !!v);
+      extra.push(`포지션군 ${grp} 시즌 최다 득점자: 평균 ${avg(xs.map((v) => v[1])).toFixed(1)} · 최대 ${Math.max(0, ...xs.map((v) => v[1]))} — ${xs.map((v) => `${v[0]} ${v[1]}`).join(', ')}`);
+    }
     const gpl = [0, 1, 2, 3, 4, 5, 6].map((k) => sum(lg.flatMap((ms) => ms.map((mm) => mm.goalPaths[k]!))));
     extra.push(`실제 시즌 골 경로 % (패스/돌파·몰고/코너/프리킥/PK/리바운드/그 밖): ${gpl.map((v) => (ratio(v, sum(gpl)) * 100).toFixed(0)).join(' / ')}`);
   }

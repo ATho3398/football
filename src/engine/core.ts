@@ -54,6 +54,8 @@ export function setOwner(s: SimState, a: Agent): void {
   a.cooldown = ENGINE.ball.receiveTime + reaction(a) * 0.5;
   a.gotBy = 'gain';
   a.lastMoveT = -100;
+  a.carryN = 0;
+  a.dribbleT = -100;
   a.backToGoal = false;
   a.tx = a.x;
   a.ty = a.y;

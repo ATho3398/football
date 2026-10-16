@@ -82,6 +82,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
     case 'carry':
       if (pressureLoss(s, a, c)) return;
       a.lastMoveT = s.t;
+      a.carryN++;
       a.tx = c.x;
       a.ty = c.y;
       a.urgent = true;
@@ -177,6 +178,7 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
     def.beatenUntil = s.t + PR.beatenTime;
     callCover(s, def, c.x, c.y);
     a.lastMoveT = s.t;
+    a.dribbleT = s.t;
     a.tx = c.x;
     a.ty = c.y;
     a.urgent = true;
@@ -313,7 +315,8 @@ function shadowValue(s: SimState, o: Agent, d: Agent): number {
 
 /**
  * 슈팅 경로 (E.22 0번 측정, 판정에는 쓰지 않는다): 세트피스(코너·프리킥 소유 15초 안, PK) → 리바운드(같은 팀 슈팅 5초 안)
- * → 몰고 가기·돌파 후(3초 안) → 패스 받고 → 그 밖(루즈볼·가로채기로 얻은 공)
+ * → 몰고 가기·돌파 후(3초 안. C.29: 드리블 돌파가 있었거나 받은 뒤 몰고 가기 2회 이상. 한 번 몰고 쏜 슛은 받은 경로) → 패스 받고
+ * → 그 밖(루즈볼·가로채기로 얻은 공)
  */
 function shotPath(s: SimState, a: Agent, penalty = false): number {
   if (penalty) return 4;
@@ -321,7 +324,7 @@ function shotPath(s: SimState, a: Agent, penalty = false): number {
   if (sp && s.possOrigin === 'corner') return 2;
   if (sp && s.possOrigin === 'freeKick') return 3;
   if (s.t - s.lastShotT[a.team] < 5) return 5;
-  if (s.t - a.lastMoveT < 3) return 1;
+  if (s.t - a.lastMoveT < 3 && (s.t - a.dribbleT < 3 || a.carryN >= 2)) return 1;
   return a.gotBy === 'receive' ? 0 : 6;
 }
 
@@ -636,6 +639,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
   if (winner.team === att) {
     winner.gotBy = 'receive';
     winner.lastMoveT = -100;
+    winner.carryN = 0;
+    winner.dribbleT = -100;
     if (fl.fromCross) {
       s.teams[att].stats.crossesCompleted++;
       passer.stats.crossesCompleted++;
@@ -787,6 +792,8 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       return;
     case 'win':
       a.gotBy = 'receive';
+      a.carryN = 0;
+      a.dribbleT = -100;
       return;
     case 'gain':
       return;
@@ -794,6 +801,8 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       const fl = res.fl!;
       const passer = s.agents[fl.passer]!;
       a.gotBy = 'receive';
+      a.carryN = 0;
+      a.dribbleT = -100;
       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
       if (fl.quick) a.cooldown = reaction(a);
