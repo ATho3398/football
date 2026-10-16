@@ -15,6 +15,9 @@ import {
   costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
+import {
+  ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
+} from '../matchRecord';
 import { INJURY_NAMES_KO } from '../injury';
 import { leaguePosition, sortedTable, teamById } from '../league';
 import { npcOvr } from '../npc';
@@ -212,6 +215,8 @@ export interface PlayerVM {
   legendary: { label: string; met: boolean; locked: boolean }[];
   isLegendary: boolean;
   history: HistoryRowVM[];
+  /** 이번 시즌 경기 목록과 합계 (부록 C.30) */
+  matches: SeasonMatchesVM;
 }
 
 export interface HistoryRowVM { season: string; age: number; ovr: number; apps: number; goals: number; assists: number; avg: string; pos: number }
@@ -285,6 +290,7 @@ export function playerVM(g: GameState): PlayerVM {
     legendary: legendaryConditions(p.reputation, p.honors).map((c, i) => ({ ...c, locked: i > 0 })),
     isLegendary: tier === 'legendary',
     history: historyVM(g),
+    matches: seasonMatchesVM(g),
   };
 }
 
@@ -427,6 +433,8 @@ export interface MatchResultVM {
   report: (TacticalReport & { my: TacticVM; opp: TacticVM; possession: number }) | null;
   hasAvgMap: boolean;
   my: { label: string; value: string }[];
+  /** "전체 보기"에 펼치는 나머지 기록 (부록 C.30) */
+  myMore: { label: string; value: string }[];
   xp: { gained: number; value: number; max: number; level: number; levelsGained: number };
   seasonOver: boolean;
   points: number;
@@ -477,7 +485,14 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     report = { ...rep, my: t(side), opp: t(side === 0 ? 1 : 0), possession: m.engine?.possession ?? 50 };
   }
   const my: { label: string; value: string }[] = [];
-  if (m.engine?.my && res.minutes > 0) {
+  let myMore: { label: string; value: string }[] = [];
+  if (m.rec && res.minutes > 0) {
+    // 포지션별 6개 먼저, 나머지는 전체 보기 (D.22 4번 ①)
+    const split = recordSplit(m.rec, g.player.position);
+    my.push(...split.primary);
+    myMore = split.more;
+  } else if (m.engine?.my && res.minutes > 0) {
+    // C.30 이전 세이브의 마지막 경기: 기존 6개
     const x = m.engine.my;
     my.push({ label: '패스', value: `${x.passesCompleted}/${x.passes}` }, { label: '슈팅', value: `${x.shots}` }, { label: '태클', value: `${x.tackles}` },
       { label: '인터셉트', value: `${x.interceptions}` }, { label: '드리블', value: `${x.dribbles}` }, { label: '거리', value: `${x.distance}km` });
@@ -488,9 +503,52 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   return {
     round: m.round, opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
-    hasAvgMap: !!r, my,
+    hasAvgMap: !!r, my, myMore,
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
+  };
+}
+
+/** 포지션별 6개 + 나머지 (부록 C.30) */
+export function recordSplit(rec: MatchRecord, position: FieldPosition): { primary: RecordRowVM[]; more: RecordRowVM[] } {
+  const first = primaryItems(position);
+  return { primary: recordRows(rec, first), more: recordRows(rec, ALL_ITEMS.filter((i) => !first.includes(i))) };
+}
+
+// ── 시즌 경기 목록과 시즌 합계 (부록 C.30, D.22 4번 ②) ──
+
+export interface MatchLogRowVM {
+  round: number; opp: string; venue: string; score: string; outcome: 'win' | 'draw' | 'loss';
+  rating: string; /** 출전·결장, 골·도움 */ head: string; /** 기록 한 줄 요약. 빠른 경기는 "기록 없음" */ line: string;
+}
+
+export interface SeasonMatchesVM {
+  rows: MatchLogRowVM[];
+  /** 시즌 합계 (엔진 기록이 있는 출전만): 포지션별 6개 + 나머지 */
+  total: { primary: RecordRowVM[]; more: RecordRowVM[] } | null;
+  recApps: number;
+}
+
+function logRowVM(g: GameState, e: MatchLogEntry): MatchLogRowVM {
+  const outcome = e.goalsFor > e.goalsAgainst ? 'win' : e.goalsFor < e.goalsAgainst ? 'loss' : 'draw';
+  const head = e.minutes === 0
+    ? e.absent === 'injured' ? '부상 결장' : e.absent === 'suspended' ? '출장 정지' : '결장'
+    : [e.started ? '선발' : `교체 ${e.minutes}분`, e.goals ? `골 ${e.goals}` : '', e.assists ? `도움 ${e.assists}` : '', e.mom ? 'MOM' : '']
+      .filter(Boolean).join(' · ');
+  return {
+    round: e.round, opp: teamById(g.league, e.opponentId).nameKo, venue: e.home ? '홈' : '원정', score: `${e.goalsFor}-${e.goalsAgainst}`, outcome,
+    rating: e.rating === null ? '-' : e.rating.toFixed(1), head,
+    line: e.minutes === 0 ? '' : e.rec ? recordLine(e.rec, e.position) : '기록 없음',
+  };
+}
+
+export function seasonMatchesVM(g: GameState): SeasonMatchesVM {
+  const st = g.phase === 'season' ? g.player.season : g.player.history.at(-1) ?? g.player.season;
+  const recApps = st.recApps ?? 0;
+  return {
+    rows: (g.matchLog ?? []).map((e) => logRowVM(g, e)).reverse(),
+    total: st.rec && recApps > 0 ? recordSplit(st.rec, g.player.position) : null,
+    recApps,
   };
 }
 
@@ -543,6 +601,8 @@ export interface SeasonVM {
   retired: boolean; forcedRetire: boolean; canRetire: boolean; points: number;
   injury: BannerVM | null;
   badges: { name: string; desc: string }[];
+  /** 시즌 경기 목록과 합계 (부록 C.30) */
+  matches: SeasonMatchesVM;
 }
 
 /** 시즌 위상 내역 줄 (부록 C.25, C.27): 감점이 있거나 바닥에 막혔을 때만 */
@@ -584,6 +644,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
     retired: g.phase === 'retired', forcedRetire: s.forcedRetire, canRetire: s.canRetire, points: visiblePoints(g),
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
     badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
+    matches: seasonMatchesVM(g),
   };
 }
 

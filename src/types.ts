@@ -73,6 +73,8 @@ export interface Injury {
   permanent: Partial<Record<FieldAttribute, number>>;
 }
 
+import type { MatchRecord } from './matchRecord';
+
 /** 시즌 중 누적 기록 */
 export interface SeasonStats {
   apps: number;
@@ -93,6 +95,9 @@ export interface SeasonStats {
   slumpPenalty?: number;
   /** 부진 감점 중 티어 하한에 막혀 사라진 위상 (부록 C.27). 이전 세이브에는 없다 */
   slumpBlocked?: number;
+  /** 경기 기록 합계와 기록이 있는 출전 수 (부록 C.30). 엔진 경기만 더한다. C.30 이전 시즌에는 없다 */
+  rec?: MatchRecord;
+  recApps?: number;
 }
 
 /** 시즌 종료 시 저장되는 기록 */

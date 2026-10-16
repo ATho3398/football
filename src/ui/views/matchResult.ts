@@ -3,7 +3,7 @@
 
 import { Button, esc, FeedItem, HeroPanel, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
 import type { MatchResultVM } from '../viewModels';
-import { banners, panel } from './common';
+import { banners, moreRecords, panel } from './common';
 
 function cmpRow(label: string, own: string, opp: string): string {
   const a = parseFloat(own) || 0;
@@ -40,7 +40,7 @@ export function matchResultView(vm: MatchResultVM): string {
   }
   const my = vm.my.length
     ? `${SectionTitle({ title: '내 기록', action: vm.appearance })}<div class="chips">${vm.my.map((m) => StatChip({ label: m.label, value: m.value })).join('')}${
-      vm.formBonus ? StatChip({ label: '폼 보정', value: `${vm.formBonus > 0 ? '+' : '−'}${Math.abs(vm.formBonus).toFixed(2)}`, tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>`
+      vm.formBonus ? StatChip({ label: '폼 보정', value: `${vm.formBonus > 0 ? '+' : '−'}${Math.abs(vm.formBonus).toFixed(2)}`, tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
     : '';
   const x = vm.xp;
   const next = vm.seasonOver

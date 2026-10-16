@@ -242,6 +242,7 @@ export function emptyPlayerStats(id: string, team: 0 | 1, position: Position): P
     shotsOnTarget: 0, goals: 0, assists: 0, tackles: 0, tacklesWon: 0, interceptions: 0, dribbles: 0, dribblesWon: 0,
     aerialsWon: 0, fouls: 0, yellows: 0, red: false, offsides: 0, rating: 6,
     received: 0, throughReceived: 0, aerialDuels: 0, crosses: 0, crossesCompleted: 0, dribblesFaced: 0, dribbledPast: 0,
+    bigChances: 0, throughPasses: 0, throughCompleted: 0, clearances: 0, dangerClearances: 0, blocks: 0, saves: 0,
     distance75: 0, offMinute: null, slot: -1,
   };
 }

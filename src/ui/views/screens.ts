@@ -5,7 +5,7 @@ import {
   Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, IconButton, Meter, PlayerCard, SectionTitle, StatBar, Tabs, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
-import { actionRow, banners, panel, statTiles, versionFooter } from './common';
+import { actionRow, banners, panel, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { historyTable } from './player';
 
 // ── 타이틀 (55) ──
@@ -174,6 +174,7 @@ export function seasonView(vm: SeasonVM): string {
     ${vm.injury ? banners([vm.injury]) : ''}
     ${SectionTitle({ title: '내 시즌', action: `${vm.apps}경기` })}
     ${statTiles([{ value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }, { value: vm.injuries, label: `부상 (${vm.injuredWeeks}주)` }])}
+    ${seasonMatchesSection(vm.matches)}
     ${SectionTitle({ title: '업적 XP', action: `+${vm.achievementXp}` })}
     ${panel(`${vm.achievements.length ? vm.achievements.map((a) => `<div class="ach"><span class="ach__icon">${Icon({ name: 'star', size: 16 })}</span><span class="grow">${esc(a.label)}</span><b class="po-num up">+${a.xp}</b></div>`).join('') : '<p class="muted small">이번 시즌 업적이 없어요.</p>'}
       <p class="small muted">지급 XP는 난이도를 반영해요.${vm.levelsGained ? ` 레벨 업 ${vm.levelsGained}회!` : ''}</p>`)}

@@ -64,3 +64,9 @@ export function inOppBox(x: number, y: number, dir: 1 | -1): boolean {
 export function outOfPlay(x: number, y: number): boolean {
   return x < 0 || x > L || y < 0 || y > W;
 }
+
+/** 자기 진영 위험 지역 (C.30 기록): 자기 골라인에서 dangerDepth m 안, 박스 폭 안 (박스와 박스 앞) */
+export function inOwnDanger(x: number, y: number, dir: 1 | -1): boolean {
+  const d = dir > 0 ? x : L - x;
+  return d <= ENGINE.record.dangerDepth && Math.abs(y - W / 2) <= P.boxWidth / 2;
+}

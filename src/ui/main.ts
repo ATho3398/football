@@ -43,6 +43,8 @@ const ui = {
   modal: null as ModalState | null,
   /** 시즌 자동 진행 중 */
   busy: false,
+  /** 자동 진행 [중단]을 눌렀다: 진행 중인 라운드까지 끝내고 멈춘다 (22.2, 부록 C.30) */
+  stopReq: false,
   /** 방금 치른 내 경기 재생 (E5-lite). 세이브에 담지 않는다 */
   replay: null as ReplayPlayer | null,
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
@@ -219,25 +221,49 @@ function replayAlloc(g: GameState): void {
 function startSimRest(g: GameState): void {
   // 경기 엔진은 한 경기에 약 0.5초가 걸리므로 라운드마다 화면에 진행 상황을 그린다
   ui.busy = true;
+  ui.stopReq = false;
+  const stop = { action: '중단', onAction: { act: 'sim-stop' } };
   const next = () => {
     if (g.phase !== 'season') {
       ui.busy = false;
+      ui.stopReq = false;
       ui.toast = null;
       autosave();
       go('season');
       badgeToast(g);
       return;
     }
+    // [중단]: 라운드 사이에서만 확인하므로 진행 중인 라운드는 끝까지 치른다
+    if (ui.stopReq) {
+      ui.busy = false;
+      ui.stopReq = false;
+      autosave();
+      go('home');
+      showToast({ kind: 'info', title: '자동 진행을 멈췄어요', body: `${g.league.round}/${g.league.schedule.length}라운드까지 치렀어요.` }, 2600);
+      return;
+    }
     playRound(g);
     autoAllocate(g.player);
-    ui.toast = { kind: 'info', title: '자동 진행 중', body: `${g.league.round}/${g.league.schedule.length}라운드` };
+    ui.toast = { kind: 'info', title: '자동 진행 중', body: `${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
     render();
     setTimeout(next, 0);
   };
-  ui.toast = { kind: 'info', title: '자동 진행 중' };
+  ui.toast = { kind: 'info', title: '자동 진행 중', ...stop };
   render();
   setTimeout(next, 0);
 }
+
+/** [중단]은 라운드마다 다시 그려지는 토스트 안에 있어 click(누름·뗌이 같은 요소)이 끊길 수 있으므로 누르는 순간에 받는다 */
+function requestSimStop(): void {
+  if (!ui.busy || ui.stopReq) return;
+  ui.stopReq = true;
+  ui.toast = { kind: 'info', title: '멈추는 중', body: '진행 중인 라운드까지 치르고 멈춰요.' };
+  render();
+}
+
+app.addEventListener('pointerdown', (ev) => {
+  if ((ev.target as HTMLElement).closest('[data-act="sim-stop"]')) requestSimStop();
+});
 
 app.addEventListener('click', (ev) => {
   const el = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]');
@@ -350,6 +376,9 @@ app.addEventListener('click', (ev) => {
       showToast({ kind: 'info', title: `${ui.game.player.name} · ${teamById(ui.game.league, ui.game.player.teamId).nameKo}`, body: '커리어를 시작했어요.' });
       return;
     }
+    case 'sim-stop':
+      requestSimStop();
+      return;
     case 'play': {
       if (!g || g.phase !== 'season' || ui.busy) return;
       ui.replay = null;

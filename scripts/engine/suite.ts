@@ -374,7 +374,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       const gp = [0, 1, 2, 3, 4, 5, 6].map((k) => totTeam(eq, (t) => t.goalPaths[k]!));
       const gpt = sum(gp);
       const pct = (v: number) => ratio(v, gpt) * 100;
-      add(S2, 'pathPass', '골 경로: 패스 받고 바로 %', '55~65', pct(gp[0]!), 55, 65, 0);
+      // 패스 목표 55~65 는 오픈 플레이 골(세트피스 제외) 기준 (pending 20번 2, C.29 남은 질문 2). 전체 골 기준은 참고로 적는다
+      const open = gpt - (gp[2]! + gp[3]! + gp[4]!);
+      add(S2, 'pathPass', '골 경로: 패스 받고 바로 % (오픈 플레이 골 기준)', '55~65', ratio(gp[0]!, open) * 100, 55, 65, 0, { note: `전체 골 기준 ${pct(gp[0]!).toFixed(0)}` });
       add(S2, 'pathDrib', '골 경로: 몰고 가기·돌파 후 %', '10~15', pct(gp[1]!), 10, 15, 0);
       add(S2, 'pathSet', '골 경로: 세트피스(PK 포함) %', '25~30', pct(gp[2]! + gp[3]! + gp[4]!), 25, 30, 0, { note: `코너 ${pct(gp[2]!).toFixed(0)} · 프리킥 ${pct(gp[3]!).toFixed(0)} · PK ${pct(gp[4]!).toFixed(0)}` });
       add(S2, 'pathReb', '골 경로: 리바운드 %', '5~10', pct(gp[5]!), 5, 10, 0);
@@ -598,7 +600,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'lgChamp', '우승팀 승점', '85~100', m((x) => x.champ[1].pts), 85, 100, 0, { note: per.map((x) => `${x.champ[0]} ${x.champ[1].pts}`).join(', ') });
     // C.17: 실제 플레이에서 확인된 케인 시즌 50~60골 (45골 이상이면 멈춤 조건)
     add(S, 'lgKane', '케인 시즌 골', '득점왕 범위 22~38 (45 이상 멈춤)', m((x) => x.kane), 10, 38, 0, { note: per.map((x) => `${x.kane}`).join(', ') });
-    add(S, 'lgGoals', '리그 경기당 팀 득점 (참고)', '약 1.4', m((x) => x.goals), 1.2, 1.6, 2);
+    add(S, 'lgGoals', '리그 경기당 팀 득점', '1.3~1.5 (C.29 fix, pending 20)', m((x) => x.goals), 1.3, 1.5, 2);
     add(S, 'lgKaneShots', '케인 경기당 슈팅 (토트넘 경기 기준)', '약 4.8 (3.5~6)', m((x) => x.kaneShots), 3.5, 6, 1);
     const st10 = avg(per.map((x) => x.top10.filter((t) => t[2] === 'ST' || t[2] === 'CF').length));
     add(S, 'lgTop10ST', '득점 상위 10명 중 ST/CF 수 (참고)', '약 5~6', st10, 4, 7, 1, {
