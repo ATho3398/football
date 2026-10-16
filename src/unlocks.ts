@@ -7,7 +7,7 @@ import type { GameState } from './game';
 export type FeatureId = 'growth' | 'tactics' | 'deck' | 'staff' | 'finance';
 
 /** 첫 방문 말풍선이 있는 화면 */
-export type TipId = 'home' | 'player' | 'world' | 'replay' | 'match' | 'allocate' | 'season';
+export type TipId = 'home' | 'player' | 'world' | 'replay' | 'match' | 'allocate' | 'season' | 'tactics';
 
 /** 첫 시즌 체크리스트 항목 (21.4, 공개 순서) */
 export type ChecklistId = 'play' | 'allocate' | 'tactics' | 'deck' | 'inbox';
@@ -25,7 +25,7 @@ export interface GuideState {
   firstMatchSeen: boolean;
   /** 체크리스트에서 한 일 */
   done: ChecklistId[];
-  /** 전술 화면 "자세히" 펼침 (전술 화면이 생기면 쓴다, E.19) */
+  /** 전술 화면 "자세히" 펼침 (21.3, 부록 C.32) */
   tacticsDetailOpen: boolean;
 }
 
@@ -53,8 +53,8 @@ export const FEATURES: readonly FeatureDef[] = [
     open: (p) => p.matches >= 1,
   },
   {
-    id: 'tactics', name: '전술', implemented: false, when: '3경기 뒤',
-    intro: '팀 성향을 고를 수 있어요. 자세한 설정은 "자세히" 안에 있어요.', open: (p) => p.matches >= 3,
+    id: 'tactics', name: '전술', implemented: true, when: '3경기 뒤',
+    intro: '이제 내가 팀 전술을 정해요. 홈의 다음 경기 카드에서 [전술]을 눌러 팀 성향을 고르고, 자세한 설정은 "자세히" 안에 있어요.', open: (p) => p.matches >= 3,
   },
   {
     id: 'deck', name: '역할과 덱', implemented: false, when: '10경기 뒤',
@@ -73,6 +73,7 @@ export const TIPS: Record<TipId, string> = {
   match: '경기 결과와 전술 리포트예요. 무엇이 잘 됐고 안 됐는지 보여 줘요.',
   allocate: '포인트를 능력치에 찍어요. 값이 높을수록 1을 올리는 비용이 커져요.',
   season: '시즌 결과와 업적, 위상 변화, 자동 성장을 정리해요.',
+  tactics: '팀 성향을 고르고 저장하면 다음 경기부터 그 전술로 뛰어요. 포메이션·내 위치·역할은 "자세히" 안에 있어요.',
 };
 
 /** 첫 경기 오버레이 3줄 (21.4 개정안) */
@@ -86,7 +87,7 @@ export const FIRST_MATCH_LINES: readonly string[] = [
 export const CHECKLIST: readonly { id: ChecklistId; label: string; feature?: FeatureId; implemented: boolean }[] = [
   { id: 'play', label: '경기 하기', implemented: true },
   { id: 'allocate', label: '포인트 찍기', feature: 'growth', implemented: true },
-  { id: 'tactics', label: '전술 확인', feature: 'tactics', implemented: false },
+  { id: 'tactics', label: '전술 확인', feature: 'tactics', implemented: true },
   { id: 'deck', label: '역할 고르기 · 덱 확인', feature: 'deck', implemented: false },
   { id: 'inbox', label: '인박스 열기', implemented: false },
 ];

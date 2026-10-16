@@ -86,6 +86,9 @@ process.exit(0);
 async function tacticsMatrix(): Promise<void> {
   const NM = Number(process.env.MATRIX ?? 100);
   const NI = Number(process.env.INTER ?? 100);
+  const NW = Number(process.env.WEAK ?? 200);
+  const RECHECK = Number(process.env.RECHECK ?? 100);
+  const LIMIT = 0.3;
   const t0 = Date.now();
   const tac = (t: Tendency) => tacticsOf(t);
   const jobs: MatchJob[] = [];
@@ -121,10 +124,46 @@ async function tacticsMatrix(): Promise<void> {
       }
     }
   }
+  // 약팀 블록 (E.19 검증 D.21, pending 15 질문 9): 약팀(70)이 강팀(78, 균형)을 상대로 균형 / 수비 블록 / 역습일 때 실점·득실차
+  const WEAK: [string, Tendency][] = [['균형', 'balanced'], ['수비 블록', 'block'], ['역습', 'counter']];
+  const weakIdx = new Map<string, [number, number]>();
+  for (const [name, t] of WEAK) {
+    const start = jobs.length;
+    for (let k = 0; k < NW; k++) {
+      const seed = 25000 + k;
+      const weak = std('a', seed, 70, '4-4-2', tac(t));
+      const strong = std('b', seed, 78, '4-4-2', tac('balanced'));
+      // 홈/원정을 번갈아 (약팀이 홈인 경기와 원정인 경기 반씩)
+      jobs.push(k % 2 ? { kind: 'match', seed, neutral: true, home: weak, away: strong } : { kind: 'match', seed, neutral: true, home: strong, away: weak });
+    }
+    weakIdx.set(name, [start, jobs.length]);
+  }
   const outs = await runJobs<MatchOut>(jobs, { label: `전술 매트릭스 ${jobs.length}경기` });
+  // 영향 상한을 넘는 칸은 칸마다 RECHECK 경기까지 다시 잰다 (D.17 2번: 50경기 먼저, 넘는 칸만 100경기)
+  const extra = new Map<string, MatchOut[]>();
+  const cellOuts = (i: number, j: number) => [...outs.slice(...index.get(cell(i, j))!), ...(extra.get(cell(i, j)) ?? [])];
+  const gdOf = (xs: MatchOut[]) => xs.reduce((t, m) => t + m.homeGoals - m.awayGoals, 0) / xs.length;
+  const vs0 = (i: number, j: number) => (gdOf(cellOuts(i, j)) - gdOf(cellOuts(j, i))) / 2;
+  const over: [number, number][] = [];
+  TENDENCIES.forEach((_, i) => TENDENCIES.forEach((_, j) => { if (i < j && Math.abs(vs0(i, j)) > LIMIT) over.push([i, j]); }));
+  let rechecked = 0;
+  if (RECHECK > NM && over.length) {
+    const more: MatchJob[] = [];
+    const keys: string[] = [];
+    for (const [i, j] of over) for (const [a, b] of [[i, j], [j, i]] as const) {
+      for (let k = NM; k < RECHECK; k++) {
+        const seed = 21000 + k;
+        more.push({ kind: 'match', seed, neutral: true, home: std('a', seed, 75, '4-4-2', tac(TENDENCIES[a]!)), away: std('b', seed, 75, '4-4-2', tac(TENDENCIES[b]!)) });
+        keys.push(cell(a, b));
+      }
+    }
+    const mo = await runJobs<MatchOut>(more, { label: `넘는 칸 다시 재기 ${more.length}경기` });
+    mo.forEach((m, k) => extra.set(keys[k]!, [...(extra.get(keys[k]!) ?? []), m]));
+    rechecked = over.length;
+  }
   const sec = (Date.now() - t0) / 1000;
   const avgOf = (r: [number, number], f: (m: MatchOut) => number) => { const xs = outs.slice(r[0], r[1]); return xs.reduce((t, m) => t + f(m), 0) / xs.length; };
-  const gdH = (i: number, j: number) => avgOf(index.get(cell(i, j))!, (m) => m.homeGoals - m.awayGoals);
+  const gdH = (i: number, j: number) => gdOf(cellOuts(i, j));
   // 홈/원정 자리 효과를 빼고 성향 i 가 성향 j 를 상대로 낸 득실차
   const vs = (i: number, j: number) => (gdH(i, j) - gdH(j, i)) / 2;
   const L: string[] = [];
@@ -132,6 +171,7 @@ async function tacticsMatrix(): Promise<void> {
   L.push('');
   L.push(`- 실행: ${new Date().toISOString().slice(0, 16).replace('T', ' ')} (UTC) · ENGINE_VERSION ${ENGINE_VERSION} · ${jobs.length}경기 · ${sec.toFixed(0)}초`);
   L.push(`- 동레이팅 75, 양 팀 4-4-2, 중립. 칸마다 ${NM}경기 (행 성향이 열 성향을 상대로 낸 경기당 득실차, 홈/원정 자리를 바꾼 두 칸의 평균)`);
+  L.push(`- 영향 상한(±${LIMIT})을 넘은 짝 ${over.length}개${rechecked ? `는 칸마다 ${RECHECK}경기까지 다시 쟀다 (표에 *)` : ''}`);
   L.push('');
   L.push('## 성향 6 × 6 (E.15 전술 영향 상한과 상성)');
   L.push(`| 행 \\ 열 | ${TENDENCIES.map((t) => TENDENCY_NAMES_KO[t]).join(' | ')} | 최소 | 상성 있음 |`);
@@ -145,12 +185,42 @@ async function tacticsMatrix(): Promise<void> {
     const countered = min <= 0;
     allCountered &&= countered;
     maxAbs = Math.max(maxAbs, ...others.map(Math.abs));
-    L.push(`| ${TENDENCY_NAMES_KO[ti]} | ${row.map((v, j) => (j === i ? '-' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}`)).join(' | ')} | ${min.toFixed(2)} | ${countered ? '✓' : '✗'} |`);
+    const star = (j: number) => (extra.has(cell(i, j)) ? '*' : '');
+    L.push(`| ${TENDENCY_NAMES_KO[ti]} | ${row.map((v, j) => (j === i ? '-' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}${star(j)}`)).join(' | ')} | ${min.toFixed(2)} | ${countered ? '✓' : '✗'} |`);
   });
   L.push('');
   L.push(`- 최대 |득실차| ${maxAbs.toFixed(2)} (목표 0.3 이내 ${maxAbs <= 0.3 ? '✓' : '✗'}) · 모든 성향에 득실차 0 이하인 상대 ${allCountered ? '있음 ✓' : '없는 성향 있음 ✗'}`);
   const balGd = gdH(0, 0);
   L.push(`- 균형 대 균형 (홈 자리) 득실차 ${balGd.toFixed(2)} (표본 잡음 기준)`);
+  L.push('');
+  const clr = (m: MatchOut, t: 0 | 1): [number, number] => m.players.filter((p) => p.team === t).reduce<[number, number]>((a, p) => [a[0] + p.clearances, a[1] + p.dangerClearances], [0, 0]);
+  L.push('## 성향별 득점·실점 (동레이팅, 모든 상대 평균)');
+  L.push('| 성향 | 득점 | 실점 | 득실차 | 롱패스 % | 롱패스 성공 % | 패스 성공 % | 점유 % | 걷어내기 | 위험 지역 걷어내기 % |');
+  L.push('|---|---|---|---|---|---|---|---|---|---|');
+  TENDENCIES.forEach((ti, i) => {
+    let gf = 0, ga = 0, n = 0, lp = 0, pa = 0, pc = 0, poss = 0, lc = 0, cl = 0, dc = 0;
+    TENDENCIES.forEach((_, j) => {
+      for (const m of cellOuts(i, j)) { lc += m.team[0].longCompleted; cl += clr(m, 0)[0]; dc += clr(m, 0)[1]; gf += m.homeGoals; ga += m.awayGoals; n++; lp += m.team[0].longPasses; pa += m.team[0].passes; pc += m.team[0].passesCompleted; poss += (100 * m.team[0].possessionTicks) / (m.team[0].possessionTicks + m.team[1].possessionTicks); }
+      for (const m of cellOuts(j, i)) { lc += m.team[1].longCompleted; cl += clr(m, 1)[0]; dc += clr(m, 1)[1]; gf += m.awayGoals; ga += m.homeGoals; n++; lp += m.team[1].longPasses; pa += m.team[1].passes; pc += m.team[1].passesCompleted; poss += (100 * m.team[1].possessionTicks) / (m.team[0].possessionTicks + m.team[1].possessionTicks); }
+    });
+    L.push(`| ${TENDENCY_NAMES_KO[ti]} | ${(gf / n).toFixed(2)} | ${(ga / n).toFixed(2)} | ${((gf - ga) / n >= 0 ? '+' : '')}${((gf - ga) / n).toFixed(2)} | ${((100 * lp) / pa).toFixed(1)} | ${((100 * lc) / lp).toFixed(1)} | ${((100 * pc) / pa).toFixed(1)} | ${(poss / n).toFixed(1)} | ${(cl / n).toFixed(1)} | ${((100 * dc) / Math.max(1, cl)).toFixed(0)} |`);
+  });
+  L.push('');
+  L.push(`## 약팀 블록 (레이팅 70 대 78, 상대 균형, 각 ${NW}경기, 홈/원정 반씩)`);
+  L.push('| 약팀 성향 | 약팀 득점 | 약팀 실점 | 득실차 | 약팀 슈팅 허용 | 약팀 승점 |');
+  L.push('|---|---|---|---|---|---|');
+  for (const [name] of WEAK) {
+    const xs = outs.slice(...weakIdx.get(name)!);
+    let gf = 0, ga = 0, sa = 0, pts = 0;
+    xs.forEach((m, k) => {
+      const w = k % 2 ? 0 : 1;
+      const f = w === 0 ? m.homeGoals : m.awayGoals;
+      const a = w === 0 ? m.awayGoals : m.homeGoals;
+      gf += f; ga += a; sa += m.team[1 - w]!.shots; pts += f > a ? 3 : f === a ? 1 : 0;
+    });
+    const n = xs.length;
+    L.push(`| ${name} | ${(gf / n).toFixed(2)} | ${(ga / n).toFixed(2)} | ${((gf - ga) / n).toFixed(2)} | ${(sa / n).toFixed(1)} | ${(pts / n).toFixed(2)} |`);
+  }
   L.push('');
   L.push('## 능력치 × 전술 상호작용 (E.15)');
   L.push('| 항목 | 조건 | 기준 전술 | 바꾼 전술 | 이득 | 판정 |');

@@ -137,12 +137,22 @@ export function roleFit(roleId: string, a: FieldAttributes): number {
   return keys.reduce((t, k) => t + a[k], 0) / keys.length;
 }
 
-/** 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②) */
-export function recommendedRole(tendency: Tendency, pos: Position, attrs: FieldAttributes): Role {
+/** 팀에 한 명만 두는 추천 역할 (내려와서 연결하는 ST): 투톱 둘 다 내려오면 박스에 아무도 없다 (부록 C.32) */
+export const SOLO_ROLES: ReadonlySet<string> = new Set(['linkUp']);
+
+/**
+ * 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②).
+ * taken 에 이미 팀에 배정된 역할을 주면 SOLO_ROLES 는 두 번째 슬롯부터 능력치 기본 역할로 바꾼다
+ */
+export function recommendedRole(tendency: Tendency, pos: Position, attrs: FieldAttributes, taken?: ReadonlySet<string>): Role {
   if (pos === 'GK') return ROLES.goalkeeper!;
   const cands = RECOMMENDED[tendency]?.[roleGroup(pos)];
   if (!cands?.length) return defaultRole(pos, attrs);
   const best = cands.slice().sort((x, y) => roleFit(y, attrs) - roleFit(x, attrs))[0]!;
+  if (taken?.has(best) && SOLO_ROLES.has(best)) {
+    const alt = defaultRole(pos, attrs);
+    return alt.id === best ? ROLES.poacher! : alt;
+  }
   return ROLES[best]!;
 }
 

@@ -299,3 +299,14 @@ h3.grp { margin: 0; font-size: 13px; font-weight: 800; color: var(--ink-muted); 
 .mlog { padding: 8px 0; border-top: 1px solid var(--line); }
 .mlog:first-child { border-top: 0; padding-top: 0; }
 .mlog .muted { margin-top: 2px; overflow-wrap: anywhere; }
+
+/* 전술 화면 (I.16, 디자인 26~29, 부록 C.32) */
+.kv-r { display: inline-flex; align-items: center; gap: var(--space-2); }
+.tac-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tac-grid .po-tchip--md { min-width: 0; }
+.tac-grid .po-tchip__name { white-space: normal; }
+button.po-fslot { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.tac-detail { display: flex; flex-direction: column; gap: 6px; }
+.tac-me { align-items: center; }
+.tac-me > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tac-me .mine { color: var(--mine, #5ee0ff); }

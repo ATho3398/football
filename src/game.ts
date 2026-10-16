@@ -22,16 +22,18 @@ import {
   createRosters, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
-import { decayFormerPosition, gainProficiency, initialProficiency, proficiencyOf } from './proficiency';
+import { decayFormerPosition, gainProficiency, initialProficiency, proficiencyOf, proficientOvr } from './proficiency';
 import { awardBadges } from './badges';
 import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
+import { slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
+import type { FieldPosition } from './positions';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 11;
+export const SAVE_FORMAT_VERSION = 12;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -133,6 +135,8 @@ export interface GameState {
   guide: GuideState;
   /** 이번 시즌 내 경기 목록 (부록 C.30). 다음 시즌을 시작하면 비운다 */
   matchLog: MatchLogEntry[];
+  /** 내 팀 전술 (E.19, 부록 C.32): 저장한 기본 전술. 바꾸기 전까지 매 경기 쓴다 */
+  tactics: MyTactics;
 }
 
 export type NewGameOptions =
@@ -259,7 +263,13 @@ export function newGame(opts: NewGameOptions): GameState {
     rosters,
     guide: initialGuide(),
     matchLog: [],
+    tactics: teamDefaultTactics(player.teamId, rosters[player.teamId], player.position),
   };
+}
+
+/** 내 선수가 이번 경기에 뛰는 자리 (전술의 내 슬롯, E.19 ②) */
+export function myMatchPosition(state: GameState): FieldPosition {
+  return slotPos(state.tactics, state.tactics.mySlot) as FieldPosition;
 }
 
 export function seasonLength(state: GameState): number {
@@ -313,7 +323,9 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   const fx = nextFixture(state)!;
   const myTeam = teamById(league, player.teamId);
   const opp = teamById(league, fx.opponentId);
-  const ovr = playerOvr(player);
+  // 내 슬롯 포지션의 OVR 로 선발 판정 (E.19 ②: 주 포지션 밖이면 그만큼 손해). 빠른 경기는 주 포지션 그대로
+  const pos = useEngine ? myMatchPosition(state) : player.position;
+  const ovr = proficientOvr(player, pos);
   const form = formBonus(player.recentRatings);
   const remaining = league.schedule.length - roundIdx - 1;
   const at = { season: league.season, round: roundIdx + 1 };
@@ -339,9 +351,9 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     engineOut = playMyMatch({
       myRoster: state.rosters[player.teamId]!, oppRoster: state.rosters[opp.id]!,
       myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
-      me: { position: player.position, attributes: player.attributes, fatigue: player.fatigue, form, proficiency: proficiencyOf(player, player.position) },
+      me: { position: pos, attributes: player.attributes, fatigue: player.fatigue, form, proficiency: proficiencyOf(player, pos) },
       plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
-      leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
+      leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
     }, opts.onReplay ? { teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] } : undefined);
     if (opts.onReplay && engineOut.replay) {
       for (const p of engineOut.replay.players) if (p.isMe) p.name = player.name;
@@ -428,9 +440,9 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     round: roundIdx + 1, opponentId: opp.id, home: fx.home, goalsFor: result.goalsFor, goalsAgainst: result.goalsAgainst,
     minutes: result.minutes, started: result.started, goals: result.goals, assists: result.assists, rating: result.rating, mom: result.mom,
     ...(result.minutes > 0 ? {} : { absent: injured ? 'injured' : suspended ? 'suspended' : 'bench' }),
-    position: player.position, rec: rec ?? null,
+    position: pos, rec: rec ?? null,
   });
-  if (result.minutes > 0) gainProficiency(player, result.minutes);
+  if (result.minutes > 0) gainProficiency(player, result.minutes, pos);
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);

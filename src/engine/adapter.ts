@@ -9,6 +9,7 @@ import type { FieldAttributes } from '../attributes';
 import { proficiencyPenalty } from '../proficiency';
 import { ENGINE } from './config';
 import { teamSetupFromRoster } from './setup';
+import { engineTactics, slotPos, teamRoles, type MyTactics } from '../myTactics';
 import { buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
@@ -46,6 +47,11 @@ export interface EngineMatchInput {
   bigMatch?: boolean;
   /** 리그 평균 레이팅 (데이터가 없는 팀의 style, E.18 A5) */
   leagueAvg?: number;
+  /**
+   * 내 팀 전술 (E.19, E3.6): 성향·세부 전술·포메이션·슬롯 역할, 내 선수는 고른 슬롯에 선발. 없으면 팀 데이터 전술과
+   * 같은 포지션군 중 가장 약한 자리 (이전 동작, 측정 스크립트용)
+   */
+  myTactics?: MyTactics;
 }
 
 /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
@@ -72,15 +78,26 @@ export function proficientAttrs(attrs: FieldAttributes, proficiency = 100): Fiel
 }
 
 export function buildMyMatch(m: EngineMatchInput) {
-  const mySetup = teamSetupFromRoster(m.myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
+  const t = m.myTactics;
+  const myRoster = t ? { ...m.myRoster, formation: t.formation } : m.myRoster;
+  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
   const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
   const meSpec: PlayerSpec = {
-    id: MY_ID, name: '나', slot: -1, position: m.me.position, attrs: proficientAttrs(m.me.attributes, m.me.proficiency),
+    id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: proficientAttrs(m.me.attributes, m.me.proficiency),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,
   };
+  if (t) {
+    // 사용자 전술 (E.19): 성향·세부 전술 3단계 값, 슬롯 역할은 직접 고른 것 또는 성향 추천
+    mySetup.tactics = engineTactics(t);
+    const bySlot = new Map(mySetup.lineup.map((p) => [p.slot, p]));
+    const roles = teamRoles(t, Array.from({ length: 11 }, (_, i) => (i === t.mySlot && m.plan.started ? meSpec.attrs : bySlot.get(i)?.gk ? undefined : bySlot.get(i)?.attrs)));
+    for (const p of mySetup.lineup) p.role = roles[p.slot];
+    meSpec.role = roles[t.mySlot];
+  }
   if (m.plan.minutes) {
     if (m.plan.started) {
-      const i = mySlot(mySetup, m.me.position);
+      const k = t ? mySetup.lineup.findIndex((p) => p.slot === t.mySlot) : -1;
+      const i = k >= 0 ? k : mySlot(mySetup, m.me.position);
       meSpec.slot = mySetup.lineup[i]!.slot;
       mySetup.lineup[i] = meSpec;
     } else {

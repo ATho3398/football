@@ -3,6 +3,7 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../src/attributes';
 import { ENGINE } from '../../src/engine/config';
+import { TENDENCY } from '../../src/engine/tactics';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
@@ -117,8 +118,10 @@ function applyOverrides(o: Record<string, number> | undefined): () => void {
   if (!o) return () => {};
   const undo: (() => void)[] = [];
   for (const [path, v] of Object.entries(o)) {
-    const keys = path.split('.');
-    let obj = ENGINE as unknown as Record<string, unknown>;
+    // 'tendency.' 로 시작하면 성향 고유 행동 상수 (E.19 ①, 측정용 C.32)
+    const tend = path.startsWith('tendency.');
+    const keys = (tend ? path.slice('tendency.'.length) : path).split('.');
+    let obj = (tend ? TENDENCY : ENGINE) as unknown as Record<string, unknown>;
     for (const k of keys.slice(0, -1)) {
       obj = obj[k] as Record<string, unknown>;
       if (!obj) throw new Error(`상수 경로 없음: ${path}`);

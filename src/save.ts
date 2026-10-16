@@ -9,6 +9,7 @@ import { realPeakTarget } from './growth';
 import { emptyRecord } from './matchRecord';
 import { positionOvr } from './positions';
 import { initialProficiency } from './proficiency';
+import { migratedTactics, validTactics } from './myTactics';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -113,6 +114,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.player.season.rec = emptyRecord();
     s.player.season.recApps = 0;
   },
+  // 11 → 12 (부록 C.32, E.19 저장): 내 팀 전술. 로스터를 다시 만든 뒤 "균형 + 팀 데이터 포메이션 + 주 포지션 슬롯"으로 채운다 (migrate 끝)
+  11: (s) => {
+    s.tactics = null;
+  },
 };
 
 export function migrate(raw: any): GameState {
@@ -128,6 +133,7 @@ export function migrate(raw: any): GameState {
   }
   const state = raw as GameState;
   state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs);
+  if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);
   return state;
 }
 
