@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 11;
+export const ENGINE_VERSION = 12;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -318,6 +318,8 @@ export const ENGINE = {
      * 안전한 백패스, 무리한 슛)만 고를 수 있다. 엉뚱한 선택(먼 옆 패스 등)은 후보에서 뺀다
      */
     plausibleGap: 0.015,
+    /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
+    mistakeShotGap: 2,
     /**
      * 시야 제한 (E.22 C): 몸 방향(움직이는 방향, 등지고 받았으면 자기 골 쪽, 서 있으면 공격 방향)에서 visionCone + visionConeSlope × (시야 − 50) 도
      * 밖이거나 옆으로 switchDist m 넘게 가는 패스(반대편 전환)는 scanBase + scanSlope × (시야 − 50)/50 확률로만 보인다.
@@ -650,18 +652,18 @@ export const ENGINE = {
     max: 10,
     /**
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
-     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts. C.28: 엔진 11 로 다시 쟀다),
+     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts. C.28: 엔진 11 로 다시 쟀다. C.29: 엔진 12 로 다시 쟀다),
      * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
-    center: { GK: 1.14, CB: 1.32, FB: 1.04, CDM: 1.95, CM: 2.28, CAM: 1.76, WING: 1.34, ST: 2.14 } as Record<string, number>,
+    center: { GK: 1.08, CB: 1.23, FB: 1.0, CDM: 1.89, CM: 2.19, CAM: 1.73, WING: 1.34, ST: 1.98 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95) */
-    saveBase: 1.77,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75 */
+    saveBase: 1.75,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -719,15 +721,15 @@ export const ENGINE = {
 
   // ── 심판, 수적 열세 (E.10) ──
   referee: {
-    /** 태클 실패(돌파 허용 포함) 시 파울 확률 */
-    tackleFoul: 0.2,
+    /** 태클 실패(돌파 허용 포함) 시 파울 확률. C.29 (진단 12 B4): 0.2 → 0.3 (실제 파울의 약 45%가 태클·도전) */
+    tackleFoul: 0.3,
     /** 공중볼 경합 파울 확률 */
     aerialFoul: 0.05,
-    /** 압박 몸싸움 파울: 소유자 1 m 안 수비수마다 틱당 확률 */
-    contactFoulRate: 0.005,
+    /** 압박 몸싸움 파울: 소유자 1 m 안 수비수마다 틱당 확률. C.29: 0.005 → 0.0065 */
+    contactFoulRate: 0.0065,
     contactDist: 1.0,
-    /** 수비수가 자기 박스 안에서는 파울을 조심한다 (파울 확률 배율). E.22 B: 0.004 → 0.06 (PK 팀당 경기당 약 0.13, 세트피스 골 비중) */
-    boxFoulFactor: 0.06,
+    /** 수비수가 자기 박스 안에서는 파울을 조심한다 (파울 확률 배율). E.22 B: 0.004 → 0.06 (PK 팀당 경기당 약 0.13, 세트피스 골 비중). C.29: 0.04 (파울 상수를 올려도 PK 유지) */
+    boxFoulFactor: 0.04,
     /** 경고를 받은 선수의 파울 확률 배율, 두 번째 경고를 실제로 줄 확률 */
     bookedCare: 0.5,
     secondYellow: 0.5,
