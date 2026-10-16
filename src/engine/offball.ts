@@ -826,7 +826,7 @@ function coverSpots(s: SimState, a: Agent, dir: 1 | -1, rest: Agent[]): boolean 
 const markCache = new WeakMap<SimState, { tick: number; plan: Map<Agent, Agent> | null }[]>();
 
 /**
- * 깊은 라인 맨마크 배정 (C.32 fix 가설 2): 수비 라인이 자기 골 manMarkLine m 안이거나 성향이 블록이면,
+ * 깊은 라인 맨마크 배정 (C.32 fix 가설 2): 전술 수비 라인 높이가 자기 골 manMarkLine m 안(라인 낮음)이거나 성향이 블록이면,
  * 박스(경계 manMarkPad m 포함) 안 상대 필드 선수(소유자 제외)를 수비 주의 집중 대상부터 골에 가까운 순으로,
  * 압박 2명을 뺀 수비수 중 가장 가까운 선수가 1명씩 맡는다. 수비수가 모자라면 가장 가까운 미드필더 1명만 더 내려온다.
  * 같은 틱에 팀의 모든 선수가 같은 배정을 본다. 조건이 아니면 null
@@ -838,10 +838,10 @@ function manMarkPlan(s: SimState, team: 0 | 1, dir: 1 | -1): Map<Agent, Agent> |
   if (c.tick === s.tick) return c.plan;
   c.tick = s.tick;
   c.plan = null;
+  // 라인은 전술 설정 높이(공 따라 물러나기 전)로 본다: 공이 박스 앞이면 어느 팀이든 라인이 20 m 안으로 들어오기 때문
   const block = s.teams[team].tactics.tendency === 'block';
-  let lineX = defensiveLine(s, team);
-  if (block) lineX = Math.min(lineX, TENDENCY.blockLineMax / L);
-  if (!block && lineX * L > O.manMarkLine) return null;
+  const setLine = F.lineBase + (effectiveTactics(s, team).lineHeight - 0.5) * F.lineRange;
+  if (!block && setLine * L > O.manMarkLine) return null;
   const b = s.ball;
   const [gx, gy] = ownGoal(dir);
   const pad = O.manMarkPad;
