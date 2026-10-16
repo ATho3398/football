@@ -204,7 +204,7 @@ export const TENDENCY = {
   directSecond: [10, 15] as [number, number],
   /** 수비 블록: 수비-중원 간격 상한 (m), 수비 라인 상한 (박스 경계, m) */
   blockGap: 12,
-  blockLineMax: 16.5,
+  blockLineMax: 20,
 };
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */

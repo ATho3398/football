@@ -79,9 +79,9 @@ function nearestOutfield(s: SimState, a: Agent, x: number, y: number): [Agent | 
   return [best, bd];
 }
 
-/** 압박 0~1 (가장 가까운 수비수 거리 기준, E.8) */
+/** 압박 0~1 (가장 가까운 상대 필드 선수 거리 기준, E.8). GK 는 압박원이 아니다 — 1대1에서 GK 몫은 선방 식에 있다 (C.32 fix) */
 export function pressureAt(s: SimState, a: Agent, x = a.x, y = a.y): number {
-  const [, d] = nearestOpponent(s, a, x, y);
+  const [, d] = nearestOutfield(s, a, x, y);
   return Math.max(0, 1 - d / PR.pressureDist);
 }
 
@@ -143,11 +143,11 @@ export function lossCost(nx: number, ny: number): number {
   return -positionValue(1 - nx, 1 - ny) * (1 + O.lossOwnHalf * clamp((0.5 - nx) / 0.5, 0, 1));
 }
 
-/** 유지하는 동안 빼앗길 확률: 3 m 안 상대마다 holdLose × (1 − 거리/3) 를 독립으로 합성 (압박 수비수 수와 거리) */
+/** 유지하는 동안 빼앗길 확률: 3 m 안 상대 필드 선수(GK 제외, C.32 fix)마다 holdLose × (1 − 거리/3) 를 독립으로 합성 (압박 수비수 수와 거리) */
 export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
   let keep = 1;
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team) continue;
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
     const d = dist(o.x, o.y, x, y);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
   }
@@ -162,7 +162,7 @@ export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
 export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who: Agent = a): number {
   let keep = 1;
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team) continue;
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
     const d = carryReachDist(s, o, a, cx, cy);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
   }

@@ -77,6 +77,8 @@ export interface Agent {
   laneUntil: number;
   /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
   paceCap: number;
+  /** 깊은 라인 맨마크 중 (C.32 fix): 오프더볼 목표를 chaseRefresh 초마다 다시 본다 */
+  markFast: boolean;
 }
 
 export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';

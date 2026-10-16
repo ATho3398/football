@@ -213,6 +213,9 @@ export const ENGINE = {
     stMarkZone: 25,
     /** 상대 ST/CF 가 우리 박스 안에 있으면 공이 자기 골 stMarkZoneBox m 안부터 마크한다 (C.29 fix2 가설 B: fix 브랜치 40 을 박스 안 ST 로 한정) */
     stMarkZoneBox: 40,
+    /** 깊은 라인 맨마크 (C.32 fix 가설 2): 수비 라인이 자기 골 manMarkLine m 안이거나 블록이면, 박스(경계 manMarkPad m 포함) 안 상대를 수비수가 1명씩 맡는다 */
+    manMarkLine: 20,
+    manMarkPad: 3,
     /** 덮는 자리: 니어 / 파 포스트 (골라인에서 m, 골대 중앙에서 y m), 페널티 지점 (m) */
     coverPostDepth: 5,
     coverPostY: 3.5,
