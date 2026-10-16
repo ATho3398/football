@@ -15,6 +15,7 @@ import {
 import { simulateMatch, startProbability, type MatchResult } from './match';
 import { fatigueFromDistance, playMyMatch, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
 import { formBonus, pushRating } from './form';
+import { addRecord, emptyRecord, recordFromStats, type MatchLogEntry, type MatchRecord } from './matchRecord';
 import { healWeek, rollInjury } from './injury';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
@@ -30,7 +31,7 @@ import { PATCH_LABEL } from './version';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 10;
+export const SAVE_FORMAT_VERSION = 11;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -57,6 +58,8 @@ export interface MatchReport {
   cards?: { yellows: number; red: boolean };
   /** 엔진 경기 요약 (빠른 경기면 없음) */
   engine?: EngineSummary;
+  /** 내 선수 경기 기록 (부록 C.30). 엔진 경기에 출전했을 때만 */
+  rec?: MatchRecord;
   /**
    * 부진 연속 감점 (부록 C.25): 이 경기로 잃은 위상과 연속 경기 수, 기준 평점.
    * blocked 는 티어 하한에 막혀 사라진 감점 (부록 C.27). threshold 는 C.27 이전 세이브에는 없다
@@ -128,6 +131,8 @@ export interface GameState {
   lastSeasonSummary?: SeasonSummary;
   /** 단계적 공개와 첫 플레이 안내 상태 (21.3·21.4, 부록 C.23) */
   guide: GuideState;
+  /** 이번 시즌 내 경기 목록 (부록 C.30). 다음 시즌을 시작하면 비운다 */
+  matchLog: MatchLogEntry[];
 }
 
 export type NewGameOptions =
@@ -139,7 +144,7 @@ const rngFor = (seed: string, ...parts: (string | number)[]): Rng => createRng(h
 export function emptySeasonStats(): SeasonStats {
   return {
     apps: 0, starts: 0, minutes: 0, goals: 0, assists: 0, ratingSum: 0, matchXp: 0, moms: 0, injuries: 0, injuredWeeks: 0,
-    yellows: 0, reds: 0, slumpPenalty: 0,
+    yellows: 0, reds: 0, slumpPenalty: 0, rec: emptyRecord(), recApps: 0,
   };
 }
 
@@ -253,6 +258,7 @@ export function newGame(opts: NewGameOptions): GameState {
     roster: { updates: 0 },
     rosters,
     guide: initialGuide(),
+    matchLog: [],
   };
 }
 
@@ -412,6 +418,18 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
       injury = { ...rolled, permanent: { ...rolled.permanent } };
     }
   }
+  // 경기 기록 (부록 C.30): 엔진 경기에 출전했으면 기록을 남기고 시즌 합계에 더한다. 빠른 경기는 기록 없음
+  const rec = my && result.minutes > 0 ? recordFromStats(my) : undefined;
+  if (rec) {
+    s.rec = addRecord(s.rec ?? emptyRecord(), rec);
+    s.recApps = (s.recApps ?? 0) + 1;
+  }
+  state.matchLog.push({
+    round: roundIdx + 1, opponentId: opp.id, home: fx.home, goalsFor: result.goalsFor, goalsAgainst: result.goalsAgainst,
+    minutes: result.minutes, started: result.started, goals: result.goals, assists: result.assists, rating: result.rating, mom: result.mom,
+    ...(result.minutes > 0 ? {} : { absent: injured ? 'injured' : suspended ? 'suspended' : 'bench' }),
+    position: player.position, rec: rec ?? null,
+  });
   if (result.minutes > 0) gainProficiency(player, result.minutes);
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
@@ -431,6 +449,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     ...(suspended ? { suspended } : {}),
     ...(cards ? { cards } : {}),
     ...(engineOut ? { engine: matchSummary(engineOut) } : {}),
+    ...(rec ? { rec } : {}),
     ...(slump ? { slump } : {}),
   };
   state.lastMatch = report;
@@ -666,6 +685,7 @@ export function startNextSeason(state: GameState): void {
   if (state.phase !== 'offseason') throw new Error('비시즌이 아님');
   state.league = nextSeasonLeague(state.league, state.worldSeed, seasonTeamRatings(state));
   state.player.season = emptySeasonStats();
+  state.matchLog = [];
   state.player.fatigue = 0;
   healWeek(state.player, BALANCE.injury.offseasonWeeks);
   state.lastMatch = undefined;

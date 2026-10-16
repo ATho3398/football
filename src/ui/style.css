@@ -291,3 +291,11 @@ h3.grp { margin: 0; font-size: 13px; font-weight: 800; color: var(--ink-muted); 
   .app-replay .match .feed { min-height: 220px; }
   .app-replay .tip { margin-left: auto; margin-right: auto; max-width: 1148px; width: calc(100% - 32px); }
 }
+
+/* 경기 기록 (부록 C.30): 전체 보기, 시즌 경기 목록 */
+.rec-more { margin-top: 8px; }
+.rec-more > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--brand-ink); margin-bottom: 6px; }
+.panel .chips { margin: 6px 0; }
+.mlog { padding: 8px 0; border-top: 1px solid var(--line); }
+.mlog:first-child { border-top: 0; padding-top: 0; }
+.mlog .muted { margin-top: 2px; overflow-wrap: anywhere; }

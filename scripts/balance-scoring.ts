@@ -1,5 +1,5 @@
 // 득점 분포 점검 (C.29, planning-pending 12): 실제 로스터 리그 시즌 10개 이상에서
-//   ① 리그 시즌당 30골 이상 선수 평균 0.5~1명 ② 득점왕 중앙값 25~35골 (개별 40골대 허용)
+//   ① 리그 시즌당 30골 이상 선수 평균 0.5~1명 ② 득점왕 중앙값 25~35골 (개별 40골대 허용) ③ 리그 경기당 팀 득점 1.3~1.5 (C.29 fix, pending 20)
 //   참고: 최다 득점 팀 ≤120, 케인 22~38, 포지션군별 최다 득점자
 // 실행: npm run balance:scoring [-- 시즌 수(기본 10)]   ①② 밖이면 종료 코드 1
 export {};
@@ -19,7 +19,7 @@ for (const row of r.rows) {
   if (!row.section.startsWith('실제 선수 시즌')) continue;
   const ok = row.value >= row.lo && row.value <= row.hi;
   console.log(`${ok ? '✓' : '✗'} ${row.label}: ${row.value.toFixed(row.digits)} (목표 ${row.target})${row.note ? ` — ${row.note}` : ''}`);
-  if ((row.key === 'lgOver30' || row.key === 'lgBootMed') && !ok) fails.push(row.label);
+  if ((row.key === 'lgOver30' || row.key === 'lgBootMed' || row.key === 'lgGoals') && !ok) fails.push(row.label);
 }
 const topGF = r.rows.find((x) => x.key === 'lgTopGF');
 const tops = (topGF?.note ?? '').split(', ').map((t) => Number(t.split(' ')[1]));

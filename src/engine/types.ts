@@ -172,6 +172,19 @@ export interface PlayerStats {
   /** 이 선수를 상대로 한 드리블 돌파 시도 / 성공 */
   dribblesFaced: number;
   dribbledPast: number;
+  // ── 경기 기록 확장 (C.30, E.12·D.22): 집계만, 엔진 판정에는 쓰지 않는다 ──
+  /** 결정적 기회 창출: 판단용 xG ≥ bigChanceXg 인 슈팅으로 이어진 마지막 패스 (키패스의 부분집합) */
+  bigChances: number;
+  /** 침투 패스 시도 / 성공 (패서 쪽) */
+  throughPasses: number;
+  throughCompleted: number;
+  /** 걷어내기 전체 / 위험 지역(자기 박스·박스 앞)에서 */
+  clearances: number;
+  dangerClearances: number;
+  /** 슛 블록 (막은 수비수) */
+  blocks: number;
+  /** GK 선방 */
+  saves: number;
   /** 75분까지 이동 거리 (m) */
   distance75: number;
   /** 교체/퇴장으로 나간 분 (끝까지 뛰면 null) */

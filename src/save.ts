@@ -6,6 +6,7 @@ import { rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
+import { emptyRecord } from './matchRecord';
 import { positionOvr } from './positions';
 import { initialProficiency } from './proficiency';
 
@@ -105,6 +106,12 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   9: (s) => {
     s.player.slumpStreak = 0;
     s.player.season.slumpPenalty = 0;
+  },
+  // 10 → 11 (부록 C.30): 이번 시즌 경기 목록과 경기 기록 합계. 이전 경기 기록은 남아 있지 않으므로 빈 기록에서 시작
+  10: (s) => {
+    s.matchLog = [];
+    s.player.season.rec = emptyRecord();
+    s.player.season.recApps = 0;
   },
 };
 

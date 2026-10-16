@@ -3,7 +3,7 @@
 
 import { esc, FormIndicator, HeroPanel, Meter, OptionRow, SectionTitle, StatBar, TierBadge } from '../components';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
-import { panel } from './common';
+import { panel, seasonMatchesSection } from './common';
 
 export function historyTable(rows: HistoryRowVM[]): string {
   if (!rows.length) return '<p class="muted small">아직 끝난 시즌이 없어요.</p>';
@@ -59,6 +59,7 @@ export function playerView(vm: PlayerVM, extra = ''): string {
       <div class="opts">${vm.badges.map((b) => OptionRow({ icon: b.earned ? 'star' : 'lock', title: b.name, desc: b.earned ? `${b.desc} · ${b.earned}` : b.desc, right: `<b class="po-num small${b.earned ? ' hi' : ' muted'}">${b.earned ? '획득' : esc(b.progress)}</b>`, disabled: !b.earned })).join('')}</div>
       ${SectionTitle({ title: '능력치', action: '★ 핵심 능력치' })}
       ${vm.groups.map((g) => panel(`<h3 class="grp">${esc(g.name)}</h3>${g.rows.map((r) => StatBar({ label: `${r.key ? '★ ' : ''}${r.label}`, value: r.value, highlight: r.key })).join('')}`)).join('')}
+      ${seasonMatchesSection(vm.matches)}
       ${SectionTitle({ title: '시즌별 기록' })}
       ${panel(historyTable(vm.history))}
     </div>`;

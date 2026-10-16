@@ -7,7 +7,7 @@ import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
 import { updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, isOffside } from './referee';
-import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
+import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { landingVelocity } from './physics';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, BallReserve, Flight, SimState } from './state';
@@ -52,7 +52,10 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
         team.stats.longPasses++;
         team.stats.longPSum += c.p;
       }
-      if (c.type === 'through') team.stats.throughPasses++;
+      if (c.type === 'through') {
+        team.stats.throughPasses++;
+        a.stats.throughPasses++;
+      }
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
       const offside = fl.outcome === 'receive' && isOffside(s, a, receiver);
@@ -77,6 +80,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       cross(s, a, c);
       return;
     case 'clear':
+      countClearance(s, a, a.x, a.y);
       longBall(s, a, c.x, c.y, 'clear');
       return;
     case 'carry':
@@ -346,6 +350,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
   if (lp && lp.receiver === a.idx && lp.t >= s.possSince) {
     s.agents[lp.passer]!.stats.keyPasses++;
     team.stats.keyPasses++;
+    if (m.xg >= ENGINE.record.bigChanceXg) s.agents[lp.passer]!.stats.bigChances++;
   }
   if (s.possOrigin === 'open' && s.t - s.possStartT < 10) team.stats.counterShots++;
   if (s.possOrigin === 'goalKick' && s.t - s.possStartT < 15) team.stats.goalKickShots++;
@@ -361,6 +366,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     const blocker = s.agents.filter((o) => o.onPitch && o.team !== a.team && o.line !== 0)
       .sort((x, y) => dist(x.x, x.y, a.x, a.y) - dist(y.x, y.y, a.x, a.y))[0];
     event(s, 'block', a.team, [a.id, blocker?.id ?? '']);
+    if (blocker) blocker.stats.blocks++;
     const defTeam = (1 - a.team) as 0 | 1;
     if (r(s, a.idx, Purpose.Block, 1) < PR.blockCorner) {
       s.teams[a.team].stats.corners++;
@@ -439,6 +445,7 @@ function shotArrives(s: SimState, fl: Flight): void {
   const dir = attackDir(shooter.team, s.half);
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < saveProb(gk, sh.speed, sh.corner, sh.d)) {
     s.teams[defTeam].stats.saves++;
+    if (gk) gk.stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
     if (gk && r(s, shooter.idx, Purpose.Save, 1) < catchProb(gk)) {
       // 캐치 (C.24): GK 는 몸을 날린 자리 그대로, 공이 GK 에게 (멀면 굴러서) 간다
@@ -565,6 +572,12 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   if (def) updateOffball(s, def);
 }
 
+/** 걷어내기 집계 (C.30 기록): 위험 지역(자기 박스·박스 앞)이면 따로 센다 */
+function countClearance(s: SimState, a: Agent, x: number, y: number): void {
+  a.stats.clearances++;
+  if (inOwnDanger(x, y, attackDir(a.team, s.half))) a.stats.dangerClearances++;
+}
+
 export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'clear' | 'long'): void {
   s.exemptPass = false;
   let x = x0;
@@ -666,6 +679,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
   // 수비가 이김: 헤더 걷어내기 (가끔 코너)
   const dirDef = attackDir(def, s.half);
   if (fl.fromCross && r(s, winner.idx, Purpose.Header) < PR.clearCorner) {
+    countClearance(s, winner, b.x, b.y);
     s.teams[att].stats.corners++;
     setRestart(s, 'corner', att, dirAtt > 0 ? L : 0, b.y < W / 2 ? 0 : W, 'auto');
     return;
@@ -674,6 +688,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
     giveBall(s, winner, 'gain');
     return;
   }
+  countClearance(s, winner, b.x, b.y);
   const [lo, hi] = PR.clearDist;
   const len = lo + (hi - lo) * r(s, winner.idx, Purpose.Header, 1);
   // 걷어내기 방향 산포 σ (E.18 A4). 측면 경합이면 바깥쪽 편향
@@ -813,6 +828,7 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       if (fl.through) {
         a.stats.throughReceived++;
         s.teams[a.team].stats.throughReceived++;
+        passer.stats.throughCompleted++;
       }
       s.lastPass = { passer: passer.idx, receiver: a.idx, t: s.t };
       if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
@@ -989,6 +1005,7 @@ export function takePenalty(s: SimState, a: Agent): void {
     t.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     s.teams[def].stats.saves++;
+    if (gk) gk.stats.saves++;
     event(s, 'save', def, [gk?.id ?? '', a.id]);
     const ang = (r(s, a.idx, Purpose.Penalty, 2) - 0.5) * 2;
     bounceAt(s, a, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
