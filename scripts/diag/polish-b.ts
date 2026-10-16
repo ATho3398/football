@@ -43,6 +43,8 @@ interface Side {
   crowd: { n: number; near5: number; boxDef: number; xgByNear: Record<string, { n: number; xg: number; goals: number }> };
   /** 박스 안에서 패스를 받는 순간 가장 가까운 상대 거리 (C.29 진단: 마크 중인 선수에게 패스가 들어가는가) */
   recvBox: { n: number; dsum: number; within15: number; within25: number; stN: number; stWithin15: number; shots3: number; shots3Within15: number };
+  /** 골 직전 점수 차(득점 팀 기준)별 골·슈팅 (C.29 재진단: 크게 앞선 뒤에도 계속 넣는가) */
+  byLead: Record<string, { goals: number; shots: number }>;
   passBins: { n: number; ok: number }[]; saveJudged: number; saveActual: number; saveN: number; gkSs: number[];
   oppHalfWins: number; ints: number; tackleAtt: number; disp: number; counterShots: number; goalKicks: number; corners: number;
 }
@@ -51,7 +53,7 @@ const side = (): Side => ({
   byGroup: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
   dec: 0, decMistake: 0, shootExists: 0, shootBest: 0, shootChosen: 0, shootChosenNotBest: 0, shootChosenGap: [0, 0, 0], shotXgChosen: [], shotXgWhenBest: [], bestTypeWhenShoot: {},
   typeMatch: 0, typeMismatch: 0, pathMine: {}, pathEngine: [0, 0, 0, 0, 0, 0, 0], goalPathEngine: [0, 0, 0, 0, 0, 0, 0], stShotsFromReceiveSec: [], stShotDist: [],
-  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, xgByNear: {} }, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
+  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, xgByNear: {} }, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
 });
 const PBINS = [0, 10, 20, 30, 40, 50];
 const pbin = (d: number) => { let b = 0; while (b + 1 < PBINS.length && d >= PBINS[b + 1]!) b++; return b; };
@@ -159,7 +161,9 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
     }
     for (const e of newEv) {
       const S = out[e.team]!;
+      const leadKey = (team: 0 | 1, goalEvent: boolean) => { const g = s.teams[team].stats.goals - (goalEvent ? 1 : 0); const o = s.teams[1 - team]!.stats.goals; const m = g - o; return m <= -1 ? '뒤짐' : m === 0 ? '동점' : m === 1 ? '+1' : m === 2 ? '+2' : '+3이상'; };
       if (e.type === 'shot') {
+        { const lk = leadKey(e.team, false); (S.byLead[lk] ??= { goals: 0, shots: 0 }).shots++; }
         const a = s.agents.find((x) => x.id === e.players[0])!;
         const xg = Number(e.params?.xg ?? 0);
         const d = Number(e.params?.d ?? 0);
@@ -195,6 +199,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         }
         if (g?.detail === 'through' && s.t - g.t < 3) S.thrShot3++;
       } else if (e.type === 'goal') {
+        { const lk = leadKey(e.team, true); (S.byLead[lk] ??= { goals: 0, shots: 0 }).goals++; }
         const a = s.agents.find((x) => x.id === e.players[0])!;
         S.goals++;
         (S.byGroup[group(a.pos)] ??= { shots: 0, goals: 0, xg: 0 }).goals++;
@@ -262,6 +267,7 @@ function report(label: string, out: [Side, Side]): void {
     console.log(`  ST 얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGotST).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  슛 순간 수비 밀집: 슈터 5 m 안 상대 평균 ${(S.crowd.near5 / Math.max(1, S.crowd.n)).toFixed(2)}명, 박스 안 상대 평균 ${(S.crowd.boxDef / Math.max(1, S.crowd.n)).toFixed(2)}명 · 5 m 안 상대 수별 슛(xG/실제 골률): ${Object.entries(S.crowd.xgByNear).sort().map(([k, v]) => `${k}명 ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`).join(' · ')}`);
     console.log(`  박스 안 패스 수신 ${q(S.recvBox.n)}/경기: 받는 순간 가장 가까운 상대 평균 ${(S.recvBox.dsum / Math.max(1, S.recvBox.n)).toFixed(2)} m, 1.5 m 안 ${(100 * S.recvBox.within15 / Math.max(1, S.recvBox.n)).toFixed(0)}%, 2.5 m 안 ${(100 * S.recvBox.within25 / Math.max(1, S.recvBox.n)).toFixed(0)}% · ST 수신 ${q(S.recvBox.stN)} (1.5 m 안 ${(100 * S.recvBox.stWithin15 / Math.max(1, S.recvBox.stN)).toFixed(0)}%) · 받고 3초 안 슛 ${q(S.recvBox.shots3)} (그중 1.5 m 안에서 받은 것 ${(100 * S.recvBox.shots3Within15 / Math.max(1, S.recvBox.shots3)).toFixed(0)}%)`);
+    console.log(`  점수 차별 골/슈팅(경기당): ${['뒤짐', '동점', '+1', '+2', '+3이상'].map((k) => { const v = S.byLead[k] ?? { goals: 0, shots: 0 }; return `${k} ${q(v.goals)}/${q(v.shots)}`; }).join(' · ')}`);
     console.log(`  패스 거리별 시도/성공률: ${S.passBins.map((p, k) => `${PBINS[k]}m~ ${q(p.n)} (${(100 * p.ok / Math.max(1, p.n)).toFixed(0)}%)`).join(' · ')}`);
     console.log(`  유효 슈팅 선방 확률: 판단용(리그 GK, 구석 0.5) ${(100 * S.saveJudged / Math.max(1, S.saveN)).toFixed(1)}% 대 실제(상대 GK, 실제 구석·속도) ${(100 * S.saveActual / Math.max(1, S.saveN)).toFixed(1)}% (n ${S.saveN}), 상대 GK 선방 능력치(곡선 후) 평균 ${mean(S.gkSs).toFixed(1)}`);
     if (S.stShotDist.length) console.log(`  ST 슈팅 ${q(S.stShotDist.length)}/경기: 골까지 평균 ${mean(S.stShotDist).toFixed(1)} m, 공 얻고 슛까지 평균 ${mean(S.stShotsFromReceiveSec).toFixed(1)}초, 2초 안 ${(100 * S.stShotsFromReceiveSec.filter((x) => x < 2).length / S.stShotsFromReceiveSec.length).toFixed(0)}%`);
