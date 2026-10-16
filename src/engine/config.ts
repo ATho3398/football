@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 13;
+export const ENGINE_VERSION = 14;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -76,6 +76,8 @@ export const ENGINE = {
     groundDecel: 1.2,
     /** 공중볼이 땅에 떨어진 뒤 남는 수평 속도 비율 */
     airBounce: 0.3,
+    /** 땅볼 루즈 비행 착지 뒤 최소 속도 (m/s, C.31: 4 → 2 — 느린 빗나간 패스가 착지에서 다시 가속하지 않게) */
+    landFloor: 2,
     passSpeedBase: 8,
     passSpeedPerM: 0.55,
     passSpeedMin: 10,
@@ -424,8 +426,9 @@ export const ENGINE = {
     curveTopRatio: 0.5,
     /** 능력치 식의 중심 (리그 평균 선수, E.20): 계수(기울기)를 바꿔도 평균 선수의 확률은 그대로 */
     skillCenter: 70,
-    passBase: 1.35,
-    passPerM: 0.0055,
+    /** C.31: 1.35/0.0055 → 1.36/0.010 (25 m 까지 거리가 성공률에 실제로 들어가게, 진단 12 B4) */
+    passBase: 1.36,
+    passPerM: 0.010,
     /**
      * 패스 능력치 (E.20 5번): 실패 확률 × exp(−passSkill × (능력치 − skillCenter) / 10). 더하는 식은 쉬운 패스가 상한에 붙어
      * 능력치가 성공률을 바꾸지 못했다. 곱하는 식은 쉬운 패스·어려운 패스 모두에서 능력치가 실패를 같은 비율로 줄인다 (평균 선수는 그대로)
@@ -447,7 +450,13 @@ export const ENGINE = {
     skillBlendFrom: 25,
     skillBlendTo: 45,
     /** 25 m 너머 m당 감쇠 (롱패스 정확도, E3.5 B) */
-    longPerM: 0.04,
+    longPerM: 0.055,
+    /**
+     * C.31: longFarFrom m 너머는 longFarPerM 으로 완만하게 (실제 40~50 m 성공률 40~50%: 긴 패스는 이미 공중볼이라 거리보다 경합이 정한다).
+     * longFarFrom 을 크게 두면 예전 곡선과 같다
+     */
+    longFarFrom: 32,
+    longFarPerM: 0.015,
     laneWidth: 1.8,
     laneBase: 0.25,
     laneIntercept: 0.15,
@@ -497,7 +506,8 @@ export const ENGINE = {
     finishMax: 1.25,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
-    shotBase: 0.71,
+    /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②) */
+    shotBase: 0.665,
     shotPerM: 0.015,
     shotPressure: 0.15,
     shotMin: 0.05,
@@ -670,18 +680,18 @@ export const ENGINE = {
     max: 10,
     /**
      * 포지션별 정규화 (E.12): 평점 = 6.5 + scale × (행동 델타 합 + 결과 − center[포지션군]).
-     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts. C.28: 엔진 11 로 다시 쟀다. C.29: 엔진 12 로 다시 쟀다),
+     * center 는 포지션군의 평균 델타 합 (C.26: 엔진 9 평점 표본 600경기 선발 45분 이상으로 재측정, scripts/diag/rating-parts.ts. C.28: 엔진 11 로 다시 쟀다. C.29: 엔진 12 로 다시 쟀다. C.31: 엔진 14 패스 곡선 뒤 다시 쟀다),
      * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
-    center: { GK: 1.08, CB: 1.23, FB: 1.0, CDM: 1.89, CM: 2.19, CAM: 1.73, WING: 1.34, ST: 1.98 } as Record<string, number>,
+    center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.51, WING: 1.18, ST: 1.68 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75 */
-    saveBase: 1.75,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%) */
+    saveBase: 1.70,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,

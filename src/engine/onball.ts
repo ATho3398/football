@@ -114,8 +114,14 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   const skill = kind === 'cross' ? a.attrs.crossing : a.attrs.shortPassing * (1 - wLong) + a.attrs.longPassing * wLong;
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
-  const p = PR.passBase - PR.passPerM * Math.min(d, PR.shortPassMax) - PR.longPerM * Math.max(0, d - PR.shortPassMax) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a);
+  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a);
   return passSkillApply(p, skill);
+}
+
+/** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
+export function passDistBase(d: number): number {
+  const long = Math.max(0, Math.min(d, PR.longFarFrom) - PR.shortPassMax);
+  return PR.passBase - PR.passPerM * Math.min(d, PR.shortPassMax) - PR.longPerM * long - PR.longFarPerM * Math.max(0, d - PR.longFarFrom);
 }
 
 /** 패스 능력치 반영: 실패 확률을 능력치로 줄이거나 늘린다 (평균 선수 skillCenter 는 그대로) */
@@ -672,7 +678,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const fl: Flight = {
     kind: air ? 'long' : 'pass', fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',
-    quick: c.type === 'cutback' || c.type === 'layoff',
+    quick: c.type === 'cutback' || c.type === 'layoff', aimD: d,
   };
   if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p)) return fl;
 

@@ -99,6 +99,8 @@ export interface Flight {
   interceptor: number;
   /** 침투 패스 (측정용) */
   through?: boolean;
+  /** 노린 패스 거리 m (측정용, C.31) */
+  aimD?: number;
   /** 컷백/레이오프: 받는 선수가 반응 시간만에 다음 결정 (원터치, E.18 A2) */
   quick?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */

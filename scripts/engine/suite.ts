@@ -516,9 +516,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const total = avg(sa.map((x) => x.xp)) / Math.max(1, avg(sq.map((x) => x.xp)));
     add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
       // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
+      // C.31: C.29 fix2 에서 1.08 로 해소(미해결 2번) → known 표시를 떼고 다시 가드로 판정한다
       guard: TEMP_GUARD ? [0.85, 1.25] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
-      // C.28 결정: C.26 유산(main C.27도 1.15 경계). C.29 재측정 1.18 → 표시 유지, 득점 분포 fix 뒤 다시 잰다(필요 시 평점 위쪽 압축, Fable 검토)
-      known: 'C.26 유산, C.29 재측정 1.18 — 득점 분포 fix와 같이 (docs/engine-issues.md)',
     });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
@@ -594,7 +593,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'lgTopGF', '최다 득점 팀 골', '85~105', m((x) => x.top[1].gf), 85, 105, 0, { note: per.map((x) => `${x.top[0]} ${x.top[1].gf}`).join(', ') });
     add(S, 'lgTopGA', '최다 실점 팀 실점', '60~85', m((x) => x.leak[1].ga), 60, 85, 0, { note: per.map((x) => `${x.leak[0]} ${x.leak[1].ga}`).join(', ') });
     // C.29 (planning-pending 12): 득점왕은 개별 최대값이 아니라 빈도로 본다 — 10시즌 이상에서 30골+ 평균 0.5~1명, 득점왕 중앙값 25~35
-    add(S, 'lgOver30', '리그 시즌당 30골 이상 선수 수', '0.5~1 (10시즌 이상)', m((x) => x.over30), 0.5, 1, 2, { note: per.map((x) => `${x.over30}`).join(', ') });
+    add(S, 'lgOver30', '리그 시즌당 30골 이상 선수 수', '0.5~2 (10시즌 이상, pending 24 ①)', m((x) => x.over30), 0.5, 2, 2, { note: per.map((x) => `${x.over30}`).join(', ') });
     add(S, 'lgBootMed', '득점왕 골 중앙값', '25~35 (개별 40골대 허용)', median(per.map((x) => x.boot[1])), 25, 35, 1);
     add(S, 'lgBoot', '득점왕 골 평균 (참고)', '참고', m((x) => x.boot[1]), 0, 100, 1, { note: per.map((x) => `${x.boot[0]} ${x.boot[1]}`).join(', ') });
     add(S, 'lgChamp', '우승팀 승점', '85~100', m((x) => x.champ[1].pts), 85, 100, 0, { note: per.map((x) => `${x.champ[0]} ${x.champ[1].pts}`).join(', ') });

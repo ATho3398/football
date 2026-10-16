@@ -8,6 +8,7 @@ import { createMatch } from '../../src/engine/sim';
 import { teamSetupFromRoster } from '../../src/engine/setup';
 import { keeperOf } from '../../src/engine/keeper';
 import { ballPathAt } from '../../src/engine/offball';
+import { landingVelocity } from '../../src/engine/physics';
 import { attackDir, dist, L, W } from '../../src/engine/pitch';
 import type { SimState } from '../../src/engine/state';
 import { createTeamRoster, rosterRating } from '../../src/roster';
@@ -53,6 +54,9 @@ const kick: { wait: number; settle: number; settleAll: number }[] = [];
 // GK 루즈볼 에피소드
 type Ep = { kind: string; team: 0 | 1; sweeper: boolean; gkLead: number; t0: number; gkMoved: number; outcome: string; reachable: boolean; reachOld: boolean; ballSp: number; gkEta: number; outEta: number };
 const eps: Ep[] = [];
+// C.31: 루즈 비행(빗나간 패스·클리어 등) 착지 속도 — passSpeedMax 초과 횟수
+const seenLoose = new WeakSet<object>();
+const landing = { n: 0, over: 0, max: 0, sum: 0 };
 
 function inBoxOf(s: SimState, team: 0 | 1, x: number, y: number): boolean {
   const dir = attackDir(team, s.half);
@@ -170,6 +174,15 @@ for (let i = 0; i < N; i++) {
     }
     // GK 루즈볼: 공 주인 없음, 비행 아님(또는 루즈 비행), 재개 아님, 어느 팀 박스 안
     const b = s.ball;
+    if (b.flight && b.flight.outcome === 'loose' && !seenLoose.has(b.flight)) {
+      seenLoose.add(b.flight);
+      const [lvx, lvy] = landingVelocity(b.flight);
+      const lv = Math.hypot(lvx, lvy);
+      landing.n++;
+      landing.sum += lv;
+      landing.max = Math.max(landing.max, lv);
+      if (lv > ENGINE.ball.passSpeedMax) landing.over++;
+    }
     const loose = b.owner < 0 && !s.restart && (!b.flight || b.flight.outcome === 'loose'); // 구르는 공 + 루즈 비행(빗나간 패스·클리어)
     if (cur) {
       // 에피소드 종료 판정
@@ -283,6 +296,7 @@ console.log(`  (예전 정의: 착지점·출발 위치 기준) ${reachOld.lengt
 const reach = eps.filter((e) => e.reachable);
 console.log(`  GK 가 라인 아웃 전에 닿을 수 있는 경우(공 경로 예측, 반응 0.5초 + 7 m/s): ${reach.length} (${((100 * reach.length) / eps.length).toFixed(0)}%), 그중 결과: ${Object.entries(reach.reduce((r, e) => ((r[e.outcome] = (r[e.outcome] ?? 0) + 1), r), {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ')}`);
 console.log(`  시작 시 공 속도 평균 ${mean(eps.map((e) => e.ballSp)).toFixed(1)} m/s, GK 도착 평균 ${mean(eps.map((e) => e.gkEta)).toFixed(1)}초, 아웃까지 평균(유한만) ${mean(eps.map((e) => e.outEta).filter((x) => Number.isFinite(x))).toFixed(1)}초, 멈추는 공(아웃 안 됨) ${eps.filter((e) => !Number.isFinite(e.outEta)).length}`);
+console.log(`\n== C.31 루즈 비행 착지 속도: ${landing.n}회 (경기당 ${(landing.n / N).toFixed(1)}), 평균 ${(landing.sum / Math.max(1, landing.n)).toFixed(1)} m/s, 최대 ${landing.max.toFixed(1)} m/s, ${ENGINE.ball.passSpeedMax} m/s 초과 ${landing.over}회 ==`);
 console.log(`\n== C.28 GK 추격 ==`);
 console.log(`  추격 ${chase.n}회 (경기당 ${(chase.n / N).toFixed(1)}), GK 가 공을 얻음 ${chase.gk} (${((100 * chase.gk) / Math.max(1, chase.n)).toFixed(0)}%), 박스 밖 추격 ${chase.outBox}, 추격 중·실패 10초 안 실점 ${chase.conceded} (경기당 ${(chase.conceded / N).toFixed(2)})`);
 for (const [k, v] of Object.entries(thru)) console.log(`  침투 패스 (상대 GK ${k}): 시도 ${v.tries}, 수신 ${recvBy[k]} (경기당 ${(recvBy[k]! / N).toFixed(2)}), GK 가 끊음 ${v.gkCut} (${((100 * v.gkCut) / Math.max(1, v.tries)).toFixed(0)}%)`);

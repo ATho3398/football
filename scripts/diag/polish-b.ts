@@ -17,7 +17,16 @@ import { rebuildRosters } from '../../src/game';
 import { createTeamRoster, pickLineup, rosterRating, teamRatings } from '../../src/roster';
 import { BALANCED } from '../engine/job';
 
-const args = process.argv.slice(2).filter((a) => a !== '--');
+// 경로=값 인자는 엔진 상수를 덮어쓴다 (C.31, 예: prob.passBase=1.35)
+const allArgs = process.argv.slice(2).filter((a) => a !== '--');
+for (const a of allArgs.filter((x) => x.includes('='))) {
+  const [k, v] = a.split('=') as [string, string];
+  const path = k.split('.');
+  let o = ENGINE as unknown as Record<string, unknown>;
+  for (const key of path.slice(0, -1)) o = o[key] as Record<string, unknown>;
+  o[path[path.length - 1]!] = Number(v);
+}
+const args = allArgs.filter((x) => !x.includes('='));
 const MODE = args[0] ?? 'gap';
 const N = Number(args[1] ?? 40);
 
