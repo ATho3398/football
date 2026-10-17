@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>시즌상세-성장·위상</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 시즌상세-성장·위상 (요청 5 · 시즌 종료 · 상세) · 390×844 · 원본 R5-SeasonDetail-Growth.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="시즌 상세" compact="{{yes}}" eyebrow="2018-19 시즌 · 토트넘 홋스퍼 · 1위" value="{{g15}}" chips="{{dchips}}"></x-import><div style="padding: 10px 16px 0;"><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" cols="{{three}}" items="{{dtabs}}" value="g" label="시즌 상세"></x-import></div><div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px;"><section style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-1);"><div style="display: flex; justify-content: space-between;"><b style="font-size: 13px;">업적 XP</b><b style="font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--brand-ink);">+550</b></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>리그 1위</span><b style="font-family: var(--font-display); font-weight: 700;">+300</b></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>시즌 평균 평점 7.5 이상</span><b style="font-family: var(--font-display); font-weight: 700;">+150</b></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>팀 공격 기여 (팀 득점 95 중 28 관여)</span><b style="font-family: var(--font-display); font-weight: 700;">+100</b></div><span style="font-size: 11px; color: var(--ink-faint);">난이도를 반영했어요 · 레벨 업 2회</span></section><section style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-1);"><div style="display: flex; justify-content: space-between;"><b style="font-size: 13px;">능력치 변화</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">OVR 83 → 83 · 1칸 = 내부 5</span></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>자동 성장 <span style="font-size: 11px; color: var(--ink-muted);">17~21세</span></span><span style="color: var(--ink-muted);">변화 없음</span></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>노련함 <span style="font-size: 11px; color: var(--ink-muted);">경험으로 오르는 능력치</span></span><span style="color: var(--ink-muted);">변화 없음</span></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span>노화 <span style="font-size: 11px; color: var(--ink-muted);">30세부터</span></span><span style="color: var(--ink-muted);">변화 없음</span></div></section><section style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface-1);"><div style="display: flex; justify-content: space-between; align-items: center;"><b style="font-size: 13px;">위상 진행도</b><x-import component-from-global-scope="PlayerOne.TierBadge" tier="top" score="{{t624}}" size="sm"></x-import></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--ink-muted);">시즌 시작</span><b>500 → 624점</b></div><div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--ink-muted);">레드카드 감점 (퇴장 1회)</span><b style="color: var(--fail);">−6</b></div><x-import component-from-global-scope="PlayerOne.Meter" label="월드클래스까지 276점" value="{{v74}}" max="{{v350}}" show-value="{{yes}}" tone="brand"></x-import></section></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="season" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { player: 35 }, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i32: 32, t624: 624, schips: ['34경기 출전', '나이 26 → 27세', { label: '승점 94', soft: true }], dtabs: [{ id: 'm', label: '경기별' }, { id: 'mo', label: '월별' }, { id: 'p', label: '포지션별' }, { id: 'a', label: '리그 시상' }, { id: 'x', label: '이적 소식' }, { id: 'g', label: '성장·위상' }], three: 3, g15: '15골', dchips: ['13도움', '평점 7.50', { label: '9 MOM', soft: true }], v74: 74, v350: 350 };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

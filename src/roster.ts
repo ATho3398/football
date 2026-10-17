@@ -17,6 +17,7 @@ import type { Position, Tier } from './types';
 import { TEAM_TACTICS } from './engine/teamData';
 import { realBody, rollBody, type Body } from './body';
 import { fixHomegrown, normalizeSquad } from './squad';
+import { LEGEND_BY_ID, type LegendSpawn } from './legends';
 
 export type PosGroup = 'GK' | 'CB' | 'FB' | 'CDM' | 'CM' | 'CAM' | 'WING' | 'ST';
 export const POS_GROUPS: readonly PosGroup[] = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
@@ -75,6 +76,10 @@ export interface RosterPlayer {
   joined: number;
   /** 자국 육성 자동 조정 표시 (부록 C.46): 비자국 육성 상한을 넘을 때 생성기·시즌 갱신이 붙인다 (어릴 때 잉글랜드 구단에서 큰 선수) */
   hg?: boolean;
+  /** 레전드 팩 선수 (부록 C.47): 가상 선수 성장 곡선을 쓰지만 능력치 상한·인원 정리 방출에서 빠진다 */
+  legend?: true;
+  /** 레전드 유스 구단 = 처음 소속 팀 (C.47, 커리어 태그 판정) */
+  youth?: string;
 }
 
 export interface TeamRoster {
@@ -211,7 +216,7 @@ export function realAttrMax(reals: RosterPlayer[], rating: number, floor: number
  * GK 는 GK 능력치끼리 본다 (실제 GK 데이터가 없어 팀 상한은 필드 능력치에만). 깎인 만큼 다른 능력치로 옮기지 않는다
  */
 export function capVirtualAttributes(p: RosterPlayer, teamMax?: AttrCap): void {
-  if (p.real) return;
+  if (p.real || p.legend) return;
   // 깎으면 OVR 이 내려가 상한도 내려가므로 더 깎을 것이 없을 때까지 반복한다 (단조 감소라 금방 멈춘다)
   for (let changed = true, k = 0; changed && k < 20; k++) {
     changed = false;
@@ -404,6 +409,15 @@ export function assignShirts(roster: TeamRoster, reserved: ReadonlySet<number> =
   const need: RosterPlayer[] = [];
   for (const p of roster.players) {
     const own = p.real ? REAL_SHIRT.get(p.id) : undefined;
+    if (own !== undefined && !taken.has(own)) {
+      p.shirt = own;
+      taken.add(own);
+    } else if (!p.legend) need.push(p);
+  }
+  // 레전드 (C.47): 실제 선수 다음으로 자기 번호
+  for (const p of roster.players) {
+    if (!p.legend) continue;
+    const own = LEGEND_BY_ID.get(p.id)?.shirt;
     if (own !== undefined && !taken.has(own)) {
       p.shirt = own;
       taken.add(own);
@@ -619,12 +633,23 @@ function fitRating(roster: TeamRoster, target: number, rng: Rng, cap = Infinity,
   }
 }
 
-/** 리그 전체 로스터. reals 는 내 선수를 뺀 실제 A등급 NPC (리그 밖 클럽 선수는 무시) */
-export function createRosters(worldSeed: string, season: number, teams: TeamTarget[], npcs: NpcState[]): Rosters {
+/**
+ * 리그 전체 로스터. reals 는 내 선수를 뺀 실제 A등급 NPC (리그 밖 클럽 선수는 무시).
+ * legends (레전드 팩, C.47): 기본 로스터를 만든 뒤 소속 팀에 더하고 인원 규칙(21세 초과 상한·전체 상한)을 넘으면 가장 낮은 순위 생성 선수를 내보낸다
+ */
+export function createRosters(worldSeed: string, season: number, teams: TeamTarget[], npcs: NpcState[], legends: readonly LegendSpawn[] = []): Rosters {
   const out: Rosters = {};
   for (const t of teams) {
     const reals = npcs.filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === t.id);
     out[t.id] = createTeamRoster(t, worldSeed, season, reals);
+  }
+  for (const t of teams) {
+    const add = legends.filter((l) => l.teamId === t.id);
+    if (!add.length) continue;
+    const r = out[t.id]!;
+    r.players = [...r.players, ...add.map((l) => ({ ...l.player }))];
+    normalizeSquad(r, (pos, j) => makeRookie(t.id, pos, t.rating, worldSeed, season - 1, 200 + j));
+    assignShirts(r);
   }
   return out;
 }

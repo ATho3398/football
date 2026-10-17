@@ -1,17 +1,20 @@
 # UI 세션 인수인계 (`docs/automation.md` 6번)
 
-- 지금 UI 세션: **UI_1** `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`, 섹션 `플레이어 원_UI`, 연 세션 = 마스터 L `session_01EWtWvJrTgC8wWMeELQz664`)
+- **UI_1 종료(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤). 후임 UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F`(브랜치 `claude/ui-2`)** — 6차 누계·카드 그림 추가 묶음 이어받음.
+- 이전 UI 세션: **UI_1** `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`, 섹션 `플레이어 원_UI`, 연 세션 = 마스터 L `session_01EWtWvJrTgC8wWMeELQz664`)
 - **지금 마스터: M** `session_01BTacbWbkVFVE6HVKwxLx3v` (브랜치 `claude/planning-m`, 2026-10-17 20:57 KST L → M 교체). 알림·보고는 M으로.
   - 참고: `docs/planning-pending.md` 58에는 UI_1 ID가 `session_01QuN9pxUgr2T4SN6FKmUmjd`로 적혀 있다. 실제 이 세션 ID는 위 값(`get_session` 확인).
-- 현재 차례: **5** (5차 보고 2026-10-17 완료 → 다음 보고는 6차)
-- 5차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **4개** (+ 작은 변형 5) (그런 화면이 있는 단계: 1개 — C.45)
+- 현재 차례: **5 → 디자인 받음, 다음 보고는 6차**
+- 5차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **4개** (+ 작은 변형 9) (큰 것이 있는 단계: 1개 — C.45, 작은 것만: C.46)
 - 다음 보고 조건: 6개 이상, 또는 그런 단계 3개 이상, 또는 사용자 화면 불만 → 6차(새로 쌓인 것만)
 
 ## 디자인 안 온 보고
 
 | 차례 | 날짜 | 문서 | 캡처 | 기준 빌드 | 상태 |
 |---|---|---|---|---|---|
-| 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | 사용자에게 보고, 디자인 대기 |
+| 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | **디자인 도착 2026-10-18 00:24**(57~123 전부, `docs/design/player-one-design/` 덮어씀) → 적용 명세 `docs/ui-requests/5-apply.md` → 마스터 M |
+
+| 카드 그림 | 2026-10-17 22:40 | `docs/ui-requests/card-art-batch03-apply.md` | `docs/design/incoming/card-art/batch03/`(17장) | — | BATCH 03(13~16 + 엘라스티코) 받음 → 적용 명세 → 마스터 M. 남은 시그니처 15장·BATCH 01·02 대기 |
 
 (1~4차는 디자인이 왔다: `docs/design-change-request*.md` → 디자인 묶음 `docs/design/player-one-design/`, 56장)
 
@@ -22,6 +25,8 @@
 | C.45 (34단계 1차, main 5258ecf, 2026-10-17 20:52 KST 통보) | 큰 것: ① 새 게임 커스텀 생성 화면 전체(배분 포인트 띠·나이/키/몸무게 스테퍼·주발/약발/외모군/도트 머리 칩·국적·장단점·능력치 배분·시작 소속) ② 설정 → 경기 아이콘(선수 인물 14종 격자 / 구단·대표팀 유니폼 홈·원정 32종 격자) ③ 선수 화면 신체·양발·장단점 칸(등번호·키·몸무게·주발·약발, [약발 +1 · 50P], 장단점·유스·스토리 태그) ④ 홈 1군 테스트 띠. 작은 변형: 새 게임 랜덤 신체·장단점 줄, 선수 화면 경기 아이콘 카드, 이적 제안 "친정 · 유스 구단" 칩·자유계약 안내, 경기 화면 캐릭터(도트 + 등번호 띠). 캡처 `docs/design/c45-check/` | 4 (+작은 4) |
 | C.45 2차 (main 37b1253, 2026-10-17 21:12 KST 통보) | 작은 변형 추가: ⑨ 월드 → 이적 소식 아래 "커리어 태그 소식". 바뀐 것(개수 변동 없음): ③ 선수 화면 칸 → "신체·양발·태그"(생성 태그 + 커리어 태그 한 줄, 해제형 표시), ① 커스텀 생성 "장단점" → "태그 · 장점/단점"([영구 nP]/[해제형 mP] 두 버튼) | +작은 1 |
 | **C.45 합계** | | **4 (+작은 5), 단계 1** |
+| C.46 (34b, main d5a0a6c, 2026-10-17 22:40 KST 통보) | 작은 변형 4: 월드 순위표 재정 등급 글자 + 범례 / 이적 제안 카드 등급 칩 + "내 몸값" 칩 / 선수 화면 계약과 이적 몸값 칸 / 이적 소식 줄 몸값·도착 팀 등급. 캡처 `docs/design/c46-check/` | 0 (+작은 4) |
+| **5차 뒤 누계** | | **큰 것 4 (+작은 9), 큰 것 있는 단계 1** |
 
 ## 캡처 방법 (다음 UI 세션용)
 - `npm ci && npm run build && npx vite preview --port 4173` 뒤 Playwright(`/opt/node-tools/node_modules/playwright`, 크로뮴 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)로 실제 선수 손흥민 새 게임 → 시즌 끝까지. 5차 스크립트는 코드라 레포에 넣지 않았다(레포의 `scripts/c44-capture.mjs` 등 단계별 스크립트의 도우미 함수와 같은 방식: `go-tab`은 폰에서 숨은 독 칸이 있어 `document.querySelector(...).click()`으로 누른다, 전술은 3경기 뒤 열림).

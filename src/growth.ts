@@ -255,7 +255,7 @@ function computeAgingFocus(pos: FieldPosition, s: number): Record<FieldAttribute
  * 노련함 능력치는 veteran.agingFromAge 전까지 면제, 그 뒤로는 기술/멘탈 하락 × agingFactor (6.1.1).
  * pos 를 주면 포지션 OVR 에 중요한 능력치가 더 많이 떨어진다 (aging.positionFocus)
  */
-export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition, mul = 1): AttributeDelta {
+export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition, mul = 1, skip: { phys?: boolean; other?: boolean } = {}): AttributeDelta {
   const A = BALANCE.aging;
   const V = BALANCE.veteran;
   const late = age >= A.lateFrom;
@@ -269,6 +269,11 @@ export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: 
     if (focus) rate *= focus[a];
     if (late) rate *= A.lateExtra[a] ?? 1;
     rate *= mul;
+    // 늦게 핀 꽃 (C.47 B안): 그 묶음 노화 1회 면제 (난수는 그대로 쓴다)
+    if ((PHYSICAL.includes(a) ? skip.phys : skip.other) && rate > 0) {
+      rng();
+      continue;
+    }
     if (rate === 0) continue;
     const lo = Math.floor(rate);
     bump(attrs, delta, a, -(lo + (rng() < rate - lo ? 1 : 0)));

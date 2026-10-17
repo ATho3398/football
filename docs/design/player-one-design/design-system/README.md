@@ -71,6 +71,17 @@ PLAYER ONE은 선수 한 명을 17세부터 은퇴까지 키우는 싱글 플레
 - 경기 진행: `ScoreBar`에 직접/자동 토글과 배속 1×/2×/4×(장면 안에서만), 건너뛰기(⏭ = 경기 전체를 계산하고 결과 화면으로). 재개 대기 구간은 빨리 감기(`ff`). 하프타임은 띠에 "하프타임"만, 재개 대기는 띠 아래 "스로인 준비" 같은 라벨(`sceneNote`).
 - 퇴장: 그 팀 마커를 `Pitch`에서 빼고, `ScoreBar`에 레드카드 + "10명"을 붙인다.
 
+## 요청 5 · 폰에서 한 화면에 담기
+
+- **독**: 모든 화면 하단에 `Dock`(폰 72px · PC 64px). 콘텐츠는 그 높이만큼 아래 여백. 가운데 진행 칸이 "지금 할 일"(계속 · 경기 · 경기 중 · 답하기 · 시즌 요약).
+- **머리말**: 첫 진입 대표 숫자만 큰 `HeroPanel`. 탭으로 오가는 화면(덱·설정·월드·선수·시즌 상세)은 `compact`. 글자 머리말은 48px 한 줄 6자 이내.
+- **긴 화면 줄이기**: ① 탭으로 나누기(선수 = 능력치·포지션·기록·계약·이적), ② 접기(설정 섹션은 한 줄 요약 + 펼치기, 첫 섹션만 펼침), ③ 요약 + 더 보기(경기별 4경기, 리그 스타 10명), ④ 안쪽 목록은 화면 안 스크롤 대신 별도 화면(선수 이름·페이스온). 기준: 폰 한 화면 = 844 − 독 72.
+- **탭 6개 이상**: `Tabs` `segment` + `cols={3}`(3×2). 가로 스크롤 탭은 섹션 이동처럼 다 안 보여도 되는 곳에만(`scroll`).
+- **세로 경기 화면**: `Pitch orient="vertical"`, 내 팀 아래→위. 이름표 겹침 규칙은 `Pitch` README.
+- **결정 순간 한 화면**: 압축 스코어 줄 → 잘라 낸 세로 피치(상대 진영) → 선택지 2~4개(`ChoiceButton compact`) → 카드 패 칩 한 줄 → [맡기기][확정]. 모두 독 위에 들어간다.
+- **빽빽한 곳**: 주간 7칸은 `DayCell`(요일·날짜·아이콘·2글자), 값은 시트에서. 능력치는 `AttrTile` 4열, 이름 줄임 없이.
+- 단어 중간 줄바꿈 방지: 본문은 `word-break: keep-all`.
+
 ## 아이콘과 이미지
 
 - 아이콘은 번들 내장 `Icon`(24px, 2px 선, `currentColor`)만 쓴다.
@@ -80,5 +91,7 @@ PLAYER ONE은 선수 한 명을 17세부터 은퇴까지 키우는 싱글 플레
 ## 컴포넌트
 
 요청서의 공통 컴포넌트: `PlayerCard`, `StatBar`, `GameCard`(full·deck·mini·hand), `ChoiceButton`, `FeedItem`, `StatChip`, `Banner`, `BottomSheet`, `Toast`, `Tabs`, `Modal`.
+
+요청 5: `Dock`, `AttrTile`·`AttrGrid`, `DayCell`, `OfferCard`, `TransferRow`, `TextField`.
 
 함께 둔 것: `SceneStrip`(경기 상단 띠 단독), `Pitch`, `TacticEmblem`, `TacticChip`, `FitBadge`, `FormationPitch`, `OptionRow`, `Slider`, `Switch`, `CellGauge`, `HeroPanel`(라임 헤더), `SectionTitle`, `DeckSlot`, `CardHand`, `TierBadge`, `RatingBadge`, `FatigueGauge`, `FormIndicator`, `Meter`, `ScoreBar`, `PossessionBar`, `ResultSplash`, `AppBar`, `Button`, `Icon`, `Avatar`, `Crest`.

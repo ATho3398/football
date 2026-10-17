@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { A_GRADE_PLAYERS } from '../../data/players';
+import { LEGENDS } from '../../data/players/legends';
 import { initialTeams } from '../../src/league';
 
 const UA = 'PlayerOneFacepack/0.1 (https://github.com/ATho3398/football; personal use)';
@@ -218,6 +219,28 @@ function playerJobs(): Job[] {
   });
 }
 
+/** 레전드 팩 (C.47): 출생연도 확인 없이 축구 문서만. 동음이의가 있는 이름은 덮어쓰기 */
+const LEGEND_OVERRIDES: Record<string, string[]> = {
+  'lg-ronaldo9': ['Ronaldo (Brazilian footballer)'], 'lg-raul': ['Raúl (footballer)'], 'lg-xavi': ['Xavi (footballer, born 1980)'], 'lg-deco': ['Deco'],
+  'lg-rivaldo': ['Rivaldo'], 'lg-romario': ['Romário'], 'lg-kaka': ['Kaká'], 'lg-zico': ['Zico (footballer)', 'Zico'],
+  'lg-cafu': ['Cafu'], 'lg-pele': ['Pelé'], 'lg-ruicosta': ['Rui Costa'], 'lg-keane': ['Roy Keane'], 'lg-villa': ['David Villa'],
+  'lg-torres': ['Fernando Torres'], 'lg-owen': ['Michael Owen'], 'lg-acole': ['Ashley Cole'], 'lg-gneville': ['Gary Neville'],
+  'lg-bcharlton': ['Bobby Charlton'], 'lg-best': ['George Best'], 'lg-gmuller': ['Gerd Müller'], 'lg-park': ['Park Ji-sung'],
+  'lg-hongmyungbo': ['Hong Myung-bo'], 'lg-leeyoungpyo': ['Lee Young-pyo'], 'lg-chabumkun': ['Cha Bum-kun'], 'lg-yaya': ['Yaya Touré'],
+};
+
+function legendJobs(): Job[] {
+  return LEGENDS.map((l) => {
+    const candidates = [...(LEGEND_OVERRIDES[l.id] ?? []), l.name, `${l.name} (footballer)`]
+      .filter((t, i, a) => a.indexOf(t) === i).map((title, i) => ({ title, primary: i === 0 }));
+    return {
+      kind: 'players' as const, id: l.id, name: l.name, candidates,
+      accept: (s: Summary) => (/football|soccer/i.test(`${s.description ?? ''} ${s.extract ?? ''}`) ? undefined : '축구 문서 아님'),
+      suspect: (_s: Summary, c: Candidate) => (c.primary ? undefined : `대체 후보로 찾음 (${c.title})`),
+    };
+  });
+}
+
 function clubJobs(): Job[] {
   return initialTeams().map((t) => {
     const titles = uniq([...(CLUB_OVERRIDES[t.id] ?? []), `${t.name} F.C.`, t.name, `${t.name} A.F.C.`]);
@@ -323,7 +346,7 @@ async function main(): Promise<void> {
   const results: Partial<Record<'players' | 'clubs', ReportRow[]>> = {};
   for (const kind of ['players', 'clubs'] as const) {
     if (only && only !== kind) continue;
-    const jobs = kind === 'players' ? playerJobs() : clubJobs();
+    const jobs = kind === 'players' ? [...playerJobs(), ...legendJobs()] : clubJobs();
     const rows: ReportRow[] = [];
     for (const job of jobs) {
       const row = await runJob(job, manifest);

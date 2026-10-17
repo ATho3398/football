@@ -36,8 +36,10 @@ function virtualYouthIsPl(id: string): boolean {
  * 자국 육성 (근사): 2018-19 PL 규정은 국적이 아니라 21세 전 잉글랜드·웨일스 구단 등록 3시즌.
  * 국적(잉글랜드·웨일스·스코틀랜드·북아일랜드) 또는 PL 구단 유스 출신 또는 자동 조정 표시(hg)로 본다
  */
-export function homegrown(p: Pick<RosterPlayer, 'id' | 'real' | 'nationality' | 'hg'>): boolean {
+export function homegrown(p: Pick<RosterPlayer, 'id' | 'real' | 'nationality' | 'hg'> & { youth?: string }): boolean {
   if (p.hg) return true;
+  // 레전드 (C.47): 처음 소속 PL 팀 유스
+  if (p.youth) return PL_IDS.has(p.youth);
   const nat = p.real ? REAL_NATION.get(p.id) ?? '' : p.nationality;
   if (BALANCE.squad.homegrownNations.includes(nat)) return true;
   if (p.real) {
@@ -75,7 +77,7 @@ export function releaseOrder(roster: TeamRoster, filter: (p: RosterPlayer) => bo
   const lu = pickLineup(roster);
   const starters = new Set(lu.slots.map((s) => s.playerId));
   const bench = new Set(lu.bench);
-  const tier = (p: RosterPlayer) => (p.real ? 3 : starters.has(p.id) ? 2 : bench.has(p.id) ? 1 : 0);
+  const tier = (p: RosterPlayer) => (p.real || p.legend ? 3 : starters.has(p.id) ? 2 : bench.has(p.id) ? 1 : 0);
   return roster.players
     .filter(filter)
     .map((p, i) => ({ p, i }))
@@ -108,7 +110,7 @@ export function normalizeSquad(
     const c = squadCount(roster.players);
     if (c.senior <= R.max && c.total <= R.max + R.u21Extra) break;
     const seniorOver = c.senior > R.max;
-    const out = releaseOrder(roster, (p) => !p.real && (!seniorOver || !isU21(p.age)))[0];
+    const out = releaseOrder(roster, (p) => !p.real && !p.legend && (!seniorOver || !isU21(p.age)))[0];
     if (!out) break;
     roster.players = roster.players.filter((p) => p !== out);
     released.push(out.id);

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>재계약</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 재계약 (요청 5 · 이적 · 계약) · 390×980 · 원본 R5-Renew.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 980px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="재계약" eyebrow="토트넘 홋스퍼 · 2018-19 시즌까지" value="계약 만료" chips="{{rchips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><div style="display: flex; justify-content: space-between; align-items: baseline;"><b style="font-size: 13px;">연장 기간</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">주급 1.2억 → <b style="color: var(--success);">1.8억 원 ▲50%</b></span></div><x-import component-from-global-scope="PlayerOne.OptionRow" title="2년" desc="토트넘 홋스퍼에서 2시즌 더 · 2020-21 시즌까지" radio="{{yes}}" selected="{{no}}" tag=""></x-import><x-import component-from-global-scope="PlayerOne.OptionRow" title="3년" desc="토트넘 홋스퍼에서 3시즌 더 · 2021-22 시즌까지" radio="{{yes}}" selected="{{no}}" tag=""></x-import><x-import component-from-global-scope="PlayerOne.OptionRow" title="4년" desc="토트넘 홋스퍼에서 4시즌 더 · 2022-23 시즌까지" radio="{{yes}}" selected="{{yes}}" tag="추천"></x-import><x-import component-from-global-scope="PlayerOne.OptionRow" title="5년" desc="토트넘 홋스퍼에서 5시즌 더 · 2023-24 시즌까지" radio="{{yes}}" selected="{{no}}" tag=""></x-import><div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;"><div style="padding: 10px 12px; border-radius: 12px; background: var(--surface-1);"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">주급</span><b style="display: block; font-family: var(--font-display); font-weight: 700; font-size: 18px;">1.8억 원</b></div><div style="padding: 10px 12px; border-radius: 12px; background: var(--surface-1);"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">연봉</span><b style="display: block; font-family: var(--font-display); font-weight: 700; font-size: 18px;">93.9억 원</b></div></div><x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="check">4년 재계약</x-import><section style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-1);"><b style="font-size: 14px;">FA 이적</b><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">재계약하지 않고 다른 팀 제안 하나를 수락해요. 이적료 없이 떠나요.</span><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="swap">제안 5개 보기</x-import></section><div style="display: flex; gap: 8px; padding: 10px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); font-size: 11px; line-height: 16px; color: var(--ink-muted);"><x-import component-from-global-scope="PlayerOne.Icon" name="info" size="{{i14}}"></x-import><span>머리말 규칙 · 큰 자리에 글자가 오면 48px 한 줄(6자 이내). 더 긴 설명은 위 작은 줄과 칩으로 나눠요.</span></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="answer" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { progress: 1, player: 35 }, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i24: 24, nob: {}, nol: [], rchips: ['지금 주급 1.2억 원', { label: '응답 필요', soft: true }] };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

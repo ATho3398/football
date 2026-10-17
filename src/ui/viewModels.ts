@@ -34,7 +34,9 @@ import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
 import { INJURY_NAMES_KO } from '../injury';
-import { leaguePosition, sortedTable, teamById } from '../league';
+import { initialTeams, leaguePosition, sortedTable, teamById } from '../league';
+import { legendClub, legendPeak, legendRosterPlayer, selectableLegends } from '../legends';
+import { naturalOvr } from '../roster';
 import { npcOvr } from '../npc';
 import { tierLabel } from '../finance';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
@@ -127,6 +129,8 @@ export interface PlayerCardVM {
 export function myFace(g: GameState): FaceRef {
   const p = g.player;
   if (p.realPlayerId) return { id: p.realPlayerId, age: p.age, appearance: realAppearance(p.realPlayerId, '') };
+  // 레전드로 시작 (C.47): 레전드 id 로 사진을 찾는다
+  if (p.legendId) return { id: p.legendId, age: p.age, ...(p.appearance ? { appearance: p.appearance } : {}) };
   const id = `me:${g.worldSeed}`;
   // 커스텀 생성 (C.45): 고른 외모군·국적
   return { id, age: p.age, appearance: p.appearance ?? rollAppearance(id, p.nationality ?? PROSPECT_NATIONALITY) };
@@ -938,6 +942,8 @@ export interface WorldVM {
   league: string; season: string; round: number; rounds: number; myPos: number; teams: number;
   table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number; tier: string }[];
   stars: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number }[];
+  /** 레전드 팩 선수 (C.47): 리그 팀에 있는 레전드, OVR 순 */
+  legends: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; peak: number }[];
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
   scorers: ScorerVM[];
@@ -974,6 +980,10 @@ export function worldVM(g: GameState): WorldVM {
     stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
       .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),
     retired: g.npcs.filter((n) => n.retired).map((n) => n.nameKo),
+    legends: Object.entries(g.rosters ?? {}).flatMap(([teamId, r]) => r.players.filter((p) => p.legend).map((p) => ({
+      face: { id: p.id, age: p.age, appearance: p.appearance }, name: p.nameKo, position: p.position, age: p.age,
+      club: teamById(g.league, teamId).nameKo, ovr: naturalOvr(p), peak: p.peakOvr,
+    }))).sort((a, b) => b.ovr - a.ovr || b.peak - a.peak),
     scorers: scorersVM(g),
   };
 }
@@ -1154,6 +1164,8 @@ export type SavesVMOut = ReturnType<typeof savesVM>;
 
 export interface NewGameForm {
   mode: 'prospect' | 'real' | 'custom'; name: string; position: string; seed: string; difficulty: string; realId: string;
+  /** 레전드 팩 (C.47): 'on' | 'off' */
+  legends?: string;
   /** 가상 유망주 시드 (입력 시드 또는 무작위, C.37) */
   roll: string;
   /** "다른 포지션에서 고르기" 펼침 */
@@ -1169,7 +1181,15 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       ovr: positionOvr(gen.attributes, p.position), tier: designTier(reputationTier(p.reputation)),
     };
   }).sort((a, b) => b.ovr - a.ovr);
-  const sel = reals.find((r) => r.id === f.realId);
+  const legendsOn = f.legends === 'on';
+  const teams = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
+  const legendList = legendsOn && f.mode === 'real' ? selectableLegends().map((l) => {
+    const p = legendRosterPlayer(l, seedForPreview, BALANCE.newGame.startYear);
+    const club = teams.find((t) => t.id === legendClub(l, seedForPreview, teams))?.id ?? '';
+    return { id: l.id, name: l.nameKo, club: initialTeams().find((t) => t.id === club)?.nameKo ?? club, age: p.age, position: l.position, ovr: naturalOvr(p), peak: legendPeak(l).ovr, youthKo: l.youthKo };
+  }).sort((a, b) => b.peak - a.peak || a.name.localeCompare(b.name)) : [];
+  const legendSel = legendList.find((r) => r.id === f.realId);
+  const sel = reals.find((r) => r.id === f.realId) ?? legendSel;
   const D = BALANCE.difficulty;
   const pct = (x: number) => `${x >= 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)}%`;
   const N = BALANCE.newGame;
@@ -1197,7 +1217,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       id: d, label: D[d].label,
       desc: d === 'normal' ? '기획서 기준 수치 그대로' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
-    seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null,
+    seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null, legends: legendsOn, legendList,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,
     // 랜덤 유망주의 신체·장단점 (C.45, 숨기지 않음)
     extras: prospect ? (() => {

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기중-다른화면-띠·잠금</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기중-다른화면-띠·잠금 (요청 5 · 독 · 메뉴) · 390×844 · 원본 R5-Live-OtherScreen.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; background: var(--mine); color: var(--on-mine);">
+  <span style="width: 8px; height: 8px; border-radius: 50%; background: #ff4d4d; flex: none;"></span>
+  <span style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><b style="font-size: 13px;">경기 중 · 63' 토트넘 1-0 풀럼</b><span style="font-size: 11px; font-weight: 600; opacity: .75;">일시정지했어요 · 장면 5/8</span></span>
+  <span style="height: 32px; padding: 0 12px; display: inline-flex; align-items: center; gap: 4px; border-radius: 16px; background: #121317; color: var(--mine); font-size: 12px; font-weight: 800;">경기로 돌아가기</span>
+</div><x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" compact="{{yes}}" right="" eyebrow="2018-19 시즌 · 8월 19일 (일)" value="8.19" chips="{{heroChips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px;">
+<section style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+  <b style="font-size: 13px;">경기 중에는 잠겨요</b>
+  <sc-for list="{{locks}}" as="l" hint-placeholder-count="4">
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 13px;"><span style="display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--surface-3); color: var(--ink-faint);"><x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{i14}}"></x-import></span><span style="flex: 1; font-weight: 700;">{{l.t}}</span><span style="font-size: 11px; color: var(--ink-muted);">{{l.when}}</span></div>
+  </sc-for>
+  <span style="font-size: 11px; color: var(--ink-faint);">보기(선수·월드·일정)는 그대로 돼요.</span>
+</section><section style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface-1); opacity: .55;">
+  <span style="font-size: 13px; font-weight: 800;">오늘 경기 · 리그 2R · 홈</span>
+  <span style="font-size: 12px; color: var(--ink-muted);">토트넘 홋스퍼 vs 풀럼 · 진행 중</span>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="lock" disabled="{{yes}}">하루 진행</x-import><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="lock" disabled="{{yes}}">자동 진행</x-import></div>
+</section><section style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--surface-1);">
+      <span style="position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--surface-3); color: var(--brand-ink);"><x-import component-from-global-scope="PlayerOne.Icon" name="ball" size="{{i20}}"></x-import></span>
+      <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">오늘 훈련</span>
+        <b style="font-size: 15px; font-weight: 800;">경기</b>
+        <span style="font-size: 12px; color: var(--ink-muted);">경기 중이에요</span>
+        
+      </span>
+      <x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{i18}}"></x-import>
+    </section>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="live" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = ['more'];
+    const me = { name: '손흥민', age: 26, position: 'LW', ovr: 83, tier: 'key', tierScore: 500, level: 0, team: '토트넘 홋스퍼' };
+    const season = [{ v: 5, l: '출전', ink: 'var(--ink)' }, { v: 1, l: '골', ink: 'var(--brand-ink)' }, { v: 2, l: '도움', ink: 'var(--ink)' }, { v: '7.08', l: '평균 평점', ink: 'var(--ink)' }];
+    const decideTabs = [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }];
+    return { dockBadges, dockLocked, yes: true, no: false, four: 4, i12: 12, i18: 18, i20: 20, i24: 24, me, season, decideTabs, decide: 'auto', decideText: '엔진이 대신 골라요', heroChips: ['경기까지 6일', { label: '리그 6/38R', soft: true }], locks: [{ t: '하루 진행 · 자동 진행', when: '경기 끝나고' }, { t: '전술', when: '하프타임·재개 대기 때' }, { t: '덱 편집', when: '경기 끝나고' }, { t: '포인트 찍기 · 저장', when: '경기 끝나고' }], i14: 14 };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

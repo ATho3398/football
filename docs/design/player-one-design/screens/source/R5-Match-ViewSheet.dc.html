@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>경기화면-보기시트</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home="토트넘 홋스퍼" away="레스터 시티" home-score="{{hs}}" away-score="{{zero}}" minute="{{minute}}" speed="1×" view="highlight" scene="{{scene}}" home-tactic="{{ht}}" away-tactic="{{at}}"></x-import><div style="padding: 8px 16px 0;"><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" crop="{{crop}}" marker="number" size="lg" names="all" dot="{{dot}}"></x-import></div><div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 0; font-size: 11px; font-weight: 700; color: var(--ink-muted);"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--brand);"></span>{{sceneText}}</span><span style="display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 7px; background: var(--surface-1); font-size: 11px; font-weight: 800; color: var(--ink);"><x-import component-from-global-scope="PlayerOne.Icon" name="eye" size="{{i14}}"></x-import>{{viewText}}</span></div><div style="display: flex; flex-direction: column; gap: 2px; padding: 6px 16px 0;"><sc-for list="{{feed}}" as="f" hint-placeholder-count="2"><x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{f.minute}}" kind="{{f.kind}}" mine="{{f.mine}}" text="{{f.text}}" score="{{f.score}}"></x-import></sc-for></div><div style="position: absolute; inset: 0; z-index: 6; background: var(--scrim);"></div><div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 7;"><x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="경기 화면 · 보기" title="선수를 어떻게 보여 줄까요?"><div style="display: flex; flex-direction: column; gap: 14px;"><div style="display: flex; flex-direction: column; gap: 6px;"><b style="font-size: 13px;">선수 표시</b><div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;"><sc-for list="{{marks}}" as="m" hint-placeholder-count="3"><div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-radius: 12px; background: var(--surface-2); box-shadow: {{m.ring}};"><span style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 10px; background: var(--pitch); overflow: hidden;"><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{m.pl}}" crop="{{m.crop}}" marker="{{m.marker}}" size="xl" names="off" dot="{{m.dot}}" render-width="{{sixtyfour}}"></x-import></span><b style="font-size: 13px;">{{m.t}}</b><span style="font-size: 10px; line-height: 13px; text-align: center; color: var(--ink-muted); word-break: keep-all;">{{m.d}}</span></div></sc-for></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><b style="font-size: 13px;">방향</b><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{dirTabs}}" value="v" label="방향"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><b style="font-size: 13px;">선수 크기</b><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{sizeTabs}}" value="lg" label="선수 크기"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><b style="font-size: 13px;">이름 표시</b><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{nameTabs}}" value="on" label="이름 표시"></x-import></div><span style="font-size: 11px; color: var(--ink-faint);">이 기기에 저장돼요 · 설정에서도 바꿀 수 있어요</span><x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}">완료</x-import></div></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    const P = (x, y, num, team, label, extra) => Object.assign({ x, y, num, team, label }, extra || {});
+    const HOME = [
+      P(84, 20, 7, 'home', '손흥민', { me: true, ball: true, short: '손흥민' }),
+      P(91, 47, 9, 'home', '해리 케인', { short: '케인' }),
+      P(81, 55, 23, 'home', 'C.에릭센', { short: '에릭센' }),
+      P(87, 70, 10, 'home', 'B.쇼', { short: '쇼' }),
+      P(70, 38, 6, 'home', 'Ja.라이트', { short: '라이트' }),
+      P(68, 50, 11, 'home', 'D.코스타', { short: '코스타' }),
+      P(56, 86, 2, 'home', 'Na.터너', { short: '터너' }),
+      P(52, 66, 5, 'home', 'Sa.아데예미', { short: '아데예미' }),
+      P(50, 14, 3, 'home', 'Fe.리마', { short: '리마' }),
+      P(44, 40, 4, 'home', 'M.로메로', { short: '로메로' }),
+      P(6, 50, 1, 'home', 'Id.사르', { short: '사르' })
+    ];
+    const AWAY = [
+      P(98, 50, 1, 'away', 'K.슈마이켈', { short: '슈마이켈' }),
+      P(89, 28, 2, 'away', 'A.페레이라', { short: '페레이라' }),
+      P(93, 42, 5, 'away', 'An.마르텔', { short: '마르텔' }),
+      P(92, 56, 6, 'away', 'L.안선스', { short: '안선스' }),
+      P(88, 74, 3, 'away', 'F.곤살레스', { short: '곤살레스' }),
+      P(85, 38, 4, 'away', 'B.바커르', { short: '바커르' }),
+      P(77, 52, 10, 'away', 'Ga.올리베이라', { short: '올리베이라' }),
+      P(74, 30, 8, 'away', 'Ju.로메로', { short: '로메로' }),
+      P(73, 64, 7, 'away', 'T.데이비스', { short: '데이비스' }),
+      P(60, 48, 11, 'away', 'T.플레처', { short: '플레처' }),
+      P(64, 26, 9, 'away', 'J.바디', { short: '바디' })
+    ];
+    const players = HOME.concat(AWAY);
+    const me = [84, 20];
+    const A = (to, tone, ghost, kind) => ({ from: me, to, kind: kind || 'pass', tone, ghost: !!ghost });
+    return { dockBadges, dockLocked, yes: true, no: false, zero: 0, i14: 14, i16: 16, i20: 20, dot: 2, players, ball: [84.6, 21.5], crop: [34, 100], ht: { tactic: 'gegen', formation: '4-2-3-1' }, at: { tactic: 'counter', formation: '4-2-3-1' }, arrows: [], scene: { index: 2, total: 8, minute: 16, label: '슈팅 찬스' }, hs: 2, minute: 16, sceneText: '장면 2 · 실제 속도 1×', viewText: '보기 · 등번호', feed: [{ minute: 15, kind: 'normal', text: '에릭센, 오른쪽으로 전환 패스' }, { minute: 16, kind: 'chance', mine: true, text: '손흥민, 왼쪽에서 박스로 파고듭니다' }], marks: [{ t: '등번호', d: '번호 원 · 기본', marker: 'number', dot: 2, ring: 'inset 0 0 0 2px var(--brand-ink)', pl: [{ x: 50, y: 50, num: 7, team: 'home', me: true }], crop: [46, 54] }, { t: '얼굴', d: '얼굴 + 팀 색 테두리', marker: 'face', dot: 2, ring: 'none', pl: [{ x: 50, y: 50, num: 7, team: 'home', me: true }], crop: [46, 54] }, { t: '캐릭터', d: '도트 16px · 없으면 번호', marker: 'pixel', dot: 4, ring: 'none', pl: [{ x: 50, y: 50, num: 7, team: 'home' }], crop: [46, 54] }], sixtyfour: 64, dirTabs: [{ id: 'auto', label: '자동' }, { id: 'h', label: '가로' }, { id: 'v', label: '세로' }], sizeTabs: [{ id: 'md', label: '보통' }, { id: 'lg', label: '크게' }, { id: 'xl', label: '아주 크게' }], nameTabs: [{ id: 'on', label: '켬' }, { id: 'mine', label: '내 선수만' }, { id: 'off', label: '끔' }] };
+  }
+}
+</script>
+</body>
+</html>

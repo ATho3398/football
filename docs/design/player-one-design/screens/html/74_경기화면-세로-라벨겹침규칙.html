@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>경기화면-세로-라벨겹침규칙</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 경기화면-세로-라벨겹침규칙 (요청 5 · 경기 화면 세로) · 390×1019 · 원본 R5-Match-V-LabelRule.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1019px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="경기 화면" compact="{{yes}}" eyebrow="세로 피치 · 이름표 겹침 규칙" chips="{{chips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;"><span style="font-size: 12px; font-weight: 800; color: var(--fail);">✕ 지금 · 모두 풀네임이라 겹쳐요</span><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{players}}" ball="{{ball}}" crop="{{crop}}" size="lg" collide="{{no}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;"><span style="font-size: 12px; font-weight: 800; color: var(--success);">✓ 규칙 적용 · 내 선수·공 가진 선수 먼저, 나머지는 줄이거나 숨겨요</span><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{players}}" ball="{{ball}}" crop="{{crop}}" size="lg" collide="{{yes}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 16px; background: var(--surface-1);"><b style="font-size: 13px;">이름표 우선순위</b><div style="display: grid; grid-template-columns: 22px auto 1fr; align-items: baseline; gap: 8px;"><b style="font-family: var(--font-display); font-size: 13px; color: var(--mine);">1</b><b style="font-size: 12px; white-space: nowrap;">내 선수</b><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">시안 이름표 · 항상 풀네임</span></div><div style="display: grid; grid-template-columns: 22px auto 1fr; align-items: baseline; gap: 8px;"><b style="font-family: var(--font-display); font-size: 13px; color: #f3f4f6;">2</b><b style="font-size: 12px; white-space: nowrap;">공 가진 선수</b><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">흰 이름표 · 항상 보여요</span></div><div style="display: grid; grid-template-columns: 22px auto 1fr; align-items: baseline; gap: 8px;"><b style="font-family: var(--font-display); font-size: 13px; color: var(--ink);">3</b><b style="font-size: 12px; white-space: nowrap;">공에 가까운 순서</b><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">겹치지 않으면 풀네임(아래 → 위 순서로 자리 찾기)</span></div><div style="display: grid; grid-template-columns: 22px auto 1fr; align-items: baseline; gap: 8px;"><b style="font-family: var(--font-display); font-size: 13px; color: var(--ink-muted);">4</b><b style="font-size: 12px; white-space: nowrap;">겹치면</b><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">짧은 이름(성·별명)으로 줄여요</span></div><div style="display: grid; grid-template-columns: 22px auto 1fr; align-items: baseline; gap: 8px;"><b style="font-family: var(--font-display); font-size: 13px; color: var(--ink-faint);">5</b><b style="font-size: 12px; white-space: nowrap;">그래도 겹치면</b><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">이름 숨김 · 번호 원만 남겨요</span></div><span style="font-size: 11px; color: var(--ink-faint);">이름 표시 [내 선수만]이면 1만, [끔]이면 모두 숨겨요. 이름표는 반투명 검은 바탕 위 흰 글자(그림자 없음).</span></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="live" progress="live" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    const P = (x, y, num, team, label, extra) => Object.assign({ x, y, num, team, label }, extra || {});
+    const HOME = [
+      P(84, 20, 7, 'home', '손흥민', { me: true, ball: true, short: '손흥민' }),
+      P(91, 47, 9, 'home', '해리 케인', { short: '케인' }),
+      P(81, 55, 23, 'home', 'C.에릭센', { short: '에릭센' }),
+      P(87, 70, 10, 'home', 'B.쇼', { short: '쇼' }),
+      P(70, 38, 6, 'home', 'Ja.라이트', { short: '라이트' }),
+      P(68, 50, 11, 'home', 'D.코스타', { short: '코스타' }),
+      P(56, 86, 2, 'home', 'Na.터너', { short: '터너' }),
+      P(52, 66, 5, 'home', 'Sa.아데예미', { short: '아데예미' }),
+      P(50, 14, 3, 'home', 'Fe.리마', { short: '리마' }),
+      P(44, 40, 4, 'home', 'M.로메로', { short: '로메로' }),
+      P(6, 50, 1, 'home', 'Id.사르', { short: '사르' })
+    ];
+    const AWAY = [
+      P(98, 50, 1, 'away', 'K.슈마이켈', { short: '슈마이켈' }),
+      P(89, 28, 2, 'away', 'A.페레이라', { short: '페레이라' }),
+      P(93, 42, 5, 'away', 'An.마르텔', { short: '마르텔' }),
+      P(92, 56, 6, 'away', 'L.안선스', { short: '안선스' }),
+      P(88, 74, 3, 'away', 'F.곤살레스', { short: '곤살레스' }),
+      P(85, 38, 4, 'away', 'B.바커르', { short: '바커르' }),
+      P(77, 52, 10, 'away', 'Ga.올리베이라', { short: '올리베이라' }),
+      P(74, 30, 8, 'away', 'Ju.로메로', { short: '로메로' }),
+      P(73, 64, 7, 'away', 'T.데이비스', { short: '데이비스' }),
+      P(60, 48, 11, 'away', 'T.플레처', { short: '플레처' }),
+      P(64, 26, 9, 'away', 'J.바디', { short: '바디' })
+    ];
+    const players = HOME.concat(AWAY);
+    const me = [84, 20];
+    const A = (to, tone, ghost, kind) => ({ from: me, to, kind: kind || 'pass', tone, ghost: !!ghost });
+    return { dockBadges, dockLocked, yes: true, no: false, zero: 0, i14: 14, i16: 16, i20: 20, dot: 2, players, ball: [84.6, 21.5], crop: [66, 100], ht: { tactic: 'gegen', formation: '4-2-3-1' }, at: { tactic: 'counter', formation: '4-2-3-1' }, arrows: [], chips: ['이름 표시 켬', { label: '크게', soft: true }], rw: 171 };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

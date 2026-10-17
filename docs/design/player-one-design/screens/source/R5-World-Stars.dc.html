@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>월드-리그스타</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1033px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="월드" on-back="{{no}}" compact="{{yes}}" right="0R / 38" eyebrow="리그 · 토트넘 홋스퍼 순위" value="17위" chips="{{wchips}}"></x-import><div style="padding: 4px 16px 0;"><x-import component-from-global-scope="PlayerOne.Tabs" variant="underline" fill="{{yes}}" items="{{wtabs}}" value="stars" label="월드"></x-import></div><div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px;"><div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">유명 선수들도 시즌마다 성장하고 늙어요. 시즌이 끝나면 지난 시즌 대비 OVR 변화가 붙어요.</span><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{sfilter}}" value="league" label="리그 스타 거르기"></x-import><sc-for list="{{stars}}" as="s" hint-placeholder-count="10"><div style="display: grid; grid-template-columns: 22px 36px 1fr auto; align-items: center; gap: 10px; min-height: 52px; padding: 0 12px; border-radius: 14px; background: var(--surface-1); box-shadow: {{s.ring}};"><b style="font-family: var(--font-display); font-size: 14px; color: {{s.rk}};">{{s.r}}</b><x-import component-from-global-scope="PlayerOne.Avatar" name="{{s.n}}" size="{{i36}}"></x-import><span style="display: flex; flex-direction: column; min-width: 0;"><b style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{s.n}}</b><span style="font-size: 11px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{s.c}} · {{s.a}}세 · {{s.p}}</span></span><span style="display: flex; flex-direction: column; align-items: flex-end;"><b style="font-family: var(--font-display); font-size: 18px; line-height: 20px;">{{s.o}}</b><span style="font-size: 9px; font-weight: 800; color: var(--ink-faint);">OVR</span></span></div></sc-for><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="chevron-down">23명 더 보기</x-import></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="world" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1033}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i32: 32, i36: 36, wchips: ['승점 0', '1위와 0점', { label: '2018-19 시즌', soft: true }], wtabs: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점' }, { id: 'stars', label: '리그 스타' }, { id: 'xfer', label: '이적 소식' }], stars: [{ r: 1, n: '크리스티아누 호날두', c: '유벤투스', a: 33, p: 'ST', o: 91, rk: 'var(--brand-ink)', ring: 'none' }, { r: 2, n: '케빈 더 브라위너', c: '맨체스터 시티', a: 27, p: 'CAM', o: 87, rk: 'var(--ink)', ring: 'none' }, { r: 3, n: '라힘 스털링', c: '맨체스터 시티', a: 24, p: 'LW', o: 87, rk: 'var(--ink)', ring: 'none' }, { r: 4, n: '리오넬 메시', c: 'FC 바르셀로나', a: 31, p: 'RW', o: 86, rk: 'var(--ink)', ring: 'none' }, { r: 5, n: '버질 반 다이크', c: '리버풀', a: 27, p: 'CB', o: 86, rk: 'var(--ink)', ring: 'none' }, { r: 6, n: '모하메드 살라', c: '리버풀', a: 26, p: 'RW', o: 85, rk: 'var(--ink)', ring: 'none' }, { r: 7, n: '에당 아자르', c: '첼시', a: 27, p: 'LW', o: 85, rk: 'var(--ink)', ring: 'none' }, { r: 8, n: '폴 포그바', c: '맨체스터 유나이티드', a: 25, p: 'CM', o: 85, rk: 'var(--ink)', ring: 'none' }, { r: 9, n: '크리스티안 에릭센', c: '토트넘 홋스퍼', a: 26, p: 'CAM', o: 84, rk: 'var(--ink)', ring: 'inset 0 0 0 1px var(--mine)' }, { r: 10, n: '해리 케인', c: '토트넘 홋스퍼', a: 25, p: 'ST', o: 82, rk: 'var(--ink)', ring: 'inset 0 0 0 1px var(--mine)' }], sfilter: [{ id: 'all', label: '전체' }, { id: 'league', label: '프리미어리그' }, { id: 'mine', label: '내 팀' }] };
+  }
+}
+</script>
+</body>
+</html>

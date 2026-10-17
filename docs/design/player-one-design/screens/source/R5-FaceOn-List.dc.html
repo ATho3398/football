@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>페이스온-목록</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 887px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="페이스온" compact="{{yes}}" eyebrow="얼굴 · 엠블럼 바꾸기" chips="{{faceChips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;">
+<x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{who}}" value="p" label="선수 또는 구단"></x-import><x-import component-from-global-scope="PlayerOne.TextField" icon="search" placeholder="선수 이름 (한글·영문)"></x-import><div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-1); font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;"><b style="color: var(--ink); font-size: 12px;">이미지 우선순위</b><span>내가 올린 이미지 → 위키백과 사진·로고(선수 33명, 구단 20개) → 기본 얼굴 → 기본 아바타·자동 엠블럼</span></div><div style="display: flex; flex-direction: column; gap: 6px;">
+  <sc-for list="{{faces}}" as="f" hint-placeholder-count="7">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border-radius: 14px; background: var(--surface-1); box-shadow: {{f.ring}};">
+      <x-import component-from-global-scope="PlayerOne.Avatar" name="{{f.name}}" size="{{i44}}" shape="{{f.shape}}"></x-import>
+      <span style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;"><b style="font-size: 14px;">{{f.name}}</b><span style="font-size: 11px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{f.meta}}</span></span>
+      <span style="height: 22px; padding: 0 8px; border-radius: 6px; background: {{f.chipBg}}; color: {{f.chipInk}}; font-size: 11px; line-height: 22px; font-weight: 800; white-space: nowrap;">{{f.src}}</span>
+    </div>
+  </sc-for>
+</div>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="more" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":887}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i16: 16, i18: 18, i20: 20, i40: 40, i44: 44, i56: 56, heroChips: ['손흥민', { label: '이 브라우저에 저장', soft: true }],
+      jumpTabs: [{ id: 'play', label: '경기 진행' }, { id: 'view', label: '화면 보기' }, { id: 'names', label: '선수 이름' }, { id: 'save', label: '저장·안내' }, { id: 'face', label: '페이스온' }, { id: 'pack', label: '페이스팩' }, { id: 'ver', label: '버전' }],
+      decideTabs: [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }],
+      freqTabs: [{ id: 'all', label: '모든 순간' }, { id: 'key', label: '중요한 순간만' }, { id: 'crit', label: '결정적 순간만' }],
+      simTabs: [{ id: 'full', label: '전체 엔진' }, { id: 'fast', label: '빠른 진행' }],
+      who: [{ id: 'p', label: '선수' }, { id: 'c', label: '구단' }], faceChips: ['내 이미지 1건', { label: '이 브라우저에만 저장', soft: true }], faces: [{ name: '손흥민', meta: '내 선수 · 토트넘 홋스퍼', src: '내 이미지', chipBg: 'var(--brand)', chipInk: 'var(--on-brand)', ring: 'inset 0 0 0 1.5px var(--brand-ink)', shape: 'circle' }, { name: '리오넬 메시', meta: 'FC 바르셀로나 · RW · 31세', src: '위키 사진', chipBg: 'var(--surface-3)', chipInk: 'var(--ink)', ring: 'none', shape: 'circle' }, { name: '모하메드 살라', meta: '리버풀 · RW · 26세', src: '위키 사진', chipBg: 'var(--surface-3)', chipInk: 'var(--ink)', ring: 'none', shape: 'circle' }, { name: '버질 반 다이크', meta: '리버풀 · CB · 27세', src: '위키 사진', chipBg: 'var(--surface-3)', chipInk: 'var(--ink)', ring: 'none', shape: 'circle' }, { name: '사디오 마네', meta: '리버풀 · LW · 26세', src: '위키 사진', chipBg: 'var(--surface-3)', chipInk: 'var(--ink)', ring: 'none', shape: 'circle' }, { name: '호베르투 피르미누', meta: '리버풀 · CF · 27세', src: '위키 사진', chipBg: 'var(--surface-3)', chipInk: 'var(--ink)', ring: 'none', shape: 'circle' }, { name: '캘럼 파커', meta: '맨체스터 시티 · LB · 21세', src: '기본', chipBg: 'transparent', chipInk: 'var(--ink-faint)', ring: 'none', shape: 'circle' }] };
+  }
+}
+</script>
+</body>
+</html>

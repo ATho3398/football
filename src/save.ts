@@ -264,6 +264,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 25 → 26 (C.46): 구단 재정. 이번 이적 시즌 예산 (비시즌이면 이번 시즌 순위, 시즌 중이면 레이팅 순). 옛 이적 기록에는 몸값이 없어 쓴 돈 0.
   // 로스터는 새 규칙(21세 이하 추가 유망주, 인원 맞추기)으로 다시 만들어진다
+  // 26 → 27 (C.47): 레전드 팩 옵션(옛 세이브는 끔), 태그 기록 필드(늦게 핀 꽃 면제·방출 구단·자연 발생 태그 판정 기록)는 없으면 빈 값
+  26: (s) => {
+    s.legends = false;
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;
@@ -285,7 +289,7 @@ export function migrate(raw: any): GameState {
   const state = raw as GameState;
   // 이름 풀 판 (C.45 8번): namePool 이 없는 옛 세이브는 옛 풀로 다시 만들어 생성 선수 이름을 지킨다
   setNamePoolVersion(state.namePool ?? 1);
-  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers);
+  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers, { on: !!state.legends, except: state.player.legendId });
   // 내 등번호 자리 비우기 (C.45, 표시용): 경기 때와 같은 로스터가 되게
   myShirt(state);
   if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);

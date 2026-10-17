@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>세이브-슬롯</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 세이브-슬롯 (요청 5 · 새 게임 · 덱 · 결과 · 세이브) · 390×910 · 원본 R5-Save.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 910px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="저장" compact="{{yes}}" eyebrow="자동 저장 · 2026.10.17 10:39" value="1/3" chips="{{chips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--success-soft); font-size: 12px; font-weight: 700; color: var(--success);"><x-import component-from-global-scope="PlayerOne.Icon" name="check" size="{{i16}}"></x-import>저장했어요 · 슬롯 1</div><x-import component-from-global-scope="PlayerOne.SectionTitle" title="자동 저장"></x-import><div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: var(--surface-1);"><span style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-3); color: var(--brand-ink);"><x-import component-from-global-scope="PlayerOne.Icon" name="restore" size="{{i18}}"></x-import></span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;"><b style="font-size: 14px;">2018-19 시즌 · 8월 3일 (금)</b><span style="font-size: 11px; color: var(--ink-muted);">손흥민 26세 · 10:39 · 7 KB</span><span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">C.44a에서 시작</span></span><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary">불러오기</x-import></div><span style="font-size: 11px; color: var(--ink-faint); margin-top: -6px;">경기 전·하루 진행 뒤마다 자동으로 저장돼요</span><x-import component-from-global-scope="PlayerOne.SectionTitle" title="수동 저장" action="3칸"></x-import><div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand-ink);"><div style="display: flex; align-items: flex-start; gap: 12px;"><span style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-3); font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--brand-ink);">1</span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;"><b style="font-size: 14px;">2018-19 시즌 · 8월 3일 (금)</b><span style="font-size: 11px; color: var(--ink-muted);">손흥민 26세 · 2026.10.17 10:39 · 7 KB</span><span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">C.44a에서 시작</span></span></div><div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px;"><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" block="{{yes}}" icon="upload">불러오기</x-import><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" block="{{yes}}" icon="disk">덮어쓰기</x-import><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="ghost" icon="close">지우기</x-import></div></div><div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line);"><span style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-2); font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink-faint);">2</span><span style="display: flex; flex-direction: column; flex: 1;"><b style="font-size: 14px; color: var(--ink-muted);">비어 있음</b><span style="font-size: 11px; color: var(--ink-faint);">지금 진행 상황을 여기에 저장해요</span></span><x-import component-from-global-scope="PlayerOne.Button" size="sm" icon="disk">여기에 저장</x-import></div><div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line);"><span style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-2); font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink-faint);">3</span><span style="display: flex; flex-direction: column; flex: 1;"><b style="font-size: 14px; color: var(--ink-muted);">비어 있음</b><span style="font-size: 11px; color: var(--ink-faint);">지금 진행 상황을 여기에 저장해요</span></span><x-import component-from-global-scope="PlayerOne.Button" size="sm" icon="disk">여기에 저장</x-import></div><x-import component-from-global-scope="PlayerOne.SectionTitle" title="파일" action="압축 JSON"></x-import><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="download">내보내기</x-import><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}" icon="upload">가져오기</x-import></div><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">다른 기기·브라우저로 옮기거나 백업해요. 가져오면 자동 저장 슬롯에 들어가요.</span><p style="margin: 4px 0 0; text-align: center; font-size: 11px; color: var(--ink-faint);">버전 C.44a · 엔진 19 · 밸런스 31 · 2026-10-17 배포 (커밋 c064b8d)</p></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="more" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i16: 16, i18: 18, chips: ['수동 1/3', { label: '자동 저장 켜짐', soft: true }] };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

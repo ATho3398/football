@@ -21,6 +21,8 @@ export interface MatchInput {
   injured?: boolean;
   /** 1군 테스트 출전 보장 (C.45) */
   forceStart?: boolean;
+  /** 커리어 태그 선발 경쟁 보정 (C.47, OVR 단위). 출전 판정에만 */
+  startBonus?: number;
 }
 
 export type MatchOutcome = 'win' | 'draw' | 'loss';
@@ -84,7 +86,7 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   // 출전 판정
   // 1군 테스트 출전 보장 (C.45): 난수는 그대로 쓴다
   const roll = rng();
-  const started = !input.injured && (!!input.forceStart || roll < startProbability(input.ovr, input.teamRating, input.fatigue));
+  const started = !input.injured && (!!input.forceStart || roll < startProbability(input.ovr + (input.startBonus ?? 0), input.teamRating, input.fatigue));
   let minutes = 90;
   if (!started) minutes = !input.injured && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const share = minutes / 90;

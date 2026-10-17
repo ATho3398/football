@@ -2,6 +2,7 @@
 // 설정 화면은 세계 전체로, 경기 화면은 그 경기 두 팀 명단 안에서 겹침을 본다 (C.45, pending 60). 세이브에 넣지 않는다
 
 import { A_GRADE_PLAYERS } from '../../data/players';
+import { LEGEND_BY_ID } from '../legends';
 import type { GameState } from '../game';
 import { labelName, shortNames, type NameEntry } from '../names';
 import { myFace } from './viewModels';
@@ -21,11 +22,12 @@ export function worldPlayers(g: GameState): NamedPlayer[] {
   const out = new Map<string, NamedPlayer>();
   const me = myFace(g).id;
   const real = g.player.realPlayerId ? REAL.get(g.player.realPlayerId) : undefined;
-  out.set(me, { id: me, nameKo: g.player.name, mine: true, teamId: g.player.teamId, ...(real ? { name: real.name, ...(real.shortKo ? { shortKo: real.shortKo } : {}) } : {}) });
+  const legend = g.player.legendId ? LEGEND_BY_ID.get(g.player.legendId) : undefined;
+  out.set(me, { id: me, nameKo: g.player.name, mine: true, teamId: g.player.teamId, ...(real ? { name: real.name, ...(real.shortKo ? { shortKo: real.shortKo } : {}) } : {}), ...(legend ? { name: legend.name, shortKo: legend.shortKo } : {}) });
   for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
     for (const p of r.players) {
       if (out.has(p.id)) continue;
-      const sk = REAL.get(p.id)?.shortKo;
+      const sk = REAL.get(p.id)?.shortKo ?? LEGEND_BY_ID.get(p.id)?.shortKo;
       out.set(p.id, { id: p.id, name: p.name, nameKo: p.nameKo, teamId, ...(sk ? { shortKo: sk } : {}) });
     }
   }

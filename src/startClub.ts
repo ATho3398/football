@@ -12,7 +12,8 @@ import { affordableWage, contractYears, expectedStart, makeOffers, wageFor, type
 import { wageRoom } from './finance';
 import { naturalOvr, posGroup } from './roster';
 import { FORMATION_SLOTS } from './formations';
-import { tagHas, wageMul, type PlayerTag, type TagId, type Tagged } from './tags';
+import { derbyOf } from './derby';
+import { renewKeep, tagHas, wageMul, type PlayerTag, type TagId, type Tagged } from './tags';
 
 // ── 커리어 태그 (플레이 전용, 효과 슬롯 0 — 62.4, 14번) ──
 
@@ -37,10 +38,10 @@ export function loyaltyTrustBonus(_p: Tagged, _teamId: string): number {
 }
 
 /** 내 선수에게 커리어 태그를 붙인다 (같은 id·구단이면 그대로). 홈 알림 한 줄 */
-export function addTag(state: GameState, id: TagId, name: string, club?: string): PlayerTag | null {
+export function addTag(state: GameState, id: TagId, name: string, club?: string, extra: Partial<PlayerTag> = {}): PlayerTag | null {
   const p = state.player;
   if (p.tags.some((t) => t.id === id && t.club === club)) return null;
-  const tag: PlayerTag = { id, perm: id !== 'oneClubMan' && id !== 'eternal', name, season: state.league.season, date: state.calendar.date, ...(club ? { club } : {}) };
+  const tag: PlayerTag = { id, perm: id !== 'oneClubMan' && id !== 'eternal' && id !== 'evergreen', name, season: state.league.season, date: state.calendar.date, ...(club ? { club } : {}), ...extra };
   p.tags.push(tag);
   state.market.notice = `새 태그 · ${name}`;
   return tag;
@@ -303,8 +304,19 @@ export function renewalCheck(state: GameState): { fails: boolean; why: 'wage' | 
   return { fails: false, why: null };
 }
 
+/**
+ * 재계약 실패 여부. 원클럽맨·영원한 <구단> (C.47): 연봉 여력이 renewKeep.wage 비율만큼 모자라도 받아 주고,
+ * 그래도 실패면 renewKeep.chance 확률로 남긴다 (시드: 시즌)
+ */
 export function renewalFails(state: GameState): boolean {
-  return renewalCheck(state).fails;
+  const c = renewalCheck(state);
+  if (!c.fails) return false;
+  const p = state.player;
+  const keep = renewKeep(p, p.teamId);
+  if (!keep.chance) return true;
+  const m = state.market;
+  if (c.why === 'wage' && m.renewal && wageRoom(state, p.teamId, ratingOf(state, p.teamId)) >= m.renewal.wage * 52 / (1 + keep.wage)) return false;
+  return createRng(hashSeed(`${state.worldSeed}:renew-keep:${state.league.season}`))() >= keep.chance;
 }
 
 /** 제안 수락 뒤 태그: 유스 구단 첫 계약(아카데미 출신), 친정 선택, 귀환, 방출의 설움. 이적이면 원클럽맨 계열을 떨어뜨린다 */
@@ -322,7 +334,9 @@ export function afterAccept(state: GameState, o: Offer, others: readonly Offer[]
   } else if (youth && o.teamId === youth && fromTeam !== youth && m.moves.some((mv) => mv.from === youth)) {
     addTag(state, 'loyalReturn', '무한한 충성심', youth);
   }
-  if (released && o.teamId !== fromTeam) addTag(state, 'releasedPain', '방출의 설움', o.teamId);
+  if (released && o.teamId !== fromTeam) addTag(state, 'releasedPain', '방출의 설움', o.teamId, { from: fromTeam });
+  // 배신자 (C.47): 이적 요청이 받아들여진 뒤 전 구단의 더비 라이벌로 이적
+  if (o.kind !== 'loan' && m.request?.accepted && o.teamId !== fromTeam && derbyOf(fromTeam, o.teamId)) addTag(state, 'traitor', '배신자', o.teamId, { from: fromTeam });
 }
 
 /** 시즌 끝: 원클럽맨·영원한 판정 */

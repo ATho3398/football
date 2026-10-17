@@ -141,10 +141,14 @@ const ui = {
   px: { tab: 'players', q: '', team: '', sel: null, kitSel: null } as PixelUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
+  /** 선수 화면 태그 전체 보기 (C.47) */
+  tagsAll: false,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
   form: {
     mode: 'prospect' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
+    /** 레전드 팩 (C.47) */
+    legends: 'off' as 'on' | 'off',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
@@ -309,7 +313,7 @@ function screenHtml(): string {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
       const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', trialBanner(g) + marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', tagNoticeBanner(g) + trialBanner(g) + marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -322,7 +326,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·태그', action: '키·약발·태그' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? teamById(g.league, g.player.youth.club).nameKo : '')}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·태그', action: '키·약발·태그' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? teamById(g.league, g.player.youth.club).nameKo : '', ui.tagsAll)}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) + tagNewsSection((g.tagNews ?? []).slice(-20).reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag }))) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -554,6 +558,13 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
 }
 
 /** 1군 테스트 진행 띠 (C.45 10번) — 디자인 없는 새 패널 */
+/** 커리어 태그 획득·해제 홈 알림 한 줄 (C.47) — 디자인 없는 작은 변형 */
+function tagNoticeBanner(g: GameState): string {
+  const n = g.tagNotice;
+  if (!n) return '';
+  return Banner({ tone: 'info', title: n.text, children: `${n.season}-${String((n.season + 1) % 100).padStart(2, '0')} 시즌 끝 · 선수 화면에서 전체 태그를 볼 수 있어요.`, action: '닫기', onAction: { act: 'tag-notice-close' } });
+}
+
 function trialBanner(g: GameState): string {
   const t = g.trial;
   if (!t) return '';
@@ -1252,6 +1263,16 @@ app.addEventListener('click', (ev) => {
       g.market.notice = null;
       render();
       return;
+    case 'tag-notice-close':
+      if (!g) return;
+      g.tagNotice = null;
+      autosave();
+      render();
+      return;
+    case 'tags-all':
+      ui.tagsAll = !ui.tagsAll;
+      render();
+      return;
     case 'transfer-request': {
       if (!g) return;
       const el2 = requestEligibility(g);
@@ -1290,7 +1311,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'form': {
       readFormInputs();
-      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId';
+      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends';
       (ui.form as unknown as Record<string, string>)[k] = v!;
       render();
       return;
@@ -1331,10 +1352,10 @@ app.addEventListener('click', (ev) => {
         if (cv.over || !cv.start.ready) return;
       }
       ui.game = f.mode === 'prospect'
-        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true })
+        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true, legends: f.legends === 'on' })
         : f.mode === 'custom'
-          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty })
-          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty });
+          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
+          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on' });
       ui.replay = null;
       f.roll = '';
       f.posFor = '';
