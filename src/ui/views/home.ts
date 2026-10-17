@@ -126,7 +126,7 @@ export function positionSheet(options: PositionOptionVM[], pick: string, inSeaso
 
 /** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력, 다른 경기 계산 방식 */
 export function calendarSection(d: DayVM): string {
-  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}"><span class="cal-date">${esc(u.date)}</span><span class="grow">${esc(u.text)}</span>${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
+  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}"><span class="cal-date">${esc(u.date)}</span>${u.team ? `<button type="button" class="dt-link grow" data-act="team-open" data-v="${esc(u.team)}">${esc(u.text)}</button>` : `<span class="grow">${esc(u.text)}</span>`}${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
   const blanks = Array.from({ length: d.month.lead }, () => '<span class="cal-cell blank"></span>').join('');
   const cells = d.month.days.map((c) => `<span class="cal-cell${c.kind ? ` k-${c.kind}` : ''}${c.today ? ' today' : ''}${c.past ? ' past' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${c.d}</span>`).join('');
   return `${SectionTitle({ title: '일정', action: d.month.title })}

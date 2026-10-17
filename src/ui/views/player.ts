@@ -40,7 +40,7 @@ export function playerView(vm: PlayerVM, extra = ''): string {
   return `
     ${hero}
     <div class="body">
-      <div class="panel profile-row">${Avatar({ size: 72, face: vm.face, name: vm.name, ring: true })}<div class="grow"><b>${esc(vm.name)}</b><small>${Crest({ name: vm.team, size: 16 })} ${esc(vm.team)} · ${esc(vm.positionKo)} · ${vm.age}세</small></div>${
+      <div class="panel profile-row">${Avatar({ size: 72, face: vm.face, name: vm.name, ring: true })}<div class="grow"><b>${esc(vm.name)}</b><small><button type="button" class="dt-link" data-act="team-open" data-v="${esc(vm.teamId)}">${Crest({ name: vm.team, team: vm.teamId, size: 16 })} ${esc(vm.team)}</button> · ${esc(vm.positionKo)} · ${vm.age}세</small></div>${
         Button({ variant: 'secondary', size: 'sm', icon: 'player', act: 'faceon-open', data: { key: `p:${vm.face.id}` }, children: '얼굴 바꾸기' })}</div>
       ${SectionTitle({ title: '능력치', action: `${vm.position} 핵심 = 테두리 · 변화는 이번 시즌` })}
       ${panel(attrGrid(vm.attrs))}

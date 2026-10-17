@@ -46,7 +46,7 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Banner, Button, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
+import { Banner, Button, HeroPanel, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
@@ -82,9 +82,11 @@ import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../e
 import type { Formation } from '../formations';
 import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
+import { hasTeamDetail, personDetailVM, teamDetailVM, type PersonTab, type TeamTab } from './detailVM';
+import { personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -125,6 +127,8 @@ const ui = {
   rewatch: false as false | 'player' | 'match',
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
   tac: null as TacticsDraftUI | null,
+  /** 다른 팀·선수 상세 (C.53): 보고 있는 팀·선수, 탭, 뒤로 가기 쌓임 (상세 화면끼리 오가면 쌓이고 다른 화면으로 가면 비운다) */
+  detail: { team: '', person: '', teamTab: 'overview' as TeamTab, personTab: 'attrs' as PersonTab, stack: [] as { screen: Screen; team: string; person: string; teamTab: TeamTab; personTab: PersonTab }[] },
   /** 전술 화면에서 돌아갈 곳 (C.51: 경기 준비에서 열면 경기 준비로) */
   tacBack: 'home' as Screen,
   /** 직접 모드로 진행 중인 내 경기 (E.11, E4): 결정 순간마다 멈춘다. 세이브에 담지 않는다 (도중에 나가면 경기 전 상태) */
@@ -268,6 +272,7 @@ function syncReplayIndex(): void {
 }
 
 function go(screen: Screen): void {
+  if (screen !== 'team' && screen !== 'person') ui.detail.stack = [];
   ui.screen = screen;
   ui.modal = null;
   render();
@@ -384,6 +389,16 @@ function screenHtml(): string {
     case 'tactics':
       if (ui.tac) return tacticsView(tacticsVM(g, ui.tac));
       break;
+    case 'team': {
+      const vm = teamDetailVM(g, ui.detail.team);
+      if (vm) return teamDetailView(vm, ui.detail.teamTab, ui.detail.stack.length > 0);
+      break;
+    }
+    case 'person': {
+      const vm = personDetailVM(g, ui.detail.person);
+      if (vm) return personDetailView(vm, ui.detail.personTab, ui.detail.stack.length > 0);
+      return `${HeroPanel({ title: '선수', back: ui.detail.stack.length ? { act: 'detail-back' } : false, compact: true, pad: false, progress: false, value: '—' })}<div class="body"><p class="muted">이 선수는 지금 리그 팀에 없어요(리그 밖 이적·은퇴).</p></div>`;
+    }
     case 'prep': {
       const vm = prepVM(g);
       if (vm && isMatchDay(g)) return prepView(vm);
@@ -1290,6 +1305,37 @@ app.addEventListener('click', (ev) => {
       ui.worldTab = v as typeof ui.worldTab;
       render();
       return;
+    // ── 다른 팀·선수 상세 (C.53) ──
+    case 'team-open':
+    case 'person-open': {
+      if (!g || !v) return;
+      ui.moreSheet = false;
+      if (act === 'person-open' && v === 'me') { go('player'); return; }
+      if (act === 'team-open' && !hasTeamDetail(g, v)) return;
+      const d = ui.detail;
+      if (act === 'team-open' ? ui.screen === 'team' && d.team === v : ui.screen === 'person' && d.person === v) return;
+      d.stack.push({ screen: ui.screen, team: d.team, person: d.person, teamTab: d.teamTab, personTab: d.personTab });
+      if (d.stack.length > 20) d.stack.shift();
+      if (act === 'team-open') { d.team = v; d.teamTab = 'overview'; go('team'); } else { d.person = v; d.personTab = 'attrs'; go('person'); }
+      return;
+    }
+    case 'team-tab':
+      ui.detail.teamTab = v as TeamTab;
+      render();
+      if (v === 'squad') window.scrollTo(0, 0);
+      return;
+    case 'person-tab':
+      ui.detail.personTab = v as PersonTab;
+      render();
+      return;
+    case 'detail-back': {
+      const d = ui.detail;
+      const prev = d.stack.pop();
+      if (!prev) { go('home'); return; }
+      Object.assign(d, { team: prev.team, person: prev.person, teamTab: prev.teamTab, personTab: prev.personTab });
+      go(prev.screen);
+      return;
+    }
     // ── 이적·계약 (C.42) ──
     case 'offer-accept': {
       if (!g?.market.offers) return;

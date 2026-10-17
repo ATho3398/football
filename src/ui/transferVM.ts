@@ -10,7 +10,7 @@ import { tierLabel, valueLabel } from '../finance';
 import { seasonLabel } from './viewModels';
 
 export interface OfferVM {
-  i: number; team: string; teamId: string; rating: number; rank: number; diff: number; loan: boolean;
+  i: number; team: string; teamId: string; /** 리그 팀이면 팀 상세로 (C.53) */ league: boolean; rating: number; rank: number; diff: number; loan: boolean;
   years: number; wage: string; annual: string; start: string; startPct: number;
   /** 유스 구단 계약 제안 (C.45), 자유계약의 마지막 남은 제안 (거절 불가) */
   youth?: boolean;
@@ -76,7 +76,7 @@ export function marketVM(g: GameState): MarketVM {
     offers: m.offers?.map((o, i) => {
       const r = ratingOf(g, o.teamId);
       return {
-        i, team: clubNameKo(g.league, o.teamId), teamId: o.teamId, rating: r, rank: teamRank(g, o.teamId), diff: Math.round((r - cur) * 10) / 10, loan: o.kind === 'loan',
+        i, team: clubNameKo(g.league, o.teamId), teamId: o.teamId, league: !isOutside(o.teamId), rating: r, rank: teamRank(g, o.teamId), diff: Math.round((r - cur) * 10) / 10, loan: o.kind === 'loan',
         years: o.years, wage: wageLabel(o.wage), annual: annualLabel(o.wage), start: startLabel(o.start), startPct: Math.round(o.start * 100), tier: tierLabel(o.teamId),
         ...(o.youth ? { youth: true } : {}), ...(o.fee ? { fee: valueLabel(o.fee) } : {}),
         ...(m.free && (m.offers?.length ?? 0) <= 1 ? { lastFree: true } : {}),
@@ -98,7 +98,7 @@ export function marketVM(g: GameState): MarketVM {
   };
 }
 
-export interface NewsRowVM { id: string; name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: string | null; mine: boolean; fee: string; toTier: string }
+export interface NewsRowVM { id: string; name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: string | null; mine: boolean; fee: string; toTier: string; /** 누르면 열 선수 상세 (C.53): 리그 안으로 간 선수 id, 내 선수 'me', 리그 밖이면 null */ open: string | null }
 export interface NewsVM { title: string; count: number; inLeague: number; rows: NewsRowVM[] }
 
 /** 월드 "이적 소식": 가장 최근 이적시장의 NPC 이동 (+ 같은 이적시장 내 선수 이동) */
@@ -110,12 +110,12 @@ export function newsVM(g: GameState): NewsVM | null {
     id: r.id, name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: clubNameKo(g.league, r.from), to: clubNameKo(g.league, r.to), why: WHY_KO[r.why], real: !!r.real,
     into: !isOutside(r.to), out: isOutside(r.to), fill: r.fill ? `${r.fill.name} (OVR ${r.fill.ovr}) ← ${clubNameKo(g.league, r.fill.club)}` : null,
     mine: r.from === g.player.teamId || r.to === g.player.teamId,
-    fee: valueLabel(r.fee ?? 0), toTier: tierLabel(r.to),
+    fee: valueLabel(r.fee ?? 0), toTier: tierLabel(r.to), open: isOutside(r.to) ? null : r.id,
   }));
   // 실제 선수 → 리그 안 이동 → OVR 순
   rows.sort((a, b) => Number(b.real) - Number(a.real) || Number(b.into) - Number(a.into) || b.ovr - a.ovr);
   if (me && w && me.season === w.season && me.w === w.w) {
-    rows.unshift({ id: myFace(g).id, name: g.player.name, pos: g.player.position, age: g.player.age, ovr: proficientOvr(g.player, g.player.position), from: clubNameKo(g.league, me.from), to: clubNameKo(g.league, me.to), why: me.loan ? '임대' : '내 선수', real: true, into: true, out: false, fill: null, mine: true, fee: valueLabel(myValue(g)), toTier: tierLabel(me.to) });
+    rows.unshift({ id: myFace(g).id, name: g.player.name, pos: g.player.position, age: g.player.age, ovr: proficientOvr(g.player, g.player.position), from: clubNameKo(g.league, me.from), to: clubNameKo(g.league, me.to), why: me.loan ? '임대' : '내 선수', real: true, into: true, out: false, fill: null, mine: true, fee: valueLabel(myValue(g)), toTier: tierLabel(me.to), open: 'me' });
   }
   const season = w?.season ?? me!.season;
   const kind = (w?.w ?? me!.w) === 'winter' ? '겨울' : '여름';

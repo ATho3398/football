@@ -4,6 +4,7 @@
 import { Avatar, Button, Crest, esc, FeedItem, HeroPanel, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
 import type { MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel } from './common';
+import { personLink } from './detail';
 
 function cmpRow(label: string, own: string, opp: string): string {
   const a = parseFloat(own) || 0;
@@ -20,11 +21,15 @@ export function matchResultView(vm: MatchResultVM): string {
     value: vm.rating === null ? '-' : vm.rating.toFixed(1), pad: false, progress: false,
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
   });
-  const head = `<div class="panel mr-head"><span class="mr-team">${Crest({ name: vm.myTeam, size: 32 })}<small>${esc(vm.myTeam)}</small></span><b class="po-num mr-score">${esc(vm.scoreLine)}</b><span class="mr-team">${Crest({ name: vm.opp, size: 32 })}<small>${esc(vm.opp)}</small></span>${Avatar({ size: 44, face: vm.face, ring: true })}</div>`;
+  const head = `<div class="panel mr-head"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 32 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score">${esc(vm.scoreLine)}</b><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.oppId)}">${Crest({ name: vm.opp, team: vm.oppId, size: 32 })}<small>${esc(vm.opp)}</small></button>${Avatar({ size: 44, face: vm.face, ring: true })}</div>`;
   // 경기가 끝나면 이 화면으로 바로 온다 (C.50 pending 82 2번). 하이라이트는 이 버튼으로만 — 디자인 없는 작은 변형
   const rewatch = vm.hasAvgMap ? `<div class="btn-col">${Button({ variant: 'secondary', block: true, icon: 'play', act: 'hl-rewatch', children: '하이라이트 다시보기' })}</div>` : '';
   const hl = vm.highlights.length
     ? `${SectionTitle({ title: '하이라이트', action: `${vm.highlights.length}장면` })}<div class="feed">${vm.highlights.map((f) => FeedItem({ ...f, ...(f.mine ? { lead: Avatar({ size: 20, face: vm.face }) } : {}) })).join('')}</div>`
+    : '';
+  // 득점자 (C.53): 이름을 누르면 선수 상세 — 디자인 없는 작은 변형
+  const goals = vm.goals.length
+    ? `${SectionTitle({ title: '득점', action: '누르면 선수 상세' })}${panel(`<div class="mr-goals">${vm.goals.map((x) => `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num">${esc(x.minute)}</span>${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? `<small class="muted">도움 ${esc(x.assist)}</small>` : ''}<small class="muted grow r">${x.mine ? esc(vm.myTeam) : esc(vm.opp)}</small></div>`).join('')}</div>`)}`
     : '';
   let report = '';
   const r = vm.report;
@@ -68,6 +73,7 @@ export function matchResultView(vm: MatchResultVM): string {
       ${head}
       ${rewatch}
       ${banners(vm.banners)}
+      ${goals}
       ${hl}
       ${decisions}
       ${cardUses}

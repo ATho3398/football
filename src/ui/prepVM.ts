@@ -27,7 +27,7 @@ import { deckUnusable, myRoleId } from './views/deck';
 export type FormMark = 'W' | 'D' | 'L';
 
 export interface PrepTeamVM {
-  name: string; rank: number; rating: number;
+  id: string; name: string; rank: number; rating: number;
   /** 최근 5경기 (오래된 것 → 최근) */
   form: FormMark[];
   tactic?: TacticVM;
@@ -93,7 +93,7 @@ export function prepVM(g: GameState): PrepVM | null {
   const lineup = roster ? previewLineup(t, roster, { name: p.name, attrs: p.attributes }) : [];
   const slots: FormationSlotProps[] = lineup.map((x) => ({ pos: x.pos, x: Math.round(10 + x.y * 80), y: Math.round(8 + x.x * 95), me: x.me, ...(x.me ? { ovr } : {}) }));
   const tr = g.trial;
-  const team = (id: string, rating: number, name: string, tactic?: TacticVM): PrepTeamVM => ({ name, rank: leaguePosition(L, id), rating: Math.round(rating), form: teamForm(L, id), ...(tactic ? { tactic } : {}) });
+  const team = (id: string, rating: number, name: string, tactic?: TacticVM): PrepTeamVM => ({ id, name, rank: leaguePosition(L, id), rating: Math.round(rating), form: teamForm(L, id), ...(tactic ? { tactic } : {}) });
   const enough = p.recentRatings.length >= BALANCE.form.games;
   const b = formBonus(p.recentRatings);
   return {

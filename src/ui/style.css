@@ -885,3 +885,56 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .pr-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .pr-slot { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-muted); }
 .pr-slot select { height: 40px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; }
+
+/* ── 다른 팀·선수 상세 (C.53, 6차 디자인 157·158) ── */
+.dt-link { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.dt-link:hover, .dt-link:focus-visible { text-decoration: underline; text-underline-offset: 2px; }
+.dt-link.small { margin-left: 4px; font-size: 11px; }
+.dt-link--hero { font-weight: 800; }
+.dt-body { gap: var(--space-3); }
+.dt-ident { display: flex; align-items: center; gap: 12px; }
+.dt-ident b { display: block; font-size: 18px; font-weight: 800; }
+.dt-ident small { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.dt-tier { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); font-size: 11px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+.dt-tier__bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
+.dt-tier__bars i { width: 3px; border-radius: 1px; background: var(--surface-3); }
+.dt-tier__bars i:nth-child(1) { height: 4px; } .dt-tier__bars i:nth-child(2) { height: 6px; } .dt-tier__bars i:nth-child(3) { height: 8px; } .dt-tier__bars i:nth-child(4) { height: 10px; }
+.dt-tier__bars i.on { background: var(--ink); }
+.dt-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.dt-tiles--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dt-tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px; border-radius: var(--radius-md); background: var(--surface-1); }
+.dt-tile small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.dt-tile b { font-size: 20px; line-height: 24px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-tiles--3 .dt-tile b { font-size: 16px; }
+.dt-tile span { font-size: 10px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-tactic { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; align-items: center; }
+.dt-tactic__info { display: flex; flex-direction: column; gap: 6px; word-break: keep-all; }
+.dt-group { margin: 4px 0 0; font-size: 12px; font-weight: 800; color: var(--ink-muted); }
+.dt-list { display: flex; flex-direction: column; gap: 6px; }
+.dt-row, .dt-match { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px 8px 8px; border: 0; border-radius: 14px; background: var(--surface-1); color: var(--ink); text-align: left; font-family: var(--font-sans); cursor: pointer; }
+.dt-row .grow { min-width: 0; }
+.dt-row b { display: block; font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-row small { display: block; font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.dt-row.is-me { box-shadow: inset 0 0 0 1.5px var(--mine); }
+.dt-row svg, .dt-more svg { flex: none; color: var(--ink-faint); }
+.dt-ovr { font-size: 17px; font-weight: 700; }
+.dt-more { display: flex; justify-content: center; align-items: center; gap: 6px; width: 100%; padding: 10px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 800; color: var(--ink); cursor: pointer; }
+.dt-match { padding: 10px 12px; }
+.dt-match__r { width: 30px; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.dt-match .grow { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-match b { font-size: 13px; }
+.dt-match small { font-size: 11px; color: var(--ink-muted); }
+.dt-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.dt-ro { gap: 4px; white-space: nowrap; }
+.dt-tag { gap: 4px; white-space: nowrap; }
+.dt-tag.is-legend { color: var(--tier-legend); }
+.dt-tag.is-career { color: var(--success); }
+.dt-foot { margin-top: var(--space-2); word-break: keep-all; }
+.mr-goals { display: flex; flex-direction: column; gap: 6px; }
+.mr-goal { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.mr-goal > .po-num { width: 30px; color: var(--ink-muted); font-weight: 700; }
+.mr-goal.is-mine .dt-link { font-weight: 800; }
+.mr-goal .r { text-align: right; }
+button.mr-team { flex-direction: column; }
+button.star-row { cursor: pointer; }
+.cal-item .dt-link { font-weight: 700; }

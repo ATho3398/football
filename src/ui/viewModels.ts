@@ -35,7 +35,8 @@ import {
 import { INJURY_NAMES_KO } from '../injury';
 import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
 import { legendClub, legendPeak, legendRosterPlayer, selectableLegends } from '../legends';
-import { naturalOvr } from '../roster';
+import { findRosterPlayer, naturalOvr } from '../roster';
+import { MY_ID } from '../engine/adapter';
 import { npcOvr } from '../npc';
 import { tierLabel } from '../finance';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
@@ -225,7 +226,7 @@ export interface DayVM {
   daysTo: number | null;
   nextLabel: string | null;
   quick: boolean;
-  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string }[];
+  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string }[];
   month: { title: string; lead: number; days: DayCellVM[] };
 }
 
@@ -264,7 +265,7 @@ export function dayVM(g: GameState): DayVM | null {
     }
     if (upcoming.length >= 6) break;
     const home = f.home === me;
-    upcoming.push({ date: dateLabel(d), text: `${r + 1}R ${teamById(g.league, home ? f.away : f.home).nameKo}`, kind: home ? 'home' : 'away', sub: home ? '홈' : '원정' });
+    upcoming.push({ date: dateLabel(d), text: `${r + 1}R ${teamById(g.league, home ? f.away : f.home).nameKo}`, kind: home ? 'home' : 'away', sub: home ? '홈' : '원정', team: home ? f.away : f.home });
   }
   if (upcoming.length < 6 && g.league.round >= g.league.schedule.length - 5) upcoming.push({ date: dateLabel(cal.final), text: '시즌 종료', kind: 'end' });
   const y = +today.slice(0, 4);
@@ -585,6 +586,8 @@ export function campLabel(g: GameState): string {
 export interface AttrRowVM { label: string; value: number; key: boolean }
 
 export interface PlayerVM {
+  /** 소속 팀 상세 링크 (C.53) */
+  teamId: string;
   face: FaceRef;
   name: string; position: string; positionKo: string; age: number; ovr: number; team: string;
   tier: DesignTier; tierName: string; reputation: number; repMax: number;
@@ -678,7 +681,7 @@ export function playerVM(g: GameState): PlayerVM {
   return {
     face: myFace(g),
     name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
-    team: teamById(g.league, p.teamId).nameKo,
+    team: teamById(g.league, p.teamId).nameKo, teamId: p.teamId,
     tier: designTier(tier), tierName: TIER_NAMES_KO[tier], reputation: p.reputation, repMax: BALANCE.reputation.max,
     next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier] } : null,
     level: p.level, xp: p.xp, xpMax: xpToLevel(p), totalXp: p.totalXp,
@@ -848,6 +851,9 @@ export const transitionSummary = possessionSummary;
 export interface MatchResultVM {
   /** 머리 줄 (부록 C.43): 우리 팀·상대 엠블럼, 내 얼굴 */
   myTeam: string; face: FaceRef;
+  /** 팀 상세 링크와 득점자 (C.53): 득점자 id 'me' = 내 선수 */
+  myTeamId: string; oppId: string;
+  goals: { minute: string; name: string; id: string | null; assist: string | null; mine: boolean }[];
   round: number; opp: string; scoreLine: string; outcome: 'win' | 'draw' | 'loss'; outcomeKo: string;
   rating: number | null; appearance: string; formBonus: number;
   chips: string[];
@@ -931,8 +937,18 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   if (m.cards) my.push({ label: m.cards.red ? '퇴장' : '경고', value: m.cards.red ? '1' : `${m.cards.yellows}` });
   const max = xpToLevel(g.player);
   const value = m.levelsGained > 0 ? g.player.xp : Math.max(0, g.player.xp - res.xp);
+  const fx = g.league.schedule[m.round - 1]?.find((f) => f.home === g.player.teamId || f.away === g.player.teamId);
+  const mySide = fx?.home === g.player.teamId ? 0 : 1;
+  const who = (id: string | null): { name: string; id: string | null } | null => {
+    if (!id) return null;
+    if (id === MY_ID) return { name: g.player.name, id: 'me' };
+    const hit = findRosterPlayer(g.rosters, id);
+    return hit ? { name: hit.player.nameKo, id } : { name: '—', id: null };
+  };
+  const goals = (fx?.g ?? []).map(([min, side, sc, as]) => ({ minute: `${min}'`, ...who(sc)!, assist: who(as)?.name ?? null, mine: side === mySide }));
   return {
     myTeam: teamById(g.league, g.player.teamId).nameKo, face: myFace(g),
+    myTeamId: g.player.teamId, oppId: m.opponentId, goals,
     round: m.round, opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
@@ -1005,30 +1021,30 @@ export function seasonMatchesVM(g: GameState): SeasonMatchesVM {
 
 export interface WorldVM {
   league: string; season: string; round: number; rounds: number; myPos: number; teams: number;
-  table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number; tier: string }[];
-  stars: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number }[];
+  table: { pos: number; team: string; teamId: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number; tier: string }[];
+  stars: { id: string; face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number }[];
   /** 레전드 팩 선수 (C.47): 리그 팀에 있는 레전드, OVR 순 */
-  legends: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; peak: number }[];
+  legends: { id: string; face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; peak: number }[];
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
   scorers: ScorerVM[];
 }
 
-export interface ScorerVM { face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
+export interface ScorerVM { id: string; teamId?: string; face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
 
 /** 득점 순위 (골 → 도움 → 출전 적은 순). 내 선수는 player.season 에서 */
 export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
-  const names = new Map<string, { name: string; team: string; face: FaceRef }>();
+  const names = new Map<string, { name: string; team: string; teamId: string; face: FaceRef }>();
   for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
     const team = teamById(g.league, teamId)?.nameKo ?? teamId;
-    for (const p of r.players) names.set(p.id, { name: p.nameKo, team, face: { id: p.id, age: p.age, appearance: p.appearance } });
+    for (const p of r.players) names.set(p.id, { name: p.nameKo, team, teamId, face: { id: p.id, age: p.age, appearance: p.appearance } });
   }
   const rows: ScorerVM[] = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({
-    face: names.get(id)?.face ?? { id },
+    id, ...(names.get(id) ? { teamId: names.get(id)!.teamId } : {}), face: names.get(id)?.face ?? { id },
     name: names.get(id)?.name ?? id, team: names.get(id)?.team ?? '', apps, goals, assists, avg: apps ? (r10 / apps / 10).toFixed(2) : '-', me: false,
   }));
   const s = g.player.season;
-  if (s.apps > 0) rows.push({ face: myFace(g), name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
+  if (s.apps > 0) rows.push({ id: 'me', teamId: g.player.teamId, face: myFace(g), name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
   return rows.filter((r) => r.goals > 0 || r.me).sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.apps - b.apps).slice(0, limit);
 }
 
@@ -1039,14 +1055,14 @@ export function worldVM(g: GameState): WorldVM {
     league: g.league.name, season: seasonLabel(g.league.season), round: g.league.round, rounds: g.league.schedule.length,
     myPos: leaguePosition(g.league, g.player.teamId), teams: rows.length,
     table: rows.map((r, i) => ({
-      pos: i + 1, team: teamById(g.league, r.teamId).nameKo, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
+      pos: i + 1, team: teamById(g.league, r.teamId).nameKo, teamId: r.teamId, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
       gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating, tier: tierLabel(r.teamId),
     })),
     stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
-      .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: clubKo(n.club), ovr: npcOvr(n), change: n.lastChange })),
+      .map((n) => ({ id: n.id, face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: clubKo(n.club), ovr: npcOvr(n), change: n.lastChange })),
     retired: g.npcs.filter((n) => n.retired).map((n) => n.nameKo),
     legends: Object.entries(g.rosters ?? {}).flatMap(([teamId, r]) => r.players.filter((p) => p.legend).map((p) => ({
-      face: { id: p.id, age: p.age, appearance: p.appearance }, name: p.nameKo, position: p.position, age: p.age,
+      id: p.id, face: { id: p.id, age: p.age, appearance: p.appearance }, name: p.nameKo, position: p.position, age: p.age,
       club: teamById(g.league, teamId).nameKo, ovr: naturalOvr(p), peak: p.peakOvr,
     }))).sort((a, b) => b.ovr - a.ovr || b.peak - a.peak),
     scorers: scorersVM(g),

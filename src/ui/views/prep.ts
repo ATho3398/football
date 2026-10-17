@@ -32,7 +32,7 @@ export function prepView(vm: PrepVM): string {
 
   const total = vm.my.rating + vm.opp.rating;
   const share = total > 0 ? Math.round((vm.my.rating / total) * 100) : 50;
-  const opp = card(`${head('상대')}
+  const opp = card(`${head('상대', { label: '팀 상세', act: 'team-open', v: vm.opp.id })}
     <div class="prep-vs"><span class="prep-vs__me">${Crest({ name: vm.my.name, size: 28 })}<b>${esc(vm.my.name)}</b></span><span class="prep-vs__x">vs</span><span class="prep-vs__opp"><b>${esc(vm.opp.name)}</b>${Crest({ name: vm.opp.name, size: 28, color: 'var(--away)' })}</span></div>
     <div class="prep-bar"><span>전력 <b class="po-num">${vm.my.rating}</b> <small>${vm.my.rank}위</small></span><span class="prep-bar__track"><i style="width:${share}%"></i><i></i></span><span><small>${vm.opp.rank}위</small> <b class="po-num is-away">${vm.opp.rating}</b></span></div>
     <div class="prep-row">${vm.opp.tactic ? TacticChip({ size: 'sm', away: true, ...vm.opp.tactic }) : '<span></span>'}${formDots(vm.opp.form)}</div>
