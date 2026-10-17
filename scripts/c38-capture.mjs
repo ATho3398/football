@@ -31,7 +31,15 @@ async function dismiss() {
   }
 }
 const act = async (a, extra = '') => { if (!['intro-ok', 'tip-close', 'tips-off', 'sim-rest-ok', 'rp-skip-ok'].includes(a)) await dismiss(); return page.locator(`[data-act="${a}"]${extra}`).first().click(); };
-const idle = async (timeout = 600_000) => page.waitForFunction(() => !document.querySelector('[data-act="sim-stop"]'), null, { timeout, polling: 100 });
+/** 진행이 끝날 때까지 ([중단] 버튼이 1.5초 동안 계속 없으면) */
+async function idle(timeout = 600_000) {
+  const end = Date.now() + timeout;
+  let quiet = 0;
+  while (Date.now() < end && quiet < 15) {
+    quiet = (await has('[data-act="sim-stop"]')) ? 0 : quiet + 1;
+    await page.waitForTimeout(100);
+  }
+}
 const heroDate = async () => (await page.locator('.po-hero, .hero').first().innerText()).replace(/\s+/g, ' ').slice(0, 80);
 const saveKb = async () => page.evaluate(() => Math.round((localStorage.getItem('football-career:auto')?.length ?? 0) / 102.4) / 10);
 

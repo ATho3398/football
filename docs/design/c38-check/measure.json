@@ -1,0 +1,1663 @@
+{
+ "hardwareConcurrency": 4,
+ "errors": [],
+ "seasonRestSec": 52.531,
+ "days": 275,
+ "totalMs": 54888,
+ "matches": 372,
+ "maxDayMs": 1744,
+ "avgMatchDayMs": 638,
+ "saveKb": 98.5,
+ "log": [
+  {
+   "date": "2018-08-10",
+   "ms": 1009,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-08-12",
+   "ms": 1003,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-08-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-15",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-18",
+   "ms": 1340,
+   "matches": 7,
+   "my": false
+  },
+  {
+   "date": "2018-08-19",
+   "ms": 555,
+   "matches": 1,
+   "my": true
+  },
+  {
+   "date": "2018-08-20",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-22",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-23",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-24",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-25",
+   "ms": 1744,
+   "matches": 6,
+   "my": true
+  },
+  {
+   "date": "2018-08-26",
+   "ms": 612,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-08-27",
+   "ms": 279,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-08-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-29",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-30",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-08-31",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-01",
+   "ms": 899,
+   "matches": 6,
+   "my": false
+  },
+  {
+   "date": "2018-09-02",
+   "ms": 741,
+   "matches": 3,
+   "my": true
+  },
+  {
+   "date": "2018-09-03",
+   "ms": 318,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-09-04",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-05",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-09",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-10",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-12",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-15",
+   "ms": 1375,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-09-16",
+   "ms": 393,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-09-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-20",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-22",
+   "ms": 1009,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-09-23",
+   "ms": 329,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2018-09-24",
+   "ms": 385,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-09-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-26",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-27",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-09-29",
+   "ms": 811,
+   "matches": 7,
+   "my": false
+  },
+  {
+   "date": "2018-09-30",
+   "ms": 786,
+   "matches": 3,
+   "my": true
+  },
+  {
+   "date": "2018-10-01",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-02",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-03",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-04",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-05",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-06",
+   "ms": 1002,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-10-07",
+   "ms": 382,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-10-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-09",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-10",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-12",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-15",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-20",
+   "ms": 968,
+   "matches": 6,
+   "my": true
+  },
+  {
+   "date": "2018-10-21",
+   "ms": 573,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-10-22",
+   "ms": 320,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-10-23",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-24",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-26",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-27",
+   "ms": 897,
+   "matches": 8,
+   "my": false
+  },
+  {
+   "date": "2018-10-28",
+   "ms": 583,
+   "matches": 2,
+   "my": true
+  },
+  {
+   "date": "2018-10-29",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-30",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-10-31",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-01",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-02",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-03",
+   "ms": 610,
+   "matches": 6,
+   "my": false
+  },
+  {
+   "date": "2018-11-04",
+   "ms": 693,
+   "matches": 3,
+   "my": true
+  },
+  {
+   "date": "2018-11-05",
+   "ms": 306,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-11-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-09",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-10",
+   "ms": 931,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-11-11",
+   "ms": 403,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2018-11-12",
+   "ms": 373,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-11-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-15",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-20",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-22",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-23",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-24",
+   "ms": 1016,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-11-25",
+   "ms": 378,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-11-26",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-27",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-29",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-11-30",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-01",
+   "ms": 987,
+   "matches": 8,
+   "my": true
+  },
+  {
+   "date": "2018-12-02",
+   "ms": 304,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2018-12-03",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-04",
+   "ms": 540,
+   "matches": 5,
+   "my": false
+  },
+  {
+   "date": "2018-12-05",
+   "ms": 550,
+   "matches": 5,
+   "my": true
+  },
+  {
+   "date": "2018-12-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-08",
+   "ms": 867,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-12-09",
+   "ms": 307,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2018-12-10",
+   "ms": 293,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2018-12-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-12",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-15",
+   "ms": 1035,
+   "matches": 8,
+   "my": true
+  },
+  {
+   "date": "2018-12-16",
+   "ms": 273,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2018-12-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-20",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-22",
+   "ms": 848,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2018-12-23",
+   "ms": 410,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2018-12-24",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-26",
+   "ms": 1145,
+   "matches": 10,
+   "my": true
+  },
+  {
+   "date": "2018-12-27",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2018-12-29",
+   "ms": 622,
+   "matches": 8,
+   "my": false
+  },
+  {
+   "date": "2018-12-30",
+   "ms": 538,
+   "matches": 2,
+   "my": true
+  },
+  {
+   "date": "2018-12-31",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-01",
+   "ms": 674,
+   "matches": 5,
+   "my": true
+  },
+  {
+   "date": "2019-01-02",
+   "ms": 551,
+   "matches": 5,
+   "my": false
+  },
+  {
+   "date": "2019-01-03",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-04",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-05",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-09",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-10",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-12",
+   "ms": 874,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-01-13",
+   "ms": 310,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2019-01-14",
+   "ms": 308,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2019-01-15",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-19",
+   "ms": 829,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-01-20",
+   "ms": 358,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-01-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-22",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-23",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-24",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-26",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-27",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-01-29",
+   "ms": 354,
+   "matches": 4,
+   "my": false
+  },
+  {
+   "date": "2019-01-30",
+   "ms": 846,
+   "matches": 6,
+   "my": true
+  },
+  {
+   "date": "2019-01-31",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-01",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-02",
+   "ms": 979,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-02-03",
+   "ms": 317,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-02-04",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-05",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-09",
+   "ms": 955,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-02-10",
+   "ms": 377,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-02-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-12",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-15",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-20",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-22",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-23",
+   "ms": 921,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-02-24",
+   "ms": 442,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-02-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-02-26",
+   "ms": 534,
+   "matches": 4,
+   "my": true
+  },
+  {
+   "date": "2019-02-27",
+   "ms": 606,
+   "matches": 6,
+   "my": false
+  },
+  {
+   "date": "2019-02-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-01",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-02",
+   "ms": 815,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-03-03",
+   "ms": 279,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2019-03-04",
+   "ms": 313,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2019-03-05",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-09",
+   "ms": 876,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-03-10",
+   "ms": 312,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2019-03-11",
+   "ms": 277,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2019-03-12",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-13",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-14",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-15",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-20",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-21",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-22",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-23",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-24",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-26",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-27",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-28",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-29",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-03-30",
+   "ms": 918,
+   "matches": 8,
+   "my": true
+  },
+  {
+   "date": "2019-03-31",
+   "ms": 350,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2019-04-01",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-02",
+   "ms": 559,
+   "matches": 4,
+   "my": true
+  },
+  {
+   "date": "2019-04-03",
+   "ms": 548,
+   "matches": 6,
+   "my": false
+  },
+  {
+   "date": "2019-04-04",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-05",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-06",
+   "ms": 690,
+   "matches": 6,
+   "my": true
+  },
+  {
+   "date": "2019-04-07",
+   "ms": 294,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-04-08",
+   "ms": 226,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2019-04-09",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-10",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-12",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-13",
+   "ms": 813,
+   "matches": 6,
+   "my": true
+  },
+  {
+   "date": "2019-04-14",
+   "ms": 279,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-04-15",
+   "ms": 226,
+   "matches": 1,
+   "my": false
+  },
+  {
+   "date": "2019-04-16",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-17",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-18",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-19",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-20",
+   "ms": 988,
+   "matches": 7,
+   "my": true
+  },
+  {
+   "date": "2019-04-21",
+   "ms": 308,
+   "matches": 3,
+   "my": false
+  },
+  {
+   "date": "2019-04-22",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-23",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-24",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-25",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-26",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-27",
+   "ms": 1073,
+   "matches": 8,
+   "my": true
+  },
+  {
+   "date": "2019-04-28",
+   "ms": 298,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2019-04-29",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-04-30",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-01",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-02",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-03",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-04",
+   "ms": 879,
+   "matches": 8,
+   "my": true
+  },
+  {
+   "date": "2019-05-05",
+   "ms": 351,
+   "matches": 2,
+   "my": false
+  },
+  {
+   "date": "2019-05-06",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-07",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-08",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-09",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-10",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-11",
+   "ms": 0,
+   "matches": 0,
+   "my": false
+  },
+  {
+   "date": "2019-05-12",
+   "ms": 1239,
+   "matches": 10,
+   "my": true
+  }
+ ]
+}
