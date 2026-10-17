@@ -491,6 +491,7 @@ export function newGame(opts: NewGameOptions): GameState {
       player.shirt = freeShirt(rosterShirts(rosters[player.teamId]), player.position);
     }
   }
+  myShirt(state);
   return state;
 }
 
