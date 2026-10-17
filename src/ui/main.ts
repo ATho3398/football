@@ -56,6 +56,8 @@ import { allocateView, newGameView, retiredView, savesView, seasonView, titleVie
 import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
+import { cropStyle, lookupEntry, settingsView, type FaceOnUI } from './views/settings';
+import { clearFaceOn, cropToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
@@ -66,7 +68,7 @@ import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -111,6 +113,10 @@ const ui = {
     /** 결정 결과 재생 중 (E5 최소, 부록 C.35): 결과 구간 → 결과 띠 → 다음 장면 */
     oc: null | { vm: OutcomeVM; pitch: OutcomePitch; next: Moment | null; timer: number };
   },
+  /** 설정 화면 페이스온 (C.43) */
+  fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
+  /** 설정 화면에서 돌아갈 화면 */
+  settingsBack: 'home' as Screen,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
   form: {
@@ -143,7 +149,7 @@ const app = document.getElementById('app')!;
 /** 새 기능 소개를 띄우는 화면 */
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
 /** 아래 바(홈·선수·월드)를 띄우는 화면 (C.39: 경기 화면에서도 다른 탭으로 갈 수 있게) */
-const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay', 'moment', 'season', 'offers', 'contract'];
+const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay', 'moment', 'season', 'offers', 'contract', 'settings'];
 
 /** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
 function liveScreen(): Screen | null {
@@ -260,6 +266,7 @@ function screenHtml(): string {
       syncProspectPick();
       return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }));
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
+    case 'settings': return settingsView(g, ui.fo, versionVM(g));
     default: break;
   }
   if (!g) return titleScreen();
@@ -1147,6 +1154,80 @@ app.addEventListener('click', (ev) => {
     case 'day-continue':
       if (g && g.phase === 'season' && !ui.busy) void advanceDays(g, 'continue');
       return;
+    case 'faceon-open':
+      ui.fo.sel = el.dataset.key ?? null;
+      ui.fo.tab = ui.fo.sel?.startsWith('t:') ? 'clubs' : 'players';
+      go('settings');
+      return;
+    case 'faceon-tab':
+      if (v !== 'players' && v !== 'clubs') return;
+      ui.fo.tab = v;
+      ui.fo.q = '';
+      render();
+      return;
+    case 'faceon-pick':
+      ui.fo.sel = el.dataset.key ?? null;
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    case 'faceon-upload': {
+      const input = document.getElementById('fo-file') as HTMLInputElement | null;
+      if (!input || !el.dataset.key || !el.dataset.slot) return;
+      input.dataset.key = el.dataset.key;
+      input.dataset.slot = el.dataset.slot;
+      input.click();
+      return;
+    }
+    case 'faceon-clear': {
+      const key = el.dataset.key;
+      if (!key) return;
+      void clearFaceOn(key, el.dataset.slot as FaceSlot | undefined).then(() => {
+        render();
+        showToast('되돌렸어요');
+      });
+      return;
+    }
+    case 'faceon-crop-cancel':
+      if (ui.fo.crop) URL.revokeObjectURL(ui.fo.crop.src);
+      ui.fo.crop = null;
+      render();
+      return;
+    case 'faceon-crop-save': {
+      const c = ui.fo.crop;
+      if (!c) return;
+      void (async () => {
+        try {
+          const img = await loadImage(c.src);
+          const club = c.slot === 'crest';
+          const blob = await cropToBlob(img, c, club ? 160 : 256, !club);
+          await setFaceOn(c.key, c.name, c.slot, blob);
+          URL.revokeObjectURL(c.src);
+          ui.fo.crop = null;
+          render();
+          showToast({ kind: 'info', title: '이미지를 바꿨어요', body: `${c.name} · ${(blob.size / 1024).toFixed(0)} KB` });
+        } catch (e) {
+          showToast((e as Error).message || '저장하지 못했어요');
+        }
+      })();
+      return;
+    }
+    case 'facepack-export':
+      void (async () => {
+        const blob = await exportFacepack();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'player-one-facepack.zip';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast({ kind: 'info', title: '페이스팩을 내보냈어요', body: `${(blob.size / 1024).toFixed(0)} KB` });
+      })();
+      return;
+    case 'facepack-import':
+      (document.getElementById('fp-file') as HTMLInputElement | null)?.click();
+      return;
     case 'opt-quick':
       if (!g) return;
       g.options = { quickOthers: v === 'quick' };
@@ -1516,5 +1597,64 @@ app.addEventListener('change', (ev) => {
   })();
 });
 
+// 페이스온 (C.43): 검색 칸, 자르기 슬라이더 (다시 그리지 않고 미리보기만 바꾼다), 이미지·zip 파일
+let foTimer = 0;
+app.addEventListener('input', (ev) => {
+  const t = ev.target as HTMLInputElement;
+  if (t.id === 'fo-q') {
+    ui.fo.q = t.value;
+    clearTimeout(foTimer);
+    foTimer = window.setTimeout(() => {
+      render();
+      const q = document.getElementById('fo-q') as HTMLInputElement | null;
+      if (q) {
+        q.focus();
+        q.setSelectionRange(q.value.length, q.value.length);
+      }
+    }, 200);
+    return;
+  }
+  const c = ui.fo.crop;
+  if (!c || !['fo-zoom', 'fo-x', 'fo-y'].includes(t.id)) return;
+  const n = Number(t.value) / 100;
+  if (t.id === 'fo-zoom') c.zoom = n;
+  else if (t.id === 'fo-x') c.x = n;
+  else c.y = n;
+  const prev = document.getElementById('fo-prev');
+  if (prev) prev.setAttribute('style', cropStyle(c));
+});
+
+app.addEventListener('change', (ev) => {
+  const input = ev.target as HTMLInputElement;
+  if (input.id === 'fo-file' && input.files?.[0]) {
+    const file = input.files[0];
+    const key = input.dataset.key;
+    const slot = input.dataset.slot as FaceSlot | undefined;
+    input.value = '';
+    if (!key || !slot) return;
+    const src = URL.createObjectURL(file);
+    void loadImage(src).then((img) => {
+      const name = lookupEntry(ui.game, key)?.name ?? key.slice(2);
+      ui.fo.crop = { key, name, slot, src, zoom: 1, x: 0, y: slot === 'crest' ? 0 : -0.3, wide: img.naturalWidth > img.naturalHeight };
+      render();
+    }, () => {
+      URL.revokeObjectURL(src);
+      showToast('이미지를 읽지 못했어요');
+    });
+    return;
+  }
+  if (input.id === 'fp-file' && input.files?.[0]) {
+    const file = input.files[0];
+    input.value = '';
+    const g = ui.game;
+    if (g) setPlayerNames(Object.values(g.rosters ?? {}).flatMap((r) => r.players.map((p) => ({ id: p.id, name: p.name, nameKo: p.nameKo }))));
+    void importFacepack(file, (key) => lookupEntry(ui.game, key)?.name).then((r) => {
+      render();
+      showToast({ kind: 'info', title: `페이스팩 가져오기 · ${r.added}장`, body: r.skipped.length ? `못 찾은 파일 ${r.skipped.length}개: ${r.skipped.slice(0, 3).join(', ')}` : '모두 넣었어요.' }, 3200);
+    }, (e) => showToast((e as Error).message || '가져오지 못했어요'));
+  }
+});
+
 render();
+void initFaces().then(render, () => render());
 void initSaves().then(render, () => render());

@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "generated": "2026-10-17T08:25:33.641Z",
+  "players": {
+    "messi": {
+      "file": "players/messi.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg/330px-Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Lionel_Messi",
+      "title": "Lionel Messi"
+    },
+    "salah": {
+      "file": "players/salah.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/Mohamed_Salah_Argentina_v_Egypt_7_July_2026-163_%28cropped%29.jpg/330px-Mohamed_Salah_Argentina_v_Egypt_7_July_2026-163_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Mohamed_Salah",
+      "title": "Mohamed Salah"
+    },
+    "van-dijk": {
+      "file": "players/van-dijk.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/20160604_AUT_NED_8876_%28cropped%29.jpg/330px-20160604_AUT_NED_8876_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Virgil_van_Dijk",
+      "title": "Virgil van Dijk"
+    },
+    "mane": {
+      "file": "players/mane.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Sadio_Mane_France_v_Senegal_16_June_2026-450.jpg/330px-Sadio_Mane_France_v_Senegal_16_June_2026-450.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sadio_Man%C3%A9",
+      "title": "Sadio Mané"
+    },
+    "firmino": {
+      "file": "players/firmino.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/20180610_FIFA_Friendly_Match_Austria_vs._Brazil_Roberto_Firmino_850_1557.jpg/330px-20180610_FIFA_Friendly_Match_Austria_vs._Brazil_Roberto_Firmino_850_1557.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Roberto_Firmino",
+      "title": "Roberto Firmino"
+    },
+    "de-bruyne": {
+      "file": "players/de-bruyne.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Kevin_De_Bruyne_USMNT_v_Belgium_Mar_28_2026-64_%28cropped%29.jpg/330px-Kevin_De_Bruyne_USMNT_v_Belgium_Mar_28_2026-64_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Kevin_De_Bruyne",
+      "title": "Kevin De Bruyne"
+    },
+    "aguero": {
+      "file": "players/aguero.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Ag%C3%BCero_in_2018.jpg/330px-Ag%C3%BCero_in_2018.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sergio_Ag%C3%BCero",
+      "title": "Sergio Agüero"
+    },
+    "sterling": {
+      "file": "players/sterling.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Raheem_Sterling_2018.jpg/330px-Raheem_Sterling_2018.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Raheem_Sterling",
+      "title": "Raheem Sterling"
+    },
+    "sane": {
+      "file": "players/sane.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Leroy_Sane_Ecuador_v_Germany_25_June_2026-119_%28cropped%29.jpg/330px-Leroy_Sane_Ecuador_v_Germany_25_June_2026-119_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Leroy_San%C3%A9",
+      "title": "Leroy Sané"
+    },
+    "foden": {
+      "file": "players/foden.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/2023-10-04_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League%2C_RB_Leipzig_-_Manchester_City_FC_1DX_2613%2C_Phil_Foden.jpg/330px-2023-10-04_Fu%C3%9Fball%2C_M%C3%A4nner%2C_UEFA_Champions_League%2C_RB_Leipzig_-_Manchester_City_FC_1DX_2613%2C_Phil_Foden.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Phil_Foden",
+      "title": "Phil Foden"
+    },
+    "hazard": {
+      "file": "players/hazard.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Eden_Hazard_at_Baku_before_2019_UEFA_Europe_League_Final.jpg/330px-Eden_Hazard_at_Baku_before_2019_UEFA_Europe_League_Final.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Eden_Hazard",
+      "title": "Eden Hazard"
+    },
+    "kante": {
+      "file": "players/kante.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/N%27Golo_Kante_France_v_Senegal_16_June_2026-397.jpg/330px-N%27Golo_Kante_France_v_Senegal_16_June_2026-397.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/N'Golo_Kant%C3%A9",
+      "title": "N'Golo Kanté"
+    },
+    "kane": {
+      "file": "players/kane.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Harry_Kane_England_v_Ghana_23_June_2026-024_%28cropped%29.jpg/330px-Harry_Kane_England_v_Ghana_23_June_2026-024_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Harry_Kane",
+      "title": "Harry Kane"
+    },
+    "son": {
+      "file": "players/son.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/BFA_2023_-2_Heung-Min_Son_%28cropped%29.jpg/330px-BFA_2023_-2_Heung-Min_Son_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Son_Heung-min",
+      "title": "Son Heung-min"
+    },
+    "eriksen": {
+      "file": "players/eriksen.webp",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/d/d8/EriksenTottenham2016%28cropped%29_2.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Christian_Eriksen",
+      "title": "Christian Eriksen"
+    },
+    "pogba": {
+      "file": "players/pogba.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Paul_Pogba_Cannes_2025.jpg/330px-Paul_Pogba_Cannes_2025.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Paul_Pogba",
+      "title": "Paul Pogba"
+    },
+    "rashford": {
+      "file": "players/rashford.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Marcus_Rashford_England_v_Ghana_23_June_2026-073.jpg/330px-Marcus_Rashford_England_v_Ghana_23_June_2026-073.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Marcus_Rashford",
+      "title": "Marcus Rashford"
+    },
+    "aubameyang": {
+      "file": "players/aubameyang.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/1_Pierre-Emerick_Aubameyang_%28cropped%29.jpg/330px-1_Pierre-Emerick_Aubameyang_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Pierre-Emerick_Aubameyang",
+      "title": "Pierre-Emerick Aubameyang"
+    },
+    "ronaldo": {
+      "file": "players/ronaldo.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg/330px-Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Cristiano_Ronaldo",
+      "title": "Cristiano Ronaldo"
+    },
+    "neymar": {
+      "file": "players/neymar.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Neymar_Junior_Brazil_V_Morocco_13_June_2026-40.jpg/330px-Neymar_Junior_Brazil_V_Morocco_13_June_2026-40.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Neymar",
+      "title": "Neymar"
+    },
+    "mbappe": {
+      "file": "players/mbappe.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Kylian_Mbappe_France_v_Senegal_16_June_2026-391_%28cropped%29.jpg/330px-Kylian_Mbappe_France_v_Senegal_16_June_2026-391_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Kylian_Mbapp%C3%A9",
+      "title": "Kylian Mbappé"
+    },
+    "griezmann": {
+      "file": "players/griezmann.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/FRA-ARG_%2810%29_%28cropped%29.jpg/330px-FRA-ARG_%2810%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Antoine_Griezmann",
+      "title": "Antoine Griezmann"
+    },
+    "modric": {
+      "file": "players/modric.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Luka_Modric_Croatia_v_Portugal_2_July_2026-055.jpg/330px-Luka_Modric_Croatia_v_Portugal_2_July_2026-055.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Luka_Modri%C4%87",
+      "title": "Luka Modrić"
+    },
+    "ramos": {
+      "file": "players/ramos.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4b/Sergio_Ramos_Interview_2021_%28cropped%29.jpg/330px-Sergio_Ramos_Interview_2021_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sergio_Ramos",
+      "title": "Sergio Ramos"
+    },
+    "kroos": {
+      "file": "players/kroos.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/64/Toni_Kroos_Real_Madrid_2021.jpg/330px-Toni_Kroos_Real_Madrid_2021.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Toni_Kroos",
+      "title": "Toni Kroos"
+    },
+    "lewandowski": {
+      "file": "players/lewandowski.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Robert_Lewandowski_NYCFC_v_Chicago_25_July_2026-383.jpg/330px-Robert_Lewandowski_NYCFC_v_Chicago_25_July_2026-383.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Robert_Lewandowski",
+      "title": "Robert Lewandowski"
+    },
+    "suarez": {
+      "file": "players/suarez.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Luis_Su%C3%A1rez_2026_%28cropped%29.jpg/330px-Luis_Su%C3%A1rez_2026_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Luis_Su%C3%A1rez_(Uruguayan_footballer)",
+      "title": "Luis Suárez (Uruguayan footballer)"
+    },
+    "busquets": {
+      "file": "players/busquets.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Sergio_Busquets_NYCFC_Miami_24_Sep_2025-020_%28cropped%29.jpg/330px-Sergio_Busquets_NYCFC_Miami_24_Sep_2025-020_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sergio_Busquets",
+      "title": "Sergio Busquets"
+    },
+    "sancho": {
+      "file": "players/sancho.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Manchester_United_v_Liverpool%2C_22_August_2022_%2833%29_%28cropped%29.jpg/330px-Manchester_United_v_Liverpool%2C_22_August_2022_%2833%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jadon_Sancho",
+      "title": "Jadon Sancho"
+    },
+    "vinicius": {
+      "file": "players/vinicius.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Vin%C3%ADcius_J%C3%BAnior_Brazil_V_Morocco_13_June_2026-207_%28cropped%29.jpg/330px-Vin%C3%ADcius_J%C3%BAnior_Brazil_V_Morocco_13_June_2026-207_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Vin%C3%ADcius_J%C3%BAnior",
+      "title": "Vinícius Júnior"
+    },
+    "dybala": {
+      "file": "players/dybala.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/%D0%9C%D0%B0%D1%82%D1%87_%C2%AB%D0%94%D0%B8%D0%BD%D0%B0%D0%BC%D0%BE%C2%BB_-_%C2%AB%D0%AE%D0%B2%D0%B5%D0%BD%D1%82%D1%83%D1%81%C2%BB_0-2._20_%D0%BE%D0%BA%D1%82%D1%8F%D0%B1%D1%80%D1%8F_2020_%D0%B3%D0%BE%D0%B4%D0%B0_%E2%80%94_1153905_%28cropped%29.jpg/330px-%D0%9C%D0%B0%D1%82%D1%87_%C2%AB%D0%94%D0%B8%D0%BD%D0%B0%D0%BC%D0%BE%C2%BB_-_%C2%AB%D0%AE%D0%B2%D0%B5%D0%BD%D1%82%D1%83%D1%81%C2%BB_0-2._20_%D0%BE%D0%BA%D1%82%D1%8F%D0%B1%D1%80%D1%8F_2020_%D0%B3%D0%BE%D0%B4%D0%B0_%E2%80%94_1153905_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Paulo_Dybala",
+      "title": "Paulo Dybala"
+    },
+    "kimmich": {
+      "file": "players/kimmich.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Joshua_Kimmich_Ecuador_v_Germany_25_June_2026-149.jpg/330px-Joshua_Kimmich_Ecuador_v_Germany_25_June_2026-149.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Joshua_Kimmich",
+      "title": "Joshua Kimmich"
+    },
+    "havertz": {
+      "file": "players/havertz.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/76/Kai_Havertz_Ecuador_v_Germany_25_June_2026-118.jpg/330px-Kai_Havertz_Ecuador_v_Germany_25_June_2026-118.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Kai_Havertz",
+      "title": "Kai Havertz"
+    }
+  },
+  "clubs": {
+    "mci": {
+      "file": "clubs/mci.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/330px-Manchester_City_FC_badge.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Manchester_City_F.C.",
+      "title": "Manchester City F.C."
+    },
+    "liv": {
+      "file": "clubs/liv.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/330px-Liverpool_FC.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Liverpool_F.C.",
+      "title": "Liverpool F.C."
+    },
+    "che": {
+      "file": "clubs/che.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/cc/Chelsea_FC.svg/330px-Chelsea_FC.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Chelsea_F.C.",
+      "title": "Chelsea F.C."
+    },
+    "tot": {
+      "file": "clubs/tot.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/b/b4/Tottenham_Hotspur.svg/330px-Tottenham_Hotspur.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Tottenham_Hotspur_F.C.",
+      "title": "Tottenham Hotspur F.C."
+    },
+    "mun": {
+      "file": "clubs/mun.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/330px-Manchester_United_FC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Manchester_United_F.C.",
+      "title": "Manchester United F.C."
+    },
+    "ars": {
+      "file": "clubs/ars.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/5/53/Arsenal_FC.svg/330px-Arsenal_FC.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Arsenal_F.C.",
+      "title": "Arsenal F.C."
+    },
+    "eve": {
+      "file": "clubs/eve.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/7/7c/Everton_FC_logo.svg/330px-Everton_FC_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Everton_F.C.",
+      "title": "Everton F.C."
+    },
+    "lei": {
+      "file": "clubs/lei.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/2/2d/Leicester_City_crest.svg/330px-Leicester_City_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Leicester_City_F.C.",
+      "title": "Leicester City F.C."
+    },
+    "whu": {
+      "file": "clubs/whu.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/c2/West_Ham_United_FC_logo.svg/330px-West_Ham_United_FC_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/West_Ham_United_F.C.",
+      "title": "West Ham United F.C."
+    },
+    "wol": {
+      "file": "clubs/wol.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/c9/Wolverhampton_Wanderers_FC_crest.svg/330px-Wolverhampton_Wanderers_FC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Wolverhampton_Wanderers_F.C.",
+      "title": "Wolverhampton Wanderers F.C."
+    },
+    "cry": {
+      "file": "clubs/cry.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/a/a2/Crystal_Palace_FC_logo_%282022%29.svg/330px-Crystal_Palace_FC_logo_%282022%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Crystal_Palace_F.C.",
+      "title": "Crystal Palace F.C."
+    },
+    "wat": {
+      "file": "clubs/wat.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/e2/Watford.svg/330px-Watford.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Watford_F.C.",
+      "title": "Watford F.C."
+    },
+    "bou": {
+      "file": "clubs/bou.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/e5/AFC_Bournemouth_%282013%29.svg/330px-AFC_Bournemouth_%282013%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/AFC_Bournemouth",
+      "title": "AFC Bournemouth"
+    },
+    "new": {
+      "file": "clubs/new.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/8/87/Newcastle_United_FC_2026_crest.svg/330px-Newcastle_United_FC_2026_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Newcastle_United_F.C.",
+      "title": "Newcastle United F.C."
+    },
+    "sou": {
+      "file": "clubs/sou.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/c9/FC_Southampton.svg/330px-FC_Southampton.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Southampton_F.C.",
+      "title": "Southampton F.C."
+    },
+    "bur": {
+      "file": "clubs/bur.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/6/6d/Burnley_FC_Logo.svg/330px-Burnley_FC_Logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Burnley_F.C.",
+      "title": "Burnley F.C."
+    },
+    "bha": {
+      "file": "clubs/bha.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/d/d0/Brighton_and_Hove_Albion_FC_crest.svg/330px-Brighton_and_Hove_Albion_FC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Brighton_%26_Hove_Albion_F.C.",
+      "title": "Brighton & Hove Albion F.C."
+    },
+    "ful": {
+      "file": "clubs/ful.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/eb/Fulham_FC_%28shield%29.svg/330px-Fulham_FC_%28shield%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Fulham_F.C.",
+      "title": "Fulham F.C."
+    },
+    "car": {
+      "file": "clubs/car.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/3/3c/Cardiff_City_crest.svg/330px-Cardiff_City_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Cardiff_City_F.C.",
+      "title": "Cardiff City F.C."
+    },
+    "hud": {
+      "file": "clubs/hud.webp",
+      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/4/43/Huddersfield_Town_AFC_crest.svg/330px-Huddersfield_Town_AFC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Huddersfield_Town_A.F.C.",
+      "title": "Huddersfield Town A.F.C."
+    }
+  }
+}

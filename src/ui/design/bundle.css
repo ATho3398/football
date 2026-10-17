@@ -30,8 +30,12 @@ body { background: var(--surface-0); color: var(--ink); font-family: var(--font-
 /* Avatar / crest */
 .po-avatar { position: relative; display: inline-block; overflow: hidden; flex: none; background: var(--surface-3); }
 .po-avatar img, .po-avatar svg { display: block; width: 100%; height: 100%; object-fit: cover; }
+.po-avatar img { position: absolute; inset: 0; background: var(--surface-3); }
 .po-avatar--ring { box-shadow: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--brand); }
 .po-crest { flex: none; display: inline-block; }
+.po-crest--img { position: relative; }
+.po-crest--img > svg, .po-crest--img > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.po-crest--img > img { object-fit: contain; }
 
 /* Hero panel — lime header */
 .po-hero { display: flex; flex-direction: column; gap: 6px; padding: 12px var(--space-4) 22px; border-radius: 0 0 var(--radius-xl) var(--radius-xl); background: var(--brand); color: var(--on-brand); }

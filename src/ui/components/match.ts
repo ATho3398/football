@@ -17,13 +17,13 @@ const FEED: Record<FeedKind, IconName> = {
   sub: 'sub', injury: 'injury', half: 'clock', throwin: 'throwin', goalkick: 'goalkick', tactic: 'tactic',
 };
 
-export interface FeedItemProps { minute?: string | number; text: string; kind?: FeedKind; faint?: boolean; mine?: boolean; score?: string }
+export interface FeedItemProps { minute?: string | number; text: string; kind?: FeedKind; faint?: boolean; mine?: boolean; score?: string; /** 글 앞 작은 얼굴 등 (HTML, 부록 C.43) */ lead?: string }
 
 export function FeedItem(p: FeedItemProps): string {
   const kind = p.kind ?? 'normal';
   const faint = p.faint || kind === 'throwin' || kind === 'goalkick';
   return `<div class="${cx('po-feed', `po-feed--${kind}`, p.mine && 'is-mine', faint && 'is-faint')}"><span class="po-feed__min po-num">${p.minute != null ? `${esc(p.minute)}'` : ''}</span><span class="po-feed__icon">${
-    Icon({ name: FEED[kind], size: kind === 'goal' ? 20 : 16 })}</span><span class="po-feed__text">${esc(p.text)}${
+    Icon({ name: FEED[kind], size: kind === 'goal' ? 20 : 16 })}</span><span class="po-feed__text">${p.lead ?? ''}${esc(p.text)}${
     p.score ? `<b class="po-feed__score po-num">${esc(p.score)}</b>` : ''}</span>${p.mine ? '<span class="po-feed__tag">나</span>' : ''}</div>`;
 }
 

@@ -1,7 +1,7 @@
 // 경기 후 (I.6, 디자인 38): 스코어·평점, 하이라이트, 전술 리포트(21.5.2: 판정 카드 최대 2장 + 숫자 줄), 평균 위치 지도, XP.
 // 내 결정 기록 (E.11, I.17 10번, 직접 모드로 멈춘 순간). 카드·신뢰도는 아직 없는 기능이라 숨긴다
 
-import { Button, esc, FeedItem, HeroPanel, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
+import { Avatar, Button, Crest, esc, FeedItem, HeroPanel, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
 import type { MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel } from './common';
 
@@ -20,8 +20,9 @@ export function matchResultView(vm: MatchResultVM): string {
     value: vm.rating === null ? '-' : vm.rating.toFixed(1), pad: false, progress: false,
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
   });
+  const head = `<div class="panel mr-head"><span class="mr-team">${Crest({ name: vm.myTeam, size: 32 })}<small>${esc(vm.myTeam)}</small></span><b class="po-num mr-score">${esc(vm.scoreLine)}</b><span class="mr-team">${Crest({ name: vm.opp, size: 32 })}<small>${esc(vm.opp)}</small></span>${Avatar({ size: 44, face: vm.face, ring: true })}</div>`;
   const hl = vm.highlights.length
-    ? `${SectionTitle({ title: '하이라이트', action: `${vm.highlights.length}장면` })}<div class="feed">${vm.highlights.map((f) => FeedItem(f)).join('')}</div>`
+    ? `${SectionTitle({ title: '하이라이트', action: `${vm.highlights.length}장면` })}<div class="feed">${vm.highlights.map((f) => FeedItem({ ...f, ...(f.mine ? { lead: Avatar({ size: 20, face: vm.face }) } : {}) })).join('')}</div>`
     : '';
   let report = '';
   const r = vm.report;
@@ -62,6 +63,7 @@ export function matchResultView(vm: MatchResultVM): string {
   return `
     ${hero}
     <div class="body">
+      ${head}
       ${banners(vm.banners)}
       ${hl}
       ${decisions}

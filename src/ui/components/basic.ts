@@ -2,6 +2,7 @@
 
 import { actAttrs, cx, esc, fmt1, signed, type Action } from './html';
 import { FILLED, ICON_PATHS, type IconName } from './iconPaths';
+import { autoEmblem, clubOf, crestSrc, faceSrc, type FaceRef } from '../faces';
 
 export type { IconName };
 export type DesignTier = 'normal' | 'key' | 'top' | 'world' | 'legend';
@@ -49,23 +50,31 @@ export function IconButton(p: Action & { name: IconName; label: string; variant?
 
 const DEFAULT_AVATAR = `<svg viewBox="0 0 160 160" width="100%" height="100%" aria-hidden="true"><rect width="160" height="160" fill="var(--surface-3)"/><circle cx="132" cy="28" r="44" fill="var(--line)"/><path d="M22 160c4-30 26-44 58-44s54 14 58 44z" fill="var(--brand)"/><path d="M62 118l18 18 18-18" fill="none" stroke="var(--on-brand)" stroke-width="5" stroke-linejoin="round"/><rect x="68" y="92" width="24" height="26" rx="8" fill="#d9a77f"/><ellipse cx="80" cy="70" rx="28" ry="32" fill="#e8b98f"/><path d="M51 66c-2-24 12-38 30-38 17 0 31 11 29 34-6-9-16-14-28-14-12 0-23 6-31 18z" fill="#1d1a19"/><ellipse cx="70" cy="74" rx="3" ry="4" fill="#1d1a19"/><ellipse cx="90" cy="74" rx="3" ry="4" fill="#1d1a19"/><path d="M73 88q7 5 14 0" fill="none" stroke="#9b6a4a" stroke-width="3" stroke-linecap="round"/></svg>`;
 
-export interface AvatarProps { src?: string; name?: string; size?: number; shape?: 'circle' | 'square'; ring?: boolean }
+export interface AvatarProps {
+  src?: string; name?: string; size?: number; shape?: 'circle' | 'square'; ring?: boolean;
+  /** 선수 (부록 C.43): 페이스온 > 레포 사진 > 기본 얼굴 순으로 찾고, 없거나 깨지면 지금 아바타 */
+  face?: FaceRef;
+}
 
 export function Avatar(p: AvatarProps): string {
   const size = p.size ?? 56;
   const radius = p.shape === 'square' ? 'var(--radius-md)' : '50%';
-  return `<span class="${cx('po-avatar', p.ring && 'po-avatar--ring')}" style="width:${size}px;height:${size}px;border-radius:${radius}">${
-    p.src ? `<img src="${esc(p.src)}" alt="${esc(p.name ?? '')}">` : DEFAULT_AVATAR}</span>`;
+  const src = p.src ?? (p.face ? faceSrc(p.face) : undefined);
+  // 이미지는 기본 아바타 위에 겹친다: 못 읽으면 지우고 아래 아바타가 보인다
+  return `<span class="${cx('po-avatar', p.ring && 'po-avatar--ring')}" style="width:${size}px;height:${size}px;border-radius:${radius}">${DEFAULT_AVATAR}${
+    src ? `<img src="${esc(src)}" alt="${esc(p.name ?? '')}" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</span>`;
 }
 
-export interface CrestProps { name: string; src?: string; size?: number; color?: string }
+export interface CrestProps { name: string; src?: string; size?: number; color?: string; /** 팀 id (없으면 이름으로 찾는다) */ team?: string }
 
+/** 구단 엠블럼 (부록 C.43): 페이스온 > 레포 로고 > 자동 엠블럼(모양·팀 색·이니셜) */
 export function Crest(p: CrestProps): string {
   const size = p.size ?? 28;
-  if (p.src) return `<img class="po-crest" src="${esc(p.src)}" alt="${esc(p.name)}" width="${size}" height="${size * 1.125}">`;
-  const color = p.color ?? 'var(--brand)';
-  const initial = (p.name || '?').trim().charAt(0);
-  return `<svg class="po-crest" viewBox="0 0 64 72" width="${size}" height="${size * 1.125}" role="img" aria-label="${esc(p.name)}"><path d="M32 3l27 8v23c0 18-12 30-27 35C17 64 5 52 5 34V11z" fill="var(--surface-2)" stroke="${color}" stroke-width="4"/><text x="32" y="45" text-anchor="middle" font-size="26" font-weight="800" fill="${color}" font-family="var(--font-sans)">${esc(initial)}</text></svg>`;
+  const id = p.team ?? clubOf(p.name)?.id;
+  const src = p.src ?? (id ? crestSrc(id) : undefined);
+  const auto = autoEmblem(id ?? p.name, p.name || '?', size);
+  if (!src) return auto;
+  return `<span class="po-crest po-crest--img" style="width:${size}px;height:${Math.round(size * 1.125)}px">${auto}<img src="${esc(src)}" alt="${esc(p.name)}" loading="lazy" decoding="async" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()"></span>`;
 }
 
 // ── Badges & chips ──
@@ -163,15 +172,15 @@ export function StatBar(p: StatBarProps): string {
 
 // ── PlayerCard ──
 
-export interface PlayerCardData { name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore?: number; level: number; xp?: number; xpMax?: number; team: string; avatar?: string; crest?: string }
+export interface PlayerCardData { name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore?: number; level: number; xp?: number; xpMax?: number; team: string; avatar?: string; crest?: string; face?: FaceRef }
 export interface PlayerCardProps { player: PlayerCardData; variant?: 'full' | 'compact' }
 
 export function PlayerCard(props: PlayerCardProps): string {
   const p = props.player;
   if (props.variant === 'compact') {
-    return `<div class="${cx('po-pcard', 'po-pcard--compact', `po-tierframe--${p.tier}`)}">${Avatar({ src: p.avatar, name: p.name, size: 48 })}<div class="po-pcard__main"><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${esc(p.position)} · ${p.age}세 · ${esc(p.team)}</div></div><div class="po-pcard__ovrbox"><b class="po-num">${p.ovr}</b><small>OVR</small></div></div>`;
+    return `<div class="${cx('po-pcard', 'po-pcard--compact', `po-tierframe--${p.tier}`)}">${Avatar({ src: p.avatar, name: p.name, size: 48, face: p.face })}<div class="po-pcard__main"><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${esc(p.position)} · ${p.age}세 · ${esc(p.team)}</div></div><div class="po-pcard__ovrbox"><b class="po-num">${p.ovr}</b><small>OVR</small></div></div>`;
   }
   return `<div class="${cx('po-pcard', `po-tierframe--${p.tier}`)}"><div class="po-pcard__top"><div class="po-pcard__ovr"><b class="po-num">${p.ovr}</b><span class="po-pcard__pos">${esc(p.position)}</span></div>${
-    Avatar({ src: p.avatar, name: p.name, size: 96, shape: 'square' })}<div class="po-pcard__side">${Crest({ name: p.team, src: p.crest, size: 28 })}<span class="po-pcard__lv">LV<b class="po-num">${p.level}</b></span></div></div><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${p.age}세 · ${esc(p.team)}</div><div class="po-pcard__tier">${
+    Avatar({ src: p.avatar, name: p.name, size: 96, shape: 'square', face: p.face })}<div class="po-pcard__side">${Crest({ name: p.team, src: p.crest, size: 28 })}<span class="po-pcard__lv">LV<b class="po-num">${p.level}</b></span></div></div><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${p.age}세 · ${esc(p.team)}</div><div class="po-pcard__tier">${
     TierBadge({ tier: p.tier, score: p.tierScore, size: 'sm' })}</div>${p.xp != null ? Meter({ value: p.xp, max: p.xpMax, label: 'XP', showValue: true, tone: 'xp', className: 'po-pcard__xp' }) : ''}</div>`;
 }

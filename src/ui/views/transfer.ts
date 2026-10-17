@@ -1,7 +1,7 @@
 // 이적·계약 화면 (18.10, 부록 C.42): 홈 알림 카드, 이적 제안, 재계약, 선수 화면 계약·이적 요청, 월드 이적 소식.
 // 인박스(5-2)가 아직 없어 제안은 홈 알림 카드로 알린다. 카드·박스는 C.39 바둑판(.ag-cell)·GameCard 톤
 
-import { Button, Crest, HeroPanel, OptionRow, SectionTitle, esc } from '../components';
+import { Avatar, Button, Crest, HeroPanel, OptionRow, SectionTitle, esc } from '../components';
 import type { MarketVM, NewsVM, OfferVM } from '../transferVM';
 import { actionRow, panel } from './common';
 
@@ -119,7 +119,7 @@ export function contractSection(vm: MarketVM): string {
 /** 월드 "이적 소식" */
 export function newsSection(vm: NewsVM | null): string {
   if (!vm) return '<p class="small muted">아직 이적시장이 열리지 않았어요. 겨울(1월)과 여름(비시즌)에 선수들이 움직여요.</p>';
-  const row = (r: NewsVM['rows'][number]) => `<div class="star-row tr-news${r.mine ? ' is-mine' : ''}">
+  const row = (r: NewsVM['rows'][number]) => `<div class="star-row tr-news${r.mine ? ' is-mine' : ''}">${Avatar({ size: 36, face: { id: r.id, age: r.age }, name: r.name })}
     <span class="grow"><b>${esc(r.name)}</b>${r.real ? ' <span class="po-chip">실제</span>' : ''}<small>${esc(r.pos)} · ${r.age}세 · OVR ${r.ovr} · ${esc(r.why)}</small>
     <small>${esc(r.from)} → <b>${esc(r.to)}</b>${r.fill ? ` · 빈자리 ${esc(r.fill)}` : ''}</small></span></div>`;
   return `${SectionTitle({ title: vm.title, action: `${vm.count}명 · 리그 안 ${vm.inLeague}` })}

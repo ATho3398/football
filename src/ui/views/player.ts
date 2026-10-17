@@ -1,7 +1,7 @@
 // 선수 (I.8, 디자인 44): 경고와 출장, 위상·레벨, 능력치, 포지션별 OVR, 시즌 기록.
 // 성향 슬라이더·역할(전술 화면 링크)은 아직 없는 기능이라 숨긴다 (I.19)
 
-import { esc, FormIndicator, HeroPanel, Meter, OptionRow, SectionTitle, TierBadge } from '../components';
+import { Avatar, Button, Crest, esc, FormIndicator, HeroPanel, Meter, OptionRow, SectionTitle, TierBadge } from '../components';
 import { attrGrid } from './attrGrid';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
 import { panel, seasonMatchesSection } from './common';
@@ -40,6 +40,8 @@ export function playerView(vm: PlayerVM, extra = ''): string {
   return `
     ${hero}
     <div class="body">
+      <div class="panel profile-row">${Avatar({ size: 72, face: vm.face, name: vm.name, ring: true })}<div class="grow"><b>${esc(vm.name)}</b><small>${Crest({ name: vm.team, size: 16 })} ${esc(vm.team)} · ${esc(vm.positionKo)} · ${vm.age}세</small></div>${
+        Button({ variant: 'secondary', size: 'sm', icon: 'player', act: 'faceon-open', data: { key: `p:${vm.face.id}` }, children: '얼굴 바꾸기' })}</div>
       ${SectionTitle({ title: '능력치', action: `${vm.position} 핵심 = 테두리 · 변화는 이번 시즌` })}
       ${panel(attrGrid(vm.attrs))}
       ${SectionTitle({ title: '경고와 출장' })}

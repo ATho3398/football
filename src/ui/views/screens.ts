@@ -31,6 +31,7 @@ export function titleView(vm: TitleVM): string {
           ${Button({ variant: vm.cont ? 'secondary' : 'primary', size: 'lg', block: true, icon: 'plus', act: 'go', data: { to: 'new' }, children: '새 게임' })}
           ${Button({ variant: 'secondary', size: 'lg', block: true, icon: 'disk', act: 'go', data: { to: 'saves' }, children: '불러오기' })}
         </div>
+        ${Button({ variant: 'ghost', block: true, icon: 'settings', act: 'go', data: { to: 'settings' }, children: '설정 · 페이스온' })}
       </div>
       ${versionFooter(vm.version)}
     </div>`;
@@ -101,7 +102,7 @@ export function newGameView(vm: NewGameVM): string {
       <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `${vm.teamHint} 유스로 시작` })}</div>`;
   } else {
     body = `
-      <div class="real-list">${vm.reals.map((p) => `<button type="button" class="real-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 44 })}<span class="grow"><b>${esc(p.name)}</b><small>${Crest({ name: p.club, size: 12 })} ${esc(p.club)} · ${p.age}세 · ${p.position}</small></span>${
+      <div class="real-list">${vm.reals.map((p) => `<button type="button" class="real-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 44, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b>${esc(p.name)}</b><small>${Crest({ name: p.club, size: 12 })} ${esc(p.club)} · ${p.age}세 · ${p.position}</small></span>${
         TierBadge({ tier: p.tier, size: 'sm' })}<span class="ovr"><b class="po-num">${p.ovr}</b><small>OVR</small></span></button>`).join('')}</div>
       <p class="small muted">실제 선수는 지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요. OVR 은 시드에 따라 조금 달라져요.</p>
       ${diff}
@@ -147,7 +148,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
   const scorers = vm.scorers.length
     ? `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">선수</th><th>출전</th><th>골</th><th>도움</th><th>평점</th></tr>
-      ${vm.scorers.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${i + 1}</td><td class="l"><span class="team">${esc(r.name)}</span><small class="muted"> ${esc(r.team)}</small></td><td>${r.apps}</td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td><td>${r.avg}</td></tr>`).join('')}
+      ${vm.scorers.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${i + 1}</td><td class="l"><span class="team">${Avatar({ size: 22, face: r.face, name: r.name })}${esc(r.name)}</span><small class="muted"> ${esc(r.team)}</small></td><td>${r.apps}</td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td><td>${r.avg}</td></tr>`).join('')}
     </table><div class="legend small"><span class="grow r">다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요)</span></div></div>`
     : '<p class="small muted">아직 기록이 없어요. 경기가 진행되면 득점 순위가 쌓여요.</p>';
   const table = `<div class="panel tbl-panel"><table class="tbl league">
@@ -155,7 +156,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
       ${vm.table.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > vm.teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l"><span class="team">${Crest({ name: r.team, size: 16 })}${esc(r.team)}</span></td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
     </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력은 로스터 라인업 평균 (겨울 이적이 바로 반영돼요)</span></div></div>`;
   const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 숫자는 지난 시즌 대비 OVR 변화.</p>
-    <div class="star-list">${vm.stars.map((s, i) => `<div class="star-row"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40 })}<span class="grow"><b>${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `+${s.change}` : `−${-s.change}`) : 'OVR'}</small></span></div>`).join('')}</div>
+    <div class="star-list">${vm.stars.map((s, i) => `<div class="star-row"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b>${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `+${s.change}` : `−${-s.change}`) : 'OVR'}</small></span></div>`).join('')}</div>
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
   return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
 }

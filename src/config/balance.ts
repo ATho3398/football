@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 29;
+export const BALANCE_VERSION = 30;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -688,6 +688,37 @@ export const BALANCE = {
     pickOptions: 3,
     seasonEpicChance: 0.2,
     signatureUnlock: 10,
+  },
+  // ── 외모군 (pending 50, 부록 C.43): 가상 선수 외모군을 국적별 분포에서 뽑는다 (가중치). 기본 얼굴 이미지 매니페스트(public/faces/base)와 같은 이름을 쓴다.
+  // 최종 외모군 목록은 사용자가 주는 이미지 설정값에 맞춘다. 추첨은 선수 id 로 따로 만든 난수라 기존 시드 결과를 바꾸지 않는다
+  appearance: {
+    byNationality: {
+      England: { white: 68, black: 26, latinMideast: 4, eastAsian: 2 },
+      Scotland: { white: 88, irish: 8, black: 4 },
+      'Republic of Ireland': { irish: 70, white: 25, black: 5 },
+      'Northern Ireland': { irish: 50, white: 48, black: 2 },
+      Wales: { white: 88, irish: 6, black: 6 },
+      France: { white: 45, black: 40, latinMideast: 15 },
+      Spain: { latinMideast: 55, white: 43, black: 2 },
+      Portugal: { latinMideast: 55, white: 35, black: 10 },
+      Germany: { white: 80, black: 10, latinMideast: 10 },
+      Netherlands: { white: 65, black: 30, latinMideast: 5 },
+      Belgium: { white: 60, black: 35, latinMideast: 5 },
+      Brazil: { latinMideast: 55, black: 30, white: 15 },
+      Argentina: { latinMideast: 60, white: 40 },
+      Uruguay: { latinMideast: 60, white: 40 },
+      Senegal: { black: 100 },
+      Nigeria: { black: 100 },
+      Egypt: { latinMideast: 95, black: 5 },
+      Gabon: { black: 100 },
+      Denmark: { white: 92, black: 5, latinMideast: 3 },
+      Norway: { white: 92, black: 5, latinMideast: 3 },
+      'Korea Republic': { eastAsian: 100 },
+      Japan: { eastAsian: 100 },
+      China: { eastAsian: 100 },
+    } as Record<string, Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>>,
+    /** 표에 없는 국적 */
+    fallback: { white: 50, black: 25, latinMideast: 20, eastAsian: 5 } as Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>,
   },
 } as const;
 

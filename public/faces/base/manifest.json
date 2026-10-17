@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "가상 선수 기본 얼굴 (부록 C.43). 이미지 파일을 이 폴더에 넣고 faces 에 {file, appearance} 를 적는다. appearance: eastAsian | white | irish | black | latinMideast",
+  "faces": []
+}

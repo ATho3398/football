@@ -3,6 +3,7 @@
 // 로스터는 월드 시드로 재생성한다. 세이브에는 시즌 갱신 횟수만 담고 불러올 때 다시 만든다 (save.ts).
 
 import { NAME_POOLS } from '../data/names';
+import { realAppearance, rollAppearance, type Appearance } from './appearance';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
 import { BALANCE } from './config/balance';
 import { FORMATION_SLOTS, FORMATIONS, type Formation, type FormationSlot } from './formations';
@@ -49,6 +50,8 @@ export interface RosterPlayer {
   name: string;
   nameKo: string;
   nationality: string;
+  /** 외모군 (부록 C.43): 기본 얼굴 이미지 고르기. 선수 id 로 따로 뽑아 시드 흐름과 무관 */
+  appearance: Appearance;
   age: number;
   /** 주 포지션 */
   position: Position;
@@ -264,6 +267,7 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
     id: spec.id,
     real: false,
     ...pickName(rng),
+    appearance: 'white',
     age: spec.age,
     position: spec.position,
     ...(isGk
@@ -276,6 +280,7 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
     contractEnd: spec.season + randInt(rng, R.contractYears.min, R.contractYears.max),
     joined: spec.season,
   };
+  p.appearance = rollAppearance(`${p.id}:${p.name}`, p.nationality);
   capVirtualAttributes(p, spec.teamMax);
   return p;
 }
@@ -298,6 +303,7 @@ function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
     name: n.name,
     nameKo: n.nameKo,
     nationality: '',
+    appearance: realAppearance(n.id, ''),
     age: n.age,
     position: n.position,
     attributes: { ...n.attributes },

@@ -1,0 +1,184 @@
+// 설정 (pending 49, 부록 C.43): 흩어져 있던 설정 모음(경기 진행·정지 빈도·다른 경기 계산·세이브·안내) + 페이스온
+// (선수·구단 이미지를 올려 바꾸기, 나이대 칸, 원형 자르기, 페이스팩 zip). 페이스온 이미지는 이 브라우저(IndexedDB)에만 남는다
+
+import { A_GRADE_PLAYERS } from '../../../data/players';
+import { realAppearance } from '../../appearance';
+import { BALANCE } from '../../config/balance';
+import type { GameState } from '../../game';
+import { teamById } from '../../league';
+import { Avatar, Button, Crest, esc, HeroPanel, SectionTitle, Tabs } from '../components';
+import {
+  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnKeys, faceOnUrls, faceStats, repoCrest, type FaceRef, type FaceSlot,
+} from '../faces';
+import { myFace, type VersionVM } from '../viewModels';
+import { panel, versionFooter } from './common';
+
+export interface FaceOnUI {
+  tab: 'players' | 'clubs';
+  q: string;
+  /** 고른 선수·구단 키 (`p:<id>` / `t:<팀 id>`) */
+  sel: string | null;
+  /** 자르기 중 */
+  crop: null | { key: string; name: string; slot: FaceSlot; src: string; zoom: number; x: number; y: number; /** 가로가 더 긴 이미지 */ wide: boolean };
+}
+
+interface Entry { key: string; name: string; sub: string; face?: FaceRef; team?: string; mine?: boolean }
+
+/** 키로 선수·구단 찾기: 지금 게임(내 선수·로스터) → 실제 선수 데이터 → 구단 */
+export function lookupEntry(g: GameState | null, key: string): Entry | null {
+  const id = key.slice(2);
+  if (key.startsWith('t:')) {
+    const c = clubOf(id);
+    return c ? { key, name: c.nameKo, sub: c.name, team: c.id } : null;
+  }
+  if (g) {
+    const me = myFace(g);
+    if (me.id === id) return { key, name: g.player.name, sub: `내 선수 · ${teamById(g.league, g.player.teamId).nameKo}`, face: me, mine: true };
+    for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
+      const p = r.players.find((x) => x.id === id);
+      if (p) return { key, name: p.nameKo, sub: `${teamById(g.league, teamId)?.nameKo ?? teamId} · ${p.position} · ${p.age}세`, face: { id, age: p.age, appearance: p.appearance } };
+    }
+    const n = g.npcs.find((x) => x.id === id);
+    if (n) return { key, name: n.nameKo, sub: `${n.club} · ${n.position} · ${n.age}세`, face: { id, age: n.age, appearance: realAppearance(id, '') } };
+  }
+  const d = A_GRADE_PLAYERS.find((p) => p.id === id);
+  if (d) {
+    const age = BALANCE.newGame.startYear - d.birthYear;
+    return { key, name: d.nameKo, sub: `${d.club} · ${d.position} · ${age}세`, face: { id, age, appearance: realAppearance(id, d.nationality) } };
+  }
+  const saved = faceOnKeys().find((k) => k.key === key);
+  return saved ? { key, name: saved.name, sub: '다른 게임의 선수', face: { id } } : null;
+}
+
+const has = (s: string, q: string): boolean => s.toLowerCase().includes(q);
+
+function playerEntries(g: GameState | null, q: string): Entry[] {
+  const out: Entry[] = [];
+  const seen = new Set<string>();
+  const push = (e: Entry | null): void => {
+    if (e && !seen.has(e.key)) {
+      seen.add(e.key);
+      out.push(e);
+    }
+  };
+  if (g) push(lookupEntry(g, `p:${myFace(g).id}`));
+  const qq = q.trim().toLowerCase();
+  if (!qq) {
+    for (const k of faceOnKeys()) if (k.key.startsWith('p:')) push(lookupEntry(g, k.key));
+    for (const p of A_GRADE_PLAYERS) push(lookupEntry(g, `p:${p.id}`));
+    return out.slice(0, 40);
+  }
+  if (g) {
+    for (const r of Object.values(g.rosters ?? {})) {
+      for (const p of r.players) if (has(p.nameKo, qq) || has(p.name, qq)) push(lookupEntry(g, `p:${p.id}`));
+    }
+    if (has(g.player.name, qq)) push(lookupEntry(g, `p:${myFace(g).id}`));
+  }
+  for (const p of A_GRADE_PLAYERS) if (has(p.nameKo, qq) || has(p.name, qq)) push(lookupEntry(g, `p:${p.id}`));
+  return out.filter((e) => !e.mine || has(e.name, qq)).slice(0, 40);
+}
+
+function clubEntries(q: string): Entry[] {
+  const qq = q.trim().toLowerCase();
+  return ALL_CLUBS.filter((c) => !qq || has(c.nameKo, qq) || has(c.name, qq)).map((c) => ({ key: `t:${c.id}`, name: c.nameKo, sub: c.id.startsWith('x:') ? `${c.name} · 리그 밖` : c.name, team: c.id }));
+}
+
+function row(e: Entry, sel: string | null): string {
+  const on = faceOnKeys().some((k) => k.key === e.key);
+  const pic = e.team ? Crest({ name: e.name, team: e.team, size: 32 }) : Avatar({ size: 40, face: e.face!, name: e.name });
+  return `<button type="button" class="real-row fo-row${e.key === sel ? ' is-on' : ''}" data-act="faceon-pick" data-key="${esc(e.key)}">${pic}<span class="grow"><b>${esc(e.name)}</b><small>${esc(e.sub)}</small></span>${
+    on ? '<span class="po-chip po-chip--brand">페이스온</span>' : ''}</button>`;
+}
+
+function editor(g: GameState | null, e: Entry): string {
+  if (e.team) {
+    const url = faceOnUrls(e.key).crest;
+    const repo = repoCrest(e.team);
+    return panel(`<div class="fo-edit"><div class="fo-big">${Crest({ name: e.name, team: e.team, size: 96 })}</div>
+      <div class="grow"><b>${esc(e.name)}</b><small>${esc(e.sub)}</small><small class="muted">${url ? '내가 올린 엠블럼을 쓰고 있어요.' : repo ? '위키백과 로고를 쓰고 있어요.' : '자동 엠블럼(모양·팀 색·이니셜)을 쓰고 있어요.'}</small></div></div>
+      <div class="fo-actions">${Button({ size: 'sm', icon: 'upload', act: 'faceon-upload', data: { key: e.key, slot: 'crest' }, children: url ? '다시 올리기' : '이미지 올리기' })}${
+        url ? Button({ variant: 'secondary', size: 'sm', icon: 'restore', act: 'faceon-clear', data: { key: e.key, slot: 'crest' }, children: '되돌리기' }) : ''}</div>`, 'fo-editor');
+  }
+  const urls = faceOnUrls(e.key);
+  const face = e.face!;
+  const age = face.age ?? 25;
+  const cur = ageSlot(age);
+  const fallback = defaultFaceSrc(face);
+  const cells = AGE_SLOTS.map((s) => {
+    const u = urls[s];
+    return `<div class="fo-slot${s === cur ? ' is-cur' : ''}"><span class="fo-slot__pic">${u ? `<img src="${esc(u)}" alt="">` : '<i>비어 있음</i>'}</span><b>${AGE_SLOT_KO[s]}</b>${s === cur ? '<small class="hi">지금 나이</small>' : '<small>&nbsp;</small>'}
+      <span class="fo-slot__btns">${Button({ size: 'sm', variant: u ? 'secondary' : 'primary', act: 'faceon-upload', data: { key: e.key, slot: s }, children: u ? '바꾸기' : '올리기' })}${
+        u ? Button({ size: 'sm', variant: 'ghost', act: 'faceon-clear', data: { key: e.key, slot: s }, children: '지우기' }) : ''}</span></div>`;
+  }).join('');
+  const where = Object.keys(urls).length
+    ? `${age}세 → ${urls[cur] ? `${AGE_SLOT_KO[cur]} 칸` : '가까운 칸'} 사진을 써요.`
+    : fallback ? (fallback.startsWith('facepack/') ? '위키백과 사진을 쓰고 있어요.' : '기본 얼굴 이미지를 쓰고 있어요.') : '기본 아바타를 쓰고 있어요.';
+  return panel(`<div class="fo-edit"><div class="fo-big">${Avatar({ size: 96, face, name: e.name, ring: true })}</div>
+    <div class="grow"><b>${esc(e.name)}</b><small>${esc(e.sub)}</small><small class="muted">${esc(where)}</small></div></div>
+    <div class="fo-slots">${cells}</div>
+    <p class="small muted">나이에 맞는 칸의 사진을 쓰고, 그 칸이 비었으면 가까운 칸을 써요. 칸을 모두 지우면 원래 얼굴로 돌아가요.</p>
+    ${Object.keys(urls).length ? Button({ variant: 'ghost', size: 'sm', block: true, icon: 'restore', act: 'faceon-clear', data: { key: e.key }, children: '모두 되돌리기' }) : ''}`, 'fo-editor');
+}
+
+function cropSheet(c: NonNullable<FaceOnUI['crop']>): string {
+  const club = c.slot === 'crest';
+  return `<div class="po-overlay po-overlay--sheet"><div class="po-sheet fo-crop" role="dialog" aria-modal="true" aria-label="이미지 자르기"><span class="po-sheet__grip" aria-hidden="true"></span>
+    <div class="po-sheet__head"><span class="po-sheet__eyebrow">${club ? '엠블럼' : `얼굴 · ${AGE_SLOT_KO[c.slot as keyof typeof AGE_SLOT_KO]}`}</span><b>${esc(c.name)}</b><p>${club ? '로고는 비율 그대로 줄여서 저장해요.' : '원 안에 얼굴이 오도록 확대·이동해요. 256px로 줄여서 저장해요.'}</p></div>
+    <div class="po-sheet__body">
+      <div class="fo-crop__stage${club ? ' is-club' : ''}"><div id="fo-prev" class="fo-crop__prev" style="${cropStyle(c)}"></div></div>
+      ${club ? '' : `<label class="fo-range"><span>확대</span><input type="range" id="fo-zoom" min="100" max="400" value="${Math.round(c.zoom * 100)}"></label>
+      <label class="fo-range"><span>좌우</span><input type="range" id="fo-x" min="-100" max="100" value="${Math.round(c.x * 100)}"></label>
+      <label class="fo-range"><span>위아래</span><input type="range" id="fo-y" min="-100" max="100" value="${Math.round(c.y * 100)}"></label>`}
+    </div>
+    <div class="po-sheet__foot"><div class="btn-row even">${Button({ variant: 'secondary', size: 'lg', block: true, act: 'faceon-crop-cancel', children: '취소' })}${Button({ size: 'lg', block: true, icon: 'check', act: 'faceon-crop-save', children: '저장' })}</div></div>
+  </div></div>`;
+}
+
+/** 원형 미리보기: background-size·position 으로 자르기 값을 보여 준다 (cropToBlob 과 같은 식) */
+export function cropStyle(c: { src: string; zoom: number; x: number; y: number; slot: FaceSlot; wide: boolean }): string {
+  if (c.slot === 'crest') return `background-image:url('${c.src}');background-size:contain;background-position:center;background-repeat:no-repeat`;
+  return `background-image:url('${c.src}');background-size:${c.wide ? `auto ${c.zoom * 100}%` : `${c.zoom * 100}% auto`};background-position:${50 + c.x * 50}% ${50 + c.y * 50}%;background-repeat:no-repeat`;
+}
+
+export function settingsView(g: GameState | null, fo: FaceOnUI, version: VersionVM): string {
+  const hero = HeroPanel({
+    title: '설정', back: { act: 'go', data: { to: g ? 'home' : 'title' } }, eyebrow: '게임 설정 · 페이스온', pad: false, progress: false, value: '설정',
+    chips: [g ? `${g.player.name}` : '게임 밖', { label: '이 브라우저에 저장', soft: true }],
+  });
+  const play = g
+    ? panel(`
+      <div class="kv"><span>내 선수 결정</span><span class="muted small">${g.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
+      ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: g.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
+      ${g.control.mode === 'direct' ? `<div class="kv"><span>정지 빈도</span></div>${Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: g.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' })}` : ''}
+      <div class="divider"></div>
+      <div class="kv"><span>다른 경기 계산</span>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: g.options.quickOthers ? 'quick' : 'engine', act: 'opt-quick', label: '다른 경기 계산' })}</div>
+      <p class="small muted">${g.options.quickOthers ? '느린 기기용: 다른 팀 경기를 통계로 바로 계산해요. 득점 순위는 내 경기만 남아요.' : '다른 팀 경기도 22명 엔진으로 계산해요. 경기 날 [계속]이 몇 초 걸릴 수 있어요.'}</p>
+      <div class="kv"><span>난이도</span><b>${{ easy: '쉬움', normal: '보통', hard: '어려움' }[g.difficulty] ?? g.difficulty}</b></div>
+      <p class="small muted">난이도는 새 게임에서 정해요.</p>`)
+    : panel('<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>');
+  const saves = panel(`<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
+    <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`);
+
+  const st = faceStats();
+  const tabs = Tabs({ items: [{ id: 'players', label: '선수' }, { id: 'clubs', label: '구단' }], value: fo.tab, act: 'faceon-tab', fill: true, label: '선수/구단' });
+  const list = fo.tab === 'players' ? playerEntries(g, fo.q) : clubEntries(fo.q);
+  const sel = fo.sel ? lookupEntry(g, fo.sel) : null;
+  const faceon = `
+    ${panel(`<p class="small">선수나 구단을 골라 이미지를 올리면 게임 곳곳(홈 카드·선수 화면·경기 결과·순위표·이적 소식)에 그 이미지가 나와요. 언제든 바꾸거나 되돌릴 수 있고, 이미지는 이 브라우저에만 저장돼요.</p>
+      <p class="small muted">우선순위: 내가 올린 이미지 > 위키백과 사진·로고(선수 ${st.photos}명, 구단 ${st.clubs}개) > 기본 얼굴(${st.base}개) > 기본 아바타·자동 엠블럼 · 내 페이스온 ${st.faceOn}건</p>`)}
+    ${sel ? editor(g, sel) : ''}
+    ${tabs}
+    <label class="field fo-search">${'<span aria-hidden="true">🔍</span>'}<input type="search" id="fo-q" value="${esc(fo.q)}" placeholder="${fo.tab === 'players' ? '선수 이름 (한글·영문)' : '구단 이름'}" autocomplete="off"></label>
+    <div class="real-list fo-list">${list.map((e) => row(e, fo.sel)).join('') || '<p class="small muted">찾는 이름이 없어요.</p>'}</div>
+    ${SectionTitle({ title: '페이스팩 (zip)', action: '이름 → 이미지' })}
+    ${panel(`<p class="small">내가 올린 이미지를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
+      <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`)}
+    <input type="file" id="fo-file" accept="image/*" hidden>
+    <input type="file" id="fp-file" accept=".zip,application/zip" hidden>`;
+  return `${hero}<div class="body">
+    ${SectionTitle({ title: '경기 진행' })}${play}
+    ${SectionTitle({ title: '저장과 안내' })}${saves}
+    ${SectionTitle({ title: '페이스온', action: '얼굴·엠블럼 바꾸기' })}${faceon}
+    ${versionFooter(version)}
+  </div>${fo.crop ? cropSheet(fo.crop) : ''}`;
+}

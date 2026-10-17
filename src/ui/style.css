@@ -617,3 +617,36 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .tr-grid .ag-v { font-size: 17px; }
 .tr-news small { display: block; }
 .tr-news.is-mine { box-shadow: inset 3px 0 0 var(--mine); }
+
+/* ── 얼굴·엠블럼·설정·페이스온 (부록 C.43) ── */
+.po-hero__right { display: inline-flex; gap: 4px; align-items: center; }
+.panel.profile-row { display: flex; flex-direction: row; align-items: center; gap: 12px; }
+.profile-row .grow, .fo-edit .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.profile-row small, .fo-edit small { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2, inherit); }
+.mr-head { display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: center; gap: 8px; text-align: center; }
+.mr-team { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.mr-team small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.mr-score { font-size: 28px; }
+.po-feed__text .po-avatar { vertical-align: middle; margin-right: 6px; }
+.tbl .team .po-avatar { vertical-align: middle; margin-right: 6px; }
+.tr-news { align-items: center; gap: 10px; }
+.fo-edit { display: flex; flex-direction: row; align-items: center; gap: 14px; }
+.fo-big { flex: none; display: grid; place-items: center; width: 100px; min-height: 100px; }
+.fo-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.fo-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.fo-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--line); border-radius: var(--radius-md); text-align: center; }
+.fo-slot.is-cur { border-color: var(--brand); }
+.fo-slot__pic { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: var(--surface-3); display: grid; place-items: center; }
+.fo-slot__pic img { width: 100%; height: 100%; object-fit: cover; }
+.fo-slot__pic i { font-style: normal; font-size: 11px; opacity: .6; }
+.fo-slot small { font-size: 11px; }
+.fo-slot__btns { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.fo-search { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+.fo-search input { flex: 1; min-width: 0; }
+.fo-list { max-height: 420px; overflow-y: auto; }
+.fo-row .po-crest { margin: 0 4px; }
+.fo-crop__stage { display: grid; place-items: center; padding: 8px 0 16px; }
+.fo-crop__prev { width: 220px; height: 220px; border-radius: 50%; background-color: var(--surface-3); box-shadow: 0 0 0 3px var(--brand); }
+.fo-crop__stage.is-club .fo-crop__prev { border-radius: var(--radius-md); }
+.fo-range { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+.fo-range input { width: 100%; }

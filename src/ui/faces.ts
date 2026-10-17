@@ -1,0 +1,398 @@
+// 얼굴·엠블럼 (pending 49·50, 부록 C.43). 이미지 우선순위: 페이스온(사용자 업로드, IndexedDB) > 레포 사진(public/facepack, 위키백과 수집)
+// > 기본 얼굴(public/faces/base, 외모군별) > 지금 아바타(가상 선수) / 자동 엠블럼(구단).
+// 화면은 문자열로 그리므로 여기 상태는 동기 조회만 한다. 매니페스트·업로드 이미지는 시작할 때 읽고 다 읽으면 다시 그린다
+
+import { A_GRADE_PLAYERS } from '../../data/players';
+import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
+import { TEAM_COLORS } from '../../data/teamColors';
+import type { Appearance } from '../appearance';
+import { initialTeams } from '../league';
+import { hashSeed } from '../rng';
+import { storeBackend } from '../saveStore';
+
+/** 화면이 얼굴을 찾을 때 넘기는 선수 정보. id = 로스터 선수 id (내 가상 유망주는 `me:<월드 시드>`) */
+export interface FaceRef { id: string; age?: number; appearance?: Appearance }
+
+export const AGE_SLOTS = ['young', 'prime', 'veteran'] as const;
+export type AgeSlot = (typeof AGE_SLOTS)[number];
+export const AGE_SLOT_KO: Readonly<Record<AgeSlot, string>> = { young: '~23세', prime: '24~29세', veteran: '30세~' };
+/** 페이스온 칸: 선수는 나이대 3칸, 구단은 엠블럼 1칸 */
+export type FaceSlot = AgeSlot | 'crest';
+
+export function ageSlot(age: number): AgeSlot {
+  return age <= 23 ? 'young' : age <= 29 ? 'prime' : 'veteran';
+}
+
+/** 그 나이 칸이 비었으면 가까운 칸 */
+const NEAR_SLOTS: Readonly<Record<AgeSlot, readonly AgeSlot[]>> = {
+  young: ['young', 'prime', 'veteran'], prime: ['prime', 'young', 'veteran'], veteran: ['veteran', 'prime', 'young'],
+};
+
+interface PhotoEntry { file: string; source?: string; page?: string; title?: string }
+interface PhotoManifest { players?: Record<string, PhotoEntry>; clubs?: Record<string, PhotoEntry> }
+interface BaseEntry { file: string; appearance: Appearance }
+
+/** IndexedDB 에 담는 페이스온 한 건 (키 `face:<p:선수 id | t:팀 id>`) */
+export interface FaceOnRecord { name: string; slots: Partial<Record<FaceSlot, Blob>>; updated: number }
+
+const FACEPACK_DIR = 'facepack/';
+const BASE_DIR = 'faces/base/';
+
+const state = {
+  photos: { players: {} as Record<string, string>, clubs: {} as Record<string, string> },
+  base: [] as BaseEntry[],
+  /** 키 → 칸 → object URL */
+  faceOn: new Map<string, { name: string; urls: Partial<Record<FaceSlot, string>> }>(),
+  ready: false,
+};
+
+// ── 이름 색인 (구단 이름 → id, 페이스팩 파일 이름 → 키) ──
+
+interface ClubInfo { id: string; name: string; nameKo: string }
+const CLUBS: ClubInfo[] = [...initialTeams().map((t) => ({ id: t.id, name: t.name, nameKo: t.nameKo })), ...OUTSIDE_CLUBS];
+const norm = (s: string): string => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').toLowerCase().replace(/[^a-z0-9가-힣]+/g, '');
+const clubByName = new Map<string, ClubInfo>();
+for (const c of CLUBS) for (const n of [c.id, c.name, c.nameKo]) if (norm(n)) clubByName.set(norm(n), c);
+
+export function clubOf(nameOrId: string): ClubInfo | undefined {
+  const k = norm(nameOrId);
+  return k ? clubByName.get(k) : undefined;
+}
+
+export const ALL_CLUBS: readonly ClubInfo[] = CLUBS;
+
+/** 선수 이름 색인: 실제 선수 + 지금 게임 로스터 (main 이 게임을 열 때 넣는다) */
+const playerByName = new Map<string, string>();
+function indexStatic(): void {
+  for (const p of A_GRADE_PLAYERS) for (const n of [p.id, p.name, p.nameKo]) if (norm(n)) playerByName.set(norm(n), p.id);
+}
+indexStatic();
+
+export function setPlayerNames(entries: { id: string; name: string; nameKo?: string }[]): void {
+  playerByName.clear();
+  indexStatic();
+  for (const e of entries) for (const n of [e.id, e.name, e.nameKo ?? '']) if (n && !playerByName.has(norm(n))) playerByName.set(norm(n), e.id);
+}
+
+export function playerIdOf(name: string): string | undefined {
+  const k = norm(name);
+  return k ? playerByName.get(k) : undefined;
+}
+
+// ── 조회 ──
+
+export function faceSrc(ref: FaceRef): string | undefined {
+  const on = state.faceOn.get(`p:${ref.id}`);
+  if (on) {
+    for (const s of NEAR_SLOTS[ageSlot(ref.age ?? 25)]) if (on.urls[s]) return on.urls[s];
+  }
+  const photo = state.photos.players[ref.id];
+  if (photo) return photo;
+  if (ref.appearance && state.base.length) {
+    const list = state.base.filter((b) => b.appearance === ref.appearance);
+    if (list.length) return BASE_DIR + list[hashSeed(`face:${ref.id}`) % list.length]!.file;
+  }
+  return undefined;
+}
+
+/** 페이스온 > 레포 로고 */
+export function crestSrc(teamId: string): string | undefined {
+  return state.faceOn.get(`t:${teamId}`)?.urls.crest ?? state.photos.clubs[teamId];
+}
+
+/** 페이스온 칸 상태 (설정 화면): 칸 → object URL */
+export function faceOnUrls(key: string): Partial<Record<FaceSlot, string>> {
+  return state.faceOn.get(key)?.urls ?? {};
+}
+
+/** 업로드가 없을 때 보이는 이미지 (설정 화면 "되돌리면 이렇게 보여요") */
+export function defaultFaceSrc(ref: FaceRef): string | undefined {
+  const keep = state.faceOn.get(`p:${ref.id}`);
+  state.faceOn.delete(`p:${ref.id}`);
+  const src = faceSrc(ref);
+  if (keep) state.faceOn.set(`p:${ref.id}`, keep);
+  return src;
+}
+
+export function repoCrest(teamId: string): string | undefined {
+  return state.photos.clubs[teamId];
+}
+
+export function faceOnKeys(): { key: string; name: string; slots: FaceSlot[] }[] {
+  return [...state.faceOn.entries()].map(([key, v]) => ({ key, name: v.name, slots: Object.keys(v.urls) as FaceSlot[] }));
+}
+
+export function faceStats(): { photos: number; clubs: number; base: number; faceOn: number } {
+  return { photos: Object.keys(state.photos.players).length, clubs: Object.keys(state.photos.clubs).length, base: state.base.length, faceOn: state.faceOn.size };
+}
+
+// ── 자동 엠블럼 (구단 로고가 없을 때): 모양 + 팀 색 2개 + 이니셜, 이름 시드 고정 ──
+
+const PALETTE = ['#c8102e', '#034694', '#fdb913', '#241f20', '#018749', '#6c1d45', '#0e63ad', '#ef7d00', '#7a263a', '#1d428a', '#e32221', '#5c2d91'];
+
+export function clubColors(id: string): readonly [string, string] {
+  const known = TEAM_COLORS[id];
+  if (known) return known;
+  const h = hashSeed(`colors:${id}`);
+  const a = PALETTE[h % PALETTE.length]!;
+  const b = h % 3 === 0 ? '#ffffff' : PALETTE[(h >>> 8) % PALETTE.length] === a ? '#ffffff' : PALETTE[(h >>> 8) % PALETTE.length]!;
+  return [a, b];
+}
+
+const SKIP_WORDS = new Set(['fc', 'afc', 'cf', 'ac', 'as', 'sc', 'the', 'de', 'of', 'and', '&']);
+
+export function clubInitials(name: string): string {
+  const words = name.replace(/[.]/g, '').split(/[\s-]+/).filter((w) => w && !SKIP_WORDS.has(w.toLowerCase()));
+  if (!words.length) return (name.trim()[0] ?? '?').toUpperCase();
+  if (!/^[A-Za-z]/.test(words[0]!)) return words[0]!.slice(0, 1);
+  return words.length === 1 ? words[0]!.slice(0, 3).toUpperCase() : words.slice(0, 3).map((w) => w[0]!.toUpperCase()).join('');
+}
+
+const lum = (hex: string): number => {
+  const n = parseInt(hex.slice(1), 16);
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+};
+
+/** SVG 엠블럼 (viewBox 64×72). key = 팀 id 또는 이름 */
+export function autoEmblem(key: string, name: string, size: number): string {
+  const club = clubOf(key) ?? clubOf(name);
+  const id = club?.id ?? key;
+  const [c1, c2] = clubColors(id);
+  const h = hashSeed(`emblem:${id}`);
+  const shape = h % 4;
+  const pattern = (h >>> 4) % 4;
+  const initials = clubInitials(club?.name ?? name);
+  const ink = lum(c1) > 0.6 ? '#1d1a19' : '#ffffff';
+  const outlines = [
+    'M32 3l27 8v23c0 18-12 30-27 35C17 64 5 52 5 34V11z', // 방패
+    'M32 6a30 30 0 1 1 -0.01 0z', // 원
+    'M32 3l29 33-29 33L3 36z', // 마름모
+    'M10 6h44v32c0 14-10 24-22 30C20 62 10 52 10 38z', // 각진 방패
+  ];
+  const d = outlines[shape]!;
+  const clip = `ce${h.toString(36)}`;
+  const fills = [
+    '', // 단색
+    `<rect x="0" y="0" width="32" height="72" fill="${c2}"/>`, // 반반
+    `<rect x="18" y="0" width="10" height="72" fill="${c2}"/><rect x="38" y="0" width="10" height="72" fill="${c2}"/>`, // 세로 줄
+    `<rect x="0" y="28" width="64" height="16" fill="${c2}"/>`, // 가로 띠
+  ];
+  const fs = initials.length >= 3 ? 17 : initials.length === 2 ? 22 : 28;
+  const textInk = pattern === 1 ? (lum(c1) > 0.6 ? '#1d1a19' : '#ffffff') : ink;
+  return `<svg class="po-crest" viewBox="0 0 64 72" width="${size}" height="${Math.round(size * 1.125)}" role="img" aria-label="${escAttr(name)}"><defs><clipPath id="${clip}"><path d="${d}"/></clipPath></defs><g clip-path="url(#${clip})"><rect width="64" height="72" fill="${c1}"/>${fills[pattern]}</g><path d="${d}" fill="none" stroke="${c2 === '#ffffff' && lum(c1) > 0.8 ? '#1d1a19' : c2}" stroke-width="3"/><text x="32" y="${shape === 2 ? 43 : 44}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${textInk}" stroke="${textInk === '#ffffff' ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.35)'}" stroke-width="0.6" paint-order="stroke" font-family="var(--font-sans)">${escAttr(initials)}</text></svg>`;
+}
+
+const escAttr = (s: string): string => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// ── 시작: 매니페스트와 페이스온 읽기 ──
+
+async function fetchJson<T>(url: string): Promise<T | null> {
+  try {
+    const r = await fetch(url, { cache: 'no-cache' });
+    if (!r.ok) return null;
+    return (await r.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function initFaces(): Promise<void> {
+  const [pm, bm] = await Promise.all([
+    fetchJson<PhotoManifest>(`${FACEPACK_DIR}manifest.json`),
+    fetchJson<{ faces?: BaseEntry[] }>(`${BASE_DIR}manifest.json`),
+  ]);
+  for (const [id, e] of Object.entries(pm?.players ?? {})) state.photos.players[id] = FACEPACK_DIR + e.file;
+  for (const [id, e] of Object.entries(pm?.clubs ?? {})) state.photos.clubs[id] = FACEPACK_DIR + e.file;
+  state.base = (bm?.faces ?? []).filter((f) => f && typeof f.file === 'string' && typeof f.appearance === 'string');
+  try {
+    const store = storeBackend();
+    for (const k of await store.keys()) {
+      if (!k.startsWith('face:')) continue;
+      const rec = await store.get<FaceOnRecord>(k);
+      if (rec) applyRecord(k.slice(5), rec);
+    }
+  } catch {
+    // 저장소를 못 열면 페이스온 없이
+  }
+  state.ready = true;
+}
+
+function applyRecord(key: string, rec: FaceOnRecord): void {
+  const old = state.faceOn.get(key);
+  for (const u of Object.values(old?.urls ?? {})) if (u) URL.revokeObjectURL(u);
+  const urls: Partial<Record<FaceSlot, string>> = {};
+  for (const [s, b] of Object.entries(rec.slots)) if (b) urls[s as FaceSlot] = URL.createObjectURL(b);
+  if (Object.keys(urls).length) state.faceOn.set(key, { name: rec.name, urls });
+  else state.faceOn.delete(key);
+}
+
+// ── 페이스온 쓰기 ──
+
+export async function setFaceOn(key: string, name: string, slot: FaceSlot, blob: Blob): Promise<void> {
+  const store = storeBackend();
+  const rec = (await store.get<FaceOnRecord>(`face:${key}`)) ?? { name, slots: {}, updated: 0 };
+  rec.name = name;
+  rec.slots = { ...rec.slots, [slot]: blob };
+  rec.updated = Date.now();
+  await store.put(`face:${key}`, rec);
+  applyRecord(key, rec);
+}
+
+/** slot 이 없으면 그 선수·구단 전부 되돌리기 */
+export async function clearFaceOn(key: string, slot?: FaceSlot): Promise<void> {
+  const store = storeBackend();
+  const rec = await store.get<FaceOnRecord>(`face:${key}`);
+  if (!rec) return;
+  if (slot) {
+    const { [slot]: _gone, ...rest } = rec.slots;
+    rec.slots = rest;
+  } else rec.slots = {};
+  if (Object.keys(rec.slots).length) await store.put(`face:${key}`, rec);
+  else await store.del(`face:${key}`);
+  applyRecord(key, rec);
+}
+
+export async function allFaceOn(): Promise<[string, FaceOnRecord][]> {
+  const store = storeBackend();
+  const out: [string, FaceOnRecord][] = [];
+  for (const k of await store.keys()) {
+    if (!k.startsWith('face:')) continue;
+    const rec = await store.get<FaceOnRecord>(k);
+    if (rec) out.push([k.slice(5), rec]);
+  }
+  return out;
+}
+
+// ── 이미지 줄이기·자르기 (브라우저) ──
+
+/** 원형 자르기: 정사각형 출력. zoom ≥ 1, x·y = 가운데 기준 이동 비율(−1~1) */
+export interface CropParams { zoom: number; x: number; y: number }
+
+export async function cropToBlob(img: HTMLImageElement, c: CropParams, out = 256, square = true): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  if (square) {
+    canvas.width = out;
+    canvas.height = out;
+    const side = Math.min(w, h) / c.zoom;
+    const sx = (w - side) / 2 + c.x * (w - side) / 2;
+    const sy = (h - side) / 2 + c.y * (h - side) / 2;
+    canvas.getContext('2d')!.drawImage(img, sx, sy, side, side, 0, 0, out, out);
+  } else {
+    const k = Math.min(1, out / Math.max(w, h));
+    canvas.width = Math.max(1, Math.round(w * k));
+    canvas.height = Math.max(1, Math.round(h * k));
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  }
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
+  if (blob && blob.type === 'image/webp') return blob;
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('이미지 변환 실패'))), 'image/png'));
+}
+
+export function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('이미지를 읽지 못했어요'));
+    img.src = src;
+  });
+}
+
+// ── 페이스팩 zip (이름 → 이미지) ──
+
+const SLOT_SET = new Set<string>([...AGE_SLOTS, 'crest']);
+const extOf = (type: string): string => (type === 'image/webp' ? 'webp' : type === 'image/jpeg' ? 'jpg' : 'png');
+const safeName = (s: string): string => s.replace(/[\\/:*?"<>|@]+/g, ' ').trim() || 'noname';
+
+/** 내보내기: players/<이름>__<id>@<나이 칸>.webp, clubs/<이름>__<팀 id>.webp + facepack.json */
+export async function exportFacepack(): Promise<Blob> {
+  const { writeZip } = await import('./zip');
+  const entries: { name: string; data: Uint8Array }[] = [];
+  const index: { key: string; name: string; slot: FaceSlot; file: string }[] = [];
+  for (const [key, rec] of await allFaceOn()) {
+    const club = key.startsWith('t:');
+    for (const [slot, blob] of Object.entries(rec.slots)) {
+      if (!blob) continue;
+      const file = `${club ? 'clubs' : 'players'}/${safeName(rec.name)}__${key.slice(2)}${club ? '' : `@${slot}`}.${extOf(blob.type)}`;
+      entries.push({ name: file, data: new Uint8Array(await blob.arrayBuffer()) });
+      index.push({ key, name: rec.name, slot: slot as FaceSlot, file });
+    }
+  }
+  entries.push({ name: 'facepack.json', data: new TextEncoder().encode(JSON.stringify({ version: 1, entries: index }, null, 1)) });
+  return new Blob([writeZip(entries) as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
+}
+
+/**
+ * 가져오기: facepack.json 이 있으면 그 키 그대로, 없으면 파일 이름으로 찾는다.
+ * players/<선수 이름 또는 id>[@young|prime|veteran].png, clubs/<구단 이름 또는 id>.png (폴더가 없으면 선수 → 구단 순으로 찾는다)
+ */
+export async function importFacepack(file: Blob, nameOf: (key: string) => string | undefined): Promise<{ added: number; skipped: string[] }> {
+  const { readZip } = await import('./zip');
+  const files = await readZip(new Uint8Array(await file.arrayBuffer()));
+  const byName = new Map(files.map((f) => [f.name, f]));
+  const meta = byName.get('facepack.json');
+  const jobs: { key: string; name: string; slot: FaceSlot; data: Uint8Array; file: string }[] = [];
+  const skipped: string[] = [];
+  const known = new Set<string>();
+  if (meta) {
+    const idx = JSON.parse(new TextDecoder().decode(meta.data)) as { entries?: { key: string; name: string; slot: FaceSlot; file: string }[] };
+    for (const e of idx.entries ?? []) {
+      const f = byName.get(e.file);
+      if (f && SLOT_SET.has(e.slot) && /^[pt]:/.test(e.key)) {
+        jobs.push({ key: e.key, name: e.name, slot: e.slot, data: f.data, file: e.file });
+        known.add(e.file);
+      }
+    }
+  }
+  for (const f of files) {
+    if (known.has(f.name) || f.name === 'facepack.json' || !/\.(png|jpe?g|webp|gif)$/i.test(f.name)) continue;
+    const parts = f.name.split('/');
+    const folder = parts.length > 1 ? parts.at(-2)!.toLowerCase() : '';
+    let base = parts.at(-1)!.replace(/\.[^.]+$/, '');
+    let slot: FaceSlot | null = null;
+    const at = base.lastIndexOf('@');
+    if (at > 0 && SLOT_SET.has(base.slice(at + 1))) {
+      slot = base.slice(at + 1) as FaceSlot;
+      base = base.slice(0, at);
+    }
+    const idPart = base.includes('__') ? base.slice(base.lastIndexOf('__') + 2) : null;
+    const label = base.includes('__') ? base.slice(0, base.lastIndexOf('__')) : base;
+    const asPlayer = (): string | undefined => {
+      const id = idPart && (playerIdOf(idPart) ?? (nameOf(`p:${idPart}`) ? idPart : undefined));
+      return id ?? playerIdOf(label);
+    };
+    const asClub = (): string | undefined => (idPart ? clubOf(idPart)?.id : undefined) ?? clubOf(label)?.id;
+    let key: string | undefined;
+    if (folder.startsWith('club') || folder === 'crests' || folder === 'teams') key = asClub() && `t:${asClub()}`;
+    else if (folder.startsWith('player') || folder === 'faces') key = asPlayer() && `p:${asPlayer()}`;
+    else {
+      const pid = asPlayer();
+      const cid = asClub();
+      key = pid ? `p:${pid}` : cid ? `t:${cid}` : undefined;
+    }
+    if (!key) {
+      skipped.push(f.name);
+      continue;
+    }
+    const club = key.startsWith('t:');
+    jobs.push({ key, name: nameOf(key) ?? label, slot: club ? 'crest' : slot && slot !== 'crest' ? slot : 'prime', data: f.data, file: f.name });
+  }
+  let added = 0;
+  for (const j of jobs) {
+    const type = /\.webp$/i.test(j.file) ? 'image/webp' : /\.jpe?g$/i.test(j.file) ? 'image/jpeg' : /\.gif$/i.test(j.file) ? 'image/gif' : 'image/png';
+    const url = URL.createObjectURL(new Blob([j.data as Uint8Array<ArrayBuffer>], { type }));
+    try {
+      const img = await loadImage(url);
+      const club = j.key.startsWith('t:');
+      const blob = await cropToBlob(img, { zoom: 1, x: 0, y: club ? 0 : -0.4 }, club ? 160 : 256, !club);
+      await setFaceOn(j.key, j.name, j.slot, blob);
+      added++;
+    } catch {
+      skipped.push(j.file);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  return { added, skipped };
+}

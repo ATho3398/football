@@ -11,7 +11,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   const n = vm.next;
   // C.39: 머리말은 작게(날짜 한 줄), "다음 경기" 카드를 맨 위로. 남은 포인트는 머리말 칩으로도
   const hero = HeroPanel({
-    title: '홈', back: false, compact: true, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }),
+    title: '홈', back: false, compact: true, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' }),
     eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
     value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
     chips: [

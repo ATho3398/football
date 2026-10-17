@@ -42,6 +42,8 @@ import { saveStartNotice, versionLabel } from '../version';
 import type { DesignTier, FeedKind, FormationSlotProps, TacticStyle } from './components';
 import type { FieldAttributes } from '../attributes';
 import type { AttrGroupVM } from './views/attrGrid';
+import type { FaceRef } from './faces';
+import { PROSPECT_NATIONALITY, realAppearance, rollAppearance } from '../appearance';
 import { FORMATIONS } from '../formations';
 import {
   customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
@@ -109,13 +111,25 @@ function conditionVM(g: GameState): ConditionVM {
 
 export interface PlayerCardVM {
   name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore: number; level: number; xp: number; xpMax: number; team: string;
+  face: FaceRef;
+}
+
+/**
+ * 내 선수 얼굴 (부록 C.43): 실제 선수면 그 선수 id(사진·페이스온 공유), 가상 유망주는 `me:<월드 시드>`.
+ * 외모군은 저장하지 않고 id 로 정한다 (가상 유망주 = 한국 국적 분포, 커스텀 생성(C.45)에서 고르게 되면 저장)
+ */
+export function myFace(g: GameState): FaceRef {
+  const p = g.player;
+  if (p.realPlayerId) return { id: p.realPlayerId, age: p.age, appearance: realAppearance(p.realPlayerId, '') };
+  const id = `me:${g.worldSeed}`;
+  return { id, age: p.age, appearance: rollAppearance(id, PROSPECT_NATIONALITY) };
 }
 
 function playerCardVM(g: GameState): PlayerCardVM {
   const p = g.player;
   return {
     name: p.name, age: p.age, position: p.position, ovr: playerOvr(p), tier: designTier(reputationTier(p.reputation, p.honors)), tierScore: p.reputation,
-    level: p.level, xp: p.xp, xpMax: xpToLevel(p), team: teamById(g.league, p.teamId).nameKo,
+    level: p.level, xp: p.xp, xpMax: xpToLevel(p), team: teamById(g.league, p.teamId).nameKo, face: myFace(g),
   };
 }
 
@@ -428,6 +442,7 @@ export function campLabel(g: GameState): string {
 export interface AttrRowVM { label: string; value: number; key: boolean }
 
 export interface PlayerVM {
+  face: FaceRef;
   name: string; position: string; positionKo: string; age: number; ovr: number; team: string;
   tier: DesignTier; tierName: string; reputation: number; repMax: number;
   next: { name: string; cut: number; from: number } | null;
@@ -518,6 +533,7 @@ export function playerVM(g: GameState): PlayerVM {
   const nx = nextReputationTier(p.reputation, p.honors);
   const fx = g.phase === 'season' ? nextFixture(g) : null;
   return {
+    face: myFace(g),
     name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
     team: teamById(g.league, p.teamId).nameKo,
     tier: designTier(tier), tierName: TIER_NAMES_KO[tier], reputation: p.reputation, repMax: BALANCE.reputation.max,
@@ -682,6 +698,8 @@ export const transitionSummary = possessionSummary;
 // ── 경기 후 (I.6, 디자인 38) ──
 
 export interface MatchResultVM {
+  /** 머리 줄 (부록 C.43): 우리 팀·상대 엠블럼, 내 얼굴 */
+  myTeam: string; face: FaceRef;
   round: number; opp: string; scoreLine: string; outcome: 'win' | 'draw' | 'loss'; outcomeKo: string;
   rating: number | null; appearance: string; formBonus: number;
   chips: string[];
@@ -766,6 +784,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   const max = xpToLevel(g.player);
   const value = m.levelsGained > 0 ? g.player.xp : Math.max(0, g.player.xp - res.xp);
   return {
+    myTeam: teamById(g.league, g.player.teamId).nameKo, face: myFace(g),
     round: m.round, opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
@@ -839,26 +858,27 @@ export function seasonMatchesVM(g: GameState): SeasonMatchesVM {
 export interface WorldVM {
   league: string; season: string; round: number; rounds: number; myPos: number; teams: number;
   table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number }[];
-  stars: { name: string; position: string; age: number; club: string; ovr: number; change: number }[];
+  stars: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number }[];
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
   scorers: ScorerVM[];
 }
 
-export interface ScorerVM { name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
+export interface ScorerVM { face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
 
 /** 득점 순위 (골 → 도움 → 출전 적은 순). 내 선수는 player.season 에서 */
 export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
-  const names = new Map<string, { name: string; team: string }>();
+  const names = new Map<string, { name: string; team: string; face: FaceRef }>();
   for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
     const team = teamById(g.league, teamId)?.nameKo ?? teamId;
-    for (const p of r.players) names.set(p.id, { name: p.nameKo, team });
+    for (const p of r.players) names.set(p.id, { name: p.nameKo, team, face: { id: p.id, age: p.age, appearance: p.appearance } });
   }
   const rows: ScorerVM[] = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({
+    face: names.get(id)?.face ?? { id },
     name: names.get(id)?.name ?? id, team: names.get(id)?.team ?? '', apps, goals, assists, avg: apps ? (r10 / apps / 10).toFixed(2) : '-', me: false,
   }));
   const s = g.player.season;
-  if (s.apps > 0) rows.push({ name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
+  if (s.apps > 0) rows.push({ face: myFace(g), name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
   return rows.filter((r) => r.goals > 0 || r.me).sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.apps - b.apps).slice(0, limit);
 }
 
@@ -873,7 +893,7 @@ export function worldVM(g: GameState): WorldVM {
       gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating,
     })),
     stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
-      .map((n) => ({ name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),
+      .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),
     retired: g.npcs.filter((n) => n.retired).map((n) => n.nameKo),
     scorers: scorersVM(g),
   };

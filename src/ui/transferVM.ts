@@ -1,5 +1,6 @@
 // 이적·계약 화면 뷰모델 (18.10, 부록 C.42)
 
+import { myFace } from './viewModels';
 import type { GameState } from '../game';
 import { proficientOvr } from '../proficiency';
 import {
@@ -59,7 +60,7 @@ export function marketVM(g: GameState): MarketVM {
   };
 }
 
-export interface NewsRowVM { name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: string | null; mine: boolean }
+export interface NewsRowVM { id: string; name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: string | null; mine: boolean }
 export interface NewsVM { title: string; count: number; inLeague: number; rows: NewsRowVM[] }
 
 /** 월드 "이적 소식": 가장 최근 이적시장의 NPC 이동 (+ 같은 이적시장 내 선수 이동) */
@@ -68,14 +69,14 @@ export function newsVM(g: GameState): NewsVM | null {
   const me = g.market.moves.filter((x) => !x.back).at(-1);
   if (!w && !me) return null;
   const rows: NewsRowVM[] = (w?.recs ?? []).map((r) => ({
-    name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: clubNameKo(g.league, r.from), to: clubNameKo(g.league, r.to), why: WHY_KO[r.why], real: !!r.real,
+    id: r.id, name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: clubNameKo(g.league, r.from), to: clubNameKo(g.league, r.to), why: WHY_KO[r.why], real: !!r.real,
     into: !isOutside(r.to), out: isOutside(r.to), fill: r.fill ? `${r.fill.name} (OVR ${r.fill.ovr}) ← ${clubNameKo(g.league, r.fill.club)}` : null,
     mine: r.from === g.player.teamId || r.to === g.player.teamId,
   }));
   // 실제 선수 → 리그 안 이동 → OVR 순
   rows.sort((a, b) => Number(b.real) - Number(a.real) || Number(b.into) - Number(a.into) || b.ovr - a.ovr);
   if (me && w && me.season === w.season && me.w === w.w) {
-    rows.unshift({ name: g.player.name, pos: g.player.position, age: g.player.age, ovr: proficientOvr(g.player, g.player.position), from: clubNameKo(g.league, me.from), to: clubNameKo(g.league, me.to), why: me.loan ? '임대' : '내 선수', real: true, into: true, out: false, fill: null, mine: true });
+    rows.unshift({ id: myFace(g).id, name: g.player.name, pos: g.player.position, age: g.player.age, ovr: proficientOvr(g.player, g.player.position), from: clubNameKo(g.league, me.from), to: clubNameKo(g.league, me.to), why: me.loan ? '임대' : '내 선수', real: true, into: true, out: false, fill: null, mine: true });
   }
   const season = w?.season ?? me!.season;
   const kind = (w?.w ?? me!.w) === 'winter' ? '겨울' : '여름';
