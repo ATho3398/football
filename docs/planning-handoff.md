@@ -270,4 +270,6 @@
 - M이 만든 세션 → `lineage` 깊이 3. 브랜치 `claude/planning-n`(M 733e3d1에서 분기).
 - 시작 처리(01:16 KST): C.48·UI_2·엔진관리자2·C.47(CI 결과만)에 "보고는 N, 마스터 브랜치 claude/planning-n" 알림. C.48 진행 확인 send_later `trig_01RidXgnBYkQghR3EHygjcdq`(03:45 KST). M 제목 `draft_M_축구 커리어 게임 마스터`. 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음).
 - (01:39 KST) C.47 배포 확인: main 3155e46 CI #172 성공(엔진 20·밸런스 34·세이브 27). 남은 질문 6개는 pending 79 그대로. C.47 끝.
-- 다음: 8.22 순서 그대로(C.48 보고 → pending 80~ → ntfy → UI_2 목록 → 34e C.49).
+- (01:49 KST, 사용자) 스탯 20칸인데 포인트는 100 기준이라 헷갈림 → pending 80(레벨업 1P·찍기 1번 = 1칸·비용 1/2/3·약발 10P·커스텀 1/2/3·세이브 ÷5 올림) → C.48 다음에 끼움.
+- (01:52 KST) C.48 완료(main 66ba91f, 밸런스 35·세이브 28, 테스트 419, CI는 C.48이 02:15 확인) → pending 81, C.48 draft_, UI_2 목록(큰 2 + 작은 4 → 누계 큰 7, 6차 보고 요청). **34e C.49 시작** `session_01H9Ysd3v5zrq6NASBvCEy6h` "34e단계_성장 포인트 칸 단위 (C.49)", 브랜치 `claude/c49-points`, 태그 `stage:34e-C49`, docs 병합에 engine-issues-c45·engine-diag-defense 포함. 자동 확인 send_later 150분(04:22 KST). C.48 확인 예약은 삭제.
+- 다음: C.49 보고 → pending 82 → ntfy → UI_2 목록 → **U5-a~g = 34f~34l(C.50~C.56)** → 35 5-1 …
