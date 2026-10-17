@@ -758,3 +758,9 @@ pending 31의 빈칸을 추천안으로 채운다.
 - 마스터 깊이 7 등 꼭 필요한 알림을 Claude 알림 말고 카톡으로(텔레그램은 알림 꺼 둠). 커넥터 없음 → 카카오 개발자 앱 + "나에게 보내기"(talk_message) + 리프레시 토큰을 환경 비밀값에. 발급 도우미 `docs/tools/kakao-token.html`(PC 브라우저에서 열기, CORS 확인함). 규칙 automation 0번. 사용자 설정 대기.
 - (23:22 KST) **연결 완료**: 환경 변수 3개(REST 키·리프레시 토큰·Client Secret = 카카오 로그인 쪽) → 테스트 세션 3에서 갱신 OK·나에게 보내기 200(result_code 0). KOE010 = Client Secret 누락(새 앱 기본 ON). 토큰 2026-10-17 발급 → 만료 약 12-16, 재발급 안내 예약 `trig_011byfg3qNvXKLXcdgzLECYV`(2026-12-02 10:00 KST, 새 세션이 카톡 + 푸시·이메일). 사용자가 채팅에 리프레시 토큰을 한 번 붙였음 → 재발급 권장. M은 환경 변수 전에 시작해 값이 없음: M에서 보낼 땐 짧은 Haiku 세션을 열어 보낸다(테스트 세션 프롬프트 참고).
 - (23:25 KST, 사용자) 카톡 나에게 보내기는 알림이 안 떠서 **ntfy**(폰 앱 설치함)로 주 알림. 매 단계 패치 완료 때도 보냄(Priority 3), 긴급은 5. 주제 이름은 환경 변수 NTFY_TOPIC(채팅으로만 전달). automation 0번.
+
+## 74. 5차 디자인 도착·U5 패치 순서·UI_2 (2026-10-18 00:30 KST, 마스터 M)
+- UI_1: 사용자가 player-one-design.zip(123장, 컴포넌트 45종: 새 Dock·AttrTile/AttrGrid·DayCell·OfferCard·TransferRow·TextField) 업로드 → `docs/design/player-one-design/` 갱신, 적용 명세 `docs/ui-requests/5-apply.md`(claude/ui-1 cc77c6e). C.45·C.46 화면은 디자인에 없음 → 6차 누계.
+- **순서(M 결정)**: 34c C.47 → **34d C.48 카드 그림**(card-art-batch03-apply) → **U5-a~g = 34e~34k(C.49~C.55)**: a 기반(Dock·HeroPanel·Tabs·TextField·재계약 넘침) → b 결정 순간 한 화면·이름표 겹침 → c 홈·훈련·자동 진행 → d 선수 4탭·포인트·새 게임 → e 설정 → f 이적·월드·시즌·덱·결과·세이브 → g PC 2열 → 35 5-1. 각 패치 = 코드 세션 하나, 표시만(세이브·밸런스 버전 변경 없음), 확인 캡처 기준 5-apply 3절.
+- 사용자 확인 4개 → 추천대로(디자인대로) 진행: ① [확정] 버튼에 "확정 · 백패스 88%" ② 능력치 묶음 이름·순서 디자인대로(표시만) ③ 홈 큰 버튼 "계속 · 계획대로 진행" + [하루 진행][자동 진행] ④ 기술 훈련 게이지 안내는 실제 규칙과 같게(코드 세션 확인).
+- UI_1 → draft_(5차 끝, 컨텍스트 38만·14.8달러). **UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F`**(브랜치 claude/ui-2) 이어받음: 6차 누계 큰 4 + 작은 9(1단계), 카드 그림 추가 묶음 받기.
