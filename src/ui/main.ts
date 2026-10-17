@@ -8,7 +8,9 @@ import { autoCustom } from '../custom';
 import { HL } from '../highlights';
 import './design/tokens.css';
 import './design/bundle.css';
+import './design/skin-b.css';
 import './style.css';
+import { applySkin, setSkin } from './skin';
 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
@@ -78,6 +80,12 @@ import { declineOffer, declineOffers, marketPending, renewContract, requestTrans
 import { presetEditVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
+import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
+
+/** 유스 구단 이름: 리그 팀 > 리그 밖 구단 > 실제 선수 데이터의 한글 이름 그대로(예 '함부르크', C.55: teamById 가 던져 선수 화면이 안 열리던 것) */
+function youthClubName(g: GameState, club: string): string {
+  return g.league.teams.find((t) => t.id === club)?.nameKo ?? OUTSIDE_CLUBS.find((c) => c.id === club)?.nameKo ?? club;
+}
 import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
 import type { Formation } from '../formations';
 import type { Tendency } from '../engine/types';
@@ -355,7 +363,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null, ui.deckBack);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·태그', action: '키·약발·태그' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? teamById(g.league, g.player.youth.club).nameKo : '', ui.tagsAll)}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·태그', action: '키·약발·태그' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? youthClubName(g, g.player.youth.club) : '', ui.tagsAll)}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) + tagNewsSection((g.tagNews ?? []).slice(-20).reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag }))) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -1733,6 +1741,11 @@ app.addEventListener('click', (ev) => {
       ui.pvSheet = false;
       render();
       return;
+    case 'skin-set':
+      if (v !== 'a' && v !== 'b') return;
+      setSkin(v);
+      render();
+      return;
     case 'po-orient':
       if (v !== 'auto' && v !== 'landscape' && v !== 'portrait') return;
       setPitchOrient(v);
@@ -2399,6 +2412,7 @@ setPitchKitClashResolver((teams) => {
   return kitClash(k.home, k.away);
 });
 
+applySkin();
 render();
 void initFaces().then(render, () => render());
 void initCardArt().then(render, () => render());

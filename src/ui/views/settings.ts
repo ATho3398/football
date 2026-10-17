@@ -23,6 +23,7 @@ import { pixelLayerUrls } from '../faces';
 import { homeKitOf, peopleTable, pixelIconHtml, playerAutoPerson, playerPerson } from '../pixelIcons';
 import { CARD_ART_UI_DEFAULT, cardArtOverlay, cardArtSection, type CardArtUI } from './cardArtSettings';
 import { userArtCount } from '../cardArt';
+import { skin, SKIN_KO } from '../skin';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
 export interface NameUI { q: string; team: string; sel: string | null }
@@ -332,6 +333,8 @@ export function settingsView(
     <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
     <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}
     <p class="small muted">방향·크기·이름 표시는 이 기기에 저장돼요(세이브와 따로). 경기 결과에는 영향이 없어요.</p>`);
+  const look = panel(`<div class="kv"><span>화면 스타일</span></div>${Tabs({ items: (['b', 'a'] as const).map((k) => ({ id: k, label: SKIN_KO[k] })), value: skin(), act: 'skin-set', fill: true, label: '화면 스타일' })}
+    <p class="small muted">B = 꺾인 모서리·이탤릭 숫자(기본) · A = 둥근 알약 모양. 색과 화면 내용은 같아요. 이 기기에 저장돼요.</p>`);
   const saves = panel(`<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`);
 
@@ -352,6 +355,7 @@ export function settingsView(
     <input type="file" id="fo-file" accept="image/*" hidden>
     <input type="file" id="fp-file" accept=".zip,application/zip" hidden>`;
   return `${hero}<div class="body">
+    ${SectionTitle({ title: '화면 스타일' })}${look}
     ${SectionTitle({ title: '경기 진행' })}${play}
     ${SectionTitle({ title: '경기 화면 보기' })}${pv}
     ${SectionTitle({ title: '선수 이름', action: '별명·짧은 이름' })}${nameSection(g, nm)}
