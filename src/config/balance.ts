@@ -748,8 +748,8 @@ export const BALANCE = {
     passFull: 30,
     /** 키 기준 (cm)과 공중볼 점수(헤더 0.5 + 점프 0.3 + 근력 0.2 척도) cm 당 보정, 한도 */
     refHeight: 181,
-    aerialPerCm: 0.35,
-    aerialMax: 7,
+    aerialPerCm: 0.25,
+    aerialMax: 5,
     /** GK 리치 (기준 188 cm): 공중볼 잡기 확률·선방 확률 cm 당 */
     gkRefHeight: 188,
     gkClaimPerCm: 0.004,
@@ -757,8 +757,8 @@ export const BALANCE = {
     gkReachMax: 0.04,
     /** 몸무게 (BMI 기준 23): 몸싸움(근력) 점수 BMI 1 당 +, 가속·민첩 BMI 1 당 − (작게) */
     refBmi: 23,
-    strengthPerBmi: 1.5,
-    strengthMax: 4,
+    strengthPerBmi: 1.0,
+    strengthMax: 3,
     quicknessPerBmi: 1.0,
     quicknessMax: 3,
     /** 커스텀 생성: 키가 기준보다 크면 속도·가속·민첩 상한 cm 당 −, 헤더·점프 상한 cm 당 + */
