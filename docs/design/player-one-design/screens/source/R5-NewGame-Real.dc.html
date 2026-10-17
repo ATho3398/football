@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>새게임-실제선수</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1035px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="새 게임" compact="{{yes}}" eyebrow="선택한 선수 · 손흥민 · LW OVR" value="{{o83}}" chips="{{chips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">시작 방식</span><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{modes}}" value="r" label="시작 방식"></x-import><x-import component-from-global-scope="PlayerOne.TextField" icon="search" placeholder="선수 이름 · 팀 (한글·영문)"></x-import><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{posf}}" value="att" label="포지션군"></x-import><sc-for list="{{real}}" as="r" hint-placeholder-count="7"><div style="display: grid; grid-template-columns: 44px 1fr auto 40px; align-items: center; gap: 10px; min-height: 60px; padding: 0 12px 0 8px; border-radius: 14px; background: {{r.bg}}; box-shadow: {{r.ring}};"><x-import component-from-global-scope="PlayerOne.Avatar" name="{{r.n}}" size="{{i44}}"></x-import><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><b style="font-size: 14px;">{{r.n}}</b><span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-muted); white-space: nowrap; overflow: hidden;"><x-import component-from-global-scope="PlayerOne.Crest" name="{{r.c}}" size="{{i14}}"></x-import><span style="overflow: hidden; text-overflow: ellipsis;">{{r.c}} · {{r.a}}세 · {{r.p}}</span></span></span><x-import component-from-global-scope="PlayerOne.TierBadge" tier="{{r.t}}" size="sm"></x-import><span style="display: flex; flex-direction: column; align-items: flex-end;"><b style="font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 20px;">{{r.o}}</b><span style="font-size: 9px; font-weight: 800; color: var(--ink-faint);">OVR</span></span></div></sc-for><span style="font-size: 11px; color: var(--ink-faint);">사진·로고는 위키백과(선수 33명·구단 20개) 또는 내가 올린 이미지(페이스온)예요. 없으면 기본 얼굴이에요.</span><x-import component-from-global-scope="PlayerOne.TextField" label="시드 (선택)" placeholder="비우면 랜덤"></x-import><x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon-right="chevron-right">손흥민으로 시작 · 토트넘 홋스퍼</x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1035}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i44: 44, o83: 83, chips: ['26세 · 토트넘', { label: '위상 스페셜 500', soft: true }], modes: [{ id: 'p', label: '가상 유망주' }, { id: 'r', label: '실제 선수' }], posf: [{ id: 'all', label: '전체' }, { id: 'att', label: '공격', icon: 'pos-att' }, { id: 'mid', label: '미드', icon: 'pos-mid' }, { id: 'def', label: '수비', icon: 'defense' }, { id: 'gk', label: 'GK' }], real: [{ n: '손흥민', c: '토트넘 홋스퍼', a: 26, p: 'LW', o: 83, t: 'key', ring: 'inset 0 0 0 2px var(--brand-ink)', bg: 'var(--surface-3)' }, { n: '해리 케인', c: '토트넘 홋스퍼', a: 25, p: 'ST', o: 82, t: 'key', ring: 'none', bg: 'var(--surface-1)' }, { n: '라힘 스털링', c: '맨체스터 시티', a: 24, p: 'LW', o: 87, t: 'top', ring: 'none', bg: 'var(--surface-1)' }, { n: '모하메드 살라', c: '리버풀', a: 26, p: 'RW', o: 85, t: 'top', ring: 'none', bg: 'var(--surface-1)' }, { n: '마커스 래시포드', c: '맨체스터 유나이티드', a: 21, p: 'LW', o: 78, t: 'key', ring: 'none', bg: 'var(--surface-1)' }, { n: '제이든 산초', c: '보루시아 도르트문트', a: 18, p: 'RW', o: 80, t: 'key', ring: 'none', bg: 'var(--surface-1)' }, { n: '필 포든', c: '맨체스터 시티', a: 18, p: 'CAM', o: 67, t: 'normal', ring: 'none', bg: 'var(--surface-1)' }] };
+  }
+}
+</script>
+</body>
+</html>

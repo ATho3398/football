@@ -1,0 +1,12 @@
+<!-- @dsCard group="Schedule" height=140 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>DayCell — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:358,display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}},[['일','9.16','휴식','rest',1,1],['월','9.17','기술','train'],['화','9.18','기술','train'],['수','9.19','기술','train'],['목','9.20','기술','train'],['금','9.21','영상','train'],['토','9.22','경기','match']].map(function(d,i){return h(P.DayCell,{key:i,day:d[0],date:d[1],label:d[2],kind:d[3],today:!!d[4],fixed:!!d[5]})})));
+</script>
+</body>
+</html>

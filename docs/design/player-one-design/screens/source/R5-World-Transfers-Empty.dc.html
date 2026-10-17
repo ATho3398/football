@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>월드-이적소식-빈상태</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="월드" on-back="{{no}}" compact="{{yes}}" right="0R / 38" eyebrow="리그 · 토트넘 홋스퍼 순위" value="17위" chips="{{wchips}}"></x-import><div style="padding: 4px 16px 0;"><x-import component-from-global-scope="PlayerOne.Tabs" variant="underline" fill="{{yes}}" items="{{wtabs}}" value="xfer" label="월드"></x-import></div><div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px;"><div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center;"><span style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--surface-1); color: var(--ink-faint);"><x-import component-from-global-scope="PlayerOne.Icon" name="swap" size="{{i32}}"></x-import></span><b style="font-size: 17px;">아직 이적시장이 안 열렸어요</b><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">겨울(1월)과 여름(비시즌)에 선수들이 움직여요.<br>다음 이적시장은 <b style="color: var(--ink);">1월 1일</b>에 열려요 · 118일 남음</span><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" icon="calendar">일정에서 보기</x-import></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="world" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i32: 32, i36: 36, wchips: ['승점 0', '1위와 0점', { label: '2018-19 시즌', soft: true }], wtabs: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점' }, { id: 'stars', label: '리그 스타' }, { id: 'xfer', label: '이적 소식' }],  };
+  }
+}
+</script>
+</body>
+</html>

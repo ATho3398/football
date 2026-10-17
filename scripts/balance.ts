@@ -287,9 +287,10 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   }
 }
 {
-  console.log('\n[D.6 노화] 포지션군별 36세 − 30세 OVR (전 티어). 목표(최적 배분): 윙/풀백 −4~−6, CB/CDM/CM −1~−2, ST/CAM 0~−2');
+  // C.47: 노익장(조건을 채운 시즌 노화 ×0.7, 사용자 확정)이 잘하는 30대 윙/풀백의 하락을 줄여 C.46 −4.5 → 약 −3.5. 윙/풀백 하한을 −4 → −3 으로 (남은 질문, 마스터 확인)
+  console.log('\n[D.6 노화] 포지션군별 36세 − 30세 OVR (전 티어). 목표(최적 배분): 윙/풀백 −3~−6(C.47 노익장 반영), CB/CDM/CM −1~−2, ST/CAM 0~−2');
   const groups: [string, string[], number, number][] = [
-    ['윙/풀백', ['LW', 'RW', 'LM', 'RM', 'LB', 'RB', 'LWB', 'RWB'], -6, -4],
+    ['윙/풀백', ['LW', 'RW', 'LM', 'RM', 'LB', 'RB', 'LWB', 'RWB'], -6, -3],
     ['CB/CDM/CM', ['CB', 'CDM', 'CM'], -3, -1],
     ['ST/CAM', ['ST', 'CF', 'CAM'], -2, 0],
   ];

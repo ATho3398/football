@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>페이스온-나이대칸</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="페이스온" compact="{{yes}}" eyebrow="선수 · 손흥민" chips="{{faceChips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;">
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; background: var(--surface-1);"><x-import component-from-global-scope="PlayerOne.Avatar" name="손흥민" size="{{i56}}"></x-import><span style="display: flex; flex-direction: column; gap: 2px; flex: 1;"><b style="font-size: 16px;">손흥민</b><span style="font-size: 12px; color: var(--ink-muted);">내 선수 · 토트넘 홋스퍼 · 26세</span><span style="font-size: 11px; font-weight: 700; color: var(--brand-ink);">지금 24~29세 칸 이미지를 써요</span></span></div><div style="display: flex; flex-direction: column; gap: 4px;"><b style="font-size: 13px;">나이대 칸</b><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">나이에 맞는 칸을 쓰고, 비었으면 가까운 칸을 써요. 모두 지우면 위키백과 사진으로 돌아가요.</span></div><div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;"><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-1); box-shadow: none;"><div style="display: grid; place-items: center; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background-color: var(--surface-2); background-image: linear-gradient(45deg, var(--surface-3) 25%, transparent 25%, transparent 75%, var(--surface-3) 75%), linear-gradient(45deg, var(--surface-3) 25%, transparent 25%, transparent 75%, var(--surface-3) 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">비어 있음</span></div><span style="display: flex; flex-direction: column; align-items: center; gap: 0;"><b style="font-size: 13px;">~23세</b><span style="font-size: 10px; font-weight: 700; color: var(--ink-faint);">어린 시절</span></span><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" block="{{yes}}" icon="upload">올리기</x-import></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand-ink);"><div style="display: grid; place-items: center; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background-color: var(--surface-2); background-image: linear-gradient(45deg, var(--surface-3) 25%, transparent 25%, transparent 75%, var(--surface-3) 75%), linear-gradient(45deg, var(--surface-3) 25%, transparent 25%, transparent 75%, var(--surface-3) 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px;"><x-import component-from-global-scope="PlayerOne.Avatar" name="손흥민" size="{{i80}}" shape="square"></x-import></div><span style="display: flex; flex-direction: column; align-items: center; gap: 0;"><b style="font-size: 13px;">24~29세</b><span style="font-size: 10px; font-weight: 700; color: var(--brand-ink);">지금 나이</span></span><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" block="{{yes}}">바꾸기</x-import><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="ghost" block="{{yes}}">지우기</x-import></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-1); box-shadow: none;"><div style="display: grid; place-items: center; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background-color: var(--surface-2); background-image: linear-gradient(45deg, var(--surface-3) 25%, transparent 25%, transparent 75%, var(--surface-3) 75%), linear-gradient(45deg, var(--surface-3) 25%, transparent 25%, transparent 75%, var(--surface-3) 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">비어 있음</span></div><span style="display: flex; flex-direction: column; align-items: center; gap: 0;"><b style="font-size: 13px;">30세~</b><span style="font-size: 10px; font-weight: 700; color: var(--ink-faint);">베테랑</span></span><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" block="{{yes}}" icon="upload">올리기</x-import></div></div><div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--surface-1);"><b style="font-size: 13px;">어디에 나와요</b><div style="display: flex; gap: 10px; align-items: center;"><x-import component-from-global-scope="PlayerOne.Avatar" name="손흥민" size="{{i40}}"></x-import><x-import component-from-global-scope="PlayerOne.Avatar" name="손흥민" size="{{i28}}" ring="{{yes}}"></x-import><x-import component-from-global-scope="PlayerOne.Avatar" name="손흥민" size="{{i20}}"></x-import><span style="font-size: 11px; color: var(--ink-muted);">홈 카드 · 선수 화면 · 경기 결과 · 순위표 · 이적 소식 · 경기 얼굴 마커</span></div></div><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="restore">세 칸 모두 지우기</x-import>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="more" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i16: 16, i18: 18, i20: 20, i40: 40, i44: 44, i56: 56, heroChips: ['손흥민', { label: '이 브라우저에 저장', soft: true }],
+      jumpTabs: [{ id: 'play', label: '경기 진행' }, { id: 'view', label: '화면 보기' }, { id: 'names', label: '선수 이름' }, { id: 'save', label: '저장·안내' }, { id: 'face', label: '페이스온' }, { id: 'pack', label: '페이스팩' }, { id: 'ver', label: '버전' }],
+      decideTabs: [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }],
+      freqTabs: [{ id: 'all', label: '모든 순간' }, { id: 'key', label: '중요한 순간만' }, { id: 'crit', label: '결정적 순간만' }],
+      simTabs: [{ id: 'full', label: '전체 엔진' }, { id: 'fast', label: '빠른 진행' }],
+      faceChips: ['내 이미지 1건', { label: '이 브라우저에만 저장', soft: true }], i80: 80, i28: 28 };
+  }
+}
+</script>
+</body>
+</html>

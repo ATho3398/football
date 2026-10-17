@@ -4,7 +4,7 @@ export type Tier = 'normal' | 'key' | 'top' | 'world' | 'legend';
 export type CardType = 'play' | 'setpiece' | 'passive' | 'combo' | 'manage' | 'signature' | 'order';
 export type CardPos = 'all' | 'att' | 'mid' | 'def';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legend';
-export type IconName = 'ball' | 'save' | 'card' | 'sub' | 'injury' | 'danger' | 'chance' | 'dot' | 'clock' | 'bell' | 'disk' | 'home' | 'match' | 'player' | 'career' | 'world' | 'lock' | 'plus' | 'minus' | 'check' | 'close' | 'chevron-right' | 'chevron-down' | 'play' | 'pause' | 'skip' | 'risk' | 'arrow-up' | 'arrow-down' | 'arrow-flat' | 'double-up' | 'double-down' | CardType | 'star' | 'levelup' | 'info' | 'filter' | 'restore' | 'search' | 'pos-all' | 'pos-att' | 'pos-mid' | 'defense' | 'throwin' | 'goalkick' | 'tactic' | 'order' | 'solo' | 't-balanced' | 't-tikitaka' | 't-gegen' | 't-counter' | 't-direct' | 't-block' | 'newchoice' | 'signature' | 'ff' | 'auto' | 'manual' | 'settings' | 'calendar' | 'train' | 'video' | 'rest' | 'recover' | 'target' | 'download' | 'upload' | 'plane' | 'replay' | 'stop';
+export type IconName = 'ball' | 'save' | 'card' | 'sub' | 'injury' | 'danger' | 'chance' | 'dot' | 'clock' | 'bell' | 'disk' | 'home' | 'match' | 'player' | 'career' | 'world' | 'lock' | 'plus' | 'minus' | 'check' | 'close' | 'chevron-right' | 'chevron-down' | 'play' | 'pause' | 'skip' | 'risk' | 'arrow-up' | 'arrow-down' | 'arrow-flat' | 'double-up' | 'double-down' | CardType | 'star' | 'levelup' | 'info' | 'filter' | 'restore' | 'search' | 'pos-all' | 'pos-att' | 'pos-mid' | 'defense' | 'throwin' | 'goalkick' | 'tactic' | 'order' | 'solo' | 't-balanced' | 't-tikitaka' | 't-gegen' | 't-counter' | 't-direct' | 't-block' | 'newchoice' | 'signature' | 'ff' | 'auto' | 'manual' | 'settings' | 'calendar' | 'train' | 'video' | 'rest' | 'recover' | 'target' | 'download' | 'upload' | 'plane' | 'replay' | 'stop' | 'menu' | 'deck' | 'chat' | 'trophy' | 'swap' | 'edit' | 'eye' | 'grid' | 'face' | 'sliders' | 'pin' | 'collapse';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg'; block?: boolean; icon?: IconName; iconRight?: IconName }
 export declare function Button(props: ButtonProps): React.ReactElement;
@@ -45,9 +45,9 @@ export declare function PlayerCard(props: PlayerCardProps): React.ReactElement;
 
 export interface CardEffect { pre: string; hi?: string; post?: string }
 export interface CardCondition { text: string; met: boolean; current?: number | string }
-/** 카드 그림 위치·확대. x = 오른쪽으로 이동(%, 음수면 왼쪽), y = 위로 올림(%, 음수면 내림), 둘 다 4:3 그림 칸(280×210) 기준. zoom = 확대 배율 1~4(기본 1). */
-export interface CardArtPos { x?: number; y?: number; zoom?: number }
-export interface Card {pos?: CardPos; order?: 'follow' | 'solo'; id?: string; name: string; type: CardType; rarity: Rarity; level?: number; effect?: CardEffect | string; effectValue?: string; condition?: CardCondition; art?: string; artPos?: CardArtPos; isNew?: boolean; count?: number; disabled?: boolean }
+/** 카드 그림 위치·확대. x = 오른쪽으로 이동(%, 음수면 왼쪽), y = 위로 올림(%, 음수면 내림), 둘 다 4:3 그림 칸(280×210) 기준. zoom = 확대 배율 1~4(기본 1). flip = 좌우 반전. rotate = 기울기(도, −45~45, 시계 방향 +). */
+export interface CardArtPos { x?: number; y?: number; zoom?: number; flip?: boolean; rotate?: number }
+export interface Card {pos?: CardPos; order?: 'follow' | 'solo'; id?: string; name: string; type: CardType; rarity: Rarity; level?: number; effect?: CardEffect | string; effectValue?: string; condition?: CardCondition; art?: string; /** true면 그림이 1:1 원본 — 가로를 칸에 맞추고 세로는 칸 밖으로 넘치며, y로 위아래를 옮겨 고른다 */ artSquare?: boolean; artPos?: CardArtPos; /** 간략 카드(덱 슬롯 mini · 경기 중 패 hand) 공용. 없으면 artPos */ artPosMini?: CardArtPos; isNew?: boolean; count?: number; disabled?: boolean }
 /** full 280×392 · deck 168×235 (both with screentone art fade) · mini (deck slot, 116px tall) · hand 76×108 (both simplified, no screentone) */
 export interface GameCardProps { card: Card; size?: 'full' | 'deck' | 'mini' | 'hand'; state?: 'normal' | 'selected' | 'disabled' | 'locked'; reason?: string; onClick?: () => void }
 export declare function GameCard(props: GameCardProps): React.ReactElement;
@@ -58,7 +58,8 @@ export declare function DeckSlot(props: DeckSlotProps): React.ReactElement;
 export interface CardHandProps { cards: Card[]; selectedId?: string; onSelect?: (id: string) => void }
 export declare function CardHand(props: CardHandProps): React.ReactElement;
 
-export interface HeroPanelProps { title: string; right?: React.ReactNode; onBack?: (() => void) | false; eyebrow?: string; value?: number | string; total?: number; pad?: boolean; progress?: boolean; chips?: Array<string | { label: string; soft?: boolean }>; children?: React.ReactNode }
+/** compact = 한 줄 머리말(탭마다 반복되는 화면). value가 글자(숫자·단위가 아님)면 '글자 머리말': 48px 한 줄(compact는 22px), 6자 이내, 넘치면 말줄임. */
+export interface HeroPanelProps { title: string; right?: React.ReactNode; onBack?: (() => void) | false; eyebrow?: string; value?: number | string; total?: number; pad?: boolean; progress?: boolean; compact?: boolean; chips?: Array<string | { label: string; soft?: boolean }>; children?: React.ReactNode }
 export declare function HeroPanel(props: HeroPanelProps): React.ReactElement;
 
 export interface SectionTitleProps { title: string; action?: React.ReactNode; as?: 'h2' | 'h3' }
@@ -79,9 +80,11 @@ export declare function ScoreBar(props: ScoreBarProps): React.ReactElement;
 export type SceneStripProps = Pick<ScoreBarProps, 'view' | 'scene' | 'sceneNote' | 'sceneNoteIcon' | 'minute' | 'onSettings' | 'onLive' | 'onHighlight'>;
 export declare function SceneStrip(props: SceneStripProps): React.ReactElement;
 
-export interface PitchPlayer { x: number; y: number; team: 'home' | 'away'; num?: number; me?: boolean; label?: string; flag?: boolean; dim?: boolean }
+export interface PitchPlayer { x: number; y: number; team: 'home' | 'away'; num?: number; me?: boolean; label?: string; /** 겹칠 때 쓰는 짧은 이름(성·별명). 없으면 '.' 뒤 3자 */ short?: string; /** 공 가진 선수(이름표 우선순위 2) */ ball?: boolean; /** 얼굴 마커 이미지 */ face?: string; flag?: boolean; dim?: boolean }
 export interface PitchArrow { from: [number, number]; to: [number, number]; kind: 'pass' | 'through' | 'cross' | 'dribble' | 'shot'; tone?: 'safe' | 'balanced' | 'gamble'; curve?: [number, number]; ghost?: boolean }
-export interface PitchProps { players: PitchPlayer[]; ball?: [number, number]; arrows?: PitchArrow[]; offsideX?: number; marks?: Array<{ x: number; y: number; text: string; tone?: 'brand' | 'warning' | 'fail' | 'white' }>; label?: string; children?: React.ReactNode }
+/** orient='vertical' = 세로 피치(내 팀 아래→위). 세로에서만: crop [from,to](공격 방향 %, 예 [56,100] = 상대 진영 쪽만), marker, size, names, collide, dot(캐릭터 도트 px), renderWidth(실제 그려지는 폭 px). */
+export interface PitchProps { players: PitchPlayer[]; ball?: [number, number]; arrows?: PitchArrow[]; offsideX?: number; marks?: Array<{ x: number; y: number; text: string; tone?: 'brand' | 'warning' | 'fail' | 'white' }>; label?: string; children?: React.ReactNode;
+  orient?: 'horizontal' | 'vertical'; crop?: [number, number]; marker?: 'number' | 'face' | 'pixel'; size?: 'md' | 'lg' | 'xl'; names?: 'all' | 'mine' | 'off'; collide?: boolean; dot?: 2 | 4; renderWidth?: number }
 export declare function Pitch(props: PitchProps): React.ReactElement;
 
 export interface PossessionBarProps { home: number; label?: string | false }
@@ -91,7 +94,8 @@ export interface AppBarProps { team: string; subtitle?: string; crest?: string |
 export declare function AppBar(props: AppBarProps): React.ReactElement;
 
 export interface TabItem { id: string; label: string; icon?: IconName; badge?: number }
-export interface TabsProps { items: TabItem[]; value: string; variant?: 'segment' | 'underline' | 'nav'; fill?: boolean; label?: string; onChange?: (id: string) => void }
+/** scroll = 가로 스크롤 + 오른쪽 흐림(섹션 이동 칩 등). cols = n열 바둑판(6개 이상 탭을 잘리지 않게, 폰 3×2). */
+export interface TabsProps { items: TabItem[]; value: string; variant?: 'segment' | 'underline' | 'nav'; fill?: boolean; scroll?: boolean; cols?: number; label?: string; onChange?: (id: string) => void }
 export declare function Tabs(props: TabsProps): React.ReactElement;
 
 export interface BannerProps { tone?: 'injury' | 'warning' | 'info' | 'success'; title: string; children?: React.ReactNode; action?: string; onAction?: () => void }
@@ -128,4 +132,24 @@ export interface SwitchProps { label: string; desc?: string; on?: boolean; onCha
 export declare function Switch(props: SwitchProps): React.ReactElement;
 export interface CellGaugeProps { label?: string; value: number; add?: number; cells?: number; valueLabel?: string }
 export declare function CellGauge(props: CellGaugeProps): React.ReactElement;
-declare global { interface Window { PlayerOne: { Button: typeof Button; Icon: typeof Icon; Avatar: typeof Avatar; Crest: typeof Crest; TierBadge: typeof TierBadge; RatingBadge: typeof RatingBadge; StatChip: typeof StatChip; Meter: typeof Meter; FatigueGauge: typeof FatigueGauge; FormIndicator: typeof FormIndicator; StatBar: typeof StatBar; PlayerCard: typeof PlayerCard; GameCard: typeof GameCard; CardHand: typeof CardHand; ChoiceButton: typeof ChoiceButton; FeedItem: typeof FeedItem; ScoreBar: typeof ScoreBar; SceneStrip: typeof SceneStrip; PossessionBar: typeof PossessionBar; AppBar: typeof AppBar; Tabs: typeof Tabs; Banner: typeof Banner; Toast: typeof Toast; BottomSheet: typeof BottomSheet; Modal: typeof Modal; ResultSplash: typeof ResultSplash; DeckSlot: typeof DeckSlot; HeroPanel: typeof HeroPanel; SectionTitle: typeof SectionTitle; Pitch: typeof Pitch; FitBadge: typeof FitBadge; TacticEmblem: typeof TacticEmblem; TacticChip: typeof TacticChip; FormationPitch: typeof FormationPitch; OptionRow: typeof OptionRow; Slider: typeof Slider; Switch: typeof Switch; CellGauge: typeof CellGauge } } }
+/* ---------- 요청 5 새 컴포넌트 ---------- */
+export type DockItem = 'home' | 'progress' | 'player' | 'schedule' | 'world' | 'more' | 'deck' | 'tactic' | 'settings' | 'save';
+/** 폰 6칸(홈·진행·선수·훈련·일정·월드·더보기) / PC 9칸(+덱·전술·설정·저장, 더보기 없음). progress = 가운데 진행 칸 상태. */
+export interface DockProps { device?: 'phone' | 'pc'; value?: DockItem; progress?: 'continue' | 'match' | 'live' | 'answer' | 'season'; badges?: Partial<Record<DockItem, number>>; locked?: DockItem[]; onSelect?: (id: DockItem) => void }
+export declare function Dock(props: DockProps): React.ReactElement;
+/** 능력치 1~20. 색 구간 17+ brand · 15+ success · 13+ tier-key(하늘) · 10+ ink · ~9 away(주황). keyAttr = 포지션 핵심(테두리). */
+export interface AttrTileProps { name: string; value: number; progress?: number; delta?: number; add?: number; keyAttr?: boolean; editable?: boolean; selected?: boolean; cost?: number; ovrDelta?: number | null; maxed?: boolean; onClick?: () => void; onPlus?: () => void; onMinus?: () => void }
+export declare function AttrTile(props: AttrTileProps): React.ReactElement;
+export interface AttrGridProps { groups: Array<{ name: string; note?: string; items: AttrTileProps[] }>; columns?: number; editable?: boolean }
+export declare function AttrGrid(props: AttrGridProps): React.ReactElement;
+export interface DayCellProps { day: string; date: string | number; label: string; kind?: 'train' | 'rest' | 'match'; icon?: IconName; today?: boolean; fixed?: boolean; selected?: boolean; past?: boolean; onClick?: () => void }
+export declare function DayCell(props: DayCellProps): React.ReactElement;
+export interface Offer { club: string; crest?: string; color?: string; league: string; rank?: number; strength: string | number; apps: number; starts: number; years: string; weekly: string; yearly: string; loan?: boolean; tag?: string; note?: string }
+export interface OfferCardProps { offer: Offer; selected?: boolean; actions?: boolean; onAccept?: () => void; onReject?: () => void }
+export declare function OfferCard(props: OfferCardProps): React.ReactElement;
+/** fill = 빈자리 보충 줄(위 이적 줄 아래에 붙음) */
+export interface TransferRowProps { name: string; pos: string; age: number; ovr: number; status?: string; from: string; to?: string; avatar?: string; mine?: boolean; fill?: boolean }
+export declare function TransferRow(props: TransferRowProps): React.ReactElement;
+export interface TextFieldProps { value?: string; placeholder?: string; label?: string; count?: string; hint?: string; icon?: IconName; focused?: boolean; clearable?: boolean }
+export declare function TextField(props: TextFieldProps): React.ReactElement;
+declare global { interface Window { PlayerOne: { Button: typeof Button; Icon: typeof Icon; Avatar: typeof Avatar; Crest: typeof Crest; TierBadge: typeof TierBadge; RatingBadge: typeof RatingBadge; StatChip: typeof StatChip; Meter: typeof Meter; FatigueGauge: typeof FatigueGauge; FormIndicator: typeof FormIndicator; StatBar: typeof StatBar; PlayerCard: typeof PlayerCard; GameCard: typeof GameCard; CardHand: typeof CardHand; ChoiceButton: typeof ChoiceButton; FeedItem: typeof FeedItem; ScoreBar: typeof ScoreBar; SceneStrip: typeof SceneStrip; PossessionBar: typeof PossessionBar; AppBar: typeof AppBar; Tabs: typeof Tabs; Banner: typeof Banner; Toast: typeof Toast; BottomSheet: typeof BottomSheet; Modal: typeof Modal; ResultSplash: typeof ResultSplash; DeckSlot: typeof DeckSlot; HeroPanel: typeof HeroPanel; SectionTitle: typeof SectionTitle; Pitch: typeof Pitch; FitBadge: typeof FitBadge; TacticEmblem: typeof TacticEmblem; TacticChip: typeof TacticChip; FormationPitch: typeof FormationPitch; OptionRow: typeof OptionRow; Slider: typeof Slider; Switch: typeof Switch; CellGauge: typeof CellGauge; Dock: typeof Dock; AttrTile: typeof AttrTile; AttrGrid: typeof AttrGrid; DayCell: typeof DayCell; OfferCard: typeof OfferCard; TransferRow: typeof TransferRow; TextField: typeof TextField } } }

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>독-PC</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 548px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<div style="display: flex; flex-direction: column; gap: 20px; padding: 28px 40px;">
+  <div style="display: flex; flex-direction: column; gap: 6px; max-width: 760px;"><b style="font-size: 24px;">독 · PC 9칸 (1280×800)</b><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">폰 6칸에 덱 · 전술 · 설정 · 저장을 꺼내 9칸. 아이콘과 이름을 한 줄로 나란히, 가운데 960px 안에 둬요. 더보기 칸은 없어요.</span></div>
+  <div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">평소 · 홈 활성</span><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="home" progress="continue" badges="{{b1}}" locked="{{l1}}"></x-import></div>
+  <div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">경기 중 · 덱·전술 잠김(하프타임·재개 대기 때만 열려요)</span><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="player" progress="live" badges="{{b2}}" locked="{{l2}}"></x-import></div>
+  <div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">시즌 끝 · 선수 칸 포인트 배지</span><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="home" progress="season" badges="{{b3}}" locked="{{l1}}"></x-import></div>
+  <div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">답하기 · 전술 아직 안 열림</span><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="home" progress="answer" badges="{{b4}}" locked="{{l3}}"></x-import></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":548}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, b1: {}, l1: [], b2: {}, l2: ['deck', 'tactic', 'save'], b3: { player: 35 }, b4: { progress: 1 }, l3: ['tactic'] };
+  }
+}
+</script>
+</body>
+</html>

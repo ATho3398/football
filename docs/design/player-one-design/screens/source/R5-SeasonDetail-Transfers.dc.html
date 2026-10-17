@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>시즌상세-이적소식</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="시즌 상세" compact="{{yes}}" eyebrow="2018-19 시즌 · 토트넘 홋스퍼 · 1위" value="{{g15}}" chips="{{dchips}}"></x-import><div style="padding: 10px 16px 0;"><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" cols="{{three}}" items="{{dtabs}}" value="x" label="시즌 상세"></x-import></div><div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 16px;"><div style="display: flex; justify-content: space-between; align-items: baseline;"><b style="font-size: 13px;">2019-20 여름 이적시장</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">50명 · 리그 안 22</span></div><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{xf}}" value="league" label="이적 거르기"></x-import><div style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; flex-direction: column;"><x-import component-from-global-scope="PlayerOne.TransferRow" name="폴 포그바" pos="CM" age="{{a25}}" ovr="{{o85}}" status="계약 만료" mine="{{yes}}" from="맨체스터 유나이티드" to="토트넘 홋스퍼"></x-import><x-import component-from-global-scope="PlayerOne.TransferRow" fill="{{yes}}" name="캘럼 휴스" pos="CM" age="{{a24}}" ovr="{{o79}}" from="도르트문트"></x-import></div><div style="display: flex; flex-direction: column;"><x-import component-from-global-scope="PlayerOne.TransferRow" name="디오구 산투스" pos="CDM" age="{{a21}}" ovr="{{o78}}" status="계약 만료" mine="{{no}}" from="맨체스터 시티" to="리버풀"></x-import><x-import component-from-global-scope="PlayerOne.TransferRow" fill="{{yes}}" name="네이선 쿠퍼" pos="CDM" age="{{a23}}" ovr="{{o76}}" from="레버쿠젠"></x-import></div><div style="display: flex; flex-direction: column;"><x-import component-from-global-scope="PlayerOne.TransferRow" name="조던 워드" pos="CB" age="{{a29}}" ovr="{{o76}}" status="계약 만료" mine="{{no}}" from="첼시" to="맨체스터 유나이티드"></x-import><x-import component-from-global-scope="PlayerOne.TransferRow" fill="{{yes}}" name="로맹 푸르니에" pos="CB" age="{{a27}}" ovr="{{o76}}" from="로마"></x-import></div><div style="display: flex; flex-direction: column;"><x-import component-from-global-scope="PlayerOne.TransferRow" name="앙투안 멘디" pos="CAM" age="{{a34}}" ovr="{{o76}}" status="출전 시간" mine="{{no}}" from="첼시" to="아스널"></x-import><x-import component-from-global-scope="PlayerOne.TransferRow" fill="{{yes}}" name="루카스 호프만" pos="CAM" age="{{a22}}" ovr="{{o73}}" from="AS 모나코"></x-import></div></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="season" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { player: 35 }, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i32: 32, t624: 624, schips: ['34경기 출전', '나이 26 → 27세', { label: '승점 94', soft: true }], dtabs: [{ id: 'm', label: '경기별' }, { id: 'mo', label: '월별' }, { id: 'p', label: '포지션별' }, { id: 'a', label: '리그 시상' }, { id: 'x', label: '이적 소식' }, { id: 'g', label: '성장·위상' }], three: 3, g15: '15골', dchips: ['13도움', '평점 7.50', { label: '9 MOM', soft: true }], a18: 18, a19: 19, a20: 20, a21: 21, a22: 22, a23: 23, a24: 24, a25: 25, a26: 26, a27: 27, a28: 28, a29: 29, a30: 30, a31: 31, a32: 32, a33: 33, a34: 34, a35: 35, a36: 36, a37: 37, a38: 38, a39: 39, o60: 60, o61: 61, o62: 62, o63: 63, o64: 64, o65: 65, o66: 66, o67: 67, o68: 68, o69: 69, o70: 70, o71: 71, o72: 72, o73: 73, o74: 74, o75: 75, o76: 76, o77: 77, o78: 78, o79: 79, o80: 80, o81: 81, o82: 82, o83: 83, o84: 84, o85: 85, o86: 86, o87: 87, o88: 88, o89: 89, o90: 90, o91: 91, o92: 92, o93: 93, o94: 94, xf: [{ id: 'league', label: '리그 안 22' }, { id: 'all', label: '전체 50' }, { id: 'mine', label: '내 팀 1' }] };
+  }
+}
+</script>
+</body>
+</html>
