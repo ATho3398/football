@@ -265,3 +265,8 @@
 - **다음 순서**: C.48 보고 → pending 80~ → ntfy → UI_2 목록 → **U5-a~g = 34e~34k(C.49~C.55)**(명세 `docs/ui-requests/5-apply.md` claude/ui-2, 사용자 확인 4개는 디자인대로 — pending 74) → 35 5-1 → 36 5-2 → … → **경기 환경 단계**(pending 75 날씨 + 76 이동일 + 77의 4·5·10, 2차 1·3) → 엔진 블록. 77의 나머지는 각 단계에 붙임.
 - 기획서 본문 합침 대기(코드 세션이 쉴 때): 19.10 부분 개정·19.12 구단 재정·23번 로스터(C.46), 태그 시스템 소절(C.45·C.47), 레전드 팩, 날씨·이동일.
 - 사용자 대기 항목 없음. 사용자 선호 메모: 시간 단축 중시(배포 대기·중복 검증 줄이기), Haiku 코드 패치는 안 씀(pending 69), 카톡 나에게 보내기는 푸시가 안 떠서 ntfy가 주 알림.
+
+### 8.23 마스터 세션 N (2026-10-18 01:14 KST~, `session_013dNEvc6CvpGFw1SkMRXsUh`, 브랜치 `claude/planning-n`)
+- M이 만든 세션 → `lineage` 깊이 3. 브랜치 `claude/planning-n`(M 733e3d1에서 분기).
+- 시작 처리(01:16 KST): C.48·UI_2·엔진관리자2·C.47(CI 결과만)에 "보고는 N, 마스터 브랜치 claude/planning-n" 알림. C.48 진행 확인 send_later `trig_01RidXgnBYkQghR3EHygjcdq`(03:45 KST). M 제목 `draft_M_축구 커리어 게임 마스터`. 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음).
+- 다음: 8.22 순서 그대로(C.48 보고 → pending 80~ → ntfy → UI_2 목록 → 34e C.49).
