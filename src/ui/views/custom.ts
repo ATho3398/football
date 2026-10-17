@@ -5,6 +5,7 @@ import { Banner, Button, esc, SectionTitle } from '../components';
 import type { CustomVM } from '../customVM';
 import { attrGrid } from './attrGrid';
 import { panel } from './common';
+import { BALANCE } from '../../config/balance';
 
 const sgn = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
 
@@ -58,8 +59,26 @@ export function customBody(vm: CustomVM, diff: string, seed: string): string {
     <p class="small muted">모든 능력치 8(내부 40)에서 시작해요. 박스를 누르고 [+]로 한 칸씩 올려요. 칸당 2P(~11) · 3P(~13) · 4P(14~), 최대 15. 숨은 적성·잠재력은 시작해야 알 수 있어요.</p>
     ${panel(attrGrid(vm.attrs, vm.sel, { sel: 'cu-sel', raise: 'cu-raise', lower: 'cu-lower' }))}
     <div class="btn-row even">${Button({ variant: 'ghost', block: true, icon: 'target', act: 'cu-auto', disabled: vm.left <= 0, children: '자동 배분 (OVR 우선)' })}${Button({ variant: 'ghost', block: true, icon: 'restore', act: 'cu', data: { k: 'reset' }, children: '초기화' })}</div>`;
-  return `${left}${basic}${body}${look}${traits}${attrs}
+  const st = vm.start;
+  const kinds = st.trialAge
+    ? [{ id: 'youth', label: '유스 구단 (1군 테스트)', on: st.kind === 'youth' }, { id: 'none', label: '소속팀 없음 (영입 제안)', on: st.kind === 'none' }]
+    : [{ id: 'club', label: '소속팀 선택', on: st.kind === 'club' }, { id: 'none', label: '소속팀 없음 (영입 제안)', on: st.kind === 'none' }];
+  const S = BALANCE.startClub;
+  const kindNote = st.kind === 'youth'
+    ? `그 구단 1군에 콜업돼요. 시즌 첫 리그 ${S.trialGames}경기에 반드시 출전하고, 결과로 계약(합격·다른 팀 제안도 와요) / 연장(최대 ${S.trialMaxGames}경기) / 방출(영입 제안)이 정해져요. 실력과 상관없이 어느 구단이든 고를 수 있어요.`
+    : st.kind === 'club'
+      ? '스탯에 맞는 팀이에요. 고른 팀과 바로 계약하고, 그 팀 유스 출신으로 기록돼요.'
+      : '유스 출신 구단은 기록(서사)만 남아요. 시작하자마자 스탯에 맞는 팀들의 영입 제안 중에서 골라요.';
+  const teamList = st.kind === 'none'
+    ? `<span class="label">유스 출신 구단 (기록만)</span>${chips('youthClub', [{ id: 'random', label: '랜덤', on: st.youthClub === 'random' }, ...st.allTeams.map((t) => ({ id: t.id, label: t.ko, on: st.youthClub === t.id }))])}`
+    : chips('startClub', st.teams.map((t) => ({ id: t.id, label: t.ko, sub: `전력 ${Math.round(t.rating)}`, on: st.club === t.id })));
+  const start = `
+    ${SectionTitle({ title: '시작 소속', action: st.trialAge ? '15~18세' : '19~23세' })}
+    ${chips('startKind', kinds)}
+    <p class="small muted">${esc(kindNote)}</p>
+    ${teamList}`;
+  return `${left}${basic}${body}${look}${traits}${attrs}${start}
     ${vm.over ? Banner({ tone: 'warning', title: `포인트 ${-vm.left}P 초과`, children: '능력치를 내리거나 단점·나이로 포인트를 늘려요.' }) : ''}
     ${diff}${seed}
-    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: vm.over, children: `${vm.age}세 ${vm.position} · OVR ${vm.ovr}로 시작` })}</div>`;
+    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: vm.over || !st.ready, children: !st.ready ? '시작할 구단을 골라요' : `${vm.age}세 ${vm.position} · OVR ${vm.ovr}로 시작` })}</div>`;
 }

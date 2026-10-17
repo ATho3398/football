@@ -7,7 +7,7 @@ import { TRAITS } from '../../traits';
 import { Button, esc } from '../components';
 import { panel } from './common';
 
-export function bodySection(p: PlayerState, canBuy: boolean, shirt: number): string {
+export function bodySection(p: PlayerState, canBuy: boolean, shirt: number, youthName = ''): string {
   const b = p.body;
   const W = BALANCE.weakFoot;
   const wt = p.weakFootTrain;
@@ -25,5 +25,7 @@ export function bodySection(p: PlayerState, canBuy: boolean, shirt: number): str
     </div>
     <p class="small muted">약발 쪽으로 차야 하는 슛·크로스·긴 패스 정확도 ×${BALANCE.body.weakFootMul[b.weakFoot - 1]}. 약발 훈련 게이지 ${Math.floor(wt?.gauge ?? 0)}/${W.trainingGauge} · 이번 시즌 +${wt?.gained ?? 0}/${W.seasonMax}</p>
     ${b.weakFoot < 5 ? Button({ variant: 'secondary', block: true, act: 'buy-weakfoot', disabled: !canBuy, children: `약발 ${b.weakFoot} → ${b.weakFoot + 1} · 포인트 ${W.pointCost}P (보유 ${p.unspentPoints}P)` }) : ''}
-    ${traits}`);
+    ${traits}
+    ${p.youth ? `<p class="small">유스: <b>${esc(youthName)}</b>${p.youth.random ? ' (랜덤)' : ''}</p>` : ''}
+    ${p.tags?.length ? `<div class="body-chips">${p.tags.map((t) => `<span class="cu-chip is-on" title="${esc(t.desc)}">${esc(t.name)}<small>${esc(t.desc)} · ${t.season}-${String((t.season + 1) % 100).padStart(2, '0')}</small></span>`).join('')}</div>` : ''}`);
 }

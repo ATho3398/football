@@ -46,7 +46,7 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Button, Modal, SectionTitle, Toast, type ToastProps } from './components';
+import { Banner, Button, Modal, SectionTitle, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
@@ -309,7 +309,7 @@ function screenHtml(): string {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
       const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
+      return homeView(hvm, trialBanner(g) + deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -322,7 +322,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·장단점', action: '키·약발·장단점' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g))}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·장단점', action: '키·약발·장단점' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? teamById(g.league, g.player.youth.club).nameKo : '')}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -551,6 +551,18 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
   else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 2200);
+}
+
+/** 1군 테스트 진행 띠 (C.45 10번) — 디자인 없는 새 패널 */
+function trialBanner(g: GameState): string {
+  const t = g.trial;
+  if (!t) return '';
+  const S = BALANCE.startClub;
+  const avg = t.ratings.length ? (t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length).toFixed(2) : '-';
+  return Banner({
+    tone: 'info', title: `${teamById(g.league, t.teamId).nameKo} 1군 테스트 · ${t.games}/${t.extended ? S.trialMaxGames : S.trialGames}경기`,
+    children: `평균 평점 ${avg} · ${t.goals}골 ${t.assists}도움. 테스트 중에는 출전이 보장돼요. 평균 ${S.greatRating.toFixed(1)} 이상이면 합격, ${S.badRating.toFixed(1)} 미만·공격포인트 0이면 방출, 그 사이면 연장.`,
+  });
 }
 
 // ── 동작 ──
@@ -1195,7 +1207,7 @@ app.addEventListener('click', (ev) => {
       if (!o) return;
       const team = teamById(g.league, o.teamId).nameKo;
       confirmModal({
-        title: o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 이적할까요?`,
+        title: o.teamId === g.player.teamId ? `${team}와 1군 계약할까요?` : o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 이적할까요?`,
         body: o.kind === 'loan' ? '1시즌 뒤 원 소속팀으로 돌아와요. 계약은 그대로예요.' : `${o.years}년 계약 · 다른 제안은 모두 사라져요. 전술은 새 팀 기본값으로 바뀌어요.`,
         confirm: '수락', act: 'offer-accept-ok', data: { i: String(i) },
       });
@@ -1314,7 +1326,10 @@ app.addEventListener('click', (ev) => {
       readFormInputs();
       const f = ui.form;
       if (f.mode === 'real' && !f.realId) return;
-      if (f.mode === 'custom' && customVM(f.cu, f.name).over) return;
+      if (f.mode === 'custom') {
+        const cv = customVM(f.cu, f.name);
+        if (cv.over || !cv.start.ready) return;
+      }
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true })
         : f.mode === 'custom'

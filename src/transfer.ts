@@ -360,6 +360,8 @@ export interface Offer {
   start: number;
   /** 팀 입장 관심 점수 (정렬·측정용) */
   interest: number;
+  /** 1군 테스트 합격 뒤 유스 구단(지금 팀) 계약 제안 (C.45) */
+  youth?: boolean;
 }
 
 /** 내 선수 이적 시장 상태 (세이브에 담는다) */
@@ -377,6 +379,10 @@ export interface MarketState {
   moves: { season: number; w: Window; from: string; to: string; loan?: boolean; back?: boolean }[];
   /** 이번 시즌 이적·복귀로 바뀐 팀 알림 (홈 카드 한 번) */
   notice?: string | null;
+  /** 자유계약 신분 (C.45 시작 소속 없음·테스트 결과·방출): 제안을 모두 거절할 수 없다 */
+  free?: boolean;
+  /** 테스트·재계약에서 방출됐다 (방출의 설움 태그) */
+  released?: boolean;
 }
 
 /** 나이에 따른 계약 연수 범위 */
@@ -570,6 +576,14 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
   const w = m.offerWindow ?? (state.phase === 'season' ? 'winter' : 'summer');
   const season = windowSeason(state.league, w);
   let points = 0;
+  if (o.teamId === from) {
+    // 지금 팀과 계약 (C.45: 1군 테스트 합격 뒤 유스 구단 제안, 자유계약 신분에서 같은 팀)
+    m.contract = { teamId: from, from: state.league.season + (state.phase === 'season' ? 0 : 1), until: state.league.season + (state.phase === 'season' ? 0 : 1) + o.years - 1, wage: o.wage, loan: null };
+    m.offers = null;
+    m.renewal = null;
+    m.notice = `${clubNameKo(state.league, from)} 1군 계약`;
+    return { points };
+  }
   if (o.kind === 'loan') {
     m.contract.loan = { parent: from, until: season };
   } else {
@@ -587,6 +601,8 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
 /** 모든 제안 거절 (재계약 선택은 남는다) */
 export function declineOffers(state: GameState): void {
   const m = state.market!;
+  // 자유계약 신분 (C.45)이면 하나는 골라야 한다
+  if (m.free) return;
   m.offers = null;
 }
 
@@ -675,6 +691,14 @@ export function onDayEnd(state: GameState, endedDate: IsoDate): TransferRec[] {
 export function autoResolveMarket(state: GameState, policy: 'stay' | 'best', deduct: (points: number) => number, minGain = 2): void {
   const m = state.market;
   if (!m) return;
+  // 자유계약 신분 (C.45)이면 하나는 수락한다: 유스 구단 제안이 있으면 그것, 아니면 첫 제안
+  if (m.free && m.offers?.length) {
+    const i = Math.max(0, m.offers.findIndex((o) => o.youth));
+    acceptOffer(state, i, deduct);
+    m.free = false;
+    m.released = false;
+    return;
+  }
   if (m.offers?.length && policy === 'best') {
     const cur = ratingOf(state, state.player.teamId);
     const ok = m.offers
@@ -700,6 +724,7 @@ export function teamRank(state: Pick<GameState, 'phase' | 'league' | 'nextRating
 export function declineOffer(state: GameState, index: number): void {
   const m = state.market!;
   if (!m.offers) return;
+  if (m.free && m.offers.length <= 1) return;
   m.offers = m.offers.filter((_, i) => i !== index);
   if (!m.offers.length) m.offers = null;
 }

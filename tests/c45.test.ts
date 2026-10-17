@@ -97,6 +97,7 @@ describe('커스텀 생성 (C.45 2번)', () => {
   it('기본 40 + 100P, 칸 단위 비용, 키가 크면 속도 상한 −·공중 상한 +', () => {
     expect(customBudget(17, [])).toBe(100);
     expect(customBudget(23, [])).toBe(100 + 6 * BALANCE.custom.pointsPerYear);
+    expect(customBudget(15, [])).toBe(100 - 2 * BALANCE.custom.pointsPerYearYounger);
     expect(customBudget(17, ['glass'])).toBe(100 + BALANCE.traits.conGain.glass);
     expect(customBudget(17, ['ironMan'])).toBe(100 - BALANCE.traits.proCost.ironMan);
     expect(customCap('pace', 195)).toBeLessThan(customCap('pace', 170));
@@ -236,5 +237,83 @@ describe('세이브 23 → 24 (C.45 7번)', () => {
     expect(back.player.shirt).toBe(10);
     expect(back.pixelOverrides).toEqual({ players: {}, kits: {} });
     expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
+  });
+});
+
+describe('시작 소속·1군 테스트·스토리 태그 (C.45 10·12·13번)', () => {
+  const spec = (age: number, start: CustomSpec['start']): CustomSpec => ({
+    position: 'ST', age, attributes: autoCustom('ST', customBudget(age, []), 180), body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 },
+    traits: [], nationality: 'England', appearance: 'white', start,
+  });
+
+  it('15~18세 유스 구단: 그 구단 1군 콜업, 테스트 중 출전 보장, 3~5경기 뒤 판정', () => {
+    const g = newGame({ mode: 'custom', custom: spec(17, { kind: 'youth', club: 'liv' }), seed: 'trial1', difficulty: 'normal' });
+    expect(g.player.teamId).toBe('liv');
+    expect(g.player.youth).toEqual({ club: 'liv' });
+    expect(g.trial).toMatchObject({ teamId: 'liv', games: 0 });
+    let n = 0;
+    while (g.trial && n < 6) {
+      const r = playRound(g, { engine: 'quick' });
+      if (!g.player.injury && !r.injured) expect(r.result.started).toBe(true);
+      n++;
+    }
+    expect(g.trial).toBeNull();
+    expect(n).toBeGreaterThanOrEqual(BALANCE.startClub.trialGames);
+    expect(n).toBeLessThanOrEqual(BALANCE.startClub.trialMaxGames);
+    expect(g.market.free).toBe(true);
+    expect(g.market.offers!.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('판정 규칙: 아주 좋음 합격, 아주 나쁨 방출, 그 사이 연장', async () => {
+    const { trialVerdict } = await import('../src/startClub');
+    const g = newGame({ mode: 'custom', custom: spec(16, { kind: 'youth', club: 'bur' }), seed: 'trial2', difficulty: 'normal' });
+    const t = (ratings: number[], goals: number, assists: number) => ({ teamId: 'bur', games: ratings.length, ratings, goals, assists, extended: false });
+    expect(trialVerdict(g, t([7.2, 7.1, 7.0], 0, 0))).toBe('pass');
+    expect(trialVerdict(g, t([6.2, 6.0, 6.1], 2, 1))).toBe('pass');
+    expect(trialVerdict(g, t([5.5, 5.8, 5.9], 0, 0))).toBe('fail');
+    expect(trialVerdict(g, t([6.4, 6.5, 6.6], 0, 0))).toBe('extend');
+    expect(['pass', 'fail']).toContain(trialVerdict(g, t([6.4, 6.5, 6.6, 6.5, 6.5], 0, 0)));
+  });
+
+  it('합격 제안: 유스 구단 연봉이 다른 팀 평균보다 낮고, 수락하면 아카데미 출신·친정 선택 태그', async () => {
+    const { afterTrialMatch } = await import('../src/startClub');
+    const { acceptMyOffer } = await import('../src/game');
+    const g = newGame({ mode: 'custom', custom: spec(17, { kind: 'youth', club: 'sou' }), seed: 'trial3', difficulty: 'normal' });
+    for (let k = 0; k < 3; k++) afterTrialMatch(g, { minutes: 90, rating: 7.5, goals: 1, assists: 0 });
+    const offers = g.market.offers!;
+    const own = offers.findIndex((o) => o.youth);
+    expect(own).toBe(0);
+    expect(offers[0]!.teamId).toBe('sou');
+    const others = offers.slice(1);
+    expect(others.length).toBeGreaterThanOrEqual(BALANCE.startClub.rivalOffers[0]);
+    expect(offers[0]!.wage).toBeLessThan(others.reduce((t, o) => t + o.wage, 0) / others.length);
+    acceptMyOffer(g, 0);
+    expect(g.player.teamId).toBe('sou');
+    expect(g.market.free).toBe(false);
+    expect(g.player.tags!.map((t) => t.id)).toEqual(['academy', 'homeChoice']);
+    expect(g.player.tags![0]!.name).toBe('스테이플우드 출신');
+  });
+
+  it('소속팀 없음: 영입 제안 3개 이상, 모두 거절 불가, 수락하면 그 팀', async () => {
+    const { declineOffers } = await import('../src/transfer');
+    const { acceptMyOffer } = await import('../src/game');
+    const g = newGame({ mode: 'custom', custom: spec(21, { kind: 'none', youthClub: 'random' }), seed: 'none1', difficulty: 'normal' });
+    expect(g.player.youth?.random).toBe(true);
+    expect(g.market.free).toBe(true);
+    expect(g.market.offers!.length).toBeGreaterThanOrEqual(3);
+    declineOffers(g);
+    expect(g.market.offers!.length).toBeGreaterThanOrEqual(3);
+    const to = g.market.offers![0]!.teamId;
+    acceptMyOffer(g, 0);
+    expect(g.player.teamId).toBe(to);
+    expect(g.market.offers).toBeNull();
+  });
+
+  it('19~23세 소속팀 선택: 바로 그 팀, 유스 서사', () => {
+    const g = newGame({ mode: 'custom', custom: spec(20, { kind: 'club', club: 'wat' }), seed: 'club1', difficulty: 'normal' });
+    expect(g.player.teamId).toBe('wat');
+    expect(g.player.youth).toEqual({ club: 'wat' });
+    expect(g.trial ?? null).toBeNull();
+    expect(g.market.contract.teamId).toBe('wat');
   });
 });

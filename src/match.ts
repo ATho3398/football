@@ -19,6 +19,8 @@ export interface MatchInput {
   formBonus?: number;
   /** 부상으로 결장 (7.3). 출전하지 않고 재활 XP 를 받는다 */
   injured?: boolean;
+  /** 1군 테스트 출전 보장 (C.45) */
+  forceStart?: boolean;
 }
 
 export type MatchOutcome = 'win' | 'draw' | 'loss';
@@ -80,7 +82,9 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
   const R = BALANCE.rating;
 
   // 출전 판정
-  const started = !input.injured && rng() < startProbability(input.ovr, input.teamRating, input.fatigue);
+  // 1군 테스트 출전 보장 (C.45): 난수는 그대로 쓴다
+  const roll = rng();
+  const started = !input.injured && (!!input.forceStart || roll < startProbability(input.ovr, input.teamRating, input.fatigue));
   let minutes = 90;
   if (!started) minutes = !input.injured && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const share = minutes / 90;

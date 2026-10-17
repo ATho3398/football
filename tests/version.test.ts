@@ -12,10 +12,10 @@ describe('버전 표시 (21.5.1)', () => {
 
   it('버전 문자열 형식', () => {
     expect(versionLabel()).toMatch(
-      /^버전 C\.\d+[a-z]?( fix\d*)? · 엔진 \d+ · 밸런스 \d+ · (\d{4}-\d{2}-\d{2} 배포|dev 빌드) \(커밋 ([0-9a-f]{7,}|dev)\)$/,
+      /^\d+[a-z]?단계 · 버전 C\.\d+[a-z]?( fix\d*)? · 엔진 \d+ · 밸런스 \d+ · (\d{4}-\d{2}-\d{2} 배포|dev 빌드) \(커밋 ([0-9a-f]{7,}|dev)\)$/,
     );
-    expect(versionLabel({ patch: 'C.18', commit: 'abc1234', date: '2026-10-15' })).toBe(
-      `버전 C.18 · 엔진 ${ENGINE_VERSION} · 밸런스 ${BALANCE_VERSION} · 2026-10-15 배포 (커밋 abc1234)`,
+    expect(versionLabel({ patch: 'C.18', stage: '13단계', commit: 'abc1234', date: '2026-10-15' })).toBe(
+      `13단계 · 버전 C.18 · 엔진 ${ENGINE_VERSION} · 밸런스 ${BALANCE_VERSION} · 2026-10-15 배포 (커밋 abc1234)`,
     );
   });
 

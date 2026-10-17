@@ -47,10 +47,10 @@ function offerCard(o: OfferVM): string {
     { k: '주급', v: o.wage, s: `연 ${o.annual}` },
   ];
   return `<div class="panel tr-offer${o.loan ? ' is-loan' : ''}">
-    <div class="tr-offer-head">${Crest({ name: o.team, size: 28 })}<b class="grow">${esc(o.team)}</b>${o.loan ? '<span class="po-chip">임대</span>' : ''}</div>
+    <div class="tr-offer-head">${Crest({ name: o.team, size: 28 })}<b class="grow">${esc(o.team)}</b>${o.loan ? '<span class="po-chip">임대</span>' : ''}${o.youth ? '<span class="po-chip">친정 · 유스 구단</span>' : ''}</div>
     <div class="ag-grid tr-grid">${cells.map((c) => `<div class="ag-cell"><span class="ag-name">${esc(c.k)}</span><b class="ag-v po-num">${esc(c.v)}</b><span class="ag-cost">${esc(c.s)}</span></div>`).join('')}</div>
     ${actionRow(
-      Button({ variant: 'secondary', size: 'sm', block: true, act: 'offer-decline', data: { i: String(o.i) }, children: '거절' }),
+      Button({ variant: 'secondary', size: 'sm', block: true, act: 'offer-decline', data: { i: String(o.i) }, disabled: !!o.lastFree, children: '거절' }),
       Button({ size: 'sm', block: true, act: 'offer-accept', data: { i: String(o.i) }, children: o.loan ? '임대 수락' : '수락' }),
     )}
   </div>`;
@@ -74,7 +74,8 @@ export function offersView(vm: MarketVM): string {
     ${SectionTitle({ title: '받은 제안', action: '전력 · 예상 출전 · 계약 · 주급' })}
     ${list}
     <p class="small muted">연봉은 위상과 OVR로 계산해 보여 주기만 해요 (돈은 재정 단계에서). 약팀(전력 3 이상 낮은 팀)으로 이적하면 위상이 조금 깎여요.</p>
-    ${vm.offers?.length ? Button({ variant: 'ghost', block: true, act: 'offers-decline', children: '모두 거절' }) : Button({ block: true, act: 'go', data: { to: 'home' }, children: '홈으로' })}
+    ${vm.free && vm.offers?.length ? '<p class="small"><b>자유계약 신분이에요.</b> 제안 하나를 골라야 시즌을 이어 갈 수 있어요.</p>' : ''}
+    ${vm.offers?.length && !vm.free ? Button({ variant: 'ghost', block: true, act: 'offers-decline', children: '모두 거절' }) : Button({ block: true, act: 'go', data: { to: 'home' }, children: '홈으로' })}
   </div>`;
 }
 

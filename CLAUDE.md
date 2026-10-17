@@ -6,6 +6,7 @@
 - 패치할 때마다 배포까지 한다: 작업 브랜치에 커밋·푸시한 뒤 main 에도 푸시한다. main 에 푸시하면 GitHub Actions(`.github/workflows/pages.yml`)가 타입체크·테스트·빌드 후 https://atho3398.github.io/football/ 로 배포한다.
 - 푸시 전에 `npm run typecheck`, `npm test` 를 통과시킨다. 밸런스 수치를 바꿨으면 `npm run balance` 결과도 보고한다.
 - 패치마다 `PATCH_LABEL`(`src/version.ts`)을 그 패치의 부록 C 소절 번호로 갱신한다.
+- 패치마다 `STAGE_LABEL`(`src/version.ts`, 예 `'34단계'`)을 기획서 17.2 표의 단계 번호로 갱신한다(게임 화면 버전 표시에 같이 보인다).
 
 # 프로젝트 안내
 

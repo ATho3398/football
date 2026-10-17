@@ -5,6 +5,7 @@ import type { AptBoost, Aptitude, PositionAdvice } from './aptitude';
 import type { Body } from './body';
 import type { TraitId } from './traits';
 import type { Appearance } from './appearance';
+import type { StoryTag } from './startClub';
 
 export type Foot = 'left' | 'right' | 'both';
 export type Tier = 'legendary' | 'worldClass' | 'topClass' | 'special' | 'normal';
@@ -195,6 +196,10 @@ export interface PlayerState {
   weakFootTrain?: { gauge: number; gained: number };
   /** 커스텀 생성으로 시작했으면 true */
   custom?: boolean;
+  /** 유스 서사 (C.45): 유스 구단, 랜덤으로 정했는지 */
+  youth?: { club: string; random?: boolean };
+  /** 스토리 태그 (C.45, 효과 없음) */
+  tags?: StoryTag[];
   /** 레전드 배지 (부록 D.4, 영구) */
   badges: Badge[];
   /** 레전더리 조건용 수상 기록 (8.1, 부록 C.23). 발롱도르·챔스·월드컵(5단계)이 생기기 전까지 0 */

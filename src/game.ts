@@ -33,6 +33,7 @@ import { clampWeakFoot, realBody, rollBody, type Body, type WeakFoot } from './b
 import { agingMul, bigGameForm, cardMul, formMul, recoveryMul, rollTraits, xpMul, type TraitId } from './traits';
 import { derbyOf } from './derby';
 import { CUSTOM_HIDDEN_TRAITS, customBudget, validCustom } from './custom';
+import { afterAccept, afterTrialMatch, applyStart, release, renewalFails, seasonEndTags, type StartChoice, type TrialState } from './startClub';
 import type { Appearance } from './appearance';
 import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
@@ -52,7 +53,7 @@ import type { NameOverrides } from './names';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
 import {
-  acceptOffer, autoResolveMarket, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow,
+  acceptOffer, autoResolveMarket, initialContract, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow,
   type MarketState, type TransferRec,
 } from './transfer';
 
@@ -195,6 +196,8 @@ export interface GameState {
   market: MarketState;
   /** 비시즌에만: 다음 시즌 팀 레이팅 (로스터 + 시즌 팀 컨디션). 시즌 종료 때 계산해 제안 화면과 다음 시즌 시작에 쓴다 */
   nextRatings?: Record<string, number>;
+  /** 1군 테스트 (C.45 10번): 커스텀 15~18세 유스 구단 선택. 없으면 null */
+  trial?: TrialState | null;
   /** 사용자가 고친 선수 이름 (부록 C.44a): 선수 id → 별명·짧은 이름. 경기 화면 라벨에만 쓴다 */
   nameOverrides: NameOverrides;
   /** 사용자가 바꾼 도트 아이콘 (부록 C.45): 선수 id → 피부·머리, 팀 id(대표팀 `n:<국가>`) → 홈·원정 유니폼. 바꾼 것만. 겉모습만(경기 결과·시드 영향 없음) */
@@ -245,6 +248,8 @@ export interface CustomSpec {
   appearance: Appearance;
   /** 도트 머리 (경기 화면 캐릭터, pixel-kits 3.4) */
   pixelHair?: string;
+  /** 시작 소속 (C.45 10번). 없으면 기존처럼 랜덤 팀 */
+  start?: StartChoice;
 }
 
 /** 장단점이 정하는 시작 약발 (양발잡이 4, 약발 1) */
@@ -443,7 +448,7 @@ export function newGame(opts: NewGameOptions): GameState {
   player.profLog = initialProfLog(player.proficiency);
   player.seasonStartAttrs = { ...player.attributes };
   const market = initialMarket({ worldSeed, league, player, phase: 'season' });
-  return {
+  const state: GameState = {
     transfers: [],
     nameOverrides: {},
     market,
@@ -470,6 +475,18 @@ export function newGame(opts: NewGameOptions): GameState {
     training: initTraining(addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays)),
     archive: [],
   };
+  // 커스텀 생성 시작 소속 (C.45 10번): 유스 구단 1군 테스트 / 소속팀 선택 / 소속팀 없음(영입 제안)
+  if (opts.mode === 'custom' && opts.custom.start) {
+    const before = player.teamId;
+    applyStart(state, opts.custom.start);
+    if (player.teamId !== before) {
+      state.tactics = teamDefaultTactics(player.teamId, rosters[player.teamId], player.position);
+      const until = state.market.contract.until;
+      state.market.contract = { ...initialContract(state), ...(state.trial ? { until } : {}) };
+      player.shirt = freeShirt(rosterShirts(rosters[player.teamId]), player.position);
+    }
+  }
+  return state;
 }
 
 /** 내 선수가 이번 경기에 뛰는 자리 (전술의 내 슬롯, E.19 ②) */
@@ -924,7 +941,9 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const rng = rngFor(seed, 'match', league.season, roundIdx);
   const M = BALANCE.match;
   const available = !injured && !suspended;
-  const started = available && rng() < startProbability(ovr, myTeam.rating, fatigue);
+  // 1군 테스트 중 (C.45 10번)이면 출전 보장 (같은 난수를 써서 테스트가 없을 때 결과는 그대로)
+  const startRoll = rng();
+  const started = available && (!!state.trial || startRoll < startProbability(ovr, myTeam.rating, fatigue));
   const minutes = started ? 90 : available && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
   let preInjury: Injury | null = null;
@@ -1019,7 +1038,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
       {
         ovr, position: player.position, fatigue: player.fatigue,
         teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
-        formBonus: form, injured: injured || suspended,
+        formBonus: form, injured: injured || suspended, ...(state.trial ? { forceStart: true } : {}),
       },
       rngFor(seed, 'match', league.season, roundIdx),
     );
@@ -1139,6 +1158,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     ...(adviceTaken ? { adviceTaken: true } : {}),
   };
   state.lastMatch = report;
+  // 1군 테스트 (C.45 10번): 경기마다 기록, 3경기 뒤 판정 (합격 → 계약 제안, 방출 → 영입 제안, 애매하면 5경기까지)
+  if (state.trial) afterTrialMatch(state, result);
 
   if (league.round >= league.schedule.length) endSeason(state);
   refreshUnlocks(state);
@@ -1408,7 +1429,12 @@ export function endSeason(state: GameState): SeasonSummary {
   state.lastSeasonSummary = summary;
   state.phase = summary.forcedRetire ? 'retired' : 'offseason';
   // 내 선수 (18.10): 임대 복귀, 계약 만료면 재계약, 제안 3~5개
-  if (state.phase === 'offseason') openOffseasonMarket(state);
+  if (state.phase === 'offseason') {
+    openOffseasonMarket(state);
+    // 재계약 판정 (C.45 10번, 커스텀 생성 선수): 유스 완화 뒤에도 크게 모자라면 재계약 실패·방출 → 영입 제안
+    if (state.market.renewal && renewalFails(state)) release(state, 'renew', `${teamById(league, player.teamId).nameKo} 재계약 실패 · 방출됐어요. 영입 제안을 골라요`);
+  }
+  seasonEndTags(state);
   return summary;
 }
 
@@ -1482,7 +1508,12 @@ export function careerTotals(p: PlayerState): CareerTotals {
 
 /** 내 선수 제안 수락 (C.42): 약팀 이적이면 위상 감점 (D.19, 티어 하한) */
 export function acceptMyOffer(state: GameState, index: number): { points: number } {
-  return acceptOffer(state, index, (pts) => deductReputation(state.player, pts).points);
+  const offers = [...(state.market.offers ?? [])];
+  const from = state.player.teamId;
+  const r = acceptOffer(state, index, (pts) => deductReputation(state.player, pts).points);
+  // 스토리 태그 (C.45 13번): 아카데미 출신·친정 선택·귀환·방출의 설움
+  if (offers[index]) afterAccept(state, offers[index]!, offers, from);
+  return r;
 }
 
 /** 커리어 시뮬의 자동 응답 (밸런스·테스트) */

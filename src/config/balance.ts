@@ -816,19 +816,54 @@ export const BALANCE = {
     costBands: [[55, 2], [65, 3], [100, 4]] as [number, number][],
     /** 능력치 상한 (키 상한은 BALANCE.body.custom) */
     cap: 75,
-    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +) */
+    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +). C.45 측정(일반 잠재력 30세 OVR 이 나이와 상관없이 74~75): 21/살, 어리면 −3/살 */
     minAge: 15,
     maxAge: 23,
     refAge: 17,
-    pointsPerYear: 15,
+    pointsPerYear: 21,
     /** 17세보다 어리면 1살당 (− 포인트) */
-    pointsPerYearYounger: 15,
+    pointsPerYearYounger: 3,
     heightMin: 165,
     heightMax: 200,
     bmiMin: 19.5,
     bmiMax: 27,
     /** 약발 선택 포인트 (3 기준, 높으면 −, 낮으면 +). 커스텀에서는 양발잡이·약발 1 장단점 대신 이 값으로 고른다 */
     weakFootPoints: [10, 5, 0, -12, -25] as readonly number[],
+  },
+
+  // ── 시작 소속·1군 테스트·재계약 판정 (pending 61·62, C.45 10·12번). 유스 시스템은 없고 유스는 서사 ──
+  startClub: {
+    /** 이 나이 이하 + 유스 구단 선택 = 시즌 첫 리그 경기 테스트 (그 위는 스탯 맞는 팀 목록에서 바로 계약) */
+    trialMaxAge: 18,
+    /** 테스트 경기 수: 기본 3, 판정이 애매하면 최대 5 */
+    trialGames: 3,
+    trialMaxGames: 5,
+    /** 아주 좋음: 평균 평점 이상, 또는 공격포인트·득점 이상 */
+    greatRating: 7.0,
+    greatPoints: 3,
+    greatGoals: 2,
+    /** 아주 나쁨: 평균 평점 미만이고 공격포인트 0 */
+    badRating: 6.0,
+    /** 판정 점수 = (평균 평점 − pivot) + statWeight × (유효 OVR + 유스 완화 − 팀 레이팅). passScore 이상 통과, failScore 이하 방출 */
+    pivot: 6.5,
+    statWeight: 0.03,
+    passScore: 0.5,
+    failScore: -0.5,
+    /** 자기 유스 출신 완화 (OVR 상당) */
+    youthRelief: 5,
+    /** 재계약 판정 (커스텀 생성 선수만): 유효 OVR + 완화 < 팀 레이팅 − renewGap 이면 재계약 실패·방출 */
+    renewGap: 14,
+    /** 테스트·방출 뒤 영입 제안 수 [최소, 최대] (자유계약이라 이적시장 밖이어도) */
+    freeOffers: [3, 4] as [number, number],
+    /** 합격 뒤 다른 팀 경쟁 제안 [최소, 최대]와 유스 구단 연봉 = 다른 제안 평균 × [하한, 상한] (돈 vs 친정) */
+    rivalOffers: [2, 3] as [number, number],
+    youthWage: [0.75, 0.9] as [number, number],
+    /** 다른 팀 연봉 가산: 하위권일수록 (순위 비율 × 이 값) */
+    rivalWageBoost: 0.25,
+    /** 19세 이상 소속팀 선택 목록 수 */
+    fitTeams: 6,
+    /** 원클럽맨 태그: 한 구단 시즌 수 */
+    oneClubSeasons: 10,
   },
 
   // ── 외모군 (pending 50, 부록 C.43): 가상 선수 외모군을 국적별 분포에서 뽑는다 (가중치). 기본 얼굴 이미지 매니페스트(public/faces/base)와 같은 이름을 쓴다.

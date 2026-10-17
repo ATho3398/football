@@ -8,6 +8,8 @@ import {
   agePoints, baseAttributes, CUSTOM_HIDDEN_TRAITS, customBudget, customCap, customRaise, spentPoints, stepCost, weakFootPoints,
 } from '../custom';
 import type { CustomSpec } from '../game';
+import { initialTeams } from '../league';
+import type { StartChoice, StartKind } from '../startClub';
 import { allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, profileOf, type FieldPosition, type PlayablePosition } from '../positions';
 import { canAddTrait, TRAIT_IDS, TRAITS, traitPoints, type TraitId } from '../traits';
 import { attrGroupsVM } from './viewModels';
@@ -40,12 +42,17 @@ export interface CustomForm {
   /** '' = 자동(분포 추첨) */
   hair: string;
   sel: string | null;
+  /** 시작 소속 (C.45 10번): 15~18 유스 구단(1군 테스트) / 19~23 소속팀 선택 / 소속팀 없음 */
+  startKind: StartKind;
+  startClub: string;
+  /** 소속팀 없음일 때 서사용 유스 구단 ('random' = 랜덤) */
+  youthClub: string;
 }
 
 export function initialCustomForm(): CustomForm {
   return {
     age: BALANCE.custom.refAge, position: 'ST', attrs: baseAttributes(), height: 180, weight: 75, foot: 'right', weakFoot: 3, traits: [],
-    nationality: 'Korea Republic', appearance: 'eastAsian', hair: '', sel: null,
+    nationality: 'Korea Republic', appearance: 'eastAsian', hair: '', sel: null, startKind: 'none', startClub: '', youthClub: 'random',
   };
 }
 
@@ -94,6 +101,16 @@ export interface CustomVM {
   hair: string;
   hairs: { id: string; ko: string }[];
   skin: string;
+  start: {
+    kind: StartKind;
+    trialAge: boolean;
+    club: string;
+    youthClub: string;
+    /** 고를 수 있는 팀 (15~18 유스 = PL 20개 전부, 19~23 소속팀 = 스탯에 맞는 팀) */
+    teams: { id: string; ko: string; rating: number; fit?: boolean }[];
+    allTeams: { id: string; ko: string }[];
+    ready: boolean;
+  };
 }
 
 export function customVM(f: CustomForm, name: string): CustomVM {
@@ -146,7 +163,33 @@ export function customVM(f: CustomForm, name: string): CustomVM {
     hair: f.hair,
     hairs: (HAIRS_OF[skin] ?? []).map((id) => ({ id, ko: HAIR_KO[id] ?? id })),
     skin,
+    start: startVM(f, ovrs[f.position]),
   };
+}
+
+/** 19세 이상 소속팀 목록: 유효 OVR(어리면 잠재력만큼 +)과 기본 레이팅 차가 작은 순 (게임 안 fitTeams 와 같은 식, 시작 전이라 기본 레이팅) */
+function startVM(f: CustomForm, ovr: number): CustomVM['start'] {
+  const S = BALANCE.startClub;
+  const O = BALANCE.transfer.offers;
+  const trialAge = f.age <= S.trialMaxAge;
+  const teams = initialTeams();
+  const allTeams = [...teams].sort((a, b) => b.rating - a.rating).map((t) => ({ id: t.id, ko: t.nameKo }));
+  const eff = ovr + Math.max(0, O.youthAge - f.age) * O.youthPerYear;
+  const fit = [...teams].sort((a, b) => Math.abs(eff - a.rating - O.fitOffset) - Math.abs(eff - b.rating - O.fitOffset) || a.id.localeCompare(b.id)).slice(0, S.fitTeams);
+  const list = f.startKind === 'youth' ? [...teams].sort((a, b) => b.rating - a.rating) : fit;
+  const valid = new Set(list.map((t) => t.id));
+  return {
+    kind: f.startKind, trialAge, club: valid.has(f.startClub) ? f.startClub : '', youthClub: f.youthClub,
+    teams: list.map((t) => ({ id: t.id, ko: t.nameKo, rating: t.rating, ...(fit.includes(t) ? { fit: true } : {}) })),
+    allTeams,
+    ready: f.startKind === 'none' || valid.has(f.startClub),
+  };
+}
+
+/** 시작 소속 입력 → newGame StartChoice */
+export function startChoice(f: CustomForm): StartChoice {
+  if (f.startKind === 'none') return { kind: 'none', youthClub: f.youthClub };
+  return { kind: f.startKind, club: f.startClub };
 }
 
 /** 화면 상태 → newGame 입력 */
@@ -155,6 +198,7 @@ export function customSpec(f: CustomForm, name: string): CustomSpec {
     name, position: f.position, age: f.age, attributes: { ...f.attrs },
     body: { height: f.height, weight: f.weight, foot: f.foot, weakFoot: f.weakFoot },
     traits: [...f.traits], nationality: f.nationality, appearance: f.appearance, ...(f.hair ? { pixelHair: f.hair } : {}),
+    start: startChoice(f),
   };
 }
 
@@ -164,7 +208,14 @@ export function customAct(f: CustomForm, k: string, v: string | undefined): Cust
   const n = Number(v);
   const out: CustomForm = { ...f };
   switch (k) {
-    case 'age': out.age = Math.min(C.maxAge, Math.max(C.minAge, f.age + n)); break;
+    case 'age': {
+      out.age = Math.min(C.maxAge, Math.max(C.minAge, f.age + n));
+      // 나이가 테스트 나이(≤18)를 넘나들면 시작 소속 종류를 맞춘다
+      const trial = out.age <= BALANCE.startClub.trialMaxAge;
+      if (out.startKind === 'youth' && !trial) { out.startKind = 'club'; out.startClub = ''; }
+      if (out.startKind === 'club' && trial) { out.startKind = 'youth'; out.startClub = ''; }
+      break;
+    }
     case 'pos': out.position = v as PlayablePosition; break;
     case 'height': {
       out.height = Math.min(C.heightMax, Math.max(C.heightMin, f.height + n));
@@ -199,6 +250,9 @@ export function customAct(f: CustomForm, k: string, v: string | undefined): Cust
     case 'raise': out.attrs = customRaise(f.attrs, v as FieldAttribute, 1, budgetOf(f), f.height); break;
     case 'lower': out.attrs = customRaise(f.attrs, v as FieldAttribute, -1, budgetOf(f), f.height); break;
     case 'reset': out.attrs = baseAttributes(); break;
+    case 'startKind': out.startKind = (v as StartKind) ?? 'none'; out.startClub = ''; break;
+    case 'startClub': out.startClub = v ?? ''; break;
+    case 'youthClub': out.youthClub = v ?? 'random'; break;
   }
   return out;
 }
