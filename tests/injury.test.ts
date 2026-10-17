@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import { BALANCE } from '../src/config/balance';
 import { newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason } from '../src/game';
-import { healWeek, injuryChance, rollInjury } from '../src/injury';
+import { healDays, injuryChance, rollInjury } from '../src/injury';
 import { createRng } from '../src/rng';
 import { deserialize, serialize } from '../src/save';
+import { daysBetween } from '../src/calendar';
 
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
 
@@ -75,24 +76,29 @@ describe('부상 등급과 영구 하락', () => {
 describe('부상 진행', () => {
   it('부상 중에는 출전하지 않고 재활 XP 만 받으며, 기간이 지나면 복귀한다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'heal', difficulty: 'normal' });
-    s.player.injury = { grade: 'minor', weeksTotal: 2, weeksLeft: 2, season: 2018, round: 0, permanent: {} };
+    s.player.injury = { grade: 'minor', weeksTotal: 2, daysTotal: 14, daysLeft: 14, season: 2018, round: 0, permanent: {} };
     const a = playRound(s);
     expect(a).toMatchObject({ injured: true, recovered: false, result: { minutes: 0, xp: BALANCE.injury.rehabXp } });
     const b = playRound(s);
     expect(b).toMatchObject({ injured: true, recovered: true });
-    expect(s.player.injury).toBeNull();
+    // 하루 단위 회복 (C.38): 다음 내 경기 날 전에 낫는다
+    const c = playRound(s);
+    expect(c.injured).toBeUndefined();
     expect(s.player.season.injuredWeeks).toBe(2);
   });
 
   it('시즌아웃은 남은 시즌 전체, 비시즌에 offseasonWeeks 만큼 회복', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'out', difficulty: 'normal' });
     for (let r = 0; r < 30; r++) playRound(s, { engine: 'quick' });
-    s.player.injury = { grade: 'seasonEnding', weeksTotal: 20, weeksLeft: 20, season: 2018, round: 30, permanent: {} };
+    s.player.injury = { grade: 'seasonEnding', weeksTotal: 20, daysTotal: 140, daysLeft: 140, season: 2018, round: 30, permanent: {} };
+    const from = s.calendar.date;
     while (s.phase === 'season') expect(playRound(s, { engine: 'quick' }).result.minutes).toBe(0);
-    expect(s.player.injury?.weeksLeft).toBe(12);
+    // 하루 단위 회복 (C.38): 남은 날 = 140 − 지난 날 (최종 라운드 날은 시즌 종료로 끝나 하루를 넘기지 않는다)
+    const left = 140 - daysBetween(from, s.calendar.date);
+    expect(s.player.injury?.daysLeft).toBe(left);
     startNextSeason(s);
-    expect(s.player.injury?.weeksLeft).toBe(12 - BALANCE.injury.offseasonWeeks);
-    expect(healWeek(s.player, 4)).toBe(true);
+    expect(s.player.injury?.daysLeft).toBe(left - BALANCE.injury.offseasonWeeks * 7);
+    expect(healDays(s.player, left)).toBe(true);
   });
 
   it('부상 기록과 결정성: 세이브 왕복 후에도 같은 결과', () => {

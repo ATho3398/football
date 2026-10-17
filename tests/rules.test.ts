@@ -210,7 +210,9 @@ describe('playRound 엔진 연결 (E3)', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'e3-run', difficulty: 'normal' });
     for (let i = 0; i < 6; i++) playRound(g);
     expect(g.league.round).toBe(6);
-    expect(g.league.table.every((r) => r.played === 6)).toBe(true);
+    // 하루 단위 (C.38): 내 경기 뒤 같은 라운드 일·월요일 경기는 아직이다
+    expect(g.league.table.every((r) => r.played === 6 || r.played === 5)).toBe(true);
+    expect(g.league.table.find((r) => r.teamId === g.player.teamId)!.played).toBe(6);
     const s = g.player.season;
     expect(s.apps).toBeGreaterThan(0);
     expect(s.ratingSum / s.apps).toBeGreaterThan(4);

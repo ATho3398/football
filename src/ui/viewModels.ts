@@ -7,7 +7,8 @@ import { adviceOpen, adviceText, rollProspect } from '../aptitude';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
-import { averageRating, careerTotals, nextFixture, selectableRealPlayers, slumpThreshold, type GameState, type SeasonSummary } from '../game';
+import { averageRating, calendarOf, careerTotals, myMatchDate, nextFixture, selectableRealPlayers, slumpThreshold, type GameState, type SeasonSummary } from '../game';
+import { addDays, dateLabel, daysBetween, weekday as weekdayOf } from '../calendar';
 import { isUnlocked } from '../unlocks';
 import { generatePlayer } from '../generate';
 import {
@@ -110,18 +111,20 @@ function playerCardVM(g: GameState): PlayerCardVM {
   };
 }
 
-/** 부상 복귀 예정 시점. 비시즌에 BALANCE.injury.offseasonWeeks 만큼 회복된다 */
+/** 부상 복귀 예정 시점 (날짜, 부록 C.38). 비시즌에 BALANCE.injury.offseasonWeeks 주만큼 회복된다 */
 function returnLabel(g: GameState): string {
   const inj = g.player.injury!;
-  const { round, schedule } = g.league;
+  const off = BALANCE.injury.offseasonWeeks * 7;
   if (g.phase === 'season') {
-    const target = round + inj.weeksLeft;
-    if (target < schedule.length) return `${target + 1}라운드`;
-    const carry = inj.weeksLeft - (schedule.length - round) - BALANCE.injury.offseasonWeeks;
-    return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 ${carry + 1}라운드`;
+    const cal = calendarOf(g);
+    // 다친 날이면 다음 날부터 줄어든다
+    const back = addDays(g.calendar.date, inj.daysLeft + (inj.date === g.calendar.date ? 1 : 0));
+    if (daysBetween(back, cal.final) >= 0) return dateLabel(back);
+    const carry = inj.daysLeft - daysBetween(g.calendar.date, cal.final) - off;
+    return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 개막 ${Math.ceil(carry / 7)}주 뒤`;
   }
-  const carry = inj.weeksLeft - BALANCE.injury.offseasonWeeks;
-  return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 ${carry + 1}라운드`;
+  const carry = inj.daysLeft - off;
+  return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 개막 ${Math.ceil(carry / 7)}주 뒤`;
 }
 
 export interface BannerVM { tone: 'injury' | 'warning' | 'info' | 'success'; title: string; body?: string; action?: string; act?: string; to?: string }
@@ -130,7 +133,7 @@ function injuryBanner(g: GameState): BannerVM | null {
   const inj = g.player.injury;
   if (!inj) return null;
   return {
-    tone: 'injury', title: `부상 (${INJURY_NAMES_KO[inj.grade]}) · ${inj.weeksLeft}주 남음`,
+    tone: 'injury', title: `부상 (${INJURY_NAMES_KO[inj.grade]}) · ${inj.daysLeft}일 남음`,
     body: `복귀 예정 ${returnLabel(g)}. 부상 중에는 경기에 나가지 못하고 재활 XP(주 ${BALANCE.injury.rehabXp})만 받아요.`,
   };
 }
@@ -162,6 +165,77 @@ export interface HomeVM {
   condition: ConditionVM;
   stats: { apps: number; starts: number; goals: number; assists: number; avg: string };
   version: VersionVM;
+  /** 캘린더 (부록 C.38): 오늘, 다음 일정, 이번 달 */
+  day: DayVM | null;
+}
+
+export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
+
+export interface DayVM {
+  /** "8월 11일 (토)" */
+  date: string;
+  /** 큰 글씨 "8.11", "토요일" */
+  short: string;
+  weekdayKo: string;
+  year: number;
+  matchDay: boolean;
+  /** 다음 내 경기까지 남은 날 (오늘이면 0) */
+  daysTo: number | null;
+  nextLabel: string | null;
+  quick: boolean;
+  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end'; sub?: string }[];
+  month: { title: string; lead: number; days: DayCellVM[] };
+}
+
+const BREAK_KO = { international: 'A매치 휴식기', cup: '컵 주간 (리그 없음)', winter: '휴식기' } as const;
+
+export function dayVM(g: GameState): DayVM | null {
+  if (g.phase !== 'season') return null;
+  const cal = calendarOf(g);
+  const today = g.calendar.date;
+  const me = g.player.teamId;
+  const myDates = new Map<string, { home: boolean; opp: string; r: number }>();
+  const leagueDays = new Set<string>();
+  g.league.schedule.forEach((round, r) => round.forEach((f, i) => {
+    const d = cal.fixtureDates[r]![i]!;
+    leagueDays.add(d);
+    if (f.home === me || f.away === me) myDates.set(d, { home: f.home === me, opp: f.home === me ? f.away : f.home, r });
+  }));
+  const breakDays = new Map<string, keyof typeof BREAK_KO>();
+  for (const b of cal.breaks) for (let k = -1; k <= 0; k++) breakDays.set(addDays(b.date, k + 1), b.kind);
+  const next = myMatchDate(g);
+  const daysTo = next ? daysBetween(today, next) : null;
+  const upcoming: DayVM['upcoming'] = [];
+  const brk = cal.breaks.filter((b) => daysBetween(today, b.date) >= -1);
+  for (let r = g.league.round; r < g.league.schedule.length && upcoming.length < 6; r++) {
+    const i = g.league.schedule[r]!.findIndex((f) => f.home === me || f.away === me);
+    const f = g.league.schedule[r]![i]!;
+    const d = cal.fixtureDates[r]![i]!;
+    while (brk.length && daysBetween(brk[0]!.date, d) > 0 && upcoming.length < 6) {
+      const b = brk.shift()!;
+      upcoming.push({ date: dateLabel(b.date), text: BREAK_KO[b.kind], kind: 'break' });
+    }
+    if (upcoming.length >= 6) break;
+    const home = f.home === me;
+    upcoming.push({ date: dateLabel(d), text: `${r + 1}R ${teamById(g.league, home ? f.away : f.home).nameKo}`, kind: home ? 'home' : 'away', sub: home ? '홈' : '원정' });
+  }
+  if (upcoming.length < 6 && g.league.round >= g.league.schedule.length - 5) upcoming.push({ date: dateLabel(cal.final), text: '시즌 종료', kind: 'end' });
+  const y = +today.slice(0, 4);
+  const m = +today.slice(5, 7);
+  const first = `${today.slice(0, 7)}-01`;
+  const len = daysBetween(first, addDays(`${(m === 12 ? y + 1 : y)}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}-01`, 0));
+  const days: DayCellVM[] = [];
+  for (let k = 0; k < len; k++) {
+    const d = addDays(first, k);
+    const mine = myDates.get(d);
+    const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) ? 'break' : leagueDays.has(d) ? 'league' : '';
+    const title = mine ? `${mine.r + 1}R ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : kind === 'break' ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '';
+    days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title });
+  }
+  return {
+    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
+    upcoming, month: { title: `${y}년 ${m}월`, lead: weekdayOf(first), days },
+  };
 }
 
 /** 바닥에 막힌 감점에 붙이는 말 (부록 C.27): "(탑클래스 티어 유지)". 막히지 않았으면 빈 문자열 */
@@ -213,6 +287,7 @@ export function homeVM(g: GameState): HomeVM {
     phase: g.phase, banners, next, card: playerCardVM(g), condition: conditionVM(g),
     stats: { apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, avg: avg === null ? '-' : avg.toFixed(2) },
     version: versionVM(g),
+    day: dayVM(g),
   };
 }
 
@@ -604,6 +679,25 @@ export interface WorldVM {
   table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number }[];
   stars: { name: string; position: string; age: number; club: string; ovr: number; change: number }[];
   retired: string[];
+  /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
+  scorers: ScorerVM[];
+}
+
+export interface ScorerVM { name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
+
+/** 득점 순위 (골 → 도움 → 출전 적은 순). 내 선수는 player.season 에서 */
+export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
+  const names = new Map<string, { name: string; team: string }>();
+  for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
+    const team = teamById(g.league, teamId)?.nameKo ?? teamId;
+    for (const p of r.players) names.set(p.id, { name: p.nameKo, team });
+  }
+  const rows: ScorerVM[] = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({
+    name: names.get(id)?.name ?? id, team: names.get(id)?.team ?? '', apps, goals, assists, avg: apps ? (r10 / apps / 10).toFixed(2) : '-', me: false,
+  }));
+  const s = g.player.season;
+  if (s.apps > 0) rows.push({ name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
+  return rows.filter((r) => r.goals > 0 || r.me).sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.apps - b.apps).slice(0, limit);
 }
 
 export function worldVM(g: GameState): WorldVM {
@@ -619,6 +713,7 @@ export function worldVM(g: GameState): WorldVM {
     stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
       .map((n) => ({ name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),
     retired: g.npcs.filter((n) => n.retired).map((n) => n.nameKo),
+    scorers: scorersVM(g),
   };
 }
 

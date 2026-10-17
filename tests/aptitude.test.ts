@@ -197,8 +197,8 @@ describe('세이브 16 → 17 (C.37)', () => {
     delete raw.player.aptBoost;
     raw.saveFormat = 16;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(17);
-    expect(back.saveFormat).toBe(17);
+    expect(SAVE_FORMAT_VERSION).toBe(18);
+    expect(back.saveFormat).toBe(18);
     const a = back.player.aptitude!;
     expect(a.hidden).toBeNull();
     expect(a.mult.CM).toBeGreaterThanOrEqual(1.2);

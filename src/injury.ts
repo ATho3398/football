@@ -49,11 +49,11 @@ function rollPermanent(p: PlayerState, grade: InjuryGrade, rng: Rng): AttributeD
 
 /**
  * 출전한 경기 뒤 부상 판정. 다치면 p.injury 를 설정하고 돌려준다.
- * remainingRounds: 이 경기 뒤 남은 시즌 라운드 수 (시즌아웃 기간)
+ * remainingRounds: 이 경기 뒤 남은 시즌 라운드 수 (시즌아웃 기간). at.daysToEnd: 최종 라운드까지 남은 날 (시즌아웃은 그보다 짧지 않다)
  */
 export function rollInjury(
   p: PlayerState, minutes: number, difficulty: Difficulty, remainingRounds: number,
-  at: { season: number; round: number }, rng: Rng,
+  at: { season: number; round: number; date?: string; daysToEnd?: number }, rng: Rng,
 ): Injury | null {
   if (rng() >= injuryChance(p, minutes, difficulty)) return null;
   const G = BALANCE.injury.grades;
@@ -61,19 +61,25 @@ export function rollInjury(
   const weeks = grade === 'seasonEnding'
     ? Math.max(remainingRounds, G.seasonEnding.minWeeks)
     : randInt(rng, G[grade].weeks[0], G[grade].weeks[1]);
+  const days = grade === 'seasonEnding' ? Math.max(weeks * 7, at.daysToEnd ?? 0) : weeks * 7;
   const injury: Injury = {
-    grade, weeksTotal: weeks, weeksLeft: weeks, season: at.season, round: at.round,
+    grade, weeksTotal: weeks, daysTotal: days, daysLeft: days, ...(at.date ? { date: at.date } : {}), season: at.season, round: at.round,
     permanent: rollPermanent(p, grade, rng),
   };
   p.injury = injury;
   return injury;
 }
 
-/** 부상 중 한 주 경과. 회복하면 true */
-export function healWeek(p: PlayerState, weeks = 1): boolean {
+/** 부상 중 days 일 경과 (부록 C.38). 회복하면 true */
+export function healDays(p: PlayerState, days = 1): boolean {
   if (!p.injury) return false;
-  p.injury.weeksLeft -= weeks;
-  if (p.injury.weeksLeft > 0) return false;
+  p.injury.daysLeft -= days;
+  if (p.injury.daysLeft > 0) return false;
   p.injury = null;
   return true;
+}
+
+/** 남은 부상 기간 (주, 올림) */
+export function weeksLeft(inj: Injury): number {
+  return Math.ceil(inj.daysLeft / 7);
 }

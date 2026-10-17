@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 25;
+export const BALANCE_VERSION = 26;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -322,12 +322,34 @@ export const BALANCE = {
     banMatches: 1,
   },
 
+  // ── 캘린더 (25.1~25.2 6번, 부록 C.38): 2018-19 프리미어리그 패턴. 날짜는 [다음 해면 1, 월, 일] ──
+  calendar: {
+    /** 개막: 8월 n번째 토요일 (금요일 1경기 포함) */
+    openingWeek: 2,
+    /** 최종 라운드: 이 날짜(다음 해 5월)에 가장 가까운 토요일의 다음 날 일요일 (모든 경기 같은 날) */
+    finalNear: [5, 12] as [number, number],
+    /** A매치 휴식기: 이 날짜와 가장 가까운 토요일 주말은 리그 없음 */
+    internationalBreaks: [[0, 9, 8], [0, 10, 13], [0, 11, 17], [1, 3, 23]] as [number, number, number][],
+    /** 컵 주말 (FA컵, 5-6 에서 채운다): 리그 없음 */
+    cupWeekends: [[1, 1, 5], [1, 1, 26], [1, 2, 16]] as [number, number, number][],
+    /** 라운드가 38개를 넘으면 시드로 빼는 주말 후보 (FA컵 8강·4강 주말) */
+    droppableWeekends: [[1, 3, 16], [1, 4, 13]] as [number, number, number][],
+    /** 주중 라운드 기본 자리 (이 날짜 뒤 첫 화요일, 화·수에 나눠 치른다) */
+    midweek: [[0, 12, 4], [1, 1, 29], [1, 2, 26], [1, 4, 2]] as [number, number, number][],
+    /** 5번째 주중 라운드 후보 (시드로 하나) */
+    extraMidweek: [[1, 4, 23], [0, 9, 25], [0, 10, 30]] as [number, number, number][],
+    fifthMidweekChance: 0.5,
+  },
+
   // ── 피로 (7.1) ──
   fatigue: {
     max: 100,
     /** 90분 출전 시 증가량 */
     perMatch90: 22,
-    /** 경기가 있는 주의 회복량 (경기 전에 적용). 주당 1경기라 피로가 거의 쌓이지 않는다. 부상 중인 주는 noMatchWeekRecovery */
+    /**
+     * 주간 회복량. 하루 단위 진행(부록 C.38)에서는 하루가 끝날 때마다 ÷ 7 씩 회복한다(경기 날 포함, 7일 간격이면 지금 주간 값과 같다).
+     * 부상 중인 날은 noMatchWeekRecovery ÷ 7
+     */
     weeklyRecovery: 25,
     noMatchWeekRecovery: 40,
     /** 이 값을 넘으면 평점/선발 확률 페널티 */
