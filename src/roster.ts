@@ -16,7 +16,6 @@ import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Position, Tier } from './types';
 import { TEAM_TACTICS } from './engine/teamData';
 import { realBody, rollBody, type Body } from './body';
-import { A_GRADE_PLAYERS } from '../data/players';
 
 export type PosGroup = 'GK' | 'CB' | 'FB' | 'CDM' | 'CM' | 'CAM' | 'WING' | 'ST';
 export const POS_GROUPS: readonly PosGroup[] = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
