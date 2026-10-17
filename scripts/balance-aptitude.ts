@@ -113,7 +113,7 @@ function report(label: string, runs: ReturnType<typeof career>[]): void {
   console.log(`  ${label}: ${runs.length}명 · 커리어당 ${(total / runs.length).toFixed(2)}회 · 시즌당 ${pct(total / seasons)} · 0/1/2/3+회 ${dist.map(pct).join(' / ')} · 시즌 평점 ≤ ${A.advice.ratingMax} 비율 ${pct(low)}${ages.length ? ` · 조언 나이 평균 ${avg(ages).toFixed(1)}` : ''}`);
 }
 
-console.log(`\n[포변 조언] 빠른 경기 커리어 17→36세, 최적 배분, 포변 안 함 (조언 조건: ${A.advice.seasons}시즌 연속 평균 ≤ ${A.advice.ratingMax}, 출전 ${A.advice.minApps}경기+, 적성 더 높은 군)`);
+console.log(`\n[포변 조언] 빠른 경기 커리어 17→36세, 최적 배분, 포변 안 함 (조언 조건: ${A.advice.seasons}시즌 연속 평균 ≤ ${A.advice.ratingMax}, 선발 ${A.advice.minStarts}경기+, 적성 더 높은 군)`);
 for (const policy of ['top', 'wild'] as const) {
   const runs = [];
   for (let i = 0; i < CAREERS; i++) {

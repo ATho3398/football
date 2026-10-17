@@ -6,8 +6,7 @@ import { BALANCE } from './config/balance';
 import {
   ADVICE_TEXT, APT_GROUP_POSITIONS, APT_GROUPS, COACH_LINES, TALENT_TYPES, type AptGroup, type TalentType,
 } from './config/aptitude';
-import { shiftOvr } from './npc';
-import { POSITION_NAMES_KO, positionOvr, positionOvrExact, type FieldPosition, type PlayablePosition } from './positions';
+import { attributeOvrWeight, POSITION_NAMES_KO, positionOvrExact, type FieldPosition, type PlayablePosition } from './positions';
 import { proficientOvr } from './proficiency';
 import { generateProspectAttributes, rollPotentialTier, rollStartOvr } from './prospect';
 import { createRng, hashSeed, type Rng } from './rng';
@@ -142,8 +141,9 @@ export function rollProspect(worldSeed: string, anchor?: PlayablePosition): Pros
   const talent = pick(rng, fits.length ? fits : TALENT_TYPES);
   const base = anchor ?? pick(rng, talent.anchors);
   const attributes = generateProspectAttributes(base, ovr, rng);
-  for (const a of talent.attrs) attributes[a] = Math.min(85, attributes[a] + A.talentBoost);
-  shiftOvr(attributes, base, ovr - positionOvr(attributes, base), rng);
+  // 기울기는 기준 자리 OVR 에 안 들어가는 타입 능력치에만 (기준 자리 능력치는 재능 타입에 맞춰 이미 높다).
+  // 기준 자리 OVR 이 그대로라 능력치를 깎아 맞출 일이 없고 성장 곡선이 C.36 과 같다 (C.37 측정: 깎아 맞추면 성장이 +0.8 OVR 빨라짐)
+  for (const a of talent.attrs) if (attributeOvrWeight(base, a) === 0) attributes[a] = Math.min(85, attributes[a] + A.talentBoost);
   const aptitude = rollAptitude(talent, rngFor(worldSeed, 'aptitude'));
   const candidates = startCandidates(attributes, aptitude, rngFor(worldSeed, 'start-candidates'));
   return { potentialTier, ovr, talent, anchor: base, attributes, aptitude, candidates, rng };
@@ -201,7 +201,7 @@ export function adviceOpen(p: Pick<PlayerState, 'advice'>, season: number, round
 }
 
 /**
- * 시즌 종료 판정: 지금 주 포지션에서 2시즌 연속 시즌 평균 평점 6.2 이하(출전 10경기 이상)이고
+ * 시즌 종료 판정: 지금 주 포지션에서 2시즌 연속 시즌 평균 평점 6.2 이하(선발 15경기 이상 = 주전으로 뛴 시즌)이고
  * 적성이 더 높은 포지션군이 있을 때만 조언한다. 처음은 감독 한마디, 그다음부터 뉴스. 시즌 종료마다 한 번만 판정 (= 시즌당 1회).
  * 다음 조언은 지난 조언 뒤 시즌들로만(겹치지 않는 2시즌), 같은 포지션군에서 최대 maxPerPosition 번
  */
@@ -215,7 +215,7 @@ export function evaluateAdvice(p: PlayerState, season: number): PositionAdvice |
   const last = log.at(-1)?.season ?? -Infinity;
   const recent = p.history.slice(-D.seasons);
   if (recent.length < D.seasons || recent.some((r) => r.season <= last)) return null;
-  const slump = recent.every((r) => r.apps >= D.minApps && r.ratingSum / r.apps <= D.ratingMax && aptGroupOf(r.position ?? p.position) === cur);
+  const slump = recent.every((r) => r.starts >= D.minStarts && r.ratingSum / r.apps <= D.ratingMax && aptGroupOf(r.position ?? p.position) === cur);
   if (!slump) return null;
   const mine = p.aptitude.mult[cur];
   let group: AptGroup | null = null;

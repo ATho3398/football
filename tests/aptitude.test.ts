@@ -29,7 +29,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
 
 let seasonNo = 2000;
 const season = (avg: number, apps = 30, position: PlayerState['position'] = 'ST'): SeasonRecord => ({
-  ...emptySeasonStats(), apps, ratingSum: avg * apps, season: seasonNo++, age: 20, teamId: 'x', leaguePosition: 10, achievementXp: 0, ovr: 60, reputation: 0, position,
+  ...emptySeasonStats(), apps, starts: apps, ratingSum: avg * apps, season: seasonNo++, age: 20, teamId: 'x', leaguePosition: 10, achievementXp: 0, ovr: 60, reputation: 0, position,
 });
 
 describe('숨은 재능 타입과 적성 (pending 31·36, C.37)', () => {
