@@ -12,7 +12,7 @@
 - 6차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **0개** (+ 작은 변형 15) (큰 것이 있는 단계: 0, 작은 것만: C.49·C.50·C.51·C.52·C.53)
 - 다음 보고 조건: 6개 이상, 또는 그런 단계 3개 이상, 또는 사용자 화면 불만 → 7차(새로 쌓인 것만)
 
-- **B 테마(브로드캐스트) 검토**(2026-10-18 04:40 KST, 사용자): `player-one-design-b` 20장 + 디자인 시스템 아티팩트 `7PuHNL5KciUhrmA7FRZGrS`(zip과 동일). 사용자가 "이걸로 변환" 의향 → 문제 점검만 답함(미페 샘플 사진 권리·투명 미페 없음·긴 이름 59% 잘림·코드에 없는 선택자 19·라이트 테마 독 대비 2.4·20장만). 사용자 답(미페 대체·짧은 이름·6차 뒤 `[data-skin="b"]` 층) 오면 `B-apply.md` → N.
+- **B 테마(브로드캐스트)**: 2026-10-18 04:35 KST 사용자 업로드(`player-one-design-b` 20장 + 아티팩트 `7PuHNL5KciUhrmA7FRZGrS`, zip과 동일) → 05:00 사용자 결정(B로 변환, 미페 권리 무시, 투명 아니면 네모 사진 그대로, 긴 이름은 글자 크기 축소, 핵심 20장 먼저) → 레포 `docs/design/player-one-design-b/` + 적용 명세 `docs/ui-requests/B-apply.md` → 마스터 N(U5 흐름에 얹기, U5-a에 B 층 바탕). 디자이너 다음 판: 나머지 139장.
 
 ## 디자인 안 온 보고
 
@@ -21,6 +21,8 @@
 | 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | **디자인 도착 2026-10-18 00:24**(57~123 전부, `docs/design/player-one-design/` 덮어씀) → 적용 명세 `docs/ui-requests/5-apply.md` → 마스터 M |
 
 | 6 | 2026-10-18 | `docs/ui-requests/6.md` | `docs/ui-requests/6/phone/`(53), `6/pc/`(49) | main 66ba91f, C.48 | **디자인 도착 2026-10-18 02:58**(124~159 전부, 새 컴포넌트 4, `docs/design/player-one-design/` 덮어씀 9148f60) → 적용 명세 `docs/ui-requests/6-apply.md` → 마스터 N |
+
+| B 테마 | 2026-10-18 04:35 | `docs/ui-requests/B-apply.md` | `docs/design/player-one-design-b/screens/png/`(20) | main 38c9833, C.53 | 핵심 20장 받음 → 적용 명세 → 마스터 N. **나머지 139장 대기** |
 
 | 카드 그림 | 2026-10-17 22:40 | `docs/ui-requests/card-art-batch03-apply.md` | `docs/design/incoming/card-art/batch03/`(17장) | — | BATCH 03(13~16 + 엘라스티코) 받음 → 적용 명세 → 마스터 M. 남은 시그니처 15장·BATCH 01·02 대기 |
 

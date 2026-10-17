@@ -1,0 +1,13 @@
+<!-- @dsCard group="Status" height=170 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Meter — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:16,width:320}}, h(P.Meter,{label:'XP',value:120,max:200,showValue:true,tone:'xp'}), h(P.Meter,{label:'XP (경기 후 +34)',value:120,gain:34,max:200,showValue:true,tone:'xp',size:'lg'}), h(P.Meter,{label:'감독 신뢰도',value:62,max:100,showValue:true,tone:'mine'})));
+</script>
+</body>
+</html>

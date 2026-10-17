@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>독-홈가운데</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 독-홈가운데 (B · 요청 6 · 곧 바뀌는 것 (154~159)) · 390×800 · 원본 B-R6-Dock-HomeCenter.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<div style="display: grid; grid-template-columns: 390px minmax(0, 1fr); gap: 40px; padding: 28px 40px;"><div style="display: flex; flex-direction: column; gap: 14px;"><b style="font-size: 18px;">폰 6칸 · 홈 가운데</b><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">홈 화면 · 계속</b><span style="font-size: 11px; color: var(--ink-faint);">홈 키 = 라임 면</span></div><div style="width: 390px; padding-top: 22px;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="continue" badges="{{nob}}" locked="{{nol}}"></x-import></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">선수 화면 · 경기 날</b><span style="font-size: 11px; color: var(--ink-faint);">홈 키 = 라임 테두리 원 · 배지는 그대로</span></div><div style="width: 390px; padding-top: 22px;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="player" progress="match" badges="{{b35}}" locked="{{nol}}"></x-import></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">경기 중 다른 화면</b><span style="font-size: 11px; color: var(--ink-faint);">진행 칸 시안 + 빨간 점 · 잠김 칸</span></div><div style="width: 390px; padding-top: 22px;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="schedule" progress="live" badges="{{nob}}" locked="{{lk}}"></x-import></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">응답 필요</b><span style="font-size: 11px; color: var(--ink-faint);">진행 칸 주황 · 배지 = 남은 응답</span></div><div style="width: 390px; padding-top: 22px;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="answer" badges="{{ans}}" locked="{{nol}}"></x-import></div></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">시즌 끝</b><span style="font-size: 11px; color: var(--ink-faint);">진행 칸 = 시즌 요약</span></div><div style="width: 390px; padding-top: 22px;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="world" progress="season" badges="{{nob}}" locked="{{nol}}"></x-import></div></div></div><div style="display: flex; flex-direction: column; gap: 14px;"><b style="font-size: 18px;">PC 9칸 · 1280</b><div style="margin: 0 -40px 0 0; display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">홈 화면 · 계속</b><span style="font-size: 11px; color: var(--ink-faint);"></span></div><div style="width: 780px;"><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="home" progress="continue" badges="{{nob}}" locked="{{nol}}"></x-import></div></div><div style="margin: 0 -40px 0 0; display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px;"><b style="font-size: 13px;">덱 화면 · 응답 필요</b><span style="font-size: 11px; color: var(--ink-faint);">홈 키 = 라임 테두리</span></div><div style="width: 780px;"><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="deck" progress="answer" badges="{{ans}}" locked="{{nol}}"></x-import></div></div><div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 6px; background: var(--surface-1); font-size: 12px; line-height: 18px; color: var(--ink-muted); word-break: keep-all;"><b style="font-size: 14px; color: var(--ink);">규칙</b><span>· 폰 6칸 열 너비 <b style="color: var(--ink);">2fr · 1fr · 72px · 1fr · 1fr · 1fr</b> — 왼쪽(진행+선수) 3fr = 오른쪽(훈련·일정+월드+더보기) 3fr라 홈 원이 화면 정가운데(x = 195)에 와요.</span><span>· 홈 키 56px 원, 독 윗선 위로 20px 솟음, 독 바탕색 5px 고리. 평소 = surface-3 + 2px 라임 테두리 + 라임 아이콘 · 홈 화면 = 라임 면 + 검정 아이콘. 그림자·발광 없음.</span><span>· 진행 칸은 맨 왼쪽 넓은 알약(아이콘 + 이름). 상태 5종(계속·경기·경기 중·답하기·시즌 요약), 색(라임·라임·시안·주황·라임), 배지, 잠김 규칙은 5차 그대로.</span><span>· PC 9칸: 진행 · 선수 · 훈련·일정 · 덱 · <b style="color: var(--ink);">홈</b> · 전술 · 월드 · 설정 · 저장. 홈은 5번째 132px 칸(44px 원 + "홈").</span><span>· 콘텐츠 아래 여백은 그대로 폰 72px · PC 64px(홈 원이 솟은 20px는 콘텐츠 위에 겹쳐도 돼요 — 원 아래 콘텐츠는 독 여백 안이라 가려지는 글이 없어요).</span></div></div></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    
+    return { dockBadges, dockLocked, yes: true, no: false, i10: 10, i12: 12, i14: 14, i16: 16, i18: 18, i20: 20, i24: 24, i28: 28, i32: 32, i36: 36, i40: 40, i44: 44, i48: 48, i56: 56, s1: 1, s2: 2, s3: 3, s4: 4, s5: 5, nob: {}, nol: [], b35: { player: 35 }, lk: ['schedule'], ans: { progress: 2, player: 30 } };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

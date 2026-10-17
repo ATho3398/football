@@ -1,0 +1,13 @@
+<!-- @dsCard group="Status" height=92 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>TierBadge — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, h(P.TierBadge,{tier:'normal',score:12}), h(P.TierBadge,{tier:'key',score:240}), h(P.TierBadge,{tier:'top',score:480}), h(P.TierBadge,{tier:'world',score:720}), h(P.TierBadge,{tier:'legend',score:960}), h(P.TierBadge,{tier:'normal',size:'sm'})));
+</script>
+</body>
+</html>

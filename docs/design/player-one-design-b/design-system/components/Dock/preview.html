@@ -1,0 +1,15 @@
+<!-- @dsCard group="Navigation" height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Dock — preview</title></head>
+<body>
+<div id="root" style="padding:28px 16px 16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:390,display:'grid',gap:30}},
+    h(P.Dock,{value:'home',progress:'continue'}),
+    h(P.Dock,{value:'player',progress:'answer',badges:{progress:2,player:35},locked:['world']}),
+    h(P.Dock,{value:'schedule',progress:'live',locked:['schedule']})));
+</script>
+</body>
+</html>

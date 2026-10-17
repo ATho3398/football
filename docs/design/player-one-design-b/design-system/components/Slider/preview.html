@@ -1,0 +1,12 @@
+<!-- @dsCard group="Tactics" height=110 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Slider — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{display:'grid',gap:16,width:358}},h(P.Slider,{label:'이기심',value:35,valueLabel:'팀 우선',left:'패스 우선',right:'슈팅 우선'})));
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>이적제안-목록-v2</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1249px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="이적 제안" compact="{{yes}}" eyebrow="여름 이적시장 · 받은 제안" value="{{two}}" chips="{{tchips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><div style="display: flex; gap: 10px; padding: 10px 12px; border-radius: 4px; background: var(--mine-soft); font-size: 12px; line-height: 17px;"><span style="display: inline-flex; color: var(--mine);"><x-import component-from-global-scope="PlayerOne.Icon" name="info" size="{{i16}}"></x-import></span><span><b>계약이 1년 더 남아 제안이 조금 와요 (1~3개).</b> 이적료는 구단끼리 내요.</span></div><div style="display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-radius: 6px; background: var(--surface-1);"><span style="display: grid; place-items: center; width: 28px; height: 28px; border-radius: 4px; background: var(--surface-3); color: var(--ink-muted);"><x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{i14}}"></x-import></span><span style="display: flex; flex-direction: column; gap: 2px;"><span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><b style="font-size: 13px; color: var(--ink-muted); text-decoration: line-through;">맨체스터 유나이티드 · 이적료 134억 원</b><span title="재정 등급 빅클럽" style="display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px 0 6px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line-strong); font-size: 10px; font-weight: 800; color: var(--ink); white-space: nowrap; flex: none;"><span style="display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px;"><i style="display: block; width: 3px; height: 4px; border-radius: 1px; background: var(--ink);"></i><i style="display: block; width: 3px; height: 6px; border-radius: 1px; background: var(--ink);"></i><i style="display: block; width: 3px; height: 8px; border-radius: 1px; background: var(--ink);"></i><i style="display: block; width: 3px; height: 10px; border-radius: 1px; background: var(--ink);"></i></span>빅클럽</span></span><span style="font-size: 12px; line-height: 17px; word-break: keep-all;">토트넘 홋스퍼가 이 제안을 거절했어요. 구단이 거절한 제안은 고를 수 없어요.</span><span style="font-size: 11px; color: var(--ink-faint); word-break: keep-all;">바이아웃(272억 원) 이상 제안은 구단이 거절하지 못해요.</span></span></div><div style="display: flex; justify-content: space-between; align-items: baseline;"><b style="font-size: 13px;">받은 제안 2개</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">등급 막대 = 구단 재정</span></div><x-import component-from-global-scope="PlayerOne.OfferCard" offer="{{o1}}" selected="{{yes}}"></x-import><x-import component-from-global-scope="PlayerOne.OfferCard" offer="{{o2}}"></x-import><x-import component-from-global-scope="PlayerOne.Button" variant="ghost" block="{{yes}}">모두 거절하고 토트넘에 남기</x-import><div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); font-size: 11px; line-height: 16px; color: var(--ink-muted);"><b style="color: var(--ink); font-size: 12px;">맨 위 한 줄 · 상태별</b><span><b style="color: var(--ink);">계약 남음</b> · "계약이 1년 더 남아 제안이 조금 와요 (1~3개)" — 이적료가 붙어요</span><span><b style="color: var(--ink);">계약 만료 · 자유계약</b> · "계약이 끝났어요. 이적료 없이 옮겨요" — 카드의 이적료 자리 = 자유계약</span><span><b style="color: var(--ink);">소속팀 없음</b> · "소속팀이 없어요. 스탯에 맞는 팀들이 영입 제안을 보냈어요" — 1군 테스트 방출·커스텀 시작</span></div><span style="font-size: 11px; line-height: 16px; color: var(--ink-faint); word-break: keep-all;">제안은 내 몸값과 연봉을 감당할 수 있는 구단만 보내요. 약팀(전력 3 이상 낮은 팀)으로 가면 위상이 조금 깎여요.</span></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="answer" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1249}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { progress: 1, player: 30 }, dockLocked = [];
+    
+    return { dockBadges, dockLocked, yes: true, no: false, i10: 10, i12: 12, i14: 14, i16: 16, i18: 18, i20: 20, i24: 24, i28: 28, i32: 32, i36: 36, i40: 40, i44: 44, i48: 48, i56: 56, s1: 1, s2: 2, s3: 3, s4: 4, s5: 5, two: '2개', tchips: ['지금 토트넘 홋스퍼 · 전력 77.9', { label: '내 OVR 83', soft: true }, { label: '내 몸값 134억 원', soft: true }], o1: { club: '첼시', league: '프리미어리그', rank: 3, strength: '81.7', apps: 92, starts: 85, years: '3년', fee: '118억 원', weekly: '2.92억 원', yearly: '151.6억 원', tier: '빅클럽', note: '전력 +3.8 · 지금보다 주급 +40%' }, o2: { club: '리버풀', league: '프리미어리그', rank: 4, strength: '81.5', apps: 88, starts: 79, years: '4년', fee: '126억 원', weekly: '2.80억 원', yearly: '145.6억 원', tier: '빅클럽', homeClub: '친정 · 유스 구단', note: '유스 출신 구단 · 돌아가면 커리어 태그 [영원한 리버풀] 조건이 이어져요' } };
+  }
+}
+</script>
+</body>
+</html>
