@@ -20,6 +20,7 @@ import { initTraining } from './training';
 import { compress, decompress, storeBackend, type Encoding } from './saveStore';
 import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
 import type { Replay } from './replay';
+import { initialMarket } from './transfer';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -212,6 +213,13 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
       s.player.advice.untilDays = BALANCE.aptitude.advice.windowDays;
     }
   },
+  // 20 → 21 (부록 C.42, 18.6·18.10): NPC 이적 기록(없음에서 시작), 내 선수 계약(지금 팀, 오늘부터 — 가상 유망주 3년, 실제 선수 시드),
+  // 제안·요청 없음. 비시즌 세이브는 다음 시즌 레이팅을 startNextSeason 이 다시 계산하고, 제안은 다음 비시즌부터 온다
+  20: (s) => {
+    s.transfers = [];
+    s.market = initialMarket(s);
+    if (s.phase !== 'season') s.market.contract = { ...s.market.contract, from: s.league.season + 1, until: s.market.contract.until + 1 };
+  },
 };
 
 export function migrate(raw: any): GameState {
@@ -226,7 +234,7 @@ export function migrate(raw: any): GameState {
     raw.saveFormat = v + 1;
   }
   const state = raw as GameState;
-  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs);
+  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers);
   if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);
   return state;
 }

@@ -136,14 +136,14 @@ export function allocateView(vm: AllocateVM, sel: string | null, pending: number
 
 // ── 순위표·리그 스타 (54) ──
 
-export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers'): string {
+export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers', transfers = ''): string {
   const me = vm.table.find((r) => r.me)!;
   const leader = vm.table[0]!;
   const hero = HeroPanel({
     title: '리그', right: `${vm.round}R / ${vm.rounds}`, back: false, eyebrow: `${me.team} 순위`, value: `${vm.myPos}위`, pad: false, progress: false,
     chips: [`승점 ${me.points}`, me.pos === 1 ? '선두' : `1위와 ${leader.points - me.points}점`, { label: `${vm.season} 시즌`, soft: true }],
   });
-  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점 순위' }, { id: 'stars', label: '리그 스타' }], value: tab, variant: 'underline', act: 'world-tab' });
+  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점 순위' }, { id: 'stars', label: '리그 스타' }, { id: 'transfers', label: '이적 소식' }], value: tab, variant: 'underline', act: 'world-tab' });
   const scorers = vm.scorers.length
     ? `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">선수</th><th>출전</th><th>골</th><th>도움</th><th>평점</th></tr>
@@ -153,11 +153,11 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers'): stri
   const table = `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
       ${vm.table.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > vm.teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l"><span class="team">${Crest({ name: r.team, size: 16 })}${esc(r.team)}</span></td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
-    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력은 시즌 시작 때 정해져요</span></div></div>`;
+    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력은 로스터 라인업 평균 (겨울 이적이 바로 반영돼요)</span></div></div>`;
   const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 숫자는 지난 시즌 대비 OVR 변화.</p>
     <div class="star-list">${vm.stars.map((s, i) => `<div class="star-row"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40 })}<span class="grow"><b>${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `+${s.change}` : `−${-s.change}`) : 'OVR'}</small></span></div>`).join('')}</div>
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
-  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : stars}</div>`;
+  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
 }
 
 // ── 시즌 종료 (51) ──
@@ -168,7 +168,7 @@ const chipList = (xs: { label: string; value: number }[]) => (xs.length
 const sum = (xs: { value: number }[]) => xs.reduce((t, x) => t + x.value, 0);
 const signedSum = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
 
-export function seasonView(vm: SeasonVM): string {
+export function seasonView(vm: SeasonVM, market = '', marketPending = false): string {
   const hero = HeroPanel({
     title: `${vm.season} 시즌 종료`, right: vm.team, back: false, eyebrow: '리그 최종 순위', value: `${vm.pos}위`, pad: false, progress: false,
     chips: [`${vm.apps}경기 출전`, `나이 ${vm.ageFrom} → ${vm.ageTo}세`],
@@ -177,7 +177,9 @@ export function seasonView(vm: SeasonVM): string {
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })
     : `${vm.points > 0 ? Button({ variant: 'secondary', size: 'lg', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
        ${vm.canRetire ? Button({ variant: 'ghost', block: true, act: 'retire', children: '은퇴하기' }) : ''}
-       ${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: `${vm.nextSeason} 시즌 시작` })}`;
+       ${marketPending
+    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: '이적 제안·계약에 답하기' })
+    : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: `${vm.nextSeason} 시즌 시작` })}`;
   const auto = sum(vm.autoGrowth);
   const vet = sum(vm.veteran);
   const age = sum(vm.aging);
@@ -188,6 +190,7 @@ export function seasonView(vm: SeasonVM): string {
     .map((l) => `<div class="kv small"><span>${esc(l.label)}</span><b class="po-num down">−${l.points}${l.note ? ` <small class="muted">${esc(l.note)}</small>` : ''}</b></div>`)
     .join('');
   return `${hero}<div class="body">
+    ${market}
     ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
     ${vm.tierReached ? Banner({ tone: 'success', title: `${vm.tierReached} 달성 · 이 티어는 내려가지 않아요`, children: '감점은 다음 티어까지의 진행도만 깎아요.' }) : ''}
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}

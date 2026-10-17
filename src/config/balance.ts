@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 28;
+export const BALANCE_VERSION = 29;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -142,6 +142,12 @@ export const BALANCE = {
      * 모자란 step(10%p)마다 — 조금이라도 모자라면 1계단부터 — 위상의 perStep, 최대 maxShare. 부상 결장도 포함한다
      */
     minutesShort: { minShare: 0.5, step: 0.1, perStep: 0.01, maxShare: 0.04 },
+    /**
+     * 이적과 붙은 하락 이유 (D.19, 부록 C.42): 약팀 이적 = 새 팀 레이팅이 minGap 이상 낮으면 (차이 − minGap + 1) × perPoint, 최대 maxShare (임대 제외).
+     * 벤치 장기화 = 출전 시간 비율 maxShare 미만 시즌이 seasons 시즌 연속이면 위상의 points (출전 부족 감점에 더해)
+     */
+    weakMove: { minGap: 3, perPoint: 0.01, maxShare: 0.05 },
+    benchStreak: { seasons: 2, maxShare: 0.3, points: 0.03 },
     /**
      * 티어 하한 (8.1, 부록 C.27): 위상 점수는 지금 티어(스페셜/탑클래스/월드클래스) 컷 밑으로 내려가지 않는다.
      * 모든 감점(부진·순위·시즌 감소·레드·출전 부족)이 이 바닥을 따르고, 바닥에 막힌 감점은 사라진다
@@ -478,8 +484,60 @@ export const BALANCE = {
      * 로스터 레이팅만 쓰면 시즌 간 변동(σ 약 0.6)이 이전 방식(σ 약 1.7)보다 작아 약팀 돌풍이 줄어든다 (부록 C.8)
      */
     seasonFormSd: 1.5,
-    /** 계약이 끝나면 재계약 1~4년 (이적은 5-4 단계) */
+    /** 계약이 끝나고 이적하지 않은 선수는 재계약 1~4년 (이적은 transfer, 18.6) */
     renewYears: { min: 1, max: 4 },
+  },
+
+  // ── 이적과 계약 (18.6 NPC 점수 모델, 18.10 내 선수, 부록 C.42). 수치는 모두 초안 ──
+  transfer: {
+    /** 이적시장 비중: 여름(비시즌) / 겨울(1월). 이적 의향 확률 × 비중이 그 이적시장의 이동 확률 */
+    windowShare: { summer: 0.8, winter: 0.2 },
+    /** push: 계약 만료(여름 +25, 겨울은 남은 반 시즌이라 그 절반), 출전 시간 비율 minutesShare 미만 +20, 야망 (OVR − 팀 레이팅) × 3 (0 아래로는 안 내려감), 순위 하위 +10, 31세 이상 +5 */
+    push: { contract: 25, contractWinter: 12, minutes: 20, minutesShare: 0.4, ambition: 3, bottomFrom: 15, bottom: 10, veteranAge: 31, veteran: 5 },
+    /** resist = 충성도 × loyalty + 소속 연수 × perYear (최대 yearsMax) */
+    resist: { loyalty: 0.5, perYear: 2, yearsMax: 15 },
+    /** 이적 의향 확률 = 시그모이드((점수 + N(0, noiseSd) − center) / scale) */
+    noiseSd: 6,
+    center: 20,
+    scale: 10,
+    /** 엔진 기록이 없을 때(빠른 경기) 출전 시간 비율 추정: 라인업 / 벤치 / 그 외 */
+    estShare: { starter: 0.85, bench: 0.25, reserve: 0.05 },
+    /**
+     * 목적지 (18.6): 후보 = 레이팅 ≥ 기준 − minGap. 기준 = min(현재 팀 레이팅, OVR + refOverOvr) (벤치 선수가 더 강팀으로만 가지 않게).
+     * 후보 점수 = (후보 레이팅 − 현재 팀 레이팅) + 포지션 필요도 × needWeight + N(0, noiseSd) − 수준 차 벌점(후보 > OVR + overOvr 이면 1당 overPenalty)
+     * 상위 top 개 중 exp(점수 / temp) 가중 추첨. 리그 밖 클럽의 포지션 필요도는 outsideNeed
+     */
+    dest: { minGap: 2, refOverOvr: 2, needWeight: 5, noiseSd: 2, overOvr: 4, overPenalty: 2, top: 3, temp: 3, outsideNeed: 0.3, backupNeed: 0.4 },
+    /** 리그 팀 시즌(여름+겨울) 영입 최대 */
+    maxSignings: 2,
+    /** 이적생 새 계약 1~5년, 새 충성도 = 기존 × keep + N(mean, sd) */
+    newContract: { min: 1, max: 5 },
+    newLoyalty: { keep: 0.5, mean: 30, sd: 10 },
+    /** 빈자리 보충 (리그 밖 클럽에서 오는 가상 선수): OVR = min(나간 선수 OVR + N(offset, sd), 팀 레이팅 + overTeam), 나이 min~max */
+    fill: { offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29 },
+    /**
+     * 내 선수 (18.10): 비시즌 제안 3~5개 = 관심 상위. 관심 = −|유효 OVR − 팀 레이팅 − fitOffset| × fit + 필요도 × 5 + 위상 / repDiv + N(0, noiseSd).
+     * 유효 OVR = OVR + (youthAge − 나이) × youthPerYear (어린 선수는 잠재력을 본다). 18.6 의 야망 항 (OVR − 팀 레이팅) × 3 을 팀 입장의 "수준 맞음"으로 뒤집었다
+     */
+    offers: { min: 3, max: 5, fit: 1.5, fitOffset: 1, youthAge: 22, youthPerYear: 1.5, needWeight: 5, repDiv: 40, noiseSd: 4 },
+    /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
+    loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },
+    /** 계약 기간: 나이별 [최소, 최대] (어릴수록 길게). 새 게임 가상 유망주는 newGameYears */
+    years: [[21, 3, 5], [27, 2, 5], [30, 1, 4], [99, 1, 2]] as [number, number, number][],
+    newGameYears: 3,
+    /**
+     * 이적 요청 (18.10, 신뢰도는 5-1): 선발 비율 또는 출전 시간 비율이 minShare 미만(내 팀 경기 minGames 이상 치른 뒤, 그 전이면 지난 시즌),
+     * 또는 위상이 팀 수준을 넘을 때(내 위상 ≥ 팀 레이팅 위상 기준 + repOver, OVR ≥ 팀 레이팅 + ovrOver).
+     * 놓아줄 확률 = base (계약 만료면 1) − 팀 내 OVR 1위면 topPenalty
+     */
+    request: { minShare: 0.4, minGames: 8, repOver: 100, ovrOver: 4, base: 0.7, topPenalty: 0.3 },
+    /** 팀 레이팅 → 그 팀 주전에게 기대되는 위상 (이적 요청 "위상이 팀 격차를 넘음"), 앵커 사이 선형 */
+    teamRep: [[66, 40], [70, 75], [75, 150], [80, 350], [85, 600]] as [number, number][],
+    /** 주급 (19.11 곡선, 만 원): 위상 앵커 사이 로그 선형, ±15% (팀 레이팅 75 기준 1당 1.5%, OVR 75 기준 1당 1%), 50만 원 단위 */
+    wageCurve: [[0, 500], [75, 1000], [150, 2000], [250, 3500], [350, 6000], [475, 9500], [600, 15000], [725, 19000], [850, 25000], [1000, 30000]] as [number, number][],
+    wageTeam: 0.015,
+    wageOvr: 0.01,
+    wageSpread: 0.15,
   },
 
   // ── 포지션 전환 (4.3, 부록 D.3) ──

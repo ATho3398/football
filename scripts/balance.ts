@@ -30,13 +30,21 @@ import { FIELD_ATTRIBUTES } from '../src/attributes';
 import {
   autoAllocate, playerOvr, raiseAttribute, raiseBlock, reputationTier, TIERS_ASC, TIER_NAMES_KO,
 } from '../src/growth';
-import { newGame, playRound, selectableRealPlayers, startNextSeason, type GameState } from '../src/game';
+import { autoMarket, newGame, playRound, selectableRealPlayers, startNextSeason, type GameState } from '../src/game';
+import { BALANCE } from '../src/config/balance';
+import { isOutside } from '../src/transfer';
 import { PLAYABLE_POSITIONS } from '../src/positions';
 import { createRng } from '../src/rng';
 import type { InjuryGrade, Tier } from '../src/types';
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
+/**
+ * 내 선수 이적 정책 (C.42): stay = 제안 모두 거절·재계약 (C.41 까지와 같은 한 팀 커리어), best = 레이팅 +2 이상·주전/로테이션 제안 중 최고 수락.
+ * 회귀 가드는 POLICY(기본 stay)로 판정하고, 다른 정책은 [C.42 이적] 측정 줄에 따로 보여 준다
+ */
+const POLICY = (env.POLICY ?? 'stay') as 'stay' | 'best';
+if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
 
@@ -61,7 +69,7 @@ function simulateCareer(tier: Tier, i: number, strategy: Strategy) {
 /** 능력치 high 이상 개수 */
 const countAtLeast = (state: GameState, high: number) => FIELD_ATTRIBUTES.filter((a) => state.player.attributes[a] >= high).length;
 
-function runCareer(state: GameState, strategy: Strategy, rngSeed: number) {
+function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy: 'stay' | 'best' = POLICY) {
   const rng = createRng(rngSeed);
   const ovrByAge: Record<number, number> = { [state.player.age]: playerOvr(state.player) };
   const high95ByAge: Record<number, number> = {};
@@ -69,9 +77,13 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number) {
   const repByAge: Record<number, number> = { [state.player.age]: state.player.reputation };
   let starts = 0;
   let seasons = 0;
+  let offers = 0;
+  const npc: { moved: number; total: number; lowLoy: number; lowMoved: number; exp: number; expMoved: number }[] = [];
   const injuries: { grade: InjuryGrade; weeks: number; permanent: number; age: number }[] = [];
   const seasonLog: { age: number; apps: number; starts: number; minutes: number; injuries: number; injuredWeeks: number }[] = [];
   while (state.player.age < END_AGE) {
+    const snap = Object.values(state.rosters).flatMap((r) => r.players.map((p) => ({ id: p.id, low: p.loyalty < 40, exp: p.contractEnd <= state.league.season + 1 })));
+    const n0 = state.transfers.length;
     while (state.phase === 'season') {
       const report = playRound(state, { engine: 'quick' });
       const inj = report.injury;
@@ -92,12 +104,24 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number) {
     repByAge[state.player.age] = state.player.reputation;
     high95ByAge[state.player.age] = countAtLeast(state, 95);
     max99ByAge[state.player.age] = countAtLeast(state, 99);
+    const moved = new Set(state.transfers.slice(n0).map((r) => r.id));
+    npc.push({
+      moved: moved.size, total: snap.length, lowLoy: snap.filter((x) => x.low).length, lowMoved: snap.filter((x) => x.low && moved.has(x.id)).length,
+      exp: snap.filter((x) => x.exp).length, expMoved: snap.filter((x) => x.exp && moved.has(x.id)).length,
+    });
     if (state.phase !== 'offseason') break;
+    offers += state.market.offers?.length ?? 0;
+    autoMarket(state, policy);
     startNextSeason(state);
   }
+  const moves = state.market.moves.filter((m) => !m.back).length;
+  const intoLeague = state.transfers.filter((r) => !isOutside(r.to)).length;
   const hist = state.player.history.map((h) => ({ age: h.age, xp: h.achievementXp, moms: h.moms, gi: h.goals + h.assists, apps: h.apps, goals: h.goals, rating: h.apps ? h.ratingSum / h.apps : 0 }));
   const badgeAges = state.player.badges.map((b) => state.player.history.find((h) => h.season === b.season)?.age ?? 0);
-  return { ovrByAge, repByAge, high95ByAge, max99ByAge, starts: starts / seasons, injuries, seasonLog, hist, badgeAges };
+  return {
+    ovrByAge, repByAge, high95ByAge, max99ByAge, starts: starts / seasons, injuries, seasonLog, hist, badgeAges,
+    offers: offers / Math.max(1, seasons), moves, npc, intoLeague, oneClub: state.player.badges.some((b) => b.id === 'oneClub10'),
+  };
 }
 
 type Run = ReturnType<typeof simulateCareer>;
@@ -277,6 +301,30 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
       return `${name} ${d >= 0 ? '+' : ''}${d.toFixed(1)}${mark}`;
     });
     console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${line.join(' / ')}`);
+  }
+}
+
+// ── C.42 이적 측정 (18.6·18.10, 가드 아님) ──
+{
+  const runs = [...allRuns.best, ...allRuns.random];
+  const rows = runs.flatMap((r) => r.npc);
+  const sum = (k: keyof (typeof rows)[number]) => rows.reduce((t, r) => t + r[k], 0);
+  const rate = sum('moved') / sum('total');
+  console.log(`\n[C.42 이적] 내 선수 정책 ${POLICY}, 한 팀 10시즌 배지 ${BALANCE.badges.oneClubEnabled ? '켬' : '끔'}`);
+  console.log(`  NPC 시즌당 이동 ${(rate * 100).toFixed(1)}% (목표 5~15%) · 충성도 40 미만 ${(sum('lowMoved') / sum('lowLoy') * 100).toFixed(1)}% · 계약 만료 ${(sum('expMoved') / sum('exp') * 100).toFixed(1)}%`);
+  console.log(`  내 선수: 비시즌 제안 평균 ${avg(runs.map((r) => r.offers)).toFixed(1)}개 · 커리어 이적 ${avg(runs.map((r) => r.moves)).toFixed(2)}회 · 한 팀 10시즌 배지 ${(runs.filter((r) => r.oneClub).length / runs.length * 100).toFixed(0)}%`);
+  // 다른 정책 비교 (레전더리·일반 최적 배분 각 12 시드): 커리어 이적 횟수, 30세 OVR·위상
+  const other = POLICY === 'stay' ? 'best' : 'stay';
+  for (const pol of [POLICY, other] as const) {
+    for (const tier of ['normal', 'legendary'] as Tier[]) {
+      const rs = Array.from({ length: 12 }, (_, i) => {
+        const position = PLAYABLE_POSITIONS[i % PLAYABLE_POSITIONS.length]!;
+        const state = newGame({ mode: 'prospect', position, seed: `balance-${tier}-${i}`, difficulty: 'normal' });
+        state.player.potentialTier = tier;
+        return runCareer(state, 'best', i, pol);
+      });
+      console.log(`  정책 ${pol} ${TIER_NAMES_KO[tier]} 최적 12시드: 커리어 이적 ${avg(rs.map((r) => r.moves)).toFixed(2)}회 · 30세 OVR ${avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1)} · 30세 위상 중앙값 ${median(rs.map((r) => r.repByAge[30] ?? 0)).toFixed(0)} · 한 팀 배지 ${rs.filter((r) => r.oneClub).length}/12`);
+    }
   }
 }
 

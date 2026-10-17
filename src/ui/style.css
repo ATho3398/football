@@ -605,3 +605,15 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .cal-item.cal-train .cal-tag { color: var(--on-brand); background: var(--brand); }
 .mlog-hl { margin: 4px 0 0; padding-left: 14px; color: var(--ink-muted); }
 .mlog-hl li { margin: 1px 0; }
+
+/* ── 이적·계약 (C.42): 제안 카드 = GameCard 톤 패널 + 바둑판 칸 ── */
+.tr-card { box-shadow: inset 0 0 0 1.5px var(--mine); }
+.tr-card .advice-eyebrow { color: var(--mine); }
+.tr-offer { display: flex; flex-direction: column; gap: 8px; }
+.tr-offer.is-loan { box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.tr-offer-head { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.tr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 1024px) { .tr-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tr-grid .ag-v { font-size: 17px; }
+.tr-news small { display: block; }
+.tr-news.is-mine { box-shadow: inset 3px 0 0 var(--mine); }

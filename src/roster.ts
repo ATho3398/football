@@ -280,6 +280,17 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
   return p;
 }
 
+/**
+ * 이적시장 빈자리 보충 가상 선수 (18.6, 부록 C.42). id 로 시드를 정해 세이브 재생성 때 같은 선수가 나온다.
+ * 리그 밖 클럽에서 데려온 선수로 보여 준다
+ */
+export function makeFiller(id: string, teamId: string, position: Position, ovr: number, age: number, season: number, worldSeed: string): RosterPlayer {
+  const rng = rngFor(worldSeed, 'filler', id);
+  const p = makeVirtual({ id, teamId, position, age, ovr, season }, rng);
+  setPeak(p, rng);
+  return p;
+}
+
 function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
   return {
     id: n.id,

@@ -7,7 +7,7 @@ import {
 import type { DayVM, HomeVM, PositionOptionVM } from '../viewModels';
 import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = ''): string {
   const n = vm.next;
   // C.39: 머리말은 작게(날짜 한 줄), "다음 경기" 카드를 맨 위로. 남은 포인트는 머리말 칩으로도
   const hero = HeroPanel({
@@ -61,6 +61,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = ''): st
   return `
     ${hero}
     <div class="body">
+      ${top}
       ${next}
       ${banners(vm.banners)}
       ${startNotice(vm.version)}

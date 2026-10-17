@@ -919,6 +919,7 @@ function seasonRepLines(s: SeasonSummary): SeasonVM['repLines'] {
   if (s.rankPenalty) add(`순위 감점 (예상 ${s.rankPenalty.expected}위 → ${s.rankPenalty.pos}위)`, s.rankPenalty.points, s.rankPenalty.blocked);
   if (s.redPenalty) add(`레드카드 감점 (퇴장 ${s.redPenalty.reds}회)`, s.redPenalty.points, s.redPenalty.blocked);
   if (s.minutesPenalty) add(`출전 시간 부족 감점 (출전 ${Math.round(s.minutesPenalty.share * 100)}%)`, s.minutesPenalty.points, s.minutesPenalty.blocked);
+  if (s.benchPenalty) add(`벤치 장기화 감점 (${BALANCE.reputation.benchStreak.seasons}시즌 연속 출전 ${Math.round(BALANCE.reputation.benchStreak.maxShare * 100)}% 미만)`, s.benchPenalty.points, s.benchPenalty.blocked);
   return out;
 }
 
