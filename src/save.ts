@@ -270,6 +270,12 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 27 → 28 (C.48): 계약 바이아웃(없으면 계약 길이로 계산, myBuyout), 소속 구단이 거절한 제안(market.refused, 없으면 없음). 옮길 값 없음
   27: () => {},
+  // 28 → 29 (C.49, pending 80): 성장 포인트를 1~20 화면 칸 단위로. 남은 포인트 ÷ 5 올림(손해 없게), 레벨당 한 능력치 상한 기록(allocation) 없앰
+  28: (s) => {
+    const p = s.player;
+    p.unspentPoints = Math.ceil((p.unspentPoints ?? 0) / 5);
+    delete p.allocation;
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

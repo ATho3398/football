@@ -65,7 +65,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 28;
+export const SAVE_FORMAT_VERSION = 29;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -295,7 +295,6 @@ export function buyWeakFoot(state: GameState): boolean {
   if (p.body.weakFoot >= 5 || p.unspentPoints < cost) return false;
   p.unspentPoints -= cost;
   p.body = { ...p.body, weakFoot: clampWeakFoot(p.body.weakFoot + 1) };
-  if (p.unspentPoints === 0) p.allocation = { levels: 0, raised: {} };
   return true;
 }
 
@@ -380,7 +379,7 @@ export function newGame(opts: NewGameOptions): GameState {
 
   let player: PlayerState;
   const base = {
-    xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
+    xp: 0, totalXp: 0, level: 0, unspentPoints: 0,
     fatigue: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
   };
 

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { attrDisplay, attrTextToDisplay, displayDelta, displayProgress, nextDisplayAt } from '../src/attributes';
 import { derbyOf, rivalsOf } from '../src/derby';
 import { newGame, playOthers, endDay, isMatchDay, playRound } from '../src/game';
-import { displayRaisePlan, pointCost, costTier, raiseDisplayStep } from '../src/growth';
 import { FatigueGauge, staminaOf } from '../src/ui/components';
 import { autoSheetVM, homeVM } from '../src/ui/viewModels';
 import { dock } from '../src/ui/views/common';
@@ -27,25 +26,7 @@ describe('능력치 1~20 표시 (C.44)', () => {
     expect(attrTextToDisplay('크로스 장면(약한 발 방향), 크로스 75 + 볼 컨트롤 70')).toBe('크로스 장면(약한 발 방향), 크로스 15 + 볼 컨트롤 14');
     expect(attrTextToDisplay('GK가 골라인에서 6 m 이상 전진')).toBe('GK가 골라인에서 6 m 이상 전진');
   });
-
-  it('[+] 한 번 = 다음 칸까지 (비용 = 그 내부 칸 비용 합), 포인트·상한이 모자라면 갈 수 있는 데까지', () => {
-    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c44-alloc', difficulty: 'normal' });
-    const p = g.player;
-    p.attributes.shooting = 63;
-    p.unspentPoints = 20;
-    p.allocation = { levels: 4, raised: {} };
-    const plan = displayRaisePlan(p, 'shooting');
-    expect(plan.steps).toBe(5);
-    expect(plan.cost).toBe([63, 64, 65, 66, 67].reduce((t, v) => t + pointCost(v, costTier(p)), 0));
-    expect(plan.reach).toBe(5);
-    expect(raiseDisplayStep(p, 'shooting')).toBe(5);
-    expect(attrDisplay(p.attributes.shooting)).toBe(14);
-    // 레벨 1개분(내부 +3 상한)이면 3칸만
-    p.attributes.shortPassing = 63;
-    p.allocation = { levels: 1, raised: {} };
-    p.unspentPoints = 5;
-    expect(displayRaisePlan(p, 'shortPassing').reach).toBeLessThanOrEqual(3);
-  });
+  // [+] 한 칸 찍기는 C.49 에서 포인트 1개 = 화면 +1칸으로 바뀌었다 (tests/c49.test.ts)
 });
 
 describe('체력 표시 (C.44)', () => {

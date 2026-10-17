@@ -60,7 +60,7 @@ export function customBody(vm: CustomVM, diff: string, seed: string): string {
     <div class="opts">${vm.traits.filter((t) => t.kind === 'con').map(traitRow).join('')}</div>`;
   const attrs = `
     ${SectionTitle({ title: '능력치 배분', action: `테두리 = ${vm.position} 핵심` })}
-    <p class="small muted">모든 능력치 8(내부 40)에서 시작해요. 박스를 누르고 [+]로 한 칸씩 올려요. 칸당 2P(~11) · 3P(~13) · 4P(14~), 최대 15. 숨은 적성·잠재력은 시작해야 알 수 있어요.</p>
+    <p class="small muted">모든 능력치 8(내부 40)에서 시작해요. 박스를 누르고 [+]로 한 칸씩 올려요. 칸당 1P(~11) · 2P(~13) · 3P(14~), 최대 15. 숨은 적성·잠재력은 시작해야 알 수 있어요.</p>
     ${panel(attrGrid(vm.attrs, vm.sel, { sel: 'cu-sel', raise: 'cu-raise', lower: 'cu-lower' }))}
     <div class="btn-row even">${Button({ variant: 'ghost', block: true, icon: 'target', act: 'cu-auto', disabled: vm.left <= 0, children: '자동 배분 (OVR 우선)' })}${Button({ variant: 'ghost', block: true, icon: 'restore', act: 'cu', data: { k: 'reset' }, children: '초기화' })}</div>`;
   const st = vm.start;

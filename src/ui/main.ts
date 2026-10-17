@@ -30,7 +30,7 @@ import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
 import { MomentPitch, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
-import { autoAllocate, raiseAttribute, raiseDisplayStep } from '../growth';
+import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
 import {
@@ -102,7 +102,7 @@ const ui = {
   /** 방금 치른 내 경기 재생 (E5-lite). 세이브에 담지 않는다 */
   replay: null as ReplayPlayer | null,
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
-  alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; presses: { attr: FieldAttribute; n: number }[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
+  alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
   /** 덱 화면 카드 상세 시트 (C.39) */
   cardSheet: null as null | { id: string; from: 'deck' | 'pool' },
   worldTab: 'table' as 'table' | 'stars' | 'scorers' | 'transfers',
@@ -562,7 +562,7 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   go(ui.replay ? 'replay' : 'match');
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
-  else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 2200);
+  else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `포인트 ${g.player.unspentPoints}P · 1P = 능력치 한 칸(높은 칸은 2~3P)` }, 2200);
 }
 
 /** 1군 테스트 진행 띠 (C.45 10번) — 디자인 없는 새 패널 */
@@ -595,7 +595,7 @@ function readFormInputs(): void {
 
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
 function enterAllocate(g: GameState, back: Screen): void {
-  ui.alloc = { snap: structuredClone(g.player), raises: [], presses: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
+  ui.alloc = { snap: structuredClone(g.player), raises: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
 }
 
 /** 기억한 상태로 되돌리고 남은 배분을 다시 적용 */
@@ -1881,13 +1881,9 @@ app.addEventListener('click', (ev) => {
     case 'raise': {
       if (!g || !ui.alloc) return;
       const before = g.player.coachWarned;
-      // 1~20 표시 한 칸 (C.44): 다음 칸까지 갈 수 있는 데까지 내부 칸을 한 번에. [−]는 이 누름 단위로 되돌린다
+      // 찍기 한 번 = 화면 +1칸 (C.49). [−]는 한 칸씩 되돌린다
       const attr = el.dataset.attr as FieldAttribute;
-      const n = raiseDisplayStep(g.player, attr);
-      if (n > 0) {
-        for (let k = 0; k < n; k++) ui.alloc.raises.push(attr);
-        ui.alloc.presses.push({ attr, n });
-      }
+      if (raiseAttribute(g.player, attr)) ui.alloc.raises.push(attr);
       if (!before && g.player.coachWarned) ui.alloc.coach = true;
       render();
       return;
@@ -1895,13 +1891,8 @@ app.addEventListener('click', (ev) => {
     case 'lower': {
       if (!g || !ui.alloc) return;
       const attr = el.dataset.attr as FieldAttribute;
-      const pi = ui.alloc.presses.map((x) => x.attr).lastIndexOf(attr);
-      const n = pi >= 0 ? ui.alloc.presses.splice(pi, 1)[0]!.n : 1;
-      for (let k = 0; k < n; k++) {
-        const i = ui.alloc.raises.lastIndexOf(attr);
-        if (i < 0) break;
-        ui.alloc.raises.splice(i, 1);
-      }
+      const i = ui.alloc.raises.lastIndexOf(attr);
+      if (i >= 0) ui.alloc.raises.splice(i, 1);
       replayAlloc(g);
       render();
       return;
@@ -1909,7 +1900,6 @@ app.addEventListener('click', (ev) => {
     case 'alloc-reset':
       if (!g || !ui.alloc) return;
       ui.alloc.raises = [];
-      ui.alloc.presses = [];
       replayAlloc(g);
       render();
       return;
@@ -1922,12 +1912,7 @@ app.addEventListener('click', (ev) => {
     }
     case 'auto-alloc': {
       if (!g || !ui.alloc) return;
-      const before = { ...g.player.attributes };
-      autoAllocate(g.player);
-      for (const [a, val] of Object.entries(g.player.attributes) as [FieldAttribute, number][]) {
-        for (let k = before[a]; k < val; k++) ui.alloc.raises.push(a);
-        if (val > before[a]) ui.alloc.presses.push({ attr: a, n: val - before[a] });
-      }
+      ui.alloc.raises.push(...autoAllocate(g.player));
       render();
       return;
     }
@@ -1942,7 +1927,6 @@ app.addEventListener('click', (ev) => {
       if (!g) return;
       if (ui.alloc) {
         ui.alloc.raises = [];
-        ui.alloc.presses = [];
         replayAlloc(g);
       }
       go(ui.alloc?.back ?? 'home');

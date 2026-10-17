@@ -6,7 +6,7 @@ import { BALANCE } from './config/balance';
 import { addDays, weekday, type IsoDate } from './calendar';
 import { attributeOvrWeight, type FieldPosition } from './positions';
 import type { PlayerState } from './types';
-import { costTier, pointCost } from './growth';
+import { costTier, internalCost } from './growth';
 
 const T = BALANCE.training;
 
@@ -158,12 +158,12 @@ export function lowestInBundle(p: Pick<PlayerState, 'attributes' | 'position'>, 
 }
 
 /**
- * 게이지 칸 수: gauge.full(40, C.44) × 그 묶음 가장 낮은 능력치를 포인트로 올릴 때 비용 (6.2, C.41). 낮은 능력치(비용 1)는 40, 고값은 비용만큼 길어진다
+ * 게이지 칸 수: gauge.full(40, C.44) × 그 묶음 가장 낮은 능력치의 내부 +1 비용 배수 (6.2, C.41, C.49부터 포인트와 별개). 낮은 능력치(비용 1)는 40, 고값은 비용만큼 길어진다
  * (포인트 비용을 건너뛰는 공짜 고값 상승을 막는다)
  */
 export function gaugeNeed(p: Pick<PlayerState, 'attributes' | 'position'>, g: AttributeGroup): number {
   const a = lowestInBundle(p, g);
-  return T.gauge.full * pointCost(p.attributes[a], costTier(p));
+  return T.gauge.full * internalCost(p.attributes[a], costTier(p));
 }
 
 /** 기술 훈련 하루: 게이지 + (1 × 고령 감쇠), 차면 가장 낮은 능력치 +1 (상한 안에서). 오른 능력치를 돌려준다 */

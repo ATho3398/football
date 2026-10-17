@@ -19,7 +19,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
       ...(n && vm.day
         ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }]
         : [{ label: '시즌 종료', soft: true }]),
-      ...(vm.points > 0 ? [`포인트 ${vm.points}`] : []),
+      ...(vm.points > 0 ? [`찍을 포인트 ${vm.points}P`] : []),
     ],
   });
 

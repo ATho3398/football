@@ -29,7 +29,7 @@ describe('실제 선수 정점 목표 (부록 D.7 #1)', () => {
   it('정점 목표 - softBelow 를 넘으면 필요 XP 가 더 늘어난다', () => {
     const base: PlayerState = {
       name: 't', position: 'ST', age: 25, teamId: 'x', attributes: flat(75), potentialTier: 'normal',
-      xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
+      xp: 0, totalXp: 0, level: 0, unspentPoints: 0,
       fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
     proficiency: initialProficiency('ST'), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, tags: [],
     };

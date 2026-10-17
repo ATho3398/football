@@ -148,8 +148,6 @@ export interface PlayerState {
   totalXp: number;
   level: number;
   unspentPoints: number;
-  /** 포인트 찍기 제한 추적: 미사용 포인트가 0이 되면 초기화 */
-  allocation: { levels: number; raised: Partial<Record<FieldAttribute, number>> };
   fatigue: number;
   reputation: number;
   /** 현재 부상. 없으면 null */

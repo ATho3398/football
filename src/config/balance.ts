@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 35;
+export const BALANCE_VERSION = 36;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -16,12 +16,14 @@ export const BALANCE = {
     xpPerLevel: 200,
     /** OVR 연동 XP 요구량 (5.1, 부록 D.6 #2): 필요 XP = xpPerLevel × (1 + max(0, OVR - fromOvr) × perOvr) */
     xpByOvr: { fromOvr: 80, perOvr: 0.06 }, // 기획서 0.04, 부록 C.6
-    pointsPerLevel: 5,
-    /** 한 번의 레벨업에서 한 능력치에 올릴 수 있는 최대치 */
-    maxRaisePerLevel: 3,
+    /** 레벨업 포인트 (C.49 pending 80: 5 → 1). 포인트 1개 = 찍기 한 번 = 1~20 화면 +1칸 = 내부 +pointStep */
+    pointsPerLevel: 1,
+    pointStep: 5,
     maxAttribute: 99,
     /**
-     * 포인트 비용 구간: 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3.
+     * 비용 구간 (내부 값): 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3.
+     * 포인트 찍기(C.49)는 화면 값 기준: 지금 칸(1~20)이 화면(cost1Max) 이하면 1P, 화면(cost2Max) 이하면 2P, 그 위는 3P (고값 추가 비용 없음).
+     * 훈련 게이지는 내부 값 기준 그대로 (BALANCE.training.gauge.highValueCost 포함).
      * 내 선수는 현재 실력 티어(skillTierCuts, OVR)의 구간을 쓴다 (6.2 성장 해금, 부록 C.23: 위상과 분리)
      */
     costBands: {
@@ -31,12 +33,6 @@ export const BALANCE = {
       worldClass: { cost1Max: 78, cost2Max: 91 },
       legendary: { cost1Max: 80, cost2Max: 92 },
     } satisfies Record<Tier, { cost1Max: number; cost2Max: number }>,
-    /** 고값 추가 비용 (6.2, 부록 D.6 #1, 위상 무관): [현재 값이 이 값 이상, 비용]. 실제 비용 = max(구간 비용, 고값 비용) */
-    highValueCost: [
-      [93, 4],
-      [96, 6],
-      [98, 9],
-    ] as [number, number][],
     /**
      * 시즌 종료 자동 성장 (17~21세): 전 능력치 +min~max.
      * 기획서 기본은 전 티어 +0~2. 잠재력 티어 차이가 30세 OVR 에 드러나도록 티어별로 나눴다.
@@ -403,7 +399,15 @@ export const BALANCE = {
      * 기술 훈련 게이지: 하루 +per (× 고령 감쇠), full × 그 능력치 포인트 비용(6.2)이 차면 그 묶음에서 가장 낮은 능력치 +1.
      * 묶음당 시즌 bundleSeasonMax, 전체 시즌 seasonMax. C.41 측정: 비용·감쇠 없이 30 이면 고값 능력치가 공짜로 올라 99 능력치·노화 가드가 깨진다
      */
-    gauge: { per: 1, full: 40, bundleSeasonMax: 2, seasonMax: 6 },
+    gauge: {
+      per: 1, full: 40, bundleSeasonMax: 2, seasonMax: 6,
+      /** 고값 게이지 배수 (6.2·D.6 #1 의 고값 비용, C.49부터 훈련 게이지에만): [현재 값이 이 값 이상, 배수]. 배수 = max(구간 비용, 이 값) */
+      highValueCost: [
+        [93, 4],
+        [96, 6],
+        [98, 9],
+      ] as [number, number][],
+    },
     /** 고강도 훈련 부상: 하루 chance (× 난이도 부상 배율), 경상 days 일 */
     intenseInjury: { chance: 0.003, days: [3, 10] as [number, number] },
     /** 포지션·역할 훈련: 전술 "내 위치" 숙련도 + (× 적응기·적성 배수), 역할 시그니처 해금 진행 + 경기 */
@@ -781,7 +785,7 @@ export const BALANCE = {
 
   // ── 약발 강화 (pending 47 1, C.45): 포인트로 +1 (내부 포인트 cost), 하루 훈련 "약발 훈련" 게이지 (시즌 최대 +1) ──
   weakFoot: {
-    pointCost: 50,
+    pointCost: 10, // C.49: 50 → 10 (포인트 ÷ 5)
     /** 약발 훈련 하루 게이지 +1, 다 차면 약발 +1 (시즌 최대 seasonMax) */
     trainingGauge: 30,
     seasonMax: 1,
@@ -796,8 +800,9 @@ export const BALANCE = {
      * C.45 1차(장단점 20종)의 영구 값과 비슷하게 기준값을 잡았다
      */
     cost: {
-      glass: 14, ironMan: 14, troublemaker: 7, rollercoaster: 10, consistent: 10, slowRecovery: 10, resilient: 10, professional: 16,
-      managerSensitive: 4, poorNegotiator: 4, homesick: 4, mediaShy: 4, weakFootOne: 10, starQuality: 7, linguist: 4, leader: 4, twoFooted: 13,
+      // C.49: 커스텀 칸 비용 2/3/4 → 1/2/3 에 맞춰 C.45 값 × 약 0.58 (같은 시작 OVR 이 되는 배분 포인트 비율)
+      glass: 8, ironMan: 8, troublemaker: 4, rollercoaster: 6, consistent: 6, slowRecovery: 6, resilient: 6, professional: 9,
+      managerSensitive: 2, poorNegotiator: 2, homesick: 2, mediaShy: 2, weakFootOne: 6, starQuality: 4, linguist: 2, leader: 2, twoFooted: 8,
     } as Record<string, number>,
     permMul: 1.5,
     removableMul: 0.6,
@@ -913,25 +918,26 @@ export const BALANCE = {
   // ── 커스텀 생성 (pending 47 2·49 1, C.45): 모든 능력치 base 에서 시작, 배분 포인트를 나눈다. 한 칸(1~20 표시 1칸 = 내부 5)씩, 비용은 칸당 (구간별) ──
   custom: {
     base: 40,
-    points: 100,
+    /** C.49: 칸 비용 2/3/4 → 1/2/3, 같은 시작 OVR 이 되게 100 → 58 (자동 배분 평균 57.4) */
+    points: 58,
     /** 칸(내부 5) 비용: [지금 내부 값이 이 값 미만이면, 비용] */
     step: 5,
-    costBands: [[55, 2], [65, 3], [100, 4]] as [number, number][],
+    costBands: [[55, 1], [65, 2], [100, 3]] as [number, number][],
     /** 능력치 상한 (키 상한은 BALANCE.body.custom) */
     cap: 75,
-    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +). C.45 측정(일반 잠재력 30세 OVR 이 나이와 상관없이 74~75): 21/살, 어리면 −3/살 */
+    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +). C.45 측정(일반 잠재력 30세 OVR 이 나이와 상관없이 74~75): 21/살, 어리면 −3/살 → C.49 13/살, −2/살 (나이별 시작 OVR 동일) */
     minAge: 15,
     maxAge: 23,
     refAge: 17,
-    pointsPerYear: 21,
+    pointsPerYear: 13,
     /** 17세보다 어리면 1살당 (− 포인트) */
-    pointsPerYearYounger: 3,
+    pointsPerYearYounger: 2,
     heightMin: 165,
     heightMax: 200,
     bmiMin: 19.5,
     bmiMax: 27,
     /** 약발 선택 포인트 (3 기준, 높으면 −, 낮으면 +). 커스텀에서는 양발잡이·약발 1 장단점 대신 이 값으로 고른다 */
-    weakFootPoints: [10, 5, 0, -12, -25] as readonly number[],
+    weakFootPoints: [6, 3, 0, -7, -15] as readonly number[], // C.49: × 0.58
   },
 
   // ── 시작 소속·1군 테스트·재계약 판정 (pending 61·62, C.45 10·12번). 유스 시스템은 없고 유스는 서사 ──

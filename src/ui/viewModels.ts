@@ -5,7 +5,7 @@ import { prospectExtras } from '../game';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
-import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
+import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
@@ -26,8 +26,7 @@ import {
   type PlayablePosition,
 } from '../positions';
 import {
-  displayRaisePlan,
-  costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
+  costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
 import {
@@ -637,7 +636,8 @@ export interface AllocRowVM { attr: FieldAttribute; label: string; value: number
 
 export interface AllocateVM {
   points: number; position: string; startOvr: number; startExact: number; ovr: number; exact: number;
-  cap: number; levels: number; tierName: string; cost1Max: number; cost2Max: number; coachComment: boolean;
+  /** 지금 레벨, 비용 구간 경계(화면 1~20 값) */
+  level: number; tierName: string; cost1Max: number; cost2Max: number; coachComment: boolean;
   groups: { name: string; rows: AllocRowVM[] }[];
   /** 능력치 바둑판 (C.39): 이번 배분 변화, 누르면 [−]/[+] */
   attrs: AttrGroupVM[];
@@ -652,35 +652,32 @@ export function allocateVM(g: GameState, startExact: number, coachComment: boole
     attrs: [],
     points: p.unspentPoints, position: p.position, startOvr: Math.round(startExact), startExact,
     ovr: playerOvr(p), exact: positionOvrExact(p.attributes, p.position),
-    cap: p.allocation.levels * BALANCE.growth.maxRaisePerLevel, levels: p.allocation.levels,
-    tierName: TIER_NAMES_KO[tier], cost1Max: band.cost1Max, cost2Max: band.cost2Max, coachComment,
+    level: p.level, tierName: TIER_NAMES_KO[tier], cost1Max: attrDisplay(band.cost1Max), cost2Max: attrDisplay(band.cost2Max), coachComment,
     groups: GROUP_NAMES.map((grp) => ({
       name: GROUP_NAMES_KO[grp],
       rows: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => {
         const v = p.attributes[a];
-        const maxed = v >= BALANCE.growth.maxAttribute;
+        const maxed = isMaxed(v);
         const w = attributeOvrWeight(p.position, a);
+        const gain = Math.min(BALANCE.growth.maxAttribute, v + BALANCE.growth.pointStep) - v;
         return {
-          attr: a, label: ATTRIBUTE_NAMES_KO[a], value: v, raised: p.allocation.raised[a] ?? 0,
-          cost: maxed ? null : pointCost(v, tier), ovrDelta: w > 0 ? Math.round(w * 100) / 100 : null,
+          attr: a, label: ATTRIBUTE_NAMES_KO[a], value: v, raised: raises.filter((x) => x === a).length,
+          cost: maxed ? null : pointCost(v, tier), ovrDelta: w > 0 && !maxed ? Math.round(w * gain * 10) / 10 : null,
           maxed, blocked: raiseBlock(p, a) !== null, key: keys.includes(a),
         };
       }),
     })),
   };
+  // 찍기 한 번 = 화면 +1칸 (C.49): 비용 1·2·3P, 모자라면 "부족"
   vm.attrs = vm.groups.map((grp) => ({
     name: grp.name,
-    cells: grp.rows.map((r) => {
-      // 1~20 표시 한 칸 (C.44): 다음 칸까지 비용 합, 지금 갈 수 있는 내부 칸 수
-      const plan = displayRaisePlan(p, r.attr);
-      return {
-        attr: r.attr, label: r.label, value: r.value, ...(snap ? { base: snap[r.attr] } : {}), key: r.key,
-        edit: {
-          cost: r.maxed ? null : plan.cost, steps: plan.steps, reach: plan.reach,
-          ovrDelta: r.ovrDelta ? Math.round(r.ovrDelta * plan.steps * 10) / 10 : null, maxed: r.maxed, blocked: plan.reach < plan.steps, canLower: raises.includes(r.attr),
-        },
-      };
-    }),
+    cells: grp.rows.map((r) => ({
+      attr: r.attr, label: r.label, value: r.value, ...(snap ? { base: snap[r.attr] } : {}), key: r.key,
+      edit: {
+        cost: r.cost, steps: 1, reach: r.blocked ? 0 : 1,
+        ovrDelta: r.ovrDelta, maxed: r.maxed, blocked: r.blocked, short: r.blocked && !r.maxed, canLower: r.raised > 0,
+      },
+    })),
   }));
   return vm;
 }
@@ -836,7 +833,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   const slump = slumpBanner(g);
   if (slump) banners.push(slump);
   if (m.levelsGained > 0) {
-    banners.push({ tone: 'success', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel}개 · 지금 OVR ${playerOvr(g.player)}` });
+    banners.push({ tone: 'success', title: `레벨 업! Lv.${g.player.level}`, body: `포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel} (찍기 ${g.player.unspentPoints}번 가능) · 지금 OVR ${playerOvr(g.player)}` });
   }
   const me = r?.players.find((p) => p.isMe)?.id;
   const highlights = r

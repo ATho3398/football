@@ -135,18 +135,18 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM): string {
 
 export function allocateView(vm: AllocateVM, sel: string | null, pending: number): string {
   const hero = HeroPanel({
-    title: '능력치 포인트', right: `Lv ${vm.levels}`, back: { act: 'alloc-cancel' }, eyebrow: '남은 포인트', value: vm.points, progress: false,
+    title: '능력치 포인트', right: `Lv ${vm.level}`, back: { act: 'alloc-cancel' }, eyebrow: '남은 포인트', value: vm.points, progress: false,
     chips: [`보유 ${vm.points + pending}P`, { label: `이번 배분 ${pending}P`, soft: true }],
   });
   const ovr = `<div class="panel ovr-cmp"><div><small>지금 OVR</small><b class="po-num">${vm.startOvr}</b><span>${esc(vm.position)} 기준 계산</span></div>${Icon({ name: 'chevron-right', size: 22 })}<div class="r"><small>확정하면</small><b class="po-num hi">${vm.ovr}</b><span>${vm.startExact.toFixed(1)} → ${vm.exact.toFixed(1)}</span></div></div>`;
   const coach = vm.coachComment
     ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 실력이 한 단계 더 올라서면 다시 길이 열릴 거야."</b></div></div>`
     : '';
-  // 1~20 표시 (C.44): 한 칸 = 내부 5. 비용은 내부 칸 비용(1·2·3P)의 합이라 한 칸에 대략 5·10·15P
-  const bands = `<div class="bands"><span>~${attrDisplay(vm.cost1Max)} <b>칸당 약 5P</b></span><span class="warn">${attrDisplay(vm.cost1Max) + 1}~${attrDisplay(vm.cost2Max)} <b>약 10P</b></span><span class="fail">${attrDisplay(vm.cost2Max) + 1}~ <b>약 15P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 레벨당 한 능력치 내부 +${BALANCE.growth.maxRaisePerLevel}까지(한 칸 = 내부 5), 이번 최대 내부 +${vm.cap}</span></div>`;
+  // 찍기 한 번 = 화면 +1칸 (C.49): 비용은 지금 칸 기준 1·2·3P
+  const bands = `<div class="bands"><span>~${vm.cost1Max} <b>1칸 1P</b></span><span class="warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>1칸 2P</b></span><span class="fail">${vm.cost2Max + 1}~ <b>1칸 3P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 레벨업마다 ${BALANCE.growth.pointsPerLevel}P</span></div>`;
   // 바둑판 (C.39): 박스를 누르면 [−]/[+]와 비용. 분류 아코디언 없이 작은 머리말만
   return `${hero}<div class="body">${ovr}${coach}${bands}
-    <p class="small muted">능력치는 1~20으로 보여요. 박스를 누르면 [+]/[−]가 나와요. [+] 한 번 = 다음 칸까지(비용은 그 칸의 합). 포인트·상한이 모자라면 갈 수 있는 데까지 올라 막대가 채워져요. 테두리 = ${esc(vm.position)} 핵심 능력치.</p>
+    <p class="small muted">능력치는 1~20으로 보여요. 박스를 누르면 [+]/[−]가 나와요. [+] 한 번 = 한 칸(+1), [−]는 한 칸씩 되돌려요. 막대(칸 안 진행)는 그대로 따라가요. 테두리 = ${esc(vm.position)} 핵심 능력치.</p>
     ${panel(attrGrid(vm.attrs, sel))}
     ${Button({ variant: 'ghost', block: true, icon: 'target', act: 'auto-alloc', disabled: vm.points === 0, children: '자동 배분 (포지션 OVR 우선)' })}</div>
     <div class="dock">${actionRow(
