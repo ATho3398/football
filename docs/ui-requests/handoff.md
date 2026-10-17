@@ -1,7 +1,7 @@
 # UI 세션 인수인계 (`docs/automation.md` 6번)
 
 - **지금 UI 세션: UI_2** `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, `get_session` 확인, 연 세션 = **마스터 M** `session_01BTacbWbkVFVE6HVKwxLx3v`). 2026-10-18 00:30 KST UI_1 → UI_2 인수.
-  - 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
+- **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
 - **지금 마스터: M** `session_01BTacbWbkVFVE6HVKwxLx3v` (브랜치 `claude/planning-m`). 알림·보고는 M으로(send_message). 카톡·ntfy 알림은 M 몫.
 - 5차: 디자인 도착(player-one-design 123장, 컴포넌트 45종) → `5-apply.md` → M이 U5-a~g 패치로 적용. **5차 끝.**
 - 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 M에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
