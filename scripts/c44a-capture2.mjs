@@ -30,7 +30,9 @@ await act('form', '[data-k="realId"][data-v="son"]');
 await page.fill('#f-seed', 'c44a-check');
 await act('start');
 await dismiss();
+await act('go', '[data-to="settings"]');
 await act('opt-quick', '[data-v="quick"]');
+await act('go-tab', '[data-v="home"]');
 for (let k = 0; k < 20 && !(await has('[data-act="play"]')); k++) { await act('day-continue'); await page.waitForTimeout(400); }
 await act('play');
 for (let k = 0; k < 40 && !(await has('#mo-canvas')); k++) await page.waitForTimeout(500);

@@ -42,8 +42,11 @@ await act('form', '[data-k="realId"][data-v="son"]');
 await page.fill('#f-seed', 'c44a-check');
 await act('start');
 await dismiss();
+// 빠른 다른 경기·자동 결정 (C.44부터 설정 화면에만)
+await act('go', '[data-to="settings"]');
 await act('opt-quick', '[data-v="quick"]');
 await act('ctl-mode', '[data-v="auto"]');
+await act('go-tab', '[data-v="home"]');
 
 if (NICK) {
   // 선수 화면: 내 선수 별명
