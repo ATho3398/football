@@ -12,7 +12,7 @@ export const TAG_IDS = [
   // 장점 (생성·둘 다)
   'ironMan', 'consistent', 'resilient', 'professional', 'starQuality', 'linguist', 'leader', 'twoFooted',
   // 플레이 전용
-  'evergreen', 'bigGame', 'academy', 'oneClubMan', 'eternal', 'homeChoice', 'loyalReturn', 'releasedPain',
+  'evergreen', 'lateBloomer', 'bigGame', 'academy', 'oneClubMan', 'eternal', 'homeChoice', 'loyalReturn', 'releasedPain',
 ] as const;
 export type TagId = (typeof TAG_IDS)[number];
 
@@ -48,7 +48,8 @@ export const TAGS: Readonly<Record<TagId, TagDef>> = {
   linguist: { id: 'linguist', kind: 'pro', ko: '언어 천재', desc: '해외 적응 기간 ×0.5', source: 'create', hook: '5-2 생활·6단계 해외 이적', excludes: ['homesick'] },
   leader: { id: 'leader', kind: 'pro', ko: '리더', desc: '팀 불화 이벤트 ↓', source: 'create', hook: '5-2 이벤트' },
   twoFooted: { id: 'twoFooted', kind: 'pro', ko: '양발잡이', desc: '약발 4로 시작', source: 'create', excludes: ['weakFootOne'] },
-  evergreen: { id: 'evergreen', kind: 'pro', ko: '노익장', desc: '노화 하락 소폭 완화', source: 'play', hook: '34c 판정·효과' },
+  evergreen: { id: 'evergreen', kind: 'pro', ko: '노익장', desc: '30세 이후에만 붙음 · 노화 하락 소폭 완화', source: 'play', hook: '34c 판정·효과' },
+  lateBloomer: { id: 'lateBloomer', kind: 'pro', ko: '늦게 핀 꽃', desc: '한 포지션에서 여러 해 뛴 뒤 포지션을 바꾸고 더 잘된 선수', source: 'play', hook: '34c 판정·효과' },
   bigGame: { id: 'bigGame', kind: 'pro', ko: '빅매치 체질', desc: '더비·큰 경기 폼 +0.1', source: 'play', hook: '34c 판정' },
   academy: { id: 'academy', kind: 'story', ko: '유스 출신', desc: '유스 구단과 첫 계약', source: 'play' },
   oneClubMan: { id: 'oneClubMan', kind: 'story', ko: '원클럽맨', desc: `첫 성인 구단에서 재계약 ${BALANCE.tags.oneClub.renewals}번 또는 ${BALANCE.tags.oneClub.seasons}시즌 (이적하면 떨어짐)`, source: 'play' },

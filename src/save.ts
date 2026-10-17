@@ -242,7 +242,7 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.pixelOverrides = { players: {}, kits: {} };
   },
   // 24 → 25 (C.45 2차, pending 66): 장단점(traits)과 스토리 태그를 하나의 태그(tags)로. 이름 바뀜(다혈질 → 문제아, 기복 → 롤러코스터,
-  // 스타 플레이어 → 스타 기질), 늦은 개화는 노익장(플레이 전용)에 합쳐져 빠진다. 1차에서 고른 장단점은 영구. 원클럽맨 판정 기록
+  // 스타 플레이어 → 스타 기질), 늦은 개화는 플레이 전용 "늦게 핀 꽃"(34c)이 되어 생성 선택분은 빠진다. 1차에서 고른 장단점은 영구. 원클럽맨 판정 기록
   24: (s) => {
     const p = s.player;
     const RENAME: Record<string, string> = { hotHead: 'troublemaker', inconsistent: 'rollercoaster', star: 'starQuality' };
