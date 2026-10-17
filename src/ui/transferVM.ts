@@ -4,7 +4,7 @@ import { myFace } from './viewModels';
 import type { GameState } from '../game';
 import { proficientOvr } from '../proficiency';
 import {
-  annualLabel, clubNameKo, isOutside, latestWindow, marketPending, myValue, ratingOf, releaseChance, requestEligibility, startLabel, teamRank, wageLabel, WHY_KO,
+  annualLabel, clubNameKo, isOutside, latestWindow, marketPending, myBuyout, myValue, offerTier, ratingOf, releaseChance, requestEligibility, startLabel, teamRank, wageLabel, WHY_KO,
 } from '../transfer';
 import { tierLabel, valueLabel } from '../finance';
 import { seasonLabel } from './viewModels';
@@ -17,13 +17,19 @@ export interface OfferVM {
   lastFree?: boolean;
   /** 구단 재정 등급 (C.46) */
   tier: string;
+  /** 제안 이적료 (C.48, 계약 중일 때만) */
+  fee?: string;
 }
 
 export interface MarketVM {
   team: string; rating: number; ovr: number;
   /** 내 팀 재정 등급, 내 몸값 (C.46) */
   tier: string; value: string;
-  contract: { team: string; until: string; yearsLeft: number; wage: string; annual: string; loan: string | null };
+  contract: { team: string; until: string; yearsLeft: number; wage: string; annual: string; loan: string | null; buyout: string };
+  /** 소속 구단이 거절한 제안 뉴스 (C.48) */
+  refused: string[];
+  /** 남은 계약에 따른 이번 창 제안 단계 안내 (C.48) */
+  tierNote: string;
   offers: OfferVM[] | null; window: string; pending: boolean;
   renewal: { years: number[]; wage: string; annual: string } | null;
   request: { ok: boolean; reason: string; chance: number | null; status: string | null };
@@ -32,6 +38,18 @@ export interface MarketVM {
   /** 자유계약 신분 (C.45): 하나는 골라야 한다 */
   free: boolean;
 }
+
+const TIER_NOTE = {
+  last: '계약 마지막 해·만료·이적 명단이라 제안이 많이 와요 (3~5개)',
+  one: '계약이 1년 더 남아 제안이 조금 와요 (1~3개)',
+  more: '계약이 2년 이상 남아 더 강한 구단만 가끔 제안해요 (0~2개)',
+} as const;
+
+/** 받침 있으면 "이", 없으면 "가" (한글 끝 글자 기준, 그 외 "이") */
+const iga = (w: string): string => {
+  const c = w.charCodeAt(w.length - 1);
+  return c >= 0xac00 && c <= 0xd7a3 ? ((c - 0xac00) % 28 ? '이' : '가') : '이';
+};
 
 export function marketVM(g: GameState): MarketVM {
   const m = g.market;
@@ -48,13 +66,19 @@ export function marketVM(g: GameState): MarketVM {
       team: clubNameKo(g.league, c.teamId), until: `${seasonLabel(c.until)} 시즌까지`, yearsLeft: Math.max(0, c.until - nextSeason + 1),
       wage: wageLabel(c.wage), annual: annualLabel(c.wage),
       loan: c.loan ? `${clubNameKo(g.league, p.teamId)} 임대 중 · ${seasonLabel(c.loan.until)} 시즌 끝나면 복귀` : null,
+      buyout: valueLabel(myBuyout(g)),
     },
+    refused: (m.refused ?? []).map((r) => {
+      const mine = clubNameKo(g.league, p.teamId);
+      return `${mine}${iga(mine)} ${clubNameKo(g.league, r.teamId)}의 제안(이적료 ${valueLabel(r.fee)})을 거절했어요`;
+    }),
+    tierNote: TIER_NOTE[offerTier(g)],
     offers: m.offers?.map((o, i) => {
       const r = ratingOf(g, o.teamId);
       return {
         i, team: clubNameKo(g.league, o.teamId), teamId: o.teamId, rating: r, rank: teamRank(g, o.teamId), diff: Math.round((r - cur) * 10) / 10, loan: o.kind === 'loan',
         years: o.years, wage: wageLabel(o.wage), annual: annualLabel(o.wage), start: startLabel(o.start), startPct: Math.round(o.start * 100), tier: tierLabel(o.teamId),
-        ...(o.youth ? { youth: true } : {}),
+        ...(o.youth ? { youth: true } : {}), ...(o.fee ? { fee: valueLabel(o.fee) } : {}),
         ...(m.free && (m.offers?.length ?? 0) <= 1 ? { lastFree: true } : {}),
       };
     }) ?? null,

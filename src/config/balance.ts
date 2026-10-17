@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 34;
+export const BALANCE_VERSION = 35;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -545,7 +545,21 @@ export const BALANCE = {
      * 내 선수 (18.10): 비시즌 제안 3~5개 = 관심 상위. 관심 = −|유효 OVR − 팀 레이팅 − fitOffset| × fit + 필요도 × 5 + 위상 / repDiv + N(0, noiseSd).
      * 유효 OVR = OVR + (youthAge − 나이) × youthPerYear (어린 선수는 잠재력을 본다). 18.6 의 야망 항 (OVR − 팀 레이팅) × 3 을 팀 입장의 "수준 맞음"으로 뒤집었다
      */
-    offers: { min: 3, max: 5, fit: 1.5, fitOffset: 1, youthAge: 22, youthPerYear: 1.5, needWeight: 5, repDiv: 40, noiseSd: 4 },
+    offers: {
+      min: 3, max: 5, fit: 1.5, fitOffset: 1, youthAge: 22, youthPerYear: 1.5, needWeight: 5, repDiv: 40, noiseSd: 4,
+      /**
+       * 남은 계약별 제안 수 (C.48, pending 78): 만료·마지막 해(남은 0~1시즌) / 1년 더 남음(2시즌) / 2년 이상 더 남음(3시즌 이상).
+       * 2년 이상이면 지금 팀보다 전력이 높은 구단만 (감당 가능 판정 C.46 은 그대로). 이적 명단(요청 수락)이면 그 시즌 창은 last
+       */
+      byYears: { last: [3, 5], one: [1, 3], more: [0, 2] } as Record<'last' | 'one' | 'more', [number, number]>,
+      /**
+       * 소속 구단 수락 판정 (C.48): 이적료 = 몸값 × U(feeMin, feeMax) (남은 영입 예산까지), 수락 확률 = base + (이적료/몸값 − 1) × slope
+       * − (팀 OVR 상위 3이면 top3), [minP, 1]. 바이아웃 이상이면 거절 불가. 계약 만료(몸값 0)·이적 명단·임대는 판정 없음
+       */
+      club: { feeMin: 0.8, feeMax: 1.5, base: 0.55, slope: 1.2, top3: 0.3, minP: 0.05 },
+      /** 바이아웃 = 계약할 때 몸값(그 계약 연수 기준) × buyoutMul */
+      buyoutMul: 1.8,
+    },
     /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
     loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },
     /** 계약 기간: 나이별 [최소, 최대] (어릴수록 길게). 새 게임 가상 유망주는 newGameYears */

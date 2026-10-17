@@ -268,6 +268,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   26: (s) => {
     s.legends = false;
   },
+  // 27 → 28 (C.48): 계약 바이아웃(없으면 계약 길이로 계산, myBuyout), 소속 구단이 거절한 제안(market.refused, 없으면 없음). 옮길 값 없음
+  27: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

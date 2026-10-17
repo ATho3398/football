@@ -1263,6 +1263,11 @@ app.addEventListener('click', (ev) => {
       g.market.notice = null;
       render();
       return;
+    case 'market-refused-close':
+      if (!g) return;
+      g.market.refused = null;
+      render();
+      return;
     case 'tag-notice-close':
       if (!g) return;
       g.tagNotice = null;

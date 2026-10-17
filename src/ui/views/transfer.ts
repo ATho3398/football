@@ -20,13 +20,21 @@ export function marketCard(vm: MarketVM): string {
         Button({ size: 'sm', block: true, act: 'go', data: { to: 'contract' }, children: '재계약' }),
       )}
     </div>`);
-  } else if (vm.offers?.length) {
-    const best = [...vm.offers].sort((a, b) => b.rating - a.rating)[0]!;
-    out.push(`<div class="panel advice-card tr-card" role="status">
+  } else if (vm.offers?.length || vm.refused.length) {
+    const offers = vm.offers ?? [];
+    const best = [...offers].sort((a, b) => b.rating - a.rating)[0];
+    out.push(best
+      ? `<div class="panel advice-card tr-card" role="status">
       <div class="advice-head"><span class="advice-eyebrow">${esc(vm.window)} · 응답 필요</span></div>
-      <b class="advice-title">이적 제안 ${vm.offers.length}개가 왔어요</b>
+      <b class="advice-title">이적 제안 ${offers.length}개가 왔어요</b>
       <p class="small">가장 강한 팀 ${esc(best.team)} (전력 ${best.rating}). 수락하거나 거절해야 [계속]으로 넘어가요.</p>
+      ${refusedLines(vm)}
       ${Button({ size: 'sm', block: true, act: 'go', data: { to: 'offers' }, children: '제안 보기' })}
+    </div>`
+      : `<div class="panel advice-card advice-news" role="status">
+      <div class="advice-head"><span class="advice-eyebrow">${esc(vm.window)} · 이적 소식</span><button type="button" class="advice-x" data-act="market-refused-close" aria-label="닫기">×</button></div>
+      <b class="advice-title">구단이 이적 제안을 거절했어요</b>
+      ${refusedLines(vm)}
     </div>`);
   }
   if (vm.notice) {
@@ -39,11 +47,16 @@ export function marketCard(vm: MarketVM): string {
   return out.join('');
 }
 
+/** 소속 구단이 거절한 제안 뉴스 (C.48) */
+function refusedLines(vm: MarketVM): string {
+  return vm.refused.map((t) => `<p class="small tr-refused">📰 ${esc(t)}</p>`).join('');
+}
+
 function offerCard(o: OfferVM): string {
   const cells = [
     { k: '팀 전력', v: `${o.rating}`, s: `리그 ${o.rank}위 · ${signed(o.diff)}` },
     { k: '예상 출전', v: o.start, s: `선발 ${o.startPct}%` },
-    { k: o.loan ? '임대' : '계약', v: o.loan ? '1시즌' : `${o.years}년`, s: o.loan ? '끝나면 복귀' : '' },
+    { k: o.loan ? '임대' : '계약', v: o.loan ? '1시즌' : `${o.years}년`, s: o.loan ? '끝나면 복귀' : o.fee ? `이적료 ${o.fee}` : '자유계약' },
     { k: '주급', v: o.wage, s: `연 ${o.annual}` },
   ];
   return `<div class="panel tr-offer${o.loan ? ' is-loan' : ''}">
@@ -72,6 +85,8 @@ export function offersView(vm: MarketVM): string {
   return `${hero}<div class="body">
     ${renew}
     ${SectionTitle({ title: '받은 제안', action: '전력 · 예상 출전 · 계약 · 주급' })}
+    <p class="small muted">${esc(vm.tierNote)}</p>
+    ${vm.refused.length ? panel(`${refusedLines(vm)}<p class="small muted">구단이 거절한 제안은 고를 수 없어요. 바이아웃(${esc(vm.contract.buyout)}) 이상 제안은 구단이 거절하지 못해요.</p>`) : ''}
     ${list}
     <p class="small muted">연봉은 위상과 OVR로 계산해 보여 주기만 해요 (돈은 재정 단계에서). 제안은 내 몸값과 연봉을 감당할 수 있는 구단만 보내고, 연봉은 그 구단 연봉 여력 안이에요. 약팀(전력 3 이상 낮은 팀)으로 이적하면 위상이 조금 깎여요.</p>
     ${vm.free && vm.offers?.length ? '<p class="small"><b>자유계약 신분이에요.</b> 제안 하나를 골라야 시즌을 이어 갈 수 있어요.</p>' : ''}
@@ -108,7 +123,7 @@ export function contractSection(vm: MarketVM): string {
         <div class="ag-cell"><span class="ag-name">소속</span><b class="ag-v">${esc(c.team)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌</span></div>
         <div class="ag-cell"><span class="ag-name">주급</span><b class="ag-v po-num">${esc(c.wage)}</b><span class="ag-cost">연 ${esc(c.annual)}</span></div>
         <div class="ag-cell"><span class="ag-name">팀 전력</span><b class="ag-v po-num">${vm.rating}</b><span class="ag-cost">재정 ${esc(vm.tier)} · 내 OVR ${vm.ovr}</span></div>
-        <div class="ag-cell"><span class="ag-name">몸값</span><b class="ag-v po-num">${esc(vm.value)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌 기준</span></div>
+        <div class="ag-cell"><span class="ag-name">몸값</span><b class="ag-v po-num">${esc(vm.value)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌 기준 · 바이아웃 ${esc(c.buyout)}</span></div>
       </div>
       ${c.loan ? `<p class="small">${esc(c.loan)}</p>` : ''}
       ${req.status ? `<p class="small"><b>${esc(req.status)}</b></p>` : ''}

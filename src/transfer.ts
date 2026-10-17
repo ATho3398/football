@@ -381,6 +381,8 @@ export interface MyContract {
   wage: number;
   /** 임대 중이면 원 소속팀과 임대 마지막 시즌 */
   loan?: { parent: string; until: number } | null;
+  /** 바이아웃 (만 원, C.48): 이 금액 이상 제안은 구단이 거절할 수 없다. 없으면(옛 세이브) 계약 길이로 계산 (myBuyout) */
+  buyout?: number;
 }
 
 export type OfferKind = 'transfer' | 'loan';
@@ -397,13 +399,20 @@ export interface Offer {
   interest: number;
   /** 1군 테스트 합격 뒤 유스 구단(지금 팀) 계약 제안 (C.45) */
   youth?: boolean;
+  /** 제안 이적료 (만 원, C.48). 계약 만료(자유계약)·임대면 없음 */
+  fee?: number;
 }
+
+/** 소속 구단이 거절한 제안 (C.48): 고를 수 없고 뉴스 한 줄 */
+export interface RefusedOffer { teamId: string; fee: number }
 
 /** 내 선수 이적 시장 상태 (세이브에 담는다) */
 export interface MarketState {
   contract: MyContract;
   /** 응답이 필요한 제안 (없으면 null) */
   offers: Offer[] | null;
+  /** 이번 창에 소속 구단이 거절한 제안 (C.48, 뉴스 한 줄) */
+  refused?: RefusedOffer[] | null;
   /** 제안이 온 이적시장 */
   offerWindow?: Window;
   /** 계약 만료: 재계약 선택이 남았다 */
@@ -462,7 +471,22 @@ export function initialContract(state: Pick<GameState, 'worldSeed' | 'league' | 
   const season = state.league.season;
   const years = p.realPlayerId ? randInt(rngFor(state.worldSeed, 'my-contract'), ...contractYears(p.age)) : BALANCE.transfer.newGameYears;
   const rating = ratingOf(state as GameState, p.teamId);
-  return { teamId: p.teamId, from: season, until: season + years - 1, wage: wageFor(p.reputation, proficientOvr(p, p.position), rating, wageMul(p)), loan: null };
+  return { teamId: p.teamId, from: season, until: season + years - 1, wage: wageFor(p.reputation, proficientOvr(p, p.position), rating, wageMul(p)), loan: null, buyout: buyoutFor(p, years) };
+}
+
+/** 바이아웃 (C.48): 계약할 때 몸값(그 연수 기준) × buyoutMul */
+export function buyoutFor(p: GameState['player'], years: number): number {
+  const O = BALANCE.transfer.offers;
+  const ovr = proficientOvr(p, p.position);
+  const unit = BALANCE.finance.value.unit;
+  const v = marketValue({ ovr, age: p.age, peak: p.peakTarget ?? ovr + Math.max(0, O.youthAge - p.age) * O.youthPerYear, reputation: p.reputation, yearsLeft: years });
+  return Math.round((v * O.buyoutMul) / unit) * unit;
+}
+
+/** 지금 계약의 바이아웃 (옛 세이브는 계약 길이로 계산) */
+export function myBuyout(state: Pick<GameState, 'market' | 'player'>): number {
+  const c = state.market.contract;
+  return c.buyout ?? buyoutFor(state.player, c.until - c.from + 1);
 }
 
 export function initialMarket(state: Pick<GameState, 'worldSeed' | 'league' | 'player' | 'phase'>): MarketState {
@@ -554,11 +578,35 @@ export function affordableWage(state: GameState, teamId: string, wage: number, w
   return Math.max(50, Math.min(wage, Math.floor(room / 50) * 50));
 }
 
+/** 남은 계약에 따른 제안 단계 (C.48): 남은 0~1시즌(만료·마지막 해) last, 2시즌 one, 3시즌 이상 more. 이번 시즌 이적 명단(요청 수락)이면 last */
+export type OfferTier = 'last' | 'one' | 'more';
+export function offerTier(state: GameState): OfferTier {
+  const m = state.market;
+  if (m?.request?.season === state.league.season && m.request.accepted) return 'last';
+  const y = myYearsLeft(state);
+  return y <= 1 ? 'last' : y === 2 ? 'one' : 'more';
+}
+
+/** 내가 팀 OVR 상위 3 안인지 (로스터 NPC 와 비교, 구단 수락 판정) */
+export function myTop3(state: GameState): boolean {
+  const p = state.player;
+  const ovr = proficientOvr(p, p.position);
+  return (state.rosters[p.teamId]?.players ?? []).filter((x) => naturalOvr(x) > ovr).length < 3;
+}
+
+/** 소속 구단이 이적료 fee 제안을 받아들일 확률 (C.48). 바이아웃 이상이면 1 */
+export function clubAcceptChance(state: GameState, fee: number, value = myValue(state)): number {
+  const C = BALANCE.transfer.offers.club;
+  if (value <= 0 || fee >= myBuyout(state)) return 1;
+  return clamp(C.base + (fee / value - 1) * C.slope - (myTop3(state) ? C.top3 : 0), C.minP, 1);
+}
+
 /**
- * 제안 만들기 (18.10): 리그 팀(내 팀·원 소속팀 제외) 관심 상위 3~5개. 감당 가능한 팀만 (C.46).
+ * 제안 만들기 (18.10, C.48): 리그 팀(내 팀·원 소속팀 제외) 관심 상위 n개 — n 은 남은 계약별 (byYears), 2년 이상 남으면 지금 팀보다 강한 팀만.
+ * 감당 가능한 팀만 (C.46). 계약 중이면 이적료를 붙이고 소속 구단이 수락 판정 (거절된 제안은 refused).
  * 21세 이하이고 출전이 부족하면 임대 제안 1~2개 (내가 주전이 될 약팀)
  */
-export function makeOffers(state: GameState, w: Window, tag: string | number = state.league.season): Offer[] {
+export function makeOfferSet(state: GameState, w: Window, tag: string | number = state.league.season): { offers: Offer[]; refused: RefusedOffer[] } {
   const T = BALANCE.transfer;
   const O = T.offers;
   const p = state.player;
@@ -567,15 +615,34 @@ export function makeOffers(state: GameState, w: Window, tag: string | number = s
   const exclude = new Set([p.teamId, m?.contract.loan?.parent].filter(Boolean) as string[]);
   const ovr = proficientOvr(p, p.position);
   const value = myValue(state);
+  const tier = offerTier(state);
+  const cur = ratingOf(state, p.teamId);
   const pool = state.league.teams
     .filter((t) => !exclude.has(t.id))
     .map((t) => ({ t, interest: interestOf(state, t.id, rng), wage: affordableWage(state, t.id, wageFor(p.reputation, ovr, ratingOf(state, t.id), wageMul(p)), w, value) }))
     .sort((a, b) => b.interest - a.interest);
-  const n = randInt(rng, O.min, O.max);
+  const n = randInt(rng, ...O.byYears[tier]);
   const [ylo, yhi] = contractYears(p.age);
-  const offers: Offer[] = pool.filter((x) => x.wage !== null).slice(0, n).map(({ t, interest, wage }) => ({
+  const picked = pool.filter((x) => x.wage !== null && (tier !== 'more' || ratingOf(state, x.t.id) > cur)).slice(0, n);
+  const offers: Offer[] = picked.map(({ t, interest, wage }) => ({
     teamId: t.id, kind: 'transfer', years: randInt(rng, ylo, yhi), wage: wage!, start: expectedStart(state, t.id), interest,
   }));
+  // 소속 구단 수락 판정 (C.48): 계약 중(몸값 > 0)이고 이적 명단이 아니면. 난수는 따로 (임대 제안이 바뀌지 않게)
+  const refused: RefusedOffer[] = [];
+  const listed = m?.request?.season === state.league.season && !!m.request.accepted;
+  if (value > 0) {
+    const C = O.club;
+    const unit = BALANCE.finance.value.unit;
+    const crng = rngFor(state.worldSeed, 'club-accept', tag, w);
+    const label = windowSeason(state.league, w);
+    for (const o of offers) {
+      const raw = value * (C.feeMin + crng() * (C.feeMax - C.feeMin));
+      o.fee = Math.max(unit, Math.round(Math.min(raw, Math.max(value, remainingBudget(state, o.teamId, label))) / unit) * unit);
+      const roll = crng();
+      if (!listed && roll >= clubAcceptChance(state, o.fee, value)) refused.push({ teamId: o.teamId, fee: o.fee });
+    }
+  }
+  const kept = offers.filter((o) => !refused.some((r) => r.teamId === o.teamId));
   // 임대 (21세 이하 + 출전 부족, 1시즌)
   if (p.age <= T.loan.maxAge && (recentShare(state) ?? 1) < T.loan.maxShare && !m?.contract.loan) {
     const taken = new Set(offers.map((o) => o.teamId));
@@ -585,10 +652,24 @@ export function makeOffers(state: GameState, w: Window, tag: string | number = s
       .sort((a, b) => b.start - a.start || ratingOf(state, b.t.id) - ratingOf(state, a.t.id));
     const k = randInt(rng, T.loan.offers[0], T.loan.offers[1]);
     for (const { t, interest } of loans.slice(0, k)) {
-      offers.push({ teamId: t.id, kind: 'loan', years: 1, wage: m?.contract.wage ?? wageFor(p.reputation, ovr, ratingOf(state, t.id), wageMul(p)), start: expectedStart(state, t.id), interest });
+      kept.push({ teamId: t.id, kind: 'loan', years: 1, wage: m?.contract.wage ?? wageFor(p.reputation, ovr, ratingOf(state, t.id), wageMul(p)), start: expectedStart(state, t.id), interest });
     }
   }
-  return offers;
+  return { offers: kept, refused };
+}
+
+/** 고를 수 있는 제안만 (구단이 거절한 제안 빼고) */
+export function makeOffers(state: GameState, w: Window, tag: string | number = state.league.season): Offer[] {
+  return makeOfferSet(state, w, tag).offers;
+}
+
+/** 이적시장 창의 제안을 연다: 고를 수 있는 제안 + 구단이 거절한 제안 뉴스 */
+function openOffers(state: GameState, w: Window, tag?: string | number): void {
+  const m = state.market;
+  const r = makeOfferSet(state, w, tag);
+  m.offers = r.offers;
+  m.refused = r.refused.length ? r.refused : null;
+  m.offerWindow = w;
 }
 
 /** 비시즌 시작 (시즌 종료 직후): 임대 복귀 → 계약 만료면 재계약 선택 → 제안 3~5개 */
@@ -610,8 +691,7 @@ export function openOffseasonMarket(state: GameState): void {
     const [lo, hi] = contractYears(p.age);
     m.renewal = { years: Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), wage: wageFor(p.reputation, proficientOvr(p, p.position), rating, wageMul(p)) };
   }
-  m.offers = makeOffers(state, 'summer');
-  m.offerWindow = 'summer';
+  openOffers(state, 'summer');
 }
 
 /** 팀을 옮긴다: 소속팀, 전술(새 팀 기본값). 숙련도·적성·덱·능력치는 선수 것이라 그대로 (부록 C.42) */
@@ -645,8 +725,9 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
   let points = 0;
   if (o.teamId === from) {
     // 지금 팀과 계약 (C.45: 1군 테스트 합격 뒤 유스 구단 제안, 자유계약 신분에서 같은 팀)
-    m.contract = { teamId: from, from: state.league.season + (state.phase === 'season' ? 0 : 1), until: state.league.season + (state.phase === 'season' ? 0 : 1) + o.years - 1, wage: o.wage, loan: null };
+    m.contract = { teamId: from, from: state.league.season + (state.phase === 'season' ? 0 : 1), until: state.league.season + (state.phase === 'season' ? 0 : 1) + o.years - 1, wage: o.wage, loan: null, buyout: buyoutFor(p, o.years) };
     m.offers = null;
+    m.refused = null;
     m.renewal = null;
     m.notice = `${clubNameKo(state.league, from)} 1군 계약`;
     onClubChange(state, from);
@@ -656,13 +737,14 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
     m.contract.loan = { parent: from, until: season };
   } else {
     points = deduct(weakMovePenalty(p.reputation, fromRating, toRating));
-    m.contract = { teamId: o.teamId, from: season, until: season + o.years - 1, wage: o.wage, loan: null };
+    m.contract = { teamId: o.teamId, from: season, until: season + o.years - 1, wage: o.wage, loan: null, buyout: buyoutFor(p, o.years) };
   }
   m.moves.push({ season, w, from, to: o.teamId, ...(o.kind === 'loan' ? { loan: true } : {}) });
   // 원클럽맨 계열 (C.45): 이적이면 떨어지고 새 구단 기록 (임대는 이적 아님)
   if (o.kind !== 'loan') onClubChange(state, o.teamId);
   joinTeam(state, o.teamId);
   m.offers = null;
+  m.refused = null;
   m.renewal = null;
   m.notice = `${clubNameKo(state.league, o.teamId)}${o.kind === 'loan' ? ' 임대 합류' : ' 이적 완료'}`;
   return { points };
@@ -674,6 +756,7 @@ export function declineOffers(state: GameState): void {
   // 자유계약 신분 (C.45)이면 하나는 골라야 한다
   if (m.free) return;
   m.offers = null;
+  m.refused = null;
 }
 
 /** 재계약 (연장): years 년, 지금 팀 */
@@ -681,7 +764,7 @@ export function renewContract(state: GameState, years: number): void {
   const m = state.market!;
   if (!m.renewal) throw new Error('재계약할 계약이 없음');
   const season = state.league.season + (state.phase === 'season' ? 0 : 1);
-  m.contract = { teamId: state.player.teamId, from: season, until: season + years - 1, wage: m.renewal.wage, loan: null };
+  m.contract = { teamId: state.player.teamId, from: season, until: season + years - 1, wage: m.renewal.wage, loan: null, buyout: buyoutFor(state.player, years) };
   m.renewal = null;
   onRenewal(state);
 }
@@ -735,8 +818,7 @@ export function requestTransfer(state: GameState): { accepted: boolean; chance: 
   m.request = { season: state.league.season, accepted };
   let offersNow = false;
   if (accepted && state.calendar.date >= winterOpen(state.league.season)) {
-    m.offers = makeOffers(state, 'winter', `req${state.league.season}`);
-    m.offerWindow = 'winter';
+    openOffers(state, 'winter', `req${state.league.season}`);
     offersNow = true;
   }
   return { accepted, chance, offersNow };
@@ -747,12 +829,14 @@ export function onDayEnd(state: GameState, endedDate: IsoDate): TransferRec[] {
   const season = state.league.season;
   const m = state.market;
   if (m?.request?.season === season && m.request.accepted && !m.offers && addDays(endedDate, 1) === winterOpen(season)) {
-    m.offers = makeOffers(state, 'winter', `req${season}`);
-    m.offerWindow = 'winter';
+    openOffers(state, 'winter', `req${season}`);
   }
   if (endedDate === winterDeadline(season)) {
     // 마감까지 답하지 않은 겨울 제안은 사라진다
-    if (m?.offerWindow === 'winter') m.offers = null;
+    if (m?.offerWindow === 'winter') {
+      m.offers = null;
+      m.refused = null;
+    }
     return runNpcWindow(state, 'winter');
   }
   return [];
