@@ -14,6 +14,7 @@ import { migratedTactics, validTactics } from './myTactics';
 import { customProblem } from './formations';
 import { initCollection } from './cardCollection';
 import { aptitudeSeed, mainPositionAptitude } from './aptitude';
+import { daysBetween, seasonCalendar } from './calendar';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -150,6 +151,32 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.player.advice = null;
     s.player.adviceLog = [];
     s.player.aptBoost = null;
+  },
+  // 17 → 18 (부록 C.38, 25.1~25.2): 하루 단위 캘린더. 날짜 = 이번 라운드 첫 경기 날 (비시즌이면 최종 라운드 날).
+  // 피로는 그 날부터 내 경기까지 하루씩 회복하므로, 옛 "경기 전 주간 회복"과 같아지게 모자란 날만큼 미리 회복해 둔다.
+  // 부상 남은 주 → 남은 날 (× 7). 다른 경기 기록·선수 합계는 이번 라운드부터 쌓인다. 진행 설정은 전체 엔진
+  17: (s) => {
+    const cal = seasonCalendar(s.worldSeed, s.league.season, s.league.schedule);
+    const r = s.league.round;
+    if (s.phase === 'season' && r < s.league.schedule.length) {
+      const date = cal.roundDates[r]!;
+      const i = s.league.schedule[r].findIndex((f: any) => f.home === s.player.teamId || f.away === s.player.teamId);
+      const gap = Math.max(0, daysBetween(date, cal.fixtureDates[r]![i]!));
+      const F = BALANCE.fatigue;
+      const weekly = s.player.injury ? F.noMatchWeekRecovery : F.weeklyRecovery;
+      s.player.fatigue = Math.max(0, s.player.fatigue - (weekly * Math.max(0, 7 - gap)) / 7);
+      s.calendar = { date };
+    } else {
+      s.calendar = { date: cal.final };
+    }
+    for (const inj of [s.player.injury, s.lastMatch?.injury]) {
+      if (!inj) continue;
+      inj.daysTotal = inj.weeksTotal * 7;
+      inj.daysLeft = (inj.weeksLeft ?? inj.weeksTotal) * 7;
+      delete inj.weeksLeft;
+    }
+    s.playerStats = {};
+    s.options = { quickOthers: false };
   },
 };
 

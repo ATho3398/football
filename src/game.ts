@@ -13,11 +13,13 @@ import {
   type LeagueState,
 } from './league';
 import { simulateMatch, startProbability, type MatchResult } from './match';
-import { fatigueFromDistance, playMyMatch, type EngineMatchInput, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
+import { fatigueFromDistance, MY_ID, playMyMatch, type EngineMatchInput, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
 import type { ControlMode, DecisionRecord, MomentControl, StopLevel } from './engine/moments';
 import { formBonus, pushRating } from './form';
 import { addRecord, emptyRecord, recordFromStats, type MatchLogEntry, type MatchRecord } from './matchRecord';
-import { healWeek, rollInjury } from './injury';
+import { healDays, rollInjury } from './injury';
+import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar } from './calendar';
+import { playNpcMatch, summarize, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
   createRosters, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
@@ -37,7 +39,7 @@ import { slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import type { FieldPosition } from './positions';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 17;
+export const SAVE_FORMAT_VERSION = 18;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -155,7 +157,16 @@ export interface GameState {
   control: MatchControl;
   /** 카드 모음과 덱 세트 (부록 F, C.36) */
   cards: CardCollection;
+  /** 캘린더 (25.1~25.2, 부록 C.38): 오늘 날짜. 일정 날짜는 시드로 다시 만든다 (calendarOf) */
+  calendar: { date: IsoDate };
+  /** 이번 시즌 모든 선수의 리그 기록 합계 (C.38, 다른 경기 포함). 내 선수는 player.season 에 따로 있다 */
+  playerStats: Record<string, PlayerTotals>;
+  /** 진행 설정 (C.38): quickOthers 면 다른 경기를 빠른 경기(통계)로 계산한다 (느린 기기). 기본은 전체 엔진 */
+  options: { quickOthers: boolean };
 }
+
+/** 선수 시즌 합계: [출전, 골, 도움, 평점 합 ×10] */
+export type PlayerTotals = [number, number, number, number];
 
 export interface MatchControl {
   mode: ControlMode;
@@ -282,6 +293,9 @@ export function newGame(opts: NewGameOptions): GameState {
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,
     startPatch: PATCH_LABEL,
+    calendar: { date: seasonCalendar(worldSeed, season, league.schedule).opening },
+    playerStats: {},
+    options: { quickOthers: false },
     worldSeed,
     difficulty: opts.difficulty,
     phase: 'season',
@@ -322,9 +336,111 @@ function updateFatigueForMatch(p: PlayerState, minutes: number): void {
   p.fatigue = Math.min(F.max, p.fatigue + (F.perMatch90 * minutes) / 90);
 }
 
-function weeklyRecovery(p: PlayerState, hadMatch: boolean): void {
+// ── 하루 단위 진행 (25.1~25.2 5·7번, 부록 C.38) ──
+
+/** 이번 시즌 일정 (시드로 다시 만든다) */
+export function calendarOf(state: GameState): SeasonCalendar {
+  return seasonCalendar(state.worldSeed, state.league.season, state.league.schedule);
+}
+
+/** 이번 라운드 내 경기 날짜. 시즌이 아니면 null */
+export function myMatchDate(state: GameState): IsoDate | null {
+  if (state.phase !== 'season') return null;
+  const r = state.league.round;
+  const i = state.league.schedule[r]?.findIndex((f) => f.home === state.player.teamId || f.away === state.player.teamId) ?? -1;
+  return i >= 0 ? calendarOf(state).fixtureDates[r]![i]! : null;
+}
+
+/** 오늘 내 경기가 있다 */
+export function isMatchDay(state: GameState): boolean {
+  return myMatchDate(state) === state.calendar.date;
+}
+
+/** 오늘 열리는, 아직 결과가 없는 다른 팀 경기 [라운드, 경기 순번] */
+export function todaysOthers(state: GameState): [number, number][] {
+  if (state.phase !== 'season') return [];
+  const cal = calendarOf(state);
+  const me = state.player.teamId;
+  const out: [number, number][] = [];
+  state.league.schedule.forEach((round, r) => round.forEach((f, i) => {
+    if (cal.fixtureDates[r]![i] === state.calendar.date && f.homeGoals === undefined && f.home !== me && f.away !== me) out.push([r, i]);
+  }));
+  return out;
+}
+
+export interface OtherJob { r: number; i: number; input: NpcMatchInput }
+
+/** 다른 경기의 엔진 입력 (직렬화 가능, Web Worker 로 보낸다). 시드는 시즌·라운드·경기 순번으로 정해진다 */
+export function otherJob(state: GameState, r: number, i: number): OtherJob {
+  const { league } = state;
+  const f = league.schedule[r]![i]!;
+  return {
+    r, i,
+    input: {
+      home: state.rosters[f.home]!, away: state.rosters[f.away]!,
+      homeRating: teamById(league, f.home).rating, awayRating: teamById(league, f.away).rating,
+      seed: hashSeed(`${state.worldSeed}:other:${league.season}:${r}:${i}`), worldSeed: state.worldSeed,
+      leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
+    },
+  };
+}
+
+/** 선수 기록을 시즌 합계에 더한다 (내 선수 'me' 는 player.season 에 따로) */
+function addPlayerLines(state: GameState, res: NpcMatchResult): void {
+  const st = (state.playerStats ??= {});
+  for (const [id, , g, a, r10] of res.players) {
+    if (id === MY_ID) continue;
+    const t = (st[id] ??= [0, 0, 0, 0]);
+    t[0]++; t[1] += g; t[2] += a; t[3] += r10;
+  }
+}
+
+/** 다른 경기 결과를 기록한다: 순위표, 스코어·득점자·도움, 선수 시즌 합계 */
+export function applyOther(state: GameState, r: number, i: number, res: NpcMatchResult): void {
+  const f = state.league.schedule[r]![i]!;
+  if (f.homeGoals !== undefined) return;
+  recordResult(state.league, f, res.hg, res.ag);
+  if (res.goals.length) f.g = res.goals;
+  addPlayerLines(state, res);
+}
+
+/**
+ * 오늘 다른 경기를 이 스레드에서 계산한다. 'engine' = 22명 엔진(프레임 없이), 'quick' = 빠른 경기 (통계, 밸런스 시뮬·느린 기기).
+ * 화면은 Web Worker 풀로 같은 otherJob 을 계산해 applyOther 한다 (결과는 같다)
+ */
+export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
+  for (const [r, i] of todaysOthers(state)) {
+    if (how === 'engine') {
+      applyOther(state, r, i, playNpcMatch(otherJob(state, r, i).input));
+    } else {
+      const f = state.league.schedule[r]![i]!;
+      const [hg, ag] = simulateScore(rngFor(state.worldSeed, 'other', state.league.season, r, i), teamById(state.league, f.home).rating, teamById(state.league, f.away).rating);
+      recordResult(state.league, f, hg, ag);
+    }
+  }
+}
+
+/** 하루 끝 (7번): 피로 회복 주간 ÷ 7 (부상 중이면 결장 주 회복 ÷ 7), 부상은 다친 날 다음 날부터 하루씩 */
+function dayStep(p: Pick<PlayerState, 'fatigue' | 'injury'>, date: IsoDate): void {
   const F = BALANCE.fatigue;
-  p.fatigue = Math.max(0, p.fatigue - (hadMatch ? F.weeklyRecovery : F.noMatchWeekRecovery));
+  p.fatigue = Math.max(0, p.fatigue - (p.injury ? F.noMatchWeekRecovery : F.weeklyRecovery) / 7);
+  if (p.injury && p.injury.date !== date) healDays(p as PlayerState, 1);
+}
+
+/** 오늘을 끝내고 다음 날로. 오늘 다른 경기가 남았거나 내 경기를 아직 안 치렀으면 오류 */
+export function endDay(state: GameState): void {
+  if (state.phase !== 'season') throw new Error('시즌 중이 아님');
+  if (isMatchDay(state)) throw new Error('오늘 내 경기가 남았음');
+  if (todaysOthers(state).length) throw new Error('오늘 다른 경기가 남았음');
+  dayStep(state.player, state.calendar.date);
+  state.calendar.date = addDays(state.calendar.date, 1);
+}
+
+/** 오늘에서 to 날짜 아침까지 하루씩 넘겼을 때의 피로·부상 (상태는 바꾸지 않는다) */
+function projectedCondition(state: GameState, to: IsoDate): Pick<PlayerState, 'fatigue' | 'injury'> {
+  const p = { fatigue: state.player.fatigue, injury: state.player.injury ? { ...state.player.injury } : null };
+  for (let d = state.calendar.date; daysBetween(d, to) > 0; d = addDays(d, 1)) dayStep(p, d);
+  return p;
 }
 
 export interface PlayOptions {
@@ -341,6 +457,11 @@ export interface PlayOptions {
   engineOut?: MyMatchOutput;
   /** false 면 카드 없이 (엔진 회귀 측정용, C.36). 기본은 지금 덱 */
   cards?: boolean;
+  /**
+   * 내 경기 날까지 넘기는 날의 다른 경기 계산 (C.38). 기본 'quick' (테스트·밸런스). 화면은 Web Worker 로 미리 계산해 두므로
+   * 경기 날에 부를 때는 남은 다른 경기가 없다
+   */
+  others?: 'engine' | 'quick';
 }
 
 /** 이번 라운드 내 경기의 엔진 입력 (상태를 바꾸지 않는다). 결장(부상·정지·벤치)이어도 입력은 만든다 */
@@ -356,11 +477,11 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const { league, player } = state;
   const roundIdx = league.round;
   const seed = state.worldSeed;
-  const injured = player.injury !== null;
+  // 경기 날 아침의 피로·부상 (오늘이 경기 날이면 지금 값, C.38)
+  const cond = projectedCondition(state, myMatchDate(state) ?? state.calendar.date);
+  const injured = cond.injury !== null;
   const suspended = !injured && player.suspended > 0;
-  // 주간 회복 후 피로 (playRound 의 weeklyRecovery 와 같은 값)
-  const F = BALANCE.fatigue;
-  const fatigue = Math.max(0, player.fatigue - (!injured ? F.weeklyRecovery : F.noMatchWeekRecovery));
+  const fatigue = cond.fatigue;
   const p = { ...player, fatigue };
   const fx = nextFixture(state)!;
   const myTeam = teamById(league, player.teamId);
@@ -369,7 +490,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const ovr = proficientOvr(p, pos);
   const form = formBonus(player.recentRatings);
   const remaining = league.schedule.length - roundIdx - 1;
-  const at = { season: league.season, round: roundIdx + 1 };
+  const at = matchAt(state);
   // 선발/교체 판정은 기존 방식 (E.10), 부상은 경기 전 판정 후 그 분에 교체 아웃 (E.16)
   const rng = rngFor(seed, 'match', league.season, roundIdx);
   const M = BALANCE.match;
@@ -396,9 +517,31 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] };
 }
 
-/** 한 라운드(한 주) 진행. 마지막 라운드면 시즌 종료 처리까지 한다 */
+/** 부상 판정용 경기 시점: 시즌·라운드(1부터)·날짜·최종 라운드까지 남은 날 */
+function matchAt(state: GameState): { season: number; round: number; date: IsoDate; daysToEnd: number } {
+  const date = myMatchDate(state) ?? state.calendar.date;
+  return { season: state.league.season, round: state.league.round + 1, date, daysToEnd: daysBetween(date, calendarOf(state).final) };
+}
+
+/**
+ * 다음 내 경기까지 진행 (C.38): 내 경기 날까지 하루씩 넘기고(다른 경기는 opts.others), 그날 다른 경기 → 내 경기를 치른 뒤
+ * 그날을 끝낸다. 마지막 라운드면 시즌 종료 처리까지 한다
+ */
 export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport {
   if (state.phase !== 'season') throw new Error('시즌 중이 아님');
+  const how = opts.others ?? 'quick';
+  while (!isMatchDay(state)) {
+    playOthers(state, how);
+    endDay(state);
+  }
+  playOthers(state, how);
+  const report = playMyRound(state, opts);
+  if (state.phase === 'season') endDay(state);
+  return report;
+}
+
+/** 오늘(내 경기 날) 내 경기 한 라운드. 다른 경기는 이미 계산했어야 한다 */
+function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   const { league, player } = state;
   const roundIdx = league.round;
   const fixtures = league.schedule[roundIdx]!;
@@ -407,9 +550,8 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
 
   const injured = player.injury !== null;
   const suspended = !injured && player.suspended > 0;
-  // 내 경기 입력은 주간 회복 전 상태에서 만든다 (roundMatch 가 회복 후 피로를 직접 계산한다)
+  // 피로 회복은 하루가 끝날 때마다 (dayStep). 오늘이 경기 날이라 roundMatch 의 피로는 지금 값이다
   const rm = useEngine ? roundMatch(state, { cards: opts.cards }) : null;
-  weeklyRecovery(player, !injured);
 
   // 내 경기
   const fx = nextFixture(state)!;
@@ -420,7 +562,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   const ovr = proficientOvr(player, pos);
   const form = formBonus(player.recentRatings);
   const remaining = league.schedule.length - roundIdx - 1;
-  const at = { season: league.season, round: roundIdx + 1 };
+  const at = matchAt(state);
   // 포변 조언 (부록 C.37): 기간이 지났으면 지우고, 조언받은 포지션군으로 뛰면 보너스를 건다
   const adviceTaken = checkAdviceTaken(player, pos, league.season, roundIdx);
 
@@ -451,15 +593,14 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     if (suspended && result.minutes === 0) result.xp = Math.round(BALANCE.matchXp.bench * BALANCE.difficulty[state.difficulty].xp);
   }
 
-  // 다른 경기
-  const otherRng = rngFor(seed, 'round', league.season, roundIdx);
-  for (const f of fixtures) {
-    if (f.home === player.teamId) recordResult(league, f, result.goalsFor, result.goalsAgainst);
-    else if (f.away === player.teamId) recordResult(league, f, result.goalsAgainst, result.goalsFor);
-    else {
-      const [hg, ag] = simulateScore(otherRng, teamById(league, f.home).rating, teamById(league, f.away).rating);
-      recordResult(league, f, hg, ag);
-    }
+  // 내 경기 결과 (다른 경기는 그날 따로 계산했다, C.38). 엔진 경기면 득점자·도움과 양 팀 선수 기록도 남긴다
+  const myFx = fixtures.find((f) => f.home === player.teamId || f.away === player.teamId)!;
+  if (myFx.home === player.teamId) recordResult(league, myFx, result.goalsFor, result.goalsAgainst);
+  else recordResult(league, myFx, result.goalsAgainst, result.goalsFor);
+  if (engineOut) {
+    const sum = summarize(engineOut.engine);
+    if (sum.goals.length) myFx.g = sum.goals;
+    addPlayerLines(state, sum);
   }
 
   // 기록, XP, 피로
@@ -489,12 +630,13 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     if (banned) player.suspended += BALANCE.discipline.banMatches;
     cards = { yellows: my.yellows, red: my.red };
   }
-  // 부상: 결장 주는 회복을 한 주 진행하고, 출전했으면 판정 (피로는 경기 시작 때 값)
+  // 부상: 결장한 라운드를 세고 (회복은 하루 단위, 다음 내 경기 전에 낫는지 표시), 출전했으면 판정 (피로는 경기 시작 때 값)
   let injury: Injury | undefined;
   let recovered = false;
   if (injured) {
     s.injuredWeeks++;
-    recovered = healWeek(player);
+    const next = league.schedule[roundIdx + 1] ? calendarOf(state).fixtureDates[roundIdx + 1]![league.schedule[roundIdx + 1]!.findIndex((f) => f.home === player.teamId || f.away === player.teamId)]! : null;
+    recovered = next !== null && player.injury!.daysLeft <= daysBetween(state.calendar.date, next);
   } else if (result.minutes > 0) {
     const rolled = useEngine
       ? preInjury
@@ -790,7 +932,9 @@ export function startNextSeason(state: GameState): void {
   state.player.season = emptySeasonStats();
   state.matchLog = [];
   state.player.fatigue = 0;
-  healWeek(state.player, BALANCE.injury.offseasonWeeks);
+  healDays(state.player, BALANCE.injury.offseasonWeeks * 7);
+  state.calendar = { date: calendarOf(state).opening };
+  state.playerStats = {};
   state.lastMatch = undefined;
   state.phase = 'season';
 }

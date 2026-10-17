@@ -2,6 +2,7 @@
 
 import { BALANCE } from './config/balance';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
+import type { GoalRec } from './engine/npcMatch';
 
 export interface Team {
   id: string;
@@ -18,6 +19,8 @@ export interface Fixture {
   away: string;
   homeGoals?: number;
   awayGoals?: number;
+  /** 득점자·도움 (엔진 경기만, 부록 C.38): [분, 팀 0 홈·1 원정, 득점자 id, 도움 id] */
+  g?: GoalRec[];
 }
 
 export interface TableRow {

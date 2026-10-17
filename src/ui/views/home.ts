@@ -4,26 +4,37 @@
 import {
   BottomSheet, Button, Crest, Tabs, OptionRow, FatigueGauge, FormIndicator, HeroPanel, IconButton, PlayerCard, SectionTitle, StatChip, TacticChip, esc,
 } from '../components';
-import type { HomeVM, PositionOptionVM } from '../viewModels';
+import type { DayVM, HomeVM, PositionOptionVM } from '../viewModels';
 import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
 
 export function homeView(vm: HomeVM, extra = '', notice = ''): string {
   const n = vm.next;
   const hero = HeroPanel({
     title: '홈', back: false, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }),
-    eyebrow: vm.phase === 'season' ? `${vm.season} 시즌 · 라운드` : `${vm.season} 시즌 · 비시즌`,
-    value: vm.phase === 'season' ? vm.round : '비시즌', pad: false, total: vm.phase === 'season' ? vm.rounds : undefined, progress: false,
-    chips: n ? [n.out ? '이번 주 결장' : '이번 주 경기', { label: `리그 ${vm.round}R ${n.opp}전`, soft: true }] : [{ label: '시즌 종료', soft: true }],
+    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
+    value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
+    chips: n && vm.day
+      ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R ${n.opp}전`, soft: true }]
+      : [{ label: '시즌 종료', soft: true }],
   });
 
   let next = '';
-  if (n) {
-    next = `
-      <p class="line">다음 일정 · <b>리그 ${vm.round}R ${esc(n.opp)}전 · ${n.home ? '홈' : '원정'}</b></p>
-      ${actionRow(
+  if (n && vm.day) {
+    const d = vm.day;
+    // 하루 단위 진행 (부록 C.38): 경기 날이면 경기 시작, 아니면 [계속](다음 일정까지)·[하루 진행]
+    const buttons = d.matchDay
+      ? actionRow(
         Button({ variant: 'secondary', size: 'lg', block: true, icon: 'ff', act: 'sim-rest', children: '남은 시즌 자동' }),
         Button({ variant: n.out ? 'secondary' : 'primary', size: 'lg', block: true, icon: n.out ? 'match' : 'play', act: 'play', children: n.out ? '결장(관전)' : '경기 시작' }),
+      )
+      : `${actionRow(
+        Button({ variant: 'secondary', size: 'lg', block: true, icon: 'clock', act: 'day-one', children: '하루 진행' }),
+        Button({ size: 'lg', block: true, icon: 'chevron-right', act: 'day-continue', children: '계속' }),
       )}
+      ${Button({ variant: 'ghost', block: true, icon: 'ff', act: 'sim-rest', children: '남은 시즌 자동' })}`;
+    next = `
+      <p class="line">${d.matchDay ? '오늘' : `다음 일정 · ${esc(d.nextLabel ?? '')}`} · <b>리그 ${vm.round}R ${esc(n.opp)}전 · ${n.home ? '홈' : '원정'}</b></p>
+      ${buttons}
       ${SectionTitle({ title: '다음 경기', action: `리그 ${vm.round}R · ${n.home ? '홈' : '원정'}` })}
       ${panel(`
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}${esc(n.my)}</span><span class="vs po-num">VS</span><span class="vs-team away">${esc(n.opp)}${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
@@ -53,6 +64,7 @@ export function homeView(vm: HomeVM, extra = '', notice = ''): string {
       ${startNotice(vm.version)}
       ${notice}
       ${next}
+      ${vm.day ? calendarSection(vm.day) : ''}
       ${extra}
       ${SectionTitle({ title: '내 상태' })}
       ${panel(`
@@ -100,4 +112,17 @@ export function positionSheet(options: PositionOptionVM[], pick: string, inSeaso
     })).join(''),
     footer: Button({ size: 'lg', block: true, act: 'pos-change', data: { v: sel.pos }, disabled: sel.current, children: sel.current ? '바꿀 포지션을 골라요' : `${sel.pos}로 변경 · OVR ${cur.ovr} → ${sel.ovr}` }),
   });
+}
+
+/** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력, 다른 경기 계산 방식 */
+export function calendarSection(d: DayVM): string {
+  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}"><span class="cal-date">${esc(u.date)}</span><span class="grow">${esc(u.text)}</span>${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
+  const blanks = Array.from({ length: d.month.lead }, () => '<span class="cal-cell blank"></span>').join('');
+  const cells = d.month.days.map((c) => `<span class="cal-cell${c.kind ? ` k-${c.kind}` : ''}${c.today ? ' today' : ''}${c.past ? ' past' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${c.d}</span>`).join('');
+  return `${SectionTitle({ title: '일정', action: d.month.title })}
+    ${panel(`<ul class="cal-list">${list}</ul>
+      <div class="cal-grid" role="grid" aria-label="${esc(d.month.title)} 달력">${['일', '월', '화', '수', '목', '금', '토'].map((w) => `<span class="cal-wd">${w}</span>`).join('')}${blanks}${cells}</div>
+      <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span></div>
+      <div class="kv"><span class="small">다른 경기 계산</span>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: d.quick ? 'quick' : 'engine', act: 'opt-quick', label: '다른 경기 계산' })}</div>
+      <p class="small muted">${d.quick ? '느린 기기용: 다른 팀 경기를 통계로 바로 계산해요. 선수 기록(득점 순위)은 내 경기만 남아요.' : '다른 팀 경기도 22명 엔진으로 계산해요. 경기 날 [계속]이 몇 초 걸릴 수 있고, 진행 중 [중단]으로 멈출 수 있어요.'}</p>`)}`;
 }

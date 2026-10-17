@@ -8,9 +8,15 @@ import './style.css';
 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
-import { canChangePosition, myMatchPosition, newGame, randomSeed, playRound, retire, roundMatch, startNextSeason, type GameState } from '../game';
+import {
+  applyOther, canChangePosition, endDay, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
+  startNextSeason, todaysOthers, type GameState,
+} from '../game';
+import { dateLabel } from '../calendar';
+import { playNpcMatch } from '../engine/npcMatch';
+import { EnginePool } from './enginePool';
 import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
-import { MyMatchRun, type MyMatchOutput } from '../engine/adapter';
+import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { replayPlayers } from '../replay';
 import { deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
@@ -72,7 +78,7 @@ const ui = {
   replay: null as ReplayPlayer | null,
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
   alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; open: Set<string> },
-  worldTab: 'table' as 'table' | 'stars',
+  worldTab: 'table' as 'table' | 'stars' | 'scorers',
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
   posSheet: null as string | null,
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
@@ -397,46 +403,126 @@ function replayAlloc(g: GameState): void {
   for (const attr of a.raises) raiseAttribute(g.player, attr);
 }
 
-function startSimRest(g: GameState): void {
-  // 경기 엔진은 한 경기에 약 0.5초가 걸리므로 라운드마다 화면에 진행 상황을 그린다
+// ── 하루 단위 진행 (25.1~25.2, 부록 C.38) ──
+
+let enginePool: EnginePool | null = null;
+const pool = (): EnginePool => (enginePool ??= new EnginePool());
+
+/** 진행 측정 (부록 C.38 측정 보고용): 하루마다 걸린 시간과 계산한 경기 수 */
+const progressLog: { date: string; ms: number; matches: number; my: boolean }[] = [];
+(globalThis as unknown as { __progress: typeof progressLog }).__progress = progressLog;
+
+/** 오늘 다른 경기를 계산한다: 전체 엔진은 Web Worker 풀에 나눠 병렬로, 빠른 진행은 바로 (같은 시드 같은 결과) */
+async function runOthersToday(g: GameState): Promise<number> {
+  const jobs = todaysOthers(g).map(([r, i]) => otherJob(g, r, i));
+  if (!jobs.length) return 0;
+  if (g.options.quickOthers) {
+    playOthers(g, 'quick');
+    return jobs.length;
+  }
+  const outs = await Promise.all(jobs.map((j) => pool().npc(j.input).catch(() => playNpcMatch(j.input))));
+  jobs.forEach((j, k) => applyOther(g, j.r, j.i, outs[k]!));
+  return jobs.length;
+}
+
+const nextFrame = () => new Promise<void>((r) => setTimeout(r, 0));
+
+/**
+ * 날 넘기기. 'one' = [하루 진행], 'continue' = [계속] (다음 일정 = 내 경기 날까지, 그날 다른 경기는 미리 계산),
+ * 'season' = 남은 시즌 자동 (내 경기도 재생 없이 워커에서 최대 속도). [중단]은 그날(경기 포함)까지 끝내고 멈춘다
+ */
+async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): Promise<void> {
+  if (ui.busy || g.phase !== 'season') return;
   ui.busy = true;
   ui.stopReq = false;
   const stop = { action: '중단', onAction: { act: 'sim-stop' } };
-  const next = () => {
-    if (g.phase !== 'season') {
-      ui.busy = false;
-      ui.stopReq = false;
-      ui.toast = null;
+  const title = mode === 'season' ? '자동 진행 중' : '진행 중';
+  const t0 = performance.now();
+  let days = 0;
+  try {
+    for (;;) {
+      if (g.phase !== 'season') break;
+      const match = isMatchDay(g);
+      if (match && mode !== 'season') {
+        await runOthersToday(g);
+        break;
+      }
+      ui.toast = { kind: 'info', title, body: `${dateLabel(g.calendar.date)}${match ? ' · 내 경기' : ''} · ${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
+      render();
+      await nextFrame();
+      const d0 = performance.now();
+      const date = g.calendar.date;
+      const n = await runOthersToday(g);
+      if (match) {
+        // 내 경기 (자동): 재생 없이 워커에서. 결과는 메인 스레드에서 계산한 것과 같다
+        const rm = roundMatch(g);
+        const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
+        playRound(g, { engineOut: out });
+        autoAllocate(g.player);
+      } else {
+        endDay(g);
+      }
+      progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
+      days++;
       autosave();
+      if (mode === 'one' || ui.stopReq) break;
+    }
+  } finally {
+    ui.busy = false;
+    const stopped = ui.stopReq;
+    ui.stopReq = false;
+    ui.toast = null;
+    autosave();
+    if (g.phase !== 'season') {
       go('season');
       badgeToast(g);
-      return;
-    }
-    // [중단]: 라운드 사이에서만 확인하므로 진행 중인 라운드는 끝까지 치른다
-    if (ui.stopReq) {
-      ui.busy = false;
-      ui.stopReq = false;
-      autosave();
+    } else {
       go('home');
-      showToast({ kind: 'info', title: '자동 진행을 멈췄어요', body: `${g.league.round}/${g.league.schedule.length}라운드까지 치렀어요.` }, 2600);
-      return;
+      const sec = ((performance.now() - t0) / 1000).toFixed(1);
+      if (stopped) showToast({ kind: 'info', title: '진행을 멈췄어요', body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드까지 치렀어요.` }, 2600);
+      else if (mode === 'continue') showToast({ kind: 'info', title: isMatchDay(g) ? '경기 날이에요' : '다음 일정', body: `${dateLabel(g.calendar.date)} · ${days}일 진행 (${sec}초)` }, 2200);
     }
-    playRound(g);
-    autoAllocate(g.player);
-    ui.toast = { kind: 'info', title: '자동 진행 중', body: `${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
+  }
+}
+
+/** [경기 시작]: 경기 날이 아니면 [계속]으로 경기 날까지 (C.38). 그날 다른 경기가 남았으면 먼저 계산하고 바로 내 경기로 */
+async function startPlay(g: GameState): Promise<void> {
+  if (!isMatchDay(g)) {
+    await advanceDays(g, 'continue');
+    return;
+  }
+  if (todaysOthers(g).length) {
+    ui.busy = true;
+    ui.toast = { kind: 'info', title: '오늘 다른 경기 계산 중', body: dateLabel(g.calendar.date) };
     render();
-    setTimeout(next, 0);
-  };
-  ui.toast = { kind: 'info', title: '자동 진행 중', ...stop };
-  render();
-  setTimeout(next, 0);
+    try {
+      await runOthersToday(g);
+    } finally {
+      ui.busy = false;
+      ui.toast = null;
+    }
+  }
+  ui.replay = null;
+  // 직접 모드 (E.11): 내가 뛰는 경기면 결정 순간마다 멈춘다. 자동 모드·결장은 기존처럼 한 번에
+  const rm = roundMatch(g);
+  if (g.control.mode === 'direct' && rm.plan.minutes) {
+    const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: g.control.stop } }, { teams: rm.teams });
+    ui.live = { run, teams: rm.teams, sel: null, pitch: null, prevE: 0, oc: null, card: null };
+    liveAdvance(g);
+    return;
+  }
+  finishPlay(g);
+}
+
+function startSimRest(g: GameState): void {
+  void advanceDays(g, 'season');
 }
 
 /** [중단]은 라운드마다 다시 그려지는 토스트 안에 있어 click(누름·뗌이 같은 요소)이 끊길 수 있으므로 누르는 순간에 받는다 */
 function requestSimStop(): void {
   if (!ui.busy || ui.stopReq) return;
   ui.stopReq = true;
-  ui.toast = { kind: 'info', title: '멈추는 중', body: '진행 중인 라운드까지 치르고 멈춰요.' };
+  ui.toast = { kind: 'info', title: '멈추는 중', body: '오늘 경기까지 치르고 멈춰요.' };
   render();
 }
 
@@ -764,7 +850,7 @@ app.addEventListener('click', (ev) => {
       return;
     }
     case 'world-tab':
-      ui.worldTab = v as 'table' | 'stars';
+      ui.worldTab = v as 'table' | 'stars' | 'scorers';
       render();
       return;
     case 'continue': {
@@ -814,18 +900,21 @@ app.addEventListener('click', (ev) => {
     case 'sim-stop':
       requestSimStop();
       return;
+    case 'day-one':
+      if (g && g.phase === 'season' && !ui.busy) void advanceDays(g, 'one');
+      return;
+    case 'day-continue':
+      if (g && g.phase === 'season' && !ui.busy) void advanceDays(g, 'continue');
+      return;
+    case 'opt-quick':
+      if (!g) return;
+      g.options = { quickOthers: v === 'quick' };
+      autosave();
+      render();
+      return;
     case 'play': {
       if (!g || g.phase !== 'season' || ui.busy) return;
-      ui.replay = null;
-      // 직접 모드 (E.11): 내가 뛰는 경기면 결정 순간마다 멈춘다. 자동 모드·결장은 기존처럼 한 번에
-      const rm = roundMatch(g);
-      if (g.control.mode === 'direct' && rm.plan.minutes) {
-        const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: g.control.stop } }, { teams: rm.teams });
-        ui.live = { run, teams: rm.teams, sel: null, pitch: null, prevE: 0, oc: null, card: null };
-        liveAdvance(g);
-        return;
-      }
-      finishPlay(g);
+      void startPlay(g);
       return;
     }
     case 'mo-pick': {

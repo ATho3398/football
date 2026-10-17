@@ -459,3 +459,27 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .advice-news .advice-eyebrow { color: var(--ink-muted); }
 .advice-x { width: 28px; height: 28px; border: 0; background: none; color: var(--ink-muted); font-size: 20px; cursor: pointer; }
 .advice-title { font-size: 16px; }
+
+/* 일정·달력 (부록 C.38) */
+.cal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cal-item { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.cal-item .cal-date { min-width: 96px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.cal-item .cal-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--surface-3); }
+.cal-item.cal-home .cal-tag { color: var(--on-brand); background: var(--team-home); }
+.cal-item.cal-away .cal-tag { color: var(--on-fill); background: var(--team-away); }
+.cal-item.cal-break, .cal-item.cal-end { color: var(--ink-muted); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; font-size: 12px; }
+.cal-wd { color: var(--ink-faint); font-weight: 700; padding-bottom: 2px; }
+.cal-cell { padding: 5px 0; border-radius: 6px; background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.cal-cell.blank { background: transparent; }
+.cal-cell.past { opacity: 0.45; }
+.cal-cell.k-league { box-shadow: inset 0 -2px 0 var(--line-strong); }
+.cal-cell.k-break { background: var(--surface-0); color: var(--ink-faint); }
+.cal-cell.k-home { background: var(--team-home); color: var(--on-brand); font-weight: 800; }
+.cal-cell.k-away { background: var(--team-away); color: var(--on-fill); font-weight: 800; }
+.cal-cell.today { outline: 2px solid var(--mine); outline-offset: -2px; font-weight: 800; }
+.legend .k.cal-home { background: var(--team-home); }
+.legend .k.cal-away { background: var(--team-away); }
+.legend .k.cal-league { background: var(--line-strong); }
+.legend .k.cal-break { background: var(--surface-0); outline: 1px solid var(--line-strong); }
+.legend { flex-wrap: wrap; }

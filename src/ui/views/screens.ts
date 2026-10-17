@@ -138,14 +138,20 @@ export function allocateView(vm: AllocateVM, open: Set<string>, pending: number)
 
 // ── 순위표·리그 스타 (54) ──
 
-export function worldView(vm: WorldVM, tab: 'table' | 'stars'): string {
+export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers'): string {
   const me = vm.table.find((r) => r.me)!;
   const leader = vm.table[0]!;
   const hero = HeroPanel({
     title: '리그', right: `${vm.round}R / ${vm.rounds}`, back: false, eyebrow: `${me.team} 순위`, value: `${vm.myPos}위`, pad: false, progress: false,
     chips: [`승점 ${me.points}`, me.pos === 1 ? '선두' : `1위와 ${leader.points - me.points}점`, { label: `${vm.season} 시즌`, soft: true }],
   });
-  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'stars', label: '리그 스타' }], value: tab, variant: 'underline', act: 'world-tab' });
+  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점 순위' }, { id: 'stars', label: '리그 스타' }], value: tab, variant: 'underline', act: 'world-tab' });
+  const scorers = vm.scorers.length
+    ? `<div class="panel tbl-panel"><table class="tbl league">
+      <tr><th>#</th><th class="l">선수</th><th>출전</th><th>골</th><th>도움</th><th>평점</th></tr>
+      ${vm.scorers.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${i + 1}</td><td class="l"><span class="team">${esc(r.name)}</span><small class="muted"> ${esc(r.team)}</small></td><td>${r.apps}</td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td><td>${r.avg}</td></tr>`).join('')}
+    </table><div class="legend small"><span class="grow r">다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요)</span></div></div>`
+    : '<p class="small muted">아직 기록이 없어요. 경기가 진행되면 득점 순위가 쌓여요.</p>';
   const table = `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
       ${vm.table.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > vm.teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l"><span class="team">${Crest({ name: r.team, size: 16 })}${esc(r.team)}</span></td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
@@ -153,7 +159,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars'): string {
   const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 숫자는 지난 시즌 대비 OVR 변화.</p>
     <div class="star-list">${vm.stars.map((s, i) => `<div class="star-row"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40 })}<span class="grow"><b>${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `+${s.change}` : `−${-s.change}`) : 'OVR'}</small></span></div>`).join('')}</div>
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
-  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : stars}</div>`;
+  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : stars}</div>`;
 }
 
 // ── 시즌 종료 (51) ──

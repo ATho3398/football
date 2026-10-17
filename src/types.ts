@@ -64,9 +64,13 @@ export type InjuryGrade = 'minor' | 'major' | 'seasonEnding';
 /** 부상 (7.3) */
 export interface Injury {
   grade: InjuryGrade;
+  /** 부상 기간 (주, 표시용). 실제 기간은 daysTotal */
   weeksTotal: number;
-  /** 남은 결장 주. 0 이 되면 회복 */
-  weeksLeft: number;
+  /** 부상 기간과 남은 날 (부록 C.38: 주 × 7). 다친 날 다음 날부터 하루가 끝날 때마다 1씩 줄고, 0 이 되면 회복 */
+  daysTotal: number;
+  daysLeft: number;
+  /** 다친 날짜 (C.38 이전 세이브에는 없다) */
+  date?: string;
   /** 다친 시즌과 라운드(1부터) */
   season: number;
   round: number;
