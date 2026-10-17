@@ -250,3 +250,4 @@
 - (21:14 KST) C.45 최종 main 2898b85(L 정정 반영: 늦게 핀 꽃 `lateBloomer` 플레이 전용 분리, docs 병합 planning-m·engine-issues-c45·ui-1; CI 새 실행은 C.45가 25분 뒤 직접 확인) → pending 68, C.45 `draft_`. UI_1 누계 큰 4 + 작은 5(1단계). **34b C.46 시작** `session_01JojAuwW8SBYL5gqJcJggfv` "34b단계_구단 재정·로스터 인원 (C.46)", 브랜치 `claude/c46-finance`, 태그 `stage:34b-C46`. 자동 확인 `trig_01X2Ryxgg7vuFLqZ55mqtw1q`(23:45 KST). M 상태: 컨텍스트 13.6만·1.6달러.
 - 다음: C.46 보고 → pending 69 → UI_1 목록 → 34c C.47(레전드 팩 + 태그 효과, pending 63~67).
 - (21:38 KST) C.45 배포 확인: main 2898b85 CI #170 성공(#169는 다음 푸시로 취소, 내용 포함). C.45 끝.
+- (22:41 KST) C.46 완료(main d5a0a6c, CI #171) → pending 71, C.46 draft_. 사용자: Haiku 패치는 하지 않음(pending 69), 카드 일러스트 적용 + 설정 → 카드 이미지 교체(pending 70, 파일은 UI_1로 → 적용 명세 오면 U 적용 패치 끼움). **34c C.47 시작**.
