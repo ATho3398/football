@@ -254,3 +254,14 @@
 - (22:43 KST) **34c C.47 시작** `session_01AtJj9AFw7mp4QtH8B9LAbC` "34c단계_레전드 팩·태그 효과 (C.47)", 브랜치 `claude/c47-legends`, 태그 `stage:34c-C47`. 자동 확인 `trig_01Ji2cZZR3QVFCGBMjMqgc2p`(01:12 KST). UI_1에 C.46 목록(큰 0 + 작은 4) + 카드 일러스트 적용 명세 예고. M 상태: 25.8만·5.1달러. 다음: C.47 보고 → pending 72 → 카드 일러스트 명세가 오면 U 적용 패치(34d 자리) → 35 5-1.
 - (23:33 KST) 사용자: ntfy 알림 확인(테스트 2회 수신). 34d C.48 카드 그림 지시 초안 준비(스크래치패드 c48-prompt.txt), C.47 자동 확인 프롬프트 갱신(ntfy·34d).
 - (00:30 KST) 5차 디자인 도착 → pending 74(순서 34d → U5-a~g 34e~34k → 35), UI_1 draft_, UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` 시작. C.47 아직 진행 중(balance 마무리).
+- (01:15 KST) C.47 완료(main 3155e46, CI는 C.47이 01:38 확인) → pending 79, C.47 draft_, ntfy 알림, UI_2에 목록(큰 1 + 작은 5). **34d C.48 시작** `session_01WXU3beYVMNLkNyt9FcjN4o` "34d단계_카드 그림·이적 제안 빈도 (C.48)", 브랜치 `claude/c48-card-art`(카드 그림 BATCH 03 + 설정 → 카드 이미지 + pending 78 이적 제안 빈도). M 비용 21.2달러·43만 → **교체**.
+
+### 8.22 다음 마스터 세션(N)이 할 일 (M 교체 2026-10-18 01:16 KST)
+- 제목 `N_축구 커리어 게임 마스터`, 브랜치 `claude/planning-m`에서 `claude/planning-n`. 깊이 3.
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md` 전체(오늘 바뀜: 0번 **카톡·ntfy 알림**, 1번 2항 **배포 규칙 ①~⑤**(푸시 즉시 보고, 중복 검증 금지), 6번 2항 프롬프트 전문 전달), 이 문서 8.21·8.22, `docs/planning-pending.md` **67~79**, 17.2(34~34c 행).
+- **알림**: ntfy 주제 `NTFY_TOPIC` 환경 변수(사용자가 넣었는지 확인, 없으면 사용자에게 받기 — 레포에 적지 않음). 매 단계 완료 Priority 3, 긴급 5(+카톡 나에게 보내기 기록). 429면 20초 뒤 재시도.
+- **실행 중 세션**: 34d C.48 `session_01WXU3beYVMNLkNyt9FcjN4o`(보고 대상이 M으로 돼 있음 → N 시작 즉시 "보고는 N, 마스터 브랜치 claude/planning-n" send_message) / UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F`(브랜치 claude/ui-2, 6차 누계 큰 5 + 작은 14 예상, 카드 그림 추가 묶음 받기) / 엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`(동결 대기) / C.47 `session_01AtJj9AFw7mp4QtH8B9LAbC`(draft_, 01:38 CI 확인 예약 — 실패 보고가 M으로 올 수 있음: N이 M 대신 확인). 모두 "보고는 N으로".
+- **자동 확인**: M은 C.48용 자동 확인을 걸지 않았다 → N이 send_later 150분(C.48 진행 확인).
+- **다음 순서**: C.48 보고 → pending 80~ → ntfy → UI_2 목록 → **U5-a~g = 34e~34k(C.49~C.55)**(명세 `docs/ui-requests/5-apply.md` claude/ui-2, 사용자 확인 4개는 디자인대로 — pending 74) → 35 5-1 → 36 5-2 → … → **경기 환경 단계**(pending 75 날씨 + 76 이동일 + 77의 4·5·10, 2차 1·3) → 엔진 블록. 77의 나머지는 각 단계에 붙임.
+- 기획서 본문 합침 대기(코드 세션이 쉴 때): 19.10 부분 개정·19.12 구단 재정·23번 로스터(C.46), 태그 시스템 소절(C.45·C.47), 레전드 팩, 날씨·이동일.
+- 사용자 대기 항목 없음. 사용자 선호 메모: 시간 단축 중시(배포 대기·중복 검증 줄이기), Haiku 코드 패치는 안 씀(pending 69), 카톡 나에게 보내기는 푸시가 안 떠서 ntfy가 주 알림.
