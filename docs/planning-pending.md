@@ -876,3 +876,8 @@ pending 31의 빈칸을 추천안으로 채운다.
 - main 32da83d(34j단계 · C.54 · 엔진 20 무수정 · 밸런스 38(표시 전용 pixelLook.clashBody) · 세이브 31, 38분). bundle.css 5·6차, 아이콘 12, 독 = 154 모양(홈 56px 원 솟음, 홈 화면 라임 면/다른 화면 라임 테두리, 진행 알약 5상태·답하기 배지·잠김), 모바일 5칸(DOCK_PHONE 배열, 6칸은 'world' 한 줄 추가), 경기 중 띠, HeroPanel compact, 재계약 넘침 해결, Tabs, 새 컴포넌트 TextField·Stepper·PointBar·TagChip·PixelTile·FinChip·OfferCard·TransferRow, GameCard 기본 장면, 번호 띠 팀 색 + kitClash. 테스트 455, balance 15/15.
 - **B 층 바탕은 못 넣음**(전달이 작업 중에 도착) → 34k C.55 U-B1로 따로. U5-b~g = 34l~34q(C.56~C.61).
 - 남은 질문 추천대로: ① 모바일 독 5칸 vs 6칸 — 사용자 답 대기(C.54 추천 6칸, N 추천 5칸) ② PC 독 순서 디자인대로는 U5-g ③ kitClash 기준 48 그대로, U5-b 캡처에서 재확인.
+
+## 91. C.55(34k단계 U-B1) 결과와 남은 질문 (2026-10-18 06:05 KST, 마스터 N 추천안으로 진행 — 사용자 변경 가능)
+- main dfbfc73(34k단계 · C.55 · 엔진 20 무수정 · 밸런스 38 · 세이브 31, 29분). skin-b.css(:where(html[data-skin="b"]), 속성 빼면 A), 글꼴 4(Barlow 이탤릭·Black Han Sans), data-skin="b" 기본, 설정 맨 위 "화면 스타일 B/A", 박힌 모서리 41곳 토큰화, 독 154 B 모양(5칸), 라이트 독 --dock-bg 토큰, 꺾인 면 초점 테두리 안쪽. 덤: 유스 구단이 리그 밖인 실제 선수(손흥민 함부르크)의 [선수] 화면 막힘 고침. 테스트 459, balance 15/15.
+- 남은 질문 추천대로: ① 라이트 B 머리말은 디자인 없음 → 디자이너 다음 판 ② 선수 머리말 세 번째 칩 라임 사선 면 걸침 → U5-d ③ Poppins는 A용으로 유지.
+- 반복 현상: cards "경기 계산 2초" 테스트가 엔진 점검과 동시 실행 때만 4초대 실패(C.53~C.55, 단독 통과) → C.56에 동시 실행 금지·필요하면 여유값 조정 지시.
