@@ -229,3 +229,13 @@
 - (19:27~19:34 KST) 환경 설정 스크립트에 도메인 줄이 들어가 새 세션 시작 실패(UI_1 첫 세션 `session_01QuN9pxUgr2T4SN6FKmUmjd` → draft_). 사용자가 스크립트를 비움 → **UI_1 재시작 `session_01D3WSqiWMZA3itvZV4ppYvC`** 정상 시작. 네트워크 허용 도메인은 Network access 칸에 유지(설정 스크립트에 넣지 말 것).
 - (19:40 KST) 33 C.44·33a C.44a 완료 → pending 60, 두 세션 draft_. **34 C.45 시작** `session_01PyosPUNsMEvAoK43GW8bES`(브랜치 `claude/c45-body`). 자동 확인 `trig_01HbeNU9EdbbdH5wCdQkg2DS`(22:07 KST). UI_1에 배포 소식·새 화면 목록 전달. main 푸시 규칙 변경(마스터·UI는 자기 브랜치만, automation 0번). 사용자 보고: 사이드바 섹션 태그가 앱에 반영 안 됨(서버 태그는 모두 맞음) → 확인 중.
 - (19:39 KST) **섹션 태그 중단**(사용자 직접 분류). 위 8.18 흐름의 `remote-agents-project:` 태그 붙이기·바꾸기는 하지 않는다(automation.md 0번).
+
+### 8.20 다음 마스터 세션(M)이 할 일 (L 교체 2026-10-17 20:58 KST, L 컨텍스트 48만·비용 23.5달러 — 기준 초과, 교체 확인을 늦게 함: 단계 열 때마다 `get_session` 확인할 것)
+- 이름: 기획 세션 = **마스터 세션**, 제목 `M_축구 커리어 게임 마스터`(automation.md 0번). 브랜치 `claude/planning-l`에서 시작해 `claude/planning-m`(시스템 지정이면 그것). 코드 세션 지시의 "마스터 브랜치 docs/ 병합"을 M 브랜치로.
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md` 전체(오늘 바뀜: 0번 main 푸시 규칙·섹션 태그 중단·draft_ 뜻·마스터 이름, 6번 UI 세션 구조), 이 문서 1번·8.19·8.20, `docs/planning-pending.md` **55~67**, `docs/game-design.md` 17.2(33~34c 행), `docs/design/pixel-kits.md`, `docs/legend-pack-draft.md`.
+- **오늘 바뀐 운영 규칙**: ① 마스터·UI·엔진관리자 세션은 문서를 **자기 브랜치에만** 푸시, main 반영은 코드 세션 배포 때 그 브랜치들의 docs/ 병합(배포가 20분+ 걸려 docs 푸시가 배포를 취소했음; C.45에서 `paths-ignore: docs/**`도 넣음) ② `remote-agents-project:` 섹션 태그는 붙이지 않음(사용자가 PC 앱에서 직접 분류) ③ 세션 간 메시지는 한국어 유지(pending 59) ④ 사용자 원문 인용 + 요약 확인을 계속.
+- **실행 중 세션**: 34단계 C.45 `session_01PyosPUNsMEvAoK43GW8bES`(브랜치 `claude/c45-body`, 1차 배포 5258ecf, 지금 2차: 모든 선수 태그·원클럽맨 기준·특성/태그 통합·노익장·늦게 핀 꽃·빅매치 생성 제외) / UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC`(브랜치 `claude/ui-1`, 5차 보고 끝, 누계 4·1단계) / 엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`(브랜치 `claude/engine-issues-c45`, 미해결 6·7번 추가). 셋 모두에 "보고는 M으로" send_message.
+- **L 자동 확인** `trig_01HbeNU9EdbbdH5wCdQkg2DS`(22:07 KST, L로 들어감) → M이 delete 후 send_later 150분.
+- **다음 순서**: C.45 2차 완료 보고 → pending 다음 번호(68~) → UI_1에 디자인 없는 새 화면 목록 → **34b C.46 구단 재정·로스터 인원**(pending 62.1·62.2, 재계약 판정을 모든 선수로 넓힐지도 여기서 — pending 67 ④) → **34c C.47 레전드 팩 + 커리어 태그**(pending 63~66: 레전드 약 115명 `docs/legend-pack-draft.md`, 2018~2020 은퇴자 일반 로스터 제외, 태그 효과 64번 "지금" 항목, 자연 발생 태그 65번 "지금" 항목, 태그 통합 66번, 노익장 30세+·×0.7, 늦게 핀 꽃 = 첫 노화 종류별 1회 면제(B안), 효과는 미미하게) → 35 5-1 → 36 5-2(+생활 시스템) → 37~41 → 엔진 블록(미해결 1~7).
+- 기획서 본문 합침 대기(코드 세션이 쉴 때): 19.10 부분 개정(구단 예산 포함), 23번 로스터 인원, 19.12 구단 재정 새 소절, 태그 시스템 새 소절(pending 62.4·64~66).
+- 사용자 대기 항목 없음(오늘 질문은 모두 확정).
