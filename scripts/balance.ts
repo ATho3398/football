@@ -44,6 +44,8 @@ const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
  * 회귀 가드는 POLICY(기본 stay)로 판정하고, 다른 정책은 [C.42 이적] 측정 줄에 따로 보여 준다
  */
 const POLICY = (env.POLICY ?? 'stay') as 'stay' | 'best';
+/** 측정용: 고령 XP 감쇠 덮어쓰기 (C.49), 예 VET='[[30,0.7],[32,0.5]]' */
+if (env.VET) (BALANCE.matchXp as { veteranMultiplier: [number, number][] }).veteranMultiplier = JSON.parse(env.VET);
 if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
