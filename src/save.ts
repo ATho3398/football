@@ -12,6 +12,7 @@ import { positionOvr } from './positions';
 import { initialProficiency } from './proficiency';
 import { migratedTactics, validTactics } from './myTactics';
 import { customProblem } from './formations';
+import { initCollection } from './cardCollection';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -136,6 +137,11 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 14 → 15 (부록 C.35, E5 최소): 결정 기록에 화면이 보여 준 결과(seen)가 붙는다. 선택 필드라 옛 기록은 그대로 (평점 판정을 쓴다)
   14: () => {},
+  // 15 → 16 (부록 C.36, 3단계 카드): 카드 모음. 주 포지션군 시작 덱 8장(덱 세트 3개 같은 덱), 숙련도·역할 출전 0,
+  // 레벨 선택권은 지금 레벨까지 지난 것으로 친다 (변환 직후 선택권이 몰려 나오지 않게)
+  15: (s) => {
+    s.cards = initCollection(s.player.position, s.player.level ?? 0);
+  },
 };
 
 export function migrate(raw: any): GameState {

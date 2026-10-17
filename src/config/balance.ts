@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 23;
+export const BALANCE_VERSION = 24;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -478,6 +478,39 @@ export const BALANCE = {
     ] as [number, number][],
     /** 필드 선수가 GK 를 볼 때 능력치 (부록 E.10) */
     fieldPlayerAsGk: { shotStopping: 20, handling: 20, commandOfArea: 30, distribution: 30 },
+  },
+
+  // ── 카드 (16.2, 부록 F.3·F.3.2·F.5, C.36) ──
+  cards: {
+    /** 덱 8~14장, 같은 카드 2장, 세트피스 3장 (F.3) */
+    deckMin: 8,
+    deckMax: 14,
+    maxCopies: 2,
+    maxSetPiece: 3,
+    /** 덱 세트 (I.17 9번) */
+    deckSets: 3,
+    /** 시작 패, 드로우 간격(경기 시계 초), 성공 보너스 드로우 최대, 패 최대, 패시브 슬롯 (F.3) */
+    startHand: 4,
+    drawEvery: 900,
+    bonusDraws: 3,
+    handMax: 6,
+    passiveSlots: 2,
+    /** 한 행동에 붙는 카드 확률 보너스 합계 상한 (F.0 2번, E.15.1) */
+    bonusCap: 0.15,
+    /** 판정 능력치(judge)를 바꾸는 카드: 성공 확률 += judgeK × (판정 능력치 − 기본 판정 능력치)/100, ±judgeMax 안 */
+    judgeK: 0.6,
+    judgeMax: 0.1,
+    /** 카드 숙련도 (F.3.2): 사용 횟수 [이상, %p] */
+    mastery: [[5, 0.02], [15, 0.04], [30, 0.06]] as [number, number][],
+    /** 성공/실패 판정 창 (초): 패스·크로스 도착, 슈팅 결과, 몰고 가기 */
+    watchWindow: 4,
+    /** 자동 경기 카드 기회 (F.5): "중요한 순간만"과 같은 중요도 임계값 배수 */
+    autoStopMul: 1.0,
+    /** 획득 (F.1 간이 경로): 레벨업 n레벨마다 일반 3택 1, 시즌 종료 희귀·에픽 3택 1, 역할 시그니처 해금 경기 수 */
+    levelEvery: 5,
+    pickOptions: 3,
+    seasonEpicChance: 0.2,
+    signatureUnlock: 10,
   },
 } as const;
 

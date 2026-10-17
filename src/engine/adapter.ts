@@ -13,7 +13,8 @@ import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTa
 import { buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
-import type { Moment, MomentControl } from './moments';
+import type { Moment, MomentChoice, MomentControl } from './moments';
+import type { CardInput } from './cards';
 import type { MatchSim } from './sim';
 
 export const MY_ID = 'me';
@@ -56,6 +57,8 @@ export interface EngineMatchInput {
   myTactics?: MyTactics;
   /** 내 선수 결정 순간 (E.11): 직접/자동, 정지 빈도, 정책. 없으면 자동 */
   control?: MomentControl;
+  /** 내 선수 카드 (C.36): 덱과 숙련도. 없으면 카드 없이 */
+  cards?: CardInput;
 }
 
 /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
@@ -119,6 +122,7 @@ export function buildMyMatch(m: EngineMatchInput) {
     bigMatch: m.bigMatch ?? false,
     ...(m.plan.minutes ? { myMinutes: m.plan.minutes } : {}),
     ...(m.control ? { control: m.control } : {}),
+    ...(m.cards?.deck.length && m.plan.minutes ? { cards: m.cards } : {}),
   });
 }
 
@@ -194,7 +198,7 @@ export class MyMatchRun {
   }
 
   /** 결정 확정 후 그 틱을 마저 진행한다 */
-  resolve(choice: number | 'delegate'): void {
+  resolve(choice: MomentChoice): void {
     const s = this.sim.state;
     if (!s.moments.pending) return;
     const goals = s.teams[0].stats.goals + s.teams[1].stats.goals;

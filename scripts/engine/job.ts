@@ -285,7 +285,8 @@ export function runSeasonJob(j: SeasonJob): SeasonOut {
     const g = newGame({ mode: 'real', playerId: j.playerId, seed: j.seed, difficulty: 'normal' });
     const ratings: number[] = [];
     while (g.phase === 'season') {
-      const rep = playRound(g, { engine: j.engine });
+      // 엔진 회귀 측정은 카드 없이 (C.36: 카드가 없는 경기는 C.35 와 같다)
+      const rep = playRound(g, { engine: j.engine, cards: false });
       if (rep.result.rating !== null && rep.result.minutes >= 45) ratings.push(rep.result.rating);
       autoAllocate(g.player);
     }

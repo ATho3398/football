@@ -16,7 +16,8 @@ function game(group: string, seed = 'mom'): GameState {
 /** 선발로 뛰는 라운드까지 진행 */
 function startedRound(g: GameState) {
   for (let k = 0; k < 6; k++) {
-    const rm = roundMatch(g);
+    // 카드 없이 (C.34 결정 순간 규칙 확인용, 카드는 tests/cards.test.ts)
+    const rm = roundMatch(g, { cards: false });
     if (rm.plan.started) return rm;
     playRound(g);
   }

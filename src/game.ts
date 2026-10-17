@@ -29,12 +29,14 @@ import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
+import { afterMatch, cardInput, grantLevelPicks, grantSeasonPick, initCollection, type CardCollection } from './cardCollection';
+import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 import { slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import type { FieldPosition } from './positions';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 15;
+export const SAVE_FORMAT_VERSION = 16;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -65,6 +67,10 @@ export interface MatchReport {
   rec?: MatchRecord;
   /** 내 결정 기록 (E.11, I.17 10번). 직접 모드로 멈춘 순간이 있었을 때만 */
   decisions?: DecisionRecord[];
+  /** 이 경기에 쓴 카드 (C.36): 이름, 분, 결과, 자동 규칙으로 썼는지 */
+  cardUses?: { name: string; minute: number; result: 'success' | 'fail' | 'neutral'; auto: boolean }[];
+  /** 이 경기로 해금된 역할 시그니처 카드 이름 */
+  cardUnlock?: string;
   /**
    * 부진 연속 감점 (부록 C.25): 이 경기로 잃은 위상과 연속 경기 수, 기준 평점.
    * blocked 는 티어 하한에 막혀 사라진 감점 (부록 C.27). threshold 는 C.27 이전 세이브에는 없다
@@ -142,6 +148,8 @@ export interface GameState {
   tactics: MyTactics;
   /** 내 선수 결정 순간 설정 (E.11, 부록 C.34): 직접/자동, 정지 빈도 */
   control: MatchControl;
+  /** 카드 모음과 덱 세트 (부록 F, C.36) */
+  cards: CardCollection;
 }
 
 export interface MatchControl {
@@ -275,6 +283,7 @@ export function newGame(opts: NewGameOptions): GameState {
     matchLog: [],
     control: { mode: 'direct', stop: 'important' },
     tactics: teamDefaultTactics(player.teamId, rosters[player.teamId], player.position),
+    cards: initCollection(player.position),
   };
 }
 
@@ -319,6 +328,8 @@ export interface PlayOptions {
   control?: MomentControl;
   /** 화면에서 결정 순간을 직접 진행한 내 경기 결과 (roundMatch 로 만든 같은 입력, E4). 있으면 다시 계산하지 않는다 */
   engineOut?: MyMatchOutput;
+  /** false 면 카드 없이 (엔진 회귀 측정용, C.36). 기본은 지금 덱 */
+  cards?: boolean;
 }
 
 /** 이번 라운드 내 경기의 엔진 입력 (상태를 바꾸지 않는다). 결장(부상·정지·벤치)이어도 입력은 만든다 */
@@ -330,7 +341,7 @@ export interface RoundMatch {
   teams: [string, string];
 }
 
-export function roundMatch(state: GameState): RoundMatch {
+export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): RoundMatch {
   const { league, player } = state;
   const roundIdx = league.round;
   const seed = state.worldSeed;
@@ -369,6 +380,7 @@ export function roundMatch(state: GameState): RoundMatch {
     me: { position: pos, attributes: player.attributes, fatigue, form, proficiency: proficiencyOf(player, pos) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
     leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
+    ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] };
 }
@@ -385,7 +397,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   const injured = player.injury !== null;
   const suspended = !injured && player.suspended > 0;
   // 내 경기 입력은 주간 회복 전 상태에서 만든다 (roundMatch 가 회복 후 피로를 직접 계산한다)
-  const rm = useEngine ? roundMatch(state) : null;
+  const rm = useEngine ? roundMatch(state, { cards: opts.cards }) : null;
   weeklyRecovery(player, !injured);
 
   // 내 경기
@@ -501,6 +513,14 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   result.xp = Math.round(result.xp * veteranXpMultiplier(player.age));
   s.matchXp += result.xp;
   const levelsGained = addXp(player, result.xp);
+  // 카드 (C.36): 숙련도, 역할 출전 → 시그니처 해금, 레벨업 5레벨마다 선택권
+  let cardUnlock: string | undefined;
+  if (state.cards) {
+    const unlocked = afterMatch(state.cards, engineOut?.engine.cards, engineOut?.engine.myRole, result.minutes > 0);
+    if (unlocked) cardUnlock = cardById(unlocked)?.name;
+    grantLevelPicks(state.cards, player.level, player.position, seed);
+  }
+  const cardUses = engineOut?.engine.cards?.uses.map((u) => ({ name: cardById(u.id)?.name ?? u.id, minute: u.minute, result: u.result, auto: u.auto }));
 
   league.round++;
   const report: MatchReport = {
@@ -513,6 +533,8 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     ...(engineOut ? { engine: matchSummary(engineOut) } : {}),
     ...(rec ? { rec } : {}),
     ...(engineOut?.engine.decisions.length ? { decisions: engineOut.engine.decisions } : {}),
+    ...(cardUses?.length ? { cardUses } : {}),
+    ...(cardUnlock ? { cardUnlock } : {}),
     ...(slump ? { slump } : {}),
   };
   state.lastMatch = report;
@@ -728,6 +750,8 @@ export function endSeason(state: GameState): SeasonSummary {
     canRetire: age >= BALANCE.retirement.optionalAge,
     forcedRetire: player.age >= BALANCE.retirement.forcedAge,
   };
+  // 시즌 종료 카드 보상 3택 1 (F.1 간이 경로, C.36)
+  if (state.cards) grantSeasonPick(state.cards, state.league.season, state.player.position, state.worldSeed);
   state.lastSeasonSummary = summary;
   state.phase = summary.forcedRetire ? 'retired' : 'offseason';
   return summary;

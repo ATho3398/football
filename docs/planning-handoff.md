@@ -179,3 +179,9 @@
 - **main 푸시 막힘**: 기획 세션의 `git push origin HEAD:main`이 자동 권한 검사에서 "Production Deploy"로 막힌다(문서만이라도 Pages 배포가 돌기 때문). 그래서 기획 문서(pending 20~33, 17.2 개정, automation.md 4·5번)는 **`claude/planning-i` 브랜치에만** 있다. 사용자에게 허락을 물었으나 아직 답 없음. 코드 세션에는 결정을 지시문에 직접 적어 넘긴다. 코드 세션이 main에 기획 문서를 함께 올려 줄 수도 있다(그 단계 지시에 "`origin/claude/planning-<x>`의 docs/를 main에 병합해 같이 배포" 넣기).
 - **세션 깊이 주의**: 세션 계보 깊이 제한이 8이다(I = 6). J는 7, J가 여는 코드 세션은 8(허용). **J는 다음 기획 세션(K)을 만들 수 없다**(K가 8이 되어 자식을 못 만든다). J가 교체 기준에 닿으면 인수인계를 갱신하고 **사용자에게 앱에서 새 기획 세션을 직접 열어 달라고 요청**한다.
 - **고속 모드**: 새 세션에 `flag_settings.fastMode`가 안 붙는다. 사용자에게 몇 번 알렸음.
+
+### 8.15 기획 세션 J (2026-10-17 09:16 KST~, `session_01UTbnvKpLREGrPxSsiqjPRA`, 브랜치 `claude/planning-j`)
+- 시작: `claude/planning-i`에서 분기. I에게 "준비 완료" 보냄. 24단계 세션 `session_01PKan7PMj1t4pCiCrcWMGPw` draft_ 처리.
+- **실행 중**: 25단계 E5 최소 `session_01FVcAC1iXE27urh364aGgBM` "25단계_E5 최소 (결정 결과·결정 패널)", Opus, 브랜치 `claude/e5-min`, 부록 C.35 예정. 끝나면 J에 send_message. 자동 확인 예약 `trig_01BAZPUGB5yfG8aTmGPF6xkH`(11:47 KST).
+- 다음: 26 카드(3단계, 부록 F) → 26b 포지션 적성 → 27 5-0 … (17.2). 코드 세션 지시에 "`origin/claude/planning-j`의 docs/를 main에 병합해 같이 배포" 넣기.
+- **J는 다음 기획 세션을 만들 수 없다**(깊이 제한). 25만 토큰/15달러에 닿으면 이 절을 갱신하고 사용자에게 앱에서 새 기획 세션을 열어 달라고 요청.

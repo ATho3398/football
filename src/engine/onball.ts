@@ -40,6 +40,8 @@ export interface Candidate {
   pFlight?: number;
   /** 침투 패스: 달리기 경쟁에서 상대 GK 가 수비 쪽 가장 빠르다 (실패하면 GK 가 끊는다, C.28) */
   keeper?: number;
+  /** 카드로 더한 성공 확률 %p (C.36, 한 행동 상한 계산용). 카드가 없으면 없다 */
+  cardD?: number;
 }
 
 /** 가장 가까운 상대와 거리 */

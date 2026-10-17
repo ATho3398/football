@@ -3,6 +3,7 @@
 import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
 import type { Position } from '../types';
 import type { MomentState } from './moments';
+import type { CardState } from './cards';
 import type { Role } from './roles';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
 
@@ -64,7 +65,9 @@ export interface Agent {
   /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
   duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
-  rt: { forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number };
+  rt: { forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number };
+  /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
+  cardBoost?: { tackle: number; air: number };
   /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */
   gotBy: 'receive' | 'gain';
   lastMoveT: number;
@@ -111,7 +114,11 @@ export interface Flight {
   /** 유효 슈팅 정보 */
   shot?: { speed: number; corner: number; d: number; header: boolean; penalty?: boolean;
     /** 2단계 비행 (C.24): 세이브 실패 시 골라인 도착점과 남은 비행 시간 */
-    goalX?: number; goalY?: number; rest?: number };
+    goalX?: number; goalY?: number; rest?: number;
+    /** 카드 선방 보정 (C.36): 상대 GK 선방 확률에 더한다 */
+    cardSave?: number };
+  /** 카드 크로스 보정 (C.36): 착지 공중볼에서 공격 쪽 승리 확률에 더한다 */
+  cardEdge?: number;
 }
 
 export interface Ball {
@@ -229,7 +236,9 @@ export interface SimState {
   /** 내 선수 결정 순간 (E.11, E4): 진행 상태와 기록. 자동 모드면 쓰지 않는다 */
   moments: MomentState;
   /** 결정 순간에서 고른 1대1 행동 (다음 defendDuels 한 번에만) */
-  forcedDuel: { idx: number; pick: number } | null;
+  forcedDuel: { idx: number; pick: number; pDelta?: number; foulMul?: number } | null;
+  /** 내 선수 카드 (C.36). 덱이 없으면 null (카드가 없는 경기는 C.35 와 같다) */
+  cards: CardState | null;
 }
 
 export function emptyTeamStats(): TeamStats {
