@@ -317,6 +317,17 @@
           img('m')));
     }
     var a = 'var(--r)', thin = props.mini;
+    if (props.placeholder !== 'scene') {
+      /* 요청 6 규칙: 그림이 없으면 '기본 장면' 대신 조용한 플레이스홀더 — 단색 바탕 + 하프라인 + 종류 아이콘(희귀도 색 55%).
+         그림 카드와 섞여도 '다른 화풍'이 아니라 '아직 그림 없음'으로 읽힌다. 좌표는 280×210 그림 칸 기준(full은 위로 10 옮겨 그린다). */
+      var ic = P[props.icon] || P.dot, fil = !!FILLED[props.icon];
+      return h(F, null,
+        h('rect', { x: 0, y: 0, width: CARD_W, height: 440, fill: '#1a1d24' }),
+        h('path', { d: 'M0 150H280', stroke: '#ffffff', strokeOpacity: 0.07, strokeWidth: 2 }),
+        h('circle', { cx: 140, cy: 150, r: 64, fill: 'none', stroke: '#ffffff', strokeOpacity: 0.07, strokeWidth: 2 }),
+        h('svg', { x: 92, y: thin ? 36 : 64, width: 96, height: 96, viewBox: '0 0 24 24', fill: fil ? a : 'none', stroke: a, strokeWidth: thin ? 2.2 : 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: 0.55, style: { color: a } },
+          h('path', { d: ic })));
+    }
     return h(F, null,
       h('rect', { x: 0, y: 0, width: CARD_W, height: 440, fill: '#1a1d24' }),
       h('circle', { cx: 150, cy: 40, r: 190, style: { fill: a }, fillOpacity: 0.12 }),
@@ -348,7 +359,7 @@
     return h('div', { className: 'po-gc' },
       h('svg', { className: 'po-gc__art', width: CARD_W, height: CARD_H, viewBox: '0 0 ' + CARD_W + ' ' + CARD_H, 'aria-hidden': true },
         h('defs', null, h('clipPath', { id: clipId }, h('path', { d: L.clip }))),
-        h('g', { clipPath: 'url(#' + clipId + ')' }, h('g', { transform: c.art ? undefined : 'translate(0 -10)' }, h(CardScene, { type: type, art: c.art, sq: c.artSquare, pos: c.artPos }))),
+        h('g', { clipPath: 'url(#' + clipId + ')' }, h('g', { transform: c.art ? undefined : 'translate(0 -10)' }, h(CardScene, { type: type, icon: typeIcon(c), placeholder: c.placeholder, art: c.art, sq: c.artSquare, pos: c.artPos }))),
         L.overlay.map(function (o, i) {
           return h('path', { key: i, d: o.d, style: { fill: 'var(--r)' }, opacity: o.op });
         })),
@@ -371,7 +382,7 @@
   function MiniCard(props) {
     var c = normCard(props.card), type = c.type || 'passive';
     return h(F, null,
-      h('svg', { className: 'po-mc__art', viewBox: c.art ? '0 0 280 210' : '20 90 240 300', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true }, h(CardScene, { type: type, art: c.art, sq: c.artSquare, pos: c.artPosMini || c.artPos, mini: true })),
+      h('svg', { className: 'po-mc__art', viewBox: c.art || c.placeholder !== 'scene' ? '0 0 280 210' : '20 90 240 300', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true }, h(CardScene, { type: type, icon: typeIcon(c), placeholder: c.placeholder, art: c.art, sq: c.artSquare, pos: c.artPosMini || c.artPos, mini: true })),
       h('span', { className: 'po-mc__band' }),
       h('span', { className: 'po-mc__dot' }),
       c.pos && c.pos !== 'all' && POS[c.pos] && h('span', { className: cx('po-mc__pos', 'po-pos--' + c.pos), title: POS[c.pos].l }, h(Icon, { name: POS[c.pos].i, size: 10, strokeWidth: 2.6 })),
@@ -764,13 +775,14 @@
   /* ================= 요청 5: 새 컴포넌트 ================= */
 
   /* ---------------- Dock ---------------- */
+  /* 요청 6: 홈은 항상 가운데(폰 6칸 = 왼쪽 2fr+1fr · 홈 · 오른쪽 1fr×3, PC 9칸 = 5번째). 진행 칸은 맨 왼쪽(넓은 알약). */
   var DOCK_PHONE = [
-    { id: 'home', label: '홈', icon: 'home' }, { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' },
+    { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'home', label: '홈', icon: 'home' },
     { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'world', label: '월드', icon: 'world' }, { id: 'more', label: '더보기', icon: 'menu' }];
   var DOCK_PC = [
-    { id: 'home', label: '홈', icon: 'home' }, { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' },
-    { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'deck', label: '덱', icon: 'deck' }, { id: 'tactic', label: '전술', icon: 'tactic' },
-    { id: 'world', label: '월드', icon: 'world' }, { id: 'settings', label: '설정', icon: 'settings' }, { id: 'save', label: '저장', icon: 'disk' }];
+    { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'deck', label: '덱', icon: 'deck' },
+    { id: 'home', label: '홈', icon: 'home' },
+    { id: 'tactic', label: '전술', icon: 'tactic' }, { id: 'world', label: '월드', icon: 'world' }, { id: 'settings', label: '설정', icon: 'settings' }, { id: 'save', label: '저장', icon: 'disk' }];
   var PROGRESS = {
     'continue': { label: '계속', icon: 'chevron-right' }, match: { label: '경기', icon: 'match' }, live: { label: '경기 중', icon: 'match' },
     answer: { label: '답하기', icon: 'chat' }, season: { label: '시즌 요약', icon: 'trophy' } };
@@ -782,10 +794,16 @@
         if (it.id === 'progress') {
           return h('button', { key: it.id, type: 'button', className: cx('po-dock__go', 'is-' + (props.progress || 'continue'), props.value === 'progress' && 'is-on'), onClick: props.onSelect && function () { props.onSelect('progress'); } },
             h('span', { className: 'po-dock__goicon' }, props.progress === 'live' ? h('i', { className: 'po-dock__live' }) : null, h(Icon, { name: st.icon, size: 20, strokeWidth: 2.4 }),
-              badges.progress != null && h('b', { className: 'po-dock__badge po-num' }, badges.progress)),
-            h('span', { className: 'po-dock__label' }, st.label));
+              h('span', { className: 'po-dock__golabel' }, st.label),
+              badges.progress != null && h('b', { className: 'po-dock__badge po-num' }, badges.progress)));
         }
         var lock = locked.indexOf(it.id) >= 0, on = props.value === it.id;
+        if (it.id === 'home') {
+          return h('button', { key: it.id, type: 'button', 'aria-current': on ? 'page' : undefined, className: cx('po-dock__home', on && 'is-on'), onClick: props.onSelect && function () { props.onSelect('home'); } },
+            h('span', { className: 'po-dock__homeicon' }, h(Icon, { name: 'home', size: pc ? 22 : 26, strokeWidth: 2.4 }),
+              badges.home != null && h('b', { className: 'po-dock__badge po-num' }, badges.home)),
+            h('span', { className: 'po-dock__label' }, it.label));
+        }
         return h('button', { key: it.id, type: 'button', disabled: lock, 'aria-current': on ? 'page' : undefined, className: cx('po-dock__item', on && 'is-on', lock && 'is-locked'), onClick: props.onSelect && function () { props.onSelect(it.id); } },
           h('span', { className: 'po-dock__icon' }, h(Icon, { name: it.icon, size: 22, strokeWidth: on ? 2.4 : 2 }),
             lock && h('span', { className: 'po-dock__lock' }, h(Icon, { name: 'lock', size: 10, strokeWidth: 2.6 })),
@@ -842,12 +860,14 @@
       h('header', { className: 'po-offer__head' },
         h(Crest, { name: o.club, src: o.crest, size: 36, color: o.color }),
         h('span', { className: 'po-offer__club' }, h('b', null, o.club), h('span', null, o.league + (o.rank != null ? ' · ' + o.rank + '위' : ''))),
-        o.loan ? h('span', { className: 'po-offer__tag is-loan' }, '임대') : o.tag && h('span', { className: 'po-offer__tag' }, o.tag)),
+        h('span', { className: 'po-offer__tags' }, finChip(o.tier, true),
+          o.loan ? h('span', { className: 'po-offer__tag is-loan' }, '임대') : o.tag && h('span', { className: 'po-offer__tag' }, o.tag))),
+      o.homeClub && h('span', { className: 'po-offer__home' }, h(Icon, { name: 'home', size: 12, strokeWidth: 2.6 }), o.homeClub),
       h('dl', { className: 'po-offer__grid' },
         h('div', null, h('dt', null, '팀 전력'), h('dd', { className: 'po-num' }, o.strength)),
         h('div', null, h('dt', null, '예상 출전'), h('dd', { className: 'po-num' }, o.apps + '%')),
         h('div', null, h('dt', null, '예상 선발'), h('dd', { className: 'po-num' }, o.starts + '%')),
-        h('div', null, h('dt', null, o.loan ? '임대 기간' : '계약'), h('dd', null, o.years))),
+        h('div', null, h('dt', null, o.loan ? '임대 기간' : '계약'), h('dd', null, o.years, o.fee && h('small', { className: 'po-offer__fee' }, '이적료 ' + o.fee)))),
       h('div', { className: 'po-offer__wage' },
         h('span', null, '주급 ', h('b', { className: 'po-num' }, o.weekly)),
         h('span', null, '연봉 ', h('b', { className: 'po-num' }, o.yearly)),
@@ -857,6 +877,14 @@
         h(Button, { size: 'md', block: true, onClick: props.onAccept, icon: 'check' }, '수락')));
   }
 
+  /* 요청 6 · 재정 등급 칩: 4단 막대(채운 칸 수) + 글자. 색을 쓰지 않아 순위표·제안·소식 어디서나 같은 모양. */
+  var FIN_N = { '빅클럽': 4, '상위': 3, '중위': 2, '하위': 1 };
+  function finChip(t, sm) {
+    if (!t || !FIN_N[t]) return null;
+    var n = FIN_N[t];
+    return h('span', { className: cx('po-fin', sm && 'po-fin--sm'), title: '재정 등급 ' + t },
+      h('span', { className: 'po-fin__bars', 'aria-hidden': true }, [0, 1, 2, 3].map(function (k) { return h('i', { key: k, className: k < n ? 'on' : '', style: { height: 4 + k * 2 } }); })), t);
+  }
   /* ---------------- TransferRow ---------------- */
   function TransferRow(props) {
     if (props.fill) {
@@ -872,7 +900,8 @@
         h('span', { className: 'po-xfer__move' },
           h(Crest, { name: props.from, size: 14, color: 'var(--ink-faint)' }), h('span', null, props.from),
           h(Icon, { name: 'chevron-right', size: 12, strokeWidth: 2.6 }),
-          h(Crest, { name: props.to, size: 14 }), h('b', null, props.to))),
+          h(Crest, { name: props.to, size: 14 }), h('b', null, props.to), finChip(props.toTier, true)),
+        props.fee != null && h('span', { className: 'po-xfer__fee' }, '몸값 ', h('b', { className: 'po-num' }, props.fee))),
       h('span', { className: 'po-xfer__side' },
         h('b', { className: 'po-num' }, props.ovr), h('span', null, props.status)));
   }
@@ -926,14 +955,27 @@
     });
     return out;
   }
-  function pixelChar(cx0, cy0, s, team, me) {
-    // 8×10 도트 캐릭터. s = 도트 한 칸 크기(viewBox 단위)
-    var shirt = team === 'away' ? 'var(--team-away)' : 'var(--team-home)';
+  function pixelChar(cx0, cy0, s, team, me, p, band, clash) {
+    // 8×10 도트 캐릭터. s = 도트 한 칸 크기(viewBox 단위). p.kit = { kit, kit2, pattern: 'solid'|'stripe'|'hoop', skin, hair } (요청 6)
+    var k = (p && p.kit) || {};
+    var shirt = k.kit || (team === 'away' ? 'var(--team-away)' : 'var(--team-home)'), shirt2 = k.kit2 || shirt;
     var map = ['..hhhh..', '.hhhhhh.', '.hssssh.', '.ssssss.', '..ssss..', 'tttttttt', 'tttttttt', '.tttttt.', '.kk..kk.', '.kk..kk.'];
-    var col = { h: '#2a1d16', s: '#e8b894', t: shirt, k: '#f3f4f6' };
+    if (k.hair === 'none') map = map.map(function (r, i) { return i < 2 ? (i === 0 ? '........' : '..ssss..') : r.replace(/h/g, 's'); });
+    var col = { h: k.hair && k.hair !== 'none' ? k.hair : '#2a1d16', s: k.skin || '#e8b894', t: shirt, k: '#f3f4f6' };
     var x0 = cx0 - 4 * s, y0 = cy0 - 5 * s, rects = [];
-    map.forEach(function (row, y) { for (var x = 0; x < 8; x++) { var ch = row[x]; if (ch !== '.') rects.push(h('rect', { key: x + '-' + y, x: x0 + x * s, y: y0 + y * s, width: s + 0.02, height: s + 0.02, fill: col[ch] })); } });
-    return h('g', { shapeRendering: 'crispEdges' }, me && h('rect', { x: x0 - s, y: y0 - s, width: 10 * s, height: 12 * s, fill: 'none', stroke: 'var(--mine)', strokeWidth: 0.45 }), rects);
+    map.forEach(function (row, y) { for (var x = 0; x < 8; x++) { var ch = row[x]; if (ch === '.') continue;
+      var f = col[ch];
+      if (ch === 't' && k.pattern === 'stripe' && x % 2 === 1) f = shirt2;
+      if (ch === 't' && k.pattern === 'hoop' && y % 2 === 0) f = shirt2;
+      rects.push(h('rect', { key: x + '-' + y, x: x0 + x * s, y: y0 + y * s, width: s + 0.02, height: s + 0.02, fill: f })); } });
+    var tc = team === 'away' ? 'var(--team-away)' : 'var(--team-home)';
+    return h('g', { shapeRendering: 'crispEdges' },
+      me && h('rect', { x: x0 - s, y: y0 - s, width: 10 * s, height: 12 * s + (band ? 3.4 * s : 0), fill: 'none', stroke: 'var(--mine)', strokeWidth: 0.45 }),
+      clash && team === 'away' && h('rect', { x: x0 - 0.3 * s, y: y0 + 4.7 * s, width: 8.6 * s, height: 3.6 * s, fill: 'none', stroke: 'var(--team-away)', strokeWidth: s * 0.55 }),
+      rects,
+      band && p && p.num != null && h('g', null,
+        h('rect', { x: x0 - 0.5 * s, y: y0 + 10.4 * s, width: 9 * s, height: 3 * s, rx: 0.6 * s, fill: tc }),
+        h('text', { x: cx0, y: y0 + 12.55 * s, className: 'po-pv__band', fontSize: 2.5 * s }, p.num)));
   }
   function faceMarker(c, r, team, me, src, uid) {
     var ring = me ? 'var(--mine)' : team === 'away' ? 'var(--team-away)' : 'var(--team-home)';
@@ -986,7 +1028,7 @@
         players.map(function (p, i) {
           var c = pxv([p.x, p.y]), me = p.me, r = (me ? 2.3 : 1.8) * sz, team = p.team || 'home';
           return h('g', { key: 'p' + i, className: cx('po-pl', 'po-pl--' + team, me && 'is-me', p.dim && 'is-dim') },
-            marker === 'pixel' ? pixelChar(c[0], c[1], dotU, team, me) :
+            marker === 'pixel' ? pixelChar(c[0], c[1], dotU, team, me, p, props.band !== false, props.kitClash) :
             marker === 'face' ? faceMarker(c, r, team, me, p.face, id + '-f' + i) :
               h(F, null,
                 me && h('circle', { cx: c[0], cy: c[1], r: r + 1.1, className: 'po-pl__halo' }),
@@ -1010,7 +1052,98 @@
       props.children && h('div', { className: 'po-pitch__overlay' }, props.children));
   }
 
+
+  /* ================= 요청 6 새 컴포넌트 ================= */
+  /* ---------------- Stepper ---------------- */
+  function Stepper(props) {
+    var v = props.value, min = props.min, max = props.max, dis = !!props.disabled;
+    var atMin = dis || (min != null && v <= min), atMax = dis || (max != null && v >= max);
+    var range = props.range != null ? props.range : (min != null && max != null ? min + '~' + max + (props.unit || '') : null);
+    return h('div', { className: cx('po-stepper', dis && 'is-disabled', props.size === 'sm' && 'po-stepper--sm', props.className) },
+      (props.label || range) && h('span', { className: 'po-stepper__head' }, props.label && h('b', null, props.label), range && h('span', { className: 'po-num' }, range)),
+      h('span', { className: 'po-stepper__box' },
+        h('button', { type: 'button', className: 'po-stepper__btn', disabled: atMin, 'aria-label': (props.label || '값') + ' 내리기', onClick: props.onMinus }, h(Icon, { name: 'minus', size: 18, strokeWidth: 2.6 })),
+        h('span', { className: 'po-stepper__mid' },
+          h('span', { className: 'po-stepper__val' }, h('b', { className: 'po-num' }, v), props.unit && h('small', null, props.unit)),
+          props.sub && h('span', { className: cx('po-stepper__sub', props.subTone && 'is-' + props.subTone) }, props.sub)),
+        h('button', { type: 'button', className: 'po-stepper__btn', disabled: atMax, 'aria-label': (props.label || '값') + ' 올리기', onClick: props.onPlus }, h(Icon, { name: 'plus', size: 18, strokeWidth: 2.6 }))));
+  }
+
+  /* ---------------- PointBar ---------------- */
+  function PointBar(props) {
+    var left = props.left, total = props.total || 0, used = total - left;
+    var st = left < 0 ? 'over' : left === 0 ? 'zero' : 'left';
+    var pct = total > 0 ? Math.max(0, Math.min(1, used / total)) : 0;
+    var msg = props.message || (st === 'over' ? '✕ ' + (-left) + 'P 넘쳤어요 · 시작할 수 없어요' : st === 'zero' ? '✓ 다 썼어요' : '남았어요');
+    return h('div', { className: cx('po-pointbar', 'is-' + st, props.sticky && 'is-sticky', props.className), role: 'status', 'aria-live': 'polite' },
+      h('div', { className: 'po-pointbar__row' },
+        h('span', { className: 'po-pointbar__label' }, props.label || '배분 포인트'),
+        h('b', { className: 'po-pointbar__left po-num' }, left, h('small', null, 'P')),
+        h('span', { className: 'po-pointbar__total po-num' }, '/ ' + total + 'P'),
+        h('span', { className: 'po-pointbar__msg' }, msg)),
+      h('span', { className: 'po-pointbar__track' }, h('i', { style: { width: (st === 'over' ? 100 : pct * 100) + '%' } })),
+      props.items && props.items.length > 0 && h('span', { className: 'po-pointbar__items' },
+        props.items.map(function (it, i) {
+          var v = it.value, z = v === 0 || v == null;
+          return h('span', { key: i, className: cx('po-pointbar__item', !z && (v > 0 ? 'is-plus' : 'is-minus'), it.base && 'is-base') },
+            it.label, ' ', h('b', { className: 'po-num' }, it.base ? v : z ? '0' : signed(v, 0)));
+        })));
+  }
+
+  /* ---------------- TagChip ---------------- */
+  /* 규칙: 색 = 장점(초록)/단점(빨강)/효과 없음(회색). 맨 앞 기호 = 종류(± 생성 · 핀 커리어 · 별 플레이 · 말풍선 스토리). 점선 테두리 = 해제형(조건을 채우면 사라짐). 취소선 = 해제됨. */
+  var TAG_KIND = { gen: { l: '생성 태그' }, career: { l: '커리어 태그', i: 'pin' }, play: { l: '플레이 태그', i: 'star' }, story: { l: '스토리 태그', i: 'chat' } };
+  function TagChip(props) {
+    var kind = TAG_KIND[props.kind] ? props.kind : 'gen', pol = kind === 'story' ? 'none' : (props.polarity || 'pro');
+    var K = TAG_KIND[kind], rel = !!props.release;
+    var tip = [K.l + (pol === 'pro' ? ' · 장점' : pol === 'con' ? ' · 단점' : ''), props.scope && props.scope + '에서만 효과', rel && '해제형 · ' + props.release, props.released && '해제됨', props.desc].filter(Boolean).join('\n');
+    return h(props.onClick ? 'button' : 'span', { type: props.onClick ? 'button' : undefined, onClick: props.onClick, title: tip, 'aria-label': props.name + ' — ' + tip.replace(/\n/g, ' · '),
+      className: cx('po-tag', 'po-tag--' + kind, 'po-tag--' + pol, rel && 'is-release', props.released && 'is-released', props.size === 'sm' && 'po-tag--sm', props.className) },
+      h('span', { className: 'po-tag__mark', 'aria-hidden': true }, K.i ? h(Icon, { name: K.i, size: props.size === 'sm' ? 11 : 13, strokeWidth: 2.6, filled: kind === 'play' }) : (pol === 'con' ? '−' : '+')),
+      h('span', { className: 'po-tag__name' }, props.name),
+      props.scope && props.showScope && h('span', { className: 'po-tag__scope' }, props.scope),
+      rel && h('span', { className: 'po-tag__rel', 'aria-hidden': true }, h(Icon, { name: 'clock', size: props.size === 'sm' ? 10 : 12, strokeWidth: 2.6 })),
+      kind === 'story' && h('span', { className: 'po-tag__none' }, '효과 없음'));
+  }
+
+  /* ---------------- PixelTile ---------------- */
+  /* 16×16 도트. sprite = { kind: 'person'|'kit', skin, hair('none' = 민머리), hairStyle: 'short'|'long'|'curly', kit, kit2, pattern: 'solid'|'stripe'|'hoop' } 또는 src(16px PNG). 크기는 16의 정수배만(scale 1~6). */
+  var PX_PERSON = ['................', '.....hhhhhh.....', '....hhhhhhhh....', '....hssssssh....', '....ssssssss....', '....sesssses....', '....ssssssss....', '.....ssssss.....',
+    '......ssss......', '...tttttttttt...', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..'];
+  var PX_KIT = ['................', '................', '...tttc..cttt...', '..ttttcccctttt..', '.tttttttttttttt.', 'tttttttttttttttt', 'tttttttttttttttt', 'ttt.tttttttt.ttt',
+    '....tttttttt....', '....tttttttt....', '....tttttttt....', '....tttttttt....', '....tttttttt....', '....tttttttt....', '....tttttttt....', '................'];
+  function pixelMap(sp) {
+    var m = (sp.kind === 'kit' ? PX_KIT : PX_PERSON).slice();
+    if (sp.kind !== 'kit') {
+      if (sp.hair === 'none') m = m.map(function (r, i) { return i === 1 ? '................' : i === 2 ? '.....ssssss.....' : r.replace(/h/g, 's'); });
+      else if (sp.hairStyle === 'long') { m[4] = '...hssssssssh...'; m[5] = '...hsesssssesh..'.replace('sesssssesh..', 'sesssesh...'); m[5] = '...h' + 'sesssses' + 'h...'; m[6] = '...hssssssssh...'; m[7] = '....hssssssh....'; }
+      else if (sp.hairStyle === 'curly') { m[0] = '....hhhhhhhh....'; m[1] = '...hhhhhhhhhh...'; m[2] = '...hhhhhhhhhh...'; m[3] = '...hhssssssh....'; }
+    }
+    return m;
+  }
+  function PixelSprite(props) {
+    var sp = props.sprite || {}, m = pixelMap(sp), size = props.size, rects = [];
+    var col = { h: sp.hair && sp.hair !== 'none' ? sp.hair : '#2a1d16', s: sp.skin || '#e8b894', e: '#121317', t: sp.kit || 'var(--team-home)', c: sp.kit2 || '#f3f4f6' };
+    m.forEach(function (row, y) { for (var x = 0; x < 16; x++) { var ch = row[x]; if (!ch || ch === '.') continue;
+      var f = col[ch];
+      if (ch === 't' && sp.pattern === 'stripe' && Math.floor(x / 2) % 2 === 1) f = sp.kit2 || '#f3f4f6';
+      if (ch === 't' && sp.pattern === 'hoop' && Math.floor(y / 2) % 2 === 1) f = sp.kit2 || '#f3f4f6';
+      rects.push(h('rect', { key: x + '-' + y, x: x, y: y, width: 1, height: 1, fill: f })); } });
+    return h('svg', { className: 'po-pixel__svg', width: size, height: size, viewBox: '0 0 16 16', shapeRendering: 'crispEdges', 'aria-hidden': true }, rects);
+  }
+  function PixelTile(props) {
+    var sc = Math.max(1, Math.min(6, Math.round(props.scale || 3))), size = 16 * sc;
+    return h(props.onClick ? 'button' : 'div', { type: props.onClick ? 'button' : undefined, onClick: props.onClick, 'aria-pressed': props.onClick ? !!props.selected : undefined, title: props.title || props.label,
+      className: cx('po-pixel', props.selected && 'is-selected', props.isDefault && 'is-default', props.disabled && 'is-disabled', props.className), style: { '--px-size': size + 'px' } },
+      h('span', { className: 'po-pixel__art' },
+        props.src ? h('img', { src: props.src, width: size, height: size, alt: '', className: 'po-pixel__img' }) : h(PixelSprite, { sprite: props.sprite, size: size }),
+        props.isDefault && h('span', { className: 'po-pixel__def' }, '기본'),
+        props.selected && h('span', { className: 'po-pixel__check' }, h(Icon, { name: 'check', size: 10, strokeWidth: 3.2 }))),
+      props.label != null && h('span', { className: 'po-pixel__label' }, props.label));
+  }
+
   var api = {
+    Stepper: Stepper, PointBar: PointBar, TagChip: TagChip, PixelTile: PixelTile,
     Dock: Dock, AttrTile: AttrTile, AttrGrid: AttrGrid, DayCell: DayCell, OfferCard: OfferCard, TransferRow: TransferRow, TextField: TextField,
     Button: Button, Icon: Icon, Avatar: Avatar, Crest: Crest, TierBadge: TierBadge, RatingBadge: RatingBadge, StatChip: StatChip,
     Meter: Meter, FatigueGauge: FatigueGauge, FormIndicator: FormIndicator, StatBar: StatBar, PlayerCard: PlayerCard,

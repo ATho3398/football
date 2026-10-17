@@ -82,6 +82,19 @@ PLAYER ONE은 선수 한 명을 17세부터 은퇴까지 키우는 싱글 플레
 - **빽빽한 곳**: 주간 7칸은 `DayCell`(요일·날짜·아이콘·2글자), 값은 시트에서. 능력치는 `AttrTile` 4열, 이름 줄임 없이.
 - 단어 중간 줄바꿈 방지: 본문은 `word-break: keep-all`.
 
+## 요청 6 · 커스텀·태그·카드 그림·홈 가운데
+
+- **독**: 홈이 항상 가운데(폰 = 진행 2fr · 선수 · 홈 · 훈련·일정 · 월드 · 더보기 / PC = 5번째). 홈 키는 56px 원(라임 테두리, 홈 화면이면 라임 면). 진행 칸 상태 5종·배지·잠김은 그대로.
+- **긴 입력 화면은 단계로**: 커스텀 생성 = 6단계(기본 · 몸 · 외모 · 태그 · 능력치 · 시작). 위 점 6개 + `PointBar`(sticky) + 아래 [이전][다음]. PC는 단계 목록이 왼쪽에 늘 보여요.
+- **긴 목록은 묶음 탭 + 검색 + 거르기 + 정렬 + "n명 더 보기"**: 실제 선수 / 레전드 107명. 고른 항목은 목록 위에 고정 카드.
+- **긴 이름 + 칩**: 이름 줄에는 이름만(한 줄, 말줄임). 칩(레전드·태그·등급)은 고정 자리(메타 줄 맨 앞, 카드 위 줄, 오른쪽 열)에 nowrap. 선수 이름은 통용 표기(요한 크루이프 · 호나우두 · 사비 에르난데스 · 데니스 베르캄프).
+- **태그**: `TagChip` — 색 = 장점/단점/효과 없음, 앞 기호 = 종류(± 생성 · 핀 커리어 · 별 플레이 · 말풍선 스토리), 점선 + 시계 = 해제형, 취소선 = 해제됨. 태그 줄은 대표 4개(커리어·플레이 → 장점 → 단점, 최근 순) + [전체 보기] 시트.
+- **재정 등급**: 4단 막대 + 글자(빅클럽 · 상위 · 중위 · 하위). 색을 쓰지 않아요. 표에서는 막대만.
+- **설정 꾸미기**: 목록이 있는 4개(선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지)는 설정 안 한 섹션 "꾸미기"의 줄 4개 → 각각 하위 화면(위 이동 칩으로 서로 오감). 설정 본문에는 목록을 두지 않아요.
+- **도트**: `PixelTile` 16px × 정수배, `image-rendering: pixelated`. 경기 화면 캐릭터는 번호 띠(홈 라임 · 원정 주황) + 비슷한 유니폼이면 원정 몸통 주황 테두리.
+- **카드 그림 없음**: 단색 + 종류 아이콘 기본 장면(GameCard README).
+- **경기 흐름**: 경기 준비(156) → 경기 → 끝나면 결과 화면 바로(155, [하이라이트 다시보기] 버튼). 다른 팀·선수를 누르면 상세(157 · 158, 읽기 전용). 훈련은 프리셋(159).
+
 ## 아이콘과 이미지
 
 - 아이콘은 번들 내장 `Icon`(24px, 2px 선, `currentColor`)만 쓴다.
@@ -93,5 +106,7 @@ PLAYER ONE은 선수 한 명을 17세부터 은퇴까지 키우는 싱글 플레
 요청서의 공통 컴포넌트: `PlayerCard`, `StatBar`, `GameCard`(full·deck·mini·hand), `ChoiceButton`, `FeedItem`, `StatChip`, `Banner`, `BottomSheet`, `Toast`, `Tabs`, `Modal`.
 
 요청 5: `Dock`, `AttrTile`·`AttrGrid`, `DayCell`, `OfferCard`, `TransferRow`, `TextField`.
+
+요청 6: `Stepper`, `PointBar`, `TagChip`, `PixelTile`.
 
 함께 둔 것: `SceneStrip`(경기 상단 띠 단독), `Pitch`, `TacticEmblem`, `TacticChip`, `FitBadge`, `FormationPitch`, `OptionRow`, `Slider`, `Switch`, `CellGauge`, `HeroPanel`(라임 헤더), `SectionTitle`, `DeckSlot`, `CardHand`, `TierBadge`, `RatingBadge`, `FatigueGauge`, `FormIndicator`, `Meter`, `ScoreBar`, `PossessionBar`, `ResultSplash`, `AppBar`, `Button`, `Icon`, `Avatar`, `Crest`.

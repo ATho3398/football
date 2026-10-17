@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>경기화면-캐릭터</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 16px 10px; background: var(--surface-1); border-radius: 0 0 20px 20px;"><div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;"><span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800;"><x-import component-from-global-scope="PlayerOne.Crest" name="뉴캐슬" size="{{i20}}"></x-import>뉴캐슬</span><span style="display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 26px; line-height: 28px; font-weight: 700;">0<span style="font-size: 16px; color: var(--ink-faint);">:</span>0</span><span style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 13px; font-weight: 800; color: var(--away);">사우샘프턴<x-import component-from-global-scope="PlayerOne.Crest" name="사우샘프턴" size="{{i20}}" color="var(--away)"></x-import></span></div><div style="display: flex; align-items: center; gap: 8px;"><span style="display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 7px; background: var(--brand); color: var(--on-brand); font-family: var(--font-display); font-size: 13px; font-weight: 700;">27'</span><span style="flex: 1; min-width: 0; font-size: 12px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">하이라이트 · 장면 2/7 · 이도윤 왼쪽 돌파</span><span style="display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border-radius: 8px; background: var(--surface-3); font-size: 11px; font-weight: 800;"><x-import component-from-global-scope="PlayerOne.Icon" name="eye" size="{{i14}}"></x-import>캐릭터</span></div></div><div style="padding: 8px 16px 0;"><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{players}}" ball="{{ball}}" crop="{{crop}}" marker="pixel" size="lg" names="mine" dot="{{s2}}" render-width="{{rw}}" kit-clash="{{yes}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 2px; padding: 6px 16px 0;"><x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{m26}}" kind="normal" text="셸비, 왼쪽으로 벌려 줍니다"></x-import><x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{m27}}" kind="chance" mine="{{yes}}" text="이도윤, 왼쪽에서 박스로 파고듭니다"></x-import></div><div style="display: flex; flex-direction: column; gap: 12px; padding: 10px 16px 16px;"><section style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface-1);"><div style="display: flex; justify-content: space-between; align-items: baseline;"><b style="font-size: 13px;">비슷한 유니폼 경기 · 구분 보조</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">흑백 줄 vs 검정</span></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-radius: 12px; background: var(--pitch);"><div style="width: 120px;"><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{cmp}}" crop="{{cmpCrop}}" marker="pixel" names="off" dot="{{s4}}" render-width="{{rw120}}" kit-clash="{{no}}"></x-import></div><span style="font-size: 11px; font-weight: 800; color: var(--ink-faint);">보조 없음</span></div><div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-radius: 12px; background: var(--pitch);"><div style="width: 120px;"><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{cmp}}" crop="{{cmpCrop}}" marker="pixel" names="off" dot="{{s4}}" render-width="{{rw120}}" kit-clash="{{yes}}"></x-import></div><span style="font-size: 11px; font-weight: 800; color: var(--ink);">보조 켬 (기본)</span></div></div><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">① <b style="color: var(--ink);">번호 띠</b>는 늘 팀 색(홈 라임 · 원정 주황) — 유니폼이 뭐든 팀은 띠로 읽어요. ② 두 팀 몸통 밝기 차이가 작으면(둘 다 어두움 등) <b style="color: var(--ink);">원정 몸통에 주황 1도트 테두리</b>. ③ 유니폼 코드(S01·C05)는 화면에 쓰지 않고 [보기] 시트에만.</span></section></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="live" progress="live" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    const NEW = { kit: '#16171b', kit2: '#f3f4f6', pattern: 'stripe' }, SOU = { kit: '#16171b' }, NGK = { kit: '#f2c500' }, SGK = { kit: '#c8102e' };
+    const sk = ['#e8b894', '#6b4a35', '#c99673', '#f1c9a5', '#9a6a4a'];
+    const P = (x, y, num, team, label, short, kit, i, extra) => Object.assign({ x, y, num, team, label, short, kit: Object.assign({ skin: sk[i % 5], hair: i % 4 === 2 ? 'none' : (i % 3 ? '#1b1410' : '#7a4b2a') }, kit) }, extra || {});
+    const HOME = [
+      P(82, 22, 9, 'home', '이도윤', '이도윤', NEW, 0, { me: true, ball: true }), P(88, 48, 10, 'home', '론돈', '론돈', NEW, 1), P(80, 66, 7, 'home', '아추', '아추', NEW, 2),
+      P(70, 40, 8, 'home', '셸비', '셸비', NEW, 3), P(66, 58, 14, 'home', '디아메', '디아메', NEW, 4), P(58, 80, 2, 'home', '야를스', '야를스', NEW, 3),
+      P(56, 18, 3, 'home', '리치', '리치', NEW, 2), P(46, 36, 6, 'home', '라셀레스', '라셀레스', NEW, 1), P(46, 58, 5, 'home', '라센스', '라센스', NEW, 0),
+      P(40, 76, 18, 'home', '페르난데스', '페르난', NEW, 4), P(10, 50, 1, 'home', '두브라브카', '두브', NGK, 3)];
+    const AWAY = [
+      P(97, 50, 1, 'away', '매카시', '매카시', SGK, 3), P(90, 30, 2, 'away', '세드릭', '세드릭', SOU, 2), P(92, 44, 5, 'away', '스티븐스', '스티븐스', SOU, 3),
+      P(92, 58, 6, 'away', '베드나레크', '베드나', SOU, 1), P(88, 74, 3, 'away', '버틀런드', '버틀런드', SOU, 0), P(80, 36, 8, 'away', '호이비에르', '호이비', SOU, 4),
+      P(76, 54, 4, 'away', '로메우', '로메우', SOU, 2), P(72, 28, 7, 'away', '레드먼드', '레드먼드', SOU, 1), P(70, 72, 11, 'away', '워드프라우스', '워드', SOU, 3),
+      P(62, 46, 9, 'away', '잉스', '잉스', SOU, 0), P(60, 64, 10, 'away', '롱', '롱', SOU, 4)];
+    const players = HOME.concat(AWAY);
+    return { dockBadges, dockLocked, yes: true, no: false, i10: 10, i12: 12, i14: 14, i16: 16, i18: 18, i20: 20, i24: 24, i28: 28, i32: 32, i36: 36, i40: 40, i44: 44, i48: 48, i56: 56, s1: 1, s2: 2, s3: 3, s4: 4, s5: 5, players, ball: [83.4, 23.5], crop: [40, 100], rw: 358, rw120: 120, m26: 26, m27: 27, cmp: [{ x: 50, y: 32, num: 9, team: 'home', kit: NEW }, { x: 50, y: 68, num: 8, team: 'away', kit: SOU }], cmpCrop: [38, 62] };
+  }
+}
+</script>
+</body>
+</html>
