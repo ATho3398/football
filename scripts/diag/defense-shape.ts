@@ -6,6 +6,7 @@
 //   ③ 상대 공격수(소유자 제외) 1명당 2.5 m 안 수비 수: 0 / 1 / 2명 이상 비율, 한 상대에 2명 이상 붙는 횟수, 최종 3분의 1에서 5 m 안에 아무도 없는 공격수 비율
 //   ④ 가장 가까운 수비수가 바뀌는 빈도 (상대 1명당 분당 교체 수, 최종 3분의 1)
 //   ⑤ 수비수의 목표 지점 분류: 공 쪽(공 3 m 안) / 사람 쪽(상대 2.5 m 안) / 자리(그 밖) — 엔진이 "무엇을 하려는지"
+//   ⑥ 수비 상황 A~H (pending 41 표, 지금 엔진 신호로 판정) 빈도와 상황별 공 3 m 안 인원·마크 지표. G(루즈볼)는 소유자 없는 표본에서 따로
 import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
@@ -44,6 +45,11 @@ const mk = (side: string, i: number, spec: string): TeamSetup => {
 };
 
 const ZONES = ['박스 안', '골 25 m 안', '25~40 m', '40 m 밖'] as const;
+const SITS = ['A 정돈', 'B 역습복귀', 'C 수적열세', 'D 측면트랩', 'E 박스1대1(마크됨)', 'E 박스1대1(미마크)', 'F 크로스', 'H 역압박'] as const;
+type Sit = (typeof SITS)[number];
+const sitAcc: Record<string, { n: number; near3: number[]; double: number; att: number; unmarked5: number; ballIntent: number; defN: number }> = {};
+for (const k of SITS) sitAcc[k] = { n: 0, near3: [0, 0, 0, 0, 0], double: 0, att: 0, unmarked5: 0, ballIntent: 0, defN: 0 };
+const loose = { n: 0, toBall: [0, 0, 0, 0, 0] };
 type Zone = (typeof ZONES)[number];
 const zoneOf = (d: number, inBox: boolean): Zone => (inBox ? '박스 안' : d < 25 ? '골 25 m 안' : d < 40 ? '25~40 m' : '40 m 밖');
 
@@ -75,7 +81,18 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
   const nearest = new Map<Agent, number>(); // 공격수 → 가장 가까운 수비수 idx (교체 빈도)
   while (!s.done) {
     m.step();
-    if (s.tick % 10 !== 0 || s.restart || s.ball.owner < 0 || s.ball.flight) continue;
+    if (s.tick % 10 !== 0 || s.restart) continue;
+    if (s.ball.owner < 0) {
+      // G 루즈볼: 공(예측 착지점이 아니라 지금 공)으로 목표를 잡은 수비 수, 양 팀
+      if (s.ball.flight && s.ball.flight.outcome !== 'loose') continue;
+      for (const team of [0, 1] as const) {
+        let k = 0;
+        for (const o of s.agents) if (o.onPitch && o.team === team && o.line !== 0 && dist(o.tx, o.ty, s.ball.x, s.ball.y) <= 3) k++;
+        loose.n++; loose.toBall[Math.min(4, k)]!++;
+      }
+      continue;
+    }
+    if (s.ball.flight) continue;
     const owner = s.agents[s.ball.owner]!;
     if (owner.line === 0) continue;
     const att = owner.team;
@@ -92,6 +109,36 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
     // ① 공 3 m / 2 m 안 수비 수
     let n3 = 0, n2 = 0;
     for (const d of D) { const dd = dist(d.x, d.y, owner.x, owner.y); if (dd <= 3) n3++; if (dd <= 2) n2++; }
+    // ⑥ 상황 판정 (우선순위 H → B → C → D → F → E → A), 지금 엔진 신호만 사용
+    const [bnx, bny] = toNorm(b.x, b.y, dDir); // 수비 팀 기준: 0 우리 골
+    const tm = s.teams[def];
+    const ahead = D.filter((o) => toNorm(o.x, o.y, dDir)[0] > bnx + 0.03).length; // 공보다 상대 골 쪽(복귀해야 하는 우리 선수)
+    const sinceTurn = s.t - s.possSince;
+    const attNear = A.filter((o) => dist(o.x, o.y, b.x, b.y) <= 15).length + 1;
+    const defNear = D.filter((o) => dist(o.x, o.y, b.x, b.y) <= 15).length;
+    const wideBall = b.y <= 8 || b.y >= 68 - 8;
+    const mateNear = A.some((o) => dist(o.x, o.y, owner.x, owner.y) <= 8);
+    const defNear6 = D.filter((o) => dist(o.x, o.y, owner.x, owner.y) <= 6).length;
+    const crossPos = Math.abs(bny - 0.5) >= 0.2 && bnx <= 0.32; // 공격 팀 기준 x ≥ 0.68 (crossMinX)
+    let sit: Sit;
+    if (s.t < tm.counterUntil && tm.counterPressers.length > 0) sit = 'H 역압박';
+    else if (sinceTurn < 6 && ahead >= 3 && bnx < 0.6) sit = 'B 역습복귀';
+    else if (bnx < 0.5 && attNear > defNear) sit = 'C 수적열세';
+    else if (wideBall && bnx < 0.5 && !mateNear && defNear6 >= 2) sit = 'D 측면트랩';
+    else if (crossPos && !inBox) sit = 'F 크로스';
+    else if (inBox) {
+      const allMarked = A.filter((o) => dist(o.x, o.y, gx, gy) < 35).every((o) => D.some((d) => dist(d.x, d.y, o.x, o.y) <= 3));
+      sit = allMarked ? 'E 박스1대1(마크됨)' : 'E 박스1대1(미마크)';
+    } else sit = 'A 정돈';
+    const SA = sitAcc[sit]!;
+    SA.n++; SA.near3[Math.min(4, n3)]!++;
+    for (const a of A) {
+      let c = 0, c5 = 0;
+      for (const d of D) { const dd = dist(d.x, d.y, a.x, a.y); if (dd <= 2.5) c++; if (dd <= 5) c5++; }
+      if (c >= 2) SA.double++;
+      if (dist(a.x, a.y, gx, gy) < 35) { SA.att++; if (c5 === 0) SA.unmarked5++; }
+    }
+    for (const d of D) { SA.defN++; if (dist(d.tx, d.ty, b.x, b.y) <= 3) SA.ballIntent++; }
     acc.near3[z][Math.min(4, n3)]!++;
     acc.near2[z][Math.min(4, n2)]!++;
     // ② 수비 줄
@@ -153,5 +200,8 @@ console.log(`\n④ 골 35 m 안 공격수의 가장 가까운 수비수 교체: 
 console.log('\n⑤ 수비수 목표 지점: 공 쪽(공 3 m 안) / 사람 쪽(상대 2.5 m 안) / 자리');
 for (const z of ZONES) { const I = acc.intent[z]; console.log(`  ${z.padEnd(8)} ${pct(I.ball, I.n)} / ${pct(I.man, I.n)} / ${pct(I.spot, I.n)} (수비수·표본 ${I.n})`); }
 for (const [k, I] of Object.entries(acc.intentLine).sort()) console.log(`  ${k}: ${pct(I.ball, I.n)} / ${pct(I.man, I.n)} / ${pct(I.spot, I.n)}`);
+console.log('\n⑥ 수비 상황 (지금 엔진 신호로 판정, pending 41 표): 빈도 / 공 3 m 안 수비 2명 이상 · 3명 이상 / 한 상대 2명 이상(표본당) / 골 35 m 안 공격수 5 m 안 수비 없음 / 수비수 목표 공 쪽 비율');
+for (const k of SITS) { const S = sitAcc[k]!; const n = Math.max(1, S.n); const h = S.near3; console.log(`  ${k.padEnd(14)} ${pct(S.n, acc.samples).padStart(4)} (${S.n}) / ${pct(h[2]! + h[3]! + h[4]!, n)} · ${pct(h[3]! + h[4]!, n)} / ${(S.double / n).toFixed(2)} / ${pct(S.unmarked5, S.att)} / ${pct(S.ballIntent, S.defN)}`); }
+console.log(`  G 루즈볼        표본 ${loose.n} (팀·표본): 공으로 가는 수비 수 0 / 1 / 2 / 3 / 4+ = ${loose.toBall.map((v) => pct(v, loose.n)).join(' / ')}`);
 console.log(`\n경기당 태클 시도 ${(acc.tackles / 2 / acc.games).toFixed(1)}, 인터셉트 ${(acc.interceptions / 2 / acc.games).toFixed(1)}, 돌파 시도 상대 ${(acc.dribblesFaced / 2 / acc.games).toFixed(1)} · 제쳐짐 ${(acc.dribbledPast / 2 / acc.games).toFixed(1)}`);
 process.exit(0);
