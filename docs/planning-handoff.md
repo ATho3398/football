@@ -228,3 +228,4 @@
 - (19:20 KST) UI 세션 **UI_1** `session_01QuN9pxUgr2T4SN6FKmUmjd` 시작(5차 보고). 단계 완료 때마다 UI_1에 "디자인 없는 새 화면 목록" send_message(automation.md 6번). C.44·C.44a 배포되면 UI_1에 알릴 것.
 - (19:27~19:34 KST) 환경 설정 스크립트에 도메인 줄이 들어가 새 세션 시작 실패(UI_1 첫 세션 `session_01QuN9pxUgr2T4SN6FKmUmjd` → draft_). 사용자가 스크립트를 비움 → **UI_1 재시작 `session_01D3WSqiWMZA3itvZV4ppYvC`** 정상 시작. 네트워크 허용 도메인은 Network access 칸에 유지(설정 스크립트에 넣지 말 것).
 - (19:40 KST) 33 C.44·33a C.44a 완료 → pending 60, 두 세션 draft_. **34 C.45 시작** `session_01PyosPUNsMEvAoK43GW8bES`(브랜치 `claude/c45-body`). 자동 확인 `trig_01HbeNU9EdbbdH5wCdQkg2DS`(22:07 KST). UI_1에 배포 소식·새 화면 목록 전달. main 푸시 규칙 변경(마스터·UI는 자기 브랜치만, automation 0번). 사용자 보고: 사이드바 섹션 태그가 앱에 반영 안 됨(서버 태그는 모두 맞음) → 확인 중.
+- (19:39 KST) **섹션 태그 중단**(사용자 직접 분류). 위 8.18 흐름의 `remote-agents-project:` 태그 붙이기·바꾸기는 하지 않는다(automation.md 0번).
