@@ -14,7 +14,7 @@ export interface AttrCellVM {
   base?: number;
   key: boolean;
   /** 포인트 찍기: 다음 칸(+1)까지 비용(최대면 null)·내부 칸 수, 지금 포인트로 갈 수 있는 칸 수, OVR 기여, 막힘, [−] 가능 */
-  edit?: { cost: number | null; steps: number; reach: number; ovrDelta: number | null; maxed: boolean; blocked: boolean; canLower: boolean };
+  edit?: { cost: number | null; steps: number; reach: number; ovrDelta: number | null; maxed: boolean; blocked: boolean; canLower: boolean; short?: boolean };
 }
 
 export interface AttrGroupVM { name: string; cells: AttrCellVM[] }
@@ -47,7 +47,7 @@ function cell(c: AttrCellVM, sel: string | null, acts: AttrActs = ALLOC_ACTS): s
   const head = `<span class="ag-name" title="${esc(c.label)}">${nameHtml(c.label)}</span><b class="ag-v po-num">${attrDisplay(c.value)}</b>${d}${bar}`;
   if (!c.edit) return `<div class="${cls}" title="${esc(c.label)} ${attrDisplay(c.value)} · 다음 칸까지 ${pct}%">${head}</div>`;
   const e = c.edit;
-  const cost = e.maxed ? '최대' : e.blocked ? (e.reach === 0 ? '상한' : '부족') : e.reach < e.steps ? `${e.cost}P · 지금 ${e.reach}/${e.steps}칸` : `${e.cost}P`;
+  const cost = e.maxed ? '최대' : e.blocked ? (e.reach === 0 && !e.short ? '상한' : '부족') : e.reach < e.steps ? `${e.cost}P · 지금 ${e.reach}/${e.steps}칸` : `${e.cost}P`;
   const edit = on
     ? `<span class="ag-edit">
         <button type="button" class="ag-btn" data-act="${acts.lower}" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 내리기"${e.canLower ? '' : ' disabled'}>−</button>

@@ -309,7 +309,7 @@ function screenHtml(): string {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
       const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
-      return homeView(hvm, trialBanner(g) + deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', trialBanner(g) + marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);

@@ -131,7 +131,7 @@ export function customVM(f: CustomForm, name: string): CustomVM {
       const after = maxed ? f.attrs : customRaise(f.attrs, a, 1, budget, f.height);
       const reach = after[a] > f.attrs[a] ? 1 : 0;
       const d = reach ? Math.round((positionOvr(after, pos) - positionOvr(f.attrs, pos)) * 10) / 10 : 0;
-      return { ...c, edit: { cost, steps: 1, reach, ovrDelta: d > 0 ? d : null, maxed, blocked: !maxed && reach === 0, canLower: f.attrs[a] > C.base } };
+      return { ...c, edit: { cost, steps: 1, reach, ovrDelta: d > 0 ? d : null, maxed, blocked: !maxed && reach === 0, short: !maxed && reach === 0, canLower: f.attrs[a] > C.base } };
     }),
   }));
   const skin = SKIN_OF[f.appearance];

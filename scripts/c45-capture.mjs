@@ -84,6 +84,7 @@ if (await has('[data-act="train-day"]')) {
   if (await has('[data-act="train-set"][data-v="weakFoot"]')) await act('train-set', '[data-v="weakFoot"]');
   await shot('11_훈련-약발훈련 지정');
 }
+await act('go-tab', '[data-v="home"]').catch(() => {});
 await act('go', '[data-to="settings"]').catch(() => {});
 await dismiss();
 if (await has('[data-act="px-tab"]')) {
