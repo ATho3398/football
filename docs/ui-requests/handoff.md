@@ -26,3 +26,8 @@
 
 ## 푸시 규칙 (마스터 L 2026-10-17 19:38·19:49 KST, `automation.md` 0번)
 - UI 세션은 **`claude/ui-1` 브랜치에만 푸시**하고 main에는 올리지 않는다(문서 푸시가 Pages 배포를 취소시킴, 808647d가 배포 #166을 취소). 코드 세션이 배포할 때 ui-1의 docs/를 병합한다.
+
+## 보고 전달 규칙 (마스터 M 2026-10-17 21:03 KST, `automation.md` 6번 2항, claude/planning-m facd572)
+- 보고 답변 **본문에 Claude Design 프롬프트 전문을 코드 블록 하나로 그대로** 붙인다. 경로만 주는 것은 금지(사용자가 브랜치 파일을 열기 어렵다).
+- SendUserFile로 `<N>_ClaudeDesign_프롬프트.txt`, 캡처 묶음 `<N>_캡처.zip`(필요하면 player-one-design zip)도 보낸다.
+- 5차: 2026-10-17 21:04 KST 프롬프트 전문 재전달 + txt·zip 전송 완료.
