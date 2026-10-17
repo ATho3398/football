@@ -43,9 +43,13 @@ import {
 } from './training';
 import { trainProficiency } from './proficiency';
 import type { FieldPosition } from './positions';
+import {
+  acceptOffer, autoResolveMarket, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow,
+  type MarketState, type TransferRec,
+} from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 20;
+export const SAVE_FORMAT_VERSION = 21;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -124,6 +128,10 @@ export interface SeasonSummary {
   decayBlocked?: number;
   redPenalty?: RepDeduction & { reds: number };
   minutesPenalty?: RepDeduction & { share: number };
+  /** 벤치 장기화 감점 (D.19, C.42) */
+  benchPenalty?: RepDeduction;
+  /** 이번 여름 NPC 이적 수 (C.42) */
+  transfers?: number;
   tierReached?: Tier;
   /** 노련함 능력치 성장 (6.1.1). 이전 버전 세이브에는 없다 */
   veteranGrowth?: AttributeDelta;
@@ -173,6 +181,12 @@ export interface GameState {
   training: TrainingState;
   /** 지난 시즌 기록 보존 (25.4, 부록 C.41): 내 경기 요약·하이라이트·결정, 다른 경기 스코어·득점자·도움, 선수 시즌 합계 */
   archive: SeasonArchive[];
+  /** NPC 이적 기록 (18.6, 부록 C.42). 로스터 재생성 때 같은 순서로 다시 적용한다 */
+  transfers: TransferRec[];
+  /** 내 선수 계약·제안·이적 요청 (18.10, 부록 C.42) */
+  market: MarketState;
+  /** 비시즌에만: 다음 시즌 팀 레이팅 (로스터 + 시즌 팀 컨디션). 시즌 종료 때 계산해 제안 화면과 다음 시즌 시작에 쓴다 */
+  nextRatings?: Record<string, number>;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -189,8 +203,8 @@ export interface SeasonArchive {
   table: [string, number, number][];
 }
 
-/** 선수 시즌 합계: [출전, 골, 도움, 평점 합 ×10] */
-export type PlayerTotals = [number, number, number, number];
+/** 선수 시즌 합계: [출전, 골, 도움, 평점 합 ×10, 출전 분(C.42, 이적 점수의 출전 시간 비율. 옛 기록에는 없다)] */
+export type PlayerTotals = [number, number, number, number, number?];
 
 export interface MatchControl {
   mode: ControlMode;
@@ -234,17 +248,20 @@ function initialNpcs(worldSeed: string, realPlayerId: string | undefined): NpcSt
  * 실제 선수 능력치는 마지막에 세이브의 NPC 상태와 맞춘다
  */
 export function rebuildRosters(
-  worldSeed: string, realPlayerId: string | undefined, updates: number, savedNpcs?: NpcState[],
+  worldSeed: string, realPlayerId: string | undefined, updates: number, savedNpcs?: NpcState[], transfers: readonly TransferRec[] = [],
 ): Rosters {
   const start = BALANCE.newGame.startYear;
   const teams = initialTeams();
   const base = Object.fromEntries(teams.map((t) => [t.id, t.baseRating]));
   let npcs = initialNpcs(worldSeed, realPlayerId);
   let rosters = createRosters(worldSeed, start, teams, npcs);
+  // 이적 기록 (C.42): 시즌 갱신 k 번째 전에 at = k 인 기록(그 시즌 겨울 → 시즌 끝 여름)을 차례로 다시 적용한다
   for (let k = 0; k < updates; k++) {
+    replayTransfers(rosters, transfers, k, worldSeed);
     npcs = npcs.map((n) => growNpc(n, worldSeed, start + k));
     rosters = updateRostersForSeason(rosters, worldSeed, start + k, base, npcs);
   }
+  replayTransfers(rosters, transfers, updates, worldSeed);
   if (savedNpcs) syncRealPlayers(rosters, savedNpcs);
   return rosters;
 }
@@ -315,7 +332,10 @@ export function newGame(opts: NewGameOptions): GameState {
 
   player.profLog = initialProfLog(player.proficiency);
   player.seasonStartAttrs = { ...player.attributes };
+  const market = initialMarket({ worldSeed, league, player, phase: 'season' });
   return {
+    transfers: [],
+    market,
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,
     startPatch: PATCH_LABEL,
@@ -417,10 +437,11 @@ export function otherJob(state: GameState, r: number, i: number): OtherJob {
 /** 선수 기록을 시즌 합계에 더한다 (내 선수 'me' 는 player.season 에 따로) */
 function addPlayerLines(state: GameState, res: NpcMatchResult): void {
   const st = (state.playerStats ??= {});
-  for (const [id, , g, a, r10] of res.players) {
+  for (const [id, min, g, a, r10] of res.players) {
     if (id === MY_ID) continue;
-    const t = (st[id] ??= [0, 0, 0, 0]);
+    const t = (st[id] ??= [0, 0, 0, 0, 0]);
     t[0]++; t[1] += g; t[2] += a; t[3] += r10;
+    t[4] = (t[4] ?? 0) + min;
   }
 }
 
@@ -696,8 +717,11 @@ export function endDay(state: GameState): TrainingDayResult {
   if (state.phase !== 'season') throw new Error('시즌 중이 아님');
   if (isMatchDay(state)) throw new Error('오늘 내 경기가 남았음');
   if (todaysOthers(state).length) throw new Error('오늘 다른 경기가 남았음');
-  const r = dayStep(state, state.calendar.date);
-  state.calendar.date = addDays(state.calendar.date, 1);
+  const ended = state.calendar.date;
+  const r = dayStep(state, ended);
+  state.calendar.date = addDays(ended, 1);
+  // 이적 (C.42): 1월 1일 이적 명단 제안, 1월 31일 끝 NPC 겨울 이적시장
+  onDayEnd(state, ended);
   return r;
 }
 
@@ -1181,6 +1205,11 @@ export function endSeason(state: GameState): SeasonSummary {
   const red = deductReputation(player, redCardPenalty(repBase, reds));
   const share = minutesShare(player.season, league);
   const short = deductReputation(player, minutesShortPenalty(repBase, share));
+  // 벤치 장기화 (D.19, C.42): 출전 시간 비율 maxShare 미만 시즌이 seasons 시즌 연속
+  const BS = R.benchStreak;
+  const prevShares = player.history.slice(-(BS.seasons - 1)).map((h) => h.minutes / Math.max(1, league.schedule.length * 90));
+  const benchLong = share < BS.maxShare && prevShares.length === BS.seasons - 1 && prevShares.every((x) => x < BS.maxShare);
+  const bench = benchLong ? deductReputation(player, Math.round(repBase * BS.points)) : null;
 
   // 3~4. 자동 성장, 노련함, 노화
   // 실제 선수는 정점 목표 근처에 오면 자동 성장을 멈춘다 (부록 D.7 #1)
@@ -1207,11 +1236,13 @@ export function endSeason(state: GameState): SeasonSummary {
   const endFloorTier = reputationFloorTier(player.reputation);
   const tierReached = endFloorTier && endFloorTier !== startFloorTier ? endFloorTier : undefined;
 
-  // NPC
+  // NPC: 여름 이적시장 (C.42, 이번 시즌 기록·계약으로, 성장 전) → 성장 → 로스터 시즌 갱신 (은퇴·보충·재계약)
+  const summer = runNpcWindow(state, 'summer');
   state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season));
   const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
   state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
   state.roster.updates++;
+  state.nextRatings = seasonTeamRatings(state);
 
   const summary: SeasonSummary = {
     season, age, leaguePosition: pos, achievements, achievementXp, levelsGained,
@@ -1219,6 +1250,7 @@ export function endSeason(state: GameState): SeasonSummary {
     rankPenalty: { expected, pos, points: rank.points, blocked: rank.blocked },
     slumpBlocked: player.history.at(-1)!.slumpBlocked ?? 0, decayBlocked,
     redPenalty: { reds, ...red }, minutesPenalty: { share, ...short },
+    ...(bench ? { benchPenalty: bench } : {}), transfers: summer.length,
     ...(tierReached ? { tierReached } : {}), ...(advice ? { advice: advice.kind } : {}), badges, autoGrowth, veteranGrowth, aging,
     ovrBefore, ovrAfter: playerOvr(player),
     canRetire: age >= BALANCE.retirement.optionalAge,
@@ -1228,6 +1260,8 @@ export function endSeason(state: GameState): SeasonSummary {
   if (state.cards) grantSeasonPick(state.cards, state.league.season, state.player.position, state.worldSeed);
   state.lastSeasonSummary = summary;
   state.phase = summary.forcedRetire ? 'retired' : 'offseason';
+  // 내 선수 (18.10): 임대 복귀, 계약 만료면 재계약, 제안 3~5개
+  if (state.phase === 'offseason') openOffseasonMarket(state);
   return summary;
 }
 
@@ -1244,8 +1278,12 @@ export function seasonTeamRatings(state: GameState): Record<string, number> {
 /** 비시즌 → 다음 시즌 */
 export function startNextSeason(state: GameState): void {
   if (state.phase !== 'offseason') throw new Error('비시즌이 아님');
+  // 답하지 않은 제안은 거절, 만료 계약은 기본 재계약 (화면은 [다음 시즌] 전에 멈춰 답을 받는다, C.42)
+  if (marketPending(state)) autoMarket(state, 'stay');
   (state.archive ??= []).push(archiveSeason(state));
-  state.league = nextSeasonLeague(state.league, state.worldSeed, seasonTeamRatings(state));
+  state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
+  delete state.nextRatings;
+  if (state.market) state.market.request = null;
   state.player.season = emptySeasonStats();
   state.player.seasonStartAttrs = { ...state.player.attributes };
   state.matchLog = [];
@@ -1290,6 +1328,16 @@ export function careerTotals(p: PlayerState): CareerTotals {
     peakOvr: Math.max(playerOvr(p), ...h.map((r) => r.ovr)),
     bestFinish: h.length ? Math.min(...h.map((r) => r.leaguePosition)) : null,
   };
+}
+
+/** 내 선수 제안 수락 (C.42): 약팀 이적이면 위상 감점 (D.19, 티어 하한) */
+export function acceptMyOffer(state: GameState, index: number): { points: number } {
+  return acceptOffer(state, index, (pts) => deductReputation(state.player, pts).points);
+}
+
+/** 커리어 시뮬의 자동 응답 (밸런스·테스트) */
+export function autoMarket(state: GameState, policy: 'stay' | 'best'): void {
+  autoResolveMarket(state, policy, (pts) => deductReputation(state.player, pts).points);
 }
 
 /** 주 포지션 변경 요청이 되는지 (D.3 비시즌 + 포변 조언 기간, 부록 C.37) */

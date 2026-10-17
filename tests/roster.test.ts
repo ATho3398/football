@@ -206,8 +206,9 @@ describe('로스터 시즌 갱신과 저장 (23번)', () => {
     const loaded = deserialize(JSON.stringify(raw));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(loaded.roster.updates).toBe(1);
+    // 옛 형식 세이브에는 이적이 없었다 (C.42): 이적 기록 없이 다시 만든다
     expect(loaded.rosters).toEqual(rebuildRosters('mig', undefined, 1, s.npcs));
-    expect(loaded.rosters).toEqual(s.rosters);
+    expect(loaded.transfers).toEqual([]);
   });
 
   it('20시즌 뒤에도 팀 레이팅이 장기 평균에서 크게 벗어나지 않는다', () => {

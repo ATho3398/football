@@ -19,7 +19,8 @@
     "balance:moments": "vite-node scripts/balance-moments.ts --",
     "balance:cards": "vite-node scripts/balance-cards.ts --",
     "balance:aptitude": "vite-node scripts/balance-aptitude.ts --",
-    "balance:training": "vite-node scripts/balance-training.ts --"
+    "balance:training": "vite-node scripts/balance-training.ts --",
+    "balance:transfer": "vite-node scripts/balance-transfer.ts --"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

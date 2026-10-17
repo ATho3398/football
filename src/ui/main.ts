@@ -9,7 +9,7 @@ import './style.css';
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
-  applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
+  acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
   startNextSeason, todaysOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel } from '../calendar';
@@ -54,6 +54,9 @@ import { playerView } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
 import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView } from './views/screens';
 import { tacticsView } from './views/tactics';
+import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
+import { marketVM, newsVM } from './transferVM';
+import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
@@ -63,7 +66,7 @@ import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -86,7 +89,9 @@ const ui = {
   alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
   /** 덱 화면 카드 상세 시트 (C.39) */
   cardSheet: null as null | { id: string; from: 'deck' | 'pool' },
-  worldTab: 'table' as 'table' | 'stars' | 'scorers',
+  worldTab: 'table' as 'table' | 'stars' | 'scorers' | 'transfers',
+  /** 재계약 화면에서 고른 연수 (C.42) */
+  renewYears: null as number | null,
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
   posSheet: null as string | null,
   /** 하루 훈련 고르기 시트 (C.41): 날짜 */
@@ -138,7 +143,7 @@ const app = document.getElementById('app')!;
 /** 새 기능 소개를 띄우는 화면 */
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
 /** 아래 바(홈·선수·월드)를 띄우는 화면 (C.39: 경기 화면에서도 다른 탭으로 갈 수 있게) */
-const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay', 'moment', 'season'];
+const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay', 'moment', 'season', 'offers', 'contract'];
 
 /** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
 function liveScreen(): Screen | null {
@@ -155,6 +160,7 @@ const LOCK_ACTS = new Set([
   'play', 'day-one', 'day-continue', 'sim-rest', 'sim-rest-ok', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
+  'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
 ]);
 
 /**
@@ -188,6 +194,8 @@ function autosave(): Promise<void> {
 /** 저장 시간 측정 (부록 C.41) */
 const saveLog: number[] = [];
 (globalThis as unknown as { __saveLog: number[] }).__saveLog = saveLog;
+/** 캡처 스크립트용 (부록 C.42 캡처): 지금 게임 상태 */
+(globalThis as unknown as { __game: () => GameState | null }).__game = () => ui.game;
 
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
 async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number } }): Promise<void> {
@@ -268,7 +276,7 @@ function screenHtml(): string {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
       const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '') + guideResetLink() + sheet + tSheet;
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
     }
     case 'deck': {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
@@ -276,8 +284,10 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g));
-    case 'world': return worldView(worldVM(g), ui.worldTab);
+    case 'player': return playerView(playerVM(g), g.phase !== 'retired' ? contractSection(marketVM(g)) : '');
+    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) : '');
+    case 'offers': return offersView(marketVM(g));
+    case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -301,7 +311,7 @@ function screenHtml(): string {
     }
     case 'season': {
       const vm = seasonVM(g);
-      if (vm) return seasonView(vm);
+      if (vm) return seasonView(vm, g.phase === 'offseason' ? marketCard(marketVM(g)) : '', g.phase === 'offseason' && marketPending(g));
       break;
     }
     case 'retired': return retiredView(retiredVM(g));
@@ -507,6 +517,12 @@ function replayAlloc(g: GameState): void {
   for (const attr of a.raises) raiseAttribute(g.player, attr);
 }
 
+/** 응답이 필요한 제안·재계약이 있으면 진행하지 않고 그 화면으로 (C.42) */
+function pendingStop(g: GameState): void {
+  go(g.market.offers?.length ? 'offers' : 'contract');
+  showToast({ kind: 'info', title: '먼저 답해 주세요', body: g.market.renewal ? '계약이 끝났어요. 재계약하거나 제안을 수락해요.' : '이적 제안에 답하기 전에는 진행이 멈춰요.' }, 2400);
+}
+
 // ── 하루 단위 진행 (25.1~25.2, 부록 C.38) ──
 
 let enginePool: EnginePool | null = null;
@@ -537,6 +553,7 @@ const nextFrame = () => new Promise<void>((r) => setTimeout(r, 0));
  */
 async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): Promise<void> {
   if (ui.busy || g.phase !== 'season') return;
+  if (marketPending(g)) return pendingStop(g);
   ui.busy = true;
   ui.stopReq = false;
   const stop = { action: '중단', onAction: { act: 'sim-stop' } };
@@ -548,6 +565,8 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
   try {
     for (;;) {
       if (g.phase !== 'season') break;
+      // 응답이 필요한 제안 (C.42): [계속]·휴가 넘기기·남은 시즌 자동 모두 멈춘다
+      if (marketPending(g)) break;
       const match = isMatchDay(g);
       if (match && mode !== 'season') {
         await runOthersToday(g);
@@ -586,6 +605,9 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
     if (g.phase !== 'season') {
       go('season');
       badgeToast(g);
+    } else if (marketPending(g)) {
+      go('home');
+      showToast({ kind: 'info', title: '이적 제안이 왔어요', body: `${dateLabel(g.calendar.date)} · 답하기 전에는 진행이 멈춰요.` }, 2600);
     } else {
       go('home');
       const sec = ((performance.now() - t0) / 1000).toFixed(1);
@@ -601,6 +623,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
 
 /** [경기 시작]: 경기 날이 아니면 [계속]으로 경기 날까지 (C.38). 그날 다른 경기가 남았으면 먼저 계산하고 바로 내 경기로 */
 async function startPlay(g: GameState): Promise<void> {
+  if (marketPending(g)) return pendingStop(g);
   if (!isMatchDay(g)) {
     await advanceDays(g, 'continue');
     return;
@@ -973,9 +996,84 @@ app.addEventListener('click', (ev) => {
       return;
     }
     case 'world-tab':
-      ui.worldTab = v as 'table' | 'stars' | 'scorers';
+      ui.worldTab = v as typeof ui.worldTab;
       render();
       return;
+    // ── 이적·계약 (C.42) ──
+    case 'offer-accept': {
+      if (!g?.market.offers) return;
+      const i = Number(el.dataset.i);
+      const o = g.market.offers[i];
+      if (!o) return;
+      const team = teamById(g.league, o.teamId).nameKo;
+      confirmModal({
+        title: o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 이적할까요?`,
+        body: o.kind === 'loan' ? '1시즌 뒤 원 소속팀으로 돌아와요. 계약은 그대로예요.' : `${o.years}년 계약 · 다른 제안은 모두 사라져요. 전술은 새 팀 기본값으로 바뀌어요.`,
+        confirm: '수락', act: 'offer-accept-ok', data: { i: String(i) },
+      });
+      return;
+    }
+    case 'offer-accept-ok': {
+      if (!g) return;
+      const { points } = acceptMyOffer(g, Number(el.dataset.i));
+      autosave();
+      go('home');
+      showToast({ kind: 'info', title: g.market.notice ?? '이적 완료', body: points > 0 ? `약팀 이적 · 위상 −${points}` : `${teamById(g.league, g.player.teamId).nameKo} 선수가 됐어요.` }, 2600);
+      return;
+    }
+    case 'offer-decline':
+      if (!g) return;
+      declineOffer(g, Number(el.dataset.i));
+      autosave();
+      if (!marketPending(g)) go('home');
+      else render();
+      return;
+    case 'offers-decline':
+      if (!g) return;
+      declineOffers(g);
+      autosave();
+      go(g.market.renewal ? 'contract' : 'home');
+      showToast(g.market.renewal ? '제안을 모두 거절했어요. 재계약해요.' : '제안을 모두 거절했어요.');
+      return;
+    case 'renew-years':
+      ui.renewYears = Number(v);
+      render();
+      return;
+    case 'renew':
+      if (!g) return;
+      renewContract(g, Number(v));
+      ui.renewYears = null;
+      autosave();
+      go('home');
+      showToast({ kind: 'info', title: '재계약 완료', body: `${v}년 연장했어요.` });
+      return;
+    case 'market-notice-close':
+      if (!g) return;
+      g.market.notice = null;
+      render();
+      return;
+    case 'transfer-request': {
+      if (!g) return;
+      const el2 = requestEligibility(g);
+      if (!el2.ok) return showToast(el2.reason);
+      confirmModal({
+        title: '이적을 요청할까요?', body: `${el2.reason}. 구단이 놓아줄 확률 ${Math.round(releaseChance(g) * 100)}%. 시즌에 한 번만 할 수 있어요.`,
+        confirm: '요청하기', act: 'transfer-request-ok',
+      });
+      return;
+    }
+    case 'transfer-request-ok': {
+      if (!g) return;
+      const r = requestTransfer(g);
+      autosave();
+      ui.modal = null;
+      if (r.offersNow) go('offers');
+      else render();
+      showToast(r.accepted
+        ? { kind: 'info', title: '이적 명단에 올랐어요', body: r.offersNow ? '겨울 이적시장 제안이 왔어요.' : '1월 1일 겨울 이적시장이 열리면 제안이 와요.' }
+        : { kind: 'info', title: '구단이 거절했어요', body: '이번 시즌에는 다시 요청할 수 없어요.' }, 2600);
+      return;
+    }
     case 'continue':
       void loadSlot('auto');
       return;
@@ -1300,6 +1398,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'next-season':
       if (!g) return;
+      if (marketPending(g)) return pendingStop(g);
       startNextSeason(g);
       ui.replay = null;
       autosave();
