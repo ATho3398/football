@@ -42,6 +42,7 @@ import {
   type DayPlan, type TrainingDayResult, type TrainingKind, type TrainingState,
 } from './training';
 import { trainProficiency } from './proficiency';
+import type { NameOverrides } from './names';
 import type { FieldPosition } from './positions';
 import {
   acceptOffer, autoResolveMarket, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow,
@@ -49,7 +50,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 21;
+export const SAVE_FORMAT_VERSION = 22;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -187,6 +188,8 @@ export interface GameState {
   market: MarketState;
   /** 비시즌에만: 다음 시즌 팀 레이팅 (로스터 + 시즌 팀 컨디션). 시즌 종료 때 계산해 제안 화면과 다음 시즌 시작에 쓴다 */
   nextRatings?: Record<string, number>;
+  /** 사용자가 고친 선수 이름 (부록 C.44a): 선수 id → 별명·짧은 이름. 경기 화면 라벨에만 쓴다 */
+  nameOverrides: NameOverrides;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -335,6 +338,7 @@ export function newGame(opts: NewGameOptions): GameState {
   const market = initialMarket({ worldSeed, league, player, phase: 'season' });
   return {
     transfers: [],
+    nameOverrides: {},
     market,
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,

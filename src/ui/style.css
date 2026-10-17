@@ -394,6 +394,8 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
   .app-moment .moment { padding-bottom: 0; }
   .app-moment .mo-panel { position: sticky; bottom: 0; z-index: 5; margin: var(--space-2) 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
     border-radius: 18px 18px 0 0; box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28); max-height: 64vh; overflow-y: auto; animation: mo-sheet-up 0.24s ease-out; }
+  /* 세로 피치 (C.44a): 시트가 피치를 덜 가리게 */
+  .app-moment:has(.is-portrait) .mo-panel { max-height: 40vh; }
   .app-moment .mo-panel::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 4px; border-radius: 2px; background: var(--line); }
 }
 @keyframes mo-sheet-up { from { transform: translateY(40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
@@ -505,7 +507,10 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
   [data-act="ctl-stop"]) { opacity: .4; filter: grayscale(.6); }
 
 /* 결정 화면에 아래 바가 있으면 시트를 그 위에 */
-@media (max-width: 1023px) { .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); } }
+@media (max-width: 1023px) {
+  .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); }
+  .has-nav.app-moment:has(.is-portrait) .mo-panel { max-height: calc(44vh - 72px); }
+}
 
 /* 홈 머리말: 작게 */
 .po-hero--compact { padding-bottom: 14px; gap: 2px; }
@@ -654,3 +659,13 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .pitch-wrap { position: relative; }
 .pv-btn { position: absolute; top: 6px; right: 6px; z-index: 3; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(18,19,23,.78); color: var(--ink); font: 600 11px/1.2 var(--font-sans); cursor: pointer; }
 .po-pixel, img.is-pixel { image-rendering: pixelated; }
+
+/* 선수 이름 (부록 C.44a): 별명·짧은 이름 고치기, 검색 + 팀 거르기 */
+.nm-edit { display: flex; flex-direction: column; gap: 8px; }
+.nm-field { display: flex; flex-direction: column; gap: 4px; }
+.nm-field > span { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.nm-field input { height: 44px; }
+.nm-filter { display: flex; align-items: center; gap: 8px; }
+.nm-filter .fo-search { flex: 1; min-width: 0; }
+.nm-team { flex: none; max-width: 42%; height: 44px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink); font-family: var(--font-sans); font-size: 13px; font-weight: 700; }
+.nm-row .po-chip { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,7 +1,9 @@
 // 화면 공통 조각: 패널, 하단 탭, 버전 표시, 배너 목록. 컴포넌트(src/ui/components)만 조합한다
 
 import { Banner, BottomSheet, Button, esc, OptionRow, SectionTitle, StatChip, Tabs, type TabItem } from '../components';
-import { pitchView, PITCH_VIEW_KO, type PitchView } from '../pitch/renderer';
+import {
+  pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO, type PitchView,
+} from '../pitch/renderer';
 import type { BannerVM, SeasonMatchesVM, VersionVM } from '../viewModels';
 
 export function panel(inner: string, cls = ''): string {
@@ -99,6 +101,9 @@ export function pitchViewSheet(): string {
   };
   return BottomSheet({
     eyebrow: '경기 화면', title: '선수 표시', subtitle: '설정 화면에서도 바꿀 수 있어요. 이 기기에 저장돼요.', onClose: { act: 'pv-close' },
-    children: (['number', 'face', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join(''),
+    children: `${(['number', 'face', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join('')}
+      <div class="kv"><span>방향</span></div>${Tabs({ items: (['auto', 'landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+      <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
+      <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}`,
   });
 }

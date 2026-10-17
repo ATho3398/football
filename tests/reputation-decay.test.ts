@@ -120,8 +120,8 @@ describe('세이브 변환 9 → 10 (부록 C.25)', () => {
     delete old.player.slumpStreak;
     delete old.player.season.slumpPenalty;
     const loaded = deserialize(JSON.stringify(old));
-    expect(SAVE_FORMAT_VERSION).toBe(21);
-    expect(loaded.saveFormat).toBe(21);
+    expect(SAVE_FORMAT_VERSION).toBe(22);
+    expect(loaded.saveFormat).toBe(22);
     expect(loaded.player.slumpStreak).toBe(0);
     expect(loaded.player.season.slumpPenalty).toBe(0);
   });

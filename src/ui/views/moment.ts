@@ -11,7 +11,7 @@ import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../rep
 import { Button, esc, GameCard, Pitch, Tabs } from '../components';
 import { cardById } from '../../config/cards';
 import { gameCardData } from './deck';
-import { drawFrame, fitCanvas, readPalette } from '../pitch/renderer';
+import { drawFrame, fitCanvas, PORTRAIT_MOMENT_MAX_H, readPalette, type PitchProjection } from '../pitch/renderer';
 import { pitchViewButton } from './common';
 
 export interface MomentVM {
@@ -184,14 +184,14 @@ export class MomentPitch {
     const tick = (now: number) => {
       const c = document.getElementById('mo-canvas') as HTMLCanvasElement | null;
       if (!c) return;
-      const { ctx, w, h } = fitCanvas(c);
+      const { ctx, w, h } = fitCanvas(c, PORTRAIT_MOMENT_MAX_H);
       const el = (now - this.t0) / 1000;
       const done = el >= wall;
       const fast = lead - slow;
       const e = done ? endE : el < fast ? this.fromE + el : this.fromE + fast + (el - fast) / 2;
-      drawFrame(ctx, w, h, this.frameAt(e), this.players, undefined, this.side, el);
+      const proj = drawFrame(ctx, w, h, this.frameAt(e), this.players, undefined, this.side, el);
       if (done) {
-        this.arrows(ctx, w, h);
+        this.arrows(ctx, proj);
         return;
       }
       this.raf = requestAnimationFrame(tick);
@@ -203,19 +203,16 @@ export class MomentPitch {
     cancelAnimationFrame(this.raf);
   }
 
-  private arrows(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  /** 선택지 화살표: 피치와 같은 좌표 변환(세로면 돌린 좌표, C.44a) */
+  private arrows(ctx: CanvasRenderingContext2D, proj: PitchProjection): void {
     const f = this.frames.at(-1)!;
     const me = f.players.find((p) => p.id === this.moment.me);
     if (!me) return;
-    const sx = w / 105;
-    const sy = h / 68;
     this.options.forEach((o, i) => {
       const on = this.selected === i;
       const faint = this.selected !== null && !on;
-      const x0 = me.x * sx;
-      const y0 = me.y * sy;
-      const x1 = o.to.x * sx;
-      const y1 = o.to.y * sy;
+      const [x0, y0] = proj.toScreen(me.x, me.y);
+      const [x1, y1] = proj.toScreen(o.to.x, o.to.y);
       const len = Math.hypot(x1 - x0, y1 - y0);
       if (len < 4) {
         ctx.beginPath();
@@ -325,7 +322,7 @@ export class OutcomePitch {
     const tick = (now: number) => {
       const c = document.getElementById('mo-canvas') as HTMLCanvasElement | null;
       if (!c) return;
-      const { ctx, w, h } = fitCanvas(c);
+      const { ctx, w, h } = fitCanvas(c, PORTRAIT_MOMENT_MAX_H);
       const el = (now - this.t0) / 1000;
       const end = this.done || el >= span;
       drawFrame(ctx, w, h, this.frameAt(end ? this.to : this.from + el), this.players, undefined, this.side, el);

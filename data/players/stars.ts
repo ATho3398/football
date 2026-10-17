@@ -24,15 +24,15 @@ const EPL = 'Premier League';
 const ROWS: Row[] = [
   ['salah', 'Mohamed Salah', '모하메드 살라', 1992, 'Egypt', 'Liverpool', EPL, 11, 175, 71, 'left', 'RW', ['ST'], 'worldClass', 700, false,
     '88 87 | 88 79 60 90 | 80 70 77 65 82 | 40 42 35 38 | 93 92 90 | 85 72 70 | 85 85 70 80'],
-  ['van-dijk', 'Virgil van Dijk', '버질 판데이크', 1991, 'Netherlands', 'Liverpool', EPL, 4, 193, 92, 'right', 'CB', [], 'worldClass', 650, false,
+  ['van-dijk', 'Virgil van Dijk', '버질 반 다이크', 1991, 'Netherlands', 'Liverpool', EPL, 4, 193, 92, 'right', 'CB', [], 'worldClass', 650, false,
     '70 75 | 60 62 85 55 | 78 80 55 60 70 | 89 88 89 91 | 77 73 60 | 80 92 91 | 89 85 88 75'],
   ['mane', 'Sadio Mané', '사디오 마네', 1992, 'Senegal', 'Liverpool', EPL, 10, 175, 69, 'right', 'LW', ['ST'], 'worldClass', 600, false,
     '87 84 | 83 72 76 87 | 76 68 72 60 78 | 40 42 35 38 | 93 94 89 | 88 75 85 | 80 82 70 85'],
   ['firmino', 'Roberto Firmino', '호베르투 피르미누', 1991, 'Brazil', 'Liverpool', EPL, 9, 181, 76, 'right', 'CF', ['ST', 'CAM'], 'topClass', 550, false,
     '85 87 | 82 76 75 87 | 82 74 72 60 85 | 60 65 50 55 | 77 79 82 | 90 75 70 | 82 80 70 92'],
-  ['alexander-arnold', 'Trent Alexander-Arnold', '트렌트 알렉산더아널드', 1998, 'England', 'Liverpool', EPL, 66, 175, 69, 'right', 'RB', ['CM'], 'worldClass', 250, false,
+  ['alexander-arnold', 'Trent Alexander-Arnold', '트렌트 알렉산더아놀드', 1998, 'England', 'Liverpool', EPL, 66, 175, 69, 'right', 'RB', ['CM'], 'worldClass', 250, false,
     '74 76 | 58 70 55 60 | 80 82 84 75 78 | 72 70 68 68 | 77 78 75 | 82 64 62 | 72 70 62 80', 7],
-  ['de-bruyne', 'Kevin De Bruyne', '케빈 더브라위너', 1991, 'Belgium', 'Manchester City', EPL, 17, 181, 70, 'right', 'CAM', ['CM'], 'worldClass', 750, false,
+  ['de-bruyne', 'Kevin De Bruyne', '케빈 더 브라위너', 1991, 'Belgium', 'Manchester City', EPL, 17, 181, 70, 'right', 'CAM', ['CM'], 'worldClass', 750, false,
     '86 89 | 85 90 55 82 | 92 91 91 84 94 | 55 63 50 58 | 77 79 80 | 88 75 63 | 88 85 80 87', 3],
   ['aguero', 'Sergio Agüero', '세르히오 아구에로', 1988, 'Argentina', 'Manchester City', EPL, 10, 173, 70, 'right', 'ST', [], 'worldClass', 750, false,
     '89 90 | 92 82 75 93 | 80 65 65 70 83 | 25 30 20 25 | 82 88 89 | 75 72 75 | 93 88 75 70', 3],
@@ -84,11 +84,17 @@ const ROWS: Row[] = [
     '84 78 | 64 58 50 70 | 68 58 64 50 66 | 25 25 20 22 | 92 93 88 | 72 60 55 | 60 62 50 72', 8],
   ['dybala', 'Paulo Dybala', '파울로 디발라', 1993, 'Argentina', 'Juventus', 'Serie A', 10, 177, 75, 'left', 'CF', ['CAM'], 'worldClass', 650, false,
     '88 89 | 84 85 60 84 | 82 74 72 86 84 | 30 35 28 30 | 82 85 90 | 75 60 65 | 82 80 65 75'],
-  ['kimmich', 'Joshua Kimmich', '요주아 키미히', 1995, 'Germany', 'Bayern Munich', 'Bundesliga', 32, 176, 75, 'right', 'RB', ['CDM', 'CM'], 'worldClass', 550, false,
+  ['kimmich', 'Joshua Kimmich', '조슈아 키미히', 1995, 'Germany', 'Bayern Munich', 'Bundesliga', 32, 176, 75, 'right', 'RB', ['CDM', 'CM'], 'worldClass', 550, false,
     '78 83 | 72 76 62 70 | 86 82 85 70 82 | 82 84 79 80 | 72 76 78 | 92 70 65 | 82 82 82 90'],
   ['havertz', 'Kai Havertz', '카이 하베르츠', 1999, 'Germany', 'Bayer Leverkusen', 'Bundesliga', 29, 189, 82, 'left', 'CAM', ['CF', 'CM'], 'worldClass', 200, false,
     '78 80 | 72 70 70 74 | 76 72 62 60 76 | 45 50 42 45 | 70 72 74 | 74 70 72 | 75 72 60 70', 8],
 ];
+
+/** 짧은 이름 예외 표 (부록 C.44a): 성이 아닌 통칭으로 불리거나 성이 여러 단어인 선수. 나머지는 마지막 단어(names.ts autoShortKo) */
+const SHORT_KO: Record<string, string> = {
+  'van-dijk': '반다이크', 'alexander-arnold': '알렉산더아놀드', 'de-bruyne': '더브라위너', neymar: '네이마르', vinicius: '비니시우스', son: '손흥민',
+  firmino: '피르미누', aubameyang: '오바메양',
+};
 
 export const stars: FieldPlayerData[] = ROWS.map(
   ([id, name, nameKo, birthYear, nationality, club, league, shirtNumber, height, weight, foot,
@@ -96,6 +102,7 @@ export const stars: FieldPlayerData[] = ROWS.map(
     id, name, nameKo, birthYear, nationality, club, league, shirtNumber, height, weight, foot,
     position, subPositions, traits: [], potentialTier, reputation, legendBadge,
     attributes: parseAttrs(id, attrs),
+    ...(SHORT_KO[id] ? { shortKo: SHORT_KO[id] } : {}),
     ...(spread !== undefined ? { variance: { spread } } : {}),
   }),
 );
