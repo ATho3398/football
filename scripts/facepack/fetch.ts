@@ -1,9 +1,9 @@
 // 페이스팩 수집: 실제 선수 사진과 프리미어리그 구단 로고를 위키백과 REST 요약 API 로 받아 작은 이미지로 저장한다.
 // 실행: npm run facepack -- [--only players|clubs] [--force]
-// 출력: public/facepack/{players,clubs}/*.webp, public/facepack/manifest.json, scripts/facepack/report.md
+// 출력: public/facepack/{players,clubs}/*.png (정사각형, 투명 채움), public/facepack/manifest.json, scripts/facepack/report.md
 // 원본 내려받기는 저장소 밖 임시 폴더(FACEPACK_RAW_DIR, 기본 OS 임시 폴더/facepack-raw)에 둔다.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,6 @@ const SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 const MIN_GAP_MS = 1100;
 const BACKOFF_MS = [2000, 4000, 8000, 16000];
 const SIZE = 128;
-const QUALITY = 80;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
@@ -130,22 +129,21 @@ async function download(url: string, dest: string): Promise<void> {
   writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
 }
 
-function convertPlayer(src: string, dest: string): void {
-  // 얼굴은 대개 위쪽 가운데: 짧은 변을 128 에 맞춘 뒤 세로 사진이면 위에서 약간 내려온 곳을 자른다
-  const [w, h] = execFileSync('identify', ['-format', '%w %h', `${src}[0]`]).toString().split(' ').map(Number) as [number, number];
-  const scaledH = w < h ? Math.round((h * SIZE) / w) : SIZE;
-  const offY = Math.max(0, Math.min(scaledH - SIZE, Math.round((scaledH - SIZE) * 0.12)));
+// 정사각형 정규화 (C.43 개정, 사용자 "원형 틀 없이 PNG 그대로"): 자르지 않고 긴 쪽을 SIZE 에 맞춘 뒤
+// 짧은 쪽을 투명으로 채워 정사각형 PNG 로 저장한다. 얼굴 사진은 아래쪽 맞춤, 로고는 가운데
+function squarePng(src: string, dest: string, gravity: 'south' | 'center'): void {
   execFileSync('convert', [
-    `${src}[0]`, '-auto-orient', '-resize', `${SIZE}x${SIZE}^`, '-gravity', 'north',
-    '-crop', `${SIZE}x${SIZE}+0+${offY}`, '+repage', '-strip', '-quality', String(QUALITY), dest,
+    '-background', 'none', `${src}[0]`, '-auto-orient', '-resize', `${SIZE}x${SIZE}`, '-gravity', gravity,
+    '-extent', `${SIZE}x${SIZE}`, '-strip', '-define', 'png:compression-level=9', `PNG32:${dest}`,
   ]);
 }
 
+function convertPlayer(src: string, dest: string): void {
+  squarePng(src, dest, 'south');
+}
+
 function convertClub(src: string, dest: string): void {
-  execFileSync('convert', [
-    '-background', 'none', `${src}[0]`, '-resize', `${SIZE}x${SIZE}`, '-gravity', 'center',
-    '-extent', `${SIZE}x${SIZE}`, '-strip', '-quality', String(QUALITY), dest,
-  ]);
+  squarePng(src, dest, 'center');
 }
 
 const pageUrl = (s: Summary, title: string) =>
@@ -163,7 +161,7 @@ interface Job {
 }
 
 async function runJob(job: Job, manifest: Manifest): Promise<ReportRow> {
-  const file = `${job.kind}/${job.id}.webp`;
+  const file = `${job.kind}/${job.id}.png`;
   const dest = join(OUT, file);
   const prev = manifest[job.kind][job.id];
   if (!force && existsSync(dest) && prev) {
@@ -289,7 +287,26 @@ function dirBytes(dir: string): number {
   return total + (existsSync(m) ? statSync(m).size : 0);
 }
 
+/** --reconvert: 내려받은 원본(RAW)에서 출력 이미지만 다시 만든다 (요청 없음). 옛 .webp 는 지운다 */
+function reconvert(): void {
+  const manifest = loadManifest();
+  for (const kind of ['players', 'clubs'] as const) {
+    for (const [id, e] of Object.entries(manifest[kind])) {
+      const raw = readdirSync(join(RAW, kind)).find((f) => f.startsWith(`${id}.`));
+      if (!raw) { console.log(`[${kind}] ${id}: 원본 없음, 건너뜀`); continue; }
+      const file = `${kind}/${id}.png`;
+      (kind === 'players' ? convertPlayer : convertClub)(join(RAW, kind, raw), join(OUT, file));
+      if (e.file !== file && existsSync(join(OUT, e.file))) rmSync(join(OUT, e.file));
+      e.file = file;
+    }
+  }
+  manifest.generated = new Date().toISOString();
+  writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  console.log(`다시 만듦 · public/facepack ${dirBytes(OUT)} 바이트`);
+}
+
 async function main(): Promise<void> {
+  if (args.includes('--reconvert')) return reconvert();
   // 연결 확인: 실패하면 출력물을 건드리지 않고 끝낸다
   try {
     const s = await summary('Lionel Messi');

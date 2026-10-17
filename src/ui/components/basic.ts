@@ -60,9 +60,12 @@ export function Avatar(p: AvatarProps): string {
   const size = p.size ?? 56;
   const radius = p.shape === 'square' ? 'var(--radius-md)' : '50%';
   const src = p.src ?? (p.face ? faceSrc(p.face) : undefined);
-  // 이미지는 기본 아바타 위에 겹친다: 못 읽으면 지우고 아래 아바타가 보인다
-  return `<span class="${cx('po-avatar', p.ring && 'po-avatar--ring')}" style="width:${size}px;height:${size}px;border-radius:${radius}">${DEFAULT_AVATAR}${
-    src ? `<img src="${esc(src)}" alt="${esc(p.name ?? '')}" loading="lazy" decoding="async" onerror="this.remove()">` : ''}</span>`;
+  if (!src) {
+    return `<span class="${cx('po-avatar', p.ring && 'po-avatar--ring')}" style="width:${size}px;height:${size}px;border-radius:${radius}">${DEFAULT_AVATAR}</span>`;
+  }
+  // 이미지 (C.43 개정, 미니페이스): 원형 틀·테두리·배경 없이 정사각형 이미지 그대로 (PNG 는 얼굴만, JPG 는 사각).
+  // 읽는 동안·못 읽으면 아래 기본 아바타가 보이고, 다 읽으면 숨긴다
+  return `<span class="${cx('po-avatar', 'po-avatar--img', p.ring && 'is-mine')}" style="width:${size}px;height:${size}px"><span class="po-avatar__fb" style="border-radius:${radius}">${DEFAULT_AVATAR}</span><img src="${esc(src)}" alt="${esc(p.name ?? '')}" loading="lazy" decoding="async" onload="this.previousElementSibling.style.visibility='hidden'" onerror="this.remove()"></span>`;
 }
 
 export interface CrestProps { name: string; src?: string; size?: number; color?: string; /** 팀 id (없으면 이름으로 찾는다) */ team?: string }

@@ -1,6 +1,7 @@
 // 화면 공통 조각: 패널, 하단 탭, 버전 표시, 배너 목록. 컴포넌트(src/ui/components)만 조합한다
 
-import { Banner, Button, esc, SectionTitle, StatChip, Tabs, type TabItem } from '../components';
+import { Banner, BottomSheet, Button, esc, OptionRow, SectionTitle, StatChip, Tabs, type TabItem } from '../components';
+import { pitchView, PITCH_VIEW_KO, type PitchView } from '../pitch/renderer';
 import type { BannerVM, SeasonMatchesVM, VersionVM } from '../viewModels';
 
 export function panel(inner: string, cls = ''): string {
@@ -81,4 +82,23 @@ export function roJosa(word: string): string {
   const last = word.replace(/\([^)]*\)/g, '').replace(/[^가-힣]+$/, '').slice(-1);
   const code = last ? last.charCodeAt(0) - 0xac00 : -1;
   return code >= 0 && code % 28 !== 0 && code % 28 !== 8 ? '으로' : '로';
+}
+
+/** 경기 화면 [보기] 버튼 (부록 C.43): 누르면 얼굴/등번호/캐릭터 시트 */
+export function pitchViewButton(): string {
+  return `<button type="button" class="pv-btn" data-act="pv-open" aria-label="선수 표시 바꾸기">보기 · ${PITCH_VIEW_KO[pitchView()]}</button>`;
+}
+
+/** 보기 바꾸기 시트 */
+export function pitchViewSheet(): string {
+  const v = pitchView();
+  const DESC: Record<PitchView, string> = {
+    face: '선수 얼굴(미니페이스) + 팀 색 밑줄. 이미지가 없는 선수는 기본 아바타',
+    number: '유니폼 모양에 번호 (선발 1~11, 교체 12~)',
+    character: '번호가 적힌 원 (기본)',
+  };
+  return BottomSheet({
+    eyebrow: '경기 화면', title: '선수 표시', subtitle: '설정 화면에서도 바꿀 수 있어요. 이 기기에 저장돼요.', onClose: { act: 'pv-close' },
+    children: (['face', 'number', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join(''),
+  });
 }

@@ -8,10 +8,11 @@ import type { GameState } from '../../game';
 import { teamById } from '../../league';
 import { Avatar, Button, Crest, esc, HeroPanel, SectionTitle, Tabs } from '../components';
 import {
-  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnKeys, faceOnUrls, faceStats, repoCrest, type FaceRef, type FaceSlot,
+  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import { panel, versionFooter } from './common';
+import { pitchView, PITCH_VIEW_KO } from '../pitch/renderer';
 
 export interface FaceOnUI {
   tab: 'players' | 'clubs';
@@ -19,7 +20,7 @@ export interface FaceOnUI {
   /** 고른 선수·구단 키 (`p:<id>` / `t:<팀 id>`) */
   sel: string | null;
   /** 자르기 중 */
-  crop: null | { key: string; name: string; slot: FaceSlot; src: string; zoom: number; x: number; y: number; /** 가로가 더 긴 이미지 */ wide: boolean };
+  crop: null | { key: string; name: string; slot: FaceSlot; src: string; zoom: number; x: number; y: number; /** 원본 크기 */ w: number; h: number };
 }
 
 interface Entry { key: string; name: string; sub: string; face?: FaceRef; team?: string; mine?: boolean }
@@ -106,7 +107,7 @@ function editor(g: GameState | null, e: Entry): string {
   const fallback = defaultFaceSrc(face);
   const cells = AGE_SLOTS.map((s) => {
     const u = urls[s];
-    return `<div class="fo-slot${s === cur ? ' is-cur' : ''}"><span class="fo-slot__pic">${u ? `<img src="${esc(u)}" alt="">` : '<i>비어 있음</i>'}</span><b>${AGE_SLOT_KO[s]}</b>${s === cur ? '<small class="hi">지금 나이</small>' : '<small>&nbsp;</small>'}
+    return `<div class="fo-slot${s === cur ? ' is-cur' : ''}"><span class="fo-slot__pic${u ? ' has-img' : ''}">${u ? `<img src="${esc(u)}" alt="">` : '<i>비어 있음</i>'}</span><b>${AGE_SLOT_KO[s]}</b>${s === cur ? '<small class="hi">지금 나이</small>' : '<small>&nbsp;</small>'}
       <span class="fo-slot__btns">${Button({ size: 'sm', variant: u ? 'secondary' : 'primary', act: 'faceon-upload', data: { key: e.key, slot: s }, children: u ? '바꾸기' : '올리기' })}${
         u ? Button({ size: 'sm', variant: 'ghost', act: 'faceon-clear', data: { key: e.key, slot: s }, children: '지우기' }) : ''}</span></div>`;
   }).join('');
@@ -122,22 +123,23 @@ function editor(g: GameState | null, e: Entry): string {
 
 function cropSheet(c: NonNullable<FaceOnUI['crop']>): string {
   const club = c.slot === 'crest';
-  return `<div class="po-overlay po-overlay--sheet"><div class="po-sheet fo-crop" role="dialog" aria-modal="true" aria-label="이미지 자르기"><span class="po-sheet__grip" aria-hidden="true"></span>
-    <div class="po-sheet__head"><span class="po-sheet__eyebrow">${club ? '엠블럼' : `얼굴 · ${AGE_SLOT_KO[c.slot as keyof typeof AGE_SLOT_KO]}`}</span><b>${esc(c.name)}</b><p>${club ? '로고는 비율 그대로 줄여서 저장해요.' : '원 안에 얼굴이 오도록 확대·이동해요. 256px로 줄여서 저장해요.'}</p></div>
+  return `<div class="po-overlay po-overlay--sheet"><div class="po-sheet fo-crop" role="dialog" aria-modal="true" aria-label="이미지 위치 맞추기"><span class="po-sheet__grip" aria-hidden="true"></span>
+    <div class="po-sheet__head"><span class="po-sheet__eyebrow">${club ? '엠블럼' : `얼굴 · ${AGE_SLOT_KO[c.slot as keyof typeof AGE_SLOT_KO]}`}</span><b>${esc(c.name)}</b><p>정사각형으로 저장해요. 모자란 쪽은 투명으로 채워요(체크무늬 = 투명). 배경이 투명한 PNG면 얼굴만, JPG면 사각 이미지 그대로 보여요.</p></div>
     <div class="po-sheet__body">
-      <div class="fo-crop__stage${club ? ' is-club' : ''}"><div id="fo-prev" class="fo-crop__prev" style="${cropStyle(c)}"></div></div>
-      ${club ? '' : `<label class="fo-range"><span>확대</span><input type="range" id="fo-zoom" min="100" max="400" value="${Math.round(c.zoom * 100)}"></label>
+      <div class="fo-crop__stage"><div class="fo-crop__prev"><img id="fo-prev" src="${esc(c.src)}" alt="" style="${cropStyle(c)}"></div></div>
+      <label class="fo-range"><span>확대</span><input type="range" id="fo-zoom" min="100" max="300" value="${Math.round(c.zoom * 100)}"></label>
       <label class="fo-range"><span>좌우</span><input type="range" id="fo-x" min="-100" max="100" value="${Math.round(c.x * 100)}"></label>
-      <label class="fo-range"><span>위아래</span><input type="range" id="fo-y" min="-100" max="100" value="${Math.round(c.y * 100)}"></label>`}
+      <label class="fo-range"><span>위아래</span><input type="range" id="fo-y" min="-100" max="100" value="${Math.round(c.y * 100)}"></label>
     </div>
     <div class="po-sheet__foot"><div class="btn-row even">${Button({ variant: 'secondary', size: 'lg', block: true, act: 'faceon-crop-cancel', children: '취소' })}${Button({ size: 'lg', block: true, icon: 'check', act: 'faceon-crop-save', children: '저장' })}</div></div>
   </div></div>`;
 }
 
-/** 원형 미리보기: background-size·position 으로 자르기 값을 보여 준다 (cropToBlob 과 같은 식) */
-export function cropStyle(c: { src: string; zoom: number; x: number; y: number; slot: FaceSlot; wide: boolean }): string {
-  if (c.slot === 'crest') return `background-image:url('${c.src}');background-size:contain;background-position:center;background-repeat:no-repeat`;
-  return `background-image:url('${c.src}');background-size:${c.wide ? `auto ${c.zoom * 100}%` : `${c.zoom * 100}% auto`};background-position:${50 + c.x * 50}% ${50 + c.y * 50}%;background-repeat:no-repeat`;
+/** 정사각형 미리보기 안 이미지 자리 (squareToBlob 과 같은 식) */
+export function cropStyle(c: { zoom: number; x: number; y: number; slot: FaceSlot; w: number; h: number }): string {
+  const l = squareLayout(c.w, c.h, c, c.slot === 'crest' ? 'center' : 'bottom');
+  const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
+  return `left:${pct(l.x)};top:${pct(l.y)};width:${pct(l.w)};height:${pct(l.h)}`;
 }
 
 export function settingsView(g: GameState | null, fo: FaceOnUI, version: VersionVM): string {
@@ -156,6 +158,8 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
       <div class="kv"><span>난이도</span><b>${{ easy: '쉬움', normal: '보통', hard: '어려움' }[g.difficulty] ?? g.difficulty}</b></div>
       <p class="small muted">난이도는 새 게임에서 정해요.</p>`)
     : panel('<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>');
+  const pv = panel(`<div class="kv"><span>경기 화면 선수 표시</span></div>${Tabs({ items: (['face', 'number', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
+    <p class="small muted">얼굴 = 미니페이스 + 팀 색 밑줄 · 등번호 = 유니폼 번호 · 캐릭터 = 번호 원(기본). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>`);
   const saves = panel(`<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`);
 
@@ -177,6 +181,7 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
     <input type="file" id="fp-file" accept=".zip,application/zip" hidden>`;
   return `${hero}<div class="body">
     ${SectionTitle({ title: '경기 진행' })}${play}
+    ${SectionTitle({ title: '경기 화면 보기' })}${pv}
     ${SectionTitle({ title: '저장과 안내' })}${saves}
     ${SectionTitle({ title: '페이스온', action: '얼굴·엠블럼 바꾸기' })}${faceon}
     ${versionFooter(version)}

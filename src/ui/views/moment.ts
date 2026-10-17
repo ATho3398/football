@@ -12,6 +12,7 @@ import { Button, esc, GameCard, Pitch, Tabs } from '../components';
 import { cardById } from '../../config/cards';
 import { gameCardData } from './deck';
 import { drawFrame, fitCanvas, readPalette } from '../pitch/renderer';
+import { pitchViewButton } from './common';
 
 export interface MomentVM {
   moment: Moment;
@@ -101,7 +102,7 @@ export function momentView(vm: MomentVM): string {
         <div class="mo-score"><span class="${side === 0 ? 'me' : ''}">${esc(vm.teams[0])}</span><b class="po-num">${h} : ${a}</b><span class="${side === 1 ? 'me' : ''}">${esc(vm.teams[1])}</span></div>
         <div class="mo-scene"><span class="mo-min po-num">${m.minute}'</span><b>${esc(SCENE_LABEL[m.scene])}</b><span class="muted small">결정 순간 ${vm.count}${tension} · 중요도 ${m.stake.toFixed(2)}</span></div>
       </div>
-      <div class="pitch-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면' })}</div>
+      <div class="pitch-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면' })}${pitchViewButton()}</div>
       ${last}
       <div class="mo-panel mo-sheet" role="dialog" aria-label="결정 선택">
         ${sheetHead(m)}
@@ -277,7 +278,7 @@ export function outcomeView(vm: OutcomeVM): string {
         <div class="mo-score"><span class="${m.side === 0 ? 'me' : ''}">${esc(vm.teams[0])}</span><b class="po-num" id="oc-score">${h} : ${a}</b><span class="${m.side === 1 ? 'me' : ''}">${esc(vm.teams[1])}</span></div>
         <div class="mo-scene"><span class="mo-min po-num">${m.minute}'</span><b>${esc(SCENE_LABEL[m.scene])}</b><span class="muted small">결과 보는 중 · 실제 속도</span></div>
       </div>
-      <div class="pitch-wrap oc-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생' })}
+      <div class="pitch-wrap oc-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생' })}${pitchViewButton()}
         <div class="oc-band oc-band--${b.tone}${vm.shown ? ' is-shown' : ''}" id="oc-band" role="status" aria-live="polite">
           <span class="oc-icon">${BAND_ICON[b.tone]}</span>
           <span class="oc-text"><b>${esc(b.title)}</b><span>${esc(b.flow)}</span></span>

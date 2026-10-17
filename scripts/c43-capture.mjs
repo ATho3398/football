@@ -13,7 +13,7 @@ const W = Number(process.env.W ?? 390);
 const P = process.env.PREFIX ?? '';
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }).catch(() => chromium.launch());
-const ctx = await browser.newContext({ viewport: { width: W, height: 844 }, colorScheme: 'dark', deviceScaleFactor: 1 });
+const ctx = await browser.newContext({ viewport: { width: W, height: 844 }, colorScheme: 'dark', deviceScaleFactor: Number(process.env.DPR ?? 1) });
 const page = await ctx.newPage();
 const errors = [];
 const broken = [];
@@ -67,7 +67,20 @@ await shot('3_선수화면');
 await act('go-tab', '[data-v="home"]');
 for (let k = 0; k < 20 && !(await has('[data-act="play"]')); k++) { await act('day-continue'); await page.waitForTimeout(400); }
 await act('play');
-await page.waitForTimeout(1500);
+await page.waitForTimeout(2500);
+// 경기 화면 보기 (얼굴 / 등번호 / 캐릭터)
+await dismiss();
+await shot('4a_경기화면-캐릭터');
+await act('pv-open');
+await shot('4b_보기-시트');
+await act('pv-set', '[data-v="face"]');
+await shot('4c_경기화면-얼굴', false, 900);
+await page.locator('#rp-canvas').screenshot({ path: `${OUT}/${P}4c2_피치-얼굴-확대.png` });
+await act('pv-open');
+await act('pv-set', '[data-v="number"]');
+await shot('4d_경기화면-등번호', false, 600);
+await act('pv-open');
+await act('pv-set', '[data-v="face"]');
 if (await has('[data-act="rp-skip"]')) { await act('rp-skip'); await act('rp-skip-ok'); }
 await page.waitForTimeout(800);
 if (await has('[data-act="rp-result"]')) await act('rp-result');
@@ -102,7 +115,7 @@ if (UPLOAD) {
   await page.waitForTimeout(600);
   await page.locator('#fo-zoom').fill('160');
   await page.locator('#fo-y').fill('-40');
-  await shot('8_자르기-원형미리보기');
+  await shot('8_위치맞추기-정사각형미리보기');
   await act('faceon-crop-save');
   await page.waitForTimeout(800);
   await scrollTo('.fo-editor');

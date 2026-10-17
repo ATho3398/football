@@ -263,30 +263,29 @@ export async function allFaceOn(): Promise<[string, FaceOnRecord][]> {
   return out;
 }
 
-// ── 이미지 줄이기·자르기 (브라우저) ──
+// ── 이미지 정사각형 정규화 (브라우저, C.43 개정): 자르지 않고 긴 쪽을 맞춘 뒤 짧은 쪽을 투명으로 채운 정사각형 PNG.
+// 얼굴은 아래쪽 맞춤, 엠블럼은 가운데. 페이스온 편집에서 확대·이동(넘친 부분만 잘림)할 수 있다
 
-/** 원형 자르기: 정사각형 출력. zoom ≥ 1, x·y = 가운데 기준 이동 비율(−1~1) */
+/** zoom ≥ 1 (1 = 전체가 보이게), x·y = 출력 한 변 대비 이동(−1~1, 반 변 단위) */
 export interface CropParams { zoom: number; x: number; y: number }
+export type SquareAlign = 'bottom' | 'center';
 
-export async function cropToBlob(img: HTMLImageElement, c: CropParams, out = 256, square = true): Promise<Blob> {
+/** 출력 정사각형(한 변 1) 안에 이미지를 놓는 자리 */
+export function squareLayout(w: number, h: number, c: CropParams, align: SquareAlign): { x: number; y: number; w: number; h: number } {
+  const k = c.zoom / Math.max(w, h);
+  const dw = w * k;
+  const dh = h * k;
+  return { x: (1 - dw) / 2 + c.x * 0.5, y: (align === 'bottom' ? 1 - dh : (1 - dh) / 2) + c.y * 0.5, w: dw, h: dh };
+}
+
+export async function squareToBlob(img: HTMLImageElement, c: CropParams, out: number, align: SquareAlign): Promise<Blob> {
   const canvas = document.createElement('canvas');
-  const w = img.naturalWidth;
-  const h = img.naturalHeight;
-  if (square) {
-    canvas.width = out;
-    canvas.height = out;
-    const side = Math.min(w, h) / c.zoom;
-    const sx = (w - side) / 2 + c.x * (w - side) / 2;
-    const sy = (h - side) / 2 + c.y * (h - side) / 2;
-    canvas.getContext('2d')!.drawImage(img, sx, sy, side, side, 0, 0, out, out);
-  } else {
-    const k = Math.min(1, out / Math.max(w, h));
-    canvas.width = Math.max(1, Math.round(w * k));
-    canvas.height = Math.max(1, Math.round(h * k));
-    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-  }
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
-  if (blob && blob.type === 'image/webp') return blob;
+  canvas.width = out;
+  canvas.height = out;
+  const l = squareLayout(img.naturalWidth, img.naturalHeight, c, align);
+  const ctx = canvas.getContext('2d')!;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, l.x * out, l.y * out, l.w * out, l.h * out);
   return new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('이미지 변환 실패'))), 'image/png'));
 }
 
@@ -385,7 +384,7 @@ export async function importFacepack(file: Blob, nameOf: (key: string) => string
     try {
       const img = await loadImage(url);
       const club = j.key.startsWith('t:');
-      const blob = await cropToBlob(img, { zoom: 1, x: 0, y: club ? 0 : -0.4 }, club ? 160 : 256, !club);
+      const blob = await squareToBlob(img, { zoom: 1, x: 0, y: 0 }, club ? 160 : 256, club ? 'center' : 'bottom');
       await setFaceOn(j.key, j.name, j.slot, blob);
       added++;
     } catch {

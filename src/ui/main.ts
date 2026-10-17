@@ -43,10 +43,11 @@ import {
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { Button, Modal, Toast, type ToastProps } from './components';
 import {
-  adviceCardVM, allocateVM, homeVM, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
+  adviceCardVM, allocateVM, homeVM, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { navBar, roJosa } from './views/common';
+import { navBar, pitchViewSheet, roJosa } from './views/common';
+import { setPitchFaceResolver, setPitchView } from './pitch/renderer';
 import { adviceCard, homeView, positionChangeSection, positionSheet } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
@@ -57,7 +58,7 @@ import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, lookupEntry, settingsView, type FaceOnUI } from './views/settings';
-import { clearFaceOn, cropToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
+import { clearFaceOn, faceSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
@@ -115,6 +116,8 @@ const ui = {
   },
   /** 설정 화면 페이스온 (C.43) */
   fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
+  /** 경기 화면 보기 시트 (C.43) */
+  pvSheet: false,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
@@ -376,7 +379,8 @@ function render(): void {
     : guide.modal;
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
   app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}app-${ui.screen}`;
-  app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${modal}${toast}`;
+  const pv = ui.pvSheet ? pitchViewSheet() : '';
+  app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
   if (ui.screen === 'moment' && ui.live?.oc) ui.live.oc.pitch.attach();
@@ -1199,7 +1203,7 @@ app.addEventListener('click', (ev) => {
         try {
           const img = await loadImage(c.src);
           const club = c.slot === 'crest';
-          const blob = await cropToBlob(img, c, club ? 160 : 256, !club);
+          const blob = await squareToBlob(img, c, club ? 160 : 256, club ? 'center' : 'bottom');
           await setFaceOn(c.key, c.name, c.slot, blob);
           URL.revokeObjectURL(c.src);
           ui.fo.crop = null;
@@ -1227,6 +1231,20 @@ app.addEventListener('click', (ev) => {
       return;
     case 'facepack-import':
       (document.getElementById('fp-file') as HTMLInputElement | null)?.click();
+      return;
+    case 'pv-open':
+      ui.pvSheet = true;
+      render();
+      return;
+    case 'pv-close':
+      ui.pvSheet = false;
+      render();
+      return;
+    case 'pv-set':
+      if (v !== 'face' && v !== 'number' && v !== 'character') return;
+      setPitchView(v);
+      ui.pvSheet = false;
+      render();
       return;
     case 'opt-quick':
       if (!g) return;
@@ -1635,7 +1653,7 @@ app.addEventListener('change', (ev) => {
     const src = URL.createObjectURL(file);
     void loadImage(src).then((img) => {
       const name = lookupEntry(ui.game, key)?.name ?? key.slice(2);
-      ui.fo.crop = { key, name, slot, src, zoom: 1, x: 0, y: slot === 'crest' ? 0 : -0.3, wide: img.naturalWidth > img.naturalHeight };
+      ui.fo.crop = { key, name, slot, src, zoom: 1, x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
       render();
     }, () => {
       URL.revokeObjectURL(src);
@@ -1653,6 +1671,20 @@ app.addEventListener('change', (ev) => {
       showToast({ kind: 'info', title: `페이스팩 가져오기 · ${r.added}장`, body: r.skipped.length ? `못 찾은 파일 ${r.skipped.length}개: ${r.skipped.slice(0, 3).join(', ')}` : '모두 넣었어요.' }, 3200);
     }, (e) => showToast((e as Error).message || '가져오지 못했어요'));
   }
+});
+
+// 경기 화면 얼굴 보기 (C.43): 리플레이 선수 id = 로스터 id. 로스터가 바뀌면 색인을 다시 만든다
+let faceIndex: { of: unknown; map: Map<string, FaceRef> } | null = null;
+setPitchFaceResolver((id, isMe) => {
+  const g = ui.game;
+  if (!g) return undefined;
+  if (isMe) return faceSrc(myFace(g));
+  if (faceIndex?.of !== g.rosters) {
+    const map = new Map<string, FaceRef>();
+    for (const r of Object.values(g.rosters ?? {})) for (const p of r.players) map.set(p.id, { id: p.id, age: p.age, appearance: p.appearance });
+    faceIndex = { of: g.rosters, map };
+  }
+  return faceSrc(faceIndex.map.get(id) ?? { id });
 });
 
 render();

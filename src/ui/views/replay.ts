@@ -9,7 +9,8 @@ import {
   Avatar, Button, esc, FeedItem, Icon, Pitch, PitchLegend, PossessionBar, ScoreBar, StatChip, type ScoreView,
 } from '../components';
 import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
-import { drawFrame, fitCanvas, numberCircleRenderer, playerMap, readPalette, type MarkerRenderer } from '../pitch/renderer';
+import { pitchViewButton } from './common';
+import { activeRenderer, drawFrame, fitCanvas, playerMap, readPalette, type MarkerRenderer } from '../pitch/renderer';
 
 export type ReplayMode = 'scene' | 'transition' | 'live' | 'ended';
 
@@ -72,7 +73,7 @@ export function replayView(vm: ReplayVM): string {
   return `
     <div class="match">
       <div class="match-main">
-        <div class="pitch-wrap">${Pitch({ canvasId: 'rp-canvas', label: '경기장', children: overlay })}</div>
+        <div class="pitch-wrap">${Pitch({ canvasId: 'rp-canvas', label: '경기장', children: overlay })}${pitchViewButton()}</div>
         ${PitchLegend(`<span id="rp-legend">${legendLeft}</span>`)}
         ${tiles}
       </div>
@@ -114,7 +115,7 @@ export class ReplayPlayer {
   private readonly settled: boolean[];
   /** 첫 경기 오버레이 등으로 화면이 재생을 붙잡고 있는 동안 true (21.4, 부록 C.23) */
   hold = false;
-  constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer: MarkerRenderer = numberCircleRenderer) {
+  constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer?: MarkerRenderer) {
     this.players = playerMap(replay);
     this.settled = settledFrames(replay, HL.settleTol);
     this.scenes = selectScenes(replay);
@@ -263,7 +264,7 @@ export class ReplayPlayer {
     if (!canvas) return false;
     const { ctx, w, h } = fitCanvas(canvas);
     const f = this.current();
-    drawFrame(ctx, w, h, f, this.players, this.renderer, this.replay.side, performance.now() / 1000);
+    drawFrame(ctx, w, h, f, this.players, this.renderer ?? activeRenderer(), this.replay.side, performance.now() / 1000);
     const at = this.mode === 'transition' ? f.e : this.e;
     const score = scoreAt(this.replay, at);
     const set = (id: string, text: string) => {
@@ -301,3 +302,4 @@ export class ReplayPlayer {
     return true;
   }
 }
+

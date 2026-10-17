@@ -9,6 +9,8 @@ const PITCH_W = 68;
 
 /** 24.4 MarkerRenderer 입력 */
 export interface MarkerInput {
+  /** 선수 id (얼굴 보기용, 부록 C.43) */
+  id?: string;
   teamId: 0 | 1;
   /** 내 팀 마커 (디자인: 우리 = 라임 면, 상대 = 어두운 면 + 주황 테두리) */
   ours: boolean;
@@ -167,7 +169,7 @@ export const BALL_R = 5.1;
 /** 한 프레임 그리기: 코트 → 마커 → 공 → 내 선수 이름표. time = 맥박용 시각(초) */
 export function drawFrame(
   ctx: CanvasRenderingContext2D, w: number, h: number, frame: ReplayFrame, players: Map<string, ReplayPlayer>,
-  renderer: MarkerRenderer = numberCircleRenderer, mySide: 0 | 1 = 0, time = 0,
+  renderer: MarkerRenderer = activeRenderer(), mySide: 0 | 1 = 0, time = 0,
 ): void {
   drawPitch(ctx, w, h);
   const sx = w / PITCH_L;
@@ -190,7 +192,7 @@ export function drawFrame(
       me = { name: shortName(info.name), x: px, y: py };
     }
     renderer.draw(ctx, {
-      teamId: info.team, ours: info.team === mySide, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk,
+      id: p.id, teamId: info.team, ours: info.team === mySide, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk,
       state: frame.carrier === p.id ? 'carrier' : 'normal', ...(info.avatarUrl ? { avatarUrl: info.avatarUrl } : {}),
     }, px, py, r, info.isMe ? pulse : 0);
   }
@@ -224,7 +226,7 @@ export function drawAveragePositions(
   for (const a of avg) {
     const info = players.get(a.id);
     if (!info) continue;
-    renderer.draw(ctx, { teamId: info.team, ours: info.team === mySide, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk, state: 'normal' }, (a.x / PITCH_L) * w, (a.y / PITCH_W) * h, r);
+    renderer.draw(ctx, { id: a.id, teamId: info.team, ours: info.team === mySide, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk, state: 'normal' }, (a.x / PITCH_L) * w, (a.y / PITCH_W) * h, r);
   }
 }
 
@@ -249,4 +251,135 @@ export function fitCanvas(canvas: HTMLCanvasElement): { ctx: CanvasRenderingCont
   const ctx = canvas.getContext('2d')!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, w, h };
+}
+
+// ── 경기 화면 보기 (부록 C.43): 얼굴(미니페이스) / 등번호 / 캐릭터(기존 숫자 원). 고른 값은 이 기기에 남긴다 ──
+
+export type PitchView = 'face' | 'number' | 'character';
+export const PITCH_VIEW_KO: Readonly<Record<PitchView, string>> = { face: '얼굴', number: '등번호', character: '캐릭터' };
+const VIEW_KEY = 'po-pitch-view';
+
+let view: PitchView = (() => {
+  try {
+    const v = globalThis.localStorage?.getItem(VIEW_KEY);
+    return v === 'face' || v === 'number' || v === 'character' ? v : 'character';
+  } catch {
+    return 'character';
+  }
+})();
+
+export function pitchView(): PitchView {
+  return view;
+}
+
+export function setPitchView(v: PitchView): void {
+  view = v;
+  try {
+    globalThis.localStorage?.setItem(VIEW_KEY, v);
+  } catch {
+    // 저장 못 해도 이번 실행에는 적용
+  }
+}
+
+/** 선수 id → 얼굴 이미지 주소 (화면이 정한다). 없으면 기본 아바타 */
+let faceUrl: (id: string, isMe: boolean) => string | undefined = () => undefined;
+export function setPitchFaceResolver(f: (id: string, isMe: boolean) => string | undefined): void {
+  faceUrl = f;
+}
+
+const images = new Map<string, HTMLImageElement | null>();
+function imageFor(url: string): HTMLImageElement | null {
+  if (typeof Image === 'undefined') return null;
+  const hit = images.get(url);
+  if (hit !== undefined) return hit && hit.complete && hit.naturalWidth > 0 ? hit : null;
+  const img = new Image();
+  img.decoding = 'async';
+  img.onerror = () => images.set(url, null);
+  img.src = url;
+  images.set(url, img);
+  return null;
+}
+
+/** 기본 아바타 (지금 아바타와 같은 그림, CSS 변수 대신 고정 색) */
+const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><path d="M22 160c4-30 26-44 58-44s54 14 58 44z" fill="#6b7280"/><rect x="68" y="92" width="24" height="26" rx="8" fill="#d9a77f"/><ellipse cx="80" cy="70" rx="28" ry="32" fill="#e8b98f"/><path d="M51 66c-2-24 12-38 30-38 17 0 31 11 29 34-6-9-16-14-28-14-12 0-23 6-31 18z" fill="#1d1a19"/><ellipse cx="70" cy="74" rx="3" ry="4" fill="#1d1a19"/><ellipse cx="90" cy="74" rx="3" ry="4" fill="#1d1a19"/></svg>`;
+const FALLBACK_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(FALLBACK_SVG)}`;
+
+function meRings(ctx: CanvasRenderingContext2D, m: MarkerInput, x: number, y: number, rr: number, pulse: number): void {
+  if (!m.isMe) return;
+  const carrier = m.state === 'carrier';
+  ctx.beginPath();
+  ctx.arc(x, y, rr + 4 + pulse * 4, 0, Math.PI * 2);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = withAlpha(PALETTE.mine, (carrier ? 0.55 : 0.35) * (1 - pulse));
+  ctx.stroke();
+}
+
+/** 얼굴 보기: 정사각형 미니페이스 그대로(틀 없음) + 아래 팀 색 밑줄. 내 선수는 맥박 고리와 mine 밑줄, 공 가진 선수는 흰 밑줄 */
+export const faceRenderer: MarkerRenderer = {
+  draw(ctx, m, x, y, r, pulse = 0) {
+    const rr = m.isMe ? r * ME_SCALE : r;
+    const s = rr * 2.7;
+    meRings(ctx, m, x, y, rr * 1.15, pulse);
+    const url = (m.id && faceUrl(m.id, m.isMe)) || undefined;
+    const img = (url && imageFor(url)) || imageFor(FALLBACK_URL);
+    if (img) ctx.drawImage(img, x - s / 2, y - s / 2 - s * 0.08, s, s);
+    else {
+      ctx.beginPath();
+      ctx.arc(x, y, rr, 0, Math.PI * 2);
+      ctx.fillStyle = m.ours ? PALETTE.home : PALETTE.awayFill;
+      ctx.fill();
+    }
+    const bw = s * 0.82;
+    const bh = Math.max(3, rr * 0.42);
+    const by = y + s / 2 - s * 0.08 - bh * 0.4;
+    ctx.beginPath();
+    ctx.roundRect(x - bw / 2, by, bw, bh, bh / 2);
+    ctx.fillStyle = m.isMe ? PALETTE.mine : m.ours ? PALETTE.home : PALETTE.away;
+    ctx.fill();
+    if (m.state === 'carrier') {
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#f3f4f6';
+      ctx.stroke();
+    }
+  },
+};
+
+/** 등번호 보기: 유니폼 모양 + 큰 번호 (우리 = 라임, 상대 = 어두운 면 + 주황) */
+export const shirtRenderer: MarkerRenderer = {
+  draw(ctx, m, x, y, r, pulse = 0) {
+    const rr = m.isMe ? r * ME_SCALE : r;
+    meRings(ctx, m, x, y, rr * 1.2, pulse);
+    const w = rr * 2.3;
+    const h = rr * 2.2;
+    const l = x - w / 2;
+    const t = y - h / 2;
+    ctx.beginPath();
+    ctx.moveTo(l + w * 0.3, t);
+    ctx.lineTo(l + w * 0.4, t + h * 0.08);
+    ctx.lineTo(l + w * 0.6, t + h * 0.08);
+    ctx.lineTo(l + w * 0.7, t);
+    ctx.lineTo(l + w, t + h * 0.22);
+    ctx.lineTo(l + w * 0.86, t + h * 0.42);
+    ctx.lineTo(l + w * 0.78, t + h * 0.36);
+    ctx.lineTo(l + w * 0.78, t + h);
+    ctx.lineTo(l + w * 0.22, t + h);
+    ctx.lineTo(l + w * 0.22, t + h * 0.36);
+    ctx.lineTo(l + w * 0.14, t + h * 0.42);
+    ctx.lineTo(l, t + h * 0.22);
+    ctx.closePath();
+    ctx.fillStyle = m.gk ? (m.ours ? '#9be7ff' : '#ffd166') : m.ours ? PALETTE.home : PALETTE.awayFill;
+    ctx.fill();
+    ctx.lineWidth = m.state === 'carrier' || m.isMe ? 2 : 1.2;
+    ctx.strokeStyle = m.isMe ? PALETTE.mine : m.state === 'carrier' ? '#f3f4f6' : m.ours ? PALETTE.ink : PALETTE.away;
+    ctx.stroke();
+    ctx.fillStyle = m.gk || m.ours ? PALETTE.ink : PALETTE.away;
+    ctx.font = `800 ${Math.round(rr * 1.05)}px ${PALETTE.font}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(m.number), x, y + h * 0.12);
+  },
+};
+
+export function activeRenderer(): MarkerRenderer {
+  return view === 'face' ? faceRenderer : view === 'number' ? shirtRenderer : numberCircleRenderer;
 }

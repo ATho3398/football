@@ -1,7 +1,7 @@
 # 페이스팩 수집 스크립트
 
 실제 선수 34명(`A_GRADE_PLAYERS`)의 사진과 2018-19 프리미어리그 20개 구단 로고를 위키백과에서 받아
-128×128 WebP 로 줄여 `public/facepack/` 에 저장한다.
+128×128 정사각형 PNG(자르지 않고 짧은 쪽을 투명으로 채움, 얼굴 아래쪽·로고 가운데 맞춤)로 줄여 `public/facepack/` 에 저장한다.
 
 ## 실행
 
@@ -19,7 +19,7 @@ npm run facepack -- --force            # 있는 파일도 다시 받기
 
 ## 출력
 
-- `public/facepack/players/<선수 id>.webp`, `public/facepack/clubs/<팀 id>.webp`
+- `public/facepack/players/<선수 id>.png`, `public/facepack/clubs/<팀 id>.png`
 - `public/facepack/manifest.json`: 찾은 항목만, 파일 경로·이미지 출처·문서 주소·문서 제목
 - `scripts/facepack/report.md`: 항목별 상태(찾음/못 찾음/의심)와 사유, 요약
 
@@ -31,3 +31,4 @@ npm run facepack -- --force            # 있는 파일도 다시 받기
 - 잘못 잡힌 문서는 덮어쓰기 표에 정확한 제목을 넣고 해당 파일을 지운 뒤 다시 돌린다.
 
 이미지 저작권은 각 위키미디어 파일 문서(manifest 의 `source`)를 따른다. 구단 로고는 대부분 비자유 저작물이므로 개인 용도로만 쓴다.
+- `--reconvert`: 받아 둔 원본(FACEPACK_RAW_DIR)에서 이미지만 다시 만든다 (네트워크 없음)
