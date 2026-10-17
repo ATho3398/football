@@ -8,6 +8,7 @@ import { TEAM_COLORS } from '../../data/teamColors';
 import type { Appearance } from '../appearance';
 import { initialTeams } from '../league';
 import { hashSeed } from '../rng';
+import type { PeopleTable, PixelPerson } from '../pixel';
 import { storeBackend } from '../saveStore';
 
 /** 화면이 얼굴을 찾을 때 넘기는 선수 정보. id = 로스터 선수 id (내 가상 유망주는 `me:<월드 시드>`) */
@@ -44,6 +45,11 @@ const state = {
   base: [] as BaseEntry[],
   /** 도트 얼굴 (캐릭터 보기): 선수 id → 파일, 외모군 → 파일 목록 */
   pixel: { players: {} as Record<string, string>, appearance: {} as Partial<Record<Appearance, string[]>> },
+  /** 도트 아이콘 레이어 (매니페스트 version 2, 부록 C.45): 유니폼 id → 파일, `피부_머리` → 파일, 피부 → 머리, 선수 id → 인물, 겹치는 순서 */
+  layers: {
+    kits: {} as Record<string, string>, persons: {} as Record<string, string>, people: null as PeopleTable | null,
+    players: {} as Record<string, PixelPerson>, personTop: false,
+  },
   /** 키 → 칸 → object URL */
   faceOn: new Map<string, { name: string; urls: Partial<Record<FaceSlot, string>> }>(),
   ready: false,
@@ -106,6 +112,29 @@ export function pixelSrc(ref: FaceRef): string | undefined {
   return list?.length ? list[hashSeed(`pixel:${ref.id}`) % list.length] : undefined;
 }
 
+/** 도트 아이콘 version 1 직접 지정 파일 (선수 id → 파일). 있으면 레이어보다 먼저 (사용자 지정 인물은 그보다 먼저) */
+export function pixelDirect(id: string): string | undefined {
+  return state.pixel.players[id];
+}
+
+/** 매니페스트의 인물 표 (없으면 null → data/pixelPack.ts 표) */
+export function pixelPeople(): PeopleTable | null {
+  return state.layers.people;
+}
+
+/** 매니페스트 version 2 `players` 의 선수 인물 ({skin, hair}) */
+export function pixelManifestLooks(): Readonly<Record<string, PixelPerson>> {
+  return state.layers.players;
+}
+
+/** 인물 + 유니폼 → 겹쳐 그릴 이미지 주소 (아래 → 위). 레이어 이미지가 없으면 undefined (등번호로 대체) */
+export function pixelLayerUrls(person: PixelPerson, kit: string): string[] | undefined {
+  const p = state.layers.persons[`${person.skin}_${person.hair}`];
+  const k = state.layers.kits[kit];
+  if (!p || !k) return undefined;
+  return state.layers.personTop ? [k, p] : [p, k];
+}
+
 /** 페이스온 > 레포 로고 */
 export function crestSrc(teamId: string): string | undefined {
   return state.faceOn.get(`t:${teamId}`)?.urls.crest ?? state.photos.clubs[teamId];
@@ -134,7 +163,8 @@ export function faceOnKeys(): { key: string; name: string; slots: FaceSlot[] }[]
 }
 
 export function faceStats(): { photos: number; clubs: number; base: number; pixel: number; faceOn: number } {
-  const pixel = Object.keys(state.pixel.players).length + Object.values(state.pixel.appearance).reduce((t, l) => t + (l?.length ?? 0), 0);
+  const pixel = Object.keys(state.pixel.players).length + Object.values(state.pixel.appearance).reduce((t, l) => t + (l?.length ?? 0), 0)
+    + Object.keys(state.layers.persons).length * Object.keys(state.layers.kits).length;
   return { photos: Object.keys(state.photos.players).length, clubs: Object.keys(state.photos.clubs).length, base: state.base.length, pixel, faceOn: state.faceOn.size };
 }
 
@@ -212,10 +242,9 @@ export async function initFaces(): Promise<void> {
   const [pm, bm, xm] = await Promise.all([
     fetchJson<PhotoManifest>(`${FACEPACK_DIR}manifest.json`),
     fetchJson<{ faces?: BaseEntry[] }>(`${BASE_DIR}manifest.json`),
-    fetchJson<{ players?: Record<string, string>; appearance?: Partial<Record<Appearance, string[]>> }>(`${PIXEL_DIR}manifest.json`),
+    fetchJson<PixelManifest>(`${PIXEL_DIR}manifest.json`),
   ]);
-  for (const [id, f] of Object.entries(xm?.players ?? {})) if (typeof f === 'string') state.pixel.players[id] = PIXEL_DIR + f;
-  for (const [a, fs] of Object.entries(xm?.appearance ?? {})) if (Array.isArray(fs)) state.pixel.appearance[a as Appearance] = fs.filter((f) => typeof f === 'string').map((f) => PIXEL_DIR + f);
+  if (xm) applyPixelManifest(xm);
   for (const [id, e] of Object.entries(pm?.players ?? {})) state.photos.players[id] = FACEPACK_DIR + e.file;
   for (const [id, e] of Object.entries(pm?.clubs ?? {})) state.photos.clubs[id] = FACEPACK_DIR + e.file;
   state.base = (bm?.faces ?? []).filter((f) => f && typeof f.file === 'string' && typeof f.appearance === 'string');
@@ -230,6 +259,41 @@ export async function initFaces(): Promise<void> {
     // 저장소를 못 열면 페이스온 없이
   }
   state.ready = true;
+}
+
+/** 도트 매니페스트 (version 1: players 파일·appearance 목록, version 2: 레이어. docs/design/pixel-kits.md 2번) */
+export interface PixelManifest {
+  version?: number;
+  players?: Record<string, string | { skin?: unknown; hair?: unknown }>;
+  appearance?: Partial<Record<Appearance, string[]>>;
+  order?: string;
+  kits?: Record<string, { file?: unknown }>;
+  personDir?: string;
+  people?: Record<string, unknown>;
+}
+
+/** 도트 매니페스트 적용 (시작할 때, 테스트). version 1 `players` 파일 직접 지정·`appearance` 목록도 그대로 읽는다 */
+export function applyPixelManifest(xm: PixelManifest): void {
+  for (const [id, f] of Object.entries(xm.players ?? {})) {
+    if (typeof f === 'string') state.pixel.players[id] = PIXEL_DIR + f;
+    else if (f && typeof f.skin === 'string' && typeof f.hair === 'string') state.layers.players[id] = { skin: f.skin, hair: f.hair };
+  }
+  for (const [a, fs] of Object.entries(xm.appearance ?? {})) if (Array.isArray(fs)) state.pixel.appearance[a as Appearance] = fs.filter((f) => typeof f === 'string').map((f) => PIXEL_DIR + f);
+  if (xm.version === 2) readPixelLayers(xm);
+}
+
+function readPixelLayers(xm: PixelManifest): void {
+  const L = state.layers;
+  for (const [id, k] of Object.entries(xm.kits ?? {})) if (k && typeof k.file === 'string') L.kits[id] = PIXEL_DIR + k.file;
+  const dir = typeof xm.personDir === 'string' && xm.personDir ? `${xm.personDir.replace(/\/+$/, '')}/` : 'person/';
+  const people: Record<string, string[]> = {};
+  for (const [skin, hairs] of Object.entries(xm.people ?? {})) {
+    if (!Array.isArray(hairs)) continue;
+    people[skin] = hairs.filter((h): h is string => typeof h === 'string');
+    for (const h of people[skin]) L.persons[`${skin}_${h}`] = `${PIXEL_DIR}${dir}${skin}_${h}.png`;
+  }
+  if (Object.keys(people).length) L.people = people;
+  L.personTop = xm.order === 'person-over-kit';
 }
 
 function applyRecord(key: string, rec: FaceOnRecord): void {

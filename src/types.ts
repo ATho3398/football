@@ -171,6 +171,8 @@ export interface PlayerState {
   formerPositions: FieldPosition[];
   /** 숨은 포지션 적성 (pending 31·36, 부록 C.37). 화면에 보여 주지 않는다 */
   aptitude?: Aptitude;
+  /** 도트 아이콘 머리 (부록 C.45, 내부 키: black/blonde/brown/bald). 피부는 외모군에서. 없으면 `pixel:<선수 id>` 시드로 분포 추첨. 겉모습만 */
+  pixelHair?: string;
   /** 살아 있는 포변 조언 (없으면 null) */
   advice?: PositionAdvice | null;
   /** 지금까지 받은 포변 조언 (시즌, 그때 주 포지션). 처음은 감독, 그다음부터 뉴스. 한 포지션에서 최대 maxPerPosition 번 */

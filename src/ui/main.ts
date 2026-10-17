@@ -48,7 +48,7 @@ import {
 import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoSheet } from './views/progress';
-import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchSize, setPitchView } from './pitch/renderer';
+import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { adviceCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
@@ -58,10 +58,12 @@ import { allocateView, newGameView, retiredView, savesView, seasonView, titleVie
 import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
-import { cropStyle, lookupEntry, nameEditor, settingsView, type FaceOnUI, type NameUI } from './views/settings';
+import { cropStyle, lookupEntry, myPixelCard, nameEditor, settingsView, type FaceOnUI, type NameUI, type PixelUI } from './views/settings';
+import { emptyOverrides, setKitOverride, setPersonOverride } from '../pixel';
 import { pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
 import { clearFaceOn, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
+import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
@@ -130,6 +132,8 @@ const ui = {
   seasonTab: null as SeasonTab | null,
   /** 설정 → 선수 이름 (C.44a) */
   nm: { q: '', team: '', sel: null } as NameUI,
+  /** 설정 → 경기 아이콘 (C.45) */
+  px: { tab: 'players', q: '', team: '', sel: null, kitSel: null } as PixelUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
@@ -281,7 +285,7 @@ function screenHtml(): string {
       syncProspectPick();
       return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }));
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
-    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm);
+    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px);
     default: break;
   }
   if (!g) return titleScreen();
@@ -311,7 +315,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -454,6 +458,7 @@ function liveShow(g: GameState, m: Moment | null): void {
     const endE = lv.run.frames.at(-1)!.e;
     // 앞 장면: 직전 결정(결과 재생) 뒤부터 (최대 8초, 처음이거나 오래전이면 4초)
     const fromE = lv.prevE > 0 && endE - lv.prevE <= 8 ? lv.prevE : Math.max(0, endE - 4);
+    setPitchTeams(lv.teams);
     lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, null);
     go('moment');
     return;
@@ -501,6 +506,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   lv.prevE = o.to;
   lv.pitch?.stop();
   lv.pitch = null;
+  setPitchTeams(lv.teams);
   const pitch = new OutcomePitch(lv.run.frames, new Map(players.map((p) => [p.id, p])), m.side, o.from, o.to, () => {
     const oc = ui.live?.oc;
     if (!oc || oc.pitch !== pitch) return;
@@ -1409,6 +1415,55 @@ app.addEventListener('click', (ev) => {
       setPitchNames(v);
       render();
       return;
+    // 경기 아이콘 (C.45): 선수 인물·팀 유니폼 직접 바꾸기 → 세이브 pixelOverrides
+    case 'px-tab':
+      if (v !== 'players' && v !== 'kits') return;
+      ui.px.tab = v;
+      ui.px.q = '';
+      render();
+      return;
+    case 'px-pick':
+    case 'px-team-pick':
+      if (act === 'px-pick') ui.px.sel = el.dataset.id ?? null;
+      else ui.px.kitSel = el.dataset.id ?? null;
+      render();
+      document.querySelector('.px-editor')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    case 'px-open-me':
+      if (!g) return;
+      ui.px = { ...ui.px, tab: 'players', sel: myFace(g).id };
+      go('settings');
+      requestAnimationFrame(() => document.querySelector('.px-editor')?.scrollIntoView({ block: 'center' }));
+      return;
+    case 'px-person':
+    case 'px-auto': {
+      const id = el.dataset.id;
+      if (!g || !id) return;
+      const o = (g.pixelOverrides ??= emptyOverrides());
+      const [skin, hair] = (el.dataset.key ?? '').split('_');
+      setPersonOverride(o, id, act === 'px-person' && skin && hair ? { skin, hair } : null);
+      autosave();
+      render();
+      if (act === 'px-auto') showToast({ kind: 'info', title: '자동 아이콘으로 되돌렸어요' });
+      return;
+    }
+    case 'px-kit':
+    case 'px-kit-auto': {
+      const id = el.dataset.id;
+      if (!g || !id) return;
+      const o = (g.pixelOverrides ??= emptyOverrides());
+      if (act === 'px-kit') {
+        const side = el.dataset.side === 'away' ? 'away' : 'home';
+        setKitOverride(o, id, side, el.dataset.kit ?? null);
+      } else {
+        setKitOverride(o, id, 'home', null);
+        setKitOverride(o, id, 'away', null);
+        showToast({ kind: 'info', title: '기본 유니폼으로 되돌렸어요' });
+      }
+      autosave();
+      render();
+      return;
+    }
     case 'nm-pick':
       ui.nm.sel = el.dataset.id ?? null;
       render();
@@ -1849,6 +1904,20 @@ app.addEventListener('change', (ev) => {
 let foTimer = 0;
 app.addEventListener('input', (ev) => {
   const t = ev.target as HTMLInputElement;
+  // 경기 아이콘 검색 (C.45)
+  if (t.id === 'px-q') {
+    ui.px.q = t.value;
+    clearTimeout(foTimer);
+    foTimer = window.setTimeout(() => {
+      render();
+      const q = document.getElementById('px-q') as HTMLInputElement | null;
+      if (q) {
+        q.focus();
+        q.setSelectionRange(q.value.length, q.value.length);
+      }
+    }, 200);
+    return;
+  }
   // 선수 이름 검색 (C.44a)
   if (t.id === 'nm-q') {
     ui.nm.q = t.value;
@@ -1921,6 +1990,11 @@ app.addEventListener('change', (ev) => {
 setPitchNameResolver((id, isMe, fallback) => (ui.game ? pitchLabel(ui.game, id, isMe, fallback) : fallback.split(/\s+/).pop() ?? fallback));
 app.addEventListener('change', (ev) => {
   const t = ev.target as HTMLSelectElement;
+  if (t.id === 'px-team') {
+    ui.px.team = t.value;
+    render();
+    return;
+  }
   if (t.id !== 'nm-team') return;
   ui.nm.team = t.value;
   render();
@@ -1939,6 +2013,15 @@ setPitchFaceResolver((id, isMe, kind) => {
     faceIndex = { of: g.rosters, map };
   }
   return pick(faceIndex.map.get(id) ?? { id });
+});
+
+// 캐릭터 보기 (C.45): 선수 인물 + 이 경기 유니폼(홈·원정·GK) 레이어. 팀을 모르면(게임 밖) 표의 홈 유니폼
+setPitchPixelResolver((m, teams) => {
+  const g = ui.game;
+  if (!g || !m.id) return undefined;
+  const kits = teams ? matchKitsOf(g, teams) : null;
+  const kit = kits ? (m.teamId === 0 ? (m.gk ? kits.homeGk : kits.home) : (m.gk ? kits.awayGk : kits.away)) : homeKitOf(g, m.id, m.isMe);
+  return playerIcon(g, m.id, m.isMe, kit);
 });
 
 render();

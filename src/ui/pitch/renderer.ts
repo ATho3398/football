@@ -29,6 +29,8 @@ export interface MarkerInput {
 export interface MarkerRenderer {
   /** (x, y) 화면 좌표에 반지름 r 마커를 그린다 */
   draw(ctx: CanvasRenderingContext2D, m: MarkerInput, x: number, y: number, r: number, pulse?: number): void;
+  /** 이름 라벨을 마커 중심에서 얼마나 아래(반지름 rr 배수)에 둘지. 없으면 기본 */
+  labelBelow?(rr: number): number;
 }
 
 /** 디자인 토큰 색 (다크 기본값, 문서가 있으면 CSS 변수에서 읽는다) */
@@ -238,7 +240,7 @@ function drawMarkers(
   for (const p of sorted) {
     if (mode === 'mine' && !p.info.isMe) continue;
     const rr = p.info.isMe ? r * ME_SCALE : r;
-    const top = Math.min(h - 2 - Math.max(9, r * 0.8) - 4, p.y + rr * below + (p.info.isMe ? 5 : 2));
+    const top = Math.min(h - 2 - Math.max(9, r * 0.8) - 4, p.y + rr * (renderer.labelBelow?.(rr) ?? below) + (p.info.isMe ? 5 : 2));
     drawLabel(ctx, nameOf(p.id, p.info.isMe, p.info.name), p.x, top, r, w, p.info.isMe);
   }
 }
@@ -502,28 +504,103 @@ export const faceRenderer: MarkerRenderer = {
   },
 };
 
-/** 캐릭터 보기: 도트(픽셀아트) 얼굴, 확대해도 선명하게(보간 끔). 도트 이미지가 없는 선수는 등번호 원 */
+// ── 캐릭터 보기 (부록 C.45): 16px 인물 레이어 + 유니폼 레이어를 겹친 도트 아이콘, 정수 배(×2·×3)로 보간 없이. 아래에 작은 등번호 ──
+
+/** 이 경기의 팀 [홈, 원정] (팀 id 또는 화면 이름). 재생·결정 화면이 그리기 전에 넣는다 → 경기 유니폼 고르기 */
+let matchTeams: readonly [string, string] | null = null;
+export function setPitchTeams(teams: readonly [string, string] | null): void {
+  matchTeams = teams;
+}
+export function pitchTeams(): readonly [string, string] | null {
+  return matchTeams;
+}
+
+/** 마커 → 겹쳐 그릴 16px 이미지 주소들(아래 → 위). 화면이 정한다 (선수 인물 + 경기 유니폼). 없으면 등번호 */
+let pixelLayers: (m: MarkerInput, teams: readonly [string, string] | null) => string[] | undefined = (m) => {
+  const u = m.id ? faceUrl(m.id, m.isMe, 'pixel') : undefined;
+  return u ? [u] : undefined;
+};
+export function setPitchPixelResolver(f: (m: MarkerInput, teams: readonly [string, string] | null) => string[] | undefined): void {
+  pixelLayers = f;
+}
+
+/** 겹친 아이콘 캐시 (레이어 주소 묶음 → 캔버스). 레이어가 모두 읽혀야 만든다 */
+const composites = new Map<string, HTMLCanvasElement>();
+function compositeFor(layers: string[]): HTMLCanvasElement | HTMLImageElement | null {
+  if (layers.length === 1) return imageFor(layers[0]!);
+  const key = layers.join('|');
+  const hit = composites.get(key);
+  if (hit) return hit;
+  if (typeof document === 'undefined') return null;
+  const imgs = layers.map(imageFor);
+  if (imgs.some((i) => !i)) return null;
+  const w = Math.max(...imgs.map((i) => i!.naturalWidth));
+  const h = Math.max(...imgs.map((i) => i!.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const cx = c.getContext('2d');
+  if (!cx) return null;
+  cx.imageSmoothingEnabled = false;
+  for (const i of imgs) cx.drawImage(i!, Math.round((w - i!.naturalWidth) / 2), h - i!.naturalHeight);
+  composites.set(key, c);
+  return c;
+}
+
+/** 아이콘 배율: 16px 원본의 정수 배 (마커가 작으면 ×2, 크면 ×3) */
+export function pixelScale(rr: number): 2 | 3 {
+  return rr * 2.7 >= 44 ? 3 : 2;
+}
+
+/** 아이콘 아래 등번호 띠 높이 */
+const numberBarH = (rr: number): number => Math.max(9, Math.round(rr * 0.75));
+
 export const pixelRenderer: MarkerRenderer = {
   draw(ctx, m, x, y, r, pulse = 0) {
-    const url = m.id ? faceUrl(m.id, m.isMe, 'pixel') : undefined;
-    const img = url ? imageFor(url) : null;
-    if (!img) {
+    const layers = pixelLayers(m, matchTeams);
+    const img = layers?.length ? compositeFor(layers) : null;
+    const nw = img ? ('naturalWidth' in img ? img.naturalWidth : img.width) : 0;
+    if (!img || !nw) {
       numberCircleRenderer.draw(ctx, m, x, y, r, pulse);
       return;
     }
     const rr = m.isMe ? r * ME_SCALE : r;
-    const s = rr * 2.7;
+    const k = pixelScale(rr) * (16 / Math.max(16, nw));
+    const nh = 'naturalHeight' in img ? img.naturalHeight : img.height;
+    const iw = Math.round(nw * k);
+    const ih = Math.round(nh * k);
     meRings(ctx, m, x, y, rr * 1.15, pulse);
+    const left = Math.round(x - iw / 2);
+    const top = Math.round(y - ih * 0.58);
     const smooth = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = false;
-    drawSquare(ctx, img, x - s / 2, y - s / 2 - s * 0.08, s, true);
+    ctx.drawImage(img, left, top, iw, ih);
     ctx.imageSmoothingEnabled = smooth;
-    const bw = s * 0.82;
-    const bh = Math.max(3, rr * 0.42);
+    // 등번호 띠: 우리 = 라임, 상대 = 주황, 내 선수 = mine. 공 가진 선수는 흰 테두리
+    const bh = numberBarH(rr);
+    const label = String(m.number);
+    ctx.font = `800 ${bh - 2}px ${PALETTE.font}`;
+    const bw = Math.max(bh * 1.5, ctx.measureText(label).width + 6);
+    const by = top + ih - Math.round(bh * 0.35);
     ctx.beginPath();
-    ctx.roundRect(x - bw / 2, y + s / 2 - s * 0.08 - bh * 0.4, bw, bh, bh / 2);
+    ctx.roundRect(x - bw / 2, by, bw, bh, bh / 2);
     ctx.fillStyle = m.isMe ? PALETTE.mine : m.ours ? PALETTE.home : PALETTE.away;
     ctx.fill();
+    if (m.state === 'carrier') {
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#f3f4f6';
+      ctx.stroke();
+    }
+    ctx.fillStyle = PALETTE.ink;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, by + bh / 2 + 0.5);
+  },
+  labelBelow(rr) {
+    // 아이콘 아래 끝 + 등번호 띠 아래까지 (draw 와 같은 식)
+    const ih = 16 * pixelScale(rr);
+    const bh = numberBarH(rr);
+    return (ih * 0.42 + bh * 0.65) / rr;
   },
 };
 

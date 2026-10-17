@@ -43,6 +43,7 @@ import {
 } from './training';
 import { trainProficiency } from './proficiency';
 import type { NameOverrides } from './names';
+import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
 import {
   acceptOffer, autoResolveMarket, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow,
@@ -190,6 +191,8 @@ export interface GameState {
   nextRatings?: Record<string, number>;
   /** 사용자가 고친 선수 이름 (부록 C.44a): 선수 id → 별명·짧은 이름. 경기 화면 라벨에만 쓴다 */
   nameOverrides: NameOverrides;
+  /** 사용자가 바꾼 도트 아이콘 (부록 C.45): 선수 id → 피부·머리, 팀 id(대표팀 `n:<국가>`) → 홈·원정 유니폼. 바꾼 것만. 겉모습만(경기 결과·시드 영향 없음) */
+  pixelOverrides?: PixelOverrides;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
