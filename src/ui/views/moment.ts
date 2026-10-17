@@ -1,7 +1,7 @@
 // 결정 순간 화면 (E.11, I.5·I.17 3번, E4 최소판): 직접 모드에서 내 선수 결정 순간마다 경기가 멈춘다.
 // 피치에는 직전 결정 뒤부터 이 순간까지를 1× 로 보여 주고 마지막 0.5초는 슬로모션으로 멈춘 뒤, 선택지 방향 화살표를 그린다.
 // 패널: 선택지 3개(안전/균형/도박, 성공 확률, 성공/실패 결과, 평점 변화, 오프사이드 위험) → 패 카드 자리(3단계) → [맡기기] [확정].
-// 다듬은 바텀시트·카드 미리보기는 E5(25단계).
+// E5 최소(부록 C.35): 모바일은 패널을 바텀시트로, [확정]·[맡기기] 뒤에는 결과 구간 재생 → 결과 띠(outcomeView).
 
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
@@ -58,7 +58,8 @@ export function momentView(vm: MomentVM): string {
       </div>
       <div class="pitch-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면' })}</div>
       ${last}
-      <div class="mo-panel">
+      <div class="mo-panel mo-sheet" role="dialog" aria-label="결정 선택">
+        <div class="mo-sheet__head"><b>어떻게 할까요?</b><span class="small muted">선택지를 누르면 피치에 방향이 보여요</span></div>
         <div class="mo-opts">${m.options.map((o, i) => optionCard(o, i, sel === i)).join('')}</div>
         <div class="mo-cards"><span class="small muted">패 카드</span><span class="mo-card-slot">카드 0~1장 자리 · 3단계에서 열림</span></div>
         <div class="btn-row">
@@ -175,5 +176,109 @@ export class MomentPitch {
       ctx.fill();
       ctx.globalAlpha = 1;
     });
+  }
+}
+
+// ── 결정 결과 보여 주기 (E5 최소, 부록 C.35) ──
+
+export interface OutcomeVM {
+  moment: Moment;
+  teams: [string, string];
+  /** "균형 · 드리블 돌파 (52%)" 또는 "맡기기 (엔진 판단)" */
+  choice: string;
+  kind: MomentOption['kind'] | 'delegate';
+  band: { tone: 'success' | 'fail' | 'neutral' | 'goal' | 'conceded'; title: string; flow: string; delta: string };
+  /** 결과 뒤 스코어 */
+  score: [number, number];
+  /** 결과 띠를 이미 보여 주는 중 */
+  shown: boolean;
+}
+
+const BAND_ICON = { success: '✓', fail: '✕', neutral: '•', goal: '⚽', conceded: '!' } as const;
+
+export function outcomeView(vm: OutcomeVM): string {
+  const m = vm.moment;
+  const [h, a] = vm.shown ? vm.score : m.score;
+  const color = vm.kind === 'delegate' ? 'var(--ink-muted)' : KIND_COLOR[vm.kind];
+  const b = vm.band;
+  return `
+    <div class="moment mo-outcome">
+      <div class="mo-top">
+        <div class="mo-score"><span class="${m.side === 0 ? 'me' : ''}">${esc(vm.teams[0])}</span><b class="po-num" id="oc-score">${h} : ${a}</b><span class="${m.side === 1 ? 'me' : ''}">${esc(vm.teams[1])}</span></div>
+        <div class="mo-scene"><span class="mo-min po-num">${m.minute}'</span><b>${esc(SCENE_LABEL[m.scene])}</b><span class="muted small">결과 보는 중 · 실제 속도</span></div>
+      </div>
+      <div class="pitch-wrap oc-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생' })}
+        <div class="oc-band oc-band--${b.tone}${vm.shown ? ' is-shown' : ''}" id="oc-band" role="status" aria-live="polite">
+          <span class="oc-icon">${BAND_ICON[b.tone]}</span>
+          <span class="oc-text"><b>${esc(b.title)}</b><span>${esc(b.flow)}</span></span>
+          <span class="oc-delta po-num">${esc(b.delta)}</span>
+        </div>
+      </div>
+      <div class="mo-panel oc-panel">
+        <div class="oc-choice" style="--k:${color}"><span class="small muted">내 선택</span><b>${esc(vm.choice)}</b></div>
+        ${Button({ variant: 'secondary', size: 'lg', block: true, act: 'oc-skip', children: vm.shown ? '다음 장면으로' : '결과 바로 보기' })}
+      </div>
+    </div>`;
+}
+
+/** 결과 구간을 1× 로 재생하고 끝나면 onDone */
+export class OutcomePitch {
+  private raf = 0;
+  private t0 = 0;
+  done = false;
+  constructor(
+    private readonly frames: ReplayFrame[],
+    private readonly players: Map<string, ReplayPlayer>,
+    private readonly side: 0 | 1,
+    private readonly from: number,
+    private readonly to: number,
+    private readonly onDone: () => void,
+  ) {}
+
+  private frameAt(e: number): ReplayFrame {
+    const fs = this.frames;
+    let i = fs.length - 1;
+    while (i > 0 && fs[i]!.e > e) i--;
+    const a = fs[i]!;
+    const b = fs[Math.min(fs.length - 1, i + 1)]!;
+    if (b === a || b.e <= a.e) return a;
+    return interpolateFrame(a, b, Math.min(1, Math.max(0, (e - a.e) / (b.e - a.e))));
+  }
+
+  attach(): void {
+    cancelAnimationFrame(this.raf);
+    if (!document.getElementById('mo-canvas')) return;
+    readPalette();
+    this.t0 = this.t0 || performance.now();
+    const span = Math.max(0, this.to - this.from);
+    const tick = (now: number) => {
+      const c = document.getElementById('mo-canvas') as HTMLCanvasElement | null;
+      if (!c) return;
+      const { ctx, w, h } = fitCanvas(c);
+      const el = (now - this.t0) / 1000;
+      const end = this.done || el >= span;
+      drawFrame(ctx, w, h, this.frameAt(end ? this.to : this.from + el), this.players, undefined, this.side, el);
+      if (end) {
+        if (!this.done) {
+          this.done = true;
+          this.onDone();
+        }
+        return;
+      }
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  /** 결과 바로 보기 */
+  jump(): void {
+    if (this.done) return;
+    this.done = true;
+    this.attach();
+    this.onDone();
+  }
+
+  stop(): void {
+    cancelAnimationFrame(this.raf);
   }
 }

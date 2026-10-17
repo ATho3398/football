@@ -90,6 +90,8 @@ export interface DecisionRecord {
   e: number;
   /** 중요도 (측정용) */
   stake: number;
+  /** 화면이 보여 준 결과 (E5 최소, 부록 C.35): 결과 구간에서 본 성공/실패와 흐름. 직접 모드 화면에서만 채운다 (엔진은 읽지 않는다) */
+  seen?: { result: 'success' | 'fail' | 'neutral'; flow: string };
 }
 
 /** 결정 정책: 선택지 인덱스 또는 맡기기. 없으면(직접 모드 화면) 시뮬이 멈춘다 */

@@ -361,3 +361,47 @@ button.po-fslot { padding: 0; border: 0; background: none; font: inherit; color:
   .app-moment .mo-last { grid-area: last; margin: 0; }
   .app-moment .mo-panel { grid-area: panel; margin: 0; position: sticky; top: var(--space-4); }
 }
+/* 결정 결과 (E5 최소, 부록 C.35): 결과 구간 재생 뒤 결과 띠 */
+.oc-wrap { position: relative; }
+.oc-band { position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 12px) scale(0.96); opacity: 0; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; width: min(92%, 520px); padding: 10px 14px; border-radius: var(--radius-lg);
+  background: var(--surface-1); color: var(--ink); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28); border-left: 6px solid var(--tone, var(--line));
+  transition: opacity 0.18s ease, transform 0.18s ease; }
+.oc-band.is-shown { opacity: 1; transform: translate(-50%, 0) scale(1); animation: oc-pop 0.36s ease-out; }
+.oc-band--success { --tone: var(--mine); }
+.oc-band--fail, .oc-band--conceded { --tone: var(--fail); }
+.oc-band--neutral { --tone: var(--ink-muted); }
+.oc-band--goal { --tone: #f2b705; background: linear-gradient(90deg, rgba(242, 183, 5, 0.22), transparent 60%), var(--surface-1); }
+.oc-icon { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--tone); color: #fff; font-weight: 800; font-size: 15px; }
+.oc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.oc-text b { font-size: 16px; }
+.oc-band--goal .oc-text b { font-size: 22px; letter-spacing: 0.02em; }
+.oc-text span { font-size: 12px; color: var(--ink-muted); overflow-wrap: anywhere; }
+.oc-delta { flex: none; font-weight: 800; font-size: 13px; }
+.oc-band--success .oc-delta, .oc-band--goal .oc-delta { color: var(--mine); }
+.oc-band--fail .oc-delta, .oc-band--conceded .oc-delta { color: var(--fail); }
+.oc-choice { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-left: 6px solid var(--k); border-radius: var(--radius-md); background: var(--surface-2); }
+@keyframes oc-pop { 0% { transform: translate(-50%, 12px) scale(0.9); } 60% { transform: translate(-50%, -2px) scale(1.04); } 100% { transform: translate(-50%, 0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .oc-band, .oc-band.is-shown { transition: none; animation: none; } }
+button.dec-row { width: 100%; padding: 6px 4px; border: 0; border-radius: var(--radius-md); background: none; color: inherit; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2); }
+.dec-play { color: var(--brand-ink); font-size: 10px; }
+.dec-hint { margin: 6px 0 0; }
+/* 결정 선택 바텀시트 (I.5, E5 최소): 모바일은 피치 아래에 붙은 시트, PC(1024px+)는 오른쪽 패널 */
+.mo-sheet__head { display: flex; flex-direction: column; gap: 2px; }
+.mo-sheet__head b { font-size: 15px; }
+@media (max-width: 1023px) {
+  .app-moment .moment { padding-bottom: 0; }
+  .app-moment .mo-panel { position: sticky; bottom: 0; z-index: 5; margin: var(--space-2) 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0; box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28); max-height: 64vh; overflow-y: auto; animation: mo-sheet-up 0.24s ease-out; }
+  .app-moment .mo-panel::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 4px; border-radius: 2px; background: var(--line); }
+}
+@keyframes mo-sheet-up { from { transform: translateY(40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .app-moment .mo-panel { animation: none; } }
+.dec-flow { display: block; margin-top: 2px; color: var(--ink-muted); font-size: 11px; }
+/* 모바일: 결과 띠는 피치를 가리지 않게 피치 아래에 */
+@media (max-width: 1023px) {
+  .oc-band { position: static; width: auto; margin-top: var(--space-2); transform: translateY(8px) scale(0.98); }
+  .oc-band.is-shown { transform: none; animation: oc-pop-m 0.36s ease-out; }
+}
+@keyframes oc-pop-m { 0% { transform: translateY(8px) scale(0.94); } 60% { transform: translateY(-2px) scale(1.03); } 100% { transform: none; } }

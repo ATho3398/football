@@ -1,6 +1,7 @@
 // 경기 재생 데이터 (E5-lite, 24번, 부록 E.13): 엔진이 매 틱 계산한 22명과 공의 위치를 샘플링한 프레임과 이벤트 로그.
 // 연출을 따로 만들지 않고 엔진 위치를 그대로 그린다. 보간과 이벤트 문구는 순수 함수 (24.5). 세이브에 담지 않는다.
 
+import type { DecisionRecord } from './engine/moments';
 import type { EngineResult, MatchEvent, PlayerSpec, Tactics, TeamSetup, TeamStats } from './engine/types';
 import type { RestartType, SimState } from './engine/state';
 
@@ -62,6 +63,8 @@ export interface Replay {
   /** 경기 후 전술 리포트 입력 (21.5.2): 엔진 팀 통계와 양 팀이 쓴 전술 [홈, 원정]. 세이브에 담지 않는다 */
   stats: [TeamStats, TeamStats];
   tactics: [{ tendency: Tactics['tendency']; formation: string }, { tendency: Tactics['tendency']; formation: string }];
+  /** 직접 모드로 멈춘 결정 순간 (E5 최소: 하이라이트·결정 기록 리플레이) */
+  decisions?: DecisionRecord[];
 }
 
 /** 샘플링 간격 (초). 엔진 time.frameInterval (E.13: 2~10Hz) */
@@ -164,6 +167,7 @@ export function buildReplay(home: TeamSetup, away: TeamSetup, teams: [string, st
     duration: frames.at(-1)?.e ?? r.duration,
     final: [r.homeGoals, r.awayGoals],
     stats: r.teamStats,
+    ...(r.decisions?.length ? { decisions: r.decisions } : {}),
     tactics: [
       { tendency: home.tactics.tendency, formation: home.formationName ?? home.formation },
       { tendency: away.tactics.tendency, formation: away.formationName ?? away.formation },

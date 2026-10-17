@@ -43,10 +43,12 @@ export function matchResultView(vm: MatchResultVM): string {
       vm.formBonus ? StatChip({ label: '폼 보정', value: `${vm.formBonus > 0 ? '+' : '−'}${Math.abs(vm.formBonus).toFixed(2)}`, tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
     : '';
   const RES = { success: '성공', fail: '실패', neutral: '보통' } as const;
+  // 줄을 누르면 그 장면 리플레이 (E5 최소, 부록 C.35)
+  const tag = vm.decisionReplay ? 'button' : 'div';
   const decisions = vm.decisions.length
-    ? `${SectionTitle({ title: '내 결정 기록', action: `${vm.decisions.length}번 멈춤` })}${panel(`<div class="dec-list">${vm.decisions.map((d) => `
-        <div class="dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><b>${esc(d.scene)}</b> · ${esc(d.choice)} · ${esc(d.label)}</span>
-        <span class="dec-res"><span class="po-num">${esc(d.p)}</span> ${RES[d.result]} <b class="po-num">${esc(d.delta)}</b></span></div>`).join('')}</div>`)}`
+    ? `${SectionTitle({ title: '내 결정 기록', action: `${vm.decisions.length}번 멈춤` })}${panel(`<div class="dec-list">${vm.decisions.map((d, i) => `
+        <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><b>${esc(d.scene)}</b> · ${esc(d.choice)} · ${esc(d.label)}${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
+        <span class="dec-res"><span class="po-num">${esc(d.p)}</span> ${RES[d.result]} <b class="po-num">${esc(d.delta)}</b>${vm.decisionReplay ? ' <span class="dec-play">▶</span>' : ''}</span></${tag}>`).join('')}</div>${vm.decisionReplay ? '<p class="small muted dec-hint">줄을 누르면 그 장면을 다시 봐요.</p>' : ''}`)}`
     : '';
   const x = vm.xp;
   const next = vm.seasonOver

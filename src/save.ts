@@ -134,6 +134,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.control = { mode: 'direct', stop: 'important' };
     if (s.tactics && Array.isArray(s.tactics.custom) && customProblem(s.tactics.custom) !== null) s.tactics.custom = null;
   },
+  // 14 → 15 (부록 C.35, E5 최소): 결정 기록에 화면이 보여 준 결과(seen)가 붙는다. 선택 필드라 옛 기록은 그대로 (평점 판정을 쓴다)
+  14: () => {},
 };
 
 export function migrate(raw: any): GameState {
