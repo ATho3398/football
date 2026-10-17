@@ -84,7 +84,7 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
       const opt = choice === 'delegate' ? null : m.options[choice]!;
       run.resolve(choice);
       const next = run.advance();
-      const o = decisionOutcome({ frames: run.frames, startIdx, events: s.events.slice(ev0), players: ps, type: m.type, action: opt?.action ?? null, side: m.side });
+      const o = decisionOutcome({ frames: run.frames, startIdx, events: s.events.slice(ev0), players: ps, type: m.type === 'react' ? 'duel' : m.type, action: opt?.action ?? null, side: m.side });
       expect(o.from).toBe(e0);
       expect(o.to).toBeGreaterThanOrEqual(o.from);
       expect(o.to - o.from).toBeLessThanOrEqual(OUTCOME.maxSpan + OUTCOME.goalTail + 1e-6);

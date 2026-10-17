@@ -353,6 +353,11 @@ function liveShow(g: GameState, m: Moment | null): void {
  * 결정 확정 (E5 최소, 부록 C.35): 그 틱을 마저 진행하고 다음 결정 순간(또는 경기 끝)까지 미리 계산한 뒤,
  * 멈춘 장면에서 결과가 날 때까지(공 소유 변경·슈팅 결과·파울·아웃·골, 최대 6초)를 실제 속도로 보여 주고 결과 띠를 띄운다
  */
+/** 결과 구간 판정 종류: 카드 장면(C.40)은 상대 슈팅·상대 세트피스면 수비, 우리 공중볼이면 공격으로 본다 */
+function outcomeType(m: Moment): 'onball' | 'duel' | 'setPiece' {
+  return m.type === 'react' ? (m.scene.startsWith('opp') ? 'duel' : 'onball') : m.type;
+}
+
 function liveDecide(g: GameState, choice: number | 'delegate'): void {
   const lv = ui.live!;
   const m = lv.run.pending!;
@@ -367,7 +372,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   lv.run.resolve(choice === 'delegate' ? 'delegate' : used ? { opt: choice === m.options.length ? 'card' : choice, card: used.hand } : choice);
   const next = lv.run.advance();
   const players = livePlayers(g);
-  const o = decisionOutcome({ frames: lv.run.frames, startIdx, events: s.events.slice(ev0), players, type: m.type, action: opt?.action ?? null, side: m.side });
+  const o = decisionOutcome({ frames: lv.run.frames, startIdx, events: s.events.slice(ev0), players, type: outcomeType(m), action: m.type === 'react' ? null : opt?.action ?? null, side: m.side });
   const rec = s.moments.log.find((r) => r.id === m.id);
   const score: [number, number] = [...m.score];
   if (o.goal !== null) score[o.goal]++;

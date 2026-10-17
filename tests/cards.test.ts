@@ -4,6 +4,7 @@ import { CARDS, cardById, starterDeck } from '../src/config/cards';
 import { afterMatch, canAdd, cardInput, deckProblems, grantLevelPicks, grantSeasonPick, initCollection, takePick } from '../src/cardCollection';
 import { MyMatchRun, playMyMatch } from '../src/engine/adapter';
 import { bestChoice, type MomentPolicy } from '../src/engine/moments';
+import { ENGINE } from '../src/engine/config';
 import { newGame, playRound, roundMatch, selectableRealPlayers, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
 import { posGroup } from '../src/roster';
 import { deserialize, migrate, serialize } from '../src/save';
@@ -224,5 +225,83 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
     }
     expect(used).toBeGreaterThan(0);
     expect(Object.values(g.cards.mastery).reduce((a, b) => a + b, 0)).toBe(used);
+  });
+});
+
+describe('결정 순간 개선 (C.40, pending 39 5항)', () => {
+  it('직접 모드 정지: 판정 있는 선택지는 모두 90% 이하, 안전/균형/도박은 성공 확률 순, 고를 거리(선택지 2개 이상 또는 카드)가 있다', () => {
+    const g = game('WING', 'c40');
+    const rm = startedRound(g);
+    const seen: Parameters<MomentPolicy>[0][] = [];
+    const pol: MomentPolicy = (m) => {
+      seen.push(m);
+      return 'delegate';
+    };
+    playMyMatch({ ...rm.input, control: { mode: 'direct', stop: 'all', policy: pol } });
+    expect(seen.length).toBeGreaterThan(0);
+    for (const m of seen) {
+      if (m.type === 'setPiece') continue;
+      if (m.type !== 'react') for (const o of m.options) if (o.p !== null) expect(o.p).toBeLessThanOrEqual(ENGINE.moments.maxP + 1e-9);
+      const judged = m.options.filter((o) => o.p !== null);
+      expect(judged.length >= 1 && m.options.length >= 2 || m.cards.some((c) => c.usable && (c.option || c.deltas))).toBe(true);
+      if (m.type === 'onball') {
+        const ps = m.options.map((o) => o.p!);
+        expect([...ps].sort((a, b) => b - a)).toEqual(ps);
+        expect(m.options[0]!.kind).toBe(m.options.length === 1 ? 'balanced' : 'safe');
+      }
+    }
+  });
+
+  it('최소 정지 보장 없음: "결정적 순간만"은 0회 경기도 된다, 자동 모드는 멈추지 않는다', () => {
+    const counts: number[] = [];
+    for (const grp of ['CDM', 'FB']) {
+      const g = game(grp, 'c40-zero');
+      const rm = startedRound(g);
+      counts.push(playMyMatch({ ...rm.input, cards: { deck: [] }, control: { mode: 'direct', stop: 'critical', policy: () => 'delegate' } }).engine.decisions.length);
+      expect(playMyMatch({ ...rm.input, control: { mode: 'auto', stop: 'all', policy: () => 'delegate' } }).engine.decisions.length).toBe(0);
+    }
+    expect(Math.min(...counts)).toBeLessThan(4);
+  });
+
+  it('카드 장면 정지(공중볼·상대 슈팅·코너): 반응 카드가 패에 있을 때만, "카드 없이"를 고르면 그 카드를 쓰지 않는다', () => {
+    const g = game('CB', 'c40-react');
+    const rm = startedRound(g);
+    const deck = starterDeck('defense').map((c) => c.id);
+    const reacts: Parameters<MomentPolicy>[0][] = [];
+    const out = playMyMatch({
+      ...rm.input, cards: { deck },
+      control: { mode: 'direct', stop: 'important', policy: (m) => {
+        if (m.type !== 'react') return 'delegate';
+        reacts.push(m);
+        return 0;
+      } },
+    });
+    expect(reacts.length).toBeGreaterThan(0);
+    for (const m of reacts) {
+      expect(['aerial', 'corner', 'oppShot', 'oppCorner', 'oppFreeKick']).toContain(m.scene);
+      expect(m.options.length).toBe(1);
+      expect(m.cards.some((c) => c.usable && c.option)).toBe(true);
+    }
+    // "카드 없이"만 골랐으면 반응 카드(몸으로 막기·세트피스 가담 헤더)는 정지한 장면에서 쓰이지 않는다
+    const reactUses = (out.engine.cards?.uses ?? []).filter((u) => u.id === 'bodyBlock' || u.id === 'spHeader');
+    for (const u of reactUses) expect(reacts.some((m) => m.minute === u.minute && m.scene === u.scene)).toBe(false);
+    // 카드 없는 경기는 카드 장면에서 멈추지 않는다
+    const none = playMyMatch({ ...rm.input, cards: { deck: [] }, control: { mode: 'direct', stop: 'important', policy: () => 'delegate' } });
+    expect(none.engine.decisions.some((d) => ['aerial', 'corner', 'oppShot', 'oppCorner', 'oppFreeKick'].includes(d.scene))).toBe(false);
+  });
+
+  it('카드 장면 맡기기 = 지금 규칙(조건 맞는 첫 장 자동), 같은 선택이면 같은 결과', () => {
+    const g = game('CB', 'c40-react');
+    const rm = startedRound(g);
+    const deck = starterDeck('defense').map((c) => c.id);
+    const run = (pick: (m: Parameters<MomentPolicy>[0]) => ReturnType<MomentPolicy>) =>
+      strip(playMyMatch({ ...rm.input, cards: { deck }, control: { mode: 'direct', stop: 'important', policy: pick } }));
+    const card: MomentPolicy = (m) => {
+      if (m.type !== 'react') return 'delegate';
+      const c = m.cards.find((x) => x.usable && x.option)!;
+      return { opt: 'card', card: c.hand };
+    };
+    expect(run(card)).toBe(run(card));
+    expect(run(() => 'delegate')).toBe(run(() => 'delegate'));
   });
 });

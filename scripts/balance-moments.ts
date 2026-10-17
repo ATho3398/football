@@ -1,11 +1,11 @@
-// 결정 순간 측정 (E.11, F.7, 부록 C.34): 실제 선수 커리어의 내 경기를 같은 입력으로 자동 / 직접(정책)으로 돌려 비교한다.
+// 결정 순간 측정 (E.11, F.7, 부록 C.34, C.40 최소 보장 없음·90% 필터): 실제 선수 커리어의 내 경기를 같은 입력으로 자동 / 직접(정책)으로 돌려 비교한다.
 // - 정지 횟수: 정지 빈도 3단계(모든 / 중요한(기본) / 결정적)별 경기당 턴 수, 포지션군별 (맡기기 정책이라 경기는 자동과 같다)
 // - 평점: 자동 대 직접 최적 플레이 봇(기대 평점 최대 선택지) / 균형만 / 맡기기(= 자동, 결정성 확인)
 // npm run balance:moments -- [포지션군당 선수 수=3] [라운드 수=10]
 import { autoAllocate } from '../src/growth';
 import { newGame, playRound, roundMatch, selectableRealPlayers } from '../src/game';
 import { playMyMatch } from '../src/engine/adapter';
-import { bestOption, type MomentControl, type MomentPolicy, type StopLevel } from '../src/engine/moments';
+import { bestChoice, type MomentControl, type MomentPolicy, type StopLevel } from '../src/engine/moments';
 import { posGroup } from '../src/roster';
 
 const args = process.argv.slice(2).filter((a) => a !== '--');
@@ -17,12 +17,19 @@ const pool = selectableRealPlayers();
 const picks = groups.flatMap((g) => pool.filter((p) => posGroup(p.position) === g).slice(0, perGroup));
 
 const delegate: MomentPolicy = () => 'delegate';
+/** 맡기기 + 선택지 2개만 남은 정지 세기 (C.40) */
+let twoN = 0;
+const countTwo: MomentPolicy = (m) => {
+  if (m.options.length === 2) twoN++;
+  return 'delegate';
+};
 const balanced: MomentPolicy = (m) => Math.max(0, m.options.findIndex((o) => o.kind === 'balanced'));
-const bot: MomentPolicy = (m) => bestOption(m);
+/** 최적 플레이 봇 (카드 없이): 기대 평점 최대 선택지, 확실한 선택지를 뺀 순간 남은 것이 못하면 맡기기 (C.40) */
+const bot: MomentPolicy = (m) => bestChoice(m, Infinity);
 const safe: MomentPolicy = (m) => Math.max(0, m.options.findIndex((o) => o.kind === 'safe'));
 const gamble: MomentPolicy = (m) => Math.max(0, m.options.findIndex((o) => o.kind === 'gamble'));
 
-type Row = { g: string; stops: Record<StopLevel, number>; auto: number; del: number; bot: number; bal: number; safe: number; gamble: number; botStops: number };
+type Row = { g: string; stops: Record<StopLevel, number>; auto: number; del: number; bot: number; bal: number; safe: number; gamble: number; botStops: number; two: number };
 const rows: Row[] = [];
 const t0 = Date.now();
 let slow = 0;
@@ -41,10 +48,15 @@ for (const p of picks) {
       const grp = posGroup(auto.my.position);
       const stops = {} as Record<StopLevel, number>;
       let del = 0;
+      let two = 0;
       for (const stop of ['all', 'important', 'critical'] as StopLevel[]) {
-        const o = run({ mode: 'direct', stop, policy: delegate });
+        const o = run({ mode: 'direct', stop, policy: stop === 'important' ? countTwo : delegate });
         stops[stop] = o.engine.decisions.length;
-        if (stop === 'important') del = o.result.rating ?? 0;
+        if (stop === 'important') {
+          del = o.result.rating ?? 0;
+          two = twoN;
+          twoN = 0;
+        }
       }
       const ob = run({ mode: 'direct', stop: 'important', policy: bot });
       const ol = run({ mode: 'direct', stop: 'important', policy: balanced });
@@ -52,7 +64,7 @@ for (const p of picks) {
       const og = run({ mode: 'direct', stop: 'important', policy: gamble });
       rows.push({
         g: grp, stops, auto: auto.result.rating ?? 0, del, bot: ob.result.rating ?? 0, bal: ol.result.rating ?? 0,
-        safe: os.result.rating ?? 0, gamble: og.result.rating ?? 0, botStops: ob.engine.decisions.length,
+        safe: os.result.rating ?? 0, gamble: og.result.rating ?? 0, botStops: ob.engine.decisions.length, two,
       });
     }
     playRound(g, { engineOut: auto });
@@ -63,12 +75,12 @@ for (const p of picks) {
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
 const f = (x: number, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '-');
 console.log(`결정 순간 측정: 선수 ${picks.length}명 × ${rounds}라운드, 선발 경기 ${rows.length}개, ${((Date.now() - t0) / 1000).toFixed(0)}초, 2초 넘은 경기 ${slow}`);
-console.log('포지션군 | 경기 | 턴(모든/중요/결정적) | 자동 평점 | 맡기기 | 봇 | 봇−자동 | 균형만−자동 | 안전만−자동 | 도박만−자동');
+console.log('포지션군 | 경기 | 턴(모든/중요/결정적) | 중요 0회 경기 | 중요 중 선택지 2개 | 자동 평점 | 맡기기 | 봇 | 봇−자동 | 균형만−자동 | 안전만−자동 | 도박만−자동');
 for (const grp of [...groups, '전체']) {
   const rs = grp === '전체' ? rows : rows.filter((r) => r.g === grp);
   if (!rs.length) continue;
   const a = avg(rs.map((r) => r.auto));
-  console.log(`${grp} | ${rs.length} | ${f(avg(rs.map((r) => r.stops.all)), 1)} / ${f(avg(rs.map((r) => r.stops.important)), 1)} / ${f(avg(rs.map((r) => r.stops.critical)), 1)} | ${f(a)} | ${f(avg(rs.map((r) => r.del)))} | ${f(avg(rs.map((r) => r.bot)))} | ${f(avg(rs.map((r) => r.bot)) - a)} | ${f(avg(rs.map((r) => r.bal)) - a)} | ${f(avg(rs.map((r) => r.safe)) - a)} | ${f(avg(rs.map((r) => r.gamble)) - a)}`);
+  console.log(`${grp} | ${rs.length} | ${f(avg(rs.map((r) => r.stops.all)), 1)} / ${f(avg(rs.map((r) => r.stops.important)), 1)} / ${f(avg(rs.map((r) => r.stops.critical)), 1)} | ${Math.round((100 * rs.filter((r) => r.stops.important === 0).length) / rs.length)}% | ${f(avg(rs.map((r) => r.two)), 1)} | ${f(a)} | ${f(avg(rs.map((r) => r.del)))} | ${f(avg(rs.map((r) => r.bot)))} | ${f(avg(rs.map((r) => r.bot)) - a)} | ${f(avg(rs.map((r) => r.bal)) - a)} | ${f(avg(rs.map((r) => r.safe)) - a)} | ${f(avg(rs.map((r) => r.gamble)) - a)}`);
 }
 const se = (k: 'bot' | 'bal' | 'safe' | 'gamble') => {
   const d = rows.map((r) => r[k] - r.auto);
@@ -78,7 +90,8 @@ const se = (k: 'bot' | 'bal' | 'safe' | 'gamble') => {
 console.log(`직접 − 자동 (평균 ± 표준오차, 같은 경기 짝): 봇 ${se('bot')}, 균형만 ${se('bal')}, 안전만 ${se('safe')}, 도박만 ${se('gamble')}`);
 const mismatch = rows.filter((r) => Math.abs(r.del - r.auto) > 1e-9).length;
 console.log(`맡기기 = 자동 (결정성): 다른 경기 ${mismatch} / ${rows.length}`);
-const under = rows.filter((r) => r.stops.important < 4).length;
-const over = rows.filter((r) => r.stops.important > 14).length;
-console.log(`중요한 순간만 턴 4개 미만 ${under}, 14개 초과 ${over}`);
+const under = rows.filter((r) => r.stops.important < 3).length;
+const over = rows.filter((r) => r.stops.important > 8).length;
+const zero = rows.filter((r) => r.stops.important === 0).length;
+console.log(`중요한 순간만: 0회 ${zero} (${Math.round((100 * zero) / Math.max(1, rows.length))}%), 3회 미만 ${under}, 8회 초과 ${over} / ${rows.length}`);
 process.exit(0);

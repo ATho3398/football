@@ -8,6 +8,7 @@ import { updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
+import { oppShotMoment } from './moments';
 import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { landingVelocity } from './physics';
 import { Purpose, rand, randn } from './rng';
@@ -381,6 +382,8 @@ function recordShot(s: SimState, a: Agent, penalty = false): void {
 }
 
 export function shoot(s: SimState, a: Agent, header: boolean): void {
+  // 상대 슈팅 카드 장면 (C.40): 직접 모드에서 몸으로 막기 카드가 있으면 슛 전에 멈춘다 (결정 뒤 sim 이 같은 틱에 다시 부른다)
+  if (s.cards && !header && oppShotMoment(s, a)) return;
   const dir = attackDir(a.team, s.half);
   const [gx, gy] = oppGoal(dir);
   const m = shotModel(s, a, header);

@@ -4,15 +4,15 @@ import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../at
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
 import { lineOf } from './formation';
-import { caught, defendDuels, execute, keeperHands, resolveFlight, takeCorner, takeFreeKick, takePenalty } from './actions';
+import { caught, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
 import { computeRatings } from './rating';
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
-import { autoCardDecide, duelMoment, initMoments, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
-import { cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
+import { aerialMoment, autoCardDecide, duelMoment, initMoments, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
+import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
 import { initPhysics, moveAgent } from './physics';
 import { aiAdjust } from './tactics';
@@ -368,13 +368,18 @@ function stepBody(s: SimState): void {
     const o = s.agents[b.owner]!;
     // 내 선수 결정 순간 (E.11): 멈출 순간이면 여기서 멈추고 resolve 가 나머지 틱을 이어서 한다
     if (o.cooldown <= 0) {
-      if (!onballMoment(s, o)) decide(s, o);
-      else if (pauseOrDecide(s)) return;
+      if (!onballMoment(s, o)) {
+        decide(s, o);
+        // 상대 슈팅 카드 장면 (C.40): shoot 가 슛을 미루고 멈췄다 (결정 뒤 applyChoice 가 같은 틱에 슛)
+        if (s.moments.pending && pauseOrDecide(s)) return;
+      } else if (pauseOrDecide(s)) return;
     } else if (!contactFouls(s)) {
       if (!duelMoment(s)) defendDuels(s);
       else if (pauseOrDecide(s)) return;
     }
   }
+  // 공중볼 카드 장면 (C.40): 이번 틱에 뜬 공중볼 (공은 이미 떠 있고, 고른 카드는 경합 때 붙는다)
+  if (s.cards && aerialMoment(s) && pauseOrDecide(s)) return;
   stepTail(s);
 }
 
@@ -397,6 +402,18 @@ function applyChoice(s: SimState, choice: MomentChoice): void {
       s.cards.sp = r.mod;
     }
     executeSetPiece(s);
+    return;
+  }
+  if (m.type === 'react') {
+    // 카드 장면 (C.40): 계획만 남긴다. 상대 슈팅이면 미뤄 둔 슛을 지금 (같은 틱) 실행한다
+    const sh = (m as Moment & { react: { shooter?: number } }).react.shooter;
+    if (sh !== undefined) {
+      const shooter = s.agents[sh]!;
+      // 맡기기: 다시 멈추지 않게 "자동" 계획을 남긴다 (조건 맞는 첫 장, 지금 규칙)
+      s.cards!.react ??= { kind: 'block', id: AUTO_REACT, until: s.t + 0.5, shooter: sh };
+      shoot(s, shooter, false);
+      if (s.cards!.react?.id === AUTO_REACT) s.cards!.react = null;
+    }
     return;
   }
   if (m.type === 'onball') {

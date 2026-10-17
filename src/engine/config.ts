@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 18;
+export const ENGINE_VERSION = 19;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -618,16 +618,29 @@ export const ENGINE = {
     tension: 1.3,
     tensionMinute: 75,
     /**
-     * "중요한 순간만"(기본) 임계값. 포지션군마다 다르다: 목표 턴 수 ST 6~10, 윙 10~14, CM 12~14, CB 8~12 (E.11)에 맞춰
-     * scripts/balance-moments.ts 로 쟀다 (C.34)
+     * "중요한 순간만"(기본) 임계값. 포지션군마다 다르다. C.40: 최소 보장 없이 90% 필터 뒤 경기당 3~8회 안팎(포지션군 평균 약 5~6)이 되게
+     * scripts/diag/moment-stakes.ts·balance-moments.ts 로 다시 쟀다 (C.34: ST 0.45, 윙·CAM 0.3, CM 0.18, CDM·FB 0.13, CB 0.2)
      */
-    threshold: { ST: 0.45, WING: 0.3, CAM: 0.3, CM: 0.18, CDM: 0.13, FB: 0.13, CB: 0.2 } as Record<string, number>,
+    threshold: { ST: 0.45, WING: 0.45, CAM: 0.55, CM: 0.3, CDM: 0.2, FB: 0.15, CB: 0.45 } as Record<string, number>,
     /** 정지 빈도 3단계: 모든 결정 순간 / 중요한 순간만 / 결정적 순간만 (I.17 6번) */
     stopMul: { all: 0.7, important: 1.0, critical: 1.6 },
-    /** 한 경기 턴 최소·최대 (90분 기준, 출전 시간에 비례). 모자라면 임계값 × catchUpMul */
-    minStops: 4,
+    /** 한 경기 정지 최대 (90분 기준, 출전 시간에 비례). C.40: 직접 모드 최소 정지 보장은 없앴다 (경기당 0회도 된다) */
     maxStops: 14,
-    catchUpMul: 0.5,
+    /**
+     * 자동 모드 카드 기회(F.5)만 쓰는 임계값(C.34 값 그대로)과 최소 턴 따라잡기: 기대 턴보다 1 이상 뒤처지면 임계값 × autoCatchUpMul.
+     * 직접 모드 정지에는 쓰지 않는다 (C.40, pending 39 5항: 자동 경로는 바꾸지 않는다)
+     */
+    autoThreshold: { ST: 0.45, WING: 0.3, CAM: 0.3, CM: 0.18, CDM: 0.13, FB: 0.13, CB: 0.2 } as Record<string, number>,
+    autoMinStops: 4,
+    autoCatchUpMul: 0.5,
+    /**
+     * 정지 조건 (C.40): 성공 확률이 maxP 를 넘는 선택지는 목록에서 뺀다 ("맡기기"가 할 일). 남은 판정 있는 선택지가 minOptions 개 이상이거나
+     * 패에 지금 쓸 수 있는 카드(장면 플레이 카드·장면 확률 카드)가 있을 때만 멈춘다
+     */
+    maxP: 0.9,
+    minOptions: 2,
+    /** 카드 장면 정지 (C.40): 공중볼은 내 선수가 착지점 이 거리(m) 안이고 박스 안 착지일 때 */
+    reactAerialRange: 9,
     /** 두 정지 사이 최소 간격 (초, 같은 공격에서 연달아 멈추지 않게) */
     gap: 4,
     /** 70분 이후 체력 보정: −(100 − 스태미나)/100 × staminaPenalty (E.11) */

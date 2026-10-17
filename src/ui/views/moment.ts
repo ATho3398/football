@@ -104,8 +104,9 @@ export function momentView(vm: MomentVM): string {
       <div class="pitch-wrap">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면' })}</div>
       ${last}
       <div class="mo-panel mo-sheet" role="dialog" aria-label="결정 선택">
-        <div class="mo-sheet__head"><b>어떻게 할까요?</b><span class="small muted">선택지를 누르면 피치에 방향이 보여요</span></div>
-        <div class="mo-opts">${optionsHtml(vm)}</div>
+        ${sheetHead(m)}
+        <div class="mo-opts mo-opts--n${shownOptions(m, vm.card).length}">${optionsHtml(vm)}</div>
+        ${optionsNote(m)}
         ${handRow(vm)}
         <div class="btn-row">
           ${Button({ variant: 'secondary', size: 'lg', block: true, act: 'mo-delegate', children: '맡기기' })}
@@ -118,6 +119,22 @@ export function momentView(vm: MomentVM): string {
         </div>
       </div>
     </div>`;
+}
+
+/** 바텀시트 머리 (C.40): 카드 장면 정지는 "카드를 쓸까요?" */
+function sheetHead(m: Moment): string {
+  if (m.type === 'react') {
+    const n = m.cards.filter((c) => c.usable).length;
+    return `<div class="mo-sheet__head mo-sheet__head--react"><b>🃏 카드를 쓸까요?</b><span class="small muted">${esc(SCENE_LABEL[m.scene])} · 이 장면에 쓸 수 있는 카드 ${n}장 · 카드를 누르면 카드 선택지가 생겨요</span></div>`;
+  }
+  return '<div class="mo-sheet__head"><b>어떻게 할까요?</b><span class="small muted">선택지를 누르면 피치에 방향이 보여요</span></div>';
+}
+
+/** 선택지 아래 안내 (C.40): 확실한 선택지를 뺐을 때 */
+function optionsNote(m: Moment): string {
+  if (m.type === 'react') return '<p class="small muted mo-note">맡기기 = 조건 맞는 첫 카드를 자동으로 써요 · "카드 없이"를 고르면 카드를 아껴요</p>';
+  if (!m.sure) return '';
+  return `<p class="small muted mo-note">성공 확률 90%가 넘는 확실한 선택지는 뺐어요 (맡기기가 할 일)${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''}</p>`;
 }
 
 function optionsHtml(vm: MomentVM): string {

@@ -21,16 +21,14 @@ for (const p of picks) {
     const rm = roundMatch(g);
     const auto = playMyMatch(rm.input);
     if (rm.plan.started && auto.my) {
-      const saved = { th: { ...M.threshold }, gap: M.gap, max: M.maxStops, min: M.minStops };
+      const saved = { th: { ...M.threshold }, gap: M.gap, max: M.maxStops };
       for (const k2 of Object.keys(M.threshold)) M.threshold[k2] = 0;
       (M as { gap: number }).gap = 0;
       (M as { maxStops: number }).maxStops = 9999;
-      (M as { minStops: number }).minStops = 0;
       const o = playMyMatch({ ...rm.input, control: { mode: 'direct', stop: 'important', policy: () => 'delegate' } });
       Object.assign(M.threshold, saved.th);
       (M as { gap: number }).gap = saved.gap;
       (M as { maxStops: number }).maxStops = saved.max;
-      (M as { minStops: number }).minStops = saved.min;
       const grp = posGroup(auto.my.position);
       (byGroup[grp] ??= []).push(o.engine.decisions.map((d) => ({ t: d.e, stake: d.stake })));
     }

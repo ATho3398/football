@@ -3,26 +3,29 @@
 // 자동 모드와 "맡기기"는 엔진 판단식(E.7)을 그대로 쓰므로 결과가 자동 경기와 같다 (같은 시드 → 같은 경기).
 // 카드 (3단계, C.36): 패의 카드는 Moment.cards 로 보여 주고, 플레이 카드는 4번째 선택지(행동 변형), 확률 카드는 선택지 확률 보정이다.
 // 자동 모드는 같은 중요도 기준의 "카드 기회"에서 F.5 규칙(플레이 카드 = 엔진 판단식이 같이 평가, 확률 카드 = 패 앞에서 조건 맞는 첫 장)을 쓴다.
+// C.40 (pending 39 5항): 직접 모드 최소 정지 보장을 없앴다. 성공 확률이 maxP(90%)를 넘는 선택지는 목록에서 빼고(그건 맡기기가 할 일),
+// 남은 선택지가 2개 이상이거나 패에 지금 쓸 수 있는 장면 카드가 있을 때만 멈춘다. 공중볼·상대 슈팅·코너는 그 장면 반응 카드가 패에 있을 때만
+// 멈춰서 고르게 한다(카드 장면 정지, type 'react'). 엔진 판단식·확률과 자동 경로는 그대로다.
 
 import { BALANCE } from '../config/balance';
 import { cardById, type OptionTag } from '../config/cards';
 import { posGroup } from '../roster';
 import { defJudgement, directFkOn, duelOdds, duelEligible, penaltyProb } from './actions';
 import {
-  boostValue, buildVariant, cardRand, emptyMod, handView, judgeShift, masteryBonus, passiveValue, playCard, prepCands, startWatch, tagsOf,
-  type ActionMod, type CardUse, type MomentCard, type OptionCtx, type Variant,
+  airScenes, boostValue, buildVariant, cardRand, emptyMod, handView, inShotCone, judgeShift, masteryBonus, passiveValue, playCard, prepCands, reactiveCards, startWatch, tagsOf,
+  type ActionMod, type CardUse, type MomentCard, type OptionCtx, type ReactCard, type Variant,
 } from './cards';
 import { ENGINE } from './config';
-import { dribbleProb } from './duel';
+import { aerialScore, dribbleProb, duelTail } from './duel';
 import { candidates, choose, shotModel, type ActionType, type Candidate } from './onball';
-import { attackDir, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
+import { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
 import { ratingDelta, ratingParts } from './rating';
 import { offsideRisk } from './referee';
 import type { Agent, SimState } from './state';
 
 const M = ENGINE.moments;
 
-/** 장면 id (F.2.1). lineCall·aerial·oppShot·세트피스는 데이터와 분류만 있고 정지는 3단계에서 붙인다 */
+/** 장면 id (F.2.1). 공중볼·코너·상대 코너/프리킥·상대 슈팅은 카드 장면 정지(C.40), lineCall 은 아직 정지 없음 */
 export type SceneId =
   | 'shot' | 'dribble' | 'keyPass' | 'aerial' | 'cross' | 'counter' | 'press' | 'duel' | 'freeKick' | 'penalty' | 'corner'
   | 'oppShot' | 'oppFreeKick' | 'oppCorner' | 'lineCall' | 'holdUp' | 'rebound';
@@ -65,7 +68,8 @@ export interface MomentOption {
 
 export interface Moment {
   id: number;
-  type: 'onball' | 'duel' | 'setPiece';
+  /** react = 카드 장면 정지 (공중볼·상대 슈팅, C.40): 선택지 "카드 없이" + 패의 반응 카드 */
+  type: 'onball' | 'duel' | 'setPiece' | 'react';
   scene: SceneId;
   /** 경기 시계 (초) */
   t: number;
@@ -79,6 +83,10 @@ export interface Moment {
   cards: (MomentCard & { option?: MomentOption })[];
   /** 장착된 패시브 이름 */
   passives: string[];
+  /** 성공 확률 maxP(90%)를 넘어 목록에서 뺀 선택지가 있었다 (C.40, 화면 안내용) */
+  sure?: boolean;
+  /** 뺀 확실한 선택지 중 기대 평점 최대 (최적 플레이 봇이 맡기기와 견줄 때만 쓴다. 맡기면 엔진이 대개 이것을 고른다) */
+  delegateEv?: number;
   /** 내 선수와 상대(1대1) id */
   me: string;
   opponent?: string;
@@ -162,22 +170,31 @@ function stakeMul(s: SimState, team: 0 | 1): number {
   return (s.input.bigMatch ? M.bigMatch : 1) * (s.t >= M.tensionMinute * 60 && gd <= 1 ? M.tension : 1);
 }
 
-/**
- * 이번 순간에 멈추는가: 임계값 × 정지 빈도 배수, 최소 턴 따라잡기, 최대 턴, 간격.
- * 자동 모드 카드 기회(F.5)도 같은 식을 "중요한 순간만" 기준으로 쓴다 (stops·lastT 는 카드 상태의 따로 센 값)
- */
-function wouldStop(s: SimState, a: Agent, stake: number, stops: number, lastT: number, stop: StopLevel, mul = 1): boolean {
-  if (s.t - lastT < M.gap) return false;
+/** 출전 시간 비율 (90분 = 1, 상한 1.5) */
+function minuteShare(s: SimState): [number, number] {
   const mins = s.input.myMinutes ? Math.max(1, s.input.myMinutes.end - s.input.myMinutes.start) : 90;
-  const share = Math.min(1.5, mins / 90);
-  if (stops >= Math.ceil(M.maxStops * share)) return false;
+  return [mins, Math.min(1.5, mins / 90)];
+}
+
+/** 간격·최대 턴 */
+function roomFor(s: SimState, stops: number, lastT: number): boolean {
+  if (s.t - lastT < M.gap) return false;
+  return stops < Math.ceil(M.maxStops * minuteShare(s)[1]);
+}
+
+/**
+ * 이번 순간이 중요한가: 간격·최대 턴, 임계값 × 정지 빈도 배수.
+ * catchUp: 자동 모드 카드 기회(F.5) — C.34 임계값표(autoThreshold)와 최소 턴 따라잡기 (C.36 그대로, 직접 모드 정지는 C.40부터 쓰지 않는다)
+ */
+function wouldStop(s: SimState, a: Agent, stake: number, stops: number, lastT: number, stop: StopLevel, mul = 1, catchUp = false): boolean {
+  if (!roomFor(s, stops, lastT)) return false;
+  const [mins, share] = minuteShare(s);
   const group = posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position);
-  let th = (M.threshold[group] ?? 0.45) * M.stopMul[stop] * mul;
-  // 최소 턴 (중요한 순간만·모든 순간): 출전 시간 대비 진행이 기대 턴보다 1 이상 뒤처지면 임계값을 낮춘다
-  if (stop !== 'critical') {
+  let th = ((catchUp ? M.autoThreshold : M.threshold)[group] ?? 0.45) * M.stopMul[stop] * mul;
+  if (catchUp && stop !== 'critical') {
     const played = Math.max(0, (s.t - a.enteredAt) / 60);
-    const expected = M.minStops * share * Math.min(1, played / mins);
-    if (stops < expected - 1) th *= M.catchUpMul;
+    const expected = M.autoMinStops * share * Math.min(1, played / mins);
+    if (stops < expected - 1) th *= M.autoCatchUpMul;
   }
   return stake >= th;
 }
@@ -188,11 +205,29 @@ function shouldStop(s: SimState, a: Agent, stake: number): boolean {
   return wouldStop(s, a, stake, ms.stops, ms.lastStopT, ms.control.stop);
 }
 
+/** 고를 거리가 있는가 (C.40): 판정 있는 선택지가 1개 이상이고 선택지가 minOptions 개 이상 (1대1의 따라붙기·패스길 막기는 판정 없는 선택지로 센다) */
+function enoughOptions(options: MomentOption[]): boolean {
+  return options.some((o) => o.p !== null) && options.length >= M.minOptions;
+}
+
+/** 지금 쓸 수 있는 장면 카드 (C.40): 플레이 카드가 연 선택지, 또는 장면 전용 확률 카드가 남은 선택지에 붙는다. 패시브·집중 같은 범용 카드는 세지 않는다 */
+function sceneCardNow(cards: Moment['cards']): boolean {
+  return cards.some((mc) => mc.usable && (mc.option !== undefined || (mc.role === 'boost' && (cardById(mc.id)?.scenes.length ?? 0) > 0 && !!mc.deltas?.some((d) => d !== 0))));
+}
+
+/** 남은 선택지에 안전/균형/도박을 성공 확률 순으로 다시 붙인다 (3개 = 안전·균형·도박, 2개 = 안전·도박, 1개 = 균형) */
+function relabel<T extends { o: MomentOption }>(xs: T[]): T[] {
+  const sorted = [...xs].sort((x, y) => (y.o.p ?? 1) - (x.o.p ?? 1));
+  const kinds: OptionKind[] = sorted.length >= 3 ? ['safe', 'balanced', 'gamble'] : sorted.length === 2 ? ['safe', 'gamble'] : ['balanced'];
+  sorted.forEach((x, i) => (x.o.kind = kinds[Math.min(i, kinds.length - 1)]!));
+  return sorted;
+}
+
 /** 자동 모드 카드 기회 (F.5): 덱이 있고 자동 모드일 때, 직접 모드 "중요한 순간만"과 같은 기준 */
 function autoOccasion(s: SimState, a: Agent, stake: number): boolean {
   const cs = s.cards;
   if (!cs || s.moments.control.mode !== 'auto') return false;
-  if (!wouldStop(s, a, stake, cs.occ, cs.lastOccT, 'important', BALANCE.cards.autoStopMul)) return false;
+  if (!wouldStop(s, a, stake, cs.occ, cs.lastOccT, 'important', BALANCE.cards.autoStopMul, true)) return false;
   cs.occ++;
   cs.lastOccT = s.t;
   return true;
@@ -364,16 +399,17 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   if (!shouldStop(s, a, stake)) return false;
   const adj = staminaAdj(s, a);
   const kinds: OptionKind[] = ['safe', 'balanced', 'gamble'];
-  const picks = pickOptions(cands);
-  const options: MomentOption[] = [];
-  const ctx: OptionCtx[] = [];
-  picks.forEach((c, i) => {
-    if (!c) return;
+  // 성공 확률이 maxP 를 넘는 후보는 선택지에서 뺀다 (C.40): 보이는 확률(슛은 골 확률, 그 밖은 체력 보정 뒤) 기준
+  const shownP = (c: Candidate) => (c.type === 'shoot' ? (s.cards ? shotP(s, a, c.p) : c.p) : clamp(c.p + adj, 0.01, 0.99));
+  const picks = pickOptions(cands.filter((c) => shownP(c) <= M.maxP + 1e-9));
+  const made = relabel(picks.flatMap((c, i) => {
+    if (!c) return [];
     const o = optionOf(s, a, c, kinds[i]!, cands.indexOf(c), adj);
     if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
-    options.push(o);
-    ctx.push(optionCtx(s, a, c));
-  });
+    return [{ o, ctx: optionCtx(s, a, c) }];
+  }));
+  const options = made.map((x) => x.o);
+  const ctx = made.map((x) => x.ctx);
   const scene = onballScene(s, a, cands);
   let cards: Moment['cards'] = [];
   let variants: Variant[] = [];
@@ -387,8 +423,16 @@ export function onballMoment(s: SimState, a: Agent): boolean {
       return { ...mc, option: { ...option, baseP: round2(bp) } };
     });
   }
+  if (!enoughOptions(options) && !sceneCardNow(cards)) return false;
   settleMoment(s, true);
-  ms.pending = { ...base(s, a, 'onball', scene, stake), options, cards, cands, variants };
+  const sureC = cands.filter((c) => shownP(c) > M.maxP + 1e-9);
+  const sure = sureC.length > 0;
+  const delegateEv = sure ? Math.max(...sureC.map((c) => {
+    const o = optionOf(s, a, c, 'safe', 0, adj);
+    if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
+    return optionValue(o);
+  })) : undefined;
+  ms.pending = { ...base(s, a, 'onball', scene, stake), options, cards, cands, variants, ...(sure ? { sure, delegateEv } : {}) };
   return true;
 }
 
@@ -487,6 +531,9 @@ export function duelMoment(s: SimState): boolean {
       up: round2(R.tackle * R.scale), down: round2(odds.pFoul * R.foul * R.scale), to: { x: o.x, y: o.y }, target: o.spec.id, ref: 0, value: 0,
     },
   ];
+  // 성공 확률 maxP 초과 태클은 뺀다 (C.40). 따라붙기·패스길 막기는 판정이 없어 그대로 둔다
+  const sure = odds.pWin > M.maxP;
+  if (sure) options.pop();
   let cards: Moment['cards'] = [];
   let dv: DuelVariant[] = [];
   if (s.cards) {
@@ -494,7 +541,7 @@ export function duelMoment(s: SimState): boolean {
     const ctx: OptionCtx[] = [{ tags: ['safe'], box: false }, { tags: ['press'], box: false }, { tags: ['tackle', 'risky'], box: false }];
     const fake: Variant[] = dv.map((v) => ({ hand: v.hand }) as Variant);
     cards = handView(s, a, scene, ctx, fake, true).map((mc) => {
-      if (mc.deltas) mc.deltas = mc.deltas.map((d, k) => (options[k]!.p === null ? 0 : d));
+      if (mc.deltas) mc.deltas = options.map((o, k) => (o.p === null ? 0 : mc.deltas![k] ?? 0));
       if (mc.deltas && mc.role === 'boost' && !mc.deltas.some((d) => d !== 0)) return { ...mc, usable: false, reason: '맞는 선택지가 없어요', deltas: undefined };
       const v = dv.find((x) => x.hand === mc.hand);
       if (!v) return mc;
@@ -504,8 +551,102 @@ export function duelMoment(s: SimState): boolean {
       return { ...mc, option: opt };
     });
   }
+  if (!enoughOptions(options) && !sceneCardNow(cards)) return false;
   settleMoment(s, true);
-  ms.pending = { ...base(s, a, 'duel', scene, stake), options, opponent: o.spec.id, cards, ...(dv.length ? { duelVariants: dv } : {}) } as Moment & { duelVariants?: DuelVariant[] };
+  ms.pending = { ...base(s, a, 'duel', scene, stake), options, opponent: o.spec.id, cards, ...(sure ? { sure } : {}), ...(dv.length ? { duelVariants: dv } : {}) } as Moment & { duelVariants?: DuelVariant[] };
+  return true;
+}
+
+// ── 카드 장면 정지 (C.40): 공중볼·코너·상대 코너/프리킥·상대 슈팅. 직접 모드에서 그 장면 반응 카드가 패에 있을 때만 멈춘다 ──
+
+/** 카드 장면에서 멈출 수 있는가: 직접 모드, 간격·최대 턴 (중요도 임계값은 보지 않는다: 카드가 있으면 그 장면 자체가 쓸 자리) */
+function reactRoom(s: SimState): Agent | null {
+  const ms = s.moments;
+  if (!s.cards || ms.control.mode !== 'direct' || ms.pending || !s.cards.hand.length) return null;
+  const a = s.agents.find((x) => x.spec.isMe && x.onPitch);
+  if (!a || a.line === 0 || !roomFor(s, ms.stops, ms.lastStopT)) return null;
+  return a;
+}
+
+type ReactPending = Moment & { react: { kind: 'air' | 'block'; until: number; shooter?: number } };
+
+/** 반응 카드 선택지: 바탕 확률 + 카드 보정 (상한 bonusCap) */
+function reactMoment(
+  s: SimState, a: Agent, kind: 'air' | 'block', scene: SceneId, list: ReactCard[], baseOpt: MomentOption, stake: number, extra: ReactPending['react'],
+): void {
+  const cs = s.cards!;
+  const view = handView(s, a, scene, [], [], false);
+  const cards: Moment['cards'] = view.map((mc) => {
+    const r = list.find((x) => x.hand === mc.hand);
+    if (!r) return { ...mc, usable: false, reason: mc.reason && mc.reason !== '이 장면에서는 못 써요' ? mc.reason : '이 장면에서는 반응 카드만 써요' };
+    const p = clamp((baseOpt.p ?? 0) + Math.min(BALANCE.cards.bonusCap, r.value), 0.02, 0.98);
+    const option: MomentOption = {
+      ...baseOpt, kind: 'card', label: r.eff?.label ?? r.def.name, p: round2(p), baseP: baseOpt.p ?? undefined,
+      up: round2(baseOpt.up + (r.eff?.ratingSuccess ?? 0)), down: round2(baseOpt.down + (r.eff?.ratingFail ?? 0)), ref: -1,
+    };
+    return { ...mc, usable: true, reason: undefined, deltas: undefined, option };
+  });
+  void cs;
+  settleMoment(s, true);
+  s.moments.pending = { ...base(s, a, 'react', scene, stake), options: [baseOpt], cards, react: extra } as ReactPending;
+}
+
+/**
+ * 공중볼 (크로스·코너·상대 코너/프리킥): 이번 틱에 뜬 공중볼이 박스 안에 떨어지고 내 선수가 착지점 reactAerialRange m 안이며
+ * 그 장면 반응 카드(헤더·세트피스 수비)가 패에 있으면 멈춘다. 공이 뜬 뒤라 엔진 흐름은 그대로이고, 고른 카드는 경합 때 붙는다 (airCardEdge)
+ */
+export function aerialMoment(s: SimState): boolean {
+  const fl = s.ball.flight;
+  if (!fl || fl.outcome !== 'aerial' || fl.t0 !== s.t || fl.passer < 0) return false;
+  const a = reactRoom(s);
+  if (!a) return false;
+  const passer = s.agents[fl.passer]!;
+  const attacking = passer.team === a.team;
+  if (attacking && passer === a) return false;
+  const scenes = airScenes(s, attacking, !!fl.fromCross);
+  if (!scenes.length || !inOppBox(fl.toX, fl.toY, attackDir(passer.team, s.half))) return false;
+  if (dist(a.x, a.y, fl.toX, fl.toY) > M.reactAerialRange) return false;
+  const list = reactiveCards(s, a, scenes, 'header');
+  if (!list.length) return false;
+  // 예상 경합 상대: 착지점에 가장 가까운 상대 필드 선수
+  let opp: Agent | null = null;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    if (!opp || dist(o.x, o.y, fl.toX, fl.toY) < dist(opp.x, opp.y, fl.toX, fl.toY)) opp = o;
+  }
+  const PR = ENGINE.prob;
+  const [att, def] = attacking ? [a, opp] : [opp, a];
+  const pA = att && def ? duelTail(1 / (1 + Math.exp(-((aerialScore(att) - aerialScore(def)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + att.duelEdge - def.duelEdge)))) : 0.5;
+  const p = clamp(attacking ? pA + (a.cardBoost?.air ?? 0) : 1 - pA + (a.cardBoost?.air ?? 0), 0.02, 0.98);
+  const R = ENGINE.rating;
+  const scene = scenes[0] as SceneId;
+  const baseOpt: MomentOption = {
+    kind: 'balanced', action: 'hold', label: attacking ? '카드 없이 헤더 경합' : '카드 없이 걷어내기 경합', p: round2(p),
+    success: attacking ? '공중볼 따냄 (헤더·연결)' : '공중볼 따냄 (걷어냄)', fail: '상대가 따냄', up: round2(R.aerial * R.scale), down: 0,
+    to: { x: fl.toX, y: fl.toY }, ref: 0, value: 0,
+  };
+  const stake = M.stakeK * 0.15 * stakeMul(s, a.team);
+  reactMoment(s, a, 'air', scene, list, baseOpt, stake, { kind: 'air', until: fl.t0 + fl.dur + 1 });
+  return true;
+}
+
+/**
+ * 상대 슈팅 (오픈 플레이): 내가 슈팅 길(콘) 안이고 몸으로 막기 카드가 패에 있으면 슛 직전에 멈춘다.
+ * actions.shoot 가 맨 앞에서 부르고 true 면 슛을 미룬다 → 결정 뒤 같은 틱에 shoot 를 다시 부른다 (난수는 틱 기준이라 결과가 같다)
+ */
+export function oppShotMoment(s: SimState, shooter: Agent): boolean {
+  const a = reactRoom(s);
+  if (!a || a.team === shooter.team || s.cards!.react?.shooter === shooter.idx) return false;
+  if (!inShotCone(s, shooter, a)) return false;
+  const list = reactiveCards(s, a, ['oppShot'], 'block');
+  if (!list.length) return false;
+  const m = shotModel(s, shooter);
+  const R = ENGINE.rating;
+  const baseOpt: MomentOption = {
+    kind: 'balanced', action: 'hold', label: '카드 없이 막기', p: round2(m.pBlock), success: '슛을 몸으로 막음', fail: `슛이 지나감 (상대 골 확률 ${Math.round(m.xg * 100)}%)`,
+    up: round2(R.interception * R.scale), down: 0, to: { x: shooter.x, y: shooter.y }, target: shooter.spec.id, ref: 0, value: 0,
+  };
+  reactMoment(s, a, 'block', 'oppShot', list, baseOpt, M.stakeK * m.xg * stakeMul(s, a.team), { kind: 'block', until: s.t + 0.5, shooter: shooter.idx });
   return true;
 }
 
@@ -735,6 +876,17 @@ export function takeMoment(s: SimState, choice: MomentChoice): {
   };
   ms.log.push(rec);
   ms.open = { rec, t: s.t, base: myDelta(s, a), team: a.team, action: opt ? opt.action : 'delegate' };
+  if (m.type === 'react') {
+    // 카드 장면 (C.40): 맡기기 = 지금 규칙(조건 맞는 첫 장 자동), 카드 없이 = 쓰지 않기, 카드 = 그 카드. 카드는 장면이 오면 엔진 훅이 쓴다
+    const rp = (m as ReactPending).react;
+    if (opt) {
+      const id = useCardOpt || (mc && mc.role !== 'play') ? mc!.id : null;
+      if (id) rec.card = mc!.name;
+      s.cards!.react = { kind: rp.kind, id, until: rp.until, ...(rp.shooter !== undefined ? { shooter: rp.shooter } : {}) };
+    } else s.cards!.react = null;
+    rec.result = 'neutral';
+    return { cand: null, duel: null, mod: null, use: null, action: 'react', down: 0 };
+  }
   if (!opt) return { cand: null, duel: null, mod: null, use: null, action: null, down: 0 };
   // 카드 (C.36): 플레이 카드는 그 선택지일 때만, 확률·패시브·콤보·침착·리셋은 고른 선택지와 함께
   let use: CardUse | null = null;
@@ -805,6 +957,7 @@ function optionValue(o: MomentOption, dp = 0): number {
  * 평점 몫을 위치 가치로 어림한다: 패스·크로스는 도움(assist) 몫, 몰고 가기·돌파·유지는 내 슛 몫의 절반. 판정 없는 행동은 0
  */
 export function bestOption(m: Moment): number {
+  // 선택지 인덱스만 (맡기기와 견주는 것은 bestChoice)
   let bi = 0;
   let bv = -Infinity;
   m.options.forEach((o, i) => {
@@ -823,8 +976,10 @@ export function bestOption(m: Moment): number {
  */
 export function bestChoice(m: Moment, minGain = 0.02): MomentChoice {
   const i0 = bestOption(m);
-  const v0 = m.options.length ? optionValue(m.options[i0]!) : 0;
+  const v0 = m.options.length ? optionValue(m.options[i0]!) : -Infinity;
   let best: { v: number; c: MomentChoice } = { v: v0 + minGain, c: i0 };
+  // 확실한 선택지를 뺀 순간 (C.40): 남은 선택지가 그보다 못하면 맡긴다 (카드를 쓰는 편이 나으면 아래에서 바뀐다)
+  if (m.delegateEv !== undefined && m.delegateEv > v0) best = { v: m.delegateEv + minGain, c: 'delegate' };
   for (const mc of m.cards) {
     if (!mc.usable) continue;
     if (mc.option) {

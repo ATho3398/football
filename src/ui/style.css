@@ -567,3 +567,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .gc-sig__card { width: 84px; flex: none; }
 .mo-hand .po-hand { padding: 18px 0 6px; }
 .mo-hand__info { margin: 0; }
+/* C.40 결정 순간: 선택지 2개만 남은 경우 안내 줄, 카드 장면 머리 */
+.mo-note { margin: 2px 2px 0; }
+.mo-sheet__head--react b { color: #8a4fd8; }
+.mo-opts--n2 .mo-opt { padding: 12px 14px; }

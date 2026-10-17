@@ -88,9 +88,19 @@ export interface CardState {
   occ: number;
   lastOccT: number;
   lastTackleT: number;
+  /**
+   * 카드 장면 정지에서 고른 반응 카드 계획 (C.40): 공중볼(air)·상대 슈팅(block). id = 쓸 카드, null = 쓰지 않기.
+   * until 이 지나거나 그 장면이 오면 지운다. 없으면 지금처럼 조건 맞는 첫 장을 자동으로 쓴다
+   */
+  react: ReactPlan | null;
   uses: CardUse[];
   mastery: Record<string, number>;
 }
+
+export interface ReactPlan { kind: 'air' | 'block'; id: string | null; until: number; shooter?: number }
+
+/** 계획 id: 맡기기 (조건 맞는 첫 장 자동, C.36 규칙) */
+export const AUTO_REACT = '*';
 
 /** 덱이 있으면 카드 상태 (덱 순서는 시드로 섞는다) */
 export function initCards(input: CardInput | undefined, seed: number): CardState | null {
@@ -104,7 +114,7 @@ export function initCards(input: CardInput | undefined, seed: number): CardState
   }
   return {
     pile, hand: [], passives: [], started: false, nextDraw: 0, bonus: 0, drawn: 0, combos: [], mod: null, sp: null, watch: null,
-    occ: 0, lastOccT: -100, lastTackleT: -100, uses: [], mastery: { ...(input?.mastery ?? {}) },
+    occ: 0, lastOccT: -100, lastTackleT: -100, react: null, uses: [], mastery: { ...(input?.mastery ?? {}) },
   };
 }
 
@@ -651,19 +661,64 @@ export function cardReport(s: SimState): CardReport | undefined {
   return { uses: cs.uses.map((u) => ({ ...u })), drawn: cs.drawn, bonus: cs.bonus, hand: [...cs.hand], passives: [...cs.passives] };
 }
 
-// ── 반응 카드 (멈추지 않는 장면: 공중볼·상대 슈팅. 조건이 맞으면 패에서 자동으로 쓴다, C.36 남은 일 참고) ──
+// ── 반응 카드 (공중볼·상대 슈팅·코너). 직접 모드는 카드가 있으면 장면 정지에서 고른다(C.40, moments.ts reactMoment), 그 밖에는 조건 맞는 첫 장을 자동으로 ──
 
-function reactive(s: SimState, a: Agent, scenes: string[], base: AddOption['base'] | 'header'): { hand: number; def: CardDef; value: number; eff: AddOption | null } | null {
+export interface ReactCard { hand: number; def: CardDef; value: number; eff: AddOption | null }
+
+/** 이 장면에 쓸 수 있는 반응 카드 전부 (패 순서) */
+export function reactiveCards(s: SimState, a: Agent, scenes: string[], base: AddOption['base'] | 'header'): ReactCard[] {
   const cs = s.cards!;
+  const out: ReactCard[] = [];
   for (let i = 0; i < cs.hand.length; i++) {
     const def = cardById(cs.hand[i]!)!;
     if (reqProblem(s, a, def) || !def.scenes.some((x) => scenes.includes(x))) continue;
     const eff = def.effects.find((e): e is AddOption => e.type === 'addOption' && e.base === base) ?? null;
-    if (eff) return { hand: i, def, value: (eff.probDelta ?? 0) + judgeShift(a, eff), eff };
+    if (eff) {
+      out.push({ hand: i, def, value: (eff.probDelta ?? 0) + judgeShift(a, eff), eff });
+      continue;
+    }
     const v = boostValue(cs, def, [base as OptionTag]);
-    if (v) return { hand: i, def, value: v, eff: null };
+    if (v) out.push({ hand: i, def, value: v, eff: null });
   }
-  return null;
+  return out;
+}
+
+/** 쓸 반응 카드: 정지에서 고른 계획이 있으면 그 카드(또는 쓰지 않기), 없으면 첫 장 (C.36 자동 규칙) */
+function reactive(s: SimState, a: Agent, scenes: string[], base: AddOption['base'] | 'header', plan: ReactPlan | null): ReactCard | null {
+  const list = reactiveCards(s, a, scenes, base);
+  if (!plan || plan.id === AUTO_REACT) return list[0] ?? null;
+  return plan.id === null ? null : list.find((r) => r.def.id === plan.id) ?? null;
+}
+
+/** 이 장면의 계획을 꺼낸다 (지난 계획은 버린다) */
+function takePlan(cs: CardState, kind: ReactPlan['kind'], t: number, shooter?: number): ReactPlan | null {
+  const p = cs.react;
+  if (!p) return null;
+  if (t > p.until) {
+    cs.react = null;
+    return null;
+  }
+  if (p.kind !== kind || (shooter !== undefined && p.shooter !== shooter)) return null;
+  cs.react = null;
+  return p;
+}
+
+/** 공중볼 장면 (airCardEdge 와 같은 규칙): 공격 = 코너 또는 크로스, 수비 = 상대 코너·프리킥 */
+export function airScenes(s: SimState, attacking: boolean, fromCross: boolean): string[] {
+  const sp = s.t - s.possStartT < 15 ? s.possOrigin : null;
+  return attacking ? (sp === 'corner' ? ['corner', 'aerial'] : fromCross ? ['aerial'] : []) : sp === 'corner' ? ['oppCorner'] : sp === 'freeKick' ? ['oppFreeKick'] : [];
+}
+
+/** 내가 상대 슈팅 길(콘) 안인가 (몸으로 막기) */
+export function inShotCone(s: SimState, shooter: Agent, a: Agent): boolean {
+  const [gx, gy] = oppGoal(attackDir(shooter.team, s.half));
+  const ux = gx - shooter.x;
+  const uy = gy - shooter.y;
+  const len2 = ux * ux + uy * uy || 1;
+  const k = ((a.x - shooter.x) * ux + (a.y - shooter.y) * uy) / len2;
+  if (k <= 0.02 || k >= 0.95) return false;
+  const off = Math.abs((a.x - shooter.x) * uy - (a.y - shooter.y) * ux) / Math.sqrt(len2);
+  return off <= ENGINE.prob.coneWidth;
 }
 
 /** 공중볼 경합에서 내 선수 보정: 패시브(공중 장악) + 반응 카드(다이빙 헤더·세트피스 가담 헤더·세트피스 수비) */
@@ -671,10 +726,9 @@ export function airCardEdge(s: SimState, a: Agent | null, attacking: boolean, fr
   const cs = s.cards;
   if (!cs || !a || !a.spec.isMe) return 0;
   let v = a.cardBoost?.air ?? 0;
-  const sp = s.t - s.possStartT < 15 ? s.possOrigin : null;
-  const scenes = attacking ? (sp === 'corner' ? ['corner', 'aerial'] : fromCross ? ['aerial'] : []) : sp === 'corner' ? ['oppCorner'] : sp === 'freeKick' ? ['oppFreeKick'] : [];
+  const scenes = airScenes(s, attacking, fromCross);
   if (scenes.length) {
-    const r = reactive(s, a, scenes, 'header');
+    const r = reactive(s, a, scenes, 'header', takePlan(cs, 'air', s.t));
     if (r) {
       const use = playCard(s, a, r.hand, scenes[0]!, true);
       v += r.value;
@@ -690,15 +744,8 @@ export function blockCardBonus(s: SimState, shooter: Agent): { me: Agent; value:
   if (!cs) return null;
   const a = me(s);
   if (!a || a.team === shooter.team || a.line === 0) return null;
-  const [gx, gy] = oppGoal(attackDir(shooter.team, s.half));
-  const ux = gx - shooter.x;
-  const uy = gy - shooter.y;
-  const len2 = ux * ux + uy * uy || 1;
-  const k = ((a.x - shooter.x) * ux + (a.y - shooter.y) * uy) / len2;
-  if (k <= 0.02 || k >= 0.95) return null;
-  const off = Math.abs((a.x - shooter.x) * uy - (a.y - shooter.y) * ux) / Math.sqrt(len2);
-  if (off > ENGINE.prob.coneWidth) return null;
-  const r = reactive(s, a, ['oppShot'], 'block');
+  if (!inShotCone(s, shooter, a)) return null;
+  const r = reactive(s, a, ['oppShot'], 'block', takePlan(cs, 'block', s.t, shooter.idx));
   if (!r) return null;
   const use = playCard(s, a, r.hand, 'oppShot', true);
   startWatch(s, a, 'block', { ...emptyMod(r.def.id), rs: r.eff?.ratingSuccess ?? 0, rf: r.eff?.ratingFail ?? 0 }, use);
