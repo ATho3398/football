@@ -313,6 +313,12 @@ function startSecondHalf(s: SimState): void {
   s.halfEnd = 2 * T.halfSeconds + added2;
   for (const a of s.agents) {
     a.runUntil = 0;
+    // C.45: 시계가 전반 추가시간(예 2840초)에서 2700초로 돌아가므로 전반에 잡아 둔 시각들도 비운다.
+    // 그대로 두면 오프더볼 갱신이 전반 끝 시각까지 멈춰 후반 시작 뒤 최대 2분 넘게 제자리에 서 있는 선수가 생긴다
+    a.nextOffball = 0;
+    a.beatenUntil = 0;
+    a.duelNext = 0;
+    a.laneUntil = 0;
     a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover);
   }
   kickoffPositions(s, 1);
