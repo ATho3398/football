@@ -16,6 +16,11 @@ import { isUnlocked } from '../unlocks';
 import { POSITION_NAMES_KO } from '../positions';
 import { ROLE_NAMES_KO } from '../engine/roles';
 import type { MatchControl } from '../game';
+import { previewLineup } from '../myTactics';
+import { DETAILS, LEVEL_NAMES_KO, type Detail } from '../engine/tactics';
+import { proficiencyOf } from '../proficiency';
+import { ROLE_DESC_KO } from '../engine/roles';
+import type { FormationSlotProps } from './components';
 import { myTacticVM, teamTactic, type TacticVM } from './viewModels';
 import { deckUnusable, myRoleId } from './views/deck';
 
@@ -37,14 +42,24 @@ export interface PrepVM {
   opp: PrepTeamVM;
   teams: number;
   tacticsOpen: boolean;
-  me: { pos: string; posKo: string; role: string; ovr: number; mainPos: string; off: boolean };
+  /** 우리 전술 세부 한 줄 (라인·압박·빌드업 등) */
+  tacticLine: string;
+  /** 영상 분석 힌트 (훈련, 있을 때만) */
+  hint: string | null;
+  /** 내 포지션 미니 피치 */
+  slots: FormationSlotProps[];
+  formation: string;
+  me: { pos: string; posKo: string; role: string; roleDesc: string; prof: number; ovr: number; mainPos: string; off: boolean };
   /** 출전: 결장 사유가 있으면 out, 1군 테스트면 보장, 아니면 선발 가능성(%) */
-  start: { out: string | null; trial: boolean; chance: number };
+  start: { out: string | null; trial: { n: number; of: number } | null; chance: number };
   condition: { fatigue: number; form: 1 | 2 | 3 | 4 | 5; formLabel: string; yellows: number; yellowEvery: number; injury: string | null; suspended: number };
   deck: { active: number; sets: { idx: number; count: number; ok: boolean; unusable: number }[]; picks: number };
   control: MatchControl;
   quick: boolean;
 }
+
+/** 전술 세부 짧은 이름 (디자인 156 "라인 높음 · 압박 높음 · 빌드업 혼합") */
+const SHORT_DETAIL: Record<Detail, string> = { lineHeight: '라인', pressing: '압박', style: '빌드업', width: '폭' };
 
 const FORM_STEP = { veryBad: 1, bad: 2, normal: 3, good: 4, veryGood: 5 } as const;
 
@@ -73,6 +88,11 @@ export function prepVM(g: GameState): PrepVM | null {
   const role = myRoleId(g);
   const d = derbyOf(p.teamId, opp.id);
   const out = p.injury ? '부상' : p.suspended > 0 ? '출장 정지' : null;
+  const roster = g.rosters[p.teamId];
+  const t = g.tactics;
+  const lineup = roster ? previewLineup(t, roster, { name: p.name, attrs: p.attributes }) : [];
+  const slots: FormationSlotProps[] = lineup.map((x) => ({ pos: x.pos, x: Math.round(10 + x.y * 80), y: Math.round(8 + x.x * 95), me: x.me, ...(x.me ? { ovr } : {}) }));
+  const tr = g.trial;
   const team = (id: string, rating: number, name: string, tactic?: TacticVM): PrepTeamVM => ({ name, rank: leaguePosition(L, id), rating: Math.round(rating), form: teamForm(L, id), ...(tactic ? { tactic } : {}) });
   const enough = p.recentRatings.length >= BALANCE.form.games;
   const b = formBonus(p.recentRatings);
@@ -85,8 +105,11 @@ export function prepVM(g: GameState): PrepVM | null {
     opp: team(opp.id, opp.rating, opp.nameKo, teamTactic(opp.id)),
     teams: L.teams.length,
     tacticsOpen: isUnlocked(g.guide, 'tactics'),
-    me: { pos, posKo: POSITION_NAMES_KO[pos], role: role ? ROLE_NAMES_KO[role] ?? role : '', ovr, mainPos: p.position, off: pos !== p.position },
-    start: { out, trial: !!g.trial, chance: out ? 0 : Math.round(startProbability(ovr + startBonus(p, p.teamId), my.rating, p.fatigue) * 100) },
+    tacticLine: DETAILS.map((d) => `${SHORT_DETAIL[d]} ${LEVEL_NAMES_KO[d][t.levels[d]]}`).join(' · '),
+    hint: g.training.hints[0] ?? null,
+    slots, formation: myTacticVM(g).formation ?? '',
+    me: { pos, posKo: POSITION_NAMES_KO[pos], role: role ? ROLE_NAMES_KO[role] ?? role : '', roleDesc: role ? ROLE_DESC_KO[role] ?? '' : '', prof: Math.floor(proficiencyOf(p, pos)), ovr, mainPos: p.position, off: pos !== p.position },
+    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round(startProbability(ovr + startBonus(p, p.teamId), my.rating, p.fatigue) * 100) },
     condition: {
       fatigue: Math.round(p.fatigue), form: FORM_STEP[formLevel(p.recentRatings)],
       formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,

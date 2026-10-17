@@ -808,14 +808,45 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .ex-cards { width: 100%; border: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 @media (max-width: 420px) { .ca-edit__card .po-card--full { zoom: .82; } .ca-crop .po-card--full { zoom: .78; } }
 
-/* 경기 준비 (C.51) — 디자인 전, 기존 토큰으로 */
-.prep-team { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px var(--space-2); padding: 8px 0; }
-.prep-team + .prep-team { border-top: 1px solid var(--line); }
-.prep-team__name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.prep-team__name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prep-team__meta { color: var(--ink-muted); text-align: right; }
-.prep-form { grid-column: 1 / -1; display: inline-flex; gap: 4px; }
-.prep-form__m { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-style: normal; font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--ink-muted); }
-.prep-form__m.is-W { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+/* 경기 준비 (C.51) — 6차 디자인 156 R6-PreMatch */
+.prep-body { gap: 12px; padding-bottom: 88px; }
+.prep-card { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 16px; background: var(--surface-1); }
+.prep-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.prep-head > b { font-size: 14px; }
+.prep-link { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 800; color: var(--brand-ink); white-space: nowrap; cursor: pointer; }
+.prep-vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.prep-vs__me, .prep-vs__opp { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 800; }
+.prep-vs__opp { justify-content: flex-end; color: var(--away); }
+.prep-vs b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prep-vs__x { font-size: 12px; font-weight: 700; color: var(--ink-faint); }
+.prep-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.prep-bar b { font-family: var(--font-display); font-size: 13px; color: var(--ink); }
+.prep-bar b.is-away { color: var(--away); }
+.prep-bar small { font-size: 10px; color: var(--ink-faint); }
+.prep-bar__track { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-3); }
+.prep-bar__track i:first-child { background: var(--team-home, var(--brand)); }
+.prep-bar__track i:last-child { flex: 1; background: var(--away); }
+.prep-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.prep-sub { font-size: 11px; color: var(--ink-muted); text-align: right; word-break: keep-all; }
+.prep-sub b { color: var(--ink); }
+.prep-note { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; line-height: 16px; color: var(--ink-faint); word-break: keep-all; }
+.prep-note.is-derby { color: var(--warning); font-weight: 700; }
+.prep-warn { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--warning); }
+.prep-form { display: inline-flex; gap: 3px; }
+.prep-form__m { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; font-style: normal; font-size: 10px; font-weight: 800; background: var(--surface-3); color: var(--ink-muted); }
+.prep-form__m.is-W { background: var(--success-soft, color-mix(in srgb, var(--success) 18%, transparent)); color: var(--success); }
 .prep-form__m.is-L { background: var(--fail-soft); color: var(--fail); }
-.prep-start { margin-top: var(--space-3); }
+.prep-pos { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; }
+.prep-pos__info { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.prep-pos__info > b { font-size: 16px; }
+.prep-pos__info > span { font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all; }
+.prep-stamina { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; }
+.prep-stamina > span:first-child { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.prep-stamina b { font-family: var(--font-display); font-size: 16px; }
+.prep-stamina__track { position: relative; height: 10px; border-radius: 5px; background: var(--surface-3); overflow: hidden; }
+.prep-stamina__track i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--fatigue-low, var(--success)); }
+.prep-stamina__track i.is-mid { background: var(--fatigue-mid, var(--warning)); }
+.prep-stamina__track i.is-low { background: var(--fatigue-high, var(--fail)); }
+.prep-ctl { display: flex; flex-direction: column; gap: 6px; }
+.prep-ctl .prep-head > b { font-size: 13px; }
+.prep-bottom { position: sticky; bottom: 64px; z-index: 15; display: grid; grid-template-columns: 1fr 2fr; gap: 8px; padding: 10px 16px 12px; background: var(--surface-0); border-top: 1px solid var(--line); }

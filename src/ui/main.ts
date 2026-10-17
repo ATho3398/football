@@ -1107,6 +1107,11 @@ app.addEventListener('click', (ev) => {
       }
       ui.tacBack = ui.screen === 'prep' ? 'prep' : 'home';
       ui.tac = { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null, edit: false, moving: null };
+      // 경기 준비 [역할 바꾸기] (C.51): 내 슬롯 역할 시트를 바로 연다
+      if (v === 'role') {
+        ui.tac.sheet = g.tactics.mySlot;
+        ui.tac.sheetPick = g.tactics.roles[g.tactics.mySlot] ?? null;
+      }
       markDone(g.guide, 'tactics');
       autosave();
       go('tactics');

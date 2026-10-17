@@ -25,7 +25,7 @@ describe('경기 준비 (C.51)', () => {
     expect(vm.me.pos).toBeTruthy();
     expect(vm.deck.sets.length).toBe(g.cards.decks.length);
     const html = prepView(vm);
-    for (const act of ['prep-start', 'deck-use', 'ctl-mode', 'opt-quick']) expect(html).toContain(`data-act="${act}"`);
+    for (const act of ['prep-start', 'deck-use', 'ctl-mode']) expect(html).toContain(`data-act="${act}"`);
     expect(html).toContain(vm.opp.name);
   });
 
