@@ -203,3 +203,4 @@
 - 시작 처리: 27a 세션·엔진관리자2에 "보고는 K로" 알림, J 제목 `draft_기획 세션 J`, J 자동 확인 `trig_01SkS3xkRK3wQLynbCoQMkA6` 삭제 → K 자동 확인 `trig_01P2FLfyZx9EkE1QKHctE5jS`(14:10 KST).
 - 27a 상태(12:00 KST): 하루 단위 엔진 전환 완료, balance 비교 중.
 - (12:05 KST, 사용자 지시) 세션 섹션 정리: draft_ 세션 41개를 `플레이어 원_draft` 섹션으로, 실행 중 27a·엔진관리자2를 `플레이어 원` 섹션으로 태그 이동. 앞으로 새 세션·draft_ 처리 때 태그도 같이 바꾼다(automation.md 0번).
+- (12:30 KST) 사용자 플레이 피드백 8건 → pending 39(우선순위·단계 배치), 17.2에 28~31 삽입(이후 번호 +4, 27b = C.43은 31 뒤). 엔진관리자2에 수비 조직 설계 진단 요청(`docs/engine-diagnosis-defense.md`, 브랜치 `claude/engine-diag-defense`, 코드 수정 없음). 27a C.38 완료(main 03dd8bf, SAVE 18) → pending 40, draft_. **28단계 C.39 시작**: `session_01Vwc1S2pigbazANaEMmqt3T` "28단계_체감 패치 A UI·성장 (C.39)", 브랜치 `claude/c39-ui-growth`. 자동 확인 `trig_01JK6kRAmTXYUe79mrA1L7ow`(15:01 KST). 사용자에게 질문 3개(숙련도 해석·평점 목표·결정창 최소 횟수) 추천안으로 진행 중.
