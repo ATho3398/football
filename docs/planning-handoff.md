@@ -306,3 +306,7 @@
 - 단계 지시 공통: claude/ui-3의 5-apply·6-apply·B-apply 해당 행, B 기본·A 안 깨지게, 엔진 동결(지문 f96341ae43d430b1), cards "경기 계산 2초" 테스트는 엔진 점검과 동시 실행 금지, 세이브 이식 번거로우면 막아도 됨(사용자 지시), docs 병합 planning-o·ui-3.
 - **사용자 대기**: 모바일 독 5칸(N 추천, 홈 정확히 가운데) vs 6칸(디자인 154·C.54 추천) — 답 없으면 5칸. 6칸은 DOCK_PHONE에 'world' 한 줄.
 - 사용자 선호 메모: 사용량 절약(다른 프로젝트 병행) — 5시간 한도 경고(allowed_warning) 보이면 다음 단계 열기 전에 묻기. ntfy는 429가 잦아 백그라운드 재시도.
+
+### 8.25 마스터 세션 O (2026-10-18 07:55 KST~, `session_01CN9st4ghf69ihWjimtuKQ7`, 브랜치 `claude/planning-o`)
+- N이 만든 세션 → `lineage` 깊이 4. 브랜치 `claude/planning-o`(N 15b70c4에서 분기).
+- 시작 처리(07:56 KST): C.58·UI_3·엔진관리자2·C.57(CI 결과만)에 "보고는 O, 마스터 브랜치 claude/planning-o" 알림. C.58 진행 확인 send_later `trig_01RZiwyZ4Y1nttCqYV3QKAcY`(10:25 KST). N 제목 `draft_N_축구 커리어 게임 마스터`(태그 그대로). 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음). rate limit allowed.
