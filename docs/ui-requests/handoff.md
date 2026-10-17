@@ -1,6 +1,7 @@
 # UI 세션 인수인계 (`docs/automation.md` 6번)
 
-- 지금 UI 세션: **UI_1** `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`, 섹션 `플레이어 원_UI`, 연 세션 = 마스터 L `session_01EWtWvJrTgC8wWMeELQz664`)
+- **UI_1 종료(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤). 후임 UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F`(브랜치 `claude/ui-2`)** — 6차 누계·카드 그림 추가 묶음 이어받음.
+- 이전 UI 세션: **UI_1** `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`, 섹션 `플레이어 원_UI`, 연 세션 = 마스터 L `session_01EWtWvJrTgC8wWMeELQz664`)
 - **지금 마스터: M** `session_01BTacbWbkVFVE6HVKwxLx3v` (브랜치 `claude/planning-m`, 2026-10-17 20:57 KST L → M 교체). 알림·보고는 M으로.
   - 참고: `docs/planning-pending.md` 58에는 UI_1 ID가 `session_01QuN9pxUgr2T4SN6FKmUmjd`로 적혀 있다. 실제 이 세션 ID는 위 값(`get_session` 확인).
 - 현재 차례: **5 → 디자인 받음, 다음 보고는 6차**
