@@ -2,6 +2,8 @@
 // 피치에는 직전 결정 뒤부터 이 순간까지를 1× 로 보여 주고 마지막 0.5초는 슬로모션으로 멈춘 뒤, 선택지 방향 화살표를 그린다.
 // 패널: 선택지 3개(안전/균형/도박, 성공 확률, 성공/실패 결과, 평점 변화, 오프사이드 위험) → 패 카드 자리(3단계) → [맡기기] [확정].
 // E5 최소(부록 C.35): 모바일은 패널을 바텀시트로, [확정]·[맡기기] 뒤에는 결과 구간 재생 → 결과 띠(outcomeView).
+// 카드(C.36, I.17 3·4번): 패 카드 줄. 확률 카드를 누르면 선택지 확률이 "+8 카드"로 바뀌어 보이고, 플레이 카드를 누르면 4번째 선택지가 카드 색 테두리로 생긴다.
+// 다시 누르면 취소. 쓸 수 없는 카드는 회색에 이유.
 
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
@@ -12,7 +14,10 @@ import { drawFrame, fitCanvas, readPalette } from '../pitch/renderer';
 export interface MomentVM {
   moment: Moment;
   teams: [string, string];
+  /** 고른 선택지 (options 인덱스, 플레이 카드 선택지는 options.length) */
   selected: number | null;
+  /** 고른 패 카드 (hand 인덱스) */
+  card: number | null;
   stop: StopLevel;
   /** 직전 결정 결과 */
   last: DecisionRecord | null;
@@ -20,11 +25,11 @@ export interface MomentVM {
   count: number;
 }
 
-const KIND_KO: Record<MomentOption['kind'], string> = { safe: '안전', balanced: '균형', gamble: '도박' };
+const KIND_KO: Record<MomentOption['kind'], string> = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드' };
 const STOP_ITEMS: { id: StopLevel; label: string }[] = [
   { id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' },
 ];
-export const KIND_COLOR: Record<MomentOption['kind'], string> = { safe: '#2e9e5b', balanced: '#2f6fd6', gamble: '#e07a1f' };
+export const KIND_COLOR: Record<MomentOption['kind'], string> = { safe: '#2e9e5b', balanced: '#2f6fd6', gamble: '#e07a1f', card: '#8a4fd8' };
 const OFFSIDE_KO = { low: '낮음', mid: '중간', high: '높음' } as const;
 
 const signed = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : '±'}${Math.abs(x).toFixed(2)}`;
@@ -35,12 +40,46 @@ export function lastResultText(r: DecisionRecord): string {
   return `${r.minute}' ${SCENE_LABEL[r.scene]} · ${r.label} → ${res} (평점 ${signed(r.delta)})`;
 }
 
-function optionCard(o: MomentOption, i: number, on: boolean): string {
+/** 희귀도 색 (F.6) */
+export const RARITY_COLOR = { common: '#7d8a99', rare: '#2f7fd6', epic: '#9b4fd8', legendary: '#d99a1f' } as const;
+export const RARITY_KO = { common: '일반', rare: '희귀', epic: '에픽', legendary: '전설' } as const;
+const ROLE_KO = { play: '선택지', boost: '확률', passive: '패시브', combo: '콤보', soften: '관리', redraw: '관리' } as const;
+
+/** 지금 화면에 보이는 선택지: 기본 3개 + 고른 플레이 카드가 연 4번째 */
+export function shownOptions(m: Moment, card: number | null): MomentOption[] {
+  const mc = card === null ? null : m.cards.find((c) => c.hand === card);
+  return mc?.option ? [...m.options, mc.option] : m.options;
+}
+
+function optionCard(o: MomentOption, i: number, on: boolean, dp = 0, cardName = ''): string {
   const off = o.offside ? `<span class="mo-off mo-off--${o.offside}">오프사이드 위험 ${OFFSIDE_KO[o.offside]}</span>` : '';
-  return `<button type="button" class="mo-opt${on ? ' is-on' : ''}" data-act="mo-pick" data-v="${i}" style="--k:${KIND_COLOR[o.kind]}">
-    <span class="mo-opt__head"><span class="mo-kind">${KIND_KO[o.kind]}</span><b>${esc(o.label)}</b><span class="mo-p po-num">${pct(o.p)}</span></span>
+  const p = o.p === null ? null : Math.max(0, Math.min(0.99, o.p + dp));
+  // 원인별 변화 (I.17 4번): 확률 카드는 dp, 카드 선택지는 바탕 행동 대비
+  const show = o.kind === 'card' && o.baseP !== undefined && o.p !== null ? Math.round((o.p - o.baseP) * 100) / 100 : dp;
+  const chg = show && o.p !== null ? `<span class="mo-dp ${show > 0 ? 'up' : 'down'} po-num">${show > 0 ? '+' : '−'}${Math.round(Math.abs(show) * 100)} 카드</span>` : '';
+  const tag = o.kind === 'card' && cardName && cardName !== o.label ? `<span class="mo-kind">🃏 ${esc(cardName)}</span>` : `<span class="mo-kind">${o.kind === 'card' ? '🃏 카드' : KIND_KO[o.kind]}</span>`;
+  return `<button type="button" class="mo-opt${on ? ' is-on' : ''}${o.kind === 'card' ? ' mo-opt--card' : ''}" data-act="mo-pick" data-v="${i}" style="--k:${KIND_COLOR[o.kind]}">
+    <span class="mo-opt__head">${tag}<b>${esc(o.label)}</b>${chg}<span class="mo-p po-num">${pct(p)}</span></span>
     <span class="mo-opt__body"><span class="ok">성공 · ${esc(o.success)} <i class="po-num">${signed(o.up)}</i></span><span class="bad">실패 · ${esc(o.fail)} <i class="po-num">${signed(o.down)}</i></span>${off}</span>
   </button>`;
+}
+
+function handCard(c: Moment['cards'][number], on: boolean): string {
+  const dis = !c.usable;
+  return `<button type="button" class="mo-hcard${on ? ' is-on' : ''}${dis ? ' is-off' : ''}" data-act="mo-card" data-v="${c.hand}" ${dis ? 'aria-disabled="true"' : ''}
+    style="--r:${RARITY_COLOR[c.rarity]}" title="${esc(c.text)}">
+    <span class="mo-hcard__top"><span class="mo-hcard__role">${ROLE_KO[c.role]}</span><span class="mo-hcard__rar">${RARITY_KO[c.rarity]}</span></span>
+    <b>${esc(c.name)}</b>
+    <span class="mo-hcard__txt">${esc(dis ? c.reason ?? '' : c.text)}</span>
+  </button>`;
+}
+
+function handRow(vm: MomentVM): string {
+  const m = vm.moment;
+  if (!m.cards.length) return `<div class="mo-cards"><span class="small muted">패 카드</span><span class="mo-card-slot">${m.passives.length ? '' : '패가 비었어요 · 15분마다 1장'}</span></div>`;
+  const pas = m.passives.length ? `<span class="small muted">장착 패시브 · ${m.passives.map(esc).join(', ')}</span>` : '';
+  return `<div class="mo-hand"><div class="kv"><span class="small muted">패 ${m.cards.length}장 · 한 번에 1장</span>${pas}</div>
+    <div class="mo-hand__row">${m.cards.map((c) => handCard(c, vm.card === c.hand)).join('')}</div></div>`;
 }
 
 export function momentView(vm: MomentVM): string {
@@ -60,8 +99,8 @@ export function momentView(vm: MomentVM): string {
       ${last}
       <div class="mo-panel mo-sheet" role="dialog" aria-label="결정 선택">
         <div class="mo-sheet__head"><b>어떻게 할까요?</b><span class="small muted">선택지를 누르면 피치에 방향이 보여요</span></div>
-        <div class="mo-opts">${m.options.map((o, i) => optionCard(o, i, sel === i)).join('')}</div>
-        <div class="mo-cards"><span class="small muted">패 카드</span><span class="mo-card-slot">카드 0~1장 자리 · 3단계에서 열림</span></div>
+        <div class="mo-opts">${optionsHtml(vm)}</div>
+        ${handRow(vm)}
         <div class="btn-row">
           ${Button({ variant: 'secondary', size: 'lg', block: true, act: 'mo-delegate', children: '맡기기' })}
           ${Button({ size: 'lg', block: true, act: 'mo-confirm', disabled: sel === null, children: sel === null ? '선택지를 고르세요' : '확정' })}
@@ -73,6 +112,12 @@ export function momentView(vm: MomentVM): string {
         </div>
       </div>
     </div>`;
+}
+
+function optionsHtml(vm: MomentVM): string {
+  const m = vm.moment;
+  const mc = vm.card === null ? null : m.cards.find((c) => c.hand === vm.card) ?? null;
+  return shownOptions(m, vm.card).map((o, i) => optionCard(o, i, vm.selected === i, i < m.options.length ? mc?.deltas?.[i] ?? 0 : 0, mc?.name ?? '')).join('');
 }
 
 /** 정지 화면 애니메이션: 앞 장면을 1× 로, 마지막 0.5초는 0.5× 로 보여 주고 멈춘 뒤 화살표 */
@@ -87,6 +132,8 @@ export class MomentPitch {
     /** 앞 장면 시작 (흐른 시간) */
     private readonly fromE: number,
     public selected: number | null,
+    /** 화살표로 그릴 선택지 (플레이 카드 선택지 포함, C.36) */
+    public options: MomentOption[] = moment.options,
   ) {}
 
   private frameAt(e: number): ReplayFrame {
@@ -138,7 +185,7 @@ export class MomentPitch {
     if (!me) return;
     const sx = w / 105;
     const sy = h / 68;
-    this.moment.options.forEach((o, i) => {
+    this.options.forEach((o, i) => {
       const on = this.selected === i;
       const faint = this.selected !== null && !on;
       const x0 = me.x * sx;

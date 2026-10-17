@@ -5,6 +5,7 @@ import type { Difficulty } from '../config/balance';
 import type { Formation, FormationSlot } from '../formations';
 import type { Position } from '../types';
 import type { DecisionRecord, MomentControl } from './moments';
+import type { CardInput, CardReport } from './cards';
 
 /** 전술 성향 6종 (E.19 ①) */
 export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
@@ -70,6 +71,8 @@ export interface EngineInput {
   myMinutes?: { start: number; end: number };
   /** 내 선수 결정 순간 (E.11): 직접/자동, 정지 빈도, 정책. 없으면 자동 */
   control?: MomentControl;
+  /** 내 선수 카드 (부록 F, C.36): 덱과 숙련도. 없거나 빈 덱이면 카드 없이 (C.35 와 같은 경기) */
+  cards?: CardInput;
   /** 캘리브레이션/테스트용: 그 분에 해당 팀 미드필더 1명 퇴장 (E.15 퇴장 후 득점 차) */
   forceRed?: { team: 0 | 1; minute: number };
 }
@@ -215,6 +218,10 @@ export interface EngineResult {
   events: MatchEvent[];
   /** 내 결정 기록 (E.11, I.17 10번) */
   decisions: DecisionRecord[];
+  /** 카드 사용 기록 (C.36). 카드가 없는 경기는 없다 */
+  cards?: CardReport;
+  /** 내 선수가 이 경기에서 맡은 역할 id (시그니처 해금, C.36) */
+  myRole?: string;
   /** 실제 경기 시간 (초, 추가시간 포함) */
   duration: number;
   /** 공이 살아 있던 시간 (초) */

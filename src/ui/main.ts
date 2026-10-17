@@ -12,7 +12,10 @@ import { newGame, playRound, retire, roundMatch, startNextSeason, type GameState
 import { MyMatchRun, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { replayPlayers } from '../replay';
-import { MomentPitch, momentView, OutcomePitch, outcomeView, type OutcomeVM } from './views/moment';
+import { deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
+import { canAdd, deckProblems, takePick } from '../cardCollection';
+import { cardById } from '../config/cards';
+import { MomentPitch, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
@@ -47,7 +50,7 @@ import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -76,9 +79,13 @@ const ui = {
   /** 직접 모드로 진행 중인 내 경기 (E.11, E4): 결정 순간마다 멈춘다. 세이브에 담지 않는다 (도중에 나가면 경기 전 상태) */
   live: null as null | {
     run: MyMatchRun; teams: [string, string]; sel: number | null; pitch: MomentPitch | null; prevE: number;
+    /** 고른 패 카드 (C.36) */
+    card: number | null;
     /** 결정 결과 재생 중 (E5 최소, 부록 C.35): 결과 구간 → 결과 띠 → 다음 장면 */
     oc: null | { vm: OutcomeVM; pitch: OutcomePitch; next: Moment | null; timer: number };
   },
+  /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
+  deckSet: null as number | null,
   form: { mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '' },
 };
 
@@ -143,8 +150,10 @@ function screenHtml(): string {
       const pos = g.phase === 'offseason' ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position))) : '';
       const sheet = ui.posSheet && g.phase === 'offseason' ? positionSheet(positionOptionsVM(g), ui.posSheet) : '';
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
-      return homeView(homeVM(g), (list ? checklistPanel(list) : '') + pos) + guideResetLink() + sheet;
+      const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
+      return homeView(homeVM(g), deck + (list ? checklistPanel(list) : '') + pos) + guideResetLink() + sheet;
     }
+    case 'deck': return deckView(deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g)));
     case 'player': return playerView(playerVM(g));
     case 'world': return worldView(worldVM(g), ui.worldTab);
     case 'replay':
@@ -156,7 +165,7 @@ function screenHtml(): string {
       const m = lv?.run.pending;
       if (lv && m) {
         const log = lv.run.sim.state.moments.log;
-        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1 });
+        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1 });
       }
       break;
     }
@@ -254,6 +263,7 @@ function liveShow(g: GameState, m: Moment | null): void {
   lv.pitch?.stop();
   if (m) {
     lv.sel = null;
+    lv.card = null;
     const players = new Map(livePlayers(g).map((p) => [p.id, p]));
     const endE = lv.run.frames.at(-1)!.e;
     // 앞 장면: 직전 결정(결과 재생) 뒤부터 (최대 8초, 처음이거나 오래전이면 4초)
@@ -277,21 +287,25 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   const s = lv.run.sim.state;
   const startIdx = lv.run.frames.length - 1;
   const ev0 = s.events.length;
-  const opt = choice === 'delegate' ? null : m.options[choice] ?? null;
-  lv.run.resolve(choice);
+  const shown = shownOptions(m, lv.card);
+  const opt = choice === 'delegate' ? null : shown[choice] ?? null;
+  // 카드 (C.36): 고른 카드와 함께. 플레이 카드 선택지는 opt 'card'
+  const card = choice !== 'delegate' && lv.card !== null ? m.cards.find((c) => c.hand === lv.card) ?? null : null;
+  const used = card && (card.role !== 'play' || choice === m.options.length) ? card : null;
+  lv.run.resolve(choice === 'delegate' ? 'delegate' : used ? { opt: choice === m.options.length ? 'card' : choice, card: used.hand } : choice);
   const next = lv.run.advance();
   const players = livePlayers(g);
   const o = decisionOutcome({ frames: lv.run.frames, startIdx, events: s.events.slice(ev0), players, type: m.type, action: opt?.action ?? null, side: m.side });
   const rec = s.moments.log.find((r) => r.id === m.id);
   const score: [number, number] = [...m.score];
   if (o.goal !== null) score[o.goal]++;
-  const KO = { safe: '안전', balanced: '균형', gamble: '도박' } as const;
+  const KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드' } as const;
   const band = outcomeBand(o, rec, m.side);
   // 결정 기록도 화면에서 본 결과를 따른다 (띠와 기록이 엇갈리지 않게)
   if (rec) rec.seen = { result: band.tone === 'goal' ? 'success' : band.tone === 'conceded' ? 'fail' : band.tone, flow: band.flow };
   const vm: OutcomeVM = {
     moment: m, teams: lv.teams, score, shown: false, band, kind: opt ? opt.kind : 'delegate',
-    choice: opt ? `${KO[opt.kind]} · ${opt.label}${opt.p !== null ? ` (${Math.round(opt.p * 100)}%)` : ''}` : '맡기기 (엔진 판단)',
+    choice: opt ? `${used ? `🃏 ${used.name} · ` : `${KO[opt.kind]} · `}${opt.label}${opt.p !== null ? ` (${Math.round(Math.min(0.99, opt.p + (used?.deltas?.[choice as number] ?? 0)) * 100)}%)` : ''}` : '맡기기 (엔진 판단)',
   };
   lv.prevE = o.to;
   lv.pitch?.stop();
@@ -324,7 +338,8 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   autosave();
   go(ui.replay ? 'replay' : 'match');
   if (g.phase !== 'season') badgeToast(g);
-  if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 3000);
+  if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 3000);
+  else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 3000);
 }
 
 // ── 동작 ──
@@ -691,6 +706,8 @@ app.addEventListener('click', (ev) => {
     case 'go-tab': {
       if (ui.screen === 'new') readFormInputs();
       const to = (act === 'go-tab' ? v : el.dataset.to) as Screen;
+      if (to === 'deck') ui.deckSet = null;
+      if (ui.screen === 'deck' && to !== 'deck' && g) g.cards.fresh = [];
       if (to === 'allocate' && g) enterAllocate(g, ui.screen === 'season' ? 'season' : g.phase === 'season' ? 'home' : 'season');
       go(to);
       return;
@@ -740,7 +757,7 @@ app.addEventListener('click', (ev) => {
       const rm = roundMatch(g);
       if (g.control.mode === 'direct' && rm.plan.minutes) {
         const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: g.control.stop } }, { teams: rm.teams });
-        ui.live = { run, teams: rm.teams, sel: null, pitch: null, prevE: 0, oc: null };
+        ui.live = { run, teams: rm.teams, sel: null, pitch: null, prevE: 0, oc: null, card: null };
         liveAdvance(g);
         return;
       }
@@ -752,6 +769,62 @@ app.addEventListener('click', (ev) => {
       if (!lv || v === undefined) return;
       lv.sel = lv.sel === Number(v) ? null : Number(v);
       if (lv.pitch) lv.pitch.selected = lv.sel;
+      render();
+      return;
+    }
+    case 'deck-set':
+      if (!g || v === undefined) return;
+      ui.deckSet = Number(v);
+      render();
+      return;
+    case 'deck-use':
+      if (!g || v === undefined || deckProblems(g.cards.decks[Number(v)] ?? []).length) return;
+      g.cards.active = Number(v);
+      autosave();
+      render();
+      return;
+    case 'deck-add':
+    case 'deck-remove': {
+      if (!g || !v) return;
+      const set = ui.deckSet ?? g.cards.active;
+      const deck = g.cards.decks[set]!;
+      if (act === 'deck-add') {
+        if (canAdd(g.cards, deck, v) !== null) return;
+        deck.push(v);
+      } else {
+        const k = deck.lastIndexOf(v);
+        if (k < 0 || deck.length <= BALANCE.cards.deckMin) return;
+        deck.splice(k, 1);
+      }
+      g.cards.fresh = g.cards.fresh.filter((x) => x !== v);
+      autosave();
+      render();
+      return;
+    }
+    case 'pick-take': {
+      if (!g || !v) return;
+      const [pi, oi] = v.split(':').map(Number);
+      const id = takePick(g.cards, pi!, oi!);
+      if (id) showToast({ kind: 'info', title: `카드 획득 · ${cardById(id)?.name ?? id}`, body: '가진 카드에서 덱에 넣을 수 있어요.' });
+      autosave();
+      render();
+      return;
+    }
+    case 'mo-card': {
+      // 패 카드 (I.17 3번): 확률 카드는 선택지 확률이 바뀌어 보이고, 플레이 카드는 4번째 선택지를 연다. 다시 누르면 취소
+      const lv = ui.live;
+      const m = lv?.run.pending;
+      if (!lv || !m || v === undefined) return;
+      const mc = m.cards.find((c) => c.hand === Number(v));
+      if (!mc?.usable) return;
+      const off = lv.card === mc.hand;
+      if (lv.sel !== null && lv.sel >= m.options.length) lv.sel = null;
+      lv.card = off ? null : mc.hand;
+      if (!off && mc.option) lv.sel = m.options.length;
+      if (lv.pitch) {
+        lv.pitch.options = shownOptions(m, lv.card);
+        lv.pitch.selected = lv.sel;
+      }
       render();
       return;
     }

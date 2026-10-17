@@ -461,9 +461,11 @@ export interface MatchResultVM {
   decisions: { minute: string; scene: string; choice: string; label: string; p: string; result: 'success' | 'fail' | 'neutral'; delta: string; flow: string }[];
   /** 결정 기록 줄을 누르면 그 장면 리플레이 (방금 치른 경기의 재생 데이터가 있을 때) */
   decisionReplay: boolean;
+  /** 이 경기에 쓴 카드 (C.36) */
+  cardUses: { text: string; result: 'success' | 'fail' | 'neutral' }[];
 }
 
-const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', delegate: '맡김' } as const;
+const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드', delegate: '맡김' } as const;
 
 export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | null {
   const m = g.lastMatch;
@@ -532,8 +534,9 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,
+    cardUses: (m.cardUses ?? []).map((u) => ({ text: `${u.minute}' ${u.name}${u.auto ? ' (자동)' : ''}`, result: u.result })),
     decisions: (m.decisions ?? []).map((d) => ({
-      minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], label: d.label,
+      minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], label: d.card ? (d.choice === 'card' ? `${d.card} · ${d.label}` : `${d.label} + 🃏 ${d.card}`) : d.label,
       p: d.p === null ? '-' : `${Math.round(d.p * 100)}%`, result: d.seen?.result ?? d.result, flow: d.seen?.flow ?? '',
       delta: `${d.delta > 0 ? '+' : d.delta < 0 ? '−' : '±'}${Math.abs(d.delta).toFixed(2)}`,
     })),

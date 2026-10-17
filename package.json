@@ -16,7 +16,8 @@
     "balance:sweep": "vite-node scripts/balance-sweep.ts --",
     "balance:quick": "vite-node scripts/balance-quick.ts --",
     "balance:scoring": "vite-node scripts/balance-scoring.ts --",
-    "balance:moments": "vite-node scripts/balance-moments.ts --"
+    "balance:moments": "vite-node scripts/balance-moments.ts --",
+    "balance:cards": "vite-node scripts/balance-cards.ts --"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

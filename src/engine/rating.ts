@@ -34,6 +34,8 @@ export interface RatingParts {
   cleanSheet: number;
   /** 1 승 / 0 무 / −1 패 */
   result: number;
+  /** 카드 성공/실패 평점 (C.36, 행동 델타 단위). 카드가 없으면 0 */
+  card?: number;
 }
 
 export function ratingParts(s: SimState, a: Agent, duration: number): RatingParts {
@@ -66,6 +68,7 @@ export function ratingParts(s: SimState, a: Agent, duration: number): RatingPart
     saves: a.line === 0 ? s.teams[a.team].stats.saves * (a.leftAt !== null ? 0.5 : 1) : 0,
     cleanSheet: a.line <= 1 && ga === 0 && minutes >= R.cleanSheetMinMinutes ? 1 : 0,
     result: gf > ga ? 1 : gf < ga ? -1 : 0,
+    ...(rt.card ? { card: rt.card } : {}),
   };
 }
 
@@ -81,6 +84,7 @@ export function ratingDelta(p: RatingParts, R: RatingConfig = ENGINE.rating): nu
   d += p.fouls * R.foul + p.offsides * R.offside + p.yellows * R.yellow + p.red * R.red;
   d += p.conceded * R.conceded + p.saves * R.save + p.cleanSheet * R.cleanSheet;
   d += p.result > 0 ? R.win : p.result < 0 ? R.loss : R.draw;
+  if (p.card) d += p.card;
   return d;
 }
 

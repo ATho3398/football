@@ -11,7 +11,9 @@ import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
-import { duelMoment, initMoments, onballMoment, settleMoment, takeMoment, type Moment } from './moments';
+import { autoCardDecide, duelMoment, initMoments, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
+import { cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
+import type { Candidate } from './onball';
 import { initPhysics, moveAgent } from './physics';
 import { aiAdjust } from './tactics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
@@ -63,8 +65,8 @@ export interface MatchSim {
   readonly state: SimState;
   /** 직접 모드: 다음 결정 순간까지 (없으면 끝까지) */
   runUntilDecision(): Decision | Done;
-  /** 결정 순간 확정: 선택지 인덱스 또는 맡기기 (E.11) */
-  resolve(choice: number | 'delegate'): void;
+  /** 결정 순간 확정: 선택지 인덱스, 맡기기, 또는 카드와 함께 (E.11, C.36) */
+  resolve(choice: MomentChoice): void;
   runToEnd(): EngineResult;
   /** 렌더용 위치 샘플 (현재 상태) */
   frame(): Frame;
@@ -120,7 +122,7 @@ export function createState(input: EngineInput): SimState {
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
-    moments: initMoments(input.control), forcedDuel: null,
+    moments: initMoments(input.control), forcedDuel: null, cards: initCards(input.cards, input.seed),
   };
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
@@ -150,16 +152,38 @@ function executeRestart(s: SimState): void {
   }
 }
 
+/** 재개 실행. 내 선수가 PK·직접 프리킥 키커이고 그 장면 카드가 있으면 (C.36) 직접 모드는 멈추고(true), 자동은 카드 보정을 붙여 실행 */
+function runRestart(s: SimState): boolean {
+  if (s.cards && setPieceMoment(s)) return true;
+  executeSetPiece(s);
+  return false;
+}
+
+/** 재개 실행 + 키커 카드 보정 (s.cards.sp: 그 재개에만) */
+function executeSetPiece(s: SimState): void {
+  const cs = s.cards;
+  if (!cs?.sp) return executeRestart(s);
+  cs.mod = cs.sp;
+  executeRestart(s);
+  cs.mod = null;
+  cs.sp = null;
+  checkWatch(s);
+}
+
 /**
  * 재개 시각이 됐다 (C.24): 키커가 공 takerReach m 안이면 실행. 아니면 repick 초마다 미루며 가장 가까운 선수로 다시 고르고,
- * lateMax 초가 지나도 멀면 (나올 수 없지만 방어적으로) 공을 키커 자리로 옮겨 실행한다 (스로인은 라인 위)
+ * lateMax 초가 지나도 멀면 (나올 수 없지만 방어적으로) 공을 키커 자리로 옮겨 실행한다 (스로인은 라인 위).
+ * 세트피스 결정 순간에 멈췄으면 true
  */
-function restartDue(s: SimState): void {
+function restartDue(s: SimState): boolean {
   const r = s.restart!;
   const R = ENGINE.restart;
   let taker = s.agents[r.taker];
-  if (!taker || !taker.onPitch) return executeRestart(s);
-  if (dist(taker.x, taker.y, r.x, r.y) < R.takerReach) return executeRestart(s);
+  if (!taker || !taker.onPitch) {
+    executeRestart(s);
+    return false;
+  }
+  if (dist(taker.x, taker.y, r.x, r.y) < R.takerReach) return runRestart(s);
   r.at0 ??= r.at;
   if (s.t >= r.at0 + R.lateMax) {
     if (r.type !== 'kickoff' && r.type !== 'penalty') {
@@ -168,7 +192,7 @@ function restartDue(s: SimState): void {
     }
     s.ball.x = r.x;
     s.ball.y = r.y;
-    return executeRestart(s);
+    return runRestart(s);
   }
   r.at = s.t + R.repick;
   if (r.type !== 'kickoff' && r.type !== 'penalty') {
@@ -179,14 +203,37 @@ function restartDue(s: SimState): void {
   taker.tx = r.x;
   taker.ty = r.y;
   taker.urgent = true;
+  return false;
 }
 
-/** 소유자 결정 */
+/** 소유자 결정. 내 선수이고 덱이 있으면 (C.36) 패시브를 얹고, 자동 모드 카드 기회면 F.5 규칙으로 카드를 쓴다 */
 function decide(s: SimState, a: Agent): void {
-  const c = choose(s, a, candidates(s, a));
+  const cands = candidates(s, a);
+  if (s.cards && a.spec.isMe) {
+    prepCands(s, a, cands);
+    const r = autoCardDecide(s, a, cands);
+    if (r) return runMine(s, a, r.cand, r.mod, r.use, true);
+    return runMine(s, a, choose(s, a, cands), null, null, false);
+  }
+  const c = choose(s, a, cands);
   if (c.type !== 'holdup') a.backToGoal = false;
   execute(s, a, c);
 }
+
+/** 내 선수 행동 실행 (카드 보정은 이 실행에만), 결정 순간·카드 기회면 결과 판정 시작 */
+function runMine(s: SimState, a: Agent, c: Candidate, mod: ActionMod | null, use: CardUse | null, watch: boolean, down = 0): void {
+  const cs = s.cards!;
+  // 쓴 콤보는 이 행동에서 지운다 (슛은 실행 훅에서)
+  if (cs.combos.length && c.type !== 'shoot') consumeCombos(s, a, tagsOf(s, a, c));
+  if (watch) startWatch(s, a, c.type, mod, use, down);
+  cs.mod = mod;
+  if (c.type !== 'holdup') a.backToGoal = false;
+  execute(s, a, c);
+  cs.mod = null;
+  if (watch) checkWatch(s);
+}
+
+
 
 function updateLooseBall(s: SimState): void {
   const b = s.ball;
@@ -274,6 +321,7 @@ function startSecondHalf(s: SimState): void {
 function finish(s: SimState): void {
   s.done = true;
   settleMoment(s, true);
+  if (s.cards) cardsFinish(s);
   for (const a of s.agents) a.leftAt ??= s.elapsed;
   event(s, 'fulltime', 0, []);
 }
@@ -293,8 +341,13 @@ export function step(s: SimState): void {
   myMinutes(s);
   aiAdjust(s);
 
-  if (s.restart && s.t >= s.restart.at) restartDue(s);
+  if (s.restart && s.t >= s.restart.at && restartDue(s) && pauseOrDecide(s)) return;
+  stepBody(s);
+}
 
+/** 오프더볼, 소유자 결정, 수비 태클, 이동·공·시계 (세트피스 결정 순간 뒤에는 여기서 이어 간다) */
+function stepBody(s: SimState): void {
+  const dt = T.dt;
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
   // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격)
   const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
@@ -333,26 +386,41 @@ function pauseOrDecide(s: SimState): boolean {
   return false;
 }
 
-function applyChoice(s: SimState, choice: number | 'delegate'): void {
+function applyChoice(s: SimState, choice: MomentChoice): void {
   const m = s.moments.pending!;
-  const { cand, duel } = takeMoment(s, choice);
+  const r = takeMoment(s, choice);
+  const me = s.agents.find((x) => x.spec.isMe)!;
+  if (m.type === 'setPiece') {
+    // 세트피스 (C.36): 고른 카드 보정을 그 재개 실행에 붙인다. 맡기기면 엔진 그대로
+    if (s.cards && r.action) {
+      startWatch(s, me, r.action, r.mod, r.use);
+      s.cards.sp = r.mod;
+    }
+    executeSetPiece(s);
+    return;
+  }
   if (m.type === 'onball') {
     const o = s.agents[s.ball.owner]!;
-    if (cand) {
-      if (cand.type !== 'holdup') o.backToGoal = false;
-      execute(s, o, cand);
+    if (r.cand && s.cards) runMine(s, o, r.cand, r.mod, r.use, true, r.down);
+    else if (r.cand) {
+      if (r.cand.type !== 'holdup') o.backToGoal = false;
+      execute(s, o, r.cand);
     } else decide(s, o);
   } else {
-    if (duel !== null) s.forcedDuel = { idx: s.agents.find((x) => x.spec.isMe)!.idx, pick: duel };
+    if (r.duel !== null) s.forcedDuel = { idx: me.idx, ...r.duel };
+    if (s.cards && r.action) startWatch(s, me, r.action, r.mod, r.use, r.down);
     defendDuels(s);
+    if (s.cards) checkWatch(s);
   }
 }
 
-/** 멈춘 틱 이어서: 결정 실행 후 이동·공·시계 */
-function resume(s: SimState, choice: number | 'delegate'): void {
+/** 멈춘 틱 이어서: 결정 실행 후 이동·공·시계 (세트피스면 재개 실행 뒤 그 틱의 나머지 전부) */
+function resume(s: SimState, choice: MomentChoice): void {
   if (!s.moments.pending) return;
+  const sp = s.moments.pending.type === 'setPiece';
   applyChoice(s, choice);
-  stepTail(s);
+  if (sp) stepBody(s);
+  else stepTail(s);
 }
 
 function stepTail(s: SimState): void {
@@ -406,6 +474,8 @@ function stepTail(s: SimState): void {
     for (const a of [...s.agents, ...s.bench[0], ...s.bench[1]]) a.stats.distance75 = a.stats.distance;
   }
 
+  if (s.cards) cardsTick(s);
+
   s.t += dt;
   s.elapsed += dt;
   s.tick++;
@@ -446,10 +516,16 @@ export function buildResult(s: SimState): EngineResult {
     myStats: players.find((p) => p.id === myId) ?? null,
     events: s.events,
     decisions: s.moments.log,
+    ...(s.cards ? { cards: cardReport(s) } : {}),
+    ...(myRole(s) ? { myRole: myRole(s) } : {}),
     duration,
     elapsed75: s.elapsed75,
     liveSeconds: (s.teams[0].stats.possessionTicks + s.teams[1].stats.possessionTicks) * T.dt,
   };
+}
+
+function myRole(s: SimState): string | undefined {
+  return [...s.agents, ...s.bench[0], ...s.bench[1]].find((a) => a.spec.isMe)?.role.id;
 }
 
 export function createMatch(input: EngineInput): MatchSim {

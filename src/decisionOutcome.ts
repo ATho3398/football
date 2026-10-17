@@ -47,7 +47,7 @@ export interface OutcomeInput {
   events: MatchEvent[];
   players: ReplayPlayer[];
   /** 결정 순간 종류와 고른 행동 (맡기기면 null) */
-  type: 'onball' | 'duel';
+  type: 'onball' | 'duel' | 'setPiece';
   action: string | null;
   /** 내 팀 */
   side: 0 | 1;
@@ -70,7 +70,8 @@ export function decisionOutcome(inp: OutcomeInput): DecisionOutcome {
   let end: OutcomeEnd = 'timeout';
   let endE = Math.min(frames.at(-1)!.e, from + OUTCOME.maxSpan);
   // 첫 행동 결과를 아직 적지 않았다 (패스·돌파는 다음 소유자나 결과로 판정)
-  let firstOpen = type === 'onball' && action !== null && action !== 'shoot';
+  const onball = type !== 'duel';
+  let firstOpen = onball && action !== null && action !== 'shoot' && type === 'onball';
   let ok: boolean | null = null;
   const first = (good: boolean, okText: string, badText: string) => {
     if (!firstOpen) return;
@@ -81,7 +82,7 @@ export function decisionOutcome(inp: OutcomeInput): DecisionOutcome {
   /** 내 슈팅 결정(직접 슈팅이나 맡겨서 내가 찬 슈팅)이 골이 안 되면 실패 */
   let myShot = false;
   const shotFail = () => {
-    if (type === 'onball' && (action === 'shoot' || (action === null && myShot))) ok = false;
+    if (onball && (action === 'shoot' || (action === null && myShot))) ok = false;
   };
   const shooter = (id: string | undefined, ours: boolean) => {
     if (id === me) myShot = true;
@@ -163,7 +164,7 @@ export function decisionOutcome(inp: OutcomeInput): DecisionOutcome {
           steps.push('어드밴티지');
           break;
         case 'offside':
-          if (firstOpen || type === 'onball') ok = false;
+          if (firstOpen || onball) ok = false;
           firstOpen = false;
           steps.push(x.players[0] === me ? '내 오프사이드' : `${actKo} → 오프사이드`);
           finish(f.e, 'dead');
