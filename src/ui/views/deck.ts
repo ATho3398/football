@@ -155,10 +155,10 @@ function cardSheet(s: CardSheetVM, count: number): string {
   });
 }
 
-export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null): string {
+export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null, back: 'home' | 'prep' = 'home'): string {
   const C = BALANCE.cards;
   const hero = HeroPanel({
-    title: '카드 덱', back: { act: 'go', data: { to: 'home' } }, eyebrow: `덱 ${vm.set + 1}${vm.set === vm.active ? ' · 경기에 쓰는 덱' : ''}`,
+    title: '카드 덱', back: { act: 'go', data: { to: back } }, eyebrow: `덱 ${vm.set + 1}${vm.set === vm.active ? ' · 경기에 쓰는 덱' : ''}`,
     value: vm.count, total: C.deckMax, progress: false,
     chips: [`${C.deckMin}~${C.deckMax}장`, `같은 카드 ${C.maxCopies}장`, `세트피스 ${C.maxSetPiece}장`, ...(vm.unusable ? [{ label: `못 쓰는 카드 ${vm.unusable}장`, soft: true }] : [])],
   });

@@ -47,11 +47,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
           <div class="divider"></div>
           <div class="kv"><span>상대 전술</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}</div>
         </div>
-        <div class="sub-panel ctl-panel">
-          <div class="kv"><span>내 선수 결정</span><span class="muted small">${n.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
-          ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: n.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
-          ${n.control.mode === 'direct' ? Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: n.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' }) : ''}
-        </div>`)}`;
+        <p class="small muted">플레이 방식(직접·자동)·덱·내 자리는 [경기 시작] 뒤 경기 준비에서 정해요.</p>`)}`;
   } else if (vm.phase === 'offseason') {
     next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 체력이 회복돼요.</p>
       ${vm.camp ? `<p class="small"><b>${esc(vm.camp)} 소집</b> · 개막 7일 전부터 훈련 계획과 첫 경기를 준비해요. 시즌 요약에서 [새 시즌 시작]을 누르면 소집일로 넘어가요.</p>` : ''}

@@ -807,3 +807,15 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .ca-crop__mini .po-card--mini { width: 96px; }
 .ex-cards { width: 100%; border: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
 @media (max-width: 420px) { .ca-edit__card .po-card--full { zoom: .82; } .ca-crop .po-card--full { zoom: .78; } }
+
+/* 경기 준비 (C.51) — 디자인 전, 기존 토큰으로 */
+.prep-team { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px var(--space-2); padding: 8px 0; }
+.prep-team + .prep-team { border-top: 1px solid var(--line); }
+.prep-team__name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.prep-team__name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prep-team__meta { color: var(--ink-muted); text-align: right; }
+.prep-form { grid-column: 1 / -1; display: inline-flex; gap: 4px; }
+.prep-form__m { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-style: normal; font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--ink-muted); }
+.prep-form__m.is-W { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+.prep-form__m.is-L { background: var(--fail-soft); color: var(--fail); }
+.prep-start { margin-top: var(--space-3); }

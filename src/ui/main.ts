@@ -55,6 +55,8 @@ import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from 
 import { autoLayerHtml, autoSheet } from './views/progress';
 import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { adviceCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { prepView } from './views/prep';
+import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView } from './views/player';
@@ -82,7 +84,7 @@ import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -119,6 +121,8 @@ const ui = {
   rewatch: false as false | 'player' | 'match',
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
   tac: null as TacticsDraftUI | null,
+  /** 전술 화면에서 돌아갈 곳 (C.51: 경기 준비에서 열면 경기 준비로) */
+  tacBack: 'home' as Screen,
   /** 직접 모드로 진행 중인 내 경기 (E.11, E4): 결정 순간마다 멈춘다. 세이브에 담지 않는다 (도중에 나가면 경기 전 상태) */
   live: null as null | {
     run: MyMatchRun; teams: [string, string]; sel: number | null; pitch: MomentPitch | null; prevE: number;
@@ -152,6 +156,8 @@ const ui = {
   tagsAll: false,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
+  /** 덱 화면에서 돌아갈 곳 (C.51) */
+  deckBack: 'home' as 'home' | 'prep',
   form: {
     mode: 'prospect' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
     /** 레전드 팩 (C.47) */
@@ -332,7 +338,7 @@ function screenHtml(): string {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
       const cs = ui.cardSheet;
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
-      return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
+      return deckView(vm, cs && c ? { from: cs.from, card: c } : null, ui.deckBack);
     }
     case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·태그', action: '키·약발·태그' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? teamById(g.league, g.player.youth.club).nameKo : '', ui.tagsAll)}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) + tagNewsSection((g.tagNews ?? []).slice(-20).reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag }))) : '');
@@ -368,6 +374,11 @@ function screenHtml(): string {
     case 'tactics':
       if (ui.tac) return tacticsView(tacticsVM(g, ui.tac));
       break;
+    case 'prep': {
+      const vm = prepVM(g);
+      if (vm && isMatchDay(g)) return prepView(vm);
+      return homeView(homeVM(g));
+    }
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
@@ -718,13 +729,39 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
   }
 }
 
-/** [경기 시작]: 경기 날이 아니면 [계속]으로 경기 날까지 (C.38). 그날 다른 경기가 남았으면 먼저 계산하고 바로 내 경기로 */
-async function startPlay(g: GameState): Promise<void> {
+/**
+ * [경기 시작]·독 [경기]·결과 [다음 경기] (C.51): 바로 시작하지 않고 경기 준비를 띄운다.
+ * 경기 날이 아니면 [계속]으로 경기 날까지 간 뒤 경기 준비로 (C.38). 그날 다른 경기는 먼저 계산해 둔다(내 경기보다 먼저 — 순서는 이전과 같다)
+ */
+async function openPrep(g: GameState): Promise<void> {
   if (marketPending(g)) return pendingStop(g);
   if (!isMatchDay(g)) {
     await advanceDays(g, 'continue');
-    return;
+    if (g.phase !== 'season' || marketPending(g) || !isMatchDay(g)) return;
   }
+  await othersFirst(g);
+  ui.moreSheet = false;
+  go('prep');
+}
+
+/** 그날 다른 경기가 남았으면 먼저 계산 */
+async function othersFirst(g: GameState): Promise<void> {
+  if (!todaysOthers(g).length) return;
+  ui.busy = true;
+  ui.toast = { kind: 'info', title: '오늘 다른 경기 계산 중', body: dateLabel(g.calendar.date) };
+  render();
+  try {
+    await runOthersToday(g);
+  } finally {
+    ui.busy = false;
+    ui.toast = null;
+  }
+}
+
+/** 경기 준비 [경기 시작]: 내 경기를 시작한다 */
+async function startPlay(g: GameState): Promise<void> {
+  if (marketPending(g)) return pendingStop(g);
+  if (!isMatchDay(g)) return openPrep(g);
   if (todaysOthers(g).length) {
     ui.busy = true;
     ui.toast = { kind: 'info', title: '오늘 다른 경기 계산 중', body: dateLabel(g.calendar.date) };
@@ -1068,6 +1105,7 @@ app.addEventListener('click', (ev) => {
         showToast({ kind: 'info', title: '전술은 아직 잠겨 있어요', body: '3경기를 치르면 열려요.' }, 1800);
         return;
       }
+      ui.tacBack = ui.screen === 'prep' ? 'prep' : 'home';
       ui.tac = { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null, edit: false, moving: null };
       markDone(g.guide, 'tactics');
       autosave();
@@ -1079,11 +1117,11 @@ app.addEventListener('click', (ev) => {
         return;
       }
       ui.tac = null;
-      go('home');
+      go(ui.tacBack);
       return;
     case 'tac-leave':
       ui.tac = null;
-      go('home');
+      go(ui.tacBack);
       return;
     case 'tac-detail':
       if (!g) return;
@@ -1223,6 +1261,7 @@ app.addEventListener('click', (ev) => {
       if (ui.screen === 'new') readFormInputs();
       const to = (act === 'go-tab' ? v : el.dataset.to) as Screen;
       if (to === 'deck') {
+        ui.deckBack = ui.screen === 'prep' ? 'prep' : 'home';
         ui.deckSet = null;
         ui.cardSheet = null;
       }
@@ -1680,6 +1719,11 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'play': {
+      if (!g || g.phase !== 'season' || ui.busy) return;
+      void openPrep(g);
+      return;
+    }
+    case 'prep-start': {
       if (!g || g.phase !== 'season' || ui.busy) return;
       void startPlay(g);
       return;
