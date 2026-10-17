@@ -3,7 +3,7 @@
 
 import { FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './attributes';
 import { BALANCE } from './config/balance';
-import { traitPoints, type TraitId } from './traits';
+import { tagPoints, type TagId, type TagPick } from './tags';
 import { attributeOvrWeight, positionOvrExact, type FieldPosition } from './positions';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -50,17 +50,17 @@ export function agePoints(age: number): number {
   return d * (d >= 0 ? C.pointsPerYear : C.pointsPerYearYounger);
 }
 
-/** 커스텀에서 고를 수 없는 장단점 (약발은 약발 선택 포인트로 직접 고른다) */
-export const CUSTOM_HIDDEN_TRAITS: readonly TraitId[] = ['twoFooted', 'weakFootOne'];
+/** 커스텀에서 고를 수 없는 태그 (약발은 약발 선택 포인트로 직접 고른다) */
+export const CUSTOM_HIDDEN_TAGS: readonly TagId[] = ['twoFooted', 'weakFootOne'];
 
 /** 약발 선택 포인트 (3 기준) */
 export function weakFootPoints(weakFoot: number): number {
   return BALANCE.custom.weakFootPoints[Math.min(5, Math.max(1, Math.round(weakFoot))) - 1]!;
 }
 
-/** 쓸 수 있는 배분 포인트 = 기본 + 나이 + 장단점 + 약발 */
-export function customBudget(age: number, traits: readonly TraitId[], weakFoot = 3): number {
-  return BALANCE.custom.points + agePoints(age) + traits.reduce((t, id) => t + traitPoints(id), 0) + weakFootPoints(weakFoot);
+/** 쓸 수 있는 배분 포인트 = 기본 + 나이 + 태그(장점 −, 단점 +, 영구/해제형) + 약발 */
+export function customBudget(age: number, tags: readonly TagPick[], weakFoot = 3): number {
+  return BALANCE.custom.points + agePoints(age) + tags.reduce((t, x) => t + tagPoints(x.id, x.perm), 0) + weakFootPoints(weakFoot);
 }
 
 /**

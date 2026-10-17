@@ -113,7 +113,7 @@ describe('훈련 (25.3, 부록 C.41)', () => {
 
   it('A매치 휴식기는 휴가: 훈련 없음, XP 0, 피로 하루 −6', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'vacation', difficulty: 'normal' });
-    g.player.traits = []; // 장단점(회복력 등, C.45)이 회복량을 바꾸지 않게
+    g.player.tags = []; // 장단점(회복력 등, C.45)이 회복량을 바꾸지 않게
     const cal = calendarOf(g);
     const brk = cal.breaks.find((b) => b.kind === 'international')!;
     const vac: string[] = [];
@@ -165,7 +165,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     raw.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: 2018, untilRound: 4 };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(24);
+    expect(SAVE_FORMAT_VERSION).toBe(25);
     expect(back.training.focus).toBe('auto');
     expect(back.archive).toEqual([]);
     expect(back.player.advice).toMatchObject({ untilDays: BALANCE.aptitude.advice.windowDays });
@@ -183,7 +183,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     delete raw.archive;
     delete raw.player.profLog;
     const back = migrate(raw);
-    expect(back.saveFormat).toBe(24);
+    expect(back.saveFormat).toBe(25);
     expect(back.player.profLog).toBeDefined();
     expect(back.training).toBeDefined();
   });
@@ -205,7 +205,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     expect(ls.size).toBe(0);
     expect(listSaves()[2]?.name).toBe('old');
     const loadedOld = await loadGame('2');
-    expect(loadedOld?.saveFormat).toBe(24);
+    expect(loadedOld?.saveFormat).toBe(25);
     expect(await saveGame('1', g)).toBe(true);
     const meta = listSaves()[1]!;
     expect(meta.size).toBeLessThan(serialize(g).length / 3);

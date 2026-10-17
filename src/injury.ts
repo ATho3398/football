@@ -1,6 +1,6 @@
 // 부상 (7.3, 부록 D.2): 출전 경기마다 판정, 등급 추첨, 영구 하락
 
-import { injuryMul } from './traits';
+import { injuryMul, type Tagged } from './tags';
 import { BALANCE, type Difficulty } from './config/balance';
 import { PHYSICAL, randInt, type AttributeDelta } from './growth';
 import type { Rng } from './rng';
@@ -12,7 +12,7 @@ export const INJURY_NAMES_KO: Record<InjuryGrade, string> = {
 
 /** 이번 경기에서 다칠 확률. fatigue 는 경기 시작 때 피로 */
 export function injuryChance(
-  p: Pick<PlayerState, 'attributes' | 'age' | 'fatigue'> & { traits?: readonly string[] }, minutes: number, difficulty: Difficulty,
+  p: Pick<PlayerState, 'attributes' | 'age' | 'fatigue'> & Tagged, minutes: number, difficulty: Difficulty,
 ): number {
   const I = BALANCE.injury;
   if (minutes <= 0) return 0;

@@ -5,13 +5,13 @@ import { ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAt
 import { bmiOf, FOOT_KO, type MainFoot, type WeakFoot } from '../body';
 import { BALANCE } from '../config/balance';
 import {
-  agePoints, baseAttributes, CUSTOM_HIDDEN_TRAITS, customBudget, customCap, customRaise, spentPoints, stepCost, weakFootPoints,
+  agePoints, baseAttributes, CUSTOM_HIDDEN_TAGS, customBudget, customCap, customRaise, spentPoints, stepCost, weakFootPoints,
 } from '../custom';
 import type { CustomSpec } from '../game';
 import { initialTeams } from '../league';
 import type { StartChoice, StartKind } from '../startClub';
 import { allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, profileOf, type FieldPosition, type PlayablePosition } from '../positions';
-import { canAddTrait, TRAIT_IDS, TRAITS, traitPoints, type TraitId } from '../traits';
+import { canAddTag, canRemovable, CREATE_TAGS, TAGS, tagPoints, type TagId, type TagPick } from '../tags';
 import { attrGroupsVM } from './viewModels';
 import type { AttrGroupVM } from './views/attrGrid';
 
@@ -36,7 +36,7 @@ export interface CustomForm {
   weight: number;
   foot: MainFoot;
   weakFoot: WeakFoot;
-  traits: TraitId[];
+  tags: TagPick[];
   nationality: string;
   appearance: Appearance;
   /** '' = 자동(분포 추첨) */
@@ -51,7 +51,7 @@ export interface CustomForm {
 
 export function initialCustomForm(): CustomForm {
   return {
-    age: BALANCE.custom.refAge, position: 'ST', attrs: baseAttributes(), height: 180, weight: 75, foot: 'right', weakFoot: 3, traits: [],
+    age: BALANCE.custom.refAge, position: 'ST', attrs: baseAttributes(), height: 180, weight: 75, foot: 'right', weakFoot: 3, tags: [],
     nationality: 'Korea Republic', appearance: 'eastAsian', hair: '', sel: null, startKind: 'none', startClub: '', youthClub: 'random',
   };
 }
@@ -64,7 +64,7 @@ export const NATIONALITY_KO: Readonly<Record<string, string>> = {
   'Korea Republic': '대한민국', Japan: '일본', China: '중국',
 };
 
-export const budgetOf = (f: CustomForm): number => customBudget(f.age, f.traits, f.weakFoot);
+export const budgetOf = (f: CustomForm): number => customBudget(f.age, f.tags, f.weakFoot);
 
 /** 키에 맞는 몸무게 범위 (BMI) */
 export function weightRange(height: number): [number, number] {
@@ -92,7 +92,8 @@ export interface CustomVM {
   body: { height: number; weight: number; bmi: string; foot: MainFoot; footKo: string; weakFoot: number; weakPts: number; wRange: [number, number];
     speedCap: number; aerialCap: number; hMin: number; hMax: number };
   weakOptions: { v: number; pts: number; on: boolean }[];
-  traits: { id: TraitId; ko: string; desc: string; kind: 'pro' | 'con'; pts: number; on: boolean; can: boolean; hook?: string }[];
+  /** 고를 수 있는 태그: 둘 다 태그는 영구/해제형 비용이 다르다 */
+  traits: { id: TagId; ko: string; desc: string; kind: 'pro' | 'con'; pts: number; ptsRemovable: number | null; removeDesc?: string; on: boolean; perm: boolean; can: boolean; hook?: string }[];
   traitCount: { pro: number; con: number; maxPro: number; maxCon: number };
   nationality: string;
   nationalities: { id: string; ko: string }[];
@@ -135,7 +136,7 @@ export function customVM(f: CustomForm, name: string): CustomVM {
     }),
   }));
   const skin = SKIN_OF[f.appearance];
-  const cur = f.traits;
+  const cur = f.tags;
   return {
     name, age: f.age, ageMin: C.minAge, ageMax: C.maxAge, agePts: agePoints(f.age),
     budget, spent, left, over: left < 0,
@@ -147,14 +148,17 @@ export function customVM(f: CustomForm, name: string): CustomVM {
       wRange: weightRange(f.height), speedCap: customCap('pace', f.height), aerialCap: customCap('heading', f.height), hMin: C.heightMin, hMax: C.heightMax,
     },
     weakOptions: [1, 2, 3, 4, 5].map((v) => ({ v, pts: weakFootPoints(v), on: v === f.weakFoot })),
-    traits: TRAIT_IDS.filter((id) => !CUSTOM_HIDDEN_TRAITS.includes(id)).map((id) => {
-      const t = TRAITS[id];
-      const on = cur.includes(id);
-      return { id, ko: t.ko, desc: t.desc, kind: t.kind, pts: traitPoints(id), on, can: on || canAddTrait(cur, id), ...(t.hook ? { hook: t.hook } : {}) };
+    traits: CREATE_TAGS.filter((id) => !CUSTOM_HIDDEN_TAGS.includes(id)).map((id) => {
+      const t = TAGS[id];
+      const pick = cur.find((x) => x.id === id);
+      return {
+        id, ko: t.ko, desc: t.desc, kind: t.kind as 'pro' | 'con', pts: tagPoints(id, true), ptsRemovable: canRemovable(id) ? tagPoints(id, false) : null,
+        ...(t.removeDesc ? { removeDesc: t.removeDesc } : {}), on: !!pick, perm: pick?.perm ?? true, can: !!pick || canAddTag(cur, id), ...(t.hook ? { hook: t.hook } : {}),
+      };
     }),
     traitCount: {
-      pro: cur.filter((t) => TRAITS[t].kind === 'pro').length, con: cur.filter((t) => TRAITS[t].kind === 'con').length,
-      maxPro: BALANCE.traits.maxPro, maxCon: BALANCE.traits.maxCon,
+      pro: cur.filter((t) => TAGS[t.id].kind === 'pro').length, con: cur.filter((t) => TAGS[t.id].kind === 'con').length,
+      maxPro: BALANCE.tags.maxPro, maxCon: BALANCE.tags.maxCon,
     },
     nationality: f.nationality,
     nationalities: NATIONALITIES.map((id) => ({ id, ko: NATIONALITY_KO[id] ?? id })),
@@ -197,7 +201,7 @@ export function customSpec(f: CustomForm, name: string): CustomSpec {
   return {
     name, position: f.position, age: f.age, attributes: { ...f.attrs },
     body: { height: f.height, weight: f.weight, foot: f.foot, weakFoot: f.weakFoot },
-    traits: [...f.traits], nationality: f.nationality, appearance: f.appearance, ...(f.hair ? { pixelHair: f.hair } : {}),
+    tags: [...f.tags], nationality: f.nationality, appearance: f.appearance, ...(f.hair ? { pixelHair: f.hair } : {}),
     start: startChoice(f),
   };
 }
@@ -241,9 +245,15 @@ export function customAct(f: CustomForm, k: string, v: string | undefined): Cust
       break;
     }
     case 'hair': out.hair = v ?? ''; break;
-    case 'trait': {
-      const id = v as TraitId;
-      out.traits = f.traits.includes(id) ? f.traits.filter((t) => t !== id) : canAddTrait(f.traits, id) ? [...f.traits, id] : f.traits;
+    case 'trait':
+    case 'traitR': {
+      // trait = 영구로 고르기/빼기, traitR = 해제형으로 고르기 (이미 고른 태그면 영구/해제형만 바꾼다)
+      const id = v as TagId;
+      const perm = k === 'trait';
+      const cur = f.tags.find((t) => t.id === id);
+      if (cur && cur.perm === perm) out.tags = f.tags.filter((t) => t.id !== id);
+      else if (cur) out.tags = f.tags.map((t) => (t.id === id ? { id, perm } : t));
+      else if (canAddTag(f.tags, id)) out.tags = [...f.tags, { id, perm: perm || !canRemovable(id) }];
       break;
     }
     case 'sel': out.sel = f.sel === v ? null : v ?? null; break;

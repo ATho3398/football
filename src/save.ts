@@ -23,6 +23,7 @@ import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
 import type { Replay } from './replay';
 import { initialMarket } from './transfer';
 import { realBody, rollBody } from './body';
+import { REAL_CAREER } from '../data/players/careers';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -239,6 +240,25 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     p.traits = [];
     if (real) p.shirt = real.shirtNumber;
     s.pixelOverrides = { players: {}, kits: {} };
+  },
+  // 24 → 25 (C.45 2차, pending 66): 장단점(traits)과 스토리 태그를 하나의 태그(tags)로. 이름 바뀜(다혈질 → 문제아, 기복 → 롤러코스터,
+  // 스타 플레이어 → 스타 기질), 늦은 개화는 노익장(플레이 전용)에 합쳐져 빠진다. 1차에서 고른 장단점은 영구. 원클럽맨 판정 기록
+  24: (s) => {
+    const p = s.player;
+    const RENAME: Record<string, string> = { hotHead: 'troublemaker', inconsistent: 'rollercoaster', star: 'starQuality' };
+    const start = s.league.season - (p.history?.length ?? 0);
+    const created = (p.traits ?? []).filter((id: string) => id !== 'lateBloomer').map((id: string) => ({ id: RENAME[id] ?? id, perm: true, season: start }));
+    const story = (p.tags ?? []).map((t: { id: string; name?: string; club?: string; season: number; date?: string }) => ({
+      id: t.id, perm: t.id !== 'oneClubMan', season: t.season, ...(t.date ? { date: t.date } : {}), ...(t.name ? { name: t.name } : {}), ...(t.club ? { club: t.club } : {}),
+    }));
+    p.tags = [...created, ...story];
+    delete p.traits;
+    const moved = (s.market?.moves ?? []).filter((m: { loan?: boolean; back?: boolean }) => !m.loan && !m.back);
+    const real = p.realPlayerId ? REAL_CAREER[p.realPlayerId] : undefined;
+    p.clubRun = moved.length
+      ? { club: p.teamId, renewals: 0, since: moved.at(-1).season, first: false }
+      : { club: p.teamId, renewals: 0, since: real?.since ?? start, first: true };
+    if (real && !p.youth) p.youth = { club: real.youth };
   },
 };
 

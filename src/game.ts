@@ -30,10 +30,13 @@ import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, 
 import { awardBadges } from './badges';
 import { randomName } from './prospect';
 import { clampWeakFoot, realBody, rollBody, type Body, type WeakFoot } from './body';
-import { agingMul, bigGameForm, cardMul, formMul, recoveryMul, rollTraits, xpMul, type TraitId } from './traits';
+import { agingMul, bigGameForm, cardMul, formMul, picksToTags, recoveryMul, rollTags, seasonRemovals, xpMul, type PlayerTag, type TagPick, type Tagged } from './tags';
 import { derbyOf } from './derby';
-import { CUSTOM_HIDDEN_TRAITS, customBudget, validCustom } from './custom';
-import { afterAccept, afterTrialMatch, applyStart, release, renewalFails, seasonEndTags, type StartChoice, type TrialState } from './startClub';
+import { CUSTOM_HIDDEN_TAGS, customBudget, validCustom } from './custom';
+import { TAGS } from './tags';
+import { REAL_CAREER } from '../data/players/careers';
+import { npcTagMap, recordTagNews, type TagNews } from './npcTags';
+import { afterAccept, afterTrialMatch, applyStart, checkOneClub, release, renewalFails, seasonEndTags, type StartChoice, type TrialState } from './startClub';
 import type { Appearance } from './appearance';
 import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
@@ -58,7 +61,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 24;
+export const SAVE_FORMAT_VERSION = 25;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -198,6 +201,8 @@ export interface GameState {
   market: MarketState;
   /** 비시즌에만: 다음 시즌 팀 레이팅 (로스터 + 시즌 팀 컨디션). 시즌 종료 때 계산해 제안 화면과 다음 시즌 시작에 쓴다 */
   nextRatings?: Record<string, number>;
+  /** NPC 커리어 태그 뉴스 (C.45 14번, 최근 3시즌) */
+  tagNews?: TagNews[];
   /** 1군 테스트 (C.45 10번): 커스텀 15~18세 유스 구단 선택. 없으면 null */
   trial?: TrialState | null;
   /** 사용자가 고친 선수 이름 (부록 C.44a): 선수 id → 별명·짧은 이름. 경기 화면 라벨에만 쓴다 */
@@ -245,7 +250,8 @@ export interface CustomSpec {
   age: number;
   attributes: FieldAttributes;
   body: Body;
-  traits: TraitId[];
+  /** 고른 태그 (장단점, 영구/해제형) */
+  tags: TagPick[];
   nationality: string;
   appearance: Appearance;
   /** 도트 머리 (경기 화면 캐릭터, pixel-kits 3.4) */
@@ -255,8 +261,9 @@ export interface CustomSpec {
 }
 
 /** 장단점이 정하는 시작 약발 (양발잡이 4, 약발 1) */
-export function footFromTraits(body: Body, traits: readonly TraitId[]): Body {
-  const E = BALANCE.traits.effects;
+export function footFromTraits(body: Body, tags: readonly { id: string }[]): Body {
+  const E = BALANCE.tags.effects;
+  const traits = tags.map((t) => t.id);
   if (traits.includes('twoFooted')) return { ...body, weakFoot: Math.max(body.weakFoot, E.twoFootedStart) as WeakFoot };
   if (traits.includes('weakFootOne')) return { ...body, weakFoot: E.weakFootOneStart as WeakFoot };
   return body;
@@ -295,9 +302,9 @@ export function myShirt(state: GameState): number {
 }
 
 /** 랜덤 유망주의 신체·장단점 (C.45): `me:<시드>` 신체, 장단점 0~2개. 기존 시드 흐름과 따로 */
-export function prospectExtras(worldSeed: string, position: PlayablePosition): { body: Body; traits: TraitId[] } {
-  const traits = rollTraits(rngFor(worldSeed, 'traits'));
-  return { body: footFromTraits(rollBody(`me:${worldSeed}`, position), traits), traits };
+export function prospectExtras(worldSeed: string, position: PlayablePosition): { body: Body; tags: PlayerTag[] } {
+  const picks = rollTags(rngFor(worldSeed, 'traits'));
+  return { body: footFromTraits(rollBody(`me:${worldSeed}`, position), picks), tags: picksToTags(picks, BALANCE.newGame.startYear) };
 }
 
 /** 그 팀 로스터의 등번호 */
@@ -367,8 +374,8 @@ export function newGame(opts: NewGameOptions): GameState {
     const C = BALANCE.custom;
     const age = Math.min(C.maxAge, Math.max(C.minAge, Math.round(c.age)));
     const height = Math.min(C.heightMax, Math.max(C.heightMin, Math.round(c.body.height)));
-    const traits = c.traits.filter((t) => !CUSTOM_HIDDEN_TRAITS.includes(t));
-    if (!validCustom(c.attributes, customBudget(age, traits, c.body.weakFoot), height)) throw new Error('커스텀 능력치가 포인트·상한을 넘었어요');
+    const picks = c.tags.filter((t) => !CUSTOM_HIDDEN_TAGS.includes(t.id) && TAGS[t.id].source !== 'play');
+    if (!validCustom(c.attributes, customBudget(age, picks, c.body.weakFoot), height)) throw new Error('커스텀 능력치가 포인트·상한을 넘었어요');
     // 잠재력·숨은 적성·팀은 랜덤 (숨은 적성은 커스텀에도 랜덤, pending 47 2)
     const roll = rollProspect(worldSeed, c.position);
     const prng = roll.rng;
@@ -390,7 +397,7 @@ export function newGame(opts: NewGameOptions): GameState {
       honors: { ...NO_HONORS },
       aptitude: roll.aptitude, advice: null, adviceLog: [], aptBoost: null,
       body: { ...c.body, height, weakFoot: clampWeakFoot(c.body.weakFoot) },
-      traits,
+      tags: picksToTags(picks, season),
       nationality: c.nationality,
       appearance: c.appearance,
       ...(c.pixelHair ? { pixelHair: c.pixelHair } : {}),
@@ -443,7 +450,7 @@ export function newGame(opts: NewGameOptions): GameState {
       // 실제 선수 (pending 36 ④): 주 포지션군 1.2~1.4, 나머지 0.7~1.0, 엇갈림 없음
       aptitude: mainPositionAptitude(data.position, gen.attributes, aptitudeSeed(worldSeed)), advice: null, adviceLog: [], aptBoost: null,
       body: realBody(data.id) ?? rollBody(data.id, data.position),
-      traits: [],
+      tags: [],
       shirt: data.shirtNumber,
     };
   }
@@ -490,6 +497,14 @@ export function newGame(opts: NewGameOptions): GameState {
       state.market.contract = { ...initialContract(state), ...(state.trial ? { until } : {}) };
       player.shirt = freeShirt(rosterShirts(rosters[player.teamId]), player.position);
     }
+  }
+  // 원클럽맨 판정 기록 (C.45): 시작 구단 = 첫 성인 구단. 실제 선수는 지금 구단 입단 시즌부터. 1군 테스트·자유계약이면 계약할 때
+  if (!state.trial && !state.market.free) {
+    const since = player.realPlayerId ? REAL_CAREER[player.realPlayerId]?.since ?? season : season;
+    player.clubRun = { club: player.teamId, renewals: 0, since, first: true };
+    if (player.realPlayerId && REAL_CAREER[player.realPlayerId]) player.youth = { club: REAL_CAREER[player.realPlayerId]!.youth };
+    checkOneClub(state);
+    state.market.notice = null;
   }
   myShirt(state);
   return state;
@@ -706,7 +721,7 @@ export function setDayTraining(state: GameState, date: IsoDate, kind: TrainingKi
 }
 
 /** 피로·부상만 (경기 날 아침 예상, 상태를 바꾸지 않는 계산에도 쓴다) */
-function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & { traits?: readonly string[] }, kind: DayPlan, date: IsoDate): void {
+function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & Tagged, kind: DayPlan, date: IsoDate): void {
   // 장단점 (C.45): 회복력 +20%·체력 회복 느림 −20% (회복하는 날만)
   const rec = planFatigue(kind);
   p.fatigue = Math.max(0, p.fatigue - (rec > 0 ? rec * recoveryMul(p) : rec));
@@ -1410,11 +1425,14 @@ export function endSeason(state: GameState): SeasonSummary {
   const tierReached = endFloorTier && endFloorTier !== startFloorTier ? endFloorTier : undefined;
 
   // NPC: 여름 이적시장 (C.42, 이번 시즌 기록·계약으로, 성장 전) → 성장 → 로스터 시즌 갱신 (은퇴·보충·재계약)
+  const tagsBefore = npcTagMap(state);
   const summer = runNpcWindow(state, 'summer');
   state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season));
   const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
   state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
   state.roster.updates++;
+  // NPC 커리어 태그 뉴스 (C.45 14번): 다음 시즌 기준으로 새로 붙은 원클럽맨·영원한 <구단>
+  recordTagNews(state, tagsBefore, season + 1);
   state.nextRatings = seasonTeamRatings(state);
 
   const summary: SeasonSummary = {
@@ -1440,6 +1458,9 @@ export function endSeason(state: GameState): SeasonSummary {
     // 재계약 판정 (C.45 10번, 커스텀 생성 선수): 유스 완화 뒤에도 크게 모자라면 재계약 실패·방출 → 영입 제안
     if (state.market.renewal && renewalFails(state)) release(state, 'renew', `${teamById(league, player.teamId).nameKo} 재계약 실패 · 방출됐어요. 영입 제안을 골라요`);
   }
+  // 태그 (C.45): 해제형 태그 판정, 원클럽맨·영원한
+  const gone = seasonRemovals(player, player.injury?.grade === 'seasonEnding');
+  if (gone.length) state.market.notice = `태그 해제 · ${gone.map((t) => TAGS[t.id].ko).join(', ')}`;
   seasonEndTags(state);
   return summary;
 }

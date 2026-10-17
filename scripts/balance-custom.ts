@@ -44,7 +44,7 @@ for (const tier of TIERS) {
       const attrs = autoCustom(position, customBudget(age, []), 180, baseAttributes());
       const state = newGame({
         mode: 'custom', seed: `cu-${tier}-${age}-${i}`, difficulty: 'normal',
-        custom: { position, age, attributes: attrs, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, traits: [], nationality: 'Korea Republic', appearance: 'eastAsian' },
+        custom: { position, age, attributes: attrs, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, tags: [], nationality: 'Korea Republic', appearance: 'eastAsian' },
       });
       state.player.potentialTier = tier;
       while (state.player.age < 30) {

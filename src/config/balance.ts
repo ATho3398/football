@@ -773,34 +773,39 @@ export const BALANCE = {
     seasonMax: 1,
   },
 
-  // ── 장점·단점 (pending 47 2, C.45): 커스텀 생성 포인트와 효과 배율 ──
-  traits: {
+  // ── 태그 (pending 47 2·62.4·66, C.45): 생성 때 고르는 장단점과 플레이로 얻는 커리어 태그를 하나로. 효과·비용·해제 조건 ──
+  tags: {
     maxPro: 2,
     maxCon: 3,
-    /** 장점 비용 (배분 포인트 −) */
-    proCost: {
-      ironMan: 20, star: 10, bigGame: 15, linguist: 5, leader: 5, consistent: 15, professional: 25, resilient: 15, twoFooted: 20, evergreen: 15,
-    },
-    /** 단점 보상 (배분 포인트 +) */
-    conGain: {
-      glass: 20, managerSensitive: 5, poorNegotiator: 5, lateBloomer: 10, inconsistent: 15, hotHead: 10, homesick: 5, slowRecovery: 15, mediaShy: 5, weakFootOne: 15,
-    },
-    /** 랜덤 생성 장단점 수 0·1·2개 확률 */
+    /**
+     * 생성 비용 기준값 (장점 −, 단점 +). 영구 × permMul, 해제형 × removableMul (반올림). 생성 전용 태그는 늘 영구.
+     * C.45 1차(장단점 20종)의 영구 값과 비슷하게 기준값을 잡았다
+     */
+    cost: {
+      glass: 14, ironMan: 14, troublemaker: 7, rollercoaster: 10, consistent: 10, slowRecovery: 10, resilient: 10, professional: 16,
+      managerSensitive: 4, poorNegotiator: 4, homesick: 4, mediaShy: 4, weakFootOne: 10, starQuality: 7, linguist: 4, leader: 4, twoFooted: 13,
+    } as Record<string, number>,
+    permMul: 1.5,
+    removableMul: 0.6,
+    /** 랜덤 생성 태그 수 0·1·2개 확률, 해제형으로 붙을 확률 */
     randomCountOdds: [0.4, 0.4, 0.2] as readonly number[],
+    randomRemovable: 0.5,
+    /** 원클럽맨·영원한 <구단>: 첫 성인 구단에서 재계약 renewals 번 이상 또는 seasons 시즌 이상 (이적하면 떨어진다, 임대는 이적 아님) */
+    oneClub: { renewals: 3, seasons: 8 },
+    /** NPC 유스 출신: 생성 선수가 지금 구단 유스 출신일 확률 (아니면 리그 밖 포함 랜덤 구단) */
+    npcOwnYouth: 0.2,
     effects: {
       glassInjury: 1.5,
       ironManInjury: 0.6,
-      inconsistentForm: 1.5,
+      rollercoasterForm: 1.5,
       consistentForm: 0.7,
       slowRecovery: 0.8,
       resilient: 1.2,
       professionalXp: 1.1,
-      lateBloomerAge: 21,
-      lateBloomerEarly: 0.8,
-      lateBloomerLate: 1.1,
       starWage: 1.1,
-      hotHeadCards: 1.4,
-      evergreenAging: 0.6,
+      troublemakerCards: 1.4,
+      /** 노익장(플레이 전용, 판정·효과 34c): 지금은 1 = 효과 없음 */
+      evergreenAging: 1,
       bigGameForm: 0.1,
       twoFootedStart: 4,
       weakFootOneStart: 1,

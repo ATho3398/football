@@ -3,7 +3,7 @@
 
 import { prospectExtras } from '../game';
 import { FOOT_KO } from '../body';
-import { TRAITS } from '../traits';
+import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
 import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
@@ -1203,7 +1203,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       const x = prospectExtras(f.roll, f.position as PlayablePosition);
       return {
         body: `${x.body.height} cm · ${x.body.weight} kg · ${FOOT_KO[x.body.foot]} · 약발 ${x.body.weakFoot}${x.body.weakFoot >= 5 ? ' (양발)' : ''}`,
-        traits: x.traits.map((t) => ({ ko: TRAITS[t].ko, desc: TRAITS[t].desc, kind: TRAITS[t].kind })),
+        traits: x.tags.map((t) => ({ ko: `${TAGS[t.id].ko}${t.perm ? '' : ' (해제형)'}`, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const })),
       };
     })() : null,
   };
