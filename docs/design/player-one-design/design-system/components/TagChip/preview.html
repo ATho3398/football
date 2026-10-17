@@ -1,0 +1,19 @@
+<!-- @dsCard group="Status" height=230 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>TagChip — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement, T = P.TagChip;
+  var row = function () { return h('div',{style:{display:'flex',flexWrap:'wrap',gap:6,alignItems:'center'}}, Array.prototype.slice.call(arguments)); };
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:420,display:'grid',gap:10,fontFamily:'var(--font-sans)',color:'var(--ink-muted)',fontSize:11}},
+    '생성 태그 — 영구 · 해제형 · 해제됨',
+    row(h(T,{name:'철강왕'}),h(T,{name:'프로 정신',release:'시즌 훈련 XP 60 미만이면 사라져요'}),h(T,{name:'유리몸',polarity:'con'}),h(T,{name:'문제아',polarity:'con',release:'한 시즌 퇴장 0·경고 3장 이하'}),h(T,{name:'롤러코스터',polarity:'con',released:true})),
+    '커리어 · 플레이 · 스토리',
+    row(h(T,{kind:'career',name:'유스 출신',scope:'리버풀'}),h(T,{kind:'career',name:'영원한 크리스털 팰리스'}),h(T,{kind:'play',name:'노익장'}),h(T,{kind:'play',name:'빅매치 체질'}),h(T,{kind:'story',name:'원더키드'})),
+    '작게(sm)',
+    row(h(T,{size:'sm',name:'철강왕'}),h(T,{size:'sm',name:'문제아',polarity:'con',release:'조건'}),h(T,{size:'sm',kind:'career',name:'원클럽맨'}),h(T,{size:'sm',kind:'play',name:'늦게 핀 꽃'}),h(T,{size:'sm',kind:'story',name:'득점 기계'}))));
+</script>
+</body>
+</html>

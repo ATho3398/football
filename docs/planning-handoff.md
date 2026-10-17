@@ -276,4 +276,8 @@
 - (01:58 KST) UI_2 6차 보고를 사용자에게 함(`docs/ui-requests/6.md` claude/ui-2 fd35399, 큰 7 + 작은 18, 디자인 124~153번, 새 컴포넌트 Stepper·PointBar·TagChip·PixelTile). pending 82 반영 요청은 보고 뒤에 도착 → UI_2가 보충할 것. 7차는 C.49부터.
 - (02:17 KST) C.48 CI #173: build 작업까지 전부 성공, deploy 진행 중(실패 없음). C.48 끝.
 - (02:56 KST) C.49 완료(main 601682f, 밸런스 36·세이브 29, 테스트 422) → pending 83, C.49 draft_, UI_2 목록(작은 3). **34f C.50 시작** `session_01Htu4ousJsxRQ2XAj36WaKM` "34f단계_경기 결과·독·짧은 이름 (C.50)", 브랜치 `claude/c50-result-dock-names`, 태그 `stage:34f-C50`(17.2 정정 포함). 자동 확인 send_later 150분(05:25 KST). C.49 확인 예약 삭제.
-- 다음: C.50 보고 → pending 84 → ntfy → UI_2 목록 → 34g C.51(경기 준비) → 34h C.52(훈련 프리셋) → 34i C.53(팀·선수 상세) → U5-a~g 34j~34p → 35 5-1 …
+- (03:21 KST) C.49 CI #174 성공(main 601682f 배포). C.49 끝.
+- (03:23 KST) C.50 완료(main cbcd88a, 세이브 30, 테스트 425, 27분) → pending 84, C.50 draft_, UI_2 목록. **34g C.51 시작** `session_01HHK2ztc3AngQyfBxhnyCFR` "34g단계_경기 준비 화면 (C.51)", 브랜치 `claude/c51-match-prep`, 태그 `stage:34g-C51`. 자동 확인 send_later 150분(05:52 KST), C.50 확인 예약 삭제.
+- (03:27 KST) 6차 디자인 도착(claude/ui-2 9148f60, player-one-design 159장·컴포넌트 48종). C.51에 156_경기준비 전달. C.52 훈련 프리셋 = 159, C.53 팀·선수 상세 = 157·158 — 지시에 넣을 것. 적용 명세 6-apply.md는 UI_2가 따로 보냄. 독: 디자인 154 = 폰 6칸(진행·선수·홈·훈련·월드·더보기, 홈 56px) vs C.50 5칸 → 사용자 확인 중(UI_2 추천 6칸).
+- (03:28 KST) 6차 적용 명세(claude/ui-2 2e1a8e8) → pending 85(기존 단계에 합침), C.51에 전달. UI_2 draft_, **UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` 시작(브랜치 claude/ui-3). 이후 docs 병합 대상은 claude/ui-3(UI_3 첫 푸시 뒤), 그 전엔 ui-2.
+- 다음: C.51 보고 → pending 86 → ntfy → UI_3 목록 → 34h C.52(훈련 프리셋 + 159 + 디자이너 버그 5개 + 커스텀 남은 포인트 허용) → 34i C.53(팀·선수 상세 157·158) → U5-a~g(6차 합침) 34j~34p → 35 5-1 … 독 칸 수 사용자 답 대기(없으면 5칸).
