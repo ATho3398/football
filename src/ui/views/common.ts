@@ -160,9 +160,9 @@ export function roJosa(word: string): string {
   return code >= 0 && code % 28 !== 0 && code % 28 !== 8 ? '으로' : '로';
 }
 
-/** 경기 화면 [보기] 버튼 (부록 C.43): 누르면 얼굴/등번호/캐릭터 시트 */
-export function pitchViewButton(): string {
-  return `<button type="button" class="pv-btn" data-act="pv-open" aria-label="선수 표시 바꾸기">보기 · ${PITCH_VIEW_KO[pitchView()]}</button>`;
+/** 경기 화면 [보기] 버튼 (부록 C.43): 누르면 얼굴/등번호/캐릭터 시트. inline = 결정 순간 스코어 줄 안 (C.56, 5차 77) */
+export function pitchViewButton(inline = false): string {
+  return `<button type="button" class="pv-btn${inline ? ' pv-btn--inline' : ''}" data-act="pv-open" aria-label="선수 표시 바꾸기">${inline ? `${Icon({ name: 'eye', size: 14 })}보기` : `보기 · ${PITCH_VIEW_KO[pitchView()]}`}</button>`;
 }
 
 /** 보기 바꾸기 시트 */

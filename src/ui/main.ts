@@ -32,6 +32,7 @@ import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
 import { MomentPitch, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
+import { ratingFromParts, ratingParts } from '../engine/rating';
 import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
@@ -525,7 +526,13 @@ function liveShow(g: GameState, m: Moment | null): void {
     // 앞 장면: 직전 결정(결과 재생) 뒤부터 (최대 8초, 처음이거나 오래전이면 4초)
     const fromE = lv.prevE > 0 && endE - lv.prevE <= 8 ? lv.prevE : Math.max(0, endE - 4);
     setPitchTeams(lv.teams);
-    lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, null);
+    // 카드 장면 시트 (5차 80): 쓸 수 있는 첫 카드를 미리 골라 둔다 (화면 상태만, [안 쓰고 계속]이면 카드 없이)
+    const first = m.type === 'react' ? m.cards.find((c) => c.usable && c.option) : undefined;
+    if (first) {
+      lv.card = first.hand;
+      lv.sel = m.options.length;
+    }
+    lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, lv.sel, shownOptions(m, lv.card));
     go('moment');
     return;
   }
@@ -549,6 +556,9 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   const s = lv.run.sim.state;
   const startIdx = lv.run.frames.length - 1;
   const ev0 = s.events.length;
+  // 결정 직전 내 평점 (화면 표시만, 엔진 상태는 읽기만 한다)
+  const meAgent = s.agents.find((x) => x.id === m.me);
+  const before = meAgent ? ratingFromParts(ratingParts(s, meAgent, Math.max(1, s.elapsed))) : null;
   const shown = shownOptions(m, lv.card);
   const opt = choice === 'delegate' ? null : shown[choice] ?? null;
   // 카드 (C.36): 고른 카드와 함께. 플레이 카드 선택지는 opt 'card'
@@ -565,11 +575,16 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   const band = outcomeBand(o, rec, m.side);
   // 결정 기록도 화면에서 본 결과를 따른다 (띠와 기록이 엇갈리지 않게)
   if (rec) rec.seen = { result: band.tone === 'goal' ? 'success' : band.tone === 'conceded' ? 'fail' : band.tone, flow: band.flow };
+  const delta = rec?.delta ?? 0;
+  const headline = band.tone === 'goal' ? (opt?.kind === 'card' ? `골! ${opt.label}` : '골!') : band.tone === 'conceded' ? '실점'
+    : opt && band.tone === 'success' ? opt.success : opt && band.tone === 'fail' ? opt.fail : band.title;
   const vm: OutcomeVM = {
     moment: m, teams: lv.teams, score, shown: false, band, kind: opt ? opt.kind : 'delegate',
+    headline, ratingDelta: delta, rating: before === null ? null : Math.max(0, Math.min(10, before + delta)), card: used?.name ?? null,
     choice: opt ? `${used ? `🃏 ${used.name} · ` : `${KO[opt.kind]} · `}${opt.label}${opt.p !== null ? ` (${Math.round(Math.min(0.99, opt.p + (used?.deltas?.[choice as number] ?? 0)) * 100)}%)` : ''}` : '맡기기 (엔진 판단)',
   };
   lv.prevE = o.to;
+  const center = lv.pitch?.center ?? 0.5;
   lv.pitch?.stop();
   lv.pitch = null;
   setPitchTeams(lv.teams);
@@ -583,7 +598,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
       if (ui.screen === 'moment') liveContinue(g);
       else oc.timer = 0;
     }, OUTCOME.bandMs);
-  });
+  }, center);
   lv.oc = { vm, pitch, next, timer: 0 };
   go('moment');
 }
@@ -1921,6 +1936,18 @@ app.addEventListener('click', (ev) => {
         lv.pitch.selected = lv.sel;
       }
       render();
+      return;
+    }
+    case 'mo-pick-confirm': {
+      // 카드 장면 시트 (5차 80): [안 쓰고 계속] = "카드 없이" 선택지, [카드 쓰기] = 고른 카드의 카드 선택지를 바로 확정
+      const lv = ui.live;
+      const m = lv?.run.pending;
+      if (!g || !lv || !m || lv.oc || v === undefined) return;
+      const k = Number(v);
+      if (k < m.options.length) lv.card = null;
+      else if (lv.card === null) return;
+      lv.sel = k;
+      liveDecide(g, k);
       return;
     }
     case 'mo-confirm':

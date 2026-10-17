@@ -351,35 +351,7 @@ button.po-fslot { padding: 0; border: 0; background: none; font: inherit; color:
 .po-fpitch.is-edit .po-fslot[data-drag] { cursor: grab; touch-action: none; }
 .po-fpitch.is-edit .po-fslot.is-drag { cursor: grabbing; z-index: 3; opacity: .85; transition: none; }
 
-/* ── 결정 순간 (E.11, E4 최소판) ── */
-.moment { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-6); }
-.mo-top { display: flex; flex-direction: column; gap: 4px; padding: var(--space-3) var(--space-4) 0; }
-.mo-score { display: flex; align-items: center; justify-content: center; gap: var(--space-3); font-size: 13px; color: var(--ink-muted); }
-.mo-score b { font-size: 20px; color: var(--ink); }
-.mo-score .me { color: var(--ink); font-weight: 700; }
-.mo-scene { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
-.mo-scene b { font-size: 17px; }
-.mo-min { font-weight: 700; color: var(--brand-ink); }
-.moment .pitch-wrap { padding: 0 var(--space-4); }
-.mo-last { margin: 0 var(--space-4); padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface-2); font-size: 12px; color: var(--ink-muted); }
-.mo-panel { display: flex; flex-direction: column; gap: var(--space-3); margin: 0 var(--space-4); padding: 14px; border-radius: var(--radius-lg); background: var(--surface-1); }
-.mo-opts { display: flex; flex-direction: column; gap: var(--space-2); }
-.mo-opt { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; padding: 10px 12px; border-radius: var(--radius-md); border: 2px solid var(--line); border-left: 6px solid var(--k); background: var(--surface-2); color: var(--ink); font: inherit; cursor: pointer; }
-.mo-opt.is-on { border-color: var(--k); background: var(--surface-3); }
-.mo-opt__head { display: flex; align-items: center; gap: var(--space-2); }
-.mo-opt__head b { flex: 1; min-width: 0; font-size: 14px; }
-.mo-kind { padding: 2px 8px; border-radius: var(--b-r-pill, 999px); background: var(--k); color: #fff; font-size: 11px; font-weight: 700; flex: none; }
-.mo-p { font-size: 18px; font-weight: 800; flex: none; }
-.mo-opt__body { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink-muted); }
-.mo-opt__body i { font-style: normal; font-weight: 700; }
-.mo-opt__body .ok i { color: var(--mine); }
-.mo-opt__body .bad i { color: var(--fail); }
-.mo-off { font-weight: 700; }
-.mo-off--mid { color: var(--warning); }
-.mo-off--high { color: var(--fail); }
-.mo-cards { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 8px 10px; border: 1px dashed var(--line); border-radius: var(--radius-md); }
-.mo-card-slot { font-size: 11px; color: var(--ink-faint); }
-.mo-settings { display: flex; flex-direction: column; gap: 6px; }
+/* ── 결정 순간 (E.11 → C.56 한 화면 배치): 아래 "결정 순간 한 화면" 절 ── */
 .ctl-panel .po-tabs { margin-top: 2px; }
 .dec-list { display: flex; flex-direction: column; gap: 6px; }
 .dec-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; font-size: 12px; }
@@ -388,77 +360,13 @@ button.po-fslot { padding: 0; border: 0; background: none; font: inherit; color:
 .dec-res { text-align: right; white-space: nowrap; color: var(--ink-muted); }
 .dec-success .dec-res b { color: var(--mine); }
 .dec-fail .dec-res b { color: var(--fail); }
-@media (min-width: 1024px) {
-  #app.app-moment { max-width: 1180px; }
-  .app-moment .moment { display: grid; grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: "top panel" "pitch panel" "last panel"; align-items: start; column-gap: var(--space-4); padding: var(--space-4); }
-  .app-moment .mo-top { grid-area: top; padding: 0; }
-  .app-moment .pitch-wrap { grid-area: pitch; padding: 0; }
-  .app-moment .mo-last { grid-area: last; margin: 0; }
-  .app-moment .mo-panel { grid-area: panel; margin: 0; position: sticky; top: var(--space-4); }
-}
-/* 결정 결과 (E5 최소, 부록 C.35): 결과 구간 재생 뒤 결과 띠 */
-.oc-wrap { position: relative; }
-.oc-band { position: absolute; left: 50%; bottom: 10px; transform: translate(-50%, 12px) scale(0.96); opacity: 0; pointer-events: none;
-  display: flex; align-items: center; gap: 10px; width: min(92%, 520px); padding: 10px 14px; border-radius: var(--radius-lg);
-  background: var(--surface-1); color: var(--ink); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28); border-left: 6px solid var(--tone, var(--line));
-  transition: opacity 0.18s ease, transform 0.18s ease; }
-.oc-band.is-shown { opacity: 1; transform: translate(-50%, 0) scale(1); animation: oc-pop 0.36s ease-out; }
-.oc-band--success { --tone: var(--mine); }
-.oc-band--fail, .oc-band--conceded { --tone: var(--fail); }
-.oc-band--neutral { --tone: var(--ink-muted); }
-.oc-band--goal { --tone: #f2b705; background: linear-gradient(90deg, rgba(242, 183, 5, 0.22), transparent 60%), var(--surface-1); }
-.oc-icon { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--tone); color: #fff; font-weight: 800; font-size: 15px; }
-.oc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.oc-text b { font-size: 16px; }
-.oc-band--goal .oc-text b { font-size: 22px; letter-spacing: 0.02em; }
-.oc-text span { font-size: 12px; color: var(--ink-muted); overflow-wrap: anywhere; }
-.oc-delta { flex: none; font-weight: 800; font-size: 13px; }
-.oc-band--success .oc-delta, .oc-band--goal .oc-delta { color: var(--mine); }
-.oc-band--fail .oc-delta, .oc-band--conceded .oc-delta { color: var(--fail); }
-.oc-choice { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-left: 6px solid var(--k); border-radius: var(--radius-md); background: var(--surface-2); }
-@keyframes oc-pop { 0% { transform: translate(-50%, 12px) scale(0.9); } 60% { transform: translate(-50%, -2px) scale(1.04); } 100% { transform: translate(-50%, 0) scale(1); } }
-@media (prefers-reduced-motion: reduce) { .oc-band, .oc-band.is-shown { transition: none; animation: none; } }
 button.dec-row { width: 100%; padding: 6px 4px; border: 0; border-radius: var(--radius-md); background: none; color: inherit; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
 button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2); }
 .dec-play { color: var(--brand-ink); font-size: 10px; }
 .dec-hint { margin: 6px 0 0; }
-/* 결정 선택 바텀시트 (I.5, E5 최소): 모바일은 피치 아래에 붙은 시트, PC(1024px+)는 오른쪽 패널 */
-.mo-sheet__head { display: flex; flex-direction: column; gap: 2px; }
-.mo-sheet__head b { font-size: 15px; }
-@media (max-width: 1023px) {
-  .app-moment .moment { padding-bottom: 0; }
-  .app-moment .mo-panel { position: sticky; bottom: 0; z-index: 5; margin: var(--space-2) 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
-    border-radius: var(--b-r-lg, 18px) var(--b-r-lg, 18px) 0 0; box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28); max-height: 64vh; overflow-y: auto; animation: mo-sheet-up 0.24s ease-out; }
-  /* 세로 피치 (C.44a): 시트가 피치를 덜 가리게 */
-  .app-moment:has(.is-portrait) .mo-panel { max-height: 40vh; }
-  .app-moment .mo-panel::before { content: ''; display: block; width: 40px; height: 4px; margin: 0 auto 4px; border-radius: 2px; background: var(--line); }
-}
-@keyframes mo-sheet-up { from { transform: translateY(40px); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .app-moment .mo-panel { animation: none; } }
 .dec-flow { display: block; margin-top: 2px; color: var(--ink-muted); font-size: 11px; }
-/* 모바일: 결과 띠는 피치를 가리지 않게 피치 아래에 */
-@media (max-width: 1023px) {
-  .oc-band { position: static; width: auto; margin-top: var(--space-2); transform: translateY(8px) scale(0.98); }
-  .oc-band.is-shown { transform: none; animation: oc-pop-m 0.36s ease-out; }
-}
-@keyframes oc-pop-m { 0% { transform: translateY(8px) scale(0.94); } 60% { transform: translateY(-2px) scale(1.03); } 100% { transform: none; } }
 
 /* ── 카드 (C.36, F.6·I.17): 결정 순간 패 줄, 카드 선택지, 덱 편집 ── */
-.mo-hand { display: flex; flex-direction: column; gap: 6px; }
-.mo-hand__row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; }
-.mo-hcard { flex: 0 0 132px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 3px; min-height: 96px; padding: 8px 9px; text-align: left;
-  border-radius: var(--radius-md); border: 2px solid var(--line); border-top: 5px solid var(--r); background: var(--surface-2); color: var(--ink); font: inherit; cursor: pointer; }
-.mo-hcard b { font-size: 13px; line-height: 1.2; }
-.mo-hcard.is-on { border-color: var(--r); background: var(--surface-3); box-shadow: 0 0 0 2px var(--r) inset; }
-.mo-hcard.is-off { opacity: 0.45; filter: grayscale(0.8); cursor: not-allowed; }
-.mo-hcard__top { display: flex; justify-content: space-between; gap: 4px; font-size: 10px; color: var(--ink-faint); }
-.mo-hcard__rar { color: var(--r); font-weight: 700; }
-.mo-hcard__role { font-weight: 700; }
-.mo-hcard__txt { font-size: 10px; line-height: 1.3; color: var(--ink-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.mo-opt--card { border-style: solid; border-color: var(--k); box-shadow: 0 0 0 1px var(--k) inset; }
-.mo-dp { flex: none; font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: var(--b-r-pill, 999px); }
-.mo-dp.up { color: var(--mine); background: color-mix(in srgb, var(--mine) 14%, transparent); }
-.mo-dp.down { color: var(--fail); background: color-mix(in srgb, var(--fail) 14%, transparent); }
 .dk-list { display: flex; flex-direction: column; gap: 8px; }
 .dk-card { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-md); border: 1px solid var(--line); border-left: 5px solid var(--r); background: var(--surface-2); }
 .dk-card__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -543,8 +451,6 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
   [data-act="pos-change"], [data-act="next-season"], [data-act="retire"], [data-act="save"], [data-act="load"], [data-act="opt-quick"], [data-act="ctl-mode"] .po-tab, [data-act="ctl-mode"],
   [data-act="ctl-stop"]) { opacity: .4; filter: grayscale(.6); }
 
-/* 결정 화면에 아래 바가 있으면 시트를 그 위에 */
-@media (max-width: 1023px) { .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); } }
 
 /* compact 머리말 (C.54, bundle.css 요청 5 격자): 디자인 규칙 그대로. 그 밖의 자식(children)은 한 줄 전체 */
 .po-hero--compact > :not(.po-hero__bar):not(.po-hero__eyebrow):not(.po-hero__num) { grid-column: 1 / -1; }
@@ -708,11 +614,6 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 /* 독 위로 올라오는 화면 아래 버튼 줄 */
 .has-nav .dock { bottom: 72px; }
 @media (min-width: 1024px) { .has-nav .dock { bottom: 64px; } }
-@media (max-width: 1023px) {
-  .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); }
-  /* 세로 피치 (C.44a): 시트가 피치를 덜 가리게 */
-  .has-nav.app-moment:has(.is-portrait) .mo-panel { max-height: calc(44vh - 72px); }
-}
 .has-nav .po-overlay--sheet { padding-bottom: 0; }
 .warn { color: var(--warning); }
 .sched-link { display: flex; justify-content: center; }
@@ -927,3 +828,90 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 button.mr-team { flex-direction: column; }
 button.star-row { cursor: pointer; }
 .cal-item .dt-link { font-weight: 700; }
+
+/* ── 결정 순간 한 화면 (C.56, 5차 72~84 · 6차 139, B 층 공통 토큰만): 폰은 스코어 줄 → 피치(남은 높이, 세로 잘라 보기) →
+   선택지(ChoiceButton compact) · 패 칩 한 줄 · [맡기기][확정]이 독 위 한 화면. 정지 빈도·자동 전환은 그 아래(스크롤) ── */
+.moment { display: flex; flex-direction: column; }
+.mo-top { display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; background: var(--surface-1); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.mo-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.mo-team { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 800; }
+.mo-team > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mo-team.is-away { justify-content: flex-end; text-align: right; }
+.mo-team.is-opp { color: var(--team-away); }
+.mo-score > b { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 26px; line-height: 28px; font-weight: 700; }
+.mo-score > b i { font-style: normal; font-size: 16px; color: var(--ink-faint); }
+.mo-scene { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mo-min { flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); background: var(--brand); color: var(--on-brand); font-family: var(--font-display); font-size: 13px; font-weight: 700; }
+.mo-scene__t { flex: 1; min-width: 0; font-size: 12px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-btn--inline { position: static; flex: none; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border: 0; border-radius: var(--radius-sm); background: var(--surface-3); font-size: 11px; font-weight: 800; }
+.moment .mo-stage { padding: 8px 16px 0; }
+.mo-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px 12px; }
+.mo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.mo-head b { font-size: 16px; }
+.mo-head span { font-size: 11px; color: var(--ink-muted); }
+.mo-note { margin: -4px 0 0; font-size: 11px; color: var(--ink-muted); }
+.mo-opts { display: flex; flex-direction: column; gap: 6px; }
+.mo-opts .po-choice--compact { padding: 8px 12px; }
+.mo-opts .po-choice--compact .po-choice__tags { min-height: 20px; }
+.mo-opts .po-choice__prob > b { font-size: 28px; }
+.po-choice__none { font-size: 13px; font-weight: 700; color: var(--ink-muted); }
+.mo-hand { display: flex; flex-direction: column; gap: 6px; }
+.mo-hand__head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; }
+.mo-hand__head b { font-family: var(--font-display); }
+.mo-hand__info { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mo-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.mo-chips::-webkit-scrollbar { display: none; }
+.mo-chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 10px 0 8px; border: 0; border-radius: var(--radius-md); background: var(--surface-2); color: var(--ink); font: 800 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.mo-chip__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--r); }
+.mo-chip.is-on { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--brand); }
+.mo-chip.is-off { opacity: .45; cursor: not-allowed; }
+.mo-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mo-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
+.mo-actions .po-btn { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mo-more { display: flex; flex-direction: column; gap: 6px; padding: 8px 16px 24px; }
+.mo-last { padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface-2); font-size: 12px; color: var(--ink-muted); }
+/* 결정 결과 (5차 81~84): 내 선택 → 결과 카드(ResultSplash) → [계속] */
+.oc-choice { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 3px 0 0 var(--k); }
+.oc-choice__t { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.oc-choice__t small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.oc-choice__t b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-cardtag { flex: none; padding: 3px 8px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--brand-ink); font-size: 11px; font-weight: 800; }
+.oc-panel .po-splash { padding: 14px 16px 16px; gap: 6px; }
+.oc-panel .po-splash__title { font-size: 22px; line-height: 28px; }
+.oc-panel .po-splash__detail { margin-bottom: 4px; }
+.po-splash--flat { background: var(--surface-1); color: var(--ink); }
+.po-splash--flat .po-splash__stamp { background: var(--surface-3); }
+.oc-cardnote { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-1); font-size: 12px; color: var(--ink-muted); }
+/* 카드 장면 시트 (5차 80): 피치를 흐리게 두고 아래에서 올라온 시트 */
+.mo-react .mo-stage { opacity: .45; }
+.mo-rsheet { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 10px; margin-top: -28px; padding: 8px 16px 12px; border-radius: var(--radius-xl) var(--radius-xl) 0 0; background: var(--surface-1); box-shadow: 0 -8px 28px rgba(0, 0, 0, .35); animation: mo-sheet-up .24s ease-out; }
+.mo-rsheet__grip { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line); }
+.mo-rsheet__eyebrow { align-self: flex-start; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--brand); color: var(--on-brand); font-size: 12px; font-weight: 800; }
+.mo-rsheet__title { font-family: var(--font-head, var(--font-sans)); font-size: 22px; line-height: 28px; font-weight: 800; }
+html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
+.mo-rsheet__desc, .mo-rsheet__foot { margin: 0; font-size: 12px; color: var(--ink-muted); }
+.mo-rsheet__foot { text-align: center; font-size: 11px; }
+.mo-rcards { display: flex; gap: 10px; justify-content: center; overflow-x: auto; padding: 2px; }
+.mo-rcards .po-card { flex: none; }
+.mo-rinfo { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); font-size: 12px; }
+@keyframes mo-sheet-up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mo-rsheet { animation: none; } }
+@media (max-width: 1023px) {
+  /* 한 화면: 독(72px) 위까지 높이를 고정하고 피치 칸이 남는 높이를 차지한다. 캔버스는 그 높이에 맞춰 잘라 보기 */
+  .mo-fold { height: calc(100dvh - var(--fold-dock, 0px)); min-height: 560px; }
+  .has-nav .mo-fold { --fold-dock: 72px; }
+  .mo-fold .mo-stage { flex: 1 1 0; min-height: 120px; position: relative; }
+  .mo-fold .mo-stage .po-pitch { position: absolute; inset: 8px 16px 0; overflow: visible; background: none; border-radius: 0; }
+  .mo-fold .po-pitch__canvas { border-radius: var(--radius-lg); }
+}
+@media (min-width: 1024px) {
+  #app.app-moment { max-width: 1180px; }
+  .app-moment .moment { display: grid; grid-template-columns: minmax(0, 1fr) 420px; grid-template-areas: "top panel" "stage panel"; grid-template-rows: auto 1fr; align-items: start; column-gap: 16px; padding: 16px; }
+  .app-moment .mo-top { grid-area: top; border-radius: var(--radius-lg); }
+  .app-moment .moment .mo-stage { grid-area: stage; padding: 8px 0 0; }
+  .app-moment .mo-panel { grid-area: panel; padding: 0; position: sticky; top: 16px; }
+  .app-moment .mo-rsheet { grid-area: panel; margin-top: 0; padding: 16px; border-radius: var(--radius-lg); position: sticky; top: 16px; }
+  .app-moment .mo-more { max-width: 420px; margin-left: auto; padding: 0 16px 24px; }
+}
+/* 하이라이트 위 띠 (C.56 확인 중 발견): 긴 장면 이름이 grid 칸을 늘려 폰에서 가로로 넘치던 것 → 칸을 화면 폭에 묶고 이름은 말줄임 */
+.po-strip { grid-template-columns: minmax(0, 1fr); }
