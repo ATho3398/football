@@ -20,7 +20,7 @@
 <body>
 <main>
   <h1>카카오톡 "나에게 보내기" 토큰 발급</h1>
-  <p class="muted">이 파일은 내 PC 브라우저에서만 동작합니다. 입력한 값은 카카오 서버로만 가고 어디에도 저장되지 않습니다. 결과 토큰은 채팅에 붙이지 말고 클라우드 환경 설정(Network secrets)에만 넣으세요.</p>
+  <p class="muted">이 파일은 내 PC 브라우저에서만 동작합니다. 입력한 값은 카카오 서버로만 가고 어디에도 저장되지 않습니다. 결과 토큰은 채팅에 붙이지 말고 클라우드 환경 설정의 "환경 변수" 칸에만 넣으세요(카카오는 토큰을 요청 본문에 실어 보내야 해서 네트워크 시크릿으로는 동작하지 않습니다).</p>
 
   <h2>1. 앱 정보</h2>
   <label>REST API 키</label>
@@ -64,7 +64,7 @@
       'KAKAO_REFRESH_TOKEN = ' + j.refresh_token + '\n\n' +
       '리프레시 토큰 유효: 약 ' + Math.round(j.refresh_token_expires_in / 86400) + '일\n' +
       '받은 권한: ' + (j.scope || '') + '\n\n' +
-      '환경 설정에 넣을 값: KAKAO_REST_API_KEY, KAKAO_REFRESH_TOKEN' + ($('secret').value.trim() ? ', KAKAO_CLIENT_SECRET' : '');
+      '환경 변수 칸에 KEY=값 형식으로 넣을 값: KAKAO_REST_API_KEY, KAKAO_REFRESH_TOKEN' + ($('secret').value.trim() ? ', KAKAO_CLIENT_SECRET' : '');
     $('test').disabled = false;
   };
   $('test').onclick = async () => {
