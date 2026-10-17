@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|
 | 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | **디자인 도착 2026-10-18 00:24**(57~123 전부, `docs/design/player-one-design/` 덮어씀) → 적용 명세 `docs/ui-requests/5-apply.md` → 마스터 M |
 
-| 6 | 2026-10-18 | `docs/ui-requests/6.md` | `docs/ui-requests/6/phone/`(53), `6/pc/`(49) | main 66ba91f, C.48 | 보고함(C.45~C.48: 큰 것 7 + 작은 18, 디자인 124~153 요청) → 디자인 대기 |
+| 6 | 2026-10-18 | `docs/ui-requests/6.md` | `docs/ui-requests/6/phone/`(53), `6/pc/`(49) | main 66ba91f, C.48 | 보고함(C.45~C.48: 큰 것 7 + 작은 18, 디자인 124~153 요청 + pending 82 곧 생길 화면 154~159) → 디자인 대기 |
 
 | 카드 그림 | 2026-10-17 22:40 | `docs/ui-requests/card-art-batch03-apply.md` | `docs/design/incoming/card-art/batch03/`(17장) | — | BATCH 03(13~16 + 엘라스티코) 받음 → 적용 명세 → 마스터 M. 남은 시그니처 15장·BATCH 01·02 대기 |
 
@@ -40,6 +40,9 @@
 | 단계(부록 C) | 디자인 없는 새 화면·패널 | 개수 |
 |---|---|---|
 | **6차 뒤 누계** | | **큰 것 0 (+작은 0)** |
+
+- 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
+- U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".
 
 ## 캡처 방법 (다음 UI 세션용)
 - `npm ci && npm run build && npx vite preview --port 4173` 뒤 Playwright(`/opt/node-tools/node_modules/playwright`, 크로뮴 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)로 실제 선수 손흥민 새 게임 → 시즌 끝까지. 6차는 단계 확인 캡처(`docs/design/c4x-check/`)를 복사하고 큰 화면만 main 빌드로 전체 길이(`X01~X06`)를 새로 찍었다. 5차 스크립트는 코드라 레포에 넣지 않았다(레포의 `scripts/c44-capture.mjs` 등 단계별 스크립트의 도우미 함수와 같은 방식: `go-tab`은 폰에서 숨은 독 칸이 있어 `document.querySelector(...).click()`으로 누른다, 전술은 3경기 뒤 열림).
