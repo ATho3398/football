@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>선수이름-편집</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 선수이름-편집 (요청 5 · 설정 · 페이스온) · 390×1013 · 원본 R5-Names-Edit.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1013px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="선수 이름" compact="{{yes}}" eyebrow="경기 화면 이름표 · 별명 · 짧은 이름" chips="{{nameChips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;">
+<div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end;"><x-import component-from-global-scope="PlayerOne.TextField" icon="search" value="케인"></x-import><span style="display: inline-flex; align-items: center; gap: 4px; height: 48px; padding: 0 12px; border-radius: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; font-weight: 700; white-space: nowrap;">토트넘<x-import component-from-global-scope="PlayerOne.Icon" name="chevron-down" size="{{i16}}"></x-import></span></div><section style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand-ink);"><div style="display: flex; align-items: center; justify-content: space-between;"><span style="display: flex; flex-direction: column; gap: 1px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">풀네임</span><b style="font-size: 17px;">해리 케인</b></span><span style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;"><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">경기 화면 라벨</span><span style="height: 26px; padding: 0 10px; border-radius: 7px; background: #121317; color: #f3f4f6; font-size: 13px; line-height: 26px; font-weight: 800;">허리케인</span></span></div><x-import component-from-global-scope="PlayerOne.TextField" label="별명" value="허리케인" focused="{{yes}}" count="4/8"></x-import><x-import component-from-global-scope="PlayerOne.TextField" label="짧은 이름" placeholder="케인 (자동)" hint="비워 두면 자동 짧은 이름(유명한 이름, 같은 이름이 여럿이면 첫 글자)"></x-import><span style="font-size: 11px; color: var(--ink-faint);">이름표 = 별명 > 짧은 이름. 이 세이브에 저장돼요.</span><div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px;"><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="restore">되돌리기</x-import><x-import component-from-global-scope="PlayerOne.Button" block="{{yes}}" icon="check">저장</x-import></div></section><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted); padding: 2px 2px 0;">토트넘 홋스퍼 · 25명</span><div style="display: flex; flex-direction: column; gap: 6px;">
+  <sc-for list="{{names}}" as="n" hint-placeholder-count="6">
+    <div style="display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 12px; border-radius: 14px; background: var(--surface-1); box-shadow: {{n.ring}};">
+      <span style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;"><b style="font-size: 14px;">{{n.name}}</b><span style="font-size: 11px; color: var(--ink-muted);">{{n.team}}</span></span>
+      <span style="height: 24px; padding: 0 8px; border-radius: 6px; background: var(--card-bg); color: {{n.ink}}; font-size: 12px; line-height: 24px; font-weight: 800; white-space: nowrap;">{{n.label}}</span>
+    </div>
+  </sc-for>
+</div>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="more" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i16: 16, i18: 18, i20: 20, i40: 40, i44: 44, i56: 56, heroChips: ['손흥민', { label: '이 브라우저에 저장', soft: true }],
+      jumpTabs: [{ id: 'play', label: '경기 진행' }, { id: 'view', label: '화면 보기' }, { id: 'names', label: '선수 이름' }, { id: 'save', label: '저장·안내' }, { id: 'face', label: '페이스온' }, { id: 'pack', label: '페이스팩' }, { id: 'ver', label: '버전' }],
+      decideTabs: [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }],
+      freqTabs: [{ id: 'all', label: '모든 순간' }, { id: 'key', label: '중요한 순간만' }, { id: 'crit', label: '결정적 순간만' }],
+      simTabs: [{ id: 'full', label: '전체 엔진' }, { id: 'fast', label: '빠른 진행' }],
+      nameChips: ['별명 2명', { label: '이 세이브에 저장', soft: true }], names: [{ name: '손흥민', team: '내 선수 · LW', label: '손흥민', ink: 'var(--mine)', ring: 'none' }, { name: '크리스티안 에릭센', team: 'CM · 26세', label: '에릭센', ink: '#f3f4f6', ring: 'none' }, { name: '델리 알리', team: 'CAM · 22세', label: '알리', ink: '#f3f4f6', ring: 'none' }, { name: '얀 페르통언', team: 'CB · 31세', label: '페르통언', ink: '#f3f4f6', ring: 'none' }, { name: '키어런 트리피어', team: 'RB · 27세', label: '트리피어', ink: '#f3f4f6', ring: 'none' }, { name: '위고 요리스', team: 'GK · 31세', label: '요리스', ink: '#f3f4f6', ring: 'none' }] };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

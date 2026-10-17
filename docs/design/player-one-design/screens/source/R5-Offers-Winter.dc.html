@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>이적제안-겨울</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="이적 제안" compact="{{yes}}" eyebrow="겨울 이적시장 · 1월 31일 마감" value="{{two}}" pad="{{no}}" chips="{{tchips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><div style="display: flex; gap: 10px; padding: 12px; border-radius: 14px; background: var(--warning-soft); font-size: 12px; line-height: 17px;"><span style="display: inline-flex; color: var(--warning);"><x-import component-from-global-scope="PlayerOne.Icon" name="pause" size="{{i18}}"></x-import></span><span><b style="color: var(--warning);">진행을 멈췄어요.</b> 답하기 전에는 [계속]·자동 진행이 안 돼요. 거절하면 시즌을 그대로 이어 가요.</span></div><div style="display: flex; flex-direction: column; gap: 6px;"><x-import component-from-global-scope="PlayerOne.OfferCard" offer="{{sel}}"></x-import><div style="display: grid; grid-template-columns: 28px 1fr auto auto 16px; align-items: center; gap: 10px; min-height: 56px; padding: 0 12px; border-radius: 14px; background: var(--surface-1);"><x-import component-from-global-scope="PlayerOne.Crest" name="AS 로마" size="{{i24}}"></x-import><span style="display: flex; flex-direction: column; min-width: 0;"><b style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">AS 로마</b><span style="font-size: 11px; color: var(--ink-muted);">리그 5위 · 전력 78.4 <span style="color: var(--fail);">−2.3</span></span></span><span style="height: 20px; padding: 0 6px; border-radius: 6px; background: var(--warning-soft); color: var(--warning); font-size: 10px; line-height: 20px; font-weight: 800;">임대</span><span style="display: flex; flex-direction: column; align-items: flex-end;"><b style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">95%</b><span style="font-size: 10px; font-weight: 700; color: var(--ink-faint);">선발 · 임대 6개월</span></span><x-import component-from-global-scope="PlayerOne.Icon" name="chevron-down" size="{{i16}}"></x-import></div></div><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" size="lg" block="{{yes}}">모두 거절하고 토트넘에 남기</x-import><span style="font-size: 11px; line-height: 16px; color: var(--ink-faint);">시즌 중 이적은 남은 계약(2019-20 시즌까지) 위약금을 상대 팀이 내요. 임대는 6월에 토트넘으로 돌아와요.</span></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="answer" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { progress: 1 }, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i24: 24, nob: {}, nol: [], two: 2, tchips: ['1월 14일 (월)', { label: '리그 22/38R', soft: true }], sel: { club: '바이에른 뮌헨', league: '분데스리가', rank: 1, strength: '83.9', apps: 85, starts: 68, years: '4년', weekly: '2.1억 원', yearly: '109.2억 원', note: '이적료 780억 원 · 다른 리그 첫 시즌은 적응 기간(평점 −0.1)' } };
+  }
+}
+</script>
+</body>
+</html>

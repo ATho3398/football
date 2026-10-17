@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>독-폰</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 900px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 18px 0 0;"><div style="padding: 0 16px; display: flex; flex-direction: column; gap: 4px;"><b style="font-size: 20px;">독 · 폰 6칸</b><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">홈 · 진행 · 선수 · 훈련·일정 · 월드 · 더보기. 가운데 "진행" 칸만 상태에 따라 이름·아이콘·색이 바뀌고 늘 강조돼요. 덱·전술·설정·저장은 더보기 안에 있어요.</span></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px; padding: 0 16px;"><span style="height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; color: var(--brand-ink);">계속</span><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">평소 · 다음 할 일(하루 진행 또는 경기 전 준비)로 이어 가요</span></div><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="continue" badges="{{b_continue}}" locked="{{lockNone}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px; padding: 0 16px;"><span style="height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; color: var(--brand-ink);">경기</span><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">경기날 · 누르면 경기 화면으로</span></div><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="match" badges="{{b_match}}" locked="{{lockNone}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px; padding: 0 16px;"><span style="height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; color: var(--brand-ink);">경기 중</span><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">경기 중 다른 화면에 있을 때 · 빨간 점 = 진행 중, 누르면 경기로 돌아가요</span></div><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="live" badges="{{b_live}}" locked="{{lockNone}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px; padding: 0 16px;"><span style="height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; color: var(--brand-ink);">답하기</span><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">답이 필요한 일(계약 만료·이적 제안·면담)이 있을 때 · 숫자 = 남은 응답</span></div><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="answer" badges="{{b_answer}}" locked="{{lockNone}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px; padding: 0 16px;"><span style="height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; color: var(--brand-ink);">시즌 요약</span><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all;">시즌이 끝났을 때 · 요약을 보기 전에는 다음 시즌으로 안 넘어가요</span></div><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="season" badges="{{b_season}}" locked="{{lockNone}}"></x-import></div><div style="display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; align-items: baseline; gap: 8px; padding: 0 16px;"><span style="height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; color: var(--ink);">잠김 · 배지</span><span style="font-size: 11px; line-height: 15px; color: var(--ink-muted);">선수 칸 배지 35 = 찍을 포인트 · 잠긴 칸은 흐리게 + 자물쇠</span></div><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="player" progress="continue" badges="{{b_lock}}" locked="{{lockWorld}}"></x-import></div><div style="padding: 0 16px 16px; display: grid; gap: 6px; font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;"><span>· 높이 72px(+ 홈 인디케이터 여백). 화면 콘텐츠는 독 높이만큼 아래 여백을 둬요.</span><span>· 활성 칸은 라임 글자, 진행 칸은 라임 면(경기 중 = 시안, 답하기 = 주황).</span></div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, lockNone: [], lockWorld: ['world'], b_continue: {}, b_match: {}, b_live: {}, b_answer: { progress: 2 }, b_season: { player: 35 }, b_lock: { player: 35 } };
+  }
+}
+</script>
+</body>
+</html>

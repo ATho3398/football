@@ -3,7 +3,7 @@
 - 지금 UI 세션: **UI_1** `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`, 섹션 `플레이어 원_UI`, 연 세션 = 마스터 L `session_01EWtWvJrTgC8wWMeELQz664`)
 - **지금 마스터: M** `session_01BTacbWbkVFVE6HVKwxLx3v` (브랜치 `claude/planning-m`, 2026-10-17 20:57 KST L → M 교체). 알림·보고는 M으로.
   - 참고: `docs/planning-pending.md` 58에는 UI_1 ID가 `session_01QuN9pxUgr2T4SN6FKmUmjd`로 적혀 있다. 실제 이 세션 ID는 위 값(`get_session` 확인).
-- 현재 차례: **5** (5차 보고 2026-10-17 완료 → 다음 보고는 6차)
+- 현재 차례: **5 → 디자인 받음, 다음 보고는 6차**
 - 5차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **4개** (+ 작은 변형 9) (큰 것이 있는 단계: 1개 — C.45, 작은 것만: C.46)
 - 다음 보고 조건: 6개 이상, 또는 그런 단계 3개 이상, 또는 사용자 화면 불만 → 6차(새로 쌓인 것만)
 
@@ -11,7 +11,7 @@
 
 | 차례 | 날짜 | 문서 | 캡처 | 기준 빌드 | 상태 |
 |---|---|---|---|---|---|
-| 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | 사용자에게 보고, 디자인 대기 |
+| 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | **디자인 도착 2026-10-18 00:24**(57~123 전부, `docs/design/player-one-design/` 덮어씀) → 적용 명세 `docs/ui-requests/5-apply.md` → 마스터 M |
 
 | 카드 그림 | 2026-10-17 22:40 | `docs/ui-requests/card-art-batch03-apply.md` | `docs/design/incoming/card-art/batch03/`(17장) | — | BATCH 03(13~16 + 엘라스티코) 받음 → 적용 명세 → 마스터 M. 남은 시그니처 15장·BATCH 01·02 대기 |
 

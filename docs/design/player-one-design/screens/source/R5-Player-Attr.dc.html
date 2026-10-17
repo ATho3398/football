@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>선수-능력치</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1203px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="선수" on-back="{{no}}" compact="{{yes}}" right="토트넘 홋스퍼" eyebrow="손흥민 · LW · 26세 · OVR" value="{{ovr}}" chips="{{heroChips}}"></x-import><div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px 0;"><x-import component-from-global-scope="PlayerOne.Avatar" name="손흥민" size="{{i48}}"></x-import><span style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0;"><span style="display: flex; align-items: center; gap: 6px;"><x-import component-from-global-scope="PlayerOne.TierBadge" tier="key" score="{{tierScore}}" size="sm"></x-import><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">탑클래스까지 50점</span></span><span style="display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--ink-muted);">Lv 7<span style="height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden;"><i style="display: block; width: 69%; height: 100%; background: var(--brand);"></i></span>163/236</span></span><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="secondary" icon="face">얼굴</x-import></div><div style="padding: 6px 16px 0;"><x-import component-from-global-scope="PlayerOne.Tabs" variant="underline" fill="{{yes}}" items="{{ptabs}}" value="attr" label="선수 화면"></x-import></div><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><div style="display: flex; justify-content: space-between; align-items: center;"><b style="font-size: 13px;">1~20 · 이번 시즌 변화 표시</b><x-import component-from-global-scope="PlayerOne.Button" size="sm" icon="plus">35P 찍기</x-import></div><div style="display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; font-weight: 700; color: var(--ink-muted);"><span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--brand);"></i>17+</span><span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--success);"></i>15+</span><span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--tier-key);"></i>13+</span><span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--ink);"></i>10+</span><span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 8px; height: 8px; border-radius: 2px; background: var(--away);"></i>~9</span><span style="display: inline-flex; align-items: center; gap: 4px;"><i style="width: 10px; height: 10px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--brand-ink);"></i>LW 핵심</span><span>막대 = 다음 칸까지</span></div><x-import component-from-global-scope="PlayerOne.AttrGrid" groups="{{groups}}" columns="{{four}}"></x-import></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="player" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1203}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { player: 35 }, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i14: 14, i16: 16, i18: 18, i20: 20, i24: 24, i40: 40, i48: 48, ovr: 83, tierScore: 500, heroChips: ['위상 스페셜 · 500점', '폼 보통', { label: '옐로 0/5', soft: true }], ptabs: [{ id: 'attr', label: '능력치' }, { id: 'pos', label: '포지션' }, { id: 'rec', label: '기록' }, { id: 'con', label: '계약·이적' }], four: 4, groups: [{ name: '몸 다루기', items: [{ name: '드리블', value: 17, progress: 0.4, keyAttr: true, delta: 1 }, { name: '볼 컨트롤', value: 17, progress: 0, keyAttr: false }, { name: '민첩성', value: 18, progress: 0, keyAttr: false }] }, { name: '마무리', items: [{ name: '슈팅', value: 17, progress: 0.8, keyAttr: false }, { name: '중거리 슛', value: 17, progress: 0.6, keyAttr: false }, { name: '헤더', value: 12, progress: 0.8, keyAttr: false }, { name: '공격 위치선정', value: 17, progress: 0.8, keyAttr: false }] }, { name: '패스·시야', items: [{ name: '숏패스', value: 16, progress: 0.2, keyAttr: false }, { name: '롱패스', value: 14, progress: 0.4, keyAttr: false }, { name: '크로스', value: 15, progress: 0.2, keyAttr: true }, { name: '프리킥', value: 14, progress: 0, keyAttr: false }, { name: '시야', value: 15, progress: 0.6, keyAttr: false }] }, { name: '수비', items: [{ name: '태클', value: 8, progress: 0, keyAttr: false }, { name: '인터셉트', value: 8, progress: 0.4, keyAttr: false }, { name: '마킹', value: 7, progress: 0.2, keyAttr: false }, { name: '수비 위치선정', value: 8, progress: 0.4, keyAttr: false }] }, { name: '스피드', items: [{ name: '속도', value: 18, progress: 0.6, keyAttr: true }, { name: '가속', value: 18, progress: 0.8, keyAttr: false }] }, { name: '피지컬', items: [{ name: '지구력', value: 17, progress: 0.6, keyAttr: false, delta: -1 }, { name: '근력', value: 14, progress: 0.2, keyAttr: false }, { name: '점프', value: 13, progress: 0.8, keyAttr: false }] }, { name: '정신', items: [{ name: '침착성', value: 17, progress: 0.2, keyAttr: false, delta: 1 }, { name: '결정력', value: 16, progress: 0.2, keyAttr: false }, { name: '리더십', value: 15, progress: 0.2, keyAttr: false }, { name: '노력', value: 16, progress: 0.8, keyAttr: false }] }] };
+  }
+}
+</script>
+</body>
+</html>

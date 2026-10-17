@@ -106,7 +106,19 @@
     upload: 'M12 15V3 M7 8l5-5 5 5 M4 20h16',
     plane: 'M2.5 13l19-7-5.5 13-3.5-4.5z M12.5 14.5L21.5 6',
     replay: 'M4 12a8 8 0 1 0 2.4-5.7 M4 4v4.5h4.5 M10 9.5v5l4-2.5z',
-    stop: 'M6 6h12v12H6z'
+    stop: 'M6 6h12v12H6z',
+    menu: 'M4 7h16 M4 12h16 M4 17h16',
+    deck: 'M9 4h9a1 1 0 0 1 1 1v12 M6 7h9a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z',
+    chat: 'M4 5h16v11H10l-6 4z M8 9.5h8 M8 12.5h5',
+    trophy: 'M7 4h10v5a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4 M17 6h3a3 3 0 0 1-3 4 M12 14v4 M8 20h8',
+    swap: 'M4 8h14 M14 4l4 4-4 4 M20 16H6 M10 12l-4 4 4 4',
+    edit: 'M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4',
+    eye: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z',
+    grid: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
+    face: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M9 10v.5 M15 10v.5 M8.5 14.5q3.5 3 7 0',
+    sliders: 'M4 7h9 M17 7h3 M15 5v4 M4 17h3 M11 17h9 M9 15v4',
+    pin: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4z',
+    collapse: 'M6 15l6-6 6 6'
   };
   var FILLED = { stop: 1, card: 1, star: 1, levelup: 1, combo: 1, play: 1, injury: 1, risk: 1 };
   var DOTTY = {};
@@ -290,15 +302,19 @@
     /* 카드 그림 이미지는 4:3(280×210) 칸에 꽉 채운다. 3:2 원본이면 좌우가 조금 잘린다. */
     /* card.artPos { x, y, zoom }: x = 오른쪽으로 이동(%), y = 위로 올림(%), 둘 다 그림 칸 크기 기준. zoom = 확대 배율(1 = 꽉 채움). */
     if (props.art) {
-      var p = props.pos || {}, z = Math.max(1, Math.min(4, +p.zoom || 1)), iw = CARD_W * z, ih = ART_H * z;
+      var p = props.pos || {}, z = Math.max(1, Math.min(4, +p.zoom || 1)), iw = CARD_W * z, ih = props.sq ? iw : ART_H * z;
       var ix = (CARD_W - iw) / 2 + (+p.x || 0) * CARD_W / 100, iy = (ART_H - ih) / 2 - (+p.y || 0) * ART_H / 100;
       var img = function (k, t) { return h('image', { key: k, href: props.art, x: ix, y: iy, width: iw, height: ih, preserveAspectRatio: 'xMidYMid slice', transform: t }); };
       /* 옮겨서 드러난 가장자리는 그림을 거울처럼 이어 붙여 채운다(대부분 사선 아래 글자 패널에 가려진다). */
-      var moved = (+p.x || 0) !== 0 || (+p.y || 0) !== 0;
+      var rot = Math.max(-45, Math.min(45, +p.rotate || 0)), cx = ix + iw / 2, cy = iy + ih / 2;
+      var moved = (+p.x || 0) !== 0 || (+p.y || 0) !== 0 || rot !== 0;
+      /* flip: 좌우 반전, rotate: 기울기(도, 시계 방향 +). 둘 다 그림 자기 가운데 기준이라 x 이동 방향은 그대로다. */
+      var tf = (rot ? 'rotate(' + rot + ' ' + cx + ' ' + cy + ') ' : '') + (p.flip ? 'translate(' + 2 * cx + ' 0) scale(-1 1)' : '');
       return h(F, null, h('rect', { x: 0, y: 0, width: CARD_W, height: ART_H, fill: '#121317' }),
-        moved && [img('b', 'translate(0 ' + 2 * (iy + ih) + ') scale(1 -1)'), img('t', 'translate(0 ' + 2 * iy + ') scale(1 -1)'),
-          img('l', 'translate(' + 2 * ix + ' 0) scale(-1 1)'), img('r', 'translate(' + 2 * (ix + iw) + ' 0) scale(-1 1)')],
-        img('m'));
+        h('g', { transform: tf || undefined },
+          moved && [img('b', 'translate(0 ' + 2 * (iy + ih) + ') scale(1 -1)'), img('t', 'translate(0 ' + 2 * iy + ') scale(1 -1)'),
+            img('l', 'translate(' + 2 * ix + ' 0) scale(-1 1)'), img('r', 'translate(' + 2 * (ix + iw) + ' 0) scale(-1 1)')],
+          img('m')));
     }
     var a = 'var(--r)', thin = props.mini;
     return h(F, null,
@@ -332,7 +348,7 @@
     return h('div', { className: 'po-gc' },
       h('svg', { className: 'po-gc__art', width: CARD_W, height: CARD_H, viewBox: '0 0 ' + CARD_W + ' ' + CARD_H, 'aria-hidden': true },
         h('defs', null, h('clipPath', { id: clipId }, h('path', { d: L.clip }))),
-        h('g', { clipPath: 'url(#' + clipId + ')' }, h('g', { transform: c.art ? undefined : 'translate(0 -10)' }, h(CardScene, { type: type, art: c.art, pos: c.artPos }))),
+        h('g', { clipPath: 'url(#' + clipId + ')' }, h('g', { transform: c.art ? undefined : 'translate(0 -10)' }, h(CardScene, { type: type, art: c.art, sq: c.artSquare, pos: c.artPos }))),
         L.overlay.map(function (o, i) {
           return h('path', { key: i, d: o.d, style: { fill: 'var(--r)' }, opacity: o.op });
         })),
@@ -355,7 +371,7 @@
   function MiniCard(props) {
     var c = normCard(props.card), type = c.type || 'passive';
     return h(F, null,
-      h('svg', { className: 'po-mc__art', viewBox: c.art ? '0 0 280 210' : '20 90 240 300', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true }, h(CardScene, { type: type, art: c.art, pos: c.artPos, mini: true })),
+      h('svg', { className: 'po-mc__art', viewBox: c.art ? '0 0 280 210' : '20 90 240 300', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': true }, h(CardScene, { type: type, art: c.art, sq: c.artSquare, pos: c.artPosMini || c.artPos, mini: true })),
       h('span', { className: 'po-mc__band' }),
       h('span', { className: 'po-mc__dot' }),
       c.pos && c.pos !== 'all' && POS[c.pos] && h('span', { className: cx('po-mc__pos', 'po-pos--' + c.pos), title: POS[c.pos].l }, h(Icon, { name: POS[c.pos].i, size: 10, strokeWidth: 2.6 })),
@@ -372,7 +388,7 @@
       className: cx('po-card', 'po-card--' + size, 'po-rarity--' + rarity, 'is-' + state, props.className), style: props.style,
       'aria-label': c.name + ' (' + RARITY[rarity] + ' ' + typeLabel(c) + (c.pos && POS[c.pos] ? ' · ' + POS[c.pos].l : '') + ')'
     },
-      full ? h('span', { className: 'po-card__scale' }, h(FullCard, { card: c })) : h(MiniCard, { card: c }),
+      full ? h('span', { className: 'po-card__scale' }, h(FullCard, { card: c })) : h(MiniCard, { card: c, size: size }),
       !full && c.isNew && h('span', { className: 'po-mc__new' }, 'NEW'),
       blocked && props.reason && h('span', { className: 'po-card__reason' }, props.reason));
   }
@@ -510,7 +526,7 @@
   }
   function Tabs(props) {
     var variant = props.variant || 'segment';
-    return h('div', { className: cx('po-tabs', 'po-tabs--' + variant, props.fill && 'po-tabs--fill', props.className), role: 'tablist', 'aria-label': props.label },
+    return h('div', { className: cx('po-tabs', 'po-tabs--' + variant, props.fill && 'po-tabs--fill', props.scroll && 'po-tabs--scroll', props.cols && 'po-tabs--grid', props.className), role: 'tablist', 'aria-label': props.label, style: props.cols ? { gridTemplateColumns: 'repeat(' + props.cols + ', minmax(0, 1fr))' } : undefined },
       (props.items || []).map(function (it) {
         var on = it.id === props.value;
         return h('button', { key: it.id, type: 'button', role: 'tab', 'aria-selected': on, className: cx('po-tab', on && 'is-on'), onClick: props.onChange && function () { props.onChange(it.id); } },
@@ -576,6 +592,7 @@
   var ARROW_TONE = { safe: 'var(--choice-safe)', balanced: 'var(--choice-balanced)', gamble: 'var(--choice-gamble)', shot: '#f3f4f6', pass: 'var(--brand)', dribble: 'var(--mine)', cross: 'var(--brand)' };
   function px(p) { return [p[0] / 100 * PW, p[1] / 100 * PH]; }
   function Pitch(props) {
+    if (props.orient === 'vertical') return h(PitchV, props);
     var id = useUid('po-pitch-');
     var players = props.players || [], arrows = props.arrows || [];
     var lineC = 'rgba(255,255,255,0.16)';
@@ -635,7 +652,8 @@
   function HeroPanel(props) {
     var pct = props.total ? Math.round((props.value / props.total) * 100) : null;
     var val = typeof props.value === 'number' && props.pad !== false ? String(props.value).padStart(2, '0') : props.value;
-    return h('section', { className: cx('po-hero', props.className) },
+    var isText = typeof val === 'string' && /[^0-9.,:\/%+\-−·× ]/.test(val.replace(/[위세점명P일R골개]$/, ''));
+    return h('section', { className: cx('po-hero', props.compact && 'po-hero--compact', isText && 'po-hero--text', props.className) },
       h('div', { className: 'po-hero__bar' },
         props.onBack !== false ? h('button', { type: 'button', className: 'po-hero__back', 'aria-label': '뒤로', onClick: props.onBack }, h(Icon, { name: 'chevron-right', size: 18, strokeWidth: 2.4, style: { transform: 'scaleX(-1)' } })) : h('span', null),
         h('span', { className: 'po-hero__title' }, props.title),
@@ -742,7 +760,258 @@
         Array.from({ length: n }, function (_, i) { return h('i', { key: i, className: i < v ? 'on' : i < v + add ? 'add' : '' }); })));
   }
 
+
+  /* ================= 요청 5: 새 컴포넌트 ================= */
+
+  /* ---------------- Dock ---------------- */
+  var DOCK_PHONE = [
+    { id: 'home', label: '홈', icon: 'home' }, { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' },
+    { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'world', label: '월드', icon: 'world' }, { id: 'more', label: '더보기', icon: 'menu' }];
+  var DOCK_PC = [
+    { id: 'home', label: '홈', icon: 'home' }, { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' },
+    { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'deck', label: '덱', icon: 'deck' }, { id: 'tactic', label: '전술', icon: 'tactic' },
+    { id: 'world', label: '월드', icon: 'world' }, { id: 'settings', label: '설정', icon: 'settings' }, { id: 'save', label: '저장', icon: 'disk' }];
+  var PROGRESS = {
+    'continue': { label: '계속', icon: 'chevron-right' }, match: { label: '경기', icon: 'match' }, live: { label: '경기 중', icon: 'match' },
+    answer: { label: '답하기', icon: 'chat' }, season: { label: '시즌 요약', icon: 'trophy' } };
+  function Dock(props) {
+    var pc = props.device === 'pc', items = pc ? DOCK_PC : DOCK_PHONE;
+    var badges = props.badges || {}, locked = props.locked || [], st = PROGRESS[props.progress || 'continue'] || PROGRESS['continue'];
+    return h('nav', { className: cx('po-dock', pc && 'po-dock--pc', props.className), 'aria-label': '메뉴' },
+      items.map(function (it) {
+        if (it.id === 'progress') {
+          return h('button', { key: it.id, type: 'button', className: cx('po-dock__go', 'is-' + (props.progress || 'continue'), props.value === 'progress' && 'is-on'), onClick: props.onSelect && function () { props.onSelect('progress'); } },
+            h('span', { className: 'po-dock__goicon' }, props.progress === 'live' ? h('i', { className: 'po-dock__live' }) : null, h(Icon, { name: st.icon, size: 20, strokeWidth: 2.4 }),
+              badges.progress != null && h('b', { className: 'po-dock__badge po-num' }, badges.progress)),
+            h('span', { className: 'po-dock__label' }, st.label));
+        }
+        var lock = locked.indexOf(it.id) >= 0, on = props.value === it.id;
+        return h('button', { key: it.id, type: 'button', disabled: lock, 'aria-current': on ? 'page' : undefined, className: cx('po-dock__item', on && 'is-on', lock && 'is-locked'), onClick: props.onSelect && function () { props.onSelect(it.id); } },
+          h('span', { className: 'po-dock__icon' }, h(Icon, { name: it.icon, size: 22, strokeWidth: on ? 2.4 : 2 }),
+            lock && h('span', { className: 'po-dock__lock' }, h(Icon, { name: 'lock', size: 10, strokeWidth: 2.6 })),
+            !lock && badges[it.id] != null && h('b', { className: 'po-dock__badge po-num' }, badges[it.id])),
+          h('span', { className: 'po-dock__label' }, it.label));
+      }));
+  }
+
+  /* ---------------- AttrTile / AttrGrid ---------------- */
+  function attrBand(v) { return v >= 17 ? 'top' : v >= 15 ? 'good' : v >= 13 ? 'ok' : v >= 10 ? 'mid' : 'low'; }
+  function AttrTile(props) {
+    var v = props.value, add = props.add || 0, shown = v + add, prog = Math.max(0, Math.min(1, props.progress || 0));
+    var sel = props.editable && props.selected;
+    return h(props.onClick ? 'button' : 'div', { type: props.onClick ? 'button' : undefined, onClick: props.onClick,
+      className: cx('po-attr', 'po-attr--' + attrBand(shown), props.keyAttr && 'is-key', props.editable && 'is-edit', sel && 'is-selected', props.maxed && 'is-maxed', props.className) },
+      h('span', { className: 'po-attr__name' }, props.name),
+      h('span', { className: 'po-attr__row' },
+        h('b', { className: 'po-attr__val po-num' }, shown),
+        add > 0 ? h('span', { className: 'po-attr__add po-num' }, '+' + add) : props.delta ? h('span', { className: cx('po-attr__delta po-num', props.delta < 0 && 'is-down') }, signed(props.delta, 0)) : null),
+      h('span', { className: 'po-attr__bar' }, h('i', { style: { width: prog * 100 + '%' } })),
+      props.editable && props.cost != null && h('span', { className: 'po-attr__cost' }, h('b', { className: 'po-num' }, props.maxed ? '최대' : props.cost + 'P'), !props.maxed && props.ovrDelta != null && h('span', { className: 'po-num' }, 'OVR +' + props.ovrDelta)),
+      sel && h('span', { className: 'po-attr__ctrl' },
+        h('span', { role: 'button', 'aria-label': props.name + ' 내리기', className: cx('po-attr__btn', add <= 0 && 'is-off') }, h(Icon, { name: 'minus', size: 16, strokeWidth: 2.6 })),
+        h('span', { role: 'button', 'aria-label': props.name + ' 올리기', className: cx('po-attr__btn po-attr__btn--plus', props.maxed && 'is-off') }, h(Icon, { name: 'plus', size: 16, strokeWidth: 2.6 }))));
+  }
+  function AttrGrid(props) {
+    var cols = props.columns || 3;
+    return h('div', { className: cx('po-attrgrid', props.className) },
+      (props.groups || []).map(function (g, gi) {
+        return h('section', { key: gi, className: 'po-attrgrid__group' },
+          h('header', { className: 'po-attrgrid__head' }, h('b', null, g.name), g.note && h('span', null, g.note)),
+          h('div', { className: 'po-attrgrid__grid', style: { gridTemplateColumns: 'repeat(' + cols + ', minmax(0, 1fr))' } },
+            (g.items || []).map(function (a, i) { return h(AttrTile, Object.assign({ key: i, editable: props.editable }, a)); })));
+      }));
+  }
+
+  /* ---------------- DayCell ---------------- */
+  function DayCell(props) {
+    var kind = props.kind || 'train';
+    return h(props.onClick ? 'button' : 'div', { type: props.onClick ? 'button' : undefined, onClick: props.onClick,
+      className: cx('po-day', 'po-day--' + kind, props.today && 'is-today', props.selected && 'is-selected', props.fixed && 'is-fixed', props.past && 'is-past', props.className) },
+      h('span', { className: 'po-day__dow' }, props.day),
+      h('b', { className: 'po-day__date po-num' }, props.date),
+      h('span', { className: 'po-day__icon' }, h(Icon, { name: props.icon || (kind === 'match' ? 'ball' : kind === 'rest' ? 'rest' : 'train'), size: 18 }),
+        props.fixed && h('span', { className: 'po-day__lock' }, h(Icon, { name: 'lock', size: 9, strokeWidth: 2.8 }))),
+      h('span', { className: 'po-day__label' }, props.label),
+      props.today && h('span', { className: 'po-day__today' }, '오늘'));
+  }
+
+  /* ---------------- OfferCard ---------------- */
+  function OfferCard(props) {
+    var o = props.offer || props;
+    return h('article', { className: cx('po-offer', o.loan && 'is-loan', props.selected && 'is-selected', props.className) },
+      h('header', { className: 'po-offer__head' },
+        h(Crest, { name: o.club, src: o.crest, size: 36, color: o.color }),
+        h('span', { className: 'po-offer__club' }, h('b', null, o.club), h('span', null, o.league + (o.rank != null ? ' · ' + o.rank + '위' : ''))),
+        o.loan ? h('span', { className: 'po-offer__tag is-loan' }, '임대') : o.tag && h('span', { className: 'po-offer__tag' }, o.tag)),
+      h('dl', { className: 'po-offer__grid' },
+        h('div', null, h('dt', null, '팀 전력'), h('dd', { className: 'po-num' }, o.strength)),
+        h('div', null, h('dt', null, '예상 출전'), h('dd', { className: 'po-num' }, o.apps + '%')),
+        h('div', null, h('dt', null, '예상 선발'), h('dd', { className: 'po-num' }, o.starts + '%')),
+        h('div', null, h('dt', null, o.loan ? '임대 기간' : '계약'), h('dd', null, o.years))),
+      h('div', { className: 'po-offer__wage' },
+        h('span', null, '주급 ', h('b', { className: 'po-num' }, o.weekly)),
+        h('span', null, '연봉 ', h('b', { className: 'po-num' }, o.yearly)),
+        o.note && h('em', null, o.note)),
+      props.actions !== false && h('div', { className: 'po-offer__actions' },
+        h(Button, { variant: 'secondary', size: 'md', block: true, onClick: props.onReject }, '거절'),
+        h(Button, { size: 'md', block: true, onClick: props.onAccept, icon: 'check' }, '수락')));
+  }
+
+  /* ---------------- TransferRow ---------------- */
+  function TransferRow(props) {
+    if (props.fill) {
+      return h('div', { className: cx('po-xfer po-xfer--fill', props.className) },
+        h('span', { className: 'po-xfer__fillmark' }, '↳'),
+        h('span', { className: 'po-xfer__filltext' }, '빈자리 보충 · ', h('b', null, props.name), ' ', props.pos, ' ', h('span', { className: 'po-num' }, props.age + '세 · OVR ' + props.ovr)),
+        props.from && h('span', { className: 'po-xfer__fillfrom' }, props.from + '에서'));
+    }
+    return h('div', { className: cx('po-xfer', props.mine && 'is-mine', props.className) },
+      h(Avatar, { src: props.avatar, name: props.name, size: 40 }),
+      h('span', { className: 'po-xfer__main' },
+        h('span', { className: 'po-xfer__name' }, h('b', null, props.name), h('span', { className: 'po-xfer__pos' }, props.pos), h('span', { className: 'po-num' }, props.age + '세')),
+        h('span', { className: 'po-xfer__move' },
+          h(Crest, { name: props.from, size: 14, color: 'var(--ink-faint)' }), h('span', null, props.from),
+          h(Icon, { name: 'chevron-right', size: 12, strokeWidth: 2.6 }),
+          h(Crest, { name: props.to, size: 14 }), h('b', null, props.to))),
+      h('span', { className: 'po-xfer__side' },
+        h('b', { className: 'po-num' }, props.ovr), h('span', null, props.status)));
+  }
+
+  /* ---------------- TextField ---------------- */
+  function TextField(props) {
+    var has = props.value != null && props.value !== '';
+    return h('label', { className: cx('po-field', props.focused && 'is-focus', props.className) },
+      props.label && h('span', { className: 'po-field__label' }, props.label, props.count && h('span', { className: 'po-num' }, props.count)),
+      h('span', { className: 'po-field__box' },
+        props.icon && h(Icon, { name: props.icon, size: 18 }),
+        h('span', { className: cx('po-field__value', !has && 'is-ph') }, has ? props.value : props.placeholder, props.focused && h('i', { className: 'po-field__caret' })),
+        has && props.clearable !== false && h('span', { className: 'po-field__clear', role: 'button', 'aria-label': '지우기' }, h(Icon, { name: 'close', size: 14, strokeWidth: 2.6 }))),
+      props.hint && h('span', { className: 'po-field__hint' }, props.hint));
+  }
+
+  /* ---------------- Pitch — vertical (요청 5) ---------------- */
+  var VW = 68, VH = 105;
+  function pxv(p) { return [p[1] / 100 * VW, (100 - p[0]) / 100 * VH]; }
+  function shortName(p) {
+    if (p.short) return p.short;
+    var l = p.label || ''; var s = l.split('.').pop();
+    return s.length > 3 ? s.slice(0, 3) : s;
+  }
+  function labelW(t, fs) { var w = 0; for (var i = 0; i < t.length; i++) w += /[ㄱ-힝]/.test(t[i]) ? fs * 0.98 : fs * 0.58; return w + fs * 0.9; }
+  function overlap(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
+  function layoutLabels(players, ball, mode, scale, fs, collide) {
+    var out = {}; if (mode === 'off') return out;
+    var bc = ball ? pxv(ball) : null;
+    var order = players.map(function (p, i) {
+      var c = pxv([p.x, p.y]); var d = bc ? Math.hypot(c[0] - bc[0], c[1] - bc[1]) : 0;
+      return { i: i, p: p, c: c, pr: p.me ? 0 : p.ball ? 1 : 2, d: d };
+    }).filter(function (o) { return o.p.label && (mode !== 'mine' || o.p.me); });
+    order.sort(function (a, b) { return a.pr - b.pr || a.d - b.d; });
+    var marks = players.map(function (p, i) { var c = pxv([p.x, p.y]), r = (p.me ? 2.3 : 1.8) * scale; return { i: i, x: c[0] - r, y: c[1] - r, w: r * 2, h: r * 2 }; });
+    var placed = [];
+    order.forEach(function (o) {
+      var r = (o.p.me ? 2.3 : 1.8) * scale, cands = [];
+      [o.p.label, shortName(o.p)].forEach(function (t, k) {
+        if (k === 1 && t === o.p.label) return;
+        var w = labelW(t, fs), hh = fs * 1.5;
+        cands.push({ t: t, short: k === 1, x: o.c[0] - w / 2, y: o.c[1] + r + 0.4, w: w, h: hh });
+        cands.push({ t: t, short: k === 1, x: o.c[0] - w / 2, y: o.c[1] - r - 0.4 - hh, w: w, h: hh });
+      });
+      var ok = null;
+      for (var k = 0; k < cands.length && !ok; k++) {
+        var c = cands[k]; c.x = Math.max(0.6, Math.min(VW - 0.6 - c.w, c.x));
+        if (collide === false || o.pr < 2 || (!placed.some(function (b) { return overlap(c, b); }) && !marks.some(function (m) { return m.i !== o.i && overlap(c, m); }))) ok = c;
+      }
+      if (ok) { placed.push(ok); out[o.i] = ok; } else out[o.i] = { hidden: true };
+    });
+    return out;
+  }
+  function pixelChar(cx0, cy0, s, team, me) {
+    // 8×10 도트 캐릭터. s = 도트 한 칸 크기(viewBox 단위)
+    var shirt = team === 'away' ? 'var(--team-away)' : 'var(--team-home)';
+    var map = ['..hhhh..', '.hhhhhh.', '.hssssh.', '.ssssss.', '..ssss..', 'tttttttt', 'tttttttt', '.tttttt.', '.kk..kk.', '.kk..kk.'];
+    var col = { h: '#2a1d16', s: '#e8b894', t: shirt, k: '#f3f4f6' };
+    var x0 = cx0 - 4 * s, y0 = cy0 - 5 * s, rects = [];
+    map.forEach(function (row, y) { for (var x = 0; x < 8; x++) { var ch = row[x]; if (ch !== '.') rects.push(h('rect', { key: x + '-' + y, x: x0 + x * s, y: y0 + y * s, width: s + 0.02, height: s + 0.02, fill: col[ch] })); } });
+    return h('g', { shapeRendering: 'crispEdges' }, me && h('rect', { x: x0 - s, y: y0 - s, width: 10 * s, height: 12 * s, fill: 'none', stroke: 'var(--mine)', strokeWidth: 0.45 }), rects);
+  }
+  function faceMarker(c, r, team, me, src, uid) {
+    var ring = me ? 'var(--mine)' : team === 'away' ? 'var(--team-away)' : 'var(--team-home)';
+    return h('g', null,
+      h('clipPath', { id: uid }, h('circle', { cx: c[0], cy: c[1], r: r })),
+      h('circle', { cx: c[0], cy: c[1], r: r, fill: 'var(--surface-3)' }),
+      src ? h('image', { href: src, x: c[0] - r, y: c[1] - r, width: r * 2, height: r * 2, clipPath: 'url(#' + uid + ')', preserveAspectRatio: 'xMidYMid slice' }) :
+        h('g', { clipPath: 'url(#' + uid + ')' },
+          h('ellipse', { cx: c[0], cy: c[1] + r * 0.95, rx: r * 0.95, ry: r * 0.6, fill: team === 'away' ? 'var(--team-away)' : 'var(--team-home)' }),
+          h('circle', { cx: c[0], cy: c[1] - r * 0.12, r: r * 0.46, fill: '#e8b894' }),
+          h('path', { d: 'M' + (c[0] - r * 0.48) + ' ' + (c[1] - r * 0.2) + 'a' + r * 0.48 + ' ' + r * 0.44 + ' 0 0 1 ' + r * 0.96 + ' 0z', fill: '#2a1d16' })),
+      h('circle', { cx: c[0], cy: c[1], r: r, fill: 'none', stroke: ring, strokeWidth: me ? 0.7 : 0.45 }));
+  }
+  function PitchV(props) {
+    var id = useUid('po-pv-');
+    var players = props.players || [], arrows = props.arrows || [];
+    var sz = { md: 1, lg: 1.25, xl: 1.5 }[props.size || 'md'] || 1;
+    var marker = props.marker || 'number';
+    var fs = 2.05 * (props.size === 'xl' ? 1.15 : 1);
+    var crop = props.crop || [0, 100];
+    var y0 = (100 - crop[1]) / 100 * VH, hh = (crop[1] - crop[0]) / 100 * VH;
+    var lab = layoutLabels(players, props.ball, props.names || 'all', sz, fs, props.collide);
+    var dotU = (props.dot || 2) / ((props.renderWidth || 358) / VW);
+    var lineC = 'rgba(255,255,255,0.16)';
+    return h('div', { className: cx('po-pitch po-pitch--v', props.className), role: 'img', 'aria-label': props.label || '세로 경기장: 선수 ' + players.length + '명' },
+      h('svg', { viewBox: '0 ' + y0 + ' ' + VW + ' ' + hh, width: '100%', className: 'po-pitch__svg' },
+        h('defs', null,
+          ['safe', 'balanced', 'gamble', 'shot', 'pass', 'dribble', 'cross'].map(function (k) {
+            return h('marker', { key: k, id: id + '-' + k, viewBox: '0 0 10 10', refX: 7, refY: 5, markerWidth: 4.5, markerHeight: 4.5, orient: 'auto-start-reverse' },
+              h('path', { d: 'M0 0L10 5L0 10z', style: { fill: ARROW_TONE[k] } }));
+          })),
+        h('rect', { x: 0, y: 0, width: VW, height: VH, className: 'po-pitch__grass' }),
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (i) { return i % 2 ? h('rect', { key: i, x: 0, y: i * 10.5, width: VW, height: 10.5, className: 'po-pitch__stripe' }) : null; }),
+        h('g', { fill: 'none', stroke: lineC, strokeWidth: 0.35 },
+          h('rect', { x: 1, y: 1, width: VW - 2, height: VH - 2 }),
+          h('path', { d: 'M1 52.5H67' }),
+          h('circle', { cx: 34, cy: 52.5, r: 9.15 }),
+          h('path', { d: 'M13.84 1V17.5H54.16V1 M24.84 1V6.5H43.16V1 M13.84 104V87.5H54.16V104 M24.84 104V98.5H43.16V104' }),
+          h('path', { d: 'M26.7 17.5a9.15 9.15 0 0 0 14.6 0 M26.7 87.5a9.15 9.15 0 0 1 14.6 0' }),
+          h('path', { d: 'M30.34 1V-0.8H37.66V1 M30.34 104V105.8H37.66V104', strokeWidth: 0.6, stroke: 'rgba(255,255,255,0.35)' })),
+        h('g', { fill: lineC }, h('circle', { cx: 34, cy: 52.5, r: 0.5 }), h('circle', { cx: 34, cy: 12, r: 0.4 }), h('circle', { cx: 34, cy: 93, r: 0.4 })),
+        props.offsideX != null && h('g', { className: 'po-pitch__offside' },
+          h('path', { d: 'M1 ' + ((100 - props.offsideX) / 100 * VH) + 'H67', strokeDasharray: '1.6 1.2' }),
+          h('text', { x: 1.6, y: (100 - props.offsideX) / 100 * VH - 1 }, '오프사이드 라인')),
+        arrows.map(function (a, i) {
+          var f = pxv(a.from), t = pxv(a.to), tone = a.tone || a.kind || 'pass';
+          var d = 'M' + f[0] + ' ' + f[1] + (a.curve ? ' Q ' + ((f[0] + t[0]) / 2 + a.curve[1]) + ' ' + ((f[1] + t[1]) / 2 - a.curve[0]) + ' ' : ' L ') + t[0] + ' ' + t[1];
+          return h('path', { key: 'a' + i, d: d, fill: 'none', style: { stroke: ARROW_TONE[tone] || tone }, strokeWidth: a.kind === 'shot' ? 0.9 : 0.6, strokeDasharray: a.kind === 'pass' || a.kind === 'through' || a.kind === 'cross' ? '1.6 1' : undefined, strokeLinecap: 'round', markerEnd: 'url(#' + id + '-' + (ARROW_TONE[tone] ? tone : 'pass') + ')', opacity: a.ghost ? 0.35 : 1 });
+        }),
+        players.map(function (p, i) {
+          var c = pxv([p.x, p.y]), me = p.me, r = (me ? 2.3 : 1.8) * sz, team = p.team || 'home';
+          return h('g', { key: 'p' + i, className: cx('po-pl', 'po-pl--' + team, me && 'is-me', p.dim && 'is-dim') },
+            marker === 'pixel' ? pixelChar(c[0], c[1], dotU, team, me) :
+            marker === 'face' ? faceMarker(c, r, team, me, p.face, id + '-f' + i) :
+              h(F, null,
+                me && h('circle', { cx: c[0], cy: c[1], r: r + 1.1, className: 'po-pl__halo' }),
+                h('circle', { cx: c[0], cy: c[1], r: r, className: 'po-pl__dot' }),
+                p.num != null && h('text', { x: c[0], y: c[1] + 0.68 * sz, className: 'po-pl__num', fontSize: (me ? 2.1 : 1.8) * sz }, p.num)),
+            p.ball && h('circle', { cx: c[0] + r * 0.8, cy: c[1] + r * 0.8, r: 0.9, className: 'po-pv__ballmark' }));
+        }),
+        props.ball && h('g', { className: 'po-ball' }, h('circle', { cx: pxv(props.ball)[0], cy: pxv(props.ball)[1], r: 1.05 })),
+        players.map(function (p, i) {
+          var L = lab[i]; if (!L || L.hidden) return null;
+          return h('g', { key: 'l' + i, className: cx('po-pv__label', p.me && 'is-me', p.ball && 'is-ball', L.short && 'is-short') },
+            h('rect', { x: L.x, y: L.y, width: L.w, height: L.h, rx: 0.8 }),
+            h('text', { x: L.x + L.w / 2, y: L.y + L.h * 0.7, fontSize: fs }, L.t));
+        }),
+        props.marks && props.marks.map(function (m, i) {
+          var c = pxv([m.x, m.y]);
+          return h('g', { key: 'm' + i, className: 'po-mark po-mark--' + (m.tone || 'brand') },
+            h('rect', { x: c[0] - m.text.length * 1.15 - 1.6, y: c[1] - 2.4, width: m.text.length * 2.3 + 3.2, height: 4.8, rx: 1.2 }),
+            h('text', { x: c[0], y: c[1] + 0.95 }, m.text));
+        })),
+      props.children && h('div', { className: 'po-pitch__overlay' }, props.children));
+  }
+
   var api = {
+    Dock: Dock, AttrTile: AttrTile, AttrGrid: AttrGrid, DayCell: DayCell, OfferCard: OfferCard, TransferRow: TransferRow, TextField: TextField,
     Button: Button, Icon: Icon, Avatar: Avatar, Crest: Crest, TierBadge: TierBadge, RatingBadge: RatingBadge, StatChip: StatChip,
     Meter: Meter, FatigueGauge: FatigueGauge, FormIndicator: FormIndicator, StatBar: StatBar, PlayerCard: PlayerCard,
     GameCard: GameCard, CardHand: CardHand, ChoiceButton: ChoiceButton, FeedItem: FeedItem, ScoreBar: ScoreBar, SceneStrip: SceneStrip,

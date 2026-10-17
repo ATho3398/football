@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>홈-비시즌</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 홈-비시즌 (요청 5 · 홈) · 390×921 · 원본 R5-Home-Offseason.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 921px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" eyebrow="2018-19 시즌 · 7월 20일 (토)" value="비시즌" chips="{{heroChips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px;">
+<section style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--mine);">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--mine);"><x-import component-from-global-scope="PlayerOne.Icon" name="chat" size="{{i16}}"></x-import>응답 필요 · 계약 만료</span>
+          <b style="font-size: 16px; line-height: 22px; font-weight: 800;">토트넘 홋스퍼와의 계약이 끝났어요</b>
+          <span style="font-size: 13px; line-height: 19px; color: var(--ink-muted); word-break: keep-all;">재계약(연장)하거나, FA로 다른 팀 제안 중 하나를 골라요. 답하기 전에는 다음 시즌으로 넘어가지 않아요.</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}">제안 5개 보기</x-import><x-import component-from-global-scope="PlayerOne.Button" block="{{yes}}">재계약</x-import></div>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: var(--surface-1);">
+          <div style="display: flex; align-items: center; justify-content: space-between;"><b style="font-size: 15px;">비시즌 휴가</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">8월 2일 (금) 소집</span></div>
+          <span style="font-size: 13px; line-height: 19px; color: var(--ink-muted); word-break: keep-all;">휴가 중에는 훈련이 없고 체력이 회복돼요. 소집일부터 훈련 계획과 첫 경기를 준비해요.</span>
+          <x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="trophy">시즌 종료 요약</x-import>
+        </section>
+        <section style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--brand-soft);">
+          <span style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--brand); color: var(--on-brand);"><x-import component-from-global-scope="PlayerOne.Icon" name="plus" size="{{i20}}" stroke-width="{{sw}}"></x-import></span>
+          <span style="display: flex; flex-direction: column; gap: 2px; flex: 1;"><b style="font-size: 15px;">능력치 포인트 <span style="font-family: var(--font-display); font-weight: 700;">35</span>개</b><span style="font-size: 12px; color: var(--ink-muted);">레벨업으로 얻은 포인트를 찍어요</span></span>
+          <x-import component-from-global-scope="PlayerOne.Button" size="sm">찍기</x-import>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 10px;">
+      <x-import component-from-global-scope="PlayerOne.PlayerCard" player="{{me}}" variant="compact"></x-import>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+        <sc-for list="{{season}}" as="s" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 0; border-radius: 12px; background: var(--surface-1);"><b style="font-family: var(--font-display); font-weight: 700; font-size: 18px; color: {{s.ink}};">{{s.v}}</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{s.l}}</span></div>
+        </sc-for>
+      </div>
+    </section><p style="margin: 4px 0 0; text-align: center; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--ink-faint);">버전 C.44a · 엔진 19 · 밸런스 31 · 2026-10-17 배포 (커밋 c064b8d)</p>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="answer" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = { player: 35, progress: 1 }, dockLocked = [];
+    const me = { name: '손흥민', age: 26, position: 'LW', ovr: 83, tier: 'key', tierScore: 500, level: 0, team: '토트넘 홋스퍼' };
+    const season = [{ v: 5, l: '출전', ink: 'var(--ink)' }, { v: 1, l: '골', ink: 'var(--brand-ink)' }, { v: 2, l: '도움', ink: 'var(--ink)' }, { v: '7.08', l: '평균 평점', ink: 'var(--ink)' }];
+    const decideTabs = [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }];
+    return { dockBadges, dockLocked, yes: true, no: false, four: 4, i12: 12, i18: 18, i20: 20, i24: 24, me, season, decideTabs, decide: 'auto', decideText: '엔진이 대신 골라요', heroChips: ['시즌 종료', { label: '포인트 35', soft: true }], i16: 16, sw: 2.6 };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>

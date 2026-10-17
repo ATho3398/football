@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>다시보기-세로</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.ScoreBar" mode="manual" home="토트넘 홋스퍼" away="레스터 시티" home-score="{{hs}}" away-score="{{zero}}" minute="{{minute}}" speed="1×" view="highlight" scene="{{scene}}" home-tactic="{{ht}}" away-tactic="{{at}}"></x-import><div style="padding: 8px 16px 0;"><x-import component-from-global-scope="PlayerOne.Pitch" orient="vertical" players="{{players}}" ball="{{ball}}" arrows="{{arrows}}" crop="{{crop}}" marker="number" size="lg" names="all" dot="{{dot}}"></x-import></div><div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 0; font-size: 11px; font-weight: 700; color: var(--ink-muted);"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--brand);"></span>{{sceneText}}</span><span style="display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 7px; background: var(--surface-1); font-size: 11px; font-weight: 800; color: var(--ink);"><x-import component-from-global-scope="PlayerOne.Icon" name="eye" size="{{i14}}"></x-import>{{viewText}}</span></div><div style="display: flex; flex-direction: column; gap: 2px; padding: 6px 16px 0;"><sc-for list="{{feed}}" as="f" hint-placeholder-count="2"><x-import component-from-global-scope="PlayerOne.FeedItem" minute="{{f.minute}}" kind="{{f.kind}}" mine="{{f.mine}}" text="{{f.text}}" score="{{f.score}}"></x-import></sc-for></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="home" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    const P = (x, y, num, team, label, extra) => Object.assign({ x, y, num, team, label }, extra || {});
+    const HOME = [
+      P(84, 20, 7, 'home', '손흥민', { me: true, ball: true, short: '손흥민' }),
+      P(91, 47, 9, 'home', '해리 케인', { short: '케인' }),
+      P(81, 55, 23, 'home', 'C.에릭센', { short: '에릭센' }),
+      P(87, 70, 10, 'home', 'B.쇼', { short: '쇼' }),
+      P(70, 38, 6, 'home', 'Ja.라이트', { short: '라이트' }),
+      P(68, 50, 11, 'home', 'D.코스타', { short: '코스타' }),
+      P(56, 86, 2, 'home', 'Na.터너', { short: '터너' }),
+      P(52, 66, 5, 'home', 'Sa.아데예미', { short: '아데예미' }),
+      P(50, 14, 3, 'home', 'Fe.리마', { short: '리마' }),
+      P(44, 40, 4, 'home', 'M.로메로', { short: '로메로' }),
+      P(6, 50, 1, 'home', 'Id.사르', { short: '사르' })
+    ];
+    const AWAY = [
+      P(98, 50, 1, 'away', 'K.슈마이켈', { short: '슈마이켈' }),
+      P(89, 28, 2, 'away', 'A.페레이라', { short: '페레이라' }),
+      P(93, 42, 5, 'away', 'An.마르텔', { short: '마르텔' }),
+      P(92, 56, 6, 'away', 'L.안선스', { short: '안선스' }),
+      P(88, 74, 3, 'away', 'F.곤살레스', { short: '곤살레스' }),
+      P(85, 38, 4, 'away', 'B.바커르', { short: '바커르' }),
+      P(77, 52, 10, 'away', 'Ga.올리베이라', { short: '올리베이라' }),
+      P(74, 30, 8, 'away', 'Ju.로메로', { short: '로메로' }),
+      P(73, 64, 7, 'away', 'T.데이비스', { short: '데이비스' }),
+      P(60, 48, 11, 'away', 'T.플레처', { short: '플레처' }),
+      P(64, 26, 9, 'away', 'J.바디', { short: '바디' })
+    ];
+    const players = HOME.concat(AWAY);
+    const me = [84, 20];
+    const A = (to, tone, ghost, kind) => ({ from: me, to, kind: kind || 'pass', tone, ghost: !!ghost });
+    return { dockBadges, dockLocked, yes: true, no: false, zero: 0, i14: 14, i16: 16, i20: 20, dot: 2, players, ball: [84.6, 21.5], crop: [34, 100], ht: { tactic: 'gegen', formation: '4-2-3-1' }, at: { tactic: 'counter', formation: '4-2-3-1' }, arrows: [], scene: { index: 1, total: 8, minute: 9, label: '골' }, hs: 0, minute: 9, sceneText: '다시 보기 · 장면 1 · 1×', viewText: '보기 · 등번호', feed: [{ minute: 9, kind: 'goal', mine: true, text: '골! 손흥민 · 케인 도움', score: '1-0' }] };
+  }
+}
+</script>
+</body>
+</html>
