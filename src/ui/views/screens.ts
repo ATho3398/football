@@ -2,12 +2,14 @@
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
 import {
-  Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, IconButton, Meter, PlayerCard, SectionTitle, StatBar, Tabs, TierBadge, type DesignTier,
+  Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
 import { actionRow, banners, panel, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { historyTable } from './player';
 import { attrGrid, type AttrGroupVM } from './attrGrid';
+import { attrDisplay, displayDelta } from '../../attributes';
+import { BALANCE } from '../../config/balance';
 
 // ── 타이틀 (55) ──
 
@@ -123,10 +125,11 @@ export function allocateView(vm: AllocateVM, sel: string | null, pending: number
   const coach = vm.coachComment
     ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 실력이 한 단계 더 올라서면 다시 길이 열릴 거야."</b></div></div>`
     : '';
-  const bands = `<div class="bands"><span>~${vm.cost1Max} <b>1P</b></span><span class="warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>2P</b></span><span class="fail">${vm.cost2Max + 1}~ <b>3P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 한 능력치 최대 +${vm.cap}</span></div>`;
+  // 1~20 표시 (C.44): 한 칸 = 내부 5. 비용은 내부 칸 비용(1·2·3P)의 합이라 한 칸에 대략 5·10·15P
+  const bands = `<div class="bands"><span>~${attrDisplay(vm.cost1Max)} <b>칸당 약 5P</b></span><span class="warn">${attrDisplay(vm.cost1Max) + 1}~${attrDisplay(vm.cost2Max)} <b>약 10P</b></span><span class="fail">${attrDisplay(vm.cost2Max) + 1}~ <b>약 15P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 레벨당 한 능력치 내부 +${BALANCE.growth.maxRaisePerLevel}까지(한 칸 = 내부 5), 이번 최대 내부 +${vm.cap}</span></div>`;
   // 바둑판 (C.39): 박스를 누르면 [−]/[+]와 비용. 분류 아코디언 없이 작은 머리말만
   return `${hero}<div class="body">${ovr}${coach}${bands}
-    <p class="small muted">박스를 누르면 [+]/[−]가 나와요. 테두리 = ${esc(vm.position)} 핵심 능력치, 박스 아래 = 올리는 비용과 OVR 기여.</p>
+    <p class="small muted">능력치는 1~20으로 보여요. 박스를 누르면 [+]/[−]가 나와요. [+] 한 번 = 다음 칸까지(비용은 그 칸의 합). 포인트·상한이 모자라면 갈 수 있는 데까지 올라 막대가 채워져요. 테두리 = ${esc(vm.position)} 핵심 능력치.</p>
     ${panel(attrGrid(vm.attrs, sel))}
     ${Button({ variant: 'ghost', block: true, icon: 'target', act: 'auto-alloc', disabled: vm.points === 0, children: '자동 배분 (포지션 OVR 우선)' })}</div>
     <div class="dock">${actionRow(
@@ -164,23 +167,80 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
 // ── 시즌 종료 (51) ──
 
 const chipList = (xs: { label: string; value: number }[]) => (xs.length
-  ? `<div class="chips">${xs.map((d) => `<span class="po-chip"><span class="po-chip__label">${esc(d.label)}</span><b class="po-num ${d.value > 0 ? 'up' : 'down'}">${d.value > 0 ? '+' : '−'}${Math.abs(d.value)}</b></span>`).join('')}</div>`
+  ? `<div class="chips">${xs.map((d) => `<span class="po-chip"><span class="po-chip__label">${esc(d.label)}</span><b class="po-num ${d.value > 0 ? 'up' : 'down'}">${displayDelta(d.value)}</b></span>`).join('')}</div>`
   : '<div class="chips"><span class="po-chip">변화 없음</span></div>');
 const sum = (xs: { value: number }[]) => xs.reduce((t, x) => t + x.value, 0);
-const signedSum = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+/** 1~20 칸 단위 합 (C.44, 한 칸 = 내부 5) */
+const signedSum = (n: number) => (n ? displayDelta(n) : '0');
 
-export function seasonView(vm: SeasonVM, market = '', marketPending = false): string {
+export type SeasonTab = 'matches' | 'months' | 'positions' | 'awards' | 'transfers' | 'growth';
+
+/** 월별·포지션별 표 */
+function splitTable(rows: SeasonVM['months'], head: string): string {
+  if (!rows.length) return '<p class="muted small">아직 기록이 없어요.</p>';
+  return `<div class="table-wrap"><table class="tbl"><tr><th class="l">${esc(head)}</th><th>출전</th><th>골</th><th>도움</th><th>평점</th><th>승</th><th>무</th><th>패</th></tr>
+    ${rows.map((r) => `<tr><td class="l"><b>${esc(r.label)}</b></td><td>${r.apps}</td><td>${r.goals}</td><td>${r.assists}</td><td>${r.avg}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td></tr>`).join('')}</table></div>`;
+}
+
+/**
+ * 시즌 종료 (51, C.44 pending 52 3번): 요약 카드 한 장 + [상세 보기](경기별·월별·포지션별·리그 시상·이적 소식·성장) + 큰 [새 시즌 시작].
+ * 비시즌 이적 제안이 있으면 맨 위 카드와 [이적 제안·계약에 답하기]로 이어진다 (C.42)
+ */
+export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab: SeasonTab | null = null, transfers = ''): string {
   const hero = HeroPanel({
-    title: `${vm.season} 시즌 종료`, right: vm.team, back: false, eyebrow: '리그 최종 순위', value: `${vm.pos}위`, pad: false, progress: false,
+    title: `${vm.season} 시즌 종료`, right: vm.team, back: false, compact: true, eyebrow: `${vm.season} 시즌 · 비시즌`, value: '시즌 요약', pad: false, progress: false,
     chips: [`${vm.apps}경기 출전`, `나이 ${vm.ageFrom} → ${vm.ageTo}세`],
   });
-  const actions = vm.retired
+  const next = vm.retired
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })
-    : `${vm.points > 0 ? Button({ variant: 'secondary', size: 'lg', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
-       ${vm.canRetire ? Button({ variant: 'ghost', block: true, act: 'retire', children: '은퇴하기' }) : ''}
-       ${marketPending
-    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: '이적 제안·계약에 답하기' })
-    : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: `${vm.nextSeason} 시즌 시작` })}`;
+    : marketPending
+      ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: '이적 제안·계약에 답하기' })
+      : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', className: 'season-start', children: `${vm.nextSeason} 시즌 시작` });
+  const extra = vm.retired ? '' : `${vm.points > 0 ? Button({ variant: 'secondary', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
+       ${vm.canRetire ? Button({ variant: 'ghost', block: true, act: 'retire', children: '은퇴하기' }) : ''}`;
+  const ovrD = vm.ovrAfter - vm.ovrBefore;
+  const repD = vm.repAfter - vm.repBefore;
+  const card = `<div class="panel season-card">
+      <div class="sc-head"><span class="sc-pos po-num">${vm.pos}<small>위</small></span><span class="grow"><b>${esc(vm.team)}</b><small>${esc(vm.season)} 시즌 · ${vm.apps}경기 출전</small></span>${TierBadge({ tier: vm.tier, score: vm.repAfter })}</div>
+      ${statTiles([{ value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }, { value: vm.moms, label: 'MOM' }])}
+      <div class="sc-rows">
+        <div class="kv"><span>레벨</span><b class="po-num">${vm.levelFrom !== null && vm.levelFrom !== vm.levelTo ? `Lv.${vm.levelFrom} → ` : ''}Lv.${vm.levelTo}</b></div>
+        <div class="kv"><span>OVR</span><b class="po-num">${vm.ovrBefore} → ${vm.ovrAfter} <small class="${ovrD > 0 ? 'up' : ovrD < 0 ? 'down' : 'muted'}">${ovrD > 0 ? `+${ovrD}` : ovrD < 0 ? `−${-ovrD}` : '±0'}</small></b></div>
+        <div class="kv"><span>위상 · ${esc(vm.tierName)}</span><b class="po-num">${vm.repBefore} → ${vm.repAfter} <small class="${repD > 0 ? 'up' : repD < 0 ? 'down' : 'muted'}">${repD > 0 ? `+${repD}` : repD < 0 ? `−${-repD}` : '±0'}</small></b></div>
+        ${vm.injuries ? `<div class="kv"><span>부상</span><b class="po-num">${vm.injuries}회 (${vm.injuredWeeks}주)</b></div>` : ''}
+      </div>
+      ${Button({ variant: 'secondary', block: true, icon: tab ? 'chevron-right' : 'search', act: 'season-tab', data: { v: tab ? 'close' : 'matches' }, children: tab ? '요약만 보기' : '상세 보기' })}
+    </div>`;
+  let detail = '';
+  if (tab) {
+    const tabs = Tabs({ items: [{ id: 'matches', label: '경기별' }, { id: 'months', label: '월별' }, { id: 'positions', label: '포지션별' }, { id: 'awards', label: '리그 시상' }, { id: 'transfers', label: '이적 소식' }, { id: 'growth', label: '성장·위상' }], value: tab, variant: 'underline', act: 'season-tab' });
+    let body = '';
+    if (tab === 'matches') body = seasonMatchesSection(vm.matches);
+    else if (tab === 'months') body = panel(splitTable(vm.months, '월'));
+    else if (tab === 'positions') body = panel(splitTable(vm.positions, '포지션'));
+    else if (tab === 'awards') {
+      body = vm.awards.length
+        ? `<div class="opts">${vm.awards.map((a) => OptionRow({ icon: 'star', title: `${a.title} · ${a.name}${a.me ? ' (나)' : ''}`, desc: a.team, right: a.value ? `<b class="po-num${a.me ? ' hi' : ''}">${esc(a.value)}</b>` : '' })).join('')}</div>
+          <p class="small muted">득점·도움·평점은 다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요). 발롱도르·올해의 선수는 5-5단계.</p>`
+        : '<p class="muted small">시상 기록이 없어요.</p>';
+    } else if (tab === 'transfers') body = transfers || '<p class="muted small">이적 소식이 없어요.</p>';
+    else body = growthDetail(vm);
+    detail = `<div class="season-detail">${tabs}${body}</div>`;
+  }
+  return `${hero}<div class="body">
+    ${market}
+    ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
+    ${vm.tierReached ? Banner({ tone: 'success', title: `${vm.tierReached} 달성 · 이 티어는 내려가지 않아요`, children: '감점은 다음 티어까지의 진행도만 깎아요.' }) : ''}
+    ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
+    ${vm.injury ? banners([vm.injury]) : ''}
+    ${card}
+    <div class="btn-col season-next">${next}${extra}</div>
+    ${detail}
+  </div>`;
+}
+
+/** 상세 · 성장·위상 (C.44 전 시즌 종료 화면의 업적 XP·능력치 변화·위상 진행도) */
+function growthDetail(vm: SeasonVM): string {
   const auto = sum(vm.autoGrowth);
   const vet = sum(vm.veteran);
   const age = sum(vm.aging);
@@ -190,27 +250,16 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false): st
   const repLines = vm.repLines
     .map((l) => `<div class="kv small"><span>${esc(l.label)}</span><b class="po-num down">−${l.points}${l.note ? ` <small class="muted">${esc(l.note)}</small>` : ''}</b></div>`)
     .join('');
-  return `${hero}<div class="body">
-    ${market}
-    ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
-    ${vm.tierReached ? Banner({ tone: 'success', title: `${vm.tierReached} 달성 · 이 티어는 내려가지 않아요`, children: '감점은 다음 티어까지의 진행도만 깎아요.' }) : ''}
-    ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
-    ${vm.injury ? banners([vm.injury]) : ''}
-    ${SectionTitle({ title: '내 시즌', action: `${vm.apps}경기` })}
-    ${statTiles([{ value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }, { value: vm.injuries, label: `부상 (${vm.injuredWeeks}주)` }])}
-    ${seasonMatchesSection(vm.matches)}
-    ${SectionTitle({ title: '업적 XP', action: `+${vm.achievementXp}` })}
+  return `${SectionTitle({ title: '업적 XP', action: `+${vm.achievementXp}` })}
     ${panel(`${vm.achievements.length ? vm.achievements.map((a) => `<div class="ach"><span class="ach__icon">${Icon({ name: 'star', size: 16 })}</span><span class="grow">${esc(a.label)}</span><b class="po-num up">+${a.xp}</b></div>`).join('') : '<p class="muted small">이번 시즌 업적이 없어요.</p>'}
       <p class="small muted">지급 XP는 난이도를 반영해요.${vm.levelsGained ? ` 레벨 업 ${vm.levelsGained}회!` : ''}</p>`)}
-    ${SectionTitle({ title: '능력치 변화', action: `OVR ${vm.ovrBefore} → ${vm.ovrAfter}` })}
+    ${SectionTitle({ title: '능력치 변화', action: `OVR ${vm.ovrBefore} → ${vm.ovrAfter} · 1칸 = 내부 5` })}
     ${panel(`
       <div class="kv"><b>자동 성장 <small class="muted">${esc(vm.growthAges)}</small></b><b class="po-num up">${signedSum(auto)}</b></div>${chipList(vm.autoGrowth)}
       <div class="kv"><b>노련함 <small class="muted">경험으로 오르는 능력치</small></b><b class="po-num up">${signedSum(vet)}</b></div>${chipList(vm.veteran)}
       <div class="kv"><b>노화</b><b class="po-num ${age < 0 ? 'down' : ''}">${signedSum(age)}</b></div>${chipList(vm.aging)}`)}
     ${SectionTitle({ title: '위상 진행도' })}
-    ${panel(`<div class="kv">${TierBadge({ tier: vm.tier, score: vm.repAfter })}<span class="small muted">시즌 시작 ${vm.repBefore}점 → <b class="ink">${vm.repAfter}점</b></span></div>${repLines}${rep}`)}
-    <div class="btn-col">${actions}</div>
-  </div>`;
+    ${panel(`<div class="kv">${TierBadge({ tier: vm.tier, score: vm.repAfter })}<span class="small muted">시즌 시작 ${vm.repBefore}점 → <b class="ink">${vm.repAfter}점</b></span></div>${repLines}${rep}`)}`;
 }
 
 // ── 은퇴 (56) ──

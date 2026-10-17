@@ -26,7 +26,7 @@ import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
 import { MomentPitch, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
-import { autoAllocate, raiseAttribute } from '../growth';
+import { autoAllocate, raiseAttribute, raiseDisplayStep } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
 import {
@@ -38,22 +38,23 @@ import type { PlayerState } from '../types';
 import { BADGE_NAMES_KO } from '../badges';
 import { BALANCE } from '../config/balance';
 import {
-  checklistItems, FIRST_MATCH_LINES, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
+  checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { Button, Modal, Toast, type ToastProps } from './components';
 import {
-  adviceCardVM, allocateVM, homeVM, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
+  adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { navBar, pitchViewSheet, roJosa } from './views/common';
+import { dock, dockMoreSheet, pitchViewSheet, roJosa, type DockVM } from './views/common';
+import { autoLayerHtml, autoSheet } from './views/progress';
 import { setPitchFaceResolver, setPitchView } from './pitch/renderer';
-import { adviceCard, homeView, positionChangeSection, positionSheet } from './views/home';
+import { adviceCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
-import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView } from './views/screens';
+import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView, type SeasonTab } from './views/screens';
 import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
@@ -69,7 +70,7 @@ import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule';
 
 interface ModalState {
   title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -89,7 +90,7 @@ const ui = {
   /** 방금 치른 내 경기 재생 (E5-lite). 세이브에 담지 않는다 */
   replay: null as ReplayPlayer | null,
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
-  alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
+  alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; presses: { attr: FieldAttribute; n: number }[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
   /** 덱 화면 카드 상세 시트 (C.39) */
   cardSheet: null as null | { id: string; from: 'deck' | 'pool' },
   worldTab: 'table' as 'table' | 'stars' | 'scorers' | 'transfers',
@@ -118,6 +119,13 @@ const ui = {
   fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
   /** 경기 화면 보기 시트 (C.43) */
   pvSheet: false,
+  /** 자동 진행 범위 시트 (C.44): 열림, 고른 경기 수 */
+  autoSheet: false,
+  autoCount: 5,
+  /** 독 더보기 시트 (모바일) */
+  moreSheet: false,
+  /** 시즌 종료 화면 상세 보기 탭 (C.44). null = 요약 카드만 */
+  seasonTab: null as SeasonTab | null,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
@@ -151,8 +159,8 @@ function syncProspectPick(): void {
 const app = document.getElementById('app')!;
 /** 새 기능 소개를 띄우는 화면 */
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
-/** 아래 바(홈·선수·월드)를 띄우는 화면 (C.39: 경기 화면에서도 다른 탭으로 갈 수 있게) */
-const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay', 'moment', 'season', 'offers', 'contract', 'settings'];
+/** 하단 독을 숨기는 화면 (C.44: 게임 중 모든 화면에 고정) */
+const NAV_HIDDEN: Screen[] = ['title', 'new', 'retired'];
 
 /** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
 function liveScreen(): Screen | null {
@@ -166,7 +174,7 @@ function liveScreen(): Screen | null {
  * 경기 시작·날 넘기기·포인트·전술·덱·포지션·세이브를 바꾸면 경기 결과가 달라진다
  */
 const LOCK_ACTS = new Set([
-  'play', 'day-one', 'day-continue', 'sim-rest', 'sim-rest-ok', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
+  'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
@@ -288,6 +296,11 @@ function screenHtml(): string {
       const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
       return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
     }
+    case 'schedule': {
+      const hvm = homeVM(g);
+      const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
+      return scheduleView(hvm, hvm.training ? trainingSection(hvm.training) : '') + (tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '');
+    }
     case 'deck': {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
       const cs = ui.cardSheet;
@@ -321,7 +334,7 @@ function screenHtml(): string {
     }
     case 'season': {
       const vm = seasonVM(g);
-      if (vm) return seasonView(vm, g.phase === 'offseason' ? marketCard(marketVM(g)) : '', g.phase === 'offseason' && marketPending(g));
+      if (vm) return seasonView(vm, g.phase === 'offseason' ? marketCard(marketVM(g)) : '', g.phase === 'offseason' && marketPending(g), ui.seasonTab, ui.seasonTab === 'transfers' ? newsSection(newsVM(g)) : '');
       break;
     }
     case 'retired': return retiredView(retiredVM(g));
@@ -336,6 +349,7 @@ function screenHtml(): string {
 
 /** 화면 → 첫 방문 말풍선 id */
 const TIP_SCREENS: Partial<Record<Screen, TipId>> = {
+  // schedule 은 말풍선 없음 (C.44)
   home: 'home', player: 'player', world: 'world', replay: 'replay', match: 'match', allocate: 'allocate', season: 'season', tactics: 'tactics',
 };
 
@@ -363,7 +377,7 @@ function guideHtml(g: GameState | null): { modal: string; tip: string } {
 
 function render(): void {
   const g = ui.game;
-  const nav = g && NAV_SHOWN.includes(ui.screen) && !(g.phase === 'retired') ? navBar(ui.screen) : '';
+  const nav = g && !NAV_HIDDEN.includes(ui.screen) && !(g.phase === 'retired') ? dock(dockVM(g)) : '';
   const live = liveScreen();
   const band = g && live && live !== ui.screen ? liveBand(live) : '';
   const m = ui.modal;
@@ -379,7 +393,9 @@ function render(): void {
     : guide.modal;
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
   app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}app-${ui.screen}`;
-  const pv = ui.pvSheet ? pitchViewSheet() : '';
+  const pv = (ui.pvSheet ? pitchViewSheet() : '')
+    + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount) : '')
+    + (ui.moreSheet && g ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
   app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
@@ -390,6 +406,19 @@ function render(): void {
     ui.live?.oc?.pitch.stop();
   }
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
+}
+
+/** 독 진행 칸 (C.44): 경기 중이면 돌아가기, 경기 날이면 경기, 아니면 [계속], 비시즌이면 시즌 요약 */
+function dockVM(g: GameState): DockVM {
+  const live = liveScreen();
+  let prog: DockVM['prog'];
+  if (live) prog = { label: '경기 중', icon: 'match', act: 'live-return', live: true };
+  else if (g.phase !== 'season') prog = { label: '시즌 요약', icon: 'star', act: 'go-tab', data: { v: 'season' } };
+  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop' };
+  else if (marketPending(g)) prog = { label: '답하기', icon: 'bell', act: 'day-continue' };
+  else if (isMatchDay(g)) prog = { label: '경기', icon: 'play', act: 'play' };
+  else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue' };
+  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet };
 }
 
 /** "경기 중 · 돌아가기" 띠 (C.39): 다른 화면 위에. 누르면 경기로 */
@@ -518,7 +547,7 @@ function readFormInputs(): void {
 
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
 function enterAllocate(g: GameState, back: Screen): void {
-  ui.alloc = { snap: structuredClone(g.player), raises: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
+  ui.alloc = { snap: structuredClone(g.player), raises: [], presses: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
 }
 
 /** 기억한 상태로 되돌리고 남은 배분을 다시 적용 */
@@ -559,16 +588,16 @@ async function runOthersToday(g: GameState): Promise<number> {
 const nextFrame = () => new Promise<void>((r) => setTimeout(r, 0));
 
 /**
- * 날 넘기기. 'one' = [하루 진행], 'continue' = [계속] (다음 일정 = 내 경기 날까지, 그날 다른 경기는 미리 계산),
- * 'season' = 남은 시즌 자동 (내 경기도 재생 없이 워커에서 최대 속도). [중단]은 그날(경기 포함)까지 끝내고 멈춘다
+ * 날 넘기기. 'one' = [하루 진행], 'continue' = [계속] (다음 일정 = 내 경기 날까지, 그날 다른 경기는 미리 계산).
+ * 여러 경기 자동 진행은 autoRun (C.44). [중단]은 그날까지 끝내고 멈춘다
  */
-async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): Promise<void> {
+async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void> {
   if (ui.busy || g.phase !== 'season') return;
   if (marketPending(g)) return pendingStop(g);
   ui.busy = true;
   ui.stopReq = false;
   const stop = { action: '중단', onAction: { act: 'sim-stop' } };
-  const title = mode === 'season' ? '자동 진행 중' : '진행 중';
+  const title = '진행 중';
   const t0 = performance.now();
   let days = 0;
   let wasVacation = false;
@@ -576,10 +605,10 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
   try {
     for (;;) {
       if (g.phase !== 'season') break;
-      // 응답이 필요한 제안 (C.42): [계속]·휴가 넘기기·남은 시즌 자동 모두 멈춘다
+      // 응답이 필요한 제안 (C.42): [계속]·휴가 넘기기 모두 멈춘다
       if (marketPending(g)) break;
-      const match = isMatchDay(g);
-      if (match && mode !== 'season') {
+      // 경기 날이면 그날 다른 경기만 미리 계산하고 멈춘다 (내 경기는 [경기 시작])
+      if (isMatchDay(g)) {
         await runOthersToday(g);
         break;
       }
@@ -587,22 +616,14 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
       const vac = isVacationDay(g, g.calendar.date);
       if (mode === 'continue' && days > 0 && vac !== wasVacation) break;
       wasVacation = vac;
-      ui.toast = { kind: 'info', title, body: `${dateLabel(g.calendar.date)}${match ? ' · 내 경기' : ''} · ${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
+      ui.toast = { kind: 'info', title, body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
       render();
       await nextFrame();
       const d0 = performance.now();
       const date = g.calendar.date;
       const n = await runOthersToday(g);
-      if (match) {
-        // 내 경기 (자동): 재생 없이 워커에서. 결과는 메인 스레드에서 계산한 것과 같다
-        const rm = roundMatch(g);
-        const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
-        // 포인트는 자동으로 찍지 않고 쌓아 둔다 (C.39, pending 39 3번)
-        playRound(g, { engineOut: out });
-      } else {
-        lastTrain = trainingLine(endDay(g));
-      }
-      progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
+      lastTrain = trainingLine(endDay(g));
+      progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n, my: false });
       days++;
       autosave();
       if (mode === 'one' || ui.stopReq) break;
@@ -662,14 +683,129 @@ async function startPlay(g: GameState): Promise<void> {
   finishPlay(g);
 }
 
-function startSimRest(g: GameState): void {
-  void advanceDays(g, 'season');
+/**
+ * 자동 진행 (C.44 pending 47 5번·52 4번): matches 경기를 치르거나, untilRound 라운드 내 경기 날 경기 직전에 멈춘다.
+ * 진행 중에는 화면을 다시 그리지 않고 지금 화면 위 반투명 레이어의 글자만 바꾼다. [중단]은 그날(경기 포함)까지 끝내고 멈춘다.
+ * 응답이 필요한 일(이적 제안·재계약)이 생기면 멈춘다
+ */
+async function autoRun(g: GameState, opts: { matches: number; untilRound?: number }): Promise<void> {
+  if (ui.busy || g.phase !== 'season') return;
+  if (marketPending(g)) return pendingStop(g);
+  ui.busy = true;
+  ui.stopReq = false;
+  ui.toast = null;
+  render();
+  const total = Math.max(0, opts.untilRound !== undefined ? opts.untilRound - g.league.round : opts.matches);
+  const layer = openAutoLayer();
+  const t0 = performance.now();
+  const startRound = g.league.round;
+  const before = { goals: g.player.season.goals, assists: g.player.season.assists, levels: g.player.level };
+  const results: string[] = [];
+  let played = 0;
+  let reason: 'done' | 'until' | 'stop' | 'market' | 'season' = 'done';
+  const myRow = () => {
+    const pos = g.league.table.findIndex((r) => r.teamId === g.player.teamId) + 1;
+    return pos > 0 ? `${pos}위` : '-';
+  };
+  const update = () => updateAutoLayer(layer, played, total, `${dateLabel(g.calendar.date)} · 현재 순위 ${myRow()} · ${g.league.round}/${g.league.schedule.length}라운드`);
+  try {
+    for (;;) {
+      if (g.phase !== 'season') { reason = 'season'; break; }
+      if (marketPending(g)) { reason = 'market'; break; }
+      // 중요 경기까지면 그 경기 날(경기 전)까지 날을 넘긴다
+      if (opts.untilRound === undefined && played >= total) break;
+      const match = isMatchDay(g);
+      if (match && opts.untilRound !== undefined && g.league.round >= opts.untilRound) {
+        // 중요 경기 직전: 그날 다른 경기는 미리 계산해 두고 멈춘다
+        await runOthersToday(g);
+        reason = 'until';
+        break;
+      }
+      update();
+      await nextFrame();
+      const d0 = performance.now();
+      const date = g.calendar.date;
+      const n = await runOthersToday(g);
+      if (match) {
+        const rm = roundMatch(g);
+        const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
+        const rep = playRound(g, { engineOut: out });
+        played++;
+        results.push(rep.result.goalsFor > rep.result.goalsAgainst ? 'W' : rep.result.goalsFor < rep.result.goalsAgainst ? 'L' : 'D');
+      } else {
+        endDay(g);
+      }
+      progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
+      autosave();
+      if (ui.stopReq) { reason = 'stop'; break; }
+    }
+  } finally {
+    ui.busy = false;
+    ui.stopReq = false;
+    closeAutoLayer(layer);
+    autosave();
+    const w = results.filter((x) => x === 'W').length;
+    const d = results.filter((x) => x === 'D').length;
+    const l = results.length - w - d;
+    const sec = ((performance.now() - t0) / 1000).toFixed(1);
+    const goals = g.player.season.goals - before.goals;
+    const assists = g.player.season.assists - before.assists;
+    const body = `${played}경기 ${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''} · ${myRow()} (${sec}초)`;
+    autoLog.push({ played, rounds: g.league.round - startRound, ms: Math.round(performance.now() - t0), reason });
+    if (g.phase !== 'season') {
+      go('season');
+      badgeToast(g);
+    } else if (reason === 'market') {
+      go('home');
+      showToast({ kind: 'info', title: '이적 제안이 와서 멈췄어요', body: `${body} · 답하기 전에는 진행이 멈춰요.` }, 3200);
+    } else {
+      go('home');
+      const title = reason === 'until' ? '중요 경기 직전에 멈췄어요' : reason === 'stop' ? '자동 진행을 멈췄어요' : '자동 진행 끝';
+      showToast({ kind: 'info', title, body }, 3200);
+    }
+  }
+}
+
+/** 자동 진행 측정 (캡처·부록 C.44) */
+const autoLog: { played: number; rounds: number; ms: number; reason: string }[] = [];
+(globalThis as unknown as { __auto: typeof autoLog }).__auto = autoLog;
+
+/** 반투명 레이어: #app 밖(body)에 붙여 화면을 다시 그리지 않는다 */
+function openAutoLayer(): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'auto-layer';
+  el.innerHTML = autoLayerHtml();
+  // [중단]은 누르는 순간에 받는다 (C.30 과 같은 이유)
+  el.addEventListener('pointerdown', (ev) => {
+    if ((ev.target as HTMLElement).closest('[data-act="sim-stop"]')) {
+      requestSimStop();
+      const t = el.querySelector('.auto-layer__title');
+      if (t) t.textContent = '멈추는 중 · 오늘 경기까지';
+    }
+  });
+  document.body.appendChild(el);
+  return el;
+}
+
+function updateAutoLayer(el: HTMLElement, n: number, m: number, meta: string): void {
+  const c = el.querySelector('.auto-layer__count');
+  const mt = el.querySelector('.auto-layer__meta');
+  const bar = el.querySelector<HTMLElement>('.auto-layer__bar i');
+  if (c) c.textContent = `${n}/${m}경기`;
+  if (mt) mt.textContent = meta;
+  if (bar) bar.style.width = `${m ? Math.round((n / m) * 100) : 0}%`;
+}
+
+function closeAutoLayer(el: HTMLElement): void {
+  el.remove();
 }
 
 /** [중단]은 라운드마다 다시 그려지는 토스트 안에 있어 click(누름·뗌이 같은 요소)이 끊길 수 있으므로 누르는 순간에 받는다 */
 function requestSimStop(): void {
   if (!ui.busy || ui.stopReq) return;
   ui.stopReq = true;
+  // 자동 진행 레이어가 떠 있으면 화면은 그대로 둔다 (레이어 글자만 바뀐다)
+  if (document.querySelector('.auto-layer')) return;
   ui.toast = { kind: 'info', title: '멈추는 중', body: '오늘 경기까지 치르고 멈춰요.' };
   render();
 }
@@ -752,7 +888,13 @@ app.addEventListener('pointercancel', () => {
 
 // 새 게임 시드를 바꾸면 시작 후보를 다시 보여 준다 (C.37)
 app.addEventListener('change', (ev) => {
-  if ((ev.target as HTMLElement | null)?.id !== 'f-seed' || ui.screen !== 'new') return;
+  const id = (ev.target as HTMLElement | null)?.id;
+  if (id === 'auto-n') {
+    ui.autoCount = Math.max(1, Math.floor(Number((ev.target as HTMLInputElement).value) || 1));
+    setTimeout(render, 0);
+    return;
+  }
+  if (id !== 'f-seed' || ui.screen !== 'new') return;
   readFormInputs();
   // 입력 칸이 blur 되는 중에 DOM 을 바꾸면 오류라 다음 틱에 그린다
   setTimeout(render, 0);
@@ -822,6 +964,8 @@ app.addEventListener('click', (ev) => {
     case 'sheet-close':
       ui.posSheet = null;
       ui.trainSheet = null;
+      ui.autoSheet = false;
+      ui.moreSheet = false;
       render();
       return;
     case 'pos-change': {
@@ -844,6 +988,11 @@ app.addEventListener('click', (ev) => {
       return;
     case 'tac-open':
       if (!g) return;
+      ui.moreSheet = false;
+      if (!isUnlocked(g.guide, 'tactics')) {
+        showToast({ kind: 'info', title: '전술은 아직 잠겨 있어요', body: '3경기를 치르면 열려요.' }, 1800);
+        return;
+      }
       ui.tac = { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null, edit: false, moving: null };
       markDone(g.guide, 'tactics');
       autosave();
@@ -995,6 +1144,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'go':
     case 'go-tab': {
+      ui.moreSheet = false;
       if (ui.screen === 'new') readFormInputs();
       const to = (act === 'go-tab' ? v : el.dataset.to) as Screen;
       if (to === 'deck') {
@@ -1432,26 +1582,66 @@ app.addEventListener('click', (ev) => {
       go('match');
       return;
     case 'sim-rest':
+      // 자동 진행 범위 시트 (C.44): 경기 수 또는 다음 중요 경기 직전까지
       if (!g || g.phase !== 'season' || ui.busy) return;
-      confirmModal({ title: '남은 시즌을 자동으로 진행할까요?', body: '남은 경기를 모두 진행해요. 능력치 포인트는 찍지 않고 쌓아 둬요.', confirm: '진행', act: 'sim-rest-ok' });
+      if (marketPending(g)) return pendingStop(g);
+      ui.autoSheet = true;
+      render();
       return;
-    case 'sim-rest-ok':
-      ui.modal = null;
-      if (g && g.phase === 'season' && !ui.busy) startSimRest(g);
+    case 'auto-count':
+      ui.autoCount = Number(v) || 1;
+      render();
+      return;
+    case 'auto-run': {
+      if (!g || g.phase !== 'season' || ui.busy) return;
+      const inp = document.getElementById('auto-n') as HTMLInputElement | null;
+      const n = Math.max(1, Math.min(g.league.schedule.length - g.league.round, Math.floor(Number(inp?.value) || ui.autoCount)));
+      ui.autoCount = n;
+      ui.autoSheet = false;
+      void autoRun(g, { matches: n });
+      return;
+    }
+    case 'auto-until': {
+      if (!g || g.phase !== 'season' || ui.busy || v === undefined) return;
+      const r = Number(v);
+      ui.autoSheet = false;
+      void autoRun(g, { matches: r - g.league.round, untilRound: r });
+      return;
+    }
+    case 'season-tab':
+      ui.seasonTab = v === 'close' ? null : (v as SeasonTab);
+      render();
+      return;
+    case 'dock-more':
+      ui.moreSheet = !ui.moreSheet;
+      render();
+      return;
+    case 'noop':
       return;
     case 'raise': {
       if (!g || !ui.alloc) return;
       const before = g.player.coachWarned;
-      if (raiseAttribute(g.player, el.dataset.attr as FieldAttribute)) ui.alloc.raises.push(el.dataset.attr as FieldAttribute);
+      // 1~20 표시 한 칸 (C.44): 다음 칸까지 갈 수 있는 데까지 내부 칸을 한 번에. [−]는 이 누름 단위로 되돌린다
+      const attr = el.dataset.attr as FieldAttribute;
+      const n = raiseDisplayStep(g.player, attr);
+      if (n > 0) {
+        for (let k = 0; k < n; k++) ui.alloc.raises.push(attr);
+        ui.alloc.presses.push({ attr, n });
+      }
       if (!before && g.player.coachWarned) ui.alloc.coach = true;
       render();
       return;
     }
     case 'lower': {
       if (!g || !ui.alloc) return;
-      const i = ui.alloc.raises.lastIndexOf(el.dataset.attr as FieldAttribute);
-      if (i < 0) return;
-      ui.alloc.raises.splice(i, 1);
+      const attr = el.dataset.attr as FieldAttribute;
+      const pi = ui.alloc.presses.map((x) => x.attr).lastIndexOf(attr);
+      const n = pi >= 0 ? ui.alloc.presses.splice(pi, 1)[0]!.n : 1;
+      for (let k = 0; k < n; k++) {
+        const i = ui.alloc.raises.lastIndexOf(attr);
+        if (i < 0) break;
+        ui.alloc.raises.splice(i, 1);
+      }
       replayAlloc(g);
       render();
       return;
@@ -1459,6 +1649,7 @@ app.addEventListener('click', (ev) => {
     case 'alloc-reset':
       if (!g || !ui.alloc) return;
       ui.alloc.raises = [];
+      ui.alloc.presses = [];
       replayAlloc(g);
       render();
       return;
@@ -1475,6 +1666,7 @@ app.addEventListener('click', (ev) => {
       autoAllocate(g.player);
       for (const [a, val] of Object.entries(g.player.attributes) as [FieldAttribute, number][]) {
         for (let k = before[a]; k < val; k++) ui.alloc.raises.push(a);
+        if (val > before[a]) ui.alloc.presses.push({ attr: a, n: val - before[a] });
       }
       render();
       return;
@@ -1490,6 +1682,7 @@ app.addEventListener('click', (ev) => {
       if (!g) return;
       if (ui.alloc) {
         ui.alloc.raises = [];
+        ui.alloc.presses = [];
         replayAlloc(g);
       }
       go(ui.alloc?.back ?? 'home');
@@ -1500,6 +1693,7 @@ app.addEventListener('click', (ev) => {
       if (marketPending(g)) return pendingStop(g);
       startNextSeason(g);
       ui.replay = null;
+      ui.seasonTab = null;
       autosave();
       go('home');
       showToast({ kind: 'info', title: '휴가 끝 · 소집', body: `${dateLabel(g.calendar.date)} · 개막 7일 전이에요. 훈련 계획을 확인해요.` }, 2600);

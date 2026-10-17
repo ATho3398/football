@@ -129,15 +129,19 @@ export function Meter(p: MeterProps): string {
     gain > 0 ? `<div class="po-meter__gain" style="left:${pct}%;width:${gain}%"></div>` : ''}</div></div>`;
 }
 
-export interface FatigueGaugeProps { value: number; compact?: boolean }
+export interface FatigueGaugeProps { /** 내부 피로 0~100 (표시는 체력 = 100 − 피로, C.44) */ value: number; compact?: boolean }
 
+/** 화면 체력 (C.44 pending 52 2번): 100 − 내부 피로. 내부 값·밸런스는 그대로 */
+export const staminaOf = (fatigue: number): number => Math.max(0, Math.min(100, 100 - Math.round(fatigue || 0)));
+
+/** 체력 게이지: 100 → 0, 낮을수록 빨강 (체력 30 이하 = 빨강, 60 이하 = 주황) */
 export function FatigueGauge(p: FatigueGaugeProps): string {
-  const v = Math.round(p.value || 0);
-  const level = v < 40 ? 'low' : v < 70 ? 'mid' : 'high';
+  const v = staminaOf(p.value);
+  const level = v > 60 ? 'low' : v > 30 ? 'mid' : 'high';
   const on = Math.ceil(v / 10);
   const segs = Array.from({ length: 10 }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('');
-  return `<div class="${cx('po-fatigue', `po-fatigue--${level}`, p.compact && 'po-fatigue--compact')}" role="meter" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="100" aria-label="피로">${
-    p.compact ? '' : '<span class="po-fatigue__label">피로</span>'}<span class="po-fatigue__segs">${segs}</span><b class="po-num">${v}</b></div>`;
+  return `<div class="${cx('po-fatigue', `po-fatigue--${level}`, p.compact && 'po-fatigue--compact')}" role="meter" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="100" aria-label="체력">${
+    p.compact ? '' : '<span class="po-fatigue__label">체력</span>'}<span class="po-fatigue__segs">${segs}</span><b class="po-num">${v}</b></div>`;
 }
 
 const FORMS: [string, IconName][] = [['최악', 'double-down'], ['나쁨', 'arrow-down'], ['보통', 'arrow-flat'], ['좋음', 'arrow-up'], ['최고', 'double-up']];

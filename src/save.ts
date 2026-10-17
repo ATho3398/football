@@ -220,6 +220,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.market = initialMarket(s);
     if (s.phase !== 'season') s.market.contract = { ...s.market.contract, from: s.league.season + 1, until: s.market.contract.until + 1 };
   },
+  // C.44: 시즌 시작 레벨 (시즌 종료 화면 레벨 변화). 옛 세이브는 모르므로 비워 둔다 (화면은 지금 레벨만)
+  21: () => {},
 };
 
 export function migrate(raw: any): GameState {

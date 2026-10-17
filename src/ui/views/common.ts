@@ -1,6 +1,6 @@
 // 화면 공통 조각: 패널, 하단 탭, 버전 표시, 배너 목록. 컴포넌트(src/ui/components)만 조합한다
 
-import { Banner, BottomSheet, Button, esc, OptionRow, SectionTitle, StatChip, Tabs, type TabItem } from '../components';
+import { Banner, BottomSheet, Button, cx, esc, Icon, OptionRow, SectionTitle, StatChip, type IconName } from '../components';
 import { pitchView, PITCH_VIEW_KO, type PitchView } from '../pitch/renderer';
 import type { BannerVM, SeasonMatchesVM, VersionVM } from '../viewModels';
 
@@ -27,15 +27,50 @@ export function startNotice(v: VersionVM): string {
   return Banner({ tone: 'info', title: title!.replace(/\.$/, ''), ...(rest.length ? { children: rest.join('. ') } : {}) });
 }
 
-/** 하단 탭 (I.1): 구현된 탭만 (홈, 선수, 월드). 경기·커리어 탭은 숨긴다 */
-export const NAV_ITEMS: TabItem[] = [
-  { id: 'home', label: '홈', icon: 'home' },
-  { id: 'player', label: '선수', icon: 'player' },
-  { id: 'world', label: '월드', icon: 'world' },
-];
+/** 하단 독 (C.44 pending 47 5번): 모든 화면 아래 고정. 모바일 = 6칸(홈·진행·선수·훈련·월드·더보기), PC = 전부 */
+export interface DockVM {
+  screen: string;
+  /** 진행 칸: 지금 누르면 하는 일 */
+  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean };
+  tacticsOpen: boolean;
+  /** 남은 포인트 (선수 칸 배지) */
+  points: number;
+  more: boolean;
+}
 
-export function navBar(value: string): string {
-  return `<nav class="nav">${Tabs({ items: NAV_ITEMS, value, variant: 'nav', act: 'go-tab' })}</nav>`;
+type DockItem = { id: string; label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; cls?: string; badge?: number; lock?: boolean };
+
+export function dock(vm: DockVM): string {
+  const s = vm.screen;
+  const items: DockItem[] = [
+    { id: 'home', label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
+    { id: 'prog', label: vm.prog.label, icon: vm.prog.icon, act: vm.prog.act, ...(vm.prog.data ? { data: vm.prog.data } : {}), cls: `dock-prog${vm.prog.live ? ' is-live' : ''}` },
+    { id: 'player', label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
+    { id: 'schedule', label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
+    { id: 'deck', label: '덱', icon: 'combo', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck', cls: 'dock-pc' },
+    { id: 'tactics', label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', cls: 'dock-pc', lock: !vm.tacticsOpen },
+    { id: 'world', label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
+    { id: 'settings', label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings', cls: 'dock-pc' },
+    { id: 'saves', label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves', cls: 'dock-pc' },
+    { id: 'more', label: '더보기', icon: 'filter', act: 'dock-more', on: vm.more || ['deck', 'tactics', 'settings', 'saves'].includes(s), cls: 'dock-m' },
+  ];
+  const btn = (it: DockItem) => `<button type="button" class="${cx('dock-btn', it.on && 'is-on', it.cls, it.lock && 'is-lock')}" data-act="${it.act}"${
+    Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.on ? ' aria-current="page"' : ''}>${Icon({ name: it.lock ? 'lock' : it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}<span>${esc(it.label)}</span>${
+    it.badge ? `<span class="po-dotbadge po-num">${it.badge}</span>` : ''}</button>`;
+  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${items.map(btn).join('')}</nav>`;
+}
+
+/** 모바일 더보기 시트: 독에 없는 칸 */
+export function dockMoreSheet(tacticsOpen: boolean): string {
+  return BottomSheet({
+    eyebrow: '더보기', title: '메뉴', onClose: { act: 'sheet-close' },
+    children: [
+      OptionRow({ act: 'go-tab', data: { v: 'deck' }, icon: 'combo', title: '덱', desc: '카드 덱 편집·선택권' }),
+      OptionRow({ act: 'tac-open', icon: tacticsOpen ? 'tactic' : 'lock', title: '전술', desc: tacticsOpen ? '포메이션·성향·내 위치' : '3경기 뒤에 열려요', disabled: !tacticsOpen }),
+      OptionRow({ act: 'go-tab', data: { v: 'settings' }, icon: 'settings', title: '설정', desc: '경기 진행·보기·페이스온' }),
+      OptionRow({ act: 'go-tab', data: { v: 'saves' }, icon: 'disk', title: '저장', desc: '수동 저장·불러오기·파일' }),
+    ].join(''),
+  });
 }
 
 /** 4칸 숫자 타일 (디자인 51·56) */
