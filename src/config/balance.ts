@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 24;
+export const BALANCE_VERSION = 25;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -433,6 +433,49 @@ export const BALANCE = {
     /** 이전 주 포지션 숙련도: 시즌마다 감소, 최소값 */
     formerDecay: 2,
     formerMin: 30,
+  },
+
+  // ── 포지션 적성 (pending 31·36, 부록 C.37): 숨은 재능 타입, 포지션군 숙련도 상승 배수, 시작 후보, 포변 조언 ──
+  aptitude: {
+    /** 재능 타입 능력치 기울기: 타입 능력치 +boost 후 기준 자리 OVR 을 처음 값으로 되돌린다 (가상 유망주) */
+    talentBoost: 6,
+    /** 재능 타입이 맞는 포지션군의 숙련도 상승 배수 */
+    matched: { min: 1.2, max: 1.5 },
+    /** 엇갈린 숨은 재능 자리("차두리"): 확률, 배수 */
+    hiddenChance: 0.3,
+    hidden: { min: 1.4, max: 1.6 },
+    /** 나머지 포지션군 */
+    other: { min: 0.7, max: 1.0 },
+    /** 실제 선수·옛 세이브 (pending 36 ④⑤): 주 포지션군, 나머지는 other. 엇갈림 없음 */
+    realMain: { min: 1.2, max: 1.4 },
+    /** 시작 후보 (pending 31 01:03 개정): 적합도 상위 top 개 포지션군 + 와일드카드 1 */
+    candidates: {
+      top: 3,
+      /** 숨은 재능 자리가 상위 밖이면 와일드카드가 그 자리일 확률 */
+      wildHidden: 0.5,
+      /** 와일드카드를 고르는 적합도 순위 범위 (1부터, 숨은 재능이 아닐 때) */
+      wildRanks: [4, 6] as [number, number],
+    },
+    /** 코치 한 줄 평의 적성 말투 경계: 배수 ≥ high 면 따뜻한 말투, < low 면 담담한 말투 */
+    hintHigh: 1.3,
+    hintLow: 1.0,
+    /** 포변 조언 (pending 31 3번, 36 ①②⑥) */
+    advice: {
+      /** 지금 주 포지션에서 seasons 시즌 연속 시즌 평균 평점이 ratingMax 이하 (출전 minApps 경기 이상인 시즌만) */
+      ratingMax: 6.2,
+      seasons: 2,
+      minApps: 10,
+      /**
+       * 같은 주 포지션(포지션군)에서 받는 조언 최대 수 (감독 한마디 → 뉴스). 조언 뒤 다음 조언은 그 뒤 시즌들로만 다시 판정한다
+       * (겹치지 않는 2시즌). C.37 측정: 제한 없으면 커리어당 3.2회 → 목표 0~2회
+       */
+      maxPerPosition: 2,
+      /** 조언이 살아 있는 기간: 시즌 종료 조언 → 비시즌 + 다음 시즌 windowRounds 라운드 (캘린더 전 "30일") */
+      windowRounds: 4,
+      /** 조언 뒤 그 포지션군으로 포변하면 그 포지션군으로 뛴 boostGames 경기 동안 숙련도 상승 × boostMult */
+      boostGames: 10,
+      boostMult: 2,
+    },
   },
 
   // ── 레전드 배지 (8.2, 부록 D.4): 부여 시 위상 + reputation ──

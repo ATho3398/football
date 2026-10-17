@@ -8,7 +8,8 @@ import './style.css';
 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
-import { newGame, playRound, retire, roundMatch, startNextSeason, type GameState } from '../game';
+import { canChangePosition, myMatchPosition, newGame, randomSeed, playRound, retire, roundMatch, startNextSeason, type GameState } from '../game';
+import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
 import { MyMatchRun, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { replayPlayers } from '../replay';
@@ -30,11 +31,11 @@ import {
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { Button, Modal, Toast, type ToastProps } from './components';
 import {
-  allocateVM, homeVM, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
+  adviceCardVM, allocateVM, homeVM, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
 import { navBar, roJosa } from './views/common';
-import { homeView, positionChangeSection, positionSheet } from './views/home';
+import { adviceCard, homeView, positionChangeSection, positionSheet } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView } from './views/player';
@@ -86,8 +87,31 @@ const ui = {
   },
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
-  form: { mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '' },
+  form: {
+    mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
+    /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
+    roll: '',
+    /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
+    posFor: '',
+    /** "다른 포지션에서 고르기" 펼침 */
+    others: false,
+  },
 };
+
+/** 가상 유망주 시드: 입력한 시드, 비웠으면 화면이 정한 무작위 시드 */
+function prospectSeed(): string {
+  if (!ui.form.roll) ui.form.roll = randomSeed();
+  return ui.form.seed.trim() || ui.form.roll;
+}
+
+/** 시드가 바뀌면 시작 포지션을 새 후보 1위로 (pending 31 01:03 개정) */
+function syncProspectPick(): void {
+  const key = prospectSeed();
+  if (ui.form.posFor === key) return;
+  ui.form.posFor = key;
+  ui.form.position = rollProspect(key).candidates[0]!.pos;
+  ui.form.others = false;
+}
 
 const app = document.getElementById('app')!;
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
@@ -139,7 +163,9 @@ function screenHtml(): string {
   const g = ui.game;
   switch (ui.screen) {
     case 'title': return titleScreen();
-    case 'new': return newGameView(newGameVM(ui.form));
+    case 'new':
+      syncProspectPick();
+      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }));
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
     default: break;
   }
@@ -147,11 +173,14 @@ function screenHtml(): string {
   if (g.phase === 'retired' && !['retired', 'season', 'saves', 'player'].includes(ui.screen)) return retiredView(retiredVM(g));
   switch (ui.screen) {
     case 'home': {
-      const pos = g.phase === 'offseason' ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position))) : '';
-      const sheet = ui.posSheet && g.phase === 'offseason' ? positionSheet(positionOptionsVM(g), ui.posSheet) : '';
+      const canPos = canChangePosition(g);
+      const inSeason = g.phase === 'season';
+      const pos = canPos ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position)), inSeason) : '';
+      const sheet = ui.posSheet && canPos ? positionSheet(positionOptionsVM(g), ui.posSheet, inSeason) : '';
+      const adv = adviceCardVM(g);
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
-      return homeView(homeVM(g), deck + (list ? checklistPanel(list) : '') + pos) + guideResetLink() + sheet;
+      return homeView(homeVM(g), deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '') + guideResetLink() + sheet;
     }
     case 'deck': return deckView(deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g)));
     case 'player': return playerView(playerVM(g));
@@ -487,6 +516,14 @@ app.addEventListener('pointercancel', () => {
   }
 });
 
+// 새 게임 시드를 바꾸면 시작 후보를 다시 보여 준다 (C.37)
+app.addEventListener('change', (ev) => {
+  if ((ev.target as HTMLElement | null)?.id !== 'f-seed' || ui.screen !== 'new') return;
+  readFormInputs();
+  // 입력 칸이 blur 되는 중에 DOM 을 바꾸면 오류라 다음 틱에 그린다
+  setTimeout(render, 0);
+});
+
 app.addEventListener('click', (ev) => {
   const el = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]');
   if (!el || (el as HTMLButtonElement).disabled) return;
@@ -530,7 +567,13 @@ app.addEventListener('click', (ev) => {
       return;
     case 'pos-open':
       if (!g) return;
-      ui.posSheet = g.player.position;
+      ui.posSheet = v ?? g.player.position;
+      render();
+      return;
+    case 'advice-close':
+      if (!g?.player.advice) return;
+      g.player.advice.dismissed = true;
+      autosave();
       render();
       return;
     case 'pos-pick':
@@ -544,12 +587,14 @@ app.addEventListener('click', (ev) => {
     case 'pos-change': {
       if (!g || !v) return;
       const from = g.player.position;
-      if (requestPositionChange(g.player, v as PlayablePosition, g.phase === 'offseason')) {
+      if (requestPositionChange(g.player, v as PlayablePosition, canChangePosition(g))) {
         // 내 위치도 새 주 포지션 슬롯으로 (E.19 ②). 포메이션·역할·세부 전술은 그대로
         g.tactics = { ...g.tactics, mySlot: defaultSlot(g.tactics.formation, v as PlayablePosition, g.rosters[g.player.teamId], g.tactics.custom) };
+        // 포변 조언대로 바꿨으면 보너스 (부록 C.37)
+        const taken = checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, g.league.round);
         autosave();
         ui.posSheet = null;
-        showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: '다음 시즌부터 새 포지션으로 뛰어요.' }, 2600);
+        showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: taken ? adviceTakenText(String(v)) : g.phase === 'season' ? '다음 경기부터 새 포지션으로 뛰어요.' : '다음 시즌부터 새 포지션으로 뛰어요.' }, 3200);
       }
       return;
     }
@@ -699,6 +744,12 @@ app.addEventListener('click', (ev) => {
     case 'tac-save':
       if (!g || !ui.tac) return;
       g.tactics = structuredClone(ui.tac.draft) as MyTactics;
+      // 전술 "내 위치"를 조언받은 포지션군 슬롯으로 바꿔도 포변으로 본다 (pending 36 ②)
+      if (g.phase === 'season' && checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, g.league.round)) {
+        autosave();
+        showToast({ kind: 'info', title: '전술을 저장했어요', body: adviceTakenText(myMatchPosition(g)) }, 3200);
+        return;
+      }
       autosave();
       showToast({ kind: 'info', title: '전술을 저장했어요', body: '바꾸기 전까지 매 경기 이 전술로 뛰어요.' });
       return;
@@ -727,10 +778,21 @@ app.addEventListener('click', (ev) => {
       go(ui.game?.phase === 'retired' ? 'retired' : 'home');
       return;
     }
+    case 'form-others':
+      readFormInputs();
+      ui.form.others = !ui.form.others;
+      render();
+      return;
+    case 'form-reroll':
+      readFormInputs();
+      ui.form.seed = '';
+      ui.form.roll = randomSeed();
+      render();
+      return;
     case 'form': {
       readFormInputs();
       const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId';
-      (ui.form as Record<string, string>)[k] = v!;
+      (ui.form as unknown as Record<string, string>)[k] = v!;
       render();
       return;
     }
@@ -739,9 +801,11 @@ app.addEventListener('click', (ev) => {
       const f = ui.form;
       if (f.mode === 'real' && !f.realId) return;
       ui.game = f.mode === 'prospect'
-        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: f.seed, difficulty: f.difficulty })
+        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true })
         : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty });
       ui.replay = null;
+      f.roll = '';
+      f.posFor = '';
       autosave();
       go('home');
       showToast({ kind: 'info', title: `${ui.game.player.name} · ${teamById(ui.game.league, ui.game.player.teamId).nameKo}`, body: '커리어를 시작했어요.' });

@@ -1,6 +1,7 @@
 import type { FieldAttribute, FieldAttributes, GkAttributes, GkType } from './attributes';
 import type { FieldPosition } from './positions';
 import type { Proficiency } from './proficiency';
+import type { AptBoost, Aptitude, PositionAdvice } from './aptitude';
 
 export type Foot = 'left' | 'right' | 'both';
 export type Tier = 'legendary' | 'worldClass' | 'topClass' | 'special' | 'normal';
@@ -110,6 +111,8 @@ export interface SeasonRecord extends SeasonStats {
   achievementXp: number;
   ovr: number;
   reputation: number;
+  /** 그 시즌 끝의 주 포지션 (포변 조언 판정, 부록 C.37). C.37 이전 시즌에는 없다 */
+  position?: FieldPosition;
 }
 
 /** 내 선수 상태 */
@@ -152,6 +155,14 @@ export interface PlayerState {
   formerPosition?: FieldPosition;
   /** 지금까지의 이전 주 포지션 전부 (시즌 감소 대상, 부록 C.23) */
   formerPositions: FieldPosition[];
+  /** 숨은 포지션 적성 (pending 31·36, 부록 C.37). 화면에 보여 주지 않는다 */
+  aptitude?: Aptitude;
+  /** 살아 있는 포변 조언 (없으면 null) */
+  advice?: PositionAdvice | null;
+  /** 지금까지 받은 포변 조언 (시즌, 그때 주 포지션). 처음은 감독, 그다음부터 뉴스. 한 포지션에서 최대 maxPerPosition 번 */
+  adviceLog?: { season: number; from: FieldPosition }[];
+  /** 조언 뒤 포변 보너스 (그 포지션군 숙련도 상승 ×2 남은 경기) */
+  aptBoost?: AptBoost | null;
   /** 레전드 배지 (부록 D.4, 영구) */
   badges: Badge[];
   /** 레전더리 조건용 수상 기록 (8.1, 부록 C.23). 발롱도르·챔스·월드컵(5단계)이 생기기 전까지 0 */

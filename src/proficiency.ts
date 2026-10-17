@@ -1,5 +1,6 @@
 // 포지션 전환 (4.3, 부록 D.3): 포지션별 숙련도(0~100), 거리 기반 초기값·상승, OVR 페널티, 비시즌 주 포지션 변경 요청
 
+import { consumeGainMult } from './aptitude';
 import { BALANCE } from './config/balance';
 import { PLAYABLE_POSITIONS, positionOvr, type FieldPosition, type PlayablePosition } from './positions';
 import type { PlayerState, Position } from './types';
@@ -73,16 +74,19 @@ export function proficientOvr(p: Pick<PlayerState, 'attributes'> & { proficiency
 
 /**
  * 출전 후 숙련도 상승: (이전 주 포지션에서의 거리 1 → 4, 2 → 2, 3 이상 → 1) × 출전 비율. 최대 100.
- * 전술에서 주 포지션 밖 슬롯(played)으로 뛰면 그 포지션이 주 포지션에서의 거리만큼 오른다 (E.19 ②, 포지션 전환 진행)
+ * 전술에서 주 포지션 밖 슬롯(played)으로 뛰면 그 포지션이 주 포지션에서의 거리만큼 오른다 (E.19 ②, 포지션 전환 진행).
+ * 상승량에 숨은 포지션군 적성 배수(0.7~1.6)와 조언 뒤 포변 보너스(×2)를 곱한다 (부록 C.37)
  */
 export function gainProficiency(p: PlayerState, minutes: number, played: Position = p.position): void {
   const k = profKey(played);
   if (!k || !p.proficiency || minutes <= 0) return;
+  // 숨은 적성 배수와 조언 뒤 포변 보너스 (부록 C.37). 보너스 경기 수는 숙련도가 100이어도 줄어든다
+  const mult = consumeGainMult(p, played);
   const cur = p.proficiency[k];
   if (cur >= 100) return;
   const from = profKey(played) === profKey(p.position) ? p.formerPosition : p.position;
   const d = from ? positionDistance(from, played) : 1;
-  const per = P.gainByDistance[Math.min(Math.max(d, 1), P.gainByDistance.length) - 1]!;
+  const per = P.gainByDistance[Math.min(Math.max(d, 1), P.gainByDistance.length) - 1]! * mult;
   p.proficiency[k] = Math.min(100, Math.round((cur + per * Math.min(1, minutes / 90)) * 100) / 100);
 }
 
@@ -98,9 +102,12 @@ export function decayFormerPosition(p: PlayerState): void {
   }
 }
 
-/** 비시즌 "주 포지션 변경 요청" (D.3): 항상 허용, 비용은 숙련도 페널티뿐 */
-export function requestPositionChange(p: PlayerState, to: PlayablePosition, offseason: boolean): boolean {
-  if (!offseason || to === p.position) return false;
+/**
+ * "주 포지션 변경 요청" (D.3): 항상 허용, 비용은 숙련도 페널티뿐. 비시즌에만 되고,
+ * 포변 조언이 살아 있는 동안은 시즌 중에도 된다 (allowed = 비시즌 또는 조언 기간, 부록 C.37)
+ */
+export function requestPositionChange(p: PlayerState, to: PlayablePosition, allowed: boolean): boolean {
+  if (!allowed || to === p.position) return false;
   p.formerPosition = p.position;
   p.formerPositions = [...(p.formerPositions ?? []).filter((f) => f !== p.position && f !== to), p.position];
   p.position = to;

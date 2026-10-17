@@ -7,7 +7,7 @@ import {
 import type { HomeVM, PositionOptionVM } from '../viewModels';
 import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
 
-export function homeView(vm: HomeVM, extra = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = ''): string {
   const n = vm.next;
   const hero = HeroPanel({
     title: '홈', back: false, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }),
@@ -51,6 +51,7 @@ export function homeView(vm: HomeVM, extra = ''): string {
     <div class="body">
       ${banners(vm.banners)}
       ${startNotice(vm.version)}
+      ${notice}
       ${next}
       ${extra}
       ${SectionTitle({ title: '내 상태' })}
@@ -65,17 +66,33 @@ export function homeView(vm: HomeVM, extra = ''): string {
     </div>`;
 }
 
-/** 비시즌 "주 포지션 변경 요청" (부록 D.3): 홈 섹션 + 바텀시트 */
-export function positionChangeSection(current: string, prof: number): string {
-  return `${SectionTitle({ title: '주 포지션 변경 요청', action: '비시즌에만' })}
+/** 포변 조언 홈 알림 카드 (pending 36 ⑥, 부록 C.37). 인박스(5-2)가 생기면 그쪽으로 옮긴다 */
+export interface AdviceCardVM { kind: 'coach' | 'news'; eyebrow: string; title: string; body: string; window: string; pos: string }
+
+export function adviceCard(vm: AdviceCardVM): string {
+  return `<div class="panel advice-card advice-${vm.kind}" role="status">
+    <div class="advice-head"><span class="advice-eyebrow">${esc(vm.eyebrow)}</span><button type="button" class="advice-x" data-act="advice-close" aria-label="닫기">×</button></div>
+    <b class="advice-title">${esc(vm.title)}</b>
+    <p class="small">${esc(vm.body)}</p>
+    <p class="small muted">${esc(vm.window)}</p>
+    ${actionRow(
+      Button({ variant: 'secondary', size: 'sm', block: true, act: 'advice-close', children: '닫기' }),
+      Button({ size: 'sm', block: true, act: 'pos-open', data: { v: vm.pos }, children: `${vm.pos} 포지션 보기` }),
+    )}
+  </div>`;
+}
+
+/** "주 포지션 변경 요청" (부록 D.3): 홈 섹션 + 바텀시트. 비시즌, 포변 조언 기간에는 시즌 중에도 (C.37) */
+export function positionChangeSection(current: string, prof: number, advice = false): string {
+  return `${SectionTitle({ title: '주 포지션 변경 요청', action: advice ? '조언 기간에는 시즌 중에도' : '비시즌에만' })}
     ${OptionRow({ icon: 'player', title: `지금 주 포지션 ${current}`, desc: `숙련도 ${prof}. 바꾸면 새 포지션 OVR로 선발과 평점을 따져요. 비용은 숙련도 페널티뿐이에요.`, right: Button({ variant: 'secondary', size: 'sm', act: 'pos-open', children: '요청' }) })}`;
 }
 
-export function positionSheet(options: PositionOptionVM[], pick: string): string {
+export function positionSheet(options: PositionOptionVM[], pick: string, inSeason = false): string {
   const cur = options.find((o) => o.current)!;
   const sel = options.find((o) => o.pos === pick) ?? cur;
   return BottomSheet({
-    eyebrow: '비시즌', title: '주 포지션 변경 요청', subtitle: '항상 허용돼요. 숙련도가 낮은 포지션은 OVR이 낮아지고, 그 포지션으로 뛸수록 숙련도가 올라요.',
+    eyebrow: inSeason ? '포변 조언 기간' : '비시즌', title: '주 포지션 변경 요청', subtitle: '항상 허용돼요. 숙련도가 낮은 포지션은 OVR이 낮아지고, 그 포지션으로 뛸수록 숙련도가 올라요.',
     onClose: { act: 'sheet-close' },
     children: options.map((o) => OptionRow({
       act: 'pos-pick', data: { v: o.pos }, radio: true, selected: o.pos === sel.pos, title: `${o.pos} · ${o.ko}`,

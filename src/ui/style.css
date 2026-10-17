@@ -442,3 +442,20 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .cu-row:last-child { border-bottom: 0; }
 .cu-row.dec-success b { color: var(--mine); }
 .cu-row.dec-fail b { color: var(--fail); }
+
+/* 시작 후보 4자리 (C.37) */
+.cand { display: flex; align-items: center; gap: var(--space-3); text-align: left; }
+.cand-pos { min-width: 44px; font-size: 18px; font-weight: 800; color: var(--brand-ink); }
+.cand .coach-line { margin-top: 2px; font-style: italic; }
+.cand .ovr { display: flex; flex-direction: column; align-items: center; }
+.cand .ovr small { font-size: 10px; }
+.rec.wild { display: inline-block; margin-left: 4px; background: var(--warning-soft); color: var(--ink); vertical-align: middle; }
+
+/* 포변 조언 홈 알림 카드 (C.37, 인박스 전 임시) */
+.advice-card { display: flex; flex-direction: column; gap: 6px; box-shadow: inset 0 0 0 1.5px var(--brand-ink); }
+.advice-card.advice-news { box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.advice-head { display: flex; align-items: center; justify-content: space-between; }
+.advice-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .04em; color: var(--brand-ink); }
+.advice-news .advice-eyebrow { color: var(--ink-muted); }
+.advice-x { width: 28px; height: 28px; border: 0; background: none; color: var(--ink-muted); font-size: 20px; cursor: pointer; }
+.advice-title { font-size: 16px; }

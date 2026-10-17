@@ -2,7 +2,8 @@
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
 import { SCENE_LABEL } from '../engine/moments';
-import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
+import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
+import { adviceOpen, adviceText, rollProspect } from '../aptitude';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
@@ -11,6 +12,7 @@ import { isUnlocked } from '../unlocks';
 import { generatePlayer } from '../generate';
 import {
   attributeOvrWeight, allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, positionOvrExact, profileOf, type FieldPosition,
+  type PlayablePosition,
 } from '../positions';
 import {
   costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
@@ -259,6 +261,15 @@ function badgesVM(g: GameState): PlayerVM['badges'] {
 
 /** 비시즌 주 포지션 변경 요청 (D.3): 포지션마다 숙련도와 바꾼 뒤 OVR */
 export interface PositionOptionVM { pos: string; ko: string; prof: number; ovr: number; penalty: number; current: boolean }
+
+/** 포변 조언 홈 알림 카드 (부록 C.37): 조언이 살아 있고 닫지 않았을 때 */
+export function adviceCardVM(g: GameState): import('./views/home').AdviceCardVM | null {
+  const a = g.player.advice;
+  if (!a || a.dismissed || g.phase === 'retired' || !adviceOpen(g.player, g.league.season, g.league.round)) return null;
+  const left = g.league.season < a.untilSeason ? a.untilRound : a.untilRound - g.league.round;
+  const t = adviceText(g.player, a, left);
+  return { kind: a.kind, ...t, pos: a.pos };
+}
 
 export function positionOptionsVM(g: GameState): PositionOptionVM[] {
   const p = g.player;
@@ -723,7 +734,13 @@ export type SavesVMOut = ReturnType<typeof savesVM>;
 
 // ── 새 게임 (I.2, 디자인 52·53) ──
 
-export interface NewGameForm { mode: 'prospect' | 'real'; name: string; position: string; seed: string; difficulty: string; realId: string }
+export interface NewGameForm {
+  mode: 'prospect' | 'real'; name: string; position: string; seed: string; difficulty: string; realId: string;
+  /** 가상 유망주 시드 (입력 시드 또는 무작위, C.37) */
+  roll: string;
+  /** "다른 포지션에서 고르기" 펼침 */
+  others: boolean;
+}
 
 export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const seedForPreview = f.seed.trim() || 'preview';
@@ -738,9 +755,19 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const D = BALANCE.difficulty;
   const pct = (x: number) => `${x >= 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)}%`;
   const N = BALANCE.newGame;
+  // 시작 후보 4자리 (pending 31 01:03 개정): 적합도 상위 3 + 와일드카드 1, 코치 한 줄 평. 적성 수치는 보여 주지 않는다
+  const prospect = f.mode === 'prospect' ? rollProspect(f.roll) : null;
+  const ovrs = prospect ? allPositionOvrs(prospect.attributes) : null;
+  const candidates = prospect ? prospect.candidates.map((c) => ({
+    id: c.pos, ko: POSITION_NAMES_KO[c.pos], ovr: c.ovr, line: c.line, wild: c.kind === 'wild',
+  })) : [];
+  const top = prospect ? [...FIELD_ATTRIBUTES].sort((a, b) => prospect.attributes[b] - prospect.attributes[a]).slice(0, 3).map((a) => ATTRIBUTE_NAMES_KO[a]) : [];
   return {
     mode: f.mode, name: f.name, position: f.position,
-    positions: PLAYABLE_POSITIONS.map((p) => ({ id: p, ko: POSITION_NAMES_KO[p] })),
+    positions: PLAYABLE_POSITIONS.map((p) => ({ id: p, ko: POSITION_NAMES_KO[p], ovr: ovrs?.[p] })),
+    candidates, others: f.others || (!!prospect && !candidates.some((c) => c.id === f.position)),
+    strengths: top.join(' · '),
+    selectedOvr: ovrs?.[f.position as PlayablePosition] ?? null,
     keyAttrs: profileOf(f.position as FieldPosition).keys.map((a) => ATTRIBUTE_NAMES_KO[a]).join(' · '),
     ageRange: `OVR ${N.startOvr.min}~${N.startOvr.max}에서 시작`,
     difficulty: f.difficulty,

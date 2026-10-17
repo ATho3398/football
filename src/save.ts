@@ -13,6 +13,7 @@ import { initialProficiency } from './proficiency';
 import { migratedTactics, validTactics } from './myTactics';
 import { customProblem } from './formations';
 import { initCollection } from './cardCollection';
+import { aptitudeSeed, mainPositionAptitude } from './aptitude';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -141,6 +142,14 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   // 레벨 선택권은 지금 레벨까지 지난 것으로 친다 (변환 직후 선택권이 몰려 나오지 않게)
   15: (s) => {
     s.cards = initCollection(s.player.position, s.player.level ?? 0);
+  },
+  // 16 → 17 (부록 C.37, pending 36 ⑤): 숨은 포지션 적성. 지금 주 포지션군 1.2~1.4·나머지 0.7~1.0(엇갈림 없음),
+  // 재능 타입은 능력치에서 추정. 조언 없음, 지난 시즌 기록의 포지션은 모른다(조언 판정은 지금 주 포지션으로 본다)
+  16: (s) => {
+    s.player.aptitude = mainPositionAptitude(s.player.position, s.player.attributes, aptitudeSeed(s.worldSeed));
+    s.player.advice = null;
+    s.player.adviceLog = [];
+    s.player.aptBoost = null;
   },
 };
 

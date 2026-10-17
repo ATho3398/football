@@ -17,7 +17,7 @@ const game = (pos: 'ST' | 'CM' | 'CB' = 'ST', seed = 'tac') => newGame({ mode: '
 
 describe('내 팀 전술 기본값 (E.19 저장)', () => {
   it('새 게임은 팀 데이터 전술(성향·포메이션) + 주 포지션 슬롯', () => {
-    const g = game('CM');
+    const g = game('CM', 'tac2');
     const data = TEAM_TACTICS[g.player.teamId];
     expect(g.tactics.formation).toBe(data?.formation ?? g.rosters[g.player.teamId]!.formation);
     expect(g.tactics.tendency).toBe(data?.tendency ?? 'balanced');
@@ -115,7 +115,7 @@ describe('세이브 (SAVE_FORMAT_VERSION 12)', () => {
     g.tactics = { ...g.tactics, tendency: 'block', levels: { lineHeight: 0, pressing: 0, style: 2, width: 0 } };
     const back = deserialize(serialize(g));
     expect(back.tactics).toEqual(g.tactics);
-    expect(SAVE_FORMAT_VERSION).toBe(16);
+    expect(SAVE_FORMAT_VERSION).toBe(17);
   });
 
   it('11 → 12: 균형 + 팀 데이터 포메이션 + 주 포지션 슬롯', () => {

@@ -25,7 +25,8 @@ import {
 import { positionOvr, type PlayablePosition } from './positions';
 import { decayFormerPosition, gainProficiency, initialProficiency, proficiencyOf, proficientOvr } from './proficiency';
 import { awardBadges } from './badges';
-import { generateProspectAttributes, randomName, rollPotentialTier, rollStartOvr } from './prospect';
+import { randomName } from './prospect';
+import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
@@ -36,7 +37,7 @@ import { slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import type { FieldPosition } from './positions';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 16;
+export const SAVE_FORMAT_VERSION = 17;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -76,6 +77,8 @@ export interface MatchReport {
    * blocked 는 티어 하한에 막혀 사라진 감점 (부록 C.27). threshold 는 C.27 이전 세이브에는 없다
    */
   slump?: SlumpReport;
+  /** 이 경기 전에 포변 조언대로 바꿔 보너스가 걸렸다 (부록 C.37) */
+  adviceTaken?: boolean;
 }
 
 export interface SlumpReport { points: number; streak: number; threshold?: number; blocked?: number }
@@ -116,6 +119,8 @@ export interface SeasonSummary {
   tierReached?: Tier;
   /** 노련함 능력치 성장 (6.1.1). 이전 버전 세이브에는 없다 */
   veteranGrowth?: AttributeDelta;
+  /** 이번 시즌 끝에 나온 포변 조언 종류 (부록 C.37) */
+  advice?: 'coach' | 'news';
   aging: AttributeDelta;
   ovrBefore: number;
   ovrAfter: number;
@@ -158,7 +163,11 @@ export interface MatchControl {
 }
 
 export type NewGameOptions =
-  | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty }
+  /**
+   * 가상 유망주 (pending 31·36, 부록 C.37). rolled = true 면 시드로 뽑은 유망주(rollProspect(seed))에 position(시작 후보 중 고른 자리)을
+   * 붙인다 — 화면의 새 게임. 없으면 position 을 기준 자리로 맞는 재능 타입의 유망주를 만든다 (밸런스·테스트)
+   */
+  | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty; rolled?: boolean }
   | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty };
 
 const rngFor = (seed: string, ...parts: (string | number)[]): Rng => createRng(hashSeed([seed, ...parts].join(':')));
@@ -209,7 +218,6 @@ export function newGame(opts: NewGameOptions): GameState {
   const worldSeed = opts.seed?.trim() || randomSeed();
   const season = BALANCE.newGame.startYear;
   const league = createLeague(worldSeed, season);
-  const rng = rngFor(worldSeed, 'new-player');
   // 팀 레이팅 = 로스터 라인업 평균 (23번). 내 선수(실제 선수)는 로스터에서 빠진다
   const realPlayerId = opts.mode === 'real' ? opts.playerId : undefined;
   const npcs = initialNpcs(worldSeed, realPlayerId);
@@ -224,25 +232,26 @@ export function newGame(opts: NewGameOptions): GameState {
   };
 
   if (opts.mode === 'prospect') {
-    const potentialTier = rollPotentialTier(rng);
-    const ovr = rollStartOvr(rng);
-    const attributes = generateProspectAttributes(opts.position, ovr, rng);
+    // 재능 타입 → 능력치 → 숨은 적성 (pending 31 2번). 시작 포지션은 시작 후보 중 고른 자리 (rolled) 또는 기준 자리
+    const roll = rollProspect(worldSeed, opts.rolled ? undefined : opts.position);
+    const prng = roll.rng;
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
     const { min, max } = BALANCE.newGame.teamRankRange;
-    const team = byRating[randInt(rng, min, max) - 1]!;
+    const team = byRating[randInt(prng, min, max) - 1]!;
     player = {
       ...base,
-      name: opts.name?.trim() || randomName(rng),
+      name: opts.name?.trim() || randomName(prng),
       position: opts.position,
       age: BALANCE.newGame.startAge,
       teamId: team.id,
-      attributes,
-      potentialTier,
+      attributes: roll.attributes,
+      potentialTier: roll.potentialTier,
       reputation: 0,
       proficiency: initialProficiency(opts.position),
       formerPositions: [],
       badges: [],
       honors: { ...NO_HONORS },
+      aptitude: roll.aptitude, advice: null, adviceLog: [], aptBoost: null,
     };
   } else {
     const data = selectableRealPlayers().find((p) => p.id === opts.playerId);
@@ -264,6 +273,8 @@ export function newGame(opts: NewGameOptions): GameState {
       formerPositions: [],
       badges: [],
       honors: { ...NO_HONORS },
+      // 실제 선수 (pending 36 ④): 주 포지션군 1.2~1.4, 나머지 0.7~1.0, 엇갈림 없음
+      aptitude: mainPositionAptitude(data.position, gen.attributes, aptitudeSeed(worldSeed)), advice: null, adviceLog: [], aptBoost: null,
     };
   }
 
@@ -410,6 +421,8 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   const form = formBonus(player.recentRatings);
   const remaining = league.schedule.length - roundIdx - 1;
   const at = { season: league.season, round: roundIdx + 1 };
+  // 포변 조언 (부록 C.37): 기간이 지났으면 지우고, 조언받은 포지션군으로 뛰면 보너스를 건다
+  const adviceTaken = checkAdviceTaken(player, pos, league.season, roundIdx);
 
   let result: MatchResult;
   let preInjury: Injury | null = null;
@@ -536,6 +549,7 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
     ...(cardUses?.length ? { cardUses } : {}),
     ...(cardUnlock ? { cardUnlock } : {}),
     ...(slump ? { slump } : {}),
+    ...(adviceTaken ? { adviceTaken: true } : {}),
   };
   state.lastMatch = report;
 
@@ -722,12 +736,14 @@ export function endSeason(state: GameState): SeasonSummary {
   // 6. 기록
   const record: SeasonRecord = {
     ...player.season, season, age, teamId: player.teamId, leaguePosition: pos,
-    achievementXp, ovr: ovrBefore, reputation: player.reputation,
+    achievementXp, ovr: ovrBefore, reputation: player.reputation, position: player.position,
   };
   player.history.push(record);
 
   // 7. 이전 주 포지션 숙련도 감소 (D.3), 레전드 배지 (D.4: 부여 시 위상 +BALANCE.badges.reputation)
   decayFormerPosition(player);
+  // 포변 조언 (pending 31 3번): 2시즌 연속 부진 + 적성이 더 높은 포지션군 → 감독 한마디, 그다음부터 뉴스 (시즌 종료마다 한 번)
+  const advice = evaluateAdvice(player, season);
   const badges = awardBadges(player, season);
   record.reputation = player.reputation;
   const endFloorTier = reputationFloorTier(player.reputation);
@@ -745,7 +761,7 @@ export function endSeason(state: GameState): SeasonSummary {
     rankPenalty: { expected, pos, points: rank.points, blocked: rank.blocked },
     slumpBlocked: player.history.at(-1)!.slumpBlocked ?? 0, decayBlocked,
     redPenalty: { reds, ...red }, minutesPenalty: { share, ...short },
-    ...(tierReached ? { tierReached } : {}), badges, autoGrowth, veteranGrowth, aging,
+    ...(tierReached ? { tierReached } : {}), ...(advice ? { advice: advice.kind } : {}), badges, autoGrowth, veteranGrowth, aging,
     ovrBefore, ovrAfter: playerOvr(player),
     canRetire: age >= BALANCE.retirement.optionalAge,
     forcedRetire: player.age >= BALANCE.retirement.forcedAge,
@@ -807,4 +823,9 @@ export function careerTotals(p: PlayerState): CareerTotals {
     peakOvr: Math.max(playerOvr(p), ...h.map((r) => r.ovr)),
     bestFinish: h.length ? Math.min(...h.map((r) => r.leaguePosition)) : null,
   };
+}
+
+/** 주 포지션 변경 요청이 되는지 (D.3 비시즌 + 포변 조언 기간, 부록 C.37) */
+export function canChangePosition(state: GameState): boolean {
+  return state.phase === 'offseason' || (state.phase === 'season' && adviceOpen(state.player, state.league.season, state.league.round));
 }

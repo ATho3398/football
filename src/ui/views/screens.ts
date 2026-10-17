@@ -41,7 +41,14 @@ export interface NewGameVM {
   mode: 'prospect' | 'real';
   name: string;
   position: string;
-  positions: { id: string; ko: string }[];
+  positions: { id: string; ko: string; ovr?: number }[];
+  /** 가상 유망주 시작 후보 4자리 (C.37): 상위 3 + 와일드카드, 코치 한 줄 평 */
+  candidates: { id: string; ko: string; ovr: number; line: string; wild: boolean }[];
+  /** "다른 포지션에서 고르기" 펼침 */
+  others: boolean;
+  /** 눈에 띄는 능력치 3개 */
+  strengths: string;
+  selectedOvr: number | null;
   keyAttrs: string;
   ageRange: string;
   difficulty: string;
@@ -57,7 +64,7 @@ export function newGameView(vm: NewGameVM): string {
   const real = vm.mode === 'real';
   const hero = real
     ? HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: vm.selected ? `선택한 선수 · ${vm.selected.name} OVR` : '실제 선수를 골라요', value: vm.selected ? vm.selected.ovr : '-', pad: false, progress: false, chips: [`고를 수 있는 선수 ${vm.reals.length}명`, { label: '2018-19 시즌 그대로', soft: true }] })
-    : HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: '커리어를 시작할 선수', value: '17세', pad: false, progress: false, chips: [vm.ageRange, { label: '능력치는 포지션별 기본값', soft: true }] });
+    : HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
   const modeTabs = `<span class="label">시작 방식</span>${Tabs({ items: [{ id: 'prospect', label: '가상 유망주' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' } })}`;
   const diff = `${SectionTitle({ title: '난이도' })}<div class="opts">${vm.difficulties.map((d) =>
     `<button type="button" class="po-option opt${d.id === vm.difficulty ? ' is-on' : ''}" data-act="form" data-k="difficulty" data-v="${d.id}"><span class="grow"><b>${esc(d.label)}</b><small>${esc(d.desc)}</small></span>${
@@ -65,9 +72,18 @@ export function newGameView(vm: NewGameVM): string {
   const seed = `${SectionTitle({ title: '시드', action: '선택' })}<label class="field"><input type="text" id="f-seed" maxlength="40" value="${esc(vm.seed)}" placeholder="비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과"></label>`;
   let body: string;
   if (!real) {
+    const cands = `<div class="opts cand-list">${vm.candidates.map((c) =>
+      `<button type="button" class="po-option opt cand${c.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${c.id}"><span class="cand-pos po-num">${c.id}</span><span class="grow"><b>${esc(c.ko)}${
+        c.wild ? ' <span class="rec wild">와일드카드</span>' : ''}</b><small class="coach-line">“${esc(c.line)}”</small></span><span class="ovr"><b class="po-num">${c.ovr}</b><small>OVR</small></span><i class="radio${c.id === vm.position ? ' on' : ''}"></i></button>`).join('')}</div>`;
+    const all = vm.others
+      ? `<div class="pos-pick">${vm.positions.map((p) => `<button type="button" class="pos-btn${p.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><b>${p.id}</b><small>${esc(p.ko)}${p.ovr !== undefined ? ` · ${p.ovr}` : ''}</small></button>`).join('')}</div>`
+      : '';
     body = `
-      ${SectionTitle({ title: '포지션', action: `${vm.positions.length}개 중 1개` })}
-      <div class="pos-pick">${vm.positions.map((p) => `<button type="button" class="pos-btn${p.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><b>${p.id}</b><small>${esc(p.ko)}</small></button>`).join('')}</div>
+      ${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
+      <p class="small muted">능력치를 보고 코치가 고른 자리예요. 어디서 시작하든 나중에 바꿀 수 있어요.</p>
+      ${cands}
+      <p class="small"><button type="button" class="link-btn" data-act="form-others">${vm.others ? '다른 포지션 접기' : '다른 포지션에서 고르기'}</button> · <button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
+      ${all}
       <p class="small muted"><b class="ink">${esc(vm.position)}</b> · 핵심 능력치 ${esc(vm.keyAttrs)}.</p>
       ${SectionTitle({ title: '이름', action: '비우면 랜덤' })}
       <label class="field"><input type="text" id="f-name" maxlength="12" value="${esc(vm.name)}" placeholder="예: 김민준"></label>
