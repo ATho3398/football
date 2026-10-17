@@ -202,3 +202,4 @@
 - 사용자가 앱에서 직접 연 세션 → `lineage` 깊이 0(자식 세션 생성 가능). 기획 브랜치는 시스템 지정 `claude/admiring-planck-63x1v0`(`claude/planning-j`에서 분기, planning-k 대신). 다음 코드 세션 지시의 "planning 브랜치 docs/ 병합"은 이 브랜치로.
 - 시작 처리: 27a 세션·엔진관리자2에 "보고는 K로" 알림, J 제목 `draft_기획 세션 J`, J 자동 확인 `trig_01SkS3xkRK3wQLynbCoQMkA6` 삭제 → K 자동 확인 `trig_01P2FLfyZx9EkE1QKHctE5jS`(14:10 KST).
 - 27a 상태(12:00 KST): 하루 단위 엔진 전환 완료, balance 비교 중.
+- (12:05 KST, 사용자 지시) 세션 섹션 정리: draft_ 세션 41개를 `플레이어 원_draft` 섹션으로, 실행 중 27a·엔진관리자2를 `플레이어 원` 섹션으로 태그 이동. 앞으로 새 세션·draft_ 처리 때 태그도 같이 바꾼다(automation.md 0번).

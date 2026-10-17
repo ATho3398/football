@@ -6,6 +6,7 @@
 - **모든 답변 맨 끝에 시간 기록**(사용자 지시): `명령 시각 / 답변 시각 / 걸린 시간`. 시각은 KST(`TZ=Asia/Seoul date`). 명령 시각은 그 턴을 시작하자마자 잰 시각(메시지 도착 기준, 몇 초 차이 가능), 답변 시각은 답을 쓰기 직전에 잰다. 세션 간 메시지(send_message)와 부록 C 보고에도 같은 줄을 붙인다.
 - 코드·fix 세션은 Opus 5.5 고속 모드(`.claude/settings.json` `fastMode`), Fable 세션은 일반.
 - 사용자 결정이 필요한 질문은 3~4개씩 추천안과 함께 묻고, 답이 없으면 추천안으로 진행한 뒤 보고한다.
+- **세션 섹션(사용자 지시, 2026-10-17)**: 앱 사이드바 섹션 = 세션 태그 `remote-agents-project:<이름>`. 새 세션은 `create_session`의 `tags`에 `remote-agents-project:플레이어 원`(+ `stage:...`/`role:...`)을 넣는다(`football` 아님). 세션 제목 앞에 `draft_`를 붙일 때 `set_session_tags`로 `remote-agents-project:플레이어 원` 또는 `football`을 빼고 `remote-agents-project:플레이어 원_draft`를 넣는다.
 
 ## 1. 단계 흐름
 1. **단계 시작(기획 세션)**: 지시를 쓰고 코드 세션 "N단계_작업명"을 연다. 직전 단계 코드 세션(그리고 그 fix 세션) 제목 앞에 `draft_`.
