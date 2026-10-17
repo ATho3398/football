@@ -23,7 +23,7 @@ import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
-  assignShirts, createRosters, freeShirt, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+  assignShirts, createRosters, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
@@ -159,6 +159,8 @@ export interface GameState {
   /** 새 게임을 시작한 패치 이름 (21.5.1). null 이면 기록하기 전 세이브 */
   startPatch: string | null;
   worldSeed: string;
+  /** 가상 선수 이름 풀 판 (부록 C.45 8번). 없으면 1 = 옛 풀(옛 세이브), 새 게임은 2. 로스터를 다시 만들 때 setNamePoolVersion 으로 맞춘다 */
+  namePool?: number;
   difficulty: Difficulty;
   phase: Phase;
   player: PlayerState;
@@ -348,6 +350,8 @@ export function newGame(opts: NewGameOptions): GameState {
   // 팀 레이팅 = 로스터 라인업 평균 (23번). 내 선수(실제 선수)는 로스터에서 빠진다
   const realPlayerId = opts.mode === 'real' ? opts.playerId : undefined;
   const npcs = initialNpcs(worldSeed, realPlayerId);
+  // 새 게임은 늘린 이름 풀 (C.45 8번). 로스터를 만들기 전에 맞춘다
+  setNamePoolVersion(2);
   const rosters = rebuildRosters(worldSeed, realPlayerId, 0);
   const ratings = teamRatings(rosters);
   for (const t of league.teams) t.rating = ratings[t.id] ?? t.rating;
@@ -455,6 +459,7 @@ export function newGame(opts: NewGameOptions): GameState {
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,
     startPatch: PATCH_LABEL,
+    namePool: 2,
     // 새 커리어는 개막 7일 전 소집부터 (25.3 5번, C.41)
     calendar: { date: addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays) },
     playerStats: {},

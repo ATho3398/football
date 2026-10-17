@@ -4,6 +4,7 @@
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { setNamePoolVersion } from './roster';
 import { migrateRoleId } from './engine/roles';
 import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
 import { generatePlayer } from './generate';
@@ -253,6 +254,8 @@ export function migrate(raw: any): GameState {
     raw.saveFormat = v + 1;
   }
   const state = raw as GameState;
+  // 이름 풀 판 (C.45 8번): namePool 이 없는 옛 세이브는 옛 풀로 다시 만들어 생성 선수 이름을 지킨다
+  setNamePoolVersion(state.namePool ?? 1);
   state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers);
   if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);
   return state;
