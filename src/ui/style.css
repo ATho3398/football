@@ -759,3 +759,17 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .nm-filter .fo-search { flex: 1; min-width: 0; }
 .nm-team { flex: none; max-width: 42%; height: 44px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink); font-family: var(--font-sans); font-size: 13px; font-weight: 700; }
 .nm-row .po-chip { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 경기 아이콘 (부록 C.45): 16px 인물·유니폼 레이어를 정수 배로 겹쳐 보인다(보간 끔). 인물 14종·유니폼 32종 격자 */
+.px-icon { position: relative; display: inline-block; flex: none; border-radius: 8px; background: #2b2e35; }
+.px-icon img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.px-icon.is-empty { opacity: .4; }
+.px-edit { display: flex; flex-direction: column; gap: 10px; }
+.px-big { display: grid; place-items: center; }
+.px-pair { display: flex; gap: 6px; }
+.px-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 6px; }
+.px-grid--kits { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); max-height: 240px; overflow-y: auto; }
+.px-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border: 0; border-radius: 12px; background: var(--surface-1); color: var(--ink-muted); font: 600 10px/1.2 var(--font-sans); cursor: pointer; }
+.px-cell.is-on { box-shadow: inset 0 0 0 2px var(--brand-ink); color: var(--ink); }
+.px-cell small { font-size: 10px; }
+.px-row .px-icon { margin-right: 2px; }
+.px-row .po-chip { flex: none; }

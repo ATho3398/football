@@ -860,6 +860,41 @@ export const BALANCE = {
     /** 표에 없는 국적 */
     fallback: { white: 50, black: 25, latinMideast: 20, eastAsian: 5 } as Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>,
   },
+  // ── 도트 선수 아이콘 (부록 C.45, docs/design/pixel-kits.md 3·4번): 경기 화면 캐릭터 보기의 인물(피부·머리)과 유니폼 충돌 규칙.
+  // 겉모습만이라 경기 결과·시드에 영향이 없다. 추첨은 `pixel:<선수 id>` 시드의 별도 난수
+  pixelLook: {
+    /** 외모군 → 피부 분포 (가중치) */
+    skin: {
+      eastAsian: { yellow: 100 },
+      white: { white: 100 },
+      irish: { white: 100 },
+      black: { black: 100 },
+      latinMideast: { mideast: 70, white: 30 },
+    } as Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', Record<string, number>>,
+    /** 외모군 → 피부별 머리 분포 (가중치). 피부가 표에 없으면 hairBySkin */
+    hair: {
+      eastAsian: { yellow: { black: 85, brown: 10, bald: 3, blonde: 2 } },
+      white: { white: { brown: 45, blonde: 25, black: 22, bald: 8 } },
+      irish: { white: { brown: 50, blonde: 40, black: 5, bald: 5 } }, // blonde = 붉은 머리 대용
+      black: { black: { black: 88, bald: 10, blonde: 2 } },
+      latinMideast: { mideast: { black: 75, brown: 18, bald: 7 }, white: { black: 50, brown: 45, bald: 5 } },
+    } as Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', Record<string, Record<string, number>>>,
+    /** 외모군을 모를 때 피부별 머리 분포 */
+    hairBySkin: {
+      yellow: { black: 85, brown: 10, bald: 3, blonde: 2 },
+      white: { brown: 45, blonde: 25, black: 22, bald: 8 },
+      black: { black: 88, bald: 10, blonde: 2 },
+      mideast: { black: 75, brown: 18, bald: 7 },
+    } as Record<string, Record<string, number>>,
+    /** 없는 조합 대체 (3.3): `피부_머리` → 머리. 그 밖에는 같은 피부의 첫 머리 */
+    missing: { black_brown: 'black', mideast_blonde: 'brown' } as Record<string, string>,
+    /** 유니폼 충돌 기준: 몸통 평균색 RGB 거리가 이보다 가까우면 겹친다 (4번) */
+    clashDistance: 120,
+    /** GK 단색 순서: 초록 → 노랑 → 주황 → 보라 → 검정 → 하늘 */
+    gkOrder: ['C07', 'C06', 'C09', 'C10', 'C05', 'C04'] as string[],
+    /** 표에 없는 국가·구단이고 색도 모를 때 */
+    fallbackKit: { home: 'C02', away: 'C05' },
+  },
 } as const;
 
 export type Balance = typeof BALANCE;

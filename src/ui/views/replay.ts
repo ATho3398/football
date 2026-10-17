@@ -10,7 +10,7 @@ import {
 } from '../components';
 import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
 import { pitchViewButton } from './common';
-import { activeRenderer, drawFrame, fitCanvas, playerMap, readPalette, type MarkerRenderer } from '../pitch/renderer';
+import { activeRenderer, drawFrame, fitCanvas, playerMap, readPalette, setPitchTeams, type MarkerRenderer } from '../pitch/renderer';
 
 export type ReplayMode = 'scene' | 'transition' | 'live' | 'ended';
 
@@ -264,6 +264,7 @@ export class ReplayPlayer {
     if (!canvas) return false;
     const { ctx, w, h } = fitCanvas(canvas);
     const f = this.current();
+    setPitchTeams(this.replay.teams); // 캐릭터 보기 유니폼 (C.45)
     drawFrame(ctx, w, h, f, this.players, this.renderer ?? activeRenderer(), this.replay.side, performance.now() / 1000);
     const at = this.mode === 'transition' ? f.e : this.e;
     const score = scoreAt(this.replay, at);

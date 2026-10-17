@@ -1,6 +1,280 @@
 {
-  "version": 1,
-  "note": "도트(픽셀아트) 선수 얼굴 — 경기 화면 '캐릭터' 보기 (부록 C.43). players: 선수 id → 파일, appearance: 외모군 → 파일 목록. 없는 선수는 등번호로 보인다",
-  "players": {},
-  "appearance": {}
+  "version": 2,
+  "note": "도트 선수 아이콘 (경기 화면 캐릭터 보기, 부록 C.45). scripts/splitPixelPack.ts 가 만든다. 인물 레이어 위에 유니폼 레이어를 겹친다. colors = 몸통 색(많은 순), mean = 몸통 픽셀 평균(색 거리용). players: 선수 id → 파일(version 1 직접 지정, 먼저 씀) 또는 {skin, hair}",
+  "size": 16,
+  "order": "kit-over-person",
+  "kits": {
+    "C01": {
+      "file": "kit/C01_solid_red.png",
+      "colors": [
+        "#c8102e"
+      ],
+      "mean": "#c8102e"
+    },
+    "C02": {
+      "file": "kit/C02_solid_white.png",
+      "colors": [
+        "#f5f5f5"
+      ],
+      "mean": "#f5f5f5"
+    },
+    "C03": {
+      "file": "kit/C03_solid_blue.png",
+      "colors": [
+        "#1d4ed8"
+      ],
+      "mean": "#1d4ed8"
+    },
+    "C04": {
+      "file": "kit/C04_solid_sky.png",
+      "colors": [
+        "#6cabdd"
+      ],
+      "mean": "#6cabdd"
+    },
+    "C05": {
+      "file": "kit/C05_solid_black.png",
+      "colors": [
+        "#1a1a1a"
+      ],
+      "mean": "#1a1a1a"
+    },
+    "C06": {
+      "file": "kit/C06_solid_yellow.png",
+      "colors": [
+        "#f5c518"
+      ],
+      "mean": "#f5c518"
+    },
+    "C07": {
+      "file": "kit/C07_solid_green.png",
+      "colors": [
+        "#1b8a3a"
+      ],
+      "mean": "#1b8a3a"
+    },
+    "C08": {
+      "file": "kit/C08_solid_navy.png",
+      "colors": [
+        "#1f2a44"
+      ],
+      "mean": "#1f2a44"
+    },
+    "C09": {
+      "file": "kit/C09_solid_orange.png",
+      "colors": [
+        "#f36c21"
+      ],
+      "mean": "#f36c21"
+    },
+    "C10": {
+      "file": "kit/C10_solid_purple.png",
+      "colors": [
+        "#5b2c83"
+      ],
+      "mean": "#5b2c83"
+    },
+    "C11": {
+      "file": "kit/C11_solid_claret.png",
+      "colors": [
+        "#7a263a"
+      ],
+      "mean": "#7a263a"
+    },
+    "S01": {
+      "file": "kit/S01_juventus.png",
+      "colors": [
+        "#1a1a1a",
+        "#f5f5f5"
+      ],
+      "mean": "#797979"
+    },
+    "S02": {
+      "file": "kit/S02_barcelona.png",
+      "colors": [
+        "#1d4ed8",
+        "#7a263a"
+      ],
+      "mean": "#453d93"
+    },
+    "S03": {
+      "file": "kit/S03_inter.png",
+      "colors": [
+        "#1a1a1a",
+        "#1d4ed8"
+      ],
+      "mean": "#1b316d"
+    },
+    "S04": {
+      "file": "kit/S04_ac_milan.png",
+      "colors": [
+        "#c8102e",
+        "#1a1a1a"
+      ],
+      "mean": "#7c1425"
+    },
+    "S05": {
+      "file": "kit/S05_atletico.png",
+      "colors": [
+        "#c8102e",
+        "#f5f5f5"
+      ],
+      "mean": "#dc7485"
+    },
+    "S06": {
+      "file": "kit/S06_porto.png",
+      "colors": [
+        "#1d4ed8",
+        "#f5f5f5"
+      ],
+      "mean": "#7b97e5"
+    },
+    "S07": {
+      "file": "kit/S07_racing_club.png",
+      "colors": [
+        "#6cabdd",
+        "#f5f5f5"
+      ],
+      "mean": "#a8cbe7"
+    },
+    "S08": {
+      "file": "kit/S08_west_brom.png",
+      "colors": [
+        "#1f2a44",
+        "#f5f5f5"
+      ],
+      "mean": "#7c8291"
+    },
+    "S09": {
+      "file": "kit/S09_hull_city.png",
+      "colors": [
+        "#f36c21",
+        "#1a1a1a"
+      ],
+      "mean": "#95481e"
+    },
+    "S10": {
+      "file": "kit/S10_crystal_palace.png",
+      "colors": [
+        "#c8102e",
+        "#1d4ed8"
+      ],
+      "mean": "#7e2b78"
+    },
+    "S11": {
+      "file": "kit/S11_valladolid.png",
+      "colors": [
+        "#5b2c83",
+        "#f5f5f5"
+      ],
+      "mean": "#9e83b5"
+    },
+    "S12": {
+      "file": "kit/S12_vitesse.png",
+      "colors": [
+        "#f5c518",
+        "#1a1a1a"
+      ],
+      "mean": "#967b19"
+    },
+    "S13": {
+      "file": "kit/S13_celtic.png",
+      "colors": [
+        "#1b8a3a",
+        "#f5f5f5"
+      ],
+      "mean": "#7ab98b"
+    },
+    "S14": {
+      "file": "kit/S14_flamengo.png",
+      "colors": [
+        "#c8102e",
+        "#1a1a1a"
+      ],
+      "mean": "#7c1425"
+    },
+    "S15": {
+      "file": "kit/S15_boca_juniors.png",
+      "colors": [
+        "#1f2a44",
+        "#f5c518"
+      ],
+      "mean": "#4e4c3a"
+    },
+    "S16": {
+      "file": "kit/S16_river_plate.png",
+      "colors": [
+        "#f5f5f5",
+        "#c8102e"
+      ],
+      "mean": "#e9b9c1"
+    },
+    "S17": {
+      "file": "kit/S17_vasco_da_gama.png",
+      "colors": [
+        "#1a1a1a",
+        "#f5f5f5"
+      ],
+      "mean": "#535353"
+    },
+    "S18": {
+      "file": "kit/S18_ajax.png",
+      "colors": [
+        "#f5f5f5",
+        "#c8102e"
+      ],
+      "mean": "#e1919e"
+    },
+    "S19": {
+      "file": "kit/S19_feyenoord.png",
+      "colors": [
+        "#c8102e",
+        "#f5f5f5"
+      ],
+      "mean": "#df8392"
+    },
+    "S20": {
+      "file": "kit/S20_blackburn.png",
+      "colors": [
+        "#1d4ed8",
+        "#f5f5f5"
+      ],
+      "mean": "#89a2e7"
+    },
+    "S21": {
+      "file": "kit/S21_psg.png",
+      "colors": [
+        "#1f2a44",
+        "#c8102e",
+        "#f5f5f5"
+      ],
+      "mean": "#725066"
+    }
+  },
+  "personDir": "person",
+  "people": {
+    "black": [
+      "black",
+      "blonde",
+      "bald"
+    ],
+    "yellow": [
+      "black",
+      "blonde",
+      "brown",
+      "bald"
+    ],
+    "white": [
+      "black",
+      "blonde",
+      "brown",
+      "bald"
+    ],
+    "mideast": [
+      "black",
+      "brown",
+      "bald"
+    ]
+  },
+  "players": {}
 }
