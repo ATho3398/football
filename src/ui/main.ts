@@ -46,14 +46,14 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Banner, Button, HeroPanel, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
+import { Banner, Button, esc, HeroPanel, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoSheet } from './views/progress';
-import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
+import { setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { adviceCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
@@ -69,7 +69,7 @@ import { cropStyle, lookupEntry, myPixelCard, nameEditor, settingsView, type Fac
 import { CARD_ART_UI_DEFAULT, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artStyle } from './components/gameCard';
-import { emptyOverrides, setKitOverride, setPersonOverride } from '../pixel';
+import { emptyOverrides, kitClash, setKitOverride, setPersonOverride } from '../pixel';
 import { pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
 import { clearFaceOn, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
@@ -475,21 +475,24 @@ function render(): void {
 function dockVM(g: GameState): DockVM {
   const live = liveScreen();
   let prog: DockVM['prog'];
-  if (live) prog = { label: '경기 중', icon: 'match', act: 'live-return', live: true };
-  else if (g.phase !== 'season') prog = { label: '시즌 요약', icon: 'star', act: 'go-tab', data: { v: 'season' } };
-  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop' };
-  else if (marketPending(g)) prog = { label: '답하기', icon: 'bell', act: 'day-continue' };
-  else if (isMatchDay(g)) prog = { label: '경기', icon: 'play', act: 'play' };
-  else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue' };
+  if (live) prog = { label: '경기 중', icon: 'match', act: 'live-return', live: true, kind: 'live' };
+  else if (g.phase !== 'season') prog = { label: '시즌 요약', icon: 'trophy', act: 'go-tab', data: { v: 'season' }, kind: 'season' };
+  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop', kind: 'continue' };
+  else if (marketPending(g)) {
+    const n = (g.market?.offers?.length ?? 0) + (g.market?.renewal ? 1 : 0);
+    prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
+  } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
+  else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
   return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet };
 }
 
-/** "경기 중 · 돌아가기" 띠 (C.39): 다른 화면 위에. 누르면 경기로 */
+/** "경기 중 · 돌아가기" 띠 (C.39, C.54 디자인 60): 다른 화면 위에. 첫 줄 = 분·스코어, 둘째 줄 = 상태, 오른쪽 [경기로 돌아가기] */
 function liveBand(to: Screen): string {
   const lv = ui.live;
   const m = lv?.run.pending ?? lv?.oc?.vm.moment;
-  const where = lv && m ? `${m.minute}' ${lv.teams[0]} ${m.score[0]} : ${m.score[1]} ${lv.teams[1]} · 결정 대기` : to === 'replay' ? '경기 재생 중' : '';
-  return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><b>경기 중</b><span class="grow">${where}</span><b class="live-back">돌아가기 ›</b></button>`;
+  const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${m.score[0]}-${m.score[1]} ${lv.teams[1]}` : '경기 중';
+  const sub = lv && m ? '결정 순간에서 멈췄어요' : to === 'replay' ? '경기 재생 중' : '';
+  return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><span class="grow"><b>${esc(head)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="live-back">경기로 돌아가기</b></button>`;
 }
 
 function livePlayers(g: GameState) {
@@ -2388,6 +2391,12 @@ setPitchPixelResolver((m, teams) => {
   const kits = teams ? matchKitsOf(g, teams) : null;
   const kit = kits ? (m.teamId === 0 ? (m.gk ? kits.homeGk : kits.home) : (m.gk ? kits.awayGk : kits.away)) : homeKitOf(g, m.id, m.isMe);
   return playerIcon(g, m.id, m.isMe, kit);
+});
+// 원정 몸통 주황 테두리 (C.54 디자인 139): 두 팀 몸통 밝기가 비슷한 경기
+setPitchKitClashResolver((teams) => {
+  if (!teams) return false;
+  const k = matchKitsOf(ui.game, teams);
+  return kitClash(k.home, k.away);
 });
 
 render();

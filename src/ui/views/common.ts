@@ -30,49 +30,83 @@ export function startNotice(v: VersionVM): string {
 }
 
 /**
- * 하단 독 (C.44 pending 47 5번, C.50 pending 82 5번): 모든 화면 아래 고정. 홈은 모바일·PC 모두 가운데 칸, 강조색 원형으로 크게.
- * 좌우 대칭: 바로 옆 = 진행 · 훈련·일정(하루 일), 그다음 = 선수 · 월드(정보), 바깥 = 전술 · 설정, 덱 · 저장.
- * 모바일 = 5칸(선수·진행·홈·훈련·일정·더보기 — 월드 자리에 더보기), PC = 9칸 전부
+ * 하단 독 (C.44 pending 47 5번, C.50 pending 82 5번, C.54 디자인 154): 모든 화면 아래 고정. 홈은 모바일·PC 모두 가운데 칸,
+ * 56px 원(PC 44px)이 독 위로 20px 솟는다. 평소 = 라임 테두리, 홈 화면이면 라임 면.
+ * 진행 칸 = 아이콘 + 이름 알약, 상태 5종(계속·경기·경기 중·답하기·시즌 요약) + 배지. 잠긴 칸 = 흐리게 + 작은 자물쇠.
+ * 칸 배치는 DOCK_PHONE · DOCK_PC 배열 하나씩만 고치면 된다(열 너비는 홈 왼쪽·오른쪽 합이 같게 자동 계산).
  */
+export type DockProg = 'continue' | 'match' | 'live' | 'answer' | 'season';
 export interface DockVM {
   screen: string;
   /** 진행 칸: 지금 누르면 하는 일 */
-  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean };
+  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean; kind?: DockProg; badge?: number };
   tacticsOpen: boolean;
   /** 남은 포인트 (선수 칸 배지) */
   points: number;
   more: boolean;
 }
 
-type DockItem = { id: string; label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; cls?: string; badge?: number; lock?: boolean };
+export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves';
+/** 모바일 5칸 (C.50 배치 유지: 선수 · 진행 · 홈 · 훈련·일정 · 더보기). 디자인 154의 6칸으로 가려면 'world'를 'more' 앞에 넣는다 */
+export const DOCK_PHONE: DockId[] = ['player', 'prog', 'home', 'schedule', 'more'];
+/** PC 9칸 (C.50 배치 유지, 홈 5번째) */
+export const DOCK_PC: DockId[] = ['deck', 'tactics', 'player', 'prog', 'home', 'schedule', 'world', 'settings', 'saves'];
+/** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
+const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves' };
+
+type DockItem = { label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; badge?: number; lock?: boolean };
+
+/** 열 너비: 진행 칸 2, 다른 칸 1, 홈 고정 폭. 홈 양쪽 합을 같게 맞춰 홈이 정확히 가운데 */
+export function dockColumns(ids: DockId[], homePx: number): string {
+  const h = ids.indexOf('home');
+  const w = (id: DockId) => (id === 'prog' ? 2 : 1);
+  const left = ids.slice(0, h).reduce((a, id) => a + w(id), 0) || 1;
+  const right = ids.slice(h + 1).reduce((a, id) => a + w(id), 0) || 1;
+  return ids.map((id, i) => (id === 'home' ? `${homePx}px` : `minmax(0, ${+(w(id) / (i < h ? left : right) * 6).toFixed(3)}fr)`)).join(' ');
+}
 
 export function dock(vm: DockVM): string {
   const s = vm.screen;
-  const items: DockItem[] = [
-    { id: 'deck', label: '덱', icon: 'combo', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck', cls: 'dock-pc' },
-    { id: 'tactics', label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', cls: 'dock-pc', lock: !vm.tacticsOpen },
-    { id: 'player', label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
-    { id: 'prog', label: vm.prog.label, icon: vm.prog.icon, act: vm.prog.act, ...(vm.prog.data ? { data: vm.prog.data } : {}), cls: `dock-prog${vm.prog.live ? ' is-live' : ''}` },
-    { id: 'home', label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home', cls: 'dock-home' },
-    { id: 'schedule', label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
-    { id: 'world', label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world', cls: 'dock-pc' },
-    { id: 'more', label: '더보기', icon: 'filter', act: 'dock-more', on: vm.more || ['deck', 'tactics', 'world', 'settings', 'saves'].includes(s), cls: 'dock-m' },
-    { id: 'settings', label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings', cls: 'dock-pc' },
-    { id: 'saves', label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves', cls: 'dock-pc' },
-  ];
-  const btn = (it: DockItem) => `<button type="button" class="${cx('dock-btn', it.on && 'is-on', it.cls, it.lock && 'is-lock')}" data-act="${it.act}"${
-    Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.on ? ' aria-current="page"' : ''}>${Icon({ name: it.lock ? 'lock' : it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}<span>${esc(it.label)}</span>${
-    it.badge ? `<span class="po-dotbadge po-num">${it.badge}</span>` : ''}</button>`;
-  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${items.map(btn).join('')}</nav>`;
+  const phone = new Set(DOCK_PHONE);
+  const items: Record<Exclude<DockId, 'prog' | 'home'>, DockItem> = {
+    player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
+    schedule: { label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
+    world: { label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
+    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)) },
+    deck: { label: '덱', icon: 'deck', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck' },
+    tactics: { label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', lock: !vm.tacticsOpen },
+    settings: { label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings' },
+    saves: { label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves' },
+  };
+  const attrs = (act: string, data?: Record<string, string>) => ` data-act="${act}"${Object.entries(data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}`;
+  const badge = (n?: number) => (n ? `<b class="po-dock__badge po-num">${n}</b>` : '');
+  const p = vm.prog;
+  const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
+  const cell = (id: DockId, pc: boolean): string => {
+    if (id === 'prog') {
+      return `<button type="button" class="po-dock__go is-${kind}"${attrs(p.act, p.data)}><span class="po-dock__goicon">${
+        kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 20, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${badge(p.badge)}</span></button>`;
+    }
+    if (id === 'home') {
+      const on = s === 'home';
+      return `<button type="button" class="${cx('po-dock__home', on && 'is-on')}"${attrs('go-tab', { v: 'home' })}${on ? ' aria-current="page"' : ''}><span class="po-dock__homeicon">${
+        Icon({ name: 'home', size: pc ? 22 : 26, strokeWidth: 2.4 })}</span><span class="po-dock__label">홈</span></button>`;
+    }
+    const it = items[id];
+    return `<button type="button" class="${cx('po-dock__item', it.on && 'is-on', it.lock && 'is-locked')}"${attrs(it.act, it.data)}${it.lock ? ' disabled' : ''}${it.on ? ' aria-current="page"' : ''}><span class="po-dock__icon">${
+      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : badge(it.badge)}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
+  };
+  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${dockColumns(ids, pc ? 132 : 72)}">${ids.map((id) => cell(id, pc)).join('')}</div>`;
+  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
 }
 
-/** 모바일 더보기 시트: 독에 없는 칸 (C.50: 월드 추가) */
+/** 모바일 더보기 시트: 독에 없는 칸 (C.50: 월드 추가, C.54: DOCK_PHONE 에 있는 칸은 뺀다) */
 export function dockMoreSheet(tacticsOpen: boolean): string {
   return BottomSheet({
     eyebrow: '더보기', title: '메뉴', onClose: { act: 'sheet-close' },
     children: [
-      OptionRow({ act: 'go-tab', data: { v: 'world' }, icon: 'world', title: '월드', desc: '순위표·득점 순위·이적 소식' }),
-      OptionRow({ act: 'go-tab', data: { v: 'deck' }, icon: 'combo', title: '덱', desc: '카드 덱 편집·선택권' }),
+      DOCK_PHONE.includes('world') ? '' : OptionRow({ act: 'go-tab', data: { v: 'world' }, icon: 'world', title: '월드', desc: '순위표·득점 순위·이적 소식' }),
+      OptionRow({ act: 'go-tab', data: { v: 'deck' }, icon: 'deck', title: '덱', desc: '카드 덱 편집·선택권' }),
       OptionRow({ act: 'tac-open', icon: tacticsOpen ? 'tactic' : 'lock', title: '전술', desc: tacticsOpen ? '포메이션·성향·내 위치' : '3경기 뒤에 열려요', disabled: !tacticsOpen }),
       OptionRow({ act: 'go-tab', data: { v: 'settings' }, icon: 'settings', title: '설정', desc: '경기 진행·보기·페이스온' }),
       OptionRow({ act: 'go-tab', data: { v: 'saves' }, icon: 'disk', title: '저장', desc: '수동 저장·불러오기·파일' }),

@@ -1,20 +1,17 @@
 // 다른 팀·다른 선수 상세 (C.53, pending 82 4번) — 6차 디자인 157 `팀상세` · 158 `선수상세-다른선수`.
 // 읽기 전용: 편집 버튼([찍기]·[꾸미기]·[이적 요청])이 없다. 팀 이름·선수 이름을 누르면 서로 오간다
 
-import { Avatar, Crest, esc, FormationPitch, HeroPanel, Icon, SectionTitle, TacticChip, Tabs, TierBadge } from '../components';
-import type { FinanceTier } from '../../finance';
+import { Avatar, Crest, esc, FinChip, FormationPitch, HeroPanel, Icon, SectionTitle, TacticChip, Tabs, TierBadge } from '../components';
+import { TIER_KO, type FinanceTier } from '../../finance';
 import type { PersonDetailVM, PersonTab, SquadRowVM, TeamDetailVM, TeamMatchVM, TeamTab } from '../detailVM';
 import type { FormMark } from '../prepVM';
 import { attrGrid } from './attrGrid';
 import { panel, statTiles } from './common';
 
 const MARK_KO: Record<FormMark, string> = { W: '승', D: '무', L: '패' };
-const TIER_STEP: Record<FinanceTier, number> = { low: 1, mid: 2, upper: 3, big: 4 };
-
-/** 재정 등급 4단 막대 + 글자 (디자인 136·146 막대 모양) */
-export function tierBars(tier: FinanceTier, label: string): string {
-  const n = TIER_STEP[tier];
-  return `<span class="dt-tier" title="구단 재정 등급 ${esc(label)}"><span class="dt-tier__bars" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>${esc(label)}</span>`;
+/** 재정 등급 4단 막대 + 글자 (디자인 136·146 막대 모양, C.54: 컴포넌트 FinChip) */
+export function tierBars(tier: FinanceTier, label?: string): string {
+  return FinChip(label ?? TIER_KO[tier]);
 }
 
 /** 팀 이름 링크 (리그 팀만) */

@@ -530,8 +530,10 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 /* 경기 중 띠 (다른 화면 위) */
 .live-band { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px var(--space-4);
   border: 0; background: var(--mine); color: #06202a; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.live-band .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.live-back { flex: none; }
+.live-band .grow { display: grid; min-width: 0; }
+.live-band .grow b, .live-band .grow small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-band .grow small { font-size: 11px; font-weight: 600; opacity: .8; }
+.live-back { flex: none; height: 32px; padding: 0 12px; border-radius: var(--radius-pill); background: #121317; color: var(--mine); font-size: 12px; line-height: 32px; }
 .live-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #e5372c; animation: live-pulse 1.2s ease-in-out infinite; }
 @keyframes live-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
@@ -544,11 +546,11 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 /* 결정 화면에 아래 바가 있으면 시트를 그 위에 */
 @media (max-width: 1023px) { .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); } }
 
-/* 홈 머리말: 작게 */
-.po-hero--compact { padding-bottom: 14px; gap: 2px; }
-.po-hero--compact .po-hero__num { height: auto; }
-.po-hero--compact .po-hero__value { font-size: 40px; line-height: 44px; }
-.po-hero--compact .po-hero__chips { margin-top: 6px; }
+/* compact 머리말 (C.54, bundle.css 요청 5 격자): 디자인 규칙 그대로. 그 밖의 자식(children)은 한 줄 전체 */
+.po-hero--compact > :not(.po-hero__bar):not(.po-hero__eyebrow):not(.po-hero__num) { grid-column: 1 / -1; }
+/* 긴 팀 이름: eyebrow·글자 값은 한 줄 말줄임 (디자인 100 재계약) */
+.po-hero__eyebrow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.po-hero--text .po-hero__num { min-width: 0; max-width: 100%; }
 .next-card .btn-row, .next-card > .po-btn { margin-top: 2px; }
 .sim-rest { display: flex; justify-content: center; margin-top: -4px; }
 
@@ -692,33 +694,24 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .pv-btn { position: absolute; top: 6px; right: 6px; z-index: 3; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(18,19,23,.78); color: var(--ink); font: 600 11px/1.2 var(--font-sans); cursor: pointer; }
 .po-pixel, img.is-pixel { image-rendering: pixelated; }
 
-/* ── C.44 하단 독: 모든 화면 아래 고정. C.50: 홈 가운데·강조, 모바일 5칸(선수·진행·홈·훈련·더보기), PC(1024+) 9칸 전부 ── */
-.dock-bar { display: flex; align-items: stretch; height: 64px; gap: 0; padding: 0 4px env(safe-area-inset-bottom); border-top: 1px solid var(--line); }
-.dock-btn { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 2px; border: 0; background: none; color: var(--ink-muted); font: inherit; font-size: 10.5px; font-weight: 700; line-height: 1.1; cursor: pointer; }
-.dock-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dock-btn.is-on { color: var(--brand-ink); }
-.dock-btn.is-lock { color: var(--ink-faint); }
-.dock-btn .po-dotbadge { position: absolute; top: 6px; left: calc(50% + 6px); margin: 0; }
-.dock-prog { color: var(--ink); }
-.dock-prog svg { padding: 2px; border-radius: 10px; border: 1.5px solid var(--brand); color: var(--brand-ink); width: 30px; height: 26px; }
-/* 홈 (C.50): 가운데 칸, 강조색 원형이 독 위로 올라온다. 다른 화면에 있어도 늘 같은 강조 */
-.dock-home { flex: 0 0 76px; color: var(--ink); justify-content: flex-end; padding-bottom: 7px; }
-.dock-home svg { width: 52px; height: 52px; padding: 13px; margin-top: -26px; border-radius: 50%; background: var(--brand); color: var(--on-brand); box-shadow: 0 0 0 4px var(--surface-0), 0 4px 12px rgba(0,0,0,.35); }
-.dock-home.is-on { color: var(--brand-ink); }
-.dock-home.is-on svg { box-shadow: 0 0 0 4px var(--surface-0), 0 0 0 6px var(--brand-ink), 0 4px 12px rgba(0,0,0,.35); }
-.dock-prog.is-live svg { background: var(--mine); color: #06202a; }
-.dock-pc { display: none; }
+/* ── 하단 독 (C.44 → C.50 홈 가운데 → C.54 디자인 154 po-dock): 모바일 72px(홈 원 20px 솟음), PC(1024+) 64px 9칸 ── */
+.dock-bar { display: block; padding: 0 0 env(safe-area-inset-bottom); background: var(--surface-1); }
+.dock-bar .po-dock { width: 100%; }
+.dock-bar .po-dock__item:disabled { cursor: not-allowed; }
+/* 홈 원 20px 솟음 (154): 위에서부터 쌓아 원 위끝 = 독 윗선 − 20px */
+.dock-phone .po-dock__home { justify-content: flex-start; padding: 0; }
+.dock-wide { display: none; }
 @media (min-width: 1024px) {
-  .dock-pc { display: flex; }
-  .dock-m { display: none; }
-  .dock-btn { font-size: 12px; }
+  .dock-phone { display: none; }
+  .dock-wide { display: grid; }
 }
 /* 독 위로 올라오는 화면 아래 버튼 줄 */
-.has-nav .dock { bottom: 64px; }
+.has-nav .dock { bottom: 72px; }
+@media (min-width: 1024px) { .has-nav .dock { bottom: 64px; } }
 @media (max-width: 1023px) {
-  .has-nav.app-moment .mo-panel { bottom: 64px; max-height: calc(64vh - 64px); }
+  .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); }
   /* 세로 피치 (C.44a): 시트가 피치를 덜 가리게 */
-  .has-nav.app-moment:has(.is-portrait) .mo-panel { max-height: calc(44vh - 64px); }
+  .has-nav.app-moment:has(.is-portrait) .mo-panel { max-height: calc(44vh - 72px); }
 }
 .has-nav .po-overlay--sheet { padding-bottom: 0; }
 .warn { color: var(--warning); }
@@ -852,7 +845,8 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .prep-stamina__track i.is-low { background: var(--fatigue-high, var(--fail)); }
 .prep-ctl { display: flex; flex-direction: column; gap: 6px; }
 .prep-ctl .prep-head > b { font-size: 13px; }
-.prep-bottom { position: sticky; bottom: 64px; z-index: 15; display: grid; grid-template-columns: 1fr 2fr; gap: 8px; padding: 10px 16px 12px; background: var(--surface-0); border-top: 1px solid var(--line); }
+.prep-bottom { position: sticky; bottom: 72px; z-index: 15; display: grid; grid-template-columns: 1fr 2fr; gap: 8px; padding: 10px 16px 12px; background: var(--surface-0); border-top: 1px solid var(--line); }
+@media (min-width: 1024px) { .prep-bottom { bottom: 64px; } }
 
 /* 훈련 프리셋 (C.52, 디자인 159): 이번 주 추천 카드 · 프리셋 행(라디오 + 7칸 미리 보기) · 편집 시트 */
 .pr-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
@@ -895,11 +889,6 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .dt-ident { display: flex; align-items: center; gap: 12px; }
 .dt-ident b { display: block; font-size: 18px; font-weight: 800; }
 .dt-ident small { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-muted); font-weight: 600; }
-.dt-tier { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); font-size: 11px; font-weight: 800; color: var(--ink); white-space: nowrap; }
-.dt-tier__bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
-.dt-tier__bars i { width: 3px; border-radius: 1px; background: var(--surface-3); }
-.dt-tier__bars i:nth-child(1) { height: 4px; } .dt-tier__bars i:nth-child(2) { height: 6px; } .dt-tier__bars i:nth-child(3) { height: 8px; } .dt-tier__bars i:nth-child(4) { height: 10px; }
-.dt-tier__bars i.on { background: var(--ink); }
 .dt-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
 .dt-tiles--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .dt-tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px; border-radius: var(--radius-md); background: var(--surface-1); }

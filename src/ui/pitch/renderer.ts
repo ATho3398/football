@@ -496,7 +496,7 @@ export const faceRenderer: MarkerRenderer = {
     const by = y + s / 2 - s * 0.08 - bh * 0.4;
     ctx.beginPath();
     ctx.roundRect(x - bw / 2, by, bw, bh, bh / 2);
-    ctx.fillStyle = m.isMe ? PALETTE.mine : m.ours ? PALETTE.home : PALETTE.away;
+    ctx.fillStyle = m.ours ? PALETTE.home : PALETTE.away;
     ctx.fill();
     if (m.state === 'carrier') {
       ctx.lineWidth = 1.5;
@@ -524,6 +524,12 @@ let pixelLayers: (m: MarkerInput, teams: readonly [string, string] | null) => st
 };
 export function setPitchPixelResolver(f: (m: MarkerInput, teams: readonly [string, string] | null) => string[] | undefined): void {
   pixelLayers = f;
+}
+
+/** 이 경기 두 팀 몸통 밝기가 비슷한가 (C.54 디자인 139 kitClash). 화면이 정한다 */
+let kitClashOf: (teams: readonly [string, string] | null) => boolean = () => false;
+export function setPitchKitClashResolver(f: (teams: readonly [string, string] | null) => boolean): void {
+  kitClashOf = f;
 }
 
 /** 겹친 아이콘 캐시 (레이어 주소 묶음 → 캔버스). 레이어가 모두 읽혀야 만든다 */
@@ -578,7 +584,14 @@ export const pixelRenderer: MarkerRenderer = {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(img, left, top, iw, ih);
     ctx.imageSmoothingEnabled = smooth;
-    // 등번호 띠: 우리 = 라임, 상대 = 주황, 내 선수 = mine. 공 가진 선수는 흰 테두리
+    // kitClash: 원정 몸통(16px 중 아래 9~15줄)에 주황 테두리
+    if (m.teamId === 1 && kitClashOf(matchTeams)) {
+      const px = iw / 16;
+      ctx.lineWidth = Math.max(1, Math.round(px * 0.75));
+      ctx.strokeStyle = PALETTE.away;
+      ctx.strokeRect(left + px * 2, top + px * 9, px * 12, px * 6.5);
+    }
+    // 등번호 띠 (디자인 139, 항상): 우리 = 라임, 상대 = 주황, 글자 검정. 공 가진 선수는 흰 테두리
     const bh = numberBarH(rr);
     const label = String(m.number);
     ctx.font = `800 ${bh - 2}px ${PALETTE.font}`;
@@ -586,7 +599,7 @@ export const pixelRenderer: MarkerRenderer = {
     const by = top + ih - Math.round(bh * 0.35);
     ctx.beginPath();
     ctx.roundRect(x - bw / 2, by, bw, bh, bh / 2);
-    ctx.fillStyle = m.isMe ? PALETTE.mine : m.ours ? PALETTE.home : PALETTE.away;
+    ctx.fillStyle = m.ours ? PALETTE.home : PALETTE.away;
     ctx.fill();
     if (m.state === 'carrier') {
       ctx.lineWidth = 1.5;

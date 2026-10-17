@@ -27,7 +27,13 @@ export function AppBar(p: AppBarProps): string {
 // ── Tabs ──
 
 export interface TabItem { id: string; label: string; icon?: IconName; badge?: number }
-export interface TabsProps { items: TabItem[]; value: string; variant?: 'segment' | 'underline' | 'nav'; fill?: boolean; label?: string; /** onChange 대신: data-act 와 data-v=탭 id */ act?: string; data?: Record<string, string> }
+export interface TabsProps {
+  items: TabItem[]; value: string; variant?: 'segment' | 'underline' | 'nav'; fill?: boolean; label?: string; /** onChange 대신: data-act 와 data-v=탭 id */ act?: string; data?: Record<string, string>;
+  /** 가로 스크롤 + 오른쪽 흐림 (요청 5: 다 안 보여도 되는 섹션 이동 칩 줄) */
+  scroll?: boolean;
+  /** 격자 열 수 (요청 5: 탭 6개 이상 = cols 3, 폰 3×2) */
+  cols?: number;
+}
 
 export function Tabs(p: TabsProps): string {
   const variant = p.variant ?? 'segment';
@@ -37,7 +43,8 @@ export function Tabs(p: TabsProps): string {
       it.icon ? Icon({ name: it.icon, size: variant === 'nav' ? 22 : 16, strokeWidth: on && variant === 'nav' ? 2.4 : 2 }) : ''}<span>${esc(it.label)}</span>${
       it.badge != null ? `<span class="po-dotbadge po-num">${it.badge}</span>` : ''}</button>`;
   }).join('');
-  return `<div class="${cx('po-tabs', `po-tabs--${variant}`, p.fill && 'po-tabs--fill')}" role="tablist"${p.label ? ` aria-label="${esc(p.label)}"` : ''}>${tabs}</div>`;
+  return `<div class="${cx('po-tabs', `po-tabs--${variant}`, p.fill && 'po-tabs--fill', p.scroll && 'po-tabs--scroll', p.cols && 'po-tabs--grid')}" role="tablist"${p.label ? ` aria-label="${esc(p.label)}"` : ''}${
+    p.cols ? ` style="grid-template-columns: repeat(${p.cols}, minmax(0, 1fr))"` : ''}>${tabs}</div>`;
 }
 
 // ── HeroPanel ──
@@ -60,9 +67,13 @@ export interface HeroPanelProps {
   compact?: boolean;
 }
 
+/** 글자 머리말 판별 (bundle.js HeroPanel): 숫자·기호·단위 한 글자 말고 다른 글자가 있으면 글자 값 (48px 한 줄, compact 22px) */
+export const heroIsText = (v: unknown): boolean => typeof v === 'string' && /[^0-9.,:/%+\-−·× ]/.test(v.replace(/[위세점명P일R골개]$/, ''));
+
 export function HeroPanel(p: HeroPanelProps): string {
   const pct = p.total ? Math.round((Number(p.value) / p.total) * 100) : null;
   const val = typeof p.value === 'number' && p.pad !== false ? String(p.value).padStart(2, '0') : p.value;
+  const isText = heroIsText(val);
   const back = p.back
     ? `<button type="button" class="po-hero__back" aria-label="뒤로"${actAttrs(p.back)}>${Icon({ name: 'chevron-right', size: 18, strokeWidth: 2.4, style: 'transform:scaleX(-1)' })}</button>`
     : '<span></span>';
@@ -72,7 +83,7 @@ export function HeroPanel(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact')}"><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
+  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text')}"><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}${
     val != null ? `<div class="po-hero__num"><span class="po-hero__value po-num">${esc(val)}</span>${p.total != null ? `<span class="po-hero__total po-num">/ ${p.total}</span>` : ''}</div>` : ''}${
     pct != null && p.progress !== false ? `<div class="po-hero__progress"><span class="po-hero__track"><i style="width:${pct}%"></i></span><span class="po-num">${pct}%</span></div>` : ''}${

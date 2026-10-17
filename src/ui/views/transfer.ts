@@ -98,8 +98,9 @@ export function offersView(vm: MarketVM): string {
 export function contractView(vm: MarketVM, years: number | null): string {
   const r = vm.renewal;
   const hero = HeroPanel({
-    title: '재계약', back: { act: 'go', data: { to: 'home' } }, eyebrow: vm.contract.team, value: r ? '계약 만료' : '계약 중', pad: false, progress: false,
-    chips: [`주급 ${vm.contract.wage}`, { label: vm.contract.until, soft: true }],
+    // 디자인 100 (C.54): 글자 머리말(48px 한 줄, 넘치면 말줄임) + eyebrow "팀 · 시즌까지" — 머리말이 제목·뒤로 가기와 겹치던 넘침 버그 해결
+    title: '재계약', back: { act: 'go', data: { to: 'home' } }, eyebrow: `${vm.contract.team} · ${vm.contract.until}`, value: r ? '계약 만료' : '계약 중', pad: false, progress: false,
+    chips: [`주급 ${vm.contract.wage}`],
   });
   if (!r) return `${hero}<div class="body">${panel(`<p class="muted">재계약할 계약이 없어요. ${esc(vm.contract.until)}.</p>`)}</div>`;
   const sel = years ?? r.years[Math.floor(r.years.length / 2)]!;

@@ -620,3 +620,255 @@ button.po-option { cursor: pointer; }
 .po-score__to { color: var(--brand-ink); }
 .po-strip--solo { padding: 8px 16px; background: var(--surface-1); border-bottom: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 .po-strip__gear.is-on { background: var(--brand); color: var(--on-brand); }
+
+/* ================= 요청 5 ================= */
+/* HeroPanel — compact (탭마다 반복되는 머리말) · 글자 머리말 */
+.po-hero--compact { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; padding-bottom: 14px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.po-hero--compact .po-hero__bar { grid-column: 1 / -1; height: 44px; }
+.po-hero--compact .po-hero__eyebrow { grid-column: 1; align-self: center; margin: 0; font-size: 13px; line-height: 18px; }
+.po-hero--compact .po-hero__num { grid-column: 2; grid-row: 2; height: auto; align-items: baseline; gap: 4px; }
+.po-hero--compact .po-hero__value { font-size: 34px; line-height: 36px; letter-spacing: -0.02em; }
+.po-hero--compact .po-hero__total { font-size: 15px; padding: 0; }
+.po-hero--compact .po-hero__progress, .po-hero--compact .po-hero__chips { grid-column: 1 / -1; margin-top: 4px; }
+.po-hero--text .po-hero__num { height: auto; min-height: 56px; align-items: center; }
+.po-hero--text .po-hero__value { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-sans); font-size: 48px; line-height: 56px; font-weight: 800; letter-spacing: -0.03em; }
+.po-hero--compact.po-hero--text .po-hero__value { font-size: 22px; line-height: 28px; }
+
+/* Tabs — 6개 이상: 가로 스크롤 + 오른쪽 흐림 */
+.po-tabs--scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); padding-right: 28px; }
+.po-tabs--scroll::-webkit-scrollbar { display: none; }
+.po-tabs--scroll .po-tab { flex: none; white-space: nowrap; }
+.po-tabs--underline.po-tabs--scroll { gap: 18px; }
+
+/* Dock */
+.po-dock { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: stretch; height: 72px; padding: 0 4px 6px; background: var(--surface-1); border-top: 1px solid var(--line); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-sizing: border-box; }
+.po-dock--pc { height: 64px; padding: 0 calc(50% - 480px) 0; border-radius: 0; }
+.po-dock__item, .po-dock__go { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; color: var(--ink-muted); font-family: var(--font-sans); cursor: pointer; padding: 0; min-width: 0; }
+.po-dock__item.is-on { color: var(--brand-ink); }
+.po-dock__item.is-locked { color: var(--ink-faint); opacity: .55; cursor: not-allowed; }
+.po-dock__icon { position: relative; display: grid; place-items: center; height: 26px; }
+.po-dock__label { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.po-dock__go .po-dock__label { color: var(--ink); font-weight: 800; }
+.po-dock__goicon { position: relative; display: grid; place-items: center; width: 44px; height: 30px; border-radius: 10px; background: var(--brand); color: var(--on-brand); }
+.po-dock__go.is-live .po-dock__goicon { background: var(--mine); color: var(--on-mine); }
+.po-dock__go.is-answer .po-dock__goicon { background: var(--warning); color: #121317; }
+.po-dock__live { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--fail); box-shadow: 0 0 0 2px var(--surface-1); }
+.po-dock__badge { position: absolute; top: -6px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--brand); color: var(--on-brand); font-size: 10px; line-height: 18px; font-weight: 700; text-align: center; box-shadow: 0 0 0 2px var(--surface-1); box-sizing: border-box; }
+.po-dock__go .po-dock__badge { left: auto; right: -10px; background: var(--fail); color: #ffffff; }
+.po-dock__lock { position: absolute; right: -7px; bottom: -2px; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-3); color: var(--ink); }
+.po-dock--pc .po-dock__item, .po-dock--pc .po-dock__go { flex-direction: row; gap: 8px; }
+.po-dock--pc .po-dock__label { font-size: 13px; }
+
+/* AttrTile · AttrGrid (1~20) */
+.po-attr { --a: var(--ink); position: relative; display: grid; gap: 2px; align-content: start; min-width: 0; padding: 8px 10px 9px; border: 0; border-radius: var(--radius-md); background: var(--surface-2); color: var(--ink); font-family: var(--font-sans); text-align: left; box-sizing: border-box; }
+button.po-attr { cursor: pointer; }
+.po-attr--top { --a: var(--brand-ink); } .po-attr--good { --a: var(--success); } .po-attr--ok { --a: var(--tier-key); } .po-attr--mid { --a: var(--ink); } .po-attr--low { --a: var(--away); }
+.po-attr.is-key { box-shadow: inset 0 0 0 1.5px var(--a); }
+.po-attr__name { font-size: 11px; line-height: 14px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-attr__row { display: flex; align-items: baseline; gap: 4px; }
+.po-attr__val { font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; color: var(--a); }
+.po-attr__add { font-size: 12px; font-weight: 700; color: var(--brand-ink); }
+.po-attr__delta { font-size: 11px; font-weight: 700; color: var(--success); }
+.po-attr__delta.is-down { color: var(--fail); }
+.po-attr__bar { height: 3px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.po-attr__bar i { display: block; height: 100%; background: var(--a); border-radius: inherit; }
+.po-attr__cost { display: flex; justify-content: space-between; gap: 4px; margin-top: 3px; font-size: 10px; font-weight: 700; color: var(--ink-muted); }
+.po-attr__cost b { color: var(--ink); font-size: 11px; }
+.po-attr.is-selected { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-attr__ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.po-attr__btn { display: grid; place-items: center; height: 32px; border-radius: 8px; background: var(--surface-1); color: var(--ink); }
+.po-attr__btn--plus { background: var(--brand); color: var(--on-brand); }
+.po-attr__btn.is-off { opacity: .35; }
+.po-attrgrid { display: grid; gap: 14px; }
+.po-attrgrid__group { display: grid; gap: 6px; }
+.po-attrgrid__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.po-attrgrid__head b { font-size: 13px; font-weight: 800; }
+.po-attrgrid__head span { font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+.po-attrgrid__grid { display: grid; gap: 6px; }
+
+/* DayCell */
+.po-day { position: relative; display: grid; justify-items: center; align-content: start; gap: 2px; min-width: 0; padding: 7px 2px 8px; border: 0; border-radius: 12px; background: var(--surface-1); color: var(--ink); font-family: var(--font-sans); box-sizing: border-box; }
+button.po-day { cursor: pointer; }
+.po-day__dow { font-size: 11px; line-height: 14px; font-weight: 700; color: var(--ink-muted); }
+.po-day__date { font-size: 16px; line-height: 20px; }
+.po-day__icon { position: relative; display: grid; place-items: center; height: 22px; color: var(--brand-ink); }
+.po-day__lock { position: absolute; right: -8px; top: -2px; display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%; background: var(--surface-3); color: var(--ink); }
+.po-day__label { font-size: 12px; line-height: 15px; font-weight: 800; white-space: nowrap; }
+.po-day--rest .po-day__icon { color: var(--ink-muted); }
+.po-day--match { background: var(--surface-3); }
+.po-day--match .po-day__icon { color: var(--ink); }
+.po-day.is-today { background: var(--brand); color: var(--on-brand); }
+.po-day.is-today .po-day__dow, .po-day.is-today .po-day__icon { color: var(--on-brand); }
+.po-day__today { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); height: 16px; padding: 0 6px; border-radius: 8px; background: var(--on-brand); color: var(--brand); font-size: 10px; line-height: 16px; font-weight: 800; white-space: nowrap; }
+.po-day.is-selected { box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-day.is-past { opacity: .45; }
+
+/* OfferCard */
+.po-offer { display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-lg); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); }
+.po-offer.is-selected { box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-offer__head { display: flex; align-items: center; gap: 10px; }
+.po-offer__club { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.po-offer__club b { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-offer__club span { font-size: 12px; font-weight: 600; color: var(--ink-muted); }
+.po-offer__tag { height: 22px; padding: 0 8px; border-radius: 6px; background: var(--surface-3); font-size: 11px; line-height: 22px; font-weight: 800; }
+.po-offer__tag.is-loan { background: var(--warning-soft); color: var(--warning); }
+.po-offer__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.po-offer__grid div { display: grid; gap: 2px; padding: 8px; border-radius: 10px; background: var(--surface-2); }
+.po-offer__grid dt { font-size: 10px; font-weight: 700; color: var(--ink-muted); }
+.po-offer__grid dd { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.po-offer__wage { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-muted); }
+.po-offer__wage b { font-family: var(--font-display); font-size: 14px; color: var(--ink); }
+.po-offer__wage em { flex-basis: 100%; font-style: normal; font-size: 11px; color: var(--ink-faint); }
+.po-offer__actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+
+/* TransferRow */
+.po-xfer { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--surface-1); }
+.po-xfer.is-mine { box-shadow: inset 0 0 0 1.5px var(--mine); }
+.po-xfer__main { display: grid; gap: 3px; min-width: 0; }
+.po-xfer__name { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--ink-muted); }
+.po-xfer__name b { font-size: 14px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+.po-xfer__pos { font-size: 11px; font-weight: 800; color: var(--ink); }
+.po-xfer__move { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 11px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; overflow: hidden; }
+.po-xfer__move b { color: var(--ink); font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
+.po-xfer__side { display: grid; justify-items: end; gap: 1px; }
+.po-xfer__side b { font-family: var(--font-display); font-size: 18px; line-height: 20px; }
+.po-xfer__side span { font-size: 10px; font-weight: 700; color: var(--ink-faint); white-space: nowrap; }
+.po-xfer--fill { grid-template-columns: 18px minmax(0, 1fr) auto; margin-top: -4px; padding: 6px 12px 8px 30px; border-radius: 0 0 14px 14px; background: transparent; font-size: 12px; color: var(--ink-muted); }
+.po-xfer__fillmark { color: var(--ink-faint); font-weight: 800; }
+.po-xfer__filltext b { color: var(--ink); }
+.po-xfer__fillfrom { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+
+/* TextField */
+.po-field { display: grid; gap: 6px; font-family: var(--font-sans); }
+.po-field__label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--ink-muted); }
+.po-field__box { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 12px 0 14px; border-radius: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-muted); box-sizing: border-box; }
+.po-field.is-focus .po-field__box { box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-field__value { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-field__value.is-ph { font-weight: 600; color: var(--ink-faint); }
+.po-field__caret { display: inline-block; width: 2px; height: 18px; margin-left: 1px; vertical-align: -3px; background: var(--brand); }
+.po-field__clear { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); color: var(--ink); }
+.po-field__hint { font-size: 11px; color: var(--ink-faint); }
+
+/* Pitch — vertical */
+.po-pitch--v { border-radius: var(--radius-lg); }
+.po-pv__label rect { fill: #121317; fill-opacity: .78; }
+.po-pv__label text { text-anchor: middle; fill: #f3f4f6; font-family: var(--font-sans); font-weight: 700; }
+.po-pv__label.is-short text { fill: var(--ink-muted); }
+.po-pv__label.is-ball rect { fill: #f3f4f6; fill-opacity: 1; } .po-pv__label.is-ball text { fill: #121317; font-weight: 800; }
+.po-pv__label.is-me rect { fill: var(--mine); fill-opacity: 1; } .po-pv__label.is-me text { fill: var(--on-mine); font-weight: 800; }
+.po-pv__ballmark { fill: #ffffff; stroke: #121317; stroke-width: .3; }
+.po-tabs--grid { display: grid; gap: 6px; }
+.po-tabs--grid .po-tab { width: 100%; padding: 0 6px; white-space: nowrap; }
+
+/* ================= 요청 6 ================= */
+/* Dock — 홈 가운데·강조 (폰: 진행 2fr · 선수 · 홈 · 훈련·일정 · 월드 · 더보기) */
+.po-dock { grid-auto-flow: initial; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 72px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); overflow: visible; }
+.po-dock--pc { grid-template-columns: repeat(4, minmax(0, 1fr)) 132px repeat(4, minmax(0, 1fr)); }
+.po-dock__go { flex-direction: row; padding: 0 4px; }
+.po-dock__go .po-dock__goicon { width: auto; min-width: 0; height: 40px; padding: 0 14px 0 10px; gap: 4px; display: inline-flex; align-items: center; border-radius: 12px; }
+
+.po-dock__golabel { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.po-dock__home { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; border: 0; padding: 0 0 2px; background: transparent; color: var(--brand-ink); font-family: var(--font-sans); cursor: pointer; }
+.po-dock__homeicon { position: relative; display: grid; place-items: center; width: 56px; height: 56px; margin-top: -20px; border-radius: 50%; background: var(--surface-3); color: var(--brand-ink); box-shadow: inset 0 0 0 2px var(--brand-ink), 0 0 0 5px var(--surface-1); }
+.po-dock__home .po-dock__label { color: var(--brand-ink); font-weight: 800; }
+.po-dock__home.is-on .po-dock__homeicon { background: var(--brand); color: var(--on-brand); box-shadow: 0 0 0 5px var(--surface-1); }
+.po-dock__home .po-dock__badge { left: auto; right: -4px; top: -2px; }
+.po-dock--pc .po-dock__home { flex-direction: row; justify-content: center; gap: 8px; padding: 0; }
+.po-dock--pc .po-dock__homeicon { width: 44px; height: 44px; margin-top: 0; box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-dock--pc .po-dock__home.is-on .po-dock__homeicon { box-shadow: none; }
+.po-dock--pc .po-dock__home .po-dock__label { font-size: 14px; }
+.po-dock--pc .po-dock__go .po-dock__goicon { height: 40px; }
+
+/* Stepper */
+.po-stepper { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-family: var(--font-sans); color: var(--ink); }
+.po-stepper__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.po-stepper__head b { font-weight: 800; }
+.po-stepper__head span { font-size: 11px; font-weight: 700; color: var(--ink-faint); }
+.po-stepper__box { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; min-height: 64px; padding: 6px; border-radius: var(--radius-md); background: var(--surface-1); box-sizing: border-box; }
+.po-stepper__btn { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--brand-ink); cursor: pointer; }
+.po-stepper__btn:disabled { color: var(--ink-faint); opacity: .45; cursor: not-allowed; }
+.po-stepper__mid { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
+.po-stepper__val { display: inline-flex; align-items: baseline; gap: 3px; }
+.po-stepper__val b { font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; }
+.po-stepper__val small { font-size: 13px; font-weight: 800; color: var(--ink-muted); }
+.po-stepper__sub { max-width: 100%; font-size: 11px; line-height: 14px; font-weight: 700; color: var(--ink-muted); word-break: keep-all; }
+.po-stepper__sub.is-gain { color: var(--success); }
+.po-stepper__sub.is-cost { color: var(--fail); }
+.po-stepper__sub.is-warn { color: var(--warning); }
+.po-stepper--sm .po-stepper__box { min-height: 52px; grid-template-columns: 36px minmax(0, 1fr) 36px; }
+.po-stepper--sm .po-stepper__btn { width: 36px; height: 36px; }
+.po-stepper--sm .po-stepper__val b { font-size: 20px; line-height: 24px; }
+.po-stepper.is-disabled .po-stepper__box { opacity: .55; }
+
+/* PointBar */
+.po-pointbar { display: flex; flex-direction: column; gap: 7px; padding: 10px 14px 11px; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); font-family: var(--font-sans); color: var(--ink); box-sizing: border-box; }
+.po-pointbar.is-sticky { position: sticky; top: 0; z-index: 4; box-shadow: inset 0 0 0 1.5px var(--line), 0 6px 0 var(--surface-0); }
+.po-pointbar__row { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: baseline; gap: 6px; }
+.po-pointbar__label { font-size: 12px; font-weight: 800; color: var(--ink-muted); }
+.po-pointbar__left { font-family: var(--font-display); font-size: 26px; line-height: 28px; font-weight: 700; }
+.po-pointbar__left small { font-size: 14px; margin-left: 1px; }
+.po-pointbar__total { font-size: 12px; font-weight: 700; color: var(--ink-faint); }
+.po-pointbar__msg { justify-self: end; font-size: 12px; font-weight: 800; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.po-pointbar__track { display: block; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.po-pointbar__track i { display: block; height: 100%; background: var(--brand); border-radius: 3px; }
+.po-pointbar__items { display: flex; flex-wrap: wrap; gap: 4px; }
+.po-pointbar__item { display: inline-flex; align-items: center; gap: 2px; height: 22px; padding: 0 7px; border-radius: 6px; background: var(--surface-2); font-size: 11px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
+.po-pointbar__item b { color: var(--ink); }
+.po-pointbar__item.is-plus b { color: var(--success); }
+.po-pointbar__item.is-minus b { color: var(--fail); }
+.po-pointbar.is-left .po-pointbar__left { color: var(--brand-ink); }
+.po-pointbar.is-zero { box-shadow: inset 0 0 0 1.5px var(--success); }
+.po-pointbar.is-zero .po-pointbar__msg, .po-pointbar.is-zero .po-pointbar__left { color: var(--success); }
+.po-pointbar.is-zero .po-pointbar__track i { background: var(--success); }
+.po-pointbar.is-over { background: var(--fail-soft); box-shadow: inset 0 0 0 1.5px var(--fail); }
+.po-pointbar.is-over .po-pointbar__msg, .po-pointbar.is-over .po-pointbar__left { color: var(--fail); }
+.po-pointbar.is-over .po-pointbar__track i { background: var(--fail); }
+
+/* TagChip — 색 = 장점/단점, 앞 기호 = 종류, 점선 = 해제형 */
+.po-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; height: 28px; padding: 0 9px 0 7px; border: 0; border-radius: 8px; font-family: var(--font-sans); font-size: 12px; font-weight: 800; white-space: nowrap; box-sizing: border-box; vertical-align: middle; flex: none; cursor: default; }
+button.po-tag { cursor: pointer; }
+.po-tag__mark { display: inline-grid; place-items: center; min-width: 13px; font-family: var(--font-display); font-size: 15px; line-height: 1; font-weight: 700; }
+.po-tag__name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.po-tag__scope { font-size: 11px; font-weight: 700; opacity: .75; }
+.po-tag__rel { display: inline-flex; opacity: .9; }
+.po-tag__none { font-size: 10px; font-weight: 700; color: var(--ink-faint); }
+.po-tag--pro { background: var(--success-soft); color: var(--success); }
+.po-tag--con { background: var(--fail-soft); color: var(--fail); }
+.po-tag--none { background: transparent; color: var(--ink-muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.po-tag--gen { border-radius: 6px; }
+.po-tag--career, .po-tag--play, .po-tag--story { border-radius: var(--radius-pill); padding-left: 8px; padding-right: 10px; }
+.po-tag.is-release { background-image: none; box-shadow: none; outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
+.po-tag.is-released { background: transparent; color: var(--ink-faint); box-shadow: inset 0 0 0 1px var(--line); outline: 0; }
+.po-tag.is-released .po-tag__name { text-decoration: line-through; }
+.po-tag--sm { height: 22px; padding: 0 7px 0 5px; gap: 3px; font-size: 11px; }
+.po-tag--sm .po-tag__mark { min-width: 11px; font-size: 13px; }
+
+/* PixelTile — 16px 도트를 정수배로 */
+.po-pixel { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--ink-muted); font-family: var(--font-sans); cursor: default; min-width: 0; }
+button.po-pixel { cursor: pointer; }
+.po-pixel__art { position: relative; display: grid; place-items: center; width: calc(var(--px-size) + 12px); height: calc(var(--px-size) + 12px); border-radius: 12px; background: var(--surface-2); box-sizing: border-box; }
+.po-pixel__svg, .po-pixel__img { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.po-pixel__label { display: block; max-width: calc(var(--px-size) + 16px); height: 14px; font-size: 11px; line-height: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-pixel.is-selected .po-pixel__art { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-pixel.is-selected .po-pixel__label { color: var(--ink); font-weight: 800; }
+.po-pixel__check { position: absolute; right: -4px; top: -4px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--brand); color: var(--on-brand); box-shadow: 0 0 0 2px var(--surface-0); }
+.po-pixel__def { position: absolute; left: 3px; bottom: 3px; height: 14px; padding: 0 4px; border-radius: 4px; background: var(--card-bg); color: var(--ink-muted); font-size: 9px; line-height: 14px; font-weight: 800; }
+.po-pixel.is-disabled { opacity: .45; }
+
+/* Pitch 세로 픽셀 캐릭터 번호 띠 */
+.po-pv__band { text-anchor: middle; fill: var(--on-brand); font-family: var(--font-display); font-weight: 700; }
+/* 요청 6 · 재정 등급 칩 · TransferRow 몸값 · OfferCard 등급·이적료·친정 */
+.po-fin { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px 0 6px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-strong); font-family: var(--font-sans); font-size: 11px; font-weight: 800; color: var(--ink); white-space: nowrap; flex: none; vertical-align: middle; }
+.po-fin--sm { height: 18px; padding: 0 5px 0 4px; gap: 4px; font-size: 10px; border-radius: 5px; }
+.po-fin__bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; }
+.po-fin__bars i { display: block; width: 3px; border-radius: 1px; background: var(--surface-3); }
+.po-fin__bars i.on { background: var(--ink); }
+.po-xfer__move .po-fin { margin-left: 2px; }
+.po-xfer__fee { font-size: 11px; color: var(--ink-muted); }
+.po-xfer__fee b { color: var(--ink); }
+.po-offer__tags { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.po-offer__home { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; height: 22px; padding: 0 8px; border-radius: 6px; background: var(--mine-soft); color: var(--mine); font-size: 11px; font-weight: 800; }
+.po-offer__fee { display: block; font-family: var(--font-sans); font-size: 10px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; letter-spacing: -0.2px; }
+/* 요청 6 · 못 쓰는 카드(mini·hand): 이유 칩은 위쪽, 이름은 가리지 않고 흐린 글자로 남김 */
+.po-card--mini .po-card__reason, .po-card--hand .po-card__reason { top: 20px; bottom: auto; left: 5px; right: 5px; padding: 3px 4px; background: var(--card-bg); box-shadow: inset 0 0 0 1px var(--fail); backdrop-filter: none; }
+.po-card.is-disabled > .po-mc__name, .po-card.is-locked > .po-mc__name { filter: none; color: var(--ink-muted); }

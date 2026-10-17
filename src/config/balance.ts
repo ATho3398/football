@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 37;
+export const BALANCE_VERSION = 38;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1042,6 +1042,8 @@ export const BALANCE = {
     missing: { black_brown: 'black', mideast_blonde: 'brown' } as Record<string, string>,
     /** 유니폼 충돌 기준: 몸통 평균색 RGB 거리가 이보다 가까우면 겹친다 (4번) */
     clashDistance: 120,
+    /** 경기 화면 kitClash (C.54 디자인 139): 두 팀 몸통 색 중 가장 가까운 두 색의 RGB 거리가 이보다 작으면 원정 몸통에 주황 테두리 */
+    clashBody: 48,
     /** GK 단색 순서: 초록 → 노랑 → 주황 → 보라 → 검정 → 하늘 */
     gkOrder: ['C07', 'C06', 'C09', 'C10', 'C05', 'C04'] as string[],
     /** 표에 없는 국가·구단이고 색도 모를 때 */

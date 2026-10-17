@@ -85,6 +85,19 @@ export const ICON_PATHS = {
   plane: "M2.5 13l19-7-5.5 13-3.5-4.5z M12.5 14.5L21.5 6",
   replay: "M4 12a8 8 0 1 0 2.4-5.7 M4 4v4.5h4.5 M10 9.5v5l4-2.5z",
   stop: "M6 6h12v12H6z",
+  // 요청 5 (부록 C.54)
+  menu: "M4 7h16 M4 12h16 M4 17h16",
+  deck: "M9 4h9a1 1 0 0 1 1 1v12 M6 7h9a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z",
+  chat: "M4 5h16v11H10l-6 4z M8 9.5h8 M8 12.5h5",
+  trophy: "M7 4h10v5a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4 M17 6h3a3 3 0 0 1-3 4 M12 14v4 M8 20h8",
+  swap: "M4 8h14 M14 4l4 4-4 4 M20 16H6 M10 12l-4 4 4 4",
+  edit: "M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4",
+  eye: "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z",
+  grid: "M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z",
+  face: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M9 10v.5 M15 10v.5 M8.5 14.5q3.5 3 7 0",
+  sliders: "M4 7h9 M17 7h3 M15 5v4 M4 17h3 M11 17h9 M9 15v4",
+  pin: "M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4z",
+  collapse: "M6 15l6-6 6 6",
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

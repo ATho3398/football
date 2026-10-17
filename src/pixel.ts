@@ -133,6 +133,16 @@ export function kitDistance(a: string, b: string): number {
   return colorDist(kitMean(a), kitMean(b));
 }
 
+/**
+ * 몸통 색이 겹쳐 보이는 경기인가 (C.54 디자인 139 kitClash): 평균색 거리로는 갈렸어도(matchKits) 두 유니폼 몸통 색 중
+ * 가장 가까운 두 색의 RGB 거리가 BALANCE.pixelLook.clashBody 보다 작으면 겹친다 (예: 흑백 줄무늬 vs 검정). 화면만 쓴다 — 원정 몸통에 주황 테두리
+ */
+export function kitClash(home: string, away: string): boolean {
+  const cols = (k: string) => [...(PIXEL_KITS[k]?.colors ?? []), kitMean(k)];
+  const b = cols(away);
+  return Math.min(...cols(home).flatMap((x) => b.map((y) => colorDist(x, y)))) < BALANCE.pixelLook.clashBody;
+}
+
 const isKit = (k: string | undefined): k is string => !!k && !!PIXEL_KITS[k];
 
 function nearestSolid(color: string): string {

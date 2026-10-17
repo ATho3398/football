@@ -1,8 +1,10 @@
 // 게임 카드 (디자인 GameCard, bundle.js 옮김, 부록 C.39): full 280×392 · deck 0.6배 · mini(덱 슬롯) · hand(경기 중 패).
-// 그림(art, C.48)이 있으면 그림 칸(280×210, 사선 아래는 글자 패널)에 이미지를, 없거나 못 읽으면 기본 그림(조명 아래 골문·수비벽·공 궤적)을 그린다.
+// 그림(art, C.48)이 있으면 그림 칸(280×210, 사선 아래는 글자 패널)에 이미지를, 없거나 못 읽으면 기본 장면을 그린다.
+// 기본 장면(C.54 디자인 144·요청 6): 단색 + 하프라인·센터서클 + 종류 아이콘(희귀도 색 55%). 옛 골문·수비벽·궤적 장면은 placeholder: 'scene'.
 // 이미지는 기본 그림 위에 얹어 404 면 지워도 기본 그림이 보인다 (main 의 error 리스너). 클래스·치수는 bundle.css .po-card / .po-gc / .po-mc
 
 import { Icon, type IconName } from './basic';
+import { FILLED, ICON_PATHS } from './iconPaths';
 import { actAttrs, cx, esc, type Action } from './html';
 
 export type GameCardType = 'play' | 'setpiece' | 'passive' | 'combo' | 'manage' | 'signature' | 'order';
@@ -24,6 +26,8 @@ export interface GameCardData {
   art?: string;
   /** 그림 위치·확대 (디자인 artPos): x 오른쪽 %, y 위로 % (그림 칸 기준), zoom 1~4 */
   artPos?: { x: number; y: number; zoom: number };
+  /** 그림 없을 때 기본 장면 (C.54): 'type' = 단색 + 종류 아이콘(기본), 'scene' = 옛 골문 장면 */
+  placeholder?: 'type' | 'scene';
 }
 
 export interface GameCardProps extends Action {
@@ -55,8 +59,19 @@ const SCENE = (() => {
   return { net, wall };
 })();
 
-/** 기본 그림: 조명 아래 골문, 수비벽, 공의 궤적 (희귀도 색) */
-function scene(type: GameCardType, thin: boolean): string {
+/** 기본 장면 (요청 6): 단색 바탕 + 하프라인·센터서클(흰 7%) + 종류 아이콘(희귀도 색 55%). 좌표는 280×210 그림 칸 기준 */
+function typeScene(type: GameCardType, thin: boolean): string {
+  const ic = TYPE_ICON[type];
+  const fill = FILLED[ic] ? 'var(--r)' : 'none';
+  return `<rect x="0" y="0" width="${CARD_W}" height="440" fill="#1a1d24"/>
+    <path d="M0 150H280" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2"/>
+    <circle cx="140" cy="150" r="64" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="2"/>
+    <svg x="92" y="${thin ? 36 : 64}" width="96" height="96" viewBox="0 0 24 24" style="fill:${fill};stroke:var(--r)" stroke-width="${thin ? 2.2 : 1.6}" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"><path d="${ICON_PATHS[ic]}"/></svg>`;
+}
+
+/** 기본 그림: 그림 없으면 종류 장면, placeholder 'scene' 이면 옛 장면(조명 아래 골문, 수비벽, 공의 궤적) */
+function scene(type: GameCardType, thin: boolean, placeholder?: GameCardData['placeholder']): string {
+  if (placeholder !== 'scene') return typeScene(type, thin);
   return `<rect x="0" y="0" width="${CARD_W}" height="440" fill="#1a1d24"/>
     <circle cx="150" cy="40" r="190" style="fill:var(--r)" fill-opacity="0.12"/><circle cx="150" cy="40" r="100" style="fill:var(--r)" fill-opacity="0.12"/>
     <path d="M60 0H100L190 440H30Z" fill="#ffffff" fill-opacity="0.06"/><path d="M200 0H232L270 440H150Z" fill="#ffffff" fill-opacity="0.05"/>
@@ -87,7 +102,7 @@ function fullCard(c: GameCardData): string {
   return `<div class="po-gc">
     <svg class="po-gc__art" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" aria-hidden="true">
       <defs><clipPath id="${id}"><path d="${CUT.clip}"/></clipPath></defs>
-      <g clip-path="url(#${id})"><g transform="translate(0 -10)">${scene(c.type, false)}</g></g>
+      <g clip-path="url(#${id})"><g transform="translate(0 -10)">${scene(c.type, false, c.placeholder)}</g></g>
       ${CUT.overlay.map((o) => `<path d="${o.d}" style="fill:var(--r)" opacity="${o.op}"/>`).join('')}
     </svg>${c.art ? `<span class="po-gc__photo">${artImg(c, '50% 30%')}</span>` : ''}
     <div class="po-gc__top"><span class="po-gc__rarity">${RARITY_KO[c.rarity]}</span><span class="po-gc__chip">${Icon({ name: TYPE_ICON[c.type], size: 12, strokeWidth: 2.6, style: 'color:var(--r)' })}${TYPE_KO[c.type]}</span></div>
@@ -104,7 +119,7 @@ function fullCard(c: GameCardData): string {
 }
 
 function miniCard(c: GameCardData): string {
-  return `<svg class="po-mc__art" viewBox="20 90 240 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true)}</svg>${
+  return `<svg class="po-mc__art" viewBox="${c.placeholder === 'scene' ? '20 90 240 300' : '0 0 280 210'}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true, c.placeholder)}</svg>${
     c.art ? `<span class="po-mc__photo">${artImg(c, '50% 35%')}</span>` : ''}
     <span class="po-mc__band"></span><span class="po-mc__dot"></span>
     ${c.pos === 'def' ? `<span class="po-mc__pos po-pos--def" title="수비">${Icon({ name: 'defense', size: 10, strokeWidth: 2.6 })}</span>` : ''}
