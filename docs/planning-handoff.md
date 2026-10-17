@@ -223,3 +223,4 @@
 - K가 만든 세션 → `lineage` 깊이 1. 기획 브랜치 `claude/planning-l`(K 브랜치 99fcf1c = pending 55 도트 아이콘 팩 포함에서 분기). 코드 세션 지시의 "기획 브랜치 docs/ 병합"은 이 브랜치로.
 - 시작 처리(18:30 KST): 33단계 C.44 세션·엔진관리자2에 "보고는 L로" 알림, K 제목 `draft_K_축구 커리어 게임 기획` + 태그 `플레이어 원_draft`, K 자동 확인 `trig_01QzzCacxnMQ4fYQzLZzE8gZ` 삭제 → L 자동 확인 `trig_01NJYmhuDEN7CT7pGwJb8L32`(20:55 KST).
 - 다음: 33 C.44 완료 보고 → pending 56~ → 34 C.45(8.18 목록 + pending 55 도트 아이콘 팩 반영).
+- (18:30~18:57 KST) 도트 아이콘 2차 팩 → `docs/design/pixel-kits.md`(인물·유니폼 레이어 분리, 경기 화면 전용, 모든 선수 직접 바꾸기), pending 56 → 34 C.45에서. 사용자 요청으로 **병렬 33a C.44a** `session_01EXVtBpG26zy84kjQPMJiPx`(경기 화면 세로·선수 크기·이름 라벨·이름 3종, 브랜치 `claude/c44a-portrait`), pending 57.
