@@ -7,6 +7,7 @@ import {
 import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
 import { actionRow, banners, panel, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { historyTable } from './player';
+import { attrGrid, type AttrGroupVM } from './attrGrid';
 
 // ── 타이틀 (55) ──
 
@@ -48,6 +49,10 @@ export interface NewGameVM {
   others: boolean;
   /** 눈에 띄는 능력치 3개 */
   strengths: string;
+  /** 능력치 전체 바둑판 (C.39) */
+  attrs: AttrGroupVM[];
+  /** 포지션별 OVR 표 (GK 제외, 후보 4자리 강조) */
+  posTable: { id: string; ko: string; ovr: number; cand: boolean; on: boolean }[];
   selectedOvr: number | null;
   keyAttrs: string;
   ageRange: string;
@@ -85,6 +90,10 @@ export function newGameView(vm: NewGameVM): string {
       <p class="small"><button type="button" class="link-btn" data-act="form-others">${vm.others ? '다른 포지션 접기' : '다른 포지션에서 고르기'}</button> · <button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
       ${all}
       <p class="small muted"><b class="ink">${esc(vm.position)}</b> · 핵심 능력치 ${esc(vm.keyAttrs)}.</p>
+      ${SectionTitle({ title: '포지션별 OVR', action: '굵은 칸 = 코치 추천 4자리' })}
+      <div class="pos-table">${vm.posTable.map((p) => `<button type="button" class="pt-cell${p.cand ? ' is-cand' : ''}${p.on ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><span>${p.id}</span><b class="po-num">${p.ovr}</b></button>`).join('')}</div>
+      ${SectionTitle({ title: '능력치', action: `테두리 = ${vm.position} 핵심` })}
+      ${panel(attrGrid(vm.attrs))}
       ${SectionTitle({ title: '이름', action: '비우면 랜덤' })}
       <label class="field"><input type="text" id="f-name" maxlength="12" value="${esc(vm.name)}" placeholder="예: 김민준"></label>
       ${diff}
@@ -104,7 +113,7 @@ export function newGameView(vm: NewGameVM): string {
 
 // ── 포인트 찍기 (50) ──
 
-export function allocateView(vm: AllocateVM, open: Set<string>, pending: number): string {
+export function allocateView(vm: AllocateVM, sel: string | null, pending: number): string {
   const hero = HeroPanel({
     title: '능력치 포인트', right: `Lv ${vm.levels}`, back: { act: 'alloc-cancel' }, eyebrow: '남은 포인트', value: vm.points, progress: false,
     chips: [`보유 ${vm.points + pending}P`, { label: `이번 배분 ${pending}P`, soft: true }],
@@ -114,21 +123,10 @@ export function allocateView(vm: AllocateVM, open: Set<string>, pending: number)
     ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 실력이 한 단계 더 올라서면 다시 길이 열릴 거야."</b></div></div>`
     : '';
   const bands = `<div class="bands"><span>~${vm.cost1Max} <b>1P</b></span><span class="warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>2P</b></span><span class="fail">${vm.cost2Max + 1}~ <b>3P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 한 능력치 최대 +${vm.cap}</span></div>`;
-  const groups = vm.groups.map((g) => {
-    const isOpen = open.has(g.name);
-    const keyN = g.rows.filter((r) => r.key).length;
-    const raised = g.rows.reduce((t, r) => t + r.raised, 0);
-    const avg = Math.round(g.rows.reduce((t, r) => t + r.value, 0) / g.rows.length);
-    const head = `<button type="button" class="grp-head" data-act="alloc-open" data-v="${esc(g.name)}"><span class="grow"><b>${esc(g.name)}</b>${keyN ? `<span class="key-chip">${esc(vm.position)} 핵심</span>` : ''}${
-      isOpen ? '' : `<small>${g.rows.map((r) => esc(r.label)).join(' · ')}</small>`}</span>${isOpen ? `<span class="small muted">${g.rows.length}개${raised ? ` · <b class="brand">+${raised}</b>` : ''}</span>` : `<span class="avg"><b class="po-num">${avg}</b><small>평균</small></span>`}${Icon({ name: 'chevron-down', size: 18, style: isOpen ? 'transform:rotate(180deg)' : '' })}</button>`;
-    const rows = isOpen ? g.rows.map((r) => StatBar({
-      label: r.label, value: r.value - r.raised, add: r.raised, editable: true, ...(r.cost !== null ? { cost: r.cost } : {}),
-      ...(r.ovrDelta !== null ? { ovrDelta: r.ovrDelta } : {}), maxed: r.maxed, locked: r.blocked, highlight: r.key,
-      plus: { act: 'raise', data: { attr: r.attr } }, minus: { act: 'lower', data: { attr: r.attr } },
-    })).join('') : '';
-    return `<div class="panel grp${isOpen ? ' open' : ''}${keyN && isOpen ? ' key' : ''}">${head}${rows}</div>`;
-  }).join('');
-  return `${hero}<div class="body">${ovr}${coach}${bands}${groups}
+  // 바둑판 (C.39): 박스를 누르면 [−]/[+]와 비용. 분류 아코디언 없이 작은 머리말만
+  return `${hero}<div class="body">${ovr}${coach}${bands}
+    <p class="small muted">박스를 누르면 [+]/[−]가 나와요. 테두리 = ${esc(vm.position)} 핵심 능력치, 박스 아래 = 올리는 비용과 OVR 기여.</p>
+    ${panel(attrGrid(vm.attrs, sel))}
     ${Button({ variant: 'ghost', block: true, icon: 'target', act: 'auto-alloc', disabled: vm.points === 0, children: '자동 배분 (포지션 OVR 우선)' })}</div>
     <div class="dock">${actionRow(
       Button({ variant: 'secondary', size: 'lg', block: true, icon: 'restore', act: 'alloc-reset', disabled: pending === 0, children: '초기화' }),

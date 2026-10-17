@@ -107,7 +107,7 @@ export function decisionOutcome(inp: OutcomeInput): DecisionOutcome {
   let done = false;
   let shotOpen = false;
   const finish = (e: number, kind: OutcomeEnd, tail: number = OUTCOME.tail) => {
-    endE = Math.min(frames.at(-1)!.e, e + tail);
+    endE = Math.min(frames.at(-1)!.e, e + tail, from + OUTCOME.maxSpan);
     end = kind;
     done = true;
   };

@@ -6,7 +6,7 @@ import { emptySeasonStats, newGame, SAVE_FORMAT_VERSION } from '../src/game';
 import { playerOvr } from '../src/growth';
 import { positionOvr } from '../src/positions';
 import {
-  decayFormerPosition, gainProficiency, initialProficiency, positionDistance, proficiencyPenalty, requestPositionChange,
+  afterTeamMatch, distancePenalty, engineProficiency, gainProficiency, initialProficiency, initialProfLog, positionDistance, positionPenalty, proficiencyPenalty, requestPositionChange,
 } from '../src/proficiency';
 import { deserialize, serialize } from '../src/save';
 import type { PlayerState, SeasonRecord } from '../src/types';
@@ -18,7 +18,7 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
     name: 't', position: 'ST', age: 20, teamId: 'x', attributes: flat(60), potentialTier: 'normal',
     xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
     fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
-    proficiency: initialProficiency('ST'), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, ...overrides,
+    proficiency: initialProficiency('ST'), profLog: initialProfLog(initialProficiency('ST')), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, ...overrides,
   };
 }
 
@@ -31,50 +31,84 @@ describe('포지션 전환 (부록 D.3)', () => {
     expect(positionDistance('ST', 'CB')).toBe(5);
     expect(positionDistance('LWB', 'CB')).toBe(1);
   });
-  it('초기 숙련도: 주 100, 거리 1 → 70, 2 → 50, 3 → 30, 4 이상 → 15, 서브 포지션 70', () => {
+  it('초기 숙련도 (C.39): 주 100, 서브 포지션 70, 그 외는 거리와 상관없이 0', () => {
     const p = initialProficiency('ST', ['LW']);
     expect(p.ST).toBe(100);
-    expect(p.CF).toBe(70);
-    expect(p.CAM).toBe(50);
-    expect(p.CM).toBe(30);
-    expect(p.CB).toBe(15);
+    expect(p.CF).toBe(0);
+    expect(p.CAM).toBe(0);
+    expect(p.CB).toBe(0);
     expect(p.LW).toBe(70);
   });
-  it('페널티 = (100 − 숙련도) × 0.25: 60 → −10, 80 → −5', () => {
-    expect(proficiencyPenalty(60)).toBe(10);
-    expect(proficiencyPenalty(80)).toBe(5);
+  it('페널티 = 거리별 최대(1: 6, 2: 10, 3 이상: 14) × (1 − 숙련도/100)', () => {
+    expect(distancePenalty(0, 1)).toBe(6);
+    expect(distancePenalty(50, 2)).toBe(5);
+    expect(distancePenalty(0, 5)).toBe(14);
+    expect(distancePenalty(100, 3)).toBe(0);
+    const p = player();
+    expect(positionPenalty(p, 'CF')).toBe(6);
+    expect(positionPenalty(p, 'CAM')).toBe(10);
+    expect(positionPenalty(p, 'CB')).toBe(14);
+    // 엔진 입력 환산: (100 − x) × 0.25 = 페널티
+    expect(proficiencyPenalty(engineProficiency(p, 'CB'))).toBeCloseTo(14);
+    expect(engineProficiency(p, 'ST')).toBe(100);
   });
-  it('변경 요청 후에는 새 포지션 OVR 에서 페널티를 뺀다. 시즌 중에는 바꿀 수 없다', () => {
+  it('변경 요청 후에는 새 포지션 OVR 에서 페널티를 뺀다 (주 포지션은 이전 주 포지션에서의 거리). 시즌 중에는 바꿀 수 없다', () => {
     const p = player();
     expect(requestPositionChange(p, 'CAM', false)).toBe(false);
     expect(requestPositionChange(p, 'CAM', true)).toBe(true);
     expect(p.position).toBe('CAM');
     expect(p.formerPosition).toBe('ST');
-    expect(playerOvr(p)).toBe(Math.round(positionOvr(p.attributes, 'CAM') - 12.5));
+    expect(playerOvr(p)).toBe(Math.round(positionOvr(p.attributes, 'CAM') - 10));
   });
-  it('출전하면 거리에 따라 오른다 (90분 기준 거리 1 → 4, 2 → 2), 최대 100', () => {
-    const near = player();
-    requestPositionChange(near, 'CF', true);
-    gainProficiency(near, 90);
-    expect(near.proficiency.CF).toBe(74);
-    const far = player();
-    requestPositionChange(far, 'CAM', true);
-    gainProficiency(far, 45);
-    expect(far.proficiency.CAM).toBe(51);
-    far.proficiency.CAM = 99.5;
-    gainProficiency(far, 90);
-    expect(far.proficiency.CAM).toBe(100);
-  });
-  it('이전 주 포지션은 시즌마다 2씩 줄고 30 아래로는 내려가지 않는다', () => {
+  it('상승: 적응기 20경기는 2.25 × 0.3, 이후 2.25 (× 출전 비율), 최대 100', () => {
     const p = player();
     requestPositionChange(p, 'CF', true);
-    decayFormerPosition(p);
-    expect(p.proficiency.ST).toBe(98);
-    p.proficiency.ST = 31;
-    decayFormerPosition(p);
-    expect(p.proficiency.ST).toBe(30);
-    decayFormerPosition(p);
-    expect(p.proficiency.ST).toBe(30);
+    gainProficiency(p, 90);
+    expect(p.proficiency.CF).toBe(0.68);
+    gainProficiency(p, 45);
+    expect(p.proficiency.CF).toBeCloseTo(1.02, 2);
+    for (let i = 2; i < 20; i++) gainProficiency(p, 90);
+    const after20 = p.proficiency.CF;
+    gainProficiency(p, 90);
+    expect(p.proficiency.CF).toBeCloseTo(after20 + 2.25, 2);
+    p.proficiency.CF = 99.5;
+    gainProficiency(p, 90);
+    expect(p.proficiency.CF).toBe(100);
+    expect(p.profLog!.CF!.peak).toBe(true);
+  });
+  it('적성 1.0 기준 0 → 100 은 약 55~60경기', () => {
+    const p = player();
+    requestPositionChange(p, 'CM', true);
+    let n = 0;
+    while (p.proficiency.CM < 100 && n < 500) {
+      gainProficiency(p, 90);
+      n++;
+    }
+    expect(n).toBeGreaterThanOrEqual(55);
+    expect(n).toBeLessThanOrEqual(60);
+  });
+  it('감소: 연속 5경기 미출전부터 경기마다 −1, 100을 찍은 포지션은 10경기부터, 주 포지션은 없음, 하한 0', () => {
+    const p = player();
+    p.proficiency.CF = 50;
+    p.proficiency.LW = 100;
+    p.profLog!.LW!.peak = true;
+    p.proficiency.CAM = 0.5;
+    for (let i = 0; i < 4; i++) afterTeamMatch(p, 90, 'ST');
+    expect(p.proficiency.CF).toBe(50);
+    afterTeamMatch(p, 90, 'ST');
+    expect(p.proficiency.CF).toBe(49);
+    expect(p.proficiency.CAM).toBe(0);
+    for (let i = 0; i < 4; i++) afterTeamMatch(p, 0);
+    expect(p.proficiency.CF).toBe(45);
+    expect(p.proficiency.LW).toBe(100);
+    afterTeamMatch(p, 0);
+    expect(p.proficiency.LW).toBe(99);
+    expect(p.proficiency.ST).toBe(100);
+    // 그 포지션으로 뛰면 연속 미출전이 끊긴다
+    afterTeamMatch(p, 90, 'CF');
+    expect(p.profLog!.CF!.idle).toBe(0);
+    afterTeamMatch(p, 90, 'ST');
+    expect(p.proficiency.CF).toBeCloseTo(44.68, 2);
   });
   it('주 포지션 숙련도 100 이면 OVR 은 예전과 같다 (밸런스 불변)', () => {
     const p = player();
@@ -127,5 +161,20 @@ describe('세이브 변환 7 → 8', () => {
     expect(loaded.player.proficiency).toEqual(expected);
     expect(loaded.player.proficiency[loaded.player.position as 'ST']).toBe(100);
     expect(loaded.player.badges).toEqual([]);
+  });
+});
+
+describe('세이브 변환 18 → 19 (C.39)', () => {
+  it('숙련도 값은 그대로, 진행 기록만 추가 (100이면 달성, 출전 수는 이번 시즌 경기 목록)', () => {
+    const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig19', difficulty: 'normal' });
+    s.player.proficiency.CF = 63.5;
+    s.matchLog = [{ round: 1, opponentId: 'x', home: true, goalsFor: 0, goalsAgainst: 0, minutes: 90, started: true, goals: 0, assists: 0, rating: 6, mom: false, position: 'CF', rec: null }];
+    const old = JSON.parse(serialize(s));
+    old.saveFormat = 18;
+    delete old.player.profLog;
+    const loaded = deserialize(JSON.stringify(old));
+    expect(loaded.player.proficiency.CF).toBe(63.5);
+    expect(loaded.player.profLog!.CF).toEqual({ apps: 1, idle: 0, peak: false });
+    expect(loaded.player.profLog!.ST!.peak).toBe(true);
   });
 });

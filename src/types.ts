@@ -1,6 +1,6 @@
 import type { FieldAttribute, FieldAttributes, GkAttributes, GkType } from './attributes';
 import type { FieldPosition } from './positions';
-import type { Proficiency } from './proficiency';
+import type { ProfLog, Proficiency } from './proficiency';
 import type { AptBoost, Aptitude, PositionAdvice } from './aptitude';
 
 export type Foot = 'left' | 'right' | 'both';
@@ -155,6 +155,10 @@ export interface PlayerState {
   history: SeasonRecord[];
   /** 포지션별 숙련도 0~100 (부록 D.3) */
   proficiency: Proficiency;
+  /** 이번 시즌 시작 때 능력치 (C.39 능력치 바둑판의 "이번 시즌 변화"). 없으면 변화 0 */
+  seasonStartAttrs?: FieldAttributes;
+  /** 포지션별 숙련도 진행: 출전 수·연속 미출전·100 달성 (C.39). 없으면 처음 쓸 때 만든다 */
+  profLog?: ProfLog;
   /** 주 포지션 변경 요청 전 포지션 (숙련도 상승 거리 기준) */
   formerPosition?: FieldPosition;
   /** 지금까지의 이전 주 포지션 전부 (시즌 감소 대상, 부록 C.23) */

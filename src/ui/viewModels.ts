@@ -30,10 +30,11 @@ import type { SaveMeta } from '../save';
 import { reportInput, tacticalReport, type TacticalReport, type Tendency } from '../tacticalReport';
 import type { BadgeId, Tier } from '../types';
 import { activeBadges, BADGE_DESC_KO, BADGE_NAMES_KO } from '../badges';
-import { proficiencyOf, proficiencyPenalty, proficientOvr } from '../proficiency';
+import { positionPenalty, proficiencyOf, proficientOvr } from '../proficiency';
 import { saveStartNotice, versionLabel } from '../version';
 import type { DesignTier, FeedKind, FormationSlotProps, TacticStyle } from './components';
 import type { FieldAttributes } from '../attributes';
+import type { AttrGroupVM } from './views/attrGrid';
 import { FORMATIONS } from '../formations';
 import {
   customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
@@ -167,6 +168,8 @@ export interface HomeVM {
   version: VersionVM;
   /** 캘린더 (부록 C.38): 오늘, 다음 일정, 이번 달 */
   day: DayVM | null;
+  /** 남은 능력치 포인트 (C.39 홈 배지, 성장 기능이 열렸을 때만) */
+  points: number;
 }
 
 export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
@@ -288,6 +291,7 @@ export function homeVM(g: GameState): HomeVM {
     stats: { apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, avg: avg === null ? '-' : avg.toFixed(2) },
     version: versionVM(g),
     day: dayVM(g),
+    points: visiblePoints(g),
   };
 }
 
@@ -303,7 +307,8 @@ export interface PlayerVM {
   condition: ConditionVM;
   suspended: number;
   nextOpp: string | null;
-  groups: { name: string; rows: AttrRowVM[] }[];
+  /** 능력치 바둑판 (C.39): 이번 시즌 변화 */
+  attrs: AttrGroupVM[];
   posOvrs: { pos: string; ovr: number; main: boolean; prof: number; penalty: number }[];
   badges: { id: string; name: string; desc: string; earned: string | null; progress: string }[];
   /** 레전더리 조건 목록 (8.1, 부록 C.23). 발롱도르·트레블·월드컵은 5단계 대회 전까지 잠김 */
@@ -350,7 +355,7 @@ export function positionOptionsVM(g: GameState): PositionOptionVM[] {
   const p = g.player;
   return PLAYABLE_POSITIONS.map((pos) => {
     const prof = Math.floor(proficiencyOf(p, pos));
-    return { pos, ko: POSITION_NAMES_KO[pos], prof, ovr: proficientOvr(p, pos), penalty: Math.round(proficiencyPenalty(prof) * 10) / 10, current: pos === p.position };
+    return { pos, ko: POSITION_NAMES_KO[pos], prof, ovr: proficientOvr(p, pos), penalty: Math.round(positionPenalty(p, pos) * 10) / 10, current: pos === p.position };
   }).sort((a, b) => Number(b.current) - Number(a.current) || b.ovr - a.ovr);
 }
 
@@ -363,6 +368,16 @@ function historyVM(g: GameState): HistoryRowVM[] {
   return g.player.history.map((r) => ({
     season: seasonLabel(r.season), age: r.age, ovr: r.ovr, apps: r.apps, goals: r.goals, assists: r.assists,
     avg: r.apps ? (r.ratingSum / r.apps).toFixed(2) : '-', pos: r.leaguePosition,
+  }));
+}
+
+/** 능력치 바둑판 (C.39): 분류별 박스. base 가 있으면 변화 = 지금 − base */
+export function attrGroupsVM(attrs: FieldAttributes, keys: readonly FieldAttribute[], base?: FieldAttributes): AttrGroupVM[] {
+  return GROUP_NAMES.map((grp) => ({
+    name: GROUP_NAMES_KO[grp],
+    cells: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => ({
+      attr: a, label: ATTRIBUTE_NAMES_KO[a], value: attrs[a], delta: base ? attrs[a] - base[a] : 0, key: keys.includes(a),
+    })),
   }));
 }
 
@@ -381,13 +396,10 @@ export function playerVM(g: GameState): PlayerVM {
     level: p.level, xp: p.xp, xpMax: xpToLevel(p), totalXp: p.totalXp,
     condition: conditionVM(g), suspended: p.suspended,
     nextOpp: fx ? teamById(g.league, fx.opponentId).nameKo : null,
-    groups: GROUP_NAMES.map((grp) => ({
-      name: GROUP_NAMES_KO[grp],
-      rows: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => ({ label: ATTRIBUTE_NAMES_KO[a], value: p.attributes[a], key: keys.includes(a) })),
-    })),
+    attrs: attrGroupsVM(p.attributes, keys, p.seasonStartAttrs),
     posOvrs: PLAYABLE_POSITIONS.map((pos) => {
       const prof = Math.floor(proficiencyOf(p, pos));
-      return { pos, ovr: proficientOvr(p, pos), main: pos === p.position, prof, penalty: Math.round(proficiencyPenalty(prof) * 10) / 10 };
+      return { pos, ovr: proficientOvr(p, pos), main: pos === p.position, prof, penalty: Math.round(positionPenalty(p, pos) * 10) / 10 };
     }),
     badges: badgesVM(g),
     // 발롱도르·챔스·월드컵은 5단계 대회 기능이라 아직 얻을 수 없다 (위상 조건만 열림)
@@ -406,14 +418,17 @@ export interface AllocateVM {
   points: number; position: string; startOvr: number; startExact: number; ovr: number; exact: number;
   cap: number; levels: number; tierName: string; cost1Max: number; cost2Max: number; coachComment: boolean;
   groups: { name: string; rows: AllocRowVM[] }[];
+  /** 능력치 바둑판 (C.39): 이번 배분 변화, 누르면 [−]/[+] */
+  attrs: AttrGroupVM[];
 }
 
-export function allocateVM(g: GameState, startExact: number, coachComment: boolean): AllocateVM {
+export function allocateVM(g: GameState, startExact: number, coachComment: boolean, snap?: FieldAttributes, raises: readonly FieldAttribute[] = []): AllocateVM {
   const p = g.player;
   const keys = profileOf(p.position).keys;
   const tier = costTier(p);
   const band = BALANCE.growth.costBands[tier];
-  return {
+  const vm: AllocateVM = {
+    attrs: [],
     points: p.unspentPoints, position: p.position, startOvr: Math.round(startExact), startExact,
     ovr: playerOvr(p), exact: positionOvrExact(p.attributes, p.position),
     cap: p.allocation.levels * BALANCE.growth.maxRaisePerLevel, levels: p.allocation.levels,
@@ -432,6 +447,14 @@ export function allocateVM(g: GameState, startExact: number, coachComment: boole
       }),
     })),
   };
+  vm.attrs = vm.groups.map((grp) => ({
+    name: grp.name,
+    cells: grp.rows.map((r) => ({
+      attr: r.attr, label: r.label, value: r.value, delta: snap ? r.value - snap[r.attr] : 0, key: r.key,
+      edit: { cost: r.cost, ovrDelta: r.ovrDelta, maxed: r.maxed, blocked: r.blocked, canLower: raises.includes(r.attr) },
+    })),
+  }));
+  return vm;
 }
 
 // ── 경기 재생 (I.4, 디자인 05·08·15·18) ──
@@ -856,12 +879,16 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const candidates = prospect ? prospect.candidates.map((c) => ({
     id: c.pos, ko: POSITION_NAMES_KO[c.pos], ovr: c.ovr, line: c.line, wild: c.kind === 'wild',
   })) : [];
+  const candSet = new Set(candidates.map((c) => c.id));
   const top = prospect ? [...FIELD_ATTRIBUTES].sort((a, b) => prospect.attributes[b] - prospect.attributes[a]).slice(0, 3).map((a) => ATTRIBUTE_NAMES_KO[a]) : [];
   return {
     mode: f.mode, name: f.name, position: f.position,
     positions: PLAYABLE_POSITIONS.map((p) => ({ id: p, ko: POSITION_NAMES_KO[p], ovr: ovrs?.[p] })),
     candidates, others: f.others || (!!prospect && !candidates.some((c) => c.id === f.position)),
     strengths: top.join(' · '),
+    // 능력치 전체 바둑판과 포지션별 OVR 표 (C.39, pending 39 8번). 재능 타입 이름·숨은 적성은 보여 주지 않는다
+    attrs: prospect ? attrGroupsVM(prospect.attributes, profileOf(f.position as FieldPosition).keys) : [],
+    posTable: ovrs ? PLAYABLE_POSITIONS.map((pos) => ({ id: pos, ko: POSITION_NAMES_KO[pos], ovr: ovrs[pos], cand: candSet.has(pos), on: pos === f.position })) : [],
     selectedOvr: ovrs?.[f.position as PlayablePosition] ?? null,
     keyAttrs: profileOf(f.position as FieldPosition).keys.map((a) => ATTRIBUTE_NAMES_KO[a]).join(' · '),
     ageRange: `OVR ${N.startOvr.min}~${N.startOvr.max}에서 시작`,

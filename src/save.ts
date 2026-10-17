@@ -9,7 +9,7 @@ import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
 import { emptyRecord } from './matchRecord';
 import { positionOvr } from './positions';
-import { initialProficiency } from './proficiency';
+import { initialProficiency, initialProfLog, profKey } from './proficiency';
 import { migratedTactics, validTactics } from './myTactics';
 import { customProblem } from './formations';
 import { initCollection } from './cardCollection';
@@ -177,6 +177,18 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     }
     s.playerStats = {};
     s.options = { quickOthers: false };
+  },
+  // 18 → 19 (부록 C.39, D.3 개정): 숙련도 값은 그대로, 포지션별 진행 기록만 추가. 출전 수는 남아 있는 이번 시즌 경기 목록에서 세고
+  // (지난 시즌은 모른다), 100인 포지션은 100 달성으로 본다. 연속 미출전은 0에서 시작
+  18: (s) => {
+    const log = initialProfLog(s.player.proficiency);
+    for (const m of s.matchLog ?? []) {
+      const k = m.minutes > 0 && m.position ? profKey(m.position) : null;
+      if (k && log[k]) log[k]!.apps++;
+    }
+    s.player.profLog = log;
+    // 능력치 바둑판의 이번 시즌 변화는 변환 시점부터
+    s.player.seasonStartAttrs = { ...s.player.attributes };
   },
 };
 

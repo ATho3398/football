@@ -118,15 +118,16 @@ describe('숙련도 상승 배수 (D.3 × 적성)', () => {
     const lo = player({ aptitude: apt({ CB: 0.7 }) });
     gainProficiency(hi, 90, 'CB');
     gainProficiency(lo, 90, 'CB');
-    // ST → CB 거리 5 → 상승 1/경기
-    expect(hi.proficiency.CB).toBeCloseTo(15 + 1.5, 5);
-    expect(lo.proficiency.CB).toBeCloseTo(15 + 0.7, 5);
+    // 0에서 시작, 적응기 상승 2.25 × 0.3 / 경기 (C.39)
+    const base = BALANCE.proficiency.gain * BALANCE.proficiency.adaptMult;
+    expect(hi.proficiency.CB).toBeCloseTo(base * 1.5, 2);
+    expect(lo.proficiency.CB).toBeCloseTo(base * 0.7, 2);
   });
 
   it('조언 뒤 포변 보너스: 그 포지션군 10경기 ×2, 다 쓰면 사라진다', () => {
     const p = player({ aptitude: apt({ CB: 1.0 }), aptBoost: { group: 'CB', games: A.advice.boostGames } });
     gainProficiency(p, 90, 'CB');
-    expect(p.proficiency.CB).toBeCloseTo(15 + A.advice.boostMult, 5);
+    expect(p.proficiency.CB).toBeCloseTo(BALANCE.proficiency.gain * BALANCE.proficiency.adaptMult * A.advice.boostMult, 2);
     gainProficiency(p, 90, 'CM');
     expect(p.aptBoost!.games).toBe(A.advice.boostGames - 1);
     for (let i = 0; i < A.advice.boostGames; i++) gainProficiency(p, 90, 'CB');
@@ -197,8 +198,8 @@ describe('세이브 16 → 17 (C.37)', () => {
     delete raw.player.aptBoost;
     raw.saveFormat = 16;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(18);
-    expect(back.saveFormat).toBe(18);
+    expect(SAVE_FORMAT_VERSION).toBe(19);
+    expect(back.saveFormat).toBe(19);
     const a = back.player.aptitude!;
     expect(a.hidden).toBeNull();
     expect(a.mult.CM).toBeGreaterThanOrEqual(1.2);

@@ -483,3 +483,87 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .legend .k.cal-league { background: var(--line-strong); }
 .legend .k.cal-break { background: var(--surface-0); outline: 1px solid var(--line-strong); }
 .legend { flex-wrap: wrap; }
+
+/* ── C.39 체감 패치 A: 내비·띠·토스트·홈·능력치 바둑판·GameCard ── */
+/* 토스트: 화면 위쪽 고정, 짧게 (내용 카드를 덮지 않게) */
+.toast-wrap { top: calc(8px + env(safe-area-inset-top)); bottom: auto; animation: po-toastdown .2s ease; }
+@keyframes po-toastdown { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.toast-wrap .po-toast { box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
+
+/* 경기 중 띠 (다른 화면 위) */
+.live-band { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px var(--space-4);
+  border: 0; background: var(--mine); color: #06202a; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.live-band .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.live-back { flex: none; }
+.live-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #e5372c; animation: live-pulse 1.2s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+/* 경기 중 잠긴 행동 (보기만) */
+.match-lock :is([data-act="play"], [data-act="day-one"], [data-act="day-continue"], [data-act="sim-rest"], [data-act="raise"], [data-act="lower"], [data-act="auto-alloc"],
+  [data-act="alloc-reset"], [data-act="alloc-done"], [data-act="tac-save"], [data-act="deck-add"], [data-act="deck-remove"], [data-act="deck-use"], [data-act="pick-take"],
+  [data-act="pos-change"], [data-act="next-season"], [data-act="retire"], [data-act="save"], [data-act="load"], [data-act="opt-quick"], [data-act="ctl-mode"] .po-tab, [data-act="ctl-mode"],
+  [data-act="ctl-stop"]) { opacity: .4; filter: grayscale(.6); }
+
+/* 결정 화면에 아래 바가 있으면 시트를 그 위에 */
+@media (max-width: 1023px) { .has-nav.app-moment .mo-panel { bottom: 72px; max-height: calc(64vh - 72px); } }
+
+/* 홈 머리말: 작게 */
+.po-hero--compact { padding-bottom: 14px; gap: 2px; }
+.po-hero--compact .po-hero__num { height: auto; }
+.po-hero--compact .po-hero__value { font-size: 40px; line-height: 44px; }
+.po-hero--compact .po-hero__chips { margin-top: 6px; }
+.next-card .btn-row, .next-card > .po-btn { margin-top: 2px; }
+.sim-rest { display: flex; justify-content: center; margin-top: -4px; }
+
+/* 능력치 바둑판 */
+.ag { display: flex; flex-direction: column; gap: 10px; }
+.ag-head { margin: 0 0 4px; font-size: 11px; font-weight: 700; color: var(--ink-faint); letter-spacing: .02em; }
+.ag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 1024px) { .ag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.ag-cell { position: relative; display: flex; flex-direction: column; gap: 0; min-height: 66px; padding: 7px 8px 6px; border-radius: var(--radius-md); background: var(--surface-2);
+  box-shadow: inset 0 3px 0 var(--t); overflow: hidden; }
+.ag-cell.is-key { outline: 2px solid var(--brand); outline-offset: -2px; }
+.ag-cell.is-edit { cursor: pointer; }
+.ag-cell.is-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ag-cell.is-sel { background: var(--surface-3); outline: 2px solid var(--mine); outline-offset: -2px; }
+.ag-cell.is-sel.is-key { outline: 3px solid var(--brand); outline-offset: -3px; }
+.ag-name { font-size: 11px; line-height: 14px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 26px; }
+.ag-v { font-size: 26px; line-height: 30px; font-weight: 700; color: var(--t); }
+.ag-d { position: absolute; right: 7px; top: 6px; font-size: 12px; font-weight: 800; }
+.ag-cost { font-size: 10px; font-weight: 700; color: var(--ink-faint); }
+.ag-cell.is-max .ag-cost { color: var(--brand-ink); }
+.ag-edit { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: 2px; }
+.ag-edit small { font-size: 11px; font-weight: 800; color: var(--ink-muted); }
+.ag-btn { width: 32px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm); background: var(--surface-1); color: var(--ink); font: inherit; font-size: 18px; font-weight: 800; line-height: 1; cursor: pointer; }
+.ag-btn.plus { background: var(--brand); color: var(--on-brand); }
+.ag-btn:disabled { opacity: .35; cursor: not-allowed; }
+.ag-t5 { --t: var(--brand-ink); }
+.ag-t4 { --t: var(--success); }
+.ag-t3 { --t: var(--mine); }
+.ag-t2 { --t: var(--ink); }
+.ag-t1 { --t: var(--warning); }
+.ag-legend { display: flex; flex-wrap: wrap; gap: 10px; color: var(--ink-muted); font-weight: 600; }
+.ag-sw { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 3px; vertical-align: -1px; background: var(--t); }
+.ag-sw.key { background: none; box-shadow: inset 0 0 0 2px var(--brand); }
+
+/* 새 게임: 포지션별 OVR 표 */
+.pos-table { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 1024px) { .pos-table { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
+.pt-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px; border: 0; border-radius: var(--radius-sm); background: var(--surface-1); color: var(--ink-muted); font: inherit; cursor: pointer; }
+.pt-cell span { font-size: 11px; font-weight: 700; }
+.pt-cell b { font-size: 18px; color: var(--ink); }
+.pt-cell.is-cand { box-shadow: inset 0 0 0 2px var(--mine); }
+.pt-cell.is-cand b { color: var(--mine); }
+.pt-cell.is-on { background: var(--brand); color: var(--on-brand); box-shadow: none; }
+.pt-cell.is-on b { color: var(--on-brand); }
+
+/* GameCard: 덱 그리드 (mini 4열), 획득 3택1 (deck), 카드 상세 (full), 결정 순간 패 (hand) */
+.gc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.gc-pick { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 6px; scroll-snap-type: x proximity; }
+.gc-pick__item { flex: none; display: flex; flex-direction: column; gap: 8px; width: 168px; scroll-snap-align: start; }
+.gc-detail { display: flex; justify-content: center; padding: 4px 0; }
+.gc-detail__meta { margin: 8px 0 0; text-align: center; }
+.gc-sig { display: flex; align-items: center; gap: 12px; }
+.gc-sig__card { width: 84px; flex: none; }
+.mo-hand .po-hand { padding: 18px 0 6px; }
+.mo-hand__info { margin: 0; }

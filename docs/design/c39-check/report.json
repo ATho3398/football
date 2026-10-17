@@ -1,0 +1,13 @@
+{
+ "errors": [],
+ "rerollChangesTable": true,
+ "bandOnHome": true,
+ "lockToast": "경기 중에는 볼 수만 있어요 위 띠를 누르면 경기로 돌아가요.",
+ "backToMoment": true,
+ "resultButtons": [
+  "홈으로",
+  "다음 경기"
+ ],
+ "seasonScreen": "2018-19 시즌 종료 뉴캐슬 유나이티드 리그 최종 순위 19위 27경기 출전 나이 17 → 18세",
+ "pointsAfterSeason": "포인트 찍기 (10)"
+}

@@ -3,7 +3,7 @@
 
 import { Button, esc, FeedItem, HeroPanel, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
 import type { MatchResultVM } from '../viewModels';
-import { banners, moreRecords, panel } from './common';
+import { actionRow, banners, moreRecords, panel } from './common';
 
 function cmpRow(label: string, own: string, opp: string): string {
   const a = parseFloat(own) || 0;
@@ -54,8 +54,10 @@ export function matchResultView(vm: MatchResultVM): string {
     ? `${SectionTitle({ title: '쓴 카드', action: `${vm.cardUses.length}장` })}${panel(`<div class="dec-list">${vm.cardUses.map((c) => `<div class="cu-row dec-${c.result}"><span>${esc(c.text)}</span><b>${RES[c.result]}</b></div>`).join('')}</div>`)}`
     : '';
   const x = vm.xp;
+  // 맨 아래 두 버튼 (C.39): [홈으로] + [다음 경기](주), 시즌 마지막 경기면 [홈으로] + [시즌 요약]
+  const home = Button({ variant: 'secondary', size: 'lg', block: true, icon: 'home', act: 'go', data: { to: 'home' }, children: '홈으로' });
   const next = vm.seasonOver
-    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 종료 요약' })
+    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 요약' })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'play', children: '다음 경기' });
   return `
     ${hero}
@@ -69,8 +71,8 @@ export function matchResultView(vm: MatchResultVM): string {
       ${SectionTitle({ title: '보상' })}
       ${panel(Meter({ value: x.value, gain: x.levelsGained ? 0 : x.gained, max: x.max, label: `XP +${x.gained} · Lv ${x.level}${x.levelsGained ? ' 레벨 업!' : ''}`, showValue: true, tone: 'xp' }))}
       <div class="btn-col">
-        ${vm.points > 0 ? Button({ variant: 'secondary', size: 'lg', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
-        ${next}
+        ${vm.points > 0 ? Button({ variant: 'ghost', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
+        ${actionRow(home, next)}
       </div>
     </div>`;
 }

@@ -74,8 +74,9 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((t, x) => t + x, 0) / xs.le
     }
     return n;
   };
-  console.log(`\n[숙련도 100 도달 경기 수] 주 포지션 변경 후 새 포지션 90분 출전 (적성 배수별, "+보너스" = 조언 뒤 4라운드 안 포변 ${A.advice.boostGames}경기 ×${A.advice.boostMult})`);
-  const cases: [FieldPosition, PlayablePosition, string][] = [['CM', 'CAM', '거리 1 (70→)'], ['LW', 'CM', '거리 2 (50→)'], ['ST', 'CB', '거리 5 (15→)']];
+  console.log(`\n[숙련도 100 도달 경기 수] 주 포지션 변경 후 새 포지션 90분 출전, 0 시작·적응기 ${BALANCE.proficiency.adaptGames}경기 ×${BALANCE.proficiency.adaptMult}·이후 +${BALANCE.proficiency.gain} (적성 배수별, "+보너스" = 조언 뒤 4라운드 안 포변 ${A.advice.boostGames}경기 ×${A.advice.boostMult})`);
+  // C.39: 주 포지션 외 0에서 시작 (거리 무관), 적응기 20경기 ×0.3 → 거리는 OVR 페널티에만 쓴다
+  const cases: [FieldPosition, PlayablePosition, string][] = [['CM', 'CAM', '거리 1 (0→)'], ['ST', 'CB', '거리 5 (0→)']];
   const ms = [0.7, 0.85, 1.0, 1.2, 1.35, 1.5, 1.6];
   console.log(`  ${'전환'.padEnd(18)}${ms.map((m) => `×${m}`.padStart(7)).join('')}   ×1.5+보너스 ×0.7+보너스`);
   for (const [f, t, label] of cases) {

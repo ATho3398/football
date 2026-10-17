@@ -8,7 +8,9 @@
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
-import { Button, esc, Pitch, Tabs } from '../components';
+import { Button, esc, GameCard, Pitch, Tabs } from '../components';
+import { cardById } from '../../config/cards';
+import { gameCardData } from './deck';
 import { drawFrame, fitCanvas, readPalette } from '../pitch/renderer';
 
 export interface MomentVM {
@@ -40,11 +42,6 @@ export function lastResultText(r: DecisionRecord): string {
   return `${r.minute}' ${SCENE_LABEL[r.scene]} · ${r.label} → ${res} (평점 ${signed(r.delta)})`;
 }
 
-/** 희귀도 색 (F.6) */
-export const RARITY_COLOR = { common: '#7d8a99', rare: '#2f7fd6', epic: '#9b4fd8', legendary: '#d99a1f' } as const;
-export const RARITY_KO = { common: '일반', rare: '희귀', epic: '에픽', legendary: '전설' } as const;
-const ROLE_KO = { play: '선택지', boost: '확률', passive: '패시브', combo: '콤보', soften: '관리', redraw: '관리' } as const;
-
 /** 지금 화면에 보이는 선택지: 기본 3개 + 고른 플레이 카드가 연 4번째 */
 export function shownOptions(m: Moment, card: number | null): MomentOption[] {
   const mc = card === null ? null : m.cards.find((c) => c.hand === card);
@@ -64,23 +61,32 @@ function optionCard(o: MomentOption, i: number, on: boolean, dp = 0, cardName = 
   </button>`;
 }
 
-function handCard(c: Moment['cards'][number], on: boolean): string {
-  const dis = !c.usable;
-  return `<button type="button" class="mo-hcard${on ? ' is-on' : ''}${dis ? ' is-off' : ''}" data-act="mo-card" data-v="${c.hand}" ${dis ? 'aria-disabled="true"' : ''}
-    style="--r:${RARITY_COLOR[c.rarity]}" title="${esc(c.text)}">
-    <span class="mo-hcard__top"><span class="mo-hcard__role">${ROLE_KO[c.role]}</span><span class="mo-hcard__rar">${RARITY_KO[c.rarity]}</span></span>
-    <b>${esc(c.name)}</b>
-    <span class="mo-hcard__txt">${esc(dis ? c.reason ?? '' : c.text)}</span>
-  </button>`;
-}
-
+/** 패 카드 (C.39): 디자인 GameCard hand 크기를 부채꼴로. 고른 카드는 위로, 못 쓰는 카드는 회색 + 이유 */
 function handRow(vm: MomentVM): string {
   const m = vm.moment;
   if (!m.cards.length) return `<div class="mo-cards"><span class="small muted">패 카드</span><span class="mo-card-slot">${m.passives.length ? '' : '패가 비었어요 · 15분마다 1장'}</span></div>`;
   const pas = m.passives.length ? `<span class="small muted">장착 패시브 · ${m.passives.map(esc).join(', ')}</span>` : '';
-  return `<div class="mo-hand"><div class="kv"><span class="small muted">패 ${m.cards.length}장 · 한 번에 1장</span>${pas}</div>
-    <div class="mo-hand__row">${m.cards.map((c) => handCard(c, vm.card === c.hand)).join('')}</div></div>`;
+  const n = m.cards.length;
+  const mid = (n - 1) / 2;
+  const slots = m.cards.map((c, i) => {
+    const off = i - mid;
+    const sel = vm.card === c.hand;
+    const def = cardById(c.id);
+    const tf = `translateY(${sel ? -16 : off * off * 1.6}px) rotate(${sel ? 0 : off * 3}deg)`;
+    const card = def ? gameCardData(def) : { name: c.name, type: 'passive' as const, rarity: 'common' as const, level: 1, effect: { pre: c.text }, condition: { text: '', met: true } };
+    return `<div role="listitem" class="po-hand__slot${sel ? ' is-sel' : ''}" style="transform:${tf};z-index:${sel ? 20 : 10 - Math.abs(Math.round(off))}" title="${esc(c.usable ? c.text : c.reason ?? '')}">${
+      GameCard({ card, size: 'hand', act: 'mo-card', data: { v: c.hand }, state: sel ? 'selected' : c.usable ? 'normal' : 'disabled', ...(c.usable ? {} : { reason: '못 씀' }) })}</div>`;
+  }).join('');
+  const picked = vm.card === null ? null : m.cards.find((c) => c.hand === vm.card) ?? null;
+  const offs = m.cards.filter((c) => !c.usable);
+  const info = picked
+    ? `<p class="small mo-hand__info"><b>🃏 ${esc(picked.name)}</b> · ${esc(picked.text)} <span class="muted">(다시 누르면 취소)</span></p>`
+    : `<p class="small muted mo-hand__info">카드를 누르면 써요 · ${ROLE_HINT}${offs.length ? ` · 못 씀: ${offs.map((c) => `${esc(c.name)}(${esc(c.reason ?? '')})`).join(', ')}` : ''}</p>`;
+  return `<div class="mo-hand"><div class="kv"><span class="small muted">패 ${n}장 · 한 번에 1장</span>${pas}</div>
+    <div class="po-hand" role="list" aria-label="내 패">${slots}</div>${info}</div>`;
 }
+
+const ROLE_HINT = '확률 카드는 선택지 확률이 바뀌고, 플레이 카드는 4번째 선택지가 생겨요';
 
 export function momentView(vm: MomentVM): string {
   const m = vm.moment;

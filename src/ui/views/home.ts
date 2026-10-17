@@ -9,42 +9,42 @@ import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from
 
 export function homeView(vm: HomeVM, extra = '', notice = ''): string {
   const n = vm.next;
+  // C.39: 머리말은 작게(날짜 한 줄), "다음 경기" 카드를 맨 위로. 남은 포인트는 머리말 칩으로도
   const hero = HeroPanel({
-    title: '홈', back: false, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }),
+    title: '홈', back: false, compact: true, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }),
     eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
     value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
-    chips: n && vm.day
-      ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R ${n.opp}전`, soft: true }]
-      : [{ label: '시즌 종료', soft: true }],
+    chips: [
+      ...(n && vm.day
+        ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }]
+        : [{ label: '시즌 종료', soft: true }]),
+      ...(vm.points > 0 ? [`포인트 ${vm.points}`] : []),
+    ],
   });
 
   let next = '';
   if (n && vm.day) {
     const d = vm.day;
-    // 하루 단위 진행 (부록 C.38): 경기 날이면 경기 시작, 아니면 [계속](다음 일정까지)·[하루 진행]
+    // 하루 단위 진행 (부록 C.38): 경기 날이면 경기 시작, 아니면 [계속](다음 일정까지)·[하루 진행]. [남은 시즌 자동]은 작은 보조 버튼 (C.39)
     const buttons = d.matchDay
-      ? actionRow(
-        Button({ variant: 'secondary', size: 'lg', block: true, icon: 'ff', act: 'sim-rest', children: '남은 시즌 자동' }),
-        Button({ variant: n.out ? 'secondary' : 'primary', size: 'lg', block: true, icon: n.out ? 'match' : 'play', act: 'play', children: n.out ? '결장(관전)' : '경기 시작' }),
-      )
-      : `${actionRow(
+      ? Button({ variant: n.out ? 'secondary' : 'primary', size: 'lg', block: true, icon: n.out ? 'match' : 'play', act: 'play', children: n.out ? '결장(관전)' : '경기 시작' })
+      : actionRow(
         Button({ variant: 'secondary', size: 'lg', block: true, icon: 'clock', act: 'day-one', children: '하루 진행' }),
         Button({ size: 'lg', block: true, icon: 'chevron-right', act: 'day-continue', children: '계속' }),
-      )}
-      ${Button({ variant: 'ghost', block: true, icon: 'ff', act: 'sim-rest', children: '남은 시즌 자동' })}`;
+      );
     next = `
-      <p class="line">${d.matchDay ? '오늘' : `다음 일정 · ${esc(d.nextLabel ?? '')}`} · <b>리그 ${vm.round}R ${esc(n.opp)}전 · ${n.home ? '홈' : '원정'}</b></p>
-      ${buttons}
       ${SectionTitle({ title: '다음 경기', action: `리그 ${vm.round}R · ${n.home ? '홈' : '원정'}` })}
       ${panel(`
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}${esc(n.my)}</span><span class="vs po-num">VS</span><span class="vs-team away">${esc(n.opp)}${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
+        <p class="line">${d.matchDay ? '오늘' : `다음 일정 · ${esc(d.nextLabel ?? '')}`} · <b>리그 ${vm.round}R ${esc(n.opp)}전 · ${n.home ? '홈' : '원정'}</b> · 전력 <b class="po-num">${n.myRating}</b> vs <b class="po-num">${n.oppRating}</b></p>
+        ${buttons}
+        <div class="sim-rest">${Button({ variant: 'ghost', size: 'sm', icon: 'ff', act: 'sim-rest', children: '남은 시즌 자동' })}</div>`, 'next-card')}
+      ${panel(`
         <div class="sub-panel">
           <div class="kv"><span>우리 전술</span><span class="kv-r">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}${
             n.tacticsOpen ? Button({ size: 'sm', variant: 'secondary', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</span></div>
           <div class="divider"></div>
           <div class="kv"><span>상대 전술</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}</div>
-          <div class="divider"></div>
-          <div class="kv"><span>팀 전력</span><span class="po-num">${n.myRating} <span class="faint">vs</span> ${n.oppRating}</span></div>
         </div>
         <div class="sub-panel ctl-panel">
           <div class="kv"><span>내 선수 결정</span><span class="muted small">${n.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
@@ -60,10 +60,10 @@ export function homeView(vm: HomeVM, extra = '', notice = ''): string {
   return `
     ${hero}
     <div class="body">
+      ${next}
       ${banners(vm.banners)}
       ${startNotice(vm.version)}
       ${notice}
-      ${next}
       ${vm.day ? calendarSection(vm.day) : ''}
       ${extra}
       ${SectionTitle({ title: '내 상태' })}

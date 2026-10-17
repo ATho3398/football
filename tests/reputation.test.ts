@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { emptySeasonStats, newGame, personalReputation, playRound, SAVE_FORMAT_VERSION } from '../src/game';
 import { legendaryConditions, legendaryHonorsMet, nextReputationTier, reputationTier } from '../src/growth';
-import { decayFormerPosition, requestPositionChange } from '../src/proficiency';
+import { requestPositionChange } from '../src/proficiency';
 import { settledFrames, type Replay, type ReplayFrame } from '../src/replay';
 import { deserialize, serialize } from '../src/save';
 import { checklistItems, FEATURES, isUnlocked, pendingIntro, refreshUnlocks, resetTips, tipFor } from '../src/unlocks';
@@ -77,7 +77,7 @@ describe('세이브 변환 8 → 9 (부록 C.23)', () => {
   it('위상 점수는 그대로, 티어만 새 기준으로 (예전 레전더리 850+ → 월드클래스)', () => {
     const loaded = deserialize(JSON.stringify(oldSave(950)));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(18);
+    expect(SAVE_FORMAT_VERSION).toBe(19);
     expect(loaded.player.reputation).toBe(950);
     expect(loaded.player.honors).toEqual(H(0));
     expect(reputationTier(loaded.player.reputation, loaded.player.honors)).toBe('worldClass');
@@ -124,21 +124,13 @@ describe('단계적 공개 (21.3 개정안)', () => {
   });
 });
 
-describe('이전 주 포지션 숙련도 감소 (부록 C.23)', () => {
-  it('여러 번 바꿨으면 이전 주 포지션 전부가 시즌마다 −2, 최소 30. 지금 주 포지션은 줄지 않는다', () => {
+describe('이전 주 포지션 목록 (부록 C.23)', () => {
+  it('여러 번 바꾸면 이전 주 포지션이 쌓이고, 돌아오면 목록에서 빠진다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'prof', difficulty: 'normal' });
     const p = s.player;
     expect(requestPositionChange(p, 'CAM', true)).toBe(true);
     expect(requestPositionChange(p, 'CM', true)).toBe(true);
     expect(p.formerPositions).toEqual(['ST', 'CAM']);
-    p.proficiency.ST = 80;
-    p.proficiency.CAM = 31;
-    p.proficiency.CM = 70;
-    decayFormerPosition(p);
-    expect(p.proficiency.ST).toBe(80 - BALANCE.proficiency.formerDecay);
-    expect(p.proficiency.CAM).toBe(30);
-    expect(p.proficiency.CM).toBe(70);
-    // ST 로 돌아오면 ST 는 목록에서 빠지고 CM 이 들어간다
     requestPositionChange(p, 'ST', true);
     expect(p.formerPositions).toEqual(['CAM', 'CM']);
   });

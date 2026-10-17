@@ -3,3 +3,4 @@ export * from './basic';
 export * from './html';
 export * from './layout';
 export * from './match';
+export * from './gameCard';

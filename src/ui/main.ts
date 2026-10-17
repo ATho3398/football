@@ -77,7 +77,9 @@ const ui = {
   /** 방금 치른 내 경기 재생 (E5-lite). 세이브에 담지 않는다 */
   replay: null as ReplayPlayer | null,
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
-  alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; open: Set<string> },
+  alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
+  /** 덱 화면 카드 상세 시트 (C.39) */
+  cardSheet: null as null | { id: string; from: 'deck' | 'pool' },
   worldTab: 'table' as 'table' | 'stars' | 'scorers',
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
   posSheet: null as string | null,
@@ -120,7 +122,27 @@ function syncProspectPick(): void {
 }
 
 const app = document.getElementById('app')!;
+/** 새 기능 소개를 띄우는 화면 */
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
+/** 아래 바(홈·선수·월드)를 띄우는 화면 (C.39: 경기 화면에서도 다른 탭으로 갈 수 있게) */
+const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay', 'moment', 'season'];
+
+/** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
+function liveScreen(): Screen | null {
+  if (ui.live) return 'moment';
+  if (ui.replay && !ui.replay.ended && !ui.replay.isClip) return 'replay';
+  return null;
+}
+
+/**
+ * 경기 중 잠그는 동작 (C.39): 다른 화면은 보기만. 직접 모드 경기는 아직 상태에 반영되지 않았으므로
+ * 경기 시작·날 넘기기·포인트·전술·덱·포지션·세이브를 바꾸면 경기 결과가 달라진다
+ */
+const LOCK_ACTS = new Set([
+  'play', 'day-one', 'day-continue', 'sim-rest', 'sim-rest-ok', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
+  'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
+  'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop',
+]);
 
 function autosave(): void {
   if (ui.game) saveGame('auto', ui.game);
@@ -134,7 +156,7 @@ function go(screen: Screen): void {
 }
 
 let toastTimer = 0;
-function showToast(t: ToastProps | string, ms = 2200): void {
+function showToast(t: ToastProps | string, ms = 1600): void {
   ui.toast = typeof t === 'string' ? { kind: 'info', title: t } : t;
   render();
   clearTimeout(toastTimer);
@@ -147,7 +169,7 @@ function showToast(t: ToastProps | string, ms = 2200): void {
 /** 레전드 배지 알림 (D.4) */
 function badgeToast(g: GameState): void {
   const b = g.lastSeasonSummary?.badges ?? [];
-  if (b.length) showToast({ kind: 'badge', title: `레전드 배지 · ${BADGE_NAMES_KO[b[0]!.id]}`, body: `위상이 ${BALANCE.badges.reputation}점 올랐어요.` }, 3500);
+  if (b.length) showToast({ kind: 'badge', title: `레전드 배지 · ${BADGE_NAMES_KO[b[0]!.id]}`, body: `위상이 ${BALANCE.badges.reputation}점 올랐어요.` }, 2600);
 }
 
 function confirmModal(m: ModalState): void {
@@ -188,7 +210,12 @@ function screenHtml(): string {
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       return homeView(homeVM(g), deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '') + guideResetLink() + sheet;
     }
-    case 'deck': return deckView(deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g)));
+    case 'deck': {
+      const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
+      const cs = ui.cardSheet;
+      const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
+      return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
+    }
     case 'player': return playerView(playerVM(g));
     case 'world': return worldView(worldVM(g), ui.worldTab);
     case 'replay':
@@ -208,7 +235,7 @@ function screenHtml(): string {
       const a = ui.alloc;
       if (a) {
         const pending = a.snap.unspentPoints - g.player.unspentPoints;
-        return allocateView(allocateVM(g, a.startExact, a.coach), a.open, pending);
+        return allocateView(allocateVM(g, a.startExact, a.coach, a.snap.attributes, a.raises), a.sel, pending);
       }
       break;
     }
@@ -256,7 +283,9 @@ function guideHtml(g: GameState | null): { modal: string; tip: string } {
 
 function render(): void {
   const g = ui.game;
-  const nav = g && NAV_SCREENS.includes(ui.screen) && !(g.phase === 'retired') ? navBar(ui.screen) : '';
+  const nav = g && NAV_SHOWN.includes(ui.screen) && !(g.phase === 'retired') ? navBar(ui.screen) : '';
+  const live = liveScreen();
+  const band = g && live && live !== ui.screen ? liveBand(live) : '';
   const m = ui.modal;
   const guide = guideHtml(g);
   const modal = m
@@ -269,8 +298,8 @@ function render(): void {
     })
     : guide.modal;
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
-  app.className = `${nav ? 'has-nav ' : ''}app-${ui.screen}`;
-  app.innerHTML = `<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${modal}${toast}`;
+  app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}app-${ui.screen}`;
+  app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${modal}${toast}`;
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
   if (ui.screen === 'moment' && ui.live?.oc) ui.live.oc.pitch.attach();
@@ -280,6 +309,14 @@ function render(): void {
     ui.live?.oc?.pitch.stop();
   }
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
+}
+
+/** "경기 중 · 돌아가기" 띠 (C.39): 다른 화면 위에. 누르면 경기로 */
+function liveBand(to: Screen): string {
+  const lv = ui.live;
+  const m = lv?.run.pending ?? lv?.oc?.vm.moment;
+  const where = lv && m ? `${m.minute}' ${lv.teams[0]} ${m.score[0]} : ${m.score[1]} ${lv.teams[1]} · 결정 대기` : to === 'replay' ? '경기 재생 중' : '';
+  return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><b>경기 중</b><span class="grow">${where}</span><b class="live-back">돌아가기 ›</b></button>`;
 }
 
 function livePlayers(g: GameState) {
@@ -350,7 +387,11 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
     if (!oc || oc.pitch !== pitch) return;
     oc.vm.shown = true;
     if (ui.screen === 'moment') render();
-    oc.timer = window.setTimeout(() => liveContinue(g), OUTCOME.bandMs);
+    // 다른 화면으로 나가 있으면 넘기지 않는다 (돌아오면 다시 잰다, C.39)
+    oc.timer = window.setTimeout(() => {
+      if (ui.screen === 'moment') liveContinue(g);
+      else oc.timer = 0;
+    }, OUTCOME.bandMs);
   });
   lv.oc = { vm, pitch, next, timer: 0 };
   go('moment');
@@ -373,8 +414,8 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   autosave();
   go(ui.replay ? 'replay' : 'match');
   if (g.phase !== 'season') badgeToast(g);
-  if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 3000);
-  else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 3000);
+  if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
+  else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 2200);
 }
 
 // ── 동작 ──
@@ -386,14 +427,9 @@ function readFormInputs(): void {
   if (seed) ui.form.seed = seed.value;
 }
 
-/** 포인트 찍기 들어가기: 지금 상태를 기억한다. 처음엔 핵심 능력치가 많은 묶음을 펼친다 */
+/** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
 function enterAllocate(g: GameState, back: Screen): void {
-  const vm = allocateVM(g, 0, false);
-  const best = [...vm.groups].sort((a, b) => b.rows.filter((r) => r.key).length - a.rows.filter((r) => r.key).length)[0]!;
-  ui.alloc = {
-    snap: structuredClone(g.player), raises: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back,
-    coach: false, open: new Set([best.name]),
-  };
+  ui.alloc = { snap: structuredClone(g.player), raises: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
 }
 
 /** 기억한 상태로 되돌리고 남은 배분을 다시 적용 */
@@ -457,8 +493,8 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
         // 내 경기 (자동): 재생 없이 워커에서. 결과는 메인 스레드에서 계산한 것과 같다
         const rm = roundMatch(g);
         const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
+        // 포인트는 자동으로 찍지 않고 쌓아 둔다 (C.39, pending 39 3번)
         playRound(g, { engineOut: out });
-        autoAllocate(g.player);
       } else {
         endDay(g);
       }
@@ -479,7 +515,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
     } else {
       go('home');
       const sec = ((performance.now() - t0) / 1000).toFixed(1);
-      if (stopped) showToast({ kind: 'info', title: '진행을 멈췄어요', body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드까지 치렀어요.` }, 2600);
+      if (stopped) showToast({ kind: 'info', title: '진행을 멈췄어요', body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드까지 치렀어요.` }, 2000);
       else if (mode === 'continue') showToast({ kind: 'info', title: isMatchDay(g) ? '경기 날이에요' : '다음 일정', body: `${dateLabel(g.calendar.date)} · ${days}일 진행 (${sec}초)` }, 2200);
     }
   }
@@ -618,6 +654,11 @@ app.addEventListener('click', (ev) => {
   const act = el.dataset.act!;
   const g = ui.game;
   const v = el.dataset.v;
+  // 경기 중에는 다른 화면을 보기만 한다 (C.39)
+  if (liveScreen() && LOCK_ACTS.has(act) && ui.screen !== liveScreen()) {
+    showToast({ kind: 'info', title: '경기 중에는 볼 수만 있어요', body: '위 띠를 누르면 경기로 돌아가요.' }, 1800);
+    return;
+  }
 
   switch (act) {
     case 'intro-ok':
@@ -680,7 +721,7 @@ app.addEventListener('click', (ev) => {
         const taken = checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, g.league.round);
         autosave();
         ui.posSheet = null;
-        showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: taken ? adviceTakenText(String(v)) : g.phase === 'season' ? '다음 경기부터 새 포지션으로 뛰어요.' : '다음 시즌부터 새 포지션으로 뛰어요.' }, 3200);
+        showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: taken ? adviceTakenText(String(v)) : g.phase === 'season' ? '다음 경기부터 새 포지션으로 뛰어요.' : '다음 시즌부터 새 포지션으로 뛰어요.' }, 2400);
       }
       return;
     }
@@ -833,7 +874,7 @@ app.addEventListener('click', (ev) => {
       // 전술 "내 위치"를 조언받은 포지션군 슬롯으로 바꿔도 포변으로 본다 (pending 36 ②)
       if (g.phase === 'season' && checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, g.league.round)) {
         autosave();
-        showToast({ kind: 'info', title: '전술을 저장했어요', body: adviceTakenText(myMatchPosition(g)) }, 3200);
+        showToast({ kind: 'info', title: '전술을 저장했어요', body: adviceTakenText(myMatchPosition(g)) }, 2400);
         return;
       }
       autosave();
@@ -843,7 +884,10 @@ app.addEventListener('click', (ev) => {
     case 'go-tab': {
       if (ui.screen === 'new') readFormInputs();
       const to = (act === 'go-tab' ? v : el.dataset.to) as Screen;
-      if (to === 'deck') ui.deckSet = null;
+      if (to === 'deck') {
+        ui.deckSet = null;
+        ui.cardSheet = null;
+      }
       if (ui.screen === 'deck' && to !== 'deck' && g) g.cards.fresh = [];
       if (to === 'allocate' && g) enterAllocate(g, ui.screen === 'season' ? 'season' : g.phase === 'season' ? 'home' : 'season');
       go(to);
@@ -900,6 +944,15 @@ app.addEventListener('click', (ev) => {
     case 'sim-stop':
       requestSimStop();
       return;
+    case 'live-return': {
+      const to = liveScreen();
+      if (!g || !to) return;
+      go(to);
+      // 결과 띠를 보던 중에 나갔으면 다시 잰다
+      const oc = ui.live?.oc;
+      if (oc?.vm.shown && !oc.timer) oc.timer = window.setTimeout(() => { if (ui.screen === 'moment') liveContinue(g); else oc.timer = 0; }, OUTCOME.bandMs);
+      return;
+    }
     case 'day-one':
       if (g && g.phase === 'season' && !ui.busy) void advanceDays(g, 'one');
       return;
@@ -950,10 +1003,20 @@ app.addEventListener('click', (ev) => {
         deck.splice(k, 1);
       }
       g.cards.fresh = g.cards.fresh.filter((x) => x !== v);
+      ui.cardSheet = null;
       autosave();
       render();
       return;
     }
+    case 'card-open':
+      if (!v) return;
+      ui.cardSheet = { id: v, from: el.dataset.from === 'pool' ? 'pool' : 'deck' };
+      render();
+      return;
+    case 'card-close':
+      ui.cardSheet = null;
+      render();
+      return;
     case 'pick-take': {
       if (!g || !v) return;
       const [pi, oi] = v.split(':').map(Number);
@@ -1071,7 +1134,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'sim-rest':
       if (!g || g.phase !== 'season' || ui.busy) return;
-      confirmModal({ title: '남은 시즌을 자동으로 진행할까요?', body: '남은 경기를 모두 진행해요. 포인트는 자동으로 배분돼요.', confirm: '진행', act: 'sim-rest-ok' });
+      confirmModal({ title: '남은 시즌을 자동으로 진행할까요?', body: '남은 경기를 모두 진행해요. 능력치 포인트는 찍지 않고 쌓아 둬요.', confirm: '진행', act: 'sim-rest-ok' });
       return;
     case 'sim-rest-ok':
       ui.modal = null;
@@ -1100,11 +1163,10 @@ app.addEventListener('click', (ev) => {
       replayAlloc(g);
       render();
       return;
-    case 'alloc-open': {
+    case 'alloc-sel': {
       const a = ui.alloc;
       if (!a || !v) return;
-      if (a.open.has(v)) a.open.delete(v);
-      else a.open.add(v);
+      a.sel = a.sel === v ? null : v;
       render();
       return;
     }

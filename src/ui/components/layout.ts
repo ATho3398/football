@@ -56,6 +56,8 @@ export interface HeroPanelProps {
   progress?: boolean;
   chips?: (string | { label: string; soft?: boolean })[];
   children?: string;
+  /** 작은 머리말 (C.39 홈: 큰 숫자를 줄인다) */
+  compact?: boolean;
 }
 
 export function HeroPanel(p: HeroPanelProps): string {
@@ -70,7 +72,7 @@ export function HeroPanel(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="po-hero"><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
+  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact')}"><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}${
     val != null ? `<div class="po-hero__num"><span class="po-hero__value po-num">${esc(val)}</span>${p.total != null ? `<span class="po-hero__total po-num">/ ${p.total}</span>` : ''}</div>` : ''}${
     pct != null && p.progress !== false ? `<div class="po-hero__progress"><span class="po-hero__track"><i style="width:${pct}%"></i></span><span class="po-num">${pct}%</span></div>` : ''}${

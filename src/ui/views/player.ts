@@ -1,7 +1,8 @@
 // 선수 (I.8, 디자인 44): 경고와 출장, 위상·레벨, 능력치, 포지션별 OVR, 시즌 기록.
 // 성향 슬라이더·역할(전술 화면 링크)은 아직 없는 기능이라 숨긴다 (I.19)
 
-import { esc, FormIndicator, HeroPanel, Meter, OptionRow, SectionTitle, StatBar, TierBadge } from '../components';
+import { esc, FormIndicator, HeroPanel, Meter, OptionRow, SectionTitle, TierBadge } from '../components';
+import { attrGrid } from './attrGrid';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
 import { panel, seasonMatchesSection } from './common';
 
@@ -39,6 +40,8 @@ export function playerView(vm: PlayerVM, extra = ''): string {
   return `
     ${hero}
     <div class="body">
+      ${SectionTitle({ title: '능력치', action: `${vm.position} 핵심 = 테두리 · 변화는 이번 시즌` })}
+      ${panel(attrGrid(vm.attrs))}
       ${SectionTitle({ title: '경고와 출장' })}
       ${panel(`
         <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
@@ -52,13 +55,11 @@ export function playerView(vm: PlayerVM, extra = ''): string {
       ${extra}
       ${SectionTitle({ title: '포지션별 OVR · 숙련도', action: `주 포지션 ${vm.position}` })}
       ${panel(`<div class="pos-grid">${vm.posOvrs.map((p) => `<div class="${p.main ? 'main' : ''}"><span>${p.pos}</span><b class="po-num">${p.ovr}</b><small class="prof"><i style="width:${p.prof}%"></i></small><em class="po-num">숙련 ${p.prof}</em></div>`).join('')}</div>
-        <span class="muted small">숙련도가 100보다 낮으면 그 포지션 OVR이 (100 − 숙련도) × 0.25만큼 낮아져요. 그 포지션으로 뛰면 숙련도가 올라요.</span>`)}
+        <span class="muted small">숙련도가 100보다 낮으면 그 포지션 OVR이 낮아져요 (주 포지션에서 가까우면 최대 −6, 두 칸 −10, 더 멀면 −14). 처음 20경기는 천천히, 그 뒤로는 경기마다 올라요. 5경기 넘게 안 뛰면 조금씩 떨어지고(100을 찍었으면 10경기), 주 포지션은 떨어지지 않아요.</span>`)}
       ${SectionTitle({ title: '레전더리 조건', action: vm.isLegendary ? '달성' : '잠김' })}
       ${legend}
       ${SectionTitle({ title: '레전드 배지', action: `${vm.badges.filter((b) => b.earned).length}/${vm.badges.length}` })}
       <div class="opts">${vm.badges.map((b) => OptionRow({ icon: b.earned ? 'star' : 'lock', title: b.name, desc: b.earned ? `${b.desc} · ${b.earned}` : b.desc, right: `<b class="po-num small${b.earned ? ' hi' : ' muted'}">${b.earned ? '획득' : esc(b.progress)}</b>`, disabled: !b.earned })).join('')}</div>
-      ${SectionTitle({ title: '능력치', action: '★ 핵심 능력치' })}
-      ${vm.groups.map((g) => panel(`<h3 class="grp">${esc(g.name)}</h3>${g.rows.map((r) => StatBar({ label: `${r.key ? '★ ' : ''}${r.label}`, value: r.value, highlight: r.key })).join('')}`)).join('')}
       ${seasonMatchesSection(vm.matches)}
       ${SectionTitle({ title: '시즌별 기록' })}
       ${panel(historyTable(vm.history))}

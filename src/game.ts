@@ -25,7 +25,7 @@ import {
   createRosters, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
-import { decayFormerPosition, gainProficiency, initialProficiency, proficiencyOf, proficientOvr } from './proficiency';
+import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
 import { awardBadges } from './badges';
 import { randomName } from './prospect';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
@@ -39,7 +39,7 @@ import { slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import type { FieldPosition } from './positions';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 18;
+export const SAVE_FORMAT_VERSION = 19;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -289,6 +289,8 @@ export function newGame(opts: NewGameOptions): GameState {
     };
   }
 
+  player.profLog = initialProfLog(player.proficiency);
+  player.seasonStartAttrs = { ...player.attributes };
   return {
     saveFormat: SAVE_FORMAT_VERSION,
     balanceVersion: BALANCE_VERSION,
@@ -509,7 +511,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const input: EngineMatchInput = {
     myRoster: state.rosters[player.teamId]!, oppRoster: state.rosters[opp.id]!,
     myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
-    me: { position: pos, attributes: player.attributes, fatigue, form, proficiency: proficiencyOf(player, pos) },
+    me: { position: pos, attributes: player.attributes, fatigue, form, proficiency: engineProficiency(player, pos) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
     leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
     ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
@@ -659,7 +661,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     ...(result.minutes > 0 ? {} : { absent: injured ? 'injured' : suspended ? 'suspended' : 'bench' }),
     position: pos, rec: rec ?? null,
   });
-  if (result.minutes > 0) gainProficiency(player, result.minutes, pos);
+  afterTeamMatch(player, result.minutes, pos);
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
@@ -882,8 +884,7 @@ export function endSeason(state: GameState): SeasonSummary {
   };
   player.history.push(record);
 
-  // 7. 이전 주 포지션 숙련도 감소 (D.3), 레전드 배지 (D.4: 부여 시 위상 +BALANCE.badges.reputation)
-  decayFormerPosition(player);
+  // 7. 레전드 배지 (D.4: 부여 시 위상 +BALANCE.badges.reputation). 숙련도 감소는 경기마다 (C.39)
   // 포변 조언 (pending 31 3번): 2시즌 연속 부진 + 적성이 더 높은 포지션군 → 감독 한마디, 그다음부터 뉴스 (시즌 종료마다 한 번)
   const advice = evaluateAdvice(player, season);
   const badges = awardBadges(player, season);
@@ -930,6 +931,7 @@ export function startNextSeason(state: GameState): void {
   if (state.phase !== 'offseason') throw new Error('비시즌이 아님');
   state.league = nextSeasonLeague(state.league, state.worldSeed, seasonTeamRatings(state));
   state.player.season = emptySeasonStats();
+  state.player.seasonStartAttrs = { ...state.player.attributes };
   state.matchLog = [];
   state.player.fatigue = 0;
   healDays(state.player, BALANCE.injury.offseasonWeeks * 7);

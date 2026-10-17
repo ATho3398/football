@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 26;
+export const BALANCE_VERSION = 27;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -444,17 +444,23 @@ export const BALANCE = {
       ['ST', 'CF'], ['CF', 'CAM'], ['CF', 'LW'], ['CF', 'RW'], ['LW', 'LM'], ['RW', 'RM'], ['LM', 'CM'], ['RM', 'CM'],
       ['CAM', 'CM'], ['CM', 'CDM'], ['CDM', 'CB'], ['LB', 'LM'], ['RB', 'RM'], ['LB', 'CB'], ['RB', 'CB'],
     ] as [string, string][],
-    /** 거리별 초기 숙련도: [거리 0(주 포지션), 1, 2, 3, 4 이상] */
-    initialByDistance: [100, 70, 50, 30, 15],
+    /** 주 포지션 외 시작 숙련도 (C.39, pending 39 4번 ①: 거리 무관 0) */
+    initial: 0,
     /** 선수 데이터의 서브 포지션 */
     subPosition: 70,
-    /** 포지션 OVR 페널티 = (100 − 숙련도) × perPoint */
-    penaltyPerPoint: 0.25,
-    /** 출전 1경기(90분)당 숙련도 상승: [거리 1, 2, 3 이상] (이전 주 포지션에서의 거리) × 출전 비율 */
-    gainByDistance: [4, 2, 1],
-    /** 이전 주 포지션 숙련도: 시즌마다 감소, 최소값 */
-    formerDecay: 2,
-    formerMin: 30,
+    /** 포지션 OVR 페널티 = 거리별 최대 페널티 × (1 − 숙련도/100) (C.39 ③): [거리 1, 2, 3 이상] */
+    maxPenaltyByDistance: [6, 10, 14],
+    /** 엔진 어댑터 환산 (proficientAttrs 가 (100 − x) × 0.25 를 뺀다): 그 값이 위 페널티와 같아지게 x 를 넘긴다 */
+    enginePerPoint: 0.25,
+    /** 출전 1경기(90분)당 숙련도 상승 × 출전 비율 × 적성 배수 (C.39 ②). 적성 1.0 기준 100까지 약 59경기 */
+    gain: 2.25,
+    /** 적응기: 그 포지션 출전 adaptGames 경기까지 상승량 × adaptMult */
+    adaptGames: 20,
+    adaptMult: 0.3,
+    /** 감소 (C.39 ④): 그 포지션 연속 미출전 idleGames 경기부터 경기마다 −decay, 100을 찍은 포지션은 idleGamesPeak 경기부터. 주 포지션 없음, 하한 0 */
+    idleGames: 5,
+    idleGamesPeak: 10,
+    decay: 1,
   },
 
   // ── 포지션 적성 (pending 31·36, 부록 C.37): 숨은 재능 타입, 포지션군 숙련도 상승 배수, 시작 후보, 포변 조언 ──

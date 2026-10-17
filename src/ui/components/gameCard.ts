@@ -1,0 +1,110 @@
+// 게임 카드 (디자인 GameCard, bundle.js 옮김, 부록 C.39): full 280×392 · deck 0.6배 · mini(덱 슬롯) · hand(경기 중 패).
+// 그림(art)이 아직 없어 기본 그림(조명 아래 골문·수비벽·공 궤적)을 그린다. 클래스·치수는 bundle.css .po-card / .po-gc / .po-mc
+
+import { Icon, type IconName } from './basic';
+import { actAttrs, cx, esc, type Action } from './html';
+
+export type GameCardType = 'play' | 'setpiece' | 'passive' | 'combo' | 'manage' | 'signature' | 'order';
+export type GameCardRarity = 'common' | 'rare' | 'epic' | 'legend';
+export type GameCardPos = 'all' | 'att' | 'mid' | 'def';
+
+export interface GameCardData {
+  name: string;
+  type: GameCardType;
+  rarity: GameCardRarity;
+  level: number;
+  /** 효과 문장: 앞 · 강조 수치(희귀도 색) · 뒤 */
+  effect: { pre: string; hi?: string; post?: string };
+  condition: { text: string; met: boolean; current?: string | number };
+  pos?: GameCardPos;
+  isNew?: boolean;
+  count?: number;
+}
+
+export interface GameCardProps extends Action {
+  card: GameCardData;
+  size: 'full' | 'deck' | 'mini' | 'hand';
+  state?: 'normal' | 'selected' | 'disabled' | 'locked';
+  reason?: string;
+  className?: string;
+}
+
+const TYPE_KO: Record<GameCardType, string> = { play: '플레이', setpiece: '세트피스', passive: '패시브', combo: '콤보', manage: '관리', signature: '시그니처', order: '지시 · 이행' };
+const TYPE_ICON: Record<GameCardType, IconName> = { play: 'newchoice', setpiece: 'setpiece', passive: 'passive', combo: 'combo', manage: 'manage', signature: 'signature', order: 'order' };
+const RARITY_KO: Record<GameCardRarity, string> = { common: '일반', rare: '희귀', epic: '에픽', legend: '전설' };
+const POS_KO: Record<GameCardPos, string> = { all: '공용', att: '공격', mid: '미드', def: '수비' };
+
+const CARD_W = 280;
+const CARD_H = 392;
+const TRAJ: Record<string, string> = {
+  setpiece: 'M44 268 Q 120 70 200 150', passive: 'M44 268 Q 110 200 180 170', combo: 'M44 268 Q 90 120 170 130', manage: 'M44 268 Q 160 120 210 190',
+  order: 'M44 268 Q 100 150 150 150 Q 190 150 205 110', play: 'M44 268 Q 70 120 140 140 Q 200 160 214 108', signature: 'M44 268 Q 140 40 206 168',
+};
+const CUT = { clip: 'M0 0H280V172L0 206Z', overlay: [{ d: 'M0 211L280 177V182L0 216Z', op: 1 }, { d: 'M0 221L280 187V189L0 223Z', op: 0.5 }] };
+const SCENE = (() => {
+  let net = '';
+  let wall = '';
+  for (let x = 84; x <= 196; x += 14) net += `M${x} 124V212 `;
+  for (let y = 136; y <= 204; y += 14) net += `M72 ${y}H208 `;
+  for (const x of [112, 130, 148, 166]) wall += `M${x - 7} 224V200a7 7 0 0 1 14 0V224Z M${x - 6} 184a6 6 0 1 0 12 0a6 6 0 1 0-12 0Z `;
+  return { net, wall };
+})();
+
+/** 기본 그림: 조명 아래 골문, 수비벽, 공의 궤적 (희귀도 색) */
+function scene(type: GameCardType, thin: boolean): string {
+  return `<rect x="0" y="0" width="${CARD_W}" height="440" fill="#1a1d24"/>
+    <circle cx="150" cy="40" r="190" style="fill:var(--r)" fill-opacity="0.12"/><circle cx="150" cy="40" r="100" style="fill:var(--r)" fill-opacity="0.12"/>
+    <path d="M60 0H100L190 440H30Z" fill="#ffffff" fill-opacity="0.06"/><path d="M200 0H232L270 440H150Z" fill="#ffffff" fill-opacity="0.05"/>
+    <path d="M0 232L280 212V440H0Z" fill="#20242c"/><path d="M0 262L280 242" stroke="#ffffff" stroke-opacity="0.2" stroke-width="2"/>
+    <path d="${SCENE.net}" stroke="#ffffff" stroke-opacity="0.22" stroke-width="${thin ? 1.5 : 1}"/>
+    <path d="M70 214V120H210V206" stroke="#e9ecf1" stroke-width="${thin ? 7 : 5}" fill="none" stroke-linejoin="round"/>
+    <path d="${SCENE.wall}" fill="#0b0c0f"/>
+    <path d="${TRAJ[type] ?? TRAJ.passive}" style="stroke:var(--r)" stroke-width="${thin ? 6 : 3}" stroke-dasharray="${thin ? '12 10' : '7 6'}" fill="none" stroke-linecap="round"/>
+    <circle cx="44" cy="268" r="${thin ? 14 : 11}" fill="#f3f4f6"/>${thin ? '' : '<path d="M44 263l4.5 3.2-1.7 5.3h-5.6l-1.7-5.3z" fill="#121317"/>'}`;
+}
+
+let clipSeq = 0;
+
+function fullCard(c: GameCardData): string {
+  const id = `po-clip-${++clipSeq}`;
+  const e = c.effect;
+  const cond = c.condition;
+  return `<div class="po-gc">
+    <svg class="po-gc__art" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" aria-hidden="true">
+      <defs><clipPath id="${id}"><path d="${CUT.clip}"/></clipPath></defs>
+      <g clip-path="url(#${id})"><g transform="translate(0 -10)">${scene(c.type, false)}</g></g>
+      ${CUT.overlay.map((o) => `<path d="${o.d}" style="fill:var(--r)" opacity="${o.op}"/>`).join('')}
+    </svg>
+    <div class="po-gc__top"><span class="po-gc__rarity">${RARITY_KO[c.rarity]}</span><span class="po-gc__chip">${Icon({ name: TYPE_ICON[c.type], size: 12, strokeWidth: 2.6, style: 'color:var(--r)' })}${TYPE_KO[c.type]}</span></div>
+    ${c.pos ? `<span class="po-gc__chip po-gc__pos po-pos--${c.pos}">${c.pos === 'def' ? Icon({ name: 'defense', size: 12, strokeWidth: 2.4 }) : ''}${POS_KO[c.pos]}</span>` : ''}
+    <span class="po-gc__chip po-gc__lv">숙련 Lv ${c.level}</span>
+    ${c.isNew ? '<span class="po-gc__new">NEW</span>' : ''}
+    <div class="po-gc__body">
+      <span class="po-gc__name">${esc(c.name)}</span>
+      <div class="po-gc__effect"><span class="po-gc__label">효과</span><span class="po-gc__text">${esc(e.pre)}${e.hi ? `<b class="po-num">${esc(e.hi)}</b>` : ''}${esc(e.post ?? '')}</span></div>
+      <div class="po-gc__cond"><span><b>조건</b> ${esc(cond.text)}</span>${cond.current != null || !cond.met
+        ? `<span class="po-gc__state ${cond.met ? 'is-met' : 'is-unmet'}">${cond.met ? '✓ 충족' : '✕ 미달'}${cond.current != null ? ` · 현재 ${esc(cond.current)}` : ''}</span>` : ''}</div>
+    </div>
+  </div>`;
+}
+
+function miniCard(c: GameCardData): string {
+  return `<svg class="po-mc__art" viewBox="20 90 240 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true)}</svg>
+    <span class="po-mc__band"></span><span class="po-mc__dot"></span>
+    ${c.pos === 'def' ? `<span class="po-mc__pos po-pos--def" title="수비">${Icon({ name: 'defense', size: 10, strokeWidth: 2.6 })}</span>` : ''}
+    <span class="po-mc__name">${esc(c.name)}</span>
+    ${c.count && c.count > 1 ? `<span class="po-mc__count po-num">×${c.count}</span>` : ''}`;
+}
+
+export function GameCard(p: GameCardProps): string {
+  const c = p.card;
+  const state = p.state ?? 'normal';
+  const blocked = state === 'disabled' || state === 'locked';
+  const full = p.size === 'full' || p.size === 'deck';
+  const tag = p.act ? 'button' : 'div';
+  const label = `${c.name} (${RARITY_KO[c.rarity]} ${TYPE_KO[c.type]}${c.pos ? ` · ${POS_KO[c.pos]}` : ''})`;
+  return `<${tag}${tag === 'button' ? ' type="button"' : ''} class="${cx('po-card', `po-card--${p.size}`, `po-rarity--${c.rarity}`, `is-${state}`, p.className)}"${actAttrs(p)} aria-label="${esc(label)}"${blocked && tag === 'button' ? ' aria-disabled="true"' : ''}>${
+    full ? `<span class="po-card__scale">${fullCard(c)}</span>` : miniCard(c)}${
+    !full && c.isNew ? '<span class="po-mc__new">NEW</span>' : ''}${
+    blocked && p.reason ? `<span class="po-card__reason">${esc(p.reason)}</span>` : ''}</${tag}>`;
+}

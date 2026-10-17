@@ -124,6 +124,11 @@ export class ReplayPlayer {
     } else this.mode = 'live';
   }
 
+  /** 결정 장면 다시 보기 (경기 재생이 아님) */
+  get isClip(): boolean {
+    return this.clipEnd !== null;
+  }
+
   get ended(): boolean {
     return this.mode === 'ended';
   }
