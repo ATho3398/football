@@ -22,3 +22,6 @@
 
 ## 캡처 방법 (다음 UI 세션용)
 - `npm ci && npm run build && npx vite preview --port 4173` 뒤 Playwright(`/opt/node-tools/node_modules/playwright`, 크로뮴 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)로 실제 선수 손흥민 새 게임 → 시즌 끝까지. 5차 스크립트는 코드라 레포에 넣지 않았다(레포의 `scripts/c44-capture.mjs` 등 단계별 스크립트의 도우미 함수와 같은 방식: `go-tab`은 폰에서 숨은 독 칸이 있어 `document.querySelector(...).click()`으로 누른다, 전술은 3경기 뒤 열림).
+
+## 푸시 규칙 (마스터 L 2026-10-17 19:38·19:49 KST, `automation.md` 0번)
+- UI 세션은 **`claude/ui-1` 브랜치에만 푸시**하고 main에는 올리지 않는다(문서 푸시가 Pages 배포를 취소시킴, 808647d가 배포 #166을 취소). 코드 세션이 배포할 때 ui-1의 docs/를 병합한다.
