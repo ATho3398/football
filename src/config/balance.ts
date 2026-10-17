@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 30;
+export const BALANCE_VERSION = 31;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -367,7 +367,9 @@ export const BALANCE = {
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
   training: {
     kinds: {
-      tech: { xp: 1.0, fatigue: 3.5 },
+      // C.44: 경기 다음 날 휴식 고정 → 기본 주(경기 1개) 기술 훈련 3일 → 4일. 주 합계를 C.43 과 같게 (XP 3.5, 피로 회복 26.5, 게이지 칸 비율):
+      // xp 1.0 → 0.75, fatigue 3.5 → 4.0, gauge.full 30 → 40
+      tech: { xp: 0.75, fatigue: 4.0 },
       intense: { xp: 1.5, fatigue: 2 },
       position: { xp: 0.5, fatigue: 4 },
       setpiece: { xp: 0.5, fatigue: 4 },
@@ -387,7 +389,7 @@ export const BALANCE = {
      * 기술 훈련 게이지: 하루 +per (× 고령 감쇠), full × 그 능력치 포인트 비용(6.2)이 차면 그 묶음에서 가장 낮은 능력치 +1.
      * 묶음당 시즌 bundleSeasonMax, 전체 시즌 seasonMax. C.41 측정: 비용·감쇠 없이 30 이면 고값 능력치가 공짜로 올라 99 능력치·노화 가드가 깨진다
      */
-    gauge: { per: 1, full: 30, bundleSeasonMax: 2, seasonMax: 6 },
+    gauge: { per: 1, full: 40, bundleSeasonMax: 2, seasonMax: 6 },
     /** 고강도 훈련 부상: 하루 chance (× 난이도 부상 배율), 경상 days 일 */
     intenseInjury: { chance: 0.003, days: [3, 10] as [number, number] },
     /** 포지션·역할 훈련: 전술 "내 위치" 숙련도 + (× 적응기·적성 배수), 역할 시그니처 해금 진행 + 경기 */
@@ -407,6 +409,16 @@ export const BALANCE = {
      * 앞 경기 afterMatch 일 뒤부터 다음 경기 beforeMatch 일 전까지. 비시즌은 개막 campDays 일 전 소집으로 끝난다
      */
     vacation: { fatigue: 6, afterMatch: 2, beforeMatch: 4, campDays: 7 },
+  },
+
+  // ── 더비 (C.44 pending 52 5번): 5-2 라이벌 이벤트·큰 경기 배율 훅. 지금은 모두 1 (경기·성장 영향 없음) ──
+  derby: {
+    /** 더비 경기 위상·XP 배율 (5-2에서 정한다) */
+    reputation: 1,
+    xp: 1,
+    /** 큰 더비 추가 배율 */
+    bigReputation: 1,
+    bigXp: 1,
   },
 
   // ── 난이도 (14) ──

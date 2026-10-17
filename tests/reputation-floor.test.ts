@@ -113,7 +113,7 @@ describe('레드카드·출전 시간 부족 감점 (부록 C.27)', () => {
     expect(short.points).toBe(sum.minutesPenalty!.points);
     // 증가가 감점보다 작으면 바닥에 막힌다
     if (sum.minutesPenalty!.blocked > 0) expect(short.note).toBe('(월드클래스 티어 유지)');
-    const html = seasonView(vm);
+    const html = seasonView(vm, '', false, 'growth');
     expect(html).toContain('레드카드 감점 (퇴장 2회)');
     expect(html).toContain('출전 시간 부족 감점 (출전 0%)');
   });
@@ -159,6 +159,6 @@ describe('티어 달성 (부록 C.27)', () => {
   });
 
   it('세이브 형식은 그대로 (티어는 점수로 판정)', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(22);
+    expect(SAVE_FORMAT_VERSION).toBe(23);
   });
 });

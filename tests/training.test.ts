@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { addDays, daysBetween } from '../src/calendar';
 import {
-  calendarOf, campDate, roundMatch, dayPlan, endDay, isMatchDay, isVacationDay, myMatchDates, newGame, playOthers, playRound, SAVE_FORMAT_VERSION,
+  calendarOf, campDate, roundMatch, dayPlan, endDay, isRestLocked, isMatchDay, isVacationDay, myMatchDates, newGame, playOthers, playRound, SAVE_FORMAT_VERSION,
   setDayTraining, startNextSeason, type GameState,
 } from '../src/game';
 import { defaultPlan, gaugeNeed, initTraining, lowestInBundle, takeXp, techDay, weekStart } from '../src/training';
@@ -24,17 +24,34 @@ function toMatchDay(g: GameState): void {
 }
 
 describe('훈련 (25.3, 부록 C.41)', () => {
-  it('기본 주간 계획: 경기 다음 날 회복, 전날 영상, 이틀 뒤 휴식, 나머지 기술. 7일 주 피로 합계 26.5', () => {
-    expect(defaultPlan(1, 6)).toBe('recovery');
-    expect(defaultPlan(2, 5)).toBe('rest');
+  it('기본 주간 계획 (C.44): 경기 다음 날 휴식(고정), 전날 영상, 나머지 기술. 7일 주 체력 회복 합계 26.5, 훈련 XP 3.5 (C.43 과 같게)', () => {
+    expect(defaultPlan(1, 6)).toBe('rest');
+    expect(defaultPlan(2, 5)).toBe('tech');
     expect(defaultPlan(3, 4)).toBe('tech');
     expect(defaultPlan(6, 1)).toBe('video');
-    // 토 → 화 (3일 간격): 회복 → 영상
-    expect(defaultPlan(1, 2)).toBe('recovery');
+    // 토 → 화 (3일 간격): 휴식 → 영상. 연전(다음 날 또 경기)이어도 휴식이 먼저
+    expect(defaultPlan(1, 2)).toBe('rest');
     expect(defaultPlan(2, 1)).toBe('video');
+    expect(defaultPlan(1, 1)).toBe('rest');
     const week = [1, 2, 3, 4, 5, 6].map((d) => defaultPlan(d, 7 - d));
-    const sum = week.reduce((t, k) => t + T.kinds[k].fatigue, 0);
-    expect(sum).toBeCloseTo(26.5, 6);
+    expect(week.reduce((t, k) => t + T.kinds[k].fatigue, 0)).toBeCloseTo(26.5, 6);
+    expect(week.reduce((t, k) => t + T.kinds[k].xp, 0)).toBeCloseTo(3.5, 6);
+  });
+
+  it('경기 다음 날 휴식은 바꿀 수 없다 (C.44)', () => {
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'rest-lock', difficulty: 'normal' });
+    const first = myMatchDates(g)[0]!;
+    const after = addDays(first, 1);
+    expect(dayPlan(g, after)).toBe('rest');
+    expect(isRestLocked(g, after)).toBe(true);
+    expect(setDayTraining(g, after, 'tech')).toBe(false);
+    expect(dayPlan(g, after)).toBe('rest');
+    // 옛 세이브의 그날 변경도 무시
+    g.training.overrides[after] = 'intense';
+    expect(dayPlan(g, after)).toBe('rest');
+    // 이틀 뒤는 기술 훈련, 바꿀 수 있다
+    expect(dayPlan(g, addDays(first, 2))).toBe('tech');
+    expect(setDayTraining(g, addDays(first, 2), 'intense')).toBe(true);
   });
 
   it('새 커리어는 개막 7일 전 소집에서 시작하고, 첫 주는 기술 훈련 + 전날 영상 분석', () => {
@@ -147,7 +164,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     raw.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: 2018, untilRound: 4 };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(22);
+    expect(SAVE_FORMAT_VERSION).toBe(23);
     expect(back.training.focus).toBe('auto');
     expect(back.archive).toEqual([]);
     expect(back.player.advice).toMatchObject({ untilDays: BALANCE.aptitude.advice.windowDays });
@@ -165,7 +182,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     delete raw.archive;
     delete raw.player.profLog;
     const back = migrate(raw);
-    expect(back.saveFormat).toBe(22);
+    expect(back.saveFormat).toBe(23);
     expect(back.player.profLog).toBeDefined();
     expect(back.training).toBeDefined();
   });
@@ -187,7 +204,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     expect(ls.size).toBe(0);
     expect(listSaves()[2]?.name).toBe('old');
     const loadedOld = await loadGame('2');
-    expect(loadedOld?.saveFormat).toBe(22);
+    expect(loadedOld?.saveFormat).toBe(23);
     expect(await saveGame('1', g)).toBe(true);
     const meta = listSaves()[1]!;
     expect(meta.size).toBeLessThan(serialize(g).length / 3);

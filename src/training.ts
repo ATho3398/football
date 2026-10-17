@@ -25,13 +25,13 @@ export const TRAINING_SHORT_KO: Record<DayPlan, string> = {
   match: '경기', vacation: '휴가', rehab: '재활',
 };
 export const TRAINING_DESC_KO: Record<TrainingKind, string> = {
-  tech: '고른 묶음 게이지 +1. 다 차면 그 묶음에서 가장 낮은 능력치 +1',
+  tech: '고른 묶음 게이지 +1. 다 차면 그 묶음에서 가장 낮은 능력치가 다음 칸까지 1/5 진행',
   intense: `XP를 더 받지만 부상 확률 하루 +${(T.intenseInjury.chance * 100).toFixed(1)}%`,
   position: `전술 "내 위치" 숙련도 +${T.positionProf}, 역할 시그니처 해금 +${T.roleApps}경기`,
   setpiece: `덱에서 가장 덜 쓴 카드 숙련 +${T.cardMastery}회`,
   video: '다음 경기 상대 힌트 1줄',
-  recovery: '피로를 많이 풀고, 연속 휴식 폼 감점을 지워요',
-  rest: `피로를 가장 많이 풀어요. 부상 중이면 회복 +${T.restHealBonus}일, ${T.restStreak}일 연속이면 폼 −1`,
+  recovery: '체력을 많이 회복하고, 연속 휴식 폼 감점을 지워요',
+  rest: `체력을 가장 많이 회복해요. 경기 다음 날은 휴식 고정. 부상 중이면 회복 +${T.restHealBonus}일, ${T.restStreak}일 연속이면 폼 −1`,
 };
 
 export const BUNDLE_NAMES_KO: Record<AttributeGroup, string> = {
@@ -99,15 +99,17 @@ export function weekStart(d: IsoDate): IsoDate {
 }
 
 /**
- * 기본 주간 계획 (25.3 2번): 경기 다음 날 회복, 경기 전날 영상 분석, 경기 이틀 뒤 휴식(다음 경기가 이틀 이상 남았을 때), 나머지 기술.
+ * 기본 주간 계획 (25.3 2번, C.44 pending 52 1번): 경기 다음 날 휴식(고정, 바꿀 수 없음), 경기 전날 영상 분석, 나머지 기술.
  * prevGap = 앞 내 경기에서 지난 날, nextGap = 다음 내 경기까지 남은 날 (없으면 null)
  */
 export function defaultPlan(prevGap: number | null, nextGap: number | null): TrainingKind {
-  if (prevGap === 1) return 'recovery';
+  if (isFixedRest(prevGap)) return 'rest';
   if (nextGap === 1) return 'video';
-  if (prevGap === 2 && (nextGap === null || nextGap >= 2)) return 'rest';
   return 'tech';
 }
+
+/** 경기 다음 날 = 휴식 고정 (C.44) */
+export const isFixedRest = (prevGap: number | null): boolean => prevGap === 1;
 
 /** 하루 피로 회복량 */
 export function planFatigue(kind: DayPlan): number {
@@ -153,7 +155,7 @@ export function lowestInBundle(p: Pick<PlayerState, 'attributes' | 'position'>, 
 }
 
 /**
- * 게이지 칸 수: 30 × 그 묶음 가장 낮은 능력치를 포인트로 올릴 때 비용 (6.2, C.41). 낮은 능력치(비용 1)는 30, 고값은 비용만큼 길어진다
+ * 게이지 칸 수: gauge.full(40, C.44) × 그 묶음 가장 낮은 능력치를 포인트로 올릴 때 비용 (6.2, C.41). 낮은 능력치(비용 1)는 40, 고값은 비용만큼 길어진다
  * (포인트 비용을 건너뛰는 공짜 고값 상승을 막는다)
  */
 export function gaugeNeed(p: Pick<PlayerState, 'attributes' | 'position'>, g: AttributeGroup): number {

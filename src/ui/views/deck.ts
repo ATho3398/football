@@ -1,6 +1,7 @@
 // 덱 편집 화면 (F.6, I.17 9번, C.36): 덱 세트 3개, 덱 슬롯(8~14장), 카드 풀, 요건 미달 회색, 희귀도 색, 시그니처 해금 진행, 카드 선택권(획득).
 // C.39: 디자인 GameCard 로 그린다. 덱·가진 카드는 mini 4열 그리드, 누르면 카드 상세(full) 시트에서 빼기/넣기, 획득 3택1은 deck 크기
 
+import { attrTextToDisplay } from '../../attributes';
 import { BALANCE } from '../../config/balance';
 import { CARDS, cardById, type CardDef } from '../../config/cards';
 import { canAdd, deckProblems, signatureProgress, unusableReason } from '../../cardCollection';
@@ -82,7 +83,7 @@ export function gameCardData(def: CardDef, o: { uses?: number; met?: boolean; is
     name: def.name, type: GC_TYPE[def.kind], rarity: GC_RARITY[def.rarity], pos: GC_POS[def.group],
     level: 1 + BALANCE.cards.mastery.filter(([at]) => uses >= at).length,
     effect: m ? { pre: text.slice(0, m.index), hi: m[0], post: text.slice(m.index + m[0].length) } : { pre: text },
-    condition: { text: def.condition, met: o.met ?? true },
+    condition: { text: attrTextToDisplay(def.condition), met: o.met ?? true },
     ...(o.isNew ? { isNew: true } : {}), ...(o.count ? { count: o.count } : {}),
   };
 }
@@ -94,7 +95,7 @@ function cardVM(g: GameState, def: CardDef, deck: string[], role: string | undef
   const fresh = col.fresh.includes(def.id);
   const mastery = col.mastery[def.id] ?? 0;
   return {
-    id: def.id, name: def.name, rarity: def.rarity, kind: KIND_KO[def.kind], role: ROLE_KO[cardRole(def)], text: cardText(def), condition: def.condition,
+    id: def.id, name: def.name, rarity: def.rarity, kind: KIND_KO[def.kind], role: ROLE_KO[cardRole(def)], text: cardText(def), condition: attrTextToDisplay(def.condition),
     inDeck, owned: col.owned[def.id] ?? 0, problem, addBlock: canAdd(col, deck, def.id), fresh, mastery,
     card: gameCardData(def, { uses: mastery, met: problem === null, isNew: fresh, count: inDeck }),
   };

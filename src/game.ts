@@ -38,7 +38,7 @@ import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 import { previewLineup, slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import {
-  defaultPlan, initTraining, newTrainingSeason, planFatigue, planXp, takeXp, techBundle, techDay, BUNDLE_NAMES_KO, TRAINING_NAMES_KO,
+  defaultPlan, isFixedRest, initTraining, newTrainingSeason, planFatigue, planXp, takeXp, techBundle, techDay, BUNDLE_NAMES_KO, TRAINING_NAMES_KO,
   type DayPlan, type TrainingDayResult, type TrainingKind, type TrainingState,
 } from './training';
 import { trainProficiency } from './proficiency';
@@ -50,7 +50,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 22;
+export const SAVE_FORMAT_VERSION = 23;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -548,13 +548,22 @@ export function dayPlan(state: GameState, date: IsoDate = state.calendar.date): 
   const o = state.training?.overrides[date];
   if (injuredOn(state, date)) return o === 'rest' ? 'rest' : 'rehab';
   if (myMatchDates(state).includes(date)) return 'match';
+  if (isRestLocked(state, date)) return 'rest';
   return o ?? plannedDefault(state, date);
 }
 
-/** 그날 훈련을 바꾼다 (그날만). 기본 계획과 같으면 변경을 지운다. 휴가·경기 날은 못 바꾼다 */
+/** 경기 다음 날 휴식 고정 (C.44 pending 52 1번): 부상 중이 아니면 바꿀 수 없다 */
+export function isRestLocked(state: GameState, date: IsoDate): boolean {
+  if (injuredOn(state, date)) return false;
+  const { prev } = matchGaps(state, date);
+  return isFixedRest(prev ? daysBetween(prev, date) : null);
+}
+
+/** 그날 훈련을 바꾼다 (그날만). 기본 계획과 같으면 변경을 지운다. 휴가·경기 날·경기 다음 날(휴식 고정)은 못 바꾼다 */
 export function setDayTraining(state: GameState, date: IsoDate, kind: TrainingKind): boolean {
   const cur = dayPlan(state, date);
   if (cur === 'vacation' || cur === 'match' || daysBetween(state.calendar.date, date) < 0) return false;
+  if (isRestLocked(state, date)) return false;
   if ((cur === 'rehab' || cur === 'rest') && injuredOn(state, date)) {
     if (kind !== 'rest' && kind !== 'recovery') return false;
     if (kind === 'rest') state.training.overrides[date] = 'rest';
@@ -709,8 +718,8 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
 export function trainingLine(r: TrainingDayResult): string {
   const parts = [TRAINING_NAMES_KO[r.kind] + (r.bundle ? `(${BUNDLE_NAMES_KO[r.bundle]})` : '')];
   if (r.xp > 0) parts.push(`XP +${r.xp.toFixed(1)}`);
-  if (r.fatigue > 0) parts.push(`피로 −${r.fatigue.toFixed(1)}`);
-  if (r.up) parts.push(`${ATTRIBUTE_NAMES_KO[r.up]} +1`);
+  if (r.fatigue > 0) parts.push(`체력 +${r.fatigue.toFixed(1)}`);
+  if (r.up) parts.push(`${ATTRIBUTE_NAMES_KO[r.up].replace(/\(.*\)$/, '')} 진행 +1/5칸`);
   if (r.injured) parts.push('훈련 중 부상');
   if (r.note) parts.push(r.note);
   return parts.join(' · ');
@@ -1289,6 +1298,7 @@ export function startNextSeason(state: GameState): void {
   delete state.nextRatings;
   if (state.market) state.market.request = null;
   state.player.season = emptySeasonStats();
+  state.player.season.startLevel = state.player.level;
   state.player.seasonStartAttrs = { ...state.player.attributes };
   state.matchLog = [];
   // 비시즌 휴가 (25.3 5번): 피로 하루 −6 이라 소집 때는 0. 개막 7일 전 소집부터 훈련 계획과 첫 경기 준비

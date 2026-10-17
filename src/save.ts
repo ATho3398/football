@@ -220,8 +220,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.market = initialMarket(s);
     if (s.phase !== 'season') s.market.contract = { ...s.market.contract, from: s.league.season + 1, until: s.market.contract.until + 1 };
   },
-  // 21 → 22 (부록 C.44a): 이름 고치기(별명·짧은 이름) 없음에서 시작. 실제 선수 한글 이름을 한국 통용 표기로 (반 다이크 등, 표시만)
-  21: (s) => {
+  // C.44: 시즌 시작 레벨 (시즌 종료 화면 레벨 변화). 옛 세이브는 모르므로 비워 둔다 (화면은 지금 레벨만)
+  21: () => {},
+  // 22 → 23 (부록 C.44a): 이름 고치기(별명·짧은 이름) 없음에서 시작. 실제 선수 한글 이름을 한국 통용 표기로 (반 다이크 등, 표시만)
+  22: (s) => {
     s.nameOverrides = {};
     const ko = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.nameKo]));
     for (const n of s.npcs ?? []) if (ko.has(n.id)) n.nameKo = ko.get(n.id);

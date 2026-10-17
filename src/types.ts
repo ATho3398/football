@@ -107,6 +107,8 @@ export interface SeasonStats {
   /** 경기 기록 합계와 기록이 있는 출전 수 (부록 C.30). 엔진 경기만 더한다. C.30 이전 시즌에는 없다 */
   rec?: MatchRecord;
   recApps?: number;
+  /** 시즌 시작 레벨 (C.44 시즌 종료 화면). C.44 이전 시즌에는 없다 */
+  startLevel?: number;
 }
 
 /** 시즌 종료 시 저장되는 기록 */

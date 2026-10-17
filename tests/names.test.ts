@@ -65,13 +65,13 @@ describe('짧은 이름 (C.44a)', () => {
   });
 });
 
-describe('세이브 21 → 22 (C.44a)', () => {
+describe('세이브 22 → 23 (C.44a)', () => {
   it('nameOverrides 빈 값, NPC 한글 이름은 지금 표기로', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig21', difficulty: 'normal' });
     const raw = JSON.parse(serialize(g));
     delete raw.nameOverrides;
     for (const n of raw.npcs) if (n.id === 'van-dijk') n.nameKo = '버질 판데이크';
-    raw.saveFormat = 21;
+    raw.saveFormat = 22;
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(back.nameOverrides).toEqual({});

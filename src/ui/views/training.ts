@@ -4,12 +4,13 @@
 import { BottomSheet, Button, OptionRow, SectionTitle, Tabs, esc } from '../components';
 import type { TrainingOptionVM, TrainingVM } from '../viewModels';
 import { panel } from './common';
+import { BALANCE } from '../../config/balance';
 
-const num = (n: number) => (Math.round(n * 10) / 10).toString();
+const num = (n: number) => (Math.round(n * 100) / 100).toString();
 
 function dayCell(d: TrainingVM['week'][number]): string {
   const cls = `ag-cell tr-cell tr-${d.kind}${d.today ? ' is-today' : ''}${d.changed ? ' is-changed' : ''}${d.locked ? '' : ' is-edit'}`;
-  const body = `<span class="ag-name">${esc(d.wd)} ${esc(d.md)}</span><b class="tr-k">${esc(d.short)}</b>${d.changed ? '<span class="ag-d up">변경</span>' : d.today ? '<span class="ag-d">오늘</span>' : ''}`;
+  const body = `<span class="ag-name">${esc(d.wd)} ${esc(d.md)}</span><b class="tr-k">${esc(d.short)}</b>${d.changed ? '<span class="ag-d up">변경</span>' : d.fixed ? '<span class="ag-d">고정</span>' : d.today ? '<span class="ag-d">오늘</span>' : ''}`;
   return d.locked
     ? `<div class="${cls}">${body}</div>`
     : `<div class="${cls}" role="button" tabindex="0" data-act="train-day" data-v="${esc(d.date)}" aria-label="${esc(d.wd)} ${esc(d.md)} ${esc(d.short)} 바꾸기">${body}</div>`;
@@ -21,14 +22,15 @@ export function trainingSection(vm: TrainingVM): string {
   if (vm.vacation) {
     return `${SectionTitle({ title: '휴가', action: `${vm.vacation.days}일` })}
       ${panel(`<div class="tr-today tr-vacation"><b>리그 휴장 · 휴가 중</b>
-        <p class="small">훈련 선택 없이 쉬어요. XP 없음 · 피로 하루 −${num(t.fatigue)} · 폼 저하 없음.</p>
+        <p class="small">훈련 선택 없이 쉬어요. XP 없음 · 체력 하루 +${num(t.fatigue)} · 폼 저하 없음.</p>
         <p class="small muted">${esc(vm.vacation.until)}부터 훈련을 다시 해요. [계속]을 누르면 휴가 끝까지 한 번에 넘어가요.</p></div>
         ${vm.last ? `<p class="small muted">${esc(vm.last)}</p>` : ''}`)}`;
   }
   const head = `<div class="tr-today">
       <div class="kv"><b>${esc(t.name)}${t.bundle ? ` · ${esc(t.bundle)}` : ''}</b>${t.changed ? '<span class="cal-tag">오늘만 변경</span>' : ''}</div>
       <p class="small">${esc(t.desc)}</p>
-      <p class="small muted po-num">${t.kind === 'match' ? '' : `XP +${num(t.xp)} · 피로 −${num(t.fatigue)} · `}이번 주 훈련 XP ${num(vm.weekXp)}/${vm.cap}</p>
+      <p class="small muted po-num">${t.kind === 'match' ? '' : `XP +${num(t.xp)} · 체력 +${num(t.fatigue)} · `}이번 주 훈련 XP ${num(vm.weekXp)}/${vm.cap}</p>
+      ${t.fixed ? '<p class="small muted">경기 다음 날은 휴식으로 고정돼요 (바꿀 수 없어요).</p>' : ''}
       ${t.locked ? '' : Button({ variant: 'secondary', size: 'sm', act: 'train-day', data: { v: t.date }, children: '오늘 훈련 바꾸기' })}
     </div>`;
   const notes = [
@@ -40,7 +42,7 @@ export function trainingSection(vm: TrainingVM): string {
     ${panel(`${head}
       <h4 class="ag-head">주간 계획 · 칸을 누르면 그날만 바꿔요</h4>
       <div class="ag-grid tr-week">${vm.week.map(dayCell).join('')}</div>
-      <p class="small muted">기본 계획: 경기 다음 날 회복, 이틀 뒤 휴식, 전날 영상 분석, 나머지 기술 훈련. [계속]은 계획대로 진행해요.</p>
+      <p class="small muted">기본 계획: 경기 다음 날 휴식(고정), 경기 전날 영상 분석, 나머지 기술 훈련. [계속]은 계획대로 진행해요.</p>
       ${notes.length ? `<ul class="tr-notes small">${notes.join('')}</ul>` : ''}
       ${vm.last ? `<p class="small muted">어제 · ${esc(vm.last)}</p>` : ''}`)}
     ${gaugeSection(vm)}`;
@@ -58,7 +60,7 @@ export function gaugeSection(vm: TrainingVM): string {
   const items = [{ id: 'auto', label: '자동' }, ...vm.gauges.map((g) => ({ id: g.id, label: g.name }))];
   return `${SectionTitle({ title: '기술 훈련 게이지', action: `시즌 +${vm.seasonUps}/${vm.seasonMax}` })}
     ${panel(`<div class="ag-grid tr-gauges">${cells}</div>
-      <p class="small muted">기술 훈련 하루에 고른 묶음 +1. 다 차면 그 묶음에서 가장 낮은 능력치 +1 (칸 수 = 30 × 그 능력치의 포인트 비용, 묶음당 시즌 +2, 전체 +6). 30세부터는 천천히 차요.</p>
+      <p class="small muted">기술 훈련 하루에 고른 묶음 +1. 다 차면 그 묶음에서 가장 낮은 능력치가 내부 +1(1~20 표시로 1/5칸) 올라요 (게이지 칸 수 = ${BALANCE.training.gauge.full} × 그 능력치의 포인트 비용, 묶음당 시즌 +2, 전체 +6). 30세부터는 천천히 차요.</p>
       <div class="tr-focus">${Tabs({ items, value: vm.focus, act: 'train-focus', label: '기술 훈련 묶음' })}</div>`)}`;
 }
 
@@ -70,7 +72,7 @@ export function trainingSheet(vm: { date: string; injured: boolean; options: Tra
     onClose: { act: 'sheet-close' },
     children: vm.options.map((o) => OptionRow({
       act: 'train-set', data: { v: o.kind, date: dateIso }, radio: true, selected: o.selected, title: o.name,
-      desc: `${o.desc} · XP +${num(o.xp)} · 피로 −${num(o.fatigue)}`, ...(o.planned ? { tag: '기본' } : {}),
+      desc: `${o.desc} · XP +${num(o.xp)} · 체력 +${num(o.fatigue)}`, ...(o.planned ? { tag: '기본' } : {}),
     })).join(''),
   });
 }
