@@ -3931,7 +3931,7 @@ center (델타 합): GK 1.06 → 0.96, CB 1.33 → 1.26, FB 1.11 → 1.01, CDM 2
 
 **세이브**: 31 그대로 — 화면만 추가(세이브 구조 변경 없음). 이식·막기 모두 필요 없음.
 
-**밸런스**: 수치 변경 없음(BALANCE_VERSION 37 그대로). `npm run balance` 회귀 가드 BALRES. `npm run balance:engine:check` 경량 가드 모두 통과, 엔진 무수정(`src/engine` 변경 0, 지문 `f96341ae43d430b1` 유지).
+**밸런스**: 수치 변경 없음(BALANCE_VERSION 37 그대로). `npm run balance` 회귀 가드 **15/15 통과**(30세 최적 일반 75·레전더리 86, 무작위 일반 70 — C.52와 같음). `npm run balance:engine:check` 경량 가드 모두 통과, 엔진 무수정(`src/engine` 변경 0, 지문 `f96341ae43d430b1` 유지).
 
 **검증**
 - typecheck, 테스트 **443개(49파일)** — 새 `tests/c53.test.ts` 5개(팀 상세 값·탭 4, 내 팀의 내 선수 줄, 선수 상세 탭 5·GK 4칸·편집 버튼 없음·없는 선수/리그 밖 팀 null, 연결 act, VM이 상태를 바꾸지 않음). 전체 실행에서 `cards.test.ts` "경기 계산 2초 이하"가 2,128 ms로 1번 넘었는데(balance·엔진 점검을 동시에 돌린 탓) 단독 재실행 16/16 통과 — 엔진 무수정.
