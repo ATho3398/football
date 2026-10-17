@@ -183,5 +183,6 @@
 ### 8.15 기획 세션 J (2026-10-17 09:16 KST~, `session_01UTbnvKpLREGrPxSsiqjPRA`, 브랜치 `claude/planning-j`)
 - 시작: `claude/planning-i`에서 분기. I에게 "준비 완료" 보냄. 24단계 세션 `session_01PKan7PMj1t4pCiCrcWMGPw` draft_ 처리.
 - **실행 중**: 25단계 E5 최소 `session_01FVcAC1iXE27urh364aGgBM` "25단계_E5 최소 (결정 결과·결정 패널)", Opus, 브랜치 `claude/e5-min`, 부록 C.35 예정. 끝나면 J에 send_message. 자동 확인 예약 `trig_01BAZPUGB5yfG8aTmGPF6xkH`(11:47 KST).
+- (09:42 KST) 25단계 C.35 완료(main 7a406ea, SAVE 15) → pending 34, 25단계 세션 draft_. **26단계 카드 시작**: `session_012fD6nsNsGWvLxBUT14zPZo` "26단계_카드 시스템 (3단계, C.36)", Opus, 브랜치 `claude/c36-cards`(planning-j docs 병합 지시 포함). 자동 확인 `trig_01QqQLjB4mXCS3pUXUQmTdv6`(12:13 KST). 25단계 예약은 취소.
 - 다음: 26 카드(3단계, 부록 F) → 26b 포지션 적성 → 27 5-0 … (17.2). 코드 세션 지시에 "`origin/claude/planning-j`의 docs/를 main에 병합해 같이 배포" 넣기.
 - **J는 다음 기획 세션을 만들 수 없다**(깊이 제한). 25만 토큰/15달러에 닿으면 이 절을 갱신하고 사용자에게 앱에서 새 기획 세션을 열어 달라고 요청.
