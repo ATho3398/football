@@ -196,3 +196,4 @@
 - 흐름(J가 해 온 방식): 코드 세션 보고 → `git fetch origin main` 후 planning 브랜치에 병합(**17.2 표 충돌이 자주 남, `grep '^<<<<<<<' docs/*.md` 확인 후 main 쪽 행 채택**) → pending 다음 번호에 결과·남은 질문 추천안 기록 → 17.2 다음 행 "진행 중" → 다음 코드 세션 create_session(Opus, outcome_branch, 제목 "N단계_작업명 (C.xx)", 지시 형식은 C.36~C.38 세션 첫 지시 참고: 필독·할 일·회귀 가드·브랜치·배포(planning 브랜치 docs/ 병합해 main에 같이)·PATCH_LABEL·부록 C·기획 세션에 send_message 보고) → 끝난 세션 draft_ → 이전 자동 확인 delete → send_later 150분 → 사용자에게 짧게 보고(시간 줄).
 - 다음 순서: 27a C.38 → **27b 훈련·휴가·세이브(C.39, pending 38)** → 28 5-4 이적·계약 → 29 5-1 감독 신뢰·면담 → 30 5-2 이벤트·인박스(포변 조언·코치 평 문구 옮김) → 31~35 → 엔진 다듬기 블록(미해결 엔진 1~5번 + pending 35 ②③, 34 ②).
 - **깊이 제한**: K가 사용자가 앱에서 직접 연 세션이면 깊이가 리셋돼 자식 세션을 열 수 있다. `get_session`의 `lineage`로 확인.
+- (12:01 KST) 사용자가 앱에서 K(`session_018A2g7hWwHEp9YyCRdvfETg`)를 직접 열었고 K가 넘겨받음. **교체 기준 25만 → 50만 토큰**(사용자 확정, automation.md 1번 5항). J는 여기서 종료.
