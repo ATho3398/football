@@ -2,7 +2,8 @@
 // 팀당 24명. 실제 A등급 선수는 소속팀 슬롯을 차지하고 나머지는 가상 선수로 채운다.
 // 로스터는 월드 시드로 재생성한다. 세이브에는 시즌 갱신 횟수만 담고 불러올 때 다시 만든다 (save.ts).
 
-import { NAME_POOLS } from '../data/names';
+import { A_GRADE_PLAYERS } from '../data/players';
+import { FAMOUS_FULL_NAMES, NAME_POOLS, NAME_POOLS_V1, type NamePool } from '../data/names';
 import { realAppearance, rollAppearance, type Appearance } from './appearance';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
 import { BALANCE } from './config/balance';
@@ -217,17 +218,56 @@ export function capVirtualAttributes(p: RosterPlayer, teamMax?: AttrCap): void {
 
 // ── 이름, 나이, 숨김 값 ──
 
+/**
+ * 이름 풀 판 (부록 C.45 8번). 1 = 옛 풀(세이브에 namePool 이 없는 옛 게임), 2 = 늘린 풀(새 게임).
+ * 로스터를 만들거나 다시 만들기 전에 game.ts(newGame)·save.ts(migrate) 가 그 게임의 판으로 맞춘다
+ */
+export type NamePoolVersion = 1 | 2;
+let namePoolVersion: NamePoolVersion = 2;
+
+export function setNamePoolVersion(v: number | undefined): void {
+  namePoolVersion = v === 1 ? 1 : 2;
+}
+
+export function getNamePoolVersion(): NamePoolVersion {
+  return namePoolVersion;
+}
+
+/** 비교용 이름 키: 악센트·대소문자 무시 */
+export function nameKey(name: string): string {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** 2판에서 피하는 실제 선수 풀네임 (게임 데이터 실제 선수 + 유명 선수 표) */
+const BANNED_NAMES = new Set([...A_GRADE_PLAYERS.map((p) => p.name), ...FAMOUS_FULL_NAMES].map(nameKey));
+
+/**
+ * 풀에서 고른 이름 (판별). 2판은 실제 유명 선수와 풀네임이 같으면 같은 풀의 다음 성으로 넘긴다 (rng 를 더 쓰지 않는다)
+ * 1판은 옛 결과 그대로
+ */
+export function nameFromPool(pool: NamePool, gi: number, fi: number, v: NamePoolVersion): { name: string; nameKo: string } {
+  const [g, gKo] = pool.given[gi]!;
+  let k = fi;
+  if (v === 2) {
+    for (let n = 0; n < pool.family.length && BANNED_NAMES.has(nameKey(`${g} ${pool.family[k]![0]}`)); n++) k = (k + 1) % pool.family.length;
+  }
+  const [f, fKo] = pool.family[k]!;
+  return { name: `${g} ${f}`, nameKo: `${gKo} ${fKo}` };
+}
+
+/** rng 를 정확히 3번 쓴다 (풀 판과 무관 → 이름 말고 다른 생성 결과는 판이 달라도 같다) */
 function pickName(rng: Rng): { name: string; nameKo: string; nationality: string } {
-  const total = NAME_POOLS.reduce((t, p) => t + p.weight, 0);
+  const pools = namePoolVersion === 1 ? NAME_POOLS_V1 : NAME_POOLS;
+  const total = pools.reduce((t, p) => t + p.weight, 0);
   let r = rng() * total;
-  let pool = NAME_POOLS[0]!;
-  for (const p of NAME_POOLS) {
+  let pool = pools[0]!;
+  for (const p of pools) {
     if (r < p.weight) { pool = p; break; }
     r -= p.weight;
   }
-  const [g, gKo] = pool.given[Math.floor(rng() * pool.given.length)]!;
-  const [f, fKo] = pool.family[Math.floor(rng() * pool.family.length)]!;
-  return { name: `${g} ${f}`, nameKo: `${gKo} ${fKo}`, nationality: pool.nationality };
+  const gi = Math.floor(rng() * pool.given.length);
+  const fi = Math.floor(rng() * pool.family.length);
+  return { ...nameFromPool(pool, gi, fi, namePoolVersion), nationality: pool.nationality };
 }
 
 function rollLoyalty(rng: Rng): number {
