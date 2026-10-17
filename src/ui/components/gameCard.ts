@@ -1,5 +1,6 @@
 // 게임 카드 (디자인 GameCard, bundle.js 옮김, 부록 C.39): full 280×392 · deck 0.6배 · mini(덱 슬롯) · hand(경기 중 패).
-// 그림(art)이 아직 없어 기본 그림(조명 아래 골문·수비벽·공 궤적)을 그린다. 클래스·치수는 bundle.css .po-card / .po-gc / .po-mc
+// 그림(art, C.48)이 있으면 그림 칸(280×210, 사선 아래는 글자 패널)에 이미지를, 없거나 못 읽으면 기본 그림(조명 아래 골문·수비벽·공 궤적)을 그린다.
+// 이미지는 기본 그림 위에 얹어 404 면 지워도 기본 그림이 보인다 (main 의 error 리스너). 클래스·치수는 bundle.css .po-card / .po-gc / .po-mc
 
 import { Icon, type IconName } from './basic';
 import { actAttrs, cx, esc, type Action } from './html';
@@ -19,6 +20,10 @@ export interface GameCardData {
   pos?: GameCardPos;
   isNew?: boolean;
   count?: number;
+  /** 카드 그림 URL (C.48, cardArtUrl) */
+  art?: string;
+  /** 그림 위치·확대 (디자인 artPos): x 오른쪽 %, y 위로 % (그림 칸 기준), zoom 1~4 */
+  artPos?: { x: number; y: number; zoom: number };
 }
 
 export interface GameCardProps extends Action {
@@ -65,6 +70,16 @@ function scene(type: GameCardType, thin: boolean): string {
 
 let clipSeq = 0;
 
+/** 그림 이미지 (lazy). 위치·확대는 그림 칸 크기 기준 이동 + 확대 */
+export function artStyle(pos: string, p?: GameCardData['artPos']): string {
+  const tf = p && (p.x || p.y || p.zoom !== 1) ? `;transform:translate(${p.x}%,${-p.y}%) scale(${p.zoom})` : '';
+  return `object-position:${pos}${tf}`;
+}
+
+function artImg(c: GameCardData, pos: string): string {
+  return `<img class="po-art" src="${esc(c.art!)}" alt="" loading="lazy" decoding="async" style="${artStyle(pos, c.artPos)}">`;
+}
+
 function fullCard(c: GameCardData): string {
   const id = `po-clip-${++clipSeq}`;
   const e = c.effect;
@@ -74,7 +89,7 @@ function fullCard(c: GameCardData): string {
       <defs><clipPath id="${id}"><path d="${CUT.clip}"/></clipPath></defs>
       <g clip-path="url(#${id})"><g transform="translate(0 -10)">${scene(c.type, false)}</g></g>
       ${CUT.overlay.map((o) => `<path d="${o.d}" style="fill:var(--r)" opacity="${o.op}"/>`).join('')}
-    </svg>
+    </svg>${c.art ? `<span class="po-gc__photo">${artImg(c, '50% 30%')}</span>` : ''}
     <div class="po-gc__top"><span class="po-gc__rarity">${RARITY_KO[c.rarity]}</span><span class="po-gc__chip">${Icon({ name: TYPE_ICON[c.type], size: 12, strokeWidth: 2.6, style: 'color:var(--r)' })}${TYPE_KO[c.type]}</span></div>
     ${c.pos ? `<span class="po-gc__chip po-gc__pos po-pos--${c.pos}">${c.pos === 'def' ? Icon({ name: 'defense', size: 12, strokeWidth: 2.4 }) : ''}${POS_KO[c.pos]}</span>` : ''}
     <span class="po-gc__chip po-gc__lv">숙련 Lv ${c.level}</span>
@@ -89,7 +104,8 @@ function fullCard(c: GameCardData): string {
 }
 
 function miniCard(c: GameCardData): string {
-  return `<svg class="po-mc__art" viewBox="20 90 240 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true)}</svg>
+  return `<svg class="po-mc__art" viewBox="20 90 240 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true)}</svg>${
+    c.art ? `<span class="po-mc__photo">${artImg(c, '50% 35%')}</span>` : ''}
     <span class="po-mc__band"></span><span class="po-mc__dot"></span>
     ${c.pos === 'def' ? `<span class="po-mc__pos po-pos--def" title="수비">${Icon({ name: 'defense', size: 10, strokeWidth: 2.6 })}</span>` : ''}
     <span class="po-mc__name">${esc(c.name)}</span>

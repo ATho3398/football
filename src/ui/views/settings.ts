@@ -21,6 +21,8 @@ import { PIXEL_KITS } from '../../../data/pixelPack';
 import { ALL_KITS, allPeople, kitFor, personKey, tableKit, validPerson } from '../../pixel';
 import { pixelLayerUrls } from '../faces';
 import { homeKitOf, peopleTable, pixelIconHtml, playerAutoPerson, playerPerson } from '../pixelIcons';
+import { CARD_ART_UI_DEFAULT, cardArtOverlay, cardArtSection, type CardArtUI } from './cardArtSettings';
+import { userArtCount } from '../cardArt';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
 export interface NameUI { q: string; team: string; sel: string | null }
@@ -305,6 +307,7 @@ export function cropStyle(c: { zoom: number; x: number; y: number; slot: FaceSlo
 export function settingsView(
   g: GameState | null, fo: FaceOnUI, version: VersionVM, nm: NameUI = { q: '', team: '', sel: null },
   px: PixelUI = { tab: 'players', q: '', team: '', sel: null, kitSel: null },
+  ca: CardArtUI = CARD_ART_UI_DEFAULT, locked = false,
 ): string {
   const hero = HeroPanel({
     title: '설정', back: { act: 'go', data: { to: g ? 'home' : 'title' } }, eyebrow: '게임 설정 · 페이스온', pad: false, progress: false, value: '설정',
@@ -344,8 +347,8 @@ export function settingsView(
     <label class="field fo-search">${'<span aria-hidden="true">🔍</span>'}<input type="search" id="fo-q" value="${esc(fo.q)}" placeholder="${fo.tab === 'players' ? '선수 이름 (한글·영문)' : '구단 이름'}" autocomplete="off"></label>
     <div class="real-list fo-list">${list.map((e) => row(e, fo.sel)).join('') || '<p class="small muted">찾는 이름이 없어요.</p>'}</div>
     ${SectionTitle({ title: '페이스팩 (zip)', action: '이름 → 이미지' })}
-    ${panel(`<p class="small">내가 올린 이미지를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
-      <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`)}
+    ${panel(`<p class="small">내가 올린 이미지(카드 이미지 포함, <b>cards/</b> 폴더)를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
+      <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0 && userArtCount() === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`)}
     <input type="file" id="fo-file" accept="image/*" hidden>
     <input type="file" id="fp-file" accept=".zip,application/zip" hidden>`;
   return `${hero}<div class="body">
@@ -355,6 +358,7 @@ export function settingsView(
     ${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기 인물·유니폼' })}${pixelSection(g, px)}
     ${SectionTitle({ title: '저장과 안내' })}${saves}
     ${SectionTitle({ title: '페이스온', action: '얼굴·엠블럼 바꾸기' })}${faceon}
+    ${SectionTitle({ title: '카드 이미지', action: '카드 그림 바꾸기' })}${cardArtSection(ca, locked)}
     ${versionFooter(version)}
-  </div>${fo.crop ? cropSheet(fo.crop) : ''}`;
+  </div>${fo.crop ? cropSheet(fo.crop) : ''}${cardArtOverlay(ca)}`;
 }

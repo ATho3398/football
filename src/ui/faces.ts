@@ -398,6 +398,9 @@ export async function exportFacepack(): Promise<Blob> {
     }
   }
   entries.push({ name: 'facepack.json', data: new TextEncoder().encode(JSON.stringify({ version: 1, entries: index }, null, 1)) });
+  // 카드 이미지 (C.48): cards/<카드 id>.webp + cardart.json
+  const { cardArtZipEntries } = await import('./cardArt');
+  entries.push(...(await cardArtZipEntries()));
   return new Blob([writeZip(entries) as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
 }
 
@@ -405,9 +408,13 @@ export async function exportFacepack(): Promise<Blob> {
  * 가져오기: facepack.json 이 있으면 그 키 그대로, 없으면 파일 이름으로 찾는다.
  * players/<선수 이름 또는 id>[@young|prime|veteran].png, clubs/<구단 이름 또는 id>.png (폴더가 없으면 선수 → 구단 순으로 찾는다)
  */
-export async function importFacepack(file: Blob, nameOf: (key: string) => string | undefined): Promise<{ added: number; skipped: string[] }> {
+export async function importFacepack(file: Blob, nameOf: (key: string) => string | undefined, cardKnown: (id: string) => boolean = () => false): Promise<{ added: number; skipped: string[]; cards: number }> {
   const { readZip } = await import('./zip');
-  const files = await readZip(new Uint8Array(await file.arrayBuffer()));
+  const all = await readZip(new Uint8Array(await file.arrayBuffer()));
+  // 카드 이미지 (C.48)는 따로 넣는다
+  const { importCardArtEntries } = await import('./cardArt');
+  const cardRes = await importCardArtEntries(all, cardKnown);
+  const files = all.filter((f) => !f.name.startsWith('cards/') && f.name !== 'cardart.json');
   const byName = new Map(files.map((f) => [f.name, f]));
   const meta = byName.get('facepack.json');
   const jobs: { key: string; name: string; slot: FaceSlot; data: Uint8Array; file: string }[] = [];
@@ -472,5 +479,5 @@ export async function importFacepack(file: Blob, nameOf: (key: string) => string
       URL.revokeObjectURL(url);
     }
   }
-  return { added, skipped };
+  return { added, skipped: [...skipped, ...cardRes.skipped], cards: cardRes.added };
 }

@@ -34,7 +34,7 @@ import { autoAllocate, raiseAttribute, raiseDisplayStep } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
 import {
-  copyReplays, deleteSave, exportFileName, exportSave, importSave, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, saveGame,
+  copyReplays, deleteSave, exportFileName, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, saveGame,
   saveReplays, unpackReplayBytes, type SaveSlot, type StoredReplay,
 } from '../save';
 import type { Replay } from '../replay';
@@ -64,6 +64,9 @@ import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, lookupEntry, myPixelCard, nameEditor, settingsView, type FaceOnUI, type NameUI, type PixelUI } from './views/settings';
+import { CARD_ART_UI_DEFAULT, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
+import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
+import { artStyle } from './components/gameCard';
 import { emptyOverrides, setKitOverride, setPersonOverride } from '../pixel';
 import { pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
@@ -126,6 +129,10 @@ const ui = {
   },
   /** 설정 화면 페이스온 (C.43) */
   fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
+  /** 설정 화면 카드 이미지 (C.48) */
+  ca: { ...CARD_ART_UI_DEFAULT } as CardArtUI,
+  /** 세이브 내보내기 "카드 이미지 포함" (C.48, 기본 끔) */
+  exportCards: false,
   /** 경기 화면 보기 시트 (C.43) */
   pvSheet: false,
   /** 자동 진행 범위 시트 (C.44): 열림, 고른 경기 수 */
@@ -197,6 +204,7 @@ const LOCK_ACTS = new Set([
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
+  'ca-upload', 'ca-adjust', 'ca-clear', 'ca-crop-save',
 ]);
 
 /**
@@ -295,8 +303,8 @@ function screenHtml(): string {
     case 'new':
       syncProspectPick();
       return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined);
-    case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
-    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px);
+    case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
+    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen());
     default: break;
   }
   if (!g) return titleScreen();
@@ -1480,6 +1488,79 @@ app.addEventListener('click', (ev) => {
     case 'facepack-import':
       (document.getElementById('fp-file') as HTMLInputElement | null)?.click();
       return;
+    // ── 카드 이미지 (C.48) ──
+    case 'ca-pick':
+      ui.ca.sel = el.dataset.key ?? null;
+      render();
+      document.querySelector('.ca-editor')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    case 'ca-kind':
+      ui.ca.kind = (v ?? 'all') as CardKindFilter;
+      render();
+      return;
+    case 'ca-none':
+      ui.ca.none = !ui.ca.none;
+      render();
+      return;
+    case 'ca-upload': {
+      const input = document.getElementById('ca-file') as HTMLInputElement | null;
+      if (!input || !el.dataset.key) return;
+      input.dataset.key = el.dataset.key;
+      input.click();
+      return;
+    }
+    case 'ca-adjust': {
+      const id = el.dataset.key;
+      if (!id) return;
+      void userArtBlob(id).then((blob) => {
+        if (!blob) return;
+        const pos = cardArtPos(id) ?? { x: 0, y: 0, zoom: 1 };
+        ui.ca.crop = { id, name: cardById(id)?.name ?? id, src: URL.createObjectURL(blob), fresh: false, ...pos };
+        render();
+      });
+      return;
+    }
+    case 'ca-clear': {
+      const id = el.dataset.key;
+      if (!id) return;
+      void clearCardArt(id).then(() => {
+        render();
+        showToast('기본 그림으로 돌렸어요');
+      });
+      return;
+    }
+    case 'ca-crop-cancel':
+      if (ui.ca.crop) URL.revokeObjectURL(ui.ca.crop.src);
+      ui.ca.crop = null;
+      render();
+      return;
+    case 'ca-crop-save': {
+      const c = ui.ca.crop;
+      if (!c) return;
+      const pos = { x: c.x, y: c.y, zoom: c.zoom };
+      void (async () => {
+        try {
+          if (c.fresh) {
+            const blob = await normalizeArt(await loadImage(c.src));
+            await setCardArt(c.id, blob, pos);
+            showToast({ kind: 'info', title: '카드 그림을 바꿨어요', body: `${c.name} · ${(blob.size / 1024).toFixed(0)} KB` });
+          } else {
+            await setCardArtPos(c.id, pos);
+            showToast('위치를 맞췄어요');
+          }
+          URL.revokeObjectURL(c.src);
+          ui.ca.crop = null;
+          render();
+        } catch (e) {
+          showToast((e as Error).message || '저장하지 못했어요');
+        }
+      })();
+      return;
+    }
+    case 'ex-cards':
+      ui.exportCards = !ui.exportCards;
+      render();
+      return;
     case 'pv-open':
       ui.pvSheet = true;
       render();
@@ -1905,11 +1986,13 @@ app.addEventListener('click', (ev) => {
     case 'export':
       if (!g) return;
       void (async () => {
-        const bytes = await exportSave(g);
-        const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/gzip' }));
+        // 카드 이미지 포함 (C.48): 켜면 zip(세이브 + cards/)
+        const out = await exportSaveFile(g, ui.exportCards);
+        const bytes = out.bytes;
+        const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: out.zip ? 'application/zip' : 'application/gzip' }));
         const a = document.createElement('a');
         a.href = url;
-        a.download = exportFileName(g);
+        a.download = out.zip ? exportFileName(g).replace(/\.gz$/, '.zip') : exportFileName(g);
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -1972,7 +2055,7 @@ app.addEventListener('change', (ev) => {
   input.value = '';
   void (async () => {
     try {
-      const st = await importSave(new Uint8Array(await file.arrayBuffer()));
+      const { state: st, cards } = await importSaveFile(new Uint8Array(await file.arrayBuffer()), (id) => !!cardById(id));
       refreshUnlocks(st);
       ui.game = st;
       ui.replay = null;
@@ -1981,7 +2064,7 @@ app.addEventListener('change', (ev) => {
       syncReplayIndex();
       await autosave();
       go(st.phase === 'retired' ? 'retired' : 'home');
-      showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.` }, 2600);
+      showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.${cards ? ` 카드 이미지 ${cards}장.` : ''}` }, 2600);
     } catch (e) {
       showToast((e as Error).message || '가져오지 못했어요');
     }
@@ -2018,6 +2101,32 @@ app.addEventListener('input', (ev) => {
         q.setSelectionRange(q.value.length, q.value.length);
       }
     }, 200);
+    return;
+  }
+  if (t.id === 'ca-q') {
+    ui.ca.q = t.value;
+    clearTimeout(foTimer);
+    foTimer = window.setTimeout(() => {
+      render();
+      const q = document.getElementById('ca-q') as HTMLInputElement | null;
+      if (q) {
+        q.focus();
+        q.setSelectionRange(q.value.length, q.value.length);
+      }
+    }, 200);
+    return;
+  }
+  // 카드 이미지 위치·확대 (C.48): 다시 그리지 않고 미리보기 그림만 옮긴다
+  const cc = ui.ca.crop;
+  if (cc && ['ca-zoom', 'ca-x', 'ca-y'].includes(t.id)) {
+    const n = Number(t.value);
+    if (t.id === 'ca-zoom') cc.zoom = n / 100;
+    else if (t.id === 'ca-x') cc.x = n;
+    else cc.y = n;
+    document.querySelectorAll<HTMLImageElement>('#ca-prev .po-art').forEach((img) => {
+      const full = !!img.closest('.po-gc__photo');
+      img.setAttribute('style', artStyle(full ? '50% 30%' : '50% 35%', cc));
+    });
     return;
   }
   if (t.id === 'fo-q') {
@@ -2062,14 +2171,29 @@ app.addEventListener('change', (ev) => {
     });
     return;
   }
+  if (input.id === 'ca-file' && input.files?.[0]) {
+    const file = input.files[0];
+    const id = input.dataset.key;
+    input.value = '';
+    if (!id) return;
+    const src = URL.createObjectURL(file);
+    void loadImage(src).then(() => {
+      ui.ca.crop = { id, name: cardById(id)?.name ?? id, src, fresh: true, x: 0, y: 0, zoom: 1 };
+      render();
+    }, () => {
+      URL.revokeObjectURL(src);
+      showToast('이미지를 읽지 못했어요');
+    });
+    return;
+  }
   if (input.id === 'fp-file' && input.files?.[0]) {
     const file = input.files[0];
     input.value = '';
     const g = ui.game;
     if (g) setPlayerNames(Object.values(g.rosters ?? {}).flatMap((r) => r.players.map((p) => ({ id: p.id, name: p.name, nameKo: p.nameKo }))));
-    void importFacepack(file, (key) => lookupEntry(ui.game, key)?.name).then((r) => {
+    void importFacepack(file, (key) => lookupEntry(ui.game, key)?.name, (id) => !!cardById(id)).then((r) => {
       render();
-      showToast({ kind: 'info', title: `페이스팩 가져오기 · ${r.added}장`, body: r.skipped.length ? `못 찾은 파일 ${r.skipped.length}개: ${r.skipped.slice(0, 3).join(', ')}` : '모두 넣었어요.' }, 3200);
+      showToast({ kind: 'info', title: `페이스팩 가져오기 · ${r.added}장${r.cards ? ` · 카드 ${r.cards}장` : ''}`, body: r.skipped.length ? `못 찾은 파일 ${r.skipped.length}개: ${r.skipped.slice(0, 3).join(', ')}` : '모두 넣었어요.' }, 3200);
     }, (e) => showToast((e as Error).message || '가져오지 못했어요'));
   }
 });
@@ -2114,4 +2238,10 @@ setPitchPixelResolver((m, teams) => {
 
 render();
 void initFaces().then(render, () => render());
+void initCardArt().then(render, () => render());
+// 카드 그림 (C.48): 못 읽은 그림(404 등)은 지워 기본 장면이 보이게
+app.addEventListener('error', (ev) => {
+  const t = ev.target;
+  if (t instanceof HTMLImageElement && t.classList.contains('po-art')) t.remove();
+}, true);
 void initSaves().then(render, () => render());

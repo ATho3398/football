@@ -11,6 +11,7 @@ import { previewLineup } from '../../myTactics';
 import { ROLE_NAMES_KO } from '../../engine/roles';
 import { BottomSheet, Button, GameCard, HeroPanel, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
+import { cardArtPos, cardArtUrl } from '../cardArt';
 
 const ROLE_KO = { play: '4번째 선택지', boost: '이번 턴 확률', passive: '남은 경기 장착', combo: '다음 장면', soften: '이번 턴', redraw: '패 바꾸기' } as const;
 const KIND_KO = { play: '플레이', setPiece: '세트피스', passive: '패시브', combo: '콤보', manage: '관리', signature: '시그니처', directive: '지시' } as const;
@@ -45,7 +46,7 @@ export interface DeckVM {
   deck: DeckCardVM[];
   pool: DeckCardVM[];
   unusable: number;
-  signature: { name: string; role: string; apps: number; need: number; unlocked: boolean } | null;
+  signature: { id: string; name: string; role: string; apps: number; need: number; unlocked: boolean } | null;
   picks: { idx: number; label: string; options: DeckCardVM[] }[];
   position: string;
 }
@@ -85,7 +86,15 @@ export function gameCardData(def: CardDef, o: { uses?: number; met?: boolean; is
     effect: m ? { pre: text.slice(0, m.index), hi: m[0], post: text.slice(m.index + m[0].length) } : { pre: text },
     condition: { text: attrTextToDisplay(def.condition), met: o.met ?? true },
     ...(o.isNew ? { isNew: true } : {}), ...(o.count ? { count: o.count } : {}),
+    ...cardArtOf(def.id),
   };
+}
+
+/** 카드 그림 (C.48): cardArtUrl 한 함수로 정하고, 사용자 그림이면 위치·확대 */
+export function cardArtOf(id: string): Pick<GameCardData, 'art' | 'artPos'> {
+  const art = cardArtUrl(id);
+  const pos = cardArtPos(id);
+  return art ? { art, ...(pos ? { artPos: pos } : {}) } : {};
 }
 
 function cardVM(g: GameState, def: CardDef, deck: string[], role: string | undefined): DeckCardVM {
@@ -114,7 +123,7 @@ export function deckVM(g: GameState, set: number, role: string | undefined): Dec
     deck: uniq.map((id) => cardVM(g, cardById(id)!, deck, role)),
     pool: ownedIds.filter((c) => (col.owned[c.id] ?? 0) > deck.filter((x) => x === c.id).length).map((c) => cardVM(g, c, deck, role)),
     unusable: deckUnusable(g, role, set),
-    signature: sig && role ? { name: cardById(sig.id)!.name, role: ROLE_NAMES_KO[role] ?? role, apps: sig.apps, need: sig.need, unlocked: sig.unlocked } : null,
+    signature: sig && role ? { id: sig.id, name: cardById(sig.id)!.name, role: ROLE_NAMES_KO[role] ?? role, apps: sig.apps, need: sig.need, unlocked: sig.unlocked } : null,
     picks: col.picks.map((p, idx) => ({ idx, label: p.label, options: p.options.map((id) => cardVM(g, cardById(id)!, deck, role)) })),
     position: posOfSlot(g),
   };
@@ -168,7 +177,7 @@ export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null): string {
     ? `<div class="gc-grid">${vm.pool.map((c) => miniTile(c, 'pool')).join('')}</div>`
     : '<p class="small muted">레벨 5마다, 시즌이 끝날 때 카드를 고를 수 있어요.</p>')}`;
   const s = vm.signature;
-  const sigCard: GameCardData = { name: s?.name ?? '', type: 'signature', rarity: 'rare', level: 1, effect: { pre: '' }, condition: { text: '', met: false } };
+  const sigCard: GameCardData = { name: s?.name ?? '', type: 'signature', rarity: 'rare', level: 1, effect: { pre: '' }, condition: { text: '', met: false }, ...(s ? cardArtOf(s.id) : {}) };
   const sig = s ? `${SectionTitle({ title: '역할 시그니처', action: s.role })}${panel(s.unlocked
     ? `<p class="line"><b>${esc(s.name)}</b> 해금됨 · 가진 카드에서 덱에 넣어요. 이 역할일 때만 써요.</p>`
     : `<div class="gc-sig"><div class="gc-sig__card">${GameCard({ card: sigCard, size: 'mini', state: 'locked', reason: '잠김' })}</div>

@@ -780,3 +780,25 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .px-cell small { font-size: 10px; }
 .px-row .px-icon { margin-right: 2px; }
 .px-row .po-chip { flex: none; }
+
+/* 카드 그림 (C.48): 그림 칸 280×210 을 사선(172→206)에서 자른다. 기본 장면 위에 얹어 404 면 지워도 기본 장면이 보인다 */
+.po-gc__photo { position: absolute; left: 0; top: 0; width: 280px; height: 210px; overflow: hidden; clip-path: polygon(0 0, 100% 0, 100% 172px, 0 206px); pointer-events: none; }
+.po-mc__photo { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.po-gc__photo .po-art, .po-mc__photo .po-art { display: block; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 50%; }
+/* 설정 → 카드 이미지 (C.48) */
+.ca-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.ca-chip { border: 0; cursor: pointer; font-family: var(--font-sans); }
+.ca-chip.is-on { background: var(--brand); color: var(--on-brand); }
+.ca-thumb { position: relative; flex: none; width: 56px; height: 42px; overflow: hidden; border-radius: 8px; background: #1a1d24; box-shadow: inset 0 0 0 2px var(--r, var(--line)); display: grid; place-items: center; }
+.ca-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.ca-thumb i { font-style: normal; font-size: 9px; color: #8b909a; }
+.ca-edit { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.ca-edit__card { flex: none; }
+.ca-edit__side { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ca-edit__btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.ca-crop__stage { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 14px; padding: 4px 0 12px; }
+.ca-crop__mini { width: 96px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ca-crop__mini { --slot-h: 116px; }
+.ca-crop__mini .po-card--mini { width: 96px; }
+.ex-cards { width: 100%; border: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+@media (max-width: 420px) { .ca-edit__card .po-card--full { zoom: .82; } .ca-crop .po-card--full { zoom: .78; } }

@@ -301,7 +301,7 @@ export function retiredView(vm: RetiredVM): string {
 
 // ── 세이브 (43) ──
 
-export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM): string {
+export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM, exportCards = false): string {
   const a = vm.auto;
   const hero = HeroPanel({
     title: '저장', back: { act: 'go', data: { to: canSave ? 'home' : 'title' } },
@@ -323,7 +323,8 @@ export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM):
     ${SectionTitle({ title: '파일', action: '압축 JSON' })}
     <div class="slot"><span class="slot__n">${Icon({ name: 'upload', size: 18 })}</span><span class="grow"><b>내보내기 · 가져오기</b><small>다른 기기·브라우저로 옮기거나 백업해요. 가져오면 자동 저장 슬롯에 들어가요.</small></span><span class="slot__btns">${
       canSave ? Button({ variant: 'secondary', size: 'sm', act: 'export', children: '내보내기' }) : ''}${Button({ variant: 'secondary', size: 'sm', act: 'import', children: '가져오기' })}</span></div>
-    <input type="file" id="import-file" accept=".gz,.json,application/gzip,application/json" hidden>
+    ${canSave ? `<button type="button" class="slot ex-cards" data-act="ex-cards" role="switch" aria-checked="${exportCards}"><span class="slot__n">${Icon({ name: exportCards ? 'check' : 'plus', size: 18 })}</span><span class="grow"><b>카드 이미지 포함 · ${exportCards ? '켬' : '끔'}</b><small>켜면 내가 올린 카드 그림을 세이브와 함께 zip 하나로 내보내요. 가져오기는 zip·세이브 파일 모두 돼요.</small></span><span class="po-chip${exportCards ? ' po-chip--brand' : ''}">${exportCards ? '켬' : '끔'}</span></button>` : ''}
+    <input type="file" id="import-file" accept=".gz,.json,.zip,application/gzip,application/json,application/zip" hidden>
     <p class="small muted">저장은 이 브라우저(IndexedDB, 압축)에 남아요. 지난 시즌은 경기 요약·하이라이트·결정 기록과 다른 경기 스코어·득점자, 선수 시즌 합계만 남기고, 경기 재생 화면은 내 최근 5경기만 남아요.</p>
     ${versionFooter(version)}
   </div>`;
