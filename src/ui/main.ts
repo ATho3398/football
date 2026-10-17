@@ -58,7 +58,7 @@ import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, lookupEntry, settingsView, type FaceOnUI } from './views/settings';
-import { clearFaceOn, faceSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
+import { clearFaceOn, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
@@ -1675,16 +1675,17 @@ app.addEventListener('change', (ev) => {
 
 // 경기 화면 얼굴 보기 (C.43): 리플레이 선수 id = 로스터 id. 로스터가 바뀌면 색인을 다시 만든다
 let faceIndex: { of: unknown; map: Map<string, FaceRef> } | null = null;
-setPitchFaceResolver((id, isMe) => {
+setPitchFaceResolver((id, isMe, kind) => {
   const g = ui.game;
   if (!g) return undefined;
-  if (isMe) return faceSrc(myFace(g));
+  const pick = kind === 'pixel' ? pixelSrc : faceSrc;
+  if (isMe) return pick(myFace(g));
   if (faceIndex?.of !== g.rosters) {
     const map = new Map<string, FaceRef>();
     for (const r of Object.values(g.rosters ?? {})) for (const p of r.players) map.set(p.id, { id: p.id, age: p.age, appearance: p.appearance });
     faceIndex = { of: g.rosters, map };
   }
-  return faceSrc(faceIndex.map.get(id) ?? { id });
+  return pick(faceIndex.map.get(id) ?? { id });
 });
 
 render();

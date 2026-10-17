@@ -1,6 +1,6 @@
 // 얼굴·엠블럼·설정·페이스온 확인 캡처 (부록 C.43): 실제 선수(손흥민)로 새 게임 → 홈(사진·로고) → 선수 화면 → 순위표(엠블럼)·리그 스타·득점 순위
 // → 경기 결과 → 설정(페이스온: 업로드·자르기·나이대 칸) → 가상 유망주 새 게임 홈(기본 아바타) → 가상 선수 페이스온.
-// 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c43-capture.mjs [playwright 모듈 경로] [저장 폴더] [올릴 이미지]
+// 실행: npm run build && npx vite preview --port 4173 & 그다음 [PIXEL=도트.png] node scripts/c43-capture.mjs [playwright 모듈 경로] [저장 폴더] [올릴 이미지]
 // PC: W=1280 PREFIX=pc_ node scripts/c43-capture.mjs ...
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -35,6 +35,13 @@ async function dismiss() {
 const act = async (a, extra = '') => { await dismiss(); await page.locator(`[data-act="${a}"]${extra}`).first().click(); await page.waitForTimeout(250); };
 const scrollTo = async (sel) => { await page.locator(sel).first().evaluate((el) => el.scrollIntoView({ block: 'start' })); await page.waitForTimeout(150); };
 const report = { errors, broken };
+// 캐릭터 보기 확인용: 도트 얼굴 매니페스트·이미지를 이 실행에서만 바꿔 넣는다 (레포에는 이미지가 아직 없다). PIXEL=도트 PNG 경로
+if (process.env.PIXEL) {
+  const { readFileSync } = await import('node:fs');
+  const png = readFileSync(process.env.PIXEL);
+  await page.route('**/faces/pixel/manifest.json', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ version: 1, players: {}, appearance: { white: ['t.png'], black: ['t.png'], irish: ['t.png'], latinMideast: ['t.png'], eastAsian: ['t.png'] } }) }));
+  await page.route('**/faces/pixel/t.png', (r) => r.fulfill({ contentType: 'image/png', body: png }));
+}
 
 await page.goto(process.env.URL ?? 'http://localhost:4173/');
 await page.evaluate(() => { localStorage.clear(); return new Promise((r) => { const q = indexedDB.deleteDatabase('football-career'); q.onsuccess = q.onerror = q.onblocked = () => r(null); }); });
@@ -70,15 +77,16 @@ await act('play');
 await page.waitForTimeout(2500);
 // 경기 화면 보기 (얼굴 / 등번호 / 캐릭터)
 await dismiss();
-await shot('4a_경기화면-캐릭터');
+await shot('4a_경기화면-등번호');
 await act('pv-open');
 await shot('4b_보기-시트');
 await act('pv-set', '[data-v="face"]');
 await shot('4c_경기화면-얼굴', false, 900);
 await page.locator('#rp-canvas').screenshot({ path: `${OUT}/${P}4c2_피치-얼굴-확대.png` });
 await act('pv-open');
-await act('pv-set', '[data-v="number"]');
-await shot('4d_경기화면-등번호', false, 600);
+await act('pv-set', '[data-v="character"]');
+await shot('4d_경기화면-캐릭터', false, 900);
+await page.locator('#rp-canvas').screenshot({ path: `${OUT}/${P}4d2_피치-캐릭터-확대.png` });
 await act('pv-open');
 await act('pv-set', '[data-v="face"]');
 if (await has('[data-act="rp-skip"]')) { await act('rp-skip'); await act('rp-skip-ok'); }

@@ -158,8 +158,8 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
       <div class="kv"><span>난이도</span><b>${{ easy: '쉬움', normal: '보통', hard: '어려움' }[g.difficulty] ?? g.difficulty}</b></div>
       <p class="small muted">난이도는 새 게임에서 정해요.</p>`)
     : panel('<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>');
-  const pv = panel(`<div class="kv"><span>경기 화면 선수 표시</span></div>${Tabs({ items: (['face', 'number', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
-    <p class="small muted">얼굴 = 미니페이스 + 팀 색 밑줄 · 등번호 = 유니폼 번호 · 캐릭터 = 번호 원(기본). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>`);
+  const pv = panel(`<div class="kv"><span>경기 화면 선수 표시</span></div>${Tabs({ items: (['number', 'face', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
+    <p class="small muted">등번호 = 번호 원(기본) · 얼굴 = 미니페이스 + 팀 색 밑줄 · 캐릭터 = 도트 얼굴(없으면 등번호). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>`);
   const saves = panel(`<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`);
 
@@ -169,7 +169,7 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
   const sel = fo.sel ? lookupEntry(g, fo.sel) : null;
   const faceon = `
     ${panel(`<p class="small">선수나 구단을 골라 이미지를 올리면 게임 곳곳(홈 카드·선수 화면·경기 결과·순위표·이적 소식)에 그 이미지가 나와요. 언제든 바꾸거나 되돌릴 수 있고, 이미지는 이 브라우저에만 저장돼요.</p>
-      <p class="small muted">우선순위: 내가 올린 이미지 > 위키백과 사진·로고(선수 ${st.photos}명, 구단 ${st.clubs}개) > 기본 얼굴(${st.base}개) > 기본 아바타·자동 엠블럼 · 내 페이스온 ${st.faceOn}건</p>`)}
+      <p class="small muted">우선순위: 내가 올린 이미지 > 위키백과 사진·로고(선수 ${st.photos}명, 구단 ${st.clubs}개) > 기본 얼굴(${st.base}개) > 기본 아바타·자동 엠블럼 · 도트 얼굴(캐릭터 보기) ${st.pixel}개 · 내 페이스온 ${st.faceOn}건</p>`)}
     ${sel ? editor(g, sel) : ''}
     ${tabs}
     <label class="field fo-search">${'<span aria-hidden="true">🔍</span>'}<input type="search" id="fo-q" value="${esc(fo.q)}" placeholder="${fo.tab === 'players' ? '선수 이름 (한글·영문)' : '구단 이름'}" autocomplete="off"></label>

@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "note": "도트(픽셀아트) 선수 얼굴 — 경기 화면 '캐릭터' 보기 (부록 C.43). players: 선수 id → 파일, appearance: 외모군 → 파일 목록. 없는 선수는 등번호로 보인다",
+  "players": {},
+  "appearance": {}
+}

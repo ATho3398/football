@@ -37,10 +37,13 @@ export interface FaceOnRecord { name: string; slots: Partial<Record<FaceSlot, Bl
 
 const FACEPACK_DIR = 'facepack/';
 const BASE_DIR = 'faces/base/';
+const PIXEL_DIR = 'faces/pixel/';
 
 const state = {
   photos: { players: {} as Record<string, string>, clubs: {} as Record<string, string> },
   base: [] as BaseEntry[],
+  /** 도트 얼굴 (캐릭터 보기): 선수 id → 파일, 외모군 → 파일 목록 */
+  pixel: { players: {} as Record<string, string>, appearance: {} as Partial<Record<Appearance, string[]>> },
   /** 키 → 칸 → object URL */
   faceOn: new Map<string, { name: string; urls: Partial<Record<FaceSlot, string>> }>(),
   ready: false,
@@ -95,6 +98,14 @@ export function faceSrc(ref: FaceRef): string | undefined {
   return undefined;
 }
 
+/** 도트 얼굴 (캐릭터 보기): 선수 지정 > 외모군 중 선수 id 시드로 1장. 없으면 undefined (등번호로 대체) */
+export function pixelSrc(ref: FaceRef): string | undefined {
+  const own = state.pixel.players[ref.id];
+  if (own) return own;
+  const list = ref.appearance ? state.pixel.appearance[ref.appearance] : undefined;
+  return list?.length ? list[hashSeed(`pixel:${ref.id}`) % list.length] : undefined;
+}
+
 /** 페이스온 > 레포 로고 */
 export function crestSrc(teamId: string): string | undefined {
   return state.faceOn.get(`t:${teamId}`)?.urls.crest ?? state.photos.clubs[teamId];
@@ -122,8 +133,9 @@ export function faceOnKeys(): { key: string; name: string; slots: FaceSlot[] }[]
   return [...state.faceOn.entries()].map(([key, v]) => ({ key, name: v.name, slots: Object.keys(v.urls) as FaceSlot[] }));
 }
 
-export function faceStats(): { photos: number; clubs: number; base: number; faceOn: number } {
-  return { photos: Object.keys(state.photos.players).length, clubs: Object.keys(state.photos.clubs).length, base: state.base.length, faceOn: state.faceOn.size };
+export function faceStats(): { photos: number; clubs: number; base: number; pixel: number; faceOn: number } {
+  const pixel = Object.keys(state.pixel.players).length + Object.values(state.pixel.appearance).reduce((t, l) => t + (l?.length ?? 0), 0);
+  return { photos: Object.keys(state.photos.players).length, clubs: Object.keys(state.photos.clubs).length, base: state.base.length, pixel, faceOn: state.faceOn.size };
 }
 
 // ── 자동 엠블럼 (구단 로고가 없을 때): 모양 + 팀 색 2개 + 이니셜, 이름 시드 고정 ──
@@ -197,10 +209,13 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 }
 
 export async function initFaces(): Promise<void> {
-  const [pm, bm] = await Promise.all([
+  const [pm, bm, xm] = await Promise.all([
     fetchJson<PhotoManifest>(`${FACEPACK_DIR}manifest.json`),
     fetchJson<{ faces?: BaseEntry[] }>(`${BASE_DIR}manifest.json`),
+    fetchJson<{ players?: Record<string, string>; appearance?: Partial<Record<Appearance, string[]>> }>(`${PIXEL_DIR}manifest.json`),
   ]);
+  for (const [id, f] of Object.entries(xm?.players ?? {})) if (typeof f === 'string') state.pixel.players[id] = PIXEL_DIR + f;
+  for (const [a, fs] of Object.entries(xm?.appearance ?? {})) if (Array.isArray(fs)) state.pixel.appearance[a as Appearance] = fs.filter((f) => typeof f === 'string').map((f) => PIXEL_DIR + f);
   for (const [id, e] of Object.entries(pm?.players ?? {})) state.photos.players[id] = FACEPACK_DIR + e.file;
   for (const [id, e] of Object.entries(pm?.clubs ?? {})) state.photos.clubs[id] = FACEPACK_DIR + e.file;
   state.base = (bm?.faces ?? []).filter((f) => f && typeof f.file === 'string' && typeof f.appearance === 'string');

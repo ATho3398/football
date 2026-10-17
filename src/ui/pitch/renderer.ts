@@ -253,18 +253,18 @@ export function fitCanvas(canvas: HTMLCanvasElement): { ctx: CanvasRenderingCont
   return { ctx, w, h };
 }
 
-// ── 경기 화면 보기 (부록 C.43): 얼굴(미니페이스) / 등번호 / 캐릭터(기존 숫자 원). 고른 값은 이 기기에 남긴다 ──
+// ── 경기 화면 보기 (부록 C.43): 얼굴(미니페이스) / 등번호(기존 숫자 원, 기본) / 캐릭터(도트 얼굴). 고른 값은 이 기기에 남긴다 ──
 
 export type PitchView = 'face' | 'number' | 'character';
 export const PITCH_VIEW_KO: Readonly<Record<PitchView, string>> = { face: '얼굴', number: '등번호', character: '캐릭터' };
-const VIEW_KEY = 'po-pitch-view';
+const VIEW_KEY = 'po-pitch-view2';
 
 let view: PitchView = (() => {
   try {
     const v = globalThis.localStorage?.getItem(VIEW_KEY);
-    return v === 'face' || v === 'number' || v === 'character' ? v : 'character';
+    return v === 'face' || v === 'number' || v === 'character' ? v : 'number';
   } catch {
-    return 'character';
+    return 'number';
   }
 })();
 
@@ -281,9 +281,10 @@ export function setPitchView(v: PitchView): void {
   }
 }
 
-/** 선수 id → 얼굴 이미지 주소 (화면이 정한다). 없으면 기본 아바타 */
-let faceUrl: (id: string, isMe: boolean) => string | undefined = () => undefined;
-export function setPitchFaceResolver(f: (id: string, isMe: boolean) => string | undefined): void {
+/** 선수 id → 이미지 주소 (화면이 정한다). kind 'face' = 미니페이스(없으면 기본 아바타), 'pixel' = 도트 얼굴(없으면 등번호) */
+export type FaceKind = 'face' | 'pixel';
+let faceUrl: (id: string, isMe: boolean, kind: FaceKind) => string | undefined = () => undefined;
+export function setPitchFaceResolver(f: (id: string, isMe: boolean, kind: FaceKind) => string | undefined): void {
   faceUrl = f;
 }
 
@@ -304,6 +305,15 @@ function imageFor(url: string): HTMLImageElement | null {
 const FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><path d="M22 160c4-30 26-44 58-44s54 14 58 44z" fill="#6b7280"/><rect x="68" y="92" width="24" height="26" rx="8" fill="#d9a77f"/><ellipse cx="80" cy="70" rx="28" ry="32" fill="#e8b98f"/><path d="M51 66c-2-24 12-38 30-38 17 0 31 11 29 34-6-9-16-14-28-14-12 0-23 6-31 18z" fill="#1d1a19"/><ellipse cx="70" cy="74" rx="3" ry="4" fill="#1d1a19"/><ellipse cx="90" cy="74" rx="3" ry="4" fill="#1d1a19"/></svg>`;
 const FALLBACK_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(FALLBACK_SVG)}`;
 
+/** 정사각형 칸(한 변 s, 왼쪽 위 l·t)에 비율 그대로: 짧은 쪽은 비우고(투명) 아래쪽 맞춤 — 미니페이스 규칙과 같다 */
+function drawSquare(ctx: CanvasRenderingContext2D, img: HTMLImageElement, l: number, t: number, s: number, snap = false): void {
+  const k = s / Math.max(img.naturalWidth, img.naturalHeight);
+  const w = img.naturalWidth * k;
+  const h = img.naturalHeight * k;
+  const r = (v: number) => (snap ? Math.round(v) : v);
+  ctx.drawImage(img, r(l + (s - w) / 2), r(t + s - h), r(w), r(h));
+}
+
 function meRings(ctx: CanvasRenderingContext2D, m: MarkerInput, x: number, y: number, rr: number, pulse: number): void {
   if (!m.isMe) return;
   const carrier = m.state === 'carrier';
@@ -320,9 +330,9 @@ export const faceRenderer: MarkerRenderer = {
     const rr = m.isMe ? r * ME_SCALE : r;
     const s = rr * 2.7;
     meRings(ctx, m, x, y, rr * 1.15, pulse);
-    const url = (m.id && faceUrl(m.id, m.isMe)) || undefined;
+    const url = (m.id && faceUrl(m.id, m.isMe, 'face')) || undefined;
     const img = (url && imageFor(url)) || imageFor(FALLBACK_URL);
-    if (img) ctx.drawImage(img, x - s / 2, y - s / 2 - s * 0.08, s, s);
+    if (img) drawSquare(ctx, img, x - s / 2, y - s / 2 - s * 0.08, s);
     else {
       ctx.beginPath();
       ctx.arc(x, y, rr, 0, Math.PI * 2);
@@ -344,42 +354,31 @@ export const faceRenderer: MarkerRenderer = {
   },
 };
 
-/** 등번호 보기: 유니폼 모양 + 큰 번호 (우리 = 라임, 상대 = 어두운 면 + 주황) */
-export const shirtRenderer: MarkerRenderer = {
+/** 캐릭터 보기: 도트(픽셀아트) 얼굴, 확대해도 선명하게(보간 끔). 도트 이미지가 없는 선수는 등번호 원 */
+export const pixelRenderer: MarkerRenderer = {
   draw(ctx, m, x, y, r, pulse = 0) {
+    const url = m.id ? faceUrl(m.id, m.isMe, 'pixel') : undefined;
+    const img = url ? imageFor(url) : null;
+    if (!img) {
+      numberCircleRenderer.draw(ctx, m, x, y, r, pulse);
+      return;
+    }
     const rr = m.isMe ? r * ME_SCALE : r;
-    meRings(ctx, m, x, y, rr * 1.2, pulse);
-    const w = rr * 2.3;
-    const h = rr * 2.2;
-    const l = x - w / 2;
-    const t = y - h / 2;
+    const s = rr * 2.7;
+    meRings(ctx, m, x, y, rr * 1.15, pulse);
+    const smooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    drawSquare(ctx, img, x - s / 2, y - s / 2 - s * 0.08, s, true);
+    ctx.imageSmoothingEnabled = smooth;
+    const bw = s * 0.82;
+    const bh = Math.max(3, rr * 0.42);
     ctx.beginPath();
-    ctx.moveTo(l + w * 0.3, t);
-    ctx.lineTo(l + w * 0.4, t + h * 0.08);
-    ctx.lineTo(l + w * 0.6, t + h * 0.08);
-    ctx.lineTo(l + w * 0.7, t);
-    ctx.lineTo(l + w, t + h * 0.22);
-    ctx.lineTo(l + w * 0.86, t + h * 0.42);
-    ctx.lineTo(l + w * 0.78, t + h * 0.36);
-    ctx.lineTo(l + w * 0.78, t + h);
-    ctx.lineTo(l + w * 0.22, t + h);
-    ctx.lineTo(l + w * 0.22, t + h * 0.36);
-    ctx.lineTo(l + w * 0.14, t + h * 0.42);
-    ctx.lineTo(l, t + h * 0.22);
-    ctx.closePath();
-    ctx.fillStyle = m.gk ? (m.ours ? '#9be7ff' : '#ffd166') : m.ours ? PALETTE.home : PALETTE.awayFill;
+    ctx.roundRect(x - bw / 2, y + s / 2 - s * 0.08 - bh * 0.4, bw, bh, bh / 2);
+    ctx.fillStyle = m.isMe ? PALETTE.mine : m.ours ? PALETTE.home : PALETTE.away;
     ctx.fill();
-    ctx.lineWidth = m.state === 'carrier' || m.isMe ? 2 : 1.2;
-    ctx.strokeStyle = m.isMe ? PALETTE.mine : m.state === 'carrier' ? '#f3f4f6' : m.ours ? PALETTE.ink : PALETTE.away;
-    ctx.stroke();
-    ctx.fillStyle = m.gk || m.ours ? PALETTE.ink : PALETTE.away;
-    ctx.font = `800 ${Math.round(rr * 1.05)}px ${PALETTE.font}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(m.number), x, y + h * 0.12);
   },
 };
 
 export function activeRenderer(): MarkerRenderer {
-  return view === 'face' ? faceRenderer : view === 'number' ? shirtRenderer : numberCircleRenderer;
+  return view === 'face' ? faceRenderer : view === 'character' ? pixelRenderer : numberCircleRenderer;
 }

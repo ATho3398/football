@@ -94,11 +94,11 @@ export function pitchViewSheet(): string {
   const v = pitchView();
   const DESC: Record<PitchView, string> = {
     face: '선수 얼굴(미니페이스) + 팀 색 밑줄. 이미지가 없는 선수는 기본 아바타',
-    number: '유니폼 모양에 번호 (선발 1~11, 교체 12~)',
-    character: '번호가 적힌 원 (기본)',
+    number: '번호가 적힌 원 (기본, 선발 1~11 · 교체 12~)',
+    character: '도트(픽셀아트) 선수 얼굴. 도트 이미지가 없는 선수는 등번호',
   };
   return BottomSheet({
     eyebrow: '경기 화면', title: '선수 표시', subtitle: '설정 화면에서도 바꿀 수 있어요. 이 기기에 저장돼요.', onClose: { act: 'pv-close' },
-    children: (['face', 'number', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join(''),
+    children: (['number', 'face', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join(''),
   });
 }
