@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 32;
+export const BALANCE_VERSION = 33;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -856,8 +856,7 @@ export const BALANCE = {
     failScore: -0.5,
     /** 자기 유스 출신 완화 (OVR 상당) */
     youthRelief: 5,
-    /** 재계약 판정 (커스텀 생성 선수만): 유효 OVR + 완화 < 팀 레이팅 − renewGap 이면 재계약 실패·방출 */
-    renewGap: 14,
+    /** 재계약 판정은 C.46 부터 BALANCE.finance.renew (모든 선수, 재정·로스터 기준) */
     /** 테스트·방출 뒤 영입 제안 수 [최소, 최대] (자유계약이라 이적시장 밖이어도) */
     freeOffers: [3, 4] as [number, number],
     /** 합격 뒤 다른 팀 경쟁 제안 [최소, 최대]와 유스 구단 연봉 = 다른 제안 평균 × [하한, 상한] (돈 vs 친정) */
@@ -936,6 +935,89 @@ export const BALANCE = {
     gkOrder: ['C07', 'C06', 'C09', 'C10', 'C05', 'C04'] as string[],
     /** 표에 없는 국가·구단이고 색도 모를 때 */
     fallbackKit: { home: 'C02', away: 'C05' },
+  },
+
+  // ── 리그별 로스터 인원 (pending 62.1, 부록 C.46). 6개 리그 표를 모두 두고 지금은 PL 만 쓴다 ──
+  squad: {
+    /**
+     * 리그 규칙 (2018-19 기준, 부록 C.46 출처): 게임 최소·최대(21세 초과 등록 상한), 21세 이하 추가 인원, 비자국 육성 상한.
+     * 분데스리가·리그 1 은 공식 상한이 없어 게임 상한 30. 조건 칸은 지금 PL 의 비자국 육성만 쓴다 (나머지는 6단계)
+     */
+    leagues: {
+      pl: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 17 },
+      championship: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 99 },
+      laliga: { min: 18, max: 25, u21Extra: 0, nonHomegrownMax: 99 },
+      seriea: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 99 },
+      bundesliga: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
+      ligue1: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
+    } as Record<'pl' | 'championship' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1', { min: number; max: number; u21Extra: number; nonHomegrownMax: number }>,
+    /** 21세 이하 = 그 시즌 나이 ≤ u21Age (2018-19 PL 은 1997-01-01 이후 출생) */
+    u21Age: 21,
+    /** 시즌 시작 생성: 기본 24명(23번 포지션 구성) + 21세 이하 유망주 extraU21 [최소, 최대] → 24~27, 평균 25.5 */
+    extraU21: [0, 3] as [number, number],
+    extraAge: [17, 20] as [number, number],
+    /** 21세 이하 추가 유망주 OVR = 팀 레이팅 + offset + N(0, sd) */
+    extraOffset: -16, extraSd: 3,
+    /** 이적: 나간 뒤 인원이 fillBelow 아래면 빈자리 보충, 들어온 뒤 softMax 를 넘으면 가장 낮은 순위 선수를 내보낸다 */
+    fillBelow: 25,
+    softMax: 27,
+    /** 자국 육성 국적 (육성 이력 근사: 이 국적 또는 잉글랜드·웨일스 구단 유스 출신) */
+    homegrownNations: ['England', 'Wales', 'Scotland', 'Northern Ireland'] as string[],
+    /** 비자국 육성이 상한을 넘으면 목적지 점수에서 뺀다 (경고 없이 자동 조정) */
+    nonHomegrownPenalty: 6,
+  },
+
+  // ── 구단 재정 (NPC 전용, pending 62.2, 부록 C.46). 금액은 모두 만 원 (19.1 표시 단위), 계산·판정만 ──
+  finance: {
+    /**
+     * 재정 등급 (2018-19 딜로이트 머니리그 2019 = 2017-18 매출 근사): 빅클럽 = 상위 10위 안 6팀, 상위 = 17~23위 5팀,
+     * 하위 = 승격팀·매출 최하위권 (울버햄튼은 승격팀이지만 2018 여름 대형 투자로 중위), 나머지 중위. 리그 밖 클럽은 레이팅으로 등급만 (outsideTier)
+     */
+    teamTier: {
+      mun: 'big', mci: 'big', liv: 'big', che: 'big', ars: 'big', tot: 'big',
+      eve: 'upper', new: 'upper', whu: 'upper', lei: 'upper', sou: 'upper',
+      cry: 'mid', bou: 'mid', wat: 'mid', bha: 'mid', bur: 'mid',
+      wol: 'mid', ful: 'low', car: 'low', hud: 'low',
+    } as Record<string, 'big' | 'upper' | 'mid' | 'low'>,
+    /** 리그 밖 클럽 등급: 레이팅 ≥ big → 빅클럽, ≥ upper → 상위, ≥ mid → 중위, 그 아래 하위 */
+    outsideTier: { big: 82, upper: 77, mid: 72 },
+    /**
+     * 등급별 시즌 연봉 총액 상한 (만 원, 연봉 = 주급 × 52). 시작 로스터 연봉 총액(19.11 곡선, NPC 위상 근사, 시드 24개 최대) 등급 최고 × 약 1.15:
+     * 빅클럽 맨시티 최대 약 1,400억 · 아스널 약 480억, 상위 에버턴 약 216억, 중위 울버햄튼 약 151억, 하위 풀럼 약 92억
+     */
+    wageCap: { big: 16500000, upper: 2500000, mid: 1750000, low: 1100000 } as Record<'big' | 'upper' | 'mid' | 'low', number>,
+    /** 등급별 시즌 영입 예산 기본값 (만 원) */
+    budget: { big: 2500000, upper: 900000, mid: 500000, low: 300000 } as Record<'big' | 'upper' | 'mid' | 'low', number>,
+    /** 순위 상금: 지난 시즌 순위 r → (21 − r) × prizePerRank (1위 +40억 원, 20위 +2억 원) */
+    prizePerRank: 20000,
+    /** 판 선수 몸값의 이 비율이 그 시즌 남은 예산에 더해진다 */
+    saleShare: 0.5,
+    /** 리그 밖 클럽(등급만): 한 선수 몸값 ≤ 등급 예산 × outsideBudgetShare, 연봉 ≤ 등급 상한 × outsideWageShare */
+    outsideBudgetShare: 0.6,
+    outsideWageShare: 0.12,
+    /**
+     * 몸값 (만 원) = base × 1.18^(OVR − 70) × 나이 × 잠재력 × 위상 × 남은 계약, 500만 원 단위, 상한 maxValue.
+     * 나이 [이 나이 이하, 배수], 잠재력 = 1 + (전성기 − OVR) × potPerPoint (최대 potMax), 위상 = 1 + 위상 / repDiv (최대 repMax),
+     * 남은 계약 [연수, 배수] (0년 = 자유계약·만료 = 몸값 0)
+     */
+    value: {
+      base: 100000, growth: 1.18,
+      age: [[21, 1.3], [24, 1.15], [27, 1], [29, 0.85], [31, 0.6], [33, 0.4], [99, 0.2]] as [number, number][],
+      potPerPoint: 0.04, potMax: 0.4,
+      repDiv: 2000, repMax: 0.5,
+      contract: [0, 0.6, 0.85, 1] as number[],
+      maxValue: 8000000,
+      unit: 500,
+    },
+    /** NPC 위상 근사 (연봉 계산용): OVR → 위상, 앵커 사이 선형 */
+    npcRep: [[60, 0], [66, 40], [70, 75], [75, 150], [80, 350], [85, 600], [90, 850], [94, 1000]] as [number, number][],
+    /** 내 선수 제안 연봉이 그 팀 남은 연봉 여력에 맞춰 이 비율 아래로 깎이면 제안하지 않는다 */
+    minWageShare: 0.7,
+    /**
+     * 재계약 판정 (pending 68): allPlayers = false 면 커스텀 생성 선수만 (모든 선수면 balance 잔류 가드 13/15, C.46). ① 남은 연봉 여력(지금 내 연봉 제외) < 새 연봉 ② 그 포지션군에서 유효 OVR 순위가
+     * 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 둘 중 하나면 재계약 실패·방출
+     */
+    renew: { depth: 2, gap: 14, allPlayers: false },
   },
 } as const;
 

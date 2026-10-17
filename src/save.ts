@@ -4,6 +4,8 @@
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { ensureFinance } from './finance';
+import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
 import { migrateRoleId } from './engine/roles';
 import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
@@ -259,6 +261,13 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
       ? { club: p.teamId, renewals: 0, since: moved.at(-1).season, first: false }
       : { club: p.teamId, renewals: 0, since: real?.since ?? start, first: true };
     if (real && !p.youth) p.youth = { club: real.youth };
+  },
+  // 25 → 26 (C.46): 구단 재정. 이번 이적 시즌 예산 (비시즌이면 이번 시즌 순위, 시즌 중이면 레이팅 순). 옛 이적 기록에는 몸값이 없어 쓴 돈 0.
+  // 로스터는 새 규칙(21세 이하 추가 유망주, 인원 맞추기)으로 다시 만들어진다
+  25: (s) => {
+    const offseason = s.phase !== 'season';
+    const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;
+    ensureFinance(s, s.league.season + (offseason ? 1 : 0), ranks);
   },
 };
 

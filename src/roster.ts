@@ -16,6 +16,7 @@ import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Position, Tier } from './types';
 import { TEAM_TACTICS } from './engine/teamData';
 import { realBody, rollBody, type Body } from './body';
+import { fixHomegrown, normalizeSquad } from './squad';
 
 export type PosGroup = 'GK' | 'CB' | 'FB' | 'CDM' | 'CM' | 'CAM' | 'WING' | 'ST';
 export const POS_GROUPS: readonly PosGroup[] = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
@@ -72,6 +73,8 @@ export interface RosterPlayer {
   contractEnd: number;
   /** 입단 시즌 */
   joined: number;
+  /** 자국 육성 자동 조정 표시 (부록 C.46): 비자국 육성 상한을 넘을 때 생성기·시즌 갱신이 붙인다 (어릴 때 잉글랜드 구단에서 큰 선수) */
+  hg?: boolean;
 }
 
 export interface TeamRoster {
@@ -393,16 +396,18 @@ export function freeShirt(taken: ReadonlySet<number>, pos: Position): number {
 }
 
 /**
- * 등번호 정리: 실제 선수 번호 먼저, 이미 번호가 있는 선수는 겹치지 않으면 그대로, 나머지는 포지션 관례대로.
- * reserved 는 팀 밖에서 쓰는 번호 (내 선수)
+ * 등번호 정리: 실제 선수 번호(데이터) 먼저, 나머지는 로스터 순서대로 포지션 관례 번호.
+ * reserved 는 팀 밖에서 쓰는 번호 (내 선수). C.46: 지금 로스터만으로 정해진다 (진행 이력과 무관 → 세이브 재생성과 같은 번호)
  */
 export function assignShirts(roster: TeamRoster, reserved: ReadonlySet<number> = new Set()): void {
   const taken = new Set<number>(reserved);
-  const order = [...roster.players].sort((a, b) => Number(b.real) - Number(a.real) || Number(b.shirt !== undefined) - Number(a.shirt !== undefined));
   const need: RosterPlayer[] = [];
-  for (const p of order) {
-    if (p.shirt !== undefined && !taken.has(p.shirt)) taken.add(p.shirt);
-    else need.push(p);
+  for (const p of roster.players) {
+    const own = p.real ? REAL_SHIRT.get(p.id) : undefined;
+    if (own !== undefined && !taken.has(own)) {
+      p.shirt = own;
+      taken.add(own);
+    } else need.push(p);
   }
   for (const p of need) {
     p.shirt = freeShirt(taken, p.position);
@@ -555,8 +560,30 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
   const roster: TeamRoster = { teamId: team.id, formation, players };
   fitRating(roster, team.rating, rng, cap, teamMax);
   for (const p of players) if (!p.real) setPeak(p, rng);
+  addU21Prospects(roster, team, worldSeed, season, cap, teamMax);
+  fixHomegrown(roster);
   assignShirts(roster);
   return roster;
+}
+
+/**
+ * 21세 이하 추가 유망주 (부록 C.46, PL 25 + 21세 이하): 기본 24명 뒤에 0~3명. 별도 시드라 기본 24명은 그대로이고,
+ * OVR 이 낮아 라인업에 들지 않으니 팀 레이팅도 그대로다
+ */
+function addU21Prospects(roster: TeamRoster, team: TeamTarget, worldSeed: string, season: number, cap: number, teamMax?: AttrCap): void {
+  const S = BALANCE.squad;
+  const rng = rngFor(worldSeed, 'u21', team.id, season);
+  const n = randInt(rng, S.extraU21[0], S.extraU21[1]);
+  const groups: PosGroup[] = ['CB', 'CM', 'WING', 'ST', 'FB', 'CAM', 'CDM'];
+  for (let i = 0; i < n; i++) {
+    const g = groups[Math.floor(rng() * groups.length)]!;
+    const position: Position = g === 'FB' ? (rng() < 0.5 ? 'LB' : 'RB') : g === 'WING' ? (rng() < 0.5 ? 'LW' : 'RW') : (g as Position);
+    const age = randInt(rng, S.extraAge[0], S.extraAge[1]);
+    const ovr = Math.min(cap, team.rating + S.extraOffset + gaussian(rng) * S.extraSd);
+    const p = makeVirtual({ id: `v:${team.id}:u${i}`, teamId: team.id, position, age, ovr, season, teamMax }, rng);
+    setPeak(p, rng);
+    roster.players.push(p);
+  }
 }
 
 /** 라인업 평균이 목표 ±fitTolerance 가 될 때까지 가상 주전의 OVR 을 조정. 올릴 때는 cap 을 넘기지 않는다 (못 맞추면 목표보다 낮게 둔다) */
@@ -683,6 +710,8 @@ export function updateRostersForSeason(
       players.push(next);
     }
     out[teamId] = { ...roster, players };
+    // 리그 인원 규칙 (C.46): 넘치면 가장 낮은 순위 방출, 모자라면 보충, 비자국 육성 상한
+    normalizeSquad(out[teamId]!, (pos, j) => makeRookie(teamId, pos, baseRatings[teamId] ?? 70, worldSeed, season, 100 + j));
     assignShirts(out[teamId]!);
   }
   return out;

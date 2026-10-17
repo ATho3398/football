@@ -4,6 +4,7 @@ import {
   acceptMyOffer, autoMarket, endDay, isMatchDay, newGame, playOthers, playRound, rebuildRosters, SAVE_FORMAT_VERSION, startNextSeason, type GameState,
 } from '../src/game';
 import { deserialize, serialize } from '../src/save';
+import { withinRules } from '../src/squad';
 import { naturalOvr, type Rosters } from '../src/roster';
 import {
   isOutside, makeOffers, marketPending, moveIntents, releaseChance, renewContract, requestEligibility, requestTransfer, runNpcWindow, transferScore,
@@ -33,19 +34,19 @@ describe('NPC 이적 점수 (18.6, 부록 C.42)', () => {
     expect(transferScore({ ...base, expiring: true, minutesShare: 0.2 }).why).toBe('contract');
   });
 
-  it('여름 이적시장: 이동은 리그 NPC 의 몇 %, 팀당 시즌 영입 2명 이하, 팀은 24명 유지, 낮은 충성도·만료에 집중', () => {
+  it('여름 이적시장: 이동은 리그 NPC 의 몇 %, 팀당 시즌 영입 2명 이하, 팀은 리그 인원 규칙 안 (C.46), 낮은 충성도·만료에 집중', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'tr-npc', difficulty: 'normal' });
     finishSeason(g);
     const summer = g.transfers.filter((r) => r.w === 'summer');
     const total = Object.values(g.rosters).reduce((t, r) => t + r.players.length, 0);
-    expect(total).toBe(20 * 24);
+    expect(total).toBeGreaterThanOrEqual(20 * 24);
+    expect(total).toBeLessThanOrEqual(20 * (BALANCE.squad.softMax + 1));
     expect(summer.length).toBeGreaterThan(total * 0.03);
     expect(summer.length).toBeLessThan(total * 0.2);
     const byTeam: Record<string, number> = {};
     for (const r of g.transfers.filter((x) => x.season === g.league.season + 1 && !isOutside(x.to))) byTeam[r.to] = (byTeam[r.to] ?? 0) + 1;
     expect(Math.max(0, ...Object.values(byTeam))).toBeLessThanOrEqual(BALANCE.transfer.maxSignings);
-    for (const r of Object.values(g.rosters)) expect(r.players.length).toBe(24);
-    for (const r of summer) expect(r.fill).toBeDefined();
+    for (const r of Object.values(g.rosters)) expect(withinRules(r.players)).toBe(true);
   });
 
   it('겨울 이적시장은 1월 31일이 끝날 때, 팀 레이팅은 로스터 변화만큼 바로 바뀐다', () => {
@@ -80,7 +81,7 @@ describe('NPC 이적 점수 (18.6, 부록 C.42)', () => {
   it('이적 의향 목록은 이번 이적 시즌에 온 선수를 빼고, 확률은 0~1', () => {
     const g = newGame({ mode: 'prospect', position: 'CB', seed: 'tr-int', difficulty: 'normal' });
     const xs = moveIntents(g, 'summer');
-    expect(xs.length).toBe(480);
+    expect(xs.length).toBe(Object.values(g.rosters).reduce((t, r) => t + r.players.length, 0));
     expect(xs.every((x) => x.p > 0 && x.p < 1)).toBe(true);
     runNpcWindow(g, 'summer');
     const moved = new Set(g.transfers.map((r) => r.id));
@@ -211,8 +212,8 @@ describe('내 선수 이적과 계약 (18.10, 부록 C.42)', () => {
     delete raw.market;
     for (const v of Object.values(raw.playerStats) as number[][]) v.length = 4;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(25);
-    expect(back.saveFormat).toBe(25);
+    expect(SAVE_FORMAT_VERSION).toBe(26);
+    expect(back.saveFormat).toBe(26);
     expect(back.transfers).toEqual([]);
     expect(back.market.contract.teamId).toBe(g.player.teamId);
     expect(back.market.offers).toBeNull();

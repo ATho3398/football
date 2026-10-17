@@ -9,6 +9,7 @@ import {
   attributesFromOvr, capVirtualAttributes, gkAttributesFromOvr, gkOvr, naturalOvr, pickLineup, posGroup, rosterRating,
 } from '../src/roster';
 import { deserialize, serialize } from '../src/save';
+import { withinRules } from '../src/squad';
 
 function playSeason(s: GameState) {
   while (s.phase === 'season') playRound(s, { engine: 'quick' });
@@ -30,15 +31,20 @@ describe('팀 로스터 생성 (23번)', () => {
   const g = newGame({ mode: 'prospect', position: 'CM', seed: 'roster', difficulty: 'normal' });
   const init = Object.fromEntries(initialTeams().map((t) => [t.id, t.rating]));
 
-  it('팀당 24명, 포지션 구성 GK3 CB4 풀백4 CDM2 CM3 CAM2 윙3 ST3 (실제 선수가 넘치지 않는 팀)', () => {
+  it('팀당 기본 24명(GK3 CB4 풀백4 CDM2 CM3 CAM2 윙3 ST3) + 21세 이하 유망주 0~3명 (C.46), PL 규칙 범위 안', () => {
     expect(Object.keys(g.rosters)).toHaveLength(20);
     for (const r of Object.values(g.rosters)) {
-      expect(r.players).toHaveLength(24);
-      expect(new Set(r.players.map((p) => p.id)).size).toBe(24);
+      const base = r.players.filter((p) => !/^v:[^:]+:u\d+$/.test(p.id));
+      const extra = r.players.filter((p) => /^v:[^:]+:u\d+$/.test(p.id));
+      expect(base).toHaveLength(24);
+      expect(extra.length).toBeLessThanOrEqual(BALANCE.squad.extraU21[1]);
+      for (const p of extra) expect(p.age).toBeLessThanOrEqual(BALANCE.squad.u21Age);
+      expect(new Set(r.players.map((p) => p.id)).size).toBe(r.players.length);
       expect(r.players.filter((p) => p.position === 'GK')).toHaveLength(3);
+      expect(withinRules(r.players)).toBe(true);
     }
     const counts: Record<string, number> = {};
-    for (const p of g.rosters.hud!.players) counts[posGroup(p.position)] = (counts[posGroup(p.position)] ?? 0) + 1;
+    for (const p of g.rosters.hud!.players.filter((x) => !/:u\d+$/.test(x.id))) counts[posGroup(p.position)] = (counts[posGroup(p.position)] ?? 0) + 1;
     expect(counts).toEqual(BALANCE.roster.squad);
   });
 
@@ -142,9 +148,9 @@ describe('팀 로스터 생성 (23번)', () => {
     }
   });
 
-  it('가상 선수: 나이 18~36, 충성도 0~100, 계약 만료 1~5년 후, 전성기 OVR ≥ 현재 OVR', () => {
+  it('가상 선수: 나이 18~36 (21세 이하 추가 유망주는 17~20), 충성도 0~100, 계약 만료 1~5년 후, 전성기 OVR ≥ 현재 OVR', () => {
     for (const p of Object.values(g.rosters).flatMap((r) => r.players).filter((x) => !x.real)) {
-      expect(p.age).toBeGreaterThanOrEqual(18);
+      expect(p.age).toBeGreaterThanOrEqual(/:u\d+$/.test(p.id) ? BALANCE.squad.extraAge[0] : 18);
       expect(p.age).toBeLessThanOrEqual(36);
       expect(p.loyalty).toBeGreaterThanOrEqual(0);
       expect(p.loyalty).toBeLessThanOrEqual(100);
@@ -164,14 +170,14 @@ describe('팀 로스터 생성 (23번)', () => {
 });
 
 describe('로스터 시즌 갱신과 저장 (23번)', () => {
-  it('시즌 종료 후 나이 +1, 은퇴 자리는 신인으로 보충, 24명 유지, 다음 시즌 레이팅은 로스터에서', () => {
+  it('시즌 종료 후 나이 +1, 은퇴 자리는 신인으로 보충, 리그 인원 규칙 유지, 다음 시즌 레이팅은 로스터에서', () => {
     const s = newGame({ mode: 'prospect', position: 'CB', seed: 'season', difficulty: 'normal' });
     const before = structuredClone(s.rosters);
     playSeason(s);
     expect(s.roster.updates).toBe(1);
     let rookies = 0;
     for (const [id, r] of Object.entries(s.rosters)) {
-      expect(r.players).toHaveLength(24);
+      expect(withinRules(r.players)).toBe(true);
       for (const p of r.players) {
         const old = before[id]!.players.find((x) => x.id === p.id);
         if (old) expect(p.age).toBe(old.age + 1);

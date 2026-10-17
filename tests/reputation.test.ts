@@ -77,7 +77,7 @@ describe('세이브 변환 8 → 9 (부록 C.23)', () => {
   it('위상 점수는 그대로, 티어만 새 기준으로 (예전 레전더리 850+ → 월드클래스)', () => {
     const loaded = deserialize(JSON.stringify(oldSave(950)));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(25);
+    expect(SAVE_FORMAT_VERSION).toBe(26);
     expect(loaded.player.reputation).toBe(950);
     expect(loaded.player.honors).toEqual(H(0));
     expect(reputationTier(loaded.player.reputation, loaded.player.honors)).toBe('worldClass');

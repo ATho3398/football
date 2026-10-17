@@ -1,14 +1,17 @@
 // 시작 소속·1군 테스트·재계약 판정·스토리 태그 (pending 61·62, 부록 C.45 10·12·13번).
 // 유스 시스템은 만들지 않는다: 유스는 서사(기록·문구)이고 게임 시작 = 성인팀 계약 시점이다.
 // 15~18세 + 유스 구단 선택 = 시즌 첫 리그 경기 테스트(출전 보장) → 합격(유스 구단 + 경쟁 제안) / 연장 / 방출(자유계약 영입 제안).
-// 수치는 BALANCE.startClub. 구단 재정 조건은 34b C.46 에서 붙인다 (지금은 C.42 제안 규칙)
+// 수치는 BALANCE.startClub. 구단 재정 조건 (C.46): 제안은 감당 가능한 팀만, 연봉은 그 팀 연봉 여력 안 (자유계약이라 몸값 0)
 
 import { BALANCE } from './config/balance';
 import type { GameState } from './game';
 import { proficientOvr } from './proficiency';
 import { createRng, hashSeed, type Rng } from './rng';
 import { randInt } from './growth';
-import { contractYears, expectedStart, makeOffers, wageFor, type Offer } from './transfer';
+import { affordableWage, contractYears, expectedStart, makeOffers, wageFor, type Offer } from './transfer';
+import { wageRoom } from './finance';
+import { naturalOvr, posGroup } from './roster';
+import { FORMATION_SLOTS } from './formations';
 import { tagHas, wageMul, type PlayerTag, type TagId, type Tagged } from './tags';
 
 // ── 커리어 태그 (플레이 전용, 효과 슬롯 0 — 62.4, 14번) ──
@@ -126,7 +129,12 @@ export function freeAgentOffers(state: GameState, tag: string, exclude: readonly
   const S = BALANCE.startClub;
   const rng = createRng(hashSeed(`${state.worldSeed}:free-offers:${tag}`));
   const n = randInt(rng, S.freeOffers[0], S.freeOffers[1]);
+  // 자유계약이라 몸값 0 (재정 조건은 연봉 여력만)
+  const m = state.market;
+  const wasFree = m.free;
+  m.free = true;
   const all = makeOffers(state, 'summer', `free-${tag}`).filter((o) => o.kind === 'transfer' && !exclude.includes(o.teamId));
+  m.free = wasFree;
   const out = all.slice(0, n);
   // 모자라면 레이팅이 낮은 팀부터 채운다 (자유계약이라 누군가는 데려간다)
   const p = state.player;
@@ -134,8 +142,11 @@ export function freeAgentOffers(state: GameState, tag: string, exclude: readonly
   for (const t of [...state.league.teams].sort((a, b) => a.rating - b.rating)) {
     if (out.length >= n) break;
     if (have.has(t.id)) continue;
-    out.push(offerFor(state, t.id, rng));
+    const o = offerFor(state, t.id, rng);
+    const wage = affordableWage(state, t.id, o.wage, 'summer', 0);
     have.add(t.id);
+    if (wage === null) continue;
+    out.push({ ...o, wage });
   }
   return out;
 }
@@ -243,7 +254,9 @@ function passOffers(state: GameState, club: string): void {
   const teams = state.league.teams.length;
   for (const o of rivals) {
     const rank = 1 + state.league.teams.filter((t) => t.rating > ratingOf(state, o.teamId)).length;
-    o.wage = Math.round((o.wage * (1 + S.rivalWageBoost * (rank / teams))) / 50) * 50;
+    const boosted = Math.round((o.wage * (1 + S.rivalWageBoost * (rank / teams))) / 50) * 50;
+    // 얹은 연봉도 그 팀 연봉 여력 안 (C.46)
+    o.wage = affordableWage(state, o.teamId, boosted, 'summer', 0) ?? o.wage;
   }
   const avg = rivals.reduce((t, o) => t + o.wage, 0) / Math.max(1, rivals.length);
   const k = S.youthWage[0] + (S.youthWage[1] - S.youthWage[0]) * rng();
@@ -266,11 +279,32 @@ export function release(state: GameState, tag: string, notice: string): void {
   m.notice = notice;
 }
 
-/** 재계약 판정 (커스텀 생성 선수만, 유스 완화 유지). 크게 모자라면 재계약 실패·방출 */
-export function renewalFails(state: GameState): boolean {
+/**
+ * 재계약 판정 (C.46, pending 68: 기준을 재정·로스터로, 유스 완화 유지. 대상은 커스텀 생성 선수 — renew.allPlayers 로 모든 선수): ① 그 팀 남은 연봉 여력이 새 연봉보다 작다
+ * ② 그 포지션군에서 내 유효 OVR 순위가 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 하나라도 맞으면 재계약 실패·방출
+ */
+export function renewalCheck(state: GameState): { fails: boolean; why: 'wage' | 'depth' | null } {
   const p = state.player;
-  if (!p.custom) return false;
-  return judgeOvr(state, p.teamId) < ratingOf(state, p.teamId) - BALANCE.startClub.renewGap;
+  const m = state.market;
+  const F = BALANCE.finance.renew;
+  if (!m.renewal) return { fails: false, why: null };
+  // 모든 선수로 넓히면 balance 잔류 커리어 가드(레전더리 위상 900+)가 깨져 (C.46 측정 13/15) 커스텀 생성 선수만 판정한다
+  if (!p.custom && !BALANCE.finance.renew.allPlayers) return { fails: false, why: null };
+  const rating = ratingOf(state, p.teamId);
+  if (wageRoom(state, p.teamId, rating) < m.renewal.wage * 52) return { fails: true, why: 'wage' };
+  const roster = state.rosters[p.teamId];
+  if (roster) {
+    const g = posGroup(p.position);
+    const demand = FORMATION_SLOTS[roster.formation].filter((s) => posGroup(s.pos) === g).length || 1;
+    const eff = judgeOvr(state, p.teamId);
+    const ahead = roster.players.filter((x) => posGroup(x.position) === g && naturalOvr(x) > eff).length;
+    if (ahead >= demand * F.depth && eff < rating - F.gap) return { fails: true, why: 'depth' };
+  }
+  return { fails: false, why: null };
+}
+
+export function renewalFails(state: GameState): boolean {
+  return renewalCheck(state).fails;
 }
 
 /** 제안 수락 뒤 태그: 유스 구단 첫 계약(아카데미 출신), 친정 선택, 귀환, 방출의 설움. 이적이면 원클럽맨 계열을 떨어뜨린다 */
