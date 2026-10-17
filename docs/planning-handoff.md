@@ -249,3 +249,4 @@
 - (21:01 KST, 사용자) "UI 세션에서 디자인 세션에 보낼 프롬프트를 안 준다" → 원인: UI_1 5차 보고 답변이 "`5.md` 맨 아래 ③ 코드 블록"이라고 경로만 줬고, 프롬프트 본문은 브랜치 파일에만 있었다. 수정: automation.md 6번 2항에 "답변 본문에 프롬프트 전문 코드 블록 + SendUserFile로 프롬프트 txt·캡처 zip" 규칙. M이 5차 프롬프트·캡처 zip을 사용자에게 바로 보냈고, UI_1에 규칙 반영(handoff.md)·앞으로 적용을 요청.
 - (21:14 KST) C.45 최종 main 2898b85(L 정정 반영: 늦게 핀 꽃 `lateBloomer` 플레이 전용 분리, docs 병합 planning-m·engine-issues-c45·ui-1; CI 새 실행은 C.45가 25분 뒤 직접 확인) → pending 68, C.45 `draft_`. UI_1 누계 큰 4 + 작은 5(1단계). **34b C.46 시작** `session_01JojAuwW8SBYL5gqJcJggfv` "34b단계_구단 재정·로스터 인원 (C.46)", 브랜치 `claude/c46-finance`, 태그 `stage:34b-C46`. 자동 확인 `trig_01X2Ryxgg7vuFLqZ55mqtw1q`(23:45 KST). M 상태: 컨텍스트 13.6만·1.6달러.
 - 다음: C.46 보고 → pending 69 → UI_1 목록 → 34c C.47(레전드 팩 + 태그 효과, pending 63~67).
+- (21:38 KST) C.45 배포 확인: main 2898b85 CI #170 성공(#169는 다음 푸시로 취소, 내용 포함). C.45 끝.
