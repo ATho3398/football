@@ -23,12 +23,18 @@ import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
-  createRosters, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+  createRosters, freeShirt, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
 import { awardBadges } from './badges';
 import { randomName } from './prospect';
+import { clampWeakFoot, realBody, rollBody, type Body, type WeakFoot } from './body';
+import { agingMul, bigGameForm, cardMul, formMul, recoveryMul, rollTraits, xpMul, type TraitId } from './traits';
+import { derbyOf } from './derby';
+import { CUSTOM_HIDDEN_TRAITS, customBudget, validCustom } from './custom';
+import type { Appearance } from './appearance';
+import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
@@ -50,7 +56,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 23;
+export const SAVE_FORMAT_VERSION = 24;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -220,7 +226,31 @@ export type NewGameOptions =
    * 붙인다 — 화면의 새 게임. 없으면 position 을 기준 자리로 맞는 재능 타입의 유망주를 만든다 (밸런스·테스트)
    */
   | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty; rolled?: boolean }
-  | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty };
+  | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty }
+  /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
+  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty };
+
+export interface CustomSpec {
+  name?: string;
+  position: PlayablePosition;
+  /** 15~23 */
+  age: number;
+  attributes: FieldAttributes;
+  body: Body;
+  traits: TraitId[];
+  nationality: string;
+  appearance: Appearance;
+  /** 도트 머리 (경기 화면 캐릭터, pixel-kits 3.4) */
+  pixelHair?: string;
+}
+
+/** 장단점이 정하는 시작 약발 (양발잡이 4, 약발 1) */
+export function footFromTraits(body: Body, traits: readonly TraitId[]): Body {
+  const E = BALANCE.traits.effects;
+  if (traits.includes('twoFooted')) return { ...body, weakFoot: Math.max(body.weakFoot, E.twoFootedStart) as WeakFoot };
+  if (traits.includes('weakFootOne')) return { ...body, weakFoot: E.weakFootOneStart as WeakFoot };
+  return body;
+}
 
 const rngFor = (seed: string, ...parts: (string | number)[]): Rng => createRng(hashSeed([seed, ...parts].join(':')));
 
@@ -229,6 +259,35 @@ export function emptySeasonStats(): SeasonStats {
     apps: 0, starts: 0, minutes: 0, goals: 0, assists: 0, ratingSum: 0, matchXp: 0, moms: 0, injuries: 0, injuredWeeks: 0,
     yellows: 0, reds: 0, slumpPenalty: 0, rec: emptyRecord(), recApps: 0,
   };
+}
+
+/** 약발 +1 을 포인트로 산다 (C.45, pending 47 1): BALANCE.weakFoot.pointCost. 약발 5 면 불가 */
+export function buyWeakFoot(state: GameState): boolean {
+  const p = state.player;
+  const cost = BALANCE.weakFoot.pointCost;
+  if (p.body.weakFoot >= 5 || p.unspentPoints < cost) return false;
+  p.unspentPoints -= cost;
+  p.body = { ...p.body, weakFoot: clampWeakFoot(p.body.weakFoot + 1) };
+  if (p.unspentPoints === 0) p.allocation = { levels: 0, raised: {} };
+  return true;
+}
+
+/** 내 등번호 (C.45): 저장한 번호가 지금 팀에서 겹치면 그 팀에서 비어 있는 관례 번호 */
+export function myShirt(state: GameState): number {
+  const p = state.player;
+  const taken = rosterShirts(state.rosters?.[p.teamId]);
+  return p.shirt !== undefined && !taken.has(p.shirt) ? p.shirt : freeShirt(taken, p.position);
+}
+
+/** 랜덤 유망주의 신체·장단점 (C.45): `me:<시드>` 신체, 장단점 0~2개. 기존 시드 흐름과 따로 */
+export function prospectExtras(worldSeed: string, position: PlayablePosition): { body: Body; traits: TraitId[] } {
+  const traits = rollTraits(rngFor(worldSeed, 'traits'));
+  return { body: footFromTraits(rollBody(`me:${worldSeed}`, position), traits), traits };
+}
+
+/** 그 팀 로스터의 등번호 */
+export function rosterShirts(roster: { players: { shirt?: number }[] } | undefined): Set<number> {
+  return new Set((roster?.players ?? []).map((p) => p.shirt).filter((n): n is number => n !== undefined));
 }
 
 /** 실제 선수로 시작 가능한 선수: 데이터가 있고 소속팀이 리그에 있는 선수 */
@@ -286,7 +345,41 @@ export function newGame(opts: NewGameOptions): GameState {
     fatigue: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
   };
 
-  if (opts.mode === 'prospect') {
+  if (opts.mode === 'custom') {
+    const c = opts.custom;
+    const C = BALANCE.custom;
+    const age = Math.min(C.maxAge, Math.max(C.minAge, Math.round(c.age)));
+    const height = Math.min(C.heightMax, Math.max(C.heightMin, Math.round(c.body.height)));
+    const traits = c.traits.filter((t) => !CUSTOM_HIDDEN_TRAITS.includes(t));
+    if (!validCustom(c.attributes, customBudget(age, traits, c.body.weakFoot), height)) throw new Error('커스텀 능력치가 포인트·상한을 넘었어요');
+    // 잠재력·숨은 적성·팀은 랜덤 (숨은 적성은 커스텀에도 랜덤, pending 47 2)
+    const roll = rollProspect(worldSeed, c.position);
+    const prng = roll.rng;
+    const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
+    const { min, max } = BALANCE.newGame.teamRankRange;
+    const team = byRating[randInt(prng, min, max) - 1]!;
+    player = {
+      ...base,
+      name: c.name?.trim() || randomName(prng),
+      position: c.position,
+      age,
+      teamId: team.id,
+      attributes: { ...c.attributes },
+      potentialTier: roll.potentialTier,
+      reputation: 0,
+      proficiency: initialProficiency(c.position),
+      formerPositions: [],
+      badges: [],
+      honors: { ...NO_HONORS },
+      aptitude: roll.aptitude, advice: null, adviceLog: [], aptBoost: null,
+      body: { ...c.body, height, weakFoot: clampWeakFoot(c.body.weakFoot) },
+      traits,
+      nationality: c.nationality,
+      appearance: c.appearance,
+      ...(c.pixelHair ? { pixelHair: c.pixelHair } : {}),
+      custom: true,
+    };
+  } else if (opts.mode === 'prospect') {
     // 재능 타입 → 능력치 → 숨은 적성 (pending 31 2번). 시작 포지션은 시작 후보 중 고른 자리 (rolled) 또는 기준 자리
     const roll = rollProspect(worldSeed, opts.rolled ? undefined : opts.position);
     const prng = roll.rng;
@@ -307,6 +400,8 @@ export function newGame(opts: NewGameOptions): GameState {
       badges: [],
       honors: { ...NO_HONORS },
       aptitude: roll.aptitude, advice: null, adviceLog: [], aptBoost: null,
+      // 신체·장단점 (C.45): 별도 시드라 기존 유망주 결과(능력치·팀)는 그대로
+      ...prospectExtras(worldSeed, opts.position),
     };
   } else {
     const data = selectableRealPlayers().find((p) => p.id === opts.playerId);
@@ -330,8 +425,12 @@ export function newGame(opts: NewGameOptions): GameState {
       honors: { ...NO_HONORS },
       // 실제 선수 (pending 36 ④): 주 포지션군 1.2~1.4, 나머지 0.7~1.0, 엇갈림 없음
       aptitude: mainPositionAptitude(data.position, gen.attributes, aptitudeSeed(worldSeed)), advice: null, adviceLog: [], aptBoost: null,
+      body: realBody(data.id) ?? rollBody(data.id, data.position),
+      traits: [],
+      shirt: data.shirtNumber,
     };
   }
+  player.shirt ??= freeShirt(rosterShirts(rosters[player.teamId]), player.position);
 
   player.profLog = initialProfLog(player.proficiency);
   player.seasonStartAttrs = { ...player.attributes };
@@ -576,8 +675,10 @@ export function setDayTraining(state: GameState, date: IsoDate, kind: TrainingKi
 }
 
 /** 피로·부상만 (경기 날 아침 예상, 상태를 바꾸지 않는 계산에도 쓴다) */
-function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'>, kind: DayPlan, date: IsoDate): void {
-  p.fatigue = Math.max(0, p.fatigue - planFatigue(kind));
+function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & { traits?: readonly string[] }, kind: DayPlan, date: IsoDate): void {
+  // 장단점 (C.45): 회복력 +20%·체력 회복 느림 −20% (회복하는 날만)
+  const rec = planFatigue(kind);
+  p.fatigue = Math.max(0, p.fatigue - (rec > 0 ? rec * recoveryMul(p) : rec));
   if (p.injury && p.injury.date !== date) healDays(p as PlayerState, 1 + (kind === 'rest' ? BALANCE.training.restHealBonus : 0));
 }
 
@@ -629,7 +730,7 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   const t = (state.training ??= initTraining(date));
   const kind = dayPlan(state, date);
   const T = BALANCE.training;
-  const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind)) };
+  const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) : planFatigue(kind)) };
   conditionStep(p, kind, date);
   // 휴가는 연속 휴식에 세지 않는다. 회복 훈련은 연속을 끊고 폼 감점을 지운다
   if (kind === 'rest') {
@@ -641,7 +742,7 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   }
   const raw = planXp(kind);
   if (raw > 0) {
-    const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp);
+    const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp * xpMul(p, true));
     res.xp = gained;
     if (whole > 0) addXp(p, whole);
     p.season.trainingXp = (p.season.trainingXp ?? 0) + whole;
@@ -653,6 +754,24 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
       // 고령 감쇠는 게이지에도 (25.3 1번 "고령 XP 감쇠도 똑같이")
       const up = techDay(t, p, g, veteranXpMultiplier(p.age));
       if (up) res.up = up;
+      break;
+    }
+    case 'weakFoot': {
+      // 약발 훈련 (C.45): 게이지 +1 (고령 감쇠), 다 차면 약발 +1. 시즌 최대 BALANCE.weakFoot.seasonMax
+      const W = BALANCE.weakFoot;
+      const wt = (p.weakFootTrain ??= { gauge: 0, gained: 0 });
+      if (p.body.weakFoot >= 5) res.note = '약발 5 · 이미 양발잡이예요';
+      else if (wt.gained >= W.seasonMax) res.note = `이번 시즌 약발 훈련 최대(+${W.seasonMax})에 닿았어요`;
+      else {
+        wt.gauge += veteranXpMultiplier(p.age);
+        if (wt.gauge >= W.trainingGauge - 1e-9) {
+          wt.gauge = 0;
+          wt.gained++;
+          p.body = { ...p.body, weakFoot: clampWeakFoot(p.body.weakFoot + 1) };
+          res.weakFootUp = p.body.weakFoot;
+          res.note = `약발 ${p.body.weakFoot}${p.body.weakFoot >= 5 ? ' · 양발잡이' : ''}`;
+        } else res.note = `약발 게이지 ${Math.floor(wt.gauge)}/${W.trainingGauge}`;
+      }
       break;
     }
     case 'intense': {
@@ -811,7 +930,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const input: EngineMatchInput = {
     myRoster: state.rosters[player.teamId]!, oppRoster: state.rosters[opp.id]!,
     myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
-    me: { position: pos, attributes: player.attributes, fatigue, form, proficiency: engineProficiency(player, pos) },
+    me: { position: pos, attributes: player.attributes, fatigue, form, proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), worldSeed: seed,
     leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
     ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
@@ -821,7 +940,10 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
 
 /** 이번 경기 폼 보정: 최근 평점 폼 − 연속 휴식 감점 (C.41) */
 function matchForm(state: GameState): number {
-  return formBonus(state.player.recentRatings) - (state.training?.formPenalty ?? 0);
+  const p = state.player;
+  const fx = nextFixture(state);
+  const big = !!fx && derbyOf(p.teamId, fx.opponentId) !== null;
+  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) - (state.training?.formPenalty ?? 0);
 }
 
 /** 부상 판정용 경기 시점: 시즌·라운드(1부터)·날짜·최종 라운드까지 남은 날 */
@@ -972,6 +1094,9 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   }
   // 경기 XP × 0.8, 결장 경기는 0 (옛 결장 주 훈련 XP·재활 XP 는 하루 훈련으로, 25.3 1번). 30세부터 고령 감쇠 (6.1)
   result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * veteranXpMultiplier(player.age)) : 0;
+  // 늦은 개화 (C.45): 경기 XP 배율
+  const xm = xpMul(player, false);
+  if (xm !== 1) result.xp = Math.round(result.xp * xm);
   // 영상 분석 힌트·연속 휴식 폼 감점은 이 경기로 끝
   if (state.training) {
     state.training.hints = [];
@@ -1229,7 +1354,7 @@ export function endSeason(state: GameState): SeasonSummary {
   const nearPeak = player.peakTarget !== undefined && ovrBefore >= player.peakTarget - BALANCE.growth.realPeak.autoGrowthStopBelow;
   const autoGrowth = nearPeak ? {} : applyAutoGrowth(player.attributes, age, player.potentialTier, rng);
   const veteranGrowth = applyVeteranGrowth(player.attributes, age, rng);
-  const aging = applyAging(player.attributes, age, rng, player.position);
+  const aging = applyAging(player.attributes, age, rng, player.position, agingMul(player));
 
   // 5. 나이
   player.age = age + 1;
@@ -1267,7 +1392,8 @@ export function endSeason(state: GameState): SeasonSummary {
     ...(tierReached ? { tierReached } : {}), ...(advice ? { advice: advice.kind } : {}), badges, autoGrowth, veteranGrowth, aging,
     ovrBefore, ovrAfter: playerOvr(player),
     canRetire: age >= BALANCE.retirement.optionalAge,
-    forcedRetire: player.age >= BALANCE.retirement.forcedAge,
+    // 내 선수 강제 은퇴 없음 (pending 48 1, C.45). 필드는 옛 세이브·화면 호환으로 늘 false
+    forcedRetire: false,
   };
   // 시즌 종료 카드 보상 3택 1 (F.1 간이 경로, C.36)
   if (state.cards) grantSeasonPick(state.cards, state.league.season, state.player.position, state.worldSeed);
@@ -1307,6 +1433,8 @@ export function startNextSeason(state: GameState): void {
   state.calendar = { date: campDate(state) };
   state.training ??= initTraining(state.calendar.date);
   newTrainingSeason(state.training);
+  // 약발 훈련 시즌 상한 초기화 (게이지는 남긴다, C.45)
+  if (state.player.weakFootTrain) state.player.weakFootTrain.gained = 0;
   state.training.restStreak = 0;
   state.training.formPenalty = 0;
   state.playerStats = {};

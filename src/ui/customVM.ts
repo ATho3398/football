@@ -1,0 +1,206 @@
+// 커스텀 생성 화면 뷰모델 (pending 47 2·49 1, 부록 C.45). 상태는 화면(ui.form.cu)이 들고, 시작할 때 newGame({ mode: 'custom' })
+
+import { APPEARANCES, APPEARANCE_KO, type Appearance } from '../appearance';
+import { ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from '../attributes';
+import { bmiOf, FOOT_KO, type MainFoot, type WeakFoot } from '../body';
+import { BALANCE } from '../config/balance';
+import {
+  agePoints, baseAttributes, CUSTOM_HIDDEN_TRAITS, customBudget, customCap, customRaise, spentPoints, stepCost, weakFootPoints,
+} from '../custom';
+import type { CustomSpec } from '../game';
+import { allPositionOvrs, PLAYABLE_POSITIONS, POSITION_NAMES_KO, positionOvr, profileOf, type FieldPosition, type PlayablePosition } from '../positions';
+import { canAddTrait, TRAIT_IDS, TRAITS, traitPoints, type TraitId } from '../traits';
+import { attrGroupsVM } from './viewModels';
+import type { AttrGroupVM } from './views/attrGrid';
+
+/** 외모군 → 도트 피부 (pixel-kits 3번, 라틴·중동계는 중간 톤) */
+export const SKIN_OF: Readonly<Record<Appearance, string>> = {
+  eastAsian: 'yellow', white: 'white', irish: 'white', black: 'black', latinMideast: 'mideast',
+};
+/** 피부별 고를 수 있는 도트 머리 (pixel-kits 1번 팩 구성) */
+export const HAIRS_OF: Readonly<Record<string, readonly string[]>> = {
+  black: ['black', 'blonde', 'bald'],
+  yellow: ['black', 'blonde', 'brown', 'bald'],
+  white: ['black', 'blonde', 'brown', 'bald'],
+  mideast: ['black', 'brown', 'bald'],
+};
+export const HAIR_KO: Readonly<Record<string, string>> = { black: '검은 머리', blonde: '금발', brown: '갈색 머리', bald: '민머리' };
+
+export interface CustomForm {
+  age: number;
+  position: PlayablePosition;
+  attrs: FieldAttributes;
+  height: number;
+  weight: number;
+  foot: MainFoot;
+  weakFoot: WeakFoot;
+  traits: TraitId[];
+  nationality: string;
+  appearance: Appearance;
+  /** '' = 자동(분포 추첨) */
+  hair: string;
+  sel: string | null;
+}
+
+export function initialCustomForm(): CustomForm {
+  return {
+    age: BALANCE.custom.refAge, position: 'ST', attrs: baseAttributes(), height: 180, weight: 75, foot: 'right', weakFoot: 3, traits: [],
+    nationality: 'Korea Republic', appearance: 'eastAsian', hair: '', sel: null,
+  };
+}
+
+export const NATIONALITIES: readonly string[] = Object.keys(BALANCE.appearance.byNationality);
+export const NATIONALITY_KO: Readonly<Record<string, string>> = {
+  England: '잉글랜드', Scotland: '스코틀랜드', 'Republic of Ireland': '아일랜드', 'Northern Ireland': '북아일랜드', Wales: '웨일스', France: '프랑스',
+  Spain: '스페인', Portugal: '포르투갈', Germany: '독일', Netherlands: '네덜란드', Belgium: '벨기에', Brazil: '브라질', Argentina: '아르헨티나',
+  Uruguay: '우루과이', Senegal: '세네갈', Nigeria: '나이지리아', Egypt: '이집트', Gabon: '가봉', Denmark: '덴마크', Norway: '노르웨이',
+  'Korea Republic': '대한민국', Japan: '일본', China: '중국',
+};
+
+export const budgetOf = (f: CustomForm): number => customBudget(f.age, f.traits, f.weakFoot);
+
+/** 키에 맞는 몸무게 범위 (BMI) */
+export function weightRange(height: number): [number, number] {
+  const C = BALANCE.custom;
+  const m2 = (height / 100) ** 2;
+  return [Math.ceil(C.bmiMin * m2), Math.floor(C.bmiMax * m2)];
+}
+
+export interface CustomVM {
+  name: string;
+  age: number;
+  ageMin: number;
+  ageMax: number;
+  agePts: number;
+  budget: number;
+  spent: number;
+  left: number;
+  over: boolean;
+  position: string;
+  positionKo: string;
+  ovr: number;
+  positions: { id: string; ko: string; ovr: number; on: boolean }[];
+  attrs: AttrGroupVM[];
+  sel: string | null;
+  body: { height: number; weight: number; bmi: string; foot: MainFoot; footKo: string; weakFoot: number; weakPts: number; wRange: [number, number];
+    speedCap: number; aerialCap: number; hMin: number; hMax: number };
+  weakOptions: { v: number; pts: number; on: boolean }[];
+  traits: { id: TraitId; ko: string; desc: string; kind: 'pro' | 'con'; pts: number; on: boolean; can: boolean; hook?: string }[];
+  traitCount: { pro: number; con: number; maxPro: number; maxCon: number };
+  nationality: string;
+  nationalities: { id: string; ko: string }[];
+  appearance: Appearance;
+  appearances: { id: Appearance; ko: string }[];
+  hair: string;
+  hairs: { id: string; ko: string }[];
+  skin: string;
+}
+
+export function customVM(f: CustomForm, name: string): CustomVM {
+  const C = BALANCE.custom;
+  const budget = budgetOf(f);
+  const spent = spentPoints(f.attrs);
+  const left = budget - spent;
+  const pos = f.position as FieldPosition;
+  const keys = profileOf(pos).keys;
+  const ovrs = allPositionOvrs(f.attrs);
+  const groups = attrGroupsVM(f.attrs, keys, baseAttributes()).map((g) => ({
+    ...g,
+    cells: g.cells.map((c) => {
+      const a = c.attr as FieldAttribute;
+      const cap = customCap(a, f.height);
+      const maxed = f.attrs[a] >= cap;
+      const cost = maxed ? null : stepCost(f.attrs[a]);
+      const after = maxed ? f.attrs : customRaise(f.attrs, a, 1, budget, f.height);
+      const reach = after[a] > f.attrs[a] ? 1 : 0;
+      const d = reach ? Math.round((positionOvr(after, pos) - positionOvr(f.attrs, pos)) * 10) / 10 : 0;
+      return { ...c, edit: { cost, steps: 1, reach, ovrDelta: d > 0 ? d : null, maxed, blocked: !maxed && reach === 0, canLower: f.attrs[a] > C.base } };
+    }),
+  }));
+  const skin = SKIN_OF[f.appearance];
+  const cur = f.traits;
+  return {
+    name, age: f.age, ageMin: C.minAge, ageMax: C.maxAge, agePts: agePoints(f.age),
+    budget, spent, left, over: left < 0,
+    position: f.position, positionKo: POSITION_NAMES_KO[f.position], ovr: ovrs[f.position],
+    positions: PLAYABLE_POSITIONS.map((p) => ({ id: p, ko: POSITION_NAMES_KO[p], ovr: ovrs[p], on: p === f.position })),
+    attrs: groups, sel: f.sel,
+    body: {
+      height: f.height, weight: f.weight, bmi: bmiOf(f).toFixed(1), foot: f.foot, footKo: FOOT_KO[f.foot], weakFoot: f.weakFoot, weakPts: weakFootPoints(f.weakFoot),
+      wRange: weightRange(f.height), speedCap: customCap('pace', f.height), aerialCap: customCap('heading', f.height), hMin: C.heightMin, hMax: C.heightMax,
+    },
+    weakOptions: [1, 2, 3, 4, 5].map((v) => ({ v, pts: weakFootPoints(v), on: v === f.weakFoot })),
+    traits: TRAIT_IDS.filter((id) => !CUSTOM_HIDDEN_TRAITS.includes(id)).map((id) => {
+      const t = TRAITS[id];
+      const on = cur.includes(id);
+      return { id, ko: t.ko, desc: t.desc, kind: t.kind, pts: traitPoints(id), on, can: on || canAddTrait(cur, id), ...(t.hook ? { hook: t.hook } : {}) };
+    }),
+    traitCount: {
+      pro: cur.filter((t) => TRAITS[t].kind === 'pro').length, con: cur.filter((t) => TRAITS[t].kind === 'con').length,
+      maxPro: BALANCE.traits.maxPro, maxCon: BALANCE.traits.maxCon,
+    },
+    nationality: f.nationality,
+    nationalities: NATIONALITIES.map((id) => ({ id, ko: NATIONALITY_KO[id] ?? id })),
+    appearance: f.appearance,
+    appearances: APPEARANCES.map((id) => ({ id, ko: APPEARANCE_KO[id] })),
+    hair: f.hair,
+    hairs: (HAIRS_OF[skin] ?? []).map((id) => ({ id, ko: HAIR_KO[id] ?? id })),
+    skin,
+  };
+}
+
+/** 화면 상태 → newGame 입력 */
+export function customSpec(f: CustomForm, name: string): CustomSpec {
+  return {
+    name, position: f.position, age: f.age, attributes: { ...f.attrs },
+    body: { height: f.height, weight: f.weight, foot: f.foot, weakFoot: f.weakFoot },
+    traits: [...f.traits], nationality: f.nationality, appearance: f.appearance, ...(f.hair ? { pixelHair: f.hair } : {}),
+  };
+}
+
+/** 동작 하나 적용 (k, v). 바뀐 폼을 돌려준다 */
+export function customAct(f: CustomForm, k: string, v: string | undefined): CustomForm {
+  const C = BALANCE.custom;
+  const n = Number(v);
+  const out: CustomForm = { ...f };
+  switch (k) {
+    case 'age': out.age = Math.min(C.maxAge, Math.max(C.minAge, f.age + n)); break;
+    case 'pos': out.position = v as PlayablePosition; break;
+    case 'height': {
+      out.height = Math.min(C.heightMax, Math.max(C.heightMin, f.height + n));
+      const [lo, hi] = weightRange(out.height);
+      out.weight = Math.min(hi, Math.max(lo, f.weight));
+      // 키가 바뀌면 상한을 넘은 능력치는 상한으로 (돌려받은 포인트는 남은 포인트로)
+      const a = { ...f.attrs };
+      for (const x of FIELD_ATTRIBUTES) a[x] = Math.min(a[x], Math.max(C.base, customCap(x, out.height)));
+      out.attrs = a;
+      break;
+    }
+    case 'weight': {
+      const [lo, hi] = weightRange(f.height);
+      out.weight = Math.min(hi, Math.max(lo, f.weight + n));
+      break;
+    }
+    case 'foot': out.foot = v === 'left' ? 'left' : 'right'; break;
+    case 'wf': out.weakFoot = Math.min(5, Math.max(1, Math.round(n))) as WeakFoot; break;
+    case 'nat': out.nationality = v ?? f.nationality; break;
+    case 'app': {
+      out.appearance = (v as Appearance) ?? f.appearance;
+      if (out.hair && !(HAIRS_OF[SKIN_OF[out.appearance]] ?? []).includes(out.hair)) out.hair = '';
+      break;
+    }
+    case 'hair': out.hair = v ?? ''; break;
+    case 'trait': {
+      const id = v as TraitId;
+      out.traits = f.traits.includes(id) ? f.traits.filter((t) => t !== id) : canAddTrait(f.traits, id) ? [...f.traits, id] : f.traits;
+      break;
+    }
+    case 'sel': out.sel = f.sel === v ? null : v ?? null; break;
+    case 'raise': out.attrs = customRaise(f.attrs, v as FieldAttribute, 1, budgetOf(f), f.height); break;
+    case 'lower': out.attrs = customRaise(f.attrs, v as FieldAttribute, -1, budgetOf(f), f.height); break;
+    case 'reset': out.attrs = baseAttributes(); break;
+  }
+  return out;
+}
+
+export { ATTRIBUTE_NAMES_KO };

@@ -10,6 +10,8 @@ import { historyTable } from './player';
 import { attrGrid, type AttrGroupVM } from './attrGrid';
 import { attrDisplay, displayDelta } from '../../attributes';
 import { BALANCE } from '../../config/balance';
+import type { CustomVM } from '../customVM';
+import { customBody } from './custom';
 
 // ── 타이틀 (55) ──
 
@@ -42,7 +44,7 @@ export function titleView(vm: TitleVM): string {
 // ── 새 게임 (52·53) ──
 
 export interface NewGameVM {
-  mode: 'prospect' | 'real';
+  mode: 'prospect' | 'real' | 'custom';
   name: string;
   position: string;
   positions: { id: string; ko: string; ovr?: number }[];
@@ -66,20 +68,25 @@ export interface NewGameVM {
   realId: string;
   selected: { name: string; ovr: number } | null;
   teamHint: string;
+  /** 랜덤 유망주 신체·장단점 (C.45) */
+  extras: { body: string; traits: { ko: string; desc: string; kind: 'pro' | 'con' }[] } | null;
 }
 
-export function newGameView(vm: NewGameVM): string {
+export function newGameView(vm: NewGameVM, custom?: CustomVM): string {
   const real = vm.mode === 'real';
-  const hero = real
+  const hero = custom
+    ? HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: `커스텀 선수 · ${custom.position} OVR`, value: custom.ovr, pad: false, progress: false, chips: [`${custom.age}세`, `${custom.body.height} cm · ${custom.body.footKo} · 약발 ${custom.body.weakFoot}`, { label: `남은 ${custom.left}P`, soft: true }] })
+    : real
     ? HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: vm.selected ? `선택한 선수 · ${vm.selected.name} OVR` : '실제 선수를 골라요', value: vm.selected ? vm.selected.ovr : '-', pad: false, progress: false, chips: [`고를 수 있는 선수 ${vm.reals.length}명`, { label: '2018-19 시즌 그대로', soft: true }] })
     : HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
-  const modeTabs = `<span class="label">시작 방식</span>${Tabs({ items: [{ id: 'prospect', label: '가상 유망주' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' } })}`;
+  const modeTabs = `<span class="label">시작 방식</span>${Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' } })}`;
   const diff = `${SectionTitle({ title: '난이도' })}<div class="opts">${vm.difficulties.map((d) =>
     `<button type="button" class="po-option opt${d.id === vm.difficulty ? ' is-on' : ''}" data-act="form" data-k="difficulty" data-v="${d.id}"><span class="grow"><b>${esc(d.label)}</b><small>${esc(d.desc)}</small></span>${
       d.id === 'normal' ? '<span class="rec">추천</span>' : ''}<i class="radio${d.id === vm.difficulty ? ' on' : ''}"></i></button>`).join('')}</div>`;
   const seed = `${SectionTitle({ title: '시드', action: '선택' })}<label class="field"><input type="text" id="f-seed" maxlength="40" value="${esc(vm.seed)}" placeholder="비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과"></label>`;
   let body: string;
-  if (!real) {
+  if (custom) body = customBody(custom, diff, seed);
+  else if (!real) {
     const cands = `<div class="opts cand-list">${vm.candidates.map((c) =>
       `<button type="button" class="po-option opt cand${c.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${c.id}"><span class="cand-pos po-num">${c.id}</span><span class="grow"><b>${esc(c.ko)}${
         c.wild ? ' <span class="rec wild">와일드카드</span>' : ''}</b><small class="coach-line">“${esc(c.line)}”</small></span><span class="ovr"><b class="po-num">${c.ovr}</b><small>OVR</small></span><i class="radio${c.id === vm.position ? ' on' : ''}"></i></button>`).join('')}</div>`;
@@ -93,6 +100,9 @@ export function newGameView(vm: NewGameVM): string {
       <p class="small"><button type="button" class="link-btn" data-act="form-others">${vm.others ? '다른 포지션 접기' : '다른 포지션에서 고르기'}</button> · <button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
       ${all}
       <p class="small muted"><b class="ink">${esc(vm.position)}</b> · 핵심 능력치 ${esc(vm.keyAttrs)}.</p>
+      ${vm.extras ? `${SectionTitle({ title: '신체·장단점', action: '랜덤 · 숨기지 않음' })}
+      <p class="small"><b>${esc(vm.extras.body)}</b></p>
+      <div class="body-chips">${vm.extras.traits.length ? vm.extras.traits.map((t) => `<span class="cu-chip${t.kind === 'pro' ? ' is-on' : ''}" title="${esc(t.desc)}">${t.kind === 'pro' ? '장점' : '단점'} · ${esc(t.ko)}<small>${esc(t.desc)}</small></span>`).join('') : '<span class="small muted">장단점 없음</span>'}</div>` : ''}
       ${SectionTitle({ title: '포지션별 OVR', action: '굵은 칸 = 코치 추천 4자리' })}
       <div class="pos-table">${vm.posTable.map((p) => `<button type="button" class="pt-cell${p.cand ? ' is-cand' : ''}${p.on ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><span>${p.id}</span><b class="po-num">${p.ovr}</b></button>`).join('')}</div>
       ${SectionTitle({ title: '능력치', action: `테두리 = ${vm.position} 핵심` })}

@@ -6,6 +6,7 @@ import type { Formation, FormationSlot } from '../formations';
 import type { Position } from '../types';
 import type { DecisionRecord, MomentControl } from './moments';
 import type { CardInput, CardReport } from './cards';
+import type { Body } from '../body';
 
 /** 전술 성향 6종 (E.19 ①) */
 export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
@@ -38,6 +39,12 @@ export interface PlayerSpec {
   /** 폼 보정 (E.16, 결정 순간 성공 확률 %p 는 E4) */
   form: number;
   isMe: boolean;
+  /** 신체·양발 (부록 C.45): 실행 배율에만 쓴다. 없으면 보정 없음 */
+  body?: Body;
+  /** 경고·퇴장 확률 배율 (C.45 다혈질, 내 선수만). 없으면 1 */
+  cardMul?: number;
+  /** 등번호 (표시용, 부록 C.45). 엔진 판정에는 쓰지 않는다 */
+  shirt?: number;
 }
 
 export interface TeamSetup {

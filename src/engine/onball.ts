@@ -1,6 +1,7 @@
 // 온더볼 의사결정 (E.7): 후보 행동의 효용 U = P × V + (1 − P) × C 를 softmax 로 고른다
 // 후보: 패스(각 동료), 침투 패스, 몰고 가기/드리블 돌파(전진·좌·우), 슛, 크로스, 클리어링, 유지
 
+import { weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
 import { aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
@@ -188,8 +189,8 @@ function weight(u: number, m: number): number {
 export function holdupProb(s: SimState, att: Agent, def: Agent): number {
   const a = att.attrs;
   const d = def.attrs;
-  const atk = a.strength * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
-  const dfn = d.strength * 0.45 + d.tackling * 0.35 + d.defensivePositioning * 0.2;
+  const atk = (a.strength + att.body.strength) * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
+  const dfn = (d.strength + def.body.strength) * 0.45 + d.tackling * 0.35 + d.defensivePositioning * 0.2;
   void s;
   return duelTail(1 / (1 + Math.exp(-((atk - dfn) / O.holdupScale + att.duelEdge - def.duelEdge))));
 }
@@ -686,7 +687,9 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',
     quick: c.type === 'cutback' || c.type === 'layoff', aimD: d,
   };
-  if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p)) return fl;
+  // 약발 (C.45): 약발로 차야 하는 방향이면 실행 성공 확률 × 약발 배율 (판단의 P 는 그대로)
+  const foot = weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y, true);
+  if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p) * foot) return fl;
 
   // 실패한 침투 패스이고 GK 가 가장 빠르면 GK 가 목표점으로 나가 끊는다 (C.28)
   if (c.keeper !== undefined && s.agents[c.keeper]?.onPitch) {

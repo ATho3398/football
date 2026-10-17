@@ -94,12 +94,13 @@ describe('시즌 진행', () => {
     expect(s.player.history.map((h) => h.season)).toEqual([2018, 2019]);
   });
 
-  it('38세에 강제 은퇴', () => {
+  it('38세에도 강제 은퇴 없음 (C.45): 비시즌으로 가고 [은퇴]는 고를 수 있다', () => {
     const s = newGame({ mode: 'real', playerId: 'aguero', seed: 'old', difficulty: 'normal' });
     s.player.age = 37;
     playSeason(s);
-    expect(s.phase).toBe('retired');
-    expect(s.lastSeasonSummary?.forcedRetire).toBe(true);
+    expect(s.phase).toBe('offseason');
+    expect(s.lastSeasonSummary?.forcedRetire).toBe(false);
+    expect(s.lastSeasonSummary?.canRetire).toBe(true);
   });
 
   it('결정성: 같은 시드와 같은 선택이면 같은 결과 (세이브 왕복 포함)', () => {

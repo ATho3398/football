@@ -21,6 +21,7 @@ import { compress, decompress, storeBackend, type Encoding } from './saveStore';
 import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
 import type { Replay } from './replay';
 import { initialMarket } from './transfer';
+import { realBody, rollBody } from './body';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -227,6 +228,16 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.nameOverrides = {};
     const ko = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.nameKo]));
     for (const n of s.npcs ?? []) if (ko.has(n.id)) n.nameKo = ko.get(n.id);
+  },
+  // 23 → 24 (부록 C.45): 내 선수 신체·양발(실제 선수 = 데이터, 유망주 = `me:<시드>` 분포), 장단점 없음(옛 커리어에 새로 붙이지 않는다),
+  // 등번호(실제 선수 = 데이터, 유망주 = 경기 때 팀의 빈 관례 번호), 도트 아이콘 직접 바꾸기 없음. 강제 은퇴로 끝난 세이브는 그대로 은퇴 상태
+  23: (s) => {
+    const p = s.player;
+    const real = p.realPlayerId ? A_GRADE_PLAYERS.find((d) => d.id === p.realPlayerId) : undefined;
+    p.body = (p.realPlayerId && realBody(p.realPlayerId)) || rollBody(`me:${s.worldSeed}`, p.position);
+    p.traits = [];
+    if (real) p.shirt = real.shirtNumber;
+    s.pixelOverrides = { players: {}, kits: {} };
   },
 };
 

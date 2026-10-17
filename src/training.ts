@@ -11,18 +11,18 @@ import { costTier, pointCost } from './growth';
 const T = BALANCE.training;
 
 export type TrainingKind = keyof typeof BALANCE.training.kinds;
-export const TRAINING_KINDS: readonly TrainingKind[] = ['tech', 'intense', 'position', 'setpiece', 'video', 'recovery', 'rest'];
+export const TRAINING_KINDS: readonly TrainingKind[] = ['tech', 'weakFoot', 'intense', 'position', 'setpiece', 'video', 'recovery', 'rest'];
 /** 하루 계획: 훈련 7종 + 경기 날, 휴가, 재활(부상 중 기본) */
 export type DayPlan = TrainingKind | 'match' | 'vacation' | 'rehab';
 
 export const TRAINING_NAMES_KO: Record<DayPlan, string> = {
   tech: '기술 훈련', intense: '고강도 훈련', position: '포지션·역할 훈련', setpiece: '세트피스·카드 훈련', video: '영상 분석',
-  recovery: '회복 훈련', rest: '휴식', match: '경기', vacation: '휴가', rehab: '재활',
+  recovery: '회복 훈련', rest: '휴식', match: '경기', vacation: '휴가', rehab: '재활', weakFoot: '약발 훈련',
 };
 /** 달력·주간 계획 칸의 짧은 이름 */
 export const TRAINING_SHORT_KO: Record<DayPlan, string> = {
   tech: '기술', intense: '고강도', position: '포지션', setpiece: '세트피스', video: '영상', recovery: '회복', rest: '휴식',
-  match: '경기', vacation: '휴가', rehab: '재활',
+  match: '경기', vacation: '휴가', rehab: '재활', weakFoot: '약발',
 };
 export const TRAINING_DESC_KO: Record<TrainingKind, string> = {
   tech: '고른 묶음 게이지 +1. 다 차면 그 묶음에서 가장 낮은 능력치가 다음 칸까지 1/5 진행',
@@ -30,6 +30,7 @@ export const TRAINING_DESC_KO: Record<TrainingKind, string> = {
   position: `전술 "내 위치" 숙련도 +${T.positionProf}, 역할 시그니처 해금 +${T.roleApps}경기`,
   setpiece: `덱에서 가장 덜 쓴 카드 숙련 +${T.cardMastery}회`,
   video: '다음 경기 상대 힌트 1줄',
+  weakFoot: `약발 게이지 +1. ${BALANCE.weakFoot.trainingGauge}칸이 차면 약발 +1 (시즌 최대 +${BALANCE.weakFoot.seasonMax}, 약발 5 = 양발잡이)`,
   recovery: '체력을 많이 회복하고, 연속 휴식 폼 감점을 지워요',
   rest: `체력을 가장 많이 회복해요. 경기 다음 날은 휴식 고정. 부상 중이면 회복 +${T.restHealBonus}일, ${T.restStreak}일 연속이면 폼 −1`,
 };
@@ -49,6 +50,8 @@ export interface TrainingDayResult {
   /** 기술 훈련 게이지가 차서 오른 능력치 */
   up?: FieldAttribute;
   bundle?: AttributeGroup;
+  /** 약발 훈련으로 약발이 올랐으면 새 약발 (C.45) */
+  weakFootUp?: number;
   /** 그 밖의 한 줄 (힌트, 숙련도, 카드) */
   note?: string;
   /** 고강도 훈련 부상 */

@@ -107,7 +107,8 @@ export function issuePendingCards(s: SimState): void {
 
 function rollCard(s: SimState, fouler: Agent): CardType | null {
   const x = r(s, fouler.idx, Purpose.Card);
-  const k = isAway(s, fouler) ? ENGINE.match.awayCard : 1;
+  // 다혈질 (C.45 장단점): 카드 확률 × cardMul (내 선수만, 없으면 1)
+  const k = (isAway(s, fouler) ? ENGINE.match.awayCard : 1) * (fouler.spec.cardMul ?? 1);
   if (x < R.redShare * k) return 'red';
   if (x < (R.redShare + R.yellowShare) * k) {
     if (fouler.stats.yellows > 0 && r(s, fouler.idx, Purpose.Card, 1) >= R.secondYellow) return null;

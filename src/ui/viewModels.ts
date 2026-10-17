@@ -1,6 +1,9 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { prospectExtras } from '../game';
+import { FOOT_KO } from '../body';
+import { TRAITS } from '../traits';
 import { SCENE_LABEL } from '../engine/moments';
 import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
@@ -124,7 +127,8 @@ export function myFace(g: GameState): FaceRef {
   const p = g.player;
   if (p.realPlayerId) return { id: p.realPlayerId, age: p.age, appearance: realAppearance(p.realPlayerId, '') };
   const id = `me:${g.worldSeed}`;
-  return { id, age: p.age, appearance: rollAppearance(id, PROSPECT_NATIONALITY) };
+  // 커스텀 생성 (C.45): 고른 외모군·국적
+  return { id, age: p.age, appearance: p.appearance ?? rollAppearance(id, p.nationality ?? PROSPECT_NATIONALITY) };
 }
 
 function playerCardVM(g: GameState): PlayerCardVM {
@@ -1148,7 +1152,7 @@ export type SavesVMOut = ReturnType<typeof savesVM>;
 // ── 새 게임 (I.2, 디자인 52·53) ──
 
 export interface NewGameForm {
-  mode: 'prospect' | 'real'; name: string; position: string; seed: string; difficulty: string; realId: string;
+  mode: 'prospect' | 'real' | 'custom'; name: string; position: string; seed: string; difficulty: string; realId: string;
   /** 가상 유망주 시드 (입력 시드 또는 무작위, C.37) */
   roll: string;
   /** "다른 포지션에서 고르기" 펼침 */
@@ -1194,6 +1198,14 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     })),
     seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,
+    // 랜덤 유망주의 신체·장단점 (C.45, 숨기지 않음)
+    extras: prospect ? (() => {
+      const x = prospectExtras(f.roll, f.position as PlayablePosition);
+      return {
+        body: `${x.body.height} cm · ${x.body.weight} kg · ${FOOT_KO[x.body.foot]} · 약발 ${x.body.weakFoot}${x.body.weakFoot >= 5 ? ' (양발)' : ''}`,
+        traits: x.traits.map((t) => ({ ko: TRAITS[t].ko, desc: TRAITS[t].desc, kind: TRAITS[t].kind })),
+      };
+    })() : null,
   };
 }
 

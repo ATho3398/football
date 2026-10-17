@@ -33,7 +33,11 @@ function nameHtml(label: string): string {
   return m ? `${esc(m[1]!)}<small> ${esc(m[2]!)}</small>` : esc(label);
 }
 
-function cell(c: AttrCellVM, sel: string | null): string {
+/** 편집 박스의 동작 이름 (포인트 찍기 기본, 커스텀 생성은 cu-, C.45) */
+export interface AttrActs { sel: string; raise: string; lower: string }
+const ALLOC_ACTS: AttrActs = { sel: 'alloc-sel', raise: 'raise', lower: 'lower' };
+
+function cell(c: AttrCellVM, sel: string | null, acts: AttrActs = ALLOC_ACTS): string {
   const on = c.edit && sel === c.attr;
   const cls = `ag-cell ag-t${attrTier(c.value)}${c.key ? ' is-key' : ''}${on ? ' is-sel' : ''}${c.edit ? ' is-edit' : ''}${c.edit?.maxed ? ' is-max' : ''}`;
   const dd = c.base === undefined ? 0 : attrDisplay(c.value) - attrDisplay(c.base);
@@ -46,15 +50,15 @@ function cell(c: AttrCellVM, sel: string | null): string {
   const cost = e.maxed ? '최대' : e.blocked ? (e.reach === 0 ? '상한' : '부족') : e.reach < e.steps ? `${e.cost}P · 지금 ${e.reach}/${e.steps}칸` : `${e.cost}P`;
   const edit = on
     ? `<span class="ag-edit">
-        <button type="button" class="ag-btn" data-act="lower" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 내리기"${e.canLower ? '' : ' disabled'}>−</button>
+        <button type="button" class="ag-btn" data-act="${acts.lower}" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 내리기"${e.canLower ? '' : ' disabled'}>−</button>
         <small class="po-num">${esc(cost)}</small>
-        <button type="button" class="ag-btn plus" data-act="raise" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 올리기 (${esc(cost)})"${e.maxed || e.reach === 0 ? ' disabled' : ''}>+</button>
+        <button type="button" class="ag-btn plus" data-act="${acts.raise}" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 올리기 (${esc(cost)})"${e.maxed || e.reach === 0 ? ' disabled' : ''}>+</button>
       </span>`
     : `<span class="ag-cost po-num">${esc(cost)}${e.ovrDelta ? ` · OVR +${e.ovrDelta}` : ''}</span>`;
-  return `<div class="${cls}" role="button" tabindex="0" data-act="alloc-sel" data-v="${esc(c.attr)}" aria-pressed="${!!on}">${head}${edit}</div>`;
+  return `<div class="${cls}" role="button" tabindex="0" data-act="${acts.sel}" data-v="${esc(c.attr)}" aria-pressed="${!!on}">${head}${edit}</div>`;
 }
 
-export function attrGrid(groups: AttrGroupVM[], sel: string | null = null): string {
-  return `<div class="ag">${groups.map((g) => `<div class="ag-group"><h4 class="ag-head">${esc(g.name)}</h4><div class="ag-grid">${g.cells.map((c) => cell(c, sel)).join('')}</div></div>`).join('')}
+export function attrGrid(groups: AttrGroupVM[], sel: string | null = null, acts?: AttrActs): string {
+  return `<div class="ag">${groups.map((g) => `<div class="ag-group"><h4 class="ag-head">${esc(g.name)}</h4><div class="ag-grid">${g.cells.map((c) => cell(c, sel, acts)).join('')}</div></div>`).join('')}
     <div class="ag-legend small"><span><i class="ag-sw ag-t5"></i>17+</span><span><i class="ag-sw ag-t4"></i>15+</span><span><i class="ag-sw ag-t3"></i>13+</span><span><i class="ag-sw ag-t2"></i>10+</span><span><i class="ag-sw ag-t1"></i>~9</span><span><i class="ag-sw key"></i>포지션 핵심</span><span><i class="ag-sw bar"></i>다음 칸까지</span></div></div>`;
 }

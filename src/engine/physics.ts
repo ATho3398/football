@@ -9,8 +9,10 @@ const P = ENGINE.physics;
 export function initPhysics(a: Agent): void {
   const t = a.attrs;
   a.maxSpeed = P.maxSpeedBase + (P.maxSpeedSlope * t.pace) / 100;
-  a.accel = P.accelBase + (P.accelSlope * t.acceleration) / 100;
-  a.turnKeep = P.turnKeepBase + (P.turnKeepSlope * t.agility) / 100;
+  // 몸무게 (C.45): 가속·민첩 소폭 − (BMI 보정, 신체가 없으면 0)
+  const q = a.body?.quickness ?? 0;
+  a.accel = P.accelBase + (P.accelSlope * (t.acceleration - q)) / 100;
+  a.turnKeep = P.turnKeepBase + (P.turnKeepSlope * (t.agility - q)) / 100;
 }
 
 /** 스태미나에 따른 유효 최대 속도 */

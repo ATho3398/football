@@ -223,6 +223,7 @@ interface Placed { id: string; info: ReplayPlayer; x: number; y: number; carrier
 /** 마커들을 겹침 순서(상대 → 우리 → 공 가진 선수 → 내 선수)로 그리고, 그 순서대로 이름 라벨 */
 function drawMarkers(
   ctx: CanvasRenderingContext2D, w: number, h: number, list: Placed[], renderer: MarkerRenderer, mySide: 0 | 1, r: number, pulse: number,
+  scope?: ReadonlyMap<string, ReplayPlayer>,
 ): void {
   const rank = (p: Placed) => (p.info.isMe ? 3 : p.carrier ? 2 : p.info.team === mySide ? 1 : 0);
   const sorted = [...list].sort((a, b) => rank(a) - rank(b));
@@ -239,7 +240,7 @@ function drawMarkers(
     if (mode === 'mine' && !p.info.isMe) continue;
     const rr = p.info.isMe ? r * ME_SCALE : r;
     const top = Math.min(h - 2 - Math.max(9, r * 0.8) - 4, p.y + rr * below + (p.info.isMe ? 5 : 2));
-    drawLabel(ctx, nameOf(p.id, p.info.isMe, p.info.name), p.x, top, r, w, p.info.isMe);
+    drawLabel(ctx, nameOf(p.id, p.info.isMe, p.info.name, scope), p.x, top, r, w, p.info.isMe);
   }
 }
 
@@ -265,7 +266,8 @@ export function drawFrame(
     }
     list.push({ id: p.id, info, x: px, y: py, carrier: frame.carrier === p.id });
   }
-  drawMarkers(ctx, w, h, list, renderer, mySide, r, pulse);
+  // 짧은 이름 겹침 판정은 이 경기 두 팀 명단(교체 포함) 안에서 (C.45, pending 60)
+  drawMarkers(ctx, w, h, list, renderer, mySide, r, pulse, players);
   // 공: 땅의 그림자는 제자리, 공은 높이(z, m)만큼 위로 뜨고 조금 커진다. 그림자는 높을수록 옅고 넓다
   const [bx, by] = proj.toScreen(frame.ball.x, frame.ball.y);
   const z = Math.max(0, frame.ball.z);
@@ -396,8 +398,8 @@ export function isPortraitPitch(): boolean {
 }
 
 /** 선수 id → 라벨 이름 (화면이 정한다: 별명 > 짧은 이름). 기본은 리플레이 이름의 짧은 이름 */
-let nameOf: (id: string, isMe: boolean, fallback: string) => string = (_id, _me, fallback) => autoShortKo(fallback);
-export function setPitchNameResolver(f: (id: string, isMe: boolean, fallback: string) => string): void {
+let nameOf: (id: string, isMe: boolean, fallback: string, scope?: ReadonlyMap<string, ReplayPlayer>) => string = (_id, _me, fallback) => autoShortKo(fallback);
+export function setPitchNameResolver(f: (id: string, isMe: boolean, fallback: string, scope?: ReadonlyMap<string, ReplayPlayer>) => string): void {
   nameOf = f;
 }
 

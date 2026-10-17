@@ -5,6 +5,7 @@ import type { Position } from '../types';
 import type { MomentState } from './moments';
 import type { CardState } from './cards';
 import type { Role } from './roles';
+import type { BodyMods } from '../body';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
 
 /** 0 GK, 1 수비, 2 중원, 3 공격 */
@@ -62,6 +63,8 @@ export interface Agent {
   minRun: boolean;
   /** 스태미나 소모 배율 (수적 열세 1.15, E.18 A6) */
   drainMul: number;
+  /** 신체·양발 실행 보정 (부록 C.45): 공중볼·몸싸움·가속/민첩·GK 리치·약발 */
+  body: BodyMods;
   /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
   duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */

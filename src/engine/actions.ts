@@ -1,5 +1,6 @@
 // 행동 실행과 결과 판정: 패스, 드리블 돌파, 태클, 슛, 크로스, 클리어링, 공중볼, 세이브
 
+import { weakFootMul } from '../body';
 import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
@@ -431,7 +432,9 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     return;
   }
 
-  const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn;
+  // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
+  const foot = header ? 1 : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
+  const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot;
   const side = r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1;
   const speed = m.speed * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
   if (onTarget) {
@@ -603,7 +606,8 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
     setRestart(s, 'corner', a.team, dir > 0 ? L : 0, a.y < W / 2 ? 0 : W, 'auto');
     return;
   }
-  const err = (100 - a.attrs.crossing) * PR.crossError;
+  // 약발 (C.45): 크로스 오차 ÷ 약발 배율
+  const err = ((100 - a.attrs.crossing) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y);
   const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err, 0.5, L - 0.5);
   const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err, 0.5, W - 0.5);
   const d = dist(a.x, a.y, tx, ty);
@@ -645,7 +649,8 @@ export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'c
     x = a.x + dx * Math.cos(ang) - dy * Math.sin(ang);
     y = a.y + dx * Math.sin(ang) + dy * Math.cos(ang);
   }
-  const err = (100 - a.attrs.longPassing) * 0.08 + 2;
+  // 약발 (C.45): 롱볼 오차 ÷ 약발 배율 (걷어내기는 그대로)
+  const err = ((100 - a.attrs.longPassing) * 0.08 + 2) / (kind === 'long' ? weakFootMul(a.body, attackDir(a.team, s.half), x - a.x, y - a.y) : 1);
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
   const d = dist(a.x, a.y, tx, ty);

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 31;
+export const BALANCE_VERSION = 32;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -170,12 +170,16 @@ export const BALANCE = {
       [30, 1],
       [32, 2.2],
       [36, 3],
+      [38, 5],
+      [41, 7],
     ] as [number, number][],
     /** 기술/수비/멘탈 */
     other: [
       [33, 0.5],
       [35, 1],
       [37, 2],
+      [38, 3],
+      [41, 4],
     ] as [number, number][],
     /**
      * 노화를 포지션 OVR 에 중요한 능력치에 몰아주는 정도 (0 = 고르게, 1 = OVR 비중에 정비례).
@@ -183,6 +187,13 @@ export const BALANCE = {
      * 고르게 깎으면 포인트를 OVR 능력치에만 찍는 선수는 30대에도 OVR 이 떨어지지 않는다 (부록 D.0 점검)
      */
     positionFocus: 0.8,
+    /**
+     * 38세부터 (pending 48 1, C.45 — 내 선수 강제 은퇴 삭제 뒤): 포지션 몰아주기를 lateFocus 로 낮춰 골고루 깎이고,
+     * 체력·속도 계열(lateExtra)은 추가 배율. NPC 는 38세에 은퇴하므로 영향 없음
+     */
+    lateFrom: 38,
+    lateFocus: 0.3,
+    lateExtra: { stamina: 1.5, pace: 1.5, acceleration: 1.5 } as Partial<Record<FieldAttribute, number>>,
   },
 
   // ── 노련함 능력치 (6.1.1, 부록 D.0 #4) ──
@@ -203,6 +214,7 @@ export const BALANCE = {
   },
 
   // ── 은퇴 (1) ──
+  // 내 선수는 30세부터 [은퇴] 가능, 강제 은퇴 없음 (pending 48 1, C.45). forcedAge 는 NPC(실제·가상) 은퇴 나이
   retirement: { optionalAge: 30, forcedAge: 38 },
 
   // ── 새 게임 (B.2) ──
@@ -376,6 +388,8 @@ export const BALANCE = {
       video: { xp: 0.5, fatigue: 4.5 },
       recovery: { xp: 0, fatigue: 5.5 },
       rest: { xp: 0, fatigue: 6 },
+      /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
+      weakFoot: { xp: 0.75, fatigue: 4.0 },
     },
     /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
     weeklyXpCap: 6,
@@ -701,6 +715,120 @@ export const BALANCE = {
     seasonEpicChance: 0.2,
     signatureUnlock: 10,
   },
+  // ── 신체·양발 (pending 47 1, 부록 C.45): 키·몸무게·주발·약발. 생성 분포와 엔진 실행 배율 (판단 구조는 그대로) ──
+  body: {
+    /** 포지션군별 키 평균·표준편차 (cm)와 BMI 평균. CB·ST·GK 크고 윙·공미 작다 */
+    byGroup: {
+      GK: { height: 189, sd: 4, bmi: 23.6 },
+      CB: { height: 187, sd: 4, bmi: 23.8 },
+      FB: { height: 178, sd: 4.5, bmi: 22.9 },
+      CDM: { height: 181, sd: 5, bmi: 23.2 },
+      CM: { height: 179, sd: 5, bmi: 22.9 },
+      CAM: { height: 176, sd: 5, bmi: 22.6 },
+      WING: { height: 176, sd: 5, bmi: 22.6 },
+      ST: { height: 183, sd: 6, bmi: 23.5 },
+    },
+    bmiSd: 1.0,
+    heightMin: 160,
+    heightMax: 205,
+    /** 왼발잡이 비율 (포지션별, 나머지는 other) */
+    leftFoot: { LB: 0.65, LWB: 0.65, LM: 0.5, LW: 0.35, RW: 0.35, RB: 0.06, RWB: 0.06, RM: 0.1, other: 0.2 } as Record<string, number>,
+    /** 약발 1~5 생성 가중치 (주발은 늘 5) */
+    weakFootOdds: [3, 22, 50, 20, 5] as readonly number[],
+    /** 약발로 찬 공의 정확도 배율 (약발 1 ×0.75 … 5 ×1.0) */
+    weakFootMul: [0.75, 0.8125, 0.875, 0.9375, 1] as readonly number[],
+    /**
+     * 약발로 차야 하는 정도: 찬 방향의 좌우 성분(공격 방향 기준 sin) |lat| 이 weakFrom 이하면 아무 발이나(0),
+     * weakFull 이상이면 완전히 약발(1). 오른쪽으로 보내는 공 = 왼발, 왼쪽으로 = 오른발
+     */
+    weakFrom: 0.25,
+    weakFull: 0.75,
+    /** 패스는 거리로도 섞는다: passFrom m 이하 짧은 패스는 몸을 돌려 차므로 0, passFull m 이상은 전부 (C.45 첫 측정: 짧은 옆 패스까지 걸면 패스 성공률 −3%p) */
+    passFrom: 12,
+    passFull: 30,
+    /** 키 기준 (cm)과 공중볼 점수(헤더 0.5 + 점프 0.3 + 근력 0.2 척도) cm 당 보정, 한도 */
+    refHeight: 181,
+    aerialPerCm: 0.35,
+    aerialMax: 7,
+    /** GK 리치 (기준 188 cm): 공중볼 잡기 확률·선방 확률 cm 당 */
+    gkRefHeight: 188,
+    gkClaimPerCm: 0.004,
+    gkSavePerCm: 0.0015,
+    gkReachMax: 0.04,
+    /** 몸무게 (BMI 기준 23): 몸싸움(근력) 점수 BMI 1 당 +, 가속·민첩 BMI 1 당 − (작게) */
+    refBmi: 23,
+    strengthPerBmi: 1.5,
+    strengthMax: 4,
+    quicknessPerBmi: 1.0,
+    quicknessMax: 3,
+    /** 커스텀 생성: 키가 기준보다 크면 속도·가속·민첩 상한 cm 당 −, 헤더·점프 상한 cm 당 + */
+    custom: { speedCapBase: 75, speedCapPerCm: 0.8, aerialCapBase: 70, aerialCapPerCm: 0.6, capMin: 55, capMax: 85 },
+  },
+
+  // ── 약발 강화 (pending 47 1, C.45): 포인트로 +1 (내부 포인트 cost), 하루 훈련 "약발 훈련" 게이지 (시즌 최대 +1) ──
+  weakFoot: {
+    pointCost: 50,
+    /** 약발 훈련 하루 게이지 +1, 다 차면 약발 +1 (시즌 최대 seasonMax) */
+    trainingGauge: 30,
+    seasonMax: 1,
+  },
+
+  // ── 장점·단점 (pending 47 2, C.45): 커스텀 생성 포인트와 효과 배율 ──
+  traits: {
+    maxPro: 2,
+    maxCon: 3,
+    /** 장점 비용 (배분 포인트 −) */
+    proCost: {
+      ironMan: 20, star: 10, bigGame: 15, linguist: 5, leader: 5, consistent: 15, professional: 25, resilient: 15, twoFooted: 20, evergreen: 15,
+    },
+    /** 단점 보상 (배분 포인트 +) */
+    conGain: {
+      glass: 20, managerSensitive: 5, poorNegotiator: 5, lateBloomer: 10, inconsistent: 15, hotHead: 10, homesick: 5, slowRecovery: 15, mediaShy: 5, weakFootOne: 15,
+    },
+    /** 랜덤 생성 장단점 수 0·1·2개 확률 */
+    randomCountOdds: [0.4, 0.4, 0.2] as readonly number[],
+    effects: {
+      glassInjury: 1.5,
+      ironManInjury: 0.6,
+      inconsistentForm: 1.5,
+      consistentForm: 0.7,
+      slowRecovery: 0.8,
+      resilient: 1.2,
+      professionalXp: 1.1,
+      lateBloomerAge: 21,
+      lateBloomerEarly: 0.8,
+      lateBloomerLate: 1.1,
+      starWage: 1.1,
+      hotHeadCards: 1.4,
+      evergreenAging: 0.6,
+      bigGameForm: 0.1,
+      twoFootedStart: 4,
+      weakFootOneStart: 1,
+    },
+  },
+
+  // ── 커스텀 생성 (pending 47 2·49 1, C.45): 모든 능력치 base 에서 시작, 배분 포인트를 나눈다. 한 칸(1~20 표시 1칸 = 내부 5)씩, 비용은 칸당 (구간별) ──
+  custom: {
+    base: 40,
+    points: 100,
+    /** 칸(내부 5) 비용: [지금 내부 값이 이 값 미만이면, 비용] */
+    step: 5,
+    costBands: [[55, 2], [65, 3], [100, 4]] as [number, number][],
+    /** 능력치 상한 (키 상한은 BALANCE.body.custom) */
+    cap: 75,
+    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +) */
+    minAge: 15,
+    maxAge: 23,
+    refAge: 17,
+    pointsPerYear: 15,
+    heightMin: 165,
+    heightMax: 200,
+    bmiMin: 19.5,
+    bmiMax: 27,
+    /** 약발 선택 포인트 (3 기준, 높으면 −, 낮으면 +). 커스텀에서는 양발잡이·약발 1 장단점 대신 이 값으로 고른다 */
+    weakFootPoints: [10, 5, 0, -12, -25] as readonly number[],
+  },
+
   // ── 외모군 (pending 50, 부록 C.43): 가상 선수 외모군을 국적별 분포에서 뽑는다 (가중치). 기본 얼굴 이미지 매니페스트(public/faces/base)와 같은 이름을 쓴다.
   // 최종 외모군 목록은 사용자가 주는 이미지 설정값에 맞춘다. 추첨은 선수 id 로 따로 만든 난수라 기존 시드 결과를 바꾸지 않는다
   appearance: {

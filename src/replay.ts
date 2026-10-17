@@ -80,7 +80,7 @@ export function captureFrame(s: SimState): ReplayFrame {
   };
 }
 
-/** 선수 목록 (마커 번호: 선발은 슬롯 순서 1~11, 벤치는 12부터) */
+/** 선수 목록 (마커 번호 = 등번호, C.45. 등번호가 없는 선수(옛 입력)는 선발 슬롯 순서 1~11, 벤치 12부터) */
 export function replayPlayers(home: TeamSetup, away: TeamSetup): ReplayPlayer[] {
   const out: ReplayPlayer[] = [];
   ([home, away] as const).forEach((setup, team) => {
@@ -88,8 +88,8 @@ export function replayPlayers(home: TeamSetup, away: TeamSetup): ReplayPlayer[] 
     const add = (p: PlayerSpec, number: number) => out.push({
       id: p.id, name: p.name ?? p.id, team: team as 0 | 1, number, position: p.position, isMe: p.isMe, gk: !!p.gk || p.position === 'GK',
     });
-    starters.forEach((p, i) => add(p, i + 1));
-    setup.bench.forEach((p, i) => add(p, 12 + i));
+    starters.forEach((p, i) => add(p, p.shirt ?? i + 1));
+    setup.bench.forEach((p, i) => add(p, p.shirt ?? 12 + i));
   });
   return out;
 }

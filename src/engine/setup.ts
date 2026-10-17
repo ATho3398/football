@@ -18,6 +18,8 @@ export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec
     stamina,
     form: 0,
     isMe: false,
+    ...(p.body ? { body: p.body } : {}),
+    ...(p.shirt !== undefined ? { shirt: p.shirt } : {}),
   };
 }
 

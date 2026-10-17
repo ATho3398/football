@@ -1,5 +1,5 @@
 // 선수 이름 색인 (부록 C.44a): 세계의 모든 선수(내 선수·로스터·리그 밖 실제 선수)의 자동 짧은 이름.
-// 같은 짧은 이름끼리만 첫 글자를 붙이므로 세계 전체로 계산한다. 시즌·로스터·이적이 바뀌면 다시 (세이브에 넣지 않는다)
+// 설정 화면은 세계 전체로, 경기 화면은 그 경기 두 팀 명단 안에서 겹침을 본다 (C.45, pending 60). 세이브에 넣지 않는다
 
 import { A_GRADE_PLAYERS } from '../../data/players';
 import type { GameState } from '../game';
@@ -46,8 +46,29 @@ export function autoShortNames(g: GameState): Map<string, string> {
   return cache.map;
 }
 
-/** 경기 화면 라벨 이름: 별명 > 직접 고친 짧은 이름 > 자동 짧은 이름. 리플레이의 내 선수 id 는 엔진 id 라 isMe 로 고른다 */
-export function pitchLabel(g: GameState, id: string, isMe: boolean, fallback: string): string {
+let scoped: { key: unknown[]; map: Map<string, string> } | null = null;
+
+/**
+ * 한 경기 명단 안의 자동 짧은 이름 (C.45, pending 60): 첫 글자 붙이는 겹침 판정을 세계 전체가 아니라 그 경기 두 팀 명단(교체 포함) 안에서.
+ * ids 는 리플레이 선수 id (내 선수는 엔진 id 'me' 대신 isMe 로 표시된 선수)
+ */
+export function matchShortNames(g: GameState, scope: ReadonlyMap<string, { isMe: boolean; name: string }>): Map<string, string> {
+  const key = [scope, g.rosters, g.npcs, g.player.name];
+  if (scoped && scoped.key.length === key.length && scoped.key.every((k, i) => k === key[i])) return scoped.map;
+  const world = new Map(worldPlayers(g).map((p) => [p.id, p]));
+  const me = myFace(g).id;
+  const entries: NameEntry[] = [];
+  for (const [id, info] of scope) {
+    const pid = info.isMe ? me : id;
+    entries.push(world.get(pid) ?? { id: pid, nameKo: info.name });
+  }
+  scoped = { key, map: shortNames(entries) };
+  return scoped.map;
+}
+
+/** 경기 화면 라벨 이름: 별명 > 직접 고친 짧은 이름 > 자동 짧은 이름(그 경기 명단 안 겹침, 명단을 모르면 세계 기준). 리플레이의 내 선수 id 는 엔진 id 라 isMe 로 고른다 */
+export function pitchLabel(g: GameState, id: string, isMe: boolean, fallback: string, scope?: ReadonlyMap<string, { isMe: boolean; name: string }>): string {
   const pid = isMe ? myFace(g).id : id;
-  return labelName(pid, autoShortNames(g).get(pid), isMe ? g.player.name : fallback, g.nameOverrides);
+  const auto = scope ? matchShortNames(g, scope).get(pid) : autoShortNames(g).get(pid);
+  return labelName(pid, auto, isMe ? g.player.name : fallback, g.nameOverrides);
 }

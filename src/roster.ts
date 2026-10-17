@@ -14,6 +14,8 @@ import { attributeOvrWeight, positionOvr, positionOvrExact, profileOf, type Fiel
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Position, Tier } from './types';
 import { TEAM_TACTICS } from './engine/teamData';
+import { realBody, rollBody, type Body } from './body';
+import { A_GRADE_PLAYERS } from '../data/players';
 
 export type PosGroup = 'GK' | 'CB' | 'FB' | 'CDM' | 'CM' | 'CAM' | 'WING' | 'ST';
 export const POS_GROUPS: readonly PosGroup[] = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
@@ -52,6 +54,10 @@ export interface RosterPlayer {
   nationality: string;
   /** 외모군 (부록 C.43): 기본 얼굴 이미지 고르기. 선수 id 로 따로 뽑아 시드 흐름과 무관 */
   appearance: Appearance;
+  /** 신체·양발 (부록 C.45). 가상 선수는 `body:<id>` 시드로 따로 뽑아 시드 흐름과 무관 */
+  body?: Body;
+  /** 등번호 (부록 C.45): 실제 선수는 데이터, 가상 선수는 포지션 관례대로 팀 안에서 겹치지 않게 */
+  shirt?: number;
   age: number;
   /** 주 포지션 */
   position: Position;
@@ -281,6 +287,7 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
     joined: spec.season,
   };
   p.appearance = rollAppearance(`${p.id}:${p.name}`, p.nationality);
+  p.body = rollBody(p.id, p.position);
   capVirtualAttributes(p, spec.teamMax);
   return p;
 }
@@ -304,6 +311,8 @@ function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
     nameKo: n.nameKo,
     nationality: '',
     appearance: realAppearance(n.id, ''),
+    ...(realBody(n.id) ? { body: realBody(n.id) } : {}),
+    ...(REAL_SHIRT.get(n.id) !== undefined ? { shirt: REAL_SHIRT.get(n.id) } : {}),
     age: n.age,
     position: n.position,
     attributes: { ...n.attributes },
@@ -319,6 +328,47 @@ function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
 function rollAge(rng: Rng): number {
   const A = BALANCE.roster.age;
   return Math.round(clamp(A.mean + gaussian(rng) * A.sd, A.min, A.max));
+}
+
+// ── 등번호 (부록 C.45, pending 54 7) ──
+
+const REAL_SHIRT = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.shirtNumber]));
+
+/** 포지션 관례 등번호 (앞에서부터 비어 있는 번호) */
+const SHIRT_PREF: Record<PosGroup, readonly number[]> = {
+  GK: [1, 13, 25, 31, 12, 30, 40],
+  CB: [4, 5, 6, 15, 23, 26, 32, 33],
+  FB: [2, 3, 12, 22, 24, 27, 29],
+  CDM: [6, 8, 16, 18, 24, 28],
+  CM: [8, 14, 16, 18, 20, 28],
+  CAM: [10, 8, 20, 21, 22],
+  WING: [7, 11, 17, 19, 27, 37],
+  ST: [9, 10, 19, 21, 39, 29],
+};
+
+/** 그 팀에서 비어 있는 관례 번호 (없으면 2~99 중 첫 빈 번호) */
+export function freeShirt(taken: ReadonlySet<number>, pos: Position): number {
+  for (const n of SHIRT_PREF[posGroup(pos)]) if (!taken.has(n)) return n;
+  for (let n = 2; n < 100; n++) if (!taken.has(n)) return n;
+  return 99;
+}
+
+/**
+ * 등번호 정리: 실제 선수 번호 먼저, 이미 번호가 있는 선수는 겹치지 않으면 그대로, 나머지는 포지션 관례대로.
+ * reserved 는 팀 밖에서 쓰는 번호 (내 선수)
+ */
+export function assignShirts(roster: TeamRoster, reserved: ReadonlySet<number> = new Set()): void {
+  const taken = new Set<number>(reserved);
+  const order = [...roster.players].sort((a, b) => Number(b.real) - Number(a.real) || Number(b.shirt !== undefined) - Number(a.shirt !== undefined));
+  const need: RosterPlayer[] = [];
+  for (const p of order) {
+    if (p.shirt !== undefined && !taken.has(p.shirt)) taken.add(p.shirt);
+    else need.push(p);
+  }
+  for (const p of need) {
+    p.shirt = freeShirt(taken, p.position);
+    taken.add(p.shirt);
+  }
 }
 
 // ── 라인업 ──
@@ -466,6 +516,7 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
   const roster: TeamRoster = { teamId: team.id, formation, players };
   fitRating(roster, team.rating, rng, cap, teamMax);
   for (const p of players) if (!p.real) setPeak(p, rng);
+  assignShirts(roster);
   return roster;
 }
 
@@ -593,6 +644,7 @@ export function updateRostersForSeason(
       players.push(next);
     }
     out[teamId] = { ...roster, players };
+    assignShirts(out[teamId]!);
   }
   return out;
 }

@@ -1,6 +1,8 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
+import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
+import { autoCustom } from '../custom';
 import { HL } from '../highlights';
 import './design/tokens.css';
 import './design/bundle.css';
@@ -37,6 +39,7 @@ import type { Replay } from '../replay';
 import type { PlayerState } from '../types';
 import { BADGE_NAMES_KO } from '../badges';
 import { BALANCE } from '../config/balance';
+import type { Appearance } from '../appearance';
 import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
@@ -135,13 +138,15 @@ const ui = {
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
   form: {
-    mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
+    mode: 'prospect' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
     posFor: '',
     /** "다른 포지션에서 고르기" 펼침 */
     others: false,
+    /** 커스텀 생성 (C.45) */
+    cu: initialCustomForm(),
   },
 };
 
@@ -279,7 +284,7 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }));
+      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
     case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm);
     default: break;
@@ -893,6 +898,16 @@ app.addEventListener('pointercancel', () => {
 // 새 게임 시드를 바꾸면 시작 후보를 다시 보여 준다 (C.37)
 app.addEventListener('change', (ev) => {
   const id = (ev.target as HTMLElement | null)?.id;
+  if (id === 'cu-nat') {
+    // 커스텀 생성 국적 (C.45): 외모군은 그 국적에서 가장 흔한 것으로 맞춰 준다 (바꿀 수 있음)
+    readFormInputs();
+    const nat = (ev.target as HTMLSelectElement).value;
+    const dist = BALANCE.appearance.byNationality[nat];
+    const top = dist ? (Object.entries(dist).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as Appearance | undefined) : undefined;
+    ui.form.cu = customAct(customAct(ui.form.cu, 'nat', nat), 'app', top ?? ui.form.cu.appearance);
+    render();
+    return;
+  }
   if (id === 'auto-n') {
     ui.autoCount = Math.max(1, Math.floor(Number((ev.target as HTMLInputElement).value) || 1));
     setTimeout(render, 0);
@@ -1260,13 +1275,34 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'cu':
+    case 'cu-sel':
+    case 'cu-raise':
+    case 'cu-lower': {
+      // 커스텀 생성 (C.45): 나이·포지션·신체·외모·장단점·능력치 한 칸
+      readFormInputs();
+      const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
+      ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
+      render();
+      return;
+    }
+    case 'cu-auto': {
+      readFormInputs();
+      const c = ui.form.cu;
+      ui.form.cu = { ...c, attrs: autoCustom(c.position, budgetOf(c), c.height, c.attrs) };
+      render();
+      return;
+    }
     case 'start': {
       readFormInputs();
       const f = ui.form;
       if (f.mode === 'real' && !f.realId) return;
+      if (f.mode === 'custom' && customVM(f.cu, f.name).over) return;
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true })
-        : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty });
+        : f.mode === 'custom'
+          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty })
+          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty });
       ui.replay = null;
       f.roll = '';
       f.posFor = '';
@@ -1918,7 +1954,7 @@ app.addEventListener('change', (ev) => {
 });
 
 // 선수 이름 라벨 (C.44a): 별명 > 짧은 이름. 게임 밖(리플레이 파일 등)이면 리플레이 이름의 짧은 이름
-setPitchNameResolver((id, isMe, fallback) => (ui.game ? pitchLabel(ui.game, id, isMe, fallback) : fallback.split(/\s+/).pop() ?? fallback));
+setPitchNameResolver((id, isMe, fallback, scope) => (ui.game ? pitchLabel(ui.game, id, isMe, fallback, scope) : fallback.split(/\s+/).pop() ?? fallback));
 app.addEventListener('change', (ev) => {
   const t = ev.target as HTMLSelectElement;
   if (t.id !== 'nm-team') return;

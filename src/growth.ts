@@ -232,17 +232,17 @@ export function agingRate(curve: readonly (readonly [number, number])[], age: nu
 }
 
 /** 포지션별 노화 배율: OVR 비중이 큰 능력치일수록 크고, 25개 평균은 1 (aging.positionFocus) */
-const FOCUS_CACHE = new Map<FieldPosition, Record<FieldAttribute, number>>();
-export function agingFocus(pos: FieldPosition): Record<FieldAttribute, number> {
-  const cached = FOCUS_CACHE.get(pos);
+const FOCUS_CACHE = new Map<string, Record<FieldAttribute, number>>();
+export function agingFocus(pos: FieldPosition, s: number = BALANCE.aging.positionFocus): Record<FieldAttribute, number> {
+  const key = `${pos}:${s}`;
+  const cached = FOCUS_CACHE.get(key);
   if (cached) return cached;
-  const out = computeAgingFocus(pos);
-  FOCUS_CACHE.set(pos, out);
+  const out = computeAgingFocus(pos, s);
+  FOCUS_CACHE.set(key, out);
   return out;
 }
 
-function computeAgingFocus(pos: FieldPosition): Record<FieldAttribute, number> {
-  const s = BALANCE.aging.positionFocus;
+function computeAgingFocus(pos: FieldPosition, s: number): Record<FieldAttribute, number> {
   const weights = FIELD_ATTRIBUTES.map((a) => attributeOvrWeight(pos, a));
   const mean = weights.reduce((t, x) => t + x, 0) / weights.length;
   const out = {} as Record<FieldAttribute, number>;
@@ -255,16 +255,20 @@ function computeAgingFocus(pos: FieldPosition): Record<FieldAttribute, number> {
  * 노련함 능력치는 veteran.agingFromAge 전까지 면제, 그 뒤로는 기술/멘탈 하락 × agingFactor (6.1.1).
  * pos 를 주면 포지션 OVR 에 중요한 능력치가 더 많이 떨어진다 (aging.positionFocus)
  */
-export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition): AttributeDelta {
+export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition, mul = 1): AttributeDelta {
   const A = BALANCE.aging;
   const V = BALANCE.veteran;
-  const focus = pos ? agingFocus(pos) : null;
+  const late = age >= A.lateFrom;
+  // 38세부터 (C.45): 골고루(lateFocus) + 체력·속도·가속 추가 배율. mul = 노익장 ×0.6
+  const focus = pos ? agingFocus(pos, late ? A.lateFocus : A.positionFocus) : null;
   const delta: AttributeDelta = {};
   for (const a of FIELD_ATTRIBUTES) {
     let rate: number;
     if (isVeteranAttribute(a)) rate = age < V.agingFromAge ? 0 : agingRate(A.other, age) * V.agingFactor;
     else rate = agingRate(PHYSICAL.includes(a) ? A.physical : A.other, age);
     if (focus) rate *= focus[a];
+    if (late) rate *= A.lateExtra[a] ?? 1;
+    rate *= mul;
     if (rate === 0) continue;
     const lo = Math.floor(rate);
     bump(attrs, delta, a, -(lo + (rng() < rate - lo ? 1 : 0)));
