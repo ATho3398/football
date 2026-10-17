@@ -4,8 +4,15 @@ import { consumeGainMult, trainingAptMult } from './aptitude';
 import { BALANCE } from './config/balance';
 import { PLAYABLE_POSITIONS, positionOvr, type FieldPosition, type PlayablePosition } from './positions';
 import type { PlayerState, Position } from './types';
+import { noAdaptation, storyProfMul, tagHas } from './tags';
+
+/** 이번 시즌 = 마지막 기록 시즌 + 1 (기록이 없으면 시작 시즌). 무한한 충성심 돌아온 첫 시즌 판정용 */
+const storySeason = (p: PlayerState): number => (p.history?.at(-1)?.season ?? BALANCE.newGame.startYear - 1) + 1;
 
 const P = BALANCE.proficiency;
+
+/** 적응기 경기 수: 저니맨 ×0.7 (C.47) */
+const adaptGames = (p: PlayerState): number => (tagHas(p, 'journeyman') ? Math.round(P.adaptGames * BALANCE.tags.natural.journeyAdapt) : P.adaptGames);
 
 /** 숙련도를 따지는 포지션 (LWB/RWB 는 LB/RB 로 본다) */
 export function profKey(pos: Position): PlayablePosition | null {
@@ -122,9 +129,10 @@ export function gainProficiency(p: PlayerState, minutes: number, played: Positio
   const k = profKey(played);
   if (!k || !p.proficiency || minutes <= 0) return;
   // 숨은 적성 배수와 조언 뒤 포변 보너스 (부록 C.37). 보너스 경기 수는 숙련도가 100이어도 줄어든다
-  const mult = consumeGainMult(p, played);
+  const mult = consumeGainMult(p, played) * (played !== p.position ? storyProfMul(p, p.teamId) : 1);
   const t = track(p, k);
-  const adapt = t.apps < P.adaptGames ? P.adaptMult : 1;
+  // 아카데미 출신·무한한 충성심 (C.47): 그 구단에서 적응기 없음
+  const adapt = t.apps < adaptGames(p) && !noAdaptation(p, p.teamId, storySeason(p)) ? P.adaptMult : 1;
   t.apps++;
   t.idle = 0;
   const cur = p.proficiency[k];
@@ -177,8 +185,9 @@ export function trainProficiency(p: PlayerState, pos: Position, amount: number):
   const cur = p.proficiency[k];
   if (cur >= 100) return 0;
   const t = track(p, k);
-  const adapt = t.apps < P.adaptGames ? P.adaptMult : 1;
-  const next = Math.min(100, Math.round((cur + amount * adapt * trainingAptMult(p, pos)) * 100) / 100);
+  const adapt = t.apps < adaptGames(p) && !noAdaptation(p, p.teamId, storySeason(p)) ? P.adaptMult : 1;
+  const prof = pos !== p.position ? storyProfMul(p, p.teamId) : 1;
+  const next = Math.min(100, Math.round((cur + amount * adapt * prof * trainingAptMult(p, pos)) * 100) / 100);
   p.proficiency[k] = next;
   if (next >= 100) t.peak = true;
   return next - cur;

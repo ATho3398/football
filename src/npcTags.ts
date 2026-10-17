@@ -11,9 +11,10 @@ import { createRng, hashSeed } from './rng';
 const START = BALANCE.newGame.startYear;
 
 /** NPC 유스 구단: 실제 선수는 경력 표, 생성 선수는 만든 구단(id 의 팀) 유스일 확률 npcOwnYouth, 아니면 리그 밖 포함 랜덤 */
-export function npcYouth(state: Pick<GameState, 'league'>, p: Pick<RosterPlayer, 'id' | 'real'>): string {
+export function npcYouth(state: Pick<GameState, 'league'>, p: Pick<RosterPlayer, 'id' | 'real'> & { youth?: string }): string {
   const real = REAL_CAREER[p.id];
   if (real) return real.youth;
+  if (p.youth) return p.youth;
   const own = /^v:([^:]+):/.exec(p.id)?.[1];
   const rng = createRng(hashSeed(`youth:${p.id}`));
   if (own && rng() < BALANCE.tags.npcOwnYouth) return own;
@@ -22,13 +23,13 @@ export function npcYouth(state: Pick<GameState, 'league'>, p: Pick<RosterPlayer,
 }
 
 /** 지금 구단에서 뛴 시즌 수 (이번 시즌 포함). 세계 시작부터 있던 선수는 그 전 시즌도 (실제: 입단 시즌, 생성: 시드) */
-export function npcClubSeasons(state: Pick<GameState, 'league'>, p: Pick<RosterPlayer, 'id' | 'joined' | 'age'>, teamId: string, season = state.league.season): number {
+export function npcClubSeasons(state: Pick<GameState, 'league'>, p: Pick<RosterPlayer, 'id' | 'joined' | 'age' | 'youth'>, teamId: string, season = state.league.season): number {
   const now = season - p.joined + 1;
   if (p.joined !== START) return now;
   const real = REAL_CAREER[p.id];
   if (real) return now + Math.max(0, START - real.since);
   const age0 = p.age - (season - START);
-  const youth = npcYouth(state, { id: p.id, real: false });
+  const youth = npcYouth(state, { id: p.id, real: false, ...(p.youth ? { youth: p.youth } : {}) });
   const prior = youth === teamId ? Math.max(0, age0 - 18) : Math.floor(createRng(hashSeed(`club-years:${p.id}`))() * 4);
   return now + Math.min(prior, Math.max(0, age0 - 17));
 }
@@ -63,6 +64,43 @@ export function recordTagNews(state: GameState, before: Map<string, string>, sea
       const t = after.get(p.id);
       if (t && before.get(p.id) !== t) news.push({ season, id: p.id, name: p.nameKo, teamId, tag: t });
     }
+  }
+  state.tagNews = news;
+}
+
+/**
+ * NPC 자연 발생 태그 소식 (pending 65, C.47): 시즌 끝 이번 시즌 선수 기록(엔진 경기)으로 득점 기계·도움 장인·원더키드·노익장·저니맨.
+ * NPC 태그는 저장하지 않고 소식에만 남긴다 (같은 선수의 같은 유지형 태그는 한 번만, 기록형은 시즌마다)
+ */
+export function recordNaturalNews(state: GameState, season: number): void {
+  const N = BALANCE.tags.natural;
+  const stats = state.playerStats ?? {};
+  const news = state.tagNews ?? [];
+  const seen = new Set(news.map((n) => `${n.id}:${n.tag}`));
+  const push = (p: RosterPlayer, teamId: string, tag: string, once: boolean) => {
+    if (once && seen.has(`${p.id}:${tag}`)) return;
+    seen.add(`${p.id}:${tag}`);
+    news.push({ season, id: p.id, name: p.nameKo, teamId, tag });
+  };
+  const all = Object.entries(state.rosters ?? {}).flatMap(([teamId, r]) => r.players.map((p) => ({ p, teamId, t: stats[p.id] })));
+  const top = (k: 1 | 2) => {
+    const best = Math.max(0, ...all.map((x) => x.t?.[k] ?? 0));
+    return best > 0 ? all.filter((x) => (x.t?.[k] ?? 0) === best) : [];
+  };
+  for (const x of top(1)) push(x.p, x.teamId, '득점 기계', false);
+  for (const x of top(2)) push(x.p, x.teamId, '도움 장인', false);
+  const clubs = new Map<string, Set<string>>();
+  for (const r of state.transfers ?? []) {
+    const c = clubs.get(r.id) ?? new Set<string>();
+    c.add(r.from);
+    c.add(r.to);
+    clubs.set(r.id, c);
+  }
+  for (const { p, teamId, t } of all) {
+    const avg = t && t[0] > 0 ? t[3] / 10 / t[0] : null;
+    if (t && t[0] >= 15 && p.age <= N.wonderAge && ((avg ?? 0) >= N.wonderRating || t[1] >= N.wonderPoints || t[2] >= N.wonderPoints)) push(p, teamId, '원더키드', true);
+    if (t && t[0] >= 15 && p.age >= BALANCE.tags.evergreen.fromAge && (avg ?? 0) >= BALANCE.tags.evergreen.rating) push(p, teamId, '노익장', true);
+    if ((clubs.get(p.id)?.size ?? 0) >= N.journeyClubs) push(p, teamId, '저니맨', true);
   }
   state.tagNews = news;
 }

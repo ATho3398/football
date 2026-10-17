@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 33;
+export const BALANCE_VERSION = 34;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -804,12 +804,96 @@ export const BALANCE = {
       professionalXp: 1.1,
       starWage: 1.1,
       troublemakerCards: 1.4,
-      /** 노익장(플레이 전용, 판정·효과 34c): 지금은 1 = 효과 없음 */
-      evergreenAging: 1,
+      /** 노익장 (플레이 전용, C.47 pending 67 20:55 확정): 노화 하락 ×0.7 (30~34세 절감 21.2 > 늦게 핀 꽃 15.5) */
+      evergreenAging: 0.7,
       bigGameForm: 0.1,
       twoFootedStart: 4,
       weakFootOneStart: 1,
     },
+    /**
+     * 커리어 태그 효과 (pending 64, C.47): 그 구단에 있을 때만 켜진다 (이적하면 꺼짐). 영원한 <구단> = 원클럽맨 × eternalMul.
+     * 선발 경쟁·이적 점수는 OVR·점수 단위, 재계약은 확률(%p)·연봉 여유 비율
+     */
+    story: {
+      /** 원클럽맨: 재계약 판정 실패를 뒤집을 확률, 연봉 여력이 이만큼 모자라도 받아 줌, 선발 경쟁 OVR +, 다른 포지션 숙련도 상승 ×, NPC 이적 점수 − */
+      oneClubRenew: 0.15,
+      oneClubWage: 0.05,
+      oneClubStart: 2,
+      oneClubProf: 1.15,
+      oneClubNpcResist: 8,
+      eternalMul: 1.5,
+      /** 영원한 <구단>: 시즌 위상 증가 × (팬 인기 = 위상) */
+      eternalRep: 1.03,
+      /** 아카데미 출신: 그 구단 숙련도 적응기 없음, 선발 경쟁 OVR + */
+      academyStart: 1,
+      /** 친정 선택: 시즌 위상 증가 × */
+      homeChoiceRep: 1.015,
+      /** 무한한 충성심: 돌아온 첫 시즌 적응기 없음, 첫 loyalGames 경기 폼 + */
+      loyalForm: 0.1,
+      loyalGames: 10,
+      /** 방출의 설움: 방출한 구단 상대 폼 +, 계약 뒤 첫 releasedSeasons 시즌 경기 XP × */
+      releasedForm: 0.1,
+      releasedXp: 1.05,
+      releasedSeasons: 2,
+    },
+    /** 노익장 판정 (30세 이후): 시즌 평점 rating 이상 또는 OVR ovr 이상 유지(지난 시즌 대비 −keep 이내). 2시즌 연속 평점 dropBelow 미만이면 해제 */
+    evergreen: { fromAge: 30, rating: 7.0, ovr: 80, keep: 1, dropBelow: 6.5, dropSeasons: 2, minApps: 10 },
+    /**
+     * 늦게 핀 꽃 판정 (차두리형): 한 포지션군 oldSeasons 시즌 이상 뒤 전환 → 새 포지션 첫 window 시즌 안에 시즌 평점 ≥ 옛 평균 + rating
+     * 또는 새 포지션 OVR ≥ 옛 OVR + ovr. 효과: 신체·기술멘탈 각각 첫 노화 1회 면제
+     */
+    lateBloomer: { oldSeasons: 3, window: 2, rating: 0.3, ovr: 3, minApps: 10 },
+    /** 플레이 중 자연 발생 태그 (pending 65, C.47): 붙는 조건과 효과 (효과는 미미하게) */
+    natural: {
+      /** 스타 플레이어: 위상 starRep 이상 + 시즌 평점 starRating 이상 2시즌 연속, 2시즌 연속 starDrop 미만이면 해제. 제안 연봉 × */
+      starRep: 700, starRating: 7.3, starDrop: 6.8, starPlayerWage: 1.1,
+      /** 원더키드: 이 나이 이하, 시즌 평점 또는 골·도움 (출전 minApps 이상). 제안 연봉 × */
+      wonderAge: 20, wonderRating: 7.2, wonderPoints: 10, wonderkidWage: 1.05,
+      /** 빅매치 체질: 더비·상위 bigTop 팀 상대 통산 bigApps 경기 이상, 평균 평점이 평소 + bigDiff 이상 (bigKeep 아래면 해제) */
+      bigTop: 6, bigApps: 10, bigDiff: 0.4, bigKeep: 0.2,
+      derbyGoals: 5, derbyHeroForm: 0.05,
+      superSubGoals: 5, superSubKeep: 2, superSubForm: 0.1,
+      lateMinute: 80, lateGoals: 5,
+      recordRep: 10, cleanSheets: 15, cleanSheetMinutes: 60,
+      /** 철인: 리그 전 경기 또는 ironMinutes 분 이상 2시즌 연속, ironDrop 분 미만 시즌이면 해제 */
+      ironMinutes: 3000, ironDrop: 2000, everPresentRecovery: 1.05,
+      /** 유리몸 (플레이 획득): 2시즌 안 부상 glassInjuries 회 이상 또는 결장 glassDays 일 이상 */
+      glassInjuries: 3, glassDays: 60,
+      /** 플레이로 얻은 둘 다 태그의 효과 (pending 65 값, 생성 태그는 C.45 값 그대로) */
+      playGlass: 1.1, playConsistent: 0.8, playRoller: 1.2, playTrouble: 1.15,
+      /** 꾸준함 / 롤러코스터: 20경기 이상 시즌 평점 표준편차가 이 값 이하 / 이상 */
+      consistentSd: 0.45, rollerSd: 1.0, sdApps: 20,
+      /** 문제아: 시즌 경고 / 퇴장 */
+      troubleYellows: 10, troubleReds: 2,
+      /** 신사: gentleSeasons 시즌 연속 경고 gentleYellows 이하·퇴장 0 (20경기 이상), 경고 확률 × */
+      gentleSeasons: 3, gentleYellows: 3, gentleDrop: 6, gentlemanCards: 0.8,
+      exClubGoals: 3, exClubForm: 0.05,
+      journeyClubs: 5, journeyAdapt: 0.7,
+      cultSeasons: 3, cultHeroRep: 1.01,
+      traitorForm: 0.1,
+    },
+  },
+
+  // ── 레전드 팩 (pending 63, C.47): 2018-19 세계에 15~22세로. 시작 OVR = 전성기 OVR − startGap(나이), 전성기 나이 peakAge ──
+  legends: {
+    minAge: 15,
+    maxAge: 22,
+    /** [이 나이부터, 전성기까지 모자란 OVR]. 전성기 나이 29 에 닿도록 (NPC 성장 곡선 approach 1, 시즌 최대 +4) */
+    startGap: [[15, 34], [16, 31], [17, 28], [18, 25], [19, 21], [20, 18], [21, 15], [22, 12]] as [number, number][],
+    peakAge: 29,
+    gkPeakAge: 30,
+    /** 시작 능력치 역산: 능력치 묶음별 모자람 배율 (멘탈은 어릴수록 더 낮다) */
+    gapMul: { mental: 1.4, physical: 1.1, other: 0.85 },
+    /** 게임에 없는 유스 구단: 수준(lv)이 가까운 PL 팀 near 곳 중 시드로 */
+    near: 8,
+    /**
+     * 전성기 OVR = 데이터 능력치 포지션 OVR + peakBonus, [minPeak, maxPeak]. 실제 선수 데이터도 중심값(메시 87·호날두 90)보다 NPC 전성기(레전더리 89~96)가 높은 것과 맞춘다.
+     * 포지션 OVR 식이 낮게 보는 중앙 미드필더 레전드는 하한으로 (모자란 만큼은 성장이 OVR 가중 능력치로 채운다)
+     */
+    peakBonus: 4,
+    minPeak: 88,
+    maxPeak: 96,
+    loyalty: 70,
   },
 
   // ── 커스텀 생성 (pending 47 2·49 1, C.45): 모든 능력치 base 에서 시작, 배분 포인트를 나눈다. 한 칸(1~20 표시 1칸 = 내부 5)씩, 비용은 칸당 (구간별) ──

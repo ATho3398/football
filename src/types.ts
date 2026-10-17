@@ -133,6 +133,8 @@ export interface PlayerState {
   name: string;
   /** 실제 선수로 시작했으면 그 선수 id */
   realPlayerId?: string;
+  /** 레전드 팩 레전드로 시작했으면 그 레전드 id (부록 C.47) */
+  legendId?: string;
   /** 실제 선수의 정점 목표 OVR (부록 D.7 #1). 가상 유망주는 없음 */
   peakTarget?: number;
   position: FieldPosition;
@@ -197,6 +199,8 @@ export interface PlayerState {
   youth?: { club: string; random?: boolean };
   /** 태그 (C.45, pending 66): 생성 때 고른 장단점 + 플레이로 얻은 커리어 태그. 숨기지 않는다 */
   tags: PlayerTag[];
+  /** 자연 발생 태그 통산 누적 (C.47): 더비 골·극장골·친정 골·빅매치. 없으면 0 에서 */
+  tagStats?: import('./careerTags').TagStats;
   /** 원클럽맨 판정 (C.45): 첫 성인 구단과 그 구단 재계약 횟수. 이적하면 새 구단으로 다시 (임대는 이적 아님) */
   clubRun?: { club: string; renewals: number; since: number; first: boolean };
   /** 레전드 배지 (부록 D.4, 영구) */

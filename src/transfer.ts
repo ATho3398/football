@@ -4,6 +4,7 @@
 // 내 선수: 비시즌 제안 3~5개(같은 점수 모델을 팀 입장으로), 계약·재계약, 이적 요청, 임대. 연봉은 계산·표시만 (돈은 5-7)
 
 import { onClubChange, onRenewal } from './startClub';
+import { npcCareerTag } from './npcTags';
 import { wageMul } from './tags';
 import { OUTSIDE_BY_ID, OUTSIDE_CLUBS, type OutsideClub } from '../data/outsideClubs';
 import { BALANCE } from './config/balance';
@@ -186,11 +187,15 @@ export function moveIntents(state: GameState, w: Window): MoveIntent[] {
     for (const p of roster.players) {
       if (arrived.has(p.id)) continue;
       const ovr = naturalOvr(p);
-      const { score, why } = transferScore({
+      const scored = transferScore({
         ovr, teamRating: t.rating, age: p.age, loyalty: p.loyalty, years: Math.max(0, league.season - p.joined),
         expiring: p.contractEnd <= league.season + 1, minutesShare: minutesShareOf(p.id, roster, lineup, state.playerStats, played),
         rank: ranks[t.id] ?? 10, winter: w === 'winter',
       });
+      // 원클럽맨·영원한 <구단> (C.47, NPC): 이적 점수 − (영원한 ×1.5)
+      const tag = npcCareerTag(state, p, t.id);
+      const why = scored.why;
+      const score = scored.score - (tag ? BALANCE.tags.story.oneClubNpcResist * (tag === '원클럽맨' ? 1 : BALANCE.tags.story.eternalMul) : 0);
       out.push({ teamId: t.id, player: p, ovr, p: sigmoid((score - T.center) / T.scale), score, why });
     }
   }
@@ -278,7 +283,7 @@ function releaseCandidate(roster: TeamRoster, pos: Position, arrived: Set<string
   if (c.total + 1 <= S.softMax && c.total + 1 <= R.max + R.u21Extra && !seniorFull) return undefined;
   const g = posGroup(pos);
   const low = (xs: RosterPlayer[]) => [...xs].sort((a, b) => naturalOvr(a) - naturalOvr(b))[0];
-  const pool = roster.players.filter((p) => !p.real && !arrived.has(p.id) && (!seniorFull || !isU21(p.age)));
+  const pool = roster.players.filter((p) => !p.real && !p.legend && !arrived.has(p.id) && (!seniorFull || !isU21(p.age)));
   return low(pool.filter((p) => posGroup(p.position) === g)) ?? low(pool);
 }
 
