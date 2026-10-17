@@ -2,6 +2,9 @@
 // 마커 그리기는 MarkerRenderer 로 분리한다 (24.4). 기본은 숫자 원. 아이콘/사진 렌더러로 바꿔도 엔진과 게임 로직은 바뀌지 않는다.
 // 색은 디자인 토큰(--pitch, --team-home, --team-away, --mine)을 읽는다 (H.6 2번: 기존 렌더러 위에 스타일만, 우리 = 라임, 상대 = 주황 테두리)
 
+// 세로 화면 (부록 C.44a): 폰 세로면 피치를 90도 돌려 내 팀이 아래 → 위로 공격하게 그린다. 좌표 변환은 여기서만 (엔진 좌표·결과 그대로)
+
+import { autoShortKo } from '../../names';
 import type { Replay, ReplayFrame, ReplayPlayer } from '../../replay';
 
 const PITCH_L = 105;
@@ -99,35 +102,43 @@ function withAlpha(color: string, a: number): string {
   return c;
 }
 
-/** 내 선수 이름표 (마커 위 상시, 부록 C.23) */
-function drawNameTag(ctx: CanvasRenderingContext2D, name: string, x: number, y: number, r: number, w: number): void {
-  const size = Math.max(10, Math.round(r * 1.05));
-  ctx.font = `700 ${size}px ${PALETTE.font}`;
-  const tw = ctx.measureText(name).width + 10;
-  const th = size + 6;
-  const bx = Math.min(w - tw - 2, Math.max(2, x - tw / 2));
-  const by = Math.max(2, y - r * ME_SCALE - 6 - th);
-  ctx.fillStyle = 'rgba(18,19,23,0.82)';
+/** 이름 라벨 (부록 C.44a): 마커 아래 작은 글씨 + 반투명 띠. 내 선수는 라임 강조 */
+function drawLabel(ctx: CanvasRenderingContext2D, name: string, x: number, top: number, r: number, w: number, me: boolean): void {
+  const size = Math.max(9, Math.min(14, Math.round(r * (me ? 0.82 : 0.72))));
+  ctx.font = `${me ? 800 : 600} ${size}px ${PALETTE.font}`;
+  const tw = ctx.measureText(name).width + 8;
+  const th = size + 4;
+  const bx = Math.min(w - tw - 1, Math.max(1, x - tw / 2));
+  ctx.fillStyle = me ? 'rgba(18,19,23,0.88)' : 'rgba(18,19,23,0.55)';
   ctx.beginPath();
-  ctx.roundRect(bx, by, tw, th, th / 2);
+  ctx.roundRect(bx, top, tw, th, th / 2);
   ctx.fill();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = PALETTE.mine;
-  ctx.stroke();
-  ctx.fillStyle = PALETTE.mine;
+  if (me) {
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = PALETTE.home;
+    ctx.stroke();
+  }
+  ctx.fillStyle = me ? PALETTE.home : 'rgba(243,244,246,0.92)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(name, bx + tw / 2, by + th / 2 + 0.5);
+  ctx.fillText(name, bx + tw / 2, top + th / 2 + 0.5);
 }
 
-/** 이름표용 짧은 이름 (성 빼고 마지막 단어, 한 단어면 그대로) */
+/** 이름표용 짧은 이름 (names.ts 자동 규칙: 마지막 단어, 접두어는 붙여서) */
 export function shortName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts.length > 1 ? parts[parts.length - 1]! : name.trim();
+  return autoShortKo(name);
 }
 
-/** 코트 (105 × 68 m, 24.2): 디자인 Pitch 와 같은 어두운 면, 옅은 줄무늬와 선 */
+/** 코트 (105 × 68 m, 24.2): 디자인 Pitch 와 같은 어두운 면, 옅은 줄무늬와 선. 캔버스가 세로(h > w)면 90도 돌려 그린다 (C.44a) */
 export function drawPitch(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  if (h > w) {
+    ctx.save();
+    ctx.translate(w, 0);
+    ctx.rotate(Math.PI / 2);
+    drawPitch(ctx, h, w);
+    ctx.restore();
+    return;
+  }
   const sx = w / PITCH_L;
   const sy = h / PITCH_W;
   ctx.fillStyle = PALETTE.pitch;
@@ -159,91 +170,169 @@ export function drawPitch(ctx: CanvasRenderingContext2D, w: number, h: number): 
   }
 }
 
-function markerRadius(w: number): number {
-  return Math.max(5.5, Math.min(10, w / 52));
+/** 마커 반지름: 캔버스 폭 기준(세로면 짧은 쪽) 기본값 × 선수 크기 설정 (C.44a: 기본 크게 = 1.5배) */
+export function markerRadius(w: number, k = SIZE_K[pitchSize()]): number {
+  return Math.max(5.5, Math.min(10, w / 52)) * k;
 }
 
 /** 공 지름 배율 (24번 개정, 부록 C.23: 약 1.6배) */
 export const BALL_R = 5.1;
 
-/** 한 프레임 그리기: 코트 → 마커 → 공 → 내 선수 이름표. time = 맥박용 시각(초) */
+/**
+ * 엔진 좌표(105 × 68 m) → 캔버스 좌표. 가로는 그대로, 세로(h > w)는 90도 돌려 dir 쪽(1 = x 증가 방향)을 위로 둔다.
+ * 회전만 하고 뒤집지 않는다 (왼발·오른쪽 측면이 화면에서 그대로 보이게)
+ */
+export interface PitchProjection {
+  portrait: boolean;
+  toScreen(x: number, y: number): [number, number];
+}
+
+export function pitchProjection(w: number, h: number, dir: 1 | -1 = 1): PitchProjection {
+  if (h <= w) return { portrait: false, toScreen: (x, y) => [(x * w) / PITCH_L, (y * h) / PITCH_W] };
+  return {
+    portrait: true,
+    toScreen: dir > 0
+      ? (x, y) => [(y * w) / PITCH_W, ((PITCH_L - x) * h) / PITCH_L]
+      : (x, y) => [((PITCH_W - y) * w) / PITCH_W, (x * h) / PITCH_L],
+  };
+}
+
+/** 내 팀이 공격하는 방향 (프레임에서: 내 골키퍼가 있는 쪽의 반대, 없으면 두 팀 평균 x 비교). 후반에 진영이 바뀌어도 내 팀이 늘 위로 */
+export function attackDirOf(frame: ReplayFrame, players: Map<string, ReplayPlayer>, mySide: 0 | 1): 1 | -1 {
+  let gk: number | null = null;
+  let mx = 0, mn = 0, ox = 0, on = 0;
+  for (const p of frame.players) {
+    const info = players.get(p.id);
+    if (!info) continue;
+    if (info.team === mySide) {
+      if (info.gk) gk = p.x;
+      mx += p.x;
+      mn++;
+    } else {
+      ox += p.x;
+      on++;
+    }
+  }
+  if (gk !== null) return gk < PITCH_L / 2 ? 1 : -1;
+  if (mn && on) return mx / mn <= ox / on ? 1 : -1;
+  return mySide === 0 ? 1 : -1;
+}
+
+interface Placed { id: string; info: ReplayPlayer; x: number; y: number; carrier: boolean }
+
+/** 마커들을 겹침 순서(상대 → 우리 → 공 가진 선수 → 내 선수)로 그리고, 그 순서대로 이름 라벨 */
+function drawMarkers(
+  ctx: CanvasRenderingContext2D, w: number, h: number, list: Placed[], renderer: MarkerRenderer, mySide: 0 | 1, r: number, pulse: number,
+): void {
+  const rank = (p: Placed) => (p.info.isMe ? 3 : p.carrier ? 2 : p.info.team === mySide ? 1 : 0);
+  const sorted = [...list].sort((a, b) => rank(a) - rank(b));
+  for (const p of sorted) {
+    renderer.draw(ctx, {
+      id: p.id, teamId: p.info.team, ours: p.info.team === mySide, number: p.info.number, role: p.info.position, isMe: p.info.isMe, gk: p.info.gk,
+      state: p.carrier ? 'carrier' : 'normal', ...(p.info.avatarUrl ? { avatarUrl: p.info.avatarUrl } : {}),
+    }, p.x, p.y, r, p.info.isMe ? pulse : 0);
+  }
+  const mode = pitchNames();
+  if (mode === 'off') return;
+  const below = renderer === numberCircleRenderer ? 1.08 : 1.3;
+  for (const p of sorted) {
+    if (mode === 'mine' && !p.info.isMe) continue;
+    const rr = p.info.isMe ? r * ME_SCALE : r;
+    const top = Math.min(h - 2 - Math.max(9, r * 0.8) - 4, p.y + rr * below + (p.info.isMe ? 5 : 2));
+    drawLabel(ctx, nameOf(p.id, p.info.isMe, p.info.name), p.x, top, r, w, p.info.isMe);
+  }
+}
+
+/** 한 프레임 그리기: 코트 → 마커 → 이름 라벨 → 공. time = 맥박용 시각(초). 쓴 좌표 변환을 돌려준다 (결정 화살표용) */
 export function drawFrame(
   ctx: CanvasRenderingContext2D, w: number, h: number, frame: ReplayFrame, players: Map<string, ReplayPlayer>,
   renderer: MarkerRenderer = activeRenderer(), mySide: 0 | 1 = 0, time = 0,
-): void {
+): PitchProjection {
   drawPitch(ctx, w, h);
-  const sx = w / PITCH_L;
-  const sy = h / PITCH_W;
-  const r = markerRadius(w);
+  const proj = pitchProjection(w, h, h > w ? attackDirOf(frame, players, mySide) : 1);
+  const r = markerRadius(Math.min(w, h * (PITCH_L / PITCH_W)));
   const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
-  // 내 선수는 맨 위에 그린다
-  const list = [...frame.players].sort((a, b) => Number(players.get(a.id)?.isMe ?? false) - Number(players.get(b.id)?.isMe ?? false));
-  let me: { name: string; x: number; y: number } | null = null;
-  for (const p of list) {
+  const list: Placed[] = [];
+  for (const p of frame.players) {
     const info = players.get(p.id);
     if (!info) continue;
-    let px = p.x * sx;
-    let py = p.y * sy;
+    let [px, py] = proj.toScreen(p.x, p.y);
     if (info.isMe) {
       // 터치라인 밖에 있어도 고리가 보이게 가장자리 안으로
       const m = r * ME_SCALE + 4;
       px = Math.min(w - m, Math.max(m, px));
       py = Math.min(h - m, Math.max(m, py));
-      me = { name: shortName(info.name), x: px, y: py };
     }
-    renderer.draw(ctx, {
-      id: p.id, teamId: info.team, ours: info.team === mySide, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk,
-      state: frame.carrier === p.id ? 'carrier' : 'normal', ...(info.avatarUrl ? { avatarUrl: info.avatarUrl } : {}),
-    }, px, py, r, info.isMe ? pulse : 0);
+    list.push({ id: p.id, info, x: px, y: py, carrier: frame.carrier === p.id });
   }
+  drawMarkers(ctx, w, h, list, renderer, mySide, r, pulse);
   // 공: 땅의 그림자는 제자리, 공은 높이(z, m)만큼 위로 뜨고 조금 커진다. 그림자는 높을수록 옅고 넓다
-  const bx = frame.ball.x * sx;
-  const by = frame.ball.y * sy;
+  const [bx, by] = proj.toScreen(frame.ball.x, frame.ball.y);
   const z = Math.max(0, frame.ball.z);
   const lift = Math.min(14, z * 3);
-  const shadowR = BALL_R * (1 + Math.min(0.6, z * 0.12));
+  const br = BALL_R * (1 + (SIZE_K[pitchSize()] - 1) * 0.4);
+  const shadowR = br * (1 + Math.min(0.6, z * 0.12));
   ctx.beginPath();
   ctx.ellipse(bx, by + 1, shadowR, shadowR * 0.6, 0, 0, Math.PI * 2);
   ctx.fillStyle = `rgba(0,0,0,${(z > 0.3 ? 0.45 - Math.min(0.25, z * 0.05) : 0.45).toFixed(3)})`;
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(bx, by - lift, BALL_R * (1 + Math.min(0.3, lift * 0.025)), 0, Math.PI * 2);
+  ctx.arc(bx, by - lift, br * (1 + Math.min(0.3, lift * 0.025)), 0, Math.PI * 2);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = PALETTE.ink;
   ctx.stroke();
-  if (me) drawNameTag(ctx, me.name, me.x, me.y, r, w);
+  return proj;
 }
 
-/** 평균 위치 지도 (24.3): 홈 팀이 오른쪽으로 공격하는 방향으로 맞춘 선수별 평균 위치 */
+/** 평균 위치 지도 (24.3): 홈 팀이 오른쪽으로 공격하는 방향으로 맞춘 선수별 평균 위치. 세로면 내 팀이 위로 */
 export function drawAveragePositions(
   ctx: CanvasRenderingContext2D, w: number, h: number, avg: { id: string; x: number; y: number }[], players: Map<string, ReplayPlayer>,
   renderer: MarkerRenderer = numberCircleRenderer, mySide: 0 | 1 = 0,
 ): void {
   drawPitch(ctx, w, h);
-  const r = markerRadius(w);
+  const proj = pitchProjection(w, h, mySide === 0 ? 1 : -1);
+  const r = markerRadius(Math.min(w, h * (PITCH_L / PITCH_W)));
+  const list: Placed[] = [];
   for (const a of avg) {
     const info = players.get(a.id);
     if (!info) continue;
-    renderer.draw(ctx, { id: a.id, teamId: info.team, ours: info.team === mySide, number: info.number, role: info.position, isMe: info.isMe, gk: info.gk, state: 'normal' }, (a.x / PITCH_L) * w, (a.y / PITCH_W) * h, r);
+    const [x, y] = proj.toScreen(a.x, a.y);
+    list.push({ id: a.id, info, x, y, carrier: false });
   }
+  drawMarkers(ctx, w, h, list, renderer, mySide, r, 0);
 }
 
 export function playerMap(r: Replay): Map<string, ReplayPlayer> {
   return new Map(r.players.map((p) => [p.id, p]));
 }
 
-/** 캔버스 크기 (가로 기준, 105:68) */
-export function pitchSize(width: number): [number, number] {
-  return [width, Math.round((width * PITCH_W) / PITCH_L)];
+/** 캔버스 크기: 가로 = 폭 × 68/105, 세로 = 폭 × 105/68 (C.44a) */
+export function pitchCanvasSize(width: number, portrait = false): [number, number] {
+  return [width, Math.round((width * (portrait ? PITCH_L : PITCH_W)) / (portrait ? PITCH_W : PITCH_L))];
 }
 
-/** 캔버스를 화면 너비·기기 배율에 맞춘다. 2D 컨텍스트와 그릴 크기를 돌려준다 */
-export function fitCanvas(canvas: HTMLCanvasElement): { ctx: CanvasRenderingContext2D; w: number; h: number } {
+/**
+ * 캔버스를 화면 너비·기기 배율에 맞춘다. 2D 컨텍스트와 그릴 크기를 돌려준다.
+ * 세로 방향(C.44a)이면 높이를 화면 높이의 일정 비율로 막고, 넘치면 폭을 줄여 가운데 둔다
+ */
+export function fitCanvas(canvas: HTMLCanvasElement, maxHRatio = PORTRAIT_MAX_H): { ctx: CanvasRenderingContext2D; w: number; h: number } {
   const dpr = window.devicePixelRatio || 1;
-  const [w, h] = pitchSize(canvas.clientWidth || 358);
-  if (canvas.width !== Math.round(w * dpr)) {
+  const portrait = isPortraitPitch();
+  const avail = canvas.parentElement?.clientWidth || canvas.clientWidth || 358;
+  let [w, h] = pitchCanvasSize(avail, portrait);
+  if (portrait) {
+    const maxH = Math.max(300, Math.round((window.innerHeight || 800) * maxHRatio));
+    if (h > maxH) [w, h] = [Math.round((maxH * PITCH_W) / PITCH_L), maxH];
+  }
+  canvas.classList.toggle('is-portrait', portrait);
+  const cssW = w < avail ? `${w}px` : '';
+  if (canvas.style.width !== cssW) {
+    canvas.style.width = cssW;
+    canvas.style.marginInline = cssW ? 'auto' : '';
+  }
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     canvas.style.height = `${h}px`;
@@ -251,6 +340,65 @@ export function fitCanvas(canvas: HTMLCanvasElement): { ctx: CanvasRenderingCont
   const ctx = canvas.getContext('2d')!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, w, h };
+}
+
+/** 세로 피치 높이 상한 (화면 높이 비율). 결정 순간 화면은 아래 선택 시트가 있어 더 낮게 (PORTRAIT_MOMENT_MAX_H) */
+const PORTRAIT_MAX_H = 0.68;
+export const PORTRAIT_MOMENT_MAX_H = 0.5;
+
+// ── 경기 화면 방향·선수 크기·이름 표시 (부록 C.44a): 기기 설정(세이브 아님), C.43 보기와 같은 저장 방식 ──
+
+export type PitchOrient = 'auto' | 'landscape' | 'portrait';
+export type PitchSizeOpt = 'normal' | 'large' | 'xlarge';
+export type PitchNames = 'all' | 'mine' | 'off';
+export const PITCH_ORIENT_KO: Readonly<Record<PitchOrient, string>> = { auto: '자동', landscape: '항상 가로', portrait: '항상 세로' };
+export const PITCH_SIZE_KO: Readonly<Record<PitchSizeOpt, string>> = { normal: '보통', large: '크게', xlarge: '아주 크게' };
+export const PITCH_NAMES_KO: Readonly<Record<PitchNames, string>> = { all: '켬', mine: '내 선수만', off: '끔' };
+const SIZE_K: Readonly<Record<PitchSizeOpt, number>> = { normal: 1, large: 1.5, xlarge: 1.9 };
+
+function pref<T extends string>(key: string, values: readonly T[], def: T): { get(): T; set(v: T): void } {
+  let cur: T = def;
+  try {
+    const v = globalThis.localStorage?.getItem(key);
+    if (v && (values as readonly string[]).includes(v)) cur = v as T;
+  } catch {
+    // 기본값
+  }
+  return {
+    get: () => cur,
+    set(v) {
+      cur = v;
+      try {
+        globalThis.localStorage?.setItem(key, v);
+      } catch {
+        // 저장 못 해도 이번 실행에는 적용
+      }
+    },
+  };
+}
+
+const orientPref = pref<PitchOrient>('po-pitch-orient', ['auto', 'landscape', 'portrait'], 'auto');
+const sizePref = pref<PitchSizeOpt>('po-pitch-size', ['normal', 'large', 'xlarge'], 'large');
+const namesPref = pref<PitchNames>('po-pitch-names', ['all', 'mine', 'off'], 'all');
+export const pitchOrient = (): PitchOrient => orientPref.get();
+export const setPitchOrient = (v: PitchOrient): void => orientPref.set(v);
+export const pitchSize = (): PitchSizeOpt => sizePref.get();
+export const setPitchSize = (v: PitchSizeOpt): void => sizePref.set(v);
+export const pitchNames = (): PitchNames => namesPref.get();
+export const setPitchNames = (v: PitchNames): void => namesPref.set(v);
+
+/** 지금 피치를 세로로 그리나: 항상 세로, 또는 자동이면서 화면이 세로(가로 < 세로)거나 폭 600px 이하 */
+export function isPortraitPitch(): boolean {
+  const o = orientPref.get();
+  if (o !== 'auto') return o === 'portrait';
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth < window.innerHeight || window.innerWidth <= 600;
+}
+
+/** 선수 id → 라벨 이름 (화면이 정한다: 별명 > 짧은 이름). 기본은 리플레이 이름의 짧은 이름 */
+let nameOf: (id: string, isMe: boolean, fallback: string) => string = (_id, _me, fallback) => autoShortKo(fallback);
+export function setPitchNameResolver(f: (id: string, isMe: boolean, fallback: string) => string): void {
+  nameOf = f;
 }
 
 // ── 경기 화면 보기 (부록 C.43): 얼굴(미니페이스) / 등번호(기존 숫자 원, 기본) / 캐릭터(도트 얼굴). 고른 값은 이 기기에 남긴다 ──

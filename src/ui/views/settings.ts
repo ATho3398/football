@@ -12,7 +12,56 @@ import {
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import { panel, versionFooter } from './common';
-import { pitchView, PITCH_VIEW_KO } from '../pitch/renderer';
+import {
+  pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO,
+} from '../pitch/renderer';
+import { autoShortNames, worldPlayers } from '../playerNames';
+
+/** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
+export interface NameUI { q: string; team: string; sel: string | null }
+
+/** 이름 고치기 칸 (설정·선수 화면 공용): 풀네임·자동 짧은 이름, 별명·짧은 이름 입력 */
+export function nameEditor(g: GameState, id: string): string {
+  const p = worldPlayers(g).find((x) => x.id === id);
+  if (!p) return '';
+  const auto = autoShortNames(g).get(id) ?? p.nameKo;
+  const o = g.nameOverrides[id] ?? {};
+  const label = o.nickname || o.shortName || auto;
+  return `<div class="nm-edit">
+    <div class="kv"><span>풀네임</span><b>${esc(p.nameKo)}</b></div>
+    <div class="kv"><span>경기 화면 라벨</span><b class="hi">${esc(label)}</b></div>
+    <label class="field nm-field"><span>별명</span><input type="text" id="nm-nick" maxlength="16" value="${esc(o.nickname ?? '')}" placeholder="없음 (직접 쓰기)" autocomplete="off"></label>
+    <label class="field nm-field"><span>짧은 이름</span><input type="text" id="nm-short" maxlength="16" value="${esc(o.shortName ?? '')}" placeholder="${esc(auto)} (자동)" autocomplete="off"></label>
+    <div class="btn-row even">${Button({ size: 'sm', block: true, icon: 'check', act: 'nm-save', data: { id }, children: '저장' })}${
+      o.nickname || o.shortName ? Button({ variant: 'secondary', size: 'sm', block: true, icon: 'restore', act: 'nm-clear', data: { id }, children: '되돌리기' }) : ''}</div>
+    <p class="small muted">경기 화면 이름표 = 별명 > 짧은 이름. 비워 두면 자동 짧은 이름(유명한 이름, 같은 이름이 여럿이면 첫 글자)을 써요. 이 세이브에 저장돼요.</p>
+  </div>`;
+}
+
+function nameSection(g: GameState | null, nm: NameUI): string {
+  if (!g) return panel('<p class="small muted">선수 이름은 게임을 시작하거나 불러오면 바꿀 수 있어요.</p>');
+  const auto = autoShortNames(g);
+  const qq = nm.q.trim().toLowerCase();
+  const all = worldPlayers(g);
+  const list = all.filter((p) => {
+    if (nm.team === 'x' ? p.teamId : nm.team && p.teamId !== nm.team) return false;
+    if (!qq) return true;
+    const o = g.nameOverrides[p.id];
+    return [p.nameKo, p.name ?? '', auto.get(p.id) ?? '', o?.nickname ?? '', o?.shortName ?? ''].some((x) => has(x, qq));
+  }).sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || Number(!!g.nameOverrides[b.id]) - Number(!!g.nameOverrides[a.id])).slice(0, 30);
+  const teamName = (p: (typeof all)[number]) => (p.teamId ? teamById(g.league, p.teamId)?.nameKo ?? p.teamId : `${p.club ?? ''} · 리그 밖`);
+  const rows = list.map((p) => {
+    const o = g.nameOverrides[p.id];
+    const tag = o?.nickname ? `별명 ${o.nickname}` : o?.shortName ? `짧은 이름 ${o.shortName}` : auto.get(p.id) ?? '';
+    return `<button type="button" class="real-row nm-row${p.id === nm.sel ? ' is-on' : ''}" data-act="nm-pick" data-id="${esc(p.id)}"><span class="grow"><b>${esc(p.nameKo)}${p.mine ? ' · 내 선수' : ''}</b><small>${esc(teamName(p))}</small></span><span class="po-chip${o ? ' po-chip--brand' : ''}">${esc(tag)}</span></button>`;
+  }).join('');
+  const teams = `<option value="">모든 팀</option>${g.league.teams.map((t) => `<option value="${esc(t.id)}"${nm.team === t.id ? ' selected' : ''}>${esc(t.nameKo)}</option>`).join('')}<option value="x"${nm.team === 'x' ? ' selected' : ''}>리그 밖</option>`;
+  return `${panel(`<p class="small">경기 화면에서 선수 아래 따라다니는 이름표를 바꿔요. 모든 선수(실제·생성·내 선수)에 별명을 붙이거나 짧은 이름을 고칠 수 있어요. 다른 화면은 풀네임 그대로예요.</p>`)}
+    ${nm.sel ? panel(nameEditor(g, nm.sel), 'nm-editor') : ''}
+    <div class="nm-filter"><label class="field fo-search"><span aria-hidden="true">🔍</span><input type="search" id="nm-q" value="${esc(nm.q)}" placeholder="선수 이름 (한글·영문·별명)" autocomplete="off"></label>
+    <select id="nm-team" class="nm-team" aria-label="팀 거르기">${teams}</select></div>
+    <div class="real-list fo-list">${rows || '<p class="small muted">찾는 이름이 없어요.</p>'}</div>`;
+}
 
 export interface FaceOnUI {
   tab: 'players' | 'clubs';
@@ -142,7 +191,7 @@ export function cropStyle(c: { zoom: number; x: number; y: number; slot: FaceSlo
   return `left:${pct(l.x)};top:${pct(l.y)};width:${pct(l.w)};height:${pct(l.h)}`;
 }
 
-export function settingsView(g: GameState | null, fo: FaceOnUI, version: VersionVM): string {
+export function settingsView(g: GameState | null, fo: FaceOnUI, version: VersionVM, nm: NameUI = { q: '', team: '', sel: null }): string {
   const hero = HeroPanel({
     title: '설정', back: { act: 'go', data: { to: g ? 'home' : 'title' } }, eyebrow: '게임 설정 · 페이스온', pad: false, progress: false, value: '설정',
     chips: [g ? `${g.player.name}` : '게임 밖', { label: '이 브라우저에 저장', soft: true }],
@@ -159,7 +208,13 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
       <p class="small muted">난이도는 새 게임에서 정해요.</p>`)
     : panel('<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>');
   const pv = panel(`<div class="kv"><span>경기 화면 선수 표시</span></div>${Tabs({ items: (['number', 'face', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
-    <p class="small muted">등번호 = 번호 원(기본) · 얼굴 = 미니페이스 + 팀 색 밑줄 · 캐릭터 = 도트 얼굴(없으면 등번호). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>`);
+    <p class="small muted">등번호 = 번호 원(기본) · 얼굴 = 미니페이스 + 팀 색 밑줄 · 캐릭터 = 도트 얼굴(없으면 등번호). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>
+    <div class="divider"></div>
+    <div class="kv"><span>경기 화면 방향</span></div>${Tabs({ items: (['auto', 'landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+    <p class="small muted">자동 = 폰을 세로로 들면 피치도 세로(내 팀이 아래에서 위로 공격). 시험 기능이에요.</p>
+    <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
+    <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}
+    <p class="small muted">방향·크기·이름 표시는 이 기기에 저장돼요(세이브와 따로). 경기 결과에는 영향이 없어요.</p>`);
   const saves = panel(`<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`);
 
@@ -182,6 +237,7 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
   return `${hero}<div class="body">
     ${SectionTitle({ title: '경기 진행' })}${play}
     ${SectionTitle({ title: '경기 화면 보기' })}${pv}
+    ${SectionTitle({ title: '선수 이름', action: '별명·짧은 이름' })}${nameSection(g, nm)}
     ${SectionTitle({ title: '저장과 안내' })}${saves}
     ${SectionTitle({ title: '페이스온', action: '얼굴·엠블럼 바꾸기' })}${faceon}
     ${versionFooter(version)}

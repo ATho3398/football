@@ -23,6 +23,8 @@ interface PlayerBase {
   id: string;
   name: string;
   nameKo: string;
+  /** 짧은 이름 직접 지정 (부록 C.44a, 통칭·여러 단어 성). 없으면 nameKo 마지막 단어 */
+  shortKo?: string;
   birthYear: number;
   nationality: string;
   height: number; // cm

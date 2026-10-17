@@ -41,14 +41,14 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Button, Modal, Toast, type ToastProps } from './components';
+import { Button, Modal, SectionTitle, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { dock, dockMoreSheet, pitchViewSheet, roJosa, type DockVM } from './views/common';
+import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoSheet } from './views/progress';
-import { setPitchFaceResolver, setPitchView } from './pitch/renderer';
+import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchSize, setPitchView } from './pitch/renderer';
 import { adviceCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
@@ -58,7 +58,9 @@ import { allocateView, newGameView, retiredView, savesView, seasonView, titleVie
 import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
-import { cropStyle, lookupEntry, settingsView, type FaceOnUI } from './views/settings';
+import { cropStyle, lookupEntry, nameEditor, settingsView, type FaceOnUI, type NameUI } from './views/settings';
+import { pitchLabel } from './playerNames';
+import { setNameOverride } from '../names';
 import { clearFaceOn, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
@@ -126,6 +128,8 @@ const ui = {
   moreSheet: false,
   /** 시즌 종료 화면 상세 보기 탭 (C.44). null = 요약 카드만 */
   seasonTab: null as SeasonTab | null,
+  /** 설정 → 선수 이름 (C.44a) */
+  nm: { q: '', team: '', sel: null } as NameUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
@@ -277,7 +281,7 @@ function screenHtml(): string {
       syncProspectPick();
       return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }));
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
-    case 'settings': return settingsView(g, ui.fo, versionVM(g));
+    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm);
     default: break;
   }
   if (!g) return titleScreen();
@@ -307,7 +311,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g), g.phase !== 'retired' ? contractSection(marketVM(g)) : '');
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -1390,6 +1394,38 @@ app.addEventListener('click', (ev) => {
       ui.pvSheet = false;
       render();
       return;
+    case 'po-orient':
+      if (v !== 'auto' && v !== 'landscape' && v !== 'portrait') return;
+      setPitchOrient(v);
+      render();
+      return;
+    case 'po-size':
+      if (v !== 'normal' && v !== 'large' && v !== 'xlarge') return;
+      setPitchSize(v);
+      render();
+      return;
+    case 'po-names':
+      if (v !== 'all' && v !== 'mine' && v !== 'off') return;
+      setPitchNames(v);
+      render();
+      return;
+    case 'nm-pick':
+      ui.nm.sel = el.dataset.id ?? null;
+      render();
+      document.querySelector('.nm-editor')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    case 'nm-save':
+    case 'nm-clear': {
+      const id = el.dataset.id;
+      if (!g || !id) return;
+      const val = (x: string) => (act === 'nm-save' ? (document.getElementById(x) as HTMLInputElement | null)?.value ?? '' : '');
+      setNameOverride(g.nameOverrides, id, 'nickname', val('nm-nick'));
+      setNameOverride(g.nameOverrides, id, 'shortName', val('nm-short'));
+      autosave();
+      render();
+      showToast({ kind: 'info', title: act === 'nm-save' ? '이름을 저장했어요' : '자동 이름으로 되돌렸어요' });
+      return;
+    }
     case 'pv-set':
       if (v !== 'face' && v !== 'number' && v !== 'character') return;
       setPitchView(v);
@@ -1813,6 +1849,20 @@ app.addEventListener('change', (ev) => {
 let foTimer = 0;
 app.addEventListener('input', (ev) => {
   const t = ev.target as HTMLInputElement;
+  // 선수 이름 검색 (C.44a)
+  if (t.id === 'nm-q') {
+    ui.nm.q = t.value;
+    clearTimeout(foTimer);
+    foTimer = window.setTimeout(() => {
+      render();
+      const q = document.getElementById('nm-q') as HTMLInputElement | null;
+      if (q) {
+        q.focus();
+        q.setSelectionRange(q.value.length, q.value.length);
+      }
+    }, 200);
+    return;
+  }
   if (t.id === 'fo-q') {
     ui.fo.q = t.value;
     clearTimeout(foTimer);
@@ -1865,6 +1915,15 @@ app.addEventListener('change', (ev) => {
       showToast({ kind: 'info', title: `페이스팩 가져오기 · ${r.added}장`, body: r.skipped.length ? `못 찾은 파일 ${r.skipped.length}개: ${r.skipped.slice(0, 3).join(', ')}` : '모두 넣었어요.' }, 3200);
     }, (e) => showToast((e as Error).message || '가져오지 못했어요'));
   }
+});
+
+// 선수 이름 라벨 (C.44a): 별명 > 짧은 이름. 게임 밖(리플레이 파일 등)이면 리플레이 이름의 짧은 이름
+setPitchNameResolver((id, isMe, fallback) => (ui.game ? pitchLabel(ui.game, id, isMe, fallback) : fallback.split(/\s+/).pop() ?? fallback));
+app.addEventListener('change', (ev) => {
+  const t = ev.target as HTMLSelectElement;
+  if (t.id !== 'nm-team') return;
+  ui.nm.team = t.value;
+  render();
 });
 
 // 경기 화면 얼굴 보기 (C.43): 리플레이 선수 id = 로스터 id. 로스터가 바뀌면 색인을 다시 만든다

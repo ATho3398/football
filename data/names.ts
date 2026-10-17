@@ -75,7 +75,7 @@ export const NAME_POOLS: NamePool[] = [
     nationality: 'Netherlands',
     weight: 4,
     given: [['Daan', '단'], ['Joris', '요리스'], ['Bram', '브람'], ['Stefan', '스테판'], ['Jesper', '예스퍼']],
-    family: [['de Jong', '더용'], ['Bakker', '바커르'], ['Visser', '피서르'], ['van Dam', '판담'], ['Smit', '스밋']],
+    family: [['de Jong', '더 용'], ['Bakker', '바커르'], ['Visser', '피서르'], ['van Dam', '반 담'], ['Smit', '스밋']],
   },
   {
     nationality: 'Belgium',
