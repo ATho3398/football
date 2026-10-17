@@ -239,3 +239,8 @@
 - **다음 순서**: C.45 2차 완료 보고 → pending 다음 번호(68~) → UI_1에 디자인 없는 새 화면 목록 → **34b C.46 구단 재정·로스터 인원**(pending 62.1·62.2, 재계약 판정을 모든 선수로 넓힐지도 여기서 — pending 67 ④) → **34c C.47 레전드 팩 + 커리어 태그**(pending 63~66: 레전드 약 115명 `docs/legend-pack-draft.md`, 2018~2020 은퇴자 일반 로스터 제외, 태그 효과 64번 "지금" 항목, 자연 발생 태그 65번 "지금" 항목, 태그 통합 66번, 노익장 30세+·×0.7, 늦게 핀 꽃 = 첫 노화 종류별 1회 면제(B안), 효과는 미미하게) → 35 5-1 → 36 5-2(+생활 시스템) → 37~41 → 엔진 블록(미해결 1~7).
 - 기획서 본문 합침 대기(코드 세션이 쉴 때): 19.10 부분 개정(구단 예산 포함), 23번 로스터 인원, 19.12 구단 재정 새 소절, 태그 시스템 새 소절(pending 62.4·64~66).
 - 사용자 대기 항목 없음(오늘 질문은 모두 확정).
+
+### 8.21 마스터 세션 M (2026-10-17 20:57 KST~, `session_01BTacbWbkVFVE6HVKwxLx3v`, 브랜치 `claude/planning-m`)
+- L이 만든 세션 → `lineage` 깊이 2. 브랜치 `claude/planning-m`(L 07385ea에서 분기). 코드 세션 지시의 "마스터 브랜치 docs/ 병합"은 이 브랜치로.
+- 시작 처리(20:59 KST): C.45 `session_01PyosPUNsMEvAoK43GW8bES`·UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC`·엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`에 "보고는 M으로, 마스터 브랜치 claude/planning-m" 알림. L 자동 확인 `trig_01HbeNU9EdbbdH5wCdQkg2DS` 삭제 → M 자동 확인 `trig_01QNT5S6yApa6BLkGydnrXSW`(23:30 KST). L 제목 `draft_L_축구 커리어 게임 마스터`(섹션 태그는 건드리지 않음).
+- 다음: 8.20 순서 그대로(C.45 2차 완료 보고 → pending 68~ → UI_1 목록 → 34b C.46).
