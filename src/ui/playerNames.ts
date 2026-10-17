@@ -15,6 +15,9 @@ export interface NamedPlayer extends NameEntry {
   /** 리그 밖 소속 이름 */
   club?: string;
   mine?: boolean;
+  /** 목록 보조 줄 (C.59) */
+  position?: string;
+  age?: number;
 }
 
 /** 세계의 모든 선수 (내 선수가 맨 앞, id 중복 없음) */
@@ -28,13 +31,13 @@ export function worldPlayers(g: GameState): NamedPlayer[] {
     for (const p of r.players) {
       if (out.has(p.id)) continue;
       const sk = REAL.get(p.id)?.shortKo ?? LEGEND_BY_ID.get(p.id)?.shortKo;
-      out.set(p.id, { id: p.id, name: p.name, nameKo: p.nameKo, teamId, ...(sk ? { shortKo: sk } : {}) });
+      out.set(p.id, { id: p.id, name: p.name, nameKo: p.nameKo, teamId, position: p.position, age: p.age, ...(sk ? { shortKo: sk } : {}) });
     }
   }
   for (const n of g.npcs) {
     if (out.has(n.id) || n.retired) continue;
     const sk = REAL.get(n.id)?.shortKo;
-    out.set(n.id, { id: n.id, name: n.name, nameKo: n.nameKo, club: n.club, ...(sk ? { shortKo: sk } : {}) });
+    out.set(n.id, { id: n.id, name: n.name, nameKo: n.nameKo, club: n.club, position: n.position, age: n.age, ...(sk ? { shortKo: sk } : {}) });
   }
   return [...out.values()];
 }

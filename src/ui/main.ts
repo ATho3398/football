@@ -68,8 +68,8 @@ import { allocateView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, sa
 import { tacticsView } from './views/tactics';
 import { contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
-import { cropStyle, lookupEntry, myLookVM, settingsView, type FaceOnUI, type NameUI, type PixelUI } from './views/settings';
-import { CARD_ART_UI_DEFAULT, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
+import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
+import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artStyle } from './components/gameCard';
 import { emptyOverrides, kitClash, setKitOverride, setPersonOverride } from '../pixel';
@@ -169,6 +169,8 @@ const ui = {
   nm: { q: '', team: '', sel: null } as NameUI,
   /** 설정 → 경기 아이콘 (C.45) */
   px: { tab: 'players', q: '', team: '', sel: null, kitSel: null } as PixelUI,
+  /** 설정 화면 (C.59): 보고 있는 하위 화면, 펼친 섹션 */
+  set: { ...SET_UI_DEFAULT } as SetUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 선수 화면 태그 전체 시트 (C.47 → C.58 디자인 135) */
@@ -337,7 +339,7 @@ function screenHtml(): string {
       syncProspectPick();
       return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined, ui.ng);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
-    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen());
+    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen(), ui.set);
     default: break;
   }
   if (!g) return titleScreen();
@@ -1400,6 +1402,7 @@ app.addEventListener('click', (ev) => {
         ui.cardSheet = null;
       }
       if (ui.screen === 'deck' && to !== 'deck' && g) g.cards.fresh = [];
+      if (to === 'settings' && ui.screen !== 'settings') ui.set = { page: 'main', open: ui.set.open };
       if (to === 'allocate' && g) enterAllocate(g, ui.screen === 'season' ? 'season' : ui.screen === 'player' ? 'player' : g.phase === 'season' ? 'home' : 'season');
       go(to);
       return;
@@ -1728,6 +1731,7 @@ app.addEventListener('click', (ev) => {
     case 'faceon-open':
       ui.fo.sel = el.dataset.key ?? null;
       ui.fo.tab = ui.fo.sel?.startsWith('t:') ? 'clubs' : 'players';
+      ui.set.page = 'faceon';
       go('settings');
       return;
     case 'faceon-tab':
@@ -1739,8 +1743,46 @@ app.addEventListener('click', (ev) => {
     case 'faceon-pick':
       ui.fo.sel = el.dataset.key ?? null;
       render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
       return;
+    // ── 설정 화면 틀 (C.59): 하위 화면 · 섹션 접기 · 이동 칩 ──
+    case 'set-page':
+      if (!v || !['main', 'names', 'pixel', 'faceon', 'cardart'].includes(v)) return;
+      ui.set.page = v as SetPage;
+      go('settings');
+      return;
+    case 'set-back':
+      // 페이스온·카드 이미지 편집 → 목록, 목록·다른 하위 화면 → 설정 첫 화면
+      if (ui.set.page === 'faceon' && ui.fo.sel) ui.fo.sel = null;
+      else if (ui.set.page === 'cardart' && ui.ca.sel) ui.ca.sel = null;
+      else ui.set.page = 'main';
+      go('settings');
+      return;
+    case 'set-toggle':
+    case 'set-open': {
+      const sec = v as SetSec;
+      ui.set.open = act === 'set-toggle' && ui.set.open === sec ? null : sec;
+      render();
+      if (act === 'set-open') document.getElementById(`set-${sec}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      return;
+    }
+    case 'px-side':
+      if (v !== 'home' && v !== 'away') return;
+      ui.px.side = v;
+      render();
+      return;
+    case 'ca-more':
+      ui.ca.more = true;
+      render();
+      return;
+    case 'ca-crop-center': {
+      const c = ui.ca.crop;
+      if (!c) return;
+      c.x = 0;
+      c.y = 0;
+      render();
+      return;
+    }
     case 'faceon-upload': {
       const input = document.getElementById('fo-file') as HTMLInputElement | null;
       if (!input || !el.dataset.key || !el.dataset.slot) return;
@@ -1809,7 +1851,7 @@ app.addEventListener('click', (ev) => {
     case 'ca-pick':
       ui.ca.sel = el.dataset.key ?? null;
       render();
-      document.querySelector('.ca-editor')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.scrollTo(0, 0);
       return;
     case 'ca-kind':
       ui.ca.kind = (v ?? 'all') as CardKindFilter;
@@ -1916,13 +1958,17 @@ app.addEventListener('click', (ev) => {
     case 'px-pick':
     case 'px-team-pick':
       if (act === 'px-pick') ui.px.sel = el.dataset.id ?? null;
-      else ui.px.kitSel = el.dataset.id ?? null;
+      else {
+        ui.px.kitSel = el.dataset.id ?? null;
+        ui.px.side = 'home';
+      }
       render();
       document.querySelector('.px-editor')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     case 'px-open-me':
       if (!g) return;
       ui.px = { ...ui.px, tab: 'players', sel: myFace(g).id };
+      ui.set.page = 'pixel';
       go('settings');
       requestAnimationFrame(() => document.querySelector('.px-editor')?.scrollIntoView({ block: 'center' }));
       return;
@@ -2450,6 +2496,8 @@ app.addEventListener('input', (ev) => {
     if (t.id === 'ca-zoom') cc.zoom = n / 100;
     else if (t.id === 'ca-x') cc.x = n;
     else cc.y = n;
+    const lab = document.getElementById(`${t.id}-v`);
+    if (lab) lab.textContent = caRangeText(t.id as 'ca-zoom', n);
     document.querySelectorAll<HTMLImageElement>('#ca-prev .po-art').forEach((img) => {
       const full = !!img.closest('.po-gc__photo');
       img.setAttribute('style', artStyle(full ? '50% 30%' : '50% 35%', cc));
@@ -2477,6 +2525,8 @@ app.addEventListener('input', (ev) => {
   else c.y = n;
   const prev = document.getElementById('fo-prev');
   if (prev) prev.setAttribute('style', cropStyle(c));
+  const lab = document.getElementById(`${t.id}-v`);
+  if (lab) lab.textContent = foRangeText(t.id as 'fo-zoom', Number(t.value));
 });
 
 app.addEventListener('change', (ev) => {

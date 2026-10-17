@@ -101,7 +101,7 @@ export function TagChip(p: TagChipProps): string {
 // ── PixelTile (16px 도트 정수배) ──
 
 export interface PixelSprite { kind?: 'person' | 'kit'; skin?: string; hair?: string; hairStyle?: 'short' | 'long' | 'curly'; kit?: string; kit2?: string; pattern?: 'solid' | 'stripe' | 'hoop' }
-export interface PixelTileProps extends Action { sprite?: PixelSprite; src?: string; scale?: number; label?: string; title?: string; selected?: boolean; isDefault?: boolean; disabled?: boolean }
+export interface PixelTileProps extends Action { sprite?: PixelSprite; src?: string; /** 직접 그린 그림 (게임 도트 겹친 이미지, C.59) */ art?: string; scale?: number; label?: string; title?: string; selected?: boolean; isDefault?: boolean; disabled?: boolean }
 
 const PX_PERSON = ['................', '.....hhhhhh.....', '....hhhhhhhh....', '....hssssssh....', '....ssssssss....', '....sesssses....', '....ssssssss....', '.....ssssss.....',
   '......ssss......', '...tttttttttt...', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..', '..tttttttttttt..'];
@@ -140,7 +140,7 @@ export function PixelTile(p: PixelTileProps): string {
   const title = p.title ?? p.label;
   return `<${tag}${tag === 'button' ? ` type="button" aria-pressed="${!!p.selected}"` : ''} class="${cx('po-pixel', p.selected && 'is-selected', p.isDefault && 'is-default', p.disabled && 'is-disabled')}" style="--px-size:${size}px"${
     title ? ` title="${esc(title)}"` : ''}${actAttrs(p)}${p.disabled && tag === 'button' ? ' disabled' : ''}><span class="po-pixel__art">${
-    p.src ? `<img src="${esc(p.src)}" width="${size}" height="${size}" alt="" class="po-pixel__img">` : pixelSprite(p.sprite ?? {}, size)}${
+    p.art ?? (p.src ? `<img src="${esc(p.src)}" width="${size}" height="${size}" alt="" class="po-pixel__img">` : pixelSprite(p.sprite ?? {}, size))}${
     p.isDefault ? '<span class="po-pixel__def">기본</span>' : ''}${
     p.selected ? `<span class="po-pixel__check">${Icon({ name: 'check', size: 10, strokeWidth: 3.2 })}</span>` : ''}</span>${
     p.label != null ? `<span class="po-pixel__label">${esc(p.label)}</span>` : ''}</${tag}>`;
