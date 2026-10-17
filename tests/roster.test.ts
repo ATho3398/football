@@ -192,8 +192,9 @@ describe('로스터 시즌 갱신과 저장 (23번)', () => {
     expect(json).not.toContain('"rosters"');
     const loaded = deserialize(json);
     expect(loaded.rosters).toEqual(s.rosters);
-    // 세이브 크기: 로스터 480명을 담지 않으므로 작다 (C.30: 이번 시즌 경기 목록이 한 시즌 최대 약 15KB 더해진다)
-    expect(json.length).toBeLessThan(60_000);
+    // 세이브 크기: 로스터 480명을 담지 않으므로 작다 (C.30: 이번 시즌 경기 목록이 한 시즌 최대 약 15KB 더해진다.
+    // C.41: 지난 시즌 보존 기록(archive)이 시즌당 더해진다 — 전체 엔진이면 약 55KB, 저장은 gzip 이라 약 11KB)
+    expect(json.length).toBeLessThan(90_000);
   });
 
   it('형식 4 세이브를 열면 지난 시즌 수만큼 갱신한 로스터가 생긴다', () => {

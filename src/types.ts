@@ -89,6 +89,8 @@ export interface SeasonStats {
   assists: number;
   ratingSum: number;
   matchXp: number;
+  /** 훈련 XP (25.3, 부록 C.41). C.41 이전 시즌에는 없다 */
+  trainingXp?: number;
   moms: number;
   /** 부상 횟수와 부상으로 결장한 주 */
   injuries: number;

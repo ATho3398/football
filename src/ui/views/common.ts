@@ -1,6 +1,6 @@
 // 화면 공통 조각: 패널, 하단 탭, 버전 표시, 배너 목록. 컴포넌트(src/ui/components)만 조합한다
 
-import { Banner, esc, SectionTitle, StatChip, Tabs, type TabItem } from '../components';
+import { Banner, Button, esc, SectionTitle, StatChip, Tabs, type TabItem } from '../components';
 import type { BannerVM, SeasonMatchesVM, VersionVM } from '../viewModels';
 
 export function panel(inner: string, cls = ''): string {
@@ -68,6 +68,8 @@ export function seasonMatchesSection(vm: SeasonMatchesVM, title = '시즌 경기
       <div class="kv"><b class="small">${r.round}R ${esc(r.opp)} <small class="muted">${r.venue}</small></b>
         <span class="small"><b class="po-num ${r.outcome === 'win' ? 'up' : r.outcome === 'loss' ? 'down' : ''}">${esc(r.score)}</b> · 평점 <b class="po-num">${esc(r.rating)}</b></span></div>
       <div class="small muted">${esc(r.head)}${r.line ? ` · ${esc(r.line)}` : ''}</div>
+      ${r.hl.length || r.decisions ? `<ul class="mlog-hl small">${r.hl.map((h) => `<li>${esc(h)}</li>`).join('')}${r.decisions ? `<li class="muted">내 결정 ${r.decisions}번</li>` : ''}</ul>` : ''}
+      ${r.replay ? Button({ variant: 'ghost', size: 'sm', icon: 'play', act: 'replay-open', data: { v: r.replay }, children: '다시 보기' }) : ''}
     </div>`).join('');
   return `${SectionTitle({ title, action: `${vm.rows.length}경기` })}
     ${panel(`<b class="small">시즌 합계</b>${total}`)}

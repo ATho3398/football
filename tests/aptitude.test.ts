@@ -162,17 +162,17 @@ describe('포변 조언 (pending 31 3번, 36 ①②)', () => {
     expect(evaluateAdvice(player({ history: [season(6.0), season(6.0)], aptitude: apt({ ST: 1.5 }, 0.8) }), 2019)).toBeNull();
   });
 
-  it('조언 기간 4라운드 안에 그 포지션군으로 뛰면 보너스, 지나면 사라진다', () => {
+  it('조언 기간(소집 뒤 30일) 안에 그 포지션군으로 뛰면 보너스, 지나면 사라진다', () => {
     const p = player({ history: [season(6.0), season(6.0)] });
     evaluateAdvice(p, 2019);
     expect(adviceOpen(p, 2019, 38)).toBe(true);
     expect(checkAdviceTaken(p, 'ST', 2020, 0)).toBe(false);
-    expect(checkAdviceTaken(p, 'CB', 2020, 3)).toBe(true);
+    expect(checkAdviceTaken(p, 'CB', 2020, 29)).toBe(true);
     expect(p.aptBoost).toEqual({ group: 'CB', games: A.advice.boostGames });
     expect(p.advice).toBeNull();
     const q = player({ history: [season(6.0), season(6.0)] });
     evaluateAdvice(q, 2019);
-    expect(checkAdviceTaken(q, 'CB', 2020, A.advice.windowRounds)).toBe(false);
+    expect(checkAdviceTaken(q, 'CB', 2020, A.advice.windowDays)).toBe(false);
     expect(q.advice).toBeNull();
     expect(q.aptBoost).toBeNull();
   });
@@ -181,7 +181,7 @@ describe('포변 조언 (pending 31 3번, 36 ①②)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'adv-season', difficulty: 'normal' });
     expect(canChangePosition(g)).toBe(false);
     expect(requestPositionChange(g.player, 'CB', canChangePosition(g))).toBe(false);
-    g.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: g.league.season, untilRound: 4 };
+    g.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: g.league.season, untilDays: 30 };
     expect(canChangePosition(g)).toBe(true);
     expect(requestPositionChange(g.player, 'CB', canChangePosition(g))).toBe(true);
     expect(checkAdviceTaken(g.player, 'CB', g.league.season, g.league.round)).toBe(true);
@@ -198,8 +198,8 @@ describe('세이브 16 → 17 (C.37)', () => {
     delete raw.player.aptBoost;
     raw.saveFormat = 16;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(19);
-    expect(back.saveFormat).toBe(19);
+    expect(SAVE_FORMAT_VERSION).toBe(20);
+    expect(back.saveFormat).toBe(20);
     const a = back.player.aptitude!;
     expect(a.hidden).toBeNull();
     expect(a.mult.CM).toBeGreaterThanOrEqual(1.2);

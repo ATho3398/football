@@ -571,3 +571,37 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .mo-note { margin: 2px 2px 0; }
 .mo-sheet__head--react b { color: #8a4fd8; }
 .mo-opts--n2 .mo-opt { padding: 12px 14px; }
+
+/* ── 훈련 (C.41): 오늘 훈련, 주간 계획 7칸·게이지(능력치 바둑판 .ag-cell 과 같은 박스), 휴가 ── */
+.tr-today { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.tr-today .kv b { font-size: 16px; }
+.tr-today .po-btn { align-self: flex-start; }
+.tr-vacation b { font-size: 16px; }
+.tr-week { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 6px; }
+@media (min-width: 1024px) { .tr-week { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.tr-cell { min-height: 58px; padding: 6px 4px 5px; text-align: center; align-items: center; }
+.tr-cell .ag-name { padding-right: 0; font-size: 10px; }
+.tr-cell .ag-d { position: static; font-size: 9px; color: var(--ink-faint); }
+.tr-cell .ag-d.up { color: var(--mine); }
+.tr-k { font-size: 13px; line-height: 18px; font-weight: 800; color: var(--t, var(--ink)); white-space: nowrap; }
+.tr-cell.is-edit { cursor: pointer; }
+.tr-cell.is-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tr-cell.is-today { outline: 2px solid var(--brand); outline-offset: -2px; }
+.tr-cell.is-changed { box-shadow: inset 0 0 0 2px var(--mine); }
+.tr-tech, .tr-intense { --t: var(--brand-ink); }
+.tr-position, .tr-setpiece, .tr-video { --t: var(--mine); }
+.tr-recovery, .tr-rest, .tr-rehab { --t: var(--success); }
+.tr-match { --t: var(--team-home); background: var(--surface-3); }
+.tr-vacation.tr-cell { --t: var(--ink-faint); opacity: .8; }
+.tr-gauges { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (min-width: 1024px) { .tr-gauges { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+.tr-gauge .ag-v small { font-size: 12px; color: var(--ink-faint); font-weight: 700; }
+.tr-gauge.is-max .ag-v { color: var(--ink-faint); }
+.tr-bar { display: block; height: 4px; margin: 3px 0 2px; border-radius: 2px; background: var(--surface-1); overflow: hidden; }
+.tr-bar i { display: block; height: 100%; background: var(--brand); border-radius: 2px; }
+.tr-focus { margin-top: 8px; overflow-x: auto; }
+.tr-notes { margin: 6px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.tr-notes .warn { color: var(--warning); }
+.cal-item.cal-train .cal-tag { color: var(--on-brand); background: var(--brand); }
+.mlog-hl { margin: 4px 0 0; padding-left: 14px; color: var(--ink-muted); }
+.mlog-hl li { margin: 1px 0; }

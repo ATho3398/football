@@ -1,4 +1,5 @@
-// 저장/불러오기 (B.8): 브라우저 localStorage
+// 저장/불러오기 (B.8, 25.4·부록 C.41): IndexedDB + gzip 압축, 수동 슬롯 3 + 자동 저장, 파일 내보내기/가져오기.
+// C.40 까지의 localStorage 세이브는 initSaves 가 처음 한 번 옮긴다
 
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
@@ -15,6 +16,10 @@ import { customProblem } from './formations';
 import { initCollection } from './cardCollection';
 import { aptitudeSeed, mainPositionAptitude } from './aptitude';
 import { daysBetween, seasonCalendar } from './calendar';
+import { initTraining } from './training';
+import { compress, decompress, storeBackend, type Encoding } from './saveStore';
+import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
+import type { Replay } from './replay';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -29,7 +34,13 @@ export interface SaveMeta {
   age: number;
   /** 세이브를 시작한 패치 (21.5.1, 슬롯 목록 표시용). 이 필드가 생기기 전 슬롯은 없다 */
   startPatch?: string | null;
+  /** 게임 날짜와 압축 크기 (바이트, C.41) */
+  date?: string;
+  size?: number;
 }
+
+/** 리플레이 프레임을 남기는 내 최근 경기 수 (25.4 2번) */
+export const REPLAY_KEEP = 5;
 
 interface SaveFile {
   meta: SaveMeta;
@@ -190,6 +201,17 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     // 능력치 바둑판의 이번 시즌 변화는 변환 시점부터
     s.player.seasonStartAttrs = { ...s.player.attributes };
   },
+  // 19 → 20 (부록 C.41, 25.3·25.4): 훈련 상태(기본 계획·게이지 0에서 시작), 지난 시즌 보존 기록(없음에서 시작 — 옛 세이브는 지난 시즌 경기 목록이 없다).
+  // 포변 조언 기간 "다음 시즌 4라운드" → "소집 뒤 30일".
+  // 이미 다음 시즌 중인 조언은 남은 라운드를 날로 바꾸지 않고 30일을 그대로 준다 (짧아지지 않게)
+  19: (s) => {
+    s.training = initTraining(s.calendar.date);
+    s.archive = [];
+    if (s.player.advice) {
+      delete s.player.advice.untilRound;
+      s.player.advice.untilDays = BALANCE.aptitude.advice.windowDays;
+    }
+  },
 };
 
 export function migrate(raw: any): GameState {
@@ -213,46 +235,169 @@ export function deserialize(json: string): GameState {
   return migrate(JSON.parse(json));
 }
 
-export function saveGame(slot: SaveSlot, state: GameState): boolean {
-  const s = storage();
-  if (!s) return false;
-  const meta: SaveMeta = {
-    slot,
-    savedAt: new Date().toISOString(),
-    name: state.player.name,
-    season: state.league.season,
-    round: state.league.round,
-    age: state.player.age,
-    startPatch: state.startPatch,
+// ── 저장소 (25.4, 부록 C.41): IndexedDB + gzip. 슬롯 목록은 메모리에 들고 있어 화면이 바로 그린다 ──
+
+interface StoredSave {
+  meta: SaveMeta;
+  data: Uint8Array;
+  enc: Encoding;
+  /** 압축 전 바이트 */
+  raw: number;
+}
+
+const metas = new Map<SaveSlot, SaveMeta>();
+let ready: Promise<void> | null = null;
+
+function metaOf(slot: SaveSlot, state: GameState, size?: number): SaveMeta {
+  return {
+    slot, savedAt: new Date().toISOString(), name: state.player.name, season: state.league.season, round: state.league.round, age: state.player.age,
+    startPatch: state.startPatch, date: state.calendar?.date, ...(size !== undefined ? { size } : {}),
   };
+}
+
+/**
+ * 저장소 열기: 슬롯 목록을 읽고, 옛 localStorage 세이브(C.40 까지)는 처음 한 번 IndexedDB 로 옮긴 뒤 지운다.
+ * 옮긴 세이브는 형식 그대로 (불러올 때 migrate 로 변환)
+ */
+export function initSaves(): Promise<void> {
+  return (ready ??= (async () => {
+    const db = storeBackend();
+    const ls = storage();
+    for (const slot of SAVE_SLOTS) {
+      const key = PREFIX + slot;
+      const legacy = ls?.getItem(key);
+      if (legacy) {
+        try {
+          const file = JSON.parse(legacy) as SaveFile;
+          if (!(await db.get(`slot:${slot}`))) {
+            const json = JSON.stringify(file.state);
+            const { data, enc } = await compress(json);
+            await db.put(`slot:${slot}`, { meta: { ...file.meta, size: data.length }, data, enc, raw: json.length } satisfies StoredSave);
+          }
+          ls!.removeItem(key);
+        } catch {
+          // 깨진 옛 세이브는 그대로 둔다
+        }
+      }
+      const rec = await db.get<StoredSave>(`slot:${slot}`);
+      if (rec) metas.set(slot, rec.meta);
+      else metas.delete(slot);
+    }
+  })());
+}
+
+/** 테스트용: 저장소를 다시 열게 한다 */
+export function resetSaveCache(): void {
+  ready = null;
+  metas.clear();
+}
+
+/** 슬롯 목록 (initSaves 뒤. 그 전에는 비어 있다) */
+export function listSaves(): (SaveMeta | null)[] {
+  return SAVE_SLOTS.map((slot) => metas.get(slot) ?? null);
+}
+
+/** 압축한 세이브 바이트 (측정·내보내기) */
+export async function packState(state: GameState): Promise<{ data: Uint8Array; enc: Encoding; raw: number }> {
+  const json = serialize(state);
+  return { ...(await compress(json)), raw: json.length };
+}
+
+export async function saveGame(slot: SaveSlot, state: GameState): Promise<boolean> {
   try {
-    s.setItem(PREFIX + slot, `{"meta":${JSON.stringify(meta)},"state":${serialize(state)}}`);
+    await initSaves();
+    const { data, enc, raw } = await packState(state);
+    const meta = metaOf(slot, state, data.length);
+    await storeBackend().put(`slot:${slot}`, { meta, data, enc, raw } satisfies StoredSave);
+    metas.set(slot, meta);
     return true;
   } catch {
     return false;
   }
 }
 
-export function loadGame(slot: SaveSlot): GameState | null {
-  const raw = storage()?.getItem(PREFIX + slot);
-  if (!raw) return null;
-  const file = JSON.parse(raw) as SaveFile;
-  return deserialize(JSON.stringify(file.state));
+export async function loadGame(slot: SaveSlot): Promise<GameState | null> {
+  await initSaves();
+  const rec = await storeBackend().get<StoredSave>(`slot:${slot}`);
+  if (!rec) return null;
+  return deserialize(await decompress(rec.data));
 }
 
-export function listSaves(): (SaveMeta | null)[] {
-  const s = storage();
-  return SAVE_SLOTS.map((slot) => {
-    const raw = s?.getItem(PREFIX + slot);
-    if (!raw) return null;
-    try {
-      return (JSON.parse(raw) as SaveFile).meta;
-    } catch {
-      return null;
-    }
-  });
+export async function deleteSave(slot: SaveSlot): Promise<void> {
+  await initSaves();
+  await storeBackend().del(`slot:${slot}`);
+  await deleteReplays(slot);
+  metas.delete(slot);
 }
 
-export function deleteSave(slot: SaveSlot): void {
-  storage()?.removeItem(PREFIX + slot);
+// ── 리플레이 프레임: 내 최근 5경기만 (25.4 2번). 경기마다 따로 압축해 두고(replayCodec), 목록만 슬롯에 ──
+
+export interface ReplayMeta { season: number; round: number; label: string }
+export interface StoredReplay extends ReplayMeta { data: Uint8Array }
+
+const rpKey = (slot: SaveSlot, m: ReplayMeta) => `rp:${slot}:${m.season}:${m.round}`;
+
+/** 리플레이 하나를 압축 바이트로 (경기 직후 한 번) */
+export async function packReplayBytes(r: Replay): Promise<Uint8Array> {
+  return (await compress(JSON.stringify(packReplay(r)))).data;
+}
+
+export async function unpackReplayBytes(data: Uint8Array): Promise<Replay> {
+  return unpackReplay(JSON.parse(await decompress(data)) as PackedReplay);
+}
+
+/** 슬롯의 리플레이 목록을 list 로 맞춘다: 없는 것만 쓰고, 빠진 것은 지운다 */
+export async function saveReplays(slot: SaveSlot, list: StoredReplay[]): Promise<void> {
+  const db = storeBackend();
+  const keep = list.slice(-REPLAY_KEEP);
+  const old = (await db.get<ReplayMeta[]>(`replays:${slot}`)) ?? [];
+  const oldKeys = new Set(old.map((m) => rpKey(slot, m)));
+  for (const r of keep) if (!oldKeys.has(rpKey(slot, r))) await db.put(rpKey(slot, r), r.data);
+  const newKeys = new Set(keep.map((r) => rpKey(slot, r)));
+  for (const k of oldKeys) if (!newKeys.has(k)) await db.del(k);
+  await db.put(`replays:${slot}`, keep.map(({ season, round, label }) => ({ season, round, label })));
+}
+
+export async function loadReplays(slot: SaveSlot): Promise<StoredReplay[]> {
+  const db = storeBackend();
+  const index = (await db.get<ReplayMeta[]>(`replays:${slot}`)) ?? [];
+  const out: StoredReplay[] = [];
+  for (const m of index) {
+    const data = await db.get<Uint8Array>(rpKey(slot, m));
+    if (data) out.push({ ...m, data });
+  }
+  return out;
+}
+
+export async function copyReplays(from: SaveSlot, to: SaveSlot): Promise<void> {
+  await saveReplays(to, await loadReplays(from));
+}
+
+async function deleteReplays(slot: SaveSlot): Promise<void> {
+  await saveReplays(slot, []);
+  await storeBackend().del(`replays:${slot}`);
+}
+
+// ── 파일 내보내기/가져오기 (25.4 3번): gzip 압축 JSON ──
+
+const FILE_KIND = 'football-career-save';
+
+/** 내보내기 파일 바이트: gzip({ kind, meta, state }) */
+export async function exportSave(state: GameState): Promise<Uint8Array> {
+  const meta = metaOf('auto', state);
+  const { data } = await compress(`{"kind":"${FILE_KIND}","meta":${JSON.stringify(meta)},"state":${serialize(state)}}`);
+  return data;
+}
+
+/** 내보내기 파일 이름: football-career_시즌_날짜.fcsave.gz (한글 파일 이름은 일부 브라우저가 무시하고 "download"로 바꾼다, C.41 캡처) */
+export function exportFileName(state: GameState): string {
+  return `football-career_${state.league.season}_${state.calendar?.date ?? `r${state.league.round}`}.fcsave.gz`;
+}
+
+/** 가져오기: 압축 파일이나 그냥 JSON 모두 받는다. 옛 형식은 변환한다 */
+export async function importSave(bytes: Uint8Array): Promise<GameState> {
+  const text = await decompress(bytes);
+  const file = JSON.parse(text) as { kind?: string; state?: unknown };
+  if (file.kind !== FILE_KIND || !file.state) throw new Error('이 게임의 세이브 파일이 아니에요');
+  return migrate(file.state);
 }

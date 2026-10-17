@@ -1,6 +1,6 @@
 // 포지션 전환 (4.3, 부록 D.3, C.39 개정): 포지션별 숙련도(0~100), 0 시작·적응기·미출전 감소, 거리별 OVR 페널티, 주 포지션 변경 요청
 
-import { consumeGainMult } from './aptitude';
+import { consumeGainMult, trainingAptMult } from './aptitude';
 import { BALANCE } from './config/balance';
 import { PLAYABLE_POSITIONS, positionOvr, type FieldPosition, type PlayablePosition } from './positions';
 import type { PlayerState, Position } from './types';
@@ -165,4 +165,21 @@ export function requestPositionChange(p: PlayerState, to: PlayablePosition, allo
   p.formerPositions = [...(p.formerPositions ?? []).filter((f) => f !== p.position && f !== to), p.position];
   p.position = to;
   return true;
+}
+
+/**
+ * 포지션·역할 훈련 (25.3, 부록 C.41): 숙련도 + amount × 적응기 배수 × 숨은 적성 배수 (조언 뒤 포변 보너스면 ×2, 보너스 경기 수는 줄이지 않는다).
+ * 출전 수·연속 미출전(감소 카운트)은 경기 기준 그대로라 건드리지 않는다. 오른 양을 돌려준다
+ */
+export function trainProficiency(p: PlayerState, pos: Position, amount: number): number {
+  const k = profKey(pos);
+  if (!k || !p.proficiency) return 0;
+  const cur = p.proficiency[k];
+  if (cur >= 100) return 0;
+  const t = track(p, k);
+  const adapt = t.apps < P.adaptGames ? P.adaptMult : 1;
+  const next = Math.min(100, Math.round((cur + amount * adapt * trainingAptMult(p, pos)) * 100) / 100);
+  p.proficiency[k] = next;
+  if (next >= 100) t.peak = true;
+  return next - cur;
 }

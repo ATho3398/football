@@ -44,7 +44,7 @@ async function injectAdvice(kind) {
     const f = JSON.parse(localStorage.getItem(k));
     const s = f.state;
     const pos = s.player.position === 'CB' ? 'CDM' : 'CB';
-    s.player.advice = { kind, group: pos === 'CB' ? 'CB' : 'CDM', pos, from: s.player.position, season: s.league.season - 1, untilSeason: s.league.season, untilRound: 4 };
+    s.player.advice = { kind, group: pos === 'CB' ? 'CB' : 'CDM', pos, from: s.player.position, season: s.league.season - 1, untilSeason: s.league.season, untilDays: 30 };
     s.player.adviceLog = kind === 'coach' ? [] : [{ season: s.league.season - 2, from: s.player.position }];
     localStorage.setItem(k, JSON.stringify(f));
   }, kind);

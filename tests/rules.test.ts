@@ -197,12 +197,12 @@ describe('playRound 엔진 연결 (E3)', () => {
     expect(quick.engine).toBeUndefined();
   });
 
-  it('출장 정지: 다음 경기는 결장하고 훈련 XP 만, 정지는 1경기 소모', () => {
+  it('출장 정지: 다음 경기는 결장하고 경기 XP 없음(훈련 XP 는 하루 훈련, C.41), 정지는 1경기 소모', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'ban', difficulty: 'normal' });
     g.player.suspended = 1;
     const rep = playRound(g);
     expect(rep).toMatchObject({ suspended: true, result: { minutes: 0, rating: null } });
-    expect(rep.result.xp).toBe(Math.round(BALANCE.matchXp.bench * BALANCE.difficulty.normal.xp));
+    expect(rep.result.xp).toBe(0);
     expect(g.player.suspended).toBe(0);
   });
 

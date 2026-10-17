@@ -3,7 +3,7 @@ import { addDays, daysBetween, seasonCalendar, weekday } from '../src/calendar';
 import { BALANCE } from '../src/config/balance';
 import { createLeague } from '../src/league';
 import {
-  calendarOf, endDay, isMatchDay, newGame, otherJob, playOthers, playRound, SAVE_FORMAT_VERSION, todaysOthers,
+  calendarOf, dayPlan, endDay, isMatchDay, newGame, otherJob, playOthers, playRound, SAVE_FORMAT_VERSION, todaysOthers,
 } from '../src/game';
 import { playNpcMatch, summarize } from '../src/engine/npcMatch';
 import { createMatch, frameOf } from '../src/engine/sim';
@@ -12,6 +12,7 @@ import { runJob } from '../src/engine/jobs';
 import { playMyMatch } from '../src/engine/adapter';
 import { roundMatch } from '../src/game';
 import { deserialize, serialize } from '../src/save';
+import { planFatigue } from '../src/training';
 
 describe('일정 생성 (25.1~25.2 6번, 부록 C.38)', () => {
   it('2018-19 패턴: 38라운드, 8월 둘째 주 개막·5월 중순 일요일 종료, 주중 4~5회, 박싱데이, A매치 휴식기, 팀마다 2일 이상 휴식', () => {
@@ -60,18 +61,21 @@ describe('일정 생성 (25.1~25.2 6번, 부록 C.38)', () => {
 });
 
 describe('하루 단위 진행 (25.1~25.2 5·7번)', () => {
-  it('피로는 하루마다 주간 회복 ÷ 7, 7일이면 주간 값과 같다', () => {
+  it('피로는 하루마다 그날 훈련 계획만큼 회복한다 (C.41: 기본 계획 회복 5.5 / 휴식 6 / 기술 3.5 / 영상 4.5)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'day-fat', difficulty: 'normal' });
     playRound(g);
     // 경기 날까지 넘기지 않고 하루씩
     g.player.fatigue = 50;
+    let expected = 50;
     let days = 0;
     while (!isMatchDay(g) && days < 7) {
+      expected = Math.max(0, expected - planFatigue(dayPlan(g)));
       playOthers(g, 'quick');
       endDay(g);
       days++;
     }
-    expect(g.player.fatigue).toBeCloseTo(Math.max(0, 50 - (BALANCE.fatigue.weeklyRecovery * days) / 7), 6);
+    expect(g.player.fatigue).toBeCloseTo(expected, 6);
+    expect(days).toBeGreaterThan(0);
   });
 
   it('경기 날에는 하루를 넘길 수 없고, 다른 경기가 남아도 넘길 수 없다', () => {
@@ -167,7 +171,7 @@ describe('세이브 17 → 18 (부록 C.38)', () => {
     raw.player.injury = { grade: 'minor', weeksTotal: 3, weeksLeft: 2, season: 2018, round: 5, permanent: {} };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(19);
+    expect(SAVE_FORMAT_VERSION).toBe(20);
     const cal = calendarOf(back);
     expect(back.calendar.date).toBe(cal.roundDates[back.league.round]);
     expect(back.player.injury).toMatchObject({ daysLeft: 14, daysTotal: 21 });

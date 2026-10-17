@@ -7,7 +7,7 @@ import {
 import type { DayVM, HomeVM, PositionOptionVM } from '../viewModels';
 import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
 
-export function homeView(vm: HomeVM, extra = '', notice = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = ''): string {
   const n = vm.next;
   // C.39: 머리말은 작게(날짜 한 줄), "다음 경기" 카드를 맨 위로. 남은 포인트는 머리말 칩으로도
   const hero = HeroPanel({
@@ -52,7 +52,8 @@ export function homeView(vm: HomeVM, extra = '', notice = ''): string {
           ${n.control.mode === 'direct' ? Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: n.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' }) : ''}
         </div>`)}`;
   } else if (vm.phase === 'offseason') {
-    next = `${SectionTitle({ title: '비시즌' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 시즌 요약을 보고 다음 시즌을 시작해요.</p>
+    next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 피로가 풀려요.</p>
+      ${vm.camp ? `<p class="small"><b>${esc(vm.camp)} 소집</b> · 개막 7일 전부터 훈련 계획과 첫 경기를 준비해요. 시즌 요약에서 [다음 시즌]을 누르면 소집일로 넘어가요.</p>` : ''}
       ${Button({ size: 'lg', block: true, icon: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 종료 요약' })}`)}`;
   }
 
@@ -64,6 +65,7 @@ export function homeView(vm: HomeVM, extra = '', notice = ''): string {
       ${banners(vm.banners)}
       ${startNotice(vm.version)}
       ${notice}
+      ${training}
       ${vm.day ? calendarSection(vm.day) : ''}
       ${extra}
       ${SectionTitle({ title: '내 상태' })}

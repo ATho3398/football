@@ -7,7 +7,14 @@ import { adviceOpen, adviceText, rollProspect } from '../aptitude';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
-import { averageRating, calendarOf, careerTotals, myMatchDate, nextFixture, selectableRealPlayers, slumpThreshold, type GameState, type SeasonSummary } from '../game';
+import {
+  averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
+  slumpThreshold, trainingLine, type GameState, type SeasonSummary,
+} from '../game';
+import {
+  bundleCapped, gaugeNeed, planFatigue, planXp, techBundle, BUNDLE_NAMES_KO, TRAINING_DESC_KO, TRAINING_KINDS, TRAINING_NAMES_KO, TRAINING_SHORT_KO,
+  type DayPlan, type TrainingKind,
+} from '../training';
 import { addDays, dateLabel, daysBetween, weekday as weekdayOf } from '../calendar';
 import { isUnlocked } from '../unlocks';
 import { generatePlayer } from '../generate';
@@ -135,7 +142,7 @@ function injuryBanner(g: GameState): BannerVM | null {
   if (!inj) return null;
   return {
     tone: 'injury', title: `부상 (${INJURY_NAMES_KO[inj.grade]}) · ${inj.daysLeft}일 남음`,
-    body: `복귀 예정 ${returnLabel(g)}. 부상 중에는 경기에 나가지 못하고 재활 XP(주 ${BALANCE.injury.rehabXp})만 받아요.`,
+    body: `복귀 예정 ${returnLabel(g)}. 부상 중에는 경기에 나가지 못하고 재활(XP 주 ${BALANCE.injury.rehabXp})만 해요. 휴식으로 바꾸면 XP 대신 회복이 하루 +${BALANCE.training.restHealBonus}일 빨라요.`,
   };
 }
 
@@ -170,6 +177,10 @@ export interface HomeVM {
   day: DayVM | null;
   /** 남은 능력치 포인트 (C.39 홈 배지, 성장 기능이 열렸을 때만) */
   points: number;
+  /** 훈련 (C.41): 오늘 훈련, 주간 계획, 게이지 */
+  training: TrainingVM | null;
+  /** 비시즌 휴가가 끝나는 소집일 (개막 7일 전, C.41) */
+  camp: string | null;
 }
 
 export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
@@ -186,7 +197,7 @@ export interface DayVM {
   daysTo: number | null;
   nextLabel: string | null;
   quick: boolean;
-  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end'; sub?: string }[];
+  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string }[];
   month: { title: string; lead: number; days: DayCellVM[] };
 }
 
@@ -209,6 +220,11 @@ export function dayVM(g: GameState): DayVM | null {
   const next = myMatchDate(g);
   const daysTo = next ? daysBetween(today, next) : null;
   const upcoming: DayVM['upcoming'] = [];
+  // 오늘 훈련 (C.41)
+  if (daysTo !== 0) {
+    const k = dayPlan(g, today);
+    upcoming.push({ date: dateLabel(today), text: `오늘 · ${TRAINING_NAMES_KO[k]}`, kind: 'train', sub: g.training?.overrides[today] ? '변경' : k === 'vacation' ? '휴장' : '계획' });
+  }
   const brk = cal.breaks.filter((b) => daysBetween(today, b.date) >= -1);
   for (let r = g.league.round; r < g.league.schedule.length && upcoming.length < 6; r++) {
     const i = g.league.schedule[r]!.findIndex((f) => f.home === me || f.away === me);
@@ -231,8 +247,10 @@ export function dayVM(g: GameState): DayVM | null {
   for (let k = 0; k < len; k++) {
     const d = addDays(first, k);
     const mine = myDates.get(d);
-    const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) ? 'break' : leagueDays.has(d) ? 'league' : '';
-    const title = mine ? `${mine.r + 1}R ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : kind === 'break' ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '';
+    const vac = !mine && daysBetween(today, d) >= 0 && isVacationDay(g, d);
+    const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) || vac ? 'break' : leagueDays.has(d) ? 'league' : '';
+    const plan = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? TRAINING_SHORT_KO[dayPlan(g, d)] : '';
+    const title = mine ? `${mine.r + 1}R ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
     days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title });
   }
   return {
@@ -270,7 +288,7 @@ export function homeVM(g: GameState): HomeVM {
     const my = teamById(g.league, p.teamId);
     const opp = teamById(g.league, fx.opponentId);
     if (!inj && p.suspended > 0) {
-      banners.push({ tone: 'warning', title: `출장 정지 ${p.suspended}경기`, body: `${opp.nameKo}전에 나설 수 없어요. 결장한 주에도 훈련 XP를 받아요.` });
+      banners.push({ tone: 'warning', title: `출장 정지 ${p.suspended}경기`, body: `${opp.nameKo}전에 나설 수 없어요. 경기가 없는 날 훈련으로 XP를 받아요.` });
     }
     next = {
       my: my.nameKo, opp: opp.nameKo, home: fx.home, myRating: my.rating, oppRating: opp.rating,
@@ -292,7 +310,117 @@ export function homeVM(g: GameState): HomeVM {
     version: versionVM(g),
     day: dayVM(g),
     points: visiblePoints(g),
+    training: trainingVM(g),
+    camp: g.phase === 'offseason' ? campLabel(g) : null,
   };
+}
+
+// ── 훈련과 휴가 (25.3, 부록 C.41) ──
+
+export interface TrainingDayVM {
+  date: string;
+  /** "토" */
+  wd: string;
+  /** "8.18" */
+  md: string;
+  kind: DayPlan;
+  short: string;
+  today: boolean;
+  /** 그날만 바꾼 훈련 */
+  changed: boolean;
+  /** 경기·휴가 날은 못 바꾼다 */
+  locked: boolean;
+}
+
+export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean }
+
+export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean }
+
+export interface TrainingVM {
+  today: { date: string; kind: DayPlan; name: string; desc: string; xp: number; fatigue: number; bundle: string | null; changed: boolean; locked: boolean; injured: boolean };
+  week: TrainingDayVM[];
+  weekXp: number;
+  cap: number;
+  seasonXp: number;
+  gauges: GaugeVM[];
+  focus: AttributeGroup | 'auto';
+  seasonUps: number;
+  seasonMax: number;
+  hints: string[];
+  eve: boolean;
+  formPenalty: boolean;
+  last: string | null;
+  /** 휴가 중이면 휴가가 끝나는 날 (훈련 재개) */
+  vacation: { until: string; days: number } | null;
+}
+
+const PLAN_DESC: Record<'match' | 'vacation' | 'rehab', string> = {
+  match: '경기 날에는 훈련하지 않아요.',
+  vacation: '리그 휴장 · 훈련 선택 없이 쉬어요. XP 없음, 피로 하루 −6, 폼 저하 없음.',
+  rehab: `부상 중 재활: XP 주 ${BALANCE.injury.rehabXp}, 피로 회복. 휴식으로 바꾸면 회복이 하루 +${BALANCE.training.restHealBonus}일 빨라요.`,
+};
+
+export function trainingVM(g: GameState): TrainingVM | null {
+  if (g.phase !== 'season' || !g.training) return null;
+  const t = g.training;
+  const today = g.calendar.date;
+  const kind = dayPlan(g, today);
+  const T = BALANCE.training;
+  const injured = !!g.player.injury;
+  const week: TrainingDayVM[] = [];
+  const final = calendarOf(g).final;
+  for (let k = 0; k < 7; k++) {
+    const d = addDays(today, k);
+    if (daysBetween(d, final) < 0) break;
+    const kd = dayPlan(g, d);
+    week.push({
+      date: d, wd: '일월화수목금토'[weekdayOf(d)]!, md: `${+d.slice(5, 7)}.${+d.slice(8, 10)}`, kind: kd, short: TRAINING_SHORT_KO[kd], today: k === 0,
+      changed: !!t.overrides[d], locked: kd === 'match' || kd === 'vacation',
+    });
+  }
+  let vacation: TrainingVM['vacation'] = null;
+  if (kind === 'vacation') {
+    let d = today;
+    let n = 0;
+    while (isVacationDay(g, d) && n < 120) { d = addDays(d, 1); n++; }
+    vacation = { until: dateLabel(d), days: n };
+  }
+  const tb = techBundle(t, g.player.position);
+  return {
+    today: {
+      date: dateLabel(today), kind, name: TRAINING_NAMES_KO[kind], desc: kind === 'match' || kind === 'vacation' || kind === 'rehab' ? PLAN_DESC[kind] : TRAINING_DESC_KO[kind],
+      xp: planXp(kind), fatigue: planFatigue(kind), bundle: kind === 'tech' ? BUNDLE_NAMES_KO[tb] : null, changed: !!t.overrides[today],
+      locked: kind === 'match' || kind === 'vacation', injured,
+    },
+    week, weekXp: Math.round(t.weekXp * 10) / 10, cap: T.weeklyXpCap, seasonXp: Math.round(t.season.xp),
+    gauges: GROUP_NAMES.map((id) => ({
+      id, name: BUNDLE_NAMES_KO[id], value: Math.floor(t.gauges[id] ?? 0), full: gaugeNeed(g.player, id), ups: t.seasonUps[id] ?? 0, max: T.gauge.bundleSeasonMax,
+      capped: bundleCapped(t, id), today: id === tb,
+    })),
+    focus: t.focus, seasonUps: t.season.ups, seasonMax: T.gauge.seasonMax,
+    hints: [...t.hints], eve: t.eve, formPenalty: t.formPenalty > 0, last: t.last ? `${dateLabel(t.last.date)} · ${trainingLine(t.last)}` : null, vacation,
+  };
+}
+
+/** 하루 훈련 고르기 (바텀시트) */
+export function trainingOptionsVM(g: GameState, date: string): { date: string; injured: boolean; options: TrainingOptionVM[] } | null {
+  const kind = dayPlan(g, date);
+  if (kind === 'match' || kind === 'vacation') return null;
+  const injured = kind === 'rehab' || (kind === 'rest' && !!g.player.injury);
+  const planned = plannedDefault(g, date);
+  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : [...TRAINING_KINDS];
+  return {
+    date: dateLabel(date), injured,
+    options: kinds.map((k) => injured && k === 'recovery'
+      ? { kind: k, name: '재활 (기본)', desc: PLAN_DESC.rehab, xp: planXp('rehab'), fatigue: planFatigue('rehab'), planned: true, selected: kind === 'rehab' }
+      : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k }),
+  };
+}
+
+/** 비시즌 휴가 (25.3 5번): 소집일 */
+export function campLabel(g: GameState): string {
+  const next = { ...g, league: { ...g.league, season: g.league.season + 1 } } as GameState;
+  return dateLabel(addDays(campDate(next), 0));
 }
 
 // ── 선수 (I.8, 디자인 44) ──
@@ -345,8 +473,9 @@ export interface PositionOptionVM { pos: string; ko: string; prof: number; ovr: 
 /** 포변 조언 홈 알림 카드 (부록 C.37): 조언이 살아 있고 닫지 않았을 때 */
 export function adviceCardVM(g: GameState): import('./views/home').AdviceCardVM | null {
   const a = g.player.advice;
-  if (!a || a.dismissed || g.phase === 'retired' || !adviceOpen(g.player, g.league.season, g.league.round)) return null;
-  const left = g.league.season < a.untilSeason ? a.untilRound : a.untilRound - g.league.round;
+  const day = g.phase === 'season' ? campDay(g) : 0;
+  if (!a || a.dismissed || g.phase === 'retired' || !adviceOpen(g.player, g.league.season, day)) return null;
+  const left = g.league.season < a.untilSeason ? a.untilDays : a.untilDays - day;
   const t = adviceText(g.player, a, left);
   return { kind: a.kind, ...t, pos: a.pos };
 }
@@ -663,7 +792,15 @@ export function recordSplit(rec: MatchRecord, position: FieldPosition): { primar
 export interface MatchLogRowVM {
   round: number; opp: string; venue: string; score: string; outcome: 'win' | 'draw' | 'loss';
   rating: string; /** 출전·결장, 골·도움 */ head: string; /** 기록 한 줄 요약. 빠른 경기는 "기록 없음" */ line: string;
+  /** 하이라이트 3줄과 결정 수 (25.4, C.41) */
+  hl: string[];
+  decisions: number;
+  /** 리플레이 프레임이 남은 경기면 "시즌:라운드" (내 최근 5경기) */
+  replay: string | null;
 }
+
+/** 리플레이 프레임이 남은 내 경기 "시즌:라운드" (화면이 채운다, C.41) */
+export const replayIndex = new Set<string>();
 
 export interface SeasonMatchesVM {
   rows: MatchLogRowVM[];
@@ -682,6 +819,8 @@ function logRowVM(g: GameState, e: MatchLogEntry): MatchLogRowVM {
     round: e.round, opp: teamById(g.league, e.opponentId).nameKo, venue: e.home ? '홈' : '원정', score: `${e.goalsFor}-${e.goalsAgainst}`, outcome,
     rating: e.rating === null ? '-' : e.rating.toFixed(1), head,
     line: e.minutes === 0 ? '' : e.rec ? recordLine(e.rec, e.position) : '기록 없음',
+    hl: e.hl ?? [], decisions: e.dec?.length ?? 0,
+    replay: replayIndex.has(`${g.league.season}:${e.round}`) && g.phase === 'season' ? `${g.league.season}:${e.round}` : null,
   };
 }
 
@@ -829,18 +968,19 @@ export function retiredVM(g: GameState): RetiredVM {
 
 // ── 세이브 (디자인 43) ──
 
-export interface SaveSlotVM { slot: string; label: string; title: string; meta: string; start: string | null; empty: boolean }
+export interface SaveSlotVM { slot: string; label: string; title: string; meta: string; start: string | null; empty: boolean; size: string | null }
 
 export function savesVM(metas: (SaveMeta | null)[], slots: readonly string[]): { auto: SaveSlotVM; manual: SaveSlotVM[]; used: number } {
   const vm = (slot: string, i: number): SaveSlotVM => {
     const m = metas[i];
     const label = slot === 'auto' ? '자동 저장' : slot;
-    if (!m) return { slot, label, title: '비어 있음', meta: '지금 진행 상황을 여기에 저장해요', start: null, empty: true };
+    if (!m) return { slot, label, title: '비어 있음', meta: '지금 진행 상황을 여기에 저장해요', start: null, empty: true, size: null };
     const at = new Date(m.savedAt);
     const when = `${at.getFullYear()}.${String(at.getMonth() + 1).padStart(2, '0')}.${String(at.getDate()).padStart(2, '0')} ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
     return {
-      slot, label, title: `${seasonLabel(m.season)} 시즌 · ${m.round}라운드`, meta: `${m.name} ${m.age}세 · ${when}`,
+      slot, label, title: `${seasonLabel(m.season)} 시즌 · ${m.date ? dateLabel(m.date) : `${m.round}라운드`}`, meta: `${m.name} ${m.age}세 · ${when}`,
       start: m.startPatch === undefined ? null : m.startPatch === null ? '시작 버전 기록 전' : `${m.startPatch}에서 시작`, empty: false,
+      size: m.size ? `${(m.size / 1024).toFixed(0)} KB` : null,
     };
   };
   const all = slots.map(vm);

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 27;
+export const BALANCE_VERSION = 28;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -358,6 +358,51 @@ export const BALANCE = {
     startPenaltyPerPoint: 0.01,
   },
 
+  // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
+  training: {
+    kinds: {
+      tech: { xp: 1.0, fatigue: 3.5 },
+      intense: { xp: 1.5, fatigue: 2 },
+      position: { xp: 0.5, fatigue: 4 },
+      setpiece: { xp: 0.5, fatigue: 4 },
+      video: { xp: 0.5, fatigue: 4.5 },
+      recovery: { xp: 0, fatigue: 5.5 },
+      rest: { xp: 0, fatigue: 6 },
+    },
+    /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
+    weeklyXpCap: 6,
+    /**
+     * 경기 XP 배율 (25.3 "경기 XP × 0.8 + 훈련 XP ≈ 지금 시즌 XP"). 결장 경기 XP(옛 결장 주 훈련 XP 8)는 하루 훈련으로 바뀌어 0.
+     * C.41 측정: 기본 계획 훈련 XP 시즌 약 125 + 게이지 능력치 시즌 약 1.8. 30세 OVR 무작위 레전더리(가드 79~83): 0.8 → 83.4, 0.75 → 83.1
+     * → 0.7 (경기 XP 를 게이지 능력치만큼 더 줄인다)
+     */
+    matchXpScale: 0.7,
+    /**
+     * 기술 훈련 게이지: 하루 +per (× 고령 감쇠), full × 그 능력치 포인트 비용(6.2)이 차면 그 묶음에서 가장 낮은 능력치 +1.
+     * 묶음당 시즌 bundleSeasonMax, 전체 시즌 seasonMax. C.41 측정: 비용·감쇠 없이 30 이면 고값 능력치가 공짜로 올라 99 능력치·노화 가드가 깨진다
+     */
+    gauge: { per: 1, full: 30, bundleSeasonMax: 2, seasonMax: 6 },
+    /** 고강도 훈련 부상: 하루 chance (× 난이도 부상 배율), 경상 days 일 */
+    intenseInjury: { chance: 0.003, days: [3, 10] as [number, number] },
+    /** 포지션·역할 훈련: 전술 "내 위치" 숙련도 + (× 적응기·적성 배수), 역할 시그니처 해금 진행 + 경기 */
+    positionProf: 0.5,
+    roleApps: 0.1,
+    /** 세트피스·카드 훈련: 덱에서 가장 덜 쓴 카드 숙련 진행 + 회 */
+    cardMastery: 0.2,
+    /** 영상 분석: 다음 경기 상대 힌트 최대 줄 수 */
+    videoHintsMax: 3,
+    /** 휴식 restStreak 일 연속(휴가 제외)이면 다음 경기 폼 −restFormPenalty (화면 한 단계 ≈ 0.1). 회복 훈련은 연속을 끊고 이 감점을 지운다 */
+    restStreak: 4,
+    restFormPenalty: 0.1,
+    /** 부상 중 휴식: 회복 하루 + restHealBonus 일. 부상 중 기본은 재활(재활 XP 주 injury.rehabXp ÷ 7, 피로 fatigue.noMatchWeekRecovery ÷ 7) */
+    restHealBonus: 0.5,
+    /**
+     * 휴가 (25.3 5번): 하루 피로 −fatigue, XP 0, 폼 저하 없음. A매치 휴식기 = 휴식기 주말을 사이에 둔 내 경기 두 개 사이에서
+     * 앞 경기 afterMatch 일 뒤부터 다음 경기 beforeMatch 일 전까지. 비시즌은 개막 campDays 일 전 소집으로 끝난다
+     */
+    vacation: { fatigue: 6, afterMatch: 2, beforeMatch: 4, campDays: 7 },
+  },
+
   // ── 난이도 (14) ──
   difficulty: {
     easy: { label: '쉬움', xp: 1.2, rating: 0.2, injury: 0.7 },
@@ -501,8 +546,8 @@ export const BALANCE = {
        * (겹치지 않는 2시즌). C.37 측정: 제한 없으면 커리어당 3.2회 → 목표 0~2회
        */
       maxPerPosition: 2,
-      /** 조언이 살아 있는 기간: 시즌 종료 조언 → 비시즌 + 다음 시즌 windowRounds 라운드 (캘린더 전 "30일") */
-      windowRounds: 4,
+      /** 조언이 살아 있는 기간: 시즌 종료 조언 → 비시즌 + 다음 시즌 소집일(개막 7일 전)부터 windowDays 일 (pending 36 ①, C.41: 4라운드 → 30일) */
+      windowDays: 30,
       /** 조언 뒤 그 포지션군으로 포변하면 그 포지션군으로 뛴 boostGames 경기 동안 숙련도 상승 × boostMult */
       boostGames: 10,
       boostMult: 2,

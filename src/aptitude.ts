@@ -23,7 +23,7 @@ export interface Aptitude {
   hidden: AptGroup | null;
 }
 
-/** 포변 조언 (pending 31 3번): 시즌 종료에 생기고, 다음 시즌 untilRound 라운드 전까지 살아 있다 */
+/** 포변 조언 (pending 31 3번): 시즌 종료에 생기고, 비시즌 + 다음 시즌 소집일부터 untilDays 일 동안 살아 있다 (부록 C.41) */
 export interface PositionAdvice {
   kind: 'coach' | 'news';
   group: AptGroup;
@@ -34,8 +34,8 @@ export interface PositionAdvice {
   /** 조언이 나온 시즌 */
   season: number;
   untilSeason: number;
-  /** untilSeason 시즌에 이 라운드 수만큼 치르기 전까지 */
-  untilRound: number;
+  /** untilSeason 시즌 소집일(개막 7일 전)부터 이 날 수가 지나기 전까지 (C.41: 캘린더 전 4라운드 → 30일) */
+  untilDays: number;
   /** 홈 알림 카드를 닫았는지 (조언 기간은 그대로) */
   dismissed?: boolean;
 }
@@ -194,10 +194,11 @@ export function coachLine(kind: StartCandidate['kind'], mult: number, pos: Playa
 // ── 포변 조언 (pending 31 3번, 36 ①②⑥) ──
 
 /** 지금 조언이 살아 있는지 (시즌·치른 라운드 수 기준) */
-export function adviceOpen(p: Pick<PlayerState, 'advice'>, season: number, round: number): boolean {
+/** day = 그 시즌 소집일부터 지난 날 (game.ts campDay) */
+export function adviceOpen(p: Pick<PlayerState, 'advice'>, season: number, day: number): boolean {
   const a = p.advice;
   if (!a) return false;
-  return season < a.untilSeason || (season === a.untilSeason && round < a.untilRound);
+  return season < a.untilSeason || (season === a.untilSeason && day < a.untilDays);
 }
 
 /**
@@ -224,7 +225,7 @@ export function evaluateAdvice(p: PlayerState, season: number): PositionAdvice |
   const pos = [...APT_GROUP_POSITIONS[group]].sort((a, b) => proficientOvr(p, b) - proficientOvr(p, a))[0]!;
   const advice: PositionAdvice = {
     kind: log.length > 0 ? 'news' : 'coach', group, pos, from: p.position, season,
-    untilSeason: season + 1, untilRound: D.windowRounds,
+    untilSeason: season + 1, untilDays: D.windowDays,
   };
   p.adviceLog = [...log, { season, from: p.position }];
   p.advice = advice;
@@ -235,10 +236,10 @@ export function evaluateAdvice(p: PlayerState, season: number): PositionAdvice |
  * 경기 전·포지션 변경 뒤: 조언 기간이 지났으면 지우고, 살아 있는 동안 주 포지션이나 이번 경기 자리(전술 "내 위치")가
  * 그 포지션군이면 포변으로 보고 보너스(그 포지션군 10경기 숙련도 상승 ×2)를 건다. 걸었으면 true
  */
-export function checkAdviceTaken(p: PlayerState, playPos: FieldPosition, season: number, round: number): boolean {
+export function checkAdviceTaken(p: PlayerState, playPos: FieldPosition, season: number, day: number): boolean {
   const a = p.advice;
   if (!a) return false;
-  if (!adviceOpen(p, season, round)) {
+  if (!adviceOpen(p, season, day)) {
     p.advice = null;
     return false;
   }
@@ -260,11 +261,17 @@ export function consumeGainMult(p: PlayerState, played: Position): number {
   return mult;
 }
 
+/** 훈련 숙련도 배수 (C.41): 적성 × 조언 뒤 포변 보너스(남은 경기 수는 줄이지 않는다) */
+export function trainingAptMult(p: PlayerState, pos: Position): number {
+  const b = p.aptBoost;
+  return aptitudeMult(p, pos) * (b && b.games > 0 && aptGroupOf(pos) === b.group ? A.advice.boostMult : 1);
+}
+
 /** 홈 알림 카드 문구 */
-export function adviceText(p: PlayerState, a: PositionAdvice, roundsLeft: number): { eyebrow: string; title: string; body: string; window: string } {
+export function adviceText(p: PlayerState, a: PositionAdvice, daysLeft: number): { eyebrow: string; title: string; body: string; window: string } {
   const t = ADVICE_TEXT[a.kind];
   const fill = (s: string) => s.replaceAll('{name}', p.name).replaceAll('{pos}', a.pos).replaceAll('{posKo}', POSITION_NAMES_KO[a.pos]).replaceAll('{cur}', a.from);
-  return { eyebrow: t.eyebrow, title: fill(t.title), body: fill(t.body), window: ADVICE_TEXT.window.replaceAll('{n}', String(roundsLeft)) };
+  return { eyebrow: t.eyebrow, title: fill(t.title), body: fill(t.body), window: ADVICE_TEXT.window.replaceAll('{n}', String(daysLeft)) };
 }
 
 export function adviceTakenText(pos: string): string {

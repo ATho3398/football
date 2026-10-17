@@ -139,4 +139,11 @@ export interface MatchLogEntry {
   position: Position;
   /** 엔진 경기 기록. 빠른 경기(B.4)는 골·도움·평점만 산출하므로 null = "기록 없음" */
   rec: MatchRecord | null;
+  /** 하이라이트 3줄 (25.4 기록 보존, 부록 C.41). C.41 이전 경기에는 없다 */
+  hl?: string[];
+  /** 내 결정 기록 요약 (직접 모드로 멈춘 순간). C.41 이전 경기에는 없다 */
+  dec?: LoggedDecision[];
 }
+
+/** 결정 하나 요약 (세이브용): 분, 장면 이름, 고른 선택지, 결과, 평점 변화, 쓴 카드 */
+export interface LoggedDecision { m: number; scene: string; label: string; r: 'success' | 'fail' | 'neutral'; d: number; card?: string }

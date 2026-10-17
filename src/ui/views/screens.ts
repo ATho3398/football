@@ -240,15 +240,19 @@ export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM):
       ? (canSave ? Button({ size: 'sm', icon: 'disk', act: 'save', data: { slot: s.slot }, children: '여기에 저장' }) : '')
       : `${canSave ? IconButton({ act: 'save', data: { slot: s.slot }, name: 'disk', label: '덮어쓰기' }) : ''}${Button({ variant: 'secondary', size: 'sm', icon: 'upload', act: 'load', data: { slot: s.slot }, children: '불러오기' })}${
         IconButton({ act: 'delete', data: { slot: s.slot }, name: 'close', label: '삭제' })}`;
-    return `<div class="slot${s.empty ? ' empty' : ''}"><span class="slot__n po-num">${esc(s.label)}</span><span class="grow"><b>${esc(s.title)}</b><small>${esc(s.meta)}</small>${s.start ? `<small>${esc(s.start)}</small>` : ''}</span><span class="slot__btns">${btns}</span></div>`;
+    return `<div class="slot${s.empty ? ' empty' : ''}"><span class="slot__n po-num">${esc(s.label)}</span><span class="grow"><b>${esc(s.title)}</b><small>${esc(s.meta)}${s.size ? ` · ${esc(s.size)}` : ''}</small>${s.start ? `<small>${esc(s.start)}</small>` : ''}</span><span class="slot__btns">${btns}</span></div>`;
   };
   return `${hero}<div class="body">
     ${SectionTitle({ title: '수동 저장', action: `${vm.manual.length}칸` })}
     ${vm.manual.map(slot).join('')}
     ${SectionTitle({ title: '자동 저장' })}
-    <div class="slot"><span class="slot__n">${Icon({ name: 'restore', size: 18 })}</span><span class="grow"><b>${esc(a.empty ? '비어 있음' : a.title)}</b><small>${esc(a.empty ? '매 라운드가 끝날 때마다 자동으로 저장돼요' : a.meta)}</small>${a.start ? `<small>${esc(a.start)}</small>` : ''}</span><span class="slot__btns">${
+    <div class="slot"><span class="slot__n">${Icon({ name: 'restore', size: 18 })}</span><span class="grow"><b>${esc(a.empty ? '비어 있음' : a.title)}</b><small>${esc(a.empty ? '하루를 진행할 때마다 자동으로 저장돼요' : `${a.meta}${a.size ? ` · ${a.size}` : ''}`)}</small>${a.start ? `<small>${esc(a.start)}</small>` : ''}</span><span class="slot__btns">${
       a.empty ? '' : Button({ variant: 'secondary', size: 'sm', act: 'load', data: { slot: 'auto' }, children: '불러오기' })}</span></div>
-    <p class="small muted">저장은 이 브라우저(localStorage)에만 남아요.</p>
+    ${SectionTitle({ title: '파일', action: '압축 JSON' })}
+    <div class="slot"><span class="slot__n">${Icon({ name: 'upload', size: 18 })}</span><span class="grow"><b>내보내기 · 가져오기</b><small>다른 기기·브라우저로 옮기거나 백업해요. 가져오면 자동 저장 슬롯에 들어가요.</small></span><span class="slot__btns">${
+      canSave ? Button({ variant: 'secondary', size: 'sm', act: 'export', children: '내보내기' }) : ''}${Button({ variant: 'secondary', size: 'sm', act: 'import', children: '가져오기' })}</span></div>
+    <input type="file" id="import-file" accept=".gz,.json,application/gzip,application/json" hidden>
+    <p class="small muted">저장은 이 브라우저(IndexedDB, 압축)에 남아요. 지난 시즌은 경기 요약·하이라이트·결정 기록과 다른 경기 스코어·득점자, 선수 시즌 합계만 남기고, 경기 재생 화면은 내 최근 5경기만 남아요.</p>
     ${versionFooter(version)}
   </div>`;
 }

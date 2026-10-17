@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import { BALANCE } from '../src/config/balance';
-import { newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason } from '../src/game';
+import { dayPlan, endDay, isMatchDay, newGame, playOthers, playRound, SAVE_FORMAT_VERSION, startNextSeason } from '../src/game';
 import { healDays, injuryChance, rollInjury } from '../src/injury';
 import { createRng } from '../src/rng';
 import { deserialize, serialize } from '../src/save';
@@ -74,11 +74,14 @@ describe('부상 등급과 영구 하락', () => {
 });
 
 describe('부상 진행', () => {
-  it('부상 중에는 출전하지 않고 재활 XP 만 받으며, 기간이 지나면 복귀한다', () => {
+  it('부상 중에는 출전하지 않고 재활(하루 단위 XP, C.41)만 하며, 기간이 지나면 복귀한다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'heal', difficulty: 'normal' });
+    // 소집 첫 주를 넘긴 뒤 개막전 날에 다친 것으로
+    while (!isMatchDay(s)) { playOthers(s, 'quick'); endDay(s); }
     s.player.injury = { grade: 'minor', weeksTotal: 2, daysTotal: 14, daysLeft: 14, season: 2018, round: 0, permanent: {} };
+    expect(dayPlan(s)).toBe('rehab');
     const a = playRound(s);
-    expect(a).toMatchObject({ injured: true, recovered: false, result: { minutes: 0, xp: BALANCE.injury.rehabXp } });
+    expect(a).toMatchObject({ injured: true, recovered: false, result: { minutes: 0, xp: 0 } });
     const b = playRound(s);
     expect(b).toMatchObject({ injured: true, recovered: true });
     // 하루 단위 회복 (C.38): 다음 내 경기 날 전에 낫는다

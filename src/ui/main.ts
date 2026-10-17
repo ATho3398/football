@@ -9,10 +9,12 @@ import './style.css';
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
-  applyOther, canChangePosition, endDay, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
+  applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
   startNextSeason, todaysOthers, type GameState,
 } from '../game';
-import { dateLabel } from '../calendar';
+import { addDays, dateLabel } from '../calendar';
+import type { TrainingKind, TrainingState } from '../training';
+import { trainingSection, trainingSheet } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
 import { EnginePool } from './enginePool';
 import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
@@ -27,7 +29,11 @@ import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { teamById } from '../league';
-import { deleteSave, listSaves, loadGame, SAVE_SLOTS, saveGame, type SaveSlot } from '../save';
+import {
+  copyReplays, deleteSave, exportFileName, exportSave, importSave, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, saveGame,
+  saveReplays, unpackReplayBytes, type SaveSlot, type StoredReplay,
+} from '../save';
+import type { Replay } from '../replay';
 import type { PlayerState } from '../types';
 import { BADGE_NAMES_KO } from '../badges';
 import { BALANCE } from '../config/balance';
@@ -48,7 +54,7 @@ import { playerView } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
 import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView } from './views/screens';
 import { tacticsView } from './views/tactics';
-import { tacticsVM, type TacticsDraftUI } from './viewModels';
+import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
@@ -83,6 +89,13 @@ const ui = {
   worldTab: 'table' as 'table' | 'stars' | 'scorers',
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
   posSheet: null as string | null,
+  /** 하루 훈련 고르기 시트 (C.41): 날짜 */
+  trainSheet: null as string | null,
+  /** 내 최근 5경기 리플레이 (25.4 2번, C.41): 자동 저장 슬롯과 같이 저장한다. dirty 면 다음 자동 저장 때 쓴다 */
+  recent: [] as StoredReplay[],
+  recentDirty: false,
+  /** 지난 경기 다시 보기 중 (경기 중 잠금 아님) */
+  rewatch: false,
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
   tac: null as TacticsDraftUI | null,
   /** 직접 모드로 진행 중인 내 경기 (E.11, E4): 결정 순간마다 멈춘다. 세이브에 담지 않는다 (도중에 나가면 경기 전 상태) */
@@ -130,7 +143,7 @@ const NAV_SHOWN: Screen[] = ['home', 'player', 'world', 'deck', 'match', 'replay
 /** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
 function liveScreen(): Screen | null {
   if (ui.live) return 'moment';
-  if (ui.replay && !ui.replay.ended && !ui.replay.isClip) return 'replay';
+  if (ui.replay && !ui.replay.ended && !ui.replay.isClip && !ui.rewatch) return 'replay';
   return null;
 }
 
@@ -141,11 +154,55 @@ function liveScreen(): Screen | null {
 const LOCK_ACTS = new Set([
   'play', 'day-one', 'day-continue', 'sim-rest', 'sim-rest-ok', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
-  'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop',
+  'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
 ]);
 
-function autosave(): void {
-  if (ui.game) saveGame('auto', ui.game);
+/**
+ * 자동 저장 (25.4 3번, 하루 진행 후마다): IndexedDB 쓰기는 비동기라 한 번에 하나만. 쓰는 중에 또 부르면 끝난 뒤 최신 상태로 한 번 더.
+ * 리플레이는 바뀌었을 때만 같이 쓴다
+ */
+let saving: Promise<void> | null = null;
+let saveAgain = false;
+function autosave(): Promise<void> {
+  if (!ui.game) return Promise.resolve();
+  if (saving) {
+    saveAgain = true;
+    return saving;
+  }
+  saving = (async () => {
+    do {
+      saveAgain = false;
+      const g = ui.game;
+      if (!g) break;
+      const t0 = performance.now();
+      await saveGame('auto', g);
+      if (ui.recentDirty) {
+        ui.recentDirty = false;
+        await saveReplays('auto', ui.recent);
+      }
+      saveLog.push(Math.round(performance.now() - t0));
+    } while (saveAgain);
+  })().finally(() => { saving = null; });
+  return saving;
+}
+/** 저장 시간 측정 (부록 C.41) */
+const saveLog: number[] = [];
+(globalThis as unknown as { __saveLog: number[] }).__saveLog = saveLog;
+
+/** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
+async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number } }): Promise<void> {
+  const { season, round } = rep;
+  const label = `${round}R ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const data = await packReplayBytes(r);
+  ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
+  ui.recentDirty = true;
+  syncReplayIndex();
+  void autosave();
+}
+
+function syncReplayIndex(): void {
+  replayIndex.clear();
+  for (const x of ui.recent) replayIndex.add(`${x.season}:${x.round}`);
 }
 
 function go(screen: Screen): void {
@@ -208,7 +265,10 @@ function screenHtml(): string {
       const adv = adviceCardVM(g);
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
-      return homeView(homeVM(g), deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '') + guideResetLink() + sheet;
+      const hvm = homeVM(g);
+      const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
+      const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '') + guideResetLink() + sheet + tSheet;
     }
     case 'deck': {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
@@ -415,8 +475,11 @@ function liveContinue(g: GameState): void {
 
 /** 라운드 처리 후 재생 화면으로 (out 이 있으면 직접 모드로 이미 계산한 경기) */
 function finishPlay(g: GameState, out?: MyMatchOutput): void {
-  const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { ui.replay = new ReplayPlayer(r, () => render()); } });
-  autosave();
+  ui.rewatch = false;
+  let replay: Replay | null = null;
+  const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { replay = r; ui.replay = new ReplayPlayer(r, () => render()); } });
+  if (replay) void keepReplay(g, replay, report);
+  void autosave();
   go(ui.replay ? 'replay' : 'match');
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
@@ -480,6 +543,8 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
   const title = mode === 'season' ? '자동 진행 중' : '진행 중';
   const t0 = performance.now();
   let days = 0;
+  let wasVacation = false;
+  let lastTrain: string | null = null;
   try {
     for (;;) {
       if (g.phase !== 'season') break;
@@ -488,6 +553,10 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
         await runOthersToday(g);
         break;
       }
+      // [계속]: 휴가가 시작한 날과 끝난 날(훈련 재개)에도 멈춘다 (25.3 5번: 휴가 중 [계속]은 휴장 끝까지 한 번에)
+      const vac = isVacationDay(g, g.calendar.date);
+      if (mode === 'continue' && days > 0 && vac !== wasVacation) break;
+      wasVacation = vac;
       ui.toast = { kind: 'info', title, body: `${dateLabel(g.calendar.date)}${match ? ' · 내 경기' : ''} · ${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
       render();
       await nextFrame();
@@ -501,7 +570,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
         // 포인트는 자동으로 찍지 않고 쌓아 둔다 (C.39, pending 39 3번)
         playRound(g, { engineOut: out });
       } else {
-        endDay(g);
+        lastTrain = trainingLine(endDay(g));
       }
       progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
       days++;
@@ -521,7 +590,11 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue' | 'season'): P
       go('home');
       const sec = ((performance.now() - t0) / 1000).toFixed(1);
       if (stopped) showToast({ kind: 'info', title: '진행을 멈췄어요', body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드까지 치렀어요.` }, 2000);
-      else if (mode === 'continue') showToast({ kind: 'info', title: isMatchDay(g) ? '경기 날이에요' : '다음 일정', body: `${dateLabel(g.calendar.date)} · ${days}일 진행 (${sec}초)` }, 2200);
+      else if (mode === 'continue') {
+        const title = isMatchDay(g) ? '경기 날이에요' : isVacationDay(g, g.calendar.date) ? '휴가 시작 · 리그 휴장' : isVacationDay(g, addDays(g.calendar.date, -1)) ? '휴가 끝 · 훈련 재개' : '다음 일정';
+        showToast({ kind: 'info', title, body: `${dateLabel(g.calendar.date)} · ${days}일 진행 (${sec}초)` }, 2200);
+      }
+      else if (mode === 'one' && lastTrain) showToast({ kind: 'info', title: '하루 진행', body: lastTrain }, 2200);
     }
   }
 }
@@ -714,6 +787,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'sheet-close':
       ui.posSheet = null;
+      ui.trainSheet = null;
       render();
       return;
     case 'pos-change': {
@@ -723,7 +797,7 @@ app.addEventListener('click', (ev) => {
         // 내 위치도 새 주 포지션 슬롯으로 (E.19 ②). 포메이션·역할·세부 전술은 그대로
         g.tactics = { ...g.tactics, mySlot: defaultSlot(g.tactics.formation, v as PlayablePosition, g.rosters[g.player.teamId], g.tactics.custom) };
         // 포변 조언대로 바꿨으면 보너스 (부록 C.37)
-        const taken = checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, g.league.round);
+        const taken = checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, campDay(g));
         autosave();
         ui.posSheet = null;
         showToast({ kind: 'info', title: `주 포지션 ${from} → ${v}`, body: taken ? adviceTakenText(String(v)) : g.phase === 'season' ? '다음 경기부터 새 포지션으로 뛰어요.' : '다음 시즌부터 새 포지션으로 뛰어요.' }, 2400);
@@ -877,7 +951,7 @@ app.addEventListener('click', (ev) => {
       if (!g || !ui.tac) return;
       g.tactics = structuredClone(ui.tac.draft) as MyTactics;
       // 전술 "내 위치"를 조언받은 포지션군 슬롯으로 바꿔도 포변으로 본다 (pending 36 ②)
-      if (g.phase === 'season' && checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, g.league.round)) {
+      if (g.phase === 'season' && checkAdviceTaken(g.player, myMatchPosition(g), g.league.season, campDay(g))) {
         autosave();
         showToast({ kind: 'info', title: '전술을 저장했어요', body: adviceTakenText(myMatchPosition(g)) }, 2400);
         return;
@@ -902,17 +976,9 @@ app.addEventListener('click', (ev) => {
       ui.worldTab = v as 'table' | 'stars' | 'scorers';
       render();
       return;
-    case 'continue': {
-      try {
-        ui.game = loadGame('auto');
-        if (ui.game) refreshUnlocks(ui.game);
-      } catch (e) {
-        showToast((e as Error).message);
-        return;
-      }
-      go(ui.game?.phase === 'retired' ? 'retired' : 'home');
+    case 'continue':
+      void loadSlot('auto');
       return;
-    }
     case 'form-others':
       readFormInputs();
       ui.form.others = !ui.form.others;
@@ -958,6 +1024,25 @@ app.addEventListener('click', (ev) => {
       if (oc?.vm.shown && !oc.timer) oc.timer = window.setTimeout(() => { if (ui.screen === 'moment') liveContinue(g); else oc.timer = 0; }, OUTCOME.bandMs);
       return;
     }
+    case 'train-day':
+      if (!g || g.phase !== 'season' || !v) return;
+      ui.trainSheet = trainingOptionsVM(g, v) ? v : null;
+      render();
+      return;
+    case 'train-set': {
+      const date = el.dataset.date;
+      if (!g || !v || !date) return;
+      if (setDayTraining(g, date, v as TrainingKind)) autosave();
+      ui.trainSheet = null;
+      render();
+      return;
+    }
+    case 'train-focus':
+      if (!g?.training || !v) return;
+      g.training.focus = v as TrainingState['focus'];
+      autosave();
+      render();
+      return;
     case 'day-one':
       if (g && g.phase === 'season' && !ui.busy) void advanceDays(g, 'one');
       return;
@@ -1122,6 +1207,12 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'rp-skip':
+      if (ui.rewatch) {
+        ui.rewatch = false;
+        ui.replay = null;
+        go('player');
+        return;
+      }
       if (ui.replay?.ended) {
         go('match');
         return;
@@ -1135,6 +1226,12 @@ app.addEventListener('click', (ev) => {
       go('match');
       return;
     case 'rp-result':
+      if (ui.rewatch) {
+        ui.rewatch = false;
+        ui.replay = null;
+        go('player');
+        return;
+      }
       go('match');
       return;
     case 'sim-rest':
@@ -1207,6 +1304,7 @@ app.addEventListener('click', (ev) => {
       ui.replay = null;
       autosave();
       go('home');
+      showToast({ kind: 'info', title: '휴가 끝 · 소집', body: `${dateLabel(g.calendar.date)} · 개막 7일 전이에요. 훈련 계획을 확인해요.` }, 2600);
       return;
     case 'retire':
       confirmModal({ title: '정말 은퇴할까요?', body: '되돌릴 수 없어요.', confirm: '은퇴하기', act: 'retire-ok', tone: 'danger' });
@@ -1219,33 +1317,105 @@ app.addEventListener('click', (ev) => {
       return;
     case 'save': {
       if (!g) return;
-      const ok = saveGame(el.dataset.slot as SaveSlot, g);
-      showToast(ok ? '저장했어요' : '저장하지 못했어요 (브라우저 저장소를 쓸 수 없음)');
+      const slot = el.dataset.slot as SaveSlot;
+      void (async () => {
+        const t0 = performance.now();
+        await autosave();
+        const ok = await saveGame(slot, g);
+        if (ok) await copyReplays('auto', slot);
+        render();
+        showToast(ok ? { kind: 'info', title: '저장했어요', body: `${Math.round(performance.now() - t0)} ms` } : '저장하지 못했어요 (브라우저 저장소를 쓸 수 없음)');
+      })();
       return;
     }
-    case 'load': {
-      try {
-        const loaded = loadGame(el.dataset.slot as SaveSlot);
-        if (!loaded) return;
-        refreshUnlocks(loaded);
-        ui.game = loaded;
-        ui.replay = null;
-        autosave();
-        go(loaded.phase === 'retired' ? 'retired' : 'home');
-      } catch (e) {
-        showToast((e as Error).message);
-      }
+    case 'load':
+      void loadSlot(el.dataset.slot as SaveSlot);
+      return;
+    case 'export':
+      if (!g) return;
+      void (async () => {
+        const bytes = await exportSave(g);
+        const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/gzip' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = exportFileName(g);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast({ kind: 'info', title: '파일로 내보냈어요', body: `${a.download} · ${(bytes.length / 1024).toFixed(0)} KB` }, 2400);
+      })();
+      return;
+    case 'import':
+      (document.getElementById('import-file') as HTMLInputElement | null)?.click();
+      return;
+    case 'replay-open': {
+      const [season, round] = (v ?? '').split(':').map(Number);
+      const x = ui.recent.find((r) => r.season === season && r.round === round);
+      if (!x) return;
+      void unpackReplayBytes(x.data).then((rp) => {
+        ui.replay = new ReplayPlayer(rp, () => render());
+        ui.rewatch = true;
+        go('replay');
+      });
       return;
     }
     case 'delete':
       confirmModal({ title: '이 슬롯을 지울까요?', body: '지운 세이브는 되살릴 수 없어요.', confirm: '지우기', act: 'delete-ok', data: { slot: el.dataset.slot! }, tone: 'danger' });
       return;
     case 'delete-ok':
-      deleteSave(el.dataset.slot as SaveSlot);
       ui.modal = null;
-      render();
+      void deleteSave(el.dataset.slot as SaveSlot).then(render);
       return;
   }
 });
 
+/** 슬롯 불러오기 (자동 저장 슬롯이면 [이어하기]). 리플레이도 같이 불러온다 */
+async function loadSlot(slot: SaveSlot): Promise<void> {
+  try {
+    const t0 = performance.now();
+    const loaded = await loadGame(slot);
+    if (!loaded) return;
+    refreshUnlocks(loaded);
+    ui.game = loaded;
+    ui.replay = null;
+    ui.rewatch = false;
+    ui.recent = await loadReplays(slot);
+    ui.recentDirty = slot !== 'auto';
+    syncReplayIndex();
+    loadLog.push(Math.round(performance.now() - t0));
+    if (slot !== 'auto') void autosave();
+    go(loaded.phase === 'retired' ? 'retired' : 'home');
+  } catch (e) {
+    showToast((e as Error).message);
+  }
+}
+const loadLog: number[] = [];
+(globalThis as unknown as { __loadLog: number[] }).__loadLog = loadLog;
+
+// 파일 가져오기 (25.4 3번)
+app.addEventListener('change', (ev) => {
+  const input = ev.target as HTMLInputElement;
+  if (input.id !== 'import-file' || !input.files?.[0]) return;
+  const file = input.files[0];
+  input.value = '';
+  void (async () => {
+    try {
+      const st = await importSave(new Uint8Array(await file.arrayBuffer()));
+      refreshUnlocks(st);
+      ui.game = st;
+      ui.replay = null;
+      ui.recent = [];
+      ui.recentDirty = true;
+      syncReplayIndex();
+      await autosave();
+      go(st.phase === 'retired' ? 'retired' : 'home');
+      showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.` }, 2600);
+    } catch (e) {
+      showToast((e as Error).message || '가져오지 못했어요');
+    }
+  })();
+});
+
 render();
+void initSaves().then(render, () => render());
