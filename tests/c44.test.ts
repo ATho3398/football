@@ -82,10 +82,16 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
     }
     expect(homeVM(g).next!.derby?.name).toBeTruthy();
   });
-  it('독: 모바일 6칸 + PC 전용 칸, 진행 칸 동작', () => {
+  it('독: 모바일 5칸 + PC 전용 칸, 진행 칸 동작 (C.50 홈 가운데)', () => {
     const html = dock({ screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: false, points: 3, more: false });
     for (const l of ['홈', '계속', '선수', '훈련·일정', '덱', '전술', '월드', '설정', '저장', '더보기']) expect(html).toContain(`<span>${l}</span>`);
-    expect(html.match(/dock-pc/g)?.length).toBe(4);
+    expect(html.match(/dock-pc/g)?.length).toBe(5);
+    // 홈은 PC 9칸·모바일 5칸 모두 가운데 (C.50)
+    const ids = [...html.matchAll(/class="([^"]*)"[^>]*><svg[^]*?<span>([^<]+)<\/span>/g)].map((m) => ({ cls: m[1]!, label: m[2]! }));
+    const pc = ids.filter((x) => !x.cls.includes('dock-m')).map((x) => x.label);
+    const mob = ids.filter((x) => !x.cls.includes('dock-pc')).map((x) => x.label);
+    expect(pc).toEqual(['덱', '전술', '선수', '계속', '홈', '훈련·일정', '월드', '설정', '저장']);
+    expect(mob).toEqual(['선수', '계속', '홈', '훈련·일정', '더보기']);
     expect(html).toContain('data-act="day-continue"');
     expect(html).toContain('is-lock');
   });

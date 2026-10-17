@@ -1,0 +1,16 @@
+{
+ "errors": [],
+ "broken": [],
+ "dock": [
+  "선수",
+  "계속",
+  "홈",
+  "훈련·일정",
+  "더보기"
+ ],
+ "afterMatch": "screen screen-match",
+ "rewatch": "screen screen-replay",
+ "rewatchBand": false,
+ "backTo": "screen screen-match",
+ "names": []
+}

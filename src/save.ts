@@ -26,6 +26,7 @@ import type { Replay } from './replay';
 import { initialMarket } from './transfer';
 import { realBody, rollBody } from './body';
 import { REAL_CAREER } from '../data/players/careers';
+import { LEGEND_BY_ID } from './legends';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -275,6 +276,15 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     const p = s.player;
     p.unspentPoints = Math.ceil((p.unspentPoints ?? 0) / 5);
     delete p.allocation;
+  },
+  // 29 → 30 (C.50, pending 82 1번): 실제 선수·레전드 한글 이름을 한국 통용 이름으로(요한 크루이프 등). 저장된 이름을 데이터 id 로 다시 읽는다
+  // (NPC·이적 기록·내 선수). 레전드 로스터 선수는 로드 때 데이터에서 다시 만들어지므로 따로 옮길 것 없음
+  29: (s) => {
+    const ko = new Map<string, string>([...A_GRADE_PLAYERS.map((d) => [d.id, d.nameKo] as const), ...[...LEGEND_BY_ID.values()].map((l) => [l.id, l.nameKo] as const)]);
+    for (const n of s.npcs ?? []) if (ko.has(n.id)) n.nameKo = ko.get(n.id);
+    for (const t of s.transfers ?? []) if (ko.has(t.id)) t.name = ko.get(t.id);
+    const me = s.player.realPlayerId ?? s.player.legendId;
+    if (me && ko.has(me)) s.player.name = ko.get(me);
   },
   25: (s) => {
     const offseason = s.phase !== 'season';

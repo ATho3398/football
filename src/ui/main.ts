@@ -115,8 +115,8 @@ const ui = {
   /** 내 최근 5경기 리플레이 (25.4 2번, C.41): 자동 저장 슬롯과 같이 저장한다. dirty 면 다음 자동 저장 때 쓴다 */
   recent: [] as StoredReplay[],
   recentDirty: false,
-  /** 지난 경기 다시 보기 중 (경기 중 잠금 아님) */
-  rewatch: false,
+  /** 다시 보기 중이면 끝났을 때 돌아갈 화면 (경기 중 잠금 아님): 지난 경기 = 선수, 방금 경기 하이라이트 = 결과 (C.50) */
+  rewatch: false as false | 'player' | 'match',
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
   tac: null as TacticsDraftUI | null,
   /** 직접 모드로 진행 중인 내 경기 (E.11, E4): 결정 순간마다 멈춘다. 세이브에 담지 않는다 (도중에 나가면 경기 전 상태) */
@@ -552,17 +552,34 @@ function liveContinue(g: GameState): void {
   liveShow(g, next);
 }
 
-/** 라운드 처리 후 재생 화면으로 (out 이 있으면 직접 모드로 이미 계산한 경기) */
+/**
+ * 라운드 처리 후 결과 화면으로 (out 이 있으면 직접 모드로 이미 계산한 경기).
+ * C.50(pending 82 2번): 하이라이트를 강제로 보여 주지 않는다. 재생기는 끝난 상태로 두고(평균 위치·결정 장면 다시 보기용),
+ * 하이라이트는 결과 화면 [하이라이트 다시보기]로만 본다
+ */
 function finishPlay(g: GameState, out?: MyMatchOutput): void {
   ui.rewatch = false;
   let replay: Replay | null = null;
-  const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { replay = r; ui.replay = new ReplayPlayer(r, () => render()); } });
+  const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { replay = r; ui.replay = new ReplayPlayer(r, () => render()); ui.replay.skip(); } });
   if (replay) void keepReplay(g, replay, report);
   void autosave();
-  go(ui.replay ? 'replay' : 'match');
+  go('match');
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
   else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `포인트 ${g.player.unspentPoints}P · 1P = 능력치 한 칸(높은 칸은 2~3P)` }, 2200);
+}
+
+/** 다시 보기 끝: 지난 경기면 선수 화면, 방금 경기 하이라이트면 결과 화면 (재생기는 끝난 상태로 남겨 평균 위치에 쓴다) */
+function rewatchExit(): void {
+  const back = ui.rewatch;
+  ui.rewatch = false;
+  if (back === 'match' && ui.replay) {
+    ui.replay.skip();
+    go('match');
+    return;
+  }
+  ui.replay = null;
+  go('player');
 }
 
 /** 1군 테스트 진행 띠 (C.45 10번) — 디자인 없는 새 패널 */
@@ -1815,9 +1832,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'rp-skip':
       if (ui.rewatch) {
-        ui.rewatch = false;
-        ui.replay = null;
-        go('player');
+        rewatchExit();
         return;
       }
       if (ui.replay?.ended) {
@@ -1834,9 +1849,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'rp-result':
       if (ui.rewatch) {
-        ui.rewatch = false;
-        ui.replay = null;
-        go('player');
+        rewatchExit();
         return;
       }
       go('match');
@@ -1987,13 +2000,21 @@ app.addEventListener('click', (ev) => {
     case 'import':
       (document.getElementById('import-file') as HTMLInputElement | null)?.click();
       return;
+    case 'hl-rewatch':
+      // 방금 경기 하이라이트 다시보기 (C.50): 처음부터 새로 재생, 끝나거나 건너뛰면 결과 화면으로
+      if (!ui.replay) return;
+      ui.replay.stop();
+      ui.replay = new ReplayPlayer(ui.replay.replay, () => render());
+      ui.rewatch = 'match';
+      go('replay');
+      return;
     case 'replay-open': {
       const [season, round] = (v ?? '').split(':').map(Number);
       const x = ui.recent.find((r) => r.season === season && r.round === round);
       if (!x) return;
       void unpackReplayBytes(x.data).then((rp) => {
         ui.replay = new ReplayPlayer(rp, () => render());
-        ui.rewatch = true;
+        ui.rewatch = 'player';
         go('replay');
       });
       return;

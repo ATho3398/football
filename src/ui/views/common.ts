@@ -29,7 +29,11 @@ export function startNotice(v: VersionVM): string {
   return Banner({ tone: 'info', title: title!.replace(/\.$/, ''), ...(rest.length ? { children: rest.join('. ') } : {}) });
 }
 
-/** 하단 독 (C.44 pending 47 5번): 모든 화면 아래 고정. 모바일 = 6칸(홈·진행·선수·훈련·월드·더보기), PC = 전부 */
+/**
+ * 하단 독 (C.44 pending 47 5번, C.50 pending 82 5번): 모든 화면 아래 고정. 홈은 모바일·PC 모두 가운데 칸, 강조색 원형으로 크게.
+ * 좌우 대칭: 바로 옆 = 진행 · 훈련·일정(하루 일), 그다음 = 선수 · 월드(정보), 바깥 = 전술 · 설정, 덱 · 저장.
+ * 모바일 = 5칸(선수·진행·홈·훈련·일정·더보기 — 월드 자리에 더보기), PC = 9칸 전부
+ */
 export interface DockVM {
   screen: string;
   /** 진행 칸: 지금 누르면 하는 일 */
@@ -45,16 +49,16 @@ type DockItem = { id: string; label: string; icon: IconName; act: string; data?:
 export function dock(vm: DockVM): string {
   const s = vm.screen;
   const items: DockItem[] = [
-    { id: 'home', label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
-    { id: 'prog', label: vm.prog.label, icon: vm.prog.icon, act: vm.prog.act, ...(vm.prog.data ? { data: vm.prog.data } : {}), cls: `dock-prog${vm.prog.live ? ' is-live' : ''}` },
-    { id: 'player', label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
-    { id: 'schedule', label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
     { id: 'deck', label: '덱', icon: 'combo', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck', cls: 'dock-pc' },
     { id: 'tactics', label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', cls: 'dock-pc', lock: !vm.tacticsOpen },
-    { id: 'world', label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
+    { id: 'player', label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
+    { id: 'prog', label: vm.prog.label, icon: vm.prog.icon, act: vm.prog.act, ...(vm.prog.data ? { data: vm.prog.data } : {}), cls: `dock-prog${vm.prog.live ? ' is-live' : ''}` },
+    { id: 'home', label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home', cls: 'dock-home' },
+    { id: 'schedule', label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
+    { id: 'world', label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world', cls: 'dock-pc' },
+    { id: 'more', label: '더보기', icon: 'filter', act: 'dock-more', on: vm.more || ['deck', 'tactics', 'world', 'settings', 'saves'].includes(s), cls: 'dock-m' },
     { id: 'settings', label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings', cls: 'dock-pc' },
     { id: 'saves', label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves', cls: 'dock-pc' },
-    { id: 'more', label: '더보기', icon: 'filter', act: 'dock-more', on: vm.more || ['deck', 'tactics', 'settings', 'saves'].includes(s), cls: 'dock-m' },
   ];
   const btn = (it: DockItem) => `<button type="button" class="${cx('dock-btn', it.on && 'is-on', it.cls, it.lock && 'is-lock')}" data-act="${it.act}"${
     Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.on ? ' aria-current="page"' : ''}>${Icon({ name: it.lock ? 'lock' : it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}<span>${esc(it.label)}</span>${
@@ -62,11 +66,12 @@ export function dock(vm: DockVM): string {
   return `<nav class="nav dock-bar" aria-label="주요 메뉴">${items.map(btn).join('')}</nav>`;
 }
 
-/** 모바일 더보기 시트: 독에 없는 칸 */
+/** 모바일 더보기 시트: 독에 없는 칸 (C.50: 월드 추가) */
 export function dockMoreSheet(tacticsOpen: boolean): string {
   return BottomSheet({
     eyebrow: '더보기', title: '메뉴', onClose: { act: 'sheet-close' },
     children: [
+      OptionRow({ act: 'go-tab', data: { v: 'world' }, icon: 'world', title: '월드', desc: '순위표·득점 순위·이적 소식' }),
       OptionRow({ act: 'go-tab', data: { v: 'deck' }, icon: 'combo', title: '덱', desc: '카드 덱 편집·선택권' }),
       OptionRow({ act: 'tac-open', icon: tacticsOpen ? 'tactic' : 'lock', title: '전술', desc: tacticsOpen ? '포메이션·성향·내 위치' : '3경기 뒤에 열려요', disabled: !tacticsOpen }),
       OptionRow({ act: 'go-tab', data: { v: 'settings' }, icon: 'settings', title: '설정', desc: '경기 진행·보기·페이스온' }),
