@@ -47,7 +47,7 @@ function offerCard(o: OfferVM): string {
     { k: '주급', v: o.wage, s: `연 ${o.annual}` },
   ];
   return `<div class="panel tr-offer${o.loan ? ' is-loan' : ''}">
-    <div class="tr-offer-head">${Crest({ name: o.team, size: 28 })}<b class="grow">${esc(o.team)}</b>${o.loan ? '<span class="po-chip">임대</span>' : ''}${o.youth ? '<span class="po-chip">친정 · 유스 구단</span>' : ''}</div>
+    <div class="tr-offer-head">${Crest({ name: o.team, size: 28 })}<b class="grow">${esc(o.team)}</b><span class="po-chip fin-tier">${esc(o.tier)}</span>${o.loan ? '<span class="po-chip">임대</span>' : ''}${o.youth ? '<span class="po-chip">친정 · 유스 구단</span>' : ''}</div>
     <div class="ag-grid tr-grid">${cells.map((c) => `<div class="ag-cell"><span class="ag-name">${esc(c.k)}</span><b class="ag-v po-num">${esc(c.v)}</b><span class="ag-cost">${esc(c.s)}</span></div>`).join('')}</div>
     ${actionRow(
       Button({ variant: 'secondary', size: 'sm', block: true, act: 'offer-decline', data: { i: String(o.i) }, disabled: !!o.lastFree, children: '거절' }),
@@ -60,7 +60,7 @@ function offerCard(o: OfferVM): string {
 export function offersView(vm: MarketVM): string {
   const hero = HeroPanel({
     title: '이적 제안', back: { act: 'go', data: { to: 'home' } }, eyebrow: vm.window, value: vm.offers ? `${vm.offers.length}개` : '없음', pad: false, progress: false,
-    chips: [`지금 ${vm.team} · 전력 ${vm.rating}`, { label: `내 OVR ${vm.ovr}`, soft: true }],
+    chips: [`지금 ${vm.team} · 전력 ${vm.rating}`, { label: `내 OVR ${vm.ovr}`, soft: true }, { label: `내 몸값 ${vm.value}`, soft: true }],
   });
   const list = vm.offers?.length
     ? vm.offers.map(offerCard).join('')
@@ -73,7 +73,7 @@ export function offersView(vm: MarketVM): string {
     ${renew}
     ${SectionTitle({ title: '받은 제안', action: '전력 · 예상 출전 · 계약 · 주급' })}
     ${list}
-    <p class="small muted">연봉은 위상과 OVR로 계산해 보여 주기만 해요 (돈은 재정 단계에서). 약팀(전력 3 이상 낮은 팀)으로 이적하면 위상이 조금 깎여요.</p>
+    <p class="small muted">연봉은 위상과 OVR로 계산해 보여 주기만 해요 (돈은 재정 단계에서). 제안은 내 몸값과 연봉을 감당할 수 있는 구단만 보내고, 연봉은 그 구단 연봉 여력 안이에요. 약팀(전력 3 이상 낮은 팀)으로 이적하면 위상이 조금 깎여요.</p>
     ${vm.free && vm.offers?.length ? '<p class="small"><b>자유계약 신분이에요.</b> 제안 하나를 골라야 시즌을 이어 갈 수 있어요.</p>' : ''}
     ${vm.offers?.length && !vm.free ? Button({ variant: 'ghost', block: true, act: 'offers-decline', children: '모두 거절' }) : Button({ block: true, act: 'go', data: { to: 'home' }, children: '홈으로' })}
   </div>`;
@@ -107,7 +107,8 @@ export function contractSection(vm: MarketVM): string {
       <div class="ag-grid tr-grid">
         <div class="ag-cell"><span class="ag-name">소속</span><b class="ag-v">${esc(c.team)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌</span></div>
         <div class="ag-cell"><span class="ag-name">주급</span><b class="ag-v po-num">${esc(c.wage)}</b><span class="ag-cost">연 ${esc(c.annual)}</span></div>
-        <div class="ag-cell"><span class="ag-name">팀 전력</span><b class="ag-v po-num">${vm.rating}</b><span class="ag-cost">내 OVR ${vm.ovr}</span></div>
+        <div class="ag-cell"><span class="ag-name">팀 전력</span><b class="ag-v po-num">${vm.rating}</b><span class="ag-cost">재정 ${esc(vm.tier)} · 내 OVR ${vm.ovr}</span></div>
+        <div class="ag-cell"><span class="ag-name">몸값</span><b class="ag-v po-num">${esc(vm.value)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌 기준</span></div>
       </div>
       ${c.loan ? `<p class="small">${esc(c.loan)}</p>` : ''}
       ${req.status ? `<p class="small"><b>${esc(req.status)}</b></p>` : ''}
@@ -122,8 +123,8 @@ export function newsSection(vm: NewsVM | null): string {
   if (!vm) return '<p class="small muted">아직 이적시장이 열리지 않았어요. 겨울(1월)과 여름(비시즌)에 선수들이 움직여요.</p>';
   const row = (r: NewsVM['rows'][number]) => `<div class="star-row tr-news${r.mine ? ' is-mine' : ''}">${Avatar({ size: 36, face: { id: r.id, age: r.age }, name: r.name })}
     <span class="grow"><b>${esc(r.name)}</b>${r.real ? ' <span class="po-chip">실제</span>' : ''}<small>${esc(r.pos)} · ${r.age}세 · OVR ${r.ovr} · ${esc(r.why)}</small>
-    <small>${esc(r.from)} → <b>${esc(r.to)}</b>${r.fill ? ` · 빈자리 ${esc(r.fill)}` : ''}</small></span></div>`;
+    <small>${esc(r.from)} → <b>${esc(r.to)}</b> <span class="muted">(${esc(r.toTier)})</span> · 몸값 ${esc(r.fee)}${r.fill ? ` · 빈자리 ${esc(r.fill)}` : ''}</small></span></div>`;
   return `${SectionTitle({ title: vm.title, action: `${vm.count}명 · 리그 안 ${vm.inLeague}` })}
     <div class="star-list">${vm.rows.map(row).join('')}</div>
-    <p class="small muted">팀 전력은 로스터 라인업 평균이라 이적이 바로 반영돼요. 겨울 이적은 시즌 중 전력에도 반영돼요.</p>`;
+    <p class="small muted">팀 전력은 로스터 라인업 평균이라 이적이 바로 반영돼요. 겨울 이적은 시즌 중 전력에도 반영돼요. 구단은 남은 영입 예산·연봉 여력 안에서만 영입해요(괄호 = 재정 등급, 계약이 끝난 선수는 몸값 0).</p>`;
 }

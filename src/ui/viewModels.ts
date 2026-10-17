@@ -36,6 +36,7 @@ import {
 import { INJURY_NAMES_KO } from '../injury';
 import { leaguePosition, sortedTable, teamById } from '../league';
 import { npcOvr } from '../npc';
+import { tierLabel } from '../finance';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
 import type { SaveMeta } from '../save';
 import { reportInput, tacticalReport, type TacticalReport, type Tendency } from '../tacticalReport';
@@ -935,7 +936,7 @@ export function seasonMatchesVM(g: GameState): SeasonMatchesVM {
 
 export interface WorldVM {
   league: string; season: string; round: number; rounds: number; myPos: number; teams: number;
-  table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number }[];
+  table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number; tier: string }[];
   stars: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number }[];
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
@@ -968,7 +969,7 @@ export function worldVM(g: GameState): WorldVM {
     myPos: leaguePosition(g.league, g.player.teamId), teams: rows.length,
     table: rows.map((r, i) => ({
       pos: i + 1, team: teamById(g.league, r.teamId).nameKo, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
-      gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating,
+      gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating, tier: tierLabel(r.teamId),
     })),
     stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
       .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),

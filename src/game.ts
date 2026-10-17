@@ -36,6 +36,7 @@ import { CUSTOM_HIDDEN_TAGS, customBudget, validCustom } from './custom';
 import { TAGS } from './tags';
 import { REAL_CAREER } from '../data/players/careers';
 import { npcTagMap, recordTagNews, type TagNews } from './npcTags';
+import { ensureFinance, type FinanceState } from './finance';
 import { afterAccept, afterTrialMatch, applyStart, checkOneClub, release, renewalFails, seasonEndTags, type StartChoice, type TrialState } from './startClub';
 import type { Appearance } from './appearance';
 import type { FieldAttributes } from './attributes';
@@ -61,7 +62,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 25;
+export const SAVE_FORMAT_VERSION = 26;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -201,6 +202,8 @@ export interface GameState {
   market: MarketState;
   /** 비시즌에만: 다음 시즌 팀 레이팅 (로스터 + 시즌 팀 컨디션). 시즌 종료 때 계산해 제안 화면과 다음 시즌 시작에 쓴다 */
   nextRatings?: Record<string, number>;
+  /** 구단 시즌 영입 예산 (C.46, NPC 전용). 쓴 돈·번 돈은 이적 기록 fee, 연봉 총액은 로스터에서 계산한다 */
+  finance?: FinanceState;
   /** NPC 커리어 태그 뉴스 (C.45 14번, 최근 3시즌) */
   tagNews?: TagNews[];
   /** 1군 테스트 (C.45 10번): 커스텀 15~18세 유스 구단 선택. 없으면 null */
@@ -487,6 +490,8 @@ export function newGame(opts: NewGameOptions): GameState {
     training: initTraining(addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays)),
     archive: [],
   };
+  // 구단 재정 (C.46): 첫 시즌 예산 (지난 시즌 순위 대신 레이팅 순)
+  ensureFinance(state, season);
   // 커스텀 생성 시작 소속 (C.45 10번): 유스 구단 1군 테스트 / 소속팀 선택 / 소속팀 없음(영입 제안)
   if (opts.mode === 'custom' && opts.custom.start) {
     const before = player.teamId;
@@ -1426,6 +1431,8 @@ export function endSeason(state: GameState): SeasonSummary {
 
   // NPC: 여름 이적시장 (C.42, 이번 시즌 기록·계약으로, 성장 전) → 성장 → 로스터 시즌 갱신 (은퇴·보충·재계약)
   const tagsBefore = npcTagMap(state);
+  // 구단 재정 (C.46): 다가올 시즌 예산 = 등급 + 이번 시즌 순위 상금 (판 선수 몸값은 이적 기록으로 더해진다)
+  ensureFinance(state, season + 1, Object.fromEntries(sortedTable(league).map((r, i) => [r.teamId, i + 1])));
   const summer = runNpcWindow(state, 'summer');
   state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season));
   const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
@@ -1455,7 +1462,7 @@ export function endSeason(state: GameState): SeasonSummary {
   // 내 선수 (18.10): 임대 복귀, 계약 만료면 재계약, 제안 3~5개
   if (state.phase === 'offseason') {
     openOffseasonMarket(state);
-    // 재계약 판정 (C.45 10번, 커스텀 생성 선수): 유스 완화 뒤에도 크게 모자라면 재계약 실패·방출 → 영입 제안
+    // 재계약 판정 (C.46, 모든 선수): 연봉 여력·포지션 인원·팀 안 순위로 재계약 실패·방출 → 영입 제안
     if (state.market.renewal && renewalFails(state)) release(state, 'renew', `${teamById(league, player.teamId).nameKo} 재계약 실패 · 방출됐어요. 영입 제안을 골라요`);
   }
   // 태그 (C.45): 해제형 태그 판정, 원클럽맨·영원한

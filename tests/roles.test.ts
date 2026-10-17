@@ -151,7 +151,7 @@ describe('포메이션 8종과 커스텀 (E.5, E.5.1)', () => {
 
 describe('세이브 12 → 13 (E.21 1번)', () => {
   it('예전 역할 id 는 새 이름으로, 커스텀은 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(25);
+    expect(SAVE_FORMAT_VERSION).toBe(26);
     const g = game('CM', 'roles-mig');
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 12;
