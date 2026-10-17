@@ -209,7 +209,9 @@ h3.grp { margin: 0; font-size: 13px; font-weight: 800; color: var(--ink-muted); 
 .cu-chip.is-on { background: var(--brand); color: var(--on-brand); }
 .cu-chip.is-on small { color: var(--on-brand); }
 .cu-select { width: 100%; height: 48px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); color: var(--ink); font-size: 15px; font-weight: 700; }
-.cu-trait:disabled { opacity: 0.4; cursor: default; }
+.cu-trait.is-off { opacity: 0.45; }
+.cu-tagbtns { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.cu-tagbtns .cu-chip { min-height: 32px; justify-content: center; white-space: nowrap; }
 .cu-pts { font-family: var(--font-display); font-size: 14px; margin: 0 8px; }
 .cu-pts.up { color: var(--brand-ink); }
 .cu-pts.down { color: var(--ink-muted); }

@@ -3,7 +3,8 @@
 // 로스터는 시드로 다시 만들고 이적 기록(TransferRec)만 세이브에 담아 같은 순서로 다시 적용한다 (rebuildRosters).
 // 내 선수: 비시즌 제안 3~5개(같은 점수 모델을 팀 입장으로), 계약·재계약, 이적 요청, 임대. 연봉은 계산·표시만 (돈은 5-7)
 
-import { wageMul } from './traits';
+import { onClubChange, onRenewal } from './startClub';
+import { wageMul } from './tags';
 import { OUTSIDE_BY_ID, OUTSIDE_CLUBS, type OutsideClub } from '../data/outsideClubs';
 import { BALANCE } from './config/balance';
 import type { GameState } from './game';
@@ -582,6 +583,7 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
     m.offers = null;
     m.renewal = null;
     m.notice = `${clubNameKo(state.league, from)} 1군 계약`;
+    onClubChange(state, from);
     return { points };
   }
   if (o.kind === 'loan') {
@@ -591,6 +593,8 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
     m.contract = { teamId: o.teamId, from: season, until: season + o.years - 1, wage: o.wage, loan: null };
   }
   m.moves.push({ season, w, from, to: o.teamId, ...(o.kind === 'loan' ? { loan: true } : {}) });
+  // 원클럽맨 계열 (C.45): 이적이면 떨어지고 새 구단 기록 (임대는 이적 아님)
+  if (o.kind !== 'loan') onClubChange(state, o.teamId);
   joinTeam(state, o.teamId);
   m.offers = null;
   m.renewal = null;
@@ -613,6 +617,7 @@ export function renewContract(state: GameState, years: number): void {
   const season = state.league.season + (state.phase === 'season' ? 0 : 1);
   m.contract = { teamId: state.player.teamId, from: season, until: season + years - 1, wage: m.renewal.wage, loan: null };
   m.renewal = null;
+  onRenewal(state);
 }
 
 /**

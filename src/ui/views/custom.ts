@@ -21,7 +21,7 @@ function chips(k: string, items: { id: string; label: string; on: boolean; sub?:
 
 export function customBody(vm: CustomVM, diff: string, seed: string): string {
   const b = vm.body;
-  const left = `<div class="cu-budget${vm.over ? ' over' : ''}"><span>배분 포인트</span><b class="po-num">${vm.left}</b><small>/ ${vm.budget}P · 기본 100 ${sgn(vm.agePts)}(나이) · 약발 ${sgn(b.weakPts)} · 장단점 ${sgn(vm.budget - 100 - vm.agePts - b.weakPts)}</small></div>`;
+  const left = `<div class="cu-budget${vm.over ? ' over' : ''}"><span>배분 포인트</span><b class="po-num">${vm.left}</b><small>/ ${vm.budget}P · 기본 100 ${sgn(vm.agePts)}(나이) · 약발 ${sgn(b.weakPts)} · 태그 ${sgn(vm.budget - 100 - vm.agePts - b.weakPts)}</small></div>`;
   const basic = `
     ${SectionTitle({ title: '이름', action: '비우면 랜덤' })}
     <label class="field"><input type="text" id="f-name" maxlength="12" value="${esc(vm.name)}" placeholder="예: 김민준"></label>
@@ -46,13 +46,17 @@ export function customBody(vm: CustomVM, diff: string, seed: string): string {
     <span class="label">외모군</span>${chips('app', vm.appearances.map((a) => ({ id: a.id, label: a.ko, on: a.id === vm.appearance })))}
     <span class="label">경기 화면 도트 머리</span>${chips('hair', [{ id: '', label: '자동', on: !vm.hair }, ...vm.hairs.map((h) => ({ id: h.id, label: h.ko, on: h.id === vm.hair }))])}`;
   const tc = vm.traitCount;
-  const traitRow = (t: CustomVM['traits'][number]) => `<button type="button" class="po-option opt cu-trait ${t.kind}${t.on ? ' is-on' : ''}" data-act="cu" data-k="trait" data-v="${t.id}"${t.can ? '' : ' disabled'}>
-      <span class="grow"><b>${esc(t.ko)}${t.hook ? ' <span class="rec wild">나중에 연결</span>' : ''}</b><small>${esc(t.desc)}${t.hook ? ` · ${esc(t.hook)} 단계에서 효과` : ''}</small></span>
-      <span class="cu-pts po-num ${t.pts > 0 ? 'up' : 'down'}">${sgn(t.pts)}P</span><i class="radio${t.on ? ' on' : ''}"></i></button>`;
+  const traitRow = (t: CustomVM['traits'][number]) => `<div class="po-option opt cu-trait ${t.kind}${t.on ? ' is-on' : ''}${t.can ? '' : ' is-off'}">
+      <span class="grow"><b>${esc(t.ko)}${t.hook ? ' <span class="rec wild">나중에 연결</span>' : ''}</b><small>${esc(t.desc)}${t.hook ? ` · ${esc(t.hook)} 단계에서 효과` : ''}${t.removeDesc ? ` · 해제형은 "${esc(t.removeDesc)}"이면 사라짐` : ''}</small></span>
+      <span class="cu-tagbtns">
+        <button type="button" class="cu-chip${t.on && t.perm ? ' is-on' : ''}" data-act="cu" data-k="trait" data-v="${t.id}"${t.can ? '' : ' disabled'}>${t.ptsRemovable !== null ? '영구 ' : ''}${sgn(t.pts)}P</button>
+        ${t.ptsRemovable !== null ? `<button type="button" class="cu-chip${t.on && !t.perm ? ' is-on' : ''}" data-act="cu" data-k="traitR" data-v="${t.id}"${t.can ? '' : ' disabled'}>해제형 ${sgn(t.ptsRemovable)}P</button>` : ''}
+      </span></div>`;
   const traits = `
-    ${SectionTitle({ title: '장점', action: `${tc.pro}/${tc.maxPro} · 포인트 −` })}
+    ${SectionTitle({ title: '태그 · 장점', action: `${tc.pro}/${tc.maxPro} · 포인트 −` })}
+    <p class="small muted">영구 태그는 효과가 계속 가는 대신 포인트가 크고, 해제형은 조건을 채우면 사라지는 대신 포인트가 작아요. 노익장·빅매치 체질·유스 출신·원클럽맨 같은 태그는 플레이하며 얻어요.</p>
     <div class="opts">${vm.traits.filter((t) => t.kind === 'pro').map(traitRow).join('')}</div>
-    ${SectionTitle({ title: '단점', action: `${tc.con}/${tc.maxCon} · 포인트 +` })}
+    ${SectionTitle({ title: '태그 · 단점', action: `${tc.con}/${tc.maxCon} · 포인트 +` })}
     <div class="opts">${vm.traits.filter((t) => t.kind === 'con').map(traitRow).join('')}</div>`;
   const attrs = `
     ${SectionTitle({ title: '능력치 배분', action: `테두리 = ${vm.position} 핵심` })}

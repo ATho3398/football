@@ -9,23 +9,9 @@ import { proficientOvr } from './proficiency';
 import { createRng, hashSeed, type Rng } from './rng';
 import { randInt } from './growth';
 import { contractYears, expectedStart, makeOffers, wageFor, type Offer } from './transfer';
-import { wageMul } from './traits';
+import { tagHas, wageMul, type PlayerTag, type TagId, type Tagged } from './tags';
 
-// ── 스토리 태그 (효과 없이 기능만, 62.4) ──
-
-export type StoryTagId = 'academy' | 'homeChoice' | 'loyalReturn' | 'oneClubMan' | 'releasedPain';
-
-export interface StoryTag {
-  id: StoryTagId;
-  /** 화면 이름 (아카데미는 "라 마시아 출신" 등) */
-  name: string;
-  desc: string;
-  /** 얻은 시즌·날짜 */
-  season: number;
-  date: string;
-  /** 관련 구단 */
-  club?: string;
-}
+// ── 커리어 태그 (플레이 전용, 효과 슬롯 0 — 62.4, 14번) ──
 
 /** 유명 아카데미 고유 이름 (나머지는 "○○ 유스"). 리그 밖 구단은 6단계에서 리그가 생기면 같은 규칙으로 */
 export const ACADEMY_NAMES: Readonly<Record<string, string>> = {
@@ -39,30 +25,56 @@ export function academyName(teamId: string, teamName: string): string {
   return ACADEMY_NAMES[teamId] ?? `${teamName} 유스`;
 }
 
-export const STORY_TAG_DESC: Readonly<Record<StoryTagId, string>> = {
-  academy: '유스 구단에서 1군 테스트에 합격해 첫 계약',
-  homeChoice: '더 많은 연봉 제안을 두고 유스 구단과 계약',
-  loyalReturn: '유스 구단을 떠났다가 다시 돌아옴',
-  oneClubMan: `한 구단에서만 ${BALANCE.startClub.oneClubSeasons}시즌 이상`,
-  releasedPain: '1군 테스트·재계약에서 방출된 뒤 다른 팀에서 시작',
-};
-
-/** 효과 훅 (지금은 모두 0): 아카데미 출신 → 그 구단 대표 성향 숙련도, 충성심 → 감독 신뢰도 (5-1·5-2 에서 값) */
-export function academyTacticBonus(_p: { tags?: StoryTag[] }, _teamId: string): number {
+/** 효과 훅 (지금은 모두 0): 아카데미 출신 → 그 구단 대표 성향 숙련도, 충성심 → 감독 신뢰도 (5-1·5-2·34c 에서 값) */
+export function academyTacticBonus(_p: Tagged, _teamId: string): number {
   return 0;
 }
-export function loyaltyTrustBonus(_p: { tags?: StoryTag[] }, _teamId: string): number {
+export function loyaltyTrustBonus(_p: Tagged, _teamId: string): number {
   return 0;
 }
 
-export function addTag(state: GameState, id: StoryTagId, name: string, club?: string): StoryTag | null {
+/** 내 선수에게 커리어 태그를 붙인다 (같은 id·구단이면 그대로). 홈 알림 한 줄 */
+export function addTag(state: GameState, id: TagId, name: string, club?: string): PlayerTag | null {
   const p = state.player;
-  const tags = (p.tags ??= []);
-  if (tags.some((t) => t.id === id && t.club === club)) return null;
-  const tag: StoryTag = { id, name, desc: STORY_TAG_DESC[id], season: state.league.season, date: state.calendar.date, ...(club ? { club } : {}) };
-  tags.push(tag);
-  state.market.notice = `새 이야기 · ${name}`;
+  if (p.tags.some((t) => t.id === id && t.club === club)) return null;
+  const tag: PlayerTag = { id, perm: id !== 'oneClubMan' && id !== 'eternal', name, season: state.league.season, date: state.calendar.date, ...(club ? { club } : {}) };
+  p.tags.push(tag);
+  state.market.notice = `새 태그 · ${name}`;
   return tag;
+}
+
+function dropTags(state: GameState, ids: readonly TagId[]): void {
+  const p = state.player;
+  p.tags = p.tags.filter((t) => !ids.includes(t.id));
+}
+
+/** 새 구단 계약 (이적, 임대 아님): 원클럽맨·영원한 태그는 떨어지고 새 구단 기록 시작 */
+export function onClubChange(state: GameState, teamId: string): void {
+  const p = state.player;
+  if (p.clubRun?.club === teamId) return;
+  dropTags(state, ['oneClubMan', 'eternal']);
+  p.clubRun = { club: teamId, renewals: 0, since: state.league.season + (state.phase === 'season' ? 0 : 1), first: !p.clubRun };
+}
+
+/** 재계약 1번 (원클럽맨 판정) */
+export function onRenewal(state: GameState): void {
+  const r = state.player.clubRun;
+  if (r && r.club === state.player.teamId) r.renewals++;
+  checkOneClub(state);
+}
+
+/** 원클럽맨 / 영원한 <구단>: 첫 성인 구단에서 재계약 renewals 번 또는 seasons 시즌 */
+export function checkOneClub(state: GameState): void {
+  const p = state.player;
+  const r = p.clubRun;
+  const O = BALANCE.tags.oneClub;
+  if (!r || !r.first || r.club !== p.teamId) return;
+  const seasons = state.league.season - r.since + 1;
+  if (r.renewals < O.renewals && seasons < O.seasons) return;
+  if (p.youth?.club === r.club) {
+    dropTags(state, ['oneClubMan']);
+    addTag(state, 'eternal', `영원한 ${teamName(state, r.club)}`, r.club);
+  } else addTag(state, 'oneClubMan', '원클럽맨', r.club);
 }
 
 // ── 시작 소속 ──
@@ -160,6 +172,7 @@ export function applyStart(state: GameState, c: StartChoice): void {
     moveTo(state, c.club);
     m.contract = { ...m.contract, teamId: c.club };
     m.notice = `${teamName(state, c.club)}와 계약했어요`;
+    addTag(state, 'academy', `${academyName(c.club, teamName(state, c.club))} 출신`, c.club);
     return;
   }
   // 소속팀 없음: 유스는 서사만, 시작 때 영입 제안
@@ -260,7 +273,7 @@ export function renewalFails(state: GameState): boolean {
   return judgeOvr(state, p.teamId) < ratingOf(state, p.teamId) - BALANCE.startClub.renewGap;
 }
 
-/** 제안 수락 뒤 태그: 유스 구단 첫 계약(아카데미 출신), 친정 선택, 귀환, 방출의 설움 */
+/** 제안 수락 뒤 태그: 유스 구단 첫 계약(아카데미 출신), 친정 선택, 귀환, 방출의 설움. 이적이면 원클럽맨 계열을 떨어뜨린다 */
 export function afterAccept(state: GameState, o: Offer, others: readonly Offer[], fromTeam: string): void {
   const p = state.player;
   const m = state.market;
@@ -268,7 +281,8 @@ export function afterAccept(state: GameState, o: Offer, others: readonly Offer[]
   const released = !!m.released;
   m.free = false;
   m.released = false;
-  if (youth && o.teamId === youth && !p.tags?.some((t) => t.id === 'academy')) {
+  if (o.kind !== 'loan') onClubChange(state, o.teamId);
+  if (youth && o.teamId === youth && !tagHas(p, 'academy')) {
     addTag(state, 'academy', `${academyName(youth, teamName(state, youth))} 출신`, youth);
     if (others.some((x) => x !== o && x.wage > o.wage)) addTag(state, 'homeChoice', '친정 선택', youth);
   } else if (youth && o.teamId === youth && fromTeam !== youth && m.moves.some((mv) => mv.from === youth)) {
@@ -277,11 +291,7 @@ export function afterAccept(state: GameState, o: Offer, others: readonly Offer[]
   if (released && o.teamId !== fromTeam) addTag(state, 'releasedPain', '방출의 설움', o.teamId);
 }
 
-/** 시즌 끝: 원클럽맨 (한 구단 oneClubSeasons 시즌 이상, 이적 기록 없음) */
+/** 시즌 끝: 원클럽맨·영원한 판정 */
 export function seasonEndTags(state: GameState): void {
-  const p = state.player;
-  const h = p.history;
-  if (h.length >= BALANCE.startClub.oneClubSeasons && h.every((r) => r.teamId === p.teamId) && !state.market.moves.some((mv) => !mv.back)) {
-    addTag(state, 'oneClubMan', '원클럽맨', p.teamId);
-  }
+  checkOneClub(state);
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { bodyMods, NEUTRAL_MODS, realBody, rollBody, weakFootMul } from '../src/body';
 import { autoCustom, baseAttributes, customBudget, customCap, customOvr, customRaise, spentPoints, validCustom } from '../src/custom';
-import { canAddTrait, injuryMul, rollTraits, TRAIT_IDS } from '../src/traits';
+import { canAddTag, CREATE_TAGS, injuryMul, rollTags, seasonRemovals, tagPoints, TAGS } from '../src/tags';
 import { applyAging } from '../src/growth';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import { createRng } from '../src/rng';
@@ -14,6 +14,7 @@ import { replayPlayers } from '../src/replay';
 import { teamSetupFromRoster } from '../src/engine/setup';
 import { injuryChance } from '../src/injury';
 
+const pk = (...ids: string[]) => ids.map((id) => ({ id: id as never, perm: true }));
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
 
 describe('신체·양발 (C.45 1번)', () => {
@@ -66,20 +67,38 @@ describe('신체·양발 (C.45 1번)', () => {
 });
 
 describe('장단점 (C.45 2번)', () => {
-  it('장점 최대 2·단점 최대 3, 서로 배타', () => {
-    expect(canAddTrait(['ironMan', 'star'], 'bigGame')).toBe(false);
-    expect(canAddTrait(['glass'], 'ironMan')).toBe(false);
-    expect(canAddTrait(['glass', 'hotHead', 'mediaShy'], 'homesick')).toBe(false);
-    expect(canAddTrait(['glass', 'hotHead'], 'mediaShy')).toBe(true);
+  it('장점 최대 2·단점 최대 3, 서로 배타, 플레이 전용 태그는 생성 때 못 고름', () => {
+    expect(canAddTag(pk('ironMan', 'starQuality'), 'consistent')).toBe(false);
+    expect(canAddTag(pk('glass'), 'ironMan')).toBe(false);
+    expect(canAddTag(pk('glass', 'troublemaker', 'mediaShy'), 'homesick')).toBe(false);
+    expect(canAddTag(pk('glass', 'troublemaker'), 'mediaShy')).toBe(true);
+    for (const id of ['evergreen', 'bigGame', 'academy', 'oneClubMan', 'eternal'] as const) expect(canAddTag([], id)).toBe(false);
+    expect(CREATE_TAGS).not.toContain('evergreen');
+  });
+
+  it('생성 비용: 영구 ×1.5, 해제형 ×0.6, 생성 전용은 늘 영구', () => {
+    const c = BALANCE.tags.cost;
+    expect(tagPoints('glass', true)).toBe(Math.round(c.glass! * 1.5));
+    expect(tagPoints('glass', false)).toBe(Math.round(c.glass! * 0.6));
+    expect(tagPoints('ironMan', true)).toBe(-Math.round(c.ironMan! * 1.5));
+    expect(tagPoints('linguist', false)).toBe(tagPoints('linguist', true));
+  });
+
+  it('해제형 태그는 시즌 끝 조건에 떨어지고 영구는 남는다', () => {
+    const season = { apps: 30, starts: 30, injuries: 0, reds: 0, yellows: 2, slumpPenalty: 0, trainingXp: 120 };
+    const p = { age: 25, season, tags: [{ id: 'glass' as const, perm: false, season: 2018 }, { id: 'troublemaker' as const, perm: true, season: 2018 }] };
+    const gone = seasonRemovals(p, false);
+    expect(gone.map((t) => t.id)).toEqual(['glass']);
+    expect(p.tags.map((t) => t.id)).toEqual(['troublemaker']);
   });
 
   it('랜덤 장단점 0~2개, 배타 규칙 지킴', () => {
     const counts = [0, 0, 0];
     for (let i = 0; i < 300; i++) {
-      const t = rollTraits(createRng(i + 1));
+      const t = rollTags(createRng(i + 1));
       counts[t.length]!++;
-      for (const id of t) expect(TRAIT_IDS).toContain(id);
-      expect(new Set(t).size).toBe(t.length);
+      for (const x of t) expect(TAGS[x.id].source).not.toBe('play');
+      expect(new Set(t.map((x) => x.id)).size).toBe(t.length);
     }
     expect(counts[0]! > 0 && counts[1]! > 0 && counts[2]! > 0).toBe(true);
   });
@@ -87,9 +106,9 @@ describe('장단점 (C.45 2번)', () => {
   it('유리몸 ×1.5·철강왕 ×0.6 이 부상 확률에 걸린다', () => {
     const p = { attributes: flat(60), age: 22, fatigue: 0 };
     const base = injuryChance(p, 90, 'normal');
-    expect(injuryChance({ ...p, traits: ['glass'] }, 90, 'normal')).toBeCloseTo(base * 1.5, 9);
-    expect(injuryChance({ ...p, traits: ['ironMan'] }, 90, 'normal')).toBeCloseTo(base * 0.6, 9);
-    expect(injuryMul({ traits: [] })).toBe(1);
+    expect(injuryChance({ ...p, tags: [{ id: 'glass', perm: true, season: 2018 }] }, 90, 'normal')).toBeCloseTo(base * 1.5, 9);
+    expect(injuryChance({ ...p, tags: [{ id: 'ironMan', perm: false, season: 2018 }] }, 90, 'normal')).toBeCloseTo(base * 0.6, 9);
+    expect(injuryMul({ tags: [] })).toBe(1);
   });
 });
 
@@ -98,8 +117,8 @@ describe('커스텀 생성 (C.45 2번)', () => {
     expect(customBudget(17, [])).toBe(100);
     expect(customBudget(23, [])).toBe(100 + 6 * BALANCE.custom.pointsPerYear);
     expect(customBudget(15, [])).toBe(100 - 2 * BALANCE.custom.pointsPerYearYounger);
-    expect(customBudget(17, ['glass'])).toBe(100 + BALANCE.traits.conGain.glass);
-    expect(customBudget(17, ['ironMan'])).toBe(100 - BALANCE.traits.proCost.ironMan);
+    expect(customBudget(17, pk('glass'))).toBe(100 + tagPoints('glass', true));
+    expect(customBudget(17, [{ id: 'ironMan', perm: false }])).toBe(100 + tagPoints('ironMan', false));
     expect(customCap('pace', 195)).toBeLessThan(customCap('pace', 170));
     expect(customCap('heading', 195)).toBeGreaterThan(customCap('heading', 170));
     const a = customRaise(baseAttributes(), 'shooting', 3, 100, 180);
@@ -113,14 +132,15 @@ describe('커스텀 생성 (C.45 2번)', () => {
   });
 
   it('newGame custom: 고른 값 그대로, 포인트 초과면 거부', () => {
-    const attrs = autoCustom('CB', customBudget(19, ['glass']), 192);
+    const attrs = autoCustom('CB', customBudget(19, pk('glass')), 192);
     const spec: CustomSpec = {
       name: '테스트', position: 'CB', age: 19, attributes: attrs, body: { height: 192, weight: 88, foot: 'left', weakFoot: 2 },
-      traits: ['glass'], nationality: 'Japan', appearance: 'eastAsian', pixelHair: 'brown',
+      tags: pk('glass'), nationality: 'Japan', appearance: 'eastAsian', pixelHair: 'brown',
     };
-    expect(validCustom(attrs, customBudget(19, ['glass']), 192)).toBe(true);
+    expect(validCustom(attrs, customBudget(19, pk('glass')), 192)).toBe(true);
     const g = newGame({ mode: 'custom', custom: spec, seed: 'cu1', difficulty: 'normal' });
-    expect(g.player).toMatchObject({ name: '테스트', age: 19, position: 'CB', traits: ['glass'], nationality: 'Japan', appearance: 'eastAsian', custom: true });
+    expect(g.player).toMatchObject({ name: '테스트', age: 19, position: 'CB', nationality: 'Japan', appearance: 'eastAsian', custom: true });
+    expect(g.player.tags).toEqual([{ id: 'glass', perm: true, season: 2018 }]);
     expect(g.player.body).toEqual({ height: 192, weight: 88, foot: 'left', weakFoot: 2 });
     expect(g.player.attributes).toEqual(attrs);
     expect(() => newGame({ mode: 'custom', custom: { ...spec, attributes: flat(75) }, seed: 'cu1', difficulty: 'normal' })).toThrow();
@@ -129,7 +149,7 @@ describe('커스텀 생성 (C.45 2번)', () => {
   it('랜덤 유망주도 신체·장단점이 붙고 기존 능력치·팀은 그대로 (별도 시드)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'pros', difficulty: 'normal' });
     expect(g.player.body.height).toBeGreaterThan(150);
-    expect(g.player.traits.length).toBeLessThanOrEqual(2);
+    expect(g.player.tags.length).toBeLessThanOrEqual(2);
     const g2 = newGame({ mode: 'prospect', position: 'ST', seed: 'pros', difficulty: 'normal' });
     expect(g2.player).toEqual(g.player);
   });
@@ -227,13 +247,14 @@ describe('세이브 23 → 24 (C.45 7번)', () => {
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 23;
     delete raw.player.body;
-    delete raw.player.traits;
+    delete raw.player.tags;
     delete raw.player.shirt;
     delete raw.pixelOverrides;
     const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(24);
+    expect(back.saveFormat).toBe(25);
     expect(back.player.body).toEqual(realBody('kane'));
-    expect(back.player.traits).toEqual([]);
+    expect(back.player.tags).toEqual([]);
+    expect(back.player.clubRun).toMatchObject({ club: 'tot', first: true });
     expect(back.player.shirt).toBe(10);
     expect(back.pixelOverrides).toEqual({ players: {}, kits: {} });
     expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
@@ -243,7 +264,7 @@ describe('세이브 23 → 24 (C.45 7번)', () => {
 describe('시작 소속·1군 테스트·스토리 태그 (C.45 10·12·13번)', () => {
   const spec = (age: number, start: CustomSpec['start']): CustomSpec => ({
     position: 'ST', age, attributes: autoCustom('ST', customBudget(age, []), 180), body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 },
-    traits: [], nationality: 'England', appearance: 'white', start,
+    tags: [], nationality: 'England', appearance: 'white', start,
   });
 
   it('15~18세 유스 구단: 그 구단 1군 콜업, 테스트 중 출전 보장, 3~5경기 뒤 판정', () => {
@@ -290,8 +311,8 @@ describe('시작 소속·1군 테스트·스토리 태그 (C.45 10·12·13번)',
     acceptMyOffer(g, 0);
     expect(g.player.teamId).toBe('sou');
     expect(g.market.free).toBe(false);
-    expect(g.player.tags!.map((t) => t.id)).toEqual(['academy', 'homeChoice']);
-    expect(g.player.tags![0]!.name).toBe('스테이플우드 출신');
+    expect(g.player.tags.map((t) => t.id)).toEqual(['academy', 'homeChoice']);
+    expect(g.player.tags[0]!.name).toBe('스테이플우드 출신');
   });
 
   it('소속팀 없음: 영입 제안 3개 이상, 모두 거절 불가, 수락하면 그 팀', async () => {
@@ -315,5 +336,42 @@ describe('시작 소속·1군 테스트·스토리 태그 (C.45 10·12·13번)',
     expect(g.player.youth).toEqual({ club: 'wat' });
     expect(g.trial ?? null).toBeNull();
     expect(g.market.contract.teamId).toBe('wat');
+  });
+});
+
+describe('원클럽맨·영원한 <구단> (C.45 14번 기준 수정)', () => {
+  it('실제 선수: 유스 = 지금 구단이고 8시즌 이상이면 영원한 <구단>, 이적하면 떨어진다', async () => {
+    const { acceptOffer } = await import('../src/transfer');
+    const g = newGame({ mode: 'real', playerId: 'kane', seed: 'eternal', difficulty: 'normal' });
+    expect(g.player.youth).toEqual({ club: 'tot' });
+    expect(g.player.tags.map((t) => t.name)).toContain('영원한 토트넘 홋스퍼');
+    g.market.offers = [{ teamId: 'che', kind: 'transfer', years: 3, wage: 1000, start: 0.8, interest: 0 }];
+    acceptOffer(g, 0, () => 0);
+    expect(g.player.tags.some((t) => t.id === 'eternal' || t.id === 'oneClubMan')).toBe(false);
+    expect(g.player.clubRun).toMatchObject({ club: 'che', first: false });
+  });
+  it('재계약 3번이면 원클럽맨 (유스가 다른 구단)', async () => {
+    const { onRenewal } = await import('../src/startClub');
+    const g = newGame({ mode: 'real', playerId: 'salah', seed: 'onec', difficulty: 'normal' });
+    expect(g.player.tags).toEqual([]);
+    for (let k = 0; k < 3; k++) onRenewal(g);
+    expect(g.player.tags.map((t) => t.id)).toEqual(['oneClubMan']);
+  });
+});
+
+describe('NPC 유스·커리어 태그 (C.45 14번)', () => {
+  it('실제 선수 유스는 경력 표, 생성 선수는 id 로 늘 같고, 시즌 끝에 새 태그가 뉴스로', async () => {
+    const { npcYouth, npcCareerTag } = await import('../src/npcTags');
+    const { playSeasonQuick } = { playSeasonQuick: (g: ReturnType<typeof newGame>) => { while (g.phase === 'season') playRound(g, { engine: 'quick' }); } };
+    const g = newGame({ mode: 'real', playerId: 'son', seed: 'npc-tags', difficulty: 'normal' });
+    expect(npcYouth(g, { id: 'rashford', real: true })).toBe('mun');
+    const v = g.rosters.liv!.players.find((p) => !p.real)!;
+    expect(npcYouth(g, v)).toBe(npcYouth(g, v));
+    const rash = g.rosters.mun!.players.find((p) => p.id === 'rashford')!;
+    expect(npcCareerTag(g, rash, 'mun')).toBeNull(); // 2015 입단 → 2018 4시즌
+    const messiLike = g.rosters.tot!.players.find((p) => p.id === 'kane');
+    if (messiLike) expect(npcCareerTag(g, messiLike, 'tot')).toBe('영원한 토트넘 홋스퍼');
+    playSeasonQuick(g);
+    expect(Array.isArray(g.tagNews)).toBe(true);
   });
 });
