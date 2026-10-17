@@ -1014,10 +1014,10 @@ export const BALANCE = {
     /** 내 선수 제안 연봉이 그 팀 남은 연봉 여력에 맞춰 이 비율 아래로 깎이면 제안하지 않는다 */
     minWageShare: 0.7,
     /**
-     * 재계약 판정 (pending 68, 모든 선수): ① 남은 연봉 여력(지금 내 연봉 제외) < 새 연봉 ② 그 포지션군에서 유효 OVR 순위가
+     * 재계약 판정 (pending 68): allPlayers = false 면 커스텀 생성 선수만 (모든 선수면 balance 잔류 가드 13/15, C.46). ① 남은 연봉 여력(지금 내 연봉 제외) < 새 연봉 ② 그 포지션군에서 유효 OVR 순위가
      * 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 둘 중 하나면 재계약 실패·방출
      */
-    renew: { depth: 2, gap: 14 },
+    renew: { depth: 2, gap: 14, allPlayers: false },
   },
 } as const;
 

@@ -109,12 +109,16 @@ describe('구단 재정 (C.46, pending 62.2)', () => {
     expect(makeOffers(g, 'summer', 'y').filter((o) => o.kind === 'transfer')).toHaveLength(0);
   });
 
-  it('재계약 판정 (pending 68, 모든 선수): 연봉 여력이 없으면 실패, 있으면 통과', () => {
+  it('재계약 판정 (pending 68, 커스텀 선수): 연봉 여력이 없으면 실패, 있으면 통과, 랜덤 유망주는 판정 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c46-renew', difficulty: 'normal' });
     g.market.contract.until = 2018;
     finishSeason(g);
     if (!g.market.renewal) return;
     expect(renewalCheck(g).fails).toBe(false);
+    // 랜덤 유망주는 판정하지 않는다 (allPlayers false), 커스텀이면 판정
+    caps[financeTier(g.player.teamId)] = 0;
+    expect(renewalCheck(g).fails).toBe(false);
+    g.player.custom = true as never;
     caps[financeTier(g.player.teamId)] = 0;
     expect(renewalCheck(g)).toEqual({ fails: true, why: 'wage' });
   });

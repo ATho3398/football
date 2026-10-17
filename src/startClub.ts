@@ -280,7 +280,7 @@ export function release(state: GameState, tag: string, notice: string): void {
 }
 
 /**
- * 재계약 판정 (C.46, pending 68: 모든 선수, 유스 완화 유지): ① 그 팀 남은 연봉 여력이 새 연봉보다 작다
+ * 재계약 판정 (C.46, pending 68: 기준을 재정·로스터로, 유스 완화 유지. 대상은 커스텀 생성 선수 — renew.allPlayers 로 모든 선수): ① 그 팀 남은 연봉 여력이 새 연봉보다 작다
  * ② 그 포지션군에서 내 유효 OVR 순위가 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 하나라도 맞으면 재계약 실패·방출
  */
 export function renewalCheck(state: GameState): { fails: boolean; why: 'wage' | 'depth' | null } {
@@ -288,6 +288,8 @@ export function renewalCheck(state: GameState): { fails: boolean; why: 'wage' | 
   const m = state.market;
   const F = BALANCE.finance.renew;
   if (!m.renewal) return { fails: false, why: null };
+  // 모든 선수로 넓히면 balance 잔류 커리어 가드(레전더리 위상 900+)가 깨져 (C.46 측정 13/15) 커스텀 생성 선수만 판정한다
+  if (!p.custom && !BALANCE.finance.renew.allPlayers) return { fails: false, why: null };
   const rating = ratingOf(state, p.teamId);
   if (wageRoom(state, p.teamId, rating) < m.renewal.wage * 52) return { fails: true, why: 'wage' };
   const roster = state.rosters[p.teamId];
