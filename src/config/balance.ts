@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 36;
+export const BALANCE_VERSION = 37;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -388,6 +388,12 @@ export const BALANCE = {
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
       weakFoot: { xp: 0.75, fatigue: 4.0 },
     },
+    /**
+     * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
+     * 부상 중 → 회복 중심, 경기 2번 이상 또는 경기 간격 busyGap 일 이하 → 경기 많은 주, 체력 lowCondition 미만 → 회복 중심,
+     * 경기 1번 이하이고 체력 freshCondition 이상 → 기술 집중, 그 밖 → 균형
+     */
+    presets: { lowCondition: 65, freshCondition: 85, busyGap: 3 },
     /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
     weeklyXpCap: 6,
     /**

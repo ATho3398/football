@@ -11,6 +11,9 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.45;
+  /* 한글은 단어(어절) 단위로 줄바꿈, 넘치는 긴 단어만 끊는다 (C.52 디자이너 버그: 단어 중간 줄바꿈) */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 #app { max-width: 480px; margin: 0 auto; min-height: 100vh; }
@@ -850,3 +853,35 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .prep-ctl { display: flex; flex-direction: column; gap: 6px; }
 .prep-ctl .prep-head > b { font-size: 13px; }
 .prep-bottom { position: sticky; bottom: 64px; z-index: 15; display: grid; grid-template-columns: 1fr 2fr; gap: 8px; padding: 10px 16px 12px; background: var(--surface-0); border-top: 1px solid var(--line); }
+
+/* 훈련 프리셋 (C.52, 디자인 159): 이번 주 추천 카드 · 프리셋 행(라디오 + 7칸 미리 보기) · 편집 시트 */
+.pr-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.pr-rec { display: flex; flex-direction: column; gap: 8px; margin: 0 var(--space-4) 12px; padding: 14px; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.pr-rec__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pr-rec__head b { font-size: 15px; font-weight: 800; }
+.pr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pr-chip { padding: 3px 8px; border-radius: 8px; background: var(--surface-3); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.pr-chip--warn { color: var(--warning, #f5a524); }
+.pr-chip--good { color: var(--success); }
+.pr-auto { align-items: center; gap: 8px; }
+.pr-badge { margin-left: auto; padding: 2px 8px; border-radius: 8px; background: var(--surface-3); color: var(--brand-ink); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.pr-badge.is-on { background: var(--brand); color: var(--on-brand, #111); }
+.pr-list { display: flex; flex-direction: column; gap: 8px; margin: 0 var(--space-4) 12px; }
+.pr-row { position: relative; border-radius: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); }
+.pr-row.is-on { box-shadow: inset 0 0 0 1.5px var(--brand); }
+.pr-pick { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pr-row .pr-edit { position: absolute; top: 10px; right: 10px; padding: 4px 10px; border: 0; border-radius: 8px; background: var(--surface-3); color: var(--ink); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pr-row:has(.pr-edit) .pr-badge { margin-right: 52px; }
+.pr-head { display: flex; align-items: center; gap: 8px; }
+.pr-head b { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-desc { font-size: 12px; color: var(--ink-muted); }
+.pr-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.pr-day { display: flex; flex-direction: column; align-items: center; padding: 3px 0; border-radius: 6px; background: var(--surface-2, var(--surface-3)); }
+.pr-day small { font-size: 9px; color: var(--ink-faint); }
+.pr-day .tr-k { font-size: 11px; line-height: 14px; }
+.pr-day.is-fixed { opacity: .55; }
+.pr-day.is-today { outline: 1.5px solid var(--brand); outline-offset: -1.5px; }
+.pr-note { margin: 8px var(--space-4) 12px; }
+.pr-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.pr-slot { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-muted); }
+.pr-slot select { height: 40px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; }

@@ -3,6 +3,7 @@
 import { BALANCE } from './config/balance';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
+import { OUTSIDE_CLUBS } from '../data/outsideClubs';
 
 export interface Team {
   id: string;
@@ -43,6 +44,12 @@ export interface LeagueState {
   teams: Team[];
   schedule: Fixture[][];
   table: TableRow[];
+}
+
+/** 영문 클럽 이름 → 한글 (리그 팀 → 리그 밖 클럽, 없으면 그대로). 실제 선수 데이터의 club 표시용 (C.52) */
+export function clubKo(name: string | undefined): string {
+  if (!name) return '';
+  return PREMIER_LEAGUE_2018.find((t) => t.name === name)?.nameKo ?? OUTSIDE_CLUBS.find((c) => c.name === name)?.nameKo ?? name;
 }
 
 // 2018-19 프리미어리그. 레이팅은 초기 추정치

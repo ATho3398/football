@@ -286,6 +286,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     const me = s.player.realPlayerId ?? s.player.legendId;
     if (me && ko.has(me)) s.player.name = ko.get(me);
   },
+  // 30 → 31 (C.52, pending 82 6번): 훈련 프리셋. 균형(= 지금까지의 기본 계획) · 자동 적용 켬 · 커스텀 없음, 이번 주는 다음 하루 진행 때 정한다
+  30: (s) => {
+    if (s.training) Object.assign(s.training, { preset: 'balance', presetWeek: '', presetAuto: true, presetManual: false, customPresets: [], presetSeq: 0 });
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

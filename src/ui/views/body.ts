@@ -30,7 +30,7 @@ export function bodySection(p: PlayerState, canBuy: boolean, shirt: number, yout
     ? `<div class="body-chips">${shown.map((t) => {
       const d = TAGS[t.id];
       const label = d.kind === 'pro' ? '장점' : d.kind === 'con' ? '단점' : '커리어';
-      const desc = `${(t.play ? PLAY_DESC[t.id] : undefined) ?? d.desc}${t.perm ? '' : d.removeDesc ? ` · 해제형: ${d.removeDesc}이면 사라짐` : ''}${d.hook ? ` · ${d.hook} 단계에서` : ''} · ${season(t)}`;
+      const desc = `${(t.play ? PLAY_DESC[t.id] : undefined) ?? d.desc}${t.perm ? '' : d.removeDesc ? ` · 해제형: ${d.removeDesc}이면 사라짐` : ''}${d.hook ? ' · 효과는 다음 업데이트에서 열려요' : ''} · ${season(t)}`;
       return `<span class="cu-chip${d.kind !== 'con' ? ' is-on' : ''}" title="${esc(desc)}">${label} · ${esc(tagName(t))}${t.perm ? '' : ' (해제형)'}<small>${esc(desc)}</small></span>`;
     }).join('')}</div>${more}`
     : '<p class="small muted">태그 없음</p>';

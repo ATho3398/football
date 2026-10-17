@@ -34,7 +34,7 @@ import { judgeEvergreen, judgeLateBloomer, judgeNatural, lateBloomerSkip, tagCha
 import { naturalForm, startBonus, storyForm, storyRepMul, storyXpMul, tagHas } from './tags';
 import { agingMul, bigGameForm, cardMul, formMul, picksToTags, recoveryMul, rollTags, seasonRemovals, xpMul, type PlayerTag, type TagPick, type Tagged } from './tags';
 import { derbyOf } from './derby';
-import { CUSTOM_HIDDEN_TAGS, customBudget, validCustom } from './custom';
+import { CUSTOM_HIDDEN_TAGS, customBudget, spentPoints, validCustom } from './custom';
 import { TAGS } from './tags';
 import { REAL_CAREER } from '../data/players/careers';
 import { npcTagMap, recordNaturalNews, recordTagNews, type TagNews } from './npcTags';
@@ -52,7 +52,7 @@ import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 import { previewLineup, slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
 import {
-  defaultPlan, isFixedRest, initTraining, newTrainingSeason, planFatigue, planXp, takeXp, techBundle, techDay, BUNDLE_NAMES_KO, TRAINING_NAMES_KO,
+  defaultPlan, isFixedRest, isPresetFixed, presetById, weekStart, type BasePresetId, initTraining, newTrainingSeason, planFatigue, planXp, takeXp, techBundle, techDay, BUNDLE_NAMES_KO, TRAINING_NAMES_KO,
   type DayPlan, type TrainingDayResult, type TrainingKind, type TrainingState,
 } from './training';
 import { trainProficiency } from './proficiency';
@@ -65,7 +65,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 30;
+export const SAVE_FORMAT_VERSION = 31;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -389,7 +389,8 @@ export function newGame(opts: NewGameOptions): GameState {
     const age = Math.min(C.maxAge, Math.max(C.minAge, Math.round(c.age)));
     const height = Math.min(C.heightMax, Math.max(C.heightMin, Math.round(c.body.height)));
     const picks = c.tags.filter((t) => !CUSTOM_HIDDEN_TAGS.includes(t.id) && TAGS[t.id].source !== 'play');
-    if (!validCustom(c.attributes, customBudget(age, picks, c.body.weakFoot), height)) throw new Error('커스텀 능력치가 포인트·상한을 넘었어요');
+    const budget = customBudget(age, picks, c.body.weakFoot);
+    if (!validCustom(c.attributes, budget, height)) throw new Error('커스텀 능력치가 포인트·상한을 넘었어요');
     // 잠재력·숨은 적성·팀은 랜덤 (숨은 적성은 커스텀에도 랜덤, pending 47 2)
     const roll = rollProspect(worldSeed, c.position);
     const prng = roll.rng;
@@ -416,6 +417,8 @@ export function newGame(opts: NewGameOptions): GameState {
       appearance: c.appearance,
       ...(c.pixelHair ? { pixelHair: c.pixelHair } : {}),
       custom: true,
+      // 다 안 쓴 배분 포인트는 시작 뒤 성장 포인트로 넘긴다 (C.52, pending 85 ②. 화면 칸 비용 1/2/3 이 같은 단위)
+      unspentPoints: Math.max(0, budget - spentPoints(c.attributes)),
     };
   } else if (opts.mode === 'prospect') {
     // 재능 타입 → 능력치 → 숨은 적성 (pending 31 2번). 시작 포지션은 시작 후보 중 고른 자리 (rolled) 또는 기준 자리
@@ -726,10 +729,107 @@ function injuredOn(state: GameState, date: IsoDate): boolean {
   return inj.daysLeft > Math.max(0, daysBetween(state.calendar.date, date) - (inj.date === state.calendar.date ? 1 : 0));
 }
 
-/** 기본 계획 (변경 없을 때) */
-export function plannedDefault(state: GameState, date: IsoDate): TrainingKind {
+/** 프리셋 칸을 채우는 자유 훈련일인지 (경기·경기 다음 날·경기 전날·휴가가 아닌 날) */
+function isFreeDay(state: GameState, date: IsoDate): boolean {
+  if (isVacationDay(state, date) || myMatchDates(state).includes(date)) return false;
   const { prev, next } = matchGaps(state, date);
-  return defaultPlan(prev ? daysBetween(prev, date) : null, next ? daysBetween(date, next) : null);
+  return !isPresetFixed(prev ? daysBetween(prev, date) : null, next ? daysBetween(date, next) : null);
+}
+
+/** 기본 계획 (변경 없을 때): 경기 다음 날 휴식, 경기 전날 영상, 나머지는 그 주 프리셋 칸을 날짜 순서대로 (C.52) */
+export function plannedDefault(state: GameState, date: IsoDate, presetId: string = activePreset(state, date)): TrainingKind {
+  const { prev, next } = matchGaps(state, date);
+  const prevGap = prev ? daysBetween(prev, date) : null;
+  const nextGap = next ? daysBetween(date, next) : null;
+  if (isPresetFixed(prevGap, nextGap)) return defaultPlan(prevGap, nextGap);
+  let i = 0;
+  for (let d = weekStart(date); d !== date; d = addDays(d, 1)) if (isFreeDay(state, d)) i++;
+  const slots = presetById(state.training, presetId).slots;
+  return defaultPlan(prevGap, nextGap, slots[Math.min(i, slots.length - 1)]);
+}
+
+export interface PresetRecommendation {
+  id: BasePresetId;
+  /** 이번 주 내 경기 날 */
+  matches: IsoDate[];
+  /** 체력 (100 − 피로) */
+  condition: number;
+  injured: boolean;
+  /** 이유 한 줄 */
+  line: string;
+}
+
+/**
+ * 이번 주 추천 프리셋 (C.52): 주(월~일) 경기 수·경기 간격·지금 체력·부상으로 기본 프리셋 4개 중 가장 가까운 것.
+ * 기준값 BALANCE.training.presets
+ */
+export function recommendPreset(state: GameState, date: IsoDate = state.calendar.date): PresetRecommendation {
+  const P = BALANCE.training.presets;
+  const wk = weekStart(date);
+  const end = addDays(wk, 6);
+  const all = myMatchDates(state);
+  const matches = all.filter((d) => daysBetween(wk, d) >= 0 && daysBetween(d, end) >= 0);
+  const prevMatch = [...all].reverse().find((d) => daysBetween(d, wk) > 0);
+  const seq = prevMatch ? [prevMatch, ...matches] : matches;
+  let gap = Infinity;
+  for (let i = 1; i < seq.length; i++) gap = Math.min(gap, daysBetween(seq[i - 1]!, seq[i]!));
+  const condition = Math.round(BALANCE.fatigue.max - state.player.fatigue);
+  const injured = !!state.player.injury;
+  const base = { matches, condition, injured };
+  if (injured) return { ...base, id: 'recovery', line: '부상 중이라 재활·회복 위주로 맞췄어요.' };
+  if (matches.length >= 2) return { ...base, id: 'busy', line: `이번 주는 경기가 ${matches.length}번이라 회복을 늘렸어요.` };
+  if (gap <= P.busyGap) return { ...base, id: 'busy', line: `경기 간격이 ${gap}일로 짧아 회복을 늘렸어요.` };
+  if (condition < P.lowCondition) return { ...base, id: 'recovery', line: `체력이 ${condition}이라 회복을 늘렸어요.` };
+  if (matches.length <= 1 && condition >= P.freshCondition) return { ...base, id: 'focus', line: `경기가 ${matches.length ? '한 번' : '없고'}${matches.length ? '이고' : ''} 체력이 ${condition}로 넉넉해 기술·고강도로 XP를 더 받아요.` };
+  return { ...base, id: 'balance', line: '평범한 주라 기술 훈련 위주로 해요.' };
+}
+
+/** 그 날짜가 든 주의 프리셋: 정해진 주면 그 프리셋, 아직 안 정한 주면 자동일 때 추천 / 아니면 마지막 프리셋 */
+export function activePreset(state: GameState, date: IsoDate = state.calendar.date): string {
+  const t = state.training;
+  if (!t) return 'balance';
+  if (t.presetWeek === weekStart(date)) return t.preset ?? 'balance';
+  return t.presetAuto !== false ? recommendPreset(state, date).id : t.preset ?? 'balance';
+}
+
+/** 주가 바뀌었으면 이번 주 프리셋을 정한다 (하루 진행 시작에서 부른다) */
+function syncPresetWeek(state: GameState, date: IsoDate): void {
+  const t = state.training;
+  const wk = weekStart(date);
+  if (t.presetWeek === wk) return;
+  t.preset = activePreset(state, date);
+  t.presetWeek = wk;
+  t.presetManual = false;
+}
+
+/** 이번 주 프리셋을 고른다 (그 주만 유지, 자동이면 다음 주에 다시 추천). manual=false 는 [이번 주에 적용](추천 적용) */
+export function choosePreset(state: GameState, id: string, manual = true): boolean {
+  const t = state.training;
+  if (!t || presetById(t, id).id !== id) return false;
+  t.preset = id;
+  t.presetWeek = weekStart(state.calendar.date);
+  t.presetManual = manual && id !== recommendPreset(state).id;
+  return true;
+}
+
+/** 자동 적용 켜기/끄기. 켜면 직접 고르지 않은 이번 주는 바로 추천으로 */
+export function setPresetAuto(state: GameState, on: boolean): void {
+  const t = state.training;
+  if (!t) return;
+  t.presetAuto = on;
+  if (on && !t.presetManual) choosePreset(state, recommendPreset(state).id, false);
+}
+
+/** 프리셋대로라면 그 주(월~일) 계획 (미리 보기, 그날만 바꾼 훈련은 빼고) */
+export function presetWeekPlan(state: GameState, presetId: string, date: IsoDate = state.calendar.date): { date: IsoDate; kind: DayPlan; fixed: boolean }[] {
+  const wk = weekStart(date);
+  return Array.from({ length: 7 }, (_, k) => {
+    const d = addDays(wk, k);
+    if (state.phase !== 'season' || isVacationDay(state, d)) return { date: d, kind: 'vacation' as DayPlan, fixed: true };
+    if (myMatchDates(state).includes(d)) return { date: d, kind: 'match' as DayPlan, fixed: true };
+    if (injuredOn(state, d)) return { date: d, kind: 'rehab' as DayPlan, fixed: true };
+    return { date: d, kind: plannedDefault(state, d, presetId), fixed: !isFreeDay(state, d) };
+  });
 }
 
 /**
@@ -822,6 +922,7 @@ function myRole(state: GameState): string | undefined {
 function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   const p = state.player;
   const t = (state.training ??= initTraining(date));
+  syncPresetWeek(state, date);
   const kind = dayPlan(state, date);
   const T = BALANCE.training;
   const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) : planFatigue(kind)) };

@@ -88,7 +88,7 @@ export function offersView(vm: MarketVM): string {
     <p class="small muted">${esc(vm.tierNote)}</p>
     ${vm.refused.length ? panel(`${refusedLines(vm)}<p class="small muted">구단이 거절한 제안은 고를 수 없어요. 바이아웃(${esc(vm.contract.buyout)}) 이상 제안은 구단이 거절하지 못해요.</p>`) : ''}
     ${list}
-    <p class="small muted">연봉은 위상과 OVR로 계산해 보여 주기만 해요 (돈은 재정 단계에서). 제안은 내 몸값과 연봉을 감당할 수 있는 구단만 보내고, 연봉은 그 구단 연봉 여력 안이에요. 약팀(전력 3 이상 낮은 팀)으로 이적하면 위상이 조금 깎여요.</p>
+    <p class="small muted">연봉은 위상과 OVR로 계산해 보여 주기만 해요. 제안은 내 몸값과 연봉을 감당할 수 있는 구단만 보내고, 연봉은 그 구단 연봉 여력 안이에요. 약팀(전력 3 이상 낮은 팀)으로 이적하면 위상이 조금 깎여요.</p>
     ${vm.free && vm.offers?.length ? '<p class="small"><b>자유계약 신분이에요.</b> 제안 하나를 골라야 시즌을 이어 갈 수 있어요.</p>' : ''}
     ${vm.offers?.length && !vm.free ? Button({ variant: 'ghost', block: true, act: 'offers-decline', children: '모두 거절' }) : Button({ block: true, act: 'go', data: { to: 'home' }, children: '홈으로' })}
   </div>`;

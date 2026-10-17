@@ -47,7 +47,7 @@ export function customBody(vm: CustomVM, diff: string, seed: string): string {
     <span class="label">경기 화면 도트 머리</span>${chips('hair', [{ id: '', label: '자동', on: !vm.hair }, ...vm.hairs.map((h) => ({ id: h.id, label: h.ko, on: h.id === vm.hair }))])}`;
   const tc = vm.traitCount;
   const traitRow = (t: CustomVM['traits'][number]) => `<div class="po-option opt cu-trait ${t.kind}${t.on ? ' is-on' : ''}${t.can ? '' : ' is-off'}">
-      <span class="grow"><b>${esc(t.ko)}${t.hook ? ' <span class="rec wild">나중에 연결</span>' : ''}</b><small>${esc(t.desc)}${t.hook ? ` · ${esc(t.hook)} 단계에서 효과` : ''}${t.removeDesc ? ` · 해제형은 "${esc(t.removeDesc)}"이면 사라짐` : ''}</small></span>
+      <span class="grow"><b>${esc(t.ko)}${t.hook ? ' <span class="rec wild">준비 중</span>' : ''}</b><small>${esc(t.desc)}${t.hook ? ' · 효과는 다음 업데이트에서 열려요' : ''}${t.removeDesc ? ` · 해제형은 "${esc(t.removeDesc)}"이면 사라짐` : ''}</small></span>
       <span class="cu-tagbtns">
         <button type="button" class="cu-chip${t.on && t.perm ? ' is-on' : ''}" data-act="cu" data-k="trait" data-v="${t.id}"${t.can ? '' : ' disabled'}>${t.ptsRemovable !== null ? '영구 ' : ''}${sgn(t.pts)}P</button>
         ${t.ptsRemovable !== null ? `<button type="button" class="cu-chip${t.on && !t.perm ? ' is-on' : ''}" data-act="cu" data-k="traitR" data-v="${t.id}"${t.can ? '' : ' disabled'}>해제형 ${sgn(t.ptsRemovable)}P</button>` : ''}
@@ -84,5 +84,6 @@ export function customBody(vm: CustomVM, diff: string, seed: string): string {
   return `${left}${basic}${body}${look}${traits}${attrs}${start}
     ${vm.over ? Banner({ tone: 'warning', title: `포인트 ${-vm.left}P 초과`, children: '능력치를 내리거나 단점·나이로 포인트를 늘려요.' }) : ''}
     ${diff}${seed}
+    ${vm.left > 0 ? `<p class="small muted">남은 ${vm.left}P는 시작한 뒤 성장 포인트로 넘어가요 (선수 화면에서 찍어요).</p>` : ''}
     <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: vm.over || !st.ready, children: !st.ready ? '시작할 구단을 골라요' : `${vm.age}세 ${vm.position} · OVR ${vm.ovr}로 시작` })}</div>`;
 }

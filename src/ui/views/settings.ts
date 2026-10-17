@@ -5,7 +5,7 @@ import { A_GRADE_PLAYERS } from '../../../data/players';
 import { realAppearance } from '../../appearance';
 import { BALANCE } from '../../config/balance';
 import type { GameState } from '../../game';
-import { teamById } from '../../league';
+import { clubKo, teamById } from '../../league';
 import { Avatar, Button, Crest, esc, HeroPanel, SectionTitle, Tabs } from '../components';
 import {
   AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
@@ -56,7 +56,7 @@ function nameSection(g: GameState | null, nm: NameUI): string {
     const o = g.nameOverrides[p.id];
     return [p.nameKo, p.name ?? '', auto.get(p.id) ?? '', o?.nickname ?? '', o?.shortName ?? ''].some((x) => has(x, qq));
   }).sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || Number(!!g.nameOverrides[b.id]) - Number(!!g.nameOverrides[a.id])).slice(0, 30);
-  const teamName = (p: (typeof all)[number]) => (p.teamId ? teamById(g.league, p.teamId)?.nameKo ?? p.teamId : `${p.club ?? ''} · 리그 밖`);
+  const teamName = (p: (typeof all)[number]) => (p.teamId ? teamById(g.league, p.teamId)?.nameKo ?? p.teamId : `${clubKo(p.club)} · 리그 밖`);
   const rows = list.map((p) => {
     const o = g.nameOverrides[p.id];
     const tag = o?.nickname ? `별명 ${o.nickname}` : o?.shortName ? `짧은 이름 ${o.shortName}` : auto.get(p.id) ?? '';
@@ -164,7 +164,7 @@ function pixelSection(g: GameState | null, px: PixelUI): string {
     if (px.team === 'x' ? p.teamId : px.team && p.teamId !== px.team) return false;
     return !qq || [p.nameKo, p.name ?? ''].some((x) => has(x, qq));
   }).sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || Number(!!g.pixelOverrides?.players?.[b.id]) - Number(!!g.pixelOverrides?.players?.[a.id])).slice(0, 30);
-  const teamName = (p: (typeof all)[number]) => (p.teamId ? teamById(g.league, p.teamId)?.nameKo ?? p.teamId : `${p.club ?? ''} · 리그 밖`);
+  const teamName = (p: (typeof all)[number]) => (p.teamId ? teamById(g.league, p.teamId)?.nameKo ?? p.teamId : `${clubKo(p.club)} · 리그 밖`);
   const rows = list.map((p) => `<button type="button" class="real-row px-row${p.id === px.sel ? ' is-on' : ''}" data-act="px-pick" data-id="${esc(p.id)}">${
     pixelIconHtml(pixelLayerUrls(playerPerson(g, p.id), homeKitOf(g, p.id)), 2)}<span class="grow"><b>${esc(p.nameKo)}${p.mine ? ' · 내 선수' : ''}</b><small>${esc(teamName(p))}</small></span>${
     g.pixelOverrides?.players?.[p.id] ? '<span class="po-chip po-chip--brand">직접</span>' : ''}</button>`).join('');
@@ -202,12 +202,12 @@ export function lookupEntry(g: GameState | null, key: string): Entry | null {
       if (p) return { key, name: p.nameKo, sub: `${teamById(g.league, teamId)?.nameKo ?? teamId} · ${p.position} · ${p.age}세`, face: { id, age: p.age, appearance: p.appearance } };
     }
     const n = g.npcs.find((x) => x.id === id);
-    if (n) return { key, name: n.nameKo, sub: `${n.club} · ${n.position} · ${n.age}세`, face: { id, age: n.age, appearance: realAppearance(id, '') } };
+    if (n) return { key, name: n.nameKo, sub: `${clubKo(n.club)} · ${n.position} · ${n.age}세`, face: { id, age: n.age, appearance: realAppearance(id, '') } };
   }
   const d = A_GRADE_PLAYERS.find((p) => p.id === id);
   if (d) {
     const age = BALANCE.newGame.startYear - d.birthYear;
-    return { key, name: d.nameKo, sub: `${d.club} · ${d.position} · ${age}세`, face: { id, age, appearance: realAppearance(id, d.nationality) } };
+    return { key, name: d.nameKo, sub: `${clubKo(d.club)} · ${d.position} · ${age}세`, face: { id, age, appearance: realAppearance(id, d.nationality) } };
   }
   const saved = faceOnKeys().find((k) => k.key === key);
   return saved ? { key, name: saved.name, sub: '다른 게임의 선수', face: { id } } : null;

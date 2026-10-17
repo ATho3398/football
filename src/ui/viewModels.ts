@@ -11,11 +11,11 @@ import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
 import {
-  averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isRestLocked, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
+  activePreset, averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isRestLocked, presetWeekPlan, recommendPreset, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
   slumpThreshold, trainingLine, type GameState, type SeasonSummary,
 } from '../game';
 import {
-  bundleCapped, gaugeNeed, planFatigue, planXp, techBundle, BUNDLE_NAMES_KO, TRAINING_DESC_KO, TRAINING_KINDS, TRAINING_NAMES_KO, TRAINING_SHORT_KO,
+  BASE_PRESETS, bundleCapped, gaugeNeed, PRESET_SLOTS, presetById, presetSummary, planFatigue, planXp, techBundle, BUNDLE_NAMES_KO, TRAINING_DESC_KO, TRAINING_KINDS, TRAINING_NAMES_KO, TRAINING_SHORT_KO,
   type DayPlan, type TrainingKind,
 } from '../training';
 import { addDays, dateLabel, daysBetween, weekday as weekdayOf } from '../calendar';
@@ -33,7 +33,7 @@ import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
 import { INJURY_NAMES_KO } from '../injury';
-import { initialTeams, leaguePosition, sortedTable, teamById } from '../league';
+import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
 import { legendClub, legendPeak, legendRosterPlayer, selectableLegends } from '../legends';
 import { naturalOvr } from '../roster';
 import { npcOvr } from '../npc';
@@ -217,6 +217,8 @@ export interface DayVM {
   /** 큰 글씨 "8.11", "토요일" */
   short: string;
   weekdayKo: string;
+  /** "8월 24일 (금)" (머리말, C.52 디자이너 버그) */
+  full: string;
   year: number;
   matchDay: boolean;
   /** 다음 내 경기까지 남은 날 (오늘이면 0) */
@@ -280,7 +282,7 @@ export function dayVM(g: GameState): DayVM | null {
     days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title });
   }
   return {
-    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
+    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, full: `${m}월 ${+today.slice(8, 10)}일 (${'일월화수목금토'[weekdayOf(today)]})`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
     upcoming, month: { title: `${y}년 ${m}월`, lead: weekdayOf(first), days },
   };
 }
@@ -441,6 +443,71 @@ export interface TrainingVM {
   last: string | null;
   /** 휴가 중이면 휴가가 끝나는 날 (훈련 재개) */
   vacation: { until: string; days: number } | null;
+  /** 훈련 프리셋 (C.52, 디자인 159) */
+  presets: PresetsVM;
+}
+
+export interface PresetDayVM { wd: string; short: string; kind: DayPlan; fixed: boolean; today: boolean }
+export interface PresetRowVM { id: string; name: string; desc: string; week: PresetDayVM[]; active: boolean; recommended: boolean; custom: boolean }
+export interface PresetsVM {
+  auto: boolean;
+  /** 이번 주에 직접 고름 (그 주만 유지) */
+  manual: boolean;
+  activeId: string;
+  activeName: string;
+  /** "8.20~8.26" */
+  weekLabel: string;
+  rec: { id: string; name: string; chips: { label: string; tone: 'neutral' | 'warn' | 'good' }[]; line: string; applied: boolean };
+  base: PresetRowVM[];
+  custom: PresetRowVM[];
+}
+
+const md = (d: string) => `${+d.slice(5, 7)}.${+d.slice(8, 10)}`;
+
+export function presetsVM(g: GameState): PresetsVM {
+  const t = g.training;
+  const today = g.calendar.date;
+  const activeId = activePreset(g, today);
+  const rec = recommendPreset(g, today);
+  const row = (p: { id: string; name: string; slots: TrainingKind[]; desc?: string }, custom: boolean): PresetRowVM => {
+    const week = presetWeekPlan(g, p.id, today);
+    const free = week.filter((d) => !d.fixed).length;
+    const sum = presetSummary(p.slots, free);
+    return {
+      id: p.id, name: p.name, desc: custom ? `${sum || '훈련일 없음'} · 내가 만듦` : `${p.desc} · ${sum || '이번 주 훈련일 없음'}`, custom,
+      week: week.map((d) => ({ wd: '일월화수목금토'[weekdayOf(d.date)]!, short: TRAINING_SHORT_KO[d.kind], kind: d.kind, fixed: d.fixed, today: d.date === today })),
+      active: p.id === activeId, recommended: p.id === rec.id,
+    };
+  };
+  const wk = presetWeekPlan(g, activeId, today);
+  const days = rec.matches.map((d) => '일월화수목금토'[weekdayOf(d)]).join('·');
+  return {
+    auto: t.presetAuto !== false, manual: !!t.presetManual, activeId, activeName: presetById(t, activeId).name,
+    weekLabel: `${md(wk[0]!.date)}~${md(wk[6]!.date)}`,
+    rec: {
+      id: rec.id, name: presetById(t, rec.id).name, line: rec.line, applied: rec.id === activeId,
+      chips: [
+        { label: rec.matches.length ? `경기 ${rec.matches.length}번 · ${days}` : '경기 없음', tone: 'neutral' },
+        { label: `체력 ${rec.condition}`, tone: rec.condition < BALANCE.training.presets.lowCondition ? 'warn' : 'neutral' },
+        { label: rec.injured ? '부상 중' : '부상 없음', tone: rec.injured ? 'warn' : 'good' },
+      ],
+    },
+    base: BASE_PRESETS.map((p) => row(p, false)),
+    custom: (t.customPresets ?? []).map((p) => row(p, true)),
+  };
+}
+
+/** 커스텀 프리셋 편집 시트 (새로 만들기 = id null) */
+export interface PresetEditVM { id: string | null; name: string; slots: { kind: TrainingKind; label: string }[]; kinds: { id: TrainingKind; label: string }[] }
+
+export function presetEditVM(g: GameState, id: string | null, draft?: { name: string; slots: TrainingKind[] }): PresetEditVM {
+  const p = id ? g.training.customPresets?.find((x) => x.id === id) : undefined;
+  const slots = draft?.slots ?? p?.slots ?? presetById(g.training, activePreset(g)).slots;
+  return {
+    id: p?.id ?? null, name: draft?.name ?? p?.name ?? '',
+    slots: Array.from({ length: PRESET_SLOTS }, (_, i) => ({ kind: slots[i] ?? 'tech', label: `${i + 1}번째 훈련일` })),
+    kinds: TRAINING_KINDS.map((k) => ({ id: k, label: TRAINING_SHORT_KO[k] })),
+  };
 }
 
 const PLAN_DESC: Record<'match' | 'vacation' | 'rehab', string> = {
@@ -488,6 +555,7 @@ export function trainingVM(g: GameState): TrainingVM | null {
     })),
     focus: t.focus, seasonUps: t.season.ups, seasonMax: T.gauge.seasonMax,
     hints: [...t.hints], eve: t.eve, formPenalty: t.formPenalty > 0, last: t.last ? `${dateLabel(t.last.date)} · ${trainingLine(t.last)}` : null, vacation,
+    presets: presetsVM(g),
   };
 }
 
@@ -975,7 +1043,7 @@ export function worldVM(g: GameState): WorldVM {
       gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating, tier: tierLabel(r.teamId),
     })),
     stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
-      .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),
+      .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: clubKo(n.club), ovr: npcOvr(n), change: n.lastChange })),
     retired: g.npcs.filter((n) => n.retired).map((n) => n.nameKo),
     legends: Object.entries(g.rosters ?? {}).flatMap(([teamId, r]) => r.players.filter((p) => p.legend).map((p) => ({
       face: { id: p.id, age: p.age, appearance: p.appearance }, name: p.nameKo, position: p.position, age: p.age,
@@ -1174,7 +1242,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const reals = selectableRealPlayers().map((p) => {
     const gen = generatePlayer(p, seedForPreview);
     return {
-      id: p.id, name: p.nameKo, club: p.club, age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
+      id: p.id, name: p.nameKo, club: clubKo(p.club), age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
       ovr: positionOvr(gen.attributes, p.position), tier: designTier(reputationTier(p.reputation)),
     };
   }).sort((a, b) => b.ovr - a.ovr);
@@ -1212,7 +1280,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     difficulty: f.difficulty,
     difficulties: (Object.keys(D) as (keyof typeof D)[]).map((d) => ({
       id: d, label: D[d].label,
-      desc: d === 'normal' ? '기획서 기준 수치 그대로' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
+      desc: d === 'normal' ? 'XP·평점·부상 모두 기본값' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
     seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null, legends: legendsOn, legendList,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,

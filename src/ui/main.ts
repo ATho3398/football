@@ -2,7 +2,7 @@
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
 import { bodySection, tagNewsSection } from './views/body';
-import { buyWeakFoot, myShirt } from '../game';
+import { buyWeakFoot, choosePreset, myShirt, recommendPreset, setPresetAuto } from '../game';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
@@ -17,8 +17,8 @@ import {
   startNextSeason, todaysOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel } from '../calendar';
-import type { TrainingKind, TrainingState } from '../training';
-import { trainingSection, trainingSheet } from './views/training';
+import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
+import { gaugeSection, presetEditSheet, presetSection, trainingSection, trainingSheet, weekPreview } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
 import { EnginePool } from './enginePool';
 import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
@@ -46,7 +46,7 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Banner, Button, Modal, SectionTitle, Toast, type ToastProps } from './components';
+import { Banner, Button, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
@@ -75,7 +75,7 @@ import { setNameOverride } from '../names';
 import { clearFaceOn, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
-import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
+import { presetEditVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
@@ -114,6 +114,10 @@ const ui = {
   posSheet: null as string | null,
   /** 하루 훈련 고르기 시트 (C.41): 날짜 */
   trainSheet: null as string | null,
+  /** 훈련·일정 화면 탭 (C.52) */
+  trainTab: 'pre' as 'pre' | 'cal' | 'g',
+  /** 커스텀 프리셋 편집 시트 (C.52): id null = 새로 만들기 */
+  presetSheet: null as null | { id: string | null },
   /** 내 최근 5경기 리플레이 (25.4 2번, C.41): 자동 저장 슬롯과 같이 저장한다. dirty 면 다음 자동 저장 때 쓴다 */
   recent: [] as StoredReplay[],
   recentDirty: false,
@@ -208,7 +212,7 @@ function liveScreen(): Screen | null {
 const LOCK_ACTS = new Set([
   'buy-weakfoot', 'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
-  'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
+  'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'preset-pick', 'preset-apply', 'preset-auto', 'preset-save', 'preset-del', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
   'ca-upload', 'ca-adjust', 'ca-clear', 'ca-crop-save',
 ]);
@@ -332,7 +336,13 @@ function screenHtml(): string {
     case 'schedule': {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
-      return scheduleView(hvm, hvm.training ? trainingSection(hvm.training) : '') + (tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '');
+      const tv = hvm.training;
+      // 훈련·일정 탭 (C.52, 디자인 159): 훈련 프리셋 · 일정 · 게이지
+      const tab = tv ? ui.trainTab : 'cal';
+      const tabs = tv ? Tabs({ items: [{ id: 'pre', label: '훈련 프리셋' }, { id: 'cal', label: '일정' }, { id: 'g', label: '게이지' }], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련·일정' }) : '';
+      const body = !tv ? '' : tab === 'pre' ? presetSection(tv.presets) + weekPreview(tv) : tab === 'g' ? gaugeSection(tv) : trainingSection(tv, false);
+      const pSheet = tv && ui.presetSheet ? presetEditSheet(presetEditVM(g, ui.presetSheet.id)) : '';
+      return scheduleView(hvm, tabs + body, tab === 'cal') + (tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '') + pSheet;
     }
     case 'deck': {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
@@ -1076,6 +1086,7 @@ app.addEventListener('click', (ev) => {
     case 'sheet-close':
       ui.posSheet = null;
       ui.trainSheet = null;
+      ui.presetSheet = null;
       ui.autoSheet = false;
       ui.moreSheet = false;
       render();
@@ -1463,6 +1474,49 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'train-tab':
+      if (v === 'pre' || v === 'cal' || v === 'g') ui.trainTab = v;
+      render();
+      return;
+    case 'preset-pick':
+      if (!g || g.phase !== 'season' || !v) return;
+      if (choosePreset(g, v)) autosave();
+      render();
+      return;
+    case 'preset-apply':
+      if (!g || g.phase !== 'season') return;
+      if (choosePreset(g, recommendPreset(g).id, false)) autosave();
+      render();
+      return;
+    case 'preset-auto':
+      if (!g?.training) return;
+      setPresetAuto(g, v === 'on');
+      autosave();
+      render();
+      return;
+    case 'preset-edit':
+      if (!g?.training) return;
+      ui.presetSheet = { id: v || null };
+      render();
+      return;
+    case 'preset-save': {
+      if (!g?.training) return;
+      const name = (document.getElementById('f-preset-name') as HTMLInputElement | null)?.value ?? '';
+      const slots = [...document.querySelectorAll<HTMLSelectElement>('[data-preset-slot]')].map((s) => s.value as TrainingKind);
+      if (v) updateCustomPreset(g.training, v, name, slots);
+      else choosePreset(g, addCustomPreset(g.training, name, slots));
+      ui.presetSheet = null;
+      autosave();
+      render();
+      return;
+    }
+    case 'preset-del':
+      if (!g?.training || !v) return;
+      deleteCustomPreset(g.training, v);
+      ui.presetSheet = null;
+      autosave();
+      render();
+      return;
     case 'train-focus':
       if (!g?.training || !v) return;
       g.training.focus = v as TrainingState['focus'];

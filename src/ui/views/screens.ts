@@ -10,6 +10,11 @@ import { historyTable } from './player';
 import { attrGrid, type AttrGroupVM } from './attrGrid';
 import { attrDisplay, displayDelta } from '../../attributes';
 import { BALANCE } from '../../config/balance';
+import { LEGENDS } from '../../legends';
+
+/** 레전드 팩 인원 표기 기준 (C.52): 팩 전체 = LEGENDS 전체, 고를 수 있는 선수 = GK 제외 */
+const LEGEND_TOTAL = LEGENDS.length;
+const LEGEND_GK = LEGENDS.filter((l) => l.position === 'GK').length;
 import type { CustomVM } from '../customVM';
 import { customBody } from './custom';
 
@@ -86,7 +91,7 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM): string {
   const diff = `${SectionTitle({ title: '난이도' })}<div class="opts">${vm.difficulties.map((d) =>
     `<button type="button" class="po-option opt${d.id === vm.difficulty ? ' is-on' : ''}" data-act="form" data-k="difficulty" data-v="${d.id}"><span class="grow"><b>${esc(d.label)}</b><small>${esc(d.desc)}</small></span>${
       d.id === 'normal' ? '<span class="rec">추천</span>' : ''}<i class="radio${d.id === vm.difficulty ? ' on' : ''}"></i></button>`).join('')}</div>`;
-  const pack = `${SectionTitle({ title: '레전드 팩', action: '선택' })}<div class="kv"><span>은퇴 레전드 117명</span>${Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>
+  const pack = `${SectionTitle({ title: '레전드 팩', action: '선택' })}<div class="kv"><span>은퇴 레전드 ${LEGEND_TOTAL}명</span>${Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>
     <p class="small muted">${vm.legends ? '펠레·지단·박지성 같은 레전드가 15~22세 유망주로 유스 구단(없으면 비슷한 수준 팀)에 들어와요. 30세 무렵 전성기에 닿아요.' : '켜면 2020년까지 은퇴한 레전드가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</p>`;
   const seed = `${pack}${SectionTitle({ title: '시드', action: '선택' })}<label class="field"><input type="text" id="f-seed" maxlength="40" value="${esc(vm.seed)}" placeholder="비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과"></label>`;
   let body: string;
@@ -121,7 +126,7 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM): string {
     body = `
       <div class="real-list">${vm.reals.map((p) => `<button type="button" class="real-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 44, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b>${esc(p.name)}</b><small>${Crest({ name: p.club, size: 12 })} ${esc(p.club)} · ${p.age}세 · ${p.position}</small></span>${
         TierBadge({ tier: p.tier, size: 'sm' })}<span class="ovr"><b class="po-num">${p.ovr}</b><small>OVR</small></span></button>`).join('')}</div>
-      ${vm.legends ? `${SectionTitle({ title: '레전드', action: `${vm.legendList.length}명 · GK 제외` })}
+      ${vm.legends ? `${SectionTitle({ title: '레전드', action: `${LEGEND_TOTAL}명 중 GK ${LEGEND_GK}명 빼고 ${vm.legendList.length}명` })}
       <div class="real-list legend-list">${vm.legendList.map((p) => `<button type="button" class="real-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 44, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b>${esc(p.name)} <span class="rec">레전드</span></b><small>${Crest({ name: p.club, size: 12 })} ${esc(p.club)} · ${p.age}세 · ${p.position} · 실제 유스 ${esc(p.youthKo)}</small></span><span class="ovr"><b class="po-num">${p.ovr}</b><small>전성기 ${p.peak}</small></span></button>`).join('')}</div>` : ''}
       <p class="small muted">실제 선수는 지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요. OVR 은 시드에 따라 조금 달라져요.${vm.legends ? ' 레전드는 유스 구단에서 15~22세로 시작해요.' : ''}</p>
       ${diff}
@@ -177,7 +182,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력은 로스터 라인업 평균 (겨울 이적이 바로 반영돼요) · 팀 이름 옆은 구단 재정 등급(빅클럽·상위·중위·하위)</span></div></div>`;
   const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 숫자는 지난 시즌 대비 OVR 변화.</p>
     <div class="star-list">${vm.stars.map((s, i) => `<div class="star-row"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b>${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `+${s.change}` : `−${-s.change}`) : 'OVR'}</small></span></div>`).join('')}</div>
-    ${vm.legends.length ? `${SectionTitle({ title: '레전드', action: `레전드 팩 · ${vm.legends.length}명` })}
+    ${vm.legends.length ? `${SectionTitle({ title: '레전드', action: `팩 ${LEGEND_TOTAL}명 중 리그에서 뛰는 ${vm.legends.length}명` })}
     <div class="star-list">${vm.legends.map((s, i) => `<div class="star-row"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b>${esc(s.name)} <span class="rec">레전드</span></b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small>전성기 ${s.peak}</small></span></div>`).join('')}</div>` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
   return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;

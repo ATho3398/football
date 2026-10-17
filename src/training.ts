@@ -58,6 +58,76 @@ export interface TrainingDayResult {
   injured?: boolean;
 }
 
+/**
+ * 훈련 프리셋 (C.52, pending 82 6번, 디자인 159): 한 주의 "자유 훈련일"(경기 날·경기 다음 날 휴식·경기 전날 영상·휴가를 뺀 날)에
+ * 날짜 순서대로 slots 를 채운다 (7칸, 자유일이 적으면 앞에서부터). 경기 다음 날 휴식·경기 전날 영상 분석은 프리셋과 상관없이 그대로
+ */
+export interface TrainingPreset {
+  id: string;
+  name: string;
+  slots: TrainingKind[];
+}
+
+export const PRESET_SLOTS = 7;
+const fill = (...k: TrainingKind[]): TrainingKind[] => Array.from({ length: PRESET_SLOTS }, (_, i) => k[i % k.length]!);
+
+/** 기본 프리셋 4 (C.52). 균형 = C.44 기본 계획(자유일 모두 기술)과 같다 */
+export const BASE_PRESETS: readonly (TrainingPreset & { desc: string })[] = [
+  { id: 'balance', name: '균형', desc: '평범한 주 · 기술 훈련 위주', slots: fill('tech') },
+  { id: 'recovery', name: '회복 중심', desc: '체력이 낮을 때 · 회복과 기술을 번갈아', slots: fill('recovery', 'tech') },
+  { id: 'focus', name: '기술 집중', desc: '경기 한 번 · 체력이 넉넉한 주 · 고강도 1일로 XP 더 (부상 위험 조금)', slots: fill('tech', 'tech', 'intense', 'tech', 'tech', 'tech', 'tech') },
+  { id: 'busy', name: '경기 많은 주', desc: '주중 경기가 있을 때 · 회복을 늘림', slots: fill('recovery', 'recovery', 'tech') },
+];
+export type BasePresetId = 'balance' | 'recovery' | 'focus' | 'busy';
+
+/** 프리셋 찾기 (기본 → 커스텀, 없으면 균형) */
+export function presetById(t: Pick<TrainingState, 'customPresets'> | undefined, id: string): TrainingPreset {
+  return BASE_PRESETS.find((p) => p.id === id) ?? t?.customPresets?.find((p) => p.id === id) ?? BASE_PRESETS[0]!;
+}
+
+/** 프리셋 구성 요약 "기술 4 · 고강도 1" (자유일 n 일 기준) */
+export function presetSummary(slots: readonly TrainingKind[], free = 4): string {
+  const n = new Map<TrainingKind, number>();
+  for (const k of slots.slice(0, free)) n.set(k, (n.get(k) ?? 0) + 1);
+  return [...n].map(([k, c]) => `${TRAINING_SHORT_KO[k]} ${c}`).join(' · ');
+}
+
+export const PRESET_NAME_MAX = 12;
+
+/** 커스텀 프리셋 만들기 (개수 제한 없음). 새 id 를 돌려준다 */
+export function addCustomPreset(t: TrainingState, name: string, slots: readonly TrainingKind[]): string {
+  const id = `c${(t.presetSeq = (t.presetSeq ?? 0) + 1)}`;
+  (t.customPresets ??= []).push({ id, name: cleanPresetName(name, `내 프리셋 ${t.presetSeq}`), slots: cleanSlots(slots) });
+  return id;
+}
+
+/** 커스텀 프리셋 고치기 (이름·칸). 기본 프리셋은 못 고친다 */
+export function updateCustomPreset(t: TrainingState, id: string, name: string, slots: readonly TrainingKind[]): boolean {
+  const p = t.customPresets?.find((x) => x.id === id);
+  if (!p) return false;
+  p.name = cleanPresetName(name, p.name);
+  p.slots = cleanSlots(slots);
+  return true;
+}
+
+/** 커스텀 프리셋 지우기. 쓰던 프리셋이면 균형으로 */
+export function deleteCustomPreset(t: TrainingState, id: string): boolean {
+  const i = t.customPresets?.findIndex((x) => x.id === id) ?? -1;
+  if (i < 0) return false;
+  t.customPresets.splice(i, 1);
+  if (t.preset === id) t.preset = 'balance';
+  return true;
+}
+
+function cleanPresetName(name: string, fallback: string): string {
+  const n = name.trim().slice(0, PRESET_NAME_MAX);
+  return n || fallback;
+}
+
+function cleanSlots(slots: readonly TrainingKind[]): TrainingKind[] {
+  return Array.from({ length: PRESET_SLOTS }, (_, i) => (TRAINING_KINDS.includes(slots[i]!) ? slots[i]! : 'tech'));
+}
+
 export interface TrainingState {
   /** 날짜별 변경 (그날만, 25.3 3번). 지난 날은 지운다 */
   overrides: Record<IsoDate, TrainingKind>;
@@ -80,6 +150,16 @@ export interface TrainingState {
   hints: string[];
   eve: boolean;
   last: TrainingDayResult | null;
+  /**
+   * 훈련 프리셋 (C.52): 이번 주(presetWeek) 프리셋 id. presetAuto 면 주가 바뀔 때 추천 프리셋으로 바꾼다.
+   * presetManual = 이번 주에 직접 고름 (그 주만 유지, 다음 주는 다시 자동). 커스텀 프리셋은 개수 제한 없음 (id c1, c2 ...)
+   */
+  preset: string;
+  presetWeek: IsoDate | '';
+  presetAuto: boolean;
+  presetManual: boolean;
+  customPresets: TrainingPreset[];
+  presetSeq: number;
   /** 이번 시즌 합계 (측정·화면) */
   season: { xp: number; fatigue: number; days: Partial<Record<DayPlan, number>>; ups: number };
 }
@@ -92,6 +172,7 @@ export function initTraining(date: IsoDate): TrainingState {
   return {
     overrides: {}, focus: 'auto', gauges: emptyGauges(), seasonUps: {}, week: weekStart(date), weekXp: 0, carry: 0,
     restStreak: 0, formPenalty: 0, roleProg: 0, cardProg: {}, hints: [], eve: false, last: null,
+    preset: 'balance', presetWeek: '', presetAuto: true, presetManual: false, customPresets: [], presetSeq: 0,
     season: { xp: 0, fatigue: 0, days: {}, ups: 0 },
   };
 }
@@ -105,11 +186,14 @@ export function weekStart(d: IsoDate): IsoDate {
  * 기본 주간 계획 (25.3 2번, C.44 pending 52 1번): 경기 다음 날 휴식(고정, 바꿀 수 없음), 경기 전날 영상 분석, 나머지 기술.
  * prevGap = 앞 내 경기에서 지난 날, nextGap = 다음 내 경기까지 남은 날 (없으면 null)
  */
-export function defaultPlan(prevGap: number | null, nextGap: number | null): TrainingKind {
+export function defaultPlan(prevGap: number | null, nextGap: number | null, slot: TrainingKind = 'tech'): TrainingKind {
   if (isFixedRest(prevGap)) return 'rest';
   if (nextGap === 1) return 'video';
-  return 'tech';
+  return slot;
 }
+
+/** 프리셋과 상관없이 정해진 날 (경기 다음 날 휴식·경기 전날 영상) */
+export const isPresetFixed = (prevGap: number | null, nextGap: number | null): boolean => isFixedRest(prevGap) || nextGap === 1;
 
 /** 경기 다음 날 = 휴식 고정 (C.44) */
 export const isFixedRest = (prevGap: number | null): boolean => prevGap === 1;

@@ -10,7 +10,7 @@ export function autoSheet(vm: AutoSheetVM, count: number): string {
   const quick = `<div class="auto-quick">${chips.map((c) => `<button type="button" class="po-chip auto-chip${c.v === n ? ' is-on' : ''}" data-act="auto-count" data-v="${c.v}">${esc(c.label)}</button>`).join('')}</div>`;
   const input = `<label class="auto-input"><span>직접</span><input type="number" id="auto-n" min="1" max="${vm.remaining}" value="${n}" inputmode="numeric"><span>경기</span></label>`;
   const targets = vm.targets.map((t) => {
-    if (!t.available) return OptionRow({ title: t.label, desc: '이 대회는 아직 없어요 (국가대표 6단계, 챔스·컵 5-6단계)', tag: '아직 없음', disabled: true });
+    if (!t.available) return OptionRow({ title: t.label, desc: '이 대회는 아직 없어요 (다음 업데이트에서 열려요)', tag: '아직 없음', disabled: true });
     if (!t.next) return OptionRow({ title: t.label, desc: '이번 시즌에 남은 경기가 없어요', disabled: true });
     const x = t.next;
     const desc = `다음 ${x.date} · ${x.text} · ${x.before ? `그 전까지 ${x.before}경기 자동` : '다음 경기가 바로 이 경기예요'} · 시즌 남은 ${x.left}경기`;

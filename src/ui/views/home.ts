@@ -13,7 +13,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   // C.39: 머리말은 작게(날짜 한 줄), "다음 경기" 카드를 맨 위로. 남은 포인트는 머리말 칩으로도
   const hero = HeroPanel({
     title: '홈', back: false, compact: true, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' }),
-    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
+    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
     value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
     chips: [
       ...(n && vm.day
@@ -138,15 +138,15 @@ export function calendarSection(d: DayVM): string {
 }
 
 /** 훈련·일정 화면 (C.44 독): 오늘 훈련·주간 계획·게이지 + 일정·달력 */
-export function scheduleView(vm: HomeVM, training: string): string {
+export function scheduleView(vm: HomeVM, training: string, calendar = true): string {
   const hero = HeroPanel({
     title: '훈련·일정', back: false, compact: true,
-    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
+    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
     value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
     chips: vm.day ? [vm.day.matchDay ? '오늘 경기' : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }] : [{ label: '시즌 종료', soft: true }],
   });
   const off = vm.phase === 'offseason'
     ? panel(`<p class="muted">비시즌 휴가 중이에요. 훈련 선택이 없고 체력이 회복돼요.${vm.camp ? ` ${esc(vm.camp)} 소집부터 훈련 계획이 다시 시작돼요.` : ''}</p>`)
     : '';
-  return `${hero}<div class="body">${off}${training}${vm.day ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
+  return `${hero}<div class="body">${off}${training}${vm.day && calendar ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
 }
