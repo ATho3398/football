@@ -244,3 +244,4 @@
 - L이 만든 세션 → `lineage` 깊이 2. 브랜치 `claude/planning-m`(L 07385ea에서 분기). 코드 세션 지시의 "마스터 브랜치 docs/ 병합"은 이 브랜치로.
 - 시작 처리(20:59 KST): C.45 `session_01PyosPUNsMEvAoK43GW8bES`·UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC`·엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`에 "보고는 M으로, 마스터 브랜치 claude/planning-m" 알림. L 자동 확인 `trig_01HbeNU9EdbbdH5wCdQkg2DS` 삭제 → M 자동 확인 `trig_01QNT5S6yApa6BLkGydnrXSW`(23:30 KST). L 제목 `draft_L_축구 커리어 게임 마스터`(섹션 태그는 건드리지 않음).
 - 다음: 8.20 순서 그대로(C.45 2차 완료 보고 → pending 68~ → UI_1 목록 → 34b C.46).
+- (21:00 KST) UI_1 확인: 5차 보고는 디자인 대기(`docs/ui-requests/5.md`), 5차 이후 C.45 큰 화면 4 + 작은 변형 4(6차 조건 미달). 엔진관리자2 확인: 동결 대기, 다음 배포 때 docs 병합할 브랜치 `claude/engine-issues-c45`(7e96256, 미해결 6·7번)·`claude/engine-diag-defense`(수비 조직 판정 설계, 엔진 다듬기 블록 ①) — 34b C.46 지시에 병합 목록으로 넣을 것.
