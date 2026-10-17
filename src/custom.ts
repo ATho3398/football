@@ -46,7 +46,8 @@ export function spentPoints(attrs: FieldAttributes): number {
 /** 나이 보너스 (17세 0, 1살당 ±pointsPerYear) */
 export function agePoints(age: number): number {
   const C = BALANCE.custom;
-  return (clamp(age, C.minAge, C.maxAge) - C.refAge) * C.pointsPerYear;
+  const d = clamp(age, C.minAge, C.maxAge) - C.refAge;
+  return d * (d >= 0 ? C.pointsPerYear : C.pointsPerYearYounger);
 }
 
 /** 커스텀에서 고를 수 없는 장단점 (약발은 약발 선택 포인트로 직접 고른다) */

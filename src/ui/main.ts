@@ -1,6 +1,8 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
+import { bodySection } from './views/body';
+import { buyWeakFoot, myShirt } from '../game';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
@@ -187,7 +189,7 @@ function liveScreen(): Screen | null {
  * 경기 시작·날 넘기기·포인트·전술·덱·포지션·세이브를 바꾸면 경기 결과가 달라진다
  */
 const LOCK_ACTS = new Set([
-  'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
+  'buy-weakfoot', 'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
@@ -320,7 +322,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·장단점', action: '키·약발·장단점' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g))}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -1289,6 +1291,15 @@ app.addEventListener('click', (ev) => {
       readFormInputs();
       const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
       ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
+      render();
+      return;
+    }
+    case 'buy-weakfoot': {
+      if (!g) return;
+      if (buyWeakFoot(g)) {
+        autosave();
+        showToast({ kind: 'info', title: `약발 ${g.player.body.weakFoot}`, body: g.player.body.weakFoot >= 5 ? '양발잡이가 됐어요.' : `포인트 ${BALANCE.weakFoot.pointCost}P를 썼어요.` });
+      }
       render();
       return;
     }

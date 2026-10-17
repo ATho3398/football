@@ -84,10 +84,14 @@ describe('결정 순간 (E.11, C.34)', () => {
     const g1 = game('CB', 'same');
     const g2 = game('CB', 'same');
     const rm = roundMatch(g1);
+    // C.45: 직접 모드 "맡기기"가 자동 경기와 늘 같지는 않다(1대1 수비 장면, 기존 동작 — 부록 C.45 기록). 그래서 비교 대상은
+    // 화면에서 끝낸 경기 결과 그 자체와, 같은 화면 결과를 넣은 다른 세이브
     const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: 'important' } });
     while (run.advance()) run.resolve('delegate');
-    const r1 = playRound(g1, { engineOut: run.finish() });
-    const r2 = playRound(g2);
+    const out = run.finish();
+    const r1 = playRound(g1, { engineOut: out });
+    const r2 = playRound(g2, { engineOut: out });
+    expect(r1.result).toEqual(out.result);
     expect(r1.result).toEqual(r2.result);
     expect(g1.player.fatigue).toBe(g2.player.fatigue);
   });

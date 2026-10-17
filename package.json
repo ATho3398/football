@@ -21,6 +21,7 @@
     "balance:aptitude": "vite-node scripts/balance-aptitude.ts --",
     "balance:training": "vite-node scripts/balance-training.ts --",
     "balance:transfer": "vite-node scripts/balance-transfer.ts --",
+    "balance:custom": "vite-node scripts/balance-custom.ts --",
     "facepack": "vite-node scripts/facepack/fetch.ts --"
   },
   "devDependencies": {

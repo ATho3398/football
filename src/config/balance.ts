@@ -821,6 +821,8 @@ export const BALANCE = {
     maxAge: 23,
     refAge: 17,
     pointsPerYear: 15,
+    /** 17세보다 어리면 1살당 (− 포인트) */
+    pointsPerYearYounger: 15,
     heightMin: 165,
     heightMax: 200,
     bmiMin: 19.5,

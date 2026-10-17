@@ -23,7 +23,7 @@ import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
-  createRosters, freeShirt, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+  assignShirts, createRosters, freeShirt, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
@@ -278,8 +278,13 @@ export function buyWeakFoot(state: GameState): boolean {
 /** 내 등번호 (C.45): 저장한 번호가 지금 팀에서 겹치면 그 팀에서 비어 있는 관례 번호 */
 export function myShirt(state: GameState): number {
   const p = state.player;
-  const taken = rosterShirts(state.rosters?.[p.teamId]);
-  return p.shirt !== undefined && !taken.has(p.shirt) ? p.shirt : freeShirt(taken, p.position);
+  if (p.shirt !== undefined) {
+    // 내 번호가 먼저: 같은 번호를 쓰던 팀 동료는 관례대로 다른 번호 (표시용, 로스터 재생성 때마다 같은 결과)
+    const r = state.rosters?.[p.teamId];
+    if (r && r.players.some((x) => x.shirt === p.shirt)) assignShirts(r, new Set([p.shirt]));
+    return p.shirt;
+  }
+  return freeShirt(rosterShirts(state.rosters?.[p.teamId]), p.position);
 }
 
 /** 랜덤 유망주의 신체·장단점 (C.45): `me:<시드>` 신체, 장단점 0~2개. 기존 시드 흐름과 따로 */
