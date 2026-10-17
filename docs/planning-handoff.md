@@ -274,4 +274,5 @@
 - (01:52 KST) C.48 완료(main 66ba91f, 밸런스 35·세이브 28, 테스트 419, CI는 C.48이 02:15 확인) → pending 81, C.48 draft_, UI_2 목록(큰 2 + 작은 4 → 누계 큰 7, 6차 보고 요청). **34e C.49 시작** `session_01H9Ysd3v5zrq6NASBvCEy6h` "34e단계_성장 포인트 칸 단위 (C.49)", 브랜치 `claude/c49-points`, 태그 `stage:34e-C49`, docs 병합에 engine-issues-c45·engine-diag-defense 포함. 자동 확인 send_later 150분(04:22 KST). C.48 확인 예약은 삭제.
 - (01:58 KST, 사용자) 플레이 불편 6가지 → pending 82, U5보다 먼저. 세이브 이식이 번거로우면 이전 세이브 플레이 불가로 막아도 됨(C.49에 전달).
 - (01:58 KST) UI_2 6차 보고를 사용자에게 함(`docs/ui-requests/6.md` claude/ui-2 fd35399, 큰 7 + 작은 18, 디자인 124~153번, 새 컴포넌트 Stepper·PointBar·TagChip·PixelTile). pending 82 반영 요청은 보고 뒤에 도착 → UI_2가 보충할 것. 7차는 C.49부터.
+- (02:17 KST) C.48 CI #173: build 작업까지 전부 성공, deploy 진행 중(실패 없음). C.48 끝.
 - 다음: C.49 보고 → pending 83 → ntfy → UI_2 목록 → 34f C.50(결과만·독·이름) → 34g C.51(경기 준비) → 34h C.52(훈련 프리셋) → 34i C.53(팀·선수 상세) → U5-a~g 34j~34p → 35 5-1 …
