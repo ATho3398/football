@@ -1,0 +1,13 @@
+<!-- @dsCard group="Match" height=75 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PossessionBar — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{width:358}},h(P.PossessionBar,{home:54})));
+</script>
+</body>
+</html>

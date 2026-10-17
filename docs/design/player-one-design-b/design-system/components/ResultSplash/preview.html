@@ -1,0 +1,15 @@
+<!-- @dsCard group="Match" height=285 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ResultSplash — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'flex',gap:12,flexWrap:'wrap'}},
+  h('div',{style:{width:300}},h(P.ResultSplash,{result:'success',title:'골! 1-0',detail:'제치고 슛 · 40% 성공',rating:7.4,ratingDelta:0.9})),
+  h('div',{style:{width:300}},h(P.ResultSplash,{result:'fail',title:'공을 뺏겼어요',detail:'제치고 슛 · 역습 위험',rating:6.1,ratingDelta:-0.35}))));
+</script>
+</body>
+</html>

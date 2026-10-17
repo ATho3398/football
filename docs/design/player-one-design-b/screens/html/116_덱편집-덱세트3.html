@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>덱편집-덱세트3</title>
+<link rel="stylesheet" href="../lib/tokens.css">
+<link rel="stylesheet" href="../lib/bundle.css">
+<script src="../lib/react-libs.js"></script>
+<script src="../lib/bundle.js"></script>
+<style>body{margin:0;background:var(--surface-0)}</style>
+</head>
+<body>
+<!-- 화면: 덱편집-덱세트3 (B · 요청 5 · 새 게임 · 덱 · 결과 · 세이브) · 390×869 · 원본 B-R5-Deck-Sets.dc.html -->
+<template id="tpl">
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 869px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 72px; box-sizing: border-box;">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="카드 덱" compact="{{yes}}" eyebrow="덱 1 · 경기에 쓰는 덱" value="{{eight}}" total="{{fourteen}}" progress="{{no}}" chips="{{chips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px;"><x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" fill="{{yes}}" items="{{sets}}" value="d1" label="덱 세트"></x-import><span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">이 덱으로 경기를 뛰어요. 경기 시작 때 4장, 15분마다 1장, 장면에서 성공하면 1장 더(경기당 3장) 뽑아요.</span><x-import component-from-global-scope="PlayerOne.SectionTitle" title="덱" action="8장 · 누르면 상세"></x-import><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;"><sc-for list="{{deck}}" as="c" hint-placeholder-count="8"><div style="width: 84px; height: 118px; overflow: hidden;"><div style="width: 168px; height: 235px; transform: scale(.5); transform-origin: 0 0;"><x-import component-from-global-scope="PlayerOne.GameCard" card="{{c}}" size="deck"></x-import></div></div></sc-for></div><x-import component-from-global-scope="PlayerOne.SectionTitle" title="가진 카드" action="모두 덱에 있음"></x-import><div style="padding: 14px; border-radius: 6px; background: var(--surface-1); font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">덱 밖에 남은 카드가 없어요. 레벨 보상과 시즌 보상으로 카드가 늘어나요.</div><x-import component-from-global-scope="PlayerOne.SectionTitle" title="역할 시그니처" action="윙포워드"></x-import><div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 6px; background: var(--surface-1);"><span style="display: grid; place-items: center; width: 44px; height: 60px; border-radius: 4px; background: var(--card-bg); color: var(--ink-faint); box-shadow: inset 0 0 0 1px var(--line);"><x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{i18}}"></x-import></span><span style="display: flex; flex-direction: column; gap: 4px; flex: 1;"><b style="font-size: 14px;">접고 감아차기</b><span style="font-size: 11px; color: var(--ink-muted);">윙포워드로 10경기 출전하면 열려요</span><x-import component-from-global-scope="PlayerOne.Meter" value="{{zero}}" max="{{ten}}" show-value="{{yes}}" tone="brand"></x-import></span></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="phone" value="more" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</template>
+<script type="text/plain" id="code">
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    return { dockBadges, dockLocked, yes: true, no: false, i18: 18, zero: 0, ten: 10, eight: 8, fourteen: 14, chips: ['8~14장', '같은 카드 2장', { label: '세트피스 3장', soft: true }], sets: [{ id: 'd1', label: '덱 1 ✓ · 8' }, { id: 'd2', label: '덱 2 · 8' }, { id: 'd3', label: '덱 3 · 8' }], deck: [{ id: 'curl', name: '감아차기', type: 'play', rarity: 'common', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'fake', name: '페이크 슛', type: 'play', rarity: 'rare', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'calm', name: '침착한 마무리', type: 'passive', rarity: 'common', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'focus', name: '집중', type: 'manage', rarity: 'common', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'calm2', name: '침착', type: 'passive', rarity: 'common', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'reset', name: '리셋', type: 'manage', rarity: 'common', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'turn', name: '터닝 퍼스트 터치', type: 'play', rarity: 'rare', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }, { id: 'drib', name: '돌파 전문', type: 'play', rarity: 'epic', level: 1, pos: 'att', effect: { pre: '효과 ', hi: '+5%p', post: '' } }] };
+  }
+}
+</script>
+<div id="r"></div>
+<script src="../lib/dc-runtime.js"></script>
+</body>
+</html>
