@@ -1087,3 +1087,151 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .auto-layer__stats { display: flex; justify-content: space-between; color: var(--ink-muted); }
 .auto-layer__stats b { color: var(--ink); }
 .auto-layer__stop:disabled { opacity: .6; }
+
+/* ── 선수 화면 5탭 (C.58 디자인 93~96·134~136) ── */
+.pl-body { gap: 12px; }
+.pl-profile .grow { gap: 6px; }
+.pl-tier { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; }
+.pl-tier small { font-size: 11px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-lv { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.pl-lv small { font-size: 11px; color: var(--ink-muted); font-weight: 700; }
+.pl-lv__bar { height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.pl-lv__bar i { display: block; height: 100%; background: var(--brand); }
+.pl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ag--4 .ag-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ag--4 .ag-head { font-size: 13px; color: var(--ink); margin-bottom: 6px; }
+.ag--4 .ag-cell { min-height: 64px; padding: 7px 8px 6px; }
+.ag--4 .ag-v { font-size: 24px; line-height: 28px; }
+.ag--4 .ag-name { padding-right: 0; }
+.ag--4 .ag-d { top: 28px; right: 8px; }
+.ag--4 .ag-edit { gap: 2px; }
+.ag--4 .ag-btn { width: 30px; }
+.ag--4 .ag-edit small { font-size: 10px; }
+.ag--4 .ag-legend { margin-bottom: 2px; gap: 8px; }
+@media (min-width: 1024px) { .ag--4 .ag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.pl-pos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pl-pos__cell { display: flex; flex-direction: column; gap: 2px; padding: 8px 9px; border-radius: var(--radius-md); background: var(--surface-2); }
+.pl-pos__cell span { font-size: 11px; font-weight: 800; color: var(--ink-muted); }
+.pl-pos__cell b { font-size: 24px; line-height: 28px; font-weight: 700; }
+.pl-pos__cell .prof { display: block; height: 3px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.pl-pos__cell .prof i { display: block; height: 100%; background: var(--mine); }
+.pl-pos__cell em { font-style: normal; font-size: 10px; font-weight: 700; color: var(--ink-faint); }
+.pl-pos__cell.is-main { background: var(--brand); color: var(--on-brand); }
+.pl-pos__cell.is-main span, .pl-pos__cell.is-main em { color: var(--on-brand); }
+.pl-pos__cell.is-main .prof { background: var(--on-brand-soft); }
+.pl-pos__cell.is-main .prof i { background: var(--on-brand); }
+.pl-contract { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.pl-cc { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 10px; border-radius: var(--radius-md); background: var(--surface-2); }
+.pl-cc small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.pl-cc b { display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-cc span { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-muted); }
+.pl-cc.is-line { box-shadow: inset 0 0 0 1px var(--ink-faint); }
+.pl-fins { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-req { gap: 4px; }
+.pl-req > span { display: block; }
+.pl-wf { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.pl-wf .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pl-wf small { font-size: 11px; }
+.pl-stats b i { font-style: normal; font-size: 11px; margin-left: 1px; color: var(--ink-muted); }
+.pl-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-more { height: 28px; padding: 0 10px; border: 0; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.pl-youth { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.pl-youth .dt-link { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
+.pl-look { gap: 0; padding: 4px 12px; }
+.pl-look__row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.pl-look__row + .pl-look__row { border-top: 1px solid var(--line); }
+.pl-look__row .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pl-look__row small { font-size: 11px; color: var(--ink-muted); }
+.pl-look .nm-edit { padding: 8px 0 10px; border-top: 1px solid var(--line); }
+.pl-px { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
+.pl-label { flex: none; max-width: 92px; padding: 6px 8px; border-radius: var(--radius-sm); background: #121317c7; color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-tgroup { gap: 0; padding: 4px 12px; }
+.pl-trow { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.pl-trow + .pl-trow { border-top: 1px solid var(--line); }
+.pl-trow .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pl-trow small { font-size: 11px; }
+.po-section__link { margin-left: auto; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; font-weight: 700; color: var(--ink-muted); cursor: pointer; }
+/* 포인트 찍기 (C.58 디자인 113) */
+.al-body { gap: 10px; }
+.al-ovr { display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 10px 14px; }
+.al-ovr small { display: block; font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.al-ovr b { display: block; font-size: 24px; line-height: 28px; font-weight: 700; }
+.al-ovr__base { margin-left: auto; text-align: right; }
+.al-ovr__base b { font-size: 12px; line-height: 16px; color: var(--ink-muted); }
+.al-bands { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
+.al-band { padding: 4px 8px; border-radius: var(--b-r-xs, 6px); background: var(--surface-2); }
+.al-band.warn { background: var(--warning-soft); color: var(--warning); }
+.al-band.fail { background: var(--fail-soft); color: var(--fail); }
+.al-rule { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+/* 새 게임 (C.58 디자인 124~131) */
+.ng-body { gap: 12px; }
+.ng-cands { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ng-cand { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; padding: 12px 14px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ng-cand.is-on { background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--brand); }
+.ng-cand__pos { font-size: 17px; font-weight: 800; }
+.ng-cand.is-on .ng-cand__pos { color: var(--brand-ink); }
+.ng-cand b { grid-row: 1; grid-column: 2; font-size: 26px; line-height: 30px; font-weight: 700; }
+.ng-cand small { grid-column: 1 / -1; font-size: 11px; color: var(--ink-muted); }
+.ng-cand small em { font-style: normal; color: var(--warning); font-weight: 700; }
+.ng-coach { flex-direction: row; }
+.ng-extras { gap: 10px; }
+.ng-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.ng-stats b i { font-style: normal; font-size: 11px; margin-left: 2px; color: var(--ink-muted); }
+.ng-traits { display: flex; flex-direction: column; gap: 6px; }
+.ng-trait { display: flex; align-items: center; gap: 8px; }
+.ng-trait small { font-size: 11px; color: var(--ink-muted); }
+.ng-links { display: flex; gap: 14px; }
+.ng-attrs { display: flex; flex-direction: row; align-items: center; gap: 10px; width: 100%; border: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ng-attrs .grow { display: flex; flex-direction: column; gap: 2px; }
+.ng-attrs small { font-size: 11px; color: var(--ink-muted); }
+.ng-attrs__btn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--brand-ink); }
+.ng-diff { margin-top: -4px; }
+.ng-pack { display: flex; align-items: center; gap: 12px; }
+.ng-pack .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ng-pack small { font-size: 11px; color: var(--ink-muted); }
+.ng-sel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; box-shadow: inset 0 0 0 2px var(--brand); }
+.ng-sel .grow { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ng-sel__name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ng-sel small { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ng-sel__ovr { display: flex; flex-direction: column; align-items: flex-end; }
+.ng-sel__ovr b { font-size: 26px; line-height: 28px; font-weight: 700; }
+.ng-sel__note { grid-column: 1 / -1; margin: 4px 0 0; }
+.ng-legend { display: inline-block; padding: 1px 6px; border-radius: var(--radius-xs, 4px); background: var(--tier-legend, #f5c542); color: #121317; font-size: 10px; font-weight: 800; }
+.ng-peak { color: var(--tier-legend, #f5c542) !important; }
+.ng-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.ng-sort { display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 0 10px; border-radius: var(--radius-md); background: var(--surface-1); color: var(--ink); }
+.ng-sort select { border: 0; background: none; color: inherit; font: inherit; font-size: 13px; font-weight: 800; }
+.ng-listhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ng-row .grow { min-width: 0; }
+.ng-row__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ng-row__meta { display: block !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ng-row__ovr { flex: none; display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.ng-row__ovr b { display: inline !important; font-size: 18px !important; }
+.ng-row__ovr small { font-size: 10px !important; }
+.ng-more { width: 100%; }
+.cu-dots { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.cu-dot { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 2px 0; border: 0; background: none; color: var(--ink-muted); font: inherit; cursor: pointer; }
+.cu-dot__n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-faint); font-size: 13px; font-weight: 800; }
+.cu-dot small { font-size: 11px; font-weight: 700; }
+.cu-dot.is-on { color: var(--ink); }
+.cu-dot.is-on .cu-dot__n { background: var(--brand); color: var(--on-brand); box-shadow: none; }
+.cu-dot.is-done .cu-dot__n { color: var(--brand-ink); box-shadow: inset 0 0 0 1.5px var(--brand-ink); }
+.cu-step-body { display: flex; flex-direction: column; gap: 12px; }
+.cu-pos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.cu-posbtn { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 0; border-radius: var(--radius-sm); background: var(--surface-1); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.cu-posbtn span { color: var(--ink-muted); font-weight: 700; }
+.cu-posbtn.is-on { background: var(--brand); color: var(--on-brand); }
+.cu-posbtn.is-on span { color: var(--on-brand); }
+.cu-nav { display: flex; gap: 8px; }
+.cu-nav .cu-prev { flex: 0 0 34%; }
+/* TextField 진짜 입력칸 (C.58): 디자인 상자 안 글자처럼 */
+input.po-field__value { height: 100%; padding: 0; border: 0; outline: 0; background: none; font-family: inherit; }
+input.po-field__value::placeholder { font-weight: 600; color: var(--ink-faint); }
+.po-field:focus-within .po-field__box { box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.ng-sel .ng-legend { align-self: flex-start; }
+.cu-trait { padding: 8px 12px; gap: 8px; }
+.cu-trait .grow { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.cu-trait small { font-size: 11px; line-height: 15px; }
+.cu-tagbtns .cu-chip { padding: 4px 8px; }
+.ag--4 .ag-edit small { white-space: nowrap; }
+.ag--4 .ag-btn { width: 26px; }

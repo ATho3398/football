@@ -58,7 +58,11 @@ function cell(c: AttrCellVM, sel: string | null, acts: AttrActs = ALLOC_ACTS): s
   return `<div class="${cls}" role="button" tabindex="0" data-act="${acts.sel}" data-v="${esc(c.attr)}" aria-pressed="${!!on}">${head}${edit}</div>`;
 }
 
-export function attrGrid(groups: AttrGroupVM[], sel: string | null = null, acts?: AttrActs): string {
-  return `<div class="ag">${groups.map((g) => `<div class="ag-group"><h4 class="ag-head">${esc(g.name)}</h4><div class="ag-grid">${g.cells.map((c) => cell(c, sel, acts)).join('')}</div></div>`).join('')}
-    <div class="ag-legend small"><span><i class="ag-sw ag-t5"></i>17+</span><span><i class="ag-sw ag-t4"></i>15+</span><span><i class="ag-sw ag-t3"></i>13+</span><span><i class="ag-sw ag-t2"></i>10+</span><span><i class="ag-sw ag-t1"></i>~9</span><span><i class="ag-sw key"></i>포지션 핵심</span><span><i class="ag-sw bar"></i>다음 칸까지</span></div></div>`;
+/** 바둑판 모양 (C.58 디자인 93·113): 열 수(폰 4열 = AttrGrid), 범례를 위로, 테두리 범례 글자 */
+export interface AttrGridOpts { cols?: 3 | 4; legendTop?: boolean; keyLabel?: string }
+
+export function attrGrid(groups: AttrGroupVM[], sel: string | null = null, acts?: AttrActs, o: AttrGridOpts = {}): string {
+  const legend = `<div class="ag-legend small"><span><i class="ag-sw ag-t5"></i>17+</span><span><i class="ag-sw ag-t4"></i>15+</span><span><i class="ag-sw ag-t3"></i>13+</span><span><i class="ag-sw ag-t2"></i>10+</span><span><i class="ag-sw ag-t1"></i>~9</span><span><i class="ag-sw key"></i>${esc(o.keyLabel ?? '포지션 핵심')}</span><span><i class="ag-sw bar"></i>막대 = 다음 칸까지</span></div>`;
+  return `<div class="ag${o.cols === 4 ? ' ag--4' : ''}">${o.legendTop ? legend : ''}${groups.map((g) => `<div class="ag-group"><h4 class="ag-head">${esc(g.name)}</h4><div class="ag-grid">${g.cells.map((c) => cell(c, sel, acts)).join('')}</div></div>`).join('')}
+    ${o.legendTop ? '' : legend}</div>`;
 }

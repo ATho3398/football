@@ -139,12 +139,12 @@ export function HeroPanel(p: HeroPanelProps): string {
 
 // ── SectionTitle ──
 
-export interface SectionTitleProps { title: string; action?: string; as?: 'h2' | 'h3' }
+export interface SectionTitleProps { title: string; action?: string; as?: 'h2' | 'h3'; /** 오른쪽 글자를 버튼으로 (C.58 "전체 보기 ›") */ onAction?: Action }
 
 export function SectionTitle(p: SectionTitleProps): string {
   const tag = p.as ?? 'h2';
   return `<div class="po-section"><span class="po-section__bar" aria-hidden="true"></span><${tag} class="po-section__title">${esc(p.title)}</${tag}>${
-    p.action ? `<span class="po-section__action">${esc(p.action)}</span>` : ''}</div>`;
+    p.action ? (p.onAction ? `<button type="button" class="po-section__action po-section__link"${actAttrs(p.onAction)}>${esc(p.action)}</button>` : `<span class="po-section__action">${esc(p.action)}</span>`) : ''}</div>`;
 }
 
 // ── Banner / Toast ──

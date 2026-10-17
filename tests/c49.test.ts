@@ -39,7 +39,7 @@ describe('포인트 = 화면 칸 (C.49)', () => {
     expect(cells.every((c) => c.edit!.cost === null || [1, 2, 3].includes(c.edit!.cost))).toBe(true);
     const html = allocateView(vm, 'shooting', 0);
     expect(html).toContain('2P 부족');
-    expect(html).toContain('1칸 1P');
+    expect(html).toContain('칸당 <b>1P</b>');
     expect(html).not.toMatch(/\d\/\d칸/);
     expect(html).not.toContain('상한');
   });

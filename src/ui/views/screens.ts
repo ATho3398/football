@@ -2,7 +2,7 @@
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
 import {
-  Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TierBadge, type DesignTier,
+  Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
 import { actionRow, banners, panel, seasonMatchesSection, statTiles, versionFooter } from './common';
@@ -75,87 +75,133 @@ export interface NewGameVM {
   /** 레전드 팩 (C.47) 켬, 켰을 때 고를 수 있는 레전드 (실제 선수 목록의 "레전드" 묶음) */
   legends: boolean;
   legendList: { id: string; name: string; club: string; age: number; position: string; ovr: number; peak: number; youthKo: string }[];
-  selected: { name: string; ovr: number } | null;
+  selected: { id: string; name: string; ovr: number; club: string; age: number; position: string; legend?: boolean; peak?: number; youthKo?: string } | null;
+  /** 능력치 접힘 줄 (디자인 130) */
+  attrSummary: { count: number; avg: string; weak: string; top: string } | null;
   teamHint: string;
   /** 랜덤 유망주 신체·장단점 (C.45) */
-  extras: { body: string; traits: { ko: string; desc: string; kind: 'pro' | 'con' }[] } | null;
+  extras: { height: number; weight: number; foot: string; weakFoot: number; traits: { ko: string; desc: string; kind: 'pro' | 'con'; release?: string }[] } | null;
 }
 
-export function newGameView(vm: NewGameVM, custom?: CustomVM): string {
+/** 새 게임 화면 상태 (C.58 디자인 124~131): 실제 선수 묶음 탭 · 검색 · 정렬 · 포지션군 · 보이는 수, 랜덤 능력치 펼침, 커스텀 단계 */
+export interface NewGameUI {
+  realTab: 'real' | 'legend'; rq: string; rsort: 'peak' | 'ovr' | 'age' | 'name'; rgroup: 'all' | 'fw' | 'mf' | 'df'; rshow: number;
+  attrsOpen: boolean; cuStep: number;
+}
+export const NEW_GAME_UI: NewGameUI = { realTab: 'real', rq: '', rsort: 'peak', rgroup: 'all', rshow: 10, attrsOpen: false, cuStep: 1 };
+const REAL_PAGE = 10;
+const REAL_MORE = 20;
+const POS_GROUP: Record<string, 'fw' | 'mf' | 'df'> = { ST: 'fw', CF: 'fw', LW: 'fw', RW: 'fw', LM: 'mf', RM: 'mf', CAM: 'mf', CM: 'mf', CDM: 'mf', LB: 'df', RB: 'df', CB: 'df' };
+
+/** 이름(TextField) · 난이도(세그먼트 3) · 레전드 팩(켬/끔) · 시드 (디자인 130 "시작 옵션") */
+function startOptions(vm: NewGameVM, nameField: boolean): string {
+  const name = nameField ? TextField({ label: '이름', value: vm.name, placeholder: '예: 김민준 · 비우면 랜덤', input: { id: 'f-name', maxLength: 12 }, clearable: false }) : '';
+  const cur = vm.difficulties.find((d) => d.id === vm.difficulty);
+  const diff = `${Tabs({ items: vm.difficulties.map((d) => ({ id: d.id, label: d.id === 'normal' ? `${d.label} · 추천` : d.label })), value: vm.difficulty, variant: 'segment', fill: true, act: 'form', data: { k: 'difficulty' }, label: '난이도' })}
+    ${cur ? `<p class="small muted ng-diff">${esc(cur.desc)}</p>` : ''}`;
+  const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명</b><small>${vm.legends ? '켜면 실제 선수에 레전드 탭이 생기고, 펠레·지단·박지성 같은 레전드가 15~22세 유망주로 유스 구단에 들어와요. 끄면 세계는 그대로예요.' : '켜면 2020년까지 은퇴한 레전드가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</small></span>${
+    Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>`;
+  const seed = TextField({ label: '시드 (선택)', value: vm.seed, placeholder: '비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과', input: { id: 'f-seed', maxLength: 40 }, clearable: false });
+  return `${SectionTitle({ title: '시작 옵션' })}${name}${diff}${pack}${seed}`;
+}
+
+export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW_GAME_UI): string {
   const real = vm.mode === 'real';
+  const back = { act: 'go', data: { to: 'title' } } as const;
+  const sel = vm.selected;
   const hero = custom
-    ? HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: `커스텀 선수 · ${custom.position} OVR`, value: custom.ovr, pad: false, progress: false, chips: [`${custom.age}세`, `${custom.body.height} cm · ${custom.body.footKo} · 약발 ${custom.body.weakFoot}`, { label: `남은 ${custom.left}P`, soft: true }] })
+    ? HeroPanel({ title: '새 게임', back, eyebrow: `커스텀 선수 · ${custom.position} OVR`, value: custom.ovr, pad: false, progress: false, chips: [custom.name || '이름 랜덤', { label: `${custom.age}세 · ${custom.body.height}cm · ${custom.body.footKo} · 약발 ${custom.body.weakFoot}`, soft: true }] })
     : real
-    ? HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: vm.selected ? `선택한 선수 · ${vm.selected.name} OVR` : '실제 선수를 골라요', value: vm.selected ? vm.selected.ovr : '-', pad: false, progress: false, chips: [`고를 수 있는 선수 ${vm.reals.length}명`, { label: '2018-19 시즌 그대로', soft: true }] })
-    : HeroPanel({ title: '새 게임', back: { act: 'go', data: { to: 'title' } }, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
-  const modeTabs = `<span class="label">시작 방식</span>${Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' } })}`;
-  const diff = `${SectionTitle({ title: '난이도' })}<div class="opts">${vm.difficulties.map((d) =>
-    `<button type="button" class="po-option opt${d.id === vm.difficulty ? ' is-on' : ''}" data-act="form" data-k="difficulty" data-v="${d.id}"><span class="grow"><b>${esc(d.label)}</b><small>${esc(d.desc)}</small></span>${
-      d.id === 'normal' ? '<span class="rec">추천</span>' : ''}<i class="radio${d.id === vm.difficulty ? ' on' : ''}"></i></button>`).join('')}</div>`;
-  const pack = `${SectionTitle({ title: '레전드 팩', action: '선택' })}<div class="kv"><span>은퇴 레전드 ${LEGEND_TOTAL}명</span>${Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>
-    <p class="small muted">${vm.legends ? '펠레·지단·박지성 같은 레전드가 15~22세 유망주로 유스 구단(없으면 비슷한 수준 팀)에 들어와요. 30세 무렵 전성기에 닿아요.' : '켜면 2020년까지 은퇴한 레전드가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</p>`;
-  const seed = `${pack}${SectionTitle({ title: '시드', action: '선택' })}<label class="field"><input type="text" id="f-seed" maxlength="40" value="${esc(vm.seed)}" placeholder="비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과"></label>`;
-  let body: string;
-  if (custom) body = customBody(custom, diff, seed);
-  else if (!real) {
-    const cands = `<div class="opts cand-list">${vm.candidates.map((c) =>
-      `<button type="button" class="po-option opt cand${c.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${c.id}"><span class="cand-pos po-num">${c.id}</span><span class="grow"><b>${esc(c.ko)}${
-        c.wild ? ' <span class="rec wild">와일드카드</span>' : ''}</b><small class="coach-line">“${esc(c.line)}”</small></span><span class="ovr"><b class="po-num">${c.ovr}</b><small>OVR</small></span><i class="radio${c.id === vm.position ? ' on' : ''}"></i></button>`).join('')}</div>`;
-    const all = vm.others
-      ? `<div class="pos-pick">${vm.positions.map((p) => `<button type="button" class="pos-btn${p.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><b>${p.id}</b><small>${esc(p.ko)}${p.ovr !== undefined ? ` · ${p.ovr}` : ''}</small></button>`).join('')}</div>`
-      : '';
-    body = `
-      ${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
-      <p class="small muted">능력치를 보고 코치가 고른 자리예요. 어디서 시작하든 나중에 바꿀 수 있어요.</p>
-      ${cands}
-      <p class="small"><button type="button" class="link-btn" data-act="form-others">${vm.others ? '다른 포지션 접기' : '다른 포지션에서 고르기'}</button> · <button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
-      ${all}
-      <p class="small muted"><b class="ink">${esc(vm.position)}</b> · 핵심 능력치 ${esc(vm.keyAttrs)}.</p>
-      ${vm.extras ? `${SectionTitle({ title: '신체·장단점', action: '랜덤 · 숨기지 않음' })}
-      <p class="small"><b>${esc(vm.extras.body)}</b></p>
-      <div class="body-chips">${vm.extras.traits.length ? vm.extras.traits.map((t) => `<span class="cu-chip${t.kind === 'pro' ? ' is-on' : ''}" title="${esc(t.desc)}">${t.kind === 'pro' ? '장점' : '단점'} · ${esc(t.ko)}<small>${esc(t.desc)}</small></span>`).join('') : '<span class="small muted">장단점 없음</span>'}</div>` : ''}
-      ${SectionTitle({ title: '포지션별 OVR', action: '굵은 칸 = 코치 추천 4자리' })}
-      <div class="pos-table">${vm.posTable.map((p) => `<button type="button" class="pt-cell${p.cand ? ' is-cand' : ''}${p.on ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><span>${p.id}</span><b class="po-num">${p.ovr}</b></button>`).join('')}</div>
-      ${SectionTitle({ title: '능력치', action: `테두리 = ${vm.position} 핵심` })}
-      ${panel(attrGrid(vm.attrs))}
-      ${SectionTitle({ title: '이름', action: '비우면 랜덤' })}
-      <label class="field"><input type="text" id="f-name" maxlength="12" value="${esc(vm.name)}" placeholder="예: 김민준"></label>
-      ${diff}
-      ${seed}
-      <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `${vm.teamHint} 유스로 시작` })}</div>`;
-  } else {
-    body = `
-      <div class="real-list">${vm.reals.map((p) => `<button type="button" class="real-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 44, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b>${esc(p.name)}</b><small>${Crest({ name: p.club, size: 12 })} ${esc(p.club)} · ${p.age}세 · ${p.position}</small></span>${
-        TierBadge({ tier: p.tier, size: 'sm' })}<span class="ovr"><b class="po-num">${p.ovr}</b><small>OVR</small></span></button>`).join('')}</div>
-      ${vm.legends ? `${SectionTitle({ title: '레전드', action: `${LEGEND_TOTAL}명 중 GK ${LEGEND_GK}명 빼고 ${vm.legendList.length}명` })}
-      <div class="real-list legend-list">${vm.legendList.map((p) => `<button type="button" class="real-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 44, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b>${esc(p.name)} <span class="rec">레전드</span></b><small>${Crest({ name: p.club, size: 12 })} ${esc(p.club)} · ${p.age}세 · ${p.position} · 실제 유스 ${esc(p.youthKo)}</small></span><span class="ovr"><b class="po-num">${p.ovr}</b><small>전성기 ${p.peak}</small></span></button>`).join('')}</div>` : ''}
-      <p class="small muted">실제 선수는 지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요. OVR 은 시드에 따라 조금 달라져요.${vm.legends ? ' 레전드는 유스 구단에서 15~22세로 시작해요.' : ''}</p>
-      ${diff}
-      ${seed}
-      <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !vm.selected, children: vm.selected ? `${vm.selected.name}으로 시작` : '선수를 골라요' })}</div>`;
-  }
-  return `${hero}<div class="body">${modeTabs}${body}</div>`;
+    ? HeroPanel({ title: '새 게임', back, eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', value: sel ? sel.ovr : '-', pad: false, progress: false,
+      chips: sel ? [`${sel.age}세 · ${sel.club}`, { label: sel.legend ? `레전드 · 전성기 ${sel.peak}` : '2018-19 시즌 그대로', soft: true }] : [`실제 선수 ${vm.reals.length}명`, { label: vm.legends ? `레전드 ${vm.legendList.length}명` : '2018-19 시즌 그대로', soft: true }] })
+    : HeroPanel({ title: '새 게임', back, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
+  const modeTabs = Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
+  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 ? modeTabs : '', startOptions(vm, false))}</div>`;
+  if (!real) return `${hero}<div class="body ng-body">${modeTabs}${prospectBody(vm, u)}</div>`;
+  return `${hero}<div class="body ng-body">${modeTabs}${realBody(vm, u)}</div>`;
+}
+
+/** 랜덤 (디자인 130): 후보 4자리 2×2 · 코치 평 · 신체·태그 · 능력치 접힘 · 시작 옵션 */
+function prospectBody(vm: NewGameVM, u: NewGameUI): string {
+  const on = vm.candidates.find((c) => c.id === vm.position);
+  const cands = `<div class="ng-cands">${vm.candidates.map((c) =>
+    `<button type="button" class="ng-cand${c.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${c.id}" aria-pressed="${c.id === vm.position}"><span class="ng-cand__pos">${c.id}</span><b class="po-num">${c.ovr}</b><small>${esc(c.ko)}${c.wild ? ' · <em>와일드카드</em>' : ''}</small></button>`).join('')}</div>`;
+  const coach = on ? `<div class="panel coach ng-coach">${Avatar({ size: 36 })}<div><small>코치 평 · ${esc(on.id)}</small><b>“${esc(on.line)}”</b></div></div>` : '';
+  const others = vm.others
+    ? `${SectionTitle({ title: '포지션별 OVR', action: '굵은 칸 = 코치 추천 4자리' })}
+      <div class="pos-table">${vm.posTable.map((p) => `<button type="button" class="pt-cell${p.cand ? ' is-cand' : ''}${p.on ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><span>${p.id}</span><b class="po-num">${p.ovr}</b></button>`).join('')}</div>`
+    : '';
+  const x = vm.extras;
+  const extras = x ? `${SectionTitle({ title: '신체 · 태그', action: '랜덤 · 숨기지 않음' })}
+    <div class="panel ng-extras"><div class="body-stats ng-stats">
+      <div><small>키</small><b class="po-num">${x.height}<i>cm</i></b></div><div><small>몸무게</small><b class="po-num">${x.weight}<i>kg</i></b></div>
+      <div><small>주발</small><b>${esc(x.foot)}</b></div><div><small>약발</small><b class="po-num">${x.weakFoot}${x.weakFoot >= 5 ? '<i>양발</i>' : ''}</b></div></div>
+      ${x.traits.length ? `<div class="ng-traits">${x.traits.map((t) => `<span class="ng-trait">${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(t.release ? { release: t.release } : {}), desc: t.desc })}<small>${esc(t.desc)}</small></span>`).join('')}</div>` : '<p class="small muted">태그 없음</p>'}
+      <p class="small muted">랜덤은 태그 0~2개가 붙어요. 마음에 안 들면 [다른 유망주 보기].</p></div>` : '';
+  const a = vm.attrSummary;
+  const attrs = `${SectionTitle({ title: '능력치', action: a ? `강점 ${a.top}` : '' })}
+    <button type="button" class="panel ng-attrs" data-act="ng-attrs" aria-expanded="${u.attrsOpen}"><span class="grow"><b>${a ? `${a.count}개 · 평균 ${a.avg}` : '능력치'}</b><small>${a ? `약점 ${esc(a.weak)}` : ''}</small></span><span class="ng-attrs__btn">${u.attrsOpen ? '접기' : '펼치기'} ${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${u.attrsOpen ? -90 : 90}deg)` })}</span></button>
+    ${u.attrsOpen ? attrGrid(vm.attrs, null, undefined, { cols: 4, keyLabel: `${vm.position} 핵심` }) : ''}`;
+  return `${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
+    ${cands}${coach}
+    ${extras}
+    <p class="small ng-links"><button type="button" class="link-btn hi" data-act="form-others">${vm.others ? '다른 포지션 접기' : '다른 포지션에서 고르기'}</button> <button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
+    ${others}
+    ${attrs}
+    ${startOptions(vm, true)}
+    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `${vm.teamHint} 유스로 시작` })}</div>`;
+}
+
+/** 실제 선수 (디자인 131): [실제 선수 n | 레전드 n] 묶음 탭 → 고른 선수 카드 → 검색·정렬 → 포지션군 → 10명 + 더 보기 */
+function realBody(vm: NewGameVM, u: NewGameUI): string {
+  const legendTab = vm.legends && u.realTab === 'legend';
+  const tabs = vm.legends
+    ? Tabs({ items: [{ id: 'real', label: `실제 선수 ${vm.reals.length}` }, { id: 'legend', label: `레전드 ${vm.legendList.length}` }], value: legendTab ? 'legend' : 'real', variant: 'segment', fill: true, act: 'ng-real', data: { k: 'realTab' }, label: '실제 선수 묶음' })
+    : '';
+  const sel = vm.selected;
+  const card = sel ? `<div class="panel ng-sel">${Avatar({ size: 52, face: { id: sel.id, age: sel.age }, name: sel.name })}<span class="grow">${sel.legend ? '<span class="ng-legend">레전드</span> ' : ''}<small class="muted">고른 선수</small><b class="ng-sel__name">${esc(sel.name)}</b><small>${esc(sel.club)} · ${sel.age}세 · ${sel.position}${sel.youthKo ? ` · 유스 ${esc(sel.youthKo)}` : ''}</small></span><span class="ng-sel__ovr"><b class="po-num">${sel.ovr}</b>${sel.peak ? `<small class="ng-peak">전성기 ${sel.peak}</small>` : '<small>OVR</small>'}</span>
+      <p class="small muted ng-sel__note">${sel.legend ? `2018-19 세계에 ${sel.age}세로 들어와 30세 무렵 전성기에 닿아요. 실제 유스 클럽은 기록으로만 남아요.` : '지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요. OVR은 시드에 따라 조금 달라져요.'}</p></div>` : '';
+  type Row = { id: string; name: string; club: string; age: number; position: string; ovr: number; peak?: number; youthKo?: string };
+  const all: Row[] = legendTab ? vm.legendList : vm.reals;
+  const q = u.rq.trim().toLowerCase();
+  const rows = all.filter((r) => (u.rgroup === 'all' || POS_GROUP[r.position] === u.rgroup) && (!q || [r.name, r.club, r.youthKo ?? ''].some((t) => t.toLowerCase().includes(q))))
+    .sort((a, b) => (u.rsort === 'name' ? a.name.localeCompare(b.name) : u.rsort === 'age' ? a.age - b.age || b.ovr - a.ovr : u.rsort === 'peak' && legendTab ? (b.peak ?? 0) - (a.peak ?? 0) || b.ovr - a.ovr : b.ovr - a.ovr));
+  const shown = rows.slice(0, u.rshow);
+  const sorts = legendTab ? [['peak', '전성기순'], ['ovr', '지금 OVR순'], ['age', '나이순'], ['name', '이름순']] : [['ovr', 'OVR순'], ['age', '나이순'], ['name', '이름순']];
+  const sortV = !legendTab && u.rsort === 'peak' ? 'ovr' : u.rsort;
+  const search = `<div class="ng-search">${TextField({ value: u.rq, placeholder: legendTab ? '이름 · 시작 구단 · 유스' : '이름 · 소속 구단', icon: 'search', input: { id: 'f-rq', type: 'search', maxLength: 20 }, clearable: !!u.rq, onClear: { act: 'ng-real', data: { k: 'rq', v: '' } } })}
+    <label class="ng-sort">${Icon({ name: 'sliders', size: 16 })}<select id="f-rsort" aria-label="정렬">${sorts.map(([id, l]) => `<option value="${id}"${id === sortV ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>`;
+  const groups = Tabs({ items: [{ id: 'all', label: '전체' }, { id: 'fw', label: '공격' }, { id: 'mf', label: '미드' }, { id: 'df', label: '수비' }], value: u.rgroup, variant: 'segment', fill: true, act: 'ng-real', data: { k: 'rgroup' }, label: '포지션군' });
+  const row = (p: Row) => `<button type="button" class="real-row ng-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${esc(p.club)} · ${p.age}세 · ${p.position}${p.youthKo ? ` · 유스 ${esc(p.youthKo)}` : ''}</small></span>${
+    p.peak ? `<span class="ng-row__ovr"><span><b class="po-num muted">${p.ovr}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>지금 → 전성기</small></span>` : `<span class="ng-row__ovr"><b class="po-num">${p.ovr}</b><small>OVR</small></span>`}</button>`;
+  const left = rows.length - shown.length;
+  const more = left > 0 ? `<button type="button" class="dt-more ng-more" data-act="ng-real" data-k="rshow" data-v="${u.rshow + REAL_MORE}">${Icon({ name: 'chevron-right', size: 14, style: 'transform:rotate(90deg)' })}${Math.min(REAL_MORE, left)}명 더 보기 · ${left}명 남음</button>` : '';
+  const head = `<div class="ng-listhead"><b class="small">${legendTab ? `레전드 ${rows.length}명 · GK 제외` : `실제 선수 ${rows.length}명`}</b><small class="muted">${legendTab ? (sortV === 'peak' ? '전성기 OVR 높은 순' : '') : ''}</small></div>`;
+  return `${tabs}${card}${search}${groups}${head}
+    <div class="real-list">${shown.map(row).join('') || '<p class="small muted">맞는 선수가 없어요.</p>'}</div>${more}
+    ${startOptions(vm, false)}
+    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !sel, children: sel ? `${sel.name}으로 시작 · ${sel.club}` : '선수를 골라요' })}</div>`;
 }
 
 // ── 포인트 찍기 (50) ──
 
-export function allocateView(vm: AllocateVM, sel: string | null, pending: number): string {
+export function allocateView(vm: AllocateVM, sel: string | null, pending: number, rule = false): string {
+  // 디자인 113 (C.58): compact 머리말 + OVR 한 줄 + 비용 칩 + AttrGrid 4열 편집 + 아래 고정 [초기화][확정]
   const hero = HeroPanel({
-    title: '능력치 포인트', right: `Lv ${vm.level}`, back: { act: 'alloc-cancel' }, eyebrow: '남은 포인트', value: vm.points, progress: false,
+    title: '능력치 포인트', right: `Lv ${vm.level}`, back: { act: 'alloc-cancel' }, compact: true, eyebrow: '남은 포인트', value: vm.points, pad: false, progress: false,
     chips: [`보유 ${vm.points + pending}P`, { label: `이번 배분 ${pending}P`, soft: true }],
   });
-  const ovr = `<div class="panel ovr-cmp"><div><small>지금 OVR</small><b class="po-num">${vm.startOvr}</b><span>${esc(vm.position)} 기준 계산</span></div>${Icon({ name: 'chevron-right', size: 22 })}<div class="r"><small>확정하면</small><b class="po-num hi">${vm.ovr}</b><span>${vm.startExact.toFixed(1)} → ${vm.exact.toFixed(1)}</span></div></div>`;
+  const ovr = `<div class="panel al-ovr"><div><small>지금 OVR</small><b class="po-num">${vm.startOvr}</b></div>${Icon({ name: 'chevron-right', size: 18 })}<div><small>확정하면</small><b class="po-num hi">${vm.exact.toFixed(1)}</b></div><span class="al-ovr__base"><small>${esc(vm.position)} 기준</small><b class="po-num">${vm.startExact.toFixed(1)} → ${vm.exact.toFixed(1)}</b></span></div>`;
   const coach = vm.coachComment
     ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 실력이 한 단계 더 올라서면 다시 길이 열릴 거야."</b></div></div>`
     : '';
   // 찍기 한 번 = 화면 +1칸 (C.49): 비용은 지금 칸 기준 1·2·3P
-  const bands = `<div class="bands"><span>~${vm.cost1Max} <b>1칸 1P</b></span><span class="warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>1칸 2P</b></span><span class="fail">${vm.cost2Max + 1}~ <b>1칸 3P</b></span><span class="muted">실력 ${esc(vm.tierName)}(OVR) 기준 · 레벨업마다 ${BALANCE.growth.pointsPerLevel}P</span></div>`;
-  // 바둑판 (C.39): 박스를 누르면 [−]/[+]와 비용. 분류 아코디언 없이 작은 머리말만
-  return `${hero}<div class="body">${ovr}${coach}${bands}
-    <p class="small muted">능력치는 1~20으로 보여요. 박스를 누르면 [+]/[−]가 나와요. [+] 한 번 = 한 칸(+1), [−]는 한 칸씩 되돌려요. 막대(칸 안 진행)는 그대로 따라가요. 테두리 = ${esc(vm.position)} 핵심 능력치.</p>
-    ${panel(attrGrid(vm.attrs, sel))}
+  const bands = `<div class="al-bands"><span class="al-band">~${vm.cost1Max} 칸당 <b>1P</b></span><span class="al-band warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>2P</b></span><span class="al-band fail">${vm.cost2Max + 1}~ <b>3P</b></span><button type="button" class="link-btn al-rule" data-act="alloc-rule" aria-expanded="${rule}">${Icon({ name: 'info', size: 14 })} 규칙</button></div>
+    <p class="small muted al-rule-text"${rule ? '' : ' hidden'}>능력치는 1~20으로 보여요. 박스를 누르면 [−]/[+]가 나와요. [+] 한 번 = 한 칸(+1), [−]는 한 칸씩 되돌려요. 막대(칸 안 진행)는 그대로 따라가요. 비용 구간은 실력 ${esc(vm.tierName)}(OVR) 기준, 레벨업마다 ${BALANCE.growth.pointsPerLevel}P. 테두리 = ${esc(vm.position)} 핵심 능력치.</p>`;
+  return `${hero}<div class="body al-body">${ovr}${coach}${bands}
+    ${attrGrid(vm.attrs, sel, undefined, { cols: 4, keyLabel: `${vm.position} 핵심` })}
     ${Button({ variant: 'ghost', block: true, icon: 'target', act: 'auto-alloc', disabled: vm.points === 0, children: '자동 배분 (포지션 OVR 우선)' })}</div>
-    <div class="dock">${actionRow(
+    <div class="dock al-dock">${actionRow(
       Button({ variant: 'secondary', size: 'lg', block: true, icon: 'restore', act: 'alloc-reset', disabled: pending === 0, children: '초기화' }),
       Button({ size: 'lg', block: true, icon: 'check', act: 'alloc-done', children: pending ? `확정 · ${pending}P 사용` : '확정' }),
     )}</div>`;

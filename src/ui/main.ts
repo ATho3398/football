@@ -1,7 +1,7 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
-import { bodySection, tagNewsSection } from './views/body';
+import { bodySection, tagNewsSection, tagsSheet } from './views/body';
 import { buyWeakFoot, choosePreset, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
 import { autoCustom } from '../custom';
@@ -62,13 +62,13 @@ import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
-import { playerView } from './views/player';
+import { playerView, type PlayerTab } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
-import { allocateView, newGameView, retiredView, savesView, seasonView, titleView, worldView, type SeasonTab } from './views/screens';
+import { allocateView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, type SeasonTab } from './views/screens';
 import { tacticsView } from './views/tactics';
-import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
+import { contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
-import { cropStyle, lookupEntry, myPixelCard, nameEditor, settingsView, type FaceOnUI, type NameUI, type PixelUI } from './views/settings';
+import { cropStyle, lookupEntry, myLookVM, settingsView, type FaceOnUI, type NameUI, type PixelUI } from './views/settings';
 import { CARD_ART_UI_DEFAULT, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artStyle } from './components/gameCard';
@@ -171,8 +171,15 @@ const ui = {
   px: { tab: 'players', q: '', team: '', sel: null, kitSel: null } as PixelUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
-  /** 선수 화면 태그 전체 보기 (C.47) */
+  /** 선수 화면 태그 전체 시트 (C.47 → C.58 디자인 135) */
   tagsAll: false,
+  /** 선수 화면 탭 (C.58 디자인 93~96·134·136), 몸·태그 탭 이름표 편집 펼침 */
+  playerTab: 'attrs' as PlayerTab,
+  lookName: false,
+  /** 새 게임 화면 상태 (C.58): 실제 선수 묶음·검색·정렬·포지션군·보이는 수, 랜덤 능력치 펼침, 커스텀 단계 */
+  ng: { ...NEW_GAME_UI } as NewGameUI,
+  /** 포인트 찍기 규칙 펼침 (C.58) */
+  allocRule: false,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
   /** 덱 화면에서 돌아갈 곳 (C.51) */
@@ -328,7 +335,7 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined);
+      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined, ui.ng);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
     case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen());
     default: break;
@@ -369,7 +376,14 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null, ui.deckBack);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·태그', action: '키·약발·태그' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? youthClubName(g, g.player.youth.club) : '', ui.tagsAll)}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': {
+      const p = g.player;
+      const youth = p.youth ? youthClubName(g, p.youth.club) : '';
+      const body = bodySection(p, g.phase !== 'retired' && p.body.weakFoot < 5 && p.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), youth, myLookVM(g, ui.lookName),
+        p.youth && g.league.teams.some((t) => t.id === p.youth!.club) ? p.youth.club : '');
+      return playerView(playerVM(g), { tab: ui.playerTab, body, market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired' })
+        + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
+    }
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) + tagNewsSection((g.tagNews ?? []).slice(-20).reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag }))) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -390,7 +404,7 @@ function screenHtml(): string {
       const a = ui.alloc;
       if (a) {
         const pending = a.snap.unspentPoints - g.player.unspentPoints;
-        return allocateView(allocateVM(g, a.startExact, a.coach, a.snap.attributes, a.raises), a.sel, pending);
+        return allocateView(allocateVM(g, a.startExact, a.coach, a.snap.attributes, a.raises), a.sel, pending, ui.allocRule);
       }
       break;
     }
@@ -1102,6 +1116,14 @@ app.addEventListener('change', (ev) => {
     setTimeout(render, 0);
     return;
   }
+  if ((id === 'f-rq' || id === 'f-rsort') && ui.screen === 'new') {
+    // 실제 선수 검색·정렬 (C.58 디자인 131): 엔터·칸 벗어남 때 반영
+    readFormInputs();
+    const val = (ev.target as HTMLInputElement).value;
+    if (id === 'f-rq') { ui.ng.rq = val; ui.ng.rshow = 10; } else ui.ng.rsort = val as NewGameUI['rsort'];
+    setTimeout(render, 0);
+    return;
+  }
   if (id !== 'f-seed' || ui.screen !== 'new') return;
   readFormInputs();
   // 입력 칸이 blur 되는 중에 DOM 을 바꾸면 오류라 다음 틱에 그린다
@@ -1378,7 +1400,7 @@ app.addEventListener('click', (ev) => {
         ui.cardSheet = null;
       }
       if (ui.screen === 'deck' && to !== 'deck' && g) g.cards.fresh = [];
-      if (to === 'allocate' && g) enterAllocate(g, ui.screen === 'season' ? 'season' : g.phase === 'season' ? 'home' : 'season');
+      if (to === 'allocate' && g) enterAllocate(g, ui.screen === 'season' ? 'season' : ui.screen === 'player' ? 'player' : g.phase === 'season' ? 'home' : 'season');
       go(to);
       return;
     }
@@ -1404,6 +1426,40 @@ app.addEventListener('click', (ev) => {
       ui.detail.teamTab = v as TeamTab;
       render();
       if (v === 'squad') window.scrollTo(0, 0);
+      return;
+    case 'player-tab':
+      ui.playerTab = v as PlayerTab;
+      render();
+      if (el.dataset.look) requestAnimationFrame(() => document.querySelector('.pl-look')?.scrollIntoView({ block: 'center' }));
+      else window.scrollTo(0, 0);
+      return;
+    case 'cu-step':
+      readFormInputs();
+      ui.ng.cuStep = Math.max(1, Math.min(6, Number(v) || 1));
+      render();
+      window.scrollTo(0, 0);
+      return;
+    case 'ng-attrs':
+      ui.ng.attrsOpen = !ui.ng.attrsOpen;
+      render();
+      return;
+    case 'ng-real': {
+      readFormInputs();
+      const k = el.dataset.k;
+      if (k === 'realTab') { ui.ng.realTab = v === 'legend' ? 'legend' : 'real'; ui.ng.rshow = 10; ui.ng.rsort = ui.ng.realTab === 'legend' ? 'peak' : 'ovr'; }
+      else if (k === 'rgroup') { ui.ng.rgroup = v as NewGameUI['rgroup']; ui.ng.rshow = 10; }
+      else if (k === 'rshow') ui.ng.rshow = Number(v) || 10;
+      else if (k === 'rq') { ui.ng.rq = v ?? ''; ui.ng.rshow = 10; }
+      render();
+      return;
+    }
+    case 'alloc-rule':
+      ui.allocRule = !ui.allocRule;
+      render();
+      return;
+    case 'look-name':
+      ui.lookName = !ui.lookName;
+      render();
       return;
     case 'person-tab':
       ui.detail.personTab = v as PersonTab;

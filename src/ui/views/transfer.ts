@@ -114,26 +114,6 @@ export function contractView(vm: MarketVM, years: number | null): string {
   </div>`;
 }
 
-/** 선수 화면: 계약과 이적 요청 */
-export function contractSection(vm: MarketVM): string {
-  const c = vm.contract;
-  const req = vm.request;
-  return `${SectionTitle({ title: '계약과 이적', action: c.until })}
-    ${panel(`
-      <div class="ag-grid tr-grid">
-        <div class="ag-cell"><span class="ag-name">소속</span><b class="ag-v">${esc(c.team)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌</span></div>
-        <div class="ag-cell"><span class="ag-name">주급</span><b class="ag-v po-num">${esc(c.wage)}</b><span class="ag-cost">연 ${esc(c.annual)}</span></div>
-        <div class="ag-cell"><span class="ag-name">팀 전력</span><b class="ag-v po-num">${vm.rating}</b><span class="ag-cost">재정 ${esc(vm.tier)} · 내 OVR ${vm.ovr}</span></div>
-        <div class="ag-cell"><span class="ag-name">몸값</span><b class="ag-v po-num">${esc(vm.value)}</b><span class="ag-cost">남은 ${c.yearsLeft}시즌 기준 · 바이아웃 ${esc(c.buyout)}</span></div>
-      </div>
-      ${c.loan ? `<p class="small">${esc(c.loan)}</p>` : ''}
-      ${req.status ? `<p class="small"><b>${esc(req.status)}</b></p>` : ''}
-      <div class="kv"><span class="small ${req.ok ? '' : 'muted'}">${esc(req.reason)}${req.chance !== null ? ` · 구단이 놓아줄 확률 ${req.chance}%` : ''}</span>
-        ${Button({ size: 'sm', variant: req.ok ? 'primary' : 'secondary', act: 'transfer-request', disabled: !req.ok, children: '이적 요청' })}</div>
-      ${vm.moves.length ? `<p class="small muted">커리어 이적: ${vm.moves.map((m) => `${esc(m.season)} ${esc(m.text)}`).join(' · ')}</p>` : ''}
-      <span class="muted small">연봉은 계산해 보여 주기만 해요(돈은 재정 단계). 이적 요청은 선발·출전 시간이 부족하거나 위상이 팀 수준을 넘을 때 할 수 있어요(감독 신뢰도가 생기면 바뀌어요).</span>`)}`;
-}
-
 /** 월드 "이적 소식" */
 export function newsSection(vm: NewsVM | null): string {
   if (!vm) return '<p class="small muted">아직 이적시장이 열리지 않았어요. 겨울(1월)과 여름(비시즌)에 선수들이 움직여요.</p>';

@@ -635,6 +635,8 @@ export interface AttrRowVM { label: string; value: number; key: boolean }
 export interface PlayerVM {
   /** 소속 팀 상세 링크 (C.53) */
   teamId: string;
+  /** 미페 머리말 등번호 (C.58) */
+  kit: number;
   face: FaceRef;
   name: string; position: string; positionKo: string; age: number; ovr: number; team: string;
   tier: DesignTier; tierName: string; reputation: number; repMax: number;
@@ -696,10 +698,17 @@ export function positionOptionsVM(g: GameState): PositionOptionVM[] {
   }).sort((a, b) => Number(b.current) - Number(a.current) || b.ovr - a.ovr);
 }
 
-const GROUP_NAMES_KO: Record<AttributeGroup, string> = {
-  ballHandling: '볼 다루기', finishing: '마무리', passing: '패스·시야', defending: '수비',
-  pace: '스피드·민첩', physical: '피지컬', mental: '멘탈',
-};
+/** 화면 표시 묶음 (C.58 디자인 93, 5-apply 확인 필요 2 = 디자인대로): 몸 다루기 · 마무리 · 패스·시야 · 수비 · 스피드 · 피지컬 · 정신.
+ *  민첩성은 표시만 몸 다루기 칸에 둔다 — 훈련 게이지·성장 묶음(ATTRIBUTE_GROUPS)은 그대로 */
+export const DISPLAY_GROUPS: readonly { name: string; attrs: readonly FieldAttribute[] }[] = [
+  { name: '몸 다루기', attrs: ['dribbling', 'ballControl', 'agility'] },
+  { name: '마무리', attrs: ATTRIBUTE_GROUPS.finishing },
+  { name: '패스·시야', attrs: ATTRIBUTE_GROUPS.passing },
+  { name: '수비', attrs: ATTRIBUTE_GROUPS.defending },
+  { name: '스피드', attrs: ['pace', 'acceleration'] },
+  { name: '피지컬', attrs: ATTRIBUTE_GROUPS.physical },
+  { name: '정신', attrs: ATTRIBUTE_GROUPS.mental },
+];
 
 function historyVM(g: GameState): HistoryRowVM[] {
   return g.player.history.map((r) => ({
@@ -710,9 +719,9 @@ function historyVM(g: GameState): HistoryRowVM[] {
 
 /** 능력치 바둑판 (C.39): 분류별 박스. base 가 있으면 변화 = 지금 − base */
 export function attrGroupsVM(attrs: FieldAttributes, keys: readonly FieldAttribute[], base?: FieldAttributes): AttrGroupVM[] {
-  return GROUP_NAMES.map((grp) => ({
-    name: GROUP_NAMES_KO[grp],
-    cells: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => ({
+  return DISPLAY_GROUPS.map((grp) => ({
+    name: grp.name,
+    cells: grp.attrs.map((a) => ({
       attr: a, label: ATTRIBUTE_NAMES_KO[a], value: attrs[a], ...(base ? { base: base[a] } : {}), key: keys.includes(a),
     })),
   }));
@@ -726,7 +735,7 @@ export function playerVM(g: GameState): PlayerVM {
   const nx = nextReputationTier(p.reputation, p.honors);
   const fx = g.phase === 'season' ? nextFixture(g) : null;
   return {
-    face: myFace(g),
+    face: myFace(g), kit: myShirt(g),
     name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
     team: teamById(g.league, p.teamId).nameKo, teamId: p.teamId,
     tier: designTier(tier), tierName: TIER_NAMES_KO[tier], reputation: p.reputation, repMax: BALANCE.reputation.max,
@@ -771,9 +780,9 @@ export function allocateVM(g: GameState, startExact: number, coachComment: boole
     points: p.unspentPoints, position: p.position, startOvr: Math.round(startExact), startExact,
     ovr: playerOvr(p), exact: positionOvrExact(p.attributes, p.position),
     level: p.level, tierName: TIER_NAMES_KO[tier], cost1Max: attrDisplay(band.cost1Max), cost2Max: attrDisplay(band.cost2Max), coachComment,
-    groups: GROUP_NAMES.map((grp) => ({
-      name: GROUP_NAMES_KO[grp],
-      rows: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => {
+    groups: DISPLAY_GROUPS.map((grp) => ({
+      name: grp.name,
+      rows: grp.attrs.map((a) => {
         const v = p.attributes[a];
         const maxed = isMaxed(v);
         const w = attributeOvrWeight(p.position, a);
@@ -1345,14 +1354,21 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       id: d, label: D[d].label,
       desc: d === 'normal' ? 'XP·평점·부상 모두 기본값' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
-    seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null, legends: legendsOn, legendList,
+    seed: f.seed, reals, realId: f.realId, legends: legendsOn, legendList,
+    selected: sel ? { id: sel.id, name: sel.name, ovr: sel.ovr, club: sel.club, age: sel.age, position: sel.position, ...(legendSel ? { legend: true, peak: legendSel.peak, youthKo: legendSel.youthKo } : {}) } : null,
+    // 능력치 접힘 줄 (디자인 130): 개수 · 평균(1~20) · 약점 3개
+    attrSummary: prospect ? (() => {
+      const xs = [...FIELD_ATTRIBUTES].sort((a, b) => prospect.attributes[a] - prospect.attributes[b]);
+      const avg = xs.reduce((t, a) => t + attrDisplay(prospect.attributes[a]), 0) / xs.length;
+      return { count: xs.length, avg: avg.toFixed(1), weak: xs.slice(0, 3).map((a) => `${ATTRIBUTE_NAMES_KO[a]} ${attrDisplay(prospect.attributes[a])}`).join(' · '), top: [...xs].reverse().slice(0, 2).map((a) => `${ATTRIBUTE_NAMES_KO[a]} ${attrDisplay(prospect.attributes[a])}`).join(' · ') };
+    })() : null,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,
     // 랜덤 유망주의 신체·장단점 (C.45, 숨기지 않음)
     extras: prospect ? (() => {
       const x = prospectExtras(f.roll, f.position as PlayablePosition);
       return {
-        body: `${x.body.height} cm · ${x.body.weight} kg · ${FOOT_KO[x.body.foot]} · 약발 ${x.body.weakFoot}${x.body.weakFoot >= 5 ? ' (양발)' : ''}`,
-        traits: x.tags.map((t) => ({ ko: `${TAGS[t.id].ko}${t.perm ? '' : ' (해제형)'}`, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const })),
+        height: x.body.height, weight: x.body.weight, foot: FOOT_KO[x.body.foot], weakFoot: x.body.weakFoot,
+        traits: x.tags.map((t) => ({ ko: TAGS[t.id].ko, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const, ...(!t.perm && TAGS[t.id].removeDesc ? { release: `${TAGS[t.id].removeDesc}이면 사라짐` } : {}) })),
       };
     })() : null,
   };

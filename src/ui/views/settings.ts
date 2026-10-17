@@ -11,6 +11,7 @@ import {
   AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
+import type { LookVM } from './body';
 import { panel, versionFooter } from './common';
 import {
   pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO,
@@ -104,13 +105,23 @@ export function pixelPersonEditor(g: GameState, id: string, name: string): strin
   </div>`;
 }
 
-/** 선수 화면: 내 선수 경기 아이콘 → 설정의 같은 선택창 */
-export function myPixelCard(g: GameState): string {
-  const id = myFace(g).id;
-  const kit = homeKitOf(g, id);
-  return panel(`<div class="fo-edit"><div class="fo-big px-big">${pixelIconHtml(pixelLayerUrls(playerPerson(g, id), kit), 3, g.player.name)}</div>
-    <div class="grow"><small class="muted">경기 화면 캐릭터 보기에서 보이는 내 선수 모습이에요.</small></div>
-    ${Button({ variant: 'secondary', size: 'sm', icon: 'player', act: 'px-open-me', children: '바꾸기' })}</div>`);
+/** 선수 화면 "몸·태그" 탭의 내 모습 줄 (C.58 디자인 134): 얼굴 · 경기 아이콘 → 설정의 같은 선택창, 이름표 = 펼치면 같은 이름 칸 */
+export function myLookVM(g: GameState, nameOpen: boolean): LookVM {
+  const face = myFace(g);
+  const id = face.id;
+  const o = g.nameOverrides[id] ?? {};
+  const auto = autoShortNames(g).get(id) ?? g.player.name;
+  const own = !!g.pixelOverrides?.players?.[id];
+  return {
+    faceKey: `p:${id}`,
+    avatar: Avatar({ size: 44, face, name: g.player.name }),
+    faceNote: faceOnKeys().some((k) => k.key === `p:${id}`) ? '직접 올린 사진 · 나이대 칸' : '기본 얼굴 · 나이대 3칸',
+    pixel: `<span class="pl-px">${pixelIconHtml(pixelLayerUrls(playerPerson(g, id), homeKitOf(g, id)), 2, g.player.name)}</span>`,
+    pixelNote: `${own ? '직접 고름' : '자동'} · ${teamById(g.league, g.player.teamId).nameKo} 홈 유니폼 · 캐릭터 보기에서 보여요`,
+    label: o.nickname || o.shortName || auto,
+    labelNote: o.nickname ? '별명' : o.shortName ? '짧은 이름' : '별명 없음 · 짧은 이름 자동',
+    nameEditor: nameOpen ? nameEditor(g, id) : null,
+  };
 }
 
 interface KitTeam { id: string; name: string; sub: string }
