@@ -9,7 +9,7 @@ import { cardRole, cardText } from '../../engine/cards';
 import { myMatchPosition, type GameState } from '../../game';
 import { previewLineup } from '../../myTactics';
 import { ROLE_NAMES_KO } from '../../engine/roles';
-import { BottomSheet, Button, GameCard, HeroPanel, SectionTitle, Tabs, esc, type GameCardData } from '../components';
+import { BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
 import { cardArtPos, cardArtUrl } from '../cardArt';
 
@@ -188,6 +188,11 @@ export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null, back: 'ho
 
 /** 홈 "카드 덱" 줄 */
 export function deckHomeSection(vm: { active: number; count: number; unusable: number; picks: number }): string {
+  // C.57 (홈 한 화면): 알릴 것이 없으면 오늘 훈련 줄과 같은 한 줄
+  if (!vm.unusable && !vm.picks) {
+    return `<button type="button" class="panel hm-train" data-act="go" data-to="deck"><span class="hm-train__icon">${Icon({ name: 'deck', size: 20 })}</span>
+      <span class="hm-train__body"><small>카드 덱</small><b>덱 ${vm.active + 1} · ${vm.count}장</b><span>덱 편집</span></span>${Icon({ name: 'chevron-right', size: 18 })}</button>`;
+  }
   return `${SectionTitle({ title: '카드 덱', action: `덱 ${vm.active + 1} · ${vm.count}장` })}${panel(`
     ${vm.unusable ? `<p class="small dk-warn">이 덱에 지금 못 쓰는 카드 ${vm.unusable}장 (포지션·능력치·역할 요건)</p>` : ''}
     ${vm.picks ? `<p class="small"><b>카드 선택 ${vm.picks}개</b>를 받을 수 있어요.</p>` : ''}

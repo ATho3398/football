@@ -29,19 +29,21 @@ const NEAR_SLOTS: Readonly<Record<AgeSlot, readonly AgeSlot[]>> = {
   young: ['young', 'prime', 'veteran'], prime: ['prime', 'young', 'veteran'], veteran: ['veteran', 'prime', 'young'],
 };
 
-interface PhotoEntry { file: string; source?: string; page?: string; title?: string }
+interface PhotoEntry { file: string; source?: string; page?: string; title?: string; /** 배경 없는 사진 (C.57) */ cutout?: boolean }
 interface PhotoManifest { players?: Record<string, PhotoEntry>; clubs?: Record<string, PhotoEntry> }
 interface BaseEntry { file: string; appearance: Appearance }
 
 /** IndexedDB 에 담는 페이스온 한 건 (키 `face:<p:선수 id | t:팀 id>`) */
-export interface FaceOnRecord { name: string; slots: Partial<Record<FaceSlot, Blob>>; updated: number }
+export interface FaceOnRecord { name: string; slots: Partial<Record<FaceSlot, Blob>>; updated: number;
+  /** 배경 없는 사진(누끼, C.57): 미페 머리말에서 디자인 그대로(네모로 감싸지 않음). 업로드 때 켬/끔, 기본 끔 */
+  cutout?: boolean }
 
 const FACEPACK_DIR = 'facepack/';
 const BASE_DIR = 'faces/base/';
 const PIXEL_DIR = 'faces/pixel/';
 
 const state = {
-  photos: { players: {} as Record<string, string>, clubs: {} as Record<string, string> },
+  photos: { players: {} as Record<string, string>, clubs: {} as Record<string, string>, cutout: new Set<string>() },
   base: [] as BaseEntry[],
   /** 도트 얼굴 (캐릭터 보기): 선수 id → 파일, 외모군 → 파일 목록 */
   pixel: { players: {} as Record<string, string>, appearance: {} as Partial<Record<Appearance, string[]>> },
@@ -51,7 +53,7 @@ const state = {
     players: {} as Record<string, PixelPerson>, personTop: false,
   },
   /** 키 → 칸 → object URL */
-  faceOn: new Map<string, { name: string; urls: Partial<Record<FaceSlot, string>> }>(),
+  faceOn: new Map<string, { name: string; urls: Partial<Record<FaceSlot, string>>; cutout?: boolean }>(),
   ready: false,
 };
 
@@ -102,6 +104,34 @@ export function faceSrc(ref: FaceRef): string | undefined {
     if (list.length) return BASE_DIR + list[hashSeed(`face:${ref.id}`) % list.length]!.file;
   }
   return undefined;
+}
+
+/**
+ * 미페 머리말 사진 (C.57, B-apply 2절): 페이스온(사용자 업로드) > 레포 사진(facepack) > 없음(기본 얼굴은 쓰지 않음 → 일반 B 머리말).
+ * 투명 판정은 이미지 알파로 하지 않는다(facepack png도 RGBA) — 페이스온 "배경 없는 사진" 표시나 매니페스트 cutout: true 일 때만
+ */
+export function heroFaceOf(ref: FaceRef): { src: string; cutout: boolean } | null {
+  const on = state.faceOn.get(`p:${ref.id}`);
+  if (on) {
+    for (const s of NEAR_SLOTS[ageSlot(ref.age ?? 25)]) if (on.urls[s]) return { src: on.urls[s]!, cutout: !!on.cutout };
+  }
+  const photo = state.photos.players[ref.id];
+  return photo ? { src: photo, cutout: state.photos.cutout.has(ref.id) } : null;
+}
+
+/** 페이스온 "배경 없는 사진" 표시 (C.57) */
+export function faceOnCutout(key: string): boolean {
+  return !!state.faceOn.get(key)?.cutout;
+}
+
+export async function setFaceOnCutout(key: string, on: boolean): Promise<void> {
+  const store = storeBackend();
+  const rec = await store.get<FaceOnRecord>(`face:${key}`);
+  if (!rec) return;
+  if (on) rec.cutout = true;
+  else delete rec.cutout;
+  await store.put(`face:${key}`, rec);
+  applyRecord(key, rec);
 }
 
 /** 도트 얼굴 (캐릭터 보기): 선수 지정 > 외모군 중 선수 id 시드로 1장. 없으면 undefined (등번호로 대체) */
@@ -245,7 +275,10 @@ export async function initFaces(): Promise<void> {
     fetchJson<PixelManifest>(`${PIXEL_DIR}manifest.json`),
   ]);
   if (xm) applyPixelManifest(xm);
-  for (const [id, e] of Object.entries(pm?.players ?? {})) state.photos.players[id] = FACEPACK_DIR + e.file;
+  for (const [id, e] of Object.entries(pm?.players ?? {})) {
+    state.photos.players[id] = FACEPACK_DIR + e.file;
+    if (e.cutout === true) state.photos.cutout.add(id);
+  }
   for (const [id, e] of Object.entries(pm?.clubs ?? {})) state.photos.clubs[id] = FACEPACK_DIR + e.file;
   state.base = (bm?.faces ?? []).filter((f) => f && typeof f.file === 'string' && typeof f.appearance === 'string');
   try {
@@ -301,7 +334,7 @@ function applyRecord(key: string, rec: FaceOnRecord): void {
   for (const u of Object.values(old?.urls ?? {})) if (u) URL.revokeObjectURL(u);
   const urls: Partial<Record<FaceSlot, string>> = {};
   for (const [s, b] of Object.entries(rec.slots)) if (b) urls[s as FaceSlot] = URL.createObjectURL(b);
-  if (Object.keys(urls).length) state.faceOn.set(key, { name: rec.name, urls });
+  if (Object.keys(urls).length) state.faceOn.set(key, { name: rec.name, urls, ...(rec.cutout ? { cutout: true } : {}) });
   else state.faceOn.delete(key);
 }
 
@@ -387,14 +420,14 @@ const safeName = (s: string): string => s.replace(/[\\/:*?"<>|@]+/g, ' ').trim()
 export async function exportFacepack(): Promise<Blob> {
   const { writeZip } = await import('./zip');
   const entries: { name: string; data: Uint8Array }[] = [];
-  const index: { key: string; name: string; slot: FaceSlot; file: string }[] = [];
+  const index: { key: string; name: string; slot: FaceSlot; file: string; cutout?: boolean }[] = [];
   for (const [key, rec] of await allFaceOn()) {
     const club = key.startsWith('t:');
     for (const [slot, blob] of Object.entries(rec.slots)) {
       if (!blob) continue;
       const file = `${club ? 'clubs' : 'players'}/${safeName(rec.name)}__${key.slice(2)}${club ? '' : `@${slot}`}.${extOf(blob.type)}`;
       entries.push({ name: file, data: new Uint8Array(await blob.arrayBuffer()) });
-      index.push({ key, name: rec.name, slot: slot as FaceSlot, file });
+      index.push({ key, name: rec.name, slot: slot as FaceSlot, file, ...(rec.cutout ? { cutout: true } : {}) });
     }
   }
   entries.push({ name: 'facepack.json', data: new TextEncoder().encode(JSON.stringify({ version: 1, entries: index }, null, 1)) });
@@ -417,15 +450,15 @@ export async function importFacepack(file: Blob, nameOf: (key: string) => string
   const files = all.filter((f) => !f.name.startsWith('cards/') && f.name !== 'cardart.json');
   const byName = new Map(files.map((f) => [f.name, f]));
   const meta = byName.get('facepack.json');
-  const jobs: { key: string; name: string; slot: FaceSlot; data: Uint8Array; file: string }[] = [];
+  const jobs: { key: string; name: string; slot: FaceSlot; data: Uint8Array; file: string; cutout?: boolean }[] = [];
   const skipped: string[] = [];
   const known = new Set<string>();
   if (meta) {
-    const idx = JSON.parse(new TextDecoder().decode(meta.data)) as { entries?: { key: string; name: string; slot: FaceSlot; file: string }[] };
+    const idx = JSON.parse(new TextDecoder().decode(meta.data)) as { entries?: { key: string; name: string; slot: FaceSlot; file: string; cutout?: boolean }[] };
     for (const e of idx.entries ?? []) {
       const f = byName.get(e.file);
       if (f && SLOT_SET.has(e.slot) && /^[pt]:/.test(e.key)) {
-        jobs.push({ key: e.key, name: e.name, slot: e.slot, data: f.data, file: e.file });
+        jobs.push({ key: e.key, name: e.name, slot: e.slot, data: f.data, file: e.file, ...(e.cutout ? { cutout: true } : {}) });
         known.add(e.file);
       }
     }
@@ -472,6 +505,7 @@ export async function importFacepack(file: Blob, nameOf: (key: string) => string
       const club = j.key.startsWith('t:');
       const blob = await squareToBlob(img, { zoom: 1, x: 0, y: 0 }, club ? 160 : 256, club ? 'center' : 'bottom');
       await setFaceOn(j.key, j.name, j.slot, blob);
+      if (j.cutout) await setFaceOnCutout(j.key, true);
       added++;
     } catch {
       skipped.push(j.file);

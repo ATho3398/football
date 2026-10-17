@@ -65,12 +65,59 @@ export interface HeroPanelProps {
   children?: string;
   /** 작은 머리말 (C.39 홈: 큰 숫자를 줄인다) */
   compact?: boolean;
+  /** B 테마 미페 머리말 (C.57, B-apply 2절): 사진 주소. 없으면 일반 머리말 */
+  face?: string;
+  /** 배경 없는 사진(누끼)이면 true → 디자인 그대로, 아니면 네모 사진을 같은 자리에 */
+  cutout?: boolean;
+  /** 등번호 (두 자리면 작게) */
+  kit?: number | string;
+  /** 큰 이름 (Black Han Sans, 길면 글자 크기를 줄인다) */
+  name?: string;
+  /** OVR 아래 작은 글자 ("OVR · LW") */
+  unit?: string;
+}
+
+/** 미페 머리말 이름 칸 폭(폰 390: left 16 ~ right 130)과 글자 크기: 풀 50 · compact 36 → 최소 24px (B-apply 2절) */
+export const HERO_NAME = { width: 244, full: 50, compact: 36, min: 24 } as const;
+
+/** Black Han Sans 글자 폭 근사(em): 한글 0.83 · 공백 0.3 · 라틴·숫자 0.56 · 그 밖 0.5. 실측 손흥민 50px = 125px, 바스티안 슈바인슈타이거 ≈ 25.8px에서 244px */
+export function heroNameEm(name: string): number {
+  let w = 0;
+  for (const ch of name) w += /[\uac00-\ud7a3]/.test(ch) ? 0.83 : ch === ' ' ? 0.3 : /[A-Za-z0-9]/.test(ch) ? 0.56 : 0.5;
+  return w;
+}
+
+/** 이름이 칸에 맞는 글자 크기 (정수 px, base → min). 화면에서는 그린 뒤 실제 폭으로 한 번 더 맞춘다 (main.ts fitHeroNames) */
+export function heroNameSize(name: string, compact = false, width: number = HERO_NAME.width): number {
+  const base = compact ? HERO_NAME.compact : HERO_NAME.full;
+  const em = heroNameEm(name);
+  return em <= 0 ? base : Math.max(HERO_NAME.min, Math.min(base, Math.floor(width / em)));
 }
 
 /** 글자 머리말 판별 (bundle.js HeroPanel): 숫자·기호·단위 한 글자 말고 다른 글자가 있으면 글자 값 (48px 한 줄, compact 22px) */
 export const heroIsText = (v: unknown): boolean => typeof v === 'string' && /[^0-9.,:/%+\-−·× ]/.test(v.replace(/[위세점명P일R골개]$/, ''));
 
+function faceHero(p: HeroPanelProps): string {
+  const kit = p.kit != null ? String(p.kit) : '';
+  const back = p.back
+    ? `<button type="button" class="po-hero__back" aria-label="뒤로"${actAttrs(p.back)}>${Icon({ name: 'chevron-right', size: 18, strokeWidth: 2.4, style: 'transform:scaleX(-1)' })}</button>`
+    : '<span></span>';
+  const name = p.name ?? '';
+  const size = heroNameSize(name, p.compact);
+  const chips = p.chips
+    ? `<div class="po-hero__chips">${p.chips.map((c) => {
+      const ch = typeof c === 'string' ? { label: c } : c;
+      return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
+    }).join('')}</div>`
+    : '';
+  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square')}">${
+    kit ? `<span class="${cx('po-hero__kit po-num', kit.length > 1 && 'is-two')}" aria-hidden="true">${esc(kit)}</span>` : ''}<img class="${cx('po-hero__face', !p.cutout && 'is-square')}" src="${esc(p.face!)}" alt="${esc(name)}"><span class="po-hero__line" aria-hidden="true"></span><span class="po-hero__slab" aria-hidden="true"></span><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div><div class="po-hero__who">${
+    p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}<span class="po-hero__name" data-fit="${p.compact ? HERO_NAME.compact : HERO_NAME.full}" style="font-size:${size}px;line-height:${Math.round(size * 1.08)}px">${esc(name)}</span>${chips}</div>${
+    p.value != null ? `<div class="po-hero__num"><span class="po-hero__value po-num">${esc(p.value)}</span>${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${p.children ?? ''}</section>`;
+}
+
 export function HeroPanel(p: HeroPanelProps): string {
+  if (p.face) return faceHero(p);
   const pct = p.total ? Math.round((Number(p.value) / p.total) * 100) : null;
   const val = typeof p.value === 'number' && p.pad !== false ? String(p.value).padStart(2, '0') : p.value;
   const isText = heroIsText(val);
@@ -136,12 +183,14 @@ export function BottomSheet(p: BottomSheetProps): string {
   return p.inline ? sheet : `<div class="po-overlay po-overlay--sheet" data-overlay="1"${actAttrs(p.onClose ?? {})}>${sheet}</div>`;
 }
 
-export interface ModalProps { title: string; children?: string; icon?: IconName; tone?: 'info' | 'warning' | 'danger'; actions?: string[]; open?: boolean; inline?: boolean; onClose?: Action }
+export interface ModalProps { title: string; children?: string; icon?: IconName; tone?: 'info' | 'warning' | 'danger'; actions?: string[]; open?: boolean; inline?: boolean; onClose?: Action;
+  /** 제목 아래 작은 꼬리표 (디자인 65 "새 기능") */
+  badge?: string }
 
 export function Modal(p: ModalProps): string {
   if (p.open === false) return '';
   const box = `<div class="po-modal" role="dialog" aria-modal="${!p.inline}" aria-label="${esc(p.title)}">${
-    p.icon ? `<span class="po-modal__icon po-modal__icon--${p.tone ?? 'info'}">${Icon({ name: p.icon, size: 24 })}</span>` : ''}<b class="po-modal__title">${esc(p.title)}</b>${
+    p.icon ? `<span class="po-modal__icon po-modal__icon--${p.tone ?? 'info'}">${Icon({ name: p.icon, size: 24 })}</span>` : ''}<b class="po-modal__title">${esc(p.title)}</b>${p.badge ? `<span class="po-modal__badge">${esc(p.badge)}</span>` : ''}${
     p.children ? `<div class="po-modal__body">${esc(p.children)}</div>` : ''}${p.actions ? `<div class="po-modal__actions">${p.actions.join('')}</div>` : ''}</div>`;
   return p.inline ? box : `<div class="po-overlay" data-overlay="1"${actAttrs(p.onClose ?? {})}>${box}</div>`;
 }

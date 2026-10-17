@@ -1,8 +1,8 @@
-// 이적 쪽 컴포넌트 (부록 C.54, bundle.js 옮김): 재정 등급 칩 FinChip · OfferCard · TransferRow.
+// 이적 쪽 컴포넌트 (부록 C.54, bundle.js 옮김): 재정 등급 칩 FinChip · OfferCard · TransferRow. 훈련 주간 칸 DayCell (C.57).
 // 요청 6 새 props: OfferCard tier·fee·homeClub, TransferRow fee·toTier. 화면 연결은 U5-f(34o) 패치가 한다
 
-import { Avatar, Button, Crest, Icon } from './basic';
-import { cx, esc, type Action } from './html';
+import { Avatar, Button, Crest, Icon, type IconName } from './basic';
+import { actAttrs, cx, esc, type Action } from './html';
 
 // ── 재정 등급 칩 (4단 막대 + 글자, 색 없음) ──
 
@@ -62,4 +62,37 @@ export function TransferRow(p: TransferRowProps): string {
   return `<div class="${cx('po-xfer', p.mine && 'is-mine')}">${Avatar({ ...(p.avatar ? { src: p.avatar } : {}), name: p.name, size: 40 })}<span class="po-xfer__main"><span class="po-xfer__name"><b>${esc(p.name)}</b><span class="po-xfer__pos">${esc(p.pos)}</span><span class="po-num">${p.age}세</span></span><span class="po-xfer__move">${
     Crest({ name: p.from, size: 14, color: 'var(--ink-faint)' })}<span>${esc(p.from)}</span>${Icon({ name: 'chevron-right', size: 12, strokeWidth: 2.6 })}${Crest({ name: to, size: 14 })}<b>${esc(to)}</b>${FinChip(p.toTier, true)}</span>${
     p.fee != null ? `<span class="po-xfer__fee">몸값 <b class="po-num">${esc(p.fee)}</b></span>` : ''}</span><span class="po-xfer__side"><b class="po-num">${p.ovr}</b><span>${esc(p.status ?? '')}</span></span></div>`;
+}
+
+// ── DayCell (디자인 91, 요청 5): 주간 훈련 7칸의 한 칸. 요일 · 날짜 · 아이콘 · 2글자 이름. 숫자는 시트에서 ──
+
+export interface DayCellProps {
+  kind?: 'train' | 'rest' | 'match';
+  /** "월" */
+  day: string;
+  /** "9.17" */
+  date: string;
+  icon?: IconName;
+  /** 2글자 ("기술") */
+  label: string;
+  today?: boolean;
+  /** 경기 다음 날 휴식 고정 (작은 자물쇠) */
+  fixed?: boolean;
+  past?: boolean;
+  selected?: boolean;
+  /** 누르면 동작 (없으면 div) */
+  act?: Action;
+  ariaLabel?: string;
+  className?: string;
+}
+
+export function DayCell(p: DayCellProps): string {
+  const kind = p.kind ?? 'train';
+  const icon = p.icon ?? (kind === 'match' ? 'ball' : kind === 'rest' ? 'rest' : 'train');
+  const cls = cx('po-day', `po-day--${kind}`, p.today && 'is-today', p.selected && 'is-selected', p.fixed && 'is-fixed', p.past && 'is-past', p.className);
+  const body = `<span class="po-day__dow">${esc(p.day)}</span><b class="po-day__date po-num">${esc(p.date)}</b><span class="po-day__icon">${Icon({ name: icon, size: 18 })}${
+    p.fixed ? `<span class="po-day__lock">${Icon({ name: 'lock', size: 9, strokeWidth: 2.8 })}</span>` : ''}</span><span class="po-day__label">${esc(p.label)}</span>${p.today ? '<span class="po-day__today">오늘</span>' : ''}`;
+  return p.act
+    ? `<button type="button" class="${cls}"${actAttrs(p.act)}${p.ariaLabel ? ` aria-label="${esc(p.ariaLabel)}"` : ''}>${body}</button>`
+    : `<div class="${cls}"${p.ariaLabel ? ` aria-label="${esc(p.ariaLabel)}"` : ''}>${body}</div>`;
 }

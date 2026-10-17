@@ -1,7 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
-import { prospectExtras } from '../game';
+import { myShirt, prospectExtras } from '../game';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
@@ -208,6 +208,29 @@ export interface HomeVM {
   training: TrainingVM | null;
   /** 비시즌 휴가가 끝나는 소집일 (개막 7일 전, C.41) */
   camp: string | null;
+  /** 미페 머리말 (C.57, 디자인 B 86·132): 등번호 · 소속 줄 · 포지션 */
+  kit: number;
+  team: string;
+  /** 다음 내 경기 날짜 ("9월 22일 (토)") */
+  nextDate: string | null;
+  /** 1군 테스트 띠 (C.45, 디자인 132) */
+  trial: TrialVM | null;
+}
+
+export interface TrialVM {
+  team: string;
+  /** 지금까지 치른 경기 / 필요한 경기 (연장이면 최대) */
+  games: number;
+  need: number;
+  extended: boolean;
+  avg: number | null;
+  goals: number;
+  assists: number;
+  /** 경기 칸: 치른 경기는 평점, 다음 경기는 상대 이름만 */
+  cells: { label: string; rating: number | null; next: boolean }[];
+  pass: number;
+  cut: number;
+  maxGames: number;
 }
 
 export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
@@ -342,6 +365,30 @@ export function homeVM(g: GameState): HomeVM {
     points: visiblePoints(g),
     training: trainingVM(g),
     camp: g.phase === 'offseason' ? campLabel(g) : null,
+    kit: myShirt(g),
+    team: teamById(g.league, p.teamId).nameKo,
+    nextDate: dayVM(g)?.upcoming.find((u) => u.kind === 'home' || u.kind === 'away')?.date ?? null,
+    trial: trialVM(g),
+  };
+}
+
+/** 1군 테스트 (C.45): 치른 경기 = 테스트 팀 경기 기록 중 마지막 games 개 (테스트 중에는 출전 보장) */
+export function trialVM(g: GameState): TrialVM | null {
+  const t = g.trial;
+  if (!t) return null;
+  const S = BALANCE.startClub;
+  const need = t.extended ? S.trialMaxGames : S.trialGames;
+  const played = g.matchLog.filter((m) => m.minutes > 0).slice(-t.games);
+  const cells: TrialVM['cells'] = played.map((m) => ({ label: `${m.round}R ${teamById(g.league, m.opponentId).nameKo}`, rating: m.rating, next: false }));
+  const fx = g.phase === 'season' ? nextFixture(g) : null;
+  for (let i = cells.length; i < need; i++) {
+    const r = Math.min(g.league.round + 1 + (i - cells.length), g.league.schedule.length);
+    cells.push({ label: i === cells.length && fx ? `${r}R ${teamById(g.league, fx.opponentId).nameKo}` : `${r}R`, rating: null, next: i === played.length });
+  }
+  const avg = t.ratings.length ? t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length : null;
+  return {
+    team: teamById(g.league, t.teamId).nameKo, games: t.games, need, extended: t.extended, avg, goals: t.goals, assists: t.assists,
+    cells, pass: S.greatRating, cut: S.badRating, maxGames: S.trialMaxGames,
   };
 }
 

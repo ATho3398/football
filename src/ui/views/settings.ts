@@ -8,7 +8,7 @@ import type { GameState } from '../../game';
 import { clubKo, teamById } from '../../league';
 import { Avatar, Button, Crest, esc, HeroPanel, SectionTitle, Tabs } from '../components';
 import {
-  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
+  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import { panel, versionFooter } from './common';
@@ -280,6 +280,7 @@ function editor(g: GameState | null, e: Entry): string {
   return panel(`<div class="fo-edit"><div class="fo-big">${Avatar({ size: 96, face, name: e.name, ring: true })}</div>
     <div class="grow"><b>${esc(e.name)}</b><small>${esc(e.sub)}</small><small class="muted">${esc(where)}</small></div></div>
     <div class="fo-slots">${cells}</div>
+    ${Object.keys(urls).length ? `<div class="kv fo-cutout"><span class="small"><b>배경 없는 사진</b> · 켜면 홈·선수 머리말에 사진을 오려 낸 그대로 세워요. 끄면 네모 사진으로 보여요.</span>${Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: faceOnCutout(e.key) ? 'on' : 'off', act: 'faceon-cutout', data: { key: e.key }, label: '배경 없는 사진' })}</div>` : ''}
     <p class="small muted">나이에 맞는 칸의 사진을 쓰고, 그 칸이 비었으면 가까운 칸을 써요. 칸을 모두 지우면 원래 얼굴로 돌아가요.</p>
     ${Object.keys(urls).length ? Button({ variant: 'ghost', size: 'sm', block: true, icon: 'restore', act: 'faceon-clear', data: { key: e.key }, children: '모두 되돌리기' }) : ''}`, 'fo-editor');
 }
