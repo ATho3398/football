@@ -54,7 +54,7 @@ await scrollTo('#cu-nat');
 await shot('04_커스텀-국적·외모');
 await act('cu', '[data-k="trait"][data-v="ironMan"]');
 await act('cu', '[data-k="trait"][data-v="professional"]');
-await act('cu', '[data-k="trait"][data-v="hotHead"]');
+await act('cu', '[data-k="traitR"][data-v="troublemaker"]');
 await act('cu', '[data-k="trait"][data-v="mediaShy"]');
 await scrollTo('.cu-trait');
 await shot('05_커스텀-장단점');
