@@ -269,4 +269,5 @@
 ### 8.23 마스터 세션 N (2026-10-18 01:14 KST~, `session_013dNEvc6CvpGFw1SkMRXsUh`, 브랜치 `claude/planning-n`)
 - M이 만든 세션 → `lineage` 깊이 3. 브랜치 `claude/planning-n`(M 733e3d1에서 분기).
 - 시작 처리(01:16 KST): C.48·UI_2·엔진관리자2·C.47(CI 결과만)에 "보고는 N, 마스터 브랜치 claude/planning-n" 알림. C.48 진행 확인 send_later `trig_01RidXgnBYkQghR3EHygjcdq`(03:45 KST). M 제목 `draft_M_축구 커리어 게임 마스터`. 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음).
+- (01:39 KST) C.47 배포 확인: main 3155e46 CI #172 성공(엔진 20·밸런스 34·세이브 27). 남은 질문 6개는 pending 79 그대로. C.47 끝.
 - 다음: 8.22 순서 그대로(C.48 보고 → pending 80~ → ntfy → UI_2 목록 → 34e C.49).
