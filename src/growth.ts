@@ -1,7 +1,7 @@
 // 성장, 레벨업, 포인트 비용, 자동 성장, 노화, 노련함 (5.1, 6.1, 6.1.1, 6.2, B.5)
 
 import { proficientOvr } from './proficiency';
-import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './attributes';
+import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, nextDisplayAt, type FieldAttribute, type FieldAttributes } from './attributes';
 import { BALANCE } from './config/balance';
 import { attributeOvrWeight, positionOvr, type FieldPosition } from './positions';
 import type { Rng } from './rng';
@@ -144,6 +144,39 @@ export function raiseAttribute(p: PlayerState, attr: FieldAttribute): boolean {
   if (pointCost(v + 1, tier) >= 2) p.coachWarned = true;
   if (p.unspentPoints === 0) p.allocation = { levels: 0, raised: {} };
   return true;
+}
+
+/**
+ * 1~20 표시 한 칸 올리기 계획 (C.44 pending 47 3번): 다음 표시 칸까지 내부 칸 수(최대 5)와 비용 합, 지금 포인트·레벨당 상한으로 갈 수 있는 칸 수.
+ * 내부 규칙(칸당 비용 6.2, 레벨당 +3 상한)은 그대로라 밸런스는 바뀌지 않는다
+ */
+export function displayRaisePlan(p: PlayerState, attr: FieldAttribute): { steps: number; cost: number; reach: number } {
+  const v0 = p.attributes[attr];
+  const next = nextDisplayAt(v0);
+  if (next === null || v0 >= G.maxAttribute) return { steps: 0, cost: 0, reach: 0 };
+  const steps = Math.min(next, G.maxAttribute) - v0;
+  const tier = costTier(p);
+  const capLeft = p.allocation.levels * G.maxRaisePerLevel - (p.allocation.raised[attr] ?? 0);
+  let cost = 0;
+  let reach = 0;
+  let pts = p.unspentPoints;
+  for (let k = 0; k < steps; k++) {
+    const c = pointCost(v0 + k, tier);
+    cost += c;
+    if (reach === k && k < capLeft && c <= pts) {
+      pts -= c;
+      reach++;
+    }
+  }
+  return { steps, cost, reach };
+}
+
+/** 표시 한 칸만큼(갈 수 있는 데까지) 올린다. 오른 내부 칸 수 */
+export function raiseDisplayStep(p: PlayerState, attr: FieldAttribute): number {
+  const { reach } = displayRaisePlan(p, attr);
+  let n = 0;
+  while (n < reach && raiseAttribute(p, attr)) n++;
+  return n;
 }
 
 /** 남은 포인트를 포지션 OVR 효율 순으로 자동 배분 (밸런스 스크립트, 자동 배분 버튼) */

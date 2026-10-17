@@ -2,8 +2,9 @@
 // 캘린더·주전 경쟁·신뢰도·전술 버튼은 아직 없는 기능이라 숨긴다 (I.19)
 
 import {
-  BottomSheet, Button, Crest, Tabs, OptionRow, FatigueGauge, FormIndicator, HeroPanel, IconButton, PlayerCard, SectionTitle, StatChip, TacticChip, esc,
+  BottomSheet, Button, Crest, Tabs, OptionRow, FatigueGauge, FormIndicator, HeroPanel, IconButton, Icon, PlayerCard, SectionTitle, StatChip, TacticChip, esc, staminaOf,
 } from '../components';
+import { BALANCE } from '../../config/balance';
 import type { DayVM, HomeVM, PositionOptionVM } from '../viewModels';
 import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
 
@@ -34,11 +35,11 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
       );
     next = `
       ${SectionTitle({ title: '다음 경기', action: `리그 ${vm.round}R · ${n.home ? '홈' : '원정'}` })}
-      ${panel(`
+      ${panel(`${n.derby ? `<div class="derby-badge${n.derby.big ? ' is-big' : ''}">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b>${esc(n.derby.name)}</b><span>더비 매치</span></div>` : ''}
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}${esc(n.my)}</span><span class="vs po-num">VS</span><span class="vs-team away">${esc(n.opp)}${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
         <p class="line">${d.matchDay ? '오늘' : `다음 일정 · ${esc(d.nextLabel ?? '')}`} · <b>리그 ${vm.round}R ${esc(n.opp)}전 · ${n.home ? '홈' : '원정'}</b> · 전력 <b class="po-num">${n.myRating}</b> vs <b class="po-num">${n.oppRating}</b></p>
         ${buttons}
-        <div class="sim-rest">${Button({ variant: 'ghost', size: 'sm', icon: 'ff', act: 'sim-rest', children: '남은 시즌 자동' })}</div>`, 'next-card')}
+        <div class="sim-rest">${Button({ variant: 'ghost', size: 'sm', icon: 'ff', act: 'sim-rest', children: '자동 진행' })}</div>`, 'next-card')}
       ${panel(`
         <div class="sub-panel">
           <div class="kv"><span>우리 전술</span><span class="kv-r">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}${
@@ -52,8 +53,8 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
           ${n.control.mode === 'direct' ? Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: n.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' }) : ''}
         </div>`)}`;
   } else if (vm.phase === 'offseason') {
-    next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 피로가 풀려요.</p>
-      ${vm.camp ? `<p class="small"><b>${esc(vm.camp)} 소집</b> · 개막 7일 전부터 훈련 계획과 첫 경기를 준비해요. 시즌 요약에서 [다음 시즌]을 누르면 소집일로 넘어가요.</p>` : ''}
+    next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 체력이 회복돼요.</p>
+      ${vm.camp ? `<p class="small"><b>${esc(vm.camp)} 소집</b> · 개막 7일 전부터 훈련 계획과 첫 경기를 준비해요. 시즌 요약에서 [새 시즌 시작]을 누르면 소집일로 넘어가요.</p>` : ''}
       ${Button({ size: 'lg', block: true, icon: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 종료 요약' })}`)}`;
   }
 
@@ -67,11 +68,12 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
       ${startNotice(vm.version)}
       ${notice}
       ${training}
-      ${vm.day ? calendarSection(vm.day) : ''}
+      ${vm.day ? `<div class="sched-link">${Button({ variant: 'ghost', size: 'sm', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, children: '훈련·일정 전체 보기' })}</div>` : ''}
       ${extra}
       ${SectionTitle({ title: '내 상태' })}
       ${panel(`
         <div class="kv">${FatigueGauge({ value: c.fatigue })}${StatChip({ icon: 'card', label: '경고', value: `${c.yellows}/${c.yellowEvery}`, tone: c.yellows >= c.yellowEvery - 1 ? 'warning' : 'neutral' })}</div>
+        ${staminaNote(c.fatigue)}
         <div class="kv">${FormIndicator({ level: c.form })}<span class="muted small">${esc(c.formLabel)}</span></div>`)}
       ${SectionTitle({ title: '선수 카드' })}
       ${PlayerCard({ player: vm.card })}
@@ -79,6 +81,15 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
       ${statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }])}
       ${versionFooter(vm.version)}
     </div>`;
+}
+
+/** 체력 안내 (C.44): 체력 = 100 − 피로. 피로 penaltyFrom(50) 초과 = 체력 50 미만이면 평점·선발에 불리 */
+export function staminaNote(fatigue: number): string {
+  const v = staminaOf(fatigue);
+  const from = 100 - BALANCE.fatigue.penaltyFrom;
+  if (v <= 30) return `<p class="small fail">체력 30 이하 · 평점과 선발 확률이 떨어지고 다칠 확률이 올라가요. 휴식·회복 훈련을 넣어요.</p>`;
+  if (v < from) return `<p class="small warn">체력 ${from} 아래 · 평점과 선발 확률이 조금 떨어져요.</p>`;
+  return '';
 }
 
 /** 포변 조언 홈 알림 카드 (pending 36 ⑥, 부록 C.37). 인박스(5-2)가 생기면 그쪽으로 옮긴다 */
@@ -128,4 +139,18 @@ export function calendarSection(d: DayVM): string {
       <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span></div>
       <div class="kv"><span class="small">다른 경기 계산</span>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: d.quick ? 'quick' : 'engine', act: 'opt-quick', label: '다른 경기 계산' })}</div>
       <p class="small muted">${d.quick ? '느린 기기용: 다른 팀 경기를 통계로 바로 계산해요. 선수 기록(득점 순위)은 내 경기만 남아요.' : '다른 팀 경기도 22명 엔진으로 계산해요. 경기 날 [계속]이 몇 초 걸릴 수 있고, 진행 중 [중단]으로 멈출 수 있어요.'}</p>`)}`;
+}
+
+/** 훈련·일정 화면 (C.44 독): 오늘 훈련·주간 계획·게이지 + 일정·달력 */
+export function scheduleView(vm: HomeVM, training: string): string {
+  const hero = HeroPanel({
+    title: '훈련·일정', back: false, compact: true,
+    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
+    value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
+    chips: vm.day ? [vm.day.matchDay ? '오늘 경기' : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }] : [{ label: '시즌 종료', soft: true }],
+  });
+  const off = vm.phase === 'offseason'
+    ? panel(`<p class="muted">비시즌 휴가 중이에요. 훈련 선택이 없고 체력이 회복돼요.${vm.camp ? ` ${esc(vm.camp)} 소집부터 훈련 계획이 다시 시작돼요.` : ''}</p>`)
+    : '';
+  return `${hero}<div class="body">${off}${training}${vm.day ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
 }
