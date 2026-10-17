@@ -295,4 +295,14 @@
 - (06:42 KST) C.55 CI #181 성공(main dfbfc73, C.54 포함). C.55 끝.
 - (07:05 KST) C.56 완료(main c731be4, 테스트 474, 59분·11.2달러) → pending 92, C.56 draft_, UI_3 목록. **34m C.57 U5-c 시작** `session_01DvAoegEFwkuv9nmnMrnd5n` "34m단계_U5-c 홈·훈련 (C.57)", 브랜치 `claude/c57-u5c-home`, 태그 `stage:34m-C57`. 자동 확인 send_later 150분(09:34 KST), C.56 확인 예약 삭제.
 - (07:30 KST) C.56 CI #182 성공(main c731be4). C.56 끝.
-- 다음: C.57 보고 → pending 93 → ntfy → UI_3 목록 → U5-d~g 34n~34q(C.58~C.61) → 35 5-1 … 독 칸 수 사용자 답 대기.
+- (07:54 KST) C.57 완료(main 08179e2, 테스트 488, 49분) → pending 93, C.57 draft_, UI_3 목록. **34n C.58 U5-d 시작** `session_01GECZwXc1m6aXx9gqnczXaN` "34n단계_U5-d 선수·포인트·새 게임 (C.58)", 브랜치 `claude/c58-u5d-player`, 태그 `stage:34n-C58`(마스터 교체 예고 포함). C.57 확인 예약 삭제. N 비용 14.9달러·45.8만 → **교체**.
+
+### 8.24 다음 마스터 세션(O)이 할 일 (N 교체 2026-10-18 07:55 KST)
+- 제목 `O_축구 커리어 게임 마스터`, 브랜치 `claude/planning-n`에서 `claude/planning-o`. 깊이 4.
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md` 전체(0번: ntfy, **코드·fix 세션 일반 모드**(고속 끔, 사용자 03:31 지시, 다른 프로젝트와 사용량 나눔)), 이 문서 8.23·8.24, `docs/planning-pending.md` **80~93**.
+- **실행 중 세션**: 34n C.58 `session_01GECZwXc1m6aXx9gqnczXaN`(U5-d) / UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx`(브랜치 claude/ui-3, 7차 누계 큰 0 + 작은 24쯤, 카드 그림 BATCH 01·02·시그니처 15장 대기, B 다음 판 대기) / 엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`(동결 대기) / C.57 `session_01DvAoegEFwkuv9nmnMrnd5n`(draft_, CI 확인 예정 → 결과가 N으로 올 수 있음). 모두에 "보고는 O, 마스터 브랜치 claude/planning-o" send_message.
+- **자동 확인**: N은 C.58용 자동 확인을 걸지 않았다 → O가 send_later 150분.
+- **다음 순서**: C.58 보고 → pending 94 → ntfy → UI_3 목록 → **34o C.59 U5-e**(5-apply U5-e + 6-apply 137·138·140~143) → **34p C.60 U5-f**(144~149·155) → **34q C.61 U5-g**(151~153 + B PC 120 + PC 독 순서) → 35 5-1(감독 데이터로 팀 상세 감독 칸도) → 36 5-2 → … → 경기 환경 단계(pending 75·76·77 일부) → 엔진 블록(지시에 "시뮬 출력은 요약 몇 줄, 반복 횟수 상한").
+- 단계 지시 공통: claude/ui-3의 5-apply·6-apply·B-apply 해당 행, B 기본·A 안 깨지게, 엔진 동결(지문 f96341ae43d430b1), cards "경기 계산 2초" 테스트는 엔진 점검과 동시 실행 금지, 세이브 이식 번거로우면 막아도 됨(사용자 지시), docs 병합 planning-o·ui-3.
+- **사용자 대기**: 모바일 독 5칸(N 추천, 홈 정확히 가운데) vs 6칸(디자인 154·C.54 추천) — 답 없으면 5칸. 6칸은 DOCK_PHONE에 'world' 한 줄.
+- 사용자 선호 메모: 사용량 절약(다른 프로젝트 병행) — 5시간 한도 경고(allowed_warning) 보이면 다음 단계 열기 전에 묻기. ntfy는 429가 잦아 백그라운드 재시도.
