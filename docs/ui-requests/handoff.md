@@ -13,6 +13,8 @@
 |---|---|---|---|---|---|
 | 5 | 2026-10-17 | `docs/ui-requests/5.md` | `docs/ui-requests/5/phone/`(70), `5/pc/`(69) | main c064b8d, C.44a | 사용자에게 보고, 디자인 대기 |
 
+| 카드 그림 | 2026-10-17 22:40 | `docs/ui-requests/card-art-batch03-apply.md` | `docs/design/incoming/card-art/batch03/`(17장) | — | BATCH 03(13~16 + 엘라스티코) 받음 → 적용 명세 → 마스터 M. 남은 시그니처 15장·BATCH 01·02 대기 |
+
 (1~4차는 디자인이 왔다: `docs/design-change-request*.md` → 디자인 묶음 `docs/design/player-one-design/`, 56장)
 
 ## 쌓기 기록 (5차 보고 뒤)
