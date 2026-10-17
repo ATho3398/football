@@ -6,6 +6,7 @@ import { matchXp } from '../match';
 import { posGroup, type TeamRoster } from '../roster';
 import type { FieldPosition } from '../positions';
 import type { FieldAttributes } from '../attributes';
+import type { Body } from '../body';
 import { proficiencyPenalty } from '../proficiency';
 import { ENGINE } from './config';
 import { teamSetupFromRoster } from './setup';
@@ -34,6 +35,12 @@ export interface MyPlayerInput {
   form: number;
   /** 지금 포지션 숙련도 0~100 (없으면 100) */
   proficiency?: number;
+  /** 신체·양발 (C.45). 없으면 보정 없음 */
+  body?: Body;
+  /** 등번호 (표시용) */
+  shirt?: number;
+  /** 경고·퇴장 배율 (다혈질) */
+  cardMul?: number;
 }
 
 export interface EngineMatchInput {
@@ -92,6 +99,8 @@ export function buildMyMatch(m: EngineMatchInput) {
   const meSpec: PlayerSpec = {
     id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: proficientAttrs(m.me.attributes, m.me.proficiency),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,
+    ...(m.me.body ? { body: m.me.body } : {}), ...(m.me.shirt !== undefined ? { shirt: m.me.shirt } : {}),
+    ...(m.me.cardMul && m.me.cardMul !== 1 ? { cardMul: m.me.cardMul } : {}),
   };
   if (t) {
     // 사용자 전술 (E.19): 성향·세부 전술 3단계 값, 슬롯 역할은 직접 고른 것 또는 성향 추천

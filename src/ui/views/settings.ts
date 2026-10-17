@@ -16,6 +16,11 @@ import {
   pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO,
 } from '../pitch/renderer';
 import { autoShortNames, worldPlayers } from '../playerNames';
+import { NATION_KITS } from '../../../data/kits';
+import { PIXEL_KITS } from '../../../data/pixelPack';
+import { ALL_KITS, allPeople, kitFor, personKey, tableKit, validPerson } from '../../pixel';
+import { pixelLayerUrls } from '../faces';
+import { homeKitOf, peopleTable, pixelIconHtml, playerAutoPerson, playerPerson } from '../pixelIcons';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
 export interface NameUI { q: string; team: string; sel: string | null }
@@ -60,6 +65,112 @@ function nameSection(g: GameState | null, nm: NameUI): string {
     ${nm.sel ? panel(nameEditor(g, nm.sel), 'nm-editor') : ''}
     <div class="nm-filter"><label class="field fo-search"><span aria-hidden="true">🔍</span><input type="search" id="nm-q" value="${esc(nm.q)}" placeholder="선수 이름 (한글·영문·별명)" autocomplete="off"></label>
     <select id="nm-team" class="nm-team" aria-label="팀 거르기">${teams}</select></div>
+    <div class="real-list fo-list">${rows || '<p class="small muted">찾는 이름이 없어요.</p>'}</div>`;
+}
+
+// ── 경기 아이콘 (부록 C.45, pixel-kits.md 5.1): 모든 선수의 인물(피부·머리)과 구단·대표팀 홈·원정 유니폼을 직접 바꾸기. 세이브 pixelOverrides ──
+
+/** 설정 → 경기 아이콘: 탭, 검색어, 팀 거르기, 고른 선수 id, 고른 팀 id (대표팀 `n:<국가>`) */
+export interface PixelUI { tab: 'players' | 'kits'; q: string; team: string; sel: string | null; kitSel: string | null }
+
+/** 유니폼 미리보기에 입히는 인물 */
+const PREVIEW_PERSON = { skin: 'white', hair: 'brown' };
+/** 유니폼 이름 (팩 키에서: C01_solid_red → red, S01_juventus → juventus) */
+const kitLabel = (k: string): string => {
+  const key = PIXEL_KITS[k]?.key ?? k;
+  return `${k} ${key.replace(/^[CS]\d+_(solid_)?/, '').replace(/_/g, ' ')}`;
+};
+
+/** 선수 인물 고르기 (설정·선수 화면 공용): 지금 아이콘(구단 홈 유니폼) → 인물 14종 격자 → 자동으로 되돌리기 */
+export function pixelPersonEditor(g: GameState, id: string, name: string): string {
+  const kit = homeKitOf(g, id);
+  const cur = playerPerson(g, id);
+  const auto = playerAutoPerson(g, id);
+  const own = !!g.pixelOverrides?.players?.[id];
+  const cells = allPeople(peopleTable()).map((p) => {
+    const on = personKey(p) === personKey(cur);
+    return `<button type="button" class="px-cell${on ? ' is-on' : ''}" data-act="px-person" data-id="${esc(id)}" data-key="${esc(personKey(p))}" aria-pressed="${on}">${pixelIconHtml(pixelLayerUrls(p, kit), 3)}${
+      personKey(p) === personKey(auto) ? '<small>자동</small>' : '<small>&nbsp;</small>'}</button>`;
+  }).join('');
+  return `<div class="px-edit">
+    <div class="fo-edit"><div class="fo-big px-big">${pixelIconHtml(pixelLayerUrls(cur, kit), 4, name)}</div>
+      <div class="grow"><b>${esc(name)}</b><small class="muted">${own ? '직접 고른 아이콘이에요.' : '자동으로 정한 아이콘이에요.'} 소속 구단 홈 유니폼으로 보여요.</small></div></div>
+    <div class="px-grid">${cells}</div>
+    ${own ? Button({ variant: 'secondary', size: 'sm', block: true, icon: 'restore', act: 'px-auto', data: { id }, children: '자동으로 되돌리기' }) : ''}
+    <p class="small muted">경기 화면 [보기] → 캐릭터에서 쓰여요. 유니폼은 경기마다 자동으로 입혀요(원정·GK 포함). 겉모습만 바뀌고 경기 결과에는 영향이 없어요. 이 세이브에 저장돼요.</p>
+  </div>`;
+}
+
+/** 선수 화면: 내 선수 경기 아이콘 → 설정의 같은 선택창 */
+export function myPixelCard(g: GameState): string {
+  const id = myFace(g).id;
+  const kit = homeKitOf(g, id);
+  return panel(`<div class="fo-edit"><div class="fo-big px-big">${pixelIconHtml(pixelLayerUrls(playerPerson(g, id), kit), 3, g.player.name)}</div>
+    <div class="grow"><small class="muted">경기 화면 캐릭터 보기에서 보이는 내 선수 모습이에요.</small></div>
+    ${Button({ variant: 'secondary', size: 'sm', icon: 'player', act: 'px-open-me', children: '바꾸기' })}</div>`);
+}
+
+interface KitTeam { id: string; name: string; sub: string }
+
+function kitTeams(g: GameState | null): KitTeam[] {
+  const clubs: KitTeam[] = ALL_CLUBS.map((c) => ({ id: c.id, name: c.nameKo, sub: c.id.startsWith('x:') ? `${c.name} · 리그 밖` : c.name }));
+  const nations: KitTeam[] = Object.keys(NATION_KITS).map((n) => ({ id: `n:${n}`, name: n, sub: '대표팀' }));
+  const mine = g?.player.teamId;
+  return [...clubs, ...nations].sort((a, b) => Number(b.id === mine) - Number(a.id === mine));
+}
+
+function kitEditor(g: GameState, t: KitTeam): string {
+  const cur = kitFor(t.id, g.pixelOverrides);
+  const base = tableKit(t.id);
+  const own = g.pixelOverrides?.kits?.[t.id];
+  const person = validPerson(PREVIEW_PERSON, peopleTable());
+  const grid = (side: 'home' | 'away') => ALL_KITS.map((k) => {
+    const on = cur[side] === k;
+    return `<button type="button" class="px-cell px-cell--kit${on ? ' is-on' : ''}" data-act="px-kit" data-id="${esc(t.id)}" data-side="${side}" data-kit="${esc(k)}" aria-pressed="${on}" title="${esc(kitLabel(k))}">${
+      pixelIconHtml(pixelLayerUrls(person, k), 2)}<small>${esc(k)}${base[side] === k ? '·기본' : ''}</small></button>`;
+  }).join('');
+  return `<div class="px-edit">
+    <div class="fo-edit"><div class="px-pair">${pixelIconHtml(pixelLayerUrls(person, cur.home), 4, '홈')}${pixelIconHtml(pixelLayerUrls(person, cur.away), 4, '원정')}</div>
+      <div class="grow"><b>${esc(t.name)}</b><small>${esc(t.sub)}</small><small class="muted">홈 ${esc(kitLabel(cur.home))} · 원정 ${esc(kitLabel(cur.away))}${own ? ' (직접 고름)' : ''}</small></div></div>
+    <div class="kv"><span>홈</span></div><div class="px-grid px-grid--kits">${grid('home')}</div>
+    <div class="kv"><span>원정</span></div><div class="px-grid px-grid--kits">${grid('away')}</div>
+    ${own ? Button({ variant: 'secondary', size: 'sm', block: true, icon: 'restore', act: 'px-kit-auto', data: { id: t.id }, children: '자동으로 되돌리기' }) : ''}
+    <p class="small muted">원정 팀은 홈 유니폼이 상대와 비슷할 때만 원정 유니폼을 입고, GK는 양 팀과 겹치지 않는 단색을 입어요(바꾼 값으로 다시 계산).</p>
+  </div>`;
+}
+
+function pixelSection(g: GameState | null, px: PixelUI): string {
+  if (!g) return panel('<p class="small muted">경기 아이콘은 게임을 시작하거나 불러오면 바꿀 수 있어요.</p>');
+  const tabs = Tabs({ items: [{ id: 'players', label: '선수' }, { id: 'kits', label: '유니폼' }], value: px.tab, act: 'px-tab', fill: true, label: '선수/유니폼' });
+  const qq = px.q.trim().toLowerCase();
+  if (px.tab === 'kits') {
+    const all = kitTeams(g);
+    const sel = px.kitSel ? all.find((t) => t.id === px.kitSel) : undefined;
+    const list = all.filter((t) => !qq || has(t.name, qq) || has(t.sub, qq) || has(t.id, qq)).slice(0, 60);
+    const rows = list.map((t) => {
+      const k = kitFor(t.id, g.pixelOverrides);
+      const person = validPerson(PREVIEW_PERSON, peopleTable());
+      return `<button type="button" class="real-row px-row${t.id === px.kitSel ? ' is-on' : ''}" data-act="px-team-pick" data-id="${esc(t.id)}">${pixelIconHtml(pixelLayerUrls(person, k.home), 2)}${pixelIconHtml(pixelLayerUrls(person, k.away), 2)}<span class="grow"><b>${esc(t.name)}</b><small>${esc(t.sub)}</small></span>${
+        g.pixelOverrides?.kits?.[t.id] ? '<span class="po-chip po-chip--brand">직접</span>' : ''}</button>`;
+    }).join('');
+    return `${tabs}${sel ? panel(kitEditor(g, sel), 'px-editor') : ''}
+      <label class="field fo-search"><span aria-hidden="true">🔍</span><input type="search" id="px-q" value="${esc(px.q)}" placeholder="구단·국가 이름" autocomplete="off"></label>
+      <div class="real-list fo-list">${rows || '<p class="small muted">찾는 팀이 없어요.</p>'}</div>`;
+  }
+  const all = worldPlayers(g);
+  const list = all.filter((p) => {
+    if (px.team === 'x' ? p.teamId : px.team && p.teamId !== px.team) return false;
+    return !qq || [p.nameKo, p.name ?? ''].some((x) => has(x, qq));
+  }).sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || Number(!!g.pixelOverrides?.players?.[b.id]) - Number(!!g.pixelOverrides?.players?.[a.id])).slice(0, 30);
+  const teamName = (p: (typeof all)[number]) => (p.teamId ? teamById(g.league, p.teamId)?.nameKo ?? p.teamId : `${p.club ?? ''} · 리그 밖`);
+  const rows = list.map((p) => `<button type="button" class="real-row px-row${p.id === px.sel ? ' is-on' : ''}" data-act="px-pick" data-id="${esc(p.id)}">${
+    pixelIconHtml(pixelLayerUrls(playerPerson(g, p.id), homeKitOf(g, p.id)), 2)}<span class="grow"><b>${esc(p.nameKo)}${p.mine ? ' · 내 선수' : ''}</b><small>${esc(teamName(p))}</small></span>${
+    g.pixelOverrides?.players?.[p.id] ? '<span class="po-chip po-chip--brand">직접</span>' : ''}</button>`).join('');
+  const sel = px.sel ? all.find((p) => p.id === px.sel) : undefined;
+  const teams = `<option value="">모든 팀</option>${g.league.teams.map((t) => `<option value="${esc(t.id)}"${px.team === t.id ? ' selected' : ''}>${esc(t.nameKo)}</option>`).join('')}<option value="x"${px.team === 'x' ? ' selected' : ''}>리그 밖</option>`;
+  return `${tabs}${sel ? panel(pixelPersonEditor(g, sel.id, sel.nameKo), 'px-editor') : ''}
+    <div class="nm-filter"><label class="field fo-search"><span aria-hidden="true">🔍</span><input type="search" id="px-q" value="${esc(px.q)}" placeholder="선수 이름 (한글·영문)" autocomplete="off"></label>
+    <select id="px-team" class="nm-team" aria-label="팀 거르기">${teams}</select></div>
     <div class="real-list fo-list">${rows || '<p class="small muted">찾는 이름이 없어요.</p>'}</div>`;
 }
 
@@ -191,7 +302,10 @@ export function cropStyle(c: { zoom: number; x: number; y: number; slot: FaceSlo
   return `left:${pct(l.x)};top:${pct(l.y)};width:${pct(l.w)};height:${pct(l.h)}`;
 }
 
-export function settingsView(g: GameState | null, fo: FaceOnUI, version: VersionVM, nm: NameUI = { q: '', team: '', sel: null }): string {
+export function settingsView(
+  g: GameState | null, fo: FaceOnUI, version: VersionVM, nm: NameUI = { q: '', team: '', sel: null },
+  px: PixelUI = { tab: 'players', q: '', team: '', sel: null, kitSel: null },
+): string {
   const hero = HeroPanel({
     title: '설정', back: { act: 'go', data: { to: g ? 'home' : 'title' } }, eyebrow: '게임 설정 · 페이스온', pad: false, progress: false, value: '설정',
     chips: [g ? `${g.player.name}` : '게임 밖', { label: '이 브라우저에 저장', soft: true }],
@@ -208,7 +322,7 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
       <p class="small muted">난이도는 새 게임에서 정해요.</p>`)
     : panel('<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>');
   const pv = panel(`<div class="kv"><span>경기 화면 선수 표시</span></div>${Tabs({ items: (['number', 'face', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
-    <p class="small muted">등번호 = 번호 원(기본) · 얼굴 = 미니페이스 + 팀 색 밑줄 · 캐릭터 = 도트 얼굴(없으면 등번호). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>
+    <p class="small muted">등번호 = 번호 원(기본) · 얼굴 = 미니페이스 + 팀 색 밑줄 · 캐릭터 = 도트 선수(경기마다 홈·원정·GK 유니폼, 아래 작은 등번호. 바꾸기는 아래 경기 아이콘). 경기 화면의 [보기] 버튼으로도 바꿔요.</p>
     <div class="divider"></div>
     <div class="kv"><span>경기 화면 방향</span></div>${Tabs({ items: (['auto', 'landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
     <p class="small muted">자동 = 폰을 세로로 들면 피치도 세로(내 팀이 아래에서 위로 공격). 시험 기능이에요.</p>
@@ -238,6 +352,7 @@ export function settingsView(g: GameState | null, fo: FaceOnUI, version: Version
     ${SectionTitle({ title: '경기 진행' })}${play}
     ${SectionTitle({ title: '경기 화면 보기' })}${pv}
     ${SectionTitle({ title: '선수 이름', action: '별명·짧은 이름' })}${nameSection(g, nm)}
+    ${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기 인물·유니폼' })}${pixelSection(g, px)}
     ${SectionTitle({ title: '저장과 안내' })}${saves}
     ${SectionTitle({ title: '페이스온', action: '얼굴·엠블럼 바꾸기' })}${faceon}
     ${versionFooter(version)}

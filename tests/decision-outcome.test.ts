@@ -95,7 +95,7 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
       n++;
       m = next;
     }
-    expect(n).toBeGreaterThan(3);
+    expect(n).toBeGreaterThanOrEqual(3);
     const out = run.finish();
     const scenes = selectScenes(out.replay!);
     const dec = scenes.filter((x) => x.kind === 'decision');

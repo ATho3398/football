@@ -11,6 +11,9 @@ import { seasonLabel } from './viewModels';
 export interface OfferVM {
   i: number; team: string; teamId: string; rating: number; rank: number; diff: number; loan: boolean;
   years: number; wage: string; annual: string; start: string; startPct: number;
+  /** 유스 구단 계약 제안 (C.45), 자유계약의 마지막 남은 제안 (거절 불가) */
+  youth?: boolean;
+  lastFree?: boolean;
 }
 
 export interface MarketVM {
@@ -21,6 +24,8 @@ export interface MarketVM {
   request: { ok: boolean; reason: string; chance: number | null; status: string | null };
   notice: string | null;
   moves: { season: string; text: string }[];
+  /** 자유계약 신분 (C.45): 하나는 골라야 한다 */
+  free: boolean;
 }
 
 export function marketVM(g: GameState): MarketVM {
@@ -43,6 +48,8 @@ export function marketVM(g: GameState): MarketVM {
       return {
         i, team: clubNameKo(g.league, o.teamId), teamId: o.teamId, rating: r, rank: teamRank(g, o.teamId), diff: Math.round((r - cur) * 10) / 10, loan: o.kind === 'loan',
         years: o.years, wage: wageLabel(o.wage), annual: annualLabel(o.wage), start: startLabel(o.start), startPct: Math.round(o.start * 100),
+        ...(o.youth ? { youth: true } : {}),
+        ...(m.free && (m.offers?.length ?? 0) <= 1 ? { lastFree: true } : {}),
       };
     }) ?? null,
     window: m.offerWindow === 'winter' ? '겨울 이적시장' : '여름 이적시장',
@@ -53,6 +60,7 @@ export function marketVM(g: GameState): MarketVM {
       status: req ? (req.accepted ? (m.offers ? '이적 명단 · 제안이 왔어요' : '이적 명단 · 1월 1일 겨울 이적시장에 제안이 와요') : '구단이 요청을 거절했어요') : null,
     },
     notice: m.notice ?? null,
+    free: !!m.free,
     moves: m.moves.map((x) => ({
       season: seasonLabel(x.season),
       text: x.back ? `${clubNameKo(g.league, x.from)} → ${clubNameKo(g.league, x.to)} (임대 복귀)` : `${clubNameKo(g.league, x.from)} → ${clubNameKo(g.league, x.to)}${x.loan ? ' (임대)' : ''}`,

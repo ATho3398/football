@@ -63,7 +63,7 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((t, x) => t + x, 0) / xs.le
       name: 't', position: from, age: 20, teamId: 'x', attributes: flat, potentialTier: 'normal', xp: 0, totalXp: 0, level: 0, unspentPoints: 0,
       allocation: { levels: 0, raised: {} }, fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0,
       season: emptySeasonStats(), history: [], suspended: 0, proficiency: initialProficiency(from), badges: [], formerPositions: [],
-      honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, aptitude: { talent: 'speed', mult: mults, hidden: null }, advice: null, adviceLog: [],
+      honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, traits: [], aptitude: { talent: 'speed', mult: mults, hidden: null }, advice: null, adviceLog: [],
       aptBoost: boost ? { group: aptGroupOf(to)!, games: A.advice.boostGames } : null,
     } as PlayerState;
     requestPositionChange(p, to, true);

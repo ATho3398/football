@@ -29,13 +29,14 @@ export function dribbleProb(att: Agent, def: Agent, space = 0): number {
 export function receiveWin(a: Agent, b: Agent): number {
   const t = a.attrs;
   const d = b.attrs;
-  const atk = t.ballControl * 0.5 + t.strength * 0.3 + t.agility * 0.2;
+  const atk = t.ballControl * 0.5 + (t.strength + a.body.strength) * 0.3 + t.agility * 0.2;
   const dfn = d.marking * 0.5 + d.tackling * 0.3 + d.defensivePositioning * 0.2;
   return duelTail(L1((atk - dfn) / PR.receiveScale + PR.receiveBias + a.duelEdge - b.duelEdge));
 }
 
 export function aerialScore(a: Agent): number {
-  return a.attrs.heading * 0.5 + a.attrs.jumping * 0.3 + a.attrs.strength * 0.2;
+  // 키 (C.45): 공중볼 점수 + (키 − 기준) × aerialPerCm, 몸무게: 근력 몫에 몸싸움 보정
+  return a.attrs.heading * 0.5 + a.attrs.jumping * 0.3 + (a.attrs.strength + a.body.strength) * 0.2 + a.body.aerial;
 }
 
 /** a 가 b 를 이길 확률 */

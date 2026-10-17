@@ -2,7 +2,8 @@
 // 팀당 24명. 실제 A등급 선수는 소속팀 슬롯을 차지하고 나머지는 가상 선수로 채운다.
 // 로스터는 월드 시드로 재생성한다. 세이브에는 시즌 갱신 횟수만 담고 불러올 때 다시 만든다 (save.ts).
 
-import { NAME_POOLS } from '../data/names';
+import { A_GRADE_PLAYERS } from '../data/players';
+import { FAMOUS_FULL_NAMES, NAME_POOLS, NAME_POOLS_V1, type NamePool } from '../data/names';
 import { realAppearance, rollAppearance, type Appearance } from './appearance';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
 import { BALANCE } from './config/balance';
@@ -14,6 +15,7 @@ import { attributeOvrWeight, positionOvr, positionOvrExact, profileOf, type Fiel
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Position, Tier } from './types';
 import { TEAM_TACTICS } from './engine/teamData';
+import { realBody, rollBody, type Body } from './body';
 
 export type PosGroup = 'GK' | 'CB' | 'FB' | 'CDM' | 'CM' | 'CAM' | 'WING' | 'ST';
 export const POS_GROUPS: readonly PosGroup[] = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
@@ -52,6 +54,10 @@ export interface RosterPlayer {
   nationality: string;
   /** 외모군 (부록 C.43): 기본 얼굴 이미지 고르기. 선수 id 로 따로 뽑아 시드 흐름과 무관 */
   appearance: Appearance;
+  /** 신체·양발 (부록 C.45). 가상 선수는 `body:<id>` 시드로 따로 뽑아 시드 흐름과 무관 */
+  body?: Body;
+  /** 등번호 (부록 C.45): 실제 선수는 데이터, 가상 선수는 포지션 관례대로 팀 안에서 겹치지 않게 */
+  shirt?: number;
   age: number;
   /** 주 포지션 */
   position: Position;
@@ -217,17 +223,56 @@ export function capVirtualAttributes(p: RosterPlayer, teamMax?: AttrCap): void {
 
 // ── 이름, 나이, 숨김 값 ──
 
+/**
+ * 이름 풀 판 (부록 C.45 8번). 1 = 옛 풀(세이브에 namePool 이 없는 옛 게임), 2 = 늘린 풀(새 게임).
+ * 로스터를 만들거나 다시 만들기 전에 game.ts(newGame)·save.ts(migrate) 가 그 게임의 판으로 맞춘다
+ */
+export type NamePoolVersion = 1 | 2;
+let namePoolVersion: NamePoolVersion = 2;
+
+export function setNamePoolVersion(v: number | undefined): void {
+  namePoolVersion = v === 1 ? 1 : 2;
+}
+
+export function getNamePoolVersion(): NamePoolVersion {
+  return namePoolVersion;
+}
+
+/** 비교용 이름 키: 악센트·대소문자 무시 */
+export function nameKey(name: string): string {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** 2판에서 피하는 실제 선수 풀네임 (게임 데이터 실제 선수 + 유명 선수 표) */
+const BANNED_NAMES = new Set([...A_GRADE_PLAYERS.map((p) => p.name), ...FAMOUS_FULL_NAMES].map(nameKey));
+
+/**
+ * 풀에서 고른 이름 (판별). 2판은 실제 유명 선수와 풀네임이 같으면 같은 풀의 다음 성으로 넘긴다 (rng 를 더 쓰지 않는다)
+ * 1판은 옛 결과 그대로
+ */
+export function nameFromPool(pool: NamePool, gi: number, fi: number, v: NamePoolVersion): { name: string; nameKo: string } {
+  const [g, gKo] = pool.given[gi]!;
+  let k = fi;
+  if (v === 2) {
+    for (let n = 0; n < pool.family.length && BANNED_NAMES.has(nameKey(`${g} ${pool.family[k]![0]}`)); n++) k = (k + 1) % pool.family.length;
+  }
+  const [f, fKo] = pool.family[k]!;
+  return { name: `${g} ${f}`, nameKo: `${gKo} ${fKo}` };
+}
+
+/** rng 를 정확히 3번 쓴다 (풀 판과 무관 → 이름 말고 다른 생성 결과는 판이 달라도 같다) */
 function pickName(rng: Rng): { name: string; nameKo: string; nationality: string } {
-  const total = NAME_POOLS.reduce((t, p) => t + p.weight, 0);
+  const pools = namePoolVersion === 1 ? NAME_POOLS_V1 : NAME_POOLS;
+  const total = pools.reduce((t, p) => t + p.weight, 0);
   let r = rng() * total;
-  let pool = NAME_POOLS[0]!;
-  for (const p of NAME_POOLS) {
+  let pool = pools[0]!;
+  for (const p of pools) {
     if (r < p.weight) { pool = p; break; }
     r -= p.weight;
   }
-  const [g, gKo] = pool.given[Math.floor(rng() * pool.given.length)]!;
-  const [f, fKo] = pool.family[Math.floor(rng() * pool.family.length)]!;
-  return { name: `${g} ${f}`, nameKo: `${gKo} ${fKo}`, nationality: pool.nationality };
+  const gi = Math.floor(rng() * pool.given.length);
+  const fi = Math.floor(rng() * pool.family.length);
+  return { ...nameFromPool(pool, gi, fi, namePoolVersion), nationality: pool.nationality };
 }
 
 function rollLoyalty(rng: Rng): number {
@@ -281,6 +326,7 @@ function makeVirtual(spec: VirtualSpec, rng: Rng): RosterPlayer {
     joined: spec.season,
   };
   p.appearance = rollAppearance(`${p.id}:${p.name}`, p.nationality);
+  p.body = rollBody(p.id, p.position);
   capVirtualAttributes(p, spec.teamMax);
   return p;
 }
@@ -304,6 +350,8 @@ function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
     nameKo: n.nameKo,
     nationality: '',
     appearance: realAppearance(n.id, ''),
+    ...(realBody(n.id) ? { body: realBody(n.id) } : {}),
+    ...(REAL_SHIRT.get(n.id) !== undefined ? { shirt: REAL_SHIRT.get(n.id) } : {}),
     age: n.age,
     position: n.position,
     attributes: { ...n.attributes },
@@ -319,6 +367,47 @@ function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
 function rollAge(rng: Rng): number {
   const A = BALANCE.roster.age;
   return Math.round(clamp(A.mean + gaussian(rng) * A.sd, A.min, A.max));
+}
+
+// ── 등번호 (부록 C.45, pending 54 7) ──
+
+const REAL_SHIRT = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.shirtNumber]));
+
+/** 포지션 관례 등번호 (앞에서부터 비어 있는 번호) */
+const SHIRT_PREF: Record<PosGroup, readonly number[]> = {
+  GK: [1, 13, 25, 31, 12, 30, 40],
+  CB: [4, 5, 6, 15, 23, 26, 32, 33],
+  FB: [2, 3, 12, 22, 24, 27, 29],
+  CDM: [6, 8, 16, 18, 24, 28],
+  CM: [8, 14, 16, 18, 20, 28],
+  CAM: [10, 8, 20, 21, 22],
+  WING: [7, 11, 17, 19, 27, 37],
+  ST: [9, 10, 19, 21, 39, 29],
+};
+
+/** 그 팀에서 비어 있는 관례 번호 (없으면 2~99 중 첫 빈 번호) */
+export function freeShirt(taken: ReadonlySet<number>, pos: Position): number {
+  for (const n of SHIRT_PREF[posGroup(pos)]) if (!taken.has(n)) return n;
+  for (let n = 2; n < 100; n++) if (!taken.has(n)) return n;
+  return 99;
+}
+
+/**
+ * 등번호 정리: 실제 선수 번호 먼저, 이미 번호가 있는 선수는 겹치지 않으면 그대로, 나머지는 포지션 관례대로.
+ * reserved 는 팀 밖에서 쓰는 번호 (내 선수)
+ */
+export function assignShirts(roster: TeamRoster, reserved: ReadonlySet<number> = new Set()): void {
+  const taken = new Set<number>(reserved);
+  const order = [...roster.players].sort((a, b) => Number(b.real) - Number(a.real) || Number(b.shirt !== undefined) - Number(a.shirt !== undefined));
+  const need: RosterPlayer[] = [];
+  for (const p of order) {
+    if (p.shirt !== undefined && !taken.has(p.shirt)) taken.add(p.shirt);
+    else need.push(p);
+  }
+  for (const p of need) {
+    p.shirt = freeShirt(taken, p.position);
+    taken.add(p.shirt);
+  }
 }
 
 // ── 라인업 ──
@@ -466,6 +555,7 @@ export function createTeamRoster(team: TeamTarget, worldSeed: string, season: nu
   const roster: TeamRoster = { teamId: team.id, formation, players };
   fitRating(roster, team.rating, rng, cap, teamMax);
   for (const p of players) if (!p.real) setPeak(p, rng);
+  assignShirts(roster);
   return roster;
 }
 
@@ -593,6 +683,7 @@ export function updateRostersForSeason(
       players.push(next);
     }
     out[teamId] = { ...roster, players };
+    assignShirts(out[teamId]!);
   }
   return out;
 }

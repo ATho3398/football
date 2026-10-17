@@ -2,6 +2,10 @@ import type { FieldAttribute, FieldAttributes, GkAttributes, GkType } from './at
 import type { FieldPosition } from './positions';
 import type { ProfLog, Proficiency } from './proficiency';
 import type { AptBoost, Aptitude, PositionAdvice } from './aptitude';
+import type { Body } from './body';
+import type { TraitId } from './traits';
+import type { Appearance } from './appearance';
+import type { StoryTag } from './startClub';
 
 export type Foot = 'left' | 'right' | 'both';
 export type Tier = 'legendary' | 'worldClass' | 'topClass' | 'special' | 'normal';
@@ -171,12 +175,31 @@ export interface PlayerState {
   formerPositions: FieldPosition[];
   /** 숨은 포지션 적성 (pending 31·36, 부록 C.37). 화면에 보여 주지 않는다 */
   aptitude?: Aptitude;
+  /** 도트 아이콘 머리 (부록 C.45, 내부 키: black/blonde/brown/bald). 피부는 외모군에서. 없으면 `pixel:<선수 id>` 시드로 분포 추첨. 겉모습만 */
+  pixelHair?: string;
   /** 살아 있는 포변 조언 (없으면 null) */
   advice?: PositionAdvice | null;
   /** 지금까지 받은 포변 조언 (시즌, 그때 주 포지션). 처음은 감독, 그다음부터 뉴스. 한 포지션에서 최대 maxPerPosition 번 */
   adviceLog?: { season: number; from: FieldPosition }[];
   /** 조언 뒤 포변 보너스 (그 포지션군 숙련도 상승 ×2 남은 경기) */
   aptBoost?: AptBoost | null;
+  /** 신체·양발 (부록 C.45): 키·몸무게·주발·약발. 엔진 실행 배율에 쓴다 */
+  body: Body;
+  /** 장점·단점 (부록 C.45, 숨기지 않음) */
+  traits: TraitId[];
+  /** 등번호 (부록 C.45). 팀에서 겹치면 경기 때 관례대로 다른 번호 */
+  shirt?: number;
+  /** 커스텀 생성에서 고른 외모군·국적 (부록 C.45). 없으면 기존 규칙(실제 선수 표, 유망주는 한국 분포) */
+  appearance?: Appearance;
+  nationality?: string;
+  /** 약발 훈련 (부록 C.45): 게이지와 이번 시즌 오른 약발 (시즌 최대 BALANCE.weakFoot.seasonMax) */
+  weakFootTrain?: { gauge: number; gained: number };
+  /** 커스텀 생성으로 시작했으면 true */
+  custom?: boolean;
+  /** 유스 서사 (C.45): 유스 구단, 랜덤으로 정했는지 */
+  youth?: { club: string; random?: boolean };
+  /** 스토리 태그 (C.45, 효과 없음) */
+  tags?: StoryTag[];
   /** 레전드 배지 (부록 D.4, 영구) */
   badges: Badge[];
   /** 레전더리 조건용 수상 기록 (8.1, 부록 C.23). 발롱도르·챔스·월드컵(5단계)이 생기기 전까지 0 */

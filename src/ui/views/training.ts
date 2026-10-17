@@ -31,7 +31,7 @@ export function trainingSection(vm: TrainingVM): string {
       <p class="small">${esc(t.desc)}</p>
       <p class="small muted po-num">${t.kind === 'match' ? '' : `XP +${num(t.xp)} · 체력 +${num(t.fatigue)} · `}이번 주 훈련 XP ${num(vm.weekXp)}/${vm.cap}</p>
       ${t.fixed ? '<p class="small muted">경기 다음 날은 휴식으로 고정돼요 (바꿀 수 없어요).</p>' : ''}
-      ${t.locked ? '' : Button({ variant: 'secondary', size: 'sm', act: 'train-day', data: { v: t.date }, children: '오늘 훈련 바꾸기' })}
+      ${t.locked ? '' : Button({ variant: 'secondary', size: 'sm', act: 'train-day', data: { v: t.iso }, children: '오늘 훈련 바꾸기' })}
     </div>`;
   const notes = [
     ...vm.hints.map((h) => `<li>🎥 ${esc(h)}</li>`),

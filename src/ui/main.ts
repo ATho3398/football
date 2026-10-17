@@ -1,6 +1,10 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
+import { bodySection } from './views/body';
+import { buyWeakFoot, myShirt } from '../game';
+import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
+import { autoCustom } from '../custom';
 import { HL } from '../highlights';
 import './design/tokens.css';
 import './design/bundle.css';
@@ -37,18 +41,19 @@ import type { Replay } from '../replay';
 import type { PlayerState } from '../types';
 import { BADGE_NAMES_KO } from '../badges';
 import { BALANCE } from '../config/balance';
+import type { Appearance } from '../appearance';
 import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Button, Modal, SectionTitle, Toast, type ToastProps } from './components';
+import { Banner, Button, Modal, SectionTitle, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoSheet } from './views/progress';
-import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchSize, setPitchView } from './pitch/renderer';
+import { setPitchFaceResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { adviceCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
@@ -58,10 +63,12 @@ import { allocateView, newGameView, retiredView, savesView, seasonView, titleVie
 import { tacticsView } from './views/tactics';
 import { contractSection, contractView, marketCard, newsSection, offersView } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
-import { cropStyle, lookupEntry, nameEditor, settingsView, type FaceOnUI, type NameUI } from './views/settings';
+import { cropStyle, lookupEntry, myPixelCard, nameEditor, settingsView, type FaceOnUI, type NameUI, type PixelUI } from './views/settings';
+import { emptyOverrides, setKitOverride, setPersonOverride } from '../pixel';
 import { pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
 import { clearFaceOn, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
+import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
@@ -130,18 +137,22 @@ const ui = {
   seasonTab: null as SeasonTab | null,
   /** 설정 → 선수 이름 (C.44a) */
   nm: { q: '', team: '', sel: null } as NameUI,
+  /** 설정 → 경기 아이콘 (C.45) */
+  px: { tab: 'players', q: '', team: '', sel: null, kitSel: null } as PixelUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 덱 화면에서 편집 중인 덱 세트 (C.36) */
   deckSet: null as number | null,
   form: {
-    mode: 'prospect' as 'prospect' | 'real', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
+    mode: 'prospect' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
     posFor: '',
     /** "다른 포지션에서 고르기" 펼침 */
     others: false,
+    /** 커스텀 생성 (C.45) */
+    cu: initialCustomForm(),
   },
 };
 
@@ -178,7 +189,7 @@ function liveScreen(): Screen | null {
  * 경기 시작·날 넘기기·포인트·전술·덱·포지션·세이브를 바꾸면 경기 결과가 달라진다
  */
 const LOCK_ACTS = new Set([
-  'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
+  'buy-weakfoot', 'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
@@ -279,9 +290,9 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }));
+      return newGameView(newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g));
-    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm);
+    case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px);
     default: break;
   }
   if (!g) return titleScreen();
@@ -298,7 +309,7 @@ function screenHtml(): string {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
       const tSheet = tOpts ? trainingSheet(tOpts, ui.trainSheet!) : '';
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, adv ? adviceCard(adv) : '', hvm.training ? trainingSection(hvm.training) : '', trialBanner(g) + marketCard(marketVM(g))) + guideResetLink() + sheet + tSheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -311,7 +322,7 @@ function screenHtml(): string {
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null);
     }
-    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
+    case 'player': return playerView(playerVM(g), `${SectionTitle({ title: '신체·양발·장단점', action: '키·약발·장단점' })}${bodySection(g.player, g.phase !== 'retired' && g.player.body.weakFoot < 5 && g.player.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), g.player.youth ? teamById(g.league, g.player.youth.club).nameKo : '')}${SectionTitle({ title: '이름', action: '경기 화면 이름표' })}${panel(nameEditor(g, myFace(g).id))}${SectionTitle({ title: '경기 아이콘', action: '캐릭터 보기' })}${myPixelCard(g)}${g.phase !== 'retired' ? contractSection(marketVM(g)) : ''}`);
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) : '');
     case 'offers': return offersView(marketVM(g));
     case 'contract': return contractView(marketVM(g), ui.renewYears);
@@ -454,6 +465,7 @@ function liveShow(g: GameState, m: Moment | null): void {
     const endE = lv.run.frames.at(-1)!.e;
     // 앞 장면: 직전 결정(결과 재생) 뒤부터 (최대 8초, 처음이거나 오래전이면 4초)
     const fromE = lv.prevE > 0 && endE - lv.prevE <= 8 ? lv.prevE : Math.max(0, endE - 4);
+    setPitchTeams(lv.teams);
     lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, null);
     go('moment');
     return;
@@ -501,6 +513,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   lv.prevE = o.to;
   lv.pitch?.stop();
   lv.pitch = null;
+  setPitchTeams(lv.teams);
   const pitch = new OutcomePitch(lv.run.frames, new Map(players.map((p) => [p.id, p])), m.side, o.from, o.to, () => {
     const oc = ui.live?.oc;
     if (!oc || oc.pitch !== pitch) return;
@@ -538,6 +551,18 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
   else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 ${g.player.unspentPoints}개를 쓸 수 있어요.` }, 2200);
+}
+
+/** 1군 테스트 진행 띠 (C.45 10번) — 디자인 없는 새 패널 */
+function trialBanner(g: GameState): string {
+  const t = g.trial;
+  if (!t) return '';
+  const S = BALANCE.startClub;
+  const avg = t.ratings.length ? (t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length).toFixed(2) : '-';
+  return Banner({
+    tone: 'info', title: `${teamById(g.league, t.teamId).nameKo} 1군 테스트 · ${t.games}/${t.extended ? S.trialMaxGames : S.trialGames}경기`,
+    children: `평균 평점 ${avg} · ${t.goals}골 ${t.assists}도움. 테스트 중에는 출전이 보장돼요. 평균 ${S.greatRating.toFixed(1)} 이상이면 합격, ${S.badRating.toFixed(1)} 미만·공격포인트 0이면 방출, 그 사이면 연장.`,
+  });
 }
 
 // ── 동작 ──
@@ -893,6 +918,16 @@ app.addEventListener('pointercancel', () => {
 // 새 게임 시드를 바꾸면 시작 후보를 다시 보여 준다 (C.37)
 app.addEventListener('change', (ev) => {
   const id = (ev.target as HTMLElement | null)?.id;
+  if (id === 'cu-nat') {
+    // 커스텀 생성 국적 (C.45): 외모군은 그 국적에서 가장 흔한 것으로 맞춰 준다 (바꿀 수 있음)
+    readFormInputs();
+    const nat = (ev.target as HTMLSelectElement).value;
+    const dist = BALANCE.appearance.byNationality[nat];
+    const top = dist ? (Object.entries(dist).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as Appearance | undefined) : undefined;
+    ui.form.cu = customAct(customAct(ui.form.cu, 'nat', nat), 'app', top ?? ui.form.cu.appearance);
+    render();
+    return;
+  }
   if (id === 'auto-n') {
     ui.autoCount = Math.max(1, Math.floor(Number((ev.target as HTMLInputElement).value) || 1));
     setTimeout(render, 0);
@@ -1172,7 +1207,7 @@ app.addEventListener('click', (ev) => {
       if (!o) return;
       const team = teamById(g.league, o.teamId).nameKo;
       confirmModal({
-        title: o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 이적할까요?`,
+        title: o.teamId === g.player.teamId ? `${team}와 1군 계약할까요?` : o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 이적할까요?`,
         body: o.kind === 'loan' ? '1시즌 뒤 원 소속팀으로 돌아와요. 계약은 그대로예요.' : `${o.years}년 계약 · 다른 제안은 모두 사라져요. 전술은 새 팀 기본값으로 바뀌어요.`,
         confirm: '수락', act: 'offer-accept-ok', data: { i: String(i) },
       });
@@ -1260,13 +1295,46 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'cu':
+    case 'cu-sel':
+    case 'cu-raise':
+    case 'cu-lower': {
+      // 커스텀 생성 (C.45): 나이·포지션·신체·외모·장단점·능력치 한 칸
+      readFormInputs();
+      const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
+      ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
+      render();
+      return;
+    }
+    case 'buy-weakfoot': {
+      if (!g) return;
+      if (buyWeakFoot(g)) {
+        autosave();
+        showToast({ kind: 'info', title: `약발 ${g.player.body.weakFoot}`, body: g.player.body.weakFoot >= 5 ? '양발잡이가 됐어요.' : `포인트 ${BALANCE.weakFoot.pointCost}P를 썼어요.` });
+      }
+      render();
+      return;
+    }
+    case 'cu-auto': {
+      readFormInputs();
+      const c = ui.form.cu;
+      ui.form.cu = { ...c, attrs: autoCustom(c.position, budgetOf(c), c.height, c.attrs) };
+      render();
+      return;
+    }
     case 'start': {
       readFormInputs();
       const f = ui.form;
       if (f.mode === 'real' && !f.realId) return;
+      if (f.mode === 'custom') {
+        const cv = customVM(f.cu, f.name);
+        if (cv.over || !cv.start.ready) return;
+      }
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true })
-        : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty });
+        : f.mode === 'custom'
+          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty })
+          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty });
       ui.replay = null;
       f.roll = '';
       f.posFor = '';
@@ -1409,6 +1477,55 @@ app.addEventListener('click', (ev) => {
       setPitchNames(v);
       render();
       return;
+    // 경기 아이콘 (C.45): 선수 인물·팀 유니폼 직접 바꾸기 → 세이브 pixelOverrides
+    case 'px-tab':
+      if (v !== 'players' && v !== 'kits') return;
+      ui.px.tab = v;
+      ui.px.q = '';
+      render();
+      return;
+    case 'px-pick':
+    case 'px-team-pick':
+      if (act === 'px-pick') ui.px.sel = el.dataset.id ?? null;
+      else ui.px.kitSel = el.dataset.id ?? null;
+      render();
+      document.querySelector('.px-editor')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    case 'px-open-me':
+      if (!g) return;
+      ui.px = { ...ui.px, tab: 'players', sel: myFace(g).id };
+      go('settings');
+      requestAnimationFrame(() => document.querySelector('.px-editor')?.scrollIntoView({ block: 'center' }));
+      return;
+    case 'px-person':
+    case 'px-auto': {
+      const id = el.dataset.id;
+      if (!g || !id) return;
+      const o = (g.pixelOverrides ??= emptyOverrides());
+      const [skin, hair] = (el.dataset.key ?? '').split('_');
+      setPersonOverride(o, id, act === 'px-person' && skin && hair ? { skin, hair } : null);
+      autosave();
+      render();
+      if (act === 'px-auto') showToast({ kind: 'info', title: '자동 아이콘으로 되돌렸어요' });
+      return;
+    }
+    case 'px-kit':
+    case 'px-kit-auto': {
+      const id = el.dataset.id;
+      if (!g || !id) return;
+      const o = (g.pixelOverrides ??= emptyOverrides());
+      if (act === 'px-kit') {
+        const side = el.dataset.side === 'away' ? 'away' : 'home';
+        setKitOverride(o, id, side, el.dataset.kit ?? null);
+      } else {
+        setKitOverride(o, id, 'home', null);
+        setKitOverride(o, id, 'away', null);
+        showToast({ kind: 'info', title: '기본 유니폼으로 되돌렸어요' });
+      }
+      autosave();
+      render();
+      return;
+    }
     case 'nm-pick':
       ui.nm.sel = el.dataset.id ?? null;
       render();
@@ -1849,6 +1966,20 @@ app.addEventListener('change', (ev) => {
 let foTimer = 0;
 app.addEventListener('input', (ev) => {
   const t = ev.target as HTMLInputElement;
+  // 경기 아이콘 검색 (C.45)
+  if (t.id === 'px-q') {
+    ui.px.q = t.value;
+    clearTimeout(foTimer);
+    foTimer = window.setTimeout(() => {
+      render();
+      const q = document.getElementById('px-q') as HTMLInputElement | null;
+      if (q) {
+        q.focus();
+        q.setSelectionRange(q.value.length, q.value.length);
+      }
+    }, 200);
+    return;
+  }
   // 선수 이름 검색 (C.44a)
   if (t.id === 'nm-q') {
     ui.nm.q = t.value;
@@ -1918,9 +2049,14 @@ app.addEventListener('change', (ev) => {
 });
 
 // 선수 이름 라벨 (C.44a): 별명 > 짧은 이름. 게임 밖(리플레이 파일 등)이면 리플레이 이름의 짧은 이름
-setPitchNameResolver((id, isMe, fallback) => (ui.game ? pitchLabel(ui.game, id, isMe, fallback) : fallback.split(/\s+/).pop() ?? fallback));
+setPitchNameResolver((id, isMe, fallback, scope) => (ui.game ? pitchLabel(ui.game, id, isMe, fallback, scope) : fallback.split(/\s+/).pop() ?? fallback));
 app.addEventListener('change', (ev) => {
   const t = ev.target as HTMLSelectElement;
+  if (t.id === 'px-team') {
+    ui.px.team = t.value;
+    render();
+    return;
+  }
   if (t.id !== 'nm-team') return;
   ui.nm.team = t.value;
   render();
@@ -1939,6 +2075,15 @@ setPitchFaceResolver((id, isMe, kind) => {
     faceIndex = { of: g.rosters, map };
   }
   return pick(faceIndex.map.get(id) ?? { id });
+});
+
+// 캐릭터 보기 (C.45): 선수 인물 + 이 경기 유니폼(홈·원정·GK) 레이어. 팀을 모르면(게임 밖) 표의 홈 유니폼
+setPitchPixelResolver((m, teams) => {
+  const g = ui.game;
+  if (!g || !m.id) return undefined;
+  const kits = teams ? matchKitsOf(g, teams) : null;
+  const kit = kits ? (m.teamId === 0 ? (m.gk ? kits.homeGk : kits.home) : (m.gk ? kits.awayGk : kits.away)) : homeKitOf(g, m.id, m.isMe);
+  return playerIcon(g, m.id, m.isMe, kit);
 });
 
 render();

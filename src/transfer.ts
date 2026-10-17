@@ -3,6 +3,7 @@
 // 로스터는 시드로 다시 만들고 이적 기록(TransferRec)만 세이브에 담아 같은 순서로 다시 적용한다 (rebuildRosters).
 // 내 선수: 비시즌 제안 3~5개(같은 점수 모델을 팀 입장으로), 계약·재계약, 이적 요청, 임대. 연봉은 계산·표시만 (돈은 5-7)
 
+import { wageMul } from './traits';
 import { OUTSIDE_BY_ID, OUTSIDE_CLUBS, type OutsideClub } from '../data/outsideClubs';
 import { BALANCE } from './config/balance';
 import type { GameState } from './game';
@@ -13,7 +14,7 @@ import { startProbability } from './match';
 import { teamDefaultTactics } from './myTactics';
 import { proficientOvr } from './proficiency';
 import { FORMATION_SLOTS } from './formations';
-import { makeFiller, naturalOvr, pickLineup, posGroup, rosterRating, type RosterPlayer, type Rosters, type TeamRoster } from './roster';
+import { assignShirts, makeFiller, naturalOvr, pickLineup, posGroup, rosterRating, type RosterPlayer, type Rosters, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Position } from './types';
@@ -104,6 +105,7 @@ export function applyTransfer(rosters: Rosters, rec: TransferRec, worldSeed: str
       if (rec.fill) players[i] = makeFiller(rec.fill.id, rec.from, mover.position, rec.fill.ovr, rec.fill.age, rec.season, worldSeed);
       else players.splice(i, 1);
       rosters[rec.from] = { ...fromR, players };
+      assignShirts(rosters[rec.from]!);
     }
   }
   const toR = rosters[rec.to];
@@ -111,6 +113,8 @@ export function applyTransfer(rosters: Rosters, rec: TransferRec, worldSeed: str
     const players = toR.players.filter((p) => p.id !== rec.rel);
     players.push({ ...mover, contractEnd: rec.ce, loyalty: rec.loy, joined: rec.season });
     rosters[rec.to] = { ...toR, players };
+    // 등번호 (C.45): 새 팀에서 겹치면 관례대로 다시
+    assignShirts(rosters[rec.to]!);
   }
 }
 
@@ -356,6 +360,8 @@ export interface Offer {
   start: number;
   /** 팀 입장 관심 점수 (정렬·측정용) */
   interest: number;
+  /** 1군 테스트 합격 뒤 유스 구단(지금 팀) 계약 제안 (C.45) */
+  youth?: boolean;
 }
 
 /** 내 선수 이적 시장 상태 (세이브에 담는다) */
@@ -373,6 +379,10 @@ export interface MarketState {
   moves: { season: number; w: Window; from: string; to: string; loan?: boolean; back?: boolean }[];
   /** 이번 시즌 이적·복귀로 바뀐 팀 알림 (홈 카드 한 번) */
   notice?: string | null;
+  /** 자유계약 신분 (C.45 시작 소속 없음·테스트 결과·방출): 제안을 모두 거절할 수 없다 */
+  free?: boolean;
+  /** 테스트·재계약에서 방출됐다 (방출의 설움 태그) */
+  released?: boolean;
 }
 
 /** 나이에 따른 계약 연수 범위 */
@@ -382,7 +392,7 @@ export function contractYears(age: number): [number, number] {
 }
 
 /** 주급 (만 원, 19.11 곡선): 위상 앵커 사이 로그 선형 × 팀 규모 × OVR, ±15%, 50만 원 단위 */
-export function wageFor(reputation: number, ovr: number, teamRating: number): number {
+export function wageFor(reputation: number, ovr: number, teamRating: number, mul = 1): number {
   const T = BALANCE.transfer;
   const c = T.wageCurve;
   const r = clamp(reputation, 0, c[c.length - 1]![0]);
@@ -396,7 +406,8 @@ export function wageFor(reputation: number, ovr: number, teamRating: number): nu
     }
   }
   const adj = clamp((teamRating - 75) * T.wageTeam + (ovr - 75) * T.wageOvr, -T.wageSpread, T.wageSpread);
-  return Math.max(50, Math.round((base * (1 + adj)) / 50) * 50);
+  // 스타 플레이어 (C.45 장점): 연봉 × mul
+  return Math.max(50, Math.round((base * (1 + adj) * mul) / 50) * 50);
 }
 
 /** 주급 표시 (만 원 → "1,050만 원" / "1.5억 원") */
@@ -416,7 +427,7 @@ export function initialContract(state: Pick<GameState, 'worldSeed' | 'league' | 
   const season = state.league.season;
   const years = p.realPlayerId ? randInt(rngFor(state.worldSeed, 'my-contract'), ...contractYears(p.age)) : BALANCE.transfer.newGameYears;
   const rating = ratingOf(state as GameState, p.teamId);
-  return { teamId: p.teamId, from: season, until: season + years - 1, wage: wageFor(p.reputation, proficientOvr(p, p.position), rating), loan: null };
+  return { teamId: p.teamId, from: season, until: season + years - 1, wage: wageFor(p.reputation, proficientOvr(p, p.position), rating, wageMul(p)), loan: null };
 }
 
 export function initialMarket(state: Pick<GameState, 'worldSeed' | 'league' | 'player' | 'phase'>): MarketState {
@@ -499,7 +510,7 @@ export function makeOffers(state: GameState, w: Window, tag: string | number = s
   const n = randInt(rng, O.min, O.max);
   const [ylo, yhi] = contractYears(p.age);
   const offers: Offer[] = pool.slice(0, n).map(({ t, interest }) => ({
-    teamId: t.id, kind: 'transfer', years: randInt(rng, ylo, yhi), wage: wageFor(p.reputation, ovr, ratingOf(state, t.id)), start: expectedStart(state, t.id), interest,
+    teamId: t.id, kind: 'transfer', years: randInt(rng, ylo, yhi), wage: wageFor(p.reputation, ovr, ratingOf(state, t.id), wageMul(p)), start: expectedStart(state, t.id), interest,
   }));
   // 임대 (21세 이하 + 출전 부족, 1시즌)
   if (p.age <= T.loan.maxAge && (recentShare(state) ?? 1) < T.loan.maxShare && !m?.contract.loan) {
@@ -510,7 +521,7 @@ export function makeOffers(state: GameState, w: Window, tag: string | number = s
       .sort((a, b) => b.start - a.start || ratingOf(state, b.t.id) - ratingOf(state, a.t.id));
     const k = randInt(rng, T.loan.offers[0], T.loan.offers[1]);
     for (const { t, interest } of loans.slice(0, k)) {
-      offers.push({ teamId: t.id, kind: 'loan', years: 1, wage: m?.contract.wage ?? wageFor(p.reputation, ovr, ratingOf(state, t.id)), start: expectedStart(state, t.id), interest });
+      offers.push({ teamId: t.id, kind: 'loan', years: 1, wage: m?.contract.wage ?? wageFor(p.reputation, ovr, ratingOf(state, t.id), wageMul(p)), start: expectedStart(state, t.id), interest });
     }
   }
   return offers;
@@ -533,7 +544,7 @@ export function openOffseasonMarket(state: GameState): void {
   const rating = ratingOf(state, p.teamId);
   if (m.contract.until <= season) {
     const [lo, hi] = contractYears(p.age);
-    m.renewal = { years: Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), wage: wageFor(p.reputation, proficientOvr(p, p.position), rating) };
+    m.renewal = { years: Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), wage: wageFor(p.reputation, proficientOvr(p, p.position), rating, wageMul(p)) };
   }
   m.offers = makeOffers(state, 'summer');
   m.offerWindow = 'summer';
@@ -565,6 +576,14 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
   const w = m.offerWindow ?? (state.phase === 'season' ? 'winter' : 'summer');
   const season = windowSeason(state.league, w);
   let points = 0;
+  if (o.teamId === from) {
+    // 지금 팀과 계약 (C.45: 1군 테스트 합격 뒤 유스 구단 제안, 자유계약 신분에서 같은 팀)
+    m.contract = { teamId: from, from: state.league.season + (state.phase === 'season' ? 0 : 1), until: state.league.season + (state.phase === 'season' ? 0 : 1) + o.years - 1, wage: o.wage, loan: null };
+    m.offers = null;
+    m.renewal = null;
+    m.notice = `${clubNameKo(state.league, from)} 1군 계약`;
+    return { points };
+  }
   if (o.kind === 'loan') {
     m.contract.loan = { parent: from, until: season };
   } else {
@@ -582,6 +601,8 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
 /** 모든 제안 거절 (재계약 선택은 남는다) */
 export function declineOffers(state: GameState): void {
   const m = state.market!;
+  // 자유계약 신분 (C.45)이면 하나는 골라야 한다
+  if (m.free) return;
   m.offers = null;
 }
 
@@ -670,6 +691,14 @@ export function onDayEnd(state: GameState, endedDate: IsoDate): TransferRec[] {
 export function autoResolveMarket(state: GameState, policy: 'stay' | 'best', deduct: (points: number) => number, minGain = 2): void {
   const m = state.market;
   if (!m) return;
+  // 자유계약 신분 (C.45)이면 하나는 수락한다: 유스 구단 제안이 있으면 그것, 아니면 첫 제안
+  if (m.free && m.offers?.length) {
+    const i = Math.max(0, m.offers.findIndex((o) => o.youth));
+    acceptOffer(state, i, deduct);
+    m.free = false;
+    m.released = false;
+    return;
+  }
   if (m.offers?.length && policy === 'best') {
     const cur = ratingOf(state, state.player.teamId);
     const ok = m.offers
@@ -695,6 +724,7 @@ export function teamRank(state: Pick<GameState, 'phase' | 'league' | 'nextRating
 export function declineOffer(state: GameState, index: number): void {
   const m = state.market!;
   if (!m.offers) return;
+  if (m.free && m.offers.length <= 1) return;
   m.offers = m.offers.filter((_, i) => i !== index);
   if (!m.offers.length) m.offers = null;
 }

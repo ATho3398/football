@@ -25,7 +25,8 @@ export function saveDifficulty(speed: number, corner: number, d: number): number
 
 export function saveProb(gk: Agent | null, speed: number, corner: number, d: number, base: number = K.saveBase): number {
   const g = gkAttrs(gk);
-  return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (g.shotStopping - K.saveCenter)) / 100, 0.05, 0.95);
+  // GK 리치 (C.45): 키 보정
+  return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (g.shotStopping - K.saveCenter)) / 100 + (gk?.body.gkSave ?? 0), 0.05, 0.95);
 }
 
 export function catchProb(gk: Agent | null): number {
@@ -34,7 +35,7 @@ export function catchProb(gk: Agent | null): number {
 
 /** 크로스/롱볼을 GK 가 처리할 확률 */
 export function claimProb(gk: Agent | null): number {
-  return L1((gkAttrs(gk).commandOfArea - 60) / 12 + K.claimBias);
+  return clamp(L1((gkAttrs(gk).commandOfArea - 60) / 12 + K.claimBias) + (gk?.body.gkClaim ?? 0), 0, 1);
 }
 
 /** 스위퍼의 박스 밖 처리 범위 (m, C.28): 출전 범위·가속에 비례. 클래식은 0 */

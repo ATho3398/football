@@ -13,10 +13,11 @@ const replayOf = (seed: number) => playMyMatch({
 }, { teams: ['홈', '원정'] }).replay!;
 
 describe('전개 하이라이트 (24.3 개정)', () => {
-  const r = replayOf(91);
+  // C.45: 시드 91 은 엔진 20 에서 첫 장면이 공이 죽은 시간(빨리 감기)에 시작해 실제 속도 확인에 맞지 않아 92 로
+  const r = replayOf(92);
   const scenes = selectScenes(r);
   it('같은 경기면 장면 선택과 장면 시각이 늘 같다 (결정적)', () => {
-    expect(selectScenes(replayOf(91))).toEqual(scenes);
+    expect(selectScenes(replayOf(92))).toEqual(scenes);
     expect(selectScenes(r)).toEqual(scenes);
   });
   it('장면 6~8개, 각 10~15초, 시간 순, 같은 시간대(20초 안) 중복 없음', () => {
