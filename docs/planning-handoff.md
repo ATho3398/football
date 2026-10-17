@@ -186,3 +186,4 @@
 - (09:42 KST) 25단계 C.35 완료(main 7a406ea, SAVE 15) → pending 34, 25단계 세션 draft_. **26단계 카드 시작**: `session_012fD6nsNsGWvLxBUT14zPZo` "26단계_카드 시스템 (3단계, C.36)", Opus, 브랜치 `claude/c36-cards`(planning-j docs 병합 지시 포함). 자동 확인 `trig_01QqQLjB4mXCS3pUXUQmTdv6`(12:13 KST). 25단계 예약은 취소.
 - 다음: 26 카드(3단계, 부록 F) → 26b 포지션 적성 → 27 5-0 … (17.2). 코드 세션 지시에 "`origin/claude/planning-j`의 docs/를 main에 병합해 같이 배포" 넣기.
 - **J는 다음 기획 세션을 만들 수 없다**(깊이 제한). 25만 토큰/15달러에 닿으면 이 절을 갱신하고 사용자에게 앱에서 새 기획 세션을 열어 달라고 요청.
+- (10:33 KST) 26단계 C.36 완료(main 950c9fc, ENGINE 18, BALANCE 24, SAVE 16, 격차 +0.39) → pending 35, draft_. 26b 세부는 pending 36(추천안). **26b 시작**: `session_013yU1XyFVTvddmh37aH4ub5` "26b단계_포지션 적성 (C.37)", 브랜치 `claude/c37-aptitude`. 자동 확인 `trig_01APEEPTdD1ywFvQdEKfhkbz`(13:03 KST). 주의: main 병합 때 코드 세션이 17.2 표를 고쳐 충돌이 잘 난다 — 병합 뒤 `grep '^<<<<<<<' docs/*.md` 확인.
