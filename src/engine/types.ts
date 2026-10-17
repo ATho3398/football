@@ -4,6 +4,7 @@ import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import type { Formation, FormationSlot } from '../formations';
 import type { Position } from '../types';
+import type { DecisionRecord, MomentControl } from './moments';
 
 /** 전술 성향 6종 (E.19 ①) */
 export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
@@ -67,6 +68,8 @@ export interface EngineInput {
   neutral?: boolean;
   /** 내 선수 출전 구간(분). 선발이 아니면 교체 투입 */
   myMinutes?: { start: number; end: number };
+  /** 내 선수 결정 순간 (E.11): 직접/자동, 정지 빈도, 정책. 없으면 자동 */
+  control?: MomentControl;
   /** 캘리브레이션/테스트용: 그 분에 해당 팀 미드필더 1명 퇴장 (E.15 퇴장 후 득점 차) */
   forceRed?: { team: 0 | 1; minute: number };
 }
@@ -210,7 +213,8 @@ export interface EngineResult {
   players: PlayerStats[];
   myStats: PlayerStats | null;
   events: MatchEvent[];
-  decisions: unknown[];
+  /** 내 결정 기록 (E.11, I.17 10번) */
+  decisions: DecisionRecord[];
   /** 실제 경기 시간 (초, 추가시간 포함) */
   duration: number;
   /** 공이 살아 있던 시간 (초) */

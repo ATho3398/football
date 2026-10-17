@@ -13,6 +13,8 @@ import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTa
 import { buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
+import type { Moment, MomentControl } from './moments';
+import type { MatchSim } from './sim';
 
 export const MY_ID = 'me';
 
@@ -52,6 +54,8 @@ export interface EngineMatchInput {
    * 같은 포지션군 중 가장 약한 자리 (이전 동작, 측정 스크립트용)
    */
   myTactics?: MyTactics;
+  /** 내 선수 결정 순간 (E.11): 직접/자동, 정지 빈도, 정책. 없으면 자동 */
+  control?: MomentControl;
 }
 
 /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
@@ -114,6 +118,7 @@ export function buildMyMatch(m: EngineMatchInput) {
     seed: m.seed,
     bigMatch: m.bigMatch ?? false,
     ...(m.plan.minutes ? { myMinutes: m.plan.minutes } : {}),
+    ...(m.control ? { control: m.control } : {}),
   });
 }
 
@@ -146,39 +151,101 @@ export function toMatchResult(r: EngineResult, side: 0 | 1, started: boolean, di
 }
 
 /**
- * 내 경기 (E.14 어댑터). capture 면 위치 프레임을 frameInterval 마다 샘플링해 재생 데이터(E5-lite, 24번)를 만든다.
- * 같은 계산을 그대로 기록하므로 재생과 결과가 같다 (결정성)
+ * 내 경기 진행 (E.14 어댑터, E4): 결정 순간마다 멈출 수 있게 한 단계씩 돌린다. capture 면 위치 프레임을 frameInterval 마다 샘플링해
+ * 재생 데이터(E5-lite, 24번)를 만든다. 같은 계산을 그대로 기록하므로 재생과 결과가 같다 (결정성)
  */
-export function playMyMatch(m: EngineMatchInput, capture?: { teams: [string, string] }): MyMatchOutput {
-  const sim = buildMyMatch(m);
-  const side: 0 | 1 = m.home ? 0 : 1;
-  let engine: EngineResult;
-  let replay: Replay | undefined;
-  if (capture) {
-    const s = sim.state;
-    const frames: ReplayFrame[] = [captureFrame(s)];
-    let next = ENGINE.time.frameInterval;
+export class MyMatchRun {
+  readonly sim: MatchSim;
+  readonly side: 0 | 1;
+  readonly frames: ReplayFrame[] = [];
+  private next = ENGINE.time.frameInterval;
+
+  constructor(readonly input: EngineMatchInput, readonly capture?: { teams: [string, string] }) {
+    this.sim = buildMyMatch(input);
+    this.side = input.home ? 0 : 1;
+    if (capture) this.frames.push(captureFrame(this.sim.state));
+  }
+
+  get pending(): Moment | null {
+    return this.sim.state.moments.pending;
+  }
+
+  /** 다음 결정 순간까지 (없으면 경기 끝까지) 돌린다. 멈춘 순간을 돌려준다 */
+  advance(): Moment | null {
+    const s = this.sim.state;
+    if (!this.capture) {
+      const r = this.sim.runUntilDecision();
+      return r.kind === 'decision' ? r.moment : null;
+    }
     while (!s.done) {
+      if (s.moments.pending) return s.moments.pending;
       // 골 순간 (24.8): 엔진은 골과 같은 틱에 공을 킥오프 자리로 옮기므로, 골 직전 공 위치로 골 시각 프레임을 하나 더 남긴다
       const goals = s.teams[0].stats.goals + s.teams[1].stats.goals;
       const [bx, by, e0] = [s.ball.x, s.ball.y, s.elapsed];
-      sim.step();
-      if (s.teams[0].stats.goals + s.teams[1].stats.goals > goals) {
-        const f = captureFrame(s);
-        const e = Math.round(e0 * 10) / 10;
-        if (e > frames.at(-1)!.e) frames.push({ ...f, e, t: Math.round((s.t - (s.elapsed - e0)) * 10) / 10, ball: { x: bx, y: by, z: 0 } });
+      this.sim.step();
+      if (s.moments.pending) {
+        // 멈춘 순간의 정지 화면 (틱은 아직 끝나지 않았다)
+        this.frames.push(captureFrame(s));
+        return s.moments.pending;
       }
-      if (s.elapsed + 1e-9 >= next) {
-        frames.push(captureFrame(s));
-        next += ENGINE.time.frameInterval;
-      }
+      this.afterTick(goals, bx, by, e0);
     }
-    engine = buildResult(s);
-    const setups = [s.input.home, s.input.away] as const;
-    replay = buildReplay(setups[0], setups[1], capture.teams, frames, engine, side, ENGINE.time.halfSeconds);
-  } else engine = sim.runToEnd();
-  const result = toMatchResult(engine, side, m.plan.started, m.difficulty, m.bigMatch);
-  return { result, engine, my: engine.myStats, side, ...(replay ? { replay } : {}) };
+    return null;
+  }
+
+  /** 결정 확정 후 그 틱을 마저 진행한다 */
+  resolve(choice: number | 'delegate'): void {
+    const s = this.sim.state;
+    if (!s.moments.pending) return;
+    const goals = s.teams[0].stats.goals + s.teams[1].stats.goals;
+    const [bx, by, e0] = [s.ball.x, s.ball.y, s.elapsed];
+    this.sim.resolve(choice);
+    if (this.capture) this.afterTick(goals, bx, by, e0);
+  }
+
+  private afterTick(goals: number, bx: number, by: number, e0: number): void {
+    const s = this.sim.state;
+    const frames = this.frames;
+    if (s.teams[0].stats.goals + s.teams[1].stats.goals > goals) {
+      const f = captureFrame(s);
+      const e = Math.round(e0 * 10) / 10;
+      if (e > frames.at(-1)!.e) frames.push({ ...f, e, t: Math.round((s.t - (s.elapsed - e0)) * 10) / 10, ball: { x: bx, y: by, z: 0 } });
+    }
+    if (s.elapsed + 1e-9 >= this.next) {
+      frames.push(captureFrame(s));
+      this.next += ENGINE.time.frameInterval;
+    }
+  }
+
+  /** 남은 결정은 맡기고 끝까지 돌린 뒤 결과 */
+  finish(): MyMatchOutput {
+    const s = this.sim.state;
+    while (!s.done) {
+      if (s.moments.pending) this.resolve('delegate');
+      else if (this.advance() === null) break;
+    }
+    const engine = buildResult(s);
+    let replay: Replay | undefined;
+    if (this.capture) {
+      // 같은 흐른 시간의 프레임이 둘이면(정지 화면) 뒤의 것만 남긴다
+      const frames = this.frames.filter((f, i, all) => i === all.length - 1 || all[i + 1]!.e > f.e);
+      const setups = [s.input.home, s.input.away] as const;
+      replay = buildReplay(setups[0], setups[1], this.capture.teams, frames, engine, this.side, ENGINE.time.halfSeconds);
+    }
+    const m = this.input;
+    const result = toMatchResult(engine, this.side, m.plan.started, m.difficulty, m.bigMatch);
+    return { result, engine, my: engine.myStats, side: this.side, ...(replay ? { replay } : {}) };
+  }
+}
+
+/** 내 경기를 한 번에 (자동 모드 또는 정책이 있는 직접 모드) */
+export function playMyMatch(m: EngineMatchInput, capture?: { teams: [string, string] }): MyMatchOutput {
+  const run = new MyMatchRun(m, capture);
+  if (!capture) {
+    run.sim.runToEnd();
+    return run.finish();
+  }
+  return run.finish();
 }
 
 /** 경기 후 피로 증가 (E.16): 실제 이동 거리에서 환산. 90분 풀타임 평균 거리가 기존 +22 부근 */

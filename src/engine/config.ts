@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 16;
+export const ENGINE_VERSION = 17;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -608,6 +608,37 @@ export const ENGINE = {
     staminaPerFatigue: 0.6,
     /** 이 이동 거리(m)를 뛰면 피로가 BALANCE.fatigue.perMatch90 만큼 오른다 */
     fatigueRefDistance: 10300,
+  },
+  // ── 내 선수 개입: 결정 순간 (E.11, E4) ──
+  moments: {
+    /** 중요도 s = stakeK × (후보 중 최대 위치 가치 증가분 + 최대 xG) × 경기 중요도 × 긴장도 */
+    stakeK: 4.0,
+    /** 큰 경기 / 75분 이후 점수 차 1 이하 */
+    bigMatch: 1.3,
+    tension: 1.3,
+    tensionMinute: 75,
+    /**
+     * "중요한 순간만"(기본) 임계값. 포지션군마다 다르다: 목표 턴 수 ST 6~10, 윙 10~14, CM 12~14, CB 8~12 (E.11)에 맞춰
+     * scripts/balance-moments.ts 로 쟀다 (C.34)
+     */
+    threshold: { ST: 0.45, WING: 0.3, CAM: 0.3, CM: 0.18, CDM: 0.13, FB: 0.13, CB: 0.2 } as Record<string, number>,
+    /** 정지 빈도 3단계: 모든 결정 순간 / 중요한 순간만 / 결정적 순간만 (I.17 6번) */
+    stopMul: { all: 0.7, important: 1.0, critical: 1.6 },
+    /** 한 경기 턴 최소·최대 (90분 기준, 출전 시간에 비례). 모자라면 임계값 × catchUpMul */
+    minStops: 4,
+    maxStops: 14,
+    catchUpMul: 0.5,
+    /** 두 정지 사이 최소 간격 (초, 같은 공격에서 연달아 멈추지 않게) */
+    gap: 4,
+    /** 70분 이후 체력 보정: −(100 − 스태미나)/100 × staminaPenalty (E.11) */
+    staminaMinute: 70,
+    staminaPenalty: 0.04,
+    /** 결과 판정: 정지 후 이 시간(초)이 지나거나 다음 정지가 오면 그때까지의 평점 변화로 */
+    outcomeWindow: 6,
+    /** 장면 분류: 전환 후 역습 초, 슛 후 리바운드 초, 슛 장면 최소 xG */
+    counterTime: 5,
+    reboundTime: 2.5,
+    shotSceneXg: 0.04,
   },
   // ── 세트피스, 교체 (E.10) ──
   setPiece: {

@@ -11,6 +11,7 @@ import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball } from './offball';
 import { candidates, choose, judgementOf } from './onball';
+import { duelMoment, initMoments, onballMoment, settleMoment, takeMoment, type Moment } from './moments';
 import { initPhysics, moveAgent } from './physics';
 import { aiAdjust } from './tactics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
@@ -55,13 +56,15 @@ export function gkFieldAttributes(gk: GkAttributes): FieldAttributes {
   return out;
 }
 
-export type Decision = { kind: 'decision'; id: string };
+export type Decision = { kind: 'decision'; id: string; moment: Moment };
 export type Done = { kind: 'done'; result: EngineResult };
 
 export interface MatchSim {
   readonly state: SimState;
+  /** 직접 모드: 다음 결정 순간까지 (없으면 끝까지) */
   runUntilDecision(): Decision | Done;
-  resolve(choice: string): void;
+  /** 결정 순간 확정: 선택지 인덱스 또는 맡기기 (E.11) */
+  resolve(choice: number | 'delegate'): void;
   runToEnd(): EngineResult;
   /** 렌더용 위치 샘플 (현재 상태) */
   frame(): Frame;
@@ -117,6 +120,7 @@ export function createState(input: EngineInput): SimState {
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
+    moments: initMoments(input.control), forcedDuel: null,
   };
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
@@ -269,12 +273,13 @@ function startSecondHalf(s: SimState): void {
 
 function finish(s: SimState): void {
   s.done = true;
+  settleMoment(s, true);
   for (const a of s.agents) a.leftAt ??= s.elapsed;
   event(s, 'fulltime', 0, []);
 }
 
 export function step(s: SimState): void {
-  if (s.done) return;
+  if (s.done || s.moments.pending) return;
   const dt = T.dt;
 
   checkAdvantage(s);
@@ -308,9 +313,52 @@ export function step(s: SimState): void {
   for (const a of s.agents) if (a.cooldown > 0) a.cooldown -= dt;
   if (b.owner >= 0 && !s.restart) {
     const o = s.agents[b.owner]!;
-    if (o.cooldown <= 0) decide(s, o);
-    else if (!contactFouls(s)) defendDuels(s);
+    // 내 선수 결정 순간 (E.11): 멈출 순간이면 여기서 멈추고 resolve 가 나머지 틱을 이어서 한다
+    if (o.cooldown <= 0) {
+      if (!onballMoment(s, o)) decide(s, o);
+      else if (pauseOrDecide(s)) return;
+    } else if (!contactFouls(s)) {
+      if (!duelMoment(s)) defendDuels(s);
+      else if (pauseOrDecide(s)) return;
+    }
   }
+  stepTail(s);
+}
+
+/** 정책이 있으면(자동 측정·봇) 바로 확정해 실행하고 false, 없으면(직접 모드 화면) 멈추고 true */
+function pauseOrDecide(s: SimState): boolean {
+  const pol = s.moments.control.policy;
+  if (!pol) return true;
+  applyChoice(s, pol(s.moments.pending!));
+  return false;
+}
+
+function applyChoice(s: SimState, choice: number | 'delegate'): void {
+  const m = s.moments.pending!;
+  const { cand, duel } = takeMoment(s, choice);
+  if (m.type === 'onball') {
+    const o = s.agents[s.ball.owner]!;
+    if (cand) {
+      if (cand.type !== 'holdup') o.backToGoal = false;
+      execute(s, o, cand);
+    } else decide(s, o);
+  } else {
+    if (duel !== null) s.forcedDuel = { idx: s.agents.find((x) => x.spec.isMe)!.idx, pick: duel };
+    defendDuels(s);
+  }
+}
+
+/** 멈춘 틱 이어서: 결정 실행 후 이동·공·시계 */
+function resume(s: SimState, choice: number | 'delegate'): void {
+  if (!s.moments.pending) return;
+  applyChoice(s, choice);
+  stepTail(s);
+}
+
+function stepTail(s: SimState): void {
+  const dt = T.dt;
+  const b = s.ball;
+  settleMoment(s);
 
   // 이동
   for (const a of s.agents) {
@@ -397,7 +445,7 @@ export function buildResult(s: SimState): EngineResult {
     players,
     myStats: players.find((p) => p.id === myId) ?? null,
     events: s.events,
-    decisions: [],
+    decisions: s.moments.log,
     duration,
     elapsed75: s.elapsed75,
     liveSeconds: (s.teams[0].stats.possessionTicks + s.teams[1].stats.possessionTicks) * T.dt,
@@ -410,14 +458,22 @@ export function createMatch(input: EngineInput): MatchSim {
     state,
     step: () => step(state),
     runUntilDecision() {
-      while (!state.done) step(state);
+      while (!state.done) {
+        step(state);
+        const m = state.moments.pending;
+        if (m) return { kind: 'decision', id: String(m.id), moment: m };
+      }
       return { kind: 'done', result: buildResult(state) };
     },
-    resolve() {
-      // 결정 순간(E4)에서 구현
+    resolve(choice) {
+      resume(state, choice);
     },
     runToEnd() {
-      while (!state.done) step(state);
+      // 멈춘 순간이 있으면 맡기고 끝까지 (직접 모드 경기를 중간에 끝낼 때)
+      while (!state.done) {
+        if (state.moments.pending) resume(state, 'delegate');
+        else step(state);
+      }
       return buildResult(state);
     },
     frame: () => frameOf(state),

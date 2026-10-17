@@ -1,6 +1,7 @@
 // 진단 (부록 C.33, E.21 5번): 같은 슬롯에서 역할만 바꾼 짝지은 비교. 같은 시드, 홈/원정 반씩, 상대는 균형 4-3-3(CAM 은 4-2-3-1).
 // 역할마다 그 선수의 활동 위치(평균 위치, 공격·수비 시 x, 측면 정도, 박스 안 비율), 터치, 침투, 태클·인터셉트, 슈팅과 팀 득실차를 낸다.
 // 실행: npx vite-node scripts/diag/role-pair.ts -- [경기수=200] [포지션군 ...] [경로=값 ...]
+//   SEED=57000 환경변수로 시드 묶음을 바꿔 표본 오차를 확인한다 (기본 47000, 엔진 관리자 C.33 진단)
 //   포지션군: WING ST CAM CM CDM FB CB (생략하면 전부)
 import type { MatchJob, MatchOut } from '../engine/job';
 import { runJobs } from '../engine/pool';
@@ -35,7 +36,7 @@ const jobs: MatchJob[] = [];
 for (const { group, role } of plan) {
   const G = GROUPS[group]!;
   for (let k = 0; k < n; k++) {
-    const seed = 47000 + k;
+    const seed = Number(process.env.SEED ?? 47000) + k;
     const me = { ...std('a', seed, 75, G.formation, 'balanced'), roles: { [G.slot]: role } };
     const op = std('b', seed, 75, G.formation, 'balanced');
     const home = k % 2 === 0;

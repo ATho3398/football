@@ -25,10 +25,11 @@ export interface ReplayVM extends ReplayStaticVM {
   transition: { from: string; to: string; summary: string } | null;
 }
 
-const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', me: '내 장면', opponent: '상대', shot: '슈팅' };
+const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', decision: '내 결정', me: '내 장면', opponent: '상대', shot: '슈팅' };
 
 export function sceneTiles(r: Replay, scenes: Scene[]): { minute: string; label: string }[] {
   return scenes.map((sc) => {
+    if (sc.kind === 'decision') return { minute: `${sc.minute ?? ''}'`, label: SCENE_SHORT.decision };
     const ev = r.events.find((x) => x.e >= sc.key - 0.01 && (x.type === 'shot' || x.type === 'goal'));
     return { minute: ev ? `${ev.minute}'` : '', label: sc.kind === 'goal' && sc.team !== r.side ? '실점' : SCENE_SHORT[sc.kind] };
   });
@@ -163,8 +164,19 @@ export class ReplayPlayer {
     cancelAnimationFrame(this.raf);
   }
 
+  /** 결정 장면 리플레이 (E5 최소, 부록 C.35): 이 구간만 실제 속도로 보고 끝 */
+  private clipEnd: number | null = null;
+  playClip(start: number, end: number): void {
+    this.clipEnd = Math.min(this.replay.duration, end);
+    this.e = Math.max(0, start);
+    this.mode = 'live';
+    this.paused = false;
+    this.speed = 1;
+  }
+
   /** 건너뛰기: 경기 전체를 건너뛰고 최종 결과로 (24.3, 디자인 17) */
   skip(): void {
+    this.clipEnd = null;
     this.e = this.replay.duration;
     this.mode = 'ended';
   }
@@ -219,13 +231,14 @@ export class ReplayPlayer {
         this.onChange();
       }
     } else if (this.mode === 'live') {
-      this.e = Math.min(r.duration, this.e + dt * this.speed * this.ffFactor());
-      if (this.e >= r.duration) this.finish();
+      const lim = this.clipEnd ?? r.duration;
+      this.e = Math.min(lim, this.e + dt * this.speed * this.ffFactor());
+      if (this.e >= lim) this.finish();
     }
   }
 
   private finish(): void {
-    this.e = this.replay.duration;
+    if (this.clipEnd === null) this.e = this.replay.duration;
     this.mode = 'ended';
     this.onChange();
   }
@@ -255,7 +268,7 @@ export class ReplayPlayer {
     set('rp-h', String(score[0]));
     set('rp-a', String(score[1]));
     const clock = clockLabel(f, at > this.replay.halfE);
-    const minute = this.ended ? '90+' : clock.includes(':') ? `${Number(clock.split(':')[0]) + 1}` : clock.replace(/'$/, '');
+    const minute = this.ended && this.clipEnd === null ? '90+' : clock.includes(':') ? `${Number(clock.split(':')[0]) + 1}` : clock.replace(/'$/, '');
     set('rp-clock', `${minute}'`);
     set('rp-strip-min', `${minute}'`);
     const live = replayLiveVM(this.replay, f, at, this.summaries.filter((x) => x.e <= at + 0.01));

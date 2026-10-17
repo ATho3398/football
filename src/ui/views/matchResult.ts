@@ -1,5 +1,5 @@
 // 경기 후 (I.6, 디자인 38): 스코어·평점, 하이라이트, 전술 리포트(21.5.2: 판정 카드 최대 2장 + 숫자 줄), 평균 위치 지도, XP.
-// 결정 기록·카드·신뢰도는 아직 없는 기능이라 숨긴다
+// 내 결정 기록 (E.11, I.17 10번, 직접 모드로 멈춘 순간). 카드·신뢰도는 아직 없는 기능이라 숨긴다
 
 import { Button, esc, FeedItem, HeroPanel, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
 import type { MatchResultVM } from '../viewModels';
@@ -42,6 +42,14 @@ export function matchResultView(vm: MatchResultVM): string {
     ? `${SectionTitle({ title: '내 기록', action: vm.appearance })}<div class="chips">${vm.my.map((m) => StatChip({ label: m.label, value: m.value })).join('')}${
       vm.formBonus ? StatChip({ label: '폼 보정', value: `${vm.formBonus > 0 ? '+' : '−'}${Math.abs(vm.formBonus).toFixed(2)}`, tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
     : '';
+  const RES = { success: '성공', fail: '실패', neutral: '보통' } as const;
+  // 줄을 누르면 그 장면 리플레이 (E5 최소, 부록 C.35)
+  const tag = vm.decisionReplay ? 'button' : 'div';
+  const decisions = vm.decisions.length
+    ? `${SectionTitle({ title: '내 결정 기록', action: `${vm.decisions.length}번 멈춤` })}${panel(`<div class="dec-list">${vm.decisions.map((d, i) => `
+        <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><b>${esc(d.scene)}</b> · ${esc(d.choice)} · ${esc(d.label)}${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
+        <span class="dec-res"><span class="po-num">${esc(d.p)}</span> ${RES[d.result]} <b class="po-num">${esc(d.delta)}</b>${vm.decisionReplay ? ' <span class="dec-play">▶</span>' : ''}</span></${tag}>`).join('')}</div>${vm.decisionReplay ? '<p class="small muted dec-hint">줄을 누르면 그 장면을 다시 봐요.</p>' : ''}`)}`
+    : '';
   const x = vm.xp;
   const next = vm.seasonOver
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 종료 요약' })
@@ -51,6 +59,7 @@ export function matchResultView(vm: MatchResultVM): string {
     <div class="body">
       ${banners(vm.banners)}
       ${hl}
+      ${decisions}
       ${report}
       ${my}
       ${SectionTitle({ title: '보상' })}

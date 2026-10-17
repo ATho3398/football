@@ -1,6 +1,8 @@
 // 진단 (12단계 B): 강팀 ST 쏠림, 레이팅 차, 슈팅 품질·선방률, 골 경로, 롱패스, 파울 원인을 틱 단위로 센다.
 // 실행: npx vite-node scripts/diag/polish-b.ts -- gap [경기수=40]      생성 팀 4-2-3-1 균형, Δ 0 / 8 / 15
 //       npx vite-node scripts/diag/polish-b.ts -- liv [경기수=40]      리버풀(league-0) 대 중위권 10팀 중립, 변형 비교
+//       npx vite-node scripts/diag/polish-b.ts -- cells [경기수=40] [대형번호|base ...]   커스텀 대형(custom-sweep 번호) 대 균형 4-4-2 (C.33 진단, 미해결 5번)
+//       npx vite-node scripts/diag/polish-b.ts -- role [경기수=40] <포메이션> <슬롯> <역할 ...>   홈 슬롯 역할만 바꿔 균형 상대와 (C.33 진단, 미해결 4번)
 // 엔진 코드는 건드리지 않는다. 결정 순간에 candidates()/choose() 를 같은 틱에서 다시 계산해 "슛이 효용 1위였는가"를 본다.
 import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
@@ -13,7 +15,8 @@ import { keeperOf, saveProb } from '../../src/engine/keeper';
 import type { Flight } from '../../src/engine/state';
 import type { Agent, SimState } from '../../src/engine/state';
 import type { TeamSetup } from '../../src/engine/types';
-import { FORMATION_SLOTS } from '../../src/formations';
+import { cellExists, customLabel, customProblem, customSlots, FORMATION_SLOTS, GRID_LANES, GRID_ROWS, presetCells, type Formation } from '../../src/formations';
+import { createRng, hashSeed } from '../../src/rng';
 import { rebuildRosters } from '../../src/game';
 import { createTeamRoster, pickLineup, rosterRating, teamRatings } from '../../src/roster';
 import { BALANCED } from '../engine/job';
@@ -50,7 +53,9 @@ interface Side {
   byGot: Record<string, { shots: number; goals: number; xg: number }>;
   byGotST: Record<string, { shots: number; goals: number; xg: number }>;
   /** 슛 순간 슈터 5 m 안 상대 수, 박스 안 상대 수 (C.29 진단: 수비 인원이 슛 질에 반영되는가) */
-  crowd: { n: number; near5: number; boxDef: number; xgByNear: Record<string, { n: number; xg: number; goals: number }> };
+  crowd: { n: number; near5: number; boxDef: number; boxDefL1: number; boxDefL2: number; boxAtt: number; xgByNear: Record<string, { n: number; xg: number; goals: number }>; xgByBoxDiff: Record<string, { n: number; xg: number; goals: number }> };
+  /** 줄별(1 수비·2 중원·3 공격) 슈팅/골/xG (C.33 진단) */
+  byLine: Record<string, { shots: number; goals: number; xg: number }>;
   /** 박스 안에서 패스를 받는 순간 가장 가까운 상대 거리 (C.29 진단: 마크 중인 선수에게 패스가 들어가는가) */
   recvBox: { n: number; dsum: number; within15: number; within25: number; stN: number; stWithin15: number; shots3: number; shots3Within15: number };
   /** 골 직전 점수 차(득점 팀 기준)별 골·슈팅 (C.29 재진단: 크게 앞선 뒤에도 계속 넣는가) */
@@ -64,7 +69,7 @@ const side = (): Side => ({
   byGroup: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
   dec: 0, decMistake: 0, shootExists: 0, shootBest: 0, shootChosen: 0, shootChosenNotBest: 0, shootChosenGap: [0, 0, 0], shotXgChosen: [], shotXgWhenBest: [], bestTypeWhenShoot: {},
   typeMatch: 0, typeMismatch: 0, pathMine: {}, pathEngine: [0, 0, 0, 0, 0, 0, 0], goalPathEngine: [0, 0, 0, 0, 0, 0, 0], stShotsFromReceiveSec: [], stShotDist: [],
-  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, xgByNear: {} }, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
+  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, boxDefL1: 0, boxDefL2: 0, boxAtt: 0, xgByNear: {}, xgByBoxDiff: {} }, byLine: {}, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
 });
 const PBINS = [0, 10, 20, 30, 40, 50];
 const pbin = (d: number) => { let b = 0; while (b + 1 < PBINS.length && d >= PBINS[b + 1]!) b++; return b; };
@@ -202,11 +207,19 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         { const nd = recvMark.get(a); if (nd !== undefined && g && s.t - g.t < 3) { S.recvBox.shots3++; if (nd <= 1.5) S.recvBox.shots3Within15++; } }
         {
           const dirA = attackDir(a.team, s.half);
-          let near5 = 0, boxDef = 0;
-          for (const o of s.agents) { if (!o.onPitch || o.team === a.team || o.line === 0) continue; if (dist(o.x, o.y, a.x, a.y) <= 5) near5++; if (inOppBox(o.x, o.y, dirA)) boxDef++; }
-          S.crowd.n++; S.crowd.near5 += near5; S.crowd.boxDef += boxDef;
+          let near5 = 0, boxDef = 0, boxDefL1 = 0, boxDefL2 = 0, boxAtt = 0;
+          for (const o of s.agents) {
+            if (!o.onPitch || o.line === 0) continue;
+            if (o.team === a.team) { if (inOppBox(o.x, o.y, dirA)) boxAtt++; continue; }
+            if (dist(o.x, o.y, a.x, a.y) <= 5) near5++;
+            if (inOppBox(o.x, o.y, dirA)) { boxDef++; if (o.line === 1) boxDefL1++; else if (o.line === 2) boxDefL2++; }
+          }
+          S.crowd.n++; S.crowd.near5 += near5; S.crowd.boxDef += boxDef; S.crowd.boxDefL1 += boxDefL1; S.crowd.boxDefL2 += boxDefL2; S.crowd.boxAtt += boxAtt;
           const k = near5 >= 3 ? '3+' : String(near5);
           const c = (S.crowd.xgByNear[k] ??= { n: 0, xg: 0, goals: 0 }); c.n++; c.xg += xg;
+          const bd = boxAtt - boxDef; const kb = bd <= -2 ? '≤-2' : bd >= 2 ? '≥+2' : String(bd);
+          const cb = (S.crowd.xgByBoxDiff[kb] ??= { n: 0, xg: 0, goals: 0 }); cb.n++; cb.xg += xg;
+          const bl = (S.byLine[String(a.line)] ??= { shots: 0, goals: 0, xg: 0 }); bl.shots++; bl.xg += xg;
         }
         if (g?.detail === 'through' && s.t - g.t < 3) S.thrShot3++;
       } else if (e.type === 'goal') {
@@ -216,7 +229,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         (S.byGroup[group(a.pos)] ??= { shots: 0, goals: 0, xg: 0 }).goals++;
         S.goalPathEngine[a.shotPath]!++;
         const gg = got.get(a); if (gg) { (S.byGot[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.detail === 'through') S.thrGoals++; if (group(a.pos) === 'ST') (S.byGotST[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
-        { const dirA = attackDir(a.team, s.half); let near5 = 0; for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && dist(o.x, o.y, a.x, a.y) <= 5) near5++; const k = near5 >= 3 ? '3+' : String(near5); (S.crowd.xgByNear[k] ??= { n: 0, xg: 0, goals: 0 }).goals++; }
+        { const dirA = attackDir(a.team, s.half); let near5 = 0, boxDef = 0, boxAtt = 0; for (const o of s.agents) { if (!o.onPitch || o.line === 0) continue; if (o.team === a.team) { if (inOppBox(o.x, o.y, dirA)) boxAtt++; continue; } if (dist(o.x, o.y, a.x, a.y) <= 5) near5++; if (inOppBox(o.x, o.y, dirA)) boxDef++; } const k = near5 >= 3 ? '3+' : String(near5); (S.crowd.xgByNear[k] ??= { n: 0, xg: 0, goals: 0 }).goals++; const bd = boxAtt - boxDef; const kb = bd <= -2 ? '≤-2' : bd >= 2 ? '≥+2' : String(bd); (S.crowd.xgByBoxDiff[kb] ??= { n: 0, xg: 0, goals: 0 }).goals++; (S.byLine[String(a.line)] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
         // 거리 구간: 직전 슈팅 이벤트
         const sh = [...s.events].reverse().find((x) => x.type === 'shot' && x.players[0] === a.id);
         if (sh) S.byDist[dbin(Number(sh.params?.d ?? 0))]!.goals++;
@@ -279,7 +292,8 @@ function report(label: string, out: [Side, Side]): void {
     console.log(`  침투 패스: 시도 ${q(S.thrAtt)} 수신 ${q(S.thrRecv)} (${(100 * S.thrRecv / Math.max(1, S.thrAtt)).toFixed(0)}%), 받은 곳 골까지 평균 ${mean(S.thrRecvDist).toFixed(1)} m, 받고 3초 안 슛 ${q(S.thrShot3)}, 침투로 받은 뒤 골 ${q(S.thrGoals)} (${(100 * S.thrGoals / Math.max(1, S.goals)).toFixed(0)}% of 골)`);
     console.log(`  얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGot).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  ST 얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGotST).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
-    console.log(`  슛 순간 수비 밀집: 슈터 5 m 안 상대 평균 ${(S.crowd.near5 / Math.max(1, S.crowd.n)).toFixed(2)}명, 박스 안 상대 평균 ${(S.crowd.boxDef / Math.max(1, S.crowd.n)).toFixed(2)}명 · 5 m 안 상대 수별 슛(xG/실제 골률): ${Object.entries(S.crowd.xgByNear).sort().map(([k, v]) => `${k}명 ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`).join(' · ')}`);
+    console.log(`  슛 순간 수비 밀집: 슈터 5 m 안 상대 평균 ${(S.crowd.near5 / Math.max(1, S.crowd.n)).toFixed(2)}명, 박스 안 상대 평균 ${(S.crowd.boxDef / Math.max(1, S.crowd.n)).toFixed(2)}명(수비 줄 ${(S.crowd.boxDefL1 / Math.max(1, S.crowd.n)).toFixed(2)} / 중원 줄 ${(S.crowd.boxDefL2 / Math.max(1, S.crowd.n)).toFixed(2)}), 박스 안 우리 공격 평균 ${(S.crowd.boxAtt / Math.max(1, S.crowd.n)).toFixed(2)}명 · 5 m 안 상대 수별 슛(xG/실제 골률): ${Object.entries(S.crowd.xgByNear).sort().map(([k, v]) => `${k}명 ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`).join(' · ')}`);
+    console.log(`  박스 안 (우리 공격 − 상대 수비) 인원 차별 슛/경기(xG/실제 골률): ${['≤-2', '-1', '0', '1', '≥+2'].filter((k) => S.crowd.xgByBoxDiff[k]).map((k) => { const v = S.crowd.xgByBoxDiff[k]!; return `${k} ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`; }).join(' · ')} · 줄별 슈팅/골/xG: ${Object.entries(S.byLine).sort().map(([k, v]) => `줄${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  박스 안 패스 수신 ${q(S.recvBox.n)}/경기: 받는 순간 가장 가까운 상대 평균 ${(S.recvBox.dsum / Math.max(1, S.recvBox.n)).toFixed(2)} m, 1.5 m 안 ${(100 * S.recvBox.within15 / Math.max(1, S.recvBox.n)).toFixed(0)}%, 2.5 m 안 ${(100 * S.recvBox.within25 / Math.max(1, S.recvBox.n)).toFixed(0)}% · ST 수신 ${q(S.recvBox.stN)} (1.5 m 안 ${(100 * S.recvBox.stWithin15 / Math.max(1, S.recvBox.stN)).toFixed(0)}%) · 받고 3초 안 슛 ${q(S.recvBox.shots3)} (그중 1.5 m 안에서 받은 것 ${(100 * S.recvBox.shots3Within15 / Math.max(1, S.recvBox.shots3)).toFixed(0)}%)`);
     // 진단 지표 (C.30, pending 20·21): "박스 수신 1.5 m 안 ≥30%" 대신 "ST 박스 안 수신/경기 ≤12"
     const stRecv = S.recvBox.stN / n;
@@ -291,15 +305,16 @@ function report(label: string, out: [Side, Side]): void {
   }
 }
 
-const mkGen = (side: string, i: number, rating: number, opp: number, formation: '4-2-3-1' | '4-4-2' = '4-2-3-1', tactics: 'balanced' | 'data' = 'balanced') => {
+const mkGen = (side: string, i: number, rating: number, opp: number, formation: Formation = '4-2-3-1', tactics: 'balanced' | 'data' = 'balanced', cells?: number[]) => {
   const r = createTeamRoster({ id: `v${side}${i}`, rating }, `diagB-${side}-${rating}-${i}`, 2018, []);
   r.formation = formation;
+  if (cells) r.customSlots = customSlots(cells);
   const s = teamSetupFromRoster(r, rosterRating(r), opp, `wB${i}`);
   if (tactics === 'balanced') s.tactics = { ...s.tactics, ...BALANCED };
   return s;
 };
 const refill = (s: TeamSetup) => {
-  const slots = FORMATION_SLOTS[s.formation];
+  const slots = s.customSlots ?? FORMATION_SLOTS[s.formation];
   for (const p of s.lineup) delete p.role;
   fillRoles(s, (slot) => slots[slot]!.pos);
 };
@@ -320,6 +335,47 @@ if (MODE === 'gap') {
     const out: [Side, Side] = [side(), side()];
     for (let i = 0; i < N; i++) analyze(mkT('a', i, sp), mkT('b', i, vs), 31000 + i, out);
     report(`전술 ${sp} (홈) 대 ${vs} (원정) — 생성 75 대 75, 4-4-2, 중립 ${N}경기`, out);
+  }
+} else if (MODE === 'cells') {
+  // 커스텀 대형 (C.33 진단, 미해결 5번): custom-sweep.ts 와 같은 무작위 대형(번호)을 홈에, 균형 4-4-2 칸 대형을 원정에. 'base' 는 4-4-2 칸 대형끼리
+  const randomCells = (i: number): number[] => {
+    const rng = createRng(hashSeed(`custom-sweep:${i}`));
+    const all = Array.from({ length: GRID_ROWS * GRID_LANES }, (_, c) => c).filter(cellExists);
+    for (;;) {
+      const pool = [...all];
+      const cells = [-1];
+      for (let k = 0; k < 10; k++) cells.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]!);
+      if (customProblem(cells)) continue;
+      return cells;
+    }
+  };
+  const ids = args.length > 2 ? args.slice(2) : ['35', 'base'];
+  for (const id of ids) {
+    const cells = id === 'base' ? presetCells('4-4-2') : randomCells(Number(id));
+    const base = presetCells('4-4-2');
+    const out: [Side, Side] = [side(), side()];
+    for (let i = 0; i < N; i++) {
+      const h = mkGen('a', i, 75, 75, '4-4-2', 'balanced', cells); refill(h);
+      const a = mkGen('b', i, 75, 75, '4-4-2', 'balanced', base); refill(a);
+      analyze(h, a, 71000 + i, out);
+    }
+    const slots = customSlots(cells).slice(1);
+    report(`커스텀 대형 ${id} ${customLabel(cells)} (${slots.map((x) => x.pos).join(' ')}) 홈 대 균형 4-4-2 칸 대형 원정 — 생성 75 대 75, 중립 ${N}경기`, out);
+  }
+} else if (MODE === 'role') {
+  // 역할 비교 (C.33 진단, 미해결 4번): 홈 슬롯 역할만 바꾸고 나머지는 균형 추천 역할, 원정은 같은 포메이션 균형 (role-pair 와 같은 짝)
+  const formation = (args[2] ?? '4-3-3') as Formation;
+  const slot = Number(args[3] ?? 8);
+  const roles = args.slice(4);
+  for (const role of roles) {
+    const out: [Side, Side] = [side(), side()];
+    for (let i = 0; i < N; i++) {
+      const h = mkGen('a', i, 75, 75, formation, 'balanced'); refill(h);
+      if (role !== 'default') { const p = h.lineup.find((x) => x.slot === slot); if (p) p.role = role; }
+      const a = mkGen('b', i, 75, 75, formation, 'balanced'); refill(a);
+      analyze(h, a, 47000 + i, out);
+    }
+    report(`역할 ${role} (${formation} 슬롯 ${slot}, 홈) 대 균형 기본 역할 (원정) — 생성 75 대 75, 중립 ${N}경기`, out);
   }
 } else if (MODE === 'liv') {
   const ws = 'league-0';

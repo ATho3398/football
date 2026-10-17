@@ -115,7 +115,7 @@ describe('세이브 (SAVE_FORMAT_VERSION 12)', () => {
     g.tactics = { ...g.tactics, tendency: 'block', levels: { lineHeight: 0, pressing: 0, style: 2, width: 0 } };
     const back = deserialize(serialize(g));
     expect(back.tactics).toEqual(g.tactics);
-    expect(SAVE_FORMAT_VERSION).toBe(13);
+    expect(SAVE_FORMAT_VERSION).toBe(15);
   });
 
   it('11 → 12: 균형 + 팀 데이터 포메이션 + 주 포지션 슬롯', () => {

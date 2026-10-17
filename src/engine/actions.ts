@@ -235,29 +235,14 @@ export function defendDuels(s: SimState): void {
   const o = s.agents[s.ball.owner];
   if (!o || o.line === 0) return;
   const D = ENGINE.defense;
-  const dirA = attackDir(o.team, s.half);
-  const [ax, ay] = toNorm(o.x, o.y, dirA);
-  const here = positionValue(ax, ay);
-  const inBox = inOppBox(o.x, o.y, dirA);
-  // 돌파 허용 비용: 소유자가 carryDist 앞으로 나간 자리 가치 − 지금 가치 (박스 안이면 슛 기회)
-  const [nx2, ny2] = toNorm(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), o.y, dirA);
-  const beaten = Math.max(0, positionValue(nx2, ny2) - here) + D.beatenBase;
+  // 내 선수 결정 순간에서 고른 1대1 행동 (E.11): 그 선수만 고른 행동으로, 한 번만
+  const forced = s.forcedDuel;
+  s.forcedDuel = null;
   for (const d of s.agents) {
-    if (!d.onPitch || d.team === o.team || d.line === 0 || s.t < d.beatenUntil || s.t < d.duelNext) continue;
-    if (dist(d.x, d.y, o.x, o.y) > D.duelRange) continue;
+    if (!duelEligible(s, o, d)) continue;
     const judge = defJudgement(d);
     d.duelNext = s.t + D.duelInterval * (1.5 - judge);
-    const behind = behindOwner(s, o, d);
-    const pWin = clamp((1 - dribbleProb(o, d)) * (behind ? D.behindTackle : 1), 0.02, 0.98);
-    const pFoul = clamp(ENGINE.referee.tackleFoul * (behind ? D.behindFoul : 1) * foulFactor(s, o, o.x, o.y, d), 0, 1);
-    // 탈취 가치: 상대 공격 가치가 사라지고 우리 공격이 시작된다 (루즈볼이면 절반)
-    const [dx, dy] = toNorm(o.x, o.y, attackDir(d.team, s.half));
-    const gain = (here + positionValue(dx, dy)) * (PR.tackleKeep + (1 - PR.tackleKeep) * 0.5);
-    const foulCost = inBox ? ENGINE.setPiece.penaltyBase - here : D.foulCost;
-    const uTackle = pWin * gain - (1 - pWin) * (beaten + pFoul * foulCost);
-    const lane = shadowValue(s, o, d) - here;
-    const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
-    const us = [uTackle, D.jockeyValue, uLane];
+    const { pWin, pFoul, us } = duelOdds(s, o, d);
     const tau = O_TEMP(judge);
     const mx = Math.max(...us);
     const ws = us.map((u) => Math.exp(((u - mx) * ENGINE.onball.utilityScale) / tau));
@@ -270,6 +255,7 @@ export function defendDuels(s: SimState): void {
         break;
       }
     }
+    if (forced && forced.idx === d.idx) pick = forced.pick;
     if (pick === 2) {
       d.laneUntil = s.t + D.duelInterval;
       continue;
@@ -292,6 +278,35 @@ export function defendDuels(s: SimState): void {
       return;
     }
   }
+}
+
+/** 수비수 d 가 지금 소유자 o 와 1대1 판단을 하는가 (defendDuels 와 결정 순간이 같은 조건을 쓴다) */
+export function duelEligible(s: SimState, o: Agent, d: Agent): boolean {
+  if (!d.onPitch || d.team === o.team || d.line === 0 || s.t < d.beatenUntil || s.t < d.duelNext) return false;
+  return dist(d.x, d.y, o.x, o.y) <= ENGINE.defense.duelRange;
+}
+
+/** 1대1 판단의 확률과 효용 [태클, 따라붙기, 패스길 막기] (E.23). beaten = 돌파 허용 비용 */
+export function duelOdds(s: SimState, o: Agent, d: Agent): { pWin: number; pFoul: number; beaten: number; us: [number, number, number] } {
+  const D = ENGINE.defense;
+  const dirA = attackDir(o.team, s.half);
+  const [ax, ay] = toNorm(o.x, o.y, dirA);
+  const here = positionValue(ax, ay);
+  const inBox = inOppBox(o.x, o.y, dirA);
+  // 돌파 허용 비용: 소유자가 carryDist 앞으로 나간 자리 가치 − 지금 가치 (박스 안이면 슛 기회)
+  const [nx2, ny2] = toNorm(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), o.y, dirA);
+  const beaten = Math.max(0, positionValue(nx2, ny2) - here) + D.beatenBase;
+  const behind = behindOwner(s, o, d);
+  const pWin = clamp((1 - dribbleProb(o, d)) * (behind ? D.behindTackle : 1), 0.02, 0.98);
+  const pFoul = clamp(ENGINE.referee.tackleFoul * (behind ? D.behindFoul : 1) * foulFactor(s, o, o.x, o.y, d), 0, 1);
+  // 탈취 가치: 상대 공격 가치가 사라지고 우리 공격이 시작된다 (루즈볼이면 절반)
+  const [dx, dy] = toNorm(o.x, o.y, attackDir(d.team, s.half));
+  const gain = (here + positionValue(dx, dy)) * (PR.tackleKeep + (1 - PR.tackleKeep) * 0.5);
+  const foulCost = inBox ? ENGINE.setPiece.penaltyBase - here : D.foulCost;
+  const uTackle = pWin * gain - (1 - pWin) * (beaten + pFoul * foulCost);
+  const lane = shadowValue(s, o, d) - here;
+  const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
+  return { pWin, pFoul, beaten, us: [uTackle, D.jockeyValue, uLane] };
 }
 
 /** 판단 온도 (onball 과 같은 식) */
