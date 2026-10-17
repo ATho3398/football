@@ -871,3 +871,8 @@ pending 31의 빈칸을 추천안으로 채운다.
 - 사용자: UI를 B로 변환. 명세 `docs/ui-requests/B-apply.md` + `docs/design/player-one-design-b/`(20장, claude/ui-3 835a13e). B = 6차와 같은 화면·props에 모양만 바꾼 층(배색 같음, 꺾인 사각형·이탤릭 숫자 Barlow·제목 Black Han Sans·미페 머리말). 미페 권리 무시, 투명 미페 아니면 네모 사진 그대로, 긴 이름은 글자 크기 축소(50/36px → 최소 24px), 핵심 20장 먼저(나머지 139장은 디자이너 다음 판).
 - 나누기(B-apply 4절): U5-a(C.54)에 B 층 바탕(글꼴 4·skin-b.css [data-skin="b"] 기본·설정 A/B·독 154 B 모양, 5칸 유지) → U5-c 미페 머리말(86·132)·이름 자동 크기 → U5-d compact(93·134·136) → U5-g PC 120. C.54가 못 넣으면 바로 뒤 U-B1.
 - UI_3는 B-apply를 넘겼지만 차례 보고 없이 사용자가 직접 준 디자인이라 세션 유지(사용량 절약, 새 UI 세션 안 엶).
+
+## 90. C.54(34j단계 U5-a) 결과와 남은 질문 (2026-10-18 05:35 KST, 마스터 N 추천안으로 진행 — 사용자 변경 가능)
+- main 32da83d(34j단계 · C.54 · 엔진 20 무수정 · 밸런스 38(표시 전용 pixelLook.clashBody) · 세이브 31, 38분). bundle.css 5·6차, 아이콘 12, 독 = 154 모양(홈 56px 원 솟음, 홈 화면 라임 면/다른 화면 라임 테두리, 진행 알약 5상태·답하기 배지·잠김), 모바일 5칸(DOCK_PHONE 배열, 6칸은 'world' 한 줄 추가), 경기 중 띠, HeroPanel compact, 재계약 넘침 해결, Tabs, 새 컴포넌트 TextField·Stepper·PointBar·TagChip·PixelTile·FinChip·OfferCard·TransferRow, GameCard 기본 장면, 번호 띠 팀 색 + kitClash. 테스트 455, balance 15/15.
+- **B 층 바탕은 못 넣음**(전달이 작업 중에 도착) → 34k C.55 U-B1로 따로. U5-b~g = 34l~34q(C.56~C.61).
+- 남은 질문 추천대로: ① 모바일 독 5칸 vs 6칸 — 사용자 답 대기(C.54 추천 6칸, N 추천 5칸) ② PC 독 순서 디자인대로는 U5-g ③ kitClash 기준 48 그대로, U5-b 캡처에서 재확인.
