@@ -1,8 +1,11 @@
 # UI 세션 인수인계 (`docs/automation.md` 6번)
 
-- 지금 UI 세션: **UI_1** `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`, 섹션 `플레이어 원_UI`, 연 세션 = 마스터 L `session_01EWtWvJrTgC8wWMeELQz664`)
-- **지금 마스터: M** `session_01BTacbWbkVFVE6HVKwxLx3v` (브랜치 `claude/planning-m`, 2026-10-17 20:57 KST L → M 교체). 알림·보고는 M으로.
-  - 참고: `docs/planning-pending.md` 58에는 UI_1 ID가 `session_01QuN9pxUgr2T4SN6FKmUmjd`로 적혀 있다. 실제 이 세션 ID는 위 값(`get_session` 확인).
+- **지금 UI 세션: UI_2** `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, `get_session` 확인, 연 세션 = **마스터 M** `session_01BTacbWbkVFVE6HVKwxLx3v`). 2026-10-18 00:30 KST UI_1 → UI_2 인수.
+  - 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
+- **지금 마스터: M** `session_01BTacbWbkVFVE6HVKwxLx3v` (브랜치 `claude/planning-m`). 알림·보고는 M으로(send_message). 카톡·ntfy 알림은 M 몫.
+- 5차: 디자인 도착(player-one-design 123장, 컴포넌트 45종) → `5-apply.md` → M이 U5-a~g 패치로 적용. **5차 끝.**
+- 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 M에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
+- 푸시: UI_2는 **`claude/ui-2`에만**(main 금지).
 - 현재 차례: **5 → 디자인 받음, 다음 보고는 6차**
 - 5차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **4개** (+ 작은 변형 9) (큰 것이 있는 단계: 1개 — C.45, 작은 것만: C.46)
 - 다음 보고 조건: 6개 이상, 또는 그런 단계 3개 이상, 또는 사용자 화면 불만 → 6차(새로 쌓인 것만)
@@ -31,7 +34,7 @@
 - `npm ci && npm run build && npx vite preview --port 4173` 뒤 Playwright(`/opt/node-tools/node_modules/playwright`, 크로뮴 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)로 실제 선수 손흥민 새 게임 → 시즌 끝까지. 5차 스크립트는 코드라 레포에 넣지 않았다(레포의 `scripts/c44-capture.mjs` 등 단계별 스크립트의 도우미 함수와 같은 방식: `go-tab`은 폰에서 숨은 독 칸이 있어 `document.querySelector(...).click()`으로 누른다, 전술은 3경기 뒤 열림).
 
 ## 푸시 규칙 (마스터 L 2026-10-17 19:38·19:49 KST, `automation.md` 0번)
-- UI 세션은 **`claude/ui-1` 브랜치에만 푸시**하고 main에는 올리지 않는다(문서 푸시가 Pages 배포를 취소시킴, 808647d가 배포 #166을 취소). 코드 세션이 배포할 때 ui-1의 docs/를 병합한다.
+- UI 세션은 **자기 브랜치(UI_1 `claude/ui-1`, UI_2 `claude/ui-2`)에만 푸시**하고 main에는 올리지 않는다(문서 푸시가 Pages 배포를 취소시킴, 808647d가 배포 #166을 취소). 코드 세션이 배포할 때 UI 브랜치의 docs/를 병합한다.
 
 ## 보고 전달 규칙 (마스터 M 2026-10-17 21:03 KST, `automation.md` 6번 2항, claude/planning-m facd572)
 - 보고 답변 **본문에 Claude Design 프롬프트 전문을 코드 블록 하나로 그대로** 붙인다. 경로만 주는 것은 금지(사용자가 브랜치 파일을 열기 어렵다).
