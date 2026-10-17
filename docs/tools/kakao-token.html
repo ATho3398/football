@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>카카오 알림 토큰 발급</title>
+<style>
+  :root { --bg:#fff; --fg:#111; --muted:#666; --line:#ddd; --accent:#fee500; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151515; --fg:#eee; --muted:#aaa; --line:#333; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 system-ui, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:20px; } h2 { font-size:16px; margin-top:28px; }
+  label { display:block; margin-top:12px; font-weight:600; }
+  input, textarea { width:100%; box-sizing:border-box; padding:8px; border:1px solid var(--line); border-radius:6px; background:transparent; color:inherit; font:inherit; }
+  button { margin-top:12px; padding:10px 14px; border:0; border-radius:6px; background:var(--accent); color:#111; font-weight:700; cursor:pointer; }
+  .muted { color:var(--muted); font-size:13px; }
+  pre { white-space:pre-wrap; word-break:break-all; border:1px solid var(--line); border-radius:6px; padding:10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>카카오톡 "나에게 보내기" 토큰 발급</h1>
+  <p class="muted">이 파일은 내 PC 브라우저에서만 동작합니다. 입력한 값은 카카오 서버로만 가고 어디에도 저장되지 않습니다. 결과 토큰은 채팅에 붙이지 말고 클라우드 환경 설정(Network secrets)에만 넣으세요.</p>
+
+  <h2>1. 앱 정보</h2>
+  <label>REST API 키</label>
+  <input id="key" autocomplete="off">
+  <label>Redirect URI (카카오 개발자 콘솔에 등록한 값 그대로)</label>
+  <input id="uri" value="https://localhost">
+  <label>Client Secret (콘솔에서 켰을 때만)</label>
+  <input id="secret" autocomplete="off">
+  <button id="go">카카오 로그인·동의 열기</button>
+
+  <h2>2. 동의 후 주소창 주소 붙여 넣기</h2>
+  <p class="muted">동의하면 "사이트에 연결할 수 없음" 화면이 뜹니다. 정상입니다. 그 페이지의 주소창 전체(https://localhost/?code=…)를 복사해 아래에 붙여 넣으세요. 코드는 10분 안에 한 번만 쓸 수 있습니다.</p>
+  <textarea id="redir" rows="3"></textarea>
+  <button id="tok">토큰 받기</button>
+
+  <h2>3. 결과</h2>
+  <pre id="out">(아직 없음)</pre>
+  <button id="test" disabled>내 카톡으로 테스트 메시지 보내기</button>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let access = '';
+  $('go').onclick = () => {
+    const u = new URL('https://kauth.kakao.com/oauth/authorize');
+    u.searchParams.set('client_id', $('key').value.trim());
+    u.searchParams.set('redirect_uri', $('uri').value.trim());
+    u.searchParams.set('response_type', 'code');
+    u.searchParams.set('scope', 'talk_message');
+    window.open(u.toString(), '_blank');
+  };
+  $('tok').onclick = async () => {
+    let code = $('redir').value.trim();
+    try { code = new URL(code).searchParams.get('code') || code; } catch (e) {}
+    const body = new URLSearchParams({ grant_type: 'authorization_code', client_id: $('key').value.trim(), redirect_uri: $('uri').value.trim(), code });
+    if ($('secret').value.trim()) body.set('client_secret', $('secret').value.trim());
+    const r = await fetch('https://kauth.kakao.com/oauth/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' }, body });
+    const j = await r.json();
+    if (!r.ok) { $('out').textContent = '실패: ' + JSON.stringify(j); return; }
+    access = j.access_token;
+    $('out').textContent =
+      'KAKAO_REFRESH_TOKEN = ' + j.refresh_token + '\n\n' +
+      '리프레시 토큰 유효: 약 ' + Math.round(j.refresh_token_expires_in / 86400) + '일\n' +
+      '받은 권한: ' + (j.scope || '') + '\n\n' +
+      '환경 설정에 넣을 값: KAKAO_REST_API_KEY, KAKAO_REFRESH_TOKEN' + ($('secret').value.trim() ? ', KAKAO_CLIENT_SECRET' : '');
+    $('test').disabled = false;
+  };
+  $('test').onclick = async () => {
+    const tpl = { object_type: 'text', text: '[플레이어 원] 카카오 알림 연결 테스트예요.', link: { web_url: 'https://atho3398.github.io/football/', mobile_web_url: 'https://atho3398.github.io/football/' } };
+    const r = await fetch('https://kapi.kakao.com/v2/api/talk/memo/default/send', { method: 'POST', headers: { Authorization: 'Bearer ' + access, 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' }, body: new URLSearchParams({ template_object: JSON.stringify(tpl) }) });
+    const j = await r.json();
+    alert(r.ok ? '보냈어요. 카카오톡 "나와의 채팅"을 확인하세요.' : '실패: ' + JSON.stringify(j));
+  };
+</script>
+</body>
+</html>

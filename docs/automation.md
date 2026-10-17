@@ -11,6 +11,9 @@
 - **`draft_`의 뜻**: "초안"이 아니라 **끝난(보관) 세션** 표시다. 다시 손대지 않는다(사용자 2026-10-17 확인, 이름은 그대로 둔다).
 - **세션 섹션(2026-10-17 19:39 KST 개정)**: 앱 사이드바 섹션은 사용자가 PC 앱에서 직접 분류한다(클라우드 세션 태그로는 앱 섹션이 바뀌지 않음을 확인). **`remote-agents-project:` 태그는 붙이지도 바꾸지도 않는다.** `stage:`·`role:` 같은 참고용 태그는 붙여도 된다. 구분은 제목 규칙(`N단계_`, `draft_`, `UI_`, `<글자>_축구 커리어 게임 마스터`)으로 한다.
 
+- **카카오톡 알림(사용자 요청 2026-10-17 22:58 KST, 설정 대기)**: 사용자가 Claude 알림을 놓칠 수 있어 꼭 필요한 때만 카톡 "나에게 보내기"로 알린다. 보낼 때: ① 마스터 깊이 7(새 마스터를 앱에서 직접 열어야 함) ② 자동 진행이 멈추고 사용자 결정이 꼭 필요함 ③ 배포 2회 연속 실패. 일상 보고는 보내지 않는다. 환경 변수 `KAKAO_REST_API_KEY`·`KAKAO_REFRESH_TOKEN`(·`KAKAO_CLIENT_SECRET`)이 있을 때만(발급은 `docs/tools/kakao-token.html`). 보내는 법(마스터 세션):
+  `AT=$(curl -s https://kauth.kakao.com/oauth/token -d grant_type=refresh_token -d client_id=$KAKAO_REST_API_KEY -d refresh_token=$KAKAO_REFRESH_TOKEN ${KAKAO_CLIENT_SECRET:+-d client_secret=$KAKAO_CLIENT_SECRET} | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')` 뒤 `curl -s https://kapi.kakao.com/v2/api/talk/memo/default/send -H "Authorization: Bearer $AT" --data-urlencode 'template_object={"object_type":"text","text":"[플레이어 원] 내용","link":{"web_url":"https://atho3398.github.io/football/"}}'`. 리프레시 토큰은 약 2달 유효 — 응답에 새 refresh_token이 오면(만료 1달 전부터) 사용자에게 환경 값 갱신을 부탁하고, 만료 2주 전에는 Claude 알림으로 재발급을 안내한다.
+
 ## 1. 단계 흐름
 1. **단계 시작(기획 세션)**: 지시를 쓰고 코드 세션 "N단계_작업명"을 연다. 직전 단계 코드 세션(그리고 그 fix 세션) 제목 앞에 `draft_`.
 2. **코딩(코드 세션)**: 구현 → 검증 → 배포 → 부록 C. **배포 규칙(사용자 확정 2026-10-17 22:47·22:51 KST, 시간은 아끼고 오류 추적은 쉽게)** — 바로 아래 "배포 규칙"을 따른다. 엔진을 만지다 "해결 어려움"(2번)이면 더 고치지 않고 `docs/engine-issues.md`에 기록한다.
