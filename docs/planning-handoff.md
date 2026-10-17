@@ -251,3 +251,4 @@
 - 다음: C.46 보고 → pending 69 → UI_1 목록 → 34c C.47(레전드 팩 + 태그 효과, pending 63~67).
 - (21:38 KST) C.45 배포 확인: main 2898b85 CI #170 성공(#169는 다음 푸시로 취소, 내용 포함). C.45 끝.
 - (22:41 KST) C.46 완료(main d5a0a6c, CI #171) → pending 71, C.46 draft_. 사용자: Haiku 패치는 하지 않음(pending 69), 카드 일러스트 적용 + 설정 → 카드 이미지 교체(pending 70, 파일은 UI_1로 → 적용 명세 오면 U 적용 패치 끼움). **34c C.47 시작**.
+- (22:43 KST) **34c C.47 시작** `session_01AtJj9AFw7mp4QtH8B9LAbC` "34c단계_레전드 팩·태그 효과 (C.47)", 브랜치 `claude/c47-legends`, 태그 `stage:34c-C47`. 자동 확인 `trig_01Ji2cZZR3QVFCGBMjMqgc2p`(01:12 KST). UI_1에 C.46 목록(큰 0 + 작은 4) + 카드 일러스트 적용 명세 예고. M 상태: 25.8만·5.1달러. 다음: C.47 보고 → pending 72 → 카드 일러스트 명세가 오면 U 적용 패치(34d 자리) → 35 5-1.
