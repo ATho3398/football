@@ -350,3 +350,12 @@
 - 시작 처리(16:58 KST): 38b C.66·UI_3·엔진관리자2·C.65(CI 결과만)에 "보고는 P, 마스터 브랜치 claude/planning-p" 알림. C.66 진행 확인 send_later `trig_013NL6fZF2FA7xM6FRgHTcz3`(19:27 KST). O 제목 `draft_O_축구 커리어 게임 마스터`(태그 그대로, O 최종 19.9달러·53.5만). 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음). rate limit allowed.
 - (16:57 KST) UI_3·엔진관리자2 교체 확인. UI_3: 9차 누계 큰 1·작은 4·단계 1(미달), handoff "지금 마스터: P"(claude/ui-3 e72c7a6). 엔진관리자2: `claude/engine-issues-c45` 156392c(C.62 2초 경계 기록)를 **다음 배포 때 docs 병합** → 다음 단계 지시(39 C.67)에 넣을 것.
 - (17:21 KST) C.65 CI #193 성공(main cb7c645, 17:18 KST 배포). C.65 끝.
+- (18:04 KST) C.66 완료 보고(O 경유, main 948ad92, 테스트 580, 1시간 8분) → pending 107, ntfy(200), UI_3 목록(큰 2·작은 5), C.66에 "보고는 P" 재알림. C.66 CI는 C.66 세션이 18:28 KST쯤 확인.
+- (18:04 KST) 39 5-6 세부 형식 추천안 pending 108. **rate limit `seven_day` allowed_warning** → 사용자 선호대로 C.67 열기 전에 사용자에게 물음(ntfy 긴급). 답 오면 pending 108 + 8.26 공통 사항 + `claude/engine-issues-c45` docs 병합으로 C.67 지시.
+- (18:14 KST) C.66 직접 보고도 옴: 최종 main **97fa3cc**(docs 병합 planning-o·planning-p·ui-3). UI_3: C.66 화면은 정정문(7-8-addendum)으로 이미 요청한 것이라 오른쪽 패널 시트만 작은 1 → 9차 누계 큰 1·작은 5·단계 1(미달, claude/ui-3 8cd901b). C.66 확인 예약 `trig_013NL6fZF2FA7xM6FRgHTcz3` 삭제(완료됨). C.67은 사용자 답 기다림.
+- (18:31 KST, 사용자) "한도 꽉 차서 막힐 때까지 계속 돌려도 돼" → **사용량 경고로 멈추지 않음**(7일 한도 실제로 막힐 때만 멈춤, 리셋 10/20 19:00 KST). 챔스/컵 형식 답 없음 → pending 108 추천안으로 진행. 39 C.67a 시작.
+- (18:31 KST) **39 C.67 5-6 챔스/컵 시작** `session_01YLLnn3Rua9XQAF1kfVmatw` "39단계_5-6 챔스/컵 (C.67)", 브랜치 `claude/c67-cups`, 태그 `stage:39-C67`(a = 대회 틀·일정·간이 계산·FA컵·휴가 예외·가족 우환 결장 / b = 챔스·보상·화면, pending 108, engine-issues-c45 docs 병합 포함). C.66 `draft_`. C.67 자동 확인 send_later `trig_01D1sGBcUB3ZvHPf4nXrgu4B`(21:32 KST). C.66 CI는 C.66 세션이 18:40 KST 확인.
+- (18:41 KST) C.66 CI #194 성공(main 948ad92, 약 32분; 97fa3cc는 docs만이라 배포 실행 없음). 38b C.66 끝.
+- (20:08 KST) C.67 중간 알림: a 구현·테스트 통과했지만 a 단독 balance 13/15(레전더리 35세 월드클래스 0.3 > 0.25, 36−30 CB군 −0.9) → 규칙대로 main에 안 올림(claude/c67-cups 92cf816). 컵·챔스 경기 XP 배율 0.5 넣고 b(챔스·보상·화면)까지 합쳐 balance 재실행(약 31분) → 통과하면 a+b 한 번에 배포(PATCH_LABEL C.67b). P 판단: 그대로 진행(balance 1회 31분이라 합치는 게 합리적).
+- (21:32 KST) C.67 자동 확인: 실행 중, 2초 테스트 864·885ms 확인 뒤 기획서 반영 중(배포 직전으로 보임, 컨텍스트 52만). 재확인 send_later 60분(22:33 KST).
+- (22:24 KST) C.67 알림 2: a+b 구현, 테스트 600, 2초 864·885ms, balance 14/15(레전더리 35세 월드클래스 12/48 = 0.250인데 가드가 소수 첫째 자리 반올림 0.3으로 실패, 시드 12 하나만 874→956, 잡음). 컨테이너 재시작 3회로 balance 2번 끊김. P 판단: 진행 중 조합(컵 큰 경기 버그 수정)으로 안 되면 **가드 비교를 반올림 전 값으로**(기준 0.25 그대로) 고쳐 배포 허용, 레전더리 후반 수치는 손대지 않음, 부록 C 명시.
