@@ -13,7 +13,7 @@ import {
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import type { LookVM } from './body';
-import { panel, versionFooter } from './common';
+import { panel, pc2, versionFooter } from './common';
 import {
   pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO,
 } from '../pitch/renderer';
@@ -28,7 +28,7 @@ import { userArtCount } from '../cardArt';
 import { CARDS } from '../../config/cards';
 
 const CARDS_N = (): number => CARDS.length;
-import { skin, SKIN_KO } from '../skin';
+import { isWide, skin, SKIN_KO } from '../skin';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
 export interface NameUI { q: string; team: string; sel: string | null }
@@ -434,6 +434,17 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
   const st = faceStats();
   const pack = `<p class="small">내가 올린 이미지(카드 이미지 포함, <b>cards/</b> 폴더)를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
     <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0 && userArtCount() === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`;
+  // PC (C.61 디자인 152): 왼쪽 섹션 목록 | 오른쪽 고른 섹션 하나(펼친 채). 꾸미기 하위 4개는 목록에 바로
+  if (isWide()) {
+    const cur: SetSec = set.open ?? 'play';
+    const bodies: Record<SetSec, [string, string, boolean?]> = {
+      play: [playSub, play, locked && !!g], view: [pvSub, pv], look: [lookSub, look],
+      saves: ['세이브 관리 · 첫 플레이 안내 다시 보기', saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
+    };
+    const [sub, body, lk] = bodies[cur];
+    return `${hero}<div class="body set-body">${pc2(setNav('main', cur), `${locked ? Banner({ tone: 'warning', title: '경기 중이에요', children: '경기 진행 설정은 경기가 끝나면 바꿀 수 있어요. 화면 보기·꾸미기는 지금도 돼요.' }) : ''}${
+      section(cur, sub, true, body, lk ?? false)}<input type="file" id="fp-file" accept=".zip,application/zip" hidden>${versionFooter(version)}`, 'set-pc')}</div>${cardArtOverlay(ca)}`;
+  }
   return `${hero}<div class="body set-body">
     ${jump}
     ${locked ? Banner({ tone: 'warning', title: '경기 중이에요', children: '경기 진행 설정은 경기가 끝나면 바꿀 수 있어요. 화면 보기·꾸미기는 지금도 돼요.' }) : ''}
@@ -461,11 +472,21 @@ function lookCounts(g: GameState | null): Record<Exclude<SetPage, 'main'>, strin
   };
 }
 
-/** 하위 화면 머리말 + 꾸미기 이동 칩 4 (디자인 71·137·140) */
+/** PC 설정 왼쪽 목록 (C.61 디자인 152): 섹션 5개, 꾸미기 아래에 하위 화면 4개. 지금 자리 = 라임 */
+function setNav(page: SetPage, open: SetSec | null): string {
+  const item = (on: boolean, act: string, v: string, label: string, sub = false) =>
+    `<button type="button" class="set-nav__item${sub ? ' is-sub' : ''}${on ? ' is-on' : ''}" data-act="${act}" data-v="${v}"${on ? ' aria-current="page"' : ''}>${esc(label)}</button>`;
+  return `<nav class="panel set-nav" aria-label="설정 목록">${SECTIONS.map((x) => item(page === 'main' && open === x.id, 'set-nav', x.id, x.title)
+    + (x.id === 'look' ? `<small class="set-nav__group">꾸미기 · 하위 화면 4개</small>${SET_PAGES.map((pg) => item(page === pg.id, 'set-page', pg.id, pg.label, true)).join('')}` : '')).join('')}</nav>`;
+}
+
+/** 하위 화면 머리말 + 꾸미기 이동 칩 4 (디자인 71·137·140). PC(C.61)는 이동 칩 대신 왼쪽 설정 목록 */
 function subPage(page: Exclude<SetPage, 'main'>, eyebrow: string, chips: (string | { label: string; soft?: boolean })[], body: string, title?: string): string {
   const t = title ?? SET_PAGES.find((x) => x.id === page)!.label;
+  const hero = HeroPanel({ title: t, back: { act: 'set-back' }, eyebrow, compact: true, chips });
+  if (isWide()) return `${hero}<div class="body set-body set-sub set-sub--${page}">${pc2(setNav(page, null), body, 'set-pc')}</div>`;
   const nav = Tabs({ items: SET_PAGES.map((x) => ({ id: x.id, label: x.label })), value: page, act: 'set-page', scroll: true, label: '꾸미기 이동' });
-  return `${HeroPanel({ title: t, back: { act: 'set-back' }, eyebrow, compact: true, chips })}<div class="body set-body set-sub set-sub--${page}">${nav}${body}</div>`;
+  return `${hero}<div class="body set-body set-sub set-sub--${page}">${nav}${body}</div>`;
 }
 
 export function settingsView(

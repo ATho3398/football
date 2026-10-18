@@ -5,6 +5,7 @@ import { Banner, Button, esc, PointBar, SectionTitle, Stepper, TagChip, TextFiel
 import type { CustomVM } from '../customVM';
 import { attrGrid } from './attrGrid';
 import { BALANCE } from '../../config/balance';
+import { isWide } from '../skin';
 
 const sgn = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
 
@@ -60,11 +61,14 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
         <button type="button" class="cu-chip${t.on && t.perm ? ' is-on' : ''}" data-act="cu" data-k="trait" data-v="${t.id}"${t.can ? '' : ' disabled'}>${t.ptsRemovable !== null ? '영구 ' : ''}${sgn(t.pts)}P</button>
         ${t.ptsRemovable !== null ? `<button type="button" class="cu-chip${t.on && !t.perm ? ' is-on' : ''}" data-act="cu" data-k="traitR" data-v="${t.id}"${t.can ? '' : ' disabled'}>해제형 ${sgn(t.ptsRemovable)}P</button>` : ''}
       </span></div>`;
-    body = `<p class="small muted">영구 태그는 효과가 계속 가는 대신 포인트가 크고, 해제형은 조건을 채우면 사라지는 대신 포인트가 작아요. 노익장·빅매치 체질·원클럽맨 같은 태그는 플레이하며 얻어요.</p>
-    ${SectionTitle({ title: '장점', action: `${tc.pro}/${tc.maxPro} · 포인트 −` })}
-    <div class="opts">${vm.traits.filter((t) => t.kind === 'pro').map(traitRow).join('')}</div>
-    ${SectionTitle({ title: '단점', action: `${tc.con}/${tc.maxCon} · 포인트 +` })}
+    const pro = `${SectionTitle({ title: '장점', action: `${tc.pro}/${tc.maxPro} · 포인트 −` })}
+    <div class="opts">${vm.traits.filter((t) => t.kind === 'pro').map(traitRow).join('')}</div>`;
+    const con = `${SectionTitle({ title: '단점', action: `${tc.con}/${tc.maxCon} · 포인트 +` })}
     <div class="opts">${vm.traits.filter((t) => t.kind === 'con').map(traitRow).join('')}</div>`;
+    // PC (C.61 디자인 151): 장점 | 단점 두 열
+    body = `<p class="small muted">영구 태그는 효과가 계속 가는 대신 포인트가 크고, 해제형은 조건을 채우면 사라지는 대신 포인트가 작아요. 노익장·빅매치 체질·원클럽맨 같은 태그는 플레이하며 얻어요.</p>
+    ${isWide() ? `<div class="cu-tags2"><div>${pro}</div><div>${con}</div></div>` : `${pro}
+    ${con}`}`;
   } else if (st === 5) {
     body = `${SectionTitle({ title: '능력치 배분', action: `테두리 = ${vm.position} 핵심` })}
     <p class="small muted">모든 능력치 8에서 시작해요. 박스를 누르고 [+]로 한 칸씩 올려요. 칸당 1P(~11) · 2P(~13) · 3P(14~), 최대 15. 숨은 적성·잠재력은 시작해야 알 수 있어요.</p>
@@ -99,6 +103,45 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
   const next = last
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: vm.over || !vm.start.ready, children: vm.over ? `${-vm.left}P 넘쳤어요` : !vm.start.ready ? '시작할 구단을 골라요' : `${vm.age}세 ${vm.position} · OVR ${vm.ovr}로 시작` })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'cu-step', data: { v: String(st + 1) }, children: `다음 · ${CUSTOM_STEPS[st]}` });
+  if (isWide()) return customWide(vm, st, modeTabs, bar, body, prev, next);
   return `${modeTabs}${stepDots(st)}${bar}<div class="cu-step-body">${body}</div>
     <div class="dock cu-nav">${prev}${next}</div>`;
+}
+
+/** 단계 요약 한 줄 (PC 왼쪽 단계 목록) */
+function stepSummary(vm: CustomVM, n: number): string {
+  const b = vm.body;
+  const tc = vm.traitCount;
+  const s2 = vm.start;
+  switch (n) {
+    case 1: return `${vm.name || '이름 랜덤'} · ${vm.age}세 · ${vm.position}`;
+    case 2: return `${b.height}cm · ${b.weight}kg · ${b.footKo} · 약발 ${b.weakFoot}`;
+    case 3: return [vm.nationalities.find((x) => x.id === vm.nationality)?.ko, vm.appearances.find((x) => x.id === vm.appearance)?.ko].filter(Boolean).join(' · ');
+    case 4: return `장점 ${tc.pro} · 단점 ${tc.con}`;
+    case 5: return vm.over ? `${-vm.left}P 넘침` : `남은 ${vm.left}P`;
+    default: {
+      const club = (s2.kind === 'youth' || s2.kind === 'club') ? s2.teams.find((t) => t.id === s2.club)?.ko : '';
+      return s2.kind === 'none' ? '소속팀 없음 · 영입 제안' : club ? `${club} ${s2.kind === 'youth' ? '1군 테스트' : '계약'}` : '구단을 골라요';
+    }
+  }
+}
+
+/**
+ * PC 3열 (C.61 디자인 151): 왼쪽 = 시작 방식 탭 + 6단계 목록(늘 보임, 누르면 이동, 요약 한 줄) ·
+ * 가운데 = 배분 포인트 + 단계 본문 · 오른쪽 = 미리보기 카드 + [이전][다음]
+ */
+function customWide(vm: CustomVM, st: number, modeTabs: string, bar: string, body: string, prev: string, next: string): string {
+  const steps = `<ol class="cu-steps" aria-label="커스텀 단계">${CUSTOM_STEPS.map((l, k) => {
+    const n = k + 1;
+    const cls = n < st ? 'is-done' : n === st ? 'is-on' : '';
+    return `<li><button type="button" class="cu-steprow ${cls}" data-act="cu-step" data-v="${n}" aria-current="${n === st ? 'step' : 'false'}"><span class="cu-dot__n po-num">${n < st ? '✓' : n}</span><span class="grow"><b>${l}</b><small>${esc(stepSummary(vm, n))}</small></span></button></li>`;
+  }).join('')}</ol>`;
+  const tags = vm.traits.filter((t) => t.on).map((t) => TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(!t.perm && t.removeDesc ? { release: t.removeDesc } : {}), size: 'sm' })).join('');
+  const preview = `<div class="panel cu-preview">
+      <div class="cu-preview__head"><span class="grow"><b>${esc(vm.name || '이름 랜덤')}</b><small>${vm.age}세 · ${vm.position} · ${esc(vm.nationalities.find((x) => x.id === vm.nationality)?.ko ?? '')}</small></span><span class="cu-preview__ovr"><b class="po-num">${vm.ovr}</b><small>${vm.position} OVR</small></span></div>
+      <p class="small">${vm.body.height}cm · ${vm.body.weight}kg · ${esc(vm.body.footKo)} · 약발 ${vm.body.weakFoot}</p>
+      ${tags ? `<div class="cu-preview__tags">${tags}</div>` : '<small class="muted">태그 없음</small>'}
+    </div>`;
+  return `<div class="cu-pc"><div class="cu-pc__steps">${modeTabs}${steps}</div><div class="cu-pc__main">${bar}<div class="cu-step-body">${body}</div></div>
+    <div class="cu-pc__side">${preview}<div class="cu-pc__btns">${prev}${next}</div></div></div>`;
 }

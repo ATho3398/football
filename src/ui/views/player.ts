@@ -3,11 +3,11 @@
 
 import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
 import { heroFaceOf } from '../faces';
-import { skin } from '../skin';
+import { isWide, skin } from '../skin';
 import type { MarketVM } from '../transferVM';
 import { attrGrid } from './attrGrid';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
-import { panel, seasonMatchesSection } from './common';
+import { panel, pc2, seasonMatchesSection } from './common';
 
 export type PlayerTab = 'attrs' | 'body' | 'pos' | 'record' | 'contract';
 export const PLAYER_TABS: { id: PlayerTab; label: string }[] = [
@@ -29,7 +29,7 @@ function yellowPips(n: number, every: number): string {
 
 /** 미페 머리말을 쓰는지 (C.58, 홈 C.57과 같은 규칙): B 테마 + 폰 폭 + 내 선수 사진이 있을 때 */
 export function playerFace(vm: PlayerVM): { src: string; cutout: boolean } | null {
-  if (skin() !== 'b' || globalThis.matchMedia?.('(min-width: 1024px)').matches) return null;
+  if (skin() !== 'b' || isWide()) return null;
   return heroFaceOf(vm.face);
 }
 
@@ -58,14 +58,21 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
       <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>${esc(repNote)}</small></span>
       <span class="pl-lv"><small>Lv ${vm.level}</small><span class="pl-lv__bar" aria-hidden="true"><i style="width:${Math.round((vm.xp / Math.max(1, vm.xpMax)) * 100)}%"></i></span><small class="po-num">${vm.xp}/${vm.xpMax}</small></span>
     </div>${Button({ variant: 'secondary', size: 'sm', icon: 'edit', act: 'player-tab', data: { v: 'body', look: '1' }, children: '꾸미기' })}</div>`;
+  const tabBody = (t: PlayerTab): string => {
+    if (t === 'attrs') return attrsTab(vm, parts);
+    if (t === 'body') return parts.body;
+    if (t === 'pos') return posTab(vm);
+    if (t === 'record') return recordTab(vm);
+    return parts.market ? contractSection(parts.market) : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
+  };
+  // PC 2열 (C.61 디자인 121·153): 왼쪽 = 프로필 줄 + 능력치 늘, 오른쪽 = 탭 4개(몸·태그 · 포지션 · 기록 · 계약). 능력치 탭이면 오른쪽은 몸·태그
+  if (isWide()) {
+    const right = parts.tab === 'attrs' ? 'body' : parts.tab;
+    const tabsR = Tabs({ items: PLAYER_TABS.filter((t) => t.id !== 'attrs'), value: right, variant: 'underline', fill: true, act: 'player-tab', label: '선수' });
+    return `${hero}<div class="body pl-body">${pc2(`${profile}${tabBody('attrs')}`, `${tabsR}${tabBody(right)}`, 'pl-pc')}</div>`;
+  }
   const tabs = Tabs({ items: PLAYER_TABS, value: parts.tab, variant: 'underline', fill: true, act: 'player-tab', label: '선수' });
-  let body: string;
-  if (parts.tab === 'attrs') body = attrsTab(vm, parts);
-  else if (parts.tab === 'body') body = parts.body;
-  else if (parts.tab === 'pos') body = posTab(vm);
-  else if (parts.tab === 'record') body = recordTab(vm);
-  else body = parts.market ? contractSection(parts.market) : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
-  return `${hero}<div class="body pl-body">${profile}${tabs}${body}</div>`;
+  return `${hero}<div class="body pl-body">${profile}${tabs}${tabBody(parts.tab)}</div>`;
 }
 
 /** 능력치 탭 (디자인 93): 안내 줄 + [nP 찍기] · 범례 · 묶음 7개 4열 */

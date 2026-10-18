@@ -31,3 +31,14 @@ export function setSkin(v: Skin): void {
   }
   applySkin();
 }
+
+/** PC 2열 기준 폭 (C.61 U5-g, 디자인 120~123·151~153): 1024px 이상이면 2열 배치. 폰(390)은 이 값이 false 라 C.54~C.60 그대로 */
+export const WIDE_QUERY = '(min-width: 1024px)';
+let wideOverride: boolean | null = null;
+export function isWide(): boolean {
+  return wideOverride ?? !!globalThis.matchMedia?.(WIDE_QUERY).matches;
+}
+/** 테스트용: 폭 판정 고정 (null = 실제 화면) */
+export function setWideForTest(v: boolean | null): void {
+  wideOverride = v;
+}

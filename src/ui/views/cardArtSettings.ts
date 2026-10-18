@@ -5,6 +5,7 @@ import { CARDS, cardById, type CardDef } from '../../config/cards';
 import { Banner, Button, GameCard, Icon, Tabs, TextField, esc, type GameCardData, type GameCardType } from '../components';
 import { cardArtPos, cardArtSource, CARD_ART_FILES, cardArtUrl, userArtCount, type ArtPos } from '../cardArt';
 import { gameCardData } from './deck';
+import { isWide } from '../skin';
 
 export type CardKindFilter = 'all' | GameCardType;
 
@@ -137,14 +138,15 @@ function cropSheet(c: NonNullable<CardArtUI['crop']>): string {
 /** 꾸미기 → 카드 이미지 본문 (목록 140 / 편집 141 / 경기 중 142) */
 export function cardArtSection(ui: CardArtUI, locked: boolean): string {
   const sel = ui.sel ? cardById(ui.sel) : undefined;
-  if (sel) return `${editor(sel, locked)}<input type="file" id="ca-file" accept="image/*" hidden>`;
+  const wide = isWide();
+  if (sel && !wide) return `${editor(sel, locked)}<input type="file" id="ca-file" accept="image/*" hidden>`;
   const list = cardArtList(ui);
   const counts = { user: 0, default: 0, none: 0 };
   for (const d of CARDS) counts[cardArtSource(d.id)]++;
   const kinds = Tabs({ items: KINDS.map((k) => ({ id: k.id, label: k.id === 'all' ? `전체 ${CARDS.length}` : k.label })), value: ui.kind, act: 'ca-kind', scroll: true, label: '종류 거르기' });
   const shown = ui.more ? list : list.slice(0, CARD_ART_PAGE);
   const left = list.length - shown.length;
-  return `${locked ? lockBanner() : ''}
+  const listHtml = `${locked && !wide ? lockBanner() : ''}
     <div class="ca-prio">${Icon({ name: 'info', size: 16 })}<span class="grow">우선순위 <b>내 그림 › 기본 그림 › 기본 장면</b></span></div>
     ${TextField({ value: ui.q, placeholder: '카드 이름', icon: 'search', input: { id: 'ca-q', type: 'search', maxLength: 20 }, clearable: false })}
     ${kinds}
@@ -155,6 +157,12 @@ export function cardArtSection(ui: CardArtUI, locked: boolean): string {
     <div class="panel ca-legend-panel"><b class="small">상태 칩 3종</b><div class="ca-legend-chips">${srcChip('user')}${srcChip('default')}${srcChip('none')}</div>
       <p class="small muted">썸네일은 덱에서 보일 모습 그대로(그림 없음 = 종류 아이콘 기본 장면). 테두리 = 희귀도. 줄을 누르면 편집 화면으로 가요.</p></div>
     <input type="file" id="ca-file" accept="image/*" hidden>`;
+  // PC (C.61 디자인 152): 목록 | 편집을 나란히. 고른 카드가 없으면 오른쪽에 안내
+  if (wide) {
+    const right = sel ? editor(sel, locked) : `${locked ? lockBanner() : ''}<div class="panel ca-pick-hint">${Icon({ name: 'card', size: 22 })}<b>카드를 고르면 여기서 편집해요</b><small class="muted">왼쪽 목록에서 줄을 눌러요. 지금 쓰는 그림 · 미리보기 · [이미지 올리기]가 이 자리에 나와요.</small></div>`;
+    return `<div class="ca-pc"><div class="ca-pc__list">${listHtml}</div><div class="ca-pc__edit">${right}</div></div>`;
+  }
+  return listHtml;
 }
 
 export function cardArtOverlay(ui: CardArtUI): string {

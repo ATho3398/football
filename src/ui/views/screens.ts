@@ -5,7 +5,8 @@ import {
   Avatar, Banner, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
-import { actionRow, banners, panel, seasonMatchesSection, statTiles, versionFooter } from './common';
+import { actionRow, banners, panel, pc2, seasonMatchesSection, statTiles, versionFooter } from './common';
+import { isWide } from '../skin';
 import { teamLink } from './detail';
 import { historyTable } from './player';
 import { attrGrid, type AttrGroupVM } from './attrGrid';
@@ -109,14 +110,16 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW
   const real = vm.mode === 'real';
   const back = { act: 'go', data: { to: 'title' } } as const;
   const sel = vm.selected;
+  // PC (C.61 디자인 151): 머리말은 compact(약 140px) — 아래 3열이 한 화면에 들어오게
+  const cpt = isWide() ? { compact: true } : {};
   const hero = custom
-    ? HeroPanel({ title: '새 게임', back, eyebrow: `커스텀 선수 · ${custom.position} OVR`, value: custom.ovr, pad: false, progress: false, chips: [custom.name || '이름 랜덤', { label: `${custom.age}세 · ${custom.body.height}cm · ${custom.body.footKo} · 약발 ${custom.body.weakFoot}`, soft: true }] })
+    ? HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커스텀 선수 · ${custom.position} OVR`, value: custom.ovr, pad: false, progress: false, chips: [custom.name || '이름 랜덤', { label: `${custom.age}세 · ${custom.body.height}cm · ${custom.body.footKo} · 약발 ${custom.body.weakFoot}`, soft: true }] })
     : real
-    ? HeroPanel({ title: '새 게임', back, eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', value: sel ? sel.ovr : '-', pad: false, progress: false,
+    ? HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', value: sel ? sel.ovr : '-', pad: false, progress: false,
       chips: sel ? [`${sel.age}세 · ${sel.club}`, { label: sel.legend ? `레전드 · 전성기 ${sel.peak}` : '2018-19 시즌 그대로', soft: true }] : [`실제 선수 ${vm.reals.length}명`, { label: vm.legends ? `레전드 ${vm.legendList.length}명` : '2018-19 시즌 그대로', soft: true }] })
-    : HeroPanel({ title: '새 게임', back, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
+    : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
   const modeTabs = Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
-  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 ? modeTabs : '', startOptions(vm, false))}</div>`;
+  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? modeTabs : '', startOptions(vm, false))}</div>`;
   if (!real) return `${hero}<div class="body ng-body">${modeTabs}${prospectBody(vm, u)}</div>`;
   return `${hero}<div class="body ng-body">${modeTabs}${realBody(vm, u)}</div>`;
 }
@@ -291,7 +294,8 @@ const SEASON_TABS: { id: SeasonTab; label: string }[] = [{ id: 'matches', label:
  * 상세 = 별도 화면처럼(뒤로 = 요약) compact 머리말(골) + Tabs segment cols 3 (6탭, 폰 3×2)
  */
 export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab: SeasonTab | null = null, transfers = '', todo: SeasonTodo | null = null): string {
-  if (tab) return seasonDetail(vm, tab, transfers);
+  const wide = isWide();
+  if (tab && !wide) return seasonDetail(vm, tab, transfers);
   const hero = HeroPanel({
     title: '시즌 요약', right: '', back: false, eyebrow: `${vm.season} 시즌 종료 · ${vm.team}`, value: `${vm.pos}위`, pad: false, progress: false,
     chips: [`${vm.apps}경기 출전`, `나이 ${vm.ageFrom} → ${vm.ageTo}세`, { label: vm.tierName, soft: true }],
@@ -314,8 +318,7 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
   const next = vm.retired
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })
     : marketPending ? '' : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', className: 'season-start', children: `${vm.nextSeason} 시즌 시작` });
-  return `${hero}<div class="body">
-    ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
+  const left = `${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
     ${vm.tierReached ? `<div class="panel season-tier">${TierBadge({ tier: vm.tier, score: vm.repAfter })}<span><b>${esc(vm.tierReached)} 달성 · 이 티어는 내려가지 않아요</b><small class="muted">감점은 다음 티어까지의 진행도만 깎아요.</small></span></div>` : ''}
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
@@ -323,10 +326,18 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
     ${market}
     ${todos.length ? `<p class="season-todo-head">다음 할 일</p>${todos.join('')}` : ''}
     <div class="btn-col season-next">
-      ${Button({ variant: 'secondary', block: true, icon: 'grid', act: 'season-tab', data: { v: 'matches' }, children: '시즌 상세 보기' })}
+      ${wide ? '' : Button({ variant: 'secondary', block: true, icon: 'grid', act: 'season-tab', data: { v: 'matches' }, children: '시즌 상세 보기' })}
       ${next}
       ${!vm.retired && vm.canRetire ? Button({ variant: 'ghost', block: true, act: 'retire', children: '은퇴하기' }) : ''}
-    </div>
+    </div>`;
+  // PC 2열 (C.61 디자인 123): 왼쪽 = 요약 · 다음 할 일 · 버튼, 오른쪽 = 상세 6탭(한 줄) + 본문
+  if (wide) {
+    const t = tab ?? 'matches';
+    const tabs = Tabs({ items: SEASON_TABS, value: t, variant: 'segment', act: 'season-tab', label: '시즌 상세' });
+    return `${hero}<div class="body">${pc2(left, `<div class="season-detail">${tabs}${seasonDetailBody(vm, t, transfers)}</div>`, 'season-pc')}</div>`;
+  }
+  return `${hero}<div class="body">
+    ${left}
   </div>`;
 }
 
@@ -336,6 +347,10 @@ function seasonDetail(vm: SeasonVM, tab: SeasonTab, transfers: string): string {
     chips: [`${vm.assists}도움`, `평점 ${vm.avg}`, { label: `${vm.moms} MOM`, soft: true }],
   });
   const tabs = Tabs({ items: SEASON_TABS, value: tab, variant: 'segment', cols: 3, act: 'season-tab', label: '시즌 상세' });
+  return `${hero}<div class="body season-detail">${tabs}${seasonDetailBody(vm, tab, transfers)}</div>`;
+}
+
+function seasonDetailBody(vm: SeasonVM, tab: SeasonTab, transfers: string): string {
   let body = '';
   if (tab === 'matches') body = seasonMatchesSection(vm.matches);
   else if (tab === 'months') body = panel(splitTable(vm.months, '월'));
@@ -348,7 +363,7 @@ function seasonDetail(vm: SeasonVM, tab: SeasonTab, transfers: string): string {
       : '<p class="muted small">시상 기록이 없어요.</p>';
   } else if (tab === 'transfers') body = transfers || '<p class="muted small">이적 소식이 없어요.</p>';
   else body = growthDetail(vm);
-  return `${hero}<div class="body season-detail">${tabs}${body}</div>`;
+  return body;
 }
 
 function growthDetail(vm: SeasonVM): string {

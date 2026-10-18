@@ -3,7 +3,8 @@
 
 import { Avatar, Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
 import type { MatchResultVM } from '../viewModels';
-import { actionRow, banners, moreRecords, panel } from './common';
+import { actionRow, banners, moreRecords, panel, pc2 } from './common';
+import { isWide } from '../skin';
 import { personLink } from './detail';
 
 function cmpRow(label: string, own: string, opp: string): string {
@@ -16,7 +17,7 @@ function cmpRow(label: string, own: string, opp: string): string {
 
 export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}): string {
   const hero = HeroPanel({
-    title: '경기 결과', right: `리그 ${vm.round}R`, back: { act: 'go', data: { to: 'home' } },
+    title: '경기 결과', right: `리그 ${vm.round}R`, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
     eyebrow: `${vm.opp}전 ${vm.scoreLine} ${vm.outcomeKo} · 내 평점`,
     value: vm.rating === null ? '-' : vm.rating.toFixed(1), pad: false, progress: false,
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
@@ -72,6 +73,16 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   const next = vm.seasonOver
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 요약' })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'play', children: '다음 경기' });
+  const reward = `${SectionTitle({ title: '보상' })}
+      ${panel(Meter({ value: x.value, gain: x.levelsGained ? 0 : x.gained, max: x.max, label: `XP +${x.gained} · Lv ${x.level}${x.levelsGained ? ' 레벨 업!' : ''}`, showValue: true, tone: 'xp' }))}`;
+  const btns = `<div class="btn-col">
+        ${vm.points > 0 ? Button({ variant: 'ghost', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
+        ${actionRow(home, next)}
+      </div>`;
+  // PC 2열 (C.61, 폰 2,600px대 → 한 화면): 왼쪽 = 점수 · 하이라이트 · 득점 · 결정 · 쓴 카드, 오른쪽 = 내 기록 · 보상 · 버튼 · 전술 리포트·평균 위치
+  if (isWide()) {
+    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${banners(vm.banners)}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
+  }
   return `
     ${hero}
     <div class="body">
@@ -83,11 +94,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       ${cardUses}
       ${report}
       ${my}
-      ${SectionTitle({ title: '보상' })}
-      ${panel(Meter({ value: x.value, gain: x.levelsGained ? 0 : x.gained, max: x.max, label: `XP +${x.gained} · Lv ${x.level}${x.levelsGained ? ' 레벨 업!' : ''}`, showValue: true, tone: 'xp' }))}
-      <div class="btn-col">
-        ${vm.points > 0 ? Button({ variant: 'ghost', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
-        ${actionRow(home, next)}
-      </div>
+      ${reward}
+      ${btns}
     </div>`;
 }

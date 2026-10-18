@@ -6,13 +6,13 @@ import {
 } from '../components';
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
-import { skin } from '../skin';
+import { isWide, skin } from '../skin';
 import type { DayVM, HomeVM, PositionOptionVM, TrialVM } from '../viewModels';
-import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
+import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
 
 /** 미페 머리말을 쓰는지 (C.57): B 테마 + 폰 폭 + 내 선수 사진(페이스온 > facepack)이 있을 때. A 테마·PC(디자인 120 = 일반 B 머리말)·사진 없음은 일반 머리말 */
 export function homeFace(vm: HomeVM): { src: string; cutout: boolean } | null {
-  if (skin() !== 'b' || globalThis.matchMedia?.('(min-width: 1024px)').matches) return null;
+  if (skin() !== 'b' || isWide()) return null;
   return heroFaceOf(vm.card.face);
 }
 
@@ -73,25 +73,24 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
 
   const c = vm.condition;
   const stamina = staminaOf(c.fatigue);
-  return `
-    ${hero}
-    <div class="body home-body">
-      ${vm.trial ? trialStrip(vm.trial) : ''}
-      ${top}
-      ${banners(vm.banners)}
-      ${startNotice(vm.version)}
-      ${next}
-      ${notice}
-      ${training}
-      ${extra}
-      ${panel(`
+  const cond = panel(`
         <div class="hm-head"><span class="hm-title">내 상태</span><span class="hm-sub">경고 <b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
         <div class="hm-stamina"><span>체력</span><span class="hm-stamina__bar" aria-hidden="true"><i class="${stamina <= 30 ? 'is-low' : stamina < 100 - BALANCE.fatigue.penaltyFrom ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
         <div class="hm-stamina__scale"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
         ${staminaNote(c.fatigue)}
-        <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond')}
-      ${PlayerCard({ player: vm.card, variant: 'compact' })}
-      ${statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }])}
+        <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond');
+  const card = PlayerCard({ player: vm.card, variant: 'compact' });
+  const tiles = statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }]);
+  const main = `${vm.trial ? trialStrip(vm.trial) : ''}${top}${banners(vm.banners)}${startNotice(vm.version)}${next}${notice}${training}${extra}`;
+  // PC 2열 (C.61 디자인 120): 왼쪽 = 다음 경기 · 오늘 훈련 · 알림, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 내 상태 · 버전
+  if (isWide()) return `${hero}<div class="body home-body">${pc2(main, `${card}${tiles}${cond}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
+  return `
+    ${hero}
+    <div class="body home-body">
+      ${main}
+      ${cond}
+      ${card}
+      ${tiles}
       ${versionFooter(vm.version)}
     </div>`;
 }

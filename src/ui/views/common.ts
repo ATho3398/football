@@ -49,8 +49,16 @@ export interface DockVM {
 export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves';
 /** 모바일 5칸 (C.50 배치 유지: 선수 · 진행 · 홈 · 훈련·일정 · 더보기). 디자인 154의 6칸으로 가려면 'world'를 'more' 앞에 넣는다 */
 export const DOCK_PHONE: DockId[] = ['player', 'prog', 'home', 'schedule', 'more'];
-/** PC 9칸 (C.50 배치 유지, 홈 5번째) */
-export const DOCK_PC: DockId[] = ['deck', 'tactics', 'player', 'prog', 'home', 'schedule', 'world', 'settings', 'saves'];
+/**
+ * PC 9칸 (C.61): 폰 독 순서에서 만든다 — 칸 배열은 DOCK_PHONE 하나. 폰의 홈 왼쪽 칸 앞에 덱 · 전술,
+ * 더보기 자리에 폰 독에 없는 월드 · 설정 · 저장을 펼친다(지금 = 덱 · 전술 · 선수 · 진행 · 홈 · 훈련·일정 · 월드 · 설정 · 저장).
+ */
+export function dockPc(phone: readonly DockId[]): DockId[] {
+  const lead: DockId[] = (['deck', 'tactics'] as DockId[]).filter((x) => !phone.includes(x));
+  const more: DockId[] = (['world', 'settings', 'saves'] as DockId[]).filter((x) => !phone.includes(x));
+  return [...lead, ...phone.flatMap((id) => (id === 'more' ? more : [id]))];
+}
+export const DOCK_PC: DockId[] = dockPc(DOCK_PHONE);
 /** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
 const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves' };
 
@@ -112,6 +120,11 @@ export function dockMoreSheet(tacticsOpen: boolean): string {
       OptionRow({ act: 'go-tab', data: { v: 'saves' }, icon: 'disk', title: '저장', desc: '수동 저장·불러오기·파일' }),
     ].join(''),
   });
+}
+
+/** PC 2열 (C.61, 디자인 120~123): 왼쪽 주 카드 · 오른쪽 보조. 폰에서는 쓰지 않는다(isWide 일 때만 부른다) */
+export function pc2(left: string, right: string, cls = ''): string {
+  return `<div class="pc2${cls ? ` ${cls}` : ''}"><div class="pc2__l">${left}</div><div class="pc2__r">${right}</div></div>`;
 }
 
 /** 4칸 숫자 타일 (디자인 51·56) */

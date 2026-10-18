@@ -10,7 +10,7 @@ import './design/tokens.css';
 import './design/bundle.css';
 import './design/skin-b.css';
 import './style.css';
-import { applySkin, setSkin } from './skin';
+import { applySkin, isWide, setSkin, WIDE_QUERY } from './skin';
 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
@@ -510,6 +510,8 @@ function fitHeroNames(): void {
   }
 }
 void document.fonts?.ready.then(fitHeroNames);
+// PC 2열 (C.61): 1024px 경계를 넘으면 배치가 바뀌는 화면이 있어 다시 그린다
+globalThis.matchMedia?.(WIDE_QUERY).addEventListener?.('change', () => render());
 
 function render(): void {
   const g = ui.game;
@@ -1797,10 +1799,17 @@ app.addEventListener('click', (ev) => {
       else ui.set.page = 'main';
       go('settings');
       return;
+    case 'set-nav':
+      // PC 설정 왼쪽 목록 (C.61): 하위 화면에서도 첫 화면으로 돌아가 그 섹션을 연다
+      if (!v) return;
+      ui.set.page = 'main';
+      ui.set.open = v as SetSec;
+      go('settings');
+      return;
     case 'set-toggle':
     case 'set-open': {
       const sec = v as SetSec;
-      ui.set.open = act === 'set-toggle' && ui.set.open === sec ? null : sec;
+      ui.set.open = act === 'set-toggle' && ui.set.open === sec && !isWide() ? null : sec;
       render();
       if (act === 'set-open') document.getElementById(`set-${sec}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
       return;
