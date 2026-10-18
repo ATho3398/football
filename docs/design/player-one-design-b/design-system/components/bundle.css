@@ -968,3 +968,85 @@ button.po-pixel { cursor: pointer; }
 .po-dock--pc .po-dock__go:not(.is-continue) .po-dock__goicon .po-icon { width: 17px; height: 17px; }
 .po-dock--pc .po-dock__go.is-continue .po-dock__goicon { padding: 0 12px 0 14px; }
 .po-dock__go.is-continue .po-dock__goicon .po-icon { width: 22px; height: 22px; stroke-width: 3; }
+
+/* PC 독 · 진행 칸 2배 (2026-10-18) — 왼쪽 5fr = 진행 2 + 3칸, 오른쪽 5fr = 4칸 × 1.25 → 홈 가운데 유지 */
+.po-dock--pc { grid-template-columns: 2fr .95fr 1.3fr .75fr 132px repeat(4, 1.25fr); }
+.po-dock--pc .po-dock__go { justify-content: flex-start; }
+.po-dock--pc .po-dock__go .po-dock__goicon { width: 100%; max-width: 160px; justify-content: center; height: 44px; }
+.po-dock--pc .po-dock__go.is-continue .po-dock__golabel, .po-dock--pc .po-dock__golabel { font-size: 18px; }
+.po-dock--pc .po-dock__go.is-continue .po-dock__goicon { padding: 0 14px 0 16px; gap: 6px; }
+.po-dock--pc .po-dock__go:not(.is-continue) .po-dock__goicon .po-icon { width: 20px; height: 20px; }
+
+/* ===== B · 독 v3 (요청 7~9 통합 201) — 홈 맨 왼쪽 · [다음] 가운데 강조 · 더보기 한 줄 펼침 ===== */
+.po-dock.po-dock--v3 { --dock-bg: #0f1013; position: relative; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1fr); height: 72px; padding: 0 4px 6px; background: var(--dock-bg); border-top: 2px solid var(--brand); overflow: visible; }
+.po-dock--v3 .po-dock__item { position: relative; gap: 4px; }
+.po-dock--v3 .po-dock__item.is-on { color: var(--brand-ink); }
+.po-dock--v3 .po-dock__item.is-on::before { content: ""; position: absolute; top: -2px; left: 50%; width: 26px; height: 4px; margin-left: -13px; background: var(--brand); transform: skewX(-20deg); }
+.po-dock--v3 .po-dock__label { font-size: 11px; font-weight: 700; }
+.po-dock--v3 .po-dock__item.is-on .po-dock__label { font-weight: 800; }
+.po-dock--v3 .po-dock__badge { left: calc(50% + 4px); background: var(--fail); color: #ffffff; box-shadow: 0 0 0 2px var(--dock-bg); }
+/* [다음] 강조 키 */
+.po-dock--v3 .po-dock__go { position: relative; display: flex; align-items: flex-start; justify-content: center; padding: 0 2px; }
+.po-dock--v3 .po-dock__go .po-dock__goicon { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 54px; margin-top: -12px; padding: 0 12px 0 14px; border-radius: 0; background: var(--brand); color: var(--on-brand); clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); box-sizing: border-box; }
+.po-dock--v3 .po-dock__golabel { font-family: var(--font-head); font-weight: 400; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.po-dock--v3 .po-dock__go .po-dock__goicon .po-icon { flex: none; width: 22px; height: 22px; }
+.po-dock--v3 .po-dock__go.is-continue .po-dock__goicon { flex-direction: row; padding: 0 12px 0 16px; }
+.po-dock--v3 .po-dock__go.is-running .po-dock__goicon { background: var(--surface-3); color: var(--brand-ink); box-shadow: inset 0 -4px 0 var(--brand); }
+.po-dock--v3 .po-dock__go.is-running .po-dock__golabel { font-size: 16px; }
+.po-dock--v3 .po-dock__go.is-live .po-dock__goicon { background: var(--brand); color: var(--on-brand); }
+.po-dock--v3 .po-dock__go.is-live .po-dock__golabel { font-size: 16px; }
+.po-dock--v3 .po-dock__go.is-locked .po-dock__goicon { background: var(--surface-2); color: var(--ink-faint); cursor: not-allowed; }
+.po-dock--v3 .po-dock__go.is-answer .po-dock__goicon { background: var(--warning); color: #121317; }
+.po-dock--v3 .po-dock__go.is-season .po-dock__golabel { font-size: 15px; }
+.po-dock--v3 .po-dock__live { position: static; flex: none; order: -1; width: 8px; height: 8px; margin-right: 2px; border-radius: 50%; background: var(--fail); box-shadow: 0 0 0 2px var(--brand); }
+.po-dock--v3 .po-dock__go .po-dock__badge { top: -14px; right: 8px; left: auto; box-shadow: 0 0 0 2px var(--dock-bg); }
+/* 더보기 한 줄 펼침(독 위, 배경 안 막음, 좌우 끌기) */
+.po-dock__more { position: absolute; left: 0; right: 0; bottom: 100%; height: 78px; background: var(--dock-bg); border-top: 1px solid var(--line-strong); overflow: hidden; }
+.po-dock__morerow { display: grid; grid-auto-flow: column; grid-auto-columns: 64px; height: 100%; padding: 0 6px; transition: transform .2s ease; }
+.po-dock__more.is-end .po-dock__morerow { transform: translateX(calc(390px - 7 * 64px - 12px)); }
+.po-dock__more .po-dock__item { justify-content: flex-start; padding-top: 12px; }
+.po-dock__more .po-dock__item.is-on::before { top: 0; }
+/* PC: 홈 맨 왼쪽 · [다음] 가운데 */
+.po-dock--v3.po-dock--pc { grid-template-columns: repeat(5, minmax(0, 1fr)) 176px repeat(5, minmax(0, 1fr)); height: 64px; padding: 0 calc(50% - 520px); border-top: 2px solid var(--brand); }
+.po-dock--v3.po-dock--pc .po-dock__item { flex-direction: row; gap: 8px; }
+.po-dock--v3.po-dock--pc .po-dock__label { font-size: 13px; }
+.po-dock--v3.po-dock--pc .po-dock__item.is-on::before { top: -2px; }
+.po-dock--v3.po-dock--pc .po-dock__badge { left: 14px; top: -6px; }
+.po-dock--v3.po-dock--pc .po-dock__go { align-items: center; justify-content: center; padding: 0; }
+.po-dock--v3.po-dock--pc .po-dock__go .po-dock__goicon { width: 176px; max-width: none; height: 46px; margin-top: 0; }
+.po-dock--v3.po-dock--pc .po-dock__golabel, .po-dock--v3.po-dock--pc .po-dock__go.is-continue .po-dock__golabel { font-size: 19px; }
+.po-dock--v3.po-dock--pc .po-dock__go .po-dock__goicon .po-icon { width: 22px; height: 22px; }
+
+/* ===== B · 가로 피치 확대(189) ===== */
+.po-pitch--h { border-radius: 4px; }
+/* ===== B · 선택지 접은 한 줄(189) ===== */
+.po-choice--row { min-height: 0; padding: 0 12px 0 10px; gap: 8px; border-radius: 4px; align-items: center; }
+.po-choice--row .po-choice__main { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; min-width: 0; padding: 11px 0; }
+.po-choice--row .po-choice__tags { flex-wrap: nowrap; flex: none; gap: 4px; }
+.po-choice--row .po-choice__name { flex: 1 1 0; min-width: 0; display: block; font-size: 15px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-choice--row .po-choice__outcomes { display: none; }
+.po-choice--row.is-selected .po-choice__outcomes { display: flex; flex-wrap: wrap; flex-basis: 100%; column-gap: 12px; padding-top: 4px; }
+.po-choice--row .po-out { display: inline-flex; gap: 4px; }
+.po-choice--row .po-choice__prob { min-width: 0; grid-auto-flow: row; }
+.po-choice--row .po-choice__prob > b { font-size: 24px; }
+.po-choice--row .po-choice__prob > b small { font-size: 12px; }
+.po-choice--row .po-choice__probbar { width: 44px; margin-top: 3px; }
+.po-choice--row .po-choice__prob s { font-size: 11px; }
+.po-choice--row .po-choice__delta { font-size: 11px; margin-top: 1px; }
+.po-choice--row .po-choice__delta small { display: none; }
+.po-choice__sure { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px; background: var(--surface-3); color: var(--ink); font-size: 12px; font-weight: 800; transform: skewX(-8deg); white-space: nowrap; }
+.po-choice.is-selected .po-choice__sure { background: var(--on-brand); color: var(--brand); }
+.po-choice--row.po-choice--play .po-choice__card { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 20px; }
+.po-choice--row:not(.is-selected) .po-offside, .po-choice--row:not(.is-selected) .po-choice__card { display: none; }
+.po-choice--row.is-selected .po-choice__name { flex-basis: 100%; white-space: normal; }
+/* ===== B · 결과 도장 보통·실점 + 낮은 판(172·190) ===== */
+.po-splash { border-radius: 4px; }
+.po-splash__stamp { border-radius: 2px; transform: skewX(-8deg); }
+.po-splash--mid { background: var(--surface-2); color: var(--ink); }
+.po-splash--mid .po-splash__stamp { background: var(--surface-3); color: var(--ink); }
+.po-splash--concede .po-splash__stamp { background: var(--fail); color: #ffffff; }
+.po-splash--compact { grid-template-columns: auto 1fr auto; grid-template-areas: "stamp title rate" "detail detail rate"; justify-items: start; align-items: center; column-gap: 10px; row-gap: 6px; padding: 14px 14px; text-align: left; }
+.po-splash--compact .po-splash__stamp { grid-area: stamp; font-size: 15px; padding: 5px 10px 5px 8px; }
+.po-splash--compact .po-splash__title { grid-area: title; font-size: 19px; line-height: 24px; }
+.po-splash--compact .po-splash__detail { grid-area: detail; margin: 0; font-size: 12px; }
+.po-splash--compact > :last-child:not(.po-splash__detail):not(.po-splash__title):not(.po-splash__stamp) { grid-area: rate; }

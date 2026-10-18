@@ -40,6 +40,9 @@
     career: 'M4 8h16v12H4z M9 8V5h6v3 M4 13h16',
     world: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18',
     lock: 'M6 11h12v9H6z M9 11V8a3 3 0 0 1 6 0v3',
+    inbox: 'M4 6h16v12H4z M4 7l8 6 8-6',
+    coin: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M8.5 9l1.6 6 1.9-4.5 1.9 4.5 1.6-6 M7.5 12h9',
+    running: 'M12 3a9 9 0 1 0 9 9 M12 7v5l3 2',
     plus: 'M12 5v14 M5 12h14',
     minus: 'M5 12h14',
     check: 'M5 12.5l4.5 4.5L19 7',
@@ -429,7 +432,7 @@
     var shown = props.chance + (props.chanceDelta || 0);
     var kind = props.kind, off = props.offside && OFFSIDE[props.offside];
     return h('button', { type: 'button', onClick: props.onClick, disabled: props.disabled, 'aria-pressed': !!props.selected,
-      className: cx('po-choice', kind && 'po-choice--' + kind, kind === 'play' && 'po-rarity--' + (props.rarity || 'rare'), props.compact && 'po-choice--compact', props.selected && 'is-selected', props.className) },
+      className: cx('po-choice', kind && 'po-choice--' + kind, kind === 'play' && 'po-rarity--' + (props.rarity || 'rare'), props.compact && 'po-choice--compact', props.collapsed && 'po-choice--row', props.certain && 'is-certain', props.selected && 'is-selected', props.className) },
       h('span', { className: 'po-choice__main' },
         (kind || off) && h('span', { className: 'po-choice__tags' },
           kind && h('span', { className: 'po-kind po-kind--' + kind }, h(Icon, { name: KIND_ICON[kind] || kind, size: 12, strokeWidth: 2.4 }), KINDS[kind]),
@@ -440,7 +443,8 @@
         h('span', { className: 'po-choice__name' }, props.name, props.risk && h('span', { className: 'po-choice__risk' }, h(Icon, { name: 'risk', size: 12 }), props.risk)),
         h('span', { className: 'po-choice__outcomes' },
           h('span', { className: 'po-out po-out--ok' }, h(Icon, { name: 'check', size: 14, strokeWidth: 3 }), h('span', null, s.text), h('b', { className: 'po-num' }, signed(s.rating))),
-          h('span', { className: 'po-out po-out--bad' }, h(Icon, { name: 'close', size: 14, strokeWidth: 3 }), h('span', null, f.text || '실패'), h('b', { className: 'po-num' }, signed(f.rating))))),
+          !props.certain && h('span', { className: 'po-out po-out--bad' }, h(Icon, { name: 'close', size: 14, strokeWidth: 3 }), h('span', null, f.text || '실패'), h('b', { className: 'po-num' }, signed(f.rating))))),
+      props.certain ? h('span', { className: 'po-choice__prob po-choice__prob--certain' }, h('span', { className: 'po-choice__sure' }, h(Icon, { name: 'check', size: 12, strokeWidth: 3 }), '확정')) :
       h('span', { className: 'po-choice__prob' },
         hasDelta && h('s', { className: 'po-num' }, props.chance + '%'),
         h('b', { className: cx('po-num', hasDelta && (props.chanceDelta > 0 ? 'is-up' : 'is-down')) }, shown, h('small', null, '%')),
@@ -587,10 +591,11 @@
     if (props.inline) return box;
     return h('div', { className: 'po-overlay', onClick: function (e) { if (e.target === e.currentTarget && props.onClose) props.onClose(); } }, box);
   }
+  var SPLASH = { success: { c: 'ok', i: 'check', l: '성공' }, fail: { c: 'bad', i: 'close', l: '실패' }, neutral: { c: 'mid', i: 'minus', l: '보통' }, concede: { c: 'bad', i: 'close', l: '실점' } };
   function ResultSplash(props) {
-    var ok = props.result !== 'fail';
-    return h('div', { className: cx('po-splash', ok ? 'po-splash--ok' : 'po-splash--bad', props.className), role: 'status' },
-      h('span', { className: 'po-splash__stamp' }, h(Icon, { name: ok ? 'check' : 'close', size: 28, strokeWidth: 3.5 }), ok ? '성공' : '실패'),
+    var k = SPLASH[props.result] || SPLASH.success, compact = props.compact;
+    return h('div', { className: cx('po-splash', 'po-splash--' + k.c, props.result === 'concede' && 'po-splash--concede', compact && 'po-splash--compact', props.className), role: 'status' },
+      h('span', { className: 'po-splash__stamp' }, h(Icon, { name: k.i, size: compact ? 20 : 28, strokeWidth: 3.5 }), k.l),
       h('b', { className: 'po-splash__title' }, props.title),
       props.detail && h('span', { className: 'po-splash__detail' }, props.detail),
       props.rating != null && h(RatingBadge, { value: props.rating, delta: props.ratingDelta, size: 'lg' }));
@@ -604,6 +609,7 @@
   function px(p) { return [p[0] / 100 * PW, p[1] / 100 * PH]; }
   function Pitch(props) {
     if (props.orient === 'vertical') return h(PitchV, props);
+    if (props.crop || props.names || props.size || props.cropY) return h(PitchH, props);
     var id = useUid('po-pitch-');
     var players = props.players || [], arrows = props.arrows || [];
     var lineC = 'rgba(255,255,255,0.16)';
@@ -797,39 +803,48 @@
 
   /* ---------------- Dock ---------------- */
   /* 요청 6: 홈은 항상 가운데(폰 6칸 = 왼쪽 2fr+1fr · 홈 · 오른쪽 1fr×3, PC 9칸 = 5번째). 진행 칸은 맨 왼쪽(넓은 알약). */
+  /* B · 독 v3 (요청 7~9 통합 201): 홈 맨 왼쪽 일반 칸 · 가운데 [다음] 강조 키 · 더보기 = 독 위 한 줄 펼침 */
   var DOCK_PHONE = [
-    { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'home', label: '홈', icon: 'home' },
-    { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'world', label: '월드', icon: 'world' }, { id: 'more', label: '더보기', icon: 'menu' }];
+    { id: 'home', label: '홈', icon: 'home' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'progress' },
+    { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'more', label: '더보기', icon: 'menu' }];
+  var DOCK_MORE = [
+    { id: 'inbox', label: '인박스', icon: 'inbox' }, { id: 'finance', label: '재정', icon: 'coin' }, { id: 'world', label: '월드', icon: 'world' },
+    { id: 'deck', label: '덱', icon: 'deck' }, { id: 'tactic', label: '전술', icon: 'tactic' }, { id: 'settings', label: '설정', icon: 'settings' }, { id: 'save', label: '저장', icon: 'disk' }];
   var DOCK_PC = [
-    { id: 'progress' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'deck', label: '덱', icon: 'deck' },
-    { id: 'home', label: '홈', icon: 'home' },
-    { id: 'tactic', label: '전술', icon: 'tactic' }, { id: 'world', label: '월드', icon: 'world' }, { id: 'settings', label: '설정', icon: 'settings' }, { id: 'save', label: '저장', icon: 'disk' }];
+    { id: 'home', label: '홈', icon: 'home' }, { id: 'player', label: '선수', icon: 'player' }, { id: 'deck', label: '덱', icon: 'deck' }, { id: 'tactic', label: '전술', icon: 'tactic' }, { id: 'inbox', label: '인박스', icon: 'inbox' },
+    { id: 'progress' },
+    { id: 'schedule', label: '훈련·일정', icon: 'calendar' }, { id: 'world', label: '월드', icon: 'world' }, { id: 'finance', label: '재정', icon: 'coin' }, { id: 'settings', label: '설정', icon: 'settings' }, { id: 'save', label: '저장', icon: 'disk' }];
   var PROGRESS = {
-    'continue': { label: '계속', icon: 'chevron-right' }, match: { label: '경기', icon: 'match' }, live: { label: '경기 중', icon: 'match' },
+    'continue': { label: '계속', icon: 'chevron-right' }, running: { label: '진행 중', icon: 'running' }, match: { label: '경기', icon: 'match' },
+    live: { label: '경기 중', icon: 'match' }, locked: { label: '잠김', icon: 'lock' },
     answer: { label: '답하기', icon: 'chat' }, season: { label: '시즌 요약', icon: 'trophy' } };
+  function dockItem(it, props, pc) {
+    var badges = props.badges || {}, locked = props.locked || [];
+    var lock = locked.indexOf(it.id) >= 0, on = props.value === it.id || (it.id === 'more' && props.moreOpen);
+    var b = it.id === 'more' && !props.moreOpen ? (badges.more != null ? badges.more : DOCK_MORE.reduce(function (n, m) { return n + (badges[m.id] || 0); }, 0) || null) : badges[it.id];
+    return h('button', { key: it.id, type: 'button', disabled: lock, 'aria-current': on ? 'page' : undefined, 'aria-expanded': it.id === 'more' ? !!props.moreOpen : undefined,
+      className: cx('po-dock__item', 'po-dock__item--' + it.id, on && 'is-on', lock && 'is-locked'), onClick: props.onSelect && function () { props.onSelect(it.id); } },
+      h('span', { className: 'po-dock__icon' }, h(Icon, { name: it.icon, size: 22, strokeWidth: on ? 2.4 : 2 }),
+        lock && h('span', { className: 'po-dock__lock' }, h(Icon, { name: 'lock', size: 10, strokeWidth: 2.6 })),
+        !lock && b != null && h('b', { className: 'po-dock__badge po-num' }, b)),
+      h('span', { className: 'po-dock__label' }, it.label));
+  }
   function Dock(props) {
     var pc = props.device === 'pc', items = pc ? DOCK_PC : DOCK_PHONE;
-    var badges = props.badges || {}, locked = props.locked || [], st = PROGRESS[props.progress || 'continue'] || PROGRESS['continue'];
-    return h('nav', { className: cx('po-dock', pc && 'po-dock--pc', props.className), 'aria-label': '메뉴' },
+    var badges = props.badges || {}, pk = props.progress || 'continue', st = PROGRESS[pk] || PROGRESS['continue'];
+    return h('nav', { className: cx('po-dock po-dock--v3', pc && 'po-dock--pc', props.className), 'aria-label': '메뉴' },
+      !pc && props.moreOpen && h('div', { className: cx('po-dock__more', props.moreScroll === 'end' && 'is-end'), role: 'menu', 'aria-label': '더보기' },
+        h('div', { className: 'po-dock__morerow' }, DOCK_MORE.map(function (it) { return dockItem(it, props, pc); }))),
       items.map(function (it) {
         if (it.id === 'progress') {
-          return h('button', { key: it.id, type: 'button', className: cx('po-dock__go', 'is-' + (props.progress || 'continue'), props.value === 'progress' && 'is-on'), onClick: props.onSelect && function () { props.onSelect('progress'); } },
-            h('span', { className: 'po-dock__goicon' }, props.progress === 'live' ? h('i', { className: 'po-dock__live' }) : null, h(Icon, { name: st.icon, size: 20, strokeWidth: 2.4 }),
+          return h('button', { key: it.id, type: 'button', disabled: pk === 'locked', className: cx('po-dock__go', 'is-' + pk, props.value === 'progress' && 'is-on'), onClick: props.onSelect && function () { props.onSelect('progress'); } },
+            h('span', { className: 'po-dock__goicon' },
+              pk === 'live' ? h('i', { className: 'po-dock__live' }) : null,
               h('span', { className: 'po-dock__golabel' }, st.label),
+              h(Icon, { name: st.icon, size: 20, strokeWidth: pk === 'continue' ? 3 : 2.4 }),
               badges.progress != null && h('b', { className: 'po-dock__badge po-num' }, badges.progress)));
         }
-        var lock = locked.indexOf(it.id) >= 0, on = props.value === it.id;
-        if (it.id === 'home') {
-          return h('button', { key: it.id, type: 'button', 'aria-current': on ? 'page' : undefined, className: cx('po-dock__home', on && 'is-on'), onClick: props.onSelect && function () { props.onSelect('home'); } },
-            h('span', { className: 'po-dock__homeicon' }, h(Icon, { name: 'home', size: pc ? 22 : 26, strokeWidth: 2.4 }),
-              badges.home != null && h('b', { className: 'po-dock__badge po-num' }, badges.home)),
-            h('span', { className: 'po-dock__label' }, it.label));
-        }
-        return h('button', { key: it.id, type: 'button', disabled: lock, 'aria-current': on ? 'page' : undefined, className: cx('po-dock__item', on && 'is-on', lock && 'is-locked'), onClick: props.onSelect && function () { props.onSelect(it.id); } },
-          h('span', { className: 'po-dock__icon' }, h(Icon, { name: it.icon, size: 22, strokeWidth: on ? 2.4 : 2 }),
-            lock && h('span', { className: 'po-dock__lock' }, h(Icon, { name: 'lock', size: 10, strokeWidth: 2.6 })),
-            !lock && badges[it.id] != null && h('b', { className: 'po-dock__badge po-num' }, badges[it.id])),
-          h('span', { className: 'po-dock__label' }, it.label));
+        return dockItem(it, props, pc);
       }));
   }
 
@@ -1073,6 +1088,100 @@
       props.children && h('div', { className: 'po-pitch__overlay' }, props.children));
   }
 
+
+
+  /* B · 가로 피치 확대·자르기 + 이름표 겹침 규칙 (요청 7~9 통합 189). crop = 공격 방향 x 범위 %, cropY = 폭 방향 y 범위 %(없으면 aspect에 맞춰 공·내 선수 중심) */
+  function layoutLabelsH(players, ball, mode, k, fs, collide, box) {
+    var out = {}; if (mode === 'off') return out;
+    var bc = ball ? px(ball) : null;
+    var order = players.map(function (p, i) {
+      var c = px([p.x, p.y]); var d = bc ? Math.hypot(c[0] - bc[0], c[1] - bc[1]) : 0;
+      return { i: i, p: p, c: c, pr: p.me ? 0 : p.ball ? 1 : 2, d: d };
+    }).filter(function (o) { return o.p.label && (mode !== 'mine' || o.p.me) && o.c[0] >= box[0] && o.c[0] <= box[0] + box[2] && o.c[1] >= box[1] && o.c[1] <= box[1] + box[3]; });
+    order.sort(function (a, b) { return a.pr - b.pr || a.d - b.d; });
+    var marks = players.map(function (p, i) { var c = px([p.x, p.y]), r = (p.me ? 2.5 : 1.9) * k; return { i: i, x: c[0] - r, y: c[1] - r, w: r * 2, h: r * 2 }; });
+    var placed = [];
+    order.forEach(function (o) {
+      var r = (o.p.me ? 2.5 : 1.9) * k, cands = [];
+      [o.p.label, shortName(o.p)].forEach(function (t, j) {
+        if (j === 1 && t === o.p.label) return;
+        var w = labelW(t, fs), hh = fs * 1.5;
+        cands.push({ t: t, short: j === 1, x: o.c[0] - w / 2, y: o.c[1] + r + 0.3 * k, w: w, h: hh });
+        cands.push({ t: t, short: j === 1, x: o.c[0] - w / 2, y: o.c[1] - r - 0.3 * k - hh, w: w, h: hh });
+      });
+      var ok = null;
+      for (var j = 0; j < cands.length && !ok; j++) {
+        var c = cands[j]; c.x = Math.max(box[0] + 0.4 * k, Math.min(box[0] + box[2] - 0.4 * k - c.w, c.x)); c.y = Math.max(box[1] + 0.3 * k, Math.min(box[1] + box[3] - 0.3 * k - c.h, c.y));
+        if (collide === false || o.pr < 2 || (!placed.some(function (b) { return overlap(c, b); }) && !marks.some(function (m) { return m.i !== o.i && overlap(c, m); }))) ok = c;
+      }
+      if (ok) { placed.push(ok); out[o.i] = ok; } else out[o.i] = { hidden: true };
+    });
+    return out;
+  }
+  function PitchH(props) {
+    var id = useUid('po-ph-');
+    var players = props.players || [], arrows = props.arrows || [];
+    var crop = props.crop || [0, 100];
+    var vx = crop[0] / 100 * PW, vw = (crop[1] - crop[0]) / 100 * PW;
+    var aspect = props.aspect || PW / PH, vh = Math.min(PH, vw / aspect), vy;
+    if (props.cropY) { vy = props.cropY[0] / 100 * PH; vh = (props.cropY[1] - props.cropY[0]) / 100 * PH; }
+    else {
+      var me = players.filter(function (p) { return p.me; })[0], f = props.ball ? px(props.ball) : me ? px([me.x, me.y]) : [0, PH / 2];
+      vy = Math.max(0, Math.min(PH - vh, f[1] - vh / 2));
+    }
+    var zoom = PW / vw, k = ({ md: 1, lg: 1.2, xl: 1.4 }[props.size || 'md'] || 1) / Math.pow(zoom, 0.62);
+    var fs = 2.15 * k;
+    var box = [vx, vy, vw, vh];
+    var lab = layoutLabelsH(players, props.ball, props.names || 'all', k, fs, props.collide, box);
+    var lineC = 'rgba(255,255,255,0.16)', sw = 0.35 / Math.pow(zoom, 0.4);
+    return h('div', { className: cx('po-pitch po-pitch--h', zoom > 1.05 && 'is-zoom', props.className), role: 'img', 'aria-label': props.label || '경기장: 선수 ' + players.length + '명' },
+      h('svg', { viewBox: vx + ' ' + vy + ' ' + vw + ' ' + vh, width: '100%', className: 'po-pitch__svg' },
+        h('defs', null,
+          ['safe', 'balanced', 'gamble', 'shot', 'pass', 'dribble', 'cross'].map(function (t) {
+            return h('marker', { key: t, id: id + '-' + t, viewBox: '0 0 10 10', refX: 7, refY: 5, markerWidth: 4.5, markerHeight: 4.5, orient: 'auto-start-reverse' },
+              h('path', { d: 'M0 0L10 5L0 10z', style: { fill: ARROW_TONE[t] } }));
+          })),
+        h('rect', { x: -2, y: -2, width: PW + 4, height: PH + 4, className: 'po-pitch__grass' }),
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (i) { return i % 2 ? h('rect', { key: i, x: i * 10.5, y: -2, width: 10.5, height: PH + 4, className: 'po-pitch__stripe' }) : null; }),
+        h('g', { fill: 'none', stroke: lineC, strokeWidth: sw },
+          h('rect', { x: 1, y: 1, width: PW - 2, height: PH - 2 }),
+          h('path', { d: 'M52.5 1V67' }),
+          h('circle', { cx: 52.5, cy: 34, r: 9.15 }),
+          h('path', { d: 'M1 13.84H17.5V54.16H1 M1 24.84H6.5V43.16H1 M104 13.84H87.5V54.16H104 M104 24.84H98.5V43.16H104' }),
+          h('path', { d: 'M17.5 26.7a9.15 9.15 0 0 1 0 14.6 M87.5 26.7a9.15 9.15 0 0 0 0 14.6' }),
+          h('path', { d: 'M1 30.34H-0.8V37.66H1 M104 30.34H105.8V37.66H104', strokeWidth: sw * 1.7, stroke: 'rgba(255,255,255,0.35)' })),
+        h('g', { fill: lineC }, h('circle', { cx: 52.5, cy: 34, r: 0.5 }), h('circle', { cx: 12, cy: 34, r: 0.4 }), h('circle', { cx: 93, cy: 34, r: 0.4 })),
+        props.offsideX != null && h('g', { className: 'po-pitch__offside' },
+          h('path', { d: 'M' + (props.offsideX / 100 * PW) + ' 1V67', strokeDasharray: (1.6 * k) + ' ' + (1.2 * k), style: { strokeWidth: 0.45 * k } }),
+          h('text', { x: props.offsideX / 100 * PW + 0.8 * k, y: vy + 3.4 * k, style: { fontSize: 2.4 * k + 'px' } }, '오프사이드 라인')),
+        arrows.map(function (a, i) {
+          var f = px(a.from), t = px(a.to), tone = a.tone || a.kind || 'pass';
+          var d = 'M' + f[0] + ' ' + f[1] + (a.curve ? ' Q ' + ((f[0] + t[0]) / 2 + a.curve[0]) + ' ' + ((f[1] + t[1]) / 2 + a.curve[1]) + ' ' : ' L ') + t[0] + ' ' + t[1];
+          return h('path', { key: 'a' + i, d: d, fill: 'none', style: { stroke: ARROW_TONE[tone] || tone }, strokeWidth: (a.kind === 'shot' ? 0.9 : 0.65) * k, strokeDasharray: a.kind === 'pass' || a.kind === 'through' || a.kind === 'cross' ? (1.6 * k) + ' ' + k : undefined, strokeLinecap: 'round', strokeLinejoin: 'round', markerEnd: 'url(#' + id + '-' + (ARROW_TONE[tone] ? tone : 'pass') + ')', opacity: a.ghost ? 0.35 : 1 });
+        }),
+        players.map(function (p, i) {
+          var c = px([p.x, p.y]), me = p.me, r = (me ? 2.5 : 1.9) * k;
+          return h('g', { key: 'p' + i, className: cx('po-pl', 'po-pl--' + (p.team || 'home'), me && 'is-me', p.dim && 'is-dim', p.flag && 'is-flag') },
+            me && h('circle', { cx: c[0], cy: c[1], r: r + 1.1 * k, className: 'po-pl__halo', style: { strokeWidth: 0.55 * k } }),
+            h('circle', { cx: c[0], cy: c[1], r: r, className: 'po-pl__dot', style: { strokeWidth: (me ? 0.6 : 0.45) * k } }),
+            p.num != null && h('text', { x: c[0], y: c[1] + 0.75 * k, className: 'po-pl__num', fontSize: (me ? 2.4 : 2) * k }, p.num),
+            p.ball && h('circle', { cx: c[0] + r * 0.85, cy: c[1] + r * 0.85, r: 0.9 * k, className: 'po-pv__ballmark' }));
+        }),
+        props.ball && h('g', { className: 'po-ball' }, h('circle', { cx: px(props.ball)[0], cy: px(props.ball)[1], r: 1.05 * k, style: { strokeWidth: 0.35 * k } })),
+        players.map(function (p, i) {
+          var L = lab[i]; if (!L || L.hidden) return null;
+          return h('g', { key: 'l' + i, className: cx('po-pv__label', p.me && 'is-me', p.ball && 'is-ball', L.short && 'is-short') },
+            h('rect', { x: L.x, y: L.y, width: L.w, height: L.h, rx: 0.6 * k }),
+            h('text', { x: L.x + L.w / 2, y: L.y + L.h * 0.7, fontSize: fs }, L.t));
+        }),
+        props.marks && props.marks.map(function (m, i) {
+          var c = px([m.x, m.y]);
+          return h('g', { key: 'm' + i, className: 'po-mark po-mark--' + (m.tone || 'brand') },
+            h('rect', { x: c[0] - (m.text.length * 1.15 + 1.6) * k, y: c[1] - 2.4 * k, width: (m.text.length * 2.3 + 3.2) * k, height: 4.8 * k, rx: 1.2 * k }),
+            h('text', { x: c[0], y: c[1] + 0.95 * k, style: { fontSize: 2.6 * k + 'px' } }, m.text));
+        })),
+      props.children && h('div', { className: 'po-pitch__overlay' }, props.children));
+  }
 
   /* ================= 요청 6 새 컴포넌트 ================= */
   /* ---------------- Stepper ---------------- */
