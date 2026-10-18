@@ -399,3 +399,4 @@
 - (03:08 KST) UI_3: C.68b 목록 반영 큰 2(재정 카드 상점 탭·생활·투자 탭)·작은 4 → 10차 누계 큰 2·작은 4·단계 1(미달), claude/ui-3 d076ae9.
 - (03:14 KST) UI_3: 카드 그림 위치값 61장(정식/간략 x·y·zoom+반전·기울) docs/ui-requests/card-art-positions.json(claude/ui-3 79ae659). 그림 61장 중 레포엔 17장. **그림 파일이 레포에 들어오면** 작은 코드 패치: CARD_ART_FILES 61장 + ArtPos 크기별(full/mini)+flip+rotate(card-art-missing.md "코드 쪽에 필요한 것"). 그림 없는 카드 15장. U7 패치와 파일 겹치면 U7 사이에 끼움.
 - (03:13 KST) UI_3: 카드 그림 61장 레포 반영(claude/ui-3 9a5966b, set61/*.webp + card-art.json, 명세 card-art-set61-apply.md; card-art-positions.json은 대체됨). → 작은 fix **C.68c** `session_01VtCP11o14GaUz9tKL2DUzC` "40단계_fix_카드 그림 61장 (C.68c)", 브랜치 `claude/c68c-card-art`, 태그 `stage:40-C68c`(C.69와 병렬, 푸시 전 main 병합, STAGE_LABEL은 main 값 유지). 확인 send_later 60분.
+- (03:20 KST) C.68b: P 추가 지시 반영 main **e9e0a3c**(CI balance:check에 COACH_MEASURE=0 — 회귀 가드 15개만, 로컬 기본 켜짐). CI 한 줄은 03:45 KST쯤 Q로.
