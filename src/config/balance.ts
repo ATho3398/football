@@ -1264,7 +1264,7 @@ export const BALANCE = {
    */
   goals: {
     /** 달성 XP (게임 난이도 xp 배수 · 고령 XP 감쇠를 곱한다). 위상에는 더하지 않는다 */
-    xp: { easy: 30, normal: 60, hard: 100 },
+    xp: { easy: 25, normal: 50, hard: 80 },
     /** 카드 선택권 희귀도 가중 (후보마다): 쉬움 일반, 보통 희귀, 어려움 희귀 50% · 에픽 50% */
     pick: { easy: { common: 1 }, normal: { rare: 1 }, hard: { rare: 0.5, epic: 0.5 } },
     /** 셈 목표(골·도움·클린시트·MOM) 배수, 출전 경기 배수, 평균 평점 더하기, 팀 순위 더하기(+ = 낮은 순위도 됨) */
@@ -1293,7 +1293,7 @@ export const BALANCE = {
     /** 감독 목표: 선발 확률 이 값 미만이면 출전 경기 수, 이상이면 평균 평점 또는 MOM */
     appsBelow: 0.6,
     /** 신뢰도 (C.62): [달성, 실패] 감독 목표 · 구단 목표 · 개인 목표 */
-    trust: { manager: [4, -3], club: [2, -1], personal: [1, 0] } as Record<string, readonly [number, number]>,
+    trust: { manager: [2, -2], club: [1, -1], personal: [0, 0] } as Record<string, readonly [number, number]>,
     /** 중간 점검 인박스 라운드 */
     midRound: 19,
     /** 업적 카드 선택권 (18.9 큰 업적): 시즌 시상 수상 희귀 1장(시즌 최대 1), 리그 우승 에픽, 새 레전드 배지 전설(없으면 에픽). 챔스·발롱도르·월드컵은 5-6·6단계 훅 */
