@@ -9,7 +9,7 @@ import { cardRole, cardText } from '../../engine/cards';
 import { myMatchPosition, type GameState } from '../../game';
 import { previewLineup } from '../../myTactics';
 import { ROLE_NAMES_KO } from '../../engine/roles';
-import { Banner, BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
+import { BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
 import { cardArtPos, cardArtUrl, defaultArtPos } from '../cardArt';
 
