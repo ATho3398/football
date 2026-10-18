@@ -49,7 +49,7 @@ export interface PlayerParts {
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const c = vm.condition;
-  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellows}/${c.yellowEvery}`, soft: true }];
+  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellows}/${c.yellowEvery}`, soft: true }, { label: vm.chapter, soft: true }];
   const face = playerFace(vm);
   // 디자인 B 93·134·136: 사진이 있으면 compact 미페 머리말(290px), 없으면 compact 머리말(디자인 A 93)
   const hero = face

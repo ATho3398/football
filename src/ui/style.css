@@ -2239,3 +2239,9 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .ag-steps .ag-btn, .ag--4 .ag-steps .ag-btn { width: 34px; height: 32px; font-size: 20px; }
 .mr-delta { margin: 8px 0 0; line-height: 17px; word-break: keep-all; }
 .tr-empty .po-btn { background: var(--surface-2); }
+
+/* 챕터 리뷰 (C.73a, 디자인 없음 — 시즌 요약 카드 재사용) */
+.chapter-honors { display: flex; flex-wrap: wrap; gap: 6px; }
+.chapter-honors .po-chip { max-width: 100%; }
+.chapter-honors .po-chip__label { overflow-wrap: anywhere; word-break: keep-all; }
+.chapter-hl .kv b { text-align: right; overflow-wrap: anywhere; word-break: keep-all; }

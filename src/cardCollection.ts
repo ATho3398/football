@@ -13,7 +13,7 @@ const C = BALANCE.cards;
 
 export interface CardPick {
   /** season = 시즌 보상(옛 3단계 경로·면담), level = 레벨업, goal = 시즌 목표 (C.65), award = 업적 (C.65) */
-  source: 'season' | 'level' | 'goal' | 'award';
+  source: 'season' | 'level' | 'goal' | 'award' | 'chapter';
   /** 표시 ("시즌 2026 보상", "레벨 10 달성") */
   label: string;
   options: string[];

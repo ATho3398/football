@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 47;
+export const BALANCE_VERSION = 48;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1221,6 +1221,30 @@ export const BALANCE = {
     coach: { fromRound: 10, rankFrom: 17, expectedGap: 6, lastGames: 5, maxWins: 1, chance: 0.12, steadyMul: 0.7 },
     /** 주장: 신뢰도 하락 × downMul, 시즌 끝 위상 +seasonRep, 새 시즌에 신뢰도 stripBelow 미만이면 완장 뺏김 */
     captain: { downMul: 0.9, seasonRep: 3, stripBelow: 30 },
+  },
+
+  // ── 커리어 챕터 (22.1, 부록 C.73a, pending 119) ── XP·성장 수치는 바꾸지 않는다
+  chapters: {
+    /** 챕터 나이 상한 (시즌 시작 나이): 유망주 ≤20 · 도약 21~25 · 전성기 26~31 · 황혼 32~ */
+    maxAge: { prospect: 20, rise: 25, prime: 31 },
+    /**
+     * 시즌 목표 난이도 섞기 (18.9 위에): 기본은 쉬움/보통/어려움 하나씩. 유망주는 easier 확률로 어려움 하나가 보통으로,
+     * 전성기는 harder 확률로 쉬움 하나가 보통으로. 황혼은 개인 목표 셈 배수 personalMul · 평점 personalRating 더하기 (완화)
+     */
+    goalMix: { prospect: { easier: 0.5, harder: 0 }, rise: { easier: 0, harder: 0 }, prime: { easier: 0, harder: 0.5 }, twilight: { easier: 0, harder: 0 } },
+    twilightGoal: { personalMul: 0.85, personalRating: -0.1 },
+    /** 이벤트 분류 배율 (태그별, 확률·슬롯 가중치에 곱함). 태그 여러 개면 곱한 뒤 eventClamp 안으로 */
+    eventMul: {
+      prospect: { minutes: 1.4, contract: 1.3, training: 1.3, manager: 1.2, star: 0.6, luxury: 0.6, sponsor: 0.7, aging: 0.5, retire: 0.5, mentor: 0.5 },
+      rise: { transfer: 1.5, star: 1.3, media: 1.2, sponsor: 1.2, minutes: 0.8, aging: 0.5, retire: 0.5, mentor: 0.5 },
+      prime: { praise: 1.3, star: 1.2, sponsor: 1.2, luxury: 1.2, charity: 1.2, captain: 1.2, minutes: 0.7, retire: 0.5 },
+      twilight: { aging: 1.5, retire: 1.5, mentor: 1.5, captain: 1.3, leader: 1.3, injury: 1.2, transfer: 0.7, star: 0.7, luxury: 0.7 },
+    } as Record<string, Readonly<Record<string, number>>>,
+    eventClamp: [0.5, 1.5] as readonly [number, number],
+    /** 챕터 끝 카드 선택권 1회 (C.65 선택권 흐름): 유망주 희귀 · 도약 희귀 · 전성기 에픽 · 황혼 없음 */
+    pick: { prospect: 'rare', rise: 'rare', prime: 'epic', twilight: null } as Record<string, string | null>,
+    /** 챕터 하이라이트 보관 수 */
+    highlights: 3,
   },
 
   // ── 경기 외 생활 (pending 47 4번, 부록 C.63) ──

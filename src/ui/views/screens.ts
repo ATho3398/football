@@ -3,9 +3,9 @@
 
 import { goalsResultPanel } from './inbox';
 import {
-  Avatar, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
+  Avatar, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
-import type { AllocateVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
+import type { AllocateVM, ChapterReviewVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
 import type { BoardKind } from '../../worldStats';
 import { actionRow, banners, panel, pc2, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { isWide } from '../skin';
@@ -377,7 +377,10 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
     !vm.retired && vm.cardPicks > 0 ? todoRow({ title: `카드 고르기 · 선택권 ${vm.cardPicks}장`, sub: '시즌 목표·업적 보상 3택 1', act: 'go', data: { to: 'deck' }, icon: 'card' }) : '',
     !vm.retired && vm.points > 0 ? todoRow({ title: '포인트 찍기', num: `${vm.points}P`, hi: true, sub: '새 시즌 전에 찍어 두면 좋아요 · 선수 → 능력치', act: 'go', data: { to: 'allocate' }, icon: 'plus' }) : '',
   ].filter(Boolean);
-  const next = vm.retired
+  // 챕터 리뷰 (C.73a): 챕터가 바뀐 시즌이면 [다음 시즌] 자리에 챕터 리뷰 버튼 (본 뒤 원래 버튼)
+  const next = vm.chapter
+    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'chapter' }, className: 'season-start', children: `챕터 리뷰 · ${vm.chapter} 챕터 끝` })
+    : vm.retired
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })
     : marketPending ? '' : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', className: 'season-start', children: `${vm.nextSeason} 시즌 시작` });
   const left = `${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
@@ -468,6 +471,43 @@ export function retiredView(vm: RetiredVM): string {
     ${panel(historyTable(vm.history))}
     ${Banner({ tone: 'info', title: '은퇴한 세이브는 기록 보기만 할 수 있어요', children: '다른 슬롯의 진행에는 영향이 없어요.' })}
     <div class="btn-col">${Button({ size: 'lg', block: true, icon: 'plus', act: 'go', data: { to: 'new' }, children: '새 커리어' })}</div>
+  </div>`;
+}
+
+// ── 챕터 리뷰 (22.1 · I.13, C.73a, 디자인 없음 — 시즌 요약 머리말·요약 카드·배너 재사용) ──
+
+/** 챕터가 바뀌는 시즌 종료 요약 다음(또는 은퇴 직후)에 한 번: 그 챕터 기록 · 성장 · 하이라이트 3 · 배지 · 트로피 + [다음 챕터] */
+export function chapterView(vm: ChapterReviewVM): string {
+  const hero = HeroPanel({
+    title: '챕터 리뷰', right: '', back: false, eyebrow: `${vm.name} 챕터 · ${vm.years}`, value: vm.name, pad: false, progress: false,
+    chips: [`${vm.ages} · ${vm.seasons}시즌`, { label: vm.theme, soft: true }],
+  });
+  const ovrD = vm.ovrTo - vm.ovrFrom;
+  const repD = vm.repTo - vm.repFrom;
+  const sign = (d: number) => `<small class="${d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}">${d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0'}</small>`;
+  const card = `<div class="panel season-card chapter-card">
+      ${statTiles([{ value: vm.apps, label: '경기' }, { value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }])}
+      <div class="sc-rows">
+        <div class="kv"><span>OVR</span><b class="po-num">${vm.ovrFrom} → ${vm.ovrTo} ${sign(ovrD)}</b></div>
+        <div class="kv"><span>위상</span><b class="po-num">${esc(vm.tierFrom)} ${vm.repFrom} → ${esc(vm.tierTo)} ${vm.repTo} ${sign(repD)}</b></div>
+        ${vm.moms ? `<div class="kv"><span>MOM</span><b class="po-num">${vm.moms}회</b></div>` : ''}
+      </div>
+    </div>`;
+  const hl = vm.highlights.length
+    ? panel(vm.highlights.map((h) => `<div class="kv"><span>${esc(h.season)}</span><b>${esc(h.text)}</b></div>`).join(''), 'chapter-hl')
+    : `<p class="muted small">이 챕터에는 남은 하이라이트가 없어요.</p>`;
+  const honors = [...vm.trophies.map((t) => StatChip({ icon: 'trophy', label: t, tone: 'brand' })), ...vm.badges.map((b) => StatChip({ icon: 'star', label: `레전드 배지 · ${b}`, tone: 'success' }))];
+  const next = vm.retired
+    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'chapter-done', children: '커리어 요약' })
+    : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'chapter-done', children: vm.next ? `다음 챕터 · ${vm.next}` : '다음 챕터' });
+  return `${hero}<div class="body chapter-review">
+    <div class="panel season-tier">${TierBadge({ tier: vm.tier, score: vm.repTo })}<span><b>${esc(vm.name)} 챕터 ${vm.retired ? '· 커리어 마지막 챕터' : '완주'}</b><small class="muted">${esc(vm.theme)}</small></span></div>
+    ${card}
+    ${SectionTitle({ title: '하이라이트', action: `${vm.highlights.length}개` })}
+    ${hl}
+    ${honors.length ? `${SectionTitle({ title: '트로피 · 배지', action: `${honors.length}개` })}<div class="chapter-honors">${honors.join('')}</div>` : ''}
+    ${vm.pick ? Banner({ tone: 'success', title: `카드 선택권 · ${vm.pick}`, children: '덱에서 3장 중 1장을 골라요.' }) : ''}
+    <div class="btn-col season-next">${next}</div>
   </div>`;
 }
 

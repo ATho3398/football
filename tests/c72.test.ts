@@ -9,7 +9,6 @@ import { deckView, deckVM } from '../src/ui/views/deck';
 import { attrGrid } from '../src/ui/views/attrGrid';
 import { momentCrop } from '../src/ui/views/moment';
 import { MOMENT_ZOOM_LEN } from '../src/ui/pitch/renderer';
-import { PATCH_LABEL, STAGE_LABEL } from '../src/version';
 
 const son = () => newGame({ mode: 'real', playerId: 'son', seed: 'c72', difficulty: 'normal' });
 
@@ -98,9 +97,5 @@ describe('1부 후속', () => {
     const d = momentCrop({ scene: 'oppShot' });
     expect(d.len).toBeCloseTo(0.58);
     expect(d.pref).toBeCloseTo(0.29);
-  });
-  it('버전 라벨', () => {
-    expect(PATCH_LABEL).toBe('C.72');
-    expect(STAGE_LABEL).toBe('41d단계');
   });
 });

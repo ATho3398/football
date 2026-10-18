@@ -551,4 +551,41 @@ const MONEY_EVENTS: readonly EventDef[] = [
   },
 ];
 
-export const EVENTS: readonly EventDef[] = [...MATCH_EVENTS, ...SLOT_EVENTS, ...DAY_EVENTS, ...SEASON_EVENTS, ...CHAIN_FOLLOWUPS, ...LIFE_EVENTS, ...MONEY_EVENTS];
+/** 황혼 챕터 이벤트 (22.1, C.73a): 노화 · 은퇴 질문 · 멘토. 30세 이상만 (챕터 배율로 황혼에서 더 자주) */
+const TWILIGHT_EVENTS: readonly EventDef[] = [
+  {
+    id: 'd_agingBody', tags: ['day', 'aging'], kind: 'message', on: 'day', cat: 'club', when: { all: [['age', '>=', 31], ['apps', '>=', 5]] }, chance: 0.04, cooldown: 'season',
+    title: ['회복이 느려졌어요', '몸이 예전 같지 않아요', '나이를 실감하는 아침'],
+    text: [
+      '경기 다음 날 다리가 무거워요. 피지오가 "회복 루틴을 늘리자"고 했어요.',
+      '전력 질주 뒤 숨이 고르기까지 조금 더 걸려요. 코치가 훈련량을 조절해 줬어요.',
+      '{age}세. 아침 스트레칭이 길어졌어요. 그래도 공을 차는 감각은 그대로예요.',
+    ],
+    effects: [{ life: 'mental', add: 2 }],
+  },
+  {
+    id: 'd_retireTalk', tags: ['day', 'retire', 'media'], kind: 'message', on: 'day', cat: 'media', when: { all: [['age', '>=', 32], ['round', '>=', 20]] }, chance: 0.05, cooldown: 'season',
+    title: ['은퇴 계획을 묻는 기자', '"언제까지 뛸 건가요?"', '은퇴 질문'],
+    text: {
+      praise: ['기자가 은퇴 계획을 묻자 "아직 보여 줄 게 많다"고 웃었어요. 팬들이 박수를 쳤어요.', '"은퇴요? 이 폼으로요?" 기자회견장이 웃음바다가 됐어요.', '"몸이 허락하는 한." 짧은 대답이 헤드라인이 됐어요.'],
+      neutral: ['기자가 은퇴 계획을 물었어요. 시즌이 끝나면 생각해 보겠다고 했어요.', '"언제까지 뛸 건가요?" 질문이 처음으로 나왔어요.', '은퇴 이야기가 기사에 오르기 시작했어요. 비시즌에 결정할 수 있어요.'],
+      critic: ['"이제 내려놓을 때"라는 칼럼이 실렸어요.', '기자들이 은퇴 시점을 묻기 시작했어요. 대답하기 쉽지 않아요.', '부진한 경기 뒤 은퇴 질문이 쏟아졌어요.'],
+    },
+  },
+  {
+    id: 's_mentor', tags: ['slot', 'mentor', 'team'], kind: 'choice', on: 'slot', cat: 'team', when: ['age', '>=', 30],
+    title: ['유망주의 부탁', '멘토가 되어 줄래요?', '어린 동료의 질문'],
+    text: [
+      '1군에 막 올라온 유망주가 개인 훈련을 같이 해 달라고 부탁했어요.',
+      '감독이 "어린 선수들을 좀 챙겨 달라"고 했어요.',
+      '유스 출신 신인이 훈련이 끝나도 집에 가지 않고 내 뒤를 따라다녀요.',
+    ],
+    choices: [
+      { id: 'mentor', label: '멘토가 된다', desc: '감독 신뢰도 +2, 팀 관계 +, 체력 조금 −', effects: [{ trust: 2 }, { life: 'team', add: 4 }, { fatigue: 3 }], result: ['슈팅 자세를 하나씩 알려 줬어요. 신인의 눈이 반짝였어요.', '"저도 저 나이 때 그랬어요." 같이 남아 훈련했어요.', '훈련이 끝나고 같이 밥을 먹었어요. 라커룸 분위기가 따뜻해요.'] },
+      { id: 'no', label: '내 훈련에 집중한다', desc: '변화 없음', effects: [], result: ['정중히 사양했어요. 지금은 내 몸이 먼저예요.', '"다음 시즌에 보자." 신인이 고개를 끄덕였어요.', '코치에게 대신 부탁했어요.'] },
+    ],
+    fallback: 'no',
+  },
+];
+
+export const EVENTS: readonly EventDef[] = [...MATCH_EVENTS, ...SLOT_EVENTS, ...DAY_EVENTS, ...SEASON_EVENTS, ...CHAIN_FOLLOWUPS, ...LIFE_EVENTS, ...MONEY_EVENTS, ...TWILIGHT_EVENTS];

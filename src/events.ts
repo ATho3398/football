@@ -7,6 +7,7 @@
 import { BALANCE } from './config/balance';
 import { addDays, daysBetween, type IsoDate } from './calendar';
 import { grantMeetingPick } from './cardCollection';
+import { chapterEventMul } from './chapters';
 import { derbyOf } from './derby';
 import { formBonus } from './form';
 import { addXp, reputationTier } from './growth';
@@ -348,6 +349,8 @@ function eligible(state: GameState, d: EventDef, date: IsoDate): boolean {
 export function chanceOf(state: GameState, d: EventDef): number {
   let c = d.chance ?? 1;
   for (const [t, m] of Object.entries(d.chanceTags ?? {})) if (m !== undefined && tagHas(state.player, t as TagId)) c *= m;
+  // 챕터 이벤트 분류 배율 (22.1, C.73a)
+  c *= chapterEventMul(state, d.tags);
   return Math.min(1, c);
 }
 
@@ -402,11 +405,13 @@ function expire(state: GameState, date: IsoDate): void {
 }
 
 /** 하나 고르기 (가중치·시드) */
-function pickWeighted(list: readonly EventDef[], r: number): EventDef | undefined {
-  const tot = list.reduce((t, d) => t + (d.weight ?? 1), 0);
+function pickWeighted(state: GameState, list: readonly EventDef[], r: number): EventDef | undefined {
+  // 슬롯 가중치 × 챕터 이벤트 분류 배율 (22.1, C.73a)
+  const w = (d: EventDef) => (d.weight ?? 1) * chapterEventMul(state, d.tags);
+  const tot = list.reduce((t, d) => t + w(d), 0);
   let x = r * tot;
   for (const d of list) {
-    x -= d.weight ?? 1;
+    x -= w(d);
     if (x < 0) return d;
   }
   return list[list.length - 1];
@@ -464,7 +469,7 @@ export function eventsDayEnd(state: GameState, date: IsoDate): void {
   }
   if (ev.slots.includes(date)) {
     const pool = EVENTS.filter((d) => d.on === 'slot' && eligible(state, d, date));
-    const d = pickWeighted(pool, rngOf(state, 'slot', date)());
+    const d = pickWeighted(state, pool, rngOf(state, 'slot', date)());
     if (d) fireEvent(state, d, 'slot');
   }
   fireImmediate(state, 'day', date);

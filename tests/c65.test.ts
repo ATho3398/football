@@ -21,7 +21,8 @@ describe('시즌 목표 만들기 (18.9)', () => {
       const g = prospect('ST', seed);
       const list = g.goals!.list;
       expect(list.map((x) => x.source)).toEqual(['manager', 'club', 'personal']);
-      expect([...list.map((x) => x.tier)].sort()).toEqual(['easy', 'hard', 'normal']);
+      // C.73a: 유망주 챕터는 어려움이 보통으로 바뀌는 시즌이 있다 (BALANCE.chapters.goalMix)
+      expect([['easy', 'hard', 'normal'], ['easy', 'normal', 'normal']]).toContainEqual([...list.map((x) => x.tier)].sort());
       expect(makeGoals(g)).toEqual(list);
       expect(list[1]!.kind).toBe('teamPos');
       expect(['goals', 'goalRank']).toContain(list[2]!.kind);
@@ -150,7 +151,7 @@ describe('세이브 35 (C.65)', () => {
   it('왕복, 34 세이브(목표 없음) → 불러온 뒤 이번 시즌 목표를 만든다', () => {
     const g = prospect('ST', 'c65-save');
     playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(39);
+    expect(SAVE_FORMAT_VERSION).toBe(40);
     const back = deserialize(serialize(g));
     expect(back.goals).toEqual(g.goals);
     const raw = JSON.parse(serialize(g));

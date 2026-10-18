@@ -2,6 +2,7 @@
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
+import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
@@ -53,7 +54,7 @@ import {
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
 import {
-  adviceCardVM, allocateVM, autoSheetVM, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
+  adviceCardVM, allocateVM, autoSheetVM, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
@@ -77,7 +78,7 @@ import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView, type PlayerTab } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
-import { allocateView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, cupsSection, type SeasonTab, type SeasonTodo } from './views/screens';
+import { allocateView, chapterView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, cupsSection, type SeasonTab, type SeasonTodo } from './views/screens';
 import { tacticsView } from './views/tactics';
 import { contractView, marketCard, newsSection, offersView, tagNewsSection } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
@@ -108,7 +109,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -258,7 +259,7 @@ const app = document.getElementById('app')!;
 /** 새 기능 소개를 띄우는 화면 */
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
 /** 하단 독을 숨기는 화면 (C.44: 게임 중 모든 화면에 고정) */
-const NAV_HIDDEN: Screen[] = ['title', 'new', 'retired'];
+const NAV_HIDDEN: Screen[] = ['title', 'new', 'retired', 'chapter'];
 
 /** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
 function liveScreen(): Screen | null {
@@ -282,7 +283,7 @@ function myLookWithEdit(g: GameState): LookVM {
 
 const LOCK_ACTS = new Set([
   'buy-weakfoot', 'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
-  'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
+  'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'chapter-done', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'preset-pick', 'preset-apply', 'preset-auto', 'preset-save', 'preset-del', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
   'ca-upload', 'ca-adjust', 'ca-clear', 'ca-crop-save',
@@ -400,7 +401,7 @@ function screenHtml(): string {
     default: break;
   }
   if (!g) return titleScreen();
-  if (g.phase === 'retired' && !['retired', 'season', 'saves', 'player'].includes(ui.screen)) return retiredView(retiredVM(g));
+  if (g.phase === 'retired' && !['retired', 'season', 'saves', 'player', 'chapter'].includes(ui.screen)) return retiredView(retiredVM(g));
   switch (ui.screen) {
     case 'home': {
       const canPos = canChangePosition(g);
@@ -499,6 +500,12 @@ function screenHtml(): string {
       break;
     }
     case 'retired': return retiredView(retiredVM(g));
+    case 'chapter': {
+      // 챕터 리뷰 (C.73a): 볼 리뷰가 없으면 시즌 요약(은퇴면 커리어 요약)으로
+      const cvm = chapterReviewVM(g);
+      if (cvm) return chapterView(cvm);
+      return g.phase === 'retired' ? retiredView(retiredVM(g)) : seasonView(seasonVM(g)!);
+    }
     case 'tactics':
       if (ui.tac) return tacticsView(tacticsVM(g, ui.tac));
       break;
@@ -2730,7 +2737,14 @@ app.addEventListener('click', (ev) => {
       if (!g) return;
       retire(g);
       autosave();
-      go('retired');
+      // 은퇴 (C.73a): 지금 챕터 리뷰 → 커리어 요약
+      go(chapterReviewVM(g) ? 'chapter' : 'retired');
+      return;
+    case 'chapter-done':
+      if (!g) return;
+      chapterReviewed(g);
+      autosave();
+      go(g.phase === 'retired' ? 'retired' : 'season');
       return;
     case 'save': {
       if (!g) return;

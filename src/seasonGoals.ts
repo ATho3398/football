@@ -15,6 +15,7 @@ import { createRng, hashSeed } from './rng';
 import { myRank, seasonAwards } from './worldStats';
 import type { GameState } from './game';
 import { BADGE_NAMES_KO } from './badges';
+import { chapterOf } from './chapters';
 import type { Badge } from './types';
 
 const G = () => BALANCE.goals;
@@ -169,6 +170,7 @@ export function makeGoals(state: GameState): SeasonGoal[] {
     const kind = pickKind(state, source, tier, e, rng);
     return { source, tier, kind, target: targetOf(state, kind, tier, e) };
   });
+  chapterMix(state, list, e);
   // 챔스 n강 (C.68b, pending 109 ⑤): 챔스에 나가는 시즌이면 구단 목표를 확률로 챔스 단계로 (따로 시드 — 다른 목표는 그대로)
   const club = list[1]!;
   if (inUcl(state) && createRng(hashSeed(`${state.worldSeed}:goals-ucl:${state.league.season}:${state.player.teamId}`))() < G().uclChance) {
@@ -177,6 +179,32 @@ export function makeGoals(state: GameState): SeasonGoal[] {
     club.target = clamp(G().uclStage[club.tier] + (strong ? 1 : 0), 1, 4);
   }
   return list;
+}
+
+/**
+ * 챕터 목표 섞기 (22.1, C.73a): 따로 시드 — 기본 섞기·다른 목표 흐름은 그대로.
+ * 유망주 easier 확률로 어려움 → 보통, 전성기 harder 확률로 쉬움 → 보통, 황혼은 개인 목표 완화 (셈 × personalMul · 평점 + personalRating)
+ */
+function chapterMix(state: GameState, list: SeasonGoal[], e: Expect): void {
+  const ch = chapterOf(state.player.age);
+  const M = BALANCE.chapters.goalMix[ch];
+  const r = createRng(hashSeed(`${state.worldSeed}:goals-chapter:${state.league.season}:${state.player.teamId}`))();
+  const shift = (from: GoalTier, to: GoalTier) => {
+    const g = list.find((x) => x.tier === from);
+    if (!g) return;
+    g.tier = to;
+    if (g.kind === 'goalRank') g.kind = 'goals';
+    if (g.kind === 'assistRank') g.kind = posGroup(state.player.position) === 'CAM' ? 'ga' : 'assists';
+    g.target = targetOf(state, g.kind, to, e);
+  };
+  if (M.easier > 0 && r < M.easier) shift('hard', 'normal');
+  if (M.harder > 0 && r < M.harder) shift('easy', 'normal');
+  if (ch === 'twilight') {
+    const T = BALANCE.chapters.twilightGoal;
+    const g = list.find((x) => x.source === 'personal');
+    if (g && g.kind === 'rating') g.target = round1(clamp(g.target + T.personalRating, 5.8, 8.5));
+    else if (g && !lowerIsBetter(g.kind) && g.kind !== 'uclStage') g.target = Math.max(1, Math.round(g.target * T.personalMul));
+  }
 }
 
 /** 이번 시즌 챔스 조별리그에 내 팀이 있는가 */

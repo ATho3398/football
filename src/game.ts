@@ -2,6 +2,7 @@
 
 import { A_GRADE_PLAYERS } from '../data/players';
 import { ATTRIBUTE_NAMES_KO } from './attributes';
+import { chaptersRetire, chaptersSeasonEnd, type ChaptersState } from './chapters';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
 import type { Replay } from './replay';
 import { generatePlayer } from './generate';
@@ -76,7 +77,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 39;
+export const SAVE_FORMAT_VERSION = 40;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -258,6 +259,8 @@ export interface GameState {
   sacked?: string[];
   /** 주장 (C.63): 그 팀에서 since 시즌부터. 이적하면 끝 */
   captain?: { teamId: string; since: number } | null;
+  /** 커리어 챕터 기록 (22.1, C.73a): 챕터별 시작/끝 시즌·OVR·위상 티어·기록 합계·하이라이트·배지·트로피, 보여 줄 챕터 리뷰. 없으면 시즌 끝에 만든다 */
+  chapters?: ChaptersState;
   /** 경기 외 생활 지표 (pending 47 4번, C.63 b) */
   life?: LifeState;
   /** 시즌 목표 (18.9, 부록 C.65). 없거나 시즌이 다르면 ensureGoals 가 새로 만든다 */
@@ -1928,6 +1931,14 @@ export function endSeason(state: GameState): SeasonSummary {
     ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승')]);
   // 재정 b (C.68b): 예금·부동산 수익 · 이벤트형 투자 정산
   wealthSeasonEnd(state);
+  // 챕터 (22.1, C.73a): 이번 시즌을 챕터 기록에 더하고, 다음 시즌이 다른 챕터면 닫는다 (리뷰 예약 · 카드 선택권)
+  const trophies = [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map(() => 'FA컵 우승'),
+    ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승'), ...(gr.awards.filter((a) => !a.includes('리그 우승') && !a.startsWith('레전드 배지')))];
+  const startAttrs = player.seasonStartAttrs;
+  chaptersSeasonEnd(state, {
+    season, age, ovrStart: startAttrs ? playerOvr({ ...player, attributes: startAttrs }) : ovrBefore, ovrEnd: summary.ovrAfter,
+    repStart: reputationBefore, repEnd: player.reputation, record, badges, trophies,
+  });
   state.lastSeasonSummary = summary;
   state.phase = summary.forcedRetire ? 'retired' : 'offseason';
   // 내 선수 (18.10): 임대 복귀, 계약 만료면 재계약, 제안 3~5개
@@ -2009,6 +2020,8 @@ export function startNextSeason(state: GameState): void {
 export function retire(state: GameState): void {
   if (state.phase !== 'offseason' || !state.lastSeasonSummary?.canRetire) throw new Error('은퇴할 수 없음');
   state.phase = 'retired';
+  // 챕터 (C.73a): 지금 챕터를 닫고 챕터 리뷰 → 커리어 요약
+  chaptersRetire(state);
 }
 
 export interface CareerTotals {

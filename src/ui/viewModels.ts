@@ -2,6 +2,7 @@
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
+import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { matchCompLabel, myShirt, prospectExtras, weekFreeDays } from '../game';
 import { COMP_NAMES_KO, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
 import { FOOT_KO } from '../body';
@@ -190,6 +191,8 @@ function pointsBanner(g: GameState): BannerVM | null {
 // ── 홈 (I.3, 디자인 22·25) ──
 
 export interface HomeVM {
+  /** 지금 챕터 이름 (22.1, C.73a): "도약 챕터" */
+  chapter: string;
   /** 재정 (C.68a): 고를 수 있는 코치 후보 수 (홈 재정 아이콘 배지) */
   money?: number;
   season: string;
@@ -377,6 +380,7 @@ export function homeVM(g: GameState): HomeVM {
   const s = p.season;
   const avg = averageRating(s);
   return {
+    chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
     money: g.money?.candidates.length ?? 0,
     season: seasonLabel(g.league.season), round: Math.min(g.league.round + 1, g.league.schedule.length), rounds: g.league.schedule.length,
     comp: g.phase === 'season' ? matchCompLabel(g) : '',
@@ -682,6 +686,8 @@ export function campLabel(g: GameState): string {
 export interface AttrRowVM { label: string; value: number; key: boolean }
 
 export interface PlayerVM {
+  /** 지금 챕터 이름 (22.1, C.73a) */
+  chapter: string;
   /** 소속 팀 상세 링크 (C.53) */
   teamId: string;
   /** 미페 머리말 등번호 (C.58) */
@@ -784,6 +790,7 @@ export function playerVM(g: GameState): PlayerVM {
   const nx = nextReputationTier(p.reputation, p.honors);
   const fx = g.phase === 'season' ? nextFixture(g) : null;
   return {
+    chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
     face: myFace(g), kit: myShirt(g),
     name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
     team: teamById(g.league, p.teamId).nameKo, teamId: p.teamId,
@@ -1264,6 +1271,8 @@ export interface SeasonVM {
   autoGrowth: DeltaVM[]; veteran: DeltaVM[]; aging: DeltaVM[];
   growthAges: string; ageFrom: number; ageTo: number;
   retired: boolean; forcedRetire: boolean; canRetire: boolean; points: number;
+  /** 이번 시즌으로 끝난 챕터 이름 (챕터 리뷰를 아직 안 봤으면, C.73a) */
+  chapter: string | null;
   injury: BannerVM | null;
   badges: { name: string; desc: string }[];
   /** 시즌 경기 목록과 합계 (부록 C.30) */
@@ -1322,6 +1331,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
     autoGrowth: deltas(s.autoGrowth), veteran: deltas(s.veteranGrowth ?? {}), aging: deltas(s.aging),
     growthAges: `${A.minAge}~${A.maxAge}세`, ageFrom: s.age, ageTo: g.player.age,
     retired: g.phase === 'retired', forcedRetire: s.forcedRetire, canRetire: s.canRetire, points: visiblePoints(g),
+    chapter: (() => { const c = pendingChapterReview(g); return c ? CHAPTER_KO[c.id] : null; })(),
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
     badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
     matches: seasonMatchesVM(g),
@@ -1387,6 +1397,38 @@ export function retiredVM(g: GameState): RetiredVM {
     card: playerCardVM(g), seasons: t.seasons, apps: t.apps, goals: t.goals, assists: t.assists,
     avg: t.avgRating === null ? '-' : t.avgRating.toFixed(2), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,
     reputation: g.player.reputation, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation, g.player.honors)], history: historyVM(g),
+  };
+}
+
+// ── 챕터 리뷰 (22.1 · I.13, C.73a, 디자인 없음) ──
+
+export interface ChapterReviewVM {
+  id: ChapterId; name: string; theme: string; years: string; ages: string; seasons: number;
+  apps: number; goals: number; assists: number; avg: string; moms: number;
+  ovrFrom: number; ovrTo: number; repFrom: number; repTo: number; tierFrom: string; tierTo: string; tier: DesignTier;
+  highlights: { season: string; text: string }[];
+  badges: string[]; trophies: string[];
+  /** 챕터 끝 카드 선택권 이름 */
+  pick: string | null;
+  /** 다음 챕터 이름 (은퇴면 null) */
+  next: string | null;
+  retired: boolean;
+}
+
+export function chapterReviewVM(g: GameState): ChapterReviewVM | null {
+  const c = pendingChapterReview(g);
+  if (!c) return null;
+  const retired = g.phase === 'retired';
+  const nextId = CHAPTER_IDS[CHAPTER_IDS.indexOf(c.id) + 1];
+  return {
+    id: c.id, name: CHAPTER_KO[c.id], theme: CHAPTER_THEME_KO[c.id],
+    years: c.startSeason === c.endSeason ? `${seasonLabel(c.startSeason)}` : `${seasonLabel(c.startSeason)} ~ ${seasonLabel(c.endSeason)}`,
+    ages: c.startAge === c.endAge ? `${c.startAge}세` : `${c.startAge}~${c.endAge}세`, seasons: c.seasons,
+    apps: c.apps, goals: c.goals, assists: c.assists, avg: c.apps ? (c.ratingSum / c.apps).toFixed(2) : '-', moms: c.moms,
+    ovrFrom: c.startOvr, ovrTo: c.endOvr, repFrom: c.startRep, repTo: c.endRep, tierFrom: TIER_NAMES_KO[c.startTier], tierTo: TIER_NAMES_KO[c.endTier], tier: designTier(c.endTier),
+    highlights: c.highlights.map((h) => ({ season: seasonLabel(h.season), text: h.text })),
+    badges: c.badges.map((b) => BADGE_NAMES_KO[b as BadgeId] ?? b), trophies: c.trophies,
+    pick: c.pick, next: retired || !nextId ? null : CHAPTER_KO[nextId], retired,
   };
 }
 

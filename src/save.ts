@@ -8,6 +8,7 @@ import { ensureFinance } from './finance';
 import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
 import { migrateRoleId } from './engine/roles';
+import { chaptersFromHistory } from './chapters';
 import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
@@ -312,6 +313,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   37: () => {},
   // 38 → 39 (C.68b): 재정 b — money.shop·house·car·charity·invest·agent, cards.tp·tpUsed. 모두 없으면 기본값(숙소·차 없음·기부 0·투자 0·TP 0)
   38: () => {},
+  // 39 → 40 (C.73a): 커리어 챕터 기록(chapters). 지난 시즌 기록(history)을 나이로 묶어 채운다 (리뷰·선택권 없음)
+  39: (s) => { s.chapters = chaptersFromHistory(s); },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

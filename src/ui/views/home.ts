@@ -24,6 +24,7 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
       ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, `${vm.round}/${vm.rounds}R`]
       : [{ label: '시즌 종료', soft: true }]),
     ...(vm.points > 0 ? [{ label: `찍을 포인트 ${vm.points}P`, soft: true }] : []),
+    { label: vm.chapter, soft: true },
   ];
 }
 
