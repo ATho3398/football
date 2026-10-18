@@ -1,6 +1,8 @@
 // 저장/불러오기 (B.8, 25.4·부록 C.41): IndexedDB + gzip 압축, 수동 슬롯 3 + 자동 저장, 파일 내보내기/가져오기.
 // C.40 까지의 localStorage 세이브는 initSaves 가 처음 한 번 옮긴다
 
+import { PROSPECT_NATIONALITY, rollAppearance, type Appearance } from './appearance';
+import { PHOTO_OF } from './identity';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
@@ -315,6 +317,13 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   38: () => {},
   // 39 → 40 (C.73a): 커리어 챕터 기록(chapters). 지난 시즌 기록(history)을 나이로 묶어 채운다 (리뷰·선택권 없음)
   39: (s) => { s.chapters = chaptersFromHistory(s); },
+  // 40 → 41 (C.73c): 내 선수 기본 사진(player.facePhoto). 가상 선수(랜덤·커스텀)는 지금 보이는 외모군으로 인종·사진을 채운다 (실제 선수·레전드는 없음)
+  40: (s) => {
+    const p = s.player;
+    if (p.realPlayerId || p.legendId) return;
+    p.appearance ??= rollAppearance(`me:${s.worldSeed}`, p.nationality ?? PROSPECT_NATIONALITY);
+    p.facePhoto ??= PHOTO_OF[p.appearance as Appearance];
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

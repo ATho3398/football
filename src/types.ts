@@ -3,6 +3,7 @@ import type { FieldPosition } from './positions';
 import type { ProfLog, Proficiency } from './proficiency';
 import type { AptBoost, Aptitude, PositionAdvice } from './aptitude';
 import type { Body } from './body';
+import type { FacePhoto } from './identity';
 import type { Appearance } from './appearance';
 import type { PlayerTag } from './tags';
 
@@ -191,6 +192,8 @@ export interface PlayerState {
   /** 커스텀 생성에서 고른 외모군·국적 (부록 C.45). 없으면 기존 규칙(실제 선수 표, 유망주는 한국 분포) */
   appearance?: Appearance;
   nationality?: string;
+  /** 기본 사진 (C.73c, public/faces/default): 가상 선수(랜덤·커스텀)만. 페이스온 사진이 있으면 그게 먼저 */
+  facePhoto?: FacePhoto;
   /** 약발 훈련 (부록 C.45): 게이지와 이번 시즌 오른 약발 (시즌 최대 BALANCE.weakFoot.seasonMax) */
   weakFootTrain?: { gauge: number; gained: number };
   /** 커스텀 생성으로 시작했으면 true */

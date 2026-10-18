@@ -45,6 +45,7 @@ import { wealthDayEnd, wealthSeasonEnd, wealthSeasonStart } from './wealth';
 import { coachBoost, injuryChanceMul, injuryDaysMul, moneyDayEnd, moneySeasonEnd, moneySeasonStart, staffRecoveryMul, type MoneyState } from './money';
 import { academyName, addTag, afterAccept, afterTrialMatch, applyStart, checkOneClub, release, renewalFails, seasonEndTags, type StartChoice, type TrialState } from './startClub';
 import type { Appearance } from './appearance';
+import { PHOTO_OF, randomNameFor, rollIdentity, type FacePhoto, type Race } from './identity';
 import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
@@ -77,7 +78,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 40;
+export const SAVE_FORMAT_VERSION = 41;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -306,7 +307,11 @@ export type NewGameOptions =
    * 가상 유망주 (pending 31·36, 부록 C.37). rolled = true 면 시드로 뽑은 유망주(rollProspect(seed))에 position(시작 후보 중 고른 자리)을
    * 붙인다 — 화면의 새 게임. 없으면 position 을 기준 자리로 맞는 재능 타입의 유망주를 만든다 (밸런스·테스트)
    */
-  | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty; rolled?: boolean; legends?: boolean }
+  | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty; rolled?: boolean; legends?: boolean;
+    /** 인종 (C.73c): 없으면 시드 랜덤. 국적·이름은 그 인종 안에서 시드 랜덤 */
+    race?: Race;
+    /** 기본 사진 (C.73c): 없으면 인종 사진 */
+    facePhoto?: FacePhoto }
   | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty; legends?: boolean }
   /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
   | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean };
@@ -324,6 +329,8 @@ export interface CustomSpec {
   appearance: Appearance;
   /** 도트 머리 (경기 화면 캐릭터, pixel-kits 3.4) */
   pixelHair?: string;
+  /** 기본 사진 (C.73c): 없으면 외모군 사진 */
+  facePhoto?: FacePhoto;
   /** 시작 소속 (C.45 10번). 없으면 기존처럼 랜덤 팀 */
   start?: StartChoice;
 }
@@ -420,6 +427,12 @@ export function rebuildRosters(
   return rosters;
 }
 
+/** 이름 추첨 자리의 rng 소비는 그대로 두고 (뒤 추첨 결과 유지) 이름만 바꾼다 (C.73c) */
+function drawName(prng: Rng, name: string): string {
+  randomName(prng);
+  return name;
+}
+
 export function newGame(opts: NewGameOptions): GameState {
   const worldSeed = opts.seed?.trim() || randomSeed();
   const season = BALANCE.newGame.startYear;
@@ -457,7 +470,7 @@ export function newGame(opts: NewGameOptions): GameState {
     const team = byRating[randInt(prng, min, max) - 1]!;
     player = {
       ...base,
-      name: c.name?.trim() || randomName(prng),
+      name: c.name?.trim() || drawName(prng, randomNameFor(worldSeed, c.nationality, c.appearance)),
       position: c.position,
       age,
       teamId: team.id,
@@ -473,6 +486,7 @@ export function newGame(opts: NewGameOptions): GameState {
       tags: picksToTags(picks, season),
       nationality: c.nationality,
       appearance: c.appearance,
+      facePhoto: c.facePhoto ?? PHOTO_OF[c.appearance],
       ...(c.pixelHair ? { pixelHair: c.pixelHair } : {}),
       custom: true,
       // 다 안 쓴 배분 포인트는 시작 뒤 성장 포인트로 넘긴다 (C.52, pending 85 ②. 화면 칸 비용 1/2/3 이 같은 단위)
@@ -485,9 +499,14 @@ export function newGame(opts: NewGameOptions): GameState {
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
     const { min, max } = BALANCE.newGame.teamRankRange;
     const team = byRating[randInt(prng, min, max) - 1]!;
+    // 인종·국적·이름·사진 (C.73c): 별도 시드라 유망주 결과(능력치·팀)는 그대로. 예전엔 국적이 없어 한국·동양계로만 보였다
+    const who = rollIdentity(worldSeed, opts.race);
     player = {
       ...base,
-      name: opts.name?.trim() || randomName(prng),
+      name: opts.name?.trim() || drawName(prng, who.name),
+      nationality: who.nationality,
+      appearance: who.race,
+      facePhoto: opts.facePhoto ?? who.photo,
       position: opts.position,
       age: BALANCE.newGame.startAge,
       teamId: team.id,

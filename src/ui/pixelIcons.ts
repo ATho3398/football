@@ -5,6 +5,7 @@ import { A_GRADE_PLAYERS } from '../../data/players';
 import { REAL_PIXEL_LOOK } from '../../data/players/pixelLook';
 import { PIXEL_PEOPLE } from '../../data/pixelPack';
 import { realAppearance, type Appearance } from '../appearance';
+import { SKIN_OF } from './customVM';
 import type { GameState } from '../game';
 import { autoPerson, kitFor, matchKits, personOf, type MatchKits, type PeopleTable, type PixelPerson } from '../pixel';
 import { clubOf, pixelDirect, pixelLayerUrls, pixelManifestLooks, pixelPeople, pixelSrc } from './faces';
@@ -19,14 +20,16 @@ function realTable(): Record<string, PixelPerson> {
   return { ...REAL_PIXEL_LOOK, ...pixelManifestLooks() };
 }
 
-interface Who { id: string; appearance?: Appearance; hair?: string; teamId?: string }
+interface Who { id: string; appearance?: Appearance; hair?: string; skin?: string; teamId?: string }
 
 let index: { of: unknown; npcs: unknown; map: Map<string, Who> } | null = null;
 
 /** 선수 id → 외모군·소속 (로스터 → NPC → 실제 선수 데이터). isMe 면 내 선수 (리플레이의 내 id 는 엔진 id) */
 export function whoOf(g: GameState, id: string, isMe = false): Who {
   const me = myFace(g);
-  if (isMe || id === me.id) return { id: me.id, ...(me.appearance ? { appearance: me.appearance } : {}), ...(g.player.pixelHair ? { hair: g.player.pixelHair } : {}), teamId: g.player.teamId };
+  // 내 가상 선수 (C.73c): 피부 = 고른 인종 피부 (기본 사진이 있는 선수)
+  if (isMe || id === me.id) return { id: me.id, ...(me.appearance ? { appearance: me.appearance } : {}), ...(g.player.pixelHair ? { hair: g.player.pixelHair } : {}),
+    ...(me.photo && me.appearance ? { skin: SKIN_OF[me.appearance] } : {}), teamId: g.player.teamId };
   if (index?.of !== g.rosters || index.npcs !== g.npcs) {
     const map = new Map<string, Who>();
     for (const [teamId, r] of Object.entries(g.rosters ?? {})) for (const p of r.players) map.set(p.id, { id: p.id, appearance: p.appearance, teamId });
@@ -42,13 +45,13 @@ export function whoOf(g: GameState, id: string, isMe = false): Who {
 /** 지금 인물 (사용자 지정 > 실제 선수 표 > 자동) */
 export function playerPerson(g: GameState, id: string, isMe = false): PixelPerson {
   const w = whoOf(g, id, isMe);
-  return personOf(w.id, w.appearance, { overrides: g.pixelOverrides, real: realTable(), hair: w.hair, people: peopleTable() });
+  return personOf(w.id, w.appearance, { overrides: g.pixelOverrides, real: realTable(), hair: w.hair, skin: w.skin, people: peopleTable() });
 }
 
 /** 되돌리면 이렇게 (사용자 지정 없이) */
 export function playerAutoPerson(g: GameState, id: string, isMe = false): PixelPerson {
   const w = whoOf(g, id, isMe);
-  return autoPerson(w.id, w.appearance, { real: realTable(), hair: w.hair, people: peopleTable() });
+  return autoPerson(w.id, w.appearance, { real: realTable(), hair: w.hair, skin: w.skin, people: peopleTable() });
 }
 
 /** 리플레이 팀 이름(한글 이름 등) 또는 id → 팀 id */

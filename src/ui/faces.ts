@@ -6,13 +6,16 @@ import { A_GRADE_PLAYERS } from '../../data/players';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
 import { TEAM_COLORS } from '../../data/teamColors';
 import type { Appearance } from '../appearance';
+import type { FacePhoto } from '../identity';
 import { initialTeams } from '../league';
 import { hashSeed } from '../rng';
 import type { PeopleTable, PixelPerson } from '../pixel';
 import { storeBackend } from '../saveStore';
 
 /** 화면이 얼굴을 찾을 때 넘기는 선수 정보. id = 로스터 선수 id (내 가상 유망주는 `me:<월드 시드>`) */
-export interface FaceRef { id: string; age?: number; appearance?: Appearance }
+export interface FaceRef { id: string; age?: number; appearance?: Appearance;
+  /** 내 가상 선수 기본 사진 (C.73c, public/faces/default): 페이스온·레포 사진이 없을 때 */
+  photo?: FacePhoto }
 
 export const AGE_SLOTS = ['young', 'prime', 'veteran'] as const;
 export type AgeSlot = (typeof AGE_SLOTS)[number];
@@ -41,6 +44,12 @@ export interface FaceOnRecord { name: string; slots: Partial<Record<FaceSlot, Bl
 const FACEPACK_DIR = 'facepack/';
 const BASE_DIR = 'faces/base/';
 const PIXEL_DIR = 'faces/pixel/';
+const DEFAULT_DIR = 'faces/default/';
+
+/** 기본 사진 주소 (C.73c): face = 얼굴 정사각(아바타), full = 전신 누끼(머리말) */
+export function defaultPhotoSrc(photo: FacePhoto, kind: 'face' | 'full' = 'face'): string {
+  return `${DEFAULT_DIR}${photo}${kind === 'face' ? '-face' : ''}.webp`;
+}
 
 const state = {
   photos: { players: {} as Record<string, string>, clubs: {} as Record<string, string>, cutout: new Set<string>() },
@@ -99,6 +108,7 @@ export function faceSrc(ref: FaceRef): string | undefined {
   }
   const photo = state.photos.players[ref.id];
   if (photo) return photo;
+  if (ref.photo) return defaultPhotoSrc(ref.photo);
   if (ref.appearance && state.base.length) {
     const list = state.base.filter((b) => b.appearance === ref.appearance);
     if (list.length) return BASE_DIR + list[hashSeed(`face:${ref.id}`) % list.length]!.file;
@@ -107,7 +117,7 @@ export function faceSrc(ref: FaceRef): string | undefined {
 }
 
 /**
- * 미페 머리말 사진 (C.57, B-apply 2절): 페이스온(사용자 업로드) > 레포 사진(facepack) > 없음(기본 얼굴은 쓰지 않음 → 일반 B 머리말).
+ * 미페 머리말 사진 (C.57, B-apply 2절): 페이스온(사용자 업로드) > 레포 사진(facepack) > 내 가상 선수 기본 사진(C.73c) > 없음(외모군 기본 얼굴은 쓰지 않음 → 일반 B 머리말).
  * 투명 판정은 이미지 알파로 하지 않는다(facepack png도 RGBA) — 페이스온 "배경 없는 사진" 표시나 매니페스트 cutout: true 일 때만
  */
 export function heroFaceOf(ref: FaceRef): { src: string; cutout: boolean } | null {
@@ -116,7 +126,9 @@ export function heroFaceOf(ref: FaceRef): { src: string; cutout: boolean } | nul
     for (const s of NEAR_SLOTS[ageSlot(ref.age ?? 25)]) if (on.urls[s]) return { src: on.urls[s]!, cutout: !!on.cutout };
   }
   const photo = state.photos.players[ref.id];
-  return photo ? { src: photo, cutout: state.photos.cutout.has(ref.id) } : null;
+  if (photo) return { src: photo, cutout: state.photos.cutout.has(ref.id) };
+  // 내 가상 선수 기본 사진 (C.73c): 배경 없는 전신 사진
+  return ref.photo ? { src: defaultPhotoSrc(ref.photo, 'full'), cutout: true } : null;
 }
 
 /** 페이스온 "배경 없는 사진" 표시 (C.57) */

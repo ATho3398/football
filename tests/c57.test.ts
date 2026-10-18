@@ -40,14 +40,15 @@ describe('미페 머리말 이름 자동 크기 (B-apply 2절)', () => {
 });
 
 describe('홈 (디자인 86~89)', () => {
-  it('B 테마라도 사진이 없으면(생성 선수) 일반 머리말, A 테마도 일반 머리말 · 다음 경기 카드 버튼', () => {
+  it('생성 선수는 B 테마에서 기본 사진 머리말(C.73c, 예전엔 사진이 없어 일반 머리말), A 테마는 일반 머리말 · 다음 경기 카드 버튼', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c57-home', difficulty: 'normal' });
-    for (const sk of ['b', 'a'] as const) {
-      setSkin(sk);
-      const h = homeView(homeVM(g));
-      expect(h).not.toContain('po-hero--face');
-      expect(h).toContain('po-hero--compact');
-    }
+    setSkin('b');
+    expect(homeView(homeVM(g))).toContain(`po-hero--face`);
+    expect(homeView(homeVM(g))).toContain(`faces/default/${g.player.facePhoto}.webp`);
+    setSkin('a');
+    const ha = homeView(homeVM(g));
+    expect(ha).not.toContain('po-hero--face');
+    expect(ha).toContain('po-hero--compact');
     setSkin('b');
     const h = homeView(homeVM(g));
     expect(h).toMatch(/계속 · 계획대로 진행|경기 시작/);

@@ -96,6 +96,8 @@ export interface PersonOpts {
   real?: Readonly<Record<string, PixelPerson>>;
   /** 내 선수가 고른 머리 (PlayerState.pixelHair) */
   hair?: string | undefined;
+  /** 내 가상 선수 피부 (C.73c): 고른 인종 피부로 고정 (외모군 분포 추첨 대신) */
+  skin?: string | undefined;
   people?: PeopleTable;
 }
 
@@ -104,6 +106,7 @@ export function autoPerson(id: string, appearance: Appearance | undefined, opts:
   const people = opts.people ?? PIXEL_PEOPLE;
   const real = (opts.real ?? REAL_PIXEL_LOOK)[id];
   if (real) return validPerson(real, people);
+  if (opts.skin) return validPerson({ skin: opts.skin, hair: opts.hair ?? defaultHair(id, appearance, opts.skin, people) }, people);
   if (opts.hair) return validPerson({ skin: skinOf(id, appearance), hair: opts.hair }, people);
   return rollPerson(id, appearance, people);
 }

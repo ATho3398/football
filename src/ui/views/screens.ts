@@ -20,7 +20,8 @@ import { LEGENDS } from '../../legends';
 const LEGEND_TOTAL = LEGENDS.length;
 const LEGEND_GK = LEGENDS.filter((l) => l.position === 'GK').length;
 import type { CustomVM } from '../customVM';
-import { customBody } from './custom';
+import { customBody, photoRow } from './custom';
+import type { FacePhoto, Race } from '../../identity';
 
 // ── 타이틀 (55) ──
 
@@ -84,6 +85,8 @@ export interface NewGameVM {
   /** 능력치 접힘 줄 (디자인 130) */
   attrSummary: { count: number; avg: string; weak: string; top: string } | null;
   teamHint: string;
+  /** 랜덤 인종·국적·이름·기본 사진 (C.73c) */
+  identity: { race: Race; races: { id: Race; ko: string }[]; photo: FacePhoto; photos: { id: FacePhoto; ko: string }[]; nationalityKo: string; name: string; picked: boolean } | null;
   /** 랜덤 유망주 신체·장단점 (C.45) */
   extras: { height: number; weight: number; foot: string; weakFoot: number; traits: { ko: string; desc: string; kind: 'pro' | 'con'; release?: string }[] } | null;
 }
@@ -104,7 +107,7 @@ const POS_GROUP: Record<string, 'fw' | 'mf' | 'df'> = { ST: 'fw', CF: 'fw', LW: 
 
 /** 이름(TextField) · 난이도(세그먼트 3) · 레전드 팩(켬/끔) · 시드 (디자인 130 "시작 옵션") */
 function startOptions(vm: NewGameVM, nameField: boolean): string {
-  const name = nameField ? TextField({ label: '이름', value: vm.name, placeholder: '예: 김민준 · 비우면 랜덤', input: { id: 'f-name', maxLength: 12 }, clearable: false }) : '';
+  const name = nameField ? TextField({ label: '이름', value: vm.name, placeholder: vm.identity ? `비우면 ${vm.identity.name}` : '예: 김민준 · 비우면 랜덤', input: { id: 'f-name', maxLength: 12 }, clearable: false }) : '';
   const cur = vm.difficulties.find((d) => d.id === vm.difficulty);
   const diff = `${Tabs({ items: vm.difficulties.map((d) => ({ id: d.id, label: d.id === 'normal' ? `${d.label} · 추천` : d.label })), value: vm.difficulty, variant: 'segment', fill: true, act: 'form', data: { k: 'difficulty' }, label: '난이도' })}
     ${cur ? `<p class="small muted ng-diff">${esc(cur.desc)}</p>` : ''}`;
@@ -128,7 +131,7 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW
     : real
     ? HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', value: sel ? sel.ovr : '-', pad: false, progress: false,
       chips: sel ? [`${sel.age}세 · ${sel.club}`, { label: sel.legend ? `레전드 · 전성기 ${sel.peak}` : '2018-19 시즌 그대로', soft: true }] : [`실제 선수 ${vm.reals.length}명`, { label: vm.legends ? `레전드 ${vm.legendList.length}명` : '2018-19 시즌 그대로', soft: true }] })
-    : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
+    : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: [vm.identity ? `17세 · ${vm.identity.nationalityKo}` : '17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
   const modeTabs = Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
   if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? modeTabs : '', startOptions(vm, false), u.cuHooks ?? [])}</div>`;
   if (!real) return `${hero}<div class="body ng-body">${modeTabs}${prospectBody(vm, u)}</div>`;
@@ -151,6 +154,13 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
       <div><small>주발</small><b>${esc(x.foot)}</b></div><div><small>약발</small><b class="po-num">${x.weakFoot}${x.weakFoot >= 5 ? '<i>양발</i>' : ''}</b></div></div>
       ${x.traits.length ? `<div class="ng-traits">${x.traits.map((t) => `<span class="ng-trait">${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(t.release ? { release: t.release } : {}), desc: t.desc })}<small>${esc(t.desc)}</small></span>`).join('')}</div>` : '<p class="small muted">태그 없음</p>'}
       <p class="small muted">랜덤은 태그 0~2개가 붙어요. 마음에 안 들면 [다른 유망주 보기].</p></div>` : '';
+  // 인종 · 기본 사진 (C.73c): 국적·이름은 그 인종 안에서 시드 랜덤
+  const id = vm.identity;
+  const looks = id ? `${SectionTitle({ title: '인종 · 기본 사진', action: id.picked ? '직접 고름' : '랜덤' })}
+    <div class="panel ng-looks">
+      <div class="cu-chips">${id.races.map((r) => `<button type="button" class="cu-chip${r.id === id.race ? ' is-on' : ''}" data-act="form" data-k="race" data-v="${r.id}" aria-pressed="${r.id === id.race}">${esc(r.ko)}</button>`).join('')}</div>
+      ${photoRow('form', 'photo', id.photos, id.photo)}
+      <p class="small muted">국적 ${esc(id.nationalityKo)} · 이름을 비우면 ${esc(id.name)}. 인종을 고르면 기본 사진이 바뀌고, 국적·이름은 그 인종 안에서 정해져요. 시작한 뒤 페이스온에서 내 사진으로 바꿀 수 있어요.</p></div>` : '';
   const a = vm.attrSummary;
   const attrs = `${SectionTitle({ title: '능력치', action: a ? `강점 ${a.top}` : '' })}
     <button type="button" class="panel ng-attrs" data-act="ng-attrs" aria-expanded="${u.attrsOpen}"><span class="grow"><b>${a ? `${a.count}개 · 평균 ${a.avg}` : '능력치'}</b><small>${a ? `약점 ${esc(a.weak)}` : ''}</small></span><span class="ng-attrs__btn">${u.attrsOpen ? '접기' : '펼치기'} ${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${u.attrsOpen ? -90 : 90}deg)` })}</span></button>
@@ -159,6 +169,7 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
     ${cands}${outside}${coach}
     ${others}
     <p class="small ng-links">${vm.others ? '' : '<button type="button" class="link-btn hi" data-act="form-others">다른 포지션에서 고르기</button> '}<button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
+    ${looks}
     ${extras}
     ${attrs}
     ${startOptions(vm, true)}

@@ -63,6 +63,8 @@ import type { AttrGroupVM } from './views/attrGrid';
 import { derbyOf } from '../derby';
 import type { FaceRef } from './faces';
 import { PROSPECT_NATIONALITY, realAppearance, rollAppearance } from '../appearance';
+import { FACE_PHOTOS, isFacePhoto, isRace, PHOTO_KO, PHOTO_OF, RACE_KO, RACES, rollIdentity } from '../identity';
+import { NATIONALITY_KO } from './customVM';
 import { FORMATIONS } from '../formations';
 import {
   customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
@@ -138,7 +140,7 @@ export interface PlayerCardVM {
 
 /**
  * 내 선수 얼굴 (부록 C.43): 실제 선수면 그 선수 id(사진·페이스온 공유), 가상 유망주는 `me:<월드 시드>`.
- * 외모군은 저장하지 않고 id 로 정한다 (가상 유망주 = 한국 국적 분포, 커스텀 생성(C.45)에서 고르게 되면 저장)
+ * 외모군·기본 사진은 생성 때 저장한다 (C.45 커스텀, C.73c 랜덤). 없으면(옛 세이브 이식 전) id 로 정한다
  */
 export function myFace(g: GameState): FaceRef {
   const p = g.player;
@@ -146,8 +148,9 @@ export function myFace(g: GameState): FaceRef {
   // 레전드로 시작 (C.47): 레전드 id 로 사진을 찾는다
   if (p.legendId) return { id: p.legendId, age: p.age, ...(p.appearance ? { appearance: p.appearance } : {}) };
   const id = `me:${g.worldSeed}`;
-  // 커스텀 생성 (C.45): 고른 외모군·국적
-  return { id, age: p.age, appearance: p.appearance ?? rollAppearance(id, p.nationality ?? PROSPECT_NATIONALITY) };
+  // 커스텀 생성 (C.45): 고른 외모군·국적. 기본 사진 (C.73c): 고른 사진, 없으면 외모군 사진
+  const appearance = p.appearance ?? rollAppearance(id, p.nationality ?? PROSPECT_NATIONALITY);
+  return { id, age: p.age, appearance, photo: p.facePhoto ?? PHOTO_OF[appearance] };
 }
 
 function playerCardVM(g: GameState): PlayerCardVM {
@@ -1491,6 +1494,9 @@ export interface NewGameForm {
   roll: string;
   /** "다른 포지션에서 고르기" 펼침 */
   others: boolean;
+  /** 랜덤 인종·기본 사진 (C.73c): '' = 시드 랜덤 / 인종 사진 */
+  race?: string;
+  photo?: string;
 }
 
 export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
@@ -1547,6 +1553,15 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       return { count: xs.length, avg: avg.toFixed(1), weak: xs.slice(0, 3).map((a) => `${ATTRIBUTE_NAMES_KO[a]} ${attrDisplay(prospect.attributes[a])}`).join(' · '), top: [...xs].reverse().slice(0, 2).map((a) => `${ATTRIBUTE_NAMES_KO[a]} ${attrDisplay(prospect.attributes[a])}`).join(' · ') };
     })() : null,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,
+    // 랜덤 인종·국적·이름·기본 사진 (C.73c): 시드 랜덤, 인종·사진은 고를 수 있다
+    identity: f.mode === 'prospect' ? (() => {
+      const who = rollIdentity(f.roll, isRace(f.race) ? f.race : undefined);
+      return {
+        race: who.race, races: RACES.map((id) => ({ id, ko: RACE_KO[id] })), photo: isFacePhoto(f.photo) ? f.photo : who.photo,
+        photos: FACE_PHOTOS.map((id) => ({ id, ko: PHOTO_KO[id] })), nationalityKo: NATIONALITY_KO[who.nationality] ?? who.nationality, name: who.name,
+        picked: isRace(f.race),
+      };
+    })() : null,
     // 랜덤 유망주의 신체·장단점 (C.45, 숨기지 않음)
     extras: prospect ? (() => {
       const x = prospectExtras(f.roll, f.position as PlayablePosition);
