@@ -36,13 +36,14 @@ describe('C.71a U7-c1', () => {
   });
 
   it('169 다른 선수: 몸·태그 신체 칸, 읽기 전용 안내 / 리그 밖으로 떠난 선수는 빈 화면', () => {
-    const p = g.rosters[g.league.teams.find((t) => t.id !== g.player.teamId)!.id]!.players[0]!;
+    const tid = g.league.teams.find((t) => t.id !== g.player.teamId)!.id;
+    const p = g.rosters[tid]!.players[0]!;
     const vm = personDetailVM(g, p.id)!;
     expect(personDetailView(vm, 'body', true)).toContain('body-stats');
     expect(personDetailView(vm, 'pos', true)).toContain('주 포지션');
     expect(leftPersonVM(g, p.id)).toBeNull();
     const h = structuredClone(g);
-    h.transfers.push({ at: 0, season: h.league.season, w: 'summer', id: 'gone', name: '떠난 선수', pos: 'GK', ovr: 81, age: 31, from: p.teamId ?? h.league.teams[0]!.id, to: 'x:rma', ce: h.league.season + 3, loy: 50, why: 'contract' } as (typeof h.transfers)[number]);
+    h.transfers.push({ at: 0, season: h.league.season, w: 'summer', id: 'gone', name: '떠난 선수', pos: 'GK', ovr: 81, age: 31, from: tid, to: 'x:rma', ce: h.league.season + 3, loy: 50, why: 'contract' } as (typeof h.transfers)[number]);
     const left = leftPersonVM(h, 'gone')!;
     expect(left.why).toBe('계약 만료');
     const html = leftPersonView(left, true);
