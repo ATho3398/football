@@ -48,6 +48,11 @@ import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
 import { afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, upsetForm, type ManagerState } from './manager';
+import { eventForm, eventsAfterMatch, eventsCloseOffseason, eventsDayEnd, eventsSeasonEnd, eventsSeasonStart, type EventsState } from './events';
+import { coachAfterMatch, type CoachRec } from './club';
+import type { InboxState } from './inbox';
+import type { RivalState } from './rival';
+import type { LifeState } from './life';
 import { afterMatch, cardInput, grantLevelPicks, grantSeasonPick, initCollection, type CardCollection } from './cardCollection';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
@@ -66,7 +71,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 32;
+export const SAVE_FORMAT_VERSION = 33;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -224,6 +229,20 @@ export interface GameState {
   manager?: ManagerState;
   /** 이번 시즌 기록이 있는 선수 이름·팀 (C.62, pending 96 ④): 리그를 떠난 선수도 시상·득점 순위에 이름이 나오게. [한글 이름, 팀 id] */
   statNames?: Record<string, [string, string]>;
+  /** 인박스 (20.4, 부록 C.63): 이벤트·감독·이적·태그 알림. 없으면 처음 쓸 때 만든다 */
+  inbox?: InboxState;
+  /** 이벤트 엔진 상태 (20.3, C.63): 슬롯·쿨다운·플래그·예약·폼 보정 */
+  events?: EventsState;
+  /** 라이벌 (20.5, C.63). 없으면 null */
+  rival?: RivalState | null;
+  /** 경질로 바뀐 감독 (C.63): 팀 id → 새 감독. 없으면 data/managers.ts */
+  coaches?: Record<string, CoachRec>;
+  /** 경질한 "팀:시즌" (시즌 한 번) */
+  sacked?: string[];
+  /** 주장 (C.63): 그 팀에서 since 시즌부터. 이적하면 끝 */
+  captain?: { teamId: string; since: number } | null;
+  /** 경기 외 생활 지표 (pending 47 4번, C.63 b) */
+  life?: LifeState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -565,6 +584,8 @@ export function newGame(opts: NewGameOptions): GameState {
     state.market.notice = null;
   }
   myShirt(state);
+  // 이벤트 (C.63): 첫 시즌 슬롯·라이벌
+  eventsSeasonStart(state, calendarOf(state).opening);
   return state;
 }
 
@@ -1062,6 +1083,8 @@ export function endDay(state: GameState): TrainingDayResult {
   onDayEnd(state, ended);
   // 감독 (C.62): 낮은 신뢰 기간, 열린 면담
   managerDayEnd(state);
+  // 이벤트 (C.63): 기한 지난 선택, 예약, 슬롯, 하루 이벤트
+  eventsDayEnd(state, ended);
   return r;
 }
 
@@ -1159,7 +1182,7 @@ function matchForm(state: GameState): number {
   const story = fx ? storyForm(p, p.teamId, fx.opponentId, state.league.season, p.season.apps) : 0;
   const former = fx ? (state.market?.moves ?? []).some((m) => !m.loan && !m.back && m.from === fx.opponentId) : false;
   const betrayed = !!fx && p.tags.some((t) => t.id === 'traitor' && t.from === fx.opponentId);
-  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0) - upsetForm(state);
+  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0) - upsetForm(state) + eventForm(state);
 }
 
 /** 부상 판정용 경기 시점: 시즌·라운드(1부터)·날짜·최종 라운드까지 남은 날 */
@@ -1355,6 +1378,9 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   state.lastMatch = report;
   // 1군 테스트 (C.45 10번): 경기마다 기록, 3경기 뒤 판정 (합격 → 계약 제안, 방출 → 영입 제안, 애매하면 5경기까지)
   if (state.trial) afterTrialMatch(state, result);
+  // 구단·이벤트 (C.63): 감독 경질 판정, 경기 뒤 이벤트 (폼 효과 경기 수)
+  if (!state.events?.off) coachAfterMatch(state);
+  eventsAfterMatch(state);
 
   if (league.round >= league.schedule.length) endSeason(state);
   refreshUnlocks(state);
@@ -1672,6 +1698,8 @@ export function endSeason(state: GameState): SeasonSummary {
   // 홈 알림 한 줄 (C.47)
   const line = tagChangeLine(tagCh);
   if (line) state.tagNotice = { text: line, season };
+  // 이벤트 (C.63): 라이벌 비교, 주장 시즌, 시즌 끝 이벤트
+  if (state.phase === 'offseason') eventsSeasonEnd(state);
   return summary;
 }
 
@@ -1690,6 +1718,8 @@ export function startNextSeason(state: GameState): void {
   if (state.phase !== 'offseason') throw new Error('비시즌이 아님');
   // 답하지 않은 제안은 거절, 만료 계약은 기본 재계약 (화면은 [다음 시즌] 전에 멈춰 답을 받는다, C.42)
   if (marketPending(state)) autoMarket(state, 'stay');
+  // 인박스 (C.63): 답하지 않은 선택형은 기본 선택
+  eventsCloseOffseason(state);
   (state.archive ??= []).push(archiveSeason(state));
   state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
   delete state.nextRatings;
@@ -1714,6 +1744,8 @@ export function startNextSeason(state: GameState): void {
   if (state.manager) Object.assign(state.manager, { meeting: null, lowSince: null, posStreak: 0 });
   state.lastMatch = undefined;
   state.phase = 'season';
+  // 이벤트 (C.63): 새 시즌 슬롯·라이벌·주장
+  eventsSeasonStart(state, calendarOf(state).opening);
 }
 
 export function retire(state: GameState): void {

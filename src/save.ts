@@ -292,6 +292,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 31 → 32 (C.62): 감독 신뢰도·면담(manager)과 시즌 기록 선수 이름(statNames). 옛 세이브는 둘 다 없음 → 다음 경기·화면에서 새 팀 시작값으로 만든다
   31: () => {},
+  // 32 → 33 (C.63): 인박스·이벤트·라이벌·경질 감독·주장·생활 지표. 옛 세이브는 모두 없음 → 처음 쓸 때 만든다 (라이벌·슬롯은 다음 시즌부터)
+  32: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

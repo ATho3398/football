@@ -259,7 +259,7 @@ describe('화면·세이브 (C.62)', () => {
     addTrust(g, 5, '테스트');
     const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(32);
+    expect(SAVE_FORMAT_VERSION).toBe(33);
     expect(back.manager).toEqual(g.manager);
     // 옛 세이브 (31): manager 없음 → 새 팀 시작값
     const old = JSON.parse(serialize(g));
@@ -289,9 +289,9 @@ describe('화면·세이브 (C.62)', () => {
 });
 
 describe('버전 (C.62)', () => {
-  it('C.62 · 35단계', async () => {
+  it('부록 C 소절 · 단계 형식 (C.63부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toBe('C.62');
-    expect(STAGE_LABEL).toBe('35단계');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

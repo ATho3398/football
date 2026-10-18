@@ -47,7 +47,7 @@ describe('포인트 = 화면 칸 (C.49)', () => {
 
 describe('세이브 28 → 29 (C.49)', () => {
   it('남은 포인트 ÷ 5 올림, allocation 없앰', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(32);
+    expect(SAVE_FORMAT_VERSION).toBe(33);
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c49-mig', difficulty: 'normal' });
     for (const [old, now] of [[0, 0], [5, 1], [7, 2], [11, 3]] as const) {
       const raw = JSON.parse(serialize(g));
@@ -55,7 +55,7 @@ describe('세이브 28 → 29 (C.49)', () => {
       raw.player.unspentPoints = old;
       raw.player.allocation = { levels: 2, raised: { pace: 3 } };
       const back = deserialize(JSON.stringify(raw));
-      expect(back.saveFormat).toBe(32);
+      expect(back.saveFormat).toBe(33);
       expect(back.player.unspentPoints).toBe(now);
       expect('allocation' in back.player).toBe(false);
     }

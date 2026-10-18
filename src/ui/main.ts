@@ -57,7 +57,11 @@ import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
-import { adviceCard, alertCard, alertsHead, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { alertCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
+import { collectNotices, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
+import { markAllRead, markRead, unreadCount } from '../inbox';
+import { answerEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
 import { holdMeeting, type MeetingChoice } from '../manager';
@@ -98,7 +102,7 @@ import { hasTeamDetail, personDetailVM, teamDetailVM, type PersonTab, type TeamT
 import { personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -170,6 +174,10 @@ const ui = {
   offerSel: 0,
   /** 감독 면담 고른 선택지 (C.62) */
   meetSel: null as string | null,
+  /** 인박스 (C.63): 탭, 연 알림 id, 고른 선택지 */
+  inboxTab: 'all' as 'all' | 'todo' | 'info',
+  inboxSel: null as number | null,
+  inboxPick: null as string | null,
   more: {} as Record<string, boolean>,
   pickSel: 1,
   /** 시즌 종료 화면 상세 보기 탭 (C.44). null = 요약 카드만 */
@@ -304,7 +312,8 @@ function go(screen: Screen): void {
   if (screen !== 'team' && screen !== 'person') ui.detail.stack = [];
   // "더 보기" 펼침·고른 제안 (C.60)은 다른 화면으로 가면 처음으로. 팀·선수 상세를 다녀올 때는 그대로
   const detail = (x: Screen) => x === 'team' || x === 'person';
-  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; ui.meetSel = null; }
+  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; ui.meetSel = null; if (screen !== 'inbox') ui.inboxSel = null; }
+  if (screen === 'inbox' && ui.screen === 'inbox') ui.inboxSel = null;
   ui.screen = screen;
   ui.modal = null;
   render();
@@ -362,20 +371,18 @@ function screenHtml(): string {
       const inSeason = g.phase === 'season';
       const pos = canPos ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position)), inSeason) : '';
       const sheet = ui.posSheet && canPos ? positionSheet(positionOptionsVM(g), ui.posSheet, inSeason) : '';
-      const adv = adviceCardVM(g);
+      collectNotices(g);
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       const hvm = homeVM(g);
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
       const mvm = marketVM(g);
-      // 감독 면담 (C.62): 열린 면담 띠(닫기 없음) · 지난 면담 결과 알림(닫기)
-      const mres = g.manager?.teamId === g.player.teamId ? g.manager.result : null;
-      const alerts = [tagNoticeBanner(g), adv ? adviceCard(adv) : '', mres ? alertCard({ icon: 'player', eyebrow: '감독 면담', title: mres.title, body: mres.text, close: 'meet-result-close' }) : ''].filter(Boolean);
+      // 감독 면담 (C.62): 열린 면담 띠(닫기 없음). 알림(태그·포변 조언·면담 결과·이적 소식)은 인박스로 (C.63, 홈에는 안 읽은 것 3개)
       const comp = competitionVM(g);
       const meetBand = comp?.meeting ? Banner({ tone: 'info', title: '감독이 면담하자고 해요', children: comp.hint, action: '면담하기', onAction: { act: 'go', data: { to: 'meeting' } } }) : '';
-      const refusedOnly = !mvm.renewal && !mvm.offers?.length && mvm.refused.length > 0;
-      const head = alertsHead(alerts.length + (refusedOnly ? 1 : 0));
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, comp ? competitionSection(comp) : '', hvm.training ? todayRow(hvm.training) : '', meetBand + head + alerts.join('') + marketCard(mvm)) + guideResetLink() + sheet;
+      const hin = homeInboxVM(g);
+      const rv = rivalCardVM(g);
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), hvm.training ? todayRow(hvm.training) : '', meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), unreadCount(g)) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -404,6 +411,11 @@ function screenHtml(): string {
     }
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more);
     case 'offers': return offersView(marketVM(g), ui.offerSel);
+    case 'inbox': {
+      collectNotices(g);
+      const dv = ui.inboxSel !== null ? inboxDetailVM(g, ui.inboxSel) : null;
+      return dv ? inboxDetailView(dv, ui.inboxPick) : inboxView(inboxVM(g, ui.inboxTab));
+    }
     case 'meeting': {
       const mv = meetingVM(g);
       if (!mv) { ui.screen = 'home'; return screenHtml(); }
@@ -1730,6 +1742,46 @@ app.addEventListener('click', (ev) => {
       } else autosave();
       go('home');
       showToast({ kind: 'info', title: g.manager?.result?.title ?? r.title, body }, 2600);
+      return;
+    }
+    case 'inbox-tab':
+      if (v === 'all' || v === 'todo' || v === 'info') ui.inboxTab = v;
+      ui.inboxSel = null;
+      render();
+      return;
+    case 'inbox-open':
+      if (!g || !v) return;
+      ui.inboxSel = +v;
+      ui.inboxPick = null;
+      markRead(g, +v);
+      if (ui.screen !== 'inbox') { go('inbox'); return; }
+      render();
+      window.scrollTo(0, 0);
+      return;
+    case 'inbox-read':
+      if (!g || !v) return;
+      markRead(g, +v);
+      autosave();
+      render();
+      return;
+    case 'inbox-all-read':
+      if (!g) return;
+      markAllRead(g);
+      autosave();
+      render();
+      return;
+    case 'inbox-pick':
+      ui.inboxPick = v ?? null;
+      render();
+      return;
+    case 'inbox-answer': {
+      const id = el.dataset.id;
+      if (!g || !v || !id) return;
+      const text = answerEvent(g, +id, v);
+      autosave();
+      ui.inboxPick = null;
+      render();
+      showToast({ kind: 'info', title: '답했어요', body: text }, 2600);
       return;
     }
     case 'meet-result-close':

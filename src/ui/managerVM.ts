@@ -1,5 +1,6 @@
 // 감독 신뢰도·면담 화면 데이터 (C.62, 18.2·18.3 · 디자인 22 주전 경쟁 · 45 감독 면담)
 
+import { isCaptain } from '../club';
 import { BALANCE } from '../config/balance';
 import { daysBetween } from '../calendar';
 import { dayPlan, myMatchPosition, type GameState } from '../game';
@@ -25,7 +26,8 @@ export interface CompetitionVM {
   hint: string;
   meeting: MeetingKind | null;
   perks: string[];
-  captain: boolean;
+  /** 주장 칩 (C.63): 주장 / 주장 후보(C.62 영원한) / 없음 */
+  captain: '' | '주장' | '주장 후보';
 }
 
 const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
@@ -58,7 +60,7 @@ export function competitionVM(g: GameState): CompetitionVM | null {
   });
   const team = teamById(g.league, p.teamId);
   const chance = Math.round(startChance(g, proficientOvr(p, pos), team.rating, p.fatigue) * 100);
-  const md = managerData(p.teamId);
+  const md = managerData(p.teamId, g);
   const X = BALANCE.manager.meeting;
   const perks = [
     ...((m.perks.slot ?? 0) > 0 ? [`선호 슬롯 보장 ${m.perks.slot}경기`] : []),
@@ -70,7 +72,7 @@ export function competitionVM(g: GameState): CompetitionVM | null {
     pos, chance, trust: Math.round(m.trust), rows: vm, perks,
     manager: md ? `${md.nameKo} 감독 · ${MANAGER_STYLE_KO[md.style]}` : '감독 정보 없음',
     log: m.log.slice().reverse().map((e) => ({ v: sign(r1(e.delta)), t: e.why, when: when(daysBetween(e.date, g.calendar.date)), up: e.delta > 0 })),
-    hint: nextMeetingHint(g), meeting: m.meeting, captain: captainCandidate(g),
+    hint: nextMeetingHint(g), meeting: m.meeting, captain: isCaptain(g) ? '주장' : captainCandidate(g) ? '주장 후보' : '',
   };
 }
 
@@ -92,7 +94,7 @@ export function meetingVM(g: GameState): MeetingVM | null {
   const m = ensureManager(g);
   const kind = m.meeting;
   if (!kind) return null;
-  const md = managerData(g.player.teamId);
+  const md = managerData(g.player.teamId, g);
   const req = requestEligibility(g, true);
   const t = Math.round(m.trust);
   const level = t >= BALANCE.manager.meeting.rewardFrom ? '신뢰도 높음' : t < BALANCE.manager.meeting.lowBelow ? '신뢰도 낮음' : '신뢰도 보통';

@@ -15,6 +15,7 @@ import { slotOvr } from './roster';
 import { createRng, hashSeed } from './rng';
 import { startBonus, tagAt, tagHas } from './tags';
 import { grantMeetingPick } from './cardCollection';
+import { captainDownMul, coachOf } from './club';
 import type { GameState } from './game';
 
 const B = () => BALANCE.manager;
@@ -51,17 +52,18 @@ export interface ManagerState {
   result?: { date: IsoDate; title: string; text: string } | null;
 }
 
-export function managerData(teamId: string): ManagerData | null {
-  return managerOf(teamId);
+/** 그 팀 감독 (경질로 바뀌었으면 새 감독, C.63) */
+export function managerData(teamId: string, state?: Pick<GameState, 'coaches'>): ManagerData | null {
+  return state ? coachOf(state, teamId) : managerOf(teamId);
 }
 
-export function managerLabel(teamId: string): string {
-  const m = managerOf(teamId);
+export function managerLabel(teamId: string, state?: Pick<GameState, 'coaches'>): string {
+  const m = managerData(teamId, state);
   return m ? `${m.nameKo} · ${MANAGER_STYLE_KO[m.style]}` : '감독 정보 없음';
 }
 
-function styleOf(teamId: string) {
-  return managerOf(teamId)?.style ?? 'neutral';
+function styleOf(state: Pick<GameState, 'coaches'>, teamId: string) {
+  return coachOf(state, teamId)?.style ?? 'neutral';
 }
 
 /** 새 팀 시작 신뢰도 (18.2: 40~60) + 친정 선택(그 구단) + 유망주 중용 감독의 21세 이하 */
@@ -71,7 +73,7 @@ export function startTrust(state: GameState, teamId: string): number {
   const rating = teamById(state.league, teamId)?.rating ?? 70;
   let t = clamp(Math.round(M.start + (proficientOvr(p, p.position) - rating) * M.startPerOvr), M.startMin, M.startMax);
   if (tagAt(p, 'homeChoice', teamId)) t += M.tags.homeChoiceStart;
-  if (styleOf(teamId) === 'youth' && p.age <= M.styles.youthAge) t += M.styles.youthStart;
+  if (styleOf(state, teamId) === 'youth' && p.age <= M.styles.youthAge) t += M.styles.youthStart;
   return clamp(t, 0, 100);
 }
 
@@ -113,9 +115,10 @@ export function scaleDelta(state: GameState, d: number): number {
     if (tagAt(p, 'eternal', teamId)) k *= 1 - (1 - T.oneClubDown) * BALANCE.tags.story.eternalMul;
     else if (tagAt(p, 'oneClubMan', teamId)) k *= T.oneClubDown;
     if (tagHas(p, 'troublemaker')) k *= T.troublemakerDown;
-    if (styleOf(teamId) === 'strict') k *= S.strictDown;
+    if (styleOf(state, teamId) === 'strict') k *= S.strictDown;
+    k *= captainDownMul(state);
   } else if (tagAt(p, 'cultHero', teamId)) k *= T.cultHeroUp;
-  if (styleOf(teamId) === 'steady') k *= S.steadyMul;
+  if (styleOf(state, teamId) === 'steady') k *= S.steadyMul;
   return d * k;
 }
 

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 39;
+export const BALANCE_VERSION = 40;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1177,6 +1177,47 @@ export const BALANCE = {
       /** 포지션 제안을 따르면 */
       posTrust: 3,
     },
+  },
+
+  // ── 이벤트 엔진·인박스·라이벌·구단 (20번, 부록 C.63) ──
+  events: {
+    /** 시즌 선택형 슬롯: 개막부터 weeks 주차 중 min~max 개 (20.3) */
+    slots: { weeks: [8, 14, 20, 26, 32], min: 4, max: 5 },
+    /** 선택형 기한 (일). 지나면 기본 선택 */
+    deadlineDays: 7,
+    /** 바로 뜨는 이벤트(하루·경기 뒤) 사이 최소 간격 (일) — 알림이 몰리지 않게 */
+    minGapDays: 3,
+    /** 정보형 기본 쿨다운 (일) */
+    messageCooldown: 21,
+    /** 효과 상한 (이벤트 1개당, 20.7 1번): 위상 ±rep, 신뢰도 ±trust. 돈은 5-7 재정 전이라 효과 없음 */
+    caps: { rep: 5, trust: 10 },
+    /** 이벤트 폼 보정 상한 (다음 n경기, 경기 입력) */
+    formMax: 0.2,
+    /** 인박스 최대 (오래된 읽은 것부터 지움) */
+    inboxMax: 80,
+    rival: {
+      /** 나이 ±ageGap, 시즌 시작 때 OVR 차가 maxGap 을 넘으면 교체 */
+      ageGap: 3, maxGap: 8,
+      /** 시즌 끝 비교 점수 = 골+도움 차 + 평균 평점 차 × avgWeight, ±1 넘으면 승패 */
+      avgWeight: 10,
+      /** 이기면 위상 +winRep · 신뢰도 +winTrust, 지면 위상 loseRep · 신뢰도 loseTrust */
+      winRep: 3, winTrust: 2, loseRep: -2, loseTrust: -1,
+      /** NPC 기록이 없을 때 추정: 팀 경기 × estApps 출전, 포지션군 경기당 골+도움 */
+      estApps: 0.85,
+      /** 같은 포지션 영입: 내 팀에 온 같은 포지션군 선수 OVR ≥ 내 OVR − competitorGap 이면 "새 경쟁자" 이벤트 */
+      competitorGap: 3,
+      estGa: { ST: 0.6, WING: 0.45, CAM: 0.45, CM: 0.2, CDM: 0.1, FB: 0.12, CB: 0.06, GK: 0 },
+    },
+    /** 감독 경질: fromRound 라운드부터, 순위 rankFrom 이하 또는 (순위 − 전력 순위) ≥ expectedGap, 최근 lastGames 경기 maxWins 승 이하 → 경기 뒤 chance (주전 고정 감독 × steadyMul), 시즌 한 번 */
+    coach: { fromRound: 10, rankFrom: 17, expectedGap: 6, lastGames: 5, maxWins: 1, chance: 0.12, steadyMul: 0.7 },
+    /** 주장: 신뢰도 하락 × downMul, 시즌 끝 위상 +seasonRep, 새 시즌에 신뢰도 stripBelow 미만이면 완장 뺏김 */
+    captain: { downMul: 0.9, seasonRep: 3, stripBelow: 30 },
+  },
+
+  // ── 경기 외 생활 (pending 47 4번, 부록 C.63) ──
+  life: {
+    /** 시작값 (0~100). 멘탈 피로는 높을수록 나쁨 */
+    start: { home: 70, adapt: 70, team: 60, mental: 20 },
   },
 } as const;
 

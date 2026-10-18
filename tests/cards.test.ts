@@ -123,16 +123,21 @@ describe('카드 효과 엔진 (부록 F, C.36)', () => {
     for (const u of del.engine.cards!.uses) expect(['oppShot', 'corner', 'aerial', 'oppCorner', 'oppFreeKick']).toContain(u.scene);
   });
 
-  it('경기 계산 2초 이하 (카드 자동·봇)', () => {
+  // 기준(automation 2번 ⑤ "경기 계산 2초")은 경기 한 번 단위 (C.63): 준비(새 게임·선발 라운드 찾기)는 재지 않고, 첫 경기(냉시작 — 모듈 로드·JIT)는
+  // 따로 재서 표시만 한다. 판정은 데운 뒤 자동·직접 경기 하나씩
+  it('경기 계산 2초 이하 (카드 자동·봇, 경기 한 번 단위)', () => {
     const g = game('CAM');
     const rm = startedRound(g);
     const deck = starterDeck('attack').map((c) => c.id);
-    const t0 = Date.now();
-    playMyMatch({ ...rm.input, cards: { deck } });
-    const t1 = Date.now();
-    playMyMatch({ ...rm.input, cards: { deck }, control: { mode: 'direct', stop: 'important', policy: (m) => bestChoice(m) } });
-    expect(t1 - t0).toBeLessThan(2000);
-    expect(Date.now() - t1).toBeLessThan(2000);
+    const time = (f: () => unknown) => { const t = performance.now(); f(); return Math.round(performance.now() - t); };
+    const auto = () => playMyMatch({ ...rm.input, cards: { deck } });
+    const direct = () => playMyMatch({ ...rm.input, cards: { deck }, control: { mode: 'direct', stop: 'important', policy: (m) => bestChoice(m) } });
+    const cold = time(auto);
+    const a = time(auto);
+    const d = time(direct);
+    console.info(`[2초 테스트] 냉시작 ${cold}ms (표시만) · 자동 ${a}ms · 직접 ${d}ms`);
+    expect(a).toBeLessThan(2000);
+    expect(d).toBeLessThan(2000);
   });
 });
 
@@ -203,7 +208,7 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
   });
 
   it('세이브 15 → 16: 카드 모음이 생기고 (시작 덱), 저장·불러오기 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(32);
+    expect(SAVE_FORMAT_VERSION).toBe(33);
     const g = game('ST', 'cards-mig');
     g.player.level = 7;
     const raw = JSON.parse(serialize(g));

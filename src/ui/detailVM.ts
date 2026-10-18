@@ -2,7 +2,8 @@
 // 읽기 전용: 지금 세이브에 있는 값(리그 표·로스터·이적 기록·선수 기록 합계·지난 시즌 보관)을 모아 보여 주기만 한다.
 // 없는 데이터(다른 선수 레벨 등)는 만들지 않는다. 감독·홈구장은 C.62 data/managers.ts (2018-19 개막 기준)
 
-import { MANAGER_STYLE_KO, managerOf } from '../../data/managers';
+import { MANAGER_STYLE_KO } from '../../data/managers';
+import { coachOf } from '../club';
 import { GK_ATTRIBUTES, type GkAttribute } from '../attributes';
 import { FOOT_KO } from '../body';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -83,7 +84,7 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
   const team = L.teams.find((t) => t.id === teamId);
   if (!team) return null;
   const mine = teamId === g.player.teamId;
-  const md = managerOf(teamId);
+  const md = coachOf(g, teamId);
   const row = L.table.find((r) => r.teamId === teamId);
   const roster = g.rosters[teamId];
   const players = roster?.players ?? [];

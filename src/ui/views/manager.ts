@@ -15,7 +15,7 @@ export function competitionSection(vm: CompetitionVM): string {
     ? `<div class="mg-log">${vm.log.map((y) => `<div class="mg-log__row"><b class="po-num ${y.up ? 'ok' : 'fail'}">${esc(y.v)}</b><span>${esc(y.t)}</span><span class="muted">${esc(y.when)}</span></div>`).join('')}</div>`
     : '<p class="small muted">아직 변화가 없어요. 출전 경기 평점·골·도움·승패·경고로 오르내려요.</p>';
   const perks = vm.perks.length || vm.captain
-    ? `<div class="mg-perks">${vm.captain ? '<span class="mg-perk is-cap">주장 후보</span>' : ''}${vm.perks.map((p) => `<span class="mg-perk">${esc(p)}</span>`).join('')}</div>`
+    ? `<div class="mg-perks">${vm.captain ? `<span class="mg-perk is-cap">${esc(vm.captain)}</span>` : ''}${vm.perks.map((p) => `<span class="mg-perk">${esc(p)}</span>`).join('')}</div>`
     : '';
   const hint = `<div class="mg-hint">${Icon({ name: 'player', size: 18 })}<span class="grow">${esc(vm.hint)}</span>${
     vm.meeting ? Button({ size: 'sm', act: 'go', data: { to: 'meeting' }, children: '면담하기' }) : ''}</div>`;

@@ -27,9 +27,11 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   ];
 }
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', unread: number | null = null): string {
   const n = vm.next;
-  const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
+  // 인박스 (C.63): 홈 상단 알림 아이콘 (20.4)
+  const bell = unread !== null ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `인박스${unread ? ` 안 읽음 ${unread}` : ''}`, variant: 'ghost', badge: unread }) : '';
+  const tools = bell + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
   const face = homeFace(vm);
   // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
   const hero = face

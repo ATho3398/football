@@ -1001,6 +1001,19 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .hm-alert__body b { font-size: 14px; }
 .hm-alert__body p { margin: 0; font-size: 12px; line-height: 17px; color: var(--ink-muted); }
 .hm-alert__x { display: grid; place-items: center; width: 32px; height: 32px; border: 0; background: none; color: var(--ink-muted); cursor: pointer; }
+/* 인박스 (C.63, 디자인 없음 → 디자인 133 알림 카드 재사용) */
+.ib-row.is-unread { box-shadow: inset 3px 0 0 var(--brand); }
+.ib-row.is-todo .hm-alert__icon { color: var(--brand-ink); }
+.ib-status { color: var(--brand-ink); font-weight: 800; }
+.ib-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ib-head-btns { display: flex; gap: 12px; }
+.ib-list { display: flex; flex-direction: column; gap: 10px; }
+.ib-tools { display: flex; justify-content: flex-end; }
+.ib-tools .link-btn { color: var(--brand-ink); font-weight: 800; text-decoration: none; font-size: 13px; }
+.ib-title { display: block; font-size: 15px; margin: 2px 0 4px; }
+.ib-detail .mg-say .hm-alert__icon { flex: none; }
+.rv-card .mg-bar i.o { background: var(--brand); }
+.rv-card .mg-bar i.t { background: var(--away, var(--ink-muted)); }
 .home-body .tr-card { box-shadow: inset 0 0 0 1.5px var(--warning); }
 .home-body .tr-card .advice-eyebrow { color: var(--warning); }
 
