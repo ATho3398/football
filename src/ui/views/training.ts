@@ -1,7 +1,7 @@
 // 훈련 (25.3, 부록 C.41 → C.57 디자인 91·92·150): 홈의 오늘 훈련 한 줄, 오늘 훈련 카드 + 주간 7칸(DayCell, 눌러서 그날만 바꾸기),
 // 기술 훈련 게이지, 영상 분석 힌트, 하루 훈련 고르기 바텀시트(고르고 확정), 휴가 카드
 
-import { BottomSheet, Button, DayCell, Icon, SectionTitle, Tabs, TextField, esc, type IconName } from '../components';
+import { BottomSheet, Button, DayCell, Icon, SectionTitle, Switch, Tabs, TextField, esc, type IconName } from '../components';
 import type { DayPlan } from '../../training';
 import { PRESET_NAME_MAX } from '../../training';
 import type { PresetEditVM, PresetRowVM, PresetsVM, TrainingOptionVM, TrainingVM } from '../viewModels';
@@ -148,8 +148,7 @@ function presetRow(r: PresetRowVM): string {
 export function presetSection(vm: PresetsVM): string {
   const r = vm.rec;
   const chips = r.chips.map((c) => `<span class="pr-chip pr-chip--${c.tone}">${esc(c.label)}</span>`).join('');
-  const sw = `<div class="po-switchrow pr-auto"><span class="po-switchrow__main"><b>주가 바뀔 때 추천 프리셋 자동 적용</b><span>직접 고른 프리셋은 그 주만 유지돼요. 자동을 끄면 고른 프리셋이 다음 주에도 이어져요.</span></span>
-      <button type="button" class="po-switch${vm.auto ? ' is-on' : ''}" role="switch" aria-checked="${vm.auto}" aria-label="프리셋 자동 적용" data-act="preset-auto" data-v="${vm.auto ? 'off' : 'on'}"><i></i></button></div>`;
+  const sw = Switch({ label: '주가 바뀔 때 추천 프리셋 자동 적용', desc: '직접 고른 프리셋은 그 주만 유지돼요. 자동을 끄면 고른 프리셋이 다음 주에도 이어져요.', on: vm.auto, act: 'preset-auto', className: 'pr-auto' });
   const rec = `<div class="pr-rec">
       <div class="pr-rec__head">${Icon({ name: 'replay', size: 18 })}<b>이번 주 추천 · ${esc(r.name)}</b>${vm.auto ? '<span class="pr-badge is-on">자동</span>' : ''}</div>
       <div class="pr-chips">${chips}</div>
