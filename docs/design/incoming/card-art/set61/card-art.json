@@ -1,0 +1,1649 @@
+[
+ {
+  "cardId": "curler",
+  "file": "curler.webp",
+  "name": "감아차기",
+  "srcId": "curl",
+  "artSquare": true,
+  "size": [
+   573,
+   573
+  ],
+  "full": {
+   "x": -2.5,
+   "y": 11,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -4,
+   "y": 27.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "noLook",
+  "file": "noLook.webp",
+  "name": "노룩 패스",
+  "srcId": "nolook",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -11,
+   "y": 14.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "chip",
+  "file": "chip.webp",
+  "name": "칩슛",
+  "srcId": "chip",
+  "artSquare": true,
+  "size": [
+   573,
+   573
+  ],
+  "full": {
+   "x": 0,
+   "y": 8,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 2,
+   "y": 26,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "fakeShot",
+  "file": "fakeShot.webp",
+  "name": "페이크 슛",
+  "srcId": "fake",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": 9.5,
+   "y": 10.5,
+   "zoom": 1.7,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1,
+   "y": 22,
+   "zoom": 1.3,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "fkSpecial",
+  "file": "fkSpecial.webp",
+  "name": "프리킥 스페셜",
+  "srcId": "freekick",
+  "artSquare": false,
+  "size": [
+   612,
+   459
+  ],
+  "full": {
+   "x": -3,
+   "y": 11,
+   "zoom": 1.2,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1,
+   "y": 19,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "knuckle",
+  "file": "knuckle.webp",
+  "name": "무회전 프리킥",
+  "srcId": "knuckle",
+  "artSquare": false,
+  "size": [
+   612,
+   459
+  ],
+  "full": {
+   "x": -1,
+   "y": 15,
+   "zoom": 1.3,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 3,
+   "y": 24.5,
+   "zoom": 1.1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "penSpecial",
+  "file": "penSpecial.webp",
+  "name": "페널티 스페셜",
+  "srcId": "penalty",
+  "artSquare": false,
+  "size": [
+   609,
+   457
+  ],
+  "full": {
+   "x": 1,
+   "y": 13.5,
+   "zoom": 1.51,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -2,
+   "y": 24,
+   "zoom": 1.16,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "panenka",
+  "file": "panenka.webp",
+  "name": "파넨카",
+  "srcId": "panenka",
+  "artSquare": false,
+  "size": [
+   609,
+   457
+  ],
+  "full": {
+   "x": 3,
+   "y": 7.5,
+   "zoom": 1.41,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 22.5,
+   "zoom": 1.41,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "epic",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "fkCross",
+  "file": "fkCross.webp",
+  "name": "프리킥 크로스",
+  "srcId": "fkcross",
+  "artSquare": true,
+  "size": [
+   594,
+   594
+  ],
+  "full": {
+   "x": 1.5,
+   "y": 9.5,
+   "zoom": 1,
+   "flip": true,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -3,
+   "y": 17.5,
+   "zoom": 1,
+   "flip": true,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "spDefense",
+  "file": "spDefense.webp",
+  "name": "세트피스 수비",
+  "srcId": "spdefense",
+  "artSquare": true,
+  "size": [
+   594,
+   594
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 2,
+   "y": 7.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "calmFinish",
+  "file": "calmFinish.webp",
+  "name": "침착한 마무리",
+  "srcId": "calm",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": -1,
+   "y": -13,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -3,
+   "y": -9,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "common"
+ },
+ {
+  "cardId": "aerialCommand",
+  "file": "aerialCommand.webp",
+  "name": "공중 장악",
+  "srcId": "aerial",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": -1.5,
+   "y": -8.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -0.5,
+   "y": -13.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "pacing",
+  "file": "pacing.webp",
+  "name": "체력 안배",
+  "srcId": "stamina",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": -10,
+   "y": 9.5,
+   "zoom": 1.3,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -7.5,
+   "y": 21.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "momentum",
+  "file": "momentum.webp",
+  "name": "기세",
+  "srcId": "momentum",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": 0,
+   "y": 15.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1.5,
+   "y": 31.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "counterStart",
+  "file": "counterStart.webp",
+  "name": "카운터 시작",
+  "srcId": "counter",
+  "artSquare": true,
+  "size": [
+   590,
+   590
+  ],
+  "full": {
+   "x": 1,
+   "y": -3.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -2,
+   "y": 6.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "focus",
+  "file": "focus.webp",
+  "name": "집중",
+  "srcId": "focus",
+  "artSquare": true,
+  "size": [
+   590,
+   590
+  ],
+  "full": {
+   "x": 2.5,
+   "y": -7,
+   "zoom": 1.55,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 3,
+   "y": 13,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "composed",
+  "file": "composed.webp",
+  "name": "침착",
+  "srcId": "calmdown",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": 1,
+   "y": -15.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -0.5,
+   "y": -12.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "reset",
+  "file": "reset.webp",
+  "name": "리셋",
+  "srcId": "reset",
+  "artSquare": true,
+  "size": [
+   800,
+   800
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "nearPost",
+  "file": "nearPost.webp",
+  "name": "니어 포스트 강슛",
+  "srcId": "nearpost",
+  "artSquare": true,
+  "size": [
+   532,
+   532
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "turningTouch",
+  "file": "turningTouch.webp",
+  "name": "터닝 퍼스트 터치",
+  "srcId": "turntouch",
+  "artSquare": true,
+  "size": [
+   578,
+   578
+  ],
+  "full": {
+   "x": 3.5,
+   "y": -7,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "lineRunner",
+  "file": "lineRunner.webp",
+  "name": "오프사이드 라인 타기",
+  "srcId": "offside",
+  "artSquare": true,
+  "size": [
+   532,
+   532
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "dribbleExpert",
+  "file": "dribbleExpert.webp",
+  "name": "돌파 전문",
+  "srcId": "breakthrough",
+  "artSquare": true,
+  "size": [
+   568,
+   568
+  ],
+  "full": {
+   "x": 1,
+   "y": 8,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 1.5,
+   "y": 22.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "divingHeader",
+  "file": "divingHeader.webp",
+  "name": "다이빙 헤더",
+  "srcId": "divehead",
+  "artSquare": true,
+  "size": [
+   563,
+   563
+  ],
+  "full": {
+   "x": -1.5,
+   "y": -10,
+   "zoom": 1.65,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -6,
+   "y": -0.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "rabona",
+  "file": "rabona.webp",
+  "name": "라보나 크로스",
+  "srcId": "rabona",
+  "artSquare": true,
+  "size": [
+   563,
+   563
+  ],
+  "full": {
+   "x": -5,
+   "y": 1,
+   "zoom": 1.5,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -4,
+   "y": 11,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "epic",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "elastico",
+  "file": "elastico.webp",
+  "name": "엘라스티코",
+  "srcId": "elastico",
+  "artSquare": true,
+  "size": [
+   572,
+   572
+  ],
+  "full": {
+   "x": -5,
+   "y": 15,
+   "zoom": 1.35,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -5,
+   "y": 20,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "epic",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "bicycle",
+  "file": "bicycle.webp",
+  "name": "바이시클 킥",
+  "srcId": "bicycle",
+  "artSquare": true,
+  "size": [
+   568,
+   568
+  ],
+  "full": {
+   "x": 0.5,
+   "y": -10.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1.5,
+   "y": -6.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "legendary",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "throughBall",
+  "file": "throughBall.webp",
+  "name": "스루패스",
+  "srcId": "throughpass",
+  "artSquare": true,
+  "size": [
+   532,
+   532
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -2,
+   "y": 13.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "earlyCross",
+  "file": "earlyCross.webp",
+  "name": "얼리 크로스",
+  "srcId": "earlycross",
+  "artSquare": true,
+  "size": [
+   563,
+   563
+  ],
+  "full": {
+   "x": 2.5,
+   "y": -1.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 19.5,
+   "y": 4.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "driveForward",
+  "file": "driveForward.webp",
+  "name": "전진 운반",
+  "srcId": "carry",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": -2.5,
+   "y": 31,
+   "zoom": 1.15,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -6.5,
+   "y": 40,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "marseille",
+  "file": "marseille.webp",
+  "name": "마르세유 턴",
+  "srcId": "marseille",
+  "artSquare": true,
+  "size": [
+   560,
+   560
+  ],
+  "full": {
+   "x": -1,
+   "y": 26,
+   "zoom": 1.4,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 29,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "secondBallVolley",
+  "file": "secondBallVolley.webp",
+  "name": "세컨드볼 발리",
+  "srcId": "secondvolley",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -16,
+   "y": 9,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "tempo",
+  "file": "tempo.webp",
+  "name": "템포 조절",
+  "srcId": "tempo",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": -0.5,
+   "y": -3.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 2,
+   "y": 16,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "midControl",
+  "file": "midControl.webp",
+  "name": "중원 장악",
+  "srcId": "midcontrol",
+  "artSquare": true,
+  "size": [
+   568,
+   568
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -2.5,
+   "y": 16.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "chainPress",
+  "file": "chainPress.webp",
+  "name": "연속 압박",
+  "srcId": "pressing",
+  "artSquare": true,
+  "size": [
+   568,
+   568
+  ],
+  "full": {
+   "x": 0,
+   "y": 0.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 22.5,
+   "y": 17.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "slideTackle",
+  "file": "slideTackle.webp",
+  "name": "슬라이딩 태클",
+  "srcId": "slidetackle",
+  "artSquare": true,
+  "size": [
+   562,
+   562
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 10.5,
+   "y": 16,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "bodyBlock",
+  "file": "bodyBlock.webp",
+  "name": "몸으로 막기",
+  "srcId": "bodyblock",
+  "artSquare": true,
+  "size": [
+   562,
+   562
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "coverSprint",
+  "file": "coverSprint.webp",
+  "name": "커버링 질주",
+  "srcId": "covering",
+  "artSquare": true,
+  "size": [
+   557,
+   557
+  ],
+  "full": {
+   "x": -1.5,
+   "y": -3,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 6,
+   "y": 5.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "tacticalFoul",
+  "file": "tacticalFoul.webp",
+  "name": "전술적 파울",
+  "srcId": "tacticalfoul",
+  "artSquare": true,
+  "size": [
+   557,
+   557
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 8.5,
+   "y": 6,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-classicWinger",
+  "file": "classicWinger.webp",
+  "name": "바이라인 컷백",
+  "srcId": "bylinecut",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -18.5,
+   "y": 2,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-raumdeuter",
+  "file": "raumdeuter.webp",
+  "name": "빈 공간 원터치",
+  "srcId": "onetouchspace",
+  "artSquare": true,
+  "size": [
+   567,
+   567
+  ],
+  "full": {
+   "x": 4,
+   "y": 6,
+   "zoom": 1.1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -5,
+   "y": 1,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-wideMid",
+  "file": "wideMid.webp",
+  "name": "측면 복귀 태클",
+  "srcId": "sidetackle",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": -1,
+   "y": -3,
+   "zoom": 1.15,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1.5,
+   "y": 11.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-poacher",
+  "file": "poacher.webp",
+  "name": "원터치 마무리",
+  "srcId": "onetouchfinish",
+  "artSquare": true,
+  "size": [
+   556,
+   556
+  ],
+  "full": {
+   "x": -0.5,
+   "y": -4.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 15,
+   "y": 12.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "switchLong",
+  "file": "switchLong.webp",
+  "name": "롱패스 전환",
+  "srcId": "longpass",
+  "artSquare": true,
+  "size": [
+   541,
+   541
+  ],
+  "full": {
+   "x": -9,
+   "y": 13,
+   "zoom": 1.2,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -5,
+   "y": 15.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": -16
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "spHeader",
+  "file": "spHeader.webp",
+  "name": "세트피스 가담 헤더",
+  "srcId": "setpiecehead",
+  "artSquare": true,
+  "size": [
+   541,
+   541
+  ],
+  "full": {
+   "x": 3,
+   "y": 1,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0.5,
+   "y": 4,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "ironWall",
+  "file": "ironWall.webp",
+  "name": "철벽 수비",
+  "srcId": "ironwall",
+  "artSquare": true,
+  "size": [
+   541,
+   541
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "common",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-targetMan",
+  "file": "targetMan.webp",
+  "name": "등지고 버티기",
+  "srcId": "backhold",
+  "artSquare": true,
+  "size": [
+   572,
+   572
+  ],
+  "full": {
+   "x": -1.5,
+   "y": 13.5,
+   "zoom": 1.4,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -2,
+   "y": 23,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-falseNine",
+  "file": "falseNine.webp",
+  "name": "내려와서 연계",
+  "srcId": "dropin",
+  "artSquare": true,
+  "size": [
+   572,
+   572
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-advancedForward",
+  "file": "advancedForward.webp",
+  "name": "라인 깨기",
+  "srcId": "linebreak",
+  "artSquare": true,
+  "size": [
+   567,
+   567
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -9.5,
+   "y": 16,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-classic10",
+  "file": "classic10.webp",
+  "name": "기다렸다 킬패스",
+  "srcId": "killpass",
+  "artSquare": true,
+  "size": [
+   567,
+   567
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 16.5,
+   "y": 17,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-shadowStriker",
+  "file": "shadowStriker.webp",
+  "name": "늦은 침투",
+  "srcId": "latepass",
+  "artSquare": true,
+  "size": [
+   569,
+   569
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1,
+   "y": 22,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-freeRole",
+  "file": "freeRole.webp",
+  "name": "자유 이동 원투",
+  "srcId": "freeonetwo",
+  "artSquare": true,
+  "size": [
+   569,
+   569
+  ],
+  "full": {
+   "x": 3,
+   "y": 7.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -0.5,
+   "y": 23,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-boxCrasher",
+  "file": "boxCrasher.webp",
+  "name": "리바운드 반응",
+  "srcId": "rebound",
+  "artSquare": true,
+  "size": [
+   565,
+   565
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -5.5,
+   "y": 9.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-enganche",
+  "file": "enganche.webp",
+  "name": "시간 멈추기",
+  "srcId": "stopwatch",
+  "artSquare": true,
+  "size": [
+   530,
+   530
+  ],
+  "full": {
+   "x": 1.5,
+   "y": 10,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 0,
+   "y": -6,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-boxToBox",
+  "file": "boxToBox.webp",
+  "name": "박스에서 박스로",
+  "srcId": "boxtobox",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1.5,
+   "y": 12,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-deepPlaymaker",
+  "file": "deepPlaymaker.webp",
+  "name": "대각선 전환",
+  "srcId": "diagonal",
+  "artSquare": true,
+  "size": [
+   564,
+   564
+  ],
+  "full": {
+   "x": 1.5,
+   "y": 6.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 2,
+   "y": 18.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-mezzala",
+  "file": "mezzala.webp",
+  "name": "하프스페이스 침투 슛",
+  "srcId": "halfspace",
+  "artSquare": true,
+  "size": [
+   563,
+   563
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -4.5,
+   "y": 10,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-carrier",
+  "file": "carrier.webp",
+  "name": "라인 돌파 운반",
+  "srcId": "linecarry",
+  "artSquare": true,
+  "size": [
+   563,
+   563
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 3,
+   "y": 12,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-holdingCM",
+  "file": "holdingCM.webp",
+  "name": "커버 슬라이드",
+  "srcId": "coverslide",
+  "artSquare": true,
+  "size": [
+   562,
+   562
+  ],
+  "full": {
+   "x": 2.5,
+   "y": 3.5,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -2.5,
+   "y": 20,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-anchor",
+  "file": "anchor.webp",
+  "name": "라인 사이 차단",
+  "srcId": "betweenlines",
+  "artSquare": true,
+  "size": [
+   562,
+   562
+  ],
+  "full": {
+   "x": 4.5,
+   "y": 24,
+   "zoom": 1.3,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": 5,
+   "y": 30,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-ballWinner",
+  "file": "ballWinner.webp",
+  "name": "뒤에서 낚아채기",
+  "srcId": "steal",
+  "artSquare": true,
+  "size": [
+   566,
+   566
+  ],
+  "full": {
+   "x": -3.5,
+   "y": 0,
+   "zoom": 1.45,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -7,
+   "y": 10,
+   "zoom": 1.15,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ },
+ {
+  "cardId": "sig-regista",
+  "file": "regista.webp",
+  "name": "한 번에 전방으로",
+  "srcId": "longforward",
+  "artSquare": true,
+  "size": [
+   566,
+   566
+  ],
+  "full": {
+   "x": 0,
+   "y": 0,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "mini": {
+   "x": -1,
+   "y": 8,
+   "zoom": 1,
+   "flip": false,
+   "rotate": 0
+  },
+  "gameRarity": "rare",
+  "artSetRarity": "rare"
+ }
+]

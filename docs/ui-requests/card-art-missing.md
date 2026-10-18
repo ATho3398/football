@@ -18,3 +18,6 @@
 1. **그림 파일 61장**을 받아 `public/cards/art/<파일>.webp`(시그니처는 역할 id)로 넣고 `CARD_ART_FILES`에 추가 — 파일은 사용자가 이 세션에 주면 UI_3가 이름 맞춰 `docs/design/incoming/card-art/<묶음>/`에 넣는다.
 2. **기본 위치값**: 지금 `ArtPos`는 카드당 하나(x·y·zoom)이고 기본 그림엔 위치가 없다. 위치표를 쓰려면 카드별 **기본 위치를 크기별로**(`full` = 카드 상세·획득·덱 큰 카드, `mini` = 덱 칸·패·경기 준비 줄) 두고, `flip`(좌우 반전, `scaleX(-1)`)·`rotate`(도, 롱패스 전환 간략 −16) 지원. 우선순위: 사용자 위치(설정 → 카드 이미지) > 기본 위치표 > 가운데.
 3. 위치 단위는 지금 `artStyle`과 같은 뜻(x 오른쪽 %, y 위로 %, zoom 1~4)인지 그림 세션 기준과 한 번 대조(캡처 1장씩, 감아차기·롱패스 전환·프리킥 크로스).
+
+## 해결 (2026-10-19 03:12 KST)
+- 그림 61장 도착 → `docs/design/incoming/card-art/set61/` + `card-art.json`(위치값 포함, 앞의 `card-art-positions.json`은 이것으로 대체·삭제). 적용 명세 `card-art-set61-apply.md`. 남은 그림 없는 카드 15장.
