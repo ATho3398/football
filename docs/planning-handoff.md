@@ -386,9 +386,13 @@
 - **다음 순서**: C.68b 보고 → pending 115 → ntfy → UI_3 → C.69 보고 → U7-b(41b)·U7-c(41c)·U7-d(41d) 차례로(명세 7-9-part1-apply.md, 각 세션 첫 지시는 C.69 지시 참고) → **42 5-8 챕터(22번)** → 경기 환경 단계(pending 75·76·77 일부 + 케미·패스 받는 빈도) → 엔진 블록(판단 스탯 생활 영향·지시 카드 신뢰 연동·**레전더리 35세 900+ 가드 경계 문제 재검토**(C.67·C.68)). 카드 그림 59장 오면 작은 코드 패치(CARD_ART_FILES).
 - 공통 지시(갱신): **모바일 = 세로 폰 390×844 + 경기장만 가로**(C.66b, pending 111 — "가로 전용"은 오해로 취소), PC 2열, 가로 폰 깨지지 않게. 엔진 동결. 화면만 패치는 balance·engine 점검 생략 가능(CI가 돎). balance는 백그라운드+로그(컨테이너 재시작 잦음). 회귀 가드 기준·판정 방식 변경은 마스터 승인 필요(C.67 반올림 전 판정, C.68 COACH=none 경로 승인함). 세션 비용 10달러 넘으면 나눔. docs 병합 planning-q·ui-3.
 - 사용자 선호 메모: **사용량 경고로 멈추지 않음**(10-18 18:31 "막힐 때까지 계속", 7일 한도 리셋 10/20 19:00 KST). 사용자 화면 요청은 작은 fix 세션(C.66b·C.66c 방식, 40분 안)으로 바로 처리. 사용자 지시를 화면 방향처럼 해석이 갈리면 한 줄로 확인하고 진행.
+- (03:07 KST) **Q 생성** `session_01B71wzpzNzdTg4hm7DbNX9H`(브랜치 claude/planning-q, 깊이 6). C.68b 확인 예약 `trig_01YP7G8fUQmdsKz7cpKUvsv3` 삭제(Q가 새로 검). UI_3에 U7-a 시작·Q 예고. P는 Q 준비 완료 받으면 끝.
+- (03:06 KST) **C.68b 완료**(main 81b06e4, 밸런스 47·세이브 39, 테스트 626, balance 19/19) → pending 115, ntfy, UI_3 목록. 40단계 5-7 재정 끝(CI는 C.68b가 확인 → Q로 보고). Q는 C.68b 확인 예약 불필요.
 
 ### 8.29 마스터 세션 Q (2026-10-19 03:06 KST~, `session_01B71wzpzNzdTg4hm7DbNX9H`, 브랜치 `claude/planning-q`)
-- P가 만든 세션 → `lineage` 깊이 6(한도 8). 브랜치 `claude/planning-q`(P 15ce735에서 분기). **Q 교체 때는 사용자에게 R을 앱에서 직접 열어 달라고 요청**(ntfy·카톡 긴급).
+- P가 만든 세션 → `lineage` 깊이 6(한도 8). 브랜치 `claude/planning-q`(P 15ce735에서 분기, 03:08 KST claude/planning-p 06f240d 병합). **Q 교체 때는 사용자에게 R을 앱에서 직접 열어 달라고 요청**(ntfy·카톡 긴급).
 - 시작 처리(03:07 KST): 40 C.68b·41a C.69·UI_3·엔진관리자2에 "보고는 Q, 마스터 브랜치 claude/planning-q" 알림(모두 delivered). P의 C.68b 확인 예약 `trig_01YP7G8fUQmdsKz7cpKUvsv3` 삭제 시도 → not found(이미 없음). 새 자동 확인: C.68b `trig_01VbJ7jLPTR4sxFe9BhTRqCi`, C.69 `trig_01M3Se1JTp2R8ve7BdZ9JU6a`(둘 다 05:37 KST). P 제목 `draft_P_축구 커리어 게임 마스터`(태그 그대로, P 최종 14.3달러·47.9만). 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음). rate limit `seven_day` allowed_warning(사용자 선호대로 멈추지 않음).
 - 다음: 8.28 순서 그대로(C.68b 보고 → pending 115 → ntfy → UI_3 → C.69 보고 → U7-b·c·d → 42 5-8 챕터 …).
 - (03:07 KST) UI_3 교체 확인(claude/ui-3 21b1e72 "지금 마스터: Q"). 10차 누계 0. 디자인 대기: 2부 191~200·202~217, 3부 139장+라이트 186~188, 카드 그림 59장(card-art-missing.md). 단계 끝날 때마다 UI_3에 "디자인 없는 새 화면 목록" 보낼 것.
+- (03:08 KST) P 추가 알림: C.68b는 P에게 완료 보고, P가 pending 115·ntfy·UI_3 처리 끝. → Q가 건 C.68b 확인 예약 `trig_01VbJ7jLPTR4sxFe9BhTRqCi` 삭제, C.68b 제목 `draft_40단계_5-7 재정 b (C.68b)`. **40단계 끝**(C.68b CI 결과는 C.68b가 Q로 보고). 엔진관리자2 교체 확인(engine-issues-c45는 이미 main 병합 확인해 알림). 남은 자동 확인: C.69 `trig_01M3Se1JTp2R8ve7BdZ9JU6a`(05:37 KST).
+- 다음(갱신): C.68b CI 한 줄 → C.69 보고 → U7-b·c·d → 42 5-8 챕터 …
