@@ -5,7 +5,7 @@
 import { BALANCE } from './config/balance';
 import type { Rarity } from './config/cards';
 import { grantTierPick } from './cardCollection';
-import { addXp, reputationTier } from './growth';
+import { addXp, reputationTier, veteranXpMultiplier } from './growth';
 import { leaguePosition, teamById } from './league';
 import { addTrust, startChance } from './manager';
 import { pushInbox } from './inbox';
@@ -246,8 +246,9 @@ export function goalProgress(state: GameState, g: SeasonGoal): GoalProgress {
   return { ...g, label: goalLabel(g), value, valueText: valueLabel(g.kind, value), status, ratio, reward: `XP ${xpOf(state, g.tier)} · ${TIER_PICK_KO[g.tier]} 카드 3택 1` };
 }
 
+/** 목표 XP = 기본 × 게임 난이도 × 고령 감쇠 (6.1, 경기 XP와 같은 배율 — 노화 곡선을 덮지 않게) */
 export function xpOf(state: GameState, tier: GoalTier): number {
-  return Math.round(G().xp[tier] * BALANCE.difficulty[state.difficulty].xp);
+  return Math.round(G().xp[tier] * BALANCE.difficulty[state.difficulty].xp * veteranXpMultiplier(state.player.age));
 }
 
 /** 경기 뒤 (playRound): 중간 점검 인박스 한 번 */
