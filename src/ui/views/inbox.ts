@@ -1,8 +1,8 @@
 // 인박스 (20.4, 부록 C.63): 디자인 없음 → C.57 홈 알림 카드(디자인 133)·면담 화면(디자인 45)의 컴포넌트를 재사용.
 // 목록 = 알림 카드 줄, 선택형 = 면담처럼 선택지 라디오 + 아래 [나중에][이걸로 할게요]. 홈에는 안 읽은 것 최대 3개 + 라이벌 카드
 
-import { Button, HeroPanel, Icon, OptionRow, SectionTitle, Tabs, esc } from '../components';
-import type { InboxDetailVM, InboxRowVM, InboxVM, RivalCardVM } from '../inboxVM';
+import { Button, HeroPanel, Icon, OptionRow, SectionTitle, StatChip, Tabs, esc } from '../components';
+import type { GoalsCardVM, InboxDetailVM, InboxRowVM, InboxVM, RivalCardVM } from '../inboxVM';
 import { actionRow, panel } from './common';
 
 function linkButton(l: NonNullable<InboxRowVM['link']>): string {
@@ -77,4 +77,28 @@ export function rivalSection(vm: RivalCardVM): string {
         <div class="mg-row"><div class="mg-row__head"><span class="mg-row__name">${esc(vm.name)} <small>${vm.them.apps}경기 · 평점 ${esc(vm.them.avg)}${vm.est ? ' · 추정' : ''}</small></span><b class="po-num">${vm.them.ga}</b></div>${bar(vm.them.ga, 't')}</div>
       </div>
       <p class="small muted">골+도움과 평균 평점으로 겨뤄요. 시즌이 끝나면 비교 결과가 위상·감독 신뢰도에 조금 반영돼요.</p>`, 'mg-card rv-card')}`;
+}
+
+const GOAL_TONE = { done: 'success', track: 'brand', behind: 'warning' } as const;
+const TIER_TONE = { easy: 'neutral', normal: 'mine', hard: 'warning' } as const;
+
+/** 홈 시즌 목표 카드 (18.9, C.65): 줄 = 난이도 칩 · 출처 · 목표 / 진행 막대 / 지금 값 · 상태 · 보상. 디자인 없음 → 주전 경쟁 카드(mg-row) 틀 재사용 */
+export function goalsSection(vm: GoalsCardVM): string {
+  const rows = vm.rows.map((r) => `<div class="mg-row gl-row gl-${r.status}">
+      <div class="mg-row__head"><span class="mg-row__name">${StatChip({ label: r.tierKo, tone: TIER_TONE[r.tier] })} ${esc(r.source)} · ${esc(r.label)}</span><b class="po-num">${esc(r.value)}</b></div>
+      <div class="mg-bar" aria-hidden="true"><i class="t" style="width:${Math.round(r.ratio * 100)}%"></i></div>
+      <div class="gl-meta small"><span class="muted">${esc(r.reward)}</span>${StatChip({ label: r.statusKo, tone: GOAL_TONE[r.status] })}</div>
+    </div>`).join('');
+  return `${SectionTitle({ title: '시즌 목표', action: `${vm.ok}/3 순항 · ${vm.round}/${vm.rounds}R` })}
+    ${panel(`<div class="mg-rows">${rows}</div>
+      <p class="small muted">시즌이 끝나면 판정해요. 달성하면 XP와 카드 3택 1, 감독·구단 목표는 감독 신뢰도에도 반영돼요.</p>`, 'mg-card gl-card')}`;
+}
+
+/** 시즌 요약 목표 결과 (18.9, C.65): 달성 n/3 · 줄마다 결과 · 업적 선택권 */
+export function goalsResultPanel(r: { rows: { ok: boolean; source: string; tierKo: string; label: string; value: string; xp: number; trust: number }[]; awards: string[]; xp: number; picks: number }): string {
+  const met = r.rows.filter((x) => x.ok).length;
+  const rows = r.rows.map((x) => `<div class="ach gl-res${x.ok ? ' is-ok' : ''}"><span class="ach__icon">${Icon({ name: x.ok ? 'check' : 'close', size: 16 })}</span><span class="grow">${esc(x.source)}(${esc(x.tierKo)}) · ${esc(x.label)} <small class="muted">${esc(x.value)}</small></span>${
+    x.ok ? `<b class="po-num up">+${x.xp}</b>` : '<span class="small muted">실패</span>'}${x.trust ? `<small class="po-num ${x.trust > 0 ? 'up' : 'down'}">신뢰 ${x.trust > 0 ? '+' : ''}${x.trust}</small>` : ''}</div>`).join('');
+  const aw = r.awards.map((a) => `<div class="ach"><span class="ach__icon">${Icon({ name: 'trophy', size: 16 })}</span><span class="grow">업적 · ${esc(a)}</span><span class="small">카드 3택 1</span></div>`).join('');
+  return `<p class="season-todo-head">시즌 목표 <span class="po-num">${met}/3</span> 달성${r.xp ? ` · XP +${r.xp}` : ''}${r.picks ? ` · 카드 선택권 ${r.picks}장` : ''}</p>${panel(rows + aw, 'gl-result')}`;
 }

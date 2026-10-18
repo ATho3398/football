@@ -58,8 +58,8 @@ import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from 
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { alertCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
-import { homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
-import { collectNotices, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
+import { goalsSection, homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
+import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
 import { markAllRead, markRead, unreadCount } from '../inbox';
 import { answerEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
@@ -385,7 +385,8 @@ function screenHtml(): string {
       const meetBand = comp?.meeting ? Banner({ tone: 'info', title: '감독이 면담하자고 해요', children: comp.hint, action: '면담하기', onAction: { act: 'go', data: { to: 'meeting' } } }) : '';
       const hin = homeInboxVM(g);
       const rv = rivalCardVM(g);
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), hvm.training ? todayRow(hvm.training) : '', meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), unreadCount(g)) + guideResetLink() + sheet;
+      const gl = goalsCardVM(g);
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), hvm.training ? todayRow(hvm.training) : '', meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), unreadCount(g)) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);

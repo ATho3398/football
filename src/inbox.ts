@@ -5,10 +5,10 @@ import { BALANCE } from './config/balance';
 import type { IsoDate } from './calendar';
 import type { GameState } from './game';
 
-export type InboxCat = 'event' | 'media' | 'club' | 'manager' | 'rival' | 'transfer' | 'contract' | 'tag' | 'advice' | 'life' | 'team';
+export type InboxCat = 'event' | 'media' | 'club' | 'manager' | 'rival' | 'transfer' | 'contract' | 'tag' | 'advice' | 'life' | 'team' | 'goal';
 
 export const INBOX_CAT_KO: Record<InboxCat, string> = {
-  event: '소식', media: '언론', club: '구단', manager: '감독', rival: '라이벌', transfer: '이적', contract: '계약', tag: '태그', advice: '포변 조언', life: '생활', team: '동료',
+  event: '소식', media: '언론', club: '구단', manager: '감독', rival: '라이벌', transfer: '이적', contract: '계약', tag: '태그', advice: '포변 조언', life: '생활', team: '동료', goal: '시즌 목표',
 };
 
 export interface InboxChoice { id: string; label: string; desc: string; disabled?: string }

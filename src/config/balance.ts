@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 42;
+export const BALANCE_VERSION = 43;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1256,6 +1256,48 @@ export const BALANCE = {
     tags: { leaderDiscord: 0.5, troubleSlip: 1.5, starRumour: 2 },
     /** 플레이 태그: 라커룸 리더 = 주장 lockerSeasons 시즌째 끝 또는 시즌 끝 팀 관계 lockerTeam 이상 / 언론의 총아 = 인터뷰 좋은 결과 darlingGood 번 */
     natural: { lockerSeasons: 2, lockerTeam: 90, darlingGood: 5 },
+  },
+  /**
+   * 시즌 목표와 카드 해금 (18.9, 부록 C.65). 시즌 시작 목표 3개 = 감독 · 구단 · 개인, 쉬움/보통/어려움을 시드로 하나씩 나눈다.
+   * 목표 값 = 기대값(지난 시즌 기록 + 포지션·팀 수준 사전값) × 난이도 배수. 달성하면 XP + 카드 3택 1(쉬움 일반 · 보통 희귀 · 어려움 희귀/에픽).
+   * 3단계 임시 경로(시즌 종료 희귀·에픽 3택 1)는 이 보상으로 바뀐다 (F.0 5번)
+   */
+  goals: {
+    /** 달성 XP (게임 난이도 xp 배수를 곱한다). 위상에는 더하지 않는다 */
+    xp: { easy: 50, normal: 100, hard: 160 },
+    /** 카드 선택권 희귀도 가중 (후보마다): 쉬움 일반, 보통 희귀, 어려움 희귀 50% · 에픽 50% */
+    pick: { easy: { common: 1 }, normal: { rare: 1 }, hard: { rare: 0.5, epic: 0.5 } },
+    /** 셈 목표(골·도움·클린시트·MOM) 배수, 출전 경기 배수, 평균 평점 더하기, 팀 순위 더하기(+ = 낮은 순위도 됨) */
+    mult: { easy: 0.8, normal: 1.1, hard: 1.4 },
+    appsMul: { easy: 0.75, normal: 0.9, hard: 1.05 },
+    ratingAdd: { easy: -0.15, normal: 0.1, hard: 0.3 },
+    posAdd: { easy: 3, normal: 0, hard: -2 },
+    /** 어려움 개인 목표가 리그 득점/도움 순위가 되는 위상 티어(탑클래스 이상)와 순위 */
+    rankFromTier: 2, rankTarget: 3,
+    /** 다른 팀 선수 기록이 이만큼 있어야 순위 목표·시상 선택권을 판정 (빠른 진행 = 내 기록뿐) */
+    leagueStatsMin: 50,
+    /** 게임 난이도: 셈 목표 배수, 팀 순위 더하기 */
+    difficulty: { easy: { mult: 0.9, pos: 1 }, normal: { mult: 1, pos: 0 }, hard: { mult: 1.1, pos: -1 } },
+    /** 사전 기대값 (경기당, 포지션군): [골, 도움, MOM]. 팀 레이팅 대비 OVR 1당 × (1 + ovrK), 0.5~1.8배 */
+    rates: {
+      GK: [0, 0, 0.06], CB: [0.04, 0.02, 0.07], FB: [0.03, 0.08, 0.07], CDM: [0.04, 0.06, 0.07],
+      CM: [0.1, 0.12, 0.1], CAM: [0.25, 0.22, 0.14], WING: [0.32, 0.18, 0.14], ST: [0.5, 0.1, 0.17],
+    } as Record<string, readonly [number, number, number]>,
+    ovrK: 0.04,
+    /** 지난 시즌 기록을 섞는 무게: 사전값 priorApps 경기만큼 + 지난 시즌 출전 */
+    priorApps: 10,
+    /** 평균 평점 사전값 = ratingBase + (OVR − 팀 레이팅) × ratingK (ratingMin~ratingMax), 평점 목표 자격 출전 ratingMinApps */
+    ratingBase: 6.7, ratingK: 0.03, ratingMin: 6.3, ratingMax: 7.4, ratingMinApps: 10,
+    /** 클린시트 = 60분 이상 뛴 경기 무실점. 경기당 = csBase + csTop × (팀 수 − 예상 순위)/(팀 수 − 1) */
+    csBase: 0.06, csTop: 0.26, csMinutes: 60,
+    /** 감독 목표: 선발 확률 이 값 미만이면 출전 경기 수, 이상이면 평균 평점 또는 MOM */
+    appsBelow: 0.6,
+    /** 신뢰도 (C.62): [달성, 실패] 감독 목표 · 구단 목표 · 개인 목표 */
+    trust: { manager: [4, -3], club: [2, -1], personal: [1, 0] } as Record<string, readonly [number, number]>,
+    /** 중간 점검 인박스 라운드 */
+    midRound: 19,
+    /** 업적 카드 선택권 (18.9 큰 업적): 시즌 시상 수상 희귀 1장(시즌 최대 1), 리그 우승 에픽, 새 레전드 배지 전설(없으면 에픽). 챔스·발롱도르·월드컵은 5-6·6단계 훅 */
+    awardPick: { award: 'rare', leagueTitle: 'epic', legendBadge: 'legendary', clWin: 'epic', ballonDor: 'legendary', worldCup: 'legendary' },
   },
   /** 월드 정보·NPC 시즌 통계 (18.5, 부록 C.64). 통계 자체는 엔진 기록(다른 경기도 22명 엔진), 여기는 순위·시상·위상·소식·세이브 상한 */
   world: {

@@ -300,6 +300,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     for (const a of s.archive ?? []) a.aw ??= awardsFromTotals(a.players ?? {});
     if (s.archive) trimArchive(s.archive);
   },
+  // 34 → 35 (C.65): 시즌 목표(goals). 옛 세이브는 없음 → 시즌 중이면 다음 화면·경기에서 이번 시즌 목표를 만든다 (지금까지 기록으로 진행 표시)
+  34: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

@@ -3,13 +3,14 @@
 import type { IconName } from './components';
 import { dateLabel, daysBetween } from '../calendar';
 import type { GameState } from '../game';
+import { ensureGoals, goalProgress, SOURCE_KO, TIER_KO, type GoalStatus, type GoalTier } from '../seasonGoals';
 import { INBOX_CAT_KO, inboxList, isPending, pushInbox, unreadCount, type InboxCat, type InboxItem } from '../inbox';
 import { rivalOf } from '../rival';
 import { teamById } from '../league';
 import { adviceCardVM } from './viewModels';
 
 export const CAT_ICON: Record<InboxCat, IconName> = {
-  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo',
+  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target',
 };
 
 /** 옛 알림 칸(C.37·C.42·C.47·C.48·C.62)을 인박스로 옮긴다 (화면을 그리기 전에 부른다, 같은 알림은 key 로 한 번만) */
@@ -107,4 +108,20 @@ export function rivalCardVM(g: GameState): RivalCardVM | null {
     me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-' }, them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps }, est: r.est,
     lead: r.me.ga - r.ga, record: h.length ? `지난 비교 ${w}승 ${h.length - w - l}무 ${l}패` : '첫 시즌',
   };
+}
+
+/** 홈 시즌 목표 카드 (18.9, C.65): 목표 3개 진행 (감독 · 구단 · 개인) */
+export interface GoalRowVM { source: string; tier: GoalTier; tierKo: string; label: string; value: string; ratio: number; status: GoalStatus; statusKo: string; reward: string }
+export interface GoalsCardVM { rows: GoalRowVM[]; ok: number; round: number; rounds: number }
+
+const STATUS_KO: Record<GoalStatus, string> = { done: '달성', track: '순항', behind: '모자람' };
+
+export function goalsCardVM(g: GameState): GoalsCardVM | null {
+  if (g.phase !== 'season') return null;
+  const gs = ensureGoals(g);
+  if (!gs) return null;
+  const rows = gs.list.map((x) => goalProgress(g, x)).map((p) => ({
+    source: SOURCE_KO[p.source], tier: p.tier, tierKo: TIER_KO[p.tier], label: p.label, value: p.valueText, ratio: p.ratio, status: p.status, statusKo: STATUS_KO[p.status], reward: p.reward,
+  }));
+  return { rows, ok: rows.filter((r) => r.status !== 'behind').length, round: g.league.round, rounds: g.league.schedule.length };
 }

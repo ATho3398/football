@@ -1,6 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { myShirt, prospectExtras } from '../game';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
@@ -1183,6 +1184,9 @@ export interface SeasonVM {
   season: string; nextSeason: string; team: string; pos: number; apps: number; goals: number; assists: number; avg: string;
   injuries: number; injuredWeeks: number;
   achievements: { label: string; xp: number }[]; achievementXp: number; levelsGained: number;
+  /** 시즌 목표 결과 (C.65). 옛 세이브 요약이면 null. cardPicks = 지금 받을 카드 선택권 수 */
+  seasonGoals: { rows: { ok: boolean; source: string; tierKo: string; label: string; value: string; xp: number; trust: number }[]; awards: string[]; xp: number; picks: number } | null;
+  cardPicks: number;
   repBefore: number; repAfter: number; tierName: string; tier: DesignTier;
   /** 위상 내역 (부록 C.25): 시즌 중 부진 감점, 시즌 끝 순위 감점. 감점이 없으면 null */
   slumpPenalty: number; rankPenalty: { expected: number; pos: number; points: number } | null; badgeRep: number;
@@ -1237,6 +1241,11 @@ export function seasonVM(g: GameState): SeasonVM | null {
     apps: rec.apps, goals: rec.goals, assists: rec.assists, avg: rec.apps ? (rec.ratingSum / rec.apps).toFixed(2) : '-',
     injuries: rec.injuries, injuredWeeks: rec.injuredWeeks,
     achievements: s.achievements, achievementXp: s.achievementXp, levelsGained: s.levelsGained,
+    seasonGoals: s.goals ? {
+      rows: s.goals.results.map((r) => ({ ok: r.met, source: SOURCE_KO[r.source], tierKo: TIER_KO[r.tier], label: goalLabel(r), value: valueLabel(r.kind, r.value), xp: r.xp, trust: r.trust })),
+      awards: s.goals.awards, xp: s.goals.xp, picks: s.goals.results.filter((r) => r.met).length + s.goals.awards.length,
+    } : null,
+    cardPicks: g.cards?.picks.length ?? 0,
     repBefore: s.reputationBefore, repAfter: s.reputationAfter, tierName: TIER_NAMES_KO[tier], tier: designTier(tier),
     slumpPenalty: s.slumpPenalty ?? 0, rankPenalty: s.rankPenalty && s.rankPenalty.points > 0 ? s.rankPenalty : null,
     repLines: seasonRepLines(s),

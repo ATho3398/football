@@ -155,7 +155,7 @@ describe('세이브 상한 (지난 시즌 요약)', () => {
   it('세이브 34: 왕복, 33 세이브 이식(시상 줄 만들고 상한대로 줄임)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c64-save', difficulty: 'normal' });
     playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(34);
+    expect(SAVE_FORMAT_VERSION).toBe(35);
     const players: SeasonArchive['players'] = {};
     for (let i = 0; i < 200; i++) players[`p${i}`] = [20, i % 11, i % 5, 20 * 66, 1500];
     g.archive = [2014, 2015, 2016, 2017].map((season) => ({ season, teamId: g.player.teamId, my: [], results: [], players: { ...players }, table: [] }));
@@ -167,13 +167,5 @@ describe('세이브 상한 (지난 시즌 요약)', () => {
     expect(o.archive.at(-1)!.slim).toBeUndefined();
     const back = deserialize(serialize(o));
     expect(back.archive.length).toBe(4);
-  });
-});
-
-describe('버전 (C.64)', () => {
-  it('C.64 · 37단계', async () => {
-    const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toBe('C.64');
-    expect(STAGE_LABEL).toBe('37단계');
   });
 });

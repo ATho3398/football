@@ -12,7 +12,8 @@ import type { FieldAttributes } from './attributes';
 const C = BALANCE.cards;
 
 export interface CardPick {
-  source: 'season' | 'level';
+  /** season = 시즌 보상(옛 3단계 경로·면담), level = 레벨업, goal = 시즌 목표 (C.65), award = 업적 (C.65) */
+  source: 'season' | 'level' | 'goal' | 'award';
   /** 표시 ("시즌 2026 보상", "레벨 10 달성") */
   label: string;
   options: string[];
@@ -141,7 +142,34 @@ export function grantMeetingPick(col: CardCollection, key: string, position: str
   if (options.length) col.picks.push({ source: 'season', label, options });
 }
 
-/** 시즌 종료 보상: 희귀·에픽 3택 1 (F.1 간이 경로). 에픽은 후보마다 seasonEpicChance 확률 */
+const RARITY_DOWN: Record<Rarity, Rarity | null> = { legendary: 'epic', epic: 'rare', rare: 'common', common: null };
+
+/**
+ * 희귀도 가중 3택 1 (C.65 시즌 목표·업적): 후보마다 가중대로 희귀도를 뽑고, 그 희귀도 풀(내 포지션군 + 공용)이 비면 한 단계씩 내린다.
+ * 같은 key 는 같은 후보 (결정적). 후보가 하나도 없으면 선택권을 만들지 않는다
+ */
+export function grantTierPick(col: CardCollection, key: string, position: string, seed: string, label: string, weights: Partial<Record<Rarity, number>>, source: CardPick['source']): boolean {
+  const rng = createRng(hashSeed(`${seed}:card-tier:${key}`));
+  const g = groupOfPosition(position);
+  const entries = Object.entries(weights).filter(([, w]) => (w ?? 0) > 0) as [Rarity, number][];
+  const total = entries.reduce((t, [, w]) => t + w, 0);
+  const options: string[] = [];
+  for (let k = 0; k < C.pickOptions && entries.length; k++) {
+    let x = rng() * total;
+    let r: Rarity | null = entries.find(([, w]) => (x -= w) < 0)?.[0] ?? entries.at(-1)![0];
+    let got: string | undefined;
+    while (r && !got) {
+      got = drawOptions(poolFor(g, [r]).filter((c) => !options.includes(c.id)), col, rng, 1)[0];
+      r = RARITY_DOWN[r];
+    }
+    if (got) options.push(got);
+  }
+  if (!options.length) return false;
+  col.picks.push({ source, label, options });
+  return true;
+}
+
+/** 시즌 종료 보상: 희귀·에픽 3택 1 (F.1 간이 경로). 에픽은 후보마다 seasonEpicChance 확률. C.65부터 게임은 시즌 목표 보상(grantTierPick)을 쓰고 이 경로는 부르지 않는다 */
 export function grantSeasonPick(col: CardCollection, season: number, position: string, seed: string): void {
   const rng = createRng(hashSeed(`${seed}:card-season:${season}`));
   const g = groupOfPosition(position);

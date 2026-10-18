@@ -1,6 +1,7 @@
 // 디자인 2차 수정본 화면 (H.6 3번, I.19 갱신): 타이틀(55), 새 게임(52·53), 포인트 찍기(50), 순위표·리그 스타(54), 시즌 종료(51),
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
+import { goalsResultPanel } from './inbox';
 import {
   Avatar, Banner, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
@@ -291,7 +292,7 @@ function splitTable(rows: SeasonVM['months'], head: string): string {
  * 비시즌 이적 제안이 있으면 맨 위 카드와 [이적 제안·계약에 답하기]로 이어진다 (C.42)
  */
 /** 시즌 요약 "다음 할 일" 줄 (디자인 106): 이적 제안·계약 응답, 포인트 찍기 */
-export interface SeasonTodo { title: string; sub: string; act: string; data?: Record<string, string>; cta?: string; warn?: boolean; icon: 'chat' | 'plus' }
+export interface SeasonTodo { title: string; sub: string; act: string; data?: Record<string, string>; cta?: string; warn?: boolean; icon: 'chat' | 'plus' | 'card' }
 
 function todoRow(t: SeasonTodo): string {
   return `<button type="button" class="panel season-todo${t.warn ? ' is-warn' : ''}" data-act="${esc(t.act)}"${Object.entries(t.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}><span class="season-todo__icon">${Icon({ name: t.icon, size: 20 })}</span><span class="grow"><b>${esc(t.title)}</b><small>${esc(t.sub)}</small></span>${
@@ -324,6 +325,7 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
     </div>`;
   const todos = [
     todo ? todoRow(todo) : '',
+    !vm.retired && vm.cardPicks > 0 ? todoRow({ title: `카드 고르기 · 선택권 ${vm.cardPicks}장`, sub: '시즌 목표·업적 보상 3택 1', act: 'go', data: { to: 'deck' }, icon: 'card' }) : '',
     !vm.retired && vm.points > 0 ? todoRow({ title: `포인트 찍기 · ${vm.points}P`, sub: '새 시즌 전에 찍어 두면 좋아요', act: 'go', data: { to: 'allocate' }, icon: 'plus' }) : '',
   ].filter(Boolean);
   const next = vm.retired
@@ -334,6 +336,7 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${card}
+    ${vm.seasonGoals ? goalsResultPanel(vm.seasonGoals) : ''}
     ${market}
     ${todos.length ? `<p class="season-todo-head">다음 할 일</p>${todos.join('')}` : ''}
     <div class="btn-col season-next">

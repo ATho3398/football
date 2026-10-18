@@ -54,7 +54,8 @@ import { coachAfterMatch, type CoachRec } from './club';
 import type { InboxState } from './inbox';
 import type { RivalState } from './rival';
 import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeRecoveryMul, type LifeState } from './life';
-import { afterMatch, cardInput, grantLevelPicks, grantSeasonPick, initCollection, type CardCollection } from './cardCollection';
+import { afterMatch, cardInput, grantLevelPicks, initCollection, type CardCollection } from './cardCollection';
+import { goalsAfterRound, goalsSeasonEnd, goalsSeasonStart, type GoalResult, type GoalsState } from './seasonGoals';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 import { previewLineup, slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
@@ -72,7 +73,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 34;
+export const SAVE_FORMAT_VERSION = 35;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -165,6 +166,8 @@ export interface SeasonSummary {
   ovrAfter: number;
   canRetire: boolean;
   forcedRetire: boolean;
+  /** 시즌 목표 판정 (18.9, C.65): 결과 3개, 업적 카드 선택권 이름, 목표 XP. C.65 이전 세이브에는 없다 */
+  goals?: { results: GoalResult[]; awards: string[]; xp: number };
 }
 
 export interface GameState {
@@ -244,6 +247,8 @@ export interface GameState {
   captain?: { teamId: string; since: number } | null;
   /** 경기 외 생활 지표 (pending 47 4번, C.63 b) */
   life?: LifeState;
+  /** 시즌 목표 (18.9, 부록 C.65). 없거나 시즌이 다르면 ensureGoals 가 새로 만든다 */
+  goals?: GoalsState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -591,6 +596,8 @@ export function newGame(opts: NewGameOptions): GameState {
   myShirt(state);
   // 이벤트 (C.63): 첫 시즌 슬롯·라이벌
   eventsSeasonStart(state, calendarOf(state).opening);
+  // 시즌 목표 (C.65)
+  goalsSeasonStart(state);
   return state;
 }
 
@@ -1398,6 +1405,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   eventsAfterMatch(state);
   // 득점·도움 경쟁 기사 (C.64)
   worldAfterRound(state);
+  // 시즌 목표 중간 점검 (C.65)
+  goalsAfterRound(state);
 
   if (league.round >= league.schedule.length) endSeason(state);
   refreshUnlocks(state);
@@ -1696,8 +1705,10 @@ export function endSeason(state: GameState): SeasonSummary {
     // 내 선수 강제 은퇴 없음 (pending 48 1, C.45). 필드는 옛 세이브·화면 호환으로 늘 false
     forcedRetire: false,
   };
-  // 시즌 종료 카드 보상 3택 1 (F.1 간이 경로, C.36)
-  if (state.cards) grantSeasonPick(state.cards, state.league.season, state.player.position, state.worldSeed);
+  // 시즌 목표 판정 (18.9, C.65): XP · 카드 3택 1 · 신뢰도 · 업적 선택권. 3단계 임시 경로(시즌 종료 희귀·에픽 3택 1)를 대신한다
+  const gr = goalsSeasonEnd(state, badges);
+  summary.goals = { results: gr.results, awards: gr.awards, xp: gr.xp };
+  summary.levelsGained += gr.levels;
   state.lastSeasonSummary = summary;
   state.phase = summary.forcedRetire ? 'retired' : 'offseason';
   // 내 선수 (18.10): 임대 복귀, 계약 만료면 재계약, 제안 3~5개
@@ -1767,6 +1778,8 @@ export function startNextSeason(state: GameState): void {
   state.phase = 'season';
   // 이벤트 (C.63): 새 시즌 슬롯·라이벌·주장
   eventsSeasonStart(state, calendarOf(state).opening);
+  // 시즌 목표 (C.65): 이적·재계약 뒤 새 팀 기준
+  goalsSeasonStart(state);
 }
 
 export function retire(state: GameState): void {

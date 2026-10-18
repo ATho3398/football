@@ -1650,3 +1650,13 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 @media (max-width: 1023px) { .has-band-toast > main.screen { padding-top: 84px; } }
 /* 11번: 능력치 칸 이름 접미어(퍼스트 터치·키핑)는 칸에서 숨김 (전체 이름은 title) */
 .ag-name small { display: none; }
+
+/* ── C.65 시즌 목표 (디자인 없음, 주전 경쟁 카드 틀) ── */
+.gl-row .mg-row__name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.gl-row .po-chip { padding: 1px 6px; font-size: 10px; }
+.gl-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gl-meta .muted { min-width: 0; }
+.gl-done .mg-bar .t { background: var(--success, var(--brand)); }
+.gl-behind .mg-bar .t { background: var(--warning); }
+.gl-res small.up, .gl-res small.down { margin-left: 6px; font-size: 11px; }
+.gl-res:not(.is-ok) .ach__icon { color: var(--ink-muted); }
