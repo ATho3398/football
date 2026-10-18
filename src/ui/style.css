@@ -1953,7 +1953,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   :where(html[data-skin="b"]) .dock-more__item.is-on::before { content: ""; position: absolute; top: 0; left: 50%; width: 26px; height: 4px; margin-left: -13px; background: var(--brand); transform: skewX(-20deg); }
 }
 /* PC (1280 기준): 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] 176px | 훈련·일정 · 월드 · 재정 · 설정 · 저장 */
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
   :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc { height: 64px; padding: 0 max(12px, calc(50% - 520px)); border-top: 2px solid var(--brand); }
   :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc .po-dock__item.is-on::before { content: ""; position: absolute; top: -2px; left: 50%; width: 26px; height: 4px; margin-left: -13px; background: var(--brand); transform: skewX(-20deg); }
   .dock-bar .po-dock--v3.po-dock--pc .po-dock__next { flex-direction: row; align-items: center; justify-content: center; padding: 0; }
@@ -1962,7 +1962,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc .po-dock__next .po-dock__goicon .po-icon { order: 2; width: 22px; height: 22px; }
   .dock-bar .po-dock--v3.po-dock--pc .po-dock__next .po-dock__goicon { max-width: 176px; }
 }
-@media (min-width: 1024px) and (max-width: 1279px) {
+@media (min-width: 1024px) and (max-width: 1279px), (orientation: landscape) and (max-height: 520px) {
   .dock-bar .po-dock--v3.po-dock--pc .po-dock__item { gap: 4px; }
   .dock-bar .po-dock--v3.po-dock--pc .po-dock__label { font-size: 12px; }
 }

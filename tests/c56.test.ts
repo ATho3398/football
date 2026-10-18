@@ -107,7 +107,9 @@ describe('C.56 결정 순간 한 화면 (77~79)', () => {
     expect(h).toContain('moment mo-fold');
     expect((h.match(/class="po-card po-card--hand /g) ?? []).length).toBe(2);
     expect(h).toContain('aria-disabled="true"');
-    expect(h.indexOf('mo-more')).toBeGreaterThan(h.indexOf('mo-confirm'));
+    // C.69 (디자인 171): 아래 묶음은 고정된 [확정] 줄 위(스크롤로 내려서 본다)
+    expect(h.indexOf('mo-more')).toBeGreaterThan(h.indexOf('mo-cards'));
+    expect(h.indexOf('mo-more')).toBeLessThan(h.indexOf('mo-confirm'));
     expect(actionWord('먼 포스트 감아차기')).toBe('감아차기');
   });
   it('플레이 카드를 고르면 4번째 선택지(플레이 카드 칩 + 바탕 대비 변화)', () => {

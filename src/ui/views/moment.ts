@@ -107,7 +107,7 @@ function handCards(vm: MomentVM): string {
   const picked = vm.card === null ? null : m.cards.find((c) => c.hand === vm.card) ?? null;
   const offs = m.cards.filter((c) => !c.usable);
   const info = picked
-    ? `${esc(picked.name)}${picked.option ? ' · 4번째 선택지가 생겼어요' : ` · ${esc(picked.text)}`}`
+    ? `${esc(picked.name)}${picked.option ? '를 골랐어요 · 4번째 선택지' : ` · ${esc(picked.text)}`}`
     : offs.length === n ? `지금 쓸 수 있는 카드가 없어요${pas}` : `누르면 확률이 바로 바뀌어요${pas}`;
   const cards = m.cards.map((c) => {
     const on = vm.card === c.hand;
