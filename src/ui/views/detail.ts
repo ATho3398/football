@@ -51,7 +51,7 @@ export function teamDetailView(vm: TeamDetailVM, tab: TeamTab, back: boolean): s
   const tabs = Tabs({ items: [{ id: 'overview', label: '개요' }, { id: 'squad', label: '스쿼드' }, { id: 'tactics', label: '전술' }, { id: 'matches', label: '경기' }], value: tab, variant: 'underline', fill: true, act: 'team-tab' });
   const r = vm.record;
   const gd = r.gf - r.ga;
-  const ident = `<div class="panel dt-ident">${Crest({ name: vm.name, team: vm.id, size: 44 })}<span class="grow"><b>${esc(vm.name)}</b><small>${tierBars(vm.tier, vm.tierKo)} · 감독·홈구장 정보 없음</small></span></div>`;
+  const ident = `<div class="panel dt-ident">${Crest({ name: vm.name, team: vm.id, size: 44 })}<span class="grow"><b>${esc(vm.name)}</b><small>${tierBars(vm.tier, vm.tierKo)} · ${vm.manager ? `감독 ${esc(vm.manager.name)}(${esc(vm.manager.style)}) · ${esc(vm.manager.stadium)}` : '감독·홈구장 정보 없음'}</small></span></div>`;
   const tiles = `<div class="dt-tiles">
     <div class="dt-tile"><small>순위</small><b class="po-num">${vm.rank}위</b><span>승점 ${r.points}</span></div>
     <div class="dt-tile"><small>전력</small><b class="po-num">${vm.rating.toFixed(1)}</b><span>리그 ${vm.ratingRank}위</span></div>

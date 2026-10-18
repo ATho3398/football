@@ -58,6 +58,9 @@ import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from 
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { adviceCard, alertCard, alertsHead, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { competitionSection, meetingView } from './views/manager';
+import { competitionVM, meetingVM } from './managerVM';
+import { holdMeeting, type MeetingChoice } from '../manager';
 import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
@@ -95,7 +98,7 @@ import { hasTeamDetail, personDetailVM, teamDetailVM, type PersonTab, type TeamT
 import { personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -165,6 +168,8 @@ const ui = {
   moreSheet: false,
   /** 이적 제안 화면 펼친 제안 (C.60, 디자인 97) · 월드·결과 "더 보기" 펼침 (C.60) · 카드 획득 고른 칸 (디자인 85) */
   offerSel: 0,
+  /** 감독 면담 고른 선택지 (C.62) */
+  meetSel: null as string | null,
   more: {} as Record<string, boolean>,
   pickSel: 1,
   /** 시즌 종료 화면 상세 보기 탭 (C.44). null = 요약 카드만 */
@@ -299,7 +304,7 @@ function go(screen: Screen): void {
   if (screen !== 'team' && screen !== 'person') ui.detail.stack = [];
   // "더 보기" 펼침·고른 제안 (C.60)은 다른 화면으로 가면 처음으로. 팀·선수 상세를 다녀올 때는 그대로
   const detail = (x: Screen) => x === 'team' || x === 'person';
-  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; }
+  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; ui.meetSel = null; }
   ui.screen = screen;
   ui.modal = null;
   render();
@@ -363,10 +368,14 @@ function screenHtml(): string {
       const hvm = homeVM(g);
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
       const mvm = marketVM(g);
-      const alerts = [tagNoticeBanner(g), adv ? adviceCard(adv) : ''].filter(Boolean);
+      // 감독 면담 (C.62): 열린 면담 띠(닫기 없음) · 지난 면담 결과 알림(닫기)
+      const mres = g.manager?.teamId === g.player.teamId ? g.manager.result : null;
+      const alerts = [tagNoticeBanner(g), adv ? adviceCard(adv) : '', mres ? alertCard({ icon: 'player', eyebrow: '감독 면담', title: mres.title, body: mres.text, close: 'meet-result-close' }) : ''].filter(Boolean);
+      const comp = competitionVM(g);
+      const meetBand = comp?.meeting ? Banner({ tone: 'info', title: '감독이 면담하자고 해요', children: comp.hint, action: '면담하기', onAction: { act: 'go', data: { to: 'meeting' } } }) : '';
       const refusedOnly = !mvm.renewal && !mvm.offers?.length && mvm.refused.length > 0;
       const head = alertsHead(alerts.length + (refusedOnly ? 1 : 0));
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, '', hvm.training ? todayRow(hvm.training) : '', head + alerts.join('') + marketCard(mvm)) + guideResetLink() + sheet;
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, comp ? competitionSection(comp) : '', hvm.training ? todayRow(hvm.training) : '', meetBand + head + alerts.join('') + marketCard(mvm)) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -395,6 +404,11 @@ function screenHtml(): string {
     }
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more);
     case 'offers': return offersView(marketVM(g), ui.offerSel);
+    case 'meeting': {
+      const mv = meetingVM(g);
+      if (!mv) { ui.screen = 'home'; return screenHtml(); }
+      return meetingView(mv, ui.meetSel);
+    }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
@@ -1698,8 +1712,35 @@ app.addEventListener('click', (ev) => {
       ui.trainPick = v ?? null;
       render();
       return;
+    case 'meet-pick':
+      ui.meetSel = v ?? null;
+      render();
+      return;
+    case 'meet-ok': {
+      if (!g || !v) return;
+      const req = requestEligibility(g, true);
+      const r = holdMeeting(g, v as MeetingChoice, { requestOk: req.ok });
+      let body = r.text;
+      if (r.request) {
+        const t = requestTransfer(g, true);
+        body = t.accepted ? (t.offersNow ? '구단이 놓아줬어요. 겨울 이적시장 제안이 왔어요.' : '구단이 놓아줬어요. 1월 1일 겨울 이적시장이 열리면 제안이 와요.') : '구단이 거절했어요. 이번 시즌에는 다시 요청할 수 없어요.';
+        g.manager!.result = { date: g.calendar.date, title: t.accepted ? '이적 명단에 올랐어요' : '구단이 이적 요청을 거절했어요', text: body };
+        autosave();
+        if (t.offersNow) { go('offers'); return; }
+      } else autosave();
+      go('home');
+      showToast({ kind: 'info', title: g.manager?.result?.title ?? r.title, body }, 2600);
+      return;
+    }
+    case 'meet-result-close':
+      if (!g || !g.manager) return;
+      g.manager.result = null;
+      autosave();
+      render();
+      return;
     case 'alerts-close':
       if (!g) return;
+      if (g.manager) g.manager.result = null;
       g.tagNotice = null;
       if (g.player.advice) g.player.advice.dismissed = true;
       if (!g.market.offers?.length) g.market.refused = null;

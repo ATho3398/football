@@ -13,6 +13,7 @@ import { wageRoom } from './finance';
 import { naturalOvr, posGroup } from './roster';
 import { FORMATION_SLOTS } from './formations';
 import { derbyOf } from './derby';
+import { renewalTrust } from './manager';
 import { renewKeep, tagHas, wageMul, type PlayerTag, type TagId, type Tagged } from './tags';
 
 // ── 커리어 태그 (플레이 전용, 효과 슬롯 0 — 62.4, 14번) ──
@@ -309,14 +310,16 @@ export function renewalCheck(state: GameState): { fails: boolean; why: 'wage' | 
  * 그래도 실패면 renewKeep.chance 확률로 남긴다 (시드: 시즌)
  */
 export function renewalFails(state: GameState): boolean {
-  const c = renewalCheck(state);
-  if (!c.fails) return false;
   const p = state.player;
+  // 감독 신뢰도·저니맨 (C.62): 재계약 판정을 받는 선수만 (C.46 커스텀)
+  const judged = !!state.market.renewal && (!!p.custom || BALANCE.finance.renew.allPlayers);
+  const c = renewalCheck(state);
+  if (!c.fails) return judged && renewalTrust(state, false);
   const keep = renewKeep(p, p.teamId);
-  if (!keep.chance) return true;
+  if (!keep.chance) return renewalTrust(state, true);
   const m = state.market;
   if (c.why === 'wage' && m.renewal && wageRoom(state, p.teamId, ratingOf(state, p.teamId)) >= m.renewal.wage * 52 / (1 + keep.wage)) return false;
-  return createRng(hashSeed(`${state.worldSeed}:renew-keep:${state.league.season}`))() >= keep.chance;
+  return createRng(hashSeed(`${state.worldSeed}:renew-keep:${state.league.season}`))() >= keep.chance && renewalTrust(state, true);
 }
 
 /** 제안 수락 뒤 태그: 유스 구단 첫 계약(아카데미 출신), 친정 선택, 귀환, 방출의 설움. 이적이면 원클럽맨 계열을 떨어뜨린다 */

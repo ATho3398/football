@@ -290,6 +290,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   30: (s) => {
     if (s.training) Object.assign(s.training, { preset: 'balance', presetWeek: '', presetAuto: true, presetManual: false, customPresets: [], presetSeq: 0 });
   },
+  // 31 → 32 (C.62): 감독 신뢰도·면담(manager)과 시즌 기록 선수 이름(statNames). 옛 세이브는 둘 다 없음 → 다음 경기·화면에서 새 팀 시작값으로 만든다
+  31: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

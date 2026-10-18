@@ -1089,6 +1089,12 @@ export interface WorldVM {
 export interface ScorerVM { id: string; teamId?: string; face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
 
 /** 득점 순위 (골 → 도움 → 출전 적은 순). 내 선수는 player.season 에서 */
+/** 리그를 떠난 선수 (C.62, pending 96 ④): 시즌 기록에 저장한 이름의 팀 */
+function statTeam(g: GameState, id: string): string {
+  const t = g.statNames?.[id]?.[1];
+  return t ? g.league.teams.find((x) => x.id === t)?.nameKo ?? '' : '';
+}
+
 export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
   const names = new Map<string, { name: string; team: string; teamId: string; face: FaceRef }>();
   for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
@@ -1097,7 +1103,7 @@ export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
   }
   const rows: ScorerVM[] = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({
     id, ...(names.get(id) ? { teamId: names.get(id)!.teamId } : {}), face: names.get(id)?.face ?? { id },
-    name: names.get(id)?.name ?? id, team: names.get(id)?.team ?? '', apps, goals, assists, avg: apps ? (r10 / apps / 10).toFixed(2) : '-', me: false,
+    name: names.get(id)?.name ?? g.statNames?.[id]?.[0] ?? id, team: names.get(id)?.team ?? statTeam(g, id), apps, goals, assists, avg: apps ? (r10 / apps / 10).toFixed(2) : '-', me: false,
   }));
   const s = g.player.season;
   if (s.apps > 0) rows.push({ id: 'me', teamId: g.player.teamId, face: myFace(g), name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
@@ -1246,7 +1252,7 @@ function seasonAwards(g: GameState): SeasonVM['awards'] {
   const names = new Map<string, { name: string; team: string }>();
   for (const [teamId, r] of Object.entries(g.rosters ?? {})) for (const p of r.players) names.set(p.id, { name: p.nameKo, team: teamById(g.league, teamId)?.nameKo ?? teamId });
   const s = g.player.season;
-  const rows = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({ ...(names.get(id) ?? { name: id, team: '' }), apps, goals, assists, avg: apps ? r10 / apps / 10 : 0, me: false }));
+  const rows = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({ ...(names.get(id) ?? { name: g.statNames?.[id]?.[0] ?? id, team: statTeam(g, id) }), apps, goals, assists, avg: apps ? r10 / apps / 10 : 0, me: false }));
   if (s.apps > 0) rows.push({ name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: s.ratingSum / s.apps, me: true });
   const top = all[0];
   if (top && top.goals > 0) out.push({ title: '득점왕', name: top.name, team: top.team, value: `${top.goals}골`, me: top.me });

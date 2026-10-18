@@ -13,7 +13,7 @@ import {
   CLUB_TO_TEAM, createLeague, initialTeams, leaguePosition, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById,
   type Fixture, type LeagueState,
 } from './league';
-import { simulateMatch, startProbability, type MatchResult } from './match';
+import { simulateMatch, type MatchResult } from './match';
 import { fatigueFromDistance, MY_ID, playMyMatch, type EngineMatchInput, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
 import { SCENE_LABEL, type ControlMode, type DecisionRecord, type MomentControl, type StopLevel } from './engine/moments';
 import { formBonus, pushRating } from './form';
@@ -23,7 +23,7 @@ import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
-  assignShirts, createRosters, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+  assignShirts, createRosters, findRosterPlayer, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
@@ -31,7 +31,7 @@ import { awardBadges } from './badges';
 import { randomName } from './prospect';
 import { clampWeakFoot, realBody, rollBody, type Body, type WeakFoot } from './body';
 import { judgeEvergreen, judgeLateBloomer, judgeNatural, lateBloomerSkip, tagChangeLine, type NaturalInput, type TagChange } from './careerTags';
-import { naturalForm, startBonus, storyForm, storyRepMul, storyXpMul, tagHas } from './tags';
+import { naturalForm, storyForm, storyRepMul, storyXpMul, tagHas } from './tags';
 import { agingMul, bigGameForm, cardMul, formMul, picksToTags, recoveryMul, rollTags, seasonRemovals, xpMul, type PlayerTag, type TagPick, type Tagged } from './tags';
 import { derbyOf } from './derby';
 import { CUSTOM_HIDDEN_TAGS, customBudget, spentPoints, validCustom } from './custom';
@@ -47,6 +47,7 @@ import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositio
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
+import { afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, upsetForm, type ManagerState } from './manager';
 import { afterMatch, cardInput, grantLevelPicks, grantSeasonPick, initCollection, type CardCollection } from './cardCollection';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
@@ -65,7 +66,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 31;
+export const SAVE_FORMAT_VERSION = 32;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -219,6 +220,10 @@ export interface GameState {
   nameOverrides: NameOverrides;
   /** 사용자가 바꾼 도트 아이콘 (부록 C.45): 선수 id → 피부·머리, 팀 id(대표팀 `n:<국가>`) → 홈·원정 유니폼. 바꾼 것만. 겉모습만(경기 결과·시드 영향 없음) */
   pixelOverrides?: PixelOverrides;
+  /** 감독 신뢰도·면담 (18.2·18.3, 부록 C.62). 없거나 팀이 다르면 ensureManager 가 새로 만든다 */
+  manager?: ManagerState;
+  /** 이번 시즌 기록이 있는 선수 이름·팀 (C.62, pending 96 ④): 리그를 떠난 선수도 시상·득점 순위에 이름이 나오게. [한글 이름, 팀 id] */
+  statNames?: Record<string, [string, string]>;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -233,6 +238,8 @@ export interface SeasonArchive {
   players: Record<string, PlayerTotals>;
   /** 최종 순위 (팀 id, 승점, 득실) */
   table: [string, number, number][];
+  /** 선수 이름·팀 (C.62). 옛 기록에는 없다 */
+  names?: Record<string, [string, string]>;
 }
 
 /** 선수 시즌 합계: [출전, 골, 도움, 평점 합 ×10, 출전 분(C.42, 이적 점수의 출전 시간 비율. 옛 기록에는 없다)] */
@@ -639,6 +646,10 @@ function addPlayerLines(state: GameState, res: NpcMatchResult): void {
   const st = (state.playerStats ??= {});
   for (const [id, min, g, a, r10] of res.players) {
     if (id === MY_ID) continue;
+    if (!st[id]) {
+      const f = findRosterPlayer(state.rosters, id);
+      if (f) (state.statNames ??= {})[id] = [f.player.nameKo, f.teamId];
+    }
     const t = (st[id] ??= [0, 0, 0, 0, 0]);
     t[0]++; t[1] += g; t[2] += a; t[3] += r10;
     t[4] = (t[4] ?? 0) + min;
@@ -937,7 +948,7 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   }
   const raw = planXp(kind);
   if (raw > 0) {
-    const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp * xpMul(p, true));
+    const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp * xpMul(p, true) * trainingXpMul(state, date));
     res.xp = gained;
     if (whole > 0) addXp(p, whole);
     p.season.trainingXp = (p.season.trainingXp ?? 0) + whole;
@@ -1049,6 +1060,8 @@ export function endDay(state: GameState): TrainingDayResult {
   state.calendar.date = addDays(ended, 1);
   // 이적 (C.42): 1월 1일 이적 명단 제안, 1월 31일 끝 NPC 겨울 이적시장
   onDayEnd(state, ended);
+  // 감독 (C.62): 낮은 신뢰 기간, 열린 면담
+  managerDayEnd(state);
   return r;
 }
 
@@ -1113,7 +1126,8 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const available = !injured && !suspended;
   // 1군 테스트 중 (C.45 10번)이면 출전 보장 (같은 난수를 써서 테스트가 없을 때 결과는 그대로)
   const startRoll = rng();
-  const started = available && (!!state.trial || startRoll < startProbability(ovr + startBonus(player, player.teamId), myTeam.rating, fatigue));
+  // 선발 점수 (18.2, C.62): 태그 + 감독 신뢰도 + 폼, 면담 보상 (startChance)
+  const started = available && (!!state.trial || startRoll < startChance(state, ovr, myTeam.rating, fatigue));
   const minutes = started ? 90 : available && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
   let preInjury: Injury | null = null;
@@ -1145,7 +1159,7 @@ function matchForm(state: GameState): number {
   const story = fx ? storyForm(p, p.teamId, fx.opponentId, state.league.season, p.season.apps) : 0;
   const former = fx ? (state.market?.moves ?? []).some((m) => !m.loan && !m.back && m.from === fx.opponentId) : false;
   const betrayed = !!fx && p.tags.some((t) => t.id === 'traitor' && t.from === fx.opponentId);
-  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0);
+  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0) - upsetForm(state);
 }
 
 /** 부상 판정용 경기 시점: 시즌·라운드(1부터)·날짜·최종 라운드까지 남은 날 */
@@ -1214,7 +1228,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
         ovr, position: player.position, fatigue: player.fatigue,
         teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
         formBonus: form, injured: injured || suspended, ...(state.trial ? { forceStart: true } : {}),
-        ...(startBonus(player, player.teamId) ? { startBonus: startBonus(player, player.teamId) } : {}),
+        startP: startChance(state, ovr, myTeam.rating, player.fatigue),
       },
       rngFor(seed, 'match', league.season, roundIdx),
     );
@@ -1291,6 +1305,11 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     ...(decisions.length ? { dec: decisions.map((d) => ({ m: d.minute, scene: SCENE_LABEL[d.scene], label: d.label, r: d.seen?.result ?? d.result, d: Math.round(d.delta * 100) / 100, ...(d.card ? { card: d.card } : {}) })) } : {}),
   });
   afterTeamMatch(player, result.minutes, pos);
+  // 감독 신뢰도 (18.2, C.62): 출전 경기만 (부상·정지·벤치 결장은 변화 없음)
+  afterMyMatch(state, {
+    minutes: result.minutes, started: result.started, rating: result.rating, goals: result.goals, assists: result.assists, outcome: result.outcome,
+    yellows: cards?.yellows ?? 0, red: !!cards?.red, injured, suspended, slotOvr: ovr, bestOvr: bestPosition(state).ovr,
+  });
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
@@ -1379,7 +1398,7 @@ function archiveSeason(state: GameState): SeasonArchive {
     results.push(f.g?.length ? [r + 1, f.home, f.away, f.homeGoals, f.awayGoals!, f.g] : [r + 1, f.home, f.away, f.homeGoals, f.awayGoals!]);
   }));
   return {
-    season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {},
+    season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {}, ...(state.statNames ? { names: state.statNames } : {}),
     table: sortedTable(state.league).map((row) => [row.teamId, row.points, row.gf - row.ga]),
   };
 }
@@ -1690,6 +1709,9 @@ export function startNextSeason(state: GameState): void {
   state.training.restStreak = 0;
   state.training.formPenalty = 0;
   state.playerStats = {};
+  state.statNames = {};
+  // 감독 (C.62): 신뢰도는 같은 팀이면 이어 가고, 열린 면담·낮은 신뢰 기간은 새 시즌에 다시 센다
+  if (state.manager) Object.assign(state.manager, { meeting: null, lowSince: null, posStreak: 0 });
   state.lastMatch = undefined;
   state.phase = 'season';
 }

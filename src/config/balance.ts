@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 38;
+export const BALANCE_VERSION = 39;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1131,6 +1131,52 @@ export const BALANCE = {
      * 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 둘 중 하나면 재계약 실패·방출
      */
     renew: { depth: 2, gap: 14, allPlayers: false },
+  },
+
+  // ── 감독 신뢰도·면담 (18.2·18.3, 부록 C.62) ──
+  manager: {
+    /** 새 팀 시작 = 50 + (주 포지션 OVR − 팀 레이팅) × startPerOvr, [startMin, startMax]. 그 뒤 0~100 */
+    start: 50, startPerOvr: 1, startMin: 40, startMax: 60,
+    /** 출전 경기: 평점 ≥ ratingHigh +ratingDelta, < ratingLow −ratingDelta (교체 출전은 절반). 골·도움 각 +1, 승 +1 / 패 −1, 경고 −1, 퇴장 −5 */
+    ratingHigh: 7.0, ratingLow: 6.0, ratingDelta: 2, goal: 1, assist: 1, win: 1, loss: 1, yellow: 1, red: 5,
+    /** 골·도움 합 경기당 상한 (해트트릭 한 경기로 신뢰도가 튀지 않게) */
+    involvementMax: 3,
+    /** 감독 기억 감쇠: 출전 경기마다 신뢰도가 50 쪽으로 이만큼 (비율) 돌아온다 (오래된 인상은 옅어짐, 추천안) */
+    reversion: 0.04,
+    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) − 피로 70 이상 fatigueMinus (화면 분해) */
+    trustPerPoint: 0.06, formScale: 5, formMax: 1.5, fatigueFrom: 70, fatigueMinus: 2,
+    /** 경쟁자 (NPC) 신뢰도 고정 */
+    npcTrust: 60,
+    /** 홈 "최근 신뢰도 변화" 줄 수 */
+    logMax: 5,
+    /** 감독 성향 (data/managers.ts): 21세 이하 시작 +youthStart, 내려갈 때 × strictDown, 모든 변화 × steadyMul */
+    styles: { youthStart: 5, youthAge: 21, strictDown: 1.25, steadyMul: 0.8 },
+    /** 이적 요청 (C.42 훅): 신뢰도가 이 값 미만이면 요청할 수 있다 (또는 위상이 팀 수준을 넘을 때, 또는 낮은 신뢰 면담에서) */
+    requestBelow: 35,
+    /**
+     * 커리어 태그 효과 (C.62, C.47 표에서 5-1 로 미룬 것): 원클럽맨 하락 × oneClubDown (영원한은 감소분 × 1.5), 문제아 하락 × troublemakerDown,
+     * 컬트 히어로 상승 × cultHeroUp, 친정 선택 그 구단 시작 +homeChoiceStart, 감독 불화 민감 = 신뢰도가 떨어진 경기 다음 경기 폼 −sensitiveForm,
+     * 재계약 판정(커스텀): 저니맨 실패 +journeyRenew, 신뢰도 30 미만 실패 +lowRenew, 신뢰도 80 이상 실패를 highKeep 확률로 뒤집음
+     */
+    tags: { oneClubDown: 0.8, troublemakerDown: 1.2, cultHeroUp: 1.1, homeChoiceStart: 5, sensitiveForm: 0.15, journeyRenew: 0.1, lowRenew: 0.25, highKeep: 0.2 },
+    meeting: {
+      /** 낮은 신뢰 면담: 신뢰도 lowBelow 미만이 lowDays 일 이상, 또는 시즌 중반(라운드 midRound 이상) 선발·출전 시간 비율 minShare 미만 */
+      lowBelow: 30, lowDays: 14, midRound: 19, minShare: 0.4,
+      /** 같은 면담 다시 열리기까지 (일) */
+      lowCooldown: 28,
+      /** 보상 면담: 신뢰도 rewardFrom 이상, 시즌 전반·후반 한 번씩 */
+      rewardFrom: 80,
+      /** 포지션 제안: 고른 슬롯 OVR 이 최고 포지션 OVR 보다 posGap 이상 낮은 채로 posGames 경기 */
+      posGap: 5, posGames: 3,
+      /** 더 노력하겠다: 신뢰도 +effortTrust, effortDays 일 동안 훈련 XP × effortXp */
+      effortTrust: 5, effortDays: 14, effortXp: 1.2,
+      /** 불만 표출: 신뢰도 −complainTrust, complainChance 확률로 감독이 다음 complainGames 경기 기회를 준다 */
+      complainTrust: 5, complainChance: 0.35, complainGames: 2,
+      /** 주전 보장: 다음 startGames 경기 선발 확률 최소 startFloor / 선호 슬롯 보장: 다음 slotGames 경기 무조건 선발 */
+      startGames: 8, startFloor: 0.85, slotGames: 5,
+      /** 포지션 제안을 따르면 */
+      posTrust: 3,
+    },
   },
 } as const;
 

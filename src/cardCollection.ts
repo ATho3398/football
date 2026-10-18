@@ -134,6 +134,13 @@ export function grantLevelPicks(col: CardCollection, level: number, position: st
   }
 }
 
+/** 감독 보상 면담 (C.62): 희귀 3택 1 (덱 슬롯은 이미 14장이라 "덱 슬롯 +1" 대신) */
+export function grantMeetingPick(col: CardCollection, key: string, position: string, seed: string, label: string): void {
+  const rng = createRng(hashSeed(`${seed}:card-meeting:${key}`));
+  const options = drawOptions(poolFor(groupOfPosition(position), ['rare']), col, rng, C.pickOptions);
+  if (options.length) col.picks.push({ source: 'season', label, options });
+}
+
 /** 시즌 종료 보상: 희귀·에픽 3택 1 (F.1 간이 경로). 에픽은 후보마다 seasonEpicChance 확률 */
 export function grantSeasonPick(col: CardCollection, season: number, position: string, seed: string): void {
   const rng = createRng(hashSeed(`${seed}:card-season:${season}`));
