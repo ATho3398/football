@@ -363,3 +363,4 @@
 - (23:12 KST) pending 110(5-7 진행 방식: D.13 코치 효과 = 일일 훈련 배율 추천안, a/b 나누기). **40 C.68 5-7 재정 시작** `session_01BJFn7rnxDx9QopESE9jKpC` "40단계_5-7 재정 (C.68)", 브랜치 `claude/c68-finance`, 태그 `stage:40-C68`. 자동 확인 send_later `trig_01DVpPMxVcaB6aBMvaw6tWhC`(02:11 KST). P 6.4달러·28.8만.
 - 다음: C.68 a·b 보고 → pending 111 → ntfy → UI_3 → **41 5-8 챕터(22번)** → 경기 환경 단계 → 엔진 블록.
 - (23:11 KST) C.67: 비율 가드 2개(레전더리 30세까지·35세)만 반올림 전 판정, 나머지 13개 그대로(30세 무작위 레전더리 83 = 상한 경계라 손대지 않음). UI_3 9차 누계 큰 2·작은 12·단계 2(미달, 다음 단계 큰 것 1개면 보고), claude/ui-3 e8a58d9.
+- (23:31 KST, 사용자) **"가로 고정" 오해** → pending 111. 최우선 fix **C.66b** `session_01PUo6WtyvgyPD5t9whJmLhX` 시작(세로 폰 복구·피치 가로 고정), C.68에 세로 폰 기준·main 병합 알림, UI_3에 디자이너 정정문 요청. 확인 send_later `trig_01W77oXP4yFEUuYrhef2b6vW`(00:43 KST). **이제 모바일 기본 = 세로 폰 + 가로 피치**(8.26 공통 지시의 "가로 전용"은 무효).
