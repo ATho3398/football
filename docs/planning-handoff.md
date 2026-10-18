@@ -355,3 +355,4 @@
 - (18:14 KST) C.66 직접 보고도 옴: 최종 main **97fa3cc**(docs 병합 planning-o·planning-p·ui-3). UI_3: C.66 화면은 정정문(7-8-addendum)으로 이미 요청한 것이라 오른쪽 패널 시트만 작은 1 → 9차 누계 큰 1·작은 5·단계 1(미달, claude/ui-3 8cd901b). C.66 확인 예약 `trig_013NL6fZF2FA7xM6FRgHTcz3` 삭제(완료됨). C.67은 사용자 답 기다림.
 - (18:31 KST, 사용자) "한도 꽉 차서 막힐 때까지 계속 돌려도 돼" → **사용량 경고로 멈추지 않음**(7일 한도 실제로 막힐 때만 멈춤, 리셋 10/20 19:00 KST). 챔스/컵 형식 답 없음 → pending 108 추천안으로 진행. 39 C.67a 시작.
 - (18:31 KST) **39 C.67 5-6 챔스/컵 시작** `session_01YLLnn3Rua9XQAF1kfVmatw` "39단계_5-6 챔스/컵 (C.67)", 브랜치 `claude/c67-cups`, 태그 `stage:39-C67`(a = 대회 틀·일정·간이 계산·FA컵·휴가 예외·가족 우환 결장 / b = 챔스·보상·화면, pending 108, engine-issues-c45 docs 병합 포함). C.66 `draft_`. C.67 자동 확인 send_later `trig_01D1sGBcUB3ZvHPf4nXrgu4B`(21:32 KST). C.66 CI는 C.66 세션이 18:40 KST 확인.
+- (18:41 KST) C.66 CI #194 성공(main 948ad92, 약 32분; 97fa3cc는 docs만이라 배포 실행 없음). 38b C.66 끝.
