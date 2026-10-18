@@ -420,3 +420,4 @@
 - (05:53 KST) **CI #207 성공**(main 20903fe = C.71a 3d57498 + C.72, 05:51 KST 배포, 36분). 41c·41d 끝(C.71a 따로 CI 보고는 아직, #207에 포함).
 - (07:25 KST) **C.73a 완료**(main deeb0fd, 밸런스 48·세이브 40, 테스트 663, balance 19/19, 2시간 9분, 비용 표시 없음) → pending 121, ntfy, UI_3(큰 1·작은 2). 같은 세션에서 b(C.73b) 진행 중. 확인 예약 trig_01G18B6vR5z6R4r1kvnn3LmH(07:47) 유지.
 - (07:48 KST) 자동 확인: C.73a 비용 **11.76달러**(list_events result의 total_cost_usd — get_session엔 안 나옴) > 10달러 → 규칙대로 b는 새 세션. C.73a에 b 시작 금지·CI 확인만 알림. **C.73b** `session_015yFLHowJh5sLRxBHeXzYiX` "42단계_5-8 챕터·속도 조절 b (C.73b)", 브랜치 `claude/c73b-chapters`, 태그 `stage:42-C73b`. 자동 확인 send_later 120분(09:48 KST). 참고: 코드 세션 비용은 list_events kinds=[result]의 total_cost_usd로 확인.
+- (08:06 KST) **C.73a CI #208 성공**(main 4d28608, 약 35분). C.73a 세션 종료(b 안 함), draft_.
