@@ -15,12 +15,16 @@
 
 /** 회귀 가드 (부록 A.1): 지표마다 기대 범위 */
 const CHECK = (globalThis as { process?: { argv: string[] } }).process?.argv.includes('--check') ?? false;
-const checks: { name: string; value: number; min: number; max: number }[] = [];
-/** digits = 반올림 자리 (기본 소수 첫째). 비율 가드는 2 — 첫째 자리면 "25% 이하" 목표에서 정확히 0.25 가 0.3 으로 실패한다 (C.67) */
-function check(name: string, value: number, min: number, max: number, digits = 1): string {
-  const v = Math.round(value * 10 ** digits) / 10 ** digits;
-  checks.push({ name, value: v, min, max });
-  return v >= min && v <= max ? '✓' : '✗';
+const checks: { name: string; value: number; min: number; max: number; ok: boolean }[] = [];
+/**
+ * 표시는 소수 첫째 자리. raw = 반올림 전 값으로 판정 (비율 가드, C.67 마스터 P 판단): 첫째 자리 반올림이면
+ * "25% 이하" 목표에서 정확히 0.25 가 0.3 으로 실패한다
+ */
+function check(name: string, value: number, min: number, max: number, raw = false): string {
+  const v = Math.round(value * 10) / 10;
+  const x = raw ? value : v;
+  checks.push({ name, value: raw ? Math.round(value * 1000) / 1000 : v, min, max, ok: x >= min && x <= max });
+  return x >= min && x <= max ? '✓' : '✗';
 }
 const OVR30_TARGET: Record<Strategy, Partial<Record<Tier, [number, number]>>> = {
   best: { normal: [74, 78], legendary: [84, 88] },
@@ -280,7 +284,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
     const wc = (t: Tier) => perTier(t).filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length / SEEDS_PER_TIER;
     const wc35 = (t: Tier) => perTier(t).filter((r) => (r.repByAge[35] ?? 0) >= 900).length / SEEDS_PER_TIER;
     const marks = strategy === 'best'
-      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2, 2)}${check('레전더리 35세 월드클래스 비율', wc35('legendary'), 0, 0.25, 2)}`
+      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2, true)}${check('레전더리 35세 월드클래스 비율', wc35('legendary'), 0, 0.25, true)}`
       : '';
     console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${med(t).toFixed(0)}`).join(' / ')} · 30세까지 900+ ${TIERS_ASC.map((t) => `${(wc(t) * 100).toFixed(0)}%`).join(' / ')} · 35세 900+ ${TIERS_ASC.map((t) => `${(wc35(t) * 100).toFixed(0)}%`).join(' / ')}${marks}`);
   }
@@ -334,7 +338,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
 
 // ── 회귀 가드 결과 (부록 A.1) ──
 {
-  const failed = checks.filter((c) => c.value < c.min || c.value > c.max);
+  const failed = checks.filter((c) => !c.ok);
   console.log(`\n[회귀 가드] ${checks.length - failed.length}/${checks.length} 통과`);
   for (const c of failed) console.log(`  ✗ ${c.name}: ${c.value} (목표 ${c.min}~${c.max})`);
   if (CHECK && failed.length) (globalThis as { process?: { exit(code: number): never } }).process?.exit(1);
