@@ -315,4 +315,5 @@
 - (09:03 KST) C.58 CI #184 성공(main ffbdba7, 08:58 KST 배포). C.58 끝.
 - (09:04 KST) C.59 완료(main 03c497d, 테스트 504, 28분) → pending 95, C.59 draft_, UI_3 목록. **34p C.60 U5-f 시작** `session_01ECqUooeVvsqKLjYwvW3F2a` "34p단계_U5-f 이적·월드·덱·결과·세이브 (C.60)", 브랜치 `claude/c60-u5f-world`, 태그 `stage:34p-C60`(f1/f2 나눠도 됨). C.59 확인 예약 삭제, C.60 자동 확인 send_later 150분(11:35 KST쯤). O 비용 2.2달러·19만.
 - (09:31 KST) C.59 CI #185 성공(main 03c497d). C.59 끝.
-- 다음: C.60 보고 → pending 96 → ntfy → UI_3 목록 → 34q C.61 U5-g(5-apply U5-g 120~123 + 6-apply 151~153 + B PC 120 + PC 독 순서) → 35 5-1.
+- (10:36 KST) C.60 완료(main a0c216b, 테스트 515, 1시간 31분·12.4달러) → pending 96, C.60 draft_, UI_3 목록. **34q C.61 U5-g 시작** `session_01LYVATgYjkoe29PmPW7wxkK` "34q단계_U5-g PC 2열·B PC (C.61)", 브랜치 `claude/c61-u5g-pc`, 태그 `stage:34q-C61`(포지션 탭·경기 결과 길이 재검토, 2초 테스트 재측정 포함). C.60 확인 예약 삭제, C.61 자동 확인 send_later 150분(13:06 KST쯤).
+- 다음: C.61 보고 → pending 97 → ntfy → UI_3 목록 → 35단계 5-1(감독 데이터로 팀 상세 감독 칸 + 시즌 기록에 득점왕 이름 저장, pending 96 ④) → 36 5-2 → …
