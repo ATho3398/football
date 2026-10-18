@@ -3,7 +3,8 @@
 - **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: P** `session_017ksZs67SVSSPuM3TjfMuPQ` (브랜치 `claude/planning-p`, 2026-10-18 16:58 KST O → P 교체, P는 O가 연 세션, `get_session` 확인). 알림·보고는 P로(send_message). 카톡·ntfy 알림은 마스터 몫.
+- **지금 마스터: Q** `session_01B71wzpzNzdTg4hm7DbNX9H` (브랜치 `claude/planning-q`, 2026-10-19 03:07 KST P → Q 교체, Q는 P가 연 세션, `get_session` 확인). 알림·보고는 Q로(send_message). 카톡·ntfy 알림은 마스터 몫.
+  - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
   - 이전 마스터 M `session_01BTacbWbkVFVE6HVKwxLx3v` (`claude/planning-m`, UI_2를 연 세션).
@@ -11,9 +12,9 @@
 - 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 N에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
 - 푸시: UI_3는 **`claude/ui-3`에만**(main 금지).
 - 현재 차례: **9 → 보고함(2026-10-19 02:00 KST, `docs/ui-requests/9.md`, 캡처 `9/phone`(61)·`9/pc`(38), 기준 main 39d4a86 C.68a) → 디자인 기다림(7차 160~188·8차 189~203·정정 1·2도 대기). 다음 보고는 10차**
-- **통합 1부 디자인 도착**(2026-10-19 03:00 KST): 160~163·165~185·189·190·201 + B 첫 판 20장 → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-9-part1-apply.md` → 마스터 P. **남은 요청**(다음 통합본에 이어서): 2부 191~200·202~217, 3부 나머지 139장 + 라이트 186~188 + 143 [가운데로]. 164 = 201로 대체.
-- **카드 그림**: 그림 없는 카드 59장(일반 44 + 시그니처 15) — 원인 = 파일 미도착(`card-art-missing.md`), 카드 그림 세션용 프롬프트 `card-art-remaining-prompt.txt`.
-- 9차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **0개** (+ 작은 변형 0) (큰 것이 있는 단계: 0)
+- **통합 1부 디자인 도착**(2026-10-19 03:00 KST): 160~163·165~185·189·190·201 + B 첫 판 20장 → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-9-part1-apply.md` → 마스터 P → U7-a C.69(41a단계, `session_012TdmbSD5xD2er3Gn2TtgS7`) 시작, U7-b~d 차례로. **남은 요청**(다음 통합본에 이어서): 2부 191~200·202~217, 3부 나머지 139장 + 라이트 186~188 + 143 [가운데로]. 164 = 201로 대체.
+- **카드 그림**: 61장 도착(2026-10-19 03:12) → `docs/design/incoming/card-art/set61/` + `card-art.json` → 적용 명세 `card-art-set61-apply.md` → 마스터 Q(작은 코드 패치). 그림 없는 카드 15장 남음(프롬프트 `card-art-remaining-prompt.txt`).
+- 9차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **2개** (+ 작은 변형 4) (큰 것이 있는 단계: 1 — C.68b)
 - 7차는 규칙상 미달(큰 1)이었지만 작은 39 + B 다음 판 요청으로 마스터 O와 합의해 U5 끝(C.61) 뒤 보고함.
 - 다음 보고 조건: 6개 이상, 또는 그런 단계 3개 이상, 또는 사용자 화면 불만 → 10차(새로 쌓인 것만)
 
@@ -106,7 +107,8 @@
 
 | 단계(부록 C) | 디자인 없는 새 화면·패널 | 개수 |
 |---|---|---|
-| **9차 뒤 누계** | | **큰 것 0 (+작은 0), 큰 것 있는 단계 0** |
+| C.68b (40 재정 b, main 81b06e4, 2026-10-19 03:06 KST 통보, 마스터 P) | 큰 2: ① 재정 카드 상점 탭 ② 재정 생활·투자 탭 (재정 화면 자체는 9차 206으로 요청함). 작은 4: 재정 탭 줄·순자산 칩 / 은퇴 재정 패널 / 인박스 사치·투자·정산·자선가 / 시즌 목표 챔스 n강·TP 문구. 캡처 `docs/design/c68b-check/`(있으면) | 2 (+작은 4) |
+| **9차 뒤 누계** | | **큰 것 2 (+작은 4), 큰 것 있는 단계 1** |
 
 - 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
 - U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".
