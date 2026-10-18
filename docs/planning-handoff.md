@@ -391,3 +391,4 @@
 - P가 만든 세션 → `lineage` 깊이 6(한도 8). 브랜치 `claude/planning-q`(P 15ce735에서 분기). **Q 교체 때는 사용자에게 R을 앱에서 직접 열어 달라고 요청**(ntfy·카톡 긴급).
 - 시작 처리(03:07 KST): 40 C.68b·41a C.69·UI_3·엔진관리자2에 "보고는 Q, 마스터 브랜치 claude/planning-q" 알림(모두 delivered). P의 C.68b 확인 예약 `trig_01YP7G8fUQmdsKz7cpKUvsv3` 삭제 시도 → not found(이미 없음). 새 자동 확인: C.68b `trig_01VbJ7jLPTR4sxFe9BhTRqCi`, C.69 `trig_01M3Se1JTp2R8ve7BdZ9JU6a`(둘 다 05:37 KST). P 제목 `draft_P_축구 커리어 게임 마스터`(태그 그대로, P 최종 14.3달러·47.9만). 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음). rate limit `seven_day` allowed_warning(사용자 선호대로 멈추지 않음).
 - 다음: 8.28 순서 그대로(C.68b 보고 → pending 115 → ntfy → UI_3 → C.69 보고 → U7-b·c·d → 42 5-8 챕터 …).
+- (03:07 KST) UI_3 교체 확인(claude/ui-3 21b1e72 "지금 마스터: Q"). 10차 누계 0. 디자인 대기: 2부 191~200·202~217, 3부 139장+라이트 186~188, 카드 그림 59장(card-art-missing.md). 단계 끝날 때마다 UI_3에 "디자인 없는 새 화면 목록" 보낼 것.
