@@ -130,7 +130,7 @@ describe('훈련·일정 (디자인 91·92·150)', () => {
 describe('자동 진행 (디자인 61~64) · 새 기능 안내 (65)', () => {
   it('시트: 경기 수 칩 · 직접 입력 · 아직 없는 대회는 잠긴 칩 묶음 · 아래 큰 버튼', () => {
     const vm = { remaining: 37, quick: [1, 3, 5, 10], date: '8월 13일 (월)', targets: [
-      { id: 'derby', label: '더비', available: true, next: { date: '9월 1일 (토)', text: '아스널전', before: 2, round: 3, left: 2 } },
+      { id: 'derby', label: '더비', available: true, next: { date: '9월 1일 (토)', iso: '2018-09-01', text: '아스널전', before: 2, left: 2 } },
       { id: 'a', label: '국가대표 A매치', available: false, next: null },
     ] };
     const h = autoSheet(vm, 5);
@@ -141,7 +141,7 @@ describe('자동 진행 (디자인 61~64) · 새 기능 안내 (65)', () => {
   });
   it('레이어 카드: n / m경기 · 최근 결과 · 순위·쌓인 포인트 · 중단', () => {
     expect(autoLayerHtml()).toContain('auto-layer__results');
-    const r = autoResultsHtml([{ round: 2, opp: '풀럼', gf: 3, ga: 1, rating: 7.4 }, { round: 3, opp: '맨유', gf: 0, ga: 1, rating: 6.3 }]);
+    const r = autoResultsHtml([{ label: '2R', opp: '풀럼', gf: 3, ga: 1, rating: 7.4 }, { label: '3R', opp: '맨유', gf: 0, ga: 1, rating: 6.3 }]);
     expect(r).toContain('3-1 승');
     expect(r).toContain('0-1 패');
   });

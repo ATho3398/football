@@ -17,7 +17,7 @@ function cmpRow(label: string, own: string, opp: string): string {
 
 export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}): string {
   const hero = HeroPanel({
-    title: '경기 결과', right: `리그 ${vm.round}R`, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
+    title: '경기 결과', right: vm.comp, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
     eyebrow: `${vm.opp}전 ${vm.scoreLine} ${vm.outcomeKo} · 내 평점`,
     value: vm.rating === null ? '-' : vm.rating.toFixed(1), pad: false, progress: false,
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),

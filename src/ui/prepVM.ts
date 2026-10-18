@@ -7,7 +7,7 @@ import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
 import { derbyOf } from '../derby';
 import { formBonus, formLevel } from '../form';
-import { myMatchPosition, nextFixture, type GameState } from '../game';
+import { matchCompLabel, myMatchPosition, nextFixture, type GameState } from '../game';
 import { leaguePosition, teamById, type LeagueState } from '../league';
 import { startChance } from '../manager';
 import { proficientOvr } from '../proficiency';
@@ -97,7 +97,7 @@ export function prepVM(g: GameState): PrepVM | null {
   const b = formBonus(p.recentRatings);
   return {
     date: dateLabel(g.calendar.date),
-    comp: `리그 ${Math.min(L.round + 1, L.schedule.length)}R`,
+    comp: matchCompLabel(g, fx),
     home: fx.home,
     derby: d ? { name: d.name, big: d.big } : null,
     my: team(my.id, my.rating, my.nameKo, myTacticVM(g)),

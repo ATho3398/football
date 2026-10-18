@@ -2,7 +2,8 @@
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
 import { bodySection, tagsSheet } from './views/body';
-import { buyWeakFoot, choosePreset, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
+import { buyWeakFoot, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
+import { COMP_NAMES_KO, type CompId } from '../cups';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
@@ -18,7 +19,7 @@ import {
   acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
   startNextSeason, todaysOthers, type GameState,
 } from '../game';
-import { addDays, dateLabel } from '../calendar';
+import { addDays, dateLabel, daysBetween } from '../calendar';
 import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
 import { gaugeSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet, weekPreview } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
@@ -296,9 +297,9 @@ const saveLog: number[] = [];
 (globalThis as unknown as { __game: () => GameState | null }).__game = () => ui.game;
 
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
-async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number } }): Promise<void> {
+async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string } }): Promise<void> {
   const { season, round } = rep;
-  const label = `${round}R ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const label = `${rep.cup ? `${COMP_NAMES_KO[rep.cup.comp]} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
@@ -977,14 +978,14 @@ async function startPlay(g: GameState): Promise<void> {
  * 진행 중에는 화면을 다시 그리지 않고 지금 화면 위 반투명 레이어의 글자만 바꾼다. [중단]은 그날(경기 포함)까지 끝내고 멈춘다.
  * 응답이 필요한 일(이적 제안·재계약)이 생기면 멈춘다
  */
-async function autoRun(g: GameState, opts: { matches: number; untilRound?: number }): Promise<void> {
+async function autoRun(g: GameState, opts: { matches: number; untilDate?: string }): Promise<void> {
   if (ui.busy || g.phase !== 'season') return;
   if (marketPending(g)) return pendingStop(g);
   ui.busy = true;
   ui.stopReq = false;
   ui.toast = null;
   render();
-  const total = Math.max(0, opts.untilRound !== undefined ? opts.untilRound - g.league.round : opts.matches);
+  const total = Math.max(0, opts.matches);
   const layer = openAutoLayer();
   const t0 = performance.now();
   const startRound = g.league.round;
@@ -1000,7 +1001,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilRound?: numbe
   };
   const update = () => {
     const fx = isMatchDay(g) ? nextFixture(g) : null;
-    const what = fx ? `리그 ${g.league.round + 1}R ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : '훈련일 진행 중';
+    const what = fx ? `${matchCompLabel(g, fx)} ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : '훈련일 진행 중';
     updateAutoLayer(layer, { n: played, m: total, meta: `${dateLabel(g.calendar.date)} · ${what}`, lines, rank: myRow(), pts: Math.max(0, g.player.unspentPoints - pts0) });
   };
   try {
@@ -1008,9 +1009,11 @@ async function autoRun(g: GameState, opts: { matches: number; untilRound?: numbe
       if (g.phase !== 'season') { reason = 'season'; break; }
       if (marketPending(g)) { reason = 'market'; break; }
       // 중요 경기까지면 그 경기 날(경기 전)까지 날을 넘긴다
-      if (opts.untilRound === undefined && played >= total) break;
+      if (opts.untilDate === undefined && played >= total) break;
       const match = isMatchDay(g);
-      if (match && opts.untilRound !== undefined && g.league.round >= opts.untilRound) {
+      // 중요 경기 날 (C.67: 리그 라운드 대신 날짜 — 컵 경기도 같은 방식). 그 날짜를 지났으면(그 경기가 없어졌으면) 거기서 멈춘다
+      const until = opts.untilDate !== undefined && daysBetween(opts.untilDate, g.calendar.date) >= 0;
+      if (until && (match || daysBetween(opts.untilDate!, g.calendar.date) > 0)) {
         // 중요 경기 직전: 그날 다른 경기는 미리 계산해 두고 멈춘다
         await runOthersToday(g);
         reason = 'until';
@@ -1026,7 +1029,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilRound?: numbe
         const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
         const rep = playRound(g, { engineOut: out });
         played++;
-        lines.push({ round: rep.round, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
+        lines.push({ label: rep.cup ? rep.cup.stage : `${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
         results.push(rep.result.goalsFor > rep.result.goalsAgainst ? 'W' : rep.result.goalsFor < rep.result.goalsAgainst ? 'L' : 'D');
       } else {
         endDay(g);
@@ -2443,17 +2446,17 @@ app.addEventListener('click', (ev) => {
     case 'auto-run': {
       if (!g || g.phase !== 'season' || ui.busy) return;
       const inp = document.getElementById('auto-n') as HTMLInputElement | null;
-      const n = Math.max(1, Math.min(g.league.schedule.length - g.league.round, Math.floor(Number(inp?.value) || ui.autoCount)));
+      const n = Math.max(1, Math.min(autoSheetVM(g).remaining, Math.floor(Number(inp?.value) || ui.autoCount)));
       ui.autoCount = n;
       ui.autoSheet = false;
       void autoRun(g, { matches: n });
       return;
     }
     case 'auto-until': {
+      // data-v = 그 경기 날짜, data-n = 그 전까지 치를 경기 수 (C.67)
       if (!g || g.phase !== 'season' || ui.busy || v === undefined) return;
-      const r = Number(v);
       ui.autoSheet = false;
-      void autoRun(g, { matches: r - g.league.round, untilRound: r });
+      void autoRun(g, { matches: Number(el.dataset.n) || 0, untilDate: v });
       return;
     }
     case 'season-tab': {

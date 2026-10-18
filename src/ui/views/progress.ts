@@ -14,13 +14,13 @@ export function autoSheet(vm: AutoSheetVM, count: number): string {
   const open = vm.targets.filter((t) => t.available);
   const locked = vm.targets.filter((t) => !t.available);
   const targets = open.map((t) => {
-    if (!t.next) return `<div class="auto-target is-off"><span class="auto-target__icon">${Icon({ name: 'star', size: 18 })}</span><span class="auto-target__main"><b>${esc(t.label)}</b><small>이번 시즌에 남은 경기가 없어요</small></span></div>`;
+    if (!t.next) return `<div class="auto-target is-off"><span class="auto-target__icon">${Icon({ name: 'star', size: 18 })}</span><span class="auto-target__main"><b>${esc(t.label)}</b><small>${esc(t.note ?? '이번 시즌에 남은 경기가 없어요')}</small></span></div>`;
     const x = t.next;
     const desc = `${x.date} · ${x.text} · ${x.before ? `그 전까지 ${x.before}경기` : '다음 경기가 바로 이 경기예요'}`;
     const body = `<span class="auto-target__icon">${Icon({ name: 'star', size: 18 })}</span><span class="auto-target__main"><b>${esc(t.label)}</b><small>${esc(desc)}</small></span>${
       x.before ? `<span class="auto-target__n po-num">${x.before}경기</span>` : ''}<i class="radio" aria-hidden="true"></i>`;
     return x.before
-      ? `<button type="button" class="auto-target" data-act="auto-until" data-v="${x.round}">${body}</button>`
+      ? `<button type="button" class="auto-target" data-act="auto-until" data-v="${esc(x.iso)}" data-n="${x.before}">${body}</button>`
       : `<div class="auto-target is-off">${body}</div>`;
   }).join('');
   const lockBox = locked.length
@@ -49,11 +49,11 @@ export function autoLayerHtml(): string {
 }
 
 /** 레이어 한 줄 결과 (최근 2경기) */
-export interface AutoResultLine { round: number; opp: string; gf: number; ga: number; rating: number | null }
+export interface AutoResultLine { label: string; opp: string; gf: number; ga: number; rating: number | null }
 
 export function autoResultsHtml(list: AutoResultLine[]): string {
   return list.slice(-2).map((r) => {
     const o = r.gf > r.ga ? ['win', '승'] : r.gf < r.ga ? ['loss', '패'] : ['draw', '무'];
-    return `<li><span class="po-num">${r.round}R</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num">${r.gf}-${r.ga} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
+    return `<li><span class="po-num">${esc(r.label)}</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num">${r.gf}-${r.ga} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
   }).join('');
 }

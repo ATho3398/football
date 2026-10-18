@@ -29,7 +29,7 @@ export function dateLabel(d: IsoDate, withYear = false): string {
 }
 
 /** 그 날짜와 가장 가까운 토요일 */
-function nearestSaturday(d: IsoDate): IsoDate {
+export function nearestSaturday(d: IsoDate): IsoDate {
   const w = weekday(d);
   const back = (w + 1) % 7; // 토요일까지 거꾸로
   return back <= 3 ? addDays(d, -back) : addDays(d, 7 - back);

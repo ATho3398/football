@@ -3,7 +3,7 @@
 import { BALANCE } from './config/balance';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
-import { OUTSIDE_CLUBS } from '../data/outsideClubs';
+import { CLUB_BY_ID, OUTSIDE_CLUBS } from '../data/outsideClubs';
 
 export interface Team {
   id: string;
@@ -135,8 +135,11 @@ export function buildSchedule(teamIds: string[], rng: Rng): Fixture[][] {
 
 export function teamById(league: LeagueState, id: string): Team {
   const t = league.teams.find((x) => x.id === id);
-  if (!t) throw new Error(`unknown team: ${id}`);
-  return t;
+  if (t) return t;
+  // 컵·챔스 상대 (C.67): 리그 밖 클럽은 고정 레이팅
+  const c = CLUB_BY_ID[id];
+  if (!c) throw new Error(`unknown team: ${id}`);
+  return { ...c, baseRating: c.rating };
 }
 
 /** 포아송 난수 (Knuth) */

@@ -46,3 +46,17 @@ export const OUTSIDE_CLUBS: readonly OutsideClub[] = [
 ];
 
 export const OUTSIDE_BY_ID: Readonly<Record<string, OutsideClub>> = Object.fromEntries(OUTSIDE_CLUBS.map((c) => [c.id, c]));
+
+/**
+ * 컵 전용 클럽 (C.67a): 이적 목적지가 아니고 컵 경기에만 나온다 (OUTSIDE_CLUBS 에 넣으면 NPC 이적 결과가 바뀐다).
+ * FA컵 하부 가상 12팀 = 리그 밖 잉글랜드 클럽 11 + 이 목록
+ */
+export const CUP_ONLY_CLUBS: readonly OutsideClub[] = [
+  { id: 'x:swa', name: 'Swansea City', nameKo: '스완지 시티', rating: 64 },
+];
+
+/** FA컵 하부 가상 팀 (리그 밖 잉글랜드 클럽, 레이팅 순) */
+export const FA_CUP_EXTRA: readonly string[] = ['x:avl', 'x:wba', 'x:lee', 'x:sto', 'x:der', 'x:mid', 'x:nor', 'x:bri', 'x:not', 'x:swa', 'x:ipw', 'x:wig'];
+
+/** 경기에 나올 수 있는 리그 밖 클럽 전체 (이름·레이팅 조회) */
+export const CLUB_BY_ID: Readonly<Record<string, OutsideClub>> = Object.fromEntries([...OUTSIDE_CLUBS, ...CUP_ONLY_CLUBS].map((c) => [c.id, c]));

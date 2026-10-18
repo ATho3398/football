@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 43;
+export const BALANCE_VERSION = 44;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1198,6 +1198,8 @@ export const BALANCE = {
     messageCooldown: 21,
     /** 효과 상한 (이벤트 1개당, 20.7 1번): 위상 ±rep, 신뢰도 ±trust. 돈은 5-7 재정 전이라 효과 없음 */
     caps: { rep: 5, trust: 10 },
+    /** 가족 우환 "가족 곁으로" 휴가 (pending 102 ⑨, C.67a): 이 날수 동안 경기 결장·훈련 없음(휴가 회복) */
+    familyLeaveDays: 5,
     /** 이벤트 폼 보정 상한 (다음 n경기, 경기 입력) */
     formMax: 0.2,
     /** 인박스 최대 (오래된 읽은 것부터 지움) */
@@ -1319,6 +1321,27 @@ export const BALANCE = {
     raceRounds: [10, 20, 30] as readonly number[],
     /** 세이브 상한: 최근 fullSeasons 시즌은 전체 기록, 그 앞 시즌은 선수 기록을 득점·도움·평점 상위 keepTop 명씩 + 내 팀 선수만, 다른 경기 득점 기록(g)은 지운다 */
     archive: { fullSeasons: 3, keepTop: 20 },
+  },
+  /**
+   * 챔스/컵 (18.7, pending 108, 부록 C.67). 국내 컵(FA컵) = 단판 녹아웃 32팀(리그 20 + 하부 가상 12).
+   * 단계 날짜 = 목표일([다음 해?, 월, 일])에 가장 가까운 토요일부터 찾아, 리그 경기와 minGap 일 이상 떨어진 첫 날 (토·일 → 그 주 화·수 → 앞뒤 주)
+   */
+  cups: {
+    fa: {
+      stages: [[1, 1, 5], [1, 1, 26], [1, 3, 16], [1, 4, 13]] as [number, number, number][],
+      /** 결승 = 리그 최종 라운드 + finalAfter 일 (토요일) */
+      finalAfter: 6,
+    },
+    /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */
+    minGap: 3, minGapLoose: 2,
+    /** 승부차기 간이 판정: 홈(또는 첫 팀) 승률 = 0.5 + 레이팅 차 × ratingK, [min, max] */
+    pens: { ratingK: 0.01, min: 0.3, max: 0.7 },
+    /** 내 팀 없는 경기 득점자 가중치 (포지션군), 도움 확률·가중치 */
+    scorerWeight: { GK: 0, CB: 0.6, FB: 0.5, CDM: 0.6, CM: 1.4, CAM: 2.6, WING: 3, ST: 5 },
+    assistChance: 0.72,
+    /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
+    squadTop: 14,
+    assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
   },
 } as const;
 

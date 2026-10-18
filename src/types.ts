@@ -112,6 +112,8 @@ export interface SeasonStats {
   recApps?: number;
   /** 시즌 시작 레벨 (C.44 시즌 종료 화면). C.44 이전 시즌에는 없다 */
   startLevel?: number;
+  /** 컵·챔스 경기 기록 (C.67, 리그 기록과 따로). 없으면 컵 출전 없음 */
+  cup?: { apps: number; goals: number; assists: number; ratingSum: number };
 }
 
 /** 시즌 종료 시 저장되는 기록 */

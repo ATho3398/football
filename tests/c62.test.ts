@@ -259,7 +259,7 @@ describe('화면·세이브 (C.62)', () => {
     addTrust(g, 5, '테스트');
     const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(35);
+    expect(SAVE_FORMAT_VERSION).toBe(36);
     expect(back.manager).toEqual(g.manager);
     // 옛 세이브 (31): manager 없음 → 새 팀 시작값
     const old = JSON.parse(serialize(g));

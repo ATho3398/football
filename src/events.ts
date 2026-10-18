@@ -58,7 +58,9 @@ export type Effect =
   | { next: string; days: number }
   | { captain: boolean }
   /** 생활 지표 (b, life.ts) */
-  | { life: LifeKey; add: number };
+  | { life: LifeKey; add: number }
+  /** 가족 휴가 (C.67a): BALANCE.events.familyLeaveDays 일 동안 경기 결장·훈련 없음 */
+  | { leave: true };
 
 export interface EventChoice {
   id: string;
@@ -120,6 +122,8 @@ export interface EventsState {
   off?: boolean;
   /** 확인한 이적 기록 수 (같은 포지션 영입 감지) */
   tx: number;
+  /** 가족 휴가 (C.67a, pending 102 ⑨): 이 날 전까지 경기 결장·훈련 없음. 없으면 휴가 아님 */
+  leave?: IsoDate | null;
 }
 
 export function ensureEvents(state: GameState): EventsState {
@@ -288,6 +292,10 @@ export function applyEffects(state: GameState, effects: readonly Effect[], why: 
     } else if ('life' in e) {
       // 숨은 지표라 결과 문장에 숫자를 보이지 않는다
       addLife(state, e.life, e.add);
+    } else if ('leave' in e) {
+      const days = BALANCE.events.familyLeaveDays;
+      ev.leave = addDays(state.calendar.date, days);
+      out.push(`${days}일 휴가 · 그동안 경기 결장`);
     }
   }
   return out;
@@ -470,4 +478,10 @@ export function eventsSeasonEnd(state: GameState): void {
 export function eventsCloseOffseason(state: GameState): void {
   for (const it of state.inbox?.items ?? []) if (isPending(it) && it.due) it.due = state.calendar.date;
   expire(state, state.calendar.date);
+}
+
+/** 가족 휴가 중인 날인지 (C.67a): 그날 경기 결장, 훈련 대신 휴가 */
+export function onLeave(state: GameState, date: IsoDate): boolean {
+  const l = state.events?.leave;
+  return !!l && daysBetween(date, l) > 0 && daysBetween(state.calendar.date, date) >= 0;
 }

@@ -302,6 +302,9 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 34 → 35 (C.65): 시즌 목표(goals). 옛 세이브는 없음 → 시즌 중이면 다음 화면·경기에서 이번 시즌 목표를 만든다 (지금까지 기록으로 진행 표시)
   34: () => {},
+  // 35 → 36 (C.67a): 컵 대진(cups)·가족 휴가(events.leave)·컵 기록(season.cup). 옛 세이브는 없음 → 다음 하루 진행 때 이번 시즌 FA컵을 만든다
+  // (32강 날짜가 이미 지났으면 이번 시즌은 컵 없음, 다음 시즌부터)
+  35: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;
