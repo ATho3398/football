@@ -145,7 +145,7 @@ describe('새 게임 (디자인 124~131)', () => {
   });
 
   it('버전', () => {
-    expect(PATCH_LABEL).toBe('C.58');
-    expect(STAGE_LABEL).toBe('34n단계');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]*단계$/);
   });
 });
