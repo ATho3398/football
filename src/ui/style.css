@@ -2245,3 +2245,13 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .chapter-honors .po-chip { max-width: 100%; }
 .chapter-honors .po-chip__label { overflow-wrap: anywhere; word-break: keep-all; }
 .chapter-hl .kv b { text-align: right; overflow-wrap: anywhere; word-break: keep-all; }
+
+/* 기본 사진 줄 (C.73c): 인종 4장 썸네일, 고른 장 라임 테두리 */
+.ng-photos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 10px; }
+.ng-photo { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; border: 2px solid transparent; border-radius: var(--radius-md, 12px); background: var(--surface-1); color: var(--ink); cursor: pointer; min-width: 0; }
+.ng-photo img { width: 100%; max-width: 88px; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-sm, 8px); background: var(--surface-2, var(--surface-1)); }
+.ng-photo small { font-size: 12px; font-weight: 700; }
+.ng-photo.is-on { border-color: var(--brand); }
+.ng-photo.is-on small { color: var(--brand-ink, var(--brand)); }
+.ng-looks { display: flex; flex-direction: column; gap: 4px; }
+.ng-looks .cu-chips { margin-bottom: 4px; }

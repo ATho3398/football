@@ -1,9 +1,10 @@
 // 커스텀 생성 화면 (pending 47 2·49 1, 부록 C.45 → C.58 디자인 124~129 6단계). 새 게임의 세 번째 시작 방식.
-// 단계: 기본(이름·나이·포지션) → 몸(키·몸무게·주발·약발) → 외모(국적·외모군·도트 머리) → 태그 → 능력치 배분 → 시작(소속·옵션)
+// 단계: 기본(이름·나이·포지션) → 몸(키·몸무게·주발·약발) → 외모(국적·인종·기본 사진·도트 머리, C.73c) → 태그 → 능력치 배분 → 시작(소속·옵션)
 
 import { Avatar, Banner, Button, esc, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
 import { ALL_KITS, personOf } from '../../pixel';
-import { pixelLayerUrls } from '../faces';
+import { defaultPhotoSrc, pixelLayerUrls } from '../faces';
+import type { FacePhoto } from '../../identity';
 import { peopleTable, pixelIconHtml } from '../pixelIcons';
 import type { CustomVM } from '../customVM';
 import { attrGrid } from './attrGrid';
@@ -14,6 +15,12 @@ const sgn = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0')
 
 function chips(k: string, items: { id: string; label: string; on: boolean; sub?: string; disabled?: boolean }[]): string {
   return `<div class="cu-chips">${items.map((it) => `<button type="button" class="cu-chip${it.on ? ' is-on' : ''}" data-act="cu" data-k="${k}" data-v="${esc(it.id)}"${it.disabled ? ' disabled' : ''}>${esc(it.label)}${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</button>`).join('')}</div>`;
+}
+
+/** 기본 사진 줄 (C.73c): 4장 썸네일, 고른 장 라임 테두리. act·k 는 커스텀(cu, photo) / 랜덤(form, photo) */
+export function photoRow(act: string, k: string, photos: readonly { id: FacePhoto; ko: string }[], on: FacePhoto): string {
+  return `<div class="ng-photos" role="radiogroup" aria-label="기본 사진">${photos.map((p) =>
+    `<button type="button" class="ng-photo${p.id === on ? ' is-on' : ''}" role="radio" aria-checked="${p.id === on}" data-act="${act}" data-k="${k}" data-v="${p.id}"><img src="${esc(defaultPhotoSrc(p.id))}" alt="" loading="lazy" decoding="async"><small>${esc(p.ko)}</small></button>`).join('')}</div>`;
 }
 
 export const CUSTOM_STEPS = ['기본', '몸', '외모', '태그', '능력치', '시작'] as const;
@@ -53,7 +60,8 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
   } else if (st === 3) {
     body = `${SectionTitle({ title: '국적' })}
     <label class="field"><select id="cu-nat" class="cu-select">${vm.nationalities.map((n) => `<option value="${esc(n.id)}"${n.id === vm.nationality ? ' selected' : ''}>${esc(n.ko)}</option>`).join('')}</select></label>
-    ${SectionTitle({ title: '외모군', action: '얼굴 그림 · 경기 아이콘 피부' })}${chips('app', vm.appearances.map((a) => ({ id: a.id, label: a.ko, on: a.id === vm.appearance })))}
+    ${SectionTitle({ title: '인종', action: '기본 사진 · 경기 아이콘 피부' })}${chips('app', vm.appearances.map((a) => ({ id: a.id, label: a.ko, on: a.id === vm.appearance })))}
+    ${SectionTitle({ title: '기본 사진', action: '인종을 고르면 자동 · 따로 바꿔도 돼요' })}${photoRow('cu', 'photo', vm.photos, vm.facePhoto)}
     ${SectionTitle({ title: '경기 화면 도트 머리' })}${chips('hair', [{ id: '', label: '자동', on: !vm.hair }, ...vm.hairs.map((h) => ({ id: h.id, label: h.ko, on: h.id === vm.hair }))])}
     <p class="small muted">겉모습만 바뀌고 경기 결과에는 영향이 없어요. 시작한 뒤에도 설정 → 페이스온·경기 아이콘에서 바꿀 수 있어요.</p>`;
   } else if (st === 4) {
@@ -176,9 +184,9 @@ function customWide(vm: CustomVM, st: number, modeTabs: string, bar: string, bod
   }).join('')}</ol>`;
   const tags = vm.traits.filter((t) => t.on).map((t) => TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(!t.perm && t.removeDesc ? { release: t.removeDesc } : {}), size: 'sm' })).join('');
   // 미리보기 얼굴 · 도트 (C.71b 디자인 185): 외모군 기본 얼굴(시작 뒤 페이스온에서 바꿈) · 경기 화면 도트(외모 단계 머리·피부)
-  const person = personOf('custom-preview', vm.appearance, { ...(vm.hair ? { hair: vm.hair } : {}), people: peopleTable() });
+  const person = personOf('custom-preview', vm.appearance, { ...(vm.hair ? { hair: vm.hair } : {}), skin: vm.skin, people: peopleTable() });
   const looks = `<div class="cu-preview__looks">
-      <div><span class="cu-preview__pic">${Avatar({ size: 104, face: { id: 'custom-preview', age: vm.age, appearance: vm.appearance }, name: vm.name || '커스텀 선수', shape: 'square' })}</span><b class="small">얼굴</b><small class="muted">기본 얼굴 · 페이스온에서 사진으로 바꿔요</small></div>
+      <div><span class="cu-preview__pic">${Avatar({ size: 104, face: { id: 'custom-preview', age: vm.age, appearance: vm.appearance, photo: vm.facePhoto }, name: vm.name || '커스텀 선수', shape: 'square' })}</span><b class="small">얼굴</b><small class="muted">기본 사진 · 페이스온에서 내 사진으로 바꿔요</small></div>
       <div><span class="cu-preview__pic is-dot">${pixelIconHtml(pixelLayerUrls(person, ALL_KITS[0] ?? ''), 4, '도트')}</span><b class="small">도트</b><small class="muted">경기 화면 · 외모 단계 머리·피부</small></div></div>`;
   const preview = `<div class="panel cu-preview">
       <div class="cu-preview__head"><span class="grow"><b>${esc(vm.name || '이름 랜덤')}</b><small>${vm.age}세 · ${vm.position} · ${esc(vm.nationalities.find((x) => x.id === vm.nationality)?.ko ?? '')}</small></span><span class="cu-preview__ovr"><b class="po-num">${vm.ovr}</b><small>${vm.position} OVR</small></span></div>

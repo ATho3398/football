@@ -1,6 +1,7 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
+import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
@@ -235,6 +236,9 @@ const ui = {
     posFor: '',
     /** "다른 포지션에서 고르기" 펼침 */
     others: false,
+    /** 랜덤 인종·기본 사진 (C.73c): '' = 시드 랜덤 / 인종 사진 */
+    race: '',
+    photo: '',
     /** 커스텀 생성 (C.45) */
     cu: initialCustomForm(),
   },
@@ -253,6 +257,8 @@ function syncProspectPick(): void {
   ui.form.posFor = key;
   ui.form.position = rollProspect(key).candidates[0]!.pos;
   ui.form.others = false;
+  ui.form.race = '';
+  ui.form.photo = '';
 }
 
 const app = document.getElementById('app')!;
@@ -1804,8 +1810,10 @@ app.addEventListener('click', (ev) => {
       return;
     case 'form': {
       readFormInputs();
-      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends';
+      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'race' | 'photo';
       (ui.form as unknown as Record<string, string>)[k] = v!;
+      // 인종을 바꾸면 사진도 그 인종으로 (C.73c)
+      if (k === 'race') ui.form.photo = '';
       render();
       return;
     }
@@ -1845,13 +1853,16 @@ app.addEventListener('click', (ev) => {
         if (cv.over || !cv.start.ready) return;
       }
       ui.game = f.mode === 'prospect'
-        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true, legends: f.legends === 'on' })
+        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true, legends: f.legends === 'on',
+          ...(isRace(f.race) ? { race: f.race } : {}), ...(isFacePhoto(f.photo) ? { facePhoto: f.photo } : {}) })
         : f.mode === 'custom'
           ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
           : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on' });
       ui.replay = null;
       f.roll = '';
       f.posFor = '';
+      f.race = '';
+      f.photo = '';
       autosave();
       go('home');
       showToast({ kind: 'info', title: `${ui.game.player.name} · ${teamById(ui.game.league, ui.game.player.teamId).nameKo}`, body: '커리어를 시작했어요.' });

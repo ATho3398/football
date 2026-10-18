@@ -34,7 +34,7 @@ describe('선수 이름 한국 통용 표기 (C.50)', () => {
     const hz = raw.npcs.find((n: { id: string }) => n.id === 'hazard');
     hz.nameKo = '에당 아자르';
     const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(40);
+    expect(back.saveFormat).toBe(41);
     expect(back.player.name).toBe(LEGEND_BY_ID.get('lg-cruyff')!.nameKo);
     expect(back.npcs.find((n) => n.id === 'hazard')!.nameKo).toBe('에덴 아자르');
   });

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 48;
+export const BALANCE_VERSION = 49;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1015,9 +1015,25 @@ export const BALANCE = {
       'Korea Republic': { eastAsian: 100 },
       Japan: { eastAsian: 100 },
       China: { eastAsian: 100 },
+      // 내 선수 랜덤 생성 전용 국적 (C.73c, data/names.ts PLAYER_EXTRA_POOLS)
+      Morocco: { latinMideast: 95, black: 5 },
+      'Saudi Arabia': { latinMideast: 100 },
+      "Côte d'Ivoire": { black: 100 },
+      Ghana: { black: 100 },
+      Cameroon: { black: 100 },
     } as Record<string, Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>>,
     /** 표에 없는 국적 */
     fallback: { white: 50, black: 25, latinMideast: 20, eastAsian: 5 } as Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>,
+    /**
+     * 내 선수 랜덤 생성 (C.73c): 인종 4개(중동·동양인·백인·흑인) 가중치 → 그 인종 국적 (국적 가중치 = 이름 풀 weight × 그 국적의 인종 분포).
+     * 중동은 라틴(스페인·브라질 등) 대신 중동 국적만 (기본 사진이 중동이라). 겉모습만이라 경기 결과에 영향 없음
+     */
+    random: {
+      race: { latinMideast: 1, eastAsian: 1, white: 1, black: 1 },
+      mideastNationalities: ['Egypt', 'Morocco', 'Saudi Arabia'],
+      /** 한국 이름 풀(prospect.ts) 가중치 */
+      koreaWeight: 4,
+    },
   },
   // ── 도트 선수 아이콘 (부록 C.45, docs/design/pixel-kits.md 3·4번): 경기 화면 캐릭터 보기의 인물(피부·머리)과 유니폼 충돌 규칙.
   // 겉모습만이라 경기 결과·시드에 영향이 없다. 추첨은 `pixel:<선수 id>` 시드의 별도 난수
