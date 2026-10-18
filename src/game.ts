@@ -1536,7 +1536,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
     c.goals += result.goals;
     c.assists += result.assists;
     c.ratingSum += result.rating ?? 0;
-    player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
+    if (BALANCE.cups.cupForm) player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
   }
   let injury: Injury | undefined;
   if (!injured && result.minutes > 0) {
@@ -1548,7 +1548,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
     }
   }
   afterTeamMatch(player, result.minutes, pos);
-  afterMyMatch(state, {
+  if (BALANCE.cups.cupTrust) afterMyMatch(state, {
     minutes: result.minutes, started: result.started, rating: result.rating, goals: result.goals, assists: result.assists, outcome: result.outcome,
     yellows: 0, red: false, injured: injured || leave, suspended: false, slotOvr: ovr, bestOvr: bestPosition(state).ovr,
   });
@@ -1586,7 +1586,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
     ...(cardUnlock ? { cardUnlock } : {}),
   };
   state.lastMatch = report;
-  lifeAfterMatch(state, result.minutes > 0, true);
+  lifeAfterMatch(state, result.minutes > 0, mc.big);
   if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
   refreshUnlocks(state);
   return report;
