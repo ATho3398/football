@@ -142,6 +142,7 @@ await shot('103_147_월드-리그스타_전체', true);
 await act('world-tab', '[data-v="transfers"]');
 await page.waitForTimeout(300);
 await shot('105_월드-이적소식-빈상태');
+if (process.env.NOSEASON) { writeFileSync(`${OUT}/${P}report.json`, JSON.stringify(report, null, 1)); console.log(JSON.stringify(report, null, 1)); await browser.close(); process.exit(0); }
 // ── 시즌 끝까지 자동 진행 (계약 마지막 해 → 비시즌 제안) ──
 await page.evaluate(() => { const g = window.__game(); g.market.contract.until = g.league.season; });
 if (await has('[data-act="ctl-mode"][data-v="auto"]')) await act('ctl-mode', '[data-v="auto"]');
@@ -192,7 +193,7 @@ if (await has('.season-todo[data-to="offers"]')) {
   await page.locator('.po-offer [data-act="offer-accept"]').first().click();
   await page.waitForTimeout(400);
   await shot('98_이적제안-수락확인');
-  await act('modal-close');
+  await page.locator('.po-modal__actions [data-act="modal-close"]').click();
   await page.waitForTimeout(300);
 }
 // 월드 이적 소식 (여름 이적시장 뒤) 104 · 148

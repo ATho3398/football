@@ -1461,3 +1461,4 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .sv-cards b { display: block; font-size: 15px; }
 .sv-cards small { display: block; font-size: 12px; }
 .sv-file p { margin: 0; }
+.panel.tr-row, .panel.season-todo, .panel.award, .panel.season-tier, .panel.tr-refused-box { flex-direction: row; }

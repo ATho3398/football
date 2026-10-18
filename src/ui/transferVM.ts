@@ -131,7 +131,7 @@ export function newsVM(g: GameState): NewsVM | null {
     id: r.id, name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: clubNameKo(g.league, r.from), to: clubNameKo(g.league, r.to), why: WHY_KO[r.why], real: !!r.real,
     into: !isOutside(r.to), out: isOutside(r.to), fill: r.fill ? { name: r.fill.name, pos: r.pos, age: r.fill.age, ovr: r.fill.ovr, club: clubNameKo(g.league, r.fill.club) } : null,
     mine: r.from === g.player.teamId || r.to === g.player.teamId,
-    fee: valueLabel(r.fee ?? 0), toTier: tierLabel(r.to), open: isOutside(r.to) ? null : r.id,
+    fee: r.fee ? valueLabel(r.fee) : '자유계약', toTier: tierLabel(r.to), open: isOutside(r.to) ? null : r.id,
   }));
   // 실제 선수 → 리그 안 이동 → OVR 순
   rows.sort((a, b) => Number(b.real) - Number(a.real) || Number(b.into) - Number(a.into) || b.ovr - a.ovr);
