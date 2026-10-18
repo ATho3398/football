@@ -376,3 +376,15 @@
 - (02:01 KST) UI_3 **9차 보고** 사용자에게 보냄(docs/ui-requests/9.md, claude/ui-3 b3de4f1, 큰 3 + 작은 17 + 요청 거리 2, 번호 204~217, 기준 정정 2 = 세로 폰 + 가로 피치). 10차 쌓기 시작. 7·8·9차 디자인 대기.
 - (02:19 KST, 사용자 02:12 → UI_3) UI 보고는 디자인 안 온 이전 차례를 합친 **통합본**으로: 7·8·9차 + 정정 1·2 통합(docs/ui-requests/7-9/통합_프롬프트.txt, 번호 160~217, claude/ui-3 cae9414). 10차부터 통합본에 이어 붙임(ui-requests/handoff.md 누적 보고 규칙).
 - (02:40 KST) C.68a CI #198 성공(main 39d4a86, 44분 — 코치 풀 투자 측정 줄 탓에 2배). C.68b에 CI에서 측정 줄 끄기(COACH_MEASURE=0) 지시. C.68 끝.
+- (03:05 KST) **7·8·9 통합 디자인 1부 도착** → pending 114. **U7-a C.69 시작** `session_012TdmbSD5xD2er3Gn2TtgS7` "41a단계_U7-a 결정 순간·독 디자인 적용 (C.69)", 브랜치 `claude/c69-u7a`, 태그 `stage:41a-C69`(C.68b와 병렬, 푸시 전 main 병합). P 14.3달러·47.9만 → **교체**.
+
+### 8.28 다음 마스터 세션(Q)이 할 일 (P 교체 2026-10-19 03:06 KST)
+- 제목 `Q_축구 커리어 게임 마스터`, 브랜치 `claude/planning-p`에서 `claude/planning-q`. 깊이 6(7 이상이면 사용자에게 앱에서 직접 열어 달라고 요청 — Q가 다음을 만들면 깊이 7이 됨 → **Q 교체 때는 사용자에게 R을 앱에서 직접 열어 달라고 요청**, ntfy·카톡 긴급).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md` 전체, 이 문서 8.27·8.28, `docs/planning-pending.md` **107~114**.
+- **실행 중 세션**: 40 C.68b `session_01YUBCeWGZp5RXvKqFqXysji`(재정 b, CI 측정 줄 끄기 지시 받음, 자동 확인 `trig_01YP7G8fUQmdsKz7cpKUvsv3` 04:54 KST — P 앞으로 옴, Q가 새로 거는 게 안전) / 41a U7-a C.69 `session_012TdmbSD5xD2er3Gn2TtgS7`(결정 순간·독 디자인 적용) / UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx`(통합 보고 규칙, 10차 쌓기, 2부 191~217·3부 디자인 대기) / 엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`(동결 대기). 모두에 "보고는 Q, 마스터 브랜치 claude/planning-q" send_message.
+- **자동 확인**: C.68b(위 예약을 지우고 Q가 새로 150분), C.69 send_later 150분.
+- **다음 순서**: C.68b 보고 → pending 115 → ntfy → UI_3 → C.69 보고 → U7-b(41b)·U7-c(41c)·U7-d(41d) 차례로(명세 7-9-part1-apply.md, 각 세션 첫 지시는 C.69 지시 참고) → **42 5-8 챕터(22번)** → 경기 환경 단계(pending 75·76·77 일부 + 케미·패스 받는 빈도) → 엔진 블록(판단 스탯 생활 영향·지시 카드 신뢰 연동·**레전더리 35세 900+ 가드 경계 문제 재검토**(C.67·C.68)). 카드 그림 59장 오면 작은 코드 패치(CARD_ART_FILES).
+- 공통 지시(갱신): **모바일 = 세로 폰 390×844 + 경기장만 가로**(C.66b, pending 111 — "가로 전용"은 오해로 취소), PC 2열, 가로 폰 깨지지 않게. 엔진 동결. 화면만 패치는 balance·engine 점검 생략 가능(CI가 돎). balance는 백그라운드+로그(컨테이너 재시작 잦음). 회귀 가드 기준·판정 방식 변경은 마스터 승인 필요(C.67 반올림 전 판정, C.68 COACH=none 경로 승인함). 세션 비용 10달러 넘으면 나눔. docs 병합 planning-q·ui-3.
+- 사용자 선호 메모: **사용량 경고로 멈추지 않음**(10-18 18:31 "막힐 때까지 계속", 7일 한도 리셋 10/20 19:00 KST). 사용자 화면 요청은 작은 fix 세션(C.66b·C.66c 방식, 40분 안)으로 바로 처리. 사용자 지시를 화면 방향처럼 해석이 갈리면 한 줄로 확인하고 진행.
+- (03:07 KST) **Q 생성** `session_01B71wzpzNzdTg4hm7DbNX9H`(브랜치 claude/planning-q, 깊이 6). C.68b 확인 예약 `trig_01YP7G8fUQmdsKz7cpKUvsv3` 삭제(Q가 새로 검). UI_3에 U7-a 시작·Q 예고. P는 Q 준비 완료 받으면 끝.
+- (03:06 KST) **C.68b 완료**(main 81b06e4, 밸런스 47·세이브 39, 테스트 626, balance 19/19) → pending 115, ntfy, UI_3 목록. 40단계 5-7 재정 끝(CI는 C.68b가 확인 → Q로 보고). Q는 C.68b 확인 예약 불필요.
