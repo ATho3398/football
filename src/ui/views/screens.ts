@@ -2,7 +2,7 @@
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
 import {
-  Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
+  Avatar, Banner, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
 import { actionRow, banners, panel, seasonMatchesSection, statTiles, versionFooter } from './common';
@@ -209,33 +209,52 @@ export function allocateView(vm: AllocateVM, sel: string | null, pending: number
 
 // ── 순위표·리그 스타 (54) ──
 
-export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers', transfers = ''): string {
+/** "n명 더 보기" 펼침 단추 (C.60, 디자인 147 · 148): 누르면 ui.more[key] 토글 */
+export function moreButton(key: string, open: boolean, label: string): string {
+  return Button({ variant: 'ghost', block: true, icon: open ? 'chevron-up' : 'chevron-down', act: 'more', data: { v: key }, className: 'more-btn', children: open ? '접기' : label });
+}
+
+const STAR_PAGE = 5;
+const LEGEND_PAGE = 6;
+
+/** 월드 (디자인 101~105 · 146 · 147, C.60): compact 머리말 + 탭 4 (순위표 · 득점 · 리그 스타 · 이적 소식) */
+export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers', transfers = '', more: Record<string, boolean> = {}): string {
   const me = vm.table.find((r) => r.me)!;
   const leader = vm.table[0]!;
   const hero = HeroPanel({
-    title: '리그', right: `${vm.round}R / ${vm.rounds}`, back: false, eyebrow: `${me.team} 순위`, value: `${vm.myPos}위`, pad: false, progress: false,
+    title: '월드', right: `${vm.round}R / ${vm.rounds}`, back: false, compact: true, eyebrow: `리그 · ${me.team} 순위`, value: `${vm.myPos}위`, pad: false, progress: false,
     chips: [`승점 ${me.points}`, me.pos === 1 ? '선두' : `1위와 ${leader.points - me.points}점`, { label: `${vm.season} 시즌`, soft: true }],
   });
-  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점 순위' }, { id: 'stars', label: '리그 스타' }, { id: 'transfers', label: '이적 소식' }], value: tab, variant: 'underline', act: 'world-tab' });
+  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점' }, { id: 'stars', label: '리그 스타' }, { id: 'transfers', label: '이적 소식' }], value: tab, variant: 'underline', fill: true, act: 'world-tab' });
   const scorers = vm.scorers.length
     ? `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">선수</th><th>출전</th><th>골</th><th>도움</th><th>평점</th></tr>
       ${vm.scorers.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${i + 1}</td><td class="l"><button type="button" class="dt-link team" data-act="person-open" data-v="${esc(r.id)}">${Avatar({ size: 22, face: r.face, name: r.name })}${esc(r.name)}</button>${r.teamId ? teamLink(r.teamId, r.team, 'small muted') : ''}</td><td>${r.apps}</td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td><td>${r.avg}</td></tr>`).join('')}
     </table><div class="legend small"><span class="grow r">다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요)</span></div></div>`
     : '<p class="small muted">아직 기록이 없어요. 경기가 진행되면 득점 순위가 쌓여요.</p>';
+  // 디자인 146: 팀 옆 "재" 열 = 재정 등급 4단 막대(색 없음) + 아래 범례 (팀 수)
+  const tierCount = FIN_TIERS.map((t) => ({ t, n: vm.table.filter((r) => r.tier === t).length }));
   const table = `<div class="panel tbl-panel"><table class="tbl league">
-      <tr><th>#</th><th class="l">팀</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
-      ${vm.table.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > vm.teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button><small class="muted fin-tier"> ${esc(r.tier)}</small></td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
-    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력은 로스터 라인업 평균 (겨울 이적이 바로 반영돼요) · 팀 이름 옆은 구단 재정 등급(빅클럽·상위·중위·하위)</span></div></div>`;
-  const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 숫자는 지난 시즌 대비 OVR 변화.</p>
-    <div class="star-list">${vm.stars.map((s, i) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b>${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `+${s.change}` : `−${-s.change}`) : 'OVR'}</small></span></button>`).join('')}</div>
-    ${vm.legends.length ? `${SectionTitle({ title: '레전드', action: `팩 ${LEGEND_TOTAL}명 중 리그에서 뛰는 ${vm.legends.length}명` })}
-    <div class="star-list">${vm.legends.map((s, i) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b>${esc(s.name)} <span class="rec">레전드</span></b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small>전성기 ${s.peak}</small></span></button>`).join('')}</div>` : ''}
+      <tr><th>#</th><th class="l">팀</th><th class="fin-col" title="재정 등급">재</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
+      ${vm.table.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > vm.teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button></td><td class="fin-col">${FinChip(r.tier, true, true)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
+    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력 = 라인업 평균</span></div></div>
+    ${SectionTitle({ title: '재정 등급', action: '재 열 막대 = 구단 재정' })}
+    ${panel(`<div class="fin-legend">${tierCount.map((x) => `<div class="fin-legend__cell">${FinChip(x.t, true)}<small class="po-num">${x.n}팀</small></div>`).join('')}</div>
+      <p class="small muted">이적료·연봉을 낼 수 있는 크기예요. 표에서는 막대만, 글자는 이 범례와 팀 상세에서. 색은 쓰지 않아요(순위 색과 겹치지 않게).</p>`)}`;
+  const starRow = (s: WorldVM['stars'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
+  const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="rec">레전드</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
+  const starsShown = more.stars ? vm.stars : vm.stars.slice(0, STAR_PAGE);
+  const legShown = more.legends ? vm.legends : vm.legends.slice(0, LEGEND_PAGE);
+  const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 아래 = 지난 시즌 대비 OVR 변화.</p>
+    <div class="star-list">${starsShown.map(starRow).join('')}</div>
+    ${vm.stars.length > STAR_PAGE ? moreButton('stars', !!more.stars, `리그 스타 ${vm.stars.length - STAR_PAGE}명 더 보기`) : ''}
+    ${vm.legends.length ? `${SectionTitle({ title: '레전드', action: `레전드 팩 · ${LEGEND_TOTAL}명` })}
+    <p class="small muted">레전드 팩으로 들어온 선수 중 리그에서 뛰는 ${vm.legends.length}명이에요. 지금 OVR과 전성기 예상을 같이 보여 줘요(지금 OVR 순).</p>
+    <div class="star-list">${legShown.map(legRow).join('')}</div>
+    ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
   return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
 }
-
-// ── 시즌 종료 (51) ──
 
 const chipList = (xs: { label: string; value: number }[]) => (xs.length
   ? `<div class="chips">${xs.map((d) => `<span class="po-chip"><span class="po-chip__label">${esc(d.label)}</span><b class="po-num ${d.value > 0 ? 'up' : 'down'}">${displayDelta(d.value)}</b></span>`).join('')}</div>`
@@ -257,60 +276,81 @@ function splitTable(rows: SeasonVM['months'], head: string): string {
  * 시즌 종료 (51, C.44 pending 52 3번): 요약 카드 한 장 + [상세 보기](경기별·월별·포지션별·리그 시상·이적 소식·성장) + 큰 [새 시즌 시작].
  * 비시즌 이적 제안이 있으면 맨 위 카드와 [이적 제안·계약에 답하기]로 이어진다 (C.42)
  */
-export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab: SeasonTab | null = null, transfers = ''): string {
+/** 시즌 요약 "다음 할 일" 줄 (디자인 106): 이적 제안·계약 응답, 포인트 찍기 */
+export interface SeasonTodo { title: string; sub: string; act: string; data?: Record<string, string>; cta?: string; warn?: boolean; icon: 'chat' | 'plus' }
+
+function todoRow(t: SeasonTodo): string {
+  return `<button type="button" class="panel season-todo${t.warn ? ' is-warn' : ''}" data-act="${esc(t.act)}"${Object.entries(t.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}><span class="season-todo__icon">${Icon({ name: t.icon, size: 20 })}</span><span class="grow"><b>${esc(t.title)}</b><small>${esc(t.sub)}</small></span>${
+    t.cta ? `<span class="season-todo__cta">${esc(t.cta)}</span>` : Icon({ name: 'chevron-right', size: 18 })}</button>`;
+}
+
+const SEASON_TABS: { id: SeasonTab; label: string }[] = [{ id: 'matches', label: '경기별' }, { id: 'months', label: '월별' }, { id: 'positions', label: '포지션별' }, { id: 'awards', label: '리그 시상' }, { id: 'transfers', label: '이적 소식' }, { id: 'growth', label: '성장·위상' }];
+
+/**
+ * 시즌 종료 (디자인 106~112, C.60): 요약 = 큰 머리말(순위) + 요약 카드 한 장 + "다음 할 일" + [시즌 상세 보기] + [시즌 시작].
+ * 상세 = 별도 화면처럼(뒤로 = 요약) compact 머리말(골) + Tabs segment cols 3 (6탭, 폰 3×2)
+ */
+export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab: SeasonTab | null = null, transfers = '', todo: SeasonTodo | null = null): string {
+  if (tab) return seasonDetail(vm, tab, transfers);
   const hero = HeroPanel({
-    title: `${vm.season} 시즌 종료`, right: vm.team, back: false, compact: true, eyebrow: `${vm.season} 시즌 · 비시즌`, value: '시즌 요약', pad: false, progress: false,
-    chips: [`${vm.apps}경기 출전`, `나이 ${vm.ageFrom} → ${vm.ageTo}세`],
+    title: '시즌 요약', right: '', back: false, eyebrow: `${vm.season} 시즌 종료 · ${vm.team}`, value: `${vm.pos}위`, pad: false, progress: false,
+    chips: [`${vm.apps}경기 출전`, `나이 ${vm.ageFrom} → ${vm.ageTo}세`, { label: vm.tierName, soft: true }],
   });
-  const next = vm.retired
-    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })
-    : marketPending
-      ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', children: '이적 제안·계약에 답하기' })
-      : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', className: 'season-start', children: `${vm.nextSeason} 시즌 시작` });
-  const extra = vm.retired ? '' : `${vm.points > 0 ? Button({ variant: 'secondary', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
-       ${vm.canRetire ? Button({ variant: 'ghost', block: true, act: 'retire', children: '은퇴하기' }) : ''}`;
   const ovrD = vm.ovrAfter - vm.ovrBefore;
   const repD = vm.repAfter - vm.repBefore;
   const card = `<div class="panel season-card">
-      <div class="sc-head"><span class="sc-pos po-num">${vm.pos}<small>위</small></span><span class="grow"><b>${esc(vm.team)}</b><small>${esc(vm.season)} 시즌 · ${vm.apps}경기 출전</small></span>${TierBadge({ tier: vm.tier, score: vm.repAfter })}</div>
       ${statTiles([{ value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.avg, label: '평균 평점' }, { value: vm.moms, label: 'MOM' }])}
       <div class="sc-rows">
-        <div class="kv"><span>레벨</span><b class="po-num">${vm.levelFrom !== null && vm.levelFrom !== vm.levelTo ? `Lv.${vm.levelFrom} → ` : ''}Lv.${vm.levelTo}</b></div>
+        <div class="kv"><span>레벨</span><b class="po-num">${vm.levelFrom !== null && vm.levelFrom !== vm.levelTo ? `Lv ${vm.levelFrom} → ` : ''}Lv ${vm.levelTo}</b></div>
         <div class="kv"><span>OVR</span><b class="po-num">${vm.ovrBefore} → ${vm.ovrAfter} <small class="${ovrD > 0 ? 'up' : ovrD < 0 ? 'down' : 'muted'}">${ovrD > 0 ? `+${ovrD}` : ovrD < 0 ? `−${-ovrD}` : '±0'}</small></b></div>
-        <div class="kv"><span>위상 · ${esc(vm.tierName)}</span><b class="po-num">${vm.repBefore} → ${vm.repAfter} <small class="${repD > 0 ? 'up' : repD < 0 ? 'down' : 'muted'}">${repD > 0 ? `+${repD}` : repD < 0 ? `−${-repD}` : '±0'}</small></b></div>
+        <div class="kv"><span>위상</span><b class="po-num">${vm.repBefore} → ${esc(vm.tierName)} ${vm.repAfter} <small class="${repD > 0 ? 'up' : repD < 0 ? 'down' : 'muted'}">${repD > 0 ? `+${repD}` : repD < 0 ? `−${-repD}` : '±0'}</small></b></div>
         ${vm.injuries ? `<div class="kv"><span>부상</span><b class="po-num">${vm.injuries}회 (${vm.injuredWeeks}주)</b></div>` : ''}
       </div>
-      ${Button({ variant: 'secondary', block: true, icon: tab ? 'chevron-right' : 'search', act: 'season-tab', data: { v: tab ? 'close' : 'matches' }, children: tab ? '요약만 보기' : '상세 보기' })}
     </div>`;
-  let detail = '';
-  if (tab) {
-    const tabs = Tabs({ items: [{ id: 'matches', label: '경기별' }, { id: 'months', label: '월별' }, { id: 'positions', label: '포지션별' }, { id: 'awards', label: '리그 시상' }, { id: 'transfers', label: '이적 소식' }, { id: 'growth', label: '성장·위상' }], value: tab, variant: 'underline', act: 'season-tab' });
-    let body = '';
-    if (tab === 'matches') body = seasonMatchesSection(vm.matches);
-    else if (tab === 'months') body = panel(splitTable(vm.months, '월'));
-    else if (tab === 'positions') body = panel(splitTable(vm.positions, '포지션'));
-    else if (tab === 'awards') {
-      body = vm.awards.length
-        ? `<div class="opts">${vm.awards.map((a) => OptionRow({ icon: 'star', title: `${a.title} · ${a.name}${a.me ? ' (나)' : ''}`, desc: a.team, right: a.value ? `<b class="po-num${a.me ? ' hi' : ''}">${esc(a.value)}</b>` : '' })).join('')}</div>
-          <p class="small muted">득점·도움·평점은 다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요). 발롱도르·올해의 선수는 5-5단계.</p>`
-        : '<p class="muted small">시상 기록이 없어요.</p>';
-    } else if (tab === 'transfers') body = transfers || '<p class="muted small">이적 소식이 없어요.</p>';
-    else body = growthDetail(vm);
-    detail = `<div class="season-detail">${tabs}${body}</div>`;
-  }
+  const todos = [
+    todo ? todoRow(todo) : '',
+    !vm.retired && vm.points > 0 ? todoRow({ title: `포인트 찍기 · ${vm.points}P`, sub: '새 시즌 전에 찍어 두면 좋아요', act: 'go', data: { to: 'allocate' }, icon: 'plus' }) : '',
+  ].filter(Boolean);
+  const next = vm.retired
+    ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })
+    : marketPending ? '' : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'next-season', className: 'season-start', children: `${vm.nextSeason} 시즌 시작` });
   return `${hero}<div class="body">
-    ${market}
     ${vm.forcedRetire ? Banner({ tone: 'warning', title: `${vm.ageTo}세 · 더 이상 뛸 수 없어요`, children: '커리어를 마무리하고 은퇴해요.' }) : ''}
-    ${vm.tierReached ? Banner({ tone: 'success', title: `${vm.tierReached} 달성 · 이 티어는 내려가지 않아요`, children: '감점은 다음 티어까지의 진행도만 깎아요.' }) : ''}
+    ${vm.tierReached ? `<div class="panel season-tier">${TierBadge({ tier: vm.tier, score: vm.repAfter })}<span><b>${esc(vm.tierReached)} 달성 · 이 티어는 내려가지 않아요</b><small class="muted">감점은 다음 티어까지의 진행도만 깎아요.</small></span></div>` : ''}
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${card}
-    <div class="btn-col season-next">${next}${extra}</div>
-    ${detail}
+    ${market}
+    ${todos.length ? `<p class="season-todo-head">다음 할 일</p>${todos.join('')}` : ''}
+    <div class="btn-col season-next">
+      ${Button({ variant: 'secondary', block: true, icon: 'grid', act: 'season-tab', data: { v: 'matches' }, children: '시즌 상세 보기' })}
+      ${next}
+      ${!vm.retired && vm.canRetire ? Button({ variant: 'ghost', block: true, act: 'retire', children: '은퇴하기' }) : ''}
+    </div>
   </div>`;
 }
 
-/** 상세 · 성장·위상 (C.44 전 시즌 종료 화면의 업적 XP·능력치 변화·위상 진행도) */
+function seasonDetail(vm: SeasonVM, tab: SeasonTab, transfers: string): string {
+  const hero = HeroPanel({
+    title: '시즌 상세', back: { act: 'season-tab', data: { v: 'close' } }, compact: true, eyebrow: `${vm.season} 시즌 · ${vm.team} · ${vm.pos}위`, value: `${vm.goals}골`, pad: false, progress: false,
+    chips: [`${vm.assists}도움`, `평점 ${vm.avg}`, { label: `${vm.moms} MOM`, soft: true }],
+  });
+  const tabs = Tabs({ items: SEASON_TABS, value: tab, variant: 'segment', cols: 3, act: 'season-tab', label: '시즌 상세' });
+  let body = '';
+  if (tab === 'matches') body = seasonMatchesSection(vm.matches);
+  else if (tab === 'months') body = panel(splitTable(vm.months, '월'));
+  else if (tab === 'positions') body = panel(splitTable(vm.positions, '포지션'));
+  else if (tab === 'awards') {
+    // 디자인 110: 트로피 카드, 내 것은 시안 테두리
+    body = vm.awards.length
+      ? `<div class="award-list">${vm.awards.map((a) => `<div class="panel award${a.me ? ' is-mine' : ''}"><span class="award__icon">${Icon({ name: 'trophy', size: 22 })}</span><span class="grow"><b>${esc(a.title)}</b><small>${esc(a.name)}${a.me ? ' (나)' : ''} · ${esc(a.team)}</small></span>${a.value ? `<b class="po-num award__v">${esc(a.value)}</b>` : ''}</div>`).join('')}</div>
+        <p class="small muted">득점·도움·평점은 다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요). 발롱도르·올해의 선수는 커리어 단계가 오면 생겨요.</p>`
+      : '<p class="muted small">시상 기록이 없어요.</p>';
+  } else if (tab === 'transfers') body = transfers || '<p class="muted small">이적 소식이 없어요.</p>';
+  else body = growthDetail(vm);
+  return `${hero}<div class="body season-detail">${tabs}${body}</div>`;
+}
+
 function growthDetail(vm: SeasonVM): string {
   const auto = sum(vm.autoGrowth);
   const vet = sum(vm.veteran);
@@ -353,29 +393,34 @@ export function retiredView(vm: RetiredVM): string {
 
 // ── 세이브 (43) ──
 
+/** 세이브 (디자인 119 · 149, C.60): 자동 저장 → 수동 3칸(채운 칸은 아래 [불러오기][덮어쓰기][지우기]) → 파일(카드 이미지 포함 스위치 + 내보내기·가져오기) */
 export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM, exportCards = false): string {
   const a = vm.auto;
   const hero = HeroPanel({
-    title: '저장', back: { act: 'go', data: { to: canSave ? 'home' : 'title' } },
-    eyebrow: a.empty ? '자동 저장 없음' : `자동 저장 · ${a.meta.split(' · ').at(-1)}`, chips: [`수동 ${vm.used}/${vm.manual.length}`, { label: '자동 저장 켜짐', soft: true }],
+    title: '저장', back: { act: 'go', data: { to: canSave ? 'home' : 'title' } }, value: `${vm.used}/${vm.manual.length}`, pad: false, progress: false,
+    eyebrow: a.empty ? '자동 저장 없음' : `자동 저장 · ${a.meta.split(' · ').at(-1)}`, chips: [`수동 ${vm.used}/${vm.manual.length}`, { label: exportCards ? '카드 이미지 포함 켬' : '자동 저장 켜짐', soft: true }],
   });
   const slot = (s: SavesVMOut['manual'][number]) => {
-    const btns = s.empty
-      ? (canSave ? Button({ size: 'sm', icon: 'disk', act: 'save', data: { slot: s.slot }, children: '여기에 저장' }) : '')
-      : `${canSave ? IconButton({ act: 'save', data: { slot: s.slot }, name: 'disk', label: '덮어쓰기' }) : ''}${Button({ variant: 'secondary', size: 'sm', icon: 'upload', act: 'load', data: { slot: s.slot }, children: '불러오기' })}${
-        IconButton({ act: 'delete', data: { slot: s.slot }, name: 'close', label: '삭제' })}`;
-    return `<div class="slot${s.empty ? ' empty' : ''}"><span class="slot__n po-num">${esc(s.label)}</span><span class="grow"><b>${esc(s.title)}</b><small>${esc(s.meta)}${s.size ? ` · ${esc(s.size)}` : ''}</small>${s.start ? `<small>${esc(s.start)}</small>` : ''}</span><span class="slot__btns">${btns}</span></div>`;
+    if (s.empty) {
+      return `<div class="slot empty"><span class="slot__n po-num">${esc(s.label)}</span><span class="grow"><b>비어 있음</b><small>${canSave ? '지금 진행 상황을 여기에 저장해요' : '저장한 게임이 없어요'}</small></span><span class="slot__btns">${
+        canSave ? Button({ size: 'sm', icon: 'disk', act: 'save', data: { slot: s.slot }, children: '여기에 저장' }) : ''}</span></div>`;
+    }
+    const btns = [Button({ variant: 'ghost', size: 'sm', icon: 'upload', act: 'load', data: { slot: s.slot }, children: '불러오기' }),
+      canSave ? Button({ variant: 'ghost', size: 'sm', icon: 'disk', act: 'save', data: { slot: s.slot }, children: '덮어쓰기' }) : '',
+      Button({ variant: 'ghost', size: 'sm', icon: 'close', act: 'delete', data: { slot: s.slot }, children: '지우기' })].filter(Boolean);
+    return `<div class="slot slot--full"><div class="slot__top"><span class="slot__n po-num">${esc(s.label)}</span><span class="grow"><b>${esc(s.title)}</b><small>${esc(s.meta)}${s.size ? ` · ${esc(s.size)}` : ''}</small>${s.start ? `<small class="slot__start">${esc(s.start)}</small>` : ''}</span></div><div class="slot__acts">${btns.join('')}</div></div>`;
   };
   return `${hero}<div class="body">
+    ${SectionTitle({ title: '자동 저장' })}
+    <div class="slot"><span class="slot__n po-num">A</span><span class="grow"><b>${esc(a.empty ? '비어 있음' : a.title)}</b><small>${esc(a.empty ? '하루를 진행할 때마다 자동으로 저장돼요' : `${a.meta}${a.size ? ` · ${a.size}` : ''}`)}</small>${a.start ? `<small class="slot__start">${esc(a.start)}</small>` : ''}</span><span class="slot__btns">${
+      a.empty ? '' : Button({ variant: 'secondary', size: 'sm', icon: 'upload', act: 'load', data: { slot: 'auto' }, children: '불러오기' })}</span></div>
+    <p class="small muted">경기 전·하루 진행 뒤마다 자동으로 저장돼요</p>
     ${SectionTitle({ title: '수동 저장', action: `${vm.manual.length}칸` })}
     ${vm.manual.map(slot).join('')}
-    ${SectionTitle({ title: '자동 저장' })}
-    <div class="slot"><span class="slot__n">${Icon({ name: 'restore', size: 18 })}</span><span class="grow"><b>${esc(a.empty ? '비어 있음' : a.title)}</b><small>${esc(a.empty ? '하루를 진행할 때마다 자동으로 저장돼요' : `${a.meta}${a.size ? ` · ${a.size}` : ''}`)}</small>${a.start ? `<small>${esc(a.start)}</small>` : ''}</span><span class="slot__btns">${
-      a.empty ? '' : Button({ variant: 'secondary', size: 'sm', act: 'load', data: { slot: 'auto' }, children: '불러오기' })}</span></div>
-    ${SectionTitle({ title: '파일', action: '압축 JSON' })}
-    <div class="slot"><span class="slot__n">${Icon({ name: 'upload', size: 18 })}</span><span class="grow"><b>내보내기 · 가져오기</b><small>다른 기기·브라우저로 옮기거나 백업해요. 가져오면 자동 저장 슬롯에 들어가요.</small></span><span class="slot__btns">${
-      canSave ? Button({ variant: 'secondary', size: 'sm', act: 'export', children: '내보내기' }) : ''}${Button({ variant: 'secondary', size: 'sm', act: 'import', children: '가져오기' })}</span></div>
-    ${canSave ? `<button type="button" class="slot ex-cards" data-act="ex-cards" role="switch" aria-checked="${exportCards}"><span class="slot__n">${Icon({ name: exportCards ? 'check' : 'plus', size: 18 })}</span><span class="grow"><b>카드 이미지 포함 · ${exportCards ? '켬' : '끔'}</b><small>켜면 내가 올린 카드 그림을 세이브와 함께 zip 하나로 내보내요. 가져오기는 zip·세이브 파일 모두 돼요.</small></span><span class="po-chip${exportCards ? ' po-chip--brand' : ''}">${exportCards ? '켬' : '끔'}</span></button>` : ''}
+    ${SectionTitle({ title: '파일', action: canSave ? '켬 = .zip · 끔 = 압축 JSON' : '압축 JSON · zip' })}
+    ${panel(`${canSave ? `<div class="sv-cards"><span class="grow"><b>카드 이미지 포함</b><small class="muted">켜면 내가 올린 카드 그림을 세이브와 함께 .zip 하나로 내보내요.</small></span><button type="button" class="set-switch${exportCards ? ' is-on' : ''}" data-act="ex-cards" role="switch" aria-checked="${exportCards}" aria-label="카드 이미지 포함"><i aria-hidden="true"></i></button></div>` : ''}
+      <div class="btn-row">${canSave ? Button({ variant: 'secondary', block: true, icon: 'download', act: 'export', children: '내보내기' }) : ''}${Button({ variant: 'secondary', block: true, icon: 'upload', act: 'import', children: '가져오기' })}</div>
+      <p class="small muted">${canSave ? (exportCards ? '세이브와 카드 그림을 .zip 하나로 내보내요. ' : '세이브만 압축 JSON(.json)으로 내보내요. ') : ''}가져오기는 .zip·.json 모두 돼요. 가져오면 자동 저장 칸에 들어가요.</p>`, 'sv-file')}
     <input type="file" id="import-file" accept=".gz,.json,.zip,application/gzip,application/json,application/zip" hidden>
     <p class="small muted">저장은 이 브라우저(IndexedDB, 압축)에 남아요. 지난 시즌은 경기 요약·하이라이트·결정 기록과 다른 경기 스코어·득점자, 선수 시즌 합계만 남기고, 경기 재생 화면은 내 최근 5경기만 남아요.</p>
     ${versionFooter(version)}

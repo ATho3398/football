@@ -24,6 +24,7 @@ export const ICON_PATHS = {
   close: "M6 6l12 12 M18 6L6 18",
   "chevron-right": "M9 6l6 6-6 6",
   "chevron-down": "M6 9l6 6 6-6",
+  "chevron-up": "M6 15l6-6 6 6",
   play: "M7 5l12 7-12 7z",
   pause: "M8 5v14 M16 5v14",
   skip: "M5 5l9 7-9 7z M18 5v14",

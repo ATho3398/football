@@ -9,7 +9,7 @@ import { cardRole, cardText } from '../../engine/cards';
 import { myMatchPosition, type GameState } from '../../game';
 import { previewLineup } from '../../myTactics';
 import { ROLE_NAMES_KO } from '../../engine/roles';
-import { BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
+import { Banner, BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
 import { cardArtPos, cardArtUrl } from '../cardArt';
 
@@ -129,10 +129,38 @@ export function deckVM(g: GameState, set: number, role: string | undefined): Dec
   };
 }
 
+/** 못 쓰는 이유 짧게 (디자인 144 이유 칩: 포지션 · 능력치 · 역할) */
+export function shortReason(problem: string): string {
+  return problem.includes('포지션') ? '포지션' : problem.includes('역할') ? '역할' : problem.includes('능력치') ? '능력치' : '잠김';
+}
+
 /** 덱·가진 카드 그리드 한 칸 (mini). 누르면 카드 상세 시트 */
 function miniTile(c: DeckCardVM, from: 'deck' | 'pool'): string {
   const card = from === 'pool' ? { ...c.card, count: 0 } : c.card;
-  return GameCard({ card, size: 'mini', act: 'card-open', data: { v: c.id, from }, state: c.problem ? 'disabled' : 'normal', ...(c.problem ? { reason: '못 씀' } : {}) });
+  return GameCard({ card, size: 'mini', act: 'card-open', data: { v: c.id, from }, state: c.problem ? 'disabled' : 'normal', ...(c.problem ? { reason: shortReason(c.problem) } : {}) });
+}
+
+const RARITY_KO = { common: '일반', rare: '희귀', epic: '에픽', legendary: '전설' } as const;
+
+/** 카드 획득 3택1 (디자인 85, C.60): 3장(deck 크기) 중 눌러 고르고 아래 상세 → [이 카드 받기] */
+function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
+  const p = vm.picks[0]!;
+  const k = Math.min(Math.max(0, sel), p.options.length - 1);
+  const c = p.options[k]!;
+  const rare = [...new Set(p.options.map((o) => RARITY_KO[o.rarity]))].join('·');
+  const hero = HeroPanel({
+    title: '카드 획득', back: { act: 'go', data: { to: back } }, eyebrow: `${p.label} · 1장 고르기`, value: '3택1', pad: false, progress: false,
+    chips: [vm.picks.length > 1 ? `${vm.picks.length}번 남음` : '이번 1번', { label: rare, soft: true }],
+  });
+  return `${hero}<div class="body">
+    <p class="small muted">고른 카드는 가진 카드로 들어가요 · 덱에 넣는 건 덱 편집에서</p>
+    <div class="gc-pick">${p.options.map((o, i) => `<div class="gc-pick__item">${GameCard({ card: o.card, size: 'mini', act: 'pick-sel', data: { v: String(i) }, state: i === k ? 'selected' : o.problem ? 'disabled' : 'normal', ...(o.problem ? { reason: shortReason(o.problem) } : {}) })}</div>`).join('')}</div>
+    <div class="panel pick-detail"><div class="pick-detail__head"><b>${esc(c.name)}</b><small>${RARITY_KO[c.rarity]} · ${esc(c.kind)} · ${esc(c.role)}</small></div>
+      <p>${esc(c.text)}</p><small class="muted">조건 · ${esc(c.condition || '없음')}${c.problem ? ` · <b class="fail">지금 못 씀: ${esc(c.problem)}</b>` : ''}</small></div>
+    ${Button({ size: 'lg', block: true, icon: 'check', act: 'pick-take', data: { v: `${p.idx}:${k}` }, children: '이 카드 받기' })}
+    <p class="small muted pick-hint">카드를 눌러 비교해요 · 고르지 않으면 받을 수 없어요</p>
+    ${Button({ variant: 'ghost', block: true, act: 'more', data: { v: 'pickLater' }, children: '나중에 고르고 덱 먼저 보기' })}
+  </div>`;
 }
 
 /** 카드 상세 시트 (full): 효과·조건·못 쓰는 이유와 빼기/넣기 */
@@ -155,24 +183,25 @@ function cardSheet(s: CardSheetVM, count: number): string {
   });
 }
 
-export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null, back: 'home' | 'prep' = 'home'): string {
+/** 덱 편집 (디자인 116 · 144, C.60): compact 머리말 · 덱 세트 탭 3 · 덱 mini 4열(못 쓰는 카드 이유 칩) · 가진 카드. 카드 선택이 남아 있으면 먼저 획득 화면(85) */
+export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null, back: 'home' | 'prep' = 'home', pick: { sel: number; later: boolean } = { sel: 1, later: false }): string {
+  if (vm.picks.length && !pick.later && !sheet) return pickView(vm, pick.sel, back);
   const C = BALANCE.cards;
+  const arts = vm.deck.filter((c) => c.card.art).length;
   const hero = HeroPanel({
-    title: '카드 덱', back: { act: 'go', data: { to: back } }, eyebrow: `덱 ${vm.set + 1}${vm.set === vm.active ? ' · 경기에 쓰는 덱' : ''}`,
+    title: '카드 덱', back: { act: 'go', data: { to: back } }, compact: true, eyebrow: `덱 ${vm.set + 1}${vm.set === vm.active ? ' · 경기에 쓰는 덱' : ''}`,
     value: vm.count, total: C.deckMax, progress: false,
-    chips: [`${C.deckMin}~${C.deckMax}장`, `같은 카드 ${C.maxCopies}장`, `세트피스 ${C.maxSetPiece}장`, ...(vm.unusable ? [{ label: `못 쓰는 카드 ${vm.unusable}장`, soft: true }] : [])],
+    chips: [`${C.deckMin}~${C.deckMax}장`, `같은 카드 ${C.maxCopies}장`, { label: vm.unusable ? `못 쓰는 카드 ${vm.unusable}장` : `그림 ${arts}장`, soft: true }],
   });
   const picks = vm.picks.length
-    ? `${SectionTitle({ title: '카드 선택', action: `${vm.picks.length}개 남음` })}${vm.picks.map((p) => panel(`<p class="line"><b>${esc(p.label)}</b> · 3장 중 1장을 가져요</p>
-      <div class="gc-pick">${p.options.map((c, k) => `<div class="gc-pick__item">${GameCard({ card: c.card, size: 'deck', state: c.problem ? 'disabled' : 'normal', ...(c.problem ? { reason: c.problem } : {}) })}
-        ${Button({ size: 'sm', block: true, act: 'pick-take', data: { v: `${p.idx}:${k}` }, children: '가져오기' })}</div>`).join('')}</div>`)).join('')}`
+    ? Banner({ tone: 'info', title: `카드 선택 ${vm.picks.length}개를 받을 수 있어요`, action: '고르기', onAction: { act: 'more', data: { v: 'pickLater' } } })
     : '';
   const sets = Tabs({ items: vm.sets, value: String(vm.set), act: 'deck-set', fill: true, label: '덱 세트' });
   const use = vm.set === vm.active
     ? '<p class="small muted">이 덱으로 경기를 뛰어요. 경기 시작 때 4장, 15분마다 1장, 장면에서 성공하면 1장 더(경기당 3장) 뽑아요.</p>'
     : Button({ variant: 'secondary', block: true, act: 'deck-use', data: { v: String(vm.set) }, disabled: vm.problems.length > 0, children: vm.problems.length ? '규칙에 맞춰야 쓸 수 있어요' : `덱 ${vm.set + 1}로 경기 뛰기` });
   const probs = vm.problems.length ? `<div class="dk-probs">${vm.problems.map((p) => `<p class="small">${esc(p)}</p>`).join('')}</div>` : '';
-  const deck = `${SectionTitle({ title: '덱', action: `${vm.count}장 · 누르면 상세` })}${panel(`${probs}<div class="gc-grid">${vm.deck.map((c) => miniTile(c, 'deck')).join('')}</div>`)}`;
+  const deck = `${SectionTitle({ title: '덱', action: `${vm.count}장 · 그림 ${arts} · 기본 장면 ${vm.deck.length - arts}` })}${panel(`${probs}<div class="gc-grid">${vm.deck.map((c) => miniTile(c, 'deck')).join('')}</div>`)}`;
   const pool = `${SectionTitle({ title: '가진 카드', action: vm.pool.length ? `${vm.pool.length}종 더 넣을 수 있음` : '모두 덱에 있음' })}${panel(vm.pool.length
     ? `<div class="gc-grid">${vm.pool.map((c) => miniTile(c, 'pool')).join('')}</div>`
     : '<p class="small muted">레벨 5마다, 시즌이 끝날 때 카드를 고를 수 있어요.</p>')}`;

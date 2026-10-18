@@ -91,9 +91,3 @@ export function tagsSheet(p: PlayerState, name: string, youthName = ''): string 
   return BottomSheet({ eyebrow: `${name} · 태그 ${p.tags.length + (p.youth ? 1 : 0)}`, title: '전체 태그', subtitle: '생성 · 커리어 · 플레이 · 스토리 순', children: body, onClose: { act: 'tags-all' } });
 }
 
-/** 월드 → 이적 소식 아래 "커리어 태그 소식" (C.45 14번, NPC 태그는 뉴스에만) — 디자인 없는 새 패널 */
-export function tagNewsSection(rows: { season: string; name: string; team: string; tag: string }[]): string {
-  if (!rows.length) return '';
-  return `<div class="po-section"><span class="po-section__bar" aria-hidden="true"></span><h2 class="po-section__title">커리어 태그 소식</h2><span class="po-section__action">원클럽맨 · 영원한 &lt;구단&gt; · 득점 기계 · 원더키드 · 노익장</span></div>
-    ${panel(`<div class="opts">${rows.map((r) => `<div class="kv"><span><b>${esc(r.name)}</b> <small class="muted">${esc(r.team)} · ${esc(r.season)}</small></span><span class="cu-chip is-on">${esc(r.tag)}</span></div>`).join('')}</div>`)}`;
-}

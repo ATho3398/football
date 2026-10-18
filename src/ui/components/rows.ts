@@ -9,17 +9,19 @@ import { actAttrs, cx, esc, type Action } from './html';
 export type FinTierKo = '빅클럽' | '상위' | '중위' | '하위';
 const FIN_N: Record<FinTierKo, number> = { 빅클럽: 4, 상위: 3, 중위: 2, 하위: 1 };
 
-export function FinChip(tier: string | undefined, sm = false): string {
+export function FinChip(tier: string | undefined, sm = false, barsOnly = false): string {
   const n = tier ? FIN_N[tier as FinTierKo] : undefined;
   if (!n) return '';
-  return `<span class="${cx('po-fin', sm && 'po-fin--sm')}" title="재정 등급 ${esc(tier!)}"><span class="po-fin__bars" aria-hidden="true">${
-    [0, 1, 2, 3].map((k) => `<i class="${k < n ? 'on' : ''}" style="height:${4 + k * 2}px"></i>`).join('')}</span>${esc(tier!)}</span>`;
+  return `<span class="${cx('po-fin', sm && 'po-fin--sm', barsOnly && 'po-fin--bars')}" title="재정 등급 ${esc(tier!)}"${barsOnly ? ` aria-label="재정 ${esc(tier!)}"` : ''}><span class="po-fin__bars" aria-hidden="true">${
+    [0, 1, 2, 3].map((k) => `<i class="${k < n ? 'on' : ''}" style="height:${4 + k * 2}px"></i>`).join('')}</span>${barsOnly ? '' : esc(tier!)}</span>`;
 }
+
+export const FIN_TIERS: FinTierKo[] = ['빅클럽', '상위', '중위', '하위'];
 
 // ── OfferCard ──
 
 export interface OfferData {
-  club: string; crest?: string; color?: string; league: string; rank?: number; strength: string | number; apps: number; starts: number; years: string; weekly: string; yearly: string;
+  club: string; crest?: string; color?: string; league: string; rank?: number; strength: string | number; /** 예상 출전 (숫자면 %, 글이면 그대로 — C.60 "주전 경쟁") */ apps: number | string; starts: number; years: string; weekly: string; yearly: string;
   loan?: boolean; tag?: string; note?: string;
   /** 재정 등급 (요청 6) */
   tier?: FinTierKo;
@@ -28,17 +30,23 @@ export interface OfferData {
   /** 친정 표시 (요청 6, 예: "유스 출신 구단") */
   homeClub?: string;
 }
-export interface OfferCardProps { offer: OfferData; selected?: boolean; actions?: boolean; onAccept?: Action; onReject?: Action }
+export interface OfferCardProps { offer: OfferData; selected?: boolean; actions?: boolean; onAccept?: Action; onReject?: Action;
+  /** 구단 이름을 누르면 (C.60: 팀 상세) */
+  clubAct?: Action;
+  /** 거절 못 함 (자유계약 마지막 제안) */
+  rejectDisabled?: boolean;
+  /** 수락 버튼 글자 (기본 "수락") */
+  acceptLabel?: string }
 
 export function OfferCard(p: OfferCardProps): string {
   const o = p.offer;
-  return `<article class="${cx('po-offer', o.loan && 'is-loan', p.selected && 'is-selected')}"><header class="po-offer__head">${Crest({ name: o.club, ...(o.crest ? { src: o.crest } : {}), size: 36, ...(o.color ? { color: o.color } : {}) })}<span class="po-offer__club"><b>${esc(o.club)}</b><span>${
+  return `<article class="${cx('po-offer', o.loan && 'is-loan', p.selected && 'is-selected')}"><header class="po-offer__head">${Crest({ name: o.club, ...(o.crest ? { src: o.crest } : {}), size: 36, ...(o.color ? { color: o.color } : {}) })}<span class="po-offer__club">${p.clubAct ? `<button type="button" class="dt-link po-offer__link"${actAttrs(p.clubAct)}><b>${esc(o.club)}</b>${Icon({ name: 'chevron-right', size: 14, strokeWidth: 2.6 })}</button>` : `<b>${esc(o.club)}</b>`}<span>${
     esc(o.league + (o.rank != null ? ` · ${o.rank}위` : ''))}</span></span><span class="po-offer__tags">${FinChip(o.tier, true)}${
     o.loan ? '<span class="po-offer__tag is-loan">임대</span>' : o.tag ? `<span class="po-offer__tag">${esc(o.tag)}</span>` : ''}</span></header>${
-    o.homeClub ? `<span class="po-offer__home">${Icon({ name: 'home', size: 12, strokeWidth: 2.6 })}${esc(o.homeClub)}</span>` : ''}<dl class="po-offer__grid"><div><dt>팀 전력</dt><dd class="po-num">${esc(o.strength)}</dd></div><div><dt>예상 출전</dt><dd class="po-num">${o.apps}%</dd></div><div><dt>예상 선발</dt><dd class="po-num">${o.starts}%</dd></div><div><dt>${o.loan ? '임대 기간' : '계약'}</dt><dd>${esc(o.years)}${
+    o.homeClub ? `<span class="po-offer__home">${Icon({ name: 'home', size: 12, strokeWidth: 2.6 })}${esc(o.homeClub)}</span>` : ''}<dl class="po-offer__grid"><div><dt>팀 전력</dt><dd class="po-num">${esc(o.strength)}</dd></div><div><dt>예상 출전</dt><dd class="po-num">${typeof o.apps === 'number' ? `${o.apps}%` : esc(o.apps)}</dd></div><div><dt>예상 선발</dt><dd class="po-num">${o.starts}%</dd></div><div><dt>${o.loan ? '임대 기간' : '계약'}</dt><dd>${esc(o.years)}${
     o.fee ? `<small class="po-offer__fee">이적료 ${esc(o.fee)}</small>` : ''}</dd></div></dl><div class="po-offer__wage"><span>주급 <b class="po-num">${esc(o.weekly)}</b></span><span>연봉 <b class="po-num">${esc(o.yearly)}</b></span>${
     o.note ? `<em>${esc(o.note)}</em>` : ''}</div>${p.actions !== false ? `<div class="po-offer__actions">${
-    Button({ variant: 'secondary', block: true, ...(p.onReject ?? {}), children: '거절' })}${Button({ block: true, icon: 'check', ...(p.onAccept ?? {}), children: '수락' })}</div>` : ''}</article>`;
+    Button({ variant: 'secondary', block: true, ...(p.onReject ?? {}), disabled: !!p.rejectDisabled, children: '거절' })}${Button({ block: true, icon: 'check', ...(p.onAccept ?? {}), children: p.acceptLabel ?? '수락' })}</div>` : ''}</article>`;
 }
 
 // ── TransferRow ──
@@ -51,6 +59,8 @@ export interface TransferRowProps {
   fee?: string;
   /** 가는 팀 재정 등급 (요청 6) */
   toTier?: FinTierKo;
+  /** 누르면 (C.60: 선수 상세) */
+  act?: Action;
 }
 
 export function TransferRow(p: TransferRowProps): string {
@@ -59,9 +69,10 @@ export function TransferRow(p: TransferRowProps): string {
       p.from ? `<span class="po-xfer__fillfrom">${esc(p.from)}에서</span>` : ''}</div>`;
   }
   const to = p.to ?? '';
-  return `<div class="${cx('po-xfer', p.mine && 'is-mine')}">${Avatar({ ...(p.avatar ? { src: p.avatar } : {}), name: p.name, size: 40 })}<span class="po-xfer__main"><span class="po-xfer__name"><b>${esc(p.name)}</b><span class="po-xfer__pos">${esc(p.pos)}</span><span class="po-num">${p.age}세</span></span><span class="po-xfer__move">${
+  const tag = p.act?.act ? 'button' : 'div';
+  return `<${tag}${tag === 'button' ? ' type="button"' : ''} class="${cx('po-xfer', p.mine && 'is-mine')}"${p.act ? actAttrs(p.act) : ''}>${Avatar({ ...(p.avatar ? { src: p.avatar } : {}), name: p.name, size: 40 })}<span class="po-xfer__main"><span class="po-xfer__name"><b>${esc(p.name)}</b><span class="po-xfer__pos">${esc(p.pos)}</span><span class="po-num">${p.age}세</span></span><span class="po-xfer__move">${
     Crest({ name: p.from, size: 14, color: 'var(--ink-faint)' })}<span>${esc(p.from)}</span>${Icon({ name: 'chevron-right', size: 12, strokeWidth: 2.6 })}${Crest({ name: to, size: 14 })}<b>${esc(to)}</b>${FinChip(p.toTier, true)}</span>${
-    p.fee != null ? `<span class="po-xfer__fee">몸값 <b class="po-num">${esc(p.fee)}</b></span>` : ''}</span><span class="po-xfer__side"><b class="po-num">${p.ovr}</b><span>${esc(p.status ?? '')}</span></span></div>`;
+    p.fee != null ? `<span class="po-xfer__fee">몸값 <b class="po-num">${esc(p.fee)}</b></span>` : ''}</span><span class="po-xfer__side"><b class="po-num">${p.ovr}</b><span>${esc(p.status ?? '')}</span></span></${tag}>`;
 }
 
 // ── DayCell (디자인 91, 요청 5): 주간 훈련 7칸의 한 칸. 요일 · 날짜 · 아이콘 · 2글자 이름. 숫자는 시트에서 ──

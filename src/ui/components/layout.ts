@@ -185,12 +185,15 @@ export function BottomSheet(p: BottomSheetProps): string {
 
 export interface ModalProps { title: string; children?: string; icon?: IconName; tone?: 'info' | 'warning' | 'danger'; actions?: string[]; open?: boolean; inline?: boolean; onClose?: Action;
   /** 제목 아래 작은 꼬리표 (디자인 65 "새 기능") */
-  badge?: string }
+  badge?: string;
+  /** 본문 아래 표 (디자인 98 수락 확인: 계약 · 주급 · 팀 전력 …) */
+  rows?: [string, string][] }
 
 export function Modal(p: ModalProps): string {
   if (p.open === false) return '';
   const box = `<div class="po-modal" role="dialog" aria-modal="${!p.inline}" aria-label="${esc(p.title)}">${
     p.icon ? `<span class="po-modal__icon po-modal__icon--${p.tone ?? 'info'}">${Icon({ name: p.icon, size: 24 })}</span>` : ''}<b class="po-modal__title">${esc(p.title)}</b>${p.badge ? `<span class="po-modal__badge">${esc(p.badge)}</span>` : ''}${
+    p.rows?.length ? `<dl class="po-modal__rows">${p.rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd class="po-num">${esc(v)}</dd></div>`).join('')}</dl>` : ''}${
     p.children ? `<div class="po-modal__body">${esc(p.children)}</div>` : ''}${p.actions ? `<div class="po-modal__actions">${p.actions.join('')}</div>` : ''}</div>`;
   return p.inline ? box : `<div class="po-overlay" data-overlay="1"${actAttrs(p.onClose ?? {})}>${box}</div>`;
 }

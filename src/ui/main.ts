@@ -1,7 +1,7 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
-import { bodySection, tagNewsSection, tagsSheet } from './views/body';
+import { bodySection, tagsSheet } from './views/body';
 import { buyWeakFoot, choosePreset, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
 import { autoCustom } from '../custom';
@@ -64,9 +64,9 @@ import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { matchResultView } from './views/matchResult';
 import { playerView, type PlayerTab } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
-import { allocateView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, type SeasonTab } from './views/screens';
+import { allocateView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, type SeasonTab, type SeasonTodo } from './views/screens';
 import { tacticsView } from './views/tactics';
-import { contractView, marketCard, newsSection, offersView } from './views/transfer';
+import { contractView, marketCard, newsSection, offersView, tagNewsSection } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
 import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
@@ -98,7 +98,7 @@ import type { FieldPosition } from '../positions';
 type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person';
 
 interface ModalState {
-  title: string; body?: string; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
+  title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
   /** 취소 버튼 대신 다른 동작 (기본은 "취소" = 닫기) */
   cancel?: { label: string; act: string; data?: Record<string, string> };
 }
@@ -163,6 +163,10 @@ const ui = {
   autoCount: 5,
   /** 독 더보기 시트 (모바일) */
   moreSheet: false,
+  /** 이적 제안 화면 펼친 제안 (C.60, 디자인 97) · 월드·결과 "더 보기" 펼침 (C.60) · 카드 획득 고른 칸 (디자인 85) */
+  offerSel: 0,
+  more: {} as Record<string, boolean>,
+  pickSel: 1,
   /** 시즌 종료 화면 상세 보기 탭 (C.44). null = 요약 카드만 */
   seasonTab: null as SeasonTab | null,
   /** 설정 → 선수 이름 (C.44a) */
@@ -293,6 +297,9 @@ function syncReplayIndex(): void {
 
 function go(screen: Screen): void {
   if (screen !== 'team' && screen !== 'person') ui.detail.stack = [];
+  // "더 보기" 펼침·고른 제안 (C.60)은 다른 화면으로 가면 처음으로. 팀·선수 상세를 다녀올 때는 그대로
+  const detail = (x: Screen) => x === 'team' || x === 'person';
+  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; }
   ui.screen = screen;
   ui.modal = null;
   render();
@@ -376,7 +383,7 @@ function screenHtml(): string {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
       const cs = ui.cardSheet;
       const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
-      return deckView(vm, cs && c ? { from: cs.from, card: c } : null, ui.deckBack);
+      return deckView(vm, cs && c ? { from: cs.from, card: c } : null, ui.deckBack, { sel: ui.pickSel, later: !!ui.more.pickLater });
     }
     case 'player': {
       const p = g.player;
@@ -386,8 +393,8 @@ function screenHtml(): string {
       return playerView(playerVM(g), { tab: ui.playerTab, body, market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired' })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
-    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g)) + tagNewsSection((g.tagNews ?? []).slice(-20).reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag }))) : '');
-    case 'offers': return offersView(marketVM(g));
+    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more);
+    case 'offers': return offersView(marketVM(g), ui.offerSel);
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
@@ -412,7 +419,16 @@ function screenHtml(): string {
     }
     case 'season': {
       const vm = seasonVM(g);
-      if (vm) return seasonView(vm, g.phase === 'offseason' ? marketCard(marketVM(g)) : '', g.phase === 'offseason' && marketPending(g), ui.seasonTab, ui.seasonTab === 'transfers' ? newsSection(newsVM(g)) : '');
+      if (vm) {
+        // 디자인 106 (C.60): 응답이 필요하면 "다음 할 일" 줄 하나(답하기), 그 밖의 이적 알림(방금 옮긴 팀 등)은 그대로 카드
+        const off = g.phase === 'offseason';
+        const pend = off && marketPending(g);
+        const mvm = off ? marketVM(g) : null;
+        const todo: SeasonTodo | null = pend && mvm
+          ? { title: mvm.renewal ? '계약 만료 · 응답 필요' : `이적 제안 ${mvm.offers?.length ?? 0}개 · 응답 필요`, sub: '답하기 전에는 다음 시즌으로 안 넘어가요', act: 'go', data: { to: mvm.offers?.length ? 'offers' : 'contract' }, cta: '답하기', warn: true, icon: 'chat' }
+          : null;
+        return seasonView(vm, mvm && !pend ? marketCard(mvm) : '', pend, ui.seasonTab, ui.seasonTab === 'transfers' ? newsSection(newsVM(g), ui.more) : '', todo);
+      }
       break;
     }
     case 'retired': return retiredView(retiredVM(g));
@@ -437,7 +453,7 @@ function screenHtml(): string {
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
-  return vm ? matchResultView(vm) : homeView(homeVM(g));
+  return vm ? matchResultView(vm, ui.more) : homeView(homeVM(g));
 }
 
 /** 화면 → 첫 방문 말풍선 id */
@@ -504,7 +520,7 @@ function render(): void {
   const guide = guideHtml(g);
   const modal = m
     ? Modal({
-      title: m.title, ...(m.body ? { children: m.body } : {}), icon: m.tone === 'danger' ? 'danger' : 'info', tone: m.tone ?? 'info', onClose: { act: 'modal-close' },
+      title: m.title, ...(m.body ? { children: m.body } : {}), ...(m.rows ? { rows: m.rows } : {}), icon: m.tone === 'danger' ? 'danger' : 'info', tone: m.tone ?? 'info', onClose: { act: 'modal-close' },
       actions: [
         Button({ variant: 'secondary', block: true, act: m.cancel?.act ?? 'modal-close', ...(m.cancel?.data ? { data: m.cancel.data } : {}), children: m.cancel?.label ?? '취소' }),
         Button({ variant: m.tone === 'danger' ? 'danger' : 'primary', block: true, act: m.act, ...(m.data ? { data: m.data } : {}), children: m.confirm }),
@@ -1481,15 +1497,38 @@ app.addEventListener('click', (ev) => {
       if (!g?.market.offers) return;
       const i = Number(el.dataset.i);
       const o = g.market.offers[i];
-      if (!o) return;
+      const ov = marketVM(g);
+      const vo = ov.offers?.find((x) => x.i === i);
+      if (!o || !vo) return;
       const team = teamById(g.league, o.teamId).nameKo;
+      const others = (ov.offers?.length ?? 1) - 1;
+      // 디자인 98 (C.60): 계약 · 주급 · 팀 전력 · 예상 선발 · 위상 표 + 나머지 제안 자동 거절 안내
       confirmModal({
-        title: o.teamId === g.player.teamId ? `${team}와 1군 계약할까요?` : o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 이적할까요?`,
-        body: o.kind === 'loan' ? '1시즌 뒤 원 소속팀으로 돌아와요. 계약은 그대로예요.' : `${o.years}년 계약 · 다른 제안은 모두 사라져요. 전술은 새 팀 기본값으로 바뀌어요.`,
+        title: o.teamId === g.player.teamId ? `${team}와 1군 계약할까요?` : o.kind === 'loan' ? `${team} 임대를 수락할까요?` : `${team}로 갈까요?`,
+        rows: [
+          ['계약', o.kind === 'loan' ? '임대 1시즌 · 계약은 그대로' : `${o.years}년 · ${vo.until} 시즌까지`],
+          ['주급', `${ov.curWage} → ${vo.wage}`],
+          ['팀 전력', `${ov.rating} → ${vo.rating}`],
+          ['예상 선발', `${vo.startPct}%`],
+          ['위상', vo.repLoss ? `약 −${vo.repLoss} (약팀 이적)` : '변화 없음'],
+        ],
+        body: `${o.kind === 'loan' ? '1시즌 뒤 원 소속팀으로 돌아와요. ' : '전술은 새 팀 기본값으로 바뀌어요. '}${others > 0 ? `수락하면 나머지 제안 ${others}개는 자동으로 거절돼요. ` : ''}되돌릴 수 없어요.`,
         confirm: '수락', act: 'offer-accept-ok', data: { i: String(i) },
       });
       return;
     }
+    case 'more':
+      ui.more[v!] = !ui.more[v!];
+      render();
+      return;
+    case 'pick-sel':
+      ui.pickSel = Number(v);
+      render();
+      return;
+    case 'offer-sel':
+      ui.offerSel = Number(v);
+      render();
+      return;
     case 'offer-accept-ok': {
       if (!g) return;
       const { points } = acceptMyOffer(g, Number(el.dataset.i));
@@ -2091,6 +2130,7 @@ app.addEventListener('click', (ev) => {
       if (!g || !v) return;
       const [pi, oi] = v.split(':').map(Number);
       const id = takePick(g.cards, pi!, oi!);
+      ui.pickSel = 1;
       if (id) showToast({ kind: 'info', title: `카드 획득 · ${cardById(id)?.name ?? id}`, body: '가진 카드에서 덱에 넣을 수 있어요.' });
       autosave();
       render();
@@ -2249,10 +2289,14 @@ app.addEventListener('click', (ev) => {
       void autoRun(g, { matches: r - g.league.round, untilRound: r });
       return;
     }
-    case 'season-tab':
+    case 'season-tab': {
+      // 요약 ↔ 상세는 다른 화면처럼 맨 위로 (C.60)
+      const flip = (v === 'close') !== (ui.seasonTab === null);
       ui.seasonTab = v === 'close' ? null : (v as SeasonTab);
       render();
+      if (flip) window.scrollTo(0, 0);
       return;
+    }
     case 'dock-more':
       ui.moreSheet = !ui.moreSheet;
       render();

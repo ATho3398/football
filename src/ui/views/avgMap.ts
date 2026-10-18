@@ -9,6 +9,9 @@ export function drawAvgMap(r: Replay): void {
   const canvas = document.getElementById('avg-canvas') as HTMLCanvasElement | null;
   if (!canvas) return;
   readPalette();
-  const { ctx, w, h } = fitCanvas(canvas);
+  const { ctx, w, h, portrait } = fitCanvas(canvas);
+  // 세로 피치면 공격 방향 ↑ (디자인 117, C.60)
+  const dir = document.getElementById('avg-dir');
+  if (dir) dir.textContent = `우리 공격 방향 ${portrait ? '↑' : '→'}`;
   drawAveragePositions(ctx, w, h, averagePositions(r), playerMap(r), undefined, r.side);
 }
