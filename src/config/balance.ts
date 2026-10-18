@@ -1346,9 +1346,9 @@ export const BALANCE = {
     },
     /**
      * 컵·챔스 경기 XP 배율 (리그 경기 XP × matchXpScale × 이 값). 경기 수가 늘어 성장 가드(레전더리 35세 월드클래스 비율 ·
-     * 36−30 CB/CDM/CM 하락)가 흔들려서 낮춤 (C.67, 1.0 = 13/15)
+     * 36−30 CB/CDM/CM 하락)가 흔들려서 낮춤 (C.67: 1.0 = 13/15, 0.5 = 14/15 → 0.35 + 컵 업적 XP 는 위상에 넣지 않음)
      */
-    matchXpMul: 0.5,
+    matchXpMul: 0.35,
     /** 업적 XP (5.3): 챔스 우승/준우승/4강/8강, 국내 컵 우승, 트레블(리그 + 국내 컵 + 챔스) */
     xp: { uclWin: 400, uclFinal: 250, uclSemi: 150, uclQuarter: 80, faWin: 150, treble: 500 },
     /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */

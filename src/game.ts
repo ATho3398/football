@@ -1821,7 +1821,9 @@ export function endSeason(state: GameState): SeasonSummary {
   const reputationBefore = player.reputation + slumpTotal;
   const startFloorTier = reputationFloorTier(reputationBefore);
   // 영원한 <구단>·친정 선택 (C.47): 시즌 위상 증가 소폭 + (팬 인기 = 위상)
-  const repGain = Math.min(seasonGainCap(age), baseXp * R.fromAchievementXp + personalReputation(player.season)) * storyRepMul(player, player.teamId);
+  // 컵·챔스 업적 XP 는 위상 증가에 넣지 않는다 (C.67b: 레전더리 35세 월드클래스 비율 가드)
+  const cupXp = cupAch.reduce((t, a) => t + a.xp, 0);
+  const repGain = Math.min(seasonGainCap(age), (baseXp - cupXp) * R.fromAchievementXp + personalReputation(player.season)) * storyRepMul(player, player.teamId);
   const decayFloor = reputationFloor(player.reputation);
   const afterGain = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
   const decayBlocked = Math.max(0, decayFloor - afterGain);

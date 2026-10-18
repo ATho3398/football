@@ -67,12 +67,12 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
   it('다음 더비: 날짜·그 전까지 경기 수·남은 더비, 없는 대회는 회색', () => {
     const g = newGame({ mode: 'real', playerId: 'son', seed: 'c44-auto', difficulty: 'normal' });
     const vm = autoSheetVM(g);
-    // C.67a: 리그 38 + 추첨된 FA컵 32강 1
-    expect(vm.remaining).toBe(39);
+    // C.67: 리그 38 + 추첨된 FA컵 32강 1 + 챔스 조별 6 (토트넘)
+    expect(vm.remaining).toBe(45);
     const d = vm.targets.find((t) => t.id === 'derby')!;
     expect(d.available).toBe(true);
     expect(d.next!.left).toBe(6);
-    expect(vm.targets.filter((t) => !t.available).map((t) => t.id)).toEqual(['aMatch', 'nationsCup', 'ucl']);
+    expect(vm.targets.filter((t) => !t.available).map((t) => t.id)).toEqual(['aMatch', 'nationsCup']);
     const html = autoSheet(vm, 5);
     expect(html).toContain('아직 없음');
     expect(html).toContain('5경기 자동 진행');

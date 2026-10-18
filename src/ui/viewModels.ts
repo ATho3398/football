@@ -1639,7 +1639,7 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
           const leg2 = t2.hg === undefined ? dateLabel(t2.d!) : `${t2.ag}-${t2.hg}`;
           return {
             ...v, score: t2.hg === undefined ? null : `${t1.hg! + t2.ag!}-${t1.ag! + t2.hg!}`,
-            note: [`1차전 ${t1.hg === undefined ? '예정' : `${t1.hg}-${t1.ag}`}`, `2차전 ${leg2}`, t2.p ? `승부차기 ${t2.p[1]}-${t2.p[0]}` : ''].filter(Boolean).join(' · '),
+            note: [`1차전 ${t1.hg === undefined ? dateLabel(t1.d!) : `${t1.hg}-${t1.ag}`}`, `2차전 ${leg2}`, t2.p ? `승부차기 ${t2.p[1]}-${t2.p[0]}` : ''].filter(Boolean).join(' · '),
             w: t2.w ? name(t2.w) : null,
           };
         }),
