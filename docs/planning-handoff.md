@@ -410,3 +410,4 @@
 - (04:00 KST) **CI run 202 성공**(main 323b828 = C.68c + C.69, 03:54 KST 배포). C.68c·C.69 끝. run 203(a1d04a1 C.70) 진행 중. C.68b(e9e0a3c) CI 결과는 아직 못 받음 → 202가 그 위라 사실상 통과.
 - (04:03 KST) C.68b CI 확인: run 202(323b828)에 포함 성공, CI 시간 44분 → 21분(COACH_MEASURE=0 효과). **40단계 C.68b 끝.**
 - (04:10 KST) **C.71b 완료**(main 9cc9744, 13분, 테스트 640) → pending 118, ntfy, UI_3(작은 2), C.71b draft_, C.71a에 Switch 재사용 알림. 참고: Q가 만든 세션 lineage 깊이 7(한도 8).
+- (04:44 KST) **CI run 204 성공**(main 9cc9744 = C.70 + C.71b, 배포 완료). 41b C.70·41c C.71b 끝.
