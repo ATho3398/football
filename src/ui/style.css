@@ -1399,7 +1399,7 @@ button.po-xfer { width: 100%; border: 0; color: var(--ink); font-family: var(--f
 .tag-news__row small { display: block; font-size: 11px; }
 .tag-news__row .po-tag { flex: none; white-space: nowrap; }
 .season-tier { display: flex; align-items: center; gap: 12px; box-shadow: inset 3px 0 0 var(--tier-legend, var(--brand)); }
-.season-tier span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.season-tier > span:not(.po-tier) { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .season-tier small { font-size: 12px; }
 .season-todo-head { margin: 4px 0 -2px; font-size: 14px; font-weight: 800; }
 .season-todo { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; color: var(--ink); font-family: var(--font-sans); text-align: left; cursor: pointer; }
@@ -1533,8 +1533,8 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 
 /* ── C.62 시즌 요약 티어 달성 배지: 배지가 줄어들어 글자가 밖으로 넘치던 것 (C.60~, 폰·PC) ── */
 .season-tier .po-tier { flex: none; }
-.season-tier > span { flex: 1; min-width: 0; }
-.season-tier b { overflow-wrap: anywhere; word-break: keep-all; }
+.season-tier > span:not(.po-tier) { flex: 1; min-width: 0; }
+.season-tier > span b { overflow-wrap: anywhere; word-break: keep-all; }
 
 /* ── C.62 감독 신뢰도: 홈 주전 경쟁 카드(디자인 22) · 감독 면담(디자인 45) ── */
 .mg-card { display: flex; flex-direction: column; gap: 12px; }
