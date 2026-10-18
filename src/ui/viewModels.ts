@@ -53,6 +53,7 @@ import { positionPenalty, proficiencyOf, proficientOvr } from '../proficiency';
 import { saveStartNotice, versionLabel } from '../version';
 import type { DesignTier, FeedKind, FormationSlotProps, TacticStyle } from './components';
 import type { FieldAttributes } from '../attributes';
+import { attrShort, coachBoost } from '../money';
 import type { AttrGroupVM } from './views/attrGrid';
 import { derbyOf } from '../derby';
 import type { FaceRef } from './faces';
@@ -187,6 +188,8 @@ function pointsBanner(g: GameState): BannerVM | null {
 // ── 홈 (I.3, 디자인 22·25) ──
 
 export interface HomeVM {
+  /** 재정 (C.68a): 고를 수 있는 코치 후보 수 (홈 재정 아이콘 배지) */
+  money?: number;
   season: string;
   round: number;
   /** 다음 경기 대회 한 줄 (C.67): "리그 12R" / "FA컵 32강" */
@@ -372,6 +375,7 @@ export function homeVM(g: GameState): HomeVM {
   const s = p.season;
   const avg = averageRating(s);
   return {
+    money: g.money?.candidates.length ?? 0,
     season: seasonLabel(g.league.season), round: Math.min(g.league.round + 1, g.league.schedule.length), rounds: g.league.schedule.length,
     comp: g.phase === 'season' ? matchCompLabel(g) : '',
     phase: g.phase, banners, next, card: playerCardVM(g), condition: conditionVM(g),
@@ -502,7 +506,7 @@ export interface TrainingDayVM {
 
 export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean; /** 생활 하루 행동 (C.63 b) */ life?: boolean }
 
-export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean }
+export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean; /** 코치 (C.68a) "코치 +20% · 드리블" */ coach?: string }
 
 export interface TrainingVM {
   today: { date: string; iso: string; kind: DayPlan; name: string; desc: string; xp: number; fatigue: number; bundle: string | null; changed: boolean; locked: boolean; injured: boolean; fixed: boolean };
@@ -618,7 +622,9 @@ export function trainingVM(g: GameState): TrainingVM | null {
     while (isVacationDay(g, d) && n < 120) { d = addDays(d, 1); n++; }
     vacation = { until: dateLabel(d), days: n };
   }
-  const tb = techBundle(t, g.player.position);
+  // 코치 (C.68a): 자동 묶음·게이지 칸 수에 코치 전문 능력치 반영 (dayStep 과 같게)
+  const cb = (id: AttributeGroup) => coachBoost(g, g.player, id);
+  const tb = techBundle(t, g.player.position, (id) => cb(id)?.boost ?? 0);
   return {
     today: {
       date: dateLabel(today), iso: today, kind, name: TRAINING_NAMES_KO[kind], desc: kind === 'match' || kind === 'vacation' || kind === 'rehab' ? PLAN_DESC[kind] : TRAINING_DESC_KO[kind],
@@ -627,7 +633,7 @@ export function trainingVM(g: GameState): TrainingVM | null {
     },
     week, weekXp: Math.round(t.weekXp * 10) / 10, cap: T.weeklyXpCap, seasonXp: Math.round(t.season.xp),
     gauges: GROUP_NAMES.map((id) => ({
-      id, name: BUNDLE_NAMES_KO[id], value: Math.floor(t.gauges[id] ?? 0), full: gaugeNeed(g.player, id), ups: t.seasonUps[id] ?? 0, max: T.gauge.bundleSeasonMax,
+      id, name: BUNDLE_NAMES_KO[id], value: Math.floor(t.gauges[id] ?? 0), full: gaugeNeed(g.player, id, cb(id)?.target), ...(cb(id) ? { coach: `코치 +${Math.round(cb(id)!.boost * 100)}% · ${attrShort(cb(id)!.target)}` } : {}), ups: t.seasonUps[id] ?? 0, max: T.gauge.bundleSeasonMax,
       capped: bundleCapped(t, id), today: id === tb,
     })),
     focus: t.focus, seasonUps: t.season.ups, seasonMax: T.gauge.seasonMax,

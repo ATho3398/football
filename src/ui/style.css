@@ -1804,3 +1804,21 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   .app-moment .mo-react .mo-stage { opacity: .6; }
   .app-moment .mo-rcards .po-card { zoom: .7; }
 }
+
+/* 재정 (C.68a, 디자인 없음): 수입/지출 2칸, 키·값 줄, 스태프 카드, 최근 내역 */
+.fn-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.fn-flow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.fn-kv { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.fn-kv > div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.fn-kv > div > span { color: var(--ink-muted); }
+.fn-kv.is-in b { color: var(--success); }
+.fn-kv.is-out b { color: var(--fail); }
+.fn-staff { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2, rgba(127,127,127,.08)); }
+.fn-staff.is-leaving { opacity: .6; }
+.fn-staff__top { display: flex; align-items: center; gap: 8px; }
+.fn-staff__top b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.fn-staff small { font-size: 12px; }
+.fn-ledger { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.fn-ledger li { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; font-size: 13px; }
+.fn-ledger li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-gauge__coach { color: var(--brand-ink); font-size: 11px; }

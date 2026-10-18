@@ -40,6 +40,7 @@ import { BALANCE } from '../src/config/balance';
 import { isOutside } from '../src/transfer';
 import { PLAYABLE_POSITIONS } from '../src/positions';
 import { createRng } from '../src/rng';
+import { autoStaff, ensureMoney, flowsIn, flowsOut } from '../src/money';
 import type { InjuryGrade, Tier } from '../src/types';
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
@@ -52,6 +53,11 @@ const POLICY = (env.POLICY ?? 'stay') as 'stay' | 'best';
 /** 측정용: 고령 XP 감쇠 덮어쓰기 (C.49), 예 VET='[[30,0.7],[32,0.5]]' */
 if (env.VET) (BALANCE.matchXp as { veteranMultiplier: [number, number][] }).veteranMultiplier = JSON.parse(env.VET);
 if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
+/**
+ * 스태프 정책 (C.68a): none = 스태프 없음 (C.67 까지와 같음), full = 슬롯이 비면 모집·고용하는 코치 풀 투자 (autoStaff).
+ * 코치 배율(D.13)이 성장 가드를 흔들지 않는지 보려고 회귀 가드는 full 로 판정한다
+ */
+const COACH = (env.COACH ?? 'full') as 'none' | 'full';
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
 
@@ -88,11 +94,13 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
   const npc: { moved: number; total: number; lowLoy: number; lowMoved: number; exp: number; expMoved: number }[] = [];
   const injuries: { grade: InjuryGrade; weeks: number; permanent: number; age: number }[] = [];
   const seasonLog: { age: number; apps: number; starts: number; minutes: number; injuries: number; injuredWeeks: number }[] = [];
+  const money: { age: number; net: number; cash: number; staff: number }[] = [];
   while (state.player.age < END_AGE) {
     const snap = Object.values(state.rosters).flatMap((r) => r.players.map((p) => ({ id: p.id, low: p.loyalty < 40, exp: p.contractEnd <= state.league.season + 1 })));
     const n0 = state.transfers.length;
     while (state.phase === 'season') {
       const report = playRound(state, { engine: 'quick' });
+      if (COACH === 'full') autoStaff(state);
       const inj = report.injury;
       if (inj) {
         const permanent = Object.values(inj.permanent).reduce((t, d) => t + (d ?? 0), 0);
@@ -120,6 +128,9 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
     offers += state.market.offers?.length ?? 0;
     autoMarket(state, policy);
     startNextSeason(state);
+    // 재정 (C.68a): 시즌 순수입 (비시즌 몫까지 들어간 지난 시즌 합계) · 잔고 · 스태프 수
+    const h = ensureMoney(state).history.at(-1)!;
+    money.push({ age: state.player.age - 1, net: flowsIn(h.flows) - flowsOut(h.flows), cash: h.cash, staff: ensureMoney(state).staff.length });
   }
   const moves = state.market.moves.filter((m) => !m.back).length;
   const intoLeague = state.transfers.filter((r) => !isOutside(r.to)).length;
@@ -127,7 +138,7 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
   const badgeAges = state.player.badges.map((b) => state.player.history.find((h) => h.season === b.season)?.age ?? 0);
   return {
     ovrByAge, repByAge, high95ByAge, max99ByAge, starts: starts / seasons, injuries, seasonLog, hist, badgeAges,
-    offers: offers / Math.max(1, seasons), moves, npc, intoLeague, oneClub: state.player.badges.some((b) => b.id === 'oneClub10'),
+    offers: offers / Math.max(1, seasons), moves, npc, intoLeague, oneClub: state.player.badges.some((b) => b.id === 'oneClub10'), money,
   };
 }
 
@@ -333,6 +344,19 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
       });
       console.log(`  정책 ${pol} ${TIER_NAMES_KO[tier]} 최적 12시드: 커리어 이적 ${avg(rs.map((r) => r.moves)).toFixed(2)}회 · 30세 OVR ${avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1)} · 30세 위상 중앙값 ${median(rs.map((r) => r.repByAge[30] ?? 0)).toFixed(0)} · 한 팀 배지 ${rs.filter((r) => r.oneClub).length}/12`);
     }
+  }
+}
+
+// ── C.68a 재정 측정 (19.11, 가드 아님 — 경제 점검 가드는 C.68b) ──
+{
+  console.log(`\n[C.68 재정] 스태프 정책 ${COACH} · 최적 배분 · 시즌 순수입·잔고 평균 (억 원)`);
+  for (const tier of TIERS_ASC) {
+    const runs = allRuns.best.filter((_, i) => Math.floor(i / SEEDS_PER_TIER) === TIERS_ASC.indexOf(tier));
+    const at = (age: number, k: 'net' | 'cash' | 'staff') => avg(runs.map((r) => r.money.find((x) => x.age === age)?.[k] ?? 0));
+    const neg = runs.reduce((t, r) => t + r.money.filter((x) => x.net < 0).length, 0);
+    const all = runs.reduce((t, r) => t + r.money.length, 0);
+    console.log(`  ${TIER_NAMES_KO[tier].padEnd(6)} 순수입 18세 ${(at(18, 'net') / 1e4).toFixed(1)} · 24세 ${(at(24, 'net') / 1e4).toFixed(1)} · 30세 ${(at(30, 'net') / 1e4).toFixed(1)} · 33세 ${(at(33, 'net') / 1e4).toFixed(1)}` +
+      ` | 잔고 30세 ${(at(30, 'cash') / 1e4).toFixed(0)} · 36세 ${(at(36, 'cash') / 1e4).toFixed(0)} | 스태프 24세 ${at(24, 'staff').toFixed(1)}명 | 순수입 음수 시즌 ${neg}/${all}`);
   }
 }
 

@@ -65,6 +65,8 @@ export interface TrainingDayResult {
   note?: string;
   /** 고강도 훈련 부상 */
   injured?: boolean;
+  /** 코치 배율 (C.68a, 기술 훈련) */
+  coach?: number;
 }
 
 /**
@@ -233,12 +235,13 @@ export function bundleCapped(t: TrainingState, g: AttributeGroup): boolean {
   return (t.seasonUps[g] ?? 0) >= T.gauge.bundleSeasonMax || t.season.ups >= T.gauge.seasonMax;
 }
 
-/** 오늘 기술 훈련 묶음 */
-export function techBundle(t: TrainingState, pos: FieldPosition): AttributeGroup {
+/** 오늘 기술 훈련 묶음. 자동이면 포지션 OVR 비중 × (1 + 코치 배율, C.68a) 이 가장 큰 열린 묶음 */
+export function techBundle(t: TrainingState, pos: FieldPosition, boost: (g: AttributeGroup) => number = () => 0): AttributeGroup {
   if (t.focus !== 'auto') return t.focus;
   const open = GROUP_NAMES.filter((g) => !bundleCapped(t, g));
   const pool = open.length ? open : GROUP_NAMES;
-  return pool.reduce((best, g) => (bundleWeight(pos, g) > bundleWeight(pos, best) ? g : best));
+  const score = (g: AttributeGroup) => bundleWeight(pos, g) * (1 + boost(g));
+  return pool.reduce((best, g) => (score(g) > score(best) ? g : best));
 }
 
 /** 묶음에서 가장 낮은 능력치 (같으면 포지션 OVR 비중이 큰 쪽) */
@@ -254,17 +257,18 @@ export function lowestInBundle(p: Pick<PlayerState, 'attributes' | 'position'>, 
  * 게이지 칸 수: gauge.full(40, C.44) × 그 묶음 가장 낮은 능력치의 내부 +1 비용 배수 (6.2, C.41, C.49부터 포인트와 별개). 낮은 능력치(비용 1)는 40, 고값은 비용만큼 길어진다
  * (포인트 비용을 건너뛰는 공짜 고값 상승을 막는다)
  */
-export function gaugeNeed(p: Pick<PlayerState, 'attributes' | 'position'>, g: AttributeGroup): number {
-  const a = lowestInBundle(p, g);
+export function gaugeNeed(p: Pick<PlayerState, 'attributes' | 'position'>, g: AttributeGroup, target?: FieldAttribute): number {
+  const a = target ?? lowestInBundle(p, g);
   return T.gauge.full * internalCost(p.attributes[a], costTier(p));
 }
 
 /** 기술 훈련 하루: 게이지 + (1 × 고령 감쇠), 차면 가장 낮은 능력치 +1 (상한 안에서). 오른 능력치를 돌려준다 */
-export function techDay(t: TrainingState, p: PlayerState, g: AttributeGroup, mult = 1): FieldAttribute | undefined {
-  const need = gaugeNeed(p, g);
+export function techDay(t: TrainingState, p: PlayerState, g: AttributeGroup, mult = 1, target?: FieldAttribute): FieldAttribute | undefined {
+  // 코치 (C.68a): target = 코치 전문 능력치 (없으면 묶음에서 가장 낮은 능력치)
+  const need = gaugeNeed(p, g, target);
   t.gauges[g] = Math.min(need, Math.round(((t.gauges[g] ?? 0) + T.gauge.per * mult) * 100) / 100);
   if (t.gauges[g]! < need || bundleCapped(t, g)) return undefined;
-  const a = lowestInBundle(p, g);
+  const a = target ?? lowestInBundle(p, g);
   if (p.attributes[a] >= BALANCE.growth.maxAttribute) return undefined;
   p.attributes[a] += 1;
   t.gauges[g] = 0;

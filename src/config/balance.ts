@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 45;
+export const BALANCE_VERSION = 46;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1364,6 +1364,64 @@ export const BALANCE = {
     /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
     squadTop: 14,
     assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
+  },
+  // ── 개인 재정 (19번, 5-7 a, C.68a) ──
+  /**
+   * 내 선수 돈. 금액 단위는 만 원 정수(기존 주급 wageFor 와 같음), 표시는 한국식(만 원·억 원). 19.11 수치표 초안 그대로.
+   * 주 정산 = 일요일이 끝날 때 주급 + 출전·골 보너스 − 생활비 − 스태프 급여. 비시즌 주급은 다음 시즌 시작 때 (52 − 정산한 주) 몫을 한 번에
+   */
+  money: {
+    /** 새 게임 잔고 (만 원) */
+    startCash: 0,
+    /** 계약금 = 연봉 × signingShare × 계약 연수(최대 signingYearsMax). 임대는 없음 */
+    signingShare: 0.1, signingYearsMax: 5,
+    /** 출전수당 = 주급 × appearance (경기당), 골 보너스 = 주급 × goal (골당), 우승 보너스 = 연봉 × title (리그·FA컵·챔스 우승마다) */
+    bonus: { appearance: 0.05, goal: 0.2, title: 0.1 },
+    /** 스폰서 (연, 시즌 끝): 위상 티어별 연봉 비율, 상한 30억 원 */
+    sponsor: { normal: 0, special: 0, topClass: 0.05, worldClass: 0.15, legendary: 0.3 } satisfies Record<Tier, number>,
+    sponsorMax: 300000,
+    /** 기본 생활비 = 연봉의 12% (주마다 주급 × living) */
+    living: 0.12,
+    /** 에이전트 수수료 = (계약금 + 첫해 연봉) × agent (계약 때). 고급 에이전트(8%)는 b 이후 */
+    agent: 0.05,
+    /** 재정 내역 줄 상한 (세이브 크기, 주 정산은 한 줄), 지난 시즌 요약 상한 */
+    ledgerMax: 24, historyMax: 25,
+  },
+
+  // ── 스태프 (19.2~19.5, D.13 재설계, C.68a) ──
+  staff: {
+    /** 슬롯 (위상 티어별, 코치·의료 공용) */
+    slots: { normal: 2, special: 3, topClass: 4, worldClass: 5, legendary: 5 } satisfies Record<Tier, number>,
+    /** 연 급여 = 고용 때 내 연봉 × salary (티어별), 500만 원 단위 반올림, 최소 500만 원 */
+    salary: { normal: 0.03, special: 0.05, topClass: 0.07, worldClass: 0.1, legendary: 0.14 } satisfies Record<Tier, number>,
+    salaryUnit: 500,
+    /** 코치 모집 비용 = 주급 × scoutCost (500만 원 단위, 최소 500만 원). 후보는 scoutDays 일 뒤 2~3명, 도착 뒤 keepDays 일 동안 고를 수 있다 */
+    scoutCost: 0.5, scoutDays: 7, keepDays: 14, candidates: [2, 3] as [number, number],
+    /** 후보 티어 가중치 (높을수록 흔치 않다) */
+    tierWeight: { normal: 45, special: 28, topClass: 15, worldClass: 8, legendary: 4 } satisfies Record<Tier, number>,
+    /** 후보 중 코치 비율 (나머지는 의료: 팀 닥터·물리치료사·영양사 같은 비율) */
+    coachShare: 0.7,
+    /** 계약 기간 (시즌) */
+    years: [1, 3] as [number, number],
+    /**
+     * 코치 (D.13 재설계, pending 110): 전문 능력치를 기술 훈련할 때 그날 게이지·훈련 XP × (1 + 배율).
+     * 범위 = 전문 능력치 수(같은 묶음 안), 한계 = 그 값 이하인 능력치에만. 같은 능력치에 겹치면 가산, 상한 maxBoost.
+     * 시즌당 +2 상한은 두지 않는다: 기술 훈련 게이지에 이미 묶음당 시즌 +2 · 전체 +6 상한이 있다(25.3)
+     */
+    coach: {
+      boost: { normal: 0.1, special: 0.15, topClass: 0.2, worldClass: 0.25, legendary: 0.3 } satisfies Record<Tier, number>,
+      range: { normal: 1, special: 2, topClass: 2, worldClass: 3, legendary: 3 } satisfies Record<Tier, number>,
+      limit: { normal: 75, special: 80, topClass: 85, worldClass: 90, legendary: 94 } satisfies Record<Tier, number>,
+      maxBoost: 0.4,
+      /** 후보 전문 묶음: 이 확률로 내 포지션 OVR 비중 상위 3묶음 중에서, 나머지는 아무 묶음 */
+      fitShare: 0.5,
+    },
+    /** 의료 (19.5): 팀 닥터 = 부상 확률 −, 물리치료사 = 부상 기간 −, 영양사 = 피로 회복 + (같은 종류는 가장 높은 것 하나) */
+    medical: {
+      doctor: { normal: 0.05, special: 0.08, topClass: 0.11, worldClass: 0.14, legendary: 0.18 } satisfies Record<Tier, number>,
+      physio: { normal: 0.08, special: 0.12, topClass: 0.16, worldClass: 0.2, legendary: 0.25 } satisfies Record<Tier, number>,
+      nutrition: { normal: 0.03, special: 0.05, topClass: 0.07, worldClass: 0.09, legendary: 0.12 } satisfies Record<Tier, number>,
+    },
   },
 } as const;
 

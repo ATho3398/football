@@ -110,8 +110,11 @@ export function dock(vm: DockVM): string {
 
 /** 더보기 펼침 줄 (C.63c): 폰 독에 없는 칸 + 인박스, 가로 스크롤 · 스냅 · 처음/끝 흐림. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
 function dockMoreRow(vm: DockVM, items: Record<string, DockItem>): string {
-  const ids = (['inbox', 'world', 'deck', 'tactics', 'settings', 'saves'] as const).filter((id) => id === 'inbox' || !DOCK_PHONE.includes(id));
-  const all: Record<string, DockItem> = { ...items, inbox: { label: '인박스', icon: 'bell', act: 'go', data: { to: 'inbox' }, on: vm.screen === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) } };
+  const ids = (['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves'] as const).filter((id) => id === 'inbox' || id === 'finance' || !DOCK_PHONE.includes(id));
+  const all: Record<string, DockItem> = {
+    ...items, inbox: { label: '인박스', icon: 'bell', act: 'go', data: { to: 'inbox' }, on: vm.screen === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) },
+    finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: vm.screen === 'finance' },
+  };
   const cells = ids.map((id) => {
     const it = all[id]!;
     return `<button type="button" class="${cx('po-dock__item', 'dock-more__item', it.on && 'is-on', it.lock && 'is-locked')}" data-act="${esc(it.act)}"${Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.lock ? ' disabled' : ''}><span class="po-dock__icon">${

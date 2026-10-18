@@ -31,7 +31,9 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   const n = vm.next;
   // 인박스 (C.63): 홈 상단 알림 아이콘 (20.4)
   const bell = unread !== null ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `인박스${unread ? ` 안 읽음 ${unread}` : ''}`, variant: 'ghost', badge: unread }) : '';
-  const tools = bell + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
+  // 재정 (C.68a): 코치 후보가 와 있으면 배지
+  const coin = unread !== null ? IconButton({ act: 'go', data: { to: 'finance' }, name: 'coin', label: `재정${vm.money ? ` 후보 ${vm.money}` : ''}`, variant: 'ghost', badge: vm.money || 0 }) : '';
+  const tools = bell + coin + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
   const face = homeFace(vm);
   // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
   const hero = face

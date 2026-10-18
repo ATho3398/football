@@ -21,6 +21,7 @@ import { assignShirts, makeFiller, naturalOvr, pickLineup, posGroup, rosterRatin
 import type { NpcState } from './npc';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import { affordable, marketValue, npcAnnualWage, npcValue, remainingBudget, wageRoom } from './finance';
+import { onContractSigned } from './money';
 import { fixHomegrown, homegrown, isU21, squadCount, squadRule } from './squad';
 import type { Position } from './types';
 
@@ -378,7 +379,7 @@ export interface MyContract {
   /** 계약 시작 시즌, 마지막 시즌 (그 시즌이 끝나면 만료) */
   from: number;
   until: number;
-  /** 주급 (만 원). 계산·표시만 (돈은 5-7) */
+  /** 주급 (만 원). 돈은 money.ts (C.68a) */
   wage: number;
   /** 임대 중이면 원 소속팀과 임대 마지막 시즌 */
   loan?: { parent: string; until: number } | null;
@@ -731,6 +732,8 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
     m.refused = null;
     m.renewal = null;
     m.notice = `${clubNameKo(state.league, from)} 1군 계약`;
+    // 재정 (C.68a): 계약금·에이전트 수수료
+    onContractSigned(state, m.contract, `${clubNameKo(state.league, from)} 1군 계약`);
     onClubChange(state, from);
     return { points };
   }
@@ -739,6 +742,7 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
   } else {
     points = deduct(weakMovePenalty(p.reputation, fromRating, toRating));
     m.contract = { teamId: o.teamId, from: season, until: season + o.years - 1, wage: o.wage, loan: null, buyout: buyoutFor(p, o.years) };
+    onContractSigned(state, m.contract, `${clubNameKo(state.league, o.teamId)} 이적`);
   }
   m.moves.push({ season, w, from, to: o.teamId, ...(o.kind === 'loan' ? { loan: true } : {}) });
   // 원클럽맨 계열 (C.45): 이적이면 떨어지고 새 구단 기록 (임대는 이적 아님)
@@ -767,6 +771,7 @@ export function renewContract(state: GameState, years: number): void {
   const season = state.league.season + (state.phase === 'season' ? 0 : 1);
   m.contract = { teamId: state.player.teamId, from: season, until: season + years - 1, wage: m.renewal.wage, loan: null, buyout: buyoutFor(state.player, years) };
   m.renewal = null;
+  onContractSigned(state, m.contract, '재계약');
   onRenewal(state);
 }
 

@@ -65,6 +65,9 @@ import { markAllRead, markRead, unreadCount } from '../inbox';
 import { answerEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
+import { financeView } from './views/finance';
+import { financeVM } from './financeVM';
+import { hireStaff, startScout, toggleLeave } from '../money';
 import { holdMeeting, type MeetingChoice } from '../manager';
 import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
@@ -103,7 +106,7 @@ import { hasTeamDetail, personDetailVM, teamDetailVM, type PersonTab, type TeamT
 import { personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -427,6 +430,7 @@ function screenHtml(): string {
       return meetingView(mv, ui.meetSel);
     }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
+    case 'finance': return financeView(financeVM(g));
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -1790,6 +1794,19 @@ app.addEventListener('click', (ev) => {
       return;
     case 'train-pick':
       ui.trainPick = v ?? null;
+      render();
+      return;
+    // 재정 (C.68a): 코치 모집 · 고용 · 해지
+    case 'fn-scout':
+      if (g && startScout(g)) autosave();
+      render();
+      return;
+    case 'fn-hire':
+      if (g && v && hireStaff(g, v)) autosave();
+      render();
+      return;
+    case 'fn-leave':
+      if (g && v && toggleLeave(g, v)) autosave();
       render();
       return;
     case 'meet-pick':
