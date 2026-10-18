@@ -60,6 +60,7 @@ if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).o
 const COACH = (env.COACH ?? 'full') as 'none' | 'full';
 /** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
 if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
+if (env.MED_SCALE) for (const r of Object.values(BALANCE.staff.medical)) for (const k of Object.keys(r)) (r as Record<string, number>)[k]! *= Number(env.MED_SCALE);
 if (env.COACH_XP !== undefined) (BALANCE.staff.coach as { xpShare: number }).xpShare = Number(env.COACH_XP);
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
