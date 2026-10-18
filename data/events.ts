@@ -27,7 +27,7 @@ const MATCH_EVENTS: readonly EventDef[] = [
     ],
     choices: [
       { id: 'team', label: '팀 덕분이라고 말한다', desc: '동료들이 좋아해요', effects: [{ rep: 1 }, { life: 'team', add: 4 }], result: ['"동료들이 만든 골"이라는 말에 라커룸이 박수를 쳤어요.', '겸손한 인터뷰가 좋은 평을 받았어요.', '"팀이 이긴 게 중요해요." 동료들이 등을 두드려 줬어요.'] },
-      { id: 'bold', label: '자신감을 보인다', desc: '위상 +, 동료 관계는 조금 −', effects: [{ rep: 2 }, { life: 'team', add: -2 }], result: ['"원래 넣을 수 있는 골이었어요." 헤드라인에 크게 실렸어요.', '자신감 넘치는 인터뷰가 화제가 됐어요. 몇몇 동료는 웃지 않았어요.', '"다음 경기도 넣겠습니다." 팬들이 열광했어요.'] },
+      { id: 'bold', label: '자신감을 보인다', desc: '위상 +, 동료 관계는 조금 − (언론 울렁증이면 못 고름)', requires: { not: { tag: 'mediaShy' } }, effects: [{ rep: 2 }, { life: 'team', add: -2 }], result: ['"원래 넣을 수 있는 골이었어요." 헤드라인에 크게 실렸어요.', '자신감 넘치는 인터뷰가 화제가 됐어요. 몇몇 동료는 웃지 않았어요.', '"다음 경기도 넣겠습니다." 팬들이 열광했어요.'] },
       { id: 'fans', label: '팬들에게 감사한다', desc: '위상 +1', effects: [{ rep: 1 }], result: ['원정까지 온 팬들에게 인사를 건넸어요.', '팬들을 향한 감사 인사가 구단 SNS에 올라왔어요.', '"팬들 덕분에 뛰었어요." 무난한 인터뷰였어요.'] },
     ],
     fallback: 'fans',
@@ -100,7 +100,7 @@ const MATCH_EVENTS: readonly EventDef[] = [
     effects: [{ rep: 1 }, { life: 'home', add: 3 }],
   },
   {
-    id: 'm_interviewSlip', tags: ['match', 'media', 'interview', 'chain'], kind: 'chain', on: 'match', cat: 'media', when: { all: [['lastResult', '==', -1], ['lastPlayed', '==', 1], ['lastRating', '<', 6.4]] }, chance: 0.35, cooldown: 28,
+    id: 'm_interviewSlip', tags: ['match', 'media', 'interview', 'chain'], kind: 'chain', on: 'match', cat: 'media', when: { all: [['lastResult', '==', -1], ['lastPlayed', '==', 1], ['lastRating', '<', 6.4]] }, chance: 0.35, chanceTags: { troublemaker: 1.5, mediaShy: 1.3 }, cooldown: 28,
     title: ['패배 뒤 인터뷰', '믹스트존 질문 하나'],
     text: [
       '{opp}전 패배 뒤 기자가 묻는다. "오늘 팀에 뭐가 부족했나요?"',
@@ -155,7 +155,7 @@ const MATCH_EVENTS: readonly EventDef[] = [
       '긴 재활이 시작돼요. 동료들이 병문안 영상을 보냈어요.',
       '부상 소식에 팬들이 응원 메시지를 남겼어요. 서두르지 않는 게 중요해요.',
     ],
-    effects: [{ life: 'mental', add: 6 }],
+    effects: [{ life: 'mental', add: 6 }, { flag: 'trauma' }],
   },
 ];
 
@@ -350,7 +350,7 @@ const DAY_EVENTS: readonly EventDef[] = [
     fallback: 'no',
   },
   {
-    id: 'd_rumour', tags: ['day', 'transfer', 'media'], kind: 'message', on: 'day', cat: 'transfer', when: { all: [['tier', '>=', 2], ['round', '>=', 15], ['form', '>', 0.1]] }, chance: 0.08, cooldown: 60,
+    id: 'd_rumour', tags: ['day', 'transfer', 'media'], kind: 'message', on: 'day', cat: 'transfer', when: { all: [['tier', '>=', 2], ['round', '>=', 15], ['form', '>', 0.1]] }, chance: 0.08, chanceTags: { starPlayer: 2, starQuality: 1.5 }, cooldown: 60,
     title: ['빅클럽 관심 루머', '"빅클럽이 {name}{을/를} 지켜본다"'],
     text: [
       '빅클럽 스카우트가 지난 경기를 보러 왔다는 기사가 나왔어요.',

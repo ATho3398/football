@@ -8,6 +8,7 @@ for (let s = 0; s < 2; s++) {
   while (g.phase === 'season') playRound(g, { engine: 'quick' });
   if (s === 0) startNextSeason(g);
 }
+console.log('life', JSON.stringify(g.life));
 console.log('ms', Date.now() - t0, 'items', g.inbox?.items.length, 'rival', g.rival?.id, 'captain', g.captain, 'coaches', g.coaches);
 for (const it of g.inbox?.items ?? []) console.log(it.season, it.date, it.cat, it.title, '|', it.body.slice(0, 70), it.answer ? `→ ${it.answer.label}${it.answer.auto ? '(자동)' : ''}` : '');
 void p;

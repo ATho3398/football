@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 40;
+export const BALANCE_VERSION = 41;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -387,6 +387,13 @@ export const BALANCE = {
       rest: { xp: 0, fatigue: 6 },
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
       weakFoot: { xp: 0.75, fatigue: 4.0 },
+      // 생활 하루 행동 (pending 47 4번, C.63 b): 훈련 대신. XP 없음, 회복은 휴식~회복 훈련 사이. 효과는 BALANCE.life.actions
+      family: { xp: 0, fatigue: 5 },
+      language: { xp: 0, fatigue: 4.5 },
+      teamMeal: { xp: 0, fatigue: 4.5 },
+      therapy: { xp: 0, fatigue: 5 },
+      trip: { xp: 0, fatigue: 6 },
+      media: { xp: 0, fatigue: 4 },
     },
     /**
      * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
@@ -1216,8 +1223,39 @@ export const BALANCE = {
 
   // ── 경기 외 생활 (pending 47 4번, 부록 C.63) ──
   life: {
-    /** 시작값 (0~100). 멘탈 피로는 높을수록 나쁨 */
+    /** 시작값 (0~100). 멘탈 피로는 높을수록 나쁨. 적응도는 팀에 따라 (adapt) */
     start: { home: 70, adapt: 70, team: 60, mental: 20 },
+    /** 하루마다 기준값 쪽으로 (차이 × rate): 가정 안정 → 70, 팀 관계 → 60 (리더 · 주장 +leaderTo) */
+    drift: { homeTo: 70, homeRate: 0.02, teamTo: 60, teamRate: 0.015, leaderTo: 10 },
+    /** 적응도: 새 팀 시작 = 외국인(잉글랜드 국적이 아님) foreignStart / 잉글랜드 domesticStart / 무한한 충성심 귀환 loyalStart, 첫 시즌 실제 선수(이미 그 구단) settledStart. 하루 +perDay (향수병 ×homesickMul, 언어 천재 ×linguistMul) */
+    adapt: { foreignStart: 45, domesticStart: 65, loyalStart: 85, settledStart: 85, perDay: 0.3, homesickMul: 0.5, linguistMul: 2 },
+    /** 팀 관계: 새 팀 시작 newTeam, 무한한 충성심 귀환 loyalTeam, 원클럽맨 하한 oneClubFloor */
+    team: { newTeam: 50, loyalTeam: 75, oneClubFloor: 40 },
+    /**
+     * 멘탈 피로: 하루마다 baseTo 쪽으로 (차이 × baseRate) + 경기 +match (큰 경기 +big 더), 휴식 날 rest, 휴가 vacation, 회복 훈련 recovery, 그 밖 날 other,
+     * 피로 fatigueFrom 이상인 날 +fatigueAdd. 평형: 주 1경기 ≈ 35, 주 2경기 ≈ 45, 큰 경기·연전·이벤트가 겹치면 70+
+     */
+    mental: { baseTo: 25, baseRate: 0.02, match: 3, big: 2, rest: -1.5, vacation: -3, recovery: -1, other: 0, fatigueFrom: 70, fatigueAdd: 0.5 },
+    /** 하루 행동 효과 (훈련 대신). media = 미디어 인터뷰: good 확률로 위상 +goodRep, 아니면 badRep (언론 울렁증 ×shyMul, 언론의 총아 ×darlingMul 확률) */
+    actions: {
+      family: { home: 8, mental: -2 },
+      language: { adapt: 5 },
+      teamMeal: { team: 6, mental: -1 },
+      therapy: { mental: -10 },
+      trip: { mental: -8, home: 3 },
+      media: { good: 0.6, goodRep: 2, badRep: -1, mental: 2, shyMul: 0.6, darlingMul: 1.25 },
+    },
+    /** 엔진 밖 영향 (경기 입력 폼, 피로 회복): 지표가 low 미만이면 lowForm, high 이상이면 highForm, 멘탈 피로 mentalHigh 이상 mentalForm(mentalMax 이상 mentalMaxForm) · 회복 × mentalRecovery, 합 ±formMax */
+    effects: {
+      low: 35, high: 80, lowForm: { home: -0.05, adapt: -0.05, team: -0.05 }, highForm: { home: 0.02, team: 0.03 },
+      mentalHigh: 70, mentalForm: -0.06, mentalMax: 85, mentalMaxForm: -0.12, mentalLow: 15, mentalLowForm: 0.02, mentalRecovery: 0.9, formMax: 0.15,
+    },
+    /** 생활 이벤트 시즌 상한 (pending 47 질문 ④: 쉬움 1, 보통 2, 어려움 3) */
+    eventsPerSeason: { easy: 1, normal: 2, hard: 3 },
+    /** 태그 (5-2 몫): 리더 = 팀 불화 이벤트 확률 × leaderDiscord, 문제아 = 인터뷰 실언 확률 × troubleSlip, 스타 플레이어 = 빅클럽 루머 × starRumour */
+    tags: { leaderDiscord: 0.5, troubleSlip: 1.5, starRumour: 2 },
+    /** 플레이 태그: 라커룸 리더 = 주장 lockerSeasons 시즌째 끝 또는 시즌 끝 팀 관계 lockerTeam 이상 / 언론의 총아 = 인터뷰 좋은 결과 darlingGood 번 */
+    natural: { lockerSeasons: 2, lockerTeam: 90, darlingGood: 5 },
   },
 } as const;
 

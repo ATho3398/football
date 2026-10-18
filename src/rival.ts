@@ -4,7 +4,6 @@
 
 import { BALANCE } from './config/balance';
 import { teamById } from './league';
-import { reputationFloor } from './growth';
 import { proficientOvr } from './proficiency';
 import { posGroup, slotOvr, type RosterPlayer } from './roster';
 import { createRng, hashSeed } from './rng';
@@ -111,7 +110,7 @@ export function rivalSeasonEnd(state: GameState): void {
   state.rival.history.push([state.league.season, r.me.ga, r.ga, r.me.avg, r.avg, v]);
   if (state.rival.history.length > 10) state.rival.history.shift();
   const rep = v > 0 ? X.winRep : v < 0 ? X.loseRep : 0;
-  if (rep) state.player.reputation = rep < 0 ? Math.max(reputationFloor(state.player.reputation), state.player.reputation + rep) : state.player.reputation + rep;
+  if (rep) state.player.reputation = Math.max(0, state.player.reputation + rep);
   const trust = v > 0 ? X.winTrust : v < 0 ? X.loseTrust : 0;
   if (trust) addTrust(state, trust, `라이벌 ${r.name}${v > 0 ? '에게 이김' : '에게 짐'}`, { scaled: false });
   const vars = { name: state.player.name, rival: r.name, rivalTeam: r.team, me: r.me.ga, them: r.ga, myAvg: r.me.avg.toFixed(2), theirAvg: r.avg.toFixed(2) };

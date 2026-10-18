@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { EVENTS } from '../data/events';
 import { addDays } from '../src/calendar';
-import { answerEvent, check, eventById, EV_VARS, eventsDayEnd, ensureEvents, fireEvent, type Cond, type Effect } from '../src/events';
-import { endDay, isMatchDay, newGame, playOthers, playRound, startNextSeason, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
+import { answerEvent, chanceOf, check, eventById, EV_VARS, eventsDayEnd, ensureEvents, fireEvent, type Cond, type Effect } from '../src/events';
+import { endDay, isMatchDay, setDayTraining, newGame, playOthers, playRound, startNextSeason, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
 import { inboxList, isPending, pushInbox, unreadCount } from '../src/inbox';
 import { addTrust, ensureManager, scaleDelta } from '../src/manager';
 import { pickRival, rivalOf, rivalVerdict } from '../src/rival';
@@ -15,6 +15,9 @@ import { collectNotices, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from
 import { homeInboxSection, inboxDetailView, inboxView, rivalSection } from '../src/ui/views/inbox';
 import { teamDetailVM } from '../src/ui/detailVM';
 import { posGroup } from '../src/roster';
+import { addLife, ensureLife, LIFE_KINDS, lifeEventsFull, lifeForm, lifeHints, lifeRecoveryMul, lifeSeasonEnd } from '../src/life';
+import { trainingOptionsVM } from '../src/ui/viewModels';
+import { trainingSheet } from '../src/ui/views/training';
 
 const X = BALANCE.events;
 
@@ -220,10 +223,85 @@ describe('감독 경질·주장 (C.62 남은 질문 ④)', () => {
   });
 });
 
+describe('경기 외 생활 (pending 47 4번, C.63 b)', () => {
+  it('시작값: 외국인 유망주는 적응도 낮게, 첫 시즌 실제 선수는 이미 적응, 팀이 바뀌면 다시', () => {
+    const pr = newGame({ mode: 'prospect', position: 'ST', seed: 'c63-life', difficulty: 'normal' });
+    expect(ensureLife(pr).adapt).toBe(BALANCE.life.adapt.foreignStart);
+    const real = newGame({ mode: 'real', playerId: 'kane', seed: 'c63-life', difficulty: 'normal' });
+    expect(ensureLife(real).adapt).toBe(BALANCE.life.adapt.settledStart);
+    real.player.teamId = 'ars';
+    expect(ensureLife(real).adapt).toBe(BALANCE.life.adapt.domesticStart);
+    expect(ensureLife(real).team).toBe(BALANCE.life.team.newTeam);
+  });
+
+  it('하루 행동: 훈련 칸에서 생활 행동을 고르면 그날 지표가 움직인다 (잉글랜드 선수는 외국어 없음)', () => {
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c63-act', difficulty: 'normal' });
+    for (let i = 0; i < 2; i++) playRound(g, { engine: 'quick' });
+    let day = g.calendar.date;
+    for (let k = 0; k < 6 && !trainingOptionsVM(g, day); k++) day = addDays(day, 1);
+    const opts = trainingOptionsVM(g, day)!;
+    expect(opts.options.filter((o) => o.life).map((o) => o.kind)).toEqual([...LIFE_KINDS]);
+    expect(trainingSheet(opts, day)).toContain('lf-sec');
+    expect(setDayTraining(g, day, 'family')).toBe(true);
+    ensureLife(g).home = 40;
+    while (g.calendar.date !== day) { playOthers(g, 'quick'); if (isMatchDay(g)) playRound(g, { engine: 'quick' }); else endDay(g); }
+    playOthers(g, 'quick');
+    const r = endDay(g);
+    expect(r.kind).toBe('family');
+    expect(ensureLife(g).home).toBeGreaterThan(40 + BALANCE.life.actions.family.home - 1);
+    const kane = newGame({ mode: 'real', playerId: 'kane', seed: 'c63-act', difficulty: 'normal' });
+    let d2 = kane.calendar.date;
+    for (let k = 0; k < 6 && !trainingOptionsVM(kane, d2); k++) d2 = addDays(d2, 1);
+    expect(trainingOptionsVM(kane, d2)!.options.some((o) => o.kind === 'language')).toBe(false);
+  });
+
+  it('엔진 밖 영향: 지표가 낮으면 폼 −(합 ±0.15), 멘탈 피로가 높으면 회복 ×0.9, 홈 힌트 문장', () => {
+    const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c63-eff', difficulty: 'normal' });
+    const l = ensureLife(g);
+    Object.assign(l, { home: 70, adapt: 70, team: 60, mental: 30 });
+    expect(lifeForm(g)).toBe(0);
+    Object.assign(l, { home: 10, adapt: 10, team: 10, mental: 95 });
+    expect(lifeForm(g)).toBe(-BALANCE.life.effects.formMax);
+    expect(lifeRecoveryMul(g)).toBe(BALANCE.life.effects.mentalRecovery);
+    expect(lifeHints(g).length).toBe(4);
+    Object.assign(l, { home: 90, team: 90, adapt: 90, mental: 10 });
+    expect(lifeForm(g)).toBeGreaterThan(0);
+  });
+
+  it('생활 이벤트 시즌 상한 (쉬움 1 · 보통 2 · 어려움 3), 태그 확률 배율, 원클럽맨 팀 관계 하한', () => {
+    const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c63-cap2', difficulty: 'easy' });
+    const life = EVENTS.filter((e) => e.tags.includes('life'));
+    expect(life.length).toBeGreaterThanOrEqual(15);
+    ensureLife(g).events = BALANCE.life.eventsPerSeason.easy;
+    expect(lifeEventsFull(g)).toBe(true);
+    const d = eventById('l_discord')!;
+    const base = chanceOf(g, d);
+    g.player.tags.push({ id: 'leader', perm: true, season: 2018 });
+    expect(chanceOf(g, d)).toBeCloseTo(base * BALANCE.life.tags.leaderDiscord);
+    g.player.tags.push({ id: 'oneClubMan', perm: false, season: 2018, club: g.player.teamId });
+    ensureLife(g).team = 45;
+    addLife(g, 'team', -30);
+    expect(ensureLife(g).team).toBe(BALANCE.life.team.oneClubFloor);
+    expect(EVENTS.length).toBeGreaterThanOrEqual(58);
+  });
+
+  it('언론 울렁증: 반박 선택지 잠김 · 언론의 총아는 인터뷰 좋은 결과 5번 · 라커룸 리더는 주장 2시즌', () => {
+    const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c63-media', difficulty: 'normal' });
+    g.player.tags.push({ id: 'mediaShy', perm: true, season: 2018 });
+    const it1 = fireEvent(g, eventById('l_mediaStorm')!);
+    expect(it1.choices!.find((c) => c.id === 'reply')!.disabled).toBeTruthy();
+    ensureLife(g).mediaGood = BALANCE.life.natural.darlingGood;
+    g.captain = { teamId: g.player.teamId, since: g.league.season - 1 };
+    lifeSeasonEnd(g);
+    expect(g.player.tags.some((t) => t.id === 'mediaDarling')).toBe(true);
+    expect(g.player.tags.some((t) => t.id === 'lockerLeader')).toBe(true);
+  });
+});
+
 describe('버전 (C.63)', () => {
-  it('C.63a · 36단계', async () => {
+  it('C.63b · 36단계', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toBe('C.63a');
+    expect(PATCH_LABEL).toBe('C.63b');
     expect(STAGE_LABEL).toBe('36단계');
   });
 });

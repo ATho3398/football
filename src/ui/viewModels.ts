@@ -7,6 +7,7 @@ import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
+import { LIFE_KINDS, isForeign, isLifeKind, lifeHints } from '../life';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
@@ -102,6 +103,8 @@ export interface ConditionVM {
   formLabel: string;
   yellows: number;
   yellowEvery: number;
+  /** 생활 힌트 (C.63 b): 숨은 생활 지표를 숫자 없이 문장으로 */
+  life?: string[];
 }
 
 function conditionVM(g: GameState): ConditionVM {
@@ -114,6 +117,7 @@ function conditionVM(g: GameState): ConditionVM {
     formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,
     yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery,
     yellowEvery: BALANCE.discipline.yellowBanEvery,
+    life: lifeHints(g),
   };
 }
 
@@ -471,7 +475,7 @@ export interface TrainingDayVM {
   fixed: boolean;
 }
 
-export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean }
+export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean; /** 생활 하루 행동 (C.63 b) */ life?: boolean }
 
 export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean }
 
@@ -613,12 +617,14 @@ export function trainingOptionsVM(g: GameState, date: string): { date: string; i
   if (kind === 'match' || kind === 'vacation' || isRestLocked(g, date)) return null;
   const injured = kind === 'rehab' || (kind === 'rest' && !!g.player.injury);
   const planned = plannedDefault(g, date);
-  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : [...TRAINING_KINDS];
+  // 생활 하루 행동 (C.63 b, pending 47 4번): 훈련 칸에서 훈련 대신 고른다. 외국어 공부는 외국인 선수만
+  const life = LIFE_KINDS.filter((k) => k !== 'language' || isForeign(g.player));
+  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : [...TRAINING_KINDS, ...life];
   return {
     date: dateLabel(date), injured,
     options: kinds.map((k) => injured && k === 'recovery'
       ? { kind: k, name: '재활 (기본)', desc: PLAN_DESC.rehab, xp: planXp('rehab'), fatigue: planFatigue('rehab'), planned: true, selected: kind === 'rehab' }
-      : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k }),
+      : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k, ...(isLifeKind(k) ? { life: true } : {}) }),
   };
 }
 

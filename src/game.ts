@@ -52,7 +52,7 @@ import { eventForm, eventsAfterMatch, eventsCloseOffseason, eventsDayEnd, events
 import { coachAfterMatch, type CoachRec } from './club';
 import type { InboxState } from './inbox';
 import type { RivalState } from './rival';
-import type { LifeState } from './life';
+import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeRecoveryMul, type LifeState } from './life';
 import { afterMatch, cardInput, grantLevelPicks, grantSeasonPick, initCollection, type CardCollection } from './cardCollection';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
@@ -901,10 +901,10 @@ export function setDayTraining(state: GameState, date: IsoDate, kind: TrainingKi
 }
 
 /** 피로·부상만 (경기 날 아침 예상, 상태를 바꾸지 않는 계산에도 쓴다) */
-function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & Tagged, kind: DayPlan, date: IsoDate): void {
-  // 장단점 (C.45): 회복력 +20%·체력 회복 느림 −20% (회복하는 날만)
+function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & Tagged, kind: DayPlan, date: IsoDate, lifeMul = 1): void {
+  // 장단점 (C.45): 회복력 +20%·체력 회복 느림 −20% (회복하는 날만), 멘탈 피로 (C.63 b)
   const rec = planFatigue(kind);
-  p.fatigue = Math.max(0, p.fatigue - (rec > 0 ? rec * recoveryMul(p) : rec));
+  p.fatigue = Math.max(0, p.fatigue - (rec > 0 ? rec * recoveryMul(p) * lifeMul : rec));
   if (p.injury && p.injury.date !== date) healDays(p as PlayerState, 1 + (kind === 'rest' ? BALANCE.training.restHealBonus : 0));
 }
 
@@ -957,8 +957,10 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   syncPresetWeek(state, date);
   const kind = dayPlan(state, date);
   const T = BALANCE.training;
-  const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) : planFatigue(kind)) };
-  conditionStep(p, kind, date);
+  // 멘탈 피로가 높으면 회복이 덜 된다 (C.63 b, 엔진 밖)
+  const lm = lifeRecoveryMul(state);
+  const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) * lm : planFatigue(kind)) };
+  conditionStep(p, kind, date, lm);
   // 휴가는 연속 휴식에 세지 않는다. 회복 훈련은 연속을 끊고 폼 감점을 지운다
   if (kind === 'rest') {
     t.restStreak++;
@@ -1051,8 +1053,13 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
       if (myMatchDates(state).includes(addDays(date, 1))) t.eve = true;
       break;
     }
-    default: break;
+    default:
+      // 생활 하루 행동 (C.63 b): 훈련 대신 숨은 생활 지표
+      if (isLifeKind(kind)) res.note = lifeAction(state, kind, date);
+      break;
   }
+  // 생활 지표 하루 변화 (C.63 b)
+  lifeDayEnd(state, kind);
   t.season.fatigue += res.fatigue;
   t.season.days[kind] = (t.season.days[kind] ?? 0) + 1;
   t.last = res;
@@ -1091,7 +1098,8 @@ export function endDay(state: GameState): TrainingDayResult {
 /** 오늘에서 to 날짜 아침까지 하루씩 넘겼을 때의 피로·부상 (상태는 바꾸지 않는다). 그날들의 훈련 계획대로 */
 function projectedCondition(state: GameState, to: IsoDate): Pick<PlayerState, 'fatigue' | 'injury'> {
   const p = { fatigue: state.player.fatigue, injury: state.player.injury ? { ...state.player.injury } : null };
-  for (let d = state.calendar.date; daysBetween(d, to) > 0; d = addDays(d, 1)) conditionStep(p, dayPlan(state, d), d);
+  const lm = lifeRecoveryMul(state);
+  for (let d = state.calendar.date; daysBetween(d, to) > 0; d = addDays(d, 1)) conditionStep(p, dayPlan(state, d), d, lm);
   return p;
 }
 
@@ -1182,7 +1190,7 @@ function matchForm(state: GameState): number {
   const story = fx ? storyForm(p, p.teamId, fx.opponentId, state.league.season, p.season.apps) : 0;
   const former = fx ? (state.market?.moves ?? []).some((m) => !m.loan && !m.back && m.from === fx.opponentId) : false;
   const betrayed = !!fx && p.tags.some((t) => t.id === 'traitor' && t.from === fx.opponentId);
-  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0) - upsetForm(state) + eventForm(state);
+  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0) - upsetForm(state) + eventForm(state) + lifeForm(state);
 }
 
 /** 부상 판정용 경기 시점: 시즌·라운드(1부터)·날짜·최종 라운드까지 남은 날 */
@@ -1380,6 +1388,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   if (state.trial) afterTrialMatch(state, result);
   // 구단·이벤트 (C.63): 감독 경질 판정, 경기 뒤 이벤트 (폼 효과 경기 수)
   if (!state.events?.off) coachAfterMatch(state);
+  // 생활 (C.63 b): 출전하면 멘탈 피로 + (더비·상위 6팀 더)
+  lifeAfterMatch(state, result.minutes > 0, derbyOf(player.teamId, opp.id) !== null || ratingRank(league, opp.id) <= BALANCE.tags.natural.bigTop);
   eventsAfterMatch(state);
 
   if (league.round >= league.schedule.length) endSeason(state);

@@ -9,7 +9,7 @@ import { addDays, daysBetween, type IsoDate } from './calendar';
 import { grantMeetingPick } from './cardCollection';
 import { derbyOf } from './derby';
 import { formBonus } from './form';
-import { addXp, reputationFloor, reputationTier } from './growth';
+import { addXp, reputationTier } from './growth';
 import { ensureInbox, isPending, pushInbox, type InboxCat, type InboxChoice, type InboxItem } from './inbox';
 import { sortedTable, teamById } from './league';
 import { addTrust } from './manager';
@@ -18,7 +18,7 @@ import { tagHas, type TagId } from './tags';
 import { fill, pickText } from './text';
 import type { GameState } from './game';
 import { EVENTS } from '../data/events';
-import { lifeVar, addLife, type LifeKey } from './life';
+import { addLife, ensureLife, isForeign, lifeEventsFull, lifeSeasonEnd, lifeSeasonStart, lifeVar, type LifeKey } from './life';
 import { detectCompetitor, rivalGap, rivalIntro, rivalOf, rivalSeasonEnd, rivalSeasonStart } from './rival';
 import { captainSeasonEnd, captainSeasonStart, coachName, isCaptain, setCaptain, clubSeasons } from './club';
 
@@ -84,6 +84,8 @@ export interface EventDef {
   when?: Cond;
   /** 조건을 만족할 때 뜰 확률 (없으면 1) */
   chance?: number;
+  /** 태그별 확률 배율 (C.63 b, 5-2 태그 몫: 리더 팀 불화 ×0.5, 문제아 인터뷰 실언 ×1.5, 스타 플레이어 루머 ×2 …) */
+  chanceTags?: Readonly<Partial<Record<string, number>>>;
   /** 다시 뜨기까지 일. 'season' = 시즌에 한 번, 'once' = 커리어 한 번. 없으면 선택형 season / 정보형 messageCooldown */
   cooldown?: number | 'season' | 'once';
   /** 슬롯 가중치 */
@@ -180,7 +182,7 @@ export function evVar(state: GameState, v: EvVar): number {
     case 'hasRival': return rivalOf(state) ? 1 : 0;
     case 'captain': return isCaptain(state) ? 1 : 0;
     case 'clubSeasons': return clubSeasons(state);
-    case 'foreign': return (p.nationality ?? 'Korea Republic') !== 'England' ? 1 : 0;
+    case 'foreign': return isForeign(p) ? 1 : 0;
     case 'contractLeft': return state.market?.contract ? state.market.contract.until - state.league.season : 9;
     case 'offseason': return state.phase === 'season' ? 0 : 1;
     case 'home': case 'adapt': case 'team': case 'mental': return lifeVar(state, v);
@@ -255,8 +257,7 @@ export function applyEffects(state: GameState, effects: readonly Effect[], why: 
   for (const e of effects) {
     if ('rep' in e) {
       const d = clamp(e.rep, -E().caps.rep, E().caps.rep);
-      // 깎을 때는 티어 하한 (부록 C.27) 아래로 내려가지 않는다
-      p.reputation = d < 0 ? Math.max(Math.min(p.reputation, reputationFloor(p.reputation)), p.reputation + d) : p.reputation + d;
+      p.reputation = Math.max(0, p.reputation + d);
       out.push(`위상 ${d > 0 ? '+' : '−'}${Math.abs(d)}`);
     } else if ('trust' in e) {
       const d = addTrust(state, clamp(e.trust, -E().caps.trust, E().caps.trust), why, { scaled: false });
@@ -311,7 +312,16 @@ function cooldownOk(state: GameState, d: EventDef, date: IsoDate): boolean {
 }
 
 function eligible(state: GameState, d: EventDef, date: IsoDate): boolean {
+  // 생활 이벤트는 시즌 상한 (pending 47 질문 ④)
+  if (d.tags.includes('life') && lifeEventsFull(state)) return false;
   return cooldownOk(state, d, date) && check(state, d.when);
+}
+
+/** 태그 배율을 건 확률 */
+export function chanceOf(state: GameState, d: EventDef): number {
+  let c = d.chance ?? 1;
+  for (const [t, m] of Object.entries(d.chanceTags ?? {})) if (m !== undefined && tagHas(state.player, t as TagId)) c *= m;
+  return Math.min(1, c);
 }
 
 /** 이벤트를 띄운다: 정보형은 효과를 바로, 선택형은 인박스에 선택지. 인박스 알림을 돌려준다 */
@@ -320,6 +330,7 @@ export function fireEvent(state: GameState, d: EventDef, tagKey = ''): InboxItem
   const date = state.calendar.date;
   ev.fired[d.id] = date;
   if (!ev.seasonFired.includes(d.id)) ev.seasonFired.push(d.id);
+  if (d.tags.includes('life')) ensureLife(state).events++;
   if (d.cooldown === 'once' && !ev.once.includes(d.id)) ev.once.push(d.id);
   const rng = rngOf(state, 'text', d.id, date, tagKey);
   const vars = textVars(state);
@@ -381,7 +392,7 @@ function fireImmediate(state: GameState, on: EventDef['on'], date: IsoDate): Inb
   const rng = rngOf(state, on, date);
   for (const d of EVENTS) {
     if (d.on !== on || !eligible(state, d, date)) continue;
-    if (rng() >= (d.chance ?? 1)) continue;
+    if (rng() >= chanceOf(state, d)) continue;
     ev.last = date;
     return fireEvent(state, d);
   }
@@ -408,6 +419,8 @@ export function eventsSeasonStart(state: GameState, opening: IsoDate): void {
   if (rv) rivalIntro(state, rv);
   // 주장: 이적했으면 끝, 신뢰도가 낮으면 완장을 뺏김
   captainSeasonStart(state);
+  // 생활 이벤트 시즌 상한 다시 (C.63 b)
+  lifeSeasonStart(state);
 }
 
 /** 하루 끝 (endDay): 기한 지난 선택 → 예약 → 슬롯 → 하루 이벤트 */
@@ -448,7 +461,9 @@ export function eventsSeasonEnd(state: GameState): void {
   rivalSeasonEnd(state);
   const cap = captainSeasonEnd(state);
   if (cap) pushInbox(state, { cat: 'club', key: `captain-end:${state.league.season}`, title: '주장으로 한 시즌', body: `완장을 차고 시즌을 마쳤어요. 위상 +${cap}.` });
-  for (const d of EVENTS) if (d.on === 'season' && eligible(state, d, date) && rngOf(state, 'season', d.id, state.league.season)() < (d.chance ?? 1)) fireEvent(state, d, 'season');
+  // 생활 플레이 태그 (C.63 b): 라커룸 리더 · 언론의 총아
+  lifeSeasonEnd(state);
+  for (const d of EVENTS) if (d.on === 'season' && eligible(state, d, date) && rngOf(state, 'season', d.id, state.league.season)() < chanceOf(state, d)) fireEvent(state, d, 'season');
 }
 
 /** 비시즌이 끝날 때(새 시즌 시작 직전): 답하지 않은 선택형은 기본 선택 */

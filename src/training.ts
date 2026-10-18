@@ -18,11 +18,13 @@ export type DayPlan = TrainingKind | 'match' | 'vacation' | 'rehab';
 export const TRAINING_NAMES_KO: Record<DayPlan, string> = {
   tech: '기술 훈련', intense: '고강도 훈련', position: '포지션·역할 훈련', setpiece: '세트피스·카드 훈련', video: '영상 분석',
   recovery: '회복 훈련', rest: '휴식', match: '경기', vacation: '휴가', rehab: '재활', weakFoot: '약발 훈련',
+  family: '가족과 시간', language: '외국어 공부', teamMeal: '동료와 식사', therapy: '심리 상담', trip: '휴식 여행', media: '미디어 인터뷰',
 };
 /** 달력·주간 계획 칸의 짧은 이름 */
 export const TRAINING_SHORT_KO: Record<DayPlan, string> = {
   tech: '기술', intense: '고강도', position: '포지션', setpiece: '세트피스', video: '영상', recovery: '회복', rest: '휴식',
   match: '경기', vacation: '휴가', rehab: '재활', weakFoot: '약발',
+  family: '가족', language: '외국어', teamMeal: '식사', therapy: '상담', trip: '여행', media: '인터뷰',
 };
 export const TRAINING_DESC_KO: Record<TrainingKind, string> = {
   tech: '고른 묶음 게이지 +1. 다 차면 그 묶음에서 가장 낮은 능력치가 다음 칸까지 1/5 진행',
@@ -33,6 +35,13 @@ export const TRAINING_DESC_KO: Record<TrainingKind, string> = {
   weakFoot: `약발 게이지 +1. ${BALANCE.weakFoot.trainingGauge}칸이 차면 약발 +1 (시즌 최대 +${BALANCE.weakFoot.seasonMax}, 약발 5 = 양발잡이)`,
   recovery: '체력을 많이 회복하고, 연속 휴식 폼 감점을 지워요',
   rest: `체력을 가장 많이 회복해요. 경기 다음 날은 휴식 고정. 부상 중이면 회복 +${T.restHealBonus}일, ${T.restStreak}일 연속이면 폼 −1`,
+  // 생활 하루 행동 (C.63 b, pending 47 4번): 훈련 대신. 숨은 생활 지표를 움직인다
+  family: '가족과 시간을 보내요. 집 생각이 줄고 마음이 편해져요',
+  language: '현지어 수업. 새 나라·팀에 빨리 적응해요 (외국인 선수)',
+  teamMeal: '동료들과 식사·팀 행사. 라커룸 관계가 좋아져요',
+  therapy: '심리 상담. 쌓인 멘탈 피로를 크게 덜어요',
+  trip: '짧은 휴식 여행. 멘탈 피로를 덜고 기분 전환',
+  media: '미디어 인터뷰. 잘하면 위상 +, 말이 꼬이면 위상 − (언론 울렁증이면 더 어려워요)',
 };
 
 export const BUNDLE_NAMES_KO: Record<AttributeGroup, string> = {
