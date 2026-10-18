@@ -162,7 +162,7 @@ describe('코치 효과 (D.13 재설계)', () => {
     expect(p.attributes.heading).toBe(40);
   });
 
-  it('하루 진행: 코치가 있으면 그 묶음 기술 훈련 XP·게이지가 늘고 훈련 결과에 코치 배율', () => {
+  it('하루 진행: 코치가 있으면 그 묶음 기술 훈련 게이지가 빨리 차고 훈련 결과에 코치 배율', () => {
     const run = (withCoach: boolean) => {
       const g = prospect('c68-day');
       g.training.focus = 'finishing';
@@ -172,7 +172,9 @@ describe('코치 효과 (D.13 재설계)', () => {
     };
     const a = run(false);
     const b = run(true);
-    expect(b.xp).toBeGreaterThan(a.xp);
+    // 훈련 XP 에는 배율을 붙이지 않는다 (xpShare 0, C.68a 밸런스)
+    if (BALANCE.staff.coach.xpShare > 0) expect(b.xp).toBeGreaterThan(a.xp);
+    else expect(b.xp).toBeCloseTo(a.xp);
     expect(b.gauge).toBeGreaterThan(a.gauge);
   });
 });

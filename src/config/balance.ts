@@ -1413,8 +1413,11 @@ export const BALANCE = {
       range: { normal: 1, special: 2, topClass: 2, worldClass: 3, legendary: 3 } satisfies Record<Tier, number>,
       limit: { normal: 75, special: 80, topClass: 85, worldClass: 90, legendary: 94 } satisfies Record<Tier, number>,
       maxBoost: 0.4,
-      /** 그날 훈련 XP 에 붙는 몫 (배율 × xpShare). 게이지에는 배율 그대로 */
-      xpShare: 1,
+      /**
+       * 그날 훈련 XP 에 붙는 몫 (배율 × xpShare). 게이지에는 배율 그대로. 0 = 게이지만 (C.68a: XP 에도 붙이면 코치 풀 투자 balance 13/15 —
+       * 레전더리 위상 비율 가드 2개, 게이지만이면 14/15)
+       */
+      xpShare: 0,
       /** 후보 전문 묶음: 이 확률로 내 포지션 OVR 비중 상위 3묶음 중에서, 나머지는 아무 묶음 */
       fitShare: 0.5,
     },

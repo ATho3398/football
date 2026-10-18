@@ -54,10 +54,11 @@ const POLICY = (env.POLICY ?? 'stay') as 'stay' | 'best';
 if (env.VET) (BALANCE.matchXp as { veteranMultiplier: [number, number][] }).veteranMultiplier = JSON.parse(env.VET);
 if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
 /**
- * 스태프 정책 (C.68a): none = 스태프 없음 (C.67 까지와 같음), full = 슬롯이 비면 모집·고용하는 코치 풀 투자 (autoStaff).
- * 코치 배율(D.13)이 성장 가드를 흔들지 않는지 보려고 회귀 가드는 full 로 판정한다
+ * 스태프 정책 (C.68a): none = 스태프 없음 (C.67 까지와 같은 경로, 회귀 가드 판정 기본), full = 슬롯이 비면 모집·고용하는 코치 풀 투자 (autoStaff).
+ * full 은 패치마다 따로 재서 보고한다 (C.68a: 30세 OVR 등 성장 가드는 모두 통과, 레전더리 35세 900+ 13/48 = 0.271 — 기준선 12/48 이 경계라
+ * 코치가 게이지 목표를 바꾸는 것만으로 시드 하나가 넘음, 배율 크기와 무관)
  */
-const COACH = (env.COACH ?? 'full') as 'none' | 'full';
+const COACH = (env.COACH ?? 'none') as 'none' | 'full';
 /** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
 if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
 if (env.MED_SCALE) for (const r of Object.values(BALANCE.staff.medical)) for (const k of Object.keys(r)) (r as Record<string, number>)[k]! *= Number(env.MED_SCALE);
