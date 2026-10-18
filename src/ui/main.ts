@@ -126,6 +126,9 @@ const ui = {
   /** 덱 화면 카드 상세 시트 (C.39) */
   cardSheet: null as null | { id: string; from: 'deck' | 'pool' },
   worldTab: 'table' as 'table' | 'stars' | 'scorers' | 'transfers',
+  /** 리그 스타 묶음 · 리그 기록 거르기 (C.64) */
+  starGroup: 'league' as 'league' | 'world' | 'young',
+  worldBoard: 'goals' as 'goals' | 'assists' | 'rating',
   /** 재계약 화면에서 고른 연수 (C.42) */
   renewYears: null as number | null,
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
@@ -409,7 +412,7 @@ function screenHtml(): string {
       return playerView(playerVM(g), { tab: ui.playerTab, body, market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired' })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
-    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more);
+    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard);
     case 'offers': return offersView(marketVM(g), ui.offerSel);
     case 'inbox': {
       collectNotices(g);
@@ -1473,6 +1476,17 @@ app.addEventListener('click', (ev) => {
     }
     case 'world-tab':
       ui.worldTab = v as typeof ui.worldTab;
+      // 인박스 기록 소식의 [리그 기록 보기] (C.64): 다른 화면에서 오면 월드로
+      if (ui.screen !== 'world') { go('world'); return; }
+      render();
+      return;
+    case 'world-stars':
+      ui.starGroup = v as typeof ui.starGroup;
+      ui.more = { ...ui.more, stars: false };
+      render();
+      return;
+    case 'world-board':
+      ui.worldBoard = v as typeof ui.worldBoard;
       render();
       return;
     // ── 다른 팀·선수 상세 (C.53) ──

@@ -27,6 +27,7 @@ import { initialMarket } from './transfer';
 import { realBody, rollBody } from './body';
 import { REAL_CAREER } from '../data/players/careers';
 import { LEGEND_BY_ID } from './legends';
+import { awardsFromTotals, trimArchive } from './worldStats';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -294,6 +295,11 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   31: () => {},
   // 32 → 33 (C.63): 인박스·이벤트·라이벌·경질 감독·주장·생활 지표. 옛 세이브는 모두 없음 → 처음 쓸 때 만든다 (라이벌·슬롯은 다음 시즌부터)
   32: () => {},
+  // 33 → 34 (C.64): 지난 시즌 시상 줄(aw)과 세이브 상한(오래된 시즌은 요약). 옛 기록은 선수 합계에서 시상을 다시 만들고(영플레이어 없음) 상한대로 줄인다
+  33: (s) => {
+    for (const a of s.archive ?? []) a.aw ??= awardsFromTotals(a.players ?? {});
+    if (s.archive) trimArchive(s.archive);
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

@@ -71,7 +71,7 @@ export function rivalSection(vm: RivalCardVM): string {
   const max = Math.max(1, vm.me.ga, vm.them.ga);
   const bar = (v: number, cls: string) => `<div class="mg-bar" aria-hidden="true"><i class="${cls}" style="width:${Math.round((v / max) * 100)}%"></i></div>`;
   return `${SectionTitle({ title: `라이벌 · ${vm.name}`, action: vm.lead > 0 ? `${vm.lead}개 앞서요` : vm.lead < 0 ? `${-vm.lead}개 뒤져요` : '동률' })}
-    ${panel(`<p class="small muted mg-mgr"><button type="button" class="dt-link" data-act="team-open" data-v="${esc(vm.teamId)}">${esc(vm.team)}</button> · ${esc(vm.pos)} · ${vm.age}세 · OVR ${vm.ovr} · ${esc(vm.record)}</p>
+    ${panel(`<p class="small muted mg-mgr"><button type="button" class="dt-link" data-act="team-open" data-v="${esc(vm.teamId)}">${esc(vm.team)}</button> · ${esc(vm.pos)} · ${vm.age}세 · 위상 ${vm.rep} (나 ${vm.myRep}) · ${esc(vm.record)}</p>
       <div class="mg-rows">
         <div class="mg-row is-me"><div class="mg-row__head"><span class="mg-row__name">나 <small>평점 ${esc(vm.me.avg)}</small></span><b class="po-num">${vm.me.ga}</b></div>${bar(vm.me.ga, 'o')}</div>
         <div class="mg-row"><div class="mg-row__head"><span class="mg-row__name">${esc(vm.name)} <small>${vm.them.apps}경기 · 평점 ${esc(vm.them.avg)}${vm.est ? ' · 추정' : ''}</small></span><b class="po-num">${vm.them.ga}</b></div>${bar(vm.them.ga, 't')}</div>

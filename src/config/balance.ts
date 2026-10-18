@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 41;
+export const BALANCE_VERSION = 42;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1203,8 +1203,8 @@ export const BALANCE = {
     /** 인박스 최대 (오래된 읽은 것부터 지움) */
     inboxMax: 80,
     rival: {
-      /** 나이 ±ageGap, 시즌 시작 때 OVR 차가 maxGap 을 넘으면 교체 */
-      ageGap: 3, maxGap: 8,
+      /** 나이 ±ageGap (교체 기준 위상 차는 C.64부터 world.rivalMaxGap) */
+      ageGap: 3,
       /** 시즌 끝 비교 점수 = 골+도움 차 + 평균 평점 차 × avgWeight, ±1 넘으면 승패 */
       avgWeight: 10,
       /** 이기면 위상 +winRep · 신뢰도 +winTrust, 지면 위상 loseRep · 신뢰도 loseTrust */
@@ -1256,6 +1256,27 @@ export const BALANCE = {
     tags: { leaderDiscord: 0.5, troubleSlip: 1.5, starRumour: 2 },
     /** 플레이 태그: 라커룸 리더 = 주장 lockerSeasons 시즌째 끝 또는 시즌 끝 팀 관계 lockerTeam 이상 / 언론의 총아 = 인터뷰 좋은 결과 darlingGood 번 */
     natural: { lockerSeasons: 2, lockerTeam: 90, darlingGood: 5 },
+  },
+  /** 월드 정보·NPC 시즌 통계 (18.5, 부록 C.64). 통계 자체는 엔진 기록(다른 경기도 22명 엔진), 여기는 순위·시상·위상·소식·세이브 상한 */
+  world: {
+    /** 평점 순위 자격: 출전 ≥ max(ratingMinApps, 지난 라운드 × ratingMinShare) */
+    ratingMinApps: 3, ratingMinShare: 0.4,
+    /** 시상: 최고 평점 출전 ≥ bestMinApps, 영플레이어(21세 이하 최고 평점) 출전 ≥ youngMinApps */
+    bestMinApps: 15, youngMinApps: 10,
+    /** 순위표 줄 수 (득점·도움·평점) */
+    boardSize: 15,
+    /**
+     * NPC 위상 = OVR 근사(finance.npcRep) + 기록 + 수상.
+     * 기록 = (평균 평점 − perfAvg) × perfPerRating + 38경기 환산 골+도움 × perfPerGa38 (−perfMin~+perfMax), 출전 perfMinApps 미만은 0.
+     * 이번 시즌 비중 = 출전 / curFullApps (나머지는 지난 시즌 기록). 수상(득점왕·도움왕·최고 평점·영플레이어) 최근 honorSeasons 시즌 1개당 +honorRep (최대 honorMax)
+     */
+    standing: { perfAvg: 6.8, perfPerRating: 80, perfPerGa38: 2, perfMin: 60, perfMax: 100, perfMinApps: 5, curFullApps: 19, honorRep: 30, honorMax: 90, honorSeasons: 5 },
+    /** 라이벌 (C.63 → C.64 위상 비교): 후보 = OVR 차 rivalOvrGap 이내, 거리 = |위상 차| / rivalRepScale + OVR 차 + 나이 차 × 0.5. 시즌 시작 때 위상 차 rivalMaxGap 또는 OVR 차 rivalOvrGap 넘으면 교체 */
+    rivalRepScale: 25, rivalMaxGap: 220, rivalOvrGap: 8,
+    /** 기록 소식 (인박스): 이 라운드를 마친 뒤 득점·도움 경쟁 기사 (빠른 진행으로 기록이 없으면 안 냄) */
+    raceRounds: [10, 20, 30] as readonly number[],
+    /** 세이브 상한: 최근 fullSeasons 시즌은 전체 기록, 그 앞 시즌은 선수 기록을 득점·도움·평점 상위 keepTop 명씩 + 내 팀 선수만, 다른 경기 득점 기록(g)은 지운다 */
+    archive: { fullSeasons: 3, keepTop: 20 },
   },
 } as const;
 

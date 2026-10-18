@@ -1,6 +1,6 @@
-// 라이벌 (20.5, 부록 C.63): 시즌 시작 때 리그 안 다른 팀에서 같은 포지션군 · 나이 ±3 · 실력(OVR, 위상 대신)이 비슷한 NPC 1명.
+// 라이벌 (20.5, 부록 C.63): 시즌 시작 때 리그 안 다른 팀에서 같은 포지션군 · 나이 ±3 · 위상이 비슷한 NPC 1명 (C.64: OVR 대신 NPC 위상 = worldStats.npcStanding).
 // 지표 = 시즌 골+도움, 평균 평점 (NPC 기록이 없으면 OVR 로 추정). 시즌 끝 비교 → 위상·신뢰도·인박스 기사 톤.
-// 교체: 리그를 떠남(이적·은퇴) 또는 OVR 차이가 maxGap 을 넘을 때. 수치는 BALANCE.events.rival
+// 교체: 리그를 떠남(이적·은퇴) 또는 위상 차이가 world.rivalMaxGap 을 넘을 때. 수치는 BALANCE.events.rival · BALANCE.world
 
 import { BALANCE } from './config/balance';
 import { teamById } from './league';
@@ -12,6 +12,7 @@ import { addTrust } from './manager';
 import { fill, pickText } from './text';
 import type { GameState } from './game';
 import type { Position } from './types';
+import { npcStanding } from './worldStats';
 
 const R = () => BALANCE.events.rival;
 
@@ -23,7 +24,7 @@ export interface RivalState {
   history: [number, number, number, number, number, number][];
 }
 
-export interface RivalView { id: string; name: string; team: string; teamId: string; age: number; pos: string; ovr: number; apps: number; ga: number; avg: number; est: boolean; me: { ga: number; avg: number } }
+export interface RivalView { id: string; name: string; team: string; teamId: string; age: number; pos: string; ovr: number; rep: number; myRep: number; apps: number; ga: number; avg: number; est: boolean; me: { ga: number; avg: number } }
 
 /** 리그 팀 로스터에서 그 선수 */
 function findInLeague(state: GameState, id: string): { p: RosterPlayer; teamId: string } | null {
@@ -35,18 +36,24 @@ function findInLeague(state: GameState, id: string): { p: RosterPlayer; teamId: 
 }
 
 const ovrOf = (p: RosterPlayer) => slotOvr(p, p.position);
+const repOf = (state: GameState, p: RosterPlayer) => npcStanding(state, p.id, ovrOf(p));
 
-/** 라이벌 후보 고르기: 다른 리그 팀 · 같은 포지션군 · 나이 ±ageGap · OVR 가까운 순 상위 3 중 시드로 하나 */
+/** 라이벌 후보 고르기: 다른 리그 팀 · 같은 포지션군 · 나이 ±ageGap · 위상 가까운 순 상위 3 중 시드로 하나 */
 export function pickRival(state: GameState): RosterPlayer | null {
   const me = state.player;
-  const my = proficientOvr(me, me.position);
+  const my = me.reputation;
+  const myOvr = proficientOvr(me, me.position);
+  const scale = BALANCE.world.rivalRepScale;
   const g = posGroup(me.position as Position);
   const cands: { p: RosterPlayer; d: number }[] = [];
   for (const t of state.league.teams) {
     if (t.id === me.teamId) continue;
     for (const p of state.rosters?.[t.id]?.players ?? []) {
       if (p.gk || p.position === 'GK' || posGroup(p.position) !== g || Math.abs(p.age - me.age) > R().ageGap) continue;
-      cands.push({ p, d: Math.abs(ovrOf(p) - my) + Math.abs(p.age - me.age) * 0.5 });
+      // 실력(OVR 차 rivalOvrGap 이내)이 비슷한 선수 중 위상이 가까운 순 (위상만 보면 초반 위상이 낮은 고OVR 선수에게 약한 라이벌이 붙는다)
+      const dOvr = Math.abs(ovrOf(p) - myOvr);
+      if (dOvr > BALANCE.world.rivalOvrGap) continue;
+      cands.push({ p, d: Math.abs(repOf(state, p) - my) / scale + dOvr + Math.abs(p.age - me.age) * 0.5 });
     }
   }
   if (!cands.length) return null;
@@ -59,8 +66,8 @@ export function pickRival(state: GameState): RosterPlayer | null {
 /** 시즌 시작: 라이벌이 없거나, 리그를 떠났거나, 격차가 크면 새로 정한다. 새로 정했으면 그 선수 */
 export function rivalSeasonStart(state: GameState): RosterPlayer | null {
   const cur = state.rival ? findInLeague(state, state.rival.id) : null;
-  const my = proficientOvr(state.player, state.player.position);
-  const keep = cur && cur.teamId !== state.player.teamId && Math.abs(ovrOf(cur.p) - my) <= R().maxGap;
+  const keep = cur && cur.teamId !== state.player.teamId && Math.abs(repOf(state, cur.p) - state.player.reputation) <= BALANCE.world.rivalMaxGap
+    && Math.abs(ovrOf(cur.p) - proficientOvr(state.player, state.player.position)) <= BALANCE.world.rivalOvrGap;
   if (keep) return null;
   const p = pickRival(state);
   state.rival = p ? { id: p.id, since: state.league.season, history: state.rival?.history ?? [] } : null;
@@ -77,8 +84,10 @@ export function rivalOf(state: GameState): RivalView | null {
   const me = state.player.season;
   const myView = { ga: me.goals + me.assists, avg: me.apps ? Math.round((me.ratingSum / me.apps) * 100) / 100 : 0 };
   const ovr = ovrOf(p);
+  const rep = npcStanding(state, p.id, ovr);
+  const myRep = state.player.reputation;
   if (st && st[0] > 0) {
-    return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, apps: st[0], ga: st[1] + st[2], avg: Math.round((st[3] / 10 / st[0]) * 100) / 100, est: false, me: myView };
+    return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, rep, myRep, apps: st[0], ga: st[1] + st[2], avg: Math.round((st[3] / 10 / st[0]) * 100) / 100, est: false, me: myView };
   }
   // 추정 (20.5 "NPC는 추정값"): 팀 경기 수 × 출전 비율, 포지션군별 경기당 골+도움 × OVR 배율, 평점 6.4 + (OVR − 70) × 0.03
   const games = state.league.round;
@@ -86,7 +95,7 @@ export function rivalOf(state: GameState): RivalView | null {
   const rate: number = (R().estGa as Record<string, number>)[posGroup(p.position)] ?? 0.2;
   const ga = Math.round(apps * rate * Math.max(0.3, 1 + (ovr - 75) * 0.04));
   const avg = apps ? Math.round((6.4 + (ovr - 70) * 0.03) * 100) / 100 : 0;
-  return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, apps, ga, avg, est: true, me: myView };
+  return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, rep, myRep, apps, ga, avg, est: true, me: myView };
 }
 
 /** 내 골+도움 − 라이벌 골+도움 (라이벌 없으면 null) */
@@ -135,7 +144,7 @@ export function rivalIntro(state: GameState, p: RosterPlayer): void {
   pushInbox(state, {
     cat: 'rival', key: `rival:${state.league.season}:${p.id}`,
     title: `올 시즌 라이벌 · ${r.name}`,
-    body: fill('{rivalTeam}의 {rival}({pos}, {age}세, OVR {ovr}){이/가} 라이벌로 지목됐어요. 시즌 골+도움과 평균 평점으로 겨뤄요.', { rivalTeam: r.team, rival: r.name, pos: r.pos, age: r.age, ovr: r.ovr }),
+    body: fill('{rivalTeam}의 {rival}({pos}, {age}세, 위상 {rep}){이/가} 라이벌로 지목됐어요. 시즌 골+도움과 평균 평점으로 겨뤄요.', { rivalTeam: r.team, rival: r.name, pos: r.pos, age: r.age, rep: r.rep }),
   });
 }
 

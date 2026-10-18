@@ -48,6 +48,7 @@ import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
 import { afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, upsetForm, type ManagerState } from './manager';
+import { archiveAwards, trimArchive, worldAfterRound, worldSeasonEnd } from './worldStats';
 import { eventForm, eventsAfterMatch, eventsCloseOffseason, eventsDayEnd, eventsSeasonEnd, eventsSeasonStart, type EventsState } from './events';
 import { coachAfterMatch, type CoachRec } from './club';
 import type { InboxState } from './inbox';
@@ -71,7 +72,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 33;
+export const SAVE_FORMAT_VERSION = 34;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -259,6 +260,10 @@ export interface SeasonArchive {
   table: [string, number, number][];
   /** 선수 이름·팀 (C.62). 옛 기록에는 없다 */
   names?: Record<string, [string, string]>;
+  /** 시즌 시상 (C.64): [종류 goals·assists·rating·young, 선수 id, 값(평점 ×100)]. NPC 위상 수상 점수에 쓴다 */
+  aw?: [string, string, number][];
+  /** 세이브 상한으로 줄인 시즌 (C.64): 선수 기록은 상위·내 팀·수상자만, 다른 경기 득점 기록 없음 */
+  slim?: true;
 }
 
 /** 선수 시즌 합계: [출전, 골, 도움, 평점 합 ×10, 출전 분(C.42, 이적 점수의 출전 시간 비율. 옛 기록에는 없다)] */
@@ -1391,6 +1396,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   // 생활 (C.63 b): 출전하면 멘탈 피로 + (더비·상위 6팀 더)
   lifeAfterMatch(state, result.minutes > 0, derbyOf(player.teamId, opp.id) !== null || ratingRank(league, opp.id) <= BALANCE.tags.natural.bigTop);
   eventsAfterMatch(state);
+  // 득점·도움 경쟁 기사 (C.64)
+  worldAfterRound(state);
 
   if (league.round >= league.schedule.length) endSeason(state);
   refreshUnlocks(state);
@@ -1434,7 +1441,7 @@ function archiveSeason(state: GameState): SeasonArchive {
     results.push(f.g?.length ? [r + 1, f.home, f.away, f.homeGoals, f.awayGoals!, f.g] : [r + 1, f.home, f.away, f.homeGoals, f.awayGoals!]);
   }));
   return {
-    season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {}, ...(state.statNames ? { names: state.statNames } : {}),
+    season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {}, ...(state.statNames ? { names: state.statNames } : {}), aw: archiveAwards(state),
     table: sortedTable(state.league).map((row) => [row.teamId, row.points, row.gf - row.ga]),
   };
 }
@@ -1710,6 +1717,8 @@ export function endSeason(state: GameState): SeasonSummary {
   if (line) state.tagNotice = { text: line, season };
   // 이벤트 (C.63): 라이벌 비교, 주장 시즌, 시즌 끝 이벤트
   if (state.phase === 'offseason') eventsSeasonEnd(state);
+  // 시즌 시상 기사 (C.64)
+  if (state.phase === 'offseason') worldSeasonEnd(state);
   return summary;
 }
 
@@ -1731,6 +1740,8 @@ export function startNextSeason(state: GameState): void {
   // 인박스 (C.63): 답하지 않은 선택형은 기본 선택
   eventsCloseOffseason(state);
   (state.archive ??= []).push(archiveSeason(state));
+  // 세이브 상한 (C.64): 오래된 시즌은 요약만
+  trimArchive(state.archive);
   state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
   delete state.nextRatings;
   if (state.market) state.market.request = null;

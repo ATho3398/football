@@ -93,7 +93,7 @@ export function inboxDetailVM(g: GameState, id: number): InboxDetailVM | null {
 }
 
 /** 홈 라이벌 카드 (20.5) */
-export interface RivalCardVM { name: string; team: string; teamId: string; pos: string; age: number; ovr: number; me: { ga: number; avg: string }; them: { ga: number; avg: string; apps: number }; est: boolean; lead: number; record: string }
+export interface RivalCardVM { name: string; team: string; teamId: string; pos: string; age: number; ovr: number; rep: number; myRep: number; me: { ga: number; avg: string }; them: { ga: number; avg: string; apps: number }; est: boolean; lead: number; record: string }
 
 export function rivalCardVM(g: GameState): RivalCardVM | null {
   if (g.phase !== 'season') return null;
@@ -103,7 +103,7 @@ export function rivalCardVM(g: GameState): RivalCardVM | null {
   const w = h.filter((x) => x[5] > 0).length;
   const l = h.filter((x) => x[5] < 0).length;
   return {
-    name: r.name, team: r.team, teamId: r.teamId, pos: r.pos, age: r.age, ovr: r.ovr,
+    name: r.name, team: r.team, teamId: r.teamId, pos: r.pos, age: r.age, ovr: r.ovr, rep: r.rep, myRep: r.myRep,
     me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-' }, them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps }, est: r.est,
     lead: r.me.ga - r.ga, record: h.length ? `지난 비교 ${w}승 ${h.length - w - l}무 ${l}패` : '첫 시즌',
   };

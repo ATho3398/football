@@ -10,7 +10,8 @@ import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
 import { derbyOf } from '../derby';
 import { DETAILS, LEVEL_NAMES_KO, tendencyLevels, TENDENCY_NAMES_KO, type Detail } from '../engine/tactics';
 import { TEAM_TACTICS } from '../engine/teamData';
-import { financeTier, npcAnnualWage, npcReputation, npcValue, remainingBudget, TIER_KO, valueLabel, wageBill, type FinanceTier } from '../finance';
+import { npcStanding } from '../worldStats';
+import { financeTier, npcAnnualWage, npcValue, remainingBudget, TIER_KO, valueLabel, wageBill, type FinanceTier } from '../finance';
 import { FORMATION_SLOTS } from '../formations';
 import type { GameState } from '../game';
 import { playerOvr, reputationTier, TIER_NAMES_KO } from '../growth';
@@ -166,7 +167,8 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
   const L = g.league;
   const team = teamById(L, teamId);
   const ovr = naturalOvr(p);
-  const rep = Math.round(npcReputation(ovr));
+  // NPC 위상 (C.64): OVR 근사 + 시즌 기록 + 수상 (연봉·몸값은 OVR 근사 그대로)
+  const rep = npcStanding(g, id, ovr);
   const tier = reputationTier(rep);
   const yearsLeft = Math.max(0, p.contractEnd - L.season);
   const st = g.playerStats?.[id];

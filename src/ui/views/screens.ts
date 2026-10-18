@@ -4,7 +4,8 @@
 import {
   Avatar, Banner, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
-import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, VersionVM, WorldVM } from '../viewModels';
+import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
+import type { BoardKind } from '../../worldStats';
 import { actionRow, banners, panel, pc2, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { isWide } from '../skin';
 import { teamLink } from './detail';
@@ -221,7 +222,7 @@ const STAR_PAGE = 5;
 const LEGEND_PAGE = 6;
 
 /** 월드 (디자인 101~105 · 146 · 147, C.60): compact 머리말 + 탭 4 (순위표 · 득점 · 리그 스타 · 이적 소식) */
-export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers', transfers = '', more: Record<string, boolean> = {}): string {
+export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers', transfers = '', more: Record<string, boolean> = {}, group: StarGroup = 'league', board: BoardKind = 'goals'): string {
   const me = vm.table.find((r) => r.me)!;
   const leader = vm.table[0]!;
   const hero = HeroPanel({
@@ -229,12 +230,16 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     chips: [`승점 ${me.points}`, me.pos === 1 ? '선두' : `1위와 ${leader.points - me.points}점`, { label: `${vm.season} 시즌`, soft: true }],
   });
   const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점' }, { id: 'stars', label: '리그 스타' }, { id: 'transfers', label: '이적 소식' }], value: tab, variant: 'underline', fill: true, act: 'world-tab' });
-  const scorers = vm.scorers.length
+  // 리그 기록 (C.64): 득점 · 도움 · 평점 거르기 (147 의 segment 탭 재사용), 강조 열 = 고른 기록
+  const boardTabs = Tabs({ items: [{ id: 'goals', label: '득점' }, { id: 'assists', label: '도움' }, { id: 'rating', label: '평점' }], value: board, variant: 'segment', act: 'world-board', label: '리그 기록 거르기' });
+  const rowsB = vm.boards[board];
+  const hi = (k: BoardKind, v: string | number) => (k === board ? `<b class="po-num">${v}</b>` : `${v}`);
+  const scorers = `${boardTabs}${rowsB.length
     ? `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">선수</th><th>출전</th><th>골</th><th>도움</th><th>평점</th></tr>
-      ${vm.scorers.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${i + 1}</td><td class="l"><button type="button" class="dt-link team" data-act="person-open" data-v="${esc(r.id)}">${Avatar({ size: 22, face: r.face, name: r.name })}${esc(r.name)}</button>${r.teamId ? teamLink(r.teamId, r.team, 'small muted') : ''}</td><td>${r.apps}</td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td><td>${r.avg}</td></tr>`).join('')}
-    </table><div class="legend small"><span class="grow r">다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요)</span></div></div>`
-    : '<p class="small muted">아직 기록이 없어요. 경기가 진행되면 득점 순위가 쌓여요.</p>';
+      ${rowsB.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${r.rank ?? i + 1}</td><td class="l"><button type="button" class="dt-link team" data-act="person-open" data-v="${esc(r.id)}">${Avatar({ size: 22, face: r.face, name: r.name })}${esc(r.name)}</button>${r.teamId ? teamLink(r.teamId, r.team, 'small muted') : ''}</td><td>${r.apps}</td><td>${hi('goals', r.goals)}</td><td>${hi('assists', r.assists)}</td><td>${hi('rating', r.avg)}</td></tr>`).join('')}
+    </table><div class="legend small"><span class="grow r">${board === 'rating' ? `평점은 ${vm.ratingMin}경기 이상 출전한 선수만. ` : ''}다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요)</span></div></div>`
+    : `<p class="small muted">${board === 'rating' ? `아직 ${vm.ratingMin}경기 이상 뛴 선수가 없어요.` : '아직 기록이 없어요. 경기가 진행되면 순위가 쌓여요.'}</p>`}`;
   // 디자인 146: 팀 옆 "재" 열 = 재정 등급 4단 막대(색 없음) + 아래 범례 (팀 수)
   const tierCount = FIN_TIERS.map((t) => ({ t, n: vm.table.filter((r) => r.tier === t).length }));
   const table = `<div class="panel tbl-panel"><table class="tbl league">
@@ -244,14 +249,20 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     ${SectionTitle({ title: '재정 등급', action: '재 열 막대 = 구단 재정' })}
     ${panel(`<div class="fin-legend">${tierCount.map((x) => `<div class="fin-legend__cell">${FinChip(x.t, true)}<small class="po-num">${x.n}팀</small></div>`).join('')}</div>
       <p class="small muted">이적료·연봉을 낼 수 있는 크기예요. 표에서는 막대만, 글자는 이 범례와 팀 상세에서. 색은 쓰지 않아요(순위 색과 겹치지 않게).</p>`)}`;
-  const starRow = (s: WorldVM['stars'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${s.change > 0 ? 'up' : s.change < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
+  const starRow = (s: StarVM, i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}${s.ga ? ` · ${s.ga}` : ''}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${(s.change ?? 0) > 0 ? 'up' : (s.change ?? 0) < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
   const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="rec">레전드</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
-  const starsShown = more.stars ? vm.stars : vm.stars.slice(0, STAR_PAGE);
+  // 리그 스타 묶음 (C.64, 디자인 147 segment 탭): 리그 안(위상 순) · 세계(리그 밖 실제 선수) · 21세 이하
+  const groupTabs = Tabs({ items: [{ id: 'league', label: '리그 안' }, { id: 'world', label: '세계' }, { id: 'young', label: '21세 이하' }], value: group, variant: 'segment', act: 'world-stars', label: '리그 스타 거르기' });
+  const list = group === 'world' ? vm.starsWorld : group === 'young' ? vm.starsYoung : vm.stars;
+  const starsShown = more.stars ? list : list.slice(0, STAR_PAGE);
   const legShown = more.legends ? vm.legends : vm.legends.slice(0, LEGEND_PAGE);
-  const stars = `<p class="small muted">유명 선수들도 시즌마다 성장하고 늙어요. 오른쪽 아래 = 지난 시즌 대비 OVR 변화.</p>
-    <div class="star-list">${starsShown.map(starRow).join('')}</div>
-    ${vm.stars.length > STAR_PAGE ? moreButton('stars', !!more.stars, `리그 스타 ${vm.stars.length - STAR_PAGE}명 더 보기`) : ''}
-    ${vm.legends.length ? `${SectionTitle({ title: '레전드', action: `레전드 팩 · ${LEGEND_TOTAL}명` })}
+  const groupNote = group === 'world' ? '리그 밖 클럽의 실제 선수들이에요(OVR 순). 오른쪽 아래 = 지난 시즌 대비 OVR 변화.'
+    : group === 'young' ? '리그 팀의 21세 이하 선수들이에요(OVR 순). 이번 시즌 기록이 있으면 메타 줄 끝에.'
+      : '리그 팀 선수를 위상(OVR + 시즌 기록 + 수상) 순으로 보여 줘요. 오른쪽 = OVR, 아래 = 지난 시즌 대비 변화.';
+  const stars = `${groupTabs}<p class="small muted">${groupNote}</p>
+    ${list.length ? `<div class="star-list">${starsShown.map(starRow).join('')}</div>` : '<p class="small muted">해당하는 선수가 없어요.</p>'}
+    ${list.length > STAR_PAGE ? moreButton('stars', !!more.stars, `${group === 'world' ? '세계 스타' : group === 'young' ? '21세 이하' : '리그 스타'} ${list.length - STAR_PAGE}명 더 보기`) : ''}
+    ${group === 'league' && vm.legends.length ? `${SectionTitle({ title: '레전드', action: `레전드 팩 · ${LEGEND_TOTAL}명` })}
     <p class="small muted">레전드 팩으로 들어온 선수 중 리그에서 뛰는 ${vm.legends.length}명이에요. 지금 OVR과 전성기 예상을 같이 보여 줘요(지금 OVR 순).</p>
     <div class="star-list">${legShown.map(legRow).join('')}</div>
     ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
