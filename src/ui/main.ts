@@ -28,7 +28,7 @@ import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
 import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { replayPlayers } from '../replay';
-import { deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
+import { cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
 import { MomentPitch, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
@@ -128,7 +128,7 @@ const ui = {
   /** 포인트 찍기 (디자인 50): 들어올 때 상태를 기억했다가 [−]·[초기화]는 그 상태에서 남은 배분을 다시 적용한다 */
   alloc: null as null | { snap: PlayerState; raises: FieldAttribute[]; startExact: number; back: Screen; coach: boolean; sel: string | null },
   /** 덱 화면 카드 상세 시트 (C.39) */
-  cardSheet: null as null | { id: string; from: 'deck' | 'pool' },
+  cardSheet: null as null | { id: string; from: 'deck' | 'pool' | 'view' },
   worldTab: 'table' as 'table' | 'stars' | 'scorers' | 'transfers' | 'cups',
   /** 리그 스타 묶음 · 리그 기록 거르기 (C.64) */
   starGroup: 'league' as 'league' | 'world' | 'young',
@@ -406,7 +406,7 @@ function screenHtml(): string {
     case 'deck': {
       const vm = deckVM(g, ui.deckSet ?? g.cards.active, myRoleId(g));
       const cs = ui.cardSheet;
-      const c = cs ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
+      const c = cs && cs.from !== 'view' ? (cs.from === 'deck' ? vm.deck : vm.pool).find((x) => x.id === cs.id) : undefined;
       return deckView(vm, cs && c ? { from: cs.from, card: c } : null, ui.deckBack, { sel: ui.pickSel, later: !!ui.more.pickLater });
     }
     case 'player': {
@@ -482,7 +482,10 @@ function screenHtml(): string {
     }
     case 'prep': {
       const vm = prepVM(g);
-      if (vm && isMatchDay(g)) return prepView(vm);
+      if (vm && isMatchDay(g)) {
+        const cs = ui.cardSheet?.from === 'view' ? vm.deck.cards.find((x) => x.id === ui.cardSheet!.id) : undefined;
+        return prepView(vm) + (cs ? cardSheet({ from: 'view', card: cs }, vm.deck.cards.length) : '');
+      }
       return homeView(homeVM(g));
     }
     default: break;
@@ -592,8 +595,11 @@ function render(): void {
 
 /** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
 function bindDockMore(): void {
-  const el = document.querySelector<HTMLElement>('.dock-more__scroll');
-  if (!el) return;
+  document.querySelectorAll<HTMLElement>('.dock-more__scroll, .prep-deck').forEach(bindEdgeFade);
+}
+
+/** 가로 스크롤 줄 처음·끝 흐림 (더보기 줄 C.63c, 경기 준비 덱 줄 C.66c) */
+function bindEdgeFade(el: HTMLElement): void {
   const upd = () => {
     el.classList.toggle('at-start', el.scrollLeft <= 2);
     el.classList.toggle('at-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
@@ -1474,6 +1480,7 @@ app.addEventListener('click', (ev) => {
     case 'go':
     case 'go-tab': {
       ui.moreSheet = false;
+      if (ui.cardSheet?.from === 'view') ui.cardSheet = null;
       if (ui.screen === 'new') readFormInputs();
       const to = (act === 'go-tab' ? v : el.dataset.to) as Screen;
       if (to === 'deck') {
@@ -2281,7 +2288,7 @@ app.addEventListener('click', (ev) => {
     }
     case 'card-open':
       if (!v) return;
-      ui.cardSheet = { id: v, from: el.dataset.from === 'pool' ? 'pool' : 'deck' };
+      ui.cardSheet = { id: v, from: el.dataset.from === 'pool' ? 'pool' : el.dataset.from === 'view' ? 'view' : 'deck' };
       render();
       return;
     case 'card-close':

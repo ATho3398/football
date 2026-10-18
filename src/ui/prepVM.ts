@@ -21,7 +21,7 @@ import { proficiencyOf } from '../proficiency';
 import { ROLE_DESC_KO } from '../engine/roles';
 import type { FormationSlotProps } from './components';
 import { myTacticVM, teamTactic, type TacticVM } from './viewModels';
-import { deckUnusable, myRoleId } from './views/deck';
+import { deckCardsVM, deckUnusable, myRoleId, type DeckCardVM } from './views/deck';
 
 export type FormMark = 'W' | 'D' | 'L';
 
@@ -52,7 +52,7 @@ export interface PrepVM {
   /** 출전: 결장 사유가 있으면 out, 1군 테스트면 보장, 아니면 선발 가능성(%) */
   start: { out: string | null; trial: { n: number; of: number } | null; chance: number };
   condition: { fatigue: number; form: 1 | 2 | 3 | 4 | 5; formLabel: string; yellows: number; yellowEvery: number; injury: string | null; suspended: number };
-  deck: { active: number; sets: { idx: number; count: number; ok: boolean; unusable: number }[]; picks: number };
+  deck: { active: number; sets: { idx: number; count: number; ok: boolean; unusable: number }[]; picks: number; /** 지금 고른 덱 세트의 카드 (C.66c) */ cards: DeckCardVM[] };
   control: MatchControl;
   quick: boolean;
 }
@@ -119,6 +119,7 @@ export function prepVM(g: GameState): PrepVM | null {
       active: g.cards.active,
       sets: g.cards.decks.map((deck, idx) => ({ idx, count: deck.length, ok: deckProblems(deck).length === 0, unusable: deckUnusable(g, role, idx) })),
       picks: g.cards.picks.length,
+      cards: deckCardsVM(g, g.cards.active, role),
     },
     control: g.control,
     quick: !!g.options.quickOthers,
