@@ -1041,7 +1041,7 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   // 코치 (C.68a, D.13 재설계): 기술 훈련 묶음에 맞는 전문 능력치 코치가 있으면 그날 게이지·훈련 XP × (1 + 배율)
   const techG = kind === 'tech' ? techBundle(t, p.position, (g) => coachBoost(state, p, g)?.boost ?? 0) : null;
   const coach = techG ? coachBoost(state, p, techG) : null;
-  const raw = planXp(kind) * (1 + (coach?.boost ?? 0));
+  const raw = planXp(kind) * (1 + (coach?.boost ?? 0) * BALANCE.staff.coach.xpShare);
   if (raw > 0) {
     const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp * xpMul(p, true) * trainingXpMul(state, date));
     res.xp = gained;

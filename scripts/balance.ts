@@ -58,6 +58,9 @@ if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).o
  * 코치 배율(D.13)이 성장 가드를 흔들지 않는지 보려고 회귀 가드는 full 로 판정한다
  */
 const COACH = (env.COACH ?? 'full') as 'none' | 'full';
+/** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
+if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
+if (env.COACH_XP !== undefined) (BALANCE.staff.coach as { xpShare: number }).xpShare = Number(env.COACH_XP);
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
 
