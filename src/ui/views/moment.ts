@@ -8,7 +8,7 @@
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
-import { Button, ChoiceButton, Crest, cx, esc, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type GameCardData } from '../components';
+import { Button, ChoiceButton, Crest, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type FeedKind, type GameCardData } from '../components';
 import { cardById } from '../../config/cards';
 import { gameCardData } from './deck';
 import {
@@ -250,16 +250,35 @@ export function momentCenterY(frame: ReplayFrame, players: Map<string, ReplayPla
   return clampViewY(Math.min(yMe + vh / 2 - margin, Math.max(yMe - vh / 2 + margin, mid)), vh);
 }
 
+/** 수비 장면 (디자인 189 수비-판정없음 crop [0, 58]): 우리 진영 쪽 창 */
+const DEFENSE_SCENES: ReadonlySet<Moment['scene']> = new Set(['duel', 'oppShot', 'oppFreeKick', 'oppCorner', 'lineCall']);
+
+/**
+ * 결정 순간·결과 가로 확대 창 (C.72, 디자인 Pitch README crop): 공격 장면 = 공격 방향 x 44~100%, 수비 장면 = 0~58%.
+ * len = 창 길이(전체 대비), pref = 창 가운데. 공·내 선수가 창 밖이면 momentCenter 가 창을 민다
+ */
+export function momentCrop(m: Pick<Moment, 'scene'>): { len: number; pref: number } {
+  const [a, b] = DEFENSE_SCENES.has(m.scene) ? [0, 0.58] : [1 - MOMENT_ZOOM_LEN, 1];
+  return { len: b - a, pref: (a + b) / 2 };
+}
+
 /**
  * 결정 순간 보이는 칸 (5차 77 crop): 내 선수 · 공 · 선택지 도착점이 다 들어오게 가운데를 고르고, 다 못 넣으면 내 선수를 우선
  */
-export function momentCenter(frame: ReplayFrame, players: Map<string, ReplayPlayer>, side: 0 | 1, meId: string, targets: { x: number }[], len: number): number {
+export function momentCenter(frame: ReplayFrame, players: Map<string, ReplayPlayer>, side: 0 | 1, meId: string, targets: { x: number }[], len: number, pref?: number): number {
   if (len >= 0.999) return 0.5;
   const dir = attackDirOf(frame, players, side);
   const me = frame.players.find((p) => p.id === meId);
   const aMe = attackFrac(me?.x ?? frame.ball.x, dir);
-  const pts = [aMe, attackFrac(frame.ball.x, dir), ...targets.map((t) => attackFrac(t.x, dir))];
   const margin = len * 0.12;
+  // 장면 창 (C.72): 디자인 창 가운데에서 시작해 내 선수·공이 들어올 만큼만 민다. 둘 다 못 넣으면 아래 내 선수 우선 규칙
+  if (pref !== undefined) {
+    const core = [aMe, attackFrac(frame.ball.x, dir)];
+    const lo = Math.max(...core) - len / 2 + margin;
+    const hi = Math.min(...core) + len / 2 - margin;
+    if (lo <= hi) return clampCenter(Math.min(hi, Math.max(lo, pref)), len);
+  }
+  const pts = [aMe, attackFrac(frame.ball.x, dir), ...targets.map((t) => attackFrac(t.x, dir))];
   const mid = (Math.min(...pts) + Math.max(...pts)) / 2;
   return clampCenter(Math.min(aMe + len / 2 - margin, Math.max(aMe - len / 2 + margin, mid)), len);
 }
@@ -311,9 +330,10 @@ export class MomentPitch {
       const c = document.getElementById('mo-canvas') as HTMLCanvasElement | null;
       if (!c) return;
       const { ctx, w, h, portrait, zoom } = stageFit(c);
-      const len = zoom ? MOMENT_ZOOM_LEN : cropLength(w, h, portrait);
+      const crop = momentCrop(this.moment);
+      const len = zoom ? crop.len : cropLength(w, h, portrait);
       const targets = this.options.map((o) => o.to);
-      this.center = momentCenter(last, this.players, this.side, this.moment.me, targets, len);
+      this.center = momentCenter(last, this.players, this.side, this.moment.me, targets, len, zoom ? crop.pref : undefined);
       this.cy = zoom ? momentCenterY(last, this.players, this.side, this.moment.me, targets, viewHeightM(w, h, len)) : this.cy;
       this.zoom = zoom;
       const el = (now - this.t0) / 1000;
@@ -400,6 +420,8 @@ export interface OutcomeVM {
   score: [number, number];
   /** 결과 띠를 이미 보여 주는 중 */
   shown: boolean;
+  /** 결과 구간 해설 시간 줄 (190, C.72): 경기 이벤트 피드 문구. 없으면 줄을 숨긴다 */
+  lines?: { minute: string; text: string; kind: FeedKind; mine: boolean }[];
 }
 
 /**
@@ -425,7 +447,7 @@ export function outcomeView(vm: OutcomeVM): string {
       <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생', children: stageTools() })}</div>
       <div class="mo-panel oc-panel" aria-live="polite">
         <div class="${cx('oc-choice', vm.card && 'is-card')}" style="--k:${vm.card ? 'var(--brand)' : color}"><span class="oc-choice__t"><small>내 선택</small><b>${esc(vm.choice)}</b></span>${vm.card ? '<span class="oc-cardtag">카드 사용</span>' : ''}</div>
-        ${playing}${splash}${cardNote}
+        ${playing}${splash}${cardNote}${vm.shown && vm.lines?.length ? `<div class="oc-feed">${vm.lines.map((l, i) => FeedItem({ minute: l.minute, text: l.text, kind: l.kind, mine: l.mine, faint: i > 1 && !l.mine })).join('')}</div>` : ''}
         <div class="oc-actions">${vm.shown
           ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'oc-skip', children: '계속' })
           : Button({ variant: 'secondary', size: 'lg', block: true, icon: 'skip', act: 'oc-skip', children: '결과 바로 보기' })}</div>
@@ -451,6 +473,8 @@ export class OutcomePitch {
     center = 0.5,
     /** 가로 확대 보기 세로 가운데 (C.69) */
     cy = 34,
+    /** 가로 확대 창 길이 (C.72 장면별 crop, momentCrop) */
+    private readonly zoomLen = MOMENT_ZOOM_LEN,
   ) {
     this.camera.center = center;
     this.camera.cy = cy;
@@ -481,7 +505,7 @@ export class OutcomePitch {
       const el = (now - this.t0) / 1000;
       const end = this.done || el >= span;
       const f = this.frameAt(end ? this.to : this.from + el);
-      const len = zoom ? MOMENT_ZOOM_LEN : cropLength(w, h, portrait);
+      const len = zoom ? this.zoomLen : cropLength(w, h, portrait);
       const center = this.camera.follow(f, this.players, this.side, len, now, end && el < span);
       const cy = zoom ? this.camera.followY(f, this.players, this.side, viewHeightM(w, h, len), now, end && el < span) : 0;
       drawFrame(ctx, w, h, f, this.players, undefined, this.side, el, zoom ? { view: { cx: center, len, cy } } : { center, portrait });

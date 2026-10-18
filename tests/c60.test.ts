@@ -126,7 +126,7 @@ describe('덱 · 카드 획득 (디자인 85 · 116 · 144)', () => {
     const deck = deckView(vm, null, 'home', { sel: 0, later: true });
     expect(deck).toContain('po-hero--compact');
     expect(deck).toContain('기본 장면');
-    expect(deck).toContain('카드 선택 1개를 받을 수 있어요');
+    expect(deck).toContain('카드 선택 <em class="po-num">1</em>개를 받을 수 있어요'); // C.72 디자인 178 덱 배너
     expect(shortReason('ST/CF 포지션 카드')).toBe('포지션');
     expect(shortReason('능력치 요건 미달')).toBe('능력치');
     expect(shortReason('그 역할일 때만')).toBe('역할');

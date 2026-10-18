@@ -27,11 +27,12 @@ import { EnginePool } from './enginePool';
 import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
 import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
-import { replayPlayers } from '../replay';
+import { elapsedMapper, replayEvents, replayPlayers } from '../replay';
+import { ENGINE } from '../engine/config';
 import { cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
-import { MomentPitch, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
+import { MomentPitch, momentCrop, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { ratingFromParts, ratingParts } from '../engine/rating';
 import { autoAllocate, raiseAttribute } from '../growth';
@@ -90,7 +91,7 @@ import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
-import { presetEditVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
+import { feedKind, presetEditVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -121,6 +122,10 @@ const ui = {
   toast: null as ToastProps | null,
   /** 방금 경기에서 레벨업 (C.70 디자인 162 홈 배너 "Lv n · 포인트 +n"). 포인트 찍기에 들어가면 지운다 */
   lvUp: null as { level: number; plus: number } | null,
+  /** 레벨업 토스트를 홈에 처음 올 때 띄울지 (C.72 디자인 162: 홈 배너 + 독 위 토스트. 결과 화면은 배너만) */
+  lvToast: false,
+  /** 방금 경기 앞뒤 신뢰도·위상 변화 (C.72 디자인 170 보상 줄, 화면 표시만 · 세이브 안 함) */
+  matchDelta: null as { trust: number | null; rep: number } | null,
   modal: null as ModalState | null,
   /** 시즌 자동 진행 중 */
   busy: false,
@@ -180,6 +185,8 @@ const ui = {
   autoCount: 5,
   /** 독 더보기 시트 (모바일) */
   moreSheet: false,
+  /** 더보기 줄을 끝까지 민 상태 (C.72 디자인 Dock `is-end`): 다시 그려도 위치를 지킨다 */
+  moreEnd: false,
   /** 이적 제안 화면 펼친 제안 (C.60, 디자인 97) · 월드·결과 "더 보기" 펼침 (C.60) · 카드 획득 고른 칸 (디자인 85) */
   offerSel: 0,
   /** 감독 면담 고른 선택지 (C.62) */
@@ -341,6 +348,12 @@ function go(screen: Screen): void {
   ui.modal = null;
   render();
   window.scrollTo(0, 0);
+  // 디자인 162 (C.72): 레벨업 토스트는 경기 뒤 홈에 처음 왔을 때 독 위에 (홈·결과 공통 위치 .toast-wrap.is-bottom)
+  const g = ui.game;
+  if (screen === 'home' && ui.lvToast && ui.lvUp && g) {
+    ui.lvToast = false;
+    if (g.player.unspentPoints > 0) showToast({ kind: 'levelup', title: `Lv ${ui.lvUp.level} · 포인트 +${ui.lvUp.plus}`, body: `찍을 포인트가 ${g.player.unspentPoints}P가 됐어요`, action: '찍기', onAction: { act: 'go', data: { to: 'allocate' } } }, 3000);
+  }
 }
 
 let toastTimer = 0;
@@ -512,7 +525,7 @@ function screenHtml(): string {
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
-  return vm ? matchResultView(vm, ui.more) : homeView(homeVM(g));
+  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta) : homeView(homeVM(g));
 }
 
 /** 화면 → 첫 방문 말풍선 id */
@@ -617,6 +630,22 @@ function render(): void {
 /** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
 function bindDockMore(): void {
   document.querySelectorAll<HTMLElement>('.dock-more__scroll, .prep-deck').forEach(bindEdgeFade);
+  // 디자인 Dock README (C.72): 폰 더보기 줄은 처음·끝 두 자리. 끌다 놓으면 가까운 쪽으로 붙고, 끝이면 .dock-more.is-end
+  document.querySelectorAll<HTMLElement>('.dock-more__scroll').forEach((el) => {
+    const max = () => el.scrollWidth - el.clientWidth;
+    if (max() <= 2 || getComputedStyle(el).overflowX !== 'auto') return;
+    const mark = (end: boolean) => { ui.moreEnd = end; el.parentElement?.classList.toggle('is-end', end); };
+    if (ui.moreEnd) { el.scrollLeft = max(); mark(true); }
+    let t = 0;
+    el.addEventListener('scroll', () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        const end = el.scrollLeft > max() / 2;
+        mark(end);
+        if (Math.abs(el.scrollLeft - (end ? max() : 0)) > 1) el.scrollTo({ left: end ? max() : 0, behavior: 'smooth' });
+      }, 140);
+    }, { passive: true });
+  });
 }
 
 /** 가로 스크롤 줄 처음·끝 흐림 (더보기 줄 C.63c, 경기 준비 덱 줄 C.66c) */
@@ -727,8 +756,14 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   const delta = rec?.delta ?? 0;
   const headline = band.tone === 'goal' ? (opt?.kind === 'card' ? `골! ${opt.label}` : '골!') : band.tone === 'conceded' ? '실점'
     : opt && band.tone === 'success' ? opt.success : opt && band.tone === 'fail' ? opt.fail : band.title;
+  // 190 해설 시간 줄 (C.72): 결정 장면부터 결과까지(+2초) 경기 이벤트 피드 문구. 엔진 이벤트는 읽기만 한다
+  const e0 = lv.run.frames[startIdx]?.e ?? o.from;
+  const lines = replayEvents(s.events, players, lv.teams, elapsedMapper(s.events, ENGINE.time.halfSeconds))
+    .filter((x) => x.e >= e0 - 0.01 && x.e <= o.to + 2 && x.type !== 'kickoff' && x.type !== 'halftime' && x.type !== 'fulltime')
+    .slice(0, 4)
+    .map((x) => ({ minute: x.minute, text: x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text, kind: feedKind(x, m.side), mine: x.players[0] === m.me }));
   const vm: OutcomeVM = {
-    moment: m, teams: lv.teams, score, shown: false, band, kind: opt ? opt.kind : 'delegate',
+    moment: m, teams: lv.teams, score, shown: false, band, kind: opt ? opt.kind : 'delegate', lines,
     headline, ratingDelta: delta, rating: before === null ? null : Math.max(0, Math.min(10, before + delta)), card: used?.name ?? null,
     choice: opt ? `${used ? `🃏 ${used.name} · ` : `${KO[opt.kind]} · `}${opt.label}${opt.p !== null ? ` (${Math.round(Math.min(0.99, opt.p + (used?.deltas?.[choice as number] ?? 0)) * 100)}%)` : ''}` : '맡기기 (엔진 판단)',
   };
@@ -748,7 +783,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
       if (ui.screen === 'moment') liveContinue(g);
       else oc.timer = 0;
     }, OUTCOME.bandMs);
-  }, center, cy);
+  }, center, cy, momentCrop(m).len);
   lv.oc = { vm, pitch, next, timer: 0 };
   go('moment');
 }
@@ -772,8 +807,12 @@ function liveContinue(g: GameState): void {
 function finishPlay(g: GameState, out?: MyMatchOutput): void {
   ui.rewatch = false;
   let replay: Replay | null = null;
+  const trust0 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
+  const rep0 = g.player.reputation;
   const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { replay = r; ui.replay = new ReplayPlayer(r, () => render()); ui.replay.skip(); } });
   if (replay) void keepReplay(g, replay, report);
+  const trust1 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
+  ui.matchDelta = { trust: trust0 !== null && trust1 !== null ? Math.round((trust1 - trust0) * 10) / 10 : null, rep: g.player.reputation - rep0 };
   void autosave();
   go('match');
   if (g.phase !== 'season') badgeToast(g);
@@ -781,7 +820,7 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   if (report.levelsGained > 0) {
     // C.70 (디자인 162): 홈 배너 + 독 위 토스트(Toast levelup, [찍기])
     ui.lvUp = { level: g.player.level, plus: report.levelsGained * BALANCE.growth.pointsPerLevel };
-    if (!report.cardUnlock) showToast({ kind: 'levelup', title: `Lv ${g.player.level} · 포인트 +${ui.lvUp.plus}`, body: `찍을 포인트가 ${g.player.unspentPoints}P가 됐어요`, action: '찍기', onAction: { act: 'go', data: { to: 'allocate' } } }, 3000);
+    ui.lvToast = !report.cardUnlock;
   }
 }
 
@@ -823,6 +862,7 @@ function readFormInputs(): void {
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
 function enterAllocate(g: GameState, back: Screen): void {
   ui.lvUp = null;
+  ui.lvToast = false;
   ui.alloc = { snap: structuredClone(g.player), raises: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
 }
 
@@ -1988,6 +2028,11 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'news-cal':
+      // 디자인 180 (C.72): 이적 소식 빈 상태 [일정에서 보기] = 훈련·일정의 일정 탭
+      ui.trainTab = 'cal';
+      go('schedule');
+      return;
     case 'train-tab':
       if (v === 'pre' || v === 'cal' || v === 'g') ui.trainTab = v;
       render();
@@ -2609,6 +2654,7 @@ app.addEventListener('click', (ev) => {
     }
     case 'dock-more':
       ui.moreSheet = !ui.moreSheet;
+      ui.moreEnd = false;
       render();
       return;
     case 'noop':

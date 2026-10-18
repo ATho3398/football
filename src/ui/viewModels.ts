@@ -958,7 +958,8 @@ export interface MatchResultVM {
   myTeam: string; face: FaceRef;
   /** 팀 상세 링크와 득점자 (C.53): 득점자 id 'me' = 내 선수 */
   myTeamId: string; oppId: string;
-  goals: { minute: string; name: string; id: string | null; assist: string | null; mine: boolean }[];
+  /** assistMe = 도움이 나 (C.72: "나" 칩을 도움에도) */
+  goals: { minute: string; name: string; id: string | null; assist: string | null; assistMe?: boolean; mine: boolean }[];
   round: number;
   /** 대회 한 줄 (C.67): "리그 12R" / "FA컵 16강" */
   comp: string;
@@ -1074,7 +1075,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     const ext = m.cup ? cupRoster(g, m.opponentId).players.find((x) => x.id === id) : undefined;
     return ext ? { name: ext.nameKo, id: null } : { name: '—', id: null };
   };
-  const goals = (fx?.g ?? []).map(([min, side, sc, as]) => ({ minute: `${min}'`, ...who(sc)!, assist: who(as)?.name ?? null, mine: side === mySide }));
+  const goals = (fx?.g ?? []).map(([min, side, sc, as]) => ({ minute: `${min}'`, ...who(sc)!, assist: who(as)?.name ?? null, assistMe: as === MY_ID, mine: side === mySide }));
   return {
     myTeam: teamById(g.league, g.player.teamId).nameKo, face: myFace(g),
     myTeamId: g.player.teamId, oppId: m.opponentId, goals,

@@ -54,12 +54,12 @@ function refusedLines(vm: MarketVM): string {
 }
 
 /** OfferCard (디자인 97 · 145, C.60): 팀 이름 → 팀 상세(C.53), 재정 등급 · 이적료 · 친정 표시 · 지금과 비교 한 줄 */
-function offerCard(o: OfferVM, selected: boolean): string {
+function offerCard(o: OfferVM, selected: boolean, freeFee = false): string {
   const note = [`전력 ${signed(o.diff)}`, o.wagePct ? `지금보다 주급 ${o.wagePct > 0 ? '+' : '−'}${Math.abs(o.wagePct)}%` : '주급 그대로', o.repLoss ? `약팀 이적 · 위상 약 −${o.repLoss}` : ''].filter(Boolean).join(' · ');
   return OfferCard({
     offer: {
       club: o.team, league: o.league ? '리그' : '리그 밖', ...(o.league ? { rank: o.rank } : {}), strength: o.rating, apps: o.start, starts: o.startPct,
-      years: o.loan ? '1시즌' : `${o.years}년`, weekly: o.wage, yearly: o.annual, ...(o.loan ? { loan: true } : {}), ...(o.fee ? { fee: o.fee } : {}),
+      years: o.loan ? '1시즌' : `${o.years}년`, weekly: o.wage, yearly: o.annual, ...(o.loan ? { loan: true } : {}), ...(o.fee ? { fee: o.fee } : freeFee && !o.loan ? { fee: '자유계약' } : {}),
       ...(isTier(o.tier) ? { tier: o.tier } : {}), ...(o.youth ? { homeClub: '친정 · 유스 구단' } : {}), note,
     },
     selected,
@@ -81,7 +81,7 @@ function offerRow(o: OfferVM): string {
 const STATE_HEAD = {
   remain: (vm: MarketVM) => `${vm.tierNote}. 이적료는 구단끼리 내요.`,
   expired: () => '계약이 끝났어요. 수락하면 FA 이적(이적료 없음), 모두 거절하면 재계약해요.',
-  free: () => '소속팀이 없어요. 스탯에 맞는 팀들이 영입 제안을 보냈어요. 하나를 골라야 시즌을 이어 가요.',
+  free: () => '소속팀이 없어요. 스탯에 맞는 팀들이 영입 제안을 보냈어요. 이적료 없이 바로 옮겨요(자유계약).',
 } as const;
 
 /** 이적 제안 화면 (디자인 97 · 99 · 145, C.60): 상태 줄 → 구단 거절 소식 → 받은 제안(골라 펼침) → 모두 거절 */
@@ -89,8 +89,11 @@ export function offersView(vm: MarketVM, sel = 0): string {
   const offers = vm.offers ?? [];
   const hero = HeroPanel({
     title: '이적 제안', back: { act: 'go', data: { to: 'home' } }, eyebrow: `${vm.window} · 받은 제안`, value: offers.length ? `${offers.length}개` : '없음', pad: false, progress: false,
-    chips: [`지금 ${vm.team} · 전력 ${vm.rating}`, { label: `내 OVR ${vm.ovr}`, soft: true }, { label: `내 몸값 ${vm.value}`, soft: true }],
+    // 디자인 179 (C.72): 소속팀 없음 = "소속팀 없음 · 자유계약" 칩 + 내 OVR
+    chips: vm.free ? ['소속팀 없음 · 자유계약', { label: `내 OVR ${vm.ovr}`, soft: true }] : [`지금 ${vm.team} · 전력 ${vm.rating}`, { label: `내 OVR ${vm.ovr}`, soft: true }, { label: `내 몸값 ${vm.value}`, soft: true }],
   });
+  // 소속팀 없음·계약 만료 = 이적료 자리에 "자유계약" (디자인 179)
+  const freeFee = vm.state !== 'remain';
   const head = vm.winter && offers.length
     ? Banner({ tone: 'warning', title: '진행을 멈췄어요.', children: '답하기 전에는 [계속]·자동 진행이 안 돼요. 거절하면 시즌을 그대로 이어 가요.' })
     : Banner({ tone: 'info', title: STATE_HEAD[vm.state](vm) });
@@ -103,7 +106,7 @@ export function offersView(vm: MarketVM, sel = 0): string {
   const pick = offers.some((o) => o.i === sel) ? sel : offers[0]?.i ?? 0;
   // 제안이 둘 이하면 모두 펼친다 (디자인 145), 셋 이상이면 고른 것만 (97)
   const list = offers.length
-    ? offers.map((o) => (offers.length <= 2 || o.i === pick ? offerCard(o, o.i === pick && offers.length > 1) : offerRow(o))).join('')
+    ? offers.map((o) => (offers.length <= 2 || o.i === pick ? offerCard(o, o.i === pick && offers.length > 1, freeFee) : offerRow(o))).join('')
     : `<p class="muted">남은 제안이 없어요.</p>`;
   const bottom = vm.renewal
     ? actionRow(Button({ variant: 'ghost', block: true, act: 'offers-decline', disabled: !offers.length, children: '모두 거절' }), Button({ variant: 'secondary', block: true, act: 'go', data: { to: 'contract' }, children: '재계약 보기' }))
@@ -113,7 +116,7 @@ export function offersView(vm: MarketVM, sel = 0): string {
   return `${hero}<div class="body">
     ${head}
     ${refused}
-    ${SectionTitle({ title: `받은 제안 ${offers.length}개`, action: sameWage ? `주급은 모두 ${offers[0]!.wage} · 연 ${offers[0]!.annual}` : '등급 막대 = 구단 재정' })}
+    ${SectionTitle({ title: `받은 제안 ${offers.length}개`, action: freeFee && offers.length && offers.every((o) => !o.fee) ? '모두 이적료 없음' : sameWage ? `주급은 모두 ${offers[0]!.wage} · 연 ${offers[0]!.annual}` : '등급 막대 = 구단 재정' })}
     <div class="tr-offers">${list}</div>
     ${bottom}
     <p class="small muted">제안은 내 몸값과 연봉을 감당할 수 있는 구단만 보내요. 약팀(전력 3 이상 낮은 팀)으로 가면 위상이 조금 깎여요. 연봉은 보여 주기만 해요.</p>
@@ -145,7 +148,9 @@ const NEWS_PAGE = 5;
 /** 월드 "이적 소식" (디자인 104 · 105 · 148, C.60): TransferRow, 리그 안 / 리그 밖 두 묶음(각 5명 + 더 보기), 빈자리 보충 줄. 줄을 누르면 선수 상세 */
 export function newsSection(vm: NewsVM | null, more: Record<string, boolean> = {}): string {
   if (!vm) {
-    return `<div class="panel empty-state">${Icon({ name: 'swap', size: 28 })}<b>아직 이적시장이 열리지 않았어요</b><p class="small muted">겨울(1월)과 여름(비시즌)에 선수들이 움직여요. 이적시장이 열리면 여기에 소식이 쌓여요.</p></div>`;
+    // 디자인 180 (C.72): 아이콘 칸 + 제목 + 설명 + 다음 이적시장 칩 + [일정에서 보기]. 이적 기록이 하나도 없으면 첫 시즌 겨울 전이라 다음 = 1월 1일
+    return `<div class="panel empty-state tr-empty"><span class="tr-empty__icon">${Icon({ name: 'swap', size: 22 })}</span><b>아직 이적시장이 열리지 않았어요</b><p class="small muted">겨울(1월)과 여름(비시즌)에 선수들이 움직여요. 이적시장이 열리면 여기에 소식이 쌓여요.</p>
+      <span class="po-chip tr-empty__next">다음 이적시장 · 1월 1일</span>${Button({ variant: 'ghost', size: 'sm', icon: 'calendar', act: 'news-cal', children: '일정에서 보기' })}</div>`;
   }
   const row = (r: NewsVM['rows'][number]) => TransferRow({
     name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: r.from, to: r.to, status: r.why, fee: r.fee, mine: r.mine,

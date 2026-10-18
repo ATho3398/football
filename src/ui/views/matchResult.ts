@@ -20,11 +20,12 @@ function goalRows(goals: MatchResultVM['goals']): string {
   let m = 0, o = 0;
   return goals.map((x) => {
     if (x.mine) m++; else o++;
-    return `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num mr-goal__min">${esc(x.minute)}</span>${Icon({ name: 'ball', size: 16 })}<span class="grow">${x.mine ? '골! ' : '실점 · '}${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? ` <small>(도움 ${esc(x.assist)})</small>` : ''} <b class="po-num mr-goal__score">${m}-${o}</b></span>${x.id === 'me' ? '<span class="mr-goal__me">나</span>' : ''}</div>`;
+    return `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num mr-goal__min">${esc(x.minute)}</span>${Icon({ name: 'ball', size: 16 })}<span class="grow">${x.mine ? '골! ' : '실점 · '}${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? ` <small>(도움 ${esc(x.assist)})</small>` : ''} <b class="po-num mr-goal__score">${m}-${o}</b></span>${x.id === 'me' ? '<span class="mr-goal__me">나</span>' : x.assistMe ? '<span class="mr-goal__me">나</span>' : ''}</div>`;
   }).join('');
 }
 
-export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}): string {
+/** delta = 방금 경기 앞뒤 신뢰도·위상 변화 (C.72, 화면이 잰 값). 없거나 둘 다 0이면 줄을 숨긴다 */
+export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null): string {
   const hero = HeroPanel({
     title: '경기 결과', right: vm.comp, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
     eyebrow: `${vm.opp}전 ${vm.scoreLine} ${vm.outcomeKo} · 내 평점`,
@@ -86,7 +87,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 요약' })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'play', children: '다음 경기' });
   const reward = `${SectionTitle({ title: '보상' })}
-      ${panel(Meter({ value: x.value, gain: x.levelsGained ? 0 : x.gained, max: x.max, label: `XP +${x.gained} · Lv ${x.level}${x.levelsGained ? ' 레벨 업!' : ''}`, showValue: true, tone: 'xp' }))}`;
+      ${panel(Meter({ value: x.value, gain: x.levelsGained ? 0 : x.gained, max: x.max, label: `XP +${x.gained} · Lv ${x.level}${x.levelsGained ? ' 레벨 업!' : ''}`, showValue: true, tone: 'xp' }) + deltaLine(delta))}`;
   const btns = `<div class="btn-col">
         ${vm.points > 0 && !vm.banners.some((b) => b.to === 'allocate') ? Button({ variant: 'ghost', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
         ${actionRow(home, next)}
@@ -109,4 +110,13 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       ${reward}
       ${btns}
     </div>`;
+}
+
+const sgn = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
+
+/** 보상 "신뢰도 +n · 위상 +n" 줄 (디자인 170, C.72) */
+function deltaLine(d: { trust: number | null; rep: number } | null): string {
+  if (!d) return '';
+  const parts = [d.trust ? `신뢰도 ${sgn(d.trust)}` : '', d.rep ? `위상 ${sgn(d.rep)}` : ''].filter(Boolean);
+  return parts.length ? `<p class="small muted mr-delta">${parts.join(' · ')}</p>` : '';
 }

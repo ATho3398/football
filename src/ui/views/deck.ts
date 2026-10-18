@@ -162,7 +162,10 @@ function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
       <p>${esc(c.text)}</p><small class="muted">조건 · ${esc(c.condition || '없음')}${c.problem ? ` · <b class="fail">지금 못 씀: ${esc(c.problem)}</b>` : ''}</small></div>
     ${Button({ size: 'lg', block: true, icon: 'check', act: 'pick-take', data: { v: `${p.idx}:${k}` }, children: '이 카드 받기' })}
     <p class="small muted pick-hint">카드를 눌러 비교해요 · 고르지 않으면 받을 수 없어요</p>
-    ${Button({ variant: 'ghost', block: true, act: 'more', data: { v: 'pickLater' }, children: '나중에 고르고 덱 먼저 보기' })}
+    <div class="pick-later">
+      ${Button({ size: 'lg', variant: 'secondary', block: true, icon: 'deck', act: 'more', data: { v: 'pickLater' }, children: '나중에 고르고 덱 먼저 보기' })}
+      <p class="small muted pick-hint">선택은 덱 화면 위에 남아요 · 언제든 돌아와서 골라요</p>
+    </div>
   </div>`;
 }
 
@@ -206,7 +209,8 @@ export function deckView(vm: DeckVM, sheet: CardSheetVM | null = null, back: 'ho
     chips: [`${C.deckMin}~${C.deckMax}장`, `같은 카드 ${C.maxCopies}장`, { label: vm.unusable ? `못 쓰는 카드 ${vm.unusable}장` : `그림 ${arts}장`, soft: true }],
   });
   const picks = vm.picks.length
-    ? Banner({ tone: 'info', title: `카드 선택 ${vm.picks.length}개를 받을 수 있어요`, action: '고르기', onAction: { act: 'more', data: { v: 'pickLater' } } })
+    // 디자인 178 덱 배너 (C.72): 라임 왼쪽 막대 + 카드 아이콘 칸 + "카드 선택 n개" + 첫 선택 이름 · 3장 중 1장 + [고르기]. 선택이 0이면 사라짐
+    ? `<div class="panel dk-pickbar"><span class="dk-pickbar__icon">${Icon({ name: 'card', size: 18 })}</span><span class="grow"><b>카드 선택 <em class="po-num">${vm.picks.length}</em>개를 받을 수 있어요</b><small>${esc(vm.picks[0]!.label)} · ${vm.picks[0]!.options.length}장 중 1장</small></span>${Button({ size: 'sm', iconRight: 'chevron-right', act: 'more', data: { v: 'pickLater' }, children: '고르기' })}</div>`
     : '';
   const sets = Tabs({ items: vm.sets, value: String(vm.set), act: 'deck-set', fill: true, label: '덱 세트' });
   const use = vm.set === vm.active

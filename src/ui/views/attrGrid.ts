@@ -50,15 +50,16 @@ function cell(c: AttrCellVM, sel: string | null, acts: AttrActs = ALLOC_ACTS): s
   if (!c.edit) return `<div class="${cls}" title="${esc(c.label)} ${attrDisplay(c.value)} · 다음 칸까지 ${pct}%">${head}</div>`;
   const e = c.edit;
   const cost = e.maxed ? '최대' : e.blocked ? (e.short ? `${e.cost}P 부족` : '상한') : `${e.cost}P`;
+  // 디자인 AttrTile selected (C.72, 163): 고른 상태에서도 비용·OVR 줄은 그대로, 그 아래 [−][+] 큰 단추 줄(32px)
+  const costRow = `<span class="ag-cost po-num"><b>${esc(cost)}</b>${e.ovrDelta ? `<span>OVR +${e.ovrDelta}</span>` : ''}</span>`;
   const edit = on
-    ? `<span class="ag-edit">
+    ? `${costRow}<span class="ag-edit ag-steps">
         <button type="button" class="ag-btn" data-act="${acts.lower}" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 내리기"${e.canLower ? '' : ' disabled'}>−</button>
-        <small class="po-num">${esc(cost)}</small>
         <button type="button" class="ag-btn plus" data-act="${acts.raise}" data-attr="${esc(c.attr)}" aria-label="${esc(c.label)} 올리기 (${esc(cost)})"${e.maxed || e.reach === 0 ? ' disabled' : ''}>+</button>
       </span>`
     : short
       ? `<span class="ag-cost ag-short">${Icon({ name: 'lock', size: 12, strokeWidth: 2.4 })}${esc(cost)}</span>`
-      : `<span class="ag-cost po-num"><b>${esc(cost)}</b>${e.ovrDelta ? `<span>OVR +${e.ovrDelta}</span>` : ''}</span>`;
+      : costRow;
   return `<div class="${cls}" role="button" tabindex="0" data-act="${acts.sel}" data-v="${esc(c.attr)}" aria-pressed="${!!on}">${head}${edit}</div>`;
 }
 

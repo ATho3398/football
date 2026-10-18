@@ -2207,3 +2207,35 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .ca-pick-hint__steps { display: flex; flex-direction: column; gap: 6px; width: 100%; margin: 14px 0 0; padding: 0; list-style: none; text-align: left; }
 .ca-pick-hint__steps li { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-muted); font-size: 12px; }
 .ca-pick-hint__steps b { color: var(--brand-ink); font-size: 18px; }
+
+/* C.72 디자인 181: 시즌 요약 "포인트 찍기 nP" 줄 = 라임 왼쪽 막대 · 라임 아이콘 칸 · 숫자 강조 */
+.season-todo.is-hi { box-shadow: inset 3px 0 0 var(--brand); }
+.season-todo.is-hi .season-todo__icon { background: var(--brand); color: var(--on-brand); }
+.season-todo.is-hi b { display: flex; align-items: baseline; gap: 6px; }
+.season-todo__num { font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 18px; line-height: 18px; color: var(--brand-ink); }
+
+/* C.72 디자인 180: 이적 소식 빈 상태 = 패널 안 아이콘 칸 · 제목 · 설명 · 다음 이적시장 칩 · [일정에서 보기] */
+.tr-empty { gap: 8px; padding: 26px 18px 22px; }
+.tr-empty__icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 6px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--ink-muted); }
+.tr-empty b { font-size: 16px; }
+.tr-empty p { margin: 0; line-height: 18px; word-break: keep-all; }
+.tr-empty__next { margin-top: 6px; }
+.tr-empty .po-btn { color: var(--brand-ink); }
+
+/* C.72 디자인 178: 카드 획득 [나중에] 묶음(위 줄 나눔) · 덱 맨 위 "카드 선택 n개" 줄 */
+.pick-later { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
+.pick-later .pick-hint { margin: 0; }
+.panel.dk-pickbar { display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; box-shadow: inset 3px 0 0 var(--brand); }
+.dk-pickbar__icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--brand-ink); }
+.dk-pickbar .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dk-pickbar b { font-size: 14px; word-break: keep-all; }
+.dk-pickbar b em { font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 17px; color: var(--brand-ink); }
+.dk-pickbar small { font-size: 11px; line-height: 16px; color: var(--ink-faint); word-break: keep-all; }
+.dk-pickbar .po-btn { flex: none; }
+.oc-feed { display: flex; flex-direction: column; gap: 2px; }
+
+/* C.72 디자인 163 AttrTile selected: 비용·OVR 줄 아래 [−][+] 큰 단추 줄 (32px) */
+.ag-edit.ag-steps { justify-content: flex-start; gap: 6px; margin-top: 6px; }
+.ag-steps .ag-btn, .ag--4 .ag-steps .ag-btn { width: 34px; height: 32px; font-size: 20px; }
+.mr-delta { margin: 8px 0 0; line-height: 17px; word-break: keep-all; }
+.tr-empty .po-btn { background: var(--surface-2); }
