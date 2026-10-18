@@ -312,4 +312,6 @@
 - 시작 처리(07:56 KST): C.58·UI_3·엔진관리자2·C.57(CI 결과만)에 "보고는 O, 마스터 브랜치 claude/planning-o" 알림. C.58 진행 확인 send_later `trig_01RZiwyZ4Y1nttCqYV3QKAcY`(10:25 KST). N 제목 `draft_N_축구 커리어 게임 마스터`(태그 그대로). 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음). rate limit allowed.
 - (08:28 KST) C.57 CI #183 성공(main 08179e2, 08:21 KST Pages 배포). C.57 끝.
 - (08:36 KST) C.58 완료(main ffbdba7, 테스트 497, 43분) → pending 94, C.58 draft_, UI_3 목록. **34o C.59 U5-e 시작** `session_01HnNwvKSJdDDdYYZYrfgyA1` "34o단계_U5-e 설정·꾸미기 (C.59)", 브랜치 `claude/c59-u5e-settings`, 태그 `stage:34o-C59`. C.58 확인 예약 삭제, C.59 자동 확인 send_later 150분(11:07 KST쯤). C.58 CI 확인은 C.58 세션이 25분 뒤 보고.
-- 다음: C.59 보고 → pending 95 → ntfy → UI_3 목록 → 34p C.60 U5-f(144~149·155).
+- (09:03 KST) C.58 CI #184 성공(main ffbdba7, 08:58 KST 배포). C.58 끝.
+- (09:04 KST) C.59 완료(main 03c497d, 테스트 504, 28분) → pending 95, C.59 draft_, UI_3 목록. **34p C.60 U5-f 시작** `session_01ECqUooeVvsqKLjYwvW3F2a` "34p단계_U5-f 이적·월드·덱·결과·세이브 (C.60)", 브랜치 `claude/c60-u5f-world`, 태그 `stage:34p-C60`(f1/f2 나눠도 됨). C.59 확인 예약 삭제, C.60 자동 확인 send_later 150분(11:35 KST쯤). O 비용 2.2달러·19만.
+- 다음: C.60 보고 → pending 96 → ntfy → UI_3 목록 → 34q C.61 U5-g(5-apply U5-g 120~123 + 6-apply 151~153 + B PC 120 + PC 독 순서) → 35 5-1.
