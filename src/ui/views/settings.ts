@@ -7,9 +7,9 @@ import { realAppearance } from '../../appearance';
 import { BALANCE } from '../../config/balance';
 import type { GameState } from '../../game';
 import { clubKo, teamById } from '../../league';
-import { Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, PixelTile, Tabs, TextField, type IconName } from '../components';
+import { Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, PixelTile, SectionTitle, Switch, Tabs, TextField, type IconName } from '../components';
 import {
-  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
+  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, heroFaceOf, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import type { LookVM } from './body';
@@ -29,6 +29,7 @@ import { CARDS } from '../../config/cards';
 
 const CARDS_N = (): number => CARDS.length;
 import { isWide, skin, SKIN_KO } from '../skin';
+import { PATCH_LABEL } from '../../version';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
 export interface NameUI { q: string; team: string; sel: string | null }
@@ -318,13 +319,38 @@ function editor(g: GameState | null, e: Entry): string {
     ? `지금 ${urls[cur] ? `${AGE_SLOT_KO[cur]} 칸` : '가까운 칸'} 이미지를 써요`
     : fallback ? (fallback.startsWith('facepack/') ? '위키백과 사진을 쓰고 있어요' : '기본 얼굴 이미지를 쓰고 있어요') : '기본 아바타를 쓰고 있어요';
   const n = Object.keys(urls).length;
+  const club = e.mine && g ? g.player.teamId : e.team;
   return `${panel(`<div class="fo-edit">${Avatar({ size: 64, face, name: e.name, ring: true })}
     <div class="grow"><b>${esc(e.name)}</b><small>${esc(e.sub)}</small><small class="hi">${esc(where)}</small></div></div>`, 'fo-editor')}
-    <div class="set-subhead"><b>나이대 칸</b><p class="small muted">나이에 맞는 칸을 쓰고, 비었으면 가까운 칸을 써요. 모두 지우면 ${fallback?.startsWith('facepack/') ? '위키백과 사진' : '원래 얼굴'}으로 돌아가요.</p></div>
+    ${SectionTitle({ title: '나이대 칸' })}<p class="small muted fo-lead">나이에 맞는 칸을 쓰고, 비었으면 가까운 칸을 써요. 모두 지우면 ${fallback?.startsWith('facepack/') ? '위키백과 사진' : '원래 얼굴'}으로 돌아가요.</p>
     <div class="fo-slots">${cells}</div>
+    ${panel(cutoutSwitch(e.key, face), 'fo-cutout')}
     ${panel(`<b class="small">어디에 나와요</b><div class="fo-where">${Avatar({ size: 48, face, name: e.name })}${Avatar({ size: 40, face, name: e.name, ring: true })}${Avatar({ size: 24, face, name: e.name })}<small class="muted">홈 카드 · 선수 화면 · 경기 결과 · 순위표 · 이적 소식 · 경기 얼굴 마커</small></div>`, 'fo-where-panel')}
-    ${n ? `<div class="kv fo-cutout"><span class="small"><b>배경 없는 사진</b> · 켜면 홈·선수 머리말에 사진을 오려 낸 그대로 세워요. 끄면 네모 사진으로 보여요.</span>${Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: faceOnCutout(e.key) ? 'on' : 'off', act: 'faceon-cutout', data: { key: e.key }, label: '배경 없는 사진' })}</div>` : ''}
-    ${n ? Button({ variant: 'secondary', size: 'lg', block: true, icon: 'restore', act: 'faceon-clear', data: { key: e.key }, children: '세 칸 모두 지우기' }) : ''}`;
+    ${n ? `<button type="button" class="fo-clear-all" data-act="faceon-clear" data-key="${esc(e.key)}">${Icon({ name: 'restore', size: 16 })}세 칸 모두 지우기</button>` : ''}
+    ${club ? clubSlot(club) : ''}`;
+}
+
+/** 배경 없는 사진 켬끔 (디자인 174): 내가 올린 이미지에만 켤 수 있다. 올린 게 없으면 지금 머리말 상태를 끈 채로 보여 준다 */
+function cutoutSwitch(key: string, face: FaceRef): string {
+  const own = Object.keys(faceOnUrls(key)).length > 0;
+  const on = own ? faceOnCutout(key) : !!heroFaceOf(face)?.cutout;
+  return Switch({
+    label: '배경 없는 사진', on, act: 'faceon-cutout', data: { key }, disabled: !own,
+    desc: own ? '켜면 홈·선수 머리말에 사진을 오려 낸 그대로 세워요. 끄면 네모 사진으로 보여요.' : '켜면 홈·선수 머리말에 사진을 오려 낸 그대로 세워요. 내 이미지를 올리면 켜고 끌 수 있어요.',
+  });
+}
+
+/** 구단 편집은 한 칸 (디자인 174): 선수 편집 아래 그 선수 구단 엠블럼 한 칸(나이대 없음) */
+function clubSlot(teamId: string): string {
+  const c = clubOf(teamId);
+  if (!c) return '';
+  const key = `t:${c.id}`;
+  const url = faceOnUrls(key).crest;
+  const note = url ? '내가 올린 엠블럼을 쓰고 있어요.' : repoCrest(c.id) ? '구단은 나이대가 없어 한 칸만 써요. 지금 위키백과 로고.' : '구단은 나이대가 없어 한 칸만 써요. 지금 자동 엠블럼.';
+  return `${SectionTitle({ title: '구단 편집은 한 칸' })}
+    ${panel(`<div class="fo-edit"><span class="fo-crest">${Crest({ name: c.nameKo, team: c.id, size: 56 })}</span><div class="grow"><b>${esc(c.nameKo)} · 엠블럼</b><small>${esc(note)}</small></div></div>
+      <div class="btn-row even fo-club-btns">${Button({ variant: 'secondary', block: true, icon: 'upload', act: 'faceon-upload', data: { key, slot: 'crest' }, children: url ? '바꾸기' : '올리기' })}${
+        Button({ variant: 'ghost', block: true, act: 'faceon-clear', data: { key, slot: 'crest' }, disabled: !url, children: '지우기' })}</div>`, 'fo-club')}`;
 }
 
 /** 페이스온 목록 (디자인 68): [선수 | 구단] → 검색 → 우선순위 안내 → 목록 */
@@ -335,6 +361,7 @@ function faceOnList(g: GameState | null, fo: FaceOnUI): string {
   return `${tabs}
     ${TextField({ value: fo.q, placeholder: fo.tab === 'players' ? '선수 이름 (한글·영문)' : '구단 이름', icon: 'search', input: { id: 'fo-q', type: 'search', maxLength: 20 }, clearable: false })}
     ${panel(`<b class="small">이미지 우선순위</b><p class="small muted">내가 올린 이미지 → 위키백과 사진·로고(선수 ${st.photos}명, 구단 ${st.clubs}개) → 기본 얼굴(${st.base}개) → 기본 아바타·자동 엠블럼. 도트 얼굴(캐릭터 보기) ${st.pixel}개.</p>`, 'fo-prio')}
+    ${g && fo.tab === 'players' ? panel(cutoutSwitch(`p:${myFace(g).id}`, myFace(g)), 'fo-cutout') : ''}
     <div class="real-list set-list">${list.map((e) => row(e, fo.sel)).join('') || '<p class="small muted">찾는 이름이 없어요.</p>'}</div>`;
 }
 
@@ -427,7 +454,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
   const links = SET_PAGES.map((pg) => `<button type="button" class="set-link" data-act="set-page" data-v="${pg.id}"><span class="set-link__icon">${Icon({ name: pg.icon, size: 18 })}</span><span class="grow"><b>${pg.label}</b><small>${esc(counts[pg.id])}</small></span><span class="set-link__go">편집${Icon({ name: 'chevron-right', size: 16 })}</span></button>`).join('');
   const look = `<div class="kv"><span>화면 스타일</span></div>${Tabs({ items: (['b', 'a'] as const).map((k) => ({ id: k, label: SKIN_KO[k] })), value: skin(), act: 'skin-set', fill: true, label: '화면 스타일' })}
     <p class="small muted">B = 꺾인 모서리·이탤릭 숫자(기본) · A = 둥근 알약 모양. 색과 화면 내용은 같아요. 이 기기에 저장돼요.</p>
-    <div class="set-links">${links}</div>`;
+    <small class="set-links__label">하위 화면</small><div class="set-links">${links}</div>`;
   const lookSub = `스타일 ${SKIN_KO[skin()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
   const saves = `<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`;
@@ -477,7 +504,8 @@ function setNav(page: SetPage, open: SetSec | null): string {
   const item = (on: boolean, act: string, v: string, label: string, sub = false) =>
     `<button type="button" class="set-nav__item${sub ? ' is-sub' : ''}${on ? ' is-on' : ''}" data-act="${act}" data-v="${v}"${on ? ' aria-current="page"' : ''}>${esc(label)}</button>`;
   return `<nav class="panel set-nav" aria-label="설정 목록">${SECTIONS.map((x) => item(page === 'main' && open === x.id, 'set-nav', x.id, x.title)
-    + (x.id === 'look' ? `<small class="set-nav__group">꾸미기 · 하위 화면 4개</small>${SET_PAGES.map((pg) => item(page === pg.id, 'set-page', pg.id, pg.label, true)).join('')}` : '')).join('')}</nav>`;
+    + (x.id === 'look' ? `<small class="set-nav__group">꾸미기 · 하위 화면 4개</small>${SET_PAGES.map((pg) => item(page === pg.id, 'set-page', pg.id, pg.label, true)).join('')}` : '')).join('')}
+    <div class="set-nav__ver"><span>버전</span><b class="po-num">${esc(PATCH_LABEL)}</b></div></nav>`;
 }
 
 /** 하위 화면 머리말 + 꾸미기 이동 칩 4 (디자인 71·137·140). PC(C.61)는 이동 칩 대신 왼쪽 설정 목록 */
