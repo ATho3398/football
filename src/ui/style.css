@@ -1576,3 +1576,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 @media (min-width: 1024px) {
   .mg-body, .mg-dock .btn-row { max-width: 720px; margin-left: auto; margin-right: auto; width: 100%; }
 }
+
+/* ── C.62 어두운 엠블럼 (UI_3: 토트넘 등 남색·검정 로고가 어두운 면에서 안 보임): 어두운 테마에서만 옅은 밝은 테두리 ── */
+.po-crest--img > img { filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.25)); }
+[data-theme="light"] .po-crest--img > img { filter: none; }
