@@ -4,7 +4,7 @@ export type Tier = 'normal' | 'key' | 'top' | 'world' | 'legend';
 export type CardType = 'play' | 'setpiece' | 'passive' | 'combo' | 'manage' | 'signature' | 'order';
 export type CardPos = 'all' | 'att' | 'mid' | 'def';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legend';
-export type IconName = 'ball' | 'save' | 'card' | 'sub' | 'injury' | 'danger' | 'chance' | 'dot' | 'clock' | 'bell' | 'disk' | 'home' | 'match' | 'player' | 'career' | 'world' | 'lock' | 'plus' | 'minus' | 'check' | 'close' | 'chevron-right' | 'chevron-down' | 'play' | 'pause' | 'skip' | 'risk' | 'arrow-up' | 'arrow-down' | 'arrow-flat' | 'double-up' | 'double-down' | CardType | 'star' | 'levelup' | 'info' | 'filter' | 'restore' | 'search' | 'pos-all' | 'pos-att' | 'pos-mid' | 'defense' | 'throwin' | 'goalkick' | 'tactic' | 'order' | 'solo' | 't-balanced' | 't-tikitaka' | 't-gegen' | 't-counter' | 't-direct' | 't-block' | 'newchoice' | 'signature' | 'ff' | 'auto' | 'manual' | 'settings' | 'calendar' | 'train' | 'video' | 'rest' | 'recover' | 'target' | 'download' | 'upload' | 'plane' | 'replay' | 'stop' | 'menu' | 'deck' | 'chat' | 'trophy' | 'swap' | 'edit' | 'eye' | 'grid' | 'face' | 'sliders' | 'pin' | 'collapse';
+export type IconName = 'ball' | 'save' | 'card' | 'sub' | 'injury' | 'danger' | 'chance' | 'dot' | 'clock' | 'bell' | 'disk' | 'home' | 'match' | 'player' | 'career' | 'world' | 'lock' | 'plus' | 'minus' | 'check' | 'close' | 'chevron-right' | 'chevron-down' | 'play' | 'pause' | 'skip' | 'risk' | 'arrow-up' | 'arrow-down' | 'arrow-flat' | 'double-up' | 'double-down' | CardType | 'star' | 'levelup' | 'info' | 'filter' | 'restore' | 'search' | 'pos-all' | 'pos-att' | 'pos-mid' | 'defense' | 'throwin' | 'goalkick' | 'tactic' | 'order' | 'solo' | 't-balanced' | 't-tikitaka' | 't-gegen' | 't-counter' | 't-direct' | 't-block' | 'newchoice' | 'signature' | 'ff' | 'auto' | 'manual' | 'settings' | 'calendar' | 'train' | 'video' | 'rest' | 'recover' | 'target' | 'download' | 'upload' | 'plane' | 'replay' | 'stop' | 'menu' | 'deck' | 'chat' | 'trophy' | 'swap' | 'edit' | 'eye' | 'grid' | 'face' | 'sliders' | 'pin' | 'collapse' | 'inbox' | 'coin' | 'running';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg'; block?: boolean; icon?: IconName; iconRight?: IconName }
 export declare function Button(props: ButtonProps): React.ReactElement;
@@ -66,7 +66,8 @@ export interface SectionTitleProps { title: string; action?: React.ReactNode; as
 export declare function SectionTitle(props: SectionTitleProps): React.ReactElement;
 
 export interface Outcome { text: string; rating: number }
-export interface ChoiceButtonProps { kind?: 'safe' | 'balanced' | 'gamble' | 'play'; card?: string; rarity?: Rarity; deltaSource?: string; offside?: 'low' | 'mid' | 'high'; name: string; chance: number; chanceDelta?: number; success: Outcome; fail: Outcome; risk?: string; selected?: boolean; disabled?: boolean; onClick?: () => void }
+/** collapsed = 결정 순간 v3 접은 한 줄(태그 · 이름 · 확률). 고른 것만 성공·실패 줄 펼침. certain = 판정 없는 선택지: 확률 자리에 작은 '확정' 칩, 실패 줄 없음. */
+export interface ChoiceButtonProps { collapsed?: boolean; certain?: boolean; compact?: boolean; kind?: 'safe' | 'balanced' | 'gamble' | 'play'; card?: string; rarity?: Rarity; deltaSource?: string; offside?: 'low' | 'mid' | 'high'; name: string; chance: number; chanceDelta?: number; success: Outcome; fail: Outcome; risk?: string; selected?: boolean; disabled?: boolean; onClick?: () => void }
 export declare function ChoiceButton(props: ChoiceButtonProps): React.ReactElement;
 
 export interface FeedItemProps { minute?: number; text?: React.ReactNode; children?: React.ReactNode; kind?: 'normal' | 'goal' | 'concede' | 'danger' | 'chance' | 'shot' | 'save' | 'corner' | 'freekick' | 'penalty' | 'foul' | 'offside' | 'advantage' | 'yellow' | 'red' | 'sub' | 'injury' | 'half' | 'throwin' | 'goalkick' | 'tactic'; faint?: boolean; mine?: boolean; score?: string }
@@ -83,9 +84,10 @@ export declare function SceneStrip(props: SceneStripProps): React.ReactElement;
 export interface PixelKit { kit?: string; kit2?: string; pattern?: 'solid' | 'stripe' | 'hoop'; skin?: string; hair?: string | 'none' }
 export interface PitchPlayer { /** 요청 6 · 픽셀 캐릭터 유니폼(경기마다 홈·원정·GK 자동) */ kit?: PixelKit; x: number; y: number; team: 'home' | 'away'; num?: number; me?: boolean; label?: string; /** 겹칠 때 쓰는 짧은 이름(성·별명). 없으면 '.' 뒤 3자 */ short?: string; /** 공 가진 선수(이름표 우선순위 2) */ ball?: boolean; /** 얼굴 마커 이미지 */ face?: string; flag?: boolean; dim?: boolean }
 export interface PitchArrow { from: [number, number]; to: [number, number]; kind: 'pass' | 'through' | 'cross' | 'dribble' | 'shot'; tone?: 'safe' | 'balanced' | 'gamble'; curve?: [number, number]; ghost?: boolean }
+/** 가로 피치(기본, 요청 7~9 통합): crop [from,to] = 공격 방향 x 범위 %로 확대, cropY = 폭 방향 범위 %(없으면 aspect 비율로 공·내 선수 중심), aspect = 그려질 가로:세로(기본 105:68, 폰 결정 순간 390:240). names·collide·size도 가로에서 써요 — 이름표 우선순위 내 선수 > 공 가진 선수 > 공과 가까운 순, 겹치면 짧은 이름 → 그래도 겹치면 숨김. 확대하면 원·글자는 덜 커져요(zoom^0.62로 나눔). */
 /** orient='vertical' = 세로 피치(내 팀 아래→위). 세로에서만: crop [from,to](공격 방향 %, 예 [56,100] = 상대 진영 쪽만), marker, size, names, collide, dot(캐릭터 도트 px), renderWidth(실제 그려지는 폭 px). */
 export interface PitchProps { players: PitchPlayer[]; ball?: [number, number]; arrows?: PitchArrow[]; offsideX?: number; marks?: Array<{ x: number; y: number; text: string; tone?: 'brand' | 'warning' | 'fail' | 'white' }>; label?: string; children?: React.ReactNode;
-  orient?: 'horizontal' | 'vertical'; crop?: [number, number]; marker?: 'number' | 'face' | 'pixel'; size?: 'md' | 'lg' | 'xl'; names?: 'all' | 'mine' | 'off'; collide?: boolean; dot?: 2 | 4; renderWidth?: number;
+  orient?: 'horizontal' | 'vertical'; crop?: [number, number]; cropY?: [number, number]; aspect?: number; marker?: 'number' | 'face' | 'pixel'; size?: 'md' | 'lg' | 'xl'; names?: 'all' | 'mine' | 'off'; collide?: boolean; dot?: 2 | 4; renderWidth?: number;
   /** 요청 6 · marker='pixel'일 때 캐릭터 아래 등번호 띠(홈 라임 · 원정 주황, 기본 켬) */ band?: boolean; /** 두 팀 유니폼이 비슷한 경기: 원정 캐릭터 몸통에 주황 테두리 */ kitClash?: boolean }
 export declare function Pitch(props: PitchProps): React.ReactElement;
 
@@ -112,7 +114,8 @@ export declare function BottomSheet(props: BottomSheetProps): React.ReactElement
 export interface ModalProps { title: string; children?: React.ReactNode; icon?: IconName; tone?: 'info' | 'warning' | 'danger'; actions?: React.ReactNode[]; open?: boolean; inline?: boolean; onClose?: () => void }
 export declare function Modal(props: ModalProps): React.ReactElement | null;
 
-export interface ResultSplashProps { result: 'success' | 'fail'; title: string; detail?: string; rating?: number; ratingDelta?: number }
+/** result: success 라임 면 · fail 빨간 테두리 · neutral(보통) 회색 면 · concede(실점) 빨간 테두리 + 빨간 도장. compact = 결정 결과 v3(190)처럼 피치 아래 낮은 판. */
+export interface ResultSplashProps { compact?: boolean; result: 'success' | 'fail' | 'neutral' | 'concede'; title: string; detail?: string; rating?: number; ratingDelta?: number }
 export declare function ResultSplash(props: ResultSplashProps): React.ReactElement;
 
 export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block';
@@ -135,9 +138,10 @@ export declare function Switch(props: SwitchProps): React.ReactElement;
 export interface CellGaugeProps { label?: string; value: number; add?: number; cells?: number; valueLabel?: string }
 export declare function CellGauge(props: CellGaugeProps): React.ReactElement;
 /* ---------- 요청 5 새 컴포넌트 ---------- */
-export type DockItem = 'home' | 'progress' | 'player' | 'schedule' | 'world' | 'more' | 'deck' | 'tactic' | 'settings' | 'save';
+export type DockItem = 'home' | 'progress' | 'player' | 'schedule' | 'world' | 'more' | 'deck' | 'tactic' | 'settings' | 'save' | 'inbox' | 'finance';
 /** 요청 6: 홈이 항상 가운데. 폰 6칸(진행 2fr · 선수 · 홈 · 훈련·일정 · 월드 · 더보기) / PC 9칸(진행 · 선수 · 훈련·일정 · 덱 · 홈 · 전술 · 월드 · 설정 · 저장). progress = 진행 칸 상태(5종). */
-export interface DockProps { device?: 'phone' | 'pc'; value?: DockItem; progress?: 'continue' | 'match' | 'live' | 'answer' | 'season'; badges?: Partial<Record<DockItem, number>>; locked?: DockItem[]; onSelect?: (id: DockItem) => void }
+/** B 독 v3: 폰 5칸 = 홈 · 선수 · [다음] · 훈련·일정 · 더보기(moreOpen = 독 위 한 줄: 인박스 · 재정 · 월드 · 덱 · 전술 · 설정 · 저장, moreScroll = 끈 위치). PC = 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] | 훈련·일정 · 월드 · 재정 · 설정 · 저장. progress = [다음] 키 상태. */
+export interface DockProps { moreOpen?: boolean; moreScroll?: 'start' | 'end'; device?: 'phone' | 'pc'; value?: DockItem; progress?: 'continue' | 'running' | 'match' | 'live' | 'locked' | 'answer' | 'season'; badges?: Partial<Record<DockItem, number>>; locked?: DockItem[]; onSelect?: (id: DockItem) => void }
 export declare function Dock(props: DockProps): React.ReactElement;
 /** 능력치 1~20. 색 구간 17+ brand · 15+ success · 13+ tier-key(하늘) · 10+ ink · ~9 away(주황). keyAttr = 포지션 핵심(테두리). */
 export interface AttrTileProps { name: string; value: number; progress?: number; delta?: number; add?: number; keyAttr?: boolean; editable?: boolean; selected?: boolean; cost?: number; ovrDelta?: number | null; maxed?: boolean; onClick?: () => void; onPlus?: () => void; onMinus?: () => void }
