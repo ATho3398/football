@@ -15,5 +15,7 @@ donate(g, 50000);
 moveInvest(g, 'deposit', 100000);
 moveInvest(g, 'estate', 50000);
 g.cards!.tp = 4;
-writeFileSync(process.argv.at(-1)!, serialize(g));
+// 옛 localStorage 슬롯 형식 { meta, state } (initSaves 가 IndexedDB 로 옮긴다)
+const meta = { slot: '1', savedAt: new Date().toISOString(), name: g.player.name, season: g.league.season, round: g.league.round, age: g.player.age, startPatch: g.startPatch, date: g.calendar.date };
+writeFileSync(process.argv.at(-1)!, JSON.stringify({ meta, state: JSON.parse(serialize(g)) }));
 console.log('ok', g.calendar.date);
