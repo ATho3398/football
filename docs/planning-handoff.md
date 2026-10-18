@@ -349,3 +349,4 @@
 - O가 만든 세션 → `lineage` 깊이 5. 브랜치 `claude/planning-p`(O 7b8dfd5에서 분기).
 - 시작 처리(16:58 KST): 38b C.66·UI_3·엔진관리자2·C.65(CI 결과만)에 "보고는 P, 마스터 브랜치 claude/planning-p" 알림. C.66 진행 확인 send_later `trig_013NL6fZF2FA7xM6FRgHTcz3`(19:27 KST). O 제목 `draft_O_축구 커리어 게임 마스터`(태그 그대로, O 최종 19.9달러·53.5만). 환경 변수 `NTFY_TOPIC` 있음(값은 적지 않음). rate limit allowed.
 - (16:57 KST) UI_3·엔진관리자2 교체 확인. UI_3: 9차 누계 큰 1·작은 4·단계 1(미달), handoff "지금 마스터: P"(claude/ui-3 e72c7a6). 엔진관리자2: `claude/engine-issues-c45` 156392c(C.62 2초 경계 기록)를 **다음 배포 때 docs 병합** → 다음 단계 지시(39 C.67)에 넣을 것.
+- (17:21 KST) C.65 CI #193 성공(main cb7c645, 17:18 KST 배포). C.65 끝.
