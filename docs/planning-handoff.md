@@ -356,3 +356,4 @@
 - (18:31 KST, 사용자) "한도 꽉 차서 막힐 때까지 계속 돌려도 돼" → **사용량 경고로 멈추지 않음**(7일 한도 실제로 막힐 때만 멈춤, 리셋 10/20 19:00 KST). 챔스/컵 형식 답 없음 → pending 108 추천안으로 진행. 39 C.67a 시작.
 - (18:31 KST) **39 C.67 5-6 챔스/컵 시작** `session_01YLLnn3Rua9XQAF1kfVmatw` "39단계_5-6 챔스/컵 (C.67)", 브랜치 `claude/c67-cups`, 태그 `stage:39-C67`(a = 대회 틀·일정·간이 계산·FA컵·휴가 예외·가족 우환 결장 / b = 챔스·보상·화면, pending 108, engine-issues-c45 docs 병합 포함). C.66 `draft_`. C.67 자동 확인 send_later `trig_01D1sGBcUB3ZvHPf4nXrgu4B`(21:32 KST). C.66 CI는 C.66 세션이 18:40 KST 확인.
 - (18:41 KST) C.66 CI #194 성공(main 948ad92, 약 32분; 97fa3cc는 docs만이라 배포 실행 없음). 38b C.66 끝.
+- (20:08 KST) C.67 중간 알림: a 구현·테스트 통과했지만 a 단독 balance 13/15(레전더리 35세 월드클래스 0.3 > 0.25, 36−30 CB군 −0.9) → 규칙대로 main에 안 올림(claude/c67-cups 92cf816). 컵·챔스 경기 XP 배율 0.5 넣고 b(챔스·보상·화면)까지 합쳐 balance 재실행(약 31분) → 통과하면 a+b 한 번에 배포(PATCH_LABEL C.67b). P 판단: 그대로 진행(balance 1회 31분이라 합치는 게 합리적).
