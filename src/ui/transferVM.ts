@@ -119,7 +119,7 @@ export function marketVM(g: GameState): MarketVM {
   };
 }
 
-export interface NewsRowVM { id: string; name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: { name: string; pos: string; age: number; ovr: number; club: string } | null; mine: boolean; fee: string; toTier: string; /** 누르면 열 선수 상세 (C.53): 리그 안으로 간 선수 id, 내 선수 'me', 리그 밖이면 null */ open: string | null }
+export interface NewsRowVM { id: string; name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: { name: string; pos: string; age: number; ovr: number; club: string } | null; mine: boolean; fee: string; toTier: string; /** 누르면 열 선수 상세 (C.53): 선수 id, 내 선수 'me'. 리그 밖으로 간 선수는 C.71a 리그 밖 빈 화면 */ open: string | null }
 export interface NewsVM { title: string; count: number; inLeague: number; rows: NewsRowVM[] }
 
 /** 월드 "이적 소식": 가장 최근 이적시장의 NPC 이동 (+ 같은 이적시장 내 선수 이동) */
@@ -131,7 +131,7 @@ export function newsVM(g: GameState): NewsVM | null {
     id: r.id, name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: clubNameKo(g.league, r.from), to: clubNameKo(g.league, r.to), why: WHY_KO[r.why], real: !!r.real,
     into: !isOutside(r.to), out: isOutside(r.to), fill: r.fill ? { name: r.fill.name, pos: r.pos, age: r.fill.age, ovr: r.fill.ovr, club: clubNameKo(g.league, r.fill.club) } : null,
     mine: r.from === g.player.teamId || r.to === g.player.teamId,
-    fee: r.fee ? valueLabel(r.fee) : '자유계약', toTier: tierLabel(r.to), open: isOutside(r.to) ? null : r.id,
+    fee: r.fee ? valueLabel(r.fee) : '자유계약', toTier: tierLabel(r.to), open: r.id,
   }));
   // 실제 선수 → 리그 안 이동 → OVR 순
   rows.sort((a, b) => Number(b.real) - Number(a.real) || Number(b.into) - Number(a.into) || b.ovr - a.ovr);

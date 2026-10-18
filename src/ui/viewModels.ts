@@ -2,7 +2,7 @@
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
-import { matchCompLabel, myShirt, prospectExtras } from '../game';
+import { matchCompLabel, myShirt, prospectExtras, weekFreeDays } from '../game';
 import { COMP_NAMES_KO, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
@@ -581,15 +581,25 @@ export function presetsVM(g: GameState): PresetsVM {
 }
 
 /** 커스텀 프리셋 편집 시트 (새로 만들기 = id null) */
-export interface PresetEditVM { id: string | null; name: string; slots: { kind: TrainingKind; label: string }[]; kinds: { id: TrainingKind; label: string }[] }
+export interface PresetEditVM {
+  id: string | null; name: string; slots: { kind: TrainingKind; label: string; short: string }[]; kinds: { id: TrainingKind; label: string }[];
+  /** 고른 칸 (아래 종류 줄이 이 칸을 바꾼다, C.71a 디자인 167) · 이번 주 쓰는 칸 수 · 요약("3·2·2" / "약발·기술·회복") */
+  sel: number; used: number; summary: { counts: string; names: string };
+}
 
-export function presetEditVM(g: GameState, id: string | null, draft?: { name: string; slots: TrainingKind[] }): PresetEditVM {
+export function presetEditVM(g: GameState, id: string | null, draft?: { name: string; slots: TrainingKind[] } | null, sel = 0): PresetEditVM {
   const p = id ? g.training.customPresets?.find((x) => x.id === id) : undefined;
-  const slots = draft?.slots ?? p?.slots ?? presetById(g.training, activePreset(g)).slots;
+  const src = draft?.slots ?? p?.slots ?? presetById(g.training, activePreset(g)).slots;
+  const kinds = Array.from({ length: PRESET_SLOTS }, (_, i) => src[i] ?? 'tech');
+  const n = new Map<TrainingKind, number>();
+  for (const k of kinds) n.set(k, (n.get(k) ?? 0) + 1);
+  const top = [...n].sort((a, b) => b[1] - a[1] || kinds.indexOf(a[0]) - kinds.indexOf(b[0]));
   return {
     id: p?.id ?? null, name: draft?.name ?? p?.name ?? '',
-    slots: Array.from({ length: PRESET_SLOTS }, (_, i) => ({ kind: slots[i] ?? 'tech', label: `${i + 1}번째 훈련일` })),
+    slots: kinds.map((k, i) => ({ kind: k, label: `${i + 1}번째`, short: TRAINING_SHORT_KO[k] })),
     kinds: TRAINING_KINDS.map((k) => ({ id: k, label: TRAINING_SHORT_KO[k] })),
+    sel: Math.max(0, Math.min(PRESET_SLOTS - 1, sel)), used: Math.min(PRESET_SLOTS, weekFreeDays(g)),
+    summary: { counts: top.map((x) => x[1]).join('·'), names: top.map((x) => TRAINING_SHORT_KO[x[0]]).join('·') },
   };
 }
 

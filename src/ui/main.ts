@@ -1,7 +1,7 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
-import { bodySection, tagsSheet } from './views/body';
+import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { buyWeakFoot, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
@@ -85,7 +85,7 @@ import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter }
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artLayer } from './components/gameCard';
 import { emptyOverrides, kitClash, setKitOverride, setPersonOverride } from '../pixel';
-import { pitchLabel } from './playerNames';
+import { autoShortNames, pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
@@ -103,8 +103,8 @@ import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../e
 import type { Formation } from '../formations';
 import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
-import { hasTeamDetail, personDetailVM, teamDetailVM, type PersonTab, type TeamTab } from './detailVM';
-import { personDetailView, teamDetailView } from './views/detail';
+import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonTab, type TeamTab } from './detailVM';
+import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
 type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance';
@@ -147,7 +147,7 @@ const ui = {
   /** 훈련·일정 화면 탭 (C.52) */
   trainTab: 'pre' as 'pre' | 'cal' | 'g',
   /** 커스텀 프리셋 편집 시트 (C.52): id null = 새로 만들기 */
-  presetSheet: null as null | { id: string | null },
+  presetSheet: null as null | { id: string | null; sel: number; draft: { name: string; slots: TrainingKind[] } | null },
   /** 내 최근 5경기 리플레이 (25.4 2번, C.41): 자동 저장 슬롯과 같이 저장한다. dirty 면 다음 자동 저장 때 쓴다 */
   recent: [] as StoredReplay[],
   recentDirty: false,
@@ -207,6 +207,8 @@ const ui = {
   /** 재정 화면 탭 (C.68b) */
   financeTab: 'money' as FinanceTab,
   lookName: false,
+  /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
+  legendOpen: false,
   /** 새 게임 화면 상태 (C.58): 실제 선수 묶음·검색·정렬·포지션군·보이는 수, 랜덤 능력치 펼침, 커스텀 단계 */
   ng: { ...NEW_GAME_UI } as NewGameUI,
   /** 포인트 찍기 규칙 펼침 (C.58) */
@@ -262,6 +264,15 @@ function liveScreen(): Screen | null {
  * 경기 중 잠그는 동작 (C.39): 다른 화면은 보기만. 직접 모드 경기는 아직 상태에 반영되지 않았으므로
  * 경기 시작·날 넘기기·포인트·전술·덱·포지션·세이브를 바꾸면 경기 결과가 달라진다
  */
+/** 선수 화면 "내 모습" (C.71a 디자인 177): 이름표 [편집]은 설정의 이름 칸 대신 별명 칸 + 미리 보기를 그 줄 아래로 펼친다 */
+function myLookWithEdit(g: GameState): LookVM {
+  const look = myLookVM(g, false);
+  if (!ui.lookName) return look;
+  const id = myFace(g).id;
+  const o = g.nameOverrides[id] ?? {};
+  return { ...look, edit: { id, nick: o.nickname ?? '', auto: o.shortName || (autoShortNames(g).get(id) ?? g.player.name), own: !!(o.nickname || o.shortName), full: g.player.name } };
+}
+
 const LOCK_ACTS = new Set([
   'buy-weakfoot', 'play', 'day-one', 'day-continue', 'sim-rest', 'auto-run', 'auto-until', 'raise', 'lower', 'auto-alloc', 'alloc-reset', 'alloc-done', 'tac-save',
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'save', 'load', 'delete-ok',
@@ -408,7 +419,7 @@ function screenHtml(): string {
       const tab = tv ? ui.trainTab : 'cal';
       const tabs = tv ? Tabs({ items: [{ id: 'pre', label: '훈련 프리셋' }, { id: 'cal', label: '일정' }, { id: 'g', label: '게이지' }], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련·일정' }) : '';
       const body = !tv ? '' : tab === 'pre' ? presetSection(tv.presets) + weekPreview(tv) : tab === 'g' ? gaugeSection(tv) : trainingSection(tv, false);
-      const pSheet = tv && ui.presetSheet ? presetEditSheet(presetEditVM(g, ui.presetSheet.id)) : '';
+      const pSheet = tv && ui.presetSheet ? presetEditSheet(presetEditVM(g, ui.presetSheet.id, ui.presetSheet.draft, ui.presetSheet.sel)) : '';
       return scheduleView(hvm, tabs + body, tab === 'cal') + (tOpts ? trainingSheet({ ...tOpts, weakFoot: weakFootLine(g) }, ui.trainSheet!, ui.trainPick) : '') + pSheet;
     }
     case 'deck': {
@@ -420,9 +431,9 @@ function screenHtml(): string {
     case 'player': {
       const p = g.player;
       const youth = p.youth ? youthClubName(g, p.youth.club) : '';
-      const body = bodySection(p, g.phase !== 'retired' && p.body.weakFoot < 5 && p.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), youth, myLookVM(g, ui.lookName),
+      const body = bodySection(p, g.phase !== 'retired' && p.body.weakFoot < 5 && p.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), youth, myLookWithEdit(g),
         p.youth && g.league.teams.some((t) => t.id === p.youth!.club) ? p.youth.club : '');
-      return playerView(playerVM(g), { tab: ui.playerTab, body, market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired' })
+      return playerView(playerVM(g), { tab: ui.playerTab, body, market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
@@ -486,6 +497,8 @@ function screenHtml(): string {
     case 'person': {
       const vm = personDetailVM(g, ui.detail.person);
       if (vm) return personDetailView(vm, ui.detail.personTab, ui.detail.stack.length > 0);
+      const left = leftPersonVM(g, ui.detail.person);
+      if (left) return leftPersonView(left, ui.detail.stack.length > 0);
       return `${HeroPanel({ title: '선수', back: ui.detail.stack.length ? { act: 'detail-back' } : false, compact: true, pad: false, progress: false, value: '—' })}<div class="body"><p class="muted">이 선수는 지금 리그 팀에 없어요(리그 밖 이적·은퇴).</p></div>`;
     }
     case 'prep': {
@@ -1575,6 +1588,11 @@ app.addEventListener('click', (ev) => {
     case 'look-name':
       ui.lookName = !ui.lookName;
       render();
+      if (ui.lookName) (document.querySelector('.pl-look #nm-nick') as HTMLInputElement | null)?.focus({ preventScroll: true });
+      return;
+    case 'legend-more':
+      ui.legendOpen = !ui.legendOpen;
+      render();
       return;
     case 'person-tab':
       ui.detail.personTab = v as PersonTab;
@@ -1970,13 +1988,30 @@ app.addEventListener('click', (ev) => {
       return;
     case 'preset-edit':
       if (!g?.training) return;
-      ui.presetSheet = { id: v || null };
+      ui.presetSheet = { id: v || null, sel: 0, draft: null };
       render();
       return;
+    // 편집 시트 (C.71a 디자인 167): 칸을 고르고 아래 종류를 누르면 그 칸이 바뀌고 다음 칸으로 간다. 저장 전까지는 초안
+    case 'preset-slot':
+    case 'preset-kind': {
+      const ps = ui.presetSheet;
+      if (!g?.training || !ps || v === undefined) return;
+      const cur = presetEditVM(g, ps.id, ps.draft, ps.sel);
+      const name = (document.getElementById('f-preset-name') as HTMLInputElement | null)?.value ?? cur.name;
+      const draft = { name, slots: cur.slots.map((x) => x.kind) };
+      if (act === 'preset-slot') ps.sel = Number(v) || 0;
+      else {
+        draft.slots[ps.sel] = v as TrainingKind;
+        ps.sel = Math.min(draft.slots.length - 1, ps.sel + 1);
+      }
+      ps.draft = draft;
+      render();
+      return;
+    }
     case 'preset-save': {
-      if (!g?.training) return;
+      if (!g?.training || !ui.presetSheet) return;
       const name = (document.getElementById('f-preset-name') as HTMLInputElement | null)?.value ?? '';
-      const slots = [...document.querySelectorAll<HTMLSelectElement>('[data-preset-slot]')].map((s) => s.value as TrainingKind);
+      const slots = presetEditVM(g, ui.presetSheet.id, ui.presetSheet.draft).slots.map((x) => x.kind);
       if (v) updateCustomPreset(g.training, v, name, slots);
       else choosePreset(g, addCustomPreset(g.training, name, slots));
       ui.presetSheet = null;
@@ -2292,9 +2327,12 @@ app.addEventListener('click', (ev) => {
     case 'nm-clear': {
       const id = el.dataset.id;
       if (!g || !id) return;
-      const val = (x: string) => (act === 'nm-save' ? (document.getElementById(x) as HTMLInputElement | null)?.value ?? '' : '');
-      setNameOverride(g.nameOverrides, id, 'nickname', val('nm-nick'));
-      setNameOverride(g.nameOverrides, id, 'shortName', val('nm-short'));
+      // 칸이 없으면(선수 화면 이름표 편집은 별명 칸만, C.71a 디자인 177) 그 값은 그대로 둔다
+      const val = (x: string) => (act === 'nm-save' ? (document.getElementById(x) as HTMLInputElement | null)?.value ?? null : '');
+      for (const [f, x] of [['nickname', 'nm-nick'], ['shortName', 'nm-short']] as const) {
+        const nv = val(x);
+        if (nv !== null) setNameOverride(g.nameOverrides, id, f, nv);
+      }
       autosave();
       render();
       showToast({ kind: 'info', title: act === 'nm-save' ? '이름을 저장했어요' : '자동 이름으로 되돌렸어요' });
@@ -2754,6 +2792,17 @@ app.addEventListener('input', (ev) => {
         q.setSelectionRange(q.value.length, q.value.length);
       }
     }, 200);
+    return;
+  }
+  // 선수 화면 이름표 편집 (C.71a 디자인 177): 별명을 쓰면 미리 보기·글자 수만 바로 바꾼다
+  if (t.id === 'nm-nick' && t.closest('.pl-look')) {
+    const box = t.closest('.pl-look')!;
+    const label = t.value.trim() || box.querySelector<HTMLElement>('[data-auto]')?.dataset.auto || '';
+    box.querySelectorAll('.lk-prev-name').forEach((x) => { x.textContent = label; });
+    const sub = box.querySelector('.lk-prev-sub');
+    if (sub) sub.textContent = `${label}${josaIGa(label)} 안으로 파고듭니다`;
+    const cnt = box.querySelector('.po-field__label .po-num');
+    if (cnt) cnt.textContent = `${[...t.value].length}/${LOOK_NICK_MAX}`;
     return;
   }
   // 선수 이름 검색 (C.44a)

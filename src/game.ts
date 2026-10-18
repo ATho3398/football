@@ -837,6 +837,13 @@ function isFreeDay(state: GameState, date: IsoDate): boolean {
   return !isPresetFixed(prev ? daysBetween(prev, date) : null, next ? daysBetween(date, next) : null);
 }
 
+/** 그 주(월~일) 프리셋 칸을 채우는 자유 훈련일 수 (C.71a 디자인 167 편집 시트 "1~n번째만 써요") */
+export function weekFreeDays(state: GameState, date: IsoDate = state.calendar.date): number {
+  let n = 0;
+  for (let k = 0, d = weekStart(date); k < 7; k++, d = addDays(d, 1)) if (isFreeDay(state, d)) n++;
+  return n;
+}
+
 /** 기본 계획 (변경 없을 때): 경기 다음 날 휴식, 경기 전날 영상, 나머지는 그 주 프리셋 칸을 날짜 순서대로 (C.52) */
 export function plannedDefault(state: GameState, date: IsoDate, presetId: string = activePreset(state, date)): TrainingKind {
   const { prev, next } = matchGaps(state, date);

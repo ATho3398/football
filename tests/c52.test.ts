@@ -107,7 +107,7 @@ describe('훈련 프리셋 (C.52)', () => {
     const html = presetSection(vm);
     expect(html).toContain('이번 주 추천');
     expect(html).toContain('새 프리셋 만들기');
-    expect(presetEditSheet(presetEditVM(g, ids[0]!))).toContain('data-preset-slot="6"');
+    expect(presetEditSheet(presetEditVM(g, ids[0]!))).toContain('data-act="preset-slot" data-v="6"');
   });
 
   it('세이브 30 → 31: 프리셋 기본값(균형·자동)', () => {

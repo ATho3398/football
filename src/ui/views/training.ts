@@ -1,7 +1,7 @@
 // 훈련 (25.3, 부록 C.41 → C.57 디자인 91·92·150): 홈의 오늘 훈련 한 줄, 오늘 훈련 카드 + 주간 7칸(DayCell, 눌러서 그날만 바꾸기),
 // 기술 훈련 게이지, 영상 분석 힌트, 하루 훈련 고르기 바텀시트(고르고 확정), 휴가 카드
 
-import { BottomSheet, Button, DayCell, Icon, SectionTitle, Tabs, esc, type IconName } from '../components';
+import { BottomSheet, Button, DayCell, Icon, SectionTitle, Tabs, TextField, esc, type IconName } from '../components';
 import type { DayPlan } from '../../training';
 import { PRESET_NAME_MAX } from '../../training';
 import type { PresetEditVM, PresetRowVM, PresetsVM, TrainingOptionVM, TrainingVM } from '../viewModels';
@@ -140,46 +140,53 @@ function presetRow(r: PresetRowVM): string {
       <span class="pr-desc">${esc(r.desc)}</span>
       <span class="pr-week" aria-hidden="true">${cells}</span>
     </button>
-    ${r.custom ? `<button type="button" class="pr-edit" data-act="preset-edit" data-v="${esc(r.id)}" aria-label="${esc(r.name)} 편집">편집</button>` : ''}
+    ${r.custom ? `<button type="button" class="pr-edit" data-act="preset-edit" data-v="${esc(r.id)}" aria-label="${esc(r.name)} 고치기">${Icon({ name: 'edit', size: 14 })}고치기</button>` : ''}
   </div>`;
 }
 
-/** 훈련 프리셋 탭: 이번 주 추천 + 기본 4 + 내 프리셋(무제한) + 새로 만들기 */
+/** 훈련 프리셋 탭 (디자인 159 → C.71a 디자인 167): 이번 주 추천(+ 아래 "자동 적용" 스위치 줄) + 기본 4 + 내 프리셋(지금 + 고치기) + 새로 만들기 */
 export function presetSection(vm: PresetsVM): string {
   const r = vm.rec;
   const chips = r.chips.map((c) => `<span class="pr-chip pr-chip--${c.tone}">${esc(c.label)}</span>`).join('');
+  const sw = `<div class="po-switchrow pr-auto"><span class="po-switchrow__main"><b>주가 바뀔 때 추천 프리셋 자동 적용</b><span>직접 고른 프리셋은 그 주만 유지돼요. 자동을 끄면 고른 프리셋이 다음 주에도 이어져요.</span></span>
+      <button type="button" class="po-switch${vm.auto ? ' is-on' : ''}" role="switch" aria-checked="${vm.auto}" aria-label="프리셋 자동 적용" data-act="preset-auto" data-v="${vm.auto ? 'off' : 'on'}"><i></i></button></div>`;
   const rec = `<div class="pr-rec">
-      <div class="pr-rec__head"><b>이번 주 추천 · ${esc(r.name)}</b>${vm.auto ? '<span class="pr-badge is-on">자동</span>' : ''}</div>
+      <div class="pr-rec__head">${Icon({ name: 'replay', size: 18 })}<b>이번 주 추천 · ${esc(r.name)}</b>${vm.auto ? '<span class="pr-badge is-on">자동</span>' : ''}</div>
       <div class="pr-chips">${chips}</div>
       <p class="small">${esc(r.line)}</p>
       ${r.applied
         ? `<p class="small muted">이번 주(${esc(vm.weekLabel)})에 적용 중이에요.</p>`
         : Button({ block: true, icon: 'check', act: 'preset-apply', children: '이번 주에 적용' })}
-      <div class="kv pr-auto"><span class="small">주가 바뀔 때 추천 프리셋 자동 적용</span>${Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.auto ? 'on' : 'off', act: 'preset-auto', label: '프리셋 자동 적용' })}</div>
-      <p class="small muted">직접 고른 프리셋은 그 주만 유지돼요. 자동을 끄면 고른 프리셋이 다음 주에도 이어져요.</p>
+      ${sw}
     </div>`;
-  return `${SectionTitle({ title: '훈련 프리셋', action: `이번 주 ${vm.weekLabel}` })}
-    ${rec}
+  return `${rec}
     ${SectionTitle({ title: '기본 프리셋', action: `${vm.base.length}개` })}
     <div class="pr-list" role="radiogroup" aria-label="기본 프리셋">${vm.base.map(presetRow).join('')}</div>
     ${SectionTitle({ title: '내 프리셋', action: vm.custom.length ? `${vm.custom.length}개 · 무제한` : '무제한' })}
-    <div class="pr-list" role="radiogroup" aria-label="내 프리셋">${vm.custom.map(presetRow).join('')}</div>
-    ${Button({ variant: 'secondary', block: true, icon: 'plus', act: 'preset-edit', data: { v: '' }, children: '새 프리셋 만들기' })}
+    ${vm.custom.length ? `<div class="pr-list" role="radiogroup" aria-label="내 프리셋">${vm.custom.map(presetRow).join('')}</div>` : ''}
+    <div class="pr-new">${Button({ variant: 'secondary', size: 'lg', block: true, icon: 'plus', act: 'preset-edit', data: { v: '' }, children: '새 프리셋 만들기' })}</div>
     <p class="small muted pr-note">경기 다음 날 휴식·경기 전날 영상 분석은 프리셋과 상관없이 그대로예요(흐린 칸). 주간 계획 칸을 누르면 그날만 바꿔요.</p>`;
 }
 
-/** 커스텀 프리셋 만들기·이름 바꾸기·지우기 시트 */
+/** 내 프리셋 만들기·고치기 시트 (C.71a 디자인 167): 이름 + 훈련일 7칸(칸을 누르고 아래 종류에서 고름) + 요약 칸, 고치기면 [삭제] */
 export function presetEditSheet(vm: PresetEditVM): string {
-  const slots = vm.slots.map((sl, i) => `<label class="pr-slot"><span>${esc(sl.label)}</span><select data-preset-slot="${i}" aria-label="${esc(sl.label)}">${
-    vm.kinds.map((k) => `<option value="${k.id}"${k.id === sl.kind ? ' selected' : ''}>${esc(k.label)}</option>`).join('')}</select></label>`).join('');
-  const footer = `<div class="btn-row even">${vm.id ? Button({ variant: 'ghost', block: true, act: 'preset-del', data: { v: vm.id }, children: '지우기' }) : Button({ variant: 'ghost', block: true, act: 'sheet-close', children: '취소' })}${
+  const cells = vm.slots.map((sl, i) => `<button type="button" class="pr-cell tr-${sl.kind}${i === vm.sel ? ' is-on' : ''}${i >= vm.used ? ' is-dim' : ''}" data-act="preset-slot" data-v="${i}" aria-pressed="${i === vm.sel}" aria-label="${sl.label} 훈련일 ${esc(sl.short)}">
+      <small>${sl.label}</small>${Icon({ name: PLAN_ICON[sl.kind], size: 16 })}<b class="tr-k">${esc(sl.short)}</b></button>`).join('');
+  const sum = `<div class="pr-cell pr-cell--sum" aria-hidden="true"><b class="po-num">${esc(vm.summary.counts)}</b><small>${esc(vm.summary.names)}</small></div>`;
+  const cur = vm.slots[vm.sel]!;
+  const kinds = vm.kinds.map((k) => `<button type="button" class="pr-kind${k.id === cur.kind ? ' is-on' : ''}" data-act="preset-kind" data-v="${k.id}" aria-pressed="${k.id === cur.kind}">${Icon({ name: PLAN_ICON[k.id], size: 16 })}<b>${esc(k.label)}</b></button>`).join('');
+  const footer = `<div class="btn-row pr-foot">${vm.id ? Button({ variant: 'ghost', act: 'preset-del', data: { v: vm.id }, children: '삭제' }) : ''}${
+    Button({ variant: 'secondary', act: 'sheet-close', children: '취소' })}${
     Button({ block: true, icon: 'check', act: 'preset-save', data: { v: vm.id ?? '' }, children: vm.id ? '저장' : '만들기' })}</div>`;
   return BottomSheet({
-    eyebrow: '내 프리셋', title: vm.id ? '프리셋 편집' : '새 프리셋 만들기',
+    eyebrow: '내 프리셋', title: vm.id ? '프리셋 고치기' : '새 프리셋 만들기',
     subtitle: '훈련일 순서대로 채워요. 경기 날·경기 다음 날 휴식·경기 전날 영상 분석 날은 건너뛰어요.',
     onClose: { act: 'sheet-close' },
-    children: `<label class="field"><span class="label">이름</span><input type="text" id="f-preset-name" maxlength="${PRESET_NAME_MAX}" value="${esc(vm.name)}" placeholder="비우면 '내 프리셋 n'"></label>
-      <div class="pr-slots">${slots}</div>`,
+    children: `${TextField({ label: '이름', count: `${[...vm.name].length}/${PRESET_NAME_MAX}`, value: vm.name, placeholder: "비우면 '내 프리셋 n'", input: { id: 'f-preset-name', maxLength: PRESET_NAME_MAX }, clearable: false })}
+      <div class="pr-slots-head"><b>훈련일 7칸</b><small class="muted">칸을 누르고 아래에서 골라요</small></div>
+      <div class="pr-cells">${cells}${sum}</div>
+      <p class="small muted">${vm.used < vm.slots.length ? `이번 주는 훈련일이 ${vm.used}일이라 ${vm.used ? `1~${vm.used}번째만` : '칸을 하나도 안'} 써요(흐린 칸은 훈련일이 많은 주에).` : '이번 주는 7칸을 모두 써요.'}</p>
+      <div class="pr-pickbox"><div class="pr-pickbox__head"><b>${vm.sel + 1}번째 훈련일</b><small class="muted">지금 ${esc(cur.short)}</small></div><div class="pr-kinds">${kinds}</div></div>`,
     footer,
   });
 }

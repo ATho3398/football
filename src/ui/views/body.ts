@@ -4,7 +4,7 @@ import { bmiOf, FOOT_KO } from '../../body';
 import { BALANCE } from '../../config/balance';
 import type { PlayerState } from '../../types';
 import { PLAY_DESC, TAGS, tagName } from '../../tags';
-import { BottomSheet, Button, Crest, esc, SectionTitle, TagChip } from '../components';
+import { BottomSheet, Button, Crest, esc, Icon, SectionTitle, TagChip, TextField } from '../components';
 import { panel } from './common';
 
 /** 대표 태그 순서 (C.47): 커리어(스토리·플레이) → 장점 → 단점, 같은 종류는 최근 것 먼저 */
@@ -24,7 +24,34 @@ function chipOf(t: PlayerState['tags'][number], sm = false): string {
 }
 
 /** 몸·태그 탭의 "내 모습" 줄 (디자인 134): 얼굴 · 경기 아이콘 · 이름표 */
-export interface LookVM { faceKey: string; avatar: string; faceNote: string; pixel: string; pixelNote: string; label: string; labelNote: string; nameEditor: string | null }
+export interface LookVM { faceKey: string; avatar: string; faceNote: string; pixel: string; pixelNote: string; label: string; labelNote: string; nameEditor: string | null; edit?: LookEditVM | null }
+
+/** 이름표 편집 펼침 (C.71a 디자인 177): 내 선수 id · 지금 별명 · 자동 짧은 이름 · 직접 바꾼 값이 있는지 */
+export interface LookEditVM { id: string; nick: string; auto: string; own: boolean; full: string }
+
+/** 선수 화면 이름표 별명 최대 글자 (디자인 177 "2/6") */
+export const LOOK_NICK_MAX = 6;
+
+/** 조사 "이/가": 받침이 있으면 "이" (한글이 아니면 "가") */
+export function josaIGa(word: string): string {
+  const c = word.charCodeAt(word.length - 1) - 0xac00;
+  return c >= 0 && c < 11172 && c % 28 !== 0 ? '이' : '가';
+}
+
+/** 이름표 [편집] 펼침 (디자인 177): 별명 칸(포커스) · 미리 보기(경기 화면 이름표 + 중계 한 줄) · [기본으로][저장] */
+function lookNameEditor(look: LookVM, e: LookEditVM): string {
+  const label = e.nick || e.auto;
+  return `<div class="pl-look__edit" data-auto="${esc(e.auto)}">
+    ${TextField({ label: '별명', count: `${[...e.nick].length}/${LOOK_NICK_MAX}`, value: e.nick, placeholder: e.auto, hint: `${LOOK_NICK_MAX}자까지 · 비우면 짧은 이름(${e.auto}) 자동`, input: { id: 'nm-nick', maxLength: LOOK_NICK_MAX }, clearable: false })}
+    <small class="pl-look__cap">미리 보기 · 경기 화면</small>
+    <div class="pl-look__prev">
+      <div class="pl-look__prev-top">${look.pixel}<span class="pl-label lk-prev-name">${esc(label)}</span><small class="muted">선수 점 위 이름표</small></div>
+      <div class="pl-look__prev-line"><span class="po-num muted">12'</span>${Icon({ name: 'target', size: 14 })}<b class="lk-prev-sub">${esc(label)}${josaIGa(label)} 안으로 파고듭니다</b><span class="pl-look__me">나</span></div>
+    </div>
+    <div class="btn-row even">${Button({ variant: 'secondary', block: true, icon: 'restore', act: 'nm-clear', data: { id: e.id }, disabled: !e.own, children: '기본으로' })}${Button({ block: true, icon: 'check', act: 'nm-save', data: { id: e.id }, children: '저장' })}</div>
+    <p class="small muted">이름표는 경기 화면 중계·선수 점 위에만 쓰여요. 다른 화면은 풀네임(${esc(e.full)}) 그대로예요. 이 세이브에 저장돼요.</p>
+  </div>`;
+}
 
 /** 선수 화면 "몸·태그" 탭 (디자인 134, C.45 신체·양발·장단점 칸): 신체 5칸 · 약발 +1 · 태그 대표 4 + [전체 보기] · 유스 출신 · 내 모습 */
 export function bodySection(p: PlayerState, canBuy: boolean, shirt: number, youthName = '', look: LookVM | null = null, youthTeam = ''): string {
@@ -47,8 +74,11 @@ export function bodySection(p: PlayerState, canBuy: boolean, shirt: number, yout
     <div class="panel pl-look">
       <div class="pl-look__row">${look.avatar}<span class="grow"><b>얼굴 (페이스온)</b><small>${esc(look.faceNote)}</small></span>${Button({ variant: 'secondary', size: 'sm', act: 'faceon-open', data: { key: look.faceKey }, children: '바꾸기' })}</div>
       <div class="pl-look__row">${look.pixel}<span class="grow"><b>경기 아이콘</b><small>${esc(look.pixelNote)}</small></span>${Button({ variant: 'secondary', size: 'sm', act: 'px-open-me', children: '바꾸기' })}</div>
-      <div class="pl-look__row"><span class="pl-label">${esc(look.label)}</span><span class="grow"><b>경기 화면 이름표</b><small>${esc(look.labelNote)}</small></span>${Button({ variant: 'secondary', size: 'sm', act: 'look-name', children: look.nameEditor ? '접기' : '편집' })}</div>
-      ${look.nameEditor ?? ''}
+      ${look.edit
+        ? `<div class="pl-look__row is-open"><span class="pl-label lk-prev-name">${esc(look.edit.nick || look.edit.auto)}</span><span class="grow"><b>경기 화면 이름표</b><small>편집 중 · 저장 전</small></span><button type="button" class="pl-look__fold" data-act="look-name" aria-expanded="true">${Icon({ name: 'chevron-right', size: 14, style: 'transform:rotate(-90deg)' })}접기</button></div>
+      ${lookNameEditor(look, look.edit)}`
+        : `<div class="pl-look__row"><span class="pl-label">${esc(look.label)}</span><span class="grow"><b>경기 화면 이름표</b><small>${esc(look.labelNote)}</small></span>${Button({ variant: 'secondary', size: 'sm', act: 'look-name', children: look.nameEditor ? '접기' : '편집' })}</div>
+      ${look.nameEditor ?? ''}`}
     </div>`
     : '';
   return `${SectionTitle({ title: '신체 · 양발', action: '오른쪽 끝 = 약발' })}

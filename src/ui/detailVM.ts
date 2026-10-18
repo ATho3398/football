@@ -5,13 +5,14 @@
 import { MANAGER_STYLE_KO } from '../../data/managers';
 import { coachOf } from '../club';
 import { GK_ATTRIBUTES, type GkAttribute } from '../attributes';
-import { FOOT_KO } from '../body';
+import { bmiOf, FOOT_KO } from '../body';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
 import { derbyOf } from '../derby';
 import { DETAILS, LEVEL_NAMES_KO, tendencyLevels, TENDENCY_NAMES_KO, type Detail } from '../engine/tactics';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { npcStanding } from '../worldStats';
-import { financeTier, npcAnnualWage, npcValue, remainingBudget, TIER_KO, valueLabel, wageBill, type FinanceTier } from '../finance';
+import { financeTier, npcAnnualWage, npcValue, remainingBudget, tierLabel, TIER_KO, valueLabel, wageBill, type FinanceTier } from '../finance';
+import { clubNameKo, isOutside, WHY_KO } from '../transfer';
 import { FORMATION_SLOTS } from '../formations';
 import type { GameState } from '../game';
 import { playerOvr, reputationTier, TIER_NAMES_KO } from '../growth';
@@ -153,7 +154,11 @@ export interface PersonDetailVM {
   tags: { label: string; kind: 'legend' | 'career' | 'story' }[];
   attrs: AttrGroupVM[]; keyNote: string;
   body: { height: string; weight: string; foot: string; weakFoot: string };
+  /** 몸·태그 탭 신체 칸 (C.71a 디자인 169): 숫자 그대로, 몸 정보가 없으면 null */
+  bodyN: { height: number; weight: number; bmi: string; weakFoot: number } | null;
   youth: string;
+  /** 유스 구단 id (리그 팀이면 누르면 팀 상세) */
+  youthId: string | null; youthLeague: boolean;
   posOvrs: { pos: string; ovr: number; main: boolean }[];
   history: { season: string; apps: number; goals: number; assists: number; avg: string }[];
 }
@@ -215,10 +220,35 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
     body: b
       ? { height: `${b.height}cm`, weight: `${b.weight}kg`, foot: FOOT_KO[b.foot], weakFoot: `${b.weakFoot}/5` }
       : { height: '—', weight: '—', foot: '—', weakFoot: '—' },
-    youth: youthName,
+    bodyN: b ? { height: b.height, weight: b.weight, bmi: bmiOf(b).toFixed(1), weakFoot: b.weakFoot } : null,
+    youth: youthName, youthId: youthId || null, youthLeague: L.teams.some((t) => t.id === youthId),
     posOvrs, history,
   };
 }
 
 /** 이 팀이 리그 팀인지 (리그 밖 클럽은 상세 없음) */
 export const hasTeamDetail = (g: GameState, id: string): boolean => g.league.teams.some((t) => t.id === id);
+
+// ── 리그 밖으로 떠난 선수 (C.71a 디자인 169 리그밖빈화면): 탭 없이 떠나기 전 마지막 정보만 ──
+
+export interface LeftPersonVM {
+  id: string; name: string; pos: string; age: number; ovr: number;
+  /** 마지막 리그 소속 → 새 팀 (리그 밖) */
+  from: string; fromId: string | null; to: string; toTier: string;
+  why: string; fee: string; when: string;
+}
+
+/** 이적 기록에서 리그 밖으로 나간 마지막 기록. 그 뒤 리그로 돌아왔으면(로스터에 있으면) null */
+export function leftPersonVM(g: GameState, id: string): LeftPersonVM | null {
+  if (findRosterPlayer(g.rosters, id)) return null;
+  const r = (g.transfers ?? []).filter((x) => x.id === id).at(-1);
+  if (!r || !isOutside(r.to)) return null;
+  const fromLeague = g.league.teams.some((t) => t.id === r.from);
+  return {
+    id, name: r.name, pos: r.pos, age: r.age, ovr: r.ovr,
+    from: clubNameKo(g.league, r.from), fromId: fromLeague ? r.from : null,
+    to: clubNameKo(g.league, r.to), toTier: tierLabel(r.to),
+    why: WHY_KO[r.why], fee: r.fee ? valueLabel(r.fee) : '자유계약 (0)',
+    when: `${seasonLabel(r.season)} ${r.w === 'winter' ? '겨울' : '여름'}`,
+  };
+}

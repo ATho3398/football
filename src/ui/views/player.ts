@@ -1,7 +1,8 @@
 // 선수 (I.8, 디자인 44 → C.58 디자인 93~96·134~136, B 미페 머리말 compact): 머리말 · 프로필 줄 · 탭 5개(능력치 · 몸·태그 · 포지션 · 기록 · 계약).
 // 성향 슬라이더·역할(전술 화면 링크)은 아직 없는 기능이라 숨긴다 (I.19)
 
-import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
+import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Icon, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
+import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
 import { isWide, skin } from '../skin';
 import type { MarketVM } from '../transferVM';
@@ -42,6 +43,8 @@ export interface PlayerParts {
   /** 찍을 포인트 (능력치 탭 [nP 찍기]) */
   points: number;
   retired: boolean;
+  /** 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
+  legendOpen?: boolean;
 }
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
@@ -61,7 +64,7 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const tabBody = (t: PlayerTab): string => {
     if (t === 'attrs') return attrsTab(vm, parts);
     if (t === 'body') return parts.body;
-    if (t === 'pos') return posTab(vm);
+    if (t === 'pos') return posTab(vm, !!parts.legendOpen);
     if (t === 'record') return recordTab(vm);
     return parts.market ? contractSection(parts.market) : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
   };
@@ -84,21 +87,38 @@ function attrsTab(vm: PlayerVM, parts: PlayerParts): string {
     ${attrGrid(vm.attrs, null, undefined, { cols: 4, legendTop: true, keyLabel: `${vm.position} 핵심` })}`;
 }
 
-/** 포지션 탭 (디자인 94): 포지션별 OVR · 숙련도 4열 → 레전더리 조건 → 레전드 배지 */
-function posTab(vm: PlayerVM): string {
-  const legend = `<div class="opts">${vm.legendary.map((l, i) => OptionRow({
+/** 포지션 탭 (디자인 94 → C.71a 디자인 182, 1,300px 이하): 포지션별 OVR · 숙련도 4열 → 레전더리 조건(위상 줄 + 대회 조건 4줄은 한 줄로 접기) → 레전드 배지 2칸 */
+function posTab(vm: PlayerVM, open: boolean): string {
+  const [rep, ...cups] = vm.legendary;
+  const cut = BALANCE.reputation.tierCuts.worldClass;
+  const repRow = rep ? `<div class="pl-leg__row">
+      <span class="pl-leg__icon">${Icon({ name: rep.met ? 'star' : 'lock', size: 16 })}</span>
+      <span class="grow"><b>${esc(rep.label)}</b>${!rep.met && cut ? `<span class="pl-leg__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((vm.reputation / cut) * 100))}%"></i></span><small>진행 중 · 지금 ${vm.reputation} / ${cut}</small>` : `<small>${rep.met ? '달성' : '진행 중'}</small>`}</span>
+      <b class="po-num small${rep.met ? ' hi' : ' muted'}">${rep.met ? '달성' : '미달성'}</b></div>` : '';
+  const metN = cups.filter((c) => c.met).length;
+  const cupHead = `<button type="button" class="pl-leg__row pl-leg__fold" data-act="legend-more" aria-expanded="${open}">
+      <span class="pl-leg__icon">${Icon({ name: metN ? 'star' : 'lock', size: 16 })}</span>
+      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 아직 열리지 않은 대회예요</small></span>
+      <span class="pl-leg__more small">${open ? '접기' : '펼치기'}${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${open ? -90 : 90}deg)` })}</span></button>`;
+  const cupRows = open ? `<div class="opts pl-leg__list">${cups.map((l, i) => OptionRow({
     icon: l.met ? 'star' : 'lock', title: `${i === 0 ? '' : i === 1 ? '그리고 ' : '또는 '}${l.label}`,
     desc: l.locked ? '아직 열리지 않은 대회예요' : l.met ? '달성' : '진행 중',
     right: `<b class="po-num small${l.met ? ' hi' : ' muted'}">${l.met ? '달성' : l.locked ? '잠김' : '미달성'}</b>`, disabled: !l.met,
-  })).join('')}</div>`;
+  })).join('')}</div>` : '';
+  const badge = (b: PlayerVM['badges'][number]) => {
+    const m = /(\d+)\s*\/\s*(\d+)/.exec(b.progress);
+    const pct = b.earned ? 100 : m ? Math.min(100, Math.round((Number(m[1]) / Math.max(1, Number(m[2]))) * 100)) : 0;
+    return `<div class="pl-badge${b.earned ? ' is-on' : ''}" title="${esc(b.desc)}"><b>${Icon({ name: b.earned ? 'star' : 'lock', size: 14 })}${esc(b.name)}</b>
+      <span class="pl-leg__bar" aria-hidden="true"><i style="width:${pct}%"></i></span>
+      <small class="po-num">${b.earned ? `획득 · ${esc(b.earned)}` : esc(b.progress)}</small></div>`;
+  };
   return `${SectionTitle({ title: '포지션별 OVR · 숙련도', action: `주 포지션 ${vm.position}` })}
     <div class="pl-pos">${vm.posOvrs.map((p) => `<div class="pl-pos__cell${p.main ? ' is-main' : ''}"><span>${p.pos}</span><b class="po-num">${p.ovr}</b><small class="prof" aria-hidden="true"><i style="width:${p.prof}%"></i></small><em class="po-num">숙련 ${p.prof}</em></div>`).join('')}</div>
-    <p class="muted small">숙련도가 100보다 낮으면 그 포지션 OVR이 낮아져요 (가까우면 최대 −6, 두 칸 −10, 더 멀면 −14). 처음 20경기는 천천히, 그 뒤로는 경기마다 올라요. 5경기 넘게 안 뛰면 조금씩 떨어지고(100을 찍었으면 10경기), 주 포지션은 떨어지지 않아요.</p>
+    <p class="muted small">숙련도가 100보다 낮으면 그 포지션 OVR이 낮아져요(가까우면 최대 −6, 두 칸 −10, 더 멀면 −14). 처음 20경기는 천천히, 그 뒤로는 경기마다 올라요. 5경기 넘게 안 뛰면 조금씩 떨어지고(100을 찍었으면 10경기), 주 포지션은 떨어지지 않아요.</p>
     ${SectionTitle({ title: '레전더리 조건', action: vm.isLegendary ? '달성' : '잠김 · 한 번 달면 영구' })}
-    ${legend}
-    <span class="muted small">레전더리 = 위상 월드클래스 + 발롱도르 1회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 3회 이상).</span>
+    <div class="panel pl-leg">${repRow}${cupHead}${cupRows}</div>
     ${SectionTitle({ title: '레전드 배지', action: `${vm.badges.filter((b) => b.earned).length}/${vm.badges.length}` })}
-    <div class="opts">${vm.badges.map((b) => OptionRow({ icon: b.earned ? 'star' : 'lock', title: b.name, desc: b.earned ? `${b.desc} · ${b.earned}` : b.desc, right: `<b class="po-num small${b.earned ? ' hi' : ' muted'}">${b.earned ? '획득' : esc(b.progress)}</b>`, disabled: !b.earned })).join('')}</div>`;
+    <div class="pl-badges">${vm.badges.map(badge).join('')}</div>`;
 }
 
 /** 기록 탭 (디자인 95): 시즌 합계 · 경기별 · 경고와 출장 · 위상과 레벨 · 시즌별 */

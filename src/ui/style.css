@@ -769,7 +769,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 
 /* 훈련 프리셋 (C.52, 디자인 159): 이번 주 추천 카드 · 프리셋 행(라디오 + 7칸 미리 보기) · 편집 시트 */
 .pr-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
-.pr-rec { display: flex; flex-direction: column; gap: 8px; margin: 0 var(--space-4) 12px; padding: 14px; border-radius: var(--b-r-lg, 16px); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.pr-rec { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 14px; border-radius: var(--b-r-lg, 16px); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand); }
 .pr-rec__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pr-rec__head b { font-size: 15px; font-weight: 800; }
 .pr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -779,7 +779,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .pr-auto { align-items: center; gap: 8px; }
 .pr-badge { margin-left: auto; padding: 2px 8px; border-radius: var(--b-r-sm, 8px); background: var(--surface-3); color: var(--brand-ink); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .pr-badge.is-on { background: var(--brand); color: var(--on-brand, #111); }
-.pr-list { display: flex; flex-direction: column; gap: 8px; margin: 0 var(--space-4) 12px; }
+.pr-list { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
 .pr-row { position: relative; border-radius: var(--b-r-lg, 14px); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); }
 .pr-row.is-on { box-shadow: inset 0 0 0 1.5px var(--brand); }
 .pr-pick { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -794,10 +794,36 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .pr-day .tr-k { font-size: 11px; line-height: 14px; }
 .pr-day.is-fixed { opacity: .55; }
 .pr-day.is-today { outline: 1.5px solid var(--brand); outline-offset: -1.5px; }
-.pr-note { margin: 8px var(--space-4) 12px; }
-.pr-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.pr-slot { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-muted); }
-.pr-slot select { height: 40px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; }
+.pr-note { margin: 8px 0 12px; }
+/* C.71a (디자인 167): 추천 카드 아래 자동 적용 스위치 줄 · 내 프리셋 [고치기] · 편집 시트 7칸 + 요약 칸 + 종류 줄 */
+.pr-rec .pr-rec__head svg { flex: none; color: var(--brand-ink); }
+.pr-rec .pr-rec__head b { flex: 1; min-width: 0; }
+.pr-rec .pr-auto { margin: 2px -14px -14px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.pr-row .pr-edit { display: inline-flex; align-items: center; gap: 4px; }
+.pr-row:has(.pr-edit) .pr-badge { margin-right: 84px; }
+.pr-new { margin: 0; }
+.pr-slots-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.pr-slots-head b { font-size: 13px; font-weight: 800; }
+.pr-slots-head small { font-size: 11px; }
+.pr-cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pr-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 8px 2px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); color: var(--t, var(--ink)); font: inherit; cursor: pointer; }
+.pr-cell small { font-size: 10px; color: var(--ink-muted); }
+.pr-cell.is-on { box-shadow: inset 0 0 0 2px var(--brand); }
+.pr-cell.is-dim { opacity: .5; }
+.pr-cell--sum { cursor: default; justify-content: center; background: var(--surface-3); box-shadow: none; color: var(--ink); }
+.pr-cell--sum b { font-family: var(--font-display); font-size: 18px; line-height: 22px; }
+.pr-cell--sum small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pr-pickbox { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--radius-md); background: var(--surface-1); }
+.pr-pickbox__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.pr-pickbox__head b { font-size: 13px; font-weight: 800; }
+.pr-pickbox__head small { font-size: 11px; }
+.pr-kinds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pr-kind { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 8px 2px; border: 0; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+.pr-kind b { font-weight: 800; white-space: nowrap; }
+.pr-kind.is-on { background: var(--brand); color: var(--on-brand); }
+.pr-foot { display: flex; gap: 8px; }
+.pr-foot > .po-btn:not(.po-btn--block) { flex: 0 0 auto; min-width: 84px; }
+.pr-foot > .po-btn--block { flex: 1; }
 
 /* ── 다른 팀·선수 상세 (C.53, 6차 디자인 157·158) ── */
 .dt-link { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
@@ -805,16 +831,28 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .dt-link.small { margin-left: 4px; font-size: 11px; }
 .dt-link--hero { font-weight: 800; }
 .dt-body { gap: var(--space-3); }
-.dt-ident { display: flex; align-items: center; gap: 12px; }
-.dt-ident b { display: block; font-size: 18px; font-weight: 800; }
-.dt-ident small { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+.dt-ident { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 14px 16px; text-align: center; }
+.dt-ident b { display: block; font-size: 20px; font-weight: 800; }
+.dt-ident small { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-muted); font-weight: 600; }
+/* C.71a (디자인 168): 개요의 스쿼드 한 줄 링크 */
+.panel.dt-squadlink { display: flex; flex-direction: row; align-items: center; gap: 10px; width: 100%; border: 0; color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.dt-squadlink .grow { min-width: 0; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-squadlink .grow b { color: var(--ink); font-weight: 800; }
+.dt-squadlink > b { font-size: 12px; font-weight: 800; white-space: nowrap; }
+.dt-squadlink svg { flex: none; color: var(--ink-faint); }
+/* C.71a (디자인 169): 다른 선수 포지션 · 읽기 전용 안내 · 리그 밖 빈 화면 */
+.dt-pos .pl-pos__cell.is-main em { font-style: normal; font-size: 10px; font-weight: 700; }
+.dt-ronote { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: var(--radius-md); box-shadow: inset 0 0 0 1px var(--line); }
+.dt-ronote svg { flex: none; margin-top: 2px; }
+.dt-left { align-items: center; text-align: center; padding: 28px 18px; }
+.dt-left > svg { width: 56px; height: 56px; padding: 14px; border-radius: var(--radius-md); background: var(--surface-3); color: var(--ink-muted); }
 .dt-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
 .dt-tiles--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .dt-tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px; border-radius: var(--radius-md); background: var(--surface-1); }
 .dt-tile small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
 .dt-tile b { font-size: 20px; line-height: 24px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dt-tiles--3 .dt-tile b { font-size: 16px; }
-.dt-tile span { font-size: 10px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dt-tile span { font-size: 10px; font-weight: 600; color: var(--ink-muted); word-break: keep-all; }
 .dt-tactic { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; align-items: center; }
 .dt-tactic__info { display: flex; flex-direction: column; gap: 6px; word-break: keep-all; }
 .dt-group { margin: 4px 0 0; font-size: 12px; font-weight: 800; color: var(--ink-muted); }
@@ -1153,6 +1191,25 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .pl-pos__cell.is-main span, .pl-pos__cell.is-main em { color: var(--on-brand); }
 .pl-pos__cell.is-main .prof { background: var(--on-brand-soft); }
 .pl-pos__cell.is-main .prof i { background: var(--on-brand); }
+/* C.71a (디자인 182): 레전더리 조건 = 위상 줄 + 대회 조건 접은 한 줄, 레전드 배지 2칸 */
+.pl-leg { display: flex; flex-direction: column; gap: 0; padding: 4px 12px; }
+.pl-leg__row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; }
+.pl-leg__row + .pl-leg__row { border-top: 1px solid var(--line); }
+.pl-leg__row .grow { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pl-leg__row .grow b { font-size: 14px; font-weight: 800; }
+.pl-leg__row .grow small { font-size: 11px; line-height: 15px; color: var(--ink-muted); word-break: keep-all; }
+.pl-leg__icon { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--surface-3); color: var(--ink-muted); }
+.pl-leg__fold { cursor: pointer; }
+.pl-leg__more { display: inline-flex; align-items: center; gap: 4px; flex: none; font-weight: 700; color: var(--ink-muted); }
+.pl-leg__bar { display: block; height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; }
+.pl-leg__bar i { display: block; height: 100%; background: var(--brand); }
+.pl-leg__list { padding-bottom: 8px; }
+.pl-badges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pl-badge { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface-1); }
+.pl-badge b { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-badge b svg { flex: none; color: var(--ink-faint); }
+.pl-badge.is-on b svg { color: var(--brand); }
+.pl-badge small { align-self: flex-end; font-size: 11px; color: var(--ink-muted); }
 .pl-contract { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .pl-cc { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 10px; border-radius: var(--radius-md); background: var(--surface-2); }
 .pl-cc small { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
@@ -1176,6 +1233,19 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .pl-look__row .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pl-look__row small { font-size: 11px; color: var(--ink-muted); }
 .pl-look .nm-edit { padding: 8px 0 10px; border-top: 1px solid var(--line); }
+/* C.71a (디자인 177): 이름표 [편집] 펼침 = 왼쪽 라임 줄 · 별명 칸 · 미리 보기 · [기본으로][저장] */
+.pl-look__row.is-open .pl-label { color: var(--cyan, #4dd0e1); }
+.pl-look__fold { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 6px 4px; border: 0; background: none; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.pl-look__edit { display: flex; flex-direction: column; gap: 8px; margin: 0 -12px; padding: 10px 12px 12px 14px; border-left: 3px solid var(--brand); background: var(--surface-2, rgba(255,255,255,0.03)); }
+.pl-look__cap { font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.pl-look__prev { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: var(--radius-md); background: var(--surface-1); }
+.pl-look__prev-top { display: flex; align-items: center; gap: 12px; }
+.pl-look__prev-top .pl-label { color: var(--cyan, #4dd0e1); }
+.pl-look__prev-top small { font-size: 11px; }
+.pl-look__prev-line { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-3); font-size: 13px; }
+.pl-look__prev-line b { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-look__prev-line svg { flex: none; color: var(--cyan, #4dd0e1); }
+.pl-look__me { flex: none; padding: 1px 6px; border-radius: 4px; background: var(--cyan, #4dd0e1); color: #0b0c0f; font-size: 11px; font-weight: 800; }
 .pl-px { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
 .pl-label { flex: none; max-width: 92px; padding: 6px 8px; border-radius: var(--radius-sm); background: #121317c7; color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-tgroup { gap: 0; padding: 4px 12px; }
