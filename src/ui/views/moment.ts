@@ -82,8 +82,20 @@ function cardLook(id: string, fallback: string): { name: string; rarity: GameCar
   return def ? { name: def.name, rarity: gameCardData(def).rarity } : { name: fallback, rarity: 'common' };
 }
 
-/** 패 칩 한 줄 (5차 77, 38px): 누르면 확률이 바로 바뀌고(확률 카드) 4번째 선택지가 생긴다(플레이 카드). 못 쓰는 카드는 흐리게 */
-function handChips(vm: MomentVM): string {
+/** 패 카드 데이터: 카드 정의가 있으면 덱과 같은 그림, 없으면 이름만 든 기본 장면 */
+function handCardData(id: string, name: string, text: string): GameCardData {
+  const def = cardById(id);
+  return def ? gameCardData(def) : { name, type: 'passive', rarity: 'common', level: 1, effect: { pre: text }, condition: { text: '', met: true } };
+}
+
+/** 못 쓰는 이유 칩: 카드 칸이 좁아 짧게 (앞 8자) */
+const shortWhy = (r: string | undefined) => (r ? (r.length > 8 ? `${r.slice(0, 8)}…` : r) : '못 씀');
+
+/**
+ * 내 패 (C.39 → C.66 사용자 지시 "카드 그림 복구"): 경기 화면 패와 같은 GameCard hand 그림을 가로 한 줄(스크롤)로.
+ * 누르면 확률이 바로 바뀌고(확률 카드) 4번째 선택지가 생긴다(플레이 카드). 고름 = 라임 테두리, 못 쓰는 카드 = 회색 + 이유 칩
+ */
+function handCards(vm: MomentVM): string {
   const m = vm.moment;
   const n = m.cards.length;
   const pas = m.passives.length ? ` · 패시브 ${m.passives.length}` : '';
@@ -93,14 +105,15 @@ function handChips(vm: MomentVM): string {
   const info = picked
     ? `${esc(picked.name)}${picked.option ? '를 골랐어요 · 4번째 선택지' : ` · ${esc(picked.text)}`}`
     : offs.length === n ? `지금 쓸 수 있는 카드가 없어요${pas}` : `누르면 확률이 바로 바뀌어요${pas}`;
-  const chips = m.cards.map((c) => {
-    const look = cardLook(c.id, c.name);
+  const cards = m.cards.map((c) => {
     const on = vm.card === c.hand;
-    return `<button type="button" role="listitem" class="mo-chip po-rarity--${look.rarity}${on ? ' is-on' : ''}${c.usable ? '' : ' is-off'}" data-act="mo-card" data-v="${c.hand}" aria-pressed="${on}"${
-      c.usable ? '' : ' aria-disabled="true"'} title="${esc(c.usable ? c.text : `못 씀 · ${c.reason ?? ''}`)}"><i class="mo-chip__dot" aria-hidden="true"></i>${esc(c.name)}</button>`;
+    return `<div role="listitem" class="mo-hand__slot" title="${esc(c.usable ? c.text : `못 씀 · ${c.reason ?? ''}`)}">${GameCard({
+      card: handCardData(c.id, c.name, c.text), size: 'hand', act: 'mo-card', data: { v: c.hand },
+      state: on ? 'selected' : c.usable ? 'normal' : 'disabled', ...(c.usable ? {} : { reason: shortWhy(c.reason) }),
+    })}</div>`;
   }).join('');
   return `<div class="mo-hand"><div class="mo-hand__head"><span>내 패 <b class="po-num">${n}</b></span><span class="muted mo-hand__info">${info}</span></div>
-    <div class="mo-chips" role="list" aria-label="내 패">${chips}</div></div>`;
+    <div class="mo-cards" role="list" aria-label="내 패">${cards}</div></div>`;
 }
 
 export function momentView(vm: MomentVM): string {
@@ -125,7 +138,7 @@ export function momentView(vm: MomentVM): string {
         <div class="mo-head"><b>어떻게 할까요?</b><span>누르면 피치에 방향이 보여요</span></div>
         ${note}
         <div class="mo-opts">${opts}</div>
-        ${handChips(vm)}
+        ${handCards(vm)}
         <div class="mo-actions">
           ${Button({ variant: 'secondary', size: 'lg', block: true, icon: 'auto', act: 'mo-delegate', children: '맡기기' })}
           ${Button({ size: 'lg', block: true, icon: 'check', act: 'mo-confirm', disabled: sel === null, children: confirm })}

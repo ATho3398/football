@@ -1,0 +1,45 @@
+{
+ "W": 740,
+ "H": 360,
+ "errors": [],
+ "screens": {
+  "경기준비": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-고름": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정결과": {
+   "wide": 0,
+   "hidden": []
+  },
+  "경기결과": {
+   "wide": 0,
+   "hidden": []
+  },
+  "시트": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "moment": {
+  "stage": [
+   342,
+   320
+  ],
+  "canvas": [
+   334,
+   216
+  ],
+  "gapBelow": 52,
+  "confirmBottom": 356,
+  "vh": 360,
+  "cards": 4
+ }
+}

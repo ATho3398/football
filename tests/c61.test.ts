@@ -23,12 +23,12 @@ const settings = (set: SetUI, ca: object = {}) => settingsView(son(), FO, versio
 afterEach(() => setWideForTest(null));
 
 describe('독 칸 배열 하나 (C.61)', () => {
-  it('PC 9칸은 폰 독 순서에서 만든다: 덱 · 전술 + 폰 왼쪽 · 홈(5번째) · 폰 오른쪽 + 더보기 자리에 월드 · 설정 · 저장', () => {
-    expect(DOCK_PHONE).toEqual(['prog', 'player', 'home', 'schedule', 'more']); // C.63c: 진행·선수 자리 바꿈 (PC 는 그대로)
-    expect(DOCK_PC).toEqual(['deck', 'tactics', 'player', 'prog', 'home', 'schedule', 'world', 'settings', 'saves']);
-    expect(DOCK_PC.indexOf('home')).toBe(4);
+  it('PC 9칸은 폰 독 순서에서 만든다: 홈 · 덱 · 전술 + 폰 나머지 ([다음] 5번째 가운데) + 더보기 자리에 월드 · 설정 · 저장 (C.66)', () => {
+    expect(DOCK_PHONE).toEqual(['home', 'player', 'prog', 'schedule', 'more']);
+    expect(DOCK_PC).toEqual(['home', 'deck', 'tactics', 'player', 'prog', 'schedule', 'world', 'settings', 'saves']);
+    expect(DOCK_PC.indexOf('prog')).toBe(4);
     // 폰을 6칸(월드 추가)으로 바꿔도 PC는 같은 9칸
-    expect(dockPc(['player', 'prog', 'home', 'schedule', 'world', 'more'])).toEqual(DOCK_PC);
+    expect(dockPc(['home', 'player', 'prog', 'schedule', 'world', 'more'])).toEqual(DOCK_PC);
     const vm: DockVM = { screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: true, points: 0, more: false };
     const html = dock(vm);
     expect(html.match(/po-dock--pc/g)?.length).toBe(1);

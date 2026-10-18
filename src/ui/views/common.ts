@@ -30,10 +30,9 @@ export function startNotice(v: VersionVM): string {
 }
 
 /**
- * 하단 독 (C.44 pending 47 5번, C.50 pending 82 5번, C.54 디자인 154): 모든 화면 아래 고정. 홈은 모바일·PC 모두 가운데 칸,
- * 56px 원(PC 44px)이 독 위로 20px 솟는다. 평소 = 라임 테두리, 홈 화면이면 라임 면.
- * 진행 칸 = 아이콘 + 이름 알약, 상태 5종(계속·경기·경기 중·답하기·시즌 요약) + 배지. 잠긴 칸 = 흐리게 + 작은 자물쇠.
- * 칸 배치는 DOCK_PHONE · DOCK_PC 배열 하나씩만 고치면 된다(열 너비는 홈 왼쪽·오른쪽 합이 같게 자동 계산).
+ * 독 (C.44 → C.54 디자인 154 → C.66 사용자 지시): 가운데 강조 키 = [다음](진행) 키 — 계속·진행 중·경기·경기 중·답하기·시즌 요약 상태를
+ * 이 키가 보여 준다(따로 있던 초록 진행 알약은 없앰). 홈은 맨 왼쪽 일반 칸(다른 칸과 같은 모양). 잠긴 칸 = 흐리게 + 작은 자물쇠.
+ * 폰 가로(C.66)는 같은 칸을 왼쪽 세로 레일로 쓰고, PC 는 아래 가로 줄. 칸 배치는 DOCK_PHONE 배열 하나만 고치면 된다(PC 는 dockPc 로 만든다).
  */
 export type DockProg = 'continue' | 'busy' | 'match' | 'live' | 'answer' | 'season';
 export interface DockVM {
@@ -49,37 +48,37 @@ export interface DockVM {
 }
 
 export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves';
-/** 모바일 5칸 (C.63c 사용자 지시: 진행 · 선수 · 홈 · 훈련·일정 · 더보기 — 선수와 진행 자리 바꿈). 더보기는 독 위 한 줄(dockMoreRow) */
-export const DOCK_PHONE: DockId[] = ['prog', 'player', 'home', 'schedule', 'more'];
+/** 폰 5칸 (C.66 사용자 지시: 홈 · 선수 · [다음] · 훈련·일정 · 더보기). 가로 폰은 위→아래 레일, 더보기는 레일 옆 펼침 줄(dockMoreRow) */
+export const DOCK_PHONE: DockId[] = ['home', 'player', 'prog', 'schedule', 'more'];
 /**
- * PC 9칸 (C.61): 폰 독 순서에서 만든다 — 칸 배열은 DOCK_PHONE 하나. 폰의 홈 왼쪽 칸 앞에 덱 · 전술,
- * 더보기 자리에 폰 독에 없는 월드 · 설정 · 저장을 펼친다(지금 = 덱 · 전술 · 선수 · 진행 · 홈 · 훈련·일정 · 월드 · 설정 · 저장).
+ * PC 9칸 (C.61 → C.66): 폰 독 순서에서 만든다. 홈(맨 왼쪽) 다음에 덱 · 전술, 더보기 자리에 폰 독에 없는 월드 · 설정 · 저장을 펼친다
+ * (지금 = 홈 · 덱 · 전술 · 선수 · [다음] · 훈련·일정 · 월드 · 설정 · 저장 — [다음]이 가운데)
  */
 export function dockPc(phone: readonly DockId[]): DockId[] {
   const lead: DockId[] = (['deck', 'tactics'] as DockId[]).filter((x) => !phone.includes(x));
   const more: DockId[] = (['world', 'settings', 'saves'] as DockId[]).filter((x) => !phone.includes(x));
-  return [...lead, ...phone.flatMap((id) => (id === 'more' ? more : [id]))];
+  const rest = phone.flatMap((id) => (id === 'more' ? more : [id]));
+  return rest[0] === 'home' ? ['home', ...lead, ...rest.slice(1)] : [...lead, ...rest];
 }
-// PC 독은 바꾸지 않는다 (C.63c: 폰 순서만 바꿈 — dockPc(DOCK_PHONE)이면 PC 도 진행·선수가 바뀌므로 C.61 폰 순서로 고정)
-export const DOCK_PC: DockId[] = dockPc(['player', 'prog', 'home', 'schedule', 'more']);
+export const DOCK_PC: DockId[] = dockPc(DOCK_PHONE);
 /** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
 const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves' };
 
 type DockItem = { label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; badge?: number; lock?: boolean };
 
-/** 열 너비: 진행 칸 2, 다른 칸 1, 홈 고정 폭. 홈 양쪽 합을 같게 맞춰 홈이 정확히 가운데 */
-export function dockColumns(ids: DockId[], homePx: number): string {
-  const h = ids.indexOf('home');
-  const w = (id: DockId) => (id === 'prog' ? 2 : 1);
-  const left = ids.slice(0, h).reduce((a, id) => a + w(id), 0) || 1;
-  const right = ids.slice(h + 1).reduce((a, id) => a + w(id), 0) || 1;
-  return ids.map((id, i) => (id === 'home' ? `${homePx}px` : `minmax(0, ${+(w(id) / (i < h ? left : right) * 6).toFixed(3)}fr)`)).join(' ');
+/** 열 너비 (가로 줄): [다음] 키 고정 폭, 다른 칸 같은 몫. 양쪽 합을 같게 맞춰 [다음]이 정확히 가운데 */
+export function dockColumns(ids: DockId[], keyPx: number): string {
+  const h = ids.indexOf('prog');
+  const left = h || 1;
+  const right = ids.length - h - 1 || 1;
+  return ids.map((id, i) => (id === 'prog' ? `${keyPx}px` : `minmax(0, ${+((1 / (i < h ? left : right)) * 6).toFixed(3)}fr)`)).join(' ');
 }
 
 export function dock(vm: DockVM): string {
   const s = vm.screen;
   const phone = new Set(DOCK_PHONE);
-  const items: Record<Exclude<DockId, 'prog' | 'home'>, DockItem> = {
+  const items: Record<Exclude<DockId, 'prog'>, DockItem> = {
+    home: { label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
     player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
     schedule: { label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
     world: { label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
@@ -93,22 +92,18 @@ export function dock(vm: DockVM): string {
   const badge = (n?: number) => (n ? `<b class="po-dock__badge po-num">${n}</b>` : '');
   const p = vm.prog;
   const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
-  const cell = (id: DockId, pc: boolean): string => {
+  const cell = (id: DockId): string => {
     if (id === 'prog') {
-      return `<button type="button" class="po-dock__go is-${kind}"${attrs(p.act, p.data)}><span class="po-dock__goicon">${
-        kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 20, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${badge(p.badge)}</span></button>`;
-    }
-    if (id === 'home') {
-      const on = s === 'home';
-      return `<button type="button" class="${cx('po-dock__home', on && 'is-on')}"${attrs('go-tab', { v: 'home' })}${on ? ' aria-current="page"' : ''}><span class="po-dock__homeicon">${
-        Icon({ name: 'home', size: pc ? 22 : 26, strokeWidth: 2.4 })}</span><span class="po-dock__label">홈</span></button>`;
+      const busy = kind === 'busy';
+      return `<button type="button" class="po-dock__go po-dock__next is-${kind}"${attrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''} aria-label="다음 · ${esc(p.label)}"><span class="po-dock__goicon">${
+        kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${badge(p.badge)}</span></button>`;
     }
     const it = items[id];
     return `<button type="button" class="${cx('po-dock__item', it.on && 'is-on', it.lock && 'is-locked')}"${attrs(it.act, it.data)}${it.lock ? ' disabled' : ''}${it.on ? ' aria-current="page"' : ''}><span class="po-dock__icon">${
       Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : badge(it.badge)}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
   };
-  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${dockColumns(ids, pc ? 132 : 72)}">${ids.map((id) => cell(id, pc)).join('')}</div>`;
-  // 더보기 (C.63c): 시트 대신 독 위로 한 줄 펼침 (폰만, 가로로 끌어 넘김, 배경을 막지 않음)
+  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${dockColumns(ids, pc ? 148 : 96)}">${ids.map((id) => cell(id)).join('')}</div>`;
+  // 더보기 (C.63c → C.66): 시트 대신 독 옆(가로 폰 = 레일 오른쪽 세로 줄, 세로 태블릿 = 독 위 한 줄)으로 펼침, 배경을 막지 않음
   const row = vm.more ? dockMoreRow(vm, items) : '';
   return `<nav class="nav dock-bar" aria-label="주요 메뉴">${row}${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
 }

@@ -10,6 +10,7 @@ import {
 } from '../components';
 import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
 import { pitchViewButton } from './common';
+import { isWide } from '../skin';
 import { activeRenderer, cropLength, drawFrame, fitCanvas, PitchCamera, playerMap, readPalette, REPLAY_CROP, setPitchTeams, type MarkerRenderer } from '../pitch/renderer';
 
 export type ReplayMode = 'scene' | 'transition' | 'live' | 'ended';
@@ -299,8 +300,8 @@ export class ReplayPlayer {
       this.shown = key;
       const feed = document.getElementById('rp-feed');
       const lines = [...live.feed].sort((a, b) => (a.e ?? 0) - (b.e ?? 0));
-      // 넓은 화면(2단)은 오른쪽 칸에 더 많이 (부록 C.23)
-      const keep = window.matchMedia?.('(min-width: 1024px)').matches ? 10 : 3;
+      // 넓은 화면(2단, 가로 폰 포함 C.66)은 오른쪽 칸에 더 많이 (부록 C.23)
+      const keep = isWide() ? 10 : 3;
       if (feed) feed.innerHTML = lines.length ? lines.slice(-keep).map((x) => FeedItem(x)).join('') : FeedItem({ text: '킥오프를 기다리는 중', kind: 'normal' });
       const poss = document.getElementById('rp-poss');
       if (poss) poss.innerHTML = PossessionBar({ home: this.replay.side === 0 ? live.possession : 100 - live.possession });

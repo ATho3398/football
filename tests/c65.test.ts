@@ -163,9 +163,9 @@ describe('세이브 35 (C.65)', () => {
 });
 
 describe('버전 (C.65)', () => {
-  it('C.65 · 38단계', async () => {
+  it('부록 C 소절 · 단계 형식 (C.66부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toBe('C.65');
-    expect(STAGE_LABEL).toBe('38단계');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

@@ -101,11 +101,11 @@ describe('C.56 결정 순간 한 화면 (77~79)', () => {
     expect(h).toContain('73<small>%</small>');
     expect(h).toContain('▲+8');
   });
-  it('확정 버튼 = 고른 선택지 행동 + 확률, 패 칩 한 줄, 정지 빈도는 한 화면 아래', () => {
+  it('확정 버튼 = 고른 선택지 행동 + 확률, 패 = 카드 그림 한 줄(C.66), 정지 빈도는 한 화면 아래', () => {
     const h = momentView({ moment: M, teams: ['토트넘 홋스퍼', '레스터 시티'], selected: 0, card: null, stop: 'important', last: null, count: 1 });
     expect(h).toContain('확정 · 백패스 88%');
     expect(h).toContain('moment mo-fold');
-    expect((h.match(/class="mo-chip /g) ?? []).length).toBe(2);
+    expect((h.match(/class="po-card po-card--hand /g) ?? []).length).toBe(2);
     expect(h).toContain('aria-disabled="true"');
     expect(h.indexOf('mo-more')).toBeGreaterThan(h.indexOf('mo-confirm'));
     expect(actionWord('먼 포스트 감아차기')).toBe('감아차기');

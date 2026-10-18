@@ -8,25 +8,25 @@ import { kitClash } from '../src/pixel';
 const prog = { label: '답하기', icon: 'chat' as const, act: 'day-continue', kind: 'answer' as const, badge: 2 };
 
 describe('C.54 독 (디자인 154)', () => {
-  it('홈 원은 양쪽 열 합이 같아 정확히 가운데 (5칸·6칸 모두)', () => {
+  it('[다음] 키는 양쪽 열 합이 같아 정확히 가운데 (5칸·6칸 모두, C.66 홈 → 다음)', () => {
     const fr = (cols: string) => [...cols.matchAll(/minmax\(0, ([\d.]+)fr\)|(\d+)px/g)].map((m) => (m[2] ? -1 : parseFloat(m[1]!)));
-    for (const ids of [DOCK_PHONE, ['prog', 'player', 'home', 'schedule', 'world', 'more'] as const]) {
+    for (const ids of [DOCK_PHONE, ['home', 'player', 'prog', 'schedule', 'world', 'more'] as const]) {
       const f = fr(dockColumns([...ids], 72));
       const h = f.indexOf(-1);
       const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
       expect(sum(f.slice(0, h))).toBeCloseTo(sum(f.slice(h + 1)), 2);
     }
-    expect(dockColumns(['prog', 'player', 'home', 'schedule', 'world', 'more'], 72)).toBe('minmax(0, 4fr) minmax(0, 2fr) 72px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 2fr)');
+    expect(dockColumns(['home', 'player', 'prog', 'schedule', 'world', 'more'], 96)).toBe('minmax(0, 3fr) minmax(0, 3fr) 96px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 2fr)');
   });
-  it('진행 칸 상태·배지, 홈 화면이면 라임 면(is-on), 다른 화면이면 테두리', () => {
+  it('[다음] 키 상태·배지, 홈은 일반 칸(홈 화면이면 is-on)', () => {
     const h = dock({ screen: 'player', prog, tacticsOpen: true, points: 35, more: false });
-    expect(h).toContain('po-dock__go is-answer');
+    expect(h).toContain('po-dock__go po-dock__next is-answer');
     expect(h).toMatch(/po-dock__golabel">답하기<\/span><b class="po-dock__badge po-num">2</);
-    expect(h).not.toContain('po-dock__home is-on');
+    expect(h).not.toContain('po-dock__home');
     expect(h).toContain('<b class="po-dock__badge po-num">35</b>');
     const home = dock({ screen: 'home', prog: { label: '경기 중', icon: 'match', act: 'live-return', live: true }, tacticsOpen: true, points: 0, more: false });
-    expect(home).toContain('po-dock__home is-on');
-    expect(home).toContain('po-dock__go is-live');
+    expect(home).toMatch(/po-dock__item is-on" data-act="go-tab" data-v="home"/);
+    expect(home).toContain('po-dock__next is-live');
     expect(home).toContain('po-dock__live');
   });
   it('더보기 시트에는 모바일 독에 없는 칸만 (월드 포함)', () => {

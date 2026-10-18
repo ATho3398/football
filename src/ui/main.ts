@@ -10,7 +10,7 @@ import './design/tokens.css';
 import './design/bundle.css';
 import './design/skin-b.css';
 import './style.css';
-import { applySkin, isWide, setSkin, WIDE_QUERY } from './skin';
+import { applySkin, isLandPhone, isWide, LANDPHONE_QUERY, setSkin, WIDE_QUERY } from './skin';
 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
@@ -49,7 +49,7 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Banner, Button, esc, HERO_NAME, HeroPanel, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
+import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
 import {
   adviceCardVM, allocateVM, autoSheetVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
@@ -540,8 +540,37 @@ function fitHeroNames(): void {
   }
 }
 void document.fonts?.ready.then(fitHeroNames);
-// PC 2열 (C.61): 1024px 경계를 넘으면 배치가 바뀌는 화면이 있어 다시 그린다
+// PC 2열 (C.61): 1024px 경계를 넘으면 배치가 바뀌는 화면이 있어 다시 그린다. 가로 폰(C.66)도 같은 2열이라 돌릴 때 다시 그린다
 globalThis.matchMedia?.(WIDE_QUERY).addEventListener?.('change', () => render());
+globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => render());
+
+/**
+ * 세로 폰 안내 (C.66 사용자 지시 "모바일은 가로 전용"): 세로로 들면 CSS 가 #app 을 숨기고 이 안내 한 장만 보인다(입력도 막힘).
+ * [전체 화면으로] = requestFullscreen 뒤 screen.orientation.lock('landscape') (안드로이드 크롬만 됨, 안 되면 조용히 무시 — 안내만)
+ */
+function mountRotateGate(): void {
+  if (document.getElementById('rotate-gate')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div id="rotate-gate" class="rotate-gate" role="dialog" aria-label="가로로 돌려 주세요">
+    <span class="rotate-gate__icon" aria-hidden="true">${Icon({ name: 'auto', size: 40, strokeWidth: 2.2 })}</span>
+    <b class="rotate-gate__title">가로로 돌려 주세요</b>
+    <p class="rotate-gate__desc">PLAYER ONE 은 폰을 가로로 눕혀서 해요</p>
+    <button type="button" class="po-btn po-btn--primary po-btn--lg rotate-gate__btn" data-gate="fs">${Icon({ name: 'chevron-right', size: 18, strokeWidth: 2.4 })}<span>전체 화면으로</span></button>
+  </div>`);
+  document.querySelector('#rotate-gate [data-gate="fs"]')?.addEventListener('click', () => {
+    void (async () => {
+      try {
+        await document.documentElement.requestFullscreen?.();
+      } catch {
+        // 전체 화면이 안 되는 브라우저(iOS 사파리 등): 안내만
+      }
+      try {
+        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape');
+      } catch {
+        // 방향 잠금이 안 되는 브라우저: 직접 돌리면 된다
+      }
+    })();
+  });
+}
 
 function render(): void {
   const g = ui.game;
@@ -562,10 +591,11 @@ function render(): void {
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
   // C.63c: 진행 중 띠(중단 단추가 있는 토스트)는 머리말을 덮지 않게 화면을 그만큼 내린다
   const bandToast = ui.toast?.onAction?.act === 'sim-stop';
+  document.documentElement.classList.toggle('is-landphone', isLandPhone());
   app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}${bandToast ? 'has-band-toast ' : ''}app-${ui.screen}`;
   const pv = (ui.pvSheet ? pitchViewSheet() : '')
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount) : '')
-    + (ui.moreSheet && g && isWide() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
+    + (ui.moreSheet && g && isWide() && !isLandPhone() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
   app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   fitHeroNames();
   bindDockMore();
@@ -1197,7 +1227,7 @@ app.addEventListener('change', (ev) => {
 
 app.addEventListener('click', (ev) => {
   // 더보기 줄 (C.63c): 독 밖을 누르면 접는다 (누른 곳의 동작은 그대로 한다 — 배경을 막지 않음)
-  if (ui.moreSheet && !isWide() && !(ev.target as HTMLElement).closest('.dock-bar')) {
+  if (ui.moreSheet && (!isWide() || isLandPhone()) && !(ev.target as HTMLElement).closest('.dock-bar')) {
     ui.moreSheet = false;
     if (!(ev.target as HTMLElement).closest('[data-act]')) render();
   }
@@ -2801,6 +2831,7 @@ setPitchKitClashResolver((teams) => {
 });
 
 applySkin();
+mountRotateGate();
 render();
 void initFaces().then(render, () => render());
 void initCardArt().then(render, () => render());

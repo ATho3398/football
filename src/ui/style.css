@@ -312,7 +312,7 @@ h3.grp { margin: 0; font-size: 13px; font-weight: 800; color: var(--ink-muted); 
 .fm-n { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: var(--on-brand); font-size: 12px; font-weight: 800; }
 
 /* 넓은 화면 (부록 C.23): 1024px 이상. 다른 화면은 가운데 정렬 최대 폭을 넓히고, 경기 화면은 2단 */
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
   #app { max-width: 760px; }
   .nav .po-tabs { max-width: 760px; }
   .toast-wrap .po-toast { max-width: 560px; }
@@ -464,7 +464,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .ag { display: flex; flex-direction: column; gap: 10px; }
 .ag-head { margin: 0 0 4px; font-size: 11px; font-weight: 700; color: var(--ink-faint); letter-spacing: .02em; }
 .ag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-@media (min-width: 1024px) { .ag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .ag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .ag-cell { position: relative; display: flex; flex-direction: column; gap: 0; min-height: 66px; padding: 7px 8px 6px; border-radius: var(--radius-md); background: var(--surface-2);
   box-shadow: inset 0 3px 0 var(--t); overflow: hidden; }
 .ag-cell.is-key { outline: 2px solid var(--brand); outline-offset: -2px; }
@@ -493,7 +493,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 
 /* 새 게임: 포지션별 OVR 표 */
 .pos-table { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-@media (min-width: 1024px) { .pos-table { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .pos-table { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
 .pt-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 2px; border: 0; border-radius: var(--radius-sm); background: var(--surface-1); color: var(--ink-muted); font: inherit; cursor: pointer; }
 .pt-cell span { font-size: 11px; font-weight: 700; }
 .pt-cell b { font-size: 18px; color: var(--ink); }
@@ -523,7 +523,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .tr-today .po-btn { align-self: flex-start; }
 .tr-vacation b { font-size: 16px; }
 .tr-week { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 6px; }
-@media (min-width: 1024px) { .tr-week { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .tr-week { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 .tr-cell { min-height: 58px; padding: 6px 4px 5px; text-align: center; align-items: center; }
 .tr-cell .ag-name { padding-right: 0; font-size: 10px; }
 .tr-cell .ag-d { position: static; font-size: 9px; color: var(--ink-faint); }
@@ -539,7 +539,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .tr-match { --t: var(--team-home); background: var(--surface-3); }
 .tr-vacation.tr-cell { --t: var(--ink-faint); opacity: .8; }
 .tr-gauges { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (min-width: 1024px) { .tr-gauges { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .tr-gauges { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 .tr-gauge .ag-v small { font-size: 12px; color: var(--ink-faint); font-weight: 700; }
 .tr-gauge.is-max .ag-v { color: var(--ink-faint); }
 .tr-bar { display: block; height: 4px; margin: 3px 0 2px; border-radius: 2px; background: var(--surface-1); overflow: hidden; }
@@ -558,7 +558,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .tr-offer.is-loan { box-shadow: inset 0 0 0 1.5px var(--line-strong); }
 .tr-offer-head { display: flex; align-items: center; gap: 8px; font-size: 16px; }
 .tr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (min-width: 1024px) { .tr-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .tr-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .tr-grid .ag-v { font-size: 17px; }
 .tr-news small { display: block; }
 .tr-news.is-mine { box-shadow: inset 3px 0 0 var(--mine); }
@@ -607,13 +607,13 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 /* 홈 원 20px 솟음 (154): 위에서부터 쌓아 원 위끝 = 독 윗선 − 20px */
 .dock-phone .po-dock__home { justify-content: flex-start; padding: 0; }
 .dock-wide { display: none; }
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
   .dock-phone { display: none; }
   .dock-wide { display: grid; }
 }
 /* 독 위로 올라오는 화면 아래 버튼 줄 */
 .has-nav .dock { bottom: 72px; }
-@media (min-width: 1024px) { .has-nav .dock { bottom: 64px; } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .has-nav .dock { bottom: 64px; } }
 .has-nav .po-overlay--sheet { padding-bottom: 0; }
 .warn { color: var(--warning); }
 .sched-link { display: flex; justify-content: center; }
@@ -747,7 +747,7 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .prep-ctl { display: flex; flex-direction: column; gap: 6px; }
 .prep-ctl .prep-head > b { font-size: 13px; }
 .prep-bottom { position: sticky; bottom: 72px; z-index: 15; display: grid; grid-template-columns: 1fr 2fr; gap: 8px; padding: 10px 16px 12px; background: var(--surface-0); border-top: 1px solid var(--line); }
-@media (min-width: 1024px) { .prep-bottom { bottom: 64px; } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .prep-bottom { bottom: 64px; } }
 
 /* 훈련 프리셋 (C.52, 디자인 159): 이번 주 추천 카드 · 프리셋 행(라디오 + 7칸 미리 보기) · 편집 시트 */
 .pr-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
@@ -896,7 +896,7 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .mo-rinfo { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); font-size: 12px; }
 @keyframes mo-sheet-up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mo-rsheet { animation: none; } }
-@media (max-width: 1023px) {
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) {
   /* 한 화면: 독(72px) 위까지 높이를 고정하고 피치 칸이 남는 높이를 차지한다. 캔버스는 그 높이에 맞춰 잘라 보기 */
   .mo-fold { height: calc(100dvh - var(--fold-dock, 0px)); min-height: 560px; }
   .has-nav .mo-fold { --fold-dock: 72px; }
@@ -904,7 +904,7 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
   .mo-fold .mo-stage .po-pitch { position: absolute; inset: 8px 16px 0; overflow: visible; background: none; border-radius: 0; }
   .mo-fold .po-pitch__canvas { border-radius: var(--radius-lg); }
 }
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
   #app.app-moment { max-width: 1180px; }
   .app-moment .moment { display: grid; grid-template-columns: minmax(0, 1fr) 420px; grid-template-areas: "top panel" "stage panel"; grid-template-rows: auto 1fr; align-items: start; column-gap: 16px; padding: 16px; }
   .app-moment .mo-top { grid-area: top; border-radius: var(--radius-lg); }
@@ -1039,7 +1039,7 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .tr-foot { display: flex; justify-content: space-between; gap: 8px; }
 .tr-foot b { color: var(--ink); }
 .tr-gauges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-@media (min-width: 1024px) { .tr-gauges { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .tr-gauges { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .tr-gauge { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--b-r-sm, 10px); background: var(--surface-1); }
 .tr-gauge.is-key { box-shadow: inset 0 0 0 1.5px var(--brand-ink); }
 .tr-gauge__top { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; }
@@ -1123,7 +1123,7 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .ag--4 .ag-btn { width: 30px; }
 .ag--4 .ag-edit small { font-size: 10px; }
 .ag--4 .ag-legend { margin-bottom: 2px; gap: 8px; }
-@media (min-width: 1024px) { .ag--4 .ag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .ag--4 .ag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .pl-pos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .pl-pos__cell { display: flex; flex-direction: column; gap: 2px; padding: 8px 9px; border-radius: var(--radius-md); background: var(--surface-2); }
 .pl-pos__cell span { font-size: 11px; font-weight: 800; color: var(--ink-muted); }
@@ -1479,7 +1479,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .panel.tr-row, .panel.season-todo, .panel.award, .panel.season-tier, .panel.tr-refused-box { flex-direction: row; }
 
 /* ── C.61 U5-g PC 2열 (디자인 120~123 · 151~153, B 120). 1024px 이상만 — 폰은 C.54~C.60 그대로 ── */
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
   /* 2열 화면은 폭을 넓힌다(디자인 120·121·123 = 1040, 151·152·153 = 1200) */
   #app.app-home, #app.app-player, #app.app-season, #app.app-match { max-width: 1072px; }
   #app.app-settings, #app:has(.cu-pc), #app:has(.pl-pc) { max-width: 1232px; }
@@ -1588,7 +1588,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .mg-say p { margin: 2px 0 0; font-size: 14px; font-weight: 700; line-height: 21px; }
 .mg-body { display: flex; flex-direction: column; gap: 14px; }
 .mg-opts { display: flex; flex-direction: column; gap: 10px; }
-@media (min-width: 1024px) {
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
   .mg-body, .mg-dock .btn-row { max-width: 720px; margin-left: auto; margin-right: auto; width: 100%; }
 }
 
@@ -1599,7 +1599,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 /* ── C.63c 화면 수정 (feedback-1 · 사용자 지시 모바일 독) ── */
 /* 더보기 펼침 줄: 독 위 한 줄, 가로로 끌어 넘김(스크롤 스냅), 처음·끝 흐림. 뒤 화면은 막지 않는다 */
 .dock-more { display: none; }
-@media (max-width: 1023px) {
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) {
   .dock-more { display: block; border-top: 1px solid var(--line); background: var(--surface-1); }
   :where(html[data-skin="b"]) .dock-more { background: var(--dock-bg); border-top: 2px solid var(--brand); }
   .dock-more__scroll { display: flex; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 8px 12px 6px; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); }
@@ -1647,7 +1647,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .next-card .vs-row .vs { flex: none; }
 .next-card .vs-row .vs-team.away { margin-left: auto; }
 /* 7번: 진행 중 띠(중단)가 머리말을 덮지 않게 화면을 내린다 */
-@media (max-width: 1023px) { .has-band-toast > main.screen { padding-top: 84px; } }
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) { .has-band-toast > main.screen { padding-top: 84px; } }
 /* 11번: 능력치 칸 이름 접미어(퍼스트 터치·키핑)는 칸에서 숨김 (전체 이름은 title) */
 .ag-name small { display: none; }
 
@@ -1660,3 +1660,135 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .gl-behind .mg-bar .t { background: var(--warning); }
 .gl-res small.up, .gl-res small.down { margin-left: 6px; font-size: 11px; }
 .gl-res:not(.is-ok) .ach__icon { color: var(--ink-muted); }
+
+/* ── C.66 가로 전용 · 독 [다음] 키 · 결정 순간 패 그림 (사용자 지시 2026-10-18 15:08, UI_3 landscape-apply.md — 디자인 오면 디자인이 이긴다) ── */
+/* 세로 폰: 게임 대신 "가로로 돌려 주세요" 안내 한 장 (#app 은 숨겨 입력도 막는다) */
+.rotate-gate { display: none; }
+@media (orientation: portrait) and (max-width: 600px) {
+  #app { display: none; }
+  .rotate-gate { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: var(--surface-0); color: var(--ink); text-align: center; }
+}
+.rotate-gate__icon { display: grid; place-items: center; width: 88px; height: 88px; margin-bottom: 8px; border-radius: var(--radius-lg); background: var(--brand); color: var(--on-brand); }
+:where(html[data-skin="b"]) .rotate-gate__icon { border-radius: 0; clip-path: var(--skew-sm); }
+.rotate-gate__title { font-family: var(--font-head, var(--font-sans)); font-size: 24px; line-height: 30px; }
+.rotate-gate__desc { margin: 0 0 8px; font-size: 13px; color: var(--ink-muted); }
+
+/* 내 패 = 카드 그림 (GameCard hand, 경기 화면 패와 같은 그림): 가로 한 줄, 넘치면 가로로 끌어 넘김 */
+.mo-cards { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px; }
+.mo-cards::-webkit-scrollbar { display: none; }
+.mo-hand__slot { flex: none; }
+.mo-cards .po-card--hand { --hand-w: 72px; height: 96px; }
+.mo-cards .po-card--hand.is-disabled { filter: grayscale(1); opacity: .6; cursor: not-allowed; }
+
+/* 독 [다음] 키: 가운데 강조 칸(라임 면 안에 아이콘 + 상태 글자). 홈은 다른 칸과 같은 일반 칸 */
+.dock-bar .po-dock__next { flex-direction: column; justify-content: center; padding: 0 4px; }
+.dock-bar .po-dock__next .po-dock__goicon { flex-direction: column; justify-content: center; gap: 2px; width: 100%; max-width: 88px; height: 54px; margin-top: -14px; padding: 0 6px; border-radius: 14px; }
+.dock-bar .po-dock__next .po-dock__golabel { max-width: 100%; font-size: 12px; line-height: 14px; }
+.dock-bar .po-dock__next .po-dock__goicon .po-icon { width: 22px; height: 22px; }
+.dock-bar .po-dock__next[aria-disabled="true"] { cursor: progress; }
+:where(html[data-skin="b"]) .dock-bar .po-dock__next .po-dock__goicon { border-radius: 0; }
+:where(html[data-skin="b"]) .dock-bar .po-dock__next .po-dock__golabel { font-size: 13px; }
+.dock-bar .po-dock--pc .po-dock__next { flex-direction: column; }
+.dock-bar .po-dock--pc .po-dock__next .po-dock__goicon { max-width: 132px; height: 50px; margin-top: 0; flex-direction: row; gap: 6px; }
+.dock-bar .po-dock--pc .po-dock__next .po-dock__golabel { font-size: 14px; }
+
+/* ── 가로 폰 (844×390, 실높이 약 340): PC 2열 배치를 그대로 쓰고 높이만 줄인다 ── */
+@media (orientation: landscape) and (max-height: 520px) {
+  #app, #app[class] { max-width: none; padding-left: calc(64px + env(safe-area-inset-left)); padding-right: env(safe-area-inset-right); padding-bottom: 0; }
+  #app.has-nav { padding-bottom: 0; }
+  /* 독 = 왼쪽 세로 레일 (폭 64, 화면 높이 전체). 순서 위→아래 = 홈 · 선수 · [다음] · 훈련·일정 · 더보기 */
+  .has-nav > .dock-bar, .dock-bar { position: fixed; left: 0; top: 0; bottom: 0; right: auto; z-index: 40; width: calc(64px + env(safe-area-inset-left)); margin: 0; padding: 0 0 0 env(safe-area-inset-left); border-radius: 0; }
+  .dock-bar .dock-wide { display: none; }
+  .dock-bar .dock-phone { display: flex; flex-direction: column; justify-content: space-around; width: 64px; height: 100%; padding: 4px 0; border-radius: 0; border-top: 0; border-right: 1px solid var(--line); }
+  :where(html[data-skin="b"]) .dock-bar .dock-phone { border-top: 0; border-right: 2px solid var(--brand); }
+  .dock-phone .po-dock__item { flex: 1 1 0; min-height: 44px; max-height: 64px; gap: 2px; }
+  .dock-phone .po-dock__label { font-size: 10px; max-width: 60px; }
+  .dock-phone .po-dock__next { flex: 0 0 auto; padding: 0; }
+  .dock-bar .dock-phone .po-dock__next .po-dock__goicon { width: 56px; height: 56px; margin: 0; padding: 0 2px; }
+  .dock-bar .dock-phone .po-dock__next .po-dock__golabel { font-size: 10px; line-height: 12px; }
+  .dock-phone .po-dock__badge { left: calc(50% + 4px); }
+  /* 더보기 = 레일 오른쪽으로 펼치는 세로 줄 (폭 160, 배경 안 막음, 위아래 끌기) */
+  .dock-more { display: block; position: fixed; left: calc(64px + env(safe-area-inset-left)); top: 0; bottom: 0; width: 160px; background: var(--surface-1); border-right: 1px solid var(--line); box-shadow: 8px 0 24px rgba(0, 0, 0, .35); }
+  :where(html[data-skin="b"]) .dock-more { background: var(--dock-bg); border-right: 2px solid var(--brand); }
+  .dock-more__scroll { display: flex; flex-direction: column; gap: 2px; height: 100%; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: none; padding: 8px; }
+  .dock-more__scroll::-webkit-scrollbar { display: none; }
+  .dock-more__item { flex: 0 0 48px; flex-direction: row; justify-content: flex-start; gap: 10px; padding: 0 10px; border-radius: var(--radius-md); }
+  .dock-more__item .po-dock__label { font-size: 13px; }
+  .dock-more__item.is-on { background: var(--surface-2); }
+  .dock-more__item .po-dock__badge { left: 14px; }
+  /* 아래에 붙던 줄은 아래 여백 0, 화면 맨 아래에 붙인다 */
+  .has-nav .dock, .prep-bottom { bottom: 0; }
+  .nav { margin-top: 0; }
+  /* 머리말 = 높이 56 한 줄: [뒤로] · 제목 · eyebrow(말줄임) · 오른쪽 · 대표 숫자. 칩·진행 막대는 숨김 */
+  .po-hero, :where(html[data-skin="b"]) .po-hero, .po-hero--compact, :where(html[data-skin="b"]) .po-hero--face { display: flex; flex-direction: row; align-items: center; gap: 10px; height: 56px; min-height: 56px; padding: 0 16px; border-radius: 0; overflow: hidden; }
+  .po-hero__bar, :where(html[data-skin="b"]) .po-hero--face .po-hero__bar, .po-hero__who { display: contents; }
+  .po-hero__back { order: 0; flex: none; }
+  .po-hero__noback { display: none; }
+  .po-hero__title, :where(html[data-skin="b"]) .po-hero__title { order: 2; flex: 0 1 auto; min-width: 0; padding: 0; font-size: 18px; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .po-hero__eyebrow, :where(html[data-skin="b"]) .po-hero__eyebrow, .po-hero--compact .po-hero__eyebrow { order: 3; flex: 1 1 0; min-width: 0; max-width: none; margin: 0; font-size: 12px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .po-hero__right, :where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__right:not(:empty) { order: 7; flex: none; max-width: 30vw; margin-left: auto; }
+  .po-hero__num, .po-hero--compact .po-hero__num, .po-hero--text .po-hero__num { order: 9; flex: none; height: auto; min-height: 0; align-items: baseline; gap: 4px; }
+  .po-hero__num.has-unit { flex-direction: row; align-items: baseline; }
+  .po-hero__value, :where(html[data-skin="b"]) .po-hero__value, :where(html[data-skin="b"]) .po-hero--compact .po-hero__value, :where(html[data-skin="b"]) .po-hero--text .po-hero__value { font-size: 28px; line-height: 30px; max-width: 34vw; }
+  :where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__value, :where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__total, :where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__unit { color: var(--on-brand); }
+  .po-hero__total { font-size: 14px; padding: 0; }
+  .po-hero__chips, .po-hero__progress, .po-hero__line, .po-hero__slab, .po-hero__kit { display: none; }
+  :where(html[data-skin="b"]) .po-hero::before { right: -40px; width: 120px; }
+  :where(html[data-skin="b"]) .po-hero::after { right: 86px; }
+  .po-hero:not(:has(.po-hero__num)):not(.po-hero--face)::before, .po-hero:not(:has(.po-hero__num)):not(.po-hero--face)::after { display: none; }
+  /* 미페 머리말은 쓰지 않는다 → 한 줄 + 왼쪽 40px 얼굴(사진/네모/도트 그대로) */
+  :where(html[data-skin="b"]) .po-hero--face { background: var(--surface-0); border-bottom: 2px solid var(--brand); }
+  .po-hero--face .po-hero__face, :where(html[data-skin="b"]) .po-hero--face .po-hero__face, :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square, :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { order: 1; position: static; flex: none; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center top; background: var(--surface-2); }
+  .po-hero--face .po-hero__title { display: none; }
+  .po-hero--face .po-hero__name { order: 2; flex: 0 1 auto; min-width: 0; font-size: 18px !important; line-height: 22px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .po-hero--face .po-hero__num .po-hero__value { color: var(--brand-ink); }
+  /* 안내 띠·진행 띠는 머리말 아래 흐름 안 */
+  .has-band-toast > main.screen { padding-top: 0; }
+  /* 시트 = 아래 시트 대신 오른쪽 패널 (높이 전체, 안쪽 스크롤). 확인 모달은 가운데, 최대 높이 화면 − 32 */
+  .po-overlay--sheet { place-items: stretch end; }
+  .po-sheet { width: min(420px, 50vw); max-height: none; height: 100dvh; border-radius: 0; padding-top: var(--space-4); overflow-y: auto; padding-right: calc(var(--space-4) + env(safe-area-inset-right)); }
+  .po-sheet__grip { display: none; }
+  .po-modal { max-height: calc(100dvh - 32px); overflow-y: auto; }
+  /* 경기 화면 (재생): 왼쪽 피치, 오른쪽 피드 320 */
+  .app-replay .match { grid-template-columns: minmax(0, 1fr) 320px; padding: 8px 12px; gap: 12px; }
+  .app-replay .match-side { top: 8px; max-height: calc(100dvh - 16px); overflow-y: auto; }
+  .app-replay .match .feed { min-height: 0; }
+  /* 결정 순간 · 결정 결과: 레일 숨김, 맨 위 점수·분·장면 한 줄(40), 아래 2열 = 왼쪽 피치(남은 높이 전부) / 오른쪽 패널 380(패널만 스크롤, 버튼은 패널 아래 고정) */
+  .app-moment > .dock-bar { display: none; }
+  #app.app-moment { padding-left: env(safe-area-inset-left); }
+  .app-moment .moment { grid-template-columns: minmax(0, 1fr) 380px; grid-template-areas: "top top" "stage panel"; grid-template-rows: 40px minmax(0, 1fr); align-items: stretch; column-gap: 10px; height: 100dvh; padding: 0 8px 0 0; }
+  .app-moment .mo-top { flex-direction: row; align-items: center; gap: 16px; height: 40px; padding: 0 12px; border-radius: 0; overflow: hidden; }
+  .app-moment .mo-top .mo-score { flex: 0 1 46%; min-width: 0; }
+  .app-moment .mo-top .mo-scene { flex: 1 1 0; min-width: 0; }
+  .app-moment .mo-panel > *, .app-moment .mo-rsheet > * { flex-shrink: 0; }
+  .app-moment .mo-score > b { font-size: 22px; line-height: 24px; }
+  .app-moment .moment .mo-stage { position: relative; height: auto; min-height: 0; padding: 0; overflow: hidden; }
+  .app-moment .moment .mo-stage .po-pitch { position: absolute; inset: 6px 0 6px 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: none; border-radius: 0; }
+  .app-moment .moment .mo-stage .po-pitch__canvas { flex: none; border-radius: var(--radius-md); }
+  .app-moment .mo-panel, .app-moment .mo-rsheet { position: relative; top: 0; display: flex; flex-direction: column; gap: 6px; min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 6px 0 0; background: var(--surface-0); border-radius: 0; box-shadow: none; animation: none; }
+  .app-moment .mo-rsheet { padding: 6px 4px 0; }
+  .app-moment .mo-rsheet__grip, .app-moment .mo-rsheet__foot { display: none; }
+  .app-moment .mo-head b { font-size: 15px; }
+  .app-moment .mo-note { margin: -2px 0 0; }
+  .app-moment .mo-opts { gap: 4px; }
+  .app-moment .po-choice:not(.is-selected) .po-choice__outcomes { display: none; }
+  /* 선택지 = 접은 한 줄(태그 · 이름 · 확률, 높이 약 38), 고른 것만 성공·실패 줄을 펼친다 */
+  .app-moment .po-choice--compact { min-height: 38px; padding: 4px 10px; gap: 8px; }
+  .app-moment .po-choice--compact .po-choice__main { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; min-width: 0; }
+  .app-moment .po-choice--compact .po-choice__tags { flex: none; flex-wrap: nowrap; }
+  .app-moment .po-choice--compact .po-choice__name { flex: 1 1 0; min-width: 0; font-size: 14px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .app-moment .po-choice--compact .po-choice__outcomes { flex-basis: 100%; }
+  .app-moment .po-choice__prob { min-width: 52px; }
+  .app-moment .po-choice__prob > b { font-size: 20px; }
+  .app-moment .po-choice--compact .po-choice__probbar { margin-top: 2px; width: 44px; }
+  .app-moment .mo-cards .po-card--hand { --hand-w: 58px; height: 66px; }
+  .app-moment .mo-hand__head { font-size: 11px; line-height: 14px; }
+  .app-moment .mo-hand { gap: 4px; }
+  .app-moment .mo-actions, .app-moment .oc-panel > .po-btn { position: sticky; bottom: 0; z-index: 2; margin-top: auto; padding: 4px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--surface-0); }
+  .app-moment .mo-actions .po-btn { height: 42px; }
+  .app-moment .mo-head { line-height: 18px; }
+  .app-moment .oc-panel .po-splash { padding: 10px 12px 12px; }
+  .app-moment .mo-more { max-width: 380px; margin-left: auto; padding: 8px 8px 16px; }
+  .app-moment .mo-react .mo-stage { opacity: .6; }
+  .app-moment .mo-rcards .po-card { zoom: .7; }
+}
