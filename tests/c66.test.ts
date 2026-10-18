@@ -2,7 +2,8 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DOCK_PC, DOCK_PHONE, dock, type DockVM } from '../src/ui/views/common';
-import { isLandPhone, isWide, LANDPHONE_QUERY, PORTRAIT_PHONE_QUERY, setWideForTest, WIDE_QUERY } from '../src/ui/skin';
+import { isLandPhone, isWide, LANDPHONE_QUERY, setWideForTest, WIDE_QUERY } from '../src/ui/skin';
+import { isPortraitPitch, pitchOrient, setPitchOrient } from '../src/ui/pitch/renderer';
 
 const css = readFileSync(new URL('../src/ui/style.css', import.meta.url), 'utf8');
 const vm = (o: Partial<DockVM> = {}): DockVM => ({ screen: 'player', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' }, tacticsOpen: true, points: 0, more: false, ...o });
@@ -30,11 +31,10 @@ describe('독 [다음] 키 (C.66)', () => {
   });
 });
 
-describe('가로 전용 (C.66)', () => {
-  it('가로 폰도 2열(PC 규칙), 세로 폰은 안내', () => {
+describe('가로 폰 보너스 배치 (C.66) · 세로 폰 기본 (C.66b)', () => {
+  it('가로 폰도 2열(PC 규칙), 세로 폰 안내는 없음 (C.66b)', () => {
     expect(WIDE_QUERY).toContain(LANDPHONE_QUERY);
     expect(LANDPHONE_QUERY).toBe('(orientation: landscape) and (max-height: 520px)');
-    expect(PORTRAIT_PHONE_QUERY).toContain('portrait');
     expect(isWide()).toBe(false);
     expect(isLandPhone()).toBe(false);
     setWideForTest(true, true);
@@ -44,7 +44,23 @@ describe('가로 전용 (C.66)', () => {
     expect(css).not.toMatch(/@media \(min-width: 1024px\) \{/);
     expect(css).not.toMatch(/@media \(max-width: 1023px\) \{/);
     expect(css.match(/@media \(min-width: 1024px\), \(orientation: landscape\) and \(max-height: 520px\)/g)!.length).toBeGreaterThanOrEqual(14);
-    expect(css).toContain('@media (orientation: portrait) and (max-width: 600px)');
-    expect(css).toMatch(/\.rotate-gate \{ position: fixed/);
+    expect(css).not.toContain('rotate-gate');
+    expect(css).not.toContain('@media (orientation: portrait) and (max-width: 600px)');
+  });
+});
+
+describe('경기장 가로 고정 (C.66b, C.44a 세로 피치 롤백)', () => {
+  afterEach(() => setPitchOrient('landscape'));
+  it('기본은 가로, 예전에 저장된 auto 도 가로, 항상 세로를 고른 때만 세로', () => {
+    expect(pitchOrient()).toBe('landscape');
+    expect(isPortraitPitch()).toBe(false);
+    setPitchOrient('auto');
+    expect(isPortraitPitch()).toBe(false);
+    expect(pitchOrient()).toBe('landscape');
+    setPitchOrient('portrait');
+    expect(isPortraitPitch()).toBe(true);
+  });
+  it('결정 순간: 가로 피치면 피치 칸 높이 = 피치 높이 (42% 고정 칸 해제)', () => {
+    expect(css).toContain('html:not(.is-pitch-portrait) .mo-fold .mo-stage { height: auto; }');
   });
 });

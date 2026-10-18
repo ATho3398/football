@@ -201,7 +201,7 @@ export function pitchViewSheet(): string {
   return BottomSheet({
     eyebrow: '경기 화면', title: '선수 표시', subtitle: '설정 화면에서도 바꿀 수 있어요. 이 기기에 저장돼요.', onClose: { act: 'pv-close' },
     children: `${(['number', 'face', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join('')}
-      <div class="kv"><span>방향</span></div>${Tabs({ items: (['auto', 'landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+      <div class="kv"><span>방향</span></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
       <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
       <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}`,
   });

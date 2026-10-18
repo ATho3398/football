@@ -32,10 +32,8 @@ export function setSkin(v: Skin): void {
   applySkin();
 }
 
-/** 가로 폰 (C.66, 사용자 지시 "모바일은 가로 전용"): 낮은 가로 화면. PC 2열 배치를 쓰고 높이만 줄인다(왼쪽 세로 레일 독, 한 줄 머리말) */
+/** 가로 폰 (C.66, 돌렸을 때 쓰는 보너스 배치 — C.66b 부터 폰은 세로가 기본): 낮은 가로 화면. PC 2열 배치를 쓰고 높이만 줄인다(왼쪽 세로 레일 독, 한 줄 머리말) */
 export const LANDPHONE_QUERY = '(orientation: landscape) and (max-height: 520px)';
-/** 세로 폰 (C.66): 게임 대신 "가로로 돌려 주세요" 안내만 */
-export const PORTRAIT_PHONE_QUERY = '(orientation: portrait) and (max-width: 600px)';
 /** PC 2열 기준 (C.61 U5-g, 디자인 120~123·151~153): 1024px 이상 또는 가로 폰(C.66)이면 2열 배치 */
 export const WIDE_QUERY = `(min-width: 1024px), ${LANDPHONE_QUERY}`;
 let wideOverride: boolean | null = null;

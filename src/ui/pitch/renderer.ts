@@ -528,22 +528,20 @@ function pref<T extends string>(key: string, values: readonly T[], def: T): { ge
   };
 }
 
-const orientPref = pref<PitchOrient>('po-pitch-orient', ['auto', 'landscape', 'portrait'], 'auto');
+// C.66b: 기본 = 항상 가로 (C.44a 의 '자동 = 좁으면 세로'는 롤백). 예전에 저장된 'auto' 도 가로로 읽는다
+const orientPref = pref<PitchOrient>('po-pitch-orient', ['auto', 'landscape', 'portrait'], 'landscape');
 const sizePref = pref<PitchSizeOpt>('po-pitch-size', ['normal', 'large', 'xlarge'], 'large');
 const namesPref = pref<PitchNames>('po-pitch-names', ['all', 'mine', 'off'], 'all');
-export const pitchOrient = (): PitchOrient => orientPref.get();
+export const pitchOrient = (): PitchOrient => (orientPref.get() === 'portrait' ? 'portrait' : 'landscape');
 export const setPitchOrient = (v: PitchOrient): void => orientPref.set(v);
 export const pitchSize = (): PitchSizeOpt => sizePref.get();
 export const setPitchSize = (v: PitchSizeOpt): void => sizePref.set(v);
 export const pitchNames = (): PitchNames => namesPref.get();
 export const setPitchNames = (v: PitchNames): void => namesPref.set(v);
 
-/** 지금 피치를 세로로 그리나: 항상 세로, 또는 자동이면서 화면이 세로(가로 < 세로)거나 폭 600px 이하 */
+/** 지금 피치를 세로로 그리나: 설정에서 '항상 세로'를 고른 때만 (C.66b: 'auto'·기본은 가로) */
 export function isPortraitPitch(): boolean {
-  const o = orientPref.get();
-  if (o !== 'auto') return o === 'portrait';
-  if (typeof window === 'undefined') return false;
-  return window.innerWidth < window.innerHeight || window.innerWidth <= 600;
+  return orientPref.get() === 'portrait';
 }
 
 /** 선수 id → 라벨 이름 (화면이 정한다: 별명 > 짧은 이름). 기본은 리플레이 이름의 짧은 이름 */

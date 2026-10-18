@@ -1629,6 +1629,9 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   .mo-fold { height: auto; min-height: 100dvh; }
   .mo-fold .mo-stage { flex: 0 0 auto; height: max(42dvh, 260px); min-height: 0; overflow: hidden; }
   .mo-fold .mo-stage .po-pitch { overflow: hidden; }
+  /* C.66b: 가로 피치(기본)는 칸 높이 = 피치 높이 (폭 × 68/105). 42% 고정 칸이 남기던 빈칸 없음 */
+  html:not(.is-pitch-portrait) .mo-fold .mo-stage { height: auto; }
+  html:not(.is-pitch-portrait) .mo-fold .mo-stage .po-pitch { position: relative; inset: auto; }
   .mo-fold .mo-panel { position: relative; z-index: 1; background: var(--surface-0); }
   .mo-fold .mo-actions { position: sticky; bottom: 0; z-index: 2; margin: 0 -16px -12px; padding: 8px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface-0); box-shadow: 0 -8px 16px rgba(0, 0, 0, .25); }
   /* 선택지 카드는 접은 한 줄(태그·이름·확률), 고른 카드만 성공/실패 줄을 펼친다 */
@@ -1674,16 +1677,6 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .gl-res:not(.is-ok) .ach__icon { color: var(--ink-muted); }
 
 /* ── C.66 가로 전용 · 독 [다음] 키 · 결정 순간 패 그림 (사용자 지시 2026-10-18 15:08, UI_3 landscape-apply.md — 디자인 오면 디자인이 이긴다) ── */
-/* 세로 폰: 게임 대신 "가로로 돌려 주세요" 안내 한 장 (#app 은 숨겨 입력도 막는다) */
-.rotate-gate { display: none; }
-@media (orientation: portrait) and (max-width: 600px) {
-  #app { display: none; }
-  .rotate-gate { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: var(--surface-0); color: var(--ink); text-align: center; }
-}
-.rotate-gate__icon { display: grid; place-items: center; width: 88px; height: 88px; margin-bottom: 8px; border-radius: var(--radius-lg); background: var(--brand); color: var(--on-brand); }
-:where(html[data-skin="b"]) .rotate-gate__icon { border-radius: 0; clip-path: var(--skew-sm); }
-.rotate-gate__title { font-family: var(--font-head, var(--font-sans)); font-size: 24px; line-height: 30px; }
-.rotate-gate__desc { margin: 0 0 8px; font-size: 13px; color: var(--ink-muted); }
 
 /* 내 패 = 카드 그림 (GameCard hand, 경기 화면 패와 같은 그림): 가로 한 줄, 넘치면 가로로 끌어 넘김 */
 .mo-cards { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px; }
