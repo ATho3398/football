@@ -317,4 +317,5 @@
 - (09:31 KST) C.59 CI #185 성공(main 03c497d). C.59 끝.
 - (10:36 KST) C.60 완료(main a0c216b, 테스트 515, 1시간 31분·12.4달러) → pending 96, C.60 draft_, UI_3 목록. **34q C.61 U5-g 시작** `session_01LYVATgYjkoe29PmPW7wxkK` "34q단계_U5-g PC 2열·B PC (C.61)", 브랜치 `claude/c61-u5g-pc`, 태그 `stage:34q-C61`(포지션 탭·경기 결과 길이 재검토, 2초 테스트 재측정 포함). C.60 확인 예약 삭제, C.61 자동 확인 send_later 150분(13:06 KST쯤).
 - (11:14 KST) C.60 CI #186 성공(main a0c216b). C.60 끝.
-- 다음: C.61 보고 → pending 97 → ntfy → UI_3 목록 → 35단계 5-1(감독 데이터로 팀 상세 감독 칸 + 시즌 기록에 득점왕 이름 저장, pending 96 ④) → 36 5-2 → …
+- (11:22 KST) C.61 완료(main 5c6722c, 테스트 524, 46분) → pending 97, C.61 draft_, UI_3 목록 + **7차 보고 요청**(U5 끝). **35 C.62 5-1 시작** `session_01HHuPExsYs91Uz1X8bf5ktk` "35단계_5-1 역할·감독 신뢰도·면담 (C.62)", 브랜치 `claude/c62-manager-trust`, 태그 `stage:35-C62`(감독 데이터·requestEligibility 훅·5-1 태그 효과·득점왕 이름 저장·티어 배지 CSS, a/b 나눠도 됨). C.61 확인 예약 삭제, C.62 자동 확인 send_later 180분(14:22 KST쯤).
+- 다음: C.62 보고 → pending 98 → ntfy → UI_3 목록 → 36 5-2 이벤트·인박스·라이벌 + 생활 시스템(pending 47 4) → 37 5-3 월드·NPC 시즌 통계(리그 스타 묶음 탭 147) → … → 경기 환경 단계(pending 75·76·77 일부) → 엔진 블록.
