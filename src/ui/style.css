@@ -696,9 +696,6 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .px-row .po-chip { flex: none; }
 
 /* 카드 그림 (C.48): 그림 칸 280×210 을 사선(172→206)에서 자른다. 기본 장면 위에 얹어 404 면 지워도 기본 장면이 보인다 */
-.po-gc__photo { position: absolute; left: 0; top: 0; width: 280px; height: 210px; overflow: hidden; clip-path: polygon(0 0, 100% 0, 100% 172px, 0 206px); pointer-events: none; }
-.po-mc__photo { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.po-gc__photo .po-art, .po-mc__photo .po-art { display: block; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 50%; }
 /* 설정 → 카드 이미지 (C.48) */
 .ca-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
 .ca-chip { border: 0; cursor: pointer; font-family: var(--font-sans); }
