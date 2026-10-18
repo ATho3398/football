@@ -422,3 +422,4 @@
 - (07:48 KST) 자동 확인: C.73a 비용 **11.76달러**(list_events result의 total_cost_usd — get_session엔 안 나옴) > 10달러 → 규칙대로 b는 새 세션. C.73a에 b 시작 금지·CI 확인만 알림. **C.73b** `session_015yFLHowJh5sLRxBHeXzYiX` "42단계_5-8 챕터·속도 조절 b (C.73b)", 브랜치 `claude/c73b-chapters`, 태그 `stage:42-C73b`. 자동 확인 send_later 120분(09:48 KST). 참고: 코드 세션 비용은 list_events kinds=[result]의 total_cost_usd로 확인.
 - (08:06 KST) **C.73a CI #208 성공**(main 4d28608, 약 35분). C.73a 세션 종료(b 안 함), draft_.
 - (08:21 KST, 사용자) 인종별 기본 사진 4장 + 랜덤 다인종 요청 → pending 122, 사진 커밋 4340961, fix **C.73c** `session_01S4gc5ubvXCFxj4ULKdJ2aM` 시작(C.73b와 병렬). 확인 send_later 70분(09:32 KST).
+- (08:52 KST) **C.73c 완료**(main bfd7936, 31분, 세이브 41·밸런스 49, 테스트 671) → pending 122 결과, ntfy, UI_3(패널 1·작은 2), C.73b에 버전 번호 충돌 알림, C.73c draft_, 확인 예약 삭제. CI는 C.73c가 확인.
