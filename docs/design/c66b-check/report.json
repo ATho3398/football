@@ -1,0 +1,55 @@
+{
+ "W": 390,
+ "H": 844,
+ "errors": [],
+ "screens": {
+  "경기준비": {
+   "wide": 0,
+   "hidden": [
+    "rail:덱 1 · 8",
+    "rail:덱 2 · 8",
+    "rail:덱 3 · 8"
+   ]
+  },
+  "결정순간": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-고름": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정결과": {
+   "wide": 0,
+   "hidden": []
+  },
+  "경기결과": {
+   "wide": 0,
+   "hidden": [
+    "rail:12'슈팅 찬스 · 88%안전 · 해"
+   ]
+  },
+  "경기재생": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "moment": {
+  "stage": [
+   390,
+   240
+  ],
+  "canvas": [
+   358,
+   232
+  ],
+  "gapBelow": 0,
+  "confirmBottom": 762,
+  "vh": 844,
+  "cards": 4
+ },
+ "replay": [
+  358,
+  232
+ ]
+}
