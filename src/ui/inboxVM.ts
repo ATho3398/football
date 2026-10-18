@@ -114,7 +114,7 @@ export function rivalCardVM(g: GameState): RivalCardVM | null {
 export interface GoalRowVM { source: string; tier: GoalTier; tierKo: string; label: string; value: string; ratio: number; status: GoalStatus; statusKo: string; reward: string }
 export interface GoalsCardVM { rows: GoalRowVM[]; ok: number; round: number; rounds: number }
 
-const STATUS_KO: Record<GoalStatus, string> = { done: '달성', track: '순항', behind: '모자람' };
+const STATUS_KO: Record<GoalStatus, string> = { done: '달성', track: '순항', behind: '모자람', start: '시작 전' };
 
 export function goalsCardVM(g: GameState): GoalsCardVM | null {
   if (g.phase !== 'season') return null;
@@ -123,5 +123,5 @@ export function goalsCardVM(g: GameState): GoalsCardVM | null {
   const rows = gs.list.map((x) => goalProgress(g, x)).map((p) => ({
     source: SOURCE_KO[p.source], tier: p.tier, tierKo: TIER_KO[p.tier], label: p.label, value: p.valueText, ratio: p.ratio, status: p.status, statusKo: STATUS_KO[p.status], reward: p.reward,
   }));
-  return { rows, ok: rows.filter((r) => r.status !== 'behind').length, round: g.league.round, rounds: g.league.schedule.length };
+  return { rows, ok: rows.filter((r) => r.status === 'done' || r.status === 'track').length, round: g.league.round, rounds: g.league.schedule.length };
 }

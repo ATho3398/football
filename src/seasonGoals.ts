@@ -219,19 +219,20 @@ export function goalMet(state: GameState, g: SeasonGoal, value = goalValue(state
   return lowerIsBetter(g.kind) ? value <= g.target : value >= g.target;
 }
 
-export type GoalStatus = 'done' | 'track' | 'behind';
+export type GoalStatus = 'done' | 'track' | 'behind' | 'start';
 
 export interface GoalProgress extends SeasonGoal { label: string; value: number | null; valueText: string; status: GoalStatus; ratio: number; reward: string }
 
 /**
  * 진행 (홈 · 인박스 중간 점검): 셈 목표는 남은 경기 속도로, 순위·평점은 지금 값으로 판단.
- * done = 셈 목표를 이미 채움(시즌 끝까지 그대로), track = 지금 페이스면 달성, behind = 모자람
+ * done = 셈 목표를 이미 채움(시즌 끝까지 그대로), track = 지금 페이스면 달성, behind = 모자람, start = 아직 경기 전
  */
 export function goalProgress(state: GameState, g: SeasonGoal): GoalProgress {
   const value = goalValue(state, g.kind);
   const n = state.league.schedule.length;
   const played = Math.max(1, state.league.round);
   const counting = !lowerIsBetter(g.kind) && g.kind !== 'rating';
+  if (state.league.round === 0) return { ...g, label: goalLabel(g), value: null, valueText: '-', status: 'start', ratio: 0, reward: `XP ${xpOf(state, g.tier)} · ${TIER_PICK_KO[g.tier]} 카드 3택 1` };
   let status: GoalStatus;
   let ratio: number;
   if (counting) {
@@ -256,7 +257,7 @@ export function goalsAfterRound(state: GameState): void {
   const gs = ensureGoals(state);
   if (!gs || state.league.round !== G().midRound) return;
   const rows = gs.list.map((g) => goalProgress(state, g));
-  const ok = rows.filter((r) => r.status !== 'behind').length;
+  const ok = rows.filter((r) => r.status === 'done' || r.status === 'track').length;
   pushInbox(state, {
     cat: 'goal', key: `goals-mid:${gs.season}`, title: `시즌 목표 중간 점검 · ${ok}/3 순항`,
     body: rows.map((r) => `${SOURCE_KO[r.source]} ${r.label} — 지금 ${r.valueText}${r.status === 'done' ? ' (달성)' : r.status === 'track' ? ' (순항)' : ' (모자람)'}`).join(' · '),

@@ -28,7 +28,7 @@
       "source": "personal",
       "tier": "easy",
       "kind": "goals",
-      "target": 7
+      "target": 9
     }
   ],
   "phase": "offseason",
@@ -41,7 +41,7 @@
         "target": 5,
         "value": 11,
         "met": true,
-        "xp": 100,
+        "xp": 50,
         "trust": 0
       },
       {
@@ -51,17 +51,17 @@
         "target": 2,
         "value": 1,
         "met": true,
-        "xp": 160,
+        "xp": 80,
         "trust": 0
       },
       {
         "source": "personal",
         "tier": "easy",
         "kind": "goals",
-        "target": 7,
+        "target": 9,
         "value": 23,
         "met": true,
-        "xp": 50,
+        "xp": 25,
         "trust": 0
       }
     ],
@@ -69,13 +69,9 @@
       "2018 시즌 최고 평점",
       "2018 시즌 리그 우승"
     ],
-    "xp": 310
+    "xp": 155
   },
   "picks": [
-    [
-      "level",
-      "레벨 5 달성"
-    ],
     [
       "goal",
       "2018 시즌 목표 · 보통 달성"

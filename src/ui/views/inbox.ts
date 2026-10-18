@@ -79,7 +79,7 @@ export function rivalSection(vm: RivalCardVM): string {
       <p class="small muted">골+도움과 평균 평점으로 겨뤄요. 시즌이 끝나면 비교 결과가 위상·감독 신뢰도에 조금 반영돼요.</p>`, 'mg-card rv-card')}`;
 }
 
-const GOAL_TONE = { done: 'success', track: 'brand', behind: 'warning' } as const;
+const GOAL_TONE = { done: 'success', track: 'brand', behind: 'warning', start: 'neutral' } as const;
 const TIER_TONE = { easy: 'neutral', normal: 'mine', hard: 'warning' } as const;
 
 /** 홈 시즌 목표 카드 (18.9, C.65): 줄 = 난이도 칩 · 출처 · 목표 / 진행 막대 / 지금 값 · 상태 · 보상. 디자인 없음 → 주전 경쟁 카드(mg-row) 틀 재사용 */
@@ -89,7 +89,7 @@ export function goalsSection(vm: GoalsCardVM): string {
       <div class="mg-bar" aria-hidden="true"><i class="t" style="width:${Math.round(r.ratio * 100)}%"></i></div>
       <div class="gl-meta small"><span class="muted">${esc(r.reward)}</span>${StatChip({ label: r.statusKo, tone: GOAL_TONE[r.status] })}</div>
     </div>`).join('');
-  return `${SectionTitle({ title: '시즌 목표', action: `${vm.ok}/3 순항 · ${vm.round}/${vm.rounds}R` })}
+  return `${SectionTitle({ title: '시즌 목표', action: vm.round ? `${vm.ok}/3 순항 · ${vm.round}/${vm.rounds}R` : `개막 전 · ${vm.rounds}R` })}
     ${panel(`<div class="mg-rows">${rows}</div>
       <p class="small muted">시즌이 끝나면 판정해요. 달성하면 XP와 카드 3택 1, 감독·구단 목표는 감독 신뢰도에도 반영돼요.</p>`, 'mg-card gl-card')}`;
 }
