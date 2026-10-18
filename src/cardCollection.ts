@@ -36,6 +36,9 @@ export interface CardCollection {
   levelMark: number;
   /** 새로 얻은 카드 (덱 화면 표시 후 비운다) */
   fresh: string[];
+  /** TP (5.4, C.68b): 시즌 목표로 쌓고 카드 해금에 쓴다. 해금한 횟수 (선택권 시드) */
+  tp?: number;
+  tpUsed?: number;
 }
 
 export type StarterGroup = Exclude<CardGroup, 'common'>;
@@ -95,7 +98,8 @@ export function cardInput(col: CardCollection): CardInput {
   return { deck: valid, mastery: { ...col.mastery } };
 }
 
-function addOwned(col: CardCollection, id: string): void {
+/** 카드 한 장 넣기 (최대 maxCopies) — 상점·카드팩 (C.68b) 도 쓴다 */
+export function addOwned(col: CardCollection, id: string): void {
   col.owned[id] = Math.min(C.maxCopies, (col.owned[id] ?? 0) + 1);
   if (!col.fresh.includes(id)) col.fresh.push(id);
 }
@@ -121,7 +125,7 @@ function drawOptions(pool: CardDef[], col: CardCollection, rng: Rng, n: number):
   return out;
 }
 
-function poolFor(group: StarterGroup, rarities: Rarity[]): CardDef[] {
+export function poolFor(group: StarterGroup, rarities: Rarity[]): CardDef[] {
   return CARDS.filter((c) => (c.group === 'common' || c.group === group) && c.kind !== 'signature' && c.kind !== 'directive' && rarities.includes(c.rarity));
 }
 

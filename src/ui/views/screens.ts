@@ -413,6 +413,8 @@ export function retiredView(vm: RetiredVM): string {
     ${statTiles([{ value: vm.apps, label: '경기' }, { value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.seasons, label: '시즌' }])}
     <div class="panel kv peak"><div><small>최종 위상</small>${TierBadge({ tier: vm.card.tier, score: vm.reputation })}</div><div class="r"><small>최고 OVR</small><b class="po-num hi">${vm.peakOvr}</b></div></div>
     ${PlayerCard({ player: vm.card })}
+    ${SectionTitle({ title: '재정 · 엔딩 점수', action: `자산 점수 ${vm.ending.asset}` })}
+    ${panel(`<div class="kv"><span>순자산</span><b class="po-num">${esc(vm.ending.worth)}</b></div><div class="kv"><span>커리어 순수입</span><b class="po-num">${esc(vm.ending.career)}</b></div><div class="kv"><span>누적 기부</span><b class="po-num">${esc(vm.ending.charity)}${vm.ending.philanthropist ? ' · 자선가' : ''}</b></div>`)}
     ${SectionTitle({ title: '커리어 흐름' })}
     ${panel(historyTable(vm.history))}
     ${Banner({ tone: 'info', title: '은퇴한 세이브는 기록 보기만 할 수 있어요', children: '다른 슬롯의 진행에는 영향이 없어요.' })}

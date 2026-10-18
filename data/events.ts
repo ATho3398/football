@@ -170,7 +170,7 @@ const SLOT_EVENTS: readonly EventDef[] = [
     ],
     choices: [
       { id: 'go', label: '직접 간다', desc: '위상 +2, 체력 조금 −', effects: [{ rep: 2 }, { fatigue: 4 }, { next: 'c_charityThanks', days: 14 }], result: ['아이들과 공을 찼어요. 사진이 구단 SNS에 올라왔어요.', '행사장에 가자 박수가 쏟아졌어요.', '사인을 백 장쯤 했어요. 피곤했지만 좋은 하루였어요.'] },
-      { id: 'donate', label: '기부만 한다', desc: '위상 +1', effects: [{ rep: 1 }], result: ['조용히 기부했어요. 재단이 감사 인사를 전했어요.', '이름 없이 보낸 기부금이 나중에 알려졌어요.', '유니폼과 기부금을 보냈어요.'] },
+      { id: 'donate', label: '기부만 한다', desc: '위상 +1, 기부 주급 ×1', effects: [{ rep: 1 }, { money: -1, charity: true }], result: ['조용히 기부했어요. 재단이 감사 인사를 전했어요.', '이름 없이 보낸 기부금이 나중에 알려졌어요.', '유니폼과 기부금을 보냈어요.'] },
       { id: 'skip', label: '이번엔 쉰다', desc: '변화 없음', effects: [], result: ['이번엔 정중히 거절했어요.', '일정이 맞지 않아 다음을 약속했어요.', '쉬는 게 우선이에요. 재단은 이해했어요.'] },
     ],
     fallback: 'skip',
@@ -184,7 +184,7 @@ const SLOT_EVENTS: readonly EventDef[] = [
       '축구화 회사가 새 모델 광고를 같이 찍자고 해요.',
     ],
     choices: [
-      { id: 'yes', label: '찍는다', desc: '위상 +1, 체력 −', effects: [{ rep: 1 }, { fatigue: 6 }, { next: 'c_sponsorAir', days: 21 }], result: ['촬영이 하루 종일 걸렸어요. 감독은 "경기에 지장 없게"라고만 했어요.', '카메라 앞에서 공을 백 번은 찼어요.', '촬영장 간식이 맛있었어요. 몸은 좀 무거워요.'] },
+      { id: 'yes', label: '찍는다', desc: '위상 +1, 체력 −, 광고가 나오면 출연료 주급 ×3', effects: [{ rep: 1 }, { fatigue: 6 }, { next: 'c_sponsorAir', days: 21 }], result: ['촬영이 하루 종일 걸렸어요. 감독은 "경기에 지장 없게"라고만 했어요.', '카메라 앞에서 공을 백 번은 찼어요.', '촬영장 간식이 맛있었어요. 몸은 좀 무거워요.'] },
       { id: 'no', label: '축구에 집중한다', desc: '감독 신뢰도 +1', effects: [{ trust: 1 }], result: ['제안을 거절하고 훈련장에 남았어요. 감독이 좋게 봤어요.', '"지금은 축구만." 에이전트가 아쉬워했어요.', '정중히 거절했어요.'] },
     ],
     fallback: 'no',
@@ -283,7 +283,7 @@ const SLOT_EVENTS: readonly EventDef[] = [
       '게임 표지 촬영 제안. 세계 팬들이 볼 거예요.',
     ],
     choices: [
-      { id: 'yes', label: '수락한다', desc: '위상 +3, 체력 −', effects: [{ rep: 3 }, { fatigue: 5 }], result: ['표지가 공개되자 SNS가 들썩였어요.', '"표지 저주는 없다." 기자들이 농담했어요.', '촬영은 길었지만 결과물이 멋져요.'] },
+      { id: 'yes', label: '수락한다', desc: '위상 +3, 체력 −, 출연료 주급 ×2', effects: [{ rep: 3 }, { fatigue: 5 }, { money: 2 }], result: ['표지가 공개되자 SNS가 들썩였어요.', '"표지 저주는 없다." 기자들이 농담했어요.', '촬영은 길었지만 결과물이 멋져요.'] },
       { id: 'no', label: '거절한다', desc: '변화 없음', effects: [], result: ['다른 선수가 표지를 맡았어요.', '정중히 거절했어요.', '"아직은 아니에요."'] },
     ],
     fallback: 'no',
@@ -483,7 +483,7 @@ const CHAIN_FOLLOWUPS: readonly EventDef[] = [
       '광고 영상 조회 수가 빠르게 올라가요.',
       '광고가 나간 뒤 유니폼 판매가 늘었대요.',
     ],
-    effects: [{ rep: 1 }],
+    effects: [{ rep: 1 }, { money: 3 }],
   },
   {
     id: 'c_slipFallout', tags: ['next', 'media', 'team'], kind: 'message', on: 'next', cat: 'team', cooldown: 0,
@@ -519,4 +519,36 @@ const CHAIN_FOLLOWUPS: readonly EventDef[] = [
   },
 ];
 
-export const EVENTS: readonly EventDef[] = [...MATCH_EVENTS, ...SLOT_EVENTS, ...DAY_EVENTS, ...SEASON_EVENTS, ...CHAIN_FOLLOWUPS, ...LIFE_EVENTS];
+/** 재정 (C.68b, 19.7 사치 리스크 · 19.9 이벤트형 투자): 재정 화면 행동·주 정산이 예약해서만 뜬다 (on: 'next') */
+const MONEY_EVENTS: readonly EventDef[] = [
+  {
+    id: 'n_luxuryBuy', tags: ['next', 'luxury', 'media'], kind: 'choice', on: 'next', cat: 'media', cooldown: 0,
+    title: ['사치 논란', '새 집·새 차가 기사로'],
+    text: [
+      '새로 산 집 사진이 기사로 나왔어요. "{team} 성적은 이런데"라는 댓글이 달려요.',
+      '새 차를 몰고 훈련장에 온 사진이 퍼졌어요. 감독이 기사를 봤대요.',
+      '"{name}의 호화 생활" 기사가 났어요. 팬들 반응이 갈려요.',
+    ],
+    choices: [
+      { id: 'sorry', label: '조용히 사과한다', desc: '위상 −1, 감독 신뢰도 −1', effects: [{ rep: -1 }, { trust: -1 }], result: ['짧게 사과했어요. 금방 잠잠해졌어요.', '"축구로 보여 드리겠습니다." 기사가 하루 만에 내려갔어요.', '구단 홍보팀과 같이 정리했어요.'] },
+      { id: 'ignore', label: '신경 쓰지 않는다', desc: '감독 신뢰도 −3, 멘탈 피로 조금', effects: [{ trust: -3 }, { life: 'mental', add: 3 }], result: ['기사가 두 개 더 나왔어요. 감독 표정이 굳었어요.', '논란이 일주일 갔어요.', '감독이 조용히 불러 "축구에 집중하라"고 했어요.'] },
+    ],
+    fallback: 'ignore',
+  },
+  {
+    id: 'n_investDeal', tags: ['next', 'money', 'invest'], kind: 'choice', on: 'next', cat: 'money', cooldown: 0,
+    title: ['투자 제안', '사업 투자 제안'],
+    text: [
+      '{deal}에 {dealAmount}{을/를} 투자해 달라는 제안이 왔어요. 결과는 시즌 끝에 정산해요.',
+      '아는 사람이 {deal} 이야기를 꺼냈어요. {dealAmount}면 지분을 준대요. 시즌 끝에 결과가 나와요.',
+      '에이전트가 {deal} 투자 건을 가져왔어요. 금액은 {dealAmount}, 시즌 끝 정산이에요.',
+    ],
+    choices: [
+      { id: 'in', label: '투자한다', desc: '시즌 끝 정산: 잃을 수도, 몇 배가 될 수도 (투자금 안에서만 손해)', requires: ['cash', '>=', 1], effects: [{ invest: 'deal' }], result: ['계약서에 사인했어요. 시즌 끝을 기다려요.', '"잘될 거야." 악수를 나눴어요.', '투자금을 보냈어요. 이제 축구에 집중할 시간이에요.'] },
+      { id: 'no', label: '거절한다', desc: '변화 없음', effects: [{ invest: 'no' }], result: ['정중히 거절했어요.', '"지금은 축구만." 아쉬워하는 눈치였어요.', '돈은 은행에 두기로 했어요.'] },
+    ],
+    fallback: 'no',
+  },
+];
+
+export const EVENTS: readonly EventDef[] = [...MATCH_EVENTS, ...SLOT_EVENTS, ...DAY_EVENTS, ...SEASON_EVENTS, ...CHAIN_FOLLOWUPS, ...LIFE_EVENTS, ...MONEY_EVENTS];

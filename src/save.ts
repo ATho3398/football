@@ -310,6 +310,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   // 37 → 38 (C.68a): 개인 재정·스태프(money). 옛 세이브는 없음 → 처음 쓸 때 잔고 0 으로 만든다 (이미 치른 이번 시즌 출전·골은 보너스 없음,
   // 그 전 주급은 다음 시즌 시작 때 52주 − 정산한 주 몫에 같이 들어간다)
   37: () => {},
+  // 38 → 39 (C.68b): 재정 b — money.shop·house·car·charity·invest·agent, cards.tp·tpUsed. 모두 없으면 기본값(숙소·차 없음·기부 0·투자 0·TP 0)
+  38: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

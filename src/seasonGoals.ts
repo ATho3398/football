@@ -21,11 +21,15 @@ const G = () => BALANCE.goals;
 
 export type GoalTier = 'easy' | 'normal' | 'hard';
 export type GoalSource = 'manager' | 'club' | 'personal';
-export type GoalKind = 'apps' | 'rating' | 'moms' | 'teamPos' | 'goals' | 'assists' | 'ga' | 'cleanSheets' | 'goalRank' | 'assistRank';
+export type GoalKind = 'apps' | 'rating' | 'moms' | 'teamPos' | 'goals' | 'assists' | 'ga' | 'cleanSheets' | 'goalRank' | 'assistRank' | 'uclStage';
+
+/** 챔스 진출 단계 (C.68b): 0 조별리그 · 1 16강 · 2 8강 · 3 4강 · 4 결승 · 5 우승 */
+export const UCL_STAGE_KO = ['조별리그', '16강', '8강', '4강', '결승', '우승'] as const;
 
 export const TIER_KO: Record<GoalTier, string> = { easy: '쉬움', normal: '보통', hard: '어려움' };
 export const SOURCE_KO: Record<GoalSource, string> = { manager: '감독', club: '구단', personal: '개인' };
 const TIER_PICK_KO: Record<GoalTier, string> = { easy: '일반', normal: '희귀', hard: '희귀·에픽' };
+const rewardText = (state: GameState, t: GoalTier) => `XP ${xpOf(state, t)} · TP ${G().tp[t]} · ${TIER_PICK_KO[t]} 카드 3택 1`;
 
 export interface SeasonGoal {
   source: GoalSource;
@@ -71,6 +75,7 @@ export function goalLabel(g: Pick<SeasonGoal, 'kind' | 'target'>): string {
     case 'cleanSheets': return `클린시트 ${g.target}경기 (${G().csMinutes}분 이상)`;
     case 'goalRank': return g.target === 1 ? '리그 득점왕' : `리그 득점 순위 ${g.target}위 안`;
     case 'assistRank': return g.target === 1 ? '리그 도움왕' : `리그 도움 순위 ${g.target}위 안`;
+    case 'uclStage': return `챔스 ${UCL_STAGE_KO[g.target]} 진출`;
   }
 }
 
@@ -78,6 +83,7 @@ export function goalLabel(g: Pick<SeasonGoal, 'kind' | 'target'>): string {
 export function valueLabel(kind: GoalKind, v: number | null): string {
   if (v === null) return kind === 'rating' ? '평점 -' : '순위 밖';
   if (kind === 'rating') return v.toFixed(2);
+  if (kind === 'uclStage') return UCL_STAGE_KO[v] ?? '-';
   if (lowerIsBetter(kind)) return `${v}위`;
   return String(v);
 }
@@ -145,6 +151,7 @@ function targetOf(state: GameState, kind: GoalKind, tier: GoalTier, e: Expect): 
     case 'ga': return count(e.goals + e.assists);
     case 'cleanSheets': return count(e.cs);
     case 'goalRank': case 'assistRank': return C.rankTarget;
+    case 'uclStage': return G().uclStage[tier];
   }
 }
 
@@ -157,11 +164,35 @@ export function makeGoals(state: GameState): SeasonGoal[] {
     [tiers[i], tiers[j]] = [tiers[j]!, tiers[i]!];
   }
   const e = expectations(state);
-  return (['manager', 'club', 'personal'] as GoalSource[]).map((source, i) => {
+  const list = (['manager', 'club', 'personal'] as GoalSource[]).map((source, i) => {
     const tier = tiers[i]!;
     const kind = pickKind(state, source, tier, e, rng);
     return { source, tier, kind, target: targetOf(state, kind, tier, e) };
   });
+  // 챔스 n강 (C.68b, pending 109 ⑤): 챔스에 나가는 시즌이면 구단 목표를 확률로 챔스 단계로 (따로 시드 — 다른 목표는 그대로)
+  const club = list[1]!;
+  if (inUcl(state) && createRng(hashSeed(`${state.worldSeed}:goals-ucl:${state.league.season}:${state.player.teamId}`))() < G().uclChance) {
+    const strong = 1 + state.league.teams.filter((t) => t.rating > teamById(state.league, state.player.teamId).rating).length <= G().uclStrongRank;
+    club.kind = 'uclStage';
+    club.target = clamp(G().uclStage[club.tier] + (strong ? 1 : 0), 1, 4);
+  }
+  return list;
+}
+
+/** 이번 시즌 챔스 조별리그에 내 팀이 있는가 */
+function inUcl(state: GameState): boolean {
+  const u = state.cups?.season === state.league.season ? state.cups.ucl : null;
+  return !!u && u.groups.some((g) => g.includes(state.player.teamId));
+}
+
+/** 내 팀 챔스 진출 단계 (UCL_STAGE_KO 순번). 챔스에 없으면 null */
+function uclStageOf(state: GameState): number | null {
+  const u = state.cups?.ucl;
+  const me = state.player.teamId;
+  if (!u || !u.groups.some((g) => g.includes(me))) return null;
+  if (u.winner === me) return 5;
+  for (let s = u.ko.length - 1; s >= 0; s--) if (u.ko[s]!.l1.some((t) => t.h === me || t.a === me)) return s + 1;
+  return 0;
 }
 
 /** 시즌 시작 (newGame · startNextSeason): 목표를 정하고 인박스로 알린다 */
@@ -170,7 +201,7 @@ export function goalsSeasonStart(state: GameState): GoalsState {
   state.goals = gs;
   pushInbox(state, {
     cat: 'goal', key: `goals:${gs.season}`, title: `${gs.season} 시즌 목표 3개`,
-    body: `${gs.list.map((g) => `${SOURCE_KO[g.source]}(${TIER_KO[g.tier]}): ${goalLabel(g)}`).join(' · ')}. 달성하면 XP와 카드 3택 1(쉬움 일반 · 보통 희귀 · 어려움 에픽까지)을 받아요.`,
+    body: `${gs.list.map((g) => `${SOURCE_KO[g.source]}(${TIER_KO[g.tier]}): ${goalLabel(g)}`).join(' · ')}. 달성하면 XP · TP(1/2/3)와 카드 3택 1(쉬움 일반 · 보통 희귀 · 어려움 에픽까지)을 받아요.`,
     link: { to: 'home', label: '홈에서 진행 보기' },
   });
   return gs;
@@ -209,6 +240,7 @@ export function goalValue(state: GameState, kind: GoalKind): number | null {
     case 'cleanSheets': return cleanSheets(state);
     case 'goalRank': return s.goals > 0 && hasLeagueStats(state) ? myRank(state, 'goals') : null;
     case 'assistRank': return s.assists > 0 && hasLeagueStats(state) ? myRank(state, 'assists') : null;
+    case 'uclStage': return uclStageOf(state);
   }
 }
 
@@ -231,8 +263,8 @@ export function goalProgress(state: GameState, g: SeasonGoal): GoalProgress {
   const value = goalValue(state, g.kind);
   const n = state.league.schedule.length;
   const played = Math.max(1, state.league.round);
-  const counting = !lowerIsBetter(g.kind) && g.kind !== 'rating';
-  if (state.league.round === 0) return { ...g, label: goalLabel(g), value: null, valueText: '-', status: 'start', ratio: 0, reward: `XP ${xpOf(state, g.tier)} · ${TIER_PICK_KO[g.tier]} 카드 3택 1` };
+  const counting = !lowerIsBetter(g.kind) && g.kind !== 'rating' && g.kind !== 'uclStage';
+  if (state.league.round === 0) return { ...g, label: goalLabel(g), value: null, valueText: '-', status: 'start', ratio: 0, reward: rewardText(state, g.tier) };
   let status: GoalStatus;
   let ratio: number;
   if (counting) {
@@ -242,9 +274,9 @@ export function goalProgress(state: GameState, g: SeasonGoal): GoalProgress {
   } else {
     const met = goalMet(state, g, value);
     status = met ? 'track' : 'behind';
-    ratio = value === null ? 0 : g.kind === 'rating' ? clamp((value - 5.5) / Math.max(0.1, g.target - 5.5), 0, 1) : clamp((n / 2 + 1 - value) / Math.max(1, n / 2 + 1 - g.target), 0, 1);
+    ratio = value === null ? 0 : g.kind === 'uclStage' ? clamp(value / g.target, 0, 1) : g.kind === 'rating' ? clamp((value - 5.5) / Math.max(0.1, g.target - 5.5), 0, 1) : clamp((n / 2 + 1 - value) / Math.max(1, n / 2 + 1 - g.target), 0, 1);
   }
-  return { ...g, label: goalLabel(g), value, valueText: valueLabel(g.kind, value), status, ratio, reward: `XP ${xpOf(state, g.tier)} · ${TIER_PICK_KO[g.tier]} 카드 3택 1` };
+  return { ...g, label: goalLabel(g), value, valueText: valueLabel(g.kind, value), status, ratio, reward: rewardText(state, g.tier) };
 }
 
 /** 목표 XP = 기본 × 게임 난이도 × 고령 감쇠 (6.1, 경기 XP와 같은 배율 — 노화 곡선을 덮지 않게) */
@@ -285,6 +317,7 @@ export function goalsSeasonEnd(state: GameState, badges: readonly Badge[] = []):
     const met = goalMet(state, g, value);
     const gx = met ? xpOf(state, g.tier) : 0;
     xp += gx;
+    if (met && state.cards) state.cards.tp = (state.cards.tp ?? 0) + G().tp[g.tier];
     if (met && state.cards) grantTierPick(state.cards, `goal:${season}:${i}`, pos, state.worldSeed, `${season} 시즌 목표 · ${TIER_KO[g.tier]} 달성`, C.pick[g.tier] as Partial<Record<Rarity, number>>, 'goal');
     const [up, down] = C.trust[g.source] ?? [0, 0];
     const trust = sameTeam ? addTrust(state, met ? up : down, `시즌 목표 ${met ? '달성' : '실패'} (${SOURCE_KO[g.source]} · ${goalLabel(g)})`, { scaled: false }) : 0;
@@ -308,7 +341,7 @@ export function goalsSeasonEnd(state: GameState, badges: readonly Badge[] = []):
   const met = results.filter((r) => r.met).length;
   pushInbox(state, {
     cat: 'goal', key: `goals-end:${season}`, title: `${season} 시즌 목표 ${met}/3 달성`,
-    body: `${results.map((r) => `${r.met ? '달성' : '실패'} · ${SOURCE_KO[r.source]} ${goalLabel(r)} (${valueLabel(r.kind, r.value)})`).join(' · ')}.${xp ? ` XP +${xp}.` : ''}${met || awards.length ? ` 카드 선택권 ${met + awards.length}장 — 덱에서 골라요.` : ''}`,
+    body: `${results.map((r) => `${r.met ? '달성' : '실패'} · ${SOURCE_KO[r.source]} ${goalLabel(r)} (${valueLabel(r.kind, r.value)})`).join(' · ')}.${xp ? ` XP +${xp}.` : ''}${met ? ` TP +${results.filter((r) => r.met).reduce((t, r) => t + G().tp[r.tier], 0)} (재정 · 상점에서 카드 해금).` : ''}${met || awards.length ? ` 카드 선택권 ${met + awards.length}장 — 덱에서 골라요.` : ''}`,
     link: met || awards.length ? { to: 'deck', label: '카드 고르기' } : { to: 'season', label: '시즌 요약' },
   });
   return { results, awards, xp, levels };

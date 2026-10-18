@@ -67,8 +67,8 @@ export function marketValue(o: { ovr: number; age: number; peak?: number; reputa
 }
 
 /** 로스터 선수 몸값 (시즌 기준: 남은 계약 = contractEnd − season) */
-export function npcValue(p: RosterPlayer, season: number): number {
-  return marketValue({ ovr: naturalOvr(p), age: p.age, peak: p.peakOvr, yearsLeft: p.contractEnd - season });
+export function npcValue(p: RosterPlayer, season: number, reputation?: number): number {
+  return marketValue({ ovr: naturalOvr(p), age: p.age, peak: p.peakOvr, yearsLeft: p.contractEnd - season, reputation });
 }
 
 /** 몸값 표시 ("0" = 자유계약) */
@@ -79,10 +79,13 @@ export function valueLabel(v: number): string {
 
 // ── 연봉 ──
 
-/** NPC 연봉 (만 원/년) = 위상 근사 → 주급 곡선 × 52 */
-export function npcAnnualWage(p: RosterPlayer, teamRating: number): number {
+/**
+ * NPC 연봉 (만 원/년) = 위상 → 주급 곡선 × 52. 위상을 주지 않으면 OVR 근사 (이적·예산 계산).
+ * 선수 상세 화면은 NPC 위상(worldStats.npcStanding: 기록·수상 포함)을 넘긴다 (C.68b, pending 104 ① — 시뮬 경로는 그대로, 엔진 다듬기 블록에서 검토)
+ */
+export function npcAnnualWage(p: RosterPlayer, teamRating: number, reputation?: number): number {
   const ovr = naturalOvr(p);
-  return wageFor(npcReputation(ovr), ovr, teamRating) * 52;
+  return wageFor(reputation ?? npcReputation(ovr), ovr, teamRating) * 52;
 }
 
 /** 팀 연봉 총액 (만 원/년, 로스터 NPC). 내 선수가 그 팀이면 extra 로 더한다 */

@@ -40,6 +40,7 @@ import { REAL_CAREER } from '../data/players/careers';
 import { npcTagMap, recordNaturalNews, recordTagNews, type TagNews } from './npcTags';
 import { isLegendId, LEGEND_BY_ID, legendClub, legendPeak, legendRosterPlayer, legendSpawns } from './legends';
 import { ensureFinance, type FinanceState } from './finance';
+import { wealthDayEnd, wealthSeasonEnd, wealthSeasonStart } from './wealth';
 import { coachBoost, injuryChanceMul, injuryDaysMul, moneyDayEnd, moneySeasonEnd, moneySeasonStart, staffRecoveryMul, type MoneyState } from './money';
 import { academyName, addTag, afterAccept, afterTrialMatch, applyStart, checkOneClub, release, renewalFails, seasonEndTags, type StartChoice, type TrialState } from './startClub';
 import type { Appearance } from './appearance';
@@ -75,7 +76,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 38;
+export const SAVE_FORMAT_VERSION = 39;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -1161,6 +1162,8 @@ export function endDay(state: GameState): TrainingDayResult {
   const r = dayStep(state, ended);
   // 재정 (C.68a): 일요일 주 정산, 코치 후보 도착
   moneyDayEnd(state, ended);
+  // 재정 b (C.68b): 일요일 차 효과 · 이벤트형 투자 제안
+  wealthDayEnd(state, ended);
   // 컵 (C.67): 오늘 내 팀 없는 컵 경기 간이 계산 · 단계가 끝났으면 다음 추첨 (옛 세이브는 여기서 처음 만든다)
   ensureCups(state);
   cupsDayEnd(state, ended);
@@ -1916,6 +1919,8 @@ export function endSeason(state: GameState): SeasonSummary {
   // 재정 (C.68a): 남은 보너스 · 우승 보너스(리그·FA컵·챔스) · 스폰서
   moneySeasonEnd(state, [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map(() => 'FA컵 우승'),
     ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승')]);
+  // 재정 b (C.68b): 예금·부동산 수익 · 이벤트형 투자 정산
+  wealthSeasonEnd(state);
   state.lastSeasonSummary = summary;
   state.phase = summary.forcedRetire ? 'retired' : 'offseason';
   // 내 선수 (18.10): 임대 복귀, 계약 만료면 재계약, 제안 3~5개
@@ -1985,6 +1990,7 @@ export function startNextSeason(state: GameState): void {
   state.phase = 'season';
   // 재정 (C.68a): 비시즌 주급 몫 · 지난 시즌 요약 · 끝난 스태프 계약
   moneySeasonStart(state, state.league.season - 1);
+  wealthSeasonStart(state);
   // 컵 (C.67): 새 시즌 대진
   state.cups = createCups(state);
   // 이벤트 (C.63): 새 시즌 슬롯·라이벌·주장

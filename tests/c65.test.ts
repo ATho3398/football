@@ -150,7 +150,7 @@ describe('세이브 35 (C.65)', () => {
   it('왕복, 34 세이브(목표 없음) → 불러온 뒤 이번 시즌 목표를 만든다', () => {
     const g = prospect('ST', 'c65-save');
     playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(38);
+    expect(SAVE_FORMAT_VERSION).toBe(39);
     const back = deserialize(serialize(g));
     expect(back.goals).toEqual(g.goals);
     const raw = JSON.parse(serialize(g));

@@ -15,6 +15,8 @@ import { sortedTable, teamById } from './league';
 import { addTrust } from './manager';
 import { createRng, hashSeed } from './rng';
 import { tagHas, type TagId } from './tags';
+import { book, moneyLabel, myWage } from './money';
+import { acceptDeal, declineDeal, eventCharity } from './wealth';
 import { fill, pickText } from './text';
 import type { GameState } from './game';
 import { EVENTS } from '../data/events';
@@ -32,7 +34,7 @@ export const EV_VARS = [
   'rep', 'tier', 'trust', 'fatigue', 'form', 'goals', 'assists', 'apps', 'starts', 'avg', 'rank', 'round', 'seasonNo', 'age',
   'lastPlayed', 'lastResult', 'lastRating', 'lastGoals', 'lastAssists', 'lastRed', 'lastDerby', 'lastDecisive', 'lastMom', 'lastBig',
   'injured', 'injuryDays', 'benchRun', 'rivalGap', 'hasRival', 'captain', 'clubSeasons', 'foreign', 'contractLeft', 'offseason',
-  'home', 'adapt', 'team', 'mental',
+  'home', 'adapt', 'team', 'mental', 'cash',
 ] as const;
 export type EvVar = typeof EV_VARS[number];
 export type Op = '<' | '<=' | '>' | '>=' | '==' | '!=';
@@ -60,7 +62,11 @@ export type Effect =
   /** 생활 지표 (b, life.ts) */
   | { life: LifeKey; add: number }
   /** 가족 휴가 (C.67a): BALANCE.events.familyLeaveDays 일 동안 경기 결장·훈련 없음 */
-  | { leave: true };
+  | { leave: true }
+  /** 돈 (C.68b, 20.2): 주급 × money (최소 500만 원). charity 면 기부(자선 누적) */
+  | { money: number; charity?: true }
+  /** 이벤트형 투자 (C.68b, 19.9): deal = 제안 받기, no = 거절 */
+  | { invest: 'deal' | 'no' };
 
 export interface EventChoice {
   id: string;
@@ -190,6 +196,7 @@ export function evVar(state: GameState, v: EvVar): number {
     case 'contractLeft': return state.market?.contract ? state.market.contract.until - state.league.season : 9;
     case 'offseason': return state.phase === 'season' ? 0 : 1;
     case 'home': case 'adapt': case 'team': case 'mental': return lifeVar(state, v);
+    case 'cash': return Math.floor((state.money?.cash ?? 0) / 10000);
     default: return 0;
   }
 }
@@ -238,6 +245,7 @@ function textVars(state: GameState): Record<string, string | number> {
     name: p.name, team: teamById(state.league, p.teamId)?.nameKo ?? p.teamId, opp: lm ? teamById(state.league, lm.opponentId)?.nameKo ?? '' : '상대',
     manager: coachName(state, p.teamId), rival: rv?.name ?? '라이벌', rivalTeam: rv?.team ?? '', goals: p.season.goals, assists: p.season.assists,
     rating: lm?.result.rating?.toFixed(1) ?? '-', rank: evVar(state, 'rank'), pos: p.position, age: p.age, round: state.league.round,
+    deal: state.money?.invest?.offer ? state.money.invest.offer.label : '사업', dealAmount: state.money?.invest?.offer ? moneyLabel(state.money.invest.offer.amount) : '',
   };
 }
 
@@ -292,6 +300,17 @@ export function applyEffects(state: GameState, effects: readonly Effect[], why: 
     } else if ('life' in e) {
       // 숨은 지표라 결과 문장에 숫자를 보이지 않는다
       addLife(state, e.life, e.add);
+    } else if ('money' in e) {
+      const w = myWage(state);
+      const a = Math.sign(e.money) * Math.max(BALANCE.wealth.eventMinUnit, Math.round(Math.abs(w * e.money) / 10) * 10);
+      book(state, e.charity ? 'charity' : 'event', a, why);
+      if (e.charity) eventCharity(state, -a);
+      out.push(`${e.charity ? '기부' : '돈'} ${moneyLabel(a, true)}`);
+    } else if ('invest' in e) {
+      if (e.invest === 'deal') {
+        const t = acceptDeal(state);
+        if (t) out.push(t);
+      } else declineDeal(state);
     } else if ('leave' in e) {
       const days = BALANCE.events.familyLeaveDays;
       ev.leave = addDays(state.calendar.date, days);

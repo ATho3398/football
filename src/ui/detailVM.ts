@@ -167,7 +167,7 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
   const L = g.league;
   const team = teamById(L, teamId);
   const ovr = naturalOvr(p);
-  // NPC 위상 (C.64): OVR 근사 + 시즌 기록 + 수상 (연봉·몸값은 OVR 근사 그대로)
+  // NPC 위상 (C.64): OVR 근사 + 시즌 기록 + 수상. 연봉·몸값도 이 위상으로 (C.68b, pending 104 ①)
   const rep = npcStanding(g, id, ovr);
   const tier = reputationTier(rep);
   const yearsLeft = Math.max(0, p.contractEnd - L.season);
@@ -199,7 +199,7 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
     .map(({ s, t }) => ({ season: seasonLabel(s.season), apps: t![0], goals: t![1], assists: t![2], avg: (t![3] / t![0] / 10).toFixed(2) }))
     .reverse();
   const b = p.body;
-  const wage = Math.round(npcAnnualWage(p, team.rating));
+  const wage = Math.round(npcAnnualWage(p, team.rating, rep));
   return {
     id, name: p.nameKo, face: faceOf(p),
     team: team.nameKo, teamId,
@@ -209,7 +209,7 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
     tier: designTier(tier), tierName: TIER_NAMES_KO[tier], repScore: rep,
     clubTier: financeTier(teamId), clubTierKo: TIER_KO[financeTier(teamId)],
     legend: !!p.legend, real: p.real,
-    value: valueLabel(npcValue(p, L.season)), yearsLeft, until: seasonLabel(p.contractEnd), wage: `${valueLabel(Math.round(wage / 52))} / 주`,
+    value: valueLabel(npcValue(p, L.season, rep)), yearsLeft, until: seasonLabel(p.contractEnd), wage: `${valueLabel(Math.round(wage / 52))} / 주`,
     season: st ? { apps: st[0], goals: st[1], assists: st[2], avg: st[0] ? (st[3] / st[0] / 10).toFixed(1) : '-' } : { apps: 0, goals: 0, assists: 0, avg: '-' },
     tags, attrs, keyNote,
     body: b

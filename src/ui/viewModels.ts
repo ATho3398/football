@@ -42,6 +42,8 @@ import { findRosterPlayer, naturalOvr } from '../roster';
 import { MY_ID } from '../engine/adapter';
 import { npcOvr } from '../npc';
 import { isU21 } from '../squad';
+import { careerNet, endingScores } from '../wealth';
+import { moneyLabel } from '../money';
 import { AWARD_KO, awardValue, leaderboard, npcStanding, ratingMinApps, seasonAwards, type BoardKind } from '../worldStats';
 import { tierLabel } from '../finance';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
@@ -1361,11 +1363,15 @@ function seasonAwardsVM(g: GameState): SeasonVM['awards'] {
 export interface RetiredVM {
   card: PlayerCardVM; seasons: number; apps: number; goals: number; assists: number; avg: string; peakOvr: number; best: string;
   reputation: number; tierName: string; history: HistoryRowVM[];
+  /** 엔딩 점수 (C.68b, 19.8 · 19.11): 순자산 · 자산 점수 · 누적 기부 · 자선가 */
+  ending: { worth: string; asset: number; charity: string; philanthropist: boolean; career: string };
 }
 
 export function retiredVM(g: GameState): RetiredVM {
   const t = careerTotals(g.player);
+  const e = endingScores(g);
   return {
+    ending: { worth: moneyLabel(e.worth), asset: e.asset, charity: moneyLabel(e.charity), philanthropist: e.philanthropist, career: moneyLabel(careerNet(g), true) },
     card: playerCardVM(g), seasons: t.seasons, apps: t.apps, goals: t.goals, assists: t.assists,
     avg: t.avgRating === null ? '-' : t.avgRating.toFixed(2), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,
     reputation: g.player.reputation, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation, g.player.honors)], history: historyVM(g),

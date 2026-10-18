@@ -65,9 +65,10 @@ import { markAllRead, markRead, unreadCount } from '../inbox';
 import { answerEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
-import { financeView } from './views/finance';
+import { financeView, type FinanceTab } from './views/finance';
 import { financeVM } from './financeVM';
-import { hireStaff, startScout, toggleLeave } from '../money';
+import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
+import { buyPack, buyShopCard, donate, donateBlocked, moveInvest, setLife, useTp, type InvestKind, type LifeItem, type TpKind } from '../wealth';
 import { holdMeeting, type MeetingChoice } from '../manager';
 import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
@@ -201,6 +202,8 @@ const ui = {
   tagsAll: false,
   /** 선수 화면 탭 (C.58 디자인 93~96·134·136), 몸·태그 탭 이름표 편집 펼침 */
   playerTab: 'attrs' as PlayerTab,
+  /** 재정 화면 탭 (C.68b) */
+  financeTab: 'money' as FinanceTab,
   lookName: false,
   /** 새 게임 화면 상태 (C.58): 실제 선수 묶음·검색·정렬·포지션군·보이는 수, 랜덤 능력치 펼침, 커스텀 단계 */
   ng: { ...NEW_GAME_UI } as NewGameUI,
@@ -430,7 +433,7 @@ function screenHtml(): string {
       return meetingView(mv, ui.meetSel);
     }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
-    case 'finance': return financeView(financeVM(g));
+    case 'finance': return financeView(financeVM(g), ui.financeTab);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -1789,6 +1792,66 @@ app.addEventListener('click', (ev) => {
       return;
     case 'fn-leave':
       if (g && v && toggleLeave(g, v)) autosave();
+      render();
+      return;
+    // 재정 b (C.68b): 탭 · 카드 상점 · 카드팩 · TP · 집·차 · 기부 · 투자 · 에이전트
+    case 'fn-tab':
+      ui.financeTab = (v ?? 'money') as FinanceTab;
+      render();
+      return;
+    case 'fn-buy':
+      if (g && v && buyShopCard(g, Number(v))) {
+        autosave();
+        showToast({ kind: 'info', title: '카드를 샀어요', body: '덱 화면에서 넣을 수 있어요.' });
+      }
+      render();
+      return;
+    case 'fn-pack': {
+      const got = g ? buyPack(g) : [];
+      if (got.length) {
+        autosave();
+        showToast({ kind: 'info', title: `카드팩 · ${got.length}장`, body: got.map((id) => cardById(id)?.name ?? id).join(' · ') }, 2600);
+      }
+      render();
+      return;
+    }
+    case 'fn-tp':
+      if (g && v && useTp(g, v as TpKind)) {
+        autosave();
+        showToast({ kind: 'info', title: 'TP 카드 해금', body: '덱 화면에서 3장 중 하나를 골라요.' });
+      }
+      render();
+      return;
+    case 'fn-life': {
+      const [k, lvl] = (v ?? '').split(':');
+      if (g && k && setLife(g, k as LifeItem, Number(lvl))) autosave();
+      render();
+      return;
+    }
+    case 'fn-donate': {
+      if (!g || !v || donateBlocked(g, Number(v))) return;
+      const before = g.player.reputation;
+      const d = donate(g, Number(v));
+      {
+        autosave();
+        showToast({ kind: 'info', title: '기부했어요', body: d ? `위상 +${g.player.reputation - before}` : '이번 시즌 위상 상한에 닿았어요(자선 누적에는 들어가요).' });
+      }
+      render();
+      return;
+    }
+    case 'fn-invest': {
+      const [k, a] = (v ?? '').split(':');
+      if (g && k && moveInvest(g, k as InvestKind, a === '-all' ? -Infinity : Number(a))) autosave();
+      render();
+      return;
+    }
+    case 'fn-agent':
+      if (g) {
+        const m = ensureMoney(g);
+        if (m.agent === 'premium') delete m.agent;
+        else m.agent = 'premium';
+        autosave();
+      }
       render();
       return;
     case 'meet-pick':

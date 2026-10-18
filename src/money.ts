@@ -18,15 +18,18 @@ const M = () => BALANCE.money;
 const S = () => BALANCE.staff;
 const TIERS: readonly Tier[] = ['normal', 'special', 'topClass', 'worldClass', 'legendary'];
 
+/** 항목 (C.68b: invest = 투자 수익(손실이면 −) · event = 이벤트 수입 / upkeep(월세·집·차 유지비) · card · life(집·차 구매) · charity 지출 / saving = 투자 넣기·빼기, 순수입에 넣지 않음) */
 export type MoneyCat =
-  | 'wage' | 'signing' | 'appearance' | 'goal' | 'title' | 'sponsor'
-  | 'living' | 'staff' | 'agent' | 'scout';
-export const INCOME_CATS: readonly MoneyCat[] = ['wage', 'signing', 'appearance', 'goal', 'title', 'sponsor'];
-export const EXPENSE_CATS: readonly MoneyCat[] = ['living', 'staff', 'agent', 'scout'];
+  | 'wage' | 'signing' | 'appearance' | 'goal' | 'title' | 'sponsor' | 'invest' | 'event'
+  | 'living' | 'staff' | 'agent' | 'scout' | 'upkeep' | 'card' | 'life' | 'charity' | 'saving';
+export const INCOME_CATS: readonly MoneyCat[] = ['wage', 'signing', 'appearance', 'goal', 'title', 'sponsor', 'invest', 'event'];
+export const EXPENSE_CATS: readonly MoneyCat[] = ['living', 'staff', 'agent', 'scout', 'upkeep', 'card', 'life', 'charity'];
+/** 고르는 지출 (카드·집·차 구매·기부) — 경제 점검의 "필수 순수입"에서 뺀다 */
+export const CHOICE_CATS: readonly MoneyCat[] = ['card', 'life', 'charity'];
 export const MONEY_CAT_KO: Record<MoneyCat | 'week', string> = {
   week: '주 정산',
-  wage: '주급', signing: '계약금', appearance: '출전수당', goal: '골 보너스', title: '우승 보너스', sponsor: '스폰서',
-  living: '생활비', staff: '스태프 급여', agent: '에이전트 수수료', scout: '코치 모집',
+  wage: '주급', signing: '계약금', appearance: '출전수당', goal: '골 보너스', title: '우승 보너스', sponsor: '스폰서', invest: '투자 수익', event: '이벤트 수입',
+  living: '생활비', staff: '스태프 급여', agent: '에이전트 수수료', scout: '코치 모집', upkeep: '월세·유지비', card: '카드 구매', life: '집·차 구매', charity: '기부', saving: '투자 넣기·빼기',
 };
 
 export type StaffRole = 'coach' | 'doctor' | 'physio' | 'nutrition';
@@ -73,7 +76,22 @@ export interface MoneyState {
   /** 후보를 고를 수 있는 마지막 날 */
   candUntil: IsoDate | null;
   seq: number;
+  // ── b (C.68b, 세이브 39). 없으면 기본값 (옛 세이브) ──
+  /** 이번 주 카드 상점 (week = 그 주 월요일). 사면 sold, 카드팩 산 수 packs */
+  shop?: { week: IsoDate; items: { id: string; price: number; sold?: 1 }[]; packs: number } | null;
+  /** 집·차 단계 (BALANCE.wealth.houses · cars 순번, 0 = 구단 숙소 · 차 없음) */
+  house?: number;
+  car?: number;
+  /** 자선: 누적 기부, 이번 시즌 기부(위상 계산), 이번 시즌 받은 위상, 자선가 배지 시즌 */
+  charity?: { total: number; season: number; rep: number; badge?: number };
+  /** 투자: 예금·부동산 원금, 이벤트형 투자(시즌 끝 정산 배수는 제안 때 시드로 정해 둔다), 지금 제안 */
+  invest?: { deposit: number; estate: number; deals: Deal[]; offer?: Deal | null; offered?: number };
+  /** 고급 에이전트 (수수료 8%, 새 계약 주급 +5%) */
+  agent?: 'premium';
 }
+
+/** 이벤트형 투자 한 건 */
+export interface Deal { label: string; amount: number; mult: number; season: number }
 
 export function initMoney(): MoneyState {
   return { cash: M().startCash, ledger: [], season: {}, history: [], weeks: 0, paidApps: 0, paidGoals: 0, staff: [], scout: null, candidates: [], candUntil: null, seq: 0 };
@@ -143,21 +161,32 @@ export function signingBonus(weekly: number, years: number): number {
   return round(annualOf(weekly) * M().signingShare * Math.min(M().signingYearsMax, Math.max(1, years)));
 }
 
-/** 에이전트 수수료 = (계약금 + 첫해 연봉) × 5% */
-export function agentFee(weekly: number, bonus: number): number {
-  return round((bonus + annualOf(weekly)) * M().agent);
+/** 에이전트 수수료 = (계약금 + 첫해 연봉) × 5% (고급 8%) */
+export function agentFee(weekly: number, bonus: number, premium = false): number {
+  return round((bonus + annualOf(weekly)) * (premium ? BALANCE.wealth.agentPremium.fee : M().agent));
 }
 
 /** 계약 서명 (이적·재계약·1군 계약): 계약금 수령, 에이전트 수수료 차감. 임대는 없음 */
 export function onContractSigned(state: GameState, c: { wage: number; from: number; until: number; loan?: unknown }, why: string): void {
   if (c.loan) return;
+  // 고급 에이전트 (C.68b): 새 계약 주급 +5%, 수수료 8%
+  const premium = ensureMoney(state).agent === 'premium';
+  if (premium) c.wage = Math.round((c.wage * (1 + BALANCE.wealth.agentPremium.wage)) / 50) * 50;
   const years = c.until - c.from + 1;
   const bonus = signingBonus(c.wage, years);
   book(state, 'signing', bonus, `${why} · ${years}년`);
-  book(state, 'agent', -agentFee(c.wage, bonus), why);
+  book(state, 'agent', -agentFee(c.wage, bonus, premium), why);
 }
 
 // ── 주 정산 ──
+
+/** 집·차 연 비용 (C.68b): 월세 + 집 유지비(구매가 × houseUpkeep) + 차 유지비(구매가 × carUpkeep) */
+export function lifeYearly(m: Pick<MoneyState, 'house' | 'car'>): number {
+  const W = BALANCE.wealth;
+  const h = W.houses[m.house ?? 0]!;
+  const c = W.cars[m.car ?? 0]!;
+  return h.rent + h.price * W.houseUpkeep + c.price * W.carUpkeep;
+}
 
 function appsGoals(p: Pick<PlayerState, 'season'>): { apps: number; goals: number } {
   const s = p.season;
@@ -174,6 +203,7 @@ function payWeeks(state: GameState, weeks: number, date: IsoDate, note?: string)
   book(state, 'living', -round(w * M().living * weeks), note, date, false);
   const sal = m.staff.reduce((t, s) => t + s.salary, 0);
   book(state, 'staff', -round((sal / 52) * weeks), note, date, false);
+  book(state, 'upkeep', -round((lifeYearly(m) / 52) * weeks), note, date, false);
   if (m.cash !== c0) logLine(m, [date, 'week', m.cash - c0, note ?? `${weeks}주`]);
 }
 
@@ -434,8 +464,9 @@ function medical(state: Pick<GameState, 'money'>, role: 'doctor' | 'physio' | 'n
 export const injuryChanceMul = (state: Pick<GameState, 'money'>): number => 1 - medical(state, 'doctor');
 /** 부상 기간 배율 (물리치료사) */
 export const injuryDaysMul = (state: Pick<GameState, 'money'>): number => 1 - medical(state, 'physio');
-/** 피로 회복 배율 (영양사) */
-export const staffRecoveryMul = (state: Pick<GameState, 'money'>): number => 1 + medical(state, 'nutrition');
+/** 피로 회복 배율 (영양사 + 집 (C.68b, 19.7 작게)) */
+export const staffRecoveryMul = (state: Pick<GameState, 'money'>): number =>
+  1 + medical(state, 'nutrition') + BALANCE.wealth.houses[state.money?.house ?? 0]!.recovery;
 
 
 /**

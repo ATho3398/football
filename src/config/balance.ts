@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 46;
+export const BALANCE_VERSION = 47;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1298,6 +1298,15 @@ export const BALANCE = {
     trust: { manager: [2, -2], club: [1, -1], personal: [0, 0] } as Record<string, readonly [number, number]>,
     /** 중간 점검 인박스 라운드 */
     midRound: 19,
+    /** TP (5.4, C.68b): 달성 TP 쉬움 1 · 보통 2 · 어려움 3. 카드 해금 = TP 로 3택 1 (일반 특성 rare TP 3, 상위 특성 epic TP 5 + 위상 탑클래스, 5.5) */
+    tp: { easy: 1, normal: 2, hard: 3 },
+    tpUnlock: { rare: 3, epic: 5 },
+    tpEpicTier: 2,
+    /**
+     * 구단 목표 "챔스 n강" (pending 109 ⑤): 챔스에 나가는 시즌이면 uclChance 로 리그 순위 대신 챔스 진출 단계 목표.
+     * 단계: 1 = 16강 · 2 = 8강 · 3 = 4강 · 4 = 결승. 쉬움/보통/어려움 기본 단계 uclStage, 리그 레이팅 상위 uclStrongRank 안 팀은 +1
+     */
+    uclChance: 0.5, uclStage: { easy: 1, normal: 2, hard: 3 }, uclStrongRank: 2,
     /** 업적 카드 선택권 (18.9 큰 업적): 시즌 시상 수상 희귀 1장(시즌 최대 1), 리그 우승 에픽, 새 레전드 배지 전설(없으면 에픽). 챔스·발롱도르·월드컵은 5-6·6단계 훅 */
     awardPick: { award: 'rare', leagueTitle: 'epic', legendBadge: 'legendary', clWin: 'epic', ballonDor: 'legendary', worldCup: 'legendary' },
   },
@@ -1427,6 +1436,64 @@ export const BALANCE = {
       physio: { normal: 0.08, special: 0.12, topClass: 0.16, worldClass: 0.2, legendary: 0.25 } satisfies Record<Tier, number>,
       nutrition: { normal: 0.03, special: 0.05, topClass: 0.07, worldClass: 0.09, legendary: 0.12 } satisfies Record<Tier, number>,
     },
+  },
+
+  // ── 재정 b (19.6~19.9 · 19.11, C.68b): 카드 상점·카드팩·생활·자선·투자·엔딩 자산 점수·고급 에이전트. 금액은 만 원 ──
+  wealth: {
+    /**
+     * 카드 상점 (19.6): 매주(월요일부터) 카드 size 장, 희귀도 가중 weights. 일반 = 주급 × commonPrice (500만 원 단위, 최소 500만 원),
+     * 희귀 이상은 절대 가격 price + 위상 티어 조건 tierReq (티어 순번: 0 일반 · 1 스페셜 · 2 탑클래스 · 3 월드클래스)
+     */
+    shop: {
+      size: [3, 4] as [number, number],
+      weights: { common: 55, rare: 30, epic: 11, legendary: 4 },
+      commonPrice: 0.5,
+      price: { rare: 30000, epic: 100000, legendary: 250000 },
+      tierReq: { common: 0, rare: 1, epic: 2, legendary: 3 },
+    },
+    /** 일반 카드팩 (19.6): 주급 × price (500만 원 단위, 최소 500만 원), 주당 perWeek 팩, 한 팩 cards 장 (장마다 rareChance 로 희귀) */
+    pack: { price: 1, perWeek: 2, cards: 3, rareChance: 0.1 },
+    /**
+     * 생활 (19.7): 집·차는 절대 가격. 집 0 = 구단 숙소(무료). 월세는 연 rent 를 주마다, 나머지는 구매가 price + 유지비(연 houseUpkeep).
+     * 이사하면 살던 집은 resale 비율로 판다. 효과는 작게: 집 = 피로 회복 + recovery, 차 = 주마다 멘탈 피로 − mental
+     */
+    houses: [
+      { id: 'dorm', ko: '구단 숙소', price: 0, rent: 0, recovery: 0 },
+      { id: 'rent', ko: '월세 아파트', price: 0, rent: 5000, recovery: 0.01 },
+      { id: 'apt', ko: '아파트', price: 100000, rent: 0, recovery: 0.02 },
+      { id: 'villa', ko: '고급 주택', price: 300000, rent: 0, recovery: 0.03 },
+      { id: 'mansion', ko: '저택', price: 800000, rent: 0, recovery: 0.04 },
+      { id: 'castle', ko: '성', price: 2000000, rent: 0, recovery: 0.05 },
+    ],
+    houseUpkeep: 0.05, houseResale: 0.7,
+    cars: [
+      { id: 'none', ko: '차 없음', price: 0, mental: 0 },
+      { id: 'compact', ko: '중형차', price: 10000, mental: 0.3 },
+      { id: 'suv', ko: '고급 SUV', price: 30000, mental: 0.6 },
+      { id: 'sports', ko: '스포츠카', price: 80000, mental: 1 },
+      { id: 'super', ko: '슈퍼카', price: 250000, mental: 1.5 },
+    ],
+    carUpkeep: 0.1, carResale: 0.5,
+    /** 사치 리스크 (19.7): 집 houseFrom 단계 이상 · 차 carFrom 단계 이상을 사면 chance 로 days 일 뒤 언론 논란(인박스 선택형) */
+    luxury: { houseFrom: 4, carFrom: 3, chance: 0.5, days: 3 },
+    /** 자선 (19.8): perRep 마다 위상 +1, 시즌 상한 seasonCap, 누적 badge 이상이면 "자선가". 기부 단위 units */
+    charity: { perRep: 10000, seasonCap: 30, badge: 1000000, units: [10000, 50000, 100000] },
+    /**
+     * 투자 (19.9): 예금 연 deposit, 부동산 연 estate ± estateSwing (시즌 끝 정산, 수익은 잔고로). 넣기 단위 units.
+     * 이벤트형 투자: 시즌 offerWeek 주째 즈음 잔고 minCash 이상이면 offerChance 로 제안 (인박스). 금액 = 잔고 × share (1억 단위, 1억~max),
+     * 시즌 끝 정산 = 금액 × 배수 (outcomes [배수, 가중]) — 손실은 투자금 안 (파산 없음)
+     */
+    invest: {
+      deposit: 0.03, estate: 0.06, estateSwing: 0.08, units: [10000, 100000],
+      offerWeek: [8, 24] as [number, number], offerChance: 0.6, minCash: 30000, share: 0.15, max: 300000,
+      outcomes: [[0, 22], [0.5, 22], [1.2, 30], [2, 19], [3, 7]] as [number, number][],
+    },
+    /** 엔딩 자산 점수 = clamp(k × log10(순자산(억 원) + 1), 0, 100). 순자산 = 잔고 + 투자 + 집 매각가 */
+    assetScoreK: 33,
+    /** 에이전트 (19.11): 일반 수수료 money.agent(5%), 고급 fee(8%) — 새 계약 주급 × (1 + wage) */
+    agentPremium: { fee: 0.08, wage: 0.05 },
+    /** 이벤트 돈 효과 (20.2): 이벤트 효과 { money: n } = 주급 × n (최소 500만 원) */
+    eventMinUnit: 500,
   },
 } as const;
 
