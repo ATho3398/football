@@ -353,3 +353,4 @@
 - (18:04 KST) C.66 완료 보고(O 경유, main 948ad92, 테스트 580, 1시간 8분) → pending 107, ntfy(200), UI_3 목록(큰 2·작은 5), C.66에 "보고는 P" 재알림. C.66 CI는 C.66 세션이 18:28 KST쯤 확인.
 - (18:04 KST) 39 5-6 세부 형식 추천안 pending 108. **rate limit `seven_day` allowed_warning** → 사용자 선호대로 C.67 열기 전에 사용자에게 물음(ntfy 긴급). 답 오면 pending 108 + 8.26 공통 사항 + `claude/engine-issues-c45` docs 병합으로 C.67 지시.
 - (18:14 KST) C.66 직접 보고도 옴: 최종 main **97fa3cc**(docs 병합 planning-o·planning-p·ui-3). UI_3: C.66 화면은 정정문(7-8-addendum)으로 이미 요청한 것이라 오른쪽 패널 시트만 작은 1 → 9차 누계 큰 1·작은 5·단계 1(미달, claude/ui-3 8cd901b). C.66 확인 예약 `trig_013NL6fZF2FA7xM6FRgHTcz3` 삭제(완료됨). C.67은 사용자 답 기다림.
+- (18:31 KST, 사용자) "한도 꽉 차서 막힐 때까지 계속 돌려도 돼" → **사용량 경고로 멈추지 않음**(7일 한도 실제로 막힐 때만 멈춤, 리셋 10/20 19:00 KST). 챔스/컵 형식 답 없음 → pending 108 추천안으로 진행. 39 C.67a 시작.
