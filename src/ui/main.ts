@@ -83,7 +83,7 @@ import { marketVM, newsVM } from './transferVM';
 import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
 import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
-import { artStyle } from './components/gameCard';
+import { artLayer } from './components/gameCard';
 import { emptyOverrides, kitClash, setKitOverride, setPersonOverride } from '../pixel';
 import { pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
@@ -2782,9 +2782,8 @@ app.addEventListener('input', (ev) => {
     else cc.y = n;
     const lab = document.getElementById(`${t.id}-v`);
     if (lab) lab.textContent = caRangeText(t.id as 'ca-zoom', n);
-    document.querySelectorAll<HTMLImageElement>('#ca-prev .po-art').forEach((img) => {
-      const full = !!img.closest('.po-gc__photo');
-      img.setAttribute('style', artStyle(full ? '50% 30%' : '50% 35%', cc));
+    document.querySelectorAll<SVGGElement>('#ca-prev .po-art-g').forEach((g) => {
+      g.innerHTML = artLayer(cc.src, cc, false);
     });
     return;
   }
@@ -2907,9 +2906,10 @@ applySkin();
 render();
 void initFaces().then(render, () => render());
 void initCardArt().then(render, () => render());
-// 카드 그림 (C.48): 못 읽은 그림(404 등)은 지워 기본 장면이 보이게
+// 카드 그림 (C.48): 못 읽은 그림(404 등)은 지워 기본 장면이 보이게 (C.68c: 카드 안 그림은 SVG 층 .po-art-g 통째로)
 app.addEventListener('error', (ev) => {
   const t = ev.target;
   if (t instanceof HTMLImageElement && t.classList.contains('po-art')) t.remove();
+  else if (t instanceof SVGImageElement) t.closest('.po-art-g')?.remove();
 }, true);
 void initSaves().then(render, () => render());

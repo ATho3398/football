@@ -1,7 +1,8 @@
 // 게임 카드 (디자인 GameCard, bundle.js 옮김, 부록 C.39): full 280×392 · deck 0.6배 · mini(덱 슬롯) · hand(경기 중 패).
 // 그림(art, C.48)이 있으면 그림 칸(280×210, 사선 아래는 글자 패널)에 이미지를, 없거나 못 읽으면 기본 장면을 그린다.
+// C.68c: 그림은 디자인 B CardScene 대로 SVG <image> — artSquare(1:1 원본)·artPosMini(mini·hand)·flip·rotate·옮긴 가장자리 거울 채움.
 // 기본 장면(C.54 디자인 144·요청 6): 단색 + 하프라인·센터서클 + 종류 아이콘(희귀도 색 55%). 옛 골문·수비벽·궤적 장면은 placeholder: 'scene'.
-// 이미지는 기본 그림 위에 얹어 404 면 지워도 기본 그림이 보인다 (main 의 error 리스너). 클래스·치수는 bundle.css .po-card / .po-gc / .po-mc
+// 이미지 층(.po-art-g)은 기본 장면 위에 얹어 404 면 지워도 기본 장면이 보인다 (main 의 error 리스너). 클래스·치수는 bundle.css .po-card / .po-gc / .po-mc
 
 import { Icon, type IconName } from './basic';
 import { FILLED, ICON_PATHS } from './iconPaths';
@@ -24,11 +25,17 @@ export interface GameCardData {
   count?: number;
   /** 카드 그림 URL (C.48, cardArtUrl) */
   art?: string;
-  /** 그림 위치·확대 (디자인 artPos): x 오른쪽 %, y 위로 % (그림 칸 기준), zoom 1~4 */
-  artPos?: { x: number; y: number; zoom: number };
+  /** 그림 위치·확대 (디자인 artPos, 정식·덱): x 오른쪽 %, y 위로 % (그림 칸 기준), zoom 1~4, flip 좌우 반전, rotate 도(−45~45) */
+  artPos?: ArtPos;
+  /** 간략 카드(mini·hand) 위치. 없으면 artPos (C.68c) */
+  artPosMini?: ArtPos;
+  /** 1:1 원본: 가로 280 에 맞추고 세로는 칸 밖으로 넘침 (y 로 고름, C.68c) */
+  artSquare?: boolean;
   /** 그림 없을 때 기본 장면 (C.54): 'type' = 단색 + 종류 아이콘(기본), 'scene' = 옛 골문 장면 */
   placeholder?: 'type' | 'scene';
 }
+
+export interface ArtPos { x: number; y: number; zoom: number; flip?: boolean; rotate?: number }
 
 export interface GameCardProps extends Action {
   card: GameCardData;
@@ -45,6 +52,7 @@ const POS_KO: Record<GameCardPos, string> = { all: '공용', att: '공격', mid:
 
 const CARD_W = 280;
 const CARD_H = 392;
+const ART_H = 210;
 const TRAJ: Record<string, string> = {
   setpiece: 'M44 268 Q 120 70 200 150', passive: 'M44 268 Q 110 200 180 170', combo: 'M44 268 Q 90 120 170 130', manage: 'M44 268 Q 160 120 210 190',
   order: 'M44 268 Q 100 150 150 150 Q 190 150 205 110', play: 'M44 268 Q 70 120 140 140 Q 200 160 214 108', signature: 'M44 268 Q 140 40 206 168',
@@ -85,14 +93,27 @@ function scene(type: GameCardType, thin: boolean, placeholder?: GameCardData['pl
 
 let clipSeq = 0;
 
-/** 그림 이미지 (lazy). 위치·확대는 그림 칸 크기 기준 이동 + 확대 */
-export function artStyle(pos: string, p?: GameCardData['artPos']): string {
-  const tf = p && (p.x || p.y || p.zoom !== 1) ? `;transform:translate(${p.x}%,${-p.y}%) scale(${p.zoom})` : '';
-  return `object-position:${pos}${tf}`;
+const n = (v: unknown): number => +(v as number) || 0;
+
+/** 그림 층 (디자인 B CardScene 옮김): 칸 크기 기준 이동 + 확대, flip·rotate 는 그림 자기 가운데 기준, 옮기면 가장자리를 거울로 이어 채운다 */
+export function artLayer(href: string, p: ArtPos | undefined, sq: boolean | undefined): string {
+  const z = Math.max(1, Math.min(4, n(p?.zoom) || 1));
+  const iw = CARD_W * z;
+  const ih = sq ? iw : ART_H * z;
+  const ix = (CARD_W - iw) / 2 + (n(p?.x) * CARD_W) / 100;
+  const iy = (ART_H - ih) / 2 - (n(p?.y) * ART_H) / 100;
+  const img = (t?: string) => `<image href="${esc(href)}" x="${ix}" y="${iy}" width="${iw}" height="${ih}" preserveAspectRatio="xMidYMid slice"${t ? ` transform="${t}"` : ''}/>`;
+  const rot = Math.max(-45, Math.min(45, n(p?.rotate)));
+  const cx = ix + iw / 2;
+  const cy = iy + ih / 2;
+  const moved = n(p?.x) !== 0 || n(p?.y) !== 0 || rot !== 0;
+  const tf = `${rot ? `rotate(${rot} ${cx} ${cy}) ` : ''}${p?.flip ? `translate(${2 * cx} 0) scale(-1 1)` : ''}`.trim();
+  const mirror = moved ? img(`translate(0 ${2 * (iy + ih)}) scale(1 -1)`) + img(`translate(0 ${2 * iy}) scale(1 -1)`) + img(`translate(${2 * ix} 0) scale(-1 1)`) + img(`translate(${2 * (ix + iw)} 0) scale(-1 1)`) : '';
+  return `<rect x="0" y="0" width="${CARD_W}" height="${ART_H}" fill="#121317"/><g${tf ? ` transform="${tf}"` : ''}>${mirror}${img()}</g>`;
 }
 
-function artImg(c: GameCardData, pos: string): string {
-  return `<img class="po-art" src="${esc(c.art!)}" alt="" loading="lazy" decoding="async" style="${artStyle(pos, c.artPos)}">`;
+function artG(c: GameCardData, mini: boolean): string {
+  return `<g class="po-art-g" data-mini="${mini ? 1 : 0}">${artLayer(c.art!, mini ? c.artPosMini ?? c.artPos : c.artPos, c.artSquare)}</g>`;
 }
 
 function fullCard(c: GameCardData): string {
@@ -102,9 +123,9 @@ function fullCard(c: GameCardData): string {
   return `<div class="po-gc">
     <svg class="po-gc__art" width="${CARD_W}" height="${CARD_H}" viewBox="0 0 ${CARD_W} ${CARD_H}" aria-hidden="true">
       <defs><clipPath id="${id}"><path d="${CUT.clip}"/></clipPath></defs>
-      <g clip-path="url(#${id})"><g transform="translate(0 -10)">${scene(c.type, false, c.placeholder)}</g></g>
+      <g clip-path="url(#${id})"><g transform="translate(0 -10)">${scene(c.type, false, c.placeholder)}</g>${c.art ? artG(c, false) : ''}</g>
       ${CUT.overlay.map((o) => `<path d="${o.d}" style="fill:var(--r)" opacity="${o.op}"/>`).join('')}
-    </svg>${c.art ? `<span class="po-gc__photo">${artImg(c, '50% 30%')}</span>` : ''}
+    </svg>
     <div class="po-gc__top"><span class="po-gc__rarity">${RARITY_KO[c.rarity]}</span><span class="po-gc__chip">${Icon({ name: TYPE_ICON[c.type], size: 12, strokeWidth: 2.6, style: 'color:var(--r)' })}${TYPE_KO[c.type]}</span></div>
     ${c.pos ? `<span class="po-gc__chip po-gc__pos po-pos--${c.pos}">${c.pos === 'def' ? Icon({ name: 'defense', size: 12, strokeWidth: 2.4 }) : ''}${POS_KO[c.pos]}</span>` : ''}
     <span class="po-gc__chip po-gc__lv">숙련 Lv ${c.level}</span>
@@ -119,8 +140,7 @@ function fullCard(c: GameCardData): string {
 }
 
 function miniCard(c: GameCardData): string {
-  return `<svg class="po-mc__art" viewBox="${c.placeholder === 'scene' ? '20 90 240 300' : '0 0 280 210'}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true, c.placeholder)}</svg>${
-    c.art ? `<span class="po-mc__photo">${artImg(c, '50% 35%')}</span>` : ''}
+  return `<svg class="po-mc__art" viewBox="${c.art || c.placeholder !== 'scene' ? '0 0 280 210' : '20 90 240 300'}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene(c.type, true, c.placeholder)}${c.art ? artG(c, true) : ''}</svg>
     <span class="po-mc__band"></span><span class="po-mc__dot"></span>
     ${c.pos === 'def' ? `<span class="po-mc__pos po-pos--def" title="수비">${Icon({ name: 'defense', size: 10, strokeWidth: 2.6 })}</span>` : ''}
     <span class="po-mc__name">${esc(c.name)}</span>

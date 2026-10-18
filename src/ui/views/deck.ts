@@ -11,7 +11,7 @@ import { previewLineup } from '../../myTactics';
 import { ROLE_NAMES_KO } from '../../engine/roles';
 import { Banner, BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
-import { cardArtPos, cardArtUrl } from '../cardArt';
+import { cardArtPos, cardArtUrl, defaultArtPos } from '../cardArt';
 
 const ROLE_KO = { play: '4번째 선택지', boost: '이번 턴 확률', passive: '남은 경기 장착', combo: '다음 장면', soften: '이번 턴', redraw: '패 바꾸기' } as const;
 const KIND_KO = { play: '플레이', setPiece: '세트피스', passive: '패시브', combo: '콤보', manage: '관리', signature: '시그니처', directive: '지시' } as const;
@@ -90,11 +90,14 @@ export function gameCardData(def: CardDef, o: { uses?: number; met?: boolean; is
   };
 }
 
-/** 카드 그림 (C.48): cardArtUrl 한 함수로 정하고, 사용자 그림이면 위치·확대 */
-export function cardArtOf(id: string): Pick<GameCardData, 'art' | 'artPos'> {
+/** 카드 그림 (C.48): cardArtUrl 한 함수로 정한다. 위치 우선순위(C.68c): 사용자 위치(정식·간략 같이) > 기본 위치표(full·mini) > 가운데 */
+export function cardArtOf(id: string): Pick<GameCardData, 'art' | 'artPos' | 'artPosMini' | 'artSquare'> {
   const art = cardArtUrl(id);
+  if (!art) return {};
   const pos = cardArtPos(id);
-  return art ? { art, ...(pos ? { artPos: pos } : {}) } : {};
+  if (pos) return { art, artPos: pos };
+  const def = defaultArtPos(id);
+  return def ? { art, artPos: def.full, artPosMini: def.mini, ...(def.sq ? { artSquare: true } : {}) } : { art };
 }
 
 function cardVM(g: GameState, def: CardDef, deck: string[], role: string | undefined): DeckCardVM {

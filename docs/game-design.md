@@ -4769,6 +4769,22 @@ center (델타 합): GK 1.06 → 0.96, CB 1.33 → 1.26, FB 1.11 → 1.01, CDM 2
 
 명령 시각 2026-10-19 01:53 KST / 작성 시각 2026-10-19 03:05 KST / 걸린 시간 약 1시간 12분
 
+#### C.68c 카드 그림 61장 적용 · 기본 위치표(정식/간략) · flip · rotate · 1:1 원본 **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
+
+명세: `docs/ui-requests/card-art-set61-apply.md`(UI_3), 참고 `card-art-missing.md`("코드 쪽에 필요한 것"), 디자인 B GameCard README 26~28줄 + `bundle.js` CardScene. `PATCH_LABEL` = `C.68c`, `STAGE_LABEL`은 main 값 그대로. 화면만 패치(엔진 무수정).
+
+- **그림 61장**: `docs/design/incoming/card-art/set61/*.webp` → `public/cards/art/`(BATCH 03 17장은 같은 카드의 정사각 원본으로 덮어씀). `CARD_ART_FILES` = 위치표 키 61개. 그림 세션 희귀도는 임시값이라 무시(게임 `cards.ts` 기준).
+- **기본 위치표** `src/ui/cardArtTable.ts`(card-art.json 옮김): 카드별 `sq`(1:1 원본, 4장 — 프리킥 스페셜·무회전·페널티 스페셜·파넨카 — 만 4:3) · `full`(정식·덱) · `mini`(덱 슬롯·경기 준비 줄·경기 중 패), 각 `{x, y, zoom, flip?, rotate?}`. 프리킥 크로스 = flip, 롱패스 전환 간략 = rotate −16.
+- **우선순위**: 사용자 위치(설정 → 카드 이미지, 하나를 정식·간략 둘 다에) > 기본 위치표 > 가운데. 사용자 그림은 IndexedDB 그대로라 세이브 구조 변경 없음 — 저장된 x·y·zoom 은 같은 뜻(칸 기준 이동 %, 확대)으로 그대로 맞는다.
+- **GameCard**: 그림을 HTML `<img>` 덧씌우기에서 디자인 B CardScene 대로 **SVG `<image>` 층**(`.po-art-g`, 기본 장면 위)으로. `artSquare`(가로 280 에 맞추고 세로는 칸 밖으로, `y`로 고름) · `artPosMini`(mini·hand, 없으면 `artPos`) · `flip`(좌우 반전) · `rotate`(−45~45, 그림 가운데 기준) · 옮기거나 기울이면 위·아래·왼·오른 거울 4장으로 가장자리 채움. 404 면 층을 지워 기본 장면(main 의 error 리스너). 설정 위치 맞추기 미리보기도 같은 `artLayer`로 즉시 갱신.
+- **그림 없는 카드 15장**(시그니처 11 + 오프사이드 트랩 지휘·지시 이행·독단·감독의 신뢰)은 기본 장면(단색 + 종류 아이콘) 그대로.
+
+**검증**: typecheck · 테스트 **627개(67파일)** · build 통과. `tests/c48-cardart.test.ts` 갱신(61장·파일 존재, 시그니처 그림 20장, SVG 층·거울 5장 좌표) + 새 테스트 1개(정사각·full/mini·flip·rotate 는 mini 에만·파넨카 4:3·리셋 거울 없음·사용자 위치 우선).
+
+**확인**: 캡처(`scripts/c68c-capture.mjs`) `docs/design/c68c-check/` — 폰 세로 390×844(경기 중 패는 경기장 가로 844×390) · PC 1280×800(`pc_` 앞붙임): 카드 상세 큰 카드 6장(감아차기 기본 · 프리킥 크로스 flip · 롱패스 전환 · 파넨카 4:3 · 리셋 x0 y0 · 오프사이드 트랩 그림 없음), 덱 작은 카드 · 덱 전체, 경기 준비 덱 줄, 경기 중 패(롱패스 전환 rotate). 페이지 오류 0, 404 0, 가로 넘침 0.
+
+**디자인 없는 새 화면/패널 목록**: 없음.
+
 ### C.69 41a단계 U7-a 결정 순간·결과 v3 · 독 v3 · 경기 중 띠 — **`main` 배포** (ENGINE_VERSION 20 그대로, BALANCE_VERSION 47 그대로, SAVE_FORMAT_VERSION 39 그대로)
 
 명세: UI_3 `docs/ui-requests/7-9-part1-apply.md`(claude/ui-3 125a228) U7-a 행 — 189·190(결정 순간·결과 v3) · 171(아래 묶음) · 172(도장 보통·실점) · 201(독 v3, 폰·PC) · 165(경기 중 다른 화면 띠), 디자인 묶음 `docs/design/player-one-design-b/`(통합 1부로 덮어쓴 판), 정정문 2 `7-8-addendum-2.md`(세로 폰 + 경기장만 가로). 브랜치 `claude/c69-u7a`. `PATCH_LABEL` = `C.69`, `STAGE_LABEL` = `41a단계`. 화면만 — 엔진(`src/engine`, 지문 `f96341ae43d430b1`)·밸런스·게임 로직·세이브 무수정. 디자인과 명세가 다르면 명세, 둘 다 없으면 디자인.

@@ -5,17 +5,16 @@
 import { exportSave, importSave } from '../save';
 import type { GameState } from '../game';
 import { storeBackend } from '../saveStore';
+import { CARD_ART_TABLE, type ArtDefault } from './cardArtTable';
 
 export const CARD_ART_DIR = 'cards/art/';
 
-/** 기본 그림이 있는 파일 (일반 카드 id, 시그니처는 역할 id). BATCH 03 (2026-10-17, 17장) */
-export const CARD_ART_FILES: ReadonlySet<string> = new Set([
-  'targetMan', 'falseNine', 'advancedForward', 'classic10', 'shadowStriker', 'freeRole', 'boxCrasher', 'enganche',
-  'boxToBox', 'deepPlaymaker', 'mezzala', 'carrier', 'holdingCM', 'anchor', 'ballWinner', 'regista', 'elastico',
-]);
+/** 기본 그림이 있는 파일 (일반 카드 id, 시그니처는 역할 id). set61 (2026-10-19, 61장, C.68c — BATCH 03 17장 대체) */
+export const CARD_ART_FILES: ReadonlySet<string> = new Set(Object.keys(CARD_ART_TABLE));
 
-/** 그림 위치·확대 (디자인 GameCard `artPos`): x 오른쪽(%), y 위로(%) — 그림 칸(280×210) 기준, zoom 1~4 */
-export interface ArtPos { x: number; y: number; zoom: number }
+/** 그림 위치·확대 (디자인 GameCard `artPos`): x 오른쪽(%), y 위로(%) — 그림 칸(280×210) 기준, zoom 1~4, flip 좌우 반전, rotate 도(−45~45, 시계 +) */
+export type { ArtPos } from './components/gameCard';
+import type { ArtPos } from './components/gameCard';
 export const ART_POS_DEFAULT: Readonly<ArtPos> = { x: 0, y: 0, zoom: 1 };
 
 /** IndexedDB 에 담는 사용자 그림 한 건 (키 `card:<카드 id>`) */
@@ -38,7 +37,12 @@ export function cardArtUrl(id: string): string | undefined {
   return user.get(id)?.url ?? defaultArtUrl(id);
 }
 
-/** 사용자 그림의 위치·확대 (기본 그림은 없음) */
+/** 기본 그림의 기본 위치표 (C.68c): 크기별 full·mini + 1:1 원본 여부 */
+export function defaultArtPos(id: string): ArtDefault | undefined {
+  return CARD_ART_TABLE[artFile(id)];
+}
+
+/** 사용자 그림의 위치·확대 (기본 그림은 defaultArtPos) */
 export function cardArtPos(id: string): ArtPos | undefined {
   return user.get(id)?.pos;
 }
