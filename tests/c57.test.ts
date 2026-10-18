@@ -154,7 +154,7 @@ describe('마무리', () => {
   it('버전 C.57 · 34m단계, CSS 블록', () => {
     // C.58부터 다음 패치 번호 (tests/c58.test.ts)
     expect(PATCH_LABEL).toMatch(/^C\.\d+/);
-    expect(STAGE_LABEL).toMatch(/^34[m-z]단계$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(readFileSync('src/ui/style.css', 'utf8')).toContain('C.57 U5-c');
   });
 });

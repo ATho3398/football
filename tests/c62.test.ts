@@ -287,3 +287,11 @@ describe('화면·세이브 (C.62)', () => {
     expect(again.name).not.toBe(top.id);
   });
 });
+
+describe('버전 (C.62)', () => {
+  it('C.62 · 35단계', async () => {
+    const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
+    expect(PATCH_LABEL).toBe('C.62');
+    expect(STAGE_LABEL).toBe('35단계');
+  });
+});
