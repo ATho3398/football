@@ -373,3 +373,4 @@
 - (01:22 KST) **C.66c 완료**(main ac4d74a, 16분): 경기 준비 덱 탭 아래 고른 덱 카드 줄(GameCard mini 72×96, 가로 끌기·스냅·끝 흐림), 탭 바꾸면 갱신, 카드 누르면 보기 전용 상세. 디자인 없는 변형 2. CI는 C.66c가 확인.
 - (01:48 KST) C.66c CI #197 성공(main ac4d74a, 01:43 KST 배포). C.66c draft_.
 - (01:53 KST) **C.68a 완료**(main 39d4a86, 밸런스 46·세이브 38, 테스트 613, 2시간 44분·13.7달러) → pending 113, ntfy, UI_3 목록(큰 1·작은 3 → 9차 단계 3 충족 예상), C.68 draft_, C.68 확인 예약 삭제. C.68a CI는 C.68 세션이 02:18 KST 확인. **40 C.68b 재정 b 시작** `session_01YUBCeWGZp5RXvKqFqXysji` "40단계_5-7 재정 b (C.68b)", 브랜치 `claude/c68b-finance`, 태그 `stage:40-C68b`. 자동 확인 `trig_01YP7G8fUQmdsKz7cpKUvsv3`(04:54 KST). P 12.5달러·44만 → 다음 단계(41) 열기 전 교체 예정.
+- (02:01 KST) UI_3 **9차 보고** 사용자에게 보냄(docs/ui-requests/9.md, claude/ui-3 b3de4f1, 큰 3 + 작은 17 + 요청 거리 2, 번호 204~217, 기준 정정 2 = 세로 폰 + 가로 피치). 10차 쌓기 시작. 7·8·9차 디자인 대기.
