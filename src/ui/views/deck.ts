@@ -164,9 +164,18 @@ function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
 }
 
 /** 카드 상세 시트 (full): 효과·조건·못 쓰는 이유와 빼기/넣기 */
-export interface CardSheetVM { from: 'deck' | 'pool' | 'pick'; card: DeckCardVM }
+export interface CardSheetVM { from: 'deck' | 'pool' | 'pick' | 'view'; card: DeckCardVM }
 
-function cardSheet(s: CardSheetVM, count: number): string {
+/** 덱 세트 한 벌의 카드 (C.66c 경기 준비 줄): 같은 카드도 한 칸씩, 덱에 든 순서대로 */
+export function deckCardsVM(g: GameState, set: number, role: string | undefined): DeckCardVM[] {
+  const deck = g.cards.decks[set] ?? [];
+  return deck.flatMap((id) => {
+    const def = cardById(id);
+    return def ? [cardVM(g, def, deck, role)] : [];
+  });
+}
+
+export function cardSheet(s: CardSheetVM, count: number): string {
   const c = s.card;
   const C = BALANCE.cards;
   const foot = s.from === 'deck'
