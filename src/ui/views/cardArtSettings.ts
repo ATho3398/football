@@ -159,7 +159,8 @@ export function cardArtSection(ui: CardArtUI, locked: boolean): string {
     <input type="file" id="ca-file" accept="image/*" hidden>`;
   // PC (C.61 디자인 152): 목록 | 편집을 나란히. 고른 카드가 없으면 오른쪽에 안내
   if (wide) {
-    const right = sel ? editor(sel, locked) : `${locked ? lockBanner() : ''}<div class="panel ca-pick-hint">${Icon({ name: 'card', size: 22 })}<b>카드를 고르면 여기서 편집해요</b><small class="muted">왼쪽 목록에서 줄을 눌러요. 지금 쓰는 그림 · 미리보기 · [이미지 올리기]가 이 자리에 나와요.</small></div>`;
+    const right = sel ? editor(sel, locked) : `${locked ? lockBanner() : ''}<div class="panel ca-pick-hint"><span class="ca-pick-hint__card" aria-hidden="true"><i></i><span>${Icon({ name: 'card', size: 22 })}</span><em></em><em></em></span><b>고른 카드 없음</b><small class="muted">카드를 고르면 여기서 편집해요</small>
+      <ol class="ca-pick-hint__steps"><li><b class="po-num">1</b>왼쪽 목록에서 카드 줄을 눌러요</li><li><b class="po-num">2</b>지금 쓰는 그림과 미리보기가 여기에 떠요</li><li><b class="po-num">3</b>[이미지 올리기]로 내 그림을 넣고 위치·확대를 맞춰요</li></ol></div>`;
     return `<div class="ca-pc"><div class="ca-pc__list">${listHtml}</div><div class="ca-pc__edit">${right}</div></div>`;
   }
   return listHtml;

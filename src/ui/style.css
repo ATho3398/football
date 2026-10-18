@@ -2121,3 +2121,89 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .cu-row.dec-success b { color: var(--success); }
 .cu-more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 40px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink-muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .mr-rewatch > small { font-size: 11px; line-height: 15px; }
+
+/* ── C.71b (U7-c2): 173 꾸미기 하위 화면 줄 · 174 페이스온 v2 · 175 정렬 · 176 다른 포지션 표 · 183 태그 접기 · 184 PC 설정 · 185 PC 커스텀 미리보기 ── */
+.set-links__label { display: block; margin: 6px 0 -2px; color: var(--ink-muted); font-size: 11px; font-weight: 800; }
+.po-switch:disabled { opacity: .45; cursor: default; }
+.fo-lead { margin: -6px 0 0; }
+.fo-cutout .po-switchrow__main span { word-break: keep-all; }
+.fo-clear-all { display: inline-flex; align-self: center; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border: 0; background: none; color: var(--ink-muted); font: 700 14px/20px var(--font-sans); cursor: pointer; }
+.fo-club { display: flex; flex-direction: column; gap: 12px; }
+.fo-crest { display: grid; place-items: center; flex: none; width: 72px; height: 72px; border-radius: var(--radius-md); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.fo-club-btns { margin: 0; }
+/* 175 정렬: 버튼 → 바로 아래 펼침 목록(실제 선수) / 아래 시트(레전드) */
+.ng-search { position: relative; }
+.ng-sortbtn { display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); color: var(--ink); font: 800 13px/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.ng-sortbtn.is-open { box-shadow: inset 0 0 0 1.5px var(--brand-ink); }
+.ng-sortbtn.is-open > svg:last-child { transform: rotate(180deg); }
+.ng-sortmenu { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; width: min(260px, 100%); display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line-strong), var(--shadow-sheet); }
+.ng-sortmenu__head { padding: 2px 8px 4px; color: var(--ink-muted); font-size: 11px; font-weight: 800; }
+.ng-sortrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 6px 10px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ng-sortrow .grow { display: flex; flex-direction: column; gap: 1px; }
+.ng-sortrow b { font-size: 15px; font-weight: 800; }
+.ng-sortrow small { font-size: 11px; color: var(--ink-muted); }
+.ng-sortrow.is-on { background: var(--surface-2); color: var(--brand-ink); }
+.ng-sheet-x { position: absolute; top: 28px; right: 16px; display: inline-flex; align-items: center; gap: 4px; padding: 6px 4px; border: 0; background: none; color: var(--ink); font: 700 14px/20px var(--font-sans); cursor: pointer; }
+/* 176 다른 포지션 표 */
+.ng-outside { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 12px; }
+.ng-outside__chip { padding: 3px 8px; border-radius: var(--radius-sm); background: var(--brand); color: var(--on-brand); font-size: 11px; font-weight: 800; }
+.ng-pt { display: flex; flex-direction: column; gap: 4px; padding: 12px; }
+.ng-pt__head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.ng-pt__head .grow { display: flex; flex-direction: column; gap: 2px; }
+.ng-pt__head b { font-size: 15px; font-weight: 800; }
+.ng-pt__head small { font-size: 11px; }
+.ng-pt__fold { display: inline-flex; align-items: center; gap: 2px; flex: none; font-weight: 800; }
+.ng-pt__cols, .ng-pt__row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto 44px 36px; align-items: center; gap: 6px; }
+.ng-pt__cols { padding: 0 8px 4px; color: var(--ink-muted); font-size: 11px; font-weight: 700; border-bottom: 1px solid var(--line); }
+.ng-pt__cols span:nth-child(2) { grid-column: 4; text-align: right; white-space: nowrap; }
+.ng-pt__cols span:nth-child(3) { grid-column: 5; text-align: right; }
+.ng-pt__group { padding: 8px 8px 2px; color: var(--ink-muted); font-size: 11px; font-weight: 800; border-bottom: 1px solid var(--line); }
+.ng-pt__row { min-height: 42px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ng-pt__row.is-on { box-shadow: inset 0 0 0 1.5px var(--brand-ink); background: var(--surface-2); }
+.ng-pt__pos { grid-column: 1; font-size: 17px; font-weight: 700; }
+.ng-pt__row.is-on .ng-pt__pos { color: var(--brand-ink); }
+.ng-pt__ko { grid-column: 2; font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ng-pt__chip { grid-column: 3; padding: 2px 8px; border-radius: var(--radius-sm); background: var(--brand); color: var(--on-brand); font-size: 11px; font-weight: 800; }
+.ng-pt__chip.is-wild { background: var(--surface-3); color: var(--warning); }
+.ng-pt__d { grid-column: 4; justify-self: end; font-size: 13px; color: var(--ink-muted); }
+.ng-pt__d.is-minus { color: var(--warning); }
+.ng-pt__ovr { grid-column: 5; justify-self: end; font-size: 18px; font-weight: 700; }
+/* 183·185 태그: 고른 것만 큰 카드, 나머지 한 줄, 효과 없는 태그 묶음 접기 */
+.cu-tagset { display: flex; flex-direction: column; gap: 6px; margin-top: -2px; }
+.cu-tagcard { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--brand-ink); }
+.cu-tagcard__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cu-tagtiles { display: flex; gap: 4px; flex: none; }
+.cu-tagtile { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 64px; height: 40px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-muted); font: inherit; cursor: pointer; }
+.cu-tagtile small { font-size: 10px; font-weight: 800; }
+.cu-tagtile b { font-size: 15px; line-height: 15px; font-weight: 700; }
+.cu-tagtile.is-on { background: var(--brand); color: var(--on-brand); }
+.cu-tagcard__fx { font-size: 15px; font-weight: 800; }
+.cu-tagcard small { font-size: 11px; line-height: 15px; }
+.cu-tagfull { margin: 2px 0; }
+.cu-tagrows { display: flex; flex-direction: column; gap: 6px; }
+.cu-tagrows:empty { display: none; }
+.cu-tagrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.cu-tagrow:disabled { opacity: .45; cursor: default; }
+.cu-tagrow__fx { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-tagrow > b { font-size: 13px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
+.cu-tagfold { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: var(--surface-0); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); font: 700 12px/17px var(--font-sans); text-align: left; cursor: pointer; }
+.cu-tagfold__btn { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--brand-ink); font-weight: 800; }
+:where(html[data-skin="b"]) .cu-tagtile, :where(html[data-skin="b"]) .ng-outside__chip, :where(html[data-skin="b"]) .ng-pt__chip { transform: skewX(-8deg); }
+/* 185 PC 커스텀 미리보기: 얼굴(네모) · 도트 두 칸 */
+.cu-preview__looks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cu-preview__looks > div { display: flex; flex-direction: column; gap: 2px; }
+.cu-preview__looks small { font-size: 11px; line-height: 15px; }
+.cu-preview__pic { display: grid; place-items: center; aspect-ratio: 1; margin-bottom: 6px; border-radius: var(--radius-md); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.cu-preview__body { padding-top: 8px; border-top: 1px solid var(--line); }
+/* 184 PC 설정: 목록 맨 아래 버전 줄 · 카드 이미지 빈 상태 */
+.set-nav__ver { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding: 12px 12px 6px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 700; }
+.set-nav__ver b { color: var(--ink-muted); font-size: 13px; }
+.ca-pick-hint__card { position: relative; display: grid; place-items: center; width: 150px; height: 210px; margin-bottom: 12px; border-radius: var(--radius-md); background: var(--surface-0); box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.ca-pick-hint__card > i { position: absolute; inset: 14px 14px 64px; border-radius: var(--radius-sm); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line); }
+.ca-pick-hint__card > span { position: relative; margin-bottom: 40px; color: var(--ink-muted); }
+.ca-pick-hint__card > em { position: absolute; left: 14px; bottom: 36px; width: 86px; height: 8px; border-radius: 2px; background: var(--surface-3); }
+.ca-pick-hint__card > em + em { bottom: 22px; width: 56px; }
+.ca-pick-hint b { font-size: 18px; }
+.ca-pick-hint__steps { display: flex; flex-direction: column; gap: 6px; width: 100%; margin: 14px 0 0; padding: 0; list-style: none; text-align: left; }
+.ca-pick-hint__steps li { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-muted); font-size: 12px; }
+.ca-pick-hint__steps b { color: var(--brand-ink); font-size: 18px; }

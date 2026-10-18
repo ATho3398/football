@@ -3,7 +3,7 @@
 
 import { goalsResultPanel } from './inbox';
 import {
-  Avatar, Banner, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
+  Avatar, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
 import type { BoardKind } from '../../worldStats';
@@ -90,6 +90,10 @@ export interface NewGameVM {
 export interface NewGameUI {
   realTab: 'real' | 'legend'; rq: string; rsort: 'peak' | 'ovr' | 'age' | 'name'; rgroup: 'all' | 'fw' | 'mf' | 'df'; rshow: number;
   attrsOpen: boolean; cuStep: number;
+  /** 정렬 펼침 (C.71b 디자인 175: 실제 선수 = 바로 아래 목록, 레전드 = 아래 시트) */
+  sortOpen?: boolean;
+  /** 커스텀 태그: "효과가 다음 업데이트에서 열리는" 묶음 펼침 (디자인 183) */
+  cuHooks?: ('pro' | 'con')[];
 }
 export const NEW_GAME_UI: NewGameUI = { realTab: 'real', rq: '', rsort: 'peak', rgroup: 'all', rshow: 10, attrsOpen: false, cuStep: 1 };
 const REAL_PAGE = 10;
@@ -121,7 +125,7 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW
       chips: sel ? [`${sel.age}세 · ${sel.club}`, { label: sel.legend ? `레전드 · 전성기 ${sel.peak}` : '2018-19 시즌 그대로', soft: true }] : [`실제 선수 ${vm.reals.length}명`, { label: vm.legends ? `레전드 ${vm.legendList.length}명` : '2018-19 시즌 그대로', soft: true }] })
     : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: ['17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
   const modeTabs = Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
-  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? modeTabs : '', startOptions(vm, false))}</div>`;
+  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? modeTabs : '', startOptions(vm, false), u.cuHooks ?? [])}</div>`;
   if (!real) return `${hero}<div class="body ng-body">${modeTabs}${prospectBody(vm, u)}</div>`;
   return `${hero}<div class="body ng-body">${modeTabs}${realBody(vm, u)}</div>`;
 }
@@ -132,10 +136,9 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
   const cands = `<div class="ng-cands">${vm.candidates.map((c) =>
     `<button type="button" class="ng-cand${c.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${c.id}" aria-pressed="${c.id === vm.position}"><span class="ng-cand__pos">${c.id}</span><b class="po-num">${c.ovr}</b><small>${esc(c.ko)}${c.wild ? ' · <em>와일드카드</em>' : ''}</small></button>`).join('')}</div>`;
   const coach = on ? `<div class="panel coach ng-coach">${Avatar({ size: 36 })}<div><small>코치 평 · ${esc(on.id)}</small><b>“${esc(on.line)}”</b></div></div>` : '';
-  const others = vm.others
-    ? `${SectionTitle({ title: '포지션별 OVR', action: '굵은 칸 = 코치 추천 4자리' })}
-      <div class="pos-table">${vm.posTable.map((p) => `<button type="button" class="pt-cell${p.cand ? ' is-cand' : ''}${p.on ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}"><span>${p.id}</span><b class="po-num">${p.ovr}</b></button>`).join('')}</div>`
-    : '';
+  const others = vm.others ? othersPanel(vm) : '';
+  const outside = !on && vm.selectedOvr !== null
+    ? `<p class="ng-outside"><span class="ng-outside__chip">${esc(vm.position)} · 다른 포지션</span><small class="muted">추천 4자리 밖에서 골랐어요</small></p>` : '';
   const x = vm.extras;
   const extras = x ? `${SectionTitle({ title: '신체 · 태그', action: '랜덤 · 숨기지 않음' })}
     <div class="panel ng-extras"><div class="body-stats ng-stats">
@@ -148,13 +151,45 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
     <button type="button" class="panel ng-attrs" data-act="ng-attrs" aria-expanded="${u.attrsOpen}"><span class="grow"><b>${a ? `${a.count}개 · 평균 ${a.avg}` : '능력치'}</b><small>${a ? `약점 ${esc(a.weak)}` : ''}</small></span><span class="ng-attrs__btn">${u.attrsOpen ? '접기' : '펼치기'} ${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${u.attrsOpen ? -90 : 90}deg)` })}</span></button>
     ${u.attrsOpen ? attrGrid(vm.attrs, null, undefined, { cols: 4, keyLabel: `${vm.position} 핵심` }) : ''}`;
   return `${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
-    ${cands}${coach}
-    ${extras}
-    <p class="small ng-links"><button type="button" class="link-btn hi" data-act="form-others">${vm.others ? '다른 포지션 접기' : '다른 포지션에서 고르기'}</button> <button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
+    ${cands}${outside}${coach}
     ${others}
+    <p class="small ng-links">${vm.others ? '' : '<button type="button" class="link-btn hi" data-act="form-others">다른 포지션에서 고르기</button> '}<button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
+    ${extras}
     ${attrs}
     ${startOptions(vm, true)}
     <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `${vm.teamHint} 유스로 시작` })}</div>`;
+}
+
+const GROUP_KO: [('fw' | 'mf' | 'df'), string][] = [['fw', '공격'], ['mf', '미드'], ['df', '수비']];
+
+/** 다른 포지션에서 고르기 (C.71b 디자인 176): 공격·미드·수비 묶음 OVR 표 · 맨 위 추천 대비 차이 · 추천/와일드카드 칩 · 고른 줄 라임 테두리 */
+function othersPanel(vm: NewGameVM): string {
+  const base = vm.candidates[0];
+  const wild = new Set(vm.candidates.filter((c) => c.wild).map((c) => c.id));
+  const row = (p: NewGameVM['posTable'][number]) => {
+    const d = base ? p.ovr - base.ovr : 0;
+    const chip = wild.has(p.id) ? '<span class="ng-pt__chip is-wild">와일드카드</span>' : p.cand ? '<span class="ng-pt__chip">추천</span>' : '';
+    return `<button type="button" class="ng-pt__row${p.on ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${p.id}" aria-pressed="${p.on}"><b class="ng-pt__pos po-num">${p.id}</b><span class="ng-pt__ko">${esc(p.ko)}</span>${chip}<span class="ng-pt__d po-num${d < 0 ? ' is-minus' : ''}">${p.id === base?.id ? '기준' : d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0'}</span><b class="ng-pt__ovr po-num">${p.ovr}</b></button>`;
+  };
+  const groups = GROUP_KO.map(([g, ko]) => {
+    const rows = vm.posTable.filter((p) => POS_GROUP[p.id] === g);
+    return rows.length ? `<small class="ng-pt__group">${ko}</small>${rows.map(row).join('')}` : '';
+  }).join('');
+  return `<div class="panel ng-pt"><div class="ng-pt__head"><span class="grow"><b>다른 포지션에서 고르기</b><small class="muted">능력치는 그대로, 포지션마다 OVR만 달라져요</small></span><button type="button" class="link-btn hi ng-pt__fold" data-act="form-others">접기 ${Icon({ name: 'chevron-right', size: 14, style: 'transform:rotate(-90deg)' })}</button></div>
+    <div class="ng-pt__cols"><span>포지션</span><span>${base ? `${esc(base.id)} 대비` : ''}</span><span>OVR</span></div>
+    ${groups}
+    <p class="small muted">GK는 랜덤 시작에서 고를 수 없어요. 줄을 누르면 그 포지션으로 시작해요.</p></div>`;
+}
+
+type SortId = NewGameUI['rsort'];
+const SORTS: { id: SortId; label: string; sub: string; legend?: boolean }[] = [
+  { id: 'peak', label: '전성기순', sub: '레전드 팩: 전성기 OVR 높은 순', legend: true }, { id: 'ovr', label: '지금 OVR순', sub: '2018-19 시즌 시작 OVR' },
+  { id: 'age', label: '나이순', sub: '어린 선수부터' }, { id: 'name', label: '이름순', sub: '가나다순' },
+];
+
+/** 정렬 줄 4개 (디자인 175): 고른 줄 라임 글자 + 체크 */
+function sortRows(legendTab: boolean, cur: SortId): string {
+  return SORTS.filter((x) => legendTab || !x.legend).map((x) => `<button type="button" class="ng-sortrow${x.id === cur ? ' is-on' : ''}" data-act="ng-sort-pick" data-v="${x.id}" aria-pressed="${x.id === cur}"><span class="grow"><b>${x.label}</b><small>${esc(x.sub)}</small></span>${x.id === cur ? Icon({ name: 'check', size: 18 }) : ''}</button>`).join('');
 }
 
 /** 실제 선수 (디자인 131): [실제 선수 n | 레전드 n] 묶음 탭 → 고른 선수 카드 → 검색·정렬 → 포지션군 → 10명 + 더 보기 */
@@ -172,10 +207,17 @@ function realBody(vm: NewGameVM, u: NewGameUI): string {
   const rows = all.filter((r) => (u.rgroup === 'all' || POS_GROUP[r.position] === u.rgroup) && (!q || [r.name, r.club, r.youthKo ?? ''].some((t) => t.toLowerCase().includes(q))))
     .sort((a, b) => (u.rsort === 'name' ? a.name.localeCompare(b.name) : u.rsort === 'age' ? a.age - b.age || b.ovr - a.ovr : u.rsort === 'peak' && legendTab ? (b.peak ?? 0) - (a.peak ?? 0) || b.ovr - a.ovr : b.ovr - a.ovr));
   const shown = rows.slice(0, u.rshow);
-  const sorts = legendTab ? [['peak', '전성기순'], ['ovr', '지금 OVR순'], ['age', '나이순'], ['name', '이름순']] : [['ovr', 'OVR순'], ['age', '나이순'], ['name', '이름순']];
-  const sortV = !legendTab && u.rsort === 'peak' ? 'ovr' : u.rsort;
+  const sortV: SortId = !legendTab && u.rsort === 'peak' ? 'ovr' : u.rsort;
+  const sortLabel = SORTS.find((x) => x.id === sortV)!.label;
+  const open = !!u.sortOpen;
+  // 정렬 (C.71b 디자인 175): 버튼 → 실제 선수는 바로 아래 펼침 목록, 레전드는 아래 시트(PC는 오른쪽 패널)
+  const menu = open && !legendTab ? `<div class="ng-sortmenu" role="menu"><small class="ng-sortmenu__head">정렬</small>${sortRows(false, sortV)}</div>` : '';
   const search = `<div class="ng-search">${TextField({ value: u.rq, placeholder: legendTab ? '이름 · 시작 구단 · 유스' : '이름 · 소속 구단', icon: 'search', input: { id: 'f-rq', type: 'search', maxLength: 20 }, clearable: !!u.rq, onClear: { act: 'ng-real', data: { k: 'rq', v: '' } } })}
-    <label class="ng-sort">${Icon({ name: 'sliders', size: 16 })}<select id="f-rsort" aria-label="정렬">${sorts.map(([id, l]) => `<option value="${id}"${id === sortV ? ' selected' : ''}>${l}</option>`).join('')}</select></label></div>`;
+    <button type="button" class="ng-sortbtn${open ? ' is-open' : ''}" data-act="ng-sort" aria-expanded="${open}" aria-label="정렬">${Icon({ name: 'sliders', size: 16 })}<span>${sortLabel}</span>${Icon({ name: 'chevron-down', size: 14 })}</button>${menu}</div>`;
+  const sheet = open && legendTab ? BottomSheet({
+    eyebrow: `레전드 ${vm.legendList.length}명`, title: '정렬', onClose: { act: 'ng-sort-close' },
+    children: `<button type="button" class="ng-sheet-x" data-act="ng-sort-close">${Icon({ name: 'close', size: 16 })}닫기</button>${sortRows(true, sortV)}`,
+  }) : '';
   const groups = Tabs({ items: [{ id: 'all', label: '전체' }, { id: 'fw', label: '공격' }, { id: 'mf', label: '미드' }, { id: 'df', label: '수비' }], value: u.rgroup, variant: 'segment', fill: true, act: 'ng-real', data: { k: 'rgroup' }, label: '포지션군' });
   const row = (p: Row) => `<button type="button" class="real-row ng-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${esc(p.club)} · ${p.age}세 · ${p.position}${p.youthKo ? ` · 유스 ${esc(p.youthKo)}` : ''}</small></span>${
     p.peak ? `<span class="ng-row__ovr"><span><b class="po-num muted">${p.ovr}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>지금 → 전성기</small></span>` : `<span class="ng-row__ovr"><b class="po-num">${p.ovr}</b><small>OVR</small></span>`}</button>`;
@@ -185,7 +227,7 @@ function realBody(vm: NewGameVM, u: NewGameUI): string {
   return `${tabs}${card}${search}${groups}${head}
     <div class="real-list">${shown.map(row).join('') || '<p class="small muted">맞는 선수가 없어요.</p>'}</div>${more}
     ${startOptions(vm, false)}
-    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !sel, children: sel ? `${sel.name}으로 시작 · ${sel.club}` : '선수를 골라요' })}</div>`;
+    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !sel, children: sel ? `${sel.name}으로 시작 · ${sel.club}` : '선수를 골라요' })}</div>${sheet}`;
 }
 
 // ── 포인트 찍기 (50) ──

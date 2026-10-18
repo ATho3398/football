@@ -1,7 +1,10 @@
 // 커스텀 생성 화면 (pending 47 2·49 1, 부록 C.45 → C.58 디자인 124~129 6단계). 새 게임의 세 번째 시작 방식.
 // 단계: 기본(이름·나이·포지션) → 몸(키·몸무게·주발·약발) → 외모(국적·외모군·도트 머리) → 태그 → 능력치 배분 → 시작(소속·옵션)
 
-import { Banner, Button, esc, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
+import { Avatar, Banner, Button, esc, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
+import { ALL_KITS, personOf } from '../../pixel';
+import { pixelLayerUrls } from '../faces';
+import { peopleTable, pixelIconHtml } from '../pixelIcons';
 import type { CustomVM } from '../customVM';
 import { attrGrid } from './attrGrid';
 import { BALANCE } from '../../config/balance';
@@ -25,7 +28,7 @@ function stepDots(step: number): string {
 }
 
 /** 커스텀 6단계 (C.58 디자인 124~129): 기본 · 몸 · 외모 · 태그 · 능력치 · 시작. 모드 탭은 1단계에만, PointBar sticky, 아래 고정 [이전][다음 · 단계명] */
-export function customBody(vm: CustomVM, step: number, modeTabs: string, options: string): string {
+export function customBody(vm: CustomVM, step: number, modeTabs: string, options: string, hooksOpen: readonly ('pro' | 'con')[] = []): string {
   const b = vm.body;
   const st = Math.max(1, Math.min(CUSTOM_STEPS.length, step));
   const tagPts = vm.budget - 100 - vm.agePts - b.weakPts;
@@ -54,19 +57,10 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     ${SectionTitle({ title: '경기 화면 도트 머리' })}${chips('hair', [{ id: '', label: '자동', on: !vm.hair }, ...vm.hairs.map((h) => ({ id: h.id, label: h.ko, on: h.id === vm.hair }))])}
     <p class="small muted">겉모습만 바뀌고 경기 결과에는 영향이 없어요. 시작한 뒤에도 설정 → 페이스온·경기 아이콘에서 바꿀 수 있어요.</p>`;
   } else if (st === 4) {
-    const tc = vm.traitCount;
-    const traitRow = (t: CustomVM['traits'][number]) => `<div class="po-option opt cu-trait ${t.kind}${t.on ? ' is-on' : ''}${t.can ? '' : ' is-off'}">
-      <span class="grow">${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(t.on && !t.perm && t.removeDesc ? { release: t.removeDesc } : {}), size: 'sm' })}<small>${esc(t.desc)}${t.hook ? ' · 효과는 다음 업데이트에서 열려요' : ''}${t.removeDesc ? ` · 해제형은 "${esc(t.removeDesc)}"이면 사라짐` : ''}</small></span>
-      <span class="cu-tagbtns">
-        <button type="button" class="cu-chip${t.on && t.perm ? ' is-on' : ''}" data-act="cu" data-k="trait" data-v="${t.id}"${t.can ? '' : ' disabled'}>${t.ptsRemovable !== null ? '영구 ' : ''}${sgn(t.pts)}P</button>
-        ${t.ptsRemovable !== null ? `<button type="button" class="cu-chip${t.on && !t.perm ? ' is-on' : ''}" data-act="cu" data-k="traitR" data-v="${t.id}"${t.can ? '' : ' disabled'}>해제형 ${sgn(t.ptsRemovable)}P</button>` : ''}
-      </span></div>`;
-    const pro = `${SectionTitle({ title: '장점', action: `${tc.pro}/${tc.maxPro} · 포인트 −` })}
-    <div class="opts">${vm.traits.filter((t) => t.kind === 'pro').map(traitRow).join('')}</div>`;
-    const con = `${SectionTitle({ title: '단점', action: `${tc.con}/${tc.maxCon} · 포인트 +` })}
-    <div class="opts">${vm.traits.filter((t) => t.kind === 'con').map(traitRow).join('')}</div>`;
     // PC (C.61 디자인 151): 장점 | 단점 두 열
-    body = `<p class="small muted">영구 태그는 효과가 계속 가는 대신 포인트가 크고, 해제형은 조건을 채우면 사라지는 대신 포인트가 작아요. 노익장·빅매치 체질·원클럽맨 같은 태그는 플레이하며 얻어요.</p>
+    const pro = traitSection(vm, 'pro', hooksOpen.includes('pro'));
+    const con = traitSection(vm, 'con', hooksOpen.includes('con'));
+    body = `<p class="small muted">영구 태그는 효과가 계속 가는 대신 포인트가 크고, 해제형은 조건을 채우면 사라지는 대신 포인트가 작아요.${isWide() ? '' : ' 노익장·빅매치 체질·원클럽맨 같은 태그는 플레이하며 얻어요.'} 고른 칸을 한 번 더 누르면 빠져요.</p>
     ${isWide() ? `<div class="cu-tags2"><div>${pro}</div><div>${con}</div></div>` : `${pro}
     ${con}`}`;
   } else if (st === 5) {
@@ -108,6 +102,47 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     <div class="dock cu-nav">${prev}${next}</div>`;
 }
 
+type Trait = CustomVM['traits'][number];
+
+/** 고른 태그 큰 카드 (C.71b 디자인 183): 칩 + 영구/해제형 두 칸(고를 수 없으면 "고정" 한 칸) · 효과 · 해제 조건 */
+function traitCard(t: Trait): string {
+  const tile = (k: 'trait' | 'traitR', label: string, pts: number, on: boolean) =>
+    `<button type="button" class="cu-tagtile${on ? ' is-on' : ''}" data-act="cu" data-k="${k}" data-v="${t.id}" aria-pressed="${on}"><small>${label}</small><b class="po-num">${sgn(pts)}P</b></button>`;
+  const tiles = t.ptsRemovable !== null
+    ? `${tile('trait', '영구', t.pts, t.perm)}${tile('traitR', '해제형', t.ptsRemovable, !t.perm)}`
+    : tile('trait', '고정', t.pts, true);
+  const note = t.hook ? '효과는 다음 업데이트에서 열려요' : t.removeDesc ? `해제형은 "${t.removeDesc}"이면 사라져요` : '';
+  return `<div class="cu-tagcard ${t.kind}"><div class="cu-tagcard__top">${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(!t.perm && t.removeDesc ? { release: t.removeDesc } : {}), size: 'sm' })}<span class="cu-tagtiles">${tiles}</span></div>
+    <b class="cu-tagcard__fx">${esc(t.desc)}</b>${note ? `<small class="muted">${esc(note)}</small>` : ''}</div>`;
+}
+
+/** 안 고른 태그 한 줄: 칩 · 효과 · 영구/해제형 포인트. 더 못 고르면 흐리게 */
+function traitLine(t: Trait): string {
+  const pts = t.ptsRemovable !== null ? `${sgn(t.pts)}P / ${sgn(t.ptsRemovable)}P` : `${sgn(t.pts)}P`;
+  return `<button type="button" class="cu-tagrow ${t.kind}" data-act="cu" data-k="trait" data-v="${t.id}"${t.can ? '' : ' disabled'}>${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, size: 'sm' })}<span class="cu-tagrow__fx">${esc(t.desc)}</span><b class="po-num">${pts}</b></button>`;
+}
+
+/** 태그 단계 장점·단점 한 묶음 (디자인 183·185): 고른 태그만 큰 카드, 나머지는 한 줄, 효과가 아직 없는 태그는 한 줄로 접는다 */
+function traitSection(vm: CustomVM, kind: 'pro' | 'con', hooksOpen: boolean): string {
+  const tc = vm.traitCount;
+  const all = vm.traits.filter((t) => t.kind === kind);
+  const on = all.filter((t) => t.on);
+  const off = all.filter((t) => !t.on);
+  const n = kind === 'pro' ? tc.pro : tc.con;
+  const max = kind === 'pro' ? tc.maxPro : tc.maxCon;
+  const sum = on.reduce((a, t) => a + (t.perm || t.ptsRemovable === null ? t.pts : t.ptsRemovable), 0);
+  const hooks = off.filter((t) => t.hook);
+  const ko = kind === 'pro' ? '장점' : '단점';
+  const fold = hooks.length
+    ? `<button type="button" class="cu-tagfold" data-act="ng-hooks" data-v="${kind}" aria-expanded="${hooksOpen}"><span class="grow">효과가 다음 업데이트에서 열리는 ${ko} ${hooks.length}개 · ${esc(hooks.map((t) => t.ko).join(' · '))}</span><span class="cu-tagfold__btn">${hooksOpen ? '접기' : '펼치기'}${Icon({ name: 'chevron-down', size: 14, style: hooksOpen ? 'transform:rotate(180deg)' : '' })}</span></button>${
+      hooksOpen ? `<div class="cu-tagrows">${hooks.map(traitLine).join('')}</div>` : ''}`
+    : '';
+  return `${SectionTitle({ title: ko, action: `${n}/${max} · ${sgn(sum)}P` })}
+    <div class="cu-tagset">${on.map(traitCard).join('')}
+    ${n >= max && off.length ? `<p class="small muted cu-tagfull">다 골랐어요 · 하나를 빼면 아래에서 고를 수 있어요</p>` : ''}
+    <div class="cu-tagrows">${off.filter((t) => !t.hook).map(traitLine).join('')}</div>${fold}</div>`;
+}
+
 /** 단계 요약 한 줄 (PC 왼쪽 단계 목록) */
 function stepSummary(vm: CustomVM, n: number): string {
   const b = vm.body;
@@ -117,7 +152,10 @@ function stepSummary(vm: CustomVM, n: number): string {
     case 1: return `${vm.name || '이름 랜덤'} · ${vm.age}세 · ${vm.position}`;
     case 2: return `${b.height}cm · ${b.weight}kg · ${b.footKo} · 약발 ${b.weakFoot}`;
     case 3: return [vm.nationalities.find((x) => x.id === vm.nationality)?.ko, vm.appearances.find((x) => x.id === vm.appearance)?.ko].filter(Boolean).join(' · ');
-    case 4: return `장점 ${tc.pro} · 단점 ${tc.con}`;
+    case 4: {
+      const pts = vm.traits.filter((t) => t.on).reduce((a, t) => a + (t.perm || t.ptsRemovable === null ? t.pts : t.ptsRemovable), 0);
+      return `장점 ${tc.pro} · 단점 ${tc.con}${pts ? ` · ${sgn(pts)}P` : ''}`;
+    }
     case 5: return vm.over ? `${-vm.left}P 넘침` : `남은 ${vm.left}P`;
     default: {
       const club = (s2.kind === 'youth' || s2.kind === 'club') ? s2.teams.find((t) => t.id === s2.club)?.ko : '';
@@ -137,9 +175,15 @@ function customWide(vm: CustomVM, st: number, modeTabs: string, bar: string, bod
     return `<li><button type="button" class="cu-steprow ${cls}" data-act="cu-step" data-v="${n}" aria-current="${n === st ? 'step' : 'false'}"><span class="cu-dot__n po-num">${n < st ? '✓' : n}</span><span class="grow"><b>${l}</b><small>${esc(stepSummary(vm, n))}</small></span></button></li>`;
   }).join('')}</ol>`;
   const tags = vm.traits.filter((t) => t.on).map((t) => TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(!t.perm && t.removeDesc ? { release: t.removeDesc } : {}), size: 'sm' })).join('');
+  // 미리보기 얼굴 · 도트 (C.71b 디자인 185): 외모군 기본 얼굴(시작 뒤 페이스온에서 바꿈) · 경기 화면 도트(외모 단계 머리·피부)
+  const person = personOf('custom-preview', vm.appearance, { ...(vm.hair ? { hair: vm.hair } : {}), people: peopleTable() });
+  const looks = `<div class="cu-preview__looks">
+      <div><span class="cu-preview__pic">${Avatar({ size: 104, face: { id: 'custom-preview', age: vm.age, appearance: vm.appearance }, name: vm.name || '커스텀 선수', shape: 'square' })}</span><b class="small">얼굴</b><small class="muted">기본 얼굴 · 페이스온에서 사진으로 바꿔요</small></div>
+      <div><span class="cu-preview__pic is-dot">${pixelIconHtml(pixelLayerUrls(person, ALL_KITS[0] ?? ''), 4, '도트')}</span><b class="small">도트</b><small class="muted">경기 화면 · 외모 단계 머리·피부</small></div></div>`;
   const preview = `<div class="panel cu-preview">
       <div class="cu-preview__head"><span class="grow"><b>${esc(vm.name || '이름 랜덤')}</b><small>${vm.age}세 · ${vm.position} · ${esc(vm.nationalities.find((x) => x.id === vm.nationality)?.ko ?? '')}</small></span><span class="cu-preview__ovr"><b class="po-num">${vm.ovr}</b><small>${vm.position} OVR</small></span></div>
-      <p class="small">${vm.body.height}cm · ${vm.body.weight}kg · ${esc(vm.body.footKo)} · 약발 ${vm.body.weakFoot}</p>
+      ${looks}
+      <p class="small cu-preview__body">${vm.body.height}cm · ${vm.body.weight}kg · ${esc(vm.body.footKo)} · 약발 ${vm.body.weakFoot}</p>
       ${tags ? `<div class="cu-preview__tags">${tags}</div>` : '<small class="muted">태그 없음</small>'}
     </div>`;
   return `<div class="cu-pc"><div class="cu-pc__steps">${modeTabs}${steps}</div><div class="cu-pc__main">${bar}<div class="cu-step-body">${body}</div></div>

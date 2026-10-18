@@ -1571,8 +1571,30 @@ app.addEventListener('click', (ev) => {
       ui.ng.attrsOpen = !ui.ng.attrsOpen;
       render();
       return;
+    case 'ng-sort':
+    case 'ng-sort-close':
+      // 실제 선수 정렬 (C.71b 디자인 175): 펼침 목록·아래 시트 열고 닫기
+      readFormInputs();
+      ui.ng.sortOpen = act === 'ng-sort' ? !ui.ng.sortOpen : false;
+      render();
+      return;
+    case 'ng-sort-pick':
+      readFormInputs();
+      if (v === 'peak' || v === 'ovr' || v === 'age' || v === 'name') ui.ng.rsort = v;
+      ui.ng.sortOpen = false;
+      render();
+      return;
+    case 'ng-hooks': {
+      // 커스텀 태그 (디자인 183): "효과가 다음 업데이트에서 열리는" 묶음 펼치기
+      if (v !== 'pro' && v !== 'con') return;
+      const cur = ui.ng.cuHooks ?? [];
+      ui.ng.cuHooks = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
+      render();
+      return;
+    }
     case 'ng-real': {
       readFormInputs();
+      ui.ng.sortOpen = false;
       const k = el.dataset.k;
       if (k === 'realTab') { ui.ng.realTab = v === 'legend' ? 'legend' : 'real'; ui.ng.rshow = 10; ui.ng.rsort = ui.ng.realTab === 'legend' ? 'peak' : 'ovr'; }
       else if (k === 'rgroup') { ui.ng.rgroup = v as NewGameUI['rgroup']; ui.ng.rshow = 10; }

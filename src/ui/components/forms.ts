@@ -145,3 +145,12 @@ export function PixelTile(p: PixelTileProps): string {
     p.selected ? `<span class="po-pixel__check">${Icon({ name: 'check', size: 10, strokeWidth: 3.2 })}</span>` : ''}</span>${
     p.label != null ? `<span class="po-pixel__label">${esc(p.label)}</span>` : ''}</${tag}>`;
 }
+
+// ── Switch (디자인 Switch, C.71b): 제목·설명 + 켬끔 단추. 누르면 act 에 data-v = 바뀔 값(on/off) ──
+
+export interface SwitchProps { label: string; desc?: string; on: boolean; act?: string; data?: Record<string, string>; disabled?: boolean; className?: string }
+
+export function Switch(p: SwitchProps): string {
+  const act = p.act ? actAttrs({ act: p.act, data: { ...p.data, v: p.on ? 'off' : 'on' } }) : '';
+  return `<div class="${cx('po-switchrow', p.className)}"><span class="po-switchrow__main"><b>${esc(p.label)}</b>${p.desc ? `<span>${esc(p.desc)}</span>` : ''}</span><button type="button" role="switch" aria-checked="${p.on}" aria-label="${esc(p.label)}" class="${cx('po-switch', p.on && 'is-on')}"${act}${p.disabled ? ' disabled' : ''}><i></i></button></div>`;
+}
