@@ -18,6 +18,7 @@ import { posGroup } from '../src/roster';
 import { addLife, ensureLife, LIFE_KINDS, lifeEventsFull, lifeForm, lifeHints, lifeRecoveryMul, lifeSeasonEnd } from '../src/life';
 import { trainingOptionsVM } from '../src/ui/viewModels';
 import { trainingSheet } from '../src/ui/views/training';
+import { DOCK_PC, DOCK_PHONE, dock } from '../src/ui/views/common';
 
 const X = BALANCE.events;
 
@@ -298,10 +299,23 @@ describe('경기 외 생활 (pending 47 4번, C.63 b)', () => {
   });
 });
 
+describe('모바일 독 (C.63c)', () => {
+  it('진행 · 선수 · 홈 순서, PC 는 그대로, 더보기 = 독 위 한 줄(인박스 포함, 가로 스크롤)', () => {
+    expect(DOCK_PHONE).toEqual(['prog', 'player', 'home', 'schedule', 'more']);
+    expect(DOCK_PC.slice(0, 5)).toEqual(['deck', 'tactics', 'player', 'prog', 'home']);
+    const vm = { screen: 'home', prog: { label: '진행 중', icon: 'clock' as const, act: 'noop', kind: 'busy' as const }, tacticsOpen: false, points: 0, more: true, inbox: 2 };
+    const html = dock(vm);
+    expect(html).toContain('dock-more__scroll');
+    expect(html).toContain('data-to="inbox"');
+    expect(html).toContain('is-busy');
+    expect(dock({ ...vm, more: false })).not.toContain('dock-more__scroll');
+  });
+});
+
 describe('버전 (C.63)', () => {
-  it('C.63b · 36단계', async () => {
+  it('C.63c · 36단계', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toBe('C.63b');
+    expect(PATCH_LABEL).toBe('C.63c');
     expect(STAGE_LABEL).toBe('36단계');
   });
 });

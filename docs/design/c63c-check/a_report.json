@@ -1,0 +1,34 @@
+{
+ "errors": [],
+ "broken": [],
+ "len": {
+  "player": 1273
+ },
+ "wide": {
+  "player": 0
+ },
+ "moreItems": 6,
+ "moreEnd": "dock-more__scroll at-end",
+ "closedByOutside": true,
+ "mo844": {
+  "h": 844,
+  "stage": 354,
+  "share": 42,
+  "confirmBottom": 794,
+  "dockVisible": false
+ },
+ "mo700": {
+  "h": 700,
+  "stage": 294,
+  "share": 42,
+  "confirmBottom": 690,
+  "dockVisible": false
+ },
+ "outcome": {
+  "h": 844,
+  "stage": 354,
+  "share": 42,
+  "confirmBottom": null,
+  "dockVisible": false
+ }
+}

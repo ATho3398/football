@@ -24,7 +24,7 @@ afterEach(() => setWideForTest(null));
 
 describe('독 칸 배열 하나 (C.61)', () => {
   it('PC 9칸은 폰 독 순서에서 만든다: 덱 · 전술 + 폰 왼쪽 · 홈(5번째) · 폰 오른쪽 + 더보기 자리에 월드 · 설정 · 저장', () => {
-    expect(DOCK_PHONE).toEqual(['player', 'prog', 'home', 'schedule', 'more']);
+    expect(DOCK_PHONE).toEqual(['prog', 'player', 'home', 'schedule', 'more']); // C.63c: 진행·선수 자리 바꿈 (PC 는 그대로)
     expect(DOCK_PC).toEqual(['deck', 'tactics', 'player', 'prog', 'home', 'schedule', 'world', 'settings', 'saves']);
     expect(DOCK_PC.indexOf('home')).toBe(4);
     // 폰을 6칸(월드 추가)으로 바꿔도 PC는 같은 9칸

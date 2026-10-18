@@ -51,7 +51,7 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   // 디자인 B 93·134·136: 사진이 있으면 compact 미페 머리말(290px), 없으면 compact 머리말(디자인 A 93)
   const hero = face
     ? HeroPanel({ title: '선수', back: false, compact: true, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.name, eyebrow: `${vm.team} · ${vm.position} · ${vm.age}세`, value: vm.ovr, unit: 'OVR', chips })
-    : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${vm.age}세 · OVR`, value: vm.ovr, pad: false, progress: false, chips });
+    : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${vm.age}세`, value: vm.ovr, unit: 'OVR', pad: false, progress: false, chips });
   // 프로필 줄 (디자인 93): 얼굴 · 위상 배지 + 다음 티어까지 · 레벨 막대 · [꾸미기](몸·태그 탭의 "내 모습")
   const repNote = vm.next ? `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점` : vm.isLegendary ? '최고 위상' : '레전더리는 업적 조건';
   const profile = `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">

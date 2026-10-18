@@ -556,12 +556,15 @@ function render(): void {
     })
     : guide.modal;
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
-  app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}app-${ui.screen}`;
+  // C.63c: 진행 중 띠(중단 단추가 있는 토스트)는 머리말을 덮지 않게 화면을 그만큼 내린다
+  const bandToast = ui.toast?.onAction?.act === 'sim-stop';
+  app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}${bandToast ? 'has-band-toast ' : ''}app-${ui.screen}`;
   const pv = (ui.pvSheet ? pitchViewSheet() : '')
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount) : '')
-    + (ui.moreSheet && g ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
+    + (ui.moreSheet && g && isWide() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
   app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   fitHeroNames();
+  bindDockMore();
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
   if (ui.screen === 'moment' && ui.live?.oc) ui.live.oc.pitch.attach();
@@ -573,19 +576,31 @@ function render(): void {
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
 }
 
+/** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
+function bindDockMore(): void {
+  const el = document.querySelector<HTMLElement>('.dock-more__scroll');
+  if (!el) return;
+  const upd = () => {
+    el.classList.toggle('at-start', el.scrollLeft <= 2);
+    el.classList.toggle('at-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+  };
+  el.addEventListener('scroll', upd, { passive: true });
+  upd();
+}
+
 /** 독 진행 칸 (C.44): 경기 중이면 돌아가기, 경기 날이면 경기, 아니면 [계속], 비시즌이면 시즌 요약 */
 function dockVM(g: GameState): DockVM {
   const live = liveScreen();
   let prog: DockVM['prog'];
   if (live) prog = { label: '경기 중', icon: 'match', act: 'live-return', live: true, kind: 'live' };
   else if (g.phase !== 'season') prog = { label: '시즌 요약', icon: 'trophy', act: 'go-tab', data: { v: 'season' }, kind: 'season' };
-  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop', kind: 'continue' };
+  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop', kind: 'busy' };
   else if (marketPending(g)) {
     const n = (g.market?.offers?.length ?? 0) + (g.market?.renewal ? 1 : 0);
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
   } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
   else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
-  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet };
+  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g) };
 }
 
 /** "경기 중 · 돌아가기" 띠 (C.39, C.54 디자인 60): 다른 화면 위에. 첫 줄 = 분·스코어, 둘째 줄 = 상태, 오른쪽 [경기로 돌아가기] */
@@ -1177,6 +1192,11 @@ app.addEventListener('change', (ev) => {
 });
 
 app.addEventListener('click', (ev) => {
+  // 더보기 줄 (C.63c): 독 밖을 누르면 접는다 (누른 곳의 동작은 그대로 한다 — 배경을 막지 않음)
+  if (ui.moreSheet && !isWide() && !(ev.target as HTMLElement).closest('.dock-bar')) {
+    ui.moreSheet = false;
+    if (!(ev.target as HTMLElement).closest('[data-act]')) render();
+  }
   const el = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]');
   if (!el || (el as HTMLButtonElement).disabled) return;
   // 겹침 바깥만 누르면 닫는다 (모달·시트 안쪽 클릭은 무시)
