@@ -53,6 +53,8 @@ export function titleView(vm: TitleVM): string {
 // ── 새 게임 (52·53) ──
 
 export interface NewGameVM {
+  /** 명예의 전당 보너스 (18.11, C.73b): 이 기기에서 은퇴한 커리어가 남긴 시작 카드 선택권 */
+  bonus?: { rarity: string; from: string; legend: boolean } | null;
   mode: 'prospect' | 'real' | 'custom';
   name: string;
   position: string;
@@ -109,7 +111,10 @@ function startOptions(vm: NewGameVM, nameField: boolean): string {
   const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명</b><small>${vm.legends ? '켜면 실제 선수에 레전드 탭이 생기고, 펠레·지단·박지성 같은 레전드가 15~22세 유망주로 유스 구단에 들어와요. 끄면 세계는 그대로예요.' : '켜면 2020년까지 은퇴한 레전드가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</small></span>${
     Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>`;
   const seed = TextField({ label: '시드 (선택)', value: vm.seed, placeholder: '비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과', input: { id: 'f-seed', maxLength: 40 }, clearable: false });
-  return `${SectionTitle({ title: '시작 옵션' })}${name}${diff}${pack}${seed}`;
+  const bonus = vm.bonus
+    ? Banner({ tone: 'success', title: `명예의 전당 보너스 · ${vm.bonus.rarity} 카드 선택권 1장`, children: `${vm.bonus.from} 커리어${vm.bonus.legend ? '(레전드 배지)' : ''}가 남긴 보너스예요. 시작하면 덱에서 3장 중 1장을 골라요.` })
+    : '';
+  return `${SectionTitle({ title: '시작 옵션' })}${bonus}${name}${diff}${pack}${seed}`;
 }
 
 export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW_GAME_UI): string {
@@ -388,6 +393,7 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${card}
+    ${seasonHighlightsPanel(vm.highlights)}
     ${vm.seasonGoals ? goalsResultPanel(vm.seasonGoals) : ''}
     ${market}
     ${todos.length ? `${SectionTitle({ title: '다음 할 일', action: `${todos.length}개` })}${todos.join('')}` : ''}
@@ -405,6 +411,13 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
   return `${hero}<div class="body">
     ${left}
   </div>`;
+}
+
+/** 시즌 하이라이트 3 (22.2 끝, C.73b, 디자인 없음 — 챕터 리뷰 하이라이트와 같은 SectionTitle + panel kv 줄) */
+function seasonHighlightsPanel(list: SeasonVM['highlights']): string {
+  if (!list.length) return '';
+  return `${SectionTitle({ title: '시즌 하이라이트', action: `${list.length}개` })}
+    ${panel(list.map((h) => `<div class="kv season-hl is-${h.kind}"><span>${esc(h.label)}</span><b>${esc(h.text)}</b></div>`).join(''), 'chapter-hl season-hls')}`;
 }
 
 function seasonDetail(vm: SeasonVM, tab: SeasonTab, transfers: string): string {
@@ -467,11 +480,24 @@ export function retiredView(vm: RetiredVM): string {
     ${PlayerCard({ player: vm.card })}
     ${SectionTitle({ title: '재정 · 엔딩 점수', action: `자산 점수 ${vm.ending.asset}` })}
     ${panel(`<div class="kv"><span>순자산</span><b class="po-num">${esc(vm.ending.worth)}</b></div><div class="kv"><span>커리어 순수입</span><b class="po-num">${esc(vm.ending.career)}</b></div><div class="kv"><span>누적 기부</span><b class="po-num">${esc(vm.ending.charity)}${vm.ending.philanthropist ? ' · 자선가' : ''}</b></div>`)}
+    ${vm.honors.length ? `${SectionTitle({ title: '업적 · 배지', action: `${vm.honors.length}개` })}<div class="chapter-honors">${vm.honors.map((h) => StatChip({ icon: h.badge ? 'star' : 'trophy', label: h.label, tone: h.badge ? 'success' : 'brand' })).join('')}</div>` : ''}
     ${SectionTitle({ title: '커리어 흐름' })}
     ${panel(historyTable(vm.history))}
+    ${hallSection(vm)}
     ${Banner({ tone: 'info', title: '은퇴한 세이브는 기록 보기만 할 수 있어요', children: '다른 슬롯의 진행에는 영향이 없어요.' })}
     <div class="btn-col">${Button({ size: 'lg', block: true, icon: 'plus', act: 'go', data: { to: 'new' }, children: '새 커리어' })}</div>
   </div>`;
+}
+
+/** 명예의 전당 (18.11, C.73b, 디자인 없음 — 리그 시상 award 카드 재사용): 이 기기 상위 커리어 3개 + 새 게임 보너스 */
+function hallSection(vm: RetiredVM): string {
+  if (!vm.hall) return '';
+  const h = vm.hall;
+  const rows = h.list.map((e, i) => `<div class="panel award hall-row${e.me ? ' is-mine' : ''}"><b class="po-num hall-row__rank">${i + 1}</b><span class="grow"><b>${esc(e.name)}${e.me ? ' (이번 커리어)' : ''}</b><small>${esc(e.line)}</small></span><b class="po-num award__v">${e.score}</b></div>`).join('');
+  return `${SectionTitle({ title: '명예의 전당', action: h.rank ? `이번 커리어 ${h.rank}위` : '이 기기 상위 3' })}
+    <div class="award-list hall-list">${rows || '<p class="muted small">아직 기록이 없어요.</p>'}</div>
+    <p class="small muted">커리어 점수 = 최종 위상 + 자산 점수 × 2 + 레전드 배지 × 100 + 트로피 × 30 + (골 + 도움) × 0.5. 이 브라우저에만 남아요 (세이브 파일 밖).</p>
+    ${h.bonus ? Banner({ tone: 'success', title: `새 게임 보너스 · ${h.bonus} 카드 선택권 1장`, children: '다음 새 커리어를 시작하면 덱에서 3장 중 1장을 골라요.' }) : ''}`;
 }
 
 // ── 챕터 리뷰 (22.1 · I.13, C.73a, 디자인 없음 — 시즌 요약 머리말·요약 카드·배너 재사용) ──
