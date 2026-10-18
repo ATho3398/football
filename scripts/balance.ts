@@ -63,6 +63,11 @@ const COACH = (env.COACH ?? 'none') as 'none' | 'full';
 let coachMode: 'none' | 'full' = COACH;
 /** C.68b 경제 점검: 코치 풀 투자 + 평범한 지출(autoSpend). 코치 측정 줄과 따로 돌린다 (기부가 위상을 올려 900+ 비율 비교가 흐려지지 않게) */
 let spendMode = false;
+/**
+ * 코치 풀 투자 측정 줄·경제 점검 (C.68a·C.68b) 켜기. 로컬 기본 켜짐, CI(pages.yml balance:check)는 COACH_MEASURE=0 으로 끔
+ * (마스터 P 2026-10-19 02:40: C.68a 뒤 CI 22 → 44분). 끄면 경제 가드 4개도 빠지고 회귀 가드 15개만 판정
+ */
+const COACH_MEASURE = env.COACH_MEASURE !== '0';
 /** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
 if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
 if (env.MED_SCALE) for (const r of Object.values(BALANCE.staff.medical)) for (const k of Object.keys(r)) (r as Record<string, number>)[k]! *= Number(env.MED_SCALE);
@@ -362,7 +367,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
 
 // ── C.68a 코치 풀 투자 측정 (가드 아님, 마스터 P 2026-10-19 01:05: 회귀 가드는 COACH=none, full 은 매번 측정 줄로) ──
 // 레전더리 35세 900+ 기준선이 12/48 = 0.25 경계라 시드 하나로 뒤집힌다 (부록 C.68a). 시드 FULL_SEEDS(기본 48)
-{
+if (COACH_MEASURE) {
   const FULL_SEEDS = Number(env.FULL_SEEDS ?? SEEDS_PER_TIER);
   const prev = coachMode;
   coachMode = 'full';
@@ -389,7 +394,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
 }
 
 // ── C.68b 경제 점검 (19.11): 코치 풀 투자 + 평범한 지출(autoSpend: 집·차·기부(15억 넘는 순수입의 60% + 5%)·남는 돈 20% 투자), 최적 배분 ──
-{
+if (COACH_MEASURE) {
   const ECON_SEEDS = Number(env.ECON_SEEDS ?? env.FULL_SEEDS ?? SEEDS_PER_TIER);
   const prev = coachMode;
   coachMode = 'full';
