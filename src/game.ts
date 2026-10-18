@@ -55,7 +55,7 @@ import type { InboxState } from './inbox';
 import type { RivalState } from './rival';
 import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeRecoveryMul, type LifeState } from './life';
 import { afterMatch, cardInput, grantLevelPicks, initCollection, type CardCollection } from './cardCollection';
-import { goalsAfterRound, goalsSeasonEnd, goalsSeasonStart, type GoalResult, type GoalsState } from './seasonGoals';
+import { goalsAfterRound, goalsSeasonEnd, goalsSeasonStart, grantAchievementPick, type GoalResult, type GoalsState } from './seasonGoals';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
 import { previewLineup, slotPos, teamDefaultTactics, type MyTactics } from './myTactics';
@@ -64,7 +64,7 @@ import {
   type DayPlan, type TrainingDayResult, type TrainingKind, type TrainingState,
 } from './training';
 import { trainProficiency } from './proficiency';
-import { COMP_NAMES_KO, createCups, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupTie, reachLabel, settleTie, stageName, type CompId, type CupsState, type MyCupTie } from './cups';
+import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
 import type { NameOverrides } from './names';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
@@ -74,7 +74,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 36;
+export const SAVE_FORMAT_VERSION = 37;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -118,11 +118,14 @@ export interface MatchReport {
   adviceTaken?: boolean;
   /** 가족 휴가로 결장 (C.67a) */
   leave?: boolean;
-  /** 컵 경기 (C.67): 대회·단계 이름·다음 단계 진출·승부차기 [홈, 원정]·우승. 없으면 리그 경기 */
-  cup?: { comp: CompId; stage: string; through: boolean; pens?: [number, number]; won?: boolean };
+  /**
+   * 컵 경기 (C.67): 대회·단계 이름·승부가 나는 경기인지(단판·2차전·결승)·진출·승부차기 [홈, 원정]·우승·득점 기록. 없으면 리그 경기.
+   * 2차전 승부차기·진출은 합계 기준
+   */
+  cup?: { comp: CompId; stage: string; decisive?: boolean; through: boolean; pens?: [number, number]; won?: boolean; g?: GoalRec[] };
 }
 
-/** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 + 단계 */
+/** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 이상 (FA 100+단계, 챔스 110+) */
 export const CUP_ROUND_BASE = 100;
 
 export interface SlumpReport { points: number; streak: number; threshold?: number; blocked?: number }
@@ -657,7 +660,7 @@ export function nextFixture(state: GameState): { opponentId: string; home: boole
 
 /** 대회 이름 한 줄: "리그 12R" / "FA컵 16강" (다음 경기 기준) */
 export function matchCompLabel(state: GameState, fx: { cup?: MyCupTie } | null = nextFixture(state)): string {
-  if (fx?.cup) return `${COMP_NAMES_KO[fx.cup.comp.id]} ${stageName(fx.cup.comp, fx.cup.stage)}`;
+  if (fx?.cup) return fx.cup.label;
   return `리그 ${Math.min(state.league.round + 1, state.league.schedule.length)}R`;
 }
 
@@ -1158,6 +1161,11 @@ export function endDay(state: GameState): TrainingDayResult {
   managerDayEnd(state);
   // 이벤트 (C.63): 기한 지난 선택, 예약, 슬롯, 하루 이벤트
   eventsDayEnd(state, ended);
+  // 리그가 끝났고 내 컵 경기도 더 없으면 (결승 뒤 우승 확정·탈락이 하루 끝에 정해진 경우) 시즌 끝 (C.67)
+  if (state.league.round >= state.league.schedule.length && !myCupAlive(state)) {
+    endSeason(state);
+    refreshUnlocks(state);
+  }
   return r;
 }
 
@@ -1210,7 +1218,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   // 컵 경기 (C.67): 리그 출장 정지는 리그에만, 시드는 대회·단계로
   const suspended = !injured && !fx.cup && player.suspended > 0;
   const leave = onLeave(state, myMatchDate(state) ?? state.calendar.date);
-  const key: string | number = fx.cup ? `cup:${fx.cup.comp.id}:${fx.cup.stage}` : roundIdx;
+  const key: string | number = fx.cup ? fx.cup.key : roundIdx;
   const fatigue = cond.fatigue;
   const p = { ...player, fatigue };
   const myTeam = teamById(league, player.teamId);
@@ -1244,6 +1252,8 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
     me: { position: pos, attributes: player.attributes, fatigue, form: form + (!started && minutes > 0 && tagHas(player, 'superSub') ? BALANCE.tags.natural.superSubForm : 0), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${key}`), worldSeed: seed,
     leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
+    // 큰 경기 (5.2, C.67b): 결승·챔스 녹아웃 → 경기 XP ×1.5 (엔진 입력 플래그, 엔진 코드는 그대로)
+    ...(fx.cup?.big ? { bigMatch: true } : {}),
     ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] };
@@ -1281,7 +1291,8 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   }
   playOthers(state, how);
   const report = playMyRound(state, opts);
-  if (state.phase === 'season') endDay(state);
+  // 같은 날 내 경기가 하나 더 있으면 (드문 일정 겹침, C.67) 다음 playRound 가 그날 치른다
+  if (state.phase === 'season' && !isMatchDay(state)) endDay(state);
   return report;
 }
 
@@ -1494,7 +1505,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   const pos = useEngine ? myMatchPosition(state) : player.position;
   const ovr = proficientOvr(player, pos);
   const form = matchForm(state);
-  const key = `cup:${mc.comp.id}:${mc.stage}`;
+  const key = mc.key;
   let result: MatchResult;
   let engineOut: MyMatchOutput | null = null;
   if (rm) {
@@ -1509,15 +1520,15 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
       {
         ovr, position: player.position, fatigue: player.fatigue,
         teamRating: myTeam.rating, oppRating: opp.rating, home: mc.home, difficulty: state.difficulty,
-        formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, player.fatigue),
+        formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, player.fatigue), bigMatch: mc.big,
       },
       rngFor(seed, 'match', league.season, key),
     );
   }
   // 대진 기록 (홈 기준), 득점 기록은 엔진 경기만
   const [hg, ag] = mc.home ? [result.goalsFor, result.goalsAgainst] : [result.goalsAgainst, result.goalsFor];
-  settleTie(state, mc.comp, mc.stage, mc.i, hg, ag, engineOut ? summarize(engineOut.engine).goals : undefined);
-  const through = mc.tie.w === player.teamId;
+  mc.settle(hg, ag, engineOut ? summarize(engineOut.engine).goals : undefined);
+  const out = cupOutcome(state, mc);
   // 컵 기록
   const c = (player.season.cup ??= { apps: 0, goals: 0, assists: 0, ratingSum: 0 });
   if (result.minutes > 0) {
@@ -1546,7 +1557,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
   }
-  result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * veteranXpMultiplier(player.age) * xpMul(player, false)) : 0;
+  result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * BALANCE.cups.matchXpMul * veteranXpMultiplier(player.age) * xpMul(player, false)) : 0;
   if (state.training) {
     state.training.hints = [];
     state.training.eve = false;
@@ -1563,8 +1574,8 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   const rec = my && result.minutes > 0 ? recordFromStats(my) : undefined;
   const cardUses = engineOut?.engine.cards?.uses.map((u) => ({ name: cardById(u.id)?.name ?? u.id, minute: u.minute, result: u.result, auto: u.auto }));
   const report: MatchReport = {
-    season: league.season, round: CUP_ROUND_BASE + mc.stage, opponentId: opp.id, home: mc.home, result, levelsGained, ovr, formBonus: form,
-    cup: { comp: mc.comp.id, stage: stageName(mc.comp, mc.stage), through, ...(mc.tie.p ? { pens: mc.tie.p } : {}), ...(through && mc.comp.rounds[mc.stage]!.length === 1 ? { won: true } : {}) },
+    season: league.season, round: mc.seq, opponentId: opp.id, home: mc.home, result, levelsGained, ovr, formBonus: form,
+    cup: { comp: mc.comp, stage: mc.stage, decisive: !!out, through: !!out?.through, ...(out?.pens ? { pens: out.pens } : {}), ...(out?.won ? { won: true } : {}), ...(mc.tie.g?.length ? { g: mc.tie.g } : {}) },
     ...(injury ? { injury } : {}),
     ...(injured ? { injured } : {}),
     ...(leave ? { leave } : {}),
@@ -1619,6 +1630,7 @@ function archiveSeason(state: GameState): SeasonArchive {
   }));
   const cups: SeasonArchive['cups'] = {};
   if (state.cups?.season === state.league.season && state.cups.fa?.winner) cups.fa = [state.cups.fa.winner, reachLabel(state.cups.fa, me)];
+  if (state.cups?.season === state.league.season && state.cups.ucl?.winner) cups.ucl = [state.cups.ucl.winner, uclReachLabel(state, state.cups.ucl, me)];
   return {
     season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {}, ...(state.statNames ? { names: state.statNames } : {}), aw: archiveAwards(state),
     table: sortedTable(state.league).map((row) => [row.teamId, row.points, row.gf - row.ga]),
@@ -1789,9 +1801,16 @@ export function endSeason(state: GameState): SeasonSummary {
   // 컵 (C.67): 남은 경기를 간이 계산해 우승 팀까지
   cupsFinish(state);
 
-  // 1. 업적 XP
+  // 1. 업적 XP (+ 컵·챔스 업적, C.67b)
   const pos = leaguePosition(league, player.teamId);
-  const achievements = seasonAchievements(player, league);
+  const cupAch = cupAchievements(state, pos);
+  const achievements = [...seasonAchievements(player, league), ...cupAch.map(({ label, xp }) => ({ label, xp }))];
+  // 기록 (8.1 레전더리 조건): 트레블·챔스 우승, 챔스 우승은 에픽 선택권 (18.9)
+  if (cupAch.some((a) => a.key === 'treble')) player.honors = { ...player.honors, trebles: player.honors.trebles + 1 };
+  if (cupAch.some((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin)) {
+    player.honors = { ...player.honors, ucl: (player.honors.ucl ?? 0) + 1 };
+    grantAchievementPick(state, 'clWin', '챔스 우승');
+  }
   const baseXp = achievements.reduce((t, a) => t + a.xp, 0);
   const achievementXp = Math.round(baseXp * BALANCE.difficulty[state.difficulty].xp);
   const levelsGained = addXp(player, achievementXp);

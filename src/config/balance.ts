@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 44;
+export const BALANCE_VERSION = 45;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1332,6 +1332,25 @@ export const BALANCE = {
       /** 결승 = 리그 최종 라운드 + finalAfter 일 (토요일) */
       finalAfter: 6,
     },
+    /**
+     * 챔스 (C.67b): 지난 시즌 리그 상위 4팀(첫 시즌 = 2017-18 실제 순위 firstSeason) + 외부 28팀. 조별 8조 × 4팀 6경기 →
+     * 16강·8강·4강 홈·원정 2경기(합계 동률 = 승부차기 간이 판정, 원정 다득점·연장 없음) → 결승 단판(리그 최종 라운드 + finalAfter 일, 토).
+     * 날짜 = [다음 해?, 월, 일] 이 든 주의 화·수 (팀마다 리그·컵 경기와 minGap 일 이상 되는 요일)
+     */
+    ucl: {
+      firstSeason: ['mci', 'mun', 'tot', 'liv'] as readonly string[],
+      groupWeeks: [[0, 9, 18], [0, 10, 2], [0, 10, 23], [0, 11, 6], [0, 11, 27], [0, 12, 11]] as [number, number, number][],
+      /** 16강·8강·4강 [1차전, 2차전] 주 */
+      koWeeks: [[[1, 2, 12], [1, 3, 5]], [[1, 4, 9], [1, 4, 16]], [[1, 4, 30], [1, 5, 7]]] as [number, number, number][][],
+      finalAfter: 13,
+    },
+    /**
+     * 컵·챔스 경기 XP 배율 (리그 경기 XP × matchXpScale × 이 값). 경기 수가 늘어 성장 가드(레전더리 35세 월드클래스 비율 ·
+     * 36−30 CB/CDM/CM 하락)가 흔들려서 낮춤 (C.67, 1.0 = 13/15)
+     */
+    matchXpMul: 0.5,
+    /** 업적 XP (5.3): 챔스 우승/준우승/4강/8강, 국내 컵 우승, 트레블(리그 + 국내 컵 + 챔스) */
+    xp: { uclWin: 400, uclFinal: 250, uclSemi: 150, uclQuarter: 80, faWin: 150, treble: 500 },
     /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */
     minGap: 3, minGapLoose: 2,
     /** 승부차기 간이 판정: 홈(또는 첫 팀) 승률 = 0.5 + 레이팅 차 × ratingK, [min, max] */

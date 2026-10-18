@@ -5,7 +5,7 @@ import { goalsResultPanel } from './inbox';
 import {
   Avatar, Banner, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
-import type { AllocateVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
+import type { AllocateVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
 import type { BoardKind } from '../../worldStats';
 import { actionRow, banners, panel, pc2, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { isWide } from '../skin';
@@ -223,14 +223,14 @@ const STAR_PAGE = 5;
 const LEGEND_PAGE = 6;
 
 /** 월드 (디자인 101~105 · 146 · 147, C.60): compact 머리말 + 탭 4 (순위표 · 득점 · 리그 스타 · 이적 소식) */
-export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers', transfers = '', more: Record<string, boolean> = {}, group: StarGroup = 'league', board: BoardKind = 'goals'): string {
+export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'transfers' | 'cups', transfers = '', more: Record<string, boolean> = {}, group: StarGroup = 'league', board: BoardKind = 'goals', cups = ''): string {
   const me = vm.table.find((r) => r.me)!;
   const leader = vm.table[0]!;
   const hero = HeroPanel({
     title: '월드', right: `${vm.round}R / ${vm.rounds}`, back: false, compact: true, eyebrow: `리그 · ${me.team} 순위`, value: `${vm.myPos}위`, pad: false, progress: false,
     chips: [`승점 ${me.points}`, me.pos === 1 ? '선두' : `1위와 ${leader.points - me.points}점`, { label: `${vm.season} 시즌`, soft: true }],
   });
-  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'scorers', label: '득점' }, { id: 'stars', label: '리그 스타' }, { id: 'transfers', label: '이적 소식' }], value: tab, variant: 'underline', fill: true, act: 'world-tab' });
+  const tabs = Tabs({ items: [{ id: 'table', label: '순위표' }, { id: 'cups', label: '컵·챔스' }, { id: 'scorers', label: '득점' }, { id: 'stars', label: '리그 스타' }, { id: 'transfers', label: '이적 소식' }], value: tab, variant: 'underline', fill: true, act: 'world-tab' });
   // 리그 기록 (C.64): 득점 · 도움 · 평점 거르기 (147 의 segment 탭 재사용), 강조 열 = 고른 기록
   const boardTabs = Tabs({ items: [{ id: 'goals', label: '득점' }, { id: 'assists', label: '도움' }, { id: 'rating', label: '평점' }], value: board, variant: 'segment', act: 'world-board', label: '리그 기록 거르기' });
   const rowsB = vm.boards[board];
@@ -268,7 +268,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     <div class="star-list">${legShown.map(legRow).join('')}</div>
     ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
-  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
+  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
 }
 
 const chipList = (xs: { label: string; value: number }[]) => (xs.length
@@ -454,4 +454,26 @@ export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM, 
     <p class="small muted">저장은 이 브라우저(IndexedDB, 압축)에 남아요. 지난 시즌은 경기 요약·하이라이트·결정 기록과 다른 경기 스코어·득점자, 선수 시즌 합계만 남기고, 경기 재생 화면은 내 최근 5경기만 남아요.</p>
     ${versionFooter(version)}
   </div>`;
+}
+
+/** 월드 "컵·챔스" 탭 (C.67b, 디자인 없음 — 순위표 표 · 패널 재사용): 챔스 조 8개 · 녹아웃 대진 · FA컵 대진 */
+export function cupsSection(vm: CupsWorldVM): string {
+  const tieRow = (t: CupTieVM) => `<div class="cup-tie${t.me ? ' me' : ''}"><span class="cup-tie__teams"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(t.hId)}">${Crest({ name: t.h, team: t.hId, size: 16 })}${esc(t.h)}</button>
+    <b class="po-num cup-tie__score">${esc(t.score ?? 'vs')}</b>
+    <button type="button" class="dt-link team" data-act="team-open" data-v="${esc(t.aId)}">${Crest({ name: t.a, team: t.aId, size: 16 })}${esc(t.a)}</button></span>
+    <small class="muted">${esc([t.score === null && !t.note.includes('차전') ? t.date : '', t.note, t.w ? `${t.w} 진출` : ''].filter(Boolean).join(' · '))}</small></div>`;
+  const u = vm.ucl;
+  const ucl = u ? `${SectionTitle({ title: '챔피언스리그', action: u.winner ? `우승 ${u.winner}` : `우리 팀 · ${u.my}` })}
+    ${u.ko.slice().reverse().map((st) => `<h4 class="ag-head">${esc(st.stage)}</h4>${panel(st.ties.map(tieRow).join(''))}`).join('')}
+    <h4 class="ag-head">조별리그</h4><div class="cup-groups">${u.groups.map((gr) => `<div class="panel tbl-panel${gr.mine ? ' is-mine' : ''}"><table class="tbl league">
+      <tr><th class="l">${esc(gr.name)}</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
+      ${gr.rows.map((r) => `<tr class="${r.me ? 'me' : ''}${r.through ? ' top' : ''}"><td class="l"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gd}</td><td><b class="po-num">${r.pts}</b></td></tr>`).join('')}
+    </table></div>`).join('')}</div>
+    <p class="small muted">조 2위까지 16강 · 16강~4강은 홈·원정 합계(동률이면 승부차기) · 결승은 단판. 내 팀이 없는 경기는 팀 전력으로 간이 계산해요.</p>`
+    : `${SectionTitle({ title: '챔피언스리그' })}<p class="small muted">이번 시즌 챔스 대진이 없어요(지난 시즌 리그 4위 안 팀이 나가요).</p>`;
+  const f = vm.fa;
+  const fa = f ? `${SectionTitle({ title: 'FA컵', action: f.winner ? `우승 ${f.winner}` : `우리 팀 · ${f.my}` })}
+    ${f.rounds.map((r) => `<h4 class="ag-head">${esc(r.stage)} · ${esc(r.date)}</h4>${panel(r.ties.map(tieRow).join(''))}`).join('')}`
+    : `${SectionTitle({ title: 'FA컵' })}<p class="small muted">이번 시즌 FA컵이 없어요.</p>`;
+  return `<p class="small muted">${esc(vm.season)} 시즌</p>${ucl}${fa}`;
 }

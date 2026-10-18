@@ -213,6 +213,8 @@ export interface Honors {
   ballonDor: number;
   trebles: number;
   worldCups: number;
+  /** 챔스 우승 (C.67b). 옛 세이브에는 없다 */
+  ucl?: number;
 }
 
 export type BadgeId = 'goals500' | 'titles5' | 'oneClub10';

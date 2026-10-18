@@ -623,6 +623,18 @@ button.dec-row:hover, button.dec-row:focus-visible { background: var(--surface-2
 .derby-badge span { font-weight: 600; opacity: .8; }
 .derby-badge.is-big { background: var(--fail); color: #fff; }
 
+/* 컵·챔스 (C.67b, 디자인 없음): 홈 대회 배지 · 월드 컵·챔스 탭 */
+.comp-badge { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-bottom: 8px; padding: 4px 10px; border-radius: var(--b-r-pill, 999px); background: var(--brand); color: var(--on-brand); font-size: 12px; font-weight: 700; }
+.comp-badge.is-fa { background: var(--warning-soft); color: var(--warning); }
+.cup-tie { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.cup-tie:last-child { border-bottom: 0; }
+.cup-tie.me { box-shadow: inset 3px 0 0 var(--brand); padding-left: 8px; }
+.cup-tie__teams { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cup-tie__score { min-width: 40px; text-align: center; }
+.cup-groups { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.cup-groups .is-mine { outline: 2px solid var(--brand); }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .cup-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* 자동 진행 시트·레이어 */
 .auto-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .auto-chip { cursor: pointer; border: 1px solid var(--line); font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); }

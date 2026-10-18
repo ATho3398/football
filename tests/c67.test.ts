@@ -58,7 +58,7 @@ describe('한 시즌 진행', () => {
     const cups: string[] = [];
     while (g.phase === 'season') {
       const r = playRound(g, { engine: 'quick' });
-      if (r.cup) cups.push(r.cup.stage);
+      if (r.cup?.comp === 'fa') cups.push(r.cup.stage);
     }
     const fa = g.cups!.fa!;
     expect(cups[0]).toBe('32강');
@@ -97,10 +97,9 @@ describe('한 시즌 진행', () => {
       while (g.phase === 'season') playRound(g, { engine: 'quick' });
       const fa = g.cups!.fa!;
       const final = fa.rounds[4]![0]!;
-      if (final.h !== g.player.teamId && final.a !== g.player.teamId) {
-        expect(g.calendar.date <= calendarOf(g).final).toBe(true);
-        continue;
-      }
+      // 챔스 경기가 리그 뒤에 남은 시즌(C.67b)은 날짜가 달라 뺀다
+      const late = g.cups!.ucl?.ko.some((st) => [...st.l1, ...st.l2].some((t) => (t.h === g.player.teamId || t.a === g.player.teamId) && t.d! > calendarOf(g).final));
+      if (late || (final.h !== g.player.teamId && final.a !== g.player.teamId)) continue;
       found = true;
       expect(g.calendar.date).toBe(fa.dates[4]);
       expect(g.lastMatch!.cup!.stage).toBe('결승');
@@ -123,12 +122,12 @@ describe('내 컵 경기 (화면 연결)', () => {
   it('32강 날: 다음 경기가 컵 · 홈·준비 대회 이름 · 리그 밖 상대 로스터 · 경기 결과 배너', () => {
     const g = real('c67-ui');
     // 32강 날까지
-    while (!nextFixture(g)?.cup || !isMatchDay(g)) {
+    while (nextFixture(g)?.cup?.comp !== 'fa' || !isMatchDay(g)) {
       if (isMatchDay(g)) playRound(g, { engine: 'quick' });
       else { playOthers(g, 'quick'); endDay(g); }
     }
     const fx = nextFixture(g)!;
-    expect(fx.cup!.stage).toBe(0);
+    expect(fx.cup!.stage).toBe('32강');
     expect(homeVM(g).comp).toBe('FA컵 32강');
     expect(dayPlan(g)).toBe('match');
     expect(isVacationDay(g, g.calendar.date)).toBe(false);
@@ -153,7 +152,8 @@ describe('내 컵 경기 (화면 연결)', () => {
     expect(cup.available).toBe(true);
     expect(cup.next!.text).toContain('FA컵 32강');
     expect(cup.next!.iso).toBe(g.cups!.fa!.dates[0]);
-    expect(vm.remaining).toBe(39);
+    // 리그 38 + FA컵 32강 1 + 챔스 조별 6 (C.67b)
+    expect(vm.remaining).toBe(39 + 6);
     expect(cup.next!.before).toBe(myMatchDates(g).filter((d) => d < g.cups!.fa!.dates[0]!).length);
   });
 });
@@ -183,7 +183,7 @@ describe('가족 휴가 결장 (pending 102 ⑨)', () => {
 describe('세이브 36', () => {
   it('왕복 그대로 · 옛 세이브(35)는 컵 없이 불러와 32강 전이면 다음 하루 진행 때 만든다', () => {
     const g = real('c67-save');
-    expect(SAVE_FORMAT_VERSION).toBe(36);
+    expect(SAVE_FORMAT_VERSION).toBe(37);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 35;
