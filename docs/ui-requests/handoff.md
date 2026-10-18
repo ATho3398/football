@@ -3,14 +3,15 @@
 - **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: O** `session_01CN9st4ghf69ihWjimtuKQ7` (브랜치 `claude/planning-o`, 2026-10-18 07:56 KST N → O 교체, O는 N이 연 세션, `get_session` 확인). 알림·보고는 O로(send_message). 카톡·ntfy 알림은 마스터 몫.
+- **지금 마스터: P** `session_017ksZs67SVSSPuM3TjfMuPQ` (브랜치 `claude/planning-p`, 2026-10-18 16:58 KST O → P 교체, P는 O가 연 세션, `get_session` 확인). 알림·보고는 P로(send_message). 카톡·ntfy 알림은 마스터 몫.
+  - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
   - 이전 마스터 M `session_01BTacbWbkVFVE6HVKwxLx3v` (`claude/planning-m`, UI_2를 연 세션).
 - 5차: 디자인 도착(player-one-design 123장, 컴포넌트 45종) → `5-apply.md` → M이 U5-a~g 패치로 적용. **5차 끝.**
 - 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 N에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
 - 푸시: UI_3는 **`claude/ui-3`에만**(main 금지).
 - 현재 차례: **8 → 보고함(2026-10-18 14:05 KST, `docs/ui-requests/8.md`, 캡처 `8/phone`(32)·`8/pc`(20)·`8/feedback`(3), 기준 main af88b2f C.63c) → 디자인 기다림(7차 160~188도 대기). 다음 보고는 9차**
-- 8차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **0개** (+ 작은 변형 2) (큰 것이 있는 단계: 0)
+- 8차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **1개** (+ 작은 변형 4) (큰 것이 있는 단계: 1 — C.65)
 - 7차는 규칙상 미달(큰 1)이었지만 작은 39 + B 다음 판 요청으로 마스터 O와 합의해 U5 끝(C.61) 뒤 보고함.
 - 다음 보고 조건: 6개 이상, 또는 그런 단계 3개 이상, 또는 사용자 화면 불만 → 9차(새로 쌓인 것만)
 
@@ -83,7 +84,8 @@
 |---|---|---|
 | C.64 (37 5-3 월드 정보·NPC 시즌 통계, main bb9700d, 2026-10-18 15:03 KST 통보) | 작은 2: ① 월드 [득점] 탭 안 득점·도움·평점 segment + 평점 자격 안내 줄(102는 득점만) ② 리그 스타 세계·21세 이하 묶음 내용 + 메타 줄 끝 "n골 n도움"(147은 탭만). 캡처 `docs/design/c64-check/` | 0 (+작은 2) |
 | 사용자 지시 (2026-10-18 15:08 KST, 실기기 캡처 `feedback-2/`) | ① 결정 순간 내 패 카드 그림 살리기(지금 글자 칩) ② **모바일 세로 버림, 무조건 가로**(폰 844×390) ③ 독: 가운데 홈 키 → 다음 키, 초록 진행 알약 없앰, 홈은 맨 왼쪽 일반 버튼. → 마스터 O에 전달, 7·8차 디자인 정정문 `7-8-addendum.md` | — |
-| **8차 뒤 누계** | | **큰 것 0 (+작은 2), 큰 것 있는 단계 0** |
+| C.65 (38 5-5 시즌 목표·카드 해금, main cb7c645, 2026-10-18 16:55 KST 통보) | 큰 1: ① 홈 시즌 목표 카드. 작은 2: 시즌 요약 목표 결과 패널 / "카드 고르기 · 선택권 n장" 할 일 줄. 캡처 `docs/design/c65-check/` | 1 (+작은 2) |
+| **8차 뒤 누계** | | **큰 것 1 (+작은 4), 큰 것 있는 단계 1** |
 
 - 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
 - U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".
