@@ -551,7 +551,7 @@ const MONEY_EVENTS: readonly EventDef[] = [
   },
 ];
 
-/** 황혼 챕터 이벤트 (22.1, C.73a): 노화 · 은퇴 질문 · 멘토. 30세 이상만 (챕터 배율로 황혼에서 더 자주) */
+/** 황혼 챕터 이벤트 (22.1, C.73a): 노화 · 은퇴 질문 · 멘토. 30세 이상만 (챕터 배율로 황혼에서 더 자주). 모두 하루 이벤트 — 슬롯에 넣으면 다른 선택형을 밀어내 위상 가드가 흔들림(C.73a 측정) */
 const TWILIGHT_EVENTS: readonly EventDef[] = [
   {
     id: 'd_agingBody', tags: ['day', 'aging'], kind: 'message', on: 'day', cat: 'club', when: { all: [['age', '>=', 31], ['apps', '>=', 5]] }, chance: 0.04, cooldown: 'season',
@@ -573,7 +573,7 @@ const TWILIGHT_EVENTS: readonly EventDef[] = [
     },
   },
   {
-    id: 's_mentor', tags: ['slot', 'mentor', 'team'], kind: 'choice', on: 'slot', cat: 'team', when: ['age', '>=', 30],
+    id: 'd_mentor', tags: ['day', 'mentor', 'team'], kind: 'choice', on: 'day', cat: 'team', when: ['age', '>=', 30], chance: 0.05, cooldown: 'season',
     title: ['유망주의 부탁', '멘토가 되어 줄래요?', '어린 동료의 질문'],
     text: [
       '1군에 막 올라온 유망주가 개인 훈련을 같이 해 달라고 부탁했어요.',

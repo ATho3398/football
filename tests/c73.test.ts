@@ -67,7 +67,7 @@ describe('챕터 효과 (pending 119 ②): 목표 섞기 · 이벤트 배율, XP
     expect(chapterEventMul(g, ['slot', 'media', 'star'])).toBe(0.6);
     expect(chapterEventMul(g, ['slot', 'aging', 'retire', 'mentor'])).toBe(0.5);
     for (const ch of Object.values(BALANCE.chapters.eventMul)) for (const m of Object.values(ch)) expect(m >= 0.5 && m <= 1.5).toBe(true);
-    for (const id of ['d_agingBody', 'd_retireTalk', 's_mentor']) expect(EVENTS.some((e) => e.id === id)).toBe(true);
+    for (const id of ['d_agingBody', 'd_retireTalk', 'd_mentor']) expect(EVENTS.some((e) => e.id === id)).toBe(true);
   });
 });
 

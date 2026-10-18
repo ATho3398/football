@@ -1233,12 +1233,15 @@ export const BALANCE = {
      */
     goalMix: { prospect: { easier: 0.5, harder: 0 }, rise: { easier: 0, harder: 0 }, prime: { easier: 0, harder: 0.5 }, twilight: { easier: 0, harder: 0 } },
     twilightGoal: { personalMul: 0.85, personalRating: -0.1 },
-    /** 이벤트 분류 배율 (태그별, 확률·슬롯 가중치에 곱함). 태그 여러 개면 곱한 뒤 eventClamp 안으로 */
+    /**
+     * 이벤트 분류 배율 (태그별, 확률·슬롯 가중치에 곱함). 태그 여러 개면 곱한 뒤 eventClamp 안으로.
+     * 위상을 올리는 이벤트(칭찬·스타·스폰서·주장)는 키우지 않는다 — 레전더리 35세 900+ 가드가 경계(12/48)라 (C.73a 측정)
+     */
     eventMul: {
       prospect: { minutes: 1.4, contract: 1.3, training: 1.3, manager: 1.2, star: 0.6, luxury: 0.6, sponsor: 0.7, aging: 0.5, retire: 0.5, mentor: 0.5 },
-      rise: { transfer: 1.5, star: 1.3, media: 1.2, sponsor: 1.2, minutes: 0.8, aging: 0.5, retire: 0.5, mentor: 0.5 },
-      prime: { praise: 1.3, star: 1.2, sponsor: 1.2, luxury: 1.2, charity: 1.2, captain: 1.2, minutes: 0.7, retire: 0.5 },
-      twilight: { aging: 1.5, retire: 1.5, mentor: 1.5, captain: 1.3, leader: 1.3, injury: 1.2, transfer: 0.7, star: 0.7, luxury: 0.7 },
+      rise: { transfer: 1.5, contract: 1.2, minutes: 0.8, aging: 0.5, retire: 0.5, mentor: 0.5 },
+      prime: { luxury: 1.2, minutes: 0.7, retire: 0.5 },
+      twilight: { aging: 1.5, retire: 1.5, mentor: 1.5, injury: 1.2, transfer: 0.7, star: 0.6, sponsor: 0.6, praise: 0.6 },
     } as Record<string, Readonly<Record<string, number>>>,
     eventClamp: [0.5, 1.5] as readonly [number, number],
     /** 챕터 끝 카드 선택권 1회 (C.65 선택권 흐름): 유망주 희귀 · 도약 희귀 · 전성기 에픽 · 황혼 없음 */
