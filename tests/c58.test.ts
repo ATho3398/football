@@ -83,7 +83,7 @@ describe('포인트 찍기 (디자인 113, C.49 규칙 유지)', () => {
     const html = allocateView(vm, 'dribbling', 0);
     expect(html).toContain('po-hero--compact');
     expect(html).toContain('al-ovr');
-    expect(html).toContain('칸당 <b>1P</b>');
+    expect(html).toContain('1칸 <b>1P</b>');
     expect(html).toContain('ag--4');
     expect(html).toMatch(/al-rule-text" hidden/);
     expect(allocateView(vm, null, 0, true)).not.toMatch(/al-rule-text" hidden/);

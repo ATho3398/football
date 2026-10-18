@@ -184,7 +184,7 @@ function injuryBanner(g: GameState): BannerVM | null {
 
 function pointsBanner(g: GameState): BannerVM | null {
   const n = visiblePoints(g);
-  return n > 0 ? { tone: 'success', title: `능력치 포인트 ${n}개`, body: '레벨업으로 얻은 포인트를 능력치에 써요.', action: '찍기', act: 'go', to: 'allocate' } : null;
+  return n > 0 ? { tone: 'success', title: `찍을 포인트 ${n}P`, body: '레벨업으로 얻은 포인트를 능력치에 써요.', action: '찍기', act: 'go', to: 'allocate' } : null;
 }
 
 // ── 홈 (I.3, 디자인 22·25) ──
@@ -970,7 +970,7 @@ export interface MatchResultVM {
   /** 결정 기록 줄을 누르면 그 장면 리플레이 (방금 치른 경기의 재생 데이터가 있을 때) */
   decisionReplay: boolean;
   /** 이 경기에 쓴 카드 (C.36) */
-  cardUses: { text: string; result: 'success' | 'fail' | 'neutral' }[];
+  cardUses: { text: string; result: 'success' | 'fail' | 'neutral'; /** C.70 (디자인 170): 분 · 카드 이름 · 자동 */ minute?: string; name?: string; auto?: boolean }[];
 }
 
 const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드', delegate: '맡김' } as const;
@@ -1022,7 +1022,8 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   const slump = slumpBanner(g);
   if (slump) banners.push(slump);
   if (m.levelsGained > 0) {
-    banners.push({ tone: 'success', title: `레벨 업! Lv.${g.player.level}`, body: `포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel} (찍기 ${g.player.unspentPoints}번 가능) · 지금 OVR ${playerOvr(g.player)}` });
+    // C.70 (디자인 162): "Lv n · 포인트 +n" + [찍기] (아래 [포인트 찍기] 단추 대신)
+    banners.push({ tone: 'success', title: `Lv ${g.player.level} · 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel}`, body: `찍을 포인트 ${g.player.unspentPoints}P · 지금 OVR ${playerOvr(g.player)}`, ...(visiblePoints(g) > 0 ? { action: '찍기', act: 'go', to: 'allocate' } : {}) });
   }
   const me = r?.players.find((p) => p.isMe)?.id;
   const highlights = r
@@ -1074,7 +1075,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,
-    cardUses: (m.cardUses ?? []).map((u) => ({ text: `${u.minute}' ${u.name}${u.auto ? ' (자동)' : ''}`, result: u.result })),
+    cardUses: (m.cardUses ?? []).map((u) => ({ text: `${u.minute}' ${u.name}${u.auto ? ' (자동)' : ''}`, result: u.result, minute: `${u.minute}'`, name: u.name, auto: !!u.auto })),
     decisions: (m.decisions ?? []).map((d) => ({
       minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], label: d.card ? (d.choice === 'card' ? `${d.card} · ${d.label}` : `${d.label} + 🃏 ${d.card}`) : d.label,
       p: d.p === null ? '-' : `${Math.round(d.p * 100)}%`, result: d.seen?.result ?? d.result, flow: d.seen?.flow ?? '',

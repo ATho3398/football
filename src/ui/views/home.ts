@@ -16,24 +16,21 @@ export function homeFace(vm: HomeVM): { src: string; cutout: boolean } | null {
   return heroFaceOf(vm.card.face);
 }
 
-/** 머리말 칩: 경기까지 n일 · 리그 n/38R · 찍을 포인트 */
+/** 머리말 칩 (C.70 디자인 161): 경기까지 n일 · n/38R · 찍을 포인트 nP(라임 칩) */
 function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   const n = vm.next;
   return [
     ...(n && vm.day
-      ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }]
+      ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, `${vm.round}/${vm.rounds}R`]
       : [{ label: '시즌 종료', soft: true }]),
-    ...(vm.points > 0 ? [`찍을 포인트 ${vm.points}P`] : []),
+    ...(vm.points > 0 ? [{ label: `찍을 포인트 ${vm.points}P`, soft: true }] : []),
   ];
 }
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', unread: number | null = null): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = ''): string {
   const n = vm.next;
-  // 인박스 (C.63): 홈 상단 알림 아이콘 (20.4)
-  const bell = unread !== null ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `인박스${unread ? ` 안 읽음 ${unread}` : ''}`, variant: 'ghost', badge: unread }) : '';
-  // 재정 (C.68a): 코치 후보가 와 있으면 배지
-  const coin = unread !== null ? IconButton({ act: 'go', data: { to: 'finance' }, name: 'coin', label: `재정${vm.money ? ` 후보 ${vm.money}` : ''}`, variant: 'ghost', badge: vm.money || 0 }) : '';
-  const tools = bell + coin + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
+  // C.70 (디자인 161): 날짜 옆은 저장·설정만. 인박스·재정은 독(더보기 줄 · PC 칸)에서 배지로 (C.69 독 v3)
+  const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
   const face = homeFace(vm);
   // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
   const hero = face
@@ -68,7 +65,8 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         <div class="hm-power"><span>전력 <b class="po-num">${n.myRating}</b></span><span class="hm-power__bar" aria-hidden="true"><i style="width:${pct}%"></i><i></i></span><b class="po-num away">${n.oppRating}</b></div>
         <div class="hm-tac">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}<span class="vs">vs</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}<span class="grow"></span>${
           n.tacticsOpen ? Button({ size: 'sm', variant: 'ghost', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</div>
-        <p class="small muted hm-note">플레이 방식(직접·자동)·덱·내 자리는 [경기 시작] 뒤 경기 준비에서 정해요.</p>
+        <div class="hm-ctl"><span class="grow">내 선수 결정 · <b>${n.control.mode === 'direct' ? '멈추면 내가 골라요' : '엔진이 대신 골라요'}</b></span>${
+          Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: n.control.mode, act: 'ctl-mode', label: '내 선수 결정' })}</div>
         <div class="hm-btns">${main}<div class="hm-btns__row">${subs}</div></div>`, 'next-card');
   } else if (vm.phase === 'offseason') {
     next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 체력이 회복돼요.</p>
@@ -87,7 +85,8 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond');
   const card = PlayerCard({ player: vm.card, variant: 'compact' });
   const tiles = statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }]);
-  const main = `${vm.trial ? trialStrip(vm.trial) : ''}${top}${banners(vm.banners)}${startNotice(vm.version)}${next}${notice}${training}${extra}`;
+  // C.70 (디자인 162): 배너(레벨업 등)는 머리말 바로 아래, 그다음 인박스 알림
+  const main = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${next}${training}${notice}${extra}`;
   // PC 2열 (C.61 디자인 120): 왼쪽 = 다음 경기 · 오늘 훈련 · 알림, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 내 상태 · 버전
   if (isWide()) return `${hero}<div class="body home-body">${pc2(main, `${card}${tiles}${cond}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
   return `

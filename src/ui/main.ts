@@ -119,6 +119,8 @@ const ui = {
   screen: 'title' as Screen,
   game: null as GameState | null,
   toast: null as ToastProps | null,
+  /** 방금 경기에서 레벨업 (C.70 디자인 162 홈 배너 "Lv n · 포인트 +n"). 포인트 찍기에 들어가면 지운다 */
+  lvUp: null as { level: number; plus: number } | null,
   modal: null as ModalState | null,
   /** 시즌 자동 진행 중 */
   busy: false,
@@ -385,6 +387,8 @@ function screenHtml(): string {
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       const hvm = homeVM(g);
+      // C.70 (디자인 162): 방금 레벨업했으면 포인트 배너를 "Lv n · 포인트 +n" 으로
+      if (ui.lvUp && hvm.points > 0) hvm.banners = hvm.banners.map((b) => (b.to === 'allocate' ? { ...b, title: `Lv ${ui.lvUp!.level} · 포인트 +${ui.lvUp!.plus}`, body: `레벨이 올랐어요. 찍을 포인트가 ${hvm.points}P가 됐어요.` } : b));
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
       const mvm = marketVM(g);
       // 감독 면담 (C.62): 열린 면담 띠(닫기 없음). 알림(태그·포변 조언·면담 결과·이적 소식)은 인박스로 (C.63, 홈에는 안 읽은 것 3개)
@@ -393,7 +397,8 @@ function screenHtml(): string {
       const hin = homeInboxVM(g);
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), hvm.training ? todayRow(hvm.training) : '', meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), unreadCount(g)) + guideResetLink() + sheet;
+      // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (시즌 목표·주전 경쟁·라이벌) → 안내·포변
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread)) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -572,7 +577,7 @@ function render(): void {
       ],
     })
     : guide.modal;
-  const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
+  const toast = ui.toast ? `<div class="toast-wrap${ui.toast.kind === 'levelup' ? ' is-bottom' : ''}">${Toast(ui.toast)}</div>` : '';
   // C.63c: 진행 중 띠(중단 단추가 있는 토스트)는 머리말을 덮지 않게 화면을 그만큼 내린다
   const bandToast = ui.toast?.onAction?.act === 'sim-stop';
   document.documentElement.classList.toggle('is-landphone', isLandPhone());
@@ -623,7 +628,7 @@ function dockVM(g: GameState): DockVM {
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
   } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
   else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
-  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g) };
+  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g), finance: g.money?.candidates.length ?? 0 };
 }
 
 /** "경기 중 · 돌아가기" 띠 (C.39, C.54 디자인 60): 다른 화면 위에. 첫 줄 = 분·스코어, 둘째 줄 = 상태, 오른쪽 [경기로 돌아가기] */
@@ -760,7 +765,11 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   go('match');
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
-  else if (report.levelsGained > 0) showToast({ kind: 'levelup', title: `레벨 업! Lv.${g.player.level}`, body: `포인트 ${g.player.unspentPoints}P · 1P = 능력치 한 칸(높은 칸은 2~3P)` }, 2200);
+  if (report.levelsGained > 0) {
+    // C.70 (디자인 162): 홈 배너 + 독 위 토스트(Toast levelup, [찍기])
+    ui.lvUp = { level: g.player.level, plus: report.levelsGained * BALANCE.growth.pointsPerLevel };
+    if (!report.cardUnlock) showToast({ kind: 'levelup', title: `Lv ${g.player.level} · 포인트 +${ui.lvUp.plus}`, body: `찍을 포인트가 ${g.player.unspentPoints}P가 됐어요`, action: '찍기', onAction: { act: 'go', data: { to: 'allocate' } } }, 3000);
+  }
 }
 
 /** 다시 보기 끝: 지난 경기면 선수 화면, 방금 경기 하이라이트면 결과 화면 (재생기는 끝난 상태로 남겨 평균 위치에 쓴다) */
@@ -800,6 +809,7 @@ function readFormInputs(): void {
 
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
 function enterAllocate(g: GameState, back: Screen): void {
+  ui.lvUp = null;
   ui.alloc = { snap: structuredClone(g.player), raises: [], startExact: positionOvrExact(g.player.attributes, g.player.position), back, coach: false, sel: null };
 }
 

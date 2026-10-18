@@ -201,10 +201,17 @@ export function allocateView(vm: AllocateVM, sel: string | null, pending: number
     ? `<div class="coach">${Avatar({ size: 36 })}<div><small>코치 · 비용 구간</small><b>"여기서부터는 성장이 더뎌져. 실력이 한 단계 더 올라서면 다시 길이 열릴 거야."</b></div></div>`
     : '';
   // 찍기 한 번 = 화면 +1칸 (C.49): 비용은 지금 칸 기준 1·2·3P
-  const bands = `<div class="al-bands"><span class="al-band">~${vm.cost1Max} 칸당 <b>1P</b></span><span class="al-band warn">${vm.cost1Max + 1}~${vm.cost2Max} <b>2P</b></span><span class="al-band fail">${vm.cost2Max + 1}~ <b>3P</b></span><button type="button" class="link-btn al-rule" data-act="alloc-rule" aria-expanded="${rule}">${Icon({ name: 'info', size: 14 })} 규칙</button></div>
-    <p class="small muted al-rule-text"${rule ? '' : ' hidden'}>능력치는 1~20으로 보여요. 박스를 누르면 [−]/[+]가 나와요. [+] 한 번 = 한 칸(+1), [−]는 한 칸씩 되돌려요. 막대(칸 안 진행)는 그대로 따라가요. 비용 구간은 실력 ${esc(vm.tierName)}(OVR) 기준, 레벨업마다 ${BALANCE.growth.pointsPerLevel}P. 테두리 = ${esc(vm.position)} 핵심 능력치.</p>`;
+  // C.70 (디자인 163): 구간 칩 "~n 1칸 1P", [규칙] 펼침 = 라임 왼쪽 막대 안내 상자
+  const ppl = BALANCE.growth.pointsPerLevel;
+  const bands = `<div class="al-bands"><span class="al-band">~${vm.cost1Max} 1칸 <b>1P</b></span><span class="al-band warn">${vm.cost1Max + 1}~${vm.cost2Max} 1칸 <b>2P</b></span><span class="al-band fail">${vm.cost2Max + 1}~ 1칸 <b>3P</b></span><button type="button" class="link-btn al-rule" data-act="alloc-rule" aria-expanded="${rule}">${Icon({ name: 'info', size: 14 })} 규칙${Icon({ name: rule ? 'chevron-up' : 'chevron-down', size: 14 })}</button></div>
+    <div class="al-rule-text"${rule ? '' : ' hidden'}><b>포인트 찍는 규칙</b><ul>
+      <li>레벨이 오를 때마다 <b>${ppl}P</b>를 받아요. 능력치는 1~20으로 보여요.</li>
+      <li>박스를 누르면 [+]/[−]가 나와요. [+] 한 번 = 한 칸(+1), [−]는 한 칸씩 되돌려요.</li>
+      <li>칸이 높을수록 비싸요: ${vm.cost1Max}까지 1칸 1P · ${vm.cost1Max + 1}~${vm.cost2Max}은 2P · ${vm.cost2Max + 1}부터 3P. 구간은 실력 ${esc(vm.tierName)}(OVR) 기준이에요.</li>
+      <li>남은 포인트로 못 올리는 박스는 회색으로 "nP 부족"이 떠요.</li>
+      <li>테두리 = ${esc(vm.position)} 핵심 능력치. 막대(칸 안 진행)는 그대로 따라가요.</li></ul></div>`;
   return `${hero}<div class="body al-body">${ovr}${coach}${bands}
-    ${attrGrid(vm.attrs, sel, undefined, { cols: 4, keyLabel: `${vm.position} 핵심` })}
+    ${attrGrid(vm.attrs, sel, undefined, { cols: 4, keyLabel: `${vm.position} 핵심`, shortLegend: true })}
     ${Button({ variant: 'ghost', block: true, icon: 'target', act: 'auto-alloc', disabled: vm.points === 0, children: '자동 배분 (포지션 OVR 우선)' })}</div>
     <div class="dock al-dock">${actionRow(
       Button({ variant: 'secondary', size: 'lg', block: true, icon: 'restore', act: 'alloc-reset', disabled: pending === 0, children: '초기화' }),

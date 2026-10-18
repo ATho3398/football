@@ -44,9 +44,10 @@ export function weekPreview(vm: TrainingVM): string {
 }
 
 /** 홈 "오늘 훈련" 한 줄 (디자인 86): 누르면 훈련·일정 */
-export function todayRow(vm: TrainingVM): string {
+export function todayRow(vm: TrainingVM, date = ''): string {
   const t = vm.today;
-  const eyebrow = vm.vacation ? `휴가 · ${vm.vacation.days}일` : `오늘 훈련${t.fixed ? ' · 고정' : t.changed ? ' · 오늘만 변경' : ` · 프리셋 ${vm.presets.activeName}`}`;
+  // C.70 (디자인 161): 머리 = 오늘 훈련 · 날짜, 프리셋은 아래 "이번 주 프리셋 · [프리셋 바꾸기]" 줄로
+  const eyebrow = vm.vacation ? `휴가 · ${vm.vacation.days}일` : `오늘 훈련${date ? ` · ${date}` : ''}${t.fixed ? ' · 고정' : t.changed ? ' · 오늘만 변경' : ''}`;
   const line = vm.vacation
     ? `체력 하루 +${num(t.fatigue)} · ${vm.vacation.until}부터 훈련`
     : `${t.kind === 'match' ? '' : `XP +${num(t.xp)} · 체력 +${num(t.fatigue)} · `}이번 주 훈련 XP ${num(vm.weekXp)}/${vm.cap}`;
@@ -54,9 +55,11 @@ export function todayRow(vm: TrainingVM): string {
     ...(t.fixed ? [`${Icon({ name: 'lock', size: 12 })}경기 다음 날은 휴식으로 고정돼요`] : []),
     ...(vm.formPenalty ? ['<span class="warn">휴식이 길어져 다음 경기 폼 −1</span>'] : []),
   ];
-  return `<button type="button" class="panel hm-train" data-act="go-tab" data-v="schedule"><span class="hm-train__icon">${Icon({ name: vm.vacation ? 'plane' : PLAN_ICON[t.kind], size: 20 })}</span>
+  const row = `<button type="button" class="hm-train" data-act="go-tab" data-v="schedule"><span class="hm-train__icon">${Icon({ name: vm.vacation ? 'plane' : PLAN_ICON[t.kind], size: 20 })}</span>
     <span class="hm-train__body"><small>${esc(eyebrow)}</small><b>${esc(vm.vacation ? '리그 휴장 · 휴가 중' : `${t.name}${t.bundle ? ` · ${t.bundle}` : ''}`)}</b><span class="po-num">${esc(line)}</span>${extra.map((x) => `<em>${x}</em>`).join('')}</span>
     ${Icon({ name: 'chevron-right', size: 18 })}</button>`;
+  const preset = vm.vacation ? '' : `<div class="hm-preset">${Icon({ name: 'calendar', size: 16 })}<span class="grow">이번 주 프리셋 · <b>${esc(vm.presets.activeName)}</b></span><button type="button" class="hm-preset__btn" data-act="go-tab" data-v="schedule">${Icon({ name: 'swap', size: 16 })}프리셋 바꾸기</button></div>`;
+  return `<div class="panel hm-train-card">${row}${preset}</div>`;
 }
 
 /** 훈련·일정 "오늘 훈련" 카드 + 주간 7칸 (디자인 91). gauge=true 면 게이지도 */

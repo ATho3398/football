@@ -4,9 +4,11 @@
 
 import { Button, Crest, FormIndicator, FormationPitch, GameCard, HeroPanel, Icon, TacticChip, Tabs, esc } from '../components';
 import { shortReason } from './deck';
+import { BALANCE } from '../../config/balance';
 import type { FormMark, PrepVM } from '../prepVM';
 
 const MARK_KO: Record<FormMark, string> = { W: '승', D: '무', L: '패' };
+const STOP_KO: Record<string, string> = { all: '모든 결정 순간에 멈춰요', important: '중요한 순간에만 멈춰요', critical: '결정적 순간에만 멈춰요' };
 
 function formDots(f: FormMark[]): string {
   if (!f.length) return '<span class="muted small">이번 시즌 첫 경기</span>';
@@ -44,7 +46,7 @@ export function prepView(vm: PrepVM): string {
     <div class="prep-vs"><span class="prep-vs__me">${Crest({ name: vm.my.name, size: 28 })}<b>${esc(vm.my.name)}</b></span><span class="prep-vs__x">vs</span><span class="prep-vs__opp"><b>${esc(vm.opp.name)}</b>${Crest({ name: vm.opp.name, size: 28, color: 'var(--away)' })}</span></div>
     <div class="prep-bar"><span>전력 <b class="po-num">${vm.my.rating}</b> <small>${vm.my.rank}위</small></span><span class="prep-bar__track"><i style="width:${share}%"></i><i></i></span><span><small>${vm.opp.rank ? `${vm.opp.rank}위` : '리그 밖'}</small> <b class="po-num is-away">${vm.opp.rating}</b></span></div>
     <div class="prep-row">${vm.opp.tactic ? TacticChip({ size: 'sm', away: true, ...vm.opp.tactic }) : '<span></span>'}${formDots(vm.opp.form)}</div>
-    ${vm.derby ? `<span class="prep-note is-derby">${Icon({ name: 'star', size: 12, strokeWidth: 2.4 })}${esc(vm.derby.name)} · 더비 매치</span>` : ''}
+    ${vm.derby ? `<div class="prep-derby">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b class="grow">${esc(vm.derby.name)} · 더비 매치</b>${vm.opp.rank ? `<small>순위 ${vm.my.rank}위 vs ${vm.opp.rank}위</small>` : ''}</div>` : ''}
     ${vm.hint ? `<span class="prep-note">영상 분석 힌트 · ${esc(vm.hint)}</span>` : ''}`);
 
   const lock = '<span class="prep-note">전술은 3경기를 치르면 열려요.</span>';
@@ -77,17 +79,29 @@ export function prepView(vm: PrepVM): string {
   const c = vm.condition;
   const stamina = Math.max(0, Math.min(100, 100 - c.fatigue));
   const s = vm.start;
-  const play = s.out ? `<span class="fail">${esc(s.out)} · 이번 경기 결장(관전)</span>` : tr ? `1군 테스트 ${tr.n}/${tr.of}경기째 · 출전 보장` : `선발 가능성 <b>${s.chance}%</b>`;
-  const state = card(`${head('내 상태')}
+  // C.70 (디자인 166): 머리 오른쪽 경고 n/n, 폼 줄 오른쪽 평점 보정, 아래 판 = 선발 가능성 막대 % + 결장 사유
+  const low = 100 - BALANCE.fatigue.penaltyFrom;
+  const why = [
+    ...(c.injury ? [`${Icon({ name: 'danger', size: 14 })}<span class="fail">부상 · ${esc(c.injury)}</span>`] : []),
+    ...(c.suspended > 0 ? [`${Icon({ name: 'danger', size: 14 })}<span class="fail">출장 정지 · ${c.suspended}경기 남음</span>`] : []),
+    ...(!s.out && stamina < low ? [`${Icon({ name: 'clock', size: 14 })}<span>체력 ${stamina} · ${low} 아래면 벤치로 밀릴 수 있어요</span>`] : []),
+    ...(!s.out && c.yellows >= c.yellowEvery - 1 ? [`<i class="prep-why__card" aria-hidden="true"></i><span>경고 ${c.yellows}/${c.yellowEvery} · 한 장 더 받으면 다음 경기는 정지예요</span>`] : []),
+  ];
+  const chance = s.out
+    ? `<div class="prep-chance__head"><span>선발 가능성</span><b class="fail">${esc(s.out)} · 이번 경기 결장(관전)</b></div>`
+    : tr
+      ? `<div class="prep-chance__head"><span>선발 가능성</span><b>1군 테스트 ${tr.n}/${tr.of}경기째 · 출전 보장</b></div>`
+      : `<div class="prep-chance__head"><span>선발 가능성</span><span class="prep-chance__track"><i class="${s.chance < 50 ? 'is-low' : s.chance < 80 ? 'is-mid' : ''}" style="width:${s.chance}%"></i></span><b class="po-num">${s.chance}%</b></div>`;
+  const state = card(`<div class="prep-head"><b>내 상태</b><span class="prep-sub">경고 <b class="po-num${c.yellows >= c.yellowEvery - 1 ? ' warn' : ''}">${c.yellows}/${c.yellowEvery}</b></span></div>
     <div class="prep-stamina"><span>체력</span><span class="prep-stamina__track"><i class="${stamina <= 30 ? 'is-low' : stamina < 50 ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
-    <div class="prep-row">${FormIndicator({ level: c.form, showLabel: true })}<span class="prep-sub">경고 <b>${c.yellows}/${c.yellowEvery}</b> · ${play}</span></div>
-    ${c.injury ? `<span class="prep-note fail">부상 · ${esc(c.injury)}</span>` : ''}
-    ${c.yellows >= c.yellowEvery - 1 ? '<span class="prep-note warn">경고 1장 더 받으면 다음 경기 출장 정지예요.</span>' : ''}`);
+    <div class="prep-row">${FormIndicator({ level: c.form, showLabel: true })}<span class="prep-sub">${esc(c.formLabel)}</span></div>
+    <div class="prep-chance">${chance}${why.length ? `<small class="prep-why__head">결장 사유</small><ul class="prep-why">${why.map((w) => `<li>${w}</li>`).join('')}</ul>` : ''}</div>`);
 
   const ctl = vm.control;
   const mode = `<div class="prep-ctl">
-    <div class="prep-head"><b>내 선수 결정</b><span class="prep-sub">${ctl.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정하고 결과만 보여 줘요'}</span></div>
+    <div class="prep-head"><b>내 선수 결정</b><span class="prep-sub">${ctl.mode === 'direct' ? '직접 = 멈추면 내가 골라요' : '자동 = 엔진이 대신 골라요'}</span></div>
     ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: ctl.mode, act: 'ctl-mode', fill: true, label: '내 선수 결정' })}
+    ${ctl.mode === 'direct' ? `<div class="prep-head prep-head--sub"><b>정지 빈도 · 직접일 때</b><span class="prep-sub">${STOP_KO[ctl.stop] ?? ''}</span></div>` : ''}
     ${ctl.mode === 'direct' ? Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: ctl.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' }) : ''}
   </div>`;
 

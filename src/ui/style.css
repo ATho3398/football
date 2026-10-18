@@ -1975,3 +1975,79 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 /* 결정 순간·결정 결과에는 독 없음 (189·190, 모든 폭 — 폰 세로·가로 폰은 C.63c·C.66 부터 숨김, PC 도 같이) */
 .app-moment > .dock-bar { display: none; }
 #app.has-nav.app-moment { padding-bottom: 0; }
+
+/* ── C.70 (U7-b): 161 홈 v3 · 162 레벨업 · 163 포인트 v2 · 166 경기 준비 v2 · 170/160 경기 결과 ── */
+/* 161 다음 경기 카드: 내 선수 결정 [직접][자동] 한 줄 */
+.hm-ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-muted); }
+.hm-ctl b { color: var(--ink); font-weight: 800; }
+.hm-ctl .po-tabs { flex: none; gap: 4px; }
+.hm-ctl .po-tab { height: 34px; padding: 0 14px; }
+/* 161 오늘 훈련 카드: 위 한 줄(→ 훈련·일정) + 아래 "이번 주 프리셋 · [프리셋 바꾸기]" 줄 */
+.hm-train-card { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; }
+.hm-train-card > .hm-train { padding: 0; background: none; }
+.hm-preset { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--b-r-sm, 10px); background: var(--surface-2); font-size: 13px; color: var(--ink-muted); }
+.hm-preset b { color: var(--ink); font-weight: 800; }
+.hm-preset > .po-icon { color: var(--ink-muted); flex: none; }
+.hm-preset__btn { display: inline-flex; align-items: center; gap: 6px; flex: none; border: 0; background: none; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+/* 161 카드 덱 한 줄 */
+.hm-deck { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; border: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.hm-deck .hm-train__icon { width: 34px; height: 34px; color: var(--ink-muted); }
+.hm-deck small { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.hm-deck b { font-size: 15px; font-weight: 800; }
+.hm-deck__link { display: inline-flex; align-items: center; gap: 2px; flex: none; font-size: 13px; font-weight: 800; color: var(--brand-ink); }
+/* 162 레벨업 토스트: 독 위 16px (Toast README · 디자인 162). 다른 토스트는 C.39 대로 위쪽 */
+.toast-wrap.is-bottom { top: auto; bottom: calc(88px + env(safe-area-inset-bottom)); animation: po-toastin .3s ease; }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) { .toast-wrap.is-bottom { bottom: 80px; } }
+/* 163 포인트 찍기 v2: 비용 줄 = 왼쪽 nP · 오른쪽 OVR +n, 못 올리는 칸 = 회색 + 자물쇠 "nP 부족", [규칙] 펼침 = 라임 막대 안내 상자 */
+.ag-cost:has(> b) { display: flex; justify-content: space-between; gap: 4px; margin-top: 2px; }
+.ag-cost > b { font-weight: 800; color: var(--ink); }
+.ag-cell.is-short { opacity: .55; box-shadow: inset 0 3px 0 var(--line-strong, var(--line)); }
+.ag-cell.is-short .ag-v { color: var(--ink-muted); }
+.ag-short { display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin-top: 2px; padding: 2px 6px; border-radius: var(--b-r-xs, 4px); background: var(--surface-3); color: var(--ink-muted); font-size: 10px; }
+.ag-sw.short { background: var(--surface-3); }
+.al-rule { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--brand-ink); font-weight: 800; }
+.al-rule-text { padding: 12px 14px; border-left: 4px solid var(--brand); border-radius: var(--b-r-sm, 8px); background: var(--surface-1); font-size: 12px; line-height: 19px; color: var(--ink-muted); }
+.al-rule-text[hidden] { display: none; }
+.al-rule-text > b { display: block; margin-bottom: 4px; font-size: 14px; color: var(--ink); }
+.al-rule-text ul { margin: 0; padding: 0; list-style: none; }
+.al-rule-text li::before { content: "· "; }
+.al-rule-text li b { color: var(--ink); }
+/* 166 경기 준비 v2: 더비 줄(순위 n위 vs n위) · 선발 가능성 판(막대 %) · 결장 사유 · 정지 빈도 머리 */
+.prep-derby { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--b-r-sm, 8px); background: var(--surface-2); font-size: 13px; }
+.prep-derby > .po-icon { color: var(--brand-ink); flex: none; }
+.prep-derby small { flex: none; font-size: 11px; color: var(--ink-muted); }
+.prep-sub .warn { color: var(--warning); }
+.prep-chance { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--b-r-sm, 8px); background: var(--surface-2); }
+.prep-chance__head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-muted); }
+.prep-chance__head > b:only-of-type:not(.po-num) { grid-column: 2 / 4; text-align: right; font-size: 12px; }
+.prep-chance__head b.po-num { font-family: var(--font-display); font-size: 20px; font-style: italic; color: var(--warning); }
+.prep-chance__track { position: relative; height: 8px; border-radius: var(--b-r-xs, 4px); background: var(--surface-3); overflow: hidden; }
+.prep-chance__track i { position: absolute; inset: 0 auto 0 0; background: var(--warning); }
+.prep-chance__track i.is-low { background: var(--fail); }
+.prep-chance__track i:not(.is-low):not(.is-mid) { background: var(--success); }
+.prep-chance__head:has(i:not(.is-low):not(.is-mid)) b.po-num { color: var(--success); }
+.prep-chance__head:has(i.is-low) b.po-num { color: var(--fail); }
+.prep-why__head { font-size: 11px; color: var(--ink-faint); }
+.prep-why { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.prep-why li { display: flex; align-items: center; gap: 8px; }
+.prep-why li > .po-icon { color: var(--warning); flex: none; }
+.prep-why__card { flex: none; width: 10px; height: 14px; margin: 0 2px; border-radius: 2px; background: var(--warning); }
+.prep-head--sub { margin-top: 4px; }
+.prep-head--sub > b { font-size: 12px; color: var(--ink-muted); }
+/* 170 · 160 경기 결과: 머리 한 줄, 득점 그때 점수 · "나" 칩, 쓴 카드 분 칸 · 판 안 [더 보기] */
+.mr-head.mr-head--row { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: 12px 14px; }
+.mr-head--row .mr-team { flex-direction: row; justify-content: flex-start; gap: 10px; }
+.mr-head--row .mr-team--opp { justify-content: flex-end; }
+.mr-head--row .mr-team small { font-size: 14px; font-weight: 800; color: var(--ink); }
+.mr-head--row .mr-team--opp small { color: var(--away, #ff8a3d); }
+.mr-head--row .mr-score { font-family: var(--font-display); font-style: italic; font-size: 34px; line-height: 40px; white-space: nowrap; }
+.mr-goal__score { margin-left: 4px; font-family: var(--font-display); font-style: italic; }
+.mr-goal.is-opp .mr-goal__score { color: var(--away, #ff8a3d); }
+.mr-goal__me { flex: none; padding: 1px 7px; border-radius: var(--b-r-xs, 4px); background: var(--on-brand); color: var(--brand); font-size: 11px; font-weight: 800; }
+.cu-panel { padding-top: 4px; padding-bottom: 4px; }
+.cu-row { align-items: center; padding: 10px 2px; }
+.cu-row .cu-min { flex: none; width: 34px; font-family: var(--font-display); font-style: italic; color: var(--ink-muted); }
+.cu-row small { color: var(--ink-muted); }
+.cu-row.dec-success b { color: var(--success); }
+.cu-more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 40px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink-muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.mr-rewatch > small { font-size: 11px; line-height: 15px; }

@@ -46,6 +46,8 @@ export interface DockVM {
   more: boolean;
   /** 인박스 안 읽음 (C.63c 더보기 줄 배지) */
   inbox?: number;
+  /** 재정 코치 후보 수 (C.70: 홈 머리말 재정 아이콘을 빼고 독 재정 칸 배지로) */
+  finance?: number;
 }
 
 export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves' | 'inbox' | 'finance';
@@ -84,13 +86,13 @@ export function dock(vm: DockVM): string {
   const phone = new Set(DOCK_PHONE);
   const items: Record<Exclude<DockId, 'prog'>, DockItem> = {
     inbox: { label: '인박스', icon: 'inbox', act: 'go', data: { to: 'inbox' }, on: s === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) },
-    finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: s === 'finance' },
+    finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: s === 'finance', ...(vm.finance ? { badge: vm.finance } : {}) },
     home: { label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
     player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
     schedule: { label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
     world: { label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
     // 접힌 더보기 칸 배지 = 펼침 줄 칸 배지 합 (201: 인박스 안 읽음)
-    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)), ...(!vm.more && vm.inbox ? { badge: vm.inbox } : {}) },
+    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)), ...(!vm.more && (vm.inbox || vm.finance) ? { badge: (vm.inbox ?? 0) + (vm.finance ?? 0) } : {}) },
     deck: { label: '덱', icon: 'deck', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck' },
     tactics: { label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', lock: !vm.tacticsOpen },
     settings: { label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings' },
