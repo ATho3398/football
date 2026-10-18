@@ -397,3 +397,4 @@
 - (03:08 KST) P 추가 알림: C.68b는 P에게 완료 보고, P가 pending 115·ntfy·UI_3 처리 끝. → Q가 건 C.68b 확인 예약 `trig_01VbJ7jLPTR4sxFe9BhTRqCi` 삭제, C.68b 제목 `draft_40단계_5-7 재정 b (C.68b)`. **40단계 끝**(C.68b CI 결과는 C.68b가 Q로 보고). 엔진관리자2 교체 확인(engine-issues-c45는 이미 main 병합 확인해 알림). 남은 자동 확인: C.69 `trig_01M3Se1JTp2R8ve7BdZ9JU6a`(05:37 KST).
 - 다음(갱신): C.68b CI 한 줄 → C.69 보고 → U7-b·c·d → 42 5-8 챕터 …
 - (03:08 KST) UI_3: C.68b 목록 반영 큰 2(재정 카드 상점 탭·생활·투자 탭)·작은 4 → 10차 누계 큰 2·작은 4·단계 1(미달), claude/ui-3 d076ae9.
+- (03:14 KST) UI_3: 카드 그림 위치값 61장(정식/간략 x·y·zoom+반전·기울) docs/ui-requests/card-art-positions.json(claude/ui-3 79ae659). 그림 61장 중 레포엔 17장. **그림 파일이 레포에 들어오면** 작은 코드 패치: CARD_ART_FILES 61장 + ArtPos 크기별(full/mini)+flip+rotate(card-art-missing.md "코드 쪽에 필요한 것"). 그림 없는 카드 15장. U7 패치와 파일 겹치면 U7 사이에 끼움.
