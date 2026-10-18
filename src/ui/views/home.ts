@@ -27,9 +27,11 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   ];
 }
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', unread: number | null = null): string {
   const n = vm.next;
-  const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
+  // 인박스 (C.63): 홈 상단 알림 아이콘 (20.4)
+  const bell = unread !== null ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `인박스${unread ? ` 안 읽음 ${unread}` : ''}`, variant: 'ghost', badge: unread }) : '';
+  const tools = bell + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
   const face = homeFace(vm);
   // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
   const hero = face
@@ -78,6 +80,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         <div class="hm-stamina"><span>체력</span><span class="hm-stamina__bar" aria-hidden="true"><i class="${stamina <= 30 ? 'is-low' : stamina < 100 - BALANCE.fatigue.penaltyFrom ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
         <div class="hm-stamina__scale"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
         ${staminaNote(c.fatigue)}
+        ${c.life?.length ? `<div class="lf-hints">${c.life.map((h) => `<p class="small warn">${Icon({ name: 'face', size: 14 })} ${esc(h)}</p>`).join('')}</div>` : ''}
         <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond');
   const card = PlayerCard({ player: vm.card, variant: 'compact' });
   const tiles = statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }]);

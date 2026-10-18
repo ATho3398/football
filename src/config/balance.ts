@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 38;
+export const BALANCE_VERSION = 41;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -387,6 +387,13 @@ export const BALANCE = {
       rest: { xp: 0, fatigue: 6 },
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
       weakFoot: { xp: 0.75, fatigue: 4.0 },
+      // 생활 하루 행동 (pending 47 4번, C.63 b): 훈련 대신. XP 없음, 회복은 휴식~회복 훈련 사이. 효과는 BALANCE.life.actions
+      family: { xp: 0, fatigue: 5 },
+      language: { xp: 0, fatigue: 4.5 },
+      teamMeal: { xp: 0, fatigue: 4.5 },
+      therapy: { xp: 0, fatigue: 5 },
+      trip: { xp: 0, fatigue: 6 },
+      media: { xp: 0, fatigue: 4 },
     },
     /**
      * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
@@ -1131,6 +1138,124 @@ export const BALANCE = {
      * 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 둘 중 하나면 재계약 실패·방출
      */
     renew: { depth: 2, gap: 14, allPlayers: false },
+  },
+
+  // ── 감독 신뢰도·면담 (18.2·18.3, 부록 C.62) ──
+  manager: {
+    /** 새 팀 시작 = 50 + (주 포지션 OVR − 팀 레이팅) × startPerOvr, [startMin, startMax]. 그 뒤 0~100 */
+    start: 50, startPerOvr: 1, startMin: 40, startMax: 60,
+    /** 출전 경기: 평점 ≥ ratingHigh +ratingDelta, < ratingLow −ratingDelta (교체 출전은 절반). 골·도움 각 +1, 승 +1 / 패 −1, 경고 −1, 퇴장 −5 */
+    ratingHigh: 7.0, ratingLow: 6.0, ratingDelta: 2, goal: 1, assist: 1, win: 1, loss: 1, yellow: 1, red: 5,
+    /** 골·도움 합 경기당 상한 (해트트릭 한 경기로 신뢰도가 튀지 않게) */
+    involvementMax: 3,
+    /** 감독 기억 감쇠: 출전 경기마다 신뢰도가 50 쪽으로 이만큼 (비율) 돌아온다 (오래된 인상은 옅어짐, 추천안) */
+    reversion: 0.04,
+    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) − 피로 70 이상 fatigueMinus (화면 분해) */
+    trustPerPoint: 0.06, formScale: 5, formMax: 1.5, fatigueFrom: 70, fatigueMinus: 2,
+    /** 경쟁자 (NPC) 신뢰도 고정 */
+    npcTrust: 60,
+    /** 홈 "최근 신뢰도 변화" 줄 수 */
+    logMax: 5,
+    /** 감독 성향 (data/managers.ts): 21세 이하 시작 +youthStart, 내려갈 때 × strictDown, 모든 변화 × steadyMul */
+    styles: { youthStart: 5, youthAge: 21, strictDown: 1.25, steadyMul: 0.8 },
+    /** 이적 요청 (C.42 훅): 신뢰도가 이 값 미만이면 요청할 수 있다 (또는 위상이 팀 수준을 넘을 때, 또는 낮은 신뢰 면담에서) */
+    requestBelow: 35,
+    /**
+     * 커리어 태그 효과 (C.62, C.47 표에서 5-1 로 미룬 것): 원클럽맨 하락 × oneClubDown (영원한은 감소분 × 1.5), 문제아 하락 × troublemakerDown,
+     * 컬트 히어로 상승 × cultHeroUp, 친정 선택 그 구단 시작 +homeChoiceStart, 감독 불화 민감 = 신뢰도가 떨어진 경기 다음 경기 폼 −sensitiveForm,
+     * 재계약 판정(커스텀): 저니맨 실패 +journeyRenew, 신뢰도 30 미만 실패 +lowRenew, 신뢰도 80 이상 실패를 highKeep 확률로 뒤집음
+     */
+    tags: { oneClubDown: 0.8, troublemakerDown: 1.2, cultHeroUp: 1.1, homeChoiceStart: 5, sensitiveForm: 0.15, journeyRenew: 0.1, lowRenew: 0.25, highKeep: 0.2 },
+    meeting: {
+      /** 낮은 신뢰 면담: 신뢰도 lowBelow 미만이 lowDays 일 이상, 또는 시즌 중반(라운드 midRound 이상) 선발·출전 시간 비율 minShare 미만 */
+      lowBelow: 30, lowDays: 14, midRound: 19, minShare: 0.4,
+      /** 같은 면담 다시 열리기까지 (일) */
+      lowCooldown: 28,
+      /** 보상 면담: 신뢰도 rewardFrom 이상, 시즌 전반·후반 한 번씩 */
+      rewardFrom: 80,
+      /** 포지션 제안: 고른 슬롯 OVR 이 최고 포지션 OVR 보다 posGap 이상 낮은 채로 posGames 경기 */
+      posGap: 5, posGames: 3,
+      /** 더 노력하겠다: 신뢰도 +effortTrust, effortDays 일 동안 훈련 XP × effortXp */
+      effortTrust: 5, effortDays: 14, effortXp: 1.2,
+      /** 불만 표출: 신뢰도 −complainTrust, complainChance 확률로 감독이 다음 complainGames 경기 기회를 준다 */
+      complainTrust: 5, complainChance: 0.35, complainGames: 2,
+      /** 주전 보장: 다음 startGames 경기 선발 확률 최소 startFloor / 선호 슬롯 보장: 다음 slotGames 경기 무조건 선발 */
+      startGames: 8, startFloor: 0.85, slotGames: 5,
+      /** 포지션 제안을 따르면 */
+      posTrust: 3,
+    },
+  },
+
+  // ── 이벤트 엔진·인박스·라이벌·구단 (20번, 부록 C.63) ──
+  events: {
+    /** 시즌 선택형 슬롯: 개막부터 weeks 주차 중 min~max 개 (20.3) */
+    slots: { weeks: [8, 14, 20, 26, 32], min: 4, max: 5 },
+    /** 선택형 기한 (일). 지나면 기본 선택 */
+    deadlineDays: 7,
+    /** 바로 뜨는 이벤트(하루·경기 뒤) 사이 최소 간격 (일) — 알림이 몰리지 않게 */
+    minGapDays: 3,
+    /** 정보형 기본 쿨다운 (일) */
+    messageCooldown: 21,
+    /** 효과 상한 (이벤트 1개당, 20.7 1번): 위상 ±rep, 신뢰도 ±trust. 돈은 5-7 재정 전이라 효과 없음 */
+    caps: { rep: 5, trust: 10 },
+    /** 이벤트 폼 보정 상한 (다음 n경기, 경기 입력) */
+    formMax: 0.2,
+    /** 인박스 최대 (오래된 읽은 것부터 지움) */
+    inboxMax: 80,
+    rival: {
+      /** 나이 ±ageGap, 시즌 시작 때 OVR 차가 maxGap 을 넘으면 교체 */
+      ageGap: 3, maxGap: 8,
+      /** 시즌 끝 비교 점수 = 골+도움 차 + 평균 평점 차 × avgWeight, ±1 넘으면 승패 */
+      avgWeight: 10,
+      /** 이기면 위상 +winRep · 신뢰도 +winTrust, 지면 위상 loseRep · 신뢰도 loseTrust */
+      winRep: 3, winTrust: 2, loseRep: -2, loseTrust: -1,
+      /** NPC 기록이 없을 때 추정: 팀 경기 × estApps 출전, 포지션군 경기당 골+도움 */
+      estApps: 0.85,
+      /** 같은 포지션 영입: 내 팀에 온 같은 포지션군 선수 OVR ≥ 내 OVR − competitorGap 이면 "새 경쟁자" 이벤트 */
+      competitorGap: 3,
+      estGa: { ST: 0.6, WING: 0.45, CAM: 0.45, CM: 0.2, CDM: 0.1, FB: 0.12, CB: 0.06, GK: 0 },
+    },
+    /** 감독 경질: fromRound 라운드부터, 순위 rankFrom 이하 또는 (순위 − 전력 순위) ≥ expectedGap, 최근 lastGames 경기 maxWins 승 이하 → 경기 뒤 chance (주전 고정 감독 × steadyMul), 시즌 한 번 */
+    coach: { fromRound: 10, rankFrom: 17, expectedGap: 6, lastGames: 5, maxWins: 1, chance: 0.12, steadyMul: 0.7 },
+    /** 주장: 신뢰도 하락 × downMul, 시즌 끝 위상 +seasonRep, 새 시즌에 신뢰도 stripBelow 미만이면 완장 뺏김 */
+    captain: { downMul: 0.9, seasonRep: 3, stripBelow: 30 },
+  },
+
+  // ── 경기 외 생활 (pending 47 4번, 부록 C.63) ──
+  life: {
+    /** 시작값 (0~100). 멘탈 피로는 높을수록 나쁨. 적응도는 팀에 따라 (adapt) */
+    start: { home: 70, adapt: 70, team: 60, mental: 20 },
+    /** 하루마다 기준값 쪽으로 (차이 × rate): 가정 안정 → 70, 팀 관계 → 60 (리더 · 주장 +leaderTo) */
+    drift: { homeTo: 70, homeRate: 0.02, teamTo: 60, teamRate: 0.015, leaderTo: 10 },
+    /** 적응도: 새 팀 시작 = 외국인(잉글랜드 국적이 아님) foreignStart / 잉글랜드 domesticStart / 무한한 충성심 귀환 loyalStart, 첫 시즌 실제 선수(이미 그 구단) settledStart. 하루 +perDay (향수병 ×homesickMul, 언어 천재 ×linguistMul) */
+    adapt: { foreignStart: 45, domesticStart: 65, loyalStart: 85, settledStart: 85, perDay: 0.3, homesickMul: 0.5, linguistMul: 2 },
+    /** 팀 관계: 새 팀 시작 newTeam, 무한한 충성심 귀환 loyalTeam, 원클럽맨 하한 oneClubFloor */
+    team: { newTeam: 50, loyalTeam: 75, oneClubFloor: 40 },
+    /**
+     * 멘탈 피로: 하루마다 baseTo 쪽으로 (차이 × baseRate) + 경기 +match (큰 경기 +big 더), 휴식 날 rest, 휴가 vacation, 회복 훈련 recovery, 그 밖 날 other,
+     * 피로 fatigueFrom 이상인 날 +fatigueAdd. 평형: 주 1경기 ≈ 35, 주 2경기 ≈ 45, 큰 경기·연전·이벤트가 겹치면 70+
+     */
+    mental: { baseTo: 25, baseRate: 0.02, match: 3, big: 2, rest: -1.5, vacation: -3, recovery: -1, other: 0, fatigueFrom: 70, fatigueAdd: 0.5 },
+    /** 하루 행동 효과 (훈련 대신). media = 미디어 인터뷰: good 확률로 위상 +goodRep, 아니면 badRep (언론 울렁증 ×shyMul, 언론의 총아 ×darlingMul 확률) */
+    actions: {
+      family: { home: 8, mental: -2 },
+      language: { adapt: 5 },
+      teamMeal: { team: 6, mental: -1 },
+      therapy: { mental: -10 },
+      trip: { mental: -8, home: 3 },
+      media: { good: 0.6, goodRep: 2, badRep: -1, mental: 2, shyMul: 0.6, darlingMul: 1.25 },
+    },
+    /** 엔진 밖 영향 (경기 입력 폼, 피로 회복): 지표가 low 미만이면 lowForm, high 이상이면 highForm, 멘탈 피로 mentalHigh 이상 mentalForm(mentalMax 이상 mentalMaxForm) · 회복 × mentalRecovery, 합 ±formMax */
+    effects: {
+      low: 35, high: 80, lowForm: { home: -0.05, adapt: -0.05, team: -0.05 }, highForm: { home: 0.02, team: 0.03 },
+      mentalHigh: 70, mentalForm: -0.06, mentalMax: 85, mentalMaxForm: -0.12, mentalLow: 15, mentalLowForm: 0.02, mentalRecovery: 0.9, formMax: 0.15,
+    },
+    /** 생활 이벤트 시즌 상한 (pending 47 질문 ④: 쉬움 1, 보통 2, 어려움 3) */
+    eventsPerSeason: { easy: 1, normal: 2, hard: 3 },
+    /** 태그 (5-2 몫): 리더 = 팀 불화 이벤트 확률 × leaderDiscord, 문제아 = 인터뷰 실언 확률 × troubleSlip, 스타 플레이어 = 빅클럽 루머 × starRumour */
+    tags: { leaderDiscord: 0.5, troubleSlip: 1.5, starRumour: 2 },
+    /** 플레이 태그: 라커룸 리더 = 주장 lockerSeasons 시즌째 끝 또는 시즌 끝 팀 관계 lockerTeam 이상 / 언론의 총아 = 인터뷰 좋은 결과 darlingGood 번 */
+    natural: { lockerSeasons: 2, lockerTeam: 90, darlingGood: 5 },
   },
 } as const;
 

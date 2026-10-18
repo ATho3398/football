@@ -6,6 +6,7 @@ import type { DayPlan } from '../../training';
 import { PRESET_NAME_MAX } from '../../training';
 import type { PresetEditVM, PresetRowVM, PresetsVM, TrainingOptionVM, TrainingVM } from '../viewModels';
 import { panel } from './common';
+import { isLifeKind } from '../../life';
 import { BALANCE } from '../../config/balance';
 
 const num = (n: number) => (Math.round(n * 100) / 100).toString();
@@ -21,8 +22,9 @@ function euro(word: string): string {
 export const PLAN_ICON: Record<DayPlan, IconName> = {
   tech: 'train', weakFoot: 'target', intense: 'risk', position: 'tactic', setpiece: 'card', video: 'video', recovery: 'recover', rest: 'rest',
   match: 'ball', vacation: 'plane', rehab: 'injury',
+  family: 'home', language: 'chat', teamMeal: 'combo', therapy: 'face', trip: 'plane', media: 'star',
 };
-const cellKind = (k: DayPlan): 'train' | 'rest' | 'match' => (k === 'match' ? 'match' : k === 'rest' || k === 'recovery' || k === 'vacation' || k === 'rehab' ? 'rest' : 'train');
+const cellKind = (k: DayPlan): 'train' | 'rest' | 'match' => (k === 'match' ? 'match' : k === 'rest' || k === 'recovery' || k === 'vacation' || k === 'rehab' || isLifeKind(k) ? 'rest' : 'train');
 
 /** 주간 7칸 한 칸 = DayCell (디자인 91): 요일 · 날짜 · 아이콘 · 2글자. 바꿀 수 있는 날은 눌러서 그날만 바꾸기 */
 function dayCell(d: TrainingVM['week'][number]): string {
@@ -108,7 +110,7 @@ export function gaugeSection(vm: TrainingVM): string {
 export function trainingSheet(vm: { date: string; injured: boolean; options: TrainingOptionVM[]; weakFoot?: string }, dateIso: string, pick: string | null = null): string {
   const sel = vm.options.find((o) => o.kind === pick) ?? vm.options.find((o) => o.selected) ?? vm.options[0]!;
   const planned = vm.options.find((o) => o.planned);
-  const rows = vm.options.map((o) => `<button type="button" class="tr-opt${o.kind === sel.kind ? ' is-on' : ''}" role="radio" aria-checked="${o.kind === sel.kind}" data-act="train-pick" data-v="${o.kind}" data-date="${esc(dateIso)}">
+  const rows = vm.options.map((o, i) => `${o.life && !vm.options[i - 1]?.life ? '<div class="tr-opts__head small lf-sec"><span>생활 · 훈련 대신</span><span></span><span></span></div>' : ''}<button type="button" class="tr-opt${o.kind === sel.kind ? ' is-on' : ''}" role="radio" aria-checked="${o.kind === sel.kind}" data-act="train-pick" data-v="${o.kind}" data-date="${esc(dateIso)}">
       <span class="tr-opt__icon">${Icon({ name: PLAN_ICON[o.kind], size: 18 })}</span>
       <span class="tr-opt__main"><b>${esc(o.name)}${o.planned ? ' <i class="tr-tag">기본</i>' : ''}${o.selected && !o.planned ? ' <i class="tr-tag is-on">지금</i>' : ''}</b><small>${esc(o.kind === 'weakFoot' && vm.weakFoot ? `약발 게이지 +1칸 · ${vm.weakFoot}` : o.desc)}</small></span>
       <b class="tr-opt__xp po-num">${sgn(o.xp)}</b><b class="tr-opt__ft po-num">${sgn(o.fatigue)}</b></button>`).join('');

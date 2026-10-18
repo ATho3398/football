@@ -6,6 +6,7 @@
 import { onClubChange, onRenewal } from './startClub';
 import { npcCareerTag } from './npcTags';
 import { wageMul } from './tags';
+import { trustOf } from './manager';
 import { OUTSIDE_BY_ID, OUTSIDE_CLUBS, type OutsideClub } from '../data/outsideClubs';
 import { BALANCE } from './config/balance';
 import type { GameState } from './game';
@@ -770,10 +771,10 @@ export function renewContract(state: GameState, years: number): void {
 }
 
 /**
- * 이적 요청을 할 수 있는지 (18.10). 신뢰도(5-1)가 없어 선발 비율·출전 시간 부족 또는 위상이 팀 격차를 넘을 때로 대신한다.
- * 5-1 에서 신뢰도 조건으로 이 함수만 바꾼다 (훅)
+ * 이적 요청을 할 수 있는지 (18.10, C.62 신뢰도 훅): 감독 신뢰도가 requestBelow 미만, 또는 위상이 팀 격차를 넘을 때.
+ * 출전 시간 부족은 시즌 중반 "낮은 신뢰 면담"이 열려 그 면담에서 요청한다 (viaMeeting)
  */
-export function requestEligibility(state: GameState): { ok: boolean; reason: string } {
+export function requestEligibility(state: GameState, viaMeeting = false): { ok: boolean; reason: string } {
   const R = BALANCE.transfer.request;
   const m = state.market;
   if (state.phase !== 'season') return { ok: false, reason: '시즌 중에만 요청할 수 있어요 (비시즌에는 제안을 받아요)' };
@@ -781,13 +782,15 @@ export function requestEligibility(state: GameState): { ok: boolean; reason: str
   if (m?.request?.season === state.league.season) return { ok: false, reason: m.request.accepted ? '이미 이적 명단에 올랐어요' : '이번 시즌에는 이미 거절당했어요' };
   if (marketPending(state)) return { ok: false, reason: '먼저 받은 제안에 답해 주세요' };
   if (state.calendar.date > winterDeadline(state.league.season)) return { ok: false, reason: '겨울 이적시장이 닫혔어요 (비시즌에 제안이 와요)' };
+  if (viaMeeting) return { ok: true, reason: '감독 면담에서 이적을 요청해요' };
   const p = state.player;
-  const share = recentShare(state);
-  if (share !== null && share < R.minShare) return { ok: true, reason: '출전 시간이 부족해요' };
+  const trust = trustOf(state);
+  const below = BALANCE.manager.requestBelow;
+  if (trust < below) return { ok: true, reason: `감독 신뢰도가 낮아요 (${Math.round(trust)})` };
   const rating = ratingOf(state, p.teamId);
   const ovr = proficientOvr(p, p.position);
   if (p.reputation >= teamReputation(rating) + R.repOver && ovr >= rating + R.ovrOver) return { ok: true, reason: '내 위상이 팀 수준을 넘었어요' };
-  return { ok: false, reason: `선발·출전 시간이 ${Math.round(R.minShare * 100)}% 미만이거나 위상이 팀 수준을 넘어야 해요` };
+  return { ok: false, reason: `감독 신뢰도 ${below} 미만이거나 위상이 팀 수준을 넘어야 해요 (출전이 적으면 시즌 중반 감독 면담에서)` };
 }
 
 /** 팀 내 OVR 1위인지 (로스터 NPC 와 비교) */
@@ -809,8 +812,8 @@ export function releaseChance(state: GameState): number {
  * 이적 요청 (시즌 중, 시즌당 1번): 구단이 놓아주면 이적 명단 → 겨울 이적시장(1월)이 열려 있으면 바로, 아니면 1월 1일에 제안.
  * 거절되면 이번 시즌은 끝
  */
-export function requestTransfer(state: GameState): { accepted: boolean; chance: number; offersNow: boolean } {
-  const el = requestEligibility(state);
+export function requestTransfer(state: GameState, viaMeeting = false): { accepted: boolean; chance: number; offersNow: boolean } {
+  const el = requestEligibility(state, viaMeeting);
   if (!el.ok) throw new Error(el.reason);
   const m = state.market!;
   const chance = releaseChance(state);

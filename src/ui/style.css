@@ -1001,6 +1001,21 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .hm-alert__body b { font-size: 14px; }
 .hm-alert__body p { margin: 0; font-size: 12px; line-height: 17px; color: var(--ink-muted); }
 .hm-alert__x { display: grid; place-items: center; width: 32px; height: 32px; border: 0; background: none; color: var(--ink-muted); cursor: pointer; }
+/* 인박스 (C.63, 디자인 없음 → 디자인 133 알림 카드 재사용) */
+.ib-row.is-unread { box-shadow: inset 3px 0 0 var(--brand); }
+.ib-row.is-todo .hm-alert__icon { color: var(--brand-ink); }
+.ib-status { color: var(--brand-ink); font-weight: 800; }
+.ib-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ib-head-btns { display: flex; gap: 12px; }
+.ib-list { display: flex; flex-direction: column; gap: 10px; }
+.ib-tools { display: flex; justify-content: flex-end; }
+.ib-tools .link-btn { color: var(--brand-ink); font-weight: 800; text-decoration: none; font-size: 13px; }
+.ib-title { display: block; font-size: 15px; margin: 2px 0 4px; }
+.ib-detail .mg-say .hm-alert__icon { flex: none; }
+.lf-hints p { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.lf-sec { margin-top: 10px; color: var(--brand-ink); }
+.rv-card .mg-bar i.o { background: var(--brand); }
+.rv-card .mg-bar i.t { background: var(--away, var(--ink-muted)); }
 .home-body .tr-card { box-shadow: inset 0 0 0 1.5px var(--warning); }
 .home-body .tr-card .advice-eyebrow { color: var(--warning); }
 
@@ -1399,7 +1414,7 @@ button.po-xfer { width: 100%; border: 0; color: var(--ink); font-family: var(--f
 .tag-news__row small { display: block; font-size: 11px; }
 .tag-news__row .po-tag { flex: none; white-space: nowrap; }
 .season-tier { display: flex; align-items: center; gap: 12px; box-shadow: inset 3px 0 0 var(--tier-legend, var(--brand)); }
-.season-tier span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.season-tier > span:not(.po-tier) { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 .season-tier small { font-size: 12px; }
 .season-todo-head { margin: 4px 0 -2px; font-size: 14px; font-weight: 800; }
 .season-todo { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; color: var(--ink); font-family: var(--font-sans); text-align: left; cursor: pointer; }
@@ -1530,3 +1545,108 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   .cu-tags2 > div { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
   .cu-pc .cu-step-body { padding-bottom: 0; }
 }
+
+/* ── C.62 시즌 요약 티어 달성 배지: 배지가 줄어들어 글자가 밖으로 넘치던 것 (C.60~, 폰·PC) ── */
+.season-tier .po-tier { flex: none; }
+.season-tier > span:not(.po-tier) { flex: 1; min-width: 0; }
+.season-tier > span b { overflow-wrap: anywhere; word-break: keep-all; }
+
+/* ── C.62 감독 신뢰도: 홈 주전 경쟁 카드(디자인 22) · 감독 면담(디자인 45) ── */
+.mg-card { display: flex; flex-direction: column; gap: 12px; }
+.mg-mgr { margin: -6px 0 0; }
+.mg-rows { display: flex; flex-direction: column; gap: 10px; }
+.mg-row { display: flex; flex-direction: column; gap: 4px; }
+.mg-row__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; }
+.mg-row__name { font-weight: 800; min-width: 0; }
+.mg-row__name small { font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+.mg-row__head b { font-family: var(--font-display); font-size: 16px; }
+.mg-row.is-me .mg-row__name, .mg-row.is-me .mg-row__head b { color: var(--mine); }
+.mg-bar { display: flex; height: 10px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.mg-bar i, .mg-legend i { display: block; }
+.mg-bar .o, .mg-legend .o { background: var(--ink-faint); }
+.mg-bar .t, .mg-legend .t { background: var(--mine); }
+.mg-bar .f, .mg-legend .f { background: var(--brand); }
+.mg-bar .x, .mg-legend .x { background: var(--fail); }
+.mg-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 10px; font-weight: 700; color: var(--ink-muted); }
+.mg-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.mg-legend i { width: 8px; height: 8px; border-radius: 2px; }
+.mg-hr { width: 100%; height: 1px; margin: 0; border: 0; background: var(--line); }
+.mg-sub { font-size: 12px; font-weight: 800; }
+.mg-log { display: flex; flex-direction: column; gap: 5px; }
+.mg-log__row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 8px; font-size: 12px; }
+.mg-log__row b { font-family: var(--font-display); }
+.mg-log__row b.ok { color: var(--success, var(--brand)); }
+.mg-log__row b.fail { color: var(--fail); }
+.mg-perks { display: flex; flex-wrap: wrap; gap: 6px; }
+.mg-perk { padding: 3px 8px; border-radius: 8px; background: var(--mine-soft); color: var(--mine); font-size: 11px; font-weight: 800; }
+.mg-perk.is-cap { background: var(--brand); color: var(--on-fill, #111); }
+.mg-hint { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 12px; font-weight: 700; }
+.mg-hint .grow { min-width: 0; }
+.mg-say { display: flex; align-items: flex-start; gap: 12px; }
+.mg-say > div { flex: 1; min-width: 0; padding: 12px 14px; border-radius: 16px; background: var(--surface-1); }
+.mg-say small { display: block; font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+.mg-say p { margin: 2px 0 0; font-size: 14px; font-weight: 700; line-height: 21px; }
+.mg-body { display: flex; flex-direction: column; gap: 14px; }
+.mg-opts { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 1024px) {
+  .mg-body, .mg-dock .btn-row { max-width: 720px; margin-left: auto; margin-right: auto; width: 100%; }
+}
+
+/* ── C.62 어두운 엠블럼 (UI_3: 토트넘 등 남색·검정 로고가 어두운 면에서 안 보임): 어두운 테마에서만 옅은 밝은 테두리 ── */
+.po-crest--img > img { filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.25)); }
+[data-theme="light"] .po-crest--img > img { filter: none; }
+
+/* ── C.63c 화면 수정 (feedback-1 · 사용자 지시 모바일 독) ── */
+/* 더보기 펼침 줄: 독 위 한 줄, 가로로 끌어 넘김(스크롤 스냅), 처음·끝 흐림. 뒤 화면은 막지 않는다 */
+.dock-more { display: none; }
+@media (max-width: 1023px) {
+  .dock-more { display: block; border-top: 1px solid var(--line); background: var(--surface-1); }
+  :where(html[data-skin="b"]) .dock-more { background: var(--dock-bg); border-top: 2px solid var(--brand); }
+  .dock-more__scroll { display: flex; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 8px 12px 6px; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%); }
+  .dock-more__scroll::-webkit-scrollbar { display: none; }
+  .dock-more__scroll.at-start { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent 100%); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent 100%); }
+  .dock-more__scroll.at-end { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px); mask-image: linear-gradient(90deg, transparent 0, #000 24px); }
+  .dock-more__scroll.at-start.at-end { -webkit-mask-image: none; mask-image: none; }
+  .dock-more__item { flex: 0 0 74px; height: 54px; scroll-snap-align: start; border-radius: var(--radius-md); }
+  .dock-more__item.is-on { background: var(--surface-2); }
+  /* 결정 순간 (12번): 독 숨김 → 피치 자리 +72px, [맡기기]·확정 버튼을 홈 키가 가리지 않음 (4번) */
+  .app-moment > .dock-bar { display: none; }
+  .has-nav.app-moment .mo-fold { --fold-dock: 0px; }
+  .has-nav.app-moment { padding-bottom: 0; }
+  /* 피치가 주인공: 화면 높이 42% 고정(최소 260px), 넘치는 그림은 칸 안에서 자름(3번), 선택지·버튼은 아래로 흐르고 확정 줄은 화면 아래에 붙음 */
+  .mo-fold { height: auto; min-height: 100dvh; }
+  .mo-fold .mo-stage { flex: 0 0 auto; height: max(42dvh, 260px); min-height: 0; overflow: hidden; }
+  .mo-fold .mo-stage .po-pitch { overflow: hidden; }
+  .mo-fold .mo-panel { position: relative; z-index: 1; background: var(--surface-0); }
+  .mo-fold .mo-actions { position: sticky; bottom: 0; z-index: 2; margin: 0 -16px -12px; padding: 8px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface-0); box-shadow: 0 -8px 16px rgba(0, 0, 0, .25); }
+  /* 선택지 카드는 접은 한 줄(태그·이름·확률), 고른 카드만 성공/실패 줄을 펼친다 */
+  .mo-fold .po-choice:not(.is-selected) .po-choice__outcomes { display: none; }
+  .mo-fold .po-choice--compact { padding: 6px 12px; }
+  .mo-fold .po-choice__prob > b { font-size: 22px; }
+  .mo-fold .po-choice__none { font-size: 13px; }
+}
+/* 1번: 머리말 오른쪽 글·아이콘이 라임 사선 면 밖으로 나가 안 보임 → 어두운 꺾인 판 위에 밝은 글(면 안팎 어디서나 읽힘), 길면 말줄임 */
+:where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__right:not(:empty) { max-width: 52vw; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0 10px; height: 32px; background: var(--surface-0); color: var(--ink); clip-path: var(--skew-sm); }
+:where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__right .po-iconbtn { color: var(--ink); width: 32px; height: 32px; }
+/* 8번: 뒤로 단추가 없는 머리말은 첫 칸 0 (제목 들여쓰기 없앰) */
+.po-hero__bar.is-noback { grid-template-columns: 0 1fr auto; }
+:where(html[data-skin="b"]) .po-hero__bar.is-noback .po-hero__title { padding-left: 0; }
+/* 10번: OVR 은 숫자 아래 단위 */
+.po-hero__num.has-unit { display: flex; flex-direction: column; align-items: flex-end; }
+:where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__unit { font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: .12em; color: var(--on-brand); }
+/* 2번·5번: 독 진행 칸 — "진행 중"은 작은 글자로 칸 안에, 경기 중·답하기도 B 꺾인 면(배경 네모 없음) */
+.po-dock__goicon { max-width: 100%; }
+.po-dock__golabel { overflow: hidden; text-overflow: ellipsis; }
+:where(html[data-skin="b"]) .po-dock__go.is-busy .po-dock__goicon { padding: 0 12px; gap: 4px; }
+:where(html[data-skin="b"]) .po-dock__go.is-busy .po-dock__golabel { font-size: 13px; }
+:where(html[data-skin="b"]) .po-dock__go.is-busy .po-dock__goicon .po-icon { width: 16px; height: 16px; }
+:where(html[data-skin="b"]) .po-dock__go.is-live .po-dock__goicon, :where(html[data-skin="b"]) .po-dock__go.is-answer .po-dock__goicon { background: transparent; }
+/* 6번: 다음 경기 팀 이름 — 칸을 글자에 맞게(긴 이름이 빈 자리를 쓰게) */
+.next-card .vs-row { display: flex; }
+.next-card .vs-row .vs-team { flex: 0 1 auto; }
+.next-card .vs-row .vs { flex: none; }
+.next-card .vs-row .vs-team.away { margin-left: auto; }
+/* 7번: 진행 중 띠(중단)가 머리말을 덮지 않게 화면을 내린다 */
+@media (max-width: 1023px) { .has-band-toast > main.screen { padding-top: 84px; } }
+/* 11번: 능력치 칸 이름 접미어(퍼스트 터치·키핑)는 칸에서 숨김 (전체 이름은 title) */
+.ag-name small { display: none; }

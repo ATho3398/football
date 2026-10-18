@@ -35,7 +35,7 @@ export function startNotice(v: VersionVM): string {
  * 진행 칸 = 아이콘 + 이름 알약, 상태 5종(계속·경기·경기 중·답하기·시즌 요약) + 배지. 잠긴 칸 = 흐리게 + 작은 자물쇠.
  * 칸 배치는 DOCK_PHONE · DOCK_PC 배열 하나씩만 고치면 된다(열 너비는 홈 왼쪽·오른쪽 합이 같게 자동 계산).
  */
-export type DockProg = 'continue' | 'match' | 'live' | 'answer' | 'season';
+export type DockProg = 'continue' | 'busy' | 'match' | 'live' | 'answer' | 'season';
 export interface DockVM {
   screen: string;
   /** 진행 칸: 지금 누르면 하는 일 */
@@ -44,11 +44,13 @@ export interface DockVM {
   /** 남은 포인트 (선수 칸 배지) */
   points: number;
   more: boolean;
+  /** 인박스 안 읽음 (C.63c 더보기 줄 배지) */
+  inbox?: number;
 }
 
 export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves';
-/** 모바일 5칸 (C.50 배치 유지: 선수 · 진행 · 홈 · 훈련·일정 · 더보기). 디자인 154의 6칸으로 가려면 'world'를 'more' 앞에 넣는다 */
-export const DOCK_PHONE: DockId[] = ['player', 'prog', 'home', 'schedule', 'more'];
+/** 모바일 5칸 (C.63c 사용자 지시: 진행 · 선수 · 홈 · 훈련·일정 · 더보기 — 선수와 진행 자리 바꿈). 더보기는 독 위 한 줄(dockMoreRow) */
+export const DOCK_PHONE: DockId[] = ['prog', 'player', 'home', 'schedule', 'more'];
 /**
  * PC 9칸 (C.61): 폰 독 순서에서 만든다 — 칸 배열은 DOCK_PHONE 하나. 폰의 홈 왼쪽 칸 앞에 덱 · 전술,
  * 더보기 자리에 폰 독에 없는 월드 · 설정 · 저장을 펼친다(지금 = 덱 · 전술 · 선수 · 진행 · 홈 · 훈련·일정 · 월드 · 설정 · 저장).
@@ -58,7 +60,8 @@ export function dockPc(phone: readonly DockId[]): DockId[] {
   const more: DockId[] = (['world', 'settings', 'saves'] as DockId[]).filter((x) => !phone.includes(x));
   return [...lead, ...phone.flatMap((id) => (id === 'more' ? more : [id]))];
 }
-export const DOCK_PC: DockId[] = dockPc(DOCK_PHONE);
+// PC 독은 바꾸지 않는다 (C.63c: 폰 순서만 바꿈 — dockPc(DOCK_PHONE)이면 PC 도 진행·선수가 바뀌므로 C.61 폰 순서로 고정)
+export const DOCK_PC: DockId[] = dockPc(['player', 'prog', 'home', 'schedule', 'more']);
 /** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
 const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves' };
 
@@ -105,7 +108,21 @@ export function dock(vm: DockVM): string {
       Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : badge(it.badge)}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
   };
   const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${dockColumns(ids, pc ? 132 : 72)}">${ids.map((id) => cell(id, pc)).join('')}</div>`;
-  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
+  // 더보기 (C.63c): 시트 대신 독 위로 한 줄 펼침 (폰만, 가로로 끌어 넘김, 배경을 막지 않음)
+  const row = vm.more ? dockMoreRow(vm, items) : '';
+  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${row}${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
+}
+
+/** 더보기 펼침 줄 (C.63c): 폰 독에 없는 칸 + 인박스, 가로 스크롤 · 스냅 · 처음/끝 흐림. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
+function dockMoreRow(vm: DockVM, items: Record<string, DockItem>): string {
+  const ids = (['inbox', 'world', 'deck', 'tactics', 'settings', 'saves'] as const).filter((id) => id === 'inbox' || !DOCK_PHONE.includes(id));
+  const all: Record<string, DockItem> = { ...items, inbox: { label: '인박스', icon: 'bell', act: 'go', data: { to: 'inbox' }, on: vm.screen === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) } };
+  const cells = ids.map((id) => {
+    const it = all[id]!;
+    return `<button type="button" class="${cx('po-dock__item', 'dock-more__item', it.on && 'is-on', it.lock && 'is-locked')}" data-act="${esc(it.act)}"${Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.lock ? ' disabled' : ''}><span class="po-dock__icon">${
+      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : it.badge ? `<b class="po-dock__badge po-num">${it.badge}</b>` : ''}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
+  }).join('');
+  return `<div class="dock-more" role="menu" aria-label="더보기"><div class="dock-more__scroll at-start">${cells}</div></div>`;
 }
 
 /** 모바일 더보기 시트: 독에 없는 칸 (C.50: 월드 추가, C.54: DOCK_PHONE 에 있는 칸은 뺀다) */

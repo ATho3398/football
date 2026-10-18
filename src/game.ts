@@ -13,7 +13,7 @@ import {
   CLUB_TO_TEAM, createLeague, initialTeams, leaguePosition, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById,
   type Fixture, type LeagueState,
 } from './league';
-import { simulateMatch, startProbability, type MatchResult } from './match';
+import { simulateMatch, type MatchResult } from './match';
 import { fatigueFromDistance, MY_ID, playMyMatch, type EngineMatchInput, type MyMatchOutput, type MyMatchPlan } from './engine/adapter';
 import { SCENE_LABEL, type ControlMode, type DecisionRecord, type MomentControl, type StopLevel } from './engine/moments';
 import { formBonus, pushRating } from './form';
@@ -23,7 +23,7 @@ import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
-  assignShirts, createRosters, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+  assignShirts, createRosters, findRosterPlayer, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
@@ -31,7 +31,7 @@ import { awardBadges } from './badges';
 import { randomName } from './prospect';
 import { clampWeakFoot, realBody, rollBody, type Body, type WeakFoot } from './body';
 import { judgeEvergreen, judgeLateBloomer, judgeNatural, lateBloomerSkip, tagChangeLine, type NaturalInput, type TagChange } from './careerTags';
-import { naturalForm, startBonus, storyForm, storyRepMul, storyXpMul, tagHas } from './tags';
+import { naturalForm, storyForm, storyRepMul, storyXpMul, tagHas } from './tags';
 import { agingMul, bigGameForm, cardMul, formMul, picksToTags, recoveryMul, rollTags, seasonRemovals, xpMul, type PlayerTag, type TagPick, type Tagged } from './tags';
 import { derbyOf } from './derby';
 import { CUSTOM_HIDDEN_TAGS, customBudget, spentPoints, validCustom } from './custom';
@@ -47,6 +47,12 @@ import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositio
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
+import { afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, upsetForm, type ManagerState } from './manager';
+import { eventForm, eventsAfterMatch, eventsCloseOffseason, eventsDayEnd, eventsSeasonEnd, eventsSeasonStart, type EventsState } from './events';
+import { coachAfterMatch, type CoachRec } from './club';
+import type { InboxState } from './inbox';
+import type { RivalState } from './rival';
+import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeRecoveryMul, type LifeState } from './life';
 import { afterMatch, cardInput, grantLevelPicks, grantSeasonPick, initCollection, type CardCollection } from './cardCollection';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
@@ -65,7 +71,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 31;
+export const SAVE_FORMAT_VERSION = 33;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -219,6 +225,24 @@ export interface GameState {
   nameOverrides: NameOverrides;
   /** 사용자가 바꾼 도트 아이콘 (부록 C.45): 선수 id → 피부·머리, 팀 id(대표팀 `n:<국가>`) → 홈·원정 유니폼. 바꾼 것만. 겉모습만(경기 결과·시드 영향 없음) */
   pixelOverrides?: PixelOverrides;
+  /** 감독 신뢰도·면담 (18.2·18.3, 부록 C.62). 없거나 팀이 다르면 ensureManager 가 새로 만든다 */
+  manager?: ManagerState;
+  /** 이번 시즌 기록이 있는 선수 이름·팀 (C.62, pending 96 ④): 리그를 떠난 선수도 시상·득점 순위에 이름이 나오게. [한글 이름, 팀 id] */
+  statNames?: Record<string, [string, string]>;
+  /** 인박스 (20.4, 부록 C.63): 이벤트·감독·이적·태그 알림. 없으면 처음 쓸 때 만든다 */
+  inbox?: InboxState;
+  /** 이벤트 엔진 상태 (20.3, C.63): 슬롯·쿨다운·플래그·예약·폼 보정 */
+  events?: EventsState;
+  /** 라이벌 (20.5, C.63). 없으면 null */
+  rival?: RivalState | null;
+  /** 경질로 바뀐 감독 (C.63): 팀 id → 새 감독. 없으면 data/managers.ts */
+  coaches?: Record<string, CoachRec>;
+  /** 경질한 "팀:시즌" (시즌 한 번) */
+  sacked?: string[];
+  /** 주장 (C.63): 그 팀에서 since 시즌부터. 이적하면 끝 */
+  captain?: { teamId: string; since: number } | null;
+  /** 경기 외 생활 지표 (pending 47 4번, C.63 b) */
+  life?: LifeState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -233,6 +257,8 @@ export interface SeasonArchive {
   players: Record<string, PlayerTotals>;
   /** 최종 순위 (팀 id, 승점, 득실) */
   table: [string, number, number][];
+  /** 선수 이름·팀 (C.62). 옛 기록에는 없다 */
+  names?: Record<string, [string, string]>;
 }
 
 /** 선수 시즌 합계: [출전, 골, 도움, 평점 합 ×10, 출전 분(C.42, 이적 점수의 출전 시간 비율. 옛 기록에는 없다)] */
@@ -558,6 +584,8 @@ export function newGame(opts: NewGameOptions): GameState {
     state.market.notice = null;
   }
   myShirt(state);
+  // 이벤트 (C.63): 첫 시즌 슬롯·라이벌
+  eventsSeasonStart(state, calendarOf(state).opening);
   return state;
 }
 
@@ -639,6 +667,10 @@ function addPlayerLines(state: GameState, res: NpcMatchResult): void {
   const st = (state.playerStats ??= {});
   for (const [id, min, g, a, r10] of res.players) {
     if (id === MY_ID) continue;
+    if (!st[id]) {
+      const f = findRosterPlayer(state.rosters, id);
+      if (f) (state.statNames ??= {})[id] = [f.player.nameKo, f.teamId];
+    }
     const t = (st[id] ??= [0, 0, 0, 0, 0]);
     t[0]++; t[1] += g; t[2] += a; t[3] += r10;
     t[4] = (t[4] ?? 0) + min;
@@ -869,10 +901,10 @@ export function setDayTraining(state: GameState, date: IsoDate, kind: TrainingKi
 }
 
 /** 피로·부상만 (경기 날 아침 예상, 상태를 바꾸지 않는 계산에도 쓴다) */
-function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & Tagged, kind: DayPlan, date: IsoDate): void {
-  // 장단점 (C.45): 회복력 +20%·체력 회복 느림 −20% (회복하는 날만)
+function conditionStep(p: Pick<PlayerState, 'fatigue' | 'injury'> & Tagged, kind: DayPlan, date: IsoDate, lifeMul = 1): void {
+  // 장단점 (C.45): 회복력 +20%·체력 회복 느림 −20% (회복하는 날만), 멘탈 피로 (C.63 b)
   const rec = planFatigue(kind);
-  p.fatigue = Math.max(0, p.fatigue - (rec > 0 ? rec * recoveryMul(p) : rec));
+  p.fatigue = Math.max(0, p.fatigue - (rec > 0 ? rec * recoveryMul(p) * lifeMul : rec));
   if (p.injury && p.injury.date !== date) healDays(p as PlayerState, 1 + (kind === 'rest' ? BALANCE.training.restHealBonus : 0));
 }
 
@@ -925,8 +957,10 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   syncPresetWeek(state, date);
   const kind = dayPlan(state, date);
   const T = BALANCE.training;
-  const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) : planFatigue(kind)) };
-  conditionStep(p, kind, date);
+  // 멘탈 피로가 높으면 회복이 덜 된다 (C.63 b, 엔진 밖)
+  const lm = lifeRecoveryMul(state);
+  const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) * lm : planFatigue(kind)) };
+  conditionStep(p, kind, date, lm);
   // 휴가는 연속 휴식에 세지 않는다. 회복 훈련은 연속을 끊고 폼 감점을 지운다
   if (kind === 'rest') {
     t.restStreak++;
@@ -937,7 +971,7 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   }
   const raw = planXp(kind);
   if (raw > 0) {
-    const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp * xpMul(p, true));
+    const { gained, whole } = takeXp(t, date, raw, veteranXpMultiplier(p.age) * BALANCE.difficulty[state.difficulty].xp * xpMul(p, true) * trainingXpMul(state, date));
     res.xp = gained;
     if (whole > 0) addXp(p, whole);
     p.season.trainingXp = (p.season.trainingXp ?? 0) + whole;
@@ -1019,8 +1053,13 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
       if (myMatchDates(state).includes(addDays(date, 1))) t.eve = true;
       break;
     }
-    default: break;
+    default:
+      // 생활 하루 행동 (C.63 b): 훈련 대신 숨은 생활 지표
+      if (isLifeKind(kind)) res.note = lifeAction(state, kind, date);
+      break;
   }
+  // 생활 지표 하루 변화 (C.63 b)
+  lifeDayEnd(state, kind);
   t.season.fatigue += res.fatigue;
   t.season.days[kind] = (t.season.days[kind] ?? 0) + 1;
   t.last = res;
@@ -1049,13 +1088,18 @@ export function endDay(state: GameState): TrainingDayResult {
   state.calendar.date = addDays(ended, 1);
   // 이적 (C.42): 1월 1일 이적 명단 제안, 1월 31일 끝 NPC 겨울 이적시장
   onDayEnd(state, ended);
+  // 감독 (C.62): 낮은 신뢰 기간, 열린 면담
+  managerDayEnd(state);
+  // 이벤트 (C.63): 기한 지난 선택, 예약, 슬롯, 하루 이벤트
+  eventsDayEnd(state, ended);
   return r;
 }
 
 /** 오늘에서 to 날짜 아침까지 하루씩 넘겼을 때의 피로·부상 (상태는 바꾸지 않는다). 그날들의 훈련 계획대로 */
 function projectedCondition(state: GameState, to: IsoDate): Pick<PlayerState, 'fatigue' | 'injury'> {
   const p = { fatigue: state.player.fatigue, injury: state.player.injury ? { ...state.player.injury } : null };
-  for (let d = state.calendar.date; daysBetween(d, to) > 0; d = addDays(d, 1)) conditionStep(p, dayPlan(state, d), d);
+  const lm = lifeRecoveryMul(state);
+  for (let d = state.calendar.date; daysBetween(d, to) > 0; d = addDays(d, 1)) conditionStep(p, dayPlan(state, d), d, lm);
   return p;
 }
 
@@ -1113,7 +1157,8 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const available = !injured && !suspended;
   // 1군 테스트 중 (C.45 10번)이면 출전 보장 (같은 난수를 써서 테스트가 없을 때 결과는 그대로)
   const startRoll = rng();
-  const started = available && (!!state.trial || startRoll < startProbability(ovr + startBonus(player, player.teamId), myTeam.rating, fatigue));
+  // 선발 점수 (18.2, C.62): 태그 + 감독 신뢰도 + 폼, 면담 보상 (startChance)
+  const started = available && (!!state.trial || startRoll < startChance(state, ovr, myTeam.rating, fatigue));
   const minutes = started ? 90 : available && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
   let preInjury: Injury | null = null;
@@ -1145,7 +1190,7 @@ function matchForm(state: GameState): number {
   const story = fx ? storyForm(p, p.teamId, fx.opponentId, state.league.season, p.season.apps) : 0;
   const former = fx ? (state.market?.moves ?? []).some((m) => !m.loan && !m.back && m.from === fx.opponentId) : false;
   const betrayed = !!fx && p.tags.some((t) => t.id === 'traitor' && t.from === fx.opponentId);
-  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0);
+  return formBonus(p.recentRatings, formMul(p)) + bigGameForm(p, big) + story + naturalForm(p, derby, former, betrayed) - (state.training?.formPenalty ?? 0) - upsetForm(state) + eventForm(state) + lifeForm(state);
 }
 
 /** 부상 판정용 경기 시점: 시즌·라운드(1부터)·날짜·최종 라운드까지 남은 날 */
@@ -1214,7 +1259,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
         ovr, position: player.position, fatigue: player.fatigue,
         teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
         formBonus: form, injured: injured || suspended, ...(state.trial ? { forceStart: true } : {}),
-        ...(startBonus(player, player.teamId) ? { startBonus: startBonus(player, player.teamId) } : {}),
+        startP: startChance(state, ovr, myTeam.rating, player.fatigue),
       },
       rngFor(seed, 'match', league.season, roundIdx),
     );
@@ -1291,6 +1336,11 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     ...(decisions.length ? { dec: decisions.map((d) => ({ m: d.minute, scene: SCENE_LABEL[d.scene], label: d.label, r: d.seen?.result ?? d.result, d: Math.round(d.delta * 100) / 100, ...(d.card ? { card: d.card } : {}) })) } : {}),
   });
   afterTeamMatch(player, result.minutes, pos);
+  // 감독 신뢰도 (18.2, C.62): 출전 경기만 (부상·정지·벤치 결장은 변화 없음)
+  afterMyMatch(state, {
+    minutes: result.minutes, started: result.started, rating: result.rating, goals: result.goals, assists: result.assists, outcome: result.outcome,
+    yellows: cards?.yellows ?? 0, red: !!cards?.red, injured, suspended, slotOvr: ovr, bestOvr: bestPosition(state).ovr,
+  });
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
@@ -1336,6 +1386,11 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   state.lastMatch = report;
   // 1군 테스트 (C.45 10번): 경기마다 기록, 3경기 뒤 판정 (합격 → 계약 제안, 방출 → 영입 제안, 애매하면 5경기까지)
   if (state.trial) afterTrialMatch(state, result);
+  // 구단·이벤트 (C.63): 감독 경질 판정, 경기 뒤 이벤트 (폼 효과 경기 수)
+  if (!state.events?.off) coachAfterMatch(state);
+  // 생활 (C.63 b): 출전하면 멘탈 피로 + (더비·상위 6팀 더)
+  lifeAfterMatch(state, result.minutes > 0, derbyOf(player.teamId, opp.id) !== null || ratingRank(league, opp.id) <= BALANCE.tags.natural.bigTop);
+  eventsAfterMatch(state);
 
   if (league.round >= league.schedule.length) endSeason(state);
   refreshUnlocks(state);
@@ -1379,7 +1434,7 @@ function archiveSeason(state: GameState): SeasonArchive {
     results.push(f.g?.length ? [r + 1, f.home, f.away, f.homeGoals, f.awayGoals!, f.g] : [r + 1, f.home, f.away, f.homeGoals, f.awayGoals!]);
   }));
   return {
-    season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {},
+    season: state.league.season, teamId: me, my: state.matchLog, results, players: state.playerStats ?? {}, ...(state.statNames ? { names: state.statNames } : {}),
     table: sortedTable(state.league).map((row) => [row.teamId, row.points, row.gf - row.ga]),
   };
 }
@@ -1653,6 +1708,8 @@ export function endSeason(state: GameState): SeasonSummary {
   // 홈 알림 한 줄 (C.47)
   const line = tagChangeLine(tagCh);
   if (line) state.tagNotice = { text: line, season };
+  // 이벤트 (C.63): 라이벌 비교, 주장 시즌, 시즌 끝 이벤트
+  if (state.phase === 'offseason') eventsSeasonEnd(state);
   return summary;
 }
 
@@ -1671,6 +1728,8 @@ export function startNextSeason(state: GameState): void {
   if (state.phase !== 'offseason') throw new Error('비시즌이 아님');
   // 답하지 않은 제안은 거절, 만료 계약은 기본 재계약 (화면은 [다음 시즌] 전에 멈춰 답을 받는다, C.42)
   if (marketPending(state)) autoMarket(state, 'stay');
+  // 인박스 (C.63): 답하지 않은 선택형은 기본 선택
+  eventsCloseOffseason(state);
   (state.archive ??= []).push(archiveSeason(state));
   state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
   delete state.nextRatings;
@@ -1690,8 +1749,13 @@ export function startNextSeason(state: GameState): void {
   state.training.restStreak = 0;
   state.training.formPenalty = 0;
   state.playerStats = {};
+  state.statNames = {};
+  // 감독 (C.62): 신뢰도는 같은 팀이면 이어 가고, 열린 면담·낮은 신뢰 기간은 새 시즌에 다시 센다
+  if (state.manager) Object.assign(state.manager, { meeting: null, lowSince: null, posStreak: 0 });
   state.lastMatch = undefined;
   state.phase = 'season';
+  // 이벤트 (C.63): 새 시즌 슬롯·라이벌·주장
+  eventsSeasonStart(state, calendarOf(state).opening);
 }
 
 export function retire(state: GameState): void {

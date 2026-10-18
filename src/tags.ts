@@ -16,6 +16,8 @@ export const TAG_IDS = [
   // 플레이 중 자연 발생 (pending 65, C.47)
   'starPlayer', 'wonderkid', 'wonderkidFormer', 'derbyHero', 'superSub', 'lateShow', 'goalMachine', 'assistKing', 'cleanSheet',
   'setPiece', 'everPresent', 'gentleman', 'exClubKiller', 'journeyman', 'cultHero', 'traitor',
+  // 5-2 생활·인박스 (C.63 b)
+  'lockerLeader', 'mediaDarling',
 ] as const;
 export type TagId = (typeof TAG_IDS)[number];
 
@@ -75,6 +77,8 @@ export const TAGS: Readonly<Record<TagId, TagDef>> = {
   eternal: { id: 'eternal', kind: 'story', ko: '영원한', desc: '유스 출신 + 원클럽맨 조건 (이적하면 떨어짐) · 원클럽맨 효과 ×1.5, 시즌 위상 +3%', source: 'play', hook: '주장 후보 5-1' },
   homeChoice: { id: 'homeChoice', kind: 'story', ko: '친정 선택', desc: '더 많은 연봉 제안을 두고 유스 구단과 계약 · 그 구단에서 시즌 위상 +1.5%', source: 'play', hook: '감독 신뢰도 5-1' },
   loyalReturn: { id: 'loyalReturn', kind: 'story', ko: '무한한 충성심', desc: '유스 구단을 떠났다가 다시 돌아옴 · 돌아온 첫 시즌 적응기 없음, 첫 10경기 폼 +', source: 'play', hook: '팀 관계 5-2' },
+  lockerLeader: { id: 'lockerLeader', kind: 'story', ko: '라커룸 리더', desc: `주장 ${BALANCE.life.natural.lockerSeasons}시즌 또는 시즌 끝 팀 관계 최고 · 팀 관계 기준 +10`, source: 'play' },
+  mediaDarling: { id: 'mediaDarling', kind: 'pro', ko: '언론의 총아', desc: `미디어 인터뷰 좋은 결과 ${BALANCE.life.natural.darlingGood}번 · 인터뷰 좋은 결과 확률 ×${BALANCE.life.actions.media.darlingMul}`, source: 'play' },
   releasedPain: { id: 'releasedPain', kind: 'story', ko: '방출의 설움', desc: '방출된 뒤 다른 팀에서 시작 · 방출한 구단 상대 폼 +, 첫 2시즌 경기 XP +5%', source: 'play' },
 };
 

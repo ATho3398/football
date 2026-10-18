@@ -9,9 +9,8 @@ import { derbyOf } from '../derby';
 import { formBonus, formLevel } from '../form';
 import { myMatchPosition, nextFixture, type GameState } from '../game';
 import { leaguePosition, teamById, type LeagueState } from '../league';
-import { startProbability } from '../match';
+import { startChance } from '../manager';
 import { proficientOvr } from '../proficiency';
-import { startBonus } from '../tags';
 import { isUnlocked } from '../unlocks';
 import { POSITION_NAMES_KO } from '../positions';
 import { ROLE_NAMES_KO } from '../engine/roles';
@@ -109,7 +108,7 @@ export function prepVM(g: GameState): PrepVM | null {
     hint: g.training.hints[0] ?? null,
     slots, formation: myTacticVM(g).formation ?? '',
     me: { pos, posKo: POSITION_NAMES_KO[pos], role: role ? ROLE_NAMES_KO[role] ?? role : '', roleDesc: role ? ROLE_DESC_KO[role] ?? '' : '', prof: Math.floor(proficiencyOf(p, pos)), ovr, mainPos: p.position, off: pos !== p.position },
-    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round(startProbability(ovr + startBonus(p, p.teamId), my.rating, p.fatigue) * 100) },
+    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round(startChance(g, ovr, my.rating, p.fatigue) * 100) },
     condition: {
       fatigue: Math.round(p.fatigue), form: FORM_STEP[formLevel(p.recentRatings)],
       formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,

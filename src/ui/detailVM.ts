@@ -1,7 +1,9 @@
 // 다른 팀·다른 선수 상세 (C.53, pending 82 4번) — 6차 디자인 157 팀 상세 · 158 선수 상세(다른 선수).
 // 읽기 전용: 지금 세이브에 있는 값(리그 표·로스터·이적 기록·선수 기록 합계·지난 시즌 보관)을 모아 보여 주기만 한다.
-// 없는 데이터(감독·홈구장·다른 선수 레벨 등)는 만들지 않는다
+// 없는 데이터(다른 선수 레벨 등)는 만들지 않는다. 감독·홈구장은 C.62 data/managers.ts (2018-19 개막 기준)
 
+import { MANAGER_STYLE_KO } from '../../data/managers';
+import { coachOf } from '../club';
 import { GK_ATTRIBUTES, type GkAttribute } from '../attributes';
 import { FOOT_KO } from '../body';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -50,6 +52,8 @@ export interface TeamDetailVM {
   derby: string | null;
   /** 우리 팀과의 이번 시즌 상대 전적 (다른 팀일 때만) */
   vsMe: TeamMatchVM[];
+  /** 감독·홈구장 (C.62, 2018-19 개막 기준). 데이터 없는 구단은 null */
+  manager: { name: string; style: string; stadium: string } | null;
 }
 
 const SHORT_DETAIL: Record<Detail, string> = { lineHeight: '라인', pressing: '압박', style: '빌드업', width: '폭' };
@@ -80,6 +84,7 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
   const team = L.teams.find((t) => t.id === teamId);
   if (!team) return null;
   const mine = teamId === g.player.teamId;
+  const md = coachOf(g, teamId);
   const row = L.table.find((r) => r.teamId === teamId);
   const roster = g.rosters[teamId];
   const players = roster?.players ?? [];
@@ -127,6 +132,7 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
     finance: { budget: valueLabel(remainingBudget(g, teamId, L.season)), wages: valueLabel(wageBill(g.rosters, teamId, team.rating)) },
     derby: d ? d.name : null,
     vsMe: mine ? [] : all.filter((m) => m.oppId === g.player.teamId),
+    manager: md ? { name: md.nameKo, style: MANAGER_STYLE_KO[md.style], stadium: md.stadiumKo } : null,
   };
 }
 

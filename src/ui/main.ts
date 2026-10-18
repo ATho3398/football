@@ -57,7 +57,14 @@ import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
-import { adviceCard, alertCard, alertsHead, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { alertCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
+import { collectNotices, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
+import { markAllRead, markRead, unreadCount } from '../inbox';
+import { answerEvent } from '../events';
+import { competitionSection, meetingView } from './views/manager';
+import { competitionVM, meetingVM } from './managerVM';
+import { holdMeeting, type MeetingChoice } from '../manager';
 import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
@@ -95,7 +102,7 @@ import { hasTeamDetail, personDetailVM, teamDetailVM, type PersonTab, type TeamT
 import { personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -165,6 +172,12 @@ const ui = {
   moreSheet: false,
   /** 이적 제안 화면 펼친 제안 (C.60, 디자인 97) · 월드·결과 "더 보기" 펼침 (C.60) · 카드 획득 고른 칸 (디자인 85) */
   offerSel: 0,
+  /** 감독 면담 고른 선택지 (C.62) */
+  meetSel: null as string | null,
+  /** 인박스 (C.63): 탭, 연 알림 id, 고른 선택지 */
+  inboxTab: 'all' as 'all' | 'todo' | 'info',
+  inboxSel: null as number | null,
+  inboxPick: null as string | null,
   more: {} as Record<string, boolean>,
   pickSel: 1,
   /** 시즌 종료 화면 상세 보기 탭 (C.44). null = 요약 카드만 */
@@ -299,7 +312,8 @@ function go(screen: Screen): void {
   if (screen !== 'team' && screen !== 'person') ui.detail.stack = [];
   // "더 보기" 펼침·고른 제안 (C.60)은 다른 화면으로 가면 처음으로. 팀·선수 상세를 다녀올 때는 그대로
   const detail = (x: Screen) => x === 'team' || x === 'person';
-  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; }
+  if (screen !== ui.screen && !detail(screen) && !detail(ui.screen)) { ui.more = {}; ui.offerSel = 0; ui.pickSel = 1; ui.meetSel = null; if (screen !== 'inbox') ui.inboxSel = null; }
+  if (screen === 'inbox' && ui.screen === 'inbox') ui.inboxSel = null;
   ui.screen = screen;
   ui.modal = null;
   render();
@@ -357,16 +371,18 @@ function screenHtml(): string {
       const inSeason = g.phase === 'season';
       const pos = canPos ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position)), inSeason) : '';
       const sheet = ui.posSheet && canPos ? positionSheet(positionOptionsVM(g), ui.posSheet, inSeason) : '';
-      const adv = adviceCardVM(g);
+      collectNotices(g);
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       const hvm = homeVM(g);
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
       const mvm = marketVM(g);
-      const alerts = [tagNoticeBanner(g), adv ? adviceCard(adv) : ''].filter(Boolean);
-      const refusedOnly = !mvm.renewal && !mvm.offers?.length && mvm.refused.length > 0;
-      const head = alertsHead(alerts.length + (refusedOnly ? 1 : 0));
-      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, '', hvm.training ? todayRow(hvm.training) : '', head + alerts.join('') + marketCard(mvm)) + guideResetLink() + sheet;
+      // 감독 면담 (C.62): 열린 면담 띠(닫기 없음). 알림(태그·포변 조언·면담 결과·이적 소식)은 인박스로 (C.63, 홈에는 안 읽은 것 3개)
+      const comp = competitionVM(g);
+      const meetBand = comp?.meeting ? Banner({ tone: 'info', title: '감독이 면담하자고 해요', children: comp.hint, action: '면담하기', onAction: { act: 'go', data: { to: 'meeting' } } }) : '';
+      const hin = homeInboxVM(g);
+      const rv = rivalCardVM(g);
+      return homeView(hvm, deck + (list ? checklistPanel(list) : '') + pos, (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), hvm.training ? todayRow(hvm.training) : '', meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), unreadCount(g)) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -395,6 +411,16 @@ function screenHtml(): string {
     }
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more);
     case 'offers': return offersView(marketVM(g), ui.offerSel);
+    case 'inbox': {
+      collectNotices(g);
+      const dv = ui.inboxSel !== null ? inboxDetailVM(g, ui.inboxSel) : null;
+      return dv ? inboxDetailView(dv, ui.inboxPick) : inboxView(inboxVM(g, ui.inboxTab));
+    }
+    case 'meeting': {
+      const mv = meetingVM(g);
+      if (!mv) { ui.screen = 'home'; return screenHtml(); }
+      return meetingView(mv, ui.meetSel);
+    }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
@@ -530,12 +556,15 @@ function render(): void {
     })
     : guide.modal;
   const toast = ui.toast ? `<div class="toast-wrap">${Toast(ui.toast)}</div>` : '';
-  app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}app-${ui.screen}`;
+  // C.63c: 진행 중 띠(중단 단추가 있는 토스트)는 머리말을 덮지 않게 화면을 그만큼 내린다
+  const bandToast = ui.toast?.onAction?.act === 'sim-stop';
+  app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}${bandToast ? 'has-band-toast ' : ''}app-${ui.screen}`;
   const pv = (ui.pvSheet ? pitchViewSheet() : '')
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount) : '')
-    + (ui.moreSheet && g ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
+    + (ui.moreSheet && g && isWide() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
   app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   fitHeroNames();
+  bindDockMore();
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
   else ui.replay?.stop();
   if (ui.screen === 'moment' && ui.live?.oc) ui.live.oc.pitch.attach();
@@ -547,19 +576,31 @@ function render(): void {
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
 }
 
+/** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
+function bindDockMore(): void {
+  const el = document.querySelector<HTMLElement>('.dock-more__scroll');
+  if (!el) return;
+  const upd = () => {
+    el.classList.toggle('at-start', el.scrollLeft <= 2);
+    el.classList.toggle('at-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+  };
+  el.addEventListener('scroll', upd, { passive: true });
+  upd();
+}
+
 /** 독 진행 칸 (C.44): 경기 중이면 돌아가기, 경기 날이면 경기, 아니면 [계속], 비시즌이면 시즌 요약 */
 function dockVM(g: GameState): DockVM {
   const live = liveScreen();
   let prog: DockVM['prog'];
   if (live) prog = { label: '경기 중', icon: 'match', act: 'live-return', live: true, kind: 'live' };
   else if (g.phase !== 'season') prog = { label: '시즌 요약', icon: 'trophy', act: 'go-tab', data: { v: 'season' }, kind: 'season' };
-  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop', kind: 'continue' };
+  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop', kind: 'busy' };
   else if (marketPending(g)) {
     const n = (g.market?.offers?.length ?? 0) + (g.market?.renewal ? 1 : 0);
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
   } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
   else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
-  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet };
+  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g) };
 }
 
 /** "경기 중 · 돌아가기" 띠 (C.39, C.54 디자인 60): 다른 화면 위에. 첫 줄 = 분·스코어, 둘째 줄 = 상태, 오른쪽 [경기로 돌아가기] */
@@ -1151,6 +1192,11 @@ app.addEventListener('change', (ev) => {
 });
 
 app.addEventListener('click', (ev) => {
+  // 더보기 줄 (C.63c): 독 밖을 누르면 접는다 (누른 곳의 동작은 그대로 한다 — 배경을 막지 않음)
+  if (ui.moreSheet && !isWide() && !(ev.target as HTMLElement).closest('.dock-bar')) {
+    ui.moreSheet = false;
+    if (!(ev.target as HTMLElement).closest('[data-act]')) render();
+  }
   const el = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]');
   if (!el || (el as HTMLButtonElement).disabled) return;
   // 겹침 바깥만 누르면 닫는다 (모달·시트 안쪽 클릭은 무시)
@@ -1698,8 +1744,75 @@ app.addEventListener('click', (ev) => {
       ui.trainPick = v ?? null;
       render();
       return;
+    case 'meet-pick':
+      ui.meetSel = v ?? null;
+      render();
+      return;
+    case 'meet-ok': {
+      if (!g || !v) return;
+      const req = requestEligibility(g, true);
+      const r = holdMeeting(g, v as MeetingChoice, { requestOk: req.ok });
+      let body = r.text;
+      if (r.request) {
+        const t = requestTransfer(g, true);
+        body = t.accepted ? (t.offersNow ? '구단이 놓아줬어요. 겨울 이적시장 제안이 왔어요.' : '구단이 놓아줬어요. 1월 1일 겨울 이적시장이 열리면 제안이 와요.') : '구단이 거절했어요. 이번 시즌에는 다시 요청할 수 없어요.';
+        g.manager!.result = { date: g.calendar.date, title: t.accepted ? '이적 명단에 올랐어요' : '구단이 이적 요청을 거절했어요', text: body };
+        autosave();
+        if (t.offersNow) { go('offers'); return; }
+      } else autosave();
+      go('home');
+      showToast({ kind: 'info', title: g.manager?.result?.title ?? r.title, body }, 2600);
+      return;
+    }
+    case 'inbox-tab':
+      if (v === 'all' || v === 'todo' || v === 'info') ui.inboxTab = v;
+      ui.inboxSel = null;
+      render();
+      return;
+    case 'inbox-open':
+      if (!g || !v) return;
+      ui.inboxSel = +v;
+      ui.inboxPick = null;
+      markRead(g, +v);
+      if (ui.screen !== 'inbox') { go('inbox'); return; }
+      render();
+      window.scrollTo(0, 0);
+      return;
+    case 'inbox-read':
+      if (!g || !v) return;
+      markRead(g, +v);
+      autosave();
+      render();
+      return;
+    case 'inbox-all-read':
+      if (!g) return;
+      markAllRead(g);
+      autosave();
+      render();
+      return;
+    case 'inbox-pick':
+      ui.inboxPick = v ?? null;
+      render();
+      return;
+    case 'inbox-answer': {
+      const id = el.dataset.id;
+      if (!g || !v || !id) return;
+      const text = answerEvent(g, +id, v);
+      autosave();
+      ui.inboxPick = null;
+      render();
+      showToast({ kind: 'info', title: '답했어요', body: text }, 2600);
+      return;
+    }
+    case 'meet-result-close':
+      if (!g || !g.manager) return;
+      g.manager.result = null;
+      autosave();
+      render();
+      return;
     case 'alerts-close':
       if (!g) return;
+      if (g.manager) g.manager.result = null;
       g.tagNotice = null;
       if (g.player.advice) g.player.advice.dismissed = true;
       if (!g.market.offers?.length) g.market.refused = null;
