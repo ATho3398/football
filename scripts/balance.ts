@@ -55,10 +55,11 @@ if (env.VET) (BALANCE.matchXp as { veteranMultiplier: [number, number][] }).vete
 if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
 /**
  * 스태프 정책 (C.68a): none = 스태프 없음 (C.67 까지와 같은 경로, 회귀 가드 판정 기본), full = 슬롯이 비면 모집·고용하는 코치 풀 투자 (autoStaff).
- * full 은 패치마다 따로 재서 보고한다 (C.68a: 30세 OVR 등 성장 가드는 모두 통과, 레전더리 35세 900+ 13/48 = 0.271 — 기준선 12/48 이 경계라
+ * 기본 실행은 가드 뒤에 [C.68 재정] 줄로 full 도 매번 잰다 (마스터 P 2026-10-19: 레전더리 35세 900+ 13/48 = 0.271 — 기준선 12/48 이 경계라
  * 코치가 게이지 목표를 바꾸는 것만으로 시드 하나가 넘음, 배율 크기와 무관)
  */
 const COACH = (env.COACH ?? 'none') as 'none' | 'full';
+let coachMode: 'none' | 'full' = COACH;
 /** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
 if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
 if (env.MED_SCALE) for (const r of Object.values(BALANCE.staff.medical)) for (const k of Object.keys(r)) (r as Record<string, number>)[k]! *= Number(env.MED_SCALE);
@@ -105,7 +106,7 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
     const n0 = state.transfers.length;
     while (state.phase === 'season') {
       const report = playRound(state, { engine: 'quick' });
-      if (COACH === 'full') autoStaff(state);
+      if (coachMode === 'full') autoStaff(state);
       const inj = report.injury;
       if (inj) {
         const permanent = Object.values(inj.permanent).reduce((t, d) => t + (d ?? 0), 0);
@@ -352,15 +353,30 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   }
 }
 
-// ── C.68a 재정 측정 (19.11, 가드 아님 — 경제 점검 가드는 C.68b) ──
+// ── C.68a 코치 풀 투자 측정 (가드 아님, 마스터 P 2026-10-19 01:05: 회귀 가드는 COACH=none, full 은 매번 측정 줄로) ──
+// 레전더리 35세 900+ 기준선이 12/48 = 0.25 경계라 시드 하나로 뒤집힌다 (부록 C.68a). 시드 FULL_SEEDS(기본 48)
 {
-  console.log(`\n[C.68 재정] 스태프 정책 ${COACH} · 최적 배분 · 시즌 순수입·잔고 평균 (억 원)`);
-  for (const tier of TIERS_ASC) {
-    const runs = allRuns.best.filter((_, i) => Math.floor(i / SEEDS_PER_TIER) === TIERS_ASC.indexOf(tier));
+  const FULL_SEEDS = Number(env.FULL_SEEDS ?? SEEDS_PER_TIER);
+  const prev = coachMode;
+  coachMode = 'full';
+  const fullRuns = (tier: Tier, strategy: Strategy) => Array.from({ length: FULL_SEEDS }, (_, i) => simulateCareer(tier, i, strategy));
+  const lb = fullRuns('legendary', 'best');
+  const nb = fullRuns('normal', 'best');
+  const lr = fullRuns('legendary', 'random');
+  const nr = fullRuns('normal', 'random');
+  coachMode = prev;
+  const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
+  const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
+  const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
+  console.log(`\n[C.68 재정] 코치 풀 투자(COACH=full, 시드 ${FULL_SEEDS}) — 가드 아님, 기준 비교용`);
+  console.log(`  30세 OVR 최적 일반 ${at30(nb)}(74~78) · 레전더리 ${at30(lb)}(84~88) · 무작위 일반 ${at30(nr)}(68~72) · 레전더리 ${at30(lr)}(79~83)` +
+    ` | 레전더리 30세까지 900+ ${wc30}/${FULL_SEEDS} = ${(wc30 / FULL_SEEDS).toFixed(3)}(0.1~0.2) · 35세 900+ ${wc35}/${FULL_SEEDS} = ${(wc35 / FULL_SEEDS).toFixed(3)}(0~0.25)`);
+  console.log('  시즌 순수입·잔고 평균 (억 원, 최적 배분)');
+  for (const [name, runs] of [['일반', nb], ['레전더리', lb]] as const) {
     const at = (age: number, k: 'net' | 'cash' | 'staff') => avg(runs.map((r) => r.money.find((x) => x.age === age)?.[k] ?? 0));
     const neg = runs.reduce((t, r) => t + r.money.filter((x) => x.net < 0).length, 0);
     const all = runs.reduce((t, r) => t + r.money.length, 0);
-    console.log(`  ${TIER_NAMES_KO[tier].padEnd(6)} 순수입 18세 ${(at(18, 'net') / 1e4).toFixed(1)} · 24세 ${(at(24, 'net') / 1e4).toFixed(1)} · 30세 ${(at(30, 'net') / 1e4).toFixed(1)} · 33세 ${(at(33, 'net') / 1e4).toFixed(1)}` +
+    console.log(`  ${name.padEnd(6)} 순수입 18세 ${(at(18, 'net') / 1e4).toFixed(1)} · 24세 ${(at(24, 'net') / 1e4).toFixed(1)} · 30세 ${(at(30, 'net') / 1e4).toFixed(1)} · 33세 ${(at(33, 'net') / 1e4).toFixed(1)}` +
       ` | 잔고 30세 ${(at(30, 'cash') / 1e4).toFixed(0)} · 36세 ${(at(36, 'cash') / 1e4).toFixed(0)} | 스태프 24세 ${at(24, 'staff').toFixed(1)}명 | 순수입 음수 시즌 ${neg}/${all}`);
   }
 }
