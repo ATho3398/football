@@ -8,10 +8,14 @@
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
-import { Button, ChoiceButton, Crest, esc, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type GameCardData } from '../components';
+import { Button, ChoiceButton, Crest, cx, esc, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type GameCardData } from '../components';
 import { cardById } from '../../config/cards';
 import { gameCardData } from './deck';
-import { attackDirOf, attackFrac, clampCenter, cropLength, drawFrame, fitCanvas, PitchCamera, PORTRAIT_MOMENT_MAX_H, readPalette, type PitchProjection } from '../pitch/renderer';
+import {
+  attackDirOf, attackFrac, attackY, clampCenter, clampViewY, cropLength, drawFrame, fitCanvas, MOMENT_ZOOM_LEN, momentZoom, PitchCamera, PORTRAIT_MOMENT_MAX_H,
+  readPalette, viewHeightM, type PitchFrameOpts, type PitchProjection,
+} from '../pitch/renderer';
+import { isLandPhone, isWide } from '../skin';
 import { pitchViewButton } from './common';
 
 export interface MomentVM {
@@ -70,7 +74,7 @@ function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { nam
   const delta = isCard && o.baseP !== undefined && o.p !== null ? Math.round((o.p - o.baseP) * 100) : Math.round(dp * 100);
   const chance = pctOf(base);
   return ChoiceButton({
-    act: 'mo-pick', data: { v: i }, compact: true, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.label, chance,
+    act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.label, chance,
     ...(chance !== null && delta ? { chanceDelta: Math.max(-chance, Math.min(99 - chance, delta)), deltaSource: '카드' } : {}),
     success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: signedR(o.down) },
     ...(o.offside ? { offside: o.offside } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
@@ -103,7 +107,7 @@ function handCards(vm: MomentVM): string {
   const picked = vm.card === null ? null : m.cards.find((c) => c.hand === vm.card) ?? null;
   const offs = m.cards.filter((c) => !c.usable);
   const info = picked
-    ? `${esc(picked.name)}${picked.option ? '를 골랐어요 · 4번째 선택지' : ` · ${esc(picked.text)}`}`
+    ? `${esc(picked.name)}${picked.option ? ' · 4번째 선택지가 생겼어요' : ` · ${esc(picked.text)}`}`
     : offs.length === n ? `지금 쓸 수 있는 카드가 없어요${pas}` : `누르면 확률이 바로 바뀌어요${pas}`;
   const cards = m.cards.map((c) => {
     const on = vm.card === c.hand;
@@ -128,33 +132,52 @@ export function momentView(vm: MomentVM): string {
   const pp = picked ? pctOf(picked.p === null ? null : picked.p + (sel! < m.options.length ? mc?.deltas?.[sel!] ?? 0 : 0)) : null;
   const confirm = picked ? `확정 · ${actionWord(picked.label)}${pp === null ? '' : ` ${pp}%`}` : '선택지를 고르세요';
   const tension = m.minute >= 75 && Math.abs(m.score[0] - m.score[1]) <= 1 ? ' · 접전 막판' : '';
-  const note = m.sure
-    ? `<p class="mo-note">확실한 선택지(90%+)는 뺐어요 · 맡기기가 할 일${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''}</p>` : '';
+  // 안내 한 줄 (189): 확실한 선택지를 뺐을 때 / 판정 없는 선택지가 있을 때
+  const certain = shown.some((o) => o.p === null);
+  const notes = [
+    m.sure ? `확실한 선택지(90%+)는 뺐어요${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''} · 맡기기가 할 일` : '',
+    certain ? '판정 없는 선택지는 "확정" — 바로 그렇게 돼요' : '',
+  ].filter(Boolean);
+  const note = notes.length ? `<p class="mo-note">${esc(notes.join(' · '))}</p>` : '';
   return `
-    <div class="moment mo-fold">
+    <div class="moment mo-fold mo-v3">
       ${scoreTop(vm.teams, m.score, m.side, m.minute, `${SCENE_LABEL[m.scene]} · 결정 순간 ${vm.count}${tension}`)}
-      <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면' })}</div>
+      <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면', children: stageTools() })}</div>
       <div class="mo-panel" role="group" aria-label="결정 선택">
         <div class="mo-head"><b>어떻게 할까요?</b><span>누르면 피치에 방향이 보여요</span></div>
         ${note}
         <div class="mo-opts">${opts}</div>
         ${handCards(vm)}
+        ${moreSettings(vm)}
         <div class="mo-actions">
           ${Button({ variant: 'secondary', size: 'lg', block: true, icon: 'auto', act: 'mo-delegate', children: '맡기기' })}
           ${Button({ size: 'lg', block: true, icon: 'check', act: 'mo-confirm', disabled: sel === null, children: confirm })}
         </div>
       </div>
-    </div>
-    ${moreSettings(vm)}`;
+    </div>`;
 }
 
-/** 한 화면 아래(스크롤): 직전 결정 · 정지 빈도 · 자동 전환 */
+/** 피치 위 도구 (189): 왼쪽 "공격 방향 ›" 표시, 오른쪽 [확대][전체] (폰 세로 가로 피치에서만 보인다, CSS) */
+function stageTools(): string {
+  const z = momentZoom();
+  const btn = (v: 'zoom' | 'full', label: string, icon?: 'search') =>
+    `<button type="button" class="mo-zoom__b${z === v ? ' is-on' : ''}" data-act="mo-zoom" data-v="${v}" aria-pressed="${z === v}">${icon ? Icon({ name: icon, size: 12, strokeWidth: 2.6 }) : ''}${label}</button>`;
+  return `<span class="mo-dir" aria-hidden="true">공격 방향 ${Icon({ name: 'chevron-right', size: 12, strokeWidth: 2.6 })}</span><span class="mo-zoom" role="group" aria-label="피치 확대">${btn('zoom', '확대', 'search')}${btn('full', '전체')}</span>`;
+}
+
+/** 아래 묶음 (171): 직전 결정 · 정지 빈도 · 자동 전환. [확정] 줄 위, 스크롤로 내려서 본다 */
 function moreSettings(vm: MomentVM): string {
+  const l = vm.last;
+  const res = l ? (l.result === 'success' ? '성공' : l.result === 'fail' ? '실패' : '보통') : '';
+  const last = l
+    ? `<div class="mo-more__row"><b>직전 결정</b><span class="po-num">${l.minute}' ${esc(SCENE_LABEL[l.scene])}</span></div>
+      <div class="mo-last"><span class="mo-last__chip">${esc(l.label)}</span><span class="mo-last__arrow">→ ${res}</span><b class="po-num ${l.delta > 0 ? 'up' : l.delta < 0 ? 'down' : ''}">${signedR(l.delta)}</b></div>`
+    : '';
   return `<div class="mo-more">
-      ${vm.last ? `<div class="mo-last">직전 결정 · ${esc(lastResultText(vm.last))}</div>` : ''}
-      <span class="small muted">정지 빈도 (다음 순간부터) · 중요도 ${vm.moment.stake.toFixed(2)}</span>
+      ${last}
+      <div class="mo-more__row"><b>정지 빈도 · 다음 순간부터</b><span>이번 순간 중요도 <b class="po-num">${vm.moment.stake.toFixed(2)}</b></span></div>
       ${Tabs({ items: STOP_ITEMS, value: vm.stop, act: 'mo-stop', fill: true, label: '정지 빈도' })}
-      ${Button({ variant: 'ghost', size: 'sm', block: true, act: 'mo-auto', children: '자동으로 전환 (남은 경기는 엔진이 결정)' })}
+      <button type="button" class="mo-autorow" data-act="mo-auto"><b>자동으로 전환</b><span>남은 경기는 엔진이 결정</span></button>
     </div>`;
 }
 
@@ -198,10 +221,33 @@ function reactView(vm: MomentVM): string {
  * 한 화면 배치(C.56)의 피치 맞추기: 폰은 .mo-stage 가 남은 높이를 차지하고(그 안 .po-pitch 는 absolute), 캔버스는 그 높이에 맞춰
  * 세로 피치를 잘라 보여 준다. PC·가로는 지금처럼 화면 높이 비율
  */
-function stageFit(c: HTMLCanvasElement): ReturnType<typeof fitCanvas> {
+function stageFit(c: HTMLCanvasElement): ReturnType<typeof fitCanvas> & { zoom: boolean } {
   const box = c.parentElement;
+  const zoom = zoomStage(c);
+  if (zoom || (box?.classList.contains('po-pitch') && box.closest('.mo-v3') && !isWide() && box.clientHeight > 0)) {
+    // 189: 폰 세로 가로 피치 = 폭 가득 칸(높이는 CSS). 확대면 칸 가득, 전체면 피치 비율로 줄여 가운데
+    return { ...fitCanvas(c, PORTRAIT_MOMENT_MAX_H, { heightPx: box!.clientHeight, fill: zoom }), zoom };
+  }
   const fill = !!box && getComputedStyle(box).position === 'absolute' && box.clientHeight > 0;
-  return fitCanvas(c, PORTRAIT_MOMENT_MAX_H, fill ? { heightPx: box!.clientHeight } : {});
+  return { ...fitCanvas(c, PORTRAIT_MOMENT_MAX_H, fill ? { heightPx: box!.clientHeight } : {}), zoom: false };
+}
+
+/** 가로 피치 확대 (C.69, 189): 폰 세로 화면(가로 폰·PC 아님) · 가로 피치 · [확대] 일 때 */
+function zoomStage(c: HTMLCanvasElement): boolean {
+  if (isWide() || isLandPhone() || momentZoom() !== 'zoom') return false;
+  const box = c.parentElement;
+  return !!box && !!box.closest('.mo-v3') && box.clientHeight > 0 && !document.documentElement.classList.contains('is-pitch-portrait');
+}
+
+/** 결정 순간 확대 보기 세로 가운데: 내 선수 · 공 · 선택지 도착점의 가운데, 다 못 넣으면 내 선수 쪽 (공격 방향 기준 폭 좌표) */
+export function momentCenterY(frame: ReplayFrame, players: Map<string, ReplayPlayer>, side: 0 | 1, meId: string, targets: { y: number }[], vh: number): number {
+  const dir = attackDirOf(frame, players, side);
+  const me = frame.players.find((p) => p.id === meId);
+  const yMe = attackY(me?.y ?? frame.ball.y, dir);
+  const pts = [yMe, attackY(frame.ball.y, dir), ...targets.map((t) => attackY(t.y, dir))];
+  const margin = vh * 0.15;
+  const mid = (Math.min(...pts) + Math.max(...pts)) / 2;
+  return clampViewY(Math.min(yMe + vh / 2 - margin, Math.max(yMe - vh / 2 + margin, mid)), vh);
 }
 
 /**
@@ -224,6 +270,9 @@ export class MomentPitch {
   private t0 = 0;
   /** 세로 잘라 보기 가운데 (결과 재생이 이어 받는다) */
   center = 0.5;
+  /** 가로 확대 보기 세로 가운데 (C.69) */
+  cy = 34;
+  zoom = false;
   constructor(
     private readonly frames: ReplayFrame[],
     private readonly players: Map<string, ReplayPlayer>,
@@ -261,13 +310,18 @@ export class MomentPitch {
     const tick = (now: number) => {
       const c = document.getElementById('mo-canvas') as HTMLCanvasElement | null;
       if (!c) return;
-      const { ctx, w, h, portrait } = stageFit(c);
-      this.center = momentCenter(last, this.players, this.side, this.moment.me, this.options.map((o) => o.to), cropLength(w, h, portrait));
+      const { ctx, w, h, portrait, zoom } = stageFit(c);
+      const len = zoom ? MOMENT_ZOOM_LEN : cropLength(w, h, portrait);
+      const targets = this.options.map((o) => o.to);
+      this.center = momentCenter(last, this.players, this.side, this.moment.me, targets, len);
+      this.cy = zoom ? momentCenterY(last, this.players, this.side, this.moment.me, targets, viewHeightM(w, h, len)) : this.cy;
+      this.zoom = zoom;
       const el = (now - this.t0) / 1000;
       const done = el >= wall;
       const fast = lead - slow;
       const e = done ? endE : el < fast ? this.fromE + el : this.fromE + fast + (el - fast) / 2;
-      const proj = drawFrame(ctx, w, h, this.frameAt(e), this.players, undefined, this.side, el, { center: this.center, portrait });
+      const view: PitchFrameOpts = zoom ? { view: { cx: this.center, len, cy: this.cy } } : { center: this.center, portrait };
+      const proj = drawFrame(ctx, w, h, this.frameAt(e), this.players, undefined, this.side, el, view);
       if (done) {
         this.arrows(ctx, proj);
         return;
@@ -358,23 +412,28 @@ export function outcomeView(vm: OutcomeVM): string {
   const color = vm.kind === 'delegate' ? 'var(--ink-muted)' : KIND_COLOR[vm.kind];
   const b = vm.band;
   const scene = vm.shown ? `결과 · ${b.title}` : '결과 보는 중 · 실제 속도';
+  // 190: 피치 아래 낮은 판(compact). 실패·실점 = 빨간 테두리 + 0.4초 흔들림(CSS)
   const splash = vm.shown
-    ? ResultSplash({ result: b.tone, title: vm.headline, detail: b.flow, ...(vm.rating !== null ? { rating: vm.rating } : {}), ratingDelta: vm.ratingDelta })
+    ? ResultSplash({ result: b.tone, title: vm.headline, detail: b.flow, compact: true, ...(vm.rating !== null ? { rating: vm.rating } : {}), ratingDelta: vm.ratingDelta })
     : '';
   const cardNote = vm.shown && vm.card ? `<p class="oc-cardnote">${Icon({ name: 'card', size: 16 })}<span>${esc(vm.card)} 카드를 썼어요 · 패에서 빠졌어요</span></p>` : '';
+  // 190 재생 중: 실제 속도 줄 (흐른 시간 / 구간 길이, OutcomePitch 가 글자만 바꾼다)
+  const playing = vm.shown ? '' : `<div class="oc-playing">${Icon({ name: 'play', size: 14 })}<span>실제 속도로 결과를 보는 중…</span><span class="po-num" id="oc-time">0:00</span></div>`;
   return `
-    <div class="moment mo-fold mo-outcome">
+    <div class="moment mo-fold mo-outcome mo-v3">
       ${scoreTop(vm.teams, score, m.side, m.minute, scene, 'oc-score')}
-      <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생' })}</div>
+      <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생', children: stageTools() })}</div>
       <div class="mo-panel oc-panel" aria-live="polite">
-        <div class="oc-choice" style="--k:${color}"><span class="oc-choice__t"><small>내 선택</small><b>${esc(vm.choice)}</b></span>${vm.card ? '<span class="oc-cardtag">카드 사용</span>' : ''}</div>
-        ${splash}${cardNote}
-        ${vm.shown
+        <div class="${cx('oc-choice', vm.card && 'is-card')}" style="--k:${vm.card ? 'var(--brand)' : color}"><span class="oc-choice__t"><small>내 선택</small><b>${esc(vm.choice)}</b></span>${vm.card ? '<span class="oc-cardtag">카드 사용</span>' : ''}</div>
+        ${playing}${splash}${cardNote}
+        <div class="oc-actions">${vm.shown
           ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'oc-skip', children: '계속' })
-          : Button({ variant: 'secondary', size: 'lg', block: true, icon: 'skip', act: 'oc-skip', children: '결과 바로 보기' })}
+          : Button({ variant: 'secondary', size: 'lg', block: true, icon: 'skip', act: 'oc-skip', children: '결과 바로 보기' })}</div>
       </div>
     </div>`;
 }
+
+const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 
 /** 결과 구간을 1× 로 재생하고 끝나면 onDone */
 export class OutcomePitch {
@@ -390,8 +449,11 @@ export class OutcomePitch {
     private readonly onDone: () => void,
     /** 결정 순간 보이는 칸 가운데에서 시작해 공을 따라간다 */
     center = 0.5,
+    /** 가로 확대 보기 세로 가운데 (C.69) */
+    cy = 34,
   ) {
     this.camera.center = center;
+    this.camera.cy = cy;
   }
 
   private readonly camera = new PitchCamera();
@@ -415,12 +477,16 @@ export class OutcomePitch {
     const tick = (now: number) => {
       const c = document.getElementById('mo-canvas') as HTMLCanvasElement | null;
       if (!c) return;
-      const { ctx, w, h, portrait } = stageFit(c);
+      const { ctx, w, h, portrait, zoom } = stageFit(c);
       const el = (now - this.t0) / 1000;
       const end = this.done || el >= span;
       const f = this.frameAt(end ? this.to : this.from + el);
-      const center = this.camera.follow(f, this.players, this.side, cropLength(w, h, portrait), now, end && el < span);
-      drawFrame(ctx, w, h, f, this.players, undefined, this.side, el, { center, portrait });
+      const len = zoom ? MOMENT_ZOOM_LEN : cropLength(w, h, portrait);
+      const center = this.camera.follow(f, this.players, this.side, len, now, end && el < span);
+      const cy = zoom ? this.camera.followY(f, this.players, this.side, viewHeightM(w, h, len), now, end && el < span) : 0;
+      drawFrame(ctx, w, h, f, this.players, undefined, this.side, el, zoom ? { view: { cx: center, len, cy } } : { center, portrait });
+      const t = document.getElementById('oc-time');
+      if (t) t.textContent = `${clock(Math.min(el, span))} / ${clock(span)}`;
       if (end) {
         if (!this.done) {
           this.done = true;

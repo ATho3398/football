@@ -306,7 +306,8 @@ function drawMarkers(
   const mode = pitchNames();
   if (mode === 'off') return;
   const below = renderer === numberCircleRenderer ? 1.08 : 1.3;
-  const shown = sorted.filter((p) => mode !== 'mine' || p.info.isMe);
+  // 캔버스 밖(잘라 보기·확대로 안 보이는) 선수는 이름표도 없다 (가장자리에 이름표만 붙지 않게)
+  const shown = sorted.filter((p) => (mode !== 'mine' || p.info.isMe) && p.x >= -r && p.x <= w + r && p.y >= -r && p.y <= h + r);
   const boxK = renderer === pixelRenderer ? 1.5 : renderer === faceRenderer ? 1.35 : 1;
   const items: LabelItem[] = shown.map((p) => {
     const short = nameOf(p.id, p.info.isMe, p.info.name, scope);
@@ -328,7 +329,32 @@ function drawMarkers(
  * 세로 피치 보이는 범위 (C.56, 5차 Pitch crop): 캔버스가 피치 비율(105:68)보다 낮으면 공격 방향 일부만 그린다.
  * center = 보이는 칸 가운데의 공격 방향 비율(0 = 우리 골, 1 = 상대 골). 범위 길이는 캔버스 높이가 정한다
  */
-export interface PitchFrameOpts { center?: number; /** 세로로 그린다 (잘라 보기 캔버스는 가로보다 낮을 수 있어 비율로 판단하지 않는다). 없으면 h > w */ portrait?: boolean }
+export interface PitchFrameOpts {
+  center?: number;
+  /** 세로로 그린다 (잘라 보기 캔버스는 가로보다 낮을 수 있어 비율로 판단하지 않는다). 없으면 h > w */
+  portrait?: boolean;
+  /**
+   * 가로 피치 확대 (C.69, 디자인 189 Pitch crop·cropY·aspect): 내 팀이 늘 왼쪽 → 오른쪽으로 공격하게 그리고(필요하면 180도 돌림),
+   * 공격 방향 비율 [cx − len/2, cx + len/2] 만큼을 캔버스 폭 가득, 세로는 캔버스 비율대로 cy(공격 방향 기준 폭 좌표, m) 가운데로 자른다
+   */
+  view?: { cx: number; len: number; cy: number };
+}
+
+/** 엔진 y(m) → 공격 방향 기준 폭 좌표 (내 팀이 오른쪽으로 공격하게 돌렸을 때의 y) */
+export function attackY(y: number, dir: 1 | -1): number {
+  return dir > 0 ? y : PITCH_W - y;
+}
+
+/** 가로 확대 보기에서 보이는 폭 방향 길이(m): 캔버스 비율 (w × h) 과 공격 방향 길이 len 으로 */
+export function viewHeightM(w: number, h: number, len: number): number {
+  return Math.min(PITCH_W, (len * PITCH_L * h) / w);
+}
+
+/** 가로 확대 보기 세로 가운데를 피치 안으로 (터치라인 밖 4m 까지는 보여 줘 줄 근처 선수가 칸 끝에 붙지 않게) */
+const VIEW_EDGE_M = 4;
+export function clampViewY(cy: number, vh: number): number {
+  return vh >= PITCH_W ? PITCH_W / 2 : Math.min(PITCH_W - vh / 2 + VIEW_EDGE_M, Math.max(vh / 2 - VIEW_EDGE_M, cy));
+}
 
 /** 엔진 x(m) → 공격 방향 비율 (0 = 우리 골, 1 = 상대 골) */
 export function attackFrac(x: number, dir: 1 | -1): number {
@@ -352,6 +378,7 @@ export function drawFrame(
   renderer: MarkerRenderer = activeRenderer(), mySide: 0 | 1 = 0, time = 0, opts: PitchFrameOpts = {},
 ): PitchProjection {
   const portrait = opts.portrait ?? h > w;
+  if (!portrait && opts.view && opts.view.len < 0.999) return drawZoomed(ctx, w, h, frame, players, renderer, mySide, time, opts.view);
   const len = cropLength(w, h, portrait);
   // 잘라 보기: 전체 세로 피치(높이 fullH)를 그린 뒤 위로 oy 만큼 민다 (캔버스 밖은 그려지지 않음)
   const fullH = portrait ? (w * PITCH_L) / PITCH_W : h;
@@ -366,6 +393,15 @@ export function drawFrame(
   const proj: PitchProjection = oy ? { portrait: full.portrait, toScreen: (x, y) => { const [sx, sy] = full.toScreen(x, y); return [sx, sy - oy]; } } : full;
   const r = markerRadius(Math.min(w, fullH * (PITCH_L / PITCH_W)));
   const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
+  drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  return proj;
+}
+
+/** 마커 · 이름표 · 공 (drawFrame · drawZoomed 공통) */
+function drawPlayersAndBall(
+  ctx: CanvasRenderingContext2D, w: number, h: number, frame: ReplayFrame, players: Map<string, ReplayPlayer>,
+  renderer: MarkerRenderer, mySide: 0 | 1, r: number, pulse: number, proj: PitchProjection,
+): void {
   const list: Placed[] = [];
   for (const p of frame.players) {
     const info = players.get(p.id);
@@ -398,6 +434,37 @@ export function drawFrame(
   ctx.lineWidth = 1.6;
   ctx.strokeStyle = PALETTE.ink;
   ctx.stroke();
+}
+
+/**
+ * 가로 확대 (C.69, 189): 피치 전체를 확대 배율로 그린 뒤 보이는 칸만큼 민다. 내 팀 공격 방향이 왼쪽이면 180도 돌린다(코트는 대칭이라 선은 그대로).
+ * 원·번호·이름표는 확대 전 크기 그대로 (디자인 "덜 커져요")
+ */
+function drawZoomed(
+  ctx: CanvasRenderingContext2D, w: number, h: number, frame: ReplayFrame, players: Map<string, ReplayPlayer>,
+  renderer: MarkerRenderer, mySide: 0 | 1, time: number, view: { cx: number; len: number; cy: number },
+): PitchProjection {
+  const dir = attackDirOf(frame, players, mySide);
+  const len = Math.max(0.2, view.len);
+  const s = w / (len * PITCH_L);
+  const fullW = PITCH_L * s;
+  const fullH = PITCH_W * s;
+  const vh = viewHeightM(w, h, len);
+  const ox = (clampCenter(view.cx, len) - len / 2) * fullW;
+  const oy = vh >= PITCH_W ? -(h - fullH) / 2 : (clampViewY(view.cy, vh) - vh / 2) * s;
+  ctx.fillStyle = PALETTE.pitch;
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.translate(-ox, -oy);
+  drawPitch(ctx, fullW, fullH);
+  ctx.restore();
+  const proj: PitchProjection = {
+    portrait: false,
+    toScreen: (x, y) => [(dir > 0 ? x : PITCH_L - x) * s - ox, attackY(y, dir) * s - oy],
+  };
+  const r = markerRadius(w);
+  const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
+  drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
   return proj;
 }
 
@@ -429,7 +496,7 @@ export function pitchCanvasSize(width: number, portrait = false): [number, numbe
 }
 
 /** fitCanvas 선택 (C.56): heightPx = 이 높이 안에 맞춘다(세로면 폭은 그대로 두고 피치를 잘라 보기), cropLen = 세로 피치를 이 길이 비율만 */
-export interface FitOpts { heightPx?: number; cropLen?: number }
+export interface FitOpts { heightPx?: number; cropLen?: number; /** 가로 확대 보기 (C.69): 폭 가득 × heightPx (피치 비율 무시, drawFrame view 로 자른다) */ fill?: boolean }
 
 /**
  * 캔버스를 화면 너비·기기 배율에 맞춘다. 2D 컨텍스트와 그릴 크기를 돌려준다.
@@ -448,6 +515,8 @@ export function fitCanvas(canvas: HTMLCanvasElement, maxHRatio = PORTRAIT_MAX_H,
     const maxH = Math.max(300, Math.round((window.innerHeight || 800) * maxHRatio));
     if (want > maxH) [w, h] = [Math.round((avail * maxH) / want), maxH];
     else h = want;
+  } else if (opts.fill && opts.heightPx !== undefined) {
+    h = Math.max(120, Math.round(opts.heightPx));
   } else if (opts.heightPx !== undefined && h > opts.heightPx) {
     [w, h] = [Math.round((Math.max(160, opts.heightPx) * PITCH_L) / PITCH_W), Math.max(160, Math.round(opts.heightPx))];
   }
@@ -477,7 +546,23 @@ export const REPLAY_CROP = 0.66;
  */
 export class PitchCamera {
   center = 0.5;
+  /** 가로 확대 보기 세로 가운데 (공격 방향 기준 폭 좌표 m, C.69) */
+  cy = PITCH_W / 2;
   private last = 0;
+  private lastY = 0;
+  /** 가로 확대 보기 세로: 공이 보이는 칸 위아래 여유(20%)에 닿으면 따라간다 */
+  followY(frame: ReplayFrame, players: Map<string, ReplayPlayer>, side: 0 | 1, vh: number, now: number, snap = false): number {
+    if (vh >= PITCH_W) return (this.cy = PITCH_W / 2);
+    const b = attackY(frame.ball.y, attackDirOf(frame, players, side));
+    const m = vh * 0.2;
+    const lo = this.cy - vh / 2 + m;
+    const hi = this.cy + vh / 2 - m;
+    const target = snap ? b : b < lo ? b + vh / 2 - m : b > hi ? b - vh / 2 + m : this.cy;
+    const dt = this.lastY ? Math.min(0.25, Math.max(0, (now - this.lastY) / 1000)) : 0;
+    this.lastY = now;
+    this.cy = clampViewY(snap ? target : this.cy + (target - this.cy) * Math.min(1, dt * 3), vh);
+    return this.cy;
+  }
   /** 공 위치로 가운데를 갱신하고 돌려준다. snap = 바로 맞춤 (장면 시작) */
   follow(frame: ReplayFrame, players: Map<string, ReplayPlayer>, side: 0 | 1, len: number, now: number, snap = false): number {
     if (len >= 0.999) return (this.center = 0.5);
@@ -534,6 +619,13 @@ const sizePref = pref<PitchSizeOpt>('po-pitch-size', ['normal', 'large', 'xlarge
 const namesPref = pref<PitchNames>('po-pitch-names', ['all', 'mine', 'off'], 'all');
 export const pitchOrient = (): PitchOrient => (orientPref.get() === 'portrait' ? 'portrait' : 'landscape');
 export const setPitchOrient = (v: PitchOrient): void => orientPref.set(v);
+/** 결정 순간·결정 결과 가로 피치 [확대]/[전체] (C.69, 189): 기기 설정 */
+export type MomentZoom = 'zoom' | 'full';
+const zoomPref = pref<MomentZoom>('po-mo-zoom', ['zoom', 'full'], 'zoom');
+export const momentZoom = (): MomentZoom => zoomPref.get();
+export const setMomentZoom = (v: MomentZoom): void => zoomPref.set(v);
+/** 결정 순간 확대 길이 (디자인 crop [44, 100] = 공격 방향 56%, 약 1.8배) */
+export const MOMENT_ZOOM_LEN = 0.56;
 export const pitchSize = (): PitchSizeOpt => sizePref.get();
 export const setPitchSize = (v: PitchSizeOpt): void => sizePref.set(v);
 export const pitchNames = (): PitchNames => namesPref.get();

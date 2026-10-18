@@ -23,8 +23,8 @@ describe('독 [다음] 키 (C.66)', () => {
     expect(h.match(/po-dock__item is-on" data-act="go-tab" data-v="home"/g)?.length).toBe(2);
   });
   it('상태(계속·진행 중·경기·경기 중·답하기)는 [다음] 키 글자로, 진행 중이면 누를 수 없음 표시', () => {
-    const busy = dock(vm({ prog: { label: '진행 중', icon: 'clock', act: 'noop', kind: 'busy' } }));
-    expect(busy).toContain('po-dock__next is-busy" data-act="noop" aria-disabled="true"');
+    const busy = dock(vm({ prog: { label: '진행 중', icon: 'running', act: 'noop', kind: 'running' } }));
+    expect(busy).toContain('po-dock__next is-running" data-act="noop" aria-disabled="true"');
     const live = dock(vm({ prog: { label: '경기 중', icon: 'match', act: 'live-return', live: true } }));
     expect(live).toContain('po-dock__next is-live');
     expect(live).toContain('po-dock__live');

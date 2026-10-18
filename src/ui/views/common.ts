@@ -34,7 +34,8 @@ export function startNotice(v: VersionVM): string {
  * 이 키가 보여 준다(따로 있던 초록 진행 알약은 없앰). 홈은 맨 왼쪽 일반 칸(다른 칸과 같은 모양). 잠긴 칸 = 흐리게 + 작은 자물쇠.
  * 폰 가로(C.66)는 같은 칸을 왼쪽 세로 레일로 쓰고, PC 는 아래 가로 줄. 칸 배치는 DOCK_PHONE 배열 하나만 고치면 된다(PC 는 dockPc 로 만든다).
  */
-export type DockProg = 'continue' | 'busy' | 'match' | 'live' | 'answer' | 'season';
+/** [다음] 키 상태 (C.69 디자인 201 독 v3): 계속 · 진행 중(running) · 경기 · 경기 중 · 잠김(locked, 누를 수 없음) · 답하기 · 시즌 요약 */
+export type DockProg = 'continue' | 'running' | 'match' | 'live' | 'locked' | 'answer' | 'season';
 export interface DockVM {
   screen: string;
   /** 진행 칸: 지금 누르면 하는 일 */
@@ -47,22 +48,26 @@ export interface DockVM {
   inbox?: number;
 }
 
-export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves';
+export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves' | 'inbox' | 'finance';
 /** 폰 5칸 (C.66 사용자 지시: 홈 · 선수 · [다음] · 훈련·일정 · 더보기). 가로 폰은 위→아래 레일, 더보기는 레일 옆 펼침 줄(dockMoreRow) */
 export const DOCK_PHONE: DockId[] = ['home', 'player', 'prog', 'schedule', 'more'];
+/** 더보기 펼침 줄 순서 (C.69 디자인 201): 인박스 · 재정 · 월드 · 덱 · 전술 · 설정 · 저장 */
+export const DOCK_MORE: DockId[] = ['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves'];
 /**
- * PC 9칸 (C.61 → C.66): 폰 독 순서에서 만든다. 홈(맨 왼쪽) 다음에 덱 · 전술, 더보기 자리에 폰 독에 없는 월드 · 설정 · 저장을 펼친다
- * (지금 = 홈 · 덱 · 전술 · 선수 · [다음] · 훈련·일정 · 월드 · 설정 · 저장 — [다음]이 가운데)
+ * PC 11칸 (C.61 → C.66 → C.69 디자인 201): 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] | 훈련·일정 · 월드 · 재정 · 설정 · 저장 (더보기 없음, [다음]이 가운데).
+ * 폰 독 순서에서 만든다: [다음] 왼쪽 = 폰 왼쪽 칸 + 덱 · 전술 · 인박스, 오른쪽 = 폰 오른쪽 칸(더보기 대신) + 월드 · 재정 · 설정 · 저장
  */
 export function dockPc(phone: readonly DockId[]): DockId[] {
-  const lead: DockId[] = (['deck', 'tactics'] as DockId[]).filter((x) => !phone.includes(x));
-  const more: DockId[] = (['world', 'settings', 'saves'] as DockId[]).filter((x) => !phone.includes(x));
-  const rest = phone.flatMap((id) => (id === 'more' ? more : [id]));
-  return rest[0] === 'home' ? ['home', ...lead, ...rest.slice(1)] : [...lead, ...rest];
+  const k = phone.indexOf('prog');
+  const left = phone.slice(0, k).filter((x) => x !== 'more');
+  const right = phone.slice(k + 1).filter((x) => x !== 'more');
+  const lead = (['deck', 'tactics', 'inbox'] as DockId[]).filter((x) => !phone.includes(x));
+  const tail = (['world', 'finance', 'settings', 'saves'] as DockId[]).filter((x) => !phone.includes(x));
+  return [...left, ...lead, 'prog', ...right, ...tail];
 }
 export const DOCK_PC: DockId[] = dockPc(DOCK_PHONE);
 /** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
-const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves' };
+const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves', inbox: 'inbox', finance: 'finance' };
 
 type DockItem = { label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; badge?: number; lock?: boolean };
 
@@ -78,11 +83,14 @@ export function dock(vm: DockVM): string {
   const s = vm.screen;
   const phone = new Set(DOCK_PHONE);
   const items: Record<Exclude<DockId, 'prog'>, DockItem> = {
+    inbox: { label: '인박스', icon: 'inbox', act: 'go', data: { to: 'inbox' }, on: s === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) },
+    finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: s === 'finance' },
     home: { label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
     player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
     schedule: { label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
     world: { label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
-    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)) },
+    // 접힌 더보기 칸 배지 = 펼침 줄 칸 배지 합 (201: 인박스 안 읽음)
+    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)), ...(!vm.more && vm.inbox ? { badge: vm.inbox } : {}) },
     deck: { label: '덱', icon: 'deck', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck' },
     tactics: { label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', lock: !vm.tacticsOpen },
     settings: { label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings' },
@@ -94,27 +102,25 @@ export function dock(vm: DockVM): string {
   const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
   const cell = (id: DockId): string => {
     if (id === 'prog') {
-      const busy = kind === 'busy';
-      return `<button type="button" class="po-dock__go po-dock__next is-${kind}"${attrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''} aria-label="다음 · ${esc(p.label)}"><span class="po-dock__goicon">${
+      const busy = kind === 'running';
+      return `<button type="button" class="po-dock__go po-dock__next is-${kind}"${attrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''}${kind === 'locked' ? ' disabled' : ''} aria-label="다음 · ${esc(p.label)}"><span class="po-dock__goicon">${
         kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${badge(p.badge)}</span></button>`;
     }
     const it = items[id];
     return `<button type="button" class="${cx('po-dock__item', it.on && 'is-on', it.lock && 'is-locked')}"${attrs(it.act, it.data)}${it.lock ? ' disabled' : ''}${it.on ? ' aria-current="page"' : ''}><span class="po-dock__icon">${
       Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : badge(it.badge)}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
   };
-  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${dockColumns(ids, pc ? 148 : 96)}">${ids.map((id) => cell(id)).join('')}</div>`;
+  // 열 너비 (201): 폰 1fr · 1fr · 1.9fr · 1fr · 1fr, PC 양쪽 같은 몫 + [다음] 176px
+  const cols = (ids: DockId[], pc: boolean) => (pc ? dockColumns(ids, 176) : ids.map((id) => `minmax(0, ${id === 'prog' ? 1.9 : 1}fr)`).join(' '));
+  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock po-dock--v3', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${cols(ids, pc)}">${ids.map((id) => cell(id)).join('')}</div>`;
   // 더보기 (C.63c → C.66): 시트 대신 독 옆(가로 폰 = 레일 오른쪽 세로 줄, 세로 태블릿 = 독 위 한 줄)으로 펼침, 배경을 막지 않음
   const row = vm.more ? dockMoreRow(vm, items) : '';
   return `<nav class="nav dock-bar" aria-label="주요 메뉴">${row}${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
 }
 
 /** 더보기 펼침 줄 (C.63c): 폰 독에 없는 칸 + 인박스, 가로 스크롤 · 스냅 · 처음/끝 흐림. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
-function dockMoreRow(vm: DockVM, items: Record<string, DockItem>): string {
-  const ids = (['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves'] as const).filter((id) => id === 'inbox' || id === 'finance' || !DOCK_PHONE.includes(id));
-  const all: Record<string, DockItem> = {
-    ...items, inbox: { label: '인박스', icon: 'bell', act: 'go', data: { to: 'inbox' }, on: vm.screen === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) },
-    finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: vm.screen === 'finance' },
-  };
+function dockMoreRow(_vm: DockVM, all: Record<string, DockItem>): string {
+  const ids = DOCK_MORE.filter((id) => !DOCK_PHONE.includes(id));
   const cells = ids.map((id) => {
     const it = all[id]!;
     return `<button type="button" class="${cx('po-dock__item', 'dock-more__item', it.on && 'is-on', it.lock && 'is-locked')}" data-act="${esc(it.act)}"${Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.lock ? ' disabled' : ''}><span class="po-dock__icon">${

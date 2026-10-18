@@ -25,9 +25,10 @@ afterEach(() => setWideForTest(null));
 describe('독 칸 배열 하나 (C.61)', () => {
   it('PC 9칸은 폰 독 순서에서 만든다: 홈 · 덱 · 전술 + 폰 나머지 ([다음] 5번째 가운데) + 더보기 자리에 월드 · 설정 · 저장 (C.66)', () => {
     expect(DOCK_PHONE).toEqual(['home', 'player', 'prog', 'schedule', 'more']);
-    expect(DOCK_PC).toEqual(['home', 'deck', 'tactics', 'player', 'prog', 'schedule', 'world', 'settings', 'saves']);
-    expect(DOCK_PC.indexOf('prog')).toBe(4);
-    // 폰을 6칸(월드 추가)으로 바꿔도 PC는 같은 9칸
+    // C.69 (디자인 201): 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] | 훈련·일정 · 월드 · 재정 · 설정 · 저장
+    expect(DOCK_PC).toEqual(['home', 'player', 'deck', 'tactics', 'inbox', 'prog', 'schedule', 'world', 'finance', 'settings', 'saves']);
+    expect(DOCK_PC.indexOf('prog')).toBe(5);
+    // 폰을 6칸(월드 추가)으로 바꿔도 PC는 같은 11칸
     expect(dockPc(['home', 'player', 'prog', 'schedule', 'world', 'more'])).toEqual(DOCK_PC);
     const vm: DockVM = { screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: true, points: 0, more: false };
     const html = dock(vm);

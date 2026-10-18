@@ -89,7 +89,7 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
     const labels = (h: string) => [...h.matchAll(/class="po-dock__(?:go)?label">([^<]+)</g)].map((m) => m[1]!);
     // C.66: 홈 = 맨 왼쪽 일반 칸, [다음](진행) 키가 PC 9칸·모바일 5칸 모두 가운데
     expect(labels(bar('dock-phone'))).toEqual(['홈', '선수', '계속', '훈련·일정', '더보기']);
-    expect(labels(bar('dock-wide'))).toEqual(['홈', '덱', '전술', '선수', '계속', '훈련·일정', '월드', '설정', '저장']);
+    expect(labels(bar('dock-wide'))).toEqual(['홈', '선수', '덱', '전술', '인박스', '계속', '훈련·일정', '월드', '재정', '설정', '저장']);
     expect(html).toContain('data-act="day-continue"');
     expect(html).toContain('is-locked');
   });

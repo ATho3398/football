@@ -57,7 +57,7 @@ import {
 import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
-import { isPortraitPitch, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
+import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
 import { alertCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { goalsSection, homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
@@ -617,7 +617,7 @@ function dockVM(g: GameState): DockVM {
   let prog: DockVM['prog'];
   if (live) prog = { label: '경기 중', icon: 'match', act: 'live-return', live: true, kind: 'live' };
   else if (g.phase !== 'season') prog = { label: '시즌 요약', icon: 'trophy', act: 'go-tab', data: { v: 'season' }, kind: 'season' };
-  else if (ui.busy) prog = { label: '진행 중', icon: 'clock', act: 'noop', kind: 'busy' };
+  else if (ui.busy) prog = { label: '진행 중', icon: 'running', act: 'noop', kind: 'running' };
   else if (marketPending(g)) {
     const n = (g.market?.offers?.length ?? 0) + (g.market?.renewal ? 1 : 0);
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
@@ -631,8 +631,8 @@ function liveBand(to: Screen): string {
   const lv = ui.live;
   const m = lv?.run.pending ?? lv?.oc?.vm.moment;
   const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${m.score[0]}-${m.score[1]} ${lv.teams[1]}` : '경기 중';
-  const sub = lv && m ? '결정 순간에서 멈췄어요' : to === 'replay' ? '경기 재생 중' : '';
-  return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><span class="grow"><b>${esc(head)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="live-back">경기로 돌아가기</b></button>`;
+  const sub = lv && m ? '결정 순간에서 멈췄어요 · 돌아가면 이어서 해요' : to === 'replay' ? '경기 재생 중 · 돌아가면 이어서 봐요' : '';
+  return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><span class="grow"><b>${esc(head)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="live-back">경기로 돌아가기${Icon({ name: 'chevron-right', size: 14, strokeWidth: 2.6 })}</b></button>`;
 }
 
 function livePlayers(g: GameState) {
@@ -716,6 +716,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   };
   lv.prevE = o.to;
   const center = lv.pitch?.center ?? 0.5;
+  const cy = lv.pitch?.cy ?? 34;
   lv.pitch?.stop();
   lv.pitch = null;
   setPitchTeams(lv.teams);
@@ -729,7 +730,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
       if (ui.screen === 'moment') liveContinue(g);
       else oc.timer = 0;
     }, OUTCOME.bandMs);
-  }, center);
+  }, center, cy);
   lv.oc = { vm, pitch, next, timer: 0 };
   go('moment');
 }
@@ -2419,6 +2420,13 @@ app.addEventListener('click', (ev) => {
       if (!g || !oc) return;
       if (!oc.vm.shown) oc.pitch.jump();
       else liveContinue(g);
+      return;
+    }
+    case 'mo-zoom': {
+      // 결정 순간·결과 피치 [확대]/[전체] (C.69, 189): 기기 설정, 화면만 다시 그린다
+      if (v !== 'zoom' && v !== 'full') return;
+      setMomentZoom(v);
+      render();
       return;
     }
     case 'mo-stop': {

@@ -92,6 +92,9 @@ export const ICON_PATHS = {
   chat: "M4 5h16v11H10l-6 4z M8 9.5h8 M8 12.5h5",
   // 재정 (C.68a): 동전 + 원(₩) 줄
   coin: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M8 8.5l2 7l2-5l2 5l2-7 M7.5 12h9",
+  /** C.69 (디자인 201 Icon): 인박스 · 진행 중 */
+  inbox: "M4 6h16v12H4z M4 7l8 6 8-6",
+  running: "M12 3a9 9 0 1 0 9 9 M12 7v5l3 2",
   trophy: "M7 4h10v5a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4 M17 6h3a3 3 0 0 1-3 4 M12 14v4 M8 20h8",
   swap: "M4 8h14 M14 4l4 4-4 4 M20 16H6 M10 12l-4 4 4 4",
   edit: "M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4",

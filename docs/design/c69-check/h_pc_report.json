@@ -1,0 +1,43 @@
+{
+ "W": 1280,
+ "H": 800,
+ "errors": [],
+ "screens": {
+  "201_독-continue": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-running": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-match": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-live": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-locked": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-continue-더보기처음": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-continue-더보기끝": {
+   "wide": 0,
+   "hidden": []
+  },
+  "172_결정결과-도장-보통": {
+   "wide": 0,
+   "hidden": []
+  },
+  "172_결정결과-도장-실점": {
+   "wide": 0,
+   "hidden": []
+  }
+ }
+}

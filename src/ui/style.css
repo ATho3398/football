@@ -1798,7 +1798,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   .app-moment .mo-cards .po-card--hand { --hand-w: 58px; height: 66px; }
   .app-moment .mo-hand__head { font-size: 11px; line-height: 14px; }
   .app-moment .mo-hand { gap: 4px; }
-  .app-moment .mo-actions, .app-moment .oc-panel > .po-btn { position: sticky; bottom: 0; z-index: 2; margin-top: auto; padding: 4px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--surface-0); }
+  .app-moment .mo-actions, .app-moment .oc-panel > .po-btn, .app-moment .oc-actions { position: sticky; bottom: 0; z-index: 2; margin-top: auto; padding: 4px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--surface-0); }
   .app-moment .mo-actions .po-btn { height: 42px; }
   .app-moment .mo-head { line-height: 18px; }
   .app-moment .oc-panel .po-splash { padding: 10px 12px 12px; }
@@ -1836,3 +1836,145 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .fn-opt__top b { flex: 1; min-width: 0; font-size: 14px; }
 .fn-opt small { font-size: 12px; }
 .fn-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── C.69 U7-a (UI_3 7-9-part1-apply.md · 디자인 189·190 결정 순간·결과 v3, 171 아래 묶음, 172 도장, 201 독 v3, 165 경기 중 띠) ── */
+
+/* 선택지 접은 한 줄 (189 ChoiceButton collapsed): 태그 · 이름 · 확률 46px, 고른 줄만 성공·실패 줄과 오프사이드·카드 칩. 판정 없음 = "✓ 확정" 칩 */
+.mo-opts .po-choice--row { min-height: 46px; padding: 0 12px 0 10px; gap: 8px; align-items: center; border-radius: var(--b-r-sm, 12px); }
+.mo-opts .po-choice--row .po-choice__main { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 2px; min-width: 0; padding: 11px 0; }
+.mo-opts .po-choice--row .po-choice__tags { flex: none; flex-wrap: nowrap; gap: 4px; min-height: 0; }
+.mo-opts .po-choice--row .po-choice__name { flex: 1 1 0; min-width: 0; display: block; font-size: 15px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mo-opts .po-choice--row .po-choice__outcomes { display: none; }
+.mo-opts .po-choice--row.is-selected .po-choice__outcomes { display: flex; flex-wrap: wrap; flex-basis: 100%; column-gap: 12px; padding-top: 4px; }
+.mo-opts .po-choice--row .po-out { display: inline-flex; gap: 4px; }
+.mo-opts .po-choice--row .po-choice__prob { min-width: 0; grid-auto-flow: row; }
+.mo-opts .po-choice--row .po-choice__prob > b { font-size: 24px; }
+.mo-opts .po-choice--row .po-choice__prob > b small { font-size: 12px; }
+.mo-opts .po-choice--row .po-choice__probbar { width: 44px; margin-top: 3px; }
+.mo-opts .po-choice--row .po-choice__prob s { font-size: 11px; }
+.mo-opts .po-choice--row .po-choice__delta { font-size: 11px; margin-top: 1px; }
+.mo-opts .po-choice--row .po-choice__delta small { display: none; }
+.mo-opts .po-choice--row:not(.is-selected) .po-offside, .mo-opts .po-choice--row:not(.is-selected) .po-choice__card { display: none; }
+.mo-opts .po-choice--row.is-selected .po-choice__name { flex-basis: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.mo-opts .po-choice--row.po-choice--play .po-choice__card { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 20px; }
+.po-choice__sure { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px; border-radius: var(--b-r-sm, 6px); background: var(--surface-3); color: var(--ink); font-size: 12px; font-weight: 800; white-space: nowrap; }
+:where(html[data-skin="b"]) .po-choice__sure { transform: skewX(-8deg); }
+.po-choice.is-selected .po-choice__sure { background: var(--on-brand); color: var(--brand); }
+.po-choice__prob--certain { min-width: 0; }
+
+/* 결정 순간 아래 묶음 (171): 직전 결정 · 정지 빈도 · 자동 전환 — 한 판 */
+.mo-v3 .mo-more { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 0; padding: 12px; border-radius: var(--b-r-lg, 16px); background: var(--surface-1); }
+.mo-more__row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-muted); }
+.mo-more__row > b { color: var(--ink); font-size: 12px; }
+.mo-more__row .po-num { color: var(--ink); }
+.mo-v3 .mo-last { display: flex; align-items: center; gap: 8px; padding: 0; background: none; font-size: 13px; color: var(--ink); }
+.mo-last__chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border-radius: var(--b-r-sm, 6px); background: var(--surface-2); color: var(--ink-muted); font-size: 12px; font-weight: 700; }
+.mo-last__arrow { flex: none; font-weight: 700; }
+.mo-last > .po-num { margin-left: auto; font-size: 13px; }
+.mo-last > .po-num.up { color: var(--success); }
+.mo-last > .po-num.down { color: var(--fail); }
+.mo-autorow { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.mo-autorow b { font-size: 14px; }
+.mo-autorow span { font-size: 12px; color: var(--ink-muted); }
+
+/* 피치 위 도구 (189): 공격 방향 · [확대][전체] — 폰 세로 가로 피치에서만 */
+.mo-dir, .mo-zoom { display: none; }
+.mo-dir { position: absolute; left: 8px; top: 8px; align-items: center; gap: 2px; height: 24px; padding: 0 8px; border-radius: var(--b-r-sm, 6px); background: rgba(18, 19, 23, .78); color: #f3f4f6; font-size: 11px; font-weight: 700; }
+.mo-zoom { position: absolute; right: 8px; top: 8px; gap: 2px; pointer-events: auto; }
+.mo-zoom__b { display: inline-flex; align-items: center; gap: 3px; height: 26px; padding: 0 9px; border: 0; border-radius: var(--b-r-sm, 6px); background: rgba(18, 19, 23, .78); color: #f3f4f6; font: 800 12px/1 var(--font-sans); cursor: pointer; }
+.mo-zoom__b.is-on { background: var(--brand); color: var(--on-brand); }
+:where(html[data-skin="b"]) .mo-zoom__b.is-on { clip-path: var(--skew-sm); padding: 0 12px; }
+
+/* 결정 결과 (190·172): 재생 중 줄 · 낮은 판(compact) · 카드 사용 = 라임 막대 */
+.oc-choice.is-card { box-shadow: inset 3px 0 0 var(--brand); }
+:where(html[data-skin="b"]) .oc-cardtag { background: var(--brand); color: var(--on-brand); transform: skewX(-8deg); }
+.oc-playing { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: var(--b-r-lg, 16px); background: var(--surface-1); font-size: 14px; font-weight: 700; }
+.oc-playing > .po-icon { flex: none; color: var(--brand-ink); }
+.oc-playing > span:not(.po-num) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-playing > .po-num { flex: none; font-size: 12px; color: var(--ink-muted); }
+.oc-panel .po-splash--compact, .po-splash--compact { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "stamp title rate" "detail detail rate"; justify-items: start; align-items: center; column-gap: 10px; row-gap: 6px; padding: 14px; text-align: left; }
+.po-splash--compact .po-splash__stamp { grid-area: stamp; font-size: 15px; padding: 5px 10px 5px 8px; }
+.oc-panel .po-splash--compact .po-splash__title, .po-splash--compact .po-splash__title { grid-area: title; min-width: 0; font-size: 19px; line-height: 24px; }
+.oc-panel .po-splash--compact .po-splash__detail, .po-splash--compact .po-splash__detail { grid-area: detail; margin: 0; font-size: 12px; }
+.po-splash--compact > :last-child:not(.po-splash__detail):not(.po-splash__title):not(.po-splash__stamp) { grid-area: rate; }
+.po-splash--mid { background: var(--surface-2); color: var(--ink); }
+.po-splash--mid .po-splash__stamp { background: var(--surface-3); color: var(--ink); }
+.po-splash--concede .po-splash__stamp { background: var(--fail); color: #ffffff; }
+:where(html[data-skin="b"]) .po-splash { border-radius: 4px; }
+:where(html[data-skin="b"]) .po-splash__stamp { border-radius: 2px; transform: skewX(-8deg); }
+
+/* 폰 세로 (390×844 기준): 경기장 맨 위 폭 가득(약 32%, 700px 화면 224px), 아래 선택지·패·묶음이 흐르고 [맡기기][확정]/[계속]은 화면 아래 고정. 독 없음 */
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) {
+  .mo-v3.mo-fold { height: auto; min-height: 100dvh; }
+  html:not(.is-pitch-portrait) .mo-v3 .mo-stage { position: relative; flex: none; height: clamp(190px, 32dvh, 270px); padding: 0; overflow: hidden; background: var(--pitch); }
+  html:not(.is-pitch-portrait) .mo-v3 .mo-stage .po-pitch { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 0; background: none; }
+  html:not(.is-pitch-portrait) .mo-v3 .po-pitch__canvas { flex: none; border-radius: 0; }
+  html:not(.is-pitch-portrait) .mo-v3 :is(.mo-dir, .mo-zoom) { display: inline-flex; }
+  .mo-v3 .mo-top { border-radius: 0; }
+  .mo-v3 .mo-panel { gap: 8px; padding: 12px 16px 0; }
+  .mo-v3 .mo-opts { gap: 8px; }
+  .mo-v3 .mo-hand { margin-top: 4px; }
+  .mo-v3 .mo-actions { margin: 4px -16px 0; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); box-shadow: none; }
+  .mo-v3 .mo-actions .po-btn, .mo-v3 .oc-actions .po-btn { height: 52px; }
+  .mo-v3.mo-outcome .oc-panel { min-height: calc(100dvh - clamp(190px, 32dvh, 270px) - 84px); }
+  .mo-v3 .oc-actions { position: sticky; bottom: 0; z-index: 2; margin: auto -16px 0; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface-0); }
+}
+@keyframes c69-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+.po-splash--compact.po-splash--bad { animation: c69-shake .4s ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) { .po-splash--compact.po-splash--bad { animation: none; } }
+
+/* 독 v3 (201) · B: 위 2px 라임 줄, 켜진 칸 위 꺾인 라임 막대 26×4, 빨간 배지. [다음] 키 = 꺾인 사각형 54px · 12px 솟음 · 글자 먼저 아이콘 뒤 */
+:where(html[data-skin="b"]) .dock-bar :is(.po-dock--v3, .dock-more) .po-dock__badge { background: var(--fail); color: #ffffff; box-shadow: 0 0 0 2px var(--dock-bg); }
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) {
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 { height: 72px; padding: 0 4px 6px; background: var(--dock-bg); border-top: 2px solid var(--brand); overflow: visible; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__item.is-on::before { content: ""; position: absolute; top: -2px; left: 50%; width: 26px; height: 4px; margin-left: -13px; background: var(--brand); transform: skewX(-20deg); }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__item.is-on .po-dock__label { font-weight: 800; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__badge { left: calc(50% + 4px); }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next { flex-direction: row; align-items: flex-start; justify-content: center; padding: 0 2px; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__goicon { flex-direction: row; align-items: center; justify-content: center; gap: 4px; width: 100%; max-width: none; height: 54px; margin-top: -12px; padding: 0 12px 0 14px; background: var(--brand); color: var(--on-brand); box-sizing: border-box; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__golabel { order: 1; font-family: var(--font-head); font-weight: 400; font-size: 18px; line-height: 22px; white-space: nowrap; text-overflow: clip; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__goicon .po-icon { order: 2; flex: none; width: 20px; height: 20px; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__badge { top: -14px; right: 8px; left: auto; }
+}
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__live { position: static; flex: none; order: 0; width: 8px; height: 8px; margin-right: 2px; border-radius: 50%; background: var(--fail); box-shadow: 0 0 0 2px var(--brand); }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next.is-running .po-dock__goicon { background: var(--surface-3); color: var(--brand-ink); box-shadow: inset 0 -4px 0 var(--brand); }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next:is(.is-running, .is-live) .po-dock__golabel { font-size: 16px; }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next.is-live .po-dock__goicon { background: var(--brand); color: var(--on-brand); }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next.is-locked .po-dock__goicon { background: var(--surface-2); color: var(--ink-faint); }
+.dock-bar .po-dock__next.is-locked { cursor: not-allowed; }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next.is-answer .po-dock__goicon { background: var(--warning); color: #121317; }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next.is-season .po-dock__golabel { font-size: 15px; }
+/* 더보기 한 줄 (201): 독 위 78px(아래 12px 은 솟은 키 자리), 칸 64px, 좌우로 끌기, 배경 안 막음 */
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) {
+  :where(html[data-skin="b"]) .dock-more { height: 78px; border-top: 1px solid var(--line-strong, var(--line)); background: var(--dock-bg); }
+  :where(html[data-skin="b"]) .dock-more__scroll { gap: 0; height: 100%; padding: 0 6px; box-sizing: border-box; scroll-snap-type: none; }
+  :where(html[data-skin="b"]) .dock-more__item { position: relative; flex: 0 0 64px; height: 100%; justify-content: flex-start; padding: 12px 0 0; border-radius: 0; }
+  :where(html[data-skin="b"]) .dock-more__item.is-on { background: none; }
+  :where(html[data-skin="b"]) .dock-more__item.is-on::before { content: ""; position: absolute; top: 0; left: 50%; width: 26px; height: 4px; margin-left: -13px; background: var(--brand); transform: skewX(-20deg); }
+}
+/* PC (1280 기준): 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] 176px | 훈련·일정 · 월드 · 재정 · 설정 · 저장 */
+@media (min-width: 1024px) {
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc { height: 64px; padding: 0 max(12px, calc(50% - 520px)); border-top: 2px solid var(--brand); }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc .po-dock__item.is-on::before { content: ""; position: absolute; top: -2px; left: 50%; width: 26px; height: 4px; margin-left: -13px; background: var(--brand); transform: skewX(-20deg); }
+  .dock-bar .po-dock--v3.po-dock--pc .po-dock__next { flex-direction: row; align-items: center; justify-content: center; padding: 0; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc .po-dock__next .po-dock__goicon { flex-direction: row; gap: 6px; width: 176px; max-width: none; height: 46px; margin-top: 0; padding: 0 14px 0 16px; box-sizing: border-box; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc .po-dock__next .po-dock__golabel { order: 1; font-family: var(--font-head); font-weight: 400; font-size: 19px; line-height: 22px; }
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v3.po-dock--pc .po-dock__next .po-dock__goicon .po-icon { order: 2; width: 22px; height: 22px; }
+  .dock-bar .po-dock--v3.po-dock--pc .po-dock__next .po-dock__goicon { max-width: 176px; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .dock-bar .po-dock--v3.po-dock--pc .po-dock__item { gap: 4px; }
+  .dock-bar .po-dock--v3.po-dock--pc .po-dock__label { font-size: 12px; }
+}
+
+/* 경기 중 다른 화면 띠 (165) · B: 그래파이트 + 빨간 점 + 아래 라임 줄, [경기로 돌아가기] 라임 꺾인 단추 (시안은 내 선수 표식에만) */
+:where(html[data-skin="b"]) .live-band { min-height: 52px; background: var(--surface-1); color: var(--ink); border-bottom: 2px solid var(--brand); }
+:where(html[data-skin="b"]) .live-band .grow small { color: var(--ink-muted); opacity: 1; }
+:where(html[data-skin="b"]) .live-back { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 12px 0 16px; border-radius: 0; background: var(--brand); color: var(--on-brand); font-weight: 800; line-height: 34px; clip-path: var(--skew-sm); }
+.live-back .po-icon { vertical-align: -2px; }
+/* 독 v3: 예전 B 층(C.55)의 [다음] 키 ::before 바탕(경기 중 시안 · 답하기 주황)을 끄고 위 상태별 면을 쓴다 (시안은 내 선수 표식에만) */
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__goicon::before { content: none; }
+:where(html[data-skin="b"]) .dock-bar .po-dock--v3 .po-dock__next .po-dock__goicon { background: var(--brand); color: var(--on-brand); isolation: auto; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+/* 결정 순간·결정 결과에는 독 없음 (189·190, 모든 폭 — 폰 세로·가로 폰은 C.63c·C.66 부터 숨김, PC 도 같이) */
+.app-moment > .dock-bar { display: none; }
+#app.has-nav.app-moment { padding-bottom: 0; }
