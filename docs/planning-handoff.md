@@ -366,3 +366,4 @@
 - (23:31 KST, 사용자) **"가로 고정" 오해** → pending 111. 최우선 fix **C.66b** `session_01PUo6WtyvgyPD5t9whJmLhX` 시작(세로 폰 복구·피치 가로 고정), C.68에 세로 폰 기준·main 병합 알림, UI_3에 디자이너 정정문 요청. 확인 send_later `trig_01W77oXP4yFEUuYrhef2b6vW`(00:43 KST). **이제 모바일 기본 = 세로 폰 + 가로 피치**(8.26 공통 지시의 "가로 전용"은 무효).
 - (23:35 KST) UI_3 디자이너 정정문 2 `docs/ui-requests/7-8-addendum-2.md`(claude/ui-3 8b7a6cb: 가로 전용 취소, 폰 세로 + 피치만 가로, 결정 순간 위 피치 30~40%). landscape-apply.md 무효 표기. C.66b에 비율 전달.
 - (23:52 KST) C.67 CI #195 성공(main 3f91111, 35분). 39단계 C.67 끝.
+- (00:04 KST) **C.66b 완료**(main 1d5da9e, 34분): 세로 폰 막기 제거, 피치 기본 가로(저장된 auto도 가로), 세로 폰 결정 순간 피치 358×232·빈칸 0·[확정] 762/844, 패 그림·[다음] 키 유지, 테스트 602. balance·engine 생략(로직 무수정). CI는 C.66b가 00:30쯤 확인.
