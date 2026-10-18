@@ -411,3 +411,5 @@
 - (04:03 KST) C.68b CI 확인: run 202(323b828)에 포함 성공, CI 시간 44분 → 21분(COACH_MEASURE=0 효과). **40단계 C.68b 끝.**
 - (04:10 KST) **C.71b 완료**(main 9cc9744, 13분, 테스트 640) → pending 118, ntfy, UI_3(작은 2), C.71b draft_, C.71a에 Switch 재사용 알림. 참고: Q가 만든 세션 lineage 깊이 7(한도 8).
 - (04:44 KST) **CI run 204 성공**(main 9cc9744 = C.70 + C.71b, 배포 완료). 41b C.70·41c C.71b 끝.
+- (04:45 KST) **C.71a 완료**(main c198d08, 49분, 테스트 645) → pending 118, ntfy, UI_3(작은 2), C.71a draft_, 확인 예약 trig_01LLAxiG8HzEubZhDnkQvEV6 삭제. **41c 끝.** 다음: U7-d C.72.
+- (04:46 KST) **41d U7-d C.72 시작** `session_01FDaFgjxyusRHCouwA6o471` "41d단계_U7-d 덱·이적·시즌 디자인 + 1부 후속 (C.72)", 브랜치 `claude/c72-u7d`, 태그 `stage:41d-C72`(178·179·180·181 + pending 116①②③⑤·117②③④⑤⑥ 코드 후속, 데이터 없으면 생략). 자동 확인 send_later 90분(06:16 KST). Q 5.2달러·25.5만. 다음: 42 5-8 챕터(22번).
