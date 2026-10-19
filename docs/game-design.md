@@ -5197,6 +5197,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-20 00:38 KST / 답변 시각 2026-10-20 00:55 KST / 걸린 시간 약 17분
 
+### C.74z 레포 정리 — 패치별 확인 캡처 폴더(`docs/design/c33~c71·u1-check` 46개)와 적용 끝난 `docs/ui-requests/5~9/` 캡처 삭제(git 기록에 남음). c72·c73·c74 캡처, 디자인 원본, `player-one-design-v2.zip`(폴더와 39개 파일이 달라 남김) 유지. `scripts/c44a-capture2.mjs` 는 출력 폴더를 만들게 고침.
+
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
 ### D.0 부록 C 피드백에 대한 결정 (1단계 코드 변경 요청)
