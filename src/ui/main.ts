@@ -4,7 +4,7 @@
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
-import { buyWeakFoot, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
+import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
 import { autoCustom } from '../custom';
@@ -61,7 +61,8 @@ import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
-import { alertCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
+import { alertCard, homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsSection, scheduleView } from './views/home';
+import { takeFreshRecords } from '../records';
 import { goalsSection, homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
 import { markAllRead, markRead, pendingItems, unreadCount } from '../inbox';
@@ -95,7 +96,7 @@ import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
-import { feedKind, presetEditVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
+import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -149,6 +150,8 @@ const ui = {
   renewYears: null as number | null,
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
   posSheet: null as string | null,
+  /** 부상 복귀 선택 시트 (C.74b) */
+  injSheet: false,
   /** 하루 훈련 고르기 시트 (C.41): 날짜 */
   trainSheet: null as string | null,
   /** 하루 훈련 시트에서 고른 줄 (확정 전, C.57) */
@@ -388,6 +391,15 @@ function showToast(t: ToastProps | string, ms = 1600): void {
   }, ms);
 }
 
+/** 기록 달성 토스트 (C.74b): 경기 뒤 깬 기록 (여럿이면 첫 기록 + 나머지 수) */
+function recordToast(g: GameState): void {
+  const f = takeFreshRecords(g);
+  if (!f.length) return;
+  const xp = f.reduce((t, r) => t + r.xp, 0);
+  const rep = f.reduce((t, r) => t + r.rep, 0);
+  showToast({ kind: 'badge', title: `기록 · ${f[0]!.title}${f.length > 1 ? ` 외 ${f.length - 1}개` : ''}`, body: `XP +${xp}${rep ? ` · 위상 +${rep}` : ''}` }, 2600);
+}
+
 /** 레전드 배지 알림 (D.4) */
 function badgeToast(g: GameState): void {
   const b = g.lastSeasonSummary?.badges ?? [];
@@ -427,7 +439,8 @@ function screenHtml(): string {
       const canPos = canChangePosition(g);
       const inSeason = g.phase === 'season';
       const pos = canPos ? positionChangeSection(g.player.position, Math.floor(proficiencyOf(g.player, g.player.position)), inSeason) : '';
-      const sheet = ui.posSheet && canPos ? positionSheet(positionOptionsVM(g), ui.posSheet, inSeason) : '';
+      const ivm = ui.injSheet ? injuryReturnVM(g) : null;
+      const sheet = (ui.posSheet && canPos ? positionSheet(positionOptionsVM(g), ui.posSheet, inSeason) : '') + (ivm ? injuryReturnSheet(ivm) : '');
       collectNotices(g);
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
@@ -444,7 +457,7 @@ function screenHtml(): string {
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
       // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (시즌 목표·주전 경쟁·라이벌) → 안내·포변
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread)) + guideResetLink() + sheet;
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread)) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -468,7 +481,7 @@ function screenHtml(): string {
       const youth = p.youth ? youthClubName(g, p.youth.club) : '';
       const body = bodySection(p, g.phase !== 'retired' && p.body.weakFoot < 5 && p.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), youth, myLookWithEdit(g),
         p.youth && g.league.teams.some((t) => t.id === p.youth!.club) ? p.youth.club : '');
-      return playerView(playerVM(g), { tab: ui.playerTab, body, market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
+      return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
     case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
@@ -847,6 +860,7 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   go('match');
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
+  else recordToast(g);
   if (report.levelsGained > 0) {
     // C.70 (디자인 162): 홈 배너 + 독 위 토스트(Toast levelup, [찍기])
     ui.lvUp = { level: g.player.level, plus: report.levelsGained * BALANCE.growth.pointsPerLevel };
@@ -1113,6 +1127,8 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
       const d0 = performance.now();
       const date = g.calendar.date;
       const injBefore = g.player.injury;
+      // 부상 복귀 선택 (C.74b): 자동 진행 중에는 추천안(완전 회복)
+      if (g.player.injury?.ret === 'ask') chooseInjuryReturn(g, 'full');
       const n = await runOthersToday(g);
       if (match) {
         const rm = roundMatch(g);
@@ -1149,7 +1165,8 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
     const goals = g.player.season.goals - before.goals;
     const assists = g.player.season.assists - before.assists;
     // 디자인 64: 끝 요약 토스트 "자동 진행 끝 · n경기" + 전적·내 골·도움·순위 + [자세히](순위표). 걸린 시간은 측정 기록(autoLog)에만
-    const body = `${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''}${spent ? ` · 포인트 ${spent}P 자동 배분` : ''} · 지금 ${myRow()}`;
+    const recs = takeFreshRecords(g);
+    const body = `${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''}${spent ? ` · 포인트 ${spent}P 자동 배분` : ''}${recs.length ? ` · 기록 ${recs.length}개 달성` : ''} · 지금 ${myRow()}`;
     autoLog.push({ played, rounds: g.league.round - startRound, ms: Math.round(performance.now() - t0), reason });
     if (g.phase !== 'season') {
       go('season');
@@ -1414,7 +1431,22 @@ app.addEventListener('click', (ev) => {
       ui.posSheet = v ?? null;
       render();
       return;
+    case 'inj-return-open':
+      ui.injSheet = true;
+      render();
+      return;
+    case 'inj-return': {
+      ui.injSheet = false;
+      if (g && chooseInjuryReturn(g, v === 'early' ? 'early' : 'full')) {
+        autosave();
+        showToast(v === 'early'
+          ? { kind: 'info', title: '조기 복귀', body: `오늘부터 뛸 수 있어요 · ${BALANCE.injuryReturn.reinjuryDays}일 동안 재부상 위험 ×${BALANCE.injuryReturn.reinjuryMul}` }
+          : { kind: 'info', title: '완전 회복', body: '끝까지 회복하고 돌아가요.' }, 2400);
+      } else render();
+      return;
+    }
     case 'sheet-close':
+      ui.injSheet = false;
       ui.posSheet = null;
       ui.trainSheet = null;
       ui.presetSheet = null;

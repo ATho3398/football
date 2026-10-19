@@ -1,4 +1,5 @@
 // 15단계 (부록 C.25): 위상 하락 규칙. 부진 연속 감점, 순위 감점, 31세부터 시즌 상한 축소, 세이브 변환 9 → 10
+import { initRecords } from '../src/records';
 import { ensureEvents } from '../src/events';
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
@@ -67,6 +68,8 @@ describe('부진 감점 (부록 C.25)', () => {
 
     // 기준을 아주 낮추면 다음 출전에서 연속이 끊긴다
     g.player.history.push(record(30, 0.4));
+    // 기록 추적 (C.74b): 넣은 지난 시즌 기록으로 넘은 통산 이정표는 보상 없이 달성으로 (위상 +1 이 섞이지 않게)
+    g.records = initRecords(g);
     for (let i = 0; i < 6 && g.player.slumpStreak > 0; i++) {
       const before = g.player.reputation;
       const r = playRound(g, { engine: 'quick' });
@@ -123,8 +126,8 @@ describe('세이브 변환 9 → 10 (부록 C.25)', () => {
     delete old.player.slumpStreak;
     delete old.player.season.slumpPenalty;
     const loaded = deserialize(JSON.stringify(old));
-    expect(SAVE_FORMAT_VERSION).toBe(41);
-    expect(loaded.saveFormat).toBe(41);
+    expect(SAVE_FORMAT_VERSION).toBe(42);
+    expect(loaded.saveFormat).toBe(42);
     expect(loaded.player.slumpStreak).toBe(0);
     expect(loaded.player.season.slumpPenalty).toBe(0);
   });

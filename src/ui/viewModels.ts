@@ -17,7 +17,7 @@ import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
 import {
-  activePreset, averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isRestLocked, presetWeekPlan, recommendPreset, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
+  activePreset, averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isRestLocked, isTravelDay, presetWeekPlan, recommendPreset, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
   slumpThreshold, trainingLine, type GameState, type SeasonSummary,
 } from '../game';
 import {
@@ -40,6 +40,7 @@ import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
 import { INJURY_NAMES_KO } from '../injury';
+import { shownTracks } from '../records';
 import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
 import { legendClub, legendPeak, legendRosterPlayer, selectableLegends } from '../legends';
 import { findRosterPlayer, naturalOvr } from '../roster';
@@ -183,7 +184,20 @@ export interface BannerVM { tone: 'injury' | 'warning' | 'info' | 'success'; tit
 
 function injuryBanner(g: GameState): BannerVM | null {
   const inj = g.player.injury;
-  if (!inj) return null;
+  if (!inj) {
+    // 조기 복귀 뒤 재부상 위험 창 (C.74b)
+    const r = g.player.reinjury;
+    const left = r && g.phase === 'season' ? daysBetween(g.calendar.date, r.until) : 0;
+    return r && left > 0 ? { tone: 'warning', title: `조기 복귀 · 재부상 위험 ${left}일 남음`, body: `부상 확률 ×${r.mul} (${dateLabel(r.until)}까지). 고강도 훈련은 피하는 게 좋아요.` } : null;
+  }
+  // 부상 복귀 선택 (C.74b): 회복 막바지
+  if (inj.ret === 'ask' && g.phase === 'season') {
+    return {
+      tone: 'injury', title: `복귀 시점을 골라요 · ${inj.daysLeft}일 남음`,
+      body: `조기 복귀하면 오늘부터 뛰지만 ${BALANCE.injuryReturn.reinjuryDays}일 동안 부상 확률 ×${BALANCE.injuryReturn.reinjuryMul}. 완전 회복은 복귀 예정 ${returnLabel(g)}.`,
+      action: '고르기', act: 'inj-return-open',
+    };
+  }
   return {
     tone: 'injury', title: `부상 (${INJURY_NAMES_KO[inj.grade]}) · ${inj.daysLeft}일 남음`,
     body: `복귀 예정 ${returnLabel(g)}. 부상 중에는 경기에 나가지 못하고 재활(XP 주 ${BALANCE.injury.rehabXp})만 해요. 휴식으로 바꾸면 XP 대신 회복이 하루 +${BALANCE.training.restHealBonus}일 빨라요.`,
@@ -546,6 +560,8 @@ export interface TrainingDayVM {
   locked: boolean;
   /** 경기 다음 날 휴식 고정 */
   fixed: boolean;
+  /** 원정 전날 이동일 (C.74b): 영상 분석·회복만 */
+  travel: boolean;
 }
 
 export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean; /** 생활 하루 행동 (C.63 b) */ life?: boolean }
@@ -553,7 +569,7 @@ export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: stri
 export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean; /** 코치 (C.68a) "코치 +20% · 드리블" */ coach?: string }
 
 export interface TrainingVM {
-  today: { date: string; iso: string; kind: DayPlan; name: string; desc: string; xp: number; fatigue: number; bundle: string | null; changed: boolean; locked: boolean; injured: boolean; fixed: boolean };
+  today: { date: string; iso: string; kind: DayPlan; name: string; desc: string; xp: number; fatigue: number; bundle: string | null; changed: boolean; locked: boolean; injured: boolean; fixed: boolean; /** 원정 전날 이동일 (C.74b) */ travel: boolean };
   week: TrainingDayVM[];
   weekXp: number;
   cap: number;
@@ -667,6 +683,7 @@ export function trainingVM(g: GameState): TrainingVM | null {
     week.push({
       date: d, wd: '일월화수목금토'[weekdayOf(d)]!, md: `${+d.slice(5, 7)}.${+d.slice(8, 10)}`, kind: kd, short: TRAINING_SHORT_KO[kd], today: k === 0,
       changed: !!t.overrides[d] && !isRestLocked(g, d), locked: kd === 'match' || kd === 'vacation' || isRestLocked(g, d), fixed: isRestLocked(g, d),
+      travel: isTravelDay(g, d),
     });
   }
   let vacation: TrainingVM['vacation'] = null;
@@ -683,7 +700,7 @@ export function trainingVM(g: GameState): TrainingVM | null {
     today: {
       date: dateLabel(today), iso: today, kind, name: TRAINING_NAMES_KO[kind], desc: kind === 'match' || kind === 'vacation' || kind === 'rehab' ? PLAN_DESC[kind] : TRAINING_DESC_KO[kind],
       xp: planXp(kind), fatigue: planFatigue(kind), bundle: kind === 'tech' ? BUNDLE_NAMES_KO[tb] : null, changed: !!t.overrides[today],
-      locked: kind === 'match' || kind === 'vacation' || isRestLocked(g, today), injured, fixed: isRestLocked(g, today),
+      locked: kind === 'match' || kind === 'vacation' || isRestLocked(g, today), injured, fixed: isRestLocked(g, today), travel: isTravelDay(g, today),
     },
     week, weekXp: Math.round(t.weekXp * 10) / 10, cap: T.weeklyXpCap, seasonXp: Math.round(t.season.xp),
     gauges: GROUP_NAMES.map((id) => ({
@@ -697,16 +714,18 @@ export function trainingVM(g: GameState): TrainingVM | null {
 }
 
 /** 하루 훈련 고르기 (바텀시트) */
-export function trainingOptionsVM(g: GameState, date: string): { date: string; injured: boolean; options: TrainingOptionVM[] } | null {
+export function trainingOptionsVM(g: GameState, date: string): { date: string; injured: boolean; travel: boolean; options: TrainingOptionVM[] } | null {
   const kind = dayPlan(g, date);
   if (kind === 'match' || kind === 'vacation' || isRestLocked(g, date)) return null;
   const injured = kind === 'rehab' || (kind === 'rest' && !!g.player.injury);
   const planned = plannedDefault(g, date);
   // 생활 하루 행동 (C.63 b, pending 47 4번): 훈련 칸에서 훈련 대신 고른다. 외국어 공부는 외국인 선수만
   const life = LIFE_KINDS.filter((k) => k !== 'language' || isForeign(g.player));
-  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : [...TRAINING_KINDS, ...life];
+  // 원정 전날 이동일 (C.74b): 영상 분석·회복만
+  const travel = !injured && isTravelDay(g, date);
+  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : travel ? [...BALANCE.travelDay.allowed] : [...TRAINING_KINDS, ...life];
   return {
-    date: dateLabel(date), injured,
+    date: dateLabel(date), injured, travel,
     options: kinds.map((k) => injured && k === 'recovery'
       ? { kind: k, name: '재활 (기본)', desc: PLAN_DESC.rehab, xp: planXp('rehab'), fatigue: planFatigue('rehab'), planned: true, selected: kind === 'rehab' }
       : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k, ...(isLifeKind(k) ? { life: true } : {}) }),
@@ -1792,4 +1811,23 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
       rounds: fa.rounds.map((r, s) => ({ stage: stageName(fa, s), date: dateLabel(fa.dates[s]!), ties: r.map((t) => tie(t, fa.dates[s]!)) })).reverse(),
     } : null,
   };
+}
+
+/** 부상 복귀 선택 시트 (C.74b, pending 77-5) */
+export interface InjuryReturnVM { daysLeft: number; grade: string; back: string; risk: number; riskDays: number }
+
+export function injuryReturnVM(g: GameState): InjuryReturnVM | null {
+  const inj = g.player.injury;
+  if (!inj || inj.ret !== 'ask' || g.phase !== 'season') return null;
+  return { daysLeft: inj.daysLeft, grade: INJURY_NAMES_KO[inj.grade], back: returnLabel(g), risk: BALANCE.injuryReturn.reinjuryMul, riskDays: BALANCE.injuryReturn.reinjuryDays };
+}
+
+/** 기록 추적 (C.74b, pending 77-10): 홈·선수 화면 1~3줄 */
+export interface RecordTrackVM { label: string; holder: string | null; left: string; value: string; ratio: number }
+
+export function recordRowsVM(g: GameState): RecordTrackVM[] {
+  return shownTracks(g).map((t) => ({
+    label: t.label, holder: t.holder ?? null, left: `${t.target - t.cur}${t.unit === '경기' ? '경기' : t.unit} 남음`,
+    value: `${t.cur}/${t.target}`, ratio: Math.max(0, Math.min(1, t.cur / Math.max(1, t.target))),
+  }));
 }
