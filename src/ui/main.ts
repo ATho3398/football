@@ -936,15 +936,70 @@ const pool = (): EnginePool => (enginePool ??= new EnginePool());
 const progressLog: { date: string; ms: number; matches: number; my: boolean }[] = [];
 (globalThis as unknown as { __progress: typeof progressLog }).__progress = progressLog;
 
+(globalThis as unknown as { __pool: () => unknown }).__pool = () => enginePool?.stats ?? null;
+
+/** 자동 진행 중 훈련일 자동 저장 간격 (C.75b) */
+const AUTO_SAVE_DAYS = 7;
+
+/** 미리 계산할 만큼 앞을 본다 (C.75b): 최대 이만큼 뒤 날짜까지, 워커마다 이만큼 경기가 쌓일 때까지(적어도 다른 경기가 있는 다음 날 하루치) */
+const AHEAD_DAYS = 7;
+const AHEAD_PER_WORKER = 3;
+
+/**
+ * 미리 계산 (C.75b, 결과 불변): 앞으로 며칠 다른 경기를 지금 상태의 입력으로 워커에 미리 맡긴다.
+ * 그날이 오면 실제 입력을 다시 만들고, 글자 하나까지 같을 때만 미리 계산한 결과를 쓴다(EnginePool.run) — 그 사이 로스터·레이팅이 바뀌었으면 버리고 새로 계산.
+ * 오늘 일이 끝나 노는 워커가 이어서 계산하므로, 하루 끝 저장·화면 갱신과 경기 수가 워커 수로 나눠떨어지지 않는 날의 빈 시간을 메운다
+ */
+function prefetchAhead(g: GameState): void {
+  if (g.options.quickOthers || !pool().parallel) return;
+  const want = pool().size * AHEAD_PER_WORKER;
+  let n = 0;
+  for (let d = 1; d <= AHEAD_DAYS && n < want; d++) {
+    for (const [r, i] of todaysOthers(g, addDays(g.calendar.date, d))) {
+      pool().prefetch({ kind: 'npc', input: otherJob(g, r, i).input });
+      n++;
+    }
+  }
+}
+
+/**
+ * 첫 워커 데우기 (C.75b): 게임을 연 뒤 유휴 시간에 워커 하나를 띄워 곧 칠 다른 경기를 미리 계산한다(첫 경기의 JIT 비용을 미리 냄).
+ * 다른 경기가 있는 첫날 경기를 모두 그 워커 하나에 맡긴다 (미리 계산만으로는 워커를 더 띄우지 않음 — 화면을 보는 동안 코어 하나만)
+ */
+function warmPool(): void {
+  const go = () => {
+    const g = ui.game;
+    if (!g || g.phase !== 'season' || g.options.quickOthers) return;
+    for (let d = 0; d <= AHEAD_DAYS; d++) {
+      const list = todaysOthers(g, addDays(g.calendar.date, d));
+      if (!list.length) continue;
+      const [first, ...rest] = list.map(([r, i]) => ({ kind: 'npc' as const, input: otherJob(g, r, i).input }));
+      pool().warm(first);
+      for (const j of rest) pool().prefetch(j);
+      return;
+    }
+    pool().warm();
+  };
+  const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric(go, { timeout: 2000 });
+  else setTimeout(go, 500);
+}
+
 /** 오늘 다른 경기를 계산한다: 전체 엔진은 Web Worker 풀에 나눠 병렬로, 빠른 진행은 바로 (같은 시드 같은 결과) */
-async function runOthersToday(g: GameState): Promise<number> {
+async function runOthersToday(g: GameState, ahead = false): Promise<number> {
   const jobs = todaysOthers(g).map(([r, i]) => otherJob(g, r, i));
-  if (!jobs.length) return 0;
+  if (!jobs.length) {
+    if (ahead) prefetchAhead(g);
+    return 0;
+  }
   if (g.options.quickOthers) {
     playOthers(g, 'quick');
     return jobs.length;
   }
-  const outs = await Promise.all(jobs.map((j) => pool().npc(j.input).catch(() => playNpcMatch(j.input))));
+  const runs = jobs.map((j) => pool().npc(j.input).catch(() => playNpcMatch(j.input)));
+  // 오늘 일을 다 맡긴 뒤 다음 날 것을 미리 (실제 작업이 먼저 돈다)
+  if (ahead) prefetchAhead(g);
+  const outs = await Promise.all(runs);
   jobs.forEach((j, k) => applyOther(g, j.r, j.i, outs[k]!));
   return jobs.length;
 }
@@ -985,7 +1040,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       await nextFrame();
       const d0 = performance.now();
       const date = g.calendar.date;
-      const n = await runOthersToday(g);
+      const n = await runOthersToday(g, true);
       lastTrain = trainingLine(endDay(g));
       progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n, my: false });
       days++;
@@ -993,6 +1048,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       if (mode === 'one' || ui.stopReq) break;
     }
   } finally {
+    enginePool?.cancelPrefetch();
     ui.busy = false;
     const stopped = ui.stopReq;
     ui.stopReq = false;
@@ -1102,6 +1158,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
   let newEvent: string | null = null;
   let played = 0;
   let reason: 'done' | 'until' | 'stop' | 'market' | 'season' | 'event' | 'injury' = 'done';
+  let unsaved = 0;
   const myRow = () => {
     const pos = g.league.table.findIndex((r) => r.teamId === g.player.teamId) + 1;
     return pos > 0 ? `${pos}위` : '-';
@@ -1133,7 +1190,9 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
       const injBefore = g.player.injury;
       // 부상 복귀 선택 (C.74b): 자동 진행 중에는 추천안(완전 회복)
       if (g.player.injury?.ret === 'ask') chooseInjuryReturn(g, 'full');
-      const n = await runOthersToday(g);
+      // 내 경기도 다른 경기와 같이 미리 (C.75b): 다른 경기 결과를 기록한 뒤 다시 만든 입력이 같을 때만 그 결과를 쓴다
+      if (match) pool().prefetch({ kind: 'my', input: roundMatch(g).input });
+      const n = await runOthersToday(g, true);
       if (match) {
         const rm = roundMatch(g);
         const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
@@ -1151,7 +1210,12 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
         spent += p0 - g.player.unspentPoints;
       }
       progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
-      autosave();
+      // 자동 저장 (C.75b): 자동 진행 중에는 내 경기 날과 AUTO_SAVE_DAYS 일마다만 (저장은 메인 스레드에서 상태 전체를 묶어 워커와 코어를 나눠 쓴다).
+      // 멈추거나 끝나면 아래 finally 에서 한 번 더 저장한다
+      if (match || ++unsaved >= AUTO_SAVE_DAYS) {
+        unsaved = 0;
+        autosave();
+      }
       if (ui.stopReq) { reason = 'stop'; break; }
       if (g.phase !== 'season') continue;
       if (prefs.injury && !injBefore && g.player.injury) { reason = 'injury'; break; }
@@ -1159,6 +1223,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
       if (ne) { newEvent = ne.title; reason = 'event'; break; }
     }
   } finally {
+    enginePool?.cancelPrefetch();
     ui.busy = false;
     ui.stopReq = false;
     closeAutoLayer(layer);
@@ -1493,6 +1558,7 @@ app.addEventListener('click', (ev) => {
           return;
         }
         ui.game = null;
+        enginePool?.clearPrefetch();
         ui.replay = null;
         ui.rewatch = false;
         ui.recent = [];
@@ -2015,6 +2081,7 @@ app.addEventListener('click', (ev) => {
       if (f.mode === 'prospect') f.mode = 'custom';
       autosave();
       go('home');
+      warmPool();
       showToast({ kind: 'info', title: `${ui.game.player.name} · ${teamById(ui.game.league, ui.game.player.teamId).nameKo}`, body: bonus ? `커리어를 시작했어요. 명예의 전당 보너스: ${RARITY_KO[bonus.rarity] ?? bonus.rarity} 카드 선택권 1장(덱).` : '커리어를 시작했어요.' });
       return;
     }
@@ -3006,6 +3073,7 @@ async function loadSlot(slot: SaveSlot): Promise<void> {
     loadLog.push(Math.round(performance.now() - t0));
     if (slot !== 'auto') void autosave();
     go(loaded.phase === 'retired' ? 'retired' : 'home');
+    warmPool();
   } catch (e) {
     showToast((e as Error).message);
   }
@@ -3030,6 +3098,7 @@ app.addEventListener('change', (ev) => {
       syncReplayIndex();
       await autosave();
       go(st.phase === 'retired' ? 'retired' : 'home');
+      warmPool();
       showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.${cards ? ` 카드 이미지 ${cards}장.` : ''}` }, 2600);
     } catch (e) {
       showToast((e as Error).message || '가져오지 못했어요');

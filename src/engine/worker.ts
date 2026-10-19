@@ -7,7 +7,10 @@ const ctx = globalThis as unknown as { onmessage: ((e: MessageEvent) => void) | 
 ctx.onmessage = (e: MessageEvent<{ id: number; job: EngineJob }>) => {
   const { id, job } = e.data;
   try {
-    ctx.postMessage({ id, out: runJob(job) });
+    const t0 = performance.now();
+    const out = runJob(job);
+    // ms: 계산 시간 (풀 측정용, C.75b)
+    ctx.postMessage({ id, out, ms: performance.now() - t0 });
   } catch (err) {
     ctx.postMessage({ id, error: err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err) });
   }

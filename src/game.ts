@@ -727,14 +727,14 @@ export function isMatchDay(state: GameState): boolean {
   return myMatchDate(state) === state.calendar.date;
 }
 
-/** 오늘 열리는, 아직 결과가 없는 다른 팀 경기 [라운드, 경기 순번] */
-export function todaysOthers(state: GameState): [number, number][] {
+/** 오늘(date 를 주면 그날) 열리는, 아직 결과가 없는 다른 팀 경기 [라운드, 경기 순번] */
+export function todaysOthers(state: GameState, date: IsoDate = state.calendar.date): [number, number][] {
   if (state.phase !== 'season') return [];
   const cal = calendarOf(state);
   const me = state.player.teamId;
   const out: [number, number][] = [];
   state.league.schedule.forEach((round, r) => round.forEach((f, i) => {
-    if (cal.fixtureDates[r]![i] === state.calendar.date && f.homeGoals === undefined && f.home !== me && f.away !== me) out.push([r, i]);
+    if (cal.fixtureDates[r]![i] === date && f.homeGoals === undefined && f.home !== me && f.away !== me) out.push([r, i]);
   }));
   return out;
 }
