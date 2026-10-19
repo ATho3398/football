@@ -33,7 +33,7 @@ describe('도르트문트 레전드 (C.75x)', () => {
       expect(!!l.lateRetired).toBe(l.retired > LEGEND_RETIRED_BY);
     }
     // 2020 예외는 도르트문트 명단에만
-    expect(LEGENDS.filter((l) => l.retired > LEGEND_RETIRED_BY).every((l) => l.group === 'bvb' && l.lateRetired)).toBe(true);
+    expect(LEGENDS.filter((l) => l.retired > LEGEND_RETIRED_BY).every((l) => (l.group === 'bvb' || l.group === 'ext') && l.lateRetired)).toBe(true); // C.75w 추가 명단도 예외
     expect(BVB_LEGENDS.filter((l) => l.lateRetired).map((l) => l.id).sort()).toEqual(
       ['lg-barrios', 'lg-hummels', 'lg-kuba', 'lg-piszczek', 'lg-sahin', 'lg-santana', 'lg-sbender', 'lg-schmelzer', 'lg-subotic'],
     );
@@ -102,7 +102,7 @@ describe('새 게임·플레이·세이브 (C.75x·C.75y)', () => {
     expect(off.legendPack).toBeUndefined();
     expect(off.futureStars).toBeUndefined();
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-ng', difficulty: 'normal', legends: true, futureStars: true });
-    expect(g.legendPack).toBe(2);
+    expect(g.legendPack).toBe(LEGEND_PACK); // C.75w: 3판
     expect(g.futureStars).toBe(true);
     expect(g.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(ids(g.rosters).has('lg-hummels')).toBe(true);
@@ -137,6 +137,7 @@ describe('새 게임·플레이·세이브 (C.75x·C.75y)', () => {
     expect(ids(back.rosters).has('lg-zidane')).toBe(true);
     const raw44 = JSON.parse(serialize(g));
     raw44.saveFormat = 44;
+    raw44.legendPack = 2; // C.75x 세이브는 2판
     const b44 = deserialize(JSON.stringify(raw44));
     expect(b44.legendPack).toBe(2);
     expect(b44.futureStars).toBeUndefined();

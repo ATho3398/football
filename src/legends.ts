@@ -4,7 +4,8 @@
 // 모두 시드(`legend:<시드>:<id>`)로 따로 뽑아 기존 시드 흐름과 무관하다: 끄면 세계가 그대로다
 
 import { FUTURE_STARS, LEGENDS, type FutureEntry, type LeagueId, type LegendData } from '../data/players/legends';
-import { OUTSIDE_BY_ID } from '../data/outsideClubs';
+import { OUTSIDE_BY_ID, OUTSIDE_CLUBS } from '../data/outsideClubs';
+import { initialTeams } from './league';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes, type GkAttributes, type GkType } from './attributes';
 import { rollAppearance } from './appearance';
@@ -18,11 +19,15 @@ import type { Position } from './types';
 
 export { FUTURE_STARS, LEGENDS, type FutureEntry, type LegendData };
 
-/** 레전드 팩 판 (C.75x): 1 = C.47 117명 (옛 세이브), 2 = + 도르트문트 레전드 (새 게임). 미래 스타는 따로 "미래 스타 팩" (C.75y) */
-export const LEGEND_PACK = 2;
+/**
+ * 레전드 팩 판 (C.75x): 1 = C.47 117명 (옛 세이브), 2 = + 도르트문트 레전드 (C.75x·C.75y 세이브), 3 = + 추가 53명 (C.75w, 새 게임).
+ * 미래 스타는 따로 "미래 스타 팩" (C.75y). 옛 판 세이브는 그 판 그대로 다시 만든다
+ */
+export const LEGEND_PACK = 3;
 
-/** 그 판에서 처음부터 들어오는 레전드 */
-export const packLegends = (pack: number = LEGEND_PACK): readonly LegendData[] => (pack >= 2 ? LEGENDS : LEGENDS.filter((l) => !l.group));
+/** 그 판에서 들어오는 레전드 (3판은 일부가 리그 밖에서 기다렸다 이적으로 들어온다: legendPlacement) */
+export const packLegends = (pack: number = LEGEND_PACK): readonly LegendData[] =>
+  pack >= 3 ? LEGENDS : pack >= 2 ? LEGENDS.filter((l) => l.group !== 'ext') : LEGENDS.filter((l) => !l.group);
 
 /** 게임에 구현된 리그 (C.75y): 미래 스타는 이 리그들의 첫 시즌에 등장. 타리그 패치가 리그를 켜면 여기에 더한다 */
 export const IMPLEMENTED_LEAGUES: readonly LeagueId[] = ['pl'];
@@ -32,7 +37,7 @@ export const IMPLEMENTED_LEAGUES: readonly LeagueId[] = ['pl'];
  * 지금 실제 선수 34명 중 해당자는 없다 (타리그 단계에 선수 풀이 늘면 이름으로 걸러진다)
  */
 export function packRealExcludes(pack: number, future = false): ReadonlySet<string> {
-  const pool = [...(pack >= 2 ? LEGENDS : []), ...(future ? FUTURE_STARS : [])];
+  const pool = [...(pack >= 2 ? packLegends(pack) : []), ...(future ? FUTURE_STARS : [])];
   if (!pool.length) return new Set();
   const names = new Set(pool.map((l) => normName(l.name)));
   return new Set(A_GRADE_PLAYERS.filter((p) => names.has(normName(p.name))).map((p) => p.id));
@@ -147,10 +152,10 @@ export function legendStartAttributes(l: LegendData, age: number, worldSeed: str
   return { attributes: attrs, ovr: positionOvr(attrs, pos) };
 }
 
-/** 로스터 선수 하나 (가상 선수 성장 곡선을 그대로 쓴다: 전성기 OVR = 데이터, 전성기 나이 29·GK 30) */
-export function legendRosterPlayer(l: LegendData, worldSeed: string, season: number): RosterPlayer {
+/** 로스터 선수 하나 (가상 선수 성장 곡선을 그대로 쓴다: 전성기 OVR = 데이터, 전성기 나이 29·GK 30). older = 리그 밖에서 보낸 시즌 수 (C.75w 이적 유입) */
+export function legendRosterPlayer(l: LegendData, worldSeed: string, season: number, older = 0): RosterPlayer {
   const L = BALANCE.legends;
-  const age = legendAge(l, worldSeed);
+  const age = legendAge(l, worldSeed) + older;
   const start = legendStartAttributes(l, age, worldSeed);
   const rng = rngOf(worldSeed, 'contract', l.id);
   return {
@@ -184,10 +189,86 @@ const spawnOf = (l: LegendData, worldSeed: string, season: number, teams: readon
   return { legend: l, teamId, player: { ...legendRosterPlayer(l, worldSeed, season), youth: teamId } };
 };
 
-/** 레전드 팩 시작 명단 (except = 내 선수로 고른 레전드) */
+/** 레전드 팩 시작 명단 (except = 내 선수로 고른 레전드). 3판(C.75w)은 팀당 상한 안의 선수만 (넘친 선수는 리그 밖 대기) */
 export function legendSpawns(worldSeed: string, season: number, teams: readonly { id: string; rating: number }[], except?: string, pack: number = LEGEND_PACK): LegendSpawn[] {
+  if (pack >= 3) return legendPlacement(worldSeed, teams, except).spawns.map((x) => ({ ...x, player: { ...legendRosterPlayer(x.legend, worldSeed, season), youth: x.teamId } }));
   return packLegends(pack).filter((l) => l.id !== except).map((l) => spawnOf(l, worldSeed, season, teams));
 }
+
+// ── 3판 배치 (C.75w): 레전드가 191명이라 한 팀에 몰리지 않게 팀당 상한(BALANCE.legends.maxPerTeam)을 둔다.
+// 소속 후보 = 유스 PL 팀 → 기존 규칙(legendClub)이 고른 팀 → 수준이 가까운 near 팀 중 레전드가 적은 팀. 모두 차면 리그 밖 구단에서 시작해
+// 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 (리그 추가 뒤에는 그 리그로) ──
+
+/** 리그 밖에서 기다리는 레전드: 시작 구단(리그 밖 id)과 들어오는 시즌 */
+export interface LegendAbroad { legend: LegendData; club: string; season: number }
+
+export interface LegendPlacement { spawns: { legend: LegendData; teamId: string }[]; abroad: LegendAbroad[] }
+
+const PLACE_CACHE = new Map<string, LegendPlacement>();
+
+/** 리그 밖 시작 구단: 유스 구단이 리그 밖 표에 있으면 그 구단, 아니면 수준이 가장 가까운 리그 밖 구단 */
+function abroadClub(l: LegendData): string {
+  if (OUTSIDE_BY_ID[l.youth]) return l.youth;
+  return [...OUTSIDE_CLUBS].sort((a, b) => Math.abs(a.rating - l.lv) - Math.abs(b.rating - l.lv) || a.id.localeCompare(b.id))[0]!.id;
+}
+
+/** 수준(lv)이 가까운 팀 순 */
+const nearTeams = (lv: number, teams: readonly { id: string; rating: number }[]) =>
+  [...teams].sort((a, b) => Math.abs(a.rating - lv) - Math.abs(b.rating - lv) || a.id.localeCompare(b.id));
+
+const levelOf = (l: LegendData): number => OUTSIDE_BY_ID[l.youth]?.rating ?? l.lv;
+
+/** 3판 시작 배치 (시드로 정해진다). 순서 = 전성기 높은 순 (같으면 id) */
+export function legendPlacement(worldSeed: string, teams: readonly { id: string; rating: number }[], except?: string): LegendPlacement {
+  const key = `${worldSeed}|${except ?? ''}|${teams.map((t) => `${t.id}:${t.rating}`).join(',')}`;
+  const hit = PLACE_CACHE.get(key);
+  if (hit) return hit;
+  const L = BALANCE.legends;
+  const count: Record<string, number> = Object.fromEntries(teams.map((t) => [t.id, 0]));
+  const spawns: LegendPlacement['spawns'] = [];
+  const over: LegendData[] = [];
+  const order = packLegends(3).filter((l) => l.id !== except).sort((a, b) => legendPeak(b).ovr - legendPeak(a).ovr || a.id.localeCompare(b.id));
+  for (const l of order) {
+    const room = (id: string) => (count[id] ?? Infinity) < L.maxPerTeam;
+    const first = legendClub(l, worldSeed, teams);
+    const near = nearTeams(levelOf(l), teams).slice(0, L.near).filter((t) => room(t.id)).sort((a, b) => count[a.id]! - count[b.id]!)[0]?.id;
+    const teamId = room(first) ? first : near;
+    if (!teamId) { over.push(l); continue; }
+    count[teamId]!++;
+    spawns.push({ legend: l, teamId });
+  }
+  const start = BALANCE.newGame.startYear;
+  const abroad = over.map((l, i) => ({ legend: l, club: abroadClub(l), season: start + 1 + Math.floor(i / L.arrivalsPerSeason) }));
+  const out = { spawns, abroad };
+  PLACE_CACHE.set(key, out);
+  return out;
+}
+
+/**
+ * 이 시즌에 리그 밖에서 이적으로 들어오는 레전드 (3판). rosters = 지금 로스터 (레전드가 적은 팀으로): 수준이 가까운 near 팀 중
+ * 상한 아래인 팀 → 없으면 리그 전체에서 상한 아래 · 가까운 팀 → 없으면 레전드가 가장 적은 팀
+ */
+export function legendArrivals(
+  worldSeed: string, season: number, teams: readonly { id: string; rating: number }[], rosters: Readonly<Record<string, { players: readonly { legend?: boolean }[] }>>, except?: string,
+): LegendSpawn[] {
+  const L = BALANCE.legends;
+  const start = BALANCE.newGame.startYear;
+  const list = legendPlacement(worldSeed, teams.map((t) => ({ id: t.id, rating: t.rating })), except).abroad.filter((a) => a.season === season);
+  const count: Record<string, number> = Object.fromEntries(teams.map((t) => [t.id, rosters[t.id]?.players.filter((p) => p.legend).length ?? 0]));
+  return list.map((a) => {
+    const all = nearTeams(levelOf(a.legend), teams);
+    const open = (xs: typeof all) => xs.filter((t) => count[t.id]! < L.maxPerTeam);
+    const teamId = (open(all.slice(0, L.near))[0] ?? open(all)[0] ?? [...all].sort((x, y) => count[x.id]! - count[y.id]!)[0]!).id;
+    count[teamId]!++;
+    // 리그 밖에서 보낸 시즌만큼 나이가 들고 그 나이의 능력치로 들어온다. 유스 = 리그 밖 구단 (자국 육성 아님)
+    const player = { ...legendRosterPlayer(a.legend, worldSeed, season, season - start), youth: a.club };
+    return { legend: a.legend, teamId, player };
+  });
+}
+
+/** 아직 리그 밖에서 기다리는 레전드 (월드 화면): 들어오는 시즌이 season 보다 뒤 */
+export const abroadLegends = (worldSeed: string, season: number, except?: string): LegendAbroad[] =>
+  legendPlacement(worldSeed, initialTeams().map((t) => ({ id: t.id, rating: t.baseRating })), except).abroad.filter((a) => a.season > season);
 
 /** 이 시즌(season)에 구현 리그에 처음 들어오는 미래 스타 (C.75y). 게임 시작 시즌이면 그 전에 이미 뛰던 선수까지 */
 export function futureSpawns(worldSeed: string, season: number, teams: readonly { id: string; rating: number }[]): LegendSpawn[] {
