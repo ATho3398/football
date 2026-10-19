@@ -4,6 +4,7 @@
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
+import { topChemMates, type ChemMateVM } from '../rapport';
 import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, weekFreeDays } from '../game';
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
@@ -744,6 +745,8 @@ export function campLabel(g: GameState): string {
 export interface AttrRowVM { label: string; value: number; key: boolean }
 
 export interface PlayerVM {
+  /** 호흡 좋은 동료 상위 3 (C.74c) */
+  chem: ChemMateVM[];
   /** 지금 챕터 이름 (22.1, C.73a) */
   chapter: string;
   /** 소속 팀 상세 링크 (C.53) */
@@ -863,6 +866,7 @@ export function playerVM(g: GameState): PlayerVM {
       return { pos, ovr: proficientOvr(p, pos), main: pos === p.position, prof, penalty: Math.round(positionPenalty(p, pos) * 10) / 10 };
     }),
     badges: badgesVM(g),
+    chem: topChemMates(g),
     // 발롱도르·챔스·월드컵은 5단계 대회 기능이라 아직 얻을 수 없다 (위상 조건만 열림)
     legendary: legendaryConditions(p.reputation, p.honors).map((c, i) => ({ ...c, locked: i > 0 })),
     isLegendary: tier === 'legendary',

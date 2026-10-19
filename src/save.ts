@@ -327,6 +327,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 41 → 42 (C.74b): 기록 추적(records) — 이미 넘은 통산 이정표는 보상 없이 달성으로. 부상 복귀 선택(injury.ret)·재부상 창(player.reinjury)은 없으면 보통
   41: (s) => { s.records ??= initRecords(s); },
+  // 42 → 43 (C.74c): 동료 호흡(chem). 옛 세이브는 없음 → 다음 내 경기부터 0에서 쌓인다
+  42: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

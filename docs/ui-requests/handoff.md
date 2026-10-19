@@ -3,7 +3,7 @@
 - **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: R** `session_015zZ2foCVBuTGmZ3S6w8LR3` (브랜치 `claude/planning-r`, 2026-10-19 10:47 KST Q → R 교체, 사용자가 앱에서 직접 연 세션). 알림·보고는 R로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 Q `session_01B71wzpzNzdTg4hm7DbNX9H`(`claude/planning-q`).
+- **지금 마스터: S** `session_01Pi4aAWoFd5yBP3mZfCURwD` (브랜치 `claude/planning-s`, docs 병합은 git merge로만, 2026-10-20 01:21 KST R → S 교체, R이 연 세션 — `get_session` parent 확인). 알림·보고는 S로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 R `session_015zZ2foCVBuTGmZ3S6w8LR3`(`claude/planning-r`), Q `session_01B71wzpzNzdTg4hm7DbNX9H`.
   - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
@@ -11,7 +11,7 @@
 - 5차: 디자인 도착(player-one-design 123장, 컴포넌트 45종) → `5-apply.md` → M이 U5-a~g 패치로 적용. **5차 끝.**
 - 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 N에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
 - 푸시: UI_3는 **`claude/ui-3`에만**(main 금지).
-- 현재 차례: **10 → 보고함(2026-10-19 08:52 KST, `docs/ui-requests/10.md`, 7~10차 통합 프롬프트 `7-10/통합_프롬프트.txt`, 캡처 `10/phone`(25)·`10/pc`(23) + 7·8·9·feedback, 기준 main bfd7936 C.73c) → 디자인 기다림(186~188·191~200·202~223·139장 B화). 다음 보고는 11차(그때도 안 온 번호 모두 합침)**
+- 현재 차례: **11 → 보고함(2026-10-20 00:58 KST, `docs/ui-requests/11.md`, 7~11차 통합 프롬프트 `7-11/통합_프롬프트.txt`, 캡처 `11/phone`(26)·`11/pc`(9) + 7·8·9·10·feedback, 기준 main becbbc6 C.74d) → 디자인 기다림(186~188·191~200·202~221·223~230·139장 B화). 다음 보고는 12차(그때도 안 온 번호 모두 합침)**
 - **통합 1부 디자인 도착**(2026-10-19 03:00 KST): 160~163·165~185·189·190·201 + B 첫 판 20장 → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-9-part1-apply.md` → 마스터 P → U7-a C.69(41a단계, `session_012TdmbSD5xD2er3Gn2TtgS7`) 시작, U7-b~d 차례로. **남은 요청**(다음 통합본에 이어서): 2부 191~200·202~217, 3부 나머지 139장 + 라이트 186~188 + 143 [가운데로]. 164 = 201로 대체.
 - **카드 그림**: 61장 도착(2026-10-19 03:12) → `docs/design/incoming/card-art/set61/` + `card-art.json` → 적용 명세 `card-art-set61-apply.md` → 마스터 Q → **C.68c 적용 완료(main 7e9ab3d, 캡처 `docs/design/c68c-check/` 확인: 정식·덱 mini·패 hand·flip·4:3 정상)**. 그림 없는 카드 15장 남음(프롬프트 `card-art-remaining-prompt.txt`).
 - 9차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **2개** (+ 작은 변형 12) (큰 것이 있는 단계: 1 — C.68b)
@@ -40,6 +40,7 @@
 
 | 9 | 2026-10-19 02:00 | `docs/ui-requests/9.md` | `docs/ui-requests/9/phone/`(61), `9/pc/`(38) | main 39d4a86, C.68a | 보고함(큰 3 + 작은 17 + 요청 거리 2, 204~217) → 디자인 기다림 |
 | 10 | 2026-10-19 08:52 | `docs/ui-requests/10.md` + `7-10/통합_프롬프트.txt` | `10/phone/`(25), `10/pc/`(23) + 7·8·9·feedback | main bfd7936, C.73c | 보고함(7~10 통합, 새 218~223: 큰 4 + 작은 변형 모음) → 디자인 기다림 |
+| 11 | 2026-10-20 00:58 | `docs/ui-requests/11.md` + `7-11/통합_프롬프트.txt` | `11/phone/`(26), `11/pc/`(9) + 7·8·9·10·feedback | main becbbc6, C.74d | 보고함(7~11 통합, 새 224~230: 큰 6 + 작은 변형 모음, 222→229 흡수) → 디자인 기다림 |
 
 | B 테마 | 2026-10-18 04:35 | `docs/ui-requests/B-apply.md` | `docs/design/player-one-design-b/screens/png/`(20) | main 38c9833, C.53 | 핵심 20장 받음 → 적용 명세 → 마스터 N. **나머지 139장 대기** |
 
@@ -126,7 +127,15 @@
 | C.73d (사용자 요청 fix 초기화면 가기, main ff369fd, 2026-10-19 10:07 KST 통보) | 작은 3: 홈 머리말 왼쪽 위 &lt; / "초기화면으로 갈까요?" 확인 시트 / 설정 저장·안내 섹션 "초기화면" 줄. 캡처 `docs/design/c73d-check/`. 곧 마스터 R로 바뀜(R이 ID 알림) | 0 (+작은 3) |
 | C.74a (43a 날씨·심판, main 6da761f, 2026-10-19 21:21 KST 통보, 마스터 R) | 작은 4: 홈 다음 경기 카드 예보·심판 줄 / 결과 점수 아래 날씨·심판 줄 / 경기 캔버스 날씨 효과(비·눈·바람 입자·젖은 잔디) / 날씨·호루라기 아이콘 7개. 캡처 `docs/design/c74a-check/`(main) | 0 (+작은 4) |
 | C.74b (43b 이동일·부상 복귀·기록 추적, main e72afc2, 2026-10-19 23:33 KST 통보) | **큰 2: ① 기록 도전 패널(홈·선수 기록 탭) ② 부상 복귀 선택 시트**. 작은 4: 주간 칸 이동일 표시·안내 / 이동일 훈련 시트 / 부상 복귀·재부상 위험 배너 / 기록 달성 토스트. 캡처 `docs/design/c74b-check/`(main) | 2 (+작은 4) |
-| **10차 뒤 누계** | | **큰 것 5 (+작은 14), 큰 것 있는 단계 2** |
+| C.74d (사용자 요청 fix 새 게임 랜덤·커스텀 통합, main becbbc6, 2026-10-20 00:58 KST 통보) | **큰 1: 커스텀 [전체 랜덤] 줄 패널**. 작은 3: 결과 3버튼 묶음 / [이 단계 랜덤] 고스트 버튼 / [포인트에 맞추기] 보조 버튼. 시작 방식 탭 랜덤 없어짐 → 10차 222는 229로 흡수. 캡처 `docs/design/c74d-check/` | 1 (+작은 3) |
+| **10차 뒤 누계** | | **큰 것 6 (+작은 17), 큰 것 있는 단계 3 → 11차 보고(통합)** |
+
+## 쌓기 기록 (11차 보고 뒤)
+
+| 단계(부록 C) | 디자인 없는 새 화면·패널 | 개수 |
+|---|---|---|
+| C.74c (43c 케미·상대 분석·패스 받는 빈도, main 4ec1da9, 2026-10-20 01:19 KST 통보) | **큰 2: ① 경기 준비 "상대 분석" 칸 ② 선수 기록 탭 "호흡 좋은 동료"**. 작은 1: 결정 순간 "약점 공략" 칩. 캡처 `docs/design/c74c-check/` | 2 (+작은 1) |
+| **11차 뒤 누계** | | **큰 것 2 (+작은 1), 큰 것 있는 단계 1** |
 
 - 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
 - U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".

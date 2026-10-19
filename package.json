@@ -24,6 +24,7 @@
     "balance:custom": "vite-node scripts/balance-custom.ts --",
     "balance:goals": "vite-node scripts/balance-goals.ts --",
     "balance:weather": "vite-node scripts/balance-weather.ts --",
+    "balance:chemistry": "vite-node scripts/balance-chemistry.ts --",
     "facepack": "vite-node scripts/facepack/fetch.ts --"
   },
   "devDependencies": {

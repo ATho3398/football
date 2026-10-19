@@ -21,6 +21,7 @@ import { candidates, choose, shotModel, type ActionType, type Candidate } from '
 import { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
 import { ratingDelta, ratingParts } from './rating';
 import { offsideRisk } from './referee';
+import { chemMul, isExploit } from './rapport';
 import type { Agent, SimState } from './state';
 
 const M = ENGINE.moments;
@@ -62,6 +63,8 @@ export interface MomentOption {
   to: { x: number; y: number };
   /** 받는 선수 / 상대 id (표시용) */
   target?: string;
+  /** 상대 분석 리포트의 약점을 노리는 선택지 (C.74c, 표시용 "약점 공략") */
+  exploit?: boolean;
   /** 내부: 후보 인덱스 / 1대1 행동 번호 */
   ref: number;
 }
@@ -355,6 +358,13 @@ function optionOf(s: SimState, a: Agent, c: Candidate, kind: OptionKind, ref: nu
     to: { x: c.x, y: c.y }, ref, value: Math.round(c.value * 1000) / 1000,
     ...(c.receiver >= 0 ? { target: s.agents[c.receiver]!.id } : c.opponent !== undefined ? { target: s.agents[c.opponent]!.id } : {}),
   };
+  // 상대 분석·동료 호흡 (C.74c): 실행 배율을 표시 확률에도 (리포트 약점이면 "약점 공략" 표시)
+  if (s.rapport) {
+    const ex = isExploit(s, a, c.type);
+    const k = (ex ? s.rapport.scout!.mul : 1) * (c.type === 'pass' || c.type === 'through' ? chemMul(s, a, s.agents[c.receiver]) : 1);
+    if (ex) opt.exploit = true;
+    if (k !== 1 && opt.p !== null) opt.p = round2(Math.min(0.99, opt.p * k));
+  }
   if ((c.type === 'through' || c.type === 'pass') && c.receiver >= 0 && (c.x - a.x) * dir > 3) {
     const r = offsideRisk(s, a, s.agents[c.receiver]!);
     opt.offside = r < 0.15 ? 'low' : r < 0.5 ? 'mid' : 'high';

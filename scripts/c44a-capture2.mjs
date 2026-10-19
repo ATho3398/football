@@ -1,8 +1,10 @@
 // C.44a 추가 캡처: 직접 모드 결정 순간(화살표)·결과 재생, 경기 결과 평균 위치 지도 (폰 세로)
 import { createRequire } from 'node:module';
+import { mkdirSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.argv[2] ?? 'playwright');
 const OUT = new URL('../docs/design/c44a-check/', import.meta.url).pathname;
+mkdirSync(OUT, { recursive: true });
 const W = Number(process.env.W ?? 390), H = Number(process.env.H ?? 844), P = process.env.PREFIX ?? 'phone_';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await (await browser.newContext({ viewport: { width: W, height: H }, colorScheme: 'dark', deviceScaleFactor: 2 })).newPage();
