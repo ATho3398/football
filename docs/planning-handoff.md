@@ -427,3 +427,13 @@
 - (09:35 KST) **C.73c CI #209 성공**(main bfd7936, 09:27 KST 배포). 인종별 사진·랜덤 다인종 사이트 반영.
 - (09:47 KST, 사용자) 초기화면 가는 길 요청 → pending 123, fix **C.73d** `session_01RioA9QkTK6JRHAWFA88FUu` 시작. 확인 send_later 60분.
 - (09:50 KST) C.73b 자동 확인: main 병합 뒤 npm run balance 대기 중(첫 실행 끊겨 재실행, 7.7달러). 세션 요약의 '잔액 충전' 문구는 balance 스크립트를 잘못 요약한 것 — 실제 크레딧 문제 아님. 재확인 60분.
+- (10:02 KST) **C.73b 완료**(main f74ce00, 밸런스 50, 테스트 681, balance 19/19, 9.0달러) → pending 124, ntfy, UI_3(큰 3·작은 3), C.73b draft_, 확인 예약 삭제. **5단계(5-0~5-8) 끝.** CI는 C.73b가 확인.
+- (10:03 KST) Q 14.9달러·49.6만 → **교체**. Q가 R을 만들면 깊이 7 → 규칙대로 **사용자에게 R을 앱에서 직접 열어 달라고 요청**(ntfy 긴급). Q는 R이 "준비 완료"를 보낼 때까지 C.73d 보고 등을 받아 R에 넘김.
+
+### 8.30 다음 마스터 세션(R)이 할 일 (Q 교체 2026-10-19 10:03 KST)
+- **사용자가 앱에서 직접 연 세션**(깊이 0부터 새로 시작 — 앞으로 R은 다음 마스터를 만들어도 됨). 제목 `R_축구 커리어 게임 마스터`, 브랜치 `claude/planning-q`에서 `claude/planning-r`(만들어 푸시).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md` 전체, 이 문서 8.29·8.30, `docs/planning-pending.md` **116~124**.
+- **시작 처리**: ① Q(`session_01B71wzpzNzdTg4hm7DbNX9H`)에 "R 준비 완료 + R 세션 ID" send_message → Q가 실행 중 세션들에 R을 알리고 끝냄(R도 직접 알려도 됨) ② 실행 중 세션에 "보고는 R, 마스터 브랜치 claude/planning-r" send_message: C.73d `session_01RioA9QkTK6JRHAWFA88FUu`(초기화면 가기 fix, 확인 예약 Q 쪽 trig_01ESPDEsTQrbVYJdaMC92uxA 10:48 — R이 새로 거는 게 안전) / C.73b `session_015yFLHowJh5sLRxBHeXzYiX`(CI 한 줄만 남음) / UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx`(10차 보고 끝, 11차 쌓기 = C.73b 큰 3·작은 3부터) / 엔진관리자2 `session_01ULNad1tAcSQzVKsFKN355d`(동결 대기) ③ Q 제목 앞 `draft_` ④ handoff 8.31에 시작 처리 기록·푸시.
+- **다음 순서**: C.73d 보고(사용자 요청 fix) → **43 경기 환경 단계**(pending 75·76·77 일부 + 케미·패스 받는 빈도 — 먼저 pending 75~77 읽고 진행 방식 추천안 pending 125, a/b 나누기) → **엔진 다듬기 블록**(17.2 표 "엔진 다듬기 블록" 행: ① 수비 조직 Fable `docs/engine-diagnosis-defense.md` ② 평점·윙 산출 ③ 미해결 1~5 + E5 Web Worker(C.73b 속도 측정 병목 참고) — 판단 스탯 생활 영향·지시 카드 신뢰 연동·**레전더리 35세 900+ 가드 경계 재검토**(C.67·C.68·C.73a 세 번)). 엔진 블록 시작 때 엔진관리자2에 알림. **10차 디자인이 오면** UI_3 적용 명세 받아 진행 중 단계 다음에 U 적용 패치.
+- 공통 지시(갱신): 모바일 = 세로 폰 390×844 + 경기장만 가로, PC 2열, 가로 폰·A 테마 안 깨지게. 엔진 동결(엔진 블록 전까지). 화면만 패치는 balance·engine 생략 가능. balance는 백그라운드+로그. 회귀 가드 기준·판정 변경은 마스터 승인. 세션 비용 10달러 넘으면 나눔 — **코드 세션 비용은 get_session에 없을 때가 많음 → `list_events` kinds=["result"]의 `total_cost_usd`로 확인**. 병렬 세션은 파일 영역 나누고 푸시 전 main 병합(C.71a/b·C.73b/c 방식 잘 됨). docs 병합 planning-r·ui-3. 부록 C·버전 번호는 병렬 세션끼리 서로 알림.
+- 사용자 선호 메모: 사용량 경고로 멈추지 않음(7일 한도 리셋 10/20 19:00 KST). 사용자 화면 요청은 작은 fix 세션(C.73c·C.73d 방식, 30~60분)으로 바로. 해석이 갈리면 한 줄로 확인하고 진행. 사용자 사진 같은 첨부는 마스터가 docs/design/incoming/에 커밋해서 코드 세션에 넘김(C.73c).
