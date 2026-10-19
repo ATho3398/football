@@ -71,6 +71,7 @@ import {
 import { trainProficiency } from './proficiency';
 import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupMatches, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
 import { envField, matchConditions, type MatchConditions } from './matchEnv';
+import { chemAfterMatch, chemSeasonEnd, rapportInput, scoutReport, type ChemState, type ScoutReport } from './rapport';
 import type { NameOverrides } from './names';
 import { weatherInjuryMul, type WeatherKind } from './weather';
 import type { PixelOverrides } from './pixel';
@@ -81,7 +82,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 42;
+export const SAVE_FORMAT_VERSION = 43;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -269,6 +270,8 @@ export interface GameState {
   chapters?: ChaptersState;
   /** 경기 외 생활 지표 (pending 47 4번, C.63 b) */
   life?: LifeState;
+  /** 동료 호흡 (C.74c): 지금 팀 id + 동료별 같이 뛴 분. 이적하면 0부터 */
+  chem?: ChemState;
   /** 시즌 목표 (18.9, 부록 C.65). 없거나 시즌이 다르면 ensureGoals 가 새로 만든다 */
   goals?: GoalsState;
   /** 챔스/컵 (18.7, 부록 C.67): 이번 시즌 대진·결과. 없거나 시즌이 다르면 ensureCups 가 새로 만든다 */
@@ -1319,6 +1322,14 @@ export function myMatchConditions(state: GameState): MatchConditions | null {
   return matchConditions(state.worldSeed, myMatchDate(state) ?? state.calendar.date, fx.home ? state.player.teamId : fx.opponentId);
 }
 
+/** 다음 내 경기 상대 분석 리포트 (C.74c): 나를 맡을 수비수 약점. 시즌이 아니거나 GK·측정 고정이면 null */
+export function myScoutReport(state: GameState): ScoutReport | null {
+  const fx = nextFixture(state);
+  if (!fx || state.phase !== 'season') return null;
+  const opp = teamById(state.league, fx.opponentId);
+  return scoutReport(fx.cup ? cupRoster(state, opp.id) : state.rosters[opp.id]!, myMatchPosition(state));
+}
+
 /** 이번 경기 부상 확률 배수: 구단 의료진 × 날씨 (눈·한파 근육 부상, C.74a) */
 function matchInjuryMul(state: GameState, cond: MatchConditions | null): number {
   return injuryRiskMul(state) * (cond ? weatherInjuryMul(cond.weather) : 1);
@@ -1364,8 +1375,11 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
       plan.minutes.end = Math.min(89, Math.max(plan.minutes.start + 1, Math.round(plan.minutes.start + k * minutes)));
     }
   }
+  const oppRoster = fx.cup ? cupRoster(state, opp.id) : state.rosters[opp.id]!;
+  // 동료 호흡·상대 분석·패스 받는 빈도 (C.74c): 실행 배율. 호흡 0·관계 보통·리포트 없음이면 붙이지 않는다
+  const rapport = rapportInput(state, state.rosters[player.teamId]!, scoutReport(oppRoster, pos));
   const input: EngineMatchInput = {
-    myRoster: state.rosters[player.teamId]!, oppRoster: fx.cup ? cupRoster(state, opp.id) : state.rosters[opp.id]!,
+    myRoster: state.rosters[player.teamId]!, oppRoster,
     myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
     me: { position: pos, attributes: player.attributes, fatigue, form: form + (!started && minutes > 0 && tagHas(player, 'superSub') ? BALANCE.tags.natural.superSubForm : 0), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${key}`), worldSeed: seed,
@@ -1375,6 +1389,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
     ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
     // 날씨·심판 (C.74a): 엔진 실행 배율. 맑음·보통 심판이면 붙이지 않는다
     ...envField(env),
+    ...(rapport ? { rapport } : {}),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
 }
@@ -1598,6 +1613,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   if (!state.events?.off) coachAfterMatch(state);
   // 생활 (C.63 b): 출전하면 멘탈 피로 + (더비·상위 6팀 더)
   lifeAfterMatch(state, result.minutes > 0, derbyOf(player.teamId, opp.id) !== null || ratingRank(league, opp.id) <= BALANCE.tags.natural.bigTop);
+  // 동료 호흡 (C.74c): 같이 뛴 분 (엔진 경기만)
+  chemAfterMatch(state, engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
   eventsAfterMatch(state);
   // 득점·도움 경쟁 기사 (C.64)
   worldAfterRound(state);
@@ -1713,6 +1730,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   };
   state.lastMatch = report;
   lifeAfterMatch(state, result.minutes > 0, mc.big);
+  chemAfterMatch(state, engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
   if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
   refreshUnlocks(state);
   return report;
@@ -1926,6 +1944,8 @@ export function endSeason(state: GameState): SeasonSummary {
   const rng = rngFor(state.worldSeed, 'season-end', season);
   // 컵 (C.67): 남은 경기를 간이 계산해 우승 팀까지
   cupsFinish(state);
+  // 동료 호흡 (C.74c): 떠난 동료 지우기
+  chemSeasonEnd(state);
 
   // 1. 업적 XP (+ 컵·챔스 업적, C.67b)
   const pos = leaguePosition(league, player.teamId);

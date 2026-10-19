@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 52;
+export const BALANCE_VERSION = 53;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1644,6 +1644,33 @@ export const BALANCE = {
     advantage: [0.8, 1.2] as [number, number],
     strict: 1.1, lenient: 0.9, flow: 1.08, whistle: 0.92,
   },
+  /**
+   * 동료 호흡 (C.74c, pending 77-1): 같은 팀 동료와 같이 뛴 분(내 출전 분과 그 동료 출전 분 중 작은 쪽)이 쌓인다. 시즌을 넘어 유지, 이적하면 0.
+   * 그 동료와 주고받는 패스 실행 성공 배율 = 1 + maxPass × min(1, 분 / fullMinutes) (판단의 P 는 그대로). 선수 화면 상위 top 명.
+   * 이름표: 분 / fullMinutes 가 good 이상 "호흡 좋음", great 이상 "찰떡". 시즌 끝에 지금 로스터에 없는 동료는 지운다
+   */
+  chemistry: { maxPass: 0.04, fullMinutes: 2700, top: 3, good: 0.35, great: 0.75 },
+  /**
+   * 상대 분석 리포트 (C.74c, pending 77-3): 경기 전 나를 맡을 수비수(상대 선발 중 내 포지션의 맞상대, counter) 약점 1~2개 →
+   * 그 약점 행동의 내 실행 성공 배율 × mul (그 수비수가 뛰는 동안, 결정 순간 "약점 공략" 표시). 약점 = 다섯 지표 중 그 선수 평균보다 가장 낮은 것,
+   * 두 번째는 첫째와 secondGap 안이면. 지표: slow(속도·가속) · tackle(태클) · aerial(점프·헤더) · marking(마킹·수비 위치) · intercept(인터셉트)
+   */
+  scouting: {
+    mul: 1.04,
+    secondGap: 4,
+    /** 내 포지션 → 맞상대 포지션 (앞에서부터 상대 선발에 있는 첫 자리) */
+    counter: {
+      ST: ['CB'], CF: ['CB'], LW: ['RB', 'RWB', 'RM', 'CB'], LM: ['RB', 'RWB', 'RM'], RW: ['LB', 'LWB', 'LM', 'CB'], RM: ['LB', 'LWB', 'LM'],
+      CAM: ['CDM', 'CM'], CM: ['CM', 'CDM', 'CAM'], CDM: ['CAM', 'CM', 'CF'], LB: ['RW', 'RM', 'RWB'], LWB: ['RW', 'RM', 'RWB'], RB: ['LW', 'LM', 'LWB'], RWB: ['LW', 'LM', 'LWB'],
+      CB: ['ST', 'CF'],
+    } as Record<string, readonly string[]>,
+  },
+  /**
+   * 패스 받는 빈도 (C.74c, pending 482·941 ⑧): 동료가 나에게 주는 패스 후보의 선택 가중 배율(효용은 그대로) =
+   * 1 + 팀 관계 몫 + 호흡 몫, [1 − maxDown, 1 + maxUp]. 팀 관계 몫: 관계 mid 기준, 낮으면 (mid − 관계)/mid × −relDown, 높으면 (관계 − mid)/(100 − mid) × relUp.
+   * 호흡 몫 = 그 동료 호흡 비율(분 / fullMinutes) × chemUp
+   */
+  passTarget: { mid: 60, relDown: 0.1, relUp: 0.1, chemUp: 0.04, maxDown: 0.1, maxUp: 0.1 },
 } as const;
 
 export type Balance = typeof BALANCE;

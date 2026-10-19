@@ -13,6 +13,7 @@ import { Purpose, rand, randn } from './rng';
 import { offsideRisk } from './referee';
 import { offsideLine } from './offball';
 import { TENDENCY, widthCrossMul } from './tactics';
+import { chemMul, exploitMul, toMeMul } from './rapport';
 import type { Agent, Flight, SimState } from './state';
 
 const O = ENGINE.onball;
@@ -644,7 +645,8 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
   for (const c of pool0) maxU = Math.max(maxU, c.u);
   const pool = pool0.filter((c) => c.u >= maxU - O.plausibleGap || isMistake(s, a, c, maxU));
   const tau = decisionTemp(a);
-  const ws = pool.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau));
+  // 패스 받는 빈도 (C.74c): 동료가 나에게 주는 후보의 선택 가중 × 팀 관계·호흡 배율 (효용은 그대로, 없으면 1)
+  const ws = pool.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau) * (s.rapport ? toMeMul(s, a, c.receiver) : 1));
   const total = ws.reduce((t, w) => t + w, 0);
   let r = rand(s.seed, s.tick, a.idx, Purpose.Decide) * total;
   let pick = pool.length - 1;
@@ -692,7 +694,9 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const foot = weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y, true);
   // 날씨 (C.74a): 받기(퍼스트 터치) × touch, 공중 패스는 바람 × airPass (판단의 P 는 그대로)
   const wx = s.env.touch * (air ? s.env.airPass : 1);
-  if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p) * foot * wx) return fl;
+  // 동료 호흡·상대 분석 (C.74c): 나와 그 동료의 패스 × 호흡, 내 패스·침투 패스가 리포트 약점이면 × 약점 공략 (판단의 P 는 그대로)
+  const rx = s.rapport ? chemMul(s, a, rc) * (c.type === 'pass' || c.type === 'through' ? exploitMul(s, a, c.type) : 1) : 1;
+  if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p) * foot * wx * rx) return fl;
 
   // 실패한 침투 패스이고 GK 가 가장 빠르면 GK 가 목표점으로 나가 끊는다 (C.28)
   if (c.keeper !== undefined && s.agents[c.keeper]?.onPitch) {

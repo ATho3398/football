@@ -138,6 +138,11 @@ function recordTab(vm: PlayerVM): string {
       <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
       <span class="muted small">옐로카드 ${c.yellowEvery}장이 쌓이면 다음 1경기에 나올 수 없어요.</span>
       ${ban}`)}
+    ${SectionTitle({ title: '호흡 좋은 동료', action: `패스 성공 최대 +${Math.round(BALANCE.chemistry.maxPass * 100)}%` })}
+    ${panel(vm.chem.length
+      ? `<ul class="chem-list">${vm.chem.map((m) => `<li><b class="chem-list__name">${esc(m.name)} <small class="muted">${esc(m.position)}</small></b><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small">+${m.bonus}%</b></li>`).join('')}</ul>
+        <span class="muted small">같이 뛴 시간만큼 쌓이고 시즌이 지나도 남아요. 이적하면 처음부터예요.</span>`
+      : '<span class="muted small">같이 뛴 시간만큼 동료와 호흡이 쌓여요. 호흡이 좋은 동료와는 패스가 조금 더 잘 맞아요.</span>')}
     ${SectionTitle({ title: '위상과 레벨', action: `누적 XP ${vm.totalXp}` })}
     ${panel(`${rep}${Meter({ value: vm.xp, max: vm.xpMax, label: `Lv ${vm.level} → ${vm.level + 1}`, showValue: true, tone: 'xp' })}`)}
     ${SectionTitle({ title: '시즌별' })}

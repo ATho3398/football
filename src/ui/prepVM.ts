@@ -7,7 +7,8 @@ import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
 import { derbyOf } from '../derby';
 import { formBonus, formLevel } from '../form';
-import { matchCompLabel, myMatchPosition, nextFixture, type GameState } from '../game';
+import { matchCompLabel, myMatchPosition, myScoutReport, nextFixture, type GameState } from '../game';
+import type { ScoutReport } from '../rapport';
 import { leaguePosition, teamById, type LeagueState } from '../league';
 import { startChance } from '../manager';
 import { proficientOvr } from '../proficiency';
@@ -55,6 +56,8 @@ export interface PrepVM {
   deck: { active: number; sets: { idx: number; count: number; ok: boolean; unusable: number }[]; picks: number; /** 지금 고른 덱 세트의 카드 (C.66c) */ cards: DeckCardVM[] };
   control: MatchControl;
   quick: boolean;
+  /** 상대 분석 리포트 (C.74c): 나를 맡을 수비수 약점. GK·상대 맞자리 없음이면 null */
+  scout: ScoutReport | null;
 }
 
 /** 전술 세부 짧은 이름 (디자인 156 "라인 높음 · 압박 높음 · 빌드업 혼합") */
@@ -123,5 +126,6 @@ export function prepVM(g: GameState): PrepVM | null {
     },
     control: g.control,
     quick: !!g.options.quickOthers,
+    scout: myScoutReport(g),
   };
 }

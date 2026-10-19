@@ -119,6 +119,7 @@ export function randomStep(f: CustomForm, name: string, step: number, key: strin
       out.age = BALANCE.custom.refAge;
       out.position = rollProspect(key).candidates[0]!.pos;
       Object.assign(out, startFit(out));
+      out.attrs = fitToBudget(out.attrs, out.position as FieldPosition, budgetOf(out), out.height);
       return { form: out, name: randomNameFor(key, out.nationality, out.appearance) };
     }
     case 2: {
@@ -131,6 +132,8 @@ export function randomStep(f: CustomForm, name: string, step: number, key: strin
     case 5: out.attrs = fitToBudget(attrsToCustom(rollProspect(key, f.position).attributes, f.height), f.position as FieldPosition, budgetOf(f), f.height); break;
     default: Object.assign(out, startOf(key, f.age));
   }
+  // 몸(약발)·태그가 바뀌면 예산이 줄 수 있다 → 랜덤 결과는 늘 예산 안 (사용자 00:41)
+  out.attrs = fitToBudget(out.attrs, out.position as FieldPosition, budgetOf(out), out.height);
   return { form: out, name };
 }
 

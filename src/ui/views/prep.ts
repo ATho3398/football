@@ -49,6 +49,13 @@ export function prepView(vm: PrepVM): string {
     ${vm.derby ? `<div class="prep-derby">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b class="grow">${esc(vm.derby.name)} · 더비 매치</b>${vm.opp.rank ? `<small>순위 ${vm.my.rank}위 vs ${vm.opp.rank}위</small>` : ''}</div>` : ''}
     ${vm.hint ? `<span class="prep-note">영상 분석 힌트 · ${esc(vm.hint)}</span>` : ''}`);
 
+  // 상대 분석 리포트 (C.74c): 나를 맡을 수비수 · 약점 1~2개 · 결정 순간 "약점 공략"
+  const sc = vm.scout;
+  const scout = sc ? card(`${head('상대 분석')}
+    <div class="prep-row"><span><small class="prep-sub">나를 맡을 선수</small> <b>${esc(sc.name)}</b> <small class="prep-sub">${esc(sc.position)}</small></span></div>
+    <ul class="prep-scout">${sc.weak.map((w) => `<li>${Icon({ name: 'target', size: 14 })}<b>${esc(w.name)}</b><span class="prep-sub">${esc(w.tip)}</span></li>`).join('')}</ul>
+    <p class="prep-scout__note">결정 순간 <b class="prep-exploit">약점 공략</b> 선택지(${esc(sc.actionsKo)})는 성공률 +${sc.bonus}% · 그 선수가 뛰는 동안</p>`) : '';
+
   const lock = '<span class="prep-note">전술은 3경기를 치르면 열려요.</span>';
   const tactics = card(`${head('전술', vm.tacticsOpen ? { label: '바꾸기', act: 'tac-open' } : undefined)}
     <div class="prep-row">${vm.my.tactic ? TacticChip({ size: 'sm', ...vm.my.tactic }) : ''}<span class="prep-sub">${esc(vm.tacticLine)}</span></div>
@@ -106,5 +113,5 @@ export function prepView(vm: PrepVM): string {
   </div>`;
 
   const bar = `<div class="prep-bottom">${Button({ variant: 'secondary', size: 'lg', block: true, act: 'go', data: { to: 'home' }, children: '나중에' })}${Button({ size: 'lg', block: true, icon: 'play', act: 'prep-start', children: s.out ? '경기 진행 (관전)' : '경기 시작' })}</div>`;
-  return `${hero}<div class="body prep-body">${opp}${tactics}${pos}${deck}${state}${mode}</div>${bar}`;
+  return `${hero}<div class="body prep-body">${opp}${scout}${tactics}${pos}${deck}${state}${mode}</div>${bar}`;
 }

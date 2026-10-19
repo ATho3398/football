@@ -215,6 +215,8 @@ export interface ChoiceButtonProps extends Action {
   success: { text: string; rating: string };
   fail: { text: string; rating: string };
   offside?: 'low' | 'mid' | 'high';
+  /** 상대 분석 리포트 약점을 노리는 선택지 (C.74c): "약점 공략" 칩 (접은 줄에도 보인다) */
+  exploit?: boolean;
   /** 플레이 카드 선택지의 카드 이름 칩 */
   card?: string;
   rarity?: 'common' | 'rare' | 'epic' | 'legend';
@@ -232,6 +234,7 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
   const d = p.chanceDelta ?? 0;
   const shown = p.chance === null ? null : Math.max(0, Math.min(99, p.chance + d));
   const tags = `<span class="po-choice__tags"><span class="po-kind po-kind--${p.kind}">${Icon({ name: CHOICE_ICON[p.kind], size: 12, strokeWidth: 2.4 })}${CHOICE_KO[p.kind]}</span>${
+    p.exploit ? `<span class="po-exploit" title="상대 분석 리포트의 약점">${Icon({ name: 'target', size: 12, strokeWidth: 2.4 })}약점 공략</span>` : ''}${
     p.card ? `<span class="po-choice__card">${esc(p.card)}</span>` : ''}${
     off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}</span>`;
   const out = (cls: 'ok' | 'bad', icon: IconName, o: { text: string; rating: string }) =>
