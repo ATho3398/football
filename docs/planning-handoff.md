@@ -422,3 +422,8 @@
 - (07:48 KST) 자동 확인: C.73a 비용 **11.76달러**(list_events result의 total_cost_usd — get_session엔 안 나옴) > 10달러 → 규칙대로 b는 새 세션. C.73a에 b 시작 금지·CI 확인만 알림. **C.73b** `session_015yFLHowJh5sLRxBHeXzYiX` "42단계_5-8 챕터·속도 조절 b (C.73b)", 브랜치 `claude/c73b-chapters`, 태그 `stage:42-C73b`. 자동 확인 send_later 120분(09:48 KST). 참고: 코드 세션 비용은 list_events kinds=[result]의 total_cost_usd로 확인.
 - (08:06 KST) **C.73a CI #208 성공**(main 4d28608, 약 35분). C.73a 세션 종료(b 안 함), draft_.
 - (08:21 KST, 사용자) 인종별 기본 사진 4장 + 랜덤 다인종 요청 → pending 122, 사진 커밋 4340961, fix **C.73c** `session_01S4gc5ubvXCFxj4ULKdJ2aM` 시작(C.73b와 병렬). 확인 send_later 70분(09:32 KST).
+- (08:52 KST) **C.73c 완료**(main bfd7936, 31분, 세이브 41·밸런스 49, 테스트 671) → pending 122 결과, ntfy, UI_3(패널 1·작은 2), C.73b에 버전 번호 충돌 알림, C.73c draft_, 확인 예약 삭제. CI는 C.73c가 확인.
+- (08:54 KST) **UI_3 10차 보고** 사용자에게 올림(큰 것 있는 단계 3 도달: C.68b·C.73a·C.73c). 7~10 통합 프롬프트 docs/ui-requests/7-10/통합_프롬프트.txt(186~188·191~200·202~217 + 새 218 PC 결정순간·결과 v3 · 219 재정 카드상점 · 220 재정 생활·투자 · 221 챕터 리뷰 · 222 랜덤 인종·기본사진 · 223 1부 작은 변형 + 139장 B화), 10.md, 캡처(claude/ui-3 0a490ee). 쌓기 리셋, C.73b부터.
+- (09:35 KST) **C.73c CI #209 성공**(main bfd7936, 09:27 KST 배포). 인종별 사진·랜덤 다인종 사이트 반영.
+- (09:47 KST, 사용자) 초기화면 가는 길 요청 → pending 123, fix **C.73d** `session_01RioA9QkTK6JRHAWFA88FUu` 시작. 확인 send_later 60분.
+- (09:50 KST) C.73b 자동 확인: main 병합 뒤 npm run balance 대기 중(첫 실행 끊겨 재실행, 7.7달러). 세션 요약의 '잔액 충전' 문구는 balance 스크립트를 잘못 요약한 것 — 실제 크레딧 문제 아님. 재확인 60분.
