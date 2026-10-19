@@ -458,3 +458,4 @@
 - (21:31 KST, 사용자 "알람 기록 체크") NTFY_TOPIC이 R 환경(player ONE)에 들어옴 확인. 하지만 ntfy.sh 전송이 **네트워크 정책 403**(player ONE 환경은 허용 도메인 제한) → 사용자에게 Allowed domains에 ntfy.sh 추가 요청. C.74a 완료 ntfy는 미전송(추가 뒤 다시 보냄). 예약 확인: R 자동 확인 trig_01SNETdpFQ47s4xFKuWY1hBs(22:01, C.74b·c로 갱신), C.74a CI 확인 trig_01RyCa4WtJGwQebdAdu2KbwH(21:47, C.74a 세션), 카톡 예약 삭제됨.
 - (21:31 KST) 사용자가 player ONE 허용 도메인에 ntfy.sh 추가 → **ntfy 전송 성공(200)**, C.74a 완료 알림 보냄. R 알림 정상.
 - (22:00 KST) **C.74a CI 성공**(main 6da761f run 212, 34분, 사이트 반영). 43a 끝.
+- (22:04 KST) 자동 확인: C.74b balance 3차(리그 위상 보상 0) 대기·캡처 재촬영 예정, C.74c 효과 측정 240경기 재실행·부록 준비 — 둘 다 진행 중. 재확인 send_later 60분(23:04).
