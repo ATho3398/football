@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-17T14:43:13.679Z",
+  "generated": "2026-10-19T18:17:05.902Z",
   "players": {
     "messi": {
       "file": "players/messi.png",
@@ -901,6 +901,210 @@
       "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Xavi%2C_Persepolis_vs._Al_Sadd%2C_20190520_02_%28cropped%29.jpg/330px-Xavi%2C_Persepolis_vs._Al_Sadd%2C_20190520_02_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
       "page": "https://en.wikipedia.org/wiki/Xavi_(footballer%2C_born_1980)",
       "title": "Xavi (footballer, born 1980)"
+    },
+    "lg-weidenfeller": {
+      "file": "players/lg-weidenfeller.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Roman_Weidenfeller_2014_%28cropped%29.jpg/330px-Roman_Weidenfeller_2014_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Roman_Weidenfeller",
+      "title": "Roman Weidenfeller"
+    },
+    "lg-lehmann": {
+      "file": "players/lg-lehmann.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Jens_Lehmann_-_2019202184453_2019-07-21_Champions_for_Charity_-_3017_-_B70I3052_%28cropped%29.jpg/330px-Jens_Lehmann_-_2019202184453_2019-07-21_Champions_for_Charity_-_3017_-_B70I3052_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jens_Lehmann",
+      "title": "Jens Lehmann"
+    },
+    "lg-klos": {
+      "file": "players/lg-klos.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Stefan_Klos_2005.jpg/330px-Stefan_Klos_2005.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Stefan_Klos",
+      "title": "Stefan Klos"
+    },
+    "lg-sammer": {
+      "file": "players/lg-sammer.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Matthias_Sammer_2722.jpg/330px-Matthias_Sammer_2722.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Matthias_Sammer",
+      "title": "Matthias Sammer"
+    },
+    "lg-jkohler": {
+      "file": "players/lg-jkohler.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/1/10/J%C3%BCrgen_Kohler_2005.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/J%C3%BCrgen_Kohler",
+      "title": "Jürgen Kohler"
+    },
+    "lg-dede": {
+      "file": "players/lg-dede.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Dedeagainstgalatasaray.jpg/330px-Dedeagainstgalatasaray.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Ded%C3%A9_(footballer%2C_born_1978)",
+      "title": "Dedé (footballer, born 1978)"
+    },
+    "lg-piszczek": {
+      "file": "players/lg-piszczek.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/%C5%81ukasz_Piszczek_2020.jpg/330px-%C5%81ukasz_Piszczek_2020.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/%C5%81ukasz_Piszczek",
+      "title": "Łukasz Piszczek"
+    },
+    "lg-subotic": {
+      "file": "players/lg-subotic.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Subotic170727.jpg/330px-Subotic170727.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Neven_Suboti%C4%87",
+      "title": "Neven Subotić"
+    },
+    "lg-schmelzer": {
+      "file": "players/lg-schmelzer.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Marcel_Schmelzer_2014_crop.jpg/330px-Marcel_Schmelzer_2014_crop.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Marcel_Schmelzer",
+      "title": "Marcel Schmelzer"
+    },
+    "lg-hummels": {
+      "file": "players/lg-hummels.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/2023-08-12_TSV_Schott_Mainz_gegen_Borussia_Dortmund_%28DFB-Pokal_2023-24%29_by_Sandro_Halank%E2%80%93103.jpg/330px-2023-08-12_TSV_Schott_Mainz_gegen_Borussia_Dortmund_%28DFB-Pokal_2023-24%29_by_Sandro_Halank%E2%80%93103.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Mats_Hummels",
+      "title": "Mats Hummels"
+    },
+    "lg-santana": {
+      "file": "players/lg-santana.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/Zen-Kub_Cup2015_%281%29.jpg/330px-Zen-Kub_Cup2015_%281%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Felipe_Santana",
+      "title": "Felipe Santana"
+    },
+    "lg-sbender": {
+      "file": "players/lg-sbender.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Sven-Bender-2018-08-19.jpg/330px-Sven-Bender-2018-08-19.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sven_Bender",
+      "title": "Sven Bender"
+    },
+    "lg-kehl": {
+      "file": "players/lg-kehl.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/2023-08-12_TSV_Schott_Mainz_gegen_Borussia_Dortmund_%28DFB-Pokal_2023-24%29_by_Sandro_Halank%E2%80%93079.jpg/330px-2023-08-12_TSV_Schott_Mainz_gegen_Borussia_Dortmund_%28DFB-Pokal_2023-24%29_by_Sandro_Halank%E2%80%93079.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sebastian_Kehl",
+      "title": "Sebastian Kehl"
+    },
+    "lg-zorc": {
+      "file": "players/lg-zorc.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Michael_Zorc_2014_%28cropped%29.jpg/330px-Michael_Zorc_2014_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Michael_Zorc",
+      "title": "Michael Zorc"
+    },
+    "lg-sahin": {
+      "file": "players/lg-sahin.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Nuri_%C5%9Eahin_at_Antalyaspor_vs_Trabzonspor_20211211_%286%29_%28cropped%29.jpg/330px-Nuri_%C5%9Eahin_at_Antalyaspor_vs_Trabzonspor_20211211_%286%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Nuri_%C5%9Eahin",
+      "title": "Nuri Şahin"
+    },
+    "lg-ricken": {
+      "file": "players/lg-ricken.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ed/10._Tag_der_Legenden_2014_55.JPG/330px-10._Tag_der_Legenden_2014_55.JPG?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Lars_Ricken",
+      "title": "Lars Ricken"
+    },
+    "lg-rosicky": {
+      "file": "players/lg-rosicky.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Arsenal_Vs_Burnley_%2824618630252%29.jpg/330px-Arsenal_Vs_Burnley_%2824618630252%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Tom%C3%A1%C5%A1_Rosick%C3%BD",
+      "title": "Tomáš Rosický"
+    },
+    "lg-kuba": {
+      "file": "players/lg-kuba.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Jakub_B%C5%82aszczykowski_2019.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Jakub_B%C5%82aszczykowski",
+      "title": "Jakub Błaszczykowski"
+    },
+    "lg-chapuisat": {
+      "file": "players/lg-chapuisat.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Football_against_poverty_2014_-_St%C3%A9phane_Chapuisat_%282%29.jpg/330px-Football_against_poverty_2014_-_St%C3%A9phane_Chapuisat_%282%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/St%C3%A9phane_Chapuisat",
+      "title": "Stéphane Chapuisat"
+    },
+    "lg-jkoller": {
+      "file": "players/lg-jkoller.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Jan_Koller_2019.jpg/330px-Jan_Koller_2019.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jan_Koller",
+      "title": "Jan Koller"
+    },
+    "lg-barrios": {
+      "file": "players/lg-barrios.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Lucas_Barrios_Palmeiras_2015.jpg/330px-Lucas_Barrios_Palmeiras_2015.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Lucas_Barrios",
+      "title": "Lucas Barrios"
+    },
+    "fs-yamal": {
+      "file": "players/fs-yamal.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Lamine_Yamal_France_v_Spain_7.24.26-142.jpg/330px-Lamine_Yamal_France_v_Spain_7.24.26-142.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Lamine_Yamal",
+      "title": "Lamine Yamal"
+    },
+    "fs-pedri": {
+      "file": "players/fs-pedri.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Pedri_France_v_Spain_7.24.26-245.jpg/330px-Pedri_France_v_Spain_7.24.26-245.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Pedri",
+      "title": "Pedri"
+    },
+    "fs-gavi": {
+      "file": "players/fs-gavi.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Gavi_Argentina_v_Spain_19_July_2026-013.jpg/330px-Gavi_Argentina_v_Spain_19_July_2026-013.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gavi_(footballer)",
+      "title": "Gavi (footballer)"
+    },
+    "fs-bellingham": {
+      "file": "players/fs-bellingham.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Jude_Bellingham_England_v_Ghana_23_June_2026-061_%28cropped%29.jpg/330px-Jude_Bellingham_England_v_Ghana_23_June_2026-061_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jude_Bellingham",
+      "title": "Jude Bellingham"
+    },
+    "fs-musiala": {
+      "file": "players/fs-musiala.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Jamal_Musiala_Ecuador_v_Germany_25_June_2026-174_%28cropped%29.jpg/330px-Jamal_Musiala_Ecuador_v_Germany_25_June_2026-174_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jamal_Musiala",
+      "title": "Jamal Musiala"
+    },
+    "fs-wirtz": {
+      "file": "players/fs-wirtz.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Florian_Wirtz_Ecuador_v_Germany_25_June_2026-181_%28cropped%29.jpg/330px-Florian_Wirtz_Ecuador_v_Germany_25_June_2026-181_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Florian_Wirtz",
+      "title": "Florian Wirtz"
+    },
+    "fs-camavinga": {
+      "file": "players/fs-camavinga.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Ofrenda_de_la_Liga_y_la_Champions-13-L.Mill%C3%A1n_%2852109790215%29_%28cropped%29.jpg/330px-Ofrenda_de_la_Liga_y_la_Champions-13-L.Mill%C3%A1n_%2852109790215%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Eduardo_Camavinga",
+      "title": "Eduardo Camavinga"
+    },
+    "fs-cubarsi": {
+      "file": "players/fs-cubarsi.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Pau_Cubarsi_Argentina_v_Spain_19_July_2026-181_%28cropped%29.jpg/330px-Pau_Cubarsi_Argentina_v_Spain_19_July_2026-181_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Pau_Cubars%C3%AD",
+      "title": "Pau Cubarsí"
+    },
+    "fs-endrick": {
+      "file": "players/fs-endrick.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/Team_Brazil_at_2026_FIFA_World_Cup_by_YantsImages_%28Endrick%29.jpg/330px-Team_Brazil_at_2026_FIFA_World_Cup_by_YantsImages_%28Endrick%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Endrick",
+      "title": "Endrick"
+    },
+    "fs-garnacho": {
+      "file": "players/fs-garnacho.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Alejandro_Garnacho_7_August_2022_%28cropped%29.jpg/330px-Alejandro_Garnacho_7_August_2022_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Alejandro_Garnacho",
+      "title": "Alejandro Garnacho"
+    },
+    "fs-mainoo": {
+      "file": "players/fs-mainoo.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Kobbie_Mainoo_England_v_Ghana_23_June_2026-042.jpg/330px-Kobbie_Mainoo_England_v_Ghana_23_June_2026-042.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Kobbie_Mainoo",
+      "title": "Kobbie Mainoo"
+    },
+    "fs-zaireemery": {
+      "file": "players/fs-zaireemery.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Warren_Zaire-Emery_France_v_Senegal_16_June_2026-279.jpg/330px-Warren_Zaire-Emery_France_v_Senegal_16_June_2026-279.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Warren_Za%C3%AFre-Emery",
+      "title": "Warren Zaïre-Emery"
+    },
+    "fs-haaland": {
+      "file": "players/fs-haaland.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Erling_Haaland_Morocco_v_Norway_7_June_2026-51.jpg/330px-Erling_Haaland_Morocco_v_Norway_7_June_2026-51.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Erling_Haaland",
+      "title": "Erling Haaland"
     }
   },
   "clubs": {

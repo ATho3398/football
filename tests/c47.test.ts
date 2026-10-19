@@ -21,7 +21,7 @@ const TEAMS = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
 describe('레전드 팩 (C.47, pending 63)', () => {
   it('명단 117명, 모두 2020년까지 은퇴 (그 뒤 은퇴자 제외), 2018~2020 은퇴 실제 선수는 일반 로스터에서 빠짐', () => {
     expect(LEGEND_ROWS.length).toBe(117);
-    expect(LEGENDS.every((l) => l.retired <= LEGEND_RETIRED_BY)).toBe(true);
+    expect(LEGENDS.every((l) => l.retired <= LEGEND_RETIRED_BY || l.group === 'bvb')).toBe(true); // C.75x: 도르트문트 명단만 예외
     expect(LEGENDS.some((l) => l.id === 'lg-xavi' && l.retired === 2019)).toBe(true);
     expect(A_GRADE_PLAYERS.some((p) => p.id in REAL_RETIRED_2018_2020)).toBe(false);
     expect(new Set(LEGENDS.map((l) => l.id)).size).toBe(LEGENDS.length);
@@ -34,7 +34,7 @@ describe('레전드 팩 (C.47, pending 63)', () => {
     expect(off.legends).toBeUndefined();
     const on = newGame({ mode: 'prospect', position: 'ST', seed: 'c47-pack', difficulty: 'normal', legends: true });
     const lg = Object.values(on.rosters).flatMap((r) => r.players.filter((p) => p.legend));
-    expect(lg.length).toBe(117);
+    expect(lg.length).toBe(LEGENDS.length + 2); // C.75x: 117 + 도르트문트 21 + 데뷔가 지난 미래 스타 2 (홀란·카마빙가)
     for (const p of lg) {
       expect(p.age).toBeGreaterThanOrEqual(15);
       expect(p.age).toBeLessThanOrEqual(22);
@@ -53,7 +53,7 @@ describe('레전드 팩 (C.47, pending 63)', () => {
   it('시작 OVR = 전성기 − 나이별 모자람 (전성기 OVR 88~96), 30세 근처에 전성기에 닿는다', () => {
     for (const l of LEGENDS) {
       const peak = legendPeak(l).ovr;
-      expect(peak).toBeGreaterThanOrEqual(BALANCE.legends.minPeak);
+      expect(peak).toBeGreaterThanOrEqual(l.group ? BALANCE.legends.groupMinPeak : BALANCE.legends.minPeak);
       expect(peak).toBeLessThanOrEqual(BALANCE.legends.maxPeak);
       const p = legendRosterPlayer(l, 'c47-gap', 2018);
       expect(Math.abs(naturalOvr(p) - (peak - legendGap(p.age)))).toBeLessThanOrEqual(1);
@@ -190,8 +190,8 @@ describe('세이브 26 → 27 (C.47)', () => {
     raw.saveFormat = 26;
     delete raw.legends;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(43);
-    expect(back.saveFormat).toBe(43);
+    expect(SAVE_FORMAT_VERSION).toBe(44);
+    expect(back.saveFormat).toBe(44);
     expect(back.legends).toBe(false);
     expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
   });

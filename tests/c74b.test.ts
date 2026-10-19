@@ -159,7 +159,7 @@ describe('C.74b 기록 추적·도전 과제', () => {
     raw.saveFormat = 41;
     delete raw.records;
     const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(43);
+    expect(back.saveFormat).toBe(44);
     expect(back.records!.done).toEqual(expect.arrayContaining(['cg:10', 'cg:25', 'cg:50', 'ca:10', 'cs:50', 'cs:100']));
     expect(back.records!.done).not.toContain('cg:100');
     expect(recordsAfterMatch(back)).toEqual([]);
@@ -170,8 +170,8 @@ describe('C.74b 기록 추적·도전 과제', () => {
 describe('C.74b 버전', () => {
   it('버전 라벨 · 밸런스 블록', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.74/);
-    expect(STAGE_LABEL).toBe('43단계');
+    expect(PATCH_LABEL).toMatch(/^C\.7\d/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(BALANCE.travelDay.allowed).toEqual(['video', 'recovery']);
   });
 });

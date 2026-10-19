@@ -643,15 +643,23 @@ export function createRosters(worldSeed: string, season: number, teams: TeamTarg
     const reals = npcs.filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === t.id);
     out[t.id] = createTeamRoster(t, worldSeed, season, reals);
   }
-  for (const t of teams) {
-    const add = legends.filter((l) => l.teamId === t.id);
+  addLegendSpawns(out, legends, worldSeed, season - 1, Object.fromEntries(teams.map((t) => [t.id, t.rating])), 200);
+  return out;
+}
+
+/**
+ * 레전드 팩 선수를 소속 팀 로스터에 더하고 인원 규칙을 맞춘다 (C.47). 미래 스타(C.75x)는 데뷔 시즌에 같은 길로.
+ * 보충 신인 번호는 rookieBase + j (시즌 갱신 신인 0~·100~ 과 겹치지 않게)
+ */
+export function addLegendSpawns(rosters: Rosters, spawns: readonly LegendSpawn[], worldSeed: string, rookieSeason: number, ratings: Record<string, number>, rookieBase = 300): void {
+  for (const teamId of Object.keys(rosters)) {
+    const add = spawns.filter((l) => l.teamId === teamId);
     if (!add.length) continue;
-    const r = out[t.id]!;
+    const r = rosters[teamId]!;
     r.players = [...r.players, ...add.map((l) => ({ ...l.player }))];
-    normalizeSquad(r, (pos, j) => makeRookie(t.id, pos, t.rating, worldSeed, season - 1, 200 + j));
+    normalizeSquad(r, (pos, j) => makeRookie(teamId, pos, ratings[teamId] ?? 70, worldSeed, rookieSeason, rookieBase + j));
     assignShirts(r);
   }
-  return out;
 }
 
 // ── 시즌 갱신 (5.6 성장/노화, 은퇴 보충) ──
