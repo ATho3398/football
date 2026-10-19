@@ -1,0 +1,96 @@
+{
+ "errors": [],
+ "stops": [
+  {
+   "toast": "답할 일이 생겨 멈췄어요 · 3경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "부상으로 멈췄어요 · 5경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "답할 일이 생겨 멈췄어요 · 8경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "답할 일이 생겨 멈췄어요 · 5경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "답할 일이 생겨 멈췄어요 · 5경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "답할 일이 생겨 멈췄어요 · 8경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "답할 일이 생겨 멈췄어요 · 8경기",
+   "screen": "screen screen-home"
+  },
+  {
+   "toast": "",
+   "screen": "screen screen-season"
+  }
+ ],
+ "startToast": "손흥민 · 토트넘 홋스퍼커리어를 시작했어요. 명예의 전당 보너스: 희귀 카드 선택권 1장(덱).",
+ "picks": null,
+ "wallMs": 188673,
+ "auto": [
+  {
+   "played": 3,
+   "rounds": 3,
+   "ms": 30492,
+   "reason": "event"
+  },
+  {
+   "played": 5,
+   "rounds": 4,
+   "ms": 22905,
+   "reason": "injury"
+  },
+  {
+   "played": 8,
+   "rounds": 5,
+   "ms": 18947,
+   "reason": "event"
+  },
+  {
+   "played": 5,
+   "rounds": 4,
+   "ms": 12398,
+   "reason": "event"
+  },
+  {
+   "played": 5,
+   "rounds": 4,
+   "ms": 12753,
+   "reason": "event"
+  },
+  {
+   "played": 8,
+   "rounds": 6,
+   "ms": 16899,
+   "reason": "event"
+  },
+  {
+   "played": 8,
+   "rounds": 5,
+   "ms": 15047,
+   "reason": "event"
+  },
+  {
+   "played": 9,
+   "rounds": 7,
+   "ms": 19333,
+   "reason": "season"
+  }
+ ],
+ "hl": [
+  "최고 평점 경기사우샘프턴전 평점 10.0 · 1골 1도움 · MOM · 2-0 승",
+  "골본머스전 1골 · 3-3 무 · 지지 않게 한 골",
+  "위기부상으로 13경기 결장 (8~20R)"
+ ],
+ "wide": 0
+}
