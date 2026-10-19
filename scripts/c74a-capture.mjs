@@ -65,7 +65,10 @@ await page.evaluate(() => window.scrollTo(0, 0));
 await shot('3_결과_빗속경기');
 if (await has('[data-act="hl-rewatch"]')) {
   await click('[data-act="hl-rewatch"]');
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(800);
+  for (let k = 0; k < 3; k++) { const b = page.locator('button:has-text("알겠어요")'); if (await b.count()) { await b.first().click(); await page.waitForTimeout(300); } }
+  await page.evaluate(() => document.querySelector('#rp-canvas, canvas')?.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(2000);
   await shot('4_하이라이트_비');
   await page.evaluate(() => globalThis.__pitchWeather('snow')); await page.waitForTimeout(1500);
   await shot('5_하이라이트_눈_한파');
