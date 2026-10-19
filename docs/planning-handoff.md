@@ -465,3 +465,4 @@
 - (00:19 KST 10-20) **C.74b CI 성공**(main e72afc2 #213, 배포 완료; baf7a35 문서만 푸시는 실행 안 잡힘). 43b 끝.
 - (00:40 KST 10-20, 사용자) pending 127 새 게임 랜덤·커스텀 통합 → fix **C.74d** `session_01JxvVPyQ11rXgiVVKZ8hKRc` 시작(C.74c와 병렬, 버전 54·44 예약).
 - (00:52 KST, 사용자) pending 128: 선수 사진은 B·세로 폰만(사용자 확인 대기), 결정 순간 3개 → 엔진 블록 첫 패치 E-0.
+- (00:57 KST) **C.74d 완료**(main becbbc6, 19분, 테스트 713) → pending 127 결과, UI_3(패널 1·작은 3), ntfy, draft_.
