@@ -476,6 +476,12 @@ export function keepSlots(a: Agent, pool: Candidate[], picks: [Candidate | null,
   const kept: Candidate[] = [];
   const put = (c: Candidate | undefined) => {
     if (!c) return;
+    // 같은 종류(슛·드리블)가 이미 칸에 있으면 그것을 지킨다 (방향만 다른 같은 수비수 돌파가 두 줄 되지 않게)
+    const have = out.find((x) => x && x.type === c.type);
+    if (have) {
+      kept.push(have);
+      return;
+    }
     if (out.some((x) => x && sameAs(x, c))) {
       kept.push(c);
       return;

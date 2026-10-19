@@ -5220,6 +5220,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 명령 시각 2026-10-20 01:14 KST / 답변 시각 2026-10-20 01:33 KST / 걸린 시간 약 19분
 
 ### C.74z 레포 정리 — 패치별 확인 캡처 폴더(`docs/design/c33~c71·u1-check` 46개)와 적용 끝난 `docs/ui-requests/5~9/` 캡처 삭제(git 기록에 남음). c72·c73·c74 캡처, 디자인 원본, `player-one-design-v2.zip`(폴더와 39개 파일이 달라 남김) 유지. `scripts/c44a-capture2.mjs` 는 출력 폴더를 만들게 고침.
+
 ### C.75a 44a단계 E-0 결정 순간 다듬기 — 도박 실패 감점 확률 비례 축소 · 고를 거리 2개 미만 정지 없음 · 슛/개인기 자리 보장 **`main` 배포** (ENGINE_VERSION 22 → 23, BALANCE_VERSION 53 그대로, SAVE_FORMAT_VERSION 43 그대로)
 
 사용자 플레이 피드백(2026-10-20 00:47 KST, pending 128) 3개를 엔진 다듬기 블록 첫 패치(pending 129 44a)로 처리했다. 바뀐 것은 **직접 모드 결정 경로만**이다(자동 경기·맡기기 경로는 같은 시드 지문 그대로).

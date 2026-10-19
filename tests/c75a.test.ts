@@ -46,6 +46,9 @@ describe('C.75a 결정 순간 다듬기 (E-0)', () => {
     expect(out.some((c) => c?.type === 'dribble')).toBe(true);
     expect(out.some((c) => c?.type === 'shoot')).toBe(true);
     expect(keepSlots(cb, pool, pickOptions(pool)).some((c) => c?.type === 'dribble')).toBe(false);
+    // 이미 드리블 칸이 있으면 방향만 다른 돌파를 하나 더 넣지 않는다
+    const two = [...pool, cand('dribble', 0.45, 0.25, 0.5, 6)];
+    expect(keepSlots(st, two, [two[0]!, two[6]!, two[1]!]).filter((c) => c?.type === 'dribble').length).toBe(1);
   });
 
   it('직접 모드(카드 덱): 고를 거리 2개 미만 정지 없음 · 맡기기는 자동과 같다(카드 없음)', () => {

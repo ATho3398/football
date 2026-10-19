@@ -67,8 +67,7 @@ const start = async (mode, id, seed, shotNew = false) => {
   await page.reload();
   await act('go', '[data-to="new"]');
   await page.waitForTimeout(300);
-  await page.fill('#f-seed', seed);
-  await page.locator('#f-seed').dispatchEvent('change');
+  if (await has('#f-seed')) { await page.fill('#f-seed', seed); await page.locator('#f-seed').dispatchEvent('change'); }
   if (mode === 'real') {
     await act('form', '[data-k="mode"][data-v="real"]');
     await page.waitForTimeout(300);
@@ -79,7 +78,11 @@ const start = async (mode, id, seed, shotNew = false) => {
   if (shotNew) { await top(); await shot('새게임'); }
   await act('start');
   await page.waitForTimeout(800);
-  if (await has('[data-act="tips-off"]')) await act('tips-off');
+  for (const sel of ['[data-act="tips-off"]', '[data-act="opt-quick"][data-v="quick"]']) {
+    await page.locator(`${sel}:visible`).first().click({ timeout: 1500 }).catch(() => null);
+    await page.waitForTimeout(250);
+    await dismiss();
+  }
   await dismiss();
   return true;
 };
@@ -102,6 +105,7 @@ if (await start('real', PLAYER, process.env.SEED ?? 'c75a-check')) {
   await page.waitForTimeout(300); await dismiss();
   if (await has('[data-act="ctl-mode"][data-v="direct"]')) await act('ctl-mode', '[data-v="direct"]');
   if (await has('[data-act="ctl-stop"][data-v="all"]')) await act('ctl-stop', '[data-v="all"]');
+  if (process.env.DEBUG) await shot('dbg-준비');
   await act('prep-start');
   const MAXS = Number(process.env.MAXS ?? 4);
   let saved = 0;
@@ -109,7 +113,7 @@ if (await start('real', PLAYER, process.env.SEED ?? 'c75a-check')) {
   report.moments = [];
   for (let loop = 0; loop < 80; loop++) {
     await page.waitForSelector('[data-act="mo-confirm"], [data-act="oc-skip"], main.screen-match', { timeout: 180_000 });
-    if (await page.evaluate(() => !!document.querySelector('main.screen-match'))) break;
+    if (await page.evaluate(() => !!document.querySelector('main.screen-match'))) { if (process.env.DEBUG) await shot('dbg-끝'); break; }
     await page.waitForTimeout(1500);
     await dismiss();
     if (!(await has('[data-act="mo-confirm"]'))) { if (await has('[data-act="oc-skip"]')) await act('oc-skip'); await page.waitForTimeout(300); continue; }
