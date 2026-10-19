@@ -343,6 +343,8 @@ export interface CustomSpec {
   facePhoto?: FacePhoto;
   /** 시작 소속 (C.45 10번). 없으면 기존처럼 랜덤 팀 */
   start?: StartChoice;
+  /** 전체 랜덤 [이대로 시작] (C.74d): 잠재력·숨은 적성·팀을 기준 자리 없이 굴린다 (랜덤 결과 화면의 포지션 후보와 같은 결과) */
+  rolled?: boolean;
 }
 
 /** 장단점이 정하는 시작 약발 (양발잡이 4, 약발 1) */
@@ -473,7 +475,7 @@ export function newGame(opts: NewGameOptions): GameState {
     const budget = customBudget(age, picks, c.body.weakFoot);
     if (!validCustom(c.attributes, budget, height)) throw new Error('커스텀 능력치가 포인트·상한을 넘었어요');
     // 잠재력·숨은 적성·팀은 랜덤 (숨은 적성은 커스텀에도 랜덤, pending 47 2)
-    const roll = rollProspect(worldSeed, c.position);
+    const roll = rollProspect(worldSeed, c.rolled ? undefined : c.position);
     const prng = roll.rng;
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
     const { min, max } = BALANCE.newGame.teamRankRange;

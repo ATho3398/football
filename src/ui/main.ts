@@ -7,6 +7,7 @@ import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
+import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
 import './design/tokens.css';
@@ -236,7 +237,8 @@ const ui = {
   /** 덱 화면에서 돌아갈 곳 (C.51) */
   deckBack: 'home' as 'home' | 'prep',
   form: {
-    mode: 'prospect' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
+    /** 시작 방식 (C.74d): 커스텀(기본) · 실제 선수. 'prospect' = 커스텀 [전체 랜덤] 결과 화면 */
+    mode: 'custom' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
     /** 레전드 팩 (C.47) */
     legends: 'off' as 'on' | 'off',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
@@ -250,6 +252,8 @@ const ui = {
     photo: '',
     /** 커스텀 생성 (C.45) */
     cu: initialCustomForm(),
+    /** [이 단계 랜덤] 누른 횟수 (C.74d): 시드 + 횟수로 뽑아 같은 시드·같은 순서면 같은 결과 */
+    rand: 0,
   },
 };
 
@@ -264,7 +268,7 @@ function syncProspectPick(): void {
   const key = prospectSeed();
   if (ui.form.posFor === key) return;
   ui.form.posFor = key;
-  ui.form.position = rollProspect(key).candidates[0]!.pos;
+  ui.form.position = rollCustom(key).candidates[0]!.pos;
   ui.form.others = false;
   ui.form.race = '';
   ui.form.photo = '';
@@ -1940,6 +1944,45 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'ng-random':
+      // 전체 랜덤 (C.74d): 시드를 적었으면 그 시드, 아니면 새로 굴린다 → 결과 화면 [이대로 시작][편집하기][다시 돌리기]
+      readFormInputs();
+      if (!ui.form.seed.trim()) ui.form.roll = randomSeed();
+      ui.form.mode = 'prospect';
+      ui.ng.attrsOpen = false;
+      render();
+      window.scrollTo(0, 0);
+      return;
+    case 'ng-edit': {
+      // 편집하기 (C.74d): 랜덤 결과를 커스텀 폼으로 옮겨 1단계부터
+      readFormInputs();
+      const f = ui.form;
+      const r = prospectToCustom(prospectSeed(), f.position, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined);
+      f.cu = r.form;
+      if (!f.name.trim()) f.name = r.name;
+      f.mode = 'custom';
+      ui.ng.cuStep = 1;
+      render();
+      window.scrollTo(0, 0);
+      return;
+    }
+    case 'cu-rand': {
+      readFormInputs();
+      const f = ui.form;
+      f.rand += 1;
+      const r = randomStep(f.cu, f.name, Number(v) || ui.ng.cuStep, `${prospectSeed()}:cu${v}:${f.rand}`);
+      f.cu = r.form;
+      f.name = r.name;
+      render();
+      return;
+    }
+    case 'cu-fit': {
+      readFormInputs();
+      const c = ui.form.cu;
+      ui.form.cu = { ...c, attrs: fitToBudget(c.attrs, c.position, budgetOf(c), c.height) };
+      render();
+      return;
+    }
     case 'cu-auto': {
       readFormInputs();
       const c = ui.form.cu;
@@ -1955,9 +1998,10 @@ app.addEventListener('click', (ev) => {
         const cv = customVM(f.cu, f.name);
         if (cv.over || !cv.start.ready) return;
       }
+      // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
       ui.game = f.mode === 'prospect'
-        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true, legends: f.legends === 'on',
-          ...(isRace(f.race) ? { race: f.race } : {}), ...(isFacePhoto(f.photo) ? { facePhoto: f.photo } : {}) })
+        ? newGame({ mode: 'custom', custom: rolledSpec(prospectSeed(), f.position, f.name, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined),
+          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
         : f.mode === 'custom'
           ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
           : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on' });
@@ -1968,6 +2012,7 @@ app.addEventListener('click', (ev) => {
       const bonus = claimNewGameBonus(ui.game);
       f.race = '';
       f.photo = '';
+      if (f.mode === 'prospect') f.mode = 'custom';
       autosave();
       go('home');
       showToast({ kind: 'info', title: `${ui.game.player.name} · ${teamById(ui.game.league, ui.game.player.teamId).nameKo}`, body: bonus ? `커리어를 시작했어요. 명예의 전당 보너스: ${RARITY_KO[bonus.rarity] ?? bonus.rarity} 카드 선택권 1장(덱).` : '커리어를 시작했어요.' });
