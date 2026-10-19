@@ -79,10 +79,11 @@ async function custom() {
 }
 const report = { W, H, errors };
 await fresh();
-await page.locator('#f-seed').fill('m2');
-await page.locator('#f-seed').dispatchEvent('change');
 await act('form', '[data-k="mode"][data-v="real"]');
 await act('form', '[data-k="legends"][data-v="on"]');
+await page.locator('#f-seed').fill('m2');
+await page.locator('#f-seed').dispatchEvent('change');
+await page.waitForTimeout(300);
 await act('ng-real', '[data-k="realTab"][data-v="legend"]');
 if (process.env.SHOT_TOP) await shot('1_legend_top');
 await page.locator('#f-rq').fill('이적');
@@ -100,8 +101,25 @@ await act('start');
 await started();
 await go('world');
 await act('world-tab', '[data-v="stars"]');
-await page.evaluate(() => { const el = [...document.querySelectorAll('.wl-upcoming')].at(-1); if (el) el.scrollIntoView({ block: 'end' }); });
+await page.evaluate(() => { const el = [...document.querySelectorAll('.wl-upcoming')].at(-1); if (el) el.scrollIntoView({ block: 'center' }); });
 await shot('4_world_abroad');
+// 마스터 S 요청: 미래 스타 선수 화면 "이전 경력 · 실제 기록" (세이브 파일 FS_SAVE = 미래 스타 팩 · 4시즌 갱신 뒤, 홀란 등장)
+if (process.env.FS_SAVE) {
+  report.abroadLine0 = await page.evaluate(() => [...document.querySelectorAll('.wl-upcoming')].map((e) => e.textContent));
+  await go('saves');
+  await page.locator('#import-file').setInputFiles(process.env.FS_SAVE);
+  await page.waitForTimeout(1500);
+  await dismiss();
+  await go('world');
+  await act('world-tab', '[data-v="stars"]');
+  report.imported = await page.evaluate(() => document.body.innerText.includes('홀란'));
+  if (await has('[data-act="more"][data-v="legends"]')) await act('more', '[data-v="legends"]');
+  await page.locator('[data-act="person-open"][data-v="fs-haaland"]').first().click({ timeout: 8000 });
+  await page.waitForTimeout(600);
+  await act('person-tab', '[data-v="record"]');
+  await page.evaluate(() => { const el = [...document.querySelectorAll('*')].filter((e) => e.children.length < 3 && e.textContent?.trim().startsWith('이전 경력')).at(-1); if (el) el.scrollIntoView({ block: 'center' }); });
+  await shot('5_future_prior_career');
+}
 report.abroadLine = await page.evaluate(() => [...document.querySelectorAll('.wl-upcoming')].map((e) => e.textContent));
 report.hscroll = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
 writeFileSync(`${OUT}/${P}report.json`, JSON.stringify(report, null, 2));
