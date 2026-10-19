@@ -47,7 +47,7 @@ export interface CardEffect { pre: string; hi?: string; post?: string }
 export interface CardCondition { text: string; met: boolean; current?: number | string }
 /** 카드 그림 위치·확대. x = 오른쪽으로 이동(%, 음수면 왼쪽), y = 위로 올림(%, 음수면 내림), 둘 다 4:3 그림 칸(280×210) 기준. zoom = 확대 배율 1~4(기본 1). flip = 좌우 반전. rotate = 기울기(도, −45~45, 시계 방향 +). */
 export interface CardArtPos { x?: number; y?: number; zoom?: number; flip?: boolean; rotate?: number }
-export interface Card {pos?: CardPos; order?: 'follow' | 'solo'; id?: string; name: string; type: CardType; rarity: Rarity; level?: number; effect?: CardEffect | string; effectValue?: string; condition?: CardCondition; art?: string; /** true면 그림이 1:1 원본 — 가로를 칸에 맞추고 세로는 칸 밖으로 넘치며, y로 위아래를 옮겨 고른다 */ artSquare?: boolean; artPos?: CardArtPos; /** 간략 카드(덱 슬롯 mini · 경기 중 패 hand) 공용. 없으면 artPos */ artPosMini?: CardArtPos; isNew?: boolean; count?: number; disabled?: boolean }
+export interface Card {/** 그림이 없을 때: 'type'(기본, 요청 6 — 단색 + 종류 아이콘) · 'scene'(예전 골문 장면) */ placeholder?: 'type' | 'scene'; pos?: CardPos; order?: 'follow' | 'solo'; id?: string; name: string; type: CardType; rarity: Rarity; level?: number; effect?: CardEffect | string; effectValue?: string; condition?: CardCondition; art?: string; /** true면 그림이 1:1 원본 — 가로를 칸에 맞추고 세로는 칸 밖으로 넘치며, y로 위아래를 옮겨 고른다 */ artSquare?: boolean; artPos?: CardArtPos; /** 간략 카드(덱 슬롯 mini · 경기 중 패 hand) 공용. 없으면 artPos */ artPosMini?: CardArtPos; isNew?: boolean; count?: number; disabled?: boolean }
 /** full 280×392 · deck 168×235 (both with screentone art fade) · mini (deck slot, 116px tall) · hand 76×108 (both simplified, no screentone) */
 export interface GameCardProps { card: Card; size?: 'full' | 'deck' | 'mini' | 'hand'; state?: 'normal' | 'selected' | 'disabled' | 'locked'; reason?: string; onClick?: () => void }
 export declare function GameCard(props: GameCardProps): React.ReactElement;
@@ -80,11 +80,13 @@ export declare function ScoreBar(props: ScoreBarProps): React.ReactElement;
 export type SceneStripProps = Pick<ScoreBarProps, 'view' | 'scene' | 'sceneNote' | 'sceneNoteIcon' | 'minute' | 'onSettings' | 'onLive' | 'onHighlight'>;
 export declare function SceneStrip(props: SceneStripProps): React.ReactElement;
 
-export interface PitchPlayer { x: number; y: number; team: 'home' | 'away'; num?: number; me?: boolean; label?: string; /** 겹칠 때 쓰는 짧은 이름(성·별명). 없으면 '.' 뒤 3자 */ short?: string; /** 공 가진 선수(이름표 우선순위 2) */ ball?: boolean; /** 얼굴 마커 이미지 */ face?: string; flag?: boolean; dim?: boolean }
+export interface PixelKit { kit?: string; kit2?: string; pattern?: 'solid' | 'stripe' | 'hoop'; skin?: string; hair?: string | 'none' }
+export interface PitchPlayer { /** 요청 6 · 픽셀 캐릭터 유니폼(경기마다 홈·원정·GK 자동) */ kit?: PixelKit; x: number; y: number; team: 'home' | 'away'; num?: number; me?: boolean; label?: string; /** 겹칠 때 쓰는 짧은 이름(성·별명). 없으면 '.' 뒤 3자 */ short?: string; /** 공 가진 선수(이름표 우선순위 2) */ ball?: boolean; /** 얼굴 마커 이미지 */ face?: string; flag?: boolean; dim?: boolean }
 export interface PitchArrow { from: [number, number]; to: [number, number]; kind: 'pass' | 'through' | 'cross' | 'dribble' | 'shot'; tone?: 'safe' | 'balanced' | 'gamble'; curve?: [number, number]; ghost?: boolean }
 /** orient='vertical' = 세로 피치(내 팀 아래→위). 세로에서만: crop [from,to](공격 방향 %, 예 [56,100] = 상대 진영 쪽만), marker, size, names, collide, dot(캐릭터 도트 px), renderWidth(실제 그려지는 폭 px). */
 export interface PitchProps { players: PitchPlayer[]; ball?: [number, number]; arrows?: PitchArrow[]; offsideX?: number; marks?: Array<{ x: number; y: number; text: string; tone?: 'brand' | 'warning' | 'fail' | 'white' }>; label?: string; children?: React.ReactNode;
-  orient?: 'horizontal' | 'vertical'; crop?: [number, number]; marker?: 'number' | 'face' | 'pixel'; size?: 'md' | 'lg' | 'xl'; names?: 'all' | 'mine' | 'off'; collide?: boolean; dot?: 2 | 4; renderWidth?: number }
+  orient?: 'horizontal' | 'vertical'; crop?: [number, number]; marker?: 'number' | 'face' | 'pixel'; size?: 'md' | 'lg' | 'xl'; names?: 'all' | 'mine' | 'off'; collide?: boolean; dot?: 2 | 4; renderWidth?: number;
+  /** 요청 6 · marker='pixel'일 때 캐릭터 아래 등번호 띠(홈 라임 · 원정 주황, 기본 켬) */ band?: boolean; /** 두 팀 유니폼이 비슷한 경기: 원정 캐릭터 몸통에 주황 테두리 */ kitClash?: boolean }
 export declare function Pitch(props: PitchProps): React.ReactElement;
 
 export interface PossessionBarProps { home: number; label?: string | false }
@@ -134,7 +136,7 @@ export interface CellGaugeProps { label?: string; value: number; add?: number; c
 export declare function CellGauge(props: CellGaugeProps): React.ReactElement;
 /* ---------- 요청 5 새 컴포넌트 ---------- */
 export type DockItem = 'home' | 'progress' | 'player' | 'schedule' | 'world' | 'more' | 'deck' | 'tactic' | 'settings' | 'save';
-/** 폰 6칸(홈·진행·선수·훈련·일정·월드·더보기) / PC 9칸(+덱·전술·설정·저장, 더보기 없음). progress = 가운데 진행 칸 상태. */
+/** 요청 6: 홈이 항상 가운데. 폰 6칸(진행 2fr · 선수 · 홈 · 훈련·일정 · 월드 · 더보기) / PC 9칸(진행 · 선수 · 훈련·일정 · 덱 · 홈 · 전술 · 월드 · 설정 · 저장). progress = 진행 칸 상태(5종). */
 export interface DockProps { device?: 'phone' | 'pc'; value?: DockItem; progress?: 'continue' | 'match' | 'live' | 'answer' | 'season'; badges?: Partial<Record<DockItem, number>>; locked?: DockItem[]; onSelect?: (id: DockItem) => void }
 export declare function Dock(props: DockProps): React.ReactElement;
 /** 능력치 1~20. 색 구간 17+ brand · 15+ success · 13+ tier-key(하늘) · 10+ ink · ~9 away(주황). keyAttr = 포지션 핵심(테두리). */
@@ -152,4 +154,19 @@ export interface TransferRowProps { name: string; pos: string; age: number; ovr:
 export declare function TransferRow(props: TransferRowProps): React.ReactElement;
 export interface TextFieldProps { value?: string; placeholder?: string; label?: string; count?: string; hint?: string; icon?: IconName; focused?: boolean; clearable?: boolean }
 export declare function TextField(props: TextFieldProps): React.ReactElement;
-declare global { interface Window { PlayerOne: { Button: typeof Button; Icon: typeof Icon; Avatar: typeof Avatar; Crest: typeof Crest; TierBadge: typeof TierBadge; RatingBadge: typeof RatingBadge; StatChip: typeof StatChip; Meter: typeof Meter; FatigueGauge: typeof FatigueGauge; FormIndicator: typeof FormIndicator; StatBar: typeof StatBar; PlayerCard: typeof PlayerCard; GameCard: typeof GameCard; CardHand: typeof CardHand; ChoiceButton: typeof ChoiceButton; FeedItem: typeof FeedItem; ScoreBar: typeof ScoreBar; SceneStrip: typeof SceneStrip; PossessionBar: typeof PossessionBar; AppBar: typeof AppBar; Tabs: typeof Tabs; Banner: typeof Banner; Toast: typeof Toast; BottomSheet: typeof BottomSheet; Modal: typeof Modal; ResultSplash: typeof ResultSplash; DeckSlot: typeof DeckSlot; HeroPanel: typeof HeroPanel; SectionTitle: typeof SectionTitle; Pitch: typeof Pitch; FitBadge: typeof FitBadge; TacticEmblem: typeof TacticEmblem; TacticChip: typeof TacticChip; FormationPitch: typeof FormationPitch; OptionRow: typeof OptionRow; Slider: typeof Slider; Switch: typeof Switch; CellGauge: typeof CellGauge; Dock: typeof Dock; AttrTile: typeof AttrTile; AttrGrid: typeof AttrGrid; DayCell: typeof DayCell; OfferCard: typeof OfferCard; TransferRow: typeof TransferRow; TextField: typeof TextField } } }
+/* ---------- 요청 6 새 컴포넌트 ---------- */
+/** − 값 + 조절(나이·키·몸무게). sub = 값이 주는 영향 한 줄(포인트·상한). */
+export interface StepperProps { label?: string; value: number; unit?: string; min?: number; max?: number; range?: string; sub?: string; subTone?: 'gain' | 'cost' | 'warn'; disabled?: boolean; size?: 'md' | 'sm'; onMinus?: () => void; onPlus?: () => void }
+export declare function Stepper(props: StepperProps): React.ReactElement;
+/** 배분 포인트 띠. 상태는 left로 자동: 남음 / 0 / 초과(시작 막힘). */
+export interface PointBarProps { left: number; total: number; label?: string; items?: Array<{ label: string; value: number; base?: boolean }>; message?: string; sticky?: boolean }
+export declare function PointBar(props: PointBarProps): React.ReactElement;
+/** 색 = 장점/단점/효과 없음 · 앞 기호 = 종류(± 생성 · 핀 커리어 · 별 플레이 · 말풍선 스토리) · 점선 + 시계 = 해제형 · 취소선 = 해제됨 */
+export type TagKind = 'gen' | 'career' | 'play' | 'story';
+export interface TagChipProps { name: string; kind?: TagKind; polarity?: 'pro' | 'con'; release?: string; released?: boolean; scope?: string; showScope?: boolean; desc?: string; size?: 'md' | 'sm'; onClick?: () => void }
+export declare function TagChip(props: TagChipProps): React.ReactElement;
+/** 16px 도트 타일. scale = 정수배(1~6). */
+export interface PixelSprite { kind?: 'person' | 'kit'; skin?: string; hair?: string | 'none'; hairStyle?: 'short' | 'long' | 'curly'; kit?: string; kit2?: string; pattern?: 'solid' | 'stripe' | 'hoop' }
+export interface PixelTileProps { sprite?: PixelSprite; src?: string; scale?: 1 | 2 | 3 | 4 | 5 | 6; label?: string; title?: string; selected?: boolean; isDefault?: boolean; disabled?: boolean; onClick?: () => void }
+export declare function PixelTile(props: PixelTileProps): React.ReactElement;
+declare global { interface Window { PlayerOne: { Button: typeof Button; Icon: typeof Icon; Avatar: typeof Avatar; Crest: typeof Crest; TierBadge: typeof TierBadge; RatingBadge: typeof RatingBadge; StatChip: typeof StatChip; Meter: typeof Meter; FatigueGauge: typeof FatigueGauge; FormIndicator: typeof FormIndicator; StatBar: typeof StatBar; PlayerCard: typeof PlayerCard; GameCard: typeof GameCard; CardHand: typeof CardHand; ChoiceButton: typeof ChoiceButton; FeedItem: typeof FeedItem; ScoreBar: typeof ScoreBar; SceneStrip: typeof SceneStrip; PossessionBar: typeof PossessionBar; AppBar: typeof AppBar; Tabs: typeof Tabs; Banner: typeof Banner; Toast: typeof Toast; BottomSheet: typeof BottomSheet; Modal: typeof Modal; ResultSplash: typeof ResultSplash; DeckSlot: typeof DeckSlot; HeroPanel: typeof HeroPanel; SectionTitle: typeof SectionTitle; Pitch: typeof Pitch; FitBadge: typeof FitBadge; TacticEmblem: typeof TacticEmblem; TacticChip: typeof TacticChip; FormationPitch: typeof FormationPitch; OptionRow: typeof OptionRow; Slider: typeof Slider; Switch: typeof Switch; CellGauge: typeof CellGauge; Dock: typeof Dock; AttrTile: typeof AttrTile; AttrGrid: typeof AttrGrid; DayCell: typeof DayCell; OfferCard: typeof OfferCard; TransferRow: typeof TransferRow; TextField: typeof TextField; Stepper: typeof Stepper; PointBar: typeof PointBar; TagChip: typeof TagChip; PixelTile: typeof PixelTile } } }

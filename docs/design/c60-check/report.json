@@ -1,0 +1,22 @@
+{
+ "errors": [],
+ "broken": [],
+ "pickCards": 3,
+ "deckReasons": [
+  "역할",
+  "역할",
+  "역할"
+ ],
+ "deckLen": 1247,
+ "resultLen": 2612,
+ "avgDir": "우리 공격 방향 ↑",
+ "phase": "offseason",
+ "seasonScreen": "screen screen-season",
+ "seasonLen": 914,
+ "tabClip": [],
+ "offers": 3,
+ "news": 15,
+ "tagNews": 7,
+ "wide": 0,
+ "broken404": []
+}

@@ -3,7 +3,7 @@ import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttr
 import { BALANCE } from '../src/config/balance';
 import { emptySeasonStats } from '../src/game';
 import {
-  addXp, applyAging, applyVeteranGrowth, autoAllocate, costTier, playerOvr, pointCost, raiseAttribute, raiseBlock,
+  addXp, applyAging, applyVeteranGrowth, autoAllocate, costTier, internalCost, playerOvr, pointCost, raiseAttribute, raiseBlock,
   veteranXpMultiplier, xpToLevel,
 } from '../src/growth';
 import { createRng } from '../src/rng';
@@ -16,7 +16,7 @@ const XP = BALANCE.growth.xpPerLevel;
 function player(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
     name: 't', position: 'ST', age: 20, teamId: 'x', attributes: flat(60), potentialTier: 'normal',
-    xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
+    xp: 0, totalXp: 0, level: 0, unspentPoints: 0,
     fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
     proficiency: initialProficiency('ST'), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, tags: [],
     ...overrides,
@@ -24,13 +24,13 @@ function player(overrides: Partial<PlayerState> = {}): PlayerState {
 }
 
 describe('레벨업', () => {
-  it('XP 가 차면 레벨업하고 포인트 5개', () => {
+  it('XP 가 차면 레벨업하고 포인트 1개 (C.49: 1P = 화면 한 칸)', () => {
     const p = player();
     expect(addXp(p, XP - 1)).toBe(0);
     expect(addXp(p, 1)).toBe(1);
-    expect(p).toMatchObject({ level: 1, unspentPoints: 5, xp: 0 });
+    expect(p).toMatchObject({ level: 1, unspentPoints: 1, xp: 0 });
     expect(addXp(p, XP * 2 + 10)).toBe(2);
-    expect(p).toMatchObject({ level: 3, unspentPoints: 15, xp: 10, totalXp: XP * 3 + 10 });
+    expect(p).toMatchObject({ level: 3, unspentPoints: 3, xp: 10, totalXp: XP * 3 + 10 });
   });
 
   it('OVR 80 을 넘으면 필요 XP 가 늘어난다: 기본 × (1 + (OVR - 80) × perOvr) (부록 D.6 #2)', () => {
@@ -44,17 +44,16 @@ describe('레벨업', () => {
   });
 });
 
-describe('포인트 비용 구간 (6.2)', () => {
-  it('티어별 구간 경계', () => {
-    expect([70, 71, 84, 85].map((v) => pointCost(v, 'normal'))).toEqual([1, 2, 2, 3]);
-    expect([80, 81, 92].map((v) => pointCost(v, 'legendary'))).toEqual([1, 2, 2]);
-    expect([76, 77, 89, 90].map((v) => pointCost(v, 'topClass'))).toEqual([1, 2, 2, 3]);
+describe('포인트 비용 구간 (6.2, C.49 화면 칸 기준)', () => {
+  it('티어별 구간 경계 = 내부 구간 ÷ 5 (일반 ≤14 → 1, 15~17 → 2, 18~ → 3)', () => {
+    expect([72, 73, 87, 88].map((v) => pointCost(v, 'normal'))).toEqual([1, 2, 2, 3]);
+    expect([82, 83, 92, 93].map((v) => pointCost(v, 'legendary'))).toEqual([1, 2, 2, 3]);
+    expect([77, 78, 92, 93].map((v) => pointCost(v, 'topClass'))).toEqual([1, 2, 2, 3]);
   });
 
-  it('고값 추가 비용: 93~95 → 4, 96~97 → 6, 98 → 9 (위상 무관, 부록 D.6 #1)', () => {
-    for (const tier of ['normal', 'legendary'] as const) {
-      expect([92, 93, 95, 96, 97, 98].map((v) => pointCost(v, tier))).toEqual([tier === 'normal' ? 3 : 2, 4, 4, 6, 6, 9]);
-    }
+  it('고값 추가 비용은 없다 (최대 3P). 훈련 게이지 배수는 내부 값 기준 그대로 4/6/9', () => {
+    for (const tier of ['normal', 'legendary'] as const) expect([93, 95, 96, 97].map((v) => pointCost(v, tier))).toEqual([3, 3, 3, 3]);
+    expect([92, 93, 96, 98].map((v) => internalCost(v, 'normal'))).toEqual([3, 4, 6, 9]);
   });
 
   it('내 선수의 비용 구간은 숨은 잠재력도 위상도 아니라 현재 실력 티어(OVR)로 정한다 (성장 해금, 부록 C.23)', () => {
@@ -63,51 +62,54 @@ describe('포인트 비용 구간 (6.2)', () => {
     expect(playerOvr(top)).toBe(80);
     expect(costTier(top)).toBe('topClass');
     expect(costTier(player({ attributes: flat(80), reputation: 1000 }))).toBe('topClass');
-    const p = player({ potentialTier: 'legendary', reputation: 1000, attributes: { ...flat(60), shooting: 72 } });
-    addXp(p, XP);
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 일반 구간: 72 는 비용 2 (위상 1000 이어도)
-    expect(p.unspentPoints).toBe(3);
-    p.attributes = { ...flat(95), shooting: 73 };
-    expect(costTier(p)).toBe('legendary');
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 레전더리 실력 구간: 73 은 비용 1
-    expect(p.unspentPoints).toBe(2);
-  });
-
-  it('비용만큼 포인트가 줄고, 비용 2 구간에 들어서면 코치 코멘트', () => {
-    const p = player({ attributes: { ...flat(60), shooting: 69 } });
-    addXp(p, XP);
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 69→70, 비용 1
-    expect(p.coachWarned).toBe(false);
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 70→71, 비용 1, 이제 비용 2 구간
-    expect(p.coachWarned).toBe(true);
-    expect(raiseAttribute(p, 'shooting')).toBe(true); // 71→72, 비용 2
+    const p = player({ potentialTier: 'legendary', reputation: 1000, attributes: { ...flat(60), shooting: 75 } });
+    addXp(p, XP * 3);
+    expect(raiseAttribute(p, 'shooting')).toBe(true); // 일반 구간: 화면 15 는 비용 2 (위상 1000 이어도)
     expect(p.unspentPoints).toBe(1);
+    p.attributes = { ...flat(95), shooting: 75 };
+    expect(costTier(p)).toBe('legendary');
+    expect(raiseAttribute(p, 'shooting')).toBe(true); // 레전더리 실력 구간: 화면 15 는 비용 1
+    expect(p.unspentPoints).toBe(0);
+  });
+
+  it('찍기 한 번 = 내부 +5 (칸 안 진행 유지, 99 상한), 비용만큼 포인트가 줄고 비용 2 구간에 들어서면 코치 코멘트', () => {
+    const p = player({ attributes: { ...flat(60), shooting: 69 } });
+    addXp(p, XP * 3);
+    expect(raiseAttribute(p, 'shooting')).toBe(true); // 69→74 (화면 14→15), 비용 1
+    expect(p.attributes.shooting).toBe(74);
+    expect(p.coachWarned).toBe(true); // 이제 비용 2 구간
+    expect(raiseAttribute(p, 'shooting')).toBe(true); // 74→79, 비용 2
+    expect(p.unspentPoints).toBe(0);
     expect(raiseBlock(p, 'shooting')).toBe('points');
-  });
-
-  it('한 번의 레벨업에서 한 능력치 최대 +3, 레벨이 쌓이면 상한도 늘어남', () => {
-    const p = player();
-    addXp(p, XP);
-    for (let i = 0; i < 3; i++) expect(raiseAttribute(p, 'pace')).toBe(true);
-    expect(raiseBlock(p, 'pace')).toBe('cap');
-    expect(raiseAttribute(p, 'pace')).toBe(false);
-    addXp(p, XP);
+    p.attributes.pace = 96;
+    p.unspentPoints = 3;
     expect(raiseAttribute(p, 'pace')).toBe(true);
+    expect(p.attributes.pace).toBe(99);
   });
 
-  it('포인트가 모자라거나 99면 못 올린다', () => {
-    const p = player({ attributes: { ...flat(60), pace: 99, shooting: 90 } });
+  it('레벨당 한 능력치 상한은 없다: 포인트만 있으면 같은 능력치를 계속 올린다', () => {
+    const p = player();
+    addXp(p, XP * 3);
+    for (let i = 0; i < 3; i++) expect(raiseAttribute(p, 'pace')).toBe(true);
+    expect(p.attributes.pace).toBe(75);
+    expect(raiseBlock(p, 'pace')).toBe('points');
+  });
+
+  it('포인트가 모자라거나 화면 20(내부 98~99)이면 못 올린다', () => {
+    const p = player({ attributes: { ...flat(60), pace: 99, crossing: 98, shooting: 90 } });
     expect(raiseBlock(p, 'dribbling')).toBe('points');
     addXp(p, XP);
     expect(raiseBlock(p, 'pace')).toBe('max');
+    expect(raiseBlock(p, 'crossing')).toBe('max');
     p.unspentPoints = 2;
     expect(raiseBlock(p, 'shooting')).toBe('points'); // 비용 3
   });
 
-  it('자동 배분은 포인트를 다 쓰거나 더 쓸 데가 없을 때 멈춘다', () => {
+  it('자동 배분은 포인트를 다 쓰거나 더 쓸 데가 없을 때 멈추고, 찍은 순서를 돌려준다', () => {
     const p = player();
     addXp(p, XP * 2);
-    autoAllocate(p);
+    const steps = autoAllocate(p);
+    expect(steps).toHaveLength(2);
     expect(p.unspentPoints).toBe(0);
     const sum = FIELD_ATTRIBUTES.reduce((t, a) => t + p.attributes[a], 0);
     expect(sum).toBe(60 * 25 + 10);
@@ -188,7 +190,7 @@ describe('노련함 성장 (6.1.1)', () => {
 });
 
 describe('고령 XP 감쇠 (6.1)', () => {
-  it('29세 ×1, 30세 ×0.75, 32세 ×0.6, 34세 ×0.45, 36세 ×0.3 (부록 D.6 #4, 코드 세션 조정)', () => {
-    expect([29, 30, 31, 32, 34, 36, 37].map(veteranXpMultiplier)).toEqual([1, 0.75, 0.75, 0.6, 0.45, 0.3, 0.3]);
+  it('29세 ×1, 30세 ×0.75, 31세 ×0.55, 33세 ×0.4, 35세 ×0.25 (부록 D.6 #4, C.49 조정)', () => {
+    expect([29, 30, 31, 32, 34, 36, 37].map(veteranXpMultiplier)).toEqual([1, 0.75, 0.55, 0.55, 0.4, 0.25, 0.25]);
   });
 });

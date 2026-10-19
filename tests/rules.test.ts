@@ -208,7 +208,8 @@ describe('playRound 엔진 연결 (E3)', () => {
 
   it('엔진으로 여러 라운드 연속 진행 (피로는 이동 거리에서, 기록 누적)', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'e3-run', difficulty: 'normal' });
-    for (let i = 0; i < 6; i++) playRound(g);
+    // C.67b: 챔스 경기도 playRound 한 번 — 리그 6라운드까지
+    while (g.league.round < 6) playRound(g);
     expect(g.league.round).toBe(6);
     // 하루 단위 (C.38): 내 경기 뒤 같은 라운드 일·월요일 경기는 아직이다
     expect(g.league.table.every((r) => r.played === 6 || r.played === 5)).toBe(true);

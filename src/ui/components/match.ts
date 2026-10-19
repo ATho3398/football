@@ -1,7 +1,7 @@
 // 경기 컴포넌트 (bundle.js 옮김, H.6 2번): FeedItem, ScoreBar, PossessionBar, TacticChip, Pitch.
 // Pitch 는 디자인의 SVG 대신 기존 캔버스 MarkerRenderer(24.4) 위에 디자인 스타일만 입힌다 (H.6 2번)
 
-import { Crest, Icon, type IconName } from './basic';
+import { Crest, Icon, RatingBadge, type IconName } from './basic';
 import { actAttrs, cx, esc, type Action } from './html';
 import { FitBadge } from './layout';
 
@@ -195,4 +195,71 @@ export function Pitch(p: PitchProps): string {
 /** 피치 아래 범례 (05 화면): 우리 / 상대 / 나 */
 export function PitchLegend(left: string): string {
   return `<div class="po-pitch-legend"><span class="po-pitch-legend__state">${left}</span><span class="po-pitch-legend__keys"><span><i class="k-home"></i>우리</span><span><i class="k-away"></i>상대</span><span><i class="k-me"></i>나</span></span></div>`;
+}
+
+// ── ChoiceButton (결정 순간 선택지, 5차 77~79): 유형 칩 + 이름 + 성공/실패 한 줄(compact) + 오른쪽 큰 확률과 막대 ──
+
+export type ChoiceKind = 'safe' | 'balanced' | 'gamble' | 'play';
+const CHOICE_KO: Record<ChoiceKind, string> = { safe: '안전', balanced: '균형', gamble: '도박', play: '플레이 카드' };
+const CHOICE_ICON: Record<ChoiceKind, IconName> = { safe: 'safe', balanced: 'balanced', gamble: 'gamble', play: 'newchoice' };
+const OFFSIDE_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '중간', n: 2 }, high: { l: '높음', n: 3 } } as const;
+
+export interface ChoiceButtonProps extends Action {
+  kind: ChoiceKind;
+  name: string;
+  /** 확률 % (없으면 판정 없음) */
+  chance: number | null;
+  /** 카드로 바뀐 %p */
+  chanceDelta?: number;
+  deltaSource?: string;
+  success: { text: string; rating: string };
+  fail: { text: string; rating: string };
+  offside?: 'low' | 'mid' | 'high';
+  /** 플레이 카드 선택지의 카드 이름 칩 */
+  card?: string;
+  rarity?: 'common' | 'rare' | 'epic' | 'legend';
+  selected?: boolean;
+  compact?: boolean;
+  /** 접은 한 줄 (C.69, 디자인 189): 태그 · 이름 · 확률만, 고른 줄만 성공·실패 줄과 오프사이드·카드 칩을 펼친다 */
+  collapsed?: boolean;
+  /** 판정 없는 선택지 (C.69, 189): 확률 자리에 작은 "✓ 확정" 칩, 실패 줄 없음. 없으면 chance === null 일 때 "판정 없음" 글자(이전 모양) */
+  certain?: boolean;
+  disabled?: boolean;
+}
+
+export function ChoiceButton(p: ChoiceButtonProps): string {
+  const off = p.offside ? OFFSIDE_STEP[p.offside] : null;
+  const d = p.chanceDelta ?? 0;
+  const shown = p.chance === null ? null : Math.max(0, Math.min(99, p.chance + d));
+  const tags = `<span class="po-choice__tags"><span class="po-kind po-kind--${p.kind}">${Icon({ name: CHOICE_ICON[p.kind], size: 12, strokeWidth: 2.4 })}${CHOICE_KO[p.kind]}</span>${
+    p.card ? `<span class="po-choice__card">${esc(p.card)}</span>` : ''}${
+    off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}</span>`;
+  const out = (cls: 'ok' | 'bad', icon: IconName, o: { text: string; rating: string }) =>
+    `<span class="po-out po-out--${cls}">${Icon({ name: icon, size: 14, strokeWidth: 3 })}<span>${esc(o.text)}</span><b class="po-num">${esc(o.rating)}</b></span>`;
+  const prob = p.certain
+    ? `<span class="po-choice__prob po-choice__prob--certain"><span class="po-choice__sure">${Icon({ name: 'check', size: 12, strokeWidth: 3 })}확정</span></span>`
+    : shown === null
+    ? '<span class="po-choice__prob"><b class="po-choice__none">판정 없음</b></span>'
+    : `<span class="po-choice__prob">${d ? `<s class="po-num">${p.chance}%</s>` : ''}<b class="${cx('po-num', d > 0 && 'is-up', d < 0 && 'is-down')}">${shown}<small>%</small></b>${
+      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar"><i style="width:${shown}%"></i></span></span>`;
+  return `<button type="button" class="${cx('po-choice', `po-choice--${p.kind}`, p.kind === 'play' && `po-rarity--${p.rarity ?? 'rare'}`, p.compact && 'po-choice--compact', p.collapsed && 'po-choice--row', p.certain && 'is-certain', p.selected && 'is-selected')}"${actAttrs(p)} aria-pressed="${!!p.selected}"${p.disabled ? ' disabled' : ''}>
+    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}</span></span>${prob}</button>`;
+}
+
+// ── ResultSplash (결정 결과, 5차 82~84): 도장(성공/실패) + 제목 + 설명 + 평점 ──
+
+export interface ResultSplashProps {
+  result: 'success' | 'fail' | 'neutral' | 'goal' | 'conceded'; title: string; detail?: string; rating?: number; ratingDelta?: number;
+  /** 피치 아래 낮은 판 (C.69, 디자인 190): 도장 · 제목 / 흐름 한 줄 · 오른쪽 평점 */
+  compact?: boolean;
+}
+
+export function ResultSplash(p: ResultSplashProps): string {
+  const ok = p.result === 'success' || p.result === 'goal';
+  const bad = p.result === 'fail' || p.result === 'conceded';
+  const stamp = p.result === 'goal' ? '골' : p.result === 'conceded' ? '실점' : ok ? '성공' : bad ? '실패' : '보통';
+  const rating = p.rating == null ? '' : RatingBadge({ value: p.rating, ...(p.ratingDelta != null ? { delta: p.ratingDelta } : {}), size: 'lg' });
+  return `<div class="${cx('po-splash', ok ? 'po-splash--ok' : bad ? 'po-splash--bad' : 'po-splash--flat po-splash--mid', p.result === 'goal' && 'po-splash--goal', p.result === 'conceded' && 'po-splash--concede', p.compact && 'po-splash--compact')}" role="status">
+    <span class="po-splash__stamp">${Icon({ name: ok ? 'check' : bad ? 'close' : 'minus', size: p.compact ? 20 : 24, strokeWidth: 3.5 })}${stamp}</span><b class="po-splash__title">${esc(p.title)}</b>${
+    p.detail ? `<span class="po-splash__detail">${esc(p.detail)}</span>` : ''}${rating}</div>`;
 }

@@ -1,6 +1,8 @@
 // 저장/불러오기 (B.8, 25.4·부록 C.41): IndexedDB + gzip 압축, 수동 슬롯 3 + 자동 저장, 파일 내보내기/가져오기.
 // C.40 까지의 localStorage 세이브는 initSaves 가 처음 한 번 옮긴다
 
+import { PROSPECT_NATIONALITY, rollAppearance, type Appearance } from './appearance';
+import { PHOTO_OF } from './identity';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
@@ -8,6 +10,7 @@ import { ensureFinance } from './finance';
 import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
 import { migrateRoleId } from './engine/roles';
+import { chaptersFromHistory } from './chapters';
 import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
 import { generatePlayer } from './generate';
 import { realPeakTarget } from './growth';
@@ -26,6 +29,8 @@ import type { Replay } from './replay';
 import { initialMarket } from './transfer';
 import { realBody, rollBody } from './body';
 import { REAL_CAREER } from '../data/players/careers';
+import { LEGEND_BY_ID } from './legends';
+import { awardsFromTotals, trimArchive } from './worldStats';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -267,6 +272,57 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   // 26 → 27 (C.47): 레전드 팩 옵션(옛 세이브는 끔), 태그 기록 필드(늦게 핀 꽃 면제·방출 구단·자연 발생 태그 판정 기록)는 없으면 빈 값
   26: (s) => {
     s.legends = false;
+  },
+  // 27 → 28 (C.48): 계약 바이아웃(없으면 계약 길이로 계산, myBuyout), 소속 구단이 거절한 제안(market.refused, 없으면 없음). 옮길 값 없음
+  27: () => {},
+  // 28 → 29 (C.49, pending 80): 성장 포인트를 1~20 화면 칸 단위로. 남은 포인트 ÷ 5 올림(손해 없게), 레벨당 한 능력치 상한 기록(allocation) 없앰
+  28: (s) => {
+    const p = s.player;
+    p.unspentPoints = Math.ceil((p.unspentPoints ?? 0) / 5);
+    delete p.allocation;
+  },
+  // 29 → 30 (C.50, pending 82 1번): 실제 선수·레전드 한글 이름을 한국 통용 이름으로(요한 크루이프 등). 저장된 이름을 데이터 id 로 다시 읽는다
+  // (NPC·이적 기록·내 선수). 레전드 로스터 선수는 로드 때 데이터에서 다시 만들어지므로 따로 옮길 것 없음
+  29: (s) => {
+    const ko = new Map<string, string>([...A_GRADE_PLAYERS.map((d) => [d.id, d.nameKo] as const), ...[...LEGEND_BY_ID.values()].map((l) => [l.id, l.nameKo] as const)]);
+    for (const n of s.npcs ?? []) if (ko.has(n.id)) n.nameKo = ko.get(n.id);
+    for (const t of s.transfers ?? []) if (ko.has(t.id)) t.name = ko.get(t.id);
+    const me = s.player.realPlayerId ?? s.player.legendId;
+    if (me && ko.has(me)) s.player.name = ko.get(me);
+  },
+  // 30 → 31 (C.52, pending 82 6번): 훈련 프리셋. 균형(= 지금까지의 기본 계획) · 자동 적용 켬 · 커스텀 없음, 이번 주는 다음 하루 진행 때 정한다
+  30: (s) => {
+    if (s.training) Object.assign(s.training, { preset: 'balance', presetWeek: '', presetAuto: true, presetManual: false, customPresets: [], presetSeq: 0 });
+  },
+  // 31 → 32 (C.62): 감독 신뢰도·면담(manager)과 시즌 기록 선수 이름(statNames). 옛 세이브는 둘 다 없음 → 다음 경기·화면에서 새 팀 시작값으로 만든다
+  31: () => {},
+  // 32 → 33 (C.63): 인박스·이벤트·라이벌·경질 감독·주장·생활 지표. 옛 세이브는 모두 없음 → 처음 쓸 때 만든다 (라이벌·슬롯은 다음 시즌부터)
+  32: () => {},
+  // 33 → 34 (C.64): 지난 시즌 시상 줄(aw)과 세이브 상한(오래된 시즌은 요약). 옛 기록은 선수 합계에서 시상을 다시 만들고(영플레이어 없음) 상한대로 줄인다
+  33: (s) => {
+    for (const a of s.archive ?? []) a.aw ??= awardsFromTotals(a.players ?? {});
+    if (s.archive) trimArchive(s.archive);
+  },
+  // 34 → 35 (C.65): 시즌 목표(goals). 옛 세이브는 없음 → 시즌 중이면 다음 화면·경기에서 이번 시즌 목표를 만든다 (지금까지 기록으로 진행 표시)
+  34: () => {},
+  // 35 → 36 (C.67a): 컵 대진(cups)·가족 휴가(events.leave)·컵 기록(season.cup). 옛 세이브는 없음 → 다음 하루 진행 때 이번 시즌 FA컵을 만든다
+  // (32강 날짜가 이미 지났으면 이번 시즌은 컵 없음, 다음 시즌부터)
+  35: () => {},
+  // 36 → 37 (C.67b): 챔스(cups.ucl)·챔스 우승 기록(honors.ucl). 옛 세이브는 없음 → 이번 시즌은 챔스 없이, 다음 시즌부터
+  36: () => {},
+  // 37 → 38 (C.68a): 개인 재정·스태프(money). 옛 세이브는 없음 → 처음 쓸 때 잔고 0 으로 만든다 (이미 치른 이번 시즌 출전·골은 보너스 없음,
+  // 그 전 주급은 다음 시즌 시작 때 52주 − 정산한 주 몫에 같이 들어간다)
+  37: () => {},
+  // 38 → 39 (C.68b): 재정 b — money.shop·house·car·charity·invest·agent, cards.tp·tpUsed. 모두 없으면 기본값(숙소·차 없음·기부 0·투자 0·TP 0)
+  38: () => {},
+  // 39 → 40 (C.73a): 커리어 챕터 기록(chapters). 지난 시즌 기록(history)을 나이로 묶어 채운다 (리뷰·선택권 없음)
+  39: (s) => { s.chapters = chaptersFromHistory(s); },
+  // 40 → 41 (C.73c): 내 선수 기본 사진(player.facePhoto). 가상 선수(랜덤·커스텀)는 지금 보이는 외모군으로 인종·사진을 채운다 (실제 선수·레전드는 없음)
+  40: (s) => {
+    const p = s.player;
+    if (p.realPlayerId || p.legendId) return;
+    p.appearance ??= rollAppearance(`me:${s.worldSeed}`, p.nationality ?? PROSPECT_NATIONALITY);
+    p.facePhoto ??= PHOTO_OF[p.appearance as Appearance];
   },
   25: (s) => {
     const offseason = s.phase !== 'season';

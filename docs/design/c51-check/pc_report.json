@@ -1,0 +1,11 @@
+{
+ "errors": [],
+ "broken": [],
+ "prep": "screen screen-prep",
+ "modeAuto": true,
+ "started": "screen screen-moment",
+ "nextPrep": "screen screen-prep",
+ "form": [
+  "승"
+ ]
+}

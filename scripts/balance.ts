@@ -15,11 +15,16 @@
 
 /** 회귀 가드 (부록 A.1): 지표마다 기대 범위 */
 const CHECK = (globalThis as { process?: { argv: string[] } }).process?.argv.includes('--check') ?? false;
-const checks: { name: string; value: number; min: number; max: number }[] = [];
-function check(name: string, value: number, min: number, max: number): string {
+const checks: { name: string; value: number; min: number; max: number; ok: boolean }[] = [];
+/**
+ * 표시는 소수 첫째 자리. raw = 반올림 전 값으로 판정 (비율 가드, C.67 마스터 P 판단): 첫째 자리 반올림이면
+ * "25% 이하" 목표에서 정확히 0.25 가 0.3 으로 실패한다
+ */
+function check(name: string, value: number, min: number, max: number, raw = false): string {
   const v = Math.round(value * 10) / 10;
-  checks.push({ name, value: v, min, max });
-  return v >= min && v <= max ? '✓' : '✗';
+  const x = raw ? value : v;
+  checks.push({ name, value: raw ? Math.round(value * 1000) / 1000 : v, min, max, ok: x >= min && x <= max });
+  return x >= min && x <= max ? '✓' : '✗';
 }
 const OVR30_TARGET: Record<Strategy, Partial<Record<Tier, [number, number]>>> = {
   best: { normal: [74, 78], legendary: [84, 88] },
@@ -35,7 +40,13 @@ import { BALANCE } from '../src/config/balance';
 import { isOutside } from '../src/transfer';
 import { PLAYABLE_POSITIONS } from '../src/positions';
 import { createRng } from '../src/rng';
+import { autoStaff, CHOICE_CATS, ensureMoney, flowsIn, flowsOut } from '../src/money';
+import { assetScore, autoSpend, careerNet, netWorth } from '../src/wealth';
 import type { InjuryGrade, Tier } from '../src/types';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
@@ -44,7 +55,27 @@ const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
  * 회귀 가드는 POLICY(기본 stay)로 판정하고, 다른 정책은 [C.42 이적] 측정 줄에 따로 보여 준다
  */
 const POLICY = (env.POLICY ?? 'stay') as 'stay' | 'best';
+/** 측정용: 고령 XP 감쇠 덮어쓰기 (C.49), 예 VET='[[30,0.7],[32,0.5]]' */
+if (env.VET) (BALANCE.matchXp as { veteranMultiplier: [number, number][] }).veteranMultiplier = JSON.parse(env.VET);
 if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
+/**
+ * 스태프 정책 (C.68a): none = 스태프 없음 (C.67 까지와 같은 경로, 회귀 가드 판정 기본), full = 슬롯이 비면 모집·고용하는 코치 풀 투자 (autoStaff).
+ * 기본 실행은 가드 뒤에 [C.68 재정] 줄로 full 도 매번 잰다 (마스터 P 2026-10-19: 레전더리 35세 900+ 13/48 = 0.271 — 기준선 12/48 이 경계라
+ * 코치가 게이지 목표를 바꾸는 것만으로 시드 하나가 넘음, 배율 크기와 무관)
+ */
+const COACH = (env.COACH ?? 'none') as 'none' | 'full';
+let coachMode: 'none' | 'full' = COACH;
+/** C.68b 경제 점검: 코치 풀 투자 + 평범한 지출(autoSpend). 코치 측정 줄과 따로 돌린다 (기부가 위상을 올려 900+ 비율 비교가 흐려지지 않게) */
+let spendMode = false;
+/**
+ * 코치 풀 투자 측정 줄·경제 점검 (C.68a·C.68b) 켜기. 로컬 기본 켜짐, CI(pages.yml balance:check)는 COACH_MEASURE=0 으로 끔
+ * (마스터 P 2026-10-19 02:40: C.68a 뒤 CI 22 → 44분). 끄면 경제 가드 4개도 빠지고 회귀 가드 15개만 판정
+ */
+const COACH_MEASURE = env.COACH_MEASURE !== '0';
+/** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
+if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
+if (env.MED_SCALE) for (const r of Object.values(BALANCE.staff.medical)) for (const k of Object.keys(r)) (r as Record<string, number>)[k]! *= Number(env.MED_SCALE);
+if (env.COACH_XP !== undefined) (BALANCE.staff.coach as { xpShare: number }).xpShare = Number(env.COACH_XP);
 const END_AGE = 37;
 type Strategy = 'best' | 'random';
 
@@ -81,11 +112,13 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
   const npc: { moved: number; total: number; lowLoy: number; lowMoved: number; exp: number; expMoved: number }[] = [];
   const injuries: { grade: InjuryGrade; weeks: number; permanent: number; age: number }[] = [];
   const seasonLog: { age: number; apps: number; starts: number; minutes: number; injuries: number; injuredWeeks: number }[] = [];
+  const money: { age: number; net: number; need: number; cash: number; staff: number; worth: number }[] = [];
   while (state.player.age < END_AGE) {
     const snap = Object.values(state.rosters).flatMap((r) => r.players.map((p) => ({ id: p.id, low: p.loyalty < 40, exp: p.contractEnd <= state.league.season + 1 })));
     const n0 = state.transfers.length;
     while (state.phase === 'season') {
       const report = playRound(state, { engine: 'quick' });
+      if (coachMode === 'full') autoStaff(state);
       const inj = report.injury;
       if (inj) {
         const permanent = Object.values(inj.permanent).reduce((t, d) => t + (d ?? 0), 0);
@@ -113,6 +146,12 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
     offers += state.market.offers?.length ?? 0;
     autoMarket(state, policy);
     startNextSeason(state);
+    // 재정 (C.68a): 시즌 순수입 (비시즌 몫까지 들어간 지난 시즌 합계) · 잔고 · 스태프 수. C.68b: 순자산, 코치 풀 투자 측정이면 평범한 지출(autoSpend)
+    const h = ensureMoney(state).history.at(-1)!;
+    const net = flowsIn(h.flows) - flowsOut(h.flows);
+    // 필수 순수입 = 순수입에서 고르는 지출(카드·집·차 구매·기부)을 뺀 것 — 코치 풀 투자에도 양수인지 (19.11)
+    money.push({ age: state.player.age - 1, net, need: net - CHOICE_CATS.reduce((t, c) => t + (h.flows[c] ?? 0), 0), cash: h.cash, staff: ensureMoney(state).staff.length, worth: netWorth(state) });
+    if (spendMode) autoSpend(state);
   }
   const moves = state.market.moves.filter((m) => !m.back).length;
   const intoLeague = state.transfers.filter((r) => !isOutside(r.to)).length;
@@ -120,7 +159,8 @@ function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy
   const badgeAges = state.player.badges.map((b) => state.player.history.find((h) => h.season === b.season)?.age ?? 0);
   return {
     ovrByAge, repByAge, high95ByAge, max99ByAge, starts: starts / seasons, injuries, seasonLog, hist, badgeAges,
-    offers: offers / Math.max(1, seasons), moves, npc, intoLeague, oneClub: state.player.badges.some((b) => b.id === 'oneClub10'),
+    offers: offers / Math.max(1, seasons), moves, npc, intoLeague, oneClub: state.player.badges.some((b) => b.id === 'oneClub10'), money,
+    career: careerNet(state), worth: netWorth(state),
   };
 }
 
@@ -277,7 +317,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
     const wc = (t: Tier) => perTier(t).filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length / SEEDS_PER_TIER;
     const wc35 = (t: Tier) => perTier(t).filter((r) => (r.repByAge[35] ?? 0) >= 900).length / SEEDS_PER_TIER;
     const marks = strategy === 'best'
-      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2)}${check('레전더리 35세 월드클래스 비율', wc35('legendary'), 0, 0.25)}`
+      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2, true)}${check('레전더리 35세 월드클래스 비율', wc35('legendary'), 0, 0.25, true)}`
       : '';
     console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${med(t).toFixed(0)}`).join(' / ')} · 30세까지 900+ ${TIERS_ASC.map((t) => `${(wc(t) * 100).toFixed(0)}%`).join(' / ')} · 35세 900+ ${TIERS_ASC.map((t) => `${(wc35(t) * 100).toFixed(0)}%`).join(' / ')}${marks}`);
   }
@@ -329,9 +369,69 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   }
 }
 
+// ── C.68a 코치 풀 투자 측정 (가드 아님, 마스터 P 2026-10-19 01:05: 회귀 가드는 COACH=none, full 은 매번 측정 줄로) ──
+// 레전더리 35세 900+ 기준선이 12/48 = 0.25 경계라 시드 하나로 뒤집힌다 (부록 C.68a). 시드 FULL_SEEDS(기본 48)
+if (COACH_MEASURE) {
+  const FULL_SEEDS = Number(env.FULL_SEEDS ?? SEEDS_PER_TIER);
+  const prev = coachMode;
+  coachMode = 'full';
+  const fullRuns = (tier: Tier, strategy: Strategy) => Array.from({ length: FULL_SEEDS }, (_, i) => simulateCareer(tier, i, strategy));
+  const lb = fullRuns('legendary', 'best');
+  const nb = fullRuns('normal', 'best');
+  const lr = fullRuns('legendary', 'random');
+  const nr = fullRuns('normal', 'random');
+  coachMode = prev;
+  const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
+  const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
+  const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
+  console.log(`\n[C.68 재정] 코치 풀 투자(COACH=full, 시드 ${FULL_SEEDS}) — 가드 아님, 기준 비교용`);
+  console.log(`  30세 OVR 최적 일반 ${at30(nb)}(74~78) · 레전더리 ${at30(lb)}(84~88) · 무작위 일반 ${at30(nr)}(68~72) · 레전더리 ${at30(lr)}(79~83)` +
+    ` | 레전더리 30세까지 900+ ${wc30}/${FULL_SEEDS} = ${(wc30 / FULL_SEEDS).toFixed(3)}(0.1~0.2) · 35세 900+ ${wc35}/${FULL_SEEDS} = ${(wc35 / FULL_SEEDS).toFixed(3)}(0~0.25)`);
+  console.log('  시즌 순수입·잔고 평균 (억 원, 최적 배분)');
+  for (const [name, runs] of [['일반', nb], ['레전더리', lb]] as const) {
+    const at = (age: number, k: 'net' | 'cash' | 'staff') => avg(runs.map((r) => r.money.find((x) => x.age === age)?.[k] ?? 0));
+    const neg = runs.reduce((t, r) => t + r.money.filter((x) => x.need < 0).length, 0);
+    const all = runs.reduce((t, r) => t + r.money.length, 0);
+    console.log(`  ${name.padEnd(6)} 순수입 18세 ${(at(18, 'net') / 1e4).toFixed(1)} · 24세 ${(at(24, 'net') / 1e4).toFixed(1)} · 30세 ${(at(30, 'net') / 1e4).toFixed(1)} · 33세 ${(at(33, 'net') / 1e4).toFixed(1)}` +
+      ` | 잔고 30세 ${(at(30, 'cash') / 1e4).toFixed(0)} · 36세 ${(at(36, 'cash') / 1e4).toFixed(0)} | 스태프 24세 ${at(24, 'staff').toFixed(1)}명 | 필수 순수입 음수 시즌 ${neg}/${all}`);
+  }
+}
+
+// ── C.68b 경제 점검 (19.11): 코치 풀 투자 + 평범한 지출(autoSpend: 집·차·기부(15억 넘는 순수입의 60% + 5%)·남는 돈 20% 투자), 최적 배분 ──
+if (COACH_MEASURE) {
+  const ECON_SEEDS = Number(env.ECON_SEEDS ?? env.FULL_SEEDS ?? SEEDS_PER_TIER);
+  const prev = coachMode;
+  coachMode = 'full';
+  spendMode = true;
+  const runsOf = (tier: Tier) => Array.from({ length: ECON_SEEDS }, (_, i) => simulateCareer(tier, i, 'best'));
+  const econRuns = [['일반', runsOf('normal')], ['레전더리', runsOf('legendary')]] as const;
+  coachMode = prev;
+  spendMode = false;
+  console.log(`\n[C.68b 경제] 코치 풀 투자 + 평범한 지출(시드 ${ECON_SEEDS}, 최적 배분) — 19.11 표: 평범한 유망주 약 178억·자산 74 · 스타 약 346억·84`);
+  const q = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;
+  const econ: { name: string; neg: number; all: number; score: number }[] = [];
+  for (const [name, runs] of econRuns) {
+    const at = (age: number, k: 'net' | 'need' | 'cash') => q(runs.map((r) => r.money.find((x) => x.age === age)?.[k] ?? 0), 0.5);
+    const neg = runs.reduce((t, r) => t + r.money.filter((x) => x.need < 0).length, 0);
+    const all = runs.reduce((t, r) => t + r.money.length, 0);
+    const scores = runs.map((r) => assetScore(r.worth));
+    const worths = runs.map((r) => r.worth / 1e4);
+    console.log(`  ${name.padEnd(6)} 순수입 중앙 18세 ${(at(18, 'net') / 1e4).toFixed(1)} · 24세 ${(at(24, 'net') / 1e4).toFixed(1)} · 30세 ${(at(30, 'net') / 1e4).toFixed(1)} · 33세 ${(at(33, 'net') / 1e4).toFixed(1)}억` +
+      ` | 커리어 누적 순수입 중앙 ${q(runs.map((r) => r.career / 1e4), 0.5).toFixed(0)}억 · 은퇴 순자산 중앙 ${q(worths, 0.5).toFixed(0)}억(10% ${q(worths, 0.1).toFixed(0)} · 90% ${q(worths, 0.9).toFixed(0)})` +
+      ` | 자산 점수 평균 ${avg(scores).toFixed(1)}(10% ${q(scores, 0.1)} · 중앙 ${q(scores, 0.5)} · 90% ${q(scores, 0.9)}) | 필수 순수입 음수 시즌 ${neg}/${all}`);
+    econ.push({ name, neg, all, score: avg(scores) });
+  }
+  // 경제 가드 (넓은 범위, C.68b): 필수 순수입(고르는 지출 뺌) 음수 시즌 ≤ 5%, 자산 점수 평균 일반 55~90 · 레전더리 65~95
+  for (const e of econ) {
+    checks.push({ name: `[C.68b 경제] ${e.name} 필수 순수입 음수 시즌 비율`, value: Number((e.neg / Math.max(1, e.all)).toFixed(3)), min: 0, max: 0.05, ok: e.neg / Math.max(1, e.all) <= 0.05 });
+    const [lo, hi] = e.name === '일반' ? [55, 90] : [65, 95];
+    checks.push({ name: `[C.68b 경제] ${e.name} 자산 점수 평균`, value: Number(e.score.toFixed(1)), min: lo, max: hi, ok: e.score >= lo && e.score <= hi });
+  }
+}
+
 // ── 회귀 가드 결과 (부록 A.1) ──
 {
-  const failed = checks.filter((c) => c.value < c.min || c.value > c.max);
+  const failed = checks.filter((c) => !c.ok);
   console.log(`\n[회귀 가드] ${checks.length - failed.length}/${checks.length} 통과`);
   for (const c of failed) console.log(`  ✗ ${c.name}: ${c.value} (목표 ${c.min}~${c.max})`);
   if (CHECK && failed.length) (globalThis as { process?: { exit(code: number): never } }).process?.exit(1);

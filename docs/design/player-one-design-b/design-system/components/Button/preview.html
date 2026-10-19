@@ -1,0 +1,15 @@
+<!-- @dsCard group="Actions" height=200 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Button — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:12,width:358}},
+  h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}, h(P.Button,{variant:'secondary',size:'lg',block:true},'시작 덱 복원'), h(P.Button,{size:'lg',block:true},'저장')),
+  h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, h(P.Button,{icon:'play'},'경기 시작'), h(P.Button,{variant:'ghost'},'나중에'), h(P.Button,{variant:'danger',size:'sm'},'건너뛰기'), h(P.Button,{disabled:true},'부상 중'))));
+</script>
+</body>
+</html>

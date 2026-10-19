@@ -29,50 +29,125 @@ export function startNotice(v: VersionVM): string {
   return Banner({ tone: 'info', title: title!.replace(/\.$/, ''), ...(rest.length ? { children: rest.join('. ') } : {}) });
 }
 
-/** 하단 독 (C.44 pending 47 5번): 모든 화면 아래 고정. 모바일 = 6칸(홈·진행·선수·훈련·월드·더보기), PC = 전부 */
+/**
+ * 독 (C.44 → C.54 디자인 154 → C.66 사용자 지시): 가운데 강조 키 = [다음](진행) 키 — 계속·진행 중·경기·경기 중·답하기·시즌 요약 상태를
+ * 이 키가 보여 준다(따로 있던 초록 진행 알약은 없앰). 홈은 맨 왼쪽 일반 칸(다른 칸과 같은 모양). 잠긴 칸 = 흐리게 + 작은 자물쇠.
+ * 폰 가로(C.66)는 같은 칸을 왼쪽 세로 레일로 쓰고, PC 는 아래 가로 줄. 칸 배치는 DOCK_PHONE 배열 하나만 고치면 된다(PC 는 dockPc 로 만든다).
+ */
+/** [다음] 키 상태 (C.69 디자인 201 독 v3): 계속 · 진행 중(running) · 경기 · 경기 중 · 잠김(locked, 누를 수 없음) · 답하기 · 시즌 요약 */
+export type DockProg = 'continue' | 'running' | 'match' | 'live' | 'locked' | 'answer' | 'season';
 export interface DockVM {
   screen: string;
   /** 진행 칸: 지금 누르면 하는 일 */
-  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean };
+  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean; kind?: DockProg; badge?: number };
   tacticsOpen: boolean;
   /** 남은 포인트 (선수 칸 배지) */
   points: number;
   more: boolean;
+  /** 인박스 안 읽음 (C.63c 더보기 줄 배지) */
+  inbox?: number;
+  /** 재정 코치 후보 수 (C.70: 홈 머리말 재정 아이콘을 빼고 독 재정 칸 배지로) */
+  finance?: number;
 }
 
-type DockItem = { id: string; label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; cls?: string; badge?: number; lock?: boolean };
+export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves' | 'inbox' | 'finance';
+/** 폰 5칸 (C.66 사용자 지시: 홈 · 선수 · [다음] · 훈련·일정 · 더보기). 가로 폰은 위→아래 레일, 더보기는 레일 옆 펼침 줄(dockMoreRow) */
+export const DOCK_PHONE: DockId[] = ['home', 'player', 'prog', 'schedule', 'more'];
+/** 더보기 펼침 줄 순서 (C.69 디자인 201): 인박스 · 재정 · 월드 · 덱 · 전술 · 설정 · 저장 */
+export const DOCK_MORE: DockId[] = ['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves'];
+/**
+ * PC 11칸 (C.61 → C.66 → C.69 디자인 201): 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] | 훈련·일정 · 월드 · 재정 · 설정 · 저장 (더보기 없음, [다음]이 가운데).
+ * 폰 독 순서에서 만든다: [다음] 왼쪽 = 폰 왼쪽 칸 + 덱 · 전술 · 인박스, 오른쪽 = 폰 오른쪽 칸(더보기 대신) + 월드 · 재정 · 설정 · 저장
+ */
+export function dockPc(phone: readonly DockId[]): DockId[] {
+  const k = phone.indexOf('prog');
+  const left = phone.slice(0, k).filter((x) => x !== 'more');
+  const right = phone.slice(k + 1).filter((x) => x !== 'more');
+  const lead = (['deck', 'tactics', 'inbox'] as DockId[]).filter((x) => !phone.includes(x));
+  const tail = (['world', 'finance', 'settings', 'saves'] as DockId[]).filter((x) => !phone.includes(x));
+  return [...left, ...lead, 'prog', ...right, ...tail];
+}
+export const DOCK_PC: DockId[] = dockPc(DOCK_PHONE);
+/** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
+const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves', inbox: 'inbox', finance: 'finance' };
+
+type DockItem = { label: string; icon: IconName; act: string; data?: Record<string, string>; on?: boolean; badge?: number; lock?: boolean };
+
+/** 열 너비 (가로 줄): [다음] 키 고정 폭, 다른 칸 같은 몫. 양쪽 합을 같게 맞춰 [다음]이 정확히 가운데 */
+export function dockColumns(ids: DockId[], keyPx: number): string {
+  const h = ids.indexOf('prog');
+  const left = h || 1;
+  const right = ids.length - h - 1 || 1;
+  return ids.map((id, i) => (id === 'prog' ? `${keyPx}px` : `minmax(0, ${+((1 / (i < h ? left : right)) * 6).toFixed(3)}fr)`)).join(' ');
+}
 
 export function dock(vm: DockVM): string {
   const s = vm.screen;
-  const items: DockItem[] = [
-    { id: 'home', label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
-    { id: 'prog', label: vm.prog.label, icon: vm.prog.icon, act: vm.prog.act, ...(vm.prog.data ? { data: vm.prog.data } : {}), cls: `dock-prog${vm.prog.live ? ' is-live' : ''}` },
-    { id: 'player', label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
-    { id: 'schedule', label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
-    { id: 'deck', label: '덱', icon: 'combo', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck', cls: 'dock-pc' },
-    { id: 'tactics', label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', cls: 'dock-pc', lock: !vm.tacticsOpen },
-    { id: 'world', label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
-    { id: 'settings', label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings', cls: 'dock-pc' },
-    { id: 'saves', label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves', cls: 'dock-pc' },
-    { id: 'more', label: '더보기', icon: 'filter', act: 'dock-more', on: vm.more || ['deck', 'tactics', 'settings', 'saves'].includes(s), cls: 'dock-m' },
-  ];
-  const btn = (it: DockItem) => `<button type="button" class="${cx('dock-btn', it.on && 'is-on', it.cls, it.lock && 'is-lock')}" data-act="${it.act}"${
-    Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.on ? ' aria-current="page"' : ''}>${Icon({ name: it.lock ? 'lock' : it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}<span>${esc(it.label)}</span>${
-    it.badge ? `<span class="po-dotbadge po-num">${it.badge}</span>` : ''}</button>`;
-  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${items.map(btn).join('')}</nav>`;
+  const phone = new Set(DOCK_PHONE);
+  const items: Record<Exclude<DockId, 'prog'>, DockItem> = {
+    inbox: { label: '인박스', icon: 'inbox', act: 'go', data: { to: 'inbox' }, on: s === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) },
+    finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: s === 'finance', ...(vm.finance ? { badge: vm.finance } : {}) },
+    home: { label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
+    player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
+    schedule: { label: '훈련·일정', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule' },
+    world: { label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
+    // 접힌 더보기 칸 배지 = 펼침 줄 칸 배지 합 (201: 인박스 안 읽음)
+    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)), ...(!vm.more && (vm.inbox || vm.finance) ? { badge: (vm.inbox ?? 0) + (vm.finance ?? 0) } : {}) },
+    deck: { label: '덱', icon: 'deck', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck' },
+    tactics: { label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', lock: !vm.tacticsOpen },
+    settings: { label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings' },
+    saves: { label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves' },
+  };
+  const attrs = (act: string, data?: Record<string, string>) => ` data-act="${act}"${Object.entries(data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}`;
+  const badge = (n?: number) => (n ? `<b class="po-dock__badge po-num">${n}</b>` : '');
+  const p = vm.prog;
+  const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
+  const cell = (id: DockId): string => {
+    if (id === 'prog') {
+      const busy = kind === 'running';
+      return `<button type="button" class="po-dock__go po-dock__next is-${kind}"${attrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''}${kind === 'locked' ? ' disabled' : ''} aria-label="다음 · ${esc(p.label)}"><span class="po-dock__goicon">${
+        kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${badge(p.badge)}</span></button>`;
+    }
+    const it = items[id];
+    return `<button type="button" class="${cx('po-dock__item', it.on && 'is-on', it.lock && 'is-locked')}"${attrs(it.act, it.data)}${it.lock ? ' disabled' : ''}${it.on ? ' aria-current="page"' : ''}><span class="po-dock__icon">${
+      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : badge(it.badge)}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
+  };
+  // 열 너비 (201): 폰 1fr · 1fr · 1.9fr · 1fr · 1fr, PC 양쪽 같은 몫 + [다음] 176px
+  const cols = (ids: DockId[], pc: boolean) => (pc ? dockColumns(ids, 176) : ids.map((id) => `minmax(0, ${id === 'prog' ? 1.9 : 1}fr)`).join(' '));
+  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock po-dock--v3', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${cols(ids, pc)}">${ids.map((id) => cell(id)).join('')}</div>`;
+  // 더보기 (C.63c → C.66): 시트 대신 독 옆(가로 폰 = 레일 오른쪽 세로 줄, 세로 태블릿 = 독 위 한 줄)으로 펼침, 배경을 막지 않음
+  const row = vm.more ? dockMoreRow(vm, items) : '';
+  return `<nav class="nav dock-bar" aria-label="주요 메뉴">${row}${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
 }
 
-/** 모바일 더보기 시트: 독에 없는 칸 */
+/** 더보기 펼침 줄 (C.63c): 폰 독에 없는 칸 + 인박스, 가로 스크롤 · 스냅 · 처음/끝 흐림. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
+function dockMoreRow(_vm: DockVM, all: Record<string, DockItem>): string {
+  const ids = DOCK_MORE.filter((id) => !DOCK_PHONE.includes(id));
+  const cells = ids.map((id) => {
+    const it = all[id]!;
+    return `<button type="button" class="${cx('po-dock__item', 'dock-more__item', it.on && 'is-on', it.lock && 'is-locked')}" data-act="${esc(it.act)}"${Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.lock ? ' disabled' : ''}><span class="po-dock__icon">${
+      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : it.badge ? `<b class="po-dock__badge po-num">${it.badge}</b>` : ''}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
+  }).join('');
+  return `<div class="dock-more" role="menu" aria-label="더보기"><div class="dock-more__scroll at-start">${cells}</div></div>`;
+}
+
+/** 모바일 더보기 시트: 독에 없는 칸 (C.50: 월드 추가, C.54: DOCK_PHONE 에 있는 칸은 뺀다) */
 export function dockMoreSheet(tacticsOpen: boolean): string {
   return BottomSheet({
     eyebrow: '더보기', title: '메뉴', onClose: { act: 'sheet-close' },
     children: [
-      OptionRow({ act: 'go-tab', data: { v: 'deck' }, icon: 'combo', title: '덱', desc: '카드 덱 편집·선택권' }),
+      DOCK_PHONE.includes('world') ? '' : OptionRow({ act: 'go-tab', data: { v: 'world' }, icon: 'world', title: '월드', desc: '순위표·득점 순위·이적 소식' }),
+      OptionRow({ act: 'go-tab', data: { v: 'deck' }, icon: 'deck', title: '덱', desc: '카드 덱 편집·선택권' }),
       OptionRow({ act: 'tac-open', icon: tacticsOpen ? 'tactic' : 'lock', title: '전술', desc: tacticsOpen ? '포메이션·성향·내 위치' : '3경기 뒤에 열려요', disabled: !tacticsOpen }),
       OptionRow({ act: 'go-tab', data: { v: 'settings' }, icon: 'settings', title: '설정', desc: '경기 진행·보기·페이스온' }),
       OptionRow({ act: 'go-tab', data: { v: 'saves' }, icon: 'disk', title: '저장', desc: '수동 저장·불러오기·파일' }),
     ].join(''),
   });
+}
+
+/** PC 2열 (C.61, 디자인 120~123): 왼쪽 주 카드 · 오른쪽 보조. 폰에서는 쓰지 않는다(isWide 일 때만 부른다) */
+export function pc2(left: string, right: string, cls = ''): string {
+  return `<div class="pc2${cls ? ` ${cls}` : ''}"><div class="pc2__l">${left}</div><div class="pc2__r">${right}</div></div>`;
 }
 
 /** 4칸 숫자 타일 (디자인 51·56) */
@@ -121,9 +196,9 @@ export function roJosa(word: string): string {
   return code >= 0 && code % 28 !== 0 && code % 28 !== 8 ? '으로' : '로';
 }
 
-/** 경기 화면 [보기] 버튼 (부록 C.43): 누르면 얼굴/등번호/캐릭터 시트 */
-export function pitchViewButton(): string {
-  return `<button type="button" class="pv-btn" data-act="pv-open" aria-label="선수 표시 바꾸기">보기 · ${PITCH_VIEW_KO[pitchView()]}</button>`;
+/** 경기 화면 [보기] 버튼 (부록 C.43): 누르면 얼굴/등번호/캐릭터 시트. inline = 결정 순간 스코어 줄 안 (C.56, 5차 77) */
+export function pitchViewButton(inline = false): string {
+  return `<button type="button" class="pv-btn${inline ? ' pv-btn--inline' : ''}" data-act="pv-open" aria-label="선수 표시 바꾸기">${inline ? `${Icon({ name: 'eye', size: 14 })}보기` : `보기 · ${PITCH_VIEW_KO[pitchView()]}`}</button>`;
 }
 
 /** 보기 바꾸기 시트 */
@@ -137,7 +212,7 @@ export function pitchViewSheet(): string {
   return BottomSheet({
     eyebrow: '경기 화면', title: '선수 표시', subtitle: '설정 화면에서도 바꿀 수 있어요. 이 기기에 저장돼요.', onClose: { act: 'pv-close' },
     children: `${(['number', 'face', 'character'] as const).map((k) => OptionRow({ act: 'pv-set', data: { v: k }, radio: true, selected: v === k, title: PITCH_VIEW_KO[k], desc: DESC[k] })).join('')}
-      <div class="kv"><span>방향</span></div>${Tabs({ items: (['auto', 'landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+      <div class="kv"><span>방향</span></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
       <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
       <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}`,
   });

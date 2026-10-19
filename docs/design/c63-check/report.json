@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "broken": [],
+ "len": {
+  "home": 3048,
+  "inbox": 1070,
+  "detail": 844
+ },
+ "wide": {
+  "home": 0,
+  "inbox": 0,
+  "detail": 0
+ }
+}

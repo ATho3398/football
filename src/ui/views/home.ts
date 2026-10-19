@@ -1,86 +1,133 @@
-// 홈 (I.3, 디자인 22·25): 다음 경기, 선수 카드, 폼·피로, 시즌 기록, 부상·출장 정지 배너, 버전 표시.
+// 홈 (I.3, 디자인 22·25 → C.57 디자인 86~90·132·133, B 머리말): 미페 머리말, 1군 테스트 띠, 알림, 다음 경기, 오늘 훈련 한 줄, 내 상태, 선수 카드, 시즌 기록, 버전.
 // 캘린더·주전 경쟁·신뢰도·전술 버튼은 아직 없는 기능이라 숨긴다 (I.19)
 
 import {
-  BottomSheet, Button, Crest, Tabs, OptionRow, FatigueGauge, FormIndicator, HeroPanel, IconButton, Icon, PlayerCard, SectionTitle, StatChip, TacticChip, esc, staminaOf,
+  BottomSheet, Button, Crest, Tabs, OptionRow, FormIndicator, HeroPanel, IconButton, Icon, PlayerCard, SectionTitle, TacticChip, esc, staminaOf, type IconName,
 } from '../components';
 import { BALANCE } from '../../config/balance';
-import type { DayVM, HomeVM, PositionOptionVM } from '../viewModels';
-import { actionRow, banners, panel, startNotice, statTiles, versionFooter } from './common';
+import { heroFaceOf } from '../faces';
+import { isWide, skin } from '../skin';
+import type { DayVM, EnvVM, HomeVM, PositionOptionVM, TrialVM } from '../viewModels';
+import type { WeatherKind } from '../../weather';
+import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
+
+/** 미페 머리말을 쓰는지 (C.57): B 테마 + 폰 폭 + 내 선수 사진(페이스온 > facepack)이 있을 때. A 테마·PC(디자인 120 = 일반 B 머리말)·사진 없음은 일반 머리말 */
+export function homeFace(vm: HomeVM): { src: string; cutout: boolean } | null {
+  if (skin() !== 'b' || isWide()) return null;
+  return heroFaceOf(vm.card.face);
+}
+
+/** 머리말 칩 (C.70 디자인 161): 경기까지 n일 · n/38R · 찍을 포인트 nP(라임 칩) */
+function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
+  const n = vm.next;
+  return [
+    ...(n && vm.day
+      ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, `${vm.round}/${vm.rounds}R`]
+      : [{ label: '시즌 종료', soft: true }]),
+    ...(vm.points > 0 ? [{ label: `찍을 포인트 ${vm.points}P`, soft: true }] : []),
+    { label: vm.chapter, soft: true },
+  ];
+}
 
 export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = ''): string {
   const n = vm.next;
-  // C.39: 머리말은 작게(날짜 한 줄), "다음 경기" 카드를 맨 위로. 남은 포인트는 머리말 칩으로도
-  const hero = HeroPanel({
-    title: '홈', back: false, compact: true, rightHtml: IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' }),
-    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
-    value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
-    chips: [
-      ...(n && vm.day
-        ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }]
-        : [{ label: '시즌 종료', soft: true }]),
-      ...(vm.points > 0 ? [`포인트 ${vm.points}`] : []),
-    ],
-  });
+  // C.70 (디자인 161): 날짜 옆은 저장·설정만. 인박스·재정은 독(더보기 줄 · PC 칸)에서 배지로 (C.69 독 v3)
+  const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
+  const face = homeFace(vm);
+  // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음
+  const back = vm.exit ? { act: 'to-title' } as const : false;
+  // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
+  const hero = face
+    ? HeroPanel({
+      title: '홈', back, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.card.name,
+      eyebrow: vm.trial ? `${vm.team} · 1군 테스트 ${vm.trial.games}/${vm.trial.need}` : `${vm.team} · ${vm.card.position}`,
+      rightHtml: `<span class="hm-date">${esc(vm.day ? vm.day.short : '비시즌')}${vm.day ? ` (${esc(vm.day.weekdayKo.slice(0, 1))})` : ''}</span>${tools}`,
+      value: vm.card.ovr, unit: `OVR · ${vm.card.position}`, chips: heroChips(vm),
+    })
+    : HeroPanel({
+      title: '홈', back, compact: true, rightHtml: tools,
+      eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
+      value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false, chips: heroChips(vm),
+    });
 
   let next = '';
   if (n && vm.day) {
     const d = vm.day;
-    // 하루 단위 진행 (부록 C.38): 경기 날이면 경기 시작, 아니면 [계속](다음 일정까지)·[하루 진행]. [남은 시즌 자동]은 작은 보조 버튼 (C.39)
-    const buttons = d.matchDay
+    // 하루 단위 진행 (C.38) · 디자인 86: [계속 · 계획대로 진행] 큰 버튼 + [하루 진행][자동 진행]. 경기 날은 [경기 시작] → 경기 준비 (C.51)
+    const main = d.matchDay
       ? Button({ variant: n.out ? 'secondary' : 'primary', size: 'lg', block: true, icon: n.out ? 'match' : 'play', act: 'play', children: n.out ? '결장(관전)' : '경기 시작' })
-      : actionRow(
-        Button({ variant: 'secondary', size: 'lg', block: true, icon: 'clock', act: 'day-one', children: '하루 진행' }),
-        Button({ size: 'lg', block: true, icon: 'chevron-right', act: 'day-continue', children: '계속' }),
-      );
-    next = `
-      ${SectionTitle({ title: '다음 경기', action: `리그 ${vm.round}R · ${n.home ? '홈' : '원정'}` })}
-      ${panel(`${n.derby ? `<div class="derby-badge${n.derby.big ? ' is-big' : ''}">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b>${esc(n.derby.name)}</b><span>더비 매치</span></div>` : ''}
-        <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}${esc(n.my)}</span><span class="vs po-num">VS</span><span class="vs-team away">${esc(n.opp)}${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
-        <p class="line">${d.matchDay ? '오늘' : `다음 일정 · ${esc(d.nextLabel ?? '')}`} · <b>리그 ${vm.round}R ${esc(n.opp)}전 · ${n.home ? '홈' : '원정'}</b> · 전력 <b class="po-num">${n.myRating}</b> vs <b class="po-num">${n.oppRating}</b></p>
-        ${buttons}
-        <div class="sim-rest">${Button({ variant: 'ghost', size: 'sm', icon: 'ff', act: 'sim-rest', children: '자동 진행' })}</div>`, 'next-card')}
-      ${panel(`
-        <div class="sub-panel">
-          <div class="kv"><span>우리 전술</span><span class="kv-r">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}${
-            n.tacticsOpen ? Button({ size: 'sm', variant: 'secondary', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</span></div>
-          <div class="divider"></div>
-          <div class="kv"><span>상대 전술</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}</div>
-        </div>
-        <div class="sub-panel ctl-panel">
-          <div class="kv"><span>내 선수 결정</span><span class="muted small">${n.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
-          ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: n.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
-          ${n.control.mode === 'direct' ? Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: n.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' }) : ''}
-        </div>`)}`;
+      : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'day-continue', children: '계속 · 계획대로 진행' });
+    const subs = d.matchDay
+      ? Button({ variant: 'secondary', block: true, icon: 'ff', act: 'sim-rest', children: '자동 진행' })
+      : Button({ variant: 'secondary', block: true, icon: 'clock', act: 'day-one', children: '하루 진행' }) + Button({ variant: 'secondary', block: true, icon: 'ff', act: 'sim-rest', children: '자동 진행' });
+    const pct = Math.round((n.myRating / Math.max(1, n.myRating + n.oppRating)) * 1000) / 10;
+    next = panel(`
+        <div class="hm-head"><span class="hm-title">다음 경기 <span>· ${esc(vm.comp)} · ${n.home ? '홈' : '원정'}</span></span><span class="hm-sub">${d.matchDay ? '오늘' : esc(vm.nextDate ?? d.nextLabel ?? '')}</span></div>
+        ${n.cup ? `<div class="comp-badge${n.cup.comp === 'fa' ? ' is-fa' : ''}">${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(n.cup.label)}</b></div>` : ''}
+        ${n.derby ? `<div class="derby-badge${n.derby.big ? ' is-big' : ''}">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b>${esc(n.derby.name)}</b><span>더비 매치</span></div>` : ''}
+        <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}<span class="vs-name">${esc(n.my)}</span></span><span class="vs">vs</span><span class="vs-team away"><span class="vs-name">${esc(n.opp)}</span>${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
+        <div class="hm-power"><span>전력 <b class="po-num">${n.myRating}</b></span><span class="hm-power__bar" aria-hidden="true"><i style="width:${pct}%"></i><i></i></span><b class="po-num away">${n.oppRating}</b></div>
+        ${envRow(n.env)}
+        <div class="hm-tac">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}<span class="vs">vs</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}<span class="grow"></span>${
+          n.tacticsOpen ? Button({ size: 'sm', variant: 'ghost', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</div>
+        <div class="hm-ctl"><span class="grow">내 선수 결정 · <b>${n.control.mode === 'direct' ? '멈추면 내가 골라요' : '엔진이 대신 골라요'}</b></span>${
+          Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: n.control.mode, act: 'ctl-mode', label: '내 선수 결정' })}</div>
+        <div class="hm-btns">${main}<div class="hm-btns__row">${subs}</div></div>`, 'next-card');
   } else if (vm.phase === 'offseason') {
     next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 체력이 회복돼요.</p>
       ${vm.camp ? `<p class="small"><b>${esc(vm.camp)} 소집</b> · 개막 7일 전부터 훈련 계획과 첫 경기를 준비해요. 시즌 요약에서 [새 시즌 시작]을 누르면 소집일로 넘어가요.</p>` : ''}
-      ${Button({ size: 'lg', block: true, icon: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 종료 요약' })}`)}`;
+      ${Button({ size: 'lg', block: true, icon: 'trophy', act: 'go', data: { to: 'season' }, children: '시즌 종료 요약' })}`)}`;
   }
 
   const c = vm.condition;
+  const stamina = staminaOf(c.fatigue);
+  const cond = panel(`
+        <div class="hm-head"><span class="hm-title">내 상태</span><span class="hm-sub">경고 <b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
+        <div class="hm-stamina"><span>체력</span><span class="hm-stamina__bar" aria-hidden="true"><i class="${stamina <= 30 ? 'is-low' : stamina < 100 - BALANCE.fatigue.penaltyFrom ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
+        <div class="hm-stamina__scale"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
+        ${staminaNote(c.fatigue)}
+        ${c.life?.length ? `<div class="lf-hints">${c.life.map((h) => `<p class="small warn">${Icon({ name: 'face', size: 14 })} ${esc(h)}</p>`).join('')}</div>` : ''}
+        <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond');
+  const card = PlayerCard({ player: vm.card, variant: 'compact' });
+  const tiles = statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }]);
+  // C.70 (디자인 162): 배너(레벨업 등)는 머리말 바로 아래, 그다음 인박스 알림
+  const main = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${next}${training}${notice}${extra}`;
+  // PC 2열 (C.61 디자인 120): 왼쪽 = 다음 경기 · 오늘 훈련 · 알림, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 내 상태 · 버전
+  if (isWide()) return `${hero}<div class="body home-body">${pc2(main, `${card}${tiles}${cond}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
   return `
     ${hero}
-    <div class="body">
-      ${top}
-      ${next}
-      ${banners(vm.banners)}
-      ${startNotice(vm.version)}
-      ${notice}
-      ${training}
-      ${vm.day ? `<div class="sched-link">${Button({ variant: 'ghost', size: 'sm', icon: 'calendar', act: 'go-tab', data: { v: 'schedule' }, children: '훈련·일정 전체 보기' })}</div>` : ''}
-      ${extra}
-      ${SectionTitle({ title: '내 상태' })}
-      ${panel(`
-        <div class="kv">${FatigueGauge({ value: c.fatigue })}${StatChip({ icon: 'card', label: '경고', value: `${c.yellows}/${c.yellowEvery}`, tone: c.yellows >= c.yellowEvery - 1 ? 'warning' : 'neutral' })}</div>
-        ${staminaNote(c.fatigue)}
-        <div class="kv">${FormIndicator({ level: c.form })}<span class="muted small">${esc(c.formLabel)}</span></div>`)}
-      ${SectionTitle({ title: '선수 카드' })}
-      ${PlayerCard({ player: vm.card })}
-      ${SectionTitle({ title: '이번 시즌', action: `선발 ${vm.stats.starts}경기` })}
-      ${statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }])}
+    <div class="body home-body">
+      ${main}
+      ${cond}
+      ${card}
+      ${tiles}
       ${versionFooter(vm.version)}
     </div>`;
+}
+
+/** 1군 테스트 띠 (C.45 10번 · 디자인 132): 경기별 평점 칸 n/3, 방출·합격 선 위 지금 평균 */
+export function trialStrip(t: TrialVM): string {
+  const lo = 5, hi = 8;
+  const at = (v: number) => Math.round(((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * 1000) / 10;
+  const cells = t.cells.map((c) => `<div class="ft-cell${c.next ? ' is-next' : ''}"><span>${esc(c.label)}</span><b class="po-num">${c.rating != null ? c.rating.toFixed(1) : '—'}</b></div>`).join('');
+  return `<section class="panel ft-strip" role="status">
+    <div class="ft-head">${Icon({ name: 'target', size: 18 })}<b class="grow">${esc(t.team)} 1군 테스트 · <span class="po-num">${t.games}/${t.need}</span>경기${t.extended ? ' · 연장' : ''}</b><span class="small muted">평균 평점 <b class="po-num">${t.avg != null ? t.avg.toFixed(1) : '-'}</b></span></div>
+    <div class="ft-cells" style="grid-template-columns:repeat(${Math.min(t.cells.length, 5)},minmax(0,1fr))">${cells}</div>
+    <div class="ft-bar" aria-hidden="true"><span class="ft-bar__track"><i class="cut" style="width:${at(t.cut)}%"></i><i class="pass" style="left:${at(t.pass)}%"></i></span>${
+      t.avg != null ? `<span class="ft-bar__mark" style="left:${at(t.avg)}%"></span><span class="ft-bar__val po-num" style="left:${at(t.avg)}%">${t.avg.toFixed(1)}</span>` : ''}<span class="ft-bar__lbl fail" style="left:${at(t.cut)}%">${t.cut.toFixed(1)} 방출</span><span class="ft-bar__lbl ok" style="left:${at(t.pass)}%">${t.pass.toFixed(1)} 합격</span></div>
+    <p class="ft-rule">테스트 중에는 출전이 보장돼요. 평균 ${t.pass.toFixed(1)} 이상 합격, ${t.cut.toFixed(1)} 미만·공격포인트 0이면 방출, 그 사이면 연장(최대 ${t.maxGames}경기). ${t.goals}골 ${t.assists}도움.</p>
+  </section>`;
+}
+
+/** 홈 알림 카드 (디자인 133): 아이콘 · 머리 · 제목 · 내용 · 닫기. 쌓이면 위에 "알림 n · 모두 닫기" */
+export function alertCard(p: { icon: IconName; eyebrow: string; title: string; body: string; chips?: string; close: string; tone?: 'info' | 'news' }): string {
+  return `<div class="panel hm-alert hm-alert--${p.tone ?? 'info'}" role="status"><span class="hm-alert__icon">${Icon({ name: p.icon, size: 18 })}</span>
+    <div class="hm-alert__body"><span class="hm-alert__eyebrow">${esc(p.eyebrow)}</span>${p.chips ?? ''}<b>${esc(p.title)}</b><p>${esc(p.body)}</p></div>
+    <button type="button" class="hm-alert__x" data-act="${esc(p.close)}" aria-label="닫기">${Icon({ name: 'close', size: 16 })}</button></div>`;
+}
+
+export function alertsHead(count: number): string {
+  return count >= 2 ? `<div class="hm-alerts-head"><b>알림 <span class="po-num">${count}</span></b><button type="button" class="link-btn" data-act="alerts-close">모두 닫기</button></div>` : '';
 }
 
 /** 체력 안내 (C.44): 체력 = 100 − 피로. 피로 penaltyFrom(50) 초과 = 체력 50 미만이면 평점·선발에 불리 */
@@ -130,7 +177,7 @@ export function positionSheet(options: PositionOptionVM[], pick: string, inSeaso
 
 /** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력, 다른 경기 계산 방식 */
 export function calendarSection(d: DayVM): string {
-  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}"><span class="cal-date">${esc(u.date)}</span><span class="grow">${esc(u.text)}</span>${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
+  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}"><span class="cal-date">${esc(u.date)}</span>${u.team ? `<button type="button" class="dt-link grow" data-act="team-open" data-v="${esc(u.team)}">${esc(u.text)}</button>` : `<span class="grow">${esc(u.text)}</span>`}${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
   const blanks = Array.from({ length: d.month.lead }, () => '<span class="cal-cell blank"></span>').join('');
   const cells = d.month.days.map((c) => `<span class="cal-cell${c.kind ? ` k-${c.kind}` : ''}${c.today ? ' today' : ''}${c.past ? ' past' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${c.d}</span>`).join('');
   return `${SectionTitle({ title: '일정', action: d.month.title })}
@@ -142,15 +189,26 @@ export function calendarSection(d: DayVM): string {
 }
 
 /** 훈련·일정 화면 (C.44 독): 오늘 훈련·주간 계획·게이지 + 일정·달력 */
-export function scheduleView(vm: HomeVM, training: string): string {
+export function scheduleView(vm: HomeVM, training: string, calendar = true): string {
   const hero = HeroPanel({
     title: '훈련·일정', back: false, compact: true,
-    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.year}년 ${vm.day.weekdayKo}` : `${vm.season} 시즌 · 비시즌`,
+    eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
     value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
     chips: vm.day ? [vm.day.matchDay ? '오늘 경기' : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }] : [{ label: '시즌 종료', soft: true }],
   });
   const off = vm.phase === 'offseason'
     ? panel(`<p class="muted">비시즌 휴가 중이에요. 훈련 선택이 없고 체력이 회복돼요.${vm.camp ? ` ${esc(vm.camp)} 소집부터 훈련 계획이 다시 시작돼요.` : ''}</p>`)
     : '';
-  return `${hero}<div class="body">${off}${training}${vm.day ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
+  return `${hero}<div class="body">${off}${training}${vm.day && calendar ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
+}
+
+/** 날씨 예보·심판 한 줄 (C.74a): 공개 전이면 며칠 뒤 공개인지 */
+const WEATHER_ICON: Readonly<Record<WeatherKind, IconName>> = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', heat: 'heat', snow: 'snow' };
+export function envRow(e: EnvVM): string {
+  if (!e.open) return `<div class="hm-env is-closed">${Icon({ name: 'cloud', size: 16 })}<span>날씨 예보·심판 배정은 ${e.opensIn > 0 ? `${e.opensIn}일 뒤` : '곧'} 공개돼요</span></div>`;
+  const w = e.weather!;
+  return `<div class="hm-env is-${w}">
+          <span class="hm-env__w">${Icon({ name: WEATHER_ICON[w], size: 18 })}<b>${esc(e.weatherKo!)}</b><span class="hm-env__hint">${esc(e.hint!)}</span></span>
+          <span class="hm-env__ref">${Icon({ name: 'whistle', size: 16 })}<b>${esc(e.referee!)}</b>${(e.refTraits ?? []).map((t) => `<i>${esc(t)}</i>`).join('')}</span>
+        </div>`;
 }

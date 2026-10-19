@@ -9,6 +9,10 @@ import { rollProspect } from '../src/aptitude';
 import { PLAYABLE_POSITIONS } from '../src/positions';
 import type { Tier } from '../src/types';
 import { BALANCE } from '../src/config/balance';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const SEEDS = Number(env.SEEDS ?? 24);

@@ -1,0 +1,148 @@
+/* B 테마 · 브로드캐스트 층 (부록 C.55, 디자인 player-one-design-b · 적용 명세 docs/ui-requests/B-apply.md)
+   <html data-skin="b"> 일 때만 켜진다(기본). 속성을 빼거나 "a"로 바꾸면 A(볼트) 그대로.
+   선택자는 :where(...) 로 감싸 원래 bundle.css 와 같은 우선순위 → bundle.css 뒤·style.css 앞에서 읽어
+   디자이너 순서(bundle 끝 B 블록)를 그대로 따르고, style.css 의 화면별 조정은 계속 이긴다. */
+
+@font-face { font-family: "PO Display"; src: url("fonts/BarlowCondensed-600-italic.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "PO Display"; src: url("fonts/BarlowCondensed-700-italic.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "PO Display"; src: url("fonts/BarlowCondensed-800-italic.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "PO Head"; src: url("fonts/BlackHanSans.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
+
+/* 토큰 차이: 글꼴 2 · 모서리 6 (색은 A와 같음) */
+html[data-skin="b"] {
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 0px;
+  --radius-pill: 4px;
+  --font-display: "PO Display", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font-head: "PO Head", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
+  /* style.css 에 숫자로 박혀 있던 모서리 (var(--b-r-*, 원래값)): A는 원래값, B는 B 토큰 */
+  --b-r-xs: var(--radius-xs);
+  --b-r-sm: var(--radius-sm);
+  --b-r-lg: var(--radius-lg);
+  --b-r-pill: var(--radius-pill);
+  /* 독 바탕: 디자인은 다크만 그려 #0f1013 박힘 → 라이트에서는 surface-1 (글자 대비) */
+  --dock-bg: #0f1013;
+}
+html[data-skin="b"][data-theme="light"] { --dock-bg: var(--surface-1); }
+
+/* =====================================================================
+   B 테마 · 브로드캐스트 (그래파이트 + 라임 · 꺾인 사각형 · 이탤릭 숫자)
+   같은 컴포넌트·같은 props — 모양만 바꾼 층. 이 블록을 빼면 A(볼트)로 돌아가요.
+   ===================================================================== */
+html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+:where(html[data-skin="b"]) .po-num { letter-spacing: 0; }
+
+/* 머리말: 어두운 바탕 + 오른쪽 라임 사선 면 */
+:where(html[data-skin="b"]) .po-hero { flex: none; position: relative; overflow: hidden; background: var(--surface-0); color: var(--ink); border-radius: 0; padding: 10px var(--space-4) 18px; border-bottom: 2px solid var(--brand); }
+:where(html[data-skin="b"]) .po-hero::before { content: ""; position: absolute; right: -80px; top: -60px; width: 200px; height: calc(100% + 120px); background: var(--brand); transform: skewX(-14deg); }
+:where(html[data-skin="b"]) .po-hero::after { content: ""; position: absolute; right: 136px; top: -60px; width: 12px; height: calc(100% + 120px); background: var(--brand); transform: skewX(-14deg); }
+:where(html[data-skin="b"]) .po-hero > * { position: relative; z-index: 1; }
+:where(html[data-skin="b"]) .po-hero__bar { grid-template-columns: 40px 1fr auto; }
+:where(html[data-skin="b"]) .po-hero__back { width: 34px; height: 34px; border-radius: 0; background: var(--surface-2); color: var(--brand-ink); clip-path: var(--skew-sm); }
+:where(html[data-skin="b"]) .po-hero__title { text-align: left; padding-left: 4px; font-family: var(--font-head); font-size: 19px; font-weight: 400; letter-spacing: .01em; }
+:where(html[data-skin="b"]) .po-hero__right { color: var(--on-brand); font-weight: 800; }
+:where(html[data-skin="b"]) .po-hero__eyebrow { color: var(--brand-ink); font-size: 13px; font-weight: 800; letter-spacing: .02em; max-width: 64%; }
+:where(html[data-skin="b"]) .po-hero__value { font-family: var(--font-display); font-weight: 800; font-size: 128px; line-height: 100px; letter-spacing: -0.01em; color: var(--brand); }
+:where(html[data-skin="b"]) .po-hero__total { color: var(--ink-muted); opacity: 1; font-family: var(--font-display); }
+:where(html[data-skin="b"]) .po-hero__track { background: var(--surface-3); border-radius: 0; } :where(html[data-skin="b"]) .po-hero__track i { background: var(--brand); border-radius: 0; }
+:where(html[data-skin="b"]) .po-hero__chips { gap: 6px; max-width: calc(100% - 150px); } /* C.58: 70% → 라임 사선 면 앞까지 */
+:where(html[data-skin="b"]) .po-hero__chip { height: 24px; padding: 0 9px; border-radius: 0; background: var(--surface-2); color: var(--ink); font-weight: 800; font-size: 11px; transform: skewX(-10deg); }
+:where(html[data-skin="b"]) .po-hero__chip.is-soft { background: var(--brand-soft); color: var(--brand-ink); }
+:where(html[data-skin="b"]) .po-hero--compact { padding-bottom: 12px; }
+:where(html[data-skin="b"]) .po-hero--compact::before { right: -60px; width: 150px; }
+:where(html[data-skin="b"]) .po-hero--compact::after { right: 100px; }
+:where(html[data-skin="b"]) .po-hero--compact .po-hero__value { font-size: 44px; line-height: 40px; color: var(--on-brand); }
+:where(html[data-skin="b"]) .po-hero--compact .po-hero__total { color: var(--on-brand); opacity: .6; }
+:where(html[data-skin="b"]) .po-hero--compact .po-hero__eyebrow { max-width: none; }
+:where(html[data-skin="b"]) .po-hero--compact .po-hero__chips { max-width: calc(100% - 150px); } /* C.58: 칩이 오른쪽 라임 사선 면에 걸치지 않게 (C.55 남은 질문 2) */
+:where(html[data-skin="b"]) .po-hero--text .po-hero__value { font-family: var(--font-head); font-weight: 400; color: var(--ink); font-size: 46px; line-height: 54px; }
+:where(html[data-skin="b"]) .po-hero--compact.po-hero--text .po-hero__value { color: var(--on-brand); font-size: 22px; }
+
+/* 미페 머리말 (face): 등번호 + 투명 미페 + 사선 검정 면 */
+:where(html[data-skin="b"]) .po-hero--face { flex: none; padding: 0; height: 430px; border-bottom: 0; background: var(--surface-1); }
+:where(html[data-skin="b"]) .po-hero--face::before, :where(html[data-skin="b"]) .po-hero--face::after { display: none; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__kit { position: absolute; z-index: 0; right: -24px; top: -40px; font-family: var(--font-display); font-weight: 800; font-size: 480px; line-height: 440px; color: var(--brand); white-space: nowrap; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__kit.is-two { font-size: 330px; right: -10px; top: 0; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face { position: absolute; z-index: 1; left: -36px; bottom: 64px; width: 380px; height: 380px; object-fit: contain; object-position: bottom; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__slab { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 186px; background: var(--surface-0); clip-path: polygon(0 22%, 100% 50%, 100% 100%, 0 100%); }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__line { position: absolute; z-index: 2; left: 0; bottom: 148px; width: 250px; height: 14px; background: var(--brand); transform: skewY(6.4deg); transform-origin: left; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__bar { position: absolute; z-index: 3; left: var(--space-4); right: var(--space-4); top: 8px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__title { color: var(--ink); text-shadow: none; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__right { color: var(--ink-muted); }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__who { position: absolute; z-index: 3; left: var(--space-4); bottom: 18px; right: 130px; display: flex; flex-direction: column; gap: 2px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__eyebrow { margin: 0; max-width: none; font-size: 13px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__name { font-family: var(--font-head); font-size: 50px; line-height: 54px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__chips { margin-top: 6px; max-width: none; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__num { position: absolute; z-index: 3; right: var(--space-4); bottom: 22px; height: auto; flex-direction: column; align-items: flex-end; gap: 2px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__value { color: var(--ink); font-size: 96px; line-height: 80px; white-space: nowrap; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__unit { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: .12em; color: var(--ink-muted); }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact { display: block; height: 290px; border-radius: 0; } /* C.58: compact 격자(요청 5)를 끈다 — 자식은 모두 절대 위치 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { font-size: 320px; line-height: 300px; top: -24px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { width: 250px; height: 250px; bottom: 40px; left: -20px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__slab { height: 140px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__line { bottom: 120px; width: 190px; height: 10px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__name { font-size: 36px; line-height: 40px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__value { font-size: 72px; line-height: 62px; color: var(--ink); }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__who { bottom: 14px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__num { bottom: 16px; }
+
+/* 섹션 제목: 꺾인 라임 막대 */
+:where(html[data-skin="b"]) .po-section__bar { width: 22px; height: 5px; border-radius: 0; transform: skewX(-24deg); }
+:where(html[data-skin="b"]) .po-section__title { font-weight: 900; letter-spacing: -.01em; }
+
+/* 버튼: 꺾인 사각형 */
+:where(html[data-skin="b"]) .po-btn { border-radius: 0; clip-path: var(--skew-sm); }
+:where(html[data-skin="b"]) .po-btn--lg { font-family: var(--font-head); font-weight: 400; font-size: 18px; letter-spacing: .01em; }
+:where(html[data-skin="b"]) .po-btn--sm { border-radius: 0; }
+:where(html[data-skin="b"]) .po-btn--ghost { clip-path: none; }
+
+/* 탭 */
+:where(html[data-skin="b"]) .po-tabs--segment .po-tab { border-radius: 0; clip-path: var(--skew-sm); }
+:where(html[data-skin="b"]) .po-tabs--underline .po-tab.is-on { box-shadow: none; }
+:where(html[data-skin="b"]) .po-tabs--underline .po-tab.is-on::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: 0; height: 4px; background: var(--brand); transform: skewX(-24deg); }
+:where(html[data-skin="b"]) .po-chip { border-radius: 0; transform: skewX(-8deg); }
+
+/* 독: 꺾인 라임 홈 키 · 위 2px 라임 줄 */
+:where(html[data-skin="b"]) .po-dock { border-radius: 0; background: var(--dock-bg); border-top: 2px solid var(--brand); }
+:where(html[data-skin="b"]) .po-dock__homeicon { width: 66px; height: 50px; margin-top: -22px; border-radius: 0; background: var(--surface-3); color: var(--brand-ink); box-shadow: none; clip-path: polygon(16% 0, 100% 0, 84% 100%, 0 100%); }
+:where(html[data-skin="b"]) .po-dock__home.is-on .po-dock__homeicon { background: var(--brand); color: var(--on-brand); box-shadow: none; }
+:where(html[data-skin="b"]) .po-dock__go .po-dock__goicon { border-radius: 0; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); padding: 0 16px 0 14px; }
+:where(html[data-skin="b"]) .po-dock__golabel { font-family: var(--font-head); font-weight: 400; font-size: 14px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__homeicon { width: 56px; height: 40px; margin-top: 0; }
+
+/* 숫자 칸·게이지 */
+:where(html[data-skin="b"]) .po-attr__val, :where(html[data-skin="b"]) .po-day__date { font-family: var(--font-display); }
+:where(html[data-skin="b"]) .po-meter__track, :where(html[data-skin="b"]) .po-meter__fill { border-radius: 0 !important; }
+:where(html[data-skin="b"]) .po-banner { border-left: 4px solid var(--brand); }
+:where(html[data-skin="b"]) .po-offer__actions .po-btn { clip-path: var(--skew-sm); }
+
+/* 독 진행 칸 · 사이즈업 (2026-10-18 확정) */
+:where(html[data-skin="b"]) .po-dock__go .po-dock__goicon { height: 44px; }
+:where(html[data-skin="b"]) .po-dock__go.is-continue .po-dock__goicon { flex-direction: row-reverse; gap: 4px; padding: 0 14px 0 18px; }
+:where(html[data-skin="b"]) .po-dock__go.is-continue .po-dock__golabel { font-size: 17px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__go .po-dock__goicon { height: 40px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__golabel { font-size: 13px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__go.is-continue .po-dock__golabel { font-size: 14px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__go .po-dock__goicon { padding: 0 15px 0 11px; gap: 3px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__go:not(.is-continue) .po-dock__goicon .po-icon { width: 17px; height: 17px; }
+:where(html[data-skin="b"]) .po-dock--pc .po-dock__go.is-continue .po-dock__goicon { padding: 0 12px 0 14px; }
+:where(html[data-skin="b"]) .po-dock__go.is-continue .po-dock__goicon .po-icon { width: 22px; height: 22px; stroke-width: 3; }
+
+/* ── 코드 맞춤 (C.55) ── */
+/* 독 감싸개(안전 영역 아래)도 독과 같은 바탕 */
+:where(html[data-skin="b"]) .dock-bar { background: var(--dock-bg); }
+/* 진행 칸: 꺾인 면을 ::before 로 그려 배지·빨간 점이 clip-path 에 잘리지 않게 */
+:where(html[data-skin="b"]) .po-dock__go .po-dock__goicon { clip-path: none; background: transparent; isolation: isolate; }
+:where(html[data-skin="b"]) .po-dock__go .po-dock__goicon::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--brand); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+:where(html[data-skin="b"]) .po-dock__go.is-live .po-dock__goicon::before { background: var(--mine); }
+:where(html[data-skin="b"]) .po-dock__go.is-answer .po-dock__goicon::before { background: var(--warning); }
+:where(html[data-skin="b"]) .po-dock__live { top: -4px; right: 2px; box-shadow: 0 0 0 2px var(--dock-bg); }
+:where(html[data-skin="b"]) .po-dock__badge { border-radius: 3px; transform: skewX(-8deg); box-shadow: 0 0 0 2px var(--dock-bg); }
+:where(html[data-skin="b"]) .po-dock__go .po-dock__badge { right: -4px; }
+/* 키보드 초점: clip-path 가 바깥 테두리를 자르므로 꺾인 칸은 안쪽으로 그린다 */
+:where(html[data-skin="b"]) :where(.po-btn, .po-hero__back, .po-tabs--segment .po-tab):focus-visible { outline: 2px solid var(--focus); outline-offset: -5px; }
+:where(html[data-skin="b"]) :where(.po-btn--ghost):focus-visible { outline-offset: 2px; }
+:where(html[data-skin="b"]) :where(.po-dock__item, .po-dock__go, .po-dock__home):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }

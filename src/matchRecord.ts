@@ -134,7 +134,7 @@ export interface MatchLogEntry {
   rating: number | null;
   mom: boolean;
   /** 결장 이유 */
-  absent?: 'injured' | 'suspended' | 'bench';
+  absent?: 'injured' | 'suspended' | 'bench' | 'leave';
   /** 그 경기의 포지션 */
   position: Position;
   /** 엔진 경기 기록. 빠른 경기(B.4)는 골·도움·평점만 산출하므로 null = "기록 없음" */

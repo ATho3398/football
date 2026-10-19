@@ -752,3 +752,116 @@ button.po-day { cursor: pointer; }
 .po-pv__ballmark { fill: #ffffff; stroke: #121317; stroke-width: .3; }
 .po-tabs--grid { display: grid; gap: 6px; }
 .po-tabs--grid .po-tab { width: 100%; padding: 0 6px; white-space: nowrap; }
+
+/* ================= 요청 6 ================= */
+/* Dock — 홈 가운데·강조 (폰: 진행 2fr · 선수 · 홈 · 훈련·일정 · 월드 · 더보기) */
+.po-dock { grid-auto-flow: initial; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 72px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); overflow: visible; }
+.po-dock--pc { grid-template-columns: repeat(4, minmax(0, 1fr)) 132px repeat(4, minmax(0, 1fr)); }
+.po-dock__go { flex-direction: row; padding: 0 4px; }
+.po-dock__go .po-dock__goicon { width: auto; min-width: 0; height: 40px; padding: 0 14px 0 10px; gap: 4px; display: inline-flex; align-items: center; border-radius: 12px; }
+
+.po-dock__golabel { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.po-dock__home { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; border: 0; padding: 0 0 2px; background: transparent; color: var(--brand-ink); font-family: var(--font-sans); cursor: pointer; }
+.po-dock__homeicon { position: relative; display: grid; place-items: center; width: 56px; height: 56px; margin-top: -20px; border-radius: 50%; background: var(--surface-3); color: var(--brand-ink); box-shadow: inset 0 0 0 2px var(--brand-ink), 0 0 0 5px var(--surface-1); }
+.po-dock__home .po-dock__label { color: var(--brand-ink); font-weight: 800; }
+.po-dock__home.is-on .po-dock__homeicon { background: var(--brand); color: var(--on-brand); box-shadow: 0 0 0 5px var(--surface-1); }
+.po-dock__home .po-dock__badge { left: auto; right: -4px; top: -2px; }
+.po-dock--pc .po-dock__home { flex-direction: row; justify-content: center; gap: 8px; padding: 0; }
+.po-dock--pc .po-dock__homeicon { width: 44px; height: 44px; margin-top: 0; box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-dock--pc .po-dock__home.is-on .po-dock__homeicon { box-shadow: none; }
+.po-dock--pc .po-dock__home .po-dock__label { font-size: 14px; }
+.po-dock--pc .po-dock__go .po-dock__goicon { height: 40px; }
+
+/* Stepper */
+.po-stepper { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-family: var(--font-sans); color: var(--ink); }
+.po-stepper__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.po-stepper__head b { font-weight: 800; }
+.po-stepper__head span { font-size: 11px; font-weight: 700; color: var(--ink-faint); }
+.po-stepper__box { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; min-height: 64px; padding: 6px; border-radius: var(--radius-md); background: var(--surface-1); box-sizing: border-box; }
+.po-stepper__btn { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--brand-ink); cursor: pointer; }
+.po-stepper__btn:disabled { color: var(--ink-faint); opacity: .45; cursor: not-allowed; }
+.po-stepper__mid { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; text-align: center; }
+.po-stepper__val { display: inline-flex; align-items: baseline; gap: 3px; }
+.po-stepper__val b { font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; }
+.po-stepper__val small { font-size: 13px; font-weight: 800; color: var(--ink-muted); }
+.po-stepper__sub { max-width: 100%; font-size: 11px; line-height: 14px; font-weight: 700; color: var(--ink-muted); word-break: keep-all; }
+.po-stepper__sub.is-gain { color: var(--success); }
+.po-stepper__sub.is-cost { color: var(--fail); }
+.po-stepper__sub.is-warn { color: var(--warning); }
+.po-stepper--sm .po-stepper__box { min-height: 52px; grid-template-columns: 36px minmax(0, 1fr) 36px; }
+.po-stepper--sm .po-stepper__btn { width: 36px; height: 36px; }
+.po-stepper--sm .po-stepper__val b { font-size: 20px; line-height: 24px; }
+.po-stepper.is-disabled .po-stepper__box { opacity: .55; }
+
+/* PointBar */
+.po-pointbar { display: flex; flex-direction: column; gap: 7px; padding: 10px 14px 11px; border-radius: var(--radius-md); background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--line); font-family: var(--font-sans); color: var(--ink); box-sizing: border-box; }
+.po-pointbar.is-sticky { position: sticky; top: 0; z-index: 4; box-shadow: inset 0 0 0 1.5px var(--line), 0 6px 0 var(--surface-0); }
+.po-pointbar__row { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); align-items: baseline; gap: 6px; }
+.po-pointbar__label { font-size: 12px; font-weight: 800; color: var(--ink-muted); }
+.po-pointbar__left { font-family: var(--font-display); font-size: 26px; line-height: 28px; font-weight: 700; }
+.po-pointbar__left small { font-size: 14px; margin-left: 1px; }
+.po-pointbar__total { font-size: 12px; font-weight: 700; color: var(--ink-faint); }
+.po-pointbar__msg { justify-self: end; font-size: 12px; font-weight: 800; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.po-pointbar__track { display: block; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.po-pointbar__track i { display: block; height: 100%; background: var(--brand); border-radius: 3px; }
+.po-pointbar__items { display: flex; flex-wrap: wrap; gap: 4px; }
+.po-pointbar__item { display: inline-flex; align-items: center; gap: 2px; height: 22px; padding: 0 7px; border-radius: 6px; background: var(--surface-2); font-size: 11px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
+.po-pointbar__item b { color: var(--ink); }
+.po-pointbar__item.is-plus b { color: var(--success); }
+.po-pointbar__item.is-minus b { color: var(--fail); }
+.po-pointbar.is-left .po-pointbar__left { color: var(--brand-ink); }
+.po-pointbar.is-zero { box-shadow: inset 0 0 0 1.5px var(--success); }
+.po-pointbar.is-zero .po-pointbar__msg, .po-pointbar.is-zero .po-pointbar__left { color: var(--success); }
+.po-pointbar.is-zero .po-pointbar__track i { background: var(--success); }
+.po-pointbar.is-over { background: var(--fail-soft); box-shadow: inset 0 0 0 1.5px var(--fail); }
+.po-pointbar.is-over .po-pointbar__msg, .po-pointbar.is-over .po-pointbar__left { color: var(--fail); }
+.po-pointbar.is-over .po-pointbar__track i { background: var(--fail); }
+
+/* TagChip — 색 = 장점/단점, 앞 기호 = 종류, 점선 = 해제형 */
+.po-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; height: 28px; padding: 0 9px 0 7px; border: 0; border-radius: 8px; font-family: var(--font-sans); font-size: 12px; font-weight: 800; white-space: nowrap; box-sizing: border-box; vertical-align: middle; flex: none; cursor: default; }
+button.po-tag { cursor: pointer; }
+.po-tag__mark { display: inline-grid; place-items: center; min-width: 13px; font-family: var(--font-display); font-size: 15px; line-height: 1; font-weight: 700; }
+.po-tag__name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.po-tag__scope { font-size: 11px; font-weight: 700; opacity: .75; }
+.po-tag__rel { display: inline-flex; opacity: .9; }
+.po-tag__none { font-size: 10px; font-weight: 700; color: var(--ink-faint); }
+.po-tag--pro { background: var(--success-soft); color: var(--success); }
+.po-tag--con { background: var(--fail-soft); color: var(--fail); }
+.po-tag--none { background: transparent; color: var(--ink-muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.po-tag--gen { border-radius: 6px; }
+.po-tag--career, .po-tag--play, .po-tag--story { border-radius: var(--radius-pill); padding-left: 8px; padding-right: 10px; }
+.po-tag.is-release { background-image: none; box-shadow: none; outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
+.po-tag.is-released { background: transparent; color: var(--ink-faint); box-shadow: inset 0 0 0 1px var(--line); outline: 0; }
+.po-tag.is-released .po-tag__name { text-decoration: line-through; }
+.po-tag--sm { height: 22px; padding: 0 7px 0 5px; gap: 3px; font-size: 11px; }
+.po-tag--sm .po-tag__mark { min-width: 11px; font-size: 13px; }
+
+/* PixelTile — 16px 도트를 정수배로 */
+.po-pixel { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--ink-muted); font-family: var(--font-sans); cursor: default; min-width: 0; }
+button.po-pixel { cursor: pointer; }
+.po-pixel__art { position: relative; display: grid; place-items: center; width: calc(var(--px-size) + 12px); height: calc(var(--px-size) + 12px); border-radius: 12px; background: var(--surface-2); box-sizing: border-box; }
+.po-pixel__svg, .po-pixel__img { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+.po-pixel__label { display: block; max-width: calc(var(--px-size) + 16px); height: 14px; font-size: 11px; line-height: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-pixel.is-selected .po-pixel__art { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--brand-ink); }
+.po-pixel.is-selected .po-pixel__label { color: var(--ink); font-weight: 800; }
+.po-pixel__check { position: absolute; right: -4px; top: -4px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--brand); color: var(--on-brand); box-shadow: 0 0 0 2px var(--surface-0); }
+.po-pixel__def { position: absolute; left: 3px; bottom: 3px; height: 14px; padding: 0 4px; border-radius: 4px; background: var(--card-bg); color: var(--ink-muted); font-size: 9px; line-height: 14px; font-weight: 800; }
+.po-pixel.is-disabled { opacity: .45; }
+
+/* Pitch 세로 픽셀 캐릭터 번호 띠 */
+.po-pv__band { text-anchor: middle; fill: var(--on-brand); font-family: var(--font-display); font-weight: 700; }
+/* 요청 6 · 재정 등급 칩 · TransferRow 몸값 · OfferCard 등급·이적료·친정 */
+.po-fin { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 7px 0 6px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-strong); font-family: var(--font-sans); font-size: 11px; font-weight: 800; color: var(--ink); white-space: nowrap; flex: none; vertical-align: middle; }
+.po-fin--sm { height: 18px; padding: 0 5px 0 4px; gap: 4px; font-size: 10px; border-radius: 5px; }
+.po-fin__bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; }
+.po-fin__bars i { display: block; width: 3px; border-radius: 1px; background: var(--surface-3); }
+.po-fin__bars i.on { background: var(--ink); }
+.po-xfer__move .po-fin { margin-left: 2px; }
+.po-xfer__fee { font-size: 11px; color: var(--ink-muted); }
+.po-xfer__fee b { color: var(--ink); }
+.po-offer__tags { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.po-offer__home { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; height: 22px; padding: 0 8px; border-radius: 6px; background: var(--mine-soft); color: var(--mine); font-size: 11px; font-weight: 800; }
+.po-offer__fee { display: block; font-family: var(--font-sans); font-size: 10px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; letter-spacing: -0.2px; }
+/* 요청 6 · 못 쓰는 카드(mini·hand): 이유 칩은 위쪽, 이름은 가리지 않고 흐린 글자로 남김 */
+.po-card--mini .po-card__reason, .po-card--hand .po-card__reason { top: 20px; bottom: auto; left: 5px; right: 5px; padding: 3px 4px; background: var(--card-bg); box-shadow: inset 0 0 0 1px var(--fail); backdrop-filter: none; }
+.po-card.is-disabled > .po-mc__name, .po-card.is-locked > .po-mc__name { filter: none; color: var(--ink-muted); }

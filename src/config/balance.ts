@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 34;
+export const BALANCE_VERSION = 51;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -16,12 +16,14 @@ export const BALANCE = {
     xpPerLevel: 200,
     /** OVR 연동 XP 요구량 (5.1, 부록 D.6 #2): 필요 XP = xpPerLevel × (1 + max(0, OVR - fromOvr) × perOvr) */
     xpByOvr: { fromOvr: 80, perOvr: 0.06 }, // 기획서 0.04, 부록 C.6
-    pointsPerLevel: 5,
-    /** 한 번의 레벨업에서 한 능력치에 올릴 수 있는 최대치 */
-    maxRaisePerLevel: 3,
+    /** 레벨업 포인트 (C.49 pending 80: 5 → 1). 포인트 1개 = 찍기 한 번 = 1~20 화면 +1칸 = 내부 +pointStep */
+    pointsPerLevel: 1,
+    pointStep: 5,
     maxAttribute: 99,
     /**
-     * 포인트 비용 구간: 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3.
+     * 비용 구간 (내부 값): 현재 값이 cost1Max 이하면 1, cost2Max 이하면 2, 그 위는 3.
+     * 포인트 찍기(C.49)는 화면 값 기준: 지금 칸(1~20)이 화면(cost1Max) 이하면 1P, 화면(cost2Max) 이하면 2P, 그 위는 3P (고값 추가 비용 없음).
+     * 훈련 게이지는 내부 값 기준 그대로 (BALANCE.training.gauge.highValueCost 포함).
      * 내 선수는 현재 실력 티어(skillTierCuts, OVR)의 구간을 쓴다 (6.2 성장 해금, 부록 C.23: 위상과 분리)
      */
     costBands: {
@@ -31,12 +33,6 @@ export const BALANCE = {
       worldClass: { cost1Max: 78, cost2Max: 91 },
       legendary: { cost1Max: 80, cost2Max: 92 },
     } satisfies Record<Tier, { cost1Max: number; cost2Max: number }>,
-    /** 고값 추가 비용 (6.2, 부록 D.6 #1, 위상 무관): [현재 값이 이 값 이상, 비용]. 실제 비용 = max(구간 비용, 고값 비용) */
-    highValueCost: [
-      [93, 4],
-      [96, 6],
-      [98, 9],
-    ] as [number, number][],
     /**
      * 시즌 종료 자동 성장 (17~21세): 전 능력치 +min~max.
      * 기획서 기본은 전 티어 +0~2. 잠재력 티어 차이가 30세 OVR 에 드러나도록 티어별로 나눴다.
@@ -87,11 +83,12 @@ export const BALANCE = {
     bench: 8,
     bigMatchMultiplier: 1.5,
     /** 고령 XP 감쇠 (6.1): [이 나이부터, 배율]. 경기 XP와 결장 주 훈련 XP에만 적용. 기획서 0.9/0.8/0.65/0.5, 부록 C.6 */
+    // C.49: 포인트 고값 비용(4/6/9)이 없어져 고령 회복이 싸진 만큼 31세부터 당김 (30세 그대로, 30→36세 노화 가드 맞춤). 이전 32 0.6 · 34 0.45 · 36 0.3
     veteranMultiplier: [
       [30, 0.75],
-      [32, 0.6],
-      [34, 0.45],
-      [36, 0.3],
+      [31, 0.55],
+      [33, 0.4],
+      [35, 0.25],
     ] as [number, number][],
   },
 
@@ -390,7 +387,20 @@ export const BALANCE = {
       rest: { xp: 0, fatigue: 6 },
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
       weakFoot: { xp: 0.75, fatigue: 4.0 },
+      // 생활 하루 행동 (pending 47 4번, C.63 b): 훈련 대신. XP 없음, 회복은 휴식~회복 훈련 사이. 효과는 BALANCE.life.actions
+      family: { xp: 0, fatigue: 5 },
+      language: { xp: 0, fatigue: 4.5 },
+      teamMeal: { xp: 0, fatigue: 4.5 },
+      therapy: { xp: 0, fatigue: 5 },
+      trip: { xp: 0, fatigue: 6 },
+      media: { xp: 0, fatigue: 4 },
     },
+    /**
+     * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
+     * 부상 중 → 회복 중심, 경기 2번 이상 또는 경기 간격 busyGap 일 이하 → 경기 많은 주, 체력 lowCondition 미만 → 회복 중심,
+     * 경기 1번 이하이고 체력 freshCondition 이상 → 기술 집중, 그 밖 → 균형
+     */
+    presets: { lowCondition: 65, freshCondition: 85, busyGap: 3 },
     /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
     weeklyXpCap: 6,
     /**
@@ -403,7 +413,15 @@ export const BALANCE = {
      * 기술 훈련 게이지: 하루 +per (× 고령 감쇠), full × 그 능력치 포인트 비용(6.2)이 차면 그 묶음에서 가장 낮은 능력치 +1.
      * 묶음당 시즌 bundleSeasonMax, 전체 시즌 seasonMax. C.41 측정: 비용·감쇠 없이 30 이면 고값 능력치가 공짜로 올라 99 능력치·노화 가드가 깨진다
      */
-    gauge: { per: 1, full: 40, bundleSeasonMax: 2, seasonMax: 6 },
+    gauge: {
+      per: 1, full: 40, bundleSeasonMax: 2, seasonMax: 6,
+      /** 고값 게이지 배수 (6.2·D.6 #1 의 고값 비용, C.49부터 훈련 게이지에만): [현재 값이 이 값 이상, 배수]. 배수 = max(구간 비용, 이 값) */
+      highValueCost: [
+        [93, 4],
+        [96, 6],
+        [98, 9],
+      ] as [number, number][],
+    },
     /** 고강도 훈련 부상: 하루 chance (× 난이도 부상 배율), 경상 days 일 */
     intenseInjury: { chance: 0.003, days: [3, 10] as [number, number] },
     /** 포지션·역할 훈련: 전술 "내 위치" 숙련도 + (× 적응기·적성 배수), 역할 시그니처 해금 진행 + 경기 */
@@ -545,7 +563,21 @@ export const BALANCE = {
      * 내 선수 (18.10): 비시즌 제안 3~5개 = 관심 상위. 관심 = −|유효 OVR − 팀 레이팅 − fitOffset| × fit + 필요도 × 5 + 위상 / repDiv + N(0, noiseSd).
      * 유효 OVR = OVR + (youthAge − 나이) × youthPerYear (어린 선수는 잠재력을 본다). 18.6 의 야망 항 (OVR − 팀 레이팅) × 3 을 팀 입장의 "수준 맞음"으로 뒤집었다
      */
-    offers: { min: 3, max: 5, fit: 1.5, fitOffset: 1, youthAge: 22, youthPerYear: 1.5, needWeight: 5, repDiv: 40, noiseSd: 4 },
+    offers: {
+      min: 3, max: 5, fit: 1.5, fitOffset: 1, youthAge: 22, youthPerYear: 1.5, needWeight: 5, repDiv: 40, noiseSd: 4,
+      /**
+       * 남은 계약별 제안 수 (C.48, pending 78): 만료·마지막 해(남은 0~1시즌) / 1년 더 남음(2시즌) / 2년 이상 더 남음(3시즌 이상).
+       * 2년 이상이면 지금 팀보다 전력이 높은 구단만 (감당 가능 판정 C.46 은 그대로). 이적 명단(요청 수락)이면 그 시즌 창은 last
+       */
+      byYears: { last: [3, 5], one: [1, 3], more: [0, 2] } as Record<'last' | 'one' | 'more', [number, number]>,
+      /**
+       * 소속 구단 수락 판정 (C.48): 이적료 = 몸값 × U(feeMin, feeMax) (남은 영입 예산까지), 수락 확률 = base + (이적료/몸값 − 1) × slope
+       * − (팀 OVR 상위 3이면 top3), [minP, 1]. 바이아웃 이상이면 거절 불가. 계약 만료(몸값 0)·이적 명단·임대는 판정 없음
+       */
+      club: { feeMin: 0.8, feeMax: 1.5, base: 0.55, slope: 1.2, top3: 0.3, minP: 0.05 },
+      /** 바이아웃 = 계약할 때 몸값(그 계약 연수 기준) × buyoutMul */
+      buyoutMul: 1.8,
+    },
     /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
     loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },
     /** 계약 기간: 나이별 [최소, 최대] (어릴수록 길게). 새 게임 가상 유망주는 newGameYears */
@@ -767,7 +799,7 @@ export const BALANCE = {
 
   // ── 약발 강화 (pending 47 1, C.45): 포인트로 +1 (내부 포인트 cost), 하루 훈련 "약발 훈련" 게이지 (시즌 최대 +1) ──
   weakFoot: {
-    pointCost: 50,
+    pointCost: 10, // C.49: 50 → 10 (포인트 ÷ 5)
     /** 약발 훈련 하루 게이지 +1, 다 차면 약발 +1 (시즌 최대 seasonMax) */
     trainingGauge: 30,
     seasonMax: 1,
@@ -782,8 +814,9 @@ export const BALANCE = {
      * C.45 1차(장단점 20종)의 영구 값과 비슷하게 기준값을 잡았다
      */
     cost: {
-      glass: 14, ironMan: 14, troublemaker: 7, rollercoaster: 10, consistent: 10, slowRecovery: 10, resilient: 10, professional: 16,
-      managerSensitive: 4, poorNegotiator: 4, homesick: 4, mediaShy: 4, weakFootOne: 10, starQuality: 7, linguist: 4, leader: 4, twoFooted: 13,
+      // C.49: 커스텀 칸 비용 2/3/4 → 1/2/3 에 맞춰 C.45 값 × 약 0.58 (같은 시작 OVR 이 되는 배분 포인트 비율)
+      glass: 8, ironMan: 8, troublemaker: 4, rollercoaster: 6, consistent: 6, slowRecovery: 6, resilient: 6, professional: 9,
+      managerSensitive: 2, poorNegotiator: 2, homesick: 2, mediaShy: 2, weakFootOne: 6, starQuality: 4, linguist: 2, leader: 2, twoFooted: 8,
     } as Record<string, number>,
     permMul: 1.5,
     removableMul: 0.6,
@@ -899,25 +932,26 @@ export const BALANCE = {
   // ── 커스텀 생성 (pending 47 2·49 1, C.45): 모든 능력치 base 에서 시작, 배분 포인트를 나눈다. 한 칸(1~20 표시 1칸 = 내부 5)씩, 비용은 칸당 (구간별) ──
   custom: {
     base: 40,
-    points: 100,
+    /** C.49: 칸 비용 2/3/4 → 1/2/3, 같은 시작 OVR 이 되게 100 → 58 (자동 배분 평균 57.4) */
+    points: 58,
     /** 칸(내부 5) 비용: [지금 내부 값이 이 값 미만이면, 비용] */
     step: 5,
-    costBands: [[55, 2], [65, 3], [100, 4]] as [number, number][],
+    costBands: [[55, 1], [65, 2], [100, 3]] as [number, number][],
     /** 능력치 상한 (키 상한은 BALANCE.body.custom) */
     cap: 75,
-    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +). C.45 측정(일반 잠재력 30세 OVR 이 나이와 상관없이 74~75): 21/살, 어리면 −3/살 */
+    /** 나이 15~23: 17세 기준, 1살당 배분 포인트 (나이가 많을수록 +). C.45 측정(일반 잠재력 30세 OVR 이 나이와 상관없이 74~75): 21/살, 어리면 −3/살 → C.49 13/살, −2/살 (나이별 시작 OVR 동일) */
     minAge: 15,
     maxAge: 23,
     refAge: 17,
-    pointsPerYear: 21,
+    pointsPerYear: 13,
     /** 17세보다 어리면 1살당 (− 포인트) */
-    pointsPerYearYounger: 3,
+    pointsPerYearYounger: 2,
     heightMin: 165,
     heightMax: 200,
     bmiMin: 19.5,
     bmiMax: 27,
     /** 약발 선택 포인트 (3 기준, 높으면 −, 낮으면 +). 커스텀에서는 양발잡이·약발 1 장단점 대신 이 값으로 고른다 */
-    weakFootPoints: [10, 5, 0, -12, -25] as readonly number[],
+    weakFootPoints: [6, 3, 0, -7, -15] as readonly number[], // C.49: × 0.58
   },
 
   // ── 시작 소속·1군 테스트·재계약 판정 (pending 61·62, C.45 10·12번). 유스 시스템은 없고 유스는 서사 ──
@@ -981,9 +1015,25 @@ export const BALANCE = {
       'Korea Republic': { eastAsian: 100 },
       Japan: { eastAsian: 100 },
       China: { eastAsian: 100 },
+      // 내 선수 랜덤 생성 전용 국적 (C.73c, data/names.ts PLAYER_EXTRA_POOLS)
+      Morocco: { latinMideast: 95, black: 5 },
+      'Saudi Arabia': { latinMideast: 100 },
+      "Côte d'Ivoire": { black: 100 },
+      Ghana: { black: 100 },
+      Cameroon: { black: 100 },
     } as Record<string, Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>>,
     /** 표에 없는 국적 */
     fallback: { white: 50, black: 25, latinMideast: 20, eastAsian: 5 } as Partial<Record<'eastAsian' | 'white' | 'irish' | 'black' | 'latinMideast', number>>,
+    /**
+     * 내 선수 랜덤 생성 (C.73c): 인종 4개(중동·동양인·백인·흑인) 가중치 → 그 인종 국적 (국적 가중치 = 이름 풀 weight × 그 국적의 인종 분포).
+     * 중동은 라틴(스페인·브라질 등) 대신 중동 국적만 (기본 사진이 중동이라). 겉모습만이라 경기 결과에 영향 없음
+     */
+    random: {
+      race: { latinMideast: 1, eastAsian: 1, white: 1, black: 1 },
+      mideastNationalities: ['Egypt', 'Morocco', 'Saudi Arabia'],
+      /** 한국 이름 풀(prospect.ts) 가중치 */
+      koreaWeight: 4,
+    },
   },
   // ── 도트 선수 아이콘 (부록 C.45, docs/design/pixel-kits.md 3·4번): 경기 화면 캐릭터 보기의 인물(피부·머리)과 유니폼 충돌 규칙.
   // 겉모습만이라 경기 결과·시드에 영향이 없다. 추첨은 `pixel:<선수 id>` 시드의 별도 난수
@@ -1015,6 +1065,8 @@ export const BALANCE = {
     missing: { black_brown: 'black', mideast_blonde: 'brown' } as Record<string, string>,
     /** 유니폼 충돌 기준: 몸통 평균색 RGB 거리가 이보다 가까우면 겹친다 (4번) */
     clashDistance: 120,
+    /** 경기 화면 kitClash (C.54 디자인 139): 두 팀 몸통 색 중 가장 가까운 두 색의 RGB 거리가 이보다 작으면 원정 몸통에 주황 테두리 */
+    clashBody: 48,
     /** GK 단색 순서: 초록 → 노랑 → 주황 → 보라 → 검정 → 하늘 */
     gkOrder: ['C07', 'C06', 'C09', 'C10', 'C05', 'C04'] as string[],
     /** 표에 없는 국가·구단이고 색도 모를 때 */
@@ -1102,6 +1154,450 @@ export const BALANCE = {
      * 수요 × depth 보다 아래이고 유효 OVR < 팀 레이팅 − gap. 둘 중 하나면 재계약 실패·방출
      */
     renew: { depth: 2, gap: 14, allPlayers: false },
+  },
+
+  // ── 감독 신뢰도·면담 (18.2·18.3, 부록 C.62) ──
+  manager: {
+    /** 새 팀 시작 = 50 + (주 포지션 OVR − 팀 레이팅) × startPerOvr, [startMin, startMax]. 그 뒤 0~100 */
+    start: 50, startPerOvr: 1, startMin: 40, startMax: 60,
+    /** 출전 경기: 평점 ≥ ratingHigh +ratingDelta, < ratingLow −ratingDelta (교체 출전은 절반). 골·도움 각 +1, 승 +1 / 패 −1, 경고 −1, 퇴장 −5 */
+    ratingHigh: 7.0, ratingLow: 6.0, ratingDelta: 2, goal: 1, assist: 1, win: 1, loss: 1, yellow: 1, red: 5,
+    /** 골·도움 합 경기당 상한 (해트트릭 한 경기로 신뢰도가 튀지 않게) */
+    involvementMax: 3,
+    /** 감독 기억 감쇠: 출전 경기마다 신뢰도가 50 쪽으로 이만큼 (비율) 돌아온다 (오래된 인상은 옅어짐, 추천안) */
+    reversion: 0.04,
+    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) − 피로 70 이상 fatigueMinus (화면 분해) */
+    trustPerPoint: 0.06, formScale: 5, formMax: 1.5, fatigueFrom: 70, fatigueMinus: 2,
+    /** 경쟁자 (NPC) 신뢰도 고정 */
+    npcTrust: 60,
+    /** 홈 "최근 신뢰도 변화" 줄 수 */
+    logMax: 5,
+    /** 감독 성향 (data/managers.ts): 21세 이하 시작 +youthStart, 내려갈 때 × strictDown, 모든 변화 × steadyMul */
+    styles: { youthStart: 5, youthAge: 21, strictDown: 1.25, steadyMul: 0.8 },
+    /** 이적 요청 (C.42 훅): 신뢰도가 이 값 미만이면 요청할 수 있다 (또는 위상이 팀 수준을 넘을 때, 또는 낮은 신뢰 면담에서) */
+    requestBelow: 35,
+    /**
+     * 커리어 태그 효과 (C.62, C.47 표에서 5-1 로 미룬 것): 원클럽맨 하락 × oneClubDown (영원한은 감소분 × 1.5), 문제아 하락 × troublemakerDown,
+     * 컬트 히어로 상승 × cultHeroUp, 친정 선택 그 구단 시작 +homeChoiceStart, 감독 불화 민감 = 신뢰도가 떨어진 경기 다음 경기 폼 −sensitiveForm,
+     * 재계약 판정(커스텀): 저니맨 실패 +journeyRenew, 신뢰도 30 미만 실패 +lowRenew, 신뢰도 80 이상 실패를 highKeep 확률로 뒤집음
+     */
+    tags: { oneClubDown: 0.8, troublemakerDown: 1.2, cultHeroUp: 1.1, homeChoiceStart: 5, sensitiveForm: 0.15, journeyRenew: 0.1, lowRenew: 0.25, highKeep: 0.2 },
+    meeting: {
+      /** 낮은 신뢰 면담: 신뢰도 lowBelow 미만이 lowDays 일 이상, 또는 시즌 중반(라운드 midRound 이상) 선발·출전 시간 비율 minShare 미만 */
+      lowBelow: 30, lowDays: 14, midRound: 19, minShare: 0.4,
+      /** 같은 면담 다시 열리기까지 (일) */
+      lowCooldown: 28,
+      /** 보상 면담: 신뢰도 rewardFrom 이상, 시즌 전반·후반 한 번씩 */
+      rewardFrom: 80,
+      /** 포지션 제안: 고른 슬롯 OVR 이 최고 포지션 OVR 보다 posGap 이상 낮은 채로 posGames 경기 */
+      posGap: 5, posGames: 3,
+      /** 더 노력하겠다: 신뢰도 +effortTrust, effortDays 일 동안 훈련 XP × effortXp */
+      effortTrust: 5, effortDays: 14, effortXp: 1.2,
+      /** 불만 표출: 신뢰도 −complainTrust, complainChance 확률로 감독이 다음 complainGames 경기 기회를 준다 */
+      complainTrust: 5, complainChance: 0.35, complainGames: 2,
+      /** 주전 보장: 다음 startGames 경기 선발 확률 최소 startFloor / 선호 슬롯 보장: 다음 slotGames 경기 무조건 선발 */
+      startGames: 8, startFloor: 0.85, slotGames: 5,
+      /** 포지션 제안을 따르면 */
+      posTrust: 3,
+    },
+  },
+
+  // ── 이벤트 엔진·인박스·라이벌·구단 (20번, 부록 C.63) ──
+  events: {
+    /** 시즌 선택형 슬롯: 개막부터 weeks 주차 중 min~max 개 (20.3) */
+    slots: { weeks: [8, 14, 20, 26, 32], min: 4, max: 5 },
+    /** 선택형 기한 (일). 지나면 기본 선택 */
+    deadlineDays: 7,
+    /** 바로 뜨는 이벤트(하루·경기 뒤) 사이 최소 간격 (일) — 알림이 몰리지 않게 */
+    minGapDays: 3,
+    /** 정보형 기본 쿨다운 (일) */
+    messageCooldown: 21,
+    /** 효과 상한 (이벤트 1개당, 20.7 1번): 위상 ±rep, 신뢰도 ±trust. 돈은 5-7 재정 전이라 효과 없음 */
+    caps: { rep: 5, trust: 10 },
+    /** 가족 우환 "가족 곁으로" 휴가 (pending 102 ⑨, C.67a): 이 날수 동안 경기 결장·훈련 없음(휴가 회복) */
+    familyLeaveDays: 5,
+    /** 이벤트 폼 보정 상한 (다음 n경기, 경기 입력) */
+    formMax: 0.2,
+    /** 인박스 최대 (오래된 읽은 것부터 지움) */
+    inboxMax: 80,
+    rival: {
+      /** 나이 ±ageGap (교체 기준 위상 차는 C.64부터 world.rivalMaxGap) */
+      ageGap: 3,
+      /** 시즌 끝 비교 점수 = 골+도움 차 + 평균 평점 차 × avgWeight, ±1 넘으면 승패 */
+      avgWeight: 10,
+      /** 이기면 위상 +winRep · 신뢰도 +winTrust, 지면 위상 loseRep · 신뢰도 loseTrust */
+      winRep: 3, winTrust: 2, loseRep: -2, loseTrust: -1,
+      /** NPC 기록이 없을 때 추정: 팀 경기 × estApps 출전, 포지션군 경기당 골+도움 */
+      estApps: 0.85,
+      /** 같은 포지션 영입: 내 팀에 온 같은 포지션군 선수 OVR ≥ 내 OVR − competitorGap 이면 "새 경쟁자" 이벤트 */
+      competitorGap: 3,
+      estGa: { ST: 0.6, WING: 0.45, CAM: 0.45, CM: 0.2, CDM: 0.1, FB: 0.12, CB: 0.06, GK: 0 },
+    },
+    /** 감독 경질: fromRound 라운드부터, 순위 rankFrom 이하 또는 (순위 − 전력 순위) ≥ expectedGap, 최근 lastGames 경기 maxWins 승 이하 → 경기 뒤 chance (주전 고정 감독 × steadyMul), 시즌 한 번 */
+    coach: { fromRound: 10, rankFrom: 17, expectedGap: 6, lastGames: 5, maxWins: 1, chance: 0.12, steadyMul: 0.7 },
+    /** 주장: 신뢰도 하락 × downMul, 시즌 끝 위상 +seasonRep, 새 시즌에 신뢰도 stripBelow 미만이면 완장 뺏김 */
+    captain: { downMul: 0.9, seasonRep: 3, stripBelow: 30 },
+  },
+
+  // ── 커리어 챕터 (22.1, 부록 C.73a, pending 119) ── XP·성장 수치는 바꾸지 않는다
+  chapters: {
+    /** 챕터 나이 상한 (시즌 시작 나이): 유망주 ≤20 · 도약 21~25 · 전성기 26~31 · 황혼 32~ */
+    maxAge: { prospect: 20, rise: 25, prime: 31 },
+    /**
+     * 시즌 목표 난이도 섞기 (18.9 위에): 기본은 쉬움/보통/어려움 하나씩. 유망주는 easier 확률로 어려움 하나가 보통으로,
+     * 전성기는 harder 확률로 쉬움 하나가 보통으로. 황혼은 개인 목표 셈 배수 personalMul · 평점 personalRating 더하기 (완화)
+     */
+    goalMix: { prospect: { easier: 0.5, harder: 0 }, rise: { easier: 0, harder: 0 }, prime: { easier: 0, harder: 0.5 }, twilight: { easier: 0, harder: 0 } },
+    twilightGoal: { personalMul: 0.85, personalRating: -0.1 },
+    /**
+     * 이벤트 분류 배율 (태그별, 확률·슬롯 가중치에 곱함). 태그 여러 개면 곱한 뒤 eventClamp 안으로.
+     * 위상을 올리는 이벤트(칭찬·스타·스폰서·주장)는 키우지 않는다 — 레전더리 35세 900+ 가드가 경계(12/48)라 (C.73a 측정)
+     */
+    eventMul: {
+      prospect: { minutes: 1.4, contract: 1.3, training: 1.3, manager: 1.2, star: 0.6, luxury: 0.6, sponsor: 0.7, aging: 0.5, retire: 0.5, mentor: 0.5 },
+      rise: { transfer: 1.5, contract: 1.2, minutes: 0.8, aging: 0.5, retire: 0.5, mentor: 0.5 },
+      prime: { luxury: 1.2, minutes: 0.7, retire: 0.5 },
+      twilight: { aging: 1.5, retire: 1.5, mentor: 1.5, injury: 1.2, transfer: 0.7, star: 0.6, sponsor: 0.6, praise: 0.6 },
+    } as Record<string, Readonly<Record<string, number>>>,
+    eventClamp: [0.5, 1.5] as readonly [number, number],
+    /** 챕터 끝 카드 선택권 1회 (C.65 선택권 흐름): 유망주 희귀 · 도약 희귀 · 전성기 에픽 · 황혼 없음 */
+    pick: { prospect: 'rare', rise: 'rare', prime: 'epic', twilight: null } as Record<string, string | null>,
+    /** 챕터 하이라이트 보관 수 */
+    highlights: 3,
+  },
+
+  // ── 시즌 하이라이트 3 (22.2 끝 · I.13, 부록 C.73b): 최고 평점 경기 · 골 · 위기. 챕터 하이라이트 후보 점수도 같이 ──
+  seasonHighlights: {
+    /** 최고 평점 경기 점수 = 평점 + 골 × goalW + 도움 × assistW (C.73a 그대로) */
+    best: { goalW: 0.3, assistW: 0.2 },
+    /** 골 경기 점수 = base + 골 × perGoal + 승부를 가른 골(이긴 경기 골 차 ≤ 내 골, 비긴 경기 내 골) decisive. 골이 없으면 도움 경기 (perAssist) */
+    goal: { base: 5, perGoal: 1, decisive: 1, perAssist: 0.6 },
+    /**
+     * 위기 점수: 부상 결장 연속 = injuryBase + 경기 × injuryPer (최대 injuryMax), 연패(minLosing 이상) = losingBase + 연패 × losingPer,
+     * 최악 평점 경기(worstBelow 미만) = worstBase + (worstBelow − 평점). 셋 중 가장 큰 것. 챕터 후보로는 낮게(위기는 트로피·배지가 없을 때만 보이게)
+     */
+    crisis: { injuryBase: 3, injuryPer: 0.25, injuryMax: 6, minLosing: 3, losingBase: 2.5, losingPer: 0.5, worstBelow: 6, worstBase: 3 },
+  },
+
+  // ── 은퇴 후 (18.11, 부록 C.73b): 명예의 전당(세이브 밖 로컬 저장) · 새 게임 보너스 ──
+  legacy: {
+    /** 명예의 전당 보관 수 */
+    hallSize: 3,
+    /** 커리어 점수 = 최종 위상 + 자산 점수 × assetW + 레전드 배지 × badgeW + 트로피 × trophyW + 통산 (골 + 도움) × gaW */
+    score: { assetW: 2, badgeW: 100, trophyW: 30, gaW: 0.5 },
+    /** 새 게임 보너스: 시작 카드 선택권 1회 (C.65 흐름). 보통 커리어 normal, 레전드 배지를 받은 커리어 legend */
+    bonus: { normal: 'common', legend: 'rare' } as Record<'normal' | 'legend', string>,
+  },
+
+  // ── 경기 외 생활 (pending 47 4번, 부록 C.63) ──
+  life: {
+    /** 시작값 (0~100). 멘탈 피로는 높을수록 나쁨. 적응도는 팀에 따라 (adapt) */
+    start: { home: 70, adapt: 70, team: 60, mental: 20 },
+    /** 하루마다 기준값 쪽으로 (차이 × rate): 가정 안정 → 70, 팀 관계 → 60 (리더 · 주장 +leaderTo) */
+    drift: { homeTo: 70, homeRate: 0.02, teamTo: 60, teamRate: 0.015, leaderTo: 10 },
+    /** 적응도: 새 팀 시작 = 외국인(잉글랜드 국적이 아님) foreignStart / 잉글랜드 domesticStart / 무한한 충성심 귀환 loyalStart, 첫 시즌 실제 선수(이미 그 구단) settledStart. 하루 +perDay (향수병 ×homesickMul, 언어 천재 ×linguistMul) */
+    adapt: { foreignStart: 45, domesticStart: 65, loyalStart: 85, settledStart: 85, perDay: 0.3, homesickMul: 0.5, linguistMul: 2 },
+    /** 팀 관계: 새 팀 시작 newTeam, 무한한 충성심 귀환 loyalTeam, 원클럽맨 하한 oneClubFloor */
+    team: { newTeam: 50, loyalTeam: 75, oneClubFloor: 40 },
+    /**
+     * 멘탈 피로: 하루마다 baseTo 쪽으로 (차이 × baseRate) + 경기 +match (큰 경기 +big 더), 휴식 날 rest, 휴가 vacation, 회복 훈련 recovery, 그 밖 날 other,
+     * 피로 fatigueFrom 이상인 날 +fatigueAdd. 평형: 주 1경기 ≈ 35, 주 2경기 ≈ 45, 큰 경기·연전·이벤트가 겹치면 70+
+     */
+    mental: { baseTo: 25, baseRate: 0.02, match: 3, big: 2, rest: -1.5, vacation: -3, recovery: -1, other: 0, fatigueFrom: 70, fatigueAdd: 0.5 },
+    /** 하루 행동 효과 (훈련 대신). media = 미디어 인터뷰: good 확률로 위상 +goodRep, 아니면 badRep (언론 울렁증 ×shyMul, 언론의 총아 ×darlingMul 확률) */
+    actions: {
+      family: { home: 8, mental: -2 },
+      language: { adapt: 5 },
+      teamMeal: { team: 6, mental: -1 },
+      therapy: { mental: -10 },
+      trip: { mental: -8, home: 3 },
+      media: { good: 0.6, goodRep: 2, badRep: -1, mental: 2, shyMul: 0.6, darlingMul: 1.25 },
+    },
+    /** 엔진 밖 영향 (경기 입력 폼, 피로 회복): 지표가 low 미만이면 lowForm, high 이상이면 highForm, 멘탈 피로 mentalHigh 이상 mentalForm(mentalMax 이상 mentalMaxForm) · 회복 × mentalRecovery, 합 ±formMax */
+    effects: {
+      low: 35, high: 80, lowForm: { home: -0.05, adapt: -0.05, team: -0.05 }, highForm: { home: 0.02, team: 0.03 },
+      mentalHigh: 70, mentalForm: -0.06, mentalMax: 85, mentalMaxForm: -0.12, mentalLow: 15, mentalLowForm: 0.02, mentalRecovery: 0.9, formMax: 0.15,
+    },
+    /** 생활 이벤트 시즌 상한 (pending 47 질문 ④: 쉬움 1, 보통 2, 어려움 3) */
+    eventsPerSeason: { easy: 1, normal: 2, hard: 3 },
+    /** 태그 (5-2 몫): 리더 = 팀 불화 이벤트 확률 × leaderDiscord, 문제아 = 인터뷰 실언 확률 × troubleSlip, 스타 플레이어 = 빅클럽 루머 × starRumour */
+    tags: { leaderDiscord: 0.5, troubleSlip: 1.5, starRumour: 2 },
+    /** 플레이 태그: 라커룸 리더 = 주장 lockerSeasons 시즌째 끝 또는 시즌 끝 팀 관계 lockerTeam 이상 / 언론의 총아 = 인터뷰 좋은 결과 darlingGood 번 */
+    natural: { lockerSeasons: 2, lockerTeam: 90, darlingGood: 5 },
+  },
+  /**
+   * 시즌 목표와 카드 해금 (18.9, 부록 C.65). 시즌 시작 목표 3개 = 감독 · 구단 · 개인, 쉬움/보통/어려움을 시드로 하나씩 나눈다.
+   * 목표 값 = 기대값(지난 시즌 기록 + 포지션·팀 수준 사전값) × 난이도 배수. 달성하면 XP + 카드 3택 1(쉬움 일반 · 보통 희귀 · 어려움 희귀/에픽).
+   * 3단계 임시 경로(시즌 종료 희귀·에픽 3택 1)는 이 보상으로 바뀐다 (F.0 5번)
+   */
+  goals: {
+    /** 달성 XP (게임 난이도 xp 배수 · 고령 XP 감쇠를 곱한다). 위상에는 더하지 않는다 */
+    xp: { easy: 25, normal: 50, hard: 80 },
+    /** 카드 선택권 희귀도 가중 (후보마다): 쉬움 일반, 보통 희귀, 어려움 희귀 50% · 에픽 50% */
+    pick: { easy: { common: 1 }, normal: { rare: 1 }, hard: { rare: 0.5, epic: 0.5 } },
+    /** 셈 목표(골·도움·클린시트·MOM) 배수, 출전 경기 배수, 평균 평점 더하기, 팀 순위 더하기(+ = 낮은 순위도 됨) */
+    mult: { easy: 0.8, normal: 1.1, hard: 1.4 },
+    appsMul: { easy: 0.75, normal: 0.9, hard: 1.05 },
+    ratingAdd: { easy: -0.15, normal: 0.1, hard: 0.3 },
+    posAdd: { easy: 3, normal: 0, hard: -2 },
+    /** 어려움 개인 목표가 리그 득점/도움 순위가 되는 위상 티어(탑클래스 이상)와 순위 */
+    rankFromTier: 2, rankTarget: 3,
+    /** 다른 팀 선수 기록이 이만큼 있어야 순위 목표·시상 선택권을 판정 (빠른 진행 = 내 기록뿐) */
+    leagueStatsMin: 50,
+    /** 게임 난이도: 셈 목표 배수, 팀 순위 더하기 */
+    difficulty: { easy: { mult: 0.9, pos: 1 }, normal: { mult: 1, pos: 0 }, hard: { mult: 1.1, pos: -1 } },
+    /** 사전 기대값 (경기당, 포지션군): [골, 도움, MOM]. 팀 레이팅 대비 OVR 1당 × (1 + ovrK), 0.5~1.8배 */
+    rates: {
+      GK: [0, 0, 0.06], CB: [0.04, 0.02, 0.07], FB: [0.03, 0.08, 0.07], CDM: [0.04, 0.06, 0.07],
+      CM: [0.1, 0.12, 0.1], CAM: [0.25, 0.22, 0.14], WING: [0.32, 0.18, 0.14], ST: [0.5, 0.1, 0.17],
+    } as Record<string, readonly [number, number, number]>,
+    ovrK: 0.04,
+    /** 지난 시즌 기록을 섞는 무게: 사전값 priorApps 경기만큼 + 지난 시즌 출전 */
+    priorApps: 10,
+    /** 평균 평점 사전값 = ratingBase + (OVR − 팀 레이팅) × ratingK (ratingMin~ratingMax), 평점 목표 자격 출전 ratingMinApps */
+    ratingBase: 6.7, ratingK: 0.03, ratingMin: 6.3, ratingMax: 7.4, ratingMinApps: 10,
+    /** 클린시트 = 60분 이상 뛴 경기 무실점. 경기당 = csBase + csTop × (팀 수 − 예상 순위)/(팀 수 − 1) */
+    csBase: 0.06, csTop: 0.26, csMinutes: 60,
+    /** 감독 목표: 선발 확률 이 값 미만이면 출전 경기 수, 이상이면 평균 평점 또는 MOM */
+    appsBelow: 0.6,
+    /** 신뢰도 (C.62): [달성, 실패] 감독 목표 · 구단 목표 · 개인 목표 */
+    trust: { manager: [2, -2], club: [1, -1], personal: [0, 0] } as Record<string, readonly [number, number]>,
+    /** 중간 점검 인박스 라운드 */
+    midRound: 19,
+    /** TP (5.4, C.68b): 달성 TP 쉬움 1 · 보통 2 · 어려움 3. 카드 해금 = TP 로 3택 1 (일반 특성 rare TP 3, 상위 특성 epic TP 5 + 위상 탑클래스, 5.5) */
+    tp: { easy: 1, normal: 2, hard: 3 },
+    tpUnlock: { rare: 3, epic: 5 },
+    tpEpicTier: 2,
+    /**
+     * 구단 목표 "챔스 n강" (pending 109 ⑤): 챔스에 나가는 시즌이면 uclChance 로 리그 순위 대신 챔스 진출 단계 목표.
+     * 단계: 1 = 16강 · 2 = 8강 · 3 = 4강 · 4 = 결승. 쉬움/보통/어려움 기본 단계 uclStage, 리그 레이팅 상위 uclStrongRank 안 팀은 +1
+     */
+    uclChance: 0.5, uclStage: { easy: 1, normal: 2, hard: 3 }, uclStrongRank: 2,
+    /** 업적 카드 선택권 (18.9 큰 업적): 시즌 시상 수상 희귀 1장(시즌 최대 1), 리그 우승 에픽, 새 레전드 배지 전설(없으면 에픽). 챔스·발롱도르·월드컵은 5-6·6단계 훅 */
+    awardPick: { award: 'rare', leagueTitle: 'epic', legendBadge: 'legendary', clWin: 'epic', ballonDor: 'legendary', worldCup: 'legendary' },
+  },
+  /** 월드 정보·NPC 시즌 통계 (18.5, 부록 C.64). 통계 자체는 엔진 기록(다른 경기도 22명 엔진), 여기는 순위·시상·위상·소식·세이브 상한 */
+  world: {
+    /** 평점 순위 자격: 출전 ≥ max(ratingMinApps, 지난 라운드 × ratingMinShare) */
+    ratingMinApps: 3, ratingMinShare: 0.4,
+    /** 시상: 최고 평점 출전 ≥ bestMinApps, 영플레이어(21세 이하 최고 평점) 출전 ≥ youngMinApps */
+    bestMinApps: 15, youngMinApps: 10,
+    /** 순위표 줄 수 (득점·도움·평점) */
+    boardSize: 15,
+    /**
+     * NPC 위상 = OVR 근사(finance.npcRep) + 기록 + 수상.
+     * 기록 = (평균 평점 − perfAvg) × perfPerRating + 38경기 환산 골+도움 × perfPerGa38 (−perfMin~+perfMax), 출전 perfMinApps 미만은 0.
+     * 이번 시즌 비중 = 출전 / curFullApps (나머지는 지난 시즌 기록). 수상(득점왕·도움왕·최고 평점·영플레이어) 최근 honorSeasons 시즌 1개당 +honorRep (최대 honorMax)
+     */
+    standing: { perfAvg: 6.8, perfPerRating: 80, perfPerGa38: 2, perfMin: 60, perfMax: 100, perfMinApps: 5, curFullApps: 19, honorRep: 30, honorMax: 90, honorSeasons: 5 },
+    /** 라이벌 (C.63 → C.64 위상 비교): 후보 = OVR 차 rivalOvrGap 이내, 거리 = |위상 차| / rivalRepScale + OVR 차 + 나이 차 × 0.5. 시즌 시작 때 위상 차 rivalMaxGap 또는 OVR 차 rivalOvrGap 넘으면 교체 */
+    rivalRepScale: 25, rivalMaxGap: 220, rivalOvrGap: 8,
+    /** 기록 소식 (인박스): 이 라운드를 마친 뒤 득점·도움 경쟁 기사 (빠른 진행으로 기록이 없으면 안 냄) */
+    raceRounds: [10, 20, 30] as readonly number[],
+    /** 세이브 상한: 최근 fullSeasons 시즌은 전체 기록, 그 앞 시즌은 선수 기록을 득점·도움·평점 상위 keepTop 명씩 + 내 팀 선수만, 다른 경기 득점 기록(g)은 지운다 */
+    archive: { fullSeasons: 3, keepTop: 20 },
+  },
+  /**
+   * 챔스/컵 (18.7, pending 108, 부록 C.67). 국내 컵(FA컵) = 단판 녹아웃 32팀(리그 20 + 하부 가상 12).
+   * 단계 날짜 = 목표일([다음 해?, 월, 일])에 가장 가까운 토요일부터 찾아, 리그 경기와 minGap 일 이상 떨어진 첫 날 (토·일 → 그 주 화·수 → 앞뒤 주)
+   */
+  cups: {
+    fa: {
+      stages: [[1, 1, 5], [1, 1, 26], [1, 3, 16], [1, 4, 13]] as [number, number, number][],
+      /** 결승 = 리그 최종 라운드 + finalAfter 일 (토요일) */
+      finalAfter: 6,
+    },
+    /**
+     * 챔스 (C.67b): 지난 시즌 리그 상위 4팀(첫 시즌 = 2017-18 실제 순위 firstSeason) + 외부 28팀. 조별 8조 × 4팀 6경기 →
+     * 16강·8강·4강 홈·원정 2경기(합계 동률 = 승부차기 간이 판정, 원정 다득점·연장 없음) → 결승 단판(리그 최종 라운드 + finalAfter 일, 토).
+     * 날짜 = [다음 해?, 월, 일] 이 든 주의 화·수 (팀마다 리그·컵 경기와 minGap 일 이상 되는 요일)
+     */
+    ucl: {
+      firstSeason: ['mci', 'mun', 'tot', 'liv'] as readonly string[],
+      groupWeeks: [[0, 9, 18], [0, 10, 2], [0, 10, 23], [0, 11, 6], [0, 11, 27], [0, 12, 11]] as [number, number, number][],
+      /** 16강·8강·4강 [1차전, 2차전] 주 */
+      koWeeks: [[[1, 2, 12], [1, 3, 5]], [[1, 4, 9], [1, 4, 16]], [[1, 4, 30], [1, 5, 7]]] as [number, number, number][][],
+      finalAfter: 13,
+    },
+    /**
+     * 컵·챔스 경기 XP 배율 (리그 경기 XP × matchXpScale × 이 값). 경기 수가 늘어 성장 가드(레전더리 35세 월드클래스 비율 ·
+     * 36−30 CB/CDM/CM 하락)가 흔들려서 낮춤 (C.67: 1.0 = 13/15, 0.5 = 14/15 → 0.35 + 컵 업적 XP 는 위상에 넣지 않음)
+     */
+    matchXpMul: 0.35,
+    /** 컵·챔스 경기 평점을 최근 폼(recentRatings)에 넣는지, 감독 신뢰도에 반영하는지 */
+    cupForm: true,
+    cupTrust: true,
+    /** 업적 XP (5.3): 챔스 우승/준우승/4강/8강, 국내 컵 우승, 트레블(리그 + 국내 컵 + 챔스) */
+    xp: { uclWin: 400, uclFinal: 250, uclSemi: 150, uclQuarter: 80, faWin: 150, treble: 500 },
+    /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */
+    minGap: 3, minGapLoose: 2,
+    /** 승부차기 간이 판정: 홈(또는 첫 팀) 승률 = 0.5 + 레이팅 차 × ratingK, [min, max] */
+    pens: { ratingK: 0.01, min: 0.3, max: 0.7 },
+    /** 내 팀 없는 경기 득점자 가중치 (포지션군), 도움 확률·가중치 */
+    scorerWeight: { GK: 0, CB: 0.6, FB: 0.5, CDM: 0.6, CM: 1.4, CAM: 2.6, WING: 3, ST: 5 },
+    assistChance: 0.72,
+    /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
+    squadTop: 14,
+    assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
+  },
+  // ── 개인 재정 (19번, 5-7 a, C.68a) ──
+  /**
+   * 내 선수 돈. 금액 단위는 만 원 정수(기존 주급 wageFor 와 같음), 표시는 한국식(만 원·억 원). 19.11 수치표 초안 그대로.
+   * 주 정산 = 일요일이 끝날 때 주급 + 출전·골 보너스 − 생활비 − 스태프 급여. 비시즌 주급은 다음 시즌 시작 때 (52 − 정산한 주) 몫을 한 번에
+   */
+  money: {
+    /** 새 게임 잔고 (만 원) */
+    startCash: 0,
+    /** 계약금 = 연봉 × signingShare × 계약 연수(최대 signingYearsMax). 임대는 없음 */
+    signingShare: 0.1, signingYearsMax: 5,
+    /** 출전수당 = 주급 × appearance (경기당), 골 보너스 = 주급 × goal (골당), 우승 보너스 = 연봉 × title (리그·FA컵·챔스 우승마다) */
+    bonus: { appearance: 0.05, goal: 0.2, title: 0.1 },
+    /** 스폰서 (연, 시즌 끝): 위상 티어별 연봉 비율, 상한 30억 원 */
+    sponsor: { normal: 0, special: 0, topClass: 0.05, worldClass: 0.15, legendary: 0.3 } satisfies Record<Tier, number>,
+    sponsorMax: 300000,
+    /** 기본 생활비 = 연봉의 12% (주마다 주급 × living) */
+    living: 0.12,
+    /** 에이전트 수수료 = (계약금 + 첫해 연봉) × agent (계약 때). 고급 에이전트(8%)는 b 이후 */
+    agent: 0.05,
+    /** 재정 내역 줄 상한 (세이브 크기, 주 정산은 한 줄), 지난 시즌 요약 상한 */
+    ledgerMax: 24, historyMax: 25,
+  },
+
+  // ── 스태프 (19.2~19.5, D.13 재설계, C.68a) ──
+  staff: {
+    /** 슬롯 (위상 티어별, 코치·의료 공용) */
+    slots: { normal: 2, special: 3, topClass: 4, worldClass: 5, legendary: 5 } satisfies Record<Tier, number>,
+    /** 연 급여 = 고용 때 내 연봉 × salary (티어별), 500만 원 단위 반올림, 최소 500만 원 */
+    salary: { normal: 0.03, special: 0.05, topClass: 0.07, worldClass: 0.1, legendary: 0.14 } satisfies Record<Tier, number>,
+    salaryUnit: 500,
+    /** 코치 모집 비용 = 주급 × scoutCost (500만 원 단위, 최소 500만 원). 후보는 scoutDays 일 뒤 2~3명, 도착 뒤 keepDays 일 동안 고를 수 있다 */
+    scoutCost: 0.5, scoutDays: 7, keepDays: 14, candidates: [2, 3] as [number, number],
+    /** 후보 티어 가중치 (높을수록 흔치 않다) */
+    tierWeight: { normal: 45, special: 28, topClass: 15, worldClass: 8, legendary: 4 } satisfies Record<Tier, number>,
+    /** 후보 중 코치 비율 (나머지는 의료: 팀 닥터·물리치료사·영양사 같은 비율) */
+    coachShare: 0.7,
+    /** 계약 기간 (시즌) */
+    years: [1, 3] as [number, number],
+    /**
+     * 코치 (D.13 재설계, pending 110): 전문 능력치를 기술 훈련할 때 그날 게이지·훈련 XP × (1 + 배율).
+     * 범위 = 전문 능력치 수(같은 묶음 안), 한계 = 그 값 이하인 능력치에만. 같은 능력치에 겹치면 가산, 상한 maxBoost.
+     * 시즌당 +2 상한은 두지 않는다: 기술 훈련 게이지에 이미 묶음당 시즌 +2 · 전체 +6 상한이 있다(25.3)
+     */
+    coach: {
+      boost: { normal: 0.1, special: 0.15, topClass: 0.2, worldClass: 0.25, legendary: 0.3 } satisfies Record<Tier, number>,
+      range: { normal: 1, special: 2, topClass: 2, worldClass: 3, legendary: 3 } satisfies Record<Tier, number>,
+      limit: { normal: 75, special: 80, topClass: 85, worldClass: 90, legendary: 94 } satisfies Record<Tier, number>,
+      maxBoost: 0.4,
+      /**
+       * 그날 훈련 XP 에 붙는 몫 (배율 × xpShare). 게이지에는 배율 그대로. 0 = 게이지만 (C.68a: XP 에도 붙이면 코치 풀 투자 balance 13/15 —
+       * 레전더리 위상 비율 가드 2개, 게이지만이면 14/15)
+       */
+      xpShare: 0,
+      /** 후보 전문 묶음: 이 확률로 내 포지션 OVR 비중 상위 3묶음 중에서, 나머지는 아무 묶음 */
+      fitShare: 0.5,
+    },
+    /** 의료 (19.5): 팀 닥터 = 부상 확률 −, 물리치료사 = 부상 기간 −, 영양사 = 피로 회복 + (같은 종류는 가장 높은 것 하나) */
+    medical: {
+      doctor: { normal: 0.05, special: 0.08, topClass: 0.11, worldClass: 0.14, legendary: 0.18 } satisfies Record<Tier, number>,
+      physio: { normal: 0.08, special: 0.12, topClass: 0.16, worldClass: 0.2, legendary: 0.25 } satisfies Record<Tier, number>,
+      nutrition: { normal: 0.03, special: 0.05, topClass: 0.07, worldClass: 0.09, legendary: 0.12 } satisfies Record<Tier, number>,
+    },
+  },
+
+  // ── 재정 b (19.6~19.9 · 19.11, C.68b): 카드 상점·카드팩·생활·자선·투자·엔딩 자산 점수·고급 에이전트. 금액은 만 원 ──
+  wealth: {
+    /**
+     * 카드 상점 (19.6): 매주(월요일부터) 카드 size 장, 희귀도 가중 weights. 일반 = 주급 × commonPrice (500만 원 단위, 최소 500만 원),
+     * 희귀 이상은 절대 가격 price + 위상 티어 조건 tierReq (티어 순번: 0 일반 · 1 스페셜 · 2 탑클래스 · 3 월드클래스)
+     */
+    shop: {
+      size: [3, 4] as [number, number],
+      weights: { common: 55, rare: 30, epic: 11, legendary: 4 },
+      commonPrice: 0.5,
+      price: { rare: 30000, epic: 100000, legendary: 250000 },
+      tierReq: { common: 0, rare: 1, epic: 2, legendary: 3 },
+    },
+    /** 일반 카드팩 (19.6): 주급 × price (500만 원 단위, 최소 500만 원), 주당 perWeek 팩, 한 팩 cards 장 (장마다 rareChance 로 희귀) */
+    pack: { price: 1, perWeek: 2, cards: 3, rareChance: 0.1 },
+    /**
+     * 생활 (19.7): 집·차는 절대 가격. 집 0 = 구단 숙소(무료). 월세는 연 rent 를 주마다, 나머지는 구매가 price + 유지비(연 houseUpkeep).
+     * 이사하면 살던 집은 resale 비율로 판다. 효과는 작게: 집 = 피로 회복 + recovery, 차 = 주마다 멘탈 피로 − mental
+     */
+    houses: [
+      { id: 'dorm', ko: '구단 숙소', price: 0, rent: 0, recovery: 0 },
+      { id: 'rent', ko: '월세 아파트', price: 0, rent: 5000, recovery: 0.01 },
+      { id: 'apt', ko: '아파트', price: 100000, rent: 0, recovery: 0.02 },
+      { id: 'villa', ko: '고급 주택', price: 300000, rent: 0, recovery: 0.03 },
+      { id: 'mansion', ko: '저택', price: 800000, rent: 0, recovery: 0.04 },
+      { id: 'castle', ko: '성', price: 2000000, rent: 0, recovery: 0.05 },
+    ],
+    houseUpkeep: 0.05, houseResale: 0.7,
+    cars: [
+      { id: 'none', ko: '차 없음', price: 0, mental: 0 },
+      { id: 'compact', ko: '중형차', price: 10000, mental: 0.3 },
+      { id: 'suv', ko: '고급 SUV', price: 30000, mental: 0.6 },
+      { id: 'sports', ko: '스포츠카', price: 80000, mental: 1 },
+      { id: 'super', ko: '슈퍼카', price: 250000, mental: 1.5 },
+    ],
+    carUpkeep: 0.1, carResale: 0.5,
+    /** 사치 리스크 (19.7): 집 houseFrom 단계 이상 · 차 carFrom 단계 이상을 사면 chance 로 days 일 뒤 언론 논란(인박스 선택형) */
+    luxury: { houseFrom: 4, carFrom: 3, chance: 0.5, days: 3 },
+    /** 자선 (19.8): perRep 마다 위상 +1, 시즌 상한 seasonCap, 누적 badge 이상이면 "자선가". 기부 단위 units */
+    charity: { perRep: 10000, seasonCap: 30, badge: 1000000, units: [10000, 50000, 100000] },
+    /**
+     * 투자 (19.9): 예금 연 deposit, 부동산 연 estate ± estateSwing (시즌 끝 정산, 수익은 잔고로). 넣기 단위 units.
+     * 이벤트형 투자: 시즌 offerWeek 주째 즈음 잔고 minCash 이상이면 offerChance 로 제안 (인박스). 금액 = 잔고 × share (1억 단위, 1억~max),
+     * 시즌 끝 정산 = 금액 × 배수 (outcomes [배수, 가중]) — 손실은 투자금 안 (파산 없음)
+     */
+    invest: {
+      deposit: 0.03, estate: 0.06, estateSwing: 0.08, units: [10000, 100000],
+      offerWeek: [8, 24] as [number, number], offerChance: 0.6, minCash: 30000, share: 0.15, max: 300000,
+      outcomes: [[0, 22], [0.5, 22], [1.2, 30], [2, 19], [3, 7]] as [number, number][],
+    },
+    /** 엔딩 자산 점수 = clamp(k × log10(순자산(억 원) + 1), 0, 100). 순자산 = 잔고 + 투자 + 집 매각가 */
+    assetScoreK: 33,
+    /** 에이전트 (19.11): 일반 수수료 money.agent(5%), 고급 fee(8%) — 새 계약 주급 × (1 + wage) */
+    agentPremium: { fee: 0.08, wage: 0.05 },
+    /** 이벤트 돈 효과 (20.2): 이벤트 효과 { money: n } = 주급 × n (최소 500만 원) */
+    eventMinUnit: 500,
+  },
+  /**
+   * 날씨 (부록 C.74a, pending 75): 홈 구단 연고지 월별 기후 확률(시드) → 경기 날씨. 효과는 엔진 실행 배율만 (src/engine/env.ts, 판단 무수정).
+   * kinds = 뽑는 순서 [맑음, 흐림, 비, 강풍, 폭염, 눈·한파]. month[월 1~12] = 잉글랜드 기준 가중, region = 지역별 [비, 강풍, 폭염, 눈] 배수.
+   * forecastDays 일 전부터 다음 경기 카드에 예보. injury = 그 날씨 경기 부상 확률 배수 (눈·한파 근육 부상)
+   */
+  weather: {
+    forecastDays: 5,
+    month: [
+      [], // 0 자리 비움 (월은 1부터)
+      [24, 30, 26, 10, 0, 10], [25, 30, 25, 12, 0, 8], [30, 30, 25, 12, 0, 3], [35, 30, 25, 10, 0, 0],
+      [40, 28, 22, 7, 3, 0], [42, 25, 20, 5, 8, 0], [40, 22, 20, 5, 13, 0], [42, 25, 20, 5, 8, 0],
+      [38, 30, 23, 8, 1, 0], [30, 30, 28, 12, 0, 0], [25, 30, 30, 13, 0, 2], [23, 30, 27, 12, 0, 8],
+    ] as number[][],
+    /** [비, 강풍, 폭염, 눈] 배수 */
+    region: {
+      london: [0.85, 0.9, 1.4, 0.7], south: [0.95, 1.4, 1.1, 0.5], midlands: [1, 0.9, 1, 1.1], northwest: [1.3, 1.1, 0.7, 1.1],
+      northeast: [0.95, 1.3, 0.5, 1.5], yorkshire: [1.1, 1.1, 0.7, 1.4], wales: [1.35, 1.3, 0.7, 0.9], europe: [1, 1, 1.2, 1],
+    } as Record<string, [number, number, number, number]>,
+    /** 실행 배율 (크기 = 실행 성공률 ±3~8%). 키는 MatchEnv */
+    effects: {
+      clear: {}, cloudy: {},
+      rain: { ballDecel: 0.8, passSpeed: 1.04, touch: 0.965, gkCatch: 0.85, tackle: 1.06, longShotSave: 0.93 },
+      wind: { airPass: 0.94, longError: 1.3, crossWin: 0.9, freeKick: 0.92 },
+      heat: { drain: 1.1, recover: 0.85 },
+      snow: { ballDecel: 1.3, passSpeed: 0.95, touch: 0.98, dribble: 0.94 },
+    } as Record<string, Record<string, number>>,
+    injury: { snow: 1.15, heat: 1.05 } as Record<string, number>,
+  },
+  /**
+   * 심판 성향 (부록 C.74a, pending 77-4): 리그 심판 pool 명, 세계 시드로 심판마다 카드 배율 card·어드밴티지 배율 advantage 를 정한다.
+   * 경기마다 (시드·날짜·홈팀) 으로 배정, 다음 경기 카드에 공개. strict 이상 = 엄격, lenient 이하 = 관대, flow 이상 = 흐름 중시, whistle 이하 = 자주 끊음
+   */
+  referee: {
+    pool: 18,
+    card: [0.8, 1.25] as [number, number],
+    advantage: [0.8, 1.2] as [number, number],
+    strict: 1.1, lenient: 0.9, flow: 1.08, whistle: 0.92,
   },
 } as const;
 

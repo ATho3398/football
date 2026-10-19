@@ -1,0 +1,12 @@
+<!-- @dsCard group="Tactics" height=120 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>TacticEmblem — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{display:'flex',gap:10}},['balanced','tikitaka','gegen','counter','direct','block'].map(function(s){return h('div',{key:s,style:{display:'grid',justifyItems:'center',gap:6,fontSize:11,color:'var(--ink-muted)'}},h(P.TacticEmblem,{tactic:s,size:44}),P.utils.TACTIC_STYLES[s]);})));
+</script>
+</body>
+</html>

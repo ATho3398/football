@@ -108,7 +108,8 @@ export function issuePendingCards(s: SimState): void {
 function rollCard(s: SimState, fouler: Agent): CardType | null {
   const x = r(s, fouler.idx, Purpose.Card);
   // 다혈질 (C.45 장단점): 카드 확률 × cardMul (내 선수만, 없으면 1)
-  const k = (isAway(s, fouler) ? ENGINE.match.awayCard : 1) * (fouler.spec.cardMul ?? 1);
+  // 심판 성향 (C.74a): 카드 배율 env.card
+  const k = (isAway(s, fouler) ? ENGINE.match.awayCard : 1) * (fouler.spec.cardMul ?? 1) * s.env.card;
   if (x < R.redShare * k) return 'red';
   if (x < (R.redShare + R.yellowShare) * k) {
     if (fouler.stats.yellows > 0 && r(s, fouler.idx, Purpose.Card, 1) >= R.secondYellow) return null;
@@ -152,7 +153,7 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
     const playOn = positionValue(ox, oy) * (ox > 0.66 ? 1.22 : 1);
     const fk = positionValue(nx, ny) * (nx > 0.7 ? 1.33 : 1);
-    const bias = R.advantageBias * (nx > 0.66 ? R.advantageFinalThird : 1);
+    const bias = R.advantageBias * (nx > 0.66 ? R.advantageFinalThird : 1) * s.env.advantage;
     if (playOn > fk * 0.9 && r(s, victim.idx, Purpose.Advantage) < bias) {
       s.advantage = { t: s.t, team, x, y, card, fouler: fouler.idx, value: playOn };
       s.teams[team].stats.advantages++;

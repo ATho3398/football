@@ -1,0 +1,18 @@
+{
+ "errors": [],
+ "broken": [],
+ "len": {
+  "home": 2236,
+  "meetReward": 945,
+  "meetLow": 890,
+  "team": 2604,
+  "season": 914
+ },
+ "wide": {
+  "home": 0,
+  "meetReward": 0,
+  "meetLow": 0,
+  "team": 0,
+  "season": 0
+ }
+}

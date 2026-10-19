@@ -1,0 +1,17 @@
+<!-- @dsCard group="Player" height=345 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>StatBar — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:4,width:358}},
+  h('div',{style:{font:'700 12px var(--font-sans)',color:'var(--ink-muted)',margin:'0 0 4px'}},'마무리'),
+  h(P.StatBar,{label:'슈팅',value:58}), h(P.StatBar,{label:'공격 위치선정',value:61}), h(P.StatBar,{label:'헤더',value:50}),
+  h('div',{style:{font:'700 12px var(--font-sans)',color:'var(--ink-muted)',margin:'12px 0 4px'}},'포인트 찍기'),
+  h(P.StatBar,{label:'속도',value:72,editable:true,cost:1,ovrDelta:0.4}), h(P.StatBar,{label:'슈팅',value:58,add:2,editable:true,cost:2,ovrDelta:0.6,highlight:true}), h(P.StatBar,{label:'가속',value:74,add:3,editable:true,cost:3,maxed:true})));
+</script>
+</body>
+</html>

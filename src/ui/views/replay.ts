@@ -10,7 +10,8 @@ import {
 } from '../components';
 import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
 import { pitchViewButton } from './common';
-import { activeRenderer, drawFrame, fitCanvas, playerMap, readPalette, setPitchTeams, type MarkerRenderer } from '../pitch/renderer';
+import { isWide } from '../skin';
+import { activeRenderer, cropLength, drawFrame, fitCanvas, PitchCamera, playerMap, readPalette, REPLAY_CROP, setPitchTeams, type MarkerRenderer } from '../pitch/renderer';
 
 export type ReplayMode = 'scene' | 'transition' | 'live' | 'ended';
 
@@ -115,6 +116,9 @@ export class ReplayPlayer {
   private readonly settled: boolean[];
   /** 첫 경기 오버레이 등으로 화면이 재생을 붙잡고 있는 동안 true (21.4, 부록 C.23) */
   hold = false;
+  /** 세로 피치 잘라 보기 카메라 (C.56, 5차 118 crop [34,100]): 공을 따라간다. 처음·결정 장면 다시 보기는 바로 맞춤 */
+  private readonly camera = new PitchCamera();
+  private camSnap = true;
   constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer?: MarkerRenderer) {
     this.players = playerMap(replay);
     this.settled = settledFrames(replay, HL.settleTol);
@@ -175,6 +179,7 @@ export class ReplayPlayer {
   playClip(start: number, end: number): void {
     this.clipEnd = Math.min(this.replay.duration, end);
     this.e = Math.max(0, start);
+    this.camSnap = true;
     this.mode = 'live';
     this.paused = false;
     this.speed = 1;
@@ -262,10 +267,13 @@ export class ReplayPlayer {
   private draw(): boolean {
     const canvas = document.getElementById('rp-canvas') as HTMLCanvasElement | null;
     if (!canvas) return false;
-    const { ctx, w, h } = fitCanvas(canvas);
+    const { ctx, w, h, portrait } = fitCanvas(canvas, undefined, { cropLen: REPLAY_CROP });
     const f = this.current();
     setPitchTeams(this.replay.teams); // 캐릭터 보기 유니폼 (C.45)
-    drawFrame(ctx, w, h, f, this.players, this.renderer ?? activeRenderer(), this.replay.side, performance.now() / 1000);
+    const now = performance.now();
+    const center = this.camera.follow(f, this.players, this.replay.side, cropLength(w, h, portrait), now, this.camSnap);
+    this.camSnap = false;
+    drawFrame(ctx, w, h, f, this.players, this.renderer ?? activeRenderer(), this.replay.side, now / 1000, { center, portrait });
     const at = this.mode === 'transition' ? f.e : this.e;
     const score = scoreAt(this.replay, at);
     const set = (id: string, text: string) => {
@@ -292,8 +300,8 @@ export class ReplayPlayer {
       this.shown = key;
       const feed = document.getElementById('rp-feed');
       const lines = [...live.feed].sort((a, b) => (a.e ?? 0) - (b.e ?? 0));
-      // 넓은 화면(2단)은 오른쪽 칸에 더 많이 (부록 C.23)
-      const keep = window.matchMedia?.('(min-width: 1024px)').matches ? 10 : 3;
+      // 넓은 화면(2단, 가로 폰 포함 C.66)은 오른쪽 칸에 더 많이 (부록 C.23)
+      const keep = isWide() ? 10 : 3;
       if (feed) feed.innerHTML = lines.length ? lines.slice(-keep).map((x) => FeedItem(x)).join('') : FeedItem({ text: '킥오프를 기다리는 중', kind: 'normal' });
       const poss = document.getElementById('rp-poss');
       if (poss) poss.innerHTML = PossessionBar({ home: this.replay.side === 0 ? live.possession : 100 - live.possession });

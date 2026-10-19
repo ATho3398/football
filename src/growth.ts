@@ -1,7 +1,7 @@
 // 성장, 레벨업, 포인트 비용, 자동 성장, 노화, 노련함 (5.1, 6.1, 6.1.1, 6.2, B.5)
 
 import { proficientOvr } from './proficiency';
-import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, nextDisplayAt, type FieldAttribute, type FieldAttributes } from './attributes';
+import { ATTRIBUTE_GROUPS, attrDisplay, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './attributes';
 import { BALANCE } from './config/balance';
 import { attributeOvrWeight, positionOvr, type FieldPosition } from './positions';
 import type { Rng } from './rng';
@@ -79,11 +79,18 @@ export function nextReputationTier(rep: number, honors?: Honors): { tier: Tier; 
 /** 내 선수의 포인트 비용 구간 티어: 현재 실력 티어 (6.2 성장 해금, 부록 C.23: 위상과 분리) */
 export const costTier = (p: Pick<PlayerState, 'attributes' | 'position'>): Tier => skillTier(playerOvr(p));
 
-/** 현재 값에서 1 올리는 포인트 비용 (6.2): max(위상 구간 비용, 고값 비용) */
-export function pointCost(value: number, tier: Tier): number {
+/** 내부 값 1 올리는 비용 배수 (6.2, 훈련 게이지 전용 C.49): max(구간 비용, 고값 비용) */
+export function internalCost(value: number, tier: Tier): number {
   const band = G.costBands[tier];
   const bandCost = value <= band.cost1Max ? 1 : value <= band.cost2Max ? 2 : 3;
-  return Math.max(bandCost, agingRate(G.highValueCost, value));
+  return Math.max(bandCost, agingRate(BALANCE.training.gauge.highValueCost, value));
+}
+
+/** 화면 한 칸(+1, 내부 +pointStep) 올리는 포인트 비용 (6.2, C.49): 지금 화면 값이 구간 화면 값 이하면 1, 2, 그 위 3 */
+export function pointCost(value: number, tier: Tier): number {
+  const band = G.costBands[tier];
+  const d = attrDisplay(value);
+  return d <= attrDisplay(band.cost1Max) ? 1 : d <= attrDisplay(band.cost2Max) ? 2 : 3;
 }
 
 /** 실제 선수 정점 목표 = 시작 OVR + 시작 나이별 성장 여지 (부록 D.7 #1) */
@@ -113,25 +120,26 @@ export function addXp(p: PlayerState, amount: number): number {
     p.xp -= need;
     p.level += 1;
     p.unspentPoints += G.pointsPerLevel;
-    p.allocation.levels += 1;
     levels++;
   }
   return levels;
 }
 
-export type RaiseBlock = 'max' | 'points' | 'cap';
+export type RaiseBlock = 'max' | 'points';
+
+/** 화면 20(또는 내부 99)이면 더 못 올린다 */
+export const isMaxed = (v: number): boolean => v >= G.maxAttribute || attrDisplay(v) >= 20;
 
 /** 올릴 수 없으면 이유, 올릴 수 있으면 null */
 export function raiseBlock(p: PlayerState, attr: FieldAttribute): RaiseBlock | null {
   const v = p.attributes[attr];
-  if (v >= G.maxAttribute) return 'max';
+  if (isMaxed(v)) return 'max';
   if (pointCost(v, costTier(p)) > p.unspentPoints) return 'points';
-  if ((p.allocation.raised[attr] ?? 0) >= p.allocation.levels * G.maxRaisePerLevel) return 'cap';
   return null;
 }
 
 /**
- * 능력치 +1. 성공하면 true.
+ * 찍기 한 번 (C.49): 화면 +1칸 = 내부 +pointStep (칸 안 진행은 그대로, 99 상한). 성공하면 true.
  * 비용 2 구간에 처음 들어서면 coachWarned 가 켜진다 (화면에서 코치 코멘트 표시).
  */
 export function raiseAttribute(p: PlayerState, attr: FieldAttribute): boolean {
@@ -139,54 +147,21 @@ export function raiseAttribute(p: PlayerState, attr: FieldAttribute): boolean {
   const v = p.attributes[attr];
   const tier = costTier(p);
   p.unspentPoints -= pointCost(v, tier);
-  p.attributes[attr] = v + 1;
-  p.allocation.raised[attr] = (p.allocation.raised[attr] ?? 0) + 1;
-  if (pointCost(v + 1, tier) >= 2) p.coachWarned = true;
-  if (p.unspentPoints === 0) p.allocation = { levels: 0, raised: {} };
+  p.attributes[attr] = Math.min(G.maxAttribute, v + G.pointStep);
+  if (pointCost(p.attributes[attr], tier) >= 2) p.coachWarned = true;
   return true;
 }
 
-/**
- * 1~20 표시 한 칸 올리기 계획 (C.44 pending 47 3번): 다음 표시 칸까지 내부 칸 수(최대 5)와 비용 합, 지금 포인트·레벨당 상한으로 갈 수 있는 칸 수.
- * 내부 규칙(칸당 비용 6.2, 레벨당 +3 상한)은 그대로라 밸런스는 바뀌지 않는다
- */
-export function displayRaisePlan(p: PlayerState, attr: FieldAttribute): { steps: number; cost: number; reach: number } {
-  const v0 = p.attributes[attr];
-  const next = nextDisplayAt(v0);
-  if (next === null || v0 >= G.maxAttribute) return { steps: 0, cost: 0, reach: 0 };
-  const steps = Math.min(next, G.maxAttribute) - v0;
-  const tier = costTier(p);
-  const capLeft = p.allocation.levels * G.maxRaisePerLevel - (p.allocation.raised[attr] ?? 0);
-  let cost = 0;
-  let reach = 0;
-  let pts = p.unspentPoints;
-  for (let k = 0; k < steps; k++) {
-    const c = pointCost(v0 + k, tier);
-    cost += c;
-    if (reach === k && k < capLeft && c <= pts) {
-      pts -= c;
-      reach++;
-    }
-  }
-  return { steps, cost, reach };
-}
-
-/** 표시 한 칸만큼(갈 수 있는 데까지) 올린다. 오른 내부 칸 수 */
-export function raiseDisplayStep(p: PlayerState, attr: FieldAttribute): number {
-  const { reach } = displayRaisePlan(p, attr);
-  let n = 0;
-  while (n < reach && raiseAttribute(p, attr)) n++;
-  return n;
-}
-
-/** 남은 포인트를 포지션 OVR 효율 순으로 자동 배분 (밸런스 스크립트, 자동 배분 버튼) */
-export function autoAllocate(p: PlayerState): void {
+/** 남은 포인트를 포지션 OVR 효율 순으로 자동 배분 (밸런스 스크립트, 자동 배분 버튼). 찍은 순서를 돌려준다 */
+export function autoAllocate(p: PlayerState): FieldAttribute[] {
+  const out: FieldAttribute[] = [];
   for (;;) {
     let best: FieldAttribute | null = null;
     let bestScore = 0;
     for (const a of FIELD_ATTRIBUTES) {
       if (raiseBlock(p, a)) continue;
-      const score = attributeOvrWeight(p.position, a) / pointCost(p.attributes[a], costTier(p));
+      const v = p.attributes[a];
+      const score = (attributeOvrWeight(p.position, a) * (Math.min(G.maxAttribute, v + G.pointStep) - v)) / pointCost(v, costTier(p));
       if (score > bestScore) {
         bestScore = score;
         best = a;
@@ -194,7 +169,9 @@ export function autoAllocate(p: PlayerState): void {
     }
     if (!best) break;
     raiseAttribute(p, best);
+    out.push(best);
   }
+  return out;
 }
 
 export type AttributeDelta = Partial<Record<FieldAttribute, number>>;

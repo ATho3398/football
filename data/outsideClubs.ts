@@ -46,3 +46,29 @@ export const OUTSIDE_CLUBS: readonly OutsideClub[] = [
 ];
 
 export const OUTSIDE_BY_ID: Readonly<Record<string, OutsideClub>> = Object.fromEntries(OUTSIDE_CLUBS.map((c) => [c.id, c]));
+
+/**
+ * 컵 전용 클럽 (C.67a): 이적 목적지가 아니고 컵 경기에만 나온다 (OUTSIDE_CLUBS 에 넣으면 NPC 이적 결과가 바뀐다).
+ * FA컵 하부 가상 12팀 = 리그 밖 잉글랜드 클럽 11 + 이 목록
+ */
+export const CUP_ONLY_CLUBS: readonly OutsideClub[] = [
+  { id: 'x:swa', name: 'Swansea City', nameKo: '스완지 시티', rating: 64 },
+  // 챔스 (C.67b): 리그 밖 클럽 23 + 아래 5 = 외부 28팀
+  { id: 'x:val', name: 'Valencia', nameKo: '발렌시아', rating: 77 },
+  { id: 'x:s04', name: 'Schalke 04', nameKo: '샬케 04', rating: 76 },
+  { id: 'x:tsg', name: 'Hoffenheim', nameKo: '호펜하임', rating: 75 },
+  { id: 'x:sha', name: 'Shakhtar Donetsk', nameKo: '샤흐타르 도네츠크', rating: 74 },
+  { id: 'x:bru', name: 'Club Brugge', nameKo: '클럽 브뤼헤', rating: 71 },
+];
+
+/** 챔스 외부 28팀 (C.67b): 리그 밖 유럽 클럽 + 컵 전용 5 (잉글랜드 하부 클럽 제외) */
+export const UCL_EXTRA: readonly string[] = [
+  'x:bar', 'x:rma', 'x:juv', 'x:bay', 'x:psg', 'x:atm', 'x:bvb', 'x:nap', 'x:int', 'x:rom', 'x:mil', 'x:b04', 'x:sev', 'x:ol', 'x:ajx', 'x:fcp',
+  'x:slb', 'x:vil', 'x:zen', 'x:asm', 'x:gal', 'x:cel', 'x:psv', 'x:val', 'x:s04', 'x:tsg', 'x:sha', 'x:bru',
+];
+
+/** FA컵 하부 가상 팀 (리그 밖 잉글랜드 클럽, 레이팅 순) */
+export const FA_CUP_EXTRA: readonly string[] = ['x:avl', 'x:wba', 'x:lee', 'x:sto', 'x:der', 'x:mid', 'x:nor', 'x:bri', 'x:not', 'x:swa', 'x:ipw', 'x:wig'];
+
+/** 경기에 나올 수 있는 리그 밖 클럽 전체 (이름·레이팅 조회) */
+export const CLUB_BY_ID: Readonly<Record<string, OutsideClub>> = Object.fromEntries([...OUTSIDE_CLUBS, ...CUP_ONLY_CLUBS].map((c) => [c.id, c]));

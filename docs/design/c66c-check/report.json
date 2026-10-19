@@ -1,0 +1,62 @@
+{
+  "W": 390,
+  "H": 844,
+  "errors": [],
+  "screens": {
+    "경기준비": {
+      "wide": 0,
+      "hidden": [
+        "rail:덱 1 · 8",
+        "rail:덱 2 · 8",
+        "rail:덱 3 · 8"
+      ]
+    },
+    "덱줄": {
+      "wide": 0,
+      "hidden": []
+    },
+    "덱줄-끝": {
+      "wide": 0,
+      "hidden": []
+    },
+    "덱줄-덱2": {
+      "wide": 0,
+      "hidden": []
+    },
+    "카드상세": {
+      "wide": 0,
+      "hidden": []
+    }
+  },
+  "strip0": {
+    "cells": 8,
+    "scrollW": 646,
+    "clientW": 358,
+    "inCard": true,
+    "cls": "prep-deck at-start",
+    "left": 0,
+    "cellH": 96
+  },
+  "stripEnd": {
+    "cells": 8,
+    "scrollW": 646,
+    "clientW": 358,
+    "inCard": true,
+    "cls": "prep-deck at-end",
+    "left": 288,
+    "cellH": 96
+  },
+  "strip2": {
+    "cells": 8,
+    "scrollW": 646,
+    "clientW": 358,
+    "inCard": true,
+    "cls": "prep-deck at-start",
+    "left": 0,
+    "cellH": 96
+  },
+  "sheetButtons": [
+    "닫기"
+  ],
+  "closed": true
+}

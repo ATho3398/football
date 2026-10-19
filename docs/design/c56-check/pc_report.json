@@ -1,0 +1,291 @@
+{
+ "errors": [],
+ "broken": [],
+ "moments": [
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": true,
+     "play": false
+    }
+   ]
+  },
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": false,
+     "play": false
+    }
+   ]
+  },
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": false,
+     "play": false
+    }
+   ]
+  },
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "4",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "5",
+     "off": false,
+     "play": false
+    }
+   ]
+  },
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "4",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "5",
+     "off": false,
+     "play": false
+    }
+   ]
+  },
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "4",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "5",
+     "off": false,
+     "play": false
+    }
+   ]
+  },
+  {
+   "react": false,
+   "opts": 3,
+   "cards": [
+    {
+     "v": "0",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "1",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "2",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "3",
+     "off": false,
+     "play": false
+    },
+    {
+     "v": "4",
+     "off": true,
+     "play": false
+    },
+    {
+     "v": "5",
+     "off": false,
+     "play": false
+    }
+   ]
+  }
+ ],
+ "fold77": {
+  "scrollY": 0,
+  "docH": 800,
+  "limit": 736,
+  "delegateBottom": 430,
+  "confirmBottom": 430,
+  "chipsBottom": 370,
+  "opts": [
+   127,
+   213,
+   299
+  ],
+  "ok": true,
+  "confirmText": "선택지를 고르세요"
+ },
+ "fold79p": {
+  "scrollY": 0,
+  "docH": 800,
+  "limit": 736,
+  "delegateBottom": 430,
+  "confirmBottom": 430,
+  "chipsBottom": 370,
+  "opts": [
+   127,
+   213,
+   299
+  ],
+  "ok": true,
+  "confirmText": "확정 · 지키기 71%"
+ },
+ "foldOutcome": 384,
+ "fold79": {
+  "scrollY": 0,
+  "docH": 806,
+  "limit": 736,
+  "delegateBottom": 536,
+  "confirmBottom": 536,
+  "chipsBottom": 476,
+  "opts": [
+   147,
+   233,
+   319,
+   405
+  ],
+  "ok": true,
+  "confirmText": "확정 · 돌파 63%"
+ },
+ "got": {
+  "base": true,
+  "two": false,
+  "play": true,
+  "prob": true,
+  "react": false,
+  "success": true,
+  "fail": true,
+  "card": true,
+  "character": true
+ },
+ "replay": {
+  "scrollW": 1280,
+  "wide": [],
+  "canvasH": 487
+ }
+}

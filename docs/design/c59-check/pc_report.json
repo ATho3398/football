@@ -1,0 +1,14 @@
+{
+ "errors": [],
+ "broken": [],
+ "mainLen": 1022,
+ "sections": 5,
+ "lookLen": 1088,
+ "kitTiles": 32,
+ "kitOverflow": 0,
+ "foZoomText": "1.3배",
+ "caRows": 8,
+ "caZoomText": "1.4배",
+ "lockedPlay": 1,
+ "lockedBtns": 1
+}

@@ -3,6 +3,7 @@ import type { FieldPosition } from './positions';
 import type { ProfLog, Proficiency } from './proficiency';
 import type { AptBoost, Aptitude, PositionAdvice } from './aptitude';
 import type { Body } from './body';
+import type { FacePhoto } from './identity';
 import type { Appearance } from './appearance';
 import type { PlayerTag } from './tags';
 
@@ -112,6 +113,8 @@ export interface SeasonStats {
   recApps?: number;
   /** 시즌 시작 레벨 (C.44 시즌 종료 화면). C.44 이전 시즌에는 없다 */
   startLevel?: number;
+  /** 컵·챔스 경기 기록 (C.67, 리그 기록과 따로). 없으면 컵 출전 없음 */
+  cup?: { apps: number; goals: number; assists: number; ratingSum: number };
 }
 
 /** 시즌 종료 시 저장되는 기록 */
@@ -148,8 +151,6 @@ export interface PlayerState {
   totalXp: number;
   level: number;
   unspentPoints: number;
-  /** 포인트 찍기 제한 추적: 미사용 포인트가 0이 되면 초기화 */
-  allocation: { levels: number; raised: Partial<Record<FieldAttribute, number>> };
   fatigue: number;
   reputation: number;
   /** 현재 부상. 없으면 null */
@@ -191,6 +192,8 @@ export interface PlayerState {
   /** 커스텀 생성에서 고른 외모군·국적 (부록 C.45). 없으면 기존 규칙(실제 선수 표, 유망주는 한국 분포) */
   appearance?: Appearance;
   nationality?: string;
+  /** 기본 사진 (C.73c, public/faces/default): 가상 선수(랜덤·커스텀)만. 페이스온 사진이 있으면 그게 먼저 */
+  facePhoto?: FacePhoto;
   /** 약발 훈련 (부록 C.45): 게이지와 이번 시즌 오른 약발 (시즌 최대 BALANCE.weakFoot.seasonMax) */
   weakFootTrain?: { gauge: number; gained: number };
   /** 커스텀 생성으로 시작했으면 true */
@@ -213,6 +216,8 @@ export interface Honors {
   ballonDor: number;
   trebles: number;
   worldCups: number;
+  /** 챔스 우승 (C.67b). 옛 세이브에는 없다 */
+  ucl?: number;
 }
 
 export type BadgeId = 'goals500' | 'titles5' | 'oneClub10';

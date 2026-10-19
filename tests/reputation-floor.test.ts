@@ -1,4 +1,5 @@
 // 17단계 (부록 C.27): 위상 티어 하한, 레드카드·출전 시간 부족 감점, 화면 문구
+import { ensureEvents } from '../src/events';
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import {
@@ -52,6 +53,8 @@ describe('티어 하한 (부록 C.27)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'floor-slump', difficulty: 'normal' });
     g.player.history.push(record(30, 20)); // 기준 19.5: 모든 출전 경기가 미만
     g.player.reputation = 556;
+    // 이벤트(C.63)의 위상 효과를 빼고 부진 감점만 잰다
+    ensureEvents(g).off = true;
     let blockedSeen = false;
     for (let i = 0; i < 16; i++) {
       const before = g.player.reputation;
@@ -159,6 +162,6 @@ describe('티어 달성 (부록 C.27)', () => {
   });
 
   it('세이브 형식은 그대로 (티어는 점수로 판정)', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(27);
+    expect(SAVE_FORMAT_VERSION).toBe(41);
   });
 });

@@ -24,6 +24,7 @@ export const ICON_PATHS = {
   close: "M6 6l12 12 M18 6L6 18",
   "chevron-right": "M9 6l6 6-6 6",
   "chevron-down": "M6 9l6 6 6-6",
+  "chevron-up": "M6 15l6-6 6 6",
   play: "M7 5l12 7-12 7z",
   pause: "M8 5v14 M16 5v14",
   skip: "M5 5l9 7-9 7z M18 5v14",
@@ -85,6 +86,32 @@ export const ICON_PATHS = {
   plane: "M2.5 13l19-7-5.5 13-3.5-4.5z M12.5 14.5L21.5 6",
   replay: "M4 12a8 8 0 1 0 2.4-5.7 M4 4v4.5h4.5 M10 9.5v5l4-2.5z",
   stop: "M6 6h12v12H6z",
+  // 요청 5 (부록 C.54)
+  menu: "M4 7h16 M4 12h16 M4 17h16",
+  deck: "M9 4h9a1 1 0 0 1 1 1v12 M6 7h9a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z",
+  chat: "M4 5h16v11H10l-6 4z M8 9.5h8 M8 12.5h5",
+  // 재정 (C.68a): 동전 + 원(₩) 줄
+  coin: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M8 8.5l2 7l2-5l2 5l2-7 M7.5 12h9",
+  /** C.69 (디자인 201 Icon): 인박스 · 진행 중 */
+  inbox: "M4 6h16v12H4z M4 7l8 6 8-6",
+  running: "M12 3a9 9 0 1 0 9 9 M12 7v5l3 2",
+  trophy: "M7 4h10v5a5 5 0 0 1-10 0z M7 6H4a3 3 0 0 0 3 4 M17 6h3a3 3 0 0 1-3 4 M12 14v4 M8 20h8",
+  swap: "M4 8h14 M14 4l4 4-4 4 M20 16H6 M10 12l-4 4 4 4",
+  edit: "M4 20h4L19 9l-4-4L4 16z M13.5 6.5l4 4",
+  eye: "M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z",
+  grid: "M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z",
+  face: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M9 10v.5 M15 10v.5 M8.5 14.5q3.5 3 7 0",
+  sliders: "M4 7h9 M17 7h3 M15 5v4 M4 17h3 M11 17h9 M9 15v4",
+  pin: "M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4z",
+  collapse: "M6 15l6-6 6 6",
+  // 날씨·심판 (C.74a, 디자인 묶음에 없음 — 같은 24px·2px 선 규칙으로 추가)
+  sun: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4",
+  cloud: "M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z",
+  rain: "M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14z M8 17l-1 3 M12 17l-1 3 M16 17l-1 3",
+  wind: "M3 8h11a3 3 0 1 0-3-3 M3 12h16a3 3 0 1 1-3 3 M3 16h8",
+  heat: "M10 4a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z M12 9v7",
+  snow: "M12 2v20 M4 7l16 10 M20 7L4 17 M9 3l3 2 3-2 M9 21l3-2 3 2",
+  whistle: "M3 11a5 5 0 0 0 10 0h8V8H11a5 5 0 0 0-8 3z M8 11h.01 M11 5l1-2",
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

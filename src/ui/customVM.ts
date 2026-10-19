@@ -1,6 +1,7 @@
 // 커스텀 생성 화면 뷰모델 (pending 47 2·49 1, 부록 C.45). 상태는 화면(ui.form.cu)이 들고, 시작할 때 newGame({ mode: 'custom' })
 
-import { APPEARANCES, APPEARANCE_KO, type Appearance } from '../appearance';
+import type { Appearance } from '../appearance';
+import { FACE_PHOTOS, isFacePhoto, isRace, PHOTO_KO, PHOTO_OF, RACE_KO, RACES, raceOf, type FacePhoto } from '../identity';
 import { ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from '../attributes';
 import { bmiOf, FOOT_KO, type MainFoot, type WeakFoot } from '../body';
 import { BALANCE } from '../config/balance';
@@ -39,6 +40,8 @@ export interface CustomForm {
   tags: TagPick[];
   nationality: string;
   appearance: Appearance;
+  /** 기본 사진 (C.73c): 인종을 고르면 그 사진, 사진 줄에서 따로 바꿀 수 있다 */
+  facePhoto: FacePhoto;
   /** '' = 자동(분포 추첨) */
   hair: string;
   sel: string | null;
@@ -52,7 +55,7 @@ export interface CustomForm {
 export function initialCustomForm(): CustomForm {
   return {
     age: BALANCE.custom.refAge, position: 'ST', attrs: baseAttributes(), height: 180, weight: 75, foot: 'right', weakFoot: 3, tags: [],
-    nationality: 'Korea Republic', appearance: 'eastAsian', hair: '', sel: null, startKind: 'none', startClub: '', youthClub: 'random',
+    nationality: 'Korea Republic', appearance: 'eastAsian', facePhoto: 'asian', hair: '', sel: null, startKind: 'none', startClub: '', youthClub: 'random',
   };
 }
 
@@ -62,6 +65,7 @@ export const NATIONALITY_KO: Readonly<Record<string, string>> = {
   Spain: '스페인', Portugal: '포르투갈', Germany: '독일', Netherlands: '네덜란드', Belgium: '벨기에', Brazil: '브라질', Argentina: '아르헨티나',
   Uruguay: '우루과이', Senegal: '세네갈', Nigeria: '나이지리아', Egypt: '이집트', Gabon: '가봉', Denmark: '덴마크', Norway: '노르웨이',
   'Korea Republic': '대한민국', Japan: '일본', China: '중국',
+  Morocco: '모로코', 'Saudi Arabia': '사우디아라비아', "Côte d'Ivoire": '코트디부아르', Ghana: '가나', Cameroon: '카메룬',
 };
 
 export const budgetOf = (f: CustomForm): number => customBudget(f.age, f.tags, f.weakFoot);
@@ -98,7 +102,10 @@ export interface CustomVM {
   nationality: string;
   nationalities: { id: string; ko: string }[];
   appearance: Appearance;
+  /** 인종 4개 (C.73c 순서: 중동·동양인·백인·흑인) */
   appearances: { id: Appearance; ko: string }[];
+  facePhoto: FacePhoto;
+  photos: { id: FacePhoto; ko: string }[];
   hair: string;
   hairs: { id: string; ko: string }[];
   skin: string;
@@ -163,7 +170,9 @@ export function customVM(f: CustomForm, name: string): CustomVM {
     nationality: f.nationality,
     nationalities: NATIONALITIES.map((id) => ({ id, ko: NATIONALITY_KO[id] ?? id })),
     appearance: f.appearance,
-    appearances: APPEARANCES.map((id) => ({ id, ko: APPEARANCE_KO[id] })),
+    appearances: RACES.map((id) => ({ id, ko: RACE_KO[id] })),
+    facePhoto: f.facePhoto,
+    photos: FACE_PHOTOS.map((id) => ({ id, ko: PHOTO_KO[id] })),
     hair: f.hair,
     hairs: (HAIRS_OF[skin] ?? []).map((id) => ({ id, ko: HAIR_KO[id] ?? id })),
     skin,
@@ -201,7 +210,7 @@ export function customSpec(f: CustomForm, name: string): CustomSpec {
   return {
     name, position: f.position, age: f.age, attributes: { ...f.attrs },
     body: { height: f.height, weight: f.weight, foot: f.foot, weakFoot: f.weakFoot },
-    tags: [...f.tags], nationality: f.nationality, appearance: f.appearance, ...(f.hair ? { pixelHair: f.hair } : {}),
+    tags: [...f.tags], nationality: f.nationality, appearance: f.appearance, facePhoto: f.facePhoto, ...(f.hair ? { pixelHair: f.hair } : {}),
     start: startChoice(f),
   };
 }
@@ -240,11 +249,14 @@ export function customAct(f: CustomForm, k: string, v: string | undefined): Cust
     case 'wf': out.weakFoot = Math.min(5, Math.max(1, Math.round(n))) as WeakFoot; break;
     case 'nat': out.nationality = v ?? f.nationality; break;
     case 'app': {
-      out.appearance = (v as Appearance) ?? f.appearance;
+      // 인종을 고르면 그 기본 사진이 자동으로 (C.73c)
+      out.appearance = isRace(v) ? v : raceOf(f.appearance);
+      out.facePhoto = PHOTO_OF[out.appearance];
       if (out.hair && !(HAIRS_OF[SKIN_OF[out.appearance]] ?? []).includes(out.hair)) out.hair = '';
       break;
     }
     case 'hair': out.hair = v ?? ''; break;
+    case 'photo': if (isFacePhoto(v)) out.facePhoto = v; break;
     case 'trait':
     case 'traitR': {
       // trait = 영구로 고르기/빼기, traitR = 해제형으로 고르기 (이미 고른 태그면 영구/해제형만 바꾼다)

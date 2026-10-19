@@ -7,6 +7,7 @@ import type { Position } from '../types';
 import type { DecisionRecord, MomentControl } from './moments';
 import type { CardInput, CardReport } from './cards';
 import type { Body } from '../body';
+import type { MatchEnv } from './env';
 
 /** 전술 성향 6종 (E.19 ①) */
 export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
@@ -80,6 +81,8 @@ export interface EngineInput {
   control?: MomentControl;
   /** 내 선수 카드 (부록 F, C.36): 덱과 숙련도. 없거나 빈 덱이면 카드 없이 (C.35 와 같은 경기) */
   cards?: CardInput;
+  /** 경기 환경 (C.74a): 날씨·심판 실행 배율. 없으면 맑음·보통 심판 (모두 1) */
+  env?: Partial<MatchEnv>;
   /** 캘리브레이션/테스트용: 그 분에 해당 팀 미드필더 1명 퇴장 (E.15 퇴장 후 득점 차) */
   forceRed?: { team: 0 | 1; minute: number };
 }

@@ -4,7 +4,7 @@ import { autoMarket, newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason, t
 import { deserialize, serialize } from '../src/save';
 import { squadCount, squadRule, withinRules } from '../src/squad';
 import { financeTier, marketValue, npcValue, remainingBudget, seasonBudgets, tierLabel, wageBill, wageCap } from '../src/finance';
-import { isOutside, makeOffers, myValue, runNpcWindow } from '../src/transfer';
+import { isOutside, makeOfferSet, makeOffers, myValue, runNpcWindow } from '../src/transfer';
 import { renewalCheck } from '../src/startClub';
 
 function finishSeason(g: GameState): void {
@@ -97,8 +97,11 @@ describe('구단 재정 (C.46, pending 62.2)', () => {
   it('내 선수 제안: 감당 못 하는 팀은 제안하지 않고, 제안 연봉은 그 팀 연봉 여력 안', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c46-offer', difficulty: 'normal' });
     finishSeason(g);
-    const base = makeOffers(g, 'summer', 'x').filter((o) => o.kind === 'transfer');
-    expect(base.length).toBeGreaterThan(0);
+    // 계약 마지막 해 (C.48: 남은 계약이 길면 제안이 적다)
+    g.market.contract.until = g.league.season + 1;
+    const set = makeOfferSet(g, 'summer', 'x');
+    const base = set.offers.filter((o) => o.kind === 'transfer');
+    expect(base.length + set.refused.length).toBeGreaterThan(0);
     for (const o of base) {
       const t = g.league.teams.find((x) => x.id === o.teamId)!;
       expect(o.wage * 52).toBeLessThanOrEqual(wageCap(t.id) - wageBill(g.rosters, t.id, g.nextRatings?.[t.id] ?? t.rating) + 52 * 50);
@@ -107,6 +110,7 @@ describe('구단 재정 (C.46, pending 62.2)', () => {
     expect(myValue(g)).toBeGreaterThan(0);
     for (const id of Object.keys(g.finance!.budgets)) g.finance!.budgets[id] = 0;
     expect(makeOffers(g, 'summer', 'y').filter((o) => o.kind === 'transfer')).toHaveLength(0);
+    expect(makeOfferSet(g, 'summer', 'y').refused).toHaveLength(0);
   });
 
   it('재계약 판정 (pending 68, 커스텀 선수): 연봉 여력이 없으면 실패, 있으면 통과, 랜덤 유망주는 판정 없음', () => {
@@ -134,7 +138,7 @@ describe('세이브 25 → 26 (C.46)', () => {
     for (const r of raw.transfers) delete r.fee;
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(27);
+    expect(SAVE_FORMAT_VERSION).toBe(41);
     expect(back.finance?.season).toBe(g.league.season + 1);
     expect(Object.keys(back.finance!.budgets)).toHaveLength(20);
     for (const r of Object.values(back.rosters)) expect(withinRules(r.players)).toBe(true);

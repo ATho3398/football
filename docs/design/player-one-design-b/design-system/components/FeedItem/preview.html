@@ -1,0 +1,27 @@
+<!-- @dsCard group="Match" height=820 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>FeedItem — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:4,width:358}},
+  h(P.FeedItem,{minute:12,text:'우리 팀이 중원에서 점유를 가져옵니다'}),
+  h(P.FeedItem,{minute:23,kind:'shot',mine:true,text:'김민준 슈팅'}),
+  h(P.FeedItem,{minute:23,kind:'save',text:'골키퍼 선방'}),
+  h(P.FeedItem,{minute:24,kind:'corner',text:'코너킥'}),
+  h(P.FeedItem,{minute:25,kind:'goal',mine:true,text:'골! 김민준',score:'1-0'}),
+  h(P.FeedItem,{minute:31,kind:'foul',text:'파울: 상대 6번'}),
+  h(P.FeedItem,{minute:31,kind:'advantage',text:'어드밴티지 — 플레이 계속'}),
+  h(P.FeedItem,{minute:34,kind:'freekick',text:'프리킥 (아크 정면)'}),
+  h(P.FeedItem,{minute:52,kind:'offside',mine:true,text:'오프사이드 — 김민준'}),
+  h(P.FeedItem,{minute:60,kind:'penalty',text:'페널티킥 선언'}),
+  h(P.FeedItem,{minute:66,kind:'yellow',text:'경고: 상대 4번'}),
+  h(P.FeedItem,{minute:71,kind:'red',text:'퇴장: 상대 4번 — 상대 10명'}),
+  h(P.FeedItem,{minute:75,kind:'sub',text:'교체: 이도윤 OUT'}),
+  h(P.FeedItem,{minute:80,kind:'injury',text:'박서진 부상, 확인 중'})));
+</script>
+</body>
+</html>

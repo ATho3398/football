@@ -10,6 +10,10 @@ import { gainProficiency, initialProficiency, requestPositionChange } from '../s
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import type { FieldPosition, PlayablePosition } from '../src/positions';
 import type { PlayerState } from '../src/types';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const argv = (globalThis as { process?: { argv: string[] } }).process?.argv ?? [];
 const args = argv.slice(2).filter((a) => a !== '--');
@@ -61,7 +65,7 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((t, x) => t + x, 0) / xs.le
     mults[aptGroupOf(to)!] = mult;
     const p = {
       name: 't', position: from, age: 20, teamId: 'x', attributes: flat, potentialTier: 'normal', xp: 0, totalXp: 0, level: 0, unspentPoints: 0,
-      allocation: { levels: 0, raised: {} }, fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0,
+      fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0,
       season: emptySeasonStats(), history: [], suspended: 0, proficiency: initialProficiency(from), badges: [], formerPositions: [],
       honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, tags: [], aptitude: { talent: 'speed', mult: mults, hidden: null }, advice: null, adviceLog: [],
       aptBoost: boost ? { group: aptGroupOf(to)!, games: A.advice.boostGames } : null,

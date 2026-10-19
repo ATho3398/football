@@ -107,7 +107,8 @@ describe('시즌 진행', () => {
     const run = (viaSave: boolean) => {
       let s = newGame({ mode: 'prospect', position: 'LW', name: 'A', seed: 'det', difficulty: 'hard' });
       for (let season = 0; season < 2; season++) {
-        for (let r = 0; r < 38; r++) {
+        // C.67a: 컵 경기가 끼므로 시즌이 끝날 때까지
+        for (let r = 0; s.phase === 'season'; r++) {
           playRound(s, { engine: 'quick' });
           autoAllocate(s.player);
           if (viaSave && r % 10 === 0) s = deserialize(serialize(s));

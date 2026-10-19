@@ -276,7 +276,7 @@ export const NAME_POOLS: NamePool[] = [
       Carpentier=카르팡티에, Huet=위에, Jacquet=자케, Lambert=랑베르, Boucher=부셰, Bailly=바이, Aubry=오브리,
       Leblanc=르블랑, Breton=브르통, Cousin=쿠쟁, Lebrun=르브룅, Pasquier=파스키에, Tessier=테시에, Hamon=아몽,
       Lemaître=르메트르, Baron=바롱, Maréchal=마레샬, Langlois=랑글루아, Camus=카뮈, Bonnet=보네, Diallo=디알로,
-      Traoré=트라오레, Koné=코네, Camara=카마라, Sissoko=시소코, Diarra=디아라, Konaté=코나테, Coulibaly=쿨리발리,
+      Traoré=트라오레, Koné=코네, Camara=카마라, Sissoko=시소코, Diarra=디아라, Konaté=코나테, Dago=다고,
       Touré=투레, Bakayoko=바카요코, Fofana=포파나, Doucouré=두쿠레, Cissé=시세, Sylla=실라, Keita=케이타, Diaby=디아비,
       Benali=베날리, Belkacem=벨카셈, Mansour=만수르, Haddad=하다드, Ziani=지아니, Meziane=메지안, Saïdi=사이디,
       Tavernier=타베르니에, Vasseur=바쇠르, Delmas=델마스, Ferrand=페랑`),
@@ -655,3 +655,51 @@ Jannik Vestergaard, Joachim Andersen, Mathias Jensen, Jonas Wind, Nicolai Jørge
 Thomas Sørensen, Andreas Olsen, Jens Larsen, Christian Eriksen, Thomas Delaney, Daniel Agger, Morten Pedersen,
 Henrik Pedersen, Stian Pedersen, Martin Braithwaite, Kasper Dolberg, Daniel Wass
 `.split(',').map((s) => s.trim()).filter(Boolean);
+
+/**
+ * 내 선수 랜덤 생성 전용 이름 풀 (부록 C.73c): NPC 로스터 풀(NAME_POOLS)에 없는 동아시아·중동·아프리카 국적.
+ * 로스터 시드를 바꾸지 않게 NPC 생성에는 쓰지 않는다. familyFirst = 한글 표기를 성 먼저 (일본·중국), joined = 붙여 쓰기 (중국). 한국은 prospect.ts 한글 이름
+ */
+export interface PlayerNamePool extends NamePool { familyFirst?: boolean; /** 한글 표기 붙여 쓰기 (중국: 황보) */ joined?: boolean }
+export const PLAYER_EXTRA_POOLS: PlayerNamePool[] = [
+  {
+    nationality: 'Japan', weight: 2, familyFirst: true,
+    given: pairs(`Haruto=하루토, Sota=소타, Yuto=유토, Riku=리쿠, Kaito=가이토, Ren=렌, Daiki=다이키, Shota=쇼타, Hayato=하야토, Kenta=겐타`),
+    family: pairs(`Sato=사토, Takahashi=다카하시, Watanabe=와타나베, Nakamura=나카무라, Kobayashi=고바야시, Yamada=야마다, Inoue=이노우에, Kimura=기무라, Shimizu=시미즈, Morita=모리타`),
+  },
+  {
+    nationality: 'China', weight: 1, familyFirst: true, joined: true,
+    given: pairs(`Wei=웨이, Hao=하오, Jie=제, Yang=양, Peng=펑, Bo=보, Xin=신, Chen=천, Kai=카이, Rui=루이`),
+    family: pairs(`Wang=왕, Zhang=장, Liu=류, Zhao=자오, Huang=황, Zhou=저우, Xu=쉬, Ma=마, Guo=궈, He=허`),
+  },
+  {
+    nationality: 'Egypt', weight: 1,
+    given: pairs(`Karim=카림, Youssef=유세프, Tarek=타레크, Omar=오마르, Hossam=호삼, Amr=아므르, Mostafa=모스타파, Khaled=칼레드, Ziad=지아드, Seif=세이프`),
+    family: pairs(`Mansour=만수르, Ragab=라가브, Shawky=샤우키, Naguib=나기브, Farouk=파루크, Soliman=솔리만, Badawi=바다위, Abdelaziz=압델아지즈, Sherif=셰리프, Emara=에마라`),
+  },
+  {
+    nationality: 'Morocco', weight: 1,
+    given: pairs(`Yassine=야신, Hamza=함자, Anas=아나스, Ayoub=아유브, Ilyas=일리야스, Soufiane=수피안, Reda=레다, Nabil=나빌, Mehdi=메디, Othmane=오스만`),
+    family: pairs(`Benali=벤알리, El Idrissi=엘이드리시, Bennani=벤나니, Tazi=타지, Alaoui=알라위, Berrada=베라다, Chraibi=슈라이비, Lahlou=라흘루, Sefrioui=세프리우이, Kettani=케타니`),
+  },
+  {
+    nationality: 'Saudi Arabia', weight: 1,
+    given: pairs(`Faisal=파이살, Abdullah=압둘라, Saud=사우드, Fahad=파하드, Turki=투르키, Nawaf=나와프, Sultan=술탄, Majed=마제드, Rakan=라칸, Bandar=반다르`),
+    family: pairs(`Al-Harbi=알하르비, Al-Otaibi=알오타이비, Al-Qahtani=알카타니, Al-Mutairi=알무타이리, Al-Zahrani=알자흐라니, Al-Anazi=알아나지, Al-Subaie=알수바이, Al-Rashidi=알라시디, Al-Shamrani=알샴라니, Al-Dossari=알도사리`),
+  },
+  {
+    nationality: "Côte d'Ivoire", weight: 2,
+    given: pairs(`Koffi=코피, Yao=야오, Kouassi=쿠아시, Seydou=세이두, Ibrahim=이브라힘, Adama=아다마, Lassina=라시나, Wilfried=윌프리드, Arsène=아르센, Brice=브리스`),
+    family: pairs(`Kouamé=쿠아메, Bamba=밤바, Diabaté=디아바테, Dago=다고, N'Guessan=응게상, Ouattara=와타라, Yapi=야피, Konan=코낭, Gnahoré=냐오레, Aka=아카`),
+  },
+  {
+    nationality: 'Ghana', weight: 2,
+    given: pairs(`Kwame=콰메, Kofi=코피, Kwabena=콰베나, Yaw=야우, Kojo=코조, Emmanuel=이매뉴얼, Samuel=새뮤얼, Isaac=아이작, Kwesi=퀘시, Nana=나나`),
+    family: pairs(`Mensah=멘사, Owusu=오우수, Asante=아산테, Osei=오세이, Agyei=아제이, Appiah=아피아, Darko=다르코, Ofori=오포리, Boakye=보아키에, Tetteh=테테`),
+  },
+  {
+    nationality: 'Cameroon', weight: 2,
+    given: pairs(`Jean=장, Pierre=피에르, Serge=세르주, Eric=에리크, Joël=조엘, Franck=프랑크, Patrick=파트리크, Christian=크리스티앙, Junior=주니오르, Yves=이브`),
+    family: pairs(`Mbarga=음바르가, Ngono=응고노, Abega=아베가, Etoundi=에툰디, Fouda=푸다, Essomba=에솜바, Atangana=아탕가나, Owona=오워나, Bilong=빌롱, Ndzana=은자나`),
+  },
+];

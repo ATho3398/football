@@ -1,0 +1,32 @@
+{
+  "W": 1280,
+  "H": 800,
+  "errors": [],
+  "broken": [],
+  "deck": [
+    "curler",
+    "fkCross",
+    "switchLong",
+    "panenka",
+    "reset",
+    "offsideTrap",
+    "dirTrust",
+    "sig-libero",
+    "fakeShot",
+    "calmFinish",
+    "focus",
+    "composed",
+    "turningTouch",
+    "dribbleExpert"
+  ],
+  "images": 67,
+  "hand": [
+    "침착한 마무리 (일반 패시브 · 공용) [그림]",
+    "리셋 (일반 관리 · 공용) [그림]",
+    "페이크 슛 (일반 플레이 · 공용) [그림]",
+    "롱패스 전환 (일반 플레이 · 수비) [그림]",
+    "터닝 퍼스트 터치 (일반 플레이 · 공격) [그림]",
+    "집중 (일반 관리 · 공용) [그림]"
+  ],
+  "wide": 0
+}

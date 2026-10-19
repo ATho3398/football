@@ -1,0 +1,112 @@
+{
+ "W": 844,
+ "H": 390,
+ "errors": [],
+ "screens": {
+  "201_독-홈-계속": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-더보기-처음": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-더보기-끝": {
+   "wide": 0,
+   "hidden": []
+  },
+  "201_독-경기날": {
+   "wide": 0,
+   "hidden": []
+  },
+  "189_결정순간-v3-기본": {
+   "wide": 0,
+   "hidden": []
+  },
+  "171_결정순간-v2-아래묶음": {
+   "wide": 0,
+   "hidden": []
+  },
+  "165_경기중-다른화면-띠": {
+   "wide": 0,
+   "hidden": []
+  },
+  "189_결정순간-v3-고름+카드": {
+   "wide": 0,
+   "hidden": []
+  },
+  "190_결정결과-v3-재생중": {
+   "wide": 0,
+   "hidden": []
+  },
+  "190_결정결과-v3-성공+카드사용": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "moments": [
+  {
+   "stage": [
+    446,
+    350,
+    40
+   ],
+   "confirmBottom": 386,
+   "confirmTop": 334,
+   "panelTop": 40,
+   "vh": 390,
+   "cards": 4,
+   "rows": 3,
+   "sure": 0,
+   "dock": false
+  },
+  {
+   "stage": [
+    446,
+    350,
+    40
+   ],
+   "confirmBottom": 386,
+   "confirmTop": 334,
+   "panelTop": 40,
+   "vh": 390,
+   "cards": 4,
+   "rows": 3,
+   "sure": 0,
+   "dock": false
+  },
+  {
+   "stage": [
+    446,
+    350,
+    40
+   ],
+   "confirmBottom": 386,
+   "confirmTop": 334,
+   "panelTop": 40,
+   "vh": 390,
+   "cards": 5,
+   "rows": 3,
+   "sure": 0,
+   "dock": false
+  }
+ ],
+ "moment": {
+  "stage": [
+   446,
+   350,
+   40
+  ],
+  "confirmBottom": 386,
+  "confirmTop": 334,
+  "panelTop": 40,
+  "vh": 390,
+  "cards": 4,
+  "rows": 3,
+  "sure": 0,
+  "dock": false
+ },
+ "seen": [
+  "v3-성공"
+ ]
+}

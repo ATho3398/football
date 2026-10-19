@@ -2,6 +2,7 @@
 // 위치 프레임을 기록하지 않고 결과와 선수 기록만 돌려준다. 입력은 직렬화할 수 있어 Web Worker 로 보낼 수 있다
 
 import type { TeamRoster } from '../roster';
+import type { MatchEnv } from './env';
 import { teamSetupFromRoster } from './setup';
 import { createMatch } from './sim';
 
@@ -13,6 +14,8 @@ export interface NpcMatchInput {
   seed: number;
   worldSeed: string;
   leagueAvg?: number;
+  /** 날씨·심판 실행 배율 (C.74a). 없으면 맑음·보통 심판 */
+  env?: Partial<MatchEnv>;
 }
 
 /** 골 기록: [분, 팀(0 홈·1 원정), 득점자 id, 도움 id(없으면 null)] */
@@ -51,6 +54,6 @@ export function summarize(r: {
 export function playNpcMatch(m: NpcMatchInput): NpcMatchResult {
   const home = teamSetupFromRoster(m.home, m.homeRating, m.awayRating, m.worldSeed, undefined, m.leagueAvg);
   const away = teamSetupFromRoster(m.away, m.awayRating, m.homeRating, m.worldSeed, undefined, m.leagueAvg);
-  const sim = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false });
+  const sim = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}) });
   return summarize(sim.runToEnd());
 }

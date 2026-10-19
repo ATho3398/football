@@ -146,16 +146,14 @@ describe('내 선수 이적과 계약 (18.10, 부록 C.42)', () => {
     expect(marketPending(g)).toBe(false);
   });
 
-  it('이적 요청: 주전·팀 수준이면 못 하고, 출전 부족이면 가능. 놓아줄 확률 70% (+만료 100%) − 1위 30%p', () => {
+  it('이적 요청 (C.62 신뢰도 훅): 신뢰도가 높고 팀 수준이면 못 하고, 신뢰도 35 미만이면 가능. 놓아줄 확률 70% (+만료 100%) − 1위 30%p', () => {
     const g = newGame({ mode: 'real', playerId: 'son', seed: 'tr-req', difficulty: 'normal' });
     for (let k = 0; k < 10; k++) playRound(g, { engine: 'quick' });
     const el = requestEligibility(g);
-    const s = g.player.season;
-    if (el.ok) expect(['출전 시간이 부족해요', '내 위상이 팀 수준을 넘었어요']).toContain(el.reason);
-    else expect(Math.min(s.starts, s.minutes / 90) / g.matchLog.length).toBeGreaterThanOrEqual(0.4);
-    // 출전 부족으로 만든다
-    g.player.season.starts = 0;
-    g.player.season.minutes = 0;
+    if (el.ok) expect(el.reason === '내 위상이 팀 수준을 넘었어요' || el.reason.startsWith('감독 신뢰도가 낮아요')).toBe(true);
+    else expect(g.manager!.trust).toBeGreaterThanOrEqual(35);
+    // 신뢰도를 낮춘다
+    g.manager!.trust = 20;
     expect(requestEligibility(g).ok).toBe(true);
     const ch = releaseChance(g);
     expect([0.4, 0.7]).toContain(Math.round(ch * 10) / 10);
@@ -212,12 +210,14 @@ describe('내 선수 이적과 계약 (18.10, 부록 C.42)', () => {
     delete raw.market;
     for (const v of Object.values(raw.playerStats) as number[][]) v.length = 4;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(27);
-    expect(back.saveFormat).toBe(27);
+    expect(SAVE_FORMAT_VERSION).toBe(41);
+    expect(back.saveFormat).toBe(41);
     expect(back.transfers).toEqual([]);
     expect(back.market.contract.teamId).toBe(g.player.teamId);
     expect(back.market.offers).toBeNull();
     finishSeason(back);
-    expect(back.market.offers?.length).toBeGreaterThanOrEqual(3);
+    // 3년 계약 첫 시즌 뒤 = 2시즌 남음 → 제안 1~3개 (C.48), 구단 거절 포함
+    expect(back.market.offers).not.toBeNull();
+    expect((back.market.offers ?? []).filter((o) => o.kind === 'transfer').length + (back.market.refused?.length ?? 0)).toBeGreaterThanOrEqual(1);
   });
 });

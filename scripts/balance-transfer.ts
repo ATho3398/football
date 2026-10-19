@@ -9,6 +9,10 @@ import { PLAYABLE_POSITIONS } from '../src/positions';
 import { autoAllocate } from '../src/growth';
 
 import { BALANCE } from '../src/config/balance';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 // TR_OFF=1: 이적 끄고 기준선 (팀 레이팅 분산 비교)
 if (process.env.TR_OFF) Object.assign(BALANCE.transfer.windowShare, { summer: 0, winter: 0 });
 const args = process.argv.filter((a) => /^\d+$/.test(a)).map(Number);

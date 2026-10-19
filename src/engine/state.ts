@@ -6,6 +6,7 @@ import type { MomentState } from './moments';
 import type { CardState } from './cards';
 import type { Role } from './roles';
 import type { BodyMods } from '../body';
+import type { MatchEnv } from './env';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
 
 /** 0 GK, 1 수비, 2 중원, 3 공격 */
@@ -242,6 +243,8 @@ export interface SimState {
   forcedDuel: { idx: number; pick: number; pDelta?: number; foulMul?: number } | null;
   /** 내 선수 카드 (C.36). 덱이 없으면 null (카드가 없는 경기는 C.35 와 같다) */
   cards: CardState | null;
+  /** 경기 환경 실행 배율 (C.74a). 맑음·보통 심판이면 모두 1 */
+  env: MatchEnv;
 }
 
 export function emptyTeamStats(): TeamStats {

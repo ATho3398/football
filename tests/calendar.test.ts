@@ -92,11 +92,12 @@ describe('하루 단위 진행 (25.1~25.2 5·7번)', () => {
     const cal = calendarOf(g);
     let n = 0;
     while (g.phase === 'season') {
-      playRound(g, { engine: 'quick' });
-      n++;
+      // C.67a: 컵 경기도 playRound 한 번 (리그 경기만 센다)
+      if (!playRound(g, { engine: 'quick' }).cup) n++;
     }
     expect(n).toBe(38);
-    expect(g.calendar.date).toBe(cal.final);
+    // 컵 결승에 올랐으면 결승 날에 끝난다
+    expect(g.calendar.date).toBe(g.cups!.fa!.rounds[4]!.some((t) => t.h === g.player.teamId || t.a === g.player.teamId) ? g.cups!.fa!.dates[4] : cal.final);
     expect(g.league.schedule.flat().every((f) => f.homeGoals !== undefined)).toBe(true);
     expect(g.league.table.every((r) => r.played === 38)).toBe(true);
   });
@@ -171,7 +172,7 @@ describe('세이브 17 → 18 (부록 C.38)', () => {
     raw.player.injury = { grade: 'minor', weeksTotal: 3, weeksLeft: 2, season: 2018, round: 5, permanent: {} };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(27);
+    expect(SAVE_FORMAT_VERSION).toBe(41);
     const cal = calendarOf(back);
     expect(back.calendar.date).toBe(cal.roundDates[back.league.round]);
     expect(back.player.injury).toMatchObject({ daysLeft: 14, daysTotal: 21 });

@@ -1,0 +1,17 @@
+<!-- @dsCard group="Player" height=470 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PlayerCard — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  var p={name:'김민준',age:17,position:'ST',ovr:56,tier:'normal',tierScore:12,level:3,xp:120,xpMax:200,team:'리버사이드 FC'};
+render(h('div',{style:{display:'flex',gap:16,flexWrap:'wrap',alignItems:'flex-start'}},
+  h('div',{style:{width:260}},h(P.PlayerCard,{player:p})),
+  h('div',{style:{width:260}},h(P.PlayerCard,{player:Object.assign({},p,{name:'이도윤',age:27,position:'CAM',ovr:88,tier:'legend',tierScore:910,level:41,xp:3400,xpMax:4000})})),
+  h('div',{style:{width:300,display:'grid',gap:8}},h(P.PlayerCard,{player:p,variant:'compact'}),h(P.PlayerCard,{player:Object.assign({},p,{tier:'top',ovr:79,name:'박서진',position:'CM',age:24}),variant:'compact'}))));
+</script>
+</body>
+</html>

@@ -20,7 +20,7 @@ const apt = (mult: Partial<Aptitude['mult']>, base = 1): Aptitude => ({
 function player(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
     name: 't', position: 'ST', age: 20, teamId: 'x', attributes: flat(60), potentialTier: 'normal',
-    xp: 0, totalXp: 0, level: 0, unspentPoints: 0, allocation: { levels: 0, raised: {} },
+    xp: 0, totalXp: 0, level: 0, unspentPoints: 0,
     fatigue: 0, reputation: 0, coachWarned: false, injury: null, recentRatings: [], slumpStreak: 0, season: emptySeasonStats(), history: [], suspended: 0,
     proficiency: initialProficiency('ST'), badges: [], formerPositions: [], honors: { ballonDor: 0, trebles: 0, worldCups: 0 }, body: { height: 180, weight: 75, foot: 'right', weakFoot: 3 }, tags: [],
     aptitude: apt({ ST: 1.0, CB: 1.5 }), advice: null, adviceLog: [], aptBoost: null, ...overrides,
@@ -198,7 +198,7 @@ describe('세이브 16 → 17 (C.37)', () => {
     delete raw.player.aptBoost;
     raw.saveFormat = 16;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(27);
+    expect(SAVE_FORMAT_VERSION).toBe(41);
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
     const a = back.player.aptitude!;
     expect(a.hidden).toBeNull();

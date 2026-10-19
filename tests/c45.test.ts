@@ -113,20 +113,22 @@ describe('장단점 (C.45 2번)', () => {
 });
 
 describe('커스텀 생성 (C.45 2번)', () => {
-  it('기본 40 + 100P, 칸 단위 비용, 키가 크면 속도 상한 −·공중 상한 +', () => {
-    expect(customBudget(17, [])).toBe(100);
-    expect(customBudget(23, [])).toBe(100 + 6 * BALANCE.custom.pointsPerYear);
-    expect(customBudget(15, [])).toBe(100 - 2 * BALANCE.custom.pointsPerYearYounger);
-    expect(customBudget(17, pk('glass'))).toBe(100 + tagPoints('glass', true));
-    expect(customBudget(17, [{ id: 'ironMan', perm: false }])).toBe(100 + tagPoints('ironMan', false));
+  it('기본 40 + 58P (C.49), 칸 단위 비용 1/2/3, 키가 크면 속도 상한 −·공중 상한 +', () => {
+    const P = BALANCE.custom.points;
+    expect(P).toBe(58);
+    expect(customBudget(17, [])).toBe(P);
+    expect(customBudget(23, [])).toBe(P + 6 * BALANCE.custom.pointsPerYear);
+    expect(customBudget(15, [])).toBe(P - 2 * BALANCE.custom.pointsPerYearYounger);
+    expect(customBudget(17, pk('glass'))).toBe(P + tagPoints('glass', true));
+    expect(customBudget(17, [{ id: 'ironMan', perm: false }])).toBe(P + tagPoints('ironMan', false));
     expect(customCap('pace', 195)).toBeLessThan(customCap('pace', 170));
     expect(customCap('heading', 195)).toBeGreaterThan(customCap('heading', 170));
-    const a = customRaise(baseAttributes(), 'shooting', 3, 100, 180);
-    expect(a.shooting).toBe(55);
-    expect(spentPoints(a)).toBe(6);
-    expect(customRaise(a, 'shooting', -1, 100, 180).shooting).toBe(50);
+    const a = customRaise(baseAttributes(), 'shooting', 4, P, 180);
+    expect(a.shooting).toBe(60);
+    expect(spentPoints(a)).toBe(1 + 1 + 1 + 2);
+    expect(customRaise(a, 'shooting', -1, P, 180).shooting).toBe(55);
     // 자동 배분 17세 OVR 은 랜덤 생성 범위(52~60) 안
-    const ovr = customOvr(autoCustom('ST', 100, 180), 'ST');
+    const ovr = customOvr(autoCustom('ST', P, 180), 'ST');
     expect(ovr).toBeGreaterThanOrEqual(BALANCE.newGame.startOvr.min - 1);
     expect(ovr).toBeLessThanOrEqual(BALANCE.newGame.startOvr.max + 1);
   });
@@ -211,7 +213,7 @@ describe('짧은 이름 겹침 범위 (C.45 6번)', () => {
 });
 
 describe('약발 강화 (C.45 1번)', () => {
-  it('포인트 50 으로 +1, 5 면 더 못 올림', () => {
+  it('포인트 10 으로 +1 (C.49), 5 면 더 못 올림', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'wf', difficulty: 'normal' });
     g.player.body = { ...g.player.body, weakFoot: 4 };
     g.player.unspentPoints = BALANCE.weakFoot.pointCost - 1;
@@ -251,7 +253,7 @@ describe('세이브 23 → 24 (C.45 7번)', () => {
     delete raw.player.shirt;
     delete raw.pixelOverrides;
     const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(27);
+    expect(back.saveFormat).toBe(41);
     expect(back.player.body).toEqual(realBody('kane'));
     expect(back.player.tags).toEqual([]);
     expect(back.player.clubRun).toMatchObject({ club: 'tot', first: true });

@@ -1,21 +1,27 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
-import { prospectExtras } from '../game';
+import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
+import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
+import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, weekFreeDays } from '../game';
+import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
+import { refereeTraits } from '../referees';
+import { COMP_NAMES_KO, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
-import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
+import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
+import { LIFE_KINDS, isForeign, isLifeKind, lifeHints } from '../life';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
 import {
-  averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isRestLocked, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
+  activePreset, averageRating, calendarOf, campDate, campDay, careerTotals, dayPlan, isRestLocked, presetWeekPlan, recommendPreset, isVacationDay, myMatchDate, nextFixture, plannedDefault, selectableRealPlayers,
   slumpThreshold, trainingLine, type GameState, type SeasonSummary,
 } from '../game';
 import {
-  bundleCapped, gaugeNeed, planFatigue, planXp, techBundle, BUNDLE_NAMES_KO, TRAINING_DESC_KO, TRAINING_KINDS, TRAINING_NAMES_KO, TRAINING_SHORT_KO,
+  BASE_PRESETS, bundleCapped, gaugeNeed, PRESET_SLOTS, presetById, presetSummary, planFatigue, planXp, techBundle, BUNDLE_NAMES_KO, TRAINING_DESC_KO, TRAINING_KINDS, TRAINING_NAMES_KO, TRAINING_SHORT_KO,
   type DayPlan, type TrainingKind,
 } from '../training';
 import { addDays, dateLabel, daysBetween, weekday as weekdayOf } from '../calendar';
@@ -26,18 +32,24 @@ import {
   type PlayablePosition,
 } from '../positions';
 import {
-  displayRaisePlan,
-  costTier, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
+  costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
+import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlightKind } from '../seasonHighlights';
 import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
 import { INJURY_NAMES_KO } from '../injury';
-import { initialTeams, leaguePosition, sortedTable, teamById } from '../league';
+import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
 import { legendClub, legendPeak, legendRosterPlayer, selectableLegends } from '../legends';
-import { naturalOvr } from '../roster';
+import { findRosterPlayer, naturalOvr } from '../roster';
+import { MY_ID } from '../engine/adapter';
 import { npcOvr } from '../npc';
+import { isU21 } from '../squad';
+import { careerNet, endingScores } from '../wealth';
+import { careerKey, type LegacyStore } from '../legacy';
+import { moneyLabel } from '../money';
+import { AWARD_KO, awardValue, leaderboard, npcStanding, ratingMinApps, seasonAwards, type BoardKind } from '../worldStats';
 import { tierLabel } from '../finance';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
 import type { SaveMeta } from '../save';
@@ -48,10 +60,13 @@ import { positionPenalty, proficiencyOf, proficientOvr } from '../proficiency';
 import { saveStartNotice, versionLabel } from '../version';
 import type { DesignTier, FeedKind, FormationSlotProps, TacticStyle } from './components';
 import type { FieldAttributes } from '../attributes';
+import { attrShort, coachBoost } from '../money';
 import type { AttrGroupVM } from './views/attrGrid';
 import { derbyOf } from '../derby';
 import type { FaceRef } from './faces';
 import { PROSPECT_NATIONALITY, realAppearance, rollAppearance } from '../appearance';
+import { FACE_PHOTOS, isFacePhoto, isRace, PHOTO_KO, PHOTO_OF, RACE_KO, RACES, rollIdentity } from '../identity';
+import { NATIONALITY_KO } from './customVM';
 import { FORMATIONS } from '../formations';
 import {
   customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
@@ -102,6 +117,8 @@ export interface ConditionVM {
   formLabel: string;
   yellows: number;
   yellowEvery: number;
+  /** 생활 힌트 (C.63 b): 숨은 생활 지표를 숫자 없이 문장으로 */
+  life?: string[];
 }
 
 function conditionVM(g: GameState): ConditionVM {
@@ -114,6 +131,7 @@ function conditionVM(g: GameState): ConditionVM {
     formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,
     yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery,
     yellowEvery: BALANCE.discipline.yellowBanEvery,
+    life: lifeHints(g),
   };
 }
 
@@ -124,7 +142,7 @@ export interface PlayerCardVM {
 
 /**
  * 내 선수 얼굴 (부록 C.43): 실제 선수면 그 선수 id(사진·페이스온 공유), 가상 유망주는 `me:<월드 시드>`.
- * 외모군은 저장하지 않고 id 로 정한다 (가상 유망주 = 한국 국적 분포, 커스텀 생성(C.45)에서 고르게 되면 저장)
+ * 외모군·기본 사진은 생성 때 저장한다 (C.45 커스텀, C.73c 랜덤). 없으면(옛 세이브 이식 전) id 로 정한다
  */
 export function myFace(g: GameState): FaceRef {
   const p = g.player;
@@ -132,8 +150,9 @@ export function myFace(g: GameState): FaceRef {
   // 레전드로 시작 (C.47): 레전드 id 로 사진을 찾는다
   if (p.legendId) return { id: p.legendId, age: p.age, ...(p.appearance ? { appearance: p.appearance } : {}) };
   const id = `me:${g.worldSeed}`;
-  // 커스텀 생성 (C.45): 고른 외모군·국적
-  return { id, age: p.age, appearance: p.appearance ?? rollAppearance(id, p.nationality ?? PROSPECT_NATIONALITY) };
+  // 커스텀 생성 (C.45): 고른 외모군·국적. 기본 사진 (C.73c): 고른 사진, 없으면 외모군 사진
+  const appearance = p.appearance ?? rollAppearance(id, p.nationality ?? PROSPECT_NATIONALITY);
+  return { id, age: p.age, appearance, photo: p.facePhoto ?? PHOTO_OF[appearance] };
 }
 
 function playerCardVM(g: GameState): PlayerCardVM {
@@ -173,19 +192,29 @@ function injuryBanner(g: GameState): BannerVM | null {
 
 function pointsBanner(g: GameState): BannerVM | null {
   const n = visiblePoints(g);
-  return n > 0 ? { tone: 'success', title: `능력치 포인트 ${n}개`, body: '레벨업으로 얻은 포인트를 능력치에 써요.', action: '찍기', act: 'go', to: 'allocate' } : null;
+  return n > 0 ? { tone: 'success', title: `찍을 포인트 ${n}P`, body: '레벨업으로 얻은 포인트를 능력치에 써요.', action: '찍기', act: 'go', to: 'allocate' } : null;
 }
 
 // ── 홈 (I.3, 디자인 22·25) ──
 
 export interface HomeVM {
+  /** 머리말 왼쪽 위 ‹ 초기화면으로 (C.73d): 경기 중이 아니면 main 이 켠다 */
+  exit?: boolean;
+  /** 지금 챕터 이름 (22.1, C.73a): "도약 챕터" */
+  chapter: string;
+  /** 재정 (C.68a): 고를 수 있는 코치 후보 수 (홈 재정 아이콘 배지) */
+  money?: number;
   season: string;
   round: number;
+  /** 다음 경기 대회 한 줄 (C.67): "리그 12R" / "FA컵 32강" */
+  comp: string;
   rounds: number;
   phase: GameState['phase'];
   banners: BannerVM[];
   next: null | {
     my: string; opp: string; home: boolean; myRating: number; oppRating: number;
+    /** 컵·챔스 경기 배지 (C.67b) */
+    cup?: { label: string; comp: CompId };
     myTactic?: TacticVM; oppTactic?: TacticVM;
     /** 전술 화면이 열렸으면 "전술" 버튼 (21.3: 3경기 뒤) */
     tacticsOpen: boolean;
@@ -195,6 +224,8 @@ export interface HomeVM {
     control: GameState['control'];
     /** 더비면 이름 (C.44) */
     derby: { name: string; big: boolean } | null;
+    /** 날씨 예보·심판 (C.74a): 경기 forecastDays 일 전부터 공개 (open). 그 전에는 며칠 뒤 공개인지만 */
+    env: EnvVM;
   };
   card: PlayerCardVM;
   condition: ConditionVM;
@@ -208,6 +239,29 @@ export interface HomeVM {
   training: TrainingVM | null;
   /** 비시즌 휴가가 끝나는 소집일 (개막 7일 전, C.41) */
   camp: string | null;
+  /** 미페 머리말 (C.57, 디자인 B 86·132): 등번호 · 소속 줄 · 포지션 */
+  kit: number;
+  team: string;
+  /** 다음 내 경기 날짜 ("9월 22일 (토)") */
+  nextDate: string | null;
+  /** 1군 테스트 띠 (C.45, 디자인 132) */
+  trial: TrialVM | null;
+}
+
+export interface TrialVM {
+  team: string;
+  /** 지금까지 치른 경기 / 필요한 경기 (연장이면 최대) */
+  games: number;
+  need: number;
+  extended: boolean;
+  avg: number | null;
+  goals: number;
+  assists: number;
+  /** 경기 칸: 치른 경기는 평점, 다음 경기는 상대 이름만 */
+  cells: { label: string; rating: number | null; next: boolean }[];
+  pass: number;
+  cut: number;
+  maxGames: number;
 }
 
 export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
@@ -218,13 +272,15 @@ export interface DayVM {
   /** 큰 글씨 "8.11", "토요일" */
   short: string;
   weekdayKo: string;
+  /** "8월 24일 (금)" (머리말, C.52 디자이너 버그) */
+  full: string;
   year: number;
   matchDay: boolean;
   /** 다음 내 경기까지 남은 날 (오늘이면 0) */
   daysTo: number | null;
   nextLabel: string | null;
   quick: boolean;
-  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string }[];
+  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string }[];
   month: { title: string; lead: number; days: DayCellVM[] };
 }
 
@@ -242,6 +298,10 @@ export function dayVM(g: GameState): DayVM | null {
     leagueDays.add(d);
     if (f.home === me || f.away === me) myDates.set(d, { home: f.home === me, opp: f.home === me ? f.away : f.home, r });
   }));
+  // 컵 (C.67): 내 컵 경기 (치른 것 + 추첨된 것)
+  const cupDays = new Map<string, { home: boolean; opp: string; label: string }>();
+  for (const c of myCupMatches(g)) cupDays.set(c.date, { home: c.home, opp: c.opponentId, label: c.label });
+  for (const [d, c] of cupDays) myDates.set(d, { home: c.home, opp: c.opp, r: -1 });
   const breakDays = new Map<string, keyof typeof BREAK_KO>();
   for (const b of cal.breaks) for (let k = -1; k <= 0; k++) breakDays.set(addDays(b.date, k + 1), b.kind);
   const next = myMatchDate(g);
@@ -253,17 +313,15 @@ export function dayVM(g: GameState): DayVM | null {
     upcoming.push({ date: dateLabel(today), text: `오늘 · ${TRAINING_NAMES_KO[k]}`, kind: 'train', sub: g.training?.overrides[today] ? '변경' : k === 'vacation' ? '휴장' : '계획' });
   }
   const brk = cal.breaks.filter((b) => daysBetween(today, b.date) >= -1);
-  for (let r = g.league.round; r < g.league.schedule.length && upcoming.length < 6; r++) {
-    const i = g.league.schedule[r]!.findIndex((f) => f.home === me || f.away === me);
-    const f = g.league.schedule[r]![i]!;
-    const d = cal.fixtureDates[r]![i]!;
-    while (brk.length && daysBetween(brk[0]!.date, d) > 0 && upcoming.length < 6) {
+  // 내 컵 경기가 있는 컵 주말은 휴식기로 적지 않는다
+  for (const x of myUpcoming(g)) {
+    if (upcoming.length >= 6) break;
+    while (brk.length && daysBetween(brk[0]!.date, x.date) > 0 && upcoming.length < 6) {
       const b = brk.shift()!;
-      upcoming.push({ date: dateLabel(b.date), text: BREAK_KO[b.kind], kind: 'break' });
+      if (!(b.kind === 'cup' && [...cupDays.keys()].some((d) => Math.abs(daysBetween(d, b.date)) <= 1))) upcoming.push({ date: dateLabel(b.date), text: BREAK_KO[b.kind], kind: 'break' });
     }
     if (upcoming.length >= 6) break;
-    const home = f.home === me;
-    upcoming.push({ date: dateLabel(d), text: `${r + 1}R ${teamById(g.league, home ? f.away : f.home).nameKo}`, kind: home ? 'home' : 'away', sub: home ? '홈' : '원정' });
+    upcoming.push({ date: dateLabel(x.date), text: `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: x.home ? '홈' : '원정', team: x.opp });
   }
   if (upcoming.length < 6 && g.league.round >= g.league.schedule.length - 5) upcoming.push({ date: dateLabel(cal.final), text: '시즌 종료', kind: 'end' });
   const y = +today.slice(0, 4);
@@ -277,11 +335,11 @@ export function dayVM(g: GameState): DayVM | null {
     const vac = !mine && daysBetween(today, d) >= 0 && isVacationDay(g, d);
     const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) || vac ? 'break' : leagueDays.has(d) ? 'league' : '';
     const plan = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? TRAINING_SHORT_KO[dayPlan(g, d)] : '';
-    const title = mine ? `${mine.r + 1}R ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
+    const title = mine ? `${mine.r < 0 ? cupDays.get(d)!.label : `${mine.r + 1}R`} ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
     days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title });
   }
   return {
-    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
+    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, full: `${m}월 ${+today.slice(8, 10)}일 (${'일월화수목금토'[weekdayOf(today)]})`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
     upcoming, month: { title: `${y}년 ${m}월`, lead: weekdayOf(first), days },
   };
 }
@@ -304,6 +362,32 @@ export function slumpBanner(g: GameState): BannerVM | null {
   };
 }
 
+/** 날씨 예보·심판 한 줄 (C.74a, 다음 경기 카드·경기 준비) */
+export interface EnvVM {
+  open: boolean;
+  /** 공개까지 남은 날 (open 이면 0) */
+  opensIn: number;
+  weather?: WeatherKind;
+  weatherKo?: string;
+  hint?: string;
+  referee?: string;
+  /** 성향 이름표: "카드 엄격" · "흐름 중시" (보통이면 "카드 보통") */
+  refTraits?: string[];
+}
+
+export function envVM(g: GameState): EnvVM {
+  const date = myMatchDate(g);
+  const cond = myMatchConditions(g);
+  if (!date || !cond) return { open: false, opensIn: 0 };
+  const days = daysBetween(g.calendar.date, date);
+  if (!forecastOpen(days)) return { open: false, opensIn: days - BALANCE.weather.forecastDays };
+  const t = refereeTraits(cond.referee);
+  return {
+    open: true, opensIn: 0, weather: cond.weather, weatherKo: WEATHER_KO[cond.weather], hint: WEATHER_HINT[cond.weather],
+    referee: cond.referee.nameKo, refTraits: [t.card ?? '카드 보통', ...(t.flow ? [t.flow] : [])],
+  };
+}
+
 export function homeVM(g: GameState): HomeVM {
   const p = g.player;
   const banners: BannerVM[] = [];
@@ -323,6 +407,8 @@ export function homeVM(g: GameState): HomeVM {
       tacticsOpen: isUnlocked(g.guide, 'tactics'),
       control: g.control,
       derby: derbyBadge(p.teamId, opp.id),
+      env: envVM(g),
+      ...(fx.cup ? { cup: { label: fx.cup.comp === 'ucl' ? `챔피언스리그 · ${fx.cup.stage}` : fx.cup.label, comp: fx.cup.comp } } : {}),
     };
   }
   const slump = g.phase === 'season' ? slumpBanner(g) : null;
@@ -332,7 +418,10 @@ export function homeVM(g: GameState): HomeVM {
   const s = p.season;
   const avg = averageRating(s);
   return {
+    chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
+    money: g.money?.candidates.length ?? 0,
     season: seasonLabel(g.league.season), round: Math.min(g.league.round + 1, g.league.schedule.length), rounds: g.league.schedule.length,
+    comp: g.phase === 'season' ? matchCompLabel(g) : '',
     phase: g.phase, banners, next, card: playerCardVM(g), condition: conditionVM(g),
     stats: { apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, avg: avg === null ? '-' : avg.toFixed(2) },
     version: versionVM(g),
@@ -340,6 +429,30 @@ export function homeVM(g: GameState): HomeVM {
     points: visiblePoints(g),
     training: trainingVM(g),
     camp: g.phase === 'offseason' ? campLabel(g) : null,
+    kit: myShirt(g),
+    team: teamById(g.league, p.teamId).nameKo,
+    nextDate: dayVM(g)?.upcoming.find((u) => u.kind === 'home' || u.kind === 'away')?.date ?? null,
+    trial: trialVM(g),
+  };
+}
+
+/** 1군 테스트 (C.45): 치른 경기 = 테스트 팀 경기 기록 중 마지막 games 개 (테스트 중에는 출전 보장) */
+export function trialVM(g: GameState): TrialVM | null {
+  const t = g.trial;
+  if (!t) return null;
+  const S = BALANCE.startClub;
+  const need = t.extended ? S.trialMaxGames : S.trialGames;
+  const played = g.matchLog.filter((m) => m.minutes > 0).slice(-t.games);
+  const cells: TrialVM['cells'] = played.map((m) => ({ label: `${m.round}R ${teamById(g.league, m.opponentId).nameKo}`, rating: m.rating, next: false }));
+  const fx = g.phase === 'season' ? nextFixture(g) : null;
+  for (let i = cells.length; i < need; i++) {
+    const r = Math.min(g.league.round + 1 + (i - cells.length), g.league.schedule.length);
+    cells.push({ label: i === cells.length && fx ? `${r}R ${teamById(g.league, fx.opponentId).nameKo}` : `${r}R`, rating: null, next: i === played.length });
+  }
+  const avg = t.ratings.length ? t.ratings.reduce((a, b) => a + b, 0) / t.ratings.length : null;
+  return {
+    team: teamById(g.league, t.teamId).nameKo, games: t.games, need, extended: t.extended, avg, goals: t.goals, assists: t.assists,
+    cells, pass: S.greatRating, cut: S.badRating, maxGames: S.trialMaxGames,
   };
 }
 
@@ -355,50 +468,63 @@ export interface AutoTargetVM {
   label: string;
   /** 대회가 아직 없으면 false (회색 "아직 없음", 훅) */
   available: boolean;
-  /** 다음 경기: 날짜·상대, 그 전까지 자동으로 치를 경기 수, 시즌에 남은 이 종류 경기 수 */
-  next: null | { date: string; text: string; before: number; round: number; left: number };
+  /** 다음 경기: 날짜·상대, 그 전까지 자동으로 치를 경기 수, 시즌에 남은 이 종류 경기 수. iso = 멈출 날짜 (C.67) */
+  next: null | { date: string; iso: string; text: string; before: number; left: number };
+  /** next 가 없을 때 한 줄 (예 "FA컵 16강 탈락") */
+  note?: string;
 }
 
 export interface AutoSheetVM {
-  /** 남은 내 경기 수 */
+  /** 남은 내 경기 수 (리그 + 추첨된 컵) */
   remaining: number;
   quick: number[];
   targets: AutoTargetVM[];
   date: string;
 }
 
-/** 라운드 r 의 내 경기 (상대·홈·날짜) */
-function myFixtureAt(g: GameState, r: number): { opp: string; home: boolean; date: string } | null {
-  const round = g.league.schedule[r];
-  const i = round?.findIndex((f) => f.home === g.player.teamId || f.away === g.player.teamId) ?? -1;
-  if (!round || i < 0) return null;
-  const f = round[i]!;
-  const home = f.home === g.player.teamId;
-  return { opp: home ? f.away : f.home, home, date: calendarOf(g).fixtureDates[r]![i]! };
+/** 남은 내 경기 (리그 + 추첨된 컵, 날짜 순, C.67) */
+function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; comp: string; cup: CompId | null }[] {
+  const me = g.player.teamId;
+  const cal = calendarOf(g);
+  const out: { date: string; opp: string; home: boolean; comp: string; cup: CompId | null }[] = [];
+  for (let r = g.league.round; r < g.league.schedule.length; r++) {
+    const i = g.league.schedule[r]!.findIndex((f) => f.home === me || f.away === me);
+    if (i < 0) continue;
+    const f = g.league.schedule[r]![i]!;
+    out.push({ date: cal.fixtureDates[r]![i]!, opp: f.home === me ? f.away : f.home, home: f.home === me, comp: `${r + 1}R`, cup: null });
+  }
+  if (g.phase === 'season') for (const c of myCupMatches(g)) if (c.tie.hg === undefined) out.push({ date: c.date, opp: c.opponentId, home: c.home, comp: c.label, cup: c.comp });
+  return out.sort((a, b) => daysBetween(b.date, a.date));
 }
 
 export function autoSheetVM(g: GameState): AutoSheetVM {
-  const from = g.league.round;
-  const total = g.league.schedule.length;
-  const remaining = Math.max(0, total - from);
-  const derbies: { r: number; opp: string; home: boolean; date: string; name: string }[] = [];
-  for (let r = from; r < total; r++) {
-    const fx = myFixtureAt(g, r);
-    const d = fx && derbyOf(g.player.teamId, fx.opp);
-    if (fx && d) derbies.push({ r, ...fx, name: d.name });
-  }
+  const list = myUpcoming(g);
+  const remaining = list.length;
+  const derbies = list.map((x, k) => ({ ...x, k, d: derbyOf(g.player.teamId, x.opp) })).filter((x) => !x.cup && x.d);
   const nd = derbies[0];
+  // 컵·챔스 (C.67): 날짜가 잡힌 다음 내 경기, 없으면 결과 한 줄
+  const cups = g.cups?.season === g.league.season ? g.cups : null;
+  const cupTarget = (id: CompId, label: string, has: boolean, reach: string): AutoTargetVM => {
+    const k = list.findIndex((x) => x.cup === id);
+    const x = list[k];
+    return {
+      id: id === 'fa' ? 'cup' : 'ucl', label, available: has,
+      next: x ? { date: dateLabel(x.date), iso: x.date, text: `${x.comp} · ${teamById(g.league, x.opp).nameKo}전 · ${x.home ? '홈' : '원정'}`, before: k, left: list.filter((y) => y.cup === id).length } : null,
+      ...(x ? {} : { note: reach === '출전 안 함' ? `이번 시즌 ${label}에 나가지 않아요` : `${label} ${reach}` }),
+    };
+  };
+  const me = g.player.teamId;
   const targets: AutoTargetVM[] = [
     {
       id: 'derby', label: '더비 매치', available: true,
       next: nd ? {
-        date: dateLabel(nd.date), text: `${teamById(g.league, nd.opp).nameKo}전 · ${nd.home ? '홈' : '원정'} · ${nd.name}`, before: nd.r - from, round: nd.r, left: derbies.length,
+        date: dateLabel(nd.date), iso: nd.date, text: `${teamById(g.league, nd.opp).nameKo}전 · ${nd.home ? '홈' : '원정'} · ${nd.d!.name}`, before: nd.k, left: derbies.length,
       } : null,
     },
     { id: 'aMatch', label: '국가대표 A매치', available: false, next: null },
     { id: 'nationsCup', label: '국가대표 토너먼트', available: false, next: null },
-    { id: 'ucl', label: '챔피언스리그', available: false, next: null },
-    { id: 'cup', label: '컵·토너먼트', available: false, next: null },
+    cupTarget('ucl', '챔피언스리그', !!cups?.ucl, cups?.ucl ? uclReachLabel(g, cups.ucl, me) : ''),
+    cupTarget('fa', 'FA컵', !!cups?.fa, cups?.fa ? reachLabel(cups.fa, me) : ''),
   ];
   return { remaining, quick: [1, 3, 5, 10].filter((n) => n < remaining), targets, date: dateLabel(g.calendar.date) };
 }
@@ -422,9 +548,9 @@ export interface TrainingDayVM {
   fixed: boolean;
 }
 
-export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean }
+export interface TrainingOptionVM { kind: TrainingKind; name: string; desc: string; xp: number; fatigue: number; planned: boolean; selected: boolean; /** 생활 하루 행동 (C.63 b) */ life?: boolean }
 
-export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean }
+export interface GaugeVM { id: AttributeGroup; name: string; value: number; full: number; ups: number; max: number; capped: boolean; today: boolean; /** 코치 (C.68a) "코치 +20% · 드리블" */ coach?: string }
 
 export interface TrainingVM {
   today: { date: string; iso: string; kind: DayPlan; name: string; desc: string; xp: number; fatigue: number; bundle: string | null; changed: boolean; locked: boolean; injured: boolean; fixed: boolean };
@@ -442,6 +568,81 @@ export interface TrainingVM {
   last: string | null;
   /** 휴가 중이면 휴가가 끝나는 날 (훈련 재개) */
   vacation: { until: string; days: number } | null;
+  /** 훈련 프리셋 (C.52, 디자인 159) */
+  presets: PresetsVM;
+}
+
+export interface PresetDayVM { wd: string; short: string; kind: DayPlan; fixed: boolean; today: boolean }
+export interface PresetRowVM { id: string; name: string; desc: string; week: PresetDayVM[]; active: boolean; recommended: boolean; custom: boolean }
+export interface PresetsVM {
+  auto: boolean;
+  /** 이번 주에 직접 고름 (그 주만 유지) */
+  manual: boolean;
+  activeId: string;
+  activeName: string;
+  /** "8.20~8.26" */
+  weekLabel: string;
+  rec: { id: string; name: string; chips: { label: string; tone: 'neutral' | 'warn' | 'good' }[]; line: string; applied: boolean };
+  base: PresetRowVM[];
+  custom: PresetRowVM[];
+}
+
+const md = (d: string) => `${+d.slice(5, 7)}.${+d.slice(8, 10)}`;
+
+export function presetsVM(g: GameState): PresetsVM {
+  const t = g.training;
+  const today = g.calendar.date;
+  const activeId = activePreset(g, today);
+  const rec = recommendPreset(g, today);
+  const row = (p: { id: string; name: string; slots: TrainingKind[]; desc?: string }, custom: boolean): PresetRowVM => {
+    const week = presetWeekPlan(g, p.id, today);
+    const free = week.filter((d) => !d.fixed).length;
+    const sum = presetSummary(p.slots, free);
+    return {
+      id: p.id, name: p.name, desc: custom ? `${sum || '훈련일 없음'} · 내가 만듦` : `${p.desc} · ${sum || '이번 주 훈련일 없음'}`, custom,
+      week: week.map((d) => ({ wd: '일월화수목금토'[weekdayOf(d.date)]!, short: TRAINING_SHORT_KO[d.kind], kind: d.kind, fixed: d.fixed, today: d.date === today })),
+      active: p.id === activeId, recommended: p.id === rec.id,
+    };
+  };
+  const wk = presetWeekPlan(g, activeId, today);
+  const days = rec.matches.map((d) => '일월화수목금토'[weekdayOf(d)]).join('·');
+  return {
+    auto: t.presetAuto !== false, manual: !!t.presetManual, activeId, activeName: presetById(t, activeId).name,
+    weekLabel: `${md(wk[0]!.date)}~${md(wk[6]!.date)}`,
+    rec: {
+      id: rec.id, name: presetById(t, rec.id).name, line: rec.line, applied: rec.id === activeId,
+      chips: [
+        { label: rec.matches.length ? `경기 ${rec.matches.length}번 · ${days}` : '경기 없음', tone: 'neutral' },
+        { label: `체력 ${rec.condition}`, tone: rec.condition < BALANCE.training.presets.lowCondition ? 'warn' : 'neutral' },
+        { label: rec.injured ? '부상 중' : '부상 없음', tone: rec.injured ? 'warn' : 'good' },
+      ],
+    },
+    base: BASE_PRESETS.map((p) => row(p, false)),
+    custom: (t.customPresets ?? []).map((p) => row(p, true)),
+  };
+}
+
+/** 커스텀 프리셋 편집 시트 (새로 만들기 = id null) */
+export interface PresetEditVM {
+  id: string | null; name: string; slots: { kind: TrainingKind; label: string; short: string }[]; kinds: { id: TrainingKind; label: string }[];
+  /** 고른 칸 (아래 종류 줄이 이 칸을 바꾼다, C.71a 디자인 167) · 이번 주 쓰는 칸 수 · 요약("3·2·2" / "약발·기술·회복") */
+  sel: number; used: number; summary: { counts: string; names: string };
+}
+
+export function presetEditVM(g: GameState, id: string | null, draft?: { name: string; slots: TrainingKind[] } | null, sel = 0): PresetEditVM {
+  const p = id ? g.training.customPresets?.find((x) => x.id === id) : undefined;
+  const src = draft?.slots ?? p?.slots ?? presetById(g.training, activePreset(g)).slots;
+  const kinds = Array.from({ length: PRESET_SLOTS }, (_, i) => src[i] ?? 'tech');
+  const n = new Map<TrainingKind, number>();
+  for (const k of kinds) n.set(k, (n.get(k) ?? 0) + 1);
+  const top = [...n].sort((a, b) => b[1] - a[1] || kinds.indexOf(a[0]) - kinds.indexOf(b[0]));
+  return {
+    id: p?.id ?? null, name: draft?.name ?? p?.name ?? '',
+    slots: kinds.map((k, i) => ({ kind: k, label: `${i + 1}번째`, short: TRAINING_SHORT_KO[k] })),
+    kinds: TRAINING_KINDS.map((k) => ({ id: k, label: TRAINING_SHORT_KO[k] })),
+    sel: Math.max(0, Math.min(PRESET_SLOTS - 1, sel)), used: Math.min(PRESET_SLOTS, weekFreeDays(g)),
+    summary: { counts: top.map((x) => x[1]).join('·'), names: top.map((x) => TRAINING_SHORT_KO[x[0]]).join('·') },
+  };
 }
 
 const PLAN_DESC: Record<'match' | 'vacation' | 'rehab', string> = {
@@ -475,7 +676,9 @@ export function trainingVM(g: GameState): TrainingVM | null {
     while (isVacationDay(g, d) && n < 120) { d = addDays(d, 1); n++; }
     vacation = { until: dateLabel(d), days: n };
   }
-  const tb = techBundle(t, g.player.position);
+  // 코치 (C.68a): 자동 묶음·게이지 칸 수에 코치 전문 능력치 반영 (dayStep 과 같게)
+  const cb = (id: AttributeGroup) => coachBoost(g, g.player, id);
+  const tb = techBundle(t, g.player.position, (id) => cb(id)?.boost ?? 0);
   return {
     today: {
       date: dateLabel(today), iso: today, kind, name: TRAINING_NAMES_KO[kind], desc: kind === 'match' || kind === 'vacation' || kind === 'rehab' ? PLAN_DESC[kind] : TRAINING_DESC_KO[kind],
@@ -484,11 +687,12 @@ export function trainingVM(g: GameState): TrainingVM | null {
     },
     week, weekXp: Math.round(t.weekXp * 10) / 10, cap: T.weeklyXpCap, seasonXp: Math.round(t.season.xp),
     gauges: GROUP_NAMES.map((id) => ({
-      id, name: BUNDLE_NAMES_KO[id], value: Math.floor(t.gauges[id] ?? 0), full: gaugeNeed(g.player, id), ups: t.seasonUps[id] ?? 0, max: T.gauge.bundleSeasonMax,
+      id, name: BUNDLE_NAMES_KO[id], value: Math.floor(t.gauges[id] ?? 0), full: gaugeNeed(g.player, id, cb(id)?.target), ...(cb(id) ? { coach: `코치 +${Math.round(cb(id)!.boost * 100)}% · ${attrShort(cb(id)!.target)}` } : {}), ups: t.seasonUps[id] ?? 0, max: T.gauge.bundleSeasonMax,
       capped: bundleCapped(t, id), today: id === tb,
     })),
     focus: t.focus, seasonUps: t.season.ups, seasonMax: T.gauge.seasonMax,
     hints: [...t.hints], eve: t.eve, formPenalty: t.formPenalty > 0, last: t.last ? `${dateLabel(t.last.date)} · ${trainingLine(t.last)}` : null, vacation,
+    presets: presetsVM(g),
   };
 }
 
@@ -498,12 +702,14 @@ export function trainingOptionsVM(g: GameState, date: string): { date: string; i
   if (kind === 'match' || kind === 'vacation' || isRestLocked(g, date)) return null;
   const injured = kind === 'rehab' || (kind === 'rest' && !!g.player.injury);
   const planned = plannedDefault(g, date);
-  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : [...TRAINING_KINDS];
+  // 생활 하루 행동 (C.63 b, pending 47 4번): 훈련 칸에서 훈련 대신 고른다. 외국어 공부는 외국인 선수만
+  const life = LIFE_KINDS.filter((k) => k !== 'language' || isForeign(g.player));
+  const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : [...TRAINING_KINDS, ...life];
   return {
     date: dateLabel(date), injured,
     options: kinds.map((k) => injured && k === 'recovery'
       ? { kind: k, name: '재활 (기본)', desc: PLAN_DESC.rehab, xp: planXp('rehab'), fatigue: planFatigue('rehab'), planned: true, selected: kind === 'rehab' }
-      : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k }),
+      : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k, ...(isLifeKind(k) ? { life: true } : {}) }),
   };
 }
 
@@ -518,6 +724,12 @@ export function campLabel(g: GameState): string {
 export interface AttrRowVM { label: string; value: number; key: boolean }
 
 export interface PlayerVM {
+  /** 지금 챕터 이름 (22.1, C.73a) */
+  chapter: string;
+  /** 소속 팀 상세 링크 (C.53) */
+  teamId: string;
+  /** 미페 머리말 등번호 (C.58) */
+  kit: number;
   face: FaceRef;
   name: string; position: string; positionKo: string; age: number; ovr: number; team: string;
   tier: DesignTier; tierName: string; reputation: number; repMax: number;
@@ -579,10 +791,17 @@ export function positionOptionsVM(g: GameState): PositionOptionVM[] {
   }).sort((a, b) => Number(b.current) - Number(a.current) || b.ovr - a.ovr);
 }
 
-const GROUP_NAMES_KO: Record<AttributeGroup, string> = {
-  ballHandling: '볼 다루기', finishing: '마무리', passing: '패스·시야', defending: '수비',
-  pace: '스피드·민첩', physical: '피지컬', mental: '멘탈',
-};
+/** 화면 표시 묶음 (C.58 디자인 93, 5-apply 확인 필요 2 = 디자인대로): 몸 다루기 · 마무리 · 패스·시야 · 수비 · 스피드 · 피지컬 · 정신.
+ *  민첩성은 표시만 몸 다루기 칸에 둔다 — 훈련 게이지·성장 묶음(ATTRIBUTE_GROUPS)은 그대로 */
+export const DISPLAY_GROUPS: readonly { name: string; attrs: readonly FieldAttribute[] }[] = [
+  { name: '몸 다루기', attrs: ['dribbling', 'ballControl', 'agility'] },
+  { name: '마무리', attrs: ATTRIBUTE_GROUPS.finishing },
+  { name: '패스·시야', attrs: ATTRIBUTE_GROUPS.passing },
+  { name: '수비', attrs: ATTRIBUTE_GROUPS.defending },
+  { name: '스피드', attrs: ['pace', 'acceleration'] },
+  { name: '피지컬', attrs: ATTRIBUTE_GROUPS.physical },
+  { name: '정신', attrs: ATTRIBUTE_GROUPS.mental },
+];
 
 function historyVM(g: GameState): HistoryRowVM[] {
   return g.player.history.map((r) => ({
@@ -593,9 +812,9 @@ function historyVM(g: GameState): HistoryRowVM[] {
 
 /** 능력치 바둑판 (C.39): 분류별 박스. base 가 있으면 변화 = 지금 − base */
 export function attrGroupsVM(attrs: FieldAttributes, keys: readonly FieldAttribute[], base?: FieldAttributes): AttrGroupVM[] {
-  return GROUP_NAMES.map((grp) => ({
-    name: GROUP_NAMES_KO[grp],
-    cells: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => ({
+  return DISPLAY_GROUPS.map((grp) => ({
+    name: grp.name,
+    cells: grp.attrs.map((a) => ({
       attr: a, label: ATTRIBUTE_NAMES_KO[a], value: attrs[a], ...(base ? { base: base[a] } : {}), key: keys.includes(a),
     })),
   }));
@@ -609,9 +828,10 @@ export function playerVM(g: GameState): PlayerVM {
   const nx = nextReputationTier(p.reputation, p.honors);
   const fx = g.phase === 'season' ? nextFixture(g) : null;
   return {
-    face: myFace(g),
+    chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
+    face: myFace(g), kit: myShirt(g),
     name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
-    team: teamById(g.league, p.teamId).nameKo,
+    team: teamById(g.league, p.teamId).nameKo, teamId: p.teamId,
     tier: designTier(tier), tierName: TIER_NAMES_KO[tier], reputation: p.reputation, repMax: BALANCE.reputation.max,
     next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier] } : null,
     level: p.level, xp: p.xp, xpMax: xpToLevel(p), totalXp: p.totalXp,
@@ -637,7 +857,8 @@ export interface AllocRowVM { attr: FieldAttribute; label: string; value: number
 
 export interface AllocateVM {
   points: number; position: string; startOvr: number; startExact: number; ovr: number; exact: number;
-  cap: number; levels: number; tierName: string; cost1Max: number; cost2Max: number; coachComment: boolean;
+  /** 지금 레벨, 비용 구간 경계(화면 1~20 값) */
+  level: number; tierName: string; cost1Max: number; cost2Max: number; coachComment: boolean;
   groups: { name: string; rows: AllocRowVM[] }[];
   /** 능력치 바둑판 (C.39): 이번 배분 변화, 누르면 [−]/[+] */
   attrs: AttrGroupVM[];
@@ -652,35 +873,32 @@ export function allocateVM(g: GameState, startExact: number, coachComment: boole
     attrs: [],
     points: p.unspentPoints, position: p.position, startOvr: Math.round(startExact), startExact,
     ovr: playerOvr(p), exact: positionOvrExact(p.attributes, p.position),
-    cap: p.allocation.levels * BALANCE.growth.maxRaisePerLevel, levels: p.allocation.levels,
-    tierName: TIER_NAMES_KO[tier], cost1Max: band.cost1Max, cost2Max: band.cost2Max, coachComment,
-    groups: GROUP_NAMES.map((grp) => ({
-      name: GROUP_NAMES_KO[grp],
-      rows: (ATTRIBUTE_GROUPS[grp] as readonly FieldAttribute[]).map((a) => {
+    level: p.level, tierName: TIER_NAMES_KO[tier], cost1Max: attrDisplay(band.cost1Max), cost2Max: attrDisplay(band.cost2Max), coachComment,
+    groups: DISPLAY_GROUPS.map((grp) => ({
+      name: grp.name,
+      rows: grp.attrs.map((a) => {
         const v = p.attributes[a];
-        const maxed = v >= BALANCE.growth.maxAttribute;
+        const maxed = isMaxed(v);
         const w = attributeOvrWeight(p.position, a);
+        const gain = Math.min(BALANCE.growth.maxAttribute, v + BALANCE.growth.pointStep) - v;
         return {
-          attr: a, label: ATTRIBUTE_NAMES_KO[a], value: v, raised: p.allocation.raised[a] ?? 0,
-          cost: maxed ? null : pointCost(v, tier), ovrDelta: w > 0 ? Math.round(w * 100) / 100 : null,
+          attr: a, label: ATTRIBUTE_NAMES_KO[a], value: v, raised: raises.filter((x) => x === a).length,
+          cost: maxed ? null : pointCost(v, tier), ovrDelta: w > 0 && !maxed ? Math.round(w * gain * 10) / 10 : null,
           maxed, blocked: raiseBlock(p, a) !== null, key: keys.includes(a),
         };
       }),
     })),
   };
+  // 찍기 한 번 = 화면 +1칸 (C.49): 비용 1·2·3P, 모자라면 "부족"
   vm.attrs = vm.groups.map((grp) => ({
     name: grp.name,
-    cells: grp.rows.map((r) => {
-      // 1~20 표시 한 칸 (C.44): 다음 칸까지 비용 합, 지금 갈 수 있는 내부 칸 수
-      const plan = displayRaisePlan(p, r.attr);
-      return {
-        attr: r.attr, label: r.label, value: r.value, ...(snap ? { base: snap[r.attr] } : {}), key: r.key,
-        edit: {
-          cost: r.maxed ? null : plan.cost, steps: plan.steps, reach: plan.reach,
-          ovrDelta: r.ovrDelta ? Math.round(r.ovrDelta * plan.steps * 10) / 10 : null, maxed: r.maxed, blocked: plan.reach < plan.steps, canLower: raises.includes(r.attr),
-        },
-      };
-    }),
+    cells: grp.rows.map((r) => ({
+      attr: r.attr, label: r.label, value: r.value, ...(snap ? { base: snap[r.attr] } : {}), key: r.key,
+      edit: {
+        cost: r.cost, steps: 1, reach: r.blocked ? 0 : 1,
+        ovrDelta: r.ovrDelta, maxed: r.maxed, blocked: r.blocked, short: r.blocked && !r.maxed, canLower: r.raised > 0,
+      },
+    })),
   }));
   return vm;
 }
@@ -783,7 +1001,14 @@ export const transitionSummary = possessionSummary;
 export interface MatchResultVM {
   /** 머리 줄 (부록 C.43): 우리 팀·상대 엠블럼, 내 얼굴 */
   myTeam: string; face: FaceRef;
-  round: number; opp: string; scoreLine: string; outcome: 'win' | 'draw' | 'loss'; outcomeKo: string;
+  /** 팀 상세 링크와 득점자 (C.53): 득점자 id 'me' = 내 선수 */
+  myTeamId: string; oppId: string;
+  /** assistMe = 도움이 나 (C.72: "나" 칩을 도움에도) */
+  goals: { minute: string; name: string; id: string | null; assist: string | null; assistMe?: boolean; mine: boolean }[];
+  round: number;
+  /** 대회 한 줄 (C.67): "리그 12R" / "FA컵 16강" */
+  comp: string;
+  opp: string; scoreLine: string; outcome: 'win' | 'draw' | 'loss'; outcomeKo: string;
   rating: number | null; appearance: string; formBonus: number;
   chips: string[];
   banners: BannerVM[];
@@ -801,7 +1026,9 @@ export interface MatchResultVM {
   /** 결정 기록 줄을 누르면 그 장면 리플레이 (방금 치른 경기의 재생 데이터가 있을 때) */
   decisionReplay: boolean;
   /** 이 경기에 쓴 카드 (C.36) */
-  cardUses: { text: string; result: 'success' | 'fail' | 'neutral' }[];
+  cardUses: { text: string; result: 'success' | 'fail' | 'neutral'; /** C.70 (디자인 170): 분 · 카드 이름 · 자동 */ minute?: string; name?: string; auto?: boolean }[];
+  /** 경기 환경 한 줄 (C.74a): "빗속 경기 · 심판 대니얼 후퍼". 기록 이전 경기면 null */
+  env: { weather: WeatherKind; line: string; referee: string } | null;
 }
 
 const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드', delegate: '맡김' } as const;
@@ -814,6 +1041,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   const outcomeKo = res.outcome === 'win' ? '승' : res.outcome === 'loss' ? '패' : '무';
   const appearance = m.injured ? '부상으로 결장 (재활)'
     : m.suspended ? '출장 정지로 결장'
+    : m.leave ? '가족 휴가로 결장'
     : res.minutes === 0 ? '결장 (벤치)' : res.started ? '선발 90분' : `교체 출전 ${res.minutes}분`;
   const chips: string[] = [];
   if (res.minutes > 0) {
@@ -831,12 +1059,29 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     });
   }
   if (m.recovered) banners.push({ tone: 'success', title: '부상에서 회복했어요', body: '다음 경기부터 나설 수 있어요.' });
+  // 컵 (C.67): 진출·탈락·우승
+  if (m.cup && m.cup.decisive === false) {
+    // 조별리그·1차전 (C.67b): 승부가 나지 않는 경기 — 조 순위 또는 2차전 안내
+    const u = g.cups?.season === m.season ? g.cups.ucl : null;
+    const k = u ? u.groups.findIndex((x) => x.includes(g.player.teamId)) : -1;
+    if (u && k >= 0 && m.cup.stage.startsWith('조별')) {
+      const pos = groupTable(g, u, k).findIndex((r) => r.id === g.player.teamId) + 1;
+      banners.push({ tone: 'info', title: `챔스 ${GROUP_LETTERS[k]}조 ${pos}위`, body: '조 2위까지 16강에 올라요.' });
+    } else banners.push({ tone: 'info', title: `챔스 ${m.cup.stage}`, body: '2차전 합계로 진출 팀이 정해져요 (동률이면 승부차기).' });
+  } else if (m.cup) {
+    const name = COMP_NAMES_KO[m.cup.comp];
+    const pens = m.cup.pens ? '승부차기 끝에 ' : '';
+    if (m.cup.won) banners.push({ tone: 'success', title: `${name} 우승!`, body: `${pens}결승에서 이겼어요.` });
+    else if (m.cup.through) banners.push({ tone: 'success', title: `${name} ${m.cup.stage} 통과`, body: `${pens}다음 단계에 올랐어요. 대진은 이 단계가 끝난 날 추첨해요.` });
+    else banners.push({ tone: 'warning', title: m.cup.stage === '결승' ? `${name} 준우승` : `${name} ${m.cup.stage} 탈락`, body: `${pens}이번 시즌 ${name}은 여기까지예요.` });
+  }
   if (m.cards?.red) banners.push({ tone: 'warning', title: '퇴장당했어요', body: '다음 경기에 나설 수 없어요.' });
   else if (g.player.suspended > 0 && g.phase === 'season') banners.push({ tone: 'warning', title: '다음 경기 출장 정지', body: `옐로카드 ${BALANCE.discipline.yellowBanEvery}장이 쌓였어요.` });
   const slump = slumpBanner(g);
   if (slump) banners.push(slump);
   if (m.levelsGained > 0) {
-    banners.push({ tone: 'success', title: `레벨 업! Lv.${g.player.level}`, body: `능력치 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel}개 · 지금 OVR ${playerOvr(g.player)}` });
+    // C.70 (디자인 162): "Lv n · 포인트 +n" + [찍기] (아래 [포인트 찍기] 단추 대신)
+    banners.push({ tone: 'success', title: `Lv ${g.player.level} · 포인트 +${m.levelsGained * BALANCE.growth.pointsPerLevel}`, body: `찍을 포인트 ${g.player.unspentPoints}P · 지금 OVR ${playerOvr(g.player)}`, ...(visiblePoints(g) > 0 ? { action: '찍기', act: 'go', to: 'allocate' } : {}) });
   }
   const me = r?.players.find((p) => p.isMe)?.id;
   const highlights = r
@@ -866,15 +1111,30 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   if (m.cards) my.push({ label: m.cards.red ? '퇴장' : '경고', value: m.cards.red ? '1' : `${m.cards.yellows}` });
   const max = xpToLevel(g.player);
   const value = m.levelsGained > 0 ? g.player.xp : Math.max(0, g.player.xp - res.xp);
+  // 컵 경기 (C.67): 득점 기록은 보고에 (홈 = 내 팀이 홈이면 나)
+  const fx = m.cup ? { home: m.home ? g.player.teamId : m.opponentId, g: m.cup.g } : g.league.schedule[m.round - 1]?.find((f) => f.home === g.player.teamId || f.away === g.player.teamId);
+  const mySide = fx?.home === g.player.teamId ? 0 : 1;
+  const who = (id: string | null): { name: string; id: string | null } | null => {
+    if (!id) return null;
+    if (id === MY_ID) return { name: g.player.name, id: 'me' };
+    const hit = findRosterPlayer(g.rosters, id);
+    if (hit) return { name: hit.player.nameKo, id };
+    const ext = m.cup ? cupRoster(g, m.opponentId).players.find((x) => x.id === id) : undefined;
+    return ext ? { name: ext.nameKo, id: null } : { name: '—', id: null };
+  };
+  const goals = (fx?.g ?? []).map(([min, side, sc, as]) => ({ minute: `${min}'`, ...who(sc)!, assist: who(as)?.name ?? null, assistMe: as === MY_ID, mine: side === mySide }));
   return {
     myTeam: teamById(g.league, g.player.teamId).nameKo, face: myFace(g),
-    round: m.round, opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}`, outcome: res.outcome, outcomeKo,
+    myTeamId: g.player.teamId, oppId: m.opponentId, goals,
+    env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
+    round: m.round, comp: m.cup ? `${COMP_NAMES_KO[m.cup.comp]} ${m.cup.stage}` : `리그 ${m.round}R`,
+    opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,
-    cardUses: (m.cardUses ?? []).map((u) => ({ text: `${u.minute}' ${u.name}${u.auto ? ' (자동)' : ''}`, result: u.result })),
+    cardUses: (m.cardUses ?? []).map((u) => ({ text: `${u.minute}' ${u.name}${u.auto ? ' (자동)' : ''}`, result: u.result, minute: `${u.minute}'`, name: u.name, auto: !!u.auto })),
     decisions: (m.decisions ?? []).map((d) => ({
       minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], label: d.card ? (d.choice === 'card' ? `${d.card} · ${d.label}` : `${d.label} + 🃏 ${d.card}`) : d.label,
       p: d.p === null ? '-' : `${Math.round(d.p * 100)}%`, result: d.seen?.result ?? d.result, flow: d.seen?.flow ?? '',
@@ -914,7 +1174,7 @@ export interface SeasonMatchesVM {
 function logRowVM(g: GameState, e: MatchLogEntry): MatchLogRowVM {
   const outcome = e.goalsFor > e.goalsAgainst ? 'win' : e.goalsFor < e.goalsAgainst ? 'loss' : 'draw';
   const head = e.minutes === 0
-    ? e.absent === 'injured' ? '부상 결장' : e.absent === 'suspended' ? '출장 정지' : '결장'
+    ? e.absent === 'injured' ? '부상 결장' : e.absent === 'suspended' ? '출장 정지' : e.absent === 'leave' ? '가족 휴가' : '결장'
     : [e.started ? '선발' : `교체 ${e.minutes}분`, e.goals ? `골 ${e.goals}` : '', e.assists ? `도움 ${e.assists}` : '', e.mom ? 'MOM' : '']
       .filter(Boolean).join(' · ');
   return {
@@ -936,55 +1196,94 @@ export function seasonMatchesVM(g: GameState): SeasonMatchesVM {
   };
 }
 
-// ── 월드: 순위표와 리그 스타 (I.10 일부) ──
+// ── 월드: 순위표 · 리그 기록 · 리그 스타 (I.10 일부, 18.5 · C.64) ──
+
+export type StarGroup = 'league' | 'world' | 'young';
+export interface StarVM { id: string; face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number | null; standing: number; ga: string }
 
 export interface WorldVM {
   league: string; season: string; round: number; rounds: number; myPos: number; teams: number;
-  table: { pos: number; team: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number; tier: string }[];
-  stars: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; change: number }[];
+  table: { pos: number; team: string; teamId: string; played: number; won: number; drawn: number; lost: number; gd: string; points: number; me: boolean; rating: number; tier: string }[];
+  /** 리그 스타 (C.64 묶음 탭, 디자인 147): 리그 안 = 리그 팀 선수 위상 순 · 세계 = 리그 밖 실제 선수 OVR 순 · 21세 이하 = 리그 팀 21세 이하 OVR 순 */
+  stars: StarVM[];
+  starsWorld: StarVM[];
+  starsYoung: StarVM[];
   /** 레전드 팩 선수 (C.47): 리그 팀에 있는 레전드, OVR 순 */
-  legends: { face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; peak: number }[];
+  legends: { id: string; face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; peak: number }[];
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
   scorers: ScorerVM[];
+  /** 리그 기록 순위 (C.64): 득점 · 도움 · 평점(자격 출전 ratingMin 이상) */
+  boards: Record<BoardKind, ScorerVM[]>;
+  ratingMin: number;
 }
 
-export interface ScorerVM { face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean }
+export interface ScorerVM { id: string; teamId?: string; face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean; rank?: number }
 
-/** 득점 순위 (골 → 도움 → 출전 적은 순). 내 선수는 player.season 에서 */
-export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
-  const names = new Map<string, { name: string; team: string; face: FaceRef }>();
-  for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
-    const team = teamById(g.league, teamId)?.nameKo ?? teamId;
-    for (const p of r.players) names.set(p.id, { name: p.nameKo, team, face: { id: p.id, age: p.age, appearance: p.appearance } });
-  }
-  const rows: ScorerVM[] = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({
-    face: names.get(id)?.face ?? { id },
-    name: names.get(id)?.name ?? id, team: names.get(id)?.team ?? '', apps, goals, assists, avg: apps ? (r10 / apps / 10).toFixed(2) : '-', me: false,
+/** 리그 선수 얼굴 (id → 얼굴) */
+function rosterFaces(g: GameState): Map<string, FaceRef> {
+  const m = new Map<string, FaceRef>();
+  for (const r of Object.values(g.rosters ?? {})) for (const p of r.players) m.set(p.id, { id: p.id, age: p.age, appearance: p.appearance });
+  return m;
+}
+
+/** 리그 기록 순위 줄 (내 선수는 player.season 에서). 리그를 떠난 선수는 시즌 기록에 저장한 이름·팀 (C.62) */
+export function boardVM(g: GameState, kind: BoardKind, limit?: number, faces = rosterFaces(g)): ScorerVM[] {
+  return leaderboard(g, kind, limit).map((r) => ({
+    id: r.id, ...(r.teamId ? { teamId: r.teamId } : {}), face: r.me ? myFace(g) : faces.get(r.id) ?? { id: r.id },
+    name: r.name, team: g.league.teams.find((t) => t.id === r.teamId)?.nameKo ?? '', apps: r.apps, goals: r.goals, assists: r.assists,
+    avg: r.apps ? r.avg.toFixed(2) : '-', me: r.me, rank: r.rank,
   }));
-  const s = g.player.season;
-  if (s.apps > 0) rows.push({ face: myFace(g), name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: (s.ratingSum / s.apps).toFixed(2), me: true });
-  return rows.filter((r) => r.goals > 0 || r.me).sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.apps - b.apps).slice(0, limit);
 }
+
+/** 득점 순위 (골 → 도움 → 출전 적은 순) */
+export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
+  return boardVM(g, 'goals', limit);
+}
+
+const STAR_MAX = 40;
 
 export function worldVM(g: GameState): WorldVM {
   const rows = sortedTable(g.league);
   const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+  const faces = rosterFaces(g);
+  const npcById = new Map(g.npcs.map((n) => [n.id, n]));
+  const stats = g.playerStats ?? {};
+  const ga = (id: string) => { const t = stats[id]; return t && t[1] + t[2] > 0 ? `${t[1]}골 ${t[2]}도움` : ''; };
+  const inLeague: StarVM[] = [];
+  for (const [teamId, r] of Object.entries(g.rosters ?? {})) {
+    const club = teamById(g.league, teamId)?.nameKo ?? teamId;
+    for (const p of r.players) {
+      if (p.legend) continue;
+      const ovr = naturalOvr(p);
+      const npc = npcById.get(p.id);
+      inLeague.push({ id: p.id, face: faces.get(p.id)!, name: p.nameKo, position: p.position, age: p.age, club, ovr, change: npc ? npc.lastChange : null, standing: 0, ga: ga(p.id) });
+    }
+  }
+  // 위상 계산은 비싸서(시즌 기록·수상) OVR 상위 몇 배만 계산한다
+  const byOvr = [...inLeague].sort((a, b) => b.ovr - a.ovr || (a.id < b.id ? -1 : 1));
+  const top = byOvr.slice(0, STAR_MAX * 2);
+  for (const s of top) s.standing = npcStanding(g, s.id, s.ovr);
+  const leagueIds = new Set(inLeague.map((s) => s.id));
   return {
     league: g.league.name, season: seasonLabel(g.league.season), round: g.league.round, rounds: g.league.schedule.length,
     myPos: leaguePosition(g.league, g.player.teamId), teams: rows.length,
     table: rows.map((r, i) => ({
-      pos: i + 1, team: teamById(g.league, r.teamId).nameKo, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
+      pos: i + 1, team: teamById(g.league, r.teamId).nameKo, teamId: r.teamId, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
       gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating, tier: tierLabel(r.teamId),
     })),
-    stars: g.npcs.filter((n) => !n.retired).sort((a, b) => npcOvr(b) - npcOvr(a))
-      .map((n) => ({ face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: n.club, ovr: npcOvr(n), change: n.lastChange })),
+    stars: top.sort((a, b) => b.standing - a.standing || b.ovr - a.ovr || (a.id < b.id ? -1 : 1)).slice(0, STAR_MAX),
+    starsWorld: g.npcs.filter((n) => !n.retired && !leagueIds.has(n.id)).sort((a, b) => npcOvr(b) - npcOvr(a)).slice(0, STAR_MAX)
+      .map((n) => ({ id: n.id, face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: clubKo(n.club), ovr: npcOvr(n), change: n.lastChange, standing: 0, ga: '' })),
+    starsYoung: byOvr.filter((s) => isU21(s.age)).slice(0, STAR_MAX),
     retired: g.npcs.filter((n) => n.retired).map((n) => n.nameKo),
     legends: Object.entries(g.rosters ?? {}).flatMap(([teamId, r]) => r.players.filter((p) => p.legend).map((p) => ({
-      face: { id: p.id, age: p.age, appearance: p.appearance }, name: p.nameKo, position: p.position, age: p.age,
+      id: p.id, face: { id: p.id, age: p.age, appearance: p.appearance }, name: p.nameKo, position: p.position, age: p.age,
       club: teamById(g.league, teamId).nameKo, ovr: naturalOvr(p), peak: p.peakOvr,
     }))).sort((a, b) => b.ovr - a.ovr || b.peak - a.peak),
-    scorers: scorersVM(g),
+    scorers: boardVM(g, 'goals', undefined, faces),
+    boards: { goals: boardVM(g, 'goals', undefined, faces), assists: boardVM(g, 'assists', undefined, faces), rating: boardVM(g, 'rating', undefined, faces) },
+    ratingMin: ratingMinApps(g),
   };
 }
 
@@ -999,6 +1298,9 @@ export interface SeasonVM {
   season: string; nextSeason: string; team: string; pos: number; apps: number; goals: number; assists: number; avg: string;
   injuries: number; injuredWeeks: number;
   achievements: { label: string; xp: number }[]; achievementXp: number; levelsGained: number;
+  /** 시즌 목표 결과 (C.65). 옛 세이브 요약이면 null. cardPicks = 지금 받을 카드 선택권 수 */
+  seasonGoals: { rows: { ok: boolean; source: string; tierKo: string; label: string; value: string; xp: number; trust: number }[]; awards: string[]; xp: number; picks: number } | null;
+  cardPicks: number;
   repBefore: number; repAfter: number; tierName: string; tier: DesignTier;
   /** 위상 내역 (부록 C.25): 시즌 중 부진 감점, 시즌 끝 순위 감점. 감점이 없으면 null */
   slumpPenalty: number; rankPenalty: { expected: number; pos: number; points: number } | null; badgeRep: number;
@@ -1010,10 +1312,14 @@ export interface SeasonVM {
   autoGrowth: DeltaVM[]; veteran: DeltaVM[]; aging: DeltaVM[];
   growthAges: string; ageFrom: number; ageTo: number;
   retired: boolean; forcedRetire: boolean; canRetire: boolean; points: number;
+  /** 이번 시즌으로 끝난 챕터 이름 (챕터 리뷰를 아직 안 봤으면, C.73a) */
+  chapter: string | null;
   injury: BannerVM | null;
   badges: { name: string; desc: string }[];
   /** 시즌 경기 목록과 합계 (부록 C.30) */
   matches: SeasonMatchesVM;
+  /** 시즌 하이라이트 3 (22.2 끝, C.73b): 최고 평점 경기 · 골 · 위기 (해당 없으면 빠짐) */
+  highlights: { kind: SeasonHighlightKind; label: string; text: string }[];
   /** 요약 카드 (C.44): MOM, 레벨 변화(시즌 시작 레벨을 모르면 null), 위상 티어 */
   moms: number; levelFrom: number | null; levelTo: number;
   /** 상세 보기 (C.44): 월별·포지션별 기록, 리그 시상 */
@@ -1053,6 +1359,11 @@ export function seasonVM(g: GameState): SeasonVM | null {
     apps: rec.apps, goals: rec.goals, assists: rec.assists, avg: rec.apps ? (rec.ratingSum / rec.apps).toFixed(2) : '-',
     injuries: rec.injuries, injuredWeeks: rec.injuredWeeks,
     achievements: s.achievements, achievementXp: s.achievementXp, levelsGained: s.levelsGained,
+    seasonGoals: s.goals ? {
+      rows: s.goals.results.map((r) => ({ ok: r.met, source: SOURCE_KO[r.source], tierKo: TIER_KO[r.tier], label: goalLabel(r), value: valueLabel(r.kind, r.value), xp: r.xp, trust: r.trust })),
+      awards: s.goals.awards, xp: s.goals.xp, picks: s.goals.results.filter((r) => r.met).length + s.goals.awards.length,
+    } : null,
+    cardPicks: g.cards?.picks.length ?? 0,
     repBefore: s.reputationBefore, repAfter: s.reputationAfter, tierName: TIER_NAMES_KO[tier], tier: designTier(tier),
     slumpPenalty: s.slumpPenalty ?? 0, rankPenalty: s.rankPenalty && s.rankPenalty.points > 0 ? s.rankPenalty : null,
     repLines: seasonRepLines(s),
@@ -1063,13 +1374,15 @@ export function seasonVM(g: GameState): SeasonVM | null {
     autoGrowth: deltas(s.autoGrowth), veteran: deltas(s.veteranGrowth ?? {}), aging: deltas(s.aging),
     growthAges: `${A.minAge}~${A.maxAge}세`, ageFrom: s.age, ageTo: g.player.age,
     retired: g.phase === 'retired', forcedRetire: s.forcedRetire, canRetire: s.canRetire, points: visiblePoints(g),
+    chapter: (() => { const c = pendingChapterReview(g); return c ? CHAPTER_KO[c.id] : null; })(),
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
     badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
     matches: seasonMatchesVM(g),
+    highlights: seasonHighlights3(g.matchLog ?? [], (id) => teamById(g.league, id).nameKo).map((h) => ({ kind: h.kind, label: SEASON_HL_KO[h.kind], text: h.text })),
     moms: rec.moms ?? 0,
     levelFrom: rec.startLevel ?? (g.player.history.length === 1 ? 0 : null), levelTo: g.player.level,
     ...seasonSplits(g),
-    awards: seasonAwards(g),
+    awards: seasonAwardsVM(g),
   };
 }
 
@@ -1100,23 +1413,14 @@ function seasonSplits(g: GameState): { months: SplitRowVM[]; positions: SplitRow
   };
 }
 
-/** 리그 시상 (C.44): 우승 팀, 득점왕, 도움왕, 최고 평점(출전 15경기 이상). 다른 경기를 빠른 진행으로 계산했으면 선수 기록이 내 경기만 남는다 */
-function seasonAwards(g: GameState): SeasonVM['awards'] {
+/** 리그 시상 (C.44, C.64 영플레이어 추가): 우승 팀 + worldStats.seasonAwards. 다른 경기를 빠른 진행으로 계산했으면 선수 기록이 내 경기만 남는다 */
+function seasonAwardsVM(g: GameState): SeasonVM['awards'] {
   const champ = sortedTable(g.league)[0];
   const out: SeasonVM['awards'] = [];
   if (champ) out.push({ title: '리그 우승', name: teamById(g.league, champ.teamId).nameKo, team: `승점 ${champ.points}`, value: '', me: champ.teamId === g.player.teamId });
-  const all = scorersVM(g, 9999);
-  const names = new Map<string, { name: string; team: string }>();
-  for (const [teamId, r] of Object.entries(g.rosters ?? {})) for (const p of r.players) names.set(p.id, { name: p.nameKo, team: teamById(g.league, teamId)?.nameKo ?? teamId });
-  const s = g.player.season;
-  const rows = Object.entries(g.playerStats ?? {}).map(([id, [apps, goals, assists, r10]]) => ({ ...(names.get(id) ?? { name: id, team: '' }), apps, goals, assists, avg: apps ? r10 / apps / 10 : 0, me: false }));
-  if (s.apps > 0) rows.push({ name: g.player.name, team: teamById(g.league, g.player.teamId).nameKo, apps: s.apps, goals: s.goals, assists: s.assists, avg: s.ratingSum / s.apps, me: true });
-  const top = all[0];
-  if (top && top.goals > 0) out.push({ title: '득점왕', name: top.name, team: top.team, value: `${top.goals}골`, me: top.me });
-  const ast = [...rows].sort((a, b) => b.assists - a.assists || a.apps - b.apps)[0];
-  if (ast && ast.assists > 0) out.push({ title: '도움왕', name: ast.name, team: ast.team, value: `${ast.assists}도움`, me: ast.me });
-  const best = rows.filter((r) => r.apps >= 15).sort((a, b) => b.avg - a.avg)[0];
-  if (best) out.push({ title: '최고 평점', name: best.name, team: best.team, value: best.avg.toFixed(2), me: best.me });
+  for (const a of seasonAwards(g)) {
+    out.push({ title: AWARD_KO[a.kind], name: a.name, team: g.league.teams.find((t) => t.id === a.teamId)?.nameKo ?? '', value: awardValue(a), me: a.me });
+  }
   return out;
 }
 
@@ -1125,14 +1429,70 @@ function seasonAwards(g: GameState): SeasonVM['awards'] {
 export interface RetiredVM {
   card: PlayerCardVM; seasons: number; apps: number; goals: number; assists: number; avg: string; peakOvr: number; best: string;
   reputation: number; tierName: string; history: HistoryRowVM[];
+  /** 엔딩 점수 (C.68b, 19.8 · 19.11): 순자산 · 자산 점수 · 누적 기부 · 자선가 */
+  ending: { worth: string; asset: number; charity: string; philanthropist: boolean; career: string };
+  /** 업적 · 배지 (18.11, C.73b): 트로피(챕터 기록) · 레전드 배지 */
+  honors: { label: string; badge: boolean }[];
+  /** 명예의 전당 (18.11, C.73b): 이 기기 상위 3, 이번 커리어 순위, 예약된 새 게임 보너스 등급. 저장소를 못 읽으면 null */
+  hall: { list: { name: string; line: string; score: number; me: boolean }[]; rank: number | null; bonus: string | null } | null;
 }
 
-export function retiredVM(g: GameState): RetiredVM {
+export const RARITY_KO: Record<string, string> = { common: '일반', rare: '희귀', epic: '에픽', legendary: '전설' };
+
+export function retiredVM(g: GameState, legacy: { rank: number | null; legacy: LegacyStore } | null = null): RetiredVM {
   const t = careerTotals(g.player);
+  const e = endingScores(g);
+  const key = careerKey(g);
+  const trophies = (g.chapters?.list ?? []).flatMap((c) => c.trophies);
+  const honors = [
+    ...trophies.map((x) => ({ label: x, badge: false })),
+    ...(g.player.badges ?? []).map((b) => ({ label: `${b.season} 레전드 배지 · ${BADGE_NAMES_KO[b.id] ?? b.id}`, badge: true })),
+  ];
+  const hall = legacy ? {
+    list: legacy.legacy.hall.map((h) => ({
+      name: `${h.name} · ${h.position}`, score: h.score, me: h.key === key,
+      line: `${h.seasons}시즌 · ${h.apps}경기 ${h.goals}골 ${h.assists}도움 · 최고 OVR ${h.peakOvr} · ${TIER_NAMES_KO[h.tier]} ${h.reputation}${h.badges ? ` · 배지 ${h.badges}` : ''}${h.trophies ? ` · 트로피 ${h.trophies}` : ''}`,
+    })),
+    rank: legacy.rank, bonus: legacy.legacy.bonus?.key === key ? RARITY_KO[legacy.legacy.bonus.rarity] ?? legacy.legacy.bonus.rarity : null,
+  } : null;
   return {
+    honors, hall,
+    ending: { worth: moneyLabel(e.worth), asset: e.asset, charity: moneyLabel(e.charity), philanthropist: e.philanthropist, career: moneyLabel(careerNet(g), true) },
     card: playerCardVM(g), seasons: t.seasons, apps: t.apps, goals: t.goals, assists: t.assists,
     avg: t.avgRating === null ? '-' : t.avgRating.toFixed(2), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,
     reputation: g.player.reputation, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation, g.player.honors)], history: historyVM(g),
+  };
+}
+
+// ── 챕터 리뷰 (22.1 · I.13, C.73a, 디자인 없음) ──
+
+export interface ChapterReviewVM {
+  id: ChapterId; name: string; theme: string; years: string; ages: string; seasons: number;
+  apps: number; goals: number; assists: number; avg: string; moms: number;
+  ovrFrom: number; ovrTo: number; repFrom: number; repTo: number; tierFrom: string; tierTo: string; tier: DesignTier;
+  highlights: { season: string; text: string }[];
+  badges: string[]; trophies: string[];
+  /** 챕터 끝 카드 선택권 이름 */
+  pick: string | null;
+  /** 다음 챕터 이름 (은퇴면 null) */
+  next: string | null;
+  retired: boolean;
+}
+
+export function chapterReviewVM(g: GameState): ChapterReviewVM | null {
+  const c = pendingChapterReview(g);
+  if (!c) return null;
+  const retired = g.phase === 'retired';
+  const nextId = CHAPTER_IDS[CHAPTER_IDS.indexOf(c.id) + 1];
+  return {
+    id: c.id, name: CHAPTER_KO[c.id], theme: CHAPTER_THEME_KO[c.id],
+    years: c.startSeason === c.endSeason ? `${seasonLabel(c.startSeason)}` : `${seasonLabel(c.startSeason)} ~ ${seasonLabel(c.endSeason)}`,
+    ages: c.startAge === c.endAge ? `${c.startAge}세` : `${c.startAge}~${c.endAge}세`, seasons: c.seasons,
+    apps: c.apps, goals: c.goals, assists: c.assists, avg: c.apps ? (c.ratingSum / c.apps).toFixed(2) : '-', moms: c.moms,
+    ovrFrom: c.startOvr, ovrTo: c.endOvr, repFrom: c.startRep, repTo: c.endRep, tierFrom: TIER_NAMES_KO[c.startTier], tierTo: TIER_NAMES_KO[c.endTier], tier: designTier(c.endTier),
+    highlights: c.highlights.map((h) => ({ season: seasonLabel(h.season), text: h.text })),
+    badges: c.badges.map((b) => BADGE_NAMES_KO[b as BadgeId] ?? b), trophies: c.trophies,
+    pick: c.pick, next: retired || !nextId ? null : CHAPTER_KO[nextId], retired,
   };
 }
 
@@ -1170,6 +1530,9 @@ export interface NewGameForm {
   roll: string;
   /** "다른 포지션에서 고르기" 펼침 */
   others: boolean;
+  /** 랜덤 인종·기본 사진 (C.73c): '' = 시드 랜덤 / 인종 사진 */
+  race?: string;
+  photo?: string;
 }
 
 export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
@@ -1177,7 +1540,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const reals = selectableRealPlayers().map((p) => {
     const gen = generatePlayer(p, seedForPreview);
     return {
-      id: p.id, name: p.nameKo, club: p.club, age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
+      id: p.id, name: p.nameKo, club: clubKo(p.club), age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
       ovr: positionOvr(gen.attributes, p.position), tier: designTier(reputationTier(p.reputation)),
     };
   }).sort((a, b) => b.ovr - a.ovr);
@@ -1215,16 +1578,32 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     difficulty: f.difficulty,
     difficulties: (Object.keys(D) as (keyof typeof D)[]).map((d) => ({
       id: d, label: D[d].label,
-      desc: d === 'normal' ? '기획서 기준 수치 그대로' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
+      desc: d === 'normal' ? 'XP·평점·부상 모두 기본값' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
-    seed: f.seed, reals, realId: f.realId, selected: sel ? { name: sel.name, ovr: sel.ovr } : null, legends: legendsOn, legendList,
+    seed: f.seed, reals, realId: f.realId, legends: legendsOn, legendList,
+    selected: sel ? { id: sel.id, name: sel.name, ovr: sel.ovr, club: sel.club, age: sel.age, position: sel.position, ...(legendSel ? { legend: true, peak: legendSel.peak, youthKo: legendSel.youthKo } : {}) } : null,
+    // 능력치 접힘 줄 (디자인 130): 개수 · 평균(1~20) · 약점 3개
+    attrSummary: prospect ? (() => {
+      const xs = [...FIELD_ATTRIBUTES].sort((a, b) => prospect.attributes[a] - prospect.attributes[b]);
+      const avg = xs.reduce((t, a) => t + attrDisplay(prospect.attributes[a]), 0) / xs.length;
+      return { count: xs.length, avg: avg.toFixed(1), weak: xs.slice(0, 3).map((a) => `${ATTRIBUTE_NAMES_KO[a]} ${attrDisplay(prospect.attributes[a])}`).join(' · '), top: [...xs].reverse().slice(0, 2).map((a) => `${ATTRIBUTE_NAMES_KO[a]} ${attrDisplay(prospect.attributes[a])}`).join(' · ') };
+    })() : null,
     teamHint: `리그 ${N.teamRankRange.min}~${N.teamRankRange.max}위 팀`,
+    // 랜덤 인종·국적·이름·기본 사진 (C.73c): 시드 랜덤, 인종·사진은 고를 수 있다
+    identity: f.mode === 'prospect' ? (() => {
+      const who = rollIdentity(f.roll, isRace(f.race) ? f.race : undefined);
+      return {
+        race: who.race, races: RACES.map((id) => ({ id, ko: RACE_KO[id] })), photo: isFacePhoto(f.photo) ? f.photo : who.photo,
+        photos: FACE_PHOTOS.map((id) => ({ id, ko: PHOTO_KO[id] })), nationalityKo: NATIONALITY_KO[who.nationality] ?? who.nationality, name: who.name,
+        picked: isRace(f.race),
+      };
+    })() : null,
     // 랜덤 유망주의 신체·장단점 (C.45, 숨기지 않음)
     extras: prospect ? (() => {
       const x = prospectExtras(f.roll, f.position as PlayablePosition);
       return {
-        body: `${x.body.height} cm · ${x.body.weight} kg · ${FOOT_KO[x.body.foot]} · 약발 ${x.body.weakFoot}${x.body.weakFoot >= 5 ? ' (양발)' : ''}`,
-        traits: x.tags.map((t) => ({ ko: `${TAGS[t.id].ko}${t.perm ? '' : ' (해제형)'}`, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const })),
+        height: x.body.height, weight: x.body.weight, foot: FOOT_KO[x.body.foot], weakFoot: x.body.weakFoot,
+        traits: x.tags.map((t) => ({ ko: TAGS[t.id].ko, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const, ...(!t.perm && TAGS[t.id].removeDesc ? { release: `${TAGS[t.id].removeDesc}이면 사라짐` } : {}) })),
       };
     })() : null,
   };
@@ -1356,4 +1735,61 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
 /** 홈 "다음 경기" 카드의 우리 전술 (저장한 전술) */
 export function myTacticVM(g: GameState): TacticVM {
   return { tactic: tacticStyle(g.tactics.tendency), formation: formationLabel(g.tactics) };
+}
+
+// ── 컵·챔스 (C.67b): 월드 탭 "컵·챔스" — 챔스 조 순위 · 녹아웃 대진 · FA컵 대진 ──
+
+export interface CupTieVM { date: string; h: string; a: string; hId: string; aId: string; score: string | null; note: string; w: string | null; me: boolean }
+export interface CupsWorldVM {
+  season: string;
+  ucl: null | {
+    my: string; winner: string | null;
+    groups: { name: string; mine: boolean; rows: { team: string; teamId: string; p: number; w: number; d: number; l: number; gd: string; pts: number; me: boolean; through: boolean }[] }[];
+    ko: { stage: string; ties: CupTieVM[] }[];
+  };
+  fa: null | { my: string; winner: string | null; rounds: { stage: string; date: string; ties: CupTieVM[] }[] };
+}
+
+export function cupsWorldVM(g: GameState): CupsWorldVM {
+  const cups = g.cups?.season === g.league.season ? g.cups : null;
+  const me = g.player.teamId;
+  const name = (id: string) => teamById(g.league, id).nameKo;
+  const tie = (t: CupTie, date: string, note = ''): CupTieVM => ({
+    date: dateLabel(date), h: name(t.h), a: name(t.a), hId: t.h, aId: t.a, score: t.hg === undefined ? null : `${t.hg}-${t.ag}`,
+    note: [note, t.p ? `승부차기 ${t.p[0]}-${t.p[1]}` : ''].filter(Boolean).join(' · '), w: t.w ? name(t.w) : null, me: t.h === me || t.a === me,
+  });
+  const u = cups?.ucl ?? null;
+  const fa = cups?.fa ?? null;
+  const groupsDone = !!u && u.gs.every((r) => r.every((t) => t.hg !== undefined));
+  return {
+    season: seasonLabel(g.league.season),
+    ucl: u ? {
+      my: uclReachLabel(g, u, me), winner: u.winner ? name(u.winner) : null,
+      groups: u.groups.map((_, k) => {
+        const rows = groupTable(g, u, k);
+        return {
+          name: `${GROUP_LETTERS[k]}조`, mine: rows.some((r) => r.id === me),
+          rows: rows.map((r, i) => ({ team: name(r.id), teamId: r.id, p: r.p, w: r.w, d: r.d, l: r.l, gd: `${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}`, pts: r.pts, me: r.id === me, through: groupsDone && i < 2 })),
+        };
+      }),
+      ko: u.ko.map((st, s) => ({
+        stage: KO_NAMES[s]!,
+        ties: s === 3 ? [tie(st.l1[0]!, st.l1[0]!.d!, '단판')] : st.l1.map((t1, i) => {
+          const t2 = st.l2[i]!;
+          // 표시는 1차전 홈 기준: 합계 · 1차전 · 2차전(2차전 홈 = 1차전 원정이라 뒤집어 적음) · 승부차기
+          const v = tie(t1, t1.d!);
+          const leg2 = t2.hg === undefined ? dateLabel(t2.d!) : `${t2.ag}-${t2.hg}`;
+          return {
+            ...v, score: t2.hg === undefined ? null : `${t1.hg! + t2.ag!}-${t1.ag! + t2.hg!}`,
+            note: [`1차전 ${t1.hg === undefined ? dateLabel(t1.d!) : `${t1.hg}-${t1.ag}`}`, `2차전 ${leg2}`, t2.p ? `승부차기 ${t2.p[1]}-${t2.p[0]}` : ''].filter(Boolean).join(' · '),
+            w: t2.w ? name(t2.w) : null,
+          };
+        }),
+      })),
+    } : null,
+    fa: fa ? {
+      my: reachLabel(fa, me), winner: fa.winner ? name(fa.winner) : null,
+      rounds: fa.rounds.map((r, s) => ({ stage: stageName(fa, s), date: dateLabel(fa.dates[s]!), ties: r.map((t) => tie(t, fa.dates[s]!)) })).reverse(),
+    } : null,
+  };
 }

@@ -120,7 +120,7 @@ describe('부상 진행', () => {
 describe('세이브 변환 2 → 3', () => {
   it('부상 필드를 채운다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig3', difficulty: 'normal' });
-    for (let r = 0; r < 38; r++) playRound(s, { engine: 'quick' });
+    while (s.phase === 'season') playRound(s, { engine: 'quick' });
     const old = JSON.parse(serialize(s));
     old.saveFormat = 2;
     delete old.player.injury;

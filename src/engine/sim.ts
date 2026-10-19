@@ -4,6 +4,7 @@ import { bodyMods } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../attributes';
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
+import { resolveEnv } from './env';
 import { lineOf } from './formation';
 import { caught, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
 import { computeRatings } from './rating';
@@ -124,6 +125,7 @@ export function createState(input: EngineInput): SimState {
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
     moments: initMoments(input.control), forcedDuel: null, cards: initCards(input.cards, input.seed),
+    env: resolveEnv(input.env),
   };
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
@@ -242,7 +244,8 @@ function updateLooseBall(s: SimState): void {
   const sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
   const [px, py] = [b.x, b.y];
   if (sp > 0) {
-    const nsp = Math.max(0, sp - ENGINE.ball.groundDecel * dt);
+    // 날씨 (C.74a): 비 = 더 굴러감, 눈 = 덜 굴러감
+    const nsp = Math.max(0, sp - ENGINE.ball.groundDecel * s.env.ballDecel * dt);
     b.vx *= nsp / sp;
     b.vy *= nsp / sp;
     b.x += b.vx * dt;
@@ -269,7 +272,8 @@ function updateLooseBall(s: SimState): void {
     if (!a.onPitch || dist(a.x, a.y, b.x, b.y) > (b.reserve ? B.reserveSteal : B.controlDist)) continue;
     if (b.reserve && (a.team === s.agents[b.reserve.idx]!.team || a.idx === b.reserve.from)) continue;
     const pressure = nearestOpponentDist(s, a) < 2 ? 0.1 : 0;
-    const p = B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure;
+    // 날씨 (C.74a): 젖은·언 공 컨트롤 × touch
+    const p = (B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure) * s.env.touch;
     const roll = rand(s.seed, s.tick, a.idx, Purpose.Control);
     if (roll < p && roll / p < bestRoll) {
       bestRoll = roll / p;
@@ -319,7 +323,7 @@ function startSecondHalf(s: SimState): void {
     a.beatenUntil = 0;
     a.duelNext = 0;
     a.laneUntil = 0;
-    a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover);
+    a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover * s.env.recover);
   }
   kickoffPositions(s, 1);
   setRestart(s, 'kickoff', 1, L / 2, W / 2, 0);
@@ -456,7 +460,7 @@ function stepTail(s: SimState): void {
   for (const a of s.agents) {
     if (!a.onPitch) continue;
     // 압박 전술의 스태미나 소모 × (0.95 + 0.15 × pressing) (E.19 ③)
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, 0.95 + 0.15 * s.teams[a.team].tactics.pressing);
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, (0.95 + 0.15 * s.teams[a.team].tactics.pressing) * s.env.drain, s.env.recover);
   }
 
   // 공

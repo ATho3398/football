@@ -677,7 +677,8 @@ function recordDecision(s: SimState, a: Agent, cands: Candidate[], chosen: Candi
 export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const d = dist(a.x, a.y, c.x, c.y);
   const air = d > PR.airPass;
-  const speed = air ? B.airSpeed : clamp(B.passSpeedBase + B.passSpeedPerM * d, B.passSpeedMin, B.passSpeedMax);
+  // 날씨 (C.74a): 땅볼 패스 속도 × passSpeed (비 빠름, 눈 느림)
+  const speed = air ? B.airSpeed : clamp(B.passSpeedBase + B.passSpeedPerM * d, B.passSpeedMin, B.passSpeedMax) * s.env.passSpeed;
   let dur = Math.max(0.2, d / speed);
   // 침투 패스는 달려 들어가는 선수가 닿는 시간에 맞춰 공간으로 보낸다
   const rc = s.agents[c.receiver];
@@ -689,7 +690,9 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   };
   // 약발 (C.45): 약발로 차야 하는 방향이면 실행 성공 확률 × 약발 배율 (판단의 P 는 그대로)
   const foot = weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y, true);
-  if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p) * foot) return fl;
+  // 날씨 (C.74a): 받기(퍼스트 터치) × touch, 공중 패스는 바람 × airPass (판단의 P 는 그대로)
+  const wx = s.env.touch * (air ? s.env.airPass : 1);
+  if (rand(s.seed, s.tick, a.idx, Purpose.Pass) < (c.pFlight ?? c.p) * foot * wx) return fl;
 
   // 실패한 침투 패스이고 GK 가 가장 빠르면 GK 가 목표점으로 나가 끊는다 (C.28)
   if (c.keeper !== undefined && s.agents[c.keeper]?.onPitch) {

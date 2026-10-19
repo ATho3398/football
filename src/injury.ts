@@ -56,14 +56,16 @@ function rollPermanent(p: PlayerState, grade: InjuryGrade, rng: Rng): AttributeD
 export function rollInjury(
   p: PlayerState, minutes: number, difficulty: Difficulty, remainingRounds: number,
   at: { season: number; round: number; date?: string; daysToEnd?: number }, rng: Rng,
+  chanceMul = 1, daysMul = 1,
 ): Injury | null {
-  if (rng() >= injuryChance(p, minutes, difficulty)) return null;
+  // 의료 스태프 (C.68a): 팀 닥터 = 확률 ×chanceMul, 물리치료사 = 경상·중상 기간 ×daysMul (시즌아웃은 그대로)
+  if (rng() >= injuryChance(p, minutes, difficulty) * chanceMul) return null;
   const G = BALANCE.injury.grades;
   const grade = rollGrade(rng);
   const weeks = grade === 'seasonEnding'
     ? Math.max(remainingRounds, G.seasonEnding.minWeeks)
     : randInt(rng, G[grade].weeks[0], G[grade].weeks[1]);
-  const days = grade === 'seasonEnding' ? Math.max(weeks * 7, at.daysToEnd ?? 0) : weeks * 7;
+  const days = grade === 'seasonEnding' ? Math.max(weeks * 7, at.daysToEnd ?? 0) : Math.max(1, Math.round(weeks * 7 * daysMul));
   const injury: Injury = {
     grade, weeksTotal: weeks, daysTotal: days, daysLeft: days, ...(at.date ? { date: at.date } : {}), season: at.season, round: at.round,
     permanent: rollPermanent(p, grade, rng),

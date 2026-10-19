@@ -1,0 +1,13 @@
+{
+ "errors": [],
+ "broken": [],
+ "pickCards": 3,
+ "deckReasons": [
+  "역할",
+  "역할",
+  "역할"
+ ],
+ "deckLen": 1192,
+ "resultLen": 2497,
+ "avgDir": "우리 공격 방향 →"
+}
