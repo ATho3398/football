@@ -100,5 +100,5 @@ const under = rows.filter((r) => r.stops.important < 3).length;
 const over = rows.filter((r) => r.stops.important > 8).length;
 const zero = rows.filter((r) => r.stops.important === 0).length;
 console.log(`중요한 순간만: 0회 ${zero} (${Math.round((100 * zero) / Math.max(1, rows.length))}%), 3회 미만 ${under}, 8회 초과 ${over} / ${rows.length}`);
-console.log(`봇 결정 순간 모양 (C.75a, 카드 없음): ${shapeLine(shape, rows.length)}`);
+console.log(`봇 결정 순간 모양 (C.75a, 선수 기본 덱): ${shapeLine(shape, rows.length)}`);
 process.exit(0);
