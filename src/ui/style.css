@@ -992,6 +992,17 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { width: 170px; height: 170px; left: 16px; bottom: 96px; }
 .po-hero--face .po-hero__name { display: block; max-width: 100%; }
 .po-hero--face .po-hero__right { display: inline-flex; align-items: center; gap: 2px; }
+/* C.74e: PC(1024px 이상, 가로 폰 빼고)도 사진이 있으면 미페 머리말. 높이·이름·OVR 자리는 디자인(폰) 그대로, 머리말이 넓어진 만큼만 고친다
+   - 누끼: 왼쪽 밖으로 잘리던 자리(-36 · -20)를 안쪽으로 → 디자인 비율 그대로 다 보이게
+   - 네모: 폭이 넉넉해 조금 크게(250 → 270 · 170 → 176), 아래 이름 줄(눈썹)과 겹치지 않게 위로, 왼쪽 위 제목(뒤로 · 홈/선수)을 비켜 80px 안쪽
+   - 눈썹(팀 · 포지션): compact 격자 규칙(align-self: center)이 넓은 이름 칸 가운데로 보내던 것을 왼쪽으로 */
+@media (min-width: 1024px) and (min-height: 521px), (min-width: 1024px) and (orientation: portrait) {
+  :where(html[data-skin="b"]) .po-hero--face .po-hero__face { left: 0; }
+  :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { left: 8px; }
+  :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { width: 270px; height: 270px; left: 80px; bottom: 128px; }
+  :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { width: 176px; height: 176px; left: 80px; bottom: 108px; }
+  :where(html[data-skin="b"]) .po-hero--face .po-hero__eyebrow { align-self: flex-start; }
+}
 .hm-date { margin-right: 4px; font-size: 12px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
 .po-modal__badge { display: inline-block; height: 20px; padding: 0 8px; border-radius: var(--b-r-xs, 6px); background: var(--brand-soft); color: var(--brand-ink); font-size: 11px; line-height: 20px; font-weight: 800; }
 

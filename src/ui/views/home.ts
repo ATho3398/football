@@ -6,14 +6,14 @@ import {
 } from '../components';
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
-import { isWide, skin } from '../skin';
+import { isLandPhone, isWide, skin } from '../skin';
 import type { DayVM, EnvVM, HomeVM, InjuryReturnVM, PositionOptionVM, RecordTrackVM, TrialVM } from '../viewModels';
 import type { WeatherKind } from '../../weather';
 import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
 
-/** 미페 머리말을 쓰는지 (C.57): B 테마 + 폰 폭 + 내 선수 사진(페이스온 > facepack)이 있을 때. A 테마·PC(디자인 120 = 일반 B 머리말)·사진 없음은 일반 머리말 */
+/** 미페 머리말을 쓰는지 (C.57 → C.74e PC 도): B 테마 + 내 선수 사진(페이스온 > facepack > 기본 사진)이 있을 때. A 테마·사진 없음·가로 폰(한 줄 머리말, C.74e 범위 밖)은 일반 머리말 */
 export function homeFace(vm: HomeVM): { src: string; cutout: boolean } | null {
-  if (skin() !== 'b' || isWide()) return null;
+  if (skin() !== 'b' || isLandPhone()) return null;
   return heroFaceOf(vm.card.face);
 }
 

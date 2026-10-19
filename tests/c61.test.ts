@@ -57,7 +57,7 @@ describe('PC 2열 화면 (디자인 120 · 121 · 153 · 123)', () => {
     expect(r).toContain('po-pcard');
     expect(r).toContain('내 상태');
     expect(pc.slice(0, pc.indexOf('pc2__r'))).toContain('next-card');
-    expect(pc).not.toContain('po-hero--face'); // PC 홈 = 일반 B 머리말
+    expect(pc).not.toContain('po-hero--face'); // 사진 없는 실제 선수(테스트엔 facepack 없음) = 일반 B 머리말 (C.74e: 사진 있으면 PC 도 미페)
   });
   it('선수 121 · 153: PC는 왼쪽 능력치 늘 + 오른쪽 탭 4개(능력치 탭이면 몸·태그)', () => {
     const g = son();

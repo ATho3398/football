@@ -1,0 +1,153 @@
+{
+ "W": 844,
+ "H": 390,
+ "errors": [],
+ "home": {
+  "실제선수": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  },
+  "커스텀기본사진": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  },
+  "사진없음": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  },
+  "A테마": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  }
+ },
+ "player": {
+  "실제선수": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  },
+  "커스텀기본사진": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  },
+  "사진없음": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  },
+  "A테마": {
+   "face": false,
+   "square": null,
+   "hero": [
+    780,
+    56
+   ],
+   "faceBox": null,
+   "namePx": null,
+   "nameOverflow": null,
+   "overlap": {
+    "nameNum": false,
+    "chipsNum": false,
+    "eyebrowNum": false,
+    "squareName": false
+   },
+   "hscroll": false
+  }
+ }
+}

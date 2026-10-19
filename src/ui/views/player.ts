@@ -4,7 +4,7 @@
 import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Icon, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
-import { isWide, skin } from '../skin';
+import { isLandPhone, isWide, skin } from '../skin';
 import type { MarketVM } from '../transferVM';
 import { attrGrid } from './attrGrid';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
@@ -28,9 +28,9 @@ function yellowPips(n: number, every: number): string {
   return Array.from({ length: every }, (_, i) => `<i class="pip${i < n ? ' on' : ''}"></i>`).join('');
 }
 
-/** 미페 머리말을 쓰는지 (C.58, 홈 C.57과 같은 규칙): B 테마 + 폰 폭 + 내 선수 사진이 있을 때 */
+/** 미페 머리말을 쓰는지 (C.58, 홈 C.57과 같은 규칙 · C.74e PC 도): B 테마 + 내 선수 사진이 있을 때, 가로 폰 빼고 */
 export function playerFace(vm: PlayerVM): { src: string; cutout: boolean } | null {
-  if (skin() !== 'b' || isWide()) return null;
+  if (skin() !== 'b' || isLandPhone()) return null;
   return heroFaceOf(vm.face);
 }
 
