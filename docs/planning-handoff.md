@@ -457,3 +457,4 @@
 - (21:22 KST) **C.74c 시작** `session_01U8D3JNvRRJ6v3rLkpwywgR` "43c단계_경기 환경 c 케미·상대 분석·패스 받는 빈도 (C.74c)", 브랜치 `claude/c74c-chemistry`(밸런스 53·세이브 43·엔진 22, C.74b와 병렬). 자동 확인 trig_01SNETdpFQ47s4xFKuWY1hBs(22:01)가 이어서 봄.
 - (21:31 KST, 사용자 "알람 기록 체크") NTFY_TOPIC이 R 환경(player ONE)에 들어옴 확인. 하지만 ntfy.sh 전송이 **네트워크 정책 403**(player ONE 환경은 허용 도메인 제한) → 사용자에게 Allowed domains에 ntfy.sh 추가 요청. C.74a 완료 ntfy는 미전송(추가 뒤 다시 보냄). 예약 확인: R 자동 확인 trig_01SNETdpFQ47s4xFKuWY1hBs(22:01, C.74b·c로 갱신), C.74a CI 확인 trig_01RyCa4WtJGwQebdAdu2KbwH(21:47, C.74a 세션), 카톡 예약 삭제됨.
 - (21:31 KST) 사용자가 player ONE 허용 도메인에 ntfy.sh 추가 → **ntfy 전송 성공(200)**, C.74a 완료 알림 보냄. R 알림 정상.
+- (22:00 KST) **C.74a CI 성공**(main 6da761f run 212, 34분, 사이트 반영). 43a 끝.
