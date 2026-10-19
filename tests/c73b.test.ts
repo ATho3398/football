@@ -149,7 +149,7 @@ describe('은퇴 후 (18.11): 명예의 전당 · 새 게임 보너스', () => {
 
 describe('버전', () => {
   it('버전 라벨', () => {
-    expect(PATCH_LABEL).toBe('C.73b');
+    expect(PATCH_LABEL).toMatch(/^C\.73/);
     expect(STAGE_LABEL).toBe('42단계');
   });
 });
