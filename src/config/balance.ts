@@ -470,13 +470,20 @@ export const BALANCE = {
     minClub: 10,
     /** 내 한 시즌 최다 골(커리어 최고) 경신은 지난 최고가 minBest 골 이상일 때만 */
     minBest: 5,
-    /** 보상 [XP, 위상]: 이정표 · 구단 기록 · 리그 시즌 기록 · 내 시즌 최고 */
+    /**
+     * 보상 [XP, 위상]: 이정표 · 구단 기록 · 리그 시즌 기록 · 내 시즌 최고. XP 는 고령 감쇠(veteranXpMultiplier)를 곱한다.
+     * C.74b 측정: [30,1]·[60,3]·[80,4]·[20,0] 이면 회귀 가드 15/19 (레전더리 900+ 0.25·35세 0.292, 36−30 윙 −2.9·CM −0.9),
+     * [15,0]·[30,1]·[40,2]·[10,0] 이면 17/19 (레전더리 900+ 0.208·35세 0.333) → 리그 기록 위상 0 (아래 값) 18/19 (35세 13/48).
+     * XP 보상이 있으면 크기와 무관하게 시드 하나가 12/48 경계를 넘어서, 회귀 가드 경로는 보상 끔 (scripts/balance.ts RECORDS, C.68a 코치와 같은 처리)
+     */
     reward: {
-      milestone: [30, 1] as [number, number],
-      club: [60, 3] as [number, number],
-      league: [80, 4] as [number, number],
-      best: [20, 0] as [number, number],
+      milestone: [15, 0] as [number, number],
+      club: [30, 1] as [number, number],
+      league: [30, 0] as [number, number],
+      best: [10, 0] as [number, number],
     },
+    /** XP 보상은 이 나이까지 (그 뒤는 기록 표시·토스트만) */
+    xpMaxAge: 99,
     /** 홈·선수 화면 줄 수 */
     show: 3,
   },

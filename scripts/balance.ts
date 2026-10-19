@@ -60,6 +60,16 @@ if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).o
  * 코치가 게이지 목표를 바꾸는 것만으로 시드 하나가 넘음, 배율 크기와 무관)
  */
 const COACH = (env.COACH ?? 'none') as 'none' | 'full';
+/**
+ * 기록 보상 (C.74b, pending 77-10): 회귀 가드는 보상 끔(RECORDS 기본 off — 기록 추적·달성 판정만 돌고 XP·위상 0), 보상 켬은 가드 뒤 [C.74b 기록 보상] 측정 줄.
+ * 레전더리 35세 900+ 기준선 12/48 = 0.25 경계를 XP 보상이 크기와 무관하게(5~20 모두) 시드 하나(legendary-26, 856 → 939)로 넘긴다 — C.68a 코치와 같은 처리
+ */
+const RECORD_REWARD = structuredClone(BALANCE.records.reward) as Record<string, [number, number]>;
+const setRecordReward = (on: boolean) => {
+  const r = BALANCE.records.reward as unknown as Record<string, [number, number]>;
+  for (const k of Object.keys(RECORD_REWARD)) r[k] = on ? [...RECORD_REWARD[k]!] : [0, 0];
+};
+setRecordReward(env.RECORDS === 'on');
 let coachMode: 'none' | 'full' = COACH;
 /** C.68b 경제 점검: 코치 풀 투자 + 평범한 지출(autoSpend). 코치 측정 줄과 따로 돌린다 (기부가 위상을 올려 900+ 비율 비교가 흐려지지 않게) */
 let spendMode = false;
@@ -423,6 +433,21 @@ if (COACH_MEASURE) {
     const [lo, hi] = e.name === '일반' ? [55, 90] : [65, 95];
     checks.push({ name: `[C.68b 경제] ${e.name} 자산 점수 평균`, value: Number(e.score.toFixed(1)), min: lo, max: hi, ok: e.score >= lo && e.score <= hi });
   }
+}
+
+// ── C.74b 기록 보상 측정 (가드 아님): 보상을 켠 레전더리·일반 최적 배분 ──
+if (COACH_MEASURE && env.RECORDS !== 'on') {
+  setRecordReward(true);
+  const runs = (tier: Tier) => Array.from({ length: SEEDS_PER_TIER }, (_, i) => simulateCareer(tier, i, 'best'));
+  const lb = runs('legendary');
+  const nb = runs('normal');
+  setRecordReward(false);
+  const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
+  const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
+  const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
+  const d36 = (rs: Run[]) => avg(rs.filter((r) => r.ovrByAge[36] !== undefined).map((r) => (r.ovrByAge[36] ?? 0) - (r.ovrByAge[30] ?? 0))).toFixed(1);
+  console.log(`\n[C.74b 기록 보상] 보상 켬(RECORDS=on, 시드 ${SEEDS_PER_TIER}, 최적 배분) — 가드 아님, 기준 비교용`);
+  console.log(`  30세 OVR 일반 ${at30(nb)}(74~78) · 레전더리 ${at30(lb)}(84~88) | 레전더리 30세까지 900+ ${wc30}/${SEEDS_PER_TIER} = ${(wc30 / SEEDS_PER_TIER).toFixed(3)}(0.1~0.2) · 35세 900+ ${wc35}/${SEEDS_PER_TIER} = ${(wc35 / SEEDS_PER_TIER).toFixed(3)}(0~0.25) | 36−30 OVR 일반 ${d36(nb)} · 레전더리 ${d36(lb)}`);
 }
 
 // ── 회귀 가드 결과 (부록 A.1) ──

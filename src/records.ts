@@ -4,7 +4,7 @@
 
 import { BALANCE } from './config/balance';
 import { MY_ID } from './engine/adapter';
-import { addXp } from './growth';
+import { addXp, veteranXpMultiplier } from './growth';
 import { teamById } from './league';
 import type { GameState } from './game';
 
@@ -132,7 +132,8 @@ export function recordsAfterMatch(g: GameState): RecordHit[] {
     const reached = recordTracks(g).filter((t) => t.cur >= t.target);
     if (!reached.length) break;
     for (const t of reached) {
-      const [xp, rep] = R().reward[t.kind];
+      const [base, rep] = R().reward[t.kind];
+      const xp = g.player.age <= R().xpMaxAge ? Math.round(base * veteranXpMultiplier(g.player.age)) : 0;
       st.done.push(t.id);
       addXp(g.player, xp);
       g.player.reputation = Math.min(BALANCE.reputation.max, g.player.reputation + rep);
