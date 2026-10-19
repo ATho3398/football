@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 50;
+export const BALANCE_VERSION = 51;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -441,6 +441,44 @@ export const BALANCE = {
      * 앞 경기 afterMatch 일 뒤부터 다음 경기 beforeMatch 일 전까지. 비시즌은 개막 campDays 일 전 소집으로 끝난다
      */
     vacation: { fatigue: 6, afterMatch: 2, beforeMatch: 4, campDays: 7 },
+  },
+
+  // ── 원정 전날 이동일 (C.74b, pending 76): 원정 경기(컵 결승 = 중립 경기장 포함) 전날은 이동일 — 영상 분석·회복만 (기본 = 영상 분석) ──
+  travelDay: {
+    allowed: ['video', 'recovery'] as const,
+    /** 컵 결승(중립 경기장)도 이동일로 본다 */
+    neutralFinal: true,
+  },
+
+  // ── 부상 복귀 선택 (C.74b, pending 77-5): 회복 막바지에 조기 복귀(며칠 빨리 · 재부상↑) vs 완전 회복 ──
+  injuryReturn: {
+    /** 이 일 수 이상 부상(경상 2주~·중상)만. 시즌아웃은 선택 없음 */
+    minDays: 14,
+    /** 남은 날이 clamp(round(전체 × offerShare), offerMin, offerMax) 이하가 되면 묻는다. 조기 복귀 = 그 남은 날을 건너뛰고 바로 복귀 */
+    offerShare: 0.15, offerMin: 4, offerMax: 10,
+    /** 조기 복귀 뒤 reinjuryDays 일 동안 부상 확률 × reinjuryMul (경기·고강도 훈련) */
+    reinjuryMul: 1.6, reinjuryDays: 28,
+  },
+
+  // ── 기록 추적·도전 과제 (C.74b, pending 77-10): 남은 기록 표시, 달성 보상은 작게 (XP·위상 소량, 카드 선택권 없음) ──
+  records: {
+    /** 리그 통산 골·도움·출전 이정표 */
+    goals: [10, 25, 50, 100, 150, 200, 250, 300, 400, 500] as number[],
+    assists: [10, 25, 50, 100, 150, 200] as number[],
+    apps: [50, 100, 200, 300, 400, 500, 600] as number[],
+    /** 구단 통산 최다 골(2018~ 이 세계 기록)은 기록이 minClub 골 이상일 때만, 리그 한 시즌 최다 골은 지난 시즌 기록이 있을 때만 */
+    minClub: 10,
+    /** 내 한 시즌 최다 골(커리어 최고) 경신은 지난 최고가 minBest 골 이상일 때만 */
+    minBest: 5,
+    /** 보상 [XP, 위상]: 이정표 · 구단 기록 · 리그 시즌 기록 · 내 시즌 최고 */
+    reward: {
+      milestone: [30, 1] as [number, number],
+      club: [60, 3] as [number, number],
+      league: [80, 4] as [number, number],
+      best: [20, 0] as [number, number],
+    },
+    /** 홈·선수 화면 줄 수 */
+    show: 3,
   },
 
   // ── 더비 (C.44 pending 52 5번): 5-2 라이벌 이벤트·큰 경기 배율 훅. 지금은 모두 1 (경기·성장 영향 없음) ──

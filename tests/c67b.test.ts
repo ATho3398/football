@@ -182,7 +182,7 @@ describe('화면 (디자인 없음)', () => {
 describe('세이브 37', () => {
   it('왕복 그대로 · 36 세이브(챔스 없음)는 이번 시즌 챔스 없이 진행', () => {
     const g = real('c67b-save');
-    expect(SAVE_FORMAT_VERSION).toBe(41);
+    expect(SAVE_FORMAT_VERSION).toBe(42);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 36;

@@ -19,7 +19,7 @@ import { fatigueFromDistance, MY_ID, playMyMatch, type EngineMatchInput, type My
 import { SCENE_LABEL, type ControlMode, type DecisionRecord, type MomentControl, type StopLevel } from './engine/moments';
 import { formBonus, pushRating } from './form';
 import { addRecord, emptyRecord, recordFromStats, type MatchLogEntry, type MatchRecord } from './matchRecord';
-import { healDays, rollInjury } from './injury';
+import { chooseReturn, healDays, openReturnChoice, rollInjury } from './injury';
 import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar } from './calendar';
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
@@ -59,6 +59,7 @@ import type { InboxState } from './inbox';
 import type { RivalState } from './rival';
 import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeRecoveryMul, type LifeState } from './life';
 import { afterMatch, cardInput, grantLevelPicks, initCollection, type CardCollection } from './cardCollection';
+import { recordsAfterMatch, type RecordsState } from './records';
 import { goalsAfterRound, goalsSeasonEnd, goalsSeasonStart, grantAchievementPick, type GoalResult, type GoalsState } from './seasonGoals';
 import { cardById } from './config/cards';
 import { initialGuide, refreshUnlocks, type GuideState } from './unlocks';
@@ -68,7 +69,7 @@ import {
   type DayPlan, type TrainingDayResult, type TrainingKind, type TrainingState,
 } from './training';
 import { trainProficiency } from './proficiency';
-import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
+import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupMatches, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
 import type { NameOverrides } from './names';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
@@ -78,7 +79,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 41;
+export const SAVE_FORMAT_VERSION = 42;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -270,6 +271,8 @@ export interface GameState {
   cups?: CupsState;
   /** 개인 재정·스태프 (C.68a). 옛 세이브는 없음 → 처음 쓸 때 만든다 */
   money?: MoneyState;
+  /** 기록 추적·도전 과제 (C.74b): 보상한 기록 id · 아직 안 띄운 달성. 없으면 첫 경기 뒤 만든다 */
+  records?: RecordsState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -611,6 +614,7 @@ export function newGame(opts: NewGameOptions): GameState {
     cards: initCollection(player.position),
     training: initTraining(addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays)),
     archive: [],
+    records: { done: [], fresh: [] },
   };
   // 구단 재정 (C.46): 첫 시즌 예산 (지난 시즌 순위 대신 레이팅 순)
   ensureFinance(state, season);
@@ -973,7 +977,37 @@ export function dayPlan(state: GameState, date: IsoDate = state.calendar.date): 
   if (injuredOn(state, date)) return o === 'rest' ? 'rest' : 'rehab';
   if (myMatchDates(state).includes(date)) return 'match';
   if (isRestLocked(state, date)) return 'rest';
+  // 원정 전날 이동일 (C.74b): 영상 분석·회복만 (다른 훈련으로 바꿔 둔 날이면 영상 분석)
+  if (isTravelDay(state, date)) return o && isTravelKind(o) ? o : 'video';
   return o ?? plannedDefault(state, date);
+}
+
+/** 이동일에 고를 수 있는 훈련 (C.74b) */
+export const isTravelKind = (k: TrainingKind): boolean => (BALANCE.travelDay.allowed as readonly string[]).includes(k);
+
+/** 그 날짜 내 경기가 원정(컵 결승 = 중립 경기장 포함)인지. 내 경기가 없으면 null (C.74b) */
+export function awayOn(state: GameState, date: IsoDate): boolean | null {
+  const cup = myCupMatches(state).find((m) => m.date === date);
+  if (cup) return !cup.home || (cup.final && BALANCE.travelDay.neutralFinal);
+  const cal = calendarOf(state);
+  const me = state.player.teamId;
+  for (let r = 0; r < state.league.schedule.length; r++) {
+    const round = state.league.schedule[r]!;
+    const i = round.findIndex((f) => f.home === me || f.away === me);
+    if (i >= 0 && cal.fixtureDates[r]![i] === date) return round[i]!.away === me;
+  }
+  return null;
+}
+
+/**
+ * 원정 전날 이동일 (C.74b, pending 76): 다음 날 원정 경기면 그날은 영상 분석·회복만 (경기 다음 날 휴식 고정처럼).
+ * 경기 날·휴가·부상 중(재활)·경기 다음 날(휴식 고정)은 그쪽이 먼저
+ */
+export function isTravelDay(state: GameState, date: IsoDate): boolean {
+  if (state.phase !== 'season' || isVacationDay(state, date) || injuredOn(state, date)) return false;
+  const { prev, next } = matchGaps(state, date);
+  if (!next || daysBetween(date, next) !== 1 || isFixedRest(prev ? daysBetween(prev, date) : null)) return false;
+  return awayOn(state, next) === true;
 }
 
 /** 경기 다음 날 휴식 고정 (C.44 pending 52 1번): 부상 중이 아니면 바꿀 수 없다 */
@@ -988,6 +1022,7 @@ export function setDayTraining(state: GameState, date: IsoDate, kind: TrainingKi
   const cur = dayPlan(state, date);
   if (cur === 'vacation' || cur === 'match' || daysBetween(state.calendar.date, date) < 0) return false;
   if (isRestLocked(state, date)) return false;
+  if (isTravelDay(state, date) && !isTravelKind(kind)) return false;
   if ((cur === 'rehab' || cur === 'rest') && injuredOn(state, date)) {
     if (kind !== 'rest' && kind !== 'recovery') return false;
     if (kind === 'rest') state.training.overrides[date] = 'rest';
@@ -1049,6 +1084,20 @@ function myRole(state: GameState): string | undefined {
   return previewLineup(state.tactics, roster, { name: state.player.name, attrs: state.player.attributes })[state.tactics.mySlot]?.role;
 }
 
+/** 부상 확률 배율: 팀 닥터 (C.68a) × 조기 복귀 재부상 위험 (C.74b, 위험 창 안에서만) */
+function injuryRiskMul(state: GameState): number {
+  const r = state.player.reinjury;
+  return injuryChanceMul(state) * (r && daysBetween(state.calendar.date, r.until) > 0 ? r.mul : 1);
+}
+
+/**
+ * 부상 복귀 선택 (C.74b, pending 77-5): 회복 막바지(injury.ret = 'ask')에 조기 복귀(오늘 바로, reinjuryDays 일 동안 부상 확률 × reinjuryMul)
+ * 또는 완전 회복. 자동 진행 중에는 추천안(완전 회복)
+ */
+export function chooseInjuryReturn(state: GameState, choice: 'early' | 'full'): boolean {
+  return chooseReturn(state.player, choice, addDays(state.calendar.date, BALANCE.injuryReturn.reinjuryDays));
+}
+
 /** 하루 끝 (7번, C.41): 그날 계획대로 훈련(XP·피로·효과) 또는 휴가·재활. 부상은 다친 날 다음 날부터 하루씩 */
 function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   const p = state.player;
@@ -1060,6 +1109,9 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
   const lm = lifeRecoveryMul(state) * staffRecoveryMul(state);
   const res: TrainingDayResult = { date, kind, xp: 0, fatigue: Math.min(p.fatigue, planFatigue(kind) > 0 ? planFatigue(kind) * recoveryMul(p) * lm : planFatigue(kind)) };
   conditionStep(p, kind, date, lm);
+  // 부상 복귀 선택 (C.74b): 회복 막바지에 닿으면 묻는다. 지난 재부상 위험 창은 지운다
+  openReturnChoice(p);
+  if (p.reinjury && daysBetween(date, p.reinjury.until) <= 1) delete p.reinjury;
   // 휴가는 연속 휴식에 세지 않는다. 회복 훈련은 연속을 끊고 폼 감점을 지운다
   if (kind === 'rest') {
     t.restStreak++;
@@ -1109,7 +1161,7 @@ function dayStep(state: GameState, date: IsoDate): TrainingDayResult {
     case 'intense': {
       const I = T.intenseInjury;
       const rng = rngFor(state.worldSeed, 'train-injury', date);
-      if (!p.injury && rng() < I.chance * BALANCE.difficulty[state.difficulty].injury * injuryChanceMul(state)) {
+      if (!p.injury && rng() < I.chance * BALANCE.difficulty[state.difficulty].injury * injuryRiskMul(state)) {
         const days = Math.max(1, Math.round(randInt(rng, I.days[0], I.days[1]) * injuryDaysMul(state)));
         p.injury = { grade: 'minor', weeksTotal: Math.ceil(days / 7), daysTotal: days, daysLeft: days, date, season: state.league.season, round: state.league.round + 1, permanent: {} };
         p.season.injuries++;
@@ -1282,7 +1334,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
   let preInjury: Injury | null = null;
   if (plan.minutes) {
-    preInjury = rollInjury(p, minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, key), injuryChanceMul(state), injuryDaysMul(state));
+    preInjury = rollInjury(p, minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, key), injuryRiskMul(state), injuryDaysMul(state));
     if (preInjury) {
       const k = rngFor(seed, 'injury-minute', league.season, key)();
       plan.minutes.end = Math.min(89, Math.max(plan.minutes.start + 1, Math.round(plan.minutes.start + k * minutes)));
@@ -1439,7 +1491,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   } else if (result.minutes > 0) {
     const rolled = useEngine
       ? preInjury
-      : rollInjury(player, result.minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, roundIdx), injuryChanceMul(state), injuryDaysMul(state));
+      : rollInjury(player, result.minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, roundIdx), injuryRiskMul(state), injuryDaysMul(state));
     if (rolled) {
       s.injuries++;
       player.injury = rolled;
@@ -1523,6 +1575,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   worldAfterRound(state);
   // 시즌 목표 중간 점검 (C.65)
   goalsAfterRound(state);
+  // 기록 추적 (C.74b): 깬 기록 보상 (XP·위상 소량)
+  recordsAfterMatch(state);
 
   // 리그가 끝나도 내 팀 컵 경기(결승)가 남았으면 시즌 끝을 미룬다 (C.67)
   if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
@@ -1582,7 +1636,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   }
   let injury: Injury | undefined;
   if (!injured && result.minutes > 0) {
-    const rolled = rm ? rm.preInjury : rollInjury(player, result.minutes, state.difficulty, league.schedule.length - league.round, matchAt(state), rngFor(seed, 'injury', league.season, key), injuryChanceMul(state), injuryDaysMul(state));
+    const rolled = rm ? rm.preInjury : rollInjury(player, result.minutes, state.difficulty, league.schedule.length - league.round, matchAt(state), rngFor(seed, 'injury', league.season, key), injuryRiskMul(state), injuryDaysMul(state));
     if (rolled) {
       player.season.injuries++;
       player.injury = rolled;

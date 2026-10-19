@@ -7,7 +7,7 @@ import {
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
 import { isWide, skin } from '../skin';
-import type { DayVM, HomeVM, PositionOptionVM, TrialVM } from '../viewModels';
+import type { DayVM, HomeVM, InjuryReturnVM, PositionOptionVM, RecordTrackVM, TrialVM } from '../viewModels';
 import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
 
 /** 미페 머리말을 쓰는지 (C.57): B 테마 + 폰 폭 + 내 선수 사진(페이스온 > facepack)이 있을 때. A 테마·PC(디자인 120 = 일반 B 머리말)·사진 없음은 일반 머리말 */
@@ -198,4 +198,28 @@ export function scheduleView(vm: HomeVM, training: string, calendar = true): str
     ? panel(`<p class="muted">비시즌 휴가 중이에요. 훈련 선택이 없고 체력이 회복돼요.${vm.camp ? ` ${esc(vm.camp)} 소집부터 훈련 계획이 다시 시작돼요.` : ''}</p>`)
     : '';
   return `${hero}<div class="body">${off}${training}${vm.day && calendar ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
+}
+
+/** 기록 추적 (C.74b, pending 77-10, 디자인 없음 · 시즌 목표 줄 모양): 남은 기록 1~3줄 */
+export function recordsSection(rows: RecordTrackVM[]): string {
+  if (!rows.length) return '';
+  const list = rows.map((r) => `<div class="mg-row rc-row">
+      <div class="mg-row__head"><span class="mg-row__name">${esc(r.label)}${r.holder ? ` <small class="muted">· ${esc(r.holder)}</small>` : ''}</span><b class="po-num">${esc(r.left)}</b></div>
+      <div class="mg-bar" aria-hidden="true"><i class="t" style="width:${Math.round(r.ratio * 100)}%"></i></div>
+      <div class="gl-meta small"><span class="muted po-num">${esc(r.value)}</span></div>
+    </div>`).join('');
+  return `${SectionTitle({ title: '기록 도전', action: '깨면 XP·위상 소량' })}${panel(`<div class="mg-rows">${list}</div>`, 'mg-card rc-card')}`;
+}
+
+/** 부상 복귀 선택 시트 (C.74b, pending 77-5, 디자인 없음): 조기 복귀 vs 완전 회복(추천) */
+export function injuryReturnSheet(vm: InjuryReturnVM): string {
+  return BottomSheet({
+    eyebrow: `부상 (${vm.grade}) · ${vm.daysLeft}일 남음`, title: '복귀 시점 고르기',
+    subtitle: '회복 막바지예요. 조금 일찍 돌아갈지, 끝까지 회복할지 골라요.',
+    onClose: { act: 'sheet-close' },
+    children: `<div class="po-options">${
+      OptionRow({ act: 'inj-return', data: { v: 'full' }, icon: 'recover', title: '완전 회복', tag: '추천', desc: `복귀 예정 ${vm.back} · 재부상 위험 보통` })}${
+      OptionRow({ act: 'inj-return', data: { v: 'early' }, icon: 'risk', title: '조기 복귀', desc: `오늘부터 뛸 수 있어요 (${vm.daysLeft}일 빨리) · ${vm.riskDays}일 동안 부상 확률 ×${vm.risk}` })}</div>
+      <p class="small muted">자동 진행 중에는 완전 회복으로 정해요.</p>`,
+  });
 }
