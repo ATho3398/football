@@ -466,3 +466,4 @@
 - (00:40 KST 10-20, 사용자) pending 127 새 게임 랜덤·커스텀 통합 → fix **C.74d** `session_01JxvVPyQ11rXgiVVKZ8hKRc` 시작(C.74c와 병렬, 버전 54·44 예약).
 - (00:52 KST, 사용자) pending 128: 선수 사진은 B·세로 폰만(사용자 확인 대기), 결정 순간 3개 → 엔진 블록 첫 패치 E-0.
 - (00:57 KST) **C.74d 완료**(main becbbc6, 19분, 테스트 713) → pending 127 결과, UI_3(패널 1·작은 3), ntfy, draft_.
+- (00:59 KST) **UI_3 11차 보고** 사용자에게 올림(큰 6·단계 3 도달: C.74b·C.74d + C.73b). docs/ui-requests/11.md, 7~11 통합 프롬프트 7-11/통합_프롬프트.txt(새 224~230), claude/ui-3 f677f59. 쌓기 리셋.
