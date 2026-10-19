@@ -44,7 +44,8 @@ import {
 import { INJURY_NAMES_KO } from '../injury';
 import { shownTracks } from '../records';
 import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
-import { futureDebut, LEGEND_BY_ID, legendClub, legendPeak, legendRosterPlayer, packFutureStars, selectableLegends, upcomingFutureStars } from '../legends';
+import { FUTURE_STARS, futureDebut, futureEntry, LEGEND_BY_ID, legendClub, legendPeak, legendRosterPlayer, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../legends';
+import { OUTSIDE_BY_ID } from '../../data/outsideClubs';
 import { findRosterPlayer, naturalOvr } from '../roster';
 import { MY_ID } from '../engine/adapter';
 import { npcOvr } from '../npc';
@@ -1234,8 +1235,9 @@ export interface WorldVM {
   starsYoung: StarVM[];
   /** 레전드 팩 선수 (C.47): 리그 팀에 있는 레전드, OVR 순 */
   legends: { id: string; face: FaceRef; name: string; position: string; age: number; club: string; ovr: number; peak: number; kind: string }[];
-  /** 미래 스타 등장 예정 (C.75x): 아직 데뷔 전, 데뷔 시즌 순 */
+  /** 미래 스타 등장 예정 (C.75y): 구현 리그 첫 시즌 순 · 리그가 없어 기다리는 수 */
   upcoming: { name: string; debut: string }[];
+  waiting: number;
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
   scorers: ScorerVM[];
@@ -1308,10 +1310,8 @@ export function worldVM(g: GameState): WorldVM {
       club: teamById(g.league, teamId).nameKo, ovr: naturalOvr(p), peak: p.peakOvr,
       kind: (({ bvb: '도르트문트', future: '미래 스타' }) as Record<string, string>)[LEGEND_BY_ID.get(p.id)?.group ?? ''] ?? '레전드',
     }))).sort((a, b) => b.ovr - a.ovr || b.peak - a.peak),
-    upcoming: g.legends && (g.legendPack ?? 1) >= 2 ? upcomingFutureStars(g.league.season, g.legendPack).map((l) => {
-      const d = futureDebut(l);
-      return { name: l.nameKo, debut: `${d}-${String((d + 1) % 100).padStart(2, '0')}` };
-    }) : [],
+    upcoming: g.futureStars ? upcomingFutureStars(g.league.season).map((l) => ({ name: l.nameKo, debut: seasonLabel(futureDebut(l)!) })) : [],
+    waiting: g.futureStars ? waitingFutureStars().length : 0,
     scorers: boardVM(g, 'goals', undefined, faces),
     boards: { goals: boardVM(g, 'goals', undefined, faces), assists: boardVM(g, 'assists', undefined, faces), rating: boardVM(g, 'rating', undefined, faces) },
     ratingMin: ratingMinApps(g),
@@ -1557,6 +1557,8 @@ export interface NewGameForm {
   mode: 'prospect' | 'real' | 'custom'; name: string; position: string; seed: string; difficulty: string; realId: string;
   /** 레전드 팩 (C.47): 'on' | 'off' */
   legends?: string;
+  /** 미래 스타 팩 (C.75y): 'on' | 'off' */
+  futureStars?: string;
   /** 가상 유망주 시드 (입력 시드 또는 무작위, C.37) */
   roll: string;
   /** "다른 포지션에서 고르기" 펼침 */
@@ -1565,6 +1567,9 @@ export interface NewGameForm {
   race?: string;
   photo?: string;
 }
+
+/** 아직 리그 밖 표에 없는 미래 스타 첫 팀 이름 (C.75y) */
+const FUTURE_TEAM_KO: Readonly<Record<string, string>> = { 'x:ren': '스타드 렌', 'x:bir': '버밍엄 시티' };
 
 export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const seedForPreview = f.seed.trim() || 'preview';
@@ -1582,13 +1587,20 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     const club = teams.find((t) => t.id === legendClub(l, seedForPreview, teams))?.id ?? '';
     return { id: l.id, name: l.nameKo, club: initialTeams().find((t) => t.id === club)?.nameKo ?? club, age: p.age, position: l.position, ovr: naturalOvr(p), peak: legendPeak(l).ovr, youthKo: l.youthKo, ...(l.group === 'bvb' ? { bvb: true } : {}) };
   }).sort((a, b) => b.peak - a.peak || a.name.localeCompare(b.name)) : [];
-  // 미래 스타 (C.75x): 데뷔 시즌 순, 들어갈 팀은 이 시드의 예상
-  const futureList = legendsOn && f.mode === 'real' ? packFutureStars().map((l) => {
-    const p = legendRosterPlayer(l, seedForPreview, futureDebut(l));
-    const club = legendClub(l, seedForPreview, teams);
+  // 미래 스타 (C.75y): 구현 리그 첫 시즌 순, 그 리그가 없으면 "리그 추가 후 등장"
+  const futureOn = f.futureStars === 'on';
+  const futureList = futureOn && f.mode === 'real' ? FUTURE_STARS.map((l) => {
     const d = futureDebut(l);
-    return { id: l.id, name: l.nameKo, position: l.position, debut: `${d}-${String((d + 1) % 100).padStart(2, '0')}`, age: p.age, club: initialTeams().find((t) => t.id === club)?.nameKo ?? club, realClub: l.youthKo, start: naturalOvr(p), peak: legendPeak(l).ovr };
-  }).sort((a, b) => a.debut.localeCompare(b.debut) || b.peak - a.peak) : [];
+    const e = futureEntry(l);
+    const p = legendRosterPlayer(l, seedForPreview, d ?? BALANCE.newGame.startYear);
+    const club = e ? initialTeams().find((t) => t.id === e.team)?.nameKo ?? e.team : '';
+    const first = [...(l.entries ?? [])].sort((a, b) => a.season - b.season)[0];
+    return {
+      id: l.id, name: l.nameKo, position: l.position, debut: d !== undefined ? seasonLabel(d) : '', age: p.age, club,
+      realClub: d !== undefined ? '' : first ? `${seasonLabel(first.season)} ${OUTSIDE_BY_ID[first.team]?.nameKo ?? FUTURE_TEAM_KO[first.team] ?? first.team}` : '',
+      start: naturalOvr(p), peak: legendPeak(l).ovr, waiting: d === undefined,
+    };
+  }).sort((a, b) => Number(a.waiting) - Number(b.waiting) || a.debut.localeCompare(b.debut) || b.peak - a.peak) : [];
   const legendSel = legendList.find((r) => r.id === f.realId);
   const sel = reals.find((r) => r.id === f.realId) ?? legendSel;
   const D = BALANCE.difficulty;
@@ -1620,7 +1632,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       id: d, label: D[d].label,
       desc: d === 'normal' ? 'XP·평점·부상 모두 기본값' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
-    seed: f.seed, reals, realId: f.realId, legends: legendsOn, legendList, futureList,
+    seed: f.seed, reals, realId: f.realId, legends: legendsOn, futureStars: futureOn, legendList, futureList,
     selected: sel ? { id: sel.id, name: sel.name, ovr: sel.ovr, club: sel.club, age: sel.age, position: sel.position, ...(legendSel ? { legend: true, peak: legendSel.peak, youthKo: legendSel.youthKo } : {}) } : null,
     // 능력치 접힘 줄 (디자인 130): 개수 · 평균(1~20) · 약점 3개
     attrSummary: prospect ? (() => {

@@ -1,11 +1,11 @@
-// C.75x 확인 캡처: 새 게임 레전드 팩(도르트문트 레전드 · 미래 스타 탭) · 월드 리그 스타 레전드 목록 · 미래 스타 등장 예정.
+// C.75x·C.75y 확인 캡처: 새 게임 레전드 팩(도르트문트 레전드) · 미래 스타 팩(따로) 탭 · 월드 리그 스타 레전드 목록 · 미래 스타 등장 예정.
 // 실행: npm run build && npx vite preview --port 4173 & 그다음 W=390 H=844 PREFIX=M_ node scripts/c75x-capture.mjs [playwright 모듈 경로] [저장 폴더]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.argv[2] ?? 'playwright');
-const OUT = process.argv[3] ?? new URL('../docs/design/c75x-check/', import.meta.url).pathname;
+const OUT = process.argv[3] ?? new URL('../docs/design/c75y-check/', import.meta.url).pathname;
 const W = Number(process.env.W ?? 1280);
 const H = Number(process.env.H ?? 800);
 const P = process.env.PREFIX ?? '';
@@ -81,11 +81,13 @@ const report = { W, H, errors };
 await fresh();
 await act('form', '[data-k="mode"][data-v="real"]');
 await act('form', '[data-k="legends"][data-v="on"]');
+await act('form', '[data-k="futureStars"][data-v="on"]');
 await act('ng-real', '[data-k="realTab"][data-v="legend"]');
 await page.locator('#f-rq').fill('도르트문트');
 await page.locator('#f-rq').dispatchEvent('change');
 await page.waitForTimeout(400);
 await shot('1_legend_bvb');
+if (process.env.ONLY_FUTURE) { await page.evaluate(() => window.scrollTo(0, 0)); }
 await act('ng-real', '[data-k="realTab"][data-v="future"]');
 await shot('2_future');
 await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

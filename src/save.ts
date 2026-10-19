@@ -331,6 +331,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   42: () => {},
   // 43 → 44 (C.75x): 레전드 팩 판(legendPack). 옛 세이브는 없음 = 1판(C.47 117명) 그대로, 도르트문트 레전드·미래 스타는 새 게임부터
   43: () => {},
+  // 44 → 45 (C.75y): 미래 스타를 레전드 팩에서 떼어 "미래 스타 팩"(futureStars)으로. 2판 세이브(C.75x)는 미래 스타 끔으로 옮김(도르트문트 레전드는 그대로)
+  44: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;
@@ -352,7 +354,7 @@ export function migrate(raw: any): GameState {
   const state = raw as GameState;
   // 이름 풀 판 (C.45 8번): namePool 이 없는 옛 세이브는 옛 풀로 다시 만들어 생성 선수 이름을 지킨다
   setNamePoolVersion(state.namePool ?? 1);
-  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers, { on: !!state.legends, except: state.player.legendId, pack: state.legendPack });
+  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers, { on: !!state.legends, except: state.player.legendId, pack: state.legendPack, future: !!state.futureStars });
   // 내 등번호 자리 비우기 (C.45, 표시용): 경기 때와 같은 로스터가 되게
   myShirt(state);
   if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);

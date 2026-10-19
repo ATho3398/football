@@ -34,7 +34,7 @@ describe('레전드 팩 (C.47, pending 63)', () => {
     expect(off.legends).toBeUndefined();
     const on = newGame({ mode: 'prospect', position: 'ST', seed: 'c47-pack', difficulty: 'normal', legends: true });
     const lg = Object.values(on.rosters).flatMap((r) => r.players.filter((p) => p.legend));
-    expect(lg.length).toBe(LEGENDS.length + 2); // C.75x: 117 + 도르트문트 21 + 데뷔가 지난 미래 스타 2 (홀란·카마빙가)
+    expect(lg.length).toBe(LEGENDS.length); // C.75x: 117 + 도르트문트 21 (미래 스타는 따로, C.75y)
     for (const p of lg) {
       expect(p.age).toBeGreaterThanOrEqual(15);
       expect(p.age).toBeLessThanOrEqual(22);
@@ -190,8 +190,8 @@ describe('세이브 26 → 27 (C.47)', () => {
     raw.saveFormat = 26;
     delete raw.legends;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(44);
-    expect(back.saveFormat).toBe(44);
+    expect(SAVE_FORMAT_VERSION).toBe(45);
+    expect(back.saveFormat).toBe(45);
     expect(back.legends).toBe(false);
     expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
   });

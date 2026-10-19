@@ -7,6 +7,7 @@ import { coachOf } from '../club';
 import { GK_ATTRIBUTES, type GkAttribute } from '../attributes';
 import { bmiOf, FOOT_KO } from '../body';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
+import { futureDebut, LEGEND_BY_ID } from '../legends';
 import { derbyOf } from '../derby';
 import { DETAILS, LEVEL_NAMES_KO, tendencyLevels, TENDENCY_NAMES_KO, type Detail } from '../engine/tactics';
 import { TEAM_TACTICS } from '../engine/teamData';
@@ -161,6 +162,8 @@ export interface PersonDetailVM {
   youthId: string | null; youthLeague: boolean;
   posOvrs: { pos: string; ovr: number; main: boolean }[];
   history: { season: string; apps: number; goals: number; assists: number; avg: string }[];
+  /** 미래 스타 (C.75y): 게임 리그에 들어오기 전 실제 경력 (위키 리그 출전·골) */
+  priorCareer: { years: string; team: string; apps: number; goals: number }[];
 }
 
 const GK_NAMES_KO: Record<GkAttribute, string> = { shotStopping: '선방', handling: '핸들링', commandOfArea: '공중볼 장악', distribution: '배급' };
@@ -222,8 +225,17 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
       : { height: '—', weight: '—', foot: '—', weakFoot: '—' },
     bodyN: b ? { height: b.height, weight: b.weight, bmi: bmiOf(b).toFixed(1), weakFoot: b.weakFoot } : null,
     youth: youthName, youthId: youthId || null, youthLeague: L.teams.some((t) => t.id === youthId),
-    posOvrs, history,
+    posOvrs, history, priorCareer: priorCareerOf(id),
   };
+}
+
+/** 미래 스타 실제 경력 중 게임 등장 시즌 전에 시작한 줄 (C.75y) */
+function priorCareerOf(id: string): PersonDetailVM['priorCareer'] {
+  const l = LEGEND_BY_ID.get(id);
+  if (!l?.career) return [];
+  const from = futureDebut(l) ?? Infinity;
+  return l.career.filter(([years]) => Number(years.slice(0, 4)) < from || (Number(years.slice(0, 4)) === from && !years.includes('–')))
+    .map(([years, team, apps, goals]) => ({ years, team, apps, goals }));
 }
 
 /** 이 팀이 리그 팀인지 (리그 밖 클럽은 상세 없음) */

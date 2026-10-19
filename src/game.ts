@@ -82,7 +82,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 44;
+export const SAVE_FORMAT_VERSION = 45;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -244,8 +244,10 @@ export interface GameState {
   tagNotice?: { text: string; season: number } | null;
   /** 레전드 팩 (C.47, 새 게임 옵션). 켜면 로스터 재생성 때 레전드를 넣는다. 옛 세이브는 false */
   legends?: boolean;
-  /** 레전드 팩 판 (C.75x): 2 = + 도르트문트 레전드·미래 스타. 없으면 1 (C.47 117명) */
+  /** 레전드 팩 판 (C.75x): 2 = + 도르트문트 레전드. 없으면 1 (C.47 117명) */
   legendPack?: number;
+  /** 미래 스타 팩 (C.75y, 새 게임 옵션, 레전드 팩과 따로): 구현 리그 첫 시즌에 미래 스타가 들어온다 */
+  futureStars?: boolean;
   /** 1군 테스트 (C.45 10번): 커스텀 15~18세 유스 구단 선택. 없으면 null */
   trial?: TrialState | null;
   /** 사용자가 고친 선수 이름 (부록 C.44a): 선수 id → 별명·짧은 이름. 경기 화면 라벨에만 쓴다 */
@@ -319,14 +321,14 @@ export type NewGameOptions =
    * 가상 유망주 (pending 31·36, 부록 C.37). rolled = true 면 시드로 뽑은 유망주(rollProspect(seed))에 position(시작 후보 중 고른 자리)을
    * 붙인다 — 화면의 새 게임. 없으면 position 을 기준 자리로 맞는 재능 타입의 유망주를 만든다 (밸런스·테스트)
    */
-  | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty; rolled?: boolean; legends?: boolean;
+  | { mode: 'prospect'; name?: string; position: PlayablePosition; seed?: string; difficulty: Difficulty; rolled?: boolean; legends?: boolean; futureStars?: boolean;
     /** 인종 (C.73c): 없으면 시드 랜덤. 국적·이름은 그 인종 안에서 시드 랜덤 */
     race?: Race;
     /** 기본 사진 (C.73c): 없으면 인종 사진 */
     facePhoto?: FacePhoto }
-  | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty; legends?: boolean }
+  | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean }
   /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
-  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean };
+  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean };
 
 export interface CustomSpec {
   name?: string;
@@ -409,15 +411,15 @@ export function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
 }
 
-/** 내 선수를 뺀 실제 A등급 NPC 초기 상태. 레전드 팩 2판(C.75x)이면 팩에 든 선수와 같은 사람은 뺀다 (지금은 없음) */
-function initialNpcs(worldSeed: string, realPlayerId: string | undefined, legendPack = 0): NpcState[] {
-  const drop = legendPack ? packRealExcludes(legendPack) : undefined;
+/** 내 선수를 뺀 실제 A등급 NPC 초기 상태. 레전드 팩 2판(C.75x)·미래 스타 팩(C.75y)이면 팩에 든 선수와 같은 사람은 뺀다 (지금은 없음) */
+function initialNpcs(worldSeed: string, realPlayerId: string | undefined, legendPack = 0, future = false): NpcState[] {
+  const drop = legendPack >= 2 || future ? packRealExcludes(legendPack, future) : undefined;
   return A_GRADE_PLAYERS.filter((p) => p.id !== realPlayerId && !drop?.has(p.id)).map((p) => createNpc(p, worldSeed, BALANCE.newGame.startYear));
 }
 
-/** 데뷔 시즌이 된 미래 스타를 로스터에 넣는다 (C.75x). season = 막 시작하는 시즌 */
-function addFutureStars(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[], pack: number): void {
-  const spawns: LegendSpawn[] = futureSpawns(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })), pack);
+/** 구현 리그 첫 시즌이 된 미래 스타를 로스터에 넣는다 (C.75y). season = 막 시작하는 시즌 */
+function addFutureStars(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[]): void {
+  const spawns: LegendSpawn[] = futureSpawns(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })));
   if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])));
 }
 
@@ -428,24 +430,27 @@ function addFutureStars(rosters: Rosters, worldSeed: string, season: number, tea
  */
 export function rebuildRosters(
   worldSeed: string, realPlayerId: string | undefined, updates: number, savedNpcs?: NpcState[], transfers: readonly TransferRec[] = [],
-  legends: { on: boolean; except?: string; pack?: number } = { on: false },
+  legends: { on: boolean; except?: string; pack?: number; future?: boolean } = { on: false },
 ): Rosters {
   const start = BALANCE.newGame.startYear;
   const teams = initialTeams();
   const base = Object.fromEntries(teams.map((t) => [t.id, t.baseRating]));
   // 레전드 팩 판 (C.75x): 옛 세이브(판 없음)는 1 = C.47 117명
   const pack = legends.on ? legends.pack ?? 1 : 0;
-  let npcs = initialNpcs(worldSeed, realPlayerId, pack);
+  // 미래 스타 팩 (C.75y): 레전드 팩과 따로
+  const future = !!legends.future;
+  let npcs = initialNpcs(worldSeed, realPlayerId, pack, future);
   // 레전드 팩 (C.47): 소속은 시작 목표 레이팅으로 정한다
-  const spawns = legends.on ? legendSpawns(worldSeed, start, teams.map((t) => ({ id: t.id, rating: t.baseRating })), legends.except, pack) : [];
+  const targets = teams.map((t) => ({ id: t.id, rating: t.baseRating }));
+  const spawns = [...(legends.on ? legendSpawns(worldSeed, start, targets, legends.except, pack) : []), ...(future ? futureSpawns(worldSeed, start, targets) : [])];
   let rosters = createRosters(worldSeed, start, teams, npcs, spawns);
   // 이적 기록 (C.42): 시즌 갱신 k 번째 전에 at = k 인 기록(그 시즌 겨울 → 시즌 끝 여름)을 차례로 다시 적용한다
   for (let k = 0; k < updates; k++) {
     replayTransfers(rosters, transfers, k, worldSeed);
     npcs = npcs.map((n) => growNpc(n, worldSeed, start + k));
     rosters = updateRostersForSeason(rosters, worldSeed, start + k, base, npcs);
-    // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 시즌 갱신 직후 들어온다 (플레이 중 시즌 끝과 같은 자리)
-    if (pack >= 2) addFutureStars(rosters, worldSeed, start + k + 1, teams, pack);
+    // 미래 스타 (C.75y): 다음 시즌이 구현 리그 첫 시즌이면 시즌 갱신 직후 들어온다 (플레이 중 시즌 끝과 같은 자리)
+    if (future) addFutureStars(rosters, worldSeed, start + k + 1, teams);
   }
   replayTransfers(rosters, transfers, updates, worldSeed);
   if (savedNpcs) syncRealPlayers(rosters, savedNpcs);
@@ -466,10 +471,11 @@ export function newGame(opts: NewGameOptions): GameState {
   const realPlayerId = opts.mode === 'real' ? opts.playerId : undefined;
   const legendId = opts.mode === 'real' && isLegendId(opts.playerId) ? opts.playerId : undefined;
   const legendsOn = !!opts.legends || !!legendId;
-  const npcs = initialNpcs(worldSeed, realPlayerId, legendsOn ? LEGEND_PACK : 0);
+  const futureOn = !!opts.futureStars;
+  const npcs = initialNpcs(worldSeed, realPlayerId, legendsOn ? LEGEND_PACK : 0, futureOn);
   // 새 게임은 늘린 이름 풀 (C.45 8번). 로스터를 만들기 전에 맞춘다
   setNamePoolVersion(2);
-  const rosters = rebuildRosters(worldSeed, realPlayerId, 0, undefined, [], { on: legendsOn, except: legendId, pack: LEGEND_PACK });
+  const rosters = rebuildRosters(worldSeed, realPlayerId, 0, undefined, [], { on: legendsOn, except: legendId, pack: LEGEND_PACK, future: futureOn });
   const ratings = teamRatings(rosters);
   for (const t of league.teams) t.rating = ratings[t.id] ?? t.rating;
 
@@ -617,6 +623,7 @@ export function newGame(opts: NewGameOptions): GameState {
     startPatch: PATCH_LABEL,
     namePool: 2,
     ...(legendsOn ? { legends: true, legendPack: LEGEND_PACK } : {}),
+    ...(futureOn ? { futureStars: true } : {}),
     // 새 커리어는 개막 7일 전 소집부터 (25.3 5번, C.41)
     calendar: { date: addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays) },
     playerStats: {},
@@ -2041,7 +2048,7 @@ export function endSeason(state: GameState): SeasonSummary {
   const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
   state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
   // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 들어온다 (rebuildRosters 와 같은 자리)
-  if (state.legends && (state.legendPack ?? 1) >= 2) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams, state.legendPack!);
+  if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams);
   state.roster.updates++;
   // NPC 커리어 태그 뉴스 (C.45 14번): 다음 시즌 기준으로 새로 붙은 원클럽맨·영원한 <구단>
   recordTagNews(state, tagsBefore, season + 1);

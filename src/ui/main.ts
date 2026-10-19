@@ -241,6 +241,8 @@ const ui = {
     mode: 'custom' as 'prospect' | 'real' | 'custom', name: '', position: 'ST' as PlayablePosition, seed: '', difficulty: 'normal' as Difficulty, realId: '',
     /** 레전드 팩 (C.47) */
     legends: 'off' as 'on' | 'off',
+    /** 미래 스타 팩 (C.75y, 레전드 팩과 따로) */
+    futureStars: 'off' as 'on' | 'off',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
@@ -1917,7 +1919,7 @@ app.addEventListener('click', (ev) => {
       return;
     case 'form': {
       readFormInputs();
-      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'race' | 'photo';
+      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'futureStars' | 'race' | 'photo';
       (ui.form as unknown as Record<string, string>)[k] = v!;
       // 인종을 바꾸면 사진도 그 인종으로 (C.73c)
       if (k === 'race') ui.form.photo = '';
@@ -2001,10 +2003,10 @@ app.addEventListener('click', (ev) => {
       // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'custom', custom: rolledSpec(prospectSeed(), f.position, f.name, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined),
-          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
+          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on' })
         : f.mode === 'custom'
-          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
-          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on' });
+          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on' })
+          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on' });
       ui.replay = null;
       f.roll = '';
       f.posFor = '';
