@@ -445,3 +445,4 @@
 - (10:49 KST, 19:58 KST에 읽음) **C.73d·C.73b CI 성공**: main ff369fd 실행 #211(39183833681) typecheck·test·balance:check·engine:check·build·deploy 성공, 10:36 KST 배포(C.73b 실행 #210은 이 푸시로 취소, #211에 포함). C.73b·C.73d 끝.
 - 참고: R 작업자가 재시작되어 10:49~19:58 KST 약 9시간 멈춤(알림은 큐에 쌓여 있었음).
 - (20:05 KST) pending 125 = 43 경기 환경 진행 방식 추천안(a 날씨·심판 / b 이동일·부상 복귀·기록 추적 병렬 / c 케미·상대 분석·패스 받는 빈도).
+- (20:00 KST) **43단계 시작(병렬)**: **C.74a** `session_017jaVS7AUAZBGCGgb8MJtt5` "43a단계_경기 환경 a 날씨·심판 (C.74a)", 브랜치 `claude/c74a-weather`, 태그 `stage:43a-C74a` / **C.74b** `session_01K6s4kZyBAd65ydXqrcifi9` "43b단계_경기 환경 b 이동일·부상 복귀·기록 추적 (C.74b)", 브랜치 `claude/c74b-travel-records`, 태그 `stage:43b-C74b`. 환경 env_01UV9gVVKpLLuhnieU6ctYeL(이전 코드 세션과 같은 환경). 서로 ID 알림, UI_3 예고. 자동 확인 `trig_01SNETdpFQ47s4xFKuWY1hBs`(22:01 KST). 다음: a 끝나면 C.74c(케미·상대 분석·패스 받는 빈도) → 엔진 다듬기 블록.
