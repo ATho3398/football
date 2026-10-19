@@ -24,6 +24,8 @@ function goalRows(goals: MatchResultVM['goals']): string {
   }).join('');
 }
 
+const ENV_ICON = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', heat: 'heat', snow: 'snow' } as const;
+
 /** delta = 방금 경기 앞뒤 신뢰도·위상 변화 (C.72, 화면이 잰 값). 없거나 둘 다 0이면 줄을 숨긴다 */
 export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null): string {
   const hero = HeroPanel({
@@ -33,7 +35,8 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
   });
   // C.70 (디자인 170·160): 한 줄 = 엠블럼 · 우리 팀 | 점수 | 상대 · 엠블럼 (내 얼굴은 머리말 평점과 겹쳐 뺌)
-  const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score">${esc(vm.scoreLine.replace('-', ' - '))}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>`;
+  const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score">${esc(vm.scoreLine.replace('-', ' - '))}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>${
+    vm.env ? `<div class="mr-env-line"><span class="mr-env is-${vm.env.weather}">${Icon({ name: ENV_ICON[vm.env.weather], size: 16 })}<b>${esc(vm.env.line)}</b><span>· 심판 ${esc(vm.env.referee)}</span></span></div>` : ''}`;
   // 경기가 끝나면 이 화면으로 바로 온다 (C.50 pending 82 2번). 하이라이트는 이 버튼으로만 — 디자인 155 (C.60): 머리 아래 패널
   const rewatch = vm.hasAvgMap ? `<div class="panel mr-rewatch"><div class="mr-rewatch__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.highlights.length}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}</small></span></div>
     ${Button({ block: true, icon: 'play', act: 'hl-rewatch', children: '하이라이트 다시보기' })}

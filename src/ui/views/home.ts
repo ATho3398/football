@@ -7,7 +7,8 @@ import {
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
 import { isWide, skin } from '../skin';
-import type { DayVM, HomeVM, PositionOptionVM, TrialVM } from '../viewModels';
+import type { DayVM, EnvVM, HomeVM, PositionOptionVM, TrialVM } from '../viewModels';
+import type { WeatherKind } from '../../weather';
 import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
 
 /** 미페 머리말을 쓰는지 (C.57): B 테마 + 폰 폭 + 내 선수 사진(페이스온 > facepack)이 있을 때. A 테마·PC(디자인 120 = 일반 B 머리말)·사진 없음은 일반 머리말 */
@@ -66,6 +67,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         ${n.derby ? `<div class="derby-badge${n.derby.big ? ' is-big' : ''}">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b>${esc(n.derby.name)}</b><span>더비 매치</span></div>` : ''}
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}<span class="vs-name">${esc(n.my)}</span></span><span class="vs">vs</span><span class="vs-team away"><span class="vs-name">${esc(n.opp)}</span>${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
         <div class="hm-power"><span>전력 <b class="po-num">${n.myRating}</b></span><span class="hm-power__bar" aria-hidden="true"><i style="width:${pct}%"></i><i></i></span><b class="po-num away">${n.oppRating}</b></div>
+        ${envRow(n.env)}
         <div class="hm-tac">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}<span class="vs">vs</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}<span class="grow"></span>${
           n.tacticsOpen ? Button({ size: 'sm', variant: 'ghost', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</div>
         <div class="hm-ctl"><span class="grow">내 선수 결정 · <b>${n.control.mode === 'direct' ? '멈추면 내가 골라요' : '엔진이 대신 골라요'}</b></span>${
@@ -198,4 +200,15 @@ export function scheduleView(vm: HomeVM, training: string, calendar = true): str
     ? panel(`<p class="muted">비시즌 휴가 중이에요. 훈련 선택이 없고 체력이 회복돼요.${vm.camp ? ` ${esc(vm.camp)} 소집부터 훈련 계획이 다시 시작돼요.` : ''}</p>`)
     : '';
   return `${hero}<div class="body">${off}${training}${vm.day && calendar ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
+}
+
+/** 날씨 예보·심판 한 줄 (C.74a): 공개 전이면 며칠 뒤 공개인지 */
+const WEATHER_ICON: Readonly<Record<WeatherKind, IconName>> = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', heat: 'heat', snow: 'snow' };
+export function envRow(e: EnvVM): string {
+  if (!e.open) return `<div class="hm-env is-closed">${Icon({ name: 'cloud', size: 16 })}<span>날씨 예보·심판 배정은 ${e.opensIn > 0 ? `${e.opensIn}일 뒤` : '곧'} 공개돼요</span></div>`;
+  const w = e.weather!;
+  return `<div class="hm-env is-${w}">
+          <span class="hm-env__w">${Icon({ name: WEATHER_ICON[w], size: 18 })}<b>${esc(e.weatherKo!)}</b><span class="hm-env__hint">${esc(e.hint!)}</span></span>
+          <span class="hm-env__ref">${Icon({ name: 'whistle', size: 16 })}<b>${esc(e.referee!)}</b>${(e.refTraits ?? []).map((t) => `<i>${esc(t)}</i>`).join('')}</span>
+        </div>`;
 }

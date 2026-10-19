@@ -12,6 +12,7 @@ import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards
 import { oppShotMoment } from './moments';
 import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { landingVelocity } from './physics';
+import { LONG_SHOT_FROM } from './env';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, BallReserve, Flight, SimState } from './state';
 
@@ -178,7 +179,8 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
   a.stats.dribbles++;
   s.teams[a.team].stats.dribbles++;
   def.stats.dribblesFaced++;
-  if (r(s, a.idx, Purpose.Dribble) < c.p) {
+  // 날씨 (C.74a): 눈·한파 드리블 실행 × dribble (판단의 P 는 그대로)
+  if (r(s, a.idx, Purpose.Dribble) < c.p * s.env.dribble) {
     a.stats.dribblesWon++;
     def.stats.dribbledPast++;
     s.teams[a.team].stats.dribblesWon++;
@@ -280,7 +282,8 @@ export function defendDuels(s: SimState): void {
     d.stats.tackles++;
     s.teams[d.team].stats.tackles++;
     s.teams[d.team].stats.tackleAttempts++;
-    if (r(s, d.idx, Purpose.Tackle, 1) < pWin) {
+    // 날씨 (C.74a): 젖은 잔디 슬라이딩 × tackle (판단의 pWin 은 그대로)
+    if (r(s, d.idx, Purpose.Tackle, 1) < Math.min(0.98, pWin * s.env.tackle)) {
       d.stats.tackles--;
       s.teams[d.team].stats.tackles--;
       tackleWon(s, o, d);
@@ -499,12 +502,14 @@ function shotArrives(s: SimState, fl: Flight): void {
   const gk = keeperOf(s, defTeam);
   const sh = fl.shot!;
   const dir = attackDir(shooter.team, s.half);
-  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d);
+  // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
+  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < (sh.cardSave ? clamp(pSave + sh.cardSave, 0.02, 0.98) : pSave)) {
     s.teams[defTeam].stats.saves++;
     if (gk) gk.stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
-    if (gk && r(s, shooter.idx, Purpose.Save, 1) < catchProb(gk)) {
+    // 날씨 (C.74a): 젖은 공 캐치 × gkCatch (놓치면 쳐내기·리바운드)
+    if (gk && r(s, shooter.idx, Purpose.Save, 1) < catchProb(gk) * s.env.gkCatch) {
       // 캐치 (C.24): GK 는 몸을 날린 자리 그대로, 공이 GK 에게 (멀면 굴러서) 간다
       giveBall(s, gk, 'claim', undefined, shooter.idx);
       return;
@@ -607,7 +612,8 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
     return;
   }
   // 약발 (C.45): 크로스 오차 ÷ 약발 배율
-  const err = ((100 - a.attrs.crossing) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y);
+  // 날씨 (C.74a): 강풍 크로스 오차 × longError
+  const err = (((100 - a.attrs.crossing) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y)) * s.env.longError;
   const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err, 0.5, L - 0.5);
   const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err, 0.5, W - 0.5);
   const d = dist(a.x, a.y, tx, ty);
@@ -650,7 +656,8 @@ export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'c
     y = a.y + dx * Math.sin(ang) + dy * Math.cos(ang);
   }
   // 약발 (C.45): 롱볼 오차 ÷ 약발 배율 (걷어내기는 그대로)
-  const err = ((100 - a.attrs.longPassing) * 0.08 + 2) / (kind === 'long' ? weakFootMul(a.body, attackDir(a.team, s.half), x - a.x, y - a.y) : 1);
+  // 날씨 (C.74a): 강풍 롱볼·걷어내기 오차 × longError
+  const err = (((100 - a.attrs.longPassing) * 0.08 + 2) / (kind === 'long' ? weakFootMul(a.body, attackDir(a.team, s.half), x - a.x, y - a.y) : 1)) * s.env.longError;
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
   const d = dist(a.x, a.y, tx, ty);
@@ -707,7 +714,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
     const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + bestA.duelEdge - bestD.duelEdge))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
-    const pA = edge ? clamp(pA0 + edge, 0.02, 0.98) : pA0;
+    // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
+    const pA = (edge ? clamp(pA0 + edge, 0.02, 0.98) : pA0) * (fl.fromCross ? s.env.crossWin : 1);
     winner = r(s, bestA.idx, Purpose.Aerial) < pA ? bestA : bestD;
     winner.stats.aerialsWon++;
   } else winner = (bestA ?? bestD)!;
@@ -1009,7 +1017,8 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
     const pOn = cm?.direct ? clamp(directFkOn(a, d) + cm.on, 0, 1) : directFkOn(a, d);
     const speed = ENGINE.ball.shotSpeed;
     const side = r(s, a.idx, Purpose.FreeKick, 2) < 0.5 ? -1 : 1;
-    if (r(s, a.idx, Purpose.FreeKick, 3) < pOn) {
+    // 날씨 (C.74a): 강풍 직접 프리킥 × freeKick
+    if (r(s, a.idx, Purpose.FreeKick, 3) < pOn * s.env.freeKick) {
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
       const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * PR.cornerRange, 0, 1);

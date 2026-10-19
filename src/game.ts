@@ -69,7 +69,9 @@ import {
 } from './training';
 import { trainProficiency } from './proficiency';
 import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
+import { envField, matchConditions, type MatchConditions } from './matchEnv';
 import type { NameOverrides } from './names';
+import { weatherInjuryMul, type WeatherKind } from './weather';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
 import {
@@ -127,6 +129,8 @@ export interface MatchReport {
    * 2차전 승부차기·진출은 합계 기준
    */
   cup?: { comp: CompId; stage: string; decisive?: boolean; through: boolean; pens?: [number, number]; won?: boolean; g?: GoalRec[] };
+  /** 경기 환경 (C.74a): 날씨·심판 이름. 이전 세이브의 lastMatch 에는 없다 (선택 필드라 세이브 형식은 그대로) */
+  cond?: { weather: WeatherKind; referee: string };
 }
 
 /** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 이상 (FA 100+단계, 챔스 110+) */
@@ -732,6 +736,8 @@ export interface OtherJob { r: number; i: number; input: NpcMatchInput }
 export function otherJob(state: GameState, r: number, i: number): OtherJob {
   const { league } = state;
   const f = league.schedule[r]![i]!;
+  // 날씨·심판 (C.74a): 내 경기와 같은 규칙 (그 경기 날짜 · 홈팀)
+  const cond = matchConditions(state.worldSeed, calendarOf(state).fixtureDates[r]![i]!, f.home);
   return {
     r, i,
     input: {
@@ -739,6 +745,7 @@ export function otherJob(state: GameState, r: number, i: number): OtherJob {
       homeRating: teamById(league, f.home).rating, awayRating: teamById(league, f.away).rating,
       seed: hashSeed(`${state.worldSeed}:other:${league.season}:${r}:${i}`), worldSeed: state.worldSeed,
       leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
+      ...envField(cond),
     },
   };
 }
@@ -1247,6 +1254,20 @@ export interface RoundMatch {
   preInjury: Injury | null;
   /** 재생 화면 팀 이름 [홈, 원정] */
   teams: [string, string];
+  /** 경기 환경 (C.74a): 날씨·심판 */
+  cond: MatchConditions;
+}
+
+/** 다음 내 경기의 날씨·심판 (C.74a): 그 경기 날짜 · 홈팀으로 정해진다. 시즌이 아니면 null */
+export function myMatchConditions(state: GameState): MatchConditions | null {
+  const fx = nextFixture(state);
+  if (!fx || state.phase !== 'season') return null;
+  return matchConditions(state.worldSeed, myMatchDate(state) ?? state.calendar.date, fx.home ? state.player.teamId : fx.opponentId);
+}
+
+/** 이번 경기 부상 확률 배수: 구단 의료진 × 날씨 (눈·한파 근육 부상, C.74a) */
+function matchInjuryMul(state: GameState, cond: MatchConditions | null): number {
+  return injuryChanceMul(state) * (cond ? weatherInjuryMul(cond.weather) : 1);
 }
 
 export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): RoundMatch {
@@ -1270,6 +1291,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const form = matchForm(state);
   const remaining = league.schedule.length - roundIdx - 1;
   const at = matchAt(state);
+  const env = myMatchConditions(state)!;
   // 선발/교체 판정은 기존 방식 (E.10), 부상은 경기 전 판정 후 그 분에 교체 아웃 (E.16)
   const rng = rngFor(seed, 'match', league.season, key);
   const M = BALANCE.match;
@@ -1282,7 +1304,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
   let preInjury: Injury | null = null;
   if (plan.minutes) {
-    preInjury = rollInjury(p, minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, key), injuryChanceMul(state), injuryDaysMul(state));
+    preInjury = rollInjury(p, minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, key), matchInjuryMul(state, env), injuryDaysMul(state));
     if (preInjury) {
       const k = rngFor(seed, 'injury-minute', league.season, key)();
       plan.minutes.end = Math.min(89, Math.max(plan.minutes.start + 1, Math.round(plan.minutes.start + k * minutes)));
@@ -1297,8 +1319,10 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
     // 큰 경기 (5.2, C.67b): 결승·챔스 녹아웃 → 경기 XP ×1.5 (엔진 입력 플래그, 엔진 코드는 그대로)
     ...(fx.cup?.big ? { bigMatch: true } : {}),
     ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
+    // 날씨·심판 (C.74a): 엔진 실행 배율. 맑음·보통 심판이면 붙이지 않는다
+    ...envField(env),
   };
-  return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo] };
+  return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
 }
 
 /** 이번 경기 폼 보정: 최근 평점 폼 − 연속 휴식 감점 (C.41) */
@@ -1355,6 +1379,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   const leave = !injured && !suspended && onLeave(state, state.calendar.date);
   // 피로 회복은 하루가 끝날 때마다 (dayStep). 오늘이 경기 날이라 roundMatch 의 피로는 지금 값이다
   const rm = useEngine ? roundMatch(state, { cards: opts.cards }) : null;
+  const cond = rm?.cond ?? myMatchConditions(state);
 
   // 내 경기
   const fx = nextFixture(state)!;
@@ -1439,7 +1464,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   } else if (result.minutes > 0) {
     const rolled = useEngine
       ? preInjury
-      : rollInjury(player, result.minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, roundIdx), injuryChanceMul(state), injuryDaysMul(state));
+      : rollInjury(player, result.minutes, state.difficulty, remaining, at, rngFor(seed, 'injury', league.season, roundIdx), matchInjuryMul(state, cond), injuryDaysMul(state));
     if (rolled) {
       s.injuries++;
       player.injury = rolled;
@@ -1498,6 +1523,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   const report: MatchReport = {
     season: league.season, round: roundIdx + 1, opponentId: opp.id, home: fx.home, result, levelsGained, ovr,
     formBonus: form,
+    ...(cond ? { cond: { weather: cond.weather, referee: cond.referee.nameKo } } : {}),
     ...(injury ? { injury } : {}),
     ...(injured ? { injured, recovered } : {}),
     ...(suspended ? { suspended } : {}),
@@ -1542,6 +1568,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   const injured = player.injury !== null;
   const leave = !injured && onLeave(state, state.calendar.date);
   const rm = useEngine ? roundMatch(state, { cards: opts.cards }) : null;
+  const cond = rm?.cond ?? myMatchConditions(state);
   const myTeam = teamById(league, player.teamId);
   const opp = teamById(league, mc.opponentId);
   const pos = useEngine ? myMatchPosition(state) : player.position;
@@ -1582,7 +1609,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   }
   let injury: Injury | undefined;
   if (!injured && result.minutes > 0) {
-    const rolled = rm ? rm.preInjury : rollInjury(player, result.minutes, state.difficulty, league.schedule.length - league.round, matchAt(state), rngFor(seed, 'injury', league.season, key), injuryChanceMul(state), injuryDaysMul(state));
+    const rolled = rm ? rm.preInjury : rollInjury(player, result.minutes, state.difficulty, league.schedule.length - league.round, matchAt(state), rngFor(seed, 'injury', league.season, key), matchInjuryMul(state, cond), injuryDaysMul(state));
     if (rolled) {
       player.season.injuries++;
       player.injury = rolled;
@@ -1617,6 +1644,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   const cardUses = engineOut?.engine.cards?.uses.map((u) => ({ name: cardById(u.id)?.name ?? u.id, minute: u.minute, result: u.result, auto: u.auto }));
   const report: MatchReport = {
     season: league.season, round: mc.seq, opponentId: opp.id, home: mc.home, result, levelsGained, ovr, formBonus: form,
+    ...(cond ? { cond: { weather: cond.weather, referee: cond.referee.nameKo } } : {}),
     cup: { comp: mc.comp, stage: mc.stage, decisive: !!out, through: !!out?.through, ...(out?.pens ? { pens: out.pens } : {}), ...(out?.won ? { won: true } : {}), ...(mc.tie.g?.length ? { g: mc.tie.g } : {}) },
     ...(injury ? { injury } : {}),
     ...(injured ? { injured } : {}),

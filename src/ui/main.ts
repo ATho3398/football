@@ -60,7 +60,7 @@ import {
 import { drawAvgMap } from './views/avgMap';
 import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
-import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView } from './pitch/renderer';
+import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
 import { alertCard, homeView, positionChangeSection, positionSheet, scheduleView } from './views/home';
 import { goalsSection, homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
@@ -838,6 +838,8 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
   const trust0 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
   const rep0 = g.player.reputation;
   const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { replay = r; ui.replay = new ReplayPlayer(r, () => render()); ui.replay.skip(); } });
+  // 날씨 (C.74a): 방금 경기 하이라이트·평균 위치·결정 장면은 그 경기 날씨로 그린다
+  setPitchWeather(report.cond?.weather);
   if (replay) void keepReplay(g, replay, report);
   const trust1 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
   ui.matchDelta = { trust: trust0 !== null && trust1 !== null ? Math.round((trust1 - trust0) * 10) / 10 : null, rep: g.player.reputation - rep0 };
@@ -1044,6 +1046,7 @@ async function startPlay(g: GameState): Promise<void> {
   ui.replay = null;
   // 직접 모드 (E.11): 내가 뛰는 경기면 결정 순간마다 멈춘다. 자동 모드·결장은 기존처럼 한 번에
   const rm = roundMatch(g);
+  setPitchWeather(rm.cond.weather);
   if (g.control.mode === 'direct' && rm.plan.minutes) {
     const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: g.control.stop } }, { teams: rm.teams });
     ui.live = { run, teams: rm.teams, sel: null, pitch: null, prevE: 0, oc: null, card: null };
@@ -1172,6 +1175,8 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
 /** 자동 진행 측정 (캡처·부록 C.44) */
 const autoLog: { played: number; rounds: number; ms: number; reason: string }[] = [];
 (globalThis as unknown as { __auto: typeof autoLog }).__auto = autoLog;
+/** 캡처용 (C.74a): 피치 날씨를 바꿔 그려 본다 */
+(globalThis as unknown as { __pitchWeather: typeof setPitchWeather }).__pitchWeather = setPitchWeather;
 
 /** 반투명 레이어: #app 밖(body)에 붙여 화면을 다시 그리지 않는다 */
 function openAutoLayer(): HTMLElement {
@@ -2881,6 +2886,7 @@ app.addEventListener('click', (ev) => {
       if (!ui.replay) return;
       ui.replay.stop();
       ui.replay = new ReplayPlayer(ui.replay.replay, () => render());
+      setPitchWeather(g?.lastMatch?.cond?.weather);
       ui.rewatch = 'match';
       go('replay');
       return;
@@ -2889,6 +2895,8 @@ app.addEventListener('click', (ev) => {
       const x = ui.recent.find((r) => r.season === season && r.round === round);
       if (!x) return;
       void unpackReplayBytes(x.data).then((rp) => {
+        // 보관 리플레이에는 날씨가 없어 맑음으로 그린다 (C.74a)
+        setPitchWeather('clear');
         ui.replay = new ReplayPlayer(rp, () => render());
         ui.rewatch = 'player';
         go('replay');

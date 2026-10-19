@@ -4,6 +4,10 @@ import { autoMarket, newGame, playRound, selectableRealPlayers, startNextSeason,
 import { autoAllocate } from '../src/growth';
 import { cardById } from '../src/config/cards';
 import { PLAYABLE_POSITIONS } from '../src/positions';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const careers = Math.min(40, Number(process.argv[2] ?? 16));
 const seasons = Math.min(8, Number(process.argv[3] ?? 4));

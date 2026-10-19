@@ -10,6 +10,10 @@ import { PLAYABLE_POSITIONS } from '../src/positions';
 import { createRng } from '../src/rng';
 import type { Tier } from '../src/types';
 import { writeFileSync } from 'node:fs';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const env = process.env;
 const SEEDS = Number(env.SEEDS ?? 48);

@@ -11,6 +11,10 @@ import { ENGINE } from '../src/engine/config';
 import { posGroup } from '../src/roster';
 import { CARDS, cardById, starterDeck } from '../src/config/cards';
 import { groupOfPosition } from '../src/cardCollection';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const raw = process.argv.slice(2).filter((a) => a !== '--');
 const rich = raw.includes('--rich');

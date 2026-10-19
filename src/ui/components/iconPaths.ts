@@ -104,6 +104,14 @@ export const ICON_PATHS = {
   sliders: "M4 7h9 M17 7h3 M15 5v4 M4 17h3 M11 17h9 M9 15v4",
   pin: "M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4z",
   collapse: "M6 15l6-6 6 6",
+  // 날씨·심판 (C.74a, 디자인 묶음에 없음 — 같은 24px·2px 선 규칙으로 추가)
+  sun: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4",
+  cloud: "M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z",
+  rain: "M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 5.5 4.3 4.3 0 0 0 7 14z M8 17l-1 3 M12 17l-1 3 M16 17l-1 3",
+  wind: "M3 8h11a3 3 0 1 0-3-3 M3 12h16a3 3 0 1 1-3 3 M3 16h8",
+  heat: "M10 4a2 2 0 0 1 4 0v9.5a4 4 0 1 1-4 0z M12 9v7",
+  snow: "M12 2v20 M4 7l16 10 M20 7L4 17 M9 3l3 2 3-2 M9 21l3-2 3 2",
+  whistle: "M3 11a5 5 0 0 0 10 0h8V8H11a5 5 0 0 0-8 3z M8 11h.01 M11 5l1-2",
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

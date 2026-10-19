@@ -23,6 +23,7 @@
     "balance:transfer": "vite-node scripts/balance-transfer.ts --",
     "balance:custom": "vite-node scripts/balance-custom.ts --",
     "balance:goals": "vite-node scripts/balance-goals.ts --",
+    "balance:weather": "vite-node scripts/balance-weather.ts --",
     "facepack": "vite-node scripts/facepack/fetch.ts --"
   },
   "devDependencies": {

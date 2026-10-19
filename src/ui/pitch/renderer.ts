@@ -389,12 +389,90 @@ export function drawFrame(
   ctx.translate(0, -oy);
   drawPitch(ctx, w, fullH);
   ctx.restore();
+  drawGround(ctx, w, h);
   const full = pitchProjection(w, fullH, portrait ? attackDirOf(frame, players, mySide) : 1);
   const proj: PitchProjection = oy ? { portrait: full.portrait, toScreen: (x, y) => { const [sx, sy] = full.toScreen(x, y); return [sx, sy - oy]; } } : full;
   const r = markerRadius(Math.min(w, fullH * (PITCH_L / PITCH_W)));
   const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
   drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  drawSky(ctx, w, h, time);
   return proj;
+}
+
+// ── 날씨 (C.74a, 디자인 없음): 젖은·눈 덮인 잔디 한 겹 + 비·눈 입자. 입자 위치는 시각만의 함수라 상태가 없고 프레임마다 수십 개만 그린다 ──
+
+export type PitchWeather = 'clear' | 'cloudy' | 'rain' | 'wind' | 'heat' | 'snow';
+let weather: PitchWeather = 'clear';
+
+/** 지금 그리는 경기의 날씨 (경기·리플레이 화면을 열 때 정한다) */
+export function setPitchWeather(w: PitchWeather | null | undefined): void {
+  weather = w ?? 'clear';
+}
+
+export function pitchWeather(): PitchWeather {
+  return weather;
+}
+
+function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const tint = weather === 'rain' ? 'rgba(70,130,190,0.10)' : weather === 'snow' ? 'rgba(235,242,255,0.10)' : weather === 'heat' ? 'rgba(255,190,90,0.05)' : weather === 'cloudy' ? 'rgba(0,0,0,0.06)' : '';
+  if (!tint) return;
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/** 0~1 고정 난수 (입자 i 의 k 번째 값) */
+function hash01(i: number, k: number): number {
+  let x = Math.imul(i * 374761393 + k * 668265263, 1274126177) >>> 0;
+  x = Math.imul(x ^ (x >>> 13), 1274126177) >>> 0;
+  return (x ^ (x >>> 16)) / 4294967296;
+}
+
+const SKY_N = { rain: 70, snow: 46 } as const;
+
+function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, time: number): void {
+  if (weather !== 'rain' && weather !== 'snow' && weather !== 'wind') return;
+  ctx.save();
+  if (weather === 'rain') {
+    // 비: 기울어진 짧은 선, 빠르게 떨어진다
+    ctx.strokeStyle = 'rgba(190,220,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < SKY_N.rain; i++) {
+      const v = 380 + 220 * hash01(i, 1);
+      const len = 8 + 6 * hash01(i, 2);
+      const y = ((hash01(i, 3) * (h + 40) + time * v) % (h + 40)) - 20;
+      const x = ((hash01(i, 0) * (w + 40) + y * 0.18) % (w + 40)) - 20;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - len * 0.18, y - len);
+    }
+    ctx.stroke();
+  } else if (weather === 'snow') {
+    // 눈: 천천히 흔들리며 내리는 점
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    for (let i = 0; i < SKY_N.snow; i++) {
+      const v = 22 + 26 * hash01(i, 1);
+      const y = ((hash01(i, 3) * (h + 20) + time * v) % (h + 20)) - 10;
+      const x = hash01(i, 0) * w + Math.sin(time * (0.6 + hash01(i, 4)) + i) * 6;
+      const r = 1 + 1.4 * hash01(i, 2);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // 강풍: 옅은 가로 줄이 흘러간다
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < 14; i++) {
+      const len = 30 + 40 * hash01(i, 2);
+      const x = ((hash01(i, 0) * (w + len) + time * (160 + 80 * hash01(i, 1))) % (w + len)) - len;
+      const y = hash01(i, 3) * h;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + len, y + 2);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** 마커 · 이름표 · 공 (drawFrame · drawZoomed 공통) */
@@ -458,6 +536,7 @@ function drawZoomed(
   ctx.translate(-ox, -oy);
   drawPitch(ctx, fullW, fullH);
   ctx.restore();
+  drawGround(ctx, w, h);
   const proj: PitchProjection = {
     portrait: false,
     toScreen: (x, y) => [(dir > 0 ? x : PITCH_L - x) * s - ox, attackY(y, dir) * s - oy],
@@ -465,6 +544,7 @@ function drawZoomed(
   const r = markerRadius(w);
   const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
   drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  drawSky(ctx, w, h, time);
   return proj;
 }
 

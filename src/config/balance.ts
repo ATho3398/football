@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 50;
+export const BALANCE_VERSION = 51;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1560,6 +1560,44 @@ export const BALANCE = {
     agentPremium: { fee: 0.08, wage: 0.05 },
     /** 이벤트 돈 효과 (20.2): 이벤트 효과 { money: n } = 주급 × n (최소 500만 원) */
     eventMinUnit: 500,
+  },
+  /**
+   * 날씨 (부록 C.74a, pending 75): 홈 구단 연고지 월별 기후 확률(시드) → 경기 날씨. 효과는 엔진 실행 배율만 (src/engine/env.ts, 판단 무수정).
+   * kinds = 뽑는 순서 [맑음, 흐림, 비, 강풍, 폭염, 눈·한파]. month[월 1~12] = 잉글랜드 기준 가중, region = 지역별 [비, 강풍, 폭염, 눈] 배수.
+   * forecastDays 일 전부터 다음 경기 카드에 예보. injury = 그 날씨 경기 부상 확률 배수 (눈·한파 근육 부상)
+   */
+  weather: {
+    forecastDays: 5,
+    month: [
+      [], // 0 자리 비움 (월은 1부터)
+      [24, 30, 26, 10, 0, 10], [25, 30, 25, 12, 0, 8], [30, 30, 25, 12, 0, 3], [35, 30, 25, 10, 0, 0],
+      [40, 28, 22, 7, 3, 0], [42, 25, 20, 5, 8, 0], [40, 22, 20, 5, 13, 0], [42, 25, 20, 5, 8, 0],
+      [38, 30, 23, 8, 1, 0], [30, 30, 28, 12, 0, 0], [25, 30, 30, 13, 0, 2], [23, 30, 27, 12, 0, 8],
+    ] as number[][],
+    /** [비, 강풍, 폭염, 눈] 배수 */
+    region: {
+      london: [0.85, 0.9, 1.4, 0.7], south: [0.95, 1.4, 1.1, 0.5], midlands: [1, 0.9, 1, 1.1], northwest: [1.3, 1.1, 0.7, 1.1],
+      northeast: [0.95, 1.3, 0.5, 1.5], yorkshire: [1.1, 1.1, 0.7, 1.4], wales: [1.35, 1.3, 0.7, 0.9], europe: [1, 1, 1.2, 1],
+    } as Record<string, [number, number, number, number]>,
+    /** 실행 배율 (크기 = 실행 성공률 ±3~8%). 키는 MatchEnv */
+    effects: {
+      clear: {}, cloudy: {},
+      rain: { ballDecel: 0.8, passSpeed: 1.04, touch: 0.965, gkCatch: 0.85, tackle: 1.06, longShotSave: 0.93 },
+      wind: { airPass: 0.94, longError: 1.3, crossWin: 0.9, freeKick: 0.92 },
+      heat: { drain: 1.1, recover: 0.85 },
+      snow: { ballDecel: 1.3, passSpeed: 0.95, touch: 0.98, dribble: 0.94 },
+    } as Record<string, Record<string, number>>,
+    injury: { snow: 1.15, heat: 1.05 } as Record<string, number>,
+  },
+  /**
+   * 심판 성향 (부록 C.74a, pending 77-4): 리그 심판 pool 명, 세계 시드로 심판마다 카드 배율 card·어드밴티지 배율 advantage 를 정한다.
+   * 경기마다 (시드·날짜·홈팀) 으로 배정, 다음 경기 카드에 공개. strict 이상 = 엄격, lenient 이하 = 관대, flow 이상 = 흐름 중시, whistle 이하 = 자주 끊음
+   */
+  referee: {
+    pool: 18,
+    card: [0.8, 1.25] as [number, number],
+    advantage: [0.8, 1.2] as [number, number],
+    strict: 1.1, lenient: 0.9, flow: 1.08, whistle: 0.92,
   },
 } as const;
 
