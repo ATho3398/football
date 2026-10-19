@@ -452,3 +452,4 @@
 - (20:41 KST, 사용자) 보관 취소: Q·C.73b unarchive 후 "한도 풀림, 한 줄 답하고 멈춤" 메시지. 앞으로 보관 안 함 → automation.md 0번에 규칙 추가.
 - (20:55 KST, 사용자) 누수 점검 확정: automation.md 0번 한도 경고 ntfy, 5번·6-3 누적 비용 기준 삭제(대화 크기), 새 7번 비용·용량(코드 세션 나누기 = 남은 일 기준, 큰 출력 금지, 캡처 패치당 5~10장, 엔진관리자 깨우지 않음). **카톡 알림 폐지**(재발급 안내 예약 trig_011byfg3qNvXKLXcdgzLECYV 삭제). ntfy: R 환경 "player ONE"(env_01STK8eBPczqRtyrxxUJL5DJ)에 NTFY_TOPIC 없음, "Default"(env_01UV9gVVKpLLuhnieU6ctYeL)엔 있음 → 사용자가 player ONE에 한 번 넣으면 이후 마스터 계속 적용. 9시간 정지는 한도 시간 자체(사용자가 19:00 리셋 직후 재명령) — 손실 아님.
 - (20:59 KST, 사용자 승인) 레포 사진 정리: C.74a·b 배포 뒤 정리 세션 C.74z — *-check 중 c72·c73 계열만 남김, ui-requests 5~9 캡처 삭제(10·7-10 유지), v2.zip 중복이면 삭제(약 190MB). 자동 확인 예약 trig_01SNETdpFQ47s4xFKuWY1hBs 프롬프트에 추가.
+- (21:20 KST, 사용자) pending 126: 순서 = 43 → 엔진 블록(Web Worker 앞쪽) → 대표팀+타리그, 시차 없음.
