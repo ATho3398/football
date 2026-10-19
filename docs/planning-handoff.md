@@ -454,3 +454,4 @@
 - (20:59 KST, 사용자 승인) 레포 사진 정리: C.74a·b 배포 뒤 정리 세션 C.74z — *-check 중 c72·c73 계열만 남김, ui-requests 5~9 캡처 삭제(10·7-10 유지), v2.zip 중복이면 삭제(약 190MB). 자동 확인 예약 trig_01SNETdpFQ47s4xFKuWY1hBs 프롬프트에 추가.
 - (21:20 KST, 사용자) pending 126: 순서 = 43 → 엔진 블록(Web Worker 앞쪽) → 대표팀+타리그, 시차 없음.
 - (21:21 KST) **C.74a 완료**(main 6da761f, 엔진 21·밸런스 51, 1시간 20분) → pending 125 결과, UI_3(작은 4), C.74a draft_. C.74b는 밸런스 52·세이브 42. docs checkout 덮어쓰기 사고(커밋 전 발견, 손실 없음) → automation 7번에 "docs 병합은 git merge로만". 다음 C.74c.
+- (21:22 KST) **C.74c 시작** `session_01U8D3JNvRRJ6v3rLkpwywgR` "43c단계_경기 환경 c 케미·상대 분석·패스 받는 빈도 (C.74c)", 브랜치 `claude/c74c-chemistry`(밸런스 53·세이브 43·엔진 22, C.74b와 병렬). 자동 확인 trig_01SNETdpFQ47s4xFKuWY1hBs(22:01)가 이어서 봄.
