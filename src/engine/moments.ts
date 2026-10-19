@@ -90,6 +90,10 @@ export interface Moment {
   sure?: boolean;
   /** 뺀 확실한 선택지 중 기대 평점 최대 (최적 플레이 봇이 맡기기와 견줄 때만 쓴다. 맡기면 엔진이 대개 이것을 고른다) */
   delegateEv?: number;
+  /** 소유 정지: 내 선수가 상대 박스 안 (C.75a, 표시·측정용) */
+  box?: boolean;
+  /** 슛 선택지가 없거나 밀린 이유 한 줄 (C.75a, 예 "등지고 받음 — 먼저 돌아서야 해요") */
+  shotNote?: string;
   /** 내 선수와 상대(1대1) id */
   me: string;
   opponent?: string;
@@ -139,6 +143,8 @@ export interface MomentState {
   /** 결과 판정 중인 결정: 시작 시 평점 델타, 소유 팀 */
   open: { rec: DecisionRecord; t: number; base: number; team: 0 | 1; action: string } | null;
   nextId: number;
+  /** 도박 실패 완화 (C.75a): 직접 모드에서 고른 소유 선택지의 결정 시각과 되돌릴 감점 몫 k (첫 소유 변경에서 지운다) */
+  relief?: { t: number; k: number } | null;
 }
 
 export function initMoments(control?: MomentControl): MomentState {
@@ -208,14 +214,22 @@ function shouldStop(s: SimState, a: Agent, stake: number): boolean {
   return wouldStop(s, a, stake, ms.stops, ms.lastStopT, ms.control.stop);
 }
 
-/** 고를 거리가 있는가 (C.40): 판정 있는 선택지가 1개 이상이고 선택지가 minOptions 개 이상 (1대1의 따라붙기·패스길 막기는 판정 없는 선택지로 센다) */
-function enoughOptions(options: MomentOption[]): boolean {
-  return options.some((o) => o.p !== null) && options.length >= M.minOptions;
+/**
+ * 고를 거리가 있는가 (C.75a, pending 128 2항): 선택지 + 쓸 수 있는 카드가 새로 연 선택지가 minOptions 개 이상이고 그중 판정 있는 것이 있을 때.
+ * 맡기기는 세지 않는다. 확률 카드·패시브는 선택지를 늘리지 않아 세지 않는다 (C.40 의 "장면 카드만 있어도 멈춤"을 없앴다).
+ * 1대1의 따라붙기·패스길 막기는 판정 없는 행동이지만 서로 다른 선택이라 센다. 세트피스의 "엔진 판단대로"(판정 없음)는 맡기기와 같아 뺀다
+ */
+function enoughChoices(options: MomentOption[], cards: Moment['cards'], countNull = true): boolean {
+  const opened = cards.flatMap((mc) => (mc.usable && mc.option ? [mc.option] : []));
+  const all = [...options.filter((o) => countNull || o.p !== null), ...opened];
+  return all.length >= M.minOptions && all.some((o) => o.p !== null);
 }
 
-/** 지금 쓸 수 있는 장면 카드 (C.40): 플레이 카드가 연 선택지, 또는 장면 전용 확률 카드가 남은 선택지에 붙는다. 패시브·집중 같은 범용 카드는 세지 않는다 */
-function sceneCardNow(cards: Moment['cards']): boolean {
-  return cards.some((mc) => mc.usable && (mc.option !== undefined || (mc.role === 'boost' && (cardById(mc.id)?.scenes.length ?? 0) > 0 && !!mc.deltas?.some((d) => d !== 0))));
+/** 도박 실패 완화 배수 (C.75a): 성공 확률이 낮을수록 실패 감점을 줄인다 (floor ~ 1) */
+export function failFactor(p: number | null): number {
+  if (p === null) return 1;
+  const F = M.failRelief;
+  return clamp(F.floor + ((1 - F.floor) * p) / F.pRef, F.floor, 1);
 }
 
 /** 남은 선택지에 안전/균형/도박을 성공 확률 순으로 다시 붙인다 (3개 = 안전·균형·도박, 2개 = 안전·도박, 1개 = 균형) */
@@ -411,7 +425,8 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const kinds: OptionKind[] = ['safe', 'balanced', 'gamble'];
   // 성공 확률이 maxP 를 넘는 후보는 선택지에서 뺀다 (C.40): 보이는 확률(슛은 골 확률, 그 밖은 체력 보정 뒤) 기준
   const shownP = (c: Candidate) => (c.type === 'shoot' ? (s.cards ? shotP(s, a, c.p) : c.p) : clamp(c.p + adj, 0.01, 0.99));
-  const picks = pickOptions(cands.filter((c) => shownP(c) <= M.maxP + 1e-9));
+  const pool = cands.filter((c) => shownP(c) <= M.maxP + 1e-9);
+  const picks = keepSlots(a, pool, pickOptions(pool));
   const made = relabel(picks.flatMap((c, i) => {
     if (!c) return [];
     const o = optionOf(s, a, c, kinds[i]!, cands.indexOf(c), adj);
@@ -433,7 +448,9 @@ export function onballMoment(s: SimState, a: Agent): boolean {
       return { ...mc, option: { ...option, baseP: round2(bp) } };
     });
   }
-  if (!enoughOptions(options) && !sceneCardNow(cards)) return false;
+  if (!enoughChoices(options, cards)) return false;
+  // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로
+  for (const o of [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]) o.down = round2(o.down * failFactor(o.p));
   settleMoment(s, true);
   const sureC = cands.filter((c) => shownP(c) > M.maxP + 1e-9);
   const sure = sureC.length > 0;
@@ -442,8 +459,60 @@ export function onballMoment(s: SimState, a: Agent): boolean {
     if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
     return optionValue(o);
   })) : undefined;
-  ms.pending = { ...base(s, a, 'onball', scene, stake), options, cards, cands, variants, ...(sure ? { sure, delegateEv } : {}) };
+  const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
+  const shotNote = shotNoteOf(s, a, cands, [...options, ...cards.flatMap((mc) => (mc.usable && mc.option ? [mc.option] : []))], box);
+  ms.pending = {
+    ...base(s, a, 'onball', scene, stake), options, cards, cands, variants, ...(sure ? { sure, delegateEv } : {}), ...(box ? { box } : {}), ...(shotNote ? { shotNote } : {}),
+  };
   return true;
+}
+
+/**
+ * 자리 보장 (C.75a, pending 128 3항): pickOptions(안전·균형·도박)가 밀어낸 슛(xG ≥ shotKeepXg)과, 공격수가 앞을 막은 수비수를 제치는 드리블을
+ * 선택지 3칸에 넣는다. 빈 칸이 있으면 그 칸, 없으면 엔진 효용이 가장 낮은 칸(보장한 칸 제외)과 바꾼다
+ */
+export function keepSlots(a: Agent, pool: Candidate[], picks: [Candidate | null, Candidate | null, Candidate | null]): [Candidate | null, Candidate | null, Candidate | null] {
+  const out = [...picks] as [Candidate | null, Candidate | null, Candidate | null];
+  const kept: Candidate[] = [];
+  const put = (c: Candidate | undefined) => {
+    if (!c) return;
+    if (out.some((x) => x && sameAs(x, c))) {
+      kept.push(c);
+      return;
+    }
+    let at = out.findIndex((x) => x === null);
+    if (at < 0) {
+      let lo = Infinity;
+      out.forEach((x, i) => {
+        if (x && !kept.some((k) => sameAs(k, x)) && x.u < lo) {
+          lo = x.u;
+          at = i;
+        }
+      });
+    }
+    if (at < 0) return;
+    out[at] = c;
+    kept.push(c);
+  };
+  const top = (type: ActionType, key: (c: Candidate) => number, ok: (c: Candidate) => boolean = () => true) =>
+    pool.filter((c) => c.type === type && ok(c)).sort((x, y) => key(y) - key(x))[0];
+  put(top('shoot', (c) => c.p, (c) => c.p >= M.shotKeepXg));
+  if (M.dribbleKeepGroups.includes(posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position))) put(top('dribble', (c) => c.u));
+  return out;
+}
+
+/** 슛을 못 고르는 이유 한 줄 (C.75a): 슈팅 거리 근처인데 슛 선택지가 안 보일 때만 */
+function shotNoteOf(s: SimState, a: Agent, cands: Candidate[], shown: MomentOption[], box: boolean): string | undefined {
+  if (shown.some((o) => o.action === 'shoot')) return undefined;
+  const dir = attackDir(a.team, s.half);
+  const [gx, gy] = oppGoal(dir);
+  const d = dist(a.x, a.y, gx, gy);
+  const near = d <= ENGINE.prob.shotMaxDist && toNorm(a.x, a.y, dir)[0] > 0.6;
+  if (a.backToGoal && near) return '등지고 받음 — 먼저 돌아서야 슛할 수 있어요';
+  const shot = cands.find((c) => c.type === 'shoot');
+  if (shot) return box || shot.p >= 0.03 ? `슛 각이 거의 막힘 (골 확률 ${Math.round(shot.p * 100)}%)` : undefined;
+  if (!near && d <= ENGINE.prob.shotMaxDist + 8 && toNorm(a.x, a.y, dir)[0] > 0.6) return '슈팅 거리 밖 — 더 다가가야 해요';
+  return undefined;
 }
 
 /** 슛 선택지 골 확률에 패시브(박스 안)·콤보를 얹는다 */
@@ -561,7 +630,7 @@ export function duelMoment(s: SimState): boolean {
       return { ...mc, option: opt };
     });
   }
-  if (!enoughOptions(options) && !sceneCardNow(cards)) return false;
+  if (!enoughChoices(options, cards)) return false;
   settleMoment(s, true);
   ms.pending = { ...base(s, a, 'duel', scene, stake), options, opponent: o.spec.id, cards, ...(sure ? { sure } : {}), ...(dv.length ? { duelVariants: dv } : {}) } as Moment & { duelVariants?: DuelVariant[] };
   return true;
@@ -801,6 +870,8 @@ export function setPieceMoment(s: SimState): boolean {
   });
   if (!view.some((c) => c.usable)) return false;
   if (s.moments.control.mode === 'direct') {
+    // 고를 거리 2개 미만(카드가 선택지를 새로 열지 않음)이면 멈추지 않는다 (C.75a)
+    if (!enoughChoices(options, view, false)) return false;
     const ms = s.moments;
     settleMoment(s, true);
     ms.pending = { ...base(s, a, 'setPiece', scene, 1), options, cards: view, ...(vars.length ? { spVariants: vars } : {}) } as Moment;
@@ -949,6 +1020,9 @@ export function takeMoment(s: SimState, choice: MomentChoice): {
     c.p = Math.max(0.01, c.p + adj);
     if (c.pFlight !== undefined) c.pFlight = Math.max(0.01, c.pFlight + adj);
   }
+  // 도박 실패 완화 (C.75a): 첫 소유 변경까지 내 공 상실 감점의 (1 − 배수) 몫을 되돌린다
+  const k = 1 - failFactor(opt.p);
+  ms.relief = k > 0 ? { t: s.t, k } : null;
   return { cand: c, duel: null, mod, use, action: c.type, down: opt.down };
 }
 

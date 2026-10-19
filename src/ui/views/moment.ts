@@ -138,6 +138,8 @@ export function momentView(vm: MomentVM): string {
     m.sure ? `확실한 선택지(90%+)는 뺐어요${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''} · 맡기기가 할 일` : '',
     certain ? '판정 없는 선택지는 "확정" — 바로 그렇게 돼요' : '',
   ].filter(Boolean);
+  // 슛을 못 고르는 이유 (C.75a): 등짐·각 막힘·거리 밖
+  const shotNote = m.shotNote && !shown.some((o) => o.action === 'shoot') ? `<p class="mo-note mo-shotnote">${esc(m.shotNote)}</p>` : '';
   const note = notes.length ? `<p class="mo-note">${esc(notes.join(' · '))}</p>` : '';
   return `
     <div class="moment mo-fold mo-v3">
@@ -147,6 +149,7 @@ export function momentView(vm: MomentVM): string {
         <div class="mo-head"><b>어떻게 할까요?</b><span>누르면 피치에 방향이 보여요</span></div>
         ${note}
         <div class="mo-opts">${opts}</div>
+        ${shotNote}
         ${handCards(vm)}
         ${moreSettings(vm)}
         <div class="mo-actions">

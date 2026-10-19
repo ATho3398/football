@@ -12,6 +12,7 @@ import { posGroup } from '../src/roster';
 import { CARDS, cardById, starterDeck } from '../src/config/cards';
 import { groupOfPosition } from '../src/cardCollection';
 import { setEnvironmentFixed } from '../src/weather';
+import { newShape, shaped, shapeLine } from './moment-shape';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -43,6 +44,7 @@ const rows: Row[] = [];
 /** 카드 장면 정지 (C.40) */
 const REACT = new Set(['aerial', 'corner', 'oppShot', 'oppCorner', 'oppFreeKick']);
 const use: Record<string, { auto: number; bot: number; autoOk: number; botOk: number; inDeck: number }> = {};
+const shape = newShape();
 const t0 = Date.now();
 let slow = 0;
 let maxMs = 0;
@@ -62,7 +64,7 @@ for (const p of picks) {
     const none = run(undefined, false);
     if (rm.plan.started && none.o.my) {
       const auto = run();
-      const bot = run({ mode: 'direct', stop: 'important', policy: (m) => bestChoice(m) });
+      const bot = run({ mode: 'direct', stop: 'important', policy: shaped(shape, (m) => bestChoice(m)) });
       for (const id of new Set(deck)) (use[id] ??= { auto: 0, bot: 0, autoOk: 0, botOk: 0, inDeck: 0 }).inDeck++;
       for (const u of auto.o.engine.cards?.uses ?? []) {
         use[u.id]!.auto++;
@@ -101,4 +103,5 @@ console.log('카드 | 덱에 든 경기 | 자동 사용/경기 (성공률) | 봇
 for (const [id, u] of Object.entries(use).sort((a, b) => b[1].bot / b[1].inDeck - a[1].bot / a[1].inDeck)) {
   console.log(`${cardById(id)?.name ?? id} | ${u.inDeck} | ${f(u.auto / u.inDeck)} (${u.auto ? Math.round((100 * u.autoOk) / u.auto) : '-'}%) | ${f(u.bot / u.inDeck)} (${u.bot ? Math.round((100 * u.botOk) / u.bot) : '-'}%)`);
 }
+console.log(`봇 결정 순간 모양 (C.75a): ${shapeLine(shape, rows.length)}`);
 process.exit(0);

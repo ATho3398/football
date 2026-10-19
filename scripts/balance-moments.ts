@@ -8,6 +8,7 @@ import { playMyMatch } from '../src/engine/adapter';
 import { bestChoice, type MomentControl, type MomentPolicy, type StopLevel } from '../src/engine/moments';
 import { posGroup } from '../src/roster';
 import { setEnvironmentFixed } from '../src/weather';
+import { newShape, shaped, shapeLine } from './moment-shape';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -35,6 +36,7 @@ const gamble: MomentPolicy = (m) => Math.max(0, m.options.findIndex((o) => o.kin
 
 type Row = { g: string; stops: Record<StopLevel, number>; auto: number; del: number; bot: number; bal: number; safe: number; gamble: number; botStops: number; two: number };
 const rows: Row[] = [];
+const shape = newShape();
 const t0 = Date.now();
 let slow = 0;
 for (const p of picks) {
@@ -62,7 +64,7 @@ for (const p of picks) {
           twoN = 0;
         }
       }
-      const ob = run({ mode: 'direct', stop: 'important', policy: bot });
+      const ob = run({ mode: 'direct', stop: 'important', policy: shaped(shape, bot) });
       const ol = run({ mode: 'direct', stop: 'important', policy: balanced });
       const os = run({ mode: 'direct', stop: 'important', policy: safe });
       const og = run({ mode: 'direct', stop: 'important', policy: gamble });
@@ -98,4 +100,5 @@ const under = rows.filter((r) => r.stops.important < 3).length;
 const over = rows.filter((r) => r.stops.important > 8).length;
 const zero = rows.filter((r) => r.stops.important === 0).length;
 console.log(`중요한 순간만: 0회 ${zero} (${Math.round((100 * zero) / Math.max(1, rows.length))}%), 3회 미만 ${under}, 8회 초과 ${over} / ${rows.length}`);
+console.log(`봇 결정 순간 모양 (C.75a, 카드 없음): ${shapeLine(shape, rows.length)}`);
 process.exit(0);
