@@ -497,3 +497,4 @@
 - (03:01 KST, 사용자 "적당한 타이밍에 넣고 하던 거 마저") 순서: C.75a → C.75b(44b) / 병렬 C.75x → C.75w(pending 133 레전드 53명). 리그 추가(pending 132: 5대 + 챔피언십·독일 2부·에레디비시·K리그·J리그·포르투갈·브라질·MLS·사우디, 새 게임 리그 선택)와 포토카드(pending 130)는 대표팀 + 타리그 단계에서. 자동 확인 trig_01K3atftgmnhweGRJvULi8n5(03:24) 프롬프트 갱신.
 - (03:16 KST) **C.75a 완료**(main b07fed0, 엔진 23) → pending 129 결과, UI_3(작은 1), ntfy, draft_. **C.75b 시작** `session_01NbjDhGnxskHWA1F1DobPGB` "44b단계_엔진 블록 E-1 속도 Web Worker (C.75b)", 브랜치 `claude/c75b-worker`(C.75x와 병렬, 결과 불변). C.75x에 알림.
 - (04:02 KST) **C.75a CI 성공**(main b07fed0 run 219, 36분, 배포 완료). 44a 끝.
+- (04:10 KST) **C.75x 완료**(main d6aa27a) → pending 131, UI_3(패널 2), ntfy. 명세 변경 누락 → 후속 C.75x2 요청. C.75w는 C.75x2 뒤.
