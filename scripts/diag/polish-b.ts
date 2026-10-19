@@ -4,6 +4,7 @@
 //       npx vite-node scripts/diag/polish-b.ts -- cells [경기수=40] [대형번호|base ...]   커스텀 대형(custom-sweep 번호) 대 균형 4-4-2 (C.33 진단, 미해결 5번)
 //       npx vite-node scripts/diag/polish-b.ts -- role [경기수=40] <포메이션> <슬롯> <역할 ...>   홈 슬롯 역할만 바꿔 균형 상대와 (C.33 진단, 미해결 4번)
 // 엔진 코드는 건드리지 않는다. 결정 순간에 candidates()/choose() 를 같은 틱에서 다시 계산해 "슛이 효용 1위였는가"를 본다.
+import { NEUTRAL_MODS } from '../../src/body';
 import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
@@ -73,7 +74,7 @@ const side = (): Side => ({
 });
 const PBINS = [0, 10, 20, 30, 40, 50];
 const pbin = (d: number) => { let b = 0; while (b + 1 < PBINS.length && d >= PBINS[b + 1]!) b++; return b; };
-const LEAGUE_GK = { gk: { attrs: { shotStopping: ENGINE.keeper.leagueShotStopping, handling: ENGINE.keeper.leagueHandling, distribution: 70, commandOfArea: 70 }, type: 'classic' } } as unknown as Agent;
+const LEAGUE_GK = { gk: { attrs: { shotStopping: ENGINE.keeper.leagueShotStopping, handling: ENGINE.keeper.leagueHandling, distribution: 70, commandOfArea: 70 }, type: 'classic' }, body: NEUTRAL_MODS } as unknown as Agent;
 const inc = (r: Record<string, number>, k: string, v = 1) => (r[k] = (r[k] ?? 0) + v);
 
 /** 한 경기를 틱 단위로 돌리며 분석. 홈이 '관심 팀'(index 0) */

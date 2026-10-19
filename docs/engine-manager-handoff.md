@@ -15,12 +15,13 @@
 - **비용**: 전체 측정(`balance:engine:check`, `balance:scoring`, `balance:sweep --tactics`)은 진단 1건당 최대 2회. 긴 실행은 백그라운드로 돌리고 출력을 스크래치패드 파일에 받는다. PNG는 읽지 않는다. 컨텍스트 50만을 넘으면 보고서를 커밋하고 기획 세션에 교체를 알린다.
 - **세션 이름 규칙**: 새 세션을 열면 이전 세션 제목 앞에 `draft_`가 붙는다(기획 세션이 한다).
 
-### 지금 상태 (2대 갱신, 2026-10-19 20:02 KST)
-- 엔진 관리자 **2대** `session_01ULNad1tAcSQzVKsFKN355d`(Fable). **마스터 세션 R** `session_015zZ2foCVBuTGmZ3S6w8LR3`(브랜치 `claude/planning-r`; 그 전 I → J → K → L → M → N → O → P → Q, 교체 때마다 세션 ID·역할·보관 문서를 한 줄로 알린다). "기획 세션" = 마스터 세션(automation.md 0번).
-- **엔진 동결**(automation.md 5번, 사용자 결정 2026-10-17): 미해결 1~7번은 fix 세션을 열지 않는다. 엔진 관리자는 치명 버그(멈춤·결정성·세이브·2초 초과) 진단만 받고, 그 밖은 기록만. **main 푸시 금지**(0번: 문서는 자기 브랜치에만, 코드 세션 배포 때 docs/ 병합) — 2대의 브랜치는 `claude/engine-diag-c33`(main 병합됨), `claude/engine-diag-defense`(main 병합됨), `claude/engine-issues-c45`(main 병합됨), `claude/engine-handoff-r`(이 문서).
-- 다음: 43단계 경기 환경(C.74a 날씨·심판 = 엔진 실행 배율만, 회귀 가드 맑음·보통 심판 고정 / C.74b 이동일·부상 복귀 / C.74c 케미·상대 분석) → **엔진 다듬기 블록**(시작 때 마스터가 알린다): ① 수비 조직 상황 판정(`engine-diagnosis-defense.md`, pending 41·42 결정 반영) ② GK 선방률 66.2%(미해결 6) ③ 미해결 3·4·5(`engine-diagnosis-c33.md` 처방) ④ 레전더리 35세 900+ 가드 경계 재검토(마스터 Q 언급) ⑤ ST 반응 800쌍 재측정(§4 1번).
-- C.32 fix(Opus) 결과: 실패 ④(매트릭스 1.06 → 0.72, 득점 분포 30골+ 1.30 → 2.70), 브랜치 `claude/c32-fix-tactics` 2272f57에 기록. 가설 1(GK 압박 제외)은 효과 없음, 2′(전술 라인 기준 맨마크)는 방향 맞음.
-- 버전(main ff369fd): `PATCH_LABEL` C.73d, `ENGINE_VERSION` 20(C.45 신체·약발 실행 배율, 지문 f96341ae43d430b1), `SAVE_FORMAT_VERSION` 18 이상 — 정확한 값은 `src/version.ts`·`src/engine/config.ts`·`src/game.ts`.
+### 지금 상태 (3대 갱신, 2026-10-20 08:50 KST)
+- 엔진 관리자 **3대** `session_017LRoCE5KxG6odpy1NX6DiN`(Fable, 제목 `엔진관리자3`, 태그 `role:engine-manager`). **마스터 세션 S** `session_01Pi4aAWoFd5yBP3mZfCURwD`(브랜치 `claude/planning-s`; 그 전 I → … → R). 2대 `session_01ULNad1tAcSQzVKsFKN355d`(58만 토큰)는 **깨우지 않는다**(automation 7번). 교체 기준은 대화 **40만 토큰**(50만이 아니다, automation 7번 개정).
+- **엔진 동결 해제** — pending 129 **44단계 엔진 다듬기 블록** 진행 중: 44a C.75a(결정 순간, 엔진 22 → 23)·44b C.75b(Web Worker 속도, 엔진 무수정) 완료. **다음 44c E-2 수비 조직**(Opus 코드 세션이 구현) → 44d E-3 평점·윙 산출 → 44e~ E-4 미해결 1~7 + 하프타임 전술 + 판단 스탯·지시 카드 신뢰 + 레전더리 35세 900+ 가드 + 패스 받는 빈도 가중. **E-2부터는 회귀 가드가 아니라 E.15 표 개선으로 판정**(pending 129).
+- 44c 지시서: **`docs/engine-diagnosis-defense-v2.md`**(3대, 엔진 23 기준 갱신, Opus 두 세션 44c-a "공으로 가는 사람은 1명, 둘째는 커버" → 44c-b "마크 배정·기억 + 라인 좁히기·진입로 차단" → 44c-c 전환 상황 B·C·D·F). 2대 원본 `engine-diagnosis-defense.md`의 §1 코드 흐름·§2 설계·§3 스탯 표는 그대로 유효.
+- **커밋 규칙(3대)**: 보고서·`scripts/diag/`만, 작업 브랜치 `claude/engine-manager-3`에 푸시, **main 푸시 안 함**(코드 세션이 배포 때 `git merge origin/claude/engine-manager-3`로 docs를 가져간다 — `git checkout <브랜치> -- docs/` 금지, automation 7번).
+- 버전(main 422ef05, C.75b): `PATCH_LABEL` C.75b, `STAGE_LABEL` 44단계, `ENGINE_VERSION` 23, `BALANCE_VERSION` 54, `SAVE_FORMAT_VERSION` 45. 정확한 값은 `src/version.ts`·`src/engine/config.ts`·`src/game.ts`.
+- 사용량: 3대 세션 시작 때 `get_session`의 `rate_limit_info.status`가 `allowed_warning`(7일 한도 임박, 풀림 1793008800 = 2026-10-26 03:00 KST)이었다. 큰 측정은 미루고 마스터에 알린다.
 
 ## 2. 엔진 구조 지도 (어디를 보면 되는가)
 
@@ -72,6 +73,12 @@
 - **미해결 6·7**(C.45): GK 선방률 66.2%(먼저 슛 질 상승 탓인지 분리), 직접 모드 맡기기 대 자동 결과 갈림(`defendDuels`·`forcedDuel` 난수 순서 의심). C.62 2초 경계는 기록만(냉시작 첫 경기 1.4~1.5초는 JIT).
 - **틀렸던 것(2대)**: 와이드 미드 −0.12·엔간체 −0.11은 시드 2벌에서 잡음이었다(−0.04·−0.085). 40경기 팀 지표만으로는 딥라잉 −0.13을 못 봤다 — **득실 판정은 800경기, 기전은 40경기**로 나눠 재라.
 
+### 3대가 더한 것 (수비 조직 재측정, `engine-diagnosis-defense-v2.md`)
+- **엔진 18 → 23 사이 수비 오프볼 코드·상수는 무변경**(`git diff origin/claude/engine-diag-defense origin/main -- src/engine/offball.ts` 빈 출력; 바뀐 건 날씨·약발·상대 분석 실행 배율과 결정 순간). 2대 측정은 ±1~3%p로 재현된다(박스 2명+ 43%, 3명+ 10%, 5 m 안 없음 34%, 교체 20.6/분).
+- **새 분해 ⑦(`defense-shape` 추가)**: 박스 안에서 공 3 m 안에 2명 이상일 때 그 수비수의 **79%는 E.23 "박스 안 압박 2명" 규칙**(`defendTarget` `ownBox && rank < 2`), 박스 밖 25 m 안에서는 **84%가 압박 rank 0·1**. 역압박 6%·돌파 후 커버 4%·GK 돌진 13%(표본). 셋째 사람은 `boxDefense` 둘째 마커(수비 줄)·중원 존 "근처 마크"(소유자를 빼지 않음)·GK. → 2대의 "조건 다섯 개가 겹친다"는 맞지만 기여는 한 규칙에 몰려 있어 **첫 패치를 Opus 크기로 좁힐 수 있다**.
+- 동레이팅 600경기(엔진 23): 득점 1.32, 선방률 67.2(✗), 판단 태클 22.1, 드리블 성공률 43.2, 인터셉트 14.9, **Δ+8 1.65(✗ 1.8~2.4, C.31 1.86에서 내려옴 — E-2 범위 밖, 마스터에 기록)**. 몰빵 35번 박스 수신 52.3 대 18.2(2대 55 대 21 그대로).
+- **측정 도구 주의**: ① `scripts/diag/defense-shape.ts`는 2대 브랜치 `claude/engine-diag-defense`에만 있었고 main에 없었다 — 3대 브랜치에 ⑦을 더해 다시 넣었다. ② `polish-b.ts`는 C.45 뒤 가짜 리그 GK에 `body`가 없어 `saveProb`에서 죽었다 — `NEUTRAL_MODS`로 고쳤다(다른 진단 스크립트도 `Agent`를 손으로 만들면 같은 함정). ③ 컨테이너 클론은 shallow라 옛 커밋(03dd8bf 등)을 직접 볼 수 없다 — 엔진 18 기준은 `origin/claude/engine-diag-defense`(코드 무수정 브랜치)를 쓴다. ④ 세션 작업 프로세스가 재시작되면 백그라운드 측정이 죽는다(`balance:engine` 10분짜리가 한 번 끊김) — 긴 측정은 결과 파일에 `exit` 줄을 남기고, 재시작 뒤 `exit` 줄이 없으면 다시 돌린다.
+
 ## 5. 측정 도구 요령
 
 모든 스크립트는 `npx vite-node <스크립트> -- <인자>`. `경로=값` 인자(예: `prob.passBase=1.35`)는 `ENGINE` 상수를 그 실행에서만 덮어쓴다(`polish-b`, `pass-dist`, `tactic-pair`).
@@ -85,6 +92,7 @@
 | `tactic-pair.ts -- 200 gegenpress balanced@2111 …` | 균형 상대 득실차. `70:78 block …`으로 약팀 | 200경기 4분 |
 | `pass-dist.ts -- 40 76 76` | 거리 구간별 패스 시도·성공률 | 40초 |
 | `rating-parts.ts -- 600 parts.json` | 평점 성분 큰 표본(경량 가드가 의심될 때) | 수 분 |
+| `defense-shape.ts -- 40 4-2-3-1 [홈전술 원정전술]` | 수비 조직 ①~⑦(공 3 m 안 인원, 줄, 마크, 교체, 목표 분류, 상황 A~H 빈도, 분기 추정) | 약 1분 |
 | `SWEEP_N=600 SWEEP_D=200 SWEEP_D15=0 SWEEP_LEAGUE=0 npm run balance:quick` | 동레이팅·Δ8 기준값(득점 1.35±0.1, 유효 4.2, 선방 68~71) | 2~3분 |
 | `SWEEP_N=40 SWEEP_D=0 SWEEP_D15=0 SWEEP_LEAGUE=0 SWEEP_RESP=400 SWEEP_RESPKEYS=st_shoot npm run balance:quick` | 스탯 반응 400쌍(`SWEEP_RESPKEYS`로 키 선택). `SWEEP_N=0`이면 반응 행이 안 나온다 | 수 분 |
 | `SWEEP_N=0 … SWEEP_TAC=200 npm run balance:quick` | 세부 전술 반응 9개 | 6분 |
@@ -108,15 +116,15 @@
 
 ## 7. 문서 위치
 
-- 진단 보고서: `docs/engine-diagnosis-12.md`(12단계 A/B/C 전체), `engine-diagnosis-C.28.md`(C.28 1차), `engine-diagnosis-c28.md`(C.28 2차, 브랜치 `claude/c28-gk-loose-ball`에서 작성 → main), `engine-diagnosis-c29.md`(측정·처방·재진단·C.31 주의), `engine-diagnosis-c32.md`(전술), `engine-diagnosis-c33.md`(역할 득실·커스텀 몰빵, 2대), `engine-diagnosis-defense.md`(수비 조직 상황 판정 설계, 2대). 2대 측정 모드: `polish-b.ts -- cells/role`, `role-pair.ts SEED=`, `defense-shape.ts`.
+- 진단 보고서: `docs/engine-diagnosis-12.md`(12단계 A/B/C 전체), `engine-diagnosis-C.28.md`(C.28 1차), `engine-diagnosis-c28.md`(C.28 2차, 브랜치 `claude/c28-gk-loose-ball`에서 작성 → main), `engine-diagnosis-c29.md`(측정·처방·재진단·C.31 주의), `engine-diagnosis-c32.md`(전술), `engine-diagnosis-c33.md`(역할 득실·커스텀 몰빵, 2대), `engine-diagnosis-defense.md`(수비 조직 상황 판정 설계, 2대), **`engine-diagnosis-defense-v2.md`(엔진 23 재측정 + Opus a/b 처방, 3대 — 44c 지시서)**. 2대 측정 모드: `polish-b.ts -- cells/role`, `role-pair.ts SEED=`, `defense-shape.ts`.
 - 미해결·패치별 재현 명령: `docs/engine-issues.md`. 매트릭스 전체: `docs/engine-tactics.md`. 스윕 결과: `docs/engine-sweep.md`, `docs/engine-report.md`.
 - 기획서 부록 C(패치 기록)·E(엔진)·E.15/E.15.1(원칙): `docs/game-design.md`. 기획 보류 목록: `docs/planning-pending.md`.
 
 ## 8. 다음 엔진 관리자 세션이 처음 할 일
 
 1. `CLAUDE.md` → `docs/automation.md`(0번 마스터·main 푸시 규칙, 5번 동결) → 이 문서 → `docs/engine-issues.md` 미해결 목록 순으로 읽는다. 지금 마스터 세션(§1 지금 상태)에 세션 ID를 알리고 `automation.md` 1번 4항의 엔진 관리자 ID 갱신을 요청한다(마스터가 고친다). `npm ci`가 안 돼 있으면 먼저 한다(컨테이너마다 새로).
-2. 엔진 다듬기 블록이 열리면 §1 "다음" 순서대로: 수비 조직은 `engine-diagnosis-defense.md` §2.0 상황표·§4 처방을 그대로 코드 세션(Fable)에 넘기고, 먼저 `defense-shape 40`으로 기준값을 다시 잰다(엔진이 바뀌었을 수 있다). 미해결 3·4·5는 `engine-diagnosis-c33.md` §3.
+2. 44c(E-2 수비 조직)는 `engine-diagnosis-defense-v2.md`가 지시서다(Opus 44c-a → 44c-b → 44c-c). 코드 세션이 "해결 어려움"·"진단 불일치"를 보내오면 같은 문서에 §재진단을 더한다. 44c-a 결과가 오면 먼저 볼 것: `defense-shape` ⑦ 박스 압박 분기 79% → 얼마로, 박스 3명+ ≤ 3%, 득점 1.25~1.45. 44c-b는 같은 시드 `balance:scoring` 30골+ ≤ 2가 첫 관문. 44d E-3·44e~ E-4(미해결 1~7)는 `engine-diagnosis-c33.md` §3·`engine-issues.md` 처방.
 3. 다음 엔진 패치 시작 요청이 오면 §4 1번(ST 반응 재측정 800쌍)을 그 패치 측정에 끼워 넣자고 제안한다.
-4. 컨텍스트 50만을 넘으면 이 문서의 §1 지금 상태·§4 2대 절을 갱신하고 마스터에 교체를 요청한다.
+4. 대화가 40만 토큰을 넘으면 이 문서의 §1 지금 상태·§4 절을 갱신하고 마스터에 교체를 요청한다.
 
-명령 시각 2026-10-16 19:24 KST / 작성 시각 2026-10-16 19:27 KST · 2대 갱신 명령 시각 2026-10-19 20:02 KST / 작성 시각 2026-10-19 20:04 KST
+명령 시각 2026-10-16 19:24 KST / 작성 시각 2026-10-16 19:27 KST · 2대 갱신 명령 시각 2026-10-19 20:02 KST / 작성 시각 2026-10-19 20:04 KST · 3대 갱신 명령 시각 2026-10-20 05:10 KST / 작성 시각 2026-10-20 08:50 KST
