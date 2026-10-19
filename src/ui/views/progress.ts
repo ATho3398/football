@@ -1,10 +1,11 @@
 // 자동 진행 (C.44 pending 47 5번·52 4번 → C.57 디자인 61~64): 범위 고르기 시트(경기 수 / 다음 중요 경기 직전까지)와 진행 중 레이어 카드.
 // 레이어는 화면을 다시 그리지 않고 지금 화면 위에 따로 붙인다 (main.ts autoLayer)
 
-import { BottomSheet, Button, Icon, esc } from '../components';
+import { BottomSheet, Button, Icon, Switch, esc } from '../components';
+import { AUTO_PREFS_DEFAULT, type AutoPrefs } from '../autoPrefs';
 import type { AutoSheetVM } from '../viewModels';
 
-export function autoSheet(vm: AutoSheetVM, count: number): string {
+export function autoSheet(vm: AutoSheetVM, count: number, prefs: AutoPrefs = AUTO_PREFS_DEFAULT): string {
   const n = Math.max(1, Math.min(vm.remaining, count));
   const chips = [...vm.quick.filter((q) => q < vm.remaining).map((q) => ({ v: q, label: `${q}` })), { v: vm.remaining, label: `시즌 끝 · ${vm.remaining}` }];
   const quick = `<div class="auto-quick">${chips.map((c) => `<button type="button" class="po-chip auto-chip${c.v === n ? ' is-on' : ''}" data-act="auto-count" data-v="${c.v}">${esc(c.label)}</button>`).join('')}</div>`;
@@ -27,12 +28,20 @@ export function autoSheet(vm: AutoSheetVM, count: number): string {
     ? `<div class="auto-locked"><div class="auto-locked__chips">${locked.map((t) => `<span class="auto-locked__chip">${Icon({ name: 'lock', size: 11, strokeWidth: 2.6 })}${esc(t.label)}</span>`).join('')}</div>
       <p class="small muted">아직 없음 · 이 대회들은 커리어가 이어지면 생겨요</p></div>`
     : '';
+  // 진행 설정 (22.2, C.73b, 디자인 없음 — Switch 재사용): 포인트 추천 배분 · 멈춤 조건. 이적 제안·재계약은 늘 멈춘다
+  const sw = (k: keyof AutoPrefs, label: string, desc: string) => Switch({ label, desc, on: prefs[k], act: 'auto-pref', data: { k }, className: 'auto-pref' });
+  const settings = `<h4 class="ag-head auto-h2">진행 설정</h4><div class="auto-prefs">
+      ${sw('alloc', '포인트 추천 배분 자동 적용', '레벨업 포인트를 포인트 화면 [자동 배분]과 같은 규칙으로 바로 찍어요.')}
+      ${sw('event', '선택 이벤트가 오면 멈춤', '답이 필요한 인박스 이벤트가 새로 오면 멈춰요. 끄면 기한이 지나 기본 선택으로 넘어가요.')}
+      ${sw('injury', '부상당하면 멈춤', '내 선수가 새로 다치면 멈춰요.')}
+    </div><p class="small muted">이적 제안·재계약처럼 답해야 하는 일은 늘 멈춰요. [중단]은 그날까지 끝내고 멈춰요.</p>`;
   return BottomSheet({
-    eyebrow: `자동 진행 · ${vm.date}`, title: '어디까지 진행할까요?', subtitle: '내 경기도 재생 없이 계산해요. 포인트는 쌓아 두고, 답이 필요한 일(이적 제안 등)이 생기면 멈춰요.',
+    eyebrow: `자동 진행 · ${vm.date}`, title: '어디까지 진행할까요?', subtitle: `내 경기도 재생 없이 계산해요. ${prefs.alloc ? '포인트는 추천 배분으로 바로 찍고' : '포인트는 쌓아 두고'}, 답이 필요한 일이 생기면 멈춰요.`,
     onClose: { act: 'sheet-close' },
     children: `<h4 class="ag-head">경기 수</h4>${quick}<h4 class="ag-head">직접 입력</h4>${input}
-      <h4 class="ag-head auto-h2">다음 중요 경기 직전까지</h4><div class="auto-targets">${targets}${lockBox}</div>`,
-    footer: Button({ size: 'lg', block: true, icon: 'ff', act: 'auto-run', children: `${n}경기 자동 진행` }),
+      <h4 class="ag-head auto-h2">다음 중요 경기 직전까지</h4><div class="auto-targets">${targets}${lockBox}</div>${settings}`,
+    footer: `<div class="auto-foot">${Button({ size: 'lg', block: true, icon: 'ff', act: 'auto-run', children: `${n}경기 자동 진행` })}${
+      Button({ variant: 'secondary', block: true, icon: 'trophy', act: 'auto-end', className: 'auto-end', children: '시즌 요약으로 바로 이동' })}</div>`,
   });
 }
 
@@ -44,7 +53,7 @@ export function autoLayerHtml(): string {
     <span class="auto-layer__meta small"></span>
     <span class="auto-layer__bar" aria-hidden="true"><i></i></span>
     <ul class="auto-layer__results"></ul>
-    <div class="auto-layer__stats small"><span>현재 순위 <b class="po-num auto-layer__rank">-</b></span><span>쌓인 포인트 <b class="po-num auto-layer__pts">0</b></span></div>
+    <div class="auto-layer__stats small"><span>현재 순위 <b class="po-num auto-layer__rank">-</b></span><span><span class="auto-layer__ptsl">쌓인 포인트</span> <b class="po-num auto-layer__pts">0</b></span></div>
     ${Button({ variant: 'secondary', block: true, icon: 'stop', act: 'sim-stop', className: 'auto-layer__stop', children: '중단' })}</div>`;
 }
 

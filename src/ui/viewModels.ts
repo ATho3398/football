@@ -33,6 +33,7 @@ import {
   costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
+import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlightKind } from '../seasonHighlights';
 import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
@@ -44,6 +45,7 @@ import { MY_ID } from '../engine/adapter';
 import { npcOvr } from '../npc';
 import { isU21 } from '../squad';
 import { careerNet, endingScores } from '../wealth';
+import { careerKey, type LegacyStore } from '../legacy';
 import { moneyLabel } from '../money';
 import { AWARD_KO, awardValue, leaderboard, npcStanding, ratingMinApps, seasonAwards, type BoardKind } from '../worldStats';
 import { tierLabel } from '../finance';
@@ -1282,6 +1284,8 @@ export interface SeasonVM {
   badges: { name: string; desc: string }[];
   /** 시즌 경기 목록과 합계 (부록 C.30) */
   matches: SeasonMatchesVM;
+  /** 시즌 하이라이트 3 (22.2 끝, C.73b): 최고 평점 경기 · 골 · 위기 (해당 없으면 빠짐) */
+  highlights: { kind: SeasonHighlightKind; label: string; text: string }[];
   /** 요약 카드 (C.44): MOM, 레벨 변화(시즌 시작 레벨을 모르면 null), 위상 티어 */
   moms: number; levelFrom: number | null; levelTo: number;
   /** 상세 보기 (C.44): 월별·포지션별 기록, 리그 시상 */
@@ -1340,6 +1344,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
     badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
     matches: seasonMatchesVM(g),
+    highlights: seasonHighlights3(g.matchLog ?? [], (id) => teamById(g.league, id).nameKo).map((h) => ({ kind: h.kind, label: SEASON_HL_KO[h.kind], text: h.text })),
     moms: rec.moms ?? 0,
     levelFrom: rec.startLevel ?? (g.player.history.length === 1 ? 0 : null), levelTo: g.player.level,
     ...seasonSplits(g),
@@ -1392,12 +1397,32 @@ export interface RetiredVM {
   reputation: number; tierName: string; history: HistoryRowVM[];
   /** 엔딩 점수 (C.68b, 19.8 · 19.11): 순자산 · 자산 점수 · 누적 기부 · 자선가 */
   ending: { worth: string; asset: number; charity: string; philanthropist: boolean; career: string };
+  /** 업적 · 배지 (18.11, C.73b): 트로피(챕터 기록) · 레전드 배지 */
+  honors: { label: string; badge: boolean }[];
+  /** 명예의 전당 (18.11, C.73b): 이 기기 상위 3, 이번 커리어 순위, 예약된 새 게임 보너스 등급. 저장소를 못 읽으면 null */
+  hall: { list: { name: string; line: string; score: number; me: boolean }[]; rank: number | null; bonus: string | null } | null;
 }
 
-export function retiredVM(g: GameState): RetiredVM {
+export const RARITY_KO: Record<string, string> = { common: '일반', rare: '희귀', epic: '에픽', legendary: '전설' };
+
+export function retiredVM(g: GameState, legacy: { rank: number | null; legacy: LegacyStore } | null = null): RetiredVM {
   const t = careerTotals(g.player);
   const e = endingScores(g);
+  const key = careerKey(g);
+  const trophies = (g.chapters?.list ?? []).flatMap((c) => c.trophies);
+  const honors = [
+    ...trophies.map((x) => ({ label: x, badge: false })),
+    ...(g.player.badges ?? []).map((b) => ({ label: `${b.season} 레전드 배지 · ${BADGE_NAMES_KO[b.id] ?? b.id}`, badge: true })),
+  ];
+  const hall = legacy ? {
+    list: legacy.legacy.hall.map((h) => ({
+      name: `${h.name} · ${h.position}`, score: h.score, me: h.key === key,
+      line: `${h.seasons}시즌 · ${h.apps}경기 ${h.goals}골 ${h.assists}도움 · 최고 OVR ${h.peakOvr} · ${TIER_NAMES_KO[h.tier]} ${h.reputation}${h.badges ? ` · 배지 ${h.badges}` : ''}${h.trophies ? ` · 트로피 ${h.trophies}` : ''}`,
+    })),
+    rank: legacy.rank, bonus: legacy.legacy.bonus?.key === key ? RARITY_KO[legacy.legacy.bonus.rarity] ?? legacy.legacy.bonus.rarity : null,
+  } : null;
   return {
+    honors, hall,
     ending: { worth: moneyLabel(e.worth), asset: e.asset, charity: moneyLabel(e.charity), philanthropist: e.philanthropist, career: moneyLabel(careerNet(g), true) },
     card: playerCardVM(g), seasons: t.seasons, apps: t.apps, goals: t.goals, assists: t.assists,
     avg: t.avgRating === null ? '-' : t.avgRating.toFixed(2), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,

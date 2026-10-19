@@ -8,6 +8,7 @@ import { grantTierPick } from './cardCollection';
 import { playerOvr, reputationTier } from './growth';
 import { BADGE_NAMES_KO } from './badges';
 import type { GameState } from './game';
+import { SEASON_HL_KO, seasonHighlights3 } from './seasonHighlights';
 import type { Badge, SeasonRecord, Tier } from './types';
 
 const C = () => BALANCE.chapters;
@@ -84,14 +85,9 @@ export function chapterEventMul(state: GameState, tags: readonly string[]): numb
 
 /** 시즌 기록에서 하이라이트 후보 (경기 목록 · 트로피 · 배지) */
 function seasonHighlights(state: GameState, season: number, trophies: readonly string[], badges: readonly Badge[]): ChapterHighlight[] {
-  const out: ChapterHighlight[] = [];
-  const played = state.matchLog.filter((e) => e.minutes > 0 && e.rating !== null);
-  const best = [...played].sort((a, b) => (b.rating! + b.goals * 0.3 + b.assists * 0.2) - (a.rating! + a.goals * 0.3 + a.assists * 0.2))[0];
-  if (best) {
-    const opp = state.league.teams.find((t) => t.id === best.opponentId)?.nameKo ?? '상대';
-    const ga = [best.goals ? `${best.goals}골` : '', best.assists ? `${best.assists}도움` : ''].filter(Boolean).join(' ');
-    out.push({ season, text: `${opp}전 평점 ${best.rating!.toFixed(1)}${ga ? ` · ${ga}` : ''}${best.mom ? ' · MOM' : ''}`, score: best.rating! + best.goals * 0.3 + best.assists * 0.2 });
-  }
+  // 시즌 하이라이트 3 (C.73b): 최고 평점 경기 · 골 · 위기를 그대로 후보로 (점수는 BALANCE.seasonHighlights)
+  const teamName = (id: string) => state.league.teams.find((t) => t.id === id)?.nameKo ?? '상대';
+  const out: ChapterHighlight[] = seasonHighlights3(state.matchLog, teamName).map((h) => ({ season, text: h.kind === 'best' ? h.text : `${SEASON_HL_KO[h.kind]} · ${h.text}`, score: h.score }));
   const s = state.player.season;
   if (s.goals + s.assists >= 15) out.push({ season, text: `한 시즌 ${s.goals}골 ${s.assists}도움`, score: 6 + (s.goals + s.assists) / 10 });
   for (const t of trophies) out.push({ season, text: t, score: 10 });

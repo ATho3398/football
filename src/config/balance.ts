@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 49;
+export const BALANCE_VERSION = 50;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1264,6 +1264,29 @@ export const BALANCE = {
     pick: { prospect: 'rare', rise: 'rare', prime: 'epic', twilight: null } as Record<string, string | null>,
     /** 챕터 하이라이트 보관 수 */
     highlights: 3,
+  },
+
+  // ── 시즌 하이라이트 3 (22.2 끝 · I.13, 부록 C.73b): 최고 평점 경기 · 골 · 위기. 챕터 하이라이트 후보 점수도 같이 ──
+  seasonHighlights: {
+    /** 최고 평점 경기 점수 = 평점 + 골 × goalW + 도움 × assistW (C.73a 그대로) */
+    best: { goalW: 0.3, assistW: 0.2 },
+    /** 골 경기 점수 = base + 골 × perGoal + 승부를 가른 골(이긴 경기 골 차 ≤ 내 골, 비긴 경기 내 골) decisive. 골이 없으면 도움 경기 (perAssist) */
+    goal: { base: 5, perGoal: 1, decisive: 1, perAssist: 0.6 },
+    /**
+     * 위기 점수: 부상 결장 연속 = injuryBase + 경기 × injuryPer (최대 injuryMax), 연패(minLosing 이상) = losingBase + 연패 × losingPer,
+     * 최악 평점 경기(worstBelow 미만) = worstBase + (worstBelow − 평점). 셋 중 가장 큰 것. 챕터 후보로는 낮게(위기는 트로피·배지가 없을 때만 보이게)
+     */
+    crisis: { injuryBase: 3, injuryPer: 0.25, injuryMax: 6, minLosing: 3, losingBase: 2.5, losingPer: 0.5, worstBelow: 6, worstBase: 3 },
+  },
+
+  // ── 은퇴 후 (18.11, 부록 C.73b): 명예의 전당(세이브 밖 로컬 저장) · 새 게임 보너스 ──
+  legacy: {
+    /** 명예의 전당 보관 수 */
+    hallSize: 3,
+    /** 커리어 점수 = 최종 위상 + 자산 점수 × assetW + 레전드 배지 × badgeW + 트로피 × trophyW + 통산 (골 + 도움) × gaW */
+    score: { assetW: 2, badgeW: 100, trophyW: 30, gaW: 0.5 },
+    /** 새 게임 보너스: 시작 카드 선택권 1회 (C.65 흐름). 보통 커리어 normal, 레전드 배지를 받은 커리어 legend */
+    bonus: { normal: 'common', legend: 'rare' } as Record<'normal' | 'legend', string>,
   },
 
   // ── 경기 외 생활 (pending 47 4번, 부록 C.63) ──

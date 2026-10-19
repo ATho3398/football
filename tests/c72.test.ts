@@ -73,7 +73,7 @@ describe('181 시즌 요약 포인트 줄', () => {
       achievements: [], achievementXp: 0, levelsGained: 8, seasonGoals: null, cardPicks: 0, repBefore: 500, repAfter: 630, tierName: '탑클래스', tier: 'top',
       slumpPenalty: 0, rankPenalty: null, badgeRep: 0, repLines: [], tierReached: null, next: null, position: 'LW', ovrBefore: 86, ovrAfter: 86,
       autoGrowth: [], veteran: [], aging: [], growthAges: '', ageFrom: 26, ageTo: 27, retired: false, forcedRetire: false, canRetire: false, points: 8, injury: null, badges: [],
-      matches: { rows: [], total: null, recApps: 0 }, moms: 14, levelFrom: 0, levelTo: 8, months: [], positions: [], awards: [],
+      matches: { rows: [], total: null, recApps: 0 }, moms: 14, levelFrom: 0, levelTo: 8, months: [], positions: [], awards: [], highlights: [],
     } as unknown as SeasonVM;
     const html = seasonView(vm);
     expect(html).toContain('season-todo is-hi');
