@@ -450,3 +450,4 @@
 - (20:03 KST) UI_3 교체 확인(claude/ui-3 6401f15, 11차 누계 큰 3·작은 6·단계 1). 엔진관리자2 교체 확인, 인수인계 갱신 `claude/engine-handoff-r` 06adad0 → C.74a·b에 docs 병합 대상 추가 알림.
 - (20:36 KST, 사용자 "크레딧 중단 느낌표 세션 정리, 크레딧 제일 안 드는 방법") 사용량 한도로 실패 표시된 draft 세션 2개 **보관(archive)**: C.73b `session_015yFLHowJh5sLRxBHeXzYiX`, Q `session_01B71wzpzNzdTg4hm7DbNX9H`(크레딧 0, unarchive로 되돌릴 수 있음). UI_3·엔진관리자2는 재개 뒤 정상 상태라 그대로. 사용자 질문: 다른 세션 "답변 완료" 읽음 처리는 도구가 없어 불가(앱에서 직접).
 - (20:41 KST, 사용자) 보관 취소: Q·C.73b unarchive 후 "한도 풀림, 한 줄 답하고 멈춤" 메시지. 앞으로 보관 안 함 → automation.md 0번에 규칙 추가.
+- (20:55 KST, 사용자) 누수 점검 확정: automation.md 0번 한도 경고 ntfy, 5번·6-3 누적 비용 기준 삭제(대화 크기), 새 7번 비용·용량(코드 세션 나누기 = 남은 일 기준, 큰 출력 금지, 캡처 패치당 5~10장, 엔진관리자 깨우지 않음). **카톡 알림 폐지**(재발급 안내 예약 trig_011byfg3qNvXKLXcdgzLECYV 삭제). ntfy: R 환경 "player ONE"(env_01STK8eBPczqRtyrxxUJL5DJ)에 NTFY_TOPIC 없음, "Default"(env_01UV9gVVKpLLuhnieU6ctYeL)엔 있음 → 사용자가 player ONE에 한 번 넣으면 이후 마스터 계속 적용. 9시간 정지는 한도 시간 자체(사용자가 19:00 리셋 직후 재명령) — 손실 아님.
