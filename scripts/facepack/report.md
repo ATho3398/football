@@ -1,13 +1,13 @@
 # 페이스팩 수집 보고
 
-생성: 2026-10-17T14:43:13.679Z · 출처: 위키백과 REST 요약 API · 이미지 128×128 WebP
+생성: 2026-10-19T18:17:05.902Z · 출처: 위키백과 REST 요약 API · 이미지 128×128 WebP
 
 ## 요약
 
-- 선수 150/34
+- 선수 184/34
 - 구단 20/20
-- 의심: 없음
-- public/facepack 전체 4,252,579 바이트
+- 의심: lg-dede (대체 후보로 찾음 (Dedê))
+- public/facepack 전체 5,150,053 바이트
 
 ## 선수
 
@@ -164,6 +164,40 @@
 | lg-torres | Fernando Torres | 찾음 | Fernando Torres |  |
 | lg-villa | David Villa | 찾음 | David Villa |  |
 | lg-carrick | Michael Carrick | 찾음 | Michael Carrick |  |
+| lg-weidenfeller | Roman Weidenfeller | 찾음 | Roman Weidenfeller |  |
+| lg-lehmann | Jens Lehmann | 찾음 | Jens Lehmann |  |
+| lg-klos | Stefan Klos | 찾음 | Stefan Klos |  |
+| lg-sammer | Matthias Sammer | 찾음 | Matthias Sammer |  |
+| lg-jkohler | Jürgen Kohler | 찾음 | Jürgen Kohler |  |
+| lg-dede | Dedê | 의심 | Dedé (footballer, born 1978) | 대체 후보로 찾음 (Dedê) |
+| lg-piszczek | Łukasz Piszczek | 찾음 | Łukasz Piszczek |  |
+| lg-subotic | Neven Subotić | 찾음 | Neven Subotić |  |
+| lg-schmelzer | Marcel Schmelzer | 찾음 | Marcel Schmelzer |  |
+| lg-hummels | Mats Hummels | 찾음 | Mats Hummels |  |
+| lg-santana | Felipe Santana | 찾음 | Felipe Santana |  |
+| lg-sbender | Sven Bender | 찾음 | Sven Bender |  |
+| lg-kehl | Sebastian Kehl | 찾음 | Sebastian Kehl |  |
+| lg-zorc | Michael Zorc | 찾음 | Michael Zorc |  |
+| lg-sahin | Nuri Şahin | 찾음 | Nuri Şahin |  |
+| lg-ricken | Lars Ricken | 찾음 | Lars Ricken |  |
+| lg-rosicky | Tomáš Rosický | 찾음 | Tomáš Rosický |  |
+| lg-kuba | Jakub Błaszczykowski | 찾음 | Jakub Błaszczykowski |  |
+| lg-chapuisat | Stéphane Chapuisat | 찾음 | Stéphane Chapuisat |  |
+| lg-jkoller | Jan Koller | 찾음 | Jan Koller |  |
+| lg-barrios | Lucas Barrios | 찾음 | Lucas Barrios |  |
+| fs-yamal | Lamine Yamal | 찾음 | Lamine Yamal |  |
+| fs-pedri | Pedri | 찾음 | Pedri |  |
+| fs-gavi | Gavi | 찾음 | Gavi (footballer) |  |
+| fs-bellingham | Jude Bellingham | 찾음 | Jude Bellingham |  |
+| fs-musiala | Jamal Musiala | 찾음 | Jamal Musiala |  |
+| fs-wirtz | Florian Wirtz | 찾음 | Florian Wirtz |  |
+| fs-camavinga | Eduardo Camavinga | 찾음 | Eduardo Camavinga |  |
+| fs-cubarsi | Pau Cubarsí | 찾음 | Pau Cubarsí |  |
+| fs-endrick | Endrick | 찾음 | Endrick |  |
+| fs-garnacho | Alejandro Garnacho | 찾음 | Alejandro Garnacho |  |
+| fs-mainoo | Kobbie Mainoo | 찾음 | Kobbie Mainoo |  |
+| fs-zaireemery | Warren Zaïre-Emery | 찾음 | Warren Zaïre-Emery |  |
+| fs-haaland | Erling Haaland | 찾음 | Erling Haaland |  |
 
 ## 구단
 

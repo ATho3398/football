@@ -14,11 +14,14 @@ import { historyTable } from './player';
 import { attrGrid, type AttrGroupVM } from './attrGrid';
 import { attrDisplay, displayDelta } from '../../attributes';
 import { BALANCE } from '../../config/balance';
-import { LEGENDS } from '../../legends';
+import { FUTURE_STARS, LEGENDS } from '../../legends';
 
 /** 레전드 팩 인원 표기 기준 (C.52): 팩 전체 = LEGENDS 전체, 고를 수 있는 선수 = GK 제외 */
 const LEGEND_TOTAL = LEGENDS.length;
 const LEGEND_GK = LEGENDS.filter((l) => l.position === 'GK').length;
+/** 도르트문트 레전드 (C.75x) · 미래 스타 수 */
+const LEGEND_BVB = LEGENDS.filter((l) => l.group === 'bvb').length;
+const FUTURE_TOTAL = FUTURE_STARS.length;
 import type { CustomVM } from '../customVM';
 import { customBody, photoRow } from './custom';
 import type { FacePhoto, Race } from '../../identity';
@@ -80,7 +83,9 @@ export interface NewGameVM {
   realId: string;
   /** 레전드 팩 (C.47) 켬, 켰을 때 고를 수 있는 레전드 (실제 선수 목록의 "레전드" 묶음) */
   legends: boolean;
-  legendList: { id: string; name: string; club: string; age: number; position: string; ovr: number; peak: number; youthKo: string }[];
+  legendList: { id: string; name: string; club: string; age: number; position: string; ovr: number; peak: number; youthKo: string; bvb?: boolean }[];
+  /** 미래 스타 (C.75x): 데뷔 시즌에 들어오는 선수 (고를 수 없음, 보기만) */
+  futureList: { id: string; name: string; position: string; debut: string; age: number; club: string; realClub: string; start: number; peak: number }[];
   selected: { id: string; name: string; ovr: number; club: string; age: number; position: string; legend?: boolean; peak?: number; youthKo?: string } | null;
   /** 능력치 접힘 줄 (디자인 130) */
   attrSummary: { count: number; avg: string; weak: string; top: string } | null;
@@ -93,7 +98,7 @@ export interface NewGameVM {
 
 /** 새 게임 화면 상태 (C.58 디자인 124~131): 실제 선수 묶음 탭 · 검색 · 정렬 · 포지션군 · 보이는 수, 랜덤 능력치 펼침, 커스텀 단계 */
 export interface NewGameUI {
-  realTab: 'real' | 'legend'; rq: string; rsort: 'peak' | 'ovr' | 'age' | 'name'; rgroup: 'all' | 'fw' | 'mf' | 'df'; rshow: number;
+  realTab: 'real' | 'legend' | 'future'; rq: string; rsort: 'peak' | 'ovr' | 'age' | 'name'; rgroup: 'all' | 'fw' | 'mf' | 'df'; rshow: number;
   attrsOpen: boolean; cuStep: number;
   /** 정렬 펼침 (C.71b 디자인 175: 실제 선수 = 바로 아래 목록, 레전드 = 아래 시트) */
   sortOpen?: boolean;
@@ -111,7 +116,7 @@ function startOptions(vm: NewGameVM, nameField: boolean): string {
   const cur = vm.difficulties.find((d) => d.id === vm.difficulty);
   const diff = `${Tabs({ items: vm.difficulties.map((d) => ({ id: d.id, label: d.id === 'normal' ? `${d.label} · 추천` : d.label })), value: vm.difficulty, variant: 'segment', fill: true, act: 'form', data: { k: 'difficulty' }, label: '난이도' })}
     ${cur ? `<p class="small muted ng-diff">${esc(cur.desc)}</p>` : ''}`;
-  const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명</b><small>${vm.legends ? '켜면 실제 선수에 레전드 탭이 생기고, 펠레·지단·박지성 같은 레전드가 15~22세 유망주로 유스 구단에 들어와요. 끄면 세계는 그대로예요.' : '켜면 2020년까지 은퇴한 레전드가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</small></span>${
+  const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명 · 미래 스타 ${FUTURE_TOTAL}명</b><small>${vm.legends ? `켜면 실제 선수에 레전드·미래 스타 탭이 생기고, 펠레·지단·박지성 같은 레전드(도르트문트 레전드 ${LEGEND_BVB}명 포함)가 15~22세 유망주로 들어와요. 야말·벨링엄 같은 미래 스타는 실제 데뷔 시즌에 그때 나이로 나타나요. 끄면 세계는 그대로예요.` : '켜면 2020년까지 은퇴한 레전드(+ 도르트문트 레전드)가 2018-19 세계에 15~22세로 들어오고, 미래 스타는 실제 데뷔 시즌에 나타나요. 끄면 세계는 그대로예요.'}</small></span>${
     Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>`;
   const seed = TextField({ label: '시드 (선택)', value: vm.seed, placeholder: '비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과', input: { id: 'f-seed', maxLength: 40 }, clearable: false });
   const bonus = vm.bonus
@@ -215,9 +220,12 @@ function sortRows(legendTab: boolean, cur: SortId): string {
 /** 실제 선수 (디자인 131): [실제 선수 n | 레전드 n] 묶음 탭 → 고른 선수 카드 → 검색·정렬 → 포지션군 → 10명 + 더 보기 */
 function realBody(vm: NewGameVM, u: NewGameUI): string {
   const legendTab = vm.legends && u.realTab === 'legend';
+  const futureTab = vm.legends && u.realTab === 'future';
   const tabs = vm.legends
-    ? Tabs({ items: [{ id: 'real', label: `실제 선수 ${vm.reals.length}` }, { id: 'legend', label: `레전드 ${vm.legendList.length}` }], value: legendTab ? 'legend' : 'real', variant: 'segment', fill: true, act: 'ng-real', data: { k: 'realTab' }, label: '실제 선수 묶음' })
+    ? Tabs({ items: [{ id: 'real', label: `실제 선수 ${vm.reals.length}` }, { id: 'legend', label: `레전드 ${vm.legendList.length}` }, { id: 'future', label: `미래 스타 ${vm.futureList.length}` }], value: futureTab ? 'future' : legendTab ? 'legend' : 'real', variant: 'segment', fill: true, act: 'ng-real', data: { k: 'realTab' }, label: '실제 선수 묶음' })
     : '';
+  if (futureTab) return `${tabs}${futureBody(vm)}${startOptions(vm, false)}
+    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !vm.selected, children: vm.selected ? `${vm.selected.name}으로 시작 · ${vm.selected.club}` : '선수를 골라요' })}</div>`;
   const sel = vm.selected;
   const card = sel ? `<div class="panel ng-sel">${Avatar({ size: 52, face: { id: sel.id, age: sel.age }, name: sel.name })}<span class="grow">${sel.legend ? '<span class="ng-legend">레전드</span> ' : ''}<small class="muted">고른 선수</small><b class="ng-sel__name">${esc(sel.name)}</b><small>${esc(sel.club)} · ${sel.age}세 · ${sel.position}${sel.youthKo ? ` · 유스 ${esc(sel.youthKo)}` : ''}</small></span><span class="ng-sel__ovr"><b class="po-num">${sel.ovr}</b>${sel.peak ? `<small class="ng-peak">전성기 ${sel.peak}</small>` : '<small>OVR</small>'}</span>
       <p class="small muted ng-sel__note">${sel.legend ? `2018-19 세계에 ${sel.age}세로 들어와 30세 무렵 전성기에 닿아요. 실제 유스 클럽은 기록으로만 남아요.` : '지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요. OVR은 시드에 따라 조금 달라져요.'}</p></div>` : '';
@@ -248,6 +256,14 @@ function realBody(vm: NewGameVM, u: NewGameUI): string {
     <div class="real-list">${shown.map(row).join('') || '<p class="small muted">맞는 선수가 없어요.</p>'}</div>${more}
     ${startOptions(vm, false)}
     <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !sel, children: sel ? `${sel.name}으로 시작 · ${sel.club}` : '선수를 골라요' })}</div>${sheet}`;
+}
+
+/** 미래 스타 묶음 (C.75x, 디자인 없음): 데뷔 시즌 순 목록. 고를 수 없고 데뷔 시즌이 되면 세계에 나타난다 */
+function futureBody(vm: NewGameVM): string {
+  const row = (p: NewGameVM['futureList'][number]) => `<div class="real-row ng-row ng-future">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${esc(p.debut)} 데뷔 · ${p.age}세 · ${p.position} · ${esc(p.club)}${p.realClub !== p.club ? ` (실제 ${esc(p.realClub)})` : ''}</small></span><span class="ng-row__ovr"><span><b class="po-num muted">${p.start}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>데뷔 → 전성기</small></span></div>`;
+  return `<div class="ng-listhead"><b class="small">미래 스타 ${vm.futureList.length}명 · 데뷔 시즌 순</b><small class="muted">고를 수 없어요</small></div>
+    <p class="small muted">2018-19 세계엔 아직 없는 선수예요. 실제 프로 데뷔 시즌이 시작될 때 그때 나이로 나타나요. 데뷔 팀이 리그 밖이면 수준이 비슷한 팀으로 들어와요.</p>
+    <div class="real-list">${vm.futureList.map(row).join('')}</div>`;
 }
 
 // ── 포인트 찍기 (50) ──
@@ -320,7 +336,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     ${panel(`<div class="fin-legend">${tierCount.map((x) => `<div class="fin-legend__cell">${FinChip(x.t, true)}<small class="po-num">${x.n}팀</small></div>`).join('')}</div>
       <p class="small muted">이적료·연봉을 낼 수 있는 크기예요. 표에서는 막대만, 글자는 이 범례와 팀 상세에서. 색은 쓰지 않아요(순위 색과 겹치지 않게).</p>`)}`;
   const starRow = (s: StarVM, i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}${s.ga ? ` · ${s.ga}` : ''}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${(s.change ?? 0) > 0 ? 'up' : (s.change ?? 0) < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
-  const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="rec">레전드</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
+  const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="rec">${esc(s.kind)}</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
   // 리그 스타 묶음 (C.64, 디자인 147 segment 탭): 리그 안(위상 순) · 세계(리그 밖 실제 선수) · 21세 이하
   const groupTabs = Tabs({ items: [{ id: 'league', label: '리그 안' }, { id: 'world', label: '세계' }, { id: 'young', label: '21세 이하' }], value: group, variant: 'segment', act: 'world-stars', label: '리그 스타 거르기' });
   const list = group === 'world' ? vm.starsWorld : group === 'young' ? vm.starsYoung : vm.stars;
@@ -332,10 +348,11 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
   const stars = `${groupTabs}<p class="small muted">${groupNote}</p>
     ${list.length ? `<div class="star-list">${starsShown.map(starRow).join('')}</div>` : '<p class="small muted">해당하는 선수가 없어요.</p>'}
     ${list.length > STAR_PAGE ? moreButton('stars', !!more.stars, `${group === 'world' ? '세계 스타' : group === 'young' ? '21세 이하' : '리그 스타'} ${list.length - STAR_PAGE}명 더 보기`) : ''}
-    ${group === 'league' && vm.legends.length ? `${SectionTitle({ title: '레전드', action: `레전드 팩 · ${LEGEND_TOTAL}명` })}
+    ${group === 'league' && vm.legends.length ? `${SectionTitle({ title: '레전드', action: `레전드 팩 · ${LEGEND_TOTAL + FUTURE_TOTAL}명` })}
     <p class="small muted">레전드 팩으로 들어온 선수 중 리그에서 뛰는 ${vm.legends.length}명이에요. 지금 OVR과 전성기 예상을 같이 보여 줘요(지금 OVR 순).</p>
     <div class="star-list">${legShown.map(legRow).join('')}</div>
     ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
+    ${group === 'league' && vm.upcoming.length ? `<p class="small muted wl-upcoming"><b>미래 스타 등장 예정</b> · ${vm.upcoming.map((u) => `${esc(u.name)} ${u.debut}`).join(' · ')}</p>` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
   return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
 }

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 53;
+export const BALANCE_VERSION = 54;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -971,6 +971,8 @@ export const BALANCE = {
     peakBonus: 4,
     minPeak: 88,
     maxPeak: 96,
+    /** 도르트문트 레전드·미래 스타 (C.75x) 전성기 하한: 데이터 그대로 쓰도록 낮게 */
+    groupMinPeak: 78,
     loyalty: 70,
   },
 

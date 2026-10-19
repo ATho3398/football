@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { A_GRADE_PLAYERS } from '../../data/players';
-import { LEGENDS } from '../../data/players/legends';
+import { FUTURE_STARS, LEGENDS } from '../../data/players/legends';
 import { initialTeams } from '../../src/league';
 
 const UA = 'PlayerOneFacepack/0.1 (https://github.com/ATho3398/football; personal use)';
@@ -221,6 +221,10 @@ function playerJobs(): Job[] {
 
 /** 레전드 팩 (C.47): 출생연도 확인 없이 축구 문서만. 동음이의가 있는 이름은 덮어쓰기 */
 const LEGEND_OVERRIDES: Record<string, string[]> = {
+  // C.75x 도르트문트 레전드 · 미래 스타
+  'lg-dede': ['Dedé (footballer, born 1978)'], 'lg-jkohler': ['Jürgen Kohler'], 'lg-jkoller': ['Jan Koller'], 'lg-klos': ['Stefan Klos'],
+  'lg-sbender': ['Sven Bender'], 'lg-santana': ['Felipe Santana'], 'lg-barrios': ['Lucas Barrios'], 'lg-kuba': ['Jakub Błaszczykowski'],
+  'fs-pedri': ['Pedri'], 'fs-gavi': ['Gavi (footballer)', 'Gavi'], 'fs-endrick': ['Endrick (footballer)', 'Endrick'],
   'lg-ronaldo9': ['Ronaldo (Brazilian footballer)'], 'lg-raul': ['Raúl (footballer)'], 'lg-xavi': ['Xavi (footballer, born 1980)'], 'lg-deco': ['Deco'],
   'lg-rivaldo': ['Rivaldo'], 'lg-romario': ['Romário'], 'lg-kaka': ['Kaká'], 'lg-zico': ['Zico (footballer)', 'Zico'],
   'lg-cafu': ['Cafu'], 'lg-pele': ['Pelé'], 'lg-ruicosta': ['Rui Costa'], 'lg-keane': ['Roy Keane'], 'lg-villa': ['David Villa'],
@@ -230,7 +234,7 @@ const LEGEND_OVERRIDES: Record<string, string[]> = {
 };
 
 function legendJobs(): Job[] {
-  return LEGENDS.map((l) => {
+  return [...LEGENDS, ...FUTURE_STARS].map((l) => {
     const candidates = [...(LEGEND_OVERRIDES[l.id] ?? []), l.name, `${l.name} (footballer)`]
       .filter((t, i, a) => a.indexOf(t) === i).map((title, i) => ({ title, primary: i === 0 }));
     return {

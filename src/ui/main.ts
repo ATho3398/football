@@ -1822,7 +1822,7 @@ app.addEventListener('click', (ev) => {
       readFormInputs();
       ui.ng.sortOpen = false;
       const k = el.dataset.k;
-      if (k === 'realTab') { ui.ng.realTab = v === 'legend' ? 'legend' : 'real'; ui.ng.rshow = 10; ui.ng.rsort = ui.ng.realTab === 'legend' ? 'peak' : 'ovr'; }
+      if (k === 'realTab') { ui.ng.realTab = v === 'legend' || v === 'future' ? v : 'real'; ui.ng.rshow = 10; ui.ng.rsort = ui.ng.realTab === 'legend' ? 'peak' : 'ovr'; }
       else if (k === 'rgroup') { ui.ng.rgroup = v as NewGameUI['rgroup']; ui.ng.rshow = 10; }
       else if (k === 'rshow') ui.ng.rshow = Number(v) || 10;
       else if (k === 'rq') { ui.ng.rq = v ?? ''; ui.ng.rshow = 10; }
