@@ -3,7 +3,7 @@
 - **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: R** `session_015zZ2foCVBuTGmZ3S6w8LR3` (브랜치 `claude/planning-r`, 2026-10-19 10:47 KST Q → R 교체, 사용자가 앱에서 직접 연 세션). 알림·보고는 R로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 Q `session_01B71wzpzNzdTg4hm7DbNX9H`(`claude/planning-q`).
+- **지금 마스터: S** `session_01Pi4aAWoFd5yBP3mZfCURwD` (브랜치 `claude/planning-s`, docs 병합은 git merge로만, 2026-10-20 01:21 KST R → S 교체, R이 연 세션 — `get_session` parent 확인). 알림·보고는 S로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 R `session_015zZ2foCVBuTGmZ3S6w8LR3`(`claude/planning-r`), Q `session_01B71wzpzNzdTg4hm7DbNX9H`.
   - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
@@ -134,7 +134,8 @@
 
 | 단계(부록 C) | 디자인 없는 새 화면·패널 | 개수 |
 |---|---|---|
-| (다음 단계부터) | | |
+| C.74c (43c 케미·상대 분석·패스 받는 빈도, main 4ec1da9, 2026-10-20 01:19 KST 통보) | **큰 2: ① 경기 준비 "상대 분석" 칸 ② 선수 기록 탭 "호흡 좋은 동료"**. 작은 1: 결정 순간 "약점 공략" 칩. 캡처 `docs/design/c74c-check/` | 2 (+작은 1) |
+| **11차 뒤 누계** | | **큰 것 2 (+작은 1), 큰 것 있는 단계 1** |
 
 - 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
 - U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".
