@@ -165,7 +165,7 @@ describe('세이브 40 (SAVE_FORMAT_VERSION)', () => {
 
 describe('버전', () => {
   it('버전 라벨', () => {
-    expect(PATCH_LABEL).toBe('C.73c');
+    expect(PATCH_LABEL).toBe('C.73d');
     expect(STAGE_LABEL).toBe('42단계');
   });
 });

@@ -194,6 +194,8 @@ function pointsBanner(g: GameState): BannerVM | null {
 // ── 홈 (I.3, 디자인 22·25) ──
 
 export interface HomeVM {
+  /** 머리말 왼쪽 위 ‹ 초기화면으로 (C.73d): 경기 중이 아니면 main 이 켠다 */
+  exit?: boolean;
   /** 지금 챕터 이름 (22.1, C.73a): "도약 챕터" */
   chapter: string;
   /** 재정 (C.68a): 고를 수 있는 코치 후보 수 (홈 재정 아이콘 배지) */

@@ -33,16 +33,18 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   // C.70 (디자인 161): 날짜 옆은 저장·설정만. 인박스·재정은 독(더보기 줄 · PC 칸)에서 배지로 (C.69 독 v3)
   const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' });
   const face = homeFace(vm);
+  // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음
+  const back = vm.exit ? { act: 'to-title' } as const : false;
   // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
   const hero = face
     ? HeroPanel({
-      title: '홈', back: false, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.card.name,
+      title: '홈', back, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.card.name,
       eyebrow: vm.trial ? `${vm.team} · 1군 테스트 ${vm.trial.games}/${vm.trial.need}` : `${vm.team} · ${vm.card.position}`,
       rightHtml: `<span class="hm-date">${esc(vm.day ? vm.day.short : '비시즌')}${vm.day ? ` (${esc(vm.day.weekdayKo.slice(0, 1))})` : ''}</span>${tools}`,
       value: vm.card.ovr, unit: `OVR · ${vm.card.position}`, chips: heroChips(vm),
     })
     : HeroPanel({
-      title: '홈', back: false, compact: true, rightHtml: tools,
+      title: '홈', back, compact: true, rightHtml: tools,
       eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
       value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false, chips: heroChips(vm),
     });

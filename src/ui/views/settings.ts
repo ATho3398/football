@@ -457,7 +457,9 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     <small class="set-links__label">하위 화면</small><div class="set-links">${links}</div>`;
   const lookSub = `스타일 ${SKIN_KO[skin()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
   const saves = `<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
-    <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>`;
+    <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>${
+    // C.73d: 초기화면(타이틀)으로. 자동 저장 뒤 나간다. 경기 중에는 숨긴다
+    g && !locked ? `<div class="kv"><span>초기화면</span>${Button({ variant: 'secondary', size: 'sm', icon: 'home', act: 'to-title', children: '초기화면으로' })}</div>` : ''}`;
   const st = faceStats();
   const pack = `<p class="small">내가 올린 이미지(카드 이미지 포함, <b>cards/</b> 폴더)를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
     <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0 && userArtCount() === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`;
@@ -466,7 +468,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     const cur: SetSec = set.open ?? 'play';
     const bodies: Record<SetSec, [string, string, boolean?]> = {
       play: [playSub, play, locked && !!g], view: [pvSub, pv], look: [lookSub, look],
-      saves: ['세이브 관리 · 첫 플레이 안내 다시 보기', saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
+      saves: [`세이브 관리 · 첫 플레이 안내 다시 보기${g && !locked ? ' · 초기화면으로' : ''}`, saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
     };
     const [sub, body, lk] = bodies[cur];
     return `${hero}<div class="body set-body">${pc2(setNav('main', cur), `${locked ? Banner({ tone: 'warning', title: '경기 중이에요', children: '경기 진행 설정은 경기가 끝나면 바꿀 수 있어요. 화면 보기·꾸미기는 지금도 돼요.' }) : ''}${

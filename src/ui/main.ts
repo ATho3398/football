@@ -292,7 +292,7 @@ const LOCK_ACTS = new Set([
   'deck-add', 'deck-remove', 'deck-use', 'pick-take', 'pos-change', 'next-season', 'retire', 'retire-ok', 'chapter-done', 'save', 'load', 'delete-ok',
   'start', 'continue', 'opt-quick', 'ctl-mode', 'ctl-stop', 'train-set', 'train-focus', 'preset-pick', 'preset-apply', 'preset-auto', 'preset-save', 'preset-del', 'export', 'import',
   'offer-accept', 'offer-accept-ok', 'offer-decline', 'offers-decline', 'renew', 'transfer-request', 'transfer-request-ok',
-  'ca-upload', 'ca-adjust', 'ca-clear', 'ca-crop-save',
+  'ca-upload', 'ca-adjust', 'ca-clear', 'ca-crop-save', 'to-title', 'to-title-ok',
 ]);
 
 /**
@@ -418,6 +418,7 @@ function screenHtml(): string {
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       const hvm = homeVM(g);
+      hvm.exit = !liveScreen();
       // C.70 (디자인 162): 방금 레벨업했으면 포인트 배너를 "Lv n · 포인트 +n" 으로
       if (ui.lvUp && hvm.points > 0) hvm.banners = hvm.banners.map((b) => (b.to === 'allocate' ? { ...b, title: `Lv ${ui.lvUp!.level} · 포인트 +${ui.lvUp!.plus}`, body: `레벨이 올랐어요. 찍을 포인트가 ${hvm.points}P가 됐어요.` } : b));
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
@@ -1394,6 +1395,32 @@ app.addEventListener('click', (ev) => {
     case 'modal-close':
       ui.modal = null;
       render();
+      return;
+    // C.73d: 초기화면으로 (홈 왼쪽 위 ‹ · 설정 세이브 섹션). 자동 저장을 끝낸 뒤 게임을 내려놓고 타이틀로
+    case 'to-title':
+      if (!g || liveScreen()) return;
+      confirmModal({ title: '초기화면으로 갈까요?', body: '진행은 자동 저장돼요. 초기화면의 [이어하기]로 바로 돌아와요.', confirm: '저장하고 나가기', act: 'to-title-ok' });
+      return;
+    case 'to-title-ok':
+      ui.modal = null;
+      if (!g || liveScreen()) { render(); return; }
+      void (async () => {
+        try {
+          await autosave();
+        } catch (e) {
+          showToast((e as Error).message);
+          render();
+          return;
+        }
+        ui.game = null;
+        ui.replay = null;
+        ui.rewatch = false;
+        ui.recent = [];
+        ui.recentDirty = false;
+        syncReplayIndex();
+        ui.moreSheet = false;
+        go('title');
+      })();
       return;
     case 'tac-open':
       if (!g) return;
