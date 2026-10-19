@@ -18,6 +18,9 @@ function euro(word: string): string {
   return c >= 0 && c < 11172 && c % 28 !== 0 && c % 28 !== 8 ? '으로' : '로';
 }
 
+/** 원정 전날 이동일 안내 (C.74b) */
+const TRAVEL_NOTE = '원정 전날은 이동일이라 영상 분석·회복만 할 수 있어요';
+
 /** 훈련 종류 아이콘 (디자인 91·92) */
 export const PLAN_ICON: Record<DayPlan, IconName> = {
   tech: 'train', weakFoot: 'target', intense: 'risk', position: 'tactic', setpiece: 'card', video: 'video', recovery: 'recover', rest: 'rest',
@@ -30,7 +33,7 @@ const cellKind = (k: DayPlan): 'train' | 'rest' | 'match' => (k === 'match' ? 'm
 function dayCell(d: TrainingVM['week'][number]): string {
   return DayCell({
     kind: cellKind(d.kind), day: d.wd, date: d.md, icon: PLAN_ICON[d.kind], label: d.short.slice(0, 2), today: d.today, fixed: d.fixed,
-    className: d.changed ? 'is-changed' : '', ariaLabel: `${d.wd} ${d.md} ${d.short}${d.locked ? '' : ' 바꾸기'}`,
+    className: `${d.changed ? 'is-changed' : ''}${d.travel ? ' is-travel' : ''}`.trim(), ariaLabel: `${d.wd} ${d.md} ${d.short}${d.travel ? ' · 이동일' : ''}${d.locked ? '' : ' 바꾸기'}`,
     ...(d.locked ? {} : { act: { act: 'train-day', data: { v: d.date } } }),
   });
 }
@@ -47,12 +50,13 @@ export function weekPreview(vm: TrainingVM): string {
 export function todayRow(vm: TrainingVM, date = ''): string {
   const t = vm.today;
   // C.70 (디자인 161): 머리 = 오늘 훈련 · 날짜, 프리셋은 아래 "이번 주 프리셋 · [프리셋 바꾸기]" 줄로
-  const eyebrow = vm.vacation ? `휴가 · ${vm.vacation.days}일` : `오늘 훈련${date ? ` · ${date}` : ''}${t.fixed ? ' · 고정' : t.changed ? ' · 오늘만 변경' : ''}`;
+  const eyebrow = vm.vacation ? `휴가 · ${vm.vacation.days}일` : `오늘 훈련${date ? ` · ${date}` : ''}${t.fixed ? ' · 고정' : t.travel ? ' · 이동일' : t.changed ? ' · 오늘만 변경' : ''}`;
   const line = vm.vacation
     ? `체력 하루 +${num(t.fatigue)} · ${vm.vacation.until}부터 훈련`
     : `${t.kind === 'match' ? '' : `XP +${num(t.xp)} · 체력 +${num(t.fatigue)} · `}이번 주 훈련 XP ${num(vm.weekXp)}/${vm.cap}`;
   const extra = [
     ...(t.fixed ? [`${Icon({ name: 'lock', size: 12 })}경기 다음 날은 휴식으로 고정돼요`] : []),
+    ...(t.travel ? [`${Icon({ name: 'plane', size: 12 })}${TRAVEL_NOTE}`] : []),
     ...(vm.formPenalty ? ['<span class="warn">휴식이 길어져 다음 경기 폼 −1</span>'] : []),
   ];
   const row = `<button type="button" class="hm-train" data-act="go-tab" data-v="schedule"><span class="hm-train__icon">${Icon({ name: vm.vacation ? 'plane' : PLAN_ICON[t.kind], size: 20 })}</span>
@@ -74,10 +78,10 @@ export function trainingSection(vm: TrainingVM, gauge = true): string {
   }
   const head = `<div class="tr-today">
       <span class="tr-today__icon">${Icon({ name: PLAN_ICON[t.kind], size: 20 })}</span>
-      <span class="tr-today__name"><small>오늘 훈련${t.fixed ? ' · 고정' : t.changed ? ' · 오늘만 변경' : ''}</small><b>${esc(t.name)}${t.bundle ? ` · ${esc(t.bundle)}` : ''}</b></span>
+      <span class="tr-today__name"><small>오늘 훈련${t.fixed ? ' · 고정' : t.travel ? ' · 이동일' : t.changed ? ' · 오늘만 변경' : ''}</small><b>${esc(t.name)}${t.bundle ? ` · ${esc(t.bundle)}` : ''}</b></span>
       ${t.kind === 'match' ? '' : `<span class="tr-today__nums"><span><small>XP</small><b class="po-num">${sgn(t.xp)}</b></span><span><small>체력</small><b class="po-num ok">${sgn(t.fatigue)}</b></span></span>`}
     </div>
-    <p class="small muted tr-desc">${esc(t.fixed ? `${t.desc} 경기 다음 날은 휴식으로 고정돼요.` : t.desc)}</p>`;
+    <p class="small muted tr-desc">${esc(t.fixed ? `${t.desc} 경기 다음 날은 휴식으로 고정돼요.` : t.travel ? `${t.desc} ${TRAVEL_NOTE}.` : t.desc)}</p>`;
   const notes = [
     ...vm.hints.map((h) => `<li>🎥 ${esc(h)}</li>`),
     ...(vm.eve ? ['<li>경기 전날 영상 분석 완료 · 시작 패 +1 (곧 적용돼요)</li>'] : []),
@@ -110,7 +114,7 @@ export function gaugeSection(vm: TrainingVM): string {
 }
 
 /** 하루 훈련 고르기 (디자인 92·150): 줄을 고르고 아래 [○○으로]로 확정, [프리셋대로]는 그날 바꾼 것을 지운다 */
-export function trainingSheet(vm: { date: string; injured: boolean; options: TrainingOptionVM[]; weakFoot?: string }, dateIso: string, pick: string | null = null): string {
+export function trainingSheet(vm: { date: string; injured: boolean; travel?: boolean; options: TrainingOptionVM[]; weakFoot?: string }, dateIso: string, pick: string | null = null): string {
   const sel = vm.options.find((o) => o.kind === pick) ?? vm.options.find((o) => o.selected) ?? vm.options[0]!;
   const planned = vm.options.find((o) => o.planned);
   const rows = vm.options.map((o, i) => `${o.life && !vm.options[i - 1]?.life ? '<div class="tr-opts__head small lf-sec"><span>생활 · 훈련 대신</span><span></span><span></span></div>' : ''}<button type="button" class="tr-opt${o.kind === sel.kind ? ' is-on' : ''}" role="radio" aria-checked="${o.kind === sel.kind}" data-act="train-pick" data-v="${o.kind}" data-date="${esc(dateIso)}">
@@ -119,8 +123,8 @@ export function trainingSheet(vm: { date: string; injured: boolean; options: Tra
       <b class="tr-opt__xp po-num">${sgn(o.xp)}</b><b class="tr-opt__ft po-num">${sgn(o.fatigue)}</b></button>`).join('');
   const label = sel.name.replace(/ \(기본\)$/, '');
   return BottomSheet({
-    eyebrow: vm.date, title: vm.injured ? '부상 중 · 재활 또는 휴식' : '이날 훈련 고르기',
-    subtitle: vm.injured ? '부상 중에는 훈련 대신 재활하거나 쉬어요.' : '이날만 바뀌어요. 다른 날은 프리셋대로예요.',
+    eyebrow: vm.date, title: vm.injured ? '부상 중 · 재활 또는 휴식' : vm.travel ? '원정 이동일 · 영상 분석 또는 회복' : '이날 훈련 고르기',
+    subtitle: vm.injured ? '부상 중에는 훈련 대신 재활하거나 쉬어요.' : vm.travel ? `${TRAVEL_NOTE}.` : '이날만 바뀌어요. 다른 날은 프리셋대로예요.',
     onClose: { act: 'sheet-close' },
     children: `<div class="tr-opts" role="radiogroup" aria-label="훈련"><div class="tr-opts__head small"><span>훈련</span><span>XP</span><span>체력</span></div>${rows}</div>
       ${vm.options.some((o) => o.kind === 'weakFoot') ? `<p class="small muted tr-wf">약발 훈련: ${BALANCE.weakFoot.trainingGauge}칸이 차면 약발 +1(시즌 최대 +${BALANCE.weakFoot.seasonMax}). 약발 5 = 양발잡이가 되면 이 줄은 사라져요.</p>` : ''}`,

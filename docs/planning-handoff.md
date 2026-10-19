@@ -451,3 +451,11 @@
 - (20:36 KST, 사용자 "크레딧 중단 느낌표 세션 정리, 크레딧 제일 안 드는 방법") 사용량 한도로 실패 표시된 draft 세션 2개 **보관(archive)**: C.73b `session_015yFLHowJh5sLRxBHeXzYiX`, Q `session_01B71wzpzNzdTg4hm7DbNX9H`(크레딧 0, unarchive로 되돌릴 수 있음). UI_3·엔진관리자2는 재개 뒤 정상 상태라 그대로. 사용자 질문: 다른 세션 "답변 완료" 읽음 처리는 도구가 없어 불가(앱에서 직접).
 - (20:41 KST, 사용자) 보관 취소: Q·C.73b unarchive 후 "한도 풀림, 한 줄 답하고 멈춤" 메시지. 앞으로 보관 안 함 → automation.md 0번에 규칙 추가.
 - (20:55 KST, 사용자) 누수 점검 확정: automation.md 0번 한도 경고 ntfy, 5번·6-3 누적 비용 기준 삭제(대화 크기), 새 7번 비용·용량(코드 세션 나누기 = 남은 일 기준, 큰 출력 금지, 캡처 패치당 5~10장, 엔진관리자 깨우지 않음). **카톡 알림 폐지**(재발급 안내 예약 trig_011byfg3qNvXKLXcdgzLECYV 삭제). ntfy: R 환경 "player ONE"(env_01STK8eBPczqRtyrxxUJL5DJ)에 NTFY_TOPIC 없음, "Default"(env_01UV9gVVKpLLuhnieU6ctYeL)엔 있음 → 사용자가 player ONE에 한 번 넣으면 이후 마스터 계속 적용. 9시간 정지는 한도 시간 자체(사용자가 19:00 리셋 직후 재명령) — 손실 아님.
+- (20:59 KST, 사용자 승인) 레포 사진 정리: C.74a·b 배포 뒤 정리 세션 C.74z — *-check 중 c72·c73 계열만 남김, ui-requests 5~9 캡처 삭제(10·7-10 유지), v2.zip 중복이면 삭제(약 190MB). 자동 확인 예약 trig_01SNETdpFQ47s4xFKuWY1hBs 프롬프트에 추가.
+- (21:20 KST, 사용자) pending 126: 순서 = 43 → 엔진 블록(Web Worker 앞쪽) → 대표팀+타리그, 시차 없음.
+- (21:21 KST) **C.74a 완료**(main 6da761f, 엔진 21·밸런스 51, 1시간 20분) → pending 125 결과, UI_3(작은 4), C.74a draft_. C.74b는 밸런스 52·세이브 42. docs checkout 덮어쓰기 사고(커밋 전 발견, 손실 없음) → automation 7번에 "docs 병합은 git merge로만". 다음 C.74c.
+- (21:22 KST) **C.74c 시작** `session_01U8D3JNvRRJ6v3rLkpwywgR` "43c단계_경기 환경 c 케미·상대 분석·패스 받는 빈도 (C.74c)", 브랜치 `claude/c74c-chemistry`(밸런스 53·세이브 43·엔진 22, C.74b와 병렬). 자동 확인 trig_01SNETdpFQ47s4xFKuWY1hBs(22:01)가 이어서 봄.
+- (21:31 KST, 사용자 "알람 기록 체크") NTFY_TOPIC이 R 환경(player ONE)에 들어옴 확인. 하지만 ntfy.sh 전송이 **네트워크 정책 403**(player ONE 환경은 허용 도메인 제한) → 사용자에게 Allowed domains에 ntfy.sh 추가 요청. C.74a 완료 ntfy는 미전송(추가 뒤 다시 보냄). 예약 확인: R 자동 확인 trig_01SNETdpFQ47s4xFKuWY1hBs(22:01, C.74b·c로 갱신), C.74a CI 확인 trig_01RyCa4WtJGwQebdAdu2KbwH(21:47, C.74a 세션), 카톡 예약 삭제됨.
+- (21:31 KST) 사용자가 player ONE 허용 도메인에 ntfy.sh 추가 → **ntfy 전송 성공(200)**, C.74a 완료 알림 보냄. R 알림 정상.
+- (22:00 KST) **C.74a CI 성공**(main 6da761f run 212, 34분, 사이트 반영). 43a 끝.
+- (22:04 KST) 자동 확인: C.74b balance 3차(리그 위상 보상 0) 대기·캡처 재촬영 예정, C.74c 효과 측정 240경기 재실행·부록 준비 — 둘 다 진행 중. 재확인 send_later 60분(23:04).

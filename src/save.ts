@@ -6,6 +6,7 @@ import { PHOTO_OF } from './identity';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { initRecords } from './records';
 import { ensureFinance } from './finance';
 import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
@@ -324,8 +325,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     p.appearance ??= rollAppearance(`me:${s.worldSeed}`, p.nationality ?? PROSPECT_NATIONALITY);
     p.facePhoto ??= PHOTO_OF[p.appearance as Appearance];
   },
-  // 41 → 42 (C.74b 자리): 이동일·부상 복귀·기록 추적. C.74b 가 먼저 배포되면 그쪽 변환으로 바뀐다
-  41: () => {},
+  // 41 → 42 (C.74b): 기록 추적(records) — 이미 넘은 통산 이정표는 보상 없이 달성으로. 부상 복귀 선택(injury.ret)·재부상 창(player.reinjury)은 없으면 보통
+  41: (s) => { s.records ??= initRecords(s); },
   // 42 → 43 (C.74c): 동료 호흡(chem). 옛 세이브는 없음 → 다음 내 경기부터 0에서 쌓인다
   42: () => {},
   25: (s) => {

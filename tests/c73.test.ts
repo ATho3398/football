@@ -165,7 +165,8 @@ describe('세이브 40 (SAVE_FORMAT_VERSION)', () => {
 
 describe('버전', () => {
   it('버전 라벨', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.7[3-9]/);
-    expect(STAGE_LABEL).toMatch(/^4[2-9]단계/);
+    // 다음 패치(C.74~)에서는 형식만 본다
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

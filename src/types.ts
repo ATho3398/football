@@ -82,6 +82,8 @@ export interface Injury {
   round: number;
   /** 영구 하락한 신체 능력치 */
   permanent: Partial<Record<FieldAttribute, number>>;
+  /** 복귀 선택 (C.74b): ask = 회복 막바지라 조기 복귀/완전 회복을 묻는 중, full = 완전 회복을 골랐다. 없으면 아직 안 물음 */
+  ret?: 'ask' | 'full';
 }
 
 import type { MatchRecord } from './matchRecord';
@@ -155,6 +157,8 @@ export interface PlayerState {
   reputation: number;
   /** 현재 부상. 없으면 null */
   injury: Injury | null;
+  /** 조기 복귀 뒤 재부상 위험 창 (C.74b): until 날짜 전까지 부상 확률 × mul. 없으면 보통 */
+  reinjury?: { until: string; mul: number };
   /** 최근 출전 경기 평점 (폼 계산용, 최근 BALANCE.form.games 경기) */
   recentRatings: number[];
   /** 기준 평점 미만 출전이 이어진 횟수 (부진 연속, 8.1·부록 C.25). 기준 이상이면 0 */

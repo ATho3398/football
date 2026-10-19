@@ -87,3 +87,36 @@ export function healDays(p: PlayerState, days = 1): boolean {
 export function weeksLeft(inj: Injury): number {
   return Math.ceil(inj.daysLeft / 7);
 }
+
+/**
+ * 부상 복귀 선택 (C.74b, pending 77-5): 묻는 남은 날 수. 시즌아웃·짧은 부상(minDays 미만)은 null (선택 없음).
+ * 조기 복귀 = 이 남은 날을 건너뛰고 바로 복귀
+ */
+export function returnOfferDays(inj: Injury): number | null {
+  const R = BALANCE.injuryReturn;
+  if (inj.grade === 'seasonEnding' || inj.daysTotal < R.minDays) return null;
+  return Math.min(R.offerMax, Math.max(R.offerMin, Math.round(inj.daysTotal * R.offerShare)));
+}
+
+/** 하루가 지난 뒤: 회복 막바지에 닿았으면 복귀 선택을 연다 (한 번만). 열었으면 true */
+export function openReturnChoice(p: PlayerState): boolean {
+  const inj = p.injury;
+  if (!inj || inj.ret) return false;
+  const at = returnOfferDays(inj);
+  if (at === null || inj.daysLeft > at) return false;
+  inj.ret = 'ask';
+  return true;
+}
+
+/** 복귀 선택: early = 오늘 바로 복귀 + 재부상 위험 창, full = 끝까지 회복. 묻는 중이 아니면 false */
+export function chooseReturn(p: PlayerState, choice: 'early' | 'full', until: string): boolean {
+  const inj = p.injury;
+  if (!inj || inj.ret !== 'ask') return false;
+  if (choice === 'full') {
+    inj.ret = 'full';
+    return true;
+  }
+  p.injury = null;
+  p.reinjury = { until, mul: BALANCE.injuryReturn.reinjuryMul };
+  return true;
+}
