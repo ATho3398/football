@@ -1,5 +1,6 @@
 // playRound 어댑터 (E.14): 내 경기를 엔진(자동 모드)으로 돌리고 기존 MatchResult 로 바꾼다
 
+import type { MatchEnv } from './env';
 import { BALANCE, type Difficulty } from '../config/balance';
 import type { MatchOutcome, MatchResult } from '../match';
 import { matchXp } from '../match';
@@ -66,6 +67,8 @@ export interface EngineMatchInput {
   control?: MomentControl;
   /** 내 선수 카드 (C.36): 덱과 숙련도. 없으면 카드 없이 */
   cards?: CardInput;
+  /** 날씨·심판 실행 배율 (C.74a). 없으면 맑음·보통 심판 */
+  env?: Partial<MatchEnv>;
 }
 
 /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
@@ -132,6 +135,7 @@ export function buildMyMatch(m: EngineMatchInput) {
     ...(m.plan.minutes ? { myMinutes: m.plan.minutes } : {}),
     ...(m.control ? { control: m.control } : {}),
     ...(m.cards?.deck.length && m.plan.minutes ? { cards: m.cards } : {}),
+    ...(m.env ? { env: m.env } : {}),
   });
 }
 

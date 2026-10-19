@@ -3,7 +3,7 @@
 - **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: Q** `session_01B71wzpzNzdTg4hm7DbNX9H` (브랜치 `claude/planning-q`, 2026-10-19 03:07 KST P → Q 교체, Q는 P가 연 세션, `get_session` 확인). 알림·보고는 Q로(send_message). 카톡·ntfy 알림은 마스터 몫.
+- **지금 마스터: R** `session_015zZ2foCVBuTGmZ3S6w8LR3` (브랜치 `claude/planning-r`, 2026-10-19 10:47 KST Q → R 교체, 사용자가 앱에서 직접 연 세션). 알림·보고는 R로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 Q `session_01B71wzpzNzdTg4hm7DbNX9H`(`claude/planning-q`).
   - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
@@ -123,7 +123,8 @@
 | 단계(부록 C) | 디자인 없는 새 화면·패널 | 개수 |
 |---|---|---|
 | C.73b (42b 시즌 자동 진행·하이라이트·은퇴 후, main f74ce00, 2026-10-19 10:03 KST 통보) | **큰 3: ① 시즌 요약 "시즌 하이라이트 3"(최고 평점 경기·골·위기) ② 명예의 전당(로컬 상위 3 커리어) ③ 자동 진행 시트 설정 3줄 + [시즌 요약으로 바로 이동]**. 작은 3: 커리어 요약 업적·배지 칩 / 새 게임 보너스 배너 / 자동 진행 멈춤 토스트 2종(이벤트·부상). **5단계(5-0~5-8) 끝.** 캡처 `docs/design/c73b-check/` | 3 (+작은 3) |
-| **10차 뒤 누계** | | **큰 것 3 (+작은 3), 큰 것 있는 단계 1** |
+| C.73d (사용자 요청 fix 초기화면 가기, main ff369fd, 2026-10-19 10:07 KST 통보) | 작은 3: 홈 머리말 왼쪽 위 &lt; / "초기화면으로 갈까요?" 확인 시트 / 설정 저장·안내 섹션 "초기화면" 줄. 캡처 `docs/design/c73d-check/`. 곧 마스터 R로 바뀜(R이 ID 알림) | 0 (+작은 3) |
+| **10차 뒤 누계** | | **큰 것 3 (+작은 6), 큰 것 있는 단계 1** |
 
 - 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
 - U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".

@@ -2267,3 +2267,23 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .ng-photo.is-on small { color: var(--brand-ink, var(--brand)); }
 .ng-looks { display: flex; flex-direction: column; gap: 4px; }
 .ng-looks .cu-chips { margin-bottom: 4px; }
+
+/* 날씨 예보·심판 (C.74a, 디자인 없음): 다음 경기 카드 한 줄 */
+.hm-env { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 10px; border-radius: var(--b-r-sm, 10px); background: var(--surface-2); font-size: 12px; color: var(--ink-muted); min-width: 0; }
+.hm-env b { color: var(--ink); font-weight: 800; }
+.hm-env .po-icon { flex: none; }
+.hm-env__w, .hm-env__ref { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.hm-env__hint { flex-basis: 100%; font-size: 11px; line-height: 1.35; padding-left: 24px; }
+.hm-env__ref i { font-style: normal; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: var(--b-r-pill, 999px); background: var(--surface-3); color: var(--ink); }
+.hm-env.is-rain .hm-env__w .po-icon { color: #5ab0ff; }
+.hm-env.is-snow .hm-env__w .po-icon { color: #cfe8ff; }
+.hm-env.is-wind .hm-env__w .po-icon { color: var(--ink); }
+.hm-env.is-heat .hm-env__w .po-icon { color: var(--warning); }
+.hm-env.is-clear .hm-env__w .po-icon { color: var(--warning); }
+.hm-env.is-closed { color: var(--ink-faint); }
+.mr-env { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-muted); }
+.mr-env b { color: var(--ink); }
+.mr-env-line { display: flex; justify-content: center; margin: -4px 0 8px; }
+.mr-env.is-rain .po-icon { color: #5ab0ff; }
+.mr-env.is-snow .po-icon { color: #cfe8ff; }
+.mr-env.is-heat .po-icon, .mr-env.is-clear .po-icon { color: var(--warning); }

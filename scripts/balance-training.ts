@@ -6,6 +6,10 @@ import { PLAYABLE_POSITIONS } from '../src/positions';
 import type { Tier } from '../src/types';
 import { BALANCE } from '../src/config/balance';
 import { planFatigue, type DayPlan } from '../src/training';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 // 조정 실험: MXS=경기 XP 배율, GFULL=게이지 칸 수 (설정 파일을 바꾸지 않고 잰다)
 const B = BALANCE as unknown as { training?: { matchXpScale: number; gauge: { full: number } } };

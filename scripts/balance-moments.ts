@@ -7,6 +7,10 @@ import { newGame, playRound, roundMatch, selectableRealPlayers } from '../src/ga
 import { playMyMatch } from '../src/engine/adapter';
 import { bestChoice, type MomentControl, type MomentPolicy, type StopLevel } from '../src/engine/moments';
 import { posGroup } from '../src/roster';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const args = process.argv.slice(2).filter((a) => a !== '--');
 const perGroup = Number(args[0] ?? 3);

@@ -43,6 +43,10 @@ import { createRng } from '../src/rng';
 import { autoStaff, CHOICE_CATS, ensureMoney, flowsIn, flowsOut } from '../src/money';
 import { assetScore, autoSpend, careerNet, netWorth } from '../src/wealth';
 import type { InjuryGrade, Tier } from '../src/types';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);

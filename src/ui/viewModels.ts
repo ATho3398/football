@@ -3,7 +3,9 @@
 
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
-import { matchCompLabel, myShirt, prospectExtras, weekFreeDays } from '../game';
+import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, weekFreeDays } from '../game';
+import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
+import { refereeTraits } from '../referees';
 import { COMP_NAMES_KO, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
@@ -236,6 +238,8 @@ export interface HomeVM {
     control: GameState['control'];
     /** 더비면 이름 (C.44) */
     derby: { name: string; big: boolean } | null;
+    /** 날씨 예보·심판 (C.74a): 경기 forecastDays 일 전부터 공개 (open). 그 전에는 며칠 뒤 공개인지만 */
+    env: EnvVM;
   };
   card: PlayerCardVM;
   condition: ConditionVM;
@@ -372,6 +376,32 @@ export function slumpBanner(g: GameState): BannerVM | null {
   };
 }
 
+/** 날씨 예보·심판 한 줄 (C.74a, 다음 경기 카드·경기 준비) */
+export interface EnvVM {
+  open: boolean;
+  /** 공개까지 남은 날 (open 이면 0) */
+  opensIn: number;
+  weather?: WeatherKind;
+  weatherKo?: string;
+  hint?: string;
+  referee?: string;
+  /** 성향 이름표: "카드 엄격" · "흐름 중시" (보통이면 "카드 보통") */
+  refTraits?: string[];
+}
+
+export function envVM(g: GameState): EnvVM {
+  const date = myMatchDate(g);
+  const cond = myMatchConditions(g);
+  if (!date || !cond) return { open: false, opensIn: 0 };
+  const days = daysBetween(g.calendar.date, date);
+  if (!forecastOpen(days)) return { open: false, opensIn: days - BALANCE.weather.forecastDays };
+  const t = refereeTraits(cond.referee);
+  return {
+    open: true, opensIn: 0, weather: cond.weather, weatherKo: WEATHER_KO[cond.weather], hint: WEATHER_HINT[cond.weather],
+    referee: cond.referee.nameKo, refTraits: [t.card ?? '카드 보통', ...(t.flow ? [t.flow] : [])],
+  };
+}
+
 export function homeVM(g: GameState): HomeVM {
   const p = g.player;
   const banners: BannerVM[] = [];
@@ -391,6 +421,7 @@ export function homeVM(g: GameState): HomeVM {
       tacticsOpen: isUnlocked(g.guide, 'tactics'),
       control: g.control,
       derby: derbyBadge(p.teamId, opp.id),
+      env: envVM(g),
       ...(fx.cup ? { cup: { label: fx.cup.comp === 'ucl' ? `챔피언스리그 · ${fx.cup.stage}` : fx.cup.label, comp: fx.cup.comp } } : {}),
     };
   }
@@ -1015,6 +1046,8 @@ export interface MatchResultVM {
   decisionReplay: boolean;
   /** 이 경기에 쓴 카드 (C.36) */
   cardUses: { text: string; result: 'success' | 'fail' | 'neutral'; /** C.70 (디자인 170): 분 · 카드 이름 · 자동 */ minute?: string; name?: string; auto?: boolean }[];
+  /** 경기 환경 한 줄 (C.74a): "빗속 경기 · 심판 대니얼 후퍼". 기록 이전 경기면 null */
+  env: { weather: WeatherKind; line: string; referee: string } | null;
 }
 
 const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드', delegate: '맡김' } as const;
@@ -1112,6 +1145,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   return {
     myTeam: teamById(g.league, g.player.teamId).nameKo, face: myFace(g),
     myTeamId: g.player.teamId, oppId: m.opponentId, goals,
+    env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
     round: m.round, comp: m.cup ? `${COMP_NAMES_KO[m.cup.comp]} ${m.cup.stage}` : `리그 ${m.round}R`,
     opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,

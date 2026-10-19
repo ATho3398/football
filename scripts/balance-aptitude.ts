@@ -10,6 +10,10 @@ import { gainProficiency, initialProficiency, requestPositionChange } from '../s
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import type { FieldPosition, PlayablePosition } from '../src/positions';
 import type { PlayerState } from '../src/types';
+import { setEnvironmentFixed } from '../src/weather';
+
+// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
+setEnvironmentFixed(true);
 
 const argv = (globalThis as { process?: { argv: string[] } }).process?.argv ?? [];
 const args = argv.slice(2).filter((a) => a !== '--');
