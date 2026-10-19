@@ -108,6 +108,20 @@ describe('이 단계 랜덤', () => {
     }
   });
 
+  it('랜덤 여러 시드에서 예산 초과 0 (전체 랜덤 · 6단계 모두, 꽉 채운 폼에서 눌러도)', () => {
+    let n = 0;
+    for (let i = 0; i < 30; i++) {
+      const { form: f } = prospectToCustom(`c74d-many-${i}`, 'ST');
+      expect(customVM(f, '').over).toBe(false);
+      for (let st = 1; st <= 6; st++) {
+        const r = randomStep(f, '', st, `c74d-step-${i}-${st}`).form;
+        expect(customVM(r, '').over).toBe(false);
+        n++;
+      }
+    }
+    expect(n).toBe(180);
+  });
+
   it('능력치 단계 랜덤은 포인트 안 · 기본값보다 높은 칸이 있다', () => {
     for (const s of ['a', 'b', 'c']) {
       const r = randomStep(base, '', 5, s).form;
