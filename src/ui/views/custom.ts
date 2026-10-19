@@ -1,4 +1,4 @@
-// 커스텀 생성 화면 (pending 47 2·49 1, 부록 C.45 → C.58 디자인 124~129 6단계). 새 게임의 세 번째 시작 방식.
+// 커스텀 생성 화면 (pending 47 2·49 1, 부록 C.45 → C.58 디자인 124~129 6단계). 새 게임의 기본 시작 방식 (C.74d: 랜덤은 [전체 랜덤]·[이 단계 랜덤]으로 합침).
 // 단계: 기본(이름·나이·포지션) → 몸(키·몸무게·주발·약발) → 외모(국적·인종·기본 사진·도트 머리, C.73c) → 태그 → 능력치 배분 → 시작(소속·옵션)
 
 import { Avatar, Banner, Button, esc, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
@@ -38,8 +38,10 @@ function stepDots(step: number): string {
 export function customBody(vm: CustomVM, step: number, modeTabs: string, options: string, hooksOpen: readonly ('pro' | 'con')[] = []): string {
   const b = vm.body;
   const st = Math.max(1, Math.min(CUSTOM_STEPS.length, step));
-  const tagPts = vm.budget - 100 - vm.agePts - b.weakPts;
-  const bar = PointBar({ left: vm.left, total: vm.budget, sticky: true, items: [{ label: '기본', value: 100, base: true }, { label: '나이', value: vm.agePts }, { label: '약발', value: b.weakPts }, { label: '태그', value: tagPts }],
+  // 기본 = BALANCE.custom.points (C.49 에서 100 → 58, 표시만 100 으로 남아 태그가 −42 로 보이던 것 C.74d 에서 고침)
+  const basePts = BALANCE.custom.points;
+  const tagPts = vm.budget - basePts - vm.agePts - b.weakPts;
+  const bar = PointBar({ left: vm.left, total: vm.budget, sticky: true, items: [{ label: '기본', value: basePts, base: true }, { label: '나이', value: vm.agePts }, { label: '약발', value: b.weakPts }, { label: '태그', value: tagPts }],
     ...(vm.left > 0 && st === CUSTOM_STEPS.length ? { message: `남은 ${vm.left}P는 시작 뒤 포인트로` } : {}) });
   const cuAct = (k: string, v: number) => ({ act: 'cu', data: { k, v: String(v) } });
   let body = '';
@@ -75,6 +77,7 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     body = `${SectionTitle({ title: '능력치 배분', action: `테두리 = ${vm.position} 핵심` })}
     <p class="small muted">모든 능력치 8에서 시작해요. 박스를 누르고 [+]로 한 칸씩 올려요. 칸당 1P(~11) · 2P(~13) · 3P(14~), 최대 15. 숨은 적성·잠재력은 시작해야 알 수 있어요.</p>
     ${attrGrid(vm.attrs, vm.sel, { sel: 'cu-sel', raise: 'cu-raise', lower: 'cu-lower' }, { cols: 4, keyLabel: `${vm.position} 핵심` })}
+    ${vm.over ? `<div class="btn-col">${Button({ variant: 'secondary', block: true, icon: 'target', act: 'cu-fit', children: `포인트에 맞추기 · ${-vm.left}P 줄이기` })}</div>` : ''}
     <div class="btn-row even">${Button({ variant: 'ghost', block: true, icon: 'target', act: 'cu-auto', disabled: vm.left <= 0, children: '자동 배분 (OVR 우선)' })}${Button({ variant: 'ghost', block: true, icon: 'restore', act: 'cu', data: { k: 'reset' }, children: '초기화' })}</div>`;
   } else {
     const s2 = vm.start;
@@ -105,6 +108,8 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
   const next = last
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: vm.over || !vm.start.ready, children: vm.over ? `${-vm.left}P 넘쳤어요` : !vm.start.ready ? '시작할 구단을 골라요' : `${vm.age}세 ${vm.position} · OVR ${vm.ovr}로 시작` })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'cu-step', data: { v: String(st + 1) }, children: `다음 · ${CUSTOM_STEPS[st]}` });
+  // 이 단계 랜덤 (C.74d): 그 단계 값만 랜덤 유망주 기준으로 다시 뽑는다
+  body = `<div class="cu-randstep">${Button({ variant: 'ghost', size: 'sm', icon: 'swap', act: 'cu-rand', data: { v: String(st) }, children: '이 단계 랜덤' })}</div>${body}`;
   if (isWide()) return customWide(vm, st, modeTabs, bar, body, prev, next);
   return `${modeTabs}${stepDots(st)}${bar}<div class="cu-step-body">${body}</div>
     <div class="dock cu-nav">${prev}${next}</div>`;

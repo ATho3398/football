@@ -131,14 +131,16 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW
     : real
     ? HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', value: sel ? sel.ovr : '-', pad: false, progress: false,
       chips: sel ? [`${sel.age}세 · ${sel.club}`, { label: sel.legend ? `레전드 · 전성기 ${sel.peak}` : '2018-19 시즌 그대로', soft: true }] : [`실제 선수 ${vm.reals.length}명`, { label: vm.legends ? `레전드 ${vm.legendList.length}명` : '2018-19 시즌 그대로', soft: true }] })
-    : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커리어를 시작할 선수 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: [vm.identity ? `17세 · ${vm.identity.nationalityKo}` : '17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
-  const modeTabs = Tabs({ items: [{ id: 'prospect', label: '랜덤' }, { id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: vm.mode, variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
-  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? modeTabs : '', startOptions(vm, false), u.cuHooks ?? [])}</div>`;
+    : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `전체 랜덤 결과 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: [vm.identity ? `17세 · ${vm.identity.nationalityKo}` : '17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
+  // 시작 방식 2개 (C.74d): 커스텀 · 실제 선수. 랜덤은 커스텀의 [전체 랜덤] 결과 화면(mode 'prospect')
+  const modeTabs = Tabs({ items: [{ id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: real ? 'real' : 'custom', variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
+  const randomAll = `<div class="panel ng-randall"><span class="grow"><b>전체 랜덤</b><small>랜덤 유망주 기준으로 모든 단계를 한 번에 채워요</small></span>${Button({ variant: 'secondary', size: 'sm', icon: 'swap', act: 'ng-random', children: '전체 랜덤' })}</div>`;
+  if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? `${modeTabs}${randomAll}` : '', startOptions(vm, false), u.cuHooks ?? [])}</div>`;
   if (!real) return `${hero}<div class="body ng-body">${modeTabs}${prospectBody(vm, u)}</div>`;
   return `${hero}<div class="body ng-body">${modeTabs}${realBody(vm, u)}</div>`;
 }
 
-/** 랜덤 (디자인 130): 후보 4자리 2×2 · 코치 평 · 신체·태그 · 능력치 접힘 · 시작 옵션 */
+/** 전체 랜덤 결과 (디자인 130 → C.74d): 후보 4자리 2×2 · 코치 평 · 신체·태그 · 능력치 접힘 · 시작 옵션 · [이대로 시작][편집하기][다시 돌리기] */
 function prospectBody(vm: NewGameVM, u: NewGameUI): string {
   const on = vm.candidates.find((c) => c.id === vm.position);
   const cands = `<div class="ng-cands">${vm.candidates.map((c) =>
@@ -153,7 +155,7 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
       <div><small>키</small><b class="po-num">${x.height}<i>cm</i></b></div><div><small>몸무게</small><b class="po-num">${x.weight}<i>kg</i></b></div>
       <div><small>주발</small><b>${esc(x.foot)}</b></div><div><small>약발</small><b class="po-num">${x.weakFoot}${x.weakFoot >= 5 ? '<i>양발</i>' : ''}</b></div></div>
       ${x.traits.length ? `<div class="ng-traits">${x.traits.map((t) => `<span class="ng-trait">${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(t.release ? { release: t.release } : {}), desc: t.desc })}<small>${esc(t.desc)}</small></span>`).join('')}</div>` : '<p class="small muted">태그 없음</p>'}
-      <p class="small muted">랜덤은 태그 0~2개가 붙어요. 마음에 안 들면 [다른 유망주 보기].</p></div>` : '';
+      <p class="small muted">랜덤은 태그 0~2개가 붙어요. 마음에 안 들면 [다시 돌리기].</p></div>` : '';
   // 인종 · 기본 사진 (C.73c): 국적·이름은 그 인종 안에서 시드 랜덤
   const id = vm.identity;
   const looks = id ? `${SectionTitle({ title: '인종 · 기본 사진', action: id.picked ? '직접 고름' : '랜덤' })}
@@ -168,12 +170,14 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
   return `${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
     ${cands}${outside}${coach}
     ${others}
-    <p class="small ng-links">${vm.others ? '' : '<button type="button" class="link-btn hi" data-act="form-others">다른 포지션에서 고르기</button> '}<button type="button" class="link-btn" data-act="form-reroll">다른 유망주 보기</button></p>
+    ${vm.others ? '' : '<p class="small ng-links"><button type="button" class="link-btn hi" data-act="form-others">다른 포지션에서 고르기</button></p>'}
     ${looks}
     ${extras}
     ${attrs}
     ${startOptions(vm, true)}
-    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `${vm.teamHint} 유스로 시작` })}</div>`;
+    <div class="btn-col ng-rollbtns">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `이대로 시작 · ${vm.teamHint} 유스` })}
+      <div class="btn-row even">${Button({ variant: 'secondary', block: true, icon: 'edit', act: 'ng-edit', children: '편집하기' })}${Button({ variant: 'ghost', block: true, icon: 'swap', act: 'form-reroll', children: '다시 돌리기' })}</div>
+      <p class="small muted">편집하기 = 이 값으로 커스텀 단계에 들어가요(커스텀 포인트 규칙, 넘치면 줄여야 시작). 숨은 재능·적성은 [이대로 시작]일 때만 이 결과 그대로예요.</p></div>`;
 }
 
 const GROUP_KO: [('fw' | 'mf' | 'df'), string][] = [['fw', '공격'], ['mf', '미드'], ['df', '수비']];

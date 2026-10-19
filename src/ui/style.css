@@ -1296,6 +1296,13 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 .ng-pack { display: flex; align-items: center; gap: 12px; }
 .ng-pack .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ng-pack small { font-size: 11px; color: var(--ink-muted); }
+/* 전체 랜덤 · 이 단계 랜덤 · 랜덤 결과 3버튼 (C.74d) */
+.panel.ng-randall { display: flex; flex-direction: row; align-items: center; gap: 12px; margin-top: 10px; }
+.ng-randall .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ng-randall small { font-size: 11px; color: var(--ink-muted); }
+.cu-randstep { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.ng-rollbtns { gap: 8px; }
+.ng-rollbtns .btn-row { margin: 0; }
 .ng-sel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; box-shadow: inset 0 0 0 2px var(--brand); }
 .ng-sel .grow { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .ng-sel__name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
