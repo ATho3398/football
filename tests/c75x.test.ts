@@ -1,15 +1,16 @@
-// C.75x (pending 131): 레전드 팩에 도르트문트 레전드 + 미래 스타 (데뷔 시즌에 등장)
+// C.75x·C.75y (pending 131): 레전드 팩에 도르트문트 레전드, 따로 미래 스타 팩 (구현 리그 첫 시즌에 등장)
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { autoMarket, newGame, playRound, rebuildRosters, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
 import { deserialize, serialize } from '../src/save';
 import { BVB_LEGENDS, FUTURE_STARS, LEGEND_RETIRED_BY } from '../data/players/legends';
 import { A_GRADE_PLAYERS } from '../data/players';
-import { futureAge, futureDebut, LEGEND_PACK, LEGENDS, legendPeak, legendSpawns, packRealExcludes, selectableLegends, upcomingFutureStars } from '../src/legends';
+import { futureAge, futureDebut, futureEntry, LEGEND_PACK, LEGENDS, legendPeak, legendSpawns, packRealExcludes, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../src/legends';
 import { initialTeams } from '../src/league';
 import { naturalOvr, type Rosters } from '../src/roster';
 import { withinRules } from '../src/squad';
 import { newGameVM, worldVM } from '../src/ui/viewModels';
+import { personDetailVM } from '../src/ui/detailVM';
 
 const TEAMS = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
 const ids = (r: Rosters) => new Set(Object.values(r).flatMap((x) => x.players.map((p) => p.id)));
@@ -45,75 +46,86 @@ describe('도르트문트 레전드 (C.75x)', () => {
     expect(new Set(all.map((l) => l.id)).size).toBe(all.length);
     expect(all.some((l) => A_GRADE_PLAYERS.some((p) => p.id === l.id))).toBe(false);
     // 같은 이름 실제 선수는 지금 없다 (있으면 팩을 켤 때 현역 로스터에서 빠진다)
-    expect(packRealExcludes(LEGEND_PACK).size).toBe(0);
+    expect(packRealExcludes(LEGEND_PACK, true).size).toBe(0);
     for (const l of all) expect(legendPeak(l).ovr).toBeGreaterThanOrEqual(BALANCE.legends.groupMinPeak);
   });
 });
 
-describe('미래 스타 (C.75x)', () => {
-  it('13명, 2018-19 세계(실제 선수)에 없음, 데뷔 시즌 실제 나이', () => {
+describe('미래 스타 팩 (C.75y: 레전드 팩과 따로, 구현 리그 첫 시즌 등장)', () => {
+  it('13명, 리그 id 기준 첫 시즌 데이터 · PL 등장 4명(가르나초·마이누·홀란·비르츠), 나머지는 리그 추가 후', () => {
     expect(FUTURE_STARS.length).toBe(13);
-    const age = (id: string) => { const l = FUTURE_STARS.find((x) => x.id === id)!; return [futureDebut(l), futureAge(l, futureDebut(l))]; };
-    expect(age('fs-yamal')).toEqual([2022, 15]);
-    expect(age('fs-bellingham')).toEqual([2019, 16]);
-    expect(age('fs-cubarsi')).toEqual([2023, 16]);
-    expect(age('fs-garnacho')).toEqual([2021, 17]);
-    expect(age('fs-haaland')).toEqual([2018, 18]); // 데뷔 2016 → 게임 시작에 그때 나이로
-    expect(upcomingFutureStars(2018).length).toBe(11);
+    const at = (id: string) => { const l = FUTURE_STARS.find((x) => x.id === id)!; const d = futureDebut(l); return d === undefined ? null : [d, futureAge(l, d), futureEntry(l)!.team]; };
+    expect(at('fs-garnacho')).toEqual([2021, 17, 'mun']);
+    expect(at('fs-mainoo')).toEqual([2022, 17, 'mun']);
+    expect(at('fs-haaland')).toEqual([2022, 22, 'mci']);
+    expect(at('fs-wirtz')).toEqual([2025, 22, 'liv']);
+    for (const id of ['fs-yamal', 'fs-pedri', 'fs-gavi', 'fs-bellingham', 'fs-musiala', 'fs-camavinga', 'fs-cubarsi', 'fs-endrick', 'fs-zaireemery']) expect(at(id), id).toBeNull();
+    expect(waitingFutureStars().length).toBe(9);
+    expect(upcomingFutureStars(2018).map((l) => l.id)).toEqual(['fs-garnacho', 'fs-haaland', 'fs-mainoo', 'fs-wirtz']);
+    // 리그가 추가되면 그 리그 첫 시즌 (예: 분데스리가 → 홀란 2019-20 도르트문트)
+    expect(futureEntry(FUTURE_STARS.find((l) => l.id === 'fs-haaland')!, ['pl', 'bundesliga'])).toEqual({ league: 'bundesliga', season: 2019, team: 'x:bvb' });
+    // 실제 경력 표가 있다
+    for (const l of FUTURE_STARS) expect(l.career!.length, l.id).toBeGreaterThan(0);
   });
 
-  it('데뷔 전에는 없고 데뷔 시즌 시작에 들어온다 (rebuild 와 같음), 시작은 낮고 성장한다', () => {
-    const ws = 'c75x-fs';
-    const r0 = rebuildRosters(ws, undefined, 0, undefined, [], { on: true, pack: 2 });
-    expect(ids(r0).has('fs-haaland')).toBe(true);
-    expect(ids(r0).has('fs-camavinga')).toBe(true);
-    expect(ids(r0).has('fs-bellingham')).toBe(false);
-    expect(ids(r0).has('fs-yamal')).toBe(false);
-    const r1 = rebuildRosters(ws, undefined, 1, undefined, [], { on: true, pack: 2 });
-    const jb = find(r1, 'fs-bellingham')!;
-    expect(jb.age).toBe(16);
-    expect(naturalOvr(jb)).toBeLessThan(70);
-    expect(ids(r1).has('fs-yamal')).toBe(false);
-    const r4 = rebuildRosters(ws, undefined, 4, undefined, [], { on: true, pack: 2 });
-    expect(find(r4, 'fs-yamal')?.age).toBe(15);
-    expect(ids(r4).has('fs-cubarsi')).toBe(false);
-    expect(naturalOvr(find(r4, 'fs-bellingham')!)).toBeGreaterThan(naturalOvr(jb));
+  it('등장 전에는 없고 첫 시즌 시작에 그 팀으로 들어온다 (rebuild 와 같음), 시작은 낮고 성장한다', () => {
+    const ws = 'c75y-fs';
+    const opt = { on: false, future: true };
+    const r0 = rebuildRosters(ws, undefined, 0, undefined, [], opt);
+    expect([...ids(r0)].filter((id) => id.startsWith('fs-'))).toEqual([]);
+    const r3 = rebuildRosters(ws, undefined, 3, undefined, [], opt);
+    const ag = find(r3, 'fs-garnacho')!;
+    expect(ag.age).toBe(17);
+    expect(naturalOvr(ag)).toBeLessThan(65);
+    expect(Object.values(r3).find((r) => r.players.some((p) => p.id === 'fs-garnacho'))?.teamId).toBe('mun');
+    expect(ids(r3).has('fs-haaland')).toBe(false);
+    const r4 = rebuildRosters(ws, undefined, 4, undefined, [], opt);
+    expect(Object.values(r4).find((r) => r.players.some((p) => p.id === 'fs-haaland'))?.teamId).toBe('mci');
+    expect(find(r4, 'fs-haaland')!.age).toBe(22);
+    expect(find(r4, 'fs-mainoo')!.age).toBe(17);
+    expect(ids(r4).has('fs-yamal')).toBe(false);
+    expect(naturalOvr(find(r4, 'fs-garnacho')!)).toBeGreaterThan(naturalOvr(ag));
     for (const r of Object.values(r4)) expect(withinRules(r.players), r.teamId).toBe(true);
-    // 맨유 데뷔 = 맨유
-    expect(Object.values(r4).find((r) => r.players.some((p) => p.id === 'fs-garnacho'))?.teamId).toBe('mun');
-  });
-
-  it('1판(옛 세이브 = C.47 117명)에는 도르트문트·미래 스타가 없다', () => {
-    const r = rebuildRosters('c75x-old', undefined, 2, undefined, [], { on: true });
-    expect([...ids(r)].filter((id) => id.startsWith('fs-') || BVB_LEGENDS.some((l) => l.id === id))).toEqual([]);
+    // 레전드 팩만 켜면 미래 스타 없음, 1판(옛 세이브)엔 도르트문트도 없음
+    const lg = rebuildRosters(ws, undefined, 4, undefined, [], { on: true, pack: 2 });
+    expect([...ids(lg)].filter((id) => id.startsWith('fs-'))).toEqual([]);
+    const old = rebuildRosters('c75x-old', undefined, 2, undefined, [], { on: true });
+    expect([...ids(old)].filter((id) => BVB_LEGENDS.some((l) => l.id === id))).toEqual([]);
     expect(legendSpawns('c75x-old', 2018, TEAMS, undefined, 1).length).toBe(117);
   });
 });
 
-describe('새 게임·플레이·세이브 (C.75x)', () => {
-  it('끄면 세계 그대로, 켜면 2판 저장 → 시즌 끝에 데뷔 선수 등장, 세이브 왕복 같은 로스터', () => {
+describe('새 게임·플레이·세이브 (C.75x·C.75y)', () => {
+  it('끄면 세계 그대로, 레전드 팩 = 2판(도르트문트), 미래 스타 팩은 따로 저장, 세이브 왕복 같은 로스터', () => {
     const off = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-ng', difficulty: 'normal' });
     expect(JSON.stringify(off.rosters)).toBe(JSON.stringify(rebuildRosters('c75x-ng', undefined, 0)));
     expect(off.legendPack).toBeUndefined();
-    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-ng', difficulty: 'normal', legends: true });
+    expect(off.futureStars).toBeUndefined();
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-ng', difficulty: 'normal', legends: true, futureStars: true });
     expect(g.legendPack).toBe(2);
+    expect(g.futureStars).toBe(true);
     expect(g.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(ids(g.rosters).has('lg-hummels')).toBe(true);
-    expect(ids(g.rosters).has('fs-pedri')).toBe(false);
-    expect(worldVM(g).upcoming.map((u) => u.name)).toContain('페드리');
+    expect(worldVM(g).upcoming.map((u) => u.name)).toContain('알레한드로 가르나초');
+    expect(worldVM(g).waiting).toBe(9);
     finishSeason(g);
     autoMarket(g, 'stay');
     startNextSeason(g);
-    const pedri = find(g.rosters, 'fs-pedri');
-    expect(pedri?.age).toBe(16);
-    expect(ids(g.rosters).has('fs-yamal')).toBe(false);
-    expect(worldVM(g).legends.find((x) => x.id === 'fs-pedri')?.kind).toBe('미래 스타');
     const back = deserialize(serialize(g));
-    expect(back.legendPack).toBe(2);
+    expect(back.futureStars).toBe(true);
     expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
+    // 미래 스타만 켜도 된다 (레전드 팩과 독립)
+    const fo = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-ng', difficulty: 'normal', futureStars: true });
+    expect(fo.legends).toBeUndefined();
+    expect(fo.futureStars).toBe(true);
+    // 선수 화면 "이전 경력": 홀란 = 맨시티 등장 전 6줄 (브뤼네 → 도르트문트)
+    fo.rosters = rebuildRosters('c75x-ng', undefined, 4, undefined, [], { on: false, future: true });
+    const hd = personDetailVM(fo, 'fs-haaland')!;
+    expect(hd.priorCareer.map((c) => c.team)).toEqual(['브뤼네 2', '브뤼네', '몰데 2', '몰데', '레드불 잘츠부르크', '도르트문트']);
+    expect(hd.priorCareer.at(-1)).toMatchObject({ years: '2020–2022', apps: 67, goals: 62 });
   }, 60_000);
 
-  it('옛 세이브(43, 판 없음)는 1판 그대로 불러온다', () => {
+  it('옛 세이브: 43(판 없음) = 1판, 44(C.75x 2판) = 도르트문트 그대로·미래 스타 끔', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-mig', difficulty: 'normal', legends: true });
     const raw = JSON.parse(serialize(g));
     delete raw.legendPack;
@@ -123,15 +135,24 @@ describe('새 게임·플레이·세이브 (C.75x)', () => {
     expect(back.legendPack).toBeUndefined();
     expect(ids(back.rosters).has('lg-hummels')).toBe(false);
     expect(ids(back.rosters).has('lg-zidane')).toBe(true);
+    const raw44 = JSON.parse(serialize(g));
+    raw44.saveFormat = 44;
+    const b44 = deserialize(JSON.stringify(raw44));
+    expect(b44.legendPack).toBe(2);
+    expect(b44.futureStars).toBeUndefined();
+    expect(ids(b44.rosters).has('lg-hummels')).toBe(true);
   });
 
-  it('새 게임 화면: 실제 선수 탭에 레전드(도르트문트 포함)·미래 스타 묶음', () => {
-    const vm = newGameVM({ mode: 'real', name: '', position: 'ST', seed: 'c75x-vm', difficulty: 'normal', realId: '', legends: 'on', roll: 'c75x-vm', others: false });
+  it('새 게임 화면: 레전드 탭(도르트문트 포함)과 미래 스타 탭(등장 4 + 리그 추가 후 9)', () => {
+    const base = { mode: 'real' as const, name: '', position: 'ST', seed: 'c75x-vm', difficulty: 'normal', realId: '', roll: 'c75x-vm', others: false };
+    const lg = newGameVM({ ...base, legends: 'on' });
+    expect(lg.futureList).toEqual([]);
+    expect(lg.legendList.some((l) => l.id === 'lg-rosicky' && l.bvb)).toBe(true);
+    const vm = newGameVM({ ...base, futureStars: 'on' });
     expect(vm.futureList.length).toBe(13);
-    expect(vm.futureList[0]!.debut).toBe('2018-19');
-    expect(vm.legendList.some((l) => l.id === 'lg-rosicky' && l.bvb)).toBe(true);
+    expect(vm.futureList.filter((f) => !f.waiting).map((f) => f.id)).toEqual(['fs-garnacho', 'fs-haaland', 'fs-mainoo', 'fs-wirtz']);
+    expect(vm.futureList[0]).toMatchObject({ debut: '2021-22', age: 17, club: '맨체스터 유나이티드' });
     const yamal = vm.futureList.find((f) => f.id === 'fs-yamal')!;
-    expect(yamal).toMatchObject({ debut: '2022-23', age: 15, realClub: '바르셀로나', peak: 94 });
-    expect(yamal.start).toBeLessThan(65);
+    expect(yamal).toMatchObject({ waiting: true, realClub: '2022-23 바르셀로나', peak: 94 });
   });
 });

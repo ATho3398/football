@@ -3,7 +3,7 @@
 // 소속 = 실제 유스·첫 프로 구단이 PL 팀이면 그 팀, 아니면 그 구단 수준에 가까운 PL 팀 (리그 밖 구단은 로스터가 없어 경기에 나오지 않는다).
 // 모두 시드(`legend:<시드>:<id>`)로 따로 뽑아 기존 시드 흐름과 무관하다: 끄면 세계가 그대로다
 
-import { FUTURE_STARS, LEGENDS, type LegendData } from '../data/players/legends';
+import { FUTURE_STARS, LEGENDS, type FutureEntry, type LeagueId, type LegendData } from '../data/players/legends';
 import { OUTSIDE_BY_ID } from '../data/outsideClubs';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { ATTRIBUTE_GROUPS, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes, type GkAttributes, type GkType } from './attributes';
@@ -16,24 +16,25 @@ import { createRng, hashSeed, type Rng } from './rng';
 import { shiftGk, type RosterPlayer } from './roster';
 import type { Position } from './types';
 
-export { FUTURE_STARS, LEGENDS, type LegendData };
+export { FUTURE_STARS, LEGENDS, type FutureEntry, type LegendData };
 
-/** 레전드 팩 판 (C.75x): 1 = C.47 117명 (옛 세이브), 2 = + 도르트문트 레전드 + 미래 스타 (새 게임) */
+/** 레전드 팩 판 (C.75x): 1 = C.47 117명 (옛 세이브), 2 = + 도르트문트 레전드 (새 게임). 미래 스타는 따로 "미래 스타 팩" (C.75y) */
 export const LEGEND_PACK = 2;
 
 /** 그 판에서 처음부터 들어오는 레전드 */
 export const packLegends = (pack: number = LEGEND_PACK): readonly LegendData[] => (pack >= 2 ? LEGENDS : LEGENDS.filter((l) => !l.group));
 
-/** 그 판의 미래 스타 (1판은 없음) */
-export const packFutureStars = (pack: number = LEGEND_PACK): readonly LegendData[] => (pack >= 2 ? FUTURE_STARS : []);
+/** 게임에 구현된 리그 (C.75y): 미래 스타는 이 리그들의 첫 시즌에 등장. 타리그 패치가 리그를 켜면 여기에 더한다 */
+export const IMPLEMENTED_LEAGUES: readonly LeagueId[] = ['pl'];
 
 /**
  * 레전드 팩 2판에 든 선수와 같은 사람인 실제 선수 id (C.75x): 팩을 켜면 현역 로스터에서 뺀다 (중복 금지).
  * 지금 실제 선수 34명 중 해당자는 없다 (타리그 단계에 선수 풀이 늘면 이름으로 걸러진다)
  */
-export function packRealExcludes(pack: number): ReadonlySet<string> {
-  if (pack < 2) return new Set();
-  const names = new Set([...LEGENDS, ...FUTURE_STARS].map((l) => normName(l.name)));
+export function packRealExcludes(pack: number, future = false): ReadonlySet<string> {
+  const pool = [...(pack >= 2 ? LEGENDS : []), ...(future ? FUTURE_STARS : [])];
+  if (!pool.length) return new Set();
+  const names = new Set(pool.map((l) => normName(l.name)));
   return new Set(A_GRADE_PLAYERS.filter((p) => names.has(normName(p.name))).map((p) => p.id));
 }
 
@@ -91,13 +92,21 @@ const rngOf = (worldSeed: string, part: string, id: string): Rng => createRng(ha
 /** 그 시즌(8월 1일 기준) 실제 나이: 미래 스타 (C.75x) */
 export const futureAge = (l: LegendData, season: number): number => season - l.born![0] - (l.born![1] > 8 ? 1 : 0);
 
-/** 미래 스타가 세계에 들어오는 시즌: 데뷔 시즌, 이미 지났으면 게임 시작 시즌 */
-export const futureDebut = (l: LegendData): number => Math.max(l.debut!, BALANCE.newGame.startYear);
+/** 미래 스타의 등장 자리 (C.75y): 구현된 리그 중 가장 이른 첫 시즌. 없으면 undefined (리그 추가 후 등장) */
+export function futureEntry(l: LegendData, leagues: readonly LeagueId[] = IMPLEMENTED_LEAGUES): FutureEntry | undefined {
+  return [...(l.entries ?? [])].filter((e) => leagues.includes(e.league)).sort((a, b) => a.season - b.season)[0];
+}
+
+/** 미래 스타가 세계에 들어오는 시즌 (이미 지났으면 게임 시작 시즌). 구현 리그 기록이 없으면 undefined */
+export function futureDebut(l: LegendData): number | undefined {
+  const e = futureEntry(l);
+  return e ? Math.max(e.season, BALANCE.newGame.startYear) : undefined;
+}
 
 /** 시작 나이 (지정 없으면 15~22 시드 랜덤). 미래 스타는 들어오는 시즌의 실제 나이 */
 export function legendAge(l: LegendData, worldSeed: string): number {
   const L = BALANCE.legends;
-  if (l.group === 'future') return futureAge(l, futureDebut(l));
+  if (l.group === 'future') return futureAge(l, futureDebut(l) ?? BALANCE.newGame.startYear);
   return l.age ?? randInt(rngOf(worldSeed, 'age', l.id), L.minAge, L.maxAge);
 }
 
@@ -169,26 +178,28 @@ export function legendRosterPlayer(l: LegendData, worldSeed: string, season: num
 export interface LegendSpawn { legend: LegendData; teamId: string; player: RosterPlayer }
 
 const spawnOf = (l: LegendData, worldSeed: string, season: number, teams: readonly { id: string; rating: number }[]): LegendSpawn => {
-  const teamId = legendClub(l, worldSeed, teams);
+  // 미래 스타 (C.75y): 등장 리그의 그 팀 (리그 팀이 아니면 수준 가까운 팀으로)
+  const e = l.group === 'future' ? futureEntry(l) : undefined;
+  const teamId = e && teams.some((t) => t.id === e.team) ? e.team : legendClub(l, worldSeed, teams);
   return { legend: l, teamId, player: { ...legendRosterPlayer(l, worldSeed, season), youth: teamId } };
 };
 
-/** 레전드 팩 시작 명단 (except = 내 선수로 고른 레전드). 2판부터 데뷔 시즌이 이미 지난 미래 스타(홀란·카마빙가)도 처음부터 */
+/** 레전드 팩 시작 명단 (except = 내 선수로 고른 레전드) */
 export function legendSpawns(worldSeed: string, season: number, teams: readonly { id: string; rating: number }[], except?: string, pack: number = LEGEND_PACK): LegendSpawn[] {
-  return [...packLegends(pack), ...futureSpawnsOf(pack, season)].filter((l) => l.id !== except).map((l) => spawnOf(l, worldSeed, season, teams));
+  return packLegends(pack).filter((l) => l.id !== except).map((l) => spawnOf(l, worldSeed, season, teams));
 }
 
-const futureSpawnsOf = (pack: number, season: number): LegendData[] => packFutureStars(pack).filter((l) => futureDebut(l) === season);
-
-/** 이번 시즌(season)에 데뷔해 세계에 들어오는 미래 스타 (C.75x). 시즌 갱신 직후 다음 시즌 값으로 부른다 */
-export function futureSpawns(worldSeed: string, season: number, teams: readonly { id: string; rating: number }[], pack: number = LEGEND_PACK): LegendSpawn[] {
-  if (season <= BALANCE.newGame.startYear) return [];
-  return futureSpawnsOf(pack, season).map((l) => spawnOf(l, worldSeed, season, teams));
+/** 이 시즌(season)에 구현 리그에 처음 들어오는 미래 스타 (C.75y). 게임 시작 시즌이면 그 전에 이미 뛰던 선수까지 */
+export function futureSpawns(worldSeed: string, season: number, teams: readonly { id: string; rating: number }[]): LegendSpawn[] {
+  return FUTURE_STARS.filter((l) => futureDebut(l) === season).map((l) => spawnOf(l, worldSeed, season, teams));
 }
 
-/** 아직 데뷔 전인 미래 스타 (월드 화면 "등장 예정") */
-export const upcomingFutureStars = (season: number, pack: number = LEGEND_PACK): LegendData[] =>
-  packFutureStars(pack).filter((l) => futureDebut(l) > season).sort((a, b) => futureDebut(a) - futureDebut(b) || a.nameKo.localeCompare(b.nameKo));
+/** 아직 등장 전인 미래 스타 (월드 화면 "등장 예정"): 구현 리그 기록이 있는 선수만, 시즌 순 */
+export const upcomingFutureStars = (season: number): LegendData[] =>
+  FUTURE_STARS.filter((l) => (futureDebut(l) ?? 0) > season).sort((a, b) => futureDebut(a)! - futureDebut(b)! || a.nameKo.localeCompare(b.nameKo));
 
-/** 내 선수로 고를 수 있는 레전드 (필드 선수만, 미래 스타 제외) */
+/** 리그가 아직 없어 등장하지 않는 미래 스타 (리그 추가 후 등장) */
+export const waitingFutureStars = (): LegendData[] => FUTURE_STARS.filter((l) => futureDebut(l) === undefined);
+
+/** 내 선수로 고를 수 있는 레전드 (필드 선수만, 미래 스타는 고를 수 없음) */
 export const selectableLegends = (pack: number = LEGEND_PACK): LegendData[] => packLegends(pack).filter((l) => l.position !== 'GK');

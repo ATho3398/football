@@ -7,6 +7,15 @@ import type { Foot, Position } from '../../src/types';
 // GK 는 'S|C 선방 핸들링 공중볼 배급' (S = 스위퍼형, C = 클래식).
 // youth: 실제 유스·첫 프로 구단이 게임 리그(PL) 팀이면 그 id, 리그 밖 표에 있으면 'x:...', 없으면 ''. lv = 게임에 없는 구단의 대략 수준 (같은 수준 PL 팀을 고른다)
 
+/** 리그 id (BALANCE.squad.leagues 와 같은 이름) */
+export type LeagueId = 'pl' | 'championship' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1';
+
+/** 미래 스타가 그 리그에서 처음 뛴 시즌 (team = 그 리그 팀 id. PL 은 게임 팀 id, 아직 없는 리그는 리그 밖 표 id 또는 임시 id) */
+export interface FutureEntry { league: LeagueId; season: number; team: string }
+
+/** 실제 경력 한 줄: [기간, 팀, 리그 출전, 리그 골] */
+export type CareerRow = readonly [years: string, teamKo: string, apps: number, goals: number];
+
 export interface LegendData {
   id: string;
   name: string;
@@ -38,9 +47,13 @@ export interface LegendData {
   group?: 'bvb' | 'future';
   /** 2020 은퇴 기준 예외 (C.75x 도르트문트 명단 한정): "레전드 팩 이후 은퇴 확인" */
   lateRetired?: true;
-  /** 미래 스타: 태어난 해·달, 실제 프로 데뷔 시즌(시작 연도). 데뷔 시즌이 시작될 때 세계에 들어온다 */
+  /** 미래 스타: 태어난 해·달, 실제 프로 데뷔 시즌(시작 연도, 표시용) */
   born?: [number, number];
   debut?: number;
+  /** 미래 스타 (C.75y): 리그별 첫 시즌·팀 (리그 id 기준). 게임에 구현된 리그 중 가장 이른 시즌에 그 팀으로 등장 */
+  entries?: readonly FutureEntry[];
+  /** 미래 스타 실제 경력 (위키백과 인포박스, 리그 출전·골): 선수 화면 "이전 경력" */
+  career?: readonly CareerRow[];
   /** 전성기 OVR 지정 (C.75x 도르트문트·미래 스타: 능력치 식 값 대신 이 값. 모자란·넘치는 만큼은 성장이 OVR 가중으로 채운다) */
   peak?: number;
 }
@@ -360,8 +373,9 @@ const BVB_ROWS: Row[] = [
     2024, '78 82 | 88 78 84 90 | 72 62 56 52 70 | 34 38 28 30 | 80 82 76 | 84 84 82 | 86 86 72 84'],
 ];
 
-// ── 미래 스타 (C.75x, pending 131): 2018-19 세계에 없는 선수. 레전드 팩을 켜면 실제 프로 데뷔 시즌이 시작될 때 그때 나이로 들어온다.
-// 소속 = 데뷔 팀이 PL 팀이면 그 팀, 아니면 그 팀 수준에 가까운 PL 팀. 능력치 = 전성기 추정치 (시작은 나이로 낮추고 기존 성장 곡선으로 자란다).
+// ── 미래 스타 (C.75x → C.75y, pending 131): 2018-19 세계에 없는 선수. 새 게임 "미래 스타 팩"(레전드 팩과 따로)을 켜면
+// 게임에 구현된 리그에서 처음 뛰는 시즌에 그 팀으로 그때 나이로 들어온다 (FUTURE_INFO). 능력치 = 전성기 추정치 (시작은 나이로 낮추고 기존 성장 곡선으로 자란다).
+// 아래 youth·lv 칸은 프로 데뷔 구단(기록 문구). 아래 마지막 숫자 = 프로 데뷔 시즌(표시용).
 // retired 칸은 0 (현역). 데뷔: 야말 2022-23 바르셀로나 · 페드리 2019-20 라스팔마스 · 가비 2021-22 바르셀로나 · 벨링엄 2019-20 버밍엄 · 무시알라 2019-20 바이에른 ·
 // 비르츠 2019-20 레버쿠젠 · 카마빙가 2018-19 렌 · 쿠바르시 2023-24 바르셀로나 · 엔드릭 2022 파우메이라스 · 가르나초 2021-22 맨유 · 마이누 2022-23 맨유 ·
 // 자이르에메리 2022-23 PSG · 홀란 2016 브뤼네 (2018-19 시작 = 몰데, 18세로 처음부터) ──
@@ -418,11 +432,32 @@ export const BVB_LEGENDS: readonly LegendData[] = BVB_ROWS.map((r) => {
   return l.retired > 2020 ? { ...l, lateRetired: true } : l;
 });
 
-/** 미래 스타 (C.75x): 데뷔 시즌에 세계에 들어온다 */
+/**
+ * 미래 스타 리그별 첫 시즌 (C.75y, pending 131 02:47 개정): 게임에 구현된 리그(지금 pl)에서 처음 뛰는 시즌에 그 팀으로 등장.
+ * 다른 리그는 데이터만 (타리그 패치가 리그를 켜면 그 시즌에 등장). 경력 = 위키백과 영문 인포박스 리그 출전(골), 2026-10 기준
+ */
+const FUTURE_INFO: Readonly<Record<string, { entries: FutureEntry[]; career: CareerRow[] }>> = {
+  'fs-yamal': { entries: [{ league: 'laliga', season: 2022, team: 'x:bar' }], career: [['2023', '바르셀로나 아틀레틱', 1, 0], ['2023–', '바르셀로나', 110, 38]] },
+  'fs-pedri': { entries: [{ league: 'laliga', season: 2020, team: 'x:bar' }], career: [['2019–2020', '라스팔마스', 36, 4], ['2020–', '바르셀로나', 174, 23]] },
+  'fs-gavi': { entries: [{ league: 'laliga', season: 2021, team: 'x:bar' }], career: [['2021', '바르셀로나 B', 3, 0], ['2021–', '바르셀로나', 121, 6]] },
+  'fs-bellingham': { entries: [{ league: 'championship', season: 2019, team: 'x:bir' }, { league: 'bundesliga', season: 2020, team: 'x:bvb' }, { league: 'laliga', season: 2023, team: 'x:rma' }], career: [['2019–2020', '버밍엄 시티', 41, 4], ['2020–2023', '도르트문트', 92, 12], ['2023–', '레알 마드리드', 96, 37]] },
+  'fs-musiala': { entries: [{ league: 'bundesliga', season: 2019, team: 'x:bay' }], career: [['2020–2021', '바이에른 뮌헨 II', 10, 2], ['2020–', '바이에른 뮌헨', 157, 49]] },
+  'fs-wirtz': { entries: [{ league: 'bundesliga', season: 2019, team: 'x:b04' }, { league: 'pl', season: 2025, team: 'liv' }], career: [['2020–2025', '레버쿠젠', 140, 35], ['2025–', '리버풀', 39, 5]] },
+  'fs-camavinga': { entries: [{ league: 'ligue1', season: 2018, team: 'x:ren' }, { league: 'laliga', season: 2021, team: 'x:rma' }], career: [['2018–2019', '스타드 렌 B', 13, 4], ['2019–2021', '스타드 렌', 71, 2], ['2021–', '레알 마드리드', 150, 4]] },
+  'fs-cubarsi': { entries: [{ league: 'laliga', season: 2023, team: 'x:bar' }], career: [['2023–2024', '바르셀로나 아틀레틱', 9, 0], ['2023–', '바르셀로나', 91, 1]] },
+  'fs-endrick': { entries: [{ league: 'laliga', season: 2024, team: 'x:rma' }, { league: 'ligue1', season: 2025, team: 'x:ol' }], career: [['2022–2024', '파우메이라스', 60, 15], ['2024–', '레알 마드리드', 25, 1], ['2026', '리옹 (임대)', 16, 5]] },
+  'fs-garnacho': { entries: [{ league: 'pl', season: 2021, team: 'mun' }], career: [['2022–2025', '맨체스터 유나이티드', 93, 16], ['2025–', '첼시', 24, 1], ['2026–', '애스턴 빌라 (임대)', 3, 0]] },
+  'fs-mainoo': { entries: [{ league: 'pl', season: 2022, team: 'mun' }], career: [['2022–', '맨체스터 유나이티드', 83, 4]] },
+  'fs-zaireemery': { entries: [{ league: 'ligue1', season: 2022, team: 'x:psg' }], career: [['2022–', '파리 생제르맹', 120, 8]] },
+  'fs-haaland': { entries: [{ league: 'bundesliga', season: 2019, team: 'x:bvb' }, { league: 'pl', season: 2022, team: 'mci' }], career: [['2015–2016', '브뤼네 2', 18, 18], ['2016–2017', '브뤼네', 16, 0], ['2017–2018', '몰데 2', 4, 2], ['2017–2019', '몰데', 39, 14], ['2019–2020', '레드불 잘츠부르크', 16, 17], ['2020–2022', '도르트문트', 67, 62], ['2022–', '맨체스터 시티', 139, 120]] },
+};
+
+/** 미래 스타: 구현된 리그 첫 시즌에 세계에 들어온다 (C.75y) */
 export const FUTURE_STARS: readonly LegendData[] = FUTURE_ROWS.map((r) => {
   const born = r[18];
   const debut = r[19];
-  return { ...legend(r.slice(0, 18) as unknown as Row), group: 'future', born, debut, peak: GROUP_PEAK[r[0]]! };
+  const info = FUTURE_INFO[r[0]]!;
+  return { ...legend(r.slice(0, 18) as unknown as Row), group: 'future', born, debut, peak: GROUP_PEAK[r[0]]!, entries: info.entries, career: info.career };
 });
 
 /** 넣는 기준: 2020년 12월까지 은퇴 (그 뒤 은퇴자는 빼고 예비 후보로 채운다, pending 63) */
