@@ -6,7 +6,8 @@ import { BALANCE } from '../src/config/balance';
 import { customCap, validCustom } from '../src/custom';
 import { newGameVM } from '../src/ui/viewModels';
 import { budgetOf, customSpec, customVM, initialCustomForm, NATIONALITIES, type CustomForm } from '../src/ui/customVM';
-import { fitToBudget, prospectToCustom, randomStep } from '../src/ui/customRandom';
+import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from '../src/ui/customRandom';
+import { rollProspect } from '../src/aptitude';
 import { customBody } from '../src/ui/views/custom';
 import { NEW_GAME_UI, newGameView } from '../src/ui/views/screens';
 import type { FieldPosition } from '../src/positions';
@@ -46,7 +47,9 @@ describe('새 게임 시작 방식 2개', () => {
     const { form: f } = prospectToCustom('c74d-over', 'ST');
     const vm = customVM(f, '');
     for (let st = 1; st <= 6; st++) expect(customBody(vm, st, '', '')).toContain(`data-act="cu-rand" data-v="${st}"`);
-    if (vm.over) expect(customBody(vm, 5, '', '')).toContain('data-act="cu-fit"');
+    expect(customBody(vm, 5, '', '')).not.toContain('data-act="cu-fit"');
+    const over = { ...f, attrs: Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, Math.max(BALANCE.custom.base, customCap(a, f.height))])) as CustomForm['attrs'] };
+    expect(customBody(customVM(over, ''), 5, '', '')).toContain('data-act="cu-fit"');
   });
 });
 
@@ -61,21 +64,31 @@ describe('편집하기 = 랜덤 결과 → 커스텀 폼', () => {
     inRange(a.form);
   });
 
-  it('넘친 포인트는 [포인트에 맞추기]로 줄이면 커스텀으로 시작된다', () => {
-    let over = 0;
-    for (const s of ['c74d-1', 'c74d-2', 'c74d-3', 'c74d-4', 'c74d-5']) {
+  it('랜덤은 커스텀 예산을 넘지 않는다 (사용자 00:41) · 넘친 값은 [포인트에 맞추기]로 줄인다', () => {
+    for (const s of ['c74d-1', 'c74d-2', 'c74d-3', 'c74d-4', 'c74d-5', 'c74d-6']) {
       const { form: f, name } = prospectToCustom(s, 'ST');
-      if (customVM(f, name).over) over++;
-      const fit: CustomForm = { ...f, attrs: fitToBudget(f.attrs, f.position as FieldPosition, budgetOf(f), f.height) };
-      expect(validCustom(fit.attrs, budgetOf(fit), fit.height)).toBe(true);
-      const v = customVM(fit, name);
-      expect(v.over).toBe(false);
-      if (!v.start.ready) continue;
-      const g = newGame({ mode: 'custom', custom: customSpec(fit, name), seed: s, difficulty: 'normal' });
-      expect(g.player.age).toBe(17);
-      expect(g.player.name).toBe(name);
+      expect(validCustom(f.attrs, budgetOf(f), f.height)).toBe(true);
+      expect(customVM(f, name).over).toBe(false);
+      // 손으로 넘치게 만든 값 → 맞추기
+      const over: CustomForm = { ...f, attrs: Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, Math.max(BALANCE.custom.base, customCap(a, f.height))])) as CustomForm['attrs'] };
+      expect(customVM(over, name).over).toBe(true);
+      const fit: CustomForm = { ...over, attrs: fitToBudget(over.attrs, over.position as FieldPosition, budgetOf(over), over.height) };
+      expect(customVM(fit, name).over).toBe(false);
     }
-    expect(over).toBeGreaterThan(0);
+  });
+
+  it('[이대로 시작] = 결과 그대로 커스텀 시작: 예산 안 · 잠재력·숨은 적성·팀은 예전 랜덤과 같은 굴림', () => {
+    for (const s of ['c74d-a', 'c74d-b', 'c74d-c']) {
+      const r = rollCustom(s);
+      const pos = r.candidates[0]!.pos;
+      const g = newGame({ mode: 'custom', custom: rolledSpec(s, pos, ''), seed: s, difficulty: 'normal' });
+      const old = newGame({ mode: 'prospect', position: pos, seed: s, difficulty: 'normal', rolled: true });
+      expect(g.player.attributes).toEqual(r.form.attrs);
+      expect([g.player.age, g.player.position, g.player.name]).toEqual([17, pos, r.name]);
+      expect(g.player.aptitude).toEqual(rollProspect(s).aptitude);
+      expect([g.player.potentialTier, g.player.teamId]).toEqual([old.player.potentialTier, old.player.teamId]);
+      expect(rollCustom(s)).toEqual(r);
+    }
   });
 });
 

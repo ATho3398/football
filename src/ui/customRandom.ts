@@ -1,22 +1,22 @@
 // 커스텀 랜덤 (C.74d, 사용자 요청 2026-10-20): 시작 방식 [랜덤]을 커스텀 안으로 합친다.
 // [전체 랜덤] = 지금 랜덤 유망주 생성기(rollProspect · prospectExtras · rollIdentity)로 뽑은 결과 → [이대로 시작] / [편집하기] / [다시 돌리기].
-// [편집하기]와 [이 단계 랜덤]은 같은 생성기 결과를 커스텀 폼 값으로 옮긴다. 같은 key 면 늘 같은 결과
+// 결과는 늘 커스텀 예산 안(사용자 00:41). [편집하기]와 [이 단계 랜덤]은 같은 생성기 결과를 커스텀 폼 값으로 옮긴다. 같은 key 면 늘 같은 결과
 
 import { FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from '../attributes';
-import { rollProspect } from '../aptitude';
+import { rollProspect, startCandidates, type StartCandidate } from '../aptitude';
 import { BALANCE } from '../config/balance';
-import { CUSTOM_HIDDEN_TAGS, customCap, customRaise, spentPoints } from '../custom';
-import { prospectExtras } from '../game';
+import { CUSTOM_HIDDEN_TAGS, customBudget, customCap, customRaise, spentPoints } from '../custom';
+import { prospectExtras, type CustomSpec } from '../game';
 import { PHOTO_OF, randomNameFor, rollIdentity, type FacePhoto, type Race } from '../identity';
 import { initialTeams } from '../league';
 import { attributeOvrWeight, type FieldPosition, type PlayablePosition } from '../positions';
 import { createRng, hashSeed } from '../rng';
 import { canAddTag, type TagPick } from '../tags';
-import { budgetOf, NATIONALITIES, weightRange, type CustomForm } from './customVM';
+import { budgetOf, customSpec, NATIONALITIES, weightRange, type CustomForm } from './customVM';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** 랜덤 능력치 → 커스텀 범위 (기본값 이상 · 키 상한 이하). 포인트는 넘칠 수 있다 */
+/** 랜덤 능력치 → 커스텀 범위 (기본값 이상 · 키 상한 이하). 포인트는 fitToBudget 으로 맞춘다 */
 export function attrsToCustom(attrs: FieldAttributes, height: number): FieldAttributes {
   const C = BALANCE.custom;
   return Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, clamp(Math.round(attrs[a]), C.base, Math.max(C.base, customCap(a, height)))])) as FieldAttributes;
@@ -75,21 +75,37 @@ function startOf(key: string, age: number): Pick<CustomForm, 'startKind' | 'star
 }
 
 /**
- * [편집하기]: 랜덤 결과(같은 key · 고른 포지션 · 고른 인종/사진)를 커스텀 폼으로. 능력치는 커스텀 범위로만 맞추고
- * 포인트는 그대로 둔다 (넘치면 능력치 단계에서 줄이거나 [포인트에 맞추기])
+ * 전체 랜덤 (C.74d): 유망주 생성기 결과를 **커스텀 예산 안으로**(사용자 00:41 "랜덤은 커스텀 예산을 넘지 않게") 맞춘다.
+ * 신체·태그는 기준 자리(roll.anchor) 기준이라 결과 화면에서 포지션을 바꿔도 능력치·몸·예산이 그대로다.
+ * 포지션 후보 4자리 + 코치 평은 맞춘 능력치와 숨은 적성으로 다시 뽑는다
  */
-export function prospectToCustom(key: string, position: PlayablePosition, race?: Race, photo?: FacePhoto): { form: CustomForm; name: string } {
-  const p = rollProspect(key);
-  const x = prospectExtras(key, position);
-  const body = bodyOf(key, position);
-  const { name, ...looks } = looksOf(key, race, photo);
+export function rollCustom(key: string, race?: Race, photo?: FacePhoto): { form: CustomForm; name: string; candidates: StartCandidate[] } {
+  const roll = rollProspect(key);
+  const pos = roll.anchor;
+  const body = bodyOf(key, pos);
+  const tags = customTags(prospectExtras(key, pos).tags);
   const age = BALANCE.custom.refAge;
+  const budget = customBudget(age, tags, body.weakFoot);
+  const attrs = fitToBudget(attrsToCustom(roll.attributes, body.height), pos as FieldPosition, budget, body.height);
+  const candidates = startCandidates(attrs, roll.aptitude, createRng(hashSeed([key, 'start-candidates'].join(':'))));
+  const { name, ...looks } = looksOf(key, race, photo);
   return {
-    name,
-    form: {
-      age, position, attrs: attrsToCustom(p.attributes, body.height), ...body, tags: customTags(x.tags), ...looks, sel: null, ...startOf(key, age),
-    },
+    name, candidates,
+    form: { age, position: candidates[0]?.pos ?? pos, attrs, ...body, tags, ...looks, sel: null, startKind: 'none', startClub: '', youthClub: 'random' },
   };
+}
+
+/** [이대로 시작]: 전체 랜덤 결과 그대로 커스텀으로 시작 (팀은 예전 랜덤처럼 리그 하위권 팀 유스, 잠재력·숨은 적성 = 결과 화면과 같은 굴림) */
+export function rolledSpec(key: string, position: PlayablePosition, name: string, race?: Race, photo?: FacePhoto): CustomSpec {
+  const r = rollCustom(key, race, photo);
+  const { start: _s, ...spec } = customSpec({ ...r.form, position }, name.trim() || r.name);
+  return { ...spec, rolled: true };
+}
+
+/** [편집하기]: 전체 랜덤 결과(고른 포지션 · 고른 인종/사진)를 커스텀 폼으로. 시작 소속은 랜덤(6단계에서 바꿈) */
+export function prospectToCustom(key: string, position: PlayablePosition, race?: Race, photo?: FacePhoto): { form: CustomForm; name: string } {
+  const r = rollCustom(key, race, photo);
+  return { name: r.name, form: { ...r.form, position, ...startOf(key, r.form.age) } };
 }
 
 /**

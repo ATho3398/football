@@ -7,7 +7,7 @@ import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
 import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
-import { fitToBudget, prospectToCustom, randomStep } from './customRandom';
+import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
 import './design/tokens.css';
@@ -268,7 +268,7 @@ function syncProspectPick(): void {
   const key = prospectSeed();
   if (ui.form.posFor === key) return;
   ui.form.posFor = key;
-  ui.form.position = rollProspect(key).candidates[0]!.pos;
+  ui.form.position = rollCustom(key).candidates[0]!.pos;
   ui.form.others = false;
   ui.form.race = '';
   ui.form.photo = '';
@@ -1998,9 +1998,10 @@ app.addEventListener('click', (ev) => {
         const cv = customVM(f.cu, f.name);
         if (cv.over || !cv.start.ready) return;
       }
+      // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
       ui.game = f.mode === 'prospect'
-        ? newGame({ mode: 'prospect', name: f.name, position: f.position, seed: prospectSeed(), difficulty: f.difficulty, rolled: true, legends: f.legends === 'on',
-          ...(isRace(f.race) ? { race: f.race } : {}), ...(isFacePhoto(f.photo) ? { facePhoto: f.photo } : {}) })
+        ? newGame({ mode: 'custom', custom: rolledSpec(prospectSeed(), f.position, f.name, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined),
+          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
         : f.mode === 'custom'
           ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on' })
           : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on' });

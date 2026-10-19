@@ -1,6 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, weekFreeDays } from '../game';
@@ -1576,7 +1577,9 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const pct = (x: number) => `${x >= 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)}%`;
   const N = BALANCE.newGame;
   // 시작 후보 4자리 (pending 31 01:03 개정): 적합도 상위 3 + 와일드카드 1, 코치 한 줄 평. 적성 수치는 보여 주지 않는다
-  const prospect = f.mode === 'prospect' ? rollProspect(f.roll) : null;
+  // 전체 랜덤 결과 (C.74d): 유망주 생성기 결과를 커스텀 예산 안으로 맞춘 값 (customRandom.rollCustom)
+  const rc = f.mode === 'prospect' ? rollCustom(f.roll) : null;
+  const prospect = rc ? { attributes: rc.form.attrs, candidates: rc.candidates } : null;
   const ovrs = prospect ? allPositionOvrs(prospect.attributes) : null;
   const candidates = prospect ? prospect.candidates.map((c) => ({
     id: c.pos, ko: POSITION_NAMES_KO[c.pos], ovr: c.ovr, line: c.line, wild: c.kind === 'wild',
@@ -1618,10 +1621,10 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       };
     })() : null,
     // 랜덤 유망주의 신체·장단점 (C.45, 숨기지 않음)
-    extras: prospect ? (() => {
-      const x = prospectExtras(f.roll, f.position as PlayablePosition);
+    extras: rc ? (() => {
+      const x = rc.form;
       return {
-        height: x.body.height, weight: x.body.weight, foot: FOOT_KO[x.body.foot], weakFoot: x.body.weakFoot,
+        height: x.height, weight: x.weight, foot: FOOT_KO[x.foot], weakFoot: x.weakFoot,
         traits: x.tags.map((t) => ({ ko: TAGS[t.id].ko, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const, ...(!t.perm && TAGS[t.id].removeDesc ? { release: `${TAGS[t.id].removeDesc}이면 사라짐` } : {}) })),
       };
     })() : null,

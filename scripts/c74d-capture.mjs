@@ -1,4 +1,4 @@
-// C.74d 확인 캡처: 새 게임 시작 방식 2개 · 커스텀 [전체 랜덤] → 결과 3버튼 · [편집하기] → 커스텀 단계(포인트 넘침) · [이 단계 랜덤] · [포인트에 맞추기].
+// C.74d 확인 캡처: 새 게임 시작 방식 2개 · 커스텀 [전체 랜덤] → 결과 3버튼 · [편집하기] → 커스텀 단계(예산 안) · [이 단계 랜덤].
 // 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c74d-capture.mjs [playwright 모듈 경로] [저장 폴더]. 환경: W H PREFIX SKIN(a|b)
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -41,8 +41,7 @@ await top();
 await shot('4_편집하기_1단계');
 await click('[data-act="cu-step"][data-v="5"]');
 await top();
-await shot('5_능력치_넘침');
-if (await has('[data-act="cu-fit"]')) { await click('[data-act="cu-fit"]'); await top(); await shot('6_포인트에맞춤'); }
+await shot('5_능력치_예산안');
 await click('[data-act="cu-step"][data-v="2"]');
 await click('[data-act="cu-rand"]');
 await top();

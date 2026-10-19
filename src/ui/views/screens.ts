@@ -177,7 +177,7 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
     ${startOptions(vm, true)}
     <div class="btn-col ng-rollbtns">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `이대로 시작 · ${vm.teamHint} 유스` })}
       <div class="btn-row even">${Button({ variant: 'secondary', block: true, icon: 'edit', act: 'ng-edit', children: '편집하기' })}${Button({ variant: 'ghost', block: true, icon: 'swap', act: 'form-reroll', children: '다시 돌리기' })}</div>
-      <p class="small muted">편집하기 = 이 값으로 커스텀 단계에 들어가요(커스텀 포인트 규칙, 넘치면 줄여야 시작). 숨은 재능·적성은 [이대로 시작]일 때만 이 결과 그대로예요.</p></div>`;
+      <p class="small muted">랜덤도 커스텀 배분 포인트 안에서 뽑아요. 편집하기 = 이 값으로 커스텀 단계에 들어가요. 숨은 재능·적성은 [이대로 시작]일 때만 이 결과 그대로예요.</p></div>`;
 }
 
 const GROUP_KO: [('fw' | 'mf' | 'df'), string][] = [['fw', '공격'], ['mf', '미드'], ['df', '수비']];
