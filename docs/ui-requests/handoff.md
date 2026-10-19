@@ -3,7 +3,7 @@
 - **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: Q** `session_01B71wzpzNzdTg4hm7DbNX9H` (브랜치 `claude/planning-q`, 2026-10-19 03:07 KST P → Q 교체, Q는 P가 연 세션, `get_session` 확인). 알림·보고는 Q로(send_message). 카톡·ntfy 알림은 마스터 몫.
+- **지금 마스터: R** `session_015zZ2foCVBuTGmZ3S6w8LR3` (브랜치 `claude/planning-r`, 2026-10-19 10:47 KST Q → R 교체, 사용자가 앱에서 직접 연 세션). 알림·보고는 R로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 Q `session_01B71wzpzNzdTg4hm7DbNX9H`(`claude/planning-q`).
   - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
