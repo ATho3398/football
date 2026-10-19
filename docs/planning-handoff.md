@@ -446,3 +446,7 @@
 - 참고: R 작업자가 재시작되어 10:49~19:58 KST 약 9시간 멈춤(알림은 큐에 쌓여 있었음).
 - (20:05 KST) pending 125 = 43 경기 환경 진행 방식 추천안(a 날씨·심판 / b 이동일·부상 복귀·기록 추적 병렬 / c 케미·상대 분석·패스 받는 빈도).
 - (20:00 KST) **43단계 시작(병렬)**: **C.74a** `session_017jaVS7AUAZBGCGgb8MJtt5` "43a단계_경기 환경 a 날씨·심판 (C.74a)", 브랜치 `claude/c74a-weather`, 태그 `stage:43a-C74a` / **C.74b** `session_01K6s4kZyBAd65ydXqrcifi9` "43b단계_경기 환경 b 이동일·부상 복귀·기록 추적 (C.74b)", 브랜치 `claude/c74b-travel-records`, 태그 `stage:43b-C74b`. 환경 env_01UV9gVVKpLLuhnieU6ctYeL(이전 코드 세션과 같은 환경). 서로 ID 알림, UI_3 예고. 자동 확인 `trig_01SNETdpFQ47s4xFKuWY1hBs`(22:01 KST). 다음: a 끝나면 C.74c(케미·상대 분석·패스 받는 빈도) → 엔진 다듬기 블록.
+- (20:04 KST, 사용자 "중단된 플레이어원 세션 파악해서 다시 실행") 10:48~19:00 KST 정지 원인 = **주간 사용량 한도**(seven_day rejected, 19:00 KST 리셋) — R만이 아니라 모든 세션이 같은 시각 429로 끊김. 점검: C.73b(CI 보고·예약 삭제까지 끝낸 뒤 끊김 → 할 일 없음), C.73d(정상 끝), Q(끝내던 중 끊김, draft_ → 재실행 안 함), **UI_3·엔진관리자2**(R 교체 알림 처리 중 끊김 → 재전송). 블리치 세션은 다른 프로젝트라 제외. 참고: UI_3 누적 63달러(한도 15달러 넘음, 컨텍스트 19만) — 11차 보고 뒤 교체 검토.
+- (20:03 KST) UI_3 교체 확인(claude/ui-3 6401f15, 11차 누계 큰 3·작은 6·단계 1). 엔진관리자2 교체 확인, 인수인계 갱신 `claude/engine-handoff-r` 06adad0 → C.74a·b에 docs 병합 대상 추가 알림.
+- (20:36 KST, 사용자 "크레딧 중단 느낌표 세션 정리, 크레딧 제일 안 드는 방법") 사용량 한도로 실패 표시된 draft 세션 2개 **보관(archive)**: C.73b `session_015yFLHowJh5sLRxBHeXzYiX`, Q `session_01B71wzpzNzdTg4hm7DbNX9H`(크레딧 0, unarchive로 되돌릴 수 있음). UI_3·엔진관리자2는 재개 뒤 정상 상태라 그대로. 사용자 질문: 다른 세션 "답변 완료" 읽음 처리는 도구가 없어 불가(앱에서 직접).
+- (20:41 KST, 사용자) 보관 취소: Q·C.73b unarchive 후 "한도 풀림, 한 줄 답하고 멈춤" 메시지. 앞으로 보관 안 함 → automation.md 0번에 규칙 추가.
