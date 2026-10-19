@@ -438,3 +438,10 @@
 - 공통 지시(갱신): 모바일 = 세로 폰 390×844 + 경기장만 가로, PC 2열, 가로 폰·A 테마 안 깨지게. 엔진 동결(엔진 블록 전까지). 화면만 패치는 balance·engine 생략 가능. balance는 백그라운드+로그. 회귀 가드 기준·판정 변경은 마스터 승인. 세션 비용 10달러 넘으면 나눔 — **코드 세션 비용은 get_session에 없을 때가 많음 → `list_events` kinds=["result"]의 `total_cost_usd`로 확인**. 병렬 세션은 파일 영역 나누고 푸시 전 main 병합(C.71a/b·C.73b/c 방식 잘 됨). docs 병합 planning-r·ui-3. 부록 C·버전 번호는 병렬 세션끼리 서로 알림.
 - 사용자 선호 메모: 사용량 경고로 멈추지 않음(7일 한도 리셋 10/20 19:00 KST). 사용자 화면 요청은 작은 fix 세션(C.73c·C.73d 방식, 30~60분)으로 바로. 해석이 갈리면 한 줄로 확인하고 진행. 사용자 사진 같은 첨부는 마스터가 docs/design/incoming/에 커밋해서 코드 세션에 넘김(C.73c).
 - (10:07 KST) **C.73d 완료**(main ff369fd, 31분, 테스트 683) → pending 123 결과, ntfy, UI_3(작은 3), C.73d draft_, 확인 예약 삭제. CI는 C.73d가 확인. R 시작 처리 ③(C.73d 확인 예약)은 필요 없음.
+
+### 8.31 마스터 세션 R (2026-10-19 10:47 KST~, `session_015zZ2foCVBuTGmZ3S6w8LR3`, 브랜치 `claude/planning-r`)
+- 사용자가 앱에서 직접 연 세션 → `lineage` 깊이 0(한도 8). 브랜치 `claude/planning-r`(claude/planning-q 924f9d0에서 분기 — 사용자 지시 8fd3c2d 뒤에 Q가 C.73d 결과 커밋을 하나 더 올려 그 위에서 분기).
+- 시작 처리(10:48 KST): ① Q에 "R 준비 완료 + R ID" ② C.73d·C.73b·UI_3·엔진관리자2에 "보고는 R, 마스터 브랜치 claude/planning-r"(모두 delivered) ③ C.73d·C.73b CI 확인 send_later 60분 `trig_01XvCFAHVf3nKsAB2V65Mf7Q` ④ Q 제목 `draft_Q_축구 커리어 게임 마스터`(태그 그대로, Q 최종 16.6달러·52.7만), R 제목 `R_축구 커리어 게임 마스터` ⑤ **환경 변수 `NTFY_TOPIC` 이 R 환경에 없음**(R은 다른 환경 env_01STK8eBPczqRtyrxxUJL5DJ에서 열림) → 사용자에게 값 요청, 받기 전까지 ntfy 생략.
+- (10:49 KST, 19:58 KST에 읽음) **C.73d·C.73b CI 성공**: main ff369fd 실행 #211(39183833681) typecheck·test·balance:check·engine:check·build·deploy 성공, 10:36 KST 배포(C.73b 실행 #210은 이 푸시로 취소, #211에 포함). C.73b·C.73d 끝.
+- 참고: R 작업자가 재시작되어 10:49~19:58 KST 약 9시간 멈춤(알림은 큐에 쌓여 있었음).
+- (20:05 KST) pending 125 = 43 경기 환경 진행 방식 추천안(a 날씨·심판 / b 이동일·부상 복귀·기록 추적 병렬 / c 케미·상대 분석·패스 받는 빈도).
