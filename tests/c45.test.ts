@@ -253,7 +253,7 @@ describe('세이브 23 → 24 (C.45 7번)', () => {
     delete raw.player.shirt;
     delete raw.pixelOverrides;
     const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(41);
+    expect(back.saveFormat).toBe(43);
     expect(back.player.body).toEqual(realBody('kane'));
     expect(back.player.tags).toEqual([]);
     expect(back.player.clubRun).toMatchObject({ club: 'tot', first: true });

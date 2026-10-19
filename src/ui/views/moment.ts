@@ -77,7 +77,7 @@ function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { nam
     act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.label, chance,
     ...(chance !== null && delta ? { chanceDelta: Math.max(-chance, Math.min(99 - chance, delta)), deltaSource: '카드' } : {}),
     success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: signedR(o.down) },
-    ...(o.offside ? { offside: o.offside } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
+    ...(o.offside ? { offside: o.offside } : {}), ...(o.exploit ? { exploit: true } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
   });
 }
 

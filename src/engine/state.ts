@@ -7,6 +7,7 @@ import type { CardState } from './cards';
 import type { Role } from './roles';
 import type { BodyMods } from '../body';
 import type { MatchEnv } from './env';
+import type { Rapport } from './rapport';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
 
 /** 0 GK, 1 수비, 2 중원, 3 공격 */
@@ -245,6 +246,8 @@ export interface SimState {
   cards: CardState | null;
   /** 경기 환경 실행 배율 (C.74a). 맑음·보통 심판이면 모두 1 */
   env: MatchEnv;
+  /** 동료 호흡·상대 분석·패스 받는 빈도 (C.74c). 없으면 null (호흡 0·관계 보통·리포트 없음 = 이전 엔진) */
+  rapport: Rapport | null;
 }
 
 export function emptyTeamStats(): TeamStats {

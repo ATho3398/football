@@ -5,6 +5,7 @@ import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../at
 import { FORMATION_SLOTS } from '../formations';
 import { ENGINE } from './config';
 import { resolveEnv } from './env';
+import { resolveRapport } from './rapport';
 import { lineOf } from './formation';
 import { caught, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
 import { computeRatings } from './rating';
@@ -126,6 +127,7 @@ export function createState(input: EngineInput): SimState {
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
     moments: initMoments(input.control), forcedDuel: null, cards: initCards(input.cards, input.seed),
     env: resolveEnv(input.env),
+    rapport: resolveRapport(input.rapport),
   };
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);

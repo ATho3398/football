@@ -324,6 +324,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     p.appearance ??= rollAppearance(`me:${s.worldSeed}`, p.nationality ?? PROSPECT_NATIONALITY);
     p.facePhoto ??= PHOTO_OF[p.appearance as Appearance];
   },
+  // 41 → 42 (C.74b 자리): 이동일·부상 복귀·기록 추적. C.74b 가 먼저 배포되면 그쪽 변환으로 바뀐다
+  41: () => {},
+  // 42 → 43 (C.74c): 동료 호흡(chem). 옛 세이브는 없음 → 다음 내 경기부터 0에서 쌓인다
+  42: () => {},
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

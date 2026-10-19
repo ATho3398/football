@@ -13,6 +13,7 @@ import { oppShotMoment } from './moments';
 import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { landingVelocity } from './physics';
 import { LONG_SHOT_FROM } from './env';
+import { exploitMul } from './rapport';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, BallReserve, Flight, SimState } from './state';
 
@@ -180,7 +181,8 @@ function dribble(s: SimState, a: Agent, c: Candidate): void {
   s.teams[a.team].stats.dribbles++;
   def.stats.dribblesFaced++;
   // 날씨 (C.74a): 눈·한파 드리블 실행 × dribble (판단의 P 는 그대로)
-  if (r(s, a.idx, Purpose.Dribble) < c.p * s.env.dribble) {
+  // 상대 분석 (C.74c): 리포트 약점이면 × 약점 공략
+  if (r(s, a.idx, Purpose.Dribble) < c.p * s.env.dribble * (s.rapport ? exploitMul(s, a, 'dribble') : 1)) {
     a.stats.dribblesWon++;
     def.stats.dribbledPast++;
     s.teams[a.team].stats.dribblesWon++;
@@ -437,7 +439,8 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
 
   // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
   const foot = header ? 1 : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
-  const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot;
+  // 상대 분석 (C.74c): 슈팅이 리포트 약점이면 유효 슈팅 × 약점 공략
+  const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot * (s.rapport ? exploitMul(s, a, 'shoot') : 1);
   const side = r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1;
   const speed = m.speed * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
   if (onTarget) {
@@ -715,7 +718,11 @@ function resolveAerial(s: SimState, fl: Flight): void {
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
-    const pA = (edge ? clamp(pA0 + edge, 0.02, 0.98) : pA0) * (fl.fromCross ? s.env.crossWin : 1);
+    // 상대 분석 (C.74c): 내 크로스(cross) · 내가 공격 쪽인 공중볼(header)이 리포트 약점이면 × 약점 공략
+    const pass = s.rapport ? s.agents[fl.passer] : undefined;
+    const ex = s.rapport ? Math.max(fl.fromCross && pass ? exploitMul(s, pass, 'cross') : 1, exploitMul(s, bestA, 'header')) : 1;
+    const pA1 = (edge ? clamp(pA0 + edge, 0.02, 0.98) : pA0) * (fl.fromCross ? s.env.crossWin : 1);
+    const pA = ex !== 1 ? Math.min(0.98, pA1 * ex) : pA1;
     winner = r(s, bestA.idx, Purpose.Aerial) < pA ? bestA : bestD;
     winner.stats.aerialsWon++;
   } else winner = (bestA ?? bestD)!;
