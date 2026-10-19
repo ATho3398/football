@@ -36,6 +36,8 @@ export interface RatingParts {
   result: number;
   /** 카드 성공/실패 평점 (C.36, 행동 델타 단위). 카드가 없으면 0 */
   card?: number;
+  /** 직접 모드 도박 실패 완화로 되돌린 공 상실 감점 (C.75a, 행동 델타 단위). 자동 경기는 0 */
+  relief?: number;
 }
 
 export function ratingParts(s: SimState, a: Agent, duration: number): RatingParts {
@@ -69,6 +71,7 @@ export function ratingParts(s: SimState, a: Agent, duration: number): RatingPart
     cleanSheet: a.line <= 1 && ga === 0 && minutes >= R.cleanSheetMinMinutes ? 1 : 0,
     result: gf > ga ? 1 : gf < ga ? -1 : 0,
     ...(rt.card ? { card: rt.card } : {}),
+    ...(rt.relief ? { relief: rt.relief } : {}),
   };
 }
 
@@ -85,6 +88,7 @@ export function ratingDelta(p: RatingParts, R: RatingConfig = ENGINE.rating): nu
   d += p.conceded * R.conceded + p.saves * R.save + p.cleanSheet * R.cleanSheet;
   d += p.result > 0 ? R.win : p.result < 0 ? R.loss : R.draw;
   if (p.card) d += p.card;
+  if (p.relief) d += p.relief;
   return d;
 }
 

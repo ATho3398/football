@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 22;
+export const ENGINE_VERSION = 23;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -638,7 +638,18 @@ export const ENGINE = {
      * 패에 지금 쓸 수 있는 카드(장면 플레이 카드·장면 확률 카드)가 있을 때만 멈춘다
      */
     maxP: 0.9,
+    /** C.75a: 고를 거리(판정 있는 선택지 + 카드가 새로 연 선택지, 맡기기 제외)가 이 수 미만이면 멈추지 않는다 (카드만 있는 1개짜리 정지 없음) */
     minOptions: 2,
+    /**
+     * C.75a 도박 실패 완화 (pending 128 1항): 직접 모드에서 고른 소유 선택지가 실패해 공을 잃으면, 실패 감점 × clamp(floor + (1 − floor) × p / pRef, floor, 1).
+     * 성공 확률이 낮을수록 덜 깎인다 (성공 보상은 그대로). 결정 뒤 첫 소유 변경(reliefWindow 초 안)의 내 공 상실에만 붙는다. 자동·맡기기는 그대로
+     */
+    failRelief: { floor: 0.3, pRef: 0.5 },
+    reliefWindow: 6,
+    /** C.75a 슛 자리 보장: 슛 후보 xG(골 확률)가 이 값 이상이면 선택지 3칸에 슛을 넣는다 (밀리면 효용이 가장 낮은 칸과 교체) */
+    shotKeepXg: 0.06,
+    /** C.75a 개인기 자리 보장: 앞을 막은 수비수 돌파 후보가 있으면 이 포지션군은 드리블 칸을 넣는다 (공격수 우선) */
+    dribbleKeepGroups: ['ST', 'WING', 'CAM'] as string[],
     /** 카드 장면 정지 (C.40): 공중볼은 내 선수가 착지점 이 거리(m) 안이고 박스 안 착지일 때 */
     reactAerialRange: 9,
     /** 두 정지 사이 최소 간격 (초, 같은 공격에서 연달아 멈추지 않게) */

@@ -27,11 +27,20 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
   const nx = attackDir(lo.team, s.half) > 0 ? lo.x / L : 1 - lo.x / L;
   if (nx < 1 / 3) lo.rt.dangerLost++;
   else if (nx > 2 / 3) lo.rt.attackLost++;
+  // 직접 모드 도박 실패 완화 (C.75a): 고른 선택지 바로 뒤 내 공 상실이면 감점 일부를 되돌린다
+  const rl = s.moments.relief;
+  if (rl && lo.spec.isMe && s.t - rl.t <= ENGINE.moments.reliefWindow) {
+    const R = ENGINE.rating;
+    const cost = nx < 1 / 3 ? R.dangerLost : nx > 2 / 3 ? R.lost * R.attackLostFactor : R.lost;
+    lo.rt.relief = (lo.rt.relief ?? 0) - rl.k * cost;
+  }
 }
 
 export function setOwner(s: SimState, a: Agent): void {
   const b = s.ball;
   recordLoss(s, a.team);
+  // 결정 결과는 첫 소유 변경에서 끝난다 (C.75a 실패 완화는 그때까지만)
+  s.moments.relief = null;
   s.lastOwner = a.idx;
   s.lastWasShot = false;
   b.owner = a.idx;
@@ -212,6 +221,7 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
   let pick = taker ?? -1;
   if (pick < 0) pick = type === 'kickoff' ? (kickoffTaker(s, team)?.idx ?? -1) : nearestTaker(s, type, team, b.x, b.y);
   if (type !== 'kickoff') recordLoss(s, team);
+  s.moments.relief = null;
   if (s.possTeam !== team) turnover(s, s.possTeam, false);
   s.lastWasShot = false;
   s.restart = { type, team, x: b.x, y: b.y, at: s.t + delay, taker: pick };

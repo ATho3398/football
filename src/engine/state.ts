@@ -70,7 +70,7 @@ export interface Agent {
   /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
   duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
-  rt: { forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number };
+  rt: { forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number; relief?: number };
   /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
   cardBoost?: { tackle: number; air: number };
   /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */
