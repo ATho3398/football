@@ -86,6 +86,11 @@ export interface Agent {
   laneUntil: number;
   /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
   paceCap: number;
+  /**
+   * 몰고 가다 슛 의도 (C.75k, 직접 모드 2단 행동): 몰고 가기 뒤 이 선수의 다음 결정에서 슛 후보가 있으면 슛을 고른다.
+   * until 이 지나거나 팀 소유가 바뀌면(poss = 그때 possStartT) 버린다. 직접 모드 결정에서만 생긴다 (자동·맡기기 경로는 없음)
+   */
+  intent?: { type: 'shoot'; until: number; poss: number } | null;
 }
 
 export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';

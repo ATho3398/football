@@ -77,7 +77,7 @@ import {
 } from '../myTactics';
 import {
   DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_NAMES_KO, tendencyLevels,
-  type Detail,
+  type Detail, type Level,
 } from '../engine/tactics';
 import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
 export { ROLE_DESC_KO };
@@ -1791,6 +1791,46 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     changed: customized(t),
     dirty: JSON.stringify(t) !== JSON.stringify(g.tactics),
     sheet,
+  };
+}
+
+/** 하프타임 전술 초안 (C.75k, E.19): 성향·세부 전술만 (역할·포메이션은 다음 단계) */
+export interface HalftimeDraft {
+  tendency: Tendency;
+  levels: Record<Detail, Level>;
+  /** 고른 전술 세트 (없으면 직접 바꿈) */
+  set: number | null;
+}
+
+export interface HalftimeVM {
+  teams: [string, string];
+  score: [number, number];
+  side: 0 | 1;
+  tendencies: { id: Tendency; style: TacticStyle; name: string; on: boolean }[];
+  details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string }[];
+  sets: { id: number; name: string; desc: string; on: boolean }[];
+  changed: boolean;
+  chips: string[];
+}
+
+/** 하프타임 전술 세트 3개 (C.75k): 경기 전 전술 / 리드 지키기(라인·압박 낮게) / 총공세(라인·압박 높게, 직선, 넓게) */
+export function halftimeSets(base: Pick<HalftimeDraft, 'tendency' | 'levels'>): { name: string; desc: string; tendency: Tendency; levels: Record<Detail, Level> }[] {
+  return [
+    { name: '경기 전 전술', desc: '시작할 때 정한 그대로', tendency: base.tendency, levels: { ...base.levels } },
+    { name: '리드 지키기', desc: '라인·압박 낮게, 폭 좁게', tendency: base.tendency, levels: { ...base.levels, lineHeight: 0, pressing: 0, width: 0 } },
+    { name: '총공세', desc: '라인·압박 높게, 직선 빌드업, 넓게', tendency: base.tendency, levels: { lineHeight: 2, pressing: 2, style: 2, width: 2 } },
+  ];
+}
+
+export function halftimeVM(draft: HalftimeDraft, base: Pick<HalftimeDraft, 'tendency' | 'levels'>, teams: [string, string], score: [number, number], side: 0 | 1): HalftimeVM {
+  const lv = (d: Detail) => LEVEL_NAMES_KO[d][draft.levels[d]];
+  return {
+    teams, score, side,
+    tendencies: TENDENCIES.map((id) => ({ id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], on: id === draft.tendency })),
+    details: DETAILS.map((d) => ({ key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })), value: LEVEL_ID[draft.levels[d]]! })),
+    sets: halftimeSets(base).map((x, i) => ({ id: i, name: x.name, desc: x.desc, on: draft.set === i })),
+    changed: draft.tendency !== base.tendency || DETAILS.some((d) => draft.levels[d] !== base.levels[d]),
+    chips: [TENDENCY_NAMES_KO[draft.tendency], `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
   };
 }
 

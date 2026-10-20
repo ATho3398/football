@@ -48,9 +48,18 @@ describe('결정 순간 (E.11, C.34)', () => {
       let m = run.advance();
       let k = 0;
       while (m) {
-        expect(m.options.length).toBeGreaterThanOrEqual(1);
-        expect(m.options.length).toBeLessThanOrEqual(3);
-        expect(new Set(m.options.map((o) => o.kind)).size).toBe(m.options.length);
+        if (m.type === 'halftime') {
+          // 하프타임 전술 변경 (C.75k): 변경 없이 이어 간다
+          run.halftime(null);
+          m = run.advance();
+          continue;
+        }
+        // 몰고 가다 슛 (C.75k)은 3칸 뒤 4번째 줄
+        const main = m.options.filter((o) => !o.chain);
+        expect(main.length).toBeGreaterThanOrEqual(1);
+        expect(main.length).toBeLessThanOrEqual(3);
+        expect(m.options.length - main.length).toBeLessThanOrEqual(1);
+        expect(new Set(main.map((o) => o.kind)).size).toBe(main.length);
         for (const o of m.options) if (o.p !== null) expect(o.p).toBeGreaterThanOrEqual(0), expect(o.p).toBeLessThanOrEqual(1);
         expect(SCENE_LABEL[m.scene]).toBeTruthy();
         seen.push(`${m.minute}:${m.scene}`);
@@ -87,7 +96,10 @@ describe('결정 순간 (E.11, C.34)', () => {
     // C.45: 직접 모드 "맡기기"가 자동 경기와 늘 같지는 않다(1대1 수비 장면, 기존 동작 — 부록 C.45 기록). 그래서 비교 대상은
     // 화면에서 끝낸 경기 결과 그 자체와, 같은 화면 결과를 넣은 다른 세이브
     const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: 'important' } });
-    while (run.advance()) run.resolve('delegate');
+    while (run.advance()) {
+      if (run.pending?.type === 'halftime') run.halftime(null);
+      else run.resolve('delegate');
+    }
     const out = run.finish();
     const r1 = playRound(g1, { engineOut: out });
     const r2 = playRound(g2, { engineOut: out });

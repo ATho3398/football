@@ -86,6 +86,11 @@ describe('카드 효과 엔진 (부록 F, C.36)', () => {
     let play = 0;
     let boost = 0;
     while (m) {
+      if (m.type === 'halftime') {
+        run.halftime(null);
+        m = run.advance();
+        continue;
+      }
       for (const c of m.cards) {
         expect(cardById(c.id)).toBeTruthy();
         if (!c.usable) expect(c.reason).toBeTruthy();
