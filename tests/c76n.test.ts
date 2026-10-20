@@ -142,13 +142,13 @@ describe('화면 · 세이브', () => {
     const hist = awardsView(awardsVM(g, null, 'goldenBoot'), 'history');
     expect(hist).toContain('2019');
   });
-  it('세이브 51 왕복 · 50 → 51 마이그레이션', () => {
+  it('세이브 53 왕복 · 52 → 53 마이그레이션', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(53);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.years.at(-1)!.res.ballonDor!.length).toBe(30);
     const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 50;
+    raw.saveFormat = 52;
     delete raw.globalAwards;
     const m = migrate(raw);
     expect(m.globalAwards).toEqual({ years: [] });

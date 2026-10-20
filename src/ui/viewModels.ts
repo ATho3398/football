@@ -1,7 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
-import { pickLeagueOf, prospectTeamPick } from './teamPickVM';
+import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
@@ -16,7 +16,7 @@ import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
-import { LIFE_KINDS, isForeign, isLifeKind, lifeHints } from '../life';
+import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../life';
 import { awardsTodo } from './awardsVM';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
@@ -83,7 +83,7 @@ import {
   customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
 } from '../myTactics';
 import {
-  DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_NAMES_KO, tendencyLevels,
+  DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_DESC_KO, TENDENCY_NAMES_KO, tendencyLevels,
   type Detail, type Level,
 } from '../engine/tactics';
 import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
@@ -110,7 +110,7 @@ export const designTier = (t: Tier): DesignTier => DESIGN_TIER[t];
 const FORM_STEP: Record<FormLevel, 1 | 2 | 3 | 4 | 5> = { veryBad: 1, bad: 2, normal: 3, good: 4, veryGood: 5 };
 
 const TACTIC_STYLE: Record<Tendency, TacticStyle> = {
-  balanced: 'balanced', tikitaka: 'tikitaka', gegenpress: 'gegen', counter: 'counter', direct: 'direct', block: 'block',
+  balanced: 'balanced', tikitaka: 'tikitaka', gegenpress: 'gegen', counter: 'counter', direct: 'direct', block: 'block', bus: 'bus',
 };
 export const tacticStyle = (t: Tendency): TacticStyle => TACTIC_STYLE[t];
 
@@ -196,7 +196,7 @@ function returnLabel(g: GameState): string {
   return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 개막 ${Math.ceil(carry / 7)}주 뒤`;
 }
 
-export interface BannerVM { tone: 'injury' | 'warning' | 'info' | 'success'; title: string; body?: string; action?: string; act?: string; to?: string }
+export interface BannerVM { tone: 'injury' | 'warning' | 'info' | 'success'; title: string; body?: string; action?: string; act?: string; to?: string; /** 아이콘 칸 + 라임 낮은 면 (240B 도감) */ icon?: 'album' }
 
 function injuryBanner(g: GameState): BannerVM | null {
   const inj = g.player.injury;
@@ -298,7 +298,7 @@ export interface TrialVM {
   maxGames: number;
 }
 
-export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
+export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string; /** C.76i (디자인 200): 생활 하루 행동 날 = 아이콘 + 두 글자 */ life?: LifeKind; lifeShort?: string; /** C.76i (디자인 216): 컵·대표팀 경기 날 = 트로피 */ cup?: boolean }
 
 export interface DayVM {
   /** "8월 11일 (토)" */
@@ -314,7 +314,7 @@ export interface DayVM {
   daysTo: number | null;
   nextLabel: string | null;
   quick: boolean;
-  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string }[];
+  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string; /** C.76i (디자인 216): 대회 칩 (컵·대표팀) */ cup?: string }[];
   month: { title: string; lead: number; days: DayCellVM[] };
 }
 
@@ -357,7 +357,7 @@ export function dayVM(g: GameState): DayVM | null {
       if (!(b.kind === 'cup' && [...cupDays.keys()].some((d) => Math.abs(daysBetween(d, b.date)) <= 1))) upcoming.push({ date: dateLabel(b.date), text: BREAK_KO[b.kind], kind: 'break' });
     }
     if (upcoming.length >= 6) break;
-    upcoming.push({ date: dateLabel(x.date), text: `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: x.home ? '홈' : '원정', team: x.opp });
+    upcoming.push({ date: dateLabel(x.date), text: x.cup || x.nat ? teamById(g.league, x.opp).nameKo : `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: x.home ? '홈' : '원정', team: x.opp, ...(x.cup || x.nat ? { cup: x.comp } : {}) });
   }
   if (upcoming.length < 6 && g.league.round >= g.league.schedule.length - 5) upcoming.push({ date: dateLabel(cal.final), text: '시즌 종료', kind: 'end' });
   const y = +today.slice(0, 4);
@@ -370,9 +370,10 @@ export function dayVM(g: GameState): DayVM | null {
     const mine = myDates.get(d);
     const vac = !mine && daysBetween(today, d) >= 0 && isVacationDay(g, d);
     const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) || vac ? 'break' : leagueDays.has(d) ? 'league' : '';
-    const plan = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? TRAINING_SHORT_KO[dayPlan(g, d)] : '';
+    const pk = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? dayPlan(g, d) : null;
+    const plan = pk ? TRAINING_SHORT_KO[pk] : '';
     const title = mine ? `${mine.r < 0 ? cupDays.get(d)!.label : `${mine.r + 1}R`} ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
-    days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title });
+    days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title, ...(pk && isLifeKind(pk) ? { life: pk, lifeShort: plan.slice(0, 2) } : {}), ...(mine && mine.r < 0 ? { cup: true } : {}) });
   }
   return {
     date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, full: `${m}월 ${+today.slice(8, 10)}일 (${'일월화수목금토'[weekdayOf(today)]})`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
@@ -1123,7 +1124,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   }
   if (m.recovered) banners.push({ tone: 'success', title: '부상에서 회복했어요', body: '다음 경기부터 나설 수 있어요.' });
   // 포토카드 (C.75t): 이 경기로 새로 모은 장 수
-  if (m.newPhotos) banners.push({ tone: 'success', title: `새 포토카드 ${m.newPhotos}장`, body: '같은 경기에 뛴 실제 선수를 도감에 모았어요.', action: '도감 보기', act: 'go', to: 'dex' });
+  if (m.newPhotos) banners.push({ tone: 'info', icon: 'album', title: `새 포토카드 ${m.newPhotos}장`, body: '같은 경기에 뛴 실제 선수를 도감에 모았어요.', action: '도감 보기', act: 'go', to: 'dex' });
   // 컵 (C.67): 진출·탈락·우승 → C.76j 디자인 214 대회 배너(cupBanner, seasonVM)로 옮김
   if (m.nat) {
     const c = g.national?.career;
@@ -1338,8 +1339,8 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
   const status = done ? `시즌 종료 · 우승 ${champ}` : played === 0 ? `개막 전 · ${dateLabel(otherLeagueCalendar(g.worldSeed, lg).opening)} 개막` : `${Math.min(lg.round + 1, lg.schedule.length)}R / ${lg.schedule.length}`;
   const last = lg.past?.at(-1);
   return {
-    id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[d.calendar]}` : '',
-    season: seasonLabel(lg.season, calendarKind(lg.id)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
+    id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[calendarKind(lg)]}` : '',
+    season: seasonLabel(lg.season, calendarKind(lg)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
     scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => {
       const st = lg.stats?.[id];
       const apps = st?.[2] ?? null;
@@ -1347,7 +1348,7 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
     }),
     engine: Object.values(lg.stats ?? {}).some((s) => s[2] !== undefined),
     last: last ? {
-      season: seasonLabel(last.season, calendarKind(lg.id)), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
+      season: seasonLabel(last.season, last.season === lg.season - 1 && lg.legacyCal ? 'spring-autumn' : 'autumn-spring'), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
       scorer: last.scorer ? `${last.scorer[0]}(${teamById(lg, last.scorer[1]).nameKo}) ${last.scorer[2]}골` : '',
     } : null,
   };
@@ -1703,15 +1704,16 @@ export interface NewGameForm {
 
 /** 리그 고르기 (C.75m): 카탈로그 순, 내 리그 필수, 데이터 없는 리그는 준비 중 */
 export function leaguePickerVM(leagueIds: readonly string[], realMode = false): import('./views/screens').NewGameVM['leagues'] {
-  const months = { 'autumn-spring': '8월~5월', 'spring-autumn': '3월~12월' } as const;
+  // 모든 리그 8~5월 (C.76m)
   return leagueCatalog().map((e) => {
     const ready = !!leagueData(e.id);
     const on = ready && leagueIds.includes(e.id);
     return {
-      id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · ${months[e.calendar]}`,
+      id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · 8월~5월`,
       on, mine: e.id === leagueIds[0], ready,
       // 내 리그로 (C.76c) → 45b b: 내 리그는 시작 팀으로 정한다 (리그 고르기는 다른 리그 묶음만)
       canMine: false,
+      group: leagueGroupOf(e.country, e.tier),
     };
   });
 }
@@ -1851,8 +1853,10 @@ export interface TacticsVM {
   opp: { name: string; tactic?: TacticVM; home: boolean } | null;
   chips: string[];
   open: boolean;
-  tendencies: { id: Tendency; style: TacticStyle; name: string; fit: Fit; on: boolean }[];
+  tendencies: { id: Tendency; style: TacticStyle; name: string; desc: string; fit: Fit; on: boolean }[];
   tendencyName: string;
+  /** 고른 성향 한 줄 설명 (C.76k) */
+  tendencyDesc: string;
   formations: { id: string; label: string }[];
   /** 탭 값 (커스텀이면 'custom') */
   formation: string;
@@ -1874,7 +1878,7 @@ export interface TacticsVM {
   };
 }
 
-const LEVEL_ID = ['0', '1', '2'] as const;
+const LEVEL_ID = ['0', '1', '2', '3'] as const;
 
 /** 전술 적합도 리그 평균 (로스터는 시즌 안에서 바뀌지 않으므로 세계 시드·시즌으로 기억) */
 let fitCache: { key: string; avg: Record<Tendency, number | null> } | null = null;
@@ -1934,9 +1938,10 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     chips: [TENDENCY_NAMES_KO[t.tendency], formationLabel(t), `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
     open: g.guide.tacticsDetailOpen,
     tendencies: TENDENCIES.map((id) => ({
-      id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], fit: fitOf(fitScore(id, fitLineup), fitAvg[id]), on: id === t.tendency,
+      id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], desc: TENDENCY_DESC_KO[id], fit: fitOf(fitScore(id, fitLineup), fitAvg[id]), on: id === t.tendency,
     })),
     tendencyName: TENDENCY_NAMES_KO[t.tendency],
+    tendencyDesc: TENDENCY_DESC_KO[t.tendency],
     formations: [...FORMATIONS.map((f) => ({ id: f, label: f })), { id: 'custom', label: '커스텀' }],
     formation: t.custom ? 'custom' : t.formation,
     formationName: formationLabel(t),
@@ -1979,8 +1984,8 @@ export interface HalftimeVM {
 export function halftimeSets(base: Pick<HalftimeDraft, 'tendency' | 'levels'>): { name: string; desc: string; tendency: Tendency; levels: Record<Detail, Level> }[] {
   return [
     { name: '경기 전 전술', desc: '시작할 때 정한 그대로', tendency: base.tendency, levels: { ...base.levels } },
-    { name: '리드 지키기', desc: '라인·압박 낮게, 폭 좁게', tendency: base.tendency, levels: { ...base.levels, lineHeight: 0, pressing: 0, width: 0 } },
-    { name: '총공세', desc: '라인·압박 높게, 직선 빌드업, 넓게', tendency: base.tendency, levels: { lineHeight: 2, pressing: 2, style: 2, width: 2 } },
+    { name: '리드 지키기', desc: '라인·압박 낮게, 폭 좁게', tendency: base.tendency, levels: { ...base.levels, lineHeight: 1, pressing: 0, width: 0 } },
+    { name: '총공세', desc: '라인·압박 높게, 직선 빌드업, 넓게', tendency: base.tendency, levels: { lineHeight: 3, pressing: 2, style: 2, width: 2 } },
   ];
 }
 

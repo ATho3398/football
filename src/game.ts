@@ -91,7 +91,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 51;
+export const SAVE_FORMAT_VERSION = 53;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -733,7 +733,7 @@ export function newGame(opts: NewGameOptions): GameState {
     ...(legendsOn ? { legends: true, legendPack: LEGEND_PACK } : {}),
     ...(futureOn ? { futureStars: true } : {}),
     // 새 커리어는 개막 7일 전 소집부터 (25.3 5번, C.41)
-    calendar: { date: addDays(leagueCalendar(worldSeed, league, calendarKind(league.id)).opening, -BALANCE.training.vacation.campDays) },
+    calendar: { date: addDays(leagueCalendar(worldSeed, league, calendarKind(league)).opening, -BALANCE.training.vacation.campDays) },
     playerStats: {},
     options: { quickOthers: false },
     worldSeed,
@@ -751,11 +751,11 @@ export function newGame(opts: NewGameOptions): GameState {
     control: { mode: 'direct', stop: 'important' },
     tactics: teamDefaultTactics(player.teamId, rosters[player.teamId], player.position),
     cards: initCollection(player.position),
-    training: initTraining(addDays(leagueCalendar(worldSeed, league, calendarKind(league.id)).opening, -BALANCE.training.vacation.campDays)),
+    training: initTraining(addDays(leagueCalendar(worldSeed, league, calendarKind(league)).opening, -BALANCE.training.vacation.campDays)),
     archive: [],
     records: { done: [], fresh: [] },
   };
-  // 다른 리그 (C.75m): 소집일 전날까지 (춘추제가 아닌 리그는 3월부터 치른 2018 시즌 전반기)
+  // 다른 리그 (C.75m): 소집일 전날까지 (C.76m: 모든 리그 같은 8~5월이라 개막 전 — 치를 경기 없음)
   syncOtherLeagues(state, addDays(state.calendar.date, -1));
   // 구단 재정 (C.46): 첫 시즌 예산 (지난 시즌 순위 대신 레이팅 순)
   ensureFinance(state, season);
@@ -859,7 +859,7 @@ function updateFatigueForMatch(p: PlayerState, minutes: number): void {
 /** 이번 시즌 일정 (시드로 다시 만든다) */
 /** 내 리그 이번 시즌 달력 (PL = seasonCalendar 그대로, 다른 리그 = 리그 달력, C.76c) */
 export function calendarOf(state: GameState): SeasonCalendar {
-  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league.id));
+  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league));
 }
 
 /** 다음 내 경기 날짜 (리그 또는 컵). 시즌이 아니면 null */
@@ -945,6 +945,24 @@ export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
       recordResult(state.league, f, hg, ag);
     }
   }
+}
+
+/**
+ * 앞으로 다른 경기 엔진 입력 (C.76m 백그라운드 미리 계산): 오늘 남은 것부터 경기가 있는 날 days 일치(within 일 안), 가까운 날 먼저.
+ * 날마다 내 리그 다른 팀 경기 → 고른 다른 리그 순. 내 팀 경기는 넣지 않는다. 상태를 바꾸지 않는다 (입력만 만든다)
+ */
+export function upcomingOthers(state: GameState, days: number, within = 7): NpcMatchInput[] {
+  const out: NpcMatchInput[] = [];
+  let n = 0;
+  for (let d = 0; d <= within && n < days; d++) {
+    const date = addDays(state.calendar.date, d);
+    const own = todaysOthers(state, date).map(([r, i]) => otherJob(state, r, i).input);
+    const lg = otherLeagueJobs(state, date).map((j) => j.input);
+    if (!own.length && !lg.length) continue;
+    out.push(...own, ...lg);
+    n++;
+  }
+  return out;
 }
 
 // ── 훈련과 휴가 (25.3, 부록 C.41) ──
@@ -2494,7 +2512,7 @@ export function seasonTeamRatings(state: GameState): Record<string, number> {
 export function nextCampDate(state: GameState): IsoDate {
   const id = leagueOfTeam(state.player.teamId) ?? state.league.id;
   const next = createLeague(state.worldSeed, state.league.season + 1, id);
-  return addDays(leagueCalendar(state.worldSeed, next, calendarKind(id)).opening, -BALANCE.training.vacation.campDays);
+  return addDays(leagueCalendar(state.worldSeed, next, calendarKind(next)).opening, -BALANCE.training.vacation.campDays);
 }
 
 /** 비시즌 → 다음 시즌 */

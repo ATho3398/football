@@ -138,7 +138,7 @@ describe('세이브 25 → 26 (C.46)', () => {
     for (const r of raw.transfers) delete r.fee;
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(53);
     expect(back.finance?.season).toBe(g.league.season + 1);
     expect(Object.keys(back.finance!.budgets)).toHaveLength(20);
     for (const r of Object.values(back.rosters)) expect(withinRules(r.players)).toBe(true);

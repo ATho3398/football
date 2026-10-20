@@ -6,6 +6,7 @@ import type { DayPlan } from '../../training';
 import { PRESET_NAME_MAX } from '../../training';
 import type { PresetEditVM, PresetRowVM, PresetsVM, TrainingOptionVM, TrainingVM } from '../viewModels';
 import { panel } from './common';
+import { isWide } from '../skin';
 import { isLifeKind } from '../../life';
 import { BALANCE } from '../../config/balance';
 
@@ -117,16 +118,22 @@ export function gaugeSection(vm: TrainingVM): string {
 export function trainingSheet(vm: { date: string; injured: boolean; travel?: boolean; options: TrainingOptionVM[]; weakFoot?: string }, dateIso: string, pick: string | null = null): string {
   const sel = vm.options.find((o) => o.kind === pick) ?? vm.options.find((o) => o.selected) ?? vm.options[0]!;
   const planned = vm.options.find((o) => o.planned);
-  const rows = vm.options.map((o, i) => `${o.life && !vm.options[i - 1]?.life ? '<div class="tr-opts__head small lf-sec"><span>생활 · 훈련 대신</span><span></span><span></span></div>' : ''}<button type="button" class="tr-opt${o.kind === sel.kind ? ' is-on' : ''}" role="radio" aria-checked="${o.kind === sel.kind}" data-act="train-pick" data-v="${o.kind}" data-date="${esc(dateIso)}">
+  const row = (o: TrainingOptionVM) => `<button type="button" class="tr-opt${o.kind === sel.kind ? ' is-on' : ''}" role="radio" aria-checked="${o.kind === sel.kind}" data-act="train-pick" data-v="${o.kind}" data-date="${esc(dateIso)}">
       <span class="tr-opt__icon">${Icon({ name: PLAN_ICON[o.kind], size: 18 })}</span>
-      <span class="tr-opt__main"><b>${esc(o.name)}${o.planned ? ' <i class="tr-tag">기본</i>' : ''}${o.selected && !o.planned ? ' <i class="tr-tag is-on">지금</i>' : ''}</b><small>${esc(o.kind === 'weakFoot' && vm.weakFoot ? `약발 게이지 +1칸 · ${vm.weakFoot}` : o.desc)}</small></span>
-      <b class="tr-opt__xp po-num">${sgn(o.xp)}</b><b class="tr-opt__ft po-num">${sgn(o.fatigue)}</b></button>`).join('');
+      <span class="tr-opt__main"><b>${esc(o.name)}${o.life ? ' <i class="tr-tag is-day">하루</i>' : ''}${o.planned ? ' <i class="tr-tag">기본</i>' : ''}${o.selected && !o.planned ? ' <i class="tr-tag is-on">지금</i>' : ''}</b><small>${esc(o.kind === 'weakFoot' && vm.weakFoot ? `약발 게이지 +1칸 · ${vm.weakFoot}` : o.desc)}</small></span>
+      <b class="tr-opt__xp po-num">${sgn(o.xp)}</b><b class="tr-opt__ft po-num">${sgn(o.fatigue)}</b></button>`;
+  const train = vm.options.filter((o) => !o.life);
+  const life = vm.options.filter((o) => o.life);
+  // C.76i (디자인 196): 생활 묶음 = 머리 칸(해 아이콘 · "생활 · 훈련 대신" · [하루 소모] 칩 · 한 줄 설명) + 생활 줄("하루" 칩)
+  const lifeBox = life.length ? `<div class="tr-lifebox lf-sec">${Icon({ name: 'sun', size: 18 })}<span class="grow"><b>생활 · 훈련 대신</b><small class="muted">하루를 통째로 써요. 그날 훈련 XP는 없고, 체력·멘탈이 돌아와요.</small></span><span class="tr-lifebox__chip">하루 소모</span></div>
+    <div class="tr-opts" role="radiogroup" aria-label="생활"><div class="tr-opts__head small"><span>생활</span><span>XP</span><span>체력</span></div>${life.map(row).join('')}</div>` : '';
+  const trainList = `<div class="tr-opts" role="radiogroup" aria-label="훈련"><div class="tr-opts__head small"><span>훈련</span><span>XP</span><span>체력</span></div>${train.map(row).join('')}</div>`;
   const label = sel.name.replace(/ \(기본\)$/, '');
   return BottomSheet({
     eyebrow: vm.date, title: vm.injured ? '부상 중 · 재활 또는 휴식' : vm.travel ? '원정 이동일 · 영상 분석 또는 회복' : '이날 훈련 고르기',
     subtitle: vm.injured ? '부상 중에는 훈련 대신 재활하거나 쉬어요.' : vm.travel ? `${TRAVEL_NOTE}.` : '이날만 바뀌어요. 다른 날은 프리셋대로예요.',
     onClose: { act: 'sheet-close' },
-    children: `<div class="tr-opts" role="radiogroup" aria-label="훈련"><div class="tr-opts__head small"><span>훈련</span><span>XP</span><span>체력</span></div>${rows}</div>
+    children: `${lifeBox && isWide() ? `<div class="tr-sheet2"><div>${trainList}</div><div>${lifeBox}</div></div>` : `${trainList}${lifeBox}`}
       ${vm.options.some((o) => o.kind === 'weakFoot') ? `<p class="small muted tr-wf">약발 훈련: ${BALANCE.weakFoot.trainingGauge}칸이 차면 약발 +1(시즌 최대 +${BALANCE.weakFoot.seasonMax}). 약발 5 = 양발잡이가 되면 이 줄은 사라져요.</p>` : ''}`,
     footer: `<div class="btn-row even">${Button({ variant: 'secondary', block: true, act: 'train-set', data: { v: planned?.kind ?? sel.kind, date: dateIso }, disabled: !planned, children: '프리셋대로' })}${
       Button({ block: true, icon: 'check', act: 'train-set', data: { v: sel.kind, date: dateIso }, children: `${label}${euro(label)}` })}</div>`,

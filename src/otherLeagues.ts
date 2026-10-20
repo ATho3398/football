@@ -34,12 +34,15 @@ export interface OtherLeague extends LeagueState {
 
 const MAX_PAST = 30;
 
-export function calendarKind(id: string): 'autumn-spring' | 'spring-autumn' {
-  return leagueData(id)?.calendar ?? 'autumn-spring';
+/**
+ * 리그 달력 (C.76m): 모든 리그가 PL 과 같은 8~5월(추춘제)·같은 시즌 번호. 3~12월은 통일 전 세이브에서 진행 중이던 시즌(legacyCal)만
+ */
+export function calendarKind(lg: Pick<LeagueState, 'legacyCal'>): 'autumn-spring' | 'spring-autumn' {
+  return lg.legacyCal ?? 'autumn-spring';
 }
 
 export function otherLeagueCalendar(worldSeed: string, lg: LeagueState): SeasonCalendar {
-  return leagueCalendar(worldSeed, lg, calendarKind(lg.id));
+  return leagueCalendar(worldSeed, lg, calendarKind(lg));
 }
 
 /** 고른 리그 정리: 내 리그 맨 앞(없으면 PL), 등록된 리그만, 중복 없이 */
@@ -50,7 +53,7 @@ export function normalizeLeagues(ids: readonly string[] | undefined, mine?: stri
   return out;
 }
 
-/** 새 게임: 내 리그를 뺀 고른 리그의 첫 시즌 (춘추제가 아닌 리그도 같은 시작 연도 = 2018 시즌 3~12월) */
+/** 새 게임: 내 리그를 뺀 고른 리그의 첫 시즌 (C.76m: 모든 리그 같은 8~5월 달력 — 데이터의 2018 시즌 팀·선수 그대로 2018-19 시즌) */
 export function createOtherLeagues(worldSeed: string, leagueIds: readonly string[], season: number): OtherLeague[] {
   return leagueIds.slice(1).map((id) => createLeague(worldSeed, season, id));
 }
@@ -75,13 +78,16 @@ function nextOf(worldSeed: string, lg: OtherLeague): { next: LeagueState; openin
 const ROSTERS = new Map<string, TeamRoster>();
 const ROSTER_CACHE_MAX = 600;
 
-/** 내 리그가 아닌 리그 팀의 시드 로스터 (그 시즌 처음 부를 때의 레이팅, 실제 선수 = 소속 클럽 이름이 그 팀인 NPC) */
+/**
+ * 내 리그가 아닌 리그 팀의 시드 로스터 (레이팅, 실제 선수 = 소속 클럽 이름이 그 팀인 NPC).
+ * 캐시 키에 레이팅·실제 선수 id 를 넣는다 (C.76m): 언제 처음 불렀는지(미리 계산·불러오기)와 무관하게 지금 상태로 정해진다
+ */
 export function leagueTeamRoster(worldSeed: string, id: string, rating: number, season: number, npcs?: readonly NpcState[]): TeamRoster {
-  const key = `${worldSeed}:${id}:${season}`;
+  const reals = (npcs ?? []).filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === id);
+  const key = `${worldSeed}:${id}:${season}:${rating}:${reals.map((n) => n.id).join(',')}`;
   let hit = ROSTERS.get(key);
   if (!hit) {
     if (ROSTERS.size >= ROSTER_CACHE_MAX) ROSTERS.clear();
-    const reals = (npcs ?? []).filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === id);
     hit = createTeamRoster({ id, rating }, worldSeed, season, reals);
     ROSTERS.set(key, hit);
   }

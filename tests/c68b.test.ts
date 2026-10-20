@@ -240,7 +240,7 @@ describe('재정 화면 탭·세이브 39', () => {
     for (const tab of ['money', 'shop', 'life'] as const) expect(financeView(vm, tab)).toContain('재정 탭');
     expect(financeView(vm, 'shop')).toContain('카드팩');
     expect(financeView(vm, 'life')).toContain('엔딩 자산 점수');
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(53);
     const back = deserialize(serialize(g));
     expect(back.money!.house).toBe(2);
     expect(back.money!.charity!.total).toBe(10000);

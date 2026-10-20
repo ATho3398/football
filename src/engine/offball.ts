@@ -769,6 +769,15 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 
   const [gx0, gy0] = ownGoal(dir);
   const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
+  // 비행 중 수신자 압박 (C.76k 단계 B): 상대 패스가 우리 골 closeDownZone 안으로 떠 있으면 착지점에 가장 빨리 닿는 1명이 미리 나간다
+  if (!owner && a.line !== 0 && closeDownAgent(s, a.team, gx0, gy0) === a) {
+    const fl = b.flight!;
+    const ld = dist(fl.toX, fl.toY, gx0, gy0) || 1;
+    a.tx = clamp(fl.toX + ((gx0 - fl.toX) / ld) * O.closeDownGap, 0.3, L - 0.3);
+    a.ty = clamp(fl.toY + ((gy0 - fl.toY) / ld) * O.closeDownGap, 0.3, W - 0.3);
+    a.urgent = true;
+    return;
+  }
   // 압박: 공에 가까운 1~2명 (2번째는 상황표 인원이 2 이상이고 압박 성향이 높을 때, C.75c)
   if (owner && owner.team !== a.team) {
     const rank = ballRank(s, a, b.x, b.y);
@@ -795,8 +804,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
     // 수비 블록: 공격 줄은 1명만 압박 / 역습: 남는 최전방은 압박하지 않는다 (E.19)
     const tendency = s.teams[a.team].tactics.tendency;
-    if (a.line === 3 && tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
-    if (a.line === 3 && tendency === 'counter' && isTopForward(s, a)) wants = false;
+    const deep = tendency === 'block' || tendency === 'bus';
+    if (a.line === 3 && deep && closerForward(s, a, b.x, b.y)) wants = false;
+    if (a.line === 3 && (tendency === 'counter' || (tendency === 'bus' && TENDENCY.busStay > 0)) && isTopForward(s, a)) wants = false;
     if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
       // 공과 자기 골 사이에서 압박. 첫 압박 선수는 가장 위험한 전진 패스 대상을 등 뒤로 가리는 각도 (커버 섀도, E.22 A)
       const [gx, gy] = ownGoal(dir);
@@ -838,12 +848,14 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const tendency = s.teams[a.team].tactics.tendency;
   let lineX = defensiveLine(s, a.team);
   // 수비 블록 (E.19): 수비 라인은 박스 경계 앞으로 나가지 않고, 수비-중원 간격 12 m 이하
+  // 버스 세우기 (C.76k): 라인 상한 14 m(박스 앞), 수비-중원 간격 8 m (두 줄 버스)
   if (tendency === 'block') lineX = Math.min(lineX, TENDENCY.blockLineMax / L);
-  const midGap = tendency === 'block' ? Math.min(F.midGap, TENDENCY.blockGap / L) : F.midGap;
+  else if (tendency === 'bus') lineX = Math.min(lineX, TENDENCY.busLineMax / L);
+  const midGap = tendency === 'block' ? Math.min(F.midGap, TENDENCY.blockGap / L) : tendency === 'bus' ? Math.min(F.midGap, TENDENCY.busGap / L) : F.midGap;
   if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
-  // 역습 (E.19): 최전방 1명은 하프라인 부근에 남는다
-  if (tendency === 'counter' && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
+  // 역습 (E.19)·버스 세우기 (C.76k, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
+  if ((tendency === 'counter' || (tendency === 'bus' && TENDENCY.busStay > 0)) && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
   // ④ 수비 의무 면제 (E.6 D.13): 깊이 복귀하지 않고 마크도 하지 않는다 (다음 공격 기점). 빈자리는 커버 재배분이 메운다
   if (hasModule(a.role, 'exempt') && a.line >= 2) {
     nx = Math.max(nx, a.line === 3 ? RM.exemptAttX : RM.exemptMidX);
@@ -1122,6 +1134,47 @@ function isTopForward(s: SimState, a: Agent): boolean {
     if (o.sx > a.sx || (o.sx === a.sx && o.idx < a.idx)) return false;
   }
   return true;
+}
+
+/**
+ * 비행 중 수신자 압박 담당 (C.76k 단계 B, §9.10 가설 1): 상대 패스(outcome receive, 수신자 상대 필드 선수)가 떠 있고 착지점이 우리 골 closeDownZone 안이면
+ * 우리 필드 선수 중 착지점 도착 시간(반응 포함)이 가장 짧은 1명. 위협 1위 마커(가장 가까운 CB, 마크 유지)·면제 역할은 뺀다. 없으면 null. 난수 없음
+ */
+const closeDownCache = new WeakMap<SimState, { tick: number; pick: Agent | null }[]>();
+function closeDownAgent(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
+  // 틱마다 팀당 한 번만 계산 (focusThreat 과 같은 캐시 — 결과 불변, 22명이 같은 탐색을 되풀이하지 않게)
+  let cache = closeDownCache.get(s);
+  if (!cache) closeDownCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
+  const c = cache[team]!;
+  if (c.tick === s.tick) return c.pick;
+  c.tick = s.tick;
+  c.pick = closeDownPick(s, team, gx, gy);
+  return c.pick;
+}
+function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
+  const fl = s.ball.flight;
+  if (!fl || fl.outcome !== 'receive' || s.ball.owner >= 0) return null;
+  const rcv = s.agents[fl.receiver];
+  if (!rcv || rcv.team === team || rcv.line === 0) return null;
+  if (dist(fl.toX, fl.toY, gx, gy) >= O.closeDownZone) return null;
+  const threat = focusThreat(s, team);
+  let marker: Agent | null = null;
+  if (threat) {
+    let best = Infinity;
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team !== team || o.pos !== 'CB') continue;
+      const d = dist(o.x, o.y, threat.x, threat.y);
+      if (d < best) { best = d; marker = o; }
+    }
+  }
+  let pick: Agent | null = null;
+  let bt = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line === 0 || o === marker || hasModule(o.role, 'exempt')) continue;
+    const t = arrival(o, fl.toX, fl.toY);
+    if (t < bt || (t === bt && pick && o.idx < pick.idx)) { bt = t; pick = o; }
+  }
+  return pick;
 }
 
 /** 공에 더 가까운 같은 팀 공격수가 있는가 */
