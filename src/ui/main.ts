@@ -36,7 +36,8 @@ import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { elapsedMapper, replayEvents, replayPlayers } from '../replay';
 import { ENGINE } from '../engine/config';
-import { cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
+import { animCard, cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, demoAnimCards, myRoleId } from './views/deck';
+import { markPickSeen, pickKey, pickSeen, playPackReveal, rarityRank, savePackAnimPref, bestRarity, type PackAnimPref } from './packAnim';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
 import { MomentPitch, momentCrop, momentView, OutcomePitch, outcomeView, shownOptions, type MomentVM, type OutcomeVM } from './views/moment';
@@ -751,6 +752,23 @@ function render(): void {
   }
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
   schedulePlan();
+  revealPick();
+}
+
+/** 카드 선택권 공개 연출 (C.76o): 고르기 화면이 처음 열릴 때 한 번, 세 장을 뒤집어 보여 준다 (고르는 건 그 아래 화면) */
+function revealPick(): void {
+  const g = ui.game;
+  const p = g?.cards.picks[0];
+  if (!g || !p || ui.screen !== 'deck' || ui.more.pickLater || ui.cardSheet) return;
+  const key = pickKey(p.label, p.options);
+  if (pickSeen(key)) return;
+  markPickSeen(key);
+  const cards = p.options.map((id) => {
+    const n = g.cards.owned[id] ?? 0;
+    return animCard(cardById(id)!, { isNew: n === 0, dup: n > 0 });
+  });
+  const fancy = p.source !== 'level' && p.source !== 'season' && rarityRank(bestRarity(cards.map((c) => c.rarity))) >= 2;
+  void playPackReveal({ pack: { kind: 'pick', name: p.label, fancy, cover: fancy ? 'achievement' : 'pick' }, cards });
 }
 
 /** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
@@ -2486,12 +2504,33 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'fn-pack': {
-      const got = g ? buyPack(g) : [];
+      if (!g) return;
+      // 팩 개봉 연출 (C.76o): 결과는 buyPack 이 정한 그대로, 연출은 보여 주기만. NEW = 처음 얻음, 중복 = 이미 가진 카드
+      const have: Record<string, number> = { ...g.cards.owned };
+      const got = buyPack(g);
       if (got.length) {
         autosave();
-        showToast({ kind: 'info', title: `카드팩 · ${got.length}장`, body: got.map((id) => cardById(id)?.name ?? id).join(' · ') }, 2600);
+        const cards = got.map((id) => {
+          const n = have[id] ?? 0;
+          have[id] = n + 1;
+          return animCard(cardById(id)!, { isNew: n === 0, dup: n > 0 });
+        });
+        void playPackReveal({ pack: { kind: 'pack', name: '일반 카드팩', cover: 'normal' }, cards }).then((shown) => {
+          if (!shown) showToast({ kind: 'info', title: `카드팩 · ${got.length}장`, body: got.map((id) => cardById(id)?.name ?? id).join(' · ') }, 2600);
+        });
       }
       render();
+      return;
+    }
+    case 'pack-anim-set':
+      if (v !== 'full' && v !== 'short' && v !== 'off') return;
+      savePackAnimPref(v as PackAnimPref);
+      render();
+      return;
+    case 'pack-anim-demo': {
+      // 설정 미리보기 (C.76o): 고른 희귀도가 최고인 팩. 세이브·카드는 바뀌지 않는다
+      const r = v === 'rare' || v === 'epic' || v === 'legendary' ? v : 'common';
+      void playPackReveal({ pack: { kind: el.dataset.k === 'pick' ? 'pick' : 'pack', name: el.dataset.k === 'pick' ? '미리보기 · 업적 선택권' : '일반 카드팩', fancy: el.dataset.k === 'pick', cover: el.dataset.k === 'pick' ? 'achievement' : 'normal' }, cards: demoAnimCards(r), results: el.dataset.k !== 'pick', force: 'full' });
       return;
     }
     case 'fn-tp':
