@@ -531,3 +531,4 @@
 - 시작 처리(10:50 KST): ① S에 "T 준비 완료 + T ID"(delivered) ② C.75e·C.75f·엔진관리자3·UI_3에 "보고는 T, 마스터 브랜치 claude/planning-t"(모두 delivered) ③ S 제목 `draft_S_축구 커리어 게임 마스터`(S 최종 20.9달러·48.3만) ④ S 예약 `trig_01A9rAPHtdf15eXNx98cE1iX` 삭제 → T 자동 확인 send_later `trig_01QkJj2Hd3ZdXB556HjhWvFz`(11:50 KST) ⑤ `NTFY_TOPIC` 있음 확인(값은 적지 않음).
 - 한도: 시작 시 5시간 한도 `allowed_warning`(11:00 KST 풀림) — Fable·큰 세션 동시 실행 자제.
 - 다음: C.75e·C.75f 보고 처리 → (필요하면 44c-c) → 44e~ E-4 묶음(엔진관리자3 처방) → 대표팀 + 타리그 → 수집 시스템(pending 129~133).
+- (11:44 KST, 사용자 "사용량 초기화, 다시 진행") 확인: **C.75f**는 10:58 무렵 5시간 한도로 실패(진행 13.4만 토큰) → 재개 메시지(delivered). **C.75e**(Fable)는 한도 안 걸리고 진행 중(측정 ② 좌우 흔들기). 엔진관리자3 대기.
