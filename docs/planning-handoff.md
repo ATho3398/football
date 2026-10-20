@@ -714,3 +714,4 @@
 - 다음: 8.48 다음 순서 그대로. 남은 draft_ C.76n·p·q(run 262 성공 뒤). 다음 새 이름 C.76u.
 - (03:18 KST, W 경유) **C.76p 가설 3 되돌림**(main f322ec3, 문서·주석만, 엔진 31 지문 9c81aecadd2d029c 그대로): coneWidth 2.0 → scoring 30골+ 0.20 ✗, 1.6 → C.76q 병합 뒤 engine:check ST 평점 6.74(≤6.7) ✗, 득점 1.28이라 saveBase 못 올림 → 두 가드 동시 불가로 끔. 콘 폭 레버는 44h-e 축에 남김. 사용자에게 결과 보고함. W가 C.76s에 "A단계 중복, B만 진행, 보고는 X" 전달. run 262(31a5927) 성공 확인 → C.76n·q draft_. C.76p는 run 263(f322ec3) 성공 뒤 draft_.
 - (03:49 KST) 자동 확인: run 263(f322ec3, C.76p 되돌림 기록) 진행 중 → 성공 뒤 C.76p draft_. C.76s B만 가드 재실행 중(37.7만 토큰), C.76t balance:check 중. 한도 allowed. 재예약 04:50 KST.
+- (04:50 KST) 자동 확인: **run 263(f322ec3) 성공** → C.76p draft_. C.76s balance:check(~65분) 대기 뒤 main 푸시 예정(41만 토큰·32달러). C.76t balance:check 중. 한도 allowed. 재예약 05:51 KST.
