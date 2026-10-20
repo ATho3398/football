@@ -121,7 +121,7 @@ export interface CustomVM {
   };
 }
 
-export function customVM(f: CustomForm, name: string): CustomVM {
+export function customVM(f: CustomForm, name: string, league = 'pl'): CustomVM {
   const C = BALANCE.custom;
   const budget = budgetOf(f);
   const spent = spentPoints(f.attrs);
@@ -176,16 +176,17 @@ export function customVM(f: CustomForm, name: string): CustomVM {
     hair: f.hair,
     hairs: (HAIRS_OF[skin] ?? []).map((id) => ({ id, ko: HAIR_KO[id] ?? id })),
     skin,
-    start: startVM(f, ovrs[f.position]),
+    start: startVM(f, ovrs[f.position], league),
   };
 }
 
 /** 19세 이상 소속팀 목록: 유효 OVR(어리면 잠재력만큼 +)과 기본 레이팅 차가 작은 순 (게임 안 fitTeams 와 같은 식, 시작 전이라 기본 레이팅) */
-function startVM(f: CustomForm, ovr: number): CustomVM['start'] {
+function startVM(f: CustomForm, ovr: number, league = 'pl'): CustomVM['start'] {
   const S = BALANCE.startClub;
   const O = BALANCE.transfer.offers;
   const trialAge = f.age <= S.trialMaxAge;
-  const teams = initialTeams();
+  // 내 리그 팀 (C.76c)
+  const teams = initialTeams(league);
   const allTeams = [...teams].sort((a, b) => b.rating - a.rating).map((t) => ({ id: t.id, ko: t.nameKo }));
   const eff = ovr + Math.max(0, O.youthAge - f.age) * O.youthPerYear;
   const fit = [...teams].sort((a, b) => Math.abs(eff - a.rating - O.fitOffset) - Math.abs(eff - b.rating - O.fitOffset) || a.id.localeCompare(b.id)).slice(0, S.fitTeams);

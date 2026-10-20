@@ -2,12 +2,12 @@
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
 import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
-import { normalizeLeagues } from '../otherLeagues';
+import { calendarKind, normalizeLeagues } from '../otherLeagues';
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
-import { COMP_NAMES_KO, type CompId } from '../cups';
+import { compNameKo, type CompId } from '../cups';
 import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCustomForm } from './customVM';
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
@@ -101,11 +101,11 @@ import { autoShortNames, pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
-import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
+import { declineOffer, declineOffers, midWindowKo, windowKo, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
 import { jerseyPanelVM, showroomVM } from './jerseyVM';
 import { showroomView } from './views/showroom';
 import { requestJersey, showcasePut, showcaseTake } from '../jerseys';
-import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
+import { feedKind, setSeasonLabelKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -155,6 +155,8 @@ const ui = {
   /** 리그 스타 묶음 · 리그 기록 거르기 (C.64) */
   starGroup: 'league' as 'league' | 'world' | 'young',
   worldBoard: 'goals' as 'goals' | 'assists' | 'rating',
+  /** 월드 순위·득점 리그 (C.76c): '' = 내 리그, 아니면 고른 다른 리그 id */
+  worldLeague: '',
   /** 재계약 화면에서 고른 연수 (C.42) */
   renewYears: null as number | null,
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
@@ -369,7 +371,7 @@ const saveLog: number[] = [];
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
 async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string } }): Promise<void> {
   const { season, round } = rep;
-  const label = `${rep.cup ? `${COMP_NAMES_KO[rep.cup.comp]} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const label = `${rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
@@ -449,7 +451,7 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined, ui.ng);
+      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name, normalizeLeagues(ui.form.leagues)[0]) : undefined, ui.ng);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
     case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen(), ui.set);
     default: break;
@@ -507,7 +509,7 @@ function screenHtml(): string {
       return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
-    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
+    case 'world': return worldView(worldVM(g, ui.worldLeague), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
     case 'offers': return offersView(marketVM(g), ui.offerSel);
     case 'inbox': {
       collectNotices(g);
@@ -663,6 +665,8 @@ globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => rend
 
 function render(): void {
   const g = ui.game;
+  // 시즌 이름 (C.76c): 3~12월 리그가 내 리그면 "2018"
+  setSeasonLabelKind(g ? calendarKind(g.league.id) : 'autumn-spring');
   const nav = g && !NAV_HIDDEN.includes(ui.screen) && !(g.phase === 'retired') ? dock(dockVM(g)) : '';
   const live = liveScreen();
   const band = g && live && live !== ui.screen ? liveBand(live) : '';
@@ -1817,6 +1821,11 @@ app.addEventListener('click', (ev) => {
       ui.worldBoard = v as typeof ui.worldBoard;
       render();
       return;
+    // 월드 리그 고르기 (C.76c)
+    case 'world-league':
+      ui.worldLeague = v ?? '';
+      render();
+      return;
     // ── 다른 팀·선수 상세 (C.53) ──
     case 'team-open':
     case 'person-open': {
@@ -1866,9 +1875,22 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    // 내 리그로 (C.76c): 고른 리그를 맨 앞으로
+    case 'ng-league-mine': {
+      readFormInputs();
+      const ids = normalizeLeagues(ui.form.leagues);
+      if (!v || !ids.includes(v) || !leagueData(v)) return;
+      ui.form.leagues = [v, ...ids.filter((x) => x !== v)];
+      render();
+      return;
+    }
     case 'ng-leagues':
       readFormInputs();
-      ui.form.leagues = v === 'mine' ? [normalizeLeagues(ui.form.leagues)[0]!] : v === 'all' ? leagueCatalog().map((e) => e.id) : [...DEFAULT_LEAGUES];
+      {
+        // 내 리그는 그대로 맨 앞 (C.76c)
+        const mine = normalizeLeagues(ui.form.leagues)[0]!;
+        ui.form.leagues = v === 'mine' ? [mine] : normalizeLeagues(v === 'all' ? leagueCatalog().map((e) => e.id) : [...DEFAULT_LEAGUES], mine);
+      }
       render();
       return;
     case 'ng-sort':
@@ -2037,7 +2059,7 @@ app.addEventListener('click', (ev) => {
       if (r.offersNow) go('offers');
       else render();
       showToast(r.accepted
-        ? { kind: 'info', title: '이적 명단에 올랐어요', body: r.offersNow ? '겨울 이적시장 제안이 왔어요.' : '1월 1일 겨울 이적시장이 열리면 제안이 와요.' }
+        ? { kind: 'info', title: '이적 명단에 올랐어요', body: r.offersNow ? `${windowKo(g.league, 'winter')} 이적시장 제안이 왔어요.` : `${midWindowKo(g.league)} 이적시장이 열리면 제안이 와요.` }
         : { kind: 'info', title: '구단이 거절했어요', body: '이번 시즌에는 다시 요청할 수 없어요.' }, 2600);
       return;
     }
@@ -2143,7 +2165,7 @@ app.addEventListener('click', (ev) => {
       const f = ui.form;
       if (f.mode === 'real' && !f.realId) return;
       if (f.mode === 'custom') {
-        const cv = customVM(f.cu, f.name);
+        const cv = customVM(f.cu, f.name, normalizeLeagues(f.leagues)[0]);
         if (cv.over || !cv.start.ready) return;
       }
       // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
@@ -2337,7 +2359,7 @@ app.addEventListener('click', (ev) => {
       let body = r.text;
       if (r.request) {
         const t = requestTransfer(g, true);
-        body = t.accepted ? (t.offersNow ? '구단이 놓아줬어요. 겨울 이적시장 제안이 왔어요.' : '구단이 놓아줬어요. 1월 1일 겨울 이적시장이 열리면 제안이 와요.') : '구단이 거절했어요. 이번 시즌에는 다시 요청할 수 없어요.';
+        body = t.accepted ? (t.offersNow ? `구단이 놓아줬어요. ${windowKo(g.league, 'winter')} 이적시장 제안이 왔어요.` : `구단이 놓아줬어요. ${midWindowKo(g.league)} 이적시장이 열리면 제안이 와요.`) : '구단이 거절했어요. 이번 시즌에는 다시 요청할 수 없어요.';
         g.manager!.result = { date: g.calendar.date, title: t.accepted ? '이적 명단에 올랐어요' : '구단이 이적 요청을 거절했어요', text: body };
         autosave();
         if (t.offersNow) { go('offers'); return; }

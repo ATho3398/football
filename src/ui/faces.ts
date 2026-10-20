@@ -2,8 +2,10 @@
 // > 기본 얼굴(public/faces/base, 외모군별) > 지금 아바타(가상 선수) / 자동 엠블럼(구단).
 // 화면은 문자열로 그리므로 여기 상태는 동기 조회만 한다. 매니페스트·업로드 이미지는 시작할 때 읽고 다 읽으면 다시 그린다
 
-import { A_GRADE_PLAYERS } from '../../data/players';
+import { ALL_REAL_PLAYERS } from '../../data/players';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
+import { aliasOf, OUTSIDE_TO_LEAGUE } from '../../data/clubAlias';
+import { allLeagueData } from '../../data/leagues';
 import { TEAM_COLORS } from '../../data/teamColors';
 import type { Appearance } from '../appearance';
 import type { FacePhoto } from '../identity';
@@ -69,7 +71,11 @@ const state = {
 // ── 이름 색인 (구단 이름 → id, 페이스팩 파일 이름 → 키) ──
 
 interface ClubInfo { id: string; name: string; nameKo: string }
-const CLUBS: ClubInfo[] = [...initialTeams().map((t) => ({ id: t.id, name: t.name, nameKo: t.nameKo })), ...OUTSIDE_CLUBS];
+/** 구단 목록: 등록된 모든 리그 팀 (C.76c) + 리그 밖 클럽 중 리그 팀이 아닌 클럽 (같은 클럽 x: id 는 이름 색인에서 리그 팀으로) */
+const CLUBS: ClubInfo[] = [
+  ...allLeagueData().flatMap((d) => d.teams.map((t) => ({ id: t.id, name: t.name, nameKo: t.nameKo }))),
+  ...OUTSIDE_CLUBS.filter((c) => !OUTSIDE_TO_LEAGUE[c.id]),
+];
 const norm = (s: string): string => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').toLowerCase().replace(/[^a-z0-9가-힣]+/g, '');
 const clubByName = new Map<string, ClubInfo>();
 for (const c of CLUBS) for (const n of [c.id, c.name, c.nameKo]) if (norm(n)) clubByName.set(norm(n), c);
@@ -84,7 +90,7 @@ export const ALL_CLUBS: readonly ClubInfo[] = CLUBS;
 /** 선수 이름 색인: 실제 선수 + 지금 게임 로스터 (main 이 게임을 열 때 넣는다) */
 const playerByName = new Map<string, string>();
 function indexStatic(): void {
-  for (const p of A_GRADE_PLAYERS) for (const n of [p.id, p.name, p.nameKo]) if (norm(n)) playerByName.set(norm(n), p.id);
+  for (const p of ALL_REAL_PLAYERS) for (const n of [p.id, p.name, p.nameKo]) if (norm(n)) playerByName.set(norm(n), p.id);
 }
 indexStatic();
 
@@ -179,7 +185,9 @@ export function pixelLayerUrls(person: PixelPerson, kit: string): string[] | und
 
 /** 페이스온 > 레포 로고 */
 export function crestSrc(teamId: string): string | undefined {
-  return state.faceOn.get(`t:${teamId}`)?.urls.crest ?? state.photos.clubs[teamId];
+  // 같은 클럽 두 id (C.76c): 리그 팀 id ↔ 리그 밖 x: id 의 업로드·로고를 같이 쓴다
+  const a = aliasOf(teamId);
+  return state.faceOn.get(`t:${teamId}`)?.urls.crest ?? state.photos.clubs[teamId] ?? (a ? state.faceOn.get(`t:${a}`)?.urls.crest ?? state.photos.clubs[a] : undefined);
 }
 
 /** 페이스온 칸 상태 (설정 화면): 칸 → object URL */
@@ -197,7 +205,8 @@ export function defaultFaceSrc(ref: FaceRef): string | undefined {
 }
 
 export function repoCrest(teamId: string): string | undefined {
-  return state.photos.clubs[teamId];
+  const a = aliasOf(teamId);
+  return state.photos.clubs[teamId] ?? (a ? state.photos.clubs[a] : undefined);
 }
 
 export function faceOnKeys(): { key: string; name: string; slots: FaceSlot[] }[] {

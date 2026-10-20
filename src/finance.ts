@@ -6,7 +6,7 @@
 import { OUTSIDE_BY_ID } from '../data/outsideClubs';
 import { BALANCE } from './config/balance';
 import type { GameState } from './game';
-import type { LeagueState } from './league';
+import { leagueTeamById, type LeagueState } from './league';
 import { naturalOvr, type RosterPlayer, type Rosters } from './roster';
 import { wageFor, type TransferRec } from './transfer';
 
@@ -25,11 +25,12 @@ export interface FinanceState {
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 export const isOutsideClub = (id: string): boolean => id.startsWith('x:');
 
-/** 재정 등급: 리그 팀은 표, 리그 밖 클럽은 레이팅으로 */
+/** 재정 등급: PL 팀은 표, 리그 밖 클럽·다른 리그 팀(C.76c)은 레이팅으로 (가상 팀은 중위) */
 export function financeTier(id: string): FinanceTier {
   const F = BALANCE.finance;
-  if (!isOutsideClub(id)) return F.teamTier[id] ?? 'mid';
-  const r = OUTSIDE_BY_ID[id]?.rating ?? 70;
+  if (F.teamTier[id]) return F.teamTier[id]!;
+  if (!isOutsideClub(id) && !leagueTeamById(id)) return 'mid';
+  const r = OUTSIDE_BY_ID[id]?.rating ?? leagueTeamById(id)?.rating ?? 70;
   return r >= F.outsideTier.big ? 'big' : r >= F.outsideTier.upper ? 'upper' : r >= F.outsideTier.mid ? 'mid' : 'low';
 }
 
@@ -121,7 +122,8 @@ export function seasonFlows(recs: readonly TransferRec[], season: number): { spe
 /** 남은 영입 예산 = 시즌 예산 + 판 몸값 × saleShare − 쓴 돈 (0 아래로 안 내려감). 리그 밖 클럽은 등급 예산 × outsideBudgetShare (한 선수 기준) */
 export function remainingBudget(state: Pick<GameState, 'finance' | 'transfers'>, teamId: string, season: number): number {
   const F = BALANCE.finance;
-  if (isOutsideClub(teamId)) return F.budget[financeTier(teamId)] * F.outsideBudgetShare;
+  // 다른 리그 팀 (C.76c): 예산 표(내 리그 팀)에 없으면 리그 밖 클럽처럼
+  if (isOutsideClub(teamId) || (state.finance && !(teamId in state.finance.budgets))) return F.budget[financeTier(teamId)] * F.outsideBudgetShare;
   const base = state.finance?.season === season ? state.finance.budgets[teamId] ?? 0 : F.budget[financeTier(teamId)];
   const { spent, sold } = seasonFlows(state.transfers ?? [], season);
   return Math.max(0, base + (sold[teamId] ?? 0) * F.saleShare - (spent[teamId] ?? 0));
@@ -130,7 +132,8 @@ export function remainingBudget(state: Pick<GameState, 'finance' | 'transfers'>,
 /** 남은 연봉 여력 (만 원/년). 리그 밖 클럽은 한 선수 기준 등급 상한 × outsideWageShare */
 export function wageRoom(state: Pick<GameState, 'rosters'>, teamId: string, teamRating: number, exceptId?: string): number {
   const F = BALANCE.finance;
-  if (isOutsideClub(teamId)) return F.wageCap[financeTier(teamId)] * F.outsideWageShare;
+  // 다른 리그 팀 (C.76c): 로스터가 없으면 리그 밖 클럽처럼
+  if (isOutsideClub(teamId) || (state.rosters && !state.rosters[teamId])) return F.wageCap[financeTier(teamId)] * F.outsideWageShare;
   return wageCap(teamId) - wageBill(state.rosters, teamId, teamRating, exceptId);
 }
 
