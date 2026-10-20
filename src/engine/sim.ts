@@ -14,7 +14,7 @@ import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball, updateSituations } from './offball';
 import { candidates, choose, judgementOf } from './onball';
-import { aerialMoment, autoCardDecide, duelMoment, initMoments, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
+import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
 import { initPhysics, moveAgent } from './physics';
@@ -23,7 +23,7 @@ import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
 import { defaultRole, roleById } from './roles';
 import { emptyPlayerStats, emptyTeamStats, type Agent, type SimState } from './state';
-import type { EngineInput, EngineResult, Frame, PlayerSpec, TeamSetup } from './types';
+import type { EngineInput, EngineResult, Frame, PlayerSpec, Tactics, TeamSetup } from './types';
 
 const T = ENGINE.time;
 const B = ENGINE.ball;
@@ -214,6 +214,14 @@ function restartDue(s: SimState): boolean {
 /** 소유자 결정. 내 선수이고 덱이 있으면 (C.36) 패시브를 얹고, 자동 모드 카드 기회면 F.5 규칙으로 카드를 쓴다 */
 function decide(s: SimState, a: Agent): void {
   const cands = candidates(s, a);
+  // 몰고 가다 슛 둘째 단 (C.75k, 직접 모드에서 고른 의도만): 슛 후보가 있으면 그 슛
+  const forced = a.intent ? intentShot(s, a, cands) : null;
+  if (a.intent) a.intent = null;
+  if (forced) {
+    if (s.cards) return runMine(s, a, forced, null, null, true);
+    a.backToGoal = false;
+    return execute(s, a, forced);
+  }
   if (s.cards && a.spec.isMe) {
     prepCands(s, a, cands);
     const r = autoCardDecide(s, a, cands);
@@ -397,6 +405,21 @@ function stepBody(s: SimState): void {
   stepTail(s);
 }
 
+/**
+ * 하프타임 전술 변경 (C.75k, E.19): 내 팀 전술(성향·세부 전술)을 바꾼다. aiAdjust 가 setup.tactics 에서 다시 만들므로 둘 다 바꾼다.
+ * 역할·포메이션은 바꾸지 않는다. 결정 기록에 한 줄 남긴다
+ */
+export function applyHalftimeTactics(s: SimState, team: 0 | 1, tactics: Tactics, label = '하프타임 전술 변경'): void {
+  const T = s.teams[team];
+  T.setup.tactics = { ...tactics };
+  T.tactics = { ...tactics };
+  const ms = s.moments;
+  ms.log.push({
+    id: ms.nextId++, minute: Math.floor(s.t / 60) + 1, scene: 'halftime', choice: 'balanced', label, p: null, result: 'neutral', delta: 0,
+    e: Math.round(s.elapsed * 10) / 10, stake: 0,
+  });
+}
+
 /** 정책이 있으면(자동 측정·봇) 바로 확정해 실행하고 false, 없으면(직접 모드 화면) 멈추고 true */
 function pauseOrDecide(s: SimState): boolean {
   const pol = s.moments.control.policy;
@@ -448,6 +471,11 @@ function applyChoice(s: SimState, choice: MomentChoice): void {
 /** 멈춘 틱 이어서: 결정 실행 후 이동·공·시계 (세트피스면 재개 실행 뒤 그 틱의 나머지 전부) */
 function resume(s: SimState, choice: MomentChoice): void {
   if (!s.moments.pending) return;
+  // 하프타임 (C.75k): 틱은 이미 끝났다. 전술은 확정 전에 applyHalftimeTactics 로 (변경 없음·맡기기 = 그대로 이어감, 난수 안 씀)
+  if (s.moments.pending.type === 'halftime') {
+    takeMoment(s, choice);
+    return;
+  }
   const sp = s.moments.pending.type === 'setPiece';
   applyChoice(s, choice);
   if (sp) stepBody(s);
@@ -514,6 +542,8 @@ function stepTail(s: SimState): void {
     if (s.half === 1) {
       event(s, 'halftime', 0, []);
       startSecondHalf(s);
+      // 하프타임 전술 변경 (C.75k, E.19): 직접 모드 화면만 멈춘다 (자동·정책 있는 경기는 그대로)
+      halftimeMoment(s);
     } else finish(s);
   }
 }

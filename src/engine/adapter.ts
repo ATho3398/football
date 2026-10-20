@@ -13,9 +13,9 @@ import { proficiencyPenalty } from '../proficiency';
 import { ENGINE } from './config';
 import { teamSetupFromRoster } from './setup';
 import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
-import { buildResult, createMatch } from './sim';
+import { applyHalftimeTactics, buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
-import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
+import type { EngineResult, PlayerSpec, PlayerStats, Tactics, TeamSetup } from './types';
 import type { Moment, MomentChoice, MomentControl } from './moments';
 import type { CardInput } from './cards';
 import type { MatchSim } from './sim';
@@ -236,6 +236,16 @@ export class MyMatchRun {
       frames.push(captureFrame(s));
       this.next += ENGINE.time.frameInterval;
     }
+  }
+
+  /**
+   * 하프타임 전술 확정 (C.75k, E.19): 멈춘 순간이 하프타임이면 내 팀 전술을 바꾸고(null = 변경 없음, 난수를 쓰지 않아 자동과 같다) 후반을 이어 간다
+   */
+  halftime(tactics: Tactics | null, label?: string): void {
+    const s = this.sim.state;
+    if (s.moments.pending?.type !== 'halftime') return;
+    if (tactics) applyHalftimeTactics(s, this.side, tactics, label);
+    this.resolve('delegate');
   }
 
   /** 남은 결정은 맡기고 끝까지 돌린 뒤 결과 */

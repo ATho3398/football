@@ -29,12 +29,12 @@ const M = ENGINE.moments;
 /** 장면 id (F.2.1). 공중볼·코너·상대 코너/프리킥·상대 슈팅은 카드 장면 정지(C.40), lineCall 은 아직 정지 없음 */
 export type SceneId =
   | 'shot' | 'dribble' | 'keyPass' | 'aerial' | 'cross' | 'counter' | 'press' | 'duel' | 'freeKick' | 'penalty' | 'corner'
-  | 'oppShot' | 'oppFreeKick' | 'oppCorner' | 'lineCall' | 'holdUp' | 'rebound';
+  | 'oppShot' | 'oppFreeKick' | 'oppCorner' | 'lineCall' | 'holdUp' | 'rebound' | 'halftime';
 
 export const SCENE_LABEL: Record<SceneId, string> = {
   shot: '슈팅 찬스', dribble: '1대1 돌파', keyPass: '패스 선택', aerial: '공중볼', cross: '측면 크로스', counter: '역습',
   press: '전방 압박', duel: '수비 1대1', freeKick: '프리킥', penalty: '페널티킥', corner: '코너킥', oppShot: '상대 슈팅',
-  oppFreeKick: '상대 프리킥', oppCorner: '상대 코너킥', lineCall: '라인 컨트롤', holdUp: '등지고 받음', rebound: '리바운드',
+  oppFreeKick: '상대 프리킥', oppCorner: '상대 코너킥', lineCall: '라인 컨트롤', holdUp: '등지고 받음', rebound: '리바운드', halftime: '하프타임',
 };
 
 export type StopLevel = 'all' | 'important' | 'critical';
@@ -65,14 +65,19 @@ export interface MomentOption {
   target?: string;
   /** 상대 분석 리포트의 약점을 노리는 선택지 (C.74c, 표시용 "약점 공략") */
   exploit?: boolean;
+  /** 2단 행동 (C.75k 몰고 가다 슛): 이 행동(몰고 가기) 뒤 다음 결정에서 슛. p 는 첫 단(몰고 가기) 성공 확률 */
+  chain?: { type: 'shoot'; p: number };
   /** 내부: 후보 인덱스 / 1대1 행동 번호 */
   ref: number;
 }
 
 export interface Moment {
   id: number;
-  /** react = 카드 장면 정지 (공중볼·상대 슈팅, C.40): 선택지 "카드 없이" + 패의 반응 카드 */
-  type: 'onball' | 'duel' | 'setPiece' | 'react';
+  /**
+   * react = 카드 장면 정지 (공중볼·상대 슈팅, C.40): 선택지 "카드 없이" + 패의 반응 카드.
+   * halftime = 하프타임 전술 변경 (C.75k, 직접 모드 화면만): 선택지 없음, 확정은 MyMatchRun.halftime
+   */
+  type: 'onball' | 'duel' | 'setPiece' | 'react' | 'halftime';
   scene: SceneId;
   /** 경기 시계 (초) */
   t: number;
@@ -418,6 +423,8 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const ms = s.moments;
   if (!a.spec.isMe || ms.control.mode !== 'direct' || a.line === 0) return false;
   const cands = candidates(s, a);
+  // 몰고 가다 슛의 둘째 단 (C.75k): 슛 후보가 있으면 멈추지 않고 decide 가 슛한다
+  if (intentShot(s, a, cands)) return false;
   prepCands(s, a, cands);
   const stake = onballStake(s, a, cands);
   if (!shouldStop(s, a, stake)) return false;
@@ -427,12 +434,14 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const shownP = (c: Candidate) => (c.type === 'shoot' ? (s.cards ? shotP(s, a, c.p) : c.p) : clamp(c.p + adj, 0.01, 0.99));
   const pool = cands.filter((c) => shownP(c) <= M.maxP + 1e-9);
   const picks = keepSlots(a, pool, pickOptions(pool));
-  const made = relabel(picks.flatMap((c, i) => {
+  const cs = carryShootOption(s, a, cands, adj);
+  // 몰고 가다 슛은 안전·균형·도박 3칸 뒤 4번째 줄 (늘 도박)
+  const made = [...relabel(picks.flatMap((c, i) => {
     if (!c) return [];
     const o = optionOf(s, a, c, kinds[i]!, cands.indexOf(c), adj);
     if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
     return [{ o, ctx: optionCtx(s, a, c) }];
-  }));
+  })), ...(cs ? [cs] : [])];
   const options = made.map((x) => x.o);
   const ctx = made.map((x) => x.ctx);
   const scene = onballScene(s, a, cands);
@@ -450,7 +459,7 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   }
   if (!enoughChoices(options, cards)) return false;
   // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로
-  for (const o of [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]) o.down = round2(o.down * failFactor(o.p));
+  for (const o of [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]) o.down = round2(o.down * failFactor(o.chain ? o.chain.p : o.p));
   settleMoment(s, true);
   const sureC = cands.filter((c) => shownP(c) > M.maxP + 1e-9);
   const sure = sureC.length > 0;
@@ -505,6 +514,54 @@ export function keepSlots(a: Agent, pool: Candidate[], picks: [Candidate | null,
   put(top('shoot', (c) => c.p, (c) => c.p >= M.shotKeepXg));
   if (M.dribbleKeepGroups.includes(posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position))) put(top('dribble', (c) => c.u));
   return out;
+}
+
+/**
+ * 몰고 가다 슛 (C.75k, 직접 모드 2단 행동): 앞으로 몰고 가기 후보 중 도착점 xG(지금 수비 위치로 평가) ≥ shotKeepXg 인 것에서
+ * 몰고 가기 성공 × 도착점 xG 가 가장 큰 것. 표시 확률 = 그 곱 × carryShootDiscount. 카드 확률 보정은 붙이지 않는다 (태그 없음)
+ */
+function carryShootOption(s: SimState, a: Agent, cands: Candidate[], adj: number): { o: MomentOption; ctx: OptionCtx } | null {
+  const dir = attackDir(a.team, s.half);
+  let best: { c: Candidate; pc: number; xg: number } | null = null;
+  for (const c of cands) {
+    if (c.type !== 'carry' || (c.x - a.x) * dir < 1) continue;
+    const xg = shotModel(s, a, false, { x: c.x, y: c.y }).xg;
+    if (xg < M.shotKeepXg) continue;
+    const pc = clamp(c.p + adj, 0.01, 0.99);
+    if (!best || pc * xg > best.pc * best.xg) best = { c, pc, xg };
+  }
+  if (!best) return null;
+  const R = ENGINE.rating;
+  const lost = ratingEstimate(s, a, best.c)[1];
+  const o: MomentOption = {
+    kind: 'gamble', action: 'carry', label: '몰고 가다 슛', p: round2(best.pc * best.xg * M.carryShootDiscount), success: '몰고 가서 골', fail: '막히거나 뺏김',
+    up: round2(R.goal * R.scale), down: round2(lost), to: { x: best.c.x, y: best.c.y }, ref: cands.indexOf(best.c), value: Math.round(best.xg * 1000) / 1000,
+    chain: { type: 'shoot', p: round2(best.pc) },
+  };
+  return { o, ctx: { tags: [], box: inOppBox(a.x, a.y, dir) } };
+}
+
+/** 몰고 가다 슛 둘째 단 (C.75k): 의도가 살아 있으면(시간 안, 같은 팀 소유) 가장 좋은 슛 후보. 만료면 의도를 지운다 */
+export function intentShot(s: SimState, a: Agent, cands: Candidate[]): Candidate | null {
+  const it = a.intent;
+  if (!it) return null;
+  if (s.t > it.until || s.possStartT !== it.poss || s.ball.owner !== a.idx) {
+    a.intent = null;
+    return null;
+  }
+  let best: Candidate | null = null;
+  for (const c of cands) if (c.type === 'shoot' && (!best || c.p > best.p)) best = c;
+  return best;
+}
+
+/** 하프타임 전술 변경 순간 (C.75k): 직접 모드 화면(정책 없음)이고 내 선수가 명단에 있으면 pending 을 채우고 true */
+export function halftimeMoment(s: SimState): boolean {
+  const ms = s.moments;
+  if (ms.control.mode !== 'direct' || ms.control.policy) return false;
+  const a = s.agents.find((x) => x.spec.isMe) ?? [...s.bench[0], ...s.bench[1]].find((x) => x.spec.isMe);
+  if (!a) return false;
+  ms.pending = base(s, a, 'halftime', 'halftime', 0);
+  return true;
 }
 
 /** 슛을 못 고르는 이유 한 줄 (C.75a): 슈팅 거리 근처인데 슛 선택지가 안 보일 때만 */
@@ -948,6 +1005,8 @@ export function takeMoment(s: SimState, choice: MomentChoice): {
   const ms = s.moments;
   const m = ms.pending! as Moment & { cands?: Candidate[]; variants?: Variant[]; duelVariants?: DuelVariant[]; spVariants?: SpVariant[] };
   ms.pending = null;
+  // 하프타임 (C.75k): 정지 수·결정 기록·결과 판정에 넣지 않는다 (전술 변경 기록은 applyHalftimeTactics)
+  if (m.type === 'halftime') return { cand: null, duel: null, mod: null, use: null, action: null, down: 0 };
   settleMoment(s, true);
   ms.stops++;
   ms.nextId++;
@@ -1027,14 +1086,18 @@ export function takeMoment(s: SimState, choice: MomentChoice): {
     if (c.pFlight !== undefined) c.pFlight = Math.max(0.01, c.pFlight + adj);
   }
   // 도박 실패 완화 (C.75a): 첫 소유 변경까지 내 공 상실 감점의 (1 − 배수) 몫을 되돌린다
-  const k = 1 - failFactor(opt.p);
+  const k = 1 - failFactor(opt.chain ? opt.chain.p : opt.p);
   ms.relief = k > 0 ? { t: s.t, k } : null;
+  // 몰고 가다 슛 (C.75k): 몰고 가기를 실행하고, 다음 결정에서 슛 (intentShot)
+  if (opt.chain) a.intent = { type: 'shoot', until: s.t + M.carryShootWindow, poss: s.possStartT };
   return { cand: c, duel: null, mod, use, action: c.type, down: opt.down };
 }
 
 /** 기대 평점 (봇): 바로 오는 평점 + 성공 시 이어질 공격의 평점 몫 */
 function optionValue(o: MomentOption, dp = 0): number {
   const R = ENGINE.rating;
+  // 몰고 가다 슛 (C.75k): p = 몰고 가기 성공 × 골 확률(할인), 실패 감점은 몰고 가기에서 뺏길 때만
+  if (o.chain) return Math.min(1, (o.p ?? 0) + dp) * o.up + (1 - o.chain.p) * o.down;
   const p = Math.max(0, Math.min(1, (o.p ?? 1) + dp));
   const chain = o.action === 'shoot' ? 0
     : o.action === 'pass' || o.action === 'through' || o.action === 'cutback' || o.action === 'layoff' || o.action === 'cross' ? o.value * R.assist * R.scale

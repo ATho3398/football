@@ -675,6 +675,12 @@ export const ENGINE = {
     shotKeepXg: 0.06,
     /** C.75a 개인기 자리 보장: 앞을 막은 수비수 돌파 후보가 있으면 이 포지션군은 드리블 칸을 넣는다 (공격수 우선) */
     dribbleKeepGroups: ['ST', 'WING', 'CAM'] as string[],
+    /**
+     * C.75k 몰고 가다 슛 (직접 모드 2단 행동): 앞으로 몰고 가기 후보의 도착점 xG 가 shotKeepXg 이상이면 선택지에 넣는다.
+     * 표시 확률 = 몰고 가기 성공 × 도착점 xG × carryShootDiscount (수비 위치가 지금 그대로라 낙관이라 할인). 의도는 carryShootWindow 초 동안 산다
+     */
+    carryShootDiscount: 0.8,
+    carryShootWindow: 2,
     /** 카드 장면 정지 (C.40): 공중볼은 내 선수가 착지점 이 거리(m) 안이고 박스 안 착지일 때 */
     reactAerialRange: 9,
     /** 두 정지 사이 최소 간격 (초, 같은 공격에서 연달아 멈추지 않게) */
