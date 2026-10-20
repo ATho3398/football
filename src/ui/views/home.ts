@@ -20,21 +20,26 @@ export function homeFace(vm: HomeVM): { src: string; cutout: boolean } | null {
 /** 머리말 칩 (C.70 디자인 161): 경기까지 n일 · n/38R · 찍을 포인트 nP(라임 칩) */
 function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   const n = vm.next;
-  return [
+  const chips: (string | { label: string; soft?: boolean })[] = [
     ...(n && vm.day
       ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, `${vm.round}/${vm.rounds}R`]
       : [{ label: '시즌 종료', soft: true }]),
+    // C.76g (디자인 228): 부상 중이면 남은 날 라임 칩
+    ...(vm.injuryDays ? [{ label: `부상 · ${vm.injuryDays}일 남음`, soft: true }] : []),
     ...(vm.points > 0 ? [{ label: `찍을 포인트 ${vm.points}P`, soft: true }] : []),
-    { label: vm.chapter, soft: true },
   ];
+  // 챕터 칩 (C.73a)은 칸이 남을 때만 — 한 줄 칩(C.75u)이 4개를 넘으면 모두 말줄임이 돼서 (디자인 211·228 = 3칸)
+  return chips.length < 3 ? [...chips, { label: vm.chapter, soft: true }] : chips;
 }
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = ''): string {
   const n = vm.next;
-  // C.70 (디자인 161): 날짜 옆은 저장·설정만. 인박스·재정은 독(더보기 줄 · PC 칸)에서 배지로 (C.69 독 v3)
-  const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
-    // 포토카드 도감 (C.75t)
-    + IconButton({ act: 'go', data: { to: 'dex' }, name: 'card', label: '포토카드 도감', variant: 'ghost' })
+  // C.70 (디자인 161): 날짜 옆은 저장·설정. C.76g (디자인 197·211): 안 읽은 인박스가 있으면 알림 종(배지), 코치 후보가 있으면 재정 동전(배지)
+  const tools = (vm.inbox ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `알림 ${vm.inbox}`, variant: 'ghost', badge: vm.inbox }) : '')
+    + (vm.money ? IconButton({ act: 'go', data: { to: 'finance' }, name: 'coin', label: `재정 · 코치 후보 ${vm.money}`, variant: 'ghost', badge: vm.money }) : '')
+    + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
+    // 포토카드 도감 (C.75t, C.76g 디자인 240B album 아이콘)
+    + IconButton({ act: 'go', data: { to: 'dex' }, name: 'album', label: '포토카드 도감', variant: 'ghost' })
     // 진열실 (C.76b): 트로피 · 유니폼
     + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' });
   const face = homeFace(vm);
@@ -90,14 +95,17 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         <div class="hm-stamina"><span>체력</span><span class="hm-stamina__bar" aria-hidden="true"><i class="${stamina <= 30 ? 'is-low' : stamina < 100 - BALANCE.fatigue.penaltyFrom ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
         <div class="hm-stamina__scale"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
         ${staminaNote(c.fatigue)}
-        ${c.life?.length ? `<div class="lf-hints">${c.life.map((h) => `<p class="small warn">${Icon({ name: 'face', size: 14 })} ${esc(h)}</p>`).join('')}</div>` : ''}
+        ${(c.life?.length ?? 0) > 1 ? `<div class="lf-hints">${c.life!.slice(1).map((h) => `<p class="small warn">${Icon({ name: 'face', size: 14 })} ${esc(h)}</p>`).join('')}</div>` : ''}
         <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond');
   const card = PlayerCard({ player: vm.card, variant: 'compact' });
   const tiles = statTiles([{ value: vm.stats.apps, label: '출전' }, { value: vm.stats.goals, label: '골', hi: true }, { value: vm.stats.assists, label: '도움' }, { value: vm.stats.avg, label: '평균 평점' }]);
   // C.70 (디자인 162): 배너(레벨업 등)는 머리말 바로 아래, 그다음 인박스 알림
-  const main = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${next}${training}${notice}${extra}`;
-  // PC 2열 (C.61 디자인 120): 왼쪽 = 다음 경기 · 오늘 훈련 · 알림, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 내 상태 · 버전
-  if (isWide()) return `${hero}<div class="body home-body">${pc2(main, `${card}${tiles}${cond}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
+  // C.76g (디자인 197 ④): 생활 힌트는 다음 경기 위 한 줄(누르면 훈련·일정 하루 시트 자리) · (204): 시즌 목표는 다음 경기 바로 아래
+  const life = c.life?.length ? `<div class="hm-life">${Icon({ name: 'sun', size: 18 })}<p class="grow"><b>생활</b> · ${esc(c.life[0]!)}</p>${Button({ size: 'sm', variant: 'ghost', act: 'go-tab', data: { v: 'schedule' }, children: '고르기' })}</div>` : '';
+  const head = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${life}${next}`;
+  const main = `${head}${goals}${training}${notice}${extra}`;
+  // PC 2열 (C.61 디자인 120 → C.76g 디자인 204): 왼쪽 = 알림 · 다음 경기 · 오늘 훈련 · 기록 도전 … · 내 상태, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 시즌 목표 · 버전
+  if (isWide()) return `${hero}<div class="body home-body">${pc2(`${head}${training}${notice}${extra}${cond}`, `${card}${tiles}${goals}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
   return `
     ${hero}
     <div class="body home-body">
@@ -217,16 +225,16 @@ export function recordsSection(rows: RecordTrackVM[]): string {
   return `${SectionTitle({ title: '기록 도전', action: '깨면 XP·위상 소량' })}${panel(`<div class="mg-rows">${list}</div>`, 'mg-card rc-card')}`;
 }
 
-/** 부상 복귀 선택 시트 (C.74b, pending 77-5, 디자인 없음): 조기 복귀 vs 완전 회복(추천) */
+/** 부상 복귀 선택 시트 (C.74b, pending 77-5 → C.76g 디자인 228: 추천 줄 라임 테두리 · 자동 진행 안내 칸): 조기 복귀 vs 완전 회복(추천) */
 export function injuryReturnSheet(vm: InjuryReturnVM): string {
   return BottomSheet({
     eyebrow: `부상 (${vm.grade}) · ${vm.daysLeft}일 남음`, title: '복귀 시점 고르기',
     subtitle: '회복 막바지예요. 조금 일찍 돌아갈지, 끝까지 회복할지 골라요.',
     onClose: { act: 'sheet-close' },
-    children: `<div class="po-options">${
+    children: `<div class="po-options ir-opts">${
       OptionRow({ act: 'inj-return', data: { v: 'full' }, icon: 'recover', title: '완전 회복', tag: '추천', desc: `복귀 예정 ${vm.back} · 재부상 위험 보통` })}${
       OptionRow({ act: 'inj-return', data: { v: 'early' }, icon: 'risk', title: '조기 복귀', desc: `오늘부터 뛸 수 있어요 (${vm.daysLeft}일 빨리) · ${vm.riskDays}일 동안 부상 확률 ×${vm.risk}` })}</div>
-      <p class="small muted">자동 진행 중에는 완전 회복으로 정해요.</p>`,
+      <p class="ir-auto small muted">${Icon({ name: 'ff', size: 16 })}자동 진행 중에는 완전 회복으로 정해요.</p>`,
   });
 }
 

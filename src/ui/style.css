@@ -1000,8 +1000,10 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 /* ── C.57 U5-c 홈 · 훈련·일정 · 자동 진행 (디자인 61~65 · 86~92 · 132 · 133 · 150, B 86·91·132) ── */
 /* 미페 머리말: 투명 아닌 사진은 네모 그대로 같은 자리(B-apply 2절). 모서리 B radius-md, 아래 정렬 */
 .po-hero__face.is-square { object-fit: cover; object-position: center top; border-radius: var(--radius-md); }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { width: 250px; height: 250px; left: 20px; bottom: 120px; }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { width: 170px; height: 170px; left: 16px; bottom: 96px; }
+/* C.76g (디자인 2부 HeroPanel photo · 236): 네모 사진 = 위에서 48px(compact 44px), 폰 230 · compact 128, 검정 3px 테두리, 라임 사선 줄 없음. PC 1024+ 는 --hero-photo 270 · 176 */
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hp: var(--hero-photo, 230px); width: var(--hp); height: var(--hp); left: 16px; top: 48px; bottom: auto; background: var(--surface-2); box-shadow: 0 0 0 3px var(--surface-0); }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hp: var(--hero-photo, 128px); left: 16px; top: 44px; bottom: auto; }
+:where(html[data-skin="b"]) .po-hero--photo .po-hero__line { display: none; }
 .po-hero--face .po-hero__name { display: block; max-width: 100%; }
 .po-hero--face .po-hero__right { display: inline-flex; align-items: center; gap: 2px; }
 /* C.74e: PC(1024px 이상, 가로 폰 빼고)도 사진이 있으면 미페 머리말. 높이·이름·OVR 자리는 디자인(폰) 그대로, 머리말이 넓어진 만큼만 고친다
@@ -1011,8 +1013,8 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 @media (min-width: 1024px) and (min-height: 521px), (min-width: 1024px) and (orientation: portrait) {
   :where(html[data-skin="b"]) .po-hero--face .po-hero__face { left: 0; }
   :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { left: 8px; }
-  :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { width: 270px; height: 270px; left: 80px; bottom: 128px; }
-  :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { width: 176px; height: 176px; left: 80px; bottom: 108px; }
+  :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hero-photo: 270px; left: 80px; top: 44px; }
+  :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hero-photo: 176px; left: 80px; top: 40px; }
   :where(html[data-skin="b"]) .po-hero--face .po-hero__eyebrow { align-self: flex-start; }
 }
 .hm-date { margin-right: 4px; font-size: 12px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
@@ -2426,3 +2428,70 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .cu-name { display: flex; align-items: flex-start; gap: 8px; }
 .cu-name > .field, .cu-name > :first-child { flex: 1; min-width: 0; }
 .cu-name__rand { flex: none; margin-top: 28px; }
+
+/* ── C.76g U8-b 컴포넌트·홈 (디자인 통합 2부 195·197·198·202·203·204·211·227·228·236) ── */
+/* 211·197: 미페 머리말 오른쪽 위 = 그래파이트 꺾인 판(날짜 이탤릭 + 알림 종·재정 동전 배지 · 저장 · 설정 …) — 라임 등번호·얼굴 위에서도 읽힘 */
+:where(html[data-skin="b"]) .po-hero--face .po-hero__right { height: 36px; padding: 0 10px 0 14px; background: var(--surface-0); clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__right .po-iconbtn { width: 30px; height: 30px; color: var(--ink); }
+:where(html[data-skin="b"]) .po-hero--face .hm-date { margin-right: 4px; font-family: var(--font-display); font-style: italic; font-size: 15px; font-weight: 700; color: var(--ink); }
+.po-hero__right .po-iconbtn { position: relative; }
+:where(html[data-skin="b"]) .po-hero__right .po-dotbadge { position: absolute; top: -2px; right: -3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 2px; background: var(--brand); color: var(--on-brand); font-size: 10px; line-height: 16px; font-weight: 800; transform: skewX(-8deg); }
+/* 202: 일반 B 머리말 오른쪽 위 구단 이름 판 = 높이 26 · 7px 꺾임 · 12px(10자부터 11px) · 최대 168px, 넘치면 말줄임(마지막 수단) */
+:where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__right.is-text:not(:empty) { display: block; max-width: 168px; height: 26px; padding: 0 12px; line-height: 26px; font-size: 12px; white-space: nowrap; clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%); }
+:where(html[data-skin="b"]) .po-hero:not(.po-hero--face) .po-hero__right.is-text.is-long { font-size: 11px; }
+/* 203: 새 기능 안내 = surface-1 + 라임 왼쪽 막대 3px + 라임 i + 꺾인 회색 [안내 끄기] (시안 테두리 없앰) */
+:where(html[data-skin="b"]) .tip { border-radius: 0 var(--radius-md) var(--radius-md) 0; background: var(--surface-1); box-shadow: none; border-left: 3px solid var(--brand); padding: 10px 12px; font-weight: 700; }
+:where(html[data-skin="b"]) .tip__body .po-icon { color: var(--brand-ink); }
+:where(html[data-skin="b"]) .tip__off { height: 28px; padding: 0 12px; border-radius: 0; background: var(--surface-3); color: var(--ink); clip-path: var(--skew-sm); }
+/* 197 ④: 생활 힌트 한 줄 */
+.hm-life { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-1); font-size: 12px; line-height: 17px; color: var(--ink-muted); }
+.hm-life > .po-icon { flex: none; color: var(--brand-ink); }
+.hm-life p { margin: 0; min-width: 0; word-break: keep-all; }
+.hm-life b { color: var(--ink); }
+.hm-life .po-btn { flex: none; color: var(--brand-ink); }
+/* 204: 시즌 목표 줄 — 오른쪽 큰 숫자 · 아래 XP · 라임 테두리 카드 선택권 · TP(라임) · 상태 칩 */
+.gl-card .mg-row__head > b { font-family: var(--font-display); font-size: 22px; line-height: 24px; }
+.gl-meta { justify-content: flex-start; flex-wrap: wrap; }
+.gl-xp { font-family: var(--font-display); font-weight: 700; color: var(--ink-muted); }
+.gl-pick { padding: 1px 7px; border: 1px solid var(--brand); color: var(--brand-ink); font-size: 11px; font-weight: 800; transform: skewX(-8deg); white-space: nowrap; }
+.gl-tp { font-family: var(--font-display); color: var(--brand-ink); }
+.gl-card .mg-row + .mg-row { padding-top: 12px; border-top: 1px solid var(--line); }
+/* 195: 라이벌 카드 = 머리(얼굴 · 이름 · 팀 · OVR) + 비교 표 + 골+도움 막대 2줄 + 앞섬/뒤짐 칩 */
+.rv-head { display: flex; align-items: center; gap: 12px; }
+.rv-head p { display: flex; align-items: center; gap: 4px; margin: 2px 0 0; }
+.rv-name { display: block; font-family: var(--font-head); font-size: 20px; line-height: 24px; font-weight: 400; }
+.rv-ovr { display: grid; justify-items: end; }
+.rv-ovr b { font-family: var(--font-display); font-size: 30px; line-height: 30px; }
+.rv-ovr small { font-size: 10px; font-weight: 800; color: var(--ink-muted); }
+.rv-cmp { display: grid; margin-top: 12px; }
+.rv-cmp__who { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; padding-bottom: 6px; }
+.rv-cmp__who .is-me { color: var(--mine); } .rv-cmp__who .is-them { color: var(--away); }
+.rv-cmp__row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-muted); }
+.rv-cmp__row b { font-family: var(--font-display); font-size: 18px; line-height: 22px; color: var(--ink); }
+.rv-cmp__row b:last-child { text-align: right; }
+.rv-cmp__row b.is-lead { color: var(--brand-ink); } .rv-cmp__row b.is-lead.is-them { color: var(--away); }
+.rv-bars { display: grid; gap: 4px; margin: 10px 0; }
+.rv-bars i { display: block; height: 8px; min-width: 2px; background: var(--brand); }
+.rv-bars i.is-them { background: var(--away); }
+.rv-verdict { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-md); background: var(--surface-2); }
+.rv-chip { flex: none; padding: 2px 9px; background: var(--brand); color: var(--on-brand); font-size: 11px; font-weight: 800; transform: skewX(-8deg); }
+.rv-verdict.is-behind .rv-chip { background: var(--away); color: var(--on-fill, #111); }
+.rv-verdict.is-tie .rv-chip { background: var(--surface-3); color: var(--ink); }
+/* 198: 주전 경쟁 감독 줄(얼굴 · 감독 · 이름 · 성향 / 신뢰도 61 / 100) + 신뢰도 막대 */
+.mg-boss { display: flex; align-items: center; gap: 12px; }
+.mg-boss > .grow { display: grid; min-width: 0; }
+.mg-boss b { font-size: 15px; line-height: 21px; font-weight: 800; }
+.mg-boss small { font-size: 11px; line-height: 15px; }
+.mg-boss__trust { display: grid; justify-items: end; }
+.mg-boss__trust b { font-family: var(--font-display); font-size: 26px; line-height: 28px; }
+.mg-boss__trust small.po-num { color: var(--ink-muted); }
+.mg-trustbar { height: 6px; margin: 10px 0 4px; background: var(--surface-3); }
+.mg-trustbar i { display: block; height: 100%; background: var(--ink); }
+.mg-log__row { padding: 3px 0; font-size: 12px; }
+/* 228: 복귀 시트 — 추천(완전 회복) 줄 라임 테두리, 자동 진행 안내 칸 */
+.ir-opts > :first-child { box-shadow: inset 0 0 0 2px var(--brand); }
+.ir-auto { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); }
+@media (min-width: 1024px) and (min-height: 521px), (min-width: 1024px) and (orientation: portrait) {
+  /* 228 PC: 복귀 시트는 가운데 640폭 */
+  .po-overlay--sheet:has(.ir-opts) .po-sheet { width: min(640px, 100%); height: auto; margin: auto auto 0; align-self: flex-end; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+}

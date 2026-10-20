@@ -149,3 +149,23 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) :where(.po-btn, .po-hero__back, .po-tabs--segment .po-tab):focus-visible { outline: 2px solid var(--focus); outline-offset: -5px; }
 :where(html[data-skin="b"]) :where(.po-btn--ghost):focus-visible { outline-offset: 2px; }
 :where(html[data-skin="b"]) :where(.po-dock__item, .po-dock__go, .po-dock__home):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* ── C.76g U8-b (디자인 통합 2부 bundle.css 추가분 · 203 · 202) ── */
+/* HeroPanel compact: 소속 줄 왼쪽 정렬 (2부 다듬기). 칩 두 줄(flex-wrap)은 C.75u 한 줄 규칙이 우선이라 옮기지 않음 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__eyebrow { align-self: flex-start; text-align: left; }
+/* Banner B 안내띠 (203): 바탕은 늘 surface-1 · 오른쪽 모서리 4px · 왼쪽 3px 막대 색으로 종류(안내 라임 · 성공 초록 · 경고 주황 · 부상 빨강) · 아이콘 18px 막대와 같은 색(칸 없음) · 꺾인 회색 단추 28px */
+:where(html[data-skin="b"]) .po-banner { --bn: var(--brand); background: var(--surface-1); border-left: 3px solid var(--bn); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 12px 14px 12px 12px; gap: 10px; }
+:where(html[data-skin="b"]) .po-banner--success { --bn: var(--success); }
+:where(html[data-skin="b"]) .po-banner--warning { --bn: var(--warning); }
+:where(html[data-skin="b"]) .po-banner--injury { --bn: var(--injury); }
+:where(html[data-skin="b"]) .po-banner .po-banner__icon { width: 22px; height: 22px; border-radius: 0; background: none; color: var(--bn); align-self: start; }
+:where(html[data-skin="b"]) .po-banner--info .po-banner__icon { color: var(--brand-ink); }
+:where(html[data-skin="b"]) .po-banner__body b { font-size: 13px; line-height: 19px; }
+:where(html[data-skin="b"]) .po-banner__action { height: 28px; border-radius: 0; background: var(--surface-3); clip-path: var(--skew-sm); padding: 0 14px; }
+:where(html[data-skin="b"]) .po-banner__body, :where(html[data-skin="b"]) .po-toast__body { word-break: keep-all; overflow-wrap: anywhere; }
+/* Toast B: 왼쪽 3px 막대(레벨업은 판 전체가 라임이라 없음), info 아이콘 라임 */
+:where(html[data-skin="b"]) .po-toast { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-left: 3px solid var(--brand); }
+:where(html[data-skin="b"]) .po-toast--levelup { border-left: 0; border-radius: var(--radius-md); }
+:where(html[data-skin="b"]) .po-toast--info .po-toast__icon { color: var(--brand-ink); }
+:where(html[data-skin="b"]) .po-toast__icon { border-radius: var(--radius-sm); }
+:where(html[data-skin="b"]) .po-toast__action { border-radius: 0; clip-path: var(--skew-sm); }

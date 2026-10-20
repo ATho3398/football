@@ -110,7 +110,7 @@ function faceHero(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square')}">${
+  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square po-hero--photo')}">${
     kit ? `<span class="${cx('po-hero__kit po-num', kit.length > 1 && 'is-two')}" aria-hidden="true">${esc(kit)}</span>` : ''}<img class="${cx('po-hero__face', !p.cutout && 'is-square')}" src="${esc(p.face!)}" alt="${esc(name)}"><span class="po-hero__line" aria-hidden="true"></span><span class="po-hero__slab" aria-hidden="true"></span><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div><div class="po-hero__who">${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}<span class="po-hero__name" data-fit="${p.compact ? HERO_NAME.compact : HERO_NAME.full}" style="font-size:${size}px;line-height:${Math.round(size * 1.08)}px">${esc(name)}</span>${chips}</div>${
     p.value != null ? `<div class="po-hero__num"><span class="po-hero__value po-num">${esc(p.value)}</span>${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${p.children ?? ''}</section>`;
@@ -130,7 +130,7 @@ export function HeroPanel(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text')}"><div class="${cx('po-hero__bar', !p.back && 'is-noback')}">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
+  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text')}"><div class="${cx('po-hero__bar', !p.back && 'is-noback')}">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="${cx('po-hero__right', p.rightHtml == null && 'is-text', p.rightHtml == null && Array.from(p.right ?? '').length >= 10 && 'is-long')}">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}${
     val != null ? `<div class="${cx('po-hero__num', p.unit && 'has-unit')}"><span class="po-hero__value po-num">${esc(val)}</span>${p.total != null ? `<span class="po-hero__total po-num">/ ${p.total}</span>` : ''}${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${
     pct != null && p.progress !== false ? `<div class="po-hero__progress"><span class="po-hero__track"><i style="width:${pct}%"></i></span><span class="po-num">${pct}%</span></div>` : ''}${

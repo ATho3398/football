@@ -46,17 +46,19 @@ describe('폭 판정', () => {
 });
 
 describe('PC 2열 화면 (디자인 120 · 121 · 153 · 123)', () => {
-  it('홈 120: 폰은 1열 그대로, PC는 왼쪽 다음 경기 · 오른쪽 선수 카드 · 4칸 · 내 상태', () => {
+  it('홈 120 → 204(C.76g): 폰은 1열 그대로, PC는 왼쪽 다음 경기 · 내 상태 · 오른쪽 선수 카드 · 4칸 · 시즌 목표', () => {
     const g = son();
     const phone = homeView(homeVM(g));
     expect(phone).not.toContain('pc2');
     setWideForTest(true);
-    const pc = homeView(homeVM(g));
+    const pc = homeView(homeVM(g), '', '', '', '', '<i id="goals"></i>');
     expect(pc).toContain('pc2 hm-pc');
     const r = pc.slice(pc.indexOf('pc2__r'));
     expect(r).toContain('po-pcard');
-    expect(r).toContain('내 상태');
-    expect(pc.slice(0, pc.indexOf('pc2__r'))).toContain('next-card');
+    expect(r).toContain('id="goals"');
+    const l = pc.slice(0, pc.indexOf('pc2__r'));
+    expect(l).toContain('next-card');
+    expect(l).toContain('내 상태');
     expect(pc).not.toContain('po-hero--face'); // 사진 없는 실제 선수(테스트엔 facepack 없음) = 일반 B 머리말 (C.74e: 사진 있으면 PC 도 미페)
   });
   it('선수 121 · 153: PC는 왼쪽 능력치 늘 + 오른쪽 탭 4개(능력치 탭이면 몸·태그)', () => {

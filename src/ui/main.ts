@@ -468,6 +468,7 @@ function screenHtml(): string {
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       const hvm = homeVM(g);
       hvm.exit = !liveScreen();
+      hvm.inbox = unreadCount(g);
       // C.70 (디자인 162): 방금 레벨업했으면 포인트 배너를 "Lv n · 포인트 +n" 으로
       if (ui.lvUp && hvm.points > 0) hvm.banners = hvm.banners.map((b) => (b.to === 'allocate' ? { ...b, title: `Lv ${ui.lvUp!.level} · 포인트 +${ui.lvUp!.plus}`, body: `레벨이 올랐어요. 찍을 포인트가 ${hvm.points}P가 됐어요.` } : b));
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
@@ -478,8 +479,8 @@ function screenHtml(): string {
       const hin = homeInboxVM(g);
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
-      // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (시즌 목표·주전 경쟁·라이벌) → 안내·포변
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread)) + guideResetLink() + sheet;
+      // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (기록·주전 경쟁·라이벌) → 안내·포변. C.76g (디자인 204): 시즌 목표는 다음 경기 바로 아래
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '') + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);

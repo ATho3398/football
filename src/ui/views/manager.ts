@@ -1,6 +1,6 @@
-// 감독 신뢰도·면담 (C.62, 18.2·18.3): 홈 "주전 경쟁" 카드(디자인 22) · 감독 면담 화면(디자인 45) · 면담 결과 한 줄
+// 감독 신뢰도·면담 (C.62, 18.2·18.3 · C.76g 디자인 198 감독 줄): 홈 "주전 경쟁" 카드(디자인 22) · 감독 면담 화면(디자인 45) · 면담 결과 한 줄
 
-import { Avatar, Button, HeroPanel, Icon, Meter, OptionRow, SectionTitle, esc } from '../components';
+import { Avatar, Button, HeroPanel, Icon, OptionRow, SectionTitle, esc } from '../components';
 import type { CompetitionVM, MeetingVM } from '../managerVM';
 import { actionRow, panel } from './common';
 
@@ -20,8 +20,8 @@ export function competitionSection(vm: CompetitionVM): string {
   const hint = `<div class="mg-hint">${Icon({ name: 'player', size: 18 })}<span class="grow">${esc(vm.hint)}</span>${
     vm.meeting ? Button({ size: 'sm', act: 'go', data: { to: 'meeting' }, children: '면담하기' }) : ''}</div>`;
   return `${SectionTitle({ title: `주전 경쟁 · ${vm.pos}`, action: `선발 확률 ${vm.chance}%` })}
-    ${panel(`${Meter({ label: '감독 신뢰도', value: vm.trust, showValue: true, tone: 'mine' })}
-      <p class="small muted mg-mgr">${esc(vm.manager)}</p>
+    ${panel(`<div class="mg-boss">${Avatar({ size: 44 })}<div class="grow"><small class="muted">감독</small><b>${esc(vm.mgrName)}</b>${vm.mgrStyle ? `<small class="muted">${esc(vm.mgrStyle)}</small>` : ''}</div><span class="mg-boss__trust"><small class="muted">신뢰도</small><span><b class="po-num">${vm.trust}</b><small class="po-num"> / 100</small></span></span></div>
+      <div class="mg-trustbar" role="meter" aria-label="감독 신뢰도" aria-valuenow="${vm.trust}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(0, Math.min(100, vm.trust))}%"></i></div>
       <div class="mg-rows">${rows}${legend}</div>
       ${perks}
       <hr class="mg-hr">

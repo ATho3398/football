@@ -223,6 +223,10 @@ export interface HomeVM {
   chapter: string;
   /** 재정 (C.68a): 고를 수 있는 코치 후보 수 (홈 재정 아이콘 배지) */
   money?: number;
+  /** 안 읽은 인박스 (C.76g 디자인 197·211 머리말 알림 종 배지, main 이 채움) */
+  inbox?: number;
+  /** 부상 남은 날 (C.76g 디자인 228 머리말 칩 "부상 · n일 남음") */
+  injuryDays?: number;
   season: string;
   round: number;
   /** 다음 경기 대회 한 줄 (C.67): "리그 12R" / "FA컵 32강" */
@@ -439,6 +443,7 @@ export function homeVM(g: GameState): HomeVM {
   return {
     chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
     money: g.money?.candidates.length ?? 0,
+    ...(g.player.injury ? { injuryDays: g.player.injury.daysLeft } : {}),
     season: seasonLabel(g.league.season), round: Math.min(g.league.round + 1, g.league.schedule.length), rounds: g.league.schedule.length,
     comp: g.phase === 'season' ? matchCompLabel(g) : '',
     phase: g.phase, banners, next, card: playerCardVM(g), condition: conditionVM(g),

@@ -21,6 +21,9 @@ export interface CompetitionVM {
   chance: number;
   trust: number;
   manager: string;
+  /** C.76g (디자인 198 감독 줄): 이름 · 성향 따로 */
+  mgrName: string;
+  mgrStyle: string;
   rows: RivalRowVM[];
   log: TrustLogVM[];
   hint: string;
@@ -71,6 +74,7 @@ export function competitionVM(g: GameState): CompetitionVM | null {
   return {
     pos, chance, trust: Math.round(m.trust), rows: vm, perks,
     manager: md ? `${md.nameKo} 감독 · ${MANAGER_STYLE_KO[md.style]}` : '감독 정보 없음',
+    mgrName: md?.nameKo ?? '감독 정보 없음', mgrStyle: md ? MANAGER_STYLE_KO[md.style] : '',
     log: m.log.slice().reverse().map((e) => ({ v: sign(r1(e.delta)), t: e.why, when: when(daysBetween(e.date, g.calendar.date)), up: e.delta > 0 })),
     hint: nextMeetingHint(g), meeting: m.meeting, captain: isCaptain(g) ? '주장' : captainCandidate(g) ? '주장 후보' : '',
   };
