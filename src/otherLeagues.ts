@@ -11,9 +11,11 @@ import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roste
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
 import { envField, matchConditions } from './matchEnv';
+import { derbyOf } from './derby';
+import { leagueWeight, matchClutch } from './clutch';
 
-/** 다른 리그 선수 기록: [골, 도움, 출전, 평점×10 합, 분] (빠른 계산 경기는 출전·평점·분 없음) */
-export type OtherStat = [number, number, number?, number?, number?];
+/** 다른 리그 선수 기록: [골, 도움, 출전, 평점×10 합, 분, 결정적 순간×10 (C.76n)] (빠른 계산 경기는 출전·평점·분·결정적 순간 없음) */
+export type OtherStat = [number, number, number?, number?, number?, number?];
 
 /** 다른 리그 득점왕 한 줄 (지난 시즌 기록, C.76c): [이름, 팀 id, 골] */
 export type TopScorer = [string, string, number];
@@ -32,12 +34,15 @@ export interface OtherLeague extends LeagueState {
 
 const MAX_PAST = 30;
 
-export function calendarKind(id: string): 'autumn-spring' | 'spring-autumn' {
-  return leagueData(id)?.calendar ?? 'autumn-spring';
+/**
+ * 리그 달력 (C.76m): 모든 리그가 PL 과 같은 8~5월(추춘제)·같은 시즌 번호. 3~12월은 통일 전 세이브에서 진행 중이던 시즌(legacyCal)만
+ */
+export function calendarKind(lg: Pick<LeagueState, 'legacyCal'>): 'autumn-spring' | 'spring-autumn' {
+  return lg.legacyCal ?? 'autumn-spring';
 }
 
 export function otherLeagueCalendar(worldSeed: string, lg: LeagueState): SeasonCalendar {
-  return leagueCalendar(worldSeed, lg, calendarKind(lg.id));
+  return leagueCalendar(worldSeed, lg, calendarKind(lg));
 }
 
 /** 고른 리그 정리: 내 리그 맨 앞(없으면 PL), 등록된 리그만, 중복 없이 */
@@ -48,7 +53,7 @@ export function normalizeLeagues(ids: readonly string[] | undefined, mine?: stri
   return out;
 }
 
-/** 새 게임: 내 리그를 뺀 고른 리그의 첫 시즌 (춘추제가 아닌 리그도 같은 시작 연도 = 2018 시즌 3~12월) */
+/** 새 게임: 내 리그를 뺀 고른 리그의 첫 시즌 (C.76m: 모든 리그 같은 8~5월 달력 — 데이터의 2018 시즌 팀·선수 그대로 2018-19 시즌) */
 export function createOtherLeagues(worldSeed: string, leagueIds: readonly string[], season: number): OtherLeague[] {
   return leagueIds.slice(1).map((id) => createLeague(worldSeed, season, id));
 }
@@ -73,13 +78,16 @@ function nextOf(worldSeed: string, lg: OtherLeague): { next: LeagueState; openin
 const ROSTERS = new Map<string, TeamRoster>();
 const ROSTER_CACHE_MAX = 600;
 
-/** 내 리그가 아닌 리그 팀의 시드 로스터 (그 시즌 처음 부를 때의 레이팅, 실제 선수 = 소속 클럽 이름이 그 팀인 NPC) */
+/**
+ * 내 리그가 아닌 리그 팀의 시드 로스터 (레이팅, 실제 선수 = 소속 클럽 이름이 그 팀인 NPC).
+ * 캐시 키에 레이팅·실제 선수 id 를 넣는다 (C.76m): 언제 처음 불렀는지(미리 계산·불러오기)와 무관하게 지금 상태로 정해진다
+ */
 export function leagueTeamRoster(worldSeed: string, id: string, rating: number, season: number, npcs?: readonly NpcState[]): TeamRoster {
-  const key = `${worldSeed}:${id}:${season}`;
+  const reals = (npcs ?? []).filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === id);
+  const key = `${worldSeed}:${id}:${season}:${rating}:${reals.map((n) => n.id).join(',')}`;
   let hit = ROSTERS.get(key);
   if (!hit) {
     if (ROSTERS.size >= ROSTER_CACHE_MAX) ROSTERS.clear();
-    const reals = (npcs ?? []).filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === id);
     hit = createTeamRoster({ id, rating }, worldSeed, season, reals);
     ROSTERS.set(key, hit);
   }
@@ -164,8 +172,15 @@ export function applyOtherLeagueJob(state: { otherLeagues?: OtherLeague[] }, job
     ...job.input.home.players.map((p) => [p.id, [p.nameKo, f.home]] as [string, [string, string]]),
     ...job.input.away.players.map((p) => [p.id, [p.nameKo, f.away]] as [string, [string, string]]),
   ]);
+  // 결정적 순간 (C.76n 개인 시상): 결승골 · 늦은 동점/역전골 · 해트트릭, 더비 · 상위 팀 상대 무게
+  const top = new Set([...lg.teams].sort((x, y) => y.rating - x.rating).slice(0, BALANCE.awards.resume.clutch.topRank).map((t) => t.id));
+  const derby = !!derbyOf(f.home, f.away);
+  const clutch = new Map<string, number>();
+  matchClutch(res.goals, res.hg, res.ag, [leagueWeight(derby, top.has(f.away)), leagueWeight(derby, top.has(f.home))], (id, p) => clutch.set(id, (clutch.get(id) ?? 0) + p));
   for (const [id, min, g, a, r10] of res.players) {
     const t = (stats[id] ??= [0, 0]);
+    const c = clutch.get(id);
+    if (c) t[5] = (t[5] ?? 0) + Math.round(c * 10);
     t[0] += g;
     t[1] += a;
     t[2] = (t[2] ?? 0) + 1;

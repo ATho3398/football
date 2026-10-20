@@ -197,6 +197,9 @@ export interface TeamState {
   coverAgent: number;
   /** GK 가 루즈볼을 쫓는 중 (C.28): 필드 추격자를 1명 줄인다 */
   gkChase: boolean;
+  /** 깊은 블록 비행 중 가로채기 (C.76p): 이 비행(cutFlight)의 패스 선에 들어간 선수 idx. 판정은 한 비행에 1회(판정 뒤 cutIdx −1, cutFlight 는 유지) */
+  cutFlight: Flight | null;
+  cutIdx: number;
   /** 수비 상황 판정 (C.75c): 지금 상황과 그 시작 시각, 바뀌려는 후보와 그 시작 시각. '-' = 우리 공 */
   sit: DefSit;
   sitSince: number;

@@ -25,24 +25,36 @@ function tierFromCuts(value: number, cuts: Record<Tier, number>): Tier {
 export const skillTier = (ovr: number): Tier => tierFromCuts(ovr, BALANCE.skillTierCuts);
 export const NO_HONORS: Honors = { ballonDor: 0, trebles: 0, worldCups: 0 };
 
-/** 레전더리 조건 하나하나 (8.1, 부록 C.23): 화면의 조건 목록과 판정에 같이 쓴다 */
+/** 최고 개인상 수 (레전더리 조건 4a): 시즌마다 최대 topPerSeason 개까지 */
+export function topAwardCount(h: Honors | undefined): number {
+  const L = BALANCE.reputation.legendary;
+  return Object.values(h?.top ?? {}).reduce((t, n) => t + Math.min(L.topPerSeason, n), 0);
+}
+
+/** 레전더리 조건 하나하나 (8.1, 부록 C.23 → C.76n 4a 개정): 화면의 조건 목록과 판정에 같이 쓴다 */
 export function legendaryConditions(rep: number, h: Honors = NO_HONORS): { label: string; met: boolean }[] {
   const L = BALANCE.reputation.legendary;
   const cut = BALANCE.reputation.tierCuts.worldClass;
+  const top = topAwardCount(h);
   return [
     { label: `위상 ${cut} 이상 (월드클래스)`, met: rep >= cut },
-    { label: `발롱도르 ${L.ballonDorMin}회 이상`, met: h.ballonDor >= L.ballonDorMin },
+    { label: `발롱도르 ${L.ballonDorMin}회 이상 또는 최고 개인상 ${L.topMin}회 이상 (지금 ${top}회)`, met: h.ballonDor >= L.ballonDorMin || top >= L.topMin },
     { label: '트레블', met: h.trebles > 0 },
     { label: '월드컵 우승', met: h.worldCups > 0 },
     { label: `발롱도르 ${L.ballonDorAlt}회 이상`, met: h.ballonDor >= L.ballonDorAlt },
+    { label: `최고 개인상 ${L.topAlt}회 이상`, met: top >= L.topAlt },
   ];
 }
 
-/** 업적 조건: 발롱도르 1회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 3회 이상). 기록이 없으면 false */
+/**
+ * 업적 조건 (C.76n 4a): [발롱도르 1회 이상 또는 최고 개인상 3회 이상] 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 3회 이상 또는 최고 개인상 6회 이상).
+ * 최고 개인상 = 더 베스트 · 리그 올해의 선수(47b) · 야신 · 올해의 수비수 · 월드컵 골든볼 (시즌당 최대 2). 기록이 없으면 false
+ */
 export function legendaryHonorsMet(h: Honors | undefined): boolean {
   if (!h) return false;
   const L = BALANCE.reputation.legendary;
-  return h.ballonDor >= L.ballonDorMin && (h.trebles > 0 || h.worldCups > 0 || h.ballonDor >= L.ballonDorAlt);
+  const top = topAwardCount(h);
+  return (h.ballonDor >= L.ballonDorMin || top >= L.topMin) && (h.trebles > 0 || h.worldCups > 0 || h.ballonDor >= L.ballonDorAlt || top >= L.topAlt);
 }
 
 /** 위상 점수(+업적) → 위상 티어. 레전더리는 월드클래스 점수 + 업적 조건 (8.1, 부록 C.23) */

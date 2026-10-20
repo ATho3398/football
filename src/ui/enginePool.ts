@@ -7,6 +7,9 @@
 //   (입력 키 = inputKey, 다르면 버리고 새로 계산). 미리 계산은 실제 작업이 없을 때만 돈다
 // - 오류: 워커 오류·시간 초과면 그 작업을 메인 스레드에서 다시 계산하고 워커를 새로 띄운다 (2번 넘게 죽으면 메인 스레드만)
 // - 취소: cancelPrefetch 는 아직 시작 안 한 미리 계산을 버린다 (자동 진행이 멈출 때)
+//
+// C.76m 다른 경기 백그라운드 미리 계산: plan(jobs) = 앞으로 며칠 다른 경기 목록을 통째로 맡긴다 (목록에 없는 보관분은 버림, 가까운 날 먼저).
+// 미리 계산에 워커를 specWorkers 개까지 띄운다(하나는 실제 작업용으로 남김). 보관은 입력 키의 요약(digest)으로 해 메모리를 줄인다
 
 import { runJob, type EngineJob } from '../engine/jobs';
 import type { NpcMatchResult } from '../engine/npcMatch';
@@ -18,12 +21,12 @@ export const MAX_WORKERS = 6;
 export const JOB_TIMEOUT_MS = 60000;
 /** 워커가 이만큼 죽으면 더 띄우지 않고 메인 스레드로만 계산한다 */
 const MAX_FAILS = 2;
-/** 미리 계산 결과 보관 수 (하루치 다른 경기 + 내 경기 두 날 분) */
-const PREFETCH_KEEP = 24;
+/** 미리 계산 보관 상한 (C.76m): 3일치 — 바쁜 날 14개 리그 약 80 + 내 리그 10경기 × 3 */
+export const PREFETCH_KEEP = 300;
 
 type Task = {
   id: number;
-  job: EngineJob;
+  job: EngineJob | null;
   key: string | null;
   spec: boolean;
   resolve: (v: unknown) => void;
@@ -64,6 +67,8 @@ export class EnginePool {
   private broken = false;
   private factory: WorkerFactory;
   private runner: (job: EngineJob) => unknown;
+  /** 미리 계산에 쓰는 워커 수 (C.75b 데우기 = 1, C.76m plan 이 정한다) */
+  private specWorkers = 1;
   readonly stats: PoolStats;
 
   /** factory·runner 는 테스트용 (가짜 워커, 메인 스레드 계산) */
@@ -130,6 +135,8 @@ export class EnginePool {
     slot.timer = null;
     const t = slot.task;
     slot.task = null;
+    // 끝난 미리 계산은 결과만 보관 (입력은 놓는다)
+    if (t?.spec) t.job = null;
     this.pump();
     if (!t || t.id !== msg.id) return;
     if (msg.error !== undefined) t.reject(new Error(msg.error));
@@ -148,8 +155,8 @@ export class EnginePool {
       if (!this.queue.length) return;
       let slot = this.slots.find((s) => !s.task);
       if (!slot) {
-        // 실제 작업이 밀려 있을 때만 워커를 더 띄운다 (미리 계산만으로는 데운 워커 하나로)
-        if (!this.queue.some((t) => !t.spec) && this.slots.length > 0) return;
+        // 실제 작업이 밀려 있으면 워커를 더 띄운다. 미리 계산만이면 specWorkers 개까지 (C.75b 기본 1 = 데운 워커 하나)
+        if (!this.queue.some((t) => !t.spec) && this.slots.length >= Math.max(1, Math.min(this.specWorkers, this.size - 1))) return;
         slot = this.spawn() ?? undefined;
         if (!slot) return this.broken ? this.drainToMain() : undefined;
       }
@@ -159,7 +166,7 @@ export class EnginePool {
       const s = slot;
       s.timer = setTimeout(() => this.kill(s, 'worker timeout'), JOB_TIMEOUT_MS);
       try {
-        s.w.postMessage({ id: t.id, job: t.job });
+        s.w.postMessage({ id: t.id, job: t.job! });
       } catch {
         // 보낼 수 없는 입력(복제 오류): 이 작업만 메인 스레드에서
         clearTimeout(s.timer);
@@ -176,7 +183,7 @@ export class EnginePool {
     t.started = true;
     this.stats.main++;
     setTimeout(() => {
-      try { t.resolve(this.runner(t.job)); } catch (e) { t.reject(e as Error); }
+      try { t.resolve(this.runner(t.job!)); } catch (e) { t.reject(e as Error); }
     }, 0);
   }
 
@@ -207,7 +214,7 @@ export class EnginePool {
   run(job: EngineJob): Promise<unknown> {
     this.stats.jobs++;
     let key: string | null = null;
-    if (this.spec.size) try { key = inputKey(job); } catch { key = null; }
+    if (this.spec.size) try { key = specKey(job); } catch { key = null; }
     const hit = key ? this.spec.get(key) : undefined;
     if (hit) {
       this.spec.delete(key!);
@@ -238,7 +245,7 @@ export class EnginePool {
   prefetch(job: EngineJob): void {
     if (this.broken) return;
     let key: string;
-    try { key = inputKey(job); } catch { return; }
+    try { key = specKey(job); } catch { return; }
     if (this.spec.has(key)) return;
     const t = this.task(job, key, true);
     this.spec.set(key, t);
@@ -263,9 +270,61 @@ export class EnginePool {
     if (job) {
       this.prefetch(job);
       let t: Task | undefined;
-      try { t = this.spec.get(inputKey(job)); } catch { t = undefined; }
+      try { t = this.spec.get(specKey(job)); } catch { t = undefined; }
       t?.promise.then(() => { this.stats.warmMs ??= Math.round(performance.now() - t0); }, () => {});
     }
+  }
+
+  /**
+   * 며칠치 미리 계산 (C.76m): jobs(가까운 날 먼저) 를 보관 목표로 삼는다. 목록에 없는 보관분·대기분은 버리고(입력이 바뀐 경기·지난 날),
+   * 새 것은 순서대로 맡긴다 (PREFETCH_KEEP 까지). 미리 계산에 워커를 workers 개까지 띄운다. 맡긴 새 작업 수
+   */
+  plan(jobs: readonly EngineJob[], workers = this.size - 1): number {
+    if (this.broken) return 0;
+    const want = new Map<string, EngineJob>();
+    for (const j of jobs) {
+      if (want.size >= PREFETCH_KEEP) break;
+      try { const k = specKey(j); if (!want.has(k)) want.set(k, j); } catch { /* 키를 못 만드는 입력은 미리 계산 안 함 */ }
+    }
+    for (const [k, t] of [...this.spec]) {
+      if (want.has(k)) continue;
+      this.spec.delete(k);
+      this.queue = this.queue.filter((x) => x !== t);
+      this.stats.wasted++;
+      t.reject(new Error('dropped'));
+    }
+    let added = 0;
+    for (const [k, j] of want) {
+      if (this.spec.has(k)) continue;
+      const t = this.task(j, k, true);
+      this.spec.set(k, t);
+      this.queue.push(t);
+      this.stats.prefetched++;
+      added++;
+    }
+    // 대기 중 미리 계산을 목록 순서(가까운 날 먼저)로
+    const order = new Map([...want.keys()].map((k, i) => [k, i]));
+    const real = this.queue.filter((t) => !t.spec);
+    const specs = this.queue.filter((t) => t.spec).sort((a, b) => (order.get(a.key!) ?? 1e9) - (order.get(b.key!) ?? 1e9));
+    this.queue = [...real, ...specs];
+    this.specWorkers = Math.max(1, workers);
+    this.pump();
+    return added;
+  }
+
+  /** 이 입력의 미리 계산이 끝나 보관돼 있는가 (C.76m, 진행 표시용) */
+  ready(job: EngineJob): boolean {
+    if (!this.spec.size) return false;
+    let t: Task | undefined;
+    try { t = this.spec.get(specKey(job)); } catch { return false; }
+    return !!t && t.started && !this.slots.some((s) => s.task === t);
+  }
+
+  /** 보관 중인 미리 계산 수 · 그중 끝난 수 (진행 표시용, C.76m) */
+  get planned(): { total: number; ready: number } {
+    let ready = 0;
+    for (const t of this.spec.values()) if (t.started && !this.slots.some((s) => s.task === t)) ready++;
+    return { total: this.spec.size, ready };
   }
 
   /** 아직 시작 안 한 미리 계산을 버린다 (계산 중인 것은 끝나면 보관만, 다음 run 이 쓰지 않으면 버려짐) */
@@ -278,11 +337,12 @@ export class EnginePool {
     }
   }
 
-  /** 미리 계산 결과를 모두 버린다 (게임을 바꿀 때) */
+  /** 미리 계산 결과를 모두 버린다 (게임을 바꿀 때, 빠른 진행으로 바꿀 때) */
   clearPrefetch(): void {
     this.cancelPrefetch();
     this.stats.wasted += this.spec.size;
     this.spec.clear();
+    this.specWorkers = 1;
   }
 
   npc(input: Extract<EngineJob, { kind: 'npc' }>['input']): Promise<NpcMatchResult> {
@@ -326,6 +386,28 @@ export function inputKey(job: EngineJob): string {
     }
     return v;
   });
+}
+
+/**
+ * 보관 키 (C.76m): inputKey(약 35KB) 의 요약 — 53비트 해시 2개 + 길이. 3일치 수백 경기를 보관해도 키 메모리가 작다
+ * (서로 다른 입력이 같은 요약일 확률은 2^-100 수준)
+ */
+export function specKey(job: EngineJob): string {
+  const s = inputKey(job);
+  return `${cyrb53(s, 0x9e37)}.${cyrb53(s, 0x85eb)}.${s.length}`;
+}
+
+function cyrb53(s: string, seed: number): string {
+  let h1 = 0xdeadbeef ^ seed;
+  let h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
 export function poolSize(): number {

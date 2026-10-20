@@ -2853,3 +2853,8 @@ main:has(.fn-body) .po-hero__chips > * { min-width: 0; flex: 0 1 auto; overflow:
 @media (min-width: 1024px) and (min-height: 521px), (min-width: 1024px) and (orientation: portrait) {
   #app:has(.ib-pc), #app:has(.mg-pc) { max-width: 1072px; }
 }
+
+/* 개인 시상 (C.76n, 디자인 없음) */
+.aw-body .aw-desc { margin: -4px 0 8px; }
+.aw-body .aw-more summary { cursor: pointer; padding: 8px 0 4px; }
+.aw-body .tbl td.l small { font-weight: 400; }

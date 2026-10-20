@@ -33,6 +33,7 @@ import {
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
 import { awardBadges } from './badges';
+import { awardsDayEnd, awardsFlush, awardsSeasonEnd, type AwardsState } from './awards';
 import { randomName } from './prospect';
 import { clampWeakFoot, realBody, rollBody, type Body, type WeakFoot } from './body';
 import { judgeEvergreen, judgeLateBloomer, judgeNatural, lateBloomerSkip, tagChangeLine, type NaturalInput, type TagChange } from './careerTags';
@@ -90,7 +91,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 51;
+export const SAVE_FORMAT_VERSION = 53;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -313,6 +314,8 @@ export interface GameState {
   showcase?: ShowcaseState;
   /** 대표팀 (C.76d): 국가·A매치 주간 소집·대표팀 경기·통산 기록·지난 대회. 없으면 처음 쓸 때 만든다 */
   national?: NationalState;
+  /** 개인 시상 역대 수상자 (C.76n): 발롱도르 · 더 베스트 · 골든보이 · 골든부츠. 옛 세이브는 마이그레이션으로 빈 목록 */
+  globalAwards?: AwardsState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -730,7 +733,7 @@ export function newGame(opts: NewGameOptions): GameState {
     ...(legendsOn ? { legends: true, legendPack: LEGEND_PACK } : {}),
     ...(futureOn ? { futureStars: true } : {}),
     // 새 커리어는 개막 7일 전 소집부터 (25.3 5번, C.41)
-    calendar: { date: addDays(leagueCalendar(worldSeed, league, calendarKind(league.id)).opening, -BALANCE.training.vacation.campDays) },
+    calendar: { date: addDays(leagueCalendar(worldSeed, league, calendarKind(league)).opening, -BALANCE.training.vacation.campDays) },
     playerStats: {},
     options: { quickOthers: false },
     worldSeed,
@@ -748,11 +751,11 @@ export function newGame(opts: NewGameOptions): GameState {
     control: { mode: 'direct', stop: 'important' },
     tactics: teamDefaultTactics(player.teamId, rosters[player.teamId], player.position),
     cards: initCollection(player.position),
-    training: initTraining(addDays(leagueCalendar(worldSeed, league, calendarKind(league.id)).opening, -BALANCE.training.vacation.campDays)),
+    training: initTraining(addDays(leagueCalendar(worldSeed, league, calendarKind(league)).opening, -BALANCE.training.vacation.campDays)),
     archive: [],
     records: { done: [], fresh: [] },
   };
-  // 다른 리그 (C.75m): 소집일 전날까지 (춘추제가 아닌 리그는 3월부터 치른 2018 시즌 전반기)
+  // 다른 리그 (C.75m): 소집일 전날까지 (C.76m: 모든 리그 같은 8~5월이라 개막 전 — 치를 경기 없음)
   syncOtherLeagues(state, addDays(state.calendar.date, -1));
   // 구단 재정 (C.46): 첫 시즌 예산 (지난 시즌 순위 대신 레이팅 순)
   ensureFinance(state, season);
@@ -856,7 +859,7 @@ function updateFatigueForMatch(p: PlayerState, minutes: number): void {
 /** 이번 시즌 일정 (시드로 다시 만든다) */
 /** 내 리그 이번 시즌 달력 (PL = seasonCalendar 그대로, 다른 리그 = 리그 달력, C.76c) */
 export function calendarOf(state: GameState): SeasonCalendar {
-  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league.id));
+  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league));
 }
 
 /** 다음 내 경기 날짜 (리그 또는 컵). 시즌이 아니면 null */
@@ -942,6 +945,24 @@ export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
       recordResult(state.league, f, hg, ag);
     }
   }
+}
+
+/**
+ * 앞으로 다른 경기 엔진 입력 (C.76m 백그라운드 미리 계산): 오늘 남은 것부터 경기가 있는 날 days 일치(within 일 안), 가까운 날 먼저.
+ * 날마다 내 리그 다른 팀 경기 → 고른 다른 리그 순. 내 팀 경기는 넣지 않는다. 상태를 바꾸지 않는다 (입력만 만든다)
+ */
+export function upcomingOthers(state: GameState, days: number, within = 7): NpcMatchInput[] {
+  const out: NpcMatchInput[] = [];
+  let n = 0;
+  for (let d = 0; d <= within && n < days; d++) {
+    const date = addDays(state.calendar.date, d);
+    const own = todaysOthers(state, date).map(([r, i]) => otherJob(state, r, i).input);
+    const lg = otherLeagueJobs(state, date).map((j) => j.input);
+    if (!own.length && !lg.length) continue;
+    out.push(...own, ...lg);
+    n++;
+  }
+  return out;
 }
 
 // ── 훈련과 휴가 (25.3, 부록 C.41) ──
@@ -1407,6 +1428,8 @@ export function endDay(state: GameState): TrainingDayResult {
   ensureCups(state);
   cupsDayEnd(state, ended);
   state.calendar.date = addDays(ended, 1);
+  // 개인 시상 (C.76n): 발표 날짜가 된 상 (발롱도르 후보 8월 · 발롱도르·코파·야신·뮐러 10월 · 골든보이 11월 · 더 베스트 12월)
+  awardsDayEnd(state, ended);
   // 대표팀 (C.76d): A매치 주간 소집 발표 (소집이면 평가전을 내 경기 일정에)
   nationalDayEnd(state, calendarOf(state).breaks, myMatchDates(state));
   // 다른 리그 (C.75m): 오늘 경기 빠른 시뮬
@@ -2308,10 +2331,15 @@ export function endSeason(state: GameState): SeasonSummary {
   // 동료 호흡 (C.74c): 떠난 동료 지우기
   chemSeasonEnd(state);
 
+  // 개인 시상 (C.76n): 리그·컵·여름 대표팀 대회가 끝난 뒤 이력서 → 투표. 결과는 실제 시점(10~12월)에 하루 끝에서 발표,
+  // 발표 날짜가 없는 상(골든부츠)은 여기서 바로 — 그 업적 XP 는 시즌 업적에 같이
+  const gAw = awardsSeasonEnd(state, natEnd.tournament);
+
   // 1. 업적 XP (+ 컵·챔스 업적, C.67b)
   const pos = leaguePosition(league, player.teamId);
   const cupAch = cupAchievements(state, pos);
-  const achievements = [...seasonAchievements(player, league), ...cupAch.map(({ label, xp }) => ({ label, xp })), ...natEnd.achievements.map(({ label, xp }) => ({ label, xp }))];
+  const achievements = [...seasonAchievements(player, league), ...cupAch.map(({ label, xp }) => ({ label, xp })), ...natEnd.achievements.map(({ label, xp }) => ({ label, xp })),
+    ...gAw.map(({ label, xp }) => ({ label, xp }))];
   // 월드컵 우승 (18.12·8.2): 기록 → 레전드 배지·레전더리 조건, 전설 선택권
   if (natEnd.achievements.some((a) => a.key === 'wcWin')) {
     player.honors = { ...player.honors, worldCups: player.honors.worldCups + 1 };
@@ -2334,7 +2362,8 @@ export function endSeason(state: GameState): SeasonSummary {
   const startFloorTier = reputationFloorTier(reputationBefore);
   // 영원한 <구단>·친정 선택 (C.47): 시즌 위상 증가 소폭 + (팬 인기 = 위상)
   // 컵·챔스 업적 XP 는 위상 증가에 넣지 않는다 (C.67b: 레전더리 35세 월드클래스 비율 가드)
-  const cupXp = cupAch.reduce((t, a) => t + a.xp, 0) + natEnd.achievements.reduce((t, a) => t + a.xp, 0);
+  // 개인 시상 XP (C.76n)도 같이 뺀다 (발롱도르는 레전드 배지 위상 +30 으로)
+  const cupXp = cupAch.reduce((t, a) => t + a.xp, 0) + natEnd.achievements.reduce((t, a) => t + a.xp, 0) + gAw.reduce((t, a) => t + a.xp, 0);
   const repGain = Math.min(seasonGainCap(age), (baseXp - cupXp) * R.fromAchievementXp + personalReputation(player.season)) * storyRepMul(player, player.teamId);
   const decayFloor = reputationFloor(player.reputation);
   const afterGain = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
@@ -2435,7 +2464,8 @@ export function endSeason(state: GameState): SeasonSummary {
   // 챕터 (22.1, C.73a): 이번 시즌을 챕터 기록에 더하고, 다음 시즌이 다른 챕터면 닫는다 (리뷰 예약 · 카드 선택권)
   const trophies = [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map((a) => a.label),
     ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승'),
-    ...natEnd.achievements.filter((a) => a.label.endsWith('우승')).map((a) => a.label), ...(gr.awards.filter((a) => !a.includes('리그 우승') && !a.startsWith('레전드 배지')))];
+    ...natEnd.achievements.filter((a) => a.label.endsWith('우승')).map((a) => a.label), ...gAw.filter((a) => a.rank === 1).map((a) => BALANCE.awards.defs[a.id]!.ko),
+    ...(gr.awards.filter((a) => !a.includes('리그 우승') && !a.startsWith('레전드 배지')))];
   const startAttrs = player.seasonStartAttrs;
   chaptersSeasonEnd(state, {
     season, age, ovrStart: startAttrs ? playerOvr({ ...player, attributes: startAttrs }) : ovrBefore, ovrEnd: summary.ovrAfter,
@@ -2482,7 +2512,7 @@ export function seasonTeamRatings(state: GameState): Record<string, number> {
 export function nextCampDate(state: GameState): IsoDate {
   const id = leagueOfTeam(state.player.teamId) ?? state.league.id;
   const next = createLeague(state.worldSeed, state.league.season + 1, id);
-  return addDays(leagueCalendar(state.worldSeed, next, calendarKind(id)).opening, -BALANCE.training.vacation.campDays);
+  return addDays(leagueCalendar(state.worldSeed, next, calendarKind(next)).opening, -BALANCE.training.vacation.campDays);
 }
 
 /** 비시즌 → 다음 시즌 */
@@ -2535,6 +2565,8 @@ export function startNextSeason(state: GameState): void {
 export function retire(state: GameState): void {
   if (state.phase !== 'offseason' || !state.lastSeasonSummary?.canRetire) throw new Error('은퇴할 수 없음');
   state.phase = 'retired';
+  // 개인 시상 (C.76n): 남은 발표 (마지막 시즌 시상)
+  awardsFlush(state);
   // 챕터 (C.73a): 지금 챕터를 닫고 챕터 리뷰 → 커리어 요약
   chaptersRetire(state);
 }

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 30;
+export const ENGINE_VERSION = 31;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -206,6 +206,23 @@ export const ENGINE = {
      */
     closeDownZone: 25,
     closeDownGap: 1.5,
+    /**
+     * 깊은 블록 전용 (C.76p 44h-c, §9.11.1 가설 1 — 밀집을 패스가 뚫지 못하게): 성향 block/bus 인 팀만. 상대 땅볼 패스(outcome receive)의 착지점이
+     * 우리 골 closeDownZone 안이면 수신자 압박 담당·위협 1위 마커·GK·면제를 뺀 필드 선수 중, 남은 패스 선 위 가장 가까운 점(선에서 deepCutReach m 안)에
+     * 공보다 먼저 닿는 선수가 있으면 도착이 가장 빠른 1명이 그 점으로 간다(cutter). 공이 그 선수 deepCutRadius m 안을 지나면 한 비행에 1회
+     * deepCutP × (1 + deepCutSkill × (가로채기 − 60)/100) 로 가로챈다(실패하면 그 비행은 그대로). 패스 순간의 laneRisk 판정(onball.ts)과 별개 — 패스 뒤에 선에 들어간 선수만
+     */
+    deepCutReach: 4,
+    deepCutRadius: 1.0,
+    deepCutP: 0.6,
+    deepCutSkill: 0.5,
+    /**
+     * 깊은 블록 받는 순간 밀착 (C.76p 가설 2): block/bus 팀의 수신자 압박은 위협 1위 마커를 빼지 않고(마커가 가장 빠르면 마커가 나간다) 간격 deepCloseDownGap m,
+     * 수신자가 ST/CF 면 도착 둘째도 착지점에서 우리 골 쪽 deepCloseDownSecond m 로 간다. 둘째 ST(위협 2위 ST/CF)가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark 로 마크
+     */
+    deepCloseDownGap: 1.0,
+    deepCloseDownSecond: 3,
+    deepSecondStZone: 4,
     /**
      * 박스 앞 수비 블록 (E.20 3번): 공이 자기 골 boxZone m 안이면 수비 라인은 공보다 lineBehindBall m 골 쪽까지 물러나고,
      * 공에 가장 가까운 2명이 압박, CB 1명은 가장 위협적인 ST 에게 stMark m 마크(골과 ST 를 잇는 선상),
@@ -591,10 +608,11 @@ export const ENGINE = {
      * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0(GK 제외) 이면
      * pOn(마무리 배수 뒤) += shotFree × max(0, 1 − 거리/shotFreeRef) × 각도. "수비가 없다"는 상황 보너스라 능력과 무관하게 더한다
      * (0.38: 8 m +0.23, 12 m +0.15, 20 m+ 0; 0.30 은 12 m 안 빗나감 50 으로 부족, 배수 안에 넣으면 scoring 30골+ 2.7·리그 1.52). 판단식·실제가 같은 함수라 E.15.1 안
-     * **지금은 0(꺼짐, 부록 C.76a)**: 0.19~0.38 모두 같은 시드 scoring 30골+ 1.5 → 2.6~2.8 · 득점왕 중앙값 36~39 · 리버풀 100 → 108~110 으로
-     * 분포 관문(≤ 2) 실패 — 강팀 ST 자리가 받는 1대1 수에 비례해 몰린다 (미해결 12). 켜면 12 m 안 골 15 → 25 · 빗나감 59 → 44
+     * C.76a 때는 0(꺼짐): 0.19~0.38 모두 같은 시드 scoring 30골+ 1.5 → 2.6~2.8 · 득점왕 중앙값 36~39 · 리버풀 100 → 108~110 으로
+     * 분포 관문(≤ 2) 실패 — 그때는 강팀 자유로운 슛 격차(리버풀 3.24 : 중위 0.67)가 원인. C.76k 수신자 압박(1.82 : 0.44)·C.76p 깊은 블록 밀집 뒤
+     * **0.30 으로 켬(C.76p 단계 C, §9.11.2)**: 같은 시드 scoring 30골+ ≤ 2.0·중앙값 25~35·리그 1.3~1.5 통과 조건으로. 총량은 keeper.saveBase 1.60 → 1.62
      */
-    shotFree: 0,
+    shotFree: 0.30,
     shotFreeRef: 20,
     shotMin: 0.05,
     shotMax: 0.85,
@@ -864,8 +882,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지 */
-    saveBase: 1.62,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 */
+    saveBase: 1.64,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,

@@ -52,6 +52,11 @@ export interface LeagueState {
   teams: Team[];
   schedule: Fixture[][];
   table: TableRow[];
+  /**
+   * 옛 3~12월 달력 (C.76m): 모든 리그가 8~5월로 통일되기 전 세이브에서 진행 중이던 춘추제 시즌만 표시 (마이그레이션).
+   * 그 시즌은 옛 달력대로 끝내고, 다음 시즌(nextSeasonLeague)부터 8~5월
+   */
+  legacyCal?: 'spring-autumn';
 }
 
 /** 영문 클럽 이름 → 한글 (리그 팀 → 리그 밖 클럽, 없으면 그대로). 실제 선수 데이터의 club 표시용 (C.52) */
@@ -269,8 +274,9 @@ export function nextSeasonLeague(league: LeagueState, worldSeed: string, ratings
     const r = ratings?.[t.id] ?? t.baseRating + (t.rating - t.baseRating) * L.ratingKeep + gaussian(rng) * L.ratingNoiseSd;
     return { ...t, rating: Math.round(Math.min(L.ratingMax, Math.max(L.ratingMin, r)) * 10) / 10 };
   });
+  const { legacyCal: _old, ...rest } = league;
   return {
-    ...league,
+    ...rest,
     season,
     round: 0,
     teams,

@@ -6,7 +6,7 @@ import { keeperZone, sweepRange } from './keeper';
 import { finishSkill } from './duel';
 import { effectiveMax, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
-import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
+import { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { hasModule } from './roles';
 import { TENDENCY } from './tactics';
@@ -770,13 +770,28 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const [gx0, gy0] = ownGoal(dir);
   const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
   // 비행 중 수신자 압박 (C.76k 단계 B): 상대 패스가 우리 골 closeDownZone 안으로 떠 있으면 착지점에 가장 빨리 닿는 1명이 미리 나간다
-  if (!owner && a.line !== 0 && closeDownAgent(s, a.team, gx0, gy0) === a) {
-    const fl = b.flight!;
-    const ld = dist(fl.toX, fl.toY, gx0, gy0) || 1;
-    a.tx = clamp(fl.toX + ((gx0 - fl.toX) / ld) * O.closeDownGap, 0.3, L - 0.3);
-    a.ty = clamp(fl.toY + ((gy0 - fl.toY) / ld) * O.closeDownGap, 0.3, W - 0.3);
-    a.urgent = true;
-    return;
+  // 깊은 블록 (C.76p 가설 2): 간격 deepCloseDownGap, 수신자가 ST/CF 면 둘째도 착지점 골 쪽 deepCloseDownSecond m
+  if (!owner && a.line !== 0) {
+    const cd = closeDownPlan(s, a.team, gx0, gy0);
+    if (cd.pick === a || cd.second === a) {
+      const fl = b.flight!;
+      const ld = dist(fl.toX, fl.toY, gx0, gy0) || 1;
+      const gap = cd.pick === a ? (isDeepBlock(s, a.team) ? O.deepCloseDownGap : O.closeDownGap) : O.deepCloseDownSecond;
+      a.tx = clamp(fl.toX + ((gx0 - fl.toX) / ld) * gap, 0.3, L - 0.3);
+      a.ty = clamp(fl.toY + ((gy0 - fl.toY) / ld) * gap, 0.3, W - 0.3);
+      a.urgent = true;
+      return;
+    }
+  }
+  // 깊은 블록 비행 중 가로채기 (C.76p 가설 1): 패스 선 위 가장 가까운 점에 공보다 먼저 닿는 1명이 선으로 들어간다
+  if (!owner && a.line !== 0) {
+    const cut = deepCutAgent(s, a.team, gx0, gy0);
+    if (cut && cut.a === a) {
+      a.tx = clamp(cut.x, 0.3, L - 0.3);
+      a.ty = clamp(cut.y, 0.3, W - 0.3);
+      a.urgent = true;
+      return;
+    }
   }
   // 압박: 공에 가까운 1~2명 (2번째는 상황표 인원이 2 이상이고 압박 성향이 높을 때, C.75c)
   if (owner && owner.team !== a.team) {
@@ -1007,6 +1022,30 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       return true;
     }
     rest = defs.filter((o) => o !== marker && o !== second);
+    // 깊은 블록 둘째 ST 마크 (C.76p 가설 2): 위협 2위 ST/CF 가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark
+    if (isDeepBlock(s, a.team) && rest.length) {
+      let t2: Agent | null = null;
+      let tv = -Infinity;
+      for (const o of s.agents) {
+        if (!o.onPitch || o.team === a.team || o === owner || o === t || (o.pos !== 'ST' && o.pos !== 'CF')) continue;
+        if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.deepSecondStZone || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.deepSecondStZone) continue;
+        const v = positionValue(...toNorm(o.x, o.y, oppDir));
+        if (v > tv) { tv = v; t2 = o; }
+      }
+      if (t2) {
+        const u = t2;
+        const m2 = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
+        if (m2 === a) {
+          const gd2 = dist(u.x, u.y, gx, gy) || 1;
+          a.tx = clamp(u.x + ((gx - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
+          a.ty = clamp(u.y + ((gy - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+          a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
+          a.minRun = false;
+          return true;
+        }
+        rest = rest.filter((o) => o !== m2);
+      }
+    }
   }
   if (!cover) return false;
   // 덮는 자리: 니어 포스트(공 쪽), 페널티 지점, 파 포스트
@@ -1140,41 +1179,125 @@ function isTopForward(s: SimState, a: Agent): boolean {
  * 비행 중 수신자 압박 담당 (C.76k 단계 B, §9.10 가설 1): 상대 패스(outcome receive, 수신자 상대 필드 선수)가 떠 있고 착지점이 우리 골 closeDownZone 안이면
  * 우리 필드 선수 중 착지점 도착 시간(반응 포함)이 가장 짧은 1명. 위협 1위 마커(가장 가까운 CB, 마크 유지)·면제 역할은 뺀다. 없으면 null. 난수 없음
  */
-const closeDownCache = new WeakMap<SimState, { tick: number; pick: Agent | null }[]>();
+interface CloseDown { pick: Agent | null; second: Agent | null }
+const NO_CLOSE: CloseDown = { pick: null, second: null };
+const closeDownCache = new WeakMap<SimState, { tick: number; cd: CloseDown }[]>();
 function closeDownAgent(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
+  return closeDownPlan(s, team, gx, gy).pick;
+}
+function closeDownPlan(s: SimState, team: 0 | 1, gx: number, gy: number): CloseDown {
   // 틱마다 팀당 한 번만 계산 (focusThreat 과 같은 캐시 — 결과 불변, 22명이 같은 탐색을 되풀이하지 않게)
   let cache = closeDownCache.get(s);
-  if (!cache) closeDownCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
+  if (!cache) closeDownCache.set(s, (cache = [{ tick: -1, cd: NO_CLOSE }, { tick: -1, cd: NO_CLOSE }]));
   const c = cache[team]!;
-  if (c.tick === s.tick) return c.pick;
+  if (c.tick === s.tick) return c.cd;
   c.tick = s.tick;
-  c.pick = closeDownPick(s, team, gx, gy);
-  return c.pick;
+  c.cd = closeDownPick(s, team, gx, gy);
+  return c.cd;
 }
-function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
+/**
+ * 수신자 압박 담당. 깊은 블록(C.76p 가설 2)이면 위협 1위 마커도 후보(가장 빠르면 마커가 나간다)이고,
+ * 수신자가 ST/CF 면 도착 둘째(second)도 정한다 — 착지점 골 쪽 deepCloseDownSecond m
+ */
+function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseDown {
   const fl = s.ball.flight;
-  if (!fl || fl.outcome !== 'receive' || s.ball.owner >= 0) return null;
+  if (!fl || fl.outcome !== 'receive' || s.ball.owner >= 0) return NO_CLOSE;
   const rcv = s.agents[fl.receiver];
-  if (!rcv || rcv.team === team || rcv.line === 0) return null;
-  if (dist(fl.toX, fl.toY, gx, gy) >= O.closeDownZone) return null;
-  const threat = focusThreat(s, team);
-  let marker: Agent | null = null;
-  if (threat) {
-    let best = Infinity;
-    for (const o of s.agents) {
-      if (!o.onPitch || o.team !== team || o.pos !== 'CB') continue;
-      const d = dist(o.x, o.y, threat.x, threat.y);
-      if (d < best) { best = d; marker = o; }
-    }
-  }
+  if (!rcv || rcv.team === team || rcv.line === 0) return NO_CLOSE;
+  if (dist(fl.toX, fl.toY, gx, gy) >= O.closeDownZone) return NO_CLOSE;
+  const deep = isDeepBlock(s, team);
+  const marker = deep ? null : threatMarker(s, team);
   let pick: Agent | null = null;
+  let second: Agent | null = null;
   let bt = Infinity;
+  let bt2 = Infinity;
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== team || o.line === 0 || o === marker || hasModule(o.role, 'exempt')) continue;
     const t = arrival(o, fl.toX, fl.toY);
-    if (t < bt || (t === bt && pick && o.idx < pick.idx)) { bt = t; pick = o; }
+    if (t < bt || (t === bt && pick && o.idx < pick.idx)) {
+      bt2 = bt;
+      second = pick;
+      bt = t;
+      pick = o;
+    } else if (t < bt2 || (t === bt2 && second && o.idx < second.idx)) {
+      bt2 = t;
+      second = o;
+    }
+  }
+  if (!deep || !(rcv.pos === 'ST' || rcv.pos === 'CF')) second = null;
+  return { pick, second };
+}
+
+/** 깊은 블록 성향(수비 블록·버스 세우기)인가 */
+function isDeepBlock(s: SimState, team: 0 | 1): boolean {
+  const t = s.teams[team].tactics.tendency;
+  return t === 'block' || t === 'bus';
+}
+
+/**
+ * 깊은 블록 비행 중 가로채기 담당 (C.76p 44h-c, §9.11.1 가설 1): 우리 팀이 block/bus 이고 상대 땅볼 패스 착지점이 우리 골 closeDownZone 안이면
+ * 수신자 압박 담당·위협 1위 마커·GK·면제를 뺀 선수 중, 지금 공 위치 → 착지점 선분 위 가장 가까운 점(선에서 deepCutReach m 안)에
+ * 공보다 먼저 닿는 선수가 있으면 도착이 가장 빠른 1명과 그 점. 정해지면 팀 상태(cutFlight·cutIdx)에 적어 sim 의 deepCut 판정 대상이 된다. 난수 없음
+ */
+const deepCutCache = new WeakMap<SimState, { tick: number; pick: { a: Agent; x: number; y: number } | null }[]>();
+function deepCutAgent(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
+  let cache = deepCutCache.get(s);
+  if (!cache) deepCutCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
+  const c = cache[team]!;
+  if (c.tick === s.tick) return c.pick;
+  c.tick = s.tick;
+  c.pick = deepCutPick(s, team, gx, gy);
+  if (c.pick) {
+    const tm = s.teams[team];
+    tm.cutFlight = s.ball.flight;
+    tm.cutIdx = c.pick.a.idx;
+  }
+  return c.pick;
+}
+function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
+  if (!isDeepBlock(s, team)) return null;
+  const b = s.ball;
+  const fl = b.flight;
+  if (!fl || fl.outcome !== 'receive' || fl.air || b.owner >= 0) return null;
+  const rcv = s.agents[fl.receiver];
+  if (!rcv || rcv.team === team || rcv.line === 0) return null;
+  if (dist(fl.toX, fl.toY, gx, gy) >= O.closeDownZone) return null;
+  const tm = s.teams[team];
+  // 이 비행에서 이미 판정을 썼으면(cutFlight 는 그대로, cutIdx 만 −1) 다시 보내지 않는다
+  if (tm.cutFlight === fl && tm.cutIdx < 0) return null;
+  const remain = fl.t0 + fl.dur - s.t;
+  if (remain <= 0.05) return null;
+  const cd = closeDownPlan(s, team, gx, gy);
+  const marker = threatMarker(s, team);
+  let pick: { a: Agent; x: number; y: number } | null = null;
+  let bt = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line === 0 || o === cd.pick || o === cd.second || o === marker || hasModule(o.role, 'exempt')) continue;
+    const [d, t] = segDist(o.x, o.y, b.x, b.y, fl.toX, fl.toY);
+    if (d > O.deepCutReach || t <= 0.02 || t >= 0.98) continue;
+    const px = b.x + (fl.toX - b.x) * t;
+    const py = b.y + (fl.toY - b.y) * t;
+    const ta = arrival(o, px, py);
+    if (ta > remain * t) continue;
+    if (ta < bt || (ta === bt && pick && o.idx < pick.a.idx)) {
+      bt = ta;
+      pick = { a: o, x: px, y: py };
+    }
   }
   return pick;
+}
+/** 위협 1위를 마크하는 CB (가장 가까운 CB). 없으면 null */
+function threatMarker(s: SimState, team: 0 | 1): Agent | null {
+  const threat = focusThreat(s, team);
+  if (!threat) return null;
+  let marker: Agent | null = null;
+  let best = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.pos !== 'CB') continue;
+    const d = dist(o.x, o.y, threat.x, threat.y);
+    if (d < best) { best = d; marker = o; }
+  }
+  return marker;
 }
 
 /** 공에 더 가까운 같은 팀 공격수가 있는가 */
