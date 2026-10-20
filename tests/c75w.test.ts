@@ -1,4 +1,4 @@
-// C.75w (46b단계): 유니폼 교환 · 진열실 — 확률 단조성 · 경기당 1번 · jersey 표시 · 진열 칸 수 · 세이브 47
+// C.75w (46b단계): 유니폼 교환 · 진열실 — 확률 단조성 · 경기당 1번 · jersey 표시 · 진열 칸 수 · 세이브 48
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { MY_ID } from '../src/engine/adapter';
@@ -195,12 +195,12 @@ describe('진열실', () => {
   });
 });
 
-describe('세이브 47', () => {
-  it('옛 세이브(46) = 빈 진열 · 교환 기록 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(47);
+describe('세이브 48', () => {
+  it('옛 세이브(47) = 빈 진열 · 교환 기록 없음', () => {
+    expect(SAVE_FORMAT_VERSION).toBe(48);
     const g = game();
     const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 46;
+    raw.saveFormat = 47;
     delete raw.showcase;
     const back = migrate(raw);
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);

@@ -153,7 +153,7 @@ export function leftPersonView(vm: LeftPersonVM, back: boolean): string {
     eyebrow: `${vm.name} · ${vm.pos} · ${vm.age}세 · 마지막 OVR`, value: vm.ovr,
     chips: ['리그 밖', { label: `${vm.from} → ${vm.to}`, soft: true }],
   });
-  const empty = `<div class="panel empty-state dt-left">${Icon({ name: 'world', size: 28 })}<b>리그 밖 선수예요</b><p class="small muted">${esc(vm.to)}${euro(vm.to)} 옮겨 리그를 떠났어요. 이 게임은 리그 20팀 선수만 능력치·기록·계약을 따라가서, 떠난 뒤 정보는 보여 줄 수 없어요.</p></div>`;
+  const empty = `<div class="panel empty-state dt-left">${Icon({ name: 'world', size: 28 })}<b>리그 밖 선수예요</b><p class="small muted">${esc(vm.to)}${euro(vm.to)} 옮겨 리그를 떠났어요. 이 게임은 내 리그 팀 선수만 능력치·기록·계약을 따라가서, 떠난 뒤 정보는 보여 줄 수 없어요.</p></div>`;
   const kv = (k: string, v: string) => `<div class="kv"><span>${k}</span>${v}</div>`;
   const info = panel([
     kv('마지막 소속', vm.fromId ? teamLink(vm.fromId, vm.from) : `<b>${esc(vm.from)}</b>`),
