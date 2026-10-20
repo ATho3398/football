@@ -10,6 +10,7 @@ import { isLandPhone, isWide, skin } from '../skin';
 import type { DayVM, EnvVM, HomeVM, InjuryReturnVM, PositionOptionVM, RecordTrackVM, TrialVM } from '../viewModels';
 import type { WeatherKind } from '../../weather';
 import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
+import { PLAN_ICON } from './training';
 
 /** 미페 머리말을 쓰는지 (C.57 → C.74e PC 도): B 테마 + 내 선수 사진(페이스온 > facepack > 기본 사진)이 있을 때. A 테마·사진 없음·가로 폰(한 줄 머리말, C.74e 범위 밖)은 일반 머리말 */
 export function homeFace(vm: HomeVM): { src: string; cutout: boolean } | null {
@@ -33,7 +34,7 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   return chips.length < 3 ? [...chips, { label: vm.chapter, soft: true }] : chips;
 }
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = '', after = ''): string {
   const n = vm.next;
   // C.70 (디자인 161): 날짜 옆은 저장·설정. C.76g (디자인 197·211): 안 읽은 인박스가 있으면 알림 종(배지), 코치 후보가 있으면 재정 동전(배지)
   const tools = (vm.inbox ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `알림 ${vm.inbox}`, variant: 'ghost', badge: vm.inbox }) : '')
@@ -105,7 +106,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   // C.70 (디자인 162): 배너(레벨업 등)는 머리말 바로 아래, 그다음 인박스 알림
   // C.76g (디자인 197 ④): 생활 힌트는 다음 경기 위 한 줄(누르면 훈련·일정 하루 시트 자리) · (204): 시즌 목표는 다음 경기 바로 아래
   const life = c.life?.length ? `<div class="hm-life">${Icon({ name: 'sun', size: 18 })}<p class="grow"><b>생활</b> · ${esc(c.life[0]!)}</p>${Button({ size: 'sm', variant: 'ghost', act: 'go-tab', data: { v: 'schedule' }, children: '고르기' })}</div>` : '';
-  const head = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${life}${next}`;
+  const head = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${life}${next}${after}`;
   const main = `${head}${goals}${training}${notice}${extra}`;
   // PC 2열 (C.61 디자인 120 → C.76g 디자인 204): 왼쪽 = 알림 · 다음 경기 · 오늘 훈련 · 기록 도전 … · 내 상태, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 시즌 목표 · 버전
   if (isWide()) return `${hero}<div class="body home-body">${pc2(`${head}${training}${notice}${extra}${cond}`, `${card}${tiles}${goals}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
@@ -192,13 +193,13 @@ export function positionSheet(options: PositionOptionVM[], pick: string, inSeaso
 
 /** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력, 다른 경기 계산 방식 */
 export function calendarSection(d: DayVM): string {
-  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}"><span class="cal-date">${esc(u.date)}</span>${u.team ? `<button type="button" class="dt-link grow" data-act="team-open" data-v="${esc(u.team)}">${esc(u.text)}</button>` : `<span class="grow">${esc(u.text)}</span>`}${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
+  const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}${u.cup ? ' is-cup' : ''}"><span class="cal-date">${esc(u.date)}</span>${u.cup ? `<span class="cal-cup">${Icon({ name: 'trophy', size: 12 })}${esc(u.cup)}</span>` : ''}${u.team ? `<button type="button" class="dt-link grow" data-act="team-open" data-v="${esc(u.team)}">${esc(u.text)}</button>` : `<span class="grow">${esc(u.text)}</span>`}${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
   const blanks = Array.from({ length: d.month.lead }, () => '<span class="cal-cell blank"></span>').join('');
-  const cells = d.month.days.map((c) => `<span class="cal-cell${c.kind ? ` k-${c.kind}` : ''}${c.today ? ' today' : ''}${c.past ? ' past' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${c.d}</span>`).join('');
+  const cells = d.month.days.map((c) => `<span class="cal-cell${c.kind ? ` k-${c.kind}` : ''}${c.today ? ' today' : ''}${c.past ? ' past' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${c.d}${c.cup ? `<i class="cal-trophy">${Icon({ name: 'trophy', size: 10 })}</i>` : ''}${c.life ? `<small class="cal-life">${Icon({ name: PLAN_ICON[c.life], size: 10 })}${esc(c.lifeShort ?? '')}</small>` : ''}</span>`).join('');
   return `${SectionTitle({ title: '일정', action: d.month.title })}
     ${panel(`<ul class="cal-list">${list}</ul>
       <div class="cal-grid" role="grid" aria-label="${esc(d.month.title)} 달력">${['일', '월', '화', '수', '목', '금', '토'].map((w) => `<span class="cal-wd">${w}</span>`).join('')}${blanks}${cells}</div>
-      <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span></div>
+      <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span>${d.month.days.some((c) => c.cup) ? `<span>${Icon({ name: 'trophy', size: 10 })} 컵·챔스</span>` : ''}${d.month.days.some((c) => c.life) ? '<span class="cal-life-key">생활(아이콘 + 두 글자)</span>' : ''}</div>
       <div class="kv"><span class="small">다른 경기 계산</span>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: d.quick ? 'quick' : 'engine', act: 'opt-quick', label: '다른 경기 계산' })}</div>
       <p class="small muted">${d.quick ? '느린 기기용: 다른 팀 경기를 통계로 바로 계산해요. 선수 기록(득점 순위)은 내 경기만 남아요.' : '다른 팀 경기도 22명 엔진으로 계산해요. 경기 날 [계속]이 몇 초 걸릴 수 있고, 진행 중 [중단]으로 멈출 수 있어요.'}</p>`)}`;
 }

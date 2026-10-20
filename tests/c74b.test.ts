@@ -159,7 +159,7 @@ describe('C.74b 기록 추적·도전 과제', () => {
     raw.saveFormat = 41;
     delete raw.records;
     const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(51);
+    expect(back.saveFormat).toBe(52);
     expect(back.records!.done).toEqual(expect.arrayContaining(['cg:10', 'cg:25', 'cg:50', 'ca:10', 'cs:50', 'cs:100']));
     expect(back.records!.done).not.toContain('cg:100');
     expect(recordsAfterMatch(back)).toEqual([]);

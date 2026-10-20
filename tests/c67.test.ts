@@ -139,7 +139,9 @@ describe('내 컵 경기 (화면 연결)', () => {
     expect(rep.cup!.stage).toBe('32강');
     const vm = matchResultVM(g, null)!;
     expect(vm.comp).toBe('FA컵 32강');
-    expect(vm.banners.some((b) => b.title.includes('FA컵'))).toBe(true);
+    // C.76j (디자인 214): 컵 결과는 일반 배너가 아니라 대회 배너 하나
+    expect(vm.cupBanner!.kicker).toContain('FA컵');
+    expect(vm.banners.some((b) => b.title.includes('FA컵'))).toBe(false);
     // 다음 날 휴식 고정 (경기 다음 날 규칙이 컵 경기에도)
     expect(dayPlan(g)).toBe('rest');
     expect(myMatchDates(g)).toContain(g.cups!.fa!.dates[0]);
@@ -183,7 +185,7 @@ describe('가족 휴가 결장 (pending 102 ⑨)', () => {
 describe('세이브 36', () => {
   it('왕복 그대로 · 옛 세이브(35)는 컵 없이 불러와 32강 전이면 다음 하루 진행 때 만든다', () => {
     const g = real('c67-save');
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(52);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 35;

@@ -451,7 +451,8 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     : '<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>';
   const playSub = g ? [g.control.mode === 'direct' ? '직접' : '자동', ...(g.control.mode === 'direct' ? [STOP_KO[g.control.stop] ?? ''] : []), g.options.quickOthers ? '빠른 진행' : '전체 엔진', DIFF_KO[g.difficulty] ?? ''].join(' · ') : '게임 밖';
   const pv = `<div class="kv"><span>선수 표시</span></div>${Tabs({ items: (['number', 'face', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
-    <div class="kv"><span>방향</span><small class="muted">세로 = 내 팀이 아래→위</small></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+    <div class="set-orient"><div class="kv"><b>경기 화면 방향</b><small class="muted">결정 순간 · 하이라이트</small></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+      <p class="small muted">${PITCH_ORIENT_KO.landscape} = 폰을 세로로 들어도 피치는 가로(왼쪽 → 오른쪽 공격). ${PITCH_ORIENT_KO.portrait} = 세로 피치(내 팀이 아래 → 위).</p></div>
     <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
     <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}
     <p class="small muted">이 기기에 저장돼요. 경기 결과에는 영향이 없어요. 경기 화면의 [보기]로도 바꿔요.</p>`;

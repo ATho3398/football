@@ -33,11 +33,15 @@ export interface FinanceVM {
   ledger: { date: string; label: string; amount: string; plus: boolean }[];
   /** b (C.68b) */
   worth: string; worthShort: string; asset: number; career: string;
-  shop: { idx: number; id: string; rarity: Rarity; rarityKo: string; price: string; sold: boolean; blocked: string | null }[] | null;
+  shop: { idx: number; id: string; rarity: Rarity; rarityKo: string; price: string; sold: boolean; blocked: string | null; /** 가진 장수 / 최대 (C.76i 디자인 219 "샀어요 · 1/2") */ owned: number; max: number }[] | null;
+  /** 등급별 가격 칩 (C.76i 디자인 219) */
+  prices: { rarity: Rarity; label: string }[];
+  /** 머리말 칩 "시즌 +7.1억" (한 줄) */
+  netShort: string;
   pack: { price: string; left: number; per: number; blocked: string | null; cards: number };
   tp: { have: number; rare: { cost: number; blocked: string | null }; epic: { cost: number; blocked: string | null } } | null;
   life: { kind: LifeItem; title: string; cur: string; yearly: string; options: { lvl: number; name: string; price: string; effect: string; cost: string; cur: boolean; blocked: string | null; lux: boolean }[] }[];
-  charity: { total: string; season: string; rep: number; cap: number; badge: boolean; toBadge: string; units: { v: number; label: string; blocked: string | null }[] };
+  charity: { total: string; season: string; rep: number; cap: number; badge: boolean; toBadge: string; /** 자선가까지 진행 0~1 */ ratio: number; units: { v: number; label: string; blocked: string | null }[] };
   invest: { kinds: { kind: InvestKind; name: string; bal: string; rate: string; put: { v: number; label: string; blocked: string | null }[]; canTake: boolean }[]; deals: { label: string; amount: string }[] };
   agent: { premium: boolean; fee: string; feePremium: string; wageUp: string };
 }
@@ -87,7 +91,7 @@ export function financeVM(g: GameState): FinanceVM {
   const tier = reputationTier(g.player.reputation, g.player.honors);
   const sponsor = Math.min(B.sponsorMax, annualOf(w) * B.sponsor[tier]);
   return {
-    cash: moneyLabel(m.cash), cashShort: moneyShort(m.cash), cashRaw: m.cash, wage: moneyShort(w), annual: moneyShort(annualOf(w)), net: moneyLabel(net, true), netRaw: net,
+    cash: moneyLabel(m.cash), cashShort: moneyShort(m.cash), cashRaw: m.cash, wage: moneyShort(w), annual: moneyShort(annualOf(w)), net: moneyLabel(net, true), netRaw: net, netShort: `${net > 0 ? '+' : ''}${moneyShort(net)}`,
     income: INCOME_CATS.filter((c) => f[c]).map((c) => ({ label: MONEY_CAT_KO[c], value: moneyLabel(f[c]!) })),
     expense: EXPENSE_CATS.filter((c) => f[c]).map((c) => ({ label: MONEY_CAT_KO[c], value: moneyLabel(-f[c]!) })),
     inTotal: moneyLabel(flowsIn(f)), outTotal: moneyLabel(flowsOut(f)),
@@ -127,14 +131,15 @@ function wealthVM(g: GameState) {
     shop: shop && col ? shop.items.map((it, idx) => {
       const r = cardById(it.id)!.rarity;
       const price = it.sold ? it.price : cardPrice(g, r);
-      return { idx, id: it.id, rarity: r, rarityKo: RARITY_KO[r], price: moneyLabel(price), sold: !!it.sold, blocked: it.sold ? null : cardBlocked(g, r, price, col.owned[it.id] ?? 0) };
+      return { idx, id: it.id, rarity: r, rarityKo: RARITY_KO[r], price: moneyLabel(price), sold: !!it.sold, blocked: it.sold ? null : cardBlocked(g, r, price, col.owned[it.id] ?? 0), owned: col.owned[it.id] ?? 0, max: BALANCE.cards.maxCopies };
     }) : null,
+    prices: ((['common', 'rare', 'epic', 'legendary'] as const)).map((r) => ({ rarity: r, label: `${RARITY_KO[r]} · ${r === 'common' ? '주급의 절반' : moneyShort(cardPrice(g, r))}` })),
     pack: { price: moneyLabel(packPrice(g)), left: Math.max(0, W.pack.perWeek - (shop?.packs ?? 0)), per: W.pack.perWeek, blocked: packBlocked(g), cards: W.pack.cards },
     tp: col ? { have: col.tp ?? 0, rare: { cost: G.tpUnlock.rare, blocked: tpBlocked(g, 'rare') }, epic: { cost: G.tpUnlock.epic, blocked: tpBlocked(g, 'epic') } } : null,
     life: [lifeVM(g, 'house'), lifeVM(g, 'car')],
     charity: {
       total: moneyLabel(ch.total), season: moneyLabel(ch.season), rep: ch.rep, cap: W.charity.seasonCap, badge: !!ch.badge,
-      toBadge: moneyLabel(Math.max(0, W.charity.badge - ch.total)),
+      toBadge: moneyLabel(Math.max(0, W.charity.badge - ch.total)), ratio: Math.min(1, ch.total / W.charity.badge),
       units: W.charity.units.map((v) => ({ v, label: moneyShort(v), blocked: donateBlocked(g, v) })),
     },
     invest: {

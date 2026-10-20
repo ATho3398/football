@@ -191,10 +191,10 @@ describe('모든 리그 8~5월 (C.76m)', () => {
     }
   });
 
-  it('세이브 50 → 51: 진행 중 3~12월 시즌은 옛 달력대로 끝내고(legacyCal), 다음 시즌부터 8~5월', () => {
+  it('세이브 51 → 52: 진행 중 3~12월 시즌은 옛 달력대로 끝내고(legacyCal), 다음 시즌부터 8~5월', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76m-m', difficulty: 'normal', leagues: ['kleague1', 'pl', 'mls', 'jleague1'] });
     const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 50;
+    raw.saveFormat = 51;
     // MLS 는 치른 경기가 있고 J1 은 개막 전이었다고 치자
     const mls = raw.otherLeagues.find((o: { id: string }) => o.id === 'mls');
     mls.table[0].played = 3;

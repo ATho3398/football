@@ -356,10 +356,12 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   47: (s) => { s.showcase ??= emptyShowcase(); },
   // 49 → 50 (C.76d): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
   49: (s) => { s.national ??= initNational(myNationality(s.player)); },
-  // 50 → 51 (C.76m): 모든 리그 8~5월 통일. 옛 3~12월 리그(K리그1·J1·브라질·MLS)의 진행 중 시즌은 옛 달력대로 끝낸다(legacyCal) —
+  // C.76k: 수비 라인 단계에 '매우 낮음'(0)이 앞에 들어가 저장된 라인 단계 0~2(낮음/보통/높음)는 1~3 으로
+  50: (s) => { if (s.tactics?.levels && typeof s.tactics.levels.lineHeight === 'number') s.tactics.levels.lineHeight += 1; },
+  // 51 → 52 (C.76m): 모든 리그 8~5월 통일. 옛 3~12월 리그(K리그1·J1·브라질·MLS)의 진행 중 시즌은 옛 달력대로 끝낸다(legacyCal) —
   // 내 리그는 늘(날짜·컵·이적시장이 그 달력에 걸려 있음), 다른 리그는 치른 경기가 있을 때만(개막 전이면 새 달력 = PL 과 같은 시즌 번호).
   // 다음 시즌부터 8~5월 (nextSeasonLeague 가 표시를 지운다)
-  50: (s) => {
+  51: (s) => {
     const sa = (id: string) => leagueData(id)?.calendar === 'spring-autumn';
     if (sa(s.league.id)) s.league.legacyCal = 'spring-autumn';
     for (const lg of s.otherLeagues ?? []) if (sa(lg.id) && lg.table.some((r: { played: number }) => r.played > 0)) lg.legacyCal = 'spring-autumn';
