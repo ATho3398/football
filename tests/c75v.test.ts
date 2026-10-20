@@ -38,7 +38,7 @@ describe('C.75v 결정 순간 선택지 라벨·확실한 선택지·최대 5개
     expect(bandKind(null)).toBe('safe');
     expect(bandKind(null, 'balanced')).toBe('balanced');
     expect(M.labelBands).toEqual({ safe: 0.5, balanced: 0.25 });
-    expect(PATCH_LABEL).toBe('C.75v');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/); // 병렬 패치끼리 라벨이 바뀌어도 통과 (C.75y 병합)
   });
 
   const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3)];

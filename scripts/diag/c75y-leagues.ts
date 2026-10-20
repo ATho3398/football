@@ -1,6 +1,6 @@
 // C.75y 리그별 시즌 측정 (부록 C.75y 7번): 리그마다 빠른 시뮬 N시즌(다른 리그로 고를 때와 같은 계산) + 내 리그로 한 시즌(내 경기 엔진 + 다른 경기 quick).
 // 평균 득점(경기당) · 레이팅 순위와 최종 순위 스피어만 상관 · 우승 팀의 레이팅 순위 분포. 마지막에 14개 리그를 다 고른 시즌 진행 시간.
-// 실행: npx vite-node scripts/diag/c75y-leagues.ts -- [빠른 시뮬 시즌 수(기본 40)] [engine] [speed]
+// 실행: npx vite-node scripts/diag/c75y-leagues.ts -- [빠른 시뮬 시즌 수(기본 40)] [engine] [speed] [only=mls,saudi] [nofast]
 import { allLeagueData } from '../../data/leagues';
 import { createLeague, recordResult, simulateScore, sortedTable, teamById, type LeagueState } from '../../src/league';
 import { createRng, hashSeed } from '../../src/rng';
@@ -11,6 +11,8 @@ const args = process.argv.slice(2);
 const N = Number(args.find((a) => /^\d+$/.test(a)) ?? 40);
 const doEngine = args.includes('engine');
 const doSpeed = args.includes('speed');
+const only = args.find((a) => a.startsWith('only='))?.slice(5).split(',');
+const noFast = args.includes('nofast');
 
 function spearman(lg: LeagueState): number {
   const byRating = [...lg.teams].sort((a, b) => b.rating - a.rating).map((t) => t.id);
@@ -29,7 +31,7 @@ const goalsPerGame = (lg: LeagueState) => {
 console.log(`## 빠른 시뮬 ${N}시즌 (다른 리그 계산)\n`);
 console.log('| 리그 | 팀 | 경기당 득점 | 레이팅↔순위 상관 | 우승 = 레이팅 1위 | 우승 ⊂ 레이팅 3위 안 | 우승 팀 레이팅 순위 평균 |');
 console.log('|---|---|---|---|---|---|---|');
-for (const d of allLeagueData()) {
+for (const d of noFast ? [] : allLeagueData()) {
   let gpg = 0, rho = 0, top1 = 0, top3 = 0, rr = 0;
   for (let k = 0; k < N; k++) {
     const lg = createLeague(`c75y-m:${k}`, 2018, d.id);
@@ -63,7 +65,7 @@ if (doEngine) {
   console.log('\n## 내 리그로 한 시즌 (유망주 ST · 내 경기 엔진 · 다른 경기 quick, 시드 c75y-e)\n');
   console.log('| 리그 | 경기당 득점 | 레이팅↔순위 상관 | 우승 (레이팅 순위) | 내 팀 순위 | 시즌 시간 |');
   console.log('|---|---|---|---|---|---|');
-  for (const d of allLeagueData()) {
+  for (const d of allLeagueData().filter((x) => !only || only.includes(x.id))) {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75y-e', difficulty: 'normal', leagues: [d.id] });
     const ms = playSeason(g);
     const lg = g.league;
