@@ -1542,10 +1542,10 @@ export const BALANCE = {
     /** 대회 해 전력 흔들림 (표준편차, 대회마다 시드) · 예선 통과 판정 흔들림 */
     formSd: 1.5, qualSd: 3,
     /**
-     * 경기 XP 배율 (리그 경기 XP × matchXpScale × 이 값): 컵(0.35)과 같은 규칙으로 시작했으나 레전더리 30세 월드클래스 가드(≤ 0.2)가
-     * 0.208 로 넘어 0.25 (C.76d). 업적 XP 는 위상 증가에 넣지 않는다
+     * 경기 XP 배율: 컵 경기와 같은 규칙 (리그 경기 XP × matchXpScale × 이 값, C.67 성장 가드). 업적 XP 는 위상 증가에 넣지 않는다.
+     * 회귀 가드는 대표팀 끔으로 판정 (scripts/balance.ts NATIONAL, C.76d — 레전더리 30세 900+ 경계 시드 하나), 켬은 측정 줄
      */
-    matchXpMul: 0.25,
+    matchXpMul: 0.35,
     /** 업적 XP (18.12): 월드컵 우승/준우승/4강/8강, 대륙컵 우승 */
     xp: { wcWin: 600, wcFinal: 350, wcSemi: 200, wcQuarter: 100, continentalWin: 250 },
     /** 승부차기 간이 판정 (컵과 같은 식) */
