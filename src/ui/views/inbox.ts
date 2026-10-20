@@ -50,7 +50,7 @@ export function inboxDetailView(vm: InboxDetailVM, sel: string | null): string {
   const pick = vm.choices.find((c) => c.id === sel && !c.disabled) ?? vm.choices.find((c) => !c.disabled) ?? null;
   const hero = HeroPanel({ title: '인박스', back: { act: 'go', data: { to: 'inbox' } }, compact: true, pad: false, progress: false, eyebrow: vm.when, value: vm.cat, chips: vm.status ? [vm.status] : [] });
   const say = `<div class="mg-say"><span class="hm-alert__icon">${Icon({ name: vm.icon, size: 20 })}</span><div><small>${esc(vm.cat)} · ${esc(vm.when)}</small><b class="ib-title">${esc(vm.title)}</b><p>${esc(vm.body)}</p></div></div>`;
-  const ans = vm.answer ? panel(`<b class="mg-sub">${vm.answer.auto ? '기본 선택' : '내 선택'} · ${esc(vm.answer.label || '—')}</b><p class="small">${esc(vm.answer.text)}</p>`, 'ib-answer') : '';
+  const ans = vm.answer ? panel(`<b class="mg-sub">${vm.answer.auto ? (vm.answer.text.startsWith('자동 진행') ? '자동 진행 답' : '기본 선택') : '내 선택'} · ${esc(vm.answer.label || '—')}</b><p class="small">${esc(vm.answer.text)}</p>`, 'ib-answer') : '';
   const opts = vm.pending
     ? `${SectionTitle({ title: '어떻게 할까요?', action: '1개' })}<div class="mg-opts">${vm.choices.map((c) => OptionRow({
       act: 'inbox-pick', data: { v: c.id }, radio: true, selected: pick?.id === c.id, title: c.label, desc: c.disabled ? `${c.desc} · ${c.disabled}` : c.desc, disabled: !!c.disabled,

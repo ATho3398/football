@@ -97,6 +97,8 @@ export interface Moment {
   sure?: boolean;
   /** 뺀 확실한 선택지 중 기대 평점 최대 (최적 플레이 봇이 맡기기와 견줄 때만 쓴다. 맡기면 엔진이 대개 이것을 고른다) */
   delegateEv?: number;
+  /** 확실한 선택지 다시 넣음 (C.75v): 남은 선택지가 모두 sureBackBelow 미만이라 뺀 확실한 선택지 1개를 맨 위 "안전"으로 넣었다 */
+  sureBack?: boolean;
   /** 소유 정지: 내 선수가 상대 박스 안 (C.75a, 표시·측정용) */
   box?: boolean;
   /** 슛 선택지가 없거나 밀린 이유 한 줄 (C.75a, 예 "등지고 받음 — 먼저 돌아서야 해요") */
@@ -241,11 +243,20 @@ export function failFactor(p: number | null): number {
   return clamp(F.floor + ((1 - F.floor) * p) / F.pRef, F.floor, 1);
 }
 
-/** 남은 선택지에 안전/균형/도박을 성공 확률 순으로 다시 붙인다 (3개 = 안전·균형·도박, 2개 = 안전·도박, 1개 = 균형) */
+/** 성공 확률 구간 라벨 (C.75v): ≥ labelBands.safe 안전, ≥ labelBands.balanced 균형, 그 밖 도박. 판정 없음(null)은 fallback */
+export function bandKind(p: number | null, fallback: OptionKind = 'safe'): OptionKind {
+  if (p === null) return fallback;
+  const B = M.labelBands;
+  return p >= B.safe - 1e-9 ? 'safe' : p >= B.balanced - 1e-9 ? 'balanced' : 'gamble';
+}
+
+/**
+ * 선택지를 성공 확률 순으로 놓고 확률 구간으로 안전·균형·도박을 붙인다 (C.75v, C.40 의 "순서대로 안전·균형·도박"을 바꿈:
+ * 13% 가 "안전"으로 보이던 문제). 판정 없는 선택지는 맨 위·안전 (지금 규칙)
+ */
 function relabel<T extends { o: MomentOption }>(xs: T[]): T[] {
   const sorted = [...xs].sort((x, y) => (y.o.p ?? 1) - (x.o.p ?? 1));
-  const kinds: OptionKind[] = sorted.length >= 3 ? ['safe', 'balanced', 'gamble'] : sorted.length === 2 ? ['safe', 'gamble'] : ['balanced'];
-  sorted.forEach((x, i) => (x.o.kind = kinds[Math.min(i, kinds.length - 1)]!));
+  for (const x of sorted) x.o.kind = bandKind(x.o.p);
   return sorted;
 }
 
@@ -441,13 +452,37 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const pool = cands.filter((c) => shownP(c) <= M.maxP + 1e-9);
   const picks = keepSlots(a, pool, pickOptions(pool));
   const cs = carryShootOption(s, a, cands, adj);
-  // 몰고 가다 슛은 안전·균형·도박 3칸 뒤 4번째 줄 (늘 도박)
-  const made = [...relabel(picks.flatMap((c, i) => {
-    if (!c) return [];
-    const o = optionOf(s, a, c, kinds[i]!, cands.indexOf(c), adj);
+  if (cs) cs.o.kind = bandKind(cs.o.p);
+  const mk = (c: Candidate, kind: OptionKind = 'safe') => {
+    const o = optionOf(s, a, c, kind, cands.indexOf(c), adj);
     if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
-    return [{ o, ctx: optionCtx(s, a, c) }];
-  })), ...(cs ? [cs] : [])];
+    return o;
+  };
+  // 같은 이름 줄(예 같은 수비수 돌파 방향만 다름)은 기대 평점이 큰 하나만 (C.75v)
+  const main: { c: Candidate; o: MomentOption }[] = [];
+  picks.forEach((c, i) => {
+    if (!c) return;
+    const o = mk(c, kinds[i]!);
+    const j = main.findIndex((x) => x.o.label === o.label);
+    if (j < 0) main.push({ c, o });
+    else if (optionValue(o) > optionValue(main[j]!.o)) main[j] = { c, o };
+  });
+  // 확실한 선택지 (C.40 에서 뺀 것): 기대 평점 최대가 맡기기 기준 (최적 플레이 봇), C.75v 다시 넣기 후보
+  const sureC = cands.filter((c) => shownP(c) > M.maxP + 1e-9);
+  const sure = sureC.length > 0;
+  const sureBest = sureC.map((c) => ({ c, o: mk(c) })).reduce<{ c: Candidate; o: MomentOption; v: number } | null>((b, x) => {
+    const v = optionValue(x.o);
+    return !b || v > b.v ? { ...x, v } : b;
+  }, null);
+  const delegateEv = sureBest ? sureBest.v : undefined;
+  // C.75v 더 고를 거리 (최대 maxOptions, 확실한 선택지 자리는 남은 것이 모두 낮을 때만 비워 둔다)
+  const maybeBack = !!sureBest && main.length > 0 && main.every((x) => (x.o.p ?? 1) < M.sureBackBelow);
+  const room = M.maxOptions - main.length - (cs ? 1 : 0) - (maybeBack ? 1 : 0);
+  const extra = extraOptions(cands, pool, main, room, mk);
+  const rest = [...main, ...extra];
+  const back = maybeBack && rest.every((x) => (x.o.p ?? 1) < M.sureBackBelow) ? sureBest : null;
+  // 몰고 가다 슛은 확률 순 목록 뒤 마지막 줄
+  const made = [...relabel([...(back ? [back] : []), ...rest].map((x) => ({ o: x.o, ctx: optionCtx(s, a, x.c) }))), ...(cs ? [cs] : [])];
   const options = made.map((x) => x.o);
   const ctx = made.map((x) => x.ctx);
   const scene = onballScene(s, a, cands);
@@ -456,17 +491,10 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로 (카드 선택지는 onballCards 에서, 몰고 가다 슛은 첫 단 확률로)
   for (const o of options) o.down = round2(o.down * failFactor(o.chain ? o.chain.p : o.p));
   settleMoment(s, true);
-  const sureC = cands.filter((c) => shownP(c) > M.maxP + 1e-9);
-  const sure = sureC.length > 0;
-  const delegateEv = sure ? Math.max(...sureC.map((c) => {
-    const o = optionOf(s, a, c, 'safe', 0, adj);
-    if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
-    return optionValue(o);
-  })) : undefined;
   const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
   const shotNote = shotNoteOf(s, a, cands, [...options, ...cards.flatMap((mc) => (mc.usable && mc.option ? [mc.option] : []))], box);
   ms.pending = {
-    ...base(s, a, 'onball', scene, stake), options, cards, cands, variants, ...(sure ? { sure, delegateEv } : {}), ...(box ? { box } : {}), ...(shotNote ? { shotNote } : {}),
+    ...base(s, a, 'onball', scene, stake), options, cards, cands, variants, ...(sure ? { sure, delegateEv } : {}), ...(back ? { sureBack: true } : {}), ...(box ? { box } : {}), ...(shotNote ? { shotNote } : {}),
   };
   return true;
 }
@@ -484,6 +512,44 @@ function onballCards(s: SimState, a: Agent, scene: SceneId, cands: Candidate[], 
     return { ...mc, option: { ...option, baseP: round2(bp) } };
   });
   return { cards, variants };
+}
+
+/**
+ * 더 고를 거리 (C.75v): 안전·균형·도박 3칸 밖의 후보에서 최대 room 개. 같은 후보(sameAs)·같은 이름 줄은 넣지 않고,
+ * 행동 종류가 새로운 것 → 받는 사람이 새로운 것 순으로, 같은 순위 안에서는 기대 평점(봇 optionValue) 큰 것부터.
+ * 고를 거리 없는 뻔한 것은 넣지 않는다: 기대 평점이 맡기기(엔진 효용 1위 후보)보다 extraEvGap 넘게 낮으면 빼고, 같은 행동 종류는 extraTypeCap 줄까지
+ */
+function extraOptions(
+  cands: Candidate[], pool: Candidate[], main: { c: Candidate; o: MomentOption }[], room: number, mk: (c: Candidate) => MomentOption,
+): { c: Candidate; o: MomentOption }[] {
+  if (room <= 0 || !cands.length) return [];
+  const top = cands.reduce((b, c) => (c.u > b.u ? c : b));
+  const floor = optionValue(mk(top)) - M.extraEvGap;
+  const have = [...main];
+  const out: { c: Candidate; o: MomentOption; v: number; tier: number }[] = [];
+  for (const c of pool) {
+    if (have.some((x) => sameAs(x.c, c))) continue;
+    const o = mk(c);
+    const v = optionValue(o);
+    if (v < floor) continue;
+    out.push({ c, o, v, tier: 0 });
+  }
+  const picked: { c: Candidate; o: MomentOption }[] = [];
+  while (picked.length < room) {
+    let best: (typeof out)[number] | null = null;
+    for (const x of out) {
+      if (have.some((h) => sameAs(h.c, x.c) || h.o.label === x.o.label)) continue;
+      // 같은 행동 종류가 이미 extraTypeCap 줄이면 더 넣지 않는다 (백패스만 세 줄 같은 뻔한 목록 방지)
+      if (have.filter((h) => h.c.type === x.c.type).length >= M.extraTypeCap) continue;
+      // 새 행동 종류 0, 같은 종류지만 새 받는 사람 1, 그 밖 2 (같은 종류·같은 받는 사람·다른 이름 = 다른 방향의 몰고 가기 등)
+      x.tier = !have.some((h) => h.c.type === x.c.type) ? 0 : x.c.receiver >= 0 && !have.some((h) => h.c.type === x.c.type && h.c.receiver === x.c.receiver) ? 1 : 2;
+      if (!best || x.tier < best.tier || (x.tier === best.tier && x.v > best.v)) best = x;
+    }
+    if (!best) break;
+    picked.push({ c: best.c, o: best.o });
+    have.push({ c: best.c, o: best.o });
+  }
+  return picked;
 }
 
 /**
@@ -680,7 +746,7 @@ export function duelMoment(s: SimState): boolean {
       up: round2(R.interception * 0.3 * R.scale), down: 0, to: { x: (o.x + a.x) / 2, y: (o.y + a.y) / 2 }, target: o.spec.id, ref: 2, value: 0,
     },
     {
-      kind: 'gamble', action: 'tackle', label: '태클', p: round2(odds.pWin), success: '공을 빼앗음', fail: `제쳐짐 · 파울 ${Math.round(odds.pFoul * 100)}%`,
+      kind: bandKind(round2(odds.pWin)), action: 'tackle', label: '태클', p: round2(odds.pWin), success: '공을 빼앗음', fail: `제쳐짐 · 파울 ${Math.round(odds.pFoul * 100)}%`,
       up: round2(R.tackle * R.scale), down: round2(odds.pFoul * R.foul * R.scale), to: { x: o.x, y: o.y }, target: o.spec.id, ref: 0, value: 0,
     },
   ];
@@ -933,7 +999,7 @@ export function setPieceMoment(s: SimState): boolean {
   const [gx, gy] = oppGoal(dir);
   const pPen = scene === 'penalty' ? penaltyProb(s, a, 0) : 0;
   const options: MomentOption[] = scene === 'penalty'
-    ? [{ kind: 'balanced', action: 'shoot', label: 'PK 슈팅', p: round2(pPen), success: '골', fail: '선방·실축', up: round2(R.goal * R.scale), down: 0, to: { x: gx, y: gy }, ref: 0, value: pPen }]
+    ? [{ kind: bandKind(round2(pPen)), action: 'shoot', label: 'PK 슈팅', p: round2(pPen), success: '골', fail: '선방·실축', up: round2(R.goal * R.scale), down: 0, to: { x: gx, y: gy }, ref: 0, value: pPen }]
     : [{ kind: 'balanced', action: 'hold', label: '엔진 판단대로 (슈팅·크로스·패스)', p: null, success: '세트피스 진행', fail: '-', up: 0, down: 0, to: { x: gx, y: gy }, ref: 0, value: 0 }];
   const ctx: OptionCtx[] = [{ tags: scene === 'penalty' ? ['shoot'] : ['cross', 'pass'], box: scene === 'penalty' }];
   const { view, vars } = setPieceCards(s, a, scene, pPen, ctx);
@@ -1176,7 +1242,7 @@ export function slipPick(s: SimState, a: Agent, cands: Candidate[], c: Candidate
 }
 
 /** 기대 평점 (봇): 바로 오는 평점 + 성공 시 이어질 공격의 평점 몫 */
-function optionValue(o: MomentOption, dp = 0): number {
+export function optionValue(o: MomentOption, dp = 0): number {
   const R = ENGINE.rating;
   // 몰고 가다 슛 (C.75k): p = 몰고 가기 성공 × 골 확률(할인), 실패 감점은 몰고 가기에서 뺏길 때만
   if (o.chain) return Math.min(1, (o.p ?? 0) + dp) * o.up + (1 - o.chain.p) * o.down;

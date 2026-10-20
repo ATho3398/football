@@ -3,7 +3,7 @@
 
 import { goalsResultPanel } from './inbox';
 import {
-  Avatar, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
+  Avatar, FootPair, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, ChapterReviewVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM, WorldRowVM, OtherLeagueVM } from '../viewModels';
 import type { BoardKind } from '../../worldStats';
@@ -96,7 +96,7 @@ export interface NewGameVM {
   /** 랜덤 인종·국적·이름·기본 사진 (C.73c) */
   identity: { race: Race; races: { id: Race; ko: string }[]; photo: FacePhoto; photos: { id: FacePhoto; ko: string }[]; nationalityKo: string; name: string; picked: boolean } | null;
   /** 랜덤 유망주 신체·장단점 (C.45) */
-  extras: { height: number; weight: number; foot: string; weakFoot: number; traits: { ko: string; desc: string; kind: 'pro' | 'con'; release?: string }[] } | null;
+  extras: { height: number; weight: number; foot: string; side: 'left' | 'right'; weakFoot: number; traits: { ko: string; desc: string; kind: 'pro' | 'con'; release?: string }[] } | null;
 }
 
 /** 새 게임 화면 상태 (C.58 디자인 124~131): 실제 선수 묶음 탭 · 검색 · 정렬 · 포지션군 · 보이는 수, 랜덤 능력치 펼침, 커스텀 단계 */
@@ -191,7 +191,7 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
   const extras = x ? `${SectionTitle({ title: '신체 · 태그', action: '랜덤 · 숨기지 않음' })}
     <div class="panel ng-extras"><div class="body-stats ng-stats">
       <div><small>키</small><b class="po-num">${x.height}<i>cm</i></b></div><div><small>몸무게</small><b class="po-num">${x.weight}<i>kg</i></b></div>
-      <div><small>주발</small><b>${esc(x.foot)}</b></div><div><small>약발</small><b class="po-num">${x.weakFoot}${x.weakFoot >= 5 ? '<i>양발</i>' : ''}</b></div></div>
+      <div class="bs-feet"><small>주발 · 약발</small>${FootPair({ foot: x.side, weakFoot: x.weakFoot })}<span>${esc(x.foot)} 주발 · 약발 ${x.weakFoot}${x.weakFoot >= 5 ? ' 양발' : ''}</span></div></div>
       ${x.traits.length ? `<div class="ng-traits">${x.traits.map((t) => `<span class="ng-trait">${TagChip({ name: t.ko, kind: 'gen', polarity: t.kind, ...(t.release ? { release: t.release } : {}), desc: t.desc })}<small>${esc(t.desc)}</small></span>`).join('')}</div>` : '<p class="small muted">태그 없음</p>'}
       <p class="small muted">랜덤은 태그 0~2개가 붙어요. 마음에 안 들면 [다시 돌리기].</p></div>` : '';
   // 인종 · 기본 사진 (C.73c): 국적·이름은 그 인종 안에서 시드 랜덤

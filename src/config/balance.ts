@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 60;
+export const BALANCE_VERSION = 62;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -991,6 +991,21 @@ export const BALANCE = {
     grade: { legend: 88, epic: 82, rare: 75 },
   },
 
+  // ── 유니폼 교환 · 진열실 (C.76b, 46b): 성공 확률 = 위상 티어 기본값 + 상대 멘탈 + 오늘 평점 + 관계, [min, max] 로 자른다 ──
+  jerseys: {
+    /** 내 위상 티어별 기본 확률 */
+    base: { normal: 0.29, special: 0.42, topClass: 0.57, worldClass: 0.76, legendary: 0.87 },
+    /** 상대 멘탈 = (침착성 + 리더십) / 2. center 보다 1 높을 때마다 +perPoint (침착하고 너그러운 선수일수록 잘 바꿔 준다), ±cap. GK 는 center */
+    mental: { center: 68, perPoint: 0.004, cap: 0.08 },
+    /** 오늘 내 평점: center 보다 1 높을 때마다 +perPoint, ±cap */
+    rating: { center: 6.6, perPoint: 0.06, cap: 0.09 },
+    /** 관계: 더비 상대 · 큰 더비 추가 · 내 라이벌 · 같은 국적 · 내가 뛰었던 팀 */
+    derby: -0.15, bigDerby: -0.04, rival: -0.08, sameNation: 0.08, formerClub: 0.06,
+    min: 0.03, max: 0.95,
+    /** 진열 칸 수: 집 단계(BALANCE.wealth.houses 순서: 숙소 · 월세 · 아파트 · 고급 주택 · 저택 · 성) */
+    showroomSlots: [2, 4, 6, 10, 16, 24],
+  },
+
   // ── 레전드 팩 (pending 63, C.47): 2018-19 세계에 15~22세로. 시작 OVR = 전성기 OVR − startGap(나이), 전성기 나이 peakAge ──
   legends: {
     minAge: 15,
@@ -1012,7 +1027,7 @@ export const BALANCE = {
     maxPeak: 96,
     /** 도르트문트 레전드·미래 스타 (C.75x) 전성기 하한: 데이터 그대로 쓰도록 낮게 */
     groupMinPeak: 78,
-    /** 3판 (C.75w, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
+    /** 3판 (C.76b, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
     maxPerTeam: 10,
     arrivalsPerSeason: 4,
     loyalty: 70,

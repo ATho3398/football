@@ -10,6 +10,7 @@ import { setSquadLeague } from './squad';
 import { leagueMoves } from './leagueMove';
 import { initRecords } from './records';
 import { emptyPhotos } from './photocards';
+import { emptyShowcase } from './jerseys';
 import { ensureFinance } from './finance';
 import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
@@ -339,15 +340,17 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
   45: (s) => { s.photos ??= emptyPhotos(); },
   // 46 → 47 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
-  // 47 → 48 (C.75y, 45b): 다른 리그 득점 기록(otherLeagues[].stats)·이적 기록의 실제 선수 보충(fill.real)·내 리그 이동 기록(myLeagues) 은
+  // 48 → 49 (C.75y, 45b): 다른 리그 득점 기록(otherLeagues[].stats)·이적 기록의 실제 선수 보충(fill.real)·내 리그 이동 기록(myLeagues) 은
   // 새 필드라 옛 세이브는 없음 (PL 만 고른 상태 그대로)
-  47: () => {},
+  48: () => {},
   46: (s) => {
     s.league.id ??= 'pl';
     s.league.country ??= 'England';
     s.league.tier ??= 1;
     s.leagueIds ??= ['pl'];
   },
+  // 47 → 48 (C.76b): 유니폼 교환 기록 · 진열 배치(showcase). 옛 세이브는 빈 진열 · 교환 기록 없음
+  47: (s) => { s.showcase ??= emptyShowcase(); },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

@@ -6,6 +6,8 @@ import type { MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel, pc2 } from './common';
 import { isWide } from '../skin';
 import { personLink } from './detail';
+import { jerseyPanel } from './showroom';
+import type { JerseyPanelVM } from '../jerseyVM';
 
 function cmpRow(label: string, own: string, opp: string): string {
   const a = parseFloat(own) || 0;
@@ -27,7 +29,8 @@ function goalRows(goals: MatchResultVM['goals']): string {
 const ENV_ICON = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', heat: 'heat', snow: 'snow' } as const;
 
 /** delta = 방금 경기 앞뒤 신뢰도·위상 변화 (C.72, 화면이 잰 값). 없거나 둘 다 0이면 줄을 숨긴다 */
-export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null): string {
+/** jersey = 유니폼 교환 패널 (C.76b, 요청할 수 있는 경기만) */
+export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null, jersey: JerseyPanelVM | null = null): string {
   const hero = HeroPanel({
     title: '경기 결과', right: vm.comp, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
     eyebrow: `${vm.opp}전 ${vm.scoreLine} ${vm.outcomeKo} · 내 평점`,
@@ -83,6 +86,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       c.minute ? `<span class="po-num cu-min">${esc(c.minute)}</span><span class="grow">${esc(c.name ?? '')}${c.auto ? ' <small>(자동)</small>' : ''}</span>` : `<span>${esc(c.text)}</span>`}<b>${RES[c.result]}</b></div>`).join('')}</div>${
       vm.cardUses.length > DEC_PAGE ? `<button type="button" class="cu-more" data-act="more" data-v="cu">${more.cu ? '접기' : `${vm.cardUses.length - DEC_PAGE}장 더 보기`}${Icon({ name: more.cu ? 'chevron-up' : 'chevron-down', size: 14 })}</button>` : ''}`, 'cu-panel')}`
     : '';
+  const jx = jersey ? jerseyPanel(jersey) : '';
   const x = vm.xp;
   // 맨 아래 두 버튼 (C.39): [홈으로] + [다음 경기](주), 시즌 마지막 경기면 [홈으로] + [시즌 요약]
   const home = Button({ variant: 'secondary', size: 'lg', block: true, icon: 'home', act: 'go', data: { to: 'home' }, children: '홈으로' });
@@ -97,7 +101,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       </div>`;
   // PC 2열 (C.61, 폰 2,600px대 → 한 화면): 왼쪽 = 점수 · 하이라이트 · 득점 · 결정 · 쓴 카드, 오른쪽 = 내 기록 · 보상 · 버튼 · 전술 리포트·평균 위치
   if (isWide()) {
-    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${banners(vm.banners)}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
+    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
   }
   return `
     ${hero}
@@ -105,6 +109,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       ${head}
       ${rewatch}
       ${banners(vm.banners)}
+      ${jx}
       ${goals}
       ${decisions}
       ${cardUses}
