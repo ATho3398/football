@@ -650,3 +650,4 @@
 - (21:50 KST) 자동 확인: **main run 251(90716be) 성공** → C.76a·45b 세션(C.76c·h)·C.76d·C.76f·C.76g draft_(새 번호 48a·48b로 제목). 진행 중 C.76i·j·k·l·m·n·o(7개). 재예약 60분.
 - (21:52 KST, 사용자) ntfy 2회 실패면 그 알림 버림·재발송·보고 안 함 → automation.md 0번 반영.
 - (22:06 KST, 사용자) 카드팩 표지 도착 → docs/assets/pack-cover.webp(800×1200 132KB)·png, C.76o에 전달(투명 아님 → 팩 실루엣으로 잘라 쓰기).
+- (22:28 KST, 사용자) 카드팩 완성 패키지(로고 PLAYER ONE·톱니 봉합선) 도착 → 검정 배경 지워 투명 webp docs/assets/pack-cover2.webp(800×1310, 233KB), 이걸 기본 표지로 C.76o 전달(앞 표지 대체).
