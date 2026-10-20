@@ -106,7 +106,7 @@ describe('팀 수별 일정 (C.75m)', () => {
 });
 
 describe('리그별 달력 (C.75m)', () => {
-  const cases: [string, number, number][] = [['laliga', 8, 5], ['bundesliga', 8, 5], ['championship', 8, 5], ['saudi', 8, 5], ['kleague1', 3, 12], ['jleague1', 3, 12], ['brasileirao', 3, 12], ['mls', 3, 12]];
+  const cases: [string, number, number][] = [['laliga', 8, 5], ['bundesliga', 8, 5], ['championship', 8, 5], ['saudi', 8, 5], ['kleague1', 8, 5], ['jleague1', 8, 5], ['brasileirao', 8, 5], ['mls', 8, 5]];
   it.each(cases)('%s: 개막 %i월 ~ 최종 %i월, 라운드 날짜 오름차순, 팀마다 2일 이상 쉰다', (id, m0, m1) => {
     for (const season of [2018, 2021]) {
       const lg = createLeague('c75m-cal', season, id);
@@ -114,8 +114,9 @@ describe('리그별 달력 (C.75m)', () => {
       expect(cal.fixtureDates).toHaveLength(lg.schedule.length);
       expect(+cal.opening.slice(5, 7)).toBe(m0);
       expect(+cal.final.slice(5, 7)).toBe(m1);
-      const spring = calendarKind(id) === 'spring-autumn';
-      expect(+cal.final.slice(0, 4)).toBe(spring ? season : season + 1);
+      // C.76m: 모든 리그 8~5월 (옛 3~12월은 통일 전 세이브의 진행 중 시즌만)
+      expect(calendarKind(lg)).toBe('autumn-spring');
+      expect(+cal.final.slice(0, 4)).toBe(season + 1);
       for (let r = 1; r < cal.roundDates.length; r++) expect(daysBetween(cal.roundDates[r - 1]!, cal.roundDates[r]!)).toBeGreaterThan(0);
       const last = new Map<string, string>();
       lg.schedule.forEach((round, r) => round.forEach((f, i) => {
@@ -148,15 +149,14 @@ describe('고른 리그 빠른 시뮬 (C.75m)', () => {
   const leagues = ['pl', 'laliga', 'kleague1'];
   const game = (seed: string) => newGame({ mode: 'prospect', position: 'ST', seed, difficulty: 'normal', leagues });
 
-  it('새 게임: 고른 리그 보관, 춘추제가 아닌 리그는 소집일 전까지 2018 시즌 전반기를 치렀다', () => {
+  it('새 게임: 고른 리그 보관, 모든 리그가 같은 8~5월이라 소집일엔 모두 개막 전 (C.76m)', () => {
     const g = game('c75m-a');
     expect(g.leagueIds).toEqual(leagues);
     expect(g.otherLeagues!.map((l) => l.id)).toEqual(['laliga', 'kleague1']);
     const [la, k] = g.otherLeagues!;
     expect(la!.round).toBe(0);
     expect(k!.season).toBe(2018);
-    expect(k!.round).toBeGreaterThan(10);
-    expect(k!.round).toBeLessThan(33);
+    expect(k!.round).toBe(0);
     expect(k!.country).toBe('Korea Republic');
   });
 
@@ -184,18 +184,18 @@ describe('고른 리그 빠른 시뮬 (C.75m)', () => {
 
   it('끝난 리그는 지난 시즌 최종 순위를 남기고 다음 시즌으로 (날짜만 같으면 같은 결과)', () => {
     const st = { worldSeed: 'c75m-c', otherLeagues: [createLeague('c75m-c', 2018, 'kleague1')] as OtherLeague[] };
-    syncOtherLeagues(st, '2019-02-20');
+    syncOtherLeagues(st, '2019-07-25');
     const k = st.otherLeagues[0]!;
     expect(k.season).toBe(2019);
     expect(k.round).toBe(0);
     expect(k.past).toHaveLength(1);
     expect(k.past![0]!.top).toHaveLength(12);
     const again = { worldSeed: 'c75m-c', otherLeagues: [createLeague('c75m-c', 2018, 'kleague1')] as OtherLeague[] };
-    syncOtherLeagues(again, '2018-07-01');
-    syncOtherLeagues(again, '2019-02-20');
+    syncOtherLeagues(again, '2018-12-01');
+    syncOtherLeagues(again, '2019-07-25');
     expect(again.otherLeagues).toEqual(st.otherLeagues);
-    // 다음 해 개막 뒤
-    syncOtherLeagues(st, '2019-05-01');
+    // 다음 시즌 개막 뒤 (C.76m: 8~5월)
+    syncOtherLeagues(st, '2019-10-01');
     expect(st.otherLeagues[0]!.round).toBeGreaterThan(3);
   });
 
@@ -234,7 +234,7 @@ describe('세이브 (C.75m)', () => {
   });
 
   it('옛 세이브(46) = PL 하나로 마이그레이션', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(52);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75m-m', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 46;
@@ -243,7 +243,7 @@ describe('세이브 (C.75m)', () => {
     delete old.league.country;
     delete old.league.tier;
     const m = migrate(old);
-    expect(m.saveFormat).toBe(51);
+    expect(m.saveFormat).toBe(52);
     expect(m.leagueIds).toEqual(['pl']);
     expect(m.league.id).toBe('pl');
     expect(m.league.country).toBe('England');

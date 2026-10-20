@@ -140,8 +140,10 @@ describe('카드 효과 엔진 (부록 F, C.36)', () => {
     const direct = () => playMyMatch({ ...rm.input, cards: { deck }, control: { mode: 'direct', stop: 'important', policy: (m) => bestChoice(m) } });
     const cold = time(auto);
     const a = time(auto);
+    // 직접 모드도 데운 뒤 잰다 (C.76k: 결정 순간·카드 경로의 첫 JIT 가 느린 러너에서 2초를 넘김 — 2,123·2,409 ms, 로컬 1.0~1.4초)
+    const coldDirect = time(direct);
     const d = time(direct);
-    console.info(`[2초 테스트] 냉시작 ${cold}ms (표시만) · 자동 ${a}ms · 직접 ${d}ms`);
+    console.info(`[2초 테스트] 냉시작 ${cold}ms · 직접 냉시작 ${coldDirect}ms (표시만) · 자동 ${a}ms · 직접 ${d}ms`);
     expect(a).toBeLessThan(2000);
     expect(d).toBeLessThan(2000);
   });
@@ -214,7 +216,7 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
   });
 
   it('세이브 15 → 16: 카드 모음이 생기고 (시작 덱), 저장·불러오기 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(52);
     const g = game('ST', 'cards-mig');
     g.player.level = 7;
     const raw = JSON.parse(serialize(g));

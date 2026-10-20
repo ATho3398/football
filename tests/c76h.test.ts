@@ -23,7 +23,7 @@ describe('다른 리그 풀 엔진 (45b b)', () => {
     toFirstOtherDay(b);
     const ja = otherLeagueJobs(a, a.calendar.date);
     expect(ja.length).toBeGreaterThan(0);
-    // MLS 는 2018 전반기를 새 게임 때 빠른 계산으로 채워 둔다 (득점·도움만)
+    // C.76m: MLS 도 PL 과 같은 8~5월이라 첫 경기 날 전에는 치른 경기가 없다
     const played0 = a.otherLeagues![0]!.table.reduce((t, r) => t + r.played, 0) / 2;
     const goals0 = a.otherLeagues![0]!.table.reduce((t, r) => t + r.gf, 0);
     const before0 = new Set(Object.keys(a.otherLeagues![0]!.stats ?? {}));
@@ -40,7 +40,7 @@ describe('다른 리그 풀 엔진 (45b b)', () => {
     expect(lines.length).toBeGreaterThan(20);
     expect(lines.every((s) => s[2]! >= 1 && s[4]! > 0)).toBe(true);
     expect(Object.values(mls.stats!).reduce((t, s) => t + s[0], 0)).toBe(mls.table.reduce((t, r) => t + r.gf, 0));
-    expect(goals0).toBeGreaterThan(0);
+    expect(goals0).toBe(0);
     // 하루 끝 빠른 계산은 이미 치른 경기를 건드리지 않는다
     const before = JSON.stringify(mls.table);
     syncOtherLeagues(a, a.calendar.date);
@@ -50,6 +50,8 @@ describe('다른 리그 풀 엔진 (45b b)', () => {
 
   it('playOthers(engine) 이 다른 리그 경기도 엔진으로, quick 은 하루 끝 빠른 계산 그대로', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76h-b', difficulty: 'normal', leagues: ['pl', 'kleague1'] });
+    // C.76m: K리그1 도 8월 개막 — 다른 리그 경기가 있는 첫날까지
+    toFirstOtherDay(g);
     const d = g.calendar.date;
     expect(otherLeagueJobs(g, d).length + otherLeagueJobs(g, addDays(d, 1)).length).toBeGreaterThan(0);
     for (let k = 0; k < 3; k++) {

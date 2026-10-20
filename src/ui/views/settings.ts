@@ -7,6 +7,7 @@ import { realAppearance } from '../../appearance';
 import { BALANCE } from '../../config/balance';
 import type { GameState } from '../../game';
 import { clubKo, teamById } from '../../league';
+import { PACK_ANIM_PREF_KO, RARITY_KO as PACK_RARITY_KO, loadPackAnimPref } from '../packAnim/model';
 import { Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, PixelTile, SectionTitle, Switch, Tabs, TextField, type IconName } from '../components';
 import {
   AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, heroFaceOf, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
@@ -426,6 +427,12 @@ function section(id: SetSec, sub: string, open: boolean, body: string, locked = 
 }
 
 const DIFF_KO: Record<string, string> = { easy: '쉬움', normal: '보통', hard: '어려움' };
+
+/** 다른 경기 미리 계산 보관 상태 (C.76m): 화면이 렌더 직전에 넣는다. null = 워커 없음(메인 스레드) */
+let precompute: { ready: number; total: number } | null = null;
+export function setPrecomputeStatus(s: { ready: number; total: number } | null): void {
+  precompute = s;
+}
 const STOP_KO: Record<string, string> = { all: '모든 순간', important: '중요한 순간만', critical: '결정적 순간만' };
 
 function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: boolean, ca: CardArtUI): string {
@@ -440,7 +447,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
       ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: g.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
       ${g.control.mode === 'direct' ? `<div class="kv"><span>정지 빈도</span></div>${Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: g.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' })}` : ''}
       <div class="kv"><span>다른 경기 계산</span></div>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: g.options.quickOthers ? 'quick' : 'engine', act: 'opt-quick', fill: true, label: '다른 경기 계산' })}
-      <p class="small muted">${g.options.quickOthers ? '느린 기기용: 다른 팀 경기와 고른 다른 리그 경기를 통계로 바로 계산해요. 득점 순위는 내 경기와 득점자 추첨만 남아요.' : `다른 팀 경기${(g.otherLeagues?.length ?? 0) ? `와 고른 다른 리그 ${g.otherLeagues!.length}개 경기` : ''}도 22명 엔진으로 계산해요(워커 병렬). 경기 날 [계속]이 몇 초~수십 초, 리그가 많으면 비시즌 [다음 시즌]이 몇 분 걸릴 수 있어요.`}</p>
+      <p class="small muted">${g.options.quickOthers ? '느린 기기용: 다른 팀 경기와 고른 다른 리그 경기를 통계로 바로 계산해요. 득점 순위는 내 경기와 득점자 추첨만 남아요.' : `다른 팀 경기${(g.otherLeagues?.length ?? 0) ? `와 고른 다른 리그 ${g.otherLeagues!.length}개 경기` : ''}도 22명 엔진으로 계산해요(워커 병렬). 홈·다른 화면에 있거나 내 경기를 보는 동안 앞으로 3일치를 미리 계산해 두어 날짜 넘김이 빨라져요(같은 결과).${precompute ? ` 지금 미리 계산 ${precompute.ready}/${precompute.total}경기.` : ' 이 기기는 워커가 없어 미리 계산하지 않아요.'}`}</p>
       <div class="kv set-kv"><span>난이도</span><span><b>${DIFF_KO[g.difficulty] ?? g.difficulty}</b><small class="muted"> · 새 게임에서 정해요</small></span></div>`
     : '<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>';
   const playSub = g ? [g.control.mode === 'direct' ? '직접' : '자동', ...(g.control.mode === 'direct' ? [STOP_KO[g.control.stop] ?? ''] : []), g.options.quickOthers ? '빠른 진행' : '전체 엔진', DIFF_KO[g.difficulty] ?? ''].join(' · ') : '게임 밖';
@@ -455,8 +462,11 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
   const links = SET_PAGES.map((pg) => `<button type="button" class="set-link" data-act="set-page" data-v="${pg.id}"><span class="set-link__icon">${Icon({ name: pg.icon, size: 18 })}</span><span class="grow"><b>${pg.label}</b><small>${esc(counts[pg.id])}</small></span><span class="set-link__go">편집${Icon({ name: 'chevron-right', size: 16 })}</span></button>`).join('');
   const look = `<div class="kv"><span>화면 스타일</span></div>${Tabs({ items: (['b', 'a'] as const).map((k) => ({ id: k, label: SKIN_KO[k] })), value: skin(), act: 'skin-set', fill: true, label: '화면 스타일' })}
     <p class="small muted">B = 꺾인 모서리·이탤릭 숫자(기본) · A = 둥근 알약 모양. 색과 화면 내용은 같아요. 이 기기에 저장돼요.</p>
+    <div class="kv"><span>팩 개봉 연출</span></div>${Tabs({ items: (['full', 'short', 'off'] as const).map((k) => ({ id: k, label: PACK_ANIM_PREF_KO[k] })), value: loadPackAnimPref(), act: 'pack-anim-set', fill: true, label: '팩 개봉 연출' })}
+    <p class="small muted">카드팩·카드 선택권을 열 때 연출이에요. 움직임 줄이기를 켠 기기는 '전체'도 짧게 보여요. 결과·확률과는 무관해요.</p>
+    <div class="kv"><span>연출 미리보기</span><small class="muted">카드·세이브는 그대로예요</small></div><div class="btn-row even">${(['common', 'rare', 'epic', 'legendary'] as const).map((r) => Button({ variant: 'secondary', size: 'sm', act: 'pack-anim-demo', data: { v: r }, children: PACK_RARITY_KO[r] })).join('')}${Button({ variant: 'secondary', size: 'sm', act: 'pack-anim-demo', data: { v: 'legendary', k: 'pick' }, children: '선택권' })}</div>
     <small class="set-links__label">하위 화면</small><div class="set-links">${links}</div>`;
-  const lookSub = `스타일 ${SKIN_KO[skin()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
+  const lookSub = `스타일 ${SKIN_KO[skin()]} · 팩 연출 ${PACK_ANIM_PREF_KO[loadPackAnimPref()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
   const saves = `<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>${
     // C.73d: 초기화면(타이틀)으로. 자동 저장 뒤 나간다. 경기 중에는 숨긴다

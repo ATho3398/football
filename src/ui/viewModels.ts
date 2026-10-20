@@ -1337,8 +1337,8 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
   const status = done ? `시즌 종료 · 우승 ${champ}` : played === 0 ? `개막 전 · ${dateLabel(otherLeagueCalendar(g.worldSeed, lg).opening)} 개막` : `${Math.min(lg.round + 1, lg.schedule.length)}R / ${lg.schedule.length}`;
   const last = lg.past?.at(-1);
   return {
-    id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[d.calendar]}` : '',
-    season: seasonLabel(lg.season, calendarKind(lg.id)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
+    id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[calendarKind(lg)]}` : '',
+    season: seasonLabel(lg.season, calendarKind(lg)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
     scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => {
       const st = lg.stats?.[id];
       const apps = st?.[2] ?? null;
@@ -1346,7 +1346,7 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
     }),
     engine: Object.values(lg.stats ?? {}).some((s) => s[2] !== undefined),
     last: last ? {
-      season: seasonLabel(last.season, calendarKind(lg.id)), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
+      season: seasonLabel(last.season, last.season === lg.season - 1 && lg.legacyCal ? 'spring-autumn' : 'autumn-spring'), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
       scorer: last.scorer ? `${last.scorer[0]}(${teamById(lg, last.scorer[1]).nameKo}) ${last.scorer[2]}골` : '',
     } : null,
   };
@@ -1699,12 +1699,12 @@ export interface NewGameForm {
 
 /** 리그 고르기 (C.75m): 카탈로그 순, 내 리그 필수, 데이터 없는 리그는 준비 중 */
 export function leaguePickerVM(leagueIds: readonly string[], realMode = false): import('./views/screens').NewGameVM['leagues'] {
-  const months = { 'autumn-spring': '8월~5월', 'spring-autumn': '3월~12월' } as const;
+  // 모든 리그 8~5월 (C.76m)
   return leagueCatalog().map((e) => {
     const ready = !!leagueData(e.id);
     const on = ready && leagueIds.includes(e.id);
     return {
-      id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · ${months[e.calendar]}`,
+      id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · 8월~5월`,
       on, mine: e.id === leagueIds[0], ready,
       // 내 리그로 (C.76c) → 45b b: 내 리그는 시작 팀으로 정한다 (리그 고르기는 다른 리그 묶음만)
       canMine: false,

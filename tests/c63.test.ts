@@ -142,7 +142,7 @@ describe('이벤트 엔진·인박스 (20.3·20.4)', () => {
   it('세이브 33: 왕복, 32 세이브 이식(인박스 없음 → 처음 쓸 때)', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c63-save', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(51);
+    expect(SAVE_FORMAT_VERSION).toBe(52);
     const back = deserialize(serialize(g));
     expect(back.inbox?.items.length).toBe(g.inbox?.items.length);
     expect(back.events?.slots).toEqual(g.events?.slots);
