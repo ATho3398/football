@@ -2,7 +2,7 @@
 // 실행: npm run balance:sweep -- onball.utilityScale=1.5,2.4,4 keeper.saveBase=1.3,1.38
 // 조합당 표본: 동레이팅 60경기 + Δ±8 40경기 + 스탯 반응 핵심 3개(ST 슈팅, CM 패스, CB 태클) 각 40경기
 // 결과 표는 docs/engine-sweep.md 에 저장한다. 고른 값은 전체 점검(balance:engine)으로 다시 확인한다.
-// npm run balance:sweep -- --tactics : 동레이팅 성향 6 × 6 매트릭스(칸마다 MATRIX 경기, 기본 100)와 능력치 × 전술 상호작용 (E.19 검증)
+// npm run balance:sweep -- --tactics : 동레이팅 성향 7 × 7 매트릭스(칸마다 MATRIX 경기, 기본 100)와 능력치 × 전술 상호작용 (E.19 검증)
 //   → docs/engine-tactics.md
 
 import { writeFileSync } from 'node:fs';
@@ -82,7 +82,7 @@ writeFileSync('docs/engine-sweep.md', lines.join('\n'));
 console.log(lines.join('\n'));
 process.exit(0);
 
-/** E.19 검증: 성향 6 × 6 (영향 상한 ±0.3골, 만능 전술 없음)과 능력치 × 전술 상호작용 3개 */
+/** E.19 검증: 성향 7 × 7 (영향 상한 ±0.3골, 만능 전술 없음)과 능력치 × 전술 상호작용 3개 */
 async function tacticsMatrix(): Promise<void> {
   const NM = Number(process.env.MATRIX ?? 100);
   const NI = Number(process.env.INTER ?? 100);
@@ -125,7 +125,7 @@ async function tacticsMatrix(): Promise<void> {
     }
   }
   // 약팀 블록 (E.19 검증 D.21, pending 15 질문 9): 약팀(70)이 강팀(78, 균형)을 상대로 균형 / 수비 블록 / 역습일 때 실점·득실차
-  const WEAK: [string, Tendency][] = [['균형', 'balanced'], ['수비 블록', 'block'], ['역습', 'counter']];
+  const WEAK: [string, Tendency][] = [['균형', 'balanced'], ['수비 블록', 'block'], ['역습', 'counter'], ['버스 세우기', 'bus']];
   const weakIdx = new Map<string, [number, number]>();
   for (const [name, t] of WEAK) {
     const start = jobs.length;
@@ -173,7 +173,7 @@ async function tacticsMatrix(): Promise<void> {
   L.push(`- 동레이팅 75, 양 팀 4-4-2, 중립. 칸마다 ${NM}경기 (행 성향이 열 성향을 상대로 낸 경기당 득실차, 홈/원정 자리를 바꾼 두 칸의 평균)`);
   L.push(`- 영향 상한(±${LIMIT})을 넘은 짝 ${over.length}개${rechecked ? `는 칸마다 ${RECHECK}경기까지 다시 쟀다 (표에 *)` : ''}`);
   L.push('');
-  L.push('## 성향 6 × 6 (E.15 전술 영향 상한과 상성)');
+  L.push('## 성향 7 × 7 (E.15 전술 영향 상한과 상성)');
   L.push(`| 행 \\ 열 | ${TENDENCIES.map((t) => TENDENCY_NAMES_KO[t]).join(' | ')} | 최소 | 상성 있음 |`);
   L.push(`|${'---|'.repeat(TENDENCIES.length + 3)}`);
   let maxAbs = 0;

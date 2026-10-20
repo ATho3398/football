@@ -56,3 +56,14 @@ export function prospectTeamOk(teamId: string): boolean {
   if (!lg) return false;
   return prospectTeamPick(lg, '').teams.some((t) => t.id === teamId && t.ok);
 }
+
+/** 리그 고르기 묶음 (디자인 239): 유럽 1부 · 유럽 2부 · 아시아 · 아메리카 */
+export type LeagueGroup = 'eu1' | 'eu2' | 'asia' | 'americas';
+export const LEAGUE_GROUPS: readonly { id: LeagueGroup; ko: string }[] = [
+  { id: 'eu1', ko: '유럽 · 1부' }, { id: 'eu2', ko: '유럽 · 2부' }, { id: 'asia', ko: '아시아' }, { id: 'americas', ko: '아메리카' },
+];
+const ASIA = new Set(['Saudi Arabia', 'Korea Republic', 'Japan', 'China PR', 'Australia', 'Qatar', 'United Arab Emirates']);
+const AMERICAS = new Set(['Brazil', 'United States', 'Argentina', 'Mexico', 'Canada']);
+export function leagueGroupOf(country: string, tier: number): LeagueGroup {
+  return ASIA.has(country) ? 'asia' : AMERICAS.has(country) ? 'americas' : tier >= 2 ? 'eu2' : 'eu1';
+}

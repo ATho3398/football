@@ -12,7 +12,7 @@ export function panel(inner: string, cls = ''): string {
 
 export function banners(list: BannerVM[]): string {
   return list.map((b) => Banner({
-    tone: b.tone, title: b.title, ...(b.body ? { children: b.body } : {}),
+    tone: b.tone, title: b.title, ...(b.body ? { children: b.body } : {}), ...(b.icon ? { icon: b.icon, fill: true } : {}),
     ...(b.action ? { action: b.action, onAction: { act: b.act!, data: b.to ? { to: b.to } : {} } } : {}),
   })).join('');
 }

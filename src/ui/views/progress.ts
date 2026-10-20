@@ -50,6 +50,7 @@ export function autoLayerHtml(): string {
   return `<div class="auto-layer__box" role="status" aria-live="polite">
     <div class="auto-layer__head"><span class="live-dot" aria-hidden="true"></span><b class="auto-layer__title">자동 경기 진행 중</b></div>
     <div class="auto-layer__count"><b class="po-num auto-layer__n">0</b><span class="po-num auto-layer__m">/ 0경기</span></div>
+    <span class="auto-layer__chip" hidden>${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b></b></span>
     <span class="auto-layer__meta small"></span>
     <span class="auto-layer__bar" aria-hidden="true"><i></i></span>
     <ul class="auto-layer__results"></ul>
@@ -57,11 +58,11 @@ export function autoLayerHtml(): string {
     ${Button({ variant: 'secondary', block: true, icon: 'stop', act: 'sim-stop', className: 'auto-layer__stop', children: '중단' })}</div>`;
 }
 
-/** 레이어 한 줄 결과 (최근 2경기) */
+/** 레이어 한 줄 결과 (최근 4경기, C.76j 디자인 215: 앞에 "리그 3R"처럼 대회 + 라운드) */
 export interface AutoResultLine { label: string; opp: string; gf: number; ga: number; rating: number | null }
 
 export function autoResultsHtml(list: AutoResultLine[]): string {
-  return list.slice(-2).map((r) => {
+  return list.slice(-4).map((r) => {
     const o = r.gf > r.ga ? ['win', '승'] : r.gf < r.ga ? ['loss', '패'] : ['draw', '무'];
     return `<li><span class="po-num">${esc(r.label)}</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num">${r.gf}-${r.ga} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
   }).join('');

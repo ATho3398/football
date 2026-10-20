@@ -136,7 +136,10 @@ describe('도감 화면', () => {
     expect(html).toContain(`${have} / ${DEX_IDS.length} ·`);
     expect(html).toContain('No.042');
     expect(html).toContain('???');
-    for (const s of ['도감 번호', '포지션', '이름', '등번호', '나이', '능력치', '리그', '획득순']) expect(html).toContain(s);
+    // C.76l (디자인 238 폰): 정렬 = 접는 선택 한 칸(고른 값이 늘 보임) → 펼치면 8가지
+    expect(html).toContain('data-act="pc-sort-open"');
+    const menu = photoDexView(vm, true);
+    for (const s of ['도감 번호', '포지션', '이름', '등번호', '나이', '능력치', '리그', '획득순']) expect(menu).toContain(s);
     expect(photoDexVM(g, 'name').sections[0]!.cells.length).toBe(have);
     const pos = photoDexVM(g, 'pos');
     expect(pos.sections.every((s) => s.title)).toBe(true);
@@ -160,7 +163,7 @@ describe('도감 화면', () => {
 
 describe('세이브 46', () => {
   it('옛 세이브(45) = 빈 도감', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(50);
+    expect(SAVE_FORMAT_VERSION).toBe(51);
     const g: GameState = game();
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 45;

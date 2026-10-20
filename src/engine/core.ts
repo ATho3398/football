@@ -84,9 +84,9 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   tm.counterUntil = 0;
   if (!open) return;
   s.teams[team === 0 ? 1 : 0].wonAt = s.t;
-  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록은 역압박 없이 즉시 복귀
+  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록·버스 세우기는 역압박 없이 즉시 복귀
   const tendency = tm.tactics.tendency;
-  if (tendency === 'counter' || tendency === 'block') return;
+  if (tendency === 'counter' || tendency === 'block' || tendency === 'bus') return;
   const b = s.ball;
   const near = s.agents
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)

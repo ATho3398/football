@@ -151,11 +151,12 @@ export function SectionTitle(p: SectionTitleProps): string {
 
 const BANNER_ICON: Record<string, IconName> = { injury: 'injury', warning: 'danger', info: 'info', success: 'check' };
 
-export interface BannerProps { tone?: 'injury' | 'warning' | 'info' | 'success'; title: string; children?: string; action?: string; onAction?: Action }
+/** icon: 아이콘 바꾸기 (C.76l 도감 album) · fill: 라임 낮은 면 (240B 새 포토카드 배너) */
+export interface BannerProps { tone?: 'injury' | 'warning' | 'info' | 'success'; title: string; children?: string; action?: string; onAction?: Action; icon?: IconName; fill?: boolean }
 
 export function Banner(p: BannerProps): string {
   const tone = p.tone ?? 'info';
-  return `<div class="${cx('po-banner', `po-banner--${tone}`)}" role="${tone === 'injury' || tone === 'warning' ? 'alert' : 'status'}"><span class="po-banner__icon">${Icon({ name: BANNER_ICON[tone]!, size: 18 })}</span><div class="po-banner__body"><b>${esc(p.title)}</b>${
+  return `<div class="${cx('po-banner', `po-banner--${tone}`, p.fill && 'po-banner--fill')}" role="${tone === 'injury' || tone === 'warning' ? 'alert' : 'status'}"><span class="po-banner__icon">${Icon({ name: p.icon ?? BANNER_ICON[tone]!, size: 18 })}</span><div class="po-banner__body"><b>${esc(p.title)}</b>${
     p.children ? `<p>${esc(p.children)}</p>` : ''}</div>${p.action ? `<button type="button" class="po-banner__action"${actAttrs(p.onAction ?? {})}>${esc(p.action)}</button>` : ''}</div>`;
 }
 
