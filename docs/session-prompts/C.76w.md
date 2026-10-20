@@ -1,0 +1,9 @@
+너는 엔진 코드 세션 "44h단계_박스 안 2선 마크·득점 분포·코너 (C.76w)"이다(Fable, 노력도 높음). 마스터는 X(session_012GNg6RDeZPkuVx81rChZ91, 마스터 브랜치 claude/planning-x). 지시서는 엔진관리자7(session_018DRMCh4bNW71nsPnQCaAJ3, 브랜치 claude/engine-manager-7) — "해결 어려움·진단 불일치"는 엔진관리자7에 send_message(X에는 짧게). 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다(1·2·3번 fix 규칙, 7번).
+
+먼저 읽기: CLAUDE.md → docs/automation.md → `git fetch origin claude/engine-manager-7` 후 `docs/engine-diagnosis-e4.md` **§9.12 전체**(44h-e 처방·통과 기준 §9.12.3) → main 부록 C.76s(엔진 32 기준선) → `docs/engine-issues.md` 미해결 8·11 → `docs/engine-manager-handoff.md` 교훈(C.75d·e·j: 공격 보정 없이 수비만).
+
+범위(44h-e = §9.12, 공격 코드 무수정): 가설 1 `offball.ts boxDefense` 더블팀 → 박스 안 위협 2위(2선 포함) 마크 + `boxManMax` 2 + `defendTarget` 줄 2 존 마크에서 마커 있는 focus 제외 → **첫 관문 = 가설 1 직후 같은 시드 scoring** / 가설 2 코너 상수 3개(blockCorner 0.45·parryCorner 0.35·clearCorner 0.35 — X 결정: 넣음) / 가설 3 조건부(30골+ > 2.0일 때만 focusAbilityW 0.5·focusTight 0.45) / 마무리: `rating.center` 재측정·saveBase 0.01 1회·engine:check XP 상한 1.2 → 1.15 복귀. 통과 기준은 §9.12.3(ST ≥ 36·미드 ≤ 28·CAM 골 ≤ 0.6×ST·30골+ 0.5~2.0 등). coneWidth는 쓰지 않는다(§9.12 ④ 조건일 때만). 결과 할당·고무줄 금지.
+가드: engine:check·balance:check·quick 600(득점·Δ+8)·같은 시드 scoring·sweep 7×7 ≤ 1.0. 결과가 기준선과 완전히 같으면 상수 경로 오류.
+예산: 3.5시간·§9.12 측정 횟수·Fable 30달러. 실패·부분 해결은 automation.md 3번.
+병렬: C.76v(44h-c3, config.ts `offball.secondPressDist`만, Fable)·C.76t(47b 시상, 엔진 무관)가 돈다. 푸시 직전 main 최신 병합(C.76v가 먼저 배포하면 그 위에서 가드 재확인), ENGINE_VERSION은 그때 main +1. PATCH_LABEL 'C.76w', STAGE_LABEL은 main 값 그대로. 부록 C에 C.76w, engine-issues 8·11 갱신. 엔진관리자7 docs와 C.76u 기록 브랜치(claude/c76u-wide-cutback의 docs/engine-attempt-c76u.md·scripts/diag/wing-cutback.ts만, src 변경은 가져오지 말 것)는 git merge 또는 해당 파일만 checkout으로 — 다른 docs를 덮어쓰지 않게(automation 7번 C.74a 사고).
+완료·실패면 X에 보고(가설별 측정 요약·득점 비율 전후·지문·테스트 수·커밋). CI 성공은 보내지 않는다(실패만).
