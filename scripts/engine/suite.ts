@@ -338,7 +338,11 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'crosses', '크로스 시도', '약 16', perTeam(eq, (s) => s.crosses), 13.5, 18.5);
     add(S, 'crossPct', '크로스 성공률 %', '25~30', ratio(totTeam(eq, (s) => s.crossesCompleted), totTeam(eq, (s) => s.crosses)) * 100, 25, 30);
     add(S, 'aerials', '공중볼 경합', '약 35', perTeam(eq, (s) => s.aerials), 30, 40);
-    add(S, 'savePct', 'GK 선방률 %', '68~72 (68~70 지향)', ratio(totTeam(eq, (s) => s.saves), totTeam(eq, (s) => s.shotsOnTarget)) * 100, 68, 72);
+    // 선방률 (C.76q, 미해결 6): 판정은 12 m 밖(PK 제외) 유효 슈팅 선방률로 재정의 — 가까운 슛은 골·먼 슛은 선방이 현실이라 전체 68~72 는 1대1 목표와 양립하기 어렵다. 전체 선방률은 기록만
+    add(S, 'savePct', 'GK 선방률 % (전체, 기록)', '기록 (옛 목표 68~72)', ratio(totTeam(eq, (s) => s.saves), totTeam(eq, (s) => s.shotsOnTarget)) * 100, 0, 100);
+    add(S, 'saveFar', 'GK 선방률 % (12 m 밖, PK 제외)', '74~82', ratio(totTeam(eq, (s) => s.farSaves), totTeam(eq, (s) => s.farOnTarget)) * 100, 74, 82, 1, {
+      note: `12 m 밖 유효 ${perTeam(eq, (s) => s.farOnTarget).toFixed(2)} / 전체 유효 ${perTeam(eq, (s) => s.shotsOnTarget).toFixed(2)}`,
+    });
     const km = (g: string[]) => avg(eq.flatMap((m) => m.players.filter((p) => g.includes(p.position) && p.minutes >= 85).map((p) => p.distance / 1000)));
     add(S, 'distCM', '이동 거리 CM/CDM km', '10~12', km(['CM', 'CDM']), 10, 12, 2);
     add(S, 'distDef', '이동 거리 수비수 km', '9~10.5', km(['CB', 'LB', 'RB']), 9, 10.5, 2);
@@ -383,7 +387,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       add(S2, 'pathOther', '골 경로: 그 밖(루즈볼·가로채기) % (참고)', '-', pct(gp[6]!), 0, 100, 0);
       const sp = [0, 1, 2, 3, 4, 5, 6].map((k) => totTeam(eq, (t) => t.shotPaths[k]!));
       extra.push(`슈팅 경로 % (패스/돌파·몰고/코너/프리킥/PK/리바운드/그 밖): ${sp.map((v) => (ratio(v, sum(sp)) * 100).toFixed(0)).join(' / ')}`);
-      add(S2, 'pk', 'PK (팀당)', '약 0.13 (0.09~0.17)', perTeam(eq, (t) => t.shotPaths[4]!), 0.09, 0.17, 2);
+      add(S2, 'pk', 'PK (팀당)', '0.11~0.16 (경기당 0.22~0.32, C.76q)', perTeam(eq, (t) => t.shotPaths[4]!), 0.11, 0.16, 2);
       add(S2, 'cornerPerGoal', '코너 몇 개당 코너 골', '약 30 (20~40)', ratio(totTeam(eq, (t) => t.corners), gp[2]!), 20, 40, 0);
       add(S2, 'boxAtCross', '크로스·컷백 순간 박스 안 인원', '3~4', ratio(totTeam(eq, (t) => t.boxAtCross), totTeam(eq, (t) => t.boxCrossN)), 3, 4, 1);
       const dec = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => totTeam(eq, (t) => t.decisions[k]!));
