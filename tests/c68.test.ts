@@ -215,7 +215,7 @@ describe('재정 화면·세이브 38', () => {
     const html = financeView(vm);
     expect(html).toContain('재정');
     expect(html).toContain('코치 모집');
-    expect(SAVE_FORMAT_VERSION).toBe(49);
+    expect(SAVE_FORMAT_VERSION).toBe(50);
     expect(deserialize(serialize(g)).money).toEqual(g.money);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 37;

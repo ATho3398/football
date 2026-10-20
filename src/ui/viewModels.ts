@@ -9,6 +9,7 @@ import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, rosterLeagu
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
+import { ensureNational, natId, natLabel, natRoster, nationFromId } from '../national';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
@@ -244,7 +245,7 @@ export interface HomeVM {
   next: null | {
     my: string; opp: string; home: boolean; myRating: number; oppRating: number;
     /** 컵·챔스 경기 배지 (C.67b) */
-    cup?: { label: string; comp: CompId };
+    cup?: { label: string; comp: CompId | 'nat' };
     myTactic?: TacticVM; oppTactic?: TacticVM;
     /** 전술 화면이 열렸으면 "전술" 버튼 (21.3: 3경기 뒤) */
     tacticsOpen: boolean;
@@ -331,6 +332,8 @@ export function dayVM(g: GameState): DayVM | null {
   // 컵 (C.67): 내 컵 경기 (치른 것 + 추첨된 것)
   const cupDays = new Map<string, { home: boolean; opp: string; label: string }>();
   for (const c of myCupMatches(g)) cupDays.set(c.date, { home: c.home, opp: c.opponentId, label: c.label });
+  // 대표팀 (C.76d): 소집된 A매치 주간 경기
+  for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.key.startsWith('w:')) cupDays.set(m.date, { home: m.home, opp: natId(m.opp), label: natLabel(m) });
   for (const [d, c] of cupDays) myDates.set(d, { home: c.home, opp: c.opp, r: -1 });
   const breakDays = new Map<string, keyof typeof BREAK_KO>();
   for (const b of cal.breaks) for (let k = -1; k <= 0; k++) breakDays.set(addDays(b.date, k + 1), b.kind);
@@ -439,6 +442,7 @@ export function homeVM(g: GameState): HomeVM {
       derby: derbyBadge(p.teamId, opp.id),
       env: envVM(g),
       ...(fx.cup ? { cup: { label: fx.cup.comp === 'ucl' ? `챔피언스리그 · ${fx.cup.stage}` : fx.cup.label, comp: fx.cup.comp } } : {}),
+      ...(fx.nat ? { cup: { label: `${natLabel(fx.nat)} · ${teamById(g.league, natId(ensureNational(g).nation)).nameKo} 대표팀`, comp: 'nat' as const } } : {}),
     };
   }
   const slump = g.phase === 'season' ? slumpBanner(g) : null;
@@ -514,10 +518,10 @@ export interface AutoSheetVM {
 }
 
 /** 남은 내 경기 (리그 + 추첨된 컵, 날짜 순, C.67) */
-function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; comp: string; cup: CompId | null }[] {
+function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; comp: string; cup: CompId | null; nat?: boolean }[] {
   const me = g.player.teamId;
   const cal = calendarOf(g);
-  const out: { date: string; opp: string; home: boolean; comp: string; cup: CompId | null }[] = [];
+  const out: { date: string; opp: string; home: boolean; comp: string; cup: CompId | null; nat?: boolean }[] = [];
   for (let r = g.league.round; r < g.league.schedule.length; r++) {
     const i = g.league.schedule[r]!.findIndex((f) => f.home === me || f.away === me);
     if (i < 0) continue;
@@ -525,13 +529,26 @@ function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; c
     out.push({ date: cal.fixtureDates[r]![i]!, opp: f.home === me ? f.away : f.home, home: f.home === me, comp: `${r + 1}R`, cup: null });
   }
   if (g.phase === 'season') for (const c of myCupMatches(g)) if (c.tie.hg === undefined) out.push({ date: c.date, opp: c.opponentId, home: c.home, comp: c.label, cup: c.comp });
+  // 대표팀 (C.76d): 잡힌 A매치
+  if (g.phase === 'season') for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.gf === undefined) out.push({ date: m.date, opp: natId(m.opp), home: m.home, comp: natLabel(m), cup: null, nat: true });
   return out.sort((a, b) => daysBetween(b.date, a.date));
+}
+
+/** 자동 진행 "국가대표 A매치" (C.76d): 소집돼 잡힌 다음 A매치에서 멈춘다 */
+function natTarget(g: GameState, list: ReturnType<typeof myUpcoming>): AutoTargetVM {
+  const k = list.findIndex((x) => x.nat);
+  const x = list[k];
+  return {
+    id: 'aMatch', label: '국가대표 A매치', available: true,
+    next: x ? { date: dateLabel(x.date), iso: x.date, text: `${x.comp} · ${teamById(g.league, x.opp).nameKo}전 · ${x.home ? '홈' : '원정'}`, before: k, left: list.filter((y) => y.nat).length } : null,
+    ...(x ? {} : { note: '소집되면 A매치 주간 경기가 잡혀요 (발표는 휴식기 5일 전)' }),
+  };
 }
 
 export function autoSheetVM(g: GameState): AutoSheetVM {
   const list = myUpcoming(g);
   const remaining = list.length;
-  const derbies = list.map((x, k) => ({ ...x, k, d: derbyOf(g.player.teamId, x.opp) })).filter((x) => !x.cup && x.d);
+  const derbies = list.map((x, k) => ({ ...x, k, d: derbyOf(g.player.teamId, x.opp) })).filter((x) => !x.cup && !x.nat && x.d);
   const nd = derbies[0];
   // 컵·챔스 (C.67): 날짜가 잡힌 다음 내 경기, 없으면 결과 한 줄
   const cups = g.cups?.season === g.league.season ? g.cups : null;
@@ -552,8 +569,8 @@ export function autoSheetVM(g: GameState): AutoSheetVM {
         date: dateLabel(nd.date), iso: nd.date, text: `${teamById(g.league, nd.opp).nameKo}전 · ${nd.home ? '홈' : '원정'} · ${nd.d!.name}`, before: nd.k, left: derbies.length,
       } : null,
     },
-    { id: 'aMatch', label: '국가대표 A매치', available: false, next: null },
-    { id: 'nationsCup', label: '국가대표 토너먼트', available: false, next: null },
+    natTarget(g, list),
+    { id: 'nationsCup', label: '국가대표 토너먼트', available: false, next: null, note: '월드컵·대륙컵은 시즌이 끝난 여름에 자동으로 치러요' },
     cupTarget('ucl', '챔피언스리그', !!cups?.ucl, cups?.ucl ? uclReachLabel(g, cups.ucl, me) : ''),
     cupTarget('fa', cupNameKo(g.league.id), !!cups?.fa, cups?.fa ? reachLabel(cups.fa, me) : ''),
   ];
@@ -801,6 +818,7 @@ function badgesVM(g: GameState): PlayerVM['badges'] {
   for (let i = h.length - 1; i >= 0 && h[i]!.teamId === p.teamId; i--) streak++;
   const progress: Record<BadgeId, string> = {
     goals500: `${goals} / ${B.careerGoals}골`, titles5: `${titles} / ${B.leagueTitles}회`, oneClub10: `${streak} / ${B.sameTeamSeasons}시즌`,
+    worldCup: `월드컵 우승 ${p.honors?.worldCups ?? 0}회`,
   };
   return activeBadges().map((id) => {
     const b = (p.badges ?? []).find((x) => x.id === id);
@@ -1116,6 +1134,10 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     else if (m.cup.through) banners.push({ tone: 'success', title: `${name} ${m.cup.stage} 통과`, body: `${pens}다음 단계에 올랐어요. 대진은 이 단계가 끝난 날 추첨해요.` });
     else banners.push({ tone: 'warning', title: m.cup.stage === '결승' ? `${name} 준우승` : `${name} ${m.cup.stage} 탈락`, body: `${pens}이번 시즌 ${name}은 여기까지예요.` });
   }
+  if (m.nat) {
+    const c = g.national?.career;
+    banners.push({ tone: 'info', title: `${m.nat.label} · 대표팀 기록`, body: `A매치 ${c?.apps ?? 0}경기 ${c?.goals ?? 0}골. 리그 기록과 따로 쌓여요.`, action: '대표팀', act: 'go', to: 'national' });
+  }
   if (m.cards?.red) banners.push({ tone: 'warning', title: '퇴장당했어요', body: '다음 경기에 나설 수 없어요.' });
   else if (g.player.suspended > 0 && g.phase === 'season') banners.push({ tone: 'warning', title: '다음 경기 출장 정지', body: `옐로카드 ${BALANCE.discipline.yellowBanEvery}장이 쌓였어요.` });
   const slump = slumpBanner(g);
@@ -1153,11 +1175,15 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   const max = xpToLevel(g.player);
   const value = m.levelsGained > 0 ? g.player.xp : Math.max(0, g.player.xp - res.xp);
   // 컵 경기 (C.67): 득점 기록은 보고에 (홈 = 내 팀이 홈이면 나)
-  const fx = m.cup ? { home: m.home ? g.player.teamId : m.opponentId, g: m.cup.g } : g.league.schedule[m.round - 1]?.find((f) => f.home === g.player.teamId || f.away === g.player.teamId);
-  const mySide = fx?.home === g.player.teamId ? 0 : 1;
+  const natMe = m.nat ? natId(ensureNational(g).nation) : null;
+  const fx = m.nat ? { home: m.home ? natMe : m.opponentId, g: m.nat.g } : m.cup ? { home: m.home ? g.player.teamId : m.opponentId, g: m.cup.g } : g.league.schedule[m.round - 1]?.find((f) => f.home === g.player.teamId || f.away === g.player.teamId);
+  const mySide = fx?.home === (natMe ?? g.player.teamId) ? 0 : 1;
   const who = (id: string | null): { name: string; id: string | null } | null => {
     if (!id) return null;
     if (id === MY_ID) return { name: g.player.name, id: 'me' };
+    // 대표팀 경기 (C.76d): 두 대표팀 로스터에서 먼저
+    const natP = natMe ? [...natRoster(g, nationFromId(natMe)).players, ...natRoster(g, nationFromId(m.opponentId)).players].find((x) => x.id === id) : undefined;
+    if (natP) return { name: natP.nameKo, id: findRosterPlayer(g.rosters, id) ? id : null };
     const hit = findRosterPlayer(g.rosters, id);
     if (hit) return { name: hit.player.nameKo, id };
     const ext = m.cup ? cupRoster(g, m.opponentId).players.find((x) => x.id === id) : undefined;
@@ -1165,11 +1191,11 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   };
   const goals = (fx?.g ?? []).map(([min, side, sc, as]) => ({ minute: `${min}'`, ...who(sc)!, assist: who(as)?.name ?? null, assistMe: as === MY_ID, mine: side === mySide }));
   return {
-    myTeam: teamById(g.league, g.player.teamId).nameKo, face: myFace(g),
-    myTeamId: g.player.teamId, oppId: m.opponentId, goals,
+    myTeam: teamById(g.league, natMe ?? g.player.teamId).nameKo, face: myFace(g),
+    myTeamId: natMe ?? g.player.teamId, oppId: m.opponentId, goals,
     env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
-    round: m.round, comp: m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
-    opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
+    round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
+    opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.nat?.pens ? ` (승부차기 ${m.nat.pens[0]}-${m.nat.pens[1]})` : ''}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
@@ -1931,7 +1957,8 @@ export interface HalftimeVM {
   score: [number, number];
   side: 0 | 1;
   tendencies: { id: Tendency; style: TacticStyle; name: string; on: boolean }[];
-  details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string }[];
+  /** changed = 경기 전 전술과 다름 (237 "바뀜" 표시) */
+  details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string; changed: boolean }[];
   sets: { id: number; name: string; desc: string; on: boolean }[];
   changed: boolean;
   chips: string[];
@@ -1951,7 +1978,7 @@ export function halftimeVM(draft: HalftimeDraft, base: Pick<HalftimeDraft, 'tend
   return {
     teams, score, side,
     tendencies: TENDENCIES.map((id) => ({ id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], on: id === draft.tendency })),
-    details: DETAILS.map((d) => ({ key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })), value: LEVEL_ID[draft.levels[d]]! })),
+    details: DETAILS.map((d) => ({ key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })), value: LEVEL_ID[draft.levels[d]]!, changed: draft.levels[d] !== base.levels[d] })),
     sets: halftimeSets(base).map((x, i) => ({ id: i, name: x.name, desc: x.desc, on: draft.set === i })),
     changed: draft.tendency !== base.tendency || DETAILS.some((d) => draft.levels[d] !== base.levels[d]),
     chips: [TENDENCY_NAMES_KO[draft.tendency], `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
