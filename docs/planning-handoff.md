@@ -508,3 +508,4 @@
 - (08:54 KST) **C.75w 완료**(main e710fd0, 레전드 191명) → pending 133, UI_3(패널 1 + 235 캡처), ntfy, C.75b draft_. 지금 코드 세션은 C.75c 하나.
 - (08:53 KST) **C.75b CI 성공**(main 422ef05 #222, 05:49 배포). 44b 끝. C.75w #223(e710fd0) 진행 중(C.75w가 확인).
 - (09:38 KST) **C.75w CI 성공**(main e710fd0 run 223). C.75w draft_.
+- (09:45 KST) **C.75c 완료**(main 4aed8b8, 엔진 24) → pending 129, ntfy, UI_3 해당 없음. **C.75d(44c-b) 시작** `session_01LeJxB7wiAd18fXSorLSdHL`, 브랜치 `claude/c75d-defense-b`.
