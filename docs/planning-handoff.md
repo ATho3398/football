@@ -725,3 +725,4 @@
 - (06:23 KST) **C.76v 시작**(44h-c3, secondPressDist 0.6→1.0, Fable) `session_01ET4xGEsyfJBzMJPVPAAua1` `claude/c76v-second-press`. 44h-e(C.76w)는 엔진관리자7의 미해결 9 재진단 답 뒤에 연다. 다음 새 이름 C.76w.
 - (06:31 KST) 엔진관리자7 §9.12.9(c835b63) 미해결 9 재진단: 시작 깊이 상수 5개 사전 측정 모두 ✗ → 목표가 아니라 **도달이 막힘**(목표에서 14~16 m 뒤·urgent 73%), 분해 1개 먼저. **9는 44h-e에 안 묶음 → 44h-f(44h-e 뒤, 4·2와 같은 묶음)**. X 결정(권장안): (1) 9 목표 재정의 "LM/RM 비중 7~9%·슈팅 ≥ 0.9/경기(부분 ≥ 0.75), LW/RW ≥ 10% 유지"(현실 4-4-2 측면 미드 기준) (2) 44h-f는 44h-e 뒤.
 - (06:31 KST) **C.76w 시작**(44h-e §9.12, Fable 3.5h·30달러) `session_01Wy61cuFukJVAvGsoqopTxQ` `claude/c76w-box-marking`. C.76u 기록 두 파일만 checkout으로 main에 실음. 진행 중: C.76t·v·w, 엔진관리자7(대기). 다음 새 이름 C.76x.
+- (06:53 KST) 자동 확인: run 264(6910247, C.76s) 진행 중 — 성공 뒤 C.76s draft_. C.76t 병합본 balance:check 중(33.5만). 한도 allowed. 재예약 07:54 KST. 사용자 질문 "엔진 미해결 모아서 보고" → engine-issues 미해결 목록(engine-manager-7 최신) 요약 답함.
