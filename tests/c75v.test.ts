@@ -11,14 +11,14 @@ const M = ENGINE.moments;
 const sameAs = (x: Candidate, y: Candidate) => x.type === y.type && x.receiver === y.receiver && Math.abs(x.x - y.x) < 0.5 && Math.abs(x.y - y.y) < 0.5;
 
 /** 직접 모드 봇 경기에서 소유 정지를 모은다 (선수 기본 덱, 모든 순간) */
-function collect(groups: string[], seeds: number, prefix = 'c75v'): (Moment & { cands?: Candidate[] })[] {
+function collect(groups: string[], seeds: number, prefix = 'c75v', from = 0): (Moment & { cands?: Candidate[] })[] {
   const seen: (Moment & { cands?: Candidate[] })[] = [];
   const pol: MomentPolicy = (m) => {
     if (m.type === 'onball') seen.push(m as Moment & { cands?: Candidate[] });
     return bestChoice(m);
   };
   for (const grp of groups) {
-    for (let k = 0; k < seeds; k++) {
+    for (let k = from; k < seeds; k++) {
       const p = selectableRealPlayers().find((x) => posGroup(x.position) === grp)!;
       const g = newGame({ mode: 'real', playerId: p.id, seed: `${prefix}-${k}-${p.id}`, difficulty: 'normal' });
       const rm = roundMatch(g);
@@ -43,7 +43,8 @@ describe('C.75v 결정 순간 선택지 라벨·확실한 선택지·최대 5개
 
   // CDM 시드는 C.76a(엔진 28, 위협 가중 수비) 뒤 c75v-0~2 에 sureBack 장면이 없어져 c76b-0~2(2장면) 로
   // C.76p(엔진 30, 깊은 블록 밀집·1대1 보너스) 뒤 c76b-0~2 에도 없어져 c76p 시드로
-  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76p')];
+  // C.76q(엔진 31, PK·saveBase 1.64) 뒤 c76p 에도 없어져 sureBack 이 있는 c76b-1·c76b-7(각 1장면)을 더한다 (CDM·CM 64경기에 2장면뿐인 드문 장면)
+  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76p'), ...collect(['CDM'], 2, 'c76b', 1), ...collect(['CDM'], 8, 'c76b', 7)];
 
   it('소유 정지: 최대 5개 · 같은 후보/같은 이름 줄 없음 · 확률 순(몰고 가다 슛은 끝) · 라벨은 구간', () => {
     expect(all.length).toBeGreaterThan(20);

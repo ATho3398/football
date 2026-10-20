@@ -234,7 +234,7 @@ describe('세이브 (C.75m)', () => {
   });
 
   it('옛 세이브(46) = PL 하나로 마이그레이션', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(52);
+    expect(SAVE_FORMAT_VERSION).toBe(53);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75m-m', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 46;
@@ -243,7 +243,7 @@ describe('세이브 (C.75m)', () => {
     delete old.league.country;
     delete old.league.tier;
     const m = migrate(old);
-    expect(m.saveFormat).toBe(52);
+    expect(m.saveFormat).toBe(53);
     expect(m.leagueIds).toEqual(['pl']);
     expect(m.league.id).toBe('pl');
     expect(m.league.country).toBe('England');

@@ -204,6 +204,21 @@ export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: num
   return pick;
 }
 
+/** 지정 PK 키커 (C.76q, 미해결 13): 경기장의 필드 선수 중 (슈팅 + 침착성) 최고 (penaltyProb 와 같은 식), 같으면 앞 번호 */
+export function penaltyTaker(s: SimState, team: 0 | 1): number {
+  let pick = -1;
+  let best = -Infinity;
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== team || a.line === 0) continue;
+    const v = a.attrs.shooting + a.attrs.composure;
+    if (v > best) {
+      best = v;
+      pick = a.idx;
+    }
+  }
+  return pick;
+}
+
 /** 리스타트 준비: 키커는 공에 가장 가까운 선수 (킥오프는 가장 앞선 선수, 골킥은 GK). delay 'auto' = 종류별 대기 시간 */
 export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number, delayArg: number | 'auto' | 'offside', taker?: number): void {
   const delay = typeof delayArg === 'number' ? delayArg : autoDelay(s, type, x, y, delayArg === 'offside');
@@ -218,7 +233,7 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
   b.x = clamp(x, 0, L);
   b.y = clamp(y, 0, W);
   let pick = taker ?? -1;
-  if (pick < 0) pick = type === 'kickoff' ? (kickoffTaker(s, team)?.idx ?? -1) : nearestTaker(s, type, team, b.x, b.y);
+  if (pick < 0) pick = type === 'kickoff' ? (kickoffTaker(s, team)?.idx ?? -1) : type === 'penalty' ? penaltyTaker(s, team) : nearestTaker(s, type, team, b.x, b.y);
   if (type !== 'kickoff') recordLoss(s, team);
   s.moments.relief = null;
   if (s.possTeam !== team) turnover(s, s.possTeam, false);

@@ -17,6 +17,7 @@ import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
 import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../life';
+import { awardsTodo } from './awardsVM';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
@@ -822,6 +823,7 @@ function badgesVM(g: GameState): PlayerVM['badges'] {
   const progress: Record<BadgeId, string> = {
     goals500: `${goals} / ${B.careerGoals}골`, titles5: `${titles} / ${B.leagueTitles}회`, oneClub10: `${streak} / ${B.sameTeamSeasons}시즌`,
     worldCup: `월드컵 우승 ${p.honors?.worldCups ?? 0}회`,
+    ballonDor: `발롱도르 ${p.honors?.ballonDor ?? 0}회`,
   };
   return activeBadges().map((id) => {
     const b = (p.badges ?? []).find((x) => x.id === id);
@@ -904,7 +906,7 @@ export function playerVM(g: GameState): PlayerVM {
     badges: badgesVM(g),
     chem: topChemMates(g),
     // 발롱도르·챔스·월드컵은 5단계 대회 기능이라 아직 얻을 수 없다 (위상 조건만 열림)
-    legendary: legendaryConditions(p.reputation, p.honors).map((c, i) => ({ ...c, locked: i > 0 })),
+    legendary: legendaryConditions(p.reputation, p.honors).map((c) => ({ ...c, locked: false })),
     isLegendary: tier === 'legendary',
     history: historyVM(g),
     matches: seasonMatchesVM(g),
@@ -1454,6 +1456,8 @@ export interface SeasonVM {
   /** 시즌 목표 결과 (C.65). 옛 세이브 요약이면 null. cardPicks = 지금 받을 카드 선택권 수 */
   seasonGoals: { rows: { ok: boolean; source: string; tierKo: string; label: string; value: string; xp: number; trust: number }[]; awards: string[]; xp: number; picks: number } | null;
   cardPicks: number;
+  /** 개인 시상 (C.76n): 발표 상황 한 줄 (시상이 없으면 null) */
+  awardsLine: string | null;
   repBefore: number; repAfter: number; tierName: string; tier: DesignTier;
   /** 위상 내역 (부록 C.25): 시즌 중 부진 감점, 시즌 끝 순위 감점. 감점이 없으면 null */
   slumpPenalty: number; rankPenalty: { expected: number; pos: number; points: number } | null; badgeRep: number;
@@ -1517,6 +1521,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
       awards: s.goals.awards, xp: s.goals.xp, picks: s.goals.results.filter((r) => r.met).length + s.goals.awards.length,
     } : null,
     cardPicks: g.cards?.picks.length ?? 0,
+    awardsLine: awardsTodo(g, s.season),
     repBefore: s.reputationBefore, repAfter: s.reputationAfter, tierName: TIER_NAMES_KO[tier], tier: designTier(tier),
     slumpPenalty: s.slumpPenalty ?? 0, rankPenalty: s.rankPenalty && s.rankPenalty.points > 0 ? s.rankPenalty : null,
     repLines: seasonRepLines(s),

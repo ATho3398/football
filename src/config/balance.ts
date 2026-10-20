@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 64;
+export const BALANCE_VERSION = 66;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -153,7 +153,12 @@ export const BALANCE = {
     /** 레전더리 컷은 월드클래스와 같다. 점수만으로는 오르지 않고 아래 업적 조건도 채워야 한다 (8.1, 부록 C.23) */
     tierCuts: { normal: 0, special: 250, topClass: 550, worldClass: 900, legendary: 900 } satisfies Record<Tier, number>,
     /** 레전더리 조건: 발롱도르 ballonDorMin 회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 ballonDorAlt 회 이상) */
-    legendary: { ballonDorMin: 1, ballonDorAlt: 3 },
+    /**
+     * 레전더리 업적 조건 (8.1, C.76n 4a 개정): [발롱도르 ≥ ballonDorMin 또는 최고 개인상 ≥ topMin] 그리고
+     * (트레블 · 월드컵 우승 · 발롱도르 ≥ ballonDorAlt · 최고 개인상 ≥ topAlt 중 하나). 최고 개인상 = 더 베스트 · 리그 올해의 선수(47b) ·
+     * 포지션 상(야신 · 올해의 수비수) · 월드컵 골든볼, 시즌당 최대 topPerSeason 개
+     */
+    legendary: { ballonDorMin: 1, ballonDorAlt: 3, topMin: 3, topAlt: 6, topPerSeason: 2 },
   },
 
   // ── 실력 티어 (B.5): OVR 하한 ──
@@ -1509,6 +1514,94 @@ export const BALANCE = {
     archive: { fullSeasons: 3, keepTop: 20 },
   },
   /**
+   * 개인 시상 (C.76n, 47a단계, docs/awards-design.md): 시즌 끝에 선수 시즌 이력서를 만들고, 상마다 투표단(기자·선수·감독주장·팬)이 투표해 정한다.
+   * 이력서 항목 (모든 상 공유): out 공격 포인트(포지션 보정 골·도움, 시즌 환산) · rat 평점·출전 · def 팀 실점 덜 함(수비·GK) · tro 팀 트로피(리그·국내 컵·챔스, 출전 비중) ·
+   * nat 대표팀 대회 · clu 결정적 순간(결승골·80분 뒤 동점/역전골·해트트릭 × 경기 무게) · sto 서사(득점왕·기록·10대/35세·약팀 돌풍·이적 첫 시즌·부상 복귀) ·
+   * fam 인기(위상) · tal 재능(OVR + 어린 나이). out·rat·def·tro 는 리그 수준 계수를 곱한다. 투표자는 항목 표준점수(대상 선수 안) × 투표단 가중치 + 노이즈로 순위를 매겨 points 를 준다.
+   * 엔진 기록이 없으면(빠른 진행) 출전·평점·골·도움을 OVR·팀 성적으로 추정하고, 결정적 순간은 골 × clutchPerGoal.
+   */
+  awards: {
+    /** 리그 수준 계수. 표에 없는 리그는 otherCoef */
+    leagueCoef: {
+      pl: 1, laliga: 1, seriea: 1, bundesliga: 1, ligue1: 1, eredivisie: 0.8, primeira: 0.8,
+      championship: 0.6, bundesliga2: 0.58, brasileirao: 0.6, saudi: 0.52, mls: 0.52, jleague1: 0.52, kleague1: 0.5,
+    } as Record<string, number>,
+    otherCoef: 0.5,
+    /** 골든부츠 계수 (유럽 골든슈 실제 규칙): 5대 리그 2 · 포르투갈·네덜란드 1.5 · 그 외 유럽 1. 표에 없는 리그(아시아·남미·MLS·사우디)는 제외. europe 자격(골든보이)도 이 표 */
+    bootCoef: { pl: 2, laliga: 2, seriea: 2, bundesliga: 2, ligue1: 2, eredivisie: 1.5, primeira: 1.5, championship: 1, bundesliga2: 1 } as Record<string, number>,
+    /** 후보 자격: 출전 / 팀이 치른 리그 경기 ≥ minShare (나이 제한 상은 youngMinShare) */
+    minShare: 0.45, youngMinShare: 0.3,
+    resume: {
+      goal: { GK: 0, CB: 1.5, FB: 1.4, CDM: 1.3, CM: 1.2, CAM: 1.1, WING: 1, ST: 1 } as Record<string, number>,
+      assist: { GK: 0, CB: 1, FB: 1, CDM: 1, CM: 0.9, CAM: 0.8, WING: 0.75, ST: 0.7 } as Record<string, number>,
+      rating: { GK: 30, CB: 26, FB: 24, CDM: 22, CM: 18, CAM: 15, WING: 12, ST: 12 } as Record<string, number>,
+      ratingBase: 6.6,
+      apps: 10,
+      /** 팀 경기당 실점이 리그 평균보다 적은 만큼 × 이 값 × 출전 비율 */
+      cleanSheet: { GK: 20, CB: 15, FB: 10, CDM: 5, CM: 0, CAM: 0, WING: 0, ST: 0 } as Record<string, number>,
+      /** 팀 트로피: 리그 1~4위 · 국내 컵 우승 · 챔스 [그 밖, 8강, 4강, 준우승, 우승]. 출전 비율 / fullShare 만큼 (최대 1) */
+      league: [14, 8, 5, 3] as readonly number[], cup: 4, ucl: [0, 3, 6, 10, 16] as readonly number[], fullShare: 0.8,
+      /** 대표팀 대회 (그 여름 대회 기록이 있는 나라): [8강, 4강, 준우승, 우승] */
+      wc: [2, 4, 7, 12] as readonly number[], continental: [0, 1, 3, 6] as readonly number[],
+      /** 결정적 순간 점수 (골 하나): 결승골 · 80분 뒤 동점 · 80분 뒤 역전/앞서는 골 · 해트트릭 · 결승골 도움. 경기 무게: 더비 +0.3 · 상위 6팀 상대 +0.2, 컵 단계 */
+      clutch: {
+        winner: 1, lateEqualizer: 1, lateGoAhead: 1.5, hatTrick: 1, winnerAssist: 0.4, lateMin: 80,
+        derby: 0.3, topOpp: 0.2, topRank: 6,
+        fa: { early: 1, semi: 1.6, final: 2.5 }, ucl: { group: 1.2, ko: [1.5, 1.7, 2], final: 3 },
+      },
+      /** 엔진 골 기록이 없을 때 골 하나당 결정적 순간 */
+      clutchPerGoal: 0.6,
+      /** 서사: 리그 득점 1위 · 시즌 기록(38경기 환산 recordGoals 골 이상) · 10대(≤19)·어린(≤21)·베테랑(≥34) · 약팀 돌풍(예상 순위보다 3계단 넘게 높음, 계단당, 최대) · 이적 첫 시즌 · 부상 복귀(8주+) */
+      story: { topScorer: 1, record: 2, recordGoals: 34, teen: 1, young: 0.5, veteran: 0.8, underdogPer: 0.4, underdogMax: 2, newClub: 0.5, comeback: 0.8, comebackWeeks: 8 },
+      /** 재능 = OVR + (21 − 나이) × talentAge */
+      talentAge: 1.5,
+    },
+    /**
+     * 기록 추정 (엔진 기록이 없을 때): 출전 비율 = share [선발, 벤치, 그 밖] × (0.88~1.05) (엔진 한 시즌 측정: 주전 0.95),
+     * 경기당 골·도움 = goals.rates[군] × (1 + (OVR − 팀 레이팅) × goals.ovrK, 0.5~1.8) × 팀 득점 비(0.5~1.8) × (0.7~1.3),
+     * 평균 평점 = ratingBase + (OVR − 팀 레이팅) × ratingRel + (OVR − 75) × ratingOvr + (팀 득실 비 − 1) × ratingTeam ± ratingJitter
+     */
+    estimate: { share: [0.95, 0.4, 0.06] as readonly number[], ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2 },
+    /** 투표단 가중치 (이력서 항목 표준점수) · 노이즈(표준편차, 후보 안 종합 점수 표준편차 단위) · 성향 */
+    juries: {
+      journalist: { w: { out: 0.75, rat: 0.7, def: 0.4, tro: 2.6, nat: 0.9, clu: 0.9, sto: 0.8, fam: 0.3, tal: 0 }, noise: 0.6 },
+      players: { w: { out: 1, rat: 1.4, def: 0.9, tro: 0.5, nat: 0.3, clu: 0.4, sto: 0.1, fam: 0.1, tal: 0 }, noise: 0.45 },
+      coach: { w: { out: 1, rat: 1, def: 0.6, tro: 1, nat: 0.9, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 }, noise: 0.5 },
+      fan: { w: { out: 1.3, rat: 0.3, def: 0.1, tro: 0.6, nat: 0.5, clu: 0.8, sto: 0.3, fam: 1.4, tal: 0 }, noise: 0.6 },
+    } as Record<'journalist' | 'players' | 'coach' | 'fan', { w: Record<string, number>; noise: number }>,
+    /** 기자단: 그 상을 지난해 받은 선수 감점 (새 얼굴 선호). 감독·주장: 같은 리그·국적 가점. 팬: 공격수(ST·윙·CAM) 가점 (표준점수 단위) */
+    fatigue: 0.5, sameLeague: 0.15, sameNation: 0.15, fanAttacker: 0.25,
+    /**
+     * 상 정의 (데이터 표, 47b 상은 여기에 더한다): vote = 투표단 비율(없으면 formula 상), voters = 투표단마다 투표자 수, points = 순위별 점수,
+     * nominees = 후보 수(이력서 종합 상위), maxAge = 시즌 시작 나이 상한, europe = 골든부츠 표 리그만, groups = 포지션군, w = 가중치 덮어쓰기,
+     * wc = 월드컵 상(월드컵 대회 이력서로, 월드컵 해만), top = 최고 개인상(레전더리 조건 4a, 시즌당 최대 growth 의 topPerSeason),
+     * due = 발표 [월, 일] (시즌 끝나는 해, 없으면 시즌 끝 바로), xp = 순위별 XP, rep = 1위 위상, pick = 1위 카드 선택권 희귀도 비율 (발롱도르는 goals.awardPick).
+     * rep 은 모두 0: 발롱도르 +20 · 더 베스트 +10 · 그 밖 +5~8 이면 balance 가드 "레전더리 30세까지 900+" 가 10/48 = 0.208(≤ 0.2)로 시드 하나(legendary-26, 887 → 905)를 넘긴다
+     * (C.68a 코치 · C.74b 기록 · C.76d 대표팀과 같은 경계 시드). 0 이면 9/48 = 기준선 그대로 (`scripts/diag/c76n-legend.ts`). 발롱도르 위상은 레전드 배지 +30 으로
+     */
+    defs: {
+      ballonDor: { ko: '발롱도르', vote: { journalist: 1 }, voters: 100, points: [6, 4, 3, 2, 1], nominees: 30, due: [10, 28], nomineesDue: [8, 8], xp: [500, 180, 100], rep: 0 },
+      theBest: { ko: '더 베스트', vote: { coach: 0.5, journalist: 0.25, fan: 0.25 }, voters: 100, points: [5, 3, 1], nominees: 12, due: [12, 16], xp: [250, 90, 50], rep: 0, pick: { epic: 1 }, top: true },
+      kopa: { ko: '코파 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, maxAge: 21, youth: true, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 } },
+      yashin: { ko: '야신 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['GK'], w: { out: 0, rat: 1.2, def: 1.6, tro: 1, nat: 0.5, clu: 0, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 }, top: true },
+      defender: { ko: 'UEFA 올해의 수비수', vote: { journalist: 0.5, coach: 0.5 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['CB', 'FB', 'CDM'], europe: true, w: { out: 0.3, rat: 1.2, def: 1.6, tro: 1.3, nat: 0.5, clu: 0.3, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 }, top: true },
+      goldenBoy: { ko: '골든보이', vote: { journalist: 1 }, voters: 40, points: [5, 3, 1], nominees: 20, maxAge: 21, youth: true, europe: true, w: { out: 1, rat: 0.9, def: 0.4, tro: 0.6, nat: 0.4, clu: 0.6, sto: 0.6, fam: 0.2, tal: 1 }, due: [11, 18], xp: [150], rep: 0, pick: { epic: 1 } },
+      goldenBoot: { ko: '골든부츠', formula: 'boot', europe: true, xp: [150], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      muller: { ko: '게르트 뮐러 트로피', formula: 'goals', due: [10, 28], xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      // 월드컵 상 (월드컵이 열린 여름, 대회 끝 = 시즌 끝 바로): 대회 기록은 내 경기 엔진 + 다른 선수 = 나라 골·실점을 그 나라 대표팀 명단에 나눈 추정
+      wcBall: { ko: '월드컵 골든볼', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 10, w: { out: 1, rat: 1, def: 0.4, tro: 1.6, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [200], rep: 0, pick: { epic: 1 }, top: true },
+      wcBoot: { ko: '월드컵 골든부트', wc: true, formula: 'wcBoot', xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      wcGlove: { ko: '월드컵 골든글러브', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [120], rep: 0, pick: { epic: 1 } },
+      wcYoung: { ko: '월드컵 영플레이어', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 8, maxAge: 21, youth: true, w: { out: 1, rat: 1, def: 0.4, tro: 1, nat: 0, clu: 0.6, sto: 0, fam: 0.2, tal: 0.6 }, xp: [100], rep: 0, pick: { rare: 1 } },
+    } as Record<string, AwardDef>,
+    /** 역대 수상자: 가장 최근 시즌은 발롱도르 후보 전체 · 다른 상 keepLatest 줄, 그 앞 시즌은 상마다 keepRows 줄 */
+    keepRows: 3, keepLatest: 5,
+    /** NPC 위상 (world.standing 수상 개수): 발롱도르는 이만큼, 나머지 개인상은 1개 */
+    standingBallonDor: 2,
+    /** 파워 랭킹 기사: 매달 1일, 리그 이 라운드를 지난 뒤부터 */
+    powerFromRound: 8,
+  },
+  /**
    * 챔스/컵 (18.7, pending 108, 부록 C.67). 국내 컵(FA컵) = 단판 녹아웃 32팀(리그 20 + 하부 가상 12).
    * 단계 날짜 = 목표일([다음 해?, 월, 일])에 가장 가까운 토요일부터 찾아, 리그 경기와 minGap 일 이상 떨어진 첫 날 (토·일 → 그 주 화·수 → 앞뒤 주)
    */
@@ -1790,3 +1883,25 @@ export const BALANCE = {
 } as const;
 
 export type Balance = typeof BALANCE;
+
+/** 개인 시상 상 정의 (C.76n, BALANCE.awards.defs) */
+export interface AwardDef {
+  ko: string;
+  vote?: Partial<Record<'journalist' | 'players' | 'coach' | 'fan', number>>;
+  formula?: 'boot' | 'goals' | 'wcBoot';
+  voters?: number;
+  points?: readonly number[];
+  nominees?: number;
+  nomineesDue?: readonly [number, number];
+  maxAge?: number;
+  youth?: boolean;
+  europe?: boolean;
+  groups?: readonly string[];
+  wc?: boolean;
+  top?: boolean;
+  w?: Record<string, number>;
+  due?: readonly [number, number];
+  xp: readonly number[];
+  rep: number;
+  pick?: Record<string, number>;
+}

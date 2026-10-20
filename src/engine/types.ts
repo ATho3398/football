@@ -159,6 +159,9 @@ export interface TeamStats {
   /** (E.23) 수비수가 판단해서 시도한 태클 (1대1 경합 제외), 몰고 가기·유지 실패로 잃은 소유 */
   tackleAttempts: number;
   dispossessed: number;
+  /** (C.76q) 12 m 밖(PK 제외) 유효 슈팅 도착 / 그중 선방 — 미해결 6 선방률 지표 */
+  farOnTarget: number;
+  farSaves: number;
 }
 
 export interface PlayerStats {
