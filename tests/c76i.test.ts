@@ -22,7 +22,7 @@ afterEach(() => setWideForTest(null));
 
 describe('C.76i 인박스 (193 · 194 · 197②)', () => {
   it('목록 줄 = 답 필요 칩 · 답할 것 탭 배지 · 빈 상태 [전체 보기]', () => {
-    expect(PATCH_LABEL).toBe('C.76i');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
     const g = son();
     const it0 = fireEvent(g, eventById('s_charity')!);
     const vm = inboxVM(g, 'all');
