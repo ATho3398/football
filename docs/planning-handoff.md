@@ -598,3 +598,4 @@
 - (16:21 KST) **C.75l 완료**(44f-a, main bb5cf4a, ENGINE 27, T 경유) → ntfy, 엔진관리자5에 기준선 재측정·44f-b 처방 확인 요청(답 오면 44f-b 시작). 진행 중 코드 세션 5개(C.75m·u·v·w·x).
 - (16:31 KST) **C.75m 완료**(45a, main 4dfa721, BALANCE 59·SAVE 47, 테스트 891, T 경유) → UI_4 알림, ntfy. **C.75y 시작** `session_014hnh7JesgAD6TuzpSroeqZ`(45b 타리그 연결, `claude/c75y-league-wiring`) · **C.75z 시작** `session_01UZo1YRPYp3BuRWrxPsDDPg`(45c 대표팀, `claude/c75z-national-team`). 진행 중 코드 세션 6개(C.75u·v·w·x·y·z) + 44f-b 대기(엔진관리자5 처방).
 - (16:31 KST) UI_4 13차 UI 요청 보고(큰 3·작은 5, 번호 237~240, 7~13차 통합 프롬프트 docs/ui-requests/7-13/통합_프롬프트.txt, claude/ui-4 30cd2b8). 디자인 오면 U 적용 패치.
+- (16:53 KST) 자동 확인: main run 233~236 모두 다음 푸시에 취소(병렬 배포), run 237(4dfa721 = C.75k·l·m·n·t 전부) 진행 중 → 30분 뒤 재확인 후 draft_. 44f-b는 엔진관리자5 권고로 기록 닫기, 다음 엔진 = 44h-a(1대1·엘리트 몰림·위협 가중 수비 검토).
