@@ -11,14 +11,14 @@ const M = ENGINE.moments;
 const sameAs = (x: Candidate, y: Candidate) => x.type === y.type && x.receiver === y.receiver && Math.abs(x.x - y.x) < 0.5 && Math.abs(x.y - y.y) < 0.5;
 
 /** 직접 모드 봇 경기에서 소유 정지를 모은다 (선수 기본 덱, 모든 순간) */
-function collect(groups: string[], seeds: number, prefix = 'c75v'): (Moment & { cands?: Candidate[] })[] {
+function collect(groups: string[], seeds: number, prefix = 'c75v', from = 0): (Moment & { cands?: Candidate[] })[] {
   const seen: (Moment & { cands?: Candidate[] })[] = [];
   const pol: MomentPolicy = (m) => {
     if (m.type === 'onball') seen.push(m as Moment & { cands?: Candidate[] });
     return bestChoice(m);
   };
   for (const grp of groups) {
-    for (let k = 0; k < seeds; k++) {
+    for (let k = from; k < seeds; k++) {
       const p = selectableRealPlayers().find((x) => posGroup(x.position) === grp)!;
       const g = newGame({ mode: 'real', playerId: p.id, seed: `${prefix}-${k}-${p.id}`, difficulty: 'normal' });
       const rm = roundMatch(g);
@@ -41,8 +41,9 @@ describe('C.75v 결정 순간 선택지 라벨·확실한 선택지·최대 5개
     expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/); // 병렬 패치끼리 라벨이 바뀌어도 통과 (C.76c 병합)
   });
 
-  // CDM 시드는 C.76a(엔진 28, 위협 가중 수비) 뒤 c75v-0~2 에 sureBack 장면이 없어져 c76b-0~2(2장면) 로
-  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76b')];
+  // CDM 시드는 C.76a(엔진 28, 위협 가중 수비) 뒤 c75v-0~2 에 sureBack 장면이 없어져 c76b-0~2(2장면) 로.
+  // C.76q(엔진 30, saveBase 1.62) 뒤 c76b-0~2 에도 없어져 c76b-7(1장면)을 더한다 (CDM·CM 8시드 × 8묶음 약 830장면에 1개뿐인 드문 장면)
+  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76b'), ...collect(['CDM'], 8, 'c76b', 7)];
 
   it('소유 정지: 최대 5개 · 같은 후보/같은 이름 줄 없음 · 확률 순(몰고 가다 슛은 끝) · 라벨은 구간', () => {
     expect(all.length).toBeGreaterThan(20);
