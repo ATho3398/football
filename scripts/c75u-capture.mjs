@@ -27,6 +27,33 @@ async function dismiss() {
   }
 }
 const report = { W, H, errors, names: {} };
+// 이름 칸 실폭·잘림, 칩 줄 수, 제목 받침, 눈썹·이름·칩이 사선(slab 윗변·line)보다 아래(가려지지 않음)인지
+function measure() {
+  const hero = document.querySelector('.po-hero--face');
+  const el = hero?.querySelector('.po-hero__name[data-fit]');
+  if (!hero || !el) return null;
+  const r = document.createRange(); r.selectNodeContents(el);
+  const textW = r.getBoundingClientRect().width, boxW = el.getBoundingClientRect().width;
+  const chips = [...hero.querySelectorAll('.po-hero__chip')].map((c) => c.getBoundingClientRect());
+  const chipRows = new Set(chips.map((c) => Math.round(c.top))).size;
+  const chipCut = [...hero.querySelectorAll('.po-hero__chip')].some((c) => c.scrollWidth > c.clientWidth);
+  const hr = hero.getBoundingClientRect();
+  const slab = hero.querySelector('.po-hero__slab')?.getBoundingClientRect();
+  const slabTop = (x) => slab.top + slab.height * (0.22 + 0.28 * (x - hr.left) / hr.width);
+  const line = hero.querySelector('.po-hero__line');
+  const lr = line.getBoundingClientRect();
+  const tan = Math.tan(6.4 * Math.PI / 180), lh = line.offsetHeight, lw = line.offsetWidth;
+  const lineBottom = (x) => (x - hr.left) <= lw ? lr.top + lh + tan * (x - hr.left) : -1e9;  // 선 아래쪽 경계(선이 없는 곳은 -inf)
+  const parts = {};
+  for (const k of ['eyebrow', 'name']) {
+    const e = hero.querySelector(`.po-hero__${k}`); if (!e) continue;
+    const rr = k === 'name' ? r.getBoundingClientRect() : (() => { const q = document.createRange(); q.selectNodeContents(e); return q.getBoundingClientRect(); })();
+    const xs = [rr.left + 1, rr.right - 1];
+    parts[k] = { underSlab: xs.every((x) => rr.top >= slabTop(x) - 0.5), clearLine: xs.every((x) => rr.top >= lineBottom(x) - 0.5) };
+  }
+  const title = hero.querySelector('.po-hero__title');
+  return { text: el.textContent, font: el.style.fontSize, textW: +textW.toFixed(2), boxW: +boxW.toFixed(2), cut: textW > boxW, chipRows, chipCut, titleBg: getComputedStyle(title).backgroundColor, parts };
+}
 for (const name of NAMES) {
   await page.goto(process.env.URL ?? 'http://localhost:4173/');
   await page.evaluate(() => { localStorage.clear(); return new Promise((r) => { const q = indexedDB.deleteDatabase('football-career'); q.onsuccess = q.onerror = q.onblocked = () => r(null); }); });
@@ -45,18 +72,20 @@ for (const name of NAMES) {
   await dismiss();
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  const m = await page.evaluate(() => {
-    const el = document.querySelector('.po-hero__name[data-fit]');
-    if (!el) return null;
-    const r = document.createRange(); r.selectNodeContents(el);
-    return { text: el.textContent, font: el.style.fontSize, textW: +r.getBoundingClientRect().width.toFixed(2), boxW: +el.getBoundingClientRect().width.toFixed(2), lines: Math.round(el.getBoundingClientRect().height / parseFloat(el.style.lineHeight)) };
-  });
-  m.cut = m.textW > m.boxW;
-  report.names[name] = m;
-  const box = await page.locator('.po-hero').first().boundingBox();
-  await page.screenshot({ path: `${OUT}/${P}홈-${name.replace(/ /g, '')}.png`, clip: box && W < 1024 ? { x: 0, y: 0, width: W, height: Math.min(H, box.y + box.height + 24) } : undefined });
-  console.log(name, JSON.stringify(m));
+  for (const scr of ['홈', '선수']) {
+    if (scr === '선수') {
+      await page.evaluate(() => document.querySelector('[data-act="go-tab"][data-v="player"]')?.click());
+      await page.waitForTimeout(600);
+      await dismiss();
+    }
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(200);
+    const m = await page.evaluate(measure);
+    report.names[`${scr}:${name}`] = m;
+    const box = await page.locator('.po-hero').first().boundingBox();
+    await page.screenshot({ path: `${OUT}/${P}${scr}-${name.replace(/ /g, '')}.png`, clip: box && W < 1024 ? { x: 0, y: 0, width: W, height: Math.min(H, box.y + box.height + 24) } : undefined });
+    console.log(scr, name, JSON.stringify(m));
+  }
 }
 writeFileSync(`${OUT}/${P}report.json`, JSON.stringify(report, null, 2));
 await browser.close();

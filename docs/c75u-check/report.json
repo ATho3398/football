@@ -3,29 +3,125 @@
   "H": 844,
   "errors": [],
   "names": {
-    "율리안 린트너": {
+    "홈:율리안 린트너": {
       "text": "율리안 린트너",
       "font": "45px",
       "textW": 238.11,
       "boxW": 244,
-      "lines": 1,
-      "cut": false
+      "cut": false,
+      "chipRows": 1,
+      "chipCut": false,
+      "titleBg": "rgb(22, 23, 27)",
+      "parts": {
+        "eyebrow": {
+          "underSlab": true,
+          "clearLine": true
+        },
+        "name": {
+          "underSlab": true,
+          "clearLine": true
+        }
+      }
     },
-    "로베르트 레반도프스키": {
+    "선수:율리안 린트너": {
+      "text": "율리안 린트너",
+      "font": "36px",
+      "textW": 190.48,
+      "boxW": 244,
+      "cut": false,
+      "chipRows": 1,
+      "chipCut": false,
+      "titleBg": "rgb(22, 23, 27)",
+      "parts": {
+        "eyebrow": {
+          "underSlab": true,
+          "clearLine": true
+        },
+        "name": {
+          "underSlab": true,
+          "clearLine": true
+        }
+      }
+    },
+    "홈:로베르트 레반도프스키": {
       "text": "로베르트 레반도프스키",
       "font": "27px",
       "textW": 235.83,
       "boxW": 244,
-      "lines": 1,
-      "cut": false
+      "cut": false,
+      "chipRows": 1,
+      "chipCut": false,
+      "titleBg": "rgb(22, 23, 27)",
+      "parts": {
+        "eyebrow": {
+          "underSlab": true,
+          "clearLine": true
+        },
+        "name": {
+          "underSlab": true,
+          "clearLine": true
+        }
+      }
     },
-    "바스티안 슈바인슈타이거": {
+    "선수:로베르트 레반도프스키": {
+      "text": "로베르트 레반도프스키",
+      "font": "27px",
+      "textW": 235.83,
+      "boxW": 244,
+      "cut": false,
+      "chipRows": 1,
+      "chipCut": false,
+      "titleBg": "rgb(22, 23, 27)",
+      "parts": {
+        "eyebrow": {
+          "underSlab": true,
+          "clearLine": true
+        },
+        "name": {
+          "underSlab": true,
+          "clearLine": true
+        }
+      }
+    },
+    "홈:바스티안 슈바인슈타이거": {
       "text": "바스티안 슈바인슈타이거",
       "font": "25px",
       "textW": 236.23,
       "boxW": 244,
-      "lines": 1,
-      "cut": false
+      "cut": false,
+      "chipRows": 1,
+      "chipCut": false,
+      "titleBg": "rgb(22, 23, 27)",
+      "parts": {
+        "eyebrow": {
+          "underSlab": true,
+          "clearLine": true
+        },
+        "name": {
+          "underSlab": true,
+          "clearLine": true
+        }
+      }
+    },
+    "선수:바스티안 슈바인슈타이거": {
+      "text": "바스티안 슈바인슈타이거",
+      "font": "25px",
+      "textW": 236.23,
+      "boxW": 244,
+      "cut": false,
+      "chipRows": 1,
+      "chipCut": false,
+      "titleBg": "rgb(22, 23, 27)",
+      "parts": {
+        "eyebrow": {
+          "underSlab": true,
+          "clearLine": true
+        },
+        "name": {
+          "underSlab": true,
+          "clearLine": true
+        }
+      }
     }
   }
 }

@@ -29,3 +29,16 @@ describe('C.75u 버전', () => {
     expect(STAGE_LABEL).toBe('45단계');
   });
 });
+
+describe('C.75u 얼굴 머리말 겹침 (선수 화면 제보 16:02)', () => {
+  const css = readFileSync('src/ui/design/skin-b.css', 'utf8');
+  it('칩은 한 줄(줄바꿈 없음, 넘치면 칩마다 줄임), 줄 폭은 OVR 앞까지', () => {
+    expect(css).toMatch(/\.po-hero--face \.po-hero__chips \{ flex-wrap: nowrap;[^}]*width: calc\(100% \+ 36px\)/);
+    expect(css).toMatch(/\.po-hero--face \.po-hero__chip \{[^}]*text-overflow: ellipsis/);
+  });
+  it('위 막대 제목은 검정 받침, compact 사선 면은 눈썹 줄까지 덮도록 올림', () => {
+    expect(css).toMatch(/\.po-hero--face \.po-hero__title \{[^}]*background: var\(--surface-0\)/);
+    expect(css).toMatch(/\.po-hero--face\.po-hero--compact \.po-hero__slab \{ height: 180px;/);
+    expect(css).toMatch(/\.po-hero--face\.po-hero--compact \.po-hero__line \{ bottom: 150px;/);
+  });
+});
