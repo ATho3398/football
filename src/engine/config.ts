@@ -206,7 +206,7 @@ export const ENGINE = {
     /** 압박: 공에 가까운 수비 1~2명. 압박 거리 = pressDistBase + pressing × pressDistRange */
     pressers: 2,
     /** 둘째 압박자가 공으로 가는 거리 = pressDist × secondPressDist. 압박 높음(pressLevel 2)이면 역할 압박 성향과 무관하게 둘째도 공으로 (C.76s 44h-c2 가설 1, plan.sit 의 pressers 2 를 실제 2명으로) */
-    secondPressDist: 1.0,
+    secondPressDist: 0.8,
     /** 공이 자기 골에서 이 거리 안이면 첫 압박자는 거리와 무관하게 압박한다 (m). 둘째는 C.75c 부터 커버 (plan) */
     dangerPress: 30,
     /**
