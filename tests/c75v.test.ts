@@ -42,7 +42,8 @@ describe('C.75v 결정 순간 선택지 라벨·확실한 선택지·최대 5개
   });
 
   // CDM 시드는 C.76a(엔진 28, 위협 가중 수비) 뒤 c75v-0~2 에 sureBack 장면이 없어져 c76b-0~2(2장면) 로
-  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76b')];
+  // C.76p(엔진 30, 깊은 블록 밀집·1대1 보너스) 뒤 c76b-0~2 에도 없어져 c76p 시드로
+  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76p')];
 
   it('소유 정지: 최대 5개 · 같은 후보/같은 이름 줄 없음 · 확률 순(몰고 가다 슛은 끝) · 라벨은 구간', () => {
     expect(all.length).toBeGreaterThan(20);

@@ -87,7 +87,8 @@ describe('경기 엔진 코어 (E1)', () => {
 });
 
 describe('결정과 듀얼 (E2)', () => {
-  const results = Array.from({ length: 6 }, (_, i) => createMatch(input(100 + i)).runToEnd());
+  // C.76p: 6경기(유효 슈팅 약 40개)는 선방률 55~85 하한이 1.5σ 라 흔들려 24경기로 (엔진 30 에서 6경기 51%, 12경기 52%, 같은 설정 다른 시드 36경기 69%, quick 600 66%)
+  const results = Array.from({ length: 24 }, (_, i) => createMatch(input(100 + i)).runToEnd());
 
   it('기록 정합성: 골 ≤ 유효 슈팅 ≤ 슈팅, 선방 = 상대 유효 슈팅 − 상대 골, 골 이벤트 수 = 득점', () => {
     for (const r of results) {
