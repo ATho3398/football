@@ -189,7 +189,15 @@ export interface TeamState {
   coverAgent: number;
   /** GK 가 루즈볼을 쫓는 중 (C.28): 필드 추격자를 1명 줄인다 */
   gkChase: boolean;
+  /** 수비 상황 판정 (C.75c): 지금 상황과 그 시작 시각, 바뀌려는 후보와 그 시작 시각. '-' = 우리 공 */
+  sit: DefSit;
+  sitSince: number;
+  sitCand: DefSit;
+  sitCandSince: number;
 }
+
+/** 수비 상황 (C.75c, pending 41): A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박 */
+export type DefSit = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | '-';
 
 export interface SimState {
   input: EngineInput;

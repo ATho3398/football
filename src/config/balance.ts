@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 54;
+export const BALANCE_VERSION = 55;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -973,6 +973,9 @@ export const BALANCE = {
     maxPeak: 96,
     /** 도르트문트 레전드·미래 스타 (C.75x) 전성기 하한: 데이터 그대로 쓰도록 낮게 */
     groupMinPeak: 78,
+    /** 3판 (C.75w, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
+    maxPerTeam: 10,
+    arrivalsPerSeason: 4,
     loyalty: 70,
   },
 

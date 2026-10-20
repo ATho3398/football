@@ -1,7 +1,7 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
 import { ENGINE } from './config';
-import { effectiveTactics } from './offball';
+import { effectiveTactics, pressLevel } from './offball';
 import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
 import { TENDENCY } from './tactics';
@@ -91,7 +91,7 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const near = s.agents
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
     .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
-  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.counterMax;
+  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.plan.sit.H.pressers[pressLevel(s, team)]!;
   for (const a of near) {
     if (tm.counterPressers.length >= max) break;
     const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a);

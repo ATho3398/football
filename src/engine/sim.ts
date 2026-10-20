@@ -12,7 +12,7 @@ import { computeRatings } from './rating';
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
-import { refreshErrors, updateOffball } from './offball';
+import { refreshErrors, updateOffball, updateSituations } from './offball';
 import { candidates, choose, judgementOf } from './onball';
 import { aerialMoment, autoCardDecide, duelMoment, initMoments, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
@@ -120,7 +120,7 @@ export function createState(input: EngineInput): SimState {
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
@@ -364,6 +364,7 @@ function stepBody(s: SimState): void {
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
   // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격)
   const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
+  updateSituations(s);
   for (const a of s.agents) {
     if (!a.onPitch || a.idx === s.ball.owner) continue;
     if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh)) {

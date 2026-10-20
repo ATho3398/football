@@ -5,12 +5,12 @@ import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
-import { updateOffball } from './offball';
+import { ballRank, inOwnBox, updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
-import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
+import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, ownGoal, positionValue, segDist, toNorm, W } from './pitch';
 import { landingVelocity } from './physics';
 import { LONG_SHOT_FROM } from './env';
 import { exploitMul } from './rapport';
@@ -234,7 +234,7 @@ function behindOwner(s: SimState, o: Agent, d: Agent): boolean {
 
 /**
  * 수비수의 1대1 판단 (E.23): 공 소유자 duelRange m 안의 수비수는 판단 간격마다 태클 / 따라붙기 / 패스길 막기 중 하나를 고른다.
- * 태클 U = P × 탈취 가치 − (1 − P) × (돌파 허용 + 파울 비용), 따라붙기 U = jockeyValue (지연: 동료가 돌아올 시간), 패스길 막기 U = laneW × 가장 위험한 패스 대상 가치 상승분 − 돌파 허용 위험.
+ * 태클 U = P × 탈취 가치 − (1 − P) × (돌파 허용 + 파울 비용), 따라붙기 U = jockeyFar/jockeyNear (지연: 동료가 돌아올 시간, 공이 우리 골에 가까우면 작다 — C.75c), 패스길 막기 U = laneW × 가장 위험한 패스 대상 가치 상승분 − 돌파 허용 위험.
  * P = 1 − 드리블 성공 (태클·수비 포지셔닝·마킹·속도 대 드리블), 뒤에서 하는 태클은 P × behindTackle, 파울 × behindFoul.
  * 공격 판단과 같은 효용 단위·softmax 온도 구조 (판단 = 수비 포지셔닝·침착성·태클)
  */
@@ -313,10 +313,17 @@ function tacticalFoul(s: SimState, d: Agent, o: Agent): void {
   if (d.onPitch && d.stats.yellows === y0 && !red && !s.pendingCards.some((c) => c.agent === d.idx) && r(s, d.idx, Purpose.Cards, 2) < 0.7) giveCard(s, d, 'yellow');
 }
 
-/** 수비수 d 가 지금 소유자 o 와 1대1 판단을 하는가 (defendDuels 와 결정 순간이 같은 조건을 쓴다) */
+/**
+ * 수비수 d 가 지금 소유자 o 와 1대1 판단을 하는가 (defendDuels 와 결정 순간이 같은 조건을 쓴다).
+ * C.75c: 2 m 안이어도 압박자(공에 가장 가까운 필드 선수)·돌파 후 커버·역압박 첫째만 판단한다 (둘째는 커버)
+ */
 export function duelEligible(s: SimState, o: Agent, d: Agent): boolean {
   if (!d.onPitch || d.team === o.team || d.line === 0 || s.t < d.beatenUntil || s.t < d.duelNext) return false;
-  return dist(d.x, d.y, o.x, o.y) <= ENGINE.defense.duelRange;
+  if (dist(d.x, d.y, o.x, o.y) > ENGINE.defense.duelRange) return false;
+  const tm = s.teams[d.team];
+  if (tm.coverAgent === d.idx && s.t < tm.coverUntil) return true;
+  if (tm.counterPressers[0] === d.idx && s.t < tm.counterUntil) return true;
+  return ballRank(s, d, o.x, o.y) === 0;
 }
 
 /** 1대1 판단의 확률과 효용 [태클, 따라붙기, 패스길 막기] (E.23). beaten = 돌파 허용 비용 */
@@ -340,7 +347,9 @@ export function duelOdds(s: SimState, o: Agent, d: Agent): { pWin: number; pFoul
   const uTackle = pWin * gain - (1 - pWin) * (beaten + pFoul * foulCost);
   const lane = shadowValue(s, o, d) - here;
   const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
-  return { pWin, pFoul, beaten, us: [uTackle, D.jockeyValue, uLane] };
+  const [dgx, dgy] = ownGoal(attackDir(d.team, s.half));
+  const jockey = dist(o.x, o.y, dgx, dgy) < D.jockeyNearDist || inOwnBox(d.team, s.half, o.x, o.y) ? D.jockeyNear : D.jockeyFar;
+  return { pWin, pFoul, beaten, us: [uTackle, jockey, uLane] };
 }
 
 /** 판단 온도 (onball 과 같은 식) */

@@ -9,7 +9,7 @@ import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W }
 import { Purpose, rand, randn } from './rng';
 import { hasModule } from './roles';
 import { TENDENCY } from './tactics';
-import type { Agent, SimState } from './state';
+import type { Agent, DefSit, SimState } from './state';
 
 const O = ENGINE.offball;
 const F = ENGINE.formation;
@@ -23,6 +23,88 @@ export function effectiveTactics(s: SimState, team: 0 | 1): { lineHeight: number
   if (d < 0) return { lineHeight: clamp(base.lineHeight - R.shortLine, 0, 1), pressing: clamp(base.pressing - R.shortPress, 0, 1) };
   if (d > 0) return { lineHeight: clamp(base.lineHeight + R.extraLine, 0, 1), pressing: clamp(base.pressing + R.extraPress, 0, 1) };
   return base;
+}
+
+/** 전술 압박 단계 0 낮음 / 1 보통 / 2 높음 (실효 pressing, C.75c 수비 계획 인원표) */
+export function pressLevel(s: SimState, team: 0 | 1): number {
+  const p = effectiveTactics(s, team).pressing;
+  const [c0, c1] = O.plan.levelCut;
+  return p < c0! ? 0 : p < c1! ? 1 : 2;
+}
+
+/** 지금 상황에서 공으로 가는 인원 (C.75c plan.sit) */
+function sitPressers(s: SimState, team: 0 | 1): number {
+  const k = s.teams[team].sit;
+  return k === '-' ? 1 : O.plan.sit[k].pressers[pressLevel(s, team)]!;
+}
+
+/**
+ * 수비 상황 판정 (C.75c, pending 41 상황표 — scripts/diag/defense-shape.ts ⑥ 과 같은 신호·순서 H → B → C → D → F → E → A, 루즈볼 G).
+ * 패스가 떠 있는 동안은 직전 상황을 유지한다
+ */
+function rawSituation(s: SimState, def: 0 | 1): DefSit | null {
+  const b = s.ball;
+  const tm = s.teams[def];
+  if (b.owner < 0) return b.flight && b.flight.outcome !== 'loose' ? null : 'G';
+  const owner = s.agents[b.owner]!;
+  if (owner.team === def) return '-';
+  if (s.t < tm.counterUntil && tm.counterPressers.length > 0) return 'H';
+  const dDir = attackDir(def, s.half);
+  const [gx, gy] = ownGoal(dDir);
+  const [bnx, bny] = toNorm(b.x, b.y, dDir);
+  let ahead = 0;
+  let defNear = 0;
+  let defNear6 = 0;
+  let attNear = 1;
+  let mateNear = false;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.line === 0) continue;
+    if (o.team === def) {
+      if (toNorm(o.x, o.y, dDir)[0] > bnx + 0.03) ahead++;
+      if (dist(o.x, o.y, b.x, b.y) <= 15) defNear++;
+      if (dist(o.x, o.y, owner.x, owner.y) <= 6) defNear6++;
+    } else if (o !== owner) {
+      if (dist(o.x, o.y, b.x, b.y) <= 15) attNear++;
+      if (dist(o.x, o.y, owner.x, owner.y) <= 8) mateNear = true;
+    }
+  }
+  const inBox = Math.abs(b.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(b.y - gy) <= ENGINE.pitch.boxWidth / 2;
+  if (s.t - s.possSince < 6 && ahead >= 3 && bnx < 0.6) return 'B';
+  if (bnx < 0.5 && attNear > defNear) return 'C';
+  if ((b.y <= 8 || b.y >= W - 8) && bnx < 0.5 && !mateNear && defNear6 >= 2) return 'D';
+  const crossPos = Math.abs(bny - 0.5) >= 0.2 && bnx <= 1 - ENGINE.prob.crossMinX;
+  if (crossPos && !inBox) return 'F';
+  return inBox ? 'E' : 'A';
+}
+
+/** 틱마다 두 팀의 수비 상황을 갱신한다 (sitHold 초 히스테리시스, G·H·E·우리 공은 즉시) */
+export function updateSituations(s: SimState): void {
+  for (const team of [0, 1] as const) {
+    const tm = s.teams[team];
+    const raw = rawSituation(s, team);
+    if (raw === null || raw === tm.sit) {
+      tm.sitCand = tm.sit;
+      continue;
+    }
+    if (raw !== tm.sitCand) {
+      tm.sitCand = raw;
+      tm.sitCandSince = s.t;
+    }
+    if (raw === 'G' || raw === 'H' || raw === 'E' || raw === '-' || tm.sit === '-' || s.t - tm.sitCandSince >= O.plan.sitHold) {
+      tm.sit = raw;
+      tm.sitSince = s.t;
+    }
+  }
+}
+
+/** 커버 자리 (C.75c): (x, y)와 그 팀 골을 잇는 선에서 골 쪽 plan.coverBehind m */
+function coverSpot(a: Agent, dir: 1 | -1, x: number, y: number): void {
+  const [gx, gy] = ownGoal(dir);
+  const d = dist(x, y, gx, gy) || 1;
+  const k = Math.min(O.plan.coverBehind, d * 0.5);
+  a.tx = x + ((gx - x) / d) * k;
+  a.ty = y + ((gy - y) / d) * k;
+  a.urgent = true;
 }
 
 /**
@@ -63,7 +145,7 @@ function setTarget(a: Agent, nx: number, ny: number, dir: 1 | -1, urgent: boolea
 }
 
 /** 공에 가까운 순위 (같은 팀, GK 제외, 0부터) */
-function ballRank(s: SimState, a: Agent, bx: number, by: number): number {
+export function ballRank(s: SimState, a: Agent, bx: number, by: number): number {
   const d = dist(a.x, a.y, bx, by);
   let rank = 0;
   for (const o of s.agents) {
@@ -205,7 +287,7 @@ export function keeperTarget(s: SimState, a: Agent): void {
 }
 
 /** (x, y)가 그 팀 자기 박스 안인가 */
-function inOwnBox(team: 0 | 1, half: 1 | 2, x: number, y: number): boolean {
+export function inOwnBox(team: 0 | 1, half: 1 | 2, x: number, y: number): boolean {
   const [gx, gy] = ownGoal(attackDir(team, half));
   return Math.abs(x - gx) <= ENGINE.pitch.boxDepth && Math.abs(y - gy) <= ENGINE.pitch.boxWidth / 2;
 }
@@ -339,10 +421,14 @@ export function updateOffball(s: SimState, a: Agent): void {
   if (loose && !(b.reserve && s.agents[b.reserve.idx]?.team === a.team)) {
     const [cx, cy] = ballChasePoint(s);
     // GK 가 쫓으면 GK 를 추격자 1명으로 센다 (C.28)
-    if (ballRank(s, a, cx, cy) < ENGINE.ball.chasers - (s.teams[a.team].gkChase ? 1 : 0)) {
-      a.tx = cx;
-      a.ty = cy;
-      a.urgent = true;
+    // C.75c: 착지점으로는 1명, 둘째는 착지점과 우리 골 사이 커버 자리 (양 팀 같은 규칙)
+    const rank = ballRank(s, a, cx, cy);
+    if (rank < ENGINE.ball.chasers - (s.teams[a.team].gkChase ? 1 : 0)) {
+      if (rank === 0) {
+        a.tx = cx;
+        a.ty = cy;
+        a.urgent = true;
+      } else coverSpot(a, dir, cx, cy);
       return;
     }
   }
@@ -675,29 +761,30 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 
   // 돌파 후 커버 (E.22 A): 동료가 제쳐졌으면 돌파한 선수의 골 쪽 진행 방향을 막는다
   if (owner && owner.team !== a.team && tm.coverAgent === a.idx && s.t < tm.coverUntil) {
-    const [cgx, cgy] = ownGoal(dir);
-    const cd = dist(owner.x, owner.y, cgx, cgy) || 1;
-    a.tx = owner.x + ((cgx - owner.x) / cd) * O.coverAhead;
-    a.ty = owner.y + ((cgy - owner.y) / cd) * O.coverAhead;
-    a.urgent = true;
+    coverSpot(a, dir, owner.x, owner.y);
     return;
   }
 
   const [gx0, gy0] = ownGoal(dir);
   const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
-  // 압박: 공에 가까운 1~2명 (2번째는 압박 성향이 높을 때)
+  // 압박: 공에 가까운 1~2명 (2번째는 상황표 인원이 2 이상이고 압박 성향이 높을 때, C.75c)
   if (owner && owner.team !== a.team) {
     const rank = ballRank(s, a, b.x, b.y);
     const pressDist = (O.pressDistBase + t.pressing * O.pressDistRange) * (a.line === 3 ? Math.max(0.1, O.attackerPress + O.attackerPressPer * (t.pressing - 0.55)) : 1);
     const d = dist(a.x, a.y, b.x, b.y);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
-    let wants = rank === 0 || (rank === 1 && (danger || t.pressing * (0.5 + a.role.press) > 0.6));
+    const second = rank === 1 && sitPressers(s, a.team) >= 2 && t.pressing * (0.5 + a.role.press) > 0.6;
+    let wants = rank === 0 || second;
     // ④ 수비 의무 면제: 공에 가장 가깝고 아주 가까울 때만 압박한다
     const exempt = hasModule(a.role, 'exempt');
     if (exempt && !(rank === 0 && d < pressDist * RM.exemptPress)) wants = false;
-    // 박스 안 압박 (E.23): 공이 우리 박스 안이면 가장 가까운 2명이 성향과 무관하게 바로 붙는다
+    // 박스 안 압박 (E.23, C.75c): 공이 우리 박스 안이면 가장 가까운 1명이 성향과 무관하게 바로 붙고, 둘째는 공 뒤 커버
     const ownBox = Math.abs(b.x - gx0) <= ENGINE.pitch.boxDepth && Math.abs(b.y - gy0) <= ENGINE.pitch.boxWidth / 2;
-    if (ownBox && rank < 2) {
+    if (ownBox && rank === 1) {
+      coverSpot(a, dir, b.x, b.y);
+      return;
+    }
+    if (ownBox && rank === 0) {
       const bd0 = dist(b.x, b.y, gx0, gy0) || 1;
       a.tx = b.x + ((gx0 - b.x) / bd0) * ENGINE.defense.boxPressGap;
       a.ty = b.y + ((gy0 - b.y) / bd0) * ENGINE.defense.boxPressGap;
@@ -708,7 +795,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const tendency = s.teams[a.team].tactics.tendency;
     if (a.line === 3 && tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
     if (a.line === 3 && tendency === 'counter' && isTopForward(s, a)) wants = false;
-    if (wants && (danger && rank < 2 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
+    if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
       // 공과 자기 골 사이에서 압박. 첫 압박 선수는 가장 위험한 전진 패스 대상을 등 뒤로 가리는 각도 (커버 섀도, E.22 A)
       const [gx, gy] = ownGoal(dir);
       const gd = dist(b.x, b.y, gx, gy) || 1;
@@ -729,6 +816,11 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       a.tx = b.x + ux * gap;
       a.ty = b.y + uy * gap;
       a.urgent = true;
+      return;
+    }
+    // 위험지역 둘째 (C.75c): 공에 붙지 않고 공과 골 사이 커버 자리 (dangerPress 안 2명 압박 대신)
+    if (rank === 1 && danger && !exempt) {
+      coverSpot(a, dir, b.x, b.y);
       return;
     }
   }
@@ -775,7 +867,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   let mark: Agent | null = null;
   let best = 14;
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
+    if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner) continue;
     const d = dist(o.x, o.y, zx, zy);
     if (d < best) {
       best = d;
@@ -862,7 +955,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     const marker = (cbs.length ? cbs : defs).slice().sort(near)[0]!;
     // 박스 안이면 가까운 수비 1명이 더 붙는다 (공 쪽)
     const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2;
-    const second = inBox ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+    // C.75c: 위협이 공 가까이(커버 거리 + 마크 거리 안)면 압박자·커버가 이미 있으므로 둘째는 붙지 않고 자리를 덮는다
+    const ballNear = dist(t.x, t.y, b.x, b.y) <= O.plan.coverBehind + O.stMark;
+    const second = inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = t === focusThreat(s, a.team) ? O.focusMark : 1;
     if (marker === a) {
