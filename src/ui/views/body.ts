@@ -4,7 +4,7 @@ import { bmiOf, FOOT_KO } from '../../body';
 import { BALANCE } from '../../config/balance';
 import type { PlayerState } from '../../types';
 import { PLAY_DESC, TAGS, tagName } from '../../tags';
-import { BottomSheet, Button, Crest, esc, Icon, SectionTitle, TagChip, TextField } from '../components';
+import { BottomSheet, Button, Crest, esc, FootPair, Icon, SectionTitle, TagChip, TextField } from '../components';
 import { panel } from './common';
 
 /** 대표 태그 순서 (C.47): 커리어(스토리·플레이) → 장점 → 단점, 같은 종류는 최근 것 먼저 */
@@ -58,7 +58,6 @@ export function bodySection(p: PlayerState, canBuy: boolean, shirt: number, yout
   const b = p.body;
   const W = BALANCE.weakFoot;
   const wt = p.weakFootTrain;
-  const stars = '●'.repeat(b.weakFoot) + '○'.repeat(5 - b.weakFoot);
   const sorted = featuredTags(p.tags);
   const more = sorted.length - FEATURED_TAGS;
   const buy = b.weakFoot < 5
@@ -86,8 +85,7 @@ export function bodySection(p: PlayerState, canBuy: boolean, shirt: number, yout
       <div><small>등번호</small><b class="po-num">${shirt}</b></div>
       <div><small>키</small><b class="po-num">${b.height}<i>cm</i></b></div>
       <div><small>몸무게</small><b class="po-num">${b.weight}<i>kg</i></b><span>BMI ${bmiOf(b).toFixed(1)}</span></div>
-      <div><small>주발</small><b>${FOOT_KO[b.foot]}</b></div>
-      <div><small>약발</small><b class="po-num">${b.weakFoot}</b><span>${stars}${b.weakFoot >= 5 ? ' 양발' : ''}</span></div>
+      <div class="bs-feet"><small>주발 · 약발</small>${FootPair({ foot: b.foot, weakFoot: b.weakFoot })}<span>${FOOT_KO[b.foot]} 주발 · 약발 ${b.weakFoot}${b.weakFoot >= 5 ? ' 양발' : ''}</span></div>
     </div>
     <p class="small muted">약발 쪽 슛·크로스·긴 패스 정확도 ×${BALANCE.body.weakFootMul[b.weakFoot - 1]} · 약발 훈련 게이지 <b class="ink">${Math.floor(wt?.gauge ?? 0)}/${W.trainingGauge}</b> · 이번 시즌 +${wt?.gained ?? 0}/${W.seasonMax}</p>
     ${buy}

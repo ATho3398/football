@@ -1,7 +1,7 @@
 // 커스텀 생성 화면 (pending 47 2·49 1, 부록 C.45 → C.58 디자인 124~129 6단계). 새 게임의 기본 시작 방식 (C.74d: 랜덤은 [전체 랜덤]·[이 단계 랜덤]으로 합침).
 // 단계: 기본(이름·나이·포지션) → 몸(키·몸무게·주발·약발) → 외모(국적·인종·기본 사진·도트 머리, C.73c) → 태그 → 능력치 배분 → 시작(소속·옵션)
 
-import { Avatar, Banner, Button, esc, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
+import { Avatar, Banner, Button, esc, FootPair, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
 import { ALL_KITS, personOf } from '../../pixel';
 import { defaultPhotoSrc, pixelLayerUrls } from '../faces';
 import type { FacePhoto } from '../../identity';
@@ -58,6 +58,7 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     <p class="small muted">키가 크면 공중볼·헤더에 유리하고 속도·가속·민첩 상한이 내려가요. 몸무게가 많으면 몸싸움 +, 가속·민첩 조금 −.</p>
     ${SectionTitle({ title: '주발' })}${chips('foot', [{ id: 'right', label: '오른발', on: b.foot === 'right' }, { id: 'left', label: '왼발', on: b.foot === 'left' }])}
     ${SectionTitle({ title: '약발', action: '5 = 양발잡이' })}${chips('wf', vm.weakOptions.map((o) => ({ id: String(o.v), label: String(o.v), sub: `${sgn(o.pts)}P`, on: o.on })))}
+    <div class="cu-feet">${FootPair({ foot: b.foot, weakFoot: b.weakFoot, size: 40 })}<small class="muted">${esc(b.footKo)} 주발 · 약발 ${b.weakFoot}${b.weakFoot >= 5 ? ' (양발잡이)' : ''}</small></div>
     <p class="small muted">약발 쪽으로 차야 하는 슛·크로스·긴 패스의 정확도가 약발 1이면 ×0.75, 5면 그대로예요. 경기 뒤 약발 훈련·포인트로 올릴 수 있어요.</p>`;
   } else if (st === 3) {
     body = `${SectionTitle({ title: '국적' })}
@@ -196,7 +197,7 @@ function customWide(vm: CustomVM, st: number, modeTabs: string, bar: string, bod
   const preview = `<div class="panel cu-preview">
       <div class="cu-preview__head"><span class="grow"><b>${esc(vm.name || '이름 랜덤')}</b><small>${vm.age}세 · ${vm.position} · ${esc(vm.nationalities.find((x) => x.id === vm.nationality)?.ko ?? '')}</small></span><span class="cu-preview__ovr"><b class="po-num">${vm.ovr}</b><small>${vm.position} OVR</small></span></div>
       ${looks}
-      <p class="small cu-preview__body">${vm.body.height}cm · ${vm.body.weight}kg · ${esc(vm.body.footKo)} · 약발 ${vm.body.weakFoot}</p>
+      <p class="small cu-preview__body">${vm.body.height}cm · ${vm.body.weight}kg · ${FootPair({ foot: vm.body.foot, weakFoot: vm.body.weakFoot, size: 22 })}</p>
       ${tags ? `<div class="cu-preview__tags">${tags}</div>` : '<small class="muted">태그 없음</small>'}
     </div>`;
   return `<div class="cu-pc"><div class="cu-pc__steps">${modeTabs}${steps}</div><div class="cu-pc__main">${bar}<div class="cu-step-body">${body}</div></div>
