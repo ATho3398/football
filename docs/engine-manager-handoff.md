@@ -19,6 +19,7 @@
 - **4대** `session_01HQqZPY5MdCnWXnbCJWgvBr`(Fable, 제목 `엔진관리자4`), 작업 브랜치 **`claude/engine-manager-4`**(main 4aed8b8 에서 따고 `origin/claude/engine-manager-3` 병합). 마스터 **T** `session_01KEPYWMJvsVNyeS7vpS8kSs`(`claude/planning-t`). main 푸시 안 함.
 - **E-4 묶음 처방 `docs/engine-diagnosis-e4.md`**(4대 첫 산출물): 44c-c 지시서(§6, Opus a 크기, 엔진 24 상황별 기준값 B 47 / C 32 / F 41%) · **44e**(Fable: 수신 지점 모델 + 첫 터치 슛은 받는 순간 압박 + 마크 배정 이식, 단계 A(마크 없음)→B(마크 켬), 같은 시드 scoring 첫 관문) · **44f-a/b**(Opus: 결과 불변 속도 + 미해결 1·4 / 6·2·3 나머지) · **44g-a/b**(Opus, 엔진 지문 불변, 지금 병렬: 자동 카드 금지·카드 강화·리셋 즉발·맡기기 판단 스탯·지시 카드 신뢰·판단 스탯 생활 영향 / 하프타임 전술·몰고 가다 슛·레전더리 가드). 핵심 발견: 받은 뒤 다음 결정까지 `ball.receiveTime` 0.9 + 반응 ≈ 1.2~1.4초라 마커가 다시 붙는다 → C.75e 떼기 가설이 실패한 이유.
 - **(12:50 KST) 마스터 T 가 §7 권장안 7개 모두 채택.** 열린 세션: **C.75g 44c-c**(Opus, `session_01Tuo6WLxQPxyNfxDEH3sYG4`, `claude/c75g-transition`) · **C.75h 44g-a1**(Opus, `session_01Q7veoWWQz8YSxsrNcKmdzD`, `claude/c75h-cards-a1`) · C.75f 진행 중. 44g-a2(C.75i)·44g-b(C.75j)는 슬롯이 비면, 44e(Fable)는 44c-c 뒤.
+- **(13:10 KST) C.75g 44c-c 실패 ③**(`claude/c75g-transition` 66fe0be): B·F 미마크의 절반은 공보다 뒤 2선(존 위치로 못 닿음), C 지연은 기준부터 95%, `tm.sit` 일치율 B 53/C 48/F 60%(sitHold). 재진단 `engine-diagnosis-e4.md` §6.6 — 44c-c 닫고 44e 로 흡수(⑧⑨ 줄·즉시 진입·B/F 기준 재정의). **교훈: 상황별 지표는 "누가 미마크인지" 분해부터, "재야 함"이라 쓴 기준은 처방 전에 먼저 잰다.**
 - 다음 할 일: 코드 세션이 "해결 어려움·진단 불일치"를 보내오면 같은 문서에 §재진단. 44e 단계 A 결과(마크 없는 엔진 24 + 수신 모델 득점 1.30~1.50?)가 처방의 첫 검증점.
 
 ### 이전 상태 (3대 갱신, 2026-10-20 08:50 KST · 12:20 KST 교체 요청)
