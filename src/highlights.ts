@@ -125,7 +125,8 @@ export function selectScenes(r: Replay): Scene[] {
     .map((x) => ({ key: x.e, team: x.team, kind: 'me', label: x.text, weight: x.xg ?? 0 })) : [];
   const oppAttacks: Cand[] = shots.filter((x) => x.team === opp).map((x) => ({ key: x.e, team: x.team, kind: 'opponent', label: x.text, weight: x.xg ?? 0 }));
   // 직접 모드 결정 순간 (I.4: 결정 순간도 장면이 된다): 카드를 쓴 결정 먼저(pending 34 ④, C.36), 그다음 중요도 큰 순으로 최대 maxDecisions 개
-  const decisions: Cand[] = (r.decisions ?? []).map((d) => ({
+  // 하프타임 전술 변경 기록(C.75k)은 장면이 아니다
+  const decisions: Cand[] = (r.decisions ?? []).filter((d) => d.scene !== 'halftime').map((d) => ({
     key: d.e, team: my, kind: 'decision', label: `${SCENE_LABEL[d.scene]} · ${d.card ? `🃏 ${d.card} · ` : ''}${d.label}`, weight: d.stake + (d.card ? 100 : 0), minute: d.minute,
   }));
   const rest: Cand[] = shots.map((x) => ({ key: x.e, team: x.team, kind: 'shot', label: x.text, weight: x.xg ?? 0 }));

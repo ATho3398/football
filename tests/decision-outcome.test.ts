@@ -77,6 +77,12 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
     let n = 0;
     let k = 0;
     while (m) {
+      if (m.type === 'halftime') {
+        // 하프타임 전술 변경 (C.75k): 변경 없이 이어 간다
+        run.halftime(null);
+        m = run.advance();
+        continue;
+      }
       const startIdx = run.frames.length - 1;
       const e0 = run.frames[startIdx]!.e;
       const ev0 = s.events.length;
@@ -84,7 +90,7 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
       const opt = choice === 'delegate' ? null : m.options[choice]!;
       run.resolve(choice);
       const next = run.advance();
-      const o = decisionOutcome({ frames: run.frames, startIdx, events: s.events.slice(ev0), players: ps, type: m.type === 'react' ? 'duel' : m.type, action: opt?.action ?? null, side: m.side });
+      const o = decisionOutcome({ frames: run.frames, startIdx, events: s.events.slice(ev0), players: ps, type: m.type === 'react' ? 'duel' : m.type as 'onball' | 'duel' | 'setPiece', action: opt?.action ?? null, side: m.side });
       expect(o.from).toBe(e0);
       expect(o.to).toBeGreaterThanOrEqual(o.from);
       expect(o.to - o.from).toBeLessThanOrEqual(OUTCOME.maxSpan + OUTCOME.goalTail + 1e-6);
