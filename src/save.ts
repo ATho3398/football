@@ -5,7 +5,9 @@ import { PROSPECT_NATIONALITY, rollAppearance, type Appearance } from './appeara
 import { PHOTO_OF } from './identity';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
-import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { myShirt, rebuildRosters, rosterLeagues, SAVE_FORMAT_VERSION, type GameState } from './game';
+import { setSquadLeague } from './squad';
+import { leagueMoves } from './leagueMove';
 import { initRecords } from './records';
 import { emptyPhotos } from './photocards';
 import { emptyShowcase } from './jerseys';
@@ -34,6 +36,8 @@ import { realBody, rollBody } from './body';
 import { REAL_CAREER } from '../data/players/careers';
 import { LEGEND_BY_ID } from './legends';
 import { awardsFromTotals, trimArchive } from './worldStats';
+import { initNational } from './national';
+import { myNationality } from './life';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -338,6 +342,9 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
   45: (s) => { s.photos ??= emptyPhotos(); },
   // 46 → 47 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
+  // 48 → 49 (C.76c, 45b): 다른 리그 득점 기록(otherLeagues[].stats)·이적 기록의 실제 선수 보충(fill.real)·내 리그 이동 기록(myLeagues) 은
+  // 새 필드라 옛 세이브는 없음 (PL 만 고른 상태 그대로)
+  48: () => {},
   46: (s) => {
     s.league.id ??= 'pl';
     s.league.country ??= 'England';
@@ -346,6 +353,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 47 → 48 (C.76b): 유니폼 교환 기록 · 진열 배치(showcase). 옛 세이브는 빈 진열 · 교환 기록 없음
   47: (s) => { s.showcase ??= emptyShowcase(); },
+  // 49 → 50 (C.76d): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
+  49: (s) => { s.national ??= initNational(myNationality(s.player)); },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;
@@ -367,7 +376,9 @@ export function migrate(raw: any): GameState {
   const state = raw as GameState;
   // 이름 풀 판 (C.45 8번): namePool 이 없는 옛 세이브는 옛 풀로 다시 만들어 생성 선수 이름을 지킨다
   setNamePoolVersion(state.namePool ?? 1);
-  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers, { on: !!state.legends, except: state.player.legendId, pack: state.legendPack, future: !!state.futureStars });
+  // 내 리그 (C.76c): 로스터를 만들기 전에 리그 규칙을 맞춘다
+  setSquadLeague(state.league.id);
+  state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers, { on: !!state.legends, except: state.player.legendId, pack: state.legendPack, future: !!state.futureStars }, rosterLeagues(state), leagueMoves(state));
   // 내 등번호 자리 비우기 (C.45, 표시용): 경기 때와 같은 로스터가 되게
   myShirt(state);
   if (!validTactics(state.tactics)) state.tactics = migratedTactics(state.player.teamId, state.rosters[state.player.teamId], state.player.position);

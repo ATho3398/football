@@ -88,11 +88,11 @@ describe('동료 호흡', () => {
     for (let i = 0; i < 2; i++) playRound(g);
     const back = deserialize(serialize(g));
     expect(back.chem).toEqual(g.chem);
-    expect(SAVE_FORMAT_VERSION).toBe(48);
+    expect(SAVE_FORMAT_VERSION).toBe(50);
     const old = JSON.parse(serialize(g));
     old.saveFormat = 41;
     delete old.chem;
-    expect(migrate(old).saveFormat).toBe(48);
+    expect(migrate(old).saveFormat).toBe(50);
   });
 });
 

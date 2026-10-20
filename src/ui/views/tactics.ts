@@ -1,7 +1,7 @@
 // 전술 화면 (I.16, 디자인 26~29, E.19, 부록 C.32): 기본은 성향 6종만 보이고, 포메이션·내 위치·슬롯 역할·세부 전술은 "자세히" 안에 접는다 (21.3).
 // 경기 전 설정과 기본 전술 저장만 (하프타임·중단 때 변경은 E5). 상대 정보 힌트·전술 세트 3개(I.17 7·8번)는 아직 없다
 
-import { BottomSheet, Button, FormationPitch, HeroPanel, OptionRow, SectionTitle, TacticChip, Tabs, esc } from '../components';
+import { BottomSheet, Button, cx, FormationPitch, HeroPanel, Icon, OptionRow, Pitch, SectionTitle, TacticChip, Tabs, esc } from '../components';
 import type { HalftimeVM, TacticsVM } from '../viewModels';
 import { actionRow, panel, roJosa } from './common';
 
@@ -82,30 +82,42 @@ function roleSheet(s: NonNullable<TacticsVM['sheet']>): string {
 }
 
 /**
- * 하프타임 전술 변경 (C.75k, E.19): 직접 모드 경기의 전반이 끝나면 멈추고 이 시트를 띄운다. 전술 화면의 성향 칩·세부 전술 탭을 그대로 쓰고
- * 전술 세트 3개를 더한다. 역할·포메이션 변경은 다음 단계. [변경 없이 후반]은 경기 전 전술 그대로 (자동 경기와 같은 결과)
+ * 하프타임 전술 변경 (C.75k, E.19): 직접 모드 경기의 전반이 끝나면 멈추고 이 시트를 띄운다. 전술 세트 3개 · 성향 6종 · 세부 전술 4개.
+ * 역할·포메이션 변경은 다음 단계. [변경 없이 후반]은 경기 전 전술 그대로 (자동 경기와 같은 결과)
+ * 237 (C.76f): 위 띠(하프타임 · 점수) + 흐린 정지 피치 + 시트. 폰 = 세트 3칸 가로 · 성향 6칸 한 줄 · 세부 2×2 로 한 화면, PC = 피치 옆 오른쪽 패널
  */
 export function halftimeView(vm: HalftimeVM): string {
-  const hero = HeroPanel({
-    title: '하프타임', back: false, eyebrow: '전반 종료 · 전술을 바꿀 수 있어요', right: `${vm.teams[0]} ${vm.score[0]} : ${vm.score[1]} ${vm.teams[1]}`, chips: vm.chips,
-  });
-  const sets = `${SectionTitle({ title: '전술 세트' })}
-    ${vm.sets.map((x) => OptionRow({ act: 'ht-set', data: { v: x.id }, radio: true, selected: x.on, title: x.name, desc: x.desc })).join('')}`;
-  const tend = `${SectionTitle({ title: '전술 성향' })}
-    <div class="tac-grid">${vm.tendencies.map((t) => TacticChip({ tactic: t.style, selected: t.on, act: 'ht-tend', data: { v: t.id } })).join('')}</div>`;
-  const details = `${SectionTitle({ title: '세부 전술' })}
-    ${vm.details.map((d) => `<div class="tac-detail">
-        <div class="kv"><b class="small">${esc(d.label)}</b></div>
-        ${Tabs({ variant: 'segment', fill: true, items: d.items, value: d.value, act: 'ht-level', data: { k: d.key }, label: d.label })}
-      </div>`).join('')}
-    <p class="small muted">역할·포메이션은 바꿀 수 없어요. 바꾼 전술은 이 경기 후반에만 쓰고, 저장한 기본 전술은 그대로예요.</p>`;
-  const sheet = BottomSheet({
-    eyebrow: '하프타임', title: '후반 전술', subtitle: '성향과 세부 전술을 바꾸거나 세트를 골라요.',
-    children: `${sets}${tend}${details}`,
-    footer: actionRow(
-      Button({ variant: 'secondary', size: 'lg', block: true, act: 'ht-keep', children: '변경 없이 후반' }),
-      Button({ size: 'lg', block: true, icon: 'check', act: 'ht-ok', disabled: !vm.changed, children: vm.changed ? '이 전술로 후반' : '바꾼 것 없음' }),
-    ),
-  });
-  return `${hero}<div class="body"><p class="small muted">전반이 끝났어요. 후반 전술을 정하면 바로 이어서 시작해요.</p></div>${sheet}`;
+  const team = (i: 0 | 1) => `<span class="${i === vm.side ? 'is-me' : 'is-opp'}">${esc(vm.teams[i])}</span>`;
+  const top = `<div class="ht-top">
+      <div class="ht-top__t"><b>하프타임</b><span>전반 종료 · 전술을 바꿀 수 있어요</span></div>
+      <div class="ht-score">${team(0)}<b class="po-num">${vm.score[0]}<i>:</i>${vm.score[1]}</b>${team(1)}</div>
+    </div>`;
+  const sets = vm.sets.map((x) => `<button type="button" class="${cx('ht-set', x.on && 'is-on')}" data-act="ht-set" data-v="${x.id}" aria-pressed="${x.on}">
+      <span class="ht-set__radio" aria-hidden="true"></span><b>${esc(x.name)}</b><small>${esc(x.desc)}</small></button>`).join('');
+  const tends = vm.tendencies.map((t) => TacticChip({ tactic: t.style, selected: t.on, act: 'ht-tend', data: { v: t.id } })).join('');
+  const details = vm.details.map((d) => `<div class="ht-detail">
+      <div class="ht-detail__l"><b>${esc(d.label)}</b>${d.changed ? '<span class="ht-changed">바뀜</span>' : ''}</div>
+      ${Tabs({ variant: 'segment', fill: true, items: d.items, value: d.value, act: 'ht-level', data: { k: d.key }, label: d.label })}
+    </div>`).join('');
+  return `<div class="moment mo-v3 ht-v3">
+      ${top}
+      <div class="pitch-wrap mo-stage ht-stage">${Pitch({ canvasId: 'mo-canvas', label: '하프타임 정지 화면' })}</div>
+      <p class="ht-pause">${Icon({ name: 'clock', size: 14 })}<span>경기는 멈춰 있어요 · 고른 전술은 후반 시작부터 적용돼요. 경기 중 바꾸기는 하프타임에만 돼요.</span></p>
+      <div class="ht-sheet" role="dialog" aria-label="후반 전술">
+        <span class="ht-sheet__grip" aria-hidden="true"></span>
+        <span class="ht-chip">하프타임</span>
+        <b class="ht-sheet__title">후반 전술</b>
+        <p class="ht-sheet__sub">성향과 세부 전술을 바꾸거나 세트를 골라요.</p>
+        ${SectionTitle({ title: '전술 세트' })}
+        <div class="ht-sets">${sets}</div>
+        ${SectionTitle({ title: '전술 성향' })}
+        <div class="ht-tends">${tends}</div>
+        ${SectionTitle({ title: '세부 전술' })}
+        <div class="ht-details">${details}</div>
+        <div class="ht-actions">
+          ${Button({ variant: 'secondary', size: 'lg', block: true, act: 'ht-keep', children: '변경 없이 후반' })}
+          ${Button({ size: 'lg', block: true, icon: 'check', act: 'ht-ok', disabled: !vm.changed, children: vm.changed ? '이 전술로 후반' : '바뀐 것 없음' })}
+        </div>
+      </div>
+    </div>`;
 }

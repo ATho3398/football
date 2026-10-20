@@ -2,7 +2,7 @@
 // + 위 이동 칩. 꾸미기 = 화면 스타일 한 줄 + 하위 화면 4개(선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지, 뒤로 가기 · 위 이동 칩 4).
 // 페이스온 이미지는 이 브라우저(IndexedDB)에만 남는다
 
-import { A_GRADE_PLAYERS } from '../../../data/players';
+import { A_GRADE_PLAYERS, REAL_PLAYER_BY_ID, ALL_REAL_PLAYERS } from '../../../data/players';
 import { realAppearance } from '../../appearance';
 import { BALANCE } from '../../config/balance';
 import type { GameState } from '../../game';
@@ -239,7 +239,7 @@ export function lookupEntry(g: GameState | null, key: string): Entry | null {
     const n = g.npcs.find((x) => x.id === id);
     if (n) return { key, name: n.nameKo, sub: `${clubKo(n.club)} · ${n.position} · ${n.age}세`, face: { id, age: n.age, appearance: realAppearance(id, '') } };
   }
-  const d = A_GRADE_PLAYERS.find((p) => p.id === id);
+  const d = REAL_PLAYER_BY_ID.get(id);
   if (d) {
     const age = BALANCE.newGame.startYear - d.birthYear;
     return { key, name: d.nameKo, sub: `${clubKo(d.club)} · ${d.position} · ${age}세`, face: { id, age, appearance: realAppearance(id, d.nationality) } };
@@ -272,7 +272,7 @@ function playerEntries(g: GameState | null, q: string): Entry[] {
     }
     if (has(g.player.name, qq)) push(lookupEntry(g, `p:${myFace(g).id}`));
   }
-  for (const p of A_GRADE_PLAYERS) if (has(p.nameKo, qq) || has(p.name, qq)) push(lookupEntry(g, `p:${p.id}`));
+  for (const p of ALL_REAL_PLAYERS) if (has(p.nameKo, qq) || has(p.name, qq)) push(lookupEntry(g, `p:${p.id}`));
   return out.filter((e) => !e.mine || has(e.name, qq)).slice(0, 40);
 }
 

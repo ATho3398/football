@@ -1,13 +1,13 @@
 // 선수 이름 색인 (부록 C.44a): 세계의 모든 선수(내 선수·로스터·리그 밖 실제 선수)의 자동 짧은 이름.
 // 설정 화면은 세계 전체로, 경기 화면은 그 경기 두 팀 명단 안에서 겹침을 본다 (C.45, pending 60). 세이브에 넣지 않는다
 
-import { A_GRADE_PLAYERS } from '../../data/players';
+import { REAL_PLAYER_BY_ID } from '../../data/players';
 import { LEGEND_BY_ID } from '../legends';
 import type { GameState } from '../game';
 import { labelName, shortNames, type NameEntry } from '../names';
 import { myFace } from './viewModels';
 
-const REAL = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p]));
+const REAL = REAL_PLAYER_BY_ID;
 
 export interface NamedPlayer extends NameEntry {
   /** 팀 id (리그 밖이면 없음) */

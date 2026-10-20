@@ -1,17 +1,18 @@
 # UI 세션 인수인계 (`docs/automation.md` 6번)
 
-- **지금 UI 세션: UI_3** `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, ui-2 2e1a8e8에서 시작, `get_session` 확인, 연 세션 = **마스터 N** `session_013dNEvc6CvpGFw1SkMRXsUh`). 2026-10-18 03:28 KST UI_2 → UI_3 인수.
+- **지금 UI 세션: UI_4** `session_01Bq32ybFe4fsU2k9npEFUvE` (브랜치 `claude/ui-4`, ui-3에서 시작, 연 세션 = **마스터 T**). 2026-10-20 14:38 KST UI_3 → UI_4 인수(UI_3 대화 37만 토큰). 인수 때 누계: 12차 보고 뒤 큰 0·작은 2, 12차 디자인 대기.
+- **UI_3 종료**(2026-10-20 14:38 KST). 이전: UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, 연 세션 = 마스터 N) — 7~12차 보고, 7-9 1부·카드 그림 set61 적용 명세.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: T** `session_01KEPYWMJvsVNyeS7vpS8kSs` (브랜치 `claude/planning-t`, 2026-10-20 10:50 KST S → T 교체, S가 연 세션 — `get_session` parent 확인). 알림·보고는 T로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 S `session_01Pi4aAWoFd5yBP3mZfCURwD`(`claude/planning-s`), R `session_015zZ2foCVBuTGmZ3S6w8LR3`.
+- **지금 마스터: U** `session_01DUqLtswE7hDV9NHhh6HfZq` (브랜치 `claude/planning-u`, 2026-10-20 14:48 KST T → U 교체 통보). 이전 마스터 T `session_01KEPYWMJvsVNyeS7vpS8kSs` (브랜치 `claude/planning-t`, 2026-10-20 10:50 KST S → T 교체, S가 연 세션 — `get_session` parent 확인). 알림·보고는 U로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 S `session_01Pi4aAWoFd5yBP3mZfCURwD`(`claude/planning-s`), R `session_015zZ2foCVBuTGmZ3S6w8LR3`.
   - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
   - 이전 마스터 M `session_01BTacbWbkVFVE6HVKwxLx3v` (`claude/planning-m`, UI_2를 연 세션).
 - 5차: 디자인 도착(player-one-design 123장, 컴포넌트 45종) → `5-apply.md` → M이 U5-a~g 패치로 적용. **5차 끝.**
 - 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 N에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
-- 푸시: UI_3는 **`claude/ui-3`에만**(main 금지).
-- 현재 차례: **12 → 보고함(2026-10-20 04:57 KST, `docs/ui-requests/12.md`, 7~12차 통합 프롬프트 `7-12/통합_프롬프트.txt`, 캡처 `12/phone`(8)·`12/pc`(11) + 7~11·feedback, 기준 main 8529089 C.75y) → 디자인 기다림(186~188·191~200·202~221·223~236·139장 B화). 다음 보고는 13차(그때도 안 온 번호 모두 합침)**
+- 푸시: UI_4는 **`claude/ui-4`에만**(main 금지).
+- 현재 차례: **13 → 보고함(2026-10-20 16:31 KST) → 2부 디자인 도착(2026-10-20 19:02 KST, 191~200·202~221·223~240 = 115장) → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-13-part2-apply.md` → 마스터 U (U8 패치). 남은 요청 = 3부(나머지 139장 B화 + 라이트 186~188 + 143 [가운데로]) → 14차 통합본에 이어서. UI_4는 6번 4항대로 여기서 끝(다음 UI 세션이 이어받음)**
 - **통합 1부 디자인 도착**(2026-10-19 03:00 KST): 160~163·165~185·189·190·201 + B 첫 판 20장 → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-9-part1-apply.md` → 마스터 P → U7-a C.69(41a단계, `session_012TdmbSD5xD2er3Gn2TtgS7`) 시작, U7-b~d 차례로. **남은 요청**(다음 통합본에 이어서): 2부 191~200·202~217, 3부 나머지 139장 + 라이트 186~188 + 143 [가운데로]. 164 = 201로 대체.
 - **카드 그림**: 61장 도착(2026-10-19 03:12) → `docs/design/incoming/card-art/set61/` + `card-art.json` → 적용 명세 `card-art-set61-apply.md` → 마스터 Q → **C.68c 적용 완료(main 7e9ab3d, 캡처 `docs/design/c68c-check/` 확인: 정식·덱 mini·패 hand·flip·4:3 정상)**. 그림 없는 카드 15장 남음(프롬프트 `card-art-remaining-prompt.txt`).
 - 9차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **2개** (+ 작은 변형 12) (큰 것이 있는 단계: 1 — C.68b)
@@ -21,10 +22,11 @@
 - **B 테마(브로드캐스트)**: 2026-10-18 04:35 KST 사용자 업로드(`player-one-design-b` 20장 + 아티팩트 `7PuHNL5KciUhrmA7FRZGrS`, zip과 동일) → 05:00 사용자 결정(B로 변환, 미페 권리 무시, 투명 아니면 네모 사진 그대로, 긴 이름은 글자 크기 축소, 핵심 20장 먼저) → 레포 `docs/design/player-one-design-b/` + 적용 명세 `docs/ui-requests/B-apply.md` → 마스터 N(U5 흐름에 얹기, U5-a에 B 층 바탕). 디자이너 다음 판: 나머지 139장 + **라이트 테마 B 머리말·독**(C.55에서 디자인 없이 만듦) + 길이 넘는 화면 접기(C.58 포지션 탭 1,623px·커스텀 태그 단계 2,052px). C.55(34k U-B1, dfbfc73)에서 B 층 바탕 적용.
 
 ## 누적 보고 규칙 (사용자 지시 2026-10-19 02:12 KST) — **반드시**
+- **캡처 zip은 한 개 30MB 미만으로 나눈다**(사용자 2026-10-20 17:18 KST: Claude Design에 30MB 넘으면 못 넣음). 13차: 1=7/phone, 2=7/pc, 3=8·9·10, 4=11·12·13·feedback (각 8~16MB).
 - 새 차례(N차)를 보고할 때 **디자인이 아직 안 온 이전 차례 요청을 빠짐없이 합친 통합 프롬프트 + 통합 캡처 zip**을 준다. 사용자는 마지막 것 하나만 Claude Design에 넣으면 된다(차례별로 나눠 넣게 하지 않기).
 - 정정문은 따로 주지 말고 통합 프롬프트 본문에 반영한다(취소된 지시는 빼고, 바뀐 지시는 고쳐 쓴다).
 - 디자인이 일부만 오면 온 번호만 빼고 남은 것을 다음 통합본에 그대로 이어서 넣는다.
-- 지금 통합본: `docs/ui-requests/7-9/통합_프롬프트.txt`(7·8·9차 + 정정 1·2, 번호 160~217) + 캡처 `7/`·`8/`·`9/`·`feedback-2/`(zip 약 44MB). 다음 10차는 이것 + 10차 새 것.
+- 지금 통합본: **`docs/ui-requests/7-13/통합_프롬프트.txt`(7~13차, 번호 186~240, zip 약 56MB: 7~9는 `git archive fbe1de4^`)**. 옛 기록: `docs/ui-requests/7-9/통합_프롬프트.txt`(7·8·9차 + 정정 1·2, 번호 160~217) + 캡처 `7/`·`8/`·`9/`·`feedback-2/`(zip 약 44MB). 다음 10차는 이것 + 10차 새 것.
 
 ## 디자인 안 온 보고
 
@@ -42,6 +44,7 @@
 | 10 | 2026-10-19 08:52 | `docs/ui-requests/10.md` + `7-10/통합_프롬프트.txt` | `10/phone/`(25), `10/pc/`(23) + 7·8·9·feedback | main bfd7936, C.73c | 보고함(7~10 통합, 새 218~223: 큰 4 + 작은 변형 모음) → 디자인 기다림 |
 | 11 | 2026-10-20 00:58 | `docs/ui-requests/11.md` + `7-11/통합_프롬프트.txt` | `11/phone/`(26), `11/pc/`(9) + 7·8·9·10·feedback | main becbbc6, C.74d | 보고함(7~11 통합, 새 224~230: 큰 6 + 작은 변형 모음, 222→229 흡수) → 디자인 기다림 |
 | 12 | 2026-10-20 04:57 | `docs/ui-requests/12.md` + `7-12/통합_프롬프트.txt` | `12/phone/`(8), `12/pc/`(11) + 7~11·feedback | main 8529089, C.75y | 보고함(7~12 통합, 새 231~236: 큰 5 + 작은 변형 모음) → 디자인 기다림 |
+| 13 | 2026-10-20 16:31 | `docs/ui-requests/13.md` + `7-13/통합_프롬프트.txt` | `13/phone/`(13), `13/pc/`(12) + 7~12·feedback (zip 56MB) | main 4dfa721, C.75m | **2부 디자인 도착 2026-10-20 19:02**(191~240, 222는 229로 대체) → `7-13-part2-apply.md` → 마스터 U. 3부(139장 B화·186~188)는 14차로 |
 
 | B 테마 | 2026-10-18 04:35 | `docs/ui-requests/B-apply.md` | `docs/design/player-one-design-b/screens/png/`(20) | main 38c9833, C.53 | 핵심 20장 받음 → 적용 명세 → 마스터 N. **나머지 139장 대기** |
 
@@ -150,7 +153,22 @@
 |---|---|---|
 | C.75b (main 422ef05) | 없음 | 0 |
 | C.75w (레전드 팩 3판 191명, main e710fd0, 2026-10-20 08:54 KST 통보) | 작은 1: 월드 레전드 목록 아래 "리그 밖 레전드 · 이적 유입 예정" 한 줄 — 12차 234(아직 디자인 안 옴)와 같은 패널의 줄 추가라 작은 것으로 셈, 7-12 통합본 234에 바로 써 넣음. 같이: 12차 235 이전 경력 표 캡처 도착 → `12/phone/C75w_*`에 넣고 통합본 235 고침. 캡처 `docs/design/c75w-check/`(폰 4장) | 0 (+작은 1) |
-| **12차 뒤 누계** | | **큰 것 0 (+작은 1), 큰 것 있는 단계 0** |
+| C.75f (44d 평점·윙, main eea9ac8, 2026-10-20 13:02 KST 통보, 마스터 T) · C.75e(실패, 배포 안 함) | 없음(평점 계산만) | 0 |
+| C.75h (44g-a1 카드·결정 순간, main 9dd8a59, 2026-10-20 13:54 KST 통보) · C.75g·C.75j(실패, 배포 안 함) | 작은 1: 카드 리셋 확인 모달(기존 Modal 재사용). 캡처 없음 | 0 (+작은 1) |
+| C.75k (44g-b, main 4fcd77f, 2026-10-20 15:56 KST 통보, 마스터 U) | **큰 1: 하프타임 전술 시트(새, 직접 모드 전반 끝)**. 작은 1: 결정 순간 4번째 선택지 "몰고 가다 슛"(기존 패널 변형). 캡처 `docs/c75k-check/`(8장, 폰·PC) | 1 (+작은 1) |
+| C.75t (46a, main 8ffccc8, 2026-10-20 16:15 KST 통보) | **큰 1: 포토카드 도감 화면(정렬 8·실루엣 칸·뒷면)**. 작은 2: 경기 결과 "새 포토카드 n장" 배너, 홈 도구 줄 도감 아이콘. 캡처 `docs/c75t-check/`(9장). 다음 46b(C.75w)에 유니폼 교환·진열실 예정 | 1 (+작은 2) |
+| C.75i (44g-a2, main 병합) | 없음(부록 C "디자인 없는 새 화면: 없음") | 0 |
+| C.75m (45a, main 4dfa721, 2026-10-20 16:31 KST 통보) | **큰 1: 새 게임 리그 고르기**(접힘 줄 + 14개 리그 체크 목록). 캡처 `docs/c75m-check/`(8장) | 1 |
+| **12차 뒤 누계** | | **큰 것 3 (+작은 5), 큰 것 있는 단계 3 (C.75k·C.75t·C.75m) → 13차 보고(통합)** |
+
+## 쌓기 기록 (13차 보고 뒤)
+
+| 단계(부록 C) | 디자인 없는 새 화면·패널 | 개수 |
+|---|---|---|
+| C.75z (main, 2026-10-20 18:01 KST 통보) | 작은 1: 주발 발자국 칸(바뀐 칸). 캡처 `docs/c75x-check/` | 0 (+작은 1) |
+| C.76e (main) | 작은 1: 커스텀 기본 단계 순서 바뀜(국적·인종 위로). 캡처 `docs/c76e-check/` | 0 (+작은 1) |
+| C.76b (46b, main 6df4acc, 2026-10-20 18:01 KST 통보) | **큰 2: ① 경기 결과 "유니폼 교환" 패널 ② 진열실 화면**. 작은 1: 홈 진열실(트로피) 아이콘. 캡처 `docs/c76b-check/`(10장) | 2 (+작은 1) |
+| **13차 뒤 누계** | | **큰 것 2 (+작은 3), 큰 것 있는 단계 1 (C.76b)** |
 
 - 주의: C.50~C.53(pending 82: 독 홈 가운데·경기 결과 하이라이트 버튼·경기 준비·훈련 프리셋·팀/선수 상세)은 **6차 154~159로 이미 요청**했다. 단계 목록으로 오면 기록만 하고 7차 개수에는 넣지 않는다(요청과 크게 다른 것만 센다).
 - U5-a~g는 34j~34p(C.54~C.60)로 밀림. `5-apply.md` 0a절 "사용자 결정(pending 82) 우선".
@@ -159,7 +177,7 @@
 - `npm ci && npm run build && npx vite preview --port 4173` 뒤 Playwright(`/opt/node-tools/node_modules/playwright`, 크로뮴 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)로 실제 선수 손흥민 새 게임 → 시즌 끝까지. 6차는 단계 확인 캡처(`docs/design/c4x-check/`)를 복사하고 큰 화면만 main 빌드로 전체 길이(`X01~X06`)를 새로 찍었다. 5차 스크립트는 코드라 레포에 넣지 않았다(레포의 `scripts/c44-capture.mjs` 등 단계별 스크립트의 도우미 함수와 같은 방식: `go-tab`은 폰에서 숨은 독 칸이 있어 `document.querySelector(...).click()`으로 누른다, 전술은 3경기 뒤 열림).
 
 ## 푸시 규칙 (마스터 L 2026-10-17 19:38·19:49 KST, `automation.md` 0번)
-- UI 세션은 **자기 브랜치(UI_1 `claude/ui-1`, UI_2 `claude/ui-2`, UI_3 `claude/ui-3`)에만 푸시**하고 main에는 올리지 않는다(문서 푸시가 Pages 배포를 취소시킴, 808647d가 배포 #166을 취소). 코드 세션이 배포할 때 UI 브랜치의 docs/를 병합한다.
+- UI 세션은 **자기 브랜치(UI_1 `claude/ui-1`, UI_2 `claude/ui-2`, UI_3 `claude/ui-3`, UI_4 `claude/ui-4`)에만 푸시**하고 main에는 올리지 않는다(문서 푸시가 Pages 배포를 취소시킴, 808647d가 배포 #166을 취소). 코드 세션이 배포할 때 UI 브랜치의 docs/를 병합한다.
 
 ## 보고 전달 규칙 (마스터 M 2026-10-17 21:03 KST, `automation.md` 6번 2항, claude/planning-m facd572)
 - 보고 답변 **본문에 Claude Design 프롬프트 전문을 코드 블록 하나로 그대로** 붙인다. 경로만 주는 것은 금지(사용자가 브랜치 파일을 열기 어렵다).

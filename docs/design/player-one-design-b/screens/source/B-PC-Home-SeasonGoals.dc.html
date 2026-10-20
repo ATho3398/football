@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>PC-홈-시즌목표</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans); padding-bottom: 64px; box-sizing: border-box;">
+<div style="width: 1040px; margin: 0 auto; display: flex; flex-direction: column;"><x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" compact="{{yes}}" right="" eyebrow="2018-19 시즌 · 10월 28일 (일)" value="10.28" chips="{{heroChips}}"></x-import><div style="display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; padding: 16px 0 20px; align-items: start;"><div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;"><section style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 6px; background: var(--surface-1); ">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <span style="font-size: 13px; font-weight: 800;">다음 경기 <span style="font-weight: 600; color: var(--ink-muted);">· 리그 11R · 홈</span></span>
+        <span style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">11월 3일 (토)</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;">
+        <span style="display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 800;"><x-import component-from-global-scope="PlayerOne.Crest" name="토트넘 홋스퍼" size="{{i24}}"></x-import><span style="white-space: nowrap;">토트넘 홋스퍼</span></span>
+        <span style="font-size: 12px; font-weight: 700; color: var(--ink-faint);">vs</span>
+        <span style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; font-size: 15px; font-weight: 800; color: var(--away);"><span style="white-space: nowrap;">울버햄튼</span><x-import component-from-global-scope="PlayerOne.Crest" name="울버햄튼" size="{{i24}}" color="var(--away)"></x-import></span>
+      </div>
+      <div style="display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--ink-muted);">
+        <span>전력 <b style="font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--ink);">81</b></span>
+        <span style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-3);"><i style="width: 52.1%; background: var(--team-home);"></i><i style="flex: 1; background: var(--away);"></i></span>
+        <span><b style="font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--away);">74.6</b></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 4px; background: var(--surface-2);">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" size="xs" tactic="gegen" formation="4-2-3-1"></x-import><span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">vs</span><x-import component-from-global-scope="PlayerOne.TacticChip" size="xs" tactic="counter" formation="3-5-2" away="{{yes}}"></x-import>
+        <span style="margin-left: auto;"><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="ghost" icon="tactic">전술</x-import></span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; color: var(--ink-muted);">
+        <span>내 선수 결정 · <b style="color: var(--ink);">{{decideText}}</b></span>
+        <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{decideTabs}}" value="{{decide}}" label="내 선수 결정"></x-import>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><div style="grid-column: 1 / -1;"><x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon-right="chevron-right">계속 · 계획대로 진행</x-import></div><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="clock">하루 진행</x-import><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="ff">자동 진행</x-import></div>
+    </section><section style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 6px; background: var(--surface-1);">
+      <span style="position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 4px; background: var(--surface-3); color: var(--brand-ink);"><x-import component-from-global-scope="PlayerOne.Icon" name="rest" size="{{i20}}"></x-import></span>
+      <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">오늘 훈련</span>
+        <b style="font-size: 15px; font-weight: 800;">휴식</b>
+        <span style="font-size: 12px; color: var(--ink-muted);">체력 +6 · XP +0 · 이번 주 훈련 XP 0/6</span>
+        <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--ink-faint);"><x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{i12}}"></x-import>경기 다음 날은 휴식으로 고정돼요</span>
+      </span>
+      <x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{i18}}"></x-import>
+    </section><section style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 6px; background: var(--surface-1);">
+      <div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 13px; font-weight: 800;">내 상태</span><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">경고 <b style="color: var(--ink);">1/5</b></span></div>
+      <div style="display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">체력</span>
+        <span style="position: relative; height: 10px; border-radius: 3px; background: var(--surface-3); overflow: hidden;"><i style="position: absolute; inset: 0 12% 0 0; border-radius: 3px; background: var(--fatigue-low);"></i></span>
+        <b style="font-family: var(--font-display); font-weight: 700; font-size: 16px;">88</b>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: var(--ink-faint); margin: -6px 0 0 44px; padding-right: 26px;"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <x-import component-from-global-scope="PlayerOne.FormIndicator" level="{{four}}" show-label="{{yes}}"></x-import>
+        <span style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">평점 보정 <b style="color: var(--success);">+0.17</b></span>
+      </div>
+    </section></div><div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;"><section style="display: flex; flex-direction: column; gap: 10px;">
+      <x-import component-from-global-scope="PlayerOne.PlayerCard" player="{{me}}" variant="compact"></x-import>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+        <sc-for list="{{season}}" as="s" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 0; border-radius: 4px; background: var(--surface-1);"><b style="font-family: var(--font-display); font-weight: 700; font-size: 18px; color: {{s.ink}};">{{s.v}}</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{s.l}}</span></div>
+        </sc-for>
+      </div>
+    </section><x-import component-from-global-scope="PlayerOne.SectionTitle" title="시즌 목표" action="3/3 순항 · 시즌 10경기째"></x-import><section style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 6px; background: var(--surface-1);"><div style="display: flex; flex-direction: column; gap: 7px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--surface-3); color: var(--ink); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">보통</span><b style="flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">감독 · MOM 5회</b><span style="white-space: nowrap;"><b style="font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 20px; line-height: 22px;">2</b><span style="font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 14px; color: var(--ink-faint);"> / 5</span></span></div><span style="display: block; height: 6px; background: var(--surface-3); overflow: hidden;"><i style="display: block; width: 40%; height: 100%; background: var(--brand);"></i></span><div style="display: flex; align-items: center; gap: 6px;"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--surface-2); color: var(--ink-muted); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">XP 50</span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--brand-ink); color: var(--brand-ink); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">카드 선택권 +1 · 희귀</span><span style="flex: 1;"></span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--brand); color: var(--on-brand); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">순항</span></div></div><i style="display: block; height: 1px; background: var(--line);"></i><div style="display: flex; flex-direction: column; gap: 7px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--surface-3); color: var(--warning); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">어려움</span><b style="flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">구단 · 리그 2위 안</b><b style="font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 20px; line-height: 22px; white-space: nowrap;">1위</b></div><span style="display: block; height: 6px; background: var(--surface-3); overflow: hidden;"><i style="display: block; width: 100%; height: 100%; background: var(--brand);"></i></span><div style="display: flex; align-items: center; gap: 6px;"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--surface-2); color: var(--ink-muted); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">XP 80</span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--brand-ink); color: var(--brand-ink); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">카드 선택권 +1 · 희귀·에픽</span><span style="flex: 1;"></span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--brand); color: var(--on-brand); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">순항</span></div></div><i style="display: block; height: 1px; background: var(--line);"></i><div style="display: flex; flex-direction: column; gap: 7px;"><div style="display: flex; align-items: center; gap: 8px;"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--surface-2); color: var(--ink-muted); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">쉬움</span><b style="flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">개인 · 리그 9골</b><span style="white-space: nowrap;"><b style="font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 20px; line-height: 22px;">5</b><span style="font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 14px; color: var(--ink-faint);"> / 9</span></span></div><span style="display: block; height: 6px; background: var(--surface-3); overflow: hidden;"><i style="display: block; width: 56%; height: 100%; background: var(--brand);"></i></span><div style="display: flex; align-items: center; gap: 6px;"><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--surface-2); color: var(--ink-muted); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">XP 25</span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--brand-ink); color: var(--brand-ink); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">카드 선택권 +1 · 일반</span><span style="flex: 1;"></span><span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 2px; background: var(--brand); color: var(--on-brand); font-size: 10px; font-weight: 800; white-space: nowrap; flex: none; transform: skewX(-8deg);">순항</span></div></div><span style="font-size: 11px; line-height: 16px; color: var(--ink-faint); word-break: keep-all;">시즌이 끝나면 판정해요. 달성하면 XP와 카드 선택권 1장(쉬움 일반 · 보통 희귀 · 어려움 에픽까지)을 받고, 감독·구단 목표는 감독 신뢰도에도 반영돼요.</span></section></div></div></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9;"><x-import component-from-global-scope="PlayerOne.Dock" device="pc" value="home" progress="continue" badges="{{dockBadges}}" locked="{{dockLocked}}"></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    const me = { name: '손흥민', age: 26, position: 'LW', ovr: 80, tier: 'key', tierScore: 500, level: 1, team: '토트넘 홋스퍼' };
+    const season = [{ v: 10, l: '출전', ink: 'var(--ink)' }, { v: 5, l: '골', ink: 'var(--brand-ink)' }, { v: 3, l: '도움', ink: 'var(--ink)' }, { v: '7.44', l: '평균 평점', ink: 'var(--ink)' }];
+    const decideTabs = [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }];
+    return { i10: 10, i14: 14, i16: 16, dockBadges, dockLocked, yes: true, no: false, four: 4, i12: 12, i18: 18, i20: 20, i24: 24, me, season, decideTabs, decide: 'auto', decideText: '엔진이 대신 골라요', heroChips: ['경기까지 6일', { label: '리그 11/38R', soft: true }] };
+  }
+}
+</script>
+</body>
+</html>

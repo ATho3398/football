@@ -12,7 +12,7 @@ export const OUTSIDE_CLUBS: readonly OutsideClub[] = [
   { id: 'x:bar', name: 'FC Barcelona', nameKo: '바르셀로나', rating: 86 },
   { id: 'x:rma', name: 'Real Madrid', nameKo: '레알 마드리드', rating: 85 },
   { id: 'x:juv', name: 'Juventus', nameKo: '유벤투스', rating: 85 },
-  { id: 'x:bay', name: 'Bayern München', nameKo: '바이에른 뮌헨', rating: 84 },
+  { id: 'x:bay', name: 'Bayern Munich', nameKo: '바이에른 뮌헨', rating: 84 },
   { id: 'x:psg', name: 'Paris Saint-Germain', nameKo: '파리 생제르맹', rating: 84 },
   { id: 'x:atm', name: 'Atlético Madrid', nameKo: '아틀레티코 마드리드', rating: 82 },
   { id: 'x:bvb', name: 'Borussia Dortmund', nameKo: '도르트문트', rating: 80 },
