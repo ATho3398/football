@@ -81,8 +81,7 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     body = `${SectionTitle({ title: '능력치 배분', action: `테두리 = ${vm.position} 핵심` })}
     <p class="small muted">모든 능력치 8에서 시작해요. 박스를 누르고 [+]로 한 칸씩 올려요. 칸당 1P(~11) · 2P(~13) · 3P(14~), 최대 15. 숨은 적성·잠재력은 시작해야 알 수 있어요.</p>
     ${attrGrid(vm.attrs, vm.sel, { sel: 'cu-sel', raise: 'cu-raise', lower: 'cu-lower' }, { cols: 4, keyLabel: `${vm.position} 핵심` })}
-    ${vm.over ? `<div class="btn-col">${Button({ variant: 'secondary', block: true, icon: 'target', act: 'cu-fit', children: `포인트에 맞추기 · ${-vm.left}P 줄이기` })}</div>` : ''}
-    <div class="btn-row even">${Button({ variant: 'ghost', block: true, icon: 'target', act: 'cu-auto', disabled: vm.left <= 0, children: '자동 배분 (OVR 우선)' })}${Button({ variant: 'ghost', block: true, icon: 'restore', act: 'cu', data: { k: 'reset' }, children: '초기화' })}</div>`;
+    <div class="btn-row even">${Button({ variant: 'ghost', block: true, icon: 'restore', act: 'cu', data: { k: 'reset' }, children: '초기화' })}</div>`;
   } else {
     const s2 = vm.start;
     const kinds = s2.trialAge
@@ -96,8 +95,8 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
         : '유스 출신 구단은 기록(서사)만 남아요. 시작하자마자 스탯에 맞는 팀들의 영입 제안 중에서 골라요.';
     // 리그 선택 → 팀 목록 (45b b): 고른 팀의 리그가 내 리그
     const teamList = s2.kind === 'none'
-      ? `<span class="label">유스 출신 구단 (기록만) · 고른 구단 리그에서 시작</span>${teamPickHtml(s2.pick, 'cu', 'youthClub')}`
-      : teamPickHtml(s2.pick, 'cu', 'startClub');
+      ? `<div class="panel tp-panel"><span class="label">유스 출신 구단 (기록만) · 고른 구단 리그에서 시작</span>${teamPickHtml(s2.pick, 'cu', 'youthClub')}</div>`
+      : `<div class="panel tp-panel">${teamPickHtml(s2.pick, 'cu', 'startClub')}</div>`;
     body = `${SectionTitle({ title: '시작 소속', action: s2.trialAge ? '15~18세 · 유스' : '19~23세 · 소속팀' })}
     ${chips('startKind', kinds)}
     <p class="small muted">${esc(kindNote)}</p>
@@ -114,7 +113,12 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: vm.over || !vm.start.ready, children: vm.over ? `${-vm.left}P 넘쳤어요` : !vm.start.ready ? '시작할 구단을 골라요' : `${vm.age}세 ${vm.position} · OVR ${vm.ovr}로 시작` })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'cu-step', data: { v: String(st + 1) }, children: `다음 · ${CUSTOM_STEPS[st]}` });
   // 이 단계 랜덤 (C.74d): 그 단계 값만 랜덤 유망주 기준으로 다시 뽑는다
-  body = `<div class="cu-randstep">${Button({ variant: 'ghost', size: 'sm', icon: 'swap', act: 'cu-rand', data: { v: String(st) }, children: '이 단계 랜덤' })}</div>${body}`;
+  // 능력치 단계 (디자인 229): [포인트에 맞추기](보조) + [이 단계 랜덤](고스트) 한 줄 + 한 줄 설명. 맞추기 = 넘치면 줄이기(cu-fit) · 남으면 OVR 우선 자동 배분(cu-auto)
+  const fit = st === 5
+    ? Button({ variant: 'secondary', size: 'sm', icon: 'sliders', act: vm.over ? 'cu-fit' : 'cu-auto', disabled: !vm.over && vm.left <= 0, children: vm.over ? `포인트에 맞추기 · ${-vm.left}P 줄이기` : '포인트에 맞추기' })
+    : '';
+  body = `<div class="cu-randstep${fit ? ' has-fit' : ''}">${fit}${Button({ variant: 'ghost', size: 'sm', icon: 'swap', act: 'cu-rand', data: { v: String(st) }, children: '이 단계 랜덤' })}</div>${
+    fit ? `<p class="small muted cu-fitnote">포인트에 맞추기 = 남은 포인트를 ${esc(vm.position)} 핵심부터 채워요(넘치면 줄여요) · 이 단계 랜덤 = 능력치만 다시 뽑아요</p>` : ''}${body}`;
   if (isWide()) return customWide(vm, st, modeTabs, bar, body, prev, next);
   return `${modeTabs}${stepDots(st)}${bar}<div class="cu-step-body">${body}</div>
     <div class="dock cu-nav">${prev}${next}</div>`;

@@ -652,3 +652,23 @@
 - (21:52 KST, 사용자) ntfy 2회 실패면 그 알림 버림·재발송·보고 안 함 → automation.md 0번 반영.
 - (22:06 KST, 사용자) 카드팩 표지 도착 → docs/assets/pack-cover.webp(800×1200 132KB)·png, C.76o에 전달(투명 아님 → 팩 실루엣으로 잘라 쓰기).
 - (22:28 KST, 사용자) 카드팩 완성 패키지(로고 PLAYER ONE·톱니 봉합선) 도착 → 검정 배경 지워 투명 webp docs/assets/pack-cover2.webp(800×1310, 233KB), 이걸 기본 표지로 C.76o 전달(앞 표지 대체).
+- (22:34 KST) **C.76j 48e 완료**(main 807ca7a, 버전 그대로, 테스트 981, 새 화면 1(207 우승 축하), CSS는 src/ui/design/season.css). 못 한 것: 208 대회별 거르기·231 팀 강약점·232 합작 골·199 NPC 주장 칩·207 대회 득점 줄·205 PC 4열·223 일부. 17.2 표 48행(48a~e) 추가됨. draft_는 CI 뒤.
+
+### 8.44 V 정리 (2026-10-20 22:36 KST, V 교체 — 대화 32만 토큰, 기준 35만 앞서 교체)
+- V 동안 배포(main run 251 90716be 성공): C.76a(44h-a 부분) · C.76c·h(45b 타리그·풀 엔진·리그 선택→팀) · C.76d(45c 대표팀) · C.76f·g(48a·b 디자인). **45단계 끝.** 그 뒤 C.76j(48e, main 807ca7a) — CI 미확인.
+- 사용자 결정(V): pending 138(약팀 내려앉기·버스 세우기·뒤질 때 올리기 예외·1대1은 그 뒤), 139(미리 계산·모든 리그 8~5월 통일·개인 시상), 140(시상 설계 docs/awards-design.md — 투표단 시뮬레이션, 푸스카스 뺌, 월드컵 상 47a, UEFA 올해의 수비수, 레전더리 조건 4a), 141(카드팩 개봉 연출, 사용자 표지 docs/assets/pack-cover2.webp 투명). 규칙: 단계 번호 숫자(48·49), 사용자 요청은 맨 뒤(나중이 힘들 때만 당김), ntfy 2회 실패면 버림·보고 안 함(automation.md 0번).
+- 레전드 53명은 이미 게임에 있음(8.42의 '사용자 확인 대기'는 오기).
+- 엔진관리자5 → draft_(46만). 엔진관리자6은 C.76k가 막힐 때 연다(열 때 사용자에게 xhigh 설정 알림).
+
+### 8.45 다음 마스터 세션(W)이 할 일
+- V가 만든 세션 → 깊이 5. 제목 `W_축구 커리어 게임 마스터`, 브랜치 `claude/planning-w`(planning-v 최신에서, 만들어 푸시). 환경 "player ONE"(NTFY_TOPIC 있음).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md`(0번 새 규칙 3개 포함, 7번), 이 문서 8.43~8.45, `docs/planning-pending.md` 138~141, `docs/awards-design.md`.
+- **시작 처리**: ① V(`session_01Lzq7rz3Q4FvKuV1aT6Xkhk`)에 "W 준비 완료 + W ID" ② 실행 중 세션에 "보고는 W(ID), 마스터 브랜치 claude/planning-w, 답장 불필요" 한 줄씩: C.76i `session_0197oRFAwntnvtuGZh3Hsgc6`(48d 재정·인박스·면담) / C.76k `session_01DUz4ZzenoLss9zHrDK5ovt`(44h-b 약팀 내려앉기·버스·1대1, Fable) / C.76l `session_01BByyJr78oa6eAi4UnL4bRu`(48c 도감·리그 고르기·커스텀) / C.76m `session_01E1HgR5qycWaEi6wNjd3SjA`(45 미리 계산·일정 통일) / C.76n `session_01LCcgLmUo5qXEiqTjVZCpwS`(47a 개인 시상) / C.76o `session_01KXzVZwdKso1DQ8XEZ6WWYU`(49 카드팩 연출) / UI_5 `session_01Jep69tcqmNVqesWrwWp8cP`(priority later) ③ V 제목 앞 `draft_` ④ V 자동 확인 예약은 V가 지움 → W 자동 확인 send_later 60분 ⑤ handoff 8.46에 기록·푸시.
+- **draft_ 남은 것**: C.76j `session_01WHCbo6psGoyXo4PKTSrUAC`(main 807ca7a) — 그 커밋 포함 main CI 성공 확인 뒤.
+- **다음 순서**: C.76k 결과(실패면 엔진관리자6 열어 재진단, 성공이면 다음 엔진 블록 = 미해결 2·4·5·6·8·9·13·44d 묶어 차례로, Fable) / C.76n 끝 → 47b(awards-design.md 4절 47b, Opus) / C.76i·l 끝 → 48단계 끝 / C.76m·o 끝나면 남은 것 정리 / 그 뒤 P단계(피치 고도화)·6단계 패키징. 다음 새 이름 **C.76p**. 사용자 요청은 맨 뒤에 붙인다.
+- 진행 중 사용자 질문 없음.
+
+### 8.46 마스터 세션 W (2026-10-20 22:35 KST~, `session_01UpWdqeSysTwMUcVKc5unpT`, 브랜치 `claude/planning-w`)
+- V가 만든 세션 → `lineage` 깊이 5(한도 8). 브랜치 `claude/planning-w`(planning-v 145bca2에서, 푸시).
+- 시작 처리(22:36 KST): ① V에 "W 준비 완료 + W ID"(delivered) ② C.76i·k·l·m·n·o·UI_5에 "보고는 W, 마스터 브랜치 claude/planning-w, 답장 불필요"(7개 모두 delivered, UI_5는 priority later) ③ V 제목 `draft_V_축구 커리어 게임 마스터`(V 최종 약 33.6만 토큰·10.1달러) ④ W 자동 확인 send_later `trig_01PHZ4d9nSWUrGsXpBNNHiTC`(23:37 KST, V 예약은 V가 지움) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
+- 다음: 8.45 다음 순서 그대로. draft_ 남은 것 C.76j(main 807ca7a CI 성공 뒤). 다음 새 이름 C.76p.

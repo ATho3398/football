@@ -169,3 +169,22 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) .po-toast--info .po-toast__icon { color: var(--brand-ink); }
 :where(html[data-skin="b"]) .po-toast__icon { border-radius: var(--radius-sm); }
 :where(html[data-skin="b"]) .po-toast__action { border-radius: 0; clip-path: var(--skew-sm); }
+
+/* ── C.76l U8-c (239 리그 고르기 · 233/234 배지): 칩·배지는 기울임, 묶음 칸·줄은 B 모서리 ── */
+:where(html[data-skin="b"]) .ng-lg__chip.is-mine, :where(html[data-skin="b"]) .ng-badge { transform: skewX(-8deg); font-style: italic; }
+:where(html[data-skin="b"]) .ng-lpack__cell { clip-path: none; }
+/* 240B 새 포토카드 배너: 라임 낮은 면 + 라임 막대 · 아이콘 = 라임 네모 칸(검정 album) · [도감 보기] 라임 글자 */
+:where(html[data-skin="b"]) .po-banner--fill { background: color-mix(in srgb, var(--brand) 14%, var(--surface-1)); align-items: center; }
+:where(html[data-skin="b"]) .po-banner--fill .po-banner__icon { width: 30px; height: 30px; align-self: center; display: grid; place-items: center; background: var(--brand); color: var(--on-brand); border-radius: var(--radius-sm); }
+:where(html[data-skin="b"]) .po-banner--fill .po-banner__action { color: var(--brand-ink); }
+/* 새 게임 · 도감 일반 머리말 칩: 한 줄 우선 (C.75u 규칙을 일반 B 머리말에도) — 넘치면 칩마다 말줄임 */
+:where(html[data-skin="b"]) #app:has(.ng-body) .po-hero:not(.po-hero--face) .po-hero__chips { flex-wrap: nowrap; min-width: 0; }
+:where(html[data-skin="b"]) #app:has(.pc-body) .po-hero:not(.po-hero--face) .po-hero__chips { flex-wrap: nowrap; min-width: 0; }
+:where(html[data-skin="b"]) #app:has(.ng-body) .po-hero:not(.po-hero--face) .po-hero__chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 26px; }
+:where(html[data-skin="b"]) #app:has(.pc-body) .po-hero:not(.po-hero--face) .po-hero__chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 26px; }
+:where(html[data-skin="b"]) #app:has(.ng-body) .po-hero:not(.po-hero--face) .po-hero__chip:first-child { flex: none; max-width: 60%; }
+:where(html[data-skin="b"]) #app:has(.pc-body) .po-hero:not(.po-hero--face) .po-hero__chip:first-child { flex: none; max-width: 60%; }
+/* 229 인종 칩: 꺾인 세그먼트 칸 (고른 칸 라임) */
+:where(html[data-skin="b"]) .ng-looks .cu-chips { gap: 4px; padding: 4px; background: var(--surface-2); border-radius: var(--radius-sm); align-self: flex-start; }
+:where(html[data-skin="b"]) .ng-looks .cu-chip { min-height: 32px; padding: 4px 14px; border-radius: 0; clip-path: var(--skew-sm); background: transparent; }
+:where(html[data-skin="b"]) .ng-looks .cu-chip.is-on { background: var(--brand); }
