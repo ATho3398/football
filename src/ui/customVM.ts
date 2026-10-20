@@ -1,5 +1,7 @@
 // 커스텀 생성 화면 뷰모델 (pending 47 2·49 1, 부록 C.45). 상태는 화면(ui.form.cu)이 들고, 시작할 때 newGame({ mode: 'custom' })
 
+import { pickLeagueOf, pickLeagues, type TeamPickVM } from './teamPickVM';
+import { leagueOfTeam } from '../league';
 import type { Appearance } from '../appearance';
 import { FACE_PHOTOS, isFacePhoto, isRace, PHOTO_KO, PHOTO_OF, RACE_KO, RACES, raceOf, randomNameFor, type FacePhoto } from '../identity';
 import { ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from '../attributes';
@@ -118,10 +120,12 @@ export interface CustomVM {
     teams: { id: string; ko: string; rating: number; fit?: boolean }[];
     allTeams: { id: string; ko: string }[];
     ready: boolean;
+    /** 리그 선택 → 팀 목록 (45b b): 소속팀 = 스탯에 맞는 팀만, 유스·유스 출신 = 전부 */
+    pick: TeamPickVM;
   };
 }
 
-export function customVM(f: CustomForm, name: string, league = 'pl'): CustomVM {
+export function customVM(f: CustomForm, name: string, league = 'pl', tab?: string): CustomVM {
   const C = BALANCE.custom;
   const budget = budgetOf(f);
   const spent = spentPoints(f.attrs);
@@ -176,27 +180,41 @@ export function customVM(f: CustomForm, name: string, league = 'pl'): CustomVM {
     hair: f.hair,
     hairs: (HAIRS_OF[skin] ?? []).map((id) => ({ id, ko: HAIR_KO[id] ?? id })),
     skin,
-    start: startVM(f, ovrs[f.position], league),
+    start: startVM(f, ovrs[f.position], league, tab),
   };
 }
 
 /** 19세 이상 소속팀 목록: 유효 OVR(어리면 잠재력만큼 +)과 기본 레이팅 차가 작은 순 (게임 안 fitTeams 와 같은 식, 시작 전이라 기본 레이팅) */
-function startVM(f: CustomForm, ovr: number, league = 'pl'): CustomVM['start'] {
+function startVM(f: CustomForm, ovr: number, league = 'pl', tab?: string): CustomVM['start'] {
   const S = BALANCE.startClub;
   const O = BALANCE.transfer.offers;
   const trialAge = f.age <= S.trialMaxAge;
-  // 내 리그 팀 (C.76c)
-  const teams = initialTeams(league);
-  const allTeams = [...teams].sort((a, b) => b.rating - a.rating).map((t) => ({ id: t.id, ko: t.nameKo }));
   const eff = ovr + Math.max(0, O.youthAge - f.age) * O.youthPerYear;
-  const fit = [...teams].sort((a, b) => Math.abs(eff - a.rating - O.fitOffset) - Math.abs(eff - b.rating - O.fitOffset) || a.id.localeCompare(b.id)).slice(0, S.fitTeams);
-  const list = f.startKind === 'youth' ? [...teams].sort((a, b) => b.rating - a.rating) : fit;
-  const valid = new Set(list.map((t) => t.id));
+  // 리그 하나의 고를 수 있는 팀 (기존 규칙: 유스 = 전부, 소속팀 = 스탯에 맞는 fitTeams 팀)
+  const listOf = (lg: string) => {
+    const teams = initialTeams(lg);
+    const fit = [...teams].sort((a, b) => Math.abs(eff - a.rating - O.fitOffset) - Math.abs(eff - b.rating - O.fitOffset) || a.id.localeCompare(b.id)).slice(0, S.fitTeams);
+    return { teams, fit, list: f.startKind === 'youth' ? [...teams].sort((a, b) => b.rating - a.rating) : fit };
+  };
+  // 고른 팀은 그 팀 리그 규칙으로 (45b b: 리그 선택 → 팀, 고른 팀 리그 = 내 리그)
+  const chosen = f.startKind === 'none' ? (f.youthClub !== 'random' ? f.youthClub : '') : f.startClub;
+  const mine = listOf(leagueOfTeam(chosen) ?? league);
+  const valid = new Set(mine.list.map((t) => t.id));
+  const show = pickLeagueOf(chosen, tab, league);
+  const cur = listOf(show);
+  const ok = (id: string) => f.startKind !== 'club' || cur.fit.some((t) => t.id === id);
   return {
     kind: f.startKind, trialAge, club: valid.has(f.startClub) ? f.startClub : '', youthClub: f.youthClub,
-    teams: list.map((t) => ({ id: t.id, ko: t.nameKo, rating: t.rating, ...(fit.includes(t) ? { fit: true } : {}) })),
-    allTeams,
+    teams: mine.list.map((t) => ({ id: t.id, ko: t.nameKo, rating: t.rating, ...(mine.fit.includes(t) ? { fit: true } : {}) })),
+    allTeams: [...mine.teams].sort((a, b) => b.rating - a.rating).map((t) => ({ id: t.id, ko: t.nameKo })),
     ready: f.startKind === 'none' || valid.has(f.startClub),
+    pick: {
+      leagues: pickLeagues(), league: show,
+      teams: [...cur.teams].sort((a, b) => b.rating - a.rating).map((t) => ({
+        id: t.id, ko: t.nameKo, rating: t.rating, on: t.id === chosen, ok: ok(t.id), why: ok(t.id) ? '' : '스탯에 맞지 않아요',
+      })),
+      random: f.startKind === 'none' ? { label: '랜덤', on: f.youthClub === 'random' } : null,
+    },
   };
 }
 

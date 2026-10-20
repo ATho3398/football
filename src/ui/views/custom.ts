@@ -8,6 +8,7 @@ import type { FacePhoto } from '../../identity';
 import { peopleTable, pixelIconHtml } from '../pixelIcons';
 import type { CustomVM } from '../customVM';
 import { attrGrid } from './attrGrid';
+import { teamPickHtml } from './teamPick';
 import { BALANCE } from '../../config/balance';
 import { isWide } from '../skin';
 
@@ -93,9 +94,10 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
       : s2.kind === 'club'
         ? '스탯에 맞는 팀이에요. 고른 팀과 바로 계약하고, 그 팀 유스 출신으로 기록돼요.'
         : '유스 출신 구단은 기록(서사)만 남아요. 시작하자마자 스탯에 맞는 팀들의 영입 제안 중에서 골라요.';
+    // 리그 선택 → 팀 목록 (45b b): 고른 팀의 리그가 내 리그
     const teamList = s2.kind === 'none'
-      ? `<span class="label">유스 출신 구단 (기록만)</span>${chips('youthClub', [{ id: 'random', label: '랜덤', on: s2.youthClub === 'random' }, ...s2.allTeams.map((t) => ({ id: t.id, label: t.ko, on: s2.youthClub === t.id }))])}`
-      : chips('startClub', s2.teams.map((t) => ({ id: t.id, label: t.ko, sub: `전력 ${Math.round(t.rating)}`, on: s2.club === t.id })));
+      ? `<span class="label">유스 출신 구단 (기록만) · 고른 구단 리그에서 시작</span>${teamPickHtml(s2.pick, 'cu', 'youthClub')}`
+      : teamPickHtml(s2.pick, 'cu', 'startClub');
     body = `${SectionTitle({ title: '시작 소속', action: s2.trialAge ? '15~18세 · 유스' : '19~23세 · 소속팀' })}
     ${chips('startKind', kinds)}
     <p class="small muted">${esc(kindNote)}</p>

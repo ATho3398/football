@@ -56,7 +56,7 @@ export interface TeamDetailVM {
   /** 우리 팀과의 이번 시즌 상대 전적 (다른 팀일 때만) */
   vsMe: TeamMatchVM[];
   /** 감독·홈구장 (C.62, 2018-19 개막 기준). 데이터 없는 구단은 null */
-  manager: { name: string; style: string; stadium: string } | null;
+  manager: { name: string; style: string; stadium: string; /** 경질 뒤 새 감독 (C.63) · 부임 시즌 (C.76j 디자인 199) */ fresh?: { since: string } } | null;
 }
 
 const SHORT_DETAIL: Record<Detail, string> = { lineHeight: '라인', pressing: '압박', style: '빌드업', width: '폭' };
@@ -135,7 +135,7 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
     finance: { budget: valueLabel(remainingBudget(g, teamId, L.season)), wages: valueLabel(wageBill(g.rosters, teamId, team.rating)) },
     derby: d ? d.name : null,
     vsMe: mine ? [] : all.filter((m) => m.oppId === g.player.teamId),
-    manager: md ? { name: md.nameKo, style: MANAGER_STYLE_KO[md.style], stadium: md.stadiumKo } : null,
+    manager: md ? { name: md.nameKo, style: MANAGER_STYLE_KO[md.style], stadium: md.stadiumKo, ...(g.coaches?.[teamId] ? { fresh: { since: seasonLabel(g.coaches[teamId]!.since) } } : {}) } : null,
   };
 }
 

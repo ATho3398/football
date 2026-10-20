@@ -4,6 +4,8 @@
 
 import { Button, Crest, FormIndicator, FormationPitch, GameCard, HeroPanel, Icon, TacticChip, Tabs, esc } from '../components';
 import { shortReason } from './deck';
+import { pc2 } from './common';
+import { isWide } from '../skin';
 import { BALANCE } from '../../config/balance';
 import type { FormMark, PrepVM } from '../prepVM';
 
@@ -34,6 +36,7 @@ export function prepView(vm: PrepVM): string {
   const chips: (string | { label: string; soft?: boolean })[] = [`${vm.my.name} vs ${vm.opp.name}`];
   const tr = vm.start.trial;
   if (vm.derby) chips.push({ label: vm.derby.name, soft: true });
+  if (vm.cupBadge) chips.push({ label: vm.cupBadge.split(' · ')[0]!, soft: true });
   if (tr) chips.push({ label: tr.n >= tr.of ? '1군 테스트 마지막 경기' : `1군 테스트 ${tr.n}/${tr.of}경기째`, soft: true });
   const hero = HeroPanel({
     title: '경기 준비', back: { act: 'go', data: { to: 'home' } }, compact: true, pad: false, progress: false,
@@ -42,7 +45,9 @@ export function prepView(vm: PrepVM): string {
 
   const total = vm.my.rating + vm.opp.rating;
   const share = total > 0 ? Math.round((vm.my.rating / total) * 100) : 50;
-  const opp = card(`${head('상대', { label: '팀 상세', act: 'team-open', v: vm.opp.id })}
+  // C.76j (디자인 212): 컵·챔스 경기면 상대 카드 맨 위 대회 배지(라임 꺾인 칩 · 트로피)
+  const badge = vm.cupBadge ? `<div class="prep-cup"><span class="prep-cup__chip">${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(vm.cupBadge)}</b></span><small class="prep-sub">${vm.home ? '홈' : '원정'}</small></div>` : '';
+  const opp = card(`${badge}${head('상대', { label: '팀 상세', act: 'team-open', v: vm.opp.id })}
     <div class="prep-vs"><span class="prep-vs__me">${Crest({ name: vm.my.name, size: 28 })}<b>${esc(vm.my.name)}</b></span><span class="prep-vs__x">vs</span><span class="prep-vs__opp"><b>${esc(vm.opp.name)}</b>${Crest({ name: vm.opp.name, size: 28, color: 'var(--away)' })}</span></div>
     <div class="prep-bar"><span>전력 <b class="po-num">${vm.my.rating}</b> <small>${vm.my.rank ? `${vm.my.rank}위` : ''}</small></span><span class="prep-bar__track"><i style="width:${share}%"></i><i></i></span><span><small>${vm.opp.rank ? `${vm.opp.rank}위` : vm.opp.id.startsWith('n:') ? '대표팀' : '리그 밖'}</small> <b class="po-num is-away">${vm.opp.rating}</b></span></div>
     <div class="prep-row">${vm.opp.tactic ? TacticChip({ size: 'sm', away: true, ...vm.opp.tactic }) : '<span></span>'}${formDots(vm.opp.form)}</div>
@@ -51,9 +56,11 @@ export function prepView(vm: PrepVM): string {
 
   // 상대 분석 리포트 (C.74c): 나를 맡을 수비수 · 약점 1~2개 · 결정 순간 "약점 공략"
   const sc = vm.scout;
-  const scout = sc ? card(`${head('상대 분석')}
-    <div class="prep-row"><span><small class="prep-sub">나를 맡을 선수</small> <b>${esc(sc.name)}</b> <small class="prep-sub">${esc(sc.position)}</small></span></div>
-    <ul class="prep-scout">${sc.weak.map((w) => `<li>${Icon({ name: 'target', size: 14 })}<b>${esc(w.name)}</b><span class="prep-sub">${esc(w.tip)}</span></li>`).join('')}</ul>
+  // C.76j (디자인 231): 나를 맡을 선수 카드 + 맞대결 포인트(약점 공략 칩) + 규칙 줄. 팀 약점·강점 2칸은 데이터가 없어 뺌
+  const scout = sc ? card(`<div class="prep-head"><b>상대 분석</b><span class="prep-sub">영상 분석 · 경기 전날</span></div>
+    <div class="prep-marker"><span class="prep-marker__face">${Icon({ name: 'player', size: 22 })}</span><span class="grow"><small class="prep-sub">나를 맡을 선수</small><b>${esc(sc.name)}</b><small class="prep-sub">${esc(sc.position)} · ${esc(vm.opp.name)} · 내 ${esc(vm.me.pos)} 맞상대</small></span><span class="prep-marker__r"><b class="prep-marker__pos">${esc(sc.position)}</b><small class="prep-sub">약점 ${sc.weak.length}</small></span></div>
+    <small class="prep-sub prep-scout__h">맞대결 포인트 · 나 vs ${esc(sc.name)}</small>
+    <ul class="prep-scout">${sc.weak.map((w) => `<li>${Icon({ name: 'target', size: 14 })}<b>${esc(w.name)}</b><span class="prep-sub grow">${esc(w.tip)}</span><span class="prep-exploit-chip">약점 공략</span></li>`).join('')}</ul>
     <p class="prep-scout__note">결정 순간 <b class="prep-exploit">약점 공략</b> 선택지(${esc(sc.actionsKo)})는 성공률 +${sc.bonus}% · 그 선수가 뛰는 동안</p>`) : '';
 
   const lock = '<span class="prep-note">전술은 3경기를 치르면 열려요.</span>';
@@ -81,6 +88,7 @@ export function prepView(vm: PrepVM): string {
   const deck = card(`${head('덱', { label: d.picks ? `카드 선택 ${d.picks} · 덱 편집` : '덱 편집', act: 'go-tab', v: 'deck' })}
     ${Tabs({ items: d.sets.map((x) => ({ id: String(x.idx), label: `덱 ${x.idx + 1} · ${x.count}` })), value: String(d.active), act: 'deck-use', fill: true, label: '덱 세트' })}
     ${deckStrip(d.cards, d.active)}
+    ${d.cards.length ? `<span class="prep-note">덱 ${d.active + 1} · ${d.cards.length}장 · 옆으로 넘겨 보기 · 누르면 카드 상세</span>` : ''}
     ${warn}${bad.length ? `<span class="prep-note">덱 ${bad.join('·')}는 규칙(장수·같은 카드)에 맞춰야 쓸 수 있어요.</span>` : ''}`);
 
   const c = vm.condition;
@@ -94,15 +102,16 @@ export function prepView(vm: PrepVM): string {
     ...(!s.out && stamina < low ? [`${Icon({ name: 'clock', size: 14 })}<span>체력 ${stamina} · ${low} 아래면 벤치로 밀릴 수 있어요</span>`] : []),
     ...(!s.out && c.yellows >= c.yellowEvery - 1 ? [`<i class="prep-why__card" aria-hidden="true"></i><span>경고 ${c.yellows}/${c.yellowEvery} · 한 장 더 받으면 다음 경기는 정지예요</span>`] : []),
   ];
+  // C.76j (디자인 223 · 166): 결장이면 막대 0% + 빨간 사유 줄, 90% 이상이면 사유 대신 초록 한 줄
   const chance = s.out
-    ? `<div class="prep-chance__head"><span>선발 가능성</span><b class="fail">${esc(s.out)} · 이번 경기 결장(관전)</b></div>`
+    ? `<div class="prep-chance__head"><span>선발 가능성</span><span class="prep-chance__track"><i style="width:0%"></i></span><b class="po-num fail">0%</b></div><p class="prep-chance__line is-out">${Icon({ name: 'close', size: 14 })}<b>결장 · ${esc(s.out)}</b><span>이번 경기는 관전만</span></p>`
     : tr
       ? `<div class="prep-chance__head"><span>선발 가능성</span><b>1군 테스트 ${tr.n}/${tr.of}경기째 · 출전 보장</b></div>`
       : `<div class="prep-chance__head"><span>선발 가능성</span><span class="prep-chance__track"><i class="${s.chance < 50 ? 'is-low' : s.chance < 80 ? 'is-mid' : ''}" style="width:${s.chance}%"></i></span><b class="po-num">${s.chance}%</b></div>`;
   const state = card(`<div class="prep-head"><b>내 상태</b><span class="prep-sub">경고 <b class="po-num${c.yellows >= c.yellowEvery - 1 ? ' warn' : ''}">${c.yellows}/${c.yellowEvery}</b></span></div>
     <div class="prep-stamina"><span>체력</span><span class="prep-stamina__track"><i class="${stamina <= 30 ? 'is-low' : stamina < 50 ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
     <div class="prep-row">${FormIndicator({ level: c.form, showLabel: true })}<span class="prep-sub">${esc(c.formLabel)}</span></div>
-    <div class="prep-chance">${chance}${why.length ? `<small class="prep-why__head">결장 사유</small><ul class="prep-why">${why.map((w) => `<li>${w}</li>`).join('')}</ul>` : ''}</div>`);
+    <div class="prep-chance">${chance}${!s.out && !tr && s.chance >= 90 && !why.length ? `<p class="prep-chance__line is-sure">${Icon({ name: 'check', size: 14 })}<b>선발 유력</b><span>지금 상태면 거의 선발이에요</span></p>` : ''}${why.length ? `<small class="prep-why__head">결장 사유</small><ul class="prep-why">${why.map((w) => `<li>${w}</li>`).join('')}</ul>` : ''}</div>`);
 
   const ctl = vm.control;
   const mode = `<div class="prep-ctl">
@@ -113,5 +122,7 @@ export function prepView(vm: PrepVM): string {
   </div>`;
 
   const bar = `<div class="prep-bottom">${Button({ variant: 'secondary', size: 'lg', block: true, act: 'go', data: { to: 'home' }, children: '나중에' })}${Button({ size: 'lg', block: true, icon: 'play', act: 'prep-start', children: s.out ? '경기 진행 (관전)' : '경기 시작' })}</div>`;
+  // C.76j (디자인 231 PC): 2열 = 왼쪽 상대 · 전술 · 내 상태 · 내 선수 결정 / 오른쪽 상대 분석 · 내 포지션 · 덱
+  if (isWide()) return `${hero}<div class="body prep-body">${pc2(`${opp}${tactics}${state}${mode}`, `${scout}${pos}${deck}`, 'prep-pc')}</div>${bar}`;
   return `${hero}<div class="body prep-body">${opp}${scout}${tactics}${pos}${deck}${state}${mode}</div>${bar}`;
 }

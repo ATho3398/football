@@ -5,7 +5,7 @@ import { PLAYABLE_LEAGUES } from '../data/leagues';
 import { ATTRIBUTE_NAMES_KO } from './attributes';
 import { chaptersRetire, chaptersSeasonEnd, type ChaptersState } from './chapters';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
-import { calendarKind, createOtherLeagues, normalizeLeagues, syncOtherLeagues, type OtherLeague } from './otherLeagues';
+import { applyOtherLeagueJob, calendarKind, createOtherLeagues, normalizeLeagues, otherLeagueJobs, syncOtherLeagues, type OtherLeague } from './otherLeagues';
 import { setSquadLeague } from './squad';
 import { applyLeagueMove, leagueMoves, moveAt, moveRosters, type LeagueMove } from './leagueMove';
 import type { Replay } from './replay';
@@ -357,7 +357,9 @@ type NewGameStart =
     facePhoto?: FacePhoto }
   | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean }
   /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
-  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean };
+  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean;
+    /** 시작 팀 (45b b, 전체 랜덤 [이대로 시작]): 리그 레이팅 순위 범위 안이면 그 팀, 아니면 랜덤. 팀 추첨 난수는 그대로 쓴다 */
+    teamId?: string };
 
 /**
  * 새 게임 옵션 + 고른 리그 (C.75m, 리그 고르기 화면). 없으면 내 리그(PL)만.
@@ -372,6 +374,10 @@ export function startLeagueOf(opts: NewGameOptions): string {
     const lg = club ? leagueOfTeam(CLUB_TO_TEAM[club]) : undefined;
     if (lg && PLAYABLE_LEAGUES.includes(lg)) return lg;
   }
+  // 시작 팀을 골랐으면 (45b b) 그 팀 리그
+  const team = opts.mode === 'custom' ? opts.teamId ?? (opts.custom.start?.kind === 'none' ? opts.custom.start.youthClub : opts.custom.start?.club) : undefined;
+  const tl = team && team !== 'random' ? leagueOfTeam(team) : undefined;
+  if (tl && PLAYABLE_LEAGUES.includes(tl)) return tl;
   return opts.leagues?.find((id) => PLAYABLE_LEAGUES.includes(id)) ?? 'pl';
 }
 
@@ -594,7 +600,10 @@ export function newGame(opts: NewGameOptions): GameState {
     const prng = roll.rng;
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
     const { min, max } = rankRange(byRating.length);
-    const team = byRating[randInt(prng, min, max) - 1]!;
+    const drawn = byRating[randInt(prng, min, max) - 1]!;
+    // 고른 시작 팀 (45b b): 순위 범위 안이면 그 팀 (추첨 난수는 그대로 소비해 뒤 결과 유지)
+    const k = byRating.findIndex((t) => t.id === opts.teamId);
+    const team = k + 1 >= min && k + 1 <= max ? byRating[k]! : drawn;
     player = {
       ...base,
       name: c.name?.trim() || drawName(prng, randomNameFor(worldSeed, c.nationality, c.appearance)),
@@ -922,6 +931,8 @@ export function applyOther(state: GameState, r: number, i: number, res: NpcMatch
  * 화면은 Web Worker 풀로 같은 otherJob 을 계산해 applyOther 한다 (결과는 같다)
  */
 export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
+  // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 엔진으로 (빠른 계산은 하루 끝 syncOtherLeagues 가 한다)
+  if (how === 'engine') for (const j of otherLeagueJobs(state, state.calendar.date)) applyOtherLeagueJob(state, j, playNpcMatch(j.input));
   for (const [r, i] of todaysOthers(state)) {
     if (how === 'engine') {
       applyOther(state, r, i, playNpcMatch(otherJob(state, r, i).input));
@@ -2462,6 +2473,16 @@ export function seasonTeamRatings(state: GameState): Record<string, number> {
     out[id] = out[id]! + gaussian(rngFor(state.worldSeed, 'team-form', season, id)) * BALANCE.roster.seasonFormSd;
   }
   return out;
+}
+
+/**
+ * 다음 시즌 소집일 (비시즌에서, 45b b): 다음 시즌 내 리그(리그 이동이면 새 리그) 일정의 개막 campDays 일 전.
+ * 일정은 시드로만 정해져 레이팅과 무관하다 — 화면이 비시즌 동안 다른 리그 경기를 소집일 전날까지 엔진으로 먼저 치를 때 쓴다
+ */
+export function nextCampDate(state: GameState): IsoDate {
+  const id = leagueOfTeam(state.player.teamId) ?? state.league.id;
+  const next = createLeague(state.worldSeed, state.league.season + 1, id);
+  return addDays(leagueCalendar(state.worldSeed, next, calendarKind(id)).opening, -BALANCE.training.vacation.campDays);
 }
 
 /** 비시즌 → 다음 시즌 */

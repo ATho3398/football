@@ -156,6 +156,7 @@ function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
     chips: [vm.picks.length > 1 ? `${vm.picks.length}번 남음` : '이번 1번', { label: rare, soft: true }],
   });
   return `${hero}<div class="body">
+    ${pickBand(vm.picks.map((x) => x.label), rare)}
     <p class="small muted">고른 카드는 가진 카드로 들어가요 · 덱에 넣는 건 덱 편집에서</p>
     <div class="gc-pick">${p.options.map((o, i) => `<div class="gc-pick__item">${GameCard({ card: o.card, size: 'mini', act: 'pick-sel', data: { v: String(i) }, state: i === k ? 'selected' : o.problem ? 'disabled' : 'normal', ...(o.problem ? { reason: shortReason(o.problem) } : {}) })}</div>`).join('')}</div>
     <div class="panel pick-detail"><div class="pick-detail__head"><b>${esc(c.name)}</b><small>${RARITY_KO[c.rarity]} · ${esc(c.kind)} · ${esc(c.role)}</small></div>
@@ -167,6 +168,13 @@ function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
       <p class="small muted pick-hint">선택은 덱 화면 위에 남아요 · 언제든 돌아와서 골라요</p>
     </div>
   </div>`;
+}
+
+/** 보상 띠 (C.76j 디자인 210): 어느 보상의 3택 1인지 · 남은 선택권 칸(지금 칸 라임) */
+function pickBand(labels: string[], rare: string): string {
+  const n = labels.length;
+  return `<div class="pick-band"><span class="pick-band__icon">${Icon({ name: 'target', size: 18 })}</span><span class="grow"><small>보상 · 1/${n}</small><b>${esc(labels[0] ?? '')} → ${esc(rare)} 카드 3택 1</b></span>${
+    n > 1 ? `<span class="pick-band__pips" aria-hidden="true">${labels.slice(0, 8).map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : ''}</div>`;
 }
 
 /** 카드 상세 시트 (full): 효과·조건·못 쓰는 이유와 빼기/넣기 */
