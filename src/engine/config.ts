@@ -327,6 +327,15 @@ export const ENGINE = {
     halfSpaceSpread: 0.18,
     boxRunSpread: 0.12,
     edgeZone: 22,
+    /**
+     * 2선 측면(LM/RM, line 2) 컷백 존 (C.76u, 미해결 9): 4-4-2 측면 미드는 최종 3분의 1 진입 때 골에서 34 m(LW/RW 29.5 m)라 체류 1.6초 안에 박스 자리에 못 닿는다.
+     * 동료가 공을 갖고 상대 진영 edgeWingFromX 를 넘으면(공이 어느 쪽이든) 최종 3분의 1 전부터 자기 쪽 박스 모서리·하프스페이스 끝(골에서 edgeWingDepth m, 중앙에서 y 비율 edgeWingSpread)으로 먼저 올라간다
+     * (측정: 자기 쪽 측면 공을 빼면 중원 지원 간격 규칙이 다시 끌어내려 효과가 반으로 준다 — 슈팅 38 대 57/40경기).
+     * 최종 3분의 1 같은 쪽 측면 공이면 자리 유지 대신 같은 자리(컷백 수신). 중앙·반대쪽 공은 기존 backPost/halfSpace
+     */
+    edgeWingFromX: 0.55,
+    edgeWingDepth: 20,
+    edgeWingSpread: 0.2,
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
     postSpread: 4,

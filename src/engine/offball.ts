@@ -481,9 +481,20 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
   }
   // 공이 상대 최종 3분의 1 측면 (E.18 A2): 2선 늦은 침투(컷백 존), 세컨드 볼 담당, ST 니어/파 포스트
-  const third = owner && owner.team === a.team && owner !== a && bnx >= O.lateRunFromX;
+  const mate = !!owner && owner.team === a.team && owner !== a;
+  const third = mate && bnx >= O.lateRunFromX;
   const wide = third && Math.abs(bny - 0.5) >= O.lateRunWide;
   let job: ReturnType<typeof finalThirdJob> = null;
+  // 2선 측면(LM/RM) 컷백 존 (C.76u, 미해결 9): 동료가 공을 갖고 상대 진영 edgeWingFromX 를 넘으면 최종 3분의 1 전부터 자기 쪽 박스 모서리로 먼저 올라간다 (도착 시간; 중원 지원 간격 규칙보다 우선)
+  const wideMid = isWideMid(a);
+  const mySide = a.sy < 0.5 ? -1 : 1;
+  if (wideMid && mate && !third && !running && bnx >= O.edgeWingFromX) {
+    job = 'edge';
+    nx = Math.min(1 - O.edgeWingDepth / L, line - 0.5 / L);
+    ny = 0.5 + mySide * O.edgeWingSpread;
+    const [px, py] = toPitch(nx, ny, dir);
+    urgent = dist(px, py, a.x, a.y) > 6;
+  }
   // 측면 공이면 침투 중인 선수도 박스 안 역할 자리로 (E.22 B: 침투 중인 반대편 윙어가 자기 측면 라인에 머물러 박스 인원이 모자랐다)
   if (third && (!running || wide)) {
     const side = bny < 0.5 ? -1 : 1;
@@ -498,6 +509,10 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       // 2선 늦은 침투 (E.22 B): 측면 공이면 페널티 지점 부근 박스 안으로 (컷백·크로스 모두 받는 자리)
       nx = 1 - O.lateRunDepth / L;
       ny = 0.5 + side * 0.04;
+    } else if (job === 'edge' && wideMid) {
+      // 2선 측면 컷백 존 (C.76u): 같은 쪽 측면 공이면 자기 쪽 박스 모서리·하프스페이스 끝
+      nx = 1 - O.edgeWingDepth / L;
+      ny = 0.5 + mySide * O.edgeWingSpread;
     } else if (job === 'edge') {
       nx = 1 - O.edgeZone / L;
       ny = 0.5 - side * 0.05;
@@ -518,7 +533,6 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
   // 역할 움직임 모듈 (E.6 D.13): ② 줄 사이 이동, ① 빈 공간 찾기 (침투·최종 3분의 1 역할 중이 아닐 때)
-  const mate = !!owner && owner.team === a.team && owner !== a;
   if (!running && !job && hasModule(a.role, 'between')) [nx, ny] = betweenLines(s, a, dir, nx, ny, bnx);
   if (!running && !job && mate && hasModule(a.role, 'space')) [nx, ny] = findSpace(s, a, dir, nx, ny, line);
   // 내려와서 받기 / 지원 간격 (티키타카는 지원 삼각형 간격이 좁다, E.19)
@@ -706,13 +720,17 @@ function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null 
  * 공이 상대 최종 3분의 1 측면일 때의 역할 (E.18 A2): 침투 성향(run ≥ 0.4) CM/CAM 중 공에 가장 가까운 1명은 컷백 존,
  * 다음 미드 1명은 박스 경계 바깥(세컨드 볼, 중거리), ST/CF 2명은 니어/파 포스트 (공에 가까운 쪽이 니어)
  */
-function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
+/** 2선 측면 미드 (LM/RM 이고 중원 줄): 컷백 존 규칙 대상 (C.76u) */
+const isWideMid = (a: Agent): boolean => (a.pos === 'LM' || a.pos === 'RM') && a.line === 2;
+
+export function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
   const mates = s.agents.filter((o) => o.onPitch && o.team === a.team && o !== owner);
   const bd = (o: Agent) => dist(o.x, o.y, s.ball.x, s.ball.y);
   // 윙어: 공이 반대쪽 측면이면 먼 포스트로, 공이 중앙이면 같은 쪽 하프스페이스로 파고든다
   if (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM') {
     const by = toNorm(s.ball.x, s.ball.y, attackDir(a.team, s.half))[1];
-    if (Math.abs(by - 0.5) >= O.lateRunWide) return Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5) ? 'backPost' : null;
+    // 같은 쪽 측면 공: 윙어(LW/RW)는 자리 유지, 2선 측면(LM/RM)은 자기 쪽 박스 모서리 컷백 존 (C.76u)
+    if (Math.abs(by - 0.5) >= O.lateRunWide) return Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5) ? 'backPost' : isWideMid(a) ? 'edge' : null;
     // 공이 중앙이면 공에서 먼 쪽 윙어는 먼 포스트로 파고들고, 가까운 쪽은 하프스페이스 (E.20, 박스 도착 인원)
     return Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5) ? 'backPost' : 'halfSpace';
   }
