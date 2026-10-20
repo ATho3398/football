@@ -12,6 +12,7 @@ import { finishSkill, lossCost, shotModel, type Candidate } from './onball';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, toNorm, W } from './pitch';
 import { Purpose, rand } from './rng';
 import type { Agent, SimState } from './state';
+import { directiveProblem } from './directive';
 
 const C = BALANCE.cards;
 type AddOption = Extract<CardEffect, { type: 'addOption' }>;
@@ -22,6 +23,8 @@ export interface CardInput {
   deck: string[];
   /** 카드별 지금까지 사용 횟수 (숙련도, F.3.2) */
   mastery?: Record<string, number>;
+  /** 감독 신뢰도 0~100 (지시 카드 "감독의 신뢰", C.75i). 없으면 50 */
+  trust?: number;
 }
 
 /** 경기 중 카드 사용 한 번 */
@@ -95,6 +98,8 @@ export interface CardState {
   react: ReactPlan | null;
   uses: CardUse[];
   mastery: Record<string, number>;
+  /** 감독 신뢰도 (C.75i) */
+  trust: number;
 }
 
 export interface ReactPlan { kind: 'air' | 'block'; id: string | null; until: number; shooter?: number }
@@ -114,7 +119,7 @@ export function initCards(input: CardInput | undefined, seed: number): CardState
   }
   return {
     pile, hand: [], passives: [], started: false, nextDraw: 0, bonus: 0, drawn: 0, combos: [], mod: null, sp: null, watch: null,
-    occ: 0, lastOccT: -100, lastTackleT: -100, react: null, uses: [], mastery: { ...(input?.mastery ?? {}) },
+    occ: 0, lastOccT: -100, lastTackleT: -100, react: null, uses: [], mastery: { ...(input?.mastery ?? {}) }, trust: input?.trust ?? 50,
   };
 }
 
@@ -199,6 +204,8 @@ export type MomentCardRole = 'play' | 'boost' | 'passive' | 'combo' | 'soften' |
 
 export function cardRole(def: CardDef): MomentCardRole {
   if (def.effects.some((e) => e.type === 'addOption')) return 'play';
+  // 지시 카드 (C.75i): 이행·독단은 4번째 선택지(engine/directive.ts), 감독의 신뢰는 확률 카드
+  if (def.kind === 'directive') return def.effects.some((e) => e.type === 'probDelta') ? 'boost' : 'play';
   if (def.effects.some((e) => e.type === 'failureSoftener')) return 'soften';
   if (def.effects.some((e) => e.type === 'discardDraw')) return 'redraw';
   return KIND_ROLE[def.kind];
@@ -488,7 +495,7 @@ export function handView(
     const def = cardById(id)!;
     const role = cardRole(def);
     const card: MomentCard = { hand: i, id, name: def.name, kind: def.kind, rarity: def.rarity, role, text: cardText(def), usable: false };
-    const req = reqProblem(s, a, def);
+    const req = reqProblem(s, a, def) ?? directiveProblem(s, def);
     if (req) return { ...card, reason: req };
     if (def.scenes.length && !def.scenes.includes(scene as never)) return { ...card, reason: '이 장면에서는 못 써요' };
     if (role === 'play') {

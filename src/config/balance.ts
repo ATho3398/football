@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 55;
+export const BALANCE_VERSION = 56;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -791,6 +791,11 @@ export const BALANCE = {
     pickOptions: 3,
     seasonEpicChance: 0.2,
     signatureUnlock: 10,
+    /**
+     * 지시 카드 (F.4·D.11 6번, C.75i): 경기 뒤 "카드 보상" (엔진 판정 밖). 지시 이행 장당 신뢰 +followTrust (경기당 +followMax),
+     * 독단 성공 평점 +soloRating (MatchResult 사후 가산)·XP × soloXpMul, 실패 신뢰 −soloFailTrust. 감독의 신뢰는 신뢰도 trustMin 이상일 때만
+     */
+    directive: { followTrust: 1, followMax: 3, soloRating: 0.8, soloXpMul: 1.3, soloFailTrust: 5, trustMin: 70 },
   },
   // ── 신체·양발 (pending 47 1, 부록 C.45): 키·몸무게·주발·약발. 생성 분포와 엔진 실행 배율 (판단 구조는 그대로) ──
   body: {
@@ -1368,6 +1373,11 @@ export const BALANCE = {
       low: 35, high: 80, lowForm: { home: -0.05, adapt: -0.05, team: -0.05 }, highForm: { home: 0.02, team: 0.03 },
       mentalHigh: 70, mentalForm: -0.06, mentalMax: 85, mentalMaxForm: -0.12, mentalLow: 15, mentalLowForm: 0.02, mentalRecovery: 0.9, formMax: 0.15,
     },
+    /**
+     * 판단 스탯 생활 영향 (pending 43 ⑦·474, C.75i): 엔진 입력의 내 시야·침착성에서 뺀다 (0~99 척도, 엔진 코드는 그대로).
+     * 정신 상태(100 − 멘탈 피로)가 from 미만이면 (from − 정신 상태) × per, 외국인은 적응도도 같은 식, 합 최대 max
+     */
+    judge: { from: 40, per: 0.125, max: 5 },
     /** 생활 이벤트 시즌 상한 (pending 47 질문 ④: 쉬움 1, 보통 2, 어려움 3) */
     eventsPerSeason: { easy: 1, normal: 2, hard: 3 },
     /** 태그 (5-2 몫): 리더 = 팀 불화 이벤트 확률 × leaderDiscord, 문제아 = 인터뷰 실언 확률 × troubleSlip, 스타 플레이어 = 빅클럽 루머 × starRumour */

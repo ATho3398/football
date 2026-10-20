@@ -16,6 +16,7 @@ import {
   type ActionMod, type CardUse, type MomentCard, type OptionCtx, type ReactCard, type Variant,
 } from './cards';
 import { ENGINE } from './config';
+import { directiveVariants } from './directive';
 import { aerialScore, dribbleProb, duelTail } from './duel';
 import { candidates, choose, shotModel, type ActionType, type Candidate } from './onball';
 import { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
@@ -410,6 +411,8 @@ function onballVariants(s: SimState, a: Agent, scene: SceneId, cands: Candidate[
     const v = buildVariant(s, a, cardById(cs.hand[i]!)!, i, cands);
     if (v) out.push(v);
   }
+  // 지시 카드 (C.75i): 지시 이행 = 엔진 1순위 그대로, 독단 = 개인 가치 최대 (직접 모드만)
+  out.push(...directiveVariants(s, cands));
   return out;
 }
 
