@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 25;
+export const ENGINE_VERSION = 26;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -413,9 +413,10 @@ export const ENGINE = {
      * 수신 지점 모델 (C.75j, 44e 가설 1): 침투가 아닌 수신자의 패스 목표점에서 shiftDist m 안에 상대 필드 선수가 있으면
      * 목표점을 그 상대의 반대쪽으로 shift m 옮긴다 (패스 선에 수직인 성분 우선 — 패스 거리를 안 늘림). 오프사이드 라인 maxOffside m 안.
      * 받는 선수는 비행 중 목표점으로 뛰므로 "공이 날아오는 동안 마커 반대쪽으로 이동"이 된다.
-     * firstTouch: 받고 몰지 않고 firstTouch 초 안에 쏘는 슛(원터치·투터치)은 받는 순간의 압박으로 판정한다 (가설 2, 판정 시점만 바뀌고 식은 그대로)
+     * firstTouch: 받고 몰지 않고 firstTouch 초 안에 쏘는 슛(원터치·투터치)은 받는 순간의 압박으로 판정한다 (가설 2, 판정 시점만 바뀌고 식은 그대로).
+     * 1.3 = receiveTime 0.9 + 반응 상한 × 0.5 + 틱 여유: 받은 뒤 첫 결정 하나만 덮는다 (1.6 은 빠른 선수의 둘째 결정까지 덮어 scoring 분포에 몰림, C.75j)
      */
-    recv: { shiftDist: 3, shift: 2, maxOffside: 0.5, firstTouch: 1.6 },
+    recv: { shiftDist: 3, shift: 2, maxOffside: 0.5, firstTouch: 1.3 },
     /**
      * 침투 패스 목표 (E.20 4번): 오프사이드 라인 뒤 공간으로. 깊이 = clamp(throughShare × (라인 뒤 공간 − throughStop), throughMin, throughMax) m.
      * 라인이 높을수록 뒷공간이 넓어 달리기 경쟁 거리가 길어진다 (빠른 공격수 유리, 느린 CB 불리)
