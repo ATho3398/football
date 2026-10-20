@@ -2031,6 +2031,12 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   .mo-v3 .mo-actions { margin: 4px -16px 0; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); box-shadow: none; }
   .mo-v3 .mo-actions .po-btn, .mo-v3 .oc-actions .po-btn { height: 52px; }
   .mo-v3.mo-outcome .oc-panel { min-height: calc(100dvh - clamp(190px, 32dvh, 270px) - 84px); }
+  /* C.75v (U 추가 지시 16:18): 결정 순간은 한 화면 고정 — 스코어 줄·경기장은 위에 고정, 그 아래 선택지 패널만 스크롤(겹쳐 덮지 않음), [맡기기][확정]은 패널 아래 붙음 */
+  .mo-v3.mo-fold:not(.mo-outcome) { height: 100dvh; min-height: 0; overflow: hidden; }
+  .mo-v3.mo-fold:not(.mo-outcome) > .mo-top, .mo-v3.mo-fold:not(.mo-outcome) > .mo-stage { flex: none; }
+  .mo-v3.mo-fold:not(.mo-outcome) > .mo-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .mo-v3.mo-fold:not(.mo-outcome) > .mo-panel > * { flex-shrink: 0; }
+  .mo-v3.mo-fold:not(.mo-outcome) .mo-actions { margin-top: auto; }
   /* C.75v 선택지 4~5개: 경기장을 조금 낮추고 줄 높이를 줄여 5줄 + 패 줄 + [맡기기][확정]이 390×844 한 화면에 들어오게 */
   html:not(.is-pitch-portrait) .mo-v3.mo-many .mo-stage { height: clamp(170px, 27dvh, 228px); }
   html:not(.is-pitch-portrait) .mo-v3.mo-n5 .mo-stage { height: clamp(160px, 23dvh, 196px); }

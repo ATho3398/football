@@ -130,6 +130,13 @@ for (let gi = 0; gi < GAMES && !(got.five && got.back && got.normal); gi++) {
       if (tag === 'B발동') got.back = true; else if (tag === '선택지5개') got.five = true; else got.normal = true;
       await act('mo-pick', '[data-v="0"]'); await page.waitForTimeout(200);
       await shot(`결정순간-${tag}-선택`);
+      // U 16:18: 경기장은 위에 고정, 선택지 패널만 스크롤 — 패널을 끝까지 내려도 경기장이 그대로인지
+      if (tag === '선택지5개') {
+        await page.evaluate(() => { const p = document.querySelector('.mo-panel'); if (p) p.scrollTop = p.scrollHeight; });
+        await shot(`결정순간-${tag}-패널스크롤`);
+        report.panelScroll = await page.evaluate(() => ({ stageTop: Math.round(document.querySelector('.mo-stage').getBoundingClientRect().top), pageScroll: scrollY }));
+        await page.evaluate(() => { const p = document.querySelector('.mo-panel'); if (p) p.scrollTop = 0; });
+      }
       await act('mo-confirm');
     } else await act('mo-delegate');
     await page.waitForSelector('.po-splash', { timeout: 20_000 }).catch(() => {});
