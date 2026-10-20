@@ -54,12 +54,12 @@ describe('결정 순간 (E.11, C.34)', () => {
           m = run.advance();
           continue;
         }
-        // 몰고 가다 슛 (C.75k)은 3칸 뒤 4번째 줄
+        // 몰고 가다 슛 (C.75k)은 마지막 줄, 선택지 최대 maxOptions (C.75v), 같은 이름 줄 없음
         const main = m.options.filter((o) => !o.chain);
         expect(main.length).toBeGreaterThanOrEqual(1);
-        expect(main.length).toBeLessThanOrEqual(3);
+        expect(m.options.length).toBeLessThanOrEqual(ENGINE.moments.maxOptions);
         expect(m.options.length - main.length).toBeLessThanOrEqual(1);
-        expect(new Set(main.map((o) => o.kind)).size).toBe(main.length);
+        expect(new Set(m.options.map((o) => o.label)).size).toBe(m.options.length);
         for (const o of m.options) if (o.p !== null) expect(o.p).toBeGreaterThanOrEqual(0), expect(o.p).toBeLessThanOrEqual(1);
         expect(SCENE_LABEL[m.scene]).toBeTruthy();
         seen.push(`${m.minute}:${m.scene}`);

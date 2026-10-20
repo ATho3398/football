@@ -3,7 +3,7 @@ import { BALANCE } from '../src/config/balance';
 import { CARDS, cardById, starterDeck } from '../src/config/cards';
 import { afterMatch, canAdd, cardInput, deckProblems, grantLevelPicks, grantSeasonPick, initCollection, takePick } from '../src/cardCollection';
 import { MyMatchRun, playMyMatch } from '../src/engine/adapter';
-import { bestChoice, type MomentPolicy } from '../src/engine/moments';
+import { bandKind, bestChoice, type MomentPolicy } from '../src/engine/moments';
 import { ENGINE } from '../src/engine/config';
 import { newGame, playRound, roundMatch, selectableRealPlayers, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
 import { posGroup } from '../src/roster';
@@ -252,14 +252,15 @@ describe('결정 순간 개선 (C.40, pending 39 5항)', () => {
     expect(seen.length).toBeGreaterThan(0);
     for (const m of seen) {
       if (m.type === 'setPiece') continue;
-      if (m.type !== 'react') for (const o of m.options) if (o.p !== null) expect(o.p).toBeLessThanOrEqual(ENGINE.moments.maxP + 1e-9);
+      // 90% 초과는 빠진다 — C.75v 확실한 선택지 다시 넣기(sureBack)면 맨 위 1개만
+      if (m.type !== 'react') m.options.forEach((o, i) => { if (o.p !== null && !(m.sureBack && i === 0)) expect(o.p).toBeLessThanOrEqual(ENGINE.moments.maxP + 1e-9); });
       const judged = m.options.filter((o) => o.p !== null);
       expect(judged.length >= 1 && m.options.length >= 2 || m.cards.some((c) => c.usable && (c.option || c.deltas))).toBe(true);
       if (m.type === 'onball') {
-        // 안전/균형/도박 세 줄만 확률 순 (4번째 줄 = 카드·몰고 가다 슛은 순서 보장 없음 — C.76a 에서 엔진 결과가 바뀌어 0.24 > 0.22 로 걸림)
-        const ps = m.options.slice(0, 3).map((o) => o.p!);
+        // 확률 순 (몰고 가다 슛은 맨 끝), 라벨 = 확률 구간 (C.75v)
+        const ps = m.options.filter((o) => !o.chain).map((o) => o.p!);
         expect([...ps].sort((a, b) => b - a)).toEqual(ps);
-        expect(m.options[0]!.kind).toBe(m.options.length === 1 ? 'balanced' : 'safe');
+        for (const o of m.options) expect(o.kind).toBe(bandKind(o.p));
       }
     }
   });

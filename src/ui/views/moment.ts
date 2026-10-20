@@ -1,12 +1,13 @@
 // 결정 순간 화면 (E.11, I.5·I.17 3번, E4 최소판): 직접 모드에서 내 선수 결정 순간마다 경기가 멈춘다.
 // 피치에는 직전 결정 뒤부터 이 순간까지를 1× 로 보여 주고 마지막 0.5초는 슬로모션으로 멈춘 뒤, 선택지 방향 화살표를 그린다.
-// 패널: 선택지 3개(안전/균형/도박, 성공 확률, 성공/실패 결과, 평점 변화, 오프사이드 위험) → 패 카드 자리(3단계) → [맡기기] [확정].
+// 패널: 선택지 최대 5개(C.75v, 라벨 = 성공 확률 구간 안전 50%+/균형 25%+/도박, 성공 확률, 성공/실패 결과, 평점 변화, 오프사이드 위험) → 패 카드 자리(3단계) → [맡기기] [확정].
 // E5 최소(부록 C.35): 모바일은 패널을 바텀시트로, [확정]·[맡기기] 뒤에는 결과 구간 재생 → 결과 띠(outcomeView).
 // 카드(C.36, I.17 3·4번): 패 카드 줄. 확률 카드를 누르면 선택지 확률이 "+8 카드"로 바뀌어 보이고, 플레이 카드를 누르면 4번째 선택지가 카드 색 테두리로 생긴다.
 // 다시 누르면 취소. 쓸 수 없는 카드는 회색에 이유.
 
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
+import { ENGINE } from '../../engine/config';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
 import { Button, ChoiceButton, Crest, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type FeedKind, type GameCardData } from '../components';
 import { cardById } from '../../config/cards';
@@ -135,14 +136,16 @@ export function momentView(vm: MomentVM): string {
   // 안내 한 줄 (189): 확실한 선택지를 뺐을 때 / 판정 없는 선택지가 있을 때
   const certain = shown.some((o) => o.p === null);
   const notes = [
-    m.sure ? `확실한 선택지(90%+)는 뺐어요${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''} · 맡기기가 할 일` : '',
+    // C.75v: 남은 선택지가 모두 낮으면 확실한 선택지 1개를 맨 위에 다시 넣는다 ("확실하게 지킬까 vs 모험")
+    m.sureBack ? `다른 선택지가 모두 ${Math.round(ENGINE.moments.sureBackBelow * 100)}% 미만이라 확실한 선택지(90%+) 1개를 맨 위에 넣었어요`
+      : m.sure ? `확실한 선택지(90%+)는 뺐어요${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''} · 맡기기가 할 일` : '',
     certain ? '판정 없는 선택지는 "확정" — 바로 그렇게 돼요' : '',
   ].filter(Boolean);
   // 슛을 못 고르는 이유 (C.75a): 등짐·각 막힘·거리 밖
   const shotNote = m.shotNote && !shown.some((o) => o.action === 'shoot') ? `<p class="mo-note mo-shotnote">${esc(m.shotNote)}</p>` : '';
   const note = notes.length ? `<p class="mo-note">${esc(notes.join(' · '))}</p>` : '';
   return `
-    <div class="moment mo-fold mo-v3">
+    <div class="moment mo-fold mo-v3${shown.length >= 4 ? ` mo-many mo-n${Math.min(5, shown.length)}` : ''}">
       ${scoreTop(vm.teams, m.score, m.side, m.minute, `${SCENE_LABEL[m.scene]} · 결정 순간 ${vm.count}${tension}`)}
       <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면', children: stageTools() })}</div>
       <div class="mo-panel" role="group" aria-label="결정 선택">

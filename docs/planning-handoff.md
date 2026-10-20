@@ -599,3 +599,10 @@
 - (16:31 KST) **C.75m 완료**(45a, main 4dfa721, BALANCE 59·SAVE 47, 테스트 891, T 경유) → UI_4 알림, ntfy. **C.75y 시작** `session_014hnh7JesgAD6TuzpSroeqZ`(45b 타리그 연결, `claude/c75y-league-wiring`) · **C.75z 시작** `session_01UZo1YRPYp3BuRWrxPsDDPg`(45c 대표팀, `claude/c75z-national-team`). 진행 중 코드 세션 6개(C.75u·v·w·x·y·z) + 44f-b 대기(엔진관리자5 처방).
 - (16:31 KST) UI_4 13차 UI 요청 보고(큰 3·작은 5, 번호 237~240, 7~13차 통합 프롬프트 docs/ui-requests/7-13/통합_프롬프트.txt, claude/ui-4 30cd2b8). 디자인 오면 U 적용 패치.
 - (16:53 KST) 자동 확인: main run 233~236 모두 다음 푸시에 취소(병렬 배포), run 237(4dfa721 = C.75k·l·m·n·t 전부) 진행 중 → 30분 뒤 재확인 후 draft_. 44f-b는 엔진관리자5 권고로 기록 닫기, 다음 엔진 = 44h-a(1대1·엘리트 몰림·위협 가중 수비 검토).
+- (17:00 KST) **C.75u 완료**(main 6859490, 테스트 897, 버전 그대로) → ntfy. 진행 중 C.75v·w·x·y·z.
+- (17:05 KST) 엔진관리자5 44h-a 지시서 준비(§9) → **C.76a 시작**(Fable, 44h-a 1대1 결정력·위협 가중 수비) `session_01Q5WHver26ok2Li6YPmhxF2` `claude/c76a-oneonone-threat`, 지시문 C.76a.md. 진행 중 코드 세션 6개(C.75v·w·x·y·z·C.76a). 엔진관리자5 대기(교체 기준 25만 확인 필요).
+- (17:25 KST) 자동 확인: main run 237(4dfa721) 성공 → C.75k·l·m·n·t draft_. run 238(C.75u 6859490) 진행 중. 재예약 60분.
+- (17:43 KST) **C.75z 완료**(주발 아이콘·오토 인터뷰, main f902d61, 테스트 906) — 세션 제목 C.75x. 소절 이름 겹침(C.75w·x·y 기존) → 진행 세션 이름 변경: 46b=C.76b, 45b=C.76c, 45c=C.76d, 커스텀 국적·인종=C.76e(C.75x 세션이 이어서). 다음 새 이름 C.76f(커스텀은 C.76e로 분리됨, 17:56).
+- (18:01 KST) **C.76b 완료**(46b, main 6df4acc, BALANCE 60·SAVE 48, 테스트 916) → UI_4 알림, ntfy. 46단계 끝. 진행 중 C.75v·C.76c(45b)·C.76d(45c)·C.76a(44h-a).
+- (18:27 KST) 자동 확인: run 238(C.75u) 성공 → C.75u draft_. run 239~241 취소(병렬), run 242(6df4acc = C.75z·C.76e·C.76b) 진행 중 → 45분 뒤 재확인.
+- (18:30 KST) **C.75v 완료**(main 1802686, BALANCE 61) → ntfy. 진행 중 C.76a·C.76c·C.76d.
