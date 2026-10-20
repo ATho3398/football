@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 57;
+export const BALANCE_VERSION = 59;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -354,6 +354,16 @@ export const BALANCE = {
     /** 5번째 주중 라운드 후보 (시드로 하나) */
     extraMidweek: [[1, 4, 23], [0, 9, 25], [0, 10, 30]] as [number, number, number][],
     fifthMidweekChance: 0.5,
+    /**
+     * 다른 리그 달력 (C.75m): PL 은 위 패턴 그대로, 다른 리그는 주말을 채우고 모자라면 수요일 주중 라운드를 고르게 더한다.
+     * 날짜는 [다음 해면 1, 월, 일]. 춘추제 = 8월~5월 (시즌 S = S년 8월 ~ S+1년 5월), 춘추가 아닌 리그(K·J·브라질·MLS) = 그해 3~12월
+     */
+    leagues: {
+      'autumn-spring': { opening: [0, 8, 11], final: [1, 5, 19], breaks: [[0, 9, 8], [0, 10, 13], [0, 11, 17], [1, 3, 23]] },
+      'spring-autumn': { opening: [0, 3, 3], final: [0, 12, 1], breaks: [[0, 3, 24], [0, 6, 9], [0, 9, 8], [0, 10, 13], [0, 11, 17]] },
+    } as Record<'autumn-spring' | 'spring-autumn', { opening: [number, number, number]; final: [number, number, number]; breaks: [number, number, number][] }>,
+    /** 끝난 다른 리그는 다음 시즌 개막 이 날 수 전에 새 시즌으로 넘어간다 (그 전까지 순위표는 지난 시즌 최종) */
+    rolloverLeadDays: 30,
   },
 
   // ── 피로 (7.1) ──
@@ -962,6 +972,11 @@ export const BALANCE = {
       cultSeasons: 3, cultHeroRep: 1.01,
       traitorForm: 0.1,
     },
+  },
+
+  // ── 포토카드 도감 (C.75t): 카드 테두리 = OVR 등급 (카드 희귀도 색 재사용) ──
+  photocards: {
+    grade: { legend: 88, epic: 82, rare: 75 },
   },
 
   // ── 레전드 팩 (pending 63, C.47): 2018-19 세계에 15~22세로. 시작 OVR = 전성기 OVR − startGap(나이), 전성기 나이 peakAge ──

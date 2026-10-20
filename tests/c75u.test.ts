@@ -25,8 +25,8 @@ describe('C.75u 머리말 이름 맞춤', () => {
 describe('C.75u 버전', () => {
   it('PATCH_LABEL · STAGE_LABEL', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toBe('C.75u');
-    expect(STAGE_LABEL).toBe('45단계');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/); // C.75u 배포 때 'C.75u', 다음 패치가 덮어씀
+    expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });
 
