@@ -6066,7 +6066,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 223 나머지(162 레벨업 배너 · 170 위상 줄 없음 · 182 레전더리 펼침 · 174 스위치 잠금)는 이미 같은 동작이라 그대로, 190 해설(결정 순간 = C.75v 배치 우선) · 167 훈련 8종 4열(훈련 = U8-d 묶음) · 175 실제 선수 정렬(새 게임 = U8-c)은 건드리지 않음.
 - 디자인 없는 새 화면/패널: 없음(207 우승 축하는 디자인 207).
 
-**검증**: `npm run typecheck` · `build` 통과, `npm test` **977개 중 976 + 2초 테스트 부하 실패 1**(balance·engine:check 와 동시 실행 중 `cards` 경기 계산 7,412 ms → 단독 재실행 16/16 통과) — 새 `tests/c76j.test.ts` 6개(205 묶음·조 표·녹아웃 합계·컵 라운드 칩, 214 대회 배너·207 우승 축하, 208 대회별·211 할 일·대회 칸·212 대회 배지, 224 하이라이트 카드·210 목표 결과, PATCH_LABEL), `tests/c67` 컵 결과 배너 기대 → `cupBanner`. `balance:engine:check` 경량 가드 통과, `balance:check` **회귀 가드 19/19 통과**(30세 OVR 일반 75.7 · 레전더리 86.5).
+**검증**: `npm run typecheck` · `build` 통과, `npm test` **977개 중 976 + 2초 테스트 부하 실패 1**(balance·engine:check 와 동시 실행 중 `cards` 경기 계산 7,412 ms → 단독 재실행 16/16 통과) — 새 `tests/c76j.test.ts` 6개(205 묶음·조 표·녹아웃 합계·컵 라운드 칩, 214 대회 배너·207 우승 축하, 208 대회별·211 할 일·대회 칸·212 대회 배지, 224 하이라이트 카드·210 목표 결과, PATCH_LABEL), `tests/c67` 컵 결과 배너 기대 → `cupBanner`. `balance:engine:check` 경량 가드 통과, `balance:check` **회귀 가드 19/19 통과**(30세 OVR 일반 75.7 · 레전더리 86.5). main 병합(C.76h) 뒤 typecheck · build 통과, `npm test` **981개 모두 통과(114 파일)**.
 확인 캡처 `docs/design/c76j-check/` 10장(폰 390×844: 01 컵·챔스 조별 · 02 녹아웃 · 03 FA컵 · 04 홈 할 일·대회 칸 · 05 경기 결과 대회 배너 · 06 우승 축하 · 07 경기 준비 상대 분석 · 08 시즌 요약 하이라이트·목표 / PC 1280×800: 컵·챔스 조별 · 경기 준비 2열), 스크립트 `scripts/c76j-saves.ts`(살라 시작 세이브 3개: 9월 20일 · 3월 20일 · 시즌 끝) + `scripts/c76j-capture.mjs`. 페이지 오류 0 · 가로 넘침 0.
 
 ### C.76g 44단계(U8-b) 디자인 적용 — 컴포넌트·홈 (통합 2부 B: HeroPanel photo · Banner/Toast B · Icon · 195·197·198·202·203·204·211·227·228·230A·236B) **`main` 배포** (ENGINE_VERSION · BALANCE_VERSION · SAVE_FORMAT_VERSION 그대로)
