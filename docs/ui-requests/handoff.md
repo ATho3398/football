@@ -7,7 +7,7 @@
 - **UI_3 종료**(2026-10-20 14:38 KST). 이전: UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx` (브랜치 `claude/ui-3`, 연 세션 = 마스터 N) — 7~12차 보고, 7-9 1부·카드 그림 set61 적용 명세.
 - **UI_2 종료**(2026-10-18 03:28 KST, 6차 디자인 적용 명세 뒤, ui-2 마지막 2e1a8e8). 이전: UI_2 `session_01PbsMWMDDH2vCaTxbDg8f5F` (브랜치 `claude/ui-2`, 연 세션 = 마스터 M) — 6차 디자인 적용 명세(`6-apply.md`)까지 하고 끝.
 - **UI_1 종료**(2026-10-18 00:30 KST, 5차 디자인 적용 명세 뒤, ui-1 마지막 71dc770). 이전: UI_1 `session_01D3WSqiWMZA3itvZV4ppYvC` (브랜치 `claude/ui-1`) — 5차 디자인 적용 명세(`5-apply.md`, cc77c6e)까지 하고 끝.
-- **지금 마스터: U** `session_01DUqLtswE7hDV9NHhh6HfZq` (브랜치 `claude/planning-u`, 2026-10-20 14:48 KST T → U 교체 통보). 이전 마스터 T `session_01KEPYWMJvsVNyeS7vpS8kSs` (브랜치 `claude/planning-t`, 2026-10-20 10:50 KST S → T 교체, S가 연 세션 — `get_session` parent 확인). 알림·보고는 U로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 S `session_01Pi4aAWoFd5yBP3mZfCURwD`(`claude/planning-s`), R `session_015zZ2foCVBuTGmZ3S6w8LR3`.
+- **지금 마스터: V** `session_01Lzq7rz3Q4FvKuV1aT6Xkhk` (브랜치 `claude/planning-v`, 2026-10-20 19:15 KST U → V 교체 통보). 이전 마스터 U `session_01DUqLtswE7hDV9NHhh6HfZq` (브랜치 `claude/planning-u`, 2026-10-20 14:48 KST T → U 교체, UI_5를 연 세션). 이전 마스터 T `session_01KEPYWMJvsVNyeS7vpS8kSs` (브랜치 `claude/planning-t`, 2026-10-20 10:50 KST S → T 교체, S가 연 세션 — `get_session` parent 확인). 알림·보고는 V로(send_message). 카톡·ntfy 알림은 마스터 몫. 이전 마스터 S `session_01Pi4aAWoFd5yBP3mZfCURwD`(`claude/planning-s`), R `session_015zZ2foCVBuTGmZ3S6w8LR3`.
   - 이전 마스터 P `session_017ksZs67SVSSPuM3TjfMuPQ` (`claude/planning-p`).
   - 이전 마스터 O `session_01CN9st4ghf69ihWjimtuKQ7` (`claude/planning-o`).
   - 이전 마스터 N `session_013dNEvc6CvpGFw1SkMRXsUh` (`claude/planning-n`, UI_3을 연 세션).
