@@ -97,6 +97,108 @@ export function updateSituations(s: SimState): void {
   }
 }
 
+/** 상대의 위험 점수 (마크 배정 순서, C.75d): focusThreat 점수 + 공보다 우리 골에 가까우면 behindBall */
+function markThreat(o: Agent, gx: number, gy: number, ballGoal: number): number {
+  const d = dist(o.x, o.y, gx, gy);
+  const inBox = Math.abs(o.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(o.y - gy) <= ENGINE.pitch.boxWidth / 2;
+  return Math.max(0, 1 - d / O.focusRange) + (inBox ? O.focusBox : 0) + (d < ballGoal ? O.plan.behindBall : 0);
+}
+
+/** 수비 포지셔닝에 따른 마크 재배정 간격(초)·바꿀 여유(m) (C.75d) */
+function markReact(a: Agent): [number, number] {
+  const P = O.plan;
+  const k = clamp((a.attrs.defensivePositioning - P.reactLo) / (P.reactHi - P.reactLo), 0, 1);
+  return [P.reassignInterval + (P.reassignFast - P.reassignInterval) * k, P.switchMargin + (P.switchFast - P.switchMargin) * k];
+}
+
+/**
+ * 마크 배정·기억 (C.75d, 44c-b): 틱마다 수비 팀의 Agent.markIdx 를 갱신한다. 한 상대에 1명, 배정은 markUntil 까지 유지,
+ * 그 뒤에도 다른 수비수가 switchMargin m 이상 가까울 때만 바꾼다. 공격 팀은 배정을 비운다
+ */
+export function updateMarks(s: SimState): void {
+  if (s.restart) return;
+  const P = O.plan;
+  const b = s.ball;
+  for (const team of [0, 1] as const) {
+    if (s.possTeam === team || (b.owner >= 0 && s.agents[b.owner]!.team === team)) {
+      for (const a of s.agents) if (a.team === team) a.markIdx = -1;
+      continue;
+    }
+    const tm = s.teams[team];
+    const dir = attackDir(team, s.half);
+    const [gx, gy] = ownGoal(dir);
+    const ballGoal = dist(b.x, b.y, gx, gy);
+    const danger = ballGoal < O.dangerPress;
+    const free: Agent[] = [];
+    for (const a of s.agents) {
+      if (a.team !== team) continue;
+      if (!a.onPitch || a.line === 0 || a.line === 3 || hasModule(a.role, 'exempt')) {
+        a.markIdx = -1;
+        continue;
+      }
+      // 압박자·커버·역압박·돌파 후 커버는 마크하지 않는다
+      const rank = ballRank(s, a, b.x, b.y);
+      if (rank === 0 || (rank === 1 && danger) || (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx))
+        || (tm.coverAgent === a.idx && s.t < tm.coverUntil)) {
+        a.markIdx = -1;
+        continue;
+      }
+      free.push(a);
+    }
+    const threats: { o: Agent; v: number }[] = [];
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team === team || o.line === 0 || o.idx === b.owner) continue;
+      if (dist(o.x, o.y, gx, gy) >= P.markZone) continue;
+      threats.push({ o, v: markThreat(o, gx, gy, ballGoal) });
+    }
+    threats.sort((p, q) => q.v - p.v || p.o.idx - q.o.idx);
+    const isThreat = new Set(threats.map((t) => t.o.idx));
+    const taken = new Set<number>();
+    let mids = 0;
+    // ① 기억: 유지 시각 안의 배정은 그대로
+    for (let i = free.length - 1; i >= 0; i--) {
+      const a = free[i]!;
+      if (a.markIdx < 0 || !isThreat.has(a.markIdx) || taken.has(a.markIdx)) {
+        if (a.markIdx >= 0 && !isThreat.has(a.markIdx)) a.markIdx = -1;
+        continue;
+      }
+      if (s.t < a.markUntil) {
+        taken.add(a.markIdx);
+        if (a.line === 2) mids++;
+        free.splice(i, 1);
+      }
+    }
+    // ② 남은 상대를 위험한 순서로: 수비 줄 먼저, 모자라면 중원 줄 (최대 markMids)
+    for (const { o } of threats) {
+      if (taken.has(o.idx)) continue;
+      if (taken.size >= P.markMax) break;
+      let pool = free.filter((a) => a.line === 1);
+      if (!pool.length && mids < P.markMids) pool = free.filter((a) => a.line === 2);
+      // 지금 맡고 있던 수비수 (줄과 무관)
+      const prev = free.find((a) => a.markIdx === o.idx);
+      if (prev && !pool.includes(prev)) pool = [...pool, prev];
+      if (!pool.length) continue;
+      let pick = pool[0]!;
+      let pd = dist(pick.x, pick.y, o.x, o.y);
+      for (const a of pool) {
+        const d = dist(a.x, a.y, o.x, o.y);
+        if (d < pd - 1e-9) {
+          pd = d;
+          pick = a;
+        }
+      }
+      // 지금 맡고 있던 수비수는 새 후보가 switchMargin m 이상 가까울 때만 넘겨준다
+      if (prev && prev !== pick && dist(prev.x, prev.y, o.x, o.y) < pd + markReact(prev)[1]) pick = prev;
+      if (pick.markIdx !== o.idx || s.t >= pick.markUntil) pick.markUntil = s.t + markReact(pick)[0];
+      pick.markIdx = o.idx;
+      taken.add(o.idx);
+      if (pick.line === 2) mids++;
+      free.splice(free.indexOf(pick), 1);
+    }
+    for (const a of free) a.markIdx = -1;
+  }
+}
+
 /** 커버 자리 (C.75c): (x, y)와 그 팀 골을 잇는 선에서 골 쪽 plan.coverBehind m */
 function coverSpot(a: Agent, dir: 1 | -1, x: number, y: number): void {
   const [gx, gy] = ownGoal(dir);
@@ -519,6 +621,13 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const mate = !!owner && owner.team === a.team && owner !== a;
   if (!running && !job && hasModule(a.role, 'between')) [nx, ny] = betweenLines(s, a, dir, nx, ny, bnx);
   if (!running && !job && mate && hasModule(a.role, 'space')) [nx, ny] = findSpace(s, a, dir, nx, ny, line);
+  // 마커 떼기 (C.75e, 44c-b): 상대 최종 3분의 1에서 마커가 붙어 있으면 (공격 위치선정 비례 확률, hold 초 창으로 유지) 마커 반대 어깨·앞쪽 빈 자리로 다시 고른다
+  if (!running && mate && a.line >= 2 && toNorm(a.x, a.y, dir)[0] >= O.shake.fromX) {
+    const [mk, md] = nearestOutfield(s, a, a.x, a.y);
+    if (mk && md < O.shake.dist && rand(s.seed, Math.floor(s.t / O.shake.hold), a.idx, Purpose.Run, 7) < O.shake.base + O.shake.per * (a.attrs.offTheBall / 100)) {
+      [nx, ny] = shakeSpot(s, a, dir, nx, ny, line, mk, job ? O.shake.jobShake : O.shake.radius, !!job);
+    }
+  }
   // 내려와서 받기 / 지원 간격 (티키타카는 지원 삼각형 간격이 좁다, E.19)
   const tiki = s.teams[a.team].tactics.tendency === 'tikitaka';
   // 빌드업 전술: 짧게일수록 지원 간격이 좁다 (E.19 ③)
@@ -614,15 +723,62 @@ function betweenLines(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number
 }
 
 /**
+ * 마커 떼기 자리 (C.75e): 목표 (nx, ny) 에서 반지름 r m, 앞쪽 반평면(옆·대각선 앞·앞, 뒤로는 안 감)의 후보 중
+ * 가장 가까운 상대가 가장 먼 곳 (findSpace 점수: 상대 거리 + 앞쪽 가산). 역할 자리(sideOnly)는 옆으로만, 마커 반대쪽 어깨.
+ * 오프사이드 라인은 넘지 않는다. 지금 목표보다 상대가 더 멀어지는 후보가 없으면 그대로. 위치만 고르고 결과는 바꾸지 않는다 (E.15.1)
+ */
+function shakeSpot(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, line: number, mk: Agent, r: number, sideOnly: boolean): [number, number] {
+  const [cx, cy] = toPitch(nx, ny, dir);
+  const nearAt = (x: number, y: number): number => {
+    let near: number = RM.spaceCap;
+    for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) near = Math.min(near, dist(o.x, o.y, x, y));
+    return near;
+  };
+  let best: [number, number] = [nx, ny];
+  let bestScore = nearAt(cx, cy) + 1e-6;
+  // 후보 각도 (공격 방향 기준): 옆 ±90°, 대각선 앞 ±45°, 앞 0° (역할 자리는 옆만)
+  const angles = sideOnly ? [Math.PI / 2, -Math.PI / 2] : [Math.PI / 2, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 0];
+  for (const ang of angles) {
+    const x = clamp(cx + Math.cos(ang) * dir * r, 2, L - 2);
+    const y = clamp(cy + Math.sin(ang) * r, 2, W - 2);
+    const [px, py] = toNorm(x, y, dir);
+    if (px > line - 0.5 / L) continue;
+    // 역할 자리는 마커 반대쪽 어깨만 (마커가 자리와 같은 y 면 양쪽 다)
+    if (sideOnly && (y - cy) * (cy - mk.y) < -1e-9) continue;
+    const score = nearAt(x, y) + RM.spaceForward * (px - nx) * L;
+    if (score > bestScore) {
+      bestScore = score;
+      best = [px, py];
+    }
+  }
+  return best;
+}
+
+/** 가장 가까운 상대 필드 선수 (GK 제외)와 거리 (C.75e) */
+function nearestOutfield(s: SimState, a: Agent, x: number, y: number): [Agent | null, number] {
+  let best: Agent | null = null;
+  let bd = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    const d = dist(o.x, o.y, x, y);
+    if (d < bd) {
+      bd = d;
+      best = o;
+    }
+  }
+  return [best, bd];
+}
+
+/**
  * ① 빈 공간 찾기 (E.6 D.13): 역할 목표 주변 spaceRadius m 안에서 가장 가까운 상대가 가장 먼 곳 (앞쪽 조금 우선).
  * 오프사이드 라인은 넘지 않는다. 위치만 고르고 결과는 바꾸지 않는다 (E.15.1)
  */
-function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, line: number): [number, number] {
+function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, line: number, radius: number = RM.spaceRadius): [number, number] {
   const [cx, cy] = toPitch(nx, ny, dir);
   let best: [number, number] = [nx, ny];
   let bestScore = -Infinity;
   for (let k = -1; k < 12; k++) {
-    const r = k < 0 ? 0 : RM.spaceRadius * (k % 2 ? 1 : 0.55);
+    const r = k < 0 ? 0 : radius * (k % 2 ? 1 : 0.55);
     const ang = (k / 12) * Math.PI * 2;
     const x = clamp(cx + Math.cos(ang) * r, 2, L - 2);
     const y = clamp(cy + Math.sin(ang) * r, 2, W - 2);
@@ -829,13 +985,19 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
   const ballGoal = dist(b.x, b.y, gx0, gy0);
   const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
-  if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
-
-  let [nx, ny] = slotTarget(s, a);
   const tendency = s.teams[a.team].tactics.tendency;
   let lineX = defensiveLine(s, a.team);
   // 수비 블록 (E.19): 수비 라인은 박스 경계 앞으로 나가지 않고, 수비-중원 간격 12 m 이하
   if (tendency === 'block') lineX = Math.min(lineX, TENDENCY.blockLineMax / L);
+  // 마크 배정 (C.75d): 맡은 상대가 있으면 그 선수를 마크한다
+  const marked = a.markIdx >= 0 ? s.agents[a.markIdx] : undefined;
+  if (marked && marked.onPitch && marked.team !== a.team && marked.idx !== b.owner) {
+    markTarget(s, a, marked, dir, lineX);
+    return;
+  }
+  if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
+
+  let [nx, ny] = slotTarget(s, a);
   const midGap = tendency === 'block' ? Math.min(F.midGap, TENDENCY.blockGap / L) : F.midGap;
   if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
@@ -862,13 +1024,23 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     nx = lineX + a.errX * sigma;
   }
 
-  // 마킹: 존 근처의 위협적인 상대. 수비 주의 집중 대상(E.20 8번)이 존 근처에 있으면 그 선수를 먼저, 더 가깝게
+  // 마킹: 존 근처의 위협적인 상대 (C.75d: 다른 수비수가 맡은 상대는 빼고). 수비 주의 집중 대상(E.20 8번)이 존 근처에 있으면 그 선수를 먼저, 더 가깝게
   const [zx, zy] = toPitch(nx, ny, dir);
+  const taken = new Set<number>();
+  for (const o of s.agents) if (o.team === a.team && o.markIdx >= 0) taken.add(o.markIdx);
+  // 진입로 차단 (C.75d): 마크를 맡지 않은 중원은 존 근처 상대와 공을 잇는 길목
+  if (a.line === 2 && owner && owner.team !== a.team) {
+    const spot = laneSpot(s, a, owner, dir, zx, zy, lineX, taken);
+    if (spot) {
+      setTarget(a, spot[0], spot[1], dir, false);
+      return;
+    }
+  }
   let mark: Agent | null = null;
   let best = 14;
   for (const o of s.agents) {
     // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
-    if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner) continue;
+    if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || taken.has(o.idx)) continue;
     const d = dist(o.x, o.y, zx, zy);
     if (d < best) {
       best = d;
@@ -876,7 +1048,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
   const focus = focusThreat(s, a.team);
-  if (focus && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
+  if (focus && !taken.has(focus.idx) && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);
@@ -926,70 +1098,9 @@ function oppStrikerInBox(s: SimState, team: 0 | 1, dir: 1 | -1): boolean {
 function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean {
   const b = s.ball;
   const [gx, gy] = ownGoal(dir);
-  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 1 && ballRank(s, o, b.x, b.y) >= 2);
-  if (!defs.includes(a)) return false;
-  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
-  const oppDir = (-dir) as 1 | -1;
-  // 가장 위협적인 상대 (수비 주의 집중, E.20 8번): 골까지 가까움과 박스 안 여부. 없으면 위치 가치가 가장 큰 ST/공격 줄
-  let threat: Agent | null = focusThreat(s, a.team);
-  if (!threat) {
-    let tv = -Infinity;
-    for (const pass of [true, false]) {
-      for (const o of s.agents) {
-        if (!o.onPitch || o.team === a.team || o === owner || o.line === 0) continue;
-        if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
-        const v = positionValue(...toNorm(o.x, o.y, oppDir));
-        if (v > tv) {
-          tv = v;
-          threat = o;
-        }
-      }
-      if (threat) break;
-    }
-  }
-  let rest = defs;
-  if (threat) {
-    const t = threat;
-    const near = (x: Agent, y: Agent) => dist(x.x, x.y, t.x, t.y) - dist(y.x, y.y, t.x, t.y) || x.idx - y.idx;
-    const cbs = defs.filter((o) => o.pos === 'CB');
-    const marker = (cbs.length ? cbs : defs).slice().sort(near)[0]!;
-    // 박스 안이면 가까운 수비 1명이 더 붙는다 (공 쪽)
-    const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2;
-    // C.75c: 위협이 공 가까이(커버 거리 + 마크 거리 안)면 압박자·커버가 이미 있으므로 둘째는 붙지 않고 자리를 덮는다
-    const ballNear = dist(t.x, t.y, b.x, b.y) <= O.plan.coverBehind + O.stMark;
-    const second = inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
-    const gd = dist(t.x, t.y, gx, gy) || 1;
-    const focus = t === focusThreat(s, a.team) ? O.focusMark : 1;
-    if (marker === a) {
-      // 볼 쪽 마크 (E.22 A): 공이 측면이면 골 쪽에서 공 쪽으로 반 발
-      let ux = (gx - t.x) / gd;
-      let uy = (gy - t.y) / gd;
-      const wideB = Math.abs(toNorm(b.x, b.y, dir)[1] - 0.5) >= O.wideBall;
-      if (wideB) {
-        const bd = dist(t.x, t.y, b.x, b.y) || 1;
-        ux = ux * (1 - O.stBallSide) + ((b.x - t.x) / bd) * O.stBallSide;
-        uy = uy * (1 - O.stBallSide) + ((b.y - t.y) / bd) * O.stBallSide;
-        const un = Math.sqrt(ux * ux + uy * uy) || 1;
-        ux /= un;
-        uy /= un;
-      }
-      a.tx = clamp(t.x + ux * O.stMark * focus + a.errX * O.markSigma, 0.3, L - 0.3);
-      a.ty = clamp(t.y + uy * O.stMark * focus + a.errY * O.markSigma, 0.3, W - 0.3);
-      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
-      a.minRun = false;
-      return true;
-    }
-    if (second === a) {
-      const bd = dist(t.x, t.y, b.x, b.y) || 1;
-      a.tx = clamp(t.x + ((b.x - t.x) / bd) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
-      a.ty = clamp(t.y + ((b.y - t.y) / bd) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
-      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
-      a.minRun = false;
-      return true;
-    }
-    rest = defs.filter((o) => o !== marker && o !== second);
-  }
-  if (!cover) return false;
+  // C.75d: 위협 마크는 마크 배정(updateMarks)이 맡는다. 남은 수비 줄이 니어 포스트·페널티 지점·파 포스트를 덮는다
+  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 1 && o.markIdx < 0 && ballRank(s, o, b.x, b.y) >= 2);
+  if (!defs.includes(a) || !cover) return false;
   // 덮는 자리: 니어 포스트(공 쪽), 페널티 지점, 파 포스트
   const side = b.y < gy ? -1 : 1;
   const spots: [number, number][] = [
@@ -998,7 +1109,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     [gx + dir * (O.coverPostDepth + 1), gy - side * O.coverPostY],
   ];
   // 자리 순서대로, 아직 배정되지 않은 수비수 중 가장 가까운 선수
-  const free = rest.slice().sort((x, y) => x.idx - y.idx);
+  const free = defs.slice().sort((x, y) => x.idx - y.idx);
   for (const [sx, sy] of spots) {
     if (!free.length) break;
     let k = 0;
@@ -1013,6 +1124,76 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     free.splice(k, 1);
   }
   return false;
+}
+
+/**
+ * 맡은 상대 마크 위치 (C.75d): 박스 안 상대면 골과 상대를 잇는 선상 stMark m (공이 측면이면 공 쪽으로 stBallSide),
+ * 그 밖이면 골 쪽과 공 쪽 사이 markGoalSide m (패스 경로를 막는 위치). 수비 줄은 수비 라인보다 markStepOut m 넘게 나가지 않는다
+ */
+function markTarget(s: SimState, a: Agent, t: Agent, dir: 1 | -1, lineX: number): void {
+  const b = s.ball;
+  const [gx, gy] = ownGoal(dir);
+  const gd = dist(t.x, t.y, gx, gy) || 1;
+  const bd = dist(t.x, t.y, b.x, b.y) || 1;
+  const focus = t === focusThreat(s, a.team) ? O.focusMark : 1;
+  const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2;
+  const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
+  let ux = (gx - t.x) / gd;
+  let uy = (gy - t.y) / gd;
+  let gap: number;
+  if (inBox) {
+    gap = O.stMark * focus;
+    if (Math.abs(toNorm(b.x, b.y, dir)[1] - 0.5) >= O.wideBall) {
+      ux = ux * (1 - O.stBallSide) + ((b.x - t.x) / bd) * O.stBallSide;
+      uy = uy * (1 - O.stBallSide) + ((b.y - t.y) / bd) * O.stBallSide;
+    }
+  } else {
+    gap = O.markGoalSide * focus;
+    ux = ux * (1 - O.markBallSide) + ((b.x - t.x) / bd) * O.markBallSide;
+    uy = uy * (1 - O.markBallSide) + ((b.y - t.y) / bd) * O.markBallSide;
+  }
+  // 공에서 먼 상대는 느슨하게 (C.75e): 공에서 markTightBall m 안이면 그대로, markTightBall + markFarRamp m 밖이면 markFar m
+  const loose = clamp((bd - O.plan.markTightBall) / O.plan.markFarRamp, 0, 1);
+  gap += (O.plan.markFar * focus - gap) * loose;
+  const un = Math.sqrt(ux * ux + uy * uy) || 1;
+  // 상대의 움직임을 앞질러 본다 (다음 갱신까지 markLead 초, 수비 포지셔닝 비례)
+  const lead = O.plan.markLead * (a.attrs.defensivePositioning / 100);
+  let [nx, ny] = toNorm(t.x + t.vx * lead + (ux / un) * gap + a.errX * sigma, t.y + t.vy * lead + (uy / un) * gap + a.errY * sigma, dir);
+  if (a.line === 1 && !inBox) {
+    nx = Math.min(nx, lineX + O.plan.markStepOut / L);
+    // 공이 멀면 (우리 골 dangerPress m 밖) 수비 줄 마커의 y 는 자기 자리와 반씩 (라인 모양 유지)
+    if (dist(b.x, b.y, gx, gy) >= O.dangerPress) ny += (slotTarget(s, a)[1] - ny) * O.plan.lineMarkHold;
+  }
+  const [x, y] = toPitch(clamp(nx, 0.005, 0.995), clamp(ny, 0.01, 0.99), dir);
+  a.tx = clamp(x, 0.3, L - 0.3);
+  a.ty = clamp(y, 0.3, W - 0.3);
+  const far = dist(a.tx, a.ty, a.x, a.y);
+  a.urgent = far > O.plan.markUrgent && (gd < O.plan.markZone * 0.75 || (toNorm(a.x, a.y, dir)[0] - nx) * L >= O.recoverSprint);
+  a.minRun = (toNorm(a.x, a.y, dir)[0] - nx) * L >= O.recoverRun;
+}
+
+/**
+ * 진입로 차단 (C.75d): 자기 자리 laneZone m 안에서 아무도 맡지 않은 가장 위험한 상대와 공을 잇는 선의 공 쪽 screenFrac 지점.
+ * 수비 라인 앞 screenGap m 보다 골 쪽으로 내려가지 않는다. 정규화 좌표, 상대가 없으면 null
+ */
+function laneSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, zx: number, zy: number, lineX: number, taken: Set<number>): [number, number] | null {
+  const [gx, gy] = ownGoal(dir);
+  const ballGoal = dist(owner.x, owner.y, gx, gy);
+  let best: Agent | null = null;
+  let bv = -Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0 || o === owner || taken.has(o.idx)) continue;
+    if (dist(o.x, o.y, zx, zy) >= O.plan.laneZone) continue;
+    const v = markThreat(o, gx, gy, ballGoal);
+    if (v > bv) {
+      bv = v;
+      best = o;
+    }
+  }
+  if (!best) return null;
+  let [nx, ny] = toNorm(owner.x + (best.x - owner.x) * O.screenFrac, owner.y + (best.y - owner.y) * O.screenFrac, dir);
+  nx = Math.max(nx, lineX + O.screenGap / L);
+  return [nx, ny];
 }
 
 const focusCache = new WeakMap<SimState, { tick: number; team: number; focus: Agent | null }[]>();

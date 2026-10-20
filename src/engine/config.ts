@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 24;
+export const ENGINE_VERSION = 25;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -287,6 +287,12 @@ export const ENGINE = {
      * 둘째 압박 대상이 아니면 공과 우리 골을 잇는 선에서 공 뒤 coverBehind m 에 선다 (박스 압박 둘째·위험지역 둘째·돌파 후 커버·루즈볼 둘째).
      * 상황은 sitHold 초 이어져야 바뀐다 (G·H·E 는 즉시). 압박 단계 = 실효 pressing 이 levelCut 경계 기준
      */
+    /**
+     * 마커 떼기 (C.75e, 44c-b): 소유 팀 필드 선수(줄 ≥ 2, 침투 중 아님)가 상대 최종 3분의 1(정규화 x ≥ fromX)에서 가장 가까운 상대 필드 선수가 dist m 안이면
+     * base + per × 공격 위치선정/100 확률(hold 초 창마다 결정적 난수)로 목표에서 radius m 옆·대각선 앞·앞 후보 중 상대가 가장 먼 자리로 다시 고른다 (뒤로는 안 감).
+     * 최종 3분의 1 역할 자리(near/far/backPost/cutback/edge/halfSpace)는 자리를 지키되 마커 반대쪽 어깨로 jobShake m 만. 위치만 바꾸고 결과는 바꾸지 않는다 (E.15.1)
+     */
+    shake: { fromX: 0.6, dist: 2.5, radius: 5, jobShake: 3, base: 0.5, per: 0.5, hold: 1 },
     plan: {
       coverBehind: 5,
       sitHold: 0.6,
@@ -301,6 +307,40 @@ export const ENGINE = {
         G: { pressers: [1, 1, 1], double: false },
         H: { pressers: [1, 2, 3], double: true },
       } as Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H', { pressers: readonly number[]; double: boolean }>,
+      /**
+       * 마크 배정 (C.75d, 44c-b): 우리 골 markZone m 안 상대 필드 선수(소유자 제외)를 위험한 순서로 돌며 남은 수비수 중 가장 가까운 1명을 배정한다
+       * (한 상대에 1명, 수비 줄 먼저, 모자라면 중원 줄 최대 markMids 명, 공격 줄·압박자·커버 제외).
+       * 배정은 reassignInterval 초 유지하고, 그 뒤에도 다른 수비수가 switchMargin m 이상 가까울 때만 바꾼다.
+       * 수비 포지셔닝 reactLo → reactHi 사이에서 간격·여유가 reassignFast·switchFast 까지 줄어든다
+       */
+      markZone: 40,
+      markMids: 2,
+      /** 한 번에 배정하는 최대 인원 */
+      markMax: 10,
+      reassignInterval: 1.0,
+      reassignFast: 0.7,
+      switchMargin: 4,
+      switchFast: 3,
+      reactLo: 50,
+      reactHi: 90,
+      /** 공보다 우리 골에 가까운 상대에 더하는 위험 점수 */
+      behindBall: 1,
+      /** 마크 맡은 수비 줄 선수가 수비 라인보다 앞으로 나갈 수 있는 거리 (m) */
+      markStepOut: 8,
+      /** 공이 우리 골 dangerPress m 밖이면 수비 줄 마커의 y 를 자기 자리 쪽으로 lineMarkHold 만큼 (라인 모양 유지) */
+      lineMarkHold: 0.3,
+      /** 마크 목표는 상대 속도 × markLead 초 × 수비 포지셔닝/100 만큼 앞, 목표가 markUrgent m 넘게 멀고 골 markZone × 0.75 안이면 최대 속도 */
+      markLead: 0.5,
+      markUrgent: 3,
+      /**
+       * 공에서 먼 상대는 느슨하게 (C.75e, 44c-b): 맡은 상대가 공에서 markTightBall m 안이면 지금 거리(stMark·markGoalSide), markTightBall + markFarRamp m 밖이면
+       * markFar m, 사이는 선형. "받는 순간" 마크는 유지하고 슛 압박 상시 상태만 푼다
+       */
+      markTightBall: 12,
+      markFarRamp: 6,
+      markFar: 3.5,
+      /** 진입로 차단 (44c-b): 마크 안 맡은 중원은 자기 자리 laneZone m 안 배정 안 된 가장 위험한 상대와 공을 잇는 선의 공 쪽 screenFrac 지점 */
+      laneZone: 14,
     },
   },
 
@@ -560,7 +600,7 @@ export const ENGINE = {
     /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②) */
     shotBase: 0.665,
     shotPerM: 0.015,
-    shotPressure: 0.15,
+    shotPressure: 0.08,
     shotMin: 0.05,
     shotMax: 0.85,
     longShotFrom: 20,
