@@ -15,30 +15,32 @@ const input = (seed: number): EngineInput => ({
   home: teamSetupFromRoster(home, 75, 75), away: teamSetupFromRoster(away, 75, 75), mode: 'auto', difficulty: 'normal', seed, bigMatch: false, neutral: true,
 });
 
-/** 공이 수비 팀 골 25 m 안일 때, 그 팀 박스 안의 상대 2선(줄 ≥ 2, ST/CF 아님, 위협 1위 아님) 선수에게 2.5 m 안 수비수가 있는 비율 */
-function secondLineMarked(seed: number, maxMan: number): number {
+/** 공이 수비 팀 골 25 m 안(boxDefense 구간)일 때, 그 팀 박스 안의 상대 2선(줄 ≥ 2, ST/CF 아님, 위협 1위 아님) 선수를 목표(2.5 m 안)로 둔 수비 줄 선수가 있는 비율 (시드 3개 합) */
+function secondLineMarked(maxMan: number): number {
   const O = ENGINE.offball as { boxManMax: number };
   const was = O.boxManMax;
   O.boxManMax = maxMan;
   try {
-    const m = createMatch(input(seed));
-    const s = m.state;
     let n = 0;
     let marked = 0;
-    while (!s.done) {
-      m.step();
-      if (s.tick % 5 !== 0 || s.ball.owner < 0) continue;
-      const owner = s.agents[s.ball.owner]!;
-      const def = (1 - owner.team) as 0 | 1;
-      const [gx, gy] = ownGoal(attackDir(def, s.half));
-      if (dist(s.ball.x, s.ball.y, gx, gy) > 25) continue;
-      const focus = focusThreat(s, def);
-      for (const o of s.agents) {
-        if (!o.onPitch || o.team !== owner.team) continue;
-        if (o === owner || o === focus || o.line < 2 || o.pos === 'ST' || o.pos === 'CF') continue;
-        if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2) continue;
-        n++;
-        if (s.agents.some((d: Agent) => d.onPitch && d.team === def && d.line !== 0 && dist(d.x, d.y, o.x, o.y) <= 2.5)) marked++;
+    for (const seed of [77, 78, 79]) {
+      const m = createMatch(input(seed));
+      const s = m.state;
+      while (!s.done) {
+        m.step();
+        if (s.tick % 5 !== 0 || s.ball.owner < 0) continue;
+        const owner = s.agents[s.ball.owner]!;
+        const def = (1 - owner.team) as 0 | 1;
+        const [gx, gy] = ownGoal(attackDir(def, s.half));
+        if (dist(s.ball.x, s.ball.y, gx, gy) > 25) continue;
+        const focus = focusThreat(s, def);
+        for (const o of s.agents) {
+          if (!o.onPitch || o.team !== owner.team) continue;
+          if (o === owner || o === focus || o.line < 2 || o.pos === 'ST' || o.pos === 'CF') continue;
+          if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2) continue;
+          n++;
+          if (s.agents.some((d: Agent) => d.onPitch && d.team === def && d.line === 1 && dist(d.tx, d.ty, o.x, o.y) <= 2.5)) marked++;
+        }
       }
     }
     return n ? marked / n : 0;
@@ -61,9 +63,9 @@ describe('C.76w 박스 안 2선 마크', () => {
     expect([a.homeGoals, a.awayGoals]).toEqual([b.homeGoals, b.awayGoals]);
     expect(a.events.length).toBe(b.events.length);
   });
-  it('박스 안 2선(비ST) 선수 2.5 m 안에 수비수가 있는 비율이 boxManMax 0 보다 높다', () => {
-    const on = secondLineMarked(77, ENGINE.offball.boxManMax);
-    const off = secondLineMarked(77, 0);
-    expect(on).toBeGreaterThan(off);
+  it('박스 안 2선(비ST) 선수를 목표로 둔 수비 줄 선수가 있는 비율이 boxManMax 0(끔)보다 높다', () => {
+    const on = secondLineMarked(ENGINE.offball.boxManMax);
+    const off = secondLineMarked(0);
+    expect(on).toBeGreaterThan(off + 0.05);
   });
 });

@@ -1007,7 +1007,8 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       others.push(o);
     }
     others.sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
-    const second = (!others.length || !O.boxManMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+    // 엘리트 가드 (C.76w 가설 3): 집중 대상의 마무리 계수 ≥ focusDoubleMin 이면 2선 마크보다 더블팀이 먼저다 (2선 마크로 ST 가 풀리자 같은 시드 scoring 30골+ 1.6 → 3.3~4.1)
+    const second = (abil >= O.focusDoubleMin || !others.length || !O.boxManMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
     if (marker === a) {

@@ -247,14 +247,14 @@ export const ENGINE = {
     /**
      * 위협 가중 수비 (C.76a, 미해결 8·11 — 사용자 제안): 마커 수는 늘리지 않고 이미 있는 주의를 마무리 좋은 선수 쪽으로 옮긴다.
      * 능력 계수 = clamp((finishSkill(슈팅) − focusAbilityCenter) / focusAbilityRange, −0.5, 1) (85 짜리 ST 0.75, 생성 75 팀 ST 약 0.25).
-     * focusThreat 위협도 += focusAbilityW × 계수 (85 짜리 +0.22 = 골에서 11 m 더 먼 자리에서도 위협 1위)
+     * focusThreat 위협도 += focusAbilityW × 계수 (85 짜리 +0.22 = 골에서 11 m 더 먼 자리에서도 위협 1위; C.76w 가설 3 의 0.5 는 효과 없어 되돌림)
      */
     focusAbilityW: 0.3,
     focusAbilityCenter: 70,
     focusAbilityRange: 20,
-    /** 위협 1위의 마크 거리 = stMark × focusMark × (1 − focusTight × 계수) (85 짜리 ≈ 0.9 m, 약한 마무리는 조금 느슨) */
+    /** 위협 1위의 마크 거리 = stMark × focusMark × (1 − focusTight × 계수) (85 짜리 ≈ 0.9 m, 약한 마무리는 조금 느슨; C.76w 가설 3 의 0.45 는 같은 시드 scoring 30골+ 3.3 → 4.1 로 효과 없어 되돌림) */
     focusTight: 0.3,
-    /** 계수 ≥ focusDoubleMin 이면 둘째 수비(더블팀) 조건의 박스를 focusDoubleExtra m 넓힌다 */
+    /** 계수 ≥ focusDoubleMin 이면 둘째 수비(더블팀) 조건의 박스를 focusDoubleExtra m 넓히고, 박스 안 2선 마크(boxManMax)보다 더블팀이 먼저다 (C.76w 엘리트 가드) */
     focusDoubleMin: 0.5,
     focusDoubleExtra: 5,
     /**
@@ -650,7 +650,8 @@ export const ENGINE = {
     /** C.76s 가설 2: 지친 선수의 패스 성공 확률 −tiredPass × tiredRatio */
     tiredPass: 0.06,
     /** 블록된 공이 라인 밖(코너)으로 나갈 확률 */
-    blockCorner: 0.7,
+    /** C.76w 가설 2 (코너 수 현실화, 미해결 11 세트피스 몫): 블록 → 코너 0.7 → 0.45, 선방 쳐내기 → 코너 parryCorner 0.5 → 0.35, 헤더 걷어내기 → 코너 clearCorner 0.5 → 0.35 (코너 8.4/경기 → 약 6, 현실 각 0.3~0.4) */
+    blockCorner: 0.45,
 
     // 헤더 슈팅
     headerBase: 0.58,
@@ -688,7 +689,7 @@ export const ENGINE = {
     headerMaxDist: 14,
     /** 수비 걷어내기 거리 (m) */
     clearDist: [15, 30] as [number, number],
-    clearCorner: 0.5,
+    clearCorner: 0.35,
 
     // 클리어링 (수비 3분의 1, 압박이 심할 때)
     clearMaxX: 0.25,
@@ -935,7 +936,8 @@ export const ENGINE = {
     catchBase: 0.3,
     catchSkill: 0.5,
     /** 쳐낸 공이 코너가 될 확률 */
-    parryCorner: 0.5,
+    /** C.76w 가설 2: 0.5 → 0.35 (쳐낸 공이 코너 대신 리바운드로 남는다) */
+    parryCorner: 0.35,
     /** 크로스/롱볼 처리: 박스 안이고 GK 와 claimRange 안이면 L((출전 범위 − 60)/12 + claimBias) */
     claimRange: 6,
     claimBias: -3,
