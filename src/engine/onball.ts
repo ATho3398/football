@@ -69,6 +69,52 @@ export function receivesBack(fx: number, fy: number, tx: number, ty: number, dir
   return (Math.acos(clamp((vx * dir) / n, -1, 1)) * 180) / Math.PI >= O.backAngle;
 }
 
+/**
+ * 수신 지점 모델 (C.75j, 44e 가설 1): 목표점 (tx, ty) 의 recv.shiftDist m 안에 상대 필드 선수가 있으면 그 상대의 반대쪽으로 recv.shift m 옮긴다.
+ * 방향은 (목표점 − 상대) 에서 패스 선에 수직인 성분을 우선한다 (패스 거리를 안 늘림). 상대가 패스 선 위에 있으면 그대로 반대쪽.
+ * 오프사이드 라인 안 (원래 목표점이 이미 라인 밖이면 더 나가지만 않는다), 피치 안.
+ */
+export function receivePoint(s: SimState, a: Agent, r: Agent, tx: number, ty: number, dir: 1 | -1, line: number): [number, number] {
+  const RV = O.recv;
+  const [def, dd] = nearestOutfield(s, r, tx, ty);
+  if (!def || dd >= RV.shiftDist) return [tx, ty];
+  let ux = tx - def.x;
+  let uy = ty - def.y;
+  const n = Math.hypot(ux, uy);
+  const plx = tx - a.x;
+  const ply = ty - a.y;
+  const pn = Math.hypot(plx, ply) || 1;
+  const px = plx / pn;
+  const py = ply / pn;
+  if (n < 1e-6) {
+    // 상대가 목표점 위: 패스 선에 수직, 골에서 먼 쪽이 아니라 중앙 쪽으로
+    ux = -py;
+    uy = px;
+    if ((ty + uy * RV.shift - W / 2) * (ty - W / 2) > 0 && Math.abs(ty - W / 2) > 1) {
+      ux = -ux;
+      uy = -uy;
+    }
+  } else {
+    ux /= n;
+    uy /= n;
+    const dot = ux * px + uy * py;
+    const sx = ux - dot * px;
+    const sy = uy - dot * py;
+    const sn = Math.hypot(sx, sy);
+    if (sn >= 0.25) {
+      ux = sx / sn;
+      uy = sy / sn;
+    }
+  }
+  const nx0 = toNorm(tx, ty, dir)[0];
+  let sx2 = clamp(tx + ux * RV.shift, 1, L - 1);
+  let sy2 = clamp(ty + uy * RV.shift, 1, W - 1);
+  const [nx1, ny1] = toNorm(sx2, sy2, dir);
+  const cap = Math.max(nx0, line - RV.maxOffside / L);
+  if (nx1 > cap) [sx2, sy2] = toPitch(cap, ny1, dir);
+  return [sx2, sy2];
+}
+
 /** 가장 가까운 상대 필드 선수 (GK 제외) */
 function nearestOutfield(s: SimState, a: Agent, x: number, y: number): [Agent | null, number] {
   let best: Agent | null = null;
@@ -229,7 +275,12 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const py = at?.y ?? a.y;
   const d = dist(px, py, gx, gy);
   const t = a.attrs;
-  const pressure = pressureAt(s, a, px, py);
+  let pressure = pressureAt(s, a, px, py);
+  // 압박 분포 (C.75j, 44e 가설 2): 소유자가 패스를 받고 몰지 않고 recv.firstTouch 초 안에 쏘는 슛(원터치·투터치)은
+  // 받는 순간의 압박으로 판정한다. 받은 뒤 다음 결정까지 1.2~1.4초가 걸려 그 사이 마커가 다시 붙는 것을 판정에서 뺀다 (식·계수는 그대로)
+  if (!at && !header && s.ball.owner === a.idx && a.gotBy === 'receive' && a.carryN === 0 && a.recvT !== undefined && s.t - a.recvT <= O.recv.firstTouch) {
+    pressure = Math.min(pressure, a.recvPress ?? pressure);
+  }
   // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
   let pOn: number;
   let speed: number;
@@ -410,6 +461,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const depth = clamp(O.throughShare * (room - O.throughStop), O.throughMin, O.throughMax);
       const [, rny] = toNorm(r.x, r.y, dir);
       [tx, ty] = toPitch(clamp(Math.max(toNorm(r.x, r.y, dir)[0], line) + depth / L, 0, 0.97), rny, dir);
+    } else {
+      // 수신 지점 모델 (C.75j): 목표점 근처 상대의 반대쪽으로 (받는 선수는 비행 중 그 점으로 뛴다, offball)
+      [tx, ty] = receivePoint(s, a, r, tx, ty, dir, line);
     }
     const lane = laneRisk(s, a, tx, ty);
     const rp = Math.max(0, 1 - nearestOpponent(s, r, tx, ty)[1] / PR.receiverPressureDist);

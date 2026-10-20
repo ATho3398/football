@@ -6,7 +6,7 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, pressureAt, receivesBack, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
@@ -921,6 +921,9 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       a.gotBy = 'receive';
       a.carryN = 0;
       a.dribbleT = -100;
+      // 받는 순간의 압박 (C.75j): 받고 바로 쏘는 슛은 이 값으로 판정한다 (onball shotModel)
+      a.recvPress = pressureAt(s, a);
+      a.recvT = s.t;
       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
       if (fl.quick) a.cooldown = reaction(a);

@@ -277,6 +277,9 @@ export const ENGINE = {
     halfSpaceSpread: 0.18,
     boxRunSpread: 0.12,
     edgeZone: 22,
+    /** 같은 쪽 측면 공일 때 LM/RM 컷백 존 (C.75j, 미해결 9): 골에서 edgeWingDepth m, 중앙에서 edgeWingSpread (정규화 폭) 공 쪽 박스 모서리 */
+    edgeWingDepth: 16,
+    edgeWingSpread: 0.12,
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
     postSpread: 4,
@@ -406,6 +409,13 @@ export const ENGINE = {
     passMaxDist: 50,
     /** 리시버 앞쪽 리드 (초 × 리시버 속도) */
     leadTime: 0.6,
+    /**
+     * 수신 지점 모델 (C.75j, 44e 가설 1): 침투가 아닌 수신자의 패스 목표점에서 shiftDist m 안에 상대 필드 선수가 있으면
+     * 목표점을 그 상대의 반대쪽으로 shift m 옮긴다 (패스 선에 수직인 성분 우선 — 패스 거리를 안 늘림). 오프사이드 라인 maxOffside m 안.
+     * 받는 선수는 비행 중 목표점으로 뛰므로 "공이 날아오는 동안 마커 반대쪽으로 이동"이 된다.
+     * firstTouch: 받고 몰지 않고 firstTouch 초 안에 쏘는 슛(원터치·투터치)은 받는 순간의 압박으로 판정한다 (가설 2, 판정 시점만 바뀌고 식은 그대로)
+     */
+    recv: { shiftDist: 3, shift: 2, maxOffside: 0.5, firstTouch: 1.6 },
     /**
      * 침투 패스 목표 (E.20 4번): 오프사이드 라인 뒤 공간으로. 깊이 = clamp(throughShare × (라인 뒤 공간 − throughStop), throughMin, throughMax) m.
      * 라인이 높을수록 뒷공간이 넓어 달리기 경쟁 거리가 길어진다 (빠른 공격수 유리, 느린 CB 불리)

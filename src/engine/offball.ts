@@ -496,6 +496,10 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       // 2선 늦은 침투 (E.22 B): 측면 공이면 페널티 지점 부근 박스 안으로 (컷백·크로스 모두 받는 자리)
       nx = 1 - O.lateRunDepth / L;
       ny = 0.5 + side * 0.04;
+    } else if (job === 'edge' && (a.pos === 'LM' || a.pos === 'RM')) {
+      // 측면 미드의 컷백 존 (C.75j): 공 쪽 박스 모서리 (골에서 edgeWingDepth m, 중앙에서 edgeWingSpread)
+      nx = 1 - O.edgeWingDepth / L;
+      ny = 0.5 + side * O.edgeWingSpread;
     } else if (job === 'edge') {
       nx = 1 - O.edgeZone / L;
       ny = 0.5 - side * 0.05;
@@ -710,7 +714,16 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' 
   // 윙어: 공이 반대쪽 측면이면 먼 포스트로, 공이 중앙이면 같은 쪽 하프스페이스로 파고든다
   if (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM') {
     const by = toNorm(s.ball.x, s.ball.y, attackDir(a.team, s.half))[1];
-    if (Math.abs(by - 0.5) >= O.lateRunWide) return Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5) ? 'backPost' : null;
+    if (Math.abs(by - 0.5) >= O.lateRunWide) {
+      if (Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5)) return 'backPost';
+      // 같은 쪽 측면 공 (C.75j, 미해결 9): LM/RM(2선)은 소유자가 자기보다 터치라인 쪽·앞이면 박스 모서리 컷백 존으로 들어온다. LW/RW 는 자리 유지
+      if (a.pos === 'LM' || a.pos === 'RM') {
+        const [onx, ony] = toNorm(owner.x, owner.y, attackDir(a.team, s.half));
+        const [anx, any_] = toNorm(a.x, a.y, attackDir(a.team, s.half));
+        if (onx > anx && Math.abs(ony - 0.5) > Math.abs(any_ - 0.5)) return 'edge';
+      }
+      return null;
+    }
     // 공이 중앙이면 공에서 먼 쪽 윙어는 먼 포스트로 파고들고, 가까운 쪽은 하프스페이스 (E.20, 박스 도착 인원)
     return Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5) ? 'backPost' : 'halfSpace';
   }

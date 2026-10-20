@@ -81,6 +81,9 @@ export interface Agent {
   dribbleT: number;
   /** 지금 슈팅의 경로 (골이 되면 골 경로로 센다) */
   shotPath: number;
+  /** 받는 순간의 압박 0~1 과 받은 시각 (C.75j 압박 분포): 받고 바로 쏘는 슛은 이 압박으로 판정. 없으면 아직 패스를 받은 적 없음 */
+  recvPress?: number;
+  recvT?: number;
   /** 수비 1대1 판단 (E.23): 다음 판단 시각, 패스길 막기 유지 시각 */
   duelNext: number;
   laneUntil: number;
