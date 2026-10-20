@@ -2,6 +2,8 @@
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
 import { teamPickHtml } from './teamPick';
+import { LEAGUE_GROUPS, type TeamPickVM } from '../teamPickVM';
+import { DEFAULT_LEAGUES } from '../../../data/leagues';
 import { goalsResultPanel } from './inbox';
 import {
   Avatar, FootPair, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
@@ -89,7 +91,7 @@ export interface NewGameVM {
   futureStars: boolean;
   futureList: { id: string; name: string; position: string; debut: string; age: number; club: string; realClub: string; start: number; peak: number; waiting: boolean }[];
   /** 리그 고르기 (C.75m): on = 고름, mine = 내 리그(필수), ready = 데이터 있음 (없으면 준비 중) */
-  leagues: { id: string; name: string; sub: string; on: boolean; mine: boolean; ready: boolean; canMine?: boolean }[];
+  leagues: { id: string; name: string; sub: string; on: boolean; mine: boolean; ready: boolean; canMine?: boolean; group?: import('../teamPickVM').LeagueGroup }[];
   /** 시작 팀 고르기 (45b b, 유망주): 리그 탭 → 팀 목록. 고른 팀 이름 (없으면 랜덤) */
   teamPick?: import('../teamPickVM').TeamPickVM;
   startTeam?: string;
@@ -113,6 +115,10 @@ export interface NewGameUI {
   cuHooks?: ('pro' | 'con')[];
   /** 리그 고르기 펼침 (C.75m) */
   leaguesOpen?: boolean;
+  /** 리그 고르기 묶음 펼침 (디자인 239, 없으면 고른 리그가 있는 묶음만 펼침) */
+  lgFold?: Record<string, boolean>;
+  /** 레전드 팩 묶음 (디자인 234): 전체 · 기본 레전드 · 도르트문트 */
+  lpack?: 'all' | 'base' | 'bvb';
 }
 export const NEW_GAME_UI: NewGameUI = { realTab: 'real', rq: '', rsort: 'peak', rgroup: 'all', rshow: 10, attrsOpen: false, cuStep: 1 };
 const REAL_PAGE = 10;
@@ -121,29 +127,51 @@ const POS_GROUP: Record<string, 'fw' | 'mf' | 'df'> = { ST: 'fw', CF: 'fw', LW: 
 
 /** 이름(TextField) · 난이도(세그먼트 3) · 레전드 팩(켬/끔) · 시드 (디자인 130 "시작 옵션") */
 /**
- * 리그 고르기 (C.75m, FM식): 접힘 줄(고른 리그 수·이름) → 펼치면 리그 체크 목록. 내 리그 필수, 데이터 없는 리그는 준비 중(비활성).
- * 고른 리그만 시즌이 진행된다 (내 리그 = 경기 엔진, 다른 리그 = 빠른 계산)
+ * 리그 고르기 (C.75m, FM식 → 디자인 239 C.76l): 접힘 줄(고른 리그 수·이름) → 펼치면 안내 · 묶음 세그먼트 3칸 · 대륙·부 묶음별 체크 목록.
+ * 고른 팀 리그(맨 앞)는 해제 불가 · 데이터 없는 리그는 준비 중(비활성). 묶음은 고른 리그가 있으면 처음부터 펼침, PC 는 접지 않고 2열.
+ * 고른 리그만 시즌이 진행된다 (내 리그 = 경기 엔진, 다른 리그 = 설정에 따라 엔진 · 빠른 계산)
  */
-function leaguePicker(vm: NewGameVM, open: boolean): string {
+function leaguePicker(vm: NewGameVM, open: boolean, fold: Readonly<Record<string, boolean>> = {}): string {
   const on = vm.leagues.filter((l) => l.on);
   const mine = vm.leagues.find((l) => l.mine);
   const names = on.map((l) => l.name);
-  const summary = `<button type="button" class="panel ng-attrs ng-lg__sum" data-act="ng-lg-open" aria-expanded="${open}"><span class="grow"><b>리그 ${on.length}개 진행</b><small>${esc(names.slice(0, 4).join(' · '))}${names.length > 4 ? ` 외 ${names.length - 4}` : ''}</small></span><span class="ng-attrs__btn">${open ? '접기' : '고르기'} ${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${open ? -90 : 90}deg)` })}</span></button>`;
-  if (!open) return `${SectionTitle({ title: '리그', action: mine ? `내 리그 ${mine.name}` : '' })}${summary}`;
+  const title = SectionTitle({ title: '리그', action: mine ? `고른 팀 리그 ${mine.name}` : '' });
+  const sum = `<button type="button" class="ng-lg__sum" data-act="ng-lg-open" aria-expanded="${open}"><span class="grow"><b>리그 ${on.length}개 진행</b><small>${esc(names.slice(0, 4).join(' · '))}${names.length > 4 ? ` 외 ${names.length - 4}` : ''}</small></span><span class="ng-attrs__btn">${open ? '접기' : '고르기'} ${Icon({ name: open ? 'chevron-up' : 'chevron-down', size: 14 })}</span></button>`;
+  if (!open) return `<div class="ng-lgsec">${title}<div class="panel ng-lg">${sum}</div></div>`;
+  const ready = vm.leagues.filter((l) => l.ready);
+  const ids = on.map((l) => l.id);
+  const same = (xs: readonly string[]) => xs.length === ids.length && xs.every((x) => ids.includes(x));
+  const preset = ids.length === 1 ? 'mine' : same(ready.map((l) => l.id)) ? 'all' : same([...new Set([mine?.id ?? '', ...DEFAULT_LEAGUES])].filter((x) => ready.some((l) => l.id === x))) ? 'default' : '';
+  const presets = Tabs({ items: [{ id: 'default', label: '기본 묶음' }, { id: 'mine', label: '고른 팀 리그만' }, { id: 'all', label: '전부' }], value: preset, variant: 'segment', fill: true, act: 'ng-leagues', label: '리그 묶음' });
   const row = (l: NewGameVM['leagues'][number]) => {
-    const chip = l.mine ? '<span class="ng-lg__chip is-mine">내 리그 · 필수</span>' : !l.ready ? '<span class="ng-lg__chip is-wait">준비 중</span>' : '';
+    const chip = l.mine ? '<span class="ng-lg__chip is-mine">고른 팀 리그 · 필수</span>' : !l.ready ? '<span class="ng-lg__chip is-wait">준비 중</span>' : '';
     const dis = l.mine || !l.ready;
-    // 내 리그로 (C.76c): 고른 리그 줄 오른쪽 작은 버튼 (줄 버튼 밖, 체크와 따로)
-    const mineBtn = l.canMine ? `<button type="button" class="ng-lg__mine" data-act="ng-league-mine" data-v="${esc(l.id)}">내 리그로</button>` : '';
-    return `<div class="ng-lg__item"><button type="button" class="ng-lg__row${l.on ? ' is-on' : ''}${l.ready ? '' : ' is-wait'}" data-act="ng-league" data-v="${esc(l.id)}" role="checkbox" aria-checked="${l.on}"${dis ? ' disabled' : ''}><span class="ng-lg__box">${l.on ? Icon({ name: 'check', size: 14, strokeWidth: 3 }) : ''}</span><span class="grow"><b>${esc(l.name)}</b><small>${esc(l.sub)}</small></span>${chip}</button>${mineBtn}</div>`;
+    return `<button type="button" class="ng-lg__row${l.on ? ' is-on' : ''}${l.mine ? ' is-mine' : ''}${l.ready ? '' : ' is-wait'}" data-act="ng-league" data-v="${esc(l.id)}" role="checkbox" aria-checked="${l.on}"${dis ? ' aria-disabled="true"' : ''}><span class="ng-lg__box">${l.on ? Icon({ name: 'check', size: 14, strokeWidth: 3 }) : ''}</span><span class="grow"><b>${esc(l.name)}</b><small>${esc(l.sub)}</small></span>${chip}</button>`;
   };
-  return `${SectionTitle({ title: '리그', action: mine ? `내 리그 ${mine.name}` : '' })}${summary}
-    <div class="panel ng-lg">
-      <p class="small muted">고른 리그만 시즌이 진행돼요. 내 리그는 경기 엔진으로, 다른 리그는 빠른 계산으로 순위·기록을 남겨요. 안 고른 리그 팀은 이름·전력만 남아요. 리그가 많을수록 하루 넘기기가 조금 느려져요.</p>
-      <div class="ng-lg__list">${vm.leagues.map(row).join('')}</div>
-      <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'default' }, children: '기본 묶음' })}${Button({ variant: 'ghost', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'mine' }, children: '내 리그만' })}${Button({ variant: 'ghost', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'all' }, children: '전부' })}</div>
-      <p class="small muted">기본 묶음 = 프리미어리그 + 라리가·세리에 A·분데스리가·리그 1 + 챔피언십. 내 리그는 고른 시작 팀(실제 선수는 그 선수)의 리그예요 — 늘 포함돼요. 3월~12월 리그는 그 리그 2018 시즌 개막 소집(2월)부터 시작해요.</p>
-    </div>`;
+  const wide = isWide();
+  // 고른 팀 리그가 든 묶음을 맨 앞, 그 안에서도 맨 앞 (해제 불가)
+  const groups = LEAGUE_GROUPS.map((g) => {
+    const ls = vm.leagues.filter((l) => (l.group ?? 'eu1') === g.id).sort((a, b) => Number(b.mine) - Number(a.mine));
+    return { ...g, ls, mine: ls.some((l) => l.mine) };
+  }).filter((g) => g.ls.length).sort((a, b) => Number(b.mine) - Number(a.mine));
+  const grp = (g: (typeof groups)[number]) => {
+    const n = g.ls.filter((l) => l.on).length;
+    const wait = g.ls.filter((l) => !l.ready).length;
+    const isOpen = wide || (fold[g.id] ?? n > 0);
+    const head = `<button type="button" class="ng-lg__ghead" data-act="ng-lg-group" data-v="${g.id}" aria-expanded="${isOpen}"${wide ? ' disabled' : ''}>${Icon({ name: isOpen ? 'chevron-up' : 'chevron-down', size: 14 })}<b>${esc(g.ko)}</b><small class="po-num">${g.ls.length}개 중 ${n}개${wait ? ` · 준비 중 ${wait}` : ''}</small>${isOpen ? '' : `<span class="ng-lg__gnames">${esc(g.ls.map((l) => l.name).join(' · '))}</span>`}</button>`;
+    return `<div class="ng-lg__grp" data-g="${g.id}">${head}${isOpen ? `<div class="ng-lg__list">${g.ls.map(row).join('')}</div>` : ''}</div>`;
+  };
+  const list = wide
+    ? `<div class="ng-lg__cols"><div>${groups.slice(0, 1).map(grp).join('')}</div><div>${groups.slice(1).map(grp).join('')}</div></div>`
+    : groups.map(grp).join('');
+  return `<div class="ng-lgsec">${title}
+    <div class="panel ng-lg is-open">${sum}
+      <p class="small muted">고른 리그만 시즌이 진행돼요. 시작 팀 리그는 경기 엔진으로, 다른 리그는 순위·기록을 남겨요. 안 고른 리그 팀은 이름·전력만 남아요. 리그가 많을수록 하루 넘기기가 조금 느려져요.</p>
+      ${presets}
+      <p class="small muted ng-lg__note">기본 묶음 = 유럽 5대 리그 + 챔피언십 · 묶음을 고른 뒤 한 줄씩 더하거나 뺄 수 있어요. 시작 팀 리그는 늘 포함돼요.</p>
+      ${list}
+      <p class="small muted">${wide ? '' : '접힌 묶음은 누르면 펼쳐져요 · 고른 리그가 있는 묶음은 처음부터 펼쳐 둬요 · '}3월~12월 리그는 그 리그 2018 시즌 개막 소집(2월)부터 시작해요.</p>
+    </div></div>`;
 }
 
 function startOptions(vm: NewGameVM, nameField: boolean, u: NewGameUI = NEW_GAME_UI): string {
@@ -159,7 +187,7 @@ function startOptions(vm: NewGameVM, nameField: boolean, u: NewGameUI = NEW_GAME
   const bonus = vm.bonus
     ? Banner({ tone: 'success', title: `명예의 전당 보너스 · ${vm.bonus.rarity} 카드 선택권 1장`, children: `${vm.bonus.from} 커리어${vm.bonus.legend ? '(레전드 배지)' : ''}가 남긴 보너스예요. 시작하면 덱에서 3장 중 1장을 골라요.` })
     : '';
-  return `${leaguePicker(vm, !!u.leaguesOpen)}${SectionTitle({ title: '시작 옵션' })}${bonus}${name}${diff}${pack}${seed}`;
+  return `${leaguePicker(vm, !!u.leaguesOpen, u.lgFold)}${SectionTitle({ title: '시작 옵션' })}${bonus}${name}${diff}${pack}${seed}`;
 }
 
 export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW_GAME_UI): string {
@@ -171,19 +199,20 @@ export function newGameView(vm: NewGameVM, custom?: CustomVM, u: NewGameUI = NEW
   const hero = custom
     ? HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `커스텀 선수 · ${custom.position} OVR`, value: custom.ovr, pad: false, progress: false, chips: [custom.name || '이름 랜덤', { label: `${custom.age}세 · ${custom.body.height}cm · ${custom.body.footKo} · 약발 ${custom.body.weakFoot}`, soft: true }] })
     : real
-    ? HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', value: sel ? sel.ovr : '-', pad: false, progress: false,
+    // 디자인 233·234: 고르기 전에는 숫자 없는 낮은 머리말 (전에는 '-' 가 라임 면처럼 보였다)
+    ? HeroPanel({ title: '새 게임', back, ...(sel ? cpt : { compact: true }), eyebrow: sel ? `선택한 선수 · ${sel.name} · ${sel.position} OVR` : '실제 선수를 골라요', ...(sel ? { value: sel.ovr } : {}), pad: false, progress: false,
       chips: sel ? [`${sel.age}세 · ${sel.club}`, { label: sel.legend ? `레전드 · 전성기 ${sel.peak}` : '2018-19 시즌 그대로', soft: true }] : [`실제 선수 ${vm.reals.length}명`, { label: vm.legends ? `레전드 ${vm.legendList.length}명` : '2018-19 시즌 그대로', soft: true }] })
     : HeroPanel({ title: '새 게임', back, ...cpt, eyebrow: `전체 랜덤 결과 · ${vm.position} OVR`, value: vm.selectedOvr ?? '17세', pad: false, progress: false, chips: [vm.identity ? `17세 · ${vm.identity.nationalityKo}` : '17세 유망주', { label: `강점 ${vm.strengths}`, soft: true }] });
   // 시작 방식 2개 (C.74d): 커스텀 · 실제 선수. 랜덤은 커스텀의 [전체 랜덤] 결과 화면(mode 'prospect')
   const modeTabs = Tabs({ items: [{ id: 'custom', label: '커스텀' }, { id: 'real', label: '실제 선수' }], value: real ? 'real' : 'custom', variant: 'segment', fill: true, act: 'form', data: { k: 'mode' }, label: '시작 방식' });
   const randomAll = `<div class="panel ng-randall"><span class="grow"><b>전체 랜덤</b><small>랜덤 유망주 기준으로 모든 단계를 한 번에 채워요</small></span>${Button({ variant: 'secondary', size: 'sm', icon: 'swap', act: 'ng-random', children: '전체 랜덤' })}</div>`;
   if (custom) return `${hero}<div class="body ng-body">${customBody(custom, u.cuStep, u.cuStep === 1 || isWide() ? `${modeTabs}${randomAll}` : '', startOptions(vm, false, u), u.cuHooks ?? [])}</div>`;
-  if (!real) return `${hero}<div class="body ng-body">${modeTabs}${prospectBody(vm, u)}</div>`;
-  return `${hero}<div class="body ng-body">${modeTabs}${realBody(vm, u)}</div>`;
+  if (!real) return `${hero}<div class="body ng-body">${ngColumns(modeTabs, prospectBody(vm, u))}</div>`;
+  return `${hero}<div class="body ng-body">${ngColumns(modeTabs, realBody(vm, u))}</div>`;
 }
 
 /** 전체 랜덤 결과 (디자인 130 → C.74d): 후보 4자리 2×2 · 코치 평 · 신체·태그 · 능력치 접힘 · 시작 옵션 · [이대로 시작][편집하기][다시 돌리기] */
-function prospectBody(vm: NewGameVM, u: NewGameUI): string {
+function prospectBody(vm: NewGameVM, u: NewGameUI): { left: string; right: string } {
   const on = vm.candidates.find((c) => c.id === vm.position);
   const cands = `<div class="ng-cands">${vm.candidates.map((c) =>
     `<button type="button" class="ng-cand${c.id === vm.position ? ' is-on' : ''}" data-act="form" data-k="position" data-v="${c.id}" aria-pressed="${c.id === vm.position}"><span class="ng-cand__pos">${c.id}</span><b class="po-num">${c.ovr}</b><small>${esc(c.ko)}${c.wild ? ' · <em>와일드카드</em>' : ''}</small></button>`).join('')}</div>`;
@@ -209,20 +238,32 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
   const attrs = `${SectionTitle({ title: '능력치', action: a ? `강점 ${a.top}` : '' })}
     <button type="button" class="panel ng-attrs" data-act="ng-attrs" aria-expanded="${u.attrsOpen}"><span class="grow"><b>${a ? `${a.count}개 · 평균 ${a.avg}` : '능력치'}</b><small>${a ? `약점 ${esc(a.weak)}` : ''}</small></span><span class="ng-attrs__btn">${u.attrsOpen ? '접기' : '펼치기'} ${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${u.attrsOpen ? -90 : 90}deg)` })}</span></button>
     ${u.attrsOpen ? attrGrid(vm.attrs, null, undefined, { cols: 4, keyLabel: `${vm.position} 핵심` }) : ''}`;
-  return `${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
+  const left = `${SectionTitle({ title: '시작 포지션', action: '코치 추천 4자리' })}
     ${cands}${outside}${coach}
     ${others}
     ${vm.others ? '' : '<p class="small ng-links"><button type="button" class="link-btn hi" data-act="form-others">다른 포지션에서 고르기</button></p>'}
     ${looks}
-    ${extras}
+    ${vm.teamPick ? startTeamSection(vm.teamPick, vm.startTeam ? `${vm.startTeam} 유스` : '고르지 않으면 랜덤', '유망주는 리그 레이팅 상위 팀에서는 시작할 수 없어요.', 'form', 'startTeam') : ''}`;
+  const right = `${extras}
     ${attrs}
-    ${vm.teamPick ? `${SectionTitle({ title: '시작 팀', action: vm.startTeam ? `${vm.startTeam} 유스` : '고르지 않으면 랜덤' })}
-    <p class="small muted">리그를 고르고 그 리그 팀을 골라요. 고른 팀의 리그가 내 리그예요. 유망주는 리그 레이팅 상위 팀에서는 시작할 수 없어요.</p>
-    ${teamPickHtml(vm.teamPick, 'form', 'startTeam')}` : ''}
     ${startOptions(vm, true, u)}
     <div class="btn-col ng-rollbtns">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: vm.startTeam ? `이대로 시작 · ${vm.startTeam} 유스` : `이대로 시작 · ${vm.teamHint} 유스` })}
       <div class="btn-row even">${Button({ variant: 'secondary', block: true, icon: 'edit', act: 'ng-edit', children: '편집하기' })}${Button({ variant: 'ghost', block: true, icon: 'swap', act: 'form-reroll', children: '다시 돌리기' })}</div>
       <p class="small muted">랜덤도 커스텀 배분 포인트 안에서 뽑아요. 편집하기 = 이 값으로 커스텀 단계에 들어가요. 숨은 재능·적성은 [이대로 시작]일 때만 이 결과 그대로예요.</p></div>`;
+  return { left, right };
+}
+
+/** 시작 팀 (45b b → 디자인 239 모양 C.76l): 판 하나 = 리그 탭(국기 + 이름) + 그 리그 팀 목록. 고른 팀 리그가 내 리그 (전체 랜덤 · 커스텀 공통) */
+export function startTeamSection(pick: TeamPickVM, action: string, rule: string, act: string, key: string, title = '시작 팀'): string {
+  return `${SectionTitle({ title, action })}
+    <div class="panel tp-panel"><p class="small muted">리그를 고르고 그 리그 팀을 골라요. 고른 팀의 리그가 내 리그예요. ${esc(rule)}</p>${teamPickHtml(pick, act, key)}</div>`;
+}
+
+/** PC 2열 (디자인 229 · 239 · 233 PC): 왼쪽 = 고르는 것, 오른쪽 = 시작 옵션 · 버튼 */
+function ngColumns(top: string, b: { left: string; right: string }): string {
+  return isWide()
+    ? `<div class="ng-pc"><div class="ng-pc__l">${top}${b.left}</div><div class="ng-pc__r">${b.right}</div></div>`
+    : `${top}${b.left}${b.right}`;
 }
 
 const GROUP_KO: [('fw' | 'mf' | 'df'), string][] = [['fw', '공격'], ['mf', '미드'], ['df', '수비']];
@@ -258,19 +299,25 @@ function sortRows(legendTab: boolean, cur: SortId): string {
 }
 
 /** 실제 선수 (디자인 131): [실제 선수 n | 레전드 n] 묶음 탭 → 고른 선수 카드 → 검색·정렬 → 포지션군 → 10명 + 더 보기 */
-function realBody(vm: NewGameVM, u: NewGameUI): string {
+function realBody(vm: NewGameVM, u: NewGameUI): { left: string; right: string } {
   const legendTab = vm.legends && u.realTab === 'legend';
   const futureTab = vm.futureStars && u.realTab === 'future';
   const tabs = vm.legends || vm.futureStars
     ? Tabs({ items: [{ id: 'real', label: `실제 선수 ${vm.reals.length}` }, ...(vm.legends ? [{ id: 'legend', label: `레전드 ${vm.legendList.length}` }] : []), ...(vm.futureStars ? [{ id: 'future', label: `미래 스타 ${vm.futureList.length}` }] : [])], value: futureTab ? 'future' : legendTab ? 'legend' : 'real', variant: 'segment', fill: true, act: 'ng-real', data: { k: 'realTab' }, label: '실제 선수 묶음' })
     : '';
-  if (futureTab) return `${tabs}${futureBody(vm)}${startOptions(vm, false, u)}
-    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !vm.selected, children: vm.selected ? `${vm.selected.name}으로 시작 · ${vm.selected.club}` : '선수를 골라요' })}</div>`;
+  const startBtn = `<div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !vm.selected, children: vm.selected ? `${vm.selected.name}으로 시작 · ${vm.selected.club}` : '선수를 골라요' })}</div>`;
+  if (futureTab) return { left: `${tabs}${futureBody(vm)}`, right: `${startOptions(vm, false, u)}${startBtn}` };
   const sel = vm.selected;
   const card = sel ? `<div class="panel ng-sel">${Avatar({ size: 52, face: { id: sel.id, age: sel.age }, name: sel.name })}<span class="grow">${sel.legend ? '<span class="ng-legend">레전드</span> ' : ''}<small class="muted">고른 선수</small><b class="ng-sel__name">${esc(sel.name)}</b><small>${esc(sel.club)} · ${sel.age}세 · ${sel.position}${sel.youthKo ? ` · 유스 ${esc(sel.youthKo)}` : ''}</small></span><span class="ng-sel__ovr"><b class="po-num">${sel.ovr}</b>${sel.peak ? `<small class="ng-peak">전성기 ${sel.peak}</small>` : '<small>OVR</small>'}</span>
       <p class="small muted ng-sel__note">${sel.legend ? `2018-19 세계에 ${sel.age}세로 들어와 30세 무렵 전성기에 닿아요. 실제 유스 클럽은 기록으로만 남아요.` : '지금 소속팀·나이·능력치 그대로 시작해요. 이름은 바꿀 수 없어요. OVR은 시드에 따라 조금 달라져요.'}</p></div>` : '';
-  type Row = { id: string; name: string; club: string; age: number; position: string; ovr: number; peak?: number; youthKo?: string };
-  const all: Row[] = legendTab ? vm.legendList : vm.reals;
+  type Row = { id: string; name: string; club: string; age: number; position: string; ovr: number; peak?: number; youthKo?: string; bvb?: boolean };
+  // 레전드 팩 묶음 (디자인 234): 전체 · 기본 레전드 · 도르트문트 → 고른 묶음만 목록
+  const lpack = legendTab ? u.lpack ?? 'all' : 'all';
+  const bvbN = vm.legendList.filter((r) => r.bvb).length;
+  const packs = legendTab && bvbN ? `<div class="ng-lpack__head"><small>레전드 팩 묶음</small><small class="muted">팩마다 켜고 끌 수 있어요</small></div><div class="ng-lpack" role="radiogroup" aria-label="레전드 팩 묶음">${
+    ([['all', '전체', vm.legendList.length], ['base', '기본 레전드', vm.legendList.length - bvbN], ['bvb', '도르트문트', bvbN]] as const).map(([id, ko, n]) =>
+      `<button type="button" class="ng-lpack__cell${lpack === id ? ' is-on' : ''}" data-act="ng-real" data-k="lpack" data-v="${id}" role="radio" aria-checked="${lpack === id}"><b>${ko}</b><small class="po-num">${n}명</small></button>`).join('')}</div>` : '';
+  const all: Row[] = legendTab ? vm.legendList.filter((r) => lpack === 'all' || (lpack === 'bvb') === !!r.bvb) : vm.reals;
   const q = u.rq.trim().toLowerCase();
   const rows = all.filter((r) => (u.rgroup === 'all' || POS_GROUP[r.position] === u.rgroup) && (!q || [r.name, r.club, r.youthKo ?? ''].some((t) => t.toLowerCase().includes(q))))
     .sort((a, b) => (u.rsort === 'name' ? a.name.localeCompare(b.name) : u.rsort === 'age' ? a.age - b.age || b.ovr - a.ovr : u.rsort === 'peak' && legendTab ? (b.peak ?? 0) - (a.peak ?? 0) || b.ovr - a.ovr : b.ovr - a.ovr));
@@ -287,26 +334,28 @@ function realBody(vm: NewGameVM, u: NewGameUI): string {
     children: `<button type="button" class="ng-sheet-x" data-act="ng-sort-close">${Icon({ name: 'close', size: 16 })}닫기</button>${sortRows(true, sortV)}`,
   }) : '';
   const groups = Tabs({ items: [{ id: 'all', label: '전체' }, { id: 'fw', label: '공격' }, { id: 'mf', label: '미드' }, { id: 'df', label: '수비' }], value: u.rgroup, variant: 'segment', fill: true, act: 'ng-real', data: { k: 'rgroup' }, label: '포지션군' });
-  const row = (p: Row) => `<button type="button" class="real-row ng-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${esc(p.club)} · ${p.age}세 · ${p.position}${p.youthKo ? ` · 유스 ${esc(p.youthKo)}` : ''}</small></span>${
+  const row = (p: Row) => `<button type="button" class="real-row ng-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${legendTab ? `<span class="ng-badge${p.bvb ? ' is-bvb' : ''}">${p.bvb ? '도르트문트' : '레전드'}</span>` : ''}${esc(p.club)} · ${p.age}세 · ${p.position}${p.youthKo ? ` · 유스 ${esc(p.youthKo)}` : ''}</small></span>${
     p.peak ? `<span class="ng-row__ovr"><span><b class="po-num muted">${p.ovr}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>지금 → 전성기</small></span>` : `<span class="ng-row__ovr"><b class="po-num">${p.ovr}</b><small>OVR</small></span>`}</button>`;
   const left = rows.length - shown.length;
   const more = left > 0 ? `<button type="button" class="dt-more ng-more" data-act="ng-real" data-k="rshow" data-v="${u.rshow + REAL_MORE}">${Icon({ name: 'chevron-right', size: 14, style: 'transform:rotate(90deg)' })}${Math.min(REAL_MORE, left)}명 더 보기 · ${left}명 남음</button>` : '';
-  const head = `<div class="ng-listhead"><b class="small">${legendTab ? `레전드 ${rows.length}명 · GK 제외` : `실제 선수 ${rows.length}명`}</b><small class="muted">${legendTab ? (sortV === 'peak' ? '전성기 OVR 높은 순' : '') : ''}</small></div>`;
-  return `${tabs}${card}${search}${groups}${head}
-    <div class="real-list">${shown.map(row).join('') || '<p class="small muted">맞는 선수가 없어요.</p>'}</div>${more}
-    ${startOptions(vm, false, u)}
-    <div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', disabled: !sel, children: sel ? `${sel.name}으로 시작 · ${sel.club}` : '선수를 골라요' })}</div>${sheet}`;
+  const head = `<div class="ng-listhead"><b class="small">${legendTab ? `${lpack === 'bvb' ? '도르트문트 레전드' : lpack === 'base' ? '기본 레전드' : '레전드'} ${rows.length}명 · GK 제외` : `실제 선수 ${rows.length}명`}</b><small class="muted">${legendTab ? (sortV === 'peak' ? '전성기 OVR 높은 순' : '') : ''}</small></div>`;
+  return {
+    left: `${tabs}${card}${packs}${search}${groups}${head}
+    <div class="real-list">${shown.map(row).join('') || '<p class="small muted">맞는 선수가 없어요.</p>'}</div>${more}`,
+    right: `${startOptions(vm, false, u)}${startBtn}${sheet}`,
+  };
 }
 
 /** 미래 스타 묶음 (C.75y, 디자인 없음): 등장 시즌 순 + 리그 추가 후 등장. 고를 수 없고 구현 리그 첫 시즌이 되면 세계에 나타난다 */
 function futureBody(vm: NewGameVM): string {
-  const row = (p: NewGameVM['futureList'][number]) => `<div class="real-row ng-row ng-future${p.waiting ? ' is-waiting' : ''}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${p.waiting ? `내 리그 밖 · ${p.position}${p.realClub ? ` · 실제 ${esc(p.realClub)}` : ''}` : `${esc(p.debut)} 등장 · ${p.age}세 · ${p.position} · ${esc(p.club)}`}</small></span><span class="ng-row__ovr">${p.waiting ? `<span><b class="po-num ng-peak">${p.peak}</b></span><small>전성기</small>` : `<span><b class="po-num muted">${p.start}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>등장 → 전성기</small>`}</span></div>`;
+  // 디자인 233: 등장 줄 = 등장 시즌 · 나이 · 포지션 · 팀 / 오른쪽 등장 → 전성기, 내 리그 밖 줄 = "다른 리그" 칩 · 실제 첫 시즌 팀 / 전성기
+  const row = (p: NewGameVM['futureList'][number]) => `<div class="real-row ng-row ng-future${p.waiting ? ' is-waiting' : ''}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${p.waiting ? `<span class="ng-badge is-wait">다른 리그</span>${p.position}${p.realClub ? ` · 실제 ${esc(p.realClub)}` : ''}` : `${esc(p.debut)} 등장 · ${p.age}세 · ${p.position} · ${esc(p.club)}`}</small></span><span class="ng-row__ovr">${p.waiting ? `<span><b class="po-num ng-peak">${p.peak}</b></span><small>전성기</small>` : `<span><b class="po-num muted">${p.start}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>등장 → 전성기</small>`}</span></div>`;
   const now = vm.futureList.filter((p) => !p.waiting);
   const later = vm.futureList.filter((p) => p.waiting);
-  return `<div class="ng-listhead"><b class="small">미래 스타 ${vm.futureList.length}명 · 내 리그 등장 ${now.length} · 다른 리그 ${later.length}</b><small class="muted">고를 수 없어요</small></div>
+  return `<div class="ng-listhead"><b class="small">미래 스타 ${vm.futureList.length}명 · 등장 ${now.length} · 다른 리그 ${later.length}</b><small class="muted ng-lock">${Icon({ name: 'lock', size: 12 })}고를 수 없어요</small></div>
     <p class="small muted">2018-19 세계엔 아직 없는 선수예요. 내 리그에서 처음 뛴 실제 시즌에 그 팀으로, 그때 나이로 나타나요. 그 전 실제 경력은 선수 화면에 남아요.</p>
     <div class="real-list">${now.map(row).join('')}</div>
-    ${later.length ? `<div class="ng-listhead"><b class="small">내 리그에서 뛴 적 없음 ${later.length}명</b><small class="muted">내 리그로 고르면 그 리그 첫 시즌에</small></div><div class="real-list">${later.map(row).join('')}</div>` : ''}`;
+    ${later.length ? `<div class="ng-listhead"><b class="small">내 리그에서 뛴 적 없음 ${later.length}명</b><small class="muted">그 리그를 내 리그로 고르면 첫 시즌에</small></div><div class="real-list">${later.map(row).join('')}</div>` : ''}`;
 }
 
 // ── 포인트 찍기 (50) ──
@@ -380,7 +429,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     ${panel(`<div class="fin-legend">${tierCount.map((x) => `<div class="fin-legend__cell">${FinChip(x.t, true)}<small class="po-num">${x.n}팀</small></div>`).join('')}</div>
       <p class="small muted">이적료·연봉을 낼 수 있는 크기예요. 표에서는 막대만, 글자는 이 범례와 팀 상세에서. 색은 쓰지 않아요(순위 색과 겹치지 않게).</p>`)}`;
   const starRow = (s: StarVM, i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}${s.ga ? ` · ${s.ga}` : ''}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${(s.change ?? 0) > 0 ? 'up' : (s.change ?? 0) < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
-  const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="rec">${esc(s.kind)}</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
+  const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="ng-badge${s.kind === '도르트문트' ? ' is-bvb' : ''}">${esc(s.kind)}</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
   // 리그 스타 묶음 (C.64, 디자인 147 segment 탭): 리그 안(위상 순) · 세계(리그 밖 실제 선수) · 21세 이하
   const groupTabs = Tabs({ items: [{ id: 'league', label: '리그 안' }, { id: 'world', label: '세계' }, { id: 'young', label: '21세 이하' }], value: group, variant: 'segment', act: 'world-stars', label: '리그 스타 거르기' });
   const list = group === 'world' ? vm.starsWorld : group === 'young' ? vm.starsYoung : vm.stars;
@@ -396,8 +445,8 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     <p class="small muted">레전드 팩으로 들어온 선수 중 리그에서 뛰는 ${vm.legends.length}명이에요. 지금 OVR과 전성기 예상을 같이 보여 줘요(지금 OVR 순).</p>
     <div class="star-list">${legShown.map(legRow).join('')}</div>
     ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
-    ${group === 'league' && (vm.upcoming.length || vm.waiting) ? `<p class="small muted wl-upcoming"><b>미래 스타 등장 예정</b>${vm.upcoming.map((u) => ` · ${esc(u.name)} ${u.debut}`).join('')}${vm.waiting ? ` · 고른 리그 밖 ${vm.waiting}명` : ''}</p>` : ''}
-    ${group === 'league' && vm.abroad.length ? `<p class="small muted wl-upcoming"><b>리그 밖 레전드 · 이적 유입 예정</b>${vm.abroad.map((u) => ` · ${esc(u.name)}(${esc(u.club)}) ${u.season}`).join('')}</p>` : ''}
+    ${group === 'league' && (vm.upcoming.length || vm.waiting) ? `<p class="small muted wl-upcoming">${Icon({ name: 'calendar', size: 14 })}<span><b>미래 스타 · 등장 예정</b>${vm.upcoming.map((u) => ` · ${esc(u.name)} ${u.debut}`).join('')}${vm.waiting ? ` · 고른 리그 밖 ${vm.waiting}명` : ''}</span></p>` : ''}
+    ${group === 'league' && vm.abroad.length ? `<p class="small muted wl-upcoming">${Icon({ name: 'plane', size: 14 })}<span><b>리그 밖 레전드 · 이적 유입 예정</b>${vm.abroad.map((u) => ` · ${esc(u.name)}(${esc(u.club)}) ${u.season}`).join('')}</span></p>` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
   return `${hero}<div class="body">${tabs}${leagueBar}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? (o ? otherScorersHtml(o) : scorers) : tab === 'transfers' ? transfers : stars}</div>`;
 }

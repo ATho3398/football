@@ -242,7 +242,7 @@ const ui = {
   /** 재정 화면 탭 (C.68b) */
   financeTab: 'money' as FinanceTab,
   /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
-  dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null },
+  dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null, open: false },
   /** 대표팀 화면 (C.76d): 탭 · 고른 대회 */
   nat: { tab: 'fixtures' as NationalTab, cup: null as string | null },
   lookName: false,
@@ -532,7 +532,7 @@ function screenHtml(): string {
     }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
-    case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
+    case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip), ui.dex.open);
     case 'showroom': return showroomView(showroomVM(g));
     case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
     case 'replay':
@@ -1932,6 +1932,15 @@ app.addEventListener('click', (ev) => {
       ui.ng.leaguesOpen = !ui.ng.leaguesOpen;
       render();
       return;
+    // 리그 고르기 묶음 접기·펼치기 (디자인 239)
+    case 'ng-lg-group': {
+      readFormInputs();
+      if (!v) return;
+      const el = document.querySelector(`.ng-lg__ghead[data-v="${v}"]`);
+      ui.ng.lgFold = { ...ui.ng.lgFold, [v]: el?.getAttribute('aria-expanded') !== 'true' };
+      render();
+      return;
+    }
     case 'ng-league': {
       // 리그 고르기 (C.75m): 내 리그(맨 앞)는 필수, 데이터 없는 리그는 고를 수 없다
       readFormInputs();
@@ -1994,6 +2003,7 @@ app.addEventListener('click', (ev) => {
       else if (k === 'rgroup') { ui.ng.rgroup = v as NewGameUI['rgroup']; ui.ng.rshow = 10; }
       else if (k === 'rshow') ui.ng.rshow = Number(v) || 10;
       else if (k === 'rq') { ui.ng.rq = v ?? ''; ui.ng.rshow = 10; }
+      else if (k === 'lpack') { ui.ng.lpack = v === 'base' || v === 'bvb' ? v : 'all'; ui.ng.rshow = 10; }
       render();
       return;
     }
@@ -2351,11 +2361,16 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'pc-sort':
-      ui.dex = { ...ui.dex, sort: (v ?? 'no') as PhotoSort, flip: null };
+      ui.dex = { ...ui.dex, sort: (v ?? 'no') as PhotoSort, flip: null, open: false };
+      render();
+      return;
+    // 정렬 접는 선택 (디자인 238 폰): 누르면 아래로 8가지 목록
+    case 'pc-sort-open':
+      ui.dex = { ...ui.dex, open: !ui.dex.open };
       render();
       return;
     case 'pc-dir':
-      ui.dex = { ...ui.dex, desc: !ui.dex.desc };
+      ui.dex = { ...ui.dex, desc: !ui.dex.desc, open: false };
       render();
       return;
     case 'pc-flip':
