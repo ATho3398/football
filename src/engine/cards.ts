@@ -518,7 +518,7 @@ export function handView(
 }
 
 /** 카드 사용 처리 (패에서 빼고 기록). 패시브는 장착, 콤보는 대기, 리셋은 다른 카드 1장 버리고 1장 */
-export function playCard(s: SimState, a: Agent, hand: number, scene: string, auto: boolean): CardUse {
+export function playCard(s: SimState, a: Agent, hand: number, scene: string, auto: boolean, dead?: number[]): CardUse {
   const cs = s.cards!;
   const id = cs.hand[hand]!;
   cs.hand.splice(hand, 1);
@@ -526,26 +526,51 @@ export function playCard(s: SimState, a: Agent, hand: number, scene: string, aut
   const use: CardUse = { id, minute: Math.floor(s.t / 60) + 1, scene, auto, result: 'neutral' };
   cs.uses.push(use);
   const role = cardRole(def);
-  if (role === 'passive') {
-    cs.passives.push(id);
-    for (const e of def.effects) if (e.type === 'fatigueMult') a.drainMul *= e.value;
-    const tk = passiveValue(cs, def, ['tackle'], false);
-    const air = passiveValue(cs, def, ['header'], false);
-    if (tk || air) {
-      a.cardBoost ??= { tackle: 0, air: 0 };
-      a.cardBoost.tackle = Math.min(C.bonusCap, a.cardBoost.tackle + tk);
-      a.cardBoost.air = Math.min(C.bonusCap, a.cardBoost.air + air);
-    }
-  } else if (role === 'combo') {
+  if (role === 'passive') equip(cs, a, id);
+  else if (role === 'combo') {
     for (const e of def.effects) if (e.type === 'nextSceneBonus') cs.combos.push({ id, on: e.on, ...(e.option ? { option: e.option } : {}), value: e.value + masteryBonus(cs, def), armedT: s.t });
   } else if (role === 'redraw') {
-    // 리셋: 쓸 수 없는 카드부터(없으면 맨 앞) 1장 버리고 1장 뽑는다
-    let k = cs.hand.findIndex((h) => reqProblem(s, a, cardById(h)!) !== null);
+    // 리셋: 쓸 수 없는 카드부터(없으면 맨 앞) 1장 버리고 1장 뽑는다. dead = 이 장면에서 못 쓰는 카드의 원래 패 위치 (리셋 즉발, C.75h)
+    const moved = (dead ?? []).filter((k) => k !== hand).map((k) => (k > hand ? k - 1 : k));
+    let k = moved.length ? moved[0]! : cs.hand.findIndex((h) => reqProblem(s, a, cardById(h)!) !== null);
     if (k < 0) k = 0;
     if (cs.hand.length) cs.hand.splice(k, 1);
     drawCards(cs, 1);
   }
   return use;
+}
+
+/** 패시브 장착: 슬롯에 넣고 체력 배수·태클/공중볼 보정을 내 선수에 붙인다 */
+function equip(cs: CardState, a: Agent, id: string): void {
+  const def = cardById(id)!;
+  cs.passives.push(id);
+  for (const e of def.effects) if (e.type === 'fatigueMult') a.drainMul *= e.value;
+  const tk = passiveValue(cs, def, ['tackle'], false);
+  const air = passiveValue(cs, def, ['header'], false);
+  if (tk || air) {
+    a.cardBoost ??= { tackle: 0, air: 0 };
+    a.cardBoost.tackle = Math.min(C.bonusCap, a.cardBoost.tackle + tk);
+    a.cardBoost.air = Math.min(C.bonusCap, a.cardBoost.air + air);
+  }
+}
+
+/**
+ * 킥오프 패시브 자동 장착 (C.75h, 16.3·F.5 개정, autoMoments false): 섞은 덱 앞에서부터 요건이 맞는 패시브를 슬롯 수만큼 꺼내 장착한다.
+ * 자동·직접 모드 공통이라 직접 모드에서 맡기기만 해도 자동 경기와 결과가 같다 (쓴 카드 기록은 "자동")
+ */
+function equipKickoff(s: SimState, a: Agent): void {
+  const cs = s.cards!;
+  for (let i = 0; i < cs.pile.length && cs.passives.length < C.passiveSlots;) {
+    const id = cs.pile[i]!;
+    const def = cardById(id)!;
+    if (cardRole(def) !== 'passive' || reqProblem(s, a, def) || cs.passives.includes(id)) {
+      i++;
+      continue;
+    }
+    cs.pile.splice(i, 1);
+    equip(cs, a, id);
+    cs.uses.push({ id, minute: Math.floor(s.t / 60) + 1, scene: 'kickoff', auto: true, result: 'neutral' });
+  }
 }
 
 // ── 결과 판정 (성공 보너스 드로우, 카드 성공/실패 평점) ──
@@ -643,6 +668,7 @@ export function cardsTick(s: SimState): void {
   const a = me(s);
   if (a && !cs.started) {
     cs.started = true;
+    if (!C.autoMoments) equipKickoff(s, a);
     drawCards(cs, C.startHand);
     cs.nextDraw = s.t + C.drawEvery;
   } else if (a && s.t >= cs.nextDraw) {
@@ -693,7 +719,8 @@ export function reactiveCards(s: SimState, a: Agent, scenes: string[], base: Add
 /** 쓸 반응 카드: 정지에서 고른 계획이 있으면 그 카드(또는 쓰지 않기), 없으면 첫 장 (C.36 자동 규칙) */
 function reactive(s: SimState, a: Agent, scenes: string[], base: AddOption['base'] | 'header', plan: ReactPlan | null): ReactCard | null {
   const list = reactiveCards(s, a, scenes, base);
-  if (!plan || plan.id === AUTO_REACT) return list[0] ?? null;
+  // 자동 경기·맡기기·정지 안 한 장면은 반응 카드를 쓰지 않는다 (C.75h, autoMoments false). 정지에서 고른 카드만
+  if (!plan || plan.id === AUTO_REACT) return C.autoMoments ? list[0] ?? null : null;
   return plan.id === null ? null : list.find((r) => r.def.id === plan.id) ?? null;
 }
 

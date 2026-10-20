@@ -2728,6 +2728,14 @@ app.addEventListener('click', (ev) => {
       if (!lv || !m || v === undefined) return;
       const mc = m.cards.find((c) => c.hand === Number(v));
       if (!mc?.usable) return;
+      // 리셋 즉발 (C.75h, pending 133): 확인 시트 → 장면 진행 없이 카드만 바꾼다 (카드 1장 제한에 안 셈, 장면당 1번)
+      if (mc.role === 'redraw') {
+        confirmModal({
+          title: '리셋 카드를 사용할까요?', body: '경기는 멈춘 채로 못 쓰는 카드부터 1장 버리고 1장 뽑아요. 이 장면에서 카드 1장은 그대로 더 쓸 수 있어요 (리셋은 장면당 1번).',
+          confirm: '리셋 사용', act: 'mo-reset', data: { v: String(mc.hand) },
+        });
+        return;
+      }
       const off = lv.card === mc.hand;
       if (lv.sel !== null && lv.sel >= m.options.length) lv.sel = null;
       lv.card = off ? null : mc.hand;
@@ -2735,6 +2743,23 @@ app.addEventListener('click', (ev) => {
       if (lv.pitch) {
         lv.pitch.options = shownOptions(m, lv.card);
         lv.pitch.selected = lv.sel;
+      }
+      render();
+      return;
+    }
+    case 'mo-reset': {
+      ui.modal = null;
+      const lv = ui.live;
+      const m = lv?.run.pending;
+      if (!lv || !m || lv.oc || v === undefined) return render();
+      if (lv.run.resetNow(Number(v))) {
+        // 패가 바뀌었다: 고른 카드·카드 선택지는 풀고 기본 선택지는 그대로 둔다
+        lv.card = null;
+        if (lv.sel !== null && lv.sel >= m.options.length) lv.sel = null;
+        if (lv.pitch) {
+          lv.pitch.options = shownOptions(m, null);
+          lv.pitch.selected = lv.sel;
+        }
       }
       render();
       return;

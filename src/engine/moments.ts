@@ -18,9 +18,10 @@ import {
 import { ENGINE } from './config';
 import { directiveVariants } from './directive';
 import { aerialScore, dribbleProb, duelTail } from './duel';
-import { candidates, choose, shotModel, type ActionType, type Candidate } from './onball';
+import { candidates, choose, judgementOf, shotModel, visible, type ActionType, type Candidate } from './onball';
 import { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
 import { ratingDelta, ratingParts } from './rating';
+import { Purpose, rand } from './rng';
 import { offsideRisk } from './referee';
 import { chemMul, isExploit } from './rapport';
 import type { Agent, SimState } from './state';
@@ -146,6 +147,8 @@ export interface MomentState {
   nextId: number;
   /** 도박 실패 완화 (C.75a): 직접 모드에서 고른 소유 선택지의 결정 시각과 되돌릴 감점 몫 k (첫 소유 변경에서 지운다) */
   relief?: { t: number; k: number } | null;
+  /** 리셋 즉발 (C.75h): 리셋을 쓴 결정 순간 id (장면당 1번) */
+  resetUsed?: number;
 }
 
 export function initMoments(control?: MomentControl): MomentState {
@@ -244,7 +247,7 @@ function relabel<T extends { o: MomentOption }>(xs: T[]): T[] {
 /** 자동 모드 카드 기회 (F.5): 덱이 있고 자동 모드일 때, 직접 모드 "중요한 순간만"과 같은 기준 */
 function autoOccasion(s: SimState, a: Agent, stake: number): boolean {
   const cs = s.cards;
-  if (!cs || s.moments.control.mode !== 'auto') return false;
+  if (!cs || !BALANCE.cards.autoMoments || s.moments.control.mode !== 'auto') return false;
   if (!wouldStop(s, a, stake, cs.occ, cs.lastOccT, 'important', BALANCE.cards.autoStopMul, true)) return false;
   cs.occ++;
   cs.lastOccT = s.t;
@@ -439,21 +442,10 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const options = made.map((x) => x.o);
   const ctx = made.map((x) => x.ctx);
   const scene = onballScene(s, a, cands);
-  let cards: Moment['cards'] = [];
-  let variants: Variant[] = [];
-  if (s.cards) {
-    variants = onballVariants(s, a, scene, cands);
-    cards = handView(s, a, scene, ctx, variants, true).map((mc) => {
-      const v = variants.find((x) => x.hand === mc.hand);
-      if (!v) return mc;
-      const option = optionOf(s, a, v.cand, 'card', -1, adj, labelOf(s, a, v.cand), { rs: v.mod.rs, rf: v.mod.rf });
-      const bp = v.baseCand.type === 'shoot' ? shotP(s, a, v.baseCand.p) : Math.max(0.01, Math.min(0.99, v.baseCand.p - (v.baseCand.cardD ?? 0) + adj));
-      return { ...mc, option: { ...option, baseP: round2(bp) } };
-    });
-  }
+  const { cards, variants } = onballCards(s, a, scene, cands, ctx, adj);
   if (!enoughChoices(options, cards)) return false;
-  // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로
-  for (const o of [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]) o.down = round2(o.down * failFactor(o.p));
+  // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로 (카드 선택지는 onballCards 에서)
+  for (const o of options) o.down = round2(o.down * failFactor(o.p));
   settleMoment(s, true);
   const sureC = cands.filter((c) => shownP(c) > M.maxP + 1e-9);
   const sure = sureC.length > 0;
@@ -468,6 +460,21 @@ export function onballMoment(s: SimState, a: Agent): boolean {
     ...base(s, a, 'onball', scene, stake), options, cards, cands, variants, ...(sure ? { sure, delegateEv } : {}), ...(box ? { box } : {}), ...(shotNote ? { shotNote } : {}),
   };
   return true;
+}
+
+/** 소유 결정 순간의 패 (카드 선택지 포함, 실패 평점은 완화 배수 적용). 리셋 즉발 뒤 다시 계산할 때도 쓴다 (C.75h) */
+function onballCards(s: SimState, a: Agent, scene: SceneId, cands: Candidate[], ctx: OptionCtx[], adj: number): { cards: Moment['cards']; variants: Variant[] } {
+  if (!s.cards) return { cards: [], variants: [] };
+  const variants = onballVariants(s, a, scene, cands);
+  const cards = handView(s, a, scene, ctx, variants, true).map((mc) => {
+    const v = variants.find((x) => x.hand === mc.hand);
+    if (!v) return mc;
+    const option = optionOf(s, a, v.cand, 'card', -1, adj, labelOf(s, a, v.cand), { rs: v.mod.rs, rf: v.mod.rf });
+    const bp = v.baseCand.type === 'shoot' ? shotP(s, a, v.baseCand.p) : Math.max(0.01, Math.min(0.99, v.baseCand.p - (v.baseCand.cardD ?? 0) + adj));
+    option.down = round2(option.down * failFactor(option.p));
+    return { ...mc, option: { ...option, baseP: round2(bp) } };
+  });
+  return { cards, variants };
 }
 
 /**
@@ -584,7 +591,8 @@ export const TACTICAL_FOUL = 0.9;
 /** 상대 소유자와 1대1 (내가 가장 가까운 수비수, duelRange 안): 멈출 순간이면 pending 을 채우고 true. 자동 모드 카드 기회도 여기서 */
 export function duelMoment(s: SimState): boolean {
   const ms = s.moments;
-  if (ms.control.mode !== 'direct' && !s.cards) return false;
+  // 자동 경기 결정 순간 카드 금지 (C.75h, autoMoments false): 자동 모드 1대1 카드 기회 없음
+  if (ms.control.mode !== 'direct' && (!s.cards || !BALANCE.cards.autoMoments)) return false;
   const o = s.agents[s.ball.owner];
   if (!o || o.line === 0) return false;
   const a = s.agents.find((x) => x.spec.isMe && x.onPitch);
@@ -622,27 +630,31 @@ export function duelMoment(s: SimState): boolean {
   // 성공 확률 maxP 초과 태클은 뺀다 (C.40). 따라붙기·패스길 막기는 판정이 없어 그대로 둔다
   const sure = odds.pWin > M.maxP;
   if (sure) options.pop();
-  let cards: Moment['cards'] = [];
-  let dv: DuelVariant[] = [];
-  if (s.cards) {
-    dv = duelVariants(s, a, scene, odds.pWin);
-    const ctx: OptionCtx[] = [{ tags: ['safe'], box: false }, { tags: ['press'], box: false }, { tags: ['tackle', 'risky'], box: false }];
-    const fake: Variant[] = dv.map((v) => ({ hand: v.hand }) as Variant);
-    cards = handView(s, a, scene, ctx, fake, true).map((mc) => {
-      if (mc.deltas) mc.deltas = options.map((o, k) => (o.p === null ? 0 : mc.deltas![k] ?? 0));
-      if (mc.deltas && mc.role === 'boost' && !mc.deltas.some((d) => d !== 0)) return { ...mc, usable: false, reason: '맞는 선택지가 없어요', deltas: undefined };
-      const v = dv.find((x) => x.hand === mc.hand);
-      if (!v) return mc;
-      const opt: MomentOption = v.pick === 3
-        ? { kind: 'card', action: 'foul', label: v.label, p: TACTICAL_FOUL, success: '역습을 끊음', fail: '놓침 · 경고 위험 70%', up: round2(v.mod.rs), down: round2(R.foul * R.scale + v.mod.rf), to: { x: o.x, y: o.y }, target: o.spec.id, ref: 3, value: 0 }
-        : { kind: 'card', action: 'tackle', label: v.label, p: round2(v.p), baseP: round2(odds.pWin - (a.cardBoost?.tackle ?? 0)), success: '공을 빼앗음', fail: `제쳐짐 · 파울 ${Math.round(Math.min(1, odds.pFoul * v.foulMul) * 100)}%`, up: round2(R.tackle * R.scale + v.mod.rs), down: round2(odds.pFoul * v.foulMul * R.foul * R.scale + v.mod.rf), to: { x: o.x, y: o.y }, target: o.spec.id, ref: 0, value: 0 };
-      return { ...mc, option: opt };
-    });
-  }
+  const { cards, dv } = duelCards(s, a, o, scene, options, odds);
   if (!enoughChoices(options, cards)) return false;
   settleMoment(s, true);
   ms.pending = { ...base(s, a, 'duel', scene, stake), options, opponent: o.spec.id, cards, ...(sure ? { sure } : {}), ...(dv.length ? { duelVariants: dv } : {}) } as Moment & { duelVariants?: DuelVariant[] };
   return true;
+}
+
+/** 수비 1대1 결정 순간의 패 (태클 변형·전술적 파울 선택지). 리셋 즉발 뒤 다시 계산할 때도 쓴다 (C.75h) */
+function duelCards(s: SimState, a: Agent, o: Agent, scene: SceneId, options: MomentOption[], odds: ReturnType<typeof duelOdds>): { cards: Moment['cards']; dv: DuelVariant[] } {
+  if (!s.cards) return { cards: [], dv: [] };
+  const R = ENGINE.rating;
+  const dv = duelVariants(s, a, scene, odds.pWin);
+  const ctx: OptionCtx[] = [{ tags: ['safe'], box: false }, { tags: ['press'], box: false }, { tags: ['tackle', 'risky'], box: false }];
+  const fake: Variant[] = dv.map((v) => ({ hand: v.hand }) as Variant);
+  const cards = handView(s, a, scene, ctx, fake, true).map((mc) => {
+    if (mc.deltas) mc.deltas = options.map((x, k) => (x.p === null ? 0 : mc.deltas![k] ?? 0));
+    if (mc.deltas && mc.role === 'boost' && !mc.deltas.some((d) => d !== 0)) return { ...mc, usable: false, reason: '맞는 선택지가 없어요', deltas: undefined };
+    const v = dv.find((x) => x.hand === mc.hand);
+    if (!v) return mc;
+    const opt: MomentOption = v.pick === 3
+      ? { kind: 'card', action: 'foul', label: v.label, p: TACTICAL_FOUL, success: '역습을 끊음', fail: '놓침 · 경고 위험 70%', up: round2(v.mod.rs), down: round2(R.foul * R.scale + v.mod.rf), to: { x: o.x, y: o.y }, target: o.spec.id, ref: 3, value: 0 }
+      : { kind: 'card', action: 'tackle', label: v.label, p: round2(v.p), baseP: round2(odds.pWin - (a.cardBoost?.tackle ?? 0)), success: '공을 빼앗음', fail: `제쳐짐 · 파울 ${Math.round(Math.min(1, odds.pFoul * v.foulMul) * 100)}%`, up: round2(R.tackle * R.scale + v.mod.rs), down: round2(odds.pFoul * v.foulMul * R.foul * R.scale + v.mod.rf), to: { x: o.x, y: o.y }, target: o.spec.id, ref: 0, value: 0 };
+    return { ...mc, option: opt };
+  });
+  return { cards, dv };
 }
 
 // ── 카드 장면 정지 (C.40): 공중볼·코너·상대 코너/프리킥·상대 슈팅. 직접 모드에서 그 장면 반응 카드가 패에 있을 때만 멈춘다 ──
@@ -814,7 +826,7 @@ function pendingWatch(s: SimState, a: Agent, action: string, mod: ActionMod | nu
  * 변형을 고르지 않았으면 패 앞에서 조건 맞는 첫 확률 카드를 그 행동에 쓴다. 기회가 아니면 null (엔진 그대로)
  */
 export function autoCardDecide(s: SimState, a: Agent, cands: Candidate[]): { cand: Candidate; mod: ActionMod | null; use: CardUse | null } | null {
-  if (!s.cards || a.line === 0 || s.moments.control.mode !== 'auto') return null;
+  if (!s.cards || !BALANCE.cards.autoMoments || a.line === 0 || s.moments.control.mode !== 'auto') return null;
   const stake = onballStake(s, a, cands);
   if (!autoOccasion(s, a, stake)) return null;
   const scene = onballScene(s, a, cands);
@@ -856,6 +868,7 @@ export function setPieceMoment(s: SimState): boolean {
   if (!cs || !r || !cs.hand.length) return false;
   const a = s.agents[r.taker];
   if (!a || !a.spec.isMe || !a.onPitch) return false;
+  if (s.moments.control.mode !== 'direct' && !BALANCE.cards.autoMoments) return false;
   const scene: SceneId | null = r.type === 'penalty' ? 'penalty' : r.type === 'freeKick' && !r.indirect ? 'freeKick' : null;
   if (!scene) return false;
   const R = ENGINE.rating;
@@ -866,17 +879,7 @@ export function setPieceMoment(s: SimState): boolean {
     ? [{ kind: 'balanced', action: 'shoot', label: 'PK 슈팅', p: round2(pPen), success: '골', fail: '선방·실축', up: round2(R.goal * R.scale), down: 0, to: { x: gx, y: gy }, ref: 0, value: pPen }]
     : [{ kind: 'balanced', action: 'hold', label: '엔진 판단대로 (슈팅·크로스·패스)', p: null, success: '세트피스 진행', fail: '-', up: 0, down: 0, to: { x: gx, y: gy }, ref: 0, value: 0 }];
   const ctx: OptionCtx[] = [{ tags: scene === 'penalty' ? ['shoot'] : ['cross', 'pass'], box: scene === 'penalty' }];
-  const vars = setPieceVariants(s, a, scene, pPen);
-  const fake = vars.map((v) => ({ hand: v.hand }) as Variant);
-  const view = handView(s, a, scene, ctx, fake, true).map((mc) => {
-    const v = vars.find((x) => x.hand === mc.hand);
-    if (!v) return mc;
-    const opt: MomentOption = {
-      kind: 'card', action: 'shoot', label: v.label, p: round2(v.p), ...(scene === 'penalty' ? { baseP: round2(pPen) } : {}), success: '골', fail: scene === 'penalty' ? '선방·실축' : '벽·선방·빗나감',
-      up: round2(R.goal * R.scale + v.mod.rs), down: round2(v.mod.rf), to: { x: gx, y: gy }, ref: 0, value: v.p,
-    };
-    return { ...mc, option: opt };
-  });
+  const { view, vars } = setPieceCards(s, a, scene, pPen, ctx);
   if (!view.some((c) => c.usable)) return false;
   if (s.moments.control.mode === 'direct') {
     // 고를 거리 2개 미만(카드가 선택지를 새로 열지 않음)이면 멈추지 않는다 (C.75a)
@@ -905,6 +908,24 @@ export function setPieceMoment(s: SimState): boolean {
     startWatch(s, a, scene === 'penalty' ? 'shoot' : 'pass', pr.mod, pr.use);
   }
   return false;
+}
+
+/** 세트피스 결정 순간의 패 (슛 변형 선택지). 리셋 즉발 뒤 다시 계산할 때도 쓴다 (C.75h) */
+function setPieceCards(s: SimState, a: Agent, scene: SceneId, pPen: number, ctx: OptionCtx[]): { view: Moment['cards']; vars: SpVariant[] } {
+  const R = ENGINE.rating;
+  const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+  const vars = setPieceVariants(s, a, scene, pPen);
+  const fake = vars.map((v) => ({ hand: v.hand }) as Variant);
+  const view = handView(s, a, scene, ctx, fake, true).map((mc) => {
+    const v = vars.find((x) => x.hand === mc.hand);
+    if (!v) return mc;
+    const opt: MomentOption = {
+      kind: 'card', action: 'shoot', label: v.label, p: round2(v.p), ...(scene === 'penalty' ? { baseP: round2(pPen) } : {}), success: '골', fail: scene === 'penalty' ? '선방·실축' : '벽·선방·빗나감',
+      up: round2(R.goal * R.scale + v.mod.rs), down: round2(v.mod.rf), to: { x: gx, y: gy }, ref: 0, value: v.p,
+    };
+    return { ...mc, option: opt };
+  });
+  return { view, vars };
 }
 
 function probTag(id: string, tag: string): boolean {
@@ -1033,6 +1054,64 @@ export function takeMoment(s: SimState, choice: MomentChoice): {
   const k = 1 - failFactor(opt.p);
   ms.relief = k > 0 ? { t: s.t, k } : null;
   return { cand: c, duel: null, mod, use, action: c.type, down: opt.down };
+}
+
+/**
+ * 리셋 즉발 (C.75h, pending 133 03:57): 결정 순간에서 리셋 카드를 바로 쓴다. 장면은 진행하지 않고 못 쓰는 카드부터 1장 버리고 1장 뽑은 뒤
+ * 패·카드 선택지를 지금 상태로 다시 계산한다(refreshPending). 장면당 1번, 카드 1장 제한(확정 때 쓰는 카드)에는 세지 않는다. 결정적 (덱 순서 그대로)
+ */
+export function redrawNow(s: SimState, hand: number): boolean {
+  const ms = s.moments;
+  const m = ms.pending;
+  if (!m || !s.cards || m.type === 'react' || ms.resetUsed === m.id) return false;
+  const mc = m.cards.find((c) => c.hand === hand);
+  const a = s.agents.find((x) => x.spec.isMe && x.onPitch);
+  if (!a || !mc || !mc.usable || mc.role !== 'redraw') return false;
+  playCard(s, a, hand, m.scene, false, m.cards.filter((c) => !c.usable).map((c) => c.hand));
+  ms.resetUsed = m.id;
+  refreshPending(s);
+  return true;
+}
+
+/** 멈춘 결정 순간의 패·카드 선택지를 지금 패로 다시 계산한다 (엔진 후보·기본 선택지는 그대로). 리셋을 쓴 장면이면 남은 리셋은 못 씀 */
+export function refreshPending(s: SimState): void {
+  const ms = s.moments;
+  const m = ms.pending as (Moment & { cands?: Candidate[]; variants?: Variant[]; duelVariants?: DuelVariant[]; spVariants?: SpVariant[] }) | null;
+  const a = s.agents.find((x) => x.spec.isMe && x.onPitch);
+  if (!m || !s.cards || !a) return;
+  if (m.type === 'onball' && m.cands) {
+    const ctx = m.options.map((o) => optionCtx(s, a, m.cands![o.ref]!));
+    const r = onballCards(s, a, m.scene, m.cands, ctx, staminaAdj(s, a));
+    m.cards = r.cards;
+    m.variants = r.variants;
+  } else if (m.type === 'duel') {
+    const o = s.agents[s.ball.owner];
+    if (!o) return;
+    const r = duelCards(s, a, o, m.scene, m.options, duelOdds(s, o, a));
+    m.cards = r.cards;
+    m.duelVariants = r.dv;
+  } else if (m.type === 'setPiece') {
+    const pPen = m.scene === 'penalty' ? penaltyProb(s, a, 0) : 0;
+    const r = setPieceCards(s, a, m.scene, pPen, [{ tags: m.scene === 'penalty' ? ['shoot'] : ['cross', 'pass'], box: m.scene === 'penalty' }]);
+    m.cards = r.view;
+    m.spVariants = r.vars;
+  } else return;
+  if (ms.resetUsed === m.id) m.cards = m.cards.map((c) => (c.role === 'redraw' ? { ...c, usable: false, reason: '리셋은 장면당 1번', deltas: undefined } : c));
+}
+
+/**
+ * 판단 미끄러짐 (C.75h, B안): 내 선수의 엔진 결정(자동·맡기기·정지 안 한 순간)에서 판단(judgementOf)이 ref 보다 낮으면
+ * p = max × (ref − 판단)/ref 확률로 고른 후보보다 효용이 한 단계 낮은 (보이는) 후보를 고른다. 결정적 난수, NPC 는 부르지 않는다
+ */
+export function slipPick(s: SimState, a: Agent, cands: Candidate[], c: Candidate): Candidate {
+  const S = M.delegateSlip;
+  const p = clamp((S.max * (S.ref - judgementOf(a))) / S.ref, 0, S.max);
+  if (p <= 0 || rand(s.seed, s.tick, a.idx, Purpose.Decide, 9) >= p) return c;
+  let next: Candidate | null = null;
+  cands.forEach((x, k) => {
+    if (x !== c && x.u < c.u && (!next || x.u > next.u) && visible(s, a, x, k)) next = x;
+  });
+  return next ?? c;
 }
 
 /** 기대 평점 (봇): 바로 오는 평점 + 성공 시 이어질 공격의 평점 몫 */
