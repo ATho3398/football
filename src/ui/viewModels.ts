@@ -1825,7 +1825,8 @@ export interface HalftimeVM {
   score: [number, number];
   side: 0 | 1;
   tendencies: { id: Tendency; style: TacticStyle; name: string; on: boolean }[];
-  details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string }[];
+  /** changed = 경기 전 전술과 다름 (237 "바뀜" 표시) */
+  details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string; changed: boolean }[];
   sets: { id: number; name: string; desc: string; on: boolean }[];
   changed: boolean;
   chips: string[];
@@ -1845,7 +1846,7 @@ export function halftimeVM(draft: HalftimeDraft, base: Pick<HalftimeDraft, 'tend
   return {
     teams, score, side,
     tendencies: TENDENCIES.map((id) => ({ id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], on: id === draft.tendency })),
-    details: DETAILS.map((d) => ({ key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })), value: LEVEL_ID[draft.levels[d]]! })),
+    details: DETAILS.map((d) => ({ key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })), value: LEVEL_ID[draft.levels[d]]!, changed: draft.levels[d] !== base.levels[d] })),
     sets: halftimeSets(base).map((x, i) => ({ id: i, name: x.name, desc: x.desc, on: draft.set === i })),
     changed: draft.tendency !== base.tendency || DETAILS.some((d) => draft.levels[d] !== base.levels[d]),
     chips: [TENDENCY_NAMES_KO[draft.tendency], `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],

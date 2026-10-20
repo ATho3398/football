@@ -37,7 +37,7 @@ import { ENGINE } from '../engine/config';
 import { cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
-import { MomentPitch, momentCrop, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
+import { MomentPitch, momentCrop, momentView, OutcomePitch, outcomeView, shownOptions, type MomentVM, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { ratingFromParts, ratingParts } from '../engine/rating';
 import { autoAllocate, raiseAttribute } from '../growth';
@@ -189,6 +189,8 @@ const ui = {
     oc: null | { vm: OutcomeVM; pitch: OutcomePitch; next: Moment | null; timer: number };
     /** 하프타임 전술 초안 (C.75k): 경기 전 전술(base)에서 시작 */
     ht?: { draft: HalftimeDraft; base: Pick<HalftimeDraft, 'tendency' | 'levels'> } | null;
+    /** PC 결정 순간 "최근 흐름" (218, C.76f): 멈출 때 한 번 만든다 */
+    feed?: MomentVM['feed'];
   },
   /** 설정 화면 페이스온 (C.43) */
   fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
@@ -532,7 +534,7 @@ function screenHtml(): string {
       if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side));
       if (lv && m) {
         const log = lv.run.sim.state.moments.log;
-        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1 });
+        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1, ...(lv.feed ? { feed: lv.feed } : {}) });
       }
       break;
     }
@@ -760,6 +762,14 @@ function livePlayers(g: GameState) {
   return replayPlayers(s.input.home, s.input.away).map((p) => (p.isMe ? { ...p, name: g.player.name } : p));
 }
 
+/** PC 결정 순간 "최근 흐름" (218, C.76f): 이 순간까지의 경기 이벤트 피드 마지막 2줄. 엔진 이벤트는 읽기만 한다 */
+function recentFeed(events: Parameters<typeof replayEvents>[0], players: Parameters<typeof replayEvents>[1], teams: [string, string], m: Moment): NonNullable<MomentVM['feed']> {
+  return replayEvents(events, players, teams, elapsedMapper(events, ENGINE.time.halfSeconds))
+    .filter((x) => x.type !== 'kickoff' && x.type !== 'halftime' && x.type !== 'fulltime')
+    .slice(-2)
+    .map((x) => ({ minute: x.minute, text: x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text, kind: feedKind(x, m.side), mine: x.players[0] === m.me }));
+}
+
 /** 직접 모드 경기: 다음 결정 순간까지 돌리고 멈추면 결정 화면, 끝나면 결과 처리 */
 function liveAdvance(g: GameState): void {
   liveShow(g, ui.live!.run.advance());
@@ -770,8 +780,9 @@ function liveShow(g: GameState, m: Moment | null): void {
   const lv = ui.live!;
   lv.pitch?.stop();
   if (m?.type === 'halftime') {
-    // 하프타임 전술 변경 (C.75k): 경기 전 전술에서 시작하는 시트
-    lv.pitch = null;
+    // 하프타임 전술 변경 (C.75k): 경기 전 전술에서 시작하는 시트. 뒤에 전반 마지막 장면을 멈춘 채 흐리게 (237, C.76f)
+    setPitchTeams(lv.teams);
+    lv.pitch = new MomentPitch(lv.run.frames, new Map(livePlayers(g).map((p) => [p.id, p])), m.side, m, lv.run.frames.at(-1)!.e, null, []);
     const t = lv.run.input.myTactics;
     const base = { tendency: t?.tendency ?? 'balanced', levels: { ...(t?.levels ?? tendencyLevels(t?.tendency ?? 'balanced')) } } as Pick<HalftimeDraft, 'tendency' | 'levels'>;
     lv.ht = { base, draft: { ...base, levels: { ...base.levels }, set: 0 } };
@@ -793,6 +804,7 @@ function liveShow(g: GameState, m: Moment | null): void {
       lv.sel = m.options.length;
     }
     lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, lv.sel, shownOptions(m, lv.card));
+    lv.feed = recentFeed(lv.run.sim.state.events, [...players.values()], lv.teams, m);
     go('moment');
     return;
   }
