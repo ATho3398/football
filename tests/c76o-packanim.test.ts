@@ -46,9 +46,9 @@ describe('C.76o 팩 개봉 연출 규칙', () => {
     expect(sequenceFrame('common', 59)).toBe('anim/pack/pack-common/0060.png');
     expect(PACK_ANIM.kind).toBe('motion');
   });
-  it('표지 한 장: 종류별 → cover.png 순서, 선택권은 종류별만, 찢는 선으로 위·몸통 자르기', () => {
-    expect(coverFiles('pack', 'normal')).toEqual(['anim/pack/cover-normal.png', 'anim/pack/cover.png']);
-    expect(coverFiles('pick', 'achievement')).toEqual(['anim/pack/cover-achievement.png']);
+  it('표지 한 장: 종류별 → cover 순서(webp → png), 선택권은 종류별만, 찢는 선으로 위·몸통 자르기', () => {
+    expect(coverFiles('pack', 'normal')).toEqual(['anim/pack/cover-normal.webp', 'anim/pack/cover-normal.png', 'anim/pack/cover.webp', 'anim/pack/cover.png']);
+    expect(coverFiles('pick', 'achievement')).toEqual(['anim/pack/cover-achievement.webp', 'anim/pack/cover-achievement.png']);
     expect(coverFiles('pick', undefined)).toEqual([]);
     expect(coverClip('top', 0.12)).toMatch(/^polygon\(0% 0%, 100% 0%, 100\.0% 1[0-3]/);
     expect(coverClip('body', 0.12)).toMatch(/100% 100%, 0% 100%\)$/);

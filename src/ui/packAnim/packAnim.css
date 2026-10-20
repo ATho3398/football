@@ -29,7 +29,7 @@
 .pk-packwrap { --pw: min(220px, 52vw); position: absolute; z-index: 2; width: var(--pw); height: calc(var(--pw) * 1.5); left: calc(50% - var(--pw) / 2); top: calc(45% - var(--pw) * .75); perspective: 900px; }
 .pk-float { position: absolute; inset: 0; }
 .pk-packwrap.is-float .pk-float { animation: pk-float 3s ease-in-out infinite; }
-.pk-aura { position: absolute; inset: -35%; border-radius: 50%; background: radial-gradient(closest-side, rgba(214, 255, 60, .22), transparent); opacity: .35; pointer-events: none; }
+.pk-aura { position: absolute; inset: -35%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, .18), transparent); opacity: .35; pointer-events: none; }
 .pk-pack { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .12s ease-out; cursor: pointer; }
 .pk-pack.is-sway { animation: pk-sway 3.4s ease-in-out infinite; }
 .pk-pack__body, .pk-pack__top { position: absolute; inset: 0; }
@@ -44,7 +44,16 @@
 }
 .pk-pack.is-sway .pk-glare { animation: pk-glare 3.4s ease-in-out infinite; }
 .pk-pack.is-torn .pk-glare { opacity: 0; }
-.pk-cover { position: absolute; inset: 0; background: center / 100% 100% no-repeat; }
+.pk-cover { position: absolute; inset: 0; }
+.pk-cover__img { position: absolute; inset: 0; background: center / 100% 100% no-repeat; }
+/* 봉합선: 위아래 눌린 띠 + 세로 주름 */
+.pk-cover__seam { position: absolute; left: 0; right: 0; height: 5%; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .22) 0 2px, transparent 2px 8px), linear-gradient(rgba(0, 0, 0, .35), rgba(255, 255, 255, .12)); }
+.pk-cover__seam.is-top { top: 0; }
+.pk-cover__seam.is-bot { bottom: 0; transform: scaleY(-1); }
+.pk-cover__logo { position: absolute; left: 0; right: 0; top: 15%; text-align: center; font-size: calc(var(--pw) * .085); font-weight: 900; font-style: italic; letter-spacing: .08em; color: #fff; text-shadow: 0 2px 6px rgba(0, 0, 0, .7); }
+.pk-cover__name { position: absolute; left: 0; right: 0; bottom: 5%; padding: 7% 0 4%; display: grid; justify-items: center; background: linear-gradient(transparent, rgba(5, 8, 20, .82) 45%); }
+.pk-cover__name b { font-size: calc(var(--pw) * .075); font-weight: 900; color: #fff; }
+.pk-cover__name small { font-size: calc(var(--pw) * .045); font-weight: 700; letter-spacing: .25em; color: var(--pk-acc); }
 .pk-pack.has-cover .pk-glare { border-radius: 0; }
 .pk-slit { position: absolute; left: 2%; right: 2%; top: var(--tear, 15.5%); height: 3px; border-radius: 3px; background: #fff; box-shadow: 0 0 14px 5px var(--pk-c, #fff); opacity: 0; }
 .pk-shard {

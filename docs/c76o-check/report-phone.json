@@ -6,10 +6,10 @@
     "legendary": {
       "fps": 60,
       "worstMs": 16.8,
-      "sec": 7.7
+      "sec": 8
     },
     "common": {
-      "fps": 59.8,
+      "fps": 60.1,
       "worstMs": 16.8,
       "sec": 2.4
     }

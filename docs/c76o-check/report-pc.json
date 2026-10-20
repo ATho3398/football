@@ -4,12 +4,12 @@
   "errors": [],
   "fps": {
     "legendary": {
-      "fps": 59.8,
-      "worstMs": 33.3,
-      "sec": 8.5
+      "fps": 59.9,
+      "worstMs": 16.8,
+      "sec": 8.3
     },
     "common": {
-      "fps": 59,
+      "fps": 59.5,
       "worstMs": 33.4,
       "sec": 2.4
     }

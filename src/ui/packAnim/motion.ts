@@ -81,9 +81,24 @@ export function findCover(files: string[]): Promise<string | null> {
   return p;
 }
 
-/** 표지 이미지 팩: 같은 그림을 찢는 선으로 위 띠·몸통 두 장으로 잘라 겹친다 */
-function coverHtml(url: string, part: 'top' | 'body'): string {
-  return `<div class="pk-cover" style="background-image:url('${url.replace(/'/g, '%27')}');clip-path:${coverClip(part, PACK_COVER.tear)}"></div>`;
+/** 팩 실루엣 (200×300): 둥근 모서리 + 위아래 톱니 봉합선. 전면 그림 표지를 이 모양으로 자른다 (mask) */
+const SILHOUETTE = (() => {
+  let top = 'M0 8';
+  for (let x = 0; x < 200; x += 8) top += ` L${x + 4} 2 L${x + 8} 8`;
+  let bot = '';
+  for (let x = 200; x > 0; x -= 8) bot += ` L${x - 4} 298 L${x - 8} 292`;
+  const d = `${top} V286 Q200 292 196 292${bot} Q0 292 0 286 Z`.replace('V286 Q200 292 196 292', 'L200 286 L200 292');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" preserveAspectRatio="none"><path d="${d}" fill="#000"/></svg>`;
+  return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
+})();
+const MASK = `-webkit-mask-image:${SILHOUETTE};mask-image:${SILHOUETTE};-webkit-mask-size:100% 100%;mask-size:100% 100%`;
+
+/** 표지 이미지 팩: 같은 그림을 찢는 선으로 위 띠·몸통 두 장으로 잘라 겹친다. 봉합선·게임 이름·팩 이름은 코드로 얹는다 (그림엔 글자 없음) */
+function coverHtml(url: string, part: 'top' | 'body', name: string): string {
+  const deco = part === 'top'
+    ? '<span class="pk-cover__seam is-top"></span>'
+    : `<span class="pk-cover__seam is-bot"></span><b class="pk-cover__logo">PLAYER ONE</b><span class="pk-cover__name"><b>${name.replace(/[<&>"]/g, '')}</b><small>CARD PACK</small></span>`;
+  return `<div class="pk-cover" style="clip-path:${coverClip(part, PACK_COVER.tear)};${MASK}"><span class="pk-cover__img" style="background-image:url('${url.replace(/'/g, '%27')}')"></span>${deco}</div>`;
 }
 
 /** 카드 뒷면 */
@@ -347,7 +362,7 @@ export function createMotionAnimation(): PackAnimation {
           // 1. 팩 등장
           const wrap = document.createElement('div');
           wrap.className = 'pk-packwrap';
-          wrap.innerHTML = `<div class="pk-float"><div class="pk-aura"></div><div class="pk-pack${cover ? ' has-cover' : ''}"${cover ? ` style="--tear:${PACK_COVER.tear * 100}%"` : ''}><div class="pk-pack__body">${cover ? coverHtml(cover, 'body') : packSvg(o.pack.name, 'body')}</div><div class="pk-pack__top">${cover ? coverHtml(cover, 'top') : packSvg(o.pack.name, 'top')}</div><div class="pk-glare"${cover ? ` style="-webkit-mask-image:url('${cover}');mask-image:url('${cover}');-webkit-mask-size:100% 100%;mask-size:100% 100%"` : ''}></div><div class="pk-slit"></div></div></div>`;
+          wrap.innerHTML = `<div class="pk-float"><div class="pk-aura"></div><div class="pk-pack${cover ? ' has-cover' : ''}"${cover ? ` style="--tear:${PACK_COVER.tear * 100}%"` : ''}><div class="pk-pack__body">${cover ? coverHtml(cover, 'body', o.pack.name) : packSvg(o.pack.name, 'body')}</div><div class="pk-pack__top">${cover ? coverHtml(cover, 'top', o.pack.name) : packSvg(o.pack.name, 'top')}</div><div class="pk-glare"${cover ? ` style="${MASK}"` : ''}></div><div class="pk-slit"></div></div></div>`;
           const hint = document.createElement('p');
           hint.className = 'pk-hint';
           hint.textContent = HOVER() ? '클릭해서 열기 · 마우스로 기울여 보세요' : '탭해서 열기 · 위로 밀거나 길게 눌러도 돼요';

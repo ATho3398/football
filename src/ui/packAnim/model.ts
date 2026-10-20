@@ -91,11 +91,14 @@ export function sequenceFrame(r: AnimRarity, i: number, dir = PACK_ANIM_DIR): st
   return `${dir}pack-${r}/${String(i + 1).padStart(4, '0')}.png`;
 }
 
-/** 표지 후보 (먼저 있는 것): 팩은 cover-<종류>.png → cover.png, 선택권은 cover-<종류>.png 만 (없으면 팩 없이 빛 구슬) */
-export function coverFiles(kind: 'pack' | 'pick', cover: string | undefined, dir = PACK_ANIM_DIR): string[] {
-  const own = cover ? [`${dir}cover-${cover}.png`] : [];
-  return kind === 'pack' ? [...own, `${dir}cover.png`] : own;
+/** 표지 후보 (먼저 있는 것, webp → png): 팩은 cover-<종류> → cover, 선택권은 cover-<종류>.png 만 (없으면 팩 없이 빛 구슬) */
+export function coverFiles(kind: 'pack' | 'pick', cover: string | undefined, dir = PACK_ANIM_DIR, exts: readonly string[] = COVER_EXTS): string[] {
+  const names = [...(cover ? [`cover-${cover}`] : []), ...(kind === 'pack' ? ['cover'] : [])];
+  return names.flatMap((n) => exts.map((e) => `${dir}${n}.${e}`));
 }
+
+/** 표지 파일 형식 (먼저 있는 것) */
+export const COVER_EXTS = ['webp', 'png'] as const;
 
 /** 표지를 찢는 선(지그재그)으로 자른 clip-path: 'top' = 위 띠, 'body' = 몸통. tear = 위에서 비율 */
 export function coverClip(part: 'top' | 'body', tear: number, teeth = 10): string {
