@@ -579,6 +579,6 @@
 
 ### 8.40 마스터 세션 U (2026-10-20 14:45 KST~, `session_01DUqLtswE7hDV9NHhh6HfZq`, 브랜치 `claude/planning-u`)
 - T가 만든 세션 → `lineage` 깊이 3(한도 8). 환경 "player ONE". 브랜치 `claude/planning-u`(planning-t 9749916에서, 푸시).
-- 시작 처리(14:48 KST): ① T에 "U 준비 완료 + U ID"(delivered) ② C.75k·l·m·n·o·p·q·r·s·t·엔진관리자5·UI_4에 "보고는 U, 마스터 브랜치 claude/planning-u, 답장 불필요"(12개 모두 delivered, 엔진관리자5·UI_4는 priority later) ③ T 제목 `draft_T_축구 커리어 게임 마스터`(T 최종 약 37.6만·12.0달러) ④ U 자동 확인 send_later `trig_019TegikUs5jggQj2RHEj1Nn`(15:47 KST) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
+- 시작 처리(14:46 KST): ① T에 "U 준비 완료 + U ID"(delivered) ② C.75k·l·m·n·o·p·q·r·s·t·엔진관리자5·UI_4에 "보고는 U, 마스터 브랜치 claude/planning-u, 답장 불필요"(12개 모두 delivered, 엔진관리자5·UI_4는 priority later) ③ T 제목 `draft_T_축구 커리어 게임 마스터`(T 최종 약 37.6만·12.0달러) ④ U 자동 확인 send_later `trig_019TegikUs5jggQj2RHEj1Nn`(15:47 KST) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
 - main CI: run 226(9dd8a59, C.75h) 성공 → **C.75h draft_**. run 227(fc3710a, C.75i) 진행 중 → 자동 확인 때 C.75i draft_.
 - 다음: 코드 세션 10개 보고 처리 → 44f-b → 45b·45c → 46b (8.39).
