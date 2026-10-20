@@ -2,12 +2,15 @@
 // 목록 = 알림 카드 줄, 선택형 = 면담처럼 선택지 라디오 + 아래 [나중에][이걸로 할게요]. 홈에는 안 읽은 것 최대 3개 + 라이벌 카드
 
 import { Avatar, Button, Crest, HeroPanel, Icon, OptionRow, SectionTitle, StatChip, Tabs, esc } from '../components';
-import type { GoalsCardVM, InboxDetailVM, InboxRowVM, InboxVM, RivalCardVM } from '../inboxVM';
+import type { FxVM, GoalsCardVM, InboxDetailVM, InboxRowVM, InboxVM, RivalCardVM } from '../inboxVM';
 import { actionRow, panel } from './common';
 
 function linkButton(l: NonNullable<InboxRowVM['link']>): string {
   return Button({ size: 'sm', variant: 'secondary', act: l.act ?? 'go', data: l.act ? { v: l.v ?? '' } : { to: l.to ?? 'home' }, children: l.label });
 }
+
+/** 면담 결과 칩 줄 (C.76i 디자인 197 ②): 남은 n경기(라임 테두리) · 신뢰도 n */
+const tagRow = (r: InboxRowVM) => (r.tags?.length ? `<span class="ib-tags">${r.tags.map((t) => `<span class="mg-pv__chip${t.brand ? ' is-brand' : ''}">${esc(t.label)}</span>`).join('')}</span>` : '');
 
 /** 알림 카드 한 줄 (디자인 133 hm-alert): 아이콘 · 머리(분류·날짜) · 제목 · 내용 · 상태 · 버튼. home = 홈 카드(닫기 = 읽음) */
 export function inboxCard(r: InboxRowVM, home = false): string {
@@ -19,7 +22,7 @@ export function inboxCard(r: InboxRowVM, home = false): string {
   const x = home && !r.pending ? `<button type="button" class="hm-alert__x" data-act="inbox-read" data-v="${r.id}" aria-label="읽음">${Icon({ name: 'close', size: 16 })}</button>` : '<span></span>';
   return `<div class="panel hm-alert ib-row${r.unread ? ' is-unread' : ''}${r.pending ? ' is-todo' : ''}" role="status">
     <span class="hm-alert__icon">${Icon({ name: r.icon, size: 18 })}</span>
-    <div class="hm-alert__body"><span class="hm-alert__eyebrow">${esc(r.cat)} · ${esc(r.when)}${r.status ? ` · <b class="ib-status">${esc(r.status)}</b>` : ''}</span><b>${esc(r.title)}</b><p>${esc(r.body)}</p>${btns ? `<div class="ib-btns">${btns}</div>` : ''}</div>
+    <div class="hm-alert__body"><span class="hm-alert__eyebrow">${esc(r.cat)} · ${esc(r.when)}${r.status ? ` · <b class="ib-status">${esc(r.status)}</b>` : ''}</span><b>${esc(r.title)}</b><p>${esc(r.body)}</p>${tagRow(r)}${btns ? `<div class="ib-btns">${btns}</div>` : ''}</div>
     ${x}</div>`;
 }
 
@@ -31,39 +34,77 @@ export function homeInboxSection(rows: InboxRowVM[], unread: number): string {
   return head + rows.map((r) => inboxCard(r, true)).join('');
 }
 
-/** 인박스 화면 */
-export function inboxView(vm: InboxVM): string {
-  const hero = HeroPanel({
-    title: '인박스', back: { act: 'go', data: { to: 'home' } }, compact: true, pad: false, progress: false,
-    eyebrow: '알림 · 소식 · 답할 것', value: vm.unread ? `안 읽음 ${vm.unread}` : '모두 읽음',
-    chips: vm.todo ? [`답할 것 ${vm.todo}`] : [{ label: '답할 것 없음', soft: true }],
-  });
-  const tabs = Tabs({ items: [{ id: 'all', label: '전체' }, { id: 'todo', label: `답할 것${vm.todo ? ` ${vm.todo}` : ''}` }, { id: 'info', label: '소식' }], value: vm.filter, variant: 'underline', fill: true, act: 'inbox-tab', label: '인박스' });
-  const list = vm.rows.length ? vm.rows.map((r) => inboxCard(r)).join('') : panel('<p class="muted small">아직 알림이 없어요. 경기·하루 진행에 따라 소식과 선택이 와요.</p>');
-  const tools = vm.unread ? `<div class="ib-tools"><button type="button" class="link-btn" data-act="inbox-all-read">모두 읽음</button></div>` : '';
-  return `${hero}<div class="body ib-body">${tabs}${tools}<div class="ib-list">${list}</div>
-    <p class="small muted">선택형은 기한(보통 7일)이 지나면 기본 선택으로 넘어가요. 오래된 읽은 알림은 ${'80'}개를 넘으면 지워져요.</p></div>`;
+/** 인박스 목록 한 줄 (C.76i 디자인 193): 아이콘 칸 · 종류 · 날짜 · 제목 · 한 줄 · 안 읽음 점(+왼쪽 라임 막대) · 답 필요/답함 칩. 줄 전체를 누르면 상세 */
+function inboxListRow(r: InboxRowVM, on: boolean): string {
+  return `<button type="button" class="ib-item${r.unread ? ' is-unread' : ''}${r.pending ? ' is-todo' : ''}${on ? ' is-on' : ''}" data-act="inbox-open" data-v="${r.id}">
+    <span class="ib-item__icon">${Icon({ name: r.icon, size: 18 })}</span>
+    <span class="ib-item__main"><span class="ib-item__top"><small><b>${esc(r.cat)}</b></small><small class="ib-item__date">${esc(r.when)}</small></span>
+      <b class="ib-item__title">${esc(r.title)}</b><span class="ib-item__body">${esc(r.body)}</span>
+      ${r.chip ? `<span class="ib-chip${r.pending ? ' is-todo' : ''}">${esc(r.chip)}</span>` : ''}${tagRow(r)}</span>
+    ${r.unread ? '<i class="ib-item__dot" aria-label="안 읽음"></i>' : ''}</button>`;
 }
 
-/** 알림 하나 (선택형 = 면담 화면 구조, 디자인 45) */
-export function inboxDetailView(vm: InboxDetailVM, sel: string | null): string {
+const EMPTY = {
+  all: ['아직 알림이 없어요', '경기·하루 진행에 따라 소식과 선택이 와요.'],
+  todo: ['답할 것이 없어요', '선택형 알림이 오면 여기 모여요. 기한 안에 답하지 않으면 기본 선택으로 넘어가요.'],
+  info: ['소식이 없어요', '구단·언론·라이벌 소식이 오면 여기 모여요.'],
+} as const;
+
+/** 인박스 화면 (C.76i 디자인 193): 묶음 탭(답할 것 배지) · 안내 줄 + 모두 읽음 · 목록 / 빈 상태. side = PC 오른쪽 상세(2열) */
+export function inboxView(vm: InboxVM, side = '', selId: number | null = null): string {
+  const hero = HeroPanel({
+    title: '인박스', back: { act: 'go', data: { to: 'home' } }, compact: true, pad: false, progress: false,
+    eyebrow: '알림 · 소식 · 답할 것', value: `안 읽음 ${vm.unread}`,
+    chips: vm.todo ? [`답할 것 ${vm.todo}`] : [{ label: '답할 것 없음', soft: true }],
+  });
+  const tabs = Tabs({ items: [{ id: 'all', label: '전체' }, { id: 'todo', label: '답할 것', ...(vm.todo ? { badge: vm.todo } : {}) }, { id: 'info', label: '소식' }], value: vm.filter, variant: 'underline', fill: true, act: 'inbox-tab', label: '인박스' });
+  const [t, d] = EMPTY[vm.filter];
+  const list = vm.rows.length
+    ? `<div class="ib-tools small"><span class="muted">새 알림이 맨 위 · 답할 것은 기한 순</span>${vm.unread ? '<button type="button" class="link-btn" data-act="inbox-all-read">모두 읽음</button>' : ''}</div>
+      <div class="ib-list">${vm.rows.map((r) => inboxListRow(r, r.id === selId)).join('')}</div>`
+    : `<div class="panel ib-empty"><span class="ib-empty__icon">${Icon({ name: 'inbox', size: 22 })}</span><b>${t}</b><p class="small muted">${d}</p>${
+      vm.filter !== 'all' ? Button({ size: 'sm', variant: 'secondary', act: 'inbox-tab', data: { v: 'all' }, children: '전체 보기' }) : ''}</div>`;
+  const note = '<p class="small muted">선택형은 기한(보통 7일)이 지나면 기본 선택으로 넘어가요. 오래된 읽은 알림은 80개를 넘으면 지워져요.</p>';
+  const left = `${tabs}${list}${note}`;
+  if (side) return `${hero}<div class="body ib-body ib-pc"><div class="ib-pc__list">${left}</div><div class="ib-pc__side">${side}</div></div>`;
+  return `${hero}<div class="body ib-body">${left}</div>`;
+}
+
+const fxRow = (fx: FxVM[]) => `<div class="ib-fx">${fx.map((f) => `<span class="ib-fx__cell"><b class="po-num${f.tone ? ` ${f.tone}` : ''}">${esc(f.value)}</b><small>${esc(f.label)}</small></span>`).join('')}</div>`;
+
+/** 알림 하나 본문 (C.76i 디자인 194): 보낸 이 말풍선 · 선택지(기본 선택 칩) · 효과 미리보기 5칸 / 답한 뒤 = 결과 칸(효과 5칸) + 다음 답할 것. inline = PC 오른쪽 칸(버튼이 본문 안) */
+export function inboxDetailBody(vm: InboxDetailVM, sel: string | null, inline = false): { body: string; dock: string } {
   const pick = vm.choices.find((c) => c.id === sel && !c.disabled) ?? vm.choices.find((c) => !c.disabled) ?? null;
-  const hero = HeroPanel({ title: '인박스', back: { act: 'go', data: { to: 'inbox' } }, compact: true, pad: false, progress: false, eyebrow: vm.when, value: vm.cat, chips: vm.status ? [vm.status] : [] });
-  const say = `<div class="mg-say"><span class="hm-alert__icon">${Icon({ name: vm.icon, size: 20 })}</span><div><small>${esc(vm.cat)} · ${esc(vm.when)}</small><b class="ib-title">${esc(vm.title)}</b><p>${esc(vm.body)}</p></div></div>`;
-  const ans = vm.answer ? panel(`<b class="mg-sub">${vm.answer.auto ? (vm.answer.text.startsWith('자동 진행') ? '자동 진행 답' : '기본 선택') : '내 선택'} · ${esc(vm.answer.label || '—')}</b><p class="small">${esc(vm.answer.text)}</p>`, 'ib-answer') : '';
+  const say = `<div class="ib-say"><span class="ib-item__icon">${Icon({ name: vm.icon, size: 20 })}</span><div class="ib-say__bubble"><small><b>${esc(vm.cat)}</b> · ${esc(vm.when)}</small><b class="ib-title">${esc(vm.title)}</b><p>${esc(vm.body)}</p></div></div>`;
+  const a = vm.answer;
+  const ans = a ? `${SectionTitle({ title: '결과' })}<div class="panel ib-result">
+      <div class="ib-result__head">${Icon({ name: 'check', size: 16 })}<b>${a.auto ? (a.text.startsWith('자동 진행') ? '자동 진행 답' : '기본 선택') : '내 선택'} · ${esc(a.label || '—')}</b></div>
+      <p>${esc(a.text)}</p>${vm.answerFx ? fxRow(vm.answerFx) : ''}</div>
+    ${vm.next ? `<button type="button" class="panel ib-next" data-act="inbox-open" data-v="${vm.next.id}"><span class="ib-item__icon">${Icon({ name: 'chat', size: 16 })}</span><span class="grow"><small class="muted">다음 답할 것 · ${esc(vm.next.left)}</small><b>${esc(vm.next.title)}</b></span>${Icon({ name: 'chevron-right', size: 18 })}</button>` : ''}
+    <p class="small muted">답한 알림은 인박스에 남아요. 선택은 바꿀 수 없어요.</p>` : '';
+  const sfx = pick?.fx;
   const opts = vm.pending
     ? `${SectionTitle({ title: '어떻게 할까요?', action: '1개' })}<div class="mg-opts">${vm.choices.map((c) => OptionRow({
       act: 'inbox-pick', data: { v: c.id }, radio: true, selected: pick?.id === c.id, title: c.label, desc: c.disabled ? `${c.desc} · ${c.disabled}` : c.desc, disabled: !!c.disabled,
-    })).join('')}</div><p class="small muted">답하지 않으면 기한이 끝날 때 기본 선택으로 넘어가요.</p>`
+      ...(c.def ? { tag: '기본 선택' } : {}),
+    })).join('')}</div>
+    ${sfx ? `<div class="panel ib-preview"><div class="ib-preview__head"><b>효과 미리보기 · ${esc(pick!.label)}</b><small class="muted">답하면 바로 반영</small></div>${fxRow(sfx)}</div>` : ''}
+    <p class="small muted">답하지 않으면 기한이 끝날 때 기본 선택으로 넘어가요.</p>`
     : '';
   const link = vm.link ? `<div class="ib-btns">${linkButton(vm.link)}</div>` : '';
-  const dock = vm.pending
-    ? `<div class="dock mg-dock">${actionRow(
-      Button({ variant: 'secondary', size: 'lg', block: true, act: 'go', data: { to: 'inbox' }, children: '나중에' }),
-      Button({ size: 'lg', block: true, act: 'inbox-answer', data: { v: pick?.id ?? '', id: vm.id }, disabled: !pick, children: '이걸로 할게요' }),
-    )}</div>`
-    : '';
-  return `${hero}<div class="body mg-body ib-detail">${say}${ans}${opts}${link}</div>${dock}`;
+  const btns = vm.pending ? actionRow(
+    Button({ variant: 'secondary', size: 'lg', block: true, act: 'go', data: { to: 'inbox' }, children: '나중에' }),
+    Button({ size: 'lg', block: true, act: 'inbox-answer', data: { v: pick?.id ?? '', id: vm.id }, disabled: !pick, children: '이걸로 할게요' }),
+  ) : '';
+  const body = `${say}${ans}${opts}${link}${inline && btns ? `<div class="ib-inline-btns">${btns}</div>` : ''}`;
+  return { body, dock: !inline && btns ? `<div class="dock mg-dock">${btns}</div>` : '' };
+}
+
+/** 알림 하나 (폰): 머리말 칩 = 답할 것 기한 / 답함 · 고른 것 */
+export function inboxDetailView(vm: InboxDetailVM, sel: string | null): string {
+  const hero = HeroPanel({ title: '인박스', back: { act: 'go', data: { to: 'inbox' } }, compact: true, pad: false, progress: false, eyebrow: vm.when, value: vm.cat, chips: vm.status ? [vm.status] : [] });
+  const { body, dock } = inboxDetailBody(vm, sel);
+  return `${hero}<div class="body mg-body ib-detail">${body}</div>${dock}`;
 }
 
 /** 홈 라이벌 카드 (20.5 → C.76g 디자인 195): 얼굴·이름·팀·OVR + 시즌 기록 비교 표(앞선 쪽 색) + 골+도움 막대 + 앞섬/뒤짐 칩 */
