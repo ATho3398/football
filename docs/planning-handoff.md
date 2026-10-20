@@ -606,3 +606,4 @@
 - (18:01 KST) **C.76b 완료**(46b, main 6df4acc, BALANCE 60·SAVE 48, 테스트 916) → UI_4 알림, ntfy. 46단계 끝. 진행 중 C.75v·C.76c(45b)·C.76d(45c)·C.76a(44h-a).
 - (18:27 KST) 자동 확인: run 238(C.75u) 성공 → C.75u draft_. run 239~241 취소(병렬), run 242(6df4acc = C.75z·C.76e·C.76b) 진행 중 → 45분 뒤 재확인.
 - (18:30 KST) **C.75v 완료**(main 1802686, BALANCE 61) → ntfy. 진행 중 C.76a·C.76c·C.76d.
+- (19:07 KST) UI_4 2부 디자인 적용 명세 도착 → pending 137. **C.76f**(U8-a 경기·결정) `session_01CQWNEXwLLXdF8t2LkP6vok`·**C.76g**(U8-b 컴포넌트·홈) `session_01GFKvV2Dv2EbtMM1ifZ9Gi3` 시작, **UI_5** `session_01Jep69tcqmNVqesWrwWp8cP`(claude/ui-5) 시작, UI_4 draft_. U8-c는 C.76c 뒤, U8-d·e는 U8-b 뒤. 다음 새 이름 C.76h. 진행 중 코드 세션 5개(C.76a·c·d·f·g).
