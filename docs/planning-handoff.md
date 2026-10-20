@@ -671,3 +671,4 @@
 - V가 만든 세션 → `lineage` 깊이 5(한도 8). 브랜치 `claude/planning-w`(planning-v 145bca2에서, 푸시).
 - 시작 처리(22:36 KST): ① V에 "W 준비 완료 + W ID"(delivered) ② C.76i·k·l·m·n·o·UI_5에 "보고는 W, 마스터 브랜치 claude/planning-w, 답장 불필요"(7개 모두 delivered, UI_5는 priority later) ③ V 제목 `draft_V_축구 커리어 게임 마스터`(V 최종 약 33.6만 토큰·10.1달러) ④ W 자동 확인 send_later `trig_01PHZ4d9nSWUrGsXpBNNHiTC`(23:37 KST, V 예약은 V가 지움) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
 - 다음: 8.45 다음 순서 그대로. draft_ 남은 것 C.76j(main 807ca7a CI 성공 뒤). 다음 새 이름 C.76p.
+- (22:47 KST, V 경유) **C.76i 48d 완료**(main c49eba7, 버전 그대로, 테스트 988, 새 화면 0, 캡처 docs/design/c76i-check/). 못 한 것: 192 조건 걸기·193 보낸 이 아바타·194 답한 날짜·197② 홈 노출·200 생활 안내 패널·216 게이지 코치 줄·220 인박스 재정 메시지 4종·은퇴 재정 패널. **48단계 남은 것 = C.76l.** run 252(807ca7a)·253(c49eba7) 진행 중 → 성공 뒤 C.76i·j draft_.
