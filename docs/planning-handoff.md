@@ -548,3 +548,4 @@
 - (13:54 KST) 자동 확인(13:53): C.75f·g·h는 이미 처리됨. 재예약 `trig_01XJMTbWG9mPGsYxXtqyXVEA`(14:55 KST, C.75i·k·C.75h CI·44f 판단). T 대화 24.3만 토큰·4.8달러.
 - (14:05 KST) 엔진관리자4 재진단(61bdd76) → 미해결 11(득점 분포 축, 44h) 새로, 44f 진행 가능. **C.75l 시작** `session_01QZ5ZDUYieygE9hrzXVGtHg` "44f단계_엔진 블록 E-4 결과 불변 속도·ST 반응·역할 득실 (C.75l)" 브랜치 `claude/c75l-speed-roles`. 엔진관리자4 40.8만 → 인수인계 갱신 요청, 받으면 엔진관리자5. 지금 코드 세션: C.75i·k·l.
 - (14:07 KST) 엔진관리자4 인수인계 갱신(5fa977d) → **엔진관리자5 시작** `session_01Gg4RyE2G4dDfJ5gkNHsFr7`(Fable, 브랜치 `claude/engine-manager-5` ← engine-manager-4 병합), 첫 할 일 기준선 재측정·미해결 7 해소 확인 → 대기. 엔진관리자4 draft_(40.8만, 20.3달러). C.75i·k·l에 알림.
+- (14:11 KST) 엔진관리자5 준비 완료: 기준선 엔진 26 지문 63b657ed4fe5aaac·quick 득점 1.35·선방 66.8·Δ+8 1.85·롱패스 19.3%·경기 560 ms, 미해결 7 해소 확인. automation.md 엔진 관리자 ID 갱신. **5시간 한도 경고**(16:30 KST 풀림) → ntfy P5, 그때까지 새 큰 세션 안 엶.
