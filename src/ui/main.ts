@@ -1,6 +1,8 @@
 // 웹 UI (B.7, U단계 H.6): 모바일 세로 단일 컬럼, 프레임워크 없이 문자열 렌더링 + 이벤트 위임.
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
+import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
+import { normalizeLeagues } from '../otherLeagues';
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
@@ -250,6 +252,8 @@ const ui = {
     legends: 'off' as 'on' | 'off',
     /** 미래 스타 팩 (C.75y, 레전드 팩과 따로) */
     futureStars: 'off' as 'on' | 'off',
+    /** 고른 리그 (C.75m 리그 고르기): 기본 묶음. 데이터 없는 리그는 시작할 때 빠진다 */
+    leagues: [...DEFAULT_LEAGUES] as string[],
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
@@ -624,20 +628,27 @@ function guideHtml(g: GameState | null): { modal: string; tip: string } {
 
 /**
  * 미페 머리말 긴 이름 (C.57, B-apply 2절): 그린 뒤 실제 폭으로 글자 크기를 줄인다(풀 50 · compact 36 → 최소 24px).
- * 최소에서도 넘치면 그때만 말줄임(CSS). 글꼴(PO Head)이 늦게 오면 받은 뒤 한 번 더
+ * 한 줄 유지, 최소에서도 넘치면 그때만 말줄임(CSS). 글꼴(PO Head)이 늦게 오면 받은 뒤 한 번 더
  */
 function fitHeroNames(): void {
   for (const el of app.querySelectorAll<HTMLElement>('.po-hero__name[data-fit]')) {
     let size = Number(el.dataset.fit) || HERO_NAME.full;
     const apply = () => { el.style.fontSize = `${size}px`; el.style.lineHeight = `${Math.round(size * 1.08)}px`; };
+    // scrollWidth·clientWidth는 정수로 반올림돼 1px 미만 넘침(말줄임은 됨)을 못 잡는다 → 글자 실폭(Range)을 소수점까지 잰다 (C.75u)
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const over = () => typeof range.getBoundingClientRect === 'function'
+      ? range.getBoundingClientRect().width > el.getBoundingClientRect().width - 1
+      : el.scrollWidth > el.clientWidth;
     apply();
-    while (size > HERO_NAME.min && el.scrollWidth > el.clientWidth + 0.5) {
+    while (size > HERO_NAME.min && over()) {
       size--;
       apply();
     }
   }
 }
 void document.fonts?.ready.then(fitHeroNames);
+document.fonts?.addEventListener?.('loadingdone', () => fitHeroNames());
 // PC 2열 (C.61): 1024px 경계를 넘으면 배치가 바뀌는 화면이 있어 다시 그린다. 가로 폰(C.66)도 같은 2열이라 돌릴 때 다시 그린다
 globalThis.matchMedia?.(WIDE_QUERY).addEventListener?.('change', () => render());
 globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => render());
@@ -1817,6 +1828,25 @@ app.addEventListener('click', (ev) => {
       ui.ng.attrsOpen = !ui.ng.attrsOpen;
       render();
       return;
+    case 'ng-lg-open':
+      readFormInputs();
+      ui.ng.leaguesOpen = !ui.ng.leaguesOpen;
+      render();
+      return;
+    case 'ng-league': {
+      // 리그 고르기 (C.75m): 내 리그(맨 앞)는 필수, 데이터 없는 리그는 고를 수 없다
+      readFormInputs();
+      const ids = normalizeLeagues(ui.form.leagues);
+      if (!v || v === ids[0] || !leagueData(v)) return;
+      ui.form.leagues = ids.includes(v) ? ids.filter((x) => x !== v) : [...ids, v];
+      render();
+      return;
+    }
+    case 'ng-leagues':
+      readFormInputs();
+      ui.form.leagues = v === 'mine' ? [normalizeLeagues(ui.form.leagues)[0]!] : v === 'all' ? leagueCatalog().map((e) => e.id) : [...DEFAULT_LEAGUES];
+      render();
+      return;
     case 'ng-sort':
     case 'ng-sort-close':
       // 실제 선수 정렬 (C.71b 디자인 175): 펼침 목록·아래 시트 열고 닫기
@@ -2087,10 +2117,10 @@ app.addEventListener('click', (ev) => {
       // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'custom', custom: rolledSpec(prospectSeed(), f.position, f.name, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined),
-          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on' })
+          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues })
         : f.mode === 'custom'
-          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on' })
-          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on' });
+          ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues })
+          : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues });
       ui.replay = null;
       f.roll = '';
       f.posFor = '';

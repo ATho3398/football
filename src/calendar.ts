@@ -1,4 +1,4 @@
-// 캘린더 (25.1~25.2, 부록 C.38): 2018-19 프리미어리그 패턴의 날짜 일정. 시드로 다시 만들므로 세이브에 담지 않는다.
+// 캘린더 (25.1~25.2, 부록 C.38): 2018-19 프리미어리그 패턴의 날짜 일정 (다른 리그는 leagueCalendar, C.75m). 시드로 다시 만들므로 세이브에 담지 않는다.
 // 8월 둘째 토요일 개막 ~ 5월 둘째 일요일 최종 라운드, 주말 중심, 주중 라운드 4~5회, 박싱데이·새해 연전, A매치 휴식기.
 // 컵(5-6) 자리(FA컵 주말·비는 주중)는 비워 둔다.
 
@@ -164,6 +164,80 @@ function spreadRound(slot: Slot, gapNext: number, n: number, rng: Rng): number[]
   return offsets;
 }
 
+/**
+ * 다른 리그 라운드 자리 (C.75m): 개막~최종 사이 주말(휴식기 빼고)을 쓰고, 많으면 시드로 주말을 빼고(컵 주말),
+ * 모자라면 수요일 주중 라운드를 시즌에 고르게 더한다. PL 은 roundSlots 그대로
+ */
+function leagueSlots(season: number, calendar: 'autumn-spring' | 'spring-autumn', rng: Rng, rounds: number): { slots: Slot[]; breaks: CalendarBreak[] } {
+  const P = BALANCE.calendar.leagues[calendar];
+  const at = ([y, m, d]: readonly [number, number, number]) => isoDate(season + y, m, d);
+  const openingSat = nearestSaturday(at(P.opening));
+  const final = addDays(nearestSaturday(at(P.final)), 1);
+  const breaks: CalendarBreak[] = P.breaks.map((b) => ({ date: nearestSaturday(at(b)), kind: 'international' as const }));
+  const off = new Set(breaks.map((b) => b.date));
+  const weekends: Slot[] = [];
+  for (let d = addDays(openingSat, 7); daysBetween(d, final) > 1; d = addDays(d, 7)) if (!off.has(d)) weekends.push({ date: d, kind: 'weekend' });
+  // 개막·최종 빼고 rounds − 2 자리
+  while (weekends.length > rounds - 2) {
+    const victim = weekends.splice(Math.floor(rng() * weekends.length), 1)[0]!;
+    breaks.push({ date: victim.date, kind: 'cup' });
+  }
+  const need = rounds - 2 - weekends.length;
+  const midweek: Slot[] = [];
+  if (need > 0) {
+    // 수요일 후보: 앞뒤 경기와 3일 이상 (토요일 사이 수요일), 휴식기 주 제외
+    const cands: IsoDate[] = [];
+    for (let d = addDays(openingSat, 4); daysBetween(d, final) > 3; d = addDays(d, 7)) {
+      if (!off.has(addDays(d, -4)) && !off.has(addDays(d, 3))) cands.push(d);
+    }
+    if (cands.length < need) throw new Error(`리그 달력 자리가 모자람 (${rounds}라운드)`);
+    const start = rng() * (cands.length / need);
+    for (let k = 0; k < need; k++) midweek.push({ date: cands[Math.min(cands.length - 1, Math.floor(start + (k * cands.length) / need))]!, kind: 'midweek' });
+  }
+  const slots: Slot[] = [{ date: openingSat, kind: 'opening' }, ...weekends, ...midweek];
+  slots.sort((a, b) => daysBetween(b.date, a.date));
+  slots.push({ date: final, kind: 'final' });
+  breaks.sort((a, b) => daysBetween(b.date, a.date));
+  return { slots, breaks };
+}
+
+/** 라운드 자리 → 경기 날짜 (PL·다른 리그 공통) */
+function buildCalendar(season: number, slots: Slot[], breaks: CalendarBreak[], schedule: Fixture[][], rng: Rng): SeasonCalendar {
+  const fixtureDates = schedule.map((round, r) => {
+    const slot = slots[r]!;
+    const gapNext = r + 1 < slots.length ? daysBetween(slot.date, slots[r + 1]!.date) : 99;
+    const offsets = spreadRound(slot, gapNext, round.length, rng);
+    return offsets.map((o) => addDays(slot.date, o));
+  });
+  return {
+    season,
+    roundDates: fixtureDates.map((ds) => ds.reduce((a, b) => (daysBetween(a, b) < 0 ? b : a))),
+    fixtureDates,
+    breaks,
+    opening: fixtureDates[0]!.reduce((a, b) => (daysBetween(a, b) < 0 ? b : a)),
+    final: slots.at(-1)!.date,
+  };
+}
+
+const leagueCache = new Map<string, SeasonCalendar>();
+
+/** 다른 리그 시즌 일정 (C.75m, 시드로 다시 만든다). PL 이면 seasonCalendar 와 같다 */
+export function leagueCalendar(
+  worldSeed: string, league: { id: string; season: number; schedule: Fixture[][] }, calendar: 'autumn-spring' | 'spring-autumn',
+): SeasonCalendar {
+  if (league.id === 'pl') return seasonCalendar(worldSeed, league.season, league.schedule);
+  const { schedule, season } = league;
+  const key = `${worldSeed}:${league.id}:${season}:${schedule.length}:${schedule[0]?.[0]?.home ?? ''}${schedule[0]?.[0]?.away ?? ''}`;
+  const hit = leagueCache.get(key);
+  if (hit) return hit;
+  const rng = createRng(hashSeed(`${worldSeed}:calendar:${league.id}:${season}`));
+  const { slots, breaks } = leagueSlots(season, calendar, rng, schedule.length);
+  const cal = buildCalendar(season, slots, breaks, schedule, rng);
+  if (leagueCache.size > 64) leagueCache.clear();
+  leagueCache.set(key, cal);
+  return cal;
+}
+
 const cache = new Map<string, SeasonCalendar>();
 
 /** 시즌 일정 (시드로 다시 만든다, 같은 시드·시즌·대진이면 같은 날짜) */
@@ -173,20 +247,7 @@ export function seasonCalendar(worldSeed: string, season: number, schedule: Fixt
   if (hit) return hit;
   const rng = createRng(hashSeed(`${worldSeed}:calendar:${season}`));
   const { slots, breaks } = roundSlots(season, rng, schedule.length);
-  const fixtureDates = schedule.map((round, r) => {
-    const slot = slots[r]!;
-    const gapNext = r + 1 < slots.length ? daysBetween(slot.date, slots[r + 1]!.date) : 99;
-    const offsets = spreadRound(slot, gapNext, round.length, rng);
-    return offsets.map((o) => addDays(slot.date, o));
-  });
-  const cal: SeasonCalendar = {
-    season,
-    roundDates: fixtureDates.map((ds) => ds.reduce((a, b) => (daysBetween(a, b) < 0 ? b : a))),
-    fixtureDates,
-    breaks,
-    opening: fixtureDates[0]!.reduce((a, b) => (daysBetween(a, b) < 0 ? b : a)),
-    final: slots.at(-1)!.date,
-  };
+  const cal = buildCalendar(season, slots, breaks, schedule, rng);
   if (cache.size > 16) cache.clear();
   cache.set(key, cal);
   return cal;

@@ -336,6 +336,13 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   44: () => {},
   // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
   45: (s) => { s.photos ??= emptyPhotos(); },
+  // 46 → 47 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
+  46: (s) => {
+    s.league.id ??= 'pl';
+    s.league.country ??= 'England';
+    s.league.tier ??= 1;
+    s.leagueIds ??= ['pl'];
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

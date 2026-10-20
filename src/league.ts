@@ -1,9 +1,11 @@
-// 리그 1개, 20팀, 더블 라운드로빈 38라운드 (B.3)
+// 리그 (B.3): 등록된 리그 데이터(data/leagues, C.75m)로 만든다. 팀 수에 맞춰 라운드로빈 (20팀 = 38라운드, 18팀 = 34, 24팀 = 46, 12팀 = 3번 33)
 
 import { BALANCE } from './config/balance';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import { CLUB_BY_ID, OUTSIDE_CLUBS } from '../data/outsideClubs';
+import { allLeagueData, leagueData } from '../data/leagues';
+import { PL } from '../data/leagues/pl';
 
 export interface Team {
   id: string;
@@ -36,6 +38,12 @@ export interface TableRow {
 }
 
 export interface LeagueState {
+  /** 리그 id (data/leagues, C.75m). 옛 세이브는 마이그레이션으로 'pl' */
+  id: string;
+  /** 리그 국가 (외국인 판정 기준) */
+  country: string;
+  /** 1부 · 2부 */
+  tier: 1 | 2;
   name: string;
   /** 시즌 시작 연도 */
   season: number;
@@ -49,51 +57,59 @@ export interface LeagueState {
 /** 영문 클럽 이름 → 한글 (리그 팀 → 리그 밖 클럽, 없으면 그대로). 실제 선수 데이터의 club 표시용 (C.52) */
 export function clubKo(name: string | undefined): string {
   if (!name) return '';
-  return PREMIER_LEAGUE_2018.find((t) => t.name === name)?.nameKo ?? OUTSIDE_CLUBS.find((c) => c.name === name)?.nameKo ?? name;
+  for (const d of allLeagueData()) {
+    const t = d.teams.find((x) => x.name === name);
+    if (t) return t.nameKo;
+  }
+  return OUTSIDE_CLUBS.find((c) => c.name === name)?.nameKo ?? name;
 }
 
-// 2018-19 프리미어리그. 레이팅은 초기 추정치
-const PREMIER_LEAGUE_2018: Omit<Team, 'baseRating'>[] = [
-  { id: 'mci', name: 'Manchester City', nameKo: '맨체스터 시티', rating: 85 },
-  { id: 'liv', name: 'Liverpool', nameKo: '리버풀', rating: 84 },
-  { id: 'che', name: 'Chelsea', nameKo: '첼시', rating: 81 },
-  { id: 'tot', name: 'Tottenham Hotspur', nameKo: '토트넘 홋스퍼', rating: 81 },
-  { id: 'mun', name: 'Manchester United', nameKo: '맨체스터 유나이티드', rating: 80 },
-  { id: 'ars', name: 'Arsenal', nameKo: '아스널', rating: 79 },
-  { id: 'eve', name: 'Everton', nameKo: '에버턴', rating: 75 },
-  { id: 'lei', name: 'Leicester City', nameKo: '레스터 시티', rating: 74 },
-  { id: 'whu', name: 'West Ham United', nameKo: '웨스트햄 유나이티드', rating: 73 },
-  { id: 'wol', name: 'Wolverhampton', nameKo: '울버햄튼', rating: 73 },
-  { id: 'cry', name: 'Crystal Palace', nameKo: '크리스털 팰리스', rating: 72 },
-  { id: 'wat', name: 'Watford', nameKo: '왓포드', rating: 71 },
-  { id: 'bou', name: 'AFC Bournemouth', nameKo: '본머스', rating: 71 },
-  { id: 'new', name: 'Newcastle United', nameKo: '뉴캐슬 유나이티드', rating: 71 },
-  { id: 'sou', name: 'Southampton', nameKo: '사우샘프턴', rating: 71 },
-  { id: 'bur', name: 'Burnley', nameKo: '번리', rating: 70 },
-  { id: 'bha', name: 'Brighton & Hove Albion', nameKo: '브라이턴', rating: 70 },
-  { id: 'ful', name: 'Fulham', nameKo: '풀럼', rating: 69 },
-  { id: 'car', name: 'Cardiff City', nameKo: '카디프 시티', rating: 67 },
-  { id: 'hud', name: 'Huddersfield Town', nameKo: '허더즈필드', rating: 67 },
-];
-
-/** 실제 선수 데이터의 club 이름 → 팀 id */
+/** 실제 선수 데이터의 club 이름 → 팀 id (내 리그로 시작할 수 있는 PL, 다른 리그 연결은 45b) */
 export const CLUB_TO_TEAM: Record<string, string> = Object.fromEntries(
-  PREMIER_LEAGUE_2018.map((t) => [t.name, t.id]),
+  PL.teams.map((t) => [t.name, t.id]),
 );
 
-/** 2018-19 시작 팀 목록 (레이팅 = 로스터 생성 목표) */
-export function initialTeams(): Team[] {
-  return PREMIER_LEAGUE_2018.map((t) => ({ ...t, baseRating: t.rating }));
+/** 리그 데이터 (등록 안 된 id 면 오류) */
+function dataOf(id: string) {
+  const d = leagueData(id);
+  if (!d) throw new Error(`등록되지 않은 리그: ${id}`);
+  return d;
 }
 
-export function createLeague(worldSeed: string, season: number): LeagueState {
-  const teams = initialTeams();
+/** 2018-19 시작 팀 목록 (레이팅 = 로스터 생성 목표). 기본 PL */
+export function initialTeams(id = 'pl'): Team[] {
+  return dataOf(id).teams.map((t) => ({ id: t.id, name: t.name, nameKo: t.nameKo, rating: t.rating, baseRating: t.rating }));
+}
+
+/** 시드 문자열: PL 은 C.75m 전과 같은 문자열 (같은 시드 같은 일정·레이팅), 다른 리그는 리그 id 를 넣는다 */
+function seedKey(id: string, kind: string): string {
+  return id === 'pl' ? kind : `${kind}:${id}`;
+}
+
+/** 라운드로빈 횟수: 데이터 값, 없으면 12팀 이하 3번 (K리그 33라운드) · 그 밖 2번 */
+export function roundRobinsOf(id: string, teams: number): 2 | 3 {
+  return leagueData(id)?.roundRobins ?? (teams <= 12 ? 3 : 2);
+}
+
+/** 한 시즌 팀당 경기 수 (20팀 38, 18팀 34, 24팀 46, 12팀 33. 홀수 팀이면 쉬는 라운드 뺀 값) */
+export function gamesPerTeam(league: Pick<LeagueState, 'teams' | 'id'>): number {
+  const n = league.teams.length;
+  return (n - 1) * roundRobinsOf(league.id, n);
+}
+
+/** 리그 시즌 (기본 PL). season = 시즌 시작 연도 (춘추제가 아닌 리그는 그해 3~12월) */
+export function createLeague(worldSeed: string, season: number, id = 'pl'): LeagueState {
+  const d = dataOf(id);
+  const teams = initialTeams(id);
   return {
-    name: 'Premier League',
+    id,
+    country: d.country,
+    tier: d.tier,
+    name: d.name,
     season,
     round: 0,
     teams,
-    schedule: buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:schedule:${season}`))),
+    schedule: buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:${seedKey(id, 'schedule')}:${season}`)), roundRobinsOf(id, teams.length)),
     table: emptyTable(teams),
   };
 }
@@ -111,9 +127,16 @@ export function shuffle<T>(arr: T[], rng: Rng): T[] {
   return a;
 }
 
-/** 서클 방식 더블 라운드로빈. 후반기는 전반기의 홈/원정을 뒤집는다 */
-export function buildSchedule(teamIds: string[], rng: Rng): Fixture[][] {
+/** 홀수 팀 리그의 쉬는 자리 (그 경기는 일정에서 뺀다) */
+const BYE = '';
+
+/**
+ * 서클 방식 더블 라운드로빈. 후반기는 전반기의 홈/원정을 뒤집는다.
+ * robins = 3 이면 셋째 바퀴를 더한다 (K리그 33라운드, 셋째 바퀴 홈은 팀마다 5~6). 홀수 팀은 쉬는 팀이 생긴다
+ */
+export function buildSchedule(teamIds: string[], rng: Rng, robins: 2 | 3 = 2): Fixture[][] {
   const ids = shuffle(teamIds, rng);
+  if (ids.length % 2) ids.push(BYE);
   const n = ids.length;
   const first: Fixture[][] = [];
   const rot = ids.slice(1);
@@ -130,7 +153,15 @@ export function buildSchedule(teamIds: string[], rng: Rng): Fixture[][] {
     rot.unshift(rot.pop()!);
   }
   const second = first.map((round) => round.map((f) => ({ home: f.away, away: f.home })));
-  return [...first, ...second];
+  // 셋째 바퀴: 지금까지 셋째 바퀴 홈이 적은 팀이 홈 (같으면 전반기대로)
+  const home3 = new Map<string, number>();
+  const third = robins === 3 ? first.map((round) => round.map((f) => {
+    const [h, a] = (home3.get(f.away) ?? 0) < (home3.get(f.home) ?? 0) ? [f.away, f.home] : [f.home, f.away];
+    home3.set(h, (home3.get(h) ?? 0) + 1);
+    return { home: h, away: a };
+  })) : [];
+  const all = [...first, ...second, ...third];
+  return teamIds.length % 2 ? all.map((round) => round.filter((f) => f.home !== BYE && f.away !== BYE)) : all;
 }
 
 export function teamById(league: LeagueState, id: string): Team {
@@ -138,8 +169,20 @@ export function teamById(league: LeagueState, id: string): Team {
   if (t) return t;
   // 컵·챔스 상대 (C.67): 리그 밖 클럽은 고정 레이팅
   const c = CLUB_BY_ID[id];
-  if (!c) throw new Error(`unknown team: ${id}`);
-  return { ...c, baseRating: c.rating };
+  if (c) return { ...c, baseRating: c.rating };
+  // 안 고른 리그 팀 (C.75m): 리그 밖 클럽처럼 데이터 레이팅만
+  const o = leagueTeamById(id);
+  if (!o) throw new Error(`unknown team: ${id}`);
+  return { id: o.id, name: o.name, nameKo: o.nameKo, rating: o.rating, baseRating: o.rating };
+}
+
+/** 등록된 모든 리그의 팀 (id 로 찾기) */
+export function leagueTeamById(id: string): { id: string; name: string; nameKo: string; rating: number; league: string } | undefined {
+  for (const d of allLeagueData()) {
+    const t = d.teams.find((x) => x.id === id);
+    if (t) return { id: t.id, name: t.name, nameKo: t.nameKo, rating: t.rating, league: d.id };
+  }
+  return undefined;
 }
 
 /** 포아송 난수 (Knuth) */
@@ -204,7 +247,8 @@ export function leaguePosition(league: LeagueState, teamId: string): number {
 export function nextSeasonLeague(league: LeagueState, worldSeed: string, ratings?: Record<string, number>): LeagueState {
   const L = BALANCE.league;
   const season = league.season + 1;
-  const rng = createRng(hashSeed(`${worldSeed}:ratings:${season}`));
+  const id = league.id ?? 'pl';
+  const rng = createRng(hashSeed(`${worldSeed}:${seedKey(id, 'ratings')}:${season}`));
   const teams = league.teams.map((t) => {
     const r = ratings?.[t.id] ?? t.baseRating + (t.rating - t.baseRating) * L.ratingKeep + gaussian(rng) * L.ratingNoiseSd;
     return { ...t, rating: Math.round(Math.min(L.ratingMax, Math.max(L.ratingMin, r)) * 10) / 10 };
@@ -214,7 +258,7 @@ export function nextSeasonLeague(league: LeagueState, worldSeed: string, ratings
     season,
     round: 0,
     teams,
-    schedule: buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:schedule:${season}`))),
+    schedule: buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:${seedKey(id, 'schedule')}:${season}`)), roundRobinsOf(id, teams.length)),
     table: emptyTable(teams),
   };
 }

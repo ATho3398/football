@@ -44,8 +44,8 @@ export function myNationality(p: GameState['player']): string {
   return real ?? (p.legendId ? LEGEND_BY_ID.get(p.legendId)?.nationality : undefined) ?? 'Korea Republic';
 }
 
-/** 외국인 선수 (잉글랜드 리그에서 잉글랜드 국적이 아님) */
-export const isForeign = (p: GameState['player']): boolean => myNationality(p) !== 'England';
+/** 외국인 선수: 내 리그 국가 국적이 아님 (C.75m, 옛 세이브·국가 없음 = 잉글랜드) */
+export const isForeign = (state: Pick<GameState, 'player' | 'league'>): boolean => myNationality(state.player) !== (state.league.country ?? 'England');
 
 /** 새 팀 적응도·팀 관계 시작값 */
 function teamStart(state: GameState, first: boolean): { adapt: number; team: number } {
@@ -54,7 +54,7 @@ function teamStart(state: GameState, first: boolean): { adapt: number; team: num
   const loyal = tagAt(p, 'loyalReturn', p.teamId);
   // 첫 시즌 실제 선수는 이미 그 구단에서 뛰던 선수
   const settled = first && !!(p.realPlayerId || p.legendId);
-  const foreign = isForeign(p);
+  const foreign = isForeign(state);
   const adapt = loyal || settled ? (loyal ? A.loyalStart : A.settledStart) : foreign ? A.foreignStart : A.domesticStart;
   const team = loyal ? L().team.loyalTeam : settled ? L().start.team : L().team.newTeam;
   return { adapt, team };
@@ -144,7 +144,7 @@ export function lifeJudgePenalty(state: GameState): number {
   const J = L().judge;
   const l = state.life;
   let pen = Math.max(0, J.from - (100 - l.mental)) * J.per;
-  if (isForeign(state.player)) pen += Math.max(0, J.from - l.adapt) * J.per;
+  if (isForeign(state)) pen += Math.max(0, J.from - l.adapt) * J.per;
   return Math.round(Math.min(J.max, pen) * 10) / 10;
 }
 

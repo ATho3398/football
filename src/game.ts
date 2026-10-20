@@ -4,6 +4,7 @@ import { A_GRADE_PLAYERS } from '../data/players';
 import { ATTRIBUTE_NAMES_KO } from './attributes';
 import { chaptersRetire, chaptersSeasonEnd, type ChaptersState } from './chapters';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
+import { createOtherLeagues, normalizeLeagues, syncOtherLeagues, type OtherLeague } from './otherLeagues';
 import type { Replay } from './replay';
 import { generatePlayer } from './generate';
 import {
@@ -84,7 +85,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 46;
+export const SAVE_FORMAT_VERSION = 47;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -207,6 +208,10 @@ export interface GameState {
   phase: Phase;
   player: PlayerState;
   league: LeagueState;
+  /** 새 게임에서 고른 리그 (C.75m): 내 리그가 맨 앞. 옛 세이브는 ['pl'] */
+  leagueIds?: string[];
+  /** 고른 다른 리그 (빠른 시뮬, 리그별 순위·지난 시즌 기록). 없으면 내 리그만 */
+  otherLeagues?: OtherLeague[];
   npcs: NpcState[];
   /** 팀 로스터 세이브 정보 (23번): 시즌 갱신 횟수. 로스터 자체는 시드로 다시 만든다 */
   roster: { updates: number };
@@ -322,7 +327,7 @@ export interface MatchControl {
   stop: StopLevel;
 }
 
-export type NewGameOptions =
+type NewGameStart =
   /**
    * 가상 유망주 (pending 31·36, 부록 C.37). rolled = true 면 시드로 뽑은 유망주(rollProspect(seed))에 position(시작 후보 중 고른 자리)을
    * 붙인다 — 화면의 새 게임. 없으면 position 을 기준 자리로 맞는 재능 타입의 유망주를 만든다 (밸런스·테스트)
@@ -335,6 +340,9 @@ export type NewGameOptions =
   | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean }
   /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
   | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean };
+
+/** 새 게임 옵션 + 고른 리그 (C.75m, 리그 고르기 화면). 없으면 내 리그(PL)만 */
+export type NewGameOptions = NewGameStart & { leagues?: readonly string[] };
 
 export interface CustomSpec {
   name?: string;
@@ -408,8 +416,12 @@ export function rosterShirts(roster: { players: { shirt?: number }[] } | undefin
   return new Set((roster?.players ?? []).map((p) => p.shirt).filter((n): n is number => n !== undefined));
 }
 
-/** 실제 선수로 시작 가능한 선수: 데이터가 있고 소속팀이 리그에 있는 선수 */
-export function selectableRealPlayers(): FieldPlayerData[] {
+/**
+ * 실제 선수로 시작 가능한 선수: 데이터가 있고 소속팀이 고른 리그 중 내 리그로 시작할 수 있는 리그에 있는 선수 (C.75m).
+ * 지금은 PL 만 연결돼 있어 PL 선수 (다른 리그 실제 선수 연결은 45b)
+ */
+export function selectableRealPlayers(leagueIds: readonly string[] = ['pl']): FieldPlayerData[] {
+  if (!leagueIds.includes('pl')) return [];
   return A_GRADE_PLAYERS.filter((p) => CLUB_TO_TEAM[p.club] !== undefined);
 }
 
@@ -479,6 +491,8 @@ function drawName(prng: Rng, name: string): string {
 export function newGame(opts: NewGameOptions): GameState {
   const worldSeed = opts.seed?.trim() || randomSeed();
   const season = BALANCE.newGame.startYear;
+  // 고른 리그 (C.75m): 내 리그 = PL (다른 리그에서 시작은 45b), 나머지는 빠른 시뮬
+  const leagueIds = normalizeLeagues(opts.leagues, 'pl');
   const league = createLeague(worldSeed, season);
   // 팀 레이팅 = 로스터 라인업 평균 (23번). 내 선수(실제 선수)는 로스터에서 빠진다
   const realPlayerId = opts.mode === 'real' ? opts.playerId : undefined;
@@ -596,7 +610,7 @@ export function newGame(opts: NewGameOptions): GameState {
       youth: { club: teamId },
     };
   } else {
-    const data = selectableRealPlayers().find((p) => p.id === opts.playerId);
+    const data = selectableRealPlayers(leagueIds).find((p) => p.id === opts.playerId);
     if (!data) throw new Error(`선택할 수 없는 선수: ${opts.playerId}`);
     const gen = generatePlayer(data, worldSeed);
     const age = season - data.birthYear;
@@ -646,6 +660,8 @@ export function newGame(opts: NewGameOptions): GameState {
     phase: 'season',
     player,
     league,
+    leagueIds,
+    ...(leagueIds.length > 1 ? { otherLeagues: createOtherLeagues(worldSeed, leagueIds, season) } : {}),
     npcs,
     roster: { updates: 0 },
     rosters,
@@ -658,6 +674,8 @@ export function newGame(opts: NewGameOptions): GameState {
     archive: [],
     records: { done: [], fresh: [] },
   };
+  // 다른 리그 (C.75m): 소집일 전날까지 (춘추제가 아닌 리그는 3월부터 치른 2018 시즌 전반기)
+  syncOtherLeagues(state, addDays(state.calendar.date, -1));
   // 구단 재정 (C.46): 첫 시즌 예산 (지난 시즌 순위 대신 레이팅 순)
   ensureFinance(state, season);
   // 커스텀 생성 시작 소속 (C.45 10번): 유스 구단 1군 테스트 / 소속팀 선택 / 소속팀 없음(영입 제안)
@@ -1294,6 +1312,8 @@ export function endDay(state: GameState): TrainingDayResult {
   ensureCups(state);
   cupsDayEnd(state, ended);
   state.calendar.date = addDays(ended, 1);
+  // 다른 리그 (C.75m): 오늘 경기 빠른 시뮬
+  syncOtherLeagues(state, ended);
   // 이적 (C.42): 1월 1일 이적 명단 제안, 1월 31일 끝 NPC 겨울 이적시장
   onDayEnd(state, ended);
   // 감독 (C.62): 낮은 신뢰 기간, 열린 면담
@@ -2173,6 +2193,8 @@ export function startNextSeason(state: GameState): void {
   state.player.fatigue = 0;
   healDays(state.player, BALANCE.injury.offseasonWeeks * 7);
   state.calendar = { date: campDate(state) };
+  // 다른 리그 (C.75m): 비시즌 동안 치른 경기 · 새 시즌
+  syncOtherLeagues(state, addDays(state.calendar.date, -1));
   state.training ??= initTraining(state.calendar.date);
   newTrainingSeason(state.training);
   // 약발 훈련 시즌 상한 초기화 (게이지는 남긴다, C.45)
