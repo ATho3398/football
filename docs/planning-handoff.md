@@ -576,3 +576,9 @@
 - **draft_ 남은 것**: C.75h `session_01Q7veoWWQz8YSxsrNcKmdzD`·C.75i `session_01EhaBezSqipxFKqVoMhpqYg` — main CI(68bd76d 포함 실행) 성공 확인 뒤 draft_(코드 세션은 이제 CI 성공을 보내지 않음, `actions_list`로 확인).
 - **다음 순서**: C.75l 완료 → 엔진관리자5에 44f-b 처방(§3.3) 확인 → 44f-b(Opus) / 45a·데이터 6개 완료 → 45b 연결·통합(이적 시장 = 고른 리그, 미래 스타·레전드 등장 리그 기준, `outsideClubs` x: id ↔ 새 팀 id 정리, 도감 번호 이어 붙이기) + 45c 대표팀(18.12, `src/national.ts`) 병렬 / 46a 완료 → 46b 유니폼 교환·진열실 / 11·12차 디자인 오면 U 적용 패치 / 그 뒤 44h 판단 구조 블록(미해결 8·11), P단계, 6단계 패키징.
 - 고속 모드: 사용자가 켰는지 확인(새 세션 `get_session` → flag_settings), 안 켰으면 다시 한 번 알림.
+
+### 8.40 마스터 세션 U (2026-10-20 14:45 KST~, `session_01DUqLtswE7hDV9NHhh6HfZq`, 브랜치 `claude/planning-u`)
+- T가 만든 세션 → `lineage` 깊이 3(한도 8). 환경 "player ONE". 브랜치 `claude/planning-u`(planning-t 9749916에서, 푸시).
+- 시작 처리(14:48 KST): ① T에 "U 준비 완료 + U ID"(delivered) ② C.75k·l·m·n·o·p·q·r·s·t·엔진관리자5·UI_4에 "보고는 U, 마스터 브랜치 claude/planning-u, 답장 불필요"(12개 모두 delivered, 엔진관리자5·UI_4는 priority later) ③ T 제목 `draft_T_축구 커리어 게임 마스터`(T 최종 약 37.6만·12.0달러) ④ U 자동 확인 send_later `trig_019TegikUs5jggQj2RHEj1Nn`(15:47 KST) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
+- main CI: run 226(9dd8a59, C.75h) 성공 → **C.75h draft_**. run 227(fc3710a, C.75i) 진행 중 → 자동 확인 때 C.75i draft_.
+- 다음: 코드 세션 10개 보고 처리 → 44f-b → 45b·45c → 46b (8.39).
