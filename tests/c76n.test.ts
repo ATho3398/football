@@ -45,11 +45,11 @@ describe('결정적 순간 (이력서)', () => {
 
 describe('상 정의 = 데이터 표', () => {
   it('47a 7개 상 · 투표 비율 합 1 · 공식 상은 투표 없음', () => {
-    expect(awardIds()).toEqual(['ballonDor', 'theBest', 'kopa', 'yashin', 'defender', 'goldenBoy', 'goldenBoot', 'muller', 'wcBall', 'wcBoot', 'wcGlove', 'wcYoung']);
+    expect(awardIds().slice(0, 12)).toEqual(['ballonDor', 'theBest', 'kopa', 'yashin', 'defender', 'goldenBoy', 'goldenBoot', 'muller', 'wcBall', 'wcBoot', 'wcGlove', 'wcYoung']);
     for (const [id, d] of Object.entries(BALANCE.awards.defs)) {
       if (d.formula) { expect(d.vote, id).toBeUndefined(); continue; }
       expect(Object.values(d.vote!).reduce((t, x) => t + (x ?? 0), 0), id).toBeCloseTo(1);
-      expect(d.points!.length).toBeGreaterThan(0);
+      if (!d.xi) expect(d.points!.length).toBeGreaterThan(0);
     }
   });
 });
@@ -69,7 +69,9 @@ describe('시즌 끝 시상', () => {
     const g = seasonDone();
     const y = g.globalAwards!.years.at(-1)!;
     expect(y.season).toBe(2018);
-    expect(y.shown).toEqual(['goldenBoot']);
+    // 시즌 끝 바로 발표하는 상: 골든부츠 (+ 47b 리그 상 · 챔스 · 대륙컵, C.76t) — 날짜가 있는 상은 아직
+    expect(y.shown).toContain('goldenBoot');
+    for (const k of y.shown) expect(y.due[k]).toBeUndefined();
     // 2018-19 시즌 여름은 월드컵이 없다 (2022부터 4년) → 월드컵 상 없음
     expect(y.res.wcBall).toBeUndefined();
     expect(y.due.ballonDor).toBe('2019-10-28');
@@ -144,7 +146,7 @@ describe('화면 · 세이브', () => {
   });
   it('세이브 53 왕복 · 52 → 53 마이그레이션', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(53);
+    expect(SAVE_FORMAT_VERSION).toBe(54);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.years.at(-1)!.res.ballonDor!.length).toBe(30);
     const raw = JSON.parse(serialize(g));
@@ -154,7 +156,7 @@ describe('화면 · 세이브', () => {
     expect(m.globalAwards).toEqual({ years: [] });
   });
   it('버전 라벨', () => {
-    expect(PATCH_LABEL).toBe('C.76n');
+    expect(PATCH_LABEL).toBe('C.76t');
     expect(STAGE_LABEL).toBe('47단계');
   });
   it('하루 끝 훅은 발표 날짜 전에는 아무것도 하지 않는다', () => {

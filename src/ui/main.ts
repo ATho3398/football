@@ -258,7 +258,7 @@ const ui = {
   /** 대표팀 화면 (C.76d): 탭 · 고른 대회 */
   nat: { tab: 'fixtures' as NationalTab, cup: null as string | null },
   // 개인 시상 (C.76n): 탭 · 연도 · 역대 수상자 상
-  aw: { tab: 'year' as AwardsTab, season: null as number | null, hist: null as string | null },
+  aw: { tab: 'year' as AwardsTab, season: null as number | null, hist: null as string | null, group: null as string | null, cer: null as { id: string; step: number } | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
   legendOpen: false,
@@ -570,7 +570,7 @@ function screenHtml(): string {
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip), ui.dex.open);
     case 'showroom': return showroomView(showroomVM(g));
     case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
-    case 'awards': return awardsView(awardsVM(g, ui.aw.season, ui.aw.hist), ui.aw.tab);
+    case 'awards': return awardsView(awardsVM(g, ui.aw.season, ui.aw.hist, ui.aw.group, ui.aw.cer), ui.aw.tab);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -2449,11 +2449,24 @@ app.addEventListener('click', (ev) => {
       return;
     // 개인 시상 (C.76n): 탭 · 연도 · 역대 수상자 상
     case 'aw-tab':
-      ui.aw = { ...ui.aw, tab: (v ?? 'year') as AwardsTab };
+      ui.aw = { ...ui.aw, tab: (v ?? 'year') as AwardsTab, cer: null };
       render();
       return;
     case 'aw-season':
-      ui.aw = { ...ui.aw, season: v ? Number(v) : null };
+      ui.aw = { ...ui.aw, season: v ? Number(v) : null, cer: null };
+      render();
+      return;
+    // C.76t: 부문(세계 · 리그) · 시상식 열기/닫기 · 단계
+    case 'aw-group':
+      ui.aw = { ...ui.aw, group: v ?? null, cer: null };
+      render();
+      return;
+    case 'aw-cer':
+      ui.aw = { ...ui.aw, cer: v ? { id: v, step: 0 } : null };
+      render();
+      return;
+    case 'aw-cer-step':
+      if (ui.aw.cer) ui.aw = { ...ui.aw, cer: { ...ui.aw.cer, step: Number(v ?? 0) } };
       render();
       return;
     case 'aw-hist':

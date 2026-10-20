@@ -27,8 +27,9 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
       : [{ label: '시즌 종료', soft: true }]),
     // C.76g (디자인 228): 부상 중이면 남은 날 라임 칩
     ...(vm.injuryDays ? [{ label: `부상 · ${vm.injuryDays}일 남음`, soft: true }] : []),
-    // 부상 칩이 있으면 포인트 칩은 빼서 3칸(디자인 228) — 포인트는 바로 아래 배너에도 있음
-    ...(vm.points > 0 && !vm.injuryDays ? [{ label: `찍을 포인트 ${vm.points}P`, soft: true }] : []),
+    // 부상 칩이 있으면 포인트 칩은 빼서 3칸(디자인 228) — 포인트는 바로 아래 배너에도 있음.
+    // 시즌 중 발롱도르 레이스(C.76t, 파워 랭킹 내 순위)가 있으면 포인트 칩 대신 레이스 칩
+    ...(vm.race && !vm.injuryDays ? [{ label: `발롱도르 레이스 ${vm.race}위`, soft: true }] : vm.points > 0 && !vm.injuryDays ? [{ label: `찍을 포인트 ${vm.points}P`, soft: true }] : []),
   ];
   // 챕터 칩 (C.73a)은 칸이 남을 때만 — 한 줄 칩(C.75u)이 4개를 넘으면 모두 말줄임이 돼서 (디자인 211·228 = 3칸)
   return chips.length < 3 ? [...chips, { label: vm.chapter, soft: true }] : chips;

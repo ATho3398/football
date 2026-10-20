@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 65;
+export const BALANCE_VERSION = 66;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1541,6 +1541,8 @@ export const BALANCE = {
       cleanSheet: { GK: 20, CB: 15, FB: 10, CDM: 5, CM: 0, CAM: 0, WING: 0, ST: 0 } as Record<string, number>,
       /** 팀 트로피: 리그 1~4위 · 국내 컵 우승 · 챔스 [그 밖, 8강, 4강, 준우승, 우승]. 출전 비율 / fullShare 만큼 (최대 1) */
       league: [14, 8, 5, 3] as readonly number[], cup: 4, ucl: [0, 3, 6, 10, 16] as readonly number[], fullShare: 0.8,
+      /** 챔스 시즌 최우수 선수 (47b) 이력서 ucl = (챔스 단계 점수 + uclIn) × 출전 비중 + 챔스 골 × uclGoal */
+      uclIn: 2, uclGoal: 1,
       /** 대표팀 대회 (그 여름 대회 기록이 있는 나라): [8강, 4강, 준우승, 우승] */
       wc: [2, 4, 7, 12] as readonly number[], continental: [0, 1, 3, 6] as readonly number[],
       /** 결정적 순간 점수 (골 하나): 결승골 · 80분 뒤 동점 · 80분 뒤 역전/앞서는 골 · 해트트릭 · 결승골 도움. 경기 무게: 더비 +0.3 · 상위 6팀 상대 +0.2, 컵 단계 */
@@ -1593,6 +1595,24 @@ export const BALANCE = {
       wcBoot: { ko: '월드컵 골든부트', wc: true, formula: 'wcBoot', xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
       wcGlove: { ko: '월드컵 골든글러브', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [120], rep: 0, pick: { epic: 1 } },
       wcYoung: { ko: '월드컵 영플레이어', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 8, maxAge: 21, youth: true, w: { out: 1, rat: 1, def: 0.4, tro: 1, nat: 0, clu: 0.6, sto: 0, fam: 0.2, tal: 0.6 }, xp: [100], rep: 0, pick: { rare: 1 } },
+      // ── 47b (C.76t): 리그 · 시즌 중 상 ──
+      // 리그 상 (scope league = 고른 리그마다 따로, 결과 키 '상@리그'). PL 은 PFA(선수단) · FWA(기자단) 둘, 다른 리그는 리그 공식 1개(선수단 + 기자단).
+      // 리그 올해의 선수는 최고 개인상(topKey 같은 상은 한 시즌 둘 받아도 1). 시즌 끝 바로 발표, 보상 희귀 선택권
+      pfa: { ko: 'PFA 올해의 선수', scope: 'league', leagues: ['pl'], vote: { players: 1 }, wj: { players: { out: 1.2, rat: 1.1, def: 0.55, tro: 0.9, nat: 0, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 } }, voters: 100, points: [5, 3, 1], nominees: 6, xp: [150, 60, 30], rep: 0, pick: { rare: 1 }, top: true, topKey: 'lgPoty' },
+      fwa: { ko: 'FWA 올해의 선수', scope: 'league', leagues: ['pl'], vote: { journalist: 1 }, voters: 100, points: [5, 3, 1], nominees: 6, xp: [150, 60, 30], rep: 0, pick: { rare: 1 }, top: true, topKey: 'lgPoty' },
+      lgPoty: { ko: '올해의 선수', koLeague: true, scope: 'league', notLeagues: ['pl'], vote: { players: 0.5, journalist: 0.5 }, wj: { players: { out: 1.2, rat: 1.1, def: 0.55, tro: 0.9, nat: 0, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 } }, voters: 100, points: [5, 3, 1], nominees: 6, xp: [150, 60, 30], rep: 0, pick: { rare: 1 }, top: true, topKey: 'lgPoty' },
+      lgYoung: { ko: '영플레이어', koLeague: true, koByLeague: { pl: 'PFA 영플레이어' }, scope: 'league', vote: { players: 1 }, wj: { players: { out: 1.2, rat: 1.1, def: 0.55, tro: 0.9, nat: 0, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 } }, voters: 100, points: [5, 3, 1], nominees: 6, maxAge: 22, youth: true, xp: [100, 40, 20], rep: 0, pick: { rare: 1 } },
+      // 올해의 팀 (4-3-3 포지션 슬롯 투표 xiSlots, 선수단): 리그별 + FIFPRO 월드 11(전체, 더 베스트와 같이 12월). 보상 = 배지(올해의 팀 선정 횟수, 시상 화면 머리말)
+      toty: { ko: '올해의 팀', koLeague: true, koByLeague: { pl: 'PFA 올해의 팀' }, scope: 'league', xi: true, vote: { players: 1 }, voters: 60, xp: [0], rep: 0 },
+      fifpro: { ko: 'FIFPRO 월드 11', xi: true, vote: { players: 1 }, voters: 100, due: [12, 16], xp: [0], rep: 0 },
+      // 챔스 시즌 최우수 선수 (챔스에 나간 팀 선수, 감독 · 기자단): 챔스 성적(ucl = 단계 점수 × 출전 + 챔스 골) 중심. 시즌 끝(결승 뒤) 바로
+      uclBest: { ko: '챔스 시즌 최우수 선수', ucl: true, vote: { coach: 0.5, journalist: 0.5 }, voters: 60, points: [5, 3, 1], nominees: 8, w: { out: 0.6, rat: 0.7, def: 0.3, tro: 0, ucl: 2.4, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [150, 60, 30], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      // 대륙컵 상 (유로 · 코파 · 아시안컵 · 네이션스컵 · 골드컵 — 내 나라 대륙 대회가 열린 여름, 월드컵 상과 같은 대회 이력서)
+      contBall: { ko: '골든볼', cont: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 10, w: { out: 1, rat: 1, def: 0.4, tro: 1.6, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [120], rep: 0, pick: { rare: 1 } },
+      contBoot: { ko: '골든부트', cont: true, formula: 'wcBoot', xp: [80], rep: 0, pick: { rare: 1 } },
+      contGlove: { ko: '골든글러브', cont: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [80], rep: 0, pick: { rare: 1 } },
+      // 이달의 선수 (리그별 매달, 기자단 + 팬): 그달 경기(골 · 도움 · 결정적 순간은 엔진 기록, 없으면 시즌 비율 × 그달 팀 득점) + 팀 그달 승점. 보상 XP 만. 시상 표에는 넣지 않고 globalAwards.months
+      potm: { ko: '이달의 선수', monthly: true, scope: 'league', vote: { journalist: 0.5, fan: 0.5 }, voters: 40, points: [3, 2, 1], nominees: 6, w: { out: 1.6, rat: 0.6, def: 0.5, tro: 0.8, nat: 0, clu: 0.8, sto: 0, fam: 0.4, tal: 0 }, xp: [60], rep: 0 },
     } as Record<string, AwardDef>,
     /** 역대 수상자: 가장 최근 시즌은 발롱도르 후보 전체 · 다른 상 keepLatest 줄, 그 앞 시즌은 상마다 keepRows 줄 */
     keepRows: 3, keepLatest: 5,
@@ -1600,6 +1620,13 @@ export const BALANCE = {
     standingBallonDor: 2,
     /** 파워 랭킹 기사: 매달 1일, 리그 이 라운드를 지난 뒤부터 */
     powerFromRound: 8,
+    /** 올해의 팀 4-3-3 슬롯 [이름, 포지션군, 자리 수] · 슬롯마다 후보 = 자리 수 × xiPool (선수단 종합 점수 상위) */
+    xiSlots: [['GK', ['GK'], 1], ['FB', ['FB'], 2], ['CB', ['CB'], 2], ['MID', ['CDM', 'CM', 'CAM'], 3], ['FWD', ['WING', 'ST'], 3]] as readonly (readonly [string, readonly string[], number])[],
+    xiPool: 4,
+    /** 이달의 선수: 그달 리그 경기가 팀 수 × potmMinRounds 경기(라운드) 이상인 달만 · 그달 추정 출전 potmMinApps 이상 · 기록은 지난 시즌까지 남김 */
+    potmMinRounds: 2, potmMinApps: 2, potmKeepSeasons: 2,
+    /** 이달의 선수: 지난달 그 리그 수상자 감점 (모든 투표단, 표준점수 단위 — 한 선수 독식 방지) · 홈 레이스 칩은 이 순위 안일 때만 */
+    potmFatigue: 1.6, raceChipMax: 30,
   },
   /**
    * 챔스/컵 (18.7, pending 108, 부록 C.67). 국내 컵(FA컵) = 단판 녹아웃 32팀(리그 20 + 하부 가상 12).
@@ -1889,6 +1916,21 @@ export interface AwardDef {
   ko: string;
   vote?: Partial<Record<'journalist' | 'players' | 'coach' | 'fan', number>>;
   formula?: 'boot' | 'goals' | 'wcBoot';
+  /** 47b: 'league' = 고른 리그마다 (결과 키 '상@리그'), leagues/notLeagues = 리그 제한, koLeague = 이름 앞에 리그 이름, koByLeague = 리그별 이름 */
+  scope?: 'league';
+  leagues?: readonly string[];
+  notLeagues?: readonly string[];
+  koLeague?: boolean;
+  koByLeague?: Record<string, string>;
+  /** 투표단별 가중치 덮어쓰기 (w 보다 먼저, 47b 리그 상 선수단: 평점 · 수비 쏠림 대신 실적 중심) */
+  wj?: Partial<Record<'journalist' | 'players' | 'coach' | 'fan', Record<string, number>>>;
+  /** 최고 개인상 묶음 (같은 키 상은 한 시즌 1회로 센다) */
+  topKey?: string;
+  /** 올해의 팀 (포지션 슬롯 투표) · 챔스 · 대륙컵 · 이달의 선수 */
+  xi?: boolean;
+  ucl?: boolean;
+  cont?: boolean;
+  monthly?: boolean;
   voters?: number;
   points?: readonly number[];
   nominees?: number;

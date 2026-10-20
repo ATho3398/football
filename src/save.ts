@@ -368,6 +368,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   },
   // 52 → 53 (C.76n, 병렬 C.76k·C.76m 이 51·52 를 먼저 씀): 개인 시상 역대 수상자(globalAwards). 옛 세이브 = 수상 기록 없음 (다음 시즌 끝 시상식부터)
   52: (s) => { s.globalAwards ??= { years: [] }; },
+  // 53 → 54 (C.76t, 47b): 리그 · 시즌 중 상 — 이달의 선수(globalAwards.months · potm) · 대륙 대회(years[].cont) 는 선택 필드. 옛 세이브 = 기록 없음
+  53: (s) => { s.globalAwards ??= { years: [] }; },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

@@ -165,7 +165,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     raw.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: 2018, untilRound: 4 };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(53);
+    expect(SAVE_FORMAT_VERSION).toBe(54);
     expect(back.training.focus).toBe('auto');
     expect(back.archive).toEqual([]);
     expect(back.player.advice).toMatchObject({ untilDays: BALANCE.aptitude.advice.windowDays });
@@ -183,7 +183,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     delete raw.archive;
     delete raw.player.profLog;
     const back = migrate(raw);
-    expect(back.saveFormat).toBe(53);
+    expect(back.saveFormat).toBe(54);
     expect(back.player.profLog).toBeDefined();
     expect(back.training).toBeDefined();
   });
@@ -205,7 +205,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     expect(ls.size).toBe(0);
     expect(listSaves()[2]?.name).toBe('old');
     const loadedOld = await loadGame('2');
-    expect(loadedOld?.saveFormat).toBe(53);
+    expect(loadedOld?.saveFormat).toBe(54);
     expect(await saveGame('1', g)).toBe(true);
     const meta = listSaves()[1]!;
     expect(meta.size).toBeLessThan(serialize(g).length / 3);

@@ -18,6 +18,7 @@ import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
 import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../life';
 import { awardsTodo } from './awardsVM';
+import { raceRank } from '../awards';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
@@ -232,6 +233,8 @@ export interface HomeVM {
   exit?: boolean;
   /** 지금 챕터 이름 (22.1, C.73a): "도약 챕터" */
   chapter: string;
+  /** 발롱도르 레이스 내 순위 (C.76t, 시즌 중 파워 랭킹 — 리그 8라운드 뒤, 순위 밖이면 없음) */
+  race?: number;
   /** 재정 (C.68a): 고를 수 있는 코치 후보 수 (홈 재정 아이콘 배지) */
   money?: number;
   /** 안 읽은 인박스 (C.76g 디자인 197·211 머리말 알림 종 배지, main 이 채움) */
@@ -457,6 +460,7 @@ export function homeVM(g: GameState): HomeVM {
   const avg = averageRating(s);
   return {
     chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
+    ...((() => { const r = raceRank(g); return r ? { race: r } : {}; })()),
     money: g.money?.candidates.length ?? 0,
     ...(g.player.injury ? { injuryDays: g.player.injury.daysLeft } : {}),
     season: seasonLabel(g.league.season), round: Math.min(g.league.round + 1, g.league.schedule.length), rounds: g.league.schedule.length,

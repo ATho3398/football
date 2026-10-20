@@ -116,7 +116,7 @@ describe('훈련 프리셋 (C.52)', () => {
     raw.saveFormat = 30;
     for (const k of ['preset', 'presetWeek', 'presetAuto', 'presetManual', 'customPresets', 'presetSeq']) delete raw.training[k];
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(53);
+    expect(SAVE_FORMAT_VERSION).toBe(54);
     expect(back.training).toMatchObject({ preset: 'balance', presetAuto: true, customPresets: [] });
     playRound(back, { engine: 'quick' });
   });

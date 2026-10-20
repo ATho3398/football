@@ -91,7 +91,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 53;
+export const SAVE_FORMAT_VERSION = 54;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -2339,7 +2339,7 @@ export function endSeason(state: GameState): SeasonSummary {
   const pos = leaguePosition(league, player.teamId);
   const cupAch = cupAchievements(state, pos);
   const achievements = [...seasonAchievements(player, league), ...cupAch.map(({ label, xp }) => ({ label, xp })), ...natEnd.achievements.map(({ label, xp }) => ({ label, xp })),
-    ...gAw.map(({ label, xp }) => ({ label, xp }))];
+    ...gAw.filter((a) => a.xp > 0).map(({ label, xp }) => ({ label, xp }))];
   // 월드컵 우승 (18.12·8.2): 기록 → 레전드 배지·레전더리 조건, 전설 선택권
   if (natEnd.achievements.some((a) => a.key === 'wcWin')) {
     player.honors = { ...player.honors, worldCups: player.honors.worldCups + 1 };
@@ -2464,7 +2464,7 @@ export function endSeason(state: GameState): SeasonSummary {
   // 챕터 (22.1, C.73a): 이번 시즌을 챕터 기록에 더하고, 다음 시즌이 다른 챕터면 닫는다 (리뷰 예약 · 카드 선택권)
   const trophies = [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map((a) => a.label),
     ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승'),
-    ...natEnd.achievements.filter((a) => a.label.endsWith('우승')).map((a) => a.label), ...gAw.filter((a) => a.rank === 1).map((a) => BALANCE.awards.defs[a.id]!.ko),
+    ...natEnd.achievements.filter((a) => a.label.endsWith('우승')).map((a) => a.label), ...gAw.filter((a) => a.rank === 1).map((a) => a.label.replace(/^\d+ /, '').replace(/ 수상$/, '')),
     ...(gr.awards.filter((a) => !a.includes('리그 우승') && !a.startsWith('레전드 배지')))];
   const startAttrs = player.seasonStartAttrs;
   chaptersSeasonEnd(state, {
