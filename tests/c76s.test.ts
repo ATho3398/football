@@ -1,4 +1,4 @@
-// C.76s 44h-c2: 게겐프레싱·높은 압박의 대가(둘째 압박자·역압박 창·소모 배수·피로 → 경합·판단·패스) + 밀집 블록 현실화(coneWidth 2.0)
+// C.76s 44h-c2: 게겐프레싱·높은 압박의 대가(둘째 압박자·역압박 창·소모 배수·블록 따라가기·피로 → 경합·판단·패스)
 import { describe, expect, it } from 'vitest';
 import { ENGINE } from '../src/engine/config';
 import { duelEdgeOf, tiredRatio } from '../src/engine/physics';
@@ -18,7 +18,7 @@ const input = (seed: number, tendency: 'gegenpress' | 'balanced'): EngineInput =
 };
 
 describe('C.76s 게겐 대가·밀집 블록', () => {
-  it('상수: 피로 시작 70, 경합·판단·패스 피로 상수, 소모 배수, 역압박 창, 콘 폭 2.0', () => {
+  it('상수: 피로 시작 70, 경합·판단·패스 피로 상수, 소모 배수, 역압박 창, 콘 폭은 1.2 그대로', () => {
     const P = ENGINE.physics;
     expect(P.staminaLowFrom).toBe(70);
     expect(P.tiredDuel).toBeGreaterThan(0);
@@ -28,7 +28,7 @@ describe('C.76s 게겐 대가·밀집 블록', () => {
     expect(ENGINE.offball.counterBase).toBe(4);
     expect(ENGINE.offball.counterRadius).toBe(14);
     expect(ENGINE.offball.secondPressDist).toBeGreaterThan(0);
-    expect(ENGINE.prob.coneWidth).toBe(2.0);
+    expect(ENGINE.prob.coneWidth).toBe(1.2); // 가설 3(coneWidth 2.0)은 C.76p 가 측정·되돌림 — C.76s 는 B(게겐 대가)만
   });
   it('tiredRatio: staminaLowFrom 이상 0, 아래에서 비례, 0 이면 1 — duelEdgeOf 는 홈 보정에서 tiredDuel × 비율을 뺀다', () => {
     const P = ENGINE.physics;

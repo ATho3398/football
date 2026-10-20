@@ -634,8 +634,12 @@ export const ENGINE = {
     /** 슈팅 콘(공-골대 사이) 안 수비수 1명당 블록 확률, 최대 */
     blockPer: 0.15,
     blockMax: 0.4,
-    /** C.76s 44h-c2 가설 3(밀집 블록 현실화, 사용자 확정): 1.2 → 2.0 — 박스에 사람이 많으면 슛이 몸에 맞는다 (양 팀 대칭, pBlock 0.17 → 0.21). 총량은 keeper.saveBase 로 */
-    coneWidth: 2.0,
+    /**
+     * C.76p 가설 3 (사용자 확정 2026-10-21 00:09 KST, §9.11.1 '밀집 블록 현실화' — 박스에 사람이 많으면 슛이 몸에 맞는다) 는 **되돌림(1.2 유지)**:
+     * 2.0(+saveBase −0.02) 은 같은 시드 scoring 30골+ 0.20(하한 0.5)·리버풀 최대 119 로 분포 관문 ✗, 1회 조정 1.6(+saveBase −0.02) 은 scoring 통과(30골+ 1.00) 지만
+     * C.76q(PK) 병합 뒤 engine:check 평점 ST 6.74(가드 ≤ 6.7) ✗ 이고 득점 1.28 이라 saveBase 를 더 올릴 수 없었다(두 가드 동시 불가, automation 3번 ④). 부록 C.76p 추가 절
+     */
+    coneWidth: 1.2,
     /** C.76s 가설 2: 지친 선수의 패스 성공 확률 −tiredPass × tiredRatio */
     tiredPass: 0.06,
     /** 블록된 공이 라인 밖(코너)으로 나갈 확률 */
@@ -898,8 +902,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64. C.76s: coneWidth 2.0(블록 ↑) 총량 보정 −0.02 → 1.62 */
-    saveBase: 1.62,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음) */
+    saveBase: 1.64,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
