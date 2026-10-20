@@ -1,0 +1,2 @@
+export interface LeagueTeamData { id: string; name: string; nameKo: string; rating: number; city?: string; colors?: { primary: string; secondary: string }; manager?: string; managerKo?: string; stadium?: string; stadiumKo?: string; }
+export interface LeagueData { id: string; name: string; nameKo: string; country: string; tier: 1 | 2; season: string; calendar: 'autumn-spring' | 'spring-autumn'; teams: LeagueTeamData[]; derbies?: [string, string, string?][]; }

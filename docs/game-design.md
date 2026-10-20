@@ -5542,6 +5542,30 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-20 13:01 KST / 답변 시각 2026-10-20 14:41 KST / 걸린 시간 1시간 40분
 
+### C.75n 45d1단계 리그 데이터 — 라리가·세리에 A 2018-19 (데이터 파일만, 게임 연결 없음) **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로, 게임 결과 불변)
+
+**한 일**: pending 134의 45d1. `data/leagues/types.ts`(45 공통 형식, 지시문 내용 그대로), `data/leagues/laliga.ts`·`data/leagues/seriea.ts`(`export const LEAGUE: LeagueData`), `data/players/laliga.ts`·`data/players/seriea.ts`(`export const PLAYERS: FieldPlayerData[]`, stars.ts Row 형식 그대로), 테스트 `tests/leagues-laliga.test.ts`·`tests/leagues-seriea.test.ts`(각 6개). 아무 데서도 import 하지 않으므로 게임은 그대로 — 연결은 45a·45b.
+
+| 리그 | 팀 | 레이팅 범위 (평균) | 선수 | 등급 (worldClass / topClass / special) |
+|---|---|---|---|---|
+| 라리가 `laliga` (Spain, 1부, 2018-19 가을–봄) | 20 | 68 ~ 86 (73.8) | 75 | 15 / 37 / 23 |
+| 세리에 A `seriea` (Italy, 1부, 2018-19 가을–봄) | 20 | 66 ~ 85 (73.0) | 72 | 10 / 41 / 21 |
+
+(참고: PL 2018 = 67 ~ 85, 평균 74.2.)
+
+- **팀**: 2018-19 실제 참가 20팀씩, 최종 순위 순. id = `<리그>:<3글자>`(laliga:bar·rma·atm·val·get·sev·esp·ath·rso·bet·ala·eib·leg·vil·lev·vll·cel·gir·hue·ray / seriea:juv·nap·ata·int·mil·rom·tor·laz·sam·bol·sas·udi·spa·par·cag·fio·gen·emp·fro·chi). 영문·한글 이름, 도시, 팀 색 2개, 개막 감독(로페테기·마친·모하메드·디프란체스코·단나 등 시즌 중 교체는 개막 기준), 홈구장(그 시즌 이름: 완다 메트로폴리타노·아노에타·RCDE 스타디움·산 파올로·다치아 아레나 등), 더비(라리가 10·세리에 A 8).
+- **레이팅 기준**: 리그 밖 표(`data/outsideClubs.ts`)에 있는 클럽은 이름·한글 이름·레이팅을 **그대로** 맞춤(바르셀로나 86·레알 85·아틀레티코 82·발렌시아 77·세비야 76·비야레알 74 / 유벤투스 85·나폴리 80·인테르 79·로마 78·AC 밀란 77 — 테스트로 고정). 팀 색도 `data/teamColors.ts`에 `x:` 값이 있으면 같게(발렌시아는 없어 새로). 나머지는 2018-19 순위·스쿼드 기준 추정: 라리가 중위권 ≈ PL 중하위(72~75), 강등권 68~69; 세리에 A는 라치오 77·아탈란타 76, 하위권은 라리가보다 1~2 낮게(프로시노네·키에보 66).
+- **선수**: 팀마다 2~6명(상위 6팀 5~6명, 하위 팀 2~3명). 필드 선수만(실제 선수 GK 형식이 아직 없음 — 레전드의 GK 형식은 레전드 전용). 소속 = 2018-19 개막 기준(이과인 = 밀란, 피옹테크 = 제노아, 로드리 = 아틀레티코). 능력치 25개는 포지션 원형(ST·CF·윙·CAM·CM·CDM·CB·풀백) + 선수별 특징 보정으로 만든 기억 기반 초안이고, 보수적으로 **최댓값 93**(stars.ts 최상위 선수 아래)으로 묶음. potentialTier·reputation은 `skillTierCuts`·`tierCuts` 척도(라리가 top 6·세리에 A top 7 주전 = worldClass/topClass, 하위 팀 = special, 유망주는 미래 실력 기준 + spread 6~8).
+- **이미 있는 선수 제외(이름 확인)**: 메시·stars(수아레스·부스케츠·라모스·모드리치·크로스·비니시우스·그리즈만·호날두·디발라), 레전드(피케·마르셀루·베일·키엘리니·보누치·데 로시). 미래 스타와 겹침 0. 테스트가 id·이름(악센트 무시) 겹침을 막는다.
+- **id**: 영문 소문자-하이픈, 접두 없음(동명 구분: `jose-gimenez`·`joaquin-correa`·`lorenzo-pellegrini`·`giovanni-simeone`·`seko-fofana` 등).
+- **출처 메모**: 팀 명단·최종 순위·개막 감독·홈구장은 2018-19 시즌 기록(위키백과 시즌 문서 기준 기억), 선수 소속·등번호·키·몸무게는 기억 기반이라 일부 등번호는 근사값일 수 있음. 한글 표기는 국내 언론 관용(코치뉴·퍄니치·쿨리발리·메르턴스·밀린코비치사비치·더프레이 등).
+
+**검증**: typecheck 통과, 테스트 전체 통과(새 12개 포함), balance:check·balance:engine:check·build 통과(데이터 미연결이라 결과 불변).
+
+**45b 배선 때 볼 것**: ① 선수 club 이름이 `clubKo`(PL + 리그 밖 표)로는 하위 팀이 영문 그대로 나옴 → 리그 레지스트리에서 한글 찾기 ② 리그 밖 표 `x:bar` 등과 `laliga:bar` 이중 id 정리(구현 리그로 고르면 리그 밖 표에서 빼기) ③ `teamColors`·`managers`(style 없음 — 기본 neutral)·`derbies` 연결.
+
+**새 화면·패널**: 없음.
+
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
 ### D.0 부록 C 피드백에 대한 결정 (1단계 코드 변경 요청)
