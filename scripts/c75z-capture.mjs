@@ -104,6 +104,25 @@ if (want('new')) {
   if (await has('[data-act="form"][data-k="mode"][data-v="custom"]')) {
     await act('form', '[data-k="mode"][data-v="custom"]');
     await page.waitForTimeout(400);
+    // 기본 단계 (U 추가 3번): 국적·인종 → 이름. 인종을 바꾸면 빈 이름 칸이 그 인종 이름으로 채워진다
+    await page.locator('[data-act="cu"][data-k="app"]:visible').nth(1).click().catch(() => null);
+    await page.waitForTimeout(300);
+    const n1 = await page.inputValue('#f-name').catch(() => '');
+    await page.selectOption('#cu-nat', 'Brazil').catch(() => null);
+    await page.waitForTimeout(300);
+    const n2 = await page.inputValue('#f-name').catch(() => '');
+    await page.fill('#f-name', '직접이름');
+    await page.locator('[data-act="cu"][data-k="app"]:visible').nth(0).click().catch(() => null);
+    await page.waitForTimeout(300);
+    const n3 = await page.inputValue('#f-name').catch(() => '');
+    await act('cu-name-rand');
+    await page.waitForTimeout(300);
+    const n4 = await page.inputValue('#f-name').catch(() => '');
+    report.names = { afterApp: n1, afterBrazil: n2, typedKept: n3, randomBtn: n4 };
+    console.log('names', JSON.stringify(report.names));
+    await top();
+    if (W < 1024) await page.evaluate(() => { const el = document.querySelector('#cu-nat'); if (el) window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 120); });
+    await shot('커스텀-기본');
     await page.evaluate(() => { const b = document.createElement('button'); b.dataset.act = 'cu-step'; b.dataset.v = '2'; document.querySelector('main')?.appendChild(b); b.click(); });
     await page.waitForTimeout(400);
     const f = page.locator('.cu-feet').first();

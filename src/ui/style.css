@@ -2408,3 +2408,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .sr-log__row.is-ok b { color: var(--success); }
 .sr-log__row.is-no b { color: var(--fail); }
 @media (min-width: 900px) { .sr-grid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); } }
+/* 커스텀 기본 단계 이름 칸 + [랜덤] (C.75z) */
+.cu-name { display: flex; align-items: flex-start; gap: 8px; }
+.cu-name > .field, .cu-name > :first-child { flex: 1; min-width: 0; }
+.cu-name__rand { flex: none; margin-top: 28px; }

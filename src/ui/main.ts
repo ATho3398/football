@@ -8,7 +8,7 @@ import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './v
 import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
-import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
+import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCustomForm } from './customVM';
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
@@ -270,6 +270,8 @@ const ui = {
     cu: initialCustomForm(),
     /** [이 단계 랜덤] 누른 횟수 (C.74d): 시드 + 횟수로 뽑아 같은 시드·같은 순서면 같은 결과 */
     rand: 0,
+    /** 이름이 랜덤으로 채운 것인지 (C.75z): 국적·인종을 바꾸면 랜덤 이름·빈 칸은 새로 뽑고 직접 입력한 이름은 둔다 */
+    nameAuto: false,
   },
 };
 
@@ -938,8 +940,21 @@ function weakFootLine(g: GameState): string {
 function readFormInputs(): void {
   const name = document.getElementById('f-name') as HTMLInputElement | null;
   const seed = document.getElementById('f-seed') as HTMLInputElement | null;
-  if (name) ui.form.name = name.value;
+  if (name && name.value !== ui.form.name) {
+    ui.form.name = name.value;
+    ui.form.nameAuto = false;
+  }
   if (seed) ui.form.seed = seed.value;
+}
+
+/** 커스텀 이름 다시 뽑기 (C.75z): force = [랜덤] 버튼. 아니면(국적·인종 변경) 랜덤으로 채운 이름·빈 칸일 때만 */
+function rerollCustomName(force: boolean): void {
+  const f = ui.form;
+  const r = customNameAfter(f.cu, f.name, f.nameAuto, force, `${prospectSeed()}:name:${f.rand + 1}`);
+  if (!r) return;
+  f.rand += 1;
+  f.name = r;
+  f.nameAuto = true;
 }
 
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
@@ -1440,6 +1455,7 @@ app.addEventListener('change', (ev) => {
     const dist = BALANCE.appearance.byNationality[nat];
     const top = dist ? (Object.entries(dist).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as Appearance | undefined) : undefined;
     ui.form.cu = customAct(customAct(ui.form.cu, 'nat', nat), 'app', top ?? ui.form.cu.appearance);
+    rerollCustomName(false);
     render();
     return;
   }
@@ -2055,6 +2071,7 @@ app.addEventListener('click', (ev) => {
       readFormInputs();
       const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
       ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
+      if (k === 'app') rerollCustomName(false);
       render();
       return;
     }
@@ -2082,7 +2099,7 @@ app.addEventListener('click', (ev) => {
       const f = ui.form;
       const r = prospectToCustom(prospectSeed(), f.position, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined);
       f.cu = r.form;
-      if (!f.name.trim()) f.name = r.name;
+      if (!f.name.trim()) { f.name = r.name; f.nameAuto = true; }
       f.mode = 'custom';
       ui.ng.cuStep = 1;
       render();
@@ -2095,7 +2112,14 @@ app.addEventListener('click', (ev) => {
       f.rand += 1;
       const r = randomStep(f.cu, f.name, Number(v) || ui.ng.cuStep, `${prospectSeed()}:cu${v}:${f.rand}`);
       f.cu = r.form;
-      f.name = r.name;
+      if (r.name !== f.name) { f.name = r.name; f.nameAuto = true; }
+      render();
+      return;
+    }
+    case 'cu-name-rand': {
+      // 이름 [랜덤] (C.75z): 고른 국적·인종에 맞는 이름
+      readFormInputs();
+      rerollCustomName(true);
       render();
       return;
     }
