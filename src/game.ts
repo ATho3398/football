@@ -1936,8 +1936,8 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
   if (!injured && result.minutes > 0) {
     const at = { season: league.season, round: league.round + 1, date: m.date, daysToEnd: summer ? 0 : Math.max(0, daysBetween(m.date, calendarOf(state).final)) };
     const rolled = rm ? rm.preInjury : rollInjury(player, result.minutes, state.difficulty, 0, at, rngFor(seed, 'natinjury', m.key), matchInjuryMul(state, cond), injuryDaysMul(state));
+    // 시즌 부상 횟수(리그 출전 시간 기준 지표, 회귀 가드 "부상 풀타임 환산")에는 세지 않는다 — 부상 자체는 그대로
     if (rolled) {
-      player.season.injuries++;
       player.injury = rolled;
       injury = { ...rolled, permanent: { ...rolled.permanent } };
     }

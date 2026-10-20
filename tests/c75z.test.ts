@@ -15,8 +15,9 @@ const INTERVIEWS = EVENTS.filter(isInterviewEvent);
 
 describe('C.75z 버전', () => {
   it('PATCH_LABEL · STAGE_LABEL', () => {
-    expect(PATCH_LABEL).toBe('C.75z');
-    expect(STAGE_LABEL).toBe('44단계');
+    // 형식만 (병렬 패치가 배포 때 덮어씀, C.76d 병합)
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });
 
