@@ -156,7 +156,7 @@ export interface PersonDetailVM {
   attrs: AttrGroupVM[]; keyNote: string;
   body: { height: string; weight: string; foot: string; weakFoot: string };
   /** 몸·태그 탭 신체 칸 (C.71a 디자인 169): 숫자 그대로, 몸 정보가 없으면 null */
-  bodyN: { height: number; weight: number; bmi: string; weakFoot: number } | null;
+  bodyN: { height: number; weight: number; bmi: string; weakFoot: number; foot: 'left' | 'right' } | null;
   youth: string;
   /** 유스 구단 id (리그 팀이면 누르면 팀 상세) */
   youthId: string | null; youthLeague: boolean;
@@ -223,7 +223,7 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
     body: b
       ? { height: `${b.height}cm`, weight: `${b.weight}kg`, foot: FOOT_KO[b.foot], weakFoot: `${b.weakFoot}/5` }
       : { height: '—', weight: '—', foot: '—', weakFoot: '—' },
-    bodyN: b ? { height: b.height, weight: b.weight, bmi: bmiOf(b).toFixed(1), weakFoot: b.weakFoot } : null,
+    bodyN: b ? { height: b.height, weight: b.weight, bmi: bmiOf(b).toFixed(1), weakFoot: b.weakFoot, foot: b.foot } : null,
     youth: youthName, youthId: youthId || null, youthLeague: L.teams.some((t) => t.id === youthId),
     posOvrs, history, priorCareer: priorCareerOf(id),
   };

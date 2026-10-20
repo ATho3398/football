@@ -41,6 +41,7 @@ import { TAGS } from './tags';
 import { REAL_CAREER } from '../data/players/careers';
 import { npcTagMap, recordNaturalNews, recordTagNews, type TagNews } from './npcTags';
 import { collectPhotos, photoRetirements, photoSnapshot, type PhotoState } from './photocards';
+import { jerseyPool, type ShowcaseState } from './jerseys';
 import { futureSpawns, isLegendId, LEGEND_BY_ID, LEGEND_PACK, legendArrivals, legendClub, legendPeak, legendRosterPlayer, legendSpawns, packRealExcludes, type LegendSpawn } from './legends';
 import { ensureFinance, type FinanceState } from './finance';
 import { wealthDayEnd, wealthSeasonEnd, wealthSeasonStart } from './wealth';
@@ -85,7 +86,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 47;
+export const SAVE_FORMAT_VERSION = 48;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -138,6 +139,9 @@ export interface MatchReport {
   cond?: { weather: WeatherKind; referee: string };
   /** 이 경기로 새로 모은 포토카드 장 수 (C.75t) */
   newPhotos?: number;
+  /** 유니폼 교환 (C.76b): 요청할 수 있는 상대 실제 선수 id(내가 뛴 엔진 경기만), 요청 결과(경기당 1번) */
+  jerseyPool?: string[];
+  jersey?: { id: string; ok: boolean; line: string };
 }
 
 /** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 이상 (FA 100+단계, 챔스 110+) */
@@ -295,6 +299,8 @@ export interface GameState {
   records?: RecordsState;
   /** 포토카드 도감 (C.75t): 모은 카드 (획득순). 옛 세이브는 빈 도감 */
   photos?: PhotoState;
+  /** 유니폼 교환 기록 · 진열 배치 (C.76b). 옛 세이브는 없음 = 빈 기록 */
+  showcase?: ShowcaseState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -441,7 +447,7 @@ function addFutureStars(rosters: Rosters, worldSeed: string, season: number, tea
   if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])));
 }
 
-/** 레전드 팩 3판 (C.75w): 리그 밖에서 기다리던 레전드가 이 시즌(season = 막 시작하는 시즌)에 이적으로 들어온다 */
+/** 레전드 팩 3판 (C.76b): 리그 밖에서 기다리던 레전드가 이 시즌(season = 막 시작하는 시즌)에 이적으로 들어온다 */
 function addLegendArrivals(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[], except?: string): void {
   const spawns = legendArrivals(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })), rosters, except);
   if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])), 400);
@@ -1681,6 +1687,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   // 포토카드 (C.75t): 같은 경기에 뛴 실제 선수
   const photos = collectPhotos(state, engineOut?.engine.players, MY_ID, { date: state.calendar.date, season: league.season, vs: opp.id });
   if (photos) report.newPhotos = photos;
+  const pool = jerseyPool(engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
+  if (pool) report.jerseyPool = pool;
   eventsAfterMatch(state);
   // 득점·도움 경쟁 기사 (C.64)
   worldAfterRound(state);
@@ -1800,6 +1808,8 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   chemAfterMatch(state, engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
   const photos = collectPhotos(state, engineOut?.engine.players, MY_ID, { date: state.calendar.date, season: league.season, vs: opp.id, comp: mc.comp });
   if (photos) report.newPhotos = photos;
+  const pool = jerseyPool(engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
+  if (pool) report.jerseyPool = pool;
   if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
   refreshUnlocks(state);
   return report;
@@ -2099,7 +2109,7 @@ export function endSeason(state: GameState): SeasonSummary {
   state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
   // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 들어온다 (rebuildRosters 와 같은 자리)
   if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams);
-  // 레전드 팩 3판 (C.75w): 리그 밖 레전드 이적 유입 (rebuildRosters 와 같은 자리)
+  // 레전드 팩 3판 (C.76b): 리그 밖 레전드 이적 유입 (rebuildRosters 와 같은 자리)
   if (state.legends && (state.legendPack ?? 1) >= 3) addLegendArrivals(state.rosters, state.worldSeed, season + 1, league.teams, state.player.legendId);
   state.roster.updates++;
   // 포토카드 (C.75t): 은퇴로 리그에서 사라진 레전드는 마지막 값 고정

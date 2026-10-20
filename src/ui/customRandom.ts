@@ -7,12 +7,12 @@ import { rollProspect, startCandidates, type StartCandidate } from '../aptitude'
 import { BALANCE } from '../config/balance';
 import { CUSTOM_HIDDEN_TAGS, customBudget, customCap, customRaise, spentPoints } from '../custom';
 import { prospectExtras, type CustomSpec } from '../game';
-import { PHOTO_OF, randomNameFor, rollIdentity, type FacePhoto, type Race } from '../identity';
+import { PHOTO_OF, raceOf, randomNameFor, rollIdentity, type FacePhoto, type Race } from '../identity';
 import { initialTeams } from '../league';
 import { attributeOvrWeight, type FieldPosition, type PlayablePosition } from '../positions';
 import { createRng, hashSeed } from '../rng';
 import { canAddTag, type TagPick } from '../tags';
-import { budgetOf, customSpec, NATIONALITIES, weightRange, type CustomForm } from './customVM';
+import { budgetOf, customSpec, HAIRS_OF, NATIONALITIES, SKIN_OF, weightRange, type CustomForm } from './customVM';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -109,7 +109,7 @@ export function prospectToCustom(key: string, position: PlayablePosition, race?:
 }
 
 /**
- * [이 단계 랜덤]: 그 단계 값만 같은 생성기로 다시 뽑는다. 1 기본(이름·나이 17·포지션) · 2 몸 · 3 외모 · 4 태그 ·
+ * [이 단계 랜덤]: 그 단계 값만 같은 생성기로 다시 뽑는다. 1 기본(국적·인종·이름·나이 17·포지션, C.75z) · 2 몸 · 3 외모(기본 사진·도트 머리) · 4 태그 ·
  * 5 능력치(포인트에 맞춤) · 6 시작 소속. name 은 1단계에서만 바뀐다
  */
 export function randomStep(f: CustomForm, name: string, step: number, key: string): { form: CustomForm; name: string } {
@@ -119,6 +119,12 @@ export function randomStep(f: CustomForm, name: string, step: number, key: strin
       out.age = BALANCE.custom.refAge;
       out.position = rollProspect(key).candidates[0]!.pos;
       Object.assign(out, startFit(out));
+      // 국적·인종도 1단계 (C.75z): 사진은 그 인종 기본, 맞지 않는 머리는 자동으로
+      const l = looksOf(key);
+      out.nationality = l.nationality;
+      out.appearance = l.appearance;
+      out.facePhoto = l.facePhoto;
+      out.hair = '';
       out.attrs = fitToBudget(out.attrs, out.position as FieldPosition, budgetOf(out), out.height);
       return { form: out, name: randomNameFor(key, out.nationality, out.appearance) };
     }
@@ -127,7 +133,15 @@ export function randomStep(f: CustomForm, name: string, step: number, key: strin
       out.attrs = attrsToCustom(f.attrs, out.height);
       break;
     }
-    case 3: Object.assign(out, (({ name: _n, ...l }) => l)(looksOf(key))); break;
+    case 3: {
+      // 외모 = 기본 사진 · 도트 머리만 (국적·인종은 1단계, C.75z): 고른 인종 사진 + 그 피부에 맞는 머리 하나
+      const hairs = HAIRS_OF[SKIN_OF[f.appearance]] ?? [];
+      const r = createRng(hashSeed(`cu-hair:${key}`))();
+      out.facePhoto = PHOTO_OF[raceOf(f.appearance)];
+      // 자동('') 또는 머리 하나를 고르게
+      out.hair = ['', ...hairs][Math.floor(r * (hairs.length + 1))] ?? '';
+      break;
+    }
     case 4: out.tags = customTags(prospectExtras(key, f.position).tags); break;
     case 5: out.attrs = fitToBudget(attrsToCustom(rollProspect(key, f.position).attributes, f.height), f.position as FieldPosition, budgetOf(f), f.height); break;
     default: Object.assign(out, startOf(key, f.age));

@@ -32,7 +32,7 @@ export function autoSheet(vm: AutoSheetVM, count: number, prefs: AutoPrefs = AUT
   const sw = (k: keyof AutoPrefs, label: string, desc: string) => Switch({ label, desc, on: prefs[k], act: 'auto-pref', data: { k }, className: 'auto-pref' });
   const settings = `<h4 class="ag-head auto-h2">진행 설정</h4><div class="auto-prefs">
       ${sw('alloc', '포인트 추천 배분 자동 적용', '레벨업 포인트를 포인트 화면 [자동 배분]과 같은 규칙으로 바로 찍어요.')}
-      ${sw('event', '선택 이벤트가 오면 멈춤', '답이 필요한 인박스 이벤트가 새로 오면 멈춰요. 끄면 기한이 지나 기본 선택으로 넘어가요.')}
+      ${sw('event', '선택 이벤트가 오면 멈춤', '답이 필요한 인박스 이벤트가 새로 오면 멈춰요. 끄면 기한이 지나 기본 선택으로 넘어가요. 인터뷰는 멈추지 않고 손해가 가장 적은 답을 골라요.')}
       ${sw('injury', '부상당하면 멈춤', '내 선수가 새로 다치면 멈춰요.')}
     </div><p class="small muted">이적 제안·재계약처럼 답해야 하는 일은 늘 멈춰요. [중단]은 그날까지 끝내고 멈춰요.</p>`;
   return BottomSheet({

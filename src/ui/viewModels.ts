@@ -1682,7 +1682,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     extras: rc ? (() => {
       const x = rc.form;
       return {
-        height: x.height, weight: x.weight, foot: FOOT_KO[x.foot], weakFoot: x.weakFoot,
+        height: x.height, weight: x.weight, foot: FOOT_KO[x.foot], side: x.foot, weakFoot: x.weakFoot,
         traits: x.tags.map((t) => ({ ko: TAGS[t.id].ko, desc: TAGS[t.id].desc, kind: TAGS[t.id].kind === 'pro' ? 'pro' as const : 'con' as const, ...(!t.perm && TAGS[t.id].removeDesc ? { release: `${TAGS[t.id].removeDesc}이면 사라짐` } : {}) })),
       };
     })() : null,

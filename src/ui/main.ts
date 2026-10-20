@@ -8,7 +8,7 @@ import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './v
 import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { COMP_NAMES_KO, type CompId } from '../cups';
-import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
+import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCustomForm } from './customVM';
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
@@ -71,7 +71,7 @@ import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rival
 import { markAllRead, markRead, pendingItems, unreadCount } from '../inbox';
 import { loadAutoPrefs, saveAutoPrefs, type AutoPrefs } from './autoPrefs';
 import { claimNewGameBonus, loadLegacy, recordRetirement, type LegacyStore } from '../legacy';
-import { answerEvent } from '../events';
+import { answerEvent, autoAnswerInterviews } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
@@ -102,6 +102,9 @@ import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
+import { jerseyPanelVM, showroomVM } from './jerseyVM';
+import { showroomView } from './views/showroom';
+import { requestJersey, showcasePut, showcaseTake } from '../jerseys';
 import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
@@ -119,7 +122,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -267,6 +270,8 @@ const ui = {
     cu: initialCustomForm(),
     /** [이 단계 랜덤] 누른 횟수 (C.74d): 시드 + 횟수로 뽑아 같은 시드·같은 순서면 같은 결과 */
     rand: 0,
+    /** 이름이 랜덤으로 채운 것인지 (C.75z): 국적·인종을 바꾸면 랜덤 이름·빈 칸은 새로 뽑고 직접 입력한 이름은 둔다 */
+    nameAuto: false,
   },
 };
 
@@ -516,6 +521,7 @@ function screenHtml(): string {
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
+    case 'showroom': return showroomView(showroomVM(g));
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -585,7 +591,7 @@ function screenHtml(): string {
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
-  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta) : homeView(homeVM(g));
+  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta, jerseyPanelVM(g)) : homeView(homeVM(g));
 }
 
 /** 화면 → 첫 방문 말풍선 id */
@@ -934,8 +940,21 @@ function weakFootLine(g: GameState): string {
 function readFormInputs(): void {
   const name = document.getElementById('f-name') as HTMLInputElement | null;
   const seed = document.getElementById('f-seed') as HTMLInputElement | null;
-  if (name) ui.form.name = name.value;
+  if (name && name.value !== ui.form.name) {
+    ui.form.name = name.value;
+    ui.form.nameAuto = false;
+  }
   if (seed) ui.form.seed = seed.value;
+}
+
+/** 커스텀 이름 다시 뽑기 (C.75z): force = [랜덤] 버튼. 아니면(국적·인종 변경) 랜덤으로 채운 이름·빈 칸일 때만 */
+function rerollCustomName(force: boolean): void {
+  const f = ui.form;
+  const r = customNameAfter(f.cu, f.name, f.nameAuto, force, `${prospectSeed()}:name:${f.rand + 1}`);
+  if (!r) return;
+  f.rand += 1;
+  f.name = r;
+  f.nameAuto = true;
 }
 
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
@@ -1186,6 +1205,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
   // 진행 전부터 있던 답할 이벤트는 멈추지 않는다 (새로 온 것만)
   const pend0 = new Set(pendingItems(g).map((x) => x.id));
   let spent = 0;
+  const interviews: string[] = [];
   let newEvent: string | null = null;
   let played = 0;
   let reason: 'done' | 'until' | 'stop' | 'market' | 'season' | 'event' | 'injury' = 'done';
@@ -1240,6 +1260,8 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
         autoAllocate(g.player);
         spent += p0 - g.player.unspentPoints;
       }
+      // 인터뷰 (C.75x): 자동 진행 중에는 멈추지 않고 손해가 가장 적은 답 (답은 인박스에 남는다). 진행 전부터 있던 것은 그대로
+      interviews.push(...autoAnswerInterviews(g, pend0));
       progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
       // 자동 저장 (C.75b): 자동 진행 중에는 내 경기 날과 AUTO_SAVE_DAYS 일마다만 (저장은 메인 스레드에서 상태 전체를 묶어 워커와 코어를 나눠 쓴다).
       // 멈추거나 끝나면 아래 finally 에서 한 번 더 저장한다
@@ -1266,7 +1288,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
     const assists = g.player.season.assists - before.assists;
     // 디자인 64: 끝 요약 토스트 "자동 진행 끝 · n경기" + 전적·내 골·도움·순위 + [자세히](순위표). 걸린 시간은 측정 기록(autoLog)에만
     const recs = takeFreshRecords(g);
-    const body = `${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''}${spent ? ` · 포인트 ${spent}P 자동 배분` : ''}${recs.length ? ` · 기록 ${recs.length}개 달성` : ''} · 지금 ${myRow()}`;
+    const body = `${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''}${spent ? ` · 포인트 ${spent}P 자동 배분` : ''}${recs.length ? ` · 기록 ${recs.length}개 달성` : ''}${interviews.length ? ` · 인터뷰 ${interviews.length}개 자동 답` : ''} · 지금 ${myRow()}`;
     autoLog.push({ played, rounds: g.league.round - startRound, ms: Math.round(performance.now() - t0), reason });
     if (g.phase !== 'season') {
       go('season');
@@ -1433,6 +1455,7 @@ app.addEventListener('change', (ev) => {
     const dist = BALANCE.appearance.byNationality[nat];
     const top = dist ? (Object.entries(dist).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as Appearance | undefined) : undefined;
     ui.form.cu = customAct(customAct(ui.form.cu, 'nat', nat), 'app', top ?? ui.form.cu.appearance);
+    rerollCustomName(false);
     render();
     return;
   }
@@ -2048,6 +2071,7 @@ app.addEventListener('click', (ev) => {
       readFormInputs();
       const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
       ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
+      if (k === 'app') rerollCustomName(false);
       render();
       return;
     }
@@ -2075,7 +2099,7 @@ app.addEventListener('click', (ev) => {
       const f = ui.form;
       const r = prospectToCustom(prospectSeed(), f.position, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined);
       f.cu = r.form;
-      if (!f.name.trim()) f.name = r.name;
+      if (!f.name.trim()) { f.name = r.name; f.nameAuto = true; }
       f.mode = 'custom';
       ui.ng.cuStep = 1;
       render();
@@ -2088,7 +2112,14 @@ app.addEventListener('click', (ev) => {
       f.rand += 1;
       const r = randomStep(f.cu, f.name, Number(v) || ui.ng.cuStep, `${prospectSeed()}:cu${v}:${f.rand}`);
       f.cu = r.form;
-      f.name = r.name;
+      if (r.name !== f.name) { f.name = r.name; f.nameAuto = true; }
+      render();
+      return;
+    }
+    case 'cu-name-rand': {
+      // 이름 [랜덤] (C.75z): 고른 국적·인종에 맞는 이름
+      readFormInputs();
+      rerollCustomName(true);
       render();
       return;
     }
@@ -2218,6 +2249,21 @@ app.addEventListener('click', (ev) => {
       return;
     case 'pc-flip':
       ui.dex = { ...ui.dex, flip: ui.dex.flip === v ? null : v ?? null };
+      render();
+      return;
+    // 유니폼 교환 · 진열실 (C.76b)
+    case 'jersey-ask': {
+      const r = g && v ? requestJersey(g, v) : null;
+      if (r) autosave(); // 결과는 결과 화면 패널에 한 줄로
+      render();
+      return;
+    }
+    case 'sr-put':
+      if (g && v && showcasePut(g, v)) autosave();
+      render();
+      return;
+    case 'sr-take':
+      if (g && v && showcaseTake(g, v)) autosave();
       render();
       return;
     case 'fn-tab':
