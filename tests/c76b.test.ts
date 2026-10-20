@@ -98,7 +98,8 @@ describe('요청 (경기당 1번)', () => {
   });
 
   it('결정적: 같은 세이브·같은 선수면 같은 결과', () => {
-    const a = game('c75w-d');
+    // C.76s(엔진 32): c75w-d 는 12라운드 안에 실제 상대 선수가 있는 엔진 경기(유니폼 풀)가 없어져(14라운드부터) c76s-d 로 (1·2·9라운드)
+    const a = game('c76s-d');
     playUntilPool(a);
     const b = deserialize(serialize(a));
     const id = a.lastMatch!.jerseyPool![0]!;
