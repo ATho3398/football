@@ -140,7 +140,8 @@ function recordTab(vm: PlayerVM): string {
       ${ban}`)}
     ${SectionTitle({ title: '호흡 좋은 동료', action: `패스 성공 최대 +${Math.round(BALANCE.chemistry.maxPass * 100)}%` })}
     ${panel(vm.chem.length
-      ? `<ul class="chem-list">${vm.chem.map((m) => `<li><b class="chem-list__name">${esc(m.name)} <small class="muted">${esc(m.position)}</small></b><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small">+${m.bonus}%</b></li>`).join('')}</ul>
+      // C.76j (디자인 232): 얼굴 · 이름 · 포지션 · 케미 단계 · 막대 · +% | 오른쪽 함께 뛴 분 (패스·합작 골은 기록이 없어 분으로)
+      ? `<div class="chem-head small muted"><span>동료 · 케미</span><span>함께 뛴 시간</span></div><ul class="chem-list chem-list--b">${vm.chem.map((m) => `<li>${Avatar({ size: 36, name: m.name })}<span class="chem-list__main"><b class="chem-list__name">${esc(m.name)} <i class="po-num muted">${esc(m.position)}</i></b><span class="chem-list__line"><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small chem-list__bonus">+${m.bonus}%</b></span></span><span class="chem-list__min"><b class="po-num">${m.minutes}</b><small>분</small></span></li>`).join('')}</ul>
         <span class="muted small">같이 뛴 시간만큼 쌓이고 시즌이 지나도 남아요. 이적하면 처음부터예요.</span>`
       : '<span class="muted small">같이 뛴 시간만큼 동료와 호흡이 쌓여요. 호흡이 좋은 동료와는 패스가 조금 더 잘 맞아요.</span>')}
     ${SectionTitle({ title: '위상과 레벨', action: `누적 XP ${vm.totalXp}` })}

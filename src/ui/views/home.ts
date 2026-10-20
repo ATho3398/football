@@ -33,7 +33,7 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   return chips.length < 3 ? [...chips, { label: vm.chapter, soft: true }] : chips;
 }
 
-export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = ''): string {
+export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = '', after = ''): string {
   const n = vm.next;
   // C.70 (디자인 161): 날짜 옆은 저장·설정. C.76g (디자인 197·211): 안 읽은 인박스가 있으면 알림 종(배지), 코치 후보가 있으면 재정 동전(배지)
   const tools = (vm.inbox ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `알림 ${vm.inbox}`, variant: 'ghost', badge: vm.inbox }) : '')
@@ -107,7 +107,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   // C.70 (디자인 162): 배너(레벨업 등)는 머리말 바로 아래, 그다음 인박스 알림
   // C.76g (디자인 197 ④): 생활 힌트는 다음 경기 위 한 줄(누르면 훈련·일정 하루 시트 자리) · (204): 시즌 목표는 다음 경기 바로 아래
   const life = c.life?.length ? `<div class="hm-life">${Icon({ name: 'sun', size: 18 })}<p class="grow"><b>생활</b> · ${esc(c.life[0]!)}</p>${Button({ size: 'sm', variant: 'ghost', act: 'go-tab', data: { v: 'schedule' }, children: '고르기' })}</div>` : '';
-  const head = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${life}${next}`;
+  const head = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${life}${next}${after}`;
   const main = `${head}${goals}${training}${notice}${extra}`;
   // PC 2열 (C.61 디자인 120 → C.76g 디자인 204): 왼쪽 = 알림 · 다음 경기 · 오늘 훈련 · 기록 도전 … · 내 상태, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 시즌 목표 · 버전
   if (isWide()) return `${hero}<div class="body home-body">${pc2(`${head}${training}${notice}${extra}${cond}`, `${card}${tiles}${goals}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;

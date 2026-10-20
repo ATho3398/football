@@ -40,7 +40,7 @@ import {
   costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
 import { possessionSummary, type Scene } from '../highlights';
-import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlightKind } from '../seasonHighlights';
+import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlight, type SeasonHighlightKind } from '../seasonHighlights';
 import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
@@ -48,6 +48,7 @@ import { INJURY_NAMES_KO } from '../injury';
 import { shownTracks } from '../records';
 import { CLUB_TO_TEAM, clubKo, initialTeams, leagueOfTeam, leaguePosition, leagueTeamById, sortedTable, teamById, type LeagueState } from '../league';
 import { DEFAULT_LEAGUES, leagueCatalog, leagueData, PLAYABLE_LEAGUES } from '../../data/leagues';
+import { cupBannerVM, type CupBannerVM } from './seasonVM';
 import { calendarKind, normalizeLeagues, otherLeagueCalendar, otherScorers, type OtherLeague } from '../otherLeagues';
 import { MLS_CONFERENCE } from '../../data/leagues/mls';
 import { abroadLegends, FUTURE_STARS, futureDebut, futureEntry, LEGEND_BY_ID, legendClub, legendPeak, legendPlacement, legendRosterPlayer, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../legends';
@@ -1089,6 +1090,8 @@ export interface MatchResultVM {
   cardUses: { text: string; result: 'success' | 'fail' | 'neutral'; /** C.70 (디자인 170): 분 · 카드 이름 · 자동 */ minute?: string; name?: string; auto?: boolean }[];
   /** 경기 환경 한 줄 (C.74a): "빗속 경기 · 심판 대니얼 후퍼". 기록 이전 경기면 null */
   env: { weather: WeatherKind; line: string; referee: string } | null;
+  /** 대회 배너 (C.76j 디자인 214): 컵·챔스 경기면 하나 */
+  cupBanner: CupBannerVM | null;
 }
 
 const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드', delegate: '맡김' } as const;
@@ -1121,22 +1124,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   if (m.recovered) banners.push({ tone: 'success', title: '부상에서 회복했어요', body: '다음 경기부터 나설 수 있어요.' });
   // 포토카드 (C.75t): 이 경기로 새로 모은 장 수
   if (m.newPhotos) banners.push({ tone: 'success', title: `새 포토카드 ${m.newPhotos}장`, body: '같은 경기에 뛴 실제 선수를 도감에 모았어요.', action: '도감 보기', act: 'go', to: 'dex' });
-  // 컵 (C.67): 진출·탈락·우승
-  if (m.cup && m.cup.decisive === false) {
-    // 조별리그·1차전 (C.67b): 승부가 나지 않는 경기 — 조 순위 또는 2차전 안내
-    const u = g.cups?.season === m.season ? g.cups.ucl : null;
-    const k = u ? u.groups.findIndex((x) => x.includes(g.player.teamId)) : -1;
-    if (u && k >= 0 && m.cup.stage.startsWith('조별')) {
-      const pos = groupTable(g, u, k).findIndex((r) => r.id === g.player.teamId) + 1;
-      banners.push({ tone: 'info', title: `챔스 ${GROUP_LETTERS[k]}조 ${pos}위`, body: '조 2위까지 16강에 올라요.' });
-    } else banners.push({ tone: 'info', title: `챔스 ${m.cup.stage}`, body: '2차전 합계로 진출 팀이 정해져요 (동률이면 승부차기).' });
-  } else if (m.cup) {
-    const name = compNameKo(m.cup.comp, g.league.id);
-    const pens = m.cup.pens ? '승부차기 끝에 ' : '';
-    if (m.cup.won) banners.push({ tone: 'success', title: `${name} 우승!`, body: `${pens}결승에서 이겼어요.` });
-    else if (m.cup.through) banners.push({ tone: 'success', title: `${name} ${m.cup.stage} 통과`, body: `${pens}다음 단계에 올랐어요. 대진은 이 단계가 끝난 날 추첨해요.` });
-    else banners.push({ tone: 'warning', title: m.cup.stage === '결승' ? `${name} 준우승` : `${name} ${m.cup.stage} 탈락`, body: `${pens}이번 시즌 ${name}은 여기까지예요.` });
-  }
+  // 컵 (C.67): 진출·탈락·우승 → C.76j 디자인 214 대회 배너(cupBanner, seasonVM)로 옮김
   if (m.nat) {
     const c = g.national?.career;
     banners.push({ tone: 'info', title: `${m.nat.label} · 대표팀 기록`, body: `A매치 ${c?.apps ?? 0}경기 ${c?.goals ?? 0}골. 리그 기록과 따로 쌓여요.`, action: '대표팀', act: 'go', to: 'national' });
@@ -1196,6 +1184,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   return {
     myTeam: teamById(g.league, natMe ?? g.player.teamId).nameKo, face: myFace(g),
     myTeamId: natMe ?? g.player.teamId, oppId: m.opponentId, goals,
+    cupBanner: cupBannerVM(g),
     env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
     round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
     opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.nat?.pens ? ` (승부차기 ${m.nat.pens[0]}-${m.nat.pens[1]})` : ''}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
@@ -1486,7 +1475,7 @@ export interface SeasonVM {
   /** 시즌 경기 목록과 합계 (부록 C.30) */
   matches: SeasonMatchesVM;
   /** 시즌 하이라이트 3 (22.2 끝, C.73b): 최고 평점 경기 · 골 · 위기 (해당 없으면 빠짐) */
-  highlights: { kind: SeasonHighlightKind; label: string; text: string }[];
+  highlights: { kind: SeasonHighlightKind; label: string; text: string; card?: SeasonHighlight['card'] }[];
   /** 요약 카드 (C.44): MOM, 레벨 변화(시즌 시작 레벨을 모르면 null), 위상 티어 */
   moms: number; levelFrom: number | null; levelTo: number;
   /** 상세 보기 (C.44): 월별·포지션별 기록, 리그 시상 */
@@ -1546,7 +1535,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
     injury: g.phase === 'offseason' ? injuryBanner(g) : null,
     badges: (s.badges ?? []).map((b) => ({ name: BADGE_NAMES_KO[b.id], desc: BADGE_DESC_KO[b.id] })),
     matches: seasonMatchesVM(g),
-    highlights: seasonHighlights3(g.matchLog ?? [], (id) => teamById(g.league, id).nameKo).map((h) => ({ kind: h.kind, label: SEASON_HL_KO[h.kind], text: h.text })),
+    highlights: seasonHighlights3(g.matchLog ?? [], (id) => teamById(g.league, id).nameKo).map((h) => ({ kind: h.kind, label: SEASON_HL_KO[h.kind], text: h.text, ...(h.card ? { card: h.card } : {}) })),
     moms: rec.moms ?? 0,
     levelFrom: rec.startLevel ?? (g.player.history.length === 1 ? 0 : null), levelTo: g.player.level,
     ...seasonSplits(g),
@@ -1602,7 +1591,7 @@ export interface RetiredVM {
   /** 업적 · 배지 (18.11, C.73b): 트로피(챕터 기록) · 레전드 배지 */
   honors: { label: string; badge: boolean }[];
   /** 명예의 전당 (18.11, C.73b): 이 기기 상위 3, 이번 커리어 순위, 예약된 새 게임 보너스 등급. 저장소를 못 읽으면 null */
-  hall: { list: { name: string; line: string; score: number; me: boolean }[]; rank: number | null; bonus: string | null } | null;
+  hall: { list: { name: string; line: string; score: number; me: boolean; /** C.76j (디자인 225): 위상 · 배지 · 트로피 칩 */ chips?: string[] }[]; rank: number | null; bonus: string | null } | null;
 }
 
 export const RARITY_KO: Record<string, string> = { common: '일반', rare: '희귀', epic: '에픽', legendary: '전설' };
@@ -1619,6 +1608,7 @@ export function retiredVM(g: GameState, legacy: { rank: number | null; legacy: L
   const hall = legacy ? {
     list: legacy.legacy.hall.map((h) => ({
       name: `${h.name} · ${h.position}`, score: h.score, me: h.key === key,
+      chips: [`${TIER_NAMES_KO[h.tier]} ${h.reputation}`, ...(h.badges ? [`레전드 배지 ${h.badges}`] : []), ...(h.trophies ? [`트로피 ${h.trophies}`] : [])],
       line: `${h.seasons}시즌 · ${h.apps}경기 ${h.goals}골 ${h.assists}도움 · 최고 OVR ${h.peakOvr} · ${TIER_NAMES_KO[h.tier]} ${h.reputation}${h.badges ? ` · 배지 ${h.badges}` : ''}${h.trophies ? ` · 트로피 ${h.trophies}` : ''}`,
     })),
     rank: legacy.rank, bonus: legacy.legacy.bonus?.key === key ? RARITY_KO[legacy.legacy.bonus.rarity] ?? legacy.legacy.bonus.rarity : null,
@@ -2013,9 +2003,17 @@ export function myTacticVM(g: GameState): TacticVM {
 
 // ── 컵·챔스 (C.67b): 월드 탭 "컵·챔스" — 챔스 조 순위 · 녹아웃 대진 · FA컵 대진 ──
 
-export interface CupTieVM { date: string; h: string; a: string; hId: string; aId: string; score: string | null; note: string; w: string | null; me: boolean }
+export interface CupTieVM {
+  date: string; h: string; a: string; hId: string; aId: string; score: string | null; note: string; w: string | null; me: boolean;
+  /** 홈·원정 두 경기 (C.76j 205 녹아웃 표): 1차전 홈 기준 [홈 골, 원정 골], 안 치렀으면 null */
+  legs?: { l1: [number, number] | null; l2: [number, number] | null; agg: [number, number] | null; pens: [number, number] | null };
+  /** 승부차기 (홈 기준) */
+  pens?: [number, number] | null;
+}
 export interface CupsWorldVM {
   season: string;
+  /** 내 팀 이름 (C.76j 녹아웃 결과 줄) */
+  myTeam?: string;
   /** 국내 컵 이름 (C.76c: 내 리그 국가 컵). 없으면 FA컵 */
   cupName?: string;
   ucl: null | {
@@ -2033,6 +2031,7 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
   const tie = (t: CupTie, date: string, note = ''): CupTieVM => ({
     date: dateLabel(date), h: name(t.h), a: name(t.a), hId: t.h, aId: t.a, score: t.hg === undefined ? null : `${t.hg}-${t.ag}`,
     note: [note, t.p ? `승부차기 ${t.p[0]}-${t.p[1]}` : ''].filter(Boolean).join(' · '), w: t.w ? name(t.w) : null, me: t.h === me || t.a === me,
+    pens: t.p ? [t.p[0], t.p[1]] : null,
   });
   const u = cups?.ucl ?? null;
   const fa = cups?.fa ?? null;
@@ -2040,6 +2039,7 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
   return {
     cupName: cupNameKo(g.league.id),
     season: seasonLabel(g.league.season),
+    myTeam: name(me),
     ucl: u ? {
       my: uclReachLabel(g, u, me), winner: u.winner ? name(u.winner) : null,
       groups: u.groups.map((_, k) => {
@@ -2060,6 +2060,10 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
             ...v, score: t2.hg === undefined ? null : `${t1.hg! + t2.ag!}-${t1.ag! + t2.hg!}`,
             note: [`1차전 ${t1.hg === undefined ? dateLabel(t1.d!) : `${t1.hg}-${t1.ag}`}`, `2차전 ${leg2}`, t2.p ? `승부차기 ${t2.p[1]}-${t2.p[0]}` : ''].filter(Boolean).join(' · '),
             w: t2.w ? name(t2.w) : null,
+            legs: {
+              l1: t1.hg === undefined ? null : [t1.hg, t1.ag!], l2: t2.hg === undefined ? null : [t2.ag!, t2.hg],
+              agg: t2.hg === undefined ? null : [t1.hg! + t2.ag!, t1.ag! + t2.hg!], pens: t2.p ? [t2.p[1], t2.p[0]] : null,
+            },
           };
         }),
       })),
