@@ -65,9 +65,9 @@ export const ENGINE = {
     staminaLowFrom: 70,
     /** C.76s 가설 2: 지친 선수의 경합(duelEdge) −tiredDuel × tiredRatio (드리블·태클·버티기·수신·공중볼 공통) */
     tiredDuel: 0.4,
-    /** C.76s 가설 1: 압박 전술 스태미나 소모 배수 = pressDrainBase + pressDrainPer × pressing (옛 0.95 + 0.15p: 균형 1.03 / 높음 1.07 → 균형 1.04 / 높음 1.13 / 낮음 0.96) */
-    pressDrainBase: 0.85,
-    pressDrainPer: 0.35,
+    /** C.76s 가설 1: 압박 전술 스태미나 소모 배수 = pressDrainBase + pressDrainPer × pressing (옛 0.95 + 0.15p: 균형 1.03 / 높음 1.07 → 0.6 + 0.75p: 낮음 0.83 / 균형 1.01 / 높음 1.20 — 처방 0.85 + 0.35p 는 끝 스태미나 54 로 부족) */
+    pressDrainBase: 0.6,
+    pressDrainPer: 0.75,
     /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율) */
     fatigueIntensity: 0.35,
     /** 지친 선수의 최대 속도 비율 (스태미나 0 일 때, staminaLowFrom 에서 1) */
@@ -117,7 +117,7 @@ export const ENGINE = {
     attackShift: [0, 0.14, 0.25, 0.1] as [number, number, number, number],
     blockX: 0.45,
     /** C.76s 44h-c2: 압박 전술일수록 블록이 공을 더 따라 움직인다 — 수비 시 blockX·blockY × (1 + pressFollow × (pressing − 0.55)) (압박 높음 = 더 뛰고 더 닳는다) */
-    pressFollow: 0,
+    pressFollow: 3.0,
     /** 대형이 공을 따라가는 시간 상수 (초) */
     ballSmoothing: 1.5,
     blockY: 0.2,
