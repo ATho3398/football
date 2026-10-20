@@ -2362,3 +2362,12 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .pc-back__k { margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--r); }
 .pc-back__v { width: 100%; font-size: 11px; line-height: 1.35; }
 @media (min-width: 900px) { .pc-grid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); } }
+
+/* 대표팀 화면 (C.75z) */
+.nat-career { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; }
+.nat-career > div { display: flex; flex-direction: column; gap: 2px; }
+.nat-career b { font-size: 20px; }
+.nat-out { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+.nat-out.is-win { color: var(--success); }
+.nat-out.is-loss { color: var(--warning); }
+.nat-out.is-draw { color: var(--ink-muted); }

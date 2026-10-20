@@ -224,7 +224,7 @@ export interface Honors {
   ucl?: number;
 }
 
-export type BadgeId = 'goals500' | 'titles5' | 'oneClub10';
+export type BadgeId = 'goals500' | 'titles5' | 'oneClub10' | 'worldCup';
 
 export interface Badge {
   id: BadgeId;

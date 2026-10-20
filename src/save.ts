@@ -33,6 +33,8 @@ import { realBody, rollBody } from './body';
 import { REAL_CAREER } from '../data/players/careers';
 import { LEGEND_BY_ID } from './legends';
 import { awardsFromTotals, trimArchive } from './worldStats';
+import { initNational } from './national';
+import { myNationality } from './life';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -343,6 +345,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.league.tier ??= 1;
     s.leagueIds ??= ['pl'];
   },
+  // 47 → 48 (C.75z): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
+  47: (s) => { s.national ??= initNational(myNationality(s.player)); },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

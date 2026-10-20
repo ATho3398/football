@@ -6,6 +6,7 @@ import type { GoalRec } from './engine/npcMatch';
 import { CLUB_BY_ID, OUTSIDE_CLUBS } from '../data/outsideClubs';
 import { allLeagueData, leagueData } from '../data/leagues';
 import { PL } from '../data/leagues/pl';
+import { nationOf } from '../data/nations';
 
 export interface Team {
   id: string;
@@ -170,6 +171,11 @@ export function teamById(league: LeagueState, id: string): Team {
   // 컵·챔스 상대 (C.67): 리그 밖 클럽은 고정 레이팅
   const c = CLUB_BY_ID[id];
   if (c) return { ...c, baseRating: c.rating };
+  // 대표팀 (C.75z): `n:<국가>` → 국가 레이팅 표
+  if (id.startsWith('n:')) {
+    const n = nationOf(id.slice(2));
+    return { id, name: n.name, nameKo: n.nameKo, rating: n.rating, baseRating: n.rating };
+  }
   // 안 고른 리그 팀 (C.75m): 리그 밖 클럽처럼 데이터 레이팅만
   const o = leagueTeamById(id);
   if (!o) throw new Error(`unknown team: ${id}`);

@@ -77,6 +77,8 @@ import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
 import { photoDexView } from './views/photos';
 import { photoDexVM } from './photoVM';
+import { nationalView, type NationalTab } from './views/national';
+import { nationalVM } from './nationalVM';
 import type { PhotoSort } from '../photocards';
 import { financeVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
@@ -119,7 +121,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'national';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -234,6 +236,8 @@ const ui = {
   financeTab: 'money' as FinanceTab,
   /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
   dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null },
+  /** 대표팀 화면 (C.75z): 탭 · 고른 대회 */
+  nat: { tab: 'fixtures' as NationalTab, cup: null as string | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
   legendOpen: false,
@@ -362,9 +366,9 @@ const saveLog: number[] = [];
 (globalThis as unknown as { __game: () => GameState | null }).__game = () => ui.game;
 
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
-async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string } }): Promise<void> {
+async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string }; nat?: { label: string } }): Promise<void> {
   const { season, round } = rep;
-  const label = `${rep.cup ? `${COMP_NAMES_KO[rep.cup.comp]} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const label = `${rep.nat ? rep.nat.label : rep.cup ? `${COMP_NAMES_KO[rep.cup.comp]} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
@@ -516,6 +520,7 @@ function screenHtml(): string {
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
+    case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -1222,7 +1227,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
         const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
         const rep = playRound(g, { engineOut: out });
         played++;
-        lines.push({ label: rep.cup ? rep.cup.stage : `${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
+        lines.push({ label: rep.nat ? rep.nat.label : rep.cup ? rep.cup.stage : `${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
         results.push(rep.result.goalsFor > rep.result.goalsAgainst ? 'W' : rep.result.goalsFor < rep.result.goalsAgainst ? 'L' : 'D');
       } else {
         endDay(g);
@@ -2201,6 +2206,15 @@ app.addEventListener('click', (ev) => {
       return;
     // 재정 b (C.68b): 탭 · 카드 상점 · 카드팩 · TP · 집·차 · 기부 · 투자 · 에이전트
     // 포토카드 도감 (C.75t): 정렬 · 방향 · 카드 뒤집기
+    // 대표팀 (C.75z): 탭 · 대회 고르기
+    case 'nat-tab':
+      ui.nat = { ...ui.nat, tab: (v ?? 'fixtures') as NationalTab };
+      render();
+      return;
+    case 'nat-cup':
+      ui.nat = { ...ui.nat, cup: v ?? null };
+      render();
+      return;
     case 'pc-sort':
       ui.dex = { ...ui.dex, sort: (v ?? 'no') as PhotoSort, flip: null };
       render();

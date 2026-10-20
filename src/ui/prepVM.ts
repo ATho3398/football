@@ -7,7 +7,8 @@ import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
 import { derbyOf } from '../derby';
 import { formBonus, formLevel } from '../form';
-import { matchCompLabel, myMatchPosition, myScoutReport, nextFixture, type GameState } from '../game';
+import { matchCompLabel, myMatchPosition, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
+import { ensureNational, natId } from '../national';
 import type { ScoutReport } from '../rapport';
 import { leaguePosition, teamById, type LeagueState } from '../league';
 import { startChance } from '../manager';
@@ -83,13 +84,14 @@ export function prepVM(g: GameState): PrepVM | null {
   if (!fx) return null;
   const p = g.player;
   const L = g.league;
-  const my = teamById(L, p.teamId);
+  // 대표팀 경기 (C.75z): 내 쪽 = 대표팀, 출장 정지는 리그만
+  const my = teamById(L, fx.nat ? natId(ensureNational(g).nation) : p.teamId);
   const opp = teamById(L, fx.opponentId);
   const pos = myMatchPosition(g);
   const ovr = proficientOvr(p, pos);
   const role = myRoleId(g);
   const d = derbyOf(p.teamId, opp.id);
-  const out = p.injury ? '부상' : p.suspended > 0 ? '출장 정지' : null;
+  const out = p.injury ? '부상' : p.suspended > 0 && !fx.nat ? '출장 정지' : null;
   const roster = g.rosters[p.teamId];
   const t = g.tactics;
   const lineup = roster ? previewLineup(t, roster, { name: p.name, attrs: p.attributes }) : [];
@@ -111,7 +113,7 @@ export function prepVM(g: GameState): PrepVM | null {
     hint: g.training.hints[0] ?? null,
     slots, formation: myTacticVM(g).formation ?? '',
     me: { pos, posKo: POSITION_NAMES_KO[pos], role: role ? ROLE_NAMES_KO[role] ?? role : '', roleDesc: role ? ROLE_DESC_KO[role] ?? '' : '', prof: Math.floor(proficiencyOf(p, pos)), ovr, mainPos: p.position, off: pos !== p.position },
-    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round(startChance(g, ovr, my.rating, p.fatigue) * 100) },
+    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round((fx.nat ? natStartChance(proficientOvr(p, p.position), my.rating) : startChance(g, ovr, my.rating, p.fatigue)) * 100) },
     condition: {
       fatigue: Math.round(p.fatigue), form: FORM_STEP[formLevel(p.recentRatings)],
       formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,

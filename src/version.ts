@@ -4,7 +4,7 @@ import { BALANCE_VERSION } from './config/balance';
 import { ENGINE_VERSION } from './engine/config';
 
 /** 패치 이름 = 부록 C의 최신 소절 번호. 패치마다 갱신한다 (CLAUDE.md) */
-export const PATCH_LABEL = 'C.75m';
+export const PATCH_LABEL = 'C.75z';
 /** 단계 번호 = 기획서 17.2 표의 단계 (C.45 사용자 지시). PATCH_LABEL 과 같이 패치마다 갱신한다 */
 export const STAGE_LABEL = '45단계';
 
