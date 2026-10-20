@@ -86,6 +86,11 @@ describe('카드 효과 엔진 (부록 F, C.36)', () => {
     let play = 0;
     let boost = 0;
     while (m) {
+      if (m.type === 'halftime') {
+        run.halftime(null);
+        m = run.advance();
+        continue;
+      }
       for (const c of m.cards) {
         expect(cardById(c.id)).toBeTruthy();
         if (!c.usable) expect(c.reason).toBeTruthy();
@@ -208,7 +213,7 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
   });
 
   it('세이브 15 → 16: 카드 모음이 생기고 (시작 덱), 저장·불러오기 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(46);
+    expect(SAVE_FORMAT_VERSION).toBe(47);
     const g = game('ST', 'cards-mig');
     g.player.level = 7;
     const raw = JSON.parse(serialize(g));

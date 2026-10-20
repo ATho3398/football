@@ -25,7 +25,8 @@
     "balance:goals": "vite-node scripts/balance-goals.ts --",
     "balance:weather": "vite-node scripts/balance-weather.ts --",
     "balance:chemistry": "vite-node scripts/balance-chemistry.ts --",
-    "facepack": "vite-node scripts/facepack/fetch.ts --"
+    "facepack": "vite-node scripts/facepack/fetch.ts --",
+    "dex:append": "vite-node scripts/dex-append.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

@@ -7,6 +7,7 @@ import { A_GRADE_PLAYERS } from '../data/players';
 import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { initRecords } from './records';
+import { emptyPhotos } from './photocards';
 import { ensureFinance } from './finance';
 import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
@@ -333,8 +334,10 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   43: () => {},
   // 44 → 45 (C.75y): 미래 스타를 레전드 팩에서 떼어 "미래 스타 팩"(futureStars)으로. 2판 세이브(C.75x)는 미래 스타 끔으로 옮김(도르트문트 레전드는 그대로)
   44: () => {},
-  // 45 → 46 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
-  45: (s) => {
+  // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
+  45: (s) => { s.photos ??= emptyPhotos(); },
+  // 46 → 47 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
+  46: (s) => {
     s.league.id ??= 'pl';
     s.league.country ??= 'England';
     s.league.tier ??= 1;

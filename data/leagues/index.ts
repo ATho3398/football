@@ -3,6 +3,12 @@
 
 import type { LeagueData } from './types';
 import { PL } from './pl';
+import { LEAGUE as LALIGA } from './laliga';
+import { LEAGUE as SERIEA } from './seriea';
+import { LEAGUE as PRIMEIRA } from './primeira';
+import { LEAGUE as KLEAGUE1 } from './kleague1';
+import { LEAGUE as JLEAGUE1 } from './jleague1';
+import { LEAGUE as BRASILEIRAO } from './brasileirao';
 import { LEAGUE as BUNDESLIGA } from './bundesliga';
 import { LEAGUE as BUNDESLIGA2 } from './bundesliga2';
 import { LEAGUE as CHAMPIONSHIP } from './championship';
@@ -16,6 +22,12 @@ export type { LeagueData, LeagueTeamData } from './types';
 /** 등록된 리그 데이터 */
 const LEAGUE_DATA: LeagueData[] = [
   PL,
+  LALIGA,
+  SERIEA,
+  PRIMEIRA,
+  KLEAGUE1,
+  JLEAGUE1,
+  BRASILEIRAO,
   BUNDESLIGA,
   BUNDESLIGA2,
   CHAMPIONSHIP,
@@ -23,7 +35,6 @@ const LEAGUE_DATA: LeagueData[] = [
   LIGUE1,
   MLS,
   SAUDI,
-  // 데이터 세션(C.75n~s) 파일이 들어오면 여기에 등록: import { LALIGA } from './laliga'; → LALIGA,
 ];
 
 export interface LeagueEntry {

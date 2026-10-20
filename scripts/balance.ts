@@ -50,6 +50,8 @@ setEnvironmentFixed(true);
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
+/** 레전더리 35세 900+ 가드 표본 (C.75k): 레전더리 최적 배분만 이 수까지 시드를 늘린다 (SEEDS 보다 작으면 SEEDS) */
+const LEGEND_SEEDS = Number(env.LEGEND_SEEDS ?? 96);
 /**
  * 내 선수 이적 정책 (C.42): stay = 제안 모두 거절·재계약 (C.41 까지와 같은 한 팀 커리어), best = 레이팅 +2 이상·주전/로테이션 제안 중 최고 수락.
  * 회귀 가드는 POLICY(기본 stay)로 판정하고, 다른 정책은 [C.42 이적] 측정 줄에 따로 보여 준다
@@ -320,14 +322,23 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   console.log(`  정점 여지 ±1.5 안: ${inRange}/${all.length}명 (${(share * 100).toFixed(0)}%) ${check('실제 선수 정점 여지 적중률', share, 0.8, 1)}${misses.length ? ` · 벗어남: ${misses.join(', ')}` : ''}`);
 }
 {
-  console.log('\n[C.23·C.25·C.27 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표(최적 배분): 일반 250~400 (스페셜), 레전더리 550~750 (탑클래스), 레전더리 30세까지 900+ 도달 10~20%, 레전더리 35세 900+ 25% 이하');
+  console.log('\n[C.23·C.25·C.27 위상] 약팀 배정 가상 유망주 30세 위상 중앙값. 목표(최적 배분): 일반 250~400 (스페셜), 레전더리 550~750 (탑클래스), 레전더리 30세까지 900+ 도달 10~20%, 레전더리 35세 900+ 30% 이하(시드 96, C.75k)');
   for (const strategy of ['best', 'random'] as Strategy[]) {
     const perTier = (tier: Tier) => allRuns[strategy].slice(TIERS_ASC.indexOf(tier) * SEEDS_PER_TIER, (TIERS_ASC.indexOf(tier) + 1) * SEEDS_PER_TIER);
     const med = (t: Tier) => median(perTier(t).map((r) => r.repByAge[30] ?? 0));
     const wc = (t: Tier) => perTier(t).filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length / SEEDS_PER_TIER;
     const wc35 = (t: Tier) => perTier(t).filter((r) => (r.repByAge[35] ?? 0) >= 900).length / SEEDS_PER_TIER;
+    // C.75k (E-4 44g-b, 마스터 결정): 레전더리 35세 900+ 는 기준선 12/48 = 0.25 가 경계라 시드 하나로 네 번 뒤집혔다(C.67·C.68·C.73a·C.74b).
+    // 그 행만 레전더리 최적 시드를 LEGEND_SEEDS(기본 96)로 늘리고(앞 48개 + 시드 48~95 추가) 기준 ≤ 0.30 (p 0.25 · n 96 의 1σ 0.044)
+    let legend35 = '';
+    if (strategy === 'best') {
+      const extra = Array.from({ length: Math.max(0, LEGEND_SEEDS - SEEDS_PER_TIER) }, (_, k) => simulateCareer('legendary', SEEDS_PER_TIER + k, 'best'));
+      const lr = [...perTier('legendary'), ...extra];
+      const n = lr.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
+      legend35 = ` · 레전더리 35세 900+ ${n}/${lr.length} = ${(n / lr.length).toFixed(3)}(≤ 0.30) ${check('레전더리 35세 월드클래스 비율', n / lr.length, 0, 0.3, true)}`;
+    }
     const marks = strategy === 'best'
-      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2, true)}${check('레전더리 35세 월드클래스 비율', wc35('legendary'), 0, 0.25, true)}`
+      ? ` · ${check('위상 중앙값 일반', med('normal'), 250, 400)}${check('위상 중앙값 레전더리', med('legendary'), 550, 750)}${check('레전더리 30세까지 월드클래스 도달', wc('legendary'), 0.1, 0.2, true)}${legend35}`
       : '';
     console.log(`  ${strategy === 'best' ? '최적' : '무작위'}: ${TIERS_ASC.map((t) => `${TIER_NAMES_KO[t]} ${med(t).toFixed(0)}`).join(' / ')} · 30세까지 900+ ${TIERS_ASC.map((t) => `${(wc(t) * 100).toFixed(0)}%`).join(' / ')} · 35세 900+ ${TIERS_ASC.map((t) => `${(wc35(t) * 100).toFixed(0)}%`).join(' / ')}${marks}`);
   }

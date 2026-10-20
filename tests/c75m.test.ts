@@ -101,7 +101,7 @@ describe('팀 수별 일정 (C.75m)', () => {
 });
 
 describe('리그별 달력 (C.75m)', () => {
-  const cases: [string, number, number][] = [['laliga', 8, 5], ['bundesliga', 8, 5], ['championship', 8, 5], ['kleague1', 3, 12], ['jleague1', 3, 12], ['mls', 3, 12]];
+  const cases: [string, number, number][] = [['laliga', 8, 5], ['bundesliga', 8, 5], ['championship', 8, 5], ['saudi', 8, 5], ['kleague1', 3, 12], ['jleague1', 3, 12], ['brasileirao', 3, 12], ['mls', 3, 12]];
   it.each(cases)('%s: 개막 %i월 ~ 최종 %i월, 라운드 날짜 오름차순, 팀마다 2일 이상 쉰다', (id, m0, m1) => {
     for (const season of [2018, 2021]) {
       const lg = createLeague('c75m-cal', season, id);
@@ -196,7 +196,9 @@ describe('고른 리그 빠른 시뮬 (C.75m)', () => {
 
   it('안 고른 리그 팀은 리그 밖 클럽처럼 레이팅만 (teamById)', () => {
     const g = game('c75m-d');
-    const t = teamById(g.league, 'seriea-0');
+    const id = leagueData('seriea')!.teams[0]!.id;
+    const t = teamById(g.league, id);
+    expect(g.otherLeagues!.some((l) => l.teams.some((x) => x.id === id))).toBe(false);
     expect(t.rating).toBeGreaterThan(0);
   });
 
@@ -222,17 +224,17 @@ describe('세이브 (C.75m)', () => {
     expect(back.leagueIds).toEqual(['pl', 'kleague1']);
   });
 
-  it('옛 세이브(45) = PL 하나로 마이그레이션', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(46);
+  it('옛 세이브(46) = PL 하나로 마이그레이션', () => {
+    expect(SAVE_FORMAT_VERSION).toBe(47);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75m-m', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
-    old.saveFormat = 45;
+    old.saveFormat = 46;
     delete old.leagueIds;
     delete old.league.id;
     delete old.league.country;
     delete old.league.tier;
     const m = migrate(old);
-    expect(m.saveFormat).toBe(46);
+    expect(m.saveFormat).toBe(47);
     expect(m.leagueIds).toEqual(['pl']);
     expect(m.league.id).toBe('pl');
     expect(m.league.country).toBe('England');

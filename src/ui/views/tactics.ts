@@ -2,7 +2,7 @@
 // 경기 전 설정과 기본 전술 저장만 (하프타임·중단 때 변경은 E5). 상대 정보 힌트·전술 세트 3개(I.17 7·8번)는 아직 없다
 
 import { BottomSheet, Button, FormationPitch, HeroPanel, OptionRow, SectionTitle, TacticChip, Tabs, esc } from '../components';
-import type { TacticsVM } from '../viewModels';
+import type { HalftimeVM, TacticsVM } from '../viewModels';
 import { actionRow, panel, roJosa } from './common';
 
 export function tacticsView(vm: TacticsVM): string {
@@ -79,4 +79,33 @@ function roleSheet(s: NonNullable<TacticsVM['sheet']>): string {
       Button({ size: 'lg', block: true, act: 'tac-role-ok', children: `${pickName}${ro} 정하기` }),
     ),
   });
+}
+
+/**
+ * 하프타임 전술 변경 (C.75k, E.19): 직접 모드 경기의 전반이 끝나면 멈추고 이 시트를 띄운다. 전술 화면의 성향 칩·세부 전술 탭을 그대로 쓰고
+ * 전술 세트 3개를 더한다. 역할·포메이션 변경은 다음 단계. [변경 없이 후반]은 경기 전 전술 그대로 (자동 경기와 같은 결과)
+ */
+export function halftimeView(vm: HalftimeVM): string {
+  const hero = HeroPanel({
+    title: '하프타임', back: false, eyebrow: '전반 종료 · 전술을 바꿀 수 있어요', right: `${vm.teams[0]} ${vm.score[0]} : ${vm.score[1]} ${vm.teams[1]}`, chips: vm.chips,
+  });
+  const sets = `${SectionTitle({ title: '전술 세트' })}
+    ${vm.sets.map((x) => OptionRow({ act: 'ht-set', data: { v: x.id }, radio: true, selected: x.on, title: x.name, desc: x.desc })).join('')}`;
+  const tend = `${SectionTitle({ title: '전술 성향' })}
+    <div class="tac-grid">${vm.tendencies.map((t) => TacticChip({ tactic: t.style, selected: t.on, act: 'ht-tend', data: { v: t.id } })).join('')}</div>`;
+  const details = `${SectionTitle({ title: '세부 전술' })}
+    ${vm.details.map((d) => `<div class="tac-detail">
+        <div class="kv"><b class="small">${esc(d.label)}</b></div>
+        ${Tabs({ variant: 'segment', fill: true, items: d.items, value: d.value, act: 'ht-level', data: { k: d.key }, label: d.label })}
+      </div>`).join('')}
+    <p class="small muted">역할·포메이션은 바꿀 수 없어요. 바꾼 전술은 이 경기 후반에만 쓰고, 저장한 기본 전술은 그대로예요.</p>`;
+  const sheet = BottomSheet({
+    eyebrow: '하프타임', title: '후반 전술', subtitle: '성향과 세부 전술을 바꾸거나 세트를 골라요.',
+    children: `${sets}${tend}${details}`,
+    footer: actionRow(
+      Button({ variant: 'secondary', size: 'lg', block: true, act: 'ht-keep', children: '변경 없이 후반' }),
+      Button({ size: 'lg', block: true, icon: 'check', act: 'ht-ok', disabled: !vm.changed, children: vm.changed ? '이 전술로 후반' : '바꾼 것 없음' }),
+    ),
+  });
+  return `${hero}<div class="body"><p class="small muted">전반이 끝났어요. 후반 전술을 정하면 바로 이어서 시작해요.</p></div>${sheet}`;
 }

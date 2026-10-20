@@ -75,6 +75,9 @@ import { answerEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
+import { photoDexView } from './views/photos';
+import { photoDexVM } from './photoVM';
+import type { PhotoSort } from '../photocards';
 import { financeVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
 import { buyPack, buyShopCard, donate, donateBlocked, moveInvest, setLife, useTp, type InvestKind, type LifeItem, type TpKind } from '../wealth';
@@ -86,7 +89,7 @@ import { matchResultView } from './views/matchResult';
 import { playerView, type PlayerTab } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
 import { allocateView, chapterView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, cupsSection, type SeasonTab, type SeasonTodo } from './views/screens';
-import { tacticsView } from './views/tactics';
+import { halftimeView, tacticsView } from './views/tactics';
 import { contractView, marketCard, newsSection, offersView, tagNewsSection } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
@@ -99,7 +102,7 @@ import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
-import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, tacticsVM, trainingOptionsVM, type TacticsDraftUI } from './viewModels';
+import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -108,7 +111,7 @@ import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
 function youthClubName(g: GameState, club: string): string {
   return g.league.teams.find((t) => t.id === club)?.nameKo ?? OUTSIDE_CLUBS.find((c) => c.id === club)?.nameKo ?? club;
 }
-import { tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
+import { tacticsOf, tendencyLevels, TENDENCY_NAMES_KO, type Detail, type Level } from '../engine/tactics';
 import type { Formation } from '../formations';
 import type { Tendency } from '../engine/types';
 import { proficientOvr } from '../proficiency';
@@ -116,7 +119,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -181,6 +184,8 @@ const ui = {
     card: number | null;
     /** 결정 결과 재생 중 (E5 최소, 부록 C.35): 결과 구간 → 결과 띠 → 다음 장면 */
     oc: null | { vm: OutcomeVM; pitch: OutcomePitch; next: Moment | null; timer: number };
+    /** 하프타임 전술 초안 (C.75k): 경기 전 전술(base)에서 시작 */
+    ht?: { draft: HalftimeDraft; base: Pick<HalftimeDraft, 'tendency' | 'levels'> } | null;
   },
   /** 설정 화면 페이스온 (C.43) */
   fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
@@ -227,6 +232,8 @@ const ui = {
   playerTab: 'attrs' as PlayerTab,
   /** 재정 화면 탭 (C.68b) */
   financeTab: 'money' as FinanceTab,
+  /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
+  dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
   legendOpen: false,
@@ -508,6 +515,7 @@ function screenHtml(): string {
     }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
+    case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -515,6 +523,7 @@ function screenHtml(): string {
       const lv = ui.live;
       if (lv?.oc) return outcomeView(lv.oc.vm);
       const m = lv?.run.pending;
+      if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side));
       if (lv && m) {
         const log = lv.run.sim.state.moments.log;
         return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1 });
@@ -729,7 +738,7 @@ function liveBand(to: Screen): string {
   const lv = ui.live;
   const m = lv?.run.pending ?? lv?.oc?.vm.moment;
   const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${m.score[0]}-${m.score[1]} ${lv.teams[1]}` : '경기 중';
-  const sub = lv && m ? '결정 순간에서 멈췄어요 · 돌아가면 이어서 해요' : to === 'replay' ? '경기 재생 중 · 돌아가면 이어서 봐요' : '';
+  const sub = lv && m?.type === 'halftime' ? '하프타임 · 후반 전술을 정하면 이어서 해요' : lv && m ? '결정 순간에서 멈췄어요 · 돌아가면 이어서 해요' : to === 'replay' ? '경기 재생 중 · 돌아가면 이어서 봐요' : '';
   return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><span class="grow"><b>${esc(head)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="live-back">경기로 돌아가기${Icon({ name: 'chevron-right', size: 14, strokeWidth: 2.6 })}</b></button>`;
 }
 
@@ -747,6 +756,15 @@ function liveAdvance(g: GameState): void {
 function liveShow(g: GameState, m: Moment | null): void {
   const lv = ui.live!;
   lv.pitch?.stop();
+  if (m?.type === 'halftime') {
+    // 하프타임 전술 변경 (C.75k): 경기 전 전술에서 시작하는 시트
+    lv.pitch = null;
+    const t = lv.run.input.myTactics;
+    const base = { tendency: t?.tendency ?? 'balanced', levels: { ...(t?.levels ?? tendencyLevels(t?.tendency ?? 'balanced')) } } as Pick<HalftimeDraft, 'tendency' | 'levels'>;
+    lv.ht = { base, draft: { ...base, levels: { ...base.levels }, set: 0 } };
+    go('moment');
+    return;
+  }
   if (m) {
     lv.sel = null;
     lv.card = null;
@@ -776,7 +794,7 @@ function liveShow(g: GameState, m: Moment | null): void {
  */
 /** 결과 구간 판정 종류: 카드 장면(C.40)은 상대 슈팅·상대 세트피스면 수비, 우리 공중볼이면 공격으로 본다 */
 function outcomeType(m: Moment): 'onball' | 'duel' | 'setPiece' {
-  return m.type === 'react' ? (m.scene.startsWith('opp') ? 'duel' : 'onball') : m.type;
+  return m.type === 'react' ? (m.scene.startsWith('opp') ? 'duel' : 'onball') : m.type === 'halftime' ? 'onball' : m.type;
 }
 
 function liveDecide(g: GameState, choice: number | 'delegate'): void {
@@ -2113,6 +2131,42 @@ app.addEventListener('click', (ev) => {
     case 'sim-stop':
       requestSimStop();
       return;
+    case 'ht-set': {
+      const h = ui.live?.ht;
+      if (!h || v === undefined) return;
+      const x = halftimeSets(h.base)[Number(v)];
+      if (!x) return;
+      h.draft = { tendency: x.tendency, levels: { ...x.levels }, set: Number(v) };
+      render();
+      return;
+    }
+    case 'ht-tend': {
+      const h = ui.live?.ht;
+      if (!h || !v) return;
+      // 성향을 바꾸면 세부 전술은 그 성향 기본값 (전술 화면과 같은 규칙)
+      h.draft = { tendency: v as Tendency, levels: tendencyLevels(v as Tendency), set: null };
+      render();
+      return;
+    }
+    case 'ht-level': {
+      const h = ui.live?.ht;
+      if (!h || v === undefined) return;
+      h.draft = { ...h.draft, levels: { ...h.draft.levels, [el.dataset.k as Detail]: Number(v) as Level }, set: null };
+      render();
+      return;
+    }
+    case 'ht-keep':
+    case 'ht-ok': {
+      const lv = ui.live;
+      if (!g || !lv?.ht || lv.run.pending?.type !== 'halftime') return;
+      const d = lv.ht.draft;
+      const vm = halftimeVM(d, lv.ht.base, lv.teams, lv.run.pending.score, lv.run.pending.side);
+      const change = act === 'ht-ok' && vm.changed;
+      lv.run.halftime(change ? tacticsOf(d.tendency, d.levels) : null, change ? `하프타임 전술 변경 · ${vm.chips.join(' · ')}` : undefined);
+      lv.ht = null;
+      liveAdvance(g);
+      return;
+    }
     case 'live-return': {
       const to = liveScreen();
       if (!g || !to) return;
@@ -2146,6 +2200,19 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     // 재정 b (C.68b): 탭 · 카드 상점 · 카드팩 · TP · 집·차 · 기부 · 투자 · 에이전트
+    // 포토카드 도감 (C.75t): 정렬 · 방향 · 카드 뒤집기
+    case 'pc-sort':
+      ui.dex = { ...ui.dex, sort: (v ?? 'no') as PhotoSort, flip: null };
+      render();
+      return;
+    case 'pc-dir':
+      ui.dex = { ...ui.dex, desc: !ui.dex.desc };
+      render();
+      return;
+    case 'pc-flip':
+      ui.dex = { ...ui.dex, flip: ui.dex.flip === v ? null : v ?? null };
+      render();
+      return;
     case 'fn-tab':
       ui.financeTab = (v ?? 'money') as FinanceTab;
       render();
