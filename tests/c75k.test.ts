@@ -128,7 +128,7 @@ describe('C.75k 몰고 가다 슛', () => {
 
 describe('C.75k 버전', () => {
   it('PATCH_LABEL · STAGE_LABEL', () => {
-    expect(PATCH_LABEL).toBe('C.75k');
+    expect(PATCH_LABEL).toMatch(/^C\.75[a-z]$/); // C.75v 부터 다음 패치 이름
     expect(STAGE_LABEL).toBe('44단계');
   });
 });
