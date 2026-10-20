@@ -529,5 +529,5 @@
 ### 8.37 마스터 세션 T (2026-10-20 10:49 KST~, `session_01KEPYWMJvsVNyeS7vpS8kSs`, 브랜치 `claude/planning-t`)
 - S가 만든 세션 → `lineage` 깊이 2(한도 8). 환경 "player ONE"(env_01STK8eBPczqRtyrxxUJL5DJ). 브랜치 `claude/planning-t`(claude/planning-s cee1b33에서 분기, 푸시).
 - 시작 처리(10:50 KST): ① S에 "T 준비 완료 + T ID"(delivered) ② C.75e·C.75f·엔진관리자3·UI_3에 "보고는 T, 마스터 브랜치 claude/planning-t"(모두 delivered) ③ S 제목 `draft_S_축구 커리어 게임 마스터`(S 최종 20.9달러·48.3만) ④ S 예약 `trig_01A9rAPHtdf15eXNx98cE1iX` 삭제 → T 자동 확인 send_later `trig_01QkJj2Hd3ZdXB556HjhWvFz`(11:50 KST) ⑤ `NTFY_TOPIC` 있음 확인(값은 적지 않음).
-- 한도: 시작 시 5시간 한도 `allowed_warning`(13:00 KST 풀림) — Fable·큰 세션 동시 실행 자제.
+- 한도: 시작 시 5시간 한도 `allowed_warning`(11:00 KST 풀림) — Fable·큰 세션 동시 실행 자제.
 - 다음: C.75e·C.75f 보고 처리 → (필요하면 44c-c) → 44e~ E-4 묶음(엔진관리자3 처방) → 대표팀 + 타리그 → 수집 시스템(pending 129~133).
