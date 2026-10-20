@@ -1,10 +1,13 @@
 // 게임 진행: 새 게임, 라운드 진행, 시즌 종료, 다음 시즌, 은퇴 (B.2~B.6)
 
-import { A_GRADE_PLAYERS } from '../data/players';
+import { REAL_PLAYER_BY_ID, realPlayersFor } from '../data/players';
+import { PLAYABLE_LEAGUES } from '../data/leagues';
 import { ATTRIBUTE_NAMES_KO } from './attributes';
 import { chaptersRetire, chaptersSeasonEnd, type ChaptersState } from './chapters';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
-import { createOtherLeagues, normalizeLeagues, syncOtherLeagues, type OtherLeague } from './otherLeagues';
+import { calendarKind, createOtherLeagues, normalizeLeagues, syncOtherLeagues, type OtherLeague } from './otherLeagues';
+import { setSquadLeague } from './squad';
+import { applyLeagueMove, leagueMoves, moveAt, moveRosters, type LeagueMove } from './leagueMove';
 import type { Replay } from './replay';
 import { generatePlayer } from './generate';
 import {
@@ -12,7 +15,7 @@ import {
   reputationFloorTier, veteranXpMultiplier, type AttributeDelta,
 } from './growth';
 import {
-  CLUB_TO_TEAM, createLeague, initialTeams, leaguePosition, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById,
+  CLUB_TO_TEAM, createLeague, initialTeams, leagueOfTeam, leaguePosition, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById,
   type Fixture, type LeagueState,
 } from './league';
 import { simulateMatch, type MatchResult } from './match';
@@ -21,7 +24,7 @@ import { SCENE_LABEL, type ControlMode, type DecisionRecord, type MomentControl,
 import { formBonus, pushRating } from './form';
 import { addRecord, emptyRecord, recordFromStats, type MatchLogEntry, type MatchRecord } from './matchRecord';
 import { chooseReturn, healDays, openReturnChoice, rollInjury } from './injury';
-import { addDays, daysBetween, seasonCalendar, type IsoDate, type SeasonCalendar } from './calendar';
+import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar } from './calendar';
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
@@ -75,18 +78,19 @@ import {
 import { trainProficiency } from './proficiency';
 import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupMatches, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
 import { envField, matchConditions, type MatchConditions } from './matchEnv';
+import { ensureNational, NAT_COMP_KO, natId, natLabel, natMatchDates, natRoster, nationalDayEnd, nationalSeasonEnd, nationRating, nextNatMatch, recordNatMatch, trimNational, type NatComp, type NatMatch, type NationalState } from './national';
 import { chemAfterMatch, chemSeasonEnd, rapportInput, scoutReport, type ChemState, type ScoutReport } from './rapport';
 import type { NameOverrides } from './names';
 import { weatherInjuryMul, type WeatherKind } from './weather';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
 import {
-  acceptOffer, autoResolveMarket, initialContract, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow,
+  acceptOffer, autoResolveMarket, initialContract, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow, syncNpcClubs,
   type MarketState, type TransferRec,
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 48;
+export const SAVE_FORMAT_VERSION = 50;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -142,6 +146,8 @@ export interface MatchReport {
   /** 유니폼 교환 (C.76b): 요청할 수 있는 상대 실제 선수 id(내가 뛴 엔진 경기만), 요청 결과(경기당 1번) */
   jerseyPool?: string[];
   jersey?: { id: string; ok: boolean; line: string };
+  /** 대표팀 경기 (C.76d): 대회·단계·승부차기 [내 팀, 상대]. 없으면 클럽 경기 */
+  nat?: { comp: NatComp; stage: string; label: string; pens?: [number, number]; g?: GoalRec[] };
 }
 
 /** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 이상 (FA 100+단계, 챔스 110+) */
@@ -198,6 +204,8 @@ export interface SeasonSummary {
   forcedRetire: boolean;
   /** 시즌 목표 판정 (18.9, C.65): 결과 3개, 업적 카드 선택권 이름, 목표 XP. C.65 이전 세이브에는 없다 */
   goals?: { results: GoalResult[]; awards: string[]; xp: number };
+  /** 대표팀 여름 (C.76d): 대회 이름·성적·소집 여부, 여름 대표팀 경기 수·골 */
+  nat?: { label: string | null; reach: string | null; called: boolean; apps: number; goals: number };
 }
 
 export interface GameState {
@@ -216,6 +224,8 @@ export interface GameState {
   leagueIds?: string[];
   /** 고른 다른 리그 (빠른 시뮬, 리그별 순위·지난 시즌 기록). 없으면 내 리그만 */
   otherLeagues?: OtherLeague[];
+  /** 내 리그 이동 기록 (C.76c): 첫 줄 = 시작 리그. 없으면 이동 없음 (로스터 재생성이 같은 자리에서 새 리그 로스터를 만든다) */
+  myLeagues?: LeagueMove[];
   npcs: NpcState[];
   /** 팀 로스터 세이브 정보 (23번): 시즌 갱신 횟수. 로스터 자체는 시드로 다시 만든다 */
   roster: { updates: number };
@@ -301,6 +311,8 @@ export interface GameState {
   photos?: PhotoState;
   /** 유니폼 교환 기록 · 진열 배치 (C.76b). 옛 세이브는 없음 = 빈 기록 */
   showcase?: ShowcaseState;
+  /** 대표팀 (C.76d): 국가·A매치 주간 소집·대표팀 경기·통산 기록·지난 대회. 없으면 처음 쓸 때 만든다 */
+  national?: NationalState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -347,8 +359,21 @@ type NewGameStart =
   /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
   | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean };
 
-/** 새 게임 옵션 + 고른 리그 (C.75m, 리그 고르기 화면). 없으면 내 리그(PL)만 */
+/**
+ * 새 게임 옵션 + 고른 리그 (C.75m, 리그 고르기 화면). 없으면 내 리그(PL)만.
+ * 내 리그 (C.76c, 45b): 실제 선수는 그 선수 소속 리그, 그 밖은 leagues 맨 앞 (없으면 PL)
+ */
 export type NewGameOptions = NewGameStart & { leagues?: readonly string[] };
+
+/** 새 게임의 내 리그 (C.76c): 실제 선수 = 소속 팀 리그, 레전드·유망주·커스텀 = 고른 리그 맨 앞 (내 리그로 시작할 수 있는 리그만, 없으면 PL) */
+export function startLeagueOf(opts: NewGameOptions): string {
+  if (opts.mode === 'real' && !isLegendId(opts.playerId)) {
+    const club = REAL_PLAYER_BY_ID.get(opts.playerId)?.club;
+    const lg = club ? leagueOfTeam(CLUB_TO_TEAM[club]) : undefined;
+    if (lg && PLAYABLE_LEAGUES.includes(lg)) return lg;
+  }
+  return opts.leagues?.find((id) => PLAYABLE_LEAGUES.includes(id)) ?? 'pl';
+}
 
 export interface CustomSpec {
   name?: string;
@@ -423,27 +448,33 @@ export function rosterShirts(roster: { players: { shirt?: number }[] } | undefin
 }
 
 /**
- * 실제 선수로 시작 가능한 선수: 데이터가 있고 소속팀이 고른 리그 중 내 리그로 시작할 수 있는 리그에 있는 선수 (C.75m).
- * 지금은 PL 만 연결돼 있어 PL 선수 (다른 리그 실제 선수 연결은 45b)
+ * 실제 선수로 시작 가능한 선수: 소속팀이 고른 리그 중 내 리그로 시작할 수 있는 리그에 있는 선수 (C.75m).
+ * C.76c (45b): 모든 리그 연결 — 고른 리그의 실제 선수 전부 (그 선수를 고르면 그 리그가 내 리그)
  */
 export function selectableRealPlayers(leagueIds: readonly string[] = ['pl']): FieldPlayerData[] {
-  if (!leagueIds.includes('pl')) return [];
-  return A_GRADE_PLAYERS.filter((p) => CLUB_TO_TEAM[p.club] !== undefined);
+  const on = new Set(leagueIds.filter((id) => PLAYABLE_LEAGUES.includes(id)));
+  return realPlayersFor(leagueIds).filter((p) => {
+    const lg = leagueOfTeam(CLUB_TO_TEAM[p.club]);
+    return !!lg && on.has(lg);
+  });
 }
 
 export function randomSeed(): string {
   return Math.floor(Math.random() * 0xffffffff).toString(36);
 }
 
-/** 내 선수를 뺀 실제 A등급 NPC 초기 상태. 레전드 팩 2판(C.75x)·미래 스타 팩(C.75y)이면 팩에 든 선수와 같은 사람은 뺀다 (지금은 없음) */
-function initialNpcs(worldSeed: string, realPlayerId: string | undefined, legendPack = 0, future = false): NpcState[] {
+/**
+ * 내 선수를 뺀 실제 NPC 초기 상태: A등급 전부 + 고른 리그의 리그 데이터 선수 (C.76c). 레전드 팩 2판(C.75x)·미래 스타 팩(C.76c)이면
+ * 팩에 든 선수와 같은 사람은 뺀다 (지금은 없음)
+ */
+function initialNpcs(worldSeed: string, realPlayerId: string | undefined, legendPack = 0, future = false, leagueIds: readonly string[] = ['pl']): NpcState[] {
   const drop = legendPack >= 2 || future ? packRealExcludes(legendPack, future) : undefined;
-  return A_GRADE_PLAYERS.filter((p) => p.id !== realPlayerId && !drop?.has(p.id)).map((p) => createNpc(p, worldSeed, BALANCE.newGame.startYear));
+  return realPlayersFor(leagueIds).filter((p) => p.id !== realPlayerId && !drop?.has(p.id)).map((p) => createNpc(p, worldSeed, BALANCE.newGame.startYear));
 }
 
-/** 구현 리그 첫 시즌이 된 미래 스타를 로스터에 넣는다 (C.75y). season = 막 시작하는 시즌 */
-function addFutureStars(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[]): void {
-  const spawns: LegendSpawn[] = futureSpawns(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })));
+/** 내 리그 첫 시즌이 된 미래 스타를 로스터에 넣는다 (C.76c). season = 막 시작하는 시즌, leagueIds = 고른 리그 (맨 앞 = 내 리그) */
+function addFutureStars(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[], leagueIds: readonly string[] = ['pl']): void {
+  const spawns: LegendSpawn[] = futureSpawns(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })), leagueIds);
   if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])));
 }
 
@@ -461,31 +492,62 @@ function addLegendArrivals(rosters: Rosters, worldSeed: string, season: number, 
 export function rebuildRosters(
   worldSeed: string, realPlayerId: string | undefined, updates: number, savedNpcs?: NpcState[], transfers: readonly TransferRec[] = [],
   legends: { on: boolean; except?: string; pack?: number; future?: boolean } = { on: false },
+  leagueIds: readonly string[] = ['pl'],
+  moves: readonly LeagueMove[] = [{ at: 0, id: leagueIds[0] ?? 'pl' }],
 ): Rosters {
   const start = BALANCE.newGame.startYear;
-  const teams = initialTeams();
+  // 내 리그 (C.76c): 시작 리그(이동 기록 첫 줄, 없으면 고른 리그 맨 앞). 로스터는 내 리그 팀만 만든다
+  let teams = initialTeams(moves[0]?.id ?? leagueIds[0]);
   const base = Object.fromEntries(teams.map((t) => [t.id, t.baseRating]));
   // 레전드 팩 판 (C.75x): 옛 세이브(판 없음)는 1 = C.47 117명
   const pack = legends.on ? legends.pack ?? 1 : 0;
   // 미래 스타 팩 (C.75y): 레전드 팩과 따로
   const future = !!legends.future;
-  let npcs = initialNpcs(worldSeed, realPlayerId, pack, future);
+  let npcs = initialNpcs(worldSeed, realPlayerId, pack, future, leagueIds);
+  // 그 시즌의 내 리그 (이동하면 바뀐다)
+  let myLg = moves[0]?.id ?? leagueIds[0] ?? 'pl';
   // 레전드 팩 (C.47): 소속은 시작 목표 레이팅으로 정한다
   const targets = teams.map((t) => ({ id: t.id, rating: t.baseRating }));
-  const spawns = [...(legends.on ? legendSpawns(worldSeed, start, targets, legends.except, pack) : []), ...(future ? futureSpawns(worldSeed, start, targets) : [])];
+  const spawns = [...(legends.on ? legendSpawns(worldSeed, start, targets, legends.except, pack) : []), ...(future ? futureSpawns(worldSeed, start, targets, leagueIds) : [])];
   let rosters = createRosters(worldSeed, start, teams, npcs, spawns);
   // 이적 기록 (C.42): 시즌 갱신 k 번째 전에 at = k 인 기록(그 시즌 겨울 → 시즌 끝 여름)을 차례로 다시 적용한다
   for (let k = 0; k < updates; k++) {
-    replayTransfers(rosters, transfers, k, worldSeed);
+    replayTransfers(rosters, transfers, k, worldSeed, npcs);
+    // 실제 선수 소속 (C.76c): 이적 기록대로 (리그 이동 때 새 리그 로스터가 지금 소속을 본다)
+    syncNpcClubs(npcs, transfers.filter((r) => r.at === k), { teams } as LeagueState);
     npcs = npcs.map((n) => growNpc(n, worldSeed, start + k));
     rosters = updateRostersForSeason(rosters, worldSeed, start + k, base, npcs);
     // 미래 스타 (C.75y): 다음 시즌이 구현 리그 첫 시즌이면 시즌 갱신 직후 들어온다 (플레이 중 시즌 끝과 같은 자리)
-    if (future) addFutureStars(rosters, worldSeed, start + k + 1, teams);
+    if (future) addFutureStars(rosters, worldSeed, start + k + 1, teams, [myLg]);
     if (pack >= 3) addLegendArrivals(rosters, worldSeed, start + k + 1, teams, legends.except);
+    // 리그 이동 (C.76c): 그 비시즌에 다른 리그 팀으로 옮겼으면 새 리그 로스터 (다음 시즌이 시작됐으면 옛 리그 로스터는 뺀다)
+    const mv = moveAt(moves, k + 1);
+    if (mv) {
+      const moved = moveRosters(worldSeed, mv.id, start + k + 1, npcs, future);
+      rosters = k + 1 < updates || leagueIds[0] === mv.id ? moved : { ...rosters, ...moved };
+      if (k + 1 < updates || leagueIds[0] === mv.id) {
+        teams = initialTeams(mv.id);
+        myLg = mv.id;
+        for (const t of teams) base[t.id] = t.baseRating;
+      }
+    }
   }
-  replayTransfers(rosters, transfers, updates, worldSeed);
+  replayTransfers(rosters, transfers, updates, worldSeed, npcs);
   if (savedNpcs) syncRealPlayers(rosters, savedNpcs);
   return rosters;
+}
+
+/** 로스터 재생성의 고른 리그 (맨 앞 = 내 리그, C.76c). 옛 세이브는 PL 만 */
+export function rosterLeagues(state: Pick<GameState, 'league' | 'leagueIds'>): string[] {
+  const ids = state.leagueIds ?? [state.league.id ?? 'pl'];
+  return [state.league.id ?? ids[0] ?? 'pl', ...ids.filter((id) => id !== (state.league.id ?? ids[0]))];
+}
+
+/** 유망주·커스텀 시작 팀 순위 범위 (C.76c: 팀이 20개보다 적은 리그는 팀 수까지) */
+function rankRange(teams: number): { min: number; max: number } {
+  const R = BALANCE.newGame.teamRankRange;
+  const max = Math.min(R.max, teams);
+  return { min: Math.min(R.min, max), max };
 }
 
 /** 이름 추첨 자리의 rng 소비는 그대로 두고 (뒤 추첨 결과 유지) 이름만 바꾼다 (C.73c) */
@@ -497,18 +559,19 @@ function drawName(prng: Rng, name: string): string {
 export function newGame(opts: NewGameOptions): GameState {
   const worldSeed = opts.seed?.trim() || randomSeed();
   const season = BALANCE.newGame.startYear;
-  // 고른 리그 (C.75m): 내 리그 = PL (다른 리그에서 시작은 45b), 나머지는 빠른 시뮬
-  const leagueIds = normalizeLeagues(opts.leagues, 'pl');
-  const league = createLeague(worldSeed, season);
+  // 고른 리그 (C.75m): 내 리그(C.76c: 실제 선수 소속 리그 또는 고른 리그 맨 앞)는 경기 엔진, 나머지는 빠른 시뮬
+  const leagueIds = normalizeLeagues(opts.leagues, startLeagueOf(opts));
+  setSquadLeague(leagueIds[0]!);
+  const league = createLeague(worldSeed, season, leagueIds[0]);
   // 팀 레이팅 = 로스터 라인업 평균 (23번). 내 선수(실제 선수)는 로스터에서 빠진다
   const realPlayerId = opts.mode === 'real' ? opts.playerId : undefined;
   const legendId = opts.mode === 'real' && isLegendId(opts.playerId) ? opts.playerId : undefined;
   const legendsOn = !!opts.legends || !!legendId;
   const futureOn = !!opts.futureStars;
-  const npcs = initialNpcs(worldSeed, realPlayerId, legendsOn ? LEGEND_PACK : 0, futureOn);
+  const npcs = initialNpcs(worldSeed, realPlayerId, legendsOn ? LEGEND_PACK : 0, futureOn, leagueIds);
   // 새 게임은 늘린 이름 풀 (C.45 8번). 로스터를 만들기 전에 맞춘다
   setNamePoolVersion(2);
-  const rosters = rebuildRosters(worldSeed, realPlayerId, 0, undefined, [], { on: legendsOn, except: legendId, pack: LEGEND_PACK, future: futureOn });
+  const rosters = rebuildRosters(worldSeed, realPlayerId, 0, undefined, [], { on: legendsOn, except: legendId, pack: LEGEND_PACK, future: futureOn }, leagueIds);
   const ratings = teamRatings(rosters);
   for (const t of league.teams) t.rating = ratings[t.id] ?? t.rating;
 
@@ -530,7 +593,7 @@ export function newGame(opts: NewGameOptions): GameState {
     const roll = rollProspect(worldSeed, c.rolled ? undefined : c.position);
     const prng = roll.rng;
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
-    const { min, max } = BALANCE.newGame.teamRankRange;
+    const { min, max } = rankRange(byRating.length);
     const team = byRating[randInt(prng, min, max) - 1]!;
     player = {
       ...base,
@@ -561,7 +624,7 @@ export function newGame(opts: NewGameOptions): GameState {
     const roll = rollProspect(worldSeed, opts.rolled ? undefined : opts.position);
     const prng = roll.rng;
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
-    const { min, max } = BALANCE.newGame.teamRankRange;
+    const { min, max } = rankRange(byRating.length);
     const team = byRating[randInt(prng, min, max) - 1]!;
     // 인종·국적·이름·사진 (C.73c): 별도 시드라 유망주 결과(능력치·팀)는 그대로. 예전엔 국적이 없어 한국·동양계로만 보였다
     const who = rollIdentity(worldSeed, opts.race);
@@ -590,7 +653,7 @@ export function newGame(opts: NewGameOptions): GameState {
     const l = LEGEND_BY_ID.get(legendId)!;
     if (l.position === 'GK') throw new Error(`선택할 수 없는 선수: ${legendId}`);
     const lp = legendRosterPlayer(l, worldSeed, season);
-    const teamId = legendClub(l, worldSeed, initialTeams().map((t) => ({ id: t.id, rating: t.baseRating })));
+    const teamId = legendClub(l, worldSeed, initialTeams(leagueIds[0]).map((t) => ({ id: t.id, rating: t.baseRating })));
     const pos = l.position as PlayablePosition;
     player = {
       ...base,
@@ -658,7 +721,7 @@ export function newGame(opts: NewGameOptions): GameState {
     ...(legendsOn ? { legends: true, legendPack: LEGEND_PACK } : {}),
     ...(futureOn ? { futureStars: true } : {}),
     // 새 커리어는 개막 7일 전 소집부터 (25.3 5번, C.41)
-    calendar: { date: addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays) },
+    calendar: { date: addDays(leagueCalendar(worldSeed, league, calendarKind(league.id)).opening, -BALANCE.training.vacation.campDays) },
     playerStats: {},
     options: { quickOthers: false },
     worldSeed,
@@ -676,7 +739,7 @@ export function newGame(opts: NewGameOptions): GameState {
     control: { mode: 'direct', stop: 'important' },
     tactics: teamDefaultTactics(player.teamId, rosters[player.teamId], player.position),
     cards: initCollection(player.position),
-    training: initTraining(addDays(seasonCalendar(worldSeed, season, league.schedule).opening, -BALANCE.training.vacation.campDays)),
+    training: initTraining(addDays(leagueCalendar(worldSeed, league, calendarKind(league.id)).opening, -BALANCE.training.vacation.campDays)),
     archive: [],
     records: { done: [], fresh: [] },
   };
@@ -729,10 +792,19 @@ export interface NextMatch {
   home: boolean;
   date: IsoDate;
   cup?: MyCupTie;
+  /** 대표팀 경기 (C.76d) */
+  nat?: NatMatch;
+}
+
+/** 이번 라운드부터 내 팀 경기가 있는 첫 라운드 (홀수 팀 리그의 쉬는 라운드를 건너뛴다, C.76c MLS). 없으면 -1 */
+function myRoundFrom(state: GameState, from: number): number {
+  const me = state.player.teamId;
+  for (let r = from; r < state.league.schedule.length; r++) if (state.league.schedule[r]!.some((x) => x.home === me || x.away === me)) return r;
+  return -1;
 }
 
 function leagueNext(state: GameState): NextMatch | null {
-  const r = state.league.round;
+  const r = myRoundFrom(state, state.league.round);
   const round = state.league.schedule[r];
   if (!round) return null;
   const i = round.findIndex((x) => x.home === state.player.teamId || x.away === state.player.teamId);
@@ -745,17 +817,21 @@ function leagueNext(state: GameState): NextMatch | null {
 export function nextMatch(state: GameState): NextMatch | null {
   const lg = leagueNext(state);
   const cup = state.phase === 'season' ? myCupTie(state) : null;
-  if (cup && (!lg || daysBetween(cup.date, lg.date) > 0)) return { opponentId: cup.opponentId, home: cup.home, date: cup.date, cup };
-  return lg;
+  const club = cup && (!lg || daysBetween(cup.date, lg.date) > 0) ? { opponentId: cup.opponentId, home: cup.home, date: cup.date, cup } : lg;
+  // 대표팀 (C.76d): A매치 주간 평가전이 더 이르면 그 경기
+  const nat = nextNatMatch(state);
+  if (nat && (!club || daysBetween(nat.date, club.date) > 0)) return { opponentId: natId(nat.opp), home: nat.home, date: nat.date, nat };
+  return club;
 }
 
-/** 다음 내 경기 상대 (리그 또는 컵) */
-export function nextFixture(state: GameState): { opponentId: string; home: boolean; cup?: MyCupTie } | null {
+/** 다음 내 경기 상대 (리그 또는 컵 또는 대표팀) */
+export function nextFixture(state: GameState): { opponentId: string; home: boolean; cup?: MyCupTie; nat?: NatMatch } | null {
   return nextMatch(state);
 }
 
-/** 대회 이름 한 줄: "리그 12R" / "FA컵 16강" (다음 경기 기준) */
-export function matchCompLabel(state: GameState, fx: { cup?: MyCupTie } | null = nextFixture(state)): string {
+/** 대회 이름 한 줄: "리그 12R" / "FA컵 16강" / "A매치 평가전" (다음 경기 기준) */
+export function matchCompLabel(state: GameState, fx: { cup?: MyCupTie; nat?: NatMatch } | null = nextFixture(state)): string {
+  if (fx?.nat) return natLabel(fx.nat);
   if (fx?.cup) return fx.cup.label;
   return `리그 ${Math.min(state.league.round + 1, state.league.schedule.length)}R`;
 }
@@ -769,8 +845,9 @@ function updateFatigueForMatch(p: PlayerState, minutes: number): void {
 // ── 하루 단위 진행 (25.1~25.2 5·7번, 부록 C.38) ──
 
 /** 이번 시즌 일정 (시드로 다시 만든다) */
+/** 내 리그 이번 시즌 달력 (PL = seasonCalendar 그대로, 다른 리그 = 리그 달력, C.76c) */
 export function calendarOf(state: GameState): SeasonCalendar {
-  return seasonCalendar(state.worldSeed, state.league.season, state.league.schedule);
+  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league.id));
 }
 
 /** 다음 내 경기 날짜 (리그 또는 컵). 시즌이 아니면 null */
@@ -872,7 +949,8 @@ export function myMatchDates(state: GameState): IsoDate[] {
     out.sort((a, b) => daysBetween(b, a));
     byTeam.set(me, out);
   }
-  const cup = myCupDates(state);
+  // 대표팀 A매치 주간 경기 (C.76d)도 같이 (경기 다음 날 휴식·전날 영상, 소집 기간은 휴가 아님)
+  const cup = [...myCupDates(state), ...natMatchDates(state)];
   if (!cup.length) return out;
   // 컵 날짜가 바뀔 때만 다시 합친다 (하루 계획 계산이 자주 부른다)
   const key = `${me}|${cup.join(',')}`;
@@ -1132,8 +1210,8 @@ function opponentHints(state: GameState): string[] {
     out.push(`${opp.nameKo} 최근 ${last.length}경기 ${form} · 득점 ${gf} 실점 ${ga}`);
   }
   const rank = [...league.teams].sort((a, b) => b.rating - a.rating).findIndex((t) => t.id === opp.id) + 1;
-  out.push(`${opp.nameKo} 전력 ${Math.round(opp.rating)} (리그 ${rank}위) · ${fx.home ? '우리 홈' : '상대 홈'} 경기`);
-  const roster = state.rosters[opp.id];
+  out.push(`${opp.nameKo} 전력 ${Math.round(opp.rating)} (${fx.nat ? '대표팀' : `리그 ${rank}위`}) · ${fx.home ? '우리 홈' : '상대 홈'} 경기`);
+  const roster = fx.nat ? natRoster(state, fx.nat.opp) : state.rosters[opp.id];
   const stats = state.playerStats ?? {};
   const top = roster?.players.map((pl) => ({ pl, g: stats[pl.id]?.[1] ?? 0 })).sort((a, b) => b.g - a.g)[0];
   if (top && top.g > 0) out.push(`주 득점원 ${top.pl.nameKo} (이번 시즌 ${top.g}골) — 박스 안 마크를 놓치지 마세요`);
@@ -1318,6 +1396,8 @@ export function endDay(state: GameState): TrainingDayResult {
   ensureCups(state);
   cupsDayEnd(state, ended);
   state.calendar.date = addDays(ended, 1);
+  // 대표팀 (C.76d): A매치 주간 소집 발표 (소집이면 평가전을 내 경기 일정에)
+  nationalDayEnd(state, calendarOf(state).breaks, myMatchDates(state));
   // 다른 리그 (C.75m): 오늘 경기 빠른 시뮬
   syncOtherLeagues(state, ended);
   // 이적 (C.42): 1월 1일 이적 명단 제안, 1월 31일 끝 NPC 겨울 이적시장
@@ -1326,6 +1406,9 @@ export function endDay(state: GameState): TrainingDayResult {
   managerDayEnd(state);
   // 이벤트 (C.63): 기한 지난 선택, 예약, 슬롯, 하루 이벤트
   eventsDayEnd(state, ended);
+  // 쉬는 라운드 (C.76c): 내 경기가 없는 라운드는 그 라운드 경기가 다 끝나면 넘긴다 (마지막 라운드가 쉬는 라운드여도 시즌이 끝난다)
+  const L = state.league;
+  while (L.round < L.schedule.length && myRoundFrom(state, L.round) !== L.round && L.schedule[L.round]!.every((f) => f.homeGoals !== undefined)) L.round++;
   // 리그가 끝났고 내 컵 경기도 더 없으면 (결승 뒤 우승 확정·탈락이 하루 끝에 정해진 경우) 시즌 끝 (C.67)
   if (state.league.round >= state.league.schedule.length && !myCupAlive(state)) {
     endSeason(state);
@@ -1378,13 +1461,15 @@ export interface RoundMatch {
 export function myMatchConditions(state: GameState): MatchConditions | null {
   const fx = nextFixture(state);
   if (!fx || state.phase !== 'season') return null;
-  return matchConditions(state.worldSeed, myMatchDate(state) ?? state.calendar.date, fx.home ? state.player.teamId : fx.opponentId);
+  const mine = fx.nat ? natId(ensureNational(state).nation) : state.player.teamId;
+  return matchConditions(state.worldSeed, myMatchDate(state) ?? state.calendar.date, fx.home ? mine : fx.opponentId);
 }
 
 /** 다음 내 경기 상대 분석 리포트 (C.74c): 나를 맡을 수비수 약점. 시즌이 아니거나 GK·측정 고정이면 null */
 export function myScoutReport(state: GameState): ScoutReport | null {
   const fx = nextFixture(state);
   if (!fx || state.phase !== 'season') return null;
+  if (fx.nat) return scoutReport(natRoster(state, fx.nat.opp), state.player.position as FieldPosition);
   const opp = teamById(state.league, fx.opponentId);
   return scoutReport(fx.cup ? cupRoster(state, opp.id) : state.rosters[opp.id]!, myMatchPosition(state));
 }
@@ -1395,6 +1480,9 @@ function matchInjuryMul(state: GameState, cond: MatchConditions | null): number 
 }
 
 export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): RoundMatch {
+  // 대표팀 경기 (C.76d)
+  const nx = nextFixture(state);
+  if (nx?.nat) return natRoundMatch(state, nx.nat, opts);
   const { league, player } = state;
   const roundIdx = league.round;
   const seed = state.worldSeed;
@@ -1463,6 +1551,7 @@ function judgePenField(state: GameState): { judgePen?: number } {
 function matchForm(state: GameState): number {
   const p = state.player;
   const fx = nextFixture(state);
+  if (fx?.nat) return natForm(state);
   const derby = !!fx && derbyOf(p.teamId, fx.opponentId) !== null;
   // 빅매치 체질 (C.47): 더비 또는 상위 6팀 상대
   const big = derby || (!!fx && ratingRank(state.league, fx.opponentId) <= BALANCE.tags.natural.bigTop);
@@ -1484,6 +1573,7 @@ function matchAt(state: GameState): { season: number; round: number; date: IsoDa
  */
 export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport {
   if (state.phase !== 'season') throw new Error('시즌 중이 아님');
+  lastEngine = opts.engine ?? 'agent';
   const how = opts.others ?? 'quick';
   while (!isMatchDay(state)) {
     playOthers(state, how);
@@ -1500,8 +1590,12 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
 function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   // 컵 경기 날이면 컵 (C.67)
   const nx = nextMatch(state);
+  if (nx?.nat) return playMyNational(state, opts, nx.nat);
   if (nx?.cup) return playMyCup(state, opts, nx.cup);
   const { league, player } = state;
+  // 쉬는 라운드 (C.76c, 홀수 팀 리그): 내 경기가 있는 라운드로. 쉬는 라운드의 다른 경기는 날짜대로 치른다
+  const mine = myRoundFrom(state, league.round);
+  if (mine > league.round) league.round = mine;
   const roundIdx = league.round;
   const fixtures = league.schedule[roundIdx]!;
   const seed = state.worldSeed;
@@ -1593,7 +1687,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   let recovered = false;
   if (injured) {
     s.injuredWeeks++;
-    const next = league.schedule[roundIdx + 1] ? calendarOf(state).fixtureDates[roundIdx + 1]![league.schedule[roundIdx + 1]!.findIndex((f) => f.home === player.teamId || f.away === player.teamId)]! : null;
+    const nr = myRoundFrom(state, roundIdx + 1);
+    const next = nr >= 0 ? calendarOf(state).fixtureDates[nr]![league.schedule[nr]!.findIndex((f) => f.home === player.teamId || f.away === player.teamId)]! : null;
     recovered = next !== null && player.injury!.daysLeft <= daysBetween(state.calendar.date, next);
   } else if (result.minutes > 0) {
     const rolled = useEngine
@@ -1815,6 +1910,180 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   return report;
 }
 
+// ── 대표팀 경기 (10번·18.12, C.76d) ──
+
+/** 시즌 끝 대회의 내 경기 계산 방식: 마지막 playRound 와 같게 (밸런스 시뮬 = 빠른 경기) */
+let lastEngine: 'agent' | 'quick' = 'agent';
+
+/** 대표팀 경기 폼: 최근 평점 폼 − 연속 휴식 감점 + 이벤트·생활 (클럽 상대 보정 없음) */
+function natForm(state: GameState): number {
+  const p = state.player;
+  return formBonus(p.recentRatings, formMul(p)) - (state.training?.formPenalty ?? 0) + eventForm(state) + lifeForm(state);
+}
+
+/** 대표팀 선발 확률: 내 OVR − 대표팀 레이팅 */
+export function natStartChance(ovr: number, rating: number): number {
+  const N = BALANCE.national;
+  return Math.min(N.startMax, Math.max(N.startMin, N.startBase + (ovr - rating) * N.startK));
+}
+
+const NAT_BIG = (m: NatMatch) => m.comp !== 'friendly' && (m.comp === 'wc' || !m.stage.startsWith('조별'));
+
+/**
+ * 대표팀 경기 엔진 입력 (C.76d): 대표팀 로스터(그 국적 실제 선수 + 국가 레이팅 가상 선수)에 내 선수, 내 클럽 전술은 쓰지 않는다(주 포지션).
+ * summer = 시즌 끝 대회 (경기 날까지 하루씩 넘기지 않고 지금 피로·부상)
+ */
+function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } = {}, summer = false): RoundMatch {
+  const { player } = state;
+  const seed = state.worldSeed;
+  const N = BALANCE.national;
+  const nat = ensureNational(state);
+  const cond = summer ? { fatigue: player.fatigue, injury: player.injury } : projectedCondition(state, m.date);
+  const injured = cond.injury !== null;
+  const fatigue = cond.fatigue;
+  const p = { ...player, fatigue };
+  const myR = nationRating(nat.nation);
+  const oppR = nationRating(m.opp);
+  const pos = player.position as FieldPosition;
+  const ovr = proficientOvr(p, pos);
+  const rng = rngFor(seed, 'natmatch', m.key);
+  const started = !injured && rng() < natStartChance(ovr, myR);
+  const minutes = started ? 90 : !injured && rng() < N.subChance ? randInt(rng, N.subMinutes[0]!, N.subMinutes[1]!) : 0;
+  const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
+  const env = matchConditions(seed, m.date, m.home ? natId(nat.nation) : natId(m.opp));
+  let preInjury: Injury | null = null;
+  if (plan.minutes) {
+    const at = { season: state.league.season, round: state.league.round + 1, date: m.date, daysToEnd: summer ? 0 : Math.max(0, daysBetween(m.date, calendarOf(state).final)) };
+    preInjury = rollInjury(p, minutes, state.difficulty, 0, at, rngFor(seed, 'natinjury', m.key), matchInjuryMul(state, env), injuryDaysMul(state));
+    if (preInjury) {
+      const k = rngFor(seed, 'natinjury-minute', m.key)();
+      plan.minutes.end = Math.min(89, Math.max(plan.minutes.start + 1, Math.round(plan.minutes.start + k * minutes)));
+    }
+  }
+  const myTeam = teamById(state.league, natId(nat.nation));
+  const opp = teamById(state.league, natId(m.opp));
+  const input: EngineMatchInput = {
+    myRoster: natRoster(state, nat.nation), oppRoster: natRoster(state, m.opp),
+    myRating: myR, oppRating: oppR, home: m.home,
+    me: { position: pos, attributes: player.attributes, fatigue, form: natForm(state), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player), ...judgePenField(state) },
+    plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:natengine:${m.key}`), worldSeed: seed, leagueAvg: (myR + oppR) / 2,
+    ...(NAT_BIG(m) ? { bigMatch: true } : {}),
+    ...(opts.cards !== false && state.cards ? { cards: { ...cardInput(state.cards), trust: trustOf(state) } } : {}),
+    ...envField(env),
+  };
+  return { input, plan, preInjury, teams: m.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
+}
+
+/**
+ * 내 대표팀 경기 (C.76d): 클럽 경기와 같은 엔진·평점·XP 규칙(경기 XP 배율은 컵과 같이 national.matchXpMul). 리그·컵 기록·감독 신뢰도·
+ * 출장 정지·포지션 숙련도·동료 호흡에는 넣지 않고 대표팀 기록(national.career)에 쌓는다. 부상·피로·폼·카드 숙련·생활 지표는 같다.
+ * summer = 시즌 끝 대회·6월 평가전 (자동 진행, strength = 빠른 경기 팀 전력)
+ */
+function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer = false, strength?: { my: number; opp: number }): MatchReport {
+  const { league, player } = state;
+  const seed = state.worldSeed;
+  const N = BALANCE.national;
+  const nat = ensureNational(state);
+  const useEngine = (opts.engine ?? 'agent') === 'agent';
+  const injured = player.injury !== null;
+  const rm = useEngine ? natRoundMatch(state, m, { cards: opts.cards }, summer) : null;
+  const cond = rm?.cond ?? matchConditions(seed, m.date, m.home ? natId(nat.nation) : natId(m.opp));
+  const myR = strength?.my ?? nationRating(nat.nation);
+  const oppR = strength?.opp ?? nationRating(m.opp);
+  const pos = player.position as FieldPosition;
+  const ovr = proficientOvr(player, pos);
+  const form = natForm(state);
+  let result: MatchResult;
+  let engineOut: MyMatchOutput | null = null;
+  if (rm) {
+    engineOut = opts.engineOut ?? playMyMatch({ ...rm.input, ...(opts.control ? { control: opts.control } : {}) }, opts.onReplay ? { teams: rm.teams } : undefined);
+    if (opts.onReplay && engineOut.replay) {
+      for (const pl of engineOut.replay.players) if (pl.isMe) pl.name = player.name;
+      opts.onReplay(engineOut.replay);
+    }
+    result = engineOut.result;
+  } else {
+    result = simulateMatch(
+      {
+        ovr, position: player.position, fatigue: player.fatigue, teamRating: myR, oppRating: oppR, home: m.home, difficulty: state.difficulty,
+        formBonus: form, injured, startP: natStartChance(ovr, nationRating(nat.nation)), bigMatch: NAT_BIG(m),
+      },
+      rngFor(seed, 'natmatch', m.key),
+    );
+  }
+  recordNatMatch(state, m, { gf: result.goalsFor, ga: result.goalsAgainst, minutes: result.minutes, started: result.started, goals: result.goals, assists: result.assists, rating: result.rating, mom: result.mom, injured });
+  if (result.minutes > 0) player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
+  let injury: Injury | undefined;
+  if (!injured && result.minutes > 0) {
+    const at = { season: league.season, round: league.round + 1, date: m.date, daysToEnd: summer ? 0 : Math.max(0, daysBetween(m.date, calendarOf(state).final)) };
+    const rolled = rm ? rm.preInjury : rollInjury(player, result.minutes, state.difficulty, 0, at, rngFor(seed, 'natinjury', m.key), matchInjuryMul(state, cond), injuryDaysMul(state));
+    // 시즌 부상 횟수(리그 출전 시간 기준 지표, 회귀 가드 "부상 풀타임 환산")에는 세지 않는다 — 부상 자체는 그대로
+    if (rolled) {
+      player.injury = rolled;
+      injury = { ...rolled, permanent: { ...rolled.permanent } };
+    }
+  }
+  const my = engineOut?.my;
+  if (result.minutes > 0) {
+    if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
+    else updateFatigueForMatch(player, result.minutes);
+  }
+  result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * N.matchXpMul * veteranXpMultiplier(player.age) * xpMul(player, false)) : 0;
+  if (state.training && !summer) {
+    state.training.hints = [];
+    state.training.eve = false;
+    state.training.formPenalty = 0;
+  }
+  player.season.matchXp += result.xp;
+  const levelsGained = addXp(player, result.xp);
+  let cardUnlock: string | undefined;
+  if (state.cards) {
+    const unlocked = afterMatch(state.cards, engineOut?.engine.cards, engineOut?.engine.myRole, result.minutes > 0);
+    if (result.minutes > 0) grantDirectives(state.cards);
+    if (unlocked) cardUnlock = cardById(unlocked)?.name;
+    grantLevelPicks(state.cards, player.level, player.position, seed);
+  }
+  const rec = my && result.minutes > 0 ? recordFromStats(my) : undefined;
+  const cardUses = engineOut?.engine.cards?.uses.map((u) => ({ name: cardById(u.id)?.name ?? u.id, minute: u.minute, result: u.result, auto: u.auto }));
+  const report: MatchReport = {
+    season: league.season, round: m.seq, opponentId: natId(m.opp), home: m.home, result, levelsGained, ovr, formBonus: form,
+    cond: { weather: cond.weather, referee: cond.referee.nameKo },
+    nat: { comp: m.comp, stage: m.stage, label: natLabel(m), ...(m.pens ? { pens: m.pens } : {}), ...(engineOut ? { g: summarize(engineOut.engine).goals } : {}) },
+    ...(injury ? { injury } : {}),
+    ...(injured ? { injured } : {}),
+    ...(engineOut ? { engine: matchSummary(engineOut) } : {}),
+    ...(rec ? { rec } : {}),
+    ...(engineOut?.engine.decisions.length ? { decisions: engineOut.engine.decisions } : {}),
+    ...(cardUses?.length ? { cardUses } : {}),
+    ...(cardUnlock ? { cardUnlock } : {}),
+  };
+  lifeAfterMatch(state, result.minutes > 0, NAT_BIG(m));
+  const photos = collectPhotos(state, engineOut?.engine.players, MY_ID, { date: m.date, season: league.season, vs: natId(m.opp) });
+  if (photos) report.newPhotos = photos;
+  if (summer) return report;
+  state.lastMatch = report;
+  if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
+  refreshUnlocks(state);
+  return report;
+}
+
+/** 시즌 끝 여름 대표팀 (C.76d): 대회 또는 6월 평가전. 내 경기 사이 날짜만큼 부상·피로 회복 */
+function nationalSummer(state: GameState): ReturnType<typeof nationalSeasonEnd> {
+  const final = calendarOf(state).final;
+  let last = final;
+  const out = nationalSeasonEnd(state, final, (m, my, opp) => {
+    const gap = Math.max(0, daysBetween(last, m.date));
+    last = m.date;
+    healDays(state.player, gap);
+    state.player.fatigue = Math.max(0, state.player.fatigue - (BALANCE.fatigue.weeklyRecovery / 7) * gap);
+    const r = playMyNational(state, { engine: lastEngine }, m, true, { my, opp });
+    return { gf: r.result.goalsFor, ga: r.result.goalsAgainst };
+  });
+  // 대회 마지막 날부터 시즌 끝 처리까지 (비시즌 회복은 startNextSeason 에서)
+  trimNational(ensureNational(state));
+  return out;
+}
+
 /** 선수 이름 (내 선수는 내 이름) */
 function playerName(state: GameState, id: string): string {
   if (id === MY_ID) return state.player.name;
@@ -2023,13 +2292,20 @@ export function endSeason(state: GameState): SeasonSummary {
   const rng = rngFor(state.worldSeed, 'season-end', season);
   // 컵 (C.67): 남은 경기를 간이 계산해 우승 팀까지
   cupsFinish(state);
+  // 대표팀 (C.76d): 여름 대회(월드컵·대륙컵) 또는 6월 평가전 — 업적은 이번 시즌 업적에 같이
+  const natEnd = nationalSummer(state);
   // 동료 호흡 (C.74c): 떠난 동료 지우기
   chemSeasonEnd(state);
 
   // 1. 업적 XP (+ 컵·챔스 업적, C.67b)
   const pos = leaguePosition(league, player.teamId);
   const cupAch = cupAchievements(state, pos);
-  const achievements = [...seasonAchievements(player, league), ...cupAch.map(({ label, xp }) => ({ label, xp }))];
+  const achievements = [...seasonAchievements(player, league), ...cupAch.map(({ label, xp }) => ({ label, xp })), ...natEnd.achievements.map(({ label, xp }) => ({ label, xp }))];
+  // 월드컵 우승 (18.12·8.2): 기록 → 레전드 배지·레전더리 조건, 전설 선택권
+  if (natEnd.achievements.some((a) => a.key === 'wcWin')) {
+    player.honors = { ...player.honors, worldCups: player.honors.worldCups + 1 };
+    grantAchievementPick(state, 'worldCup', '월드컵 우승');
+  }
   // 기록 (8.1 레전더리 조건): 트레블·챔스 우승, 챔스 우승은 에픽 선택권 (18.9)
   if (cupAch.some((a) => a.key === 'treble')) player.honors = { ...player.honors, trebles: player.honors.trebles + 1 };
   if (cupAch.some((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin)) {
@@ -2047,7 +2323,7 @@ export function endSeason(state: GameState): SeasonSummary {
   const startFloorTier = reputationFloorTier(reputationBefore);
   // 영원한 <구단>·친정 선택 (C.47): 시즌 위상 증가 소폭 + (팬 인기 = 위상)
   // 컵·챔스 업적 XP 는 위상 증가에 넣지 않는다 (C.67b: 레전더리 35세 월드클래스 비율 가드)
-  const cupXp = cupAch.reduce((t, a) => t + a.xp, 0);
+  const cupXp = cupAch.reduce((t, a) => t + a.xp, 0) + natEnd.achievements.reduce((t, a) => t + a.xp, 0);
   const repGain = Math.min(seasonGainCap(age), (baseXp - cupXp) * R.fromAchievementXp + personalReputation(player.season)) * storyRepMul(player, player.teamId);
   const decayFloor = reputationFloor(player.reputation);
   const afterGain = Math.min(R.max, Math.round(player.reputation * (1 - R.seasonDecay) + repGain));
@@ -2108,7 +2384,7 @@ export function endSeason(state: GameState): SeasonSummary {
   const photoSnap = photoSnapshot(state);
   state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
   // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 들어온다 (rebuildRosters 와 같은 자리)
-  if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams);
+  if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams, rosterLeagues(state));
   // 레전드 팩 3판 (C.76b): 리그 밖 레전드 이적 유입 (rebuildRosters 와 같은 자리)
   if (state.legends && (state.legendPack ?? 1) >= 3) addLegendArrivals(state.rosters, state.worldSeed, season + 1, league.teams, state.player.legendId);
   state.roster.updates++;
@@ -2131,18 +2407,24 @@ export function endSeason(state: GameState): SeasonSummary {
     // 내 선수 강제 은퇴 없음 (pending 48 1, C.45). 필드는 옛 세이브·화면 호환으로 늘 false
     forcedRetire: false,
   };
+  const natT = natEnd.tournament;
+  summary.nat = {
+    label: natT ? `${natT.year} ${NAT_COMP_KO[natT.comp]}` : natEnd.matches.length ? '6월 A매치' : null, reach: natT?.reach ?? null, called: natT ? natT.called : natEnd.matches.length > 0,
+    apps: natEnd.matches.filter((m) => (m.min ?? 0) > 0).length, goals: natEnd.matches.reduce((t, m) => t + (m.g ?? 0), 0),
+  };
   // 시즌 목표 판정 (18.9, C.65): XP · 카드 3택 1 · 신뢰도 · 업적 선택권. 3단계 임시 경로(시즌 종료 희귀·에픽 3택 1)를 대신한다
   const gr = goalsSeasonEnd(state, badges);
   summary.goals = { results: gr.results, awards: gr.awards, xp: gr.xp };
   summary.levelsGained += gr.levels;
   // 재정 (C.68a): 남은 보너스 · 우승 보너스(리그·FA컵·챔스) · 스폰서
-  moneySeasonEnd(state, [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map(() => 'FA컵 우승'),
+  moneySeasonEnd(state, [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map((a) => a.label),
     ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승')]);
   // 재정 b (C.68b): 예금·부동산 수익 · 이벤트형 투자 정산
   wealthSeasonEnd(state);
   // 챕터 (22.1, C.73a): 이번 시즌을 챕터 기록에 더하고, 다음 시즌이 다른 챕터면 닫는다 (리뷰 예약 · 카드 선택권)
-  const trophies = [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map(() => 'FA컵 우승'),
-    ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승'), ...(gr.awards.filter((a) => !a.includes('리그 우승') && !a.startsWith('레전드 배지')))];
+  const trophies = [...(pos === 1 ? ['리그 우승'] : []), ...cupAch.filter((a) => a.key === 'fa').map((a) => a.label),
+    ...cupAch.filter((a) => a.key === 'ucl' && a.xp === BALANCE.cups.xp.uclWin).map(() => '챔스 우승'),
+    ...natEnd.achievements.filter((a) => a.label.endsWith('우승')).map((a) => a.label), ...(gr.awards.filter((a) => !a.includes('리그 우승') && !a.startsWith('레전드 배지')))];
   const startAttrs = player.seasonStartAttrs;
   chaptersSeasonEnd(state, {
     season, age, ovrStart: startAttrs ? playerOvr({ ...player, attributes: startAttrs }) : ovrBefore, ovrEnd: summary.ovrAfter,
@@ -2192,7 +2474,8 @@ export function startNextSeason(state: GameState): void {
   (state.archive ??= []).push(archiveSeason(state));
   // 세이브 상한 (C.64): 오래된 시즌은 요약만
   trimArchive(state.archive);
-  state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
+  // 리그 이동 (C.76c): 다른 리그 팀으로 옮겼으면 그 리그가 내 리그, 아니면 같은 리그 다음 시즌
+  if (!applyLeagueMove(state)) state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
   delete state.nextRatings;
   if (state.market) state.market.request = null;
   state.player.season = emptySeasonStats();

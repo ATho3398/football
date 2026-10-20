@@ -31,7 +31,8 @@ describe('경기 준비 (C.51)', () => {
 
   it('최근 폼은 지난 라운드 결과에서 (오래된 것 → 최근, 최대 5)', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c51-form', difficulty: 'normal' });
-    for (let r = 0; r < 6; r++) {
+    // 리그 6라운드까지 (C.76d: 대표팀 소집이면 그 사이 A매치도 내 경기)
+    while (g.league.round < 6) {
       toMatchDay(g);
       playOthers(g, 'quick');
       playRound(g);

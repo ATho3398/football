@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 61;
+export const BALANCE_VERSION = 63;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -613,7 +613,14 @@ export const BALANCE = {
     newContract: { min: 1, max: 5 },
     newLoyalty: { keep: 0.5, mean: 30, sd: 10 },
     /** 빈자리 보충 (리그 밖 클럽에서 오는 가상 선수): OVR = min(나간 선수 OVR + N(offset, sd), 팀 레이팅 + overTeam), 나이 min~max */
-    fill: { offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29 },
+    fill: {
+      offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29,
+      /**
+       * 다른 고른 리그의 실제 선수로 보충 (C.76c, 45b: 이적 시장 = 고른 리그 전체): 확률 realShare, 같은 포지션군 · OVR 이 보충 OVR ± realGap · realMaxAge 세 이하,
+       * 지금 팀 레이팅 ≤ 받는 팀 레이팅 + realFromGap (강팀에서 약팀으로 내려오지 않게). 다른 리그를 고르지 않으면 없음 (PL 만 고른 게임은 그대로)
+       */
+      realShare: 0.35, realGap: 3, realMaxAge: 31, realFromGap: 2,
+    },
     /**
      * 내 선수 (18.10): 비시즌 제안 3~5개 = 관심 상위. 관심 = −|유효 OVR − 팀 레이팅 − fitOffset| × fit + 필요도 × 5 + 위상 / repDiv + N(0, noiseSd).
      * 유효 OVR = OVR + (youthAge − 나이) × youthPerYear (어린 선수는 잠재력을 본다). 18.6 의 야망 항 (OVR − 팀 레이팅) × 3 을 팀 입장의 "수준 맞음"으로 뒤집었다
@@ -632,6 +639,11 @@ export const BALANCE = {
       club: { feeMin: 0.8, feeMax: 1.5, base: 0.55, slope: 1.2, top3: 0.3, minP: 0.05 },
       /** 바이아웃 = 계약할 때 몸값(그 계약 연수 기준) × buyoutMul */
       buyoutMul: 1.8,
+      /**
+       * 다른 리그 제안 (C.76c, 45b: 이적 시장 = 고른 리그 전체): 비시즌(여름 창)에만, 고른 다른 리그 중 내 리그와 달력이 같은 리그 팀에서
+       * 관심 상위 [최소, 최대]개를 내 리그 제안에 더한다 (남은 계약 단계별). 받아들이면 다음 시즌부터 그 리그가 내 리그
+       */
+      abroad: { last: [1, 2], one: [0, 1], more: [0, 1] } as Record<'last' | 'one' | 'more', [number, number]>,
     },
     /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
     loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },
@@ -1179,6 +1191,8 @@ export const BALANCE = {
       bundesliga: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
       ligue1: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
     } as Record<'pl' | 'championship' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1', { min: number; max: number; u21Extra: number; nonHomegrownMax: number }>,
+    /** 표에 없는 리그 (C.76c, 45b: 2. 분데스리가·에레디비시·프리메이라·사우디·K리그1·J1·브라질·MLS): 게임 기본 규칙, 비자국 육성 상한 없음 */
+    defaultRule: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 99 },
     /** 21세 이하 = 그 시즌 나이 ≤ u21Age (2018-19 PL 은 1997-01-01 이후 출생) */
     u21Age: 21,
     /** 시즌 시작 생성: 기본 24명(23번 포지션 구성) + 21세 이하 유망주 extraU21 [최소, 최대] → 24~27, 평균 25.5 */
@@ -1536,6 +1550,56 @@ export const BALANCE = {
     /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
     squadTop: 14,
     assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
+  },
+  // ── 대표팀 · 국제 대회 (10번·18.12, 45c단계, 부록 C.76d) ──
+  national: {
+    /**
+     * 소집 확률 (18.12): 위상 티어별 (스페셜 30% · 탑클래스 70% · 월드클래스 이상 95%, 그 아래 일반은 낮게).
+     * 대표팀 레이팅보다 내 OVR 이 높으면 1점당 + ovrBonus (약한 나라는 잘하는 선수를 더 부른다), 최대 max
+     */
+    callup: { normal: 0.04, special: 0.3, topClass: 0.7, worldClass: 0.95, legendary: 0.95, ovrBonus: 0.03, max: 0.97, minAge: 17 },
+    /** A매치 주간 = 리그 A매치 휴식기 주말(토) 기준: 소집 발표 announce 일 전, 경기 [금, 화] = 토요일 + 이 날 */
+    window: { announce: 5, matchDays: [-1, 3] as readonly number[] },
+    /** 비시즌 6월 A매치 (대회가 없는 해): 평가전 n 경기, 날짜 = 리그 최종 라운드 + 이 날 */
+    june: { matches: 2, days: [19, 23] as readonly number[] },
+    /** 대표팀 선발: 내 OVR − 대표팀 레이팅 차 1점당 + startK, 기준 startBase, [startMin, startMax]. 선발이 아니면 교체 subChance (subMinutes 분) */
+    startBase: 0.55, startK: 0.07, startMin: 0.1, startMax: 0.95, subChance: 0.6, subMinutes: [15, 35] as readonly number[],
+    /** 내가 뛰면 대표팀 전력 + (내 OVR − 레이팅) / myShare (빠른 판정, 양수만) */
+    myShare: 11,
+    /** 평가전 상대: 대표팀 레이팅 ± friendlyGap 안에서 시드로 */
+    friendlyGap: 8,
+    /** 대회 해 전력 흔들림 (표준편차, 대회마다 시드) · 예선 통과 판정 흔들림 */
+    formSd: 1.5, qualSd: 3,
+    /**
+     * 경기 XP 배율: 컵 경기와 같은 규칙 (리그 경기 XP × matchXpScale × 이 값, C.67 성장 가드). 업적 XP 는 위상 증가에 넣지 않는다.
+     * 회귀 가드는 대표팀 끔으로 판정 (scripts/balance.ts NATIONAL, C.76d — 레전더리 30세 900+ 경계 시드 하나), 켬은 측정 줄
+     */
+    matchXpMul: 0.35,
+    /** 업적 XP (18.12): 월드컵 우승/준우승/4강/8강, 대륙컵 우승 */
+    xp: { wcWin: 600, wcFinal: 350, wcSemi: 200, wcQuarter: 100, continentalWin: 250 },
+    /** 승부차기 간이 판정 (컵과 같은 식) */
+    pens: { ratingK: 0.01, min: 0.3, max: 0.7 },
+    /**
+     * 대회 (실제 주기 근사, 여름 = 그해 6~7월 · 시즌 끝 뒤): from 해부터 every 년마다 + extra 해. teams 참가 · groups 조(4팀 1회전) →
+     * 녹아웃 ko 팀 (조 1·2위 + 성적 좋은 3위). 참가국 = 대륙 레이팅 + 흔들림 상위 (월드컵은 대륙별 quota)
+     */
+    tournaments: {
+      wc: { confed: null, from: 2022, every: 4, extra: [] as readonly number[], teams: 32, groups: 8, ko: 16 },
+      euro: { confed: 'UEFA', from: 2020, every: 4, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      copa: { confed: 'CONMEBOL', from: 2024, every: 4, extra: [2019, 2021] as readonly number[], teams: 12, groups: 3, ko: 8 },
+      asian: { confed: 'AFC', from: 2019, every: 4, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      afcon: { confed: 'CAF', from: 2019, every: 2, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      gold: { confed: 'CONCACAF', from: 2019, every: 2, extra: [] as readonly number[], teams: 16, groups: 4, ko: 8 },
+      ofc: { confed: 'OFC', from: 2024, every: 4, extra: [] as readonly number[], teams: 4, groups: 1, ko: 2 },
+    },
+    /** 월드컵 대륙별 본선 자리 (합 32, 약식) */
+    wcQuota: { UEFA: 13, CONMEBOL: 5, AFC: 5, CAF: 5, CONCACAF: 4, OFC: 0 },
+    /** 대회 경기 날짜: 리그 최종 라운드 + startAfter 일부터 조별 gap 일 간격, 녹아웃 koGap 일 간격 */
+    startAfter: 21, gap: 4, koGap: 4,
+    /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
+    tournamentBonus: 0.05,
+    /** 세이브에 남기는 지난 대회 수 (조·대진 표) */
+    keepTournaments: 6,
   },
   // ── 개인 재정 (19번, 5-7 a, C.68a) ──
   /**

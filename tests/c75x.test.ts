@@ -63,13 +63,13 @@ describe('미래 스타 팩 (C.75y: 레전드 팩과 따로, 구현 리그 첫 �
     expect(waitingFutureStars().length).toBe(9);
     expect(upcomingFutureStars(2018).map((l) => l.id)).toEqual(['fs-garnacho', 'fs-haaland', 'fs-mainoo', 'fs-wirtz']);
     // 리그가 추가되면 그 리그 첫 시즌 (예: 분데스리가 → 홀란 2019-20 도르트문트)
-    expect(futureEntry(FUTURE_STARS.find((l) => l.id === 'fs-haaland')!, ['pl', 'bundesliga'])).toEqual({ league: 'bundesliga', season: 2019, team: 'x:bvb' });
+    expect(futureEntry(FUTURE_STARS.find((l) => l.id === 'fs-haaland')!, ['pl', 'bundesliga'])).toEqual({ league: 'bundesliga', season: 2019, team: 'bundesliga:bvb' });
     // 실제 경력 표가 있다
     for (const l of FUTURE_STARS) expect(l.career!.length, l.id).toBeGreaterThan(0);
   });
 
   it('등장 전에는 없고 첫 시즌 시작에 그 팀으로 들어온다 (rebuild 와 같음), 시작은 낮고 성장한다', () => {
-    const ws = 'c75y-fs';
+    const ws = 'c76c-fs';
     const opt = { on: false, future: true };
     const r0 = rebuildRosters(ws, undefined, 0, undefined, [], opt);
     expect([...ids(r0)].filter((id) => id.startsWith('fs-'))).toEqual([]);

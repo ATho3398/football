@@ -1,4 +1,5 @@
 // C.75m (45a) 다중 리그 뼈대: 리그 등록부 · 팀 수별 일정 · 리그별 달력 · 고른 리그 빠른 시뮬 · 세이브 마이그레이션
+import { CLUB_TO_TEAM } from '../src/league';
 import { describe, expect, it } from 'vitest';
 import { allLeagueData, DEFAULT_LEAGUES, leagueCatalog, leagueData, LEAGUE_CATALOG, PLAYABLE_LEAGUES } from '../data/leagues';
 import { buildSchedule, createLeague, gamesPerTeam, initialTeams, teamById } from '../src/league';
@@ -43,7 +44,9 @@ describe('리그 등록부 (C.75m)', () => {
   it('카탈로그: 기본 묶음 = PL + 5대 리그 + 챔피언십, 내 리그로 시작 = PL', () => {
     expect(DEFAULT_LEAGUES).toEqual(['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'championship']);
     for (const id of DEFAULT_LEAGUES) expect(LEAGUE_CATALOG.some((e) => e.id === id)).toBe(true);
-    expect(PLAYABLE_LEAGUES).toEqual(['pl']);
+    // C.76c (45b): 등록된 리그 모두 내 리그로 시작 가능
+    expect([...PLAYABLE_LEAGUES].sort()).toEqual(leagueCatalog().map((e) => e.id).filter((id) => leagueData(id)).sort());
+    expect(PLAYABLE_LEAGUES).toHaveLength(14);
     expect(new Set(leagueCatalog().map((e) => e.id)).size).toBe(leagueCatalog().length);
   });
 
@@ -54,7 +57,9 @@ describe('리그 등록부 (C.75m)', () => {
 
   it('고른 리그 정리: 내 리그 맨 앞, 데이터 없는 리그(준비 중)는 빠진다', () => {
     expect(normalizeLeagues(undefined)).toEqual(['pl']);
-    expect(normalizeLeagues(['laliga', 'pl', 'nope', 'laliga'])).toEqual(['pl', 'laliga']);
+    // C.76c: 내 리그 = 맨 앞 (모든 리그로 시작 가능)
+    expect(normalizeLeagues(['laliga', 'pl', 'nope', 'laliga'])).toEqual(['laliga', 'pl']);
+    expect(normalizeLeagues(['laliga', 'pl'], 'pl')).toEqual(['pl', 'laliga']);
   });
 });
 
@@ -211,8 +216,12 @@ describe('고른 리그 빠른 시뮬 (C.75m)', () => {
   });
 
   it('실제 선수 목록 = 고른 리그 중 내 리그로 시작할 수 있는 리그 선수', () => {
-    expect(selectableRealPlayers(['pl', 'laliga']).length).toBe(selectableRealPlayers().length);
-    expect(selectableRealPlayers(['laliga'])).toEqual([]);
+    // C.76c: 고른 리그 실제 선수 전부 (A등급의 라리가 클럽 선수 + 라리가 데이터 선수)
+    const both = selectableRealPlayers(['pl', 'laliga']);
+    const la = selectableRealPlayers(['laliga']);
+    expect(both.length).toBe(selectableRealPlayers().length + la.length);
+    expect(la.length).toBeGreaterThan(70);
+    expect(la.every((p) => CLUB_TO_TEAM[p.club]!.startsWith('laliga:'))).toBe(true);
   });
 });
 
@@ -225,7 +234,7 @@ describe('세이브 (C.75m)', () => {
   });
 
   it('옛 세이브(46) = PL 하나로 마이그레이션', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(48);
+    expect(SAVE_FORMAT_VERSION).toBe(50);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75m-m', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 46;
@@ -234,7 +243,7 @@ describe('세이브 (C.75m)', () => {
     delete old.league.country;
     delete old.league.tier;
     const m = migrate(old);
-    expect(m.saveFormat).toBe(48);
+    expect(m.saveFormat).toBe(50);
     expect(m.leagueIds).toEqual(['pl']);
     expect(m.league.id).toBe('pl');
     expect(m.league.country).toBe('England');

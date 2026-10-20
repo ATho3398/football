@@ -2,7 +2,7 @@
 // 팀당 24명. 실제 A등급 선수는 소속팀 슬롯을 차지하고 나머지는 가상 선수로 채운다.
 // 로스터는 월드 시드로 재생성한다. 세이브에는 시즌 갱신 횟수만 담고 불러올 때 다시 만든다 (save.ts).
 
-import { A_GRADE_PLAYERS } from '../data/players';
+import { A_GRADE_PLAYERS, ALL_REAL_PLAYERS } from '../data/players';
 import { FAMOUS_FULL_NAMES, NAME_POOLS, NAME_POOLS_V1, type NamePool } from '../data/names';
 import { realAppearance, rollAppearance, type Appearance } from './appearance';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
@@ -350,6 +350,11 @@ export function makeFiller(id: string, teamId: string, position: Position, ovr: 
   return p;
 }
 
+/** 다른 고른 리그의 실제 선수가 이적시장 빈자리를 채운다 (C.76c, 45b). 계약·충성도는 id·시즌 시드 (재생성 때 같은 값) */
+export function realFiller(n: NpcState, season: number, worldSeed: string): RosterPlayer {
+  return realEntry(n, season, rngFor(worldSeed, 'real-fill', n.id, season));
+}
+
 function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
   return {
     id: n.id,
@@ -379,7 +384,7 @@ function rollAge(rng: Rng): number {
 
 // ── 등번호 (부록 C.45, pending 54 7) ──
 
-const REAL_SHIRT = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.shirtNumber]));
+const REAL_SHIRT = new Map(ALL_REAL_PLAYERS.map((p) => [p.id, p.shirtNumber]));
 
 /** 포지션 관례 등번호 (앞에서부터 비어 있는 번호) */
 const SHIRT_PREF: Record<PosGroup, readonly number[]> = {

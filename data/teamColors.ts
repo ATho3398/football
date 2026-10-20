@@ -1,5 +1,8 @@
+import { allLeagueData } from './leagues';
+import { aliasOf } from './clubAlias';
+
 // 구단 색 2개 (부록 C.43): 자동 엠블럼(로고 이미지가 없을 때)에 쓴다. [주 색, 보조 색]. 표에 없는 구단은 이름 시드로 고른다
-export const TEAM_COLORS: Readonly<Record<string, readonly [string, string]>> = {
+const BASE: Readonly<Record<string, readonly [string, string]>> = {
   mci: ['#6cabdd', '#1c2c5b'], liv: ['#c8102e', '#f6eb61'], che: ['#034694', '#ffffff'], tot: ['#132257', '#ffffff'],
   mun: ['#da291c', '#fbe122'], ars: ['#ef0107', '#ffffff'], eve: ['#003399', '#ffffff'], lei: ['#003090', '#fdbe11'],
   whu: ['#7a263a', '#1bb1e7'], wol: ['#fdb913', '#231f20'], cry: ['#1b458f', '#c4122e'], wat: ['#fbee23', '#ed2127'],
@@ -15,3 +18,19 @@ export const TEAM_COLORS: Readonly<Record<string, readonly [string, string]>> = 
   'x:nor': ['#fff200', '#00a650'], 'x:bri': ['#e21a23', '#ffffff'], 'x:not': ['#dd0000', '#ffffff'], 'x:mid': ['#e11b22', '#ffffff'],
   'x:ipw': ['#3a64a3', '#ffffff'], 'x:wig': ['#1d59af', '#ffffff'],
 };
+
+/** 표 + 리그 데이터 팀 (C.76c, 45b): 같은 클럽(x: 짝)은 표 색을 같이 쓰고, 표에 없으면 리그 데이터 색 */
+export const TEAM_COLORS: Readonly<Record<string, readonly [string, string]>> = (() => {
+  const out: Record<string, readonly [string, string]> = { ...BASE };
+  for (const d of allLeagueData()) {
+    for (const t of d.teams) {
+      const a = aliasOf(t.id);
+      const c = BASE[t.id] ?? (a ? BASE[a] : undefined) ?? (t.colors ? [t.colors.primary.toLowerCase(), t.colors.secondary.toLowerCase()] as const : undefined);
+      if (c) {
+        out[t.id] = c;
+        if (a && !out[a]) out[a] = c;
+      }
+    }
+  }
+  return out;
+})();

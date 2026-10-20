@@ -36,7 +36,9 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
     // 포토카드 도감 (C.75t)
     + IconButton({ act: 'go', data: { to: 'dex' }, name: 'card', label: '포토카드 도감', variant: 'ghost' })
     // 진열실 (C.76b): 트로피 · 유니폼
-    + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' });
+    + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' })
+    // 대표팀 (C.76d)
+    + IconButton({ act: 'go', data: { to: 'national' }, name: 'world', label: '대표팀', variant: 'ghost' });
   const face = homeFace(vm);
   // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음
   const back = vm.exit ? { act: 'to-title' } as const : false;
@@ -67,7 +69,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
     const pct = Math.round((n.myRating / Math.max(1, n.myRating + n.oppRating)) * 1000) / 10;
     next = panel(`
         <div class="hm-head"><span class="hm-title">다음 경기 <span>· ${esc(vm.comp)} · ${n.home ? '홈' : '원정'}</span></span><span class="hm-sub">${d.matchDay ? '오늘' : esc(vm.nextDate ?? d.nextLabel ?? '')}</span></div>
-        ${n.cup ? `<div class="comp-badge${n.cup.comp === 'fa' ? ' is-fa' : ''}">${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(n.cup.label)}</b></div>` : ''}
+        ${n.cup ? `<div class="comp-badge${n.cup.comp === 'fa' ? ' is-fa' : n.cup.comp === 'nat' ? ' is-nat' : ''}">${Icon({ name: n.cup.comp === 'nat' ? 'world' : 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(n.cup.label)}</b></div>` : ''}
         ${n.derby ? `<div class="derby-badge${n.derby.big ? ' is-big' : ''}">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b>${esc(n.derby.name)}</b><span>더비 매치</span></div>` : ''}
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}<span class="vs-name">${esc(n.my)}</span></span><span class="vs">vs</span><span class="vs-team away"><span class="vs-name">${esc(n.opp)}</span>${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>
         <div class="hm-power"><span>전력 <b class="po-num">${n.myRating}</b></span><span class="hm-power__bar" aria-hidden="true"><i style="width:${pct}%"></i><i></i></span><b class="po-num away">${n.oppRating}</b></div>

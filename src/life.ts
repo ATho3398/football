@@ -6,7 +6,7 @@ import { BALANCE } from './config/balance';
 import { createRng, hashSeed } from './rng';
 import { tagAt, tagHas } from './tags';
 import { addTag } from './startClub';
-import { A_GRADE_PLAYERS } from '../data/players';
+import { REAL_PLAYER_BY_ID } from '../data/players';
 import { LEGEND_BY_ID } from './legends';
 import type { GameState } from './game';
 import type { DayPlan } from './training';
@@ -40,7 +40,7 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 /** 내 국적: 커스텀 선택 > 실제 선수·레전드 데이터 > 유망주 기본(한국) */
 export function myNationality(p: GameState['player']): string {
   if (p.nationality) return p.nationality;
-  const real = p.realPlayerId ? A_GRADE_PLAYERS.find((d) => d.id === p.realPlayerId)?.nationality : undefined;
+  const real = p.realPlayerId ? REAL_PLAYER_BY_ID.get(p.realPlayerId)?.nationality : undefined;
   return real ?? (p.legendId ? LEGEND_BY_ID.get(p.legendId)?.nationality : undefined) ?? 'Korea Republic';
 }
 
