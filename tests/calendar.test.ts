@@ -116,7 +116,7 @@ describe('전 경기 엔진 (25.1~25.2 4번)', () => {
     const sim = createMatch({
       home: teamSetupFromRoster(m.home, m.homeRating, m.awayRating, m.worldSeed, undefined, m.leagueAvg),
       away: teamSetupFromRoster(m.away, m.awayRating, m.homeRating, m.worldSeed, undefined, m.leagueAvg),
-      mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false,
+      mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}),
     });
     const frames = [];
     while (!sim.state.done) {

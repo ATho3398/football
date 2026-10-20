@@ -15,6 +15,17 @@ export function initPhysics(a: Agent): void {
   a.turnKeep = P.turnKeepBase + (P.turnKeepSlope * (t.agility - q)) / 100;
 }
 
+/** 지친 비율 (C.76s): 스태미나 staminaLowFrom 아래에서 0 → 1 (스태미나 0). 최고 속도·경합·판단 온도·패스·역압박 가담이 같이 쓴다 */
+export function tiredRatio(a: Agent): number {
+  if (a.stamina >= P.staminaLowFrom) return 0;
+  return 1 - Math.max(0, a.stamina) / P.staminaLowFrom;
+}
+
+/** 경합 보정 (C.76s 가설 2): 홈 보정(duelEdge) − tiredDuel × 지친 비율. 드리블·태클·버티기·수신·공중볼 공통 */
+export function duelEdgeOf(a: Agent): number {
+  return a.duelEdge - P.tiredDuel * tiredRatio(a);
+}
+
 /** 스태미나에 따른 유효 최대 속도 */
 export function effectiveMax(a: Agent): number {
   if (a.stamina >= P.staminaLowFrom) return a.maxSpeed;

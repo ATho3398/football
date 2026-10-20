@@ -1,6 +1,7 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
 import { ENGINE } from './config';
+import { tiredRatio } from './physics';
 import { effectiveTactics, pressLevel } from './offball';
 import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
@@ -102,9 +103,7 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
 
 /** 지친 선수는 역압박 가담·긴급 복귀를 덜 한다 (E.20 5번): 스태미나 staminaLowFrom 아래에서 비례, 0 이면 tiredFloor */
 function tiredness(a: Agent): number {
-  const P = ENGINE.physics;
-  if (a.stamina >= P.staminaLowFrom) return 1;
-  return P.tiredFloor + (1 - P.tiredFloor) * (a.stamina / P.staminaLowFrom);
+  return 1 - (1 - ENGINE.physics.tiredFloor) * tiredRatio(a);
 }
 
 function manDiffCount(s: SimState, team: 0 | 1): number {

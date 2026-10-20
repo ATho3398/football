@@ -16,6 +16,7 @@ import {
   type ActionMod, type CardUse, type MomentCard, type OptionCtx, type ReactCard, type Variant,
 } from './cards';
 import { ENGINE } from './config';
+import { duelEdgeOf } from './physics';
 import { directiveVariants } from './directive';
 import { aerialScore, dribbleProb, duelTail } from './duel';
 import { candidates, choose, judgementOf, shotModel, visible, type ActionType, type Candidate } from './onball';
@@ -839,7 +840,7 @@ export function aerialMoment(s: SimState): boolean {
   }
   const PR = ENGINE.prob;
   const [att, def] = attacking ? [a, opp] : [opp, a];
-  const pA = att && def ? duelTail(1 / (1 + Math.exp(-((aerialScore(att) - aerialScore(def)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + att.duelEdge - def.duelEdge)))) : 0.5;
+  const pA = att && def ? duelTail(1 / (1 + Math.exp(-((aerialScore(att) - aerialScore(def)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + duelEdgeOf(att) - duelEdgeOf(def))))) : 0.5;
   const p = clamp(attacking ? pA + (a.cardBoost?.air ?? 0) : 1 - pA + (a.cardBoost?.air ?? 0), 0.02, 0.98);
   const R = ENGINE.rating;
   const scene = scenes[0] as SceneId;

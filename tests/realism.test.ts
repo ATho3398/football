@@ -65,7 +65,7 @@ describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
     }
     expect(checked).toBe(5);
   });
-  it('공을 잃으면 역압박: 최대 3명, (3 + 2 × pressing)초 안', () => {
+  it('공을 잃으면 역압박: 최대 3명, (counterBase + 2 × pressing)초 안', () => {
     const s = createState(input(33));
     while (s.t < 120) step(s);
     const team = s.possTeam;
@@ -75,7 +75,7 @@ describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
     const tm = s.teams[team];
     expect(tm.counterPressers.length).toBeLessThanOrEqual(3);
     if (tm.counterPressers.length) {
-      expect(tm.counterUntil - s.t).toBeCloseTo(3 + 2 * tm.tactics.pressing, 5);
+      expect(tm.counterUntil - s.t).toBeCloseTo(ENGINE.offball.counterBase + ENGINE.offball.counterPerPress * tm.tactics.pressing, 5);
     }
   });
 });

@@ -4,6 +4,7 @@
 import { weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
+import { duelEdgeOf, tiredRatio } from './physics';
 import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { hasModule } from './roles';
@@ -119,7 +120,8 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   const skill = kind === 'cross' ? a.attrs.crossing : a.attrs.shortPassing * (1 - wLong) + a.attrs.longPassing * wLong;
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
-  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a);
+  // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
+  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   return passSkillApply(p, skill);
 }
 
@@ -193,7 +195,7 @@ export function holdupProb(s: SimState, att: Agent, def: Agent): number {
   const atk = (a.strength + att.body.strength) * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
   const dfn = (d.strength + def.body.strength) * 0.45 + d.tackling * 0.35 + d.defensivePositioning * 0.2;
   void s;
-  return duelTail(1 / (1 + Math.exp(-((atk - dfn) / O.holdupScale + att.duelEdge - def.duelEdge))));
+  return duelTail(1 / (1 + Math.exp(-((atk - dfn) / O.holdupScale + duelEdgeOf(att) - duelEdgeOf(def)))));
 }
 
 export function judgementOf(a: Agent): number {
@@ -350,6 +352,7 @@ export function averageSelf(a: Agent): Agent {
   av.vy = a.vy;
   av.team = a.team;
   av.duelEdge = a.duelEdge;
+  av.stamina = a.stamina;
   av.onPitch = a.onPitch;
   return av;
 }
@@ -615,7 +618,7 @@ export function leadTempoMul(s: SimState, team: 0 | 1): number {
 
 /** 판단 온도 (E.22 C): τ = tempBase × exp(tempSlope × (0.7 − 판단 품질)) */
 export function decisionTemp(a: Agent): number {
-  return O.tempBase * Math.exp(O.tempSlope * (0.7 - a.judgement));
+  return O.tempBase * Math.exp(O.tempSlope * (0.7 - a.judgement)) * (1 + O.tiredTemp * tiredRatio(a));
 }
 
 /**

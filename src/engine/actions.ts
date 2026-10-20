@@ -11,7 +11,7 @@ import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
 import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, ownGoal, positionValue, segDist, toNorm, W } from './pitch';
-import { landingVelocity } from './physics';
+import { duelEdgeOf, landingVelocity, tiredRatio } from './physics';
 import { LONG_SHOT_FROM } from './env';
 import { exploitMul } from './rapport';
 import { Purpose, rand, randn } from './rng';
@@ -256,7 +256,7 @@ export function defendDuels(s: SimState): void {
     let pWin = odds.pWin;
     let pFoul = odds.pFoul;
     const us = odds.us;
-    const tau = O_TEMP(judge);
+    const tau = O_TEMP(judge) * (1 + ENGINE.onball.tiredTemp * tiredRatio(d));
     const mx = Math.max(...us);
     const ws = us.map((u) => Math.exp(((u - mx) * ENGINE.onball.utilityScale) / tau));
     let x = r(s, d.idx, Purpose.Tackle) * (ws[0]! + ws[1]! + ws[2]!);
@@ -730,7 +730,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       foul(s, defFoul ? bestD : bestA, defFoul ? bestA : bestD, b.x, b.y);
       return;
     }
-    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + bestA.duelEdge - bestD.duelEdge))));
+    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
