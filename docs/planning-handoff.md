@@ -511,3 +511,4 @@
 - (09:45 KST) **C.75c 완료**(main 4aed8b8, 엔진 24) → pending 129, ntfy, UI_3 해당 없음. **C.75d(44c-b) 시작** `session_01LeJxB7wiAd18fXSorLSdHL`, 브랜치 `claude/c75d-defense-b`.
 - (10:16 KST) **C.75d 실패 ④**(배포 안 함) → 엔진관리자3에 Fable fix 처방 + 44d 처방 요청. C.75d draft_.
 - (10:31 KST) **C.75c CI 성공**(main 4aed8b8 #224, 10:20 배포). C.75c draft_. 엔진관리자3 처방(44c-b Fable fix·44d) 대기.
+- (10:47 KST) 엔진관리자3 처방 2건 → **C.75e(Fable fix 44c-b)·C.75f(44d 평점·윙)** 병렬 시작. 엔진관리자3 대기.
