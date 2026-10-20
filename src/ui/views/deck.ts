@@ -12,6 +12,7 @@ import { ROLE_NAMES_KO } from '../../engine/roles';
 import { BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
 import { cardArtPos, cardArtUrl, defaultArtPos } from '../cardArt';
+import type { AnimCard } from '../packAnim/types';
 
 const ROLE_KO = { play: '4번째 선택지', boost: '이번 턴 확률', passive: '남은 경기 장착', combo: '다음 장면', soften: '이번 턴', redraw: '패 바꾸기' } as const;
 const KIND_KO = { play: '플레이', setPiece: '세트피스', passive: '패시브', combo: '콤보', manage: '관리', signature: '시그니처', directive: '지시' } as const;
@@ -88,6 +89,22 @@ export function gameCardData(def: CardDef, o: { uses?: number; met?: boolean; is
     ...(o.isNew ? { isNew: true } : {}), ...(o.count ? { count: o.count } : {}),
     ...cardArtOf(def.id),
   };
+}
+
+/** 팩 개봉·선택권 공개 연출 (C.76o) 카드 한 장: 앞면 = GameCard full. NEW = 처음 얻음, dup = 이미 가진 카드 */
+export function animCard(def: CardDef, o: { isNew: boolean; dup: boolean }): AnimCard {
+  return { id: def.id, name: def.name, rarity: def.rarity, isNew: o.isNew, dup: o.dup, sub: KIND_KO[def.kind], html: GameCard({ card: gameCardData(def, { isNew: o.isNew }), size: 'full' }) };
+}
+
+/** 설정의 연출 미리보기 (C.76o): 일반 2장 + 고른 희귀도 1장 (전설 카드가 없으면 있는 가장 높은 것) */
+export function demoAnimCards(r: CardDef['rarity']): AnimCard[] {
+  const commons = CARDS.filter((c) => c.rarity === 'common').slice(0, 2);
+  const top = CARDS.find((c) => c.rarity === r && !commons.includes(c)) ?? CARDS.find((c) => c.rarity === 'epic') ?? CARDS[0]!;
+  return [
+    animCard(commons[0]!, { isNew: false, dup: true }),
+    animCard(top, { isNew: true, dup: false }),
+    animCard(commons[1]!, { isNew: false, dup: false }),
+  ];
 }
 
 /** 카드 그림 (C.48): cardArtUrl 한 함수로 정한다. 위치 우선순위(C.68c): 사용자 위치(정식·간략 같이) > 기본 위치표(full·mini) > 가운데 */
