@@ -17,6 +17,9 @@ import { exploitMul } from './rapport';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, BallReserve, Flight, SimState } from './state';
 
+/** 선방률 지표의 거리 기준 (C.76q): 이보다 먼 유효 슈팅만 farOnTarget·farSaves 로 센다 */
+const FAR_SAVE_FROM = 12;
+
 const PR = ENGINE.prob;
 const B = ENGINE.ball;
 const K = ENGINE.keeper;
@@ -516,8 +519,12 @@ function shotArrives(s: SimState, fl: Flight): void {
   const dir = attackDir(shooter.team, s.half);
   // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
   const pSave = saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  // 선방률 지표 (C.76q, 미해결 6): 12 m 밖 유효 슈팅만 따로 센다 (1대1·PK 제외)
+  const far = !sh.penalty && sh.d >= FAR_SAVE_FROM;
+  if (far) s.teams[shooter.team].stats.farOnTarget++;
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < (sh.cardSave ? clamp(pSave + sh.cardSave, 0.02, 0.98) : pSave)) {
     s.teams[defTeam].stats.saves++;
+    if (far) s.teams[shooter.team].stats.farSaves++;
     if (gk) gk.stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
     // 날씨 (C.74a): 젖은 공 캐치 × gkCatch (놓치면 쳐내기·리바운드)
