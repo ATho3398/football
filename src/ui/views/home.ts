@@ -34,7 +34,9 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   // C.70 (디자인 161): 날짜 옆은 저장·설정만. 인박스·재정은 독(더보기 줄 · PC 칸)에서 배지로 (C.69 독 v3)
   const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
     // 포토카드 도감 (C.75t)
-    + IconButton({ act: 'go', data: { to: 'dex' }, name: 'card', label: '포토카드 도감', variant: 'ghost' });
+    + IconButton({ act: 'go', data: { to: 'dex' }, name: 'card', label: '포토카드 도감', variant: 'ghost' })
+    // 진열실 (C.75w): 트로피 · 유니폼
+    + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' });
   const face = homeFace(vm);
   // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음
   const back = vm.exit ? { act: 'to-title' } as const : false;

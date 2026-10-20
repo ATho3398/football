@@ -8,6 +8,7 @@ import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { initRecords } from './records';
 import { emptyPhotos } from './photocards';
+import { emptyShowcase } from './jerseys';
 import { ensureFinance } from './finance';
 import { sortedTable } from './league';
 import { setNamePoolVersion } from './roster';
@@ -336,6 +337,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   44: () => {},
   // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
   45: (s) => { s.photos ??= emptyPhotos(); },
+  // 46 → 47 (C.75w): 유니폼 교환 기록 · 진열 배치(showcase). 옛 세이브는 빈 진열 · 교환 기록 없음
+  46: (s) => { s.showcase ??= emptyShowcase(); },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

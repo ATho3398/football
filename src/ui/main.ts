@@ -100,6 +100,9 @@ import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
 import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
+import { jerseyPanelVM, showroomVM } from './jerseyVM';
+import { showroomView } from './views/showroom';
+import { requestJersey, showcasePut, showcaseTake } from '../jerseys';
 import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
@@ -117,7 +120,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -512,6 +515,7 @@ function screenHtml(): string {
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
+    case 'showroom': return showroomView(showroomVM(g));
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -581,7 +585,7 @@ function screenHtml(): string {
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
-  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta) : homeView(homeVM(g));
+  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta, jerseyPanelVM(g)) : homeView(homeVM(g));
 }
 
 /** 화면 → 첫 방문 말풍선 id */
@@ -2188,6 +2192,21 @@ app.addEventListener('click', (ev) => {
       return;
     case 'pc-flip':
       ui.dex = { ...ui.dex, flip: ui.dex.flip === v ? null : v ?? null };
+      render();
+      return;
+    // 유니폼 교환 · 진열실 (C.75w)
+    case 'jersey-ask': {
+      const r = g && v ? requestJersey(g, v) : null;
+      if (r) autosave(); // 결과는 결과 화면 패널에 한 줄로
+      render();
+      return;
+    }
+    case 'sr-put':
+      if (g && v && showcasePut(g, v)) autosave();
+      render();
+      return;
+    case 'sr-take':
+      if (g && v && showcaseTake(g, v)) autosave();
       render();
       return;
     case 'fn-tab':

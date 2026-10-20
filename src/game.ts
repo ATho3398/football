@@ -40,6 +40,7 @@ import { TAGS } from './tags';
 import { REAL_CAREER } from '../data/players/careers';
 import { npcTagMap, recordNaturalNews, recordTagNews, type TagNews } from './npcTags';
 import { collectPhotos, photoRetirements, photoSnapshot, type PhotoState } from './photocards';
+import { jerseyPool, type ShowcaseState } from './jerseys';
 import { futureSpawns, isLegendId, LEGEND_BY_ID, LEGEND_PACK, legendArrivals, legendClub, legendPeak, legendRosterPlayer, legendSpawns, packRealExcludes, type LegendSpawn } from './legends';
 import { ensureFinance, type FinanceState } from './finance';
 import { wealthDayEnd, wealthSeasonEnd, wealthSeasonStart } from './wealth';
@@ -84,7 +85,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 46;
+export const SAVE_FORMAT_VERSION = 47;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -137,6 +138,9 @@ export interface MatchReport {
   cond?: { weather: WeatherKind; referee: string };
   /** 이 경기로 새로 모은 포토카드 장 수 (C.75t) */
   newPhotos?: number;
+  /** 유니폼 교환 (C.75w): 요청할 수 있는 상대 실제 선수 id(내가 뛴 엔진 경기만), 요청 결과(경기당 1번) */
+  jerseyPool?: string[];
+  jersey?: { id: string; ok: boolean; line: string };
 }
 
 /** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 이상 (FA 100+단계, 챔스 110+) */
@@ -290,6 +294,8 @@ export interface GameState {
   records?: RecordsState;
   /** 포토카드 도감 (C.75t): 모은 카드 (획득순). 옛 세이브는 빈 도감 */
   photos?: PhotoState;
+  /** 유니폼 교환 기록 · 진열 배치 (C.75w). 옛 세이브는 없음 = 빈 기록 */
+  showcase?: ShowcaseState;
 }
 
 /** 지난 시즌 하나의 보존 기록 (25.4 2번). 리플레이 프레임은 담지 않는다 (내 최근 5경기만 세이브 저장소에 따로) */
@@ -1661,6 +1667,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   // 포토카드 (C.75t): 같은 경기에 뛴 실제 선수
   const photos = collectPhotos(state, engineOut?.engine.players, MY_ID, { date: state.calendar.date, season: league.season, vs: opp.id });
   if (photos) report.newPhotos = photos;
+  const pool = jerseyPool(engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
+  if (pool) report.jerseyPool = pool;
   eventsAfterMatch(state);
   // 득점·도움 경쟁 기사 (C.64)
   worldAfterRound(state);
@@ -1780,6 +1788,8 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   chemAfterMatch(state, engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
   const photos = collectPhotos(state, engineOut?.engine.players, MY_ID, { date: state.calendar.date, season: league.season, vs: opp.id, comp: mc.comp });
   if (photos) report.newPhotos = photos;
+  const pool = jerseyPool(engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
+  if (pool) report.jerseyPool = pool;
   if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
   refreshUnlocks(state);
   return report;

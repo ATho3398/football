@@ -1,140 +1,215 @@
-// C.75w (pending 133): 레전드 팩 3판 = 117 + 도르트문트 21 + 추가 53명. 팀당 상한, 넘치면 리그 밖에서 시작해 이적으로 유입
+// C.75w (46b단계): 유니폼 교환 · 진열실 — 확률 단조성 · 경기당 1번 · jersey 표시 · 진열 칸 수 · 세이브 47
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
-import { autoMarket, newGame, playRound, rebuildRosters, startNextSeason, type GameState } from '../src/game';
-import { deserialize, serialize } from '../src/save';
-import { EXT_LEGENDS, FUTURE_STARS, LEGEND_RETIRED_BY } from '../data/players/legends';
-import { A_GRADE_PLAYERS } from '../data/players';
-import { LEGEND_PACK, LEGENDS, legendPlacement, legendSpawns, packLegends, packRealExcludes } from '../src/legends';
-import { initialTeams } from '../src/league';
-import { posGroup, type Rosters } from '../src/roster';
-import { withinRules } from '../src/squad';
-import { newGameVM, worldVM } from '../src/ui/viewModels';
+import { MY_ID } from '../src/engine/adapter';
+import { newGame, playRound, SAVE_FORMAT_VERSION, selectableRealPlayers, type GameState } from '../src/game';
+import {
+  chanceFrom, jerseyBlocked, jerseyPool, requestJersey, showcasePut, showcaseTake, showItems, showroomSlots, shownItems, storedItems,
+} from '../src/jerseys';
+import { photoViews } from '../src/photocards';
+import { deserialize, migrate, serialize } from '../src/save';
+import { jerseyPanelVM, showroomVM } from '../src/ui/jerseyVM';
+import { photoDexVM } from '../src/ui/photoVM';
+import { matchResultView } from '../src/ui/views/matchResult';
+import { photoDexView } from '../src/ui/views/photos';
+import { showroomView } from '../src/ui/views/showroom';
+import { matchResultVM } from '../src/ui/viewModels';
+import { PATCH_LABEL, STAGE_LABEL } from '../src/version';
+import type { PlayerStats } from '../src/engine/types';
+import type { Tier } from '../src/types';
 
-const TEAMS = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
-const ids = (r: Rosters) => new Set(Object.values(r).flatMap((x) => x.players.map((p) => p.id)));
-const norm = (n: string) => n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+const game = (seed = 'c75w') => newGame({ mode: 'real', playerId: selectableRealPlayers()[0]!.id, seed, difficulty: 'normal' });
+const stat = (id: string, team: 0 | 1, minutes: number) => ({ id, team, minutes } as PlayerStats);
+const TIERS: Tier[] = ['normal', 'special', 'topClass', 'worldClass', 'legendary'];
 
-const NAMES = [
-  '잔루이지 부폰', '빅토르 발데스', '줄리우 세자르', '디다', '호르헤 캄포스', '이운재',
-  '제이미 캐러거', '루시우', '헤라르드 피케', '페페', '조르조 키엘리니', '히카르두 카르발류', '솔 캠벨', '레오나르도 보누치', '뱅상 콤파니',
-  '파트리스 에브라', '잔루카 잠브로타', '마르셀루',
-  '디디에 데샹', '에마뉘엘 프티', '질베르투 실바', '오언 하그리브스', '둥가',
-  '안드레스 이니에스타', '클라렌스 세이도르프', '다니엘레 데 로시', '클라우디오 마르키시오', '세스크 파브레가스',
-  '다비드 실바', '메수트 외질', '잔프랑코 졸라', '카를로스 발데라마', '나카타 히데토시', '구티', '뤼트 굴리트',
-  '프랑크 리베리', '아리언 로번', '개러스 베일',
-  '필리포 인자기', '크리스티안 비에리', '에르난 크레스포', '파트리크 클라위버르트', '다보르 슈케르', '이언 러시', '안정환', '웨인 루니',
-  '즐라탄 이브라히모비치', '로비 파울러', '앤디 콜', '이언 라이트', '피터 크라우치', '디미타르 베르바토프', '올리버 비어호프',
-];
-
-function finishSeason(g: GameState): void {
-  while (g.phase === 'season') playRound(g, { engine: 'quick' });
+/** 내가 뛴 엔진 경기를 찾을 때까지 진행 (실제 상대 선수가 있는 경기) */
+function playUntilPool(g: GameState, max = 12): void {
+  for (let i = 0; i < max; i++) {
+    playRound(g);
+    if (g.lastMatch?.jerseyPool?.length) return;
+  }
+  throw new Error('상대 실제 선수가 있는 경기를 못 찾음');
 }
 
-describe('추가 53명 명단 (C.75w)', () => {
-  it('사용자 확정 53명, 포지션 묶음 수, 1990년 이후 은퇴 확인, 2020 뒤 은퇴는 lateRetired', () => {
-    expect(EXT_LEGENDS.length).toBe(53);
-    expect(EXT_LEGENDS.map((l) => l.nameKo).sort()).toEqual([...NAMES].sort());
-    const g = (gs: string[]) => EXT_LEGENDS.filter((l) => gs.includes(l.position)).length;
-    expect([g(['GK']), g(['CB']), g(['LB', 'RB']), g(['CDM']), g(['CM']), g(['CAM']), g(['LW', 'RW']), g(['ST'])]).toEqual([6, 9, 3, 5, 5, 7, 3, 15]);
-    for (const l of EXT_LEGENDS) {
-      expect(l.group).toBe('ext');
-      expect(l.retired).toBeGreaterThanOrEqual(1990);
-      expect(l.retired).toBeLessThanOrEqual(2026);
-      expect(!!l.lateRetired).toBe(l.retired > LEGEND_RETIRED_BY);
-      expect(l.peak).toBeGreaterThanOrEqual(BALANCE.legends.groupMinPeak);
-    }
-    expect(EXT_LEGENDS.filter((l) => l.lateRetired).length).toBe(15);
+describe('확률', () => {
+  const at = (o: Partial<Parameters<typeof chanceFrom>[0]> = {}) => chanceFrom({ tier: 'topClass', mental: 68, rating: 6.6, relations: [], ...o }).p;
+
+  it('위상 티어가 오를수록 · 평점이 높을수록 · 상대 멘탈이 높을수록 오른다 (단조)', () => {
+    for (let i = 1; i < TIERS.length; i++) expect(at({ tier: TIERS[i] })).toBeGreaterThan(at({ tier: TIERS[i - 1] }));
+    for (let r = 4; r < 10; r += 0.5) expect(at({ rating: r + 0.5 })).toBeGreaterThanOrEqual(at({ rating: r }));
+    expect(at({ rating: 8 })).toBeGreaterThan(at({ rating: 5.5 }));
+    expect(at({ mental: 85 })).toBeGreaterThan(at({ mental: 50 }));
+    expect(at({ mental: null })).toBe(at({ mental: BALANCE.jerseys.mental.center }));
   });
 
-  it('id·이름 중복 없음, 2018-19 실제 현역과 겹치지 않음 (겹치면 팩을 켤 때 현역에서 빠진다)', () => {
-    const all = [...LEGENDS, ...FUTURE_STARS];
-    expect(new Set(all.map((l) => l.id)).size).toBe(all.length);
-    expect(new Set(all.map((l) => norm(l.name))).size).toBe(all.length);
-    const real = new Set(A_GRADE_PLAYERS.map((p) => norm(p.name)));
-    expect(EXT_LEGENDS.filter((l) => real.has(norm(l.name)))).toEqual([]);
-    expect(packRealExcludes(3).size).toBe(0);
+  it('관계: 더비·라이벌 −, 같은 국적·옛 팀 +, 더비 = −15%p', () => {
+    expect(at({ relations: ['derby'] })).toBeCloseTo(at() - 0.15, 9);
+    expect(at({ relations: ['derby', 'bigDerby'] })).toBeLessThan(at({ relations: ['derby'] }));
+    expect(at({ relations: ['rival'] })).toBeLessThan(at());
+    expect(at({ relations: ['sameNation'] })).toBeGreaterThan(at());
+    expect(at({ relations: ['formerClub'] })).toBeGreaterThan(at());
   });
 
-  it('판: 1 = 117, 2 = 138 (C.75x), 3 = 191 (새 게임)', () => {
-    expect(LEGEND_PACK).toBe(3);
-    expect([packLegends(1).length, packLegends(2).length, packLegends(3).length]).toEqual([117, 138, 191]);
-    // 2판 배치는 예전 그대로 (C.75x 세이브 재생성이 같은 로스터)
-    expect(legendSpawns('c75w-p2', 2018, TEAMS, undefined, 2).length).toBe(138);
+  it('범위: [min, max] 안 (무명 최악도 0이 아니고 레전더리 최고도 100%가 아님)', () => {
+    const J = BALANCE.jerseys;
+    expect(at({ tier: 'normal', rating: 3, mental: 30, relations: ['derby', 'bigDerby', 'rival'] })).toBe(J.min);
+    expect(at({ tier: 'legendary', rating: 10, mental: 99, relations: ['sameNation', 'formerClub'] })).toBe(J.max);
   });
 });
 
-describe('3판 배치 (C.75w)', () => {
-  it('팀당 상한 안, 시작 + 리그 밖 = 191, 리그 밖은 다음 시즌부터 시즌마다 arrivalsPerSeason 명', () => {
-    const L = BALANCE.legends;
-    for (const seed of ['m1', 'm2', 'm3', 'c75w-a']) {
-      const pl = legendPlacement(seed, TEAMS);
-      expect(pl.spawns.length + pl.abroad.length).toBe(191);
-      const per: Record<string, number> = {};
-      for (const s of pl.spawns) per[s.teamId] = (per[s.teamId] ?? 0) + 1;
-      expect(Math.max(...Object.values(per))).toBeLessThanOrEqual(L.maxPerTeam);
-      pl.abroad.forEach((a, i) => {
-        expect(a.club.startsWith('x:')).toBe(true);
-        expect(a.season).toBe(BALANCE.newGame.startYear + 1 + Math.floor(i / L.arrivalsPerSeason));
-      });
-    }
-    // 내 선수로 고른 레전드는 빠진다
-    expect(legendPlacement('m2', TEAMS, 'lg-iniesta').spawns.some((s) => s.legend.id === 'lg-iniesta')).toBe(false);
+describe('요청 후보', () => {
+  it('내가 뛴 경기의 상대 팀 실제 선수만 (우리 팀·가상·안 뛴 선수·결장·빠른 경기 제외)', () => {
+    const p = [stat(MY_ID, 0, 90), stat('salah', 1, 90), stat('kane', 0, 90), stat('gen-123', 1, 90), stat('van-dijk', 1, 0)];
+    expect(jerseyPool(p, 0, MY_ID)).toEqual(['salah']);
+    expect(jerseyPool(p, 1, MY_ID)).toEqual(['kane']);
+    expect(jerseyPool([stat(MY_ID, 0, 0), stat('salah', 1, 90)], 0, MY_ID)).toBeUndefined();
+    expect(jerseyPool(undefined, 0, MY_ID)).toBeUndefined();
   });
+});
 
-  it('새 게임: 모든 팀 인원 규칙 안 → 시즌 끝 리그 밖 레전드 이적 유입 → 인원 규칙 안, 세이브 왕복·재생성 같은 로스터', () => {
-    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'm2', difficulty: 'normal', legends: true });
-    expect(g.legendPack).toBe(3);
-    const abroad = legendPlacement('m2', TEAMS).abroad;
-    expect(abroad.length).toBeGreaterThan(0);
-    for (const r of Object.values(g.rosters)) expect(withinRules(r.players)).toBe(true);
-    const there = ids(g.rosters);
-    expect(there.has('lg-iniesta') || abroad.some((a) => a.legend.id === 'lg-iniesta')).toBe(true);
-    for (const a of abroad) expect(there.has(a.legend.id)).toBe(false);
-    expect(worldVM(g).abroad.map((a) => a.name)).toEqual(abroad.map((a) => a.legend.nameKo));
-    finishSeason(g);
-    autoMarket(g, 'stay');
-    startNextSeason(g);
-    const now = ids(g.rosters);
-    for (const a of abroad.filter((x) => x.season === g.league.season)) {
-      expect(now.has(a.legend.id)).toBe(true);
-      const p = Object.values(g.rosters).flatMap((r) => r.players).find((x) => x.id === a.legend.id)!;
-      expect(p.legend).toBe(true);
-      expect(p.youth).toBe(a.club);
-      expect(posGroup(p.position)).toBe(posGroup(a.legend.position));
-    }
-    for (const r of Object.values(g.rosters)) expect(withinRules(r.players)).toBe(true);
+describe('요청 (경기당 1번)', () => {
+  it('playRound → 결과 화면 패널 → 요청 1번, 두 번째는 막힘, 결과 한 줄, 기록·세이브 왕복', () => {
+    const g = game('c75w-a');
+    playUntilPool(g);
+    const m = g.lastMatch!;
+    const pool = m.jerseyPool!;
+    const vm = jerseyPanelVM(g)!;
+    expect(vm.done).toBeNull();
+    expect(vm.picks.map((p) => p.id).sort()).toEqual([...pool].sort());
+    for (const p of vm.picks) expect(p.pct).toBeGreaterThan(0);
+    const html = matchResultView(matchResultVM(g, null)!, {}, null, vm);
+    expect(html).toContain('유니폼 교환');
+    expect(html).toContain('data-act="jersey-ask"');
+    const r = requestJersey(g, pool[0]!)!;
+    expect(r).not.toBeNull();
+    expect(r.line.length).toBeGreaterThan(0);
+    expect(m.jersey).toEqual({ id: pool[0], ok: r.ok, line: r.line });
+    // 두 번째: 같은 경기에서는 막힘 (다른 선수도)
+    for (const id of pool) expect(requestJersey(g, id)).toBeNull();
+    expect(jerseyBlocked(g, pool.at(-1)!)).toBe('이 경기에서 이미 요청했어요');
+    expect(g.showcase!.swaps).toHaveLength(1);
+    expect(g.showcase!.swaps[0]).toMatchObject({ id: pool[0], vs: m.opponentId, s: m.season, ok: r.ok });
+    const done = jerseyPanelVM(g)!.done!;
+    expect(done.ok).toBe(r.ok);
+    expect(matchResultView(matchResultVM(g, null)!, {}, null, jerseyPanelVM(g))).toContain(r.ok ? '유니폼을 받았어요' : '거절했어요');
     const back = deserialize(serialize(g));
-    expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
-    expect(worldVM(g).abroad.length).toBe(abroad.filter((a) => a.season > g.league.season).length);
-  }, 120_000);
-
-  it('재생성 4시즌: 리그 밖 레전드가 모두 들어오고 인원 규칙 안', () => {
-    const pl = legendPlacement('c75w-a', TEAMS);
-    const r = rebuildRosters('c75w-a', undefined, 4, undefined, [], { on: true, pack: 3 });
-    const have = ids(r);
-    for (const a of pl.abroad.filter((x) => x.season <= BALANCE.newGame.startYear + 4)) expect(have.has(a.legend.id)).toBe(true);
-    for (const t of Object.values(r)) expect(withinRules(t.players)).toBe(true);
+    expect(back.showcase).toEqual(g.showcase);
+    expect(back.lastMatch?.jersey).toEqual(m.jersey);
   });
 
-  it('옛 세이브 2판(C.75x·C.75y)은 2판 그대로: 추가 53명 없음', () => {
-    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75w-old', difficulty: 'normal', legends: true });
+  it('결정적: 같은 세이브·같은 선수면 같은 결과', () => {
+    const a = game('c75w-d');
+    playUntilPool(a);
+    const b = deserialize(serialize(a));
+    const id = a.lastMatch!.jerseyPool![0]!;
+    expect(requestJersey(a, id)!.ok).toBe(requestJersey(b, id)!.ok);
+  });
+
+  it('성공하면 포토카드 jersey = true → 도감에 유니폼 표시, 진열실에 바로 진열 (칸이 있으면)', () => {
+    // 성공할 때까지 여러 세계에서 시도 (확률 판정)
+    for (let k = 0; k < 30; k++) {
+      const g = game(`c75w-ok-${k}`);
+      playUntilPool(g);
+      const id = g.lastMatch!.jerseyPool![0]!;
+      if (!requestJersey(g, id)!.ok) continue;
+      const card = g.photos!.cards.find((c) => c.id === id)!;
+      expect(card.jersey).toBe(true);
+      expect(photoViews(g).find((v) => v.id === id)!.jersey).toBe(true);
+      const dex = photoDexView(photoDexVM(g, 'got'));
+      expect(dex).toContain('pc-jersey');
+      expect(shownItems(g).map((x) => x.key)).toContain(`j:${id}`);
+      expect(showroomView(showroomVM(g))).toContain('받음');
+      // 이미 받은 선수는 다음 경기에서도 다시 받을 수 없음
+      g.lastMatch!.jersey = undefined;
+      expect(jerseyBlocked(g, id)).toBe('이미 받은 유니폼이에요');
+      return;
+    }
+    throw new Error('30번 모두 거절');
+  });
+
+  it('카드가 없던 선수면 성공할 때 카드도 같이 얻음', () => {
+    for (let k = 0; k < 30; k++) {
+      const g = game(`c75w-new-${k}`);
+      playUntilPool(g);
+      const id = g.lastMatch!.jerseyPool![0]!;
+      g.photos!.cards = g.photos!.cards.filter((c) => c.id !== id);
+      if (!requestJersey(g, id)!.ok) continue;
+      const card = g.photos!.cards.find((c) => c.id === id)!;
+      expect(card).toBeDefined();
+      expect(card.jersey).toBe(true);
+      return;
+    }
+    throw new Error('30번 모두 거절');
+  });
+
+  it('빠른 경기(엔진 없음)는 요청 불가', () => {
+    const g = game('c75w-q');
+    playRound(g, { engine: 'quick' });
+    expect(g.lastMatch!.jerseyPool).toBeUndefined();
+    expect(jerseyPanelVM(g)).toBeNull();
+    expect(jerseyBlocked(g, 'salah')).toBe('자동 경기에서는 요청할 수 없어요');
+  });
+});
+
+describe('진열실', () => {
+  it('칸 수 = 집 단계 표 (BALANCE.jerseys.showroomSlots), 단계가 클수록 많다', () => {
+    const g = game();
+    const t = BALANCE.jerseys.showroomSlots;
+    expect(t).toHaveLength(BALANCE.wealth.houses.length);
+    for (let i = 1; i < t.length; i++) expect(t[i]).toBeGreaterThan(t[i - 1]!);
+    for (let lvl = 0; lvl < t.length; lvl++) {
+      g.money = { ...(g.money ?? ({} as NonNullable<GameState['money']>)), house: lvl };
+      expect(showroomSlots(g)).toBe(t[lvl]);
+    }
+  });
+
+  it('트로피 + 유니폼: 진열 · 빼기, 칸이 차면 진열 못 함(보관함), 집을 줄이면 넘친 것은 보관함', () => {
+    const g = game();
+    g.money = { ...(g.money ?? ({} as NonNullable<GameState['money']>)), house: 0 }; // 2칸
+    g.chapters = { list: [{ trophies: ['2018 리그 우승', '2019 리그 우승', '2019 FA컵 우승'] } as never], review: null };
+    g.showcase = { swaps: [{ d: g.calendar.date, s: 2018, vs: 'liverpool', id: 'salah', ok: true }, { d: g.calendar.date, s: 2018, vs: 'chelsea', id: 'hazard', ok: false }], shown: [] };
+    const items = showItems(g);
+    expect(items.map((x) => x.kind)).toEqual(['trophy', 'trophy', 'trophy', 'jersey']);
+    expect(storedItems(g)).toHaveLength(4);
+    expect(showcasePut(g, items[0]!.key)).toBe(true);
+    expect(showcasePut(g, items[0]!.key)).toBe(false); // 이미 진열
+    expect(showcasePut(g, 'j:salah')).toBe(true);
+    expect(showcasePut(g, items[1]!.key)).toBe(false); // 2칸 다 참
+    expect(showcasePut(g, 'j:hazard')).toBe(false); // 거절당한 유니폼은 없음
+    expect(shownItems(g).map((x) => x.key)).toEqual([items[0]!.key, 'j:salah']);
+    expect(storedItems(g)).toHaveLength(2);
+    expect(showroomView(showroomVM(g))).toContain('진열 칸이 다 찼어요');
+    expect(showcaseTake(g, 'j:salah')).toBe(true);
+    expect(storedItems(g).map((x) => x.key)).toContain('j:salah');
+    // 집을 넓혔다가 줄이면: 진열 순서대로 칸 수까지만
+    g.money!.house = 2;
+    for (const x of storedItems(g)) showcasePut(g, x.key);
+    expect(shownItems(g)).toHaveLength(4);
+    g.money!.house = 0;
+    expect(shownItems(g)).toHaveLength(2);
+    expect(storedItems(g)).toHaveLength(2);
+    const html = showroomView(showroomVM(g));
+    expect(html).toContain('진열실');
+    expect(html).toContain('2019 리그 우승');
+    expect(html).toContain('거절');
+  });
+});
+
+describe('세이브 47', () => {
+  it('옛 세이브(46) = 빈 진열 · 교환 기록 없음', () => {
+    expect(SAVE_FORMAT_VERSION).toBe(47);
+    const g = game();
     const raw = JSON.parse(serialize(g));
-    raw.legendPack = 2;
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.legendPack).toBe(2);
-    const have = ids(back.rosters);
-    expect(EXT_LEGENDS.some((l) => have.has(l.id))).toBe(false);
-    expect(have.has('lg-hummels')).toBe(true);
-    expect(worldVM(back).abroad).toEqual([]);
+    raw.saveFormat = 46;
+    delete raw.showcase;
+    const back = migrate(raw);
+    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
+    expect(back.showcase).toEqual({ swaps: [], shown: [] });
+    expect(showroomVM(back).shown).toEqual([]);
   });
 
-  it('새 게임 화면: 레전드 탭에 추가 53명 중 필드 선수 47명, 리그 밖 선수는 "(시즌 이적)" 표시', () => {
-    const base = { mode: 'real' as const, name: '', position: 'ST', seed: 'm2', difficulty: 'normal', realId: '', roll: 'm2', others: false };
-    const vm = newGameVM({ ...base, legends: 'on' });
-    const ext = new Set(EXT_LEGENDS.filter((l) => l.position !== 'GK').map((l) => l.id));
-    expect(vm.legendList.filter((l) => ext.has(l.id)).length).toBe(47);
-    const away = legendPlacement('m2', TEAMS).abroad.filter((a) => a.legend.position !== 'GK');
-    for (const a of away) expect(vm.legendList.find((l) => l.id === a.legend.id)?.club).toMatch(/이적\)$/);
+  it('버전 표시', () => {
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });
