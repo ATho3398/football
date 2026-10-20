@@ -666,3 +666,4 @@
 - **draft_ 남은 것**: C.76j `session_01WHCbo6psGoyXo4PKTSrUAC`(main 807ca7a) — 그 커밋 포함 main CI 성공 확인 뒤.
 - **다음 순서**: C.76k 결과(실패면 엔진관리자6 열어 재진단, 성공이면 다음 엔진 블록 = 미해결 2·4·5·6·8·9·13·44d 묶어 차례로, Fable) / C.76n 끝 → 47b(awards-design.md 4절 47b, Opus) / C.76i·l 끝 → 48단계 끝 / C.76m·o 끝나면 남은 것 정리 / 그 뒤 P단계(피치 고도화)·6단계 패키징. 다음 새 이름 **C.76p**. 사용자 요청은 맨 뒤에 붙인다.
 - 진행 중 사용자 질문 없음.
+- (22:36 KST) **W 생성** `session_01UpWdqeSysTwMUcVKc5unpT`(planning-v 145bca2에서, 브랜치 claude/planning-w, 깊이 5). V 자동 확인 예약 삭제. 이후 보고는 W.
