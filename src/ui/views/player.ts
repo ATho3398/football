@@ -100,7 +100,7 @@ function posTab(vm: PlayerVM, open: boolean): string {
   const metN = cups.filter((c) => c.met).length;
   const cupHead = `<button type="button" class="pl-leg__row pl-leg__fold" data-act="legend-more" aria-expanded="${open}">
       <span class="pl-leg__icon">${Icon({ name: metN ? 'star' : 'lock', size: 16 })}</span>
-      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 아직 열리지 않은 대회예요</small></span>
+      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 수상 기록으로 판정해요</small></span>
       <span class="pl-leg__more small">${open ? '접기' : '펼치기'}${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${open ? -90 : 90}deg)` })}</span></button>`;
   const cupRows = open ? `<div class="opts pl-leg__list">${cups.map((l, i) => OptionRow({
     icon: l.met ? 'star' : 'lock', title: `${i === 0 ? '' : i === 1 ? '그리고 ' : '또는 '}${l.label}`,

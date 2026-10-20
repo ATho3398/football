@@ -4,6 +4,7 @@
 // 수치는 BALANCE.world
 
 import { BALANCE } from './config/balance';
+import { npcGlobalHonors } from './awards';
 import { MY_ID } from './engine/adapter';
 import { npcReputation } from './finance';
 import { pushInbox } from './inbox';
@@ -142,6 +143,8 @@ export function npcHonors(g: GameState, id: string): number {
   let n = 0;
   for (const s of (g.archive ?? []).slice(-S.honorSeasons)) for (const [, who] of s.aw ?? []) if (who === id) n++;
   if (g.phase !== 'season') for (const a of seasonAwards(g)) if (a.id === id) n++;
+  // 개인 시상 (C.76n): 발롱도르 · 더 베스트 · 골든보이 · 골든부츠 (같은 최근 시즌 범위)
+  n += npcGlobalHonors(g, id, g.league.season - S.honorSeasons + (g.phase === 'season' ? 0 : 1));
   return n;
 }
 

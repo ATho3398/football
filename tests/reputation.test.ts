@@ -41,8 +41,9 @@ describe('위상 티어 (8.1 개정, 부록 C.23)', () => {
   });
 
   it('조건 목록: 위상 줄은 점수로, 대회 줄은 수상 기록으로', () => {
+    // C.76n 4a: 최고 개인상 3회(또는 발롱도르) · 최고 개인상 6회 줄이 더해져 6줄
     const c = legendaryConditions(950, H(0));
-    expect(c).toHaveLength(5);
+    expect(c).toHaveLength(6);
     expect(c[0]!.met).toBe(true);
     expect(c.slice(1).every((x) => !x.met)).toBe(true);
     expect(legendaryConditions(100)[0]!.met).toBe(false);
@@ -77,7 +78,7 @@ describe('세이브 변환 8 → 9 (부록 C.23)', () => {
   it('위상 점수는 그대로, 티어만 새 기준으로 (예전 레전더리 850+ → 월드클래스)', () => {
     const loaded = deserialize(JSON.stringify(oldSave(950)));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(52);
+    expect(SAVE_FORMAT_VERSION).toBe(53);
     expect(loaded.player.reputation).toBe(950);
     expect(loaded.player.honors).toEqual(H(0));
     expect(reputationTier(loaded.player.reputation, loaded.player.honors)).toBe('worldClass');

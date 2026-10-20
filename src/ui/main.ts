@@ -82,6 +82,8 @@ import { photoDexView } from './views/photos';
 import { photoDexVM } from './photoVM';
 import { nationalView, type NationalTab } from './views/national';
 import { nationalVM } from './nationalVM';
+import { awardsView, type AwardsTab } from './views/awards';
+import { awardsVM } from './awardsVM';
 import type { PhotoSort } from '../photocards';
 import { financeVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
@@ -129,7 +131,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom' | 'national';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom' | 'national' | 'awards';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -255,6 +257,8 @@ const ui = {
   dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null, open: false },
   /** 대표팀 화면 (C.76d): 탭 · 고른 대회 */
   nat: { tab: 'fixtures' as NationalTab, cup: null as string | null },
+  // 개인 시상 (C.76n): 탭 · 연도 · 역대 수상자 상
+  aw: { tab: 'year' as AwardsTab, season: null as number | null, hist: null as string | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
   legendOpen: false,
@@ -566,6 +570,7 @@ function screenHtml(): string {
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip), ui.dex.open);
     case 'showroom': return showroomView(showroomVM(g));
     case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
+    case 'awards': return awardsView(awardsVM(g, ui.aw.season, ui.aw.hist), ui.aw.tab);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -2440,6 +2445,19 @@ app.addEventListener('click', (ev) => {
       return;
     case 'nat-cup':
       ui.nat = { ...ui.nat, cup: v ?? null };
+      render();
+      return;
+    // 개인 시상 (C.76n): 탭 · 연도 · 역대 수상자 상
+    case 'aw-tab':
+      ui.aw = { ...ui.aw, tab: (v ?? 'year') as AwardsTab };
+      render();
+      return;
+    case 'aw-season':
+      ui.aw = { ...ui.aw, season: v ? Number(v) : null };
+      render();
+      return;
+    case 'aw-hist':
+      ui.aw = { ...ui.aw, hist: v ?? null };
       render();
       return;
     case 'pc-sort':
