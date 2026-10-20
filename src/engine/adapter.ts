@@ -16,7 +16,7 @@ import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTa
 import { buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
-import type { Moment, MomentChoice, MomentControl } from './moments';
+import { redrawNow, type Moment, type MomentChoice, type MomentControl } from './moments';
 import type { CardInput } from './cards';
 import type { MatchSim } from './sim';
 
@@ -212,6 +212,11 @@ export class MyMatchRun {
       this.afterTick(goals, bx, by, e0);
     }
     return null;
+  }
+
+  /** 리셋 즉발 (C.75h): 멈춘 결정 순간에서 리셋 카드를 바로 쓰고 패·카드 선택지를 다시 계산한다. 못 쓰면 false */
+  resetNow(hand: number): boolean {
+    return redrawNow(this.sim.state, hand);
   }
 
   /** 결정 확정 후 그 틱을 마저 진행한다 */
