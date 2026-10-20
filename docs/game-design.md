@@ -5562,11 +5562,13 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - **id**: 영문 소문자-하이픈, 접두 없음(동명 구분: `jose-gimenez`·`joaquin-correa`·`lorenzo-pellegrini`·`giovanni-simeone`·`seko-fofana` 등).
 - **출처 메모**: 팀 명단·최종 순위·개막 감독·홈구장은 2018-19 시즌 기록(위키백과 시즌 문서 기준 기억), 선수 소속·등번호·키·몸무게는 기억 기반이라 일부 등번호는 근사값일 수 있음. 한글 표기는 국내 언론 관용(코치뉴·퍄니치·쿨리발리·메르턴스·밀린코비치사비치·더프레이 등).
 
-**검증**: typecheck 통과, 테스트 전체 통과(새 12개 포함), balance:check·balance:engine:check·build 통과(데이터 미연결이라 결과 불변).
+**검증**: typecheck 통과, 테스트 790/790(파일 90, 새 12개 포함), balance:check 회귀 가드 19/19, balance:engine:check 경량 가드 모두 통과, build 통과(데이터 미연결이라 결과 불변). main(C.75o·p·q·r·s) 병합 뒤 typecheck·리그 테스트 13파일 66개 재통과, 다른 리그 선수와 id·이름 겹침 0.
 
 **45b 배선 때 볼 것**: ① 선수 club 이름이 `clubKo`(PL + 리그 밖 표)로는 하위 팀이 영문 그대로 나옴 → 리그 레지스트리에서 한글 찾기 ② 리그 밖 표 `x:bar` 등과 `laliga:bar` 이중 id 정리(구현 리그로 고르면 리그 밖 표에서 빼기) ③ `teamColors`·`managers`(style 없음 — 기본 neutral)·`derbies` 연결.
 
 **새 화면·패널**: 없음.
+
+명령 시각 2026-10-20 14:43 KST / 답변 시각 2026-10-20 15:40 KST / 걸린 시간 57분
 
 ### C.75o 45d2단계 리그 데이터 — 분데스리가·리그 1 2018-19 (데이터 파일만, 게임 미연결) **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 
