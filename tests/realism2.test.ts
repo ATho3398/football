@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ENGINE } from '../src/engine/config';
 import { setOwner } from '../src/engine/core';
-import { focusThreat, keeperTarget, updateOffball } from '../src/engine/offball';
+import { focusThreat, keeperTarget, updateMarks, updateOffball } from '../src/engine/offball';
 import { averageSelf, candidates, carryLoseProb, finishMult, judgedP, loseProb, passSkillApply } from '../src/engine/onball';
 import { dist, L, W } from '../src/engine/pitch';
 import { teamSetupFromRoster } from '../src/engine/setup';
@@ -130,15 +130,19 @@ describe('E3.5 2차 3번 · 8번: 박스 앞 수비 블록, ST 마크, 수비 �
     of(st, 1, 'CM', 1).y = 28;
     return o;
   });
+  // C.75j (C.75d 마크 배정): 위협 마크는 updateMarks 가 배정하고, 남은 수비 줄이 자리를 덮는다
+  updateMarks(s);
   for (const a of s.agents) if (a.team === 1) updateOffball(s, a);
   const st = of(s, 0, 'ST');
   const defs = s.agents.filter((a) => a.team === 1 && a.line === 1);
-  it('수비 주의 집중: 가장 위협적인 ST 는 CB 가 골 쪽 1.5 × 0.6 m 에서 맡고, 박스 안이면 1명이 더 붙는다', () => {
+  it('수비 주의 집중: 가장 위협적인 ST 는 맡은 수비수 1명이 골 쪽 1.5 × 0.6 m 에서 마크하고, 둘째는 붙지 않고 자리를 덮는다 (C.75j 배정 기준)', () => {
     const O = ENGINE.offball;
     expect(focusThreat(s, 1)).toBe(st);
     const close = defs.filter((a) => dist(a.tx, a.ty, st.x, st.y) < O.stMark + 0.6);
-    expect(close.length).toBe(2);
-    const marker = close.find((a) => Math.abs(dist(a.tx, a.ty, st.x, st.y) - O.stMark * O.focusMark) < 0.3)!;
+    expect(close.length).toBe(1);
+    const marker = close[0]!;
+    expect(marker.markIdx).toBe(st.idx);
+    expect(Math.abs(dist(marker.tx, marker.ty, st.x, st.y) - O.stMark * O.focusMark)).toBeLessThan(0.3);
     expect(marker.pos).toBe('CB');
     expect(dist(marker.tx, marker.ty, L, W / 2)).toBeLessThan(dist(st.x, st.y, L, W / 2));
   });

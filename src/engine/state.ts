@@ -87,6 +87,9 @@ export interface Agent {
   /** 수비 1대1 판단 (E.23): 다음 판단 시각, 패스길 막기 유지 시각 */
   duelNext: number;
   laneUntil: number;
+  /** 마크 배정 (C.75d): 맡은 상대 idx (−1 없음), 배정 유지 시각 */
+  markIdx: number;
+  markUntil: number;
   /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
   paceCap: number;
 }

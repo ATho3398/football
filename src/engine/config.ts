@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 25;
+export const ENGINE_VERSION = 26;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -291,7 +291,7 @@ export const ENGINE = {
      * 상황은 sitHold 초 이어져야 바뀐다 (G·H·E 는 즉시). 압박 단계 = 실효 pressing 이 levelCut 경계 기준
      */
     plan: {
-      coverBehind: 5,
+      coverBehind: 3,
       sitHold: 0.6,
       levelCut: [0.43, 0.68] as readonly number[],
       sit: {
@@ -304,6 +304,43 @@ export const ENGINE = {
         G: { pressers: [1, 1, 1], double: false },
         H: { pressers: [1, 2, 3], double: true },
       } as Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H', { pressers: readonly number[]; double: boolean }>,
+      /**
+       * 마크 배정 (C.75d, 44c-b): 우리 골 markZone m 안 상대 필드 선수(소유자 제외)를 위험한 순서로 돌며 남은 수비수 중 가장 가까운 1명을 배정한다
+       * (한 상대에 1명, 수비 줄 먼저, 모자라면 중원 줄 최대 markMids 명, 공격 줄·압박자·커버 제외).
+       * 배정은 reassignInterval 초 유지하고, 그 뒤에도 다른 수비수가 switchMargin m 이상 가까울 때만 바꾼다.
+       * 수비 포지셔닝 reactLo → reactHi 사이에서 간격·여유가 reassignFast·switchFast 까지 줄어든다
+       */
+      markZone: 40,
+      markMids: 2,
+      /** 2선(줄 2) 상대는 박스(+markMidsBoxMargin m) 안에 있을 때만 배정 후보 (C.75j): 늦게 들어오는 2선은 들어온 뒤에 넘겨받는다 (컷백·늦은 침투 수신 창). 1 이면 C.75e 처럼 어디서나 (측정용 덮어쓰기) */
+      markMidsOutsideBox: 0,
+      markMidsBoxMargin: 3,
+      /** 한 번에 배정하는 최대 인원 */
+      markMax: 10,
+      reassignInterval: 1.0,
+      reassignFast: 0.7,
+      switchMargin: 4,
+      switchFast: 3,
+      reactLo: 50,
+      reactHi: 90,
+      /** 공보다 우리 골에 가까운 상대에 더하는 위험 점수 */
+      behindBall: 1,
+      /** 마크 맡은 수비 줄 선수가 수비 라인보다 앞으로 나갈 수 있는 거리 (m) */
+      markStepOut: 8,
+      /** 공이 우리 골 dangerPress m 밖이면 수비 줄 마커의 y 를 자기 자리 쪽으로 lineMarkHold 만큼 (라인 모양 유지) */
+      lineMarkHold: 0.3,
+      /** 마크 목표는 상대 속도 × markLead 초 × 수비 포지셔닝/100 만큼 앞, 목표가 markUrgent m 넘게 멀고 골 markZone × 0.75 안이면 최대 속도 */
+      markLead: 0.5,
+      markUrgent: 3,
+      /**
+       * 공에서 먼 상대는 느슨하게 (C.75e, 44c-b): 맡은 상대가 공에서 markTightBall m 안이면 지금 거리(stMark·markGoalSide), markTightBall + markFarRamp m 밖이면
+       * markFar m, 사이는 선형. "받는 순간" 마크는 유지하고 슛 압박 상시 상태만 푼다
+       */
+      markTightBall: 12,
+      markFarRamp: 6,
+      markFar: 3.5,
+      /** 진입로 차단 (44c-b): 마크 안 맡은 중원은 자기 자리 laneZone m 안 배정 안 된 가장 위험한 상대와 공을 잇는 선의 공 쪽 screenFrac 지점 */
+      laneZone: 14,
     },
   },
 
@@ -415,7 +452,7 @@ export const ENGINE = {
      * 받는 선수는 비행 중 목표점으로 뛰므로 "공이 날아오는 동안 마커 반대쪽으로 이동"이 된다.
      * firstTouch: 받고 몰지 않고 firstTouch 초 안에 쏘는 슛(원터치·투터치)은 받는 순간의 압박으로 판정한다 (가설 2, 판정 시점만 바뀌고 식은 그대로)
      */
-    recv: { shiftDist: 3, shift: 2, maxOffside: 0.5, firstTouch: 1.6 },
+    recv: { shiftDist: 3, shift: 3, maxOffside: 0.5, firstTouch: 1.6 },
     /**
      * 침투 패스 목표 (E.20 4번): 오프사이드 라인 뒤 공간으로. 깊이 = clamp(throughShare × (라인 뒤 공간 − throughStop), throughMin, throughMax) m.
      * 라인이 높을수록 뒷공간이 넓어 달리기 경쟁 거리가 길어진다 (빠른 공격수 유리, 느린 CB 불리)
