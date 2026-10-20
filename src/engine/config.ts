@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 26;
+export const ENGINE_VERSION = 27;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -339,7 +339,7 @@ export const ENGINE = {
     spaceCap: 8,
     spaceForward: 0.15,
     /** ② 줄 사이: 상대 수비 줄과 미드 줄 사이로 옮기는 비율 (공격 줄·CAM) */
-    betweenK: 0.5,
+    betweenK: 0.3,
     /** ② 펄스 나인이 있는 팀의 2선 침투 빈도 가산 (비운 중앙으로 뛰어든다) */
     nineVacate: 0.6,
     /** ② 빌드업(공이 이 x 이하, 정규화) 때 하프백은 CB 사이로, 인버티드 풀백은 미드 줄 하프스페이스로, 리베로는 수비-미드 사이로 */
@@ -552,7 +552,7 @@ export const ENGINE = {
      * 마무리 배수 (E.20 7번): 골 확률 = 기회의 질(xG: 위치, 각도, 압박, 슈팅 종류, 상대 GK) × clamp(1 + finishPerPoint × (마무리 능력치 − 70), finishMin, finishMax).
      * 결정력 계열 능력치는 이 한 곳에만 들어간다. 유효 슈팅 확률에 곱하므로 골 확률도 같은 배수로 바뀐다
      */
-    finishPerPoint: 0.012,
+    finishPerPoint: 0.014,
     finishMin: 0.8,
     finishMax: 1.25,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
