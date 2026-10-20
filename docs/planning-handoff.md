@@ -587,3 +587,4 @@
 - (14:59 KST) **C.75r 완료**(45d5, main e9ad0f9, 테스트 812) → pending 134, ntfy. 남은 코드 세션 6개(C.75k·l·m·n·q·t).
 - (15:00 KST) **C.75q 완료**(45d4, main 6afc8cb) → pending 134. 데이터 남은 것 C.75n(45d1)뿐. 남은 코드 세션 5개(C.75k·l·m·n·t).
 - (15:15 KST, 사용자) 엔진관리자5 노력도 xhigh로 올림 → automation.md 0번에 기준 기록(엔진관리자 xhigh, fix 세션 높음, max 안 씀).
+- (15:39 KST) **C.75n 완료**(45d1, main d7ede5d) → 45d 6개 모두 끝. 남은 코드 세션 4개(C.75k·l·m·t). 45b는 C.75m(45a) 뒤.
