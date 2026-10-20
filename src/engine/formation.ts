@@ -53,11 +53,13 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
     // 압박 전술: 수비 시 중원·공격 줄을 올리거나 내린다 (E.19 ③)
     if (a.line >= 2) x += F.pressBlock * (s.teams[a.team].tactics.pressing - 0.55) * -phase;
   }
-  x += F.blockX * (bx - 0.5);
+  // 압박 전술 (C.76s): 수비 시 블록이 공을 더 따라간다 (pressFollow)
+  const follow = phase < 0 ? 1 + F.pressFollow * (s.teams[a.team].tactics.pressing - 0.55) * -phase : 1;
+  x += F.blockX * follow * (bx - 0.5);
   if (phase < 0 && a.line !== 0) {
     // 수비 블록: 가로로 좁히고 공 쪽으로 쏠린다
     const k = -phase;
-    y = 0.5 + (y - 0.5) * (1 - (1 - F.defendWidth) * k) + (F.blockY + (F.defendBlockY - F.blockY) * k) * (by - 0.5);
+    y = 0.5 + (y - 0.5) * (1 - (1 - F.defendWidth) * k) + (F.blockY + (F.defendBlockY - F.blockY) * k) * follow * (by - 0.5);
   } else y += F.blockY * (by - 0.5);
   if (phase > 0 && a.line !== 0) {
     // 공격 폭 (E.19 ③): 슬롯 y 의 중앙 기준 간격 배수
