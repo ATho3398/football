@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 24;
+export const ENGINE_VERSION = 25;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -301,6 +301,35 @@ export const ENGINE = {
         G: { pressers: [1, 1, 1], double: false },
         H: { pressers: [1, 2, 3], double: true },
       } as Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H', { pressers: readonly number[]; double: boolean }>,
+      /**
+       * 마크 배정 (C.75d, 44c-b): 우리 골 markZone m 안 상대 필드 선수(소유자 제외)를 위험한 순서로 돌며 남은 수비수 중 가장 가까운 1명을 배정한다
+       * (한 상대에 1명, 수비 줄 먼저, 모자라면 중원 줄 최대 markMids 명, 공격 줄·압박자·커버 제외).
+       * 배정은 reassignInterval 초 유지하고, 그 뒤에도 다른 수비수가 switchMargin m 이상 가까울 때만 바꾼다.
+       * 수비 포지셔닝 reactLo → reactHi 사이에서 간격·여유가 reassignFast·switchFast 까지 줄어든다
+       */
+      markZone: 40,
+      markMids: 2,
+      /** 한 번에 배정하는 최대 인원 */
+      markMax: 10,
+      reassignInterval: 0.7,
+      reassignFast: 0.5,
+      switchMargin: 3,
+      switchFast: 2,
+      reactLo: 50,
+      reactHi: 90,
+      /** 공보다 우리 골에 가까운 상대에 더하는 위험 점수 */
+      behindBall: 1,
+      /** 마크 맡은 수비 줄 선수가 수비 라인보다 앞으로 나갈 수 있는 거리 (m) */
+      markStepOut: 8,
+      /** 공이 우리 골 dangerPress m 밖이면 수비 줄 마커의 y 를 자기 자리 쪽으로 lineMarkHold 만큼 (라인 모양 유지) */
+      lineMarkHold: 0.3,
+      /** 마크 목표는 상대 속도 × markLead 초 × 수비 포지셔닝/100 만큼 앞, 목표가 markUrgent m 넘게 멀고 골 markZone × 0.75 안이면 최대 속도 */
+      markLead: 0.5,
+      markUrgent: 3,
+      /** 라인 좁히기 (44c-b): 라인에 남은 수비수의 y 를 라인 전체 폭을 n 등분한 자리 쪽으로 lineSqueeze 만큼 */
+      lineSqueeze: 0.5,
+      /** 진입로 차단 (44c-b): 마크 안 맡은 중원은 자기 자리 laneZone m 안 배정 안 된 가장 위험한 상대와 공을 잇는 선의 공 쪽 screenFrac 지점 */
+      laneZone: 14,
     },
   },
 
