@@ -5595,6 +5595,18 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-20 14:43 KST / 답변 시각 2026-10-20 14:54 KST / 걸린 시간 약 12분
 
+### C.75u 45단계 홈 머리말 긴 이름 잘림 수정 **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
+
+- 제보(2026-10-20 15:45, 폰): 홈 얼굴 머리말 "율리안 린트너"가 46px 그대로 "율리안 린트…"로 말줄임. 사용자 결정: 두 줄 나누기 안 됨 → **한 줄 유지, 글씨만 줄여 맞춤**, 최소 24px에서도 넘칠 때만 말줄임.
+- 원인: `fitHeroNames()`(src/ui/main.ts)가 정수로 반올림되는 `scrollWidth > clientWidth + 0.5`로 넘침을 봐서 46px 글자 폭 243.39px vs 칸 244px처럼 1px 미만 넘침을 못 잡음(브라우저는 말줄임).
+- 수정: ① `fitHeroNames()`가 Range로 글자 실폭을 소수점까지 재서 `칸 폭 − 1px`보다 넓으면 1px씩 줄임(Range 폭이 없는 환경은 예전 비교). ② `document.fonts` `loadingdone` 때 다시 맞춤. ③ 첫 추정 `heroNameSize`에 `HERO_NAME.slack` 2px 여유(244 → 242로 계산, 율리안 린트너 46 → 45) — 첫 그림부터 거의 안 넘침. 다른 이름 맞춤 함수는 없음(`scrollWidth` 나머지 2곳은 가로 스크롤 버튼용).
+- 확인 캡처 `docs/c75u-check/`(스크립트 `scripts/c75u-capture.mjs`): 폰 390×844 — 율리안 린트너 45px(실폭 238.1/244), 로베르트 레반도프스키 27px(235.8), 바스티안 슈바인슈타이거 25px(236.2) 모두 한 줄·잘림 없음. PC 1280×800 율리안 린트너 50px. 좁힌 폰 360×780(작업 폴더만): 린트너 40px·레반도프스키 24px 잘림 없음, 슈바인슈타이거는 24px에서도 226.8 > 214라 규칙대로 말줄임.
+- 테스트: `tests/c75u.test.ts` 4개(첫 추정 45px·slack 안쪽, Range 비교·loadingdone 소스 확인, 버전). `tests/c75k.test.ts` 버전 고정 → 패턴. 전체 **103파일 854개** 통과, typecheck 통과. 밸런스 무관이라 balance 미실행.
+- PATCH_LABEL 'C.75u', STAGE_LABEL '45단계'.
+- 디자인 없는 새 화면: 없음.
+
+명령 시각 2026-10-20 15:57 KST / 답변 시각 2026-10-20 16:02 KST / 걸린 시간 약 5분
+
 ### C.75s 45d6단계 리그 데이터 MLS·사우디 — 데이터 파일만 (게임 연결 없음) **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로, 게임 결과 불변)
 
 - 새 파일: `data/leagues/types.ts`(45 공통 형식, 지시문 원문 그대로), `data/leagues/mls.ts`, `data/leagues/saudi.ts`, `data/players/mls.ts`, `data/players/saudi.ts`, `tests/leagues-mls.test.ts`, `tests/leagues-saudi.test.ts`. 다른 파일은 손대지 않음(배선은 45a·45b).

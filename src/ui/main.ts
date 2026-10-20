@@ -618,20 +618,27 @@ function guideHtml(g: GameState | null): { modal: string; tip: string } {
 
 /**
  * 미페 머리말 긴 이름 (C.57, B-apply 2절): 그린 뒤 실제 폭으로 글자 크기를 줄인다(풀 50 · compact 36 → 최소 24px).
- * 최소에서도 넘치면 그때만 말줄임(CSS). 글꼴(PO Head)이 늦게 오면 받은 뒤 한 번 더
+ * 한 줄 유지, 최소에서도 넘치면 그때만 말줄임(CSS). 글꼴(PO Head)이 늦게 오면 받은 뒤 한 번 더
  */
 function fitHeroNames(): void {
   for (const el of app.querySelectorAll<HTMLElement>('.po-hero__name[data-fit]')) {
     let size = Number(el.dataset.fit) || HERO_NAME.full;
     const apply = () => { el.style.fontSize = `${size}px`; el.style.lineHeight = `${Math.round(size * 1.08)}px`; };
+    // scrollWidth·clientWidth는 정수로 반올림돼 1px 미만 넘침(말줄임은 됨)을 못 잡는다 → 글자 실폭(Range)을 소수점까지 잰다 (C.75u)
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const over = () => typeof range.getBoundingClientRect === 'function'
+      ? range.getBoundingClientRect().width > el.getBoundingClientRect().width - 1
+      : el.scrollWidth > el.clientWidth;
     apply();
-    while (size > HERO_NAME.min && el.scrollWidth > el.clientWidth + 0.5) {
+    while (size > HERO_NAME.min && over()) {
       size--;
       apply();
     }
   }
 }
 void document.fonts?.ready.then(fitHeroNames);
+document.fonts?.addEventListener?.('loadingdone', () => fitHeroNames());
 // PC 2열 (C.61): 1024px 경계를 넘으면 배치가 바뀌는 화면이 있어 다시 그린다. 가로 폰(C.66)도 같은 2열이라 돌릴 때 다시 그린다
 globalThis.matchMedia?.(WIDE_QUERY).addEventListener?.('change', () => render());
 globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => render());
