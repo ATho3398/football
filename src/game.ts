@@ -51,14 +51,15 @@ import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositio
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
-import { afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, upsetForm, type ManagerState } from './manager';
+import { addTrust, afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, trustOf, upsetForm, type ManagerState } from './manager';
+import { directiveReward } from './engine/directive';
 import { archiveAwards, trimArchive, worldAfterRound, worldSeasonEnd } from './worldStats';
 import { eventForm, eventsAfterMatch, eventsCloseOffseason, eventsDayEnd, eventsSeasonEnd, eventsSeasonStart, onLeave, type EventsState } from './events';
 import { coachAfterMatch, type CoachRec } from './club';
 import type { InboxState } from './inbox';
 import type { RivalState } from './rival';
-import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeRecoveryMul, type LifeState } from './life';
-import { afterMatch, cardInput, grantLevelPicks, initCollection, type CardCollection } from './cardCollection';
+import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeJudgePenalty, lifeRecoveryMul, type LifeState } from './life';
+import { afterMatch, cardInput, grantDirectives, grantLevelPicks, initCollection, type CardCollection } from './cardCollection';
 import { recordsAfterMatch, type RecordsState } from './records';
 import { goalsAfterRound, goalsSeasonEnd, goalsSeasonStart, grantAchievementPick, type GoalResult, type GoalsState } from './seasonGoals';
 import { cardById } from './config/cards';
@@ -1408,17 +1409,23 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const input: EngineMatchInput = {
     myRoster: state.rosters[player.teamId]!, oppRoster,
     myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
-    me: { position: pos, attributes: player.attributes, fatigue, form: form + (!started && minutes > 0 && tagHas(player, 'superSub') ? BALANCE.tags.natural.superSubForm : 0), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player) },
+    me: { position: pos, attributes: player.attributes, fatigue, form: form + (!started && minutes > 0 && tagHas(player, 'superSub') ? BALANCE.tags.natural.superSubForm : 0), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player), ...judgePenField(state) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${key}`), worldSeed: seed,
     leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
     // 큰 경기 (5.2, C.67b): 결승·챔스 녹아웃 → 경기 XP ×1.5 (엔진 입력 플래그, 엔진 코드는 그대로)
     ...(fx.cup?.big ? { bigMatch: true } : {}),
-    ...(opts.cards !== false && state.cards ? { cards: cardInput(state.cards) } : {}),
+    ...(opts.cards !== false && state.cards ? { cards: { ...cardInput(state.cards), trust: trustOf(state) } } : {}),
     // 날씨·심판 (C.74a): 엔진 실행 배율. 맑음·보통 심판이면 붙이지 않는다
     ...envField(env),
     ...(rapport ? { rapport } : {}),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
+}
+
+/** 판단 스탯 생활 페널티 (C.75i): 0 이면 엔진 입력에 붙이지 않는다 */
+function judgePenField(state: GameState): { judgePen?: number } {
+  const pen = lifeJudgePenalty(state);
+  return pen > 0 ? { judgePen: pen } : {};
 }
 
 /** 이번 경기 폼 보정: 최근 평점 폼 − 연속 휴식 감점 (C.41) */
@@ -1589,6 +1596,9 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     minutes: result.minutes, started: result.started, rating: result.rating, goals: result.goals, assists: result.assists, outcome: result.outcome,
     yellows: cards?.yellows ?? 0, red: !!cards?.red, injured: injured || leave, suspended, slotOvr: ovr, bestOvr: bestPosition(state).ovr,
   });
+  // 지시 카드 (F.4, C.75i): 지시 이행 장당 신뢰 + (경기당 상한), 독단 실패 신뢰 − (평점·XP 보상은 toMatchResult 에서)
+  const directive = directiveReward(engineOut?.engine.cards);
+  if (directive?.trust && result.minutes > 0) addTrust(state, directive.trust, ['지시 카드', directive.follow ? `이행 ${directive.follow}장` : '', directive.soloFail ? `독단 실패 ${directive.soloFail}번` : ''].filter(Boolean).join(' · '));
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
@@ -1610,6 +1620,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   let cardUnlock: string | undefined;
   if (state.cards) {
     const unlocked = afterMatch(state.cards, engineOut?.engine.cards, engineOut?.engine.myRole, result.minutes > 0);
+    if (result.minutes > 0) grantDirectives(state.cards);
     if (unlocked) cardUnlock = cardById(unlocked)?.name;
     grantLevelPicks(state.cards, player.level, player.position, seed);
   }
@@ -1737,6 +1748,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   let cardUnlock: string | undefined;
   if (state.cards) {
     const unlocked = afterMatch(state.cards, engineOut?.engine.cards, engineOut?.engine.myRole, result.minutes > 0);
+    if (result.minutes > 0) grantDirectives(state.cards);
     if (unlocked) cardUnlock = cardById(unlocked)?.name;
     grantLevelPicks(state.cards, player.level, player.position, seed);
   }

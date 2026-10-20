@@ -65,7 +65,8 @@ export type CardEffect =
   | { type: 'discardDraw'; n: number }
   | { type: 'oppProbDelta'; value: number; note?: string }
   | { type: 'roleOnly'; role: string; text: string }
-  | { type: 'directive'; text: string };
+  /** 지시 카드 (F.4, C.75i): follow = 엔진 1순위 선택지 그대로(경기 뒤 신뢰 +), solo = 개인 가치 최대 선택지(성공 평점·XP, 실패 신뢰 −), trust = 신뢰 높을 때만 */
+  | { type: 'directive'; mode: 'follow' | 'solo' | 'trust'; text: string };
 
 export interface CardDef {
   id: string;
@@ -88,7 +89,7 @@ export interface CardDef {
   mastery: boolean;
   /** 시작 덱 포지션군 (F.0 11번) */
   starter?: Exclude<CardGroup, 'common'>[];
-  /** 지시 카드: 효과는 5단계 */
+  /** 아직 닫힌 카드 (지금은 없음, C.75i 에서 지시 카드가 열림) */
   inactiveUntil?: '5단계';
 }
 
@@ -281,14 +282,15 @@ const SIGNATURE: CardDef[] = SIGNATURE_CARDS.map((c) => ({
   effects: [{ type: 'roleOnly' as const, role: c.role, text: c.effect }, { type: 'addOption' as const, label: c.name, ...SIG_FX[c.role]!, note: c.effect }],
 }));
 
-/** 지시 3장 (데이터만, 효과는 5단계 신뢰도와 함께, D.11 6번) */
+/** 지시 3장 (D.11 6번, C.75i): 직접 모드 소유 결정 순간에만. 신뢰도·평점·XP 보상은 경기 뒤 (BALANCE.cards.directive) */
 const DIRECTIVE: CardDef[] = [
   { id: 'dirFollow', name: '지시 이행', kind: 'directive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '내가 정한 슬롯 역할대로', mastery: false, inactiveUntil: '5단계', effects: [{ type: 'directive', text: '팀 결과와 신뢰도 +' }] },
+    condition: '엔진이 고를 1순위 선택지대로', mastery: false, effects: [{ type: 'directive', mode: 'follow', text: '4번째 선택지 "지시 이행" · 경기 뒤 신뢰도 +1 (경기당 +3까지)' }] },
   { id: 'dirSolo', name: '독단', kind: 'directive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '역할을 벗어난 개인 플레이', mastery: false, inactiveUntil: '5단계', effects: [{ type: 'directive', text: '성공 시 평점 +0.8, XP × 1.3 / 실패 시 신뢰도 −5' }] },
+    condition: '1순위가 아닌 개인 플레이(슛·돌파)', mastery: false, effects: [{ type: 'directive', mode: 'solo', text: '4번째 선택지 "독단" · 성공 시 평점 +0.8, XP × 1.3 / 실패 시 신뢰도 −5' }] },
   { id: 'dirTrust', name: '감독의 신뢰', kind: 'directive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '신뢰도 높을 때만', mastery: false, inactiveUntil: '5단계', effects: [{ type: 'directive', text: '신뢰도 연동 (5단계)' }] },
+    condition: '감독 신뢰도 70 이상일 때만', mastery: false,
+    effects: [{ type: 'directive', mode: 'trust', text: '' }, { type: 'probDelta', value: R(5), duration: 'once' }] },
 ];
 
 export const CARDS: readonly CardDef[] = [...COMMON, ...ATTACK, ...MIDFIELD, ...DEFENSE, ...SIGNATURE, ...DIRECTIVE];
