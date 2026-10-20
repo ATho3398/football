@@ -1,10 +1,10 @@
 // 디자인 2차 수정본 화면 (H.6 3번, I.19 갱신): 타이틀(55), 새 게임(52·53), 포인트 찍기(50), 순위표·리그 스타(54), 시즌 종료(51),
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
+import { seasonGoalsPanel, seasonHighlightCards } from './season';
 import { teamPickHtml } from './teamPick';
 import { LEAGUE_GROUPS, type TeamPickVM } from '../teamPickVM';
 import { DEFAULT_LEAGUES } from '../../../data/leagues';
-import { goalsResultPanel } from './inbox';
 import {
   Avatar, FootPair, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
@@ -412,11 +412,13 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
   const boardTabs = Tabs({ items: [{ id: 'goals', label: '득점' }, { id: 'assists', label: '도움' }, { id: 'rating', label: '평점' }], value: board, variant: 'segment', act: 'world-board', label: '리그 기록 거르기' });
   const rowsB = vm.boards[board];
   const hi = (k: BoardKind, v: string | number) => (k === board ? `<b class="po-num">${v}</b>` : `${v}`);
-  const scorers = `${boardTabs}${rowsB.length
-    ? `<div class="panel tbl-panel"><table class="tbl league">
-      <tr><th>#</th><th class="l">선수</th><th>출전</th><th>골</th><th>도움</th><th>평점</th></tr>
-      ${rowsB.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${r.rank ?? i + 1}</td><td class="l"><button type="button" class="dt-link team" data-act="person-open" data-v="${esc(r.id)}">${Avatar({ size: 22, face: r.face, name: r.name })}${esc(r.name)}</button>${r.teamId ? teamLink(r.teamId, r.team, 'small muted') : ''}</td><td>${r.apps}</td><td>${hi('goals', r.goals)}</td><td>${hi('assists', r.assists)}</td><td>${hi('rating', r.avg)}</td></tr>`).join('')}
-    </table><div class="legend small"><span class="grow r">${board === 'rating' ? `평점은 ${vm.ratingMin}경기 이상 출전한 선수만. ` : ''}다른 팀 경기도 엔진으로 계산한 기록이에요 (빠른 진행으로 계산한 경기는 빠져요)</span></div></div>`
+  // 209: 평점 자격 안내는 표 위 안내 줄, 소속은 이름 아래 둘째 줄, 기준 칸 머리 라임
+  const th = (k: BoardKind, t: string) => `<th${k === board ? ' class="hi"' : ''}>${t}</th>`;
+  const scorers = `${boardTabs}${board === 'rating' ? `<div class="wl-note">${Icon({ name: 'info', size: 16 })}<span>평점은 <b>${vm.ratingMin}경기 이상 출전</b>한 선수만 순위에 올라요. 다른 팀 경기도 엔진으로 계산한 기록이에요(빠른 진행으로 계산한 경기는 빠져요).</span></div>` : ''}${rowsB.length
+    ? `<div class="panel tbl-panel"><table class="tbl league wl-board">
+      <tr><th>#</th><th class="l">선수</th><th>출전</th>${th('goals', '골')}${th('assists', '도움')}${th('rating', '평점')}</tr>
+      ${rowsB.map((r, i) => `<tr class="${r.me ? 'me' : ''}"><td class="po-num">${r.rank ?? i + 1}</td><td class="l"><span class="wl-who">${Avatar({ size: 28, face: r.face, name: r.name })}<span class="wl-who__t"><button type="button" class="dt-link" data-act="person-open" data-v="${esc(r.id)}">${esc(r.name)}</button>${r.teamId ? teamLink(r.teamId, r.team, 'small muted') : ''}</span></span></td><td class="po-num">${r.apps}</td><td class="po-num">${hi('goals', r.goals)}</td><td class="po-num">${hi('assists', r.assists)}</td><td class="po-num">${hi('rating', r.avg)}</td></tr>`).join('')}
+    </table></div><p class="small muted">[득점]·[도움]·[평점]을 누르면 그 기준으로 다시 줄 세워요. 기준 칸만 라임 글자 · 굵게.${board === 'rating' ? '' : ' 다른 팀 경기도 엔진으로 계산한 기록이에요(빠른 진행으로 계산한 경기는 빠져요).'}</p>`
     : `<p class="small muted">${board === 'rating' ? `아직 ${vm.ratingMin}경기 이상 뛴 선수가 없어요.` : '아직 기록이 없어요. 경기가 진행되면 순위가 쌓여요.'}</p>`}`;
   // 디자인 146: 팀 옆 "재" 열 = 재정 등급 4단 막대(색 없음) + 아래 범례 (팀 수)
   const tierCount = FIN_TIERS.map((t) => ({ t, n: vm.table.filter((r) => r.tier === t).length }));
@@ -428,7 +430,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     ${SectionTitle({ title: '재정 등급', action: '재 열 막대 = 구단 재정' })}
     ${panel(`<div class="fin-legend">${tierCount.map((x) => `<div class="fin-legend__cell">${FinChip(x.t, true)}<small class="po-num">${x.n}팀</small></div>`).join('')}</div>
       <p class="small muted">이적료·연봉을 낼 수 있는 크기예요. 표에서는 막대만, 글자는 이 범례와 팀 상세에서. 색은 쓰지 않아요(순위 색과 겹치지 않게).</p>`)}`;
-  const starRow = (s: StarVM, i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small>${esc(s.club)} · ${s.age}세 · ${s.position}${s.ga ? ` · ${s.ga}` : ''}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${(s.change ?? 0) > 0 ? 'up' : (s.change ?? 0) < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
+  const starRow = (s: StarVM, i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num${i === 0 ? ' hi' : ''}">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small class="star-club">${esc(s.club)}</small><small>${s.age}세 · ${s.position}${s.ga ? ` · <b class="star-ga">${esc(s.ga)}</b>` : ''}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="${(s.change ?? 0) > 0 ? 'up' : (s.change ?? 0) < 0 ? 'down' : ''}">${s.change ? (s.change > 0 ? `▲${s.change}` : `▼${-s.change}`) : '–'}</small></span></button>`;
   const legRow = (s: WorldVM['legends'][number], i: number) => `<button type="button" class="star-row" data-act="person-open" data-v="${esc(s.id)}"><span class="rank po-num">${i + 1}</span>${Avatar({ size: 40, face: s.face, name: s.name })}<span class="grow"><b class="star-name">${esc(s.name)}</b><small><span class="ng-badge${s.kind === '도르트문트' ? ' is-bvb' : ''}">${esc(s.kind)}</span>${esc(s.club)} · ${s.age}세 · ${s.position}</small></span><span class="ovr"><b class="po-num">${s.ovr}</b><small class="peak">전성기 ${s.peak}</small></span></button>`;
   // 리그 스타 묶음 (C.64, 디자인 147 segment 탭): 리그 안(위상 순) · 세계(리그 밖 실제 선수) · 21세 이하
   const groupTabs = Tabs({ items: [{ id: 'league', label: '리그 안' }, { id: 'world', label: '세계' }, { id: 'young', label: '21세 이하' }], value: group, variant: 'segment', act: 'world-stars', label: '리그 스타 거르기' });
@@ -547,8 +549,8 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
     ${vm.badges.map((b) => Banner({ tone: 'success', title: `레전드 배지 · ${b.name}`, children: `${b.desc} 위상이 ${vm.badgeRep}점 올랐어요.` })).join('')}
     ${vm.injury ? banners([vm.injury]) : ''}
     ${card}
-    ${seasonHighlightsPanel(vm.highlights)}
-    ${vm.seasonGoals ? goalsResultPanel(vm.seasonGoals) : ''}
+    ${seasonHighlightCards(vm.highlights)}
+    ${vm.seasonGoals ? seasonGoalsPanel(vm.seasonGoals, vm.season) : ''}
     ${market}
     ${todos.length ? `${SectionTitle({ title: '다음 할 일', action: `${todos.length}개` })}${todos.join('')}` : ''}
     <div class="btn-col season-next">
@@ -565,13 +567,6 @@ export function seasonView(vm: SeasonVM, market = '', marketPending = false, tab
   return `${hero}<div class="body">
     ${left}
   </div>`;
-}
-
-/** 시즌 하이라이트 3 (22.2 끝, C.73b, 디자인 없음 — 챕터 리뷰 하이라이트와 같은 SectionTitle + panel kv 줄) */
-function seasonHighlightsPanel(list: SeasonVM['highlights']): string {
-  if (!list.length) return '';
-  return `${SectionTitle({ title: '시즌 하이라이트', action: `${list.length}개` })}
-    ${panel(list.map((h) => `<div class="kv season-hl is-${h.kind}"><span>${esc(h.label)}</span><b>${esc(h.text)}</b></div>`).join(''), 'chapter-hl season-hls')}`;
 }
 
 function seasonDetail(vm: SeasonVM, tab: SeasonTab, transfers: string): string {
@@ -647,11 +642,13 @@ export function retiredView(vm: RetiredVM): string {
 function hallSection(vm: RetiredVM): string {
   if (!vm.hall) return '';
   const h = vm.hall;
-  const rows = h.list.map((e, i) => `<div class="panel award hall-row${e.me ? ' is-mine' : ''}"><b class="po-num hall-row__rank">${i + 1}</b><span class="grow"><b>${esc(e.name)}${e.me ? ' (이번 커리어)' : ''}</b><small>${esc(e.line)}</small></span><b class="po-num award__v">${e.score}</b></div>`).join('');
+  // C.76j (디자인 225): 순위 · 이름 · 한 줄 기록 · 위상·배지·트로피 칩 · 오른쪽 커리어 점수, 이번 커리어 시안 테두리
+  const rows = h.list.map((e, i) => `<div class="panel award hall-row${e.me ? ' is-mine' : ''}"><b class="po-num hall-row__rank">${i + 1}</b><span class="grow"><b>${esc(e.name)}${e.me ? ' <em class="hall-row__me">(이번 커리어)</em>' : ''}</b><small>${esc(e.chips ? e.line.split(' · ').slice(0, 3).join(' · ') : e.line)}</small>${
+    e.chips ? `<span class="hall-row__chips">${e.chips.map((c, k) => `<span class="hall-chip${k === 0 ? ' is-tier' : c.startsWith('레전드') ? ' is-badge' : ''}">${esc(c)}</span>`).join('')}</span>` : ''}</span><span class="hall-row__score"><b class="po-num award__v">${e.score}</b><small>커리어 점수</small></span></div>`).join('');
   return `${SectionTitle({ title: '명예의 전당', action: h.rank ? `이번 커리어 ${h.rank}위` : '이 기기 상위 3' })}
     <div class="award-list hall-list">${rows || '<p class="muted small">아직 기록이 없어요.</p>'}</div>
     <p class="small muted">커리어 점수 = 최종 위상 + 자산 점수 × 2 + 레전드 배지 × 100 + 트로피 × 30 + (골 + 도움) × 0.5. 이 브라우저에만 남아요 (세이브 파일 밖).</p>
-    ${h.bonus ? Banner({ tone: 'success', title: `새 게임 보너스 · ${h.bonus} 카드 선택권 1장`, children: '다음 새 커리어를 시작하면 덱에서 3장 중 1장을 골라요.' }) : ''}`;
+    ${h.bonus ? `<div class="ch-pick"><span class="ch-pick__check">${Icon({ name: 'check', size: 18 })}</span><span class="grow"><b>새 게임 보너스 · ${esc(h.bonus)} 카드 선택권 1장</b><small>다음 새 커리어를 시작하면 덱에서 3장 중 1장을 골라요.</small></span></div>` : ''}`;
 }
 
 // ── 챕터 리뷰 (22.1 · I.13, C.73a, 디자인 없음 — 시즌 요약 머리말·요약 카드·배너 재사용) ──
@@ -676,18 +673,27 @@ export function chapterView(vm: ChapterReviewVM): string {
   const hl = vm.highlights.length
     ? panel(vm.highlights.map((h) => `<div class="kv"><span>${esc(h.season)}</span><b>${esc(h.text)}</b></div>`).join(''), 'chapter-hl')
     : `<p class="muted small">이 챕터에는 남은 하이라이트가 없어요.</p>`;
-  const honors = [...vm.trophies.map((t) => StatChip({ icon: 'trophy', label: t, tone: 'brand' })), ...vm.badges.map((b) => StatChip({ icon: 'star', label: `레전드 배지 · ${b}`, tone: 'success' }))];
+  // C.76j (디자인 221): 트로피 = 2열 칸(아이콘 · 이름), 배지 = 꺾인 칩, 완주 보상 = 라임 체크 줄, PC 2열(왼쪽 위상·기록 / 오른쪽 하이라이트·트로피·보상·버튼)
+  const nHon = vm.trophies.length + vm.badges.length;
+  const honors = nHon ? `${SectionTitle({ title: '트로피 · 배지', action: `${nHon}개` })}<div class="panel ch-honors">
+      ${vm.trophies.length ? `<small class="muted">트로피 ${vm.trophies.length}</small><div class="ch-trophies">${vm.trophies.map((t) => `<div class="ch-trophy"><span class="ch-trophy__icon">${Icon({ name: 'trophy', size: 16 })}</span><b>${esc(t)}</b></div>`).join('')}</div>` : ''}
+      ${vm.badges.length ? `<small class="muted">배지 ${vm.badges.length}</small><div class="ch-badges">${vm.badges.map((b) => `<span class="ch-badge">${Icon({ name: 'star', size: 12 })}${esc(b)}</span>`).join('')}</div>` : ''}
+    </div>` : '';
+  const pick = vm.pick ? `<div class="ch-pick"><span class="ch-pick__check">${Icon({ name: 'check', size: 18 })}</span><span class="grow"><b>카드 선택권 · ${esc(vm.pick)}</b><small>덱에서 3장 중 1장을 골라요.</small></span></div>` : '';
   const next = vm.retired
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'chapter-done', children: '커리어 요약' })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'chapter-done', children: vm.next ? `다음 챕터 · ${vm.next}` : '다음 챕터' });
-  return `${hero}<div class="body chapter-review">
-    <div class="panel season-tier">${TierBadge({ tier: vm.tier, score: vm.repTo })}<span><b>${esc(vm.name)} 챕터 ${vm.retired ? '· 커리어 마지막 챕터' : '완주'}</b><small class="muted">${esc(vm.theme)}</small></span></div>
-    ${card}
-    ${SectionTitle({ title: '하이라이트', action: `${vm.highlights.length}개` })}
+  const tierRow = `<div class="panel season-tier">${TierBadge({ tier: vm.tier, score: vm.repTo })}<span><b>${esc(vm.name)} 챕터 ${vm.retired ? '· 커리어 마지막 챕터' : '완주'}</b><small class="muted">${esc(vm.theme)}</small></span></div>`;
+  const right = `${SectionTitle({ title: '하이라이트', action: `${vm.highlights.length}개` })}
     ${hl}
-    ${honors.length ? `${SectionTitle({ title: '트로피 · 배지', action: `${honors.length}개` })}<div class="chapter-honors">${honors.join('')}</div>` : ''}
-    ${vm.pick ? Banner({ tone: 'success', title: `카드 선택권 · ${vm.pick}`, children: '덱에서 3장 중 1장을 골라요.' }) : ''}
-    <div class="btn-col season-next">${next}</div>
+    ${honors}
+    ${pick}
+    <div class="btn-col season-next">${next}</div>`;
+  if (isWide()) return `${hero}<div class="body chapter-review">${pc2(`${tierRow}${card}`, right, 'ch-pc')}</div>`;
+  return `${hero}<div class="body chapter-review">
+    ${tierRow}
+    ${card}
+    ${right}
   </div>`;
 }
 
@@ -727,25 +733,94 @@ export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM, 
   </div>`;
 }
 
-/** 월드 "컵·챔스" 탭 (C.67b, 디자인 없음 — 순위표 표 · 패널 재사용): 챔스 조 8개 · 녹아웃 대진 · FA컵 대진 */
-export function cupsSection(vm: CupsWorldVM): string {
-  const tieRow = (t: CupTieVM) => `<div class="cup-tie${t.me ? ' me' : ''}"><span class="cup-tie__teams"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(t.hId)}">${Crest({ name: t.h, team: t.hId, size: 16 })}${esc(t.h)}</button>
-    <b class="po-num cup-tie__score">${esc(t.score ?? 'vs')}</b>
-    <button type="button" class="dt-link team" data-act="team-open" data-v="${esc(t.aId)}">${Crest({ name: t.a, team: t.aId, size: 16 })}${esc(t.a)}</button></span>
-    <small class="muted">${esc([t.score === null && !t.note.includes('차전') ? t.date : '', t.note, t.w ? `${t.w} 진출` : ''].filter(Boolean).join(' · '))}</small></div>`;
-  const u = vm.ucl;
-  const ucl = u ? `${SectionTitle({ title: '챔피언스리그', action: u.winner ? `우승 ${u.winner}` : `우리 팀 · ${u.my}` })}
-    ${u.ko.slice().reverse().map((st) => `<h4 class="ag-head">${esc(st.stage)}</h4>${panel(st.ties.map(tieRow).join(''))}`).join('')}
-    <h4 class="ag-head">조별리그</h4><div class="cup-groups">${u.groups.map((gr) => `<div class="panel tbl-panel${gr.mine ? ' is-mine' : ''}"><table class="tbl league">
-      <tr><th class="l">${esc(gr.name)}</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
-      ${gr.rows.map((r) => `<tr class="${r.me ? 'me' : ''}${r.through ? ' top' : ''}"><td class="l"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gd}</td><td><b class="po-num">${r.pts}</b></td></tr>`).join('')}
-    </table></div>`).join('')}</div>
-    <p class="small muted">조 2위까지 16강 · 16강~4강은 홈·원정 합계(동률이면 승부차기) · 결승은 단판. 내 팀이 없는 경기는 팀 전력으로 간이 계산해요.</p>`
-    : `${SectionTitle({ title: '챔피언스리그' })}<p class="small muted">이번 시즌 챔스 대진이 없어요(지난 시즌 리그 4위 안 팀이 나가요. 유럽 밖 리그는 챔스가 없어요).</p>`;
-  const f = vm.fa;
+/** 월드 "컵·챔스" 탭 묶음 (C.76j, 디자인 205): 챔스 조별 · 챔스 녹아웃 · 국내 컵 */
+export type CupSub = 'groups' | 'ko' | 'fa';
+
+/** 지금 볼 묶음: 챔스가 없으면 국내 컵, 조별이 끝났으면 녹아웃 */
+export function cupSubDefault(vm: CupsWorldVM): CupSub {
+  if (!vm.ucl) return 'fa';
+  return vm.ucl.groups.some((g) => g.rows.some((r) => r.through)) ? 'ko' : 'groups';
+}
+
+/** 월드 "컵·챔스" 탭 (C.67b → C.76j 디자인 205): 묶음 전환 [챔스 조별 / 챔스 녹아웃 / 국내 컵] · 조 표 · 녹아웃 1·2차전 · 컵 라운드 칩 */
+export function cupsSection(vm: CupsWorldVM, sub: CupSub = cupSubDefault(vm), faRound: number | null = null, more = false): string {
   const cup = vm.cupName ?? 'FA컵';
-  const fa = f ? `${SectionTitle({ title: cup, action: f.winner ? `우승 ${f.winner}` : `우리 팀 · ${f.my}` })}
-    ${f.rounds.map((r) => `<h4 class="ag-head">${esc(r.stage)} · ${esc(r.date)}</h4>${panel(r.ties.map(tieRow).join(''))}`).join('')}`
-    : `${SectionTitle({ title: cup })}<p class="small muted">이번 시즌 ${esc(cup)} 대진이 없어요.</p>`;
-  return `<p class="small muted">${esc(vm.season)} 시즌</p>${ucl}${fa}`;
+  const subs = Tabs({ items: [{ id: 'groups', label: '챔스 조별' }, { id: 'ko', label: '챔스 녹아웃' }, { id: 'fa', label: cup }], value: sub, variant: 'segment', act: 'cup-sub', label: '대회 고르기' });
+  const team = (id: string, nm: string, strong = false) => `<button type="button" class="dt-link team${strong ? ' is-win' : ''}" data-act="team-open" data-v="${esc(id)}">${Crest({ name: nm, team: id, size: 18 })}<span class="cup-name">${esc(nm)}</span></button>`;
+  const head = (title: string, right: string, sub2: string) => `<div class="cup-head"><h3 class="cup-head__t">${esc(title)}</h3><span class="cup-head__r">${esc(right)}</span></div>${sub2 ? `<p class="small muted cup-head__s">${esc(sub2)}</p>` : ''}`;
+  const u = vm.ucl;
+  const none = (t: string) => `${head(t, '', '')}<p class="small muted">${t === '챔피언스리그' ? '이번 시즌 챔스 대진이 없어요(지난 시즌 리그 4위 안 팀이 나가요. 유럽 밖 리그는 챔스가 없어요).' : `이번 시즌 ${esc(t)} 대진이 없어요.`}</p>`;
+  let body = '';
+  if (sub === 'groups') {
+    if (!u) body = none('챔피언스리그');
+    else {
+      const played = u.groups[0]?.rows.reduce((t, r) => Math.max(t, r.p), 0) ?? 0;
+      const mine = u.groups.find((g) => g.mine);
+      const myRow = mine?.rows.findIndex((r) => r.me) ?? -1;
+      body = `${head('챔피언스리그', u.winner ? `우승 ${u.winner}` : mine ? `우리 팀 · 조별리그 ${mine.name} ${myRow + 1}위` : `우리 팀 · ${u.my}`, `${vm.season} 시즌 · 조별리그 · 6경기 중 ${played}경기`)}
+      <div class="cup-groups">${u.groups.map((gr) => `<div class="panel tbl-panel cup-group${gr.mine ? ' is-mine' : ''}"><table class="tbl league">
+        <tr><th class="l" colspan="2">${esc(gr.name)}${gr.mine ? ' · 우리 조' : ''}</th><th class="wide-x">경기</th><th class="wide-x">승</th><th class="wide-x">무</th><th class="wide-x">패</th><th class="wide-o">승-무-패</th><th>득실</th><th>승점</th></tr>
+        ${gr.rows.map((r, i) => `<tr class="${r.me ? 'me' : ''}${i < 2 ? ' top' : ''}"><td class="po-num cup-rank">${i + 1}</td><td class="l">${team(r.teamId, r.team)}</td><td class="wide-x">${r.p}</td><td class="wide-x">${r.w}</td><td class="wide-x">${r.d}</td><td class="wide-x">${r.l}</td><td class="wide-o po-num">${r.w}-${r.d}-${r.l}</td><td>${r.gd}</td><td><b class="po-num">${r.pts}</b></td></tr>`).join('')}
+      </table></div>`).join('')}</div>
+      <div class="legend small"><span><i class="k top"></i>16강 진출권 (조 1·2위)</span><span><i class="k me"></i>우리 팀</span></div>
+      <p class="small muted">조 2위까지 16강 · 16강~4강은 홈·원정 합계(동률이면 승부차기) · 결승은 단판. 팀 이름을 누르면 팀 상세. 내 팀이 없는 경기는 팀 전력으로 간이 계산해요.</p>`;
+    }
+  } else if (sub === 'ko') {
+    if (!u) body = none('챔피언스리그');
+    else if (!u.ko.length) body = `${head('챔피언스리그', `우리 팀 · ${u.my}`, '')}<p class="small muted">조별리그가 끝나면 16강 대진이 나와요.</p>`;
+    else {
+      const two = (t: CupTieVM) => {
+        const lg = t.legs;
+        const won = (side: 'h' | 'a') => !!t.w && t.w === (side === 'h' ? t.h : t.a);
+        const lost = (side: 'h' | 'a') => !!t.w && !won(side);
+        const row = (side: 'h' | 'a') => {
+          const k = side === 'h' ? 0 : 1;
+          const c = (x: [number, number] | null | undefined) => `<span class="po-num">${x ? x[k] : '–'}</span>`;
+          return `<div class="ko-row${won(side) ? ' is-win' : ''}${lost(side) ? ' is-out' : ''}">${team(side === 'h' ? t.hId : t.aId, side === 'h' ? t.h : t.a, won(side))}${lg ? `${c(lg.l1)}${c(lg.l2)}<b class="ko-agg">${c(lg.agg)}</b>` : `<b class="ko-agg">${c(t.score ? (t.score.split('-').map(Number) as [number, number]) : null)}</b>`}</div>`;
+        };
+        const pens = lg?.pens ?? t.pens;
+        const foot = t.w ? `${pens ? `승부차기 ${pens[0]}-${pens[1]} · ` : ''}${t.w} 진출${t.me && t.w !== vm.myTeam ? ' · 우리 팀 탈락' : ''}` : t.note || t.date;
+        return `<div class="panel ko-tie${t.me ? ' is-me' : ''}">${lg ? '<div class="ko-tie__cols" aria-hidden="true"><span></span><span>1차</span><span>2차</span><span>합계</span></div>' : ''}${row('h')}${row('a')}<small class="muted ko-foot">${esc(foot)}</small></div>`;
+      };
+      const stages = u.ko.map((st) => ({ ...st, done: st.ties.every((t) => !!t.w) }));
+      const cur = stages.filter((st) => !st.done);
+      const done = stages.filter((st) => st.done).reverse();
+      const KO = ['16강', '8강', '4강', '결승'];
+      const later = KO.slice(stages.length);
+      const stageHead = (st: { stage: string; done: boolean; ties: CupTieVM[] }) => {
+        const leg = st.stage !== '결승';
+        return `<div class="ko-head"><b>${esc(st.stage)}</b><small class="muted">${st.done ? '끝' : st.ties.some((t) => t.score) ? '진행 중' : '지금'}${leg ? ' · 합계 = 1·2차전 더한 점수' : ' · 단판'}</small>${leg ? '<span class="ko-cols"><small>1차</small><small>2차</small><small>합계</small></span>' : ''}</div>`;
+      };
+      const mineFirst = (ts: CupTieVM[]) => [...ts.filter((t) => t.me), ...ts.filter((t) => !t.me)];
+      body = `${head('챔피언스리그', u.winner ? `우승 ${u.winner}` : `우리 팀 · ${u.my}`, `${vm.season} 시즌 · 녹아웃`)}
+        ${[...cur, ...done].map((st) => `${stageHead(st)}<div class="ko-grid">${mineFirst(st.ties).map(two).join('')}</div>`).join('')}
+        ${later.map((k) => `<div class="panel ko-later">${Icon({ name: k === '결승' ? 'trophy' : 'calendar', size: 18 })}<span class="grow"><b>${k}${k === '결승' ? ' · 단판' : ''}</b><small class="muted">${k === '결승' ? '비기면 연장 뒤 승부차기' : '앞 라운드 승자끼리 · 홈·원정 두 경기'}</small></span></div>`).join('')}
+        <div class="legend small"><span><i class="k me"></i>우리 팀 대진</span><span><b>굵은 글자</b> = 진출 팀</span></div>
+        <p class="small muted">합계가 같으면 승부차기로 정하고, 결과 줄에 승부차기 점수를 함께 적어요.</p>`;
+    }
+  } else {
+    const f = vm.fa;
+    if (!f) body = none(cup);
+    else {
+      const rounds = f.rounds.slice().reverse();
+      const auto = (() => { let k = 0; rounds.forEach((r, i) => { if (r.ties.some((t) => t.score)) k = i; }); const myNext = rounds.findIndex((r) => r.ties.some((t) => t.me && !t.score)); return myNext >= 0 ? myNext : k; })();
+      const sel = Math.max(0, Math.min(rounds.length - 1, faRound ?? auto));
+      const r = rounds[sel]!;
+      const ties = [...r.ties.filter((t) => t.me), ...r.ties.filter((t) => !t.me)];
+      const PAGE = 6;
+      const shown = more ? ties : ties.slice(0, PAGE);
+      const chips = Tabs({ items: rounds.map((x, i) => ({ id: String(i), label: x.stage })), value: String(sel), variant: 'segment', scroll: true, act: 'cup-round', label: '라운드 고르기' });
+      const one = (t: CupTieVM) => {
+        const hw = !!t.w && t.w === t.h; const aw = !!t.w && t.w === t.a;
+        return `<div class="panel fa-tie${t.me ? ' is-me' : ''}"><div class="fa-tie__row"><span class="fa-tie__h">${team(t.hId, t.h, hw)}</span><b class="po-num fa-tie__score">${esc(t.score ?? 'vs')}</b><span class="fa-tie__a">${team(t.aId, t.a, aw)}</span></div>
+          <small class="muted">${esc(t.w ? `${t.pens ? `승부차기 ${t.pens[0]}-${t.pens[1]} · ` : ''}${t.w} 진출` : t.date)}</small></div>`;
+      };
+      body = `${head(cup, f.winner ? `우승 ${f.winner}` : `우리 팀 · ${f.my}`, '')}${chips}
+        <p class="small muted cup-head__s">${esc(r.stage)} · ${esc(r.date)} · 단판 · 비기면 승부차기</p>
+        <div class="ko-grid">${shown.map(one).join('')}</div>
+        ${ties.length > PAGE ? moreButton('cupTies', more, `${r.stage} ${ties.length - PAGE}경기 더 보기`) : ''}
+        <p class="small muted">우리 팀 경기가 맨 위에 와요. 라운드를 누르면 그 라운드 대진으로 바뀌어요.</p>`;
+    }
+  }
+  return `${subs}${body}`;
 }

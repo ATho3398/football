@@ -15,6 +15,14 @@ export function tierBars(tier: FinanceTier, label?: string): string {
 }
 
 /** 팀 이름 링크 (리그 팀만) */
+/** 감독 줄 (C.76j 디자인 199): 호루라기 · "감독" · 이름 · 성향 칩 · 기본 전술 칩 / 한 줄 설명. 경질 뒤 새 감독이면 라임 "새 감독" 칩 */
+function coachRow(vm: TeamDetailVM): string {
+  const m = vm.manager;
+  if (!m) return `<div class="panel dt-coach"><span class="dt-coach__icon">${Icon({ name: 'whistle', size: 18 })}</span><span class="grow"><small class="muted">감독</small><b>감독 정보 없음</b></span></div>`;
+  const line = m.fresh ? `${m.fresh.since} 시즌 부임 · 주전 경쟁은 원점부터 다시예요` : `${m.style} 성향 · 홈구장 ${m.stadium || '정보 없음'}`;
+  return `<div class="panel dt-coach${m.fresh ? ' is-new' : ''}" role="group" aria-label="감독 ${esc(m.name)}"><span class="dt-coach__icon">${Icon({ name: 'whistle', size: 18 })}</span><span class="grow"><small class="muted">감독</small><span class="dt-coach__name"><b>${esc(m.name)}</b>${m.fresh ? '<span class="dt-coach__new">새 감독</span>' : ''}<span class="dt-coach__chip">${esc(m.style)}</span>${vm.tendencyKo !== "—" ? `<span class="dt-coach__chip">${esc(vm.tendencyKo)}</span>` : ''}</span><small class="muted">${esc(line)}</small></span></div>`;
+}
+
 export function teamLink(id: string, name: string, cls = ''): string {
   return `<button type="button" class="dt-link ${cls}" data-act="team-open" data-v="${esc(id)}">${esc(name)}</button>`;
 }
@@ -50,7 +58,8 @@ export function teamDetailView(vm: TeamDetailVM, tab: TeamTab, back: boolean): s
   const r = vm.record;
   const gd = r.gf - r.ga;
   // C.71a (디자인 168): 정체 = 가운데 큰 엠블럼 · 이름 · 재정 등급 + 감독 줄(C.62~63 그대로)
-  const ident = `<div class="panel dt-ident">${Crest({ name: vm.name, team: vm.id, size: 56 })}<b>${esc(vm.name)}</b><small>${tierBars(vm.tier, vm.tierKo)} ${vm.manager ? `감독 ${esc(vm.manager.name)}(${esc(vm.manager.style)}) · ${esc(vm.manager.stadium)}` : '감독·홈구장 정보 없음'}</small></div>`;
+  const ident = `<div class="panel dt-ident">${Crest({ name: vm.name, team: vm.id, size: 56 })}<b>${esc(vm.name)}</b><small>${tierBars(vm.tier, vm.tierKo)} ${vm.manager?.stadium ? esc(vm.manager.stadium) : ''}</small></div>
+    ${coachRow(vm)}`;
   const tiles = `<div class="dt-tiles">
     <div class="dt-tile"><small>순위</small><b class="po-num">${vm.rank}위</b><span>승점 ${r.points}</span></div>
     <div class="dt-tile"><small>전력</small><b class="po-num">${vm.rating.toFixed(1)}</b><span>리그 ${vm.ratingRank}위</span></div>

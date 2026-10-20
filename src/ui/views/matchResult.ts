@@ -8,6 +8,7 @@ import { isWide } from '../skin';
 import { personLink } from './detail';
 import { jerseyPanel } from './showroom';
 import type { JerseyPanelVM } from '../jerseyVM';
+import type { CupBannerVM, CelebrateVM } from '../seasonVM';
 
 function cmpRow(label: string, own: string, opp: string): string {
   const a = parseFloat(own) || 0;
@@ -101,13 +102,14 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       </div>`;
   // PC 2열 (C.61, 폰 2,600px대 → 한 화면): 왼쪽 = 점수 · 하이라이트 · 득점 · 결정 · 쓴 카드, 오른쪽 = 내 기록 · 보상 · 버튼 · 전술 리포트·평균 위치
   if (isWide()) {
-    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
+    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${cupBanner(vm.cupBanner)}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
   }
   return `
     ${hero}
     <div class="body">
       ${head}
       ${rewatch}
+      ${cupBanner(vm.cupBanner)}
       ${banners(vm.banners)}
       ${jx}
       ${goals}
@@ -120,6 +122,13 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     </div>`;
 }
 
+/** 214 대회 배너: 왼쪽 막대(진출·순위·합계 라임 · 승부차기 주황 · 탈락 빨강), 우승은 라임 면 · 오른쪽 큰 숫자 */
+export function cupBanner(b: CupBannerVM | null): string {
+  if (!b) return '';
+  return `<div class="cup-banner is-${b.tone}" role="status"><span class="cup-banner__icon">${Icon({ name: b.icon, size: 18 })}</span><span class="cup-banner__body"><small class="cup-banner__kicker">${esc(b.kicker)}</small><b>${esc(b.title)}</b>${b.body ? `<span>${esc(b.body)}</span>` : ''}</span>${
+    b.big ? `<span class="cup-banner__big"><b class="po-num">${esc(b.big)}</b><small>${esc(b.bigLabel ?? '')}</small></span>` : ''}</div>`;
+}
+
 const sgn = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
 
 /** 보상 "신뢰도 +n · 위상 +n" 줄 (디자인 170, C.72) */
@@ -127,4 +136,19 @@ function deltaLine(d: { trust: number | null; rep: number } | null): string {
   if (!d) return '';
   const parts = [d.trust ? `신뢰도 ${sgn(d.trust)}` : '', d.rep ? `위상 ${sgn(d.rep)}` : ''].filter(Boolean);
   return parts.length ? `<p class="small muted mr-delta">${parts.join(' · ')}</p>` : '';
+}
+
+/** 207 우승 축하: 경기 결과 뒤 한 장 — 위 절반 라임 면(우승 칩 · 트로피 자리 · 대회 · 큰 제목 · 한 줄), 아래 내 시즌 기록 4칸 + 줄 · [계속]. 독 없음 */
+export function celebrateView(vm: CelebrateVM): string {
+  return `<div class="celebrate" role="dialog" aria-modal="true" aria-label="${esc(vm.title)}"><div class="celebrate__inner">
+    <div class="celebrate__top"><div class="celebrate__bar"><span class="celebrate__chip">우승</span><b class="po-num">${esc(vm.season)}</b></div>
+      <div class="celebrate__art">${Icon({ name: 'trophy', size: 44 })}<small>트로피</small></div>
+      <p class="celebrate__sub">${esc(vm.sub)}</p><h2 class="celebrate__title">${esc(vm.title)}</h2><p class="celebrate__line">${esc(vm.line)}</p></div>
+    <div class="celebrate__bottom">
+      <div class="cup-head"><h3 class="cup-head__t">내 시즌 기록</h3><span class="cup-head__r">${esc(vm.scope)}</span></div>
+      <div class="celebrate__tiles">${vm.tiles.map((t) => `<div class="celebrate__tile${t.hi ? ' is-hi' : ''}"><b class="po-num">${esc(t.value)}</b><small>${esc(t.label)}</small></div>`).join('')}</div>
+      <div class="panel celebrate__rows">${vm.rows.map((r) => `<div class="kv"><span class="muted">${esc(r.label)}</span><b>${esc(r.value)}</b></div>`).join('')}</div>
+      <div class="celebrate__foot">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'celebrate-close', children: '계속' })}
+      <small class="muted">[계속]을 누르면 경기 결과로 돌아가요 · 트로피는 선수 → 기록에 쌓여요</small></div>
+    </div></div></div>`;
 }
