@@ -592,3 +592,4 @@
 - (15:56 KST) **C.75k 완료**(44g-b, main 4fcd77f, T 경유) → pending 134 아래, 몰고 가다 슛 할인 판단 = 그대로(표시 정확, 봇 평가식은 44h), UI_4 알림(새 화면 2), ntfy. draft_는 CI 뒤. 진행 중 코드 세션 3개(C.75l·m·t).
   - C.75k 직접 보고도 받음(중복). main STAGE_LABEL이 45→44로 돌아감 — 병렬 단계라 생기는 것, 다음 45단계 패치(C.75m)가 45로 되돌림(조치 불필요).
 - (15:57 KST, 사용자) 이름 두 줄 안 됨("레반도/프스키" 불가) → 한 줄 유지·소수점 폭 측정 수정. **C.75u 시작** `session_01PjLYR9kPAZgE6kmscuBSGF` "45단계_홈 머리말 긴 이름 잘림 수정 (C.75u)" 브랜치 `claude/c75u-hero-name`, 지시문 docs/session-prompts/C.75u.md. 진행 중 코드 세션 4개(C.75l·m·t·u).
+- (16:00 KST, 사용자) 결정 순간 선택지 다 10%대 제보 → pending 135 확정(A 라벨 구간·B 확실한 선택 다시 넣기·C 최대 5개). **C.75v 시작** `session_01Cj7SUhAi5jREkP8t7EYJHr` "44g단계_결정 순간 선택지 라벨·확실한 선택·최대 5개 (C.75v)" 브랜치 `claude/c75v-moment-options`. 진행 중 코드 세션 5개(C.75l·m·t·u·v).
