@@ -643,3 +643,4 @@
 - (21:22 KST) 자동 확인: run 250 취소, run 251(90716be = C.76a·c·d·f·g·h) 진행 중 → 25분 뒤 재확인 후 draft_. C.76h 속도(바쁜 날 9~20초) 사용자 판단 대기(추천 = 미리 계산).
 - (21:32 KST, 사용자) pending 139: 미리 계산 확정·모든 리그 8~5월 통일 → **C.76m 시작** `session_01E1HgR5qycWaEi6wNjd3SjA` `claude/c76m-precompute-calendar`. 개인 시상 미구현 확인 → **C.76n 시작**(47단계 발롱도르·골든보이·골든부츠·더 베스트) `session_01LCcgLmUo5qXEiqTjVZCpwS` `claude/c76n-awards`. 레전드 53명은 이미 들어가 있음(8.42 '사용자 확인 대기'는 오기, 정정). 다음 새 이름 C.76o. 진행 중 C.76i·j·k·l·m·n.
 - (21:40 KST, 사용자) pending 140: 올해의 선수 등 권위 있는 상 전부·평점순 말고 → docs/awards-design.md 설계(투표단 시뮬레이션). C.76n을 47a로 범위 갱신, 47b는 C.76n 뒤.
+- (21:46 KST, 사용자) 푸스카스 뺌·월드컵 상 47a·레전더리 조건 개정(발롱 1 또는 최고 개인상 합 3, 수비수 상 UEFA 올해의 수비수) → awards-design.md 갱신, C.76n에 전달.
