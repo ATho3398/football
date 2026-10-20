@@ -576,3 +576,20 @@
 - **draft_ 남은 것**: C.75h `session_01Q7veoWWQz8YSxsrNcKmdzD`·C.75i `session_01EhaBezSqipxFKqVoMhpqYg` — main CI(68bd76d 포함 실행) 성공 확인 뒤 draft_(코드 세션은 이제 CI 성공을 보내지 않음, `actions_list`로 확인).
 - **다음 순서**: C.75l 완료 → 엔진관리자5에 44f-b 처방(§3.3) 확인 → 44f-b(Opus) / 45a·데이터 6개 완료 → 45b 연결·통합(이적 시장 = 고른 리그, 미래 스타·레전드 등장 리그 기준, `outsideClubs` x: id ↔ 새 팀 id 정리, 도감 번호 이어 붙이기) + 45c 대표팀(18.12, `src/national.ts`) 병렬 / 46a 완료 → 46b 유니폼 교환·진열실 / 11·12차 디자인 오면 U 적용 패치 / 그 뒤 44h 판단 구조 블록(미해결 8·11), P단계, 6단계 패키징.
 - 고속 모드: 사용자가 켰는지 확인(새 세션 `get_session` → flag_settings), 안 켰으면 다시 한 번 알림.
+
+### 8.40 마스터 세션 U (2026-10-20 14:45 KST~, `session_01DUqLtswE7hDV9NHhh6HfZq`, 브랜치 `claude/planning-u`)
+- T가 만든 세션 → `lineage` 깊이 3(한도 8). 환경 "player ONE". 브랜치 `claude/planning-u`(planning-t 9749916에서, 푸시).
+- 시작 처리(14:46 KST): ① T에 "U 준비 완료 + U ID"(delivered) ② C.75k·l·m·n·o·p·q·r·s·t·엔진관리자5·UI_4에 "보고는 U, 마스터 브랜치 claude/planning-u, 답장 불필요"(12개 모두 delivered, 엔진관리자5·UI_4는 priority later) ③ T 제목 `draft_T_축구 커리어 게임 마스터`(T 최종 약 37.6만·12.0달러) ④ U 자동 확인 send_later `trig_019TegikUs5jggQj2RHEj1Nn`(15:47 KST) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
+- main CI: run 226(9dd8a59, C.75h) 성공 → **C.75h draft_**. run 227(fc3710a, C.75i) 진행 중 → 자동 확인 때 C.75i draft_.
+- 다음: 코드 세션 10개 보고 처리 → 44f-b → 45b·45c → 46b (8.39).
+- (14:54 KST) **C.75s 완료**(45d6, main 50dcd50, 테스트 784, T 경유) → pending 134, ntfy. draft_는 CI 뒤. 남은 코드 세션 9개.
+- (14:55 KST) **C.75p 완료**(45d3, main e3e3a33, 테스트 796)·**C.75o 완료**(45d2, main 0ca1956) → pending 134. T 전달 중지 요청. ntfy 14:54는 429로 실패 → 묶어 재발송. 남은 코드 세션 7개(C.75k·l·m·n·q·r·t).
+- (14:59 KST) **C.75r 완료**(45d5, main e9ad0f9, 테스트 812) → pending 134, ntfy. 남은 코드 세션 6개(C.75k·l·m·n·q·t).
+- (15:00 KST) **C.75q 완료**(45d4, main 6afc8cb) → pending 134. 데이터 남은 것 C.75n(45d1)뿐. 남은 코드 세션 5개(C.75k·l·m·n·t).
+- (15:15 KST, 사용자) 엔진관리자5 노력도 xhigh로 올림 → automation.md 0번에 기준 기록(엔진관리자 xhigh, fix 세션 높음, max 안 씀).
+- (15:39 KST) **C.75n 완료**(45d1, main d7ede5d) → 45d 6개 모두 끝. 남은 코드 세션 4개(C.75k·l·m·t). 45b는 C.75m(45a) 뒤.
+- (15:50 KST) 자동 확인: main run 232(6afc8cb) 성공 → C.75i·o·p·q·r·s draft_. run 233(C.75n) 진행 중. C.75m(balance 대기)·C.75l(엔진 15% 단축·지문 동일, 가드 대기) 진행 중. 한도 allowed. 재예약 60분. 사용자 제보: 홈 머리말 긴 이름 "율리안 린트…" 큰 글씨 그대로 말줄임(fitHeroNames 안 먹음) → 서브에이전트로 원인 재현 중, 추천 = 두 줄(이름 작게·성 크게) + 줄이기 수정.
+- (15:56 KST) **C.75k 완료**(44g-b, main 4fcd77f, T 경유) → pending 134 아래, 몰고 가다 슛 할인 판단 = 그대로(표시 정확, 봇 평가식은 44h), UI_4 알림(새 화면 2), ntfy. draft_는 CI 뒤. 진행 중 코드 세션 3개(C.75l·m·t).
+  - C.75k 직접 보고도 받음(중복). main STAGE_LABEL이 45→44로 돌아감 — 병렬 단계라 생기는 것, 다음 45단계 패치(C.75m)가 45로 되돌림(조치 불필요).
+- (15:57 KST, 사용자) 이름 두 줄 안 됨("레반도/프스키" 불가) → 한 줄 유지·소수점 폭 측정 수정. **C.75u 시작** `session_01PjLYR9kPAZgE6kmscuBSGF` "45단계_홈 머리말 긴 이름 잘림 수정 (C.75u)" 브랜치 `claude/c75u-hero-name`, 지시문 docs/session-prompts/C.75u.md. 진행 중 코드 세션 4개(C.75l·m·t·u).
+- (16:00 KST, 사용자) 결정 순간 선택지 다 10%대 제보 → pending 135 확정(A 라벨 구간·B 확실한 선택 다시 넣기·C 최대 5개). **C.75v 시작** `session_01Cj7SUhAi5jREkP8t7EYJHr` "44g단계_결정 순간 선택지 라벨·확실한 선택·최대 5개 (C.75v)" 브랜치 `claude/c75v-moment-options`. 진행 중 코드 세션 5개(C.75l·m·t·u·v).
