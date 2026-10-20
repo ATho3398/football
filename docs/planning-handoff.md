@@ -651,3 +651,4 @@
 - (21:52 KST, 사용자) ntfy 2회 실패면 그 알림 버림·재발송·보고 안 함 → automation.md 0번 반영.
 - (22:06 KST, 사용자) 카드팩 표지 도착 → docs/assets/pack-cover.webp(800×1200 132KB)·png, C.76o에 전달(투명 아님 → 팩 실루엣으로 잘라 쓰기).
 - (22:28 KST, 사용자) 카드팩 완성 패키지(로고 PLAYER ONE·톱니 봉합선) 도착 → 검정 배경 지워 투명 webp docs/assets/pack-cover2.webp(800×1310, 233KB), 이걸 기본 표지로 C.76o 전달(앞 표지 대체).
+- (22:34 KST) **C.76j 48e 완료**(main 807ca7a, 버전 그대로, 테스트 981, 새 화면 1(207 우승 축하), CSS는 src/ui/design/season.css). 못 한 것: 208 대회별 거르기·231 팀 강약점·232 합작 골·199 NPC 주장 칩·207 대회 득점 줄·205 PC 4열·223 일부. 17.2 표 48행(48a~e) 추가됨. draft_는 CI 뒤.
