@@ -4,7 +4,7 @@
 import { weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
-import { aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
+import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { hasModule } from './roles';
 import { claimProb, keeperOf, keeperZone, saveDifficulty } from './keeper';
@@ -232,11 +232,15 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const pressure = pressureAt(s, a, px, py);
   // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
   let blockers = 0;
+  // 1대1 조건용: 가장 가까운 상대 필드 선수 거리 (GK 는 뺀다 — 나온 GK 는 세이브 식이 맡고, 압박 항 pressure 는 그대로 GK 포함)
+  let nearField = Infinity;
   if (!header) {
     for (const o of s.agents) {
       if (!o.onPitch || o.team === a.team || o.line === 0) continue;
       const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
+      const od = dist(o.x, o.y, px, py);
+      if (od < nearField) nearField = od;
     }
   }
   let pOn: number;
@@ -245,8 +249,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     pOn = clamp(PR.headerBase - PR.headerPerM * d, PR.shotMin, PR.shotMax);
     speed = PR.headerSpeed;
   } else {
-    // 1대1 보너스 (C.76a, 미해결 12): 슛 길 콘 안 수비 0 이고 pressureDist 안 상대 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게)
-    const free = blockers === 0 && pressure <= 0 ? PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) : 0;
+    // 1대1 보너스 (C.76a, 미해결 12): 슛 길 콘 안 수비 0 이고 pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게)
+    const free = blockers === 0 && nearField >= PR.pressureDist ? PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) : 0;
     pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + free + formBonus(a), PR.shotMin, PR.shotMax);
     speed = B.shotSpeed;
   }
@@ -262,11 +266,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers };
 }
 
-/** 마무리 능력치 (E.20 7번): 슈팅(중거리는 중거리 슛, 헤더는 헤더, 프리킥은 프리킥) × 0.6 + 침착성 × 0.25 + 결정력 × 0.15 */
-export function finishSkill(t: FieldAttributes, kind: 'shot' | 'long' | 'header' | 'freeKick'): number {
-  const main = kind === 'long' ? t.longShots : kind === 'header' ? t.heading : kind === 'freeKick' ? t.freeKick : t.shooting;
-  return main * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15;
-}
+// 마무리 능력치 finishSkill 은 duel.ts (C.76a: offball 위협 가중 수비와 공유)
+export { finishSkill };
 
 /** 마무리 배수 = clamp(1 + finishPerPoint × (마무리 능력치 − 70), finishMin, finishMax). 유효 슈팅(= 골 확률)에 곱한다 */
 export function finishMult(t: FieldAttributes, kind: 'shot' | 'long' | 'header' | 'freeKick'): number {

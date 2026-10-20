@@ -3,6 +3,7 @@
 import { ENGINE } from './config';
 import { L1 } from './pitch';
 import type { Agent } from './state';
+import type { FieldAttributes } from '../attributes';
 
 const PR = ENGINE.prob;
 
@@ -42,4 +43,13 @@ export function aerialScore(a: Agent): number {
 /** a 가 b 를 이길 확률 */
 export function aerialWin(a: Agent, b: Agent): number {
   return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + a.duelEdge - b.duelEdge));
+}
+
+/**
+ * 마무리 능력치 (E.20 7번): 슈팅(중거리는 중거리 슛, 헤더는 헤더, 프리킥은 프리킥) × 0.6 + 침착성 × 0.25 + 결정력 × 0.15.
+ * C.76a: onball 과 offball(위협 가중 수비) 이 같이 쓰므로 순환 import 없는 이 모듈에 둔다 (onball 이 다시 내보낸다)
+ */
+export function finishSkill(t: FieldAttributes, kind: 'shot' | 'long' | 'header' | 'freeKick'): number {
+  const main = kind === 'long' ? t.longShots : kind === 'header' ? t.heading : kind === 'freeKick' ? t.freeKick : t.shooting;
+  return main * 0.6 + t.composure * 0.25 + t.bigMatch * 0.15;
 }

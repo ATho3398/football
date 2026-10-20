@@ -149,7 +149,8 @@ describe('내 선수 출전 구간과 어댑터 (E.14, E.16)', () => {
   const base = {
     myRoster: home, oppRoster: away, myRating: 75, oppRating: 75, home: true,
     me: { position: 'ST' as const, attributes: home.players.find((p) => p.position === 'ST')!.attributes!, fatigue: 0, form: 0 },
-    difficulty: 'normal' as const, seed: 77, worldSeed: 'w',
+    // C.76a: 시드 77 은 엔진 28 에서 내 선수가 90분에 두 번째 경고로 퇴장(86분)해 선발 90분 가정이 깨져 78 로 (엔진 결과 무관 어댑터 테스트)
+    difficulty: 'normal' as const, seed: 78, worldSeed: 'w',
   };
 
   it('선발 90분 / 70분 교체 투입 / 30분 부상 교체 아웃', () => {

@@ -77,7 +77,8 @@ describe('카드 효과 엔진 (부록 F, C.36)', () => {
   });
 
   it('결정 순간 패: 카드마다 쓸 수 있는지·이유, 플레이 카드는 4번째 선택지, 확률 카드는 선택지별 %p, 보너스 +15%p 이내', () => {
-    const g = game('ST');
+    // C.76a: 시드 'cards' 는 엔진 28 에서 결정 순간이 3번뿐(> 3 가정)이라 'cards2'(10번) 로 (결정 순간 수는 엔진 결과 따라 달라진다)
+    const g = game('ST', 'cards2');
     const rm = startedRound(g);
     const deck = [...starterDeck('attack').map((c) => c.id), 'chip', 'nearPost', 'elastico', 'rabona', 'divingHeader'];
     const run = new MyMatchRun({ ...rm.input, cards: { deck }, control: { mode: 'direct', stop: 'all' } }, { teams: ['A', 'B'] });

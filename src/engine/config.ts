@@ -209,6 +209,21 @@ export const ENGINE = {
     focusMark: 0.75,
     focusRange: 50,
     focusBox: 0.2,
+    /**
+     * 위협 가중 수비 (C.76a, 미해결 8·11 — 사용자 제안): 마커 수는 늘리지 않고 이미 있는 주의를 마무리 좋은 선수 쪽으로 옮긴다.
+     * 능력 계수 = clamp((finishSkill(슈팅) − focusAbilityCenter) / focusAbilityRange, −0.5, 1) (85 짜리 ST 0.75, 생성 75 팀 ST 약 0.25).
+     * focusThreat 위협도 += focusAbilityW × 계수 (85 짜리 +0.22 = 골에서 11 m 더 먼 자리에서도 위협 1위)
+     */
+    focusAbilityW: 0.3,
+    focusAbilityCenter: 70,
+    focusAbilityRange: 20,
+    /** 위협 1위의 마크 거리 = stMark × focusMark × (1 − focusTight × 계수) (85 짜리 ≈ 0.9 m, 약한 마무리는 조금 느슨) */
+    focusTight: 0.3,
+    /** 계수 ≥ focusDoubleMin 이면 둘째 수비(더블팀) 조건의 박스를 focusDoubleExtra m 넓힌다 */
+    focusDoubleMin: 0.5,
+    focusDoubleExtra: 5,
+    /** 커버 섀도 대상 가치 × (1 + focusShadowW × 계수): 패스 길 차단이 엘리트 쪽으로 */
+    focusShadowW: 0.5,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
     stMarkZone: 25,
     /** 상대 ST/CF 가 우리 박스 안에 있으면 공이 자기 골 stMarkZoneBox m 안부터 마크한다 (C.29 fix2 가설 B: fix 브랜치 40 을 박스 안 ST 로 한정) */
@@ -563,9 +578,9 @@ export const ENGINE = {
     shotPressure: 0.15,
     /**
      * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 0 이면 pOn += shotFree × max(0, 1 − 거리/shotFreeRef).
-     * "수비가 없다"는 정확도 가산 (8 m 0.545 → 0.725, 12 m 0.485 → 0.605, 20 m+ 0). 판단식·실제가 같은 함수라 E.15.1 안
+     * "수비가 없다"는 정확도 가산 (0.38: 8 m 0.545 → 0.77, 12 m 0.485 → 0.64, 20 m+ 0; 0.30 은 12 m 안 빗나감 50 으로 부족). 판단식·실제가 같은 함수라 E.15.1 안
      */
-    shotFree: 0.30,
+    shotFree: 0.38,
     shotFreeRef: 20,
     shotMin: 0.05,
     shotMax: 0.85,
@@ -817,8 +832,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW 의 총량 되돌림 1.70 → 1.76 (0.01 = 득점 −0.067) */
-    saveBase: 1.76,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW·1대1 보너스의 총량 되돌림 1.70 → 1.74 (0.01 = 득점 −0.067; 1.76 은 득점 1.20 으로 과소) */
+    saveBase: 1.74,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
