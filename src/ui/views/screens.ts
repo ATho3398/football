@@ -5,7 +5,7 @@ import { goalsResultPanel } from './inbox';
 import {
   Avatar, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
-import type { AllocateVM, ChapterReviewVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM } from '../viewModels';
+import type { AllocateVM, ChapterReviewVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM, WorldRowVM, OtherLeagueVM } from '../viewModels';
 import type { BoardKind } from '../../worldStats';
 import { actionRow, banners, panel, pc2, seasonMatchesSection, statTiles, versionFooter } from './common';
 import { isWide } from '../skin';
@@ -88,7 +88,7 @@ export interface NewGameVM {
   futureStars: boolean;
   futureList: { id: string; name: string; position: string; debut: string; age: number; club: string; realClub: string; start: number; peak: number; waiting: boolean }[];
   /** 리그 고르기 (C.75m): on = 고름, mine = 내 리그(필수), ready = 데이터 있음 (없으면 준비 중) */
-  leagues: { id: string; name: string; sub: string; on: boolean; mine: boolean; ready: boolean }[];
+  leagues: { id: string; name: string; sub: string; on: boolean; mine: boolean; ready: boolean; canMine?: boolean }[];
   selected: { id: string; name: string; ovr: number; club: string; age: number; position: string; legend?: boolean; peak?: number; youthKo?: string } | null;
   /** 능력치 접힘 줄 (디자인 130) */
   attrSummary: { count: number; avg: string; weak: string; top: string } | null;
@@ -129,14 +129,16 @@ function leaguePicker(vm: NewGameVM, open: boolean): string {
   const row = (l: NewGameVM['leagues'][number]) => {
     const chip = l.mine ? '<span class="ng-lg__chip is-mine">내 리그 · 필수</span>' : !l.ready ? '<span class="ng-lg__chip is-wait">준비 중</span>' : '';
     const dis = l.mine || !l.ready;
-    return `<button type="button" class="ng-lg__row${l.on ? ' is-on' : ''}${l.ready ? '' : ' is-wait'}" data-act="ng-league" data-v="${esc(l.id)}" role="checkbox" aria-checked="${l.on}"${dis ? ' disabled' : ''}><span class="ng-lg__box">${l.on ? Icon({ name: 'check', size: 14, strokeWidth: 3 }) : ''}</span><span class="grow"><b>${esc(l.name)}</b><small>${esc(l.sub)}</small></span>${chip}</button>`;
+    // 내 리그로 (C.75y): 고른 리그 줄 오른쪽 작은 버튼 (줄 버튼 밖, 체크와 따로)
+    const mineBtn = l.canMine ? `<button type="button" class="ng-lg__mine" data-act="ng-league-mine" data-v="${esc(l.id)}">내 리그로</button>` : '';
+    return `<div class="ng-lg__item"><button type="button" class="ng-lg__row${l.on ? ' is-on' : ''}${l.ready ? '' : ' is-wait'}" data-act="ng-league" data-v="${esc(l.id)}" role="checkbox" aria-checked="${l.on}"${dis ? ' disabled' : ''}><span class="ng-lg__box">${l.on ? Icon({ name: 'check', size: 14, strokeWidth: 3 }) : ''}</span><span class="grow"><b>${esc(l.name)}</b><small>${esc(l.sub)}</small></span>${chip}</button>${mineBtn}</div>`;
   };
   return `${SectionTitle({ title: '리그', action: mine ? `내 리그 ${mine.name}` : '' })}${summary}
     <div class="panel ng-lg">
       <p class="small muted">고른 리그만 시즌이 진행돼요. 내 리그는 경기 엔진으로, 다른 리그는 빠른 계산으로 순위·기록을 남겨요. 안 고른 리그 팀은 이름·전력만 남아요. 리그가 많을수록 하루 넘기기가 조금 느려져요.</p>
       <div class="ng-lg__list">${vm.leagues.map(row).join('')}</div>
       <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'default' }, children: '기본 묶음' })}${Button({ variant: 'ghost', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'mine' }, children: '내 리그만' })}${Button({ variant: 'ghost', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'all' }, children: '전부' })}</div>
-      <p class="small muted">기본 묶음 = 프리미어리그 + 라리가·세리에 A·분데스리가·리그 1 + 챔피언십. 다른 리그에서 시작하기는 다음 업데이트(45b)에서 열려요.</p>
+      <p class="small muted">기본 묶음 = 프리미어리그 + 라리가·세리에 A·분데스리가·리그 1 + 챔피언십. [내 리그로]를 누르면 그 리그 팀에서 시작해요(실제 선수는 그 선수 소속 리그). 3월~12월 리그는 그 리그 2018 시즌 개막 소집(2월)부터 시작해요.</p>
     </div>`;
 }
 
@@ -147,7 +149,7 @@ function startOptions(vm: NewGameVM, nameField: boolean, u: NewGameUI = NEW_GAME
     ${cur ? `<p class="small muted ng-diff">${esc(cur.desc)}</p>` : ''}`;
   const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명</b><small>${vm.legends ? `켜면 실제 선수에 레전드 탭이 생기고, 펠레·지단·박지성 같은 레전드(도르트문트 레전드 ${LEGEND_BVB}명 포함)가 15~22세 유망주로 유스 구단에 들어와요. 한 팀에 ${BALANCE.legends.maxPerTeam}명이 넘으면 리그 밖에서 시작해 다음 시즌부터 이적으로 들어와요. 끄면 세계는 그대로예요.` : '켜면 1990년 이후 은퇴한 레전드(+ 도르트문트 레전드)가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</small></span>${
     Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>
-    <div class="ng-pack"><span class="grow"><b>미래 스타 팩 · ${FUTURE_TOTAL}명</b><small>켜면 야말·벨링엄·홀란 같은 2018-19 뒤 스타가 게임 리그에서 처음 뛴 실제 시즌에 그 팀으로, 그때 나이로 나타나요. 지금 리그(PL)에서 뛴 적 없는 선수는 리그가 추가되면 나와요. 끄면 세계는 그대로예요.</small></span>${
+    <div class="ng-pack"><span class="grow"><b>미래 스타 팩 · ${FUTURE_TOTAL}명</b><small>켜면 야말·벨링엄·홀란 같은 2018-19 뒤 스타가 내 리그에서 처음 뛴 실제 시즌에 그 팀으로, 그때 나이로 나타나요. 고른 다른 리그에서 먼저 뛴 기록은 월드 "등장 예정"에 보여요. 끄면 세계는 그대로예요.</small></span>${
     Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.futureStars ? 'on' : 'off', act: 'form', data: { k: 'futureStars' }, label: '미래 스타 팩' })}</div>`;
   const seed = TextField({ label: '시드 (선택)', value: vm.seed, placeholder: '비우면 랜덤 · 같은 시드 + 같은 선택 = 같은 결과', input: { id: 'f-seed', maxLength: 40 }, clearable: false });
   const bonus = vm.bonus
@@ -291,13 +293,13 @@ function realBody(vm: NewGameVM, u: NewGameUI): string {
 
 /** 미래 스타 묶음 (C.75y, 디자인 없음): 등장 시즌 순 + 리그 추가 후 등장. 고를 수 없고 구현 리그 첫 시즌이 되면 세계에 나타난다 */
 function futureBody(vm: NewGameVM): string {
-  const row = (p: NewGameVM['futureList'][number]) => `<div class="real-row ng-row ng-future${p.waiting ? ' is-waiting' : ''}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${p.waiting ? `리그 추가 후 등장 · ${p.position}${p.realClub ? ` · 실제 ${esc(p.realClub)}` : ''}` : `${esc(p.debut)} 등장 · ${p.age}세 · ${p.position} · ${esc(p.club)}`}</small></span><span class="ng-row__ovr">${p.waiting ? `<span><b class="po-num ng-peak">${p.peak}</b></span><small>전성기</small>` : `<span><b class="po-num muted">${p.start}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>등장 → 전성기</small>`}</span></div>`;
+  const row = (p: NewGameVM['futureList'][number]) => `<div class="real-row ng-row ng-future${p.waiting ? ' is-waiting' : ''}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${p.waiting ? `내 리그 밖 · ${p.position}${p.realClub ? ` · 실제 ${esc(p.realClub)}` : ''}` : `${esc(p.debut)} 등장 · ${p.age}세 · ${p.position} · ${esc(p.club)}`}</small></span><span class="ng-row__ovr">${p.waiting ? `<span><b class="po-num ng-peak">${p.peak}</b></span><small>전성기</small>` : `<span><b class="po-num muted">${p.start}</b> → <b class="po-num ng-peak">${p.peak}</b></span><small>등장 → 전성기</small>`}</span></div>`;
   const now = vm.futureList.filter((p) => !p.waiting);
   const later = vm.futureList.filter((p) => p.waiting);
-  return `<div class="ng-listhead"><b class="small">미래 스타 ${vm.futureList.length}명 · 등장 ${now.length} · 리그 추가 후 ${later.length}</b><small class="muted">고를 수 없어요</small></div>
-    <p class="small muted">2018-19 세계엔 아직 없는 선수예요. 게임 리그(지금 PL)에서 처음 뛴 실제 시즌에 그 팀으로, 그때 나이로 나타나요. 그 전 실제 경력은 선수 화면에 남아요.</p>
+  return `<div class="ng-listhead"><b class="small">미래 스타 ${vm.futureList.length}명 · 내 리그 등장 ${now.length} · 다른 리그 ${later.length}</b><small class="muted">고를 수 없어요</small></div>
+    <p class="small muted">2018-19 세계엔 아직 없는 선수예요. 내 리그에서 처음 뛴 실제 시즌에 그 팀으로, 그때 나이로 나타나요. 그 전 실제 경력은 선수 화면에 남아요.</p>
     <div class="real-list">${now.map(row).join('')}</div>
-    ${later.length ? `<div class="ng-listhead"><b class="small">리그 추가 후 등장 ${later.length}명</b><small class="muted">다른 리그가 생기면 그 리그 첫 시즌에</small></div><div class="real-list">${later.map(row).join('')}</div>` : ''}`;
+    ${later.length ? `<div class="ng-listhead"><b class="small">내 리그에서 뛴 적 없음 ${later.length}명</b><small class="muted">내 리그로 고르면 그 리그 첫 시즌에</small></div><div class="real-list">${later.map(row).join('')}</div>` : ''}`;
 }
 
 // ── 포인트 찍기 (50) ──
@@ -362,10 +364,11 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     : `<p class="small muted">${board === 'rating' ? `아직 ${vm.ratingMin}경기 이상 뛴 선수가 없어요.` : '아직 기록이 없어요. 경기가 진행되면 순위가 쌓여요.'}</p>`}`;
   // 디자인 146: 팀 옆 "재" 열 = 재정 등급 4단 막대(색 없음) + 아래 범례 (팀 수)
   const tierCount = FIN_TIERS.map((t) => ({ t, n: vm.table.filter((r) => r.tier === t).length }));
-  const table = `<div class="panel tbl-panel"><table class="tbl league">
-      <tr><th>#</th><th class="l">팀</th><th class="fin-col" title="재정 등급">재</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
-      ${vm.table.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > vm.teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button></td><td class="fin-col">${FinChip(r.tier, true, true)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
-    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">팀 전력 = 라인업 평균</span></div></div>
+  // 리그 고르기 (C.75y, 45b): 내 리그 + 고른 다른 리그 (순위표·득점 탭)
+  const leagueBar = vm.leagueTabs.length && (tab === 'table' || tab === 'scorers')
+    ? Tabs({ items: vm.leagueTabs, value: vm.leagueSel, variant: 'segment', scroll: true, act: 'world-league', label: '리그 고르기' }) : '';
+  const o = vm.other;
+  const table = o ? otherTable(o) : `${vm.groups ? vm.groups.map((g) => `${SectionTitle({ title: g.title })}${leagueTableHtml(g.rows, g.rows.length, true)}`).join('') : leagueTableHtml(vm.table, vm.teams, true)}
     ${SectionTitle({ title: '재정 등급', action: '재 열 막대 = 구단 재정' })}
     ${panel(`<div class="fin-legend">${tierCount.map((x) => `<div class="fin-legend__cell">${FinChip(x.t, true)}<small class="po-num">${x.n}팀</small></div>`).join('')}</div>
       <p class="small muted">이적료·연봉을 낼 수 있는 크기예요. 표에서는 막대만, 글자는 이 범례와 팀 상세에서. 색은 쓰지 않아요(순위 색과 겹치지 않게).</p>`)}`;
@@ -386,10 +389,38 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     <p class="small muted">레전드 팩으로 들어온 선수 중 리그에서 뛰는 ${vm.legends.length}명이에요. 지금 OVR과 전성기 예상을 같이 보여 줘요(지금 OVR 순).</p>
     <div class="star-list">${legShown.map(legRow).join('')}</div>
     ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
-    ${group === 'league' && (vm.upcoming.length || vm.waiting) ? `<p class="small muted wl-upcoming"><b>미래 스타 등장 예정</b>${vm.upcoming.map((u) => ` · ${esc(u.name)} ${u.debut}`).join('')}${vm.waiting ? ` · 리그 추가 후 ${vm.waiting}명` : ''}</p>` : ''}
+    ${group === 'league' && (vm.upcoming.length || vm.waiting) ? `<p class="small muted wl-upcoming"><b>미래 스타 등장 예정</b>${vm.upcoming.map((u) => ` · ${esc(u.name)} ${u.debut}`).join('')}${vm.waiting ? ` · 고른 리그 밖 ${vm.waiting}명` : ''}</p>` : ''}
     ${group === 'league' && vm.abroad.length ? `<p class="small muted wl-upcoming"><b>리그 밖 레전드 · 이적 유입 예정</b>${vm.abroad.map((u) => ` · ${esc(u.name)}(${esc(u.club)}) ${u.season}`).join('')}</p>` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
-  return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
+  return `${hero}<div class="body">${tabs}${leagueBar}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? (o ? otherScorersHtml(o) : scorers) : tab === 'transfers' ? transfers : stars}</div>`;
+}
+
+/** 순위표 (내 리그는 팀 상세로 이어지고 재정 막대·범례, 다른 리그는 이름만, C.75y) */
+function leagueTableHtml(rows: WorldRowVM[], teams: number, mine: boolean): string {
+  const team = (r: WorldRowVM) => mine
+    ? `<button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button>`
+    : `<span class="dt-link team">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</span>`;
+  return `<div class="panel tbl-panel"><table class="tbl league">
+      <tr><th>#</th><th class="l">팀</th><th class="fin-col" title="재정 등급">재</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
+      ${rows.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l">${team(r)}</td><td class="fin-col">${FinChip(r.tier, true, true)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
+    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">${mine ? '팀 전력 = 라인업 평균' : '빠른 계산 · 팀 전력 = 데이터 레이팅'}</span></div></div>`;
+}
+
+/** 다른 리그 순위 (C.75y): 상태 줄 · (컨퍼런스별) 순위표 · 지난 시즌 */
+function otherTable(o: OtherLeagueVM): string {
+  const head = `<p class="small muted wl-other"><b>${esc(o.name)}</b> · ${esc(o.sub)} · ${esc(o.season)} · ${esc(o.status)}</p>`;
+  const body = o.groups ? o.groups.map((g) => `${SectionTitle({ title: g.title })}${leagueTableHtml(g.rows, g.rows.length, false)}`).join('') : leagueTableHtml(o.table, o.table.length, false);
+  const last = o.last ? `<p class="small muted">지난 시즌(${esc(o.last.season)}) 우승 ${esc(o.last.champion)}${o.last.scorer ? ` · 득점왕 ${esc(o.last.scorer)}` : ''}</p>` : '';
+  return `${head}${body}${last}<p class="small muted">다른 리그는 빠른 계산으로 진행돼요(승강 없음). 득점자는 그 팀 선수단에서 뽑아요.</p>`;
+}
+
+/** 다른 리그 득점 순위 (C.75y) */
+function otherScorersHtml(o: OtherLeagueVM): string {
+  if (!o.scorers.length) return `<p class="small muted">${esc(o.name)} · ${esc(o.status)} · 아직 기록이 없어요.</p>`;
+  return `<p class="small muted wl-other"><b>${esc(o.name)}</b> · ${esc(o.season)} · ${esc(o.status)}</p><div class="panel tbl-panel"><table class="tbl league">
+    <tr><th>#</th><th class="l">선수</th><th>골</th><th>도움</th></tr>
+    ${o.scorers.map((r, i) => `<tr><td class="po-num">${i + 1}</td><td class="l"><b>${esc(r.name)}</b> <span class="small muted">${esc(r.team)}</span></td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td></tr>`).join('')}
+  </table><div class="legend small"><span class="grow r">빠른 계산 경기의 득점·도움</span></div></div>`;
 }
 
 const chipList = (xs: { label: string; value: number }[]) => (xs.length
@@ -654,10 +685,11 @@ export function cupsSection(vm: CupsWorldVM): string {
       ${gr.rows.map((r) => `<tr class="${r.me ? 'me' : ''}${r.through ? ' top' : ''}"><td class="l"><button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gd}</td><td><b class="po-num">${r.pts}</b></td></tr>`).join('')}
     </table></div>`).join('')}</div>
     <p class="small muted">조 2위까지 16강 · 16강~4강은 홈·원정 합계(동률이면 승부차기) · 결승은 단판. 내 팀이 없는 경기는 팀 전력으로 간이 계산해요.</p>`
-    : `${SectionTitle({ title: '챔피언스리그' })}<p class="small muted">이번 시즌 챔스 대진이 없어요(지난 시즌 리그 4위 안 팀이 나가요).</p>`;
+    : `${SectionTitle({ title: '챔피언스리그' })}<p class="small muted">이번 시즌 챔스 대진이 없어요(지난 시즌 리그 4위 안 팀이 나가요. 유럽 밖 리그는 챔스가 없어요).</p>`;
   const f = vm.fa;
-  const fa = f ? `${SectionTitle({ title: 'FA컵', action: f.winner ? `우승 ${f.winner}` : `우리 팀 · ${f.my}` })}
+  const cup = vm.cupName ?? 'FA컵';
+  const fa = f ? `${SectionTitle({ title: cup, action: f.winner ? `우승 ${f.winner}` : `우리 팀 · ${f.my}` })}
     ${f.rounds.map((r) => `<h4 class="ag-head">${esc(r.stage)} · ${esc(r.date)}</h4>${panel(r.ties.map(tieRow).join(''))}`).join('')}`
-    : `${SectionTitle({ title: 'FA컵' })}<p class="small muted">이번 시즌 FA컵이 없어요.</p>`;
+    : `${SectionTitle({ title: cup })}<p class="small muted">이번 시즌 ${esc(cup)} 대진이 없어요.</p>`;
   return `<p class="small muted">${esc(vm.season)} 시즌</p>${ucl}${fa}`;
 }

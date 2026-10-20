@@ -5249,7 +5249,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-20 04:56 KST / 답변 시각 2026-10-20 08:52 KST / 걸린 시간 약 3시간 56분(워커 재시작으로 약 3시간 대기 포함)
 
-### C.75y 44단계 병렬 — 미래 스타를 레전드 팩에서 떼어 "미래 스타 팩"으로, 구현 리그 첫 시즌에 등장 + 이전 실제 경력 **`main` 배포** (ENGINE_VERSION · BALANCE_VERSION 그대로, SAVE_FORMAT_VERSION 44 → 45)
+### C.75y(옛) 44단계 병렬 — 미래 스타를 레전드 팩에서 떼어 "미래 스타 팩"으로, 구현 리그 첫 시즌에 등장 + 이전 실제 경력 **`main` 배포** (ENGINE_VERSION · BALANCE_VERSION 그대로, SAVE_FORMAT_VERSION 44 → 45) — 같은 번호를 45b 패치가 새로 썼다(아래 C.75y(45b) 참고)
 
 명세: 마스터 S 02:47 명세 변경(사용자 02:47 KST). 이 메시지가 C.75x 배포 뒤에 도착해서(큐 지연) 후속 패치로 고쳤다. 브랜치 `claude/c75x-legends-bvb`, `PATCH_LABEL` = `C.75y`. 엔진·결정 순간·워커 무수정.
 

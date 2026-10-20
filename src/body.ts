@@ -1,7 +1,7 @@
 // 신체·양발 (pending 47 1, 부록 C.45): 키·몸무게·주발·약발 생성과 엔진 실행 배율.
 // 가상 선수 신체는 선수 id 시드(`body:<id>`)로 따로 뽑아 기존 시드 흐름(로스터·경기)을 건드리지 않는다
 
-import { A_GRADE_PLAYERS } from '../data/players';
+import { REAL_PLAYER_BY_ID } from '../data/players';
 import { REAL_WEAK_FOOT } from '../data/players/weakFoot';
 import { BALANCE } from './config/balance';
 import { posGroup } from './roster';
@@ -57,7 +57,7 @@ export function rollBody(id: string, position: Position, rng: Rng = createRng(ha
   return { height, weight, foot, weakFoot };
 }
 
-const REAL_BY_ID = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p]));
+const REAL_BY_ID = REAL_PLAYER_BY_ID;
 
 /** 실제 선수 신체 (데이터의 2018-19 키·몸무게·주발 + 약발 표). 데이터가 없으면 undefined */
 export function realBody(id: string): Body | undefined {

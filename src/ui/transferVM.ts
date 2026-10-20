@@ -1,10 +1,11 @@
 // 이적·계약 화면 뷰모델 (18.10, 부록 C.42)
 
+import { leagueData } from '../../data/leagues';
 import { myFace } from './viewModels';
 import type { GameState } from '../game';
 import { proficientOvr } from '../proficiency';
 import {
-  annualLabel, clubNameKo, isOutside, latestWindow, marketPending, myBuyout, myValue, offerTier, ratingOf, releaseChance, requestEligibility, startLabel, teamRank, wageLabel, weakMovePenalty, WHY_KO,
+  annualLabel, clubNameKo, isOutside, latestWindow, midWindowKo, windowKo, marketPending, myBuyout, myValue, offerTier, ratingOf, releaseChance, requestEligibility, startLabel, teamRank, wageLabel, weakMovePenalty, WHY_KO,
 } from '../transfer';
 import { tierLabel, valueLabel } from '../finance';
 import { seasonLabel } from './viewModels';
@@ -100,12 +101,12 @@ export function marketVM(g: GameState): MarketVM {
         until: seasonLabel(nextSeason + o.years - 1),
       };
     }) ?? null,
-    window: m.offerWindow === 'winter' ? '겨울 이적시장' : '여름 이적시장',
+    window: `${windowKo(g.league, m.offerWindow ?? 'summer')} 이적시장`,
     pending: marketPending(g),
     renewal: m.renewal ? { years: m.renewal.years, wage: wageLabel(m.renewal.wage), annual: annualLabel(m.renewal.wage) } : null,
     request: {
       ok: el.ok, reason: el.reason, chance: el.ok ? Math.round(releaseChance(g) * 100) : null,
-      status: req ? (req.accepted ? (m.offers ? '이적 명단 · 제안이 왔어요' : '이적 명단 · 1월 1일 겨울 이적시장에 제안이 와요') : '구단이 요청을 거절했어요') : null,
+      status: req ? (req.accepted ? (m.offers ? '이적 명단 · 제안이 왔어요' : `이적 명단 · ${midWindowKo(g.league)} 이적시장에 제안이 와요`) : '구단이 요청을 거절했어요') : null,
     },
     notice: m.notice ?? null,
     free: !!m.free,
@@ -120,7 +121,7 @@ export function marketVM(g: GameState): MarketVM {
 }
 
 export interface NewsRowVM { id: string; name: string; pos: string; age: number; ovr: number; from: string; to: string; why: string; real: boolean; into: boolean; out: boolean; fill: { name: string; pos: string; age: number; ovr: number; club: string } | null; mine: boolean; fee: string; toTier: string; /** 누르면 열 선수 상세 (C.53): 선수 id, 내 선수 'me'. 리그 밖으로 간 선수는 C.71a 리그 밖 빈 화면 */ open: string | null }
-export interface NewsVM { title: string; count: number; inLeague: number; rows: NewsRowVM[] }
+export interface NewsVM { title: string; count: number; inLeague: number; rows: NewsRowVM[]; /** 내 리그 이름 (C.75y, 없으면 프리미어리그) */ league?: string; /** 다른 고른 리그 팀으로 간 선수 수 (C.75y) */ toOther?: number }
 
 /** 월드 "이적 소식": 가장 최근 이적시장의 NPC 이동 (+ 같은 이적시장 내 선수 이동) */
 export function newsVM(g: GameState): NewsVM | null {
@@ -129,7 +130,9 @@ export function newsVM(g: GameState): NewsVM | null {
   if (!w && !me) return null;
   const rows: NewsRowVM[] = (w?.recs ?? []).map((r) => ({
     id: r.id, name: r.name, pos: r.pos, age: r.age, ovr: r.ovr, from: clubNameKo(g.league, r.from), to: clubNameKo(g.league, r.to), why: WHY_KO[r.why], real: !!r.real,
-    into: !isOutside(r.to), out: isOutside(r.to), fill: r.fill ? { name: r.fill.name, pos: r.pos, age: r.fill.age, ovr: r.fill.ovr, club: clubNameKo(g.league, r.fill.club) } : null,
+    // 리그 안 = 내 리그 팀으로 (C.75y: 다른 고른 리그 팀은 리그 밖 묶음, 실제 선수 보충은 "다른 리그 실제 선수")
+    into: g.league.teams.some((t) => t.id === r.to), out: !g.league.teams.some((t) => t.id === r.to),
+    fill: r.fill ? { name: r.fill.real ? `${r.fill.name} (실제 선수)` : r.fill.name, pos: r.pos, age: r.fill.age, ovr: r.fill.ovr, club: clubNameKo(g.league, r.fill.club) } : null,
     mine: r.from === g.player.teamId || r.to === g.player.teamId,
     fee: r.fee ? valueLabel(r.fee) : '자유계약', toTier: tierLabel(r.to), open: r.id,
   }));
@@ -139,6 +142,10 @@ export function newsVM(g: GameState): NewsVM | null {
     rows.unshift({ id: myFace(g).id, name: g.player.name, pos: g.player.position, age: g.player.age, ovr: proficientOvr(g.player, g.player.position), from: clubNameKo(g.league, me.from), to: clubNameKo(g.league, me.to), why: me.loan ? '임대' : '내 선수', real: true, into: true, out: false, fill: null, mine: true, fee: valueLabel(myValue(g)), toTier: tierLabel(me.to), open: 'me' });
   }
   const season = w?.season ?? me!.season;
-  const kind = (w?.w ?? me!.w) === 'winter' ? '겨울' : '여름';
-  return { title: `${seasonLabel(season)} ${kind} 이적시장`, count: rows.length, inLeague: rows.filter((r) => r.into).length, rows };
+  const kind = windowKo(g.league, w?.w ?? me!.w);
+  const others = new Set((g.otherLeagues ?? []).flatMap((o) => o.teams.map((t) => t.id)));
+  return {
+    title: `${seasonLabel(season)} ${kind} 이적시장`, count: rows.length, inLeague: rows.filter((r) => r.into).length, rows,
+    league: leagueData(g.league.id)?.nameKo ?? g.league.name, toOther: (w?.recs ?? []).filter((r) => others.has(r.to)).length,
+  };
 }

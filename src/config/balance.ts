@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 59;
+export const BALANCE_VERSION = 60;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -613,7 +613,14 @@ export const BALANCE = {
     newContract: { min: 1, max: 5 },
     newLoyalty: { keep: 0.5, mean: 30, sd: 10 },
     /** 빈자리 보충 (리그 밖 클럽에서 오는 가상 선수): OVR = min(나간 선수 OVR + N(offset, sd), 팀 레이팅 + overTeam), 나이 min~max */
-    fill: { offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29 },
+    fill: {
+      offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29,
+      /**
+       * 다른 고른 리그의 실제 선수로 보충 (C.75y, 45b: 이적 시장 = 고른 리그 전체): 확률 realShare, 같은 포지션군 · OVR 이 보충 OVR ± realGap · realMaxAge 세 이하,
+       * 지금 팀 레이팅 ≤ 받는 팀 레이팅 + realFromGap (강팀에서 약팀으로 내려오지 않게). 다른 리그를 고르지 않으면 없음 (PL 만 고른 게임은 그대로)
+       */
+      realShare: 0.35, realGap: 3, realMaxAge: 31, realFromGap: 2,
+    },
     /**
      * 내 선수 (18.10): 비시즌 제안 3~5개 = 관심 상위. 관심 = −|유효 OVR − 팀 레이팅 − fitOffset| × fit + 필요도 × 5 + 위상 / repDiv + N(0, noiseSd).
      * 유효 OVR = OVR + (youthAge − 나이) × youthPerYear (어린 선수는 잠재력을 본다). 18.6 의 야망 항 (OVR − 팀 레이팅) × 3 을 팀 입장의 "수준 맞음"으로 뒤집었다
@@ -632,6 +639,11 @@ export const BALANCE = {
       club: { feeMin: 0.8, feeMax: 1.5, base: 0.55, slope: 1.2, top3: 0.3, minP: 0.05 },
       /** 바이아웃 = 계약할 때 몸값(그 계약 연수 기준) × buyoutMul */
       buyoutMul: 1.8,
+      /**
+       * 다른 리그 제안 (C.75y, 45b: 이적 시장 = 고른 리그 전체): 비시즌(여름 창)에만, 고른 다른 리그 중 내 리그와 달력이 같은 리그 팀에서
+       * 관심 상위 [최소, 최대]개를 내 리그 제안에 더한다 (남은 계약 단계별). 받아들이면 다음 시즌부터 그 리그가 내 리그
+       */
+      abroad: { last: [1, 2], one: [0, 1], more: [0, 1] } as Record<'last' | 'one' | 'more', [number, number]>,
     },
     /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
     loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },
@@ -1164,6 +1176,8 @@ export const BALANCE = {
       bundesliga: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
       ligue1: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
     } as Record<'pl' | 'championship' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1', { min: number; max: number; u21Extra: number; nonHomegrownMax: number }>,
+    /** 표에 없는 리그 (C.75y, 45b: 2. 분데스리가·에레디비시·프리메이라·사우디·K리그1·J1·브라질·MLS): 게임 기본 규칙, 비자국 육성 상한 없음 */
+    defaultRule: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 99 },
     /** 21세 이하 = 그 시즌 나이 ≤ u21Age (2018-19 PL 은 1997-01-01 이후 출생) */
     u21Age: 21,
     /** 시즌 시작 생성: 기본 24명(23번 포지션 구성) + 21세 이하 유망주 extraU21 [최소, 최대] → 24~27, 평균 25.5 */

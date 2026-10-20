@@ -1,5 +1,6 @@
 // 도트 선수 아이콘 (부록 C.45, docs/design/pixel-kits.md 6번): 레이어 분리 무손실, 매니페스트 448조합, 없는 조합 대체,
 // 원정·GK 유니폼 충돌 규칙, 같은 id = 같은 인물, 사용자 지정 우선순위·되돌리기, 경기 결과 결정성(보기·아이콘 무관)
+import { LEAGUE_TO_OUTSIDE } from '../data/clubAlias';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -154,7 +155,10 @@ describe('인물 (3번)', () => {
 describe('유니폼 (4번)', () => {
   it('표: PL 20 + 리그 밖 34 구단 id 가 게임 id 와 같고, 대표팀 23, 모두 팩 유니폼', () => {
     const ids = [...initialTeams().map((t) => t.id), ...OUTSIDE_CLUBS.map((c) => c.id)].sort();
-    expect(Object.keys(CLUB_KITS).sort()).toEqual(ids);
+    // C.75y: 같은 클럽의 리그 데이터 id 도 같은 유니폼 (laliga:bar = x:bar)
+    const alias = Object.keys(CLUB_KITS).filter((id) => !ids.includes(id));
+    expect(Object.keys(CLUB_KITS).filter((id) => ids.includes(id)).sort()).toEqual(ids);
+    for (const id of alias) expect(CLUB_KITS[id]).toEqual(CLUB_KITS[LEAGUE_TO_OUTSIDE[id]!]);
     expect(Object.keys(NATION_KITS)).toHaveLength(23);
     for (const k of [...Object.values(CLUB_KITS), ...Object.values(NATION_KITS)]) {
       expect(PIXEL_KITS[k.home]).toBeDefined();

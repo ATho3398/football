@@ -2,6 +2,9 @@
 // youth = 유망주 중용(21세 이하 시작 신뢰도 +), strict = 엄격(내려갈 때 더 크게), steady = 주전 고정(오르내림이 느림), neutral = 실용(기본)
 // 감독 경질·교체는 5-2 이벤트에서 (지금은 시즌이 지나도 그대로)
 
+import { allLeagueData } from './leagues';
+import { OUTSIDE_TO_LEAGUE } from './clubAlias';
+
 export type ManagerStyle = 'youth' | 'strict' | 'steady' | 'neutral';
 
 export interface ManagerData {
@@ -11,7 +14,7 @@ export interface ManagerData {
   stadiumKo: string;
 }
 
-export const MANAGERS: Readonly<Record<string, ManagerData>> = {
+const MANAGERS_BASE: Readonly<Record<string, ManagerData>> = {
   mci: { name: 'Pep Guardiola', nameKo: '펩 과르디올라', style: 'youth', stadiumKo: '에티하드 스타디움' },
   liv: { name: 'Jürgen Klopp', nameKo: '위르겐 클롭', style: 'steady', stadiumKo: '안필드' },
   che: { name: 'Maurizio Sarri', nameKo: '마우리치오 사리', style: 'steady', stadiumKo: '스탬퍼드 브리지' },
@@ -37,6 +40,22 @@ export const MANAGERS: Readonly<Record<string, ManagerData>> = {
 export const MANAGER_STYLE_KO: Readonly<Record<ManagerStyle, string>> = {
   youth: '유망주 중용', strict: '엄격', steady: '주전 고정', neutral: '실용',
 };
+
+/**
+ * 표 + 리그 데이터 팀 감독 (C.75y, 45b): 리그 데이터는 이름·홈구장만 있어 성향은 실용(neutral).
+ * 리그 밖 x: 클럽은 같은 클럽의 리그 데이터 감독
+ */
+export const MANAGERS: Readonly<Record<string, ManagerData>> = (() => {
+  const out: Record<string, ManagerData> = { ...MANAGERS_BASE };
+  for (const d of allLeagueData()) {
+    for (const t of d.teams) {
+      if (out[t.id] || !t.manager) continue;
+      out[t.id] = { name: t.manager, nameKo: t.managerKo ?? t.manager, style: 'neutral', stadiumKo: t.stadiumKo ?? t.stadium ?? '' };
+    }
+  }
+  for (const [x, l] of Object.entries(OUTSIDE_TO_LEAGUE)) if (out[l] && !out[x]) out[x] = out[l]!;
+  return out;
+})();
 
 /** 리그 밖·가상 구단은 데이터가 없어 null (화면은 "감독 정보 없음") */
 export function managerOf(teamId: string): ManagerData | null {

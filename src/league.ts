@@ -5,7 +5,6 @@ import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import { CLUB_BY_ID, OUTSIDE_CLUBS } from '../data/outsideClubs';
 import { allLeagueData, leagueData } from '../data/leagues';
-import { PL } from '../data/leagues/pl';
 
 export interface Team {
   id: string;
@@ -64,9 +63,9 @@ export function clubKo(name: string | undefined): string {
   return OUTSIDE_CLUBS.find((c) => c.name === name)?.nameKo ?? name;
 }
 
-/** 실제 선수 데이터의 club 이름 → 팀 id (내 리그로 시작할 수 있는 PL, 다른 리그 연결은 45b) */
+/** 실제 선수 데이터의 club 이름 → 팀 id (등록된 모든 리그 팀, C.75y). 로스터는 내 리그 팀만 만들므로 다른 리그 선수는 NPC 로만 남는다 */
 export const CLUB_TO_TEAM: Record<string, string> = Object.fromEntries(
-  PL.teams.map((t) => [t.name, t.id]),
+  allLeagueData().flatMap((d) => d.teams.map((t) => [t.name, t.id] as const)),
 );
 
 /** 리그 데이터 (등록 안 된 id 면 오류) */
@@ -176,13 +175,24 @@ export function teamById(league: LeagueState, id: string): Team {
   return { id: o.id, name: o.name, nameKo: o.nameKo, rating: o.rating, baseRating: o.rating };
 }
 
-/** 등록된 모든 리그의 팀 (id 로 찾기) */
-export function leagueTeamById(id: string): { id: string; name: string; nameKo: string; rating: number; league: string } | undefined {
-  for (const d of allLeagueData()) {
-    const t = d.teams.find((x) => x.id === id);
-    if (t) return { id: t.id, name: t.name, nameKo: t.nameKo, rating: t.rating, league: d.id };
+type LeagueTeamRef = { id: string; name: string; nameKo: string; rating: number; league: string };
+let teamIndex: { size: number; map: Map<string, LeagueTeamRef> } | null = null;
+
+/** 등록된 모든 리그의 팀 (id 로 찾기). 등록부가 바뀌면 (테스트의 registerLeague) 다시 만든다 */
+export function leagueTeamById(id: string): LeagueTeamRef | undefined {
+  const all = allLeagueData();
+  const size = all.reduce((t, d) => t + d.teams.length, all.length * 1000);
+  if (!teamIndex || teamIndex.size !== size) {
+    const map = new Map<string, LeagueTeamRef>();
+    for (const d of all) for (const t of d.teams) map.set(t.id, { id: t.id, name: t.name, nameKo: t.nameKo, rating: t.rating, league: d.id });
+    teamIndex = { size, map };
   }
-  return undefined;
+  return teamIndex.map.get(id);
+}
+
+/** 팀 id 의 리그 (등록된 리그 팀이 아니면 undefined, C.75y) */
+export function leagueOfTeam(id: string | undefined): string | undefined {
+  return id ? leagueTeamById(id)?.league : undefined;
 }
 
 /** 포아송 난수 (Knuth) */

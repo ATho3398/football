@@ -2,10 +2,12 @@
 // 원정은 2018-19 원정 유니폼 색 기준, 팩에 없는 색(분홍·회색 등)은 가까운 색으로 바꿨다. 표에 없는 구단은 TEAM_COLORS 주 색에서 자동(src/pixel.ts)
 // 단색: C01 빨강 C02 흰 C03 파랑 C04 하늘 C05 검정 C06 노랑 C07 초록 C08 남색 C09 주황 C10 보라 C11 클라렛
 
+import { OUTSIDE_TO_LEAGUE } from './clubAlias';
+
 export interface KitPair { home: string; away: string }
 
 /** 구단 id → 홈·원정 (PL 20 + 리그 밖 34, 4.1·4.2) */
-export const CLUB_KITS: Readonly<Record<string, KitPair>> = {
+const CLUB_KITS_BASE: Readonly<Record<string, KitPair>> = {
   // PL 2018-19
   mci: { home: 'C04', away: 'C08' },
   liv: { home: 'C01', away: 'C02' },
@@ -65,6 +67,12 @@ export const CLUB_KITS: Readonly<Record<string, KitPair>> = {
 };
 
 /** 국가(BALANCE.appearance.byNationality 이름) → 홈·원정 (2018 월드컵 무렵, 4.3). 대표팀 경기 팀 id 는 `n:<국가>` */
+/** 구단 표 + 같은 클럽의 리그 데이터 id (C.75y, 45b: laliga:bar = x:bar). 표에 없는 리그 팀은 팀 색에서 자동 (src/pixel.ts) */
+export const CLUB_KITS: Readonly<Record<string, KitPair>> = {
+  ...CLUB_KITS_BASE,
+  ...Object.fromEntries(Object.entries(CLUB_KITS_BASE).flatMap(([id, k]) => (OUTSIDE_TO_LEAGUE[id] ? [[OUTSIDE_TO_LEAGUE[id]!, k] as const] : []))),
+};
+
 export const NATION_KITS: Readonly<Record<string, KitPair>> = {
   England: { home: 'C02', away: 'C01' },
   Scotland: { home: 'C08', away: 'C02' },
