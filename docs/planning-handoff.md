@@ -508,3 +508,31 @@
 - (08:54 KST) **C.75w 완료**(main e710fd0, 레전드 191명) → pending 133, UI_3(패널 1 + 235 캡처), ntfy, C.75b draft_. 지금 코드 세션은 C.75c 하나.
 - (08:53 KST) **C.75b CI 성공**(main 422ef05 #222, 05:49 배포). 44b 끝. C.75w #223(e710fd0) 진행 중(C.75w가 확인).
 - (09:38 KST) **C.75w CI 성공**(main e710fd0 run 223). C.75w draft_.
+- (09:45 KST) **C.75c 완료**(main 4aed8b8, 엔진 24) → pending 129, ntfy, UI_3 해당 없음. **C.75d(44c-b) 시작** `session_01LeJxB7wiAd18fXSorLSdHL`, 브랜치 `claude/c75d-defense-b`.
+- (10:16 KST) **C.75d 실패 ④**(배포 안 함) → 엔진관리자3에 Fable fix 처방 + 44d 처방 요청. C.75d draft_.
+- (10:31 KST) **C.75c CI 성공**(main 4aed8b8 #224, 10:20 배포). C.75c draft_. 엔진관리자3 처방(44c-b Fable fix·44d) 대기.
+- (10:47 KST) 엔진관리자3 처방 2건 → **C.75e(Fable fix 44c-b)·C.75f(44d 평점·윙)** 병렬 시작. 엔진관리자3 대기.
+
+### 8.35 S 정리 (2026-10-20 10:50 KST, S 교체 — 대화 46만 토큰, 비용 19.3달러)
+- S 동안 끝낸 것: fix C.74e(PC 선수 사진)·C.74z(레포 사진 정리 185MB↓), **44a C.75a**(결정 순간, 엔진 23), **44b C.75b**(Web Worker, 결과 불변), **C.75x·C.75y·C.75w**(레전드 팩 3판 191명 = 117 + 도르트문트 21 + 53, 미래 스타 팩 13명 — PL 등장 4·리그 추가 후 9, 이전 실제 경력 표), **44c-a C.75c**(수비 압박 1 + 커버 1, 엔진 24). **44c-b C.75d 실패 ④** → Fable fix C.75e 진행 중. UI_3 12차 보고(7~12 통합 프롬프트, 디자인 대기).
+- 사용자 결정(pending 130~133 + 129 끝): 포토카드·유니폼 교환·진열실(도감 번호·정렬 8가지, 타리그 뒤) / 레전드 팩 도르트문트·53명 / 미래 스타 팩 분리·구현 리그 첫 시즌 등장 / 리그 추가 = 5대 + 챔피언십·독일 2부·에레디비시·K리그·J리그·포르투갈·브라질·MLS·사우디 + 새 게임 리그 선택(FM식) / E-4: 평점·XP ×0.9 폐기 → 맡기기 판단 스탯 연동 + 자동 경기 결정 순간 카드 금지 + 카드 강화 + **리셋 카드 즉발** + 결과 불변 엔진 속도 패치.
+- 한도: 05:24~05:50 5시간 한도로 모든 세션 정지(S는 08:44까지). 사용자: 주간 한도 30%만 → 경고 무시, 병렬 유지. 단 Fable·큰 세션을 한꺼번에 여러 개 돌리지 않게.
+- ntfy: 아침에 429가 잦음(3회 재시도 실패 시 다음 확인 때 묶어서 다시).
+
+### 8.36 다음 마스터 세션(T)이 할 일 (S 교체 2026-10-20 10:50 KST)
+- S가 만든 세션 → 깊이 2(한도 8). 제목 `T_축구 커리어 게임 마스터`, 브랜치 `claude/planning-s`에서 `claude/planning-t`(만들어 푸시). 환경 "player ONE"(NTFY_TOPIC 있음).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md`, 이 문서 8.34~8.36, `docs/planning-pending.md` **129~133**.
+- **시작 처리**: ① S(`session_01Pi4aAWoFd5yBP3mZfCURwD`)에 "T 준비 완료 + T ID" ② 실행 중 세션에 "보고는 T, 마스터 브랜치 claude/planning-t": **C.75e** `session_017T9WF4hLi61PnoeaLCaYMv`(Fable fix 44c-b 수비 마크 배정·마커 떼기) / **C.75f** `session_01ChTjmw46HWdDpbXUwW5RuP`(44d 평점·윙 산출) / **엔진관리자3** `session_017LRoCE5KxG6odpy1NX6DiN`(Fable, 대기, 브랜치 claude/engine-manager-3) / UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx`(12차 뒤 쌓기, 작은 1) ③ S 제목 앞 `draft_` ④ S 자동 확인 예약 `trig_01A9rAPHtdf15eXNx98cE1iX`(11:48, S로 감) 삭제 후 T가 새로 60분 ⑤ handoff 8.37에 기록·푸시.
+- **다음 순서**: C.75e·C.75f 보고 처리 → (C.75e가 필요하다고 하면) 44c-c 전환 상황 → **44e~ E-4 묶음**(엔진관리자3에 처방 요청: 미해결 1~7 + pending 129 끝의 E-4 항목들 — 맡기기 판단 스탯 연동·자동 카드 금지·카드 강화·리셋 즉발·하프타임 전술·판단 스탯 생활·지시 카드 신뢰·패스 받는 빈도·레전더리 가드 경계·몰고 가다 슛·결과 불변 속도 패치, 2~3패치로 나눔) → 대표팀 + 타리그(pending 126·132, a/b/c) → 수집 시스템(pending 130). 11·12차 디자인이 오면 U 적용 패치.
+- 공통: 엔진 블록은 E.15 표 개선으로 판정, fix는 문제당 1회(실패면 미해결). 병렬 세션은 파일 영역 나누고 버전 서로 알림. docs 병합은 git merge만. Fable 세션은 동시에 1개까지 권장(5시간 한도).
+
+### 8.37 마스터 세션 T (2026-10-20 10:49 KST~, `session_01KEPYWMJvsVNyeS7vpS8kSs`, 브랜치 `claude/planning-t`)
+- S가 만든 세션 → `lineage` 깊이 2(한도 8). 환경 "player ONE"(env_01STK8eBPczqRtyrxxUJL5DJ). 브랜치 `claude/planning-t`(claude/planning-s cee1b33에서 분기, 푸시).
+- 시작 처리(10:50 KST): ① S에 "T 준비 완료 + T ID"(delivered) ② C.75e·C.75f·엔진관리자3·UI_3에 "보고는 T, 마스터 브랜치 claude/planning-t"(모두 delivered) ③ S 제목 `draft_S_축구 커리어 게임 마스터`(S 최종 20.9달러·48.3만) ④ S 예약 `trig_01A9rAPHtdf15eXNx98cE1iX` 삭제 → T 자동 확인 send_later `trig_01QkJj2Hd3ZdXB556HjhWvFz`(11:50 KST) ⑤ `NTFY_TOPIC` 있음 확인(값은 적지 않음).
+- 한도: 시작 시 5시간 한도 `allowed_warning`(11:00 KST 풀림) — Fable·큰 세션 동시 실행 자제.
+- 다음: C.75e·C.75f 보고 처리 → (필요하면 44c-c) → 44e~ E-4 묶음(엔진관리자3 처방) → 대표팀 + 타리그 → 수집 시스템(pending 129~133).
+- (11:44 KST, 사용자 "사용량 초기화, 다시 진행") 확인: **C.75f**는 10:58 무렵 5시간 한도로 실패(진행 13.4만 토큰) → 재개 메시지(delivered). **C.75e**(Fable)는 한도 안 걸리고 진행 중(측정 ② 좌우 흔들기). 엔진관리자3 대기.
+- (11:50 KST) 자동 확인: C.75e(측정 ②, 테스트 5개 통과)·C.75f(재개됨) 둘 다 진행 중 → 재예약 `trig_01MeEHR5AWtErbJXXHYGFdLq`(12:51 KST).
+- (12:14 KST) **C.75e 실패 ④**(배포 없음, main 엔진 24 그대로, 9.2달러) → pending 129, ntfy(200), C.75e draft_. 엔진관리자3에 ① 44c-b 미해결 8번 기록 ② 44c-c 판단(엔진 24 위 진행 / E-4에 합침) ③ E-4 묶음 처방 준비 요청. C.75f 진행 중(엔진 25 그대로 써도 됨 — C.75e가 C.75f에 알림).
+- (12:16 KST) 엔진관리자3: 미해결 8번 기록·재진단 2(claude/engine-manager-3 ff1378d). 44c-c는 배정 무관 부분(B 지연·협공, C, F 크로스·컷백, D 트랩)만 Opus a 크기로 가능, 추천 = **E-4 처방 먼저**(44c-b 재시도 전제인 수신 지점 모델이 미해결 1·5와 같은 축). → T: E-4 묶음 처방 시작 요청(44e·f·g, 엔진 무수정 패치 분리), 44c-c 지시서는 그 뒤. 엔진관리자3 약 32만 토큰(40만 교체).
+- (12:22 KST) 엔진관리자3 교체 요청(실제 48만 토큰) → **엔진관리자4 시작** `session_01HQqZPY5MdCnWXnbCJWgvBr`(Fable, 브랜치 `claude/engine-manager-4` ← engine-manager-3 ff1378d 병합), 첫 할 일 E-4 묶음 처방(44e·f·g) + 44c-c 지시서. 엔진관리자3 draft_. C.75f에 엔진관리자4·엔진 25 알림.
