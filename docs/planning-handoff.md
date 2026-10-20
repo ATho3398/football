@@ -556,3 +556,23 @@
   - **UI_4 시작** `session_01Bq32ybFe4fsU2k9npEFUvE`(브랜치 `claude/ui-4` ← ui-3), UI_3 draft_(깨우지 않음).
   - 대표팀 + 타리그 기획 준비: 코드 구조 조사(서브에이전트) 중.
 - (14:45 KST) 코드 지도 받음 → pending 134 45단계 병렬 계획 초안(45a 뼈대 + 45d1~d6 리그 데이터 6개 동시 → 45b 배선·45c 대표팀). 사용자 확인(타리그 방식·수집 시기·고속 모드) 대기.
+- (14:42 KST) **C.75i 완료**(main 68bd76d, 밸런스 57, 테스트 778, 새 화면 0 → UI_4 알림 안 함) → pending 129, ntfy. draft_는 CI 확인 뒤. 지금 코드 세션: C.75k·l.
+- (14:44 KST, 사용자 "ㄱㄱㄱ" = pending 134 계획·타리그 방식·수집 지금 병렬 승인) **45단계·46단계 시작**(기획서 17.2 표에 45·46 행 추가). 지시문은 `docs/session-prompts/C.75n~t.md`(세션 첫 지시는 "그 파일을 git show로 읽고 따르라" 한 줄 — 마스터 출력 토큰 절약).
+  - **C.75m** 45a 다중 리그 뼈대·리그 고르기 `session_011Lqx2KurgJmu2j1ogubiaP` (`claude/c75m-multi-league`)
+  - **C.75n** 45d1 라리가·세리에 A `session_01SGf8WjEsTDNABUUknf3sGi` / **C.75o** 45d2 분데스리가·리그 1 `session_01W1bgdjhrLQFYDVCpHBU2C3` / **C.75p** 45d3 챔피언십·독일 2부·에레디비시 `session_01HvFjnzc2woyrLazt7mFeNM` / **C.75q** 45d4 K리그1·J리그1 `session_01CXtepXfT4vvqbmiXGnPSqm` / **C.75r** 45d5 포르투갈·브라질 `session_015rrQpSe8DpafReVVXYjLGK` / **C.75s** 45d6 MLS·사우디 `session_0127jMJ4X34YbE7dHWX8uV8M` (데이터 파일만, 공통 형식 `data/leagues/types.ts`, 팀 id `<leagueId>:<3글자>`)
+  - **C.75t** 46a 포토카드 도감 `session_013Ru9rqwCG2XDV5mMsFVTTv` (`claude/c75t-photocards`)
+  - 지금 코드 세션 10개: C.75k·l(44) + m·n·o·p·q·r·s(45) + t(46). 엔진관리자5·UI_4 대기.
+  - 다음: C.75l 끝 → 44f-b(엔진관리자5 확인 뒤), 45a + 데이터 끝 → 45b 연결·45c 대표팀, 46a 끝 → 46b.
+
+### 8.38 T 정리 (2026-10-20 14:45 KST, T 교체 — 대화 약 33만 토큰, 새 기준 35만)
+- T 동안: C.75e(44c-b Fable fix)·C.75g(44c-c)·C.75j(44e Fable) **실패**(배포 없음, 미해결 8·10·11 — 득점을 올리면 엘리트 ST에 몰리는 '득점 분포 축', 처방은 44h 판단 구조 블록) / C.75f(44d, 엔진 25)·C.75h(44g-a1, 엔진 26·밸런스 56, 미해결 7 종결)·C.75i(44g-a2, 밸런스 57) **배포**. 엔진관리자3→4→5, UI_3→UI_4 교체.
+- **사용자 결정(14:33)**: Max 20 업그레이드 → Opus 세션 최대 병렬·고속 모드, 엔진 밸런스는 Fable 제한 없이, 토큰 낭비 점검. 고속 모드 settings.json 수정은 권한 거부 → 사용자가 직접 켜야 함(답 대기). 낭비 규칙은 automation.md 0·7번(교체 기준 마스터 35만·엔진관리자 25만·UI 25만, 코드 세션은 완료·실패·질문만, UI는 새 화면 있는 단계만·답장 없음).
+- (14:44) 45·46단계 시작(8.37 끝 줄 참고, pending 134). 세션 지시문은 `docs/session-prompts/`에 쓰고 첫 지시는 한 줄로.
+
+### 8.39 다음 마스터 세션(U)이 할 일
+- T가 만든 세션 → 깊이 3. 제목 `U_축구 커리어 게임 마스터`, 브랜치 `claude/planning-u`(planning-t 최신에서, 만들어 푸시). 환경 "player ONE"(NTFY_TOPIC 있음).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md`(0·7번 새 규칙), 이 문서 8.37~8.39, `docs/planning-pending.md` 129 끝부분·130·132·134.
+- **시작 처리**: ① T(`session_01KEPYWMJvsVNyeS7vpS8kSs`)에 "U 준비 완료 + U ID" ② 실행 중 세션에 "보고는 U(ID), 마스터 브랜치 claude/planning-u" 한 줄씩: C.75k `session_015sW3mNaRnwnG2wJxMjWRb5`(44g-b) / C.75l `session_01QZ5ZDUYieygE9hrzXVGtHg`(44f-a) / C.75m `session_011Lqx2KurgJmu2j1ogubiaP`(45a) / C.75n `session_01SGf8WjEsTDNABUUknf3sGi` / C.75o `session_01W1bgdjhrLQFYDVCpHBU2C3` / C.75p `session_01HvFjnzc2woyrLazt7mFeNM` / C.75q `session_01CXtepXfT4vvqbmiXGnPSqm` / C.75r `session_015rrQpSe8DpafReVVXYjLGK` / C.75s `session_0127jMJ4X34YbE7dHWX8uV8M` / C.75t `session_013Ru9rqwCG2XDV5mMsFVTTv` / 엔진관리자5 `session_01Gg4RyE2G4dDfJ5gkNHsFr7` / UI_4 `session_01Bq32ybFe4fsU2k9npEFUvE` ③ T 제목 앞 `draft_` ④ 자동 확인 send_later 60분(T의 예약은 T가 지움) ⑤ handoff 8.40에 기록·푸시.
+- **draft_ 남은 것**: C.75h `session_01Q7veoWWQz8YSxsrNcKmdzD`·C.75i `session_01EhaBezSqipxFKqVoMhpqYg` — main CI(68bd76d 포함 실행) 성공 확인 뒤 draft_(코드 세션은 이제 CI 성공을 보내지 않음, `actions_list`로 확인).
+- **다음 순서**: C.75l 완료 → 엔진관리자5에 44f-b 처방(§3.3) 확인 → 44f-b(Opus) / 45a·데이터 6개 완료 → 45b 연결·통합(이적 시장 = 고른 리그, 미래 스타·레전드 등장 리그 기준, `outsideClubs` x: id ↔ 새 팀 id 정리, 도감 번호 이어 붙이기) + 45c 대표팀(18.12, `src/national.ts`) 병렬 / 46a 완료 → 46b 유니폼 교환·진열실 / 11·12차 디자인 오면 U 적용 패치 / 그 뒤 44h 판단 구조 블록(미해결 8·11), P단계, 6단계 패키징.
+- 고속 모드: 사용자가 켰는지 확인(새 세션 `get_session` → flag_settings), 안 켰으면 다시 한 번 알림.
