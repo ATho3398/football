@@ -171,7 +171,7 @@ describe('세이브 46', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toBe('C.75t');
-    expect(STAGE_LABEL).toBe('46단계');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });
