@@ -117,7 +117,7 @@ function startOptions(vm: NewGameVM, nameField: boolean): string {
   const cur = vm.difficulties.find((d) => d.id === vm.difficulty);
   const diff = `${Tabs({ items: vm.difficulties.map((d) => ({ id: d.id, label: d.id === 'normal' ? `${d.label} · 추천` : d.label })), value: vm.difficulty, variant: 'segment', fill: true, act: 'form', data: { k: 'difficulty' }, label: '난이도' })}
     ${cur ? `<p class="small muted ng-diff">${esc(cur.desc)}</p>` : ''}`;
-  const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명</b><small>${vm.legends ? `켜면 실제 선수에 레전드 탭이 생기고, 펠레·지단·박지성 같은 레전드(도르트문트 레전드 ${LEGEND_BVB}명 포함)가 15~22세 유망주로 유스 구단에 들어와요. 끄면 세계는 그대로예요.` : '켜면 2020년까지 은퇴한 레전드(+ 도르트문트 레전드)가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</small></span>${
+  const pack = `<div class="ng-pack"><span class="grow"><b>레전드 팩 · 은퇴 레전드 ${LEGEND_TOTAL}명</b><small>${vm.legends ? `켜면 실제 선수에 레전드 탭이 생기고, 펠레·지단·박지성 같은 레전드(도르트문트 레전드 ${LEGEND_BVB}명 포함)가 15~22세 유망주로 유스 구단에 들어와요. 한 팀에 ${BALANCE.legends.maxPerTeam}명이 넘으면 리그 밖에서 시작해 다음 시즌부터 이적으로 들어와요. 끄면 세계는 그대로예요.` : '켜면 1990년 이후 은퇴한 레전드(+ 도르트문트 레전드)가 2018-19 세계에 15~22세로 들어와요. 끄면 세계는 그대로예요.'}</small></span>${
     Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.legends ? 'on' : 'off', act: 'form', data: { k: 'legends' }, label: '레전드 팩' })}</div>
     <div class="ng-pack"><span class="grow"><b>미래 스타 팩 · ${FUTURE_TOTAL}명</b><small>켜면 야말·벨링엄·홀란 같은 2018-19 뒤 스타가 게임 리그에서 처음 뛴 실제 시즌에 그 팀으로, 그때 나이로 나타나요. 지금 리그(PL)에서 뛴 적 없는 선수는 리그가 추가되면 나와요. 끄면 세계는 그대로예요.</small></span>${
     Tabs({ items: [{ id: 'off', label: '끔' }, { id: 'on', label: '켬' }], value: vm.futureStars ? 'on' : 'off', act: 'form', data: { k: 'futureStars' }, label: '미래 스타 팩' })}</div>`;
@@ -359,6 +359,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     <div class="star-list">${legShown.map(legRow).join('')}</div>
     ${vm.legends.length > LEGEND_PAGE ? moreButton('legends', !!more.legends, `레전드 ${vm.legends.length - LEGEND_PAGE}명 더 보기`) : ''}` : ''}
     ${group === 'league' && (vm.upcoming.length || vm.waiting) ? `<p class="small muted wl-upcoming"><b>미래 스타 등장 예정</b>${vm.upcoming.map((u) => ` · ${esc(u.name)} ${u.debut}`).join('')}${vm.waiting ? ` · 리그 추가 후 ${vm.waiting}명` : ''}</p>` : ''}
+    ${group === 'league' && vm.abroad.length ? `<p class="small muted wl-upcoming"><b>리그 밖 레전드 · 이적 유입 예정</b>${vm.abroad.map((u) => ` · ${esc(u.name)}(${esc(u.club)}) ${u.season}`).join('')}</p>` : ''}
     ${vm.retired.length ? `<p class="small muted">은퇴: ${vm.retired.map(esc).join(', ')}</p>` : ''}`;
   return `${hero}<div class="body">${tabs}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? scorers : tab === 'transfers' ? transfers : stars}</div>`;
 }

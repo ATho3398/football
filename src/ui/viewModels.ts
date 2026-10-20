@@ -44,7 +44,7 @@ import {
 import { INJURY_NAMES_KO } from '../injury';
 import { shownTracks } from '../records';
 import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
-import { FUTURE_STARS, futureDebut, futureEntry, LEGEND_BY_ID, legendClub, legendPeak, legendRosterPlayer, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../legends';
+import { abroadLegends, FUTURE_STARS, futureDebut, futureEntry, LEGEND_BY_ID, legendClub, legendPeak, legendPlacement, legendRosterPlayer, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../legends';
 import { OUTSIDE_BY_ID } from '../../data/outsideClubs';
 import { findRosterPlayer, naturalOvr } from '../roster';
 import { MY_ID } from '../engine/adapter';
@@ -1238,6 +1238,8 @@ export interface WorldVM {
   /** 미래 스타 등장 예정 (C.75y): 구현 리그 첫 시즌 순 · 리그가 없어 기다리는 수 */
   upcoming: { name: string; debut: string }[];
   waiting: number;
+  /** 레전드 팩 3판 (C.75w): 팀당 상한을 넘쳐 리그 밖에서 기다리는 레전드 (들어오는 시즌 순) */
+  abroad: { name: string; club: string; season: string }[];
   retired: string[];
   /** 득점 순위 (부록 C.38): 모든 경기의 선수 기록 합계에서 */
   scorers: ScorerVM[];
@@ -1312,6 +1314,9 @@ export function worldVM(g: GameState): WorldVM {
     }))).sort((a, b) => b.ovr - a.ovr || b.peak - a.peak),
     upcoming: g.futureStars ? upcomingFutureStars(g.league.season).map((l) => ({ name: l.nameKo, debut: seasonLabel(futureDebut(l)!) })) : [],
     waiting: g.futureStars ? waitingFutureStars().length : 0,
+    abroad: g.legends && (g.legendPack ?? 1) >= 3
+      ? abroadLegends(g.worldSeed, g.league.season, g.player.legendId).map((a) => ({ name: a.legend.nameKo, club: OUTSIDE_BY_ID[a.club]?.nameKo ?? a.club, season: seasonLabel(a.season) }))
+      : [],
     scorers: boardVM(g, 'goals', undefined, faces),
     boards: { goals: boardVM(g, 'goals', undefined, faces), assists: boardVM(g, 'assists', undefined, faces), rating: boardVM(g, 'rating', undefined, faces) },
     ratingMin: ratingMinApps(g),
@@ -1582,10 +1587,13 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   }).sort((a, b) => b.ovr - a.ovr);
   const legendsOn = f.legends === 'on';
   const teams = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
+  // 3판 (C.75w): 다른 레전드의 소속은 팀당 상한 배치. 넘친 선수는 "리그 밖 구단 (이적 시즌)". 내 선수로 고르면 그 선수는 원래 규칙(legendClub) 팀으로 간다
+  const placed = legendsOn && f.mode === 'real' ? legendPlacement(seedForPreview, teams) : undefined;
   const legendList = legendsOn && f.mode === 'real' ? selectableLegends().map((l) => {
     const p = legendRosterPlayer(l, seedForPreview, BALANCE.newGame.startYear);
-    const club = teams.find((t) => t.id === legendClub(l, seedForPreview, teams))?.id ?? '';
-    return { id: l.id, name: l.nameKo, club: initialTeams().find((t) => t.id === club)?.nameKo ?? club, age: p.age, position: l.position, ovr: naturalOvr(p), peak: legendPeak(l).ovr, youthKo: l.youthKo, ...(l.group === 'bvb' ? { bvb: true } : {}) };
+    const club = teams.find((t) => t.id === (placed?.spawns.find((x) => x.legend.id === l.id)?.teamId ?? legendClub(l, seedForPreview, teams)))?.id ?? '';
+    const away = placed?.abroad.find((x) => x.legend.id === l.id);
+    return { id: l.id, name: l.nameKo, club: away ? `${OUTSIDE_BY_ID[away.club]?.nameKo ?? away.club} (${seasonLabel(away.season)} 이적)` : initialTeams().find((t) => t.id === club)?.nameKo ?? club, age: p.age, position: l.position, ovr: naturalOvr(p), peak: legendPeak(l).ovr, youthKo: l.youthKo, ...(l.group === 'bvb' ? { bvb: true } : {}) };
   }).sort((a, b) => b.peak - a.peak || a.name.localeCompare(b.name)) : [];
   // 미래 스타 (C.75y): 구현 리그 첫 시즌 순, 그 리그가 없으면 "리그 추가 후 등장"
   const futureOn = f.futureStars === 'on';

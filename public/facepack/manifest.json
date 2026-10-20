@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-19T18:17:05.902Z",
+  "generated": "2026-10-19T20:17:08.291Z",
   "players": {
     "messi": {
       "file": "players/messi.png",
@@ -1105,6 +1105,324 @@
       "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Erling_Haaland_Morocco_v_Norway_7_June_2026-51.jpg/330px-Erling_Haaland_Morocco_v_Norway_7_June_2026-51.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
       "page": "https://en.wikipedia.org/wiki/Erling_Haaland",
       "title": "Erling Haaland"
+    },
+    "lg-buffon": {
+      "file": "players/lg-buffon.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d7/Norway_Italy_-_June_2025_A_44_%28Gianluigi_Buffon%29.jpg/330px-Norway_Italy_-_June_2025_A_44_%28Gianluigi_Buffon%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gianluigi_Buffon",
+      "title": "Gianluigi Buffon"
+    },
+    "lg-valdes": {
+      "file": "players/lg-valdes.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/V%C3%ADctor_Vald%C3%A9s_%282010%29.jpg/330px-V%C3%ADctor_Vald%C3%A9s_%282010%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/V%C3%ADctor_Vald%C3%A9s",
+      "title": "Víctor Valdés"
+    },
+    "lg-dida": {
+      "file": "players/lg-dida.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Dida-wikipedia_%28cropped_2%29.png/330px-Dida-wikipedia_%28cropped_2%29.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Dida_(footballer%2C_born_1973)",
+      "title": "Dida (footballer, born 1973)"
+    },
+    "lg-campos": {
+      "file": "players/lg-campos.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Jorge_Campos_in_2016.jpg/330px-Jorge_Campos_in_2016.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jorge_Campos",
+      "title": "Jorge Campos"
+    },
+    "lg-leewoonjae": {
+      "file": "players/lg-leewoonjae.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/f/f9/Lee_Woon-Jae.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Lee_Woon-jae",
+      "title": "Lee Woon-jae"
+    },
+    "lg-carragher": {
+      "file": "players/lg-carragher.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Football_against_poverty_2014_-_Jamie_Carragher_%28cropped%29.jpg/330px-Football_against_poverty_2014_-_Jamie_Carragher_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Jamie_Carragher",
+      "title": "Jamie Carragher"
+    },
+    "lg-lucio": {
+      "file": "players/lg-lucio.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Lucio_2019_%28cropped%29.jpg/330px-Lucio_2019_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/L%C3%BAcio",
+      "title": "Lúcio"
+    },
+    "lg-pique": {
+      "file": "players/lg-pique.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Gerard_Piqu%C3%A9_Euro_2012_vs_France_01.jpg/330px-Gerard_Piqu%C3%A9_Euro_2012_vs_France_01.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gerard_Piqu%C3%A9",
+      "title": "Gerard Piqué"
+    },
+    "lg-pepe": {
+      "file": "players/lg-pepe.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Pepe_2018.jpg/330px-Pepe_2018.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Pepe_(footballer%2C_born_February_1983)",
+      "title": "Pepe (footballer, born February 1983)"
+    },
+    "lg-chiellini": {
+      "file": "players/lg-chiellini.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Chiellini_Mancini_Gravina_Mattarella_2021_%28Giorgio_Chiellini%29.jpg/330px-Chiellini_Mancini_Gravina_Mattarella_2021_%28Giorgio_Chiellini%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Giorgio_Chiellini",
+      "title": "Giorgio Chiellini"
+    },
+    "lg-rcarvalho": {
+      "file": "players/lg-rcarvalho.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/7/74/Ricardo_Carvalho.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Ricardo_Carvalho",
+      "title": "Ricardo Carvalho"
+    },
+    "lg-campbell": {
+      "file": "players/lg-campbell.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Sol_Campbell_%2854921202604%29_%28cropped%29.jpg/330px-Sol_Campbell_%2854921202604%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Sol_Campbell",
+      "title": "Sol Campbell"
+    },
+    "lg-bonucci": {
+      "file": "players/lg-bonucci.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/20150616_-_Portugal_-_Italie_-_Gen%C3%A8ve_-_Leonardo_Bonucci_%28cropped_2%29.jpg/330px-20150616_-_Portugal_-_Italie_-_Gen%C3%A8ve_-_Leonardo_Bonucci_%28cropped_2%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Leonardo_Bonucci",
+      "title": "Leonardo Bonucci"
+    },
+    "lg-kompany": {
+      "file": "players/lg-kompany.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Vincent_Kompany_Bayern_Munich_%28cropped%29.jpg/330px-Vincent_Kompany_Bayern_Munich_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Vincent_Kompany",
+      "title": "Vincent Kompany"
+    },
+    "lg-evra": {
+      "file": "players/lg-evra.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Patrice_Evra_%2852472689279%29_%28cropped%29.jpg/330px-Patrice_Evra_%2852472689279%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Patrice_Evra",
+      "title": "Patrice Evra"
+    },
+    "lg-zambrotta": {
+      "file": "players/lg-zambrotta.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Gianluca_Zambrotta_2019_%28cropped%29.jpg/330px-Gianluca_Zambrotta_2019_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gianluca_Zambrotta",
+      "title": "Gianluca Zambrotta"
+    },
+    "lg-marcelo": {
+      "file": "players/lg-marcelo.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Marcelo_Vieira_in_2022.jpg/330px-Marcelo_Vieira_in_2022.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Marcelo_(footballer%2C_born_1988)",
+      "title": "Marcelo (footballer, born 1988)"
+    },
+    "lg-deschamps": {
+      "file": "players/lg-deschamps.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Didier_Deschamps_France_v_Senegal_16_June_2026-294.jpg/330px-Didier_Deschamps_France_v_Senegal_16_June_2026-294.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Didier_Deschamps",
+      "title": "Didier Deschamps"
+    },
+    "lg-petit": {
+      "file": "players/lg-petit.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Emmanuel_Petit.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Emmanuel_Petit",
+      "title": "Emmanuel Petit"
+    },
+    "lg-gilberto": {
+      "file": "players/lg-gilberto.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/2021_-_Press_conferences_SM7_0168_%2851649502936%29_%28cropped%29.jpg/330px-2021_-_Press_conferences_SM7_0168_%2851649502936%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gilberto_Silva",
+      "title": "Gilberto Silva"
+    },
+    "lg-hargreaves": {
+      "file": "players/lg-hargreaves.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/O_Hargreaves.jpg/330px-O_Hargreaves.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Owen_Hargreaves",
+      "title": "Owen Hargreaves"
+    },
+    "lg-dunga": {
+      "file": "players/lg-dunga.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/66/Aecio_Neves_e_Dunga_-_17-06-2008_%288368243127%29_%28cropped%29.jpg/330px-Aecio_Neves_e_Dunga_-_17-06-2008_%288368243127%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Dunga",
+      "title": "Dunga"
+    },
+    "lg-iniesta": {
+      "file": "players/lg-iniesta.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Andr%C3%A9s_Iniesta_Argentina_v_Spain_19_July_2026-034_%28cropped%29.jpg/330px-Andr%C3%A9s_Iniesta_Argentina_v_Spain_19_July_2026-034_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Andr%C3%A9s_Iniesta",
+      "title": "Andrés Iniesta"
+    },
+    "lg-seedorf": {
+      "file": "players/lg-seedorf.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Clarence_Seedorf_Introductory_Press_Conferences%2C_2_June_2025_-_40_%28cropped%29.jpg/330px-Clarence_Seedorf_Introductory_Press_Conferences%2C_2_June_2025_-_40_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Clarence_Seedorf",
+      "title": "Clarence Seedorf"
+    },
+    "lg-derossi": {
+      "file": "players/lg-derossi.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Daniele_De_Rossi_BGR-ITA_2012.jpg/330px-Daniele_De_Rossi_BGR-ITA_2012.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Daniele_De_Rossi",
+      "title": "Daniele De Rossi"
+    },
+    "lg-marchisio": {
+      "file": "players/lg-marchisio.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/FC_Zenit_Saint_Petersburg_vs._Juventus%2C_20_October_2021_32_-_Claudio_Marchisio_%28cropped%29.jpg/330px-FC_Zenit_Saint_Petersburg_vs._Juventus%2C_20_October_2021_32_-_Claudio_Marchisio_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Claudio_Marchisio",
+      "title": "Claudio Marchisio"
+    },
+    "lg-fabregas": {
+      "file": "players/lg-fabregas.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/2023_-_Cesc_Fabregas_%28cropped%29.jpg/330px-2023_-_Cesc_Fabregas_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Cesc_F%C3%A0bregas",
+      "title": "Cesc Fàbregas"
+    },
+    "lg-dsilva": {
+      "file": "players/lg-dsilva.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a6/David_Silva_2017.jpg/330px-David_Silva_2017.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/David_Silva",
+      "title": "David Silva"
+    },
+    "lg-ozil": {
+      "file": "players/lg-ozil.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Mesut_%C3%96zil_at_Baku_before_2019_UEFA_Europe_League_Final.jpg/330px-Mesut_%C3%96zil_at_Baku_before_2019_UEFA_Europe_League_Final.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Mesut_%C3%96zil",
+      "title": "Mesut Özil"
+    },
+    "lg-zola": {
+      "file": "players/lg-zola.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Zola_2018_%28cropped%29.jpg/330px-Zola_2018_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gianfranco_Zola",
+      "title": "Gianfranco Zola"
+    },
+    "lg-valderrama": {
+      "file": "players/lg-valderrama.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Pibe_Valderrama_2022.jpg/330px-Pibe_Valderrama_2022.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Carlos_Valderrama",
+      "title": "Carlos Valderrama"
+    },
+    "lg-nakata": {
+      "file": "players/lg-nakata.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Hidetoshi_Nakata_in_Okinawa.jpg/330px-Hidetoshi_Nakata_in_Okinawa.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Hidetoshi_Nakata",
+      "title": "Hidetoshi Nakata"
+    },
+    "lg-guti": {
+      "file": "players/lg-guti.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/JM_Guti.jpg/330px-JM_Guti.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Guti",
+      "title": "Guti"
+    },
+    "lg-gullit": {
+      "file": "players/lg-gullit.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/25th_Laureus_World_Sports_Awards_-_Ruud_Gullit_-_240422_131911_%28cropped%29.jpg/330px-25th_Laureus_World_Sports_Awards_-_Ruud_Gullit_-_240422_131911_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Ruud_Gullit",
+      "title": "Ruud Gullit"
+    },
+    "lg-ribery": {
+      "file": "players/lg-ribery.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Franck_Ribery_2019_%28cropped%29.jpg/330px-Franck_Ribery_2019_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Franck_Rib%C3%A9ry",
+      "title": "Franck Ribéry"
+    },
+    "lg-robben": {
+      "file": "players/lg-robben.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/2019147183036_2019-05-27_Fussball_1.FC_Kaiserslautern_vs_FC_Bayern_M%C3%BCnchen_-_Sven_-_1D_X_MK_II_-_0196_-_B70I8495_%28cropped%29.jpg/330px-2019147183036_2019-05-27_Fussball_1.FC_Kaiserslautern_vs_FC_Bayern_M%C3%BCnchen_-_Sven_-_1D_X_MK_II_-_0196_-_B70I8495_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Arjen_Robben",
+      "title": "Arjen Robben"
+    },
+    "lg-bale": {
+      "file": "players/lg-bale.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2832%29_%28cropped%29.jpg/330px-2022_FIFA_World_Cup_United_States_1%E2%80%931_Wales_-_%2832%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Gareth_Bale",
+      "title": "Gareth Bale"
+    },
+    "lg-inzaghi": {
+      "file": "players/lg-inzaghi.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Filippo_Inzaghi_2011.jpg/330px-Filippo_Inzaghi_2011.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Filippo_Inzaghi",
+      "title": "Filippo Inzaghi"
+    },
+    "lg-vieri": {
+      "file": "players/lg-vieri.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/Christian_Vieri_%28cropped%29.jpg/330px-Christian_Vieri_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Christian_Vieri",
+      "title": "Christian Vieri"
+    },
+    "lg-crespo": {
+      "file": "players/lg-crespo.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Chelsea_Legends_1_Inter_Forever_4_%2827457022797%29.jpg/330px-Chelsea_Legends_1_Inter_Forever_4_%2827457022797%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Hern%C3%A1n_Crespo",
+      "title": "Hernán Crespo"
+    },
+    "lg-kluivert": {
+      "file": "players/lg-kluivert.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Patrick_Kluivert_at_Web_Summit_2024_%28cropped_2%29.jpg/330px-Patrick_Kluivert_at_Web_Summit_2024_%28cropped_2%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Patrick_Kluivert",
+      "title": "Patrick Kluivert"
+    },
+    "lg-suker": {
+      "file": "players/lg-suker.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Football_against_poverty_2014_-_Davor_%C5%A0uker_%28cropped%29.jpg/330px-Football_against_poverty_2014_-_Davor_%C5%A0uker_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Davor_%C5%A0uker",
+      "title": "Davor Šuker"
+    },
+    "lg-rush": {
+      "file": "players/lg-rush.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/6/67/Ian_Rush_in_Singapore.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Ian_Rush",
+      "title": "Ian Rush"
+    },
+    "lg-ahnjunghwan": {
+      "file": "players/lg-ahnjunghwan.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/Ahn_Jung-hwan_in_November_2021.png/330px-Ahn_Jung-hwan_in_November_2021.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Ahn_Jung-hwan",
+      "title": "Ahn Jung-hwan"
+    },
+    "lg-rooney": {
+      "file": "players/lg-rooney.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Wayne_Rooney_%2850121495731%29_%28cropped%29.jpg/330px-Wayne_Rooney_%2850121495731%29_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Wayne_Rooney",
+      "title": "Wayne Rooney"
+    },
+    "lg-zlatan": {
+      "file": "players/lg-zlatan.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Zlatan_Ibrahimovi%C4%87_nyc.jpg/330px-Zlatan_Ibrahimovi%C4%87_nyc.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Zlatan_Ibrahimovi%C4%87",
+      "title": "Zlatan Ibrahimović"
+    },
+    "lg-fowler": {
+      "file": "players/lg-fowler.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/6/64/Fowler%2C_Robbie.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+      "page": "https://en.wikipedia.org/wiki/Robbie_Fowler",
+      "title": "Robbie Fowler"
+    },
+    "lg-andycole": {
+      "file": "players/lg-andycole.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Andy_Cole_in_2014.jpg/330px-Andy_Cole_in_2014.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Andy_Cole",
+      "title": "Andy Cole"
+    },
+    "lg-iwright": {
+      "file": "players/lg-iwright.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Ian_Wright_at_SXSW_London_June_2025_%28cropped%29.jpg/330px-Ian_Wright_at_SXSW_London_June_2025_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Ian_Wright",
+      "title": "Ian Wright"
+    },
+    "lg-crouch": {
+      "file": "players/lg-crouch.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Chelsea_3_Stoke_0_%2813677350585%29_-_Peter_Crouch_%28cropped%29.jpg/330px-Chelsea_3_Stoke_0_%2813677350585%29_-_Peter_Crouch_%28cropped%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Peter_Crouch",
+      "title": "Peter Crouch"
+    },
+    "lg-berbatov": {
+      "file": "players/lg-berbatov.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Dimitar_Berbatov_-_53689576017.jpg/330px-Dimitar_Berbatov_-_53689576017.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Dimitar_Berbatov",
+      "title": "Dimitar Berbatov"
+    },
+    "lg-bierhoff": {
+      "file": "players/lg-bierhoff.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/2018-11-30_DFB_presentation_of_the_new_head_coach_of_the_National_Womens_Team_StP_6868_LR10_by_Stepro.jpg/330px-2018-11-30_DFB_presentation_of_the_new_head_coach_of_the_National_Womens_Team_StP_6868_LR10_by_Stepro.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/Oliver_Bierhoff",
+      "title": "Oliver Bierhoff"
+    },
+    "lg-juliocesar": {
+      "file": "players/lg-juliocesar.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/J%C3%BAlio_C%C3%A9sar_FC_Internazionale.jpg/330px-J%C3%BAlio_C%C3%A9sar_FC_Internazionale.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "page": "https://en.wikipedia.org/wiki/J%C3%BAlio_C%C3%A9sar_(football_goalkeeper%2C_born_1979)",
+      "title": "Júlio César (football goalkeeper, born 1979)"
     }
   },
   "clubs": {

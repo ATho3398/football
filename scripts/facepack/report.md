@@ -1,13 +1,13 @@
 # 페이스팩 수집 보고
 
-생성: 2026-10-19T18:17:05.902Z · 출처: 위키백과 REST 요약 API · 이미지 128×128 WebP
+생성: 2026-10-19T20:17:08.291Z · 출처: 위키백과 REST 요약 API · 이미지 128×128 WebP
 
 ## 요약
 
-- 선수 184/34
+- 선수 237/34
 - 구단 20/20
 - 의심: lg-dede (대체 후보로 찾음 (Dedê))
-- public/facepack 전체 5,150,053 바이트
+- public/facepack 전체 6,558,558 바이트
 
 ## 선수
 
@@ -185,6 +185,59 @@
 | lg-chapuisat | Stéphane Chapuisat | 찾음 | Stéphane Chapuisat |  |
 | lg-jkoller | Jan Koller | 찾음 | Jan Koller |  |
 | lg-barrios | Lucas Barrios | 찾음 | Lucas Barrios |  |
+| lg-buffon | Gianluigi Buffon | 찾음 | Gianluigi Buffon |  |
+| lg-valdes | Víctor Valdés | 찾음 | Víctor Valdés |  |
+| lg-juliocesar | Júlio César | 찾음 | Júlio César (football goalkeeper, born 1979) |  |
+| lg-dida | Dida | 찾음 | Dida (footballer, born 1973) |  |
+| lg-campos | Jorge Campos | 찾음 | Jorge Campos |  |
+| lg-leewoonjae | Lee Woon-jae | 찾음 | Lee Woon-jae |  |
+| lg-carragher | Jamie Carragher | 찾음 | Jamie Carragher |  |
+| lg-lucio | Lúcio | 찾음 | Lúcio |  |
+| lg-pique | Gerard Piqué | 찾음 | Gerard Piqué |  |
+| lg-pepe | Pepe | 찾음 | Pepe (footballer, born February 1983) |  |
+| lg-chiellini | Giorgio Chiellini | 찾음 | Giorgio Chiellini |  |
+| lg-rcarvalho | Ricardo Carvalho | 찾음 | Ricardo Carvalho |  |
+| lg-campbell | Sol Campbell | 찾음 | Sol Campbell |  |
+| lg-bonucci | Leonardo Bonucci | 찾음 | Leonardo Bonucci |  |
+| lg-kompany | Vincent Kompany | 찾음 | Vincent Kompany |  |
+| lg-evra | Patrice Evra | 찾음 | Patrice Evra |  |
+| lg-zambrotta | Gianluca Zambrotta | 찾음 | Gianluca Zambrotta |  |
+| lg-marcelo | Marcelo | 찾음 | Marcelo (footballer, born 1988) |  |
+| lg-deschamps | Didier Deschamps | 찾음 | Didier Deschamps |  |
+| lg-petit | Emmanuel Petit | 찾음 | Emmanuel Petit |  |
+| lg-gilberto | Gilberto Silva | 찾음 | Gilberto Silva |  |
+| lg-hargreaves | Owen Hargreaves | 찾음 | Owen Hargreaves |  |
+| lg-dunga | Dunga | 찾음 | Dunga |  |
+| lg-iniesta | Andrés Iniesta | 찾음 | Andrés Iniesta |  |
+| lg-seedorf | Clarence Seedorf | 찾음 | Clarence Seedorf |  |
+| lg-derossi | Daniele De Rossi | 찾음 | Daniele De Rossi |  |
+| lg-marchisio | Claudio Marchisio | 찾음 | Claudio Marchisio |  |
+| lg-fabregas | Cesc Fàbregas | 찾음 | Cesc Fàbregas |  |
+| lg-dsilva | David Silva | 찾음 | David Silva |  |
+| lg-ozil | Mesut Özil | 찾음 | Mesut Özil |  |
+| lg-zola | Gianfranco Zola | 찾음 | Gianfranco Zola |  |
+| lg-valderrama | Carlos Valderrama | 찾음 | Carlos Valderrama |  |
+| lg-nakata | Hidetoshi Nakata | 찾음 | Hidetoshi Nakata |  |
+| lg-guti | Guti | 찾음 | Guti |  |
+| lg-gullit | Ruud Gullit | 찾음 | Ruud Gullit |  |
+| lg-ribery | Franck Ribéry | 찾음 | Franck Ribéry |  |
+| lg-robben | Arjen Robben | 찾음 | Arjen Robben |  |
+| lg-bale | Gareth Bale | 찾음 | Gareth Bale |  |
+| lg-inzaghi | Filippo Inzaghi | 찾음 | Filippo Inzaghi |  |
+| lg-vieri | Christian Vieri | 찾음 | Christian Vieri |  |
+| lg-crespo | Hernán Crespo | 찾음 | Hernán Crespo |  |
+| lg-kluivert | Patrick Kluivert | 찾음 | Patrick Kluivert |  |
+| lg-suker | Davor Šuker | 찾음 | Davor Šuker |  |
+| lg-rush | Ian Rush | 찾음 | Ian Rush |  |
+| lg-ahnjunghwan | Ahn Jung-hwan | 찾음 | Ahn Jung-hwan |  |
+| lg-rooney | Wayne Rooney | 찾음 | Wayne Rooney |  |
+| lg-zlatan | Zlatan Ibrahimović | 찾음 | Zlatan Ibrahimović |  |
+| lg-fowler | Robbie Fowler | 찾음 | Robbie Fowler |  |
+| lg-andycole | Andy Cole | 찾음 | Andy Cole |  |
+| lg-iwright | Ian Wright | 찾음 | Ian Wright |  |
+| lg-crouch | Peter Crouch | 찾음 | Peter Crouch |  |
+| lg-berbatov | Dimitar Berbatov | 찾음 | Dimitar Berbatov |  |
+| lg-bierhoff | Oliver Bierhoff | 찾음 | Oliver Bierhoff |  |
 | fs-yamal | Lamine Yamal | 찾음 | Lamine Yamal |  |
 | fs-pedri | Pedri | 찾음 | Pedri |  |
 | fs-gavi | Gavi | 찾음 | Gavi (footballer) |  |

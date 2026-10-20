@@ -39,7 +39,7 @@ import { CUSTOM_HIDDEN_TAGS, customBudget, spentPoints, validCustom } from './cu
 import { TAGS } from './tags';
 import { REAL_CAREER } from '../data/players/careers';
 import { npcTagMap, recordNaturalNews, recordTagNews, type TagNews } from './npcTags';
-import { futureSpawns, isLegendId, LEGEND_BY_ID, LEGEND_PACK, legendClub, legendPeak, legendRosterPlayer, legendSpawns, packRealExcludes, type LegendSpawn } from './legends';
+import { futureSpawns, isLegendId, LEGEND_BY_ID, LEGEND_PACK, legendArrivals, legendClub, legendPeak, legendRosterPlayer, legendSpawns, packRealExcludes, type LegendSpawn } from './legends';
 import { ensureFinance, type FinanceState } from './finance';
 import { wealthDayEnd, wealthSeasonEnd, wealthSeasonStart } from './wealth';
 import { coachBoost, injuryChanceMul, injuryDaysMul, moneyDayEnd, moneySeasonEnd, moneySeasonStart, staffRecoveryMul, type MoneyState } from './money';
@@ -423,6 +423,12 @@ function addFutureStars(rosters: Rosters, worldSeed: string, season: number, tea
   if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])));
 }
 
+/** 레전드 팩 3판 (C.75w): 리그 밖에서 기다리던 레전드가 이 시즌(season = 막 시작하는 시즌)에 이적으로 들어온다 */
+function addLegendArrivals(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[], except?: string): void {
+  const spawns = legendArrivals(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })), rosters, except);
+  if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])), 400);
+}
+
 /**
  * 로스터 재생성 (23번): 시작 로스터를 시드로 만들고 시즌 갱신을 updates 번 다시 적용한다.
  * 성장, 노화, 은퇴, 신인 보충은 모두 시드로 정해지므로 세이브에는 updates 만 있으면 된다.
@@ -451,6 +457,7 @@ export function rebuildRosters(
     rosters = updateRostersForSeason(rosters, worldSeed, start + k, base, npcs);
     // 미래 스타 (C.75y): 다음 시즌이 구현 리그 첫 시즌이면 시즌 갱신 직후 들어온다 (플레이 중 시즌 끝과 같은 자리)
     if (future) addFutureStars(rosters, worldSeed, start + k + 1, teams);
+    if (pack >= 3) addLegendArrivals(rosters, worldSeed, start + k + 1, teams, legends.except);
   }
   replayTransfers(rosters, transfers, updates, worldSeed);
   if (savedNpcs) syncRealPlayers(rosters, savedNpcs);
@@ -2049,6 +2056,8 @@ export function endSeason(state: GameState): SeasonSummary {
   state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
   // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 들어온다 (rebuildRosters 와 같은 자리)
   if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams);
+  // 레전드 팩 3판 (C.75w): 리그 밖 레전드 이적 유입 (rebuildRosters 와 같은 자리)
+  if (state.legends && (state.legendPack ?? 1) >= 3) addLegendArrivals(state.rosters, state.worldSeed, season + 1, league.teams, state.player.legendId);
   state.roster.updates++;
   // NPC 커리어 태그 뉴스 (C.45 14번): 다음 시즌 기준으로 새로 붙은 원클럽맨·영원한 <구단>
   recordTagNews(state, tagsBefore, season + 1);

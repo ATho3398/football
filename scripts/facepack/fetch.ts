@@ -221,6 +221,13 @@ function playerJobs(): Job[] {
 
 /** 레전드 팩 (C.47): 출생연도 확인 없이 축구 문서만. 동음이의가 있는 이름은 덮어쓰기 */
 const LEGEND_OVERRIDES: Record<string, string[]> = {
+  // C.75w 추가 53명
+  'lg-juliocesar': ['Júlio César (football goalkeeper, born 1979)'], 'lg-dida': ['Dida (footballer, born 1973)', 'Dida'], 'lg-lucio': ['Lúcio'],
+  'lg-pepe': ['Pepe (footballer, born 1983)'], 'lg-marcelo': ['Marcelo (footballer, born 1988)'], 'lg-dunga': ['Dunga'], 'lg-guti': ['Guti (footballer, born 1976)', 'Guti'],
+  'lg-dsilva': ['David Silva'], 'lg-gilberto': ['Gilberto Silva'], 'lg-campos': ['Jorge Campos'], 'lg-leewoonjae': ['Lee Woon-jae'],
+  'lg-ahnjunghwan': ['Ahn Jung-hwan'], 'lg-rush': ['Ian Rush'], 'lg-iwright': ['Ian Wright'], 'lg-andycole': ['Andrew Cole', 'Andy Cole'],
+  'lg-fowler': ['Robbie Fowler'], 'lg-crouch': ['Peter Crouch'], 'lg-petit': ['Emmanuel Petit'], 'lg-rcarvalho': ['Ricardo Carvalho'],
+  'lg-zlatan': ['Zlatan Ibrahimović'], 'lg-valdes': ['Víctor Valdés'],
   // C.75x 도르트문트 레전드 · 미래 스타
   'lg-dede': ['Dedé (footballer, born 1978)'], 'lg-jkohler': ['Jürgen Kohler'], 'lg-jkoller': ['Jan Koller'], 'lg-klos': ['Stefan Klos'],
   'lg-sbender': ['Sven Bender'], 'lg-santana': ['Felipe Santana'], 'lg-barrios': ['Lucas Barrios'], 'lg-kuba': ['Jakub Błaszczykowski'],
