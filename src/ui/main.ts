@@ -67,12 +67,12 @@ import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from '
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
 import { alertCard, homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsSection, scheduleView } from './views/home';
 import { takeFreshRecords } from '../records';
-import { goalsSection, homeInboxSection, inboxDetailView, inboxView, rivalSection } from './views/inbox';
+import { goalsSection, homeInboxSection, inboxDetailBody, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
 import { markAllRead, markRead, pendingItems, unreadCount } from '../inbox';
 import { loadAutoPrefs, saveAutoPrefs, type AutoPrefs } from './autoPrefs';
 import { claimNewGameBonus, loadLegacy, recordRetirement, type LegacyStore } from '../legacy';
-import { answerEvent, autoAnswerInterviews } from '../events';
+import { answerEvent, autoAnswerInterviews, eventById, fireEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
@@ -397,6 +397,8 @@ function cupsView(g: GameState): string {
 }
 
 (globalThis as unknown as { __game: () => GameState | null }).__game = () => ui.game;
+/** 캡처 스크립트용 (C.76i): 이벤트를 인박스에 띄운다 */
+(globalThis as unknown as { __fireEvent: (id: string) => number | null }).__fireEvent = (id) => { const d = eventById(id); return ui.game && d ? fireEvent(ui.game, d).id : null; };
 
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
 async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string }; nat?: { label: string } }): Promise<void> {
@@ -544,6 +546,12 @@ function screenHtml(): string {
     case 'inbox': {
       collectNotices(g);
       const dv = ui.inboxSel !== null ? inboxDetailVM(g, ui.inboxSel) : null;
+      // C.76i (디자인 193·194 PC): 넓은 화면은 왼쪽 목록 / 오른쪽 상세(고른 것, 없으면 맨 위 줄 — 읽음 처리는 안 함)
+      if (isWide()) {
+        const lv = inboxVM(g, ui.inboxTab);
+        const side = dv ?? (lv.rows[0] ? inboxDetailVM(g, lv.rows[0].id) : null);
+        return inboxView(lv, side ? `<div class="panel ib-side">${inboxDetailBody(side, ui.inboxPick, true).body}</div>` : '', side?.id ?? null);
+      }
       return dv ? inboxDetailView(dv, ui.inboxPick) : inboxView(inboxVM(g, ui.inboxTab));
     }
     case 'meeting': {
@@ -2536,11 +2544,12 @@ app.addEventListener('click', (ev) => {
     case 'inbox-answer': {
       const id = el.dataset.id;
       if (!g || !v || !id) return;
-      const text = answerEvent(g, +id, v);
+      answerEvent(g, +id, v);
       autosave();
       ui.inboxPick = null;
+      // C.76i (디자인 194): 결과는 토스트 대신 상세 화면 "결과" 칸에 남는다
+      ui.inboxSel = +id;
       render();
-      showToast({ kind: 'info', title: '답했어요', body: text }, 2600);
       return;
     }
     case 'meet-result-close':

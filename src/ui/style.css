@@ -2647,3 +2647,141 @@ html .moment.ht-v3 .mo-stage.ht-stage .po-pitch { position: absolute; inset: 0; 
 .nat-out.is-win { color: var(--success); }
 .nat-out.is-loss { color: var(--warning); }
 .nat-out.is-draw { color: var(--ink-muted); }
+
+/* ── C.76i U8-d 인박스 (디자인 193 · 194) ── */
+.ib-tools { justify-content: space-between; align-items: center; gap: 8px; }
+.ib-item { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; width: 100%; padding: 12px 14px; border: 0; border-radius: var(--radius-md); background: var(--surface-1); color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.ib-item.is-unread { box-shadow: inset 3px 0 0 var(--brand); }
+.ib-item.is-on { box-shadow: inset 0 0 0 2px var(--brand); background: var(--surface-2); }
+.ib-item__icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--ink-muted); }
+.ib-item.is-todo .ib-item__icon, .ib-say .ib-item__icon { color: var(--brand-ink); }
+.ib-item__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ib-item__top { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ink-muted); }
+.ib-item__top b { color: var(--ink); }
+.ib-item__date { flex: none; padding-right: 2px; }
+.ib-item__title { font-size: 15px; line-height: 21px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 14px; }
+.ib-item:not(.is-unread):not(.is-on) .ib-item__title { color: var(--ink-muted); }
+.ib-item__body { font-size: 12px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-item__dot { position: absolute; right: 14px; top: 34px; width: 8px; height: 7px; background: var(--brand); border-radius: 2px; transform: skewX(-12deg); }
+.ib-chip { align-self: flex-start; margin-top: 6px; padding: 2px 8px; font-size: 11px; font-weight: 800; font-style: italic; color: var(--ink-muted); background: var(--surface-3); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ib-chip.is-todo { background: var(--brand); color: var(--on-brand); }
+.ib-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 20px; text-align: center; }
+.ib-empty__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--ink-muted); }
+.ib-empty b { font-size: 17px; }
+.ib-say { display: flex; gap: 12px; align-items: flex-start; }
+.ib-say__bubble { flex: 1; min-width: 0; padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-1); }
+.ib-say__bubble small { display: block; font-size: 11px; color: var(--ink-muted); }
+.ib-say__bubble small b { color: var(--ink); }
+.ib-say__bubble p { margin: 0; font-size: 14px; font-weight: 700; line-height: 21px; }
+.ib-fx { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.ib-fx__cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.ib-fx__cell b { font-size: 16px; color: var(--ink-muted); }
+.ib-fx__cell b.up { color: var(--success); }
+.ib-fx__cell b.down { color: var(--fail); }
+.ib-fx__cell small { font-size: 10px; color: var(--ink-muted); white-space: nowrap; }
+.ib-preview, .ib-result { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
+.ib-preview__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.ib-preview__head small { font-size: 11px; }
+.ib-result { box-shadow: inset 3px 0 0 var(--brand); }
+.ib-result__head { display: flex; align-items: center; gap: 8px; color: var(--brand-ink); }
+.ib-result__head b { color: var(--ink); font-size: 14px; }
+.ib-result p { margin: 0; font-size: 14px; font-weight: 700; line-height: 21px; }
+.panel.ib-next, .ib-next { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; border: 0; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.ib-next .ib-item__icon { width: 32px; height: 32px; color: var(--brand-ink); }
+.ib-next small { display: block; font-size: 11px; }
+.ib-inline-btns { margin-top: 4px; }
+.ib-body.ib-pc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ib-pc__list { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.ib-pc__side { min-width: 0; }
+.ib-side { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.ib-body { display: flex; flex-direction: column; gap: var(--space-3); }
+
+:where(html[data-skin="b"]) .ib-chip { padding: 2px 12px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+
+/* ── C.76i U8-d 면담 (디자인 191 · 192) ── */
+.mg-info { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 14px; }
+.mg-info > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mg-info small { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-info b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-cmp { display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); gap: 6px; align-items: center; }
+.mg-cmp__arrow { color: var(--brand-ink); display: grid; place-items: center; }
+.mg-pos { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius-md); background: var(--surface-1); min-width: 0; }
+.mg-pos.is-sug { box-shadow: inset 0 0 0 2px var(--brand); }
+.mg-pos small { font-size: 11px; }
+.mg-pos__name { font-family: var(--font-display); font-size: 34px; line-height: 1; color: var(--ink); }
+.mg-pos.is-sug .mg-pos__name { color: var(--brand-ink); }
+.mg-pos__kv { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; color: var(--ink-muted); }
+.mg-pos__kv b { color: var(--ink); font-size: 14px; }
+.mg-pos__kv b.up, .mg-pv b.up, .mg-pv small.up { color: var(--success); }
+.mg-pv b.down, .mg-pv small.down { color: var(--fail); }
+.mg-pv { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
+.mg-pv__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.mg-pv__head > b { font-size: 14px; }
+.mg-pv__head .po-num { font-size: 16px; color: var(--ink); }
+.mg-pv__to { font-size: 20px !important; }
+.mg-pv__bar { display: flex; height: 8px; background: var(--surface-3); }
+.mg-pv__bar i { display: block; height: 100%; background: var(--brand); }
+.mg-pv__bar i.is-up { background: var(--success); }
+.mg-pv__bar i.is-down { background: var(--fail); }
+.mg-pv__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mg-pv__chip { padding: 3px 10px; font-size: 11px; font-weight: 800; font-style: italic; background: var(--surface-3); color: var(--ink-muted); }
+.mg-pv__chip.is-up { background: var(--success-soft, rgba(52, 211, 120, .14)); color: var(--success); }
+.mg-pv__chip.is-down { background: rgba(255, 92, 92, .14); color: var(--fail); }
+.mg-pv__chip.is-brand { box-shadow: inset 0 0 0 1px var(--brand); color: var(--brand-ink); background: transparent; }
+:where(html[data-skin="b"]) .mg-pv__chip { clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.mg-pc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; max-width: none !important; }
+.mg-pc__l, .mg-pc__r { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mg-inline-btns { margin-top: 12px; }
+
+/* ── C.76i U8-d 재정 (디자인 206 · 219 · 220) ── */
+.fn-shop__item { width: 116px; }
+.fn-sold { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.fn-prices { display: flex; flex-wrap: wrap; gap: 6px; }
+.fn-price { padding: 3px 10px; font-size: 11px; font-weight: 800; font-style: italic; background: var(--surface-2); color: var(--ink-muted); }
+.fn-price.r-rare { color: var(--brand-ink); }
+.fn-price.r-epic { color: var(--r-epic, #b18cff); }
+.fn-price.r-legendary { color: var(--r-legendary, #ffb547); }
+:where(html[data-skin="b"]) .fn-price { clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.fn-fold { border-radius: var(--radius-sm); background: var(--surface-1); }
+.fn-fold summary { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 12px; color: var(--ink-muted); cursor: pointer; list-style: none; }
+.fn-fold summary::-webkit-details-marker { display: none; }
+.fn-fold__more { flex: none; font-weight: 800; color: var(--ink); }
+.fn-fold[open] .fn-fold__more { color: var(--brand-ink); }
+.fn-fold p { margin: 0; padding: 0 12px 10px; }
+.fn-goal { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fn-goal b { color: var(--ink); }
+.fn-goal__bar { margin-top: -6px; }
+.mg-pos .mg-trustbar, .fn-goal__bar { margin: 0 0 2px; height: 5px; }
+.mg-pos .mg-trustbar i, .fn-goal__bar i { background: var(--brand); }
+/* 재정 머리말 칩 3개는 한 줄 (칩 한 줄 우선): 넘치면 칩마다 줄임 */
+main:has(.fn-body) .po-hero__chips { flex-wrap: nowrap; min-width: 0; }
+main:has(.fn-body) .po-hero__chips > * { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* ── C.76i U8-d 일정 (디자인 200 · 216) ── */
+.cal-cell { position: relative; }
+.cal-life { display: flex; align-items: center; justify-content: center; gap: 1px; font-size: 9px; line-height: 1.1; color: var(--ink-muted); white-space: nowrap; }
+.cal-trophy { position: absolute; top: 1px; right: 2px; line-height: 0; color: inherit; }
+.cal-item.is-cup { box-shadow: inset 3px 0 0 var(--brand); padding-left: 8px; }
+.cal-cup { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; font-size: 11px; font-weight: 800; font-style: italic; background: var(--brand); color: var(--on-brand); white-space: nowrap; }
+:where(html[data-skin="b"]) .cal-cup { clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+
+/* ── C.76i U8-d 하루 훈련 시트 · 생활 (디자인 196) ── */
+.tr-lifebox { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; margin-bottom: 8px; padding: 12px; border-radius: var(--radius-md); background: var(--surface-1); color: var(--brand-ink); }
+.tr-lifebox b { display: block; color: var(--ink); font-size: 14px; }
+.tr-lifebox small { display: block; font-size: 11px; line-height: 16px; }
+.tr-lifebox__chip { flex: none; padding: 2px 10px; font-size: 11px; font-weight: 800; font-style: italic; box-shadow: inset 0 0 0 1px var(--brand); color: var(--brand-ink); }
+:where(html[data-skin="b"]) .tr-lifebox__chip { clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.tr-tag.is-day { background: var(--surface-3); color: var(--ink); }
+.tr-sheet2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tr-sheet2 .tr-lifebox { margin-top: 0; }
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
+  .po-overlay--sheet:has(.tr-sheet2) .po-sheet { width: min(960px, 100%); height: auto; max-height: 94dvh; margin: auto; align-self: center; border-radius: var(--radius-lg); }
+}
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
+  main:has(.fn-shop) .fn-body { max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; }
+}
+/* PC 인박스·면담 2열 (디자인 193 · 191 PC: 1040폭) */
+@media (min-width: 1024px) and (min-height: 521px), (min-width: 1024px) and (orientation: portrait) {
+  #app:has(.ib-pc), #app:has(.mg-pc) { max-width: 1072px; }
+}
