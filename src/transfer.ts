@@ -108,14 +108,14 @@ export const winterOpen = (season: number, kind: 'autumn-spring' | 'spring-autum
   kind === 'spring-autumn' ? isoDate(season, 7, 1) : isoDate(season + 1, 1, 1);
 
 /** 이적시장 이름 (C.76c): 8~5월 리그 = 시즌 중 겨울 · 비시즌 여름, 3~12월 리그 = 시즌 중 여름(7월) · 비시즌 겨울 */
-export function windowKo(league: Pick<LeagueState, 'id'>, w: Window): string {
-  const sa = calendarKind(league.id) === 'spring-autumn';
+export function windowKo(league: Pick<LeagueState, 'legacyCal'>, w: Window): string {
+  const sa = calendarKind(league) === 'spring-autumn';
   return (w === 'winter') !== sa ? '겨울' : '여름';
 }
 
 /** 시즌 중 이적시장 여는 날 한 줄 ("1월 1일 겨울" / "7월 1일 여름") */
-export function midWindowKo(league: Pick<LeagueState, 'id'>): string {
-  return calendarKind(league.id) === 'spring-autumn' ? '7월 1일 여름' : '1월 1일 겨울';
+export function midWindowKo(league: Pick<LeagueState, 'legacyCal'>): string {
+  return calendarKind(league) === 'spring-autumn' ? '7월 1일 여름' : '1월 1일 겨울';
 }
 
 // ── 로스터에 이적 기록 적용 (실제 진행과 재생성이 같은 함수를 쓴다) ──
@@ -721,8 +721,8 @@ export function makeOfferSet(state: GameState, w: Window, tag: string | number =
 
 /** 내 선수가 옮길 수 있는 다른 리그 (C.76c): 고른 다른 리그 중 내 리그와 달력이 같은 리그 (시즌 번호가 같이 간다) */
 export function movableLeagues(state: Pick<GameState, 'league' | 'otherLeagues'>): string[] {
-  const kind = calendarKind(state.league.id);
-  return (state.otherLeagues ?? []).filter((o) => calendarKind(o.id) === kind).map((o) => o.id);
+  const kind = calendarKind(state.league);
+  return (state.otherLeagues ?? []).filter((o) => calendarKind(o) === kind).map((o) => o.id);
 }
 
 /** 다른 리그 제안 (C.76c): 관심 상위 n 개 (BALANCE.transfer.offers.abroad), 감당 가능한 팀만, 2년 이상 남으면 지금 팀보다 강한 팀만 */
@@ -921,7 +921,7 @@ export function requestTransfer(state: GameState, viaMeeting = false): { accepte
 export function onDayEnd(state: GameState, endedDate: IsoDate): TransferRec[] {
   const season = state.league.season;
   const m = state.market;
-  const kind = calendarKind(state.league.id);
+  const kind = calendarKind(state.league);
   if (m?.request?.season === season && m.request.accepted && !m.offers && addDays(endedDate, 1) === winterOpen(season, kind)) {
     openOffers(state, 'winter', `req${season}`);
   }
