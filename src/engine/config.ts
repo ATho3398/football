@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 27;
+export const ENGINE_VERSION = 28;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -569,7 +569,8 @@ export const ENGINE = {
      */
     finishPerPoint: 0.014,
     finishMin: 0.8,
-    finishMax: 1.25,
+    /** C.76a 가설 3: 상한 1.25 → 1.18 — 같은 시드 scoring 30골+ 2.7~2.8(기준 1.5) 를 상한으로 깎는다 (기울기 finishPerPoint 는 미해결 1 몫이라 유지) */
+    finishMax: 1.18,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
     /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②) */
@@ -833,8 +834,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW·1대1 보너스의 총량 되돌림 1.70 → 1.77 (0.01 = 득점 −0.067) */
-    saveBase: 1.77,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW·1대1 보너스의 총량 되돌림 1.70 → 1.78 (0.01 = 득점 −0.067) */
+    saveBase: 1.78,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
