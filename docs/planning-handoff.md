@@ -540,3 +540,4 @@
 - (12:52 KST) 자동 확인: C.75f(balance 대기·측정 3개)·C.75g(defense-shape 줄 추가)·C.75h(코드 독해·맡기기 테스트 확인) 모두 진행 중 → 재예약 `trig_01PRfGgRfmRozWbmRFKmXJJB`(13:53 KST).
 - (13:01 KST) **C.75f 부분 해결**(main eea9ac8, 엔진 25, 테스트 766) → pending 129, ntfy, UI_3(새 화면 0), 엔진관리자4(미해결 9번). draft_는 C.75f CI 확인 뒤. **C.75i 시작** `session_01EhaBezSqipxFKqVoMhpqYg` "44g단계_카드·결정 순간 a2 (C.75i)" 브랜치 `claude/c75i-cards-a2`(C.75h와 moments.ts 함수 단위 분할). C.75g에 엔진 26 알림. 지금 코드 세션: C.75g·h·i. 다음 슬롯: C.75j(44g-b).
 - (13:03 KST) 엔진관리자4: 미해결 9(LM/RM 슈팅 비중)를 **44e에 흡수**(§2.5a 가설 4, 694ea15) — 같은 offball 공격 축. 44e 측정 9회(wing-output 추가), 통과 LM/RM 슈팅 ≥ 0.8/경기·비중 ≥ 10%, LW/RW 중앙값 12~16.
+- (13:09 KST) **C.75g 실패 ③**(배포 없음, 엔진 그대로) → pending 129, C.75g draft_, ntfy, 엔진관리자4(미해결 10번). **C.75j 시작** `session_01JQPswvdYKsXMuFEQXwurhP` "44e단계_엔진 블록 E-4 수신 지점·압박 분포·마크 배정 (C.75j)"(Fable, 3시간·9회·25달러) 브랜치 `claude/c75j-receive-model`. 지금 코드 세션: C.75h·i(Opus)·j(Fable) + 엔진관리자4(Fable 대기). 다음 슬롯: C.75k(44g-b).
