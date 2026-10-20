@@ -22,13 +22,14 @@ import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
   acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
-  nextCampDate, startNextSeason, todaysOthers, type GameState,
+  nextCampDate, startNextSeason, todaysOthers, upcomingOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
 import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
 import { gaugeSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet, weekPreview } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
 import { EnginePool } from './enginePool';
+import type { EngineJob } from '../engine/jobs';
 import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
 import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
@@ -94,7 +95,7 @@ import { allocateView, chapterView, NEW_GAME_UI, newGameView, retiredView, type 
 import { halftimeView, tacticsView } from './views/tactics';
 import { contractView, marketCard, newsSection, offersView, tagNewsSection } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
-import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
+import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, setPrecomputeStatus, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
 import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artLayer } from './components/gameCard';
@@ -675,8 +676,9 @@ globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => rend
 
 function render(): void {
   const g = ui.game;
-  // 시즌 이름 (C.76c): 3~12월 리그가 내 리그면 "2018"
-  setSeasonLabelKind(g ? calendarKind(g.league.id) : 'autumn-spring');
+  // 시즌 이름 (C.76c): 3~12월 리그가 내 리그면 "2018" (C.76m: 통일 전 세이브의 진행 중 춘추제 시즌만)
+  setSeasonLabelKind(g ? calendarKind(g.league) : 'autumn-spring');
+  if (ui.screen === 'settings') setPrecomputeStatus(enginePool?.parallel ? enginePool.planned : typeof Worker === 'undefined' ? null : { ready: 0, total: 0 });
   const nav = g && !NAV_HIDDEN.includes(ui.screen) && !(g.phase === 'retired') ? dock(dockVM(g)) : '';
   const live = liveScreen();
   const band = g && live && live !== ui.screen ? liveBand(live) : '';
@@ -713,6 +715,7 @@ function render(): void {
     ui.live?.oc?.pitch.stop();
   }
   if (ui.screen === 'match' && ui.replay) drawAvgMap(ui.replay.replay);
+  schedulePlan();
 }
 
 /** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
@@ -1011,62 +1014,65 @@ const pool = (): EnginePool => (enginePool ??= new EnginePool());
 const progressLog: { date: string; ms: number; matches: number; my: boolean }[] = [];
 (globalThis as unknown as { __progress: typeof progressLog }).__progress = progressLog;
 
-(globalThis as unknown as { __pool: () => unknown }).__pool = () => enginePool?.stats ?? null;
+(globalThis as unknown as { __pool: () => unknown }).__pool = () => (enginePool ? { ...enginePool.stats, planned: enginePool.planned } : null);
 
 /** 자동 진행 중 훈련일 자동 저장 간격 (C.75b) */
 const AUTO_SAVE_DAYS = 7;
 
-/** 미리 계산할 만큼 앞을 본다 (C.75b): 최대 이만큼 뒤 날짜까지, 워커마다 이만큼 경기가 쌓일 때까지(적어도 다른 경기가 있는 다음 날 하루치) */
+/** 미리 볼 날짜 범위 (C.75b) · 미리 계산할 다른 경기 날 수 (C.76m: 경기가 있는 날 기준 3일치 — 보관 상한 PREFETCH_KEEP) */
 const AHEAD_DAYS = 7;
-const AHEAD_PER_WORKER = 3;
+const PRECOMPUTE_DAYS = 3;
+
+/** 마지막으로 미리 계산을 맡긴 상태 (같으면 다시 맡기지 않음). '' = 다음 유휴 때 다시 */
+let planSig = '';
+
+const planSigOf = (g: GameState): string =>
+  [g.calendar.date, g.phase, g.options.quickOthers ? 'q' : 'e', g.league.id, g.league.season, g.league.round, ...(g.otherLeagues ?? []).map((o) => `${o.id}${o.season}.${o.round}`)].join('|');
+
+const aheadJobs = (g: GameState): EngineJob[] => upcomingOthers(g, PRECOMPUTE_DAYS, AHEAD_DAYS).map((input): EngineJob => ({ kind: 'npc', input }));
 
 /**
- * 미리 계산 (C.75b, 결과 불변): 앞으로 며칠 다른 경기를 지금 상태의 입력으로 워커에 미리 맡긴다.
- * 그날이 오면 실제 입력을 다시 만들고, 글자 하나까지 같을 때만 미리 계산한 결과를 쓴다(EnginePool.run) — 그 사이 로스터·레이팅이 바뀌었으면 버리고 새로 계산.
- * 오늘 일이 끝나 노는 워커가 이어서 계산하므로, 하루 끝 저장·화면 갱신과 경기 수가 워커 수로 나눠떨어지지 않는 날의 빈 시간을 메운다
+ * 다른 경기 백그라운드 미리 계산 (C.75b → C.76m, 결과 불변): 앞으로 3일치 다른 경기를 지금 상태의 입력으로 워커에 맡겨 보관한다.
+ * 그날이 오면 실제 입력을 다시 만들고, 입력이 같을 때만 보관한 결과를 쓴다(EnginePool.run) — 그 사이 세이브·불러오기·로스터·레이팅이 바뀌었으면 버리고 새로 계산.
+ * 홈·다른 화면에 있는 동안, 내 경기를 보는 동안, 날짜를 넘기는 동안 노는 워커가 계산한다. 빠른 진행이면 하지 않는다
  */
-function prefetchAhead(g: GameState): void {
-  if (g.options.quickOthers || !pool().parallel) return;
-  const want = pool().size * AHEAD_PER_WORKER;
-  let n = 0;
-  for (let d = 1; d <= AHEAD_DAYS && n < want; d++) {
-    for (const [r, i] of todaysOthers(g, addDays(g.calendar.date, d))) {
-      pool().prefetch({ kind: 'npc', input: otherJob(g, r, i).input });
-      n++;
-    }
-  }
+function planAhead(g: GameState): void {
+  planSig = planSigOf(g);
+  // 측정용 (부록 C.76m 전후 비교): __noPrecompute = true 면 미리 계산하지 않는다
+  if (!pool().parallel || (globalThis as unknown as { __noPrecompute?: boolean }).__noPrecompute) return;
+  if (g.options.quickOthers || g.phase === 'retired') { enginePool?.clearPrefetch(); return; }
+  pool().plan(aheadJobs(g));
 }
 
-/**
- * 첫 워커 데우기 (C.75b): 게임을 연 뒤 유휴 시간에 워커 하나를 띄워 곧 칠 다른 경기를 미리 계산한다(첫 경기의 JIT 비용을 미리 냄).
- * 다른 경기가 있는 첫날 경기를 모두 그 워커 하나에 맡긴다 (미리 계산만으로는 워커를 더 띄우지 않음 — 화면을 보는 동안 코어 하나만)
- */
-function warmPool(): void {
+/** 유휴 때 미리 계산 맡기기 (렌더마다 부르지만 상태가 바뀌었을 때만 맡긴다) */
+let planIdle = false;
+function schedulePlan(): void {
+  const g = ui.game;
+  if (!g || ui.busy || planIdle || planSigOf(g) === planSig) return;
+  planIdle = true;
   const go = () => {
-    const g = ui.game;
-    if (!g || g.phase !== 'season' || g.options.quickOthers) return;
-    for (let d = 0; d <= AHEAD_DAYS; d++) {
-      const list = todaysOthers(g, addDays(g.calendar.date, d));
-      if (!list.length) continue;
-      const [first, ...rest] = list.map(([r, i]) => ({ kind: 'npc' as const, input: otherJob(g, r, i).input }));
-      pool().warm(first);
-      for (const j of rest) pool().prefetch(j);
-      return;
-    }
-    pool().warm();
+    planIdle = false;
+    const cur = ui.game;
+    if (cur && !ui.busy) planAhead(cur);
   };
   const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
   if (ric) ric(go, { timeout: 2000 });
-  else setTimeout(go, 500);
+  else setTimeout(go, 300);
+}
+
+/** 게임을 연 뒤 (C.75b 첫 워커 데우기 → C.76m): 유휴 때 미리 계산을 맡긴다 */
+function warmPool(): void {
+  planSig = '';
+  schedulePlan();
 }
 
 /** 오늘 다른 경기를 계산한다: 전체 엔진은 Web Worker 풀에 나눠 병렬로, 빠른 진행은 바로 (같은 시드 같은 결과) */
-async function runOthersToday(g: GameState, ahead = false, progress?: (done: number, total: number) => void): Promise<number> {
+async function runOthersToday(g: GameState, ahead = false, progress?: (done: number, total: number, pre?: number) => void): Promise<number> {
   const jobs = todaysOthers(g).map(([r, i]) => otherJob(g, r, i));
   // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 같은 워커 풀로 (빠른 계산이면 하루 끝 syncOtherLeagues)
   const lgJobs = g.options.quickOthers ? [] : otherLeagueJobs(g, g.calendar.date);
   if (!jobs.length && !lgJobs.length) {
-    if (ahead) prefetchAhead(g);
+    if (ahead) planAhead(g);
     return 0;
   }
   if (g.options.quickOthers) {
@@ -1074,12 +1080,14 @@ async function runOthersToday(g: GameState, ahead = false, progress?: (done: num
     return jobs.length;
   }
   const total = jobs.length + lgJobs.length;
+  // 미리 계산해 둔 경기 수 (C.76m, 진행 표시용)
+  const pre = progress ? [...jobs, ...lgJobs].filter((j) => pool().ready({ kind: 'npc', input: j.input })).length : 0;
   let done = 0;
-  const tick = <T,>(p: Promise<T>): Promise<T> => p.then((x) => { done++; progress?.(done, total); return x; });
+  const tick = <T,>(p: Promise<T>): Promise<T> => p.then((x) => { done++; progress?.(done, total, pre); return x; });
   const runs = jobs.map((j) => tick(pool().npc(j.input).catch(() => playNpcMatch(j.input))));
   const lgRuns = lgJobs.map((j) => tick(pool().npc(j.input).catch(() => playNpcMatch(j.input))));
   // 오늘 일을 다 맡긴 뒤 다음 날 것을 미리 (실제 작업이 먼저 돈다)
-  if (ahead) prefetchAhead(g);
+  if (ahead) planAhead(g);
   const outs = await Promise.all(runs);
   jobs.forEach((j, k) => applyOther(g, j.r, j.i, outs[k]!));
   const lgOuts = await Promise.all(lgRuns);
@@ -1113,14 +1121,14 @@ function nextSeasonStart(g: GameState): void {
   showToast({ kind: 'info', title: '휴가 끝 · 소집', body: `${dateLabel(g.calendar.date)} · 개막 7일 전이에요. 훈련 계획을 확인해요.` }, 2600);
 }
 
-/** 진행 중 띄움 글 (45b b): 다른 경기 n/전체 */
-function othersProgress(title: string, body: string): (done: number, total: number) => void {
+/** 진행 중 띄움 글 (45b b): 다른 경기 n/전체 (C.76m: 미리 계산해 둔 경기 수) */
+function othersProgress(title: string, body: string): (done: number, total: number, pre?: number) => void {
   let last = 0;
-  return (done, total) => {
+  return (done, total, pre = 0) => {
     const now = performance.now();
     if (done < total && now - last < 150) return;
     last = now;
-    ui.toast = { ...(ui.toast ?? { kind: 'info', title }), title, body: `${body} · 다른 경기 ${done}/${total}` } as typeof ui.toast;
+    ui.toast = { ...(ui.toast ?? { kind: 'info', title }), title, body: `${body} · 다른 경기 ${done}/${total}${pre ? ` (미리 계산 ${pre})` : ''}` } as typeof ui.toast;
     render();
   };
 }
@@ -1169,7 +1177,8 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       if (mode === 'one' || ui.stopReq) break;
     }
   } finally {
-    enginePool?.cancelPrefetch();
+    // C.76m: 미리 계산은 버리지 않고 유휴 때 지금 날짜 기준으로 다시 맡긴다 (목록에 없는 것만 버림)
+    planSig = '';
     ui.busy = false;
     const stopped = ui.stopReq;
     ui.stopReq = false;
@@ -1347,7 +1356,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
       if (ne) { newEvent = ne.title; reason = 'event'; break; }
     }
   } finally {
-    enginePool?.cancelPrefetch();
+    planSig = '';
     ui.busy = false;
     ui.stopReq = false;
     closeAutoLayer(layer);
@@ -2905,6 +2914,9 @@ app.addEventListener('click', (ev) => {
     case 'opt-quick':
       if (!g) return;
       g.options = { quickOthers: v === 'quick' };
+      // 빠른 진행 = 미리 계산 안 함 (C.76m): 보관분을 버린다. 전체 엔진으로 돌아오면 유휴 때 다시
+      if (g.options.quickOthers) enginePool?.clearPrefetch();
+      planSig = '';
       autosave();
       render();
       return;

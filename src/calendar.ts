@@ -227,7 +227,7 @@ export function leagueCalendar(
 ): SeasonCalendar {
   if (league.id === 'pl') return seasonCalendar(worldSeed, league.season, league.schedule);
   const { schedule, season } = league;
-  const key = `${worldSeed}:${league.id}:${season}:${schedule.length}:${schedule[0]?.[0]?.home ?? ''}${schedule[0]?.[0]?.away ?? ''}`;
+  const key = `${worldSeed}:${league.id}:${calendar}:${season}:${schedule.length}:${schedule[0]?.[0]?.home ?? ''}${schedule[0]?.[0]?.away ?? ''}`;
   const hit = leagueCache.get(key);
   if (hit) return hit;
   const rng = createRng(hashSeed(`${worldSeed}:calendar:${league.id}:${season}`));

@@ -95,7 +95,7 @@ const rngFor = (seed: string, ...parts: (string | number)[]): Rng => createRng(h
 
 /** 이번 시즌 리그 경기 날짜 (teams 가 있으면 그 팀들 경기만) */
 function myCal(state: GameState) {
-  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league.id));
+  return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league));
 }
 
 function leagueDates(state: GameState, teams?: readonly string[]): Set<IsoDate> {
@@ -145,8 +145,8 @@ export function faDates(state: GameState, rounds = cupRounds(state)): IsoDate[] 
 
 function faTarget(state: GameState, stage: number): IsoDate {
   const [y, m, d] = BALANCE.cups.fa.stages[stage]!;
-  // 춘추제 (C.76c): 3~12월 시즌이라 같은 해 6개월 앞 (1월 → 7월)
-  if (calendarKind(state.league.id) === 'spring-autumn') return isoDate(state.league.season, m + 6, d);
+  // 춘추제 (C.76c): 3~12월 시즌이라 같은 해 6개월 앞 (1월 → 7월). C.76m 부터는 통일 전 세이브의 진행 중 시즌만
+  if (calendarKind(state.league) === 'spring-autumn') return isoDate(state.league.season, m + 6, d);
   return isoDate(y ? state.league.season + 1 : state.league.season, m, d);
 }
 

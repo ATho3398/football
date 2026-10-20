@@ -139,22 +139,26 @@ describe('다른 리그에서 시작 (C.76c 2번)', () => {
     expect(calendarOf(g).opening.startsWith('2018-08')).toBe(true);
   });
 
-  it('3~12월 리그(K리그1)는 그 리그 2018 시즌 개막 소집부터: 2월 시작, 8팀 컵(7·9·10월), 챔스 없음, 시즌 중 이적시장 7월', () => {
+  it('K리그1 도 PL 과 같은 8~5월 (C.76m): 7월 소집, 8팀 컵(1~4월 + 결승), 챔스 없음, 시즌 중 이적시장 1월 겨울', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-k', difficulty: 'normal', leagues: ['kleague1', 'pl'] });
     expect(g.league.id).toBe('kleague1');
-    expect(g.calendar.date.startsWith('2018-02')).toBe(true);
-    expect(calendarOf(g).opening.startsWith('2018-03')).toBe(true);
+    expect(g.calendar.date.startsWith('2018-07') || g.calendar.date.startsWith('2018-08')).toBe(true);
+    expect(calendarOf(g).opening.startsWith('2018-08')).toBe(true);
+    expect(calendarOf(g).final.startsWith('2019-05')).toBe(true);
     expect(g.cups?.fa?.rounds[0]).toHaveLength(4);
-    expect(g.cups?.fa?.dates[0]!.slice(5, 7)).toMatch(/0[7-9]|10/);
     expect(g.cups?.ucl).toBeNull();
     expect(uclEntrants(g)).toEqual([]);
     expect(squadRule()).toEqual(BALANCE.squad.defaultRule);
+    expect(midWindowKo(g.league)).toBe('1월 1일 겨울');
+    expect(windowKo(g.league, 'summer')).toBe('여름');
+    expect(seasonLabel(2018)).toBe('2018-19');
+    // 옛 3~12월 규칙은 통일 전 세이브의 진행 중 시즌(legacyCal)에만
     expect(winterOpen(2018, 'spring-autumn')).toBe('2018-07-01');
-    expect(midWindowKo(g.league)).toBe('7월 1일 여름');
-    expect(windowKo(g.league, 'summer')).toBe('겨울');
+    expect(windowKo({ legacyCal: 'spring-autumn' }, 'summer')).toBe('겨울');
     expect(seasonLabel(2018, 'spring-autumn')).toBe('2018');
-    // 다른 리그(PL)는 8월 개막 전
+    // 다른 리그(PL)도 같은 날 개막 전
     expect(g.otherLeagues![0]!.round).toBe(0);
+    expect(g.otherLeagues![0]!.season).toBe(g.league.season);
     // 몇 경기 진행 (엔진 없이)
     for (let k = 0; k < 3; k++) {
       while (!isMatchDay(g)) { playOthers(g, 'quick'); endDay(g); }
@@ -238,7 +242,7 @@ describe('리그별 순위·기록 (C.76c 3번)', () => {
 
   it('리그가 끝나면 지난 시즌 우승·득점왕을 남기고 다음 시즌 기록은 비운다', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-p', difficulty: 'normal', leagues: ['pl', 'kleague1'] });
-    syncOtherLeagues(g, '2019-02-10');
+    syncOtherLeagues(g, '2019-07-25');
     const k = g.otherLeagues![0]!;
     expect(k.season).toBe(2019);
     expect(k.past?.at(-1)?.season).toBe(2018);
@@ -277,7 +281,11 @@ describe('이적 시장 = 고른 리그 (C.76c 4번)', () => {
 
   it('내 선수 다른 리그 제안: 같은 달력 리그만, 받아들이면 다음 시즌 그 리그가 내 리그 · 세이브 왕복 로스터 같음', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c76c-m', difficulty: 'normal', leagues: ['pl', 'laliga', 'kleague1'] });
+    // C.76m: 모든 리그 같은 8~5월이라 K리그1 도 옮길 수 있다. 통일 전 세이브의 진행 중 3~12월 시즌만 빠진다
+    expect(movableLeagues(g)).toEqual(['laliga', 'kleague1']);
+    g.otherLeagues![1]!.legacyCal = 'spring-autumn';
     expect(movableLeagues(g)).toEqual(['laliga']);
+    delete g.otherLeagues![1]!.legacyCal;
     finishSeason(g);
     const offers = g.market.offers ?? [];
     let i = offers.findIndex((o) => leagueOfTeam(o.teamId) === 'laliga');
@@ -334,12 +342,12 @@ describe('도감 번호 (C.76c 6번)', () => {
 
 describe('세이브 49 (C.76c)', () => {
   it('옛 세이브(48) = 그대로 (PL 만 고른 상태), 다른 리그 득점 기록 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(50);
+    expect(SAVE_FORMAT_VERSION).toBe(51);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-v', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 48;
     const back = migrate(old);
-    expect(back.saveFormat).toBe(50);
+    expect(back.saveFormat).toBe(51);
     expect(back.league.id).toBe('pl');
     expect(back.leagueIds).toEqual(['pl']);
     expect(back.myLeagues).toBeUndefined();
