@@ -5,7 +5,7 @@ import { PLAYABLE_LEAGUES } from '../data/leagues';
 import { ATTRIBUTE_NAMES_KO } from './attributes';
 import { chaptersRetire, chaptersSeasonEnd, type ChaptersState } from './chapters';
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
-import { calendarKind, createOtherLeagues, normalizeLeagues, syncOtherLeagues, type OtherLeague } from './otherLeagues';
+import { applyOtherLeagueJob, calendarKind, createOtherLeagues, normalizeLeagues, otherLeagueJobs, syncOtherLeagues, type OtherLeague } from './otherLeagues';
 import { setSquadLeague } from './squad';
 import { applyLeagueMove, leagueMoves, moveAt, moveRosters, type LeagueMove } from './leagueMove';
 import type { Replay } from './replay';
@@ -909,6 +909,8 @@ export function applyOther(state: GameState, r: number, i: number, res: NpcMatch
  * 화면은 Web Worker 풀로 같은 otherJob 을 계산해 applyOther 한다 (결과는 같다)
  */
 export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
+  // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 엔진으로 (빠른 계산은 하루 끝 syncOtherLeagues 가 한다)
+  if (how === 'engine') for (const j of otherLeagueJobs(state, state.calendar.date)) applyOtherLeagueJob(state, j, playNpcMatch(j.input));
   for (const [r, i] of todaysOthers(state)) {
     if (how === 'engine') {
       applyOther(state, r, i, playNpcMatch(otherJob(state, r, i).input));
@@ -2251,6 +2253,16 @@ export function seasonTeamRatings(state: GameState): Record<string, number> {
     out[id] = out[id]! + gaussian(rngFor(state.worldSeed, 'team-form', season, id)) * BALANCE.roster.seasonFormSd;
   }
   return out;
+}
+
+/**
+ * 다음 시즌 소집일 (비시즌에서, 45b b): 다음 시즌 내 리그(리그 이동이면 새 리그) 일정의 개막 campDays 일 전.
+ * 일정은 시드로만 정해져 레이팅과 무관하다 — 화면이 비시즌 동안 다른 리그 경기를 소집일 전날까지 엔진으로 먼저 치를 때 쓴다
+ */
+export function nextCampDate(state: GameState): IsoDate {
+  const id = leagueOfTeam(state.player.teamId) ?? state.league.id;
+  const next = createLeague(state.worldSeed, state.league.season + 1, id);
+  return addDays(leagueCalendar(state.worldSeed, next, calendarKind(id)).opening, -BALANCE.training.vacation.campDays);
 }
 
 /** 비시즌 → 다음 시즌 */

@@ -403,7 +403,7 @@ function leagueTableHtml(rows: WorldRowVM[], teams: number, mine: boolean): stri
   return `<div class="panel tbl-panel"><table class="tbl league">
       <tr><th>#</th><th class="l">팀</th><th class="fin-col" title="재정 등급">재</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
       ${rows.map((r) => `<tr class="${r.me ? 'me' : ''}${r.pos <= 4 ? ' top' : ''}${r.pos > teams - 3 ? ' low' : ''}"><td class="po-num">${r.pos}</td><td class="l">${team(r)}</td><td class="fin-col">${FinChip(r.tier, true, true)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gd}</td><td><b class="po-num">${r.points}</b></td></tr>`).join('')}
-    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">${mine ? '팀 전력 = 라인업 평균' : '빠른 계산 · 팀 전력 = 데이터 레이팅'}</span></div></div>`;
+    </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">${mine ? '팀 전력 = 라인업 평균' : '다른 리그 · 팀 전력 = 데이터 레이팅'}</span></div></div>`;
 }
 
 /** 다른 리그 순위 (C.76c): 상태 줄 · (컨퍼런스별) 순위표 · 지난 시즌 */
@@ -411,16 +411,16 @@ function otherTable(o: OtherLeagueVM): string {
   const head = `<p class="small muted wl-other"><b>${esc(o.name)}</b> · ${esc(o.sub)} · ${esc(o.season)} · ${esc(o.status)}</p>`;
   const body = o.groups ? o.groups.map((g) => `${SectionTitle({ title: g.title })}${leagueTableHtml(g.rows, g.rows.length, false)}`).join('') : leagueTableHtml(o.table, o.table.length, false);
   const last = o.last ? `<p class="small muted">지난 시즌(${esc(o.last.season)}) 우승 ${esc(o.last.champion)}${o.last.scorer ? ` · 득점왕 ${esc(o.last.scorer)}` : ''}</p>` : '';
-  return `${head}${body}${last}<p class="small muted">다른 리그는 빠른 계산으로 진행돼요(승강 없음). 득점자는 그 팀 선수단에서 뽑아요.</p>`;
+  return `${head}${body}${last}<p class="small muted">다른 리그도 설정의 '다른 경기 계산'대로 진행돼요(전체 엔진 · 빠른 진행, 승강 없음).</p>`;
 }
 
 /** 다른 리그 득점 순위 (C.76c) */
 function otherScorersHtml(o: OtherLeagueVM): string {
   if (!o.scorers.length) return `<p class="small muted">${esc(o.name)} · ${esc(o.status)} · 아직 기록이 없어요.</p>`;
   return `<p class="small muted wl-other"><b>${esc(o.name)}</b> · ${esc(o.season)} · ${esc(o.status)}</p><div class="panel tbl-panel"><table class="tbl league">
-    <tr><th>#</th><th class="l">선수</th><th>골</th><th>도움</th></tr>
-    ${o.scorers.map((r, i) => `<tr><td class="po-num">${i + 1}</td><td class="l"><b>${esc(r.name)}</b> <span class="small muted">${esc(r.team)}</span></td><td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td></tr>`).join('')}
-  </table><div class="legend small"><span class="grow r">빠른 계산 경기의 득점·도움</span></div></div>`;
+    <tr><th>#</th><th class="l">선수</th>${o.engine ? '<th>출전</th>' : ''}<th>골</th><th>도움</th>${o.engine ? '<th>평점</th>' : ''}</tr>
+    ${o.scorers.map((r, i) => `<tr><td class="po-num">${i + 1}</td><td class="l"><b>${esc(r.name)}</b> <span class="small muted">${esc(r.team)}</span></td>${o.engine ? `<td>${r.apps ?? '-'}</td>` : ''}<td><b class="po-num">${r.goals}</b></td><td>${r.assists}</td>${o.engine ? `<td>${r.avg}</td>` : ''}</tr>`).join('')}
+  </table><div class="legend small"><span class="grow r">${o.engine ? '22명 엔진으로 계산한 경기 기록 (빠른 계산 경기는 득점·도움만)' : '빠른 계산 경기의 득점·도움'}</span></div></div>`;
 }
 
 const chipList = (xs: { label: string; value: number }[]) => (xs.length

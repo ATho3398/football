@@ -1277,7 +1277,9 @@ export interface OtherLeagueVM {
   status: string;
   table: WorldRowVM[];
   groups: TableGroupVM[] | null;
-  scorers: { id: string; name: string; teamId: string; team: string; goals: number; assists: number }[];
+  scorers: { id: string; name: string; teamId: string; team: string; goals: number; assists: number; apps: number | null; avg: string }[];
+  /** 엔진 기록이 있는가 (출전·평점 열, 45b b) */
+  engine: boolean;
   /** 지난 시즌 (우승 · 득점왕) */
   last: { season: string; champion: string; scorer: string } | null;
 }
@@ -1315,7 +1317,12 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
   return {
     id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[d.calendar]}` : '',
     season: seasonLabel(lg.season, calendarKind(lg.id)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
-    scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => ({ id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists })),
+    scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => {
+      const st = lg.stats?.[id];
+      const apps = st?.[2] ?? null;
+      return { id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists, apps, avg: apps ? ((st![3] ?? 0) / apps / 10).toFixed(2) : '-' };
+    }),
+    engine: Object.values(lg.stats ?? {}).some((s) => s[2] !== undefined),
     last: last ? {
       season: seasonLabel(last.season, calendarKind(lg.id)), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
       scorer: last.scorer ? `${last.scorer[0]}(${teamById(lg, last.scorer[1]).nameKo}) ${last.scorer[2]}골` : '',
