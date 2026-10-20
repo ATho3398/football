@@ -1,7 +1,7 @@
 // 다른 팀·다른 선수 상세 (C.53, pending 82 4번) — 6차 디자인 157 `팀상세` · 158 `선수상세-다른선수`.
 // 읽기 전용: 편집 버튼([찍기]·[꾸미기]·[이적 요청])이 없다. 팀 이름·선수 이름을 누르면 서로 오간다
 
-import { Avatar, Button, Crest, esc, FinChip, FormationPitch, HeroPanel, Icon, SectionTitle, TacticChip, Tabs, TierBadge } from '../components';
+import { Avatar, Button, Crest, esc, FinChip, FootPair, FormationPitch, HeroPanel, Icon, SectionTitle, TacticChip, Tabs, TierBadge } from '../components';
 import { TIER_KO, type FinanceTier } from '../../finance';
 import type { LeftPersonVM, PersonDetailVM, PersonTab, SquadRowVM, TeamDetailVM, TeamMatchVM, TeamTab } from '../detailVM';
 import type { FormMark } from '../prepVM';
@@ -113,8 +113,7 @@ export function personDetailView(vm: PersonDetailVM, tab: PersonTab, back: boole
         <div><small>등번호</small><b class="po-num">${vm.shirt ?? '—'}</b></div>
         <div><small>키</small><b class="po-num">${n.height}<i>cm</i></b></div>
         <div><small>몸무게</small><b class="po-num">${n.weight}<i>kg</i></b><span>BMI ${n.bmi}</span></div>
-        <div><small>주발</small><b>${esc(vm.body.foot)}</b></div>
-        <div><small>약발</small><b class="po-num">${n.weakFoot}</b><span>${'●'.repeat(n.weakFoot)}${'○'.repeat(5 - n.weakFoot)}</span></div>
+        <div class="bs-feet"><small>주발 · 약발</small>${FootPair({ foot: n.foot, weakFoot: n.weakFoot })}<span>${esc(vm.body.foot)} 주발 · 약발 ${n.weakFoot}${n.weakFoot >= 5 ? ' 양발' : ''}</span></div>
       </div>`
       : panel('<p class="small muted">몸 정보가 없는 선수예요.</p>');
     const youth = vm.youthId && vm.youth !== '—'

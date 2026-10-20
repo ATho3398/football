@@ -171,7 +171,8 @@ describe('세이브 46', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toBe('C.75t');
-    expect(STAGE_LABEL).toBe('46단계');
+    // C.75z 뒤로는 형식만 (값은 그 패치 테스트에서)
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?\d*단계$/);
   });
 });

@@ -18,6 +18,24 @@ export function Icon(p: IconProps): string {
   return `<svg class="${cx('po-icon', p.className)}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${p.strokeWidth ?? 2}" stroke-linecap="round" stroke-linejoin="round" ${aria}${p.style ? ` style="${p.style}"` : ''}><path d="${ICON_PATHS[p.name]}"/></svg>`;
 }
 
+// ── FootPair (C.75x) ──
+
+export interface FootPairProps { foot: 'left' | 'right'; weakFoot: number; /** 주발 숫자 (데이터에 없으면 5) */ main?: number; size?: number; className?: string }
+
+/** 양발 발자국 두 개 (왼발 · 오른발): 각 발자국 안에 그 발 숫자 1~5. 주발 = 강조색(lime) 채움, 약발 = 흐린 테두리 */
+export function FootPair(p: FootPairProps): string {
+  const size = p.size ?? 34;
+  const main = p.main ?? 5;
+  const one = (side: 'left' | 'right') => {
+    const isMain = side === p.foot;
+    const n = isMain ? main : p.weakFoot;
+    const flip = side === 'left' ? ' transform="matrix(-1 0 0 1 24 0)"' : '';
+    return `<svg class="${cx('po-foot', isMain && 'is-main')}" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS.foot}"${flip}/><text x="${side === 'left' ? 11.8 : 12.2}" y="18.3" text-anchor="middle">${n}</text></svg>`;
+  };
+  const label = `주발 ${p.foot === 'left' ? '왼발' : '오른발'} ${main} · 약발 ${p.weakFoot}`;
+  return `<span class="${cx('po-feet', p.className)}" role="img" aria-label="${label}">${one('left')}${one('right')}</span>`;
+}
+
 // ── Button ──
 
 export interface ButtonProps extends Action {

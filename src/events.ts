@@ -392,6 +392,61 @@ export function answerEvent(state: GameState, itemId: number, choiceId: string, 
   return text;
 }
 
+// ── 자동 진행 중 인터뷰 (C.75x) ──
+
+/** 인터뷰 이벤트 (태그 interview): 자동 진행 중에는 멈추지 않고 손해가 가장 적은 답을 고른다. 다른 선택형은 지금처럼 멈춘다 */
+export const isInterviewEvent = (d: EventDef | undefined): boolean => !!d?.tags.includes('interview');
+
+/**
+ * 효과 묶음의 손해 (가중치 없이 단위 합): 위상·신뢰도·생활 지표(팀·집·적응) 감소, 멘탈 피로·체력 소모 증가, 폼 감소(%p), 돈 감소(주급 배수, 기부 제외),
+ * 예약 이벤트(next)는 그 이벤트의 손해(정보형 = 효과, 선택형 = 가장 적은 답)
+ */
+export function effectsPenalty(effects: readonly Effect[], depth = 0): number {
+  let pen = 0;
+  for (const e of effects) {
+    if ('rep' in e) pen += Math.max(0, -e.rep);
+    else if ('trust' in e) pen += Math.max(0, -e.trust);
+    else if ('form' in e) pen += Math.max(0, -e.form) * 100;
+    else if ('fatigue' in e) pen += Math.max(0, e.fatigue);
+    else if ('life' in e) pen += e.life === 'mental' ? Math.max(0, e.add) : Math.max(0, -e.add);
+    else if ('money' in e) pen += e.charity ? 0 : Math.max(0, -e.money);
+    else if ('next' in e && depth < 3) {
+      const d = eventById(e.next);
+      if (d?.kind === 'message') pen += effectsPenalty(d.effects ?? [], depth + 1);
+      else if (d?.choices?.length) pen += Math.min(...d.choices.map((c) => effectsPenalty(c.effects, depth + 1)));
+    }
+  }
+  return pen;
+}
+
+/** 손해가 가장 적은 답 (고를 수 있는 것 중). 같으면 기본 선택(fallback = 무난한 답), 그다음 데이터 순서 */
+export function leastPenaltyChoice(d: EventDef, item: InboxItem): EventChoice | undefined {
+  const open = (d.choices ?? []).filter((c) => !item.choices?.find((x) => x.id === c.id)?.disabled);
+  let best: EventChoice | undefined;
+  let bestPen = Infinity;
+  for (const c of open) {
+    const pen = effectsPenalty(c.effects);
+    if (pen < bestPen || (pen === bestPen && c.id === d.fallback)) { best = c; bestPen = pen; }
+  }
+  return best;
+}
+
+/** 자동 진행 중 새로 뜬 인터뷰에 답한다 (skip = 진행 전부터 있던 알림 id, 그건 사용자 몫). 답한 알림의 한 줄 목록 */
+export function autoAnswerInterviews(state: GameState, skip: ReadonlySet<number> = new Set()): string[] {
+  const out: string[] = [];
+  for (const it of state.inbox?.items ?? []) {
+    if (!isPending(it) || skip.has(it.id)) continue;
+    const d = it.ev ? eventById(it.ev) : undefined;
+    if (!d || !isInterviewEvent(d)) continue;
+    const c = leastPenaltyChoice(d, it);
+    if (!c) continue;
+    const text = answerEvent(state, it.id, c.id, true);
+    it.answer!.text = `자동 진행 · 손해가 가장 적은 답. ${text}`;
+    out.push(`${it.title} → ${c.label}`);
+  }
+  return out;
+}
+
 /** 기한 지난 선택형: 기본 선택 (fallback, 없으면 고를 수 있는 마지막 선택지) */
 function expire(state: GameState, date: IsoDate): void {
   for (const it of state.inbox?.items ?? []) {
