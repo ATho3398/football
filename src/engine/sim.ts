@@ -7,7 +7,7 @@ import { ENGINE } from './config';
 import { resolveEnv } from './env';
 import { resolveRapport } from './rapport';
 import { lineOf } from './formation';
-import { caught, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
+import { caught, deepCut, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
 import { computeRatings } from './rating';
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
@@ -120,7 +120,7 @@ export function createState(input: EngineInput): SimState {
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
@@ -516,6 +516,8 @@ function stepTail(s: SimState): void {
     const fl = b.flight;
     const [px, py] = [b.x, b.y];
     resolveFlight(s);
+    // 깊은 블록 비행 중 가로채기 (C.76p): 패스 선에 들어간 수비수 옆을 공이 지나면 1회 판정
+    if (b.flight === fl && fl.outcome === 'receive') deepCut(s, px, py);
     // 빗나간 땅볼 패스가 박스 안 GK 옆을 지나가면 GK 가 처리한다 (C.28)
     if (b.flight === fl && fl.outcome === 'loose' && !fl.air && !s.restart) keeperHands(s, dist(fl.fromX, fl.fromY, fl.toX, fl.toY) / Math.max(0.05, fl.dur), px, py);
   } else if (!s.restart) {
