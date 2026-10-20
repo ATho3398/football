@@ -53,6 +53,12 @@ interface Side {
   thrAtt: number; thrRecv: number; thrRecvDist: number[]; thrShot3: number; thrGoals: number;
   byGot: Record<string, { shots: number; goals: number; xg: number }>;
   byGotST: Record<string, { shots: number; goals: number; xg: number }>;
+  /** 6대: 공을 '얻은(gain)' 횟수를 상대가 잃은 방식@잃은 지점(상대 골에서 m)으로 — 버스 실점 원인(깊은 블록 앞 소유 상실) 분해 */
+  gains: Record<string, number>;
+  /** 6대: 슛 순간 슛 모델 성분 평균 — 콘 안 수비(blockers)·압박(pressure)·pBlock·pOn·슈터 3 m 안 상대 수. 거리 구간별(0/11/16.5/20 m) */
+  shotComp: Record<string, { n: number; blockers: number; pressure: number; pBlock: number; pOn: number; near3: number; goals: number }>;
+  /** 6대: 얻은 뒤 슈팅/골/xG 를 같은 키로 */
+  byGain: Record<string, { shots: number; goals: number; xg: number }>;
   /** 슛 순간 슈터 5 m 안 상대 수, 박스 안 상대 수 (C.29 진단: 수비 인원이 슛 질에 반영되는가) */
   crowd: { n: number; near5: number; boxDef: number; boxDefL1: number; boxDefL2: number; boxAtt: number; xgByNear: Record<string, { n: number; xg: number; goals: number }>; xgByBoxDiff: Record<string, { n: number; xg: number; goals: number }> };
   /** 1대1 (5대, 미해결 12): 20 m 안·슈터 3 m 안 상대 필드 선수 0·슛 길(콘) 수비 0 인 슛. 골/선방/빗나감 분해, 판정 pOn·리그 GK pSave 평균 */
@@ -76,7 +82,7 @@ const side = (): Side => ({
   byGroup: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
   dec: 0, decMistake: 0, shootExists: 0, shootBest: 0, shootChosen: 0, shootChosenNotBest: 0, shootChosenGap: [0, 0, 0], shotXgChosen: [], shotXgWhenBest: [], bestTypeWhenShoot: {},
   typeMatch: 0, typeMismatch: 0, pathMine: {}, pathEngine: [0, 0, 0, 0, 0, 0, 0], goalPathEngine: [0, 0, 0, 0, 0, 0, 0], stShotsFromReceiveSec: [], stShotDist: [],
-  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, boxDefL1: 0, boxDefL2: 0, boxAtt: 0, xgByNear: {}, xgByBoxDiff: {} }, ovo: { n: 0, on: 0, goals: 0, pOn: 0, pSave: 0, xg: 0, n12: 0, on12: 0, goals12: 0, nH: 0, n12f: 0, on12f: 0, goals12f: 0 }, ovoBy: {}, lineBy: {}, byLine: {}, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
+  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, gains: {}, byGain: {}, shotComp: {}, crowd: { n: 0, near5: 0, boxDef: 0, boxDefL1: 0, boxDefL2: 0, boxAtt: 0, xgByNear: {}, xgByBoxDiff: {} }, ovo: { n: 0, on: 0, goals: 0, pOn: 0, pSave: 0, xg: 0, n12: 0, on12: 0, goals12: 0, nH: 0, n12f: 0, on12f: 0, goals12f: 0 }, ovoBy: {}, lineBy: {}, byLine: {}, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
 });
 const PBINS = [0, 10, 20, 30, 40, 50];
 const pbin = (d: number) => { let b = 0; while (b + 1 < PBINS.length && d >= PBINS[b + 1]!) b++; return b; };
@@ -89,16 +95,19 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
   const s = m.state;
   const G = ENGINE.onball.plausibleGap;
   // 소유 추적 (경로 분류): 선수별 공을 얻은 방식·시각·몰고 가기·돌파 횟수
-  const got = new Map<Agent, { how: string; t: number; carries: number; dribbles: number; detail: string }>();
+  const got = new Map<Agent, { how: string; t: number; carries: number; dribbles: number; detail: string; src?: string }>();
+  let lastFl: Flight | null = null;
+  let lastOwner = -1;
   const recvMark = new Map<Agent, number>();
   const ovoLast = new Map<Agent, { t: number; d: number; hdr: boolean }>();
   const ovoKeys = new Map<Agent, string[]>();
+  const shotCompKeys = new Map<Agent, string[]>();
   let prevOwner = -1;
   let prevRestart = s.restart;
   let prevEv = 0;
   let prevStats = s.teams.map((t) => ({ ...t.stats }));
-  let prevPl = new Map<Agent, { dribbles: number; dribblesWon: number; passes: number; shots: number; tackles: number; fouls: number; aerialDuels: number }>();
-  const snapPl = () => new Map(s.agents.map((a) => [a, { dribbles: a.stats.dribbles, dribblesWon: a.stats.dribblesWon, passes: a.stats.passes, shots: a.stats.shots, tackles: a.stats.tackles, fouls: a.stats.fouls, aerialDuels: a.stats.aerialDuels }]));
+  let prevPl = new Map<Agent, { dribbles: number; dribblesWon: number; passes: number; shots: number; tackles: number; fouls: number; aerialDuels: number; tacklesWon: number; interceptions: number }>();
+  const snapPl = () => new Map(s.agents.map((a) => [a, { dribbles: a.stats.dribbles, dribblesWon: a.stats.dribblesWon, passes: a.stats.passes, shots: a.stats.shots, tackles: a.stats.tackles, fouls: a.stats.fouls, aerialDuels: a.stats.aerialDuels, tacklesWon: a.stats.tacklesWon, interceptions: a.stats.interceptions }]));
   prevPl = snapPl();
   let pending: { a: Agent; type: string; isShoot: boolean } | null = null;
   while (!s.done) {
@@ -178,7 +187,22 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
       if (how === 'receive' && flBefore && flBefore.receiver === o.idx) detail = flBefore.through ? 'through' : flBefore.quick ? 'cutback/layoff' : flBefore.fromCross ? 'cross' : flBefore.kind === 'long' ? 'longpass' : 'pass';
       else if (how === 'receive' && flBefore && flBefore.fromCross) detail = 'cross';
       if (detail === 'through') { const S = out[o.team]!; S.thrRecv++; const [gx, gy] = oppGoal(attackDir(o.team, s.half)); S.thrRecvDist.push(dist(o.x, o.y, gx, gy)); }
-      got.set(o, { how, t: s.t, carries: 0, dribbles: 0, detail });
+      let src: string | undefined;
+      if (how === 'gain') {
+        const loser = (1 - o.team) as 0 | 1;
+        const pp0 = prevPl.get(o);
+        if (s.t - s.lastShotT[o.team] < 5) src = 'rebound';
+        else if (pp0 && o.stats.tacklesWon > pp0.tacklesWon) src = 'tackle';
+        else if (pp0 && o.stats.interceptions > pp0.interceptions) src = 'intercept';
+        else if (lastFl && s.agents[lastFl.passer]?.team === loser && s.t - lastFl.t0 < 4) src = lastFl.kind === 'clear' ? 'clearFail' : lastFl.kind === 'long' ? 'longFail' : lastFl.kind === 'cross' ? 'crossFail' : lastFl.kind === 'shot' ? 'shotLoose' : 'passFail';
+        else if (lastOwner >= 0 && s.agents[lastOwner]!.team === loser) src = 'dispossess';
+        else src = 'loose';
+        const [ggx, ggy] = oppGoal(attackDir(o.team, s.half));
+        const gd = dist(o.x, o.y, ggx, ggy);
+        src = `${src}@${gd <= 25 ? '≤25' : gd <= 40 ? '25-40' : '40+'}`;
+        inc(out[o.team]!.gains, src);
+      }
+      got.set(o, { how, t: s.t, carries: 0, dribbles: 0, detail, ...(src ? { src } : {}) });
       if (how === 'receive' && inOppBox(o.x, o.y, attackDir(o.team, s.half)) && o.line !== 0) {
         let nd = Infinity;
         for (const q of s.agents) if (q.onPitch && q.team !== o.team && q.line !== 0) nd = Math.min(nd, dist(q.x, q.y, o.x, o.y));
@@ -230,7 +254,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
             if (hdr) S.ovo.nH++;
             if (d <= 12) { S.ovo.n12++; if (on) S.ovo.on12++; if (!hdr) { S.ovo.n12f++; if (on) S.ovo.on12f++; } }
             {
-              const g0 = got.get(a); const keys = [`pos:${group(a.pos)}`, `got:${g0?.detail ?? 'other'}`, d <= 12 ? 'd12' : 'd12-20', `${d <= 12 ? 'd12' : 'd20'}:${group(a.pos)}`, `${d <= 12 ? 'd12' : 'd20'}:${g0?.detail ?? 'other'}`, g0 ? (s.t - g0.t < 2 ? 'fast<2s' : s.t - g0.t < 4 ? 'mid2-4s' : 'slow4s+') : 'nogot', s.possOrigin === 'open' && s.t - s.possStartT < 10 ? 'counter' : 'settled'];
+              const g0 = got.get(a); const keys = [`pos:${group(a.pos)}`, `got:${g0?.detail ?? 'other'}`, `${group(a.pos)}:${g0?.detail ?? 'other'}`, `${group(a.pos)}:${d <= 12 ? 'd12' : 'd20'}:${g0?.detail ?? 'other'}`, ...(g0?.src ? [`${group(a.pos)}:${g0.src}`] : []), d <= 12 ? 'd12' : 'd12-20', `${d <= 12 ? 'd12' : 'd20'}:${group(a.pos)}`, `${d <= 12 ? 'd12' : 'd20'}:${g0?.detail ?? 'other'}`, g0 ? (s.t - g0.t < 2 ? 'fast<2s' : s.t - g0.t < 4 ? 'mid2-4s' : 'slow4s+') : 'nogot', s.possOrigin === 'open' && s.t - s.possStartT < 10 ? 'counter' : 'settled'];
               for (const k of keys) (S.ovoBy[k] ??= { n: 0, goals: 0 }).n++;
               ovoKeys.set(a, keys);
             }
@@ -253,6 +277,17 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         S.pathEngine[a.shotPath]!++;
         const bg = (S.byGot[g?.detail ?? 'other'] ??= { shots: 0, goals: 0, xg: 0 }); bg.shots++; bg.xg += xg;
         if (group(a.pos) === 'ST') { const bs = (S.byGotST[g?.detail ?? 'other'] ??= { shots: 0, goals: 0, xg: 0 }); bs.shots++; bs.xg += xg; }
+        if (g?.src) { const bgn = (S.byGain[g.src] ??= { shots: 0, goals: 0, xg: 0 }); bgn.shots++; bgn.xg += xg; }
+        {
+          const sm = shotModel(s, a);
+          let n3 = 0;
+          for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && dist(o.x, o.y, a.x, a.y) <= 3) n3++;
+          for (const k of ['all', `d${DBINS[dbin(d)]}`]) {
+            const v = (S.shotComp[k] ??= { n: 0, blockers: 0, pressure: 0, pBlock: 0, pOn: 0, near3: 0, goals: 0 });
+            v.n++; v.blockers += sm.blockers; v.pressure += sm.pressure; v.pBlock += sm.pBlock; v.pOn += sm.pOn; v.near3 += n3;
+          }
+          shotCompKeys.set(a, ['all', `d${DBINS[dbin(d)]}`]);
+        }
         { const nd = recvMark.get(a); if (nd !== undefined && g && s.t - g.t < 3) { S.recvBox.shots3++; if (nd <= 1.5) S.recvBox.shots3Within15++; } }
         {
           const dirA = attackDir(a.team, s.half);
@@ -275,10 +310,11 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         { const lk = leadKey(e.team, true); (S.byLead[lk] ??= { goals: 0, shots: 0 }).goals++; }
         const a = s.agents.find((x) => x.id === e.players[0])!;
         S.goals++;
+        { for (const k of shotCompKeys.get(a) ?? []) if (S.shotComp[k]) S.shotComp[k]!.goals++; shotCompKeys.delete(a); }
         { const o1 = ovoLast.get(a); if (o1 && s.t - o1.t < 4) { S.ovo.goals++; for (const k of ovoKeys.get(a) ?? []) (S.ovoBy[k] ??= { n: 0, goals: 0 }).goals++; if (o1.d <= 12) { S.ovo.goals12++; if (!o1.hdr) S.ovo.goals12f++; } ovoLast.delete(a); } }
         (S.byGroup[group(a.pos)] ??= { shots: 0, goals: 0, xg: 0 }).goals++;
         S.goalPathEngine[a.shotPath]!++;
-        const gg = got.get(a); if (gg) { (S.byGot[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.detail === 'through') S.thrGoals++; if (group(a.pos) === 'ST') (S.byGotST[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
+        const gg = got.get(a); if (gg) { (S.byGot[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.detail === 'through') S.thrGoals++; if (group(a.pos) === 'ST') (S.byGotST[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.src) (S.byGain[gg.src] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
         { const dirA = attackDir(a.team, s.half); let near5 = 0, boxDef = 0, boxAtt = 0; for (const o of s.agents) { if (!o.onPitch || o.line === 0) continue; if (o.team === a.team) { if (inOppBox(o.x, o.y, dirA)) boxAtt++; continue; } if (dist(o.x, o.y, a.x, a.y) <= 5) near5++; if (inOppBox(o.x, o.y, dirA)) boxDef++; } const k = near5 >= 3 ? '3+' : String(near5); (S.crowd.xgByNear[k] ??= { n: 0, xg: 0, goals: 0 }).goals++; const bd = boxAtt - boxDef; const kb = bd <= -2 ? '≤-2' : bd >= 2 ? '≥+2' : String(bd); (S.crowd.xgByBoxDiff[kb] ??= { n: 0, xg: 0, goals: 0 }).goals++; (S.byLine[String(a.line)] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
         // 거리 구간: 직전 슈팅 이벤트
         const sh = [...s.events].reverse().find((x) => x.type === 'shot' && x.players[0] === a.id);
@@ -306,6 +342,8 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
       }
     }
     prevOwner = b.owner;
+    if (b.owner >= 0) lastOwner = b.owner;
+    if (b.flight) lastFl = b.flight;
     prevRestart = s.restart;
     prevEv = s.events.length;
     prevStats = s.teams.map((t) => ({ ...t.stats }));
@@ -341,6 +379,9 @@ function report(label: string, out: [Side, Side]): void {
     console.log(`  상대 진영 탈취 ${q(S.oppHalfWins)} 인터셉트 ${q(S.ints)} 태클 시도 ${q(S.tackleAtt)} 소유 상실(몰고·유지 실패) ${q(S.disp)} 역습 슈팅 ${q(S.counterShots)} 골킥 ${q(S.goalKicks)} 코너 ${q(S.corners)}`);
     console.log(`  침투 패스: 시도 ${q(S.thrAtt)} 수신 ${q(S.thrRecv)} (${(100 * S.thrRecv / Math.max(1, S.thrAtt)).toFixed(0)}%), 받은 곳 골까지 평균 ${mean(S.thrRecvDist).toFixed(1)} m, 받고 3초 안 슛 ${q(S.thrShot3)}, 침투로 받은 뒤 골 ${q(S.thrGoals)} (${(100 * S.thrGoals / Math.max(1, S.goals)).toFixed(0)}% of 골)`);
     console.log(`  얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGot).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
+    console.log(`  슛 순간 슛 모델 성분(6대, 거리 구간별 n/경기 · 콘 안 수비 · 압박 · pBlock · pOn · 3 m 안 상대 · 골률%): ${Object.entries(S.shotComp).sort().map(([k, v]) => `${k} ${q(v.n)} · ${(v.blockers / v.n).toFixed(2)} · ${(v.pressure / v.n).toFixed(2)} · ${(v.pBlock / v.n).toFixed(3)} · ${(v.pOn / v.n).toFixed(3)} · ${(v.near3 / v.n).toFixed(2)} · ${(100 * v.goals / v.n).toFixed(1)}%`).join(' | ')}`);
+    console.log(`  얻은(gain) 횟수/경기 — 상대가 잃은 방식@잃은 지점(상대 골에서 m) (6대): ${Object.entries(S.gains).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${q(v)}`).join(' · ')}`);
+    console.log(`  얻은 뒤 슈팅/골/xG (같은 키, 6대): ${Object.entries(S.byGain).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  ST 얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGotST).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  슛 순간 수비 밀집: 슈터 5 m 안 상대 평균 ${(S.crowd.near5 / Math.max(1, S.crowd.n)).toFixed(2)}명, 박스 안 상대 평균 ${(S.crowd.boxDef / Math.max(1, S.crowd.n)).toFixed(2)}명(수비 줄 ${(S.crowd.boxDefL1 / Math.max(1, S.crowd.n)).toFixed(2)} / 중원 줄 ${(S.crowd.boxDefL2 / Math.max(1, S.crowd.n)).toFixed(2)}), 박스 안 우리 공격 평균 ${(S.crowd.boxAtt / Math.max(1, S.crowd.n)).toFixed(2)}명 · 5 m 안 상대 수별 슛(xG/실제 골률): ${Object.entries(S.crowd.xgByNear).sort().map(([k, v]) => `${k}명 ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`).join(' · ')}`);
     { const v = S.ovo; const pc = (x: number, d0: number) => (100 * x / Math.max(1, d0)).toFixed(1); console.log(`  1대1 슛(20 m 안·3 m 안 수비 0·슛 길 수비 0) ${q(v.n)}/경기: 골 ${pc(v.goals, v.n)}% · 선방 ${pc(v.on - v.goals, v.n)}% · 빗나감 ${pc(v.n - v.on, v.n)}% (xG ${(v.xg / Math.max(1, v.n)).toFixed(3)}, 판정 pOn ${pc(v.pOn, v.n)}%, 리그 GK pSave(구석 0.5) ${pc(v.pSave, v.n)}%) · 12 m 안 ${q(v.n12)}: 골 ${pc(v.goals12, v.n12)}% · 선방 ${pc(v.on12 - v.goals12, v.n12)}% · 빗나감 ${pc(v.n12 - v.on12, v.n12)}% · 헤더 제외 12 m 안 ${q(v.n12f)}: 골 ${pc(v.goals12f, v.n12f)}% · 선방 ${pc(v.on12f - v.goals12f, v.n12f)}% · 빗나감 ${pc(v.n12f - v.on12f, v.n12f)}% (1대1 중 헤더 ${pc(v.nH, v.n)}%)`); }
