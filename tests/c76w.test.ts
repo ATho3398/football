@@ -50,9 +50,13 @@ function secondLineMarked(maxMan: number): number {
 }
 
 describe('C.76w 박스 안 2선 마크', () => {
-  it('상수: boxManMax 는 1~3, boxManSlack 은 0 이상, 마크 거리 stMark 그대로', () => {
+  it('상수: boxManMax 는 0(끔, 부록 C.76w)~3, boxManSlack 은 0 이상, 마크 거리 stMark 그대로, 코너 상수(가설 2)는 현실 범위 0.3~0.5', () => {
     const O = ENGINE.offball;
-    expect(O.boxManMax).toBeGreaterThanOrEqual(1);
+    expect(O.boxManMax).toBeGreaterThanOrEqual(0);
+    expect(ENGINE.prob.blockCorner).toBeGreaterThanOrEqual(0.3);
+    expect(ENGINE.prob.blockCorner).toBeLessThanOrEqual(0.5);
+    expect(ENGINE.prob.clearCorner).toBeLessThanOrEqual(0.5);
+    expect(ENGINE.keeper.parryCorner).toBeLessThanOrEqual(0.5);
     expect(O.boxManMax).toBeLessThanOrEqual(3);
     expect(O.boxManSlack).toBeGreaterThanOrEqual(0);
     expect(O.stMark).toBe(1.5);
@@ -63,8 +67,8 @@ describe('C.76w 박스 안 2선 마크', () => {
     expect([a.homeGoals, a.awayGoals]).toEqual([b.homeGoals, b.awayGoals]);
     expect(a.events.length).toBe(b.events.length);
   });
-  it('박스 안 2선(비ST) 선수를 목표로 둔 수비 줄 선수가 있는 비율이 boxManMax 0(끔)보다 높다', () => {
-    const on = secondLineMarked(ENGINE.offball.boxManMax);
+  it('boxManMax 2 로 켜면 박스 안 2선(비ST) 선수를 목표로 둔 수비 줄 선수가 있는 비율이 0(끔)보다 높다', () => {
+    const on = secondLineMarked(2);
     const off = secondLineMarked(0);
     expect(on).toBeGreaterThan(off + 0.05);
   });

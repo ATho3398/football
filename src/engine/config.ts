@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 32;
+export const ENGINE_VERSION = 33;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -258,11 +258,13 @@ export const ENGINE = {
     focusDoubleMin: 0.5,
     focusDoubleExtra: 5,
     /**
-     * 박스 안 2선 마크 (C.76w, 미해결 8·11 — 수비 자원을 ST 한 명에서 박스 안 2선으로 재배정, 공격 코드 무수정): 박스 + boxManSlack m 안에
-     * 마커 없는 다른 상대(줄 ≥ 2 전부 — CAM·CM 침투자 포함)가 있으면 둘째 수비는 위협 1위 더블팀 대신 그중 위협도 1위를, boxManMax 명까지
-     * 위협 순으로 1명씩 골 쪽 stMark 로 마크한다(파 포스트 자리 하나는 남긴다). 없을 때만 지금처럼 더블팀. 줄 2 존 마크도 마커 있는 focus 는 뺀다
+     * 박스 안 2선 마크 (C.76w 가설 1, 미해결 8·11 — 수비 자원을 ST 한 명에서 박스 안 2선으로 재배정, 공격 코드 무수정): 박스 + boxManSlack m 안에
+     * 마커 없는 다른 상대(줄 ≥ 2 전부 — CAM·CM 침투자 포함)가 있으면 둘째 수비는 위협 1위 더블팀 대신(엘리트 focusDoubleMin 이상은 더블팀 유지) 그중 줄 2 먼저·위협도 순 1위를,
+     * boxManMax 명까지 1명씩 골 쪽 stMark 로 마크한다. 없을 때만 지금처럼 더블팀. 줄 2 존 마크도 마커 있는 focus 는 뺀다.
+     * **지금은 0(끔, 부록 C.76w)**: 2 는 quick 600 득점 비율 ST 30 → 35~36 이지만 미드 35 → 38~39·윙 20 → 14~15 로 2선 몫이 오히려 늘고(마크가 2선 득점을 못 막음),
+     * 같은 시드 scoring 30골+ 1.6 → 3.3~4.1·득점왕 중앙값 31 → 37~38 로 분포 가드 ✗ — 미해결 8·11 유지. 0 이면 (a)(b)(c) 모두 엔진 32 와 같다
      */
-    boxManMax: 2,
+    boxManMax: 0,
     boxManSlack: 3,
     /** 커버 섀도 대상 가치 × (1 + focusShadowW × 계수): 패스 길 차단이 엘리트 쪽으로 */
     focusShadowW: 0.5,

@@ -896,9 +896,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 마킹: 존 근처의 위협적인 상대. 수비 주의 집중 대상(E.20 8번)이 존 근처에 있으면 그 선수를 먼저, 더 가깝게
   const [zx, zy] = toPitch(nx, ny, dir);
   const focus = focusThreat(s, a.team);
-  // 줄 2 존 마크의 ST 쏠림 해소 (C.76w, 미해결 8·11): focus 가 이미 boxDefense 마커를 가진 상태(markZone + 위협 1위 마커)면
+  // 줄 2 존 마크의 ST 쏠림 해소 (C.76w (c), 미해결 8·11 — boxManMax > 0 일 때만, 지금은 0 = 끔): focus 가 이미 boxDefense 마커를 가진 상태(markZone + 위협 1위 마커)면
   // 존 마크는 focus 를 빼고 존 근처 다른 상대(2선 침투자가 대개 여기 걸린다)를 맡는다
-  const focusHeld = markZone && threatMarker(s, a.team) !== null;
+  const focusHeld = O.boxManMax > 0 && markZone && threatMarker(s, a.team) !== null;
   let mark: Agent | null = null;
   let best = 14;
   for (const o of s.agents) {
