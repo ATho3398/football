@@ -6512,7 +6512,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.76s 44h-c2단계 엔진 블록 — 게겐프레싱·높은 압박의 대가(pending 142 · 미해결 3 게겐 축: 압박 팀이 실제로 더 뛰고 더 닳고, 피로가 경합·판단·패스에 닿는다) **`main` 배포** (ENGINE_VERSION 31 → 32, BALANCE_VERSION 그대로(66), SAVE_FORMAT_VERSION 그대로 — 병렬 C.76q 가 엔진 31 을 먼저 씀)
 
-지시: 마스터 W `docs/session-prompts/C.76s.md`, 엔진관리자6 `docs/engine-diagnosis-e4.md` §9.11.5(44h-c2)·§9.11.1 가설 3. 브랜치 `claude/c76s-gegen-cost`. `PATCH_LABEL` = `C.76s`, `STAGE_LABEL` 그대로. Fable. 2026-10-21 01:34 ~ __END__ KST(예산 3시간), polish-b 120경기 묶음 8회(병렬 변형 포함 20회 실행 — 예산 9회를 묶음 기준으로 지킴) + quick 600 · 같은 시드 scoring · engine:check · sweep 7×7 · 지문 30 · defense-shape 40.
+지시: 마스터 W `docs/session-prompts/C.76s.md`, 엔진관리자6 `docs/engine-diagnosis-e4.md` §9.11.5(44h-c2)·§9.11.1 가설 3. 브랜치 `claude/c76s-gegen-cost`. `PATCH_LABEL` = `C.76s`, `STAGE_LABEL` 그대로. Fable. 2026-10-21 01:34 ~ 05:5x KST(**예산 3시간을 약 1시간 20분 초과** — 03:18 W 알림으로 A 를 빼면서 가드 전체(quick·scoring·sweep·engine:check·balance:check·테스트)를 두 번 돌렸고, 총량 보정 saveBase 1.62 로 한 번 더; balance:check 2회 ≈ 2시간 40분), polish-b 120경기 묶음 8회(병렬 변형 포함 20회 실행 — 예산 9회를 묶음 기준으로 지킴) + quick 600 · 같은 시드 scoring · engine:check · sweep 7×7 · 지문 30 · defense-shape 40.
 
 **진단 일치**(엔진 30 main dfcdee6, `polish-b tac 120 gegenpress|balanced@2211|balanced`): 게겐 홈 1.38 / 상대 0.98(+0.40) · 선발 이동 7.79 대 7.76 km · 끝 스태미나 55.9 대 57.7 · 75분+ 득실 0.27/0.26 · 상대 진영 탈취 23.6 대 19.0; 압박 높음만 1.25/1.22, 이동 7.78 대 7.92(−1.8%); 균형끼리 1.30/1.18 — §9.11.5 표와 같다(게겐은 더 뛰지 않고 2 만 더 닳으며 우위가 90분 내내 같다).
 
@@ -6554,7 +6554,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 같은 시드 30경기 지문 | 5b77258818227aa9 · C.76q 9c81aecadd2d029c | **300338da03b1bfb4**(최종; 평점 center 도 지문에 들어가 중간값 441949252e9e8a51·1ef4c2079006af24·39cfa9878f948ca0 을 거침) | 의도된 변경 |
 | 경기 계산 (워커) | 776 ms | 678 ms | ≤ 2초 ✓ |
 
-`npm run typecheck` ✓ · `npm test` 전체 통과 **1045개 / 123파일**(c76s 4개 추가; `cards` 2초 테스트는 balance:check·sweep 동시 실행 중 실패 → 측정을 멈추고 단독 ✓, C.76p 와 같은 현상) · `npm run build` ✓ · `balance:check` __BCHECK__. CAM 평점 6.27(가드 6.3): 지친 선수의 패스·판단 흐트러짐이 패스 중심 포지션의 델타 합을 내려 포지션 정규화 `rating.center` 를 C.26 방식(`rating-parts` 600경기 선발 45분+ 평균 델타 합)으로 재측정 — 600경기 16,800명 측정 GK 0.97 · CB 0.97 · FB 0.81 · CDM 1.39 · CM 1.59 · **CAM 1.26** · WING 1.06 · ST 1.77(+0.14 규칙). 8군을 모두 반영하면 CAM 6.49 로 들어오지만 **평점 σ 0.70(가드 0.7~0.9) ✗** 로 내려가(군 사이 간격이 사라짐) 가드 밖이던 **CAM 만 1.51 → 1.26** 반영, 나머지는 다음 재측정 때. 평점은 경기 끝에만 계산되어 경기 진행과 무관하지만 지문에는 들어간다(아래 지문은 반영 뒤).
+`npm run typecheck` ✓ · `npm test` 전체 통과 **1045개 / 123파일**(c76s 4개 추가; `cards` 2초 테스트는 balance:check·sweep 동시 실행 중 실패 → 측정을 멈추고 단독 ✓, C.76p 와 같은 현상) · `npm run build` ✓ · `balance:check` **회귀 가드 19/19 통과**(최종 설정, 약 2시간 — sweep·engine:check 와 동시 실행). CAM 평점 6.27(가드 6.3): 지친 선수의 패스·판단 흐트러짐이 패스 중심 포지션의 델타 합을 내려 포지션 정규화 `rating.center` 를 C.26 방식(`rating-parts` 600경기 선발 45분+ 평균 델타 합)으로 재측정 — 600경기 16,800명 측정 GK 0.97 · CB 0.97 · FB 0.81 · CDM 1.39 · CM 1.59 · **CAM 1.26** · WING 1.06 · ST 1.77(+0.14 규칙). 8군을 모두 반영하면 CAM 6.49 로 들어오지만 **평점 σ 0.70(가드 0.7~0.9) ✗** 로 내려가(군 사이 간격이 사라짐) 가드 밖이던 **CAM 만 1.51 → 1.26** 반영, 나머지는 다음 재측정 때. 평점은 경기 끝에만 계산되어 경기 진행과 무관하지만 지문에는 들어간다(아래 지문은 반영 뒤).
 
 **새 화면**: 없음.
 
