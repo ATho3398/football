@@ -557,3 +557,9 @@
   - 대표팀 + 타리그 기획 준비: 코드 구조 조사(서브에이전트) 중.
 - (14:45 KST) 코드 지도 받음 → pending 134 45단계 병렬 계획 초안(45a 뼈대 + 45d1~d6 리그 데이터 6개 동시 → 45b 배선·45c 대표팀). 사용자 확인(타리그 방식·수집 시기·고속 모드) 대기.
 - (14:42 KST) **C.75i 완료**(main 68bd76d, 밸런스 57, 테스트 778, 새 화면 0 → UI_4 알림 안 함) → pending 129, ntfy. draft_는 CI 확인 뒤. 지금 코드 세션: C.75k·l.
+- (14:44 KST, 사용자 "ㄱㄱㄱ" = pending 134 계획·타리그 방식·수집 지금 병렬 승인) **45단계·46단계 시작**(기획서 17.2 표에 45·46 행 추가). 지시문은 `docs/session-prompts/C.75n~t.md`(세션 첫 지시는 "그 파일을 git show로 읽고 따르라" 한 줄 — 마스터 출력 토큰 절약).
+  - **C.75m** 45a 다중 리그 뼈대·리그 고르기 `session_011Lqx2KurgJmu2j1ogubiaP` (`claude/c75m-multi-league`)
+  - **C.75n** 45d1 라리가·세리에 A `session_01SGf8WjEsTDNABUUknf3sGi` / **C.75o** 45d2 분데스리가·리그 1 `session_01W1bgdjhrLQFYDVCpHBU2C3` / **C.75p** 45d3 챔피언십·독일 2부·에레디비시 `session_01HvFjnzc2woyrLazt7mFeNM` / **C.75q** 45d4 K리그1·J리그1 `session_01CXtepXfT4vvqbmiXGnPSqm` / **C.75r** 45d5 포르투갈·브라질 `session_015rrQpSe8DpafReVVXYjLGK` / **C.75s** 45d6 MLS·사우디 `session_0127jMJ4X34YbE7dHWX8uV8M` (데이터 파일만, 공통 형식 `data/leagues/types.ts`, 팀 id `<leagueId>:<3글자>`)
+  - **C.75t** 46a 포토카드 도감 `session_013Ru9rqwCG2XDV5mMsFVTTv` (`claude/c75t-photocards`)
+  - 지금 코드 세션 10개: C.75k·l(44) + m·n·o·p·q·r·s(45) + t(46). 엔진관리자5·UI_4 대기.
+  - 다음: C.75l 끝 → 44f-b(엔진관리자5 확인 뒤), 45a + 데이터 끝 → 45b 연결·45c 대표팀, 46a 끝 → 46b.
