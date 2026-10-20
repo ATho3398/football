@@ -214,6 +214,8 @@ export interface ShotModel {
   value: number;
   speed: number;
   blockers: number;
+  /** 슛 순간 압박 0~1 (pressureAt, C.76k 구석 보정용) */
+  pressure: number;
 }
 
 function goalAngle(x: number, y: number, gx: number): number {
@@ -262,13 +264,14 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   if (!header && blockers === 0 && nearField >= PR.pressureDist) pOn += PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) * angle;
   pOn = Math.min(PR.shotCap, pOn);
   const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
-  const pGoal = 1 - leagueSaveProb(speed, 0.5, d, header);
+  // 구석 (C.76k): 쫓기며 쏘면 구석을 못 노린다 — 판단용 구석 0.5 도 실제와 같은 식 (E.15.1)
+  const pGoal = 1 - leagueSaveProb(speed, 0.5 * (1 - PR.cornerPressure * pressure), d, header);
   const xg = (1 - pBlock) * pOn * pGoal;
   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
   const K = ENGINE.keeper;
   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
   const rebound = (1 - pBlock) * pOn * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
-  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers };
+  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure };
 }
 
 // 마무리 능력치 finishSkill 은 duel.ts (C.76a: offball 위협 가중 수비와 공유)

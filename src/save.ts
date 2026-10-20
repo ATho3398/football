@@ -355,6 +355,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   47: (s) => { s.showcase ??= emptyShowcase(); },
   // 49 → 50 (C.76d): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
   49: (s) => { s.national ??= initNational(myNationality(s.player)); },
+  // C.76k: 수비 라인 단계에 '매우 낮음'(0)이 앞에 들어가 저장된 라인 단계 0~2(낮음/보통/높음)는 1~3 으로
+  50: (s) => { if (s.tactics?.levels && typeof s.tactics.levels.lineHeight === 'number') s.tactics.levels.lineHeight += 1; },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

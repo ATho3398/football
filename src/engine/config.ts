@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 28;
+export const ENGINE_VERSION = 29;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -128,7 +128,8 @@ export const ENGINE = {
     lineHeightSpread: 0.1,
     /** 수비 라인 x(정규화) = lineBase + (lineHeight − 0.5) × lineRange, 공보다 lineBehindBall m 뒤까지만 */
     lineBase: 0.28,
-    lineRange: 0.2,
+    /** C.76k: 0.2 → 0.3 (단계당 약 3 → 4.7 m: 매우 낮음 20 m · 낮음 23.6 · 보통 29.4 · 높음 34) — 약팀이 실제로 내려앉게 */
+    lineRange: 0.3,
     lineBehindBall: 4,
     /** 수비 라인 최소 깊이 (정규화) */
     lineMin: 0.11,
@@ -198,6 +199,13 @@ export const ENGINE = {
     pressers: 2,
     /** 공이 자기 골에서 이 거리 안이면 첫 압박자는 거리와 무관하게 압박한다 (m). 둘째는 C.75c 부터 커버 (plan) */
     dangerPress: 30,
+    /**
+     * 비행 중 수신자 압박 (C.76k 단계 B, §9.10 가설 1): 상대 패스가 떠 있고 착지점이 우리 골 closeDownZone m 안이면
+     * 우리 필드 선수 중 착지점 도착 시간이 가장 짧은 1명(위협 1위 마커·GK·면제 역할 제외)이 착지점에서 우리 골 쪽 closeDownGap m 로 바로 나간다.
+     * 비행이 끝나면 기존 압박 분기(rank 0)가 이어받는다 — 상태 변수·난수 없음. 자유로운 슛의 95% 가 "받고 2초 안"(§9.10a)
+     */
+    closeDownZone: 25,
+    closeDownGap: 1.5,
     /**
      * 박스 앞 수비 블록 (E.20 3번): 공이 자기 골 boxZone m 안이면 수비 라인은 공보다 lineBehindBall m 골 쪽까지 물러나고,
      * 공에 가장 가까운 2명이 압박, CB 1명은 가장 위협적인 ST 에게 stMark m 마크(골과 ST 를 잇는 선상),
@@ -563,6 +571,8 @@ export const ENGINE = {
     shotMaxDist: 30,
     /** 유효 슈팅이 가는 구석 = 난수 × cornerRange (능력치와 무관) */
     cornerRange: 1.05,
+    /** C.76k (§9.10 가설 2 ②): 쫓기며 쏘면 구석을 못 노린다 — 구석 × (1 − cornerPressure × 압박). 판단용 leagueSaveProb 의 구석 0.5 도 같은 식 (E.15.1 판단 = 실제). 능력 무관 (E.20 7번) */
+    cornerPressure: 0.35,
     /**
      * 마무리 배수 (E.20 7번): 골 확률 = 기회의 질(xG: 위치, 각도, 압박, 슈팅 종류, 상대 GK) × clamp(1 + finishPerPoint × (마무리 능력치 − 70), finishMin, finishMax).
      * 결정력 계열 능력치는 이 한 곳에만 들어간다. 유효 슈팅 확률에 곱하므로 골 확률도 같은 배수로 바뀐다

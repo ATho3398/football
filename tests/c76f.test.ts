@@ -54,12 +54,12 @@ describe('C.76f 결정 순간 (218 · 240A · 236A)', () => {
 
 describe('C.76f 하프타임 (237)', () => {
   const base = { tendency: 'balanced' as const, levels: tendencyLevels('balanced') };
-  it('위 띠 · 정지 피치 · 세트 3칸 · 성향 6 · 세부 4 · 버튼', () => {
+  it('위 띠 · 정지 피치 · 세트 3칸 · 성향 7 · 세부 4 · 버튼', () => {
     const h = halftimeView(halftimeVM({ ...base, levels: { ...base.levels }, set: 0 }, base, d.teams, [0, 1], 0));
     expect(h).toContain('ht-top');
     expect(h).toContain('id="mo-canvas"');
     expect(h.match(/class="ht-set[ "]/g)?.length).toBe(3);
-    expect(h.match(/data-act="ht-tend"/g)?.length).toBe(6);
+    expect(h.match(/data-act="ht-tend"/g)?.length).toBe(7);
     expect(h.match(/class="ht-detail"/g)?.length).toBe(4);
     expect(h).not.toContain('ht-changed');
     expect(h).toContain('바뀐 것 없음');
