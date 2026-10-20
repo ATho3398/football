@@ -6,11 +6,11 @@
     "legendary": {
       "fps": 59.9,
       "worstMs": 16.8,
-      "sec": 8.3
+      "sec": 8.5
     },
     "common": {
-      "fps": 59.5,
-      "worstMs": 33.4,
+      "fps": 59.8,
+      "worstMs": 16.8,
       "sec": 2.4
     }
   },

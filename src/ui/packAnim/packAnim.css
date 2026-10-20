@@ -26,7 +26,7 @@
 }
 
 /* 팩 */
-.pk-packwrap { --pw: min(220px, 52vw); position: absolute; z-index: 2; width: var(--pw); height: calc(var(--pw) * 1.5); left: calc(50% - var(--pw) / 2); top: calc(45% - var(--pw) * .75); perspective: 900px; }
+.pk-packwrap { --pw: min(220px, 52vw); position: absolute; z-index: 2; width: var(--pw); height: calc(var(--pw) / var(--pk-ar, .6667)); left: calc(50% - var(--pw) / 2); top: calc(45% - var(--pw) / var(--pk-ar, .6667) / 2); perspective: 900px; }
 .pk-float { position: absolute; inset: 0; }
 .pk-packwrap.is-float .pk-float { animation: pk-float 3s ease-in-out infinite; }
 .pk-aura { position: absolute; inset: -35%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, .18), transparent); opacity: .35; pointer-events: none; }
