@@ -1,4 +1,4 @@
-// C.75m 확인 캡처 (새 게임 리그 고르기): 커스텀 1단계 리그 접힘 · 펼침 · 기본 묶음/내 리그만 · 실제 선수 탭 · 시작 후 홈. 세로 폰 390×844 기본 · PC 1280×800 (W H PREFIX).
+// C.75m 확인 캡처 (새 게임 리그 고르기): 전체 랜덤 결과의 리그 접힘 · 펼침 · 기본 묶음/내 리그만 · 실제 선수 탭 · 시작 후 홈. 세로 폰 390×844 기본 · PC 1280×800 (W H PREFIX).
 // 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c75m-capture.mjs [playwright 모듈 경로] [저장 폴더]
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -33,6 +33,8 @@ await page.reload();
 await page.waitForTimeout(400);
 await act('go', '[data-to="new"]');
 await page.waitForTimeout(300);
+await act('ng-random');
+await page.waitForTimeout(300);
 await toLeagues();
 await shot('01_새게임-리그-접힘');
 await act('ng-lg-open');
@@ -48,9 +50,8 @@ await act('form', '[data-k="mode"][data-v="real"]');
 await page.waitForTimeout(300);
 await toLeagues();
 await shot('05_실제선수-리그');
-// 시작 → 홈
-await act('form', '[data-k="mode"][data-v="custom"]');
-await act('ng-random');
+// 시작 → 홈 (실제 선수 첫 번째)
+await act('form', '[data-k="realId"]');
 await page.waitForTimeout(300);
 await act('start');
 await page.waitForTimeout(800);
