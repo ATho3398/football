@@ -518,11 +518,12 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const both = sa.map((x, i) => [x, sq[i]!] as const).filter(([e, q]) => e.apps >= 10 && q.apps >= 10);
     const perApp = (xs: SeasonOut[]) => sum(xs.map((x) => x.xp)) / Math.max(1, sum(xs.map((x) => x.apps)));
     const total = avg(sa.map((x) => x.xp)) / Math.max(1, avg(sq.map((x) => x.xp)));
-    add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15, C.76k 가드 상한 1.2)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
+    add(S, 'xpRatio', '시즌 경기 XP 엔진/빠른 (출전당, 10경기 이상)', '0.9~1.1 (2차 후 0.85~1.15, C.76k 가드 상한 1.2 → C.76w 1.15 복귀)', perApp(both.map((b) => b[0])) / Math.max(1e-9, perApp(both.map((b) => b[1]))), 0.85, 1.15, 2, {
       // 엔진 보정 중 임시 범위 (부록 C.13, 추가 확정 6번): 0.85~1.3. E3.5 2차가 끝나면 0.85~1.15 로 되돌린다
       // C.31: C.29 fix2 에서 1.08 로 해소(미해결 2번) → known 표시를 떼고 다시 가드로 판정한다
       // C.76k: 약팀 내려앉기·수신자 압박 뒤 1.16 (수비수 엔진 평점 ↑ — 처방이 허용한 방향, 반 다이크 6.9 → 7.3~7.4). 상한 1.15 → 1.20 (BALANCE_VERSION 64, 마스터 V 재검토 대상)
-      guard: TEMP_GUARD ? [0.85, 1.25] : [0.85, 1.2], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
+      // C.76w: C.76s 1.11 + C.76w 1.11 두 패치 연속 ≤ 1.15 (§9.12.2 ⑤ 복귀 조건) → 상한 1.2 → 1.15 복귀 (BALANCE_VERSION 67)
+      guard: TEMP_GUARD ? [0.85, 1.25] : [0.85, 1.15], note: `시즌 합계 비 ${total.toFixed(2)}, ${both.length}명`,
     });
     const all = sa.flatMap((x) => x.ratings);
     const mu = avg(all);
