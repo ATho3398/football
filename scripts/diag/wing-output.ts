@@ -27,6 +27,7 @@ const leagueAvg = ids.reduce((t, id) => t + ratings[id]!, 0) / ids.length;
 interface Acc { pos: Record<string, number>; apps: number; starts: number; minutes: number; goals: number; assists: number; shots: number; keyPasses: number; dribblesWon: number; ratingSum: number; ratingN: number; team: string; ovr: number; age: number }
 const acc = new Map<string, Acc>();
 const ovrOf = new Map<string, { ovr: number; age: number; team: string }>();
+const teamShots = new Map<string, number>();
 for (const id of ids) for (const p of rosters[id]!.players) ovrOf.set(p.id, { ovr: naturalOvr(p), age: p.age, team: id });
 
 const t0 = Date.now();
@@ -38,6 +39,8 @@ for (const h of ids) for (const a of ids) {
   const away = teamSetupFromRoster(rosters[a]!, ratings[a]!, ratings[h]!, WORLD, undefined, leagueAvg);
   const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: seed++, bigMatch: false }).runToEnd();
   for (const p of r.players) {
+    const tid = p.team === 0 ? h : a;
+    teamShots.set(tid, (teamShots.get(tid) ?? 0) + p.shots);
     const meta = ovrOf.get(p.id) ?? { ovr: 0, age: 0, team: '?' };
     const x = acc.get(p.id) ?? { pos: {}, apps: 0, starts: 0, minutes: 0, goals: 0, assists: 0, shots: 0, keyPasses: 0, dribblesWon: 0, ratingSum: 0, ratingN: 0, team: meta.team, ovr: meta.ovr, age: meta.age };
     if (p.minutes <= 0) continue;
@@ -71,6 +74,14 @@ for (const [lo, hi] of [[0, 60], [60, 70], [70, 78], [78, 100]] as const) {
   if (!xs.length) { console.log(`  ${lo}~${hi}: 0명`); continue; }
   console.log(`  ${lo}~${hi} | ${xs.length} | ${pct(xs.filter((x) => x.ga === 0).length, xs.length)} | ${med(xs.map((x) => x.ga))} | ${avg(xs.map((x) => x.goals)).toFixed(1)}·${avg(xs.map((x) => x.assists)).toFixed(1)} | ${avg(xs.map((x) => x.shots / x.apps)).toFixed(2)} | ${avg(xs.map((x) => x.keyPasses / x.apps)).toFixed(2)} | ${avg(xs.map((x) => x.rating)).toFixed(2)}`);
 }
+console.log('\n윙어 세부 (20경기 이상): 구분 | 선수 수 | 0 G+A | G+A ≤ 2 | G+A 중앙값 | 슈팅/경기 | 팀 슈팅 중 비중 % | 키패스/경기 | 평점');
+const wingRow = (label: string, xs: typeof rows) => { if (!xs.length) { console.log(`  ${label}: 0명`); return; } const share = avg(xs.map((x) => x.shots / Math.max(1, (teamShots.get(x.team) ?? 0) / 38 * (x.apps / 38) * 38) )); void share; const sh = avg(xs.map((x) => (x.shots / x.apps) / ((teamShots.get(x.team) ?? 1) / 38))); console.log(`  ${label.padEnd(18)} | ${xs.length} | ${pct(xs.filter((x) => x.ga === 0).length, xs.length)} | ${pct(xs.filter((x) => x.ga <= 2).length, xs.length)} | ${med(xs.map((x) => x.ga))} | ${avg(xs.map((x) => x.shots / x.apps)).toFixed(2)} | ${(100 * sh).toFixed(0)}% | ${avg(xs.map((x) => x.keyPasses / x.apps)).toFixed(2)} | ${avg(xs.map((x) => x.rating)).toFixed(2)}`); };
+const wings = rows.filter((x) => x.group === 'WING');
+wingRow('LW/RW', wings.filter((x) => x.mainPos === 'LW' || x.mainPos === 'RW'));
+wingRow('LM/RM', wings.filter((x) => x.mainPos === 'LM' || x.mainPos === 'RM'));
+for (const [lo, hi, lb] of [[0, 72, '팀 레이팅 <72'], [72, 78, '팀 72~78'], [78, 100, '팀 ≥78']] as const) wingRow(lb, wings.filter((x) => (ratings[x.team] ?? 0) >= lo && (ratings[x.team] ?? 0) < hi));
+for (const [lo, hi, lb] of [[0, 72, 'ST 팀 <72'], [78, 100, 'ST 팀 ≥78']] as const) wingRow(lb, rows.filter((x) => x.group === 'ST' && (ratings[x.team] ?? 0) >= lo && (ratings[x.team] ?? 0) < hi));
+console.log(`  팀 슈팅/경기: ${ids.map((id) => `${id} ${ratings[id]!.toFixed(0)} ${((teamShots.get(id) ?? 0) / 38).toFixed(1)}`).join(' · ')}`);
 console.log('\n윙어 전원 (20경기 이상, G+A 오름차순 하위 12명): id | 팀 | OVR | 나이 | 출전 | 골 | 도움 | 슈팅/경기 | 평점');
 for (const x of rows.filter((x) => x.group === 'WING').sort((p, q) => p.ga - q.ga || p.rating - q.rating).slice(0, 12)) console.log(`  ${x.id.padEnd(22)} ${x.team.padEnd(8)} ${x.ovr.toFixed(0)} ${x.age} ${x.apps} ${x.goals} ${x.assists} ${(x.shots / x.apps).toFixed(2)} ${x.rating.toFixed(2)}`);
 const st = rows.filter((x) => x.group === 'ST').sort((p, q) => p.ga - q.ga).slice(0, 5);
