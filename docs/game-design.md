@@ -6038,7 +6038,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 칩 두 줄은 C.75u 규칙 때문에 적용 안 함(위).
 - 라이벌 얼굴은 기본 아바타(NPC 사진 연결은 안 함).
 
-**검증**: `npm run typecheck`·`build` 통과, `npm test` **925개 중 924 + 2초 테스트 부하 실패 1**(balance·engine:check 와 동시 실행 중 `cards` 경기 계산 6,281 ms → 단독 재실행 통과) — 새 `tests/c76g.test.ts` 5개(PATCH_LABEL 형식·아이콘, HeroPanel photo·202 판, 홈 종·동전 배지·album, 부상 칩·목표 위치, 목표 보상 칩·라이벌 표·감독 줄), `tests/c61` 홈 PC 열 기대 갱신, `tests/c75v` PATCH_LABEL 고정 → 형식 검사. `balance:engine:check` 경량 가드 통과, `balance:check` 아래. 확인 캡처 `docs/design/c76g-check/` 10장(폰 390×844: 홈 시즌 중 · 홈 전체 · 복귀 카드 · 복귀 시트 · 선수 안내띠 · 네모 사진 홈 / PC 1280×800: 홈 · 기록 도전 · 복귀 시트(640) · 네모 사진 홈), 스크립트 `scripts/c76g-capture.mjs`(PHOTO=1 = 실제 선수 시작으로 네모 사진). 페이지 오류 0 · 가로 넘침 0.
+**검증**: `npm run typecheck`·`build` 통과, `npm test` **925개 중 924 + 2초 테스트 부하 실패 1**(balance·engine:check 와 동시 실행 중 `cards` 경기 계산 6,281 ms → 단독 재실행 통과) — 새 `tests/c76g.test.ts` 5개(PATCH_LABEL 형식·아이콘, HeroPanel photo·202 판, 홈 종·동전 배지·album, 부상 칩·목표 위치, 목표 보상 칩·라이벌 표·감독 줄), `tests/c61` 홈 PC 열 기대 갱신, `tests/c75v` PATCH_LABEL 고정 → 형식 검사. `balance:engine:check` 경량 가드 통과, `balance:check` **회귀 가드 19/19 통과**. main 병합(C.76c) 뒤 `npm test` **945개 모두 통과**·typecheck·build 통과. STAGE_LABEL 은 지시대로 '44단계'(main 의 '45단계'(C.76c)를 이 패치 단계로 — 마스터 확인). 확인 캡처 `docs/design/c76g-check/` 10장(폰 390×844: 홈 시즌 중 · 홈 전체 · 복귀 카드 · 복귀 시트 · 선수 안내띠 · 네모 사진 홈 / PC 1280×800: 홈 · 기록 도전 · 복귀 시트(640) · 네모 사진 홈), 스크립트 `scripts/c76g-capture.mjs`(PHOTO=1 = 실제 선수 시작으로 네모 사진). 페이지 오류 0 · 가로 넘침 0.
 - 디자인 없는 새 화면/패널: 없음.
 
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
