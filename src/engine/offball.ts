@@ -1140,7 +1140,18 @@ function isTopForward(s: SimState, a: Agent): boolean {
  * 비행 중 수신자 압박 담당 (C.76k 단계 B, §9.10 가설 1): 상대 패스(outcome receive, 수신자 상대 필드 선수)가 떠 있고 착지점이 우리 골 closeDownZone 안이면
  * 우리 필드 선수 중 착지점 도착 시간(반응 포함)이 가장 짧은 1명. 위협 1위 마커(가장 가까운 CB, 마크 유지)·면제 역할은 뺀다. 없으면 null. 난수 없음
  */
+const closeDownCache = new WeakMap<SimState, { tick: number; pick: Agent | null }[]>();
 function closeDownAgent(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
+  // 틱마다 팀당 한 번만 계산 (focusThreat 과 같은 캐시 — 결과 불변, 22명이 같은 탐색을 되풀이하지 않게)
+  let cache = closeDownCache.get(s);
+  if (!cache) closeDownCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
+  const c = cache[team]!;
+  if (c.tick === s.tick) return c.pick;
+  c.tick = s.tick;
+  c.pick = closeDownPick(s, team, gx, gy);
+  return c.pick;
+}
+function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
   const fl = s.ball.flight;
   if (!fl || fl.outcome !== 'receive' || s.ball.owner >= 0) return null;
   const rcv = s.agents[fl.receiver];
