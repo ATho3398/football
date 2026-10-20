@@ -12,7 +12,7 @@
 - 5차: 디자인 도착(player-one-design 123장, 컴포넌트 45종) → `5-apply.md` → M이 U5-a~g 패치로 적용. **5차 끝.**
 - 카드 그림: BATCH 03(17장) → `card-art-batch03-apply.md` → 34d C.48에서 적용. BATCH 01·02·남은 시그니처 15장이 이 세션에 오면 같은 방식(칸 자르기·이름 띠 제거·webp → `docs/design/incoming/card-art/<batch>/<카드 id>.webp`)으로 넣고 명세 표에 합친 뒤 N에 커밋 해시 알림(34d가 끝났으면 별도 소형 적용 명세).
 - 푸시: UI_4는 **`claude/ui-4`에만**(main 금지).
-- 현재 차례: **13 → 보고함(2026-10-20 16:31 KST, `docs/ui-requests/13.md`, 7~13차 통합 프롬프트 `7-13/통합_프롬프트.txt`, 캡처 `13/phone`(13)·`13/pc`(12) + 7~12·feedback, 기준 main 4dfa721 C.75m) → 디자인 기다림(186~188·191~200·202~240·139장 B화). 다음 보고는 14차(그때도 안 온 번호 모두 합침)**
+- 현재 차례: **13 → 보고함(2026-10-20 16:31 KST) → 2부 디자인 도착(2026-10-20 19:02 KST, 191~200·202~221·223~240 = 115장) → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-13-part2-apply.md` → 마스터 U (U8 패치). 남은 요청 = 3부(나머지 139장 B화 + 라이트 186~188 + 143 [가운데로]) → 14차 통합본에 이어서. UI_4는 6번 4항대로 여기서 끝(다음 UI 세션이 이어받음)**
 - **통합 1부 디자인 도착**(2026-10-19 03:00 KST): 160~163·165~185·189·190·201 + B 첫 판 20장 → `docs/design/player-one-design-b/` 덮어씀(samples 유지) → 적용 명세 `docs/ui-requests/7-9-part1-apply.md` → 마스터 P → U7-a C.69(41a단계, `session_012TdmbSD5xD2er3Gn2TtgS7`) 시작, U7-b~d 차례로. **남은 요청**(다음 통합본에 이어서): 2부 191~200·202~217, 3부 나머지 139장 + 라이트 186~188 + 143 [가운데로]. 164 = 201로 대체.
 - **카드 그림**: 61장 도착(2026-10-19 03:12) → `docs/design/incoming/card-art/set61/` + `card-art.json` → 적용 명세 `card-art-set61-apply.md` → 마스터 Q → **C.68c 적용 완료(main 7e9ab3d, 캡처 `docs/design/c68c-check/` 확인: 정식·덱 mini·패 hand·flip·4:3 정상)**. 그림 없는 카드 15장 남음(프롬프트 `card-art-remaining-prompt.txt`).
 - 9차 보고 뒤 쌓인 디자인 없는 새 화면·패널: **2개** (+ 작은 변형 12) (큰 것이 있는 단계: 1 — C.68b)
@@ -44,7 +44,7 @@
 | 10 | 2026-10-19 08:52 | `docs/ui-requests/10.md` + `7-10/통합_프롬프트.txt` | `10/phone/`(25), `10/pc/`(23) + 7·8·9·feedback | main bfd7936, C.73c | 보고함(7~10 통합, 새 218~223: 큰 4 + 작은 변형 모음) → 디자인 기다림 |
 | 11 | 2026-10-20 00:58 | `docs/ui-requests/11.md` + `7-11/통합_프롬프트.txt` | `11/phone/`(26), `11/pc/`(9) + 7·8·9·10·feedback | main becbbc6, C.74d | 보고함(7~11 통합, 새 224~230: 큰 6 + 작은 변형 모음, 222→229 흡수) → 디자인 기다림 |
 | 12 | 2026-10-20 04:57 | `docs/ui-requests/12.md` + `7-12/통합_프롬프트.txt` | `12/phone/`(8), `12/pc/`(11) + 7~11·feedback | main 8529089, C.75y | 보고함(7~12 통합, 새 231~236: 큰 5 + 작은 변형 모음) → 디자인 기다림 |
-| 13 | 2026-10-20 16:31 | `docs/ui-requests/13.md` + `7-13/통합_프롬프트.txt` | `13/phone/`(13), `13/pc/`(12) + 7~12·feedback (zip 56MB) | main 4dfa721, C.75m | 보고함(큰 3 + 작은 5, 237~240) → 디자인 기다림 |
+| 13 | 2026-10-20 16:31 | `docs/ui-requests/13.md` + `7-13/통합_프롬프트.txt` | `13/phone/`(13), `13/pc/`(12) + 7~12·feedback (zip 56MB) | main 4dfa721, C.75m | **2부 디자인 도착 2026-10-20 19:02**(191~240, 222는 229로 대체) → `7-13-part2-apply.md` → 마스터 U. 3부(139장 B화·186~188)는 14차로 |
 
 | B 테마 | 2026-10-18 04:35 | `docs/ui-requests/B-apply.md` | `docs/design/player-one-design-b/screens/png/`(20) | main 38c9833, C.53 | 핵심 20장 받음 → 적용 명세 → 마스터 N. **나머지 139장 대기** |
 
