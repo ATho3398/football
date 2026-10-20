@@ -622,3 +622,4 @@
 - **다음 순서**: C.76a 결과(실패면 엔진관리자5 재진단) → 44h-b(PK 빈도·지정 키커, 미해결 13) / C.76c 완료 → **U8-c**(238 도감·239 리그 고르기(새 구조 리그 선택→팀에 맞춤)·229 커스텀·233~235, 명세 claude/ui-4 docs/ui-requests/7-13-part2-apply.md) / C.76g(U8-b) 완료 → **U8-d**(재정·인박스·면담)·**U8-e**(시즌·월드·기록) 병렬 / C.76d 완료 → 45단계 끝 / 그 뒤 P단계·6단계 패키징, 레전드 100명 후보(pending 133 사용자 확인 대기).
 - 엔진관리자5는 대화 크기 확인 후 25만 넘으면 다음 엔진 블록 시작 때 교체(engine-manager-handoff).
 - 고속 모드: 사용자 설정 여부 미확인(새 세션 get_session에 표시 없음).
+- (19:15 KST) **V 시작** `session_01Lzq7rz3Q4FvKuV1aT6Xkhk`(브랜치 claude/planning-v ← planning-u cab900a). U 남은 예약 없음(마지막 trig_01GgtPxnBm9FZUE91rrfN4ny 실행됨). U는 V의 준비 완료 받은 뒤 멈춤.
