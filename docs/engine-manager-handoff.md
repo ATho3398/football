@@ -128,6 +128,9 @@
 - fix 브랜치와 `main`을 비교할 때는 **같은 시드**로 돌린다(`same-seed.ts`). 표본 오차(§3 8번)를 먼저 적고 비교한다.
 - 리버풀 수치는 변형 A(그대로)가 기준. 다른 변형(B~F)은 공격진 교체 실험용.
 
+- **(C.76a 교훈) 여러 worktree 에서 워커 측정을 병렬로 돌릴 때**: `scripts/engine/pool.ts` 가 워커 번들을 `node_modules/.cache/engine-harness/worker.mjs` 에 쓴다. worktree 의 `node_modules` 를 symlink 로 공유하면 **마지막에 빌드한 설정이 다른 worktree 의 워커에도 들어가 결과가 섞인다**(C.76a E 측정: 다른 상수의 두 scoring 이 완전히 같은 수치). worktree 마다 `node_modules` 를 디렉터리로 만들고 안의 패키지만 symlink, `.cache` 는 따로 둔다(`npm run balance:quick`·`scoring`·`engine:check` 모두 해당, `polish-b`·`defense-shape`·`same-seed` 는 메인 스레드라 무관). 그리고 `pgrep -f`/`pkill -f` 패턴이 자기 셸 명령줄과 겹치면 자기 셸이 죽는다(패턴은 `[v]ite-node` 식으로).
+- **(C.76a) 1대1 비율은 `gap 120` 으로도 ±6%p**(12 m 안 팀당 50~80 표본): 같은 설정 두 번이 골 27 ↔ 23, 빗나감 37 ↔ 50. `gap 240` 이상이거나 두 번을 합산해 읽는다.
+
 ## 6. 보고서 쓰는 법 (1대가 쓴 것 중 통한 것)
 
 - 맨 위 "한 줄 결론"과 사용자용 요약 10줄 이내. 원인마다 `파일:줄 함수` 한 개와 수치 한 개.
