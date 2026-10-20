@@ -597,3 +597,4 @@
 - (16:18 KST, 사용자 16:02 제보) pending 136: 선수 머리말 겹침 → C.75u 추가, 선택지가 경기장 가림 → C.75v 추가, **C.75x 시작** `session_01MSQUHXerLzf2u5MptnC3ig`(주발 발자국 아이콘·오토 인터뷰 자동, 브랜치 `claude/c75x-foot-autointerview`), 1대1·PK 질문은 서브에이전트. 진행 중 코드 세션 6개(C.75l·m·u·v·w·x).
 - (16:21 KST) **C.75l 완료**(44f-a, main bb5cf4a, ENGINE 27, T 경유) → ntfy, 엔진관리자5에 기준선 재측정·44f-b 처방 확인 요청(답 오면 44f-b 시작). 진행 중 코드 세션 5개(C.75m·u·v·w·x).
 - (16:31 KST) **C.75m 완료**(45a, main 4dfa721, BALANCE 59·SAVE 47, 테스트 891, T 경유) → UI_4 알림, ntfy. **C.75y 시작** `session_014hnh7JesgAD6TuzpSroeqZ`(45b 타리그 연결, `claude/c75y-league-wiring`) · **C.75z 시작** `session_01UZo1YRPYp3BuRWrxPsDDPg`(45c 대표팀, `claude/c75z-national-team`). 진행 중 코드 세션 6개(C.75u·v·w·x·y·z) + 44f-b 대기(엔진관리자5 처방).
+- (16:31 KST) UI_4 13차 UI 요청 보고(큰 3·작은 5, 번호 237~240, 7~13차 통합 프롬프트 docs/ui-requests/7-13/통합_프롬프트.txt, claude/ui-4 30cd2b8). 디자인 오면 U 적용 패치.
