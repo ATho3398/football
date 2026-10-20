@@ -152,10 +152,13 @@ if (await start('real', PLAYER, process.env.SEED ?? 'c75i-check')) {
       await page.waitForTimeout(250);
       const m2 = await info();
       const k = m2.opts.length - 1;
-      await act('mo-pick', `[data-v="${k}"]`); await page.waitForTimeout(150);
+      await act('mo-pick', `[data-v="${k}"]`); await page.waitForTimeout(250);
+      if (await has('[data-act="mo-confirm"][disabled]')) { await act('mo-pick', `[data-v="${k}"]`); await page.waitForTimeout(250); }
+      if (await has('[data-act="mo-confirm"][disabled]')) { await act('mo-pick', '[data-v="0"]'); await page.waitForTimeout(250); }
       if (saved < 3) { saved++; await top(); await shot(`결정순간-${dir.t.slice(0, 6).replace(/\s/g, '')}-${saved}`); }
     } else {
-      await act('mo-pick', '[data-v="0"]'); await page.waitForTimeout(150);
+      await act('mo-pick', '[data-v="0"]'); await page.waitForTimeout(250);
+      if (await has('[data-act="mo-confirm"][disabled]')) { await act('mo-pick', '[data-v="0"]'); await page.waitForTimeout(250); }
     }
     await act('mo-confirm');
     await page.waitForSelector('.po-splash', { timeout: 20_000 }).catch(() => {});
