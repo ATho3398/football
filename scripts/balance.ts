@@ -76,6 +76,16 @@ const setRecordReward = (on: boolean) => {
   for (const k of Object.keys(RECORD_REWARD)) r[k] = on ? [...RECORD_REWARD[k]!] : [0, 0];
 };
 setRecordReward(env.RECORDS === 'on');
+/**
+ * 대표팀 (C.76d): 회귀 가드는 대표팀 끔(NATIONAL 기본 off — 소집 확률 0, 대회 명단 없음), 켬은 가드 뒤 [C.76d 대표팀] 측정 줄.
+ * 레전더리 30세까지 900+ 기준선 9/48 = 0.1875 경계를 대표팀 경기(A매치 출전 48경기, 월드컵 우승 없음)가 시드 하나(legendary-26, 887 → 920)로 넘긴다 — C.68a 코치·C.74b 기록 보상과 같은 처리
+ */
+const NATIONAL_CALLUP = structuredClone(BALANCE.national.callup) as Record<string, number>;
+const setNational = (on: boolean) => {
+  const c = BALANCE.national.callup as unknown as Record<string, number>;
+  for (const k of Object.keys(NATIONAL_CALLUP)) if (k !== 'minAge') c[k] = on ? NATIONAL_CALLUP[k]! : 0;
+};
+setNational(env.NATIONAL === 'on');
 let coachMode: 'none' | 'full' = COACH;
 /** C.68b 경제 점검: 코치 풀 투자 + 평범한 지출(autoSpend). 코치 측정 줄과 따로 돌린다 (기부가 위상을 올려 900+ 비율 비교가 흐려지지 않게) */
 let spendMode = false;
@@ -463,6 +473,21 @@ if (COACH_MEASURE && env.RECORDS !== 'on') {
   const d36 = (rs: Run[]) => avg(rs.filter((r) => r.ovrByAge[36] !== undefined).map((r) => (r.ovrByAge[36] ?? 0) - (r.ovrByAge[30] ?? 0))).toFixed(1);
   console.log(`\n[C.74b 기록 보상] 보상 켬(RECORDS=on, 시드 ${SEEDS_PER_TIER}, 최적 배분) — 가드 아님, 기준 비교용`);
   console.log(`  30세 OVR 일반 ${at30(nb)}(74~78) · 레전더리 ${at30(lb)}(84~88) | 레전더리 30세까지 900+ ${wc30}/${SEEDS_PER_TIER} = ${(wc30 / SEEDS_PER_TIER).toFixed(3)}(0.1~0.2) · 35세 900+ ${wc35}/${SEEDS_PER_TIER} = ${(wc35 / SEEDS_PER_TIER).toFixed(3)}(0~0.25) | 36−30 OVR 일반 ${d36(nb)} · 레전더리 ${d36(lb)}`);
+}
+
+// ── C.76d 대표팀 측정 (가드 아님): 대표팀을 켠 레전더리·일반 최적 배분 ──
+if (COACH_MEASURE && env.NATIONAL !== 'on') {
+  setNational(true);
+  const runs = (tier: Tier) => Array.from({ length: SEEDS_PER_TIER }, (_, i) => simulateCareer(tier, i, 'best'));
+  const lb = runs('legendary');
+  const nb = runs('normal');
+  setNational(false);
+  const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
+  const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
+  const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
+  const inj = (rs: Run[]) => { const l = rs.flatMap((r) => r.seasonLog).filter((x) => x.minutes > 0); return (l.reduce((t, x) => t + x.injuries, 0) / l.reduce((t, x) => t + x.minutes, 0) * 38 * 90).toFixed(2); };
+  console.log(`\n[C.76d 대표팀] 대표팀 켬(NATIONAL=on, 시드 ${SEEDS_PER_TIER}, 최적 배분) — 가드 아님, 기준 비교용`);
+  console.log(`  30세 OVR 일반 ${at30(nb)}(74~78) · 레전더리 ${at30(lb)}(84~88) | 레전더리 30세까지 900+ ${wc30}/${SEEDS_PER_TIER} = ${(wc30 / SEEDS_PER_TIER).toFixed(3)}(0.1~0.2) · 35세 900+ ${wc35}/${SEEDS_PER_TIER} = ${(wc35 / SEEDS_PER_TIER).toFixed(3)} | 리그 부상 풀타임 환산 일반 ${inj(nb)} · 레전더리 ${inj(lb)}`);
 }
 
 // ── 회귀 가드 결과 (부록 A.1) ──

@@ -18,15 +18,16 @@ export function gkAttrs(a: Agent | null): GkAttributes {
   return a?.gk?.attrs ?? BALANCE.goalkeeper.fieldPlayerAsGk;
 }
 
-/** 세이브 난이도 δ (E.9) */
-export function saveDifficulty(speed: number, corner: number, d: number): number {
-  return K.speedW * (speed / 30) + K.cornerW * corner + K.distW * (1 - clamp(d / K.distRef, 0, 1));
+/** 세이브 난이도 δ (E.9). C.76a: 헤더가 아니면 근거리 항 closeW × max(0, 1 − d/closeRef) 를 더한다 (closeRef m 안 1대1 만 막기 어렵게) */
+export function saveDifficulty(speed: number, corner: number, d: number, header = false): number {
+  const close = header ? 0 : K.closeW * Math.max(0, 1 - d / K.closeRef);
+  return K.speedW * (speed / 30) + K.cornerW * corner + K.distW * (1 - clamp(d / K.distRef, 0, 1)) + close;
 }
 
-export function saveProb(gk: Agent | null, speed: number, corner: number, d: number, base: number = K.saveBase): number {
+export function saveProb(gk: Agent | null, speed: number, corner: number, d: number, header = false, base: number = K.saveBase): number {
   const g = gkAttrs(gk);
   // GK 리치 (C.45): 키 보정
-  return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (g.shotStopping - K.saveCenter)) / 100 + (gk?.body.gkSave ?? 0), 0.05, 0.95);
+  return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d, header) + (K.saveSkill * (g.shotStopping - K.saveCenter)) / 100 + (gk?.body.gkSave ?? 0), 0.05, 0.95);
 }
 
 export function catchProb(gk: Agent | null): number {

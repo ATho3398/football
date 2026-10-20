@@ -10,7 +10,7 @@ import { teamById } from '../league';
 import { adviceCardVM } from './viewModels';
 
 export const CAT_ICON: Record<InboxCat, IconName> = {
-  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target', money: 'coin',
+  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target', money: 'coin', national: 'world',
 };
 
 /** 옛 알림 칸(C.37·C.42·C.47·C.48·C.62)을 인박스로 옮긴다 (화면을 그리기 전에 부른다, 같은 알림은 key 로 한 번만) */
@@ -94,18 +94,21 @@ export function inboxDetailVM(g: GameState, id: number): InboxDetailVM | null {
 }
 
 /** 홈 라이벌 카드 (20.5) */
-export interface RivalCardVM { name: string; team: string; teamId: string; pos: string; age: number; ovr: number; rep: number; myRep: number; me: { ga: number; avg: string }; them: { ga: number; avg: string; apps: number }; est: boolean; lead: number; record: string }
+export interface RivalCardVM { name: string; team: string; teamId: string; pos: string; age: number; ovr: number; rep: number; myRep: number; me: { ga: number; avg: string; apps: number; goals: number; assists: number }; them: { ga: number; avg: string; apps: number; goals: number | null; assists: number | null }; est: boolean; lead: number; record: string }
 
 export function rivalCardVM(g: GameState): RivalCardVM | null {
   if (g.phase !== 'season') return null;
   const r = rivalOf(g);
   if (!r) return null;
+  const st = g.playerStats?.[r.id];
   const h = g.rival?.history ?? [];
   const w = h.filter((x) => x[5] > 0).length;
   const l = h.filter((x) => x[5] < 0).length;
   return {
     name: r.name, team: r.team, teamId: r.teamId, pos: r.pos, age: r.age, ovr: r.ovr, rep: r.rep, myRep: r.myRep,
-    me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-' }, them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps }, est: r.est,
+    // C.76g (디자인 195 비교 표): 경기·골·도움 따로. 추정 라이벌은 골+도움만 있어 골·도움은 null(—)
+    me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-', apps: g.player.season.apps, goals: g.player.season.goals, assists: g.player.season.assists },
+    them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps, goals: st && !r.est ? st[1] : null, assists: st && !r.est ? st[2] : null }, est: r.est,
     lead: r.me.ga - r.ga, record: h.length ? `지난 비교 ${w}승 ${h.length - w - l}무 ${l}패` : '첫 시즌',
   };
 }

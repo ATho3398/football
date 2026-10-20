@@ -1050,3 +1050,14 @@ button.po-pixel { cursor: pointer; }
 .po-splash--compact .po-splash__title { grid-area: title; font-size: 19px; line-height: 24px; }
 .po-splash--compact .po-splash__detail { grid-area: detail; margin: 0; font-size: 12px; }
 .po-splash--compact > :last-child:not(.po-splash__detail):not(.po-splash__title):not(.po-splash__stamp) { grid-area: rate; }
+/* ===== B · 미페 머리말: 배경 있는 사진(네모) + PC 사진 크기 (통합 2부 · 236) ===== */
+.po-hero--face.po-hero--photo .po-hero__face { --hp: var(--hero-photo, 230px); width: var(--hp); height: var(--hp); left: 16px; bottom: 150px; object-fit: cover; object-position: center top; background: var(--surface-2); box-shadow: 0 0 0 3px var(--surface-0); }
+.po-hero--face.po-hero--photo.po-hero--compact .po-hero__face { --hp: var(--hero-photo, 128px); left: 16px; bottom: 106px; }
+.po-hero--face.po-hero--photo .po-hero__line { display: none; }
+/* ===== B · 2부 다듬기: 머리말 compact 소속 줄 왼쪽 · 칩 줄바꿈 · 사진 위치 · 안내띠/토스트 줄바꿈 ===== */
+.po-hero--face.po-hero--compact .po-hero__eyebrow { align-self: flex-start; text-align: left; }
+.po-hero--face .po-hero__chips { flex-wrap: wrap; row-gap: 4px; max-width: 230px; }
+.po-hero--face.po-hero--photo .po-hero__face { top: 48px; bottom: auto; }
+.po-hero--face.po-hero--photo.po-hero--compact .po-hero__face { top: 44px; bottom: auto; }
+.po-banner__body, .po-toast__body { word-break: keep-all; overflow-wrap: anywhere; }
+.po-banner--info .po-banner__icon, .po-toast--info .po-toast__icon { color: var(--brand-ink); }

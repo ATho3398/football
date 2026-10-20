@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 62;
+export const BALANCE_VERSION = 63;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1550,6 +1550,56 @@ export const BALANCE = {
     /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
     squadTop: 14,
     assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
+  },
+  // ── 대표팀 · 국제 대회 (10번·18.12, 45c단계, 부록 C.76d) ──
+  national: {
+    /**
+     * 소집 확률 (18.12): 위상 티어별 (스페셜 30% · 탑클래스 70% · 월드클래스 이상 95%, 그 아래 일반은 낮게).
+     * 대표팀 레이팅보다 내 OVR 이 높으면 1점당 + ovrBonus (약한 나라는 잘하는 선수를 더 부른다), 최대 max
+     */
+    callup: { normal: 0.04, special: 0.3, topClass: 0.7, worldClass: 0.95, legendary: 0.95, ovrBonus: 0.03, max: 0.97, minAge: 17 },
+    /** A매치 주간 = 리그 A매치 휴식기 주말(토) 기준: 소집 발표 announce 일 전, 경기 [금, 화] = 토요일 + 이 날 */
+    window: { announce: 5, matchDays: [-1, 3] as readonly number[] },
+    /** 비시즌 6월 A매치 (대회가 없는 해): 평가전 n 경기, 날짜 = 리그 최종 라운드 + 이 날 */
+    june: { matches: 2, days: [19, 23] as readonly number[] },
+    /** 대표팀 선발: 내 OVR − 대표팀 레이팅 차 1점당 + startK, 기준 startBase, [startMin, startMax]. 선발이 아니면 교체 subChance (subMinutes 분) */
+    startBase: 0.55, startK: 0.07, startMin: 0.1, startMax: 0.95, subChance: 0.6, subMinutes: [15, 35] as readonly number[],
+    /** 내가 뛰면 대표팀 전력 + (내 OVR − 레이팅) / myShare (빠른 판정, 양수만) */
+    myShare: 11,
+    /** 평가전 상대: 대표팀 레이팅 ± friendlyGap 안에서 시드로 */
+    friendlyGap: 8,
+    /** 대회 해 전력 흔들림 (표준편차, 대회마다 시드) · 예선 통과 판정 흔들림 */
+    formSd: 1.5, qualSd: 3,
+    /**
+     * 경기 XP 배율: 컵 경기와 같은 규칙 (리그 경기 XP × matchXpScale × 이 값, C.67 성장 가드). 업적 XP 는 위상 증가에 넣지 않는다.
+     * 회귀 가드는 대표팀 끔으로 판정 (scripts/balance.ts NATIONAL, C.76d — 레전더리 30세 900+ 경계 시드 하나), 켬은 측정 줄
+     */
+    matchXpMul: 0.35,
+    /** 업적 XP (18.12): 월드컵 우승/준우승/4강/8강, 대륙컵 우승 */
+    xp: { wcWin: 600, wcFinal: 350, wcSemi: 200, wcQuarter: 100, continentalWin: 250 },
+    /** 승부차기 간이 판정 (컵과 같은 식) */
+    pens: { ratingK: 0.01, min: 0.3, max: 0.7 },
+    /**
+     * 대회 (실제 주기 근사, 여름 = 그해 6~7월 · 시즌 끝 뒤): from 해부터 every 년마다 + extra 해. teams 참가 · groups 조(4팀 1회전) →
+     * 녹아웃 ko 팀 (조 1·2위 + 성적 좋은 3위). 참가국 = 대륙 레이팅 + 흔들림 상위 (월드컵은 대륙별 quota)
+     */
+    tournaments: {
+      wc: { confed: null, from: 2022, every: 4, extra: [] as readonly number[], teams: 32, groups: 8, ko: 16 },
+      euro: { confed: 'UEFA', from: 2020, every: 4, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      copa: { confed: 'CONMEBOL', from: 2024, every: 4, extra: [2019, 2021] as readonly number[], teams: 12, groups: 3, ko: 8 },
+      asian: { confed: 'AFC', from: 2019, every: 4, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      afcon: { confed: 'CAF', from: 2019, every: 2, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      gold: { confed: 'CONCACAF', from: 2019, every: 2, extra: [] as readonly number[], teams: 16, groups: 4, ko: 8 },
+      ofc: { confed: 'OFC', from: 2024, every: 4, extra: [] as readonly number[], teams: 4, groups: 1, ko: 2 },
+    },
+    /** 월드컵 대륙별 본선 자리 (합 32, 약식) */
+    wcQuota: { UEFA: 13, CONMEBOL: 5, AFC: 5, CAF: 5, CONCACAF: 4, OFC: 0 },
+    /** 대회 경기 날짜: 리그 최종 라운드 + startAfter 일부터 조별 gap 일 간격, 녹아웃 koGap 일 간격 */
+    startAfter: 21, gap: 4, koGap: 4,
+    /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
+    tournamentBonus: 0.05,
+    /** 세이브에 남기는 지난 대회 수 (조·대진 표) */
+    keepTournaments: 6,
   },
   // ── 개인 재정 (19번, 5-7 a, C.68a) ──
   /**

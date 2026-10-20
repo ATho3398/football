@@ -606,3 +606,31 @@
 - (18:01 KST) **C.76b 완료**(46b, main 6df4acc, BALANCE 60·SAVE 48, 테스트 916) → UI_4 알림, ntfy. 46단계 끝. 진행 중 C.75v·C.76c(45b)·C.76d(45c)·C.76a(44h-a).
 - (18:27 KST) 자동 확인: run 238(C.75u) 성공 → C.75u draft_. run 239~241 취소(병렬), run 242(6df4acc = C.75z·C.76e·C.76b) 진행 중 → 45분 뒤 재확인.
 - (18:30 KST) **C.75v 완료**(main 1802686, BALANCE 61) → ntfy. 진행 중 C.76a·C.76c·C.76d.
+- (19:07 KST) UI_4 2부 디자인 적용 명세 도착 → pending 137. **C.76f**(U8-a 경기·결정) `session_01CQWNEXwLLXdF8t2LkP6vok`·**C.76g**(U8-b 컴포넌트·홈) `session_01GFKvV2Dv2EbtMM1ifZ9Gi3` 시작, **UI_5** `session_01Jep69tcqmNVqesWrwWp8cP`(claude/ui-5) 시작, UI_4 draft_. U8-c는 C.76c 뒤, U8-d·e는 U8-b 뒤. 다음 새 이름 C.76h. 진행 중 코드 세션 5개(C.76a·c·d·f·g).
+- (19:14 KST) 자동 확인: main run 244(b1902fe = C.75z·C.76e·C.76b·C.75v 모두) 성공 → C.75x(=C.75z·C.76e)·C.76b·C.75v 세션 draft_. **U 대화 43만 토큰(기준 35만 초과) → 교체.**
+
+### 8.41 U 정리 (2026-10-20 19:15 KST, U 교체 — 대화 43만 토큰·19.4달러)
+- U 동안 배포: 45d 데이터 6개(C.75n~s) · C.75k(44g-b) · C.75l(44f-a, 엔진 27) · C.75m(45a 뼈대) · C.75t(46a 도감) · C.75u(이름 잘림·선수 머리말) · C.75v(선택지 라벨·확실한 선택·최대 5·경기장 고정) · C.75z(주발 발자국·오토 인터뷰) · C.76e(커스텀 국적·인종) · C.76b(46b 유니폼·진열실). **main 최신 b1902fe CI 성공(run 244).** 46단계 끝.
+- 44f-b는 엔진관리자5 권고로 패치 없이 기록으로 닫음(§3.5). 사용자 결정: 승부차기 장면 없음, GK 1대1 현실화, 엘리트 몰림 근본 처방, 위협 가중 수비(사용자 제안 → 채택), 엔진 코드 세션 = Fable, 엔진관리자 노력도 xhigh, 고른 리그 전부 풀 엔진, 새 게임 = 리그 선택→팀(내 리그 고르기 없음), 이름 두 줄 금지, OVR·등번호 겹침 유지.
+- 부록 C 이름 겹침 사고(C.75w·x·y 기존 사용) → 지시문 쓰기 전 `git show origin/main:docs/game-design.md | grep -oE "^#+ C\.[0-9]+[a-z]"`로 빈 이름 확인. **다음 새 이름 C.76h.**
+
+### 8.42 다음 마스터 세션(V)이 할 일
+- U가 만든 세션 → 깊이 4. 제목 `V_축구 커리어 게임 마스터`, 브랜치 `claude/planning-v`(planning-u 최신에서, 만들어 푸시). 환경 "player ONE"(NTFY_TOPIC 있음).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md`(0번: 엔진 코드 세션 Fable·엔진관리자 xhigh, 7번), 이 문서 8.40~8.42, `docs/planning-pending.md` 134~137.
+- **시작 처리**: ① U(`session_01DUqLtswE7hDV9NHhh6HfZq`)에 "V 준비 완료 + V ID" ② 실행 중 세션에 "보고는 V(ID), 마스터 브랜치 claude/planning-v, 답장 불필요" 한 줄씩: C.76a `session_01Q5WHver26ok2Li6YPmhxF2`(44h-a 엔진, Fable) / C.76c `session_014hnh7JesgAD6TuzpSroeqZ`(45b 타리그·풀 엔진 다른 경기·리그 선택→팀) / C.76d `session_01UZo1YRPYp3BuRWrxPsDDPg`(45c 대표팀) / C.76f `session_01CQWNEXwLLXdF8t2LkP6vok`(U8-a 디자인 경기·결정) / C.76g `session_01GFKvV2Dv2EbtMM1ifZ9Gi3`(U8-b 디자인 컴포넌트·홈) / 엔진관리자5 `session_01Gg4RyE2G4dDfJ5gkNHsFr7`(priority later) / UI_5 `session_01Jep69tcqmNVqesWrwWp8cP`(priority later) ③ U 제목 앞 `draft_` ④ U 예약 지우기(list_triggers에서 'U 자동 확인' 남은 것) → V 자동 확인 send_later 60분 ⑤ handoff 8.43에 기록·푸시.
+- **draft_ 남은 것**: 없음(19:14 기준 끝난 세션 모두 처리). 다음 완료 세션은 main CI 성공 확인 뒤.
+- **다음 순서**: C.76a 결과(실패면 엔진관리자5 재진단) → 44h-b(PK 빈도·지정 키커, 미해결 13) / C.76c 완료 → **U8-c**(238 도감·239 리그 고르기(새 구조 리그 선택→팀에 맞춤)·229 커스텀·233~235, 명세 claude/ui-4 docs/ui-requests/7-13-part2-apply.md) / C.76g(U8-b) 완료 → **U8-d**(재정·인박스·면담)·**U8-e**(시즌·월드·기록) 병렬 / C.76d 완료 → 45단계 끝 / 그 뒤 P단계·6단계 패키징, 레전드 100명 후보(pending 133 사용자 확인 대기).
+- 엔진관리자5는 대화 크기 확인 후 25만 넘으면 다음 엔진 블록 시작 때 교체(engine-manager-handoff).
+- 고속 모드: 사용자 설정 여부 미확인(새 세션 get_session에 표시 없음).
+- (19:15 KST) **V 시작** `session_01Lzq7rz3Q4FvKuV1aT6Xkhk`(브랜치 claude/planning-v ← planning-u cab900a). U 남은 예약 없음(마지막 trig_01GgtPxnBm9FZUE91rrfN4ny 실행됨). U는 V의 준비 완료 받은 뒤 멈춤.
+
+### 8.43 마스터 세션 V (2026-10-20 19:14 KST~, `session_01Lzq7rz3Q4FvKuV1aT6Xkhk`, 브랜치 `claude/planning-v`)
+- U가 만든 세션 → `lineage` 깊이 4(한도 8). 브랜치 `claude/planning-v`(planning-u cab900a에서, 푸시).
+- 시작 처리(19:15 KST): ① U에 "V 준비 완료 + V ID"(delivered) ② C.76a·c·d·f·g·엔진관리자5·UI_5에 "보고는 V, 마스터 브랜치 claude/planning-v, 답장 불필요"(7개 모두 delivered, 엔진관리자5·UI_5는 priority later) ③ U 제목 `draft_U_축구 커리어 게임 마스터`(U 최종 약 44.6만·20.4달러) ④ 'U 자동 확인' 예약 남은 것 없음(활성 예약은 다른 세션 것 4개뿐, 손대지 않음) → V 자동 확인 send_later `trig_01X6TFX4x7mJ7NA91RkvmQeC`(20:16 KST) ⑤ `NTFY_TOPIC` 있음 확인(값 적지 않음). 한도 `allowed`.
+- 다음: 8.42 다음 순서 그대로(C.76a 결과 → 44h-b / C.76c → U8-c / C.76g → U8-d·e / C.76d → 45단계 끝). 다음 새 이름 C.76h.
+- (19:47 KST) **C.75y 45b 완료**(U 경유, main f39d98c, BALANCE 62·SAVE 49, 테스트 940, 13개 리그 실제 선수 506명 연결·14개 리그 시작·도감 744, 새 화면 0·디자인 없는 패널 4). 지시 이름 C.76c를 C.75y로 씀 → 세션이 C.76c로 바꾸는 중(그대로 진행, 아니면 부록 C 한 줄). main 코드 확인: 다른 리그 = 빠른 시뮬(otherLeagues simulateScore)·[내 리그로] 버튼 남음 → 사용자 지시 2개(16:35 고른 리그 풀 엔진, 17:45 리그 선택→팀) 빠짐 → **같은 세션에 후속 C.76h 지시**(하루 진행 시간 측정·막히면 워커, 엔진 코드 안 건드림). ntfy. run 245(f39d98c) 진행 중 → draft_는 C.76h 끝난 뒤.
+- U8-c는 239 리그 고르기·229 커스텀이 새 게임 흐름이라 **C.76h 뒤**로 미룸(새 게임 화면 충돌 방지). 다음 새 이름 C.76i.
+- (19:49 KST) 45b 세션: 이름 C.76c로 바꿔 main b6ff5ba 푸시(PATCH_LABEL C.76c, 옛 C.75y 소절 복구, 테스트 940). 이어서 **C.76h**(45b(b)) 진행 중 — 풀 엔진(워커 풀·진행 표시·설정 토글, 테스트·balance는 빠른 경로)·새 게임 리그 선택→팀. V 지시와 일치, 답장 안 함. 세션 시간 줄의 시각이 실제보다 앞섬(참고만).
+- (20:03 KST) **C.76d 45c 대표팀 완료**(main a6f5f64, SAVE 50·BALANCE 63, 테스트 958, 152개국 레이팅·위상 티어 소집·평가전 엔진·여름 대회 약식·업적 XP, 회귀 가드는 대표팀 끔으로 측정 19/19). 새 화면 3 → UI_5 알림(C.76c 패널 4 같이). ntfy(C.76c 묶음). 남은 것: 여름 대회 내 경기 자동·주 스레드, 예선 없음, 대표팀 전술 기본. **45단계 남은 것 = C.76h.** draft_는 CI 뒤.
+- (20:18 KST) **C.76f U8-a 완료**(main fa69e98, 버전 상수 그대로, 테스트 966, 새 화면 0). 218·237·240A·236A·230B 적용, 재생 중 해설 줄은 결과 뒤에만. STAGE_LABEL 44(병렬 단계, C.76h가 45로 되돌림 — 조치 없음). ntfy. 진행 중 C.76a·C.76g·C.76h. draft_는 CI 뒤.
+- (20:19 KST) 자동 확인: run 245~247 취소(병렬), run 248(fa69e98 = C.76c·d·f) 진행 중 → 35분 뒤 재확인 후 draft_. C.76a 가드 19/19 통과·푸시 준비 중(Fable). C.76g idle(30만 토큰, 백그라운드 대기, main 미반영). V 14만 토큰. 한도 allowed.

@@ -3,6 +3,7 @@
 import { ENGINE } from './config';
 import { reaction } from './core';
 import { keeperZone, sweepRange } from './keeper';
+import { finishSkill } from './duel';
 import { effectiveMax, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, toNorm, toPitch, W } from './pitch';
@@ -955,13 +956,17 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     const near = (x: Agent, y: Agent) => dist(x.x, x.y, t.x, t.y) - dist(y.x, y.y, t.x, t.y) || x.idx - y.idx;
     const cbs = defs.filter((o) => o.pos === 'CB');
     const marker = (cbs.length ? cbs : defs).slice().sort(near)[0]!;
+    // 위협 가중 (C.76a): 집중 대상의 마무리 능력 계수 — 높을수록 밀착, 계수 ≥ focusDoubleMin 이면 둘째 수비 조건의 박스를 넓힌다 (더블팀)
+    const isFocus = t === focusThreat(s, a.team);
+    const abil = isFocus ? threatAbility(t) : 0;
+    const extra = abil >= O.focusDoubleMin ? O.focusDoubleExtra : 0;
     // 박스 안이면 가까운 수비 1명이 더 붙는다 (공 쪽)
-    const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2;
+    const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth + extra && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2 + extra;
     // C.75c: 위협이 공 가까이(커버 거리 + 마크 거리 안)면 압박자·커버가 이미 있으므로 둘째는 붙지 않고 자리를 덮는다
     const ballNear = dist(t.x, t.y, b.x, b.y) <= O.plan.coverBehind + O.stMark;
     const second = inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
-    const focus = t === focusThreat(s, a.team) ? O.focusMark : 1;
+    const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
     if (marker === a) {
       // 볼 쪽 마크 (E.22 A): 공이 측면이면 골 쪽에서 공 쪽으로 반 발
       let ux = (gx - t.x) / gd;
@@ -1020,9 +1025,17 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
 const focusCache = new WeakMap<SimState, { tick: number; team: number; focus: Agent | null }[]>();
 
 /**
+ * 위협 가중 (C.76a, 미해결 8·11, 사용자 제안 "위협 가중 수비"): 마무리 능력 계수 clamp((finishSkill(슈팅) − 70)/20, −0.5, 1).
+ * 수비 주의 집중(focusThreat)·위협 1위 마크 거리·커버 섀도 대상에만 들어간다 — 마커 수·압박 항은 그대로 (미해결 8 과 다른 종류)
+ */
+export function threatAbility(o: Agent): number {
+  return clamp((finishSkill(o.attrs, 'shot') - O.focusAbilityCenter) / O.focusAbilityRange, -0.5, 1);
+}
+
+/**
  * 수비 주의 집중 대상 (E.20 8번, C.16 결정 1): 수비 팀 기준, 공을 갖지 않은 상대 필드 선수(미드·공격 줄) 중
- * 위협도 = max(0, 1 − 골까지 거리 / focusRange) + (박스 안이면 focusBox) 가 가장 높은 1명. 위치로만 고르고 능력치는 보지 않는다
- * (좋은 마무리 선수일수록 집중 마크를 받아 득점 반응이 뒤집히던 문제). 틱마다 한 번 계산
+ * 위협도 = max(0, 1 − 골까지 거리 / focusRange) + (박스 안이면 focusBox) + focusAbilityW × 마무리 능력 계수(C.76a) 가 가장 높은 1명.
+ * C.76a 전에는 위치로만 골랐다(좋은 마무리 선수일수록 집중 마크를 받아 득점 반응이 뒤집히던 문제 — 지금은 마크 거리 0.9~1.3 m 차이라 반응 가드로 지킨다). 틱마다 한 번 계산
  */
 export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   let cache = focusCache.get(s);
@@ -1035,7 +1048,7 @@ export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   for (const o of s.agents) {
     if (!o.onPitch || o.team === defTeam || o.line < 2 || o.idx === s.ball.owner) continue;
     const inBox = Math.abs(o.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(o.y - gy) <= ENGINE.pitch.boxWidth / 2;
-    const v = Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange) + (inBox ? O.focusBox : 0);
+    const v = Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange) + (inBox ? O.focusBox : 0) + O.focusAbilityW * threatAbility(o);
     if (v > bv) {
       bv = v;
       best = o;
@@ -1048,7 +1061,7 @@ export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
 
 /**
  * 커버 섀도 대상 (E.22 A): 소유자 팀의 필드 선수 중 공보다 우리 골에 가깝고 공에서 passMaxDist 안,
- * 그 팀 기준 위치 가치가 가장 큰 선수 (대개 ST). 위치로만 고른다
+ * 그 팀 기준 위치 가치 × (1 + focusShadowW × 마무리 능력 계수, C.76a) 가 가장 큰 선수 (대개 ST)
  */
 function shadowTarget(s: SimState, owner: Agent, defDir: 1 | -1): Agent | null {
   const [gx, gy] = ownGoal(defDir);
@@ -1059,7 +1072,8 @@ function shadowTarget(s: SimState, owner: Agent, defDir: 1 | -1): Agent | null {
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== owner.team || o === owner || o.line === 0) continue;
     if (dist(o.x, o.y, gx, gy) > bd - 2 || dist(o.x, o.y, owner.x, owner.y) > ENGINE.onball.passMaxDist) continue;
-    const v = positionValue(...toNorm(o.x, o.y, oppDir));
+    // 위협 가중 (C.76a): 마무리 좋은 선수로 가는 패스 길을 먼저 막는다
+    const v = positionValue(...toNorm(o.x, o.y, oppDir)) * (1 + O.focusShadowW * threatAbility(o));
     if (v > bv) {
       bv = v;
       best = o;

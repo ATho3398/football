@@ -515,7 +515,7 @@ function shotArrives(s: SimState, fl: Flight): void {
   const sh = fl.shot!;
   const dir = attackDir(shooter.team, s.half);
   // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
-  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < (sh.cardSave ? clamp(pSave + sh.cardSave, 0.02, 0.98) : pSave)) {
     s.teams[defTeam].stats.saves++;
     if (gk) gk.stats.saves++;

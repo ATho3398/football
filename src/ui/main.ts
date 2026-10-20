@@ -37,7 +37,7 @@ import { ENGINE } from '../engine/config';
 import { cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, myRoleId } from './views/deck';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
-import { MomentPitch, momentCrop, momentView, OutcomePitch, outcomeView, shownOptions, type OutcomeVM } from './views/moment';
+import { MomentPitch, momentCrop, momentView, OutcomePitch, outcomeView, shownOptions, type MomentVM, type OutcomeVM } from './views/moment';
 import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { ratingFromParts, ratingParts } from '../engine/rating';
 import { autoAllocate, raiseAttribute } from '../growth';
@@ -77,6 +77,8 @@ import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
 import { photoDexView } from './views/photos';
 import { photoDexVM } from './photoVM';
+import { nationalView, type NationalTab } from './views/national';
+import { nationalVM } from './nationalVM';
 import type { PhotoSort } from '../photocards';
 import { financeVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
@@ -122,7 +124,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom' | 'national';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -191,6 +193,8 @@ const ui = {
     oc: null | { vm: OutcomeVM; pitch: OutcomePitch; next: Moment | null; timer: number };
     /** 하프타임 전술 초안 (C.75k): 경기 전 전술(base)에서 시작 */
     ht?: { draft: HalftimeDraft; base: Pick<HalftimeDraft, 'tendency' | 'levels'> } | null;
+    /** PC 결정 순간 "최근 흐름" (218, C.76f): 멈출 때 한 번 만든다 */
+    feed?: MomentVM['feed'];
   },
   /** 설정 화면 페이스온 (C.43) */
   fo: { tab: 'players', q: '', sel: null, crop: null } as FaceOnUI,
@@ -239,6 +243,8 @@ const ui = {
   financeTab: 'money' as FinanceTab,
   /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
   dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null },
+  /** 대표팀 화면 (C.76d): 탭 · 고른 대회 */
+  nat: { tab: 'fixtures' as NationalTab, cup: null as string | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
   legendOpen: false,
@@ -372,9 +378,9 @@ const saveLog: number[] = [];
 (globalThis as unknown as { __game: () => GameState | null }).__game = () => ui.game;
 
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
-async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string } }): Promise<void> {
+async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string }; nat?: { label: string } }): Promise<void> {
   const { season, round } = rep;
-  const label = `${rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const label = `${rep.nat ? rep.nat.label : rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
@@ -473,6 +479,7 @@ function screenHtml(): string {
       const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
       const hvm = homeVM(g);
       hvm.exit = !liveScreen();
+      hvm.inbox = unreadCount(g);
       // C.70 (디자인 162): 방금 레벨업했으면 포인트 배너를 "Lv n · 포인트 +n" 으로
       if (ui.lvUp && hvm.points > 0) hvm.banners = hvm.banners.map((b) => (b.to === 'allocate' ? { ...b, title: `Lv ${ui.lvUp!.level} · 포인트 +${ui.lvUp!.plus}`, body: `레벨이 올랐어요. 찍을 포인트가 ${hvm.points}P가 됐어요.` } : b));
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
@@ -483,8 +490,8 @@ function screenHtml(): string {
       const hin = homeInboxVM(g);
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
-      // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (시즌 목표·주전 경쟁·라이벌) → 안내·포변
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, (gl ? goalsSection(gl) : '') + recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread)) + guideResetLink() + sheet;
+      // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (기록·주전 경쟁·라이벌) → 안내·포변. C.76g (디자인 204): 시즌 목표는 다음 경기 바로 아래
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '') + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -527,6 +534,7 @@ function screenHtml(): string {
     case 'finance': return financeView(financeVM(g), ui.financeTab);
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
     case 'showroom': return showroomView(showroomVM(g));
+    case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -537,7 +545,7 @@ function screenHtml(): string {
       if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side));
       if (lv && m) {
         const log = lv.run.sim.state.moments.log;
-        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1 });
+        return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1, ...(lv.feed ? { feed: lv.feed } : {}) });
       }
       break;
     }
@@ -767,6 +775,14 @@ function livePlayers(g: GameState) {
   return replayPlayers(s.input.home, s.input.away).map((p) => (p.isMe ? { ...p, name: g.player.name } : p));
 }
 
+/** PC 결정 순간 "최근 흐름" (218, C.76f): 이 순간까지의 경기 이벤트 피드 마지막 2줄. 엔진 이벤트는 읽기만 한다 */
+function recentFeed(events: Parameters<typeof replayEvents>[0], players: Parameters<typeof replayEvents>[1], teams: [string, string], m: Moment): NonNullable<MomentVM['feed']> {
+  return replayEvents(events, players, teams, elapsedMapper(events, ENGINE.time.halfSeconds))
+    .filter((x) => x.type !== 'kickoff' && x.type !== 'halftime' && x.type !== 'fulltime')
+    .slice(-2)
+    .map((x) => ({ minute: x.minute, text: x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text, kind: feedKind(x, m.side), mine: x.players[0] === m.me }));
+}
+
 /** 직접 모드 경기: 다음 결정 순간까지 돌리고 멈추면 결정 화면, 끝나면 결과 처리 */
 function liveAdvance(g: GameState): void {
   liveShow(g, ui.live!.run.advance());
@@ -777,8 +793,9 @@ function liveShow(g: GameState, m: Moment | null): void {
   const lv = ui.live!;
   lv.pitch?.stop();
   if (m?.type === 'halftime') {
-    // 하프타임 전술 변경 (C.75k): 경기 전 전술에서 시작하는 시트
-    lv.pitch = null;
+    // 하프타임 전술 변경 (C.75k): 경기 전 전술에서 시작하는 시트. 뒤에 전반 마지막 장면을 멈춘 채 흐리게 (237, C.76f)
+    setPitchTeams(lv.teams);
+    lv.pitch = new MomentPitch(lv.run.frames, new Map(livePlayers(g).map((p) => [p.id, p])), m.side, m, lv.run.frames.at(-1)!.e, null, []);
     const t = lv.run.input.myTactics;
     const base = { tendency: t?.tendency ?? 'balanced', levels: { ...(t?.levels ?? tendencyLevels(t?.tendency ?? 'balanced')) } } as Pick<HalftimeDraft, 'tendency' | 'levels'>;
     lv.ht = { base, draft: { ...base, levels: { ...base.levels }, set: 0 } };
@@ -800,6 +817,7 @@ function liveShow(g: GameState, m: Moment | null): void {
       lv.sel = m.options.length;
     }
     lv.pitch = new MomentPitch(lv.run.frames, players, m.side, m, fromE, lv.sel, shownOptions(m, lv.card));
+    lv.feed = recentFeed(lv.run.sim.state.events, [...players.values()], lv.teams, m);
     go('moment');
     return;
   }
@@ -1302,7 +1320,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
         const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
         const rep = playRound(g, { engineOut: out });
         played++;
-        lines.push({ label: rep.cup ? rep.cup.stage : `${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
+        lines.push({ label: rep.nat ? rep.nat.label : rep.cup ? rep.cup.stage : `${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
         results.push(rep.result.goalsFor > rep.result.goalsAgainst ? 'W' : rep.result.goalsFor < rep.result.goalsAgainst ? 'L' : 'D');
       } else {
         endDay(g);
@@ -2323,6 +2341,15 @@ app.addEventListener('click', (ev) => {
       return;
     // 재정 b (C.68b): 탭 · 카드 상점 · 카드팩 · TP · 집·차 · 기부 · 투자 · 에이전트
     // 포토카드 도감 (C.75t): 정렬 · 방향 · 카드 뒤집기
+    // 대표팀 (C.76d): 탭 · 대회 고르기
+    case 'nat-tab':
+      ui.nat = { ...ui.nat, tab: (v ?? 'fixtures') as NationalTab };
+      render();
+      return;
+    case 'nat-cup':
+      ui.nat = { ...ui.nat, cup: v ?? null };
+      render();
+      return;
     case 'pc-sort':
       ui.dex = { ...ui.dex, sort: (v ?? 'no') as PhotoSort, flip: null };
       render();

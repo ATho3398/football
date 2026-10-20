@@ -1,7 +1,7 @@
 // 인박스 (20.4, 부록 C.63): 디자인 없음 → C.57 홈 알림 카드(디자인 133)·면담 화면(디자인 45)의 컴포넌트를 재사용.
 // 목록 = 알림 카드 줄, 선택형 = 면담처럼 선택지 라디오 + 아래 [나중에][이걸로 할게요]. 홈에는 안 읽은 것 최대 3개 + 라이벌 카드
 
-import { Button, HeroPanel, Icon, OptionRow, SectionTitle, StatChip, Tabs, esc } from '../components';
+import { Avatar, Button, Crest, HeroPanel, Icon, OptionRow, SectionTitle, StatChip, Tabs, esc } from '../components';
 import type { GoalsCardVM, InboxDetailVM, InboxRowVM, InboxVM, RivalCardVM } from '../inboxVM';
 import { actionRow, panel } from './common';
 
@@ -66,17 +66,37 @@ export function inboxDetailView(vm: InboxDetailVM, sel: string | null): string {
   return `${hero}<div class="body mg-body ib-detail">${say}${ans}${opts}${link}</div>${dock}`;
 }
 
-/** 홈 라이벌 카드 (20.5, 디자인 없음 → 주전 경쟁 카드 막대 재사용) */
+/** 홈 라이벌 카드 (20.5 → C.76g 디자인 195): 얼굴·이름·팀·OVR + 시즌 기록 비교 표(앞선 쪽 색) + 골+도움 막대 + 앞섬/뒤짐 칩 */
 export function rivalSection(vm: RivalCardVM): string {
   const max = Math.max(1, vm.me.ga, vm.them.ga);
-  const bar = (v: number, cls: string) => `<div class="mg-bar" aria-hidden="true"><i class="${cls}" style="width:${Math.round((v / max) * 100)}%"></i></div>`;
+  const cmp = (label: string, a: number | null, b: number | null, fa: string, fb: string, num = true) => {
+    const lead = num && a != null && b != null ? Math.sign(a - b) : 0;
+    return `<div class="rv-cmp__row"><b class="po-num${lead > 0 ? ' is-lead' : ''}">${esc(fa)}</b><span>${label}</span><b class="po-num${lead < 0 ? ' is-lead is-them' : ''}">${esc(fb)}</b></div>`;
+  };
+  const f = (v: number | null) => (v == null ? '—' : String(v));
+  const avg = (v: string) => (v === '-' ? null : Number(v));
+  const tone = vm.lead > 0 ? 'is-ahead' : vm.lead < 0 ? 'is-behind' : 'is-tie';
+  const chip = vm.lead > 0 ? `앞섬 · ${vm.lead}개` : vm.lead < 0 ? `뒤짐 · ${-vm.lead}개` : '동률';
   return `${SectionTitle({ title: `라이벌 · ${vm.name}`, action: vm.lead > 0 ? `${vm.lead}개 앞서요` : vm.lead < 0 ? `${-vm.lead}개 뒤져요` : '동률' })}
-    ${panel(`<p class="small muted mg-mgr"><button type="button" class="dt-link" data-act="team-open" data-v="${esc(vm.teamId)}">${esc(vm.team)}</button> · ${esc(vm.pos)} · ${vm.age}세 · 위상 ${vm.rep} (나 ${vm.myRep}) · ${esc(vm.record)}</p>
-      <div class="mg-rows">
-        <div class="mg-row is-me"><div class="mg-row__head"><span class="mg-row__name">나 <small>평점 ${esc(vm.me.avg)}</small></span><b class="po-num">${vm.me.ga}</b></div>${bar(vm.me.ga, 'o')}</div>
-        <div class="mg-row"><div class="mg-row__head"><span class="mg-row__name">${esc(vm.name)} <small>${vm.them.apps}경기 · 평점 ${esc(vm.them.avg)}${vm.est ? ' · 추정' : ''}</small></span><b class="po-num">${vm.them.ga}</b></div>${bar(vm.them.ga, 't')}</div>
-      </div>
-      <p class="small muted">골+도움과 평균 평점으로 겨뤄요. 시즌이 끝나면 비교 결과가 위상·감독 신뢰도에 조금 반영돼요.</p>`, 'mg-card rv-card')}`;
+    ${panel(`<div class="rv-head">${Avatar({ size: 48 })}<div class="grow"><b class="rv-name">${esc(vm.name)}</b><p class="small muted">${Crest({ name: vm.team, size: 16 })}<button type="button" class="dt-link" data-act="team-open" data-v="${esc(vm.teamId)}">${esc(vm.team)}</button> · ${esc(vm.pos)} · ${vm.age}세 · 위상 ${vm.rep}</p></div><span class="rv-ovr"><b class="po-num">${vm.ovr}</b><small>OVR</small></span></div>
+      <div class="rv-cmp"><div class="rv-cmp__who"><span class="is-me">나</span><span class="is-them">${esc(vm.name.split(' ').pop() ?? vm.name)}</span></div>
+        ${cmp('경기', vm.me.apps, vm.them.apps, f(vm.me.apps), f(vm.them.apps), false)}
+        ${cmp('골', vm.me.goals, vm.them.goals, f(vm.me.goals), f(vm.them.goals))}
+        ${cmp('도움', vm.me.assists, vm.them.assists, f(vm.me.assists), f(vm.them.assists))}
+        ${cmp('평균 평점', avg(vm.me.avg), avg(vm.them.avg), vm.me.avg, vm.them.avg)}
+        ${cmp('골+도움', vm.me.ga, vm.them.ga, String(vm.me.ga), String(vm.them.ga))}</div>
+      <div class="rv-bars" aria-hidden="true"><i class="is-me" style="width:${Math.round((vm.me.ga / max) * 100)}%"></i><i class="is-them" style="width:${Math.round((vm.them.ga / max) * 100)}%"></i></div>
+      <div class="rv-verdict ${tone}"><span class="rv-chip">${chip}</span><span class="small">골+도움 ${vm.me.ga} 대 ${vm.them.ga} · ${esc(vm.record)}</span></div>
+      <p class="small muted">골+도움과 평균 평점으로 겨뤄요. 시즌이 끝나면 비교 결과가 위상·감독 신뢰도에 조금 반영돼요.${vm.est ? ` ${esc(vm.name)} 기록은 추정이에요.` : ''} 내 위상 ${vm.myRep}.</p>`, 'mg-card rv-card')}`;
+}
+
+/** 보상 문구 "XP 50 · TP 1 · 희귀 카드 3택 1" → XP · 카드 선택권 칩 · TP (C.76g 디자인 204) */
+function goalReward(r: string): string {
+  const parts = r.split(' · ');
+  const xp = parts.find((x) => x.startsWith('XP ')) ?? '';
+  const tp = parts.find((x) => x.startsWith('TP ')) ?? '';
+  const rest = parts.filter((x) => x !== xp && x !== tp).map((x) => { const m = /^(\S+) 카드 3택 1$/.exec(x); return m ? `카드 선택권 +1 · ${m[1]}` : x; });
+  return `${xp ? `<span class="gl-xp po-num">${esc(xp)}</span>` : ''}${rest.map((x) => `<span class="gl-pick">${esc(x)}</span>`).join('')}${tp ? `<b class="gl-tp po-num">${esc(tp)}</b>` : ''}`;
 }
 
 const GOAL_TONE = { done: 'success', track: 'brand', behind: 'warning', start: 'neutral' } as const;
@@ -87,9 +107,9 @@ export function goalsSection(vm: GoalsCardVM): string {
   const rows = vm.rows.map((r) => `<div class="mg-row gl-row gl-${r.status}">
       <div class="mg-row__head"><span class="mg-row__name">${StatChip({ label: r.tierKo, tone: TIER_TONE[r.tier] })} ${esc(r.source)} · ${esc(r.label)}</span><b class="po-num">${esc(r.value)}</b></div>
       <div class="mg-bar" aria-hidden="true"><i class="t" style="width:${Math.round(r.ratio * 100)}%"></i></div>
-      <div class="gl-meta small"><span class="muted">${esc(r.reward)}</span>${StatChip({ label: r.statusKo, tone: GOAL_TONE[r.status] })}</div>
+      <div class="gl-meta small">${goalReward(r.reward)}<span class="grow"></span>${StatChip({ label: r.statusKo, tone: GOAL_TONE[r.status] })}</div>
     </div>`).join('');
-  return `${SectionTitle({ title: '시즌 목표', action: vm.round ? `${vm.ok}/3 순항 · ${vm.round}/${vm.rounds}R` : `개막 전 · ${vm.rounds}R` })}
+  return `${SectionTitle({ title: '시즌 목표', action: vm.round ? `${vm.ok}/3 순항 · 시즌 ${vm.round}경기째` : `개막 전 · ${vm.rounds}R` })}
     ${panel(`<div class="mg-rows">${rows}</div>
       <p class="small muted">시즌이 끝나면 판정해요. 달성하면 XP와 카드 3택 1, 감독·구단 목표는 감독 신뢰도에도 반영돼요.</p>`, 'mg-card gl-card')}`;
 }
