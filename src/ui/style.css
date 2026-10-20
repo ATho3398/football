@@ -2363,7 +2363,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .pc-back__v { width: 100%; font-size: 11px; line-height: 1.35; }
 @media (min-width: 900px) { .pc-grid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); } }
 
-/* 대표팀 화면 (C.75z) */
+/* 대표팀 화면 (C.76d) */
 .nat-career { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; }
 .nat-career > div { display: flex; flex-direction: column; gap: 2px; }
 .nat-career b { font-size: 20px; }

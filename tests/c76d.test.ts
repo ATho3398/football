@@ -1,4 +1,4 @@
-// C.75z (45c) 대표팀 · 국제 대회: 소집 확률 · A매치 주간 · 대표팀 경기 · 월드컵/대륙컵 · 업적 · 배지 · 세이브
+// C.76d (45c) 대표팀 · 국제 대회: 소집 확률 · A매치 주간 · 대표팀 경기 · 월드컵/대륙컵 · 업적 · 배지 · 세이브
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { NATIONS, nationOf } from '../data/nations';
@@ -11,7 +11,7 @@ import {
 import { awardBadges } from '../src/badges';
 import { migrate, serialize, deserialize } from '../src/save';
 
-const game = (seed = 'c75z') => newGame({ mode: 'real', playerId: 'son', seed, difficulty: 'normal' });
+const game = (seed = 'c76d') => newGame({ mode: 'real', playerId: 'son', seed, difficulty: 'normal' });
 
 /** 위상을 티어 컷에 맞춘다 */
 function atTier(g: GameState, tier: 'normal' | 'special' | 'topClass' | 'worldClass'): GameState {
@@ -19,7 +19,7 @@ function atTier(g: GameState, tier: 'normal' | 'special' | 'topClass' | 'worldCl
   return g;
 }
 
-describe('국가 레이팅 표 (C.75z)', () => {
+describe('국가 레이팅 표 (C.76d)', () => {
   it('이름 겹침 없음, 대륙마다 대회 참가 수 이상(OFC 제외 초청)', () => {
     expect(new Set(NATIONS.map((n) => n.name)).size).toBe(NATIONS.length);
     const count = (c: string) => NATIONS.filter((n) => n.confed === c).length;
@@ -121,7 +121,7 @@ describe('A매치 주간 소집 · 평가전', () => {
 
   it('엔진 대표팀 경기 (결정성): 같은 시드 같은 결과', () => {
     const run = () => {
-      const g = atTier(game('c75z-eng'), 'worldClass');
+      const g = atTier(game('c76d-eng'), 'worldClass');
       toFirstWindow(g);
       const rep = playRound(g, { engine: 'agent', cards: false });
       return [rep.result.goalsFor, rep.result.goalsAgainst, rep.result.minutes, rep.result.rating];
@@ -132,7 +132,7 @@ describe('A매치 주간 소집 · 평가전', () => {
   it('일반 티어 유망주는 대체로 소집되지 않는다 (같은 시드 10개 중 소집 2개 이하)', () => {
     let calls = 0;
     for (let k = 0; k < 10; k++) {
-      const g = newGame({ mode: 'prospect', position: 'ST', seed: `c75z-p${k}`, difficulty: 'normal' });
+      const g = newGame({ mode: 'prospect', position: 'ST', seed: `c76d-p${k}`, difficulty: 'normal' });
       toFirstWindow(g, false);
       calls += Object.values(ensureNational(g).calls).filter(Boolean).length;
     }
@@ -229,7 +229,7 @@ describe('대회 (월드컵 4년 · 대륙컵)', () => {
 
 describe('시즌 진행 · 세이브', () => {
   it('한 시즌 (빠른 경기): 월드클래스 손흥민은 A매치 주간 대부분 소집, 시즌 요약에 여름 대표팀', () => {
-    const g = atTier(game('c75z-season'), 'worldClass');
+    const g = atTier(game('c76d-season'), 'worldClass');
     while (g.phase === 'season') playRound(g, { engine: 'quick' });
     const nat = ensureNational(g);
     const calls = Object.values(nat.calls);

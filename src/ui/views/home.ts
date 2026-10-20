@@ -35,7 +35,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
     // 포토카드 도감 (C.75t)
     + IconButton({ act: 'go', data: { to: 'dex' }, name: 'card', label: '포토카드 도감', variant: 'ghost' })
-    // 대표팀 (C.75z)
+    // 대표팀 (C.76d)
     + IconButton({ act: 'go', data: { to: 'national' }, name: 'world', label: '대표팀', variant: 'ghost' });
   const face = homeFace(vm);
   // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음

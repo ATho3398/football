@@ -1,11 +1,11 @@
-// C.75z 확인 캡처 (대표팀): 손흥민 월드클래스 → A매치 주간 소집(홈 다음 경기·인박스) → 대표팀 화면 → 평가전(자동) 결과 → 시즌 끝 2019 아시안컵 대진. 폰 390×844 · PC 1280×800 (W H PREFIX).
-// 실행: npx vite --port 5173 & 그다음 URL=http://localhost:5173/ node scripts/c75z-capture.mjs [playwright 모듈 경로] [저장 폴더] (개발 서버: 페이지 안에서 /src 모듈을 불러 상태를 진행)
+// C.76d 확인 캡처 (대표팀): 손흥민 월드클래스 → A매치 주간 소집(홈 다음 경기·인박스) → 대표팀 화면 → 평가전(자동) 결과 → 시즌 끝 2019 아시안컵 대진. 폰 390×844 · PC 1280×800 (W H PREFIX).
+// 실행: npx vite --port 5173 & 그다음 URL=http://localhost:5173/ node scripts/c76d-capture.mjs [playwright 모듈 경로] [저장 폴더] (개발 서버: 페이지 안에서 /src 모듈을 불러 상태를 진행)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.argv[2] ?? 'playwright');
-const OUT = process.argv[3] ?? new URL('../docs/c75z-check/', import.meta.url).pathname;
+const OUT = process.argv[3] ?? new URL('../docs/c76d-check/', import.meta.url).pathname;
 const W = Number(process.env.W ?? 390);
 const H = Number(process.env.H ?? 844);
 const P = process.env.PREFIX ?? '';
@@ -115,7 +115,7 @@ const waitEnd = async (direct) => {
 };
 
 const go = async (to) => { await page.evaluate((t) => { const b = document.createElement('button'); b.dataset.act = 'go'; b.dataset.to = t; document.querySelector('main')?.appendChild(b); b.click(); }, to); await page.waitForTimeout(500); await dismiss(); await top(); };
-if (await start('real', 'son', process.env.SEED ?? 'c75z-check')) {
+if (await start('real', 'son', process.env.SEED ?? 'c76d-check')) {
   // 월드클래스로 두고 첫 A매치 주간 발표까지 (부상은 지운다)
   await page.evaluate(async () => {
     const G = await import('/src/game.ts');

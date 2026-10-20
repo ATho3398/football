@@ -1,5 +1,5 @@
-// C.75z 측정: 커리어 10시즌 빠른 경기로 티어별 소집률 · 연간 A매치 수 · 대회 성적 분포
-// 실행: npx vite-node scripts/diag/c75z-measure.ts -- [시즌 수=10]
+// C.76d 측정: 커리어 10시즌 빠른 경기로 티어별 소집률 · 연간 A매치 수 · 대회 성적 분포
+// 실행: npx vite-node scripts/diag/c76d-measure.ts -- [시즌 수=10]
 import { endDay, isMatchDay, newGame, playOthers, playRound, startNextSeason, type GameState } from '../../src/game';
 import { ensureNational } from '../../src/national';
 import { reputationTier } from '../../src/growth';

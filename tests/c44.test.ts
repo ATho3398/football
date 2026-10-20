@@ -72,7 +72,7 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
     const d = vm.targets.find((t) => t.id === 'derby')!;
     expect(d.available).toBe(true);
     expect(d.next!.left).toBe(6);
-    // C.75z: 국가대표 A매치는 대표팀이 생겨 열림 (토너먼트는 시즌 끝 여름 자동)
+    // C.76d: 국가대표 A매치는 대표팀이 생겨 열림 (토너먼트는 시즌 끝 여름 자동)
     expect(vm.targets.filter((t) => !t.available).map((t) => t.id)).toEqual(['nationsCup']);
     const html = autoSheet(vm, 5);
     expect(html).toContain('아직 없음');

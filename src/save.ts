@@ -345,7 +345,7 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.league.tier ??= 1;
     s.leagueIds ??= ['pl'];
   },
-  // 47 → 48 (C.75z): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
+  // 47 → 48 (C.76d): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
   47: (s) => { s.national ??= initNational(myNationality(s.player)); },
   25: (s) => {
     const offseason = s.phase !== 'season';

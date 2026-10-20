@@ -1,4 +1,4 @@
-// 대표팀 화면 (C.75z, 디자인 없음 — 부록 C 목록): 머리말(국가 · 소집 확률) · 통산 기록 · 일정/결과 · 대회(조 순위 · 녹아웃 대진).
+// 대표팀 화면 (C.76d, 디자인 없음 — 부록 C 목록): 머리말(국가 · 소집 확률) · 통산 기록 · 일정/결과 · 대회(조 순위 · 녹아웃 대진).
 // 표와 줄은 컵 화면(cupsSection)과 같은 class 를 쓴다
 import { Crest, esc, HeroPanel, SectionTitle, Tabs } from '../components';
 import { panel } from './common';

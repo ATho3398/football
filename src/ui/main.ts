@@ -236,7 +236,7 @@ const ui = {
   financeTab: 'money' as FinanceTab,
   /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
   dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null },
-  /** 대표팀 화면 (C.75z): 탭 · 고른 대회 */
+  /** 대표팀 화면 (C.76d): 탭 · 고른 대회 */
   nat: { tab: 'fixtures' as NationalTab, cup: null as string | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
@@ -2213,7 +2213,7 @@ app.addEventListener('click', (ev) => {
       return;
     // 재정 b (C.68b): 탭 · 카드 상점 · 카드팩 · TP · 집·차 · 기부 · 투자 · 에이전트
     // 포토카드 도감 (C.75t): 정렬 · 방향 · 카드 뒤집기
-    // 대표팀 (C.75z): 탭 · 대회 고르기
+    // 대표팀 (C.76d): 탭 · 대회 고르기
     case 'nat-tab':
       ui.nat = { ...ui.nat, tab: (v ?? 'fixtures') as NationalTab };
       render();

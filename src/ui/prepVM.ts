@@ -84,7 +84,7 @@ export function prepVM(g: GameState): PrepVM | null {
   if (!fx) return null;
   const p = g.player;
   const L = g.league;
-  // 대표팀 경기 (C.75z): 내 쪽 = 대표팀, 출장 정지는 리그만
+  // 대표팀 경기 (C.76d): 내 쪽 = 대표팀, 출장 정지는 리그만
   const my = teamById(L, fx.nat ? natId(ensureNational(g).nation) : p.teamId);
   const opp = teamById(L, fx.opponentId);
   const pos = myMatchPosition(g);

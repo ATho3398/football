@@ -139,7 +139,7 @@ export interface MatchReport {
   cond?: { weather: WeatherKind; referee: string };
   /** 이 경기로 새로 모은 포토카드 장 수 (C.75t) */
   newPhotos?: number;
-  /** 대표팀 경기 (C.75z): 대회·단계·승부차기 [내 팀, 상대]. 없으면 클럽 경기 */
+  /** 대표팀 경기 (C.76d): 대회·단계·승부차기 [내 팀, 상대]. 없으면 클럽 경기 */
   nat?: { comp: NatComp; stage: string; label: string; pens?: [number, number]; g?: GoalRec[] };
 }
 
@@ -197,7 +197,7 @@ export interface SeasonSummary {
   forcedRetire: boolean;
   /** 시즌 목표 판정 (18.9, C.65): 결과 3개, 업적 카드 선택권 이름, 목표 XP. C.65 이전 세이브에는 없다 */
   goals?: { results: GoalResult[]; awards: string[]; xp: number };
-  /** 대표팀 여름 (C.75z): 대회 이름·성적·소집 여부, 여름 대표팀 경기 수·골 */
+  /** 대표팀 여름 (C.76d): 대회 이름·성적·소집 여부, 여름 대표팀 경기 수·골 */
   nat?: { label: string | null; reach: string | null; called: boolean; apps: number; goals: number };
 }
 
@@ -300,7 +300,7 @@ export interface GameState {
   records?: RecordsState;
   /** 포토카드 도감 (C.75t): 모은 카드 (획득순). 옛 세이브는 빈 도감 */
   photos?: PhotoState;
-  /** 대표팀 (C.75z): 국가·A매치 주간 소집·대표팀 경기·통산 기록·지난 대회. 없으면 처음 쓸 때 만든다 */
+  /** 대표팀 (C.76d): 국가·A매치 주간 소집·대표팀 경기·통산 기록·지난 대회. 없으면 처음 쓸 때 만든다 */
   national?: NationalState;
 }
 
@@ -730,7 +730,7 @@ export interface NextMatch {
   home: boolean;
   date: IsoDate;
   cup?: MyCupTie;
-  /** 대표팀 경기 (C.75z) */
+  /** 대표팀 경기 (C.76d) */
   nat?: NatMatch;
 }
 
@@ -749,7 +749,7 @@ export function nextMatch(state: GameState): NextMatch | null {
   const lg = leagueNext(state);
   const cup = state.phase === 'season' ? myCupTie(state) : null;
   const club = cup && (!lg || daysBetween(cup.date, lg.date) > 0) ? { opponentId: cup.opponentId, home: cup.home, date: cup.date, cup } : lg;
-  // 대표팀 (C.75z): A매치 주간 평가전이 더 이르면 그 경기
+  // 대표팀 (C.76d): A매치 주간 평가전이 더 이르면 그 경기
   const nat = nextNatMatch(state);
   if (nat && (!club || daysBetween(nat.date, club.date) > 0)) return { opponentId: natId(nat.opp), home: nat.home, date: nat.date, nat };
   return club;
@@ -879,7 +879,7 @@ export function myMatchDates(state: GameState): IsoDate[] {
     out.sort((a, b) => daysBetween(b, a));
     byTeam.set(me, out);
   }
-  // 대표팀 A매치 주간 경기 (C.75z)도 같이 (경기 다음 날 휴식·전날 영상, 소집 기간은 휴가 아님)
+  // 대표팀 A매치 주간 경기 (C.76d)도 같이 (경기 다음 날 휴식·전날 영상, 소집 기간은 휴가 아님)
   const cup = [...myCupDates(state), ...natMatchDates(state)];
   if (!cup.length) return out;
   // 컵 날짜가 바뀔 때만 다시 합친다 (하루 계획 계산이 자주 부른다)
@@ -1326,7 +1326,7 @@ export function endDay(state: GameState): TrainingDayResult {
   ensureCups(state);
   cupsDayEnd(state, ended);
   state.calendar.date = addDays(ended, 1);
-  // 대표팀 (C.75z): A매치 주간 소집 발표 (소집이면 평가전을 내 경기 일정에)
+  // 대표팀 (C.76d): A매치 주간 소집 발표 (소집이면 평가전을 내 경기 일정에)
   nationalDayEnd(state, calendarOf(state).breaks, myMatchDates(state));
   // 다른 리그 (C.75m): 오늘 경기 빠른 시뮬
   syncOtherLeagues(state, ended);
@@ -1407,7 +1407,7 @@ function matchInjuryMul(state: GameState, cond: MatchConditions | null): number 
 }
 
 export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): RoundMatch {
-  // 대표팀 경기 (C.75z)
+  // 대표팀 경기 (C.76d)
   const nx = nextFixture(state);
   if (nx?.nat) return natRoundMatch(state, nx.nat, opts);
   const { league, player } = state;
@@ -1829,7 +1829,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   return report;
 }
 
-// ── 대표팀 경기 (10번·18.12, C.75z) ──
+// ── 대표팀 경기 (10번·18.12, C.76d) ──
 
 /** 시즌 끝 대회의 내 경기 계산 방식: 마지막 playRound 와 같게 (밸런스 시뮬 = 빠른 경기) */
 let lastEngine: 'agent' | 'quick' = 'agent';
@@ -1849,7 +1849,7 @@ export function natStartChance(ovr: number, rating: number): number {
 const NAT_BIG = (m: NatMatch) => m.comp !== 'friendly' && (m.comp === 'wc' || !m.stage.startsWith('조별'));
 
 /**
- * 대표팀 경기 엔진 입력 (C.75z): 대표팀 로스터(그 국적 실제 선수 + 국가 레이팅 가상 선수)에 내 선수, 내 클럽 전술은 쓰지 않는다(주 포지션).
+ * 대표팀 경기 엔진 입력 (C.76d): 대표팀 로스터(그 국적 실제 선수 + 국가 레이팅 가상 선수)에 내 선수, 내 클럽 전술은 쓰지 않는다(주 포지션).
  * summer = 시즌 끝 대회 (경기 날까지 하루씩 넘기지 않고 지금 피로·부상)
  */
 function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } = {}, summer = false): RoundMatch {
@@ -1894,7 +1894,7 @@ function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } 
 }
 
 /**
- * 내 대표팀 경기 (C.75z): 클럽 경기와 같은 엔진·평점·XP 규칙(경기 XP 배율은 컵과 같이 national.matchXpMul). 리그·컵 기록·감독 신뢰도·
+ * 내 대표팀 경기 (C.76d): 클럽 경기와 같은 엔진·평점·XP 규칙(경기 XP 배율은 컵과 같이 national.matchXpMul). 리그·컵 기록·감독 신뢰도·
  * 출장 정지·포지션 숙련도·동료 호흡에는 넣지 않고 대표팀 기록(national.career)에 쌓는다. 부상·피로·폼·카드 숙련·생활 지표는 같다.
  * summer = 시즌 끝 대회·6월 평가전 (자동 진행, strength = 빠른 경기 팀 전력)
  */
@@ -1986,7 +1986,7 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
   return report;
 }
 
-/** 시즌 끝 여름 대표팀 (C.75z): 대회 또는 6월 평가전. 내 경기 사이 날짜만큼 부상·피로 회복 */
+/** 시즌 끝 여름 대표팀 (C.76d): 대회 또는 6월 평가전. 내 경기 사이 날짜만큼 부상·피로 회복 */
 function nationalSummer(state: GameState): ReturnType<typeof nationalSeasonEnd> {
   const final = calendarOf(state).final;
   let last = final;
@@ -2211,7 +2211,7 @@ export function endSeason(state: GameState): SeasonSummary {
   const rng = rngFor(state.worldSeed, 'season-end', season);
   // 컵 (C.67): 남은 경기를 간이 계산해 우승 팀까지
   cupsFinish(state);
-  // 대표팀 (C.75z): 여름 대회(월드컵·대륙컵) 또는 6월 평가전 — 업적은 이번 시즌 업적에 같이
+  // 대표팀 (C.76d): 여름 대회(월드컵·대륙컵) 또는 6월 평가전 — 업적은 이번 시즌 업적에 같이
   const natEnd = nationalSummer(state);
   // 동료 호흡 (C.74c): 떠난 동료 지우기
   chemSeasonEnd(state);

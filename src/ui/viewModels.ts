@@ -321,7 +321,7 @@ export function dayVM(g: GameState): DayVM | null {
   // 컵 (C.67): 내 컵 경기 (치른 것 + 추첨된 것)
   const cupDays = new Map<string, { home: boolean; opp: string; label: string }>();
   for (const c of myCupMatches(g)) cupDays.set(c.date, { home: c.home, opp: c.opponentId, label: c.label });
-  // 대표팀 (C.75z): 소집된 A매치 주간 경기
+  // 대표팀 (C.76d): 소집된 A매치 주간 경기
   for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.key.startsWith('w:')) cupDays.set(m.date, { home: m.home, opp: natId(m.opp), label: natLabel(m) });
   for (const [d, c] of cupDays) myDates.set(d, { home: c.home, opp: c.opp, r: -1 });
   const breakDays = new Map<string, keyof typeof BREAK_KO>();
@@ -517,12 +517,12 @@ function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; c
     out.push({ date: cal.fixtureDates[r]![i]!, opp: f.home === me ? f.away : f.home, home: f.home === me, comp: `${r + 1}R`, cup: null });
   }
   if (g.phase === 'season') for (const c of myCupMatches(g)) if (c.tie.hg === undefined) out.push({ date: c.date, opp: c.opponentId, home: c.home, comp: c.label, cup: c.comp });
-  // 대표팀 (C.75z): 잡힌 A매치
+  // 대표팀 (C.76d): 잡힌 A매치
   if (g.phase === 'season') for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.gf === undefined) out.push({ date: m.date, opp: natId(m.opp), home: m.home, comp: natLabel(m), cup: null, nat: true });
   return out.sort((a, b) => daysBetween(b.date, a.date));
 }
 
-/** 자동 진행 "국가대표 A매치" (C.75z): 소집돼 잡힌 다음 A매치에서 멈춘다 */
+/** 자동 진행 "국가대표 A매치" (C.76d): 소집돼 잡힌 다음 A매치에서 멈춘다 */
 function natTarget(g: GameState, list: ReturnType<typeof myUpcoming>): AutoTargetVM {
   const k = list.findIndex((x) => x.nat);
   const x = list[k];
@@ -1169,7 +1169,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   const who = (id: string | null): { name: string; id: string | null } | null => {
     if (!id) return null;
     if (id === MY_ID) return { name: g.player.name, id: 'me' };
-    // 대표팀 경기 (C.75z): 두 대표팀 로스터에서 먼저
+    // 대표팀 경기 (C.76d): 두 대표팀 로스터에서 먼저
     const natP = natMe ? [...natRoster(g, nationFromId(natMe)).players, ...natRoster(g, nationFromId(m.opponentId)).players].find((x) => x.id === id) : undefined;
     if (natP) return { name: natP.nameKo, id: findRosterPlayer(g.rosters, id) ? id : null };
     const hit = findRosterPlayer(g.rosters, id);

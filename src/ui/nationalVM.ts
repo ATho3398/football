@@ -1,4 +1,4 @@
-// 대표팀 화면 (C.75z): 국가·소집 확률·통산 기록, 대표팀 일정·결과(컵 표와 같은 줄), 지난 대회 조 순위·대진
+// 대표팀 화면 (C.76d): 국가·소집 확률·통산 기록, 대표팀 일정·결과(컵 표와 같은 줄), 지난 대회 조 순위·대진
 import { BALANCE } from '../config/balance';
 import { CONFED_KO, nationOf } from '../../data/nations';
 import { calendarOf, type GameState } from '../game';
