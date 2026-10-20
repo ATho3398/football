@@ -3,12 +3,26 @@
 
 import type { LeagueData } from './types';
 import { PL } from './pl';
+import { LEAGUE as BUNDESLIGA } from './bundesliga';
+import { LEAGUE as BUNDESLIGA2 } from './bundesliga2';
+import { LEAGUE as CHAMPIONSHIP } from './championship';
+import { LEAGUE as EREDIVISIE } from './eredivisie';
+import { LEAGUE as LIGUE1 } from './ligue1';
+import { LEAGUE as MLS } from './mls';
+import { LEAGUE as SAUDI } from './saudi';
 
 export type { LeagueData, LeagueTeamData } from './types';
 
 /** 등록된 리그 데이터 */
 const LEAGUE_DATA: LeagueData[] = [
   PL,
+  BUNDESLIGA,
+  BUNDESLIGA2,
+  CHAMPIONSHIP,
+  EREDIVISIE,
+  LIGUE1,
+  MLS,
+  SAUDI,
   // 데이터 세션(C.75n~s) 파일이 들어오면 여기에 등록: import { LALIGA } from './laliga'; → LALIGA,
 ];
 
@@ -38,7 +52,7 @@ export const LEAGUE_CATALOG: readonly LeagueEntry[] = [
   { id: 'kleague1', nameKo: 'K리그1', country: 'Korea Republic', countryKo: '한국', tier: 1, calendar: 'spring-autumn', teams: 12 },
   { id: 'jleague1', nameKo: 'J1리그', country: 'Japan', countryKo: '일본', tier: 1, calendar: 'spring-autumn', teams: 18 },
   { id: 'brasileirao', nameKo: '브라질 세리에 A', country: 'Brazil', countryKo: '브라질', tier: 1, calendar: 'spring-autumn', teams: 20 },
-  { id: 'mls', nameKo: 'MLS', country: 'USA', countryKo: '미국', tier: 1, calendar: 'spring-autumn', teams: 23 },
+  { id: 'mls', nameKo: 'MLS', country: 'United States', countryKo: '미국', tier: 1, calendar: 'spring-autumn', teams: 23 },
 ];
 
 /** 새 게임 기본 묶음: PL + 5대 리그 + 챔피언십 (pending 132) */

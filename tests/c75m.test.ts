@@ -1,6 +1,6 @@
 // C.75m (45a) 다중 리그 뼈대: 리그 등록부 · 팀 수별 일정 · 리그별 달력 · 고른 리그 빠른 시뮬 · 세이브 마이그레이션
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LEAGUES, leagueCatalog, leagueData, LEAGUE_CATALOG, PLAYABLE_LEAGUES } from '../data/leagues';
+import { allLeagueData, DEFAULT_LEAGUES, leagueCatalog, leagueData, LEAGUE_CATALOG, PLAYABLE_LEAGUES } from '../data/leagues';
 import { buildSchedule, createLeague, gamesPerTeam, initialTeams, teamById } from '../src/league';
 import { addDays, daysBetween, leagueCalendar, seasonCalendar } from '../src/calendar';
 import { endDay, isMatchDay, newGame, playOthers, playRound, SAVE_FORMAT_VERSION, selectableRealPlayers } from '../src/game';
@@ -121,6 +121,20 @@ describe('리그별 달력 (C.75m)', () => {
           last.set(t, d);
         }
       }));
+    }
+  });
+});
+
+describe('등록된 실제 리그 데이터 (C.75m)', () => {
+  it('리그마다 일정·달력이 만들어지고 한 시즌을 다 치른다', () => {
+    for (const d of allLeagueData()) {
+      const lg = createLeague('c75m-real', 2018, d.id);
+      expect(lg.schedule.length).toBe(gamesPerTeam(lg) + (d.teams.length % 2 ? 2 : 0));
+      const cal = otherLeagueCalendar('c75m-real', lg);
+      expect(cal.fixtureDates.flat()).toHaveLength(lg.schedule.flat().length);
+      const st = { worldSeed: 'c75m-real', otherLeagues: [lg] as OtherLeague[] };
+      syncOtherLeagues(st, cal.final);
+      expect(st.otherLeagues[0]!.schedule.flat().every((f) => f.homeGoals !== undefined) || st.otherLeagues[0]!.season === 2019).toBe(true);
     }
   });
 });
