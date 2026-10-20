@@ -38,16 +38,26 @@ export interface RatingParts {
   card?: number;
   /** 직접 모드 도박 실패 완화로 되돌린 공 상실 감점 (C.75a, 행동 델타 단위). 자동 경기는 0 */
   relief?: number;
+  /** 공격 포지션(ST·WING·CAM) 무기여 경기 (C.75f, E-3): 45분 이상 뛰고 골·도움·키패스·유효슈팅·드리블 성공이 모두 0 이면 1. 경기 종료 평점에만 붙는다 */
+  noContrib?: number;
 }
 
-export function ratingParts(s: SimState, a: Agent, duration: number): RatingParts {
+const ATTACK_GROUPS = new Set(['ST', 'WING', 'CAM']);
+
+/** 무기여 판정 (크로스 성공·박스 터치는 기여로 치지 않는다) */
+export function isNoContrib(p: Pick<RatingParts, 'group' | 'goals' | 'assists' | 'keyPasses' | 'onTarget' | 'dribbles'>): boolean {
+  return ATTACK_GROUPS.has(p.group) && p.goals + p.assists + p.keyPasses + p.onTarget + p.dribbles === 0;
+}
+
+/** final: 경기 종료 평점이면 true (무기여 감점은 경기 중 결정 평점 변화에 섞지 않는다) */
+export function ratingParts(s: SimState, a: Agent, duration: number, final = false): RatingParts {
   const R = ENGINE.rating;
   const st = a.stats;
   const rt = a.rt;
   const gf = s.teams[a.team].stats.goals;
   const ga = s.teams[1 - a.team]!.stats.goals;
   const minutes = (((a.leftAt ?? s.elapsed) - a.enteredAt) / duration) * 90;
-  return {
+  const p: RatingParts = {
     group: posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position),
     passes: st.passesCompleted,
     forward: rt.forward,
@@ -73,6 +83,8 @@ export function ratingParts(s: SimState, a: Agent, duration: number): RatingPart
     ...(rt.card ? { card: rt.card } : {}),
     ...(rt.relief ? { relief: rt.relief } : {}),
   };
+  if (final && minutes >= R.noContribMinMinutes && isNoContrib(p)) p.noContrib = 1;
+  return p;
 }
 
 /** 행동 델타 합 + 팀 결과 (center 를 빼기 전) */
@@ -89,6 +101,7 @@ export function ratingDelta(p: RatingParts, R: RatingConfig = ENGINE.rating): nu
   d += p.result > 0 ? R.win : p.result < 0 ? R.loss : R.draw;
   if (p.card) d += p.card;
   if (p.relief) d += p.relief;
+  if (p.noContrib) d += p.noContrib * R.noContrib;
   return d;
 }
 
@@ -99,5 +112,5 @@ export function ratingFromParts(p: RatingParts, R: RatingConfig = ENGINE.rating)
 
 /** 경기 종료 후 출전한 모든 선수의 평점 */
 export function computeRatings(s: SimState, players: Agent[], duration: number): void {
-  for (const a of players) a.stats.rating = ratingFromParts(ratingParts(s, a, duration));
+  for (const a of players) a.stats.rating = ratingFromParts(ratingParts(s, a, duration, true));
 }
