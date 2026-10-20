@@ -14,7 +14,7 @@ import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball, updateSituations } from './offball';
 import { candidates, choose, judgementOf } from './onball';
-import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
+import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, slipPick, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
 import { initPhysics, moveAgent } from './physics';
@@ -226,9 +226,10 @@ function decide(s: SimState, a: Agent): void {
     prepCands(s, a, cands);
     const r = autoCardDecide(s, a, cands);
     if (r) return runMine(s, a, r.cand, r.mod, r.use, true);
-    return runMine(s, a, choose(s, a, cands), null, null, false);
+    return runMine(s, a, slipPick(s, a, cands, choose(s, a, cands)), null, null, false);
   }
-  const c = choose(s, a, cands);
+  // 판단 미끄러짐 (C.75h B안): 내 선수만
+  const c = a.spec.isMe ? slipPick(s, a, cands, choose(s, a, cands)) : choose(s, a, cands);
   if (c.type !== 'holdup') a.backToGoal = false;
   execute(s, a, c);
 }
