@@ -29,7 +29,7 @@ function goalRows(goals: MatchResultVM['goals']): string {
 const ENV_ICON = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', heat: 'heat', snow: 'snow' } as const;
 
 /** delta = 방금 경기 앞뒤 신뢰도·위상 변화 (C.72, 화면이 잰 값). 없거나 둘 다 0이면 줄을 숨긴다 */
-/** jersey = 유니폼 교환 패널 (C.75w, 요청할 수 있는 경기만) */
+/** jersey = 유니폼 교환 패널 (C.76b, 요청할 수 있는 경기만) */
 export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null, jersey: JerseyPanelVM | null = null): string {
   const hero = HeroPanel({
     title: '경기 결과', right: vm.comp, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),

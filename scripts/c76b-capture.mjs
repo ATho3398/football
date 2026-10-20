@@ -1,11 +1,11 @@
-// C.75w 확인 캡처 (유니폼 교환·진열실): 경기(자동) → 결과 화면 교환 요청 → 성공·거절 → 도감 유니폼 표시 → 진열실. 세로 폰 390×844 기본 · PC 1280×800 (W H PREFIX).
-// 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c75w-capture.mjs [playwright 모듈 경로] [저장 폴더]
+// C.76b 확인 캡처 (유니폼 교환·진열실): 경기(자동) → 결과 화면 교환 요청 → 성공·거절 → 도감 유니폼 표시 → 진열실. 세로 폰 390×844 기본 · PC 1280×800 (W H PREFIX).
+// 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c76b-capture.mjs [playwright 모듈 경로] [저장 폴더]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.argv[2] ?? 'playwright');
-const OUT = process.argv[3] ?? new URL('../docs/c75w-check/', import.meta.url).pathname;
+const OUT = process.argv[3] ?? new URL('../docs/c76b-check/', import.meta.url).pathname;
 const W = Number(process.env.W ?? 390);
 const H = Number(process.env.H ?? 844);
 const P = process.env.PREFIX ?? '';
@@ -114,7 +114,7 @@ const waitEnd = async (direct) => {
   }
 };
 const PLAYER = process.env.PLAYER ?? 'son';
-if (await start('real', PLAYER, process.env.SEED ?? 'c75w-check')) {
+if (await start('real', PLAYER, process.env.SEED ?? 'c76b-check')) {
   const seen = { ok: false, no: false };
   report.results = [];
   for (let m = 0; m < 14 && !(seen.ok && seen.no); m++) {

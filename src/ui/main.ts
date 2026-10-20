@@ -2217,7 +2217,7 @@ app.addEventListener('click', (ev) => {
       ui.dex = { ...ui.dex, flip: ui.dex.flip === v ? null : v ?? null };
       render();
       return;
-    // 유니폼 교환 · 진열실 (C.75w)
+    // 유니폼 교환 · 진열실 (C.76b)
     case 'jersey-ask': {
       const r = g && v ? requestJersey(g, v) : null;
       if (r) autosave(); // 결과는 결과 화면 패널에 한 줄로

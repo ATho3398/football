@@ -1,4 +1,4 @@
-// 유니폼 교환 패널 · 진열실 화면 데이터 (C.75w, pending 130 ②③)
+// 유니폼 교환 패널 · 진열실 화면 데이터 (C.76b, pending 130 ②③)
 
 import { dateLabel } from '../calendar';
 import type { GameState } from '../game';

@@ -1,4 +1,4 @@
-// C.75w (46b단계): 유니폼 교환 · 진열실 — 확률 단조성 · 경기당 1번 · jersey 표시 · 진열 칸 수 · 세이브 48
+// C.76b (46b단계): 유니폼 교환 · 진열실 — 확률 단조성 · 경기당 1번 · jersey 표시 · 진열 칸 수 · 세이브 48
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { MY_ID } from '../src/engine/adapter';

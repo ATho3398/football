@@ -2363,7 +2363,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .pc-back__v { width: 100%; font-size: 11px; line-height: 1.35; }
 @media (min-width: 900px) { .pc-grid { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); } }
 
-/* 유니폼 교환 패널 · 진열실 (C.75w) */
+/* 유니폼 교환 패널 · 진열실 (C.76b) */
 .jx-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .jx-pick { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-2); color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .jx-pick:hover:not([disabled]) { border-color: var(--brand); }

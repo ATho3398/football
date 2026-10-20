@@ -979,7 +979,7 @@ export const BALANCE = {
     grade: { legend: 88, epic: 82, rare: 75 },
   },
 
-  // ── 유니폼 교환 · 진열실 (C.75w, 46b): 성공 확률 = 위상 티어 기본값 + 상대 멘탈 + 오늘 평점 + 관계, [min, max] 로 자른다 ──
+  // ── 유니폼 교환 · 진열실 (C.76b, 46b): 성공 확률 = 위상 티어 기본값 + 상대 멘탈 + 오늘 평점 + 관계, [min, max] 로 자른다 ──
   jerseys: {
     /** 내 위상 티어별 기본 확률 */
     base: { normal: 0.29, special: 0.42, topClass: 0.57, worldClass: 0.76, legendary: 0.87 },
@@ -1015,7 +1015,7 @@ export const BALANCE = {
     maxPeak: 96,
     /** 도르트문트 레전드·미래 스타 (C.75x) 전성기 하한: 데이터 그대로 쓰도록 낮게 */
     groupMinPeak: 78,
-    /** 3판 (C.75w, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
+    /** 3판 (C.76b, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
     maxPerTeam: 10,
     arrivalsPerSeason: 4,
     loyalty: 70,

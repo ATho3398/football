@@ -344,7 +344,7 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
     s.league.tier ??= 1;
     s.leagueIds ??= ['pl'];
   },
-  // 47 → 48 (C.75w): 유니폼 교환 기록 · 진열 배치(showcase). 옛 세이브는 빈 진열 · 교환 기록 없음
+  // 47 → 48 (C.76b): 유니폼 교환 기록 · 진열 배치(showcase). 옛 세이브는 빈 진열 · 교환 기록 없음
   47: (s) => { s.showcase ??= emptyShowcase(); },
   25: (s) => {
     const offseason = s.phase !== 'season';
