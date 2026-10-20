@@ -71,7 +71,7 @@ import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rival
 import { markAllRead, markRead, pendingItems, unreadCount } from '../inbox';
 import { loadAutoPrefs, saveAutoPrefs, type AutoPrefs } from './autoPrefs';
 import { claimNewGameBonus, loadLegacy, recordRetirement, type LegacyStore } from '../legacy';
-import { answerEvent } from '../events';
+import { answerEvent, autoAnswerInterviews } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
@@ -1191,6 +1191,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
   // 진행 전부터 있던 답할 이벤트는 멈추지 않는다 (새로 온 것만)
   const pend0 = new Set(pendingItems(g).map((x) => x.id));
   let spent = 0;
+  const interviews: string[] = [];
   let newEvent: string | null = null;
   let played = 0;
   let reason: 'done' | 'until' | 'stop' | 'market' | 'season' | 'event' | 'injury' = 'done';
@@ -1245,6 +1246,8 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
         autoAllocate(g.player);
         spent += p0 - g.player.unspentPoints;
       }
+      // 인터뷰 (C.75x): 자동 진행 중에는 멈추지 않고 손해가 가장 적은 답 (답은 인박스에 남는다). 진행 전부터 있던 것은 그대로
+      interviews.push(...autoAnswerInterviews(g, pend0));
       progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n + (match ? 1 : 0), my: match });
       // 자동 저장 (C.75b): 자동 진행 중에는 내 경기 날과 AUTO_SAVE_DAYS 일마다만 (저장은 메인 스레드에서 상태 전체를 묶어 워커와 코어를 나눠 쓴다).
       // 멈추거나 끝나면 아래 finally 에서 한 번 더 저장한다
@@ -1271,7 +1274,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
     const assists = g.player.season.assists - before.assists;
     // 디자인 64: 끝 요약 토스트 "자동 진행 끝 · n경기" + 전적·내 골·도움·순위 + [자세히](순위표). 걸린 시간은 측정 기록(autoLog)에만
     const recs = takeFreshRecords(g);
-    const body = `${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''}${spent ? ` · 포인트 ${spent}P 자동 배분` : ''}${recs.length ? ` · 기록 ${recs.length}개 달성` : ''} · 지금 ${myRow()}`;
+    const body = `${w}승 ${d}무 ${l}패 · 내 골 ${goals} 도움 ${assists}${g.player.level > before.levels ? ` · Lv.${g.player.level}` : ''}${spent ? ` · 포인트 ${spent}P 자동 배분` : ''}${recs.length ? ` · 기록 ${recs.length}개 달성` : ''}${interviews.length ? ` · 인터뷰 ${interviews.length}개 자동 답` : ''} · 지금 ${myRow()}`;
     autoLog.push({ played, rounds: g.league.round - startRound, ms: Math.round(performance.now() - t0), reason });
     if (g.phase !== 'season') {
       go('season');
