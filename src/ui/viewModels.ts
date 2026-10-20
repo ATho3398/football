@@ -905,7 +905,7 @@ export function playerVM(g: GameState): PlayerVM {
     badges: badgesVM(g),
     chem: topChemMates(g),
     // 발롱도르·챔스·월드컵은 5단계 대회 기능이라 아직 얻을 수 없다 (위상 조건만 열림)
-    legendary: legendaryConditions(p.reputation, p.honors).map((c, i) => ({ ...c, locked: i > 0 })),
+    legendary: legendaryConditions(p.reputation, p.honors).map((c) => ({ ...c, locked: false })),
     isLegendary: tier === 'legendary',
     history: historyVM(g),
     matches: seasonMatchesVM(g),

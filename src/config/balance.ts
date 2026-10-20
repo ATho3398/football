@@ -1575,22 +1575,24 @@ export const BALANCE = {
      * 상 정의 (데이터 표, 47b 상은 여기에 더한다): vote = 투표단 비율(없으면 formula 상), voters = 투표단마다 투표자 수, points = 순위별 점수,
      * nominees = 후보 수(이력서 종합 상위), maxAge = 시즌 시작 나이 상한, europe = 골든부츠 표 리그만, groups = 포지션군, w = 가중치 덮어쓰기,
      * wc = 월드컵 상(월드컵 대회 이력서로, 월드컵 해만), top = 최고 개인상(레전더리 조건 4a, 시즌당 최대 growth 의 topPerSeason),
-     * due = 발표 [월, 일] (시즌 끝나는 해, 없으면 시즌 끝 바로), xp = 순위별 XP, rep = 1위 위상, pick = 1위 카드 선택권 희귀도 비율 (발롱도르는 goals.awardPick)
+     * due = 발표 [월, 일] (시즌 끝나는 해, 없으면 시즌 끝 바로), xp = 순위별 XP, rep = 1위 위상, pick = 1위 카드 선택권 희귀도 비율 (발롱도르는 goals.awardPick).
+     * rep 은 모두 0: 발롱도르 +20 · 더 베스트 +10 · 그 밖 +5~8 이면 balance 가드 "레전더리 30세까지 900+" 가 10/48 = 0.208(≤ 0.2)로 시드 하나(legendary-26, 887 → 905)를 넘긴다
+     * (C.68a 코치 · C.74b 기록 · C.76d 대표팀과 같은 경계 시드). 0 이면 9/48 = 기준선 그대로 (`scripts/diag/c76n-legend.ts`). 발롱도르 위상은 레전드 배지 +30 으로
      */
     defs: {
-      ballonDor: { ko: '발롱도르', vote: { journalist: 1 }, voters: 100, points: [6, 4, 3, 2, 1], nominees: 30, due: [10, 28], nomineesDue: [8, 8], xp: [500, 180, 100], rep: 20 },
-      theBest: { ko: '더 베스트', vote: { coach: 0.5, journalist: 0.25, fan: 0.25 }, voters: 100, points: [5, 3, 1], nominees: 12, due: [12, 16], xp: [250, 90, 50], rep: 10, pick: { epic: 1 }, top: true },
-      kopa: { ko: '코파 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, maxAge: 21, youth: true, due: [10, 28], xp: [150], rep: 8, pick: { epic: 1 } },
-      yashin: { ko: '야신 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['GK'], w: { out: 0, rat: 1.2, def: 1.6, tro: 1, nat: 0.5, clu: 0, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 8, pick: { epic: 1 }, top: true },
-      defender: { ko: 'UEFA 올해의 수비수', vote: { journalist: 0.5, coach: 0.5 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['CB', 'FB', 'CDM'], europe: true, w: { out: 0.3, rat: 1.2, def: 1.6, tro: 1.3, nat: 0.5, clu: 0.3, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 8, pick: { epic: 1 }, top: true },
-      goldenBoy: { ko: '골든보이', vote: { journalist: 1 }, voters: 40, points: [5, 3, 1], nominees: 20, maxAge: 21, youth: true, europe: true, w: { out: 1, rat: 0.9, def: 0.4, tro: 0.6, nat: 0.4, clu: 0.6, sto: 0.6, fam: 0.2, tal: 1 }, due: [11, 18], xp: [150], rep: 8, pick: { epic: 1 } },
-      goldenBoot: { ko: '골든부츠', formula: 'boot', europe: true, xp: [150], rep: 5, pick: { rare: 0.5, epic: 0.5 } },
-      muller: { ko: '게르트 뮐러 트로피', formula: 'goals', due: [10, 28], xp: [120], rep: 5, pick: { rare: 0.5, epic: 0.5 } },
+      ballonDor: { ko: '발롱도르', vote: { journalist: 1 }, voters: 100, points: [6, 4, 3, 2, 1], nominees: 30, due: [10, 28], nomineesDue: [8, 8], xp: [500, 180, 100], rep: 0 },
+      theBest: { ko: '더 베스트', vote: { coach: 0.5, journalist: 0.25, fan: 0.25 }, voters: 100, points: [5, 3, 1], nominees: 12, due: [12, 16], xp: [250, 90, 50], rep: 0, pick: { epic: 1 }, top: true },
+      kopa: { ko: '코파 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, maxAge: 21, youth: true, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 } },
+      yashin: { ko: '야신 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['GK'], w: { out: 0, rat: 1.2, def: 1.6, tro: 1, nat: 0.5, clu: 0, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 }, top: true },
+      defender: { ko: 'UEFA 올해의 수비수', vote: { journalist: 0.5, coach: 0.5 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['CB', 'FB', 'CDM'], europe: true, w: { out: 0.3, rat: 1.2, def: 1.6, tro: 1.3, nat: 0.5, clu: 0.3, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 }, top: true },
+      goldenBoy: { ko: '골든보이', vote: { journalist: 1 }, voters: 40, points: [5, 3, 1], nominees: 20, maxAge: 21, youth: true, europe: true, w: { out: 1, rat: 0.9, def: 0.4, tro: 0.6, nat: 0.4, clu: 0.6, sto: 0.6, fam: 0.2, tal: 1 }, due: [11, 18], xp: [150], rep: 0, pick: { epic: 1 } },
+      goldenBoot: { ko: '골든부츠', formula: 'boot', europe: true, xp: [150], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      muller: { ko: '게르트 뮐러 트로피', formula: 'goals', due: [10, 28], xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
       // 월드컵 상 (월드컵이 열린 여름, 대회 끝 = 시즌 끝 바로): 대회 기록은 내 경기 엔진 + 다른 선수 = 나라 골·실점을 그 나라 대표팀 명단에 나눈 추정
-      wcBall: { ko: '월드컵 골든볼', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 10, w: { out: 1, rat: 1, def: 0.4, tro: 1.6, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [200], rep: 10, pick: { epic: 1 }, top: true },
-      wcBoot: { ko: '월드컵 골든부트', wc: true, formula: 'wcBoot', xp: [120], rep: 5, pick: { rare: 0.5, epic: 0.5 } },
-      wcGlove: { ko: '월드컵 골든글러브', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [120], rep: 5, pick: { epic: 1 } },
-      wcYoung: { ko: '월드컵 영플레이어', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 8, maxAge: 21, youth: true, w: { out: 1, rat: 1, def: 0.4, tro: 1, nat: 0, clu: 0.6, sto: 0, fam: 0.2, tal: 0.6 }, xp: [100], rep: 5, pick: { rare: 1 } },
+      wcBall: { ko: '월드컵 골든볼', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 10, w: { out: 1, rat: 1, def: 0.4, tro: 1.6, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [200], rep: 0, pick: { epic: 1 }, top: true },
+      wcBoot: { ko: '월드컵 골든부트', wc: true, formula: 'wcBoot', xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      wcGlove: { ko: '월드컵 골든글러브', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [120], rep: 0, pick: { epic: 1 } },
+      wcYoung: { ko: '월드컵 영플레이어', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 8, maxAge: 21, youth: true, w: { out: 1, rat: 1, def: 0.4, tro: 1, nat: 0, clu: 0.6, sto: 0, fam: 0.2, tal: 0.6 }, xp: [100], rep: 0, pick: { rare: 1 } },
     } as Record<string, AwardDef>,
     /** 역대 수상자: 가장 최근 시즌은 발롱도르 후보 전체 · 다른 상 keepLatest 줄, 그 앞 시즌은 상마다 keepRows 줄 */
     keepRows: 3, keepLatest: 5,
