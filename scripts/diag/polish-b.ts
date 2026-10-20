@@ -214,7 +214,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
             if (hdr) S.ovo.nH++;
             if (d <= 12) { S.ovo.n12++; if (on) S.ovo.on12++; if (!hdr) { S.ovo.n12f++; if (on) S.ovo.on12f++; } }
             {
-              const g0 = got.get(a); const keys = [`pos:${group(a.pos)}`, `got:${g0?.detail ?? 'other'}`, d <= 12 ? 'd12' : 'd12-20', s.possOrigin === 'open' && s.t - s.possStartT < 10 ? 'counter' : 'settled'];
+              const g0 = got.get(a); const keys = [`pos:${group(a.pos)}`, `got:${g0?.detail ?? 'other'}`, d <= 12 ? 'd12' : 'd12-20', `${d <= 12 ? 'd12' : 'd20'}:${group(a.pos)}`, `${d <= 12 ? 'd12' : 'd20'}:${g0?.detail ?? 'other'}`, g0 ? (s.t - g0.t < 2 ? 'fast<2s' : s.t - g0.t < 4 ? 'mid2-4s' : 'slow4s+') : 'nogot', s.possOrigin === 'open' && s.t - s.possStartT < 10 ? 'counter' : 'settled'];
               for (const k of keys) (S.ovoBy[k] ??= { n: 0, goals: 0 }).n++;
               ovoKeys.set(a, keys);
             }
