@@ -79,12 +79,27 @@ const acc: Acc = {
   intent: zrec(() => ({ ball: 0, man: 0, spot: 0, n: 0 })), intentLine: {}, tackles: 0, games: 0, interceptions: 0, dribblesFaced: 0, dribbledPast: 0,
 };
 
+const diag9: Record<string, { n: number; same: number; un: number; behindLast: number; aheadBall: number }> = {};
+const duelBySit: Record<string, number[]> = {}; // 엔진 상황(tm.sit) → [태클, 따라붙기, 패스길]
+
 function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
   const m = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed, bigMatch: false, neutral: true });
   const s = m.state;
   const nearest = new Map<Agent, number>(); // 공격수 → 가장 가까운 수비수 idx (교체 빈도)
   while (!s.done) {
+    // ⑧ (C.75g) 상황별 1대1 판단: 수비수의 duelNext 가 바뀌면 판단 1회. laneUntil 이 바뀌면 패스길, 팀 태클 시도가 늘면 태클, 그 밖 따라붙기(지연)
+    const preSit = [s.teams[0].sit, s.teams[1].sit];
+    const preTk = [s.teams[0].stats.tackleAttempts, s.teams[1].stats.tackleAttempts];
+    const preDuel = s.agents.map((o) => o.duelNext);
+    const preLane = s.agents.map((o) => o.laneUntil);
     m.step();
+    for (const o of s.agents) {
+      if (o.duelNext === preDuel[o.idx]) continue;
+      const D8 = (duelBySit[preSit[o.team]!] ??= [0, 0, 0]);
+      if (o.laneUntil !== preLane[o.idx]) D8[2]!++;
+      else if (s.teams[o.team].stats.tackleAttempts > preTk[o.team]!) D8[0]!++;
+      else D8[1]!++;
+    }
     if (s.tick % 10 !== 0 || s.restart) continue;
     if (s.ball.owner < 0) {
       // G 루즈볼: 공(예측 착지점이 아니라 지금 공)으로 목표를 잡은 수비 수, 양 팀
@@ -121,7 +136,10 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
     const attNear = A.filter((o) => dist(o.x, o.y, b.x, b.y) <= 15).length + 1;
     const defNear = D.filter((o) => dist(o.x, o.y, b.x, b.y) <= 15).length;
     const wideBall = b.y <= 8 || b.y >= 68 - 8;
-    const mateNear = A.some((o) => dist(o.x, o.y, owner.x, owner.y) <= 8);
+    // D 받을 동료 없음 (C.75g, 엔진 rawSituation 과 같게): 가장 가까운 동료가 trapMateDist m 밖이거나 우리 수비가 trapMarked m 안에 붙어 있다
+    const mate0 = A.slice().sort((p, q) => dist(p.x, p.y, owner.x, owner.y) - dist(q.x, q.y, owner.x, owner.y))[0];
+    const mateNear = !!mate0 && dist(mate0.x, mate0.y, owner.x, owner.y) < ENGINE.defense.trapMateDist
+      && !D.some((d) => dist(d.x, d.y, mate0.x, mate0.y) <= ENGINE.defense.trapMarked);
     const defNear6 = D.filter((o) => dist(o.x, o.y, owner.x, owner.y) <= 6).length;
     const crossPos = Math.abs(bny - 0.5) >= 0.2 && bnx <= 0.32; // 공격 팀 기준 x ≥ 0.68 (crossMinX)
     let sit: Sit;
@@ -135,6 +153,15 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
       sit = allMarked ? 'E 박스1대1(마크됨)' : 'E 박스1대1(미마크)';
     } else sit = 'A 정돈';
     const SA = sitAcc[sit]!;
+    // ⑨ (C.75g) 진단 판정과 엔진 tm.sit 일치, B·F 에서 5 m 안 수비 없는 공격수의 위치 (우리 마지막 필드 수비보다 골 쪽 / 공보다 골 쪽 / 그 밖)
+    const L9 = (diag9[sit[0]!] ??= { n: 0, same: 0, un: 0, behindLast: 0, aheadBall: 0 });
+    L9.n++; if (tm.sit === sit[0]) L9.same++;
+    const lastX = Math.min(...D.map((o) => toNorm(o.x, o.y, dDir)[0]));
+    for (const a of A) {
+      if (dist(a.x, a.y, gx, gy) >= 35 || D.some((d) => dist(d.x, d.y, a.x, a.y) <= 5)) continue;
+      const ax = toNorm(a.x, a.y, dDir)[0];
+      L9.un++; if (ax < lastX) L9.behindLast++; else if (ax < bnx) L9.aheadBall++;
+    }
     SA.n++; SA.near3[Math.min(4, n3)]!++;
     for (const a of A) {
       let c = 0, c5 = 0;
@@ -233,5 +260,9 @@ console.log(`  G 루즈볼        표본 ${loose.n} (팀·표본): 공으로 가
 console.log('\n⑦ 공 3 m 안 수비 2명 이상인 표본에서 그 수비수들의 엔진 분기 추정 (' + ATTR.join(' / ') + ') · GK 도 3 m 안 · rank≥2 인 추가 인원의 줄(1/2/3)');
 for (const z of ['박스 안', '골 25 m 안'] as const) { const R = attr[z]!; const tot = R.byReason.reduce((a, b) => a + b, 0); console.log(`  ${z.padEnd(8)} 표본 ${R.samples}: ${R.byReason.map((v) => pct(v, tot)).join(' / ')} (수비수 ${tot}명) · GK 3 m 안 ${pct(R.gk3, R.samples)} · rank≥2 추가 인원 줄1 ${R.extraLine[1]} / 줄2 ${R.extraLine[2]} / 줄3 ${R.extraLine[3]}`); }
 console.log(`  박스 안 전체 표본 ${boxAll.samples}: GK 가 공 가진 선수 3 m 안 ${pct(boxAll.gk3, boxAll.samples)}`);
+console.log('\n⑧ (C.75g) 엔진 상황(tm.sit)별 1대1 판단: 횟수 · 태클 / 따라붙기(지연) / 패스길 · 지연+패스길');
+for (const [k, v] of Object.entries(duelBySit).sort()) { const n = v[0]! + v[1]! + v[2]!; console.log(`  ${k} ${String(n).padStart(6)} · ${pct(v[0]!, n)} / ${pct(v[1]!, n)} / ${pct(v[2]!, n)} · ${pct(v[1]! + v[2]!, n)}`); }
+console.log('\n⑨ (C.75g) 진단 상황 → 엔진 tm.sit 같은 비율 · 골 35 m 안 5 m 안 수비 없는 공격수: 우리 마지막 수비보다 골 쪽 / 공보다 골 쪽(줄 사이) / 그 밖');
+for (const [k, v] of Object.entries(diag9).sort()) console.log(`  ${k} 표본 ${v.n} · 엔진 같음 ${pct(v.same, v.n)} · 미마크 ${v.un}: ${pct(v.behindLast, v.un)} / ${pct(v.aheadBall, v.un)} / ${pct(v.un - v.behindLast - v.aheadBall, v.un)}`);
 console.log(`\n경기당 태클 시도 ${(acc.tackles / 2 / acc.games).toFixed(1)}, 인터셉트 ${(acc.interceptions / 2 / acc.games).toFixed(1)}, 돌파 시도 상대 ${(acc.dribblesFaced / 2 / acc.games).toFixed(1)} · 제쳐짐 ${(acc.dribbledPast / 2 / acc.games).toFixed(1)}`);
 process.exit(0);

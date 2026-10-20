@@ -348,7 +348,7 @@ export function duelOdds(s: SimState, o: Agent, d: Agent): { pWin: number; pFoul
   const lane = shadowValue(s, o, d) - here;
   const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
   const [dgx, dgy] = ownGoal(attackDir(d.team, s.half));
-  const jockey = dist(o.x, o.y, dgx, dgy) < D.jockeyNearDist || inOwnBox(d.team, s.half, o.x, o.y) ? D.jockeyNear : D.jockeyFar;
+  const jockey = (dist(o.x, o.y, dgx, dgy) < D.jockeyNearDist || inOwnBox(d.team, s.half, o.x, o.y) ? D.jockeyNear : D.jockeyFar) * (ENGINE.offball.plan.sit[s.teams[d.team].sit as 'C']?.jockeyMul ?? 1);
   return { pWin, pFoul, beaten, us: [uTackle, jockey, uLane] };
 }
 

@@ -293,14 +293,20 @@ export const ENGINE = {
       levelCut: [0.43, 0.68] as readonly number[],
       sit: {
         A: { pressers: [1, 1, 2], double: false },
-        B: { pressers: [1, 1, 2], double: false },
-        C: { pressers: [1, 1, 2], double: false },
-        D: { pressers: [1, 1, 2], double: false },
+        // C.75g 전환 상황: B 지연 1 + 뒤 추격 1(chase) + 수비 줄 lineDrop m 내림 · C 지연 우선(jockeyMul, shadowW). secondToThreat(둘째를 가장 위험한 상대 골 쪽 m)는 득점 +0.13 이라 끔(0)
+        // D 둘째는 공 ↔ 피치 폭 중심 선에서 공 trapInside m (안쪽 패스길) · F 첫째는 공 ↔ 골 선 crossBlock m, 중원 1명은 컷백 존(cutbackZone)
+        // B·F 존 마크: 존 근처 상대를 markRange m 안에서 찾고(평소 14) 수비 줄 가로·중원 줄 위치를 markW 만큼 그 상대 쪽으로(평소 0.5·0.65)
+        B: { pressers: [1, 1, 1], double: false, chase: 1, lineDrop: 2, markW: 0.9, markRange: 18 },
+        C: { pressers: [1, 1, 2], double: false, jockeyMul: 1.5, shadowW: 0.8, secondToThreat: 0 },
+        D: { pressers: [1, 1, 2], double: true, trapInside: 3 },
         E: { pressers: [1, 1, 1], double: false },
-        F: { pressers: [1, 1, 2], double: false },
+        F: { pressers: [1, 1, 1], double: false, crossBlock: 1.5, cutbackZone: 1, markW: 0.9, markRange: 18 },
         G: { pressers: [1, 1, 1], double: false },
         H: { pressers: [1, 2, 3], double: true },
-      } as Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H', { pressers: readonly number[]; double: boolean }>,
+      } as Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H', {
+        pressers: readonly number[]; double: boolean; chase?: number; lineDrop?: number; jockeyMul?: number; shadowW?: number;
+        secondToThreat?: number; trapInside?: number; crossBlock?: number; cutbackZone?: number; markW?: number; markRange?: number;
+      }>,
     },
   },
 
@@ -322,6 +328,9 @@ export const ENGINE = {
     jockeyFar: 0.11,
     jockeyNear: 0.09,
     jockeyNearDist: 25,
+    /** D 측면 트랩 판정 (C.75g, pending 41 질문 7): 소유자에게 가장 가까운 동료가 trapMateDist m 이상이거나, 그 동료 trapMarked m 안에 우리 수비가 있으면 받을 동료 없음 */
+    trapMateDist: 10,
+    trapMarked: 2,
     /** 패스길 막기: 가장 위험한 패스 대상 가치 상승분 × laneW − 돌파 허용 비용 × laneRisk */
     laneW: 0.3,
     laneRisk: 0.3,
