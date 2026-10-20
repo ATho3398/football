@@ -16,6 +16,7 @@ import './design/tokens.css';
 import './design/bundle.css';
 import './design/skin-b.css';
 import './style.css';
+import './design/season.css';
 import { applySkin, isLandPhone, isWide, LANDPHONE_QUERY, setSkin, WIDE_QUERY } from './skin';
 
 import type { FieldAttribute } from '../attributes';
@@ -87,10 +88,12 @@ import { holdMeeting, type MeetingChoice } from '../manager';
 import { prepView } from './views/prep';
 import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
-import { matchResultView } from './views/matchResult';
+import { celebrateView, matchResultView } from './views/matchResult';
+import { celebrateVM, compRecordVM, seasonCompsVM } from './seasonVM';
+import { compRecordSection, homeTodoRow, seasonCompsSection } from './views/season';
 import { playerView, type PlayerTab } from './views/player';
 import { ReplayPlayer, replayView } from './views/replay';
-import { allocateView, chapterView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, cupsSection, type SeasonTab, type SeasonTodo } from './views/screens';
+import { allocateView, chapterView, NEW_GAME_UI, newGameView, retiredView, type NewGameUI, savesView, seasonView, titleView, worldView, cupsSection, cupSubDefault, type SeasonTab, type SeasonTodo } from './views/screens';
 import { halftimeView, tacticsView } from './views/tactics';
 import { contractView, marketCard, newsSection, offersView, tagNewsSection } from './views/transfer';
 import { marketVM, newsVM } from './transferVM';
@@ -159,6 +162,11 @@ const ui = {
   worldBoard: 'goals' as 'goals' | 'assists' | 'rating',
   /** 월드 순위·득점 리그 (C.76c): '' = 내 리그, 아니면 고른 다른 리그 id */
   worldLeague: '',
+  /** 월드 컵·챔스 묶음 · 국내 컵 라운드 (C.76j 205): null = 지금 시점 기본 */
+  /** 본 우승 축하 (C.76j 207): 이 키면 다시 띄우지 않음 (세이브에 담지 않음) */
+  celebrated: '' as string,
+  cupSub: null as null | 'groups' | 'ko' | 'fa',
+  cupRound: null as number | null,
   /** 재계약 화면에서 고른 연수 (C.42) */
   renewYears: null as number | null,
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
@@ -372,6 +380,19 @@ function autosave(): Promise<void> {
 const saveLog: number[] = [];
 (globalThis as unknown as { __saveLog: number[] }).__saveLog = saveLog;
 /** 캡처 스크립트용 (부록 C.42 캡처): 지금 게임 상태 */
+/** 우승 축하 한 장 (C.76j 디자인 207): 경기 결과 화면에서 한 번 */
+function celebrateHtml(g: GameState | null): string {
+  if (!g || ui.screen !== 'match') return '';
+  const vm = celebrateVM(g);
+  return vm && ui.celebrated !== vm.key ? celebrateView(vm) : '';
+}
+
+/** 월드 컵·챔스 탭 (C.76j 205): 고른 묶음·라운드 */
+function cupsView(g: GameState): string {
+  const vm = cupsWorldVM(g);
+  return cupsSection(vm, ui.cupSub ?? cupSubDefault(vm), ui.cupRound, !!ui.more.cupTies);
+}
+
 (globalThis as unknown as { __game: () => GameState | null }).__game = () => ui.game;
 
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
@@ -473,7 +494,7 @@ function screenHtml(): string {
       const sheet = (ui.posSheet && canPos ? positionSheet(positionOptionsVM(g), ui.posSheet, inSeason) : '') + (ivm ? injuryReturnSheet(ivm) : '');
       collectNotices(g);
       const list = g.player.history.length === 0 ? checklistItems(g.guide) : null;
-      const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: g.cards.picks.length }) : '';
+      const deck = g.cards ? deckHomeSection({ active: g.cards.active, count: g.cards.decks[g.cards.active]?.length ?? 0, unusable: deckUnusable(g, myRoleId(g)), picks: 0 }) : '';
       const hvm = homeVM(g);
       hvm.exit = !liveScreen();
       hvm.inbox = unreadCount(g);
@@ -488,7 +509,7 @@ function screenHtml(): string {
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
       // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (기록·주전 경쟁·라이벌) → 안내·포변. C.76g (디자인 204): 시즌 목표는 다음 경기 바로 아래
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '') + guideResetLink() + sheet;
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '', homeTodoRow(g.cards?.picks.length ?? 0) + seasonCompsSection(seasonCompsVM(g))) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -512,10 +533,10 @@ function screenHtml(): string {
       const youth = p.youth ? youthClubName(g, p.youth.club) : '';
       const body = bodySection(p, g.phase !== 'retired' && p.body.weakFoot < 5 && p.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), youth, myLookWithEdit(g),
         p.youth && g.league.teams.some((t) => t.id === p.youth!.club) ? p.youth.club : '');
-      return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
+      return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)) + compRecordSection(compRecordVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
-    case 'world': return worldView(worldVM(g, ui.worldLeague), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
+    case 'world': return worldView(worldVM(g, ui.worldLeague), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsView(g) : '');
     case 'offers': return offersView(marketVM(g), ui.offerSel);
     case 'inbox': {
       collectNotices(g);
@@ -697,7 +718,8 @@ function render(): void {
   app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}${bandToast ? 'has-band-toast ' : ''}app-${ui.screen}`;
   const pv = (ui.pvSheet ? pitchViewSheet() : '')
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount, ui.autoPrefs) : '')
-    + (ui.moreSheet && g && isWide() && !isLandPhone() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '');
+    + (ui.moreSheet && g && isWide() && !isLandPhone() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '')
+    + celebrateHtml(g);
   app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   fitHeroNames();
   bindDockMore();
@@ -1239,7 +1261,9 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
   const update = () => {
     const fx = isMatchDay(g) ? nextFixture(g) : null;
     const what = fx ? `${matchCompLabel(g, fx)} ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : '훈련일 진행 중';
-    updateAutoLayer(layer, { n: played, m: total, meta: `${dateLabel(g.calendar.date)} · ${what}`, lines, rank: myRow(), pts: prefs.alloc ? spent : Math.max(0, g.player.unspentPoints - pts0), alloc: prefs.alloc });
+    // C.76j (디자인 215): 계산 중인 경기가 컵·챔스·대표팀이면 대회 단계 칩
+    const chip = fx && (fx.cup || fx.nat) ? (prepCupBadge(matchCompLabel(g, fx))) : '';
+    updateAutoLayer(layer, { n: played, m: total, meta: `${dateLabel(g.calendar.date)} · ${fx ? `${fx.home ? '홈' : '원정'} · ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : what}`, lines, rank: myRow(), pts: prefs.alloc ? spent : Math.max(0, g.player.unspentPoints - pts0), alloc: prefs.alloc, chip });
   };
   try {
     for (;;) {
@@ -1271,7 +1295,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
         const out = await pool().my(rm.input).catch(() => playMyMatch(rm.input));
         const rep = playRound(g, { engineOut: out });
         played++;
-        lines.push({ label: rep.nat ? rep.nat.label : rep.cup ? rep.cup.stage : `${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
+        lines.push({ label: rep.nat ? rep.nat.label : rep.cup ? `${rep.cup.comp === 'ucl' ? '챔스' : compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `리그 ${rep.round}R`, opp: teamById(g.league, rep.opponentId).nameKo, gf: rep.result.goalsFor, ga: rep.result.goalsAgainst, rating: rep.result.rating });
         results.push(rep.result.goalsFor > rep.result.goalsAgainst ? 'W' : rep.result.goalsFor < rep.result.goalsAgainst ? 'L' : 'D');
       } else {
         endDay(g);
@@ -1362,7 +1386,12 @@ function openAutoLayer(): HTMLElement {
   return el;
 }
 
-function updateAutoLayer(el: HTMLElement, p: { n: number; m: number; meta: string; lines: AutoResultLine[]; rank: string; pts: number; alloc?: boolean }): void {
+/** "챔스 조별 1차전" → "챔피언스리그 · 조별 1차전" (C.76j 215 진행 레이어 칩) */
+function prepCupBadge(label: string): string {
+  return label.replace(/^챔스 /, '챔피언스리그 ').replace(' ', ' · ');
+}
+
+function updateAutoLayer(el: HTMLElement, p: { n: number; m: number; meta: string; lines: AutoResultLine[]; rank: string; pts: number; alloc?: boolean; chip?: string }): void {
   const q = (c: string) => el.querySelector<HTMLElement>(c);
   const set = (c: string, t: string) => { const x = q(c); if (x) x.textContent = t; };
   set('.auto-layer__n', String(p.n));
@@ -1370,6 +1399,8 @@ function updateAutoLayer(el: HTMLElement, p: { n: number; m: number; meta: strin
   set('.auto-layer__meta', `${p.meta}${el.classList.contains('is-stopping') ? ' · 이 경기까지 하고 멈춰요' : ''}`);
   set('.auto-layer__rank', p.rank);
   set('.auto-layer__pts', String(p.pts));
+  const chip = q('.auto-layer__chip');
+  if (chip) { chip.hidden = !p.chip; const b = chip.querySelector('b'); if (b) b.textContent = p.chip ?? ''; }
   set('.auto-layer__ptsl', p.alloc ? '자동 배분 포인트' : '쌓인 포인트');
   const ul = q('.auto-layer__results');
   if (ul) ul.innerHTML = autoResultsHtml(p.lines);
@@ -1839,6 +1870,22 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     // 월드 리그 고르기 (C.76c)
+    case 'celebrate-close': {
+      const vm = g ? celebrateVM(g) : null;
+      ui.celebrated = vm?.key ?? '';
+      render();
+      return;
+    }
+    case 'cup-sub':
+      ui.cupSub = v as typeof ui.cupSub;
+      ui.more = { ...ui.more, cupTies: false };
+      render();
+      return;
+    case 'cup-round':
+      ui.cupRound = Number(v);
+      ui.more = { ...ui.more, cupTies: false };
+      render();
+      return;
     case 'world-league':
       ui.worldLeague = v ?? '';
       render();

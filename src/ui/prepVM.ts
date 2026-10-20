@@ -59,6 +59,8 @@ export interface PrepVM {
   quick: boolean;
   /** 상대 분석 리포트 (C.74c): 나를 맡을 수비수 약점. GK·상대 맞자리 없음이면 null */
   scout: ScoutReport | null;
+  /** 대회 배지 (C.76j 디자인 212): 컵·챔스 경기면 "챔피언스리그 · 조별 1차전" */
+  cupBadge: string | null;
 }
 
 /** 전술 세부 짧은 이름 (디자인 156 "라인 높음 · 압박 높음 · 빌드업 혼합") */
@@ -103,6 +105,7 @@ export function prepVM(g: GameState): PrepVM | null {
   return {
     date: dateLabel(g.calendar.date),
     comp: matchCompLabel(g, fx),
+    cupBadge: fx.cup ? fx.cup.label.replace(/^챔스 /, '챔피언스리그 ').replace(' ', ' · ') : null,
     home: fx.home,
     derby: d ? { name: d.name, big: d.big } : null,
     my: team(my.id, my.rating, my.nameKo, myTacticVM(g)),
