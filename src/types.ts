@@ -222,9 +222,11 @@ export interface Honors {
   worldCups: number;
   /** 챔스 우승 (C.67b). 옛 세이브에는 없다 */
   ucl?: number;
+  /** 최고 개인상 (C.76n 레전더리 조건 4a): 시즌 → 받은 개수 (더 베스트 · 리그 올해의 선수 · 야신 · 올해의 수비수 · 월드컵 골든볼). 옛 세이브에는 없다 */
+  top?: Record<number, number>;
 }
 
-export type BadgeId = 'goals500' | 'titles5' | 'oneClub10' | 'worldCup';
+export type BadgeId = 'goals500' | 'titles5' | 'oneClub10' | 'worldCup' | 'ballonDor';
 
 export interface Badge {
   id: BadgeId;

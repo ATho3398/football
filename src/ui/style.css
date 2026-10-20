@@ -2647,3 +2647,8 @@ html .moment.ht-v3 .mo-stage.ht-stage .po-pitch { position: absolute; inset: 0; 
 .nat-out.is-win { color: var(--success); }
 .nat-out.is-loss { color: var(--warning); }
 .nat-out.is-draw { color: var(--ink-muted); }
+
+/* 개인 시상 (C.76n, 디자인 없음) */
+.aw-body .aw-desc { margin: -4px 0 8px; }
+.aw-body .aw-more summary { cursor: pointer; padding: 8px 0 4px; }
+.aw-body .tbl td.l small { font-weight: 400; }

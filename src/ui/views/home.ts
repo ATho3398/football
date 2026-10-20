@@ -44,7 +44,9 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
     // 진열실 (C.76b): 트로피 · 유니폼
     + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' })
     // 대표팀 (C.76d)
-    + IconButton({ act: 'go', data: { to: 'national' }, name: 'world', label: '대표팀', variant: 'ghost' });
+    + IconButton({ act: 'go', data: { to: 'national' }, name: 'world', label: '대표팀', variant: 'ghost' })
+    // 개인 시상 (C.76n): 발롱도르 · 역대 수상자
+    + IconButton({ act: 'go', data: { to: 'awards' }, name: 'star', label: '개인 시상', variant: 'ghost' });
   const face = homeFace(vm);
   // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음
   const back = vm.exit ? { act: 'to-title' } as const : false;

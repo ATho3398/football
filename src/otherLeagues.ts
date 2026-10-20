@@ -11,9 +11,11 @@ import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roste
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
 import { envField, matchConditions } from './matchEnv';
+import { derbyOf } from './derby';
+import { leagueWeight, matchClutch } from './clutch';
 
-/** 다른 리그 선수 기록: [골, 도움, 출전, 평점×10 합, 분] (빠른 계산 경기는 출전·평점·분 없음) */
-export type OtherStat = [number, number, number?, number?, number?];
+/** 다른 리그 선수 기록: [골, 도움, 출전, 평점×10 합, 분, 결정적 순간×10 (C.76n)] (빠른 계산 경기는 출전·평점·분·결정적 순간 없음) */
+export type OtherStat = [number, number, number?, number?, number?, number?];
 
 /** 다른 리그 득점왕 한 줄 (지난 시즌 기록, C.76c): [이름, 팀 id, 골] */
 export type TopScorer = [string, string, number];
@@ -164,8 +166,15 @@ export function applyOtherLeagueJob(state: { otherLeagues?: OtherLeague[] }, job
     ...job.input.home.players.map((p) => [p.id, [p.nameKo, f.home]] as [string, [string, string]]),
     ...job.input.away.players.map((p) => [p.id, [p.nameKo, f.away]] as [string, [string, string]]),
   ]);
+  // 결정적 순간 (C.76n 개인 시상): 결승골 · 늦은 동점/역전골 · 해트트릭, 더비 · 상위 팀 상대 무게
+  const top = new Set([...lg.teams].sort((x, y) => y.rating - x.rating).slice(0, BALANCE.awards.resume.clutch.topRank).map((t) => t.id));
+  const derby = !!derbyOf(f.home, f.away);
+  const clutch = new Map<string, number>();
+  matchClutch(res.goals, res.hg, res.ag, [leagueWeight(derby, top.has(f.away)), leagueWeight(derby, top.has(f.home))], (id, p) => clutch.set(id, (clutch.get(id) ?? 0) + p));
   for (const [id, min, g, a, r10] of res.players) {
     const t = (stats[id] ??= [0, 0]);
+    const c = clutch.get(id);
+    if (c) t[5] = (t[5] ?? 0) + Math.round(c * 10);
     t[0] += g;
     t[1] += a;
     t[2] = (t[2] ?? 0) + 1;
