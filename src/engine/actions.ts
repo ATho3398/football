@@ -788,6 +788,34 @@ function resolveAerial(s: SimState, fl: Flight): void {
   };
 }
 
+/**
+ * 깊은 블록 비행 중 가로채기 판정 (C.76p 44h-c 가설 1): 오프볼이 패스 선에 보낸 선수(tm.cutIdx) 옆 offball.deepCutRadius m 안을
+ * 공이 이 틱에 지났으면(이전 위치 (px, py) → 지금 위치 선분) 한 비행에 1회 deepCutP × 능력 배율로 가로챈다. 성공하면 true
+ */
+export function deepCut(s: SimState, px: number, py: number): boolean {
+  const b = s.ball;
+  const fl = b.flight;
+  if (!fl || fl.outcome !== 'receive') return false;
+  const O = ENGINE.offball;
+  for (const tm of s.teams) {
+    if (tm.cutFlight !== fl || tm.cutIdx < 0) continue;
+    const a = s.agents[tm.cutIdx];
+    if (!a || !a.onPitch) {
+      tm.cutIdx = -1;
+      continue;
+    }
+    if (segDist(a.x, a.y, px, py, b.x, b.y)[0] > O.deepCutRadius) continue;
+    // 판정은 한 비행에 1회: cutFlight 는 남기고 cutIdx 만 −1 (오프볼이 같은 비행에 다시 보내지 않게)
+    tm.cutIdx = -1;
+    const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100);
+    if (r(s, a.idx, Purpose.Intercept, 2) < p) {
+      giveBall(s, a, 'intercept');
+      return true;
+    }
+  }
+  return false;
+}
+
 /** 비행 중인 공 갱신과 도착 처리 */
 export function resolveFlight(s: SimState): void {
   const b = s.ball;
