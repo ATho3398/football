@@ -278,8 +278,8 @@ export const ENGINE = {
     boxRunSpread: 0.12,
     edgeZone: 22,
     /** 같은 쪽 측면 공일 때 LM/RM 컷백 존 (C.75j, 미해결 9): 골에서 edgeWingDepth m, 중앙에서 edgeWingSpread (정규화 폭) 공 쪽 박스 모서리 */
-    edgeWingDepth: 16,
-    edgeWingSpread: 0.12,
+    edgeWingDepth: 14,
+    edgeWingSpread: 0.1,
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
     postSpread: 4,
@@ -414,9 +414,10 @@ export const ENGINE = {
      * 목표점을 그 상대의 반대쪽으로 shift m 옮긴다 (패스 선에 수직인 성분 우선 — 패스 거리를 안 늘림). 오프사이드 라인 maxOffside m 안.
      * 받는 선수는 비행 중 목표점으로 뛰므로 "공이 날아오는 동안 마커 반대쪽으로 이동"이 된다.
      * firstTouch: 받고 몰지 않고 firstTouch 초 안에 쏘는 슛(원터치·투터치)은 받는 순간의 압박으로 판정한다 (가설 2, 판정 시점만 바뀌고 식은 그대로).
-     * 1.3 = receiveTime 0.9 + 반응 상한 × 0.5 + 틱 여유: 받은 뒤 첫 결정 하나만 덮는다 (1.6 은 빠른 선수의 둘째 결정까지 덮어 scoring 분포에 몰림, C.75j)
+     * 1.0 < receiveTime 0.9 + 반응 × 0.5 이므로 보통 수신은 덮지 않고, 빠른 패스(`fl.quick` 컷백·레이오프, cooldown = 반응 ≤ 0.65초)를 받은 원터치 슛만 덮는다.
+     * 1.6·1.3 은 quick 600 득점 1.46(가드 상한 1.45)·같은 시드 scoring 에서 엘리트 ST 몰림(마크 켠 상태)이라 줄였다 (C.75j)
      */
-    recv: { shiftDist: 3, shift: 2, maxOffside: 0.5, firstTouch: 1.3 },
+    recv: { shiftDist: 3, shift: 2, maxOffside: 0.5, firstTouch: 1.0 },
     /**
      * 침투 패스 목표 (E.20 4번): 오프사이드 라인 뒤 공간으로. 깊이 = clamp(throughShare × (라인 뒤 공간 − throughStop), throughMin, throughMax) m.
      * 라인이 높을수록 뒷공간이 넓어 달리기 경쟁 거리가 길어진다 (빠른 공격수 유리, 느린 CB 불리)

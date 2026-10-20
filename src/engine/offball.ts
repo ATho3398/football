@@ -716,11 +716,11 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' 
     const by = toNorm(s.ball.x, s.ball.y, attackDir(a.team, s.half))[1];
     if (Math.abs(by - 0.5) >= O.lateRunWide) {
       if (Math.sign(by - 0.5) !== Math.sign(a.sy - 0.5)) return 'backPost';
-      // 같은 쪽 측면 공 (C.75j, 미해결 9): LM/RM(2선)은 소유자가 자기보다 터치라인 쪽·앞이면 박스 모서리 컷백 존으로 들어온다. LW/RW 는 자리 유지
+      // 같은 쪽 측면 공 (C.75j, 미해결 9): LM/RM(2선)은 소유자(오버랩한 FB·측면으로 빠진 ST)가 자기보다 앞이면 공 쪽 박스 모서리 컷백 존으로 들어온다. LW/RW 는 자리 유지
+      // (처방의 "소유자가 더 터치라인 쪽" 조건은 4-4-2 에서 LM/RM 자신이 측면 소유자라 거의 걸리지 않아 뺐다 — wing-output 0.41 → 그대로)
       if (a.pos === 'LM' || a.pos === 'RM') {
-        const [onx, ony] = toNorm(owner.x, owner.y, attackDir(a.team, s.half));
-        const [anx, any_] = toNorm(a.x, a.y, attackDir(a.team, s.half));
-        if (onx > anx && Math.abs(ony - 0.5) > Math.abs(any_ - 0.5)) return 'edge';
+        const d = attackDir(a.team, s.half);
+        if (toNorm(owner.x, owner.y, d)[0] > toNorm(a.x, a.y, d)[0]) return 'edge';
       }
       return null;
     }
