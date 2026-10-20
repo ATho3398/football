@@ -49,6 +49,9 @@ export interface Agent {
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
   errX: number;
   errY: number;
+  /** 오차를 새로 뽑을 틱 / 마지막으로 뽑은 틱 (C.75l: 읽을 때만 계산, 같은 값) */
+  errTick: number;
+  errDone: number;
   /** 제쳐진 뒤 이 시각까지 태클 불가 */
   beatenUntil: number;
   onPitch: boolean;

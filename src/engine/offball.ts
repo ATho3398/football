@@ -455,6 +455,7 @@ export function updateOffball(s: SimState, a: Agent): void {
 }
 
 function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+  ensureErrors(s, a);
   const shortHanded = manDiff(s, a.team) < 0;
   let [nx, ny] = slotTarget(s, a, shortHanded ? ENGINE.referee.shortAttackShift : 1);
   const line = offsideLine(s, a.team);
@@ -825,6 +826,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  ensureErrors(s, a);
   // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
   const ballGoal = dist(b.x, b.y, gx0, gy0);
@@ -1116,12 +1118,61 @@ function closerForward(s: SimState, a: Agent, bx: number, by: number): boolean {
 
 /** 오프더볼 갱신 때 위치 오차를 새로 뽑는다 */
 export function refreshErrors(s: SimState, a: Agent): void {
-  a.errX = randn(s.seed, s.tick, a.idx, Purpose.Mark, 0);
-  a.errY = randn(s.seed, s.tick, a.idx, Purpose.Mark, 1);
+  a.errTick = s.tick;
+}
+
+/** 오차를 읽기 전에: 갱신 틱의 값을 그때 뽑는다 (해시 난수라 언제 뽑아도 같다, C.75l) */
+function ensureErrors(s: SimState, a: Agent): void {
+  if (a.errDone === a.errTick) return;
+  a.errX = randn(s.seed, a.errTick, a.idx, Purpose.Mark, 0);
+  a.errY = randn(s.seed, a.errTick, a.idx, Purpose.Mark, 1);
+  a.errDone = a.errTick;
 }
 
 /** 세트피스 박스 안 자리 [골라인에서 m, 공 쪽 + / 반대쪽 − y m] (E.22 B) */
 const SP_SPOTS: [number, number][] = [[6, 0], [9, 4], [12, 0], [6, -4], [9, -8]];
+
+/** 세트피스 자리 배정 (C.75l 속도, 결과 불변): 재개·키커·출전 명단이 같은 동안 팀당 1번만 정렬한다 */
+interface SpPlan {
+  r: NonNullable<SimState['restart']>;
+  taker: number;
+  n: number;
+  on: number;
+  mates: Agent[];
+  box: Agent[];
+  rest: Agent[];
+  forward: Agent | undefined;
+  markers: Agent[];
+}
+const spCache = new WeakMap<SimState, [SpPlan | null, SpPlan | null]>();
+
+function spPlan(s: SimState, team: 0 | 1): SpPlan {
+  const r = s.restart!;
+  let on = 0;
+  for (const o of s.agents) if (o.onPitch) on++;
+  let cache = spCache.get(s);
+  if (!cache) spCache.set(s, (cache = [null, null]));
+  const c = cache[team];
+  if (c && c.r === r && c.taker === r.taker && c.n === s.agents.length && c.on === on) return c;
+  const mates = s.agents
+    .filter((o) => o.onPitch && o.team === team && o.line !== 0 && o.idx !== r.taker)
+    .sort((x, y) => (y.attrs.heading + y.attrs.jumping) - (x.attrs.heading + x.attrs.jumping));
+  let box: Agent[] = [];
+  let rest: Agent[] = [];
+  let forward: Agent | undefined;
+  let markers: Agent[] = [];
+  if (team === r.team) {
+    const cbs = mates.filter((o) => o.pos === 'CB').slice(0, O.setPieceCB);
+    box = [...cbs, ...mates.filter((o) => !cbs.includes(o))].slice(0, 5).sort((x, y) => mates.indexOf(x) - mates.indexOf(y));
+    rest = mates.filter((o) => !box.includes(o));
+  } else {
+    forward = mates.slice().sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
+    markers = mates.filter((o) => o !== forward).slice(0, O.setPieceMark);
+  }
+  const plan: SpPlan = { r, taker: r.taker, n: s.agents.length, on, mates, box, rest, forward, markers };
+  cache[team] = plan;
+  return plan;
+}
 
 /**
  * 세트피스 위치 (코너, 상대 골 35 m 안 프리킥): 공격 팀은 CB·공격수·공중볼 좋은 미드가 박스로,
@@ -1134,17 +1185,14 @@ function setPieceTarget(s: SimState, a: Agent): boolean {
   const [gx, gy] = [dirAtt > 0 ? L : 0, W / 2];
   const near = r.type === 'corner' || (r.type === 'freeKick' && dist(r.x, r.y, gx, gy) < 35);
   if (!near) return false;
-  const mates = s.agents
-    .filter((o) => o.onPitch && o.team === a.team && o.line !== 0 && o.idx !== r.taker)
-    .sort((x, y) => (y.attrs.heading + y.attrs.jumping) - (x.attrs.heading + x.attrs.jumping));
+  const plan = spPlan(s, a.team);
+  const mates = plan.mates;
   const k = mates.indexOf(a);
   if (k < 0) return false;
   if (a.team === attTeam) {
     // 박스 가담 (E.22 B): 공중볼 좋은 CB 최대 setPieceCB 명 + 공중볼 상위 선수로 5명 박스 안, 2명 박스 바깥, 나머지 하프라인 쪽.
     // 박스 안 자리: 중앙 7 m, 니어 포스트, 파 포스트, 페널티 지점, 니어 쪽 9 m (공중볼 순서대로)
-    const cbs = mates.filter((o) => o.pos === 'CB').slice(0, O.setPieceCB);
-    const box = [...cbs, ...mates.filter((o) => !cbs.includes(o))].slice(0, 5).sort((x, y) => mates.indexOf(x) - mates.indexOf(y));
-    const rest = mates.filter((o) => !box.includes(o));
+    const { box, rest } = plan;
     const side = r.y < gy ? -1 : 1;
     const bk = box.indexOf(a);
     if (bk >= 0) {
@@ -1161,11 +1209,10 @@ function setPieceTarget(s: SimState, a: Agent): boolean {
     return true;
   }
   // 수비: 가장 앞선 공격수 1명은 남고 나머지는 박스 안
-  const forward = mates.slice().sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
+  const forward = plan.forward;
   if (a === forward) return false;
   // 대인 마크 (E.22 B): 공중볼 상위 수비 setPieceMark 명이 박스 안 상대 공중볼 상위 선수를 골 쪽 1 m 에서 맡는다 (같은 순위끼리)
-  const markers = mates.filter((o) => o !== forward).slice(0, O.setPieceMark);
-  const mi = markers.indexOf(a);
+  const mi = plan.markers.indexOf(a);
   if (mi >= 0) {
     const opp = s.agents
       .filter((o) => o.onPitch && o.team === attTeam && o.line !== 0 && o.idx !== r.taker && Math.abs(o.x - gx) < ENGINE.pitch.boxDepth + 2)
