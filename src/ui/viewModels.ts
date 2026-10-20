@@ -1,6 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { pickLeagueOf, prospectTeamPick } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
@@ -1297,7 +1298,9 @@ export interface OtherLeagueVM {
   status: string;
   table: WorldRowVM[];
   groups: TableGroupVM[] | null;
-  scorers: { id: string; name: string; teamId: string; team: string; goals: number; assists: number }[];
+  scorers: { id: string; name: string; teamId: string; team: string; goals: number; assists: number; apps: number | null; avg: string }[];
+  /** 엔진 기록이 있는가 (출전·평점 열, 45b b) */
+  engine: boolean;
   /** 지난 시즌 (우승 · 득점왕) */
   last: { season: string; champion: string; scorer: string } | null;
 }
@@ -1335,7 +1338,12 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
   return {
     id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[d.calendar]}` : '',
     season: seasonLabel(lg.season, calendarKind(lg.id)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
-    scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => ({ id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists })),
+    scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => {
+      const st = lg.stats?.[id];
+      const apps = st?.[2] ?? null;
+      return { id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists, apps, avg: apps ? ((st![3] ?? 0) / apps / 10).toFixed(2) : '-' };
+    }),
+    engine: Object.values(lg.stats ?? {}).some((s) => s[2] !== undefined),
     last: last ? {
       season: seasonLabel(last.season, calendarKind(lg.id)), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
       scorer: last.scorer ? `${last.scorer[0]}(${teamById(lg, last.scorer[1]).nameKo}) ${last.scorer[2]}골` : '',
@@ -1682,6 +1690,10 @@ export interface NewGameForm {
   /** 랜덤 인종·기본 사진 (C.73c): '' = 시드 랜덤 / 인종 사진 */
   race?: string;
   photo?: string;
+  /** 유망주 시작 팀 (45b b): '' = 랜덤 (리그 순위 범위) */
+  startTeam?: string;
+  /** 시작 팀 고르기 리그 탭 (화면 상태) */
+  pickLeague?: string;
 }
 
 /** 리그 고르기 (C.75m): 카탈로그 순, 내 리그 필수, 데이터 없는 리그는 준비 중 */
@@ -1693,8 +1705,8 @@ export function leaguePickerVM(leagueIds: readonly string[], realMode = false): 
     return {
       id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · ${months[e.calendar]}`,
       on, mine: e.id === leagueIds[0], ready,
-      // 내 리그로 (C.76c): 고른 리그 중 내 리그가 아닌 줄. 실제 선수 모드는 선수 소속 리그가 내 리그라 없음
-      canMine: on && e.id !== leagueIds[0] && !realMode && PLAYABLE_LEAGUES.includes(e.id),
+      // 내 리그로 (C.76c) → 45b b: 내 리그는 시작 팀으로 정한다 (리그 고르기는 다른 리그 묶음만)
+      canMine: false,
     };
   });
 }
@@ -1783,6 +1795,10 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
     })),
     seed: f.seed, reals, realId: f.realId, legends: legendsOn, futureStars: futureOn, legendList, futureList,
     leagues: leaguePickerVM(leagueIds, f.mode === 'real'),
+    ...(f.mode === 'prospect' ? {
+      teamPick: prospectTeamPick(pickLeagueOf(f.startTeam, f.pickLeague, leagueIds[0]!), f.startTeam ?? ''),
+      ...(f.startTeam ? { startTeam: leagueTeamById(f.startTeam)?.nameKo ?? f.startTeam } : {}),
+    } : {}),
     selected: sel ? { id: sel.id, name: sel.name, ovr: sel.ovr, club: sel.club, age: sel.age, position: sel.position, ...(legendSel ? { legend: true, peak: legendSel.peak, youthKo: legendSel.youthKo } : {}) } : null,
     // 능력치 접힘 줄 (디자인 130): 개수 · 평균(1~20) · 약점 3개
     attrSummary: prospect ? (() => {

@@ -9,6 +9,11 @@ import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar
 import { createRng, hashSeed, type Rng } from './rng';
 import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
+import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
+import { envField, matchConditions } from './matchEnv';
+
+/** 다른 리그 선수 기록: [골, 도움, 출전, 평점×10 합, 분] (빠른 계산 경기는 출전·평점·분 없음) */
+export type OtherStat = [number, number, number?, number?, number?];
 
 /** 다른 리그 득점왕 한 줄 (지난 시즌 기록, C.76c): [이름, 팀 id, 골] */
 export type TopScorer = [string, string, number];
@@ -16,8 +21,11 @@ export type TopScorer = [string, string, number];
 /** 다른 리그 상태 = 리그 시즌 + 지난 시즌 최종 순위 (팀 id 순위 순, 최근 maxPast 시즌) + 이번 시즌 득점·도움 (C.76c) */
 export interface OtherLeague extends LeagueState {
   past?: { season: number; top: string[]; scorer?: TopScorer }[];
-  /** 이번 시즌 선수 기록 (C.76c, 45b): 선수 id → [골, 도움]. 빠른 시뮬 경기의 득점자를 그 팀 시드 로스터에서 뽑는다 */
-  stats?: Record<string, [number, number]>;
+  /**
+   * 이번 시즌 선수 기록 (C.76c, 45b): 선수 id → [골, 도움, 출전, 평점×10 합, 분]. 빠른 계산 경기는 득점자만 그 팀 시드 로스터에서 뽑아 [골, 도움],
+   * 풀 엔진 경기(45b b)는 엔진 선수 기록 전부
+   */
+  stats?: Record<string, OtherStat>;
   /** 기록이 있는 선수 이름·팀: 선수 id → [이름, 팀 id] */
   names?: Record<string, [string, string]>;
 }
@@ -98,7 +106,7 @@ function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: stri
     const lu = roster.players.map((p) => ({ p, g: posGroup(p.position), o: naturalOvr(p) })).sort((x, y) => y.o - x.o).slice(0, C.squadTop);
     const bump = (x: (typeof lu)[number], k: 0 | 1) => {
       const t = (stats[x.p.id] ??= [0, 0]);
-      t[k]++;
+      t[k] = t[k]! + 1;
       names[x.p.id] ??= [x.p.nameKo, id];
     };
     for (let k = 0; k < n; k++) {
@@ -109,6 +117,63 @@ function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: stri
       if (as) bump(as, 1);
     }
   });
+}
+
+// ── 풀 엔진 (45b b): 다른 리그 경기를 내 리그 다른 경기와 같은 엔진으로. 경기별 시드 고정이라 워커 수와 무관하게 같은 결과 ──
+
+/** 다른 리그 경기 하나의 엔진 작업 (직렬화 가능, Web Worker 로 보낸다) */
+export interface OtherLeagueJob { lg: string; season: number; r: number; i: number; input: NpcMatchInput }
+
+/** 그날(date) 열리는 다른 리그 경기 중 아직 결과가 없는 것의 엔진 입력 (리그 순서 · 라운드 · 경기 순) */
+export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: OtherLeague[]; npcs?: readonly NpcState[] }, date: IsoDate): OtherLeagueJob[] {
+  const out: OtherLeagueJob[] = [];
+  for (const lg of state.otherLeagues ?? []) {
+    if (lg.round >= lg.schedule.length) continue;
+    const cal = otherLeagueCalendar(state.worldSeed, lg);
+    const avg = lg.teams.reduce((t, x) => t + x.rating, 0) / lg.teams.length;
+    for (let r = lg.round; r < lg.schedule.length; r++) {
+      const dates = cal.fixtureDates[r]!;
+      if (daysBetween(date, dates[0]!) > 7) break;
+      lg.schedule[r]!.forEach((f, i) => {
+        if (f.homeGoals !== undefined || dates[i] !== date) return;
+        const hr = teamById(lg, f.home).rating;
+        const ar = teamById(lg, f.away).rating;
+        out.push({
+          lg: lg.id, season: lg.season, r, i,
+          input: {
+            home: leagueTeamRoster(state.worldSeed, f.home, hr, lg.season, state.npcs), away: leagueTeamRoster(state.worldSeed, f.away, ar, lg.season, state.npcs),
+            homeRating: hr, awayRating: ar, seed: hashSeed(`${state.worldSeed}:olg-e:${lg.id}:${lg.season}:${r}:${i}`), worldSeed: state.worldSeed,
+            leagueAvg: avg, ...envField(matchConditions(state.worldSeed, date, f.home)),
+          },
+        });
+      });
+    }
+  }
+  return out;
+}
+
+/** 엔진 결과를 그 리그에 기록한다: 순위표 · 선수 기록 (골·도움·출전·평점·분). 이미 결과가 있으면 그대로 */
+export function applyOtherLeagueJob(state: { otherLeagues?: OtherLeague[] }, job: Pick<OtherLeagueJob, 'lg' | 'season' | 'r' | 'i' | 'input'>, res: NpcMatchResult): void {
+  const lg = state.otherLeagues?.find((o) => o.id === job.lg && o.season === job.season);
+  const f = lg?.schedule[job.r]?.[job.i];
+  if (!lg || !f || f.homeGoals !== undefined) return;
+  recordResult(lg, f, res.hg, res.ag);
+  const stats = (lg.stats ??= {});
+  const names = (lg.names ??= {});
+  const who = new Map<string, [string, string]>([
+    ...job.input.home.players.map((p) => [p.id, [p.nameKo, f.home]] as [string, [string, string]]),
+    ...job.input.away.players.map((p) => [p.id, [p.nameKo, f.away]] as [string, [string, string]]),
+  ]);
+  for (const [id, min, g, a, r10] of res.players) {
+    const t = (stats[id] ??= [0, 0]);
+    t[0] += g;
+    t[1] += a;
+    t[2] = (t[2] ?? 0) + 1;
+    t[3] = (t[3] ?? 0) + r10;
+    t[4] = (t[4] ?? 0) + min;
+    const w = who.get(id);
+    if (w) names[id] ??= w;
+  }
 }
 
 /** 그 리그 이번 시즌 득점 순위 (골 → 도움 → 이름): [선수 id, 이름, 팀 id, 골, 도움] */

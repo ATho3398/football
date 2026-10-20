@@ -2,7 +2,7 @@
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
 import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
-import { calendarKind, normalizeLeagues } from '../otherLeagues';
+import { applyOtherLeagueJob, calendarKind, normalizeLeagues, otherLeagueJobs, syncOtherLeagues } from '../otherLeagues';
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
@@ -23,7 +23,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
   acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
-  startNextSeason, todaysOthers, type GameState,
+  nextCampDate, startNextSeason, todaysOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
 import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
@@ -43,7 +43,7 @@ import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { ratingFromParts, ratingParts } from '../engine/rating';
 import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
-import { teamById } from '../league';
+import { leagueOfTeam, teamById } from '../league';
 import {
   copyReplays, deleteSave, exportFileName, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, saveGame,
   saveReplays, unpackReplayBytes, type SaveSlot, type StoredReplay,
@@ -273,6 +273,9 @@ const ui = {
     futureStars: 'off' as 'on' | 'off',
     /** 고른 리그 (C.75m 리그 고르기): 기본 묶음. 데이터 없는 리그는 시작할 때 빠진다 */
     leagues: [...DEFAULT_LEAGUES] as string[],
+    /** 전체 랜덤 시작 팀 (45b b): '' = 랜덤. 시작 팀 고르기 리그 탭 */
+    startTeam: '',
+    pickLeague: '',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
@@ -478,7 +481,7 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name, normalizeLeagues(ui.form.leagues)[0]) : undefined, ui.ng);
+      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name, normalizeLeagues(ui.form.leagues)[0], ui.form.pickLeague) : undefined, ui.ng);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
     case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen(), ui.set);
     default: break;
@@ -1080,9 +1083,11 @@ function warmPool(): void {
 }
 
 /** 오늘 다른 경기를 계산한다: 전체 엔진은 Web Worker 풀에 나눠 병렬로, 빠른 진행은 바로 (같은 시드 같은 결과) */
-async function runOthersToday(g: GameState, ahead = false): Promise<number> {
+async function runOthersToday(g: GameState, ahead = false, progress?: (done: number, total: number) => void): Promise<number> {
   const jobs = todaysOthers(g).map(([r, i]) => otherJob(g, r, i));
-  if (!jobs.length) {
+  // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 같은 워커 풀로 (빠른 계산이면 하루 끝 syncOtherLeagues)
+  const lgJobs = g.options.quickOthers ? [] : otherLeagueJobs(g, g.calendar.date);
+  if (!jobs.length && !lgJobs.length) {
     if (ahead) prefetchAhead(g);
     return 0;
   }
@@ -1090,12 +1095,56 @@ async function runOthersToday(g: GameState, ahead = false): Promise<number> {
     playOthers(g, 'quick');
     return jobs.length;
   }
-  const runs = jobs.map((j) => pool().npc(j.input).catch(() => playNpcMatch(j.input)));
+  const total = jobs.length + lgJobs.length;
+  let done = 0;
+  const tick = <T,>(p: Promise<T>): Promise<T> => p.then((x) => { done++; progress?.(done, total); return x; });
+  const runs = jobs.map((j) => tick(pool().npc(j.input).catch(() => playNpcMatch(j.input))));
+  const lgRuns = lgJobs.map((j) => tick(pool().npc(j.input).catch(() => playNpcMatch(j.input))));
   // 오늘 일을 다 맡긴 뒤 다음 날 것을 미리 (실제 작업이 먼저 돈다)
   if (ahead) prefetchAhead(g);
   const outs = await Promise.all(runs);
   jobs.forEach((j, k) => applyOther(g, j.r, j.i, outs[k]!));
-  return jobs.length;
+  const lgOuts = await Promise.all(lgRuns);
+  lgJobs.forEach((j, k) => applyOtherLeagueJob(g, j, lgOuts[k]!));
+  return total;
+}
+
+/** 비시즌 동안 다른 리그 경기를 소집일 전날까지 하루씩 엔진으로 (45b b): 진행 표시 n/전체, 취소 없이 기다린다 */
+async function offseasonOthers(g: GameState): Promise<void> {
+  const upto = addDays(nextCampDate(g), -1);
+  for (let d = g.calendar.date; daysBetween(d, upto) >= 0; d = addDays(d, 1)) {
+    const jobs = otherLeagueJobs(g, d);
+    if (jobs.length) {
+      const prog = othersProgress('비시즌 · 다른 리그 경기', dateLabel(d));
+      let done = 0;
+      prog(0, jobs.length);
+      const outs = await Promise.all(jobs.map((j) => pool().npc(j.input).catch(() => playNpcMatch(j.input)).then((x) => { prog(++done, jobs.length); return x; })));
+      jobs.forEach((j, k) => applyOtherLeagueJob(g, j, outs[k]!));
+    }
+    syncOtherLeagues(g, d);
+  }
+}
+
+/** 다음 시즌 시작 (비시즌 [다음 시즌]) */
+function nextSeasonStart(g: GameState): void {
+  startNextSeason(g);
+  ui.replay = null;
+  ui.seasonTab = null;
+  autosave();
+  go('home');
+  showToast({ kind: 'info', title: '휴가 끝 · 소집', body: `${dateLabel(g.calendar.date)} · 개막 7일 전이에요. 훈련 계획을 확인해요.` }, 2600);
+}
+
+/** 진행 중 띄움 글 (45b b): 다른 경기 n/전체 */
+function othersProgress(title: string, body: string): (done: number, total: number) => void {
+  let last = 0;
+  return (done, total) => {
+    const now = performance.now();
+    if (done < total && now - last < 150) return;
+    last = now;
+    ui.toast = { ...(ui.toast ?? { kind: 'info', title }), title, body: `${body} · 다른 경기 ${done}/${total}` } as typeof ui.toast;
+    render();
+  };
 }
 
 const nextFrame = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -1122,7 +1171,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       if (marketPending(g)) break;
       // 경기 날이면 그날 다른 경기만 미리 계산하고 멈춘다 (내 경기는 [경기 시작])
       if (isMatchDay(g)) {
-        await runOthersToday(g);
+        await runOthersToday(g, false, othersProgress(title, dateLabel(g.calendar.date)));
         break;
       }
       // [계속]: 휴가가 시작한 날과 끝난 날(훈련 재개)에도 멈춘다 (25.3 5번: 휴가 중 [계속]은 휴장 끝까지 한 번에)
@@ -1134,7 +1183,7 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       await nextFrame();
       const d0 = performance.now();
       const date = g.calendar.date;
-      const n = await runOthersToday(g, true);
+      const n = await runOthersToday(g, true, othersProgress(title, `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드`));
       lastTrain = trainingLine(endDay(g));
       progressLog.push({ date, ms: Math.round(performance.now() - d0), matches: n, my: false });
       days++;
@@ -1939,6 +1988,12 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    // 시작 팀 고르기 리그 탭 (45b b)
+    case 'ng-pick-league':
+      readFormInputs();
+      ui.form.pickLeague = v ?? '';
+      render();
+      return;
     // 내 리그로 (C.76c): 고른 리그를 맨 앞으로
     case 'ng-league-mine': {
       readFormInputs();
@@ -2143,8 +2198,13 @@ app.addEventListener('click', (ev) => {
       return;
     case 'form': {
       readFormInputs();
-      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'futureStars' | 'race' | 'photo';
+      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'futureStars' | 'race' | 'photo' | 'startTeam';
       (ui.form as unknown as Record<string, string>)[k] = v!;
+      // 시작 팀 (45b b): 고른 팀의 리그가 내 리그 (랜덤이면 그대로)
+      if (k === 'startTeam') {
+        if (v === 'random') ui.form.startTeam = '';
+        else if (v) ui.form.leagues = normalizeLeagues(ui.form.leagues, leagueOfTeam(v));
+      }
       // 인종을 바꾸면 사진도 그 인종으로 (C.73c)
       if (k === 'race') ui.form.photo = '';
       render();
@@ -2159,6 +2219,8 @@ app.addEventListener('click', (ev) => {
       const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
       ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
       if (k === 'app') rerollCustomName(false);
+      // 시작 소속 팀 (45b b): 고른 팀의 리그가 내 리그
+      if ((k === 'startClub' || k === 'youthClub') && v && v !== 'random' && leagueOfTeam(v)) ui.form.leagues = normalizeLeagues(ui.form.leagues, leagueOfTeam(v));
       render();
       return;
     }
@@ -2235,7 +2297,7 @@ app.addEventListener('click', (ev) => {
       // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'custom', custom: rolledSpec(prospectSeed(), f.position, f.name, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined),
-          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues })
+          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues, ...(f.startTeam ? { teamId: f.startTeam } : {}) })
         : f.mode === 'custom'
           ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues })
           : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues });
@@ -3232,12 +3294,19 @@ app.addEventListener('click', (ev) => {
     case 'next-season':
       if (!g) return;
       if (marketPending(g)) return pendingStop(g);
-      startNextSeason(g);
-      ui.replay = null;
-      ui.seasonTab = null;
-      autosave();
-      go('home');
-      showToast({ kind: 'info', title: '휴가 끝 · 소집', body: `${dateLabel(g.calendar.date)} · 개막 7일 전이에요. 훈련 계획을 확인해요.` }, 2600);
+      void (async () => {
+        // 비시즌 동안 다른 리그 경기 (45b b): 풀 엔진이면 소집일 전날까지 하루씩 워커로 (빠른 계산이면 startNextSeason 이 한 번에)
+        if (!g.options.quickOthers && g.otherLeagues?.length && !ui.busy) {
+          ui.busy = true;
+          try {
+            await offseasonOthers(g);
+          } finally {
+            ui.busy = false;
+            ui.toast = null;
+          }
+        }
+        nextSeasonStart(g);
+      })();
       return;
     case 'retire':
       confirmModal({ title: '정말 은퇴할까요?', body: '되돌릴 수 없어요.', confirm: '은퇴하기', act: 'retire-ok', tone: 'danger' });

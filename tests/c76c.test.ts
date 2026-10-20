@@ -188,9 +188,8 @@ describe('다른 리그에서 시작 (C.76c 2번)', () => {
 
   it('새 게임 화면: 내 리그로 버튼(실제 선수 모드 없음), 실제 선수 고르면 그 리그가 내 리그', () => {
     const rows = leaguePickerVM(['pl', 'laliga', 'mls']);
-    expect(rows.find((r) => r.id === 'laliga')!.canMine).toBe(true);
-    expect(rows.find((r) => r.id === 'pl')!.canMine).toBe(false);
-    expect(rows.find((r) => r.id === 'seriea')!.canMine).toBe(false);
+    // 45b b: [내 리그로] 없앰 — 내 리그는 시작 팀으로 (리그 고르기는 다른 리그 묶음만)
+    expect(rows.some((r) => r.canMine)).toBe(false);
     expect(leaguePickerVM(['pl', 'laliga'], true).some((r) => r.canMine)).toBe(false);
     const vm = newGameVM({ mode: 'real', realId: 'messi', leagues: ['pl', 'laliga'], seed: 'x', roll: 'x', position: 'ST', difficulty: 'normal', name: '' } as unknown as Parameters<typeof newGameVM>[0]);
     expect(vm.leagues.find((l) => l.mine)!.id).toBe('laliga');
