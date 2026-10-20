@@ -561,6 +561,12 @@ export const ENGINE = {
     shotBase: 0.665,
     shotPerM: 0.015,
     shotPressure: 0.15,
+    /**
+     * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 0 이면 pOn += shotFree × max(0, 1 − 거리/shotFreeRef).
+     * "수비가 없다"는 정확도 가산 (8 m 0.545 → 0.725, 12 m 0.485 → 0.605, 20 m+ 0). 판단식·실제가 같은 함수라 E.15.1 안
+     */
+    shotFree: 0.30,
+    shotFreeRef: 20,
     shotMin: 0.05,
     shotMax: 0.85,
     longShotFrom: 20,
@@ -811,8 +817,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%) */
-    saveBase: 1.70,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW 의 총량 되돌림 1.70 → 1.76 (0.01 = 득점 −0.067) */
+    saveBase: 1.76,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -826,6 +832,9 @@ export const ENGINE = {
     cornerW: 0.35,
     distW: 0.55,
     distRef: 30,
+    /** 근거리 항 (C.76a, 미해결 12): 헤더가 아닌 슛은 δ += closeW × max(0, 1 − 거리/closeRef) — closeRef m 안 가까운 슛(1대1)만 GK 가 막기 어렵고 그 밖은 불변 */
+    closeW: 0.45,
+    closeRef: 12,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
     catchBase: 0.3,
     catchSkill: 0.5,

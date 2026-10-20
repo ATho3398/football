@@ -231,17 +231,6 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const t = a.attrs;
   const pressure = pressureAt(s, a, px, py);
   // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
-  let pOn: number;
-  let speed: number;
-  if (header) {
-    pOn = clamp(PR.headerBase - PR.headerPerM * d, PR.shotMin, PR.shotMax);
-    speed = PR.headerSpeed;
-  } else {
-    pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + formBonus(a), PR.shotMin, PR.shotMax);
-    speed = B.shotSpeed;
-  }
-  pOn *= Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
-  pOn = Math.min(PR.shotCap, pOn * finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot'));
   let blockers = 0;
   if (!header) {
     for (const o of s.agents) {
@@ -250,8 +239,21 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
     }
   }
+  let pOn: number;
+  let speed: number;
+  if (header) {
+    pOn = clamp(PR.headerBase - PR.headerPerM * d, PR.shotMin, PR.shotMax);
+    speed = PR.headerSpeed;
+  } else {
+    // 1대1 보너스 (C.76a, 미해결 12): 슛 길 콘 안 수비 0 이고 pressureDist 안 상대 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게)
+    const free = blockers === 0 && pressure <= 0 ? PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) : 0;
+    pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + free + formBonus(a), PR.shotMin, PR.shotMax);
+    speed = B.shotSpeed;
+  }
+  pOn *= Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
+  pOn = Math.min(PR.shotCap, pOn * finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot'));
   const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
-  const pGoal = 1 - leagueSaveProb(speed, 0.5, d);
+  const pGoal = 1 - leagueSaveProb(speed, 0.5, d, header);
   const xg = (1 - pBlock) * pOn * pGoal;
   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
   const K = ENGINE.keeper;
@@ -272,9 +274,9 @@ export function finishMult(t: FieldAttributes, kind: 'shot' | 'long' | 'header' 
 }
 
 /** 리그 평균 GK 의 세이브 확률 (판단용. 실제 판정은 상대 GK 능력치) */
-function leagueSaveProb(speed: number, corner: number, d: number): number {
+function leagueSaveProb(speed: number, corner: number, d: number, header = false): number {
   const K = ENGINE.keeper;
-  return clamp(K.saveBase - K.saveDelta * saveDifficulty(speed, corner, d) + (K.saveSkill * (K.leagueShotStopping - K.saveCenter)) / 100, 0.05, 0.95);
+  return clamp(K.saveBase - K.saveDelta * saveDifficulty(speed, corner, d, header) + (K.saveSkill * (K.leagueShotStopping - K.saveCenter)) / 100, 0.05, 0.95);
 }
 
 /** 같은 팀 동료 중 상대 박스 안 */
