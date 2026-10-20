@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 24;
+export const ENGINE_VERSION = 26;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -786,6 +786,9 @@ export const ENGINE = {
     /** GK 세이브 1회 (기획서에 없음, GK 평점이 패스만으로 정해지지 않게) */
     save: 0.12,
     win: 0.2,
+    /** 공격 포지션(ST·WING·CAM) 무기여 경기 (C.75f, E-3): 골·도움·키패스·유효슈팅·드리블 성공 모두 0, 45분 이상. scale 0.9 를 곱해 평점 약 −0.3 */
+    noContrib: -0.33,
+    noContribMinMinutes: 45,
     draw: 0,
     loss: -0.2,
     min: 3,
