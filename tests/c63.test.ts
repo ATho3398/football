@@ -264,7 +264,8 @@ describe('경기 외 생활 (pending 47 4번, C.63 b)', () => {
     Object.assign(l, { home: 10, adapt: 10, team: 10, mental: 95 });
     expect(lifeForm(g)).toBe(-BALANCE.life.effects.formMax);
     expect(lifeRecoveryMul(g)).toBe(BALANCE.life.effects.mentalRecovery);
-    expect(lifeHints(g).length).toBe(4);
+    // C.75i: 멘탈 피로가 높으면 판단 힌트("집중이 흐트러져요")도
+    expect(lifeHints(g).length).toBe(5);
     Object.assign(l, { home: 90, team: 90, adapt: 90, mental: 10 });
     expect(lifeForm(g)).toBeGreaterThan(0);
   });

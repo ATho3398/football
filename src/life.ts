@@ -135,6 +135,19 @@ export function lifeRecoveryMul(state: Pick<GameState, 'life'>): number {
   return l && l.mental >= L().effects.mentalHigh ? L().effects.mentalRecovery : 1;
 }
 
+/**
+ * 판단 스탯 생활 페널티 (C.75i, BALANCE.life.judge): 엔진 입력의 내 시야·침착성에서 뺄 값 (0~99 척도, 0 이상).
+ * 정신 상태(100 − 멘탈 피로)가 from 미만이면 비례, 외국인은 적응도도 같은 식, 합 최대 max. 엔진 코드는 그대로 (입력만)
+ */
+export function lifeJudgePenalty(state: GameState): number {
+  if (!state.life) return 0;
+  const J = L().judge;
+  const l = state.life;
+  let pen = Math.max(0, J.from - (100 - l.mental)) * J.per;
+  if (isForeign(state.player)) pen += Math.max(0, J.from - l.adapt) * J.per;
+  return Math.round(Math.min(J.max, pen) * 10) / 10;
+}
+
 /** 하루 행동 결과 (dayStep): 효과를 걸고 한 줄 */
 export function lifeAction(state: GameState, kind: LifeKind, date: string): string {
   const A = L().actions;
@@ -182,6 +195,7 @@ export function lifeHints(state: GameState): string[] {
   if (l.home < E.low) out.push('집 생각이 많아요 · 가족과 시간');
   if (l.adapt < E.low) out.push('아직 낯설어요 · 외국어 공부');
   if (l.team < E.low) out.push('라커룸이 서먹해요 · 동료와 식사');
+  if (lifeJudgePenalty(state) > 0) out.push('집중이 흐트러져요 · 경기 중 판단(시야·침착성)이 조금 무뎌져요');
   return out;
 }
 

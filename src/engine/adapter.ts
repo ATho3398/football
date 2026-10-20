@@ -18,6 +18,7 @@ import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../rep
 import type { EngineResult, PlayerSpec, PlayerStats, Tactics, TeamSetup } from './types';
 import { redrawNow, type Moment, type MomentChoice, type MomentControl } from './moments';
 import type { CardInput } from './cards';
+import { directiveReward } from './directive';
 import type { MatchSim } from './sim';
 
 export const MY_ID = 'me';
@@ -43,6 +44,8 @@ export interface MyPlayerInput {
   shirt?: number;
   /** 경고·퇴장 배율 (다혈질) */
   cardMul?: number;
+  /** 판단 스탯 생활 페널티 (C.75i, life.lifeJudgePenalty): 시야·침착성에서 뺀다. 없으면 0 */
+  judgePen?: number;
 }
 
 export interface EngineMatchInput {
@@ -97,13 +100,19 @@ export function proficientAttrs(attrs: FieldAttributes, proficiency = 100): Fiel
   return out;
 }
 
+/** 판단 스탯 생활 페널티 (C.75i): 엔진이 판단에 쓰는 시야·침착성(judgementOf)만 낮춘다. 0 이면 그대로 */
+export function judgeAttrs(attrs: FieldAttributes, pen: number): FieldAttributes {
+  if (pen <= 0) return attrs;
+  return { ...attrs, vision: Math.max(1, attrs.vision - pen), composure: Math.max(1, attrs.composure - pen) };
+}
+
 export function buildMyMatch(m: EngineMatchInput) {
   const t = m.myTactics;
   const myRoster = t ? withSlots(m.myRoster, t) : m.myRoster;
   const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
   const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
   const meSpec: PlayerSpec = {
-    id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: proficientAttrs(m.me.attributes, m.me.proficiency),
+    id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: judgeAttrs(proficientAttrs(m.me.attributes, m.me.proficiency), m.me.judgePen ?? 0),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,
     ...(m.me.body ? { body: m.me.body } : {}), ...(m.me.shirt !== undefined ? { shirt: m.me.shirt } : {}),
     ...(m.me.cardMul && m.me.cardMul !== 1 ? { cardMul: m.me.cardMul } : {}),
@@ -165,9 +174,12 @@ export function toMatchResult(r: EngineResult, side: 0 | 1, started: boolean, di
     return { goalsFor, goalsAgainst, outcome, started: false, minutes: 0, goals: 0, assists: 0, rating: null, mom: false, xp };
   }
   const R = BALANCE.rating;
-  const rating = Math.round(Math.min(R.max, Math.max(R.min, my.rating + BALANCE.difficulty[difficulty].rating)) * 10) / 10;
-  const mom = rating >= R.momMin && outcome !== 'loss';
-  const xp = matchXp(rating, outcome, mom, minutes, bigMatch, difficulty);
+  const base = Math.round(Math.min(R.max, Math.max(R.min, my.rating + BALANCE.difficulty[difficulty].rating)) * 10) / 10;
+  const mom = base >= R.momMin && outcome !== 'loss';
+  // 지시 카드 보상 (F.4, C.75i): 독단 성공 → 평점 사후 가산·XP 배수 (엔진 평점 계산 밖의 "카드 보상", MOM 판정은 가산 전 평점)
+  const dr = directiveReward(r.cards);
+  const rating = dr?.rating ? Math.round(Math.min(R.max, base + dr.rating) * 10) / 10 : base;
+  const xp = Math.round(matchXp(base, outcome, mom, minutes, bigMatch, difficulty) * (dr?.xpMul ?? 1));
   return { goalsFor, goalsAgainst, outcome, started, minutes, goals: my.goals, assists: my.assists, rating, mom, xp };
 }
 
