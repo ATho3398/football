@@ -693,3 +693,17 @@
 - (01:43 KST) 자동 확인: **run 259(1a364fe) 성공** 확인(C.76k 2초 수정·m·o 배포), run 260 취소, run 261(bd470d5 = C.76p·n) 진행 중 → 성공 뒤 C.76n·p draft_. 진행 중 C.76q·s·t. V 경유 보고 끝(V 비활성).
 - (02:08 KST) **C.76q 44h-d 완료**(Opus, main 31a5927, ENGINE 31·BALANCE 66, 지문 9c81aecadd2d029c, 테스트 1041, balance 19/19): boxFoulFactor 0.04→0.08(PK 경기당 0.26)·지정 PK 키커(슈팅+침착 최고)·saveBase 1.64·"12 m 밖 선방률" 지표(71.7, 목표 68~76). quick 1.34·Δ+8 1.74 ✗(하드 가드 안, C.76p 1.79부터)·scoring 30골+ 0.70. 미해결 13 해결, 6 지표 재정의, 9 미착수(C.76s 뒤). 측정 10회(예산 6 초과). C.76s에 새 기준값 알림. 진행 중 C.76s·t. draft_는 CI 뒤.
 - 메모: Δ+8(강팀 우위) 1.90→1.79→1.74로 C.76p·q마다 내려감 — 44h-e 처방 때 엔진관리자6이 같이 볼 것.
+- (02:45 KST) 자동 확인: run 260·261 취소, run 262(31a5927 = C.76n·p·q) 진행 중. W 30.9만 토큰 → 교체 기준 35만 앞서 X로 교체.
+
+### 8.47 W 정리 (2026-10-21 02:46 KST, W 교체 — 대화 31만 토큰)
+- W 동안 끝남: C.76i(48d)·C.76j(48e)·C.76l(48c) → **48단계 끝** · C.76k(44h-b 엔진 29) · C.76m(45 미리 계산·8~5월, SAVE 52) · C.76o(49 카드팩 연출) · C.76p(44h-c 엔진 30, 버스 실점 1.28·7×7 0.90·1대1 켬) · C.76n(47a 개인 시상, BALANCE 65·SAVE 53) · C.76q(44h-d 엔진 31, PK·키커·선방률 지표, BALANCE 66). C.76r(2초 테스트 fix)은 C.76k가 먼저 고쳐 중단. 배포 확인: run 259(1a364fe) 성공까지. run 262(31a5927) 진행 중.
+- 사용자 결정(W): pending 142 게겐 대가(엔진 = C.76s, 시스템 누적 부하·부상·노쇠 = 맨 뒤 패치) · 가설 3 coneWidth 밀집 블록 현실화 조건 없이 켬(C.76p가 안 켜서 C.76s 첫 단계로).
+- 엔진관리자6 `session_01E3FWzmqni7CcPphU4uc8vE`(Fable xhigh, 약 20만+, 대기 — 깨우지 않음) 처방 문서 = engine-diagnosis-e4.md §9.11·9.11.5(claude/engine-manager-6 c83c18b).
+- draft_ 됨: V, C.76i·j·k·l·m·o·r. **남은 draft_**: C.76n `session_01LCcgLmUo5qXEiqTjVZCpwS` · C.76p `session_01W5BHYcRgeUMH1CHw5UHLZF` · C.76q `session_01LvDdZeBDDVMrukiaZKycjT` — run 262 성공 뒤.
+
+### 8.48 다음 마스터 세션(X)이 할 일
+- W가 만든 세션 → 깊이 6(한도 8, **7이면 사용자에게 앱에서 직접 열어 달라고**). 제목 `X_축구 커리어 게임 마스터`, 브랜치 `claude/planning-x`(planning-w 최신에서, 만들어 푸시). 환경 "player ONE"(NTFY_TOPIC 있음).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md`(0번·7번), 이 문서 8.46~8.48, `docs/planning-pending.md` 142, `docs/awards-design.md`.
+- **시작 처리**: ① W(`session_01UpWdqeSysTwMUcVKc5unpT`)에 "X 준비 완료 + X ID" ② 실행 중 세션에 "보고는 X(ID), 마스터 브랜치 claude/planning-x, 답장 불필요": C.76s `session_017FMyJu82YfVnr3WpEoDezj`(44h-c2 게겐 대가+가설 3, Fable) / C.76t `session_01AtJwUj5htcr8KutgVzzBac`(47b 리그·시즌 중 상, Opus) / UI_5 `session_01Jep69tcqmNVqesWrwWp8cP`(priority later, 14차 디자인 요청 사용자 대기). 엔진관리자6은 대기라 보내지 않음(다음 엔진 블록 지시 때 X ID 같이) ③ W 제목 앞 `draft_` ④ W 예약 없음(W가 정리) → X 자동 확인 send_later 60분 ⑤ NTFY_TOPIC 확인(값 출력 금지) ⑥ handoff 8.49에 기록·푸시.
+- **다음 순서**: run 262 성공 → C.76n·p·q draft_ / C.76s 끝 → 미해결 9 LM/RM(Opus, offball finalThirdJob 'edge', §9.11.4) 그리고 44h-e(8·11 분포 축, Fable — 엔진관리자6에 처방 확인 요청, Δ+8 1.74 하락도 같이) / C.76t 끝 → **47단계 끝** / 그 뒤 44h-f(4·2) → pending 142 시스템(전술별 누적 부하 → 부상·노쇠, NPC 포함, Opus) → UI_5 14차 디자인 오면 50단계 적용 → P단계·6단계. 다음 새 이름 **C.76u**. 사용자 요청은 맨 뒤.
+- 진행 중 사용자 질문 없음.
