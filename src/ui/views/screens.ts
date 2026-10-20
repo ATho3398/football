@@ -1,6 +1,7 @@
 // 디자인 2차 수정본 화면 (H.6 3번, I.19 갱신): 타이틀(55), 새 게임(52·53), 포인트 찍기(50), 순위표·리그 스타(54), 시즌 종료(51),
 // 은퇴(56), 세이브(43). 화면 모듈은 뷰모델만 받아 그린다 (H.2). 아직 없는 기능(설정, 파일 내보내기, 검색·필터, 우승 기록 등)은 숨긴다
 
+import { teamPickHtml } from './teamPick';
 import { goalsResultPanel } from './inbox';
 import {
   Avatar, FootPair, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
@@ -89,6 +90,9 @@ export interface NewGameVM {
   futureList: { id: string; name: string; position: string; debut: string; age: number; club: string; realClub: string; start: number; peak: number; waiting: boolean }[];
   /** 리그 고르기 (C.75m): on = 고름, mine = 내 리그(필수), ready = 데이터 있음 (없으면 준비 중) */
   leagues: { id: string; name: string; sub: string; on: boolean; mine: boolean; ready: boolean; canMine?: boolean }[];
+  /** 시작 팀 고르기 (45b b, 유망주): 리그 탭 → 팀 목록. 고른 팀 이름 (없으면 랜덤) */
+  teamPick?: import('../teamPickVM').TeamPickVM;
+  startTeam?: string;
   selected: { id: string; name: string; ovr: number; club: string; age: number; position: string; legend?: boolean; peak?: number; youthKo?: string } | null;
   /** 능력치 접힘 줄 (디자인 130) */
   attrSummary: { count: number; avg: string; weak: string; top: string } | null;
@@ -138,7 +142,7 @@ function leaguePicker(vm: NewGameVM, open: boolean): string {
       <p class="small muted">고른 리그만 시즌이 진행돼요. 내 리그는 경기 엔진으로, 다른 리그는 빠른 계산으로 순위·기록을 남겨요. 안 고른 리그 팀은 이름·전력만 남아요. 리그가 많을수록 하루 넘기기가 조금 느려져요.</p>
       <div class="ng-lg__list">${vm.leagues.map(row).join('')}</div>
       <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'default' }, children: '기본 묶음' })}${Button({ variant: 'ghost', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'mine' }, children: '내 리그만' })}${Button({ variant: 'ghost', size: 'sm', block: true, act: 'ng-leagues', data: { v: 'all' }, children: '전부' })}</div>
-      <p class="small muted">기본 묶음 = 프리미어리그 + 라리가·세리에 A·분데스리가·리그 1 + 챔피언십. [내 리그로]를 누르면 그 리그 팀에서 시작해요(실제 선수는 그 선수 소속 리그). 3월~12월 리그는 그 리그 2018 시즌 개막 소집(2월)부터 시작해요.</p>
+      <p class="small muted">기본 묶음 = 프리미어리그 + 라리가·세리에 A·분데스리가·리그 1 + 챔피언십. 내 리그는 고른 시작 팀(실제 선수는 그 선수)의 리그예요 — 늘 포함돼요. 3월~12월 리그는 그 리그 2018 시즌 개막 소집(2월)부터 시작해요.</p>
     </div>`;
 }
 
@@ -212,8 +216,11 @@ function prospectBody(vm: NewGameVM, u: NewGameUI): string {
     ${looks}
     ${extras}
     ${attrs}
+    ${vm.teamPick ? `${SectionTitle({ title: '시작 팀', action: vm.startTeam ? `${vm.startTeam} 유스` : '고르지 않으면 랜덤' })}
+    <p class="small muted">리그를 고르고 그 리그 팀을 골라요. 고른 팀의 리그가 내 리그예요. 유망주는 리그 레이팅 상위 팀에서는 시작할 수 없어요.</p>
+    ${teamPickHtml(vm.teamPick, 'form', 'startTeam')}` : ''}
     ${startOptions(vm, true, u)}
-    <div class="btn-col ng-rollbtns">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: `이대로 시작 · ${vm.teamHint} 유스` })}
+    <div class="btn-col ng-rollbtns">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'start', children: vm.startTeam ? `이대로 시작 · ${vm.startTeam} 유스` : `이대로 시작 · ${vm.teamHint} 유스` })}
       <div class="btn-row even">${Button({ variant: 'secondary', block: true, icon: 'edit', act: 'ng-edit', children: '편집하기' })}${Button({ variant: 'ghost', block: true, icon: 'swap', act: 'form-reroll', children: '다시 돌리기' })}</div>
       <p class="small muted">랜덤도 커스텀 배분 포인트 안에서 뽑아요. 편집하기 = 이 값으로 커스텀 단계에 들어가요. 숨은 재능·적성은 [이대로 시작]일 때만 이 결과 그대로예요.</p></div>`;
 }

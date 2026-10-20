@@ -2432,3 +2432,13 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
 .cu-name { display: flex; align-items: flex-start; gap: 8px; }
 .cu-name > .field, .cu-name > :first-child { flex: 1; min-width: 0; }
 .cu-name__rand { flex: none; margin-top: 28px; }
+/* 시작 팀 고르기 (45b b): 리그 탭 → 팀 목록 */
+.tp { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tp-list { display: flex; flex-direction: column; gap: 4px; }
+.tp-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.tp-row .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tp-row small { font-size: 11px; color: var(--ink-muted); }
+.tp-row.is-on { box-shadow: inset 0 0 0 2px var(--brand); }
+.tp-row.is-off { opacity: .45; cursor: default; }
+.tp-rating { font-weight: 800; color: var(--ink-muted); }
+.tp-crest { display: inline-flex; width: 22px; justify-content: center; }

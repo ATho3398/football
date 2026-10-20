@@ -350,7 +350,9 @@ type NewGameStart =
     facePhoto?: FacePhoto }
   | { mode: 'real'; playerId: string; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean }
   /** 커스텀 생성 (pending 47 2·49 1, 부록 C.45): 능력치·신체·장단점·나이·국적·외모를 고른다. 잠재력·숨은 적성·팀은 시드 랜덤 */
-  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean };
+  | { mode: 'custom'; custom: CustomSpec; seed?: string; difficulty: Difficulty; legends?: boolean; futureStars?: boolean;
+    /** 시작 팀 (45b b, 전체 랜덤 [이대로 시작]): 리그 레이팅 순위 범위 안이면 그 팀, 아니면 랜덤. 팀 추첨 난수는 그대로 쓴다 */
+    teamId?: string };
 
 /**
  * 새 게임 옵션 + 고른 리그 (C.75m, 리그 고르기 화면). 없으면 내 리그(PL)만.
@@ -365,6 +367,10 @@ export function startLeagueOf(opts: NewGameOptions): string {
     const lg = club ? leagueOfTeam(CLUB_TO_TEAM[club]) : undefined;
     if (lg && PLAYABLE_LEAGUES.includes(lg)) return lg;
   }
+  // 시작 팀을 골랐으면 (45b b) 그 팀 리그
+  const team = opts.mode === 'custom' ? opts.teamId ?? (opts.custom.start?.kind === 'none' ? opts.custom.start.youthClub : opts.custom.start?.club) : undefined;
+  const tl = team && team !== 'random' ? leagueOfTeam(team) : undefined;
+  if (tl && PLAYABLE_LEAGUES.includes(tl)) return tl;
   return opts.leagues?.find((id) => PLAYABLE_LEAGUES.includes(id)) ?? 'pl';
 }
 
@@ -587,7 +593,10 @@ export function newGame(opts: NewGameOptions): GameState {
     const prng = roll.rng;
     const byRating = [...league.teams].sort((a, b) => b.rating - a.rating);
     const { min, max } = rankRange(byRating.length);
-    const team = byRating[randInt(prng, min, max) - 1]!;
+    const drawn = byRating[randInt(prng, min, max) - 1]!;
+    // 고른 시작 팀 (45b b): 순위 범위 안이면 그 팀 (추첨 난수는 그대로 소비해 뒤 결과 유지)
+    const k = byRating.findIndex((t) => t.id === opts.teamId);
+    const team = k + 1 >= min && k + 1 <= max ? byRating[k]! : drawn;
     player = {
       ...base,
       name: c.name?.trim() || drawName(prng, randomNameFor(worldSeed, c.nationality, c.appearance)),

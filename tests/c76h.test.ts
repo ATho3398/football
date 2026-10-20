@@ -61,3 +61,51 @@ describe('다른 리그 풀 엔진 (45b b)', () => {
     expect(Object.values(k1.stats ?? {}).some((s) => s[2] !== undefined)).toBe(true);
   });
 });
+
+describe('새 게임 시작 팀 고르기 (45b b)', () => {
+  it('유망주: 리그 탭 → 팀 목록, 순위 범위 밖 팀은 흐리게 + 이유, 고른 팀 리그가 내 리그', async () => {
+    const { prospectTeamPick, prospectTeamOk, pickLeagueOf } = await import('../src/ui/teamPickVM');
+    const p = prospectTeamPick('laliga', '');
+    expect(p.leagues).toHaveLength(14);
+    expect(p.teams).toHaveLength(20);
+    expect(p.teams.slice(0, 7).every((t) => !t.ok && t.why.includes('8~20위'))).toBe(true);
+    expect(p.teams.slice(7).every((t) => t.ok)).toBe(true);
+    expect(p.random?.on).toBe(true);
+    expect(prospectTeamPick('kleague1', '').teams.filter((t) => t.ok)).toHaveLength(5);
+    expect(prospectTeamOk('laliga:bar')).toBe(false);
+    expect(pickLeagueOf('laliga:ath', 'pl', 'pl')).toBe('laliga');
+    expect(pickLeagueOf('', 'mls', 'pl')).toBe('mls');
+    const { newGame, startLeagueOf } = await import('../src/game');
+    const { rolledSpec } = await import('../src/ui/customRandom');
+    const opts = { mode: 'custom' as const, custom: rolledSpec('c76h-t', 'ST', ''), seed: 'c76h-t', difficulty: 'normal' as const, leagues: ['pl'], teamId: 'laliga:ath' };
+    expect(startLeagueOf(opts)).toBe('laliga');
+    const g = newGame(opts);
+    expect(g.league.id).toBe('laliga');
+    expect(g.player.teamId).toBe('laliga:ath');
+    expect(g.leagueIds).toEqual(['laliga', 'pl']);
+    // 순위 범위 밖 팀이면 랜덤 (같은 시드의 랜덤 결과)
+    const top = newGame({ ...opts, teamId: 'laliga:bar' });
+    const rnd = newGame({ ...opts, teamId: undefined, leagues: ['laliga', 'pl'] });
+    expect(top.player.teamId).toBe(rnd.player.teamId);
+  });
+
+  it('커스텀 소속팀: 고른 리그 탭에서 스탯에 맞는 팀만 고를 수 있고, 고른 팀 리그로 시작', async () => {
+    const { customVM, initialCustomForm, startChoice } = await import('../src/ui/customVM');
+    const f = { ...initialCustomForm(), age: 21, startKind: 'club' as const, startClub: '' };
+    const vm = customVM(f, '', 'pl', 'seriea');
+    expect(vm.start.pick.league).toBe('seriea');
+    const ok = vm.start.pick.teams.filter((t) => t.ok);
+    expect(ok.length).toBe((await import('../src/config/balance')).BALANCE.startClub.fitTeams);
+    expect(vm.start.pick.teams.filter((t) => !t.ok).every((t) => t.why === '스탯에 맞지 않아요')).toBe(true);
+    const chosen = { ...f, startClub: ok[0]!.id };
+    const vm2 = customVM(chosen, '', 'pl', 'pl');
+    expect(vm2.start.ready).toBe(true);
+    expect(vm2.start.pick.league).toBe('seriea');
+    const { newGame, startLeagueOf } = await import('../src/game');
+    const { customSpec } = await import('../src/ui/customVM');
+    const opts = { mode: 'custom' as const, custom: customSpec(chosen, 'X'), seed: 'c76h-c', difficulty: 'normal' as const, leagues: ['pl'] };
+    expect(startLeagueOf(opts)).toBe('seriea');
+    expect(newGame(opts).player.teamId).toBe(ok[0]!.id);
+    void startChoice;
+  });
+});

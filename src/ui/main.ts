@@ -42,7 +42,7 @@ import { decisionOutcome, OUTCOME, outcomeBand } from '../decisionOutcome';
 import { ratingFromParts, ratingParts } from '../engine/rating';
 import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
-import { teamById } from '../league';
+import { leagueOfTeam, teamById } from '../league';
 import {
   copyReplays, deleteSave, exportFileName, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, saveGame,
   saveReplays, unpackReplayBytes, type SaveSlot, type StoredReplay,
@@ -259,6 +259,9 @@ const ui = {
     futureStars: 'off' as 'on' | 'off',
     /** 고른 리그 (C.75m 리그 고르기): 기본 묶음. 데이터 없는 리그는 시작할 때 빠진다 */
     leagues: [...DEFAULT_LEAGUES] as string[],
+    /** 전체 랜덤 시작 팀 (45b b): '' = 랜덤. 시작 팀 고르기 리그 탭 */
+    startTeam: '',
+    pickLeague: '',
     /** 시드를 비웠을 때 쓰는 무작위 시드 (가상 유망주 시작 후보를 미리 보여 주려고 화면에 들어올 때 정한다, C.37) */
     roll: '',
     /** 시작 후보를 정한 시드 (바뀌면 고른 자리를 후보 1위로 되돌린다) */
@@ -451,7 +454,7 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name, normalizeLeagues(ui.form.leagues)[0]) : undefined, ui.ng);
+      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name, normalizeLeagues(ui.form.leagues)[0], ui.form.pickLeague) : undefined, ui.ng);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
     case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen(), ui.set);
     default: break;
@@ -1920,6 +1923,12 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    // 시작 팀 고르기 리그 탭 (45b b)
+    case 'ng-pick-league':
+      readFormInputs();
+      ui.form.pickLeague = v ?? '';
+      render();
+      return;
     // 내 리그로 (C.76c): 고른 리그를 맨 앞으로
     case 'ng-league-mine': {
       readFormInputs();
@@ -2124,8 +2133,13 @@ app.addEventListener('click', (ev) => {
       return;
     case 'form': {
       readFormInputs();
-      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'futureStars' | 'race' | 'photo';
+      const k = el.dataset.k as 'mode' | 'position' | 'difficulty' | 'realId' | 'legends' | 'futureStars' | 'race' | 'photo' | 'startTeam';
       (ui.form as unknown as Record<string, string>)[k] = v!;
+      // 시작 팀 (45b b): 고른 팀의 리그가 내 리그 (랜덤이면 그대로)
+      if (k === 'startTeam') {
+        if (v === 'random') ui.form.startTeam = '';
+        else if (v) ui.form.leagues = normalizeLeagues(ui.form.leagues, leagueOfTeam(v));
+      }
       // 인종을 바꾸면 사진도 그 인종으로 (C.73c)
       if (k === 'race') ui.form.photo = '';
       render();
@@ -2140,6 +2154,8 @@ app.addEventListener('click', (ev) => {
       const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
       ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
       if (k === 'app') rerollCustomName(false);
+      // 시작 소속 팀 (45b b): 고른 팀의 리그가 내 리그
+      if ((k === 'startClub' || k === 'youthClub') && v && v !== 'random' && leagueOfTeam(v)) ui.form.leagues = normalizeLeagues(ui.form.leagues, leagueOfTeam(v));
       render();
       return;
     }
@@ -2216,7 +2232,7 @@ app.addEventListener('click', (ev) => {
       // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
       ui.game = f.mode === 'prospect'
         ? newGame({ mode: 'custom', custom: rolledSpec(prospectSeed(), f.position, f.name, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined),
-          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues })
+          seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues, ...(f.startTeam ? { teamId: f.startTeam } : {}) })
         : f.mode === 'custom'
           ? newGame({ mode: 'custom', custom: customSpec(f.cu, f.name), seed: prospectSeed(), difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues })
           : newGame({ mode: 'real', playerId: f.realId, seed: f.seed, difficulty: f.difficulty, legends: f.legends === 'on', futureStars: f.futureStars === 'on', leagues: f.leagues });
