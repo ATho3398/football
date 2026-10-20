@@ -239,8 +239,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
       if (!o.onPitch || o.team === a.team || o.line === 0) continue;
       const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
-      const od = dist(o.x, o.y, px, py);
-      if (od < nearField) nearField = od;
+      if (PR.shotFree > 0) {
+        const od = dist(o.x, o.y, px, py);
+        if (od < nearField) nearField = od;
+      }
     }
   }
   let pOn: number;

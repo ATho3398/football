@@ -569,8 +569,8 @@ export const ENGINE = {
      */
     finishPerPoint: 0.014,
     finishMin: 0.8,
-    /** C.76a 가설 3: 상한 1.25 → 1.18 — 같은 시드 scoring 30골+ 2.7~2.8(기준 1.5) 를 상한으로 깎는다 (기울기 finishPerPoint 는 미해결 1 몫이라 유지) */
-    finishMax: 1.18,
+    /** C.76a 가설 3 (1.25 → 1.18) 은 같은 시드 scoring 30골+ 2.80 → 2.70 으로 효과 없어 되돌림 (몰림은 배수 상한이 아니라 강팀 ST 자리의 1대1 수) */
+    finishMax: 1.25,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
     /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②) */
@@ -581,8 +581,10 @@ export const ENGINE = {
      * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0(GK 제외) 이면
      * pOn(마무리 배수 뒤) += shotFree × max(0, 1 − 거리/shotFreeRef) × 각도. "수비가 없다"는 상황 보너스라 능력과 무관하게 더한다
      * (0.38: 8 m +0.23, 12 m +0.15, 20 m+ 0; 0.30 은 12 m 안 빗나감 50 으로 부족, 배수 안에 넣으면 scoring 30골+ 2.7·리그 1.52). 판단식·실제가 같은 함수라 E.15.1 안
+     * **지금은 0(꺼짐, 부록 C.76a)**: 0.19~0.38 모두 같은 시드 scoring 30골+ 1.5 → 2.6~2.8 · 득점왕 중앙값 36~39 · 리버풀 100 → 108~110 으로
+     * 분포 관문(≤ 2) 실패 — 강팀 ST 자리가 받는 1대1 수에 비례해 몰린다 (미해결 12). 켜면 12 m 안 골 15 → 25 · 빗나감 59 → 44
      */
-    shotFree: 0.38,
+    shotFree: 0,
     shotFreeRef: 20,
     shotMin: 0.05,
     shotMax: 0.85,
@@ -834,8 +836,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW·1대1 보너스의 총량 되돌림 1.70 → 1.78 (0.01 = 득점 −0.067) */
-    saveBase: 1.78,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지 */
+    saveBase: 1.70,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -851,9 +853,10 @@ export const ENGINE = {
     distRef: 30,
     /**
      * 근거리 항 (C.76a, 미해결 12): 헤더가 아닌 슛은 δ += closeW × max(0, 1 − 거리/closeRef) — closeRef m 안 가까운 슛(1대1)만 GK 가 막기 어렵고 그 밖은 불변.
-     * closeRef 12 는 1대1 슛이 대개 9~12 m 에서 나와 실효가 거의 없었다(12 m 안 선방 41%) → 15 (10.5 m 에서 δ +0.135)
+     * closeRef 12 는 1대1 슛이 대개 9~12 m 에서 나와 실효가 거의 없었다(12 m 안 선방 41%) → 15 (10.5 m 에서 δ +0.135).
+     * **지금은 0(꺼짐, 부록 C.76a)**: 0.45 는 shotFree 없이도(saveBase 1.75) 같은 시드 scoring 30골+ 2.70 · 중앙값 38.5 · 리버풀 최대 127 — GK 쪽도 분포 중립이 아니었다
      */
-    closeW: 0.45,
+    closeW: 0,
     closeRef: 15,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
     catchBase: 0.3,
