@@ -15,7 +15,8 @@
 - **비용**: 전체 측정(`balance:engine:check`, `balance:scoring`, `balance:sweep --tactics`)은 진단 1건당 최대 2회. 긴 실행은 백그라운드로 돌리고 출력을 스크래치패드 파일에 받는다. PNG는 읽지 않는다. 컨텍스트 50만을 넘으면 보고서를 커밋하고 기획 세션에 교체를 알린다.
 - **세션 이름 규칙**: 새 세션을 열면 이전 세션 제목 앞에 `draft_`가 붙는다(기획 세션이 한다).
 
-### 지금 상태 (3대 갱신, 2026-10-20 08:50 KST)
+### 지금 상태 (3대 갱신, 2026-10-20 08:50 KST · 12:20 KST 교체 요청)
+- **3대 교체 요청(12:20 KST)**: 3대 대화 크기 48만 토큰(교체 기준 40만, automation 7번) → 마스터 T 에 4대 개설 요청. 4대가 처음 할 일: §8 순서로 읽고, **E-4 묶음 처방**(미해결 1~8 + 하프타임 전술 + 판단 스탯·지시 카드 신뢰 + 레전더리 35세 900+ 가드 + 패스 받는 빈도 가중)을 T 요청대로 쓴다. 3대 작업 브랜치 `claude/engine-manager-3`(ff1378d 이후)은 4대가 그대로 이어 쓰거나 `claude/engine-manager-4` 를 main 에서 새로 따고 `git merge origin/claude/engine-manager-3` 로 가져온다(둘 다 가능, docs 병합은 merge 로만). 스크래치패드 작업 트리(`wt-c75d`)는 컨테이너와 함께 사라진다 — 재현은 §4 3대 절의 `git worktree add` 로.
 - 엔진 관리자 **3대** `session_017LRoCE5KxG6odpy1NX6DiN`(Fable, 제목 `엔진관리자3`, 태그 `role:engine-manager`). **마스터 세션 T** `session_01KEPYWMJvsVNyeS7vpS8kSs`(브랜치 `claude/planning-t`, 2026-10-20 10:50 KST 교체; 그 전 I → … → R → S `session_01Pi4aAWoFd5yBP3mZfCURwD`). 보고·처방은 T 로. T 예고: C.75e·C.75f 결과 뒤 **E-4 묶음 처방** 요청. 2대 `session_01ULNad1tAcSQzVKsFKN355d`(58만 토큰)는 **깨우지 않는다**(automation 7번). 교체 기준은 대화 **40만 토큰**(50만이 아니다, automation 7번 개정).
 - **엔진 동결 해제** — pending 129 **44단계 엔진 다듬기 블록** 진행 중: 44a C.75a(결정 순간, 엔진 22 → 23)·44b C.75b(Web Worker 속도, 엔진 무수정) 완료. **다음 44c E-2 수비 조직**(Opus 코드 세션이 구현) → 44d E-3 평점·윙 산출 → 44e~ E-4 미해결 1~7 + 하프타임 전술 + 판단 스탯·지시 카드 신뢰 + 레전더리 35세 900+ 가드 + 패스 받는 빈도 가중. **E-2부터는 회귀 가드가 아니라 E.15 표 개선으로 판정**(pending 129).
 - **44c-a 진행 중**: 코드 세션 **C.75c** `session_01TdKoUkFdRsBhsdri5dtChU`(Opus, 브랜치 `claude/c75c-defense-a`, 2026-10-20 08:52 KST 시작). 마스터 S가 v2 질문 ①~④ 권장안을 모두 승인(a/b/c 나눔, `coverBehind` 3 m, 루즈볼 둘째 커버 양 팀 대칭, CB 1대1 정지 감소 수용). 해결 어려움·진단 불일치는 그 세션이 3대에게 send_message로 보낸다. E.15 전체 표(엔진 23): 64/104 · 스탯 반응 12/15(v2 §3.1).
