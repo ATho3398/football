@@ -6328,14 +6328,14 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-20 16:29 KST / 답변 시각 2026-10-20 20:02 KST / 걸린 시간 3시간 33분
 
-### C.76q 44h-d단계 엔진 블록 — PK 빈도 · 지정 PK 키커 · 12 m 밖 선방률 지표 **`main` 배포** (ENGINE_VERSION 29 → 30, BALANCE_VERSION 64 → 65, SAVE_FORMAT_VERSION 그대로)
+### C.76q 44h-d단계 엔진 블록 — PK 빈도 · 지정 PK 키커 · 12 m 밖 선방률 지표 **`main` 배포** (ENGINE_VERSION 30 → 31, BALANCE_VERSION 65 → 66, SAVE_FORMAT_VERSION 그대로 — 병렬 C.76p 가 엔진 30 을 먼저 씀)
 
 지시: 마스터 W `docs/session-prompts/C.76q.md`, 엔진관리자6 `docs/engine-diagnosis-e4.md` §9.11.4 ②(44h-d), 미해결 6·13. 승부차기 장면은 만들지 않음(사용자 결정). 미해결 9(LM/RM)는 `offball.ts` 가 C.76p 와 겹쳐 이번에 안 함.
 
 **한 일 (코드)**
 1. **PK 빈도**(미해결 13): `config.ts referee.boxFoulFactor` 0.04 → **0.08**(박스 안 파울 확률 배율, 공통 상수 1개).
 2. **지정 PK 키커**: `core.ts penaltyTaker` — 경기장에 있는 필드 선수 중 슈팅 + 침착성 최고(`penaltyProb` 와 같은 식, 같으면 앞 번호). `setRestart` 가 `'penalty'` 면 공에 가장 가까운 선수 대신 이 선수. 팀 설정·세이브 구조는 안 건드림.
-3. **득점 쌍 보정**: `keeper.saveBase` 1.60 → **1.62**(1.61 에서 engine:check 경량 가드 평점 σ 0.70·ST 6.72 ✗ → 1회 더). C.76p 가 단계 C 에서 saveBase 를 바꾸면 병합 때 그 값 + 0.02 기준으로 다시 맞춘다.
+3. **득점 쌍 보정**: `keeper.saveBase` **+0.02**(엔진 29 기준 1.60 → 1.61 에서 engine:check 경량 가드 평점 σ 0.70·ST 6.72 ✗ → 1.62 로 1회 더). main 병합 때 C.76p(단계 C, `shotFree` 0.30·saveBase 1.60 → 1.62) 값에 같은 +0.02 를 얹어 **1.64**.
 4. **선방률 지표 재정의**(미해결 6, 처방 없음): `TeamStats.farOnTarget·farSaves`(측정용, 12 m 밖·PK 제외 유효 슈팅 도착 / 선방, `actions.ts FAR_SAVE_FROM`) · quick·engine:check 표 판정 행 **"GK 선방률 % (12 m 밖, PK 제외)" 목표 68~76**, 전체 선방률은 "기록" 행. PK 행 목표 0.09~0.17 → **0.11~0.16**(경기당 0.22~0.32).
 5. 테스트 `tests/c76q.test.ts` 3개(상수, 지정 키커·빠진 선수 제외, 집계 부등식).
 
@@ -6350,7 +6350,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - `balance:engine:check`: main 경량 가드 통과(득점 1.40·σ 0.72·ST 6.68) → 1.61 실패 2개(σ 0.70·ST 6.72, 득점 1.50·PK 0.20) → **1.62 모두 통과**(득점 1.43 · PK 0.15 · 12 m 밖 선방 71.5 · σ 0.70 · ST 6.69). 읽는 법: 지정 키커가 대개 ST 라 PK 골이 ST 평점에 몰린다 — 총량을 saveBase 로 되돌려 해결.
 - 같은 시드 `balance:scoring`(1.62): 통과 — 최다 득점 98 · 최다 실점 76 · 30골+ 0.80 · 득점왕 중앙값 31.0 · 리그 1.39 · 케인 30 · 골 경로 PK 비중 ↑. 우승팀 승점 101 ✗(참고 행, 1.61 에서도 102, 가드 아님).
 - 같은 시드 지문(`scripts/diag/same-seed.ts` 30경기): 8d52189536c5049d → **4eb7c948929c51b0**(의도된 변경 — PK·saveBase·TeamStats 새 필드).
-- `npm test` 1007개(117 + 1 파일) 통과, `typecheck` 통과, `balance:check` 회귀 가드 통과.
+- **main(C.76p) 병합 뒤 재검증(saveBase 1.64, 엔진 31)**: quick 600 득점 **1.34** · PK 팀당 **0.13** · 12 m 밖 선방 **71.7** · 전체 66.2 · Δ+8 1.74 ✗(C.76p 도 1.79 ✗, 표본 ±0.07, 하드 가드 1.3~2.8 ✓) / Δ−8 0.80 · `engine:check` 경량 가드 **모두 통과**(득점 1.39 · PK 0.16 · 12 m 밖 71.6 · σ 0.71) · 같은 시드 scoring **통과**(최다 득점 99 · 최다 실점 68 · 30골+ 0.70 · 득점왕 중앙값 31.0 · 리그 1.31 · 케인 29, 우승팀 승점 102 ✗ 참고 행) · 지문 **9c81aecadd2d029c**.
+- 테스트: 시드 의존 3개 — `c75v` sureBack 장면이 c76p 시드에서 사라져 c76b-1·c76b-7 추가(CDM·CM 64경기에 2장면뿐), `highlights` 시드 93 → 94(첫 장면 실제 속도 확인, C.45·C.75c 와 같은 이유), `c76n` 버전 라벨을 정규식으로(병렬 병합). `npm test` **1041개 통과**(122 파일), `typecheck`·`build` 통과, `balance:check` 회귀 가드 **19/19**(빠른 경기 모델이라 엔진 상수와 무관, 66분).
 
 **남은 것**: 미해결 6 은 단계 C(C.76p) 뒤 12 m 밖 선방률을 다시 잰다. 미해결 9 는 C.76p 뒤 순차. 새 화면 없음.
 

@@ -340,7 +340,7 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'aerials', '공중볼 경합', '약 35', perTeam(eq, (s) => s.aerials), 30, 40);
     // 선방률 (C.76q, 미해결 6): 판정은 12 m 밖(PK 제외) 유효 슈팅 선방률로 재정의 — 가까운 슛은 골·먼 슛은 선방이 현실이라 전체 68~72 는 1대1 목표와 양립하기 어렵다. 전체 선방률은 기록만
     add(S, 'savePct', 'GK 선방률 % (전체, 기록)', '기록 (옛 목표 68~72)', ratio(totTeam(eq, (s) => s.saves), totTeam(eq, (s) => s.shotsOnTarget)) * 100, 0, 100);
-    add(S, 'saveFar', 'GK 선방률 % (12 m 밖, PK 제외)', '68~76 (C.76q 재정의, 엔진 29 약 70)', ratio(totTeam(eq, (s) => s.farSaves), totTeam(eq, (s) => s.farOnTarget)) * 100, 68, 76, 1, {
+    add(S, 'saveFar', 'GK 선방률 % (12 m 밖, PK 제외)', '68~76 (C.76q 재정의, 엔진 31 약 72)', ratio(totTeam(eq, (s) => s.farSaves), totTeam(eq, (s) => s.farOnTarget)) * 100, 68, 76, 1, {
       note: `12 m 밖 유효 ${perTeam(eq, (s) => s.farOnTarget).toFixed(2)} / 전체 유효 ${perTeam(eq, (s) => s.shotsOnTarget).toFixed(2)}`,
     });
     const km = (g: string[]) => avg(eq.flatMap((m) => m.players.filter((p) => g.includes(p.position) && p.minutes >= 85).map((p) => p.distance / 1000)));

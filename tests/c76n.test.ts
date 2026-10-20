@@ -154,7 +154,7 @@ describe('화면 · 세이브', () => {
     expect(m.globalAwards).toEqual({ years: [] });
   });
   it('버전 라벨', () => {
-    expect(PATCH_LABEL).toBe('C.76n');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/); // 병렬 패치 병합에도 통과 (C.76q)
     expect(STAGE_LABEL).toBe('47단계');
   });
   it('하루 끝 훅은 발표 날짜 전에는 아무것도 하지 않는다', () => {
