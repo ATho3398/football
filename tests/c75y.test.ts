@@ -11,7 +11,7 @@ import { DEX_IDS, DEX_LOCKS } from '../data/players/photoDex';
 import { CLUB_TO_TEAM, leagueOfTeam, leagueTeamById, recordResult, simulateScore, teamById } from '../src/league';
 import { derbyOf } from '../src/derby';
 import {
-  acceptMyOffer, calendarOf, endDay, endSeason, isMatchDay, newGame, playOthers, playRound, SAVE_FORMAT_VERSION, selectableRealPlayers, startLeagueOf,
+  acceptMyOffer, calendarOf, endDay, nextFixture, endSeason, isMatchDay, newGame, playOthers, playRound, SAVE_FORMAT_VERSION, selectableRealPlayers, startLeagueOf,
   startNextSeason, type GameState,
 } from '../src/game';
 import { compNameKo, cupNameKo, domesticCupTeams, uclEntrants } from '../src/cups';
@@ -161,6 +161,18 @@ describe('다른 리그에서 시작 (C.75y 2번)', () => {
       playRound(g, { engine: 'quick', others: 'quick' });
     }
     expect(g.league.round).toBe(3);
+  });
+
+  it('홀수 팀 리그(MLS 23팀)의 쉬는 라운드: 다음 경기는 내 경기가 있는 라운드, 그 라운드를 치를 때 넘어간다', () => {
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75y-b', difficulty: 'normal', leagues: ['mls'] });
+    const me = g.player.teamId;
+    const byes = g.league.schedule.map((r, i) => (r.some((f) => f.home === me || f.away === me) ? -1 : i)).filter((i) => i >= 0);
+    expect(byes).toHaveLength(2);
+    g.league.round = byes[0]!;
+    const nx = nextFixture(g);
+    expect(nx).not.toBeNull();
+    const want = g.league.schedule[byes[0]! + 1]!.find((f) => f.home === me || f.away === me)!;
+    expect(nx!.opponentId).toBe(want.home === me ? want.away : want.home);
   });
 
   it('국내 컵 참가: 같은 나라 다른 리그 팀까지 32·16·8 (분데스 18 + 2부 → 32), 내 팀은 늘 포함', () => {

@@ -33,3 +33,4 @@ for (let s = 0; s < seasons; s++) {
 const json = serialize(g);
 const back = deserialize(json);
 console.log('세이브', Math.round(json.length / 1024), 'KB · 왕복 팀', back.player.teamId, back.league.id, Object.keys(back.rosters).length);
+console.log('내 리그 경기 수', [...new Set(g.league.table.map((r) => r.played))].join(','), '· 내 기록 출전', g.player.history.at(-1)?.apps);

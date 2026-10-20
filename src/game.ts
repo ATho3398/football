@@ -781,8 +781,15 @@ export interface NextMatch {
   cup?: MyCupTie;
 }
 
+/** 이번 라운드부터 내 팀 경기가 있는 첫 라운드 (홀수 팀 리그의 쉬는 라운드를 건너뛴다, C.75y MLS). 없으면 -1 */
+function myRoundFrom(state: GameState, from: number): number {
+  const me = state.player.teamId;
+  for (let r = from; r < state.league.schedule.length; r++) if (state.league.schedule[r]!.some((x) => x.home === me || x.away === me)) return r;
+  return -1;
+}
+
 function leagueNext(state: GameState): NextMatch | null {
-  const r = state.league.round;
+  const r = myRoundFrom(state, state.league.round);
   const round = state.league.schedule[r];
   if (!round) return null;
   const i = round.findIndex((x) => x.home === state.player.teamId || x.away === state.player.teamId);
@@ -1377,6 +1384,9 @@ export function endDay(state: GameState): TrainingDayResult {
   managerDayEnd(state);
   // 이벤트 (C.63): 기한 지난 선택, 예약, 슬롯, 하루 이벤트
   eventsDayEnd(state, ended);
+  // 쉬는 라운드 (C.75y): 내 경기가 없는 라운드는 그 라운드 경기가 다 끝나면 넘긴다 (마지막 라운드가 쉬는 라운드여도 시즌이 끝난다)
+  const L = state.league;
+  while (L.round < L.schedule.length && myRoundFrom(state, L.round) !== L.round && L.schedule[L.round]!.every((f) => f.homeGoals !== undefined)) L.round++;
   // 리그가 끝났고 내 컵 경기도 더 없으면 (결승 뒤 우승 확정·탈락이 하루 끝에 정해진 경우) 시즌 끝 (C.67)
   if (state.league.round >= state.league.schedule.length && !myCupAlive(state)) {
     endSeason(state);
@@ -1553,6 +1563,9 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   const nx = nextMatch(state);
   if (nx?.cup) return playMyCup(state, opts, nx.cup);
   const { league, player } = state;
+  // 쉬는 라운드 (C.75y, 홀수 팀 리그): 내 경기가 있는 라운드로. 쉬는 라운드의 다른 경기는 날짜대로 치른다
+  const mine = myRoundFrom(state, league.round);
+  if (mine > league.round) league.round = mine;
   const roundIdx = league.round;
   const fixtures = league.schedule[roundIdx]!;
   const seed = state.worldSeed;
@@ -1644,7 +1657,8 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   let recovered = false;
   if (injured) {
     s.injuredWeeks++;
-    const next = league.schedule[roundIdx + 1] ? calendarOf(state).fixtureDates[roundIdx + 1]![league.schedule[roundIdx + 1]!.findIndex((f) => f.home === player.teamId || f.away === player.teamId)]! : null;
+    const nr = myRoundFrom(state, roundIdx + 1);
+    const next = nr >= 0 ? calendarOf(state).fixtureDates[nr]![league.schedule[nr]!.findIndex((f) => f.home === player.teamId || f.away === player.teamId)]! : null;
     recovered = next !== null && player.injury!.daysLeft <= daysBetween(state.calendar.date, next);
   } else if (result.minutes > 0) {
     const rolled = useEngine
