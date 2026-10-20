@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 23;
+export const ENGINE_VERSION = 24;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -196,7 +196,7 @@ export const ENGINE = {
     markSigma: 0.04,
     /** 압박: 공에 가까운 수비 1~2명. 압박 거리 = pressDistBase + pressing × pressDistRange */
     pressers: 2,
-    /** 공이 자기 골에서 이 거리 안이면 가까운 2명은 항상 압박 (m) */
+    /** 공이 자기 골에서 이 거리 안이면 첫 압박자는 거리와 무관하게 압박한다 (m). 둘째는 C.75c 부터 커버 (plan) */
     dangerPress: 30,
     /**
      * 박스 앞 수비 블록 (E.20 3번): 공이 자기 골 boxZone m 안이면 수비 라인은 공보다 lineBehindBall m 골 쪽까지 물러나고,
@@ -229,9 +229,8 @@ export const ENGINE = {
     /** 볼 쪽 마크 (E.22 A): 공이 측면(|y − 0.5| ≥ wideBall)이면 ST 를 맡은 CB 의 위치 방향 = 골 × (1 − stBallSide) + 공 × stBallSide */
     wideBall: 0.2,
     stBallSide: 0.35,
-    /** 돌파 후 커버 (E.22 A): 제쳐진 수비수의 가장 가까운 동료가 coverTime 초 동안 돌파한 선수의 골 쪽 coverAhead m 로 */
+    /** 돌파 후 커버 (E.22 A): 제쳐진 수비수의 가장 가까운 동료가 coverTime 초 동안 돌파한 선수의 골 쪽 plan.coverBehind m 로 (C.75c) */
     coverTime: 2,
-    coverAhead: 2.5,
     /** 공격 줄 선수의 압박 거리 배율 */
     attackerPress: 0.4,
     /** 공격 줄 압박 거리 배율 = attackerPress + attackerPressPer × (pressing − 0.55) (압박 전술, E.19 ③) */
@@ -240,12 +239,11 @@ export const ENGINE = {
     pressDistRange: 14,
     /**
      * 역압박 (E.18 A3): 공을 잃은 순간부터 (counterBase + counterPerPress × pressing)초, 공에서 counterRadius m 안 최대
-     * counterMax 명. 가담 확률 = counterJoin + counterJoinPress × 역할 press + counterJoinWork × 노력/100
+     * plan.sit.H.pressers[압박 단계] 명 (C.75c, 게겐 gegenMax). 가담 확률 = counterJoin + counterJoinPress × 역할 press + counterJoinWork × 노력/100
      */
     counterBase: 3,
     counterPerPress: 2,
     counterRadius: 10,
-    counterMax: 3,
     counterJoin: 0.4,
     counterJoinPress: 0.4,
     counterJoinWork: 0.2,
@@ -282,6 +280,28 @@ export const ENGINE = {
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
     postSpread: 4,
+    /**
+     * 팀 수비 계획 (C.75c, E.23 개정 44c-a): 공으로 가는 사람은 1명, 둘째는 커버.
+     * 상황 판정 A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박.
+     * sit[상황].pressers = 공으로 가는 인원 [압박 낮음, 보통, 높음] (H 는 역압박 가담 상한, 게겐은 gegenMax).
+     * 둘째 압박 대상이 아니면 공과 우리 골을 잇는 선에서 공 뒤 coverBehind m 에 선다 (박스 압박 둘째·위험지역 둘째·돌파 후 커버·루즈볼 둘째).
+     * 상황은 sitHold 초 이어져야 바뀐다 (G·H·E 는 즉시). 압박 단계 = 실효 pressing 이 levelCut 경계 기준
+     */
+    plan: {
+      coverBehind: 5,
+      sitHold: 0.6,
+      levelCut: [0.43, 0.68] as readonly number[],
+      sit: {
+        A: { pressers: [1, 1, 2], double: false },
+        B: { pressers: [1, 1, 2], double: false },
+        C: { pressers: [1, 1, 2], double: false },
+        D: { pressers: [1, 1, 2], double: false },
+        E: { pressers: [1, 1, 1], double: false },
+        F: { pressers: [1, 1, 2], double: false },
+        G: { pressers: [1, 1, 1], double: false },
+        H: { pressers: [1, 2, 3], double: true },
+      } as Record<'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H', { pressers: readonly number[]; double: boolean }>,
+    },
   },
 
   // ── 수비 1대1 판단 (E.23) ──
@@ -295,12 +315,17 @@ export const ENGINE = {
     /** 돌파 허용 기본 비용 (골 단위, 앞으로 나간 자리 가치 상승분에 더한다), 박스 밖 파울 비용 */
     beatenBase: 0.01,
     foulCost: 0.02,
-    /** 따라붙기(지연)의 가치 (골 단위): 동료가 돌아오고 공격이 느려진다 */
-    jockeyValue: 0.1,
+    /**
+     * 따라붙기(지연)의 가치 (골 단위): 동료가 돌아오고 공격이 느려진다 (C.75c 상황별): 공이 우리 골 jockeyNearDist m 밖이면 jockeyFar(지연 우선),
+     * 안이거나 박스 안이면 jockeyNear(붙어서 태클)
+     */
+    jockeyFar: 0.11,
+    jockeyNear: 0.09,
+    jockeyNearDist: 25,
     /** 패스길 막기: 가장 위험한 패스 대상 가치 상승분 × laneW − 돌파 허용 비용 × laneRisk */
     laneW: 0.3,
     laneRisk: 0.3,
-    /** 박스 안 압박 (E.23): 공이 수비 팀 박스 안이면 가장 가까운 2명이 boxPressGap m 까지 붙는다 */
+    /** 박스 안 압박 (E.23, C.75c): 공이 수비 팀 박스 안이면 가장 가까운 1명이 boxPressGap m 까지 붙고 둘째는 커버 (offball.plan) */
     boxPressGap: 0.6,
     /** 수비 자세 (E.23): 1대1에서 바깥쪽으로 몬다. 중앙 쪽 돌파 로짓 − stanceInside, 바깥쪽 + stanceOutside */
     stanceInside: 0.3,
