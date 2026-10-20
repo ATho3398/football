@@ -644,3 +644,4 @@
 - (21:32 KST, 사용자) pending 139: 미리 계산 확정·모든 리그 8~5월 통일 → **C.76m 시작** `session_01E1HgR5qycWaEi6wNjd3SjA` `claude/c76m-precompute-calendar`. 개인 시상 미구현 확인 → **C.76n 시작**(47단계 발롱도르·골든보이·골든부츠·더 베스트) `session_01LCcgLmUo5qXEiqTjVZCpwS` `claude/c76n-awards`. 레전드 53명은 이미 들어가 있음(8.42 '사용자 확인 대기'는 오기, 정정). 다음 새 이름 C.76o. 진행 중 C.76i·j·k·l·m·n.
 - (21:40 KST, 사용자) pending 140: 올해의 선수 등 권위 있는 상 전부·평점순 말고 → docs/awards-design.md 설계(투표단 시뮬레이션). C.76n을 47a로 범위 갱신, 47b는 C.76n 뒤.
 - (21:46 KST, 사용자) 푸스카스 뺌·월드컵 상 47a·레전더리 조건 개정(발롱 1 또는 최고 개인상 합 3, 수비수 상 UEFA 올해의 수비수) → awards-design.md 갱신, C.76n에 전달.
+- (21:46 KST, 사용자) pending 141 카드팩 개봉 모션 그래픽 → **C.76o 시작**(Opus, 교체 구조 packAnim/). 다음 새 이름 C.76p.
