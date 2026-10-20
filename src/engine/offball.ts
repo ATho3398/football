@@ -1006,7 +1006,8 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       if (dist(o.x, o.y, b.x, b.y) <= nearBall) continue;
       others.push(o);
     }
-    others.sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
+    // 줄 2(CAM·CM 침투자) 먼저, 그다음 위협도 — 니어·파 포스트의 윙어(골에 더 가까워 위협도가 높다)보다 페널티 지점의 2선이 먼저 (위협도 순이면 마크가 윙어에게 가 윙 득점만 줄었다: quick 600 윙 20 → 15)
+    others.sort((x, y) => Number(y.line === 2) - Number(x.line === 2) || threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
     // 엘리트 가드 (C.76w 가설 3): 집중 대상의 마무리 계수 ≥ focusDoubleMin 이면 2선 마크보다 더블팀이 먼저다 (2선 마크로 ST 가 풀리자 같은 시드 scoring 30골+ 1.6 → 3.3~4.1)
     const second = (abil >= O.focusDoubleMin || !others.length || !O.boxManMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
