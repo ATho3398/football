@@ -160,7 +160,7 @@ describe('도감 화면', () => {
 
 describe('세이브 46', () => {
   it('옛 세이브(45) = 빈 도감', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(46);
+    expect(SAVE_FORMAT_VERSION).toBe(47);
     const g: GameState = game();
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 45;
@@ -171,8 +171,7 @@ describe('세이브 46', () => {
   });
 
   it('버전 표시', () => {
-    // C.75z 뒤로는 형식만 (값은 그 패치 테스트에서)
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
-    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?\d*단계$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });

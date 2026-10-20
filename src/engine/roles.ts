@@ -60,7 +60,7 @@ export const ROLES: Record<string, Role> = {
   // ST (ST, CF)
   poacher: r('poacher', 0.04, 0, 0.7, 0, 0.3, p({ shoot: 1.4, dribble: 0.8 })),
   targetMan: r('targetMan', 0, 0, 0.45, 0.3, 0.4, p({ header: 1.4, hold: 1.2 })),
-  falseNine: r('falseNine', -0.1, 0, 0.35, 0.7, 0.5, p({ pass: 1.3, shoot: 0.9 }), ['between']),
+  falseNine: r('falseNine', -0.1, 0, 0.35, 0.5, 0.5, p({ pass: 1.3, shoot: 0.9 }), ['between']),
   advancedForward: r('advancedForward', 0.05, 0, 0.9, 0, 0.4, p({ shoot: 1.2 })),
   // CAM
   classic10: r('classic10', 0, 0, 0.3, 0.6, 0.3, p({ pass: 1.4, forward: 1.1 })),
@@ -70,7 +70,7 @@ export const ROLES: Record<string, Role> = {
   enganche: r('enganche', -0.02, 0, 0.1, 0.4, 0.1, p({ hold: 1.3, pass: 1.3 }), ['demand', 'exempt']),
   // CM
   boxToBox: r('boxToBox', 0, 0, 0.6, 0.4, 0.8, p()),
-  deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.1, 0.6, 0.4, p({ pass: 1.4, long: 1.2 })),
+  deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.25, 0.6, 0.4, p({ pass: 1.4, long: 1.2 })),
   mezzala: r('mezzala', 0.06, 0.15, 0.6, 0.2, 0.5, p({ shoot: 1.1, dribble: 1.1 })),
   carrier: r('carrier', 0, 0, 0.3, 0.4, 0.5, p({ carry: 1.4 })),
   holdingCM: r('holdingCM', -0.06, 0, 0.1, 0.3, 0.7, p({ safe: 1.2 })),
