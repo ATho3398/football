@@ -2,13 +2,13 @@
 // 화면은 src/ui/views/ 모듈이 뷰모델(src/ui/viewModels.ts)만 받아 그리고, 이 파일은 상태와 동작만 맡는다 (부록 H.2)
 
 import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
-import { normalizeLeagues } from '../otherLeagues';
+import { calendarKind, normalizeLeagues } from '../otherLeagues';
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
 import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
-import { COMP_NAMES_KO, type CompId } from '../cups';
-import { budgetOf, customAct, customSpec, customVM, initialCustomForm } from './customVM';
+import { compNameKo, type CompId } from '../cups';
+import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCustomForm } from './customVM';
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
@@ -103,8 +103,11 @@ import { autoShortNames, pitchLabel } from './playerNames';
 import { setNameOverride } from '../names';
 import { clearFaceOn, setFaceOnCutout, faceSrc, pixelSrc, type FaceRef, squareToBlob, exportFacepack, importFacepack, initFaces, loadImage, setFaceOn, setPlayerNames, type FaceSlot } from './faces';
 import { homeKitOf, matchKitsOf, playerIcon } from './pixelIcons';
-import { declineOffer, declineOffers, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
-import { feedKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
+import { declineOffer, declineOffers, midWindowKo, windowKo, marketPending, renewContract, requestTransfer, requestEligibility, releaseChance } from '../transfer';
+import { jerseyPanelVM, showroomVM } from './jerseyVM';
+import { showroomView } from './views/showroom';
+import { requestJersey, showcasePut, showcaseTake } from '../jerseys';
+import { feedKind, setSeasonLabelKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -121,7 +124,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'national';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom' | 'national';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -154,6 +157,8 @@ const ui = {
   /** 리그 스타 묶음 · 리그 기록 거르기 (C.64) */
   starGroup: 'league' as 'league' | 'world' | 'young',
   worldBoard: 'goals' as 'goals' | 'assists' | 'rating',
+  /** 월드 순위·득점 리그 (C.76c): '' = 내 리그, 아니면 고른 다른 리그 id */
+  worldLeague: '',
   /** 재계약 화면에서 고른 연수 (C.42) */
   renewYears: null as number | null,
   /** 주 포지션 변경 요청 시트 (D.3): 고른 포지션 */
@@ -271,6 +276,8 @@ const ui = {
     cu: initialCustomForm(),
     /** [이 단계 랜덤] 누른 횟수 (C.74d): 시드 + 횟수로 뽑아 같은 시드·같은 순서면 같은 결과 */
     rand: 0,
+    /** 이름이 랜덤으로 채운 것인지 (C.75z): 국적·인종을 바꾸면 랜덤 이름·빈 칸은 새로 뽑고 직접 입력한 이름은 둔다 */
+    nameAuto: false,
   },
 };
 
@@ -368,7 +375,7 @@ const saveLog: number[] = [];
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
 async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string }; nat?: { label: string } }): Promise<void> {
   const { season, round } = rep;
-  const label = `${rep.nat ? rep.nat.label : rep.cup ? `${COMP_NAMES_KO[rep.cup.comp]} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const label = `${rep.nat ? rep.nat.label : rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
@@ -448,7 +455,7 @@ function screenHtml(): string {
     case 'title': return titleScreen();
     case 'new':
       syncProspectPick();
-      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name) : undefined, ui.ng);
+      return newGameView({ ...newGameVM({ ...ui.form, seed: ui.form.seed, roll: prospectSeed() }), bonus: newGameBonusVM() }, ui.form.mode === 'custom' ? customVM(ui.form.cu, ui.form.name, normalizeLeagues(ui.form.leagues)[0]) : undefined, ui.ng);
     case 'saves': return savesView(savesVM(listSaves(), SAVE_SLOTS), !!g && g.phase !== 'retired', versionVM(g), ui.exportCards);
     case 'settings': return settingsView(g, ui.fo, versionVM(g), ui.nm, ui.px, ui.ca, !!liveScreen(), ui.set);
     default: break;
@@ -505,7 +512,7 @@ function screenHtml(): string {
       return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
-    case 'world': return worldView(worldVM(g), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
+    case 'world': return worldView(worldVM(g, ui.worldLeague), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsSection(cupsWorldVM(g)) : '');
     case 'offers': return offersView(marketVM(g), ui.offerSel);
     case 'inbox': {
       collectNotices(g);
@@ -520,6 +527,7 @@ function screenHtml(): string {
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
+    case 'showroom': return showroomView(showroomVM(g));
     case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
@@ -590,7 +598,7 @@ function screenHtml(): string {
     default: break;
   }
   const vm = matchResultVM(g, ui.replay?.replay ?? null);
-  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta) : homeView(homeVM(g));
+  return vm ? matchResultView(vm, ui.more, ui.rewatch ? null : ui.matchDelta, jerseyPanelVM(g)) : homeView(homeVM(g));
 }
 
 /** 화면 → 첫 방문 말풍선 id */
@@ -661,6 +669,8 @@ globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => rend
 
 function render(): void {
   const g = ui.game;
+  // 시즌 이름 (C.76c): 3~12월 리그가 내 리그면 "2018"
+  setSeasonLabelKind(g ? calendarKind(g.league.id) : 'autumn-spring');
   const nav = g && !NAV_HIDDEN.includes(ui.screen) && !(g.phase === 'retired') ? dock(dockVM(g)) : '';
   const live = liveScreen();
   const band = g && live && live !== ui.screen ? liveBand(live) : '';
@@ -939,8 +949,21 @@ function weakFootLine(g: GameState): string {
 function readFormInputs(): void {
   const name = document.getElementById('f-name') as HTMLInputElement | null;
   const seed = document.getElementById('f-seed') as HTMLInputElement | null;
-  if (name) ui.form.name = name.value;
+  if (name && name.value !== ui.form.name) {
+    ui.form.name = name.value;
+    ui.form.nameAuto = false;
+  }
   if (seed) ui.form.seed = seed.value;
+}
+
+/** 커스텀 이름 다시 뽑기 (C.75z): force = [랜덤] 버튼. 아니면(국적·인종 변경) 랜덤으로 채운 이름·빈 칸일 때만 */
+function rerollCustomName(force: boolean): void {
+  const f = ui.form;
+  const r = customNameAfter(f.cu, f.name, f.nameAuto, force, `${prospectSeed()}:name:${f.rand + 1}`);
+  if (!r) return;
+  f.rand += 1;
+  f.name = r;
+  f.nameAuto = true;
 }
 
 /** 포인트 찍기 들어가기: 지금 상태를 기억한다 */
@@ -1441,6 +1464,7 @@ app.addEventListener('change', (ev) => {
     const dist = BALANCE.appearance.byNationality[nat];
     const top = dist ? (Object.entries(dist).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as Appearance | undefined) : undefined;
     ui.form.cu = customAct(customAct(ui.form.cu, 'nat', nat), 'app', top ?? ui.form.cu.appearance);
+    rerollCustomName(false);
     render();
     return;
   }
@@ -1801,6 +1825,11 @@ app.addEventListener('click', (ev) => {
       ui.worldBoard = v as typeof ui.worldBoard;
       render();
       return;
+    // 월드 리그 고르기 (C.76c)
+    case 'world-league':
+      ui.worldLeague = v ?? '';
+      render();
+      return;
     // ── 다른 팀·선수 상세 (C.53) ──
     case 'team-open':
     case 'person-open': {
@@ -1850,9 +1879,22 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    // 내 리그로 (C.76c): 고른 리그를 맨 앞으로
+    case 'ng-league-mine': {
+      readFormInputs();
+      const ids = normalizeLeagues(ui.form.leagues);
+      if (!v || !ids.includes(v) || !leagueData(v)) return;
+      ui.form.leagues = [v, ...ids.filter((x) => x !== v)];
+      render();
+      return;
+    }
     case 'ng-leagues':
       readFormInputs();
-      ui.form.leagues = v === 'mine' ? [normalizeLeagues(ui.form.leagues)[0]!] : v === 'all' ? leagueCatalog().map((e) => e.id) : [...DEFAULT_LEAGUES];
+      {
+        // 내 리그는 그대로 맨 앞 (C.76c)
+        const mine = normalizeLeagues(ui.form.leagues)[0]!;
+        ui.form.leagues = v === 'mine' ? [mine] : normalizeLeagues(v === 'all' ? leagueCatalog().map((e) => e.id) : [...DEFAULT_LEAGUES], mine);
+      }
       render();
       return;
     case 'ng-sort':
@@ -2021,7 +2063,7 @@ app.addEventListener('click', (ev) => {
       if (r.offersNow) go('offers');
       else render();
       showToast(r.accepted
-        ? { kind: 'info', title: '이적 명단에 올랐어요', body: r.offersNow ? '겨울 이적시장 제안이 왔어요.' : '1월 1일 겨울 이적시장이 열리면 제안이 와요.' }
+        ? { kind: 'info', title: '이적 명단에 올랐어요', body: r.offersNow ? `${windowKo(g.league, 'winter')} 이적시장 제안이 왔어요.` : `${midWindowKo(g.league)} 이적시장이 열리면 제안이 와요.` }
         : { kind: 'info', title: '구단이 거절했어요', body: '이번 시즌에는 다시 요청할 수 없어요.' }, 2600);
       return;
     }
@@ -2056,6 +2098,7 @@ app.addEventListener('click', (ev) => {
       readFormInputs();
       const k = act === 'cu' ? el.dataset.k ?? '' : act.slice(3);
       ui.form.cu = customAct(ui.form.cu, k, act === 'cu' ? v : (el.dataset.attr ?? v));
+      if (k === 'app') rerollCustomName(false);
       render();
       return;
     }
@@ -2083,7 +2126,7 @@ app.addEventListener('click', (ev) => {
       const f = ui.form;
       const r = prospectToCustom(prospectSeed(), f.position, isRace(f.race) ? f.race : undefined, isFacePhoto(f.photo) ? f.photo : undefined);
       f.cu = r.form;
-      if (!f.name.trim()) f.name = r.name;
+      if (!f.name.trim()) { f.name = r.name; f.nameAuto = true; }
       f.mode = 'custom';
       ui.ng.cuStep = 1;
       render();
@@ -2096,7 +2139,14 @@ app.addEventListener('click', (ev) => {
       f.rand += 1;
       const r = randomStep(f.cu, f.name, Number(v) || ui.ng.cuStep, `${prospectSeed()}:cu${v}:${f.rand}`);
       f.cu = r.form;
-      f.name = r.name;
+      if (r.name !== f.name) { f.name = r.name; f.nameAuto = true; }
+      render();
+      return;
+    }
+    case 'cu-name-rand': {
+      // 이름 [랜덤] (C.75z): 고른 국적·인종에 맞는 이름
+      readFormInputs();
+      rerollCustomName(true);
       render();
       return;
     }
@@ -2119,7 +2169,7 @@ app.addEventListener('click', (ev) => {
       const f = ui.form;
       if (f.mode === 'real' && !f.realId) return;
       if (f.mode === 'custom') {
-        const cv = customVM(f.cu, f.name);
+        const cv = customVM(f.cu, f.name, normalizeLeagues(f.leagues)[0]);
         if (cv.over || !cv.start.ready) return;
       }
       // 전체 랜덤 [이대로 시작] (C.74d): 커스텀 예산 안으로 맞춘 결과 그대로 커스텀 시작 (팀·잠재력·숨은 적성은 예전 랜덤과 같은 굴림)
@@ -2237,6 +2287,21 @@ app.addEventListener('click', (ev) => {
       ui.dex = { ...ui.dex, flip: ui.dex.flip === v ? null : v ?? null };
       render();
       return;
+    // 유니폼 교환 · 진열실 (C.76b)
+    case 'jersey-ask': {
+      const r = g && v ? requestJersey(g, v) : null;
+      if (r) autosave(); // 결과는 결과 화면 패널에 한 줄로
+      render();
+      return;
+    }
+    case 'sr-put':
+      if (g && v && showcasePut(g, v)) autosave();
+      render();
+      return;
+    case 'sr-take':
+      if (g && v && showcaseTake(g, v)) autosave();
+      render();
+      return;
     case 'fn-tab':
       ui.financeTab = (v ?? 'money') as FinanceTab;
       render();
@@ -2307,7 +2372,7 @@ app.addEventListener('click', (ev) => {
       let body = r.text;
       if (r.request) {
         const t = requestTransfer(g, true);
-        body = t.accepted ? (t.offersNow ? '구단이 놓아줬어요. 겨울 이적시장 제안이 왔어요.' : '구단이 놓아줬어요. 1월 1일 겨울 이적시장이 열리면 제안이 와요.') : '구단이 거절했어요. 이번 시즌에는 다시 요청할 수 없어요.';
+        body = t.accepted ? (t.offersNow ? `구단이 놓아줬어요. ${windowKo(g.league, 'winter')} 이적시장 제안이 왔어요.` : `구단이 놓아줬어요. ${midWindowKo(g.league)} 이적시장이 열리면 제안이 와요.`) : '구단이 거절했어요. 이번 시즌에는 다시 요청할 수 없어요.';
         g.manager!.result = { date: g.calendar.date, title: t.accepted ? '이적 명단에 올랐어요' : '구단이 이적 요청을 거절했어요', text: body };
         autosave();
         if (t.offersNow) { go('offers'); return; }

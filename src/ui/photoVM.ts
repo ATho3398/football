@@ -1,7 +1,7 @@
 // 포토카드 도감 화면 데이터 (C.75t, pending 130)
 
 import { dateLabel } from '../calendar';
-import { COMP_NAMES_KO } from '../cups';
+import { compNameKo } from '../cups';
 import type { GameState } from '../game';
 import { teamById } from '../league';
 import {
@@ -82,7 +82,7 @@ function cell(g: GameState, v: PhotoView): PhotoCellVM {
       face: { id: v.id, ...(v.age ? { age: v.age } : {}) },
       back: {
         date: `${seasonKo(c.s)} · ${dateLabel(c.d)}`,
-        match: `${vs}전${c.c ? ` (${COMP_NAMES_KO[c.c]})` : ''}`,
+        match: `${vs}전${c.c ? ` (${compNameKo(c.c, g.league.id)})` : ''}`,
         first: `${first} · OVR ${c.first.o || '-'}`,
       },
     },

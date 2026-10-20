@@ -5,10 +5,10 @@ import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { topChemMates, type ChemMateVM } from '../rapport';
-import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, weekFreeDays } from '../game';
+import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, rosterLeagues, weekFreeDays } from '../game';
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
-import { COMP_NAMES_KO, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
+import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
 import { ensureNational, natId, natLabel, natRoster, nationFromId } from '../national';
 import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
@@ -44,9 +44,10 @@ import {
 } from '../matchRecord';
 import { INJURY_NAMES_KO } from '../injury';
 import { shownTracks } from '../records';
-import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
-import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
-import { normalizeLeagues } from '../otherLeagues';
+import { CLUB_TO_TEAM, clubKo, initialTeams, leagueOfTeam, leaguePosition, leagueTeamById, sortedTable, teamById, type LeagueState } from '../league';
+import { DEFAULT_LEAGUES, leagueCatalog, leagueData, PLAYABLE_LEAGUES } from '../../data/leagues';
+import { calendarKind, normalizeLeagues, otherLeagueCalendar, otherScorers, type OtherLeague } from '../otherLeagues';
+import { MLS_CONFERENCE } from '../../data/leagues/mls';
 import { abroadLegends, FUTURE_STARS, futureDebut, futureEntry, LEGEND_BY_ID, legendClub, legendPeak, legendPlacement, legendRosterPlayer, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../legends';
 import { OUTSIDE_BY_ID } from '../../data/outsideClubs';
 import { findRosterPlayer, naturalOvr } from '../roster';
@@ -92,7 +93,13 @@ export function visiblePoints(g: GameState): number {
   return isUnlocked(g.guide, 'growth') ? g.player.unspentPoints : 0;
 }
 
-export const seasonLabel = (y: number): string => `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
+/** 시즌 이름 표시 방식 (C.76c): 내 리그가 3~12월 리그면 "2018", 아니면 "2018-19". 화면이 그릴 때 내 리그로 맞춘다 */
+let labelKind: 'autumn-spring' | 'spring-autumn' = 'autumn-spring';
+export function setSeasonLabelKind(kind: 'autumn-spring' | 'spring-autumn'): void {
+  labelKind = kind;
+}
+export const seasonLabel = (y: number, kind: 'autumn-spring' | 'spring-autumn' = labelKind): string =>
+  kind === 'spring-autumn' ? `${y}` : `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
 
 const DESIGN_TIER: Record<Tier, DesignTier> = { normal: 'normal', special: 'key', topClass: 'top', worldClass: 'world', legendary: 'legend' };
 export const designTier = (t: Tier): DesignTier => DESIGN_TIER[t];
@@ -560,7 +567,7 @@ export function autoSheetVM(g: GameState): AutoSheetVM {
     natTarget(g, list),
     { id: 'nationsCup', label: '국가대표 토너먼트', available: false, next: null, note: '월드컵·대륙컵은 시즌이 끝난 여름에 자동으로 치러요' },
     cupTarget('ucl', '챔피언스리그', !!cups?.ucl, cups?.ucl ? uclReachLabel(g, cups.ucl, me) : ''),
-    cupTarget('fa', 'FA컵', !!cups?.fa, cups?.fa ? reachLabel(cups.fa, me) : ''),
+    cupTarget('fa', cupNameKo(g.league.id), !!cups?.fa, cups?.fa ? reachLabel(cups.fa, me) : ''),
   ];
   return { remaining, quick: [1, 3, 5, 10].filter((n) => n < remaining), targets, date: dateLabel(g.calendar.date) };
 }
@@ -1116,7 +1123,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
       banners.push({ tone: 'info', title: `챔스 ${GROUP_LETTERS[k]}조 ${pos}위`, body: '조 2위까지 16강에 올라요.' });
     } else banners.push({ tone: 'info', title: `챔스 ${m.cup.stage}`, body: '2차전 합계로 진출 팀이 정해져요 (동률이면 승부차기).' });
   } else if (m.cup) {
-    const name = COMP_NAMES_KO[m.cup.comp];
+    const name = compNameKo(m.cup.comp, g.league.id);
     const pens = m.cup.pens ? '승부차기 끝에 ' : '';
     if (m.cup.won) banners.push({ tone: 'success', title: `${name} 우승!`, body: `${pens}결승에서 이겼어요.` });
     else if (m.cup.through) banners.push({ tone: 'success', title: `${name} ${m.cup.stage} 통과`, body: `${pens}다음 단계에 올랐어요. 대진은 이 단계가 끝난 날 추첨해요.` });
@@ -1182,7 +1189,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     myTeam: teamById(g.league, natMe ?? g.player.teamId).nameKo, face: myFace(g),
     myTeamId: natMe ?? g.player.teamId, oppId: m.opponentId, goals,
     env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
-    round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${COMP_NAMES_KO[m.cup.comp]} ${m.cup.stage}` : `리그 ${m.round}R`,
+    round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
     opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.nat?.pens ? ` (승부차기 ${m.nat.pens[0]}-${m.nat.pens[1]})` : ''}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
@@ -1276,6 +1283,70 @@ export interface WorldVM {
   /** 리그 기록 순위 (C.64): 득점 · 도움 · 평점(자격 출전 ratingMin 이상) */
   boards: Record<BoardKind, ScorerVM[]>;
   ratingMin: number;
+  /** 리그 고르기 (C.76c, 45b): 내 리그('') + 고른 다른 리그. 다른 리그가 없으면 빈 목록 */
+  leagueTabs: { id: string; label: string }[];
+  /** 지금 보는 리그 ('' = 내 리그) */
+  leagueSel: string;
+  /** 고른 다른 리그 순위·득점 (leagueSel 이 다른 리그일 때) */
+  other: OtherLeagueVM | null;
+  /** 컨퍼런스 순위 (MLS, C.76c): 내 리그가 컨퍼런스 리그면 묶음별 순위 */
+  groups: TableGroupVM[] | null;
+}
+
+export type WorldRowVM = WorldVM['table'][number];
+export interface TableGroupVM { title: string; rows: WorldRowVM[] }
+
+/** 다른 리그 보기 (C.76c): 빠른 시뮬 순위·득점 순위·지난 시즌 */
+export interface OtherLeagueVM {
+  id: string; name: string; sub: string; season: string; round: number; rounds: number;
+  /** 한 줄 상태: "개막 전 · 3월 3일 개막" / "12R / 33" / "시즌 종료 · 우승 ○○" */
+  status: string;
+  table: WorldRowVM[];
+  groups: TableGroupVM[] | null;
+  scorers: { id: string; name: string; teamId: string; team: string; goals: number; assists: number }[];
+  /** 지난 시즌 (우승 · 득점왕) */
+  last: { season: string; champion: string; scorer: string } | null;
+}
+
+/** 컨퍼런스 (MLS 동·서부): 리그 id → 팀 id → 묶음 이름. 없으면 단일 순위 */
+function conferenceOf(leagueId: string): Readonly<Record<string, string>> | null {
+  return leagueId === 'mls' ? Object.fromEntries(Object.entries(MLS_CONFERENCE).map(([id, c]) => [id, c === 'east' ? '동부 컨퍼런스' : '서부 컨퍼런스'])) : null;
+}
+
+/** 순위 줄을 컨퍼런스별로 (순위 = 컨퍼런스 안 순위) */
+function tableGroups(leagueId: string, rows: WorldRowVM[]): TableGroupVM[] | null {
+  const conf = conferenceOf(leagueId);
+  if (!conf) return null;
+  const titles = [...new Set(Object.values(conf))];
+  return titles.map((title) => ({ title, rows: rows.filter((r) => conf[r.teamId] === title).map((r, i) => ({ ...r, pos: i + 1 })) }));
+}
+
+function leagueRows(lg: LeagueState, me: string | null): WorldRowVM[] {
+  const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+  return sortedTable(lg).map((r, i) => ({
+    pos: i + 1, team: teamById(lg, r.teamId).nameKo, teamId: r.teamId, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
+    gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === me, rating: teamById(lg, r.teamId).rating, tier: tierLabel(r.teamId),
+  }));
+}
+
+export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
+  const d = leagueData(lg.id);
+  const months = { 'autumn-spring': '8월~5월', 'spring-autumn': '3월~12월' } as const;
+  const rows = leagueRows(lg, null);
+  const played = lg.table.reduce((t, r) => t + r.played, 0);
+  const done = lg.round >= lg.schedule.length;
+  const champ = done ? rows[0]?.team : undefined;
+  const status = done ? `시즌 종료 · 우승 ${champ}` : played === 0 ? `개막 전 · ${dateLabel(otherLeagueCalendar(g.worldSeed, lg).opening)} 개막` : `${Math.min(lg.round + 1, lg.schedule.length)}R / ${lg.schedule.length}`;
+  const last = lg.past?.at(-1);
+  return {
+    id: lg.id, name: d?.nameKo ?? lg.name, sub: d ? `${d.country === 'United States' ? '미국' : d.nameKo} · ${d.tier}부 · ${lg.teams.length}팀 · ${months[d.calendar]}` : '',
+    season: seasonLabel(lg.season, calendarKind(lg.id)), round: lg.round, rounds: lg.schedule.length, status, table: rows, groups: tableGroups(lg.id, rows),
+    scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => ({ id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists })),
+    last: last ? {
+      season: seasonLabel(last.season, calendarKind(lg.id)), champion: last.top[0] ? teamById(lg, last.top[0]).nameKo : '—',
+      scorer: last.scorer ? `${last.scorer[0]}(${teamById(lg, last.scorer[1]).nameKo}) ${last.scorer[2]}골` : '',
+    } : null,
+  };
 }
 
 export interface ScorerVM { id: string; teamId?: string; face: FaceRef; name: string; team: string; apps: number; goals: number; assists: number; avg: string; me: boolean; rank?: number }
@@ -1303,9 +1374,12 @@ export function scorersVM(g: GameState, limit = 15): ScorerVM[] {
 
 const STAR_MAX = 40;
 
-export function worldVM(g: GameState): WorldVM {
+export function worldVM(g: GameState, leagueSel = ''): WorldVM {
   const rows = sortedTable(g.league);
   const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+  const others = g.otherLeagues ?? [];
+  const otherLg = leagueSel ? others.find((o) => o.id === leagueSel) : undefined;
+  const myRows = leagueRows(g.league, g.player.teamId);
   const faces = rosterFaces(g);
   const npcById = new Map(g.npcs.map((n) => [n.id, n]));
   const stats = g.playerStats ?? {};
@@ -1328,10 +1402,7 @@ export function worldVM(g: GameState): WorldVM {
   return {
     league: g.league.name, season: seasonLabel(g.league.season), round: g.league.round, rounds: g.league.schedule.length,
     myPos: leaguePosition(g.league, g.player.teamId), teams: rows.length,
-    table: rows.map((r, i) => ({
-      pos: i + 1, team: teamById(g.league, r.teamId).nameKo, teamId: r.teamId, played: r.played, won: r.won, drawn: r.drawn, lost: r.lost,
-      gd: signed(r.gf - r.ga), points: r.points, me: r.teamId === g.player.teamId, rating: teamById(g.league, r.teamId).rating, tier: tierLabel(r.teamId),
-    })),
+    table: myRows,
     stars: top.sort((a, b) => b.standing - a.standing || b.ovr - a.ovr || (a.id < b.id ? -1 : 1)).slice(0, STAR_MAX),
     starsWorld: g.npcs.filter((n) => !n.retired && !leagueIds.has(n.id)).sort((a, b) => npcOvr(b) - npcOvr(a)).slice(0, STAR_MAX)
       .map((n) => ({ id: n.id, face: { id: n.id, age: n.age, appearance: realAppearance(n.id, '') }, name: n.nameKo, position: n.position, age: n.age, club: clubKo(n.club), ovr: npcOvr(n), change: n.lastChange, standing: 0, ga: '' })),
@@ -1342,15 +1413,28 @@ export function worldVM(g: GameState): WorldVM {
       club: teamById(g.league, teamId).nameKo, ovr: naturalOvr(p), peak: p.peakOvr,
       kind: (({ bvb: '도르트문트', future: '미래 스타' }) as Record<string, string>)[LEGEND_BY_ID.get(p.id)?.group ?? ''] ?? '레전드',
     }))).sort((a, b) => b.ovr - a.ovr || b.peak - a.peak),
-    upcoming: g.futureStars ? upcomingFutureStars(g.league.season).map((l) => ({ name: l.nameKo, debut: seasonLabel(futureDebut(l)!) })) : [],
-    waiting: g.futureStars ? waitingFutureStars().length : 0,
+    upcoming: g.futureStars ? upcomingFutureStars(g.league.season, rosterLeagues(g)).map((l) => {
+      const e = futureEntry(l, rosterLeagues(g));
+      const where = e && e.league !== g.league.id ? ` (${clubKoOf(e.team)})` : '';
+      return { name: `${l.nameKo}${where}`, debut: seasonLabel(futureDebut(l, rosterLeagues(g))!) };
+    }) : [],
+    waiting: g.futureStars ? waitingFutureStars(rosterLeagues(g)).length : 0,
     abroad: g.legends && (g.legendPack ?? 1) >= 3
-      ? abroadLegends(g.worldSeed, g.league.season, g.player.legendId).map((a) => ({ name: a.legend.nameKo, club: OUTSIDE_BY_ID[a.club]?.nameKo ?? a.club, season: seasonLabel(a.season) }))
+      ? abroadLegends(g.worldSeed, g.league.season, g.player.legendId, g.league.id).map((a) => ({ name: a.legend.nameKo, club: OUTSIDE_BY_ID[a.club]?.nameKo ?? a.club, season: seasonLabel(a.season) }))
       : [],
     scorers: boardVM(g, 'goals', undefined, faces),
     boards: { goals: boardVM(g, 'goals', undefined, faces), assists: boardVM(g, 'assists', undefined, faces), rating: boardVM(g, 'rating', undefined, faces) },
     ratingMin: ratingMinApps(g),
+    leagueTabs: others.length ? [{ id: '', label: `${leagueData(g.league.id)?.nameKo ?? g.league.name} · 내 리그` }, ...others.map((o) => ({ id: o.id, label: leagueData(o.id)?.nameKo ?? o.name }))] : [],
+    leagueSel: otherLg ? otherLg.id : '',
+    other: otherLg ? otherLeagueVM(g, otherLg) : null,
+    groups: tableGroups(g.league.id, myRows),
   };
+}
+
+/** 팀 id → 한글 이름 (리그 팀·리그 밖 클럽) */
+function clubKoOf(id: string): string {
+  return OUTSIDE_BY_ID[id]?.nameKo ?? leagueTeamById(id)?.nameKo ?? id;
 }
 
 // ── 시즌 종료 (I.13 일부) ──
@@ -1606,15 +1690,24 @@ export interface NewGameForm {
 }
 
 /** 리그 고르기 (C.75m): 카탈로그 순, 내 리그 필수, 데이터 없는 리그는 준비 중 */
-export function leaguePickerVM(leagueIds: readonly string[]): import('./views/screens').NewGameVM['leagues'] {
+export function leaguePickerVM(leagueIds: readonly string[], realMode = false): import('./views/screens').NewGameVM['leagues'] {
   const months = { 'autumn-spring': '8월~5월', 'spring-autumn': '3월~12월' } as const;
   return leagueCatalog().map((e) => {
     const ready = !!leagueData(e.id);
+    const on = ready && leagueIds.includes(e.id);
     return {
       id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · ${months[e.calendar]}`,
-      on: ready && leagueIds.includes(e.id), mine: e.id === leagueIds[0], ready,
+      on, mine: e.id === leagueIds[0], ready,
+      // 내 리그로 (C.76c): 고른 리그 중 내 리그가 아닌 줄. 실제 선수 모드는 선수 소속 리그가 내 리그라 없음
+      canMine: on && e.id !== leagueIds[0] && !realMode && PLAYABLE_LEAGUES.includes(e.id),
     };
   });
+}
+
+/** 클럽 영문 이름 → 리그 한글 이름 (실제 선수 목록의 리그 표시, C.76c) */
+function clubLeagueKo(club: string): string {
+  const id = leagueOfTeam(CLUB_TO_TEAM[club]);
+  return id ? leagueData(id)?.nameKo ?? id : '';
 }
 
 /** 아직 리그 밖 표에 없는 미래 스타 첫 팀 이름 (C.75y) */
@@ -1622,35 +1715,43 @@ const FUTURE_TEAM_KO: Readonly<Record<string, string>> = { 'x:ren': '스타드 �
 
 export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const seedForPreview = f.seed.trim() || 'preview';
-  const leagueIds = normalizeLeagues(f.leagues ?? DEFAULT_LEAGUES);
-  const reals = selectableRealPlayers(leagueIds).map((p) => {
+  const formIds = normalizeLeagues(f.leagues ?? DEFAULT_LEAGUES);
+  const realData = selectableRealPlayers(formIds);
+  // 내 리그 (C.76c): 실제 선수를 고르면 그 선수 소속 리그, 아니면 고른 리그 맨 앞
+  const realPick = f.mode === 'real' ? realData.find((p) => p.id === f.realId) : undefined;
+  const leagueIds = normalizeLeagues(formIds, realPick ? leagueOfTeam(CLUB_TO_TEAM[realPick.club]) : formIds[0]);
+  const many = formIds.length > 1;
+  const reals = realData.map((p) => {
     const gen = generatePlayer(p, seedForPreview);
     return {
-      id: p.id, name: p.nameKo, club: clubKo(p.club), age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
+      id: p.id, name: p.nameKo, club: many ? `${clubKo(p.club)} · ${clubLeagueKo(p.club)}` : clubKo(p.club), age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
       ovr: positionOvr(gen.attributes, p.position), tier: designTier(reputationTier(p.reputation)),
     };
   }).sort((a, b) => b.ovr - a.ovr);
   const legendsOn = f.legends === 'on';
-  const teams = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
+  const myTeams = initialTeams(leagueIds[0]);
+  const teams = myTeams.map((t) => ({ id: t.id, rating: t.baseRating }));
   // 3판 (C.75w): 다른 레전드의 소속은 팀당 상한 배치. 넘친 선수는 "리그 밖 구단 (이적 시즌)". 내 선수로 고르면 그 선수는 원래 규칙(legendClub) 팀으로 간다
   const placed = legendsOn && f.mode === 'real' ? legendPlacement(seedForPreview, teams) : undefined;
   const legendList = legendsOn && f.mode === 'real' ? selectableLegends().map((l) => {
     const p = legendRosterPlayer(l, seedForPreview, BALANCE.newGame.startYear);
     const club = teams.find((t) => t.id === (placed?.spawns.find((x) => x.legend.id === l.id)?.teamId ?? legendClub(l, seedForPreview, teams)))?.id ?? '';
     const away = placed?.abroad.find((x) => x.legend.id === l.id);
-    return { id: l.id, name: l.nameKo, club: away ? `${OUTSIDE_BY_ID[away.club]?.nameKo ?? away.club} (${seasonLabel(away.season)} 이적)` : initialTeams().find((t) => t.id === club)?.nameKo ?? club, age: p.age, position: l.position, ovr: naturalOvr(p), peak: legendPeak(l).ovr, youthKo: l.youthKo, ...(l.group === 'bvb' ? { bvb: true } : {}) };
+    return { id: l.id, name: l.nameKo, club: away ? `${OUTSIDE_BY_ID[away.club]?.nameKo ?? away.club} (${seasonLabel(away.season)} 이적)` : myTeams.find((t) => t.id === club)?.nameKo ?? club, age: p.age, position: l.position, ovr: naturalOvr(p), peak: legendPeak(l).ovr, youthKo: l.youthKo, ...(l.group === 'bvb' ? { bvb: true } : {}) };
   }).sort((a, b) => b.peak - a.peak || a.name.localeCompare(b.name)) : [];
   // 미래 스타 (C.75y): 구현 리그 첫 시즌 순, 그 리그가 없으면 "리그 추가 후 등장"
   const futureOn = f.futureStars === 'on';
   const futureList = futureOn && f.mode === 'real' ? FUTURE_STARS.map((l) => {
-    const d = futureDebut(l);
-    const e = futureEntry(l);
+    // 로스터에 들어오는 것은 내 리그 첫 시즌 (C.76c)
+    const mine = leagueIds.slice(0, 1);
+    const d = futureDebut(l, mine);
+    const e = futureEntry(l, mine);
     const p = legendRosterPlayer(l, seedForPreview, d ?? BALANCE.newGame.startYear);
-    const club = e ? initialTeams().find((t) => t.id === e.team)?.nameKo ?? e.team : '';
+    const club = e ? clubKoOf(e.team) : '';
     const first = [...(l.entries ?? [])].sort((a, b) => a.season - b.season)[0];
     return {
       id: l.id, name: l.nameKo, position: l.position, debut: d !== undefined ? seasonLabel(d) : '', age: p.age, club,
-      realClub: d !== undefined ? '' : first ? `${seasonLabel(first.season)} ${OUTSIDE_BY_ID[first.team]?.nameKo ?? FUTURE_TEAM_KO[first.team] ?? first.team}` : '',
+      realClub: d !== undefined ? '' : first ? `${seasonLabel(first.season)} ${clubKoOf(first.team) !== first.team ? clubKoOf(first.team) : FUTURE_TEAM_KO[first.team] ?? first.team}` : '',
       start: naturalOvr(p), peak: legendPeak(l).ovr, waiting: d === undefined,
     };
   }).sort((a, b) => Number(a.waiting) - Number(b.waiting) || a.debut.localeCompare(b.debut) || b.peak - a.peak) : [];
@@ -1686,7 +1787,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       desc: d === 'normal' ? 'XP·평점·부상 모두 기본값' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
     seed: f.seed, reals, realId: f.realId, legends: legendsOn, futureStars: futureOn, legendList, futureList,
-    leagues: leaguePickerVM(leagueIds),
+    leagues: leaguePickerVM(leagueIds, f.mode === 'real'),
     selected: sel ? { id: sel.id, name: sel.name, ovr: sel.ovr, club: sel.club, age: sel.age, position: sel.position, ...(legendSel ? { legend: true, peak: legendSel.peak, youthKo: legendSel.youthKo } : {}) } : null,
     // 능력치 접힘 줄 (디자인 130): 개수 · 평균(1~20) · 약점 3개
     attrSummary: prospect ? (() => {
@@ -1888,6 +1989,8 @@ export function myTacticVM(g: GameState): TacticVM {
 export interface CupTieVM { date: string; h: string; a: string; hId: string; aId: string; score: string | null; note: string; w: string | null; me: boolean }
 export interface CupsWorldVM {
   season: string;
+  /** 국내 컵 이름 (C.76c: 내 리그 국가 컵). 없으면 FA컵 */
+  cupName?: string;
   ucl: null | {
     my: string; winner: string | null;
     groups: { name: string; mine: boolean; rows: { team: string; teamId: string; p: number; w: number; d: number; l: number; gd: string; pts: number; me: boolean; through: boolean }[] }[];
@@ -1908,6 +2011,7 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
   const fa = cups?.fa ?? null;
   const groupsDone = !!u && u.gs.every((r) => r.every((t) => t.hg !== undefined));
   return {
+    cupName: cupNameKo(g.league.id),
     season: seasonLabel(g.league.season),
     ucl: u ? {
       my: uclReachLabel(g, u, me), winner: u.winner ? name(u.winner) : null,

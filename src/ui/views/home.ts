@@ -35,6 +35,8 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   const tools = IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
     // 포토카드 도감 (C.75t)
     + IconButton({ act: 'go', data: { to: 'dex' }, name: 'card', label: '포토카드 도감', variant: 'ghost' })
+    // 진열실 (C.76b): 트로피 · 유니폼
+    + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' })
     // 대표팀 (C.76d)
     + IconButton({ act: 'go', data: { to: 'national' }, name: 'world', label: '대표팀', variant: 'ghost' });
   const face = homeFace(vm);

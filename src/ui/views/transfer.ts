@@ -1,6 +1,7 @@
 // 이적·계약 화면 (18.10, 부록 C.42): 홈 알림 카드, 이적 제안, 재계약, 선수 화면 계약·이적 요청, 월드 이적 소식.
 // 인박스(5-2)가 아직 없어 제안은 홈 알림 카드로 알린다. 카드·박스는 C.39 바둑판(.ag-cell)·GameCard 톤
 
+import { ro } from '../../transfer';
 import { Avatar, Banner, Button, Crest, FinChip, HeroPanel, Icon, OfferCard, OptionRow, SectionTitle, TagChip, TransferRow, esc, type FinTierKo } from '../components';
 import type { MarketVM, NewsVM, OfferVM } from '../transferVM';
 import { actionRow, panel } from './common';
@@ -164,8 +165,8 @@ export function newsSection(vm: NewsVM | null, more: Record<string, boolean> = {
       ${rows.length > NEWS_PAGE ? moreBtn(key, !!more[key], `${title.split(' · ')[0]} ${rows.length - NEWS_PAGE}명 더 보기`) : ''}`;
   };
   return `${SectionTitle({ title: vm.title, action: `${vm.count}명` })}
-    ${group('xin', '리그 안 · 프리미어리그로', vm.rows.filter((r) => r.into))}
-    ${group('xout', '리그 밖 · 해외·하부 리그로', vm.rows.filter((r) => !r.into))}
+    ${group('xin', `리그 안 · ${vm.league ?? '프리미어리그'}${ro(vm.league ?? '프리미어리그')}`, vm.rows.filter((r) => r.into))}
+    ${group('xout', vm.toOther ? '리그 밖 · 다른 리그·해외·하부 리그로' : '리그 밖 · 해외·하부 리그로', vm.rows.filter((r) => !r.into))}
     <p class="small muted">막대 = 도착 팀 재정 등급 · 몸값은 이적 때 값(계약이 끝난 선수는 자유계약). 시안 테두리 = 내 팀 관련. 팀 전력은 로스터 라인업 평균이라 이적이 바로 반영돼요.</p>`;
 }
 

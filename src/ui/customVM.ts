@@ -1,7 +1,7 @@
 // 커스텀 생성 화면 뷰모델 (pending 47 2·49 1, 부록 C.45). 상태는 화면(ui.form.cu)이 들고, 시작할 때 newGame({ mode: 'custom' })
 
 import type { Appearance } from '../appearance';
-import { FACE_PHOTOS, isFacePhoto, isRace, PHOTO_KO, PHOTO_OF, RACE_KO, RACES, raceOf, type FacePhoto } from '../identity';
+import { FACE_PHOTOS, isFacePhoto, isRace, PHOTO_KO, PHOTO_OF, RACE_KO, RACES, raceOf, randomNameFor, type FacePhoto } from '../identity';
 import { ATTRIBUTE_NAMES_KO, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from '../attributes';
 import { bmiOf, FOOT_KO, type MainFoot, type WeakFoot } from '../body';
 import { BALANCE } from '../config/balance';
@@ -121,7 +121,7 @@ export interface CustomVM {
   };
 }
 
-export function customVM(f: CustomForm, name: string): CustomVM {
+export function customVM(f: CustomForm, name: string, league = 'pl'): CustomVM {
   const C = BALANCE.custom;
   const budget = budgetOf(f);
   const spent = spentPoints(f.attrs);
@@ -176,16 +176,17 @@ export function customVM(f: CustomForm, name: string): CustomVM {
     hair: f.hair,
     hairs: (HAIRS_OF[skin] ?? []).map((id) => ({ id, ko: HAIR_KO[id] ?? id })),
     skin,
-    start: startVM(f, ovrs[f.position]),
+    start: startVM(f, ovrs[f.position], league),
   };
 }
 
 /** 19세 이상 소속팀 목록: 유효 OVR(어리면 잠재력만큼 +)과 기본 레이팅 차가 작은 순 (게임 안 fitTeams 와 같은 식, 시작 전이라 기본 레이팅) */
-function startVM(f: CustomForm, ovr: number): CustomVM['start'] {
+function startVM(f: CustomForm, ovr: number, league = 'pl'): CustomVM['start'] {
   const S = BALANCE.startClub;
   const O = BALANCE.transfer.offers;
   const trialAge = f.age <= S.trialMaxAge;
-  const teams = initialTeams();
+  // 내 리그 팀 (C.76c)
+  const teams = initialTeams(league);
   const allTeams = [...teams].sort((a, b) => b.rating - a.rating).map((t) => ({ id: t.id, ko: t.nameKo }));
   const eff = ovr + Math.max(0, O.youthAge - f.age) * O.youthPerYear;
   const fit = [...teams].sort((a, b) => Math.abs(eff - a.rating - O.fitOffset) - Math.abs(eff - b.rating - O.fitOffset) || a.id.localeCompare(b.id)).slice(0, S.fitTeams);
@@ -280,3 +281,12 @@ export function customAct(f: CustomForm, k: string, v: string | undefined): Cust
 }
 
 export { ATTRIBUTE_NAMES_KO };
+
+/**
+ * 커스텀 이름 다시 뽑기 (C.75z, 사용자 16:19): 이름이 국적·인종과 맞도록.
+ * force = 이름 [랜덤] 버튼 → 늘 새로. 아니면(국적·인종을 바꿈) 빈 칸이거나 랜덤으로 채운 이름(auto)일 때만 새로, 직접 입력한 이름은 그대로(null)
+ */
+export function customNameAfter(f: Pick<CustomForm, 'nationality' | 'appearance'>, name: string, auto: boolean, force: boolean, key: string): string | null {
+  if (!force && name.trim() && !auto) return null;
+  return randomNameFor(key, f.nationality, f.appearance);
+}

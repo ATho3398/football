@@ -3,24 +3,30 @@
 // (생성기: 21세 이하 추가 유망주, 육성 이력 표시 / 시즌 갱신: 가장 낮은 순위 방출·보충 / 이적: 목적지 점수).
 
 import { REAL_CAREER } from '../data/players/careers';
-import { A_GRADE_PLAYERS } from '../data/players';
+import { ALL_REAL_PLAYERS } from '../data/players';
 import { OUTSIDE_CLUBS } from '../data/outsideClubs';
 import { BALANCE } from './config/balance';
 import { initialTeams } from './league';
 import { createRng, hashSeed } from './rng';
 import { naturalOvr, pickLineup, posGroup, type RosterPlayer, type TeamRoster } from './roster';
 
-export type LeagueKey = keyof typeof BALANCE.squad.leagues;
+export type LeagueKey = string;
 
-/** 지금 리그 (PL 하나) */
-export const CURRENT_LEAGUE: LeagueKey = 'pl';
+/** 지금 리그 (내 리그, C.76c: 새 게임·불러오기에서 setSquadLeague 로 맞춘다. 로스터 재생성 전에 정해야 같은 결과) */
+let currentLeague: LeagueKey = 'pl';
+export const CURRENT_LEAGUE = (): LeagueKey => currentLeague;
+export function setSquadLeague(id: string): void {
+  currentLeague = id;
+}
 
-export const squadRule = (league: LeagueKey = CURRENT_LEAGUE) => BALANCE.squad.leagues[league];
+/** 리그 규칙: 표에 없는 리그는 기본 규칙 (BALANCE.squad.defaultRule, C.76c) */
+export const squadRule = (league: LeagueKey = currentLeague) =>
+  (BALANCE.squad.leagues as Record<string, typeof BALANCE.squad.defaultRule>)[league] ?? BALANCE.squad.defaultRule;
 
 export const isU21 = (age: number): boolean => age <= BALANCE.squad.u21Age;
 
 const PL_IDS = new Set(initialTeams().map((t) => t.id));
-const REAL_NATION = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.nationality]));
+const REAL_NATION = new Map(ALL_REAL_PLAYERS.map((p) => [p.id, p.nationality]));
 
 /** 생성 선수 유스 구단 (npcTags.npcYouth 와 같은 시드·규칙, 리그 밖 구단은 모두 '밖'으로 본다) */
 function virtualYouthIsPl(id: string): boolean {
@@ -63,7 +69,7 @@ export function squadCount(players: readonly RosterPlayer[]): SquadCount {
 }
 
 /** 리그 규칙 범위 안인가 */
-export function withinRules(players: readonly RosterPlayer[], league: LeagueKey = CURRENT_LEAGUE): boolean {
+export function withinRules(players: readonly RosterPlayer[], league: LeagueKey = currentLeague): boolean {
   const R = squadRule(league);
   const c = squadCount(players);
   return c.total >= R.min && c.senior <= R.max && c.total <= R.max + R.u21Extra && c.nonHg <= R.nonHomegrownMax;
@@ -86,7 +92,7 @@ export function releaseOrder(roster: TeamRoster, filter: (p: RosterPlayer) => bo
 }
 
 /** 비자국 육성 상한 자동 조정: 넘치면 순위가 가장 낮은 생성 선수부터 육성 이력(hg)을 붙인다 (어릴 때 잉글랜드 구단에서 큰 선수로 본다) */
-export function fixHomegrown(roster: TeamRoster, league: LeagueKey = CURRENT_LEAGUE): void {
+export function fixHomegrown(roster: TeamRoster, league: LeagueKey = currentLeague): void {
   const max = squadRule(league).nonHomegrownMax;
   let over = squadCount(roster.players).nonHg - max;
   if (over <= 0) return;
@@ -101,7 +107,7 @@ export function fixHomegrown(roster: TeamRoster, league: LeagueKey = CURRENT_LEA
  * 최소 아래면 make(포지션) 로 보충. 방출·보충 모두 시드로 정해져 재생성과 같다
  */
 export function normalizeSquad(
-  roster: TeamRoster, make: (pos: RosterPlayer['position'], k: number) => RosterPlayer, league: LeagueKey = CURRENT_LEAGUE,
+  roster: TeamRoster, make: (pos: RosterPlayer['position'], k: number) => RosterPlayer, league: LeagueKey = currentLeague,
 ): { released: string[]; added: string[] } {
   const R = squadRule(league);
   const released: string[] = [];
