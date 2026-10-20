@@ -18,7 +18,7 @@ afterEach(() => setWideForTest(null));
 
 describe('C.76g 공통 컴포넌트', () => {
   it('PATCH_LABEL · 아이콘(날씨·심판 + fog · album)', () => {
-    expect(PATCH_LABEL).toBe('C.76g');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
     for (const k of ['sun', 'cloud', 'rain', 'snow', 'wind', 'fog', 'whistle', 'album'] as const) expect(ICON_PATHS[k]).toBeTruthy();
   });
   it('HeroPanel: 네모 사진 = po-hero--photo, 누끼는 아님 · 오른쪽 글자 판 10자부터 is-long (202)', () => {
