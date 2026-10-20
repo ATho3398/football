@@ -333,6 +333,13 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   43: () => {},
   // 44 → 45 (C.75y): 미래 스타를 레전드 팩에서 떼어 "미래 스타 팩"(futureStars)으로. 2판 세이브(C.75x)는 미래 스타 끔으로 옮김(도르트문트 레전드는 그대로)
   44: () => {},
+  // 45 → 46 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
+  45: (s) => {
+    s.league.id ??= 'pl';
+    s.league.country ??= 'England';
+    s.league.tier ??= 1;
+    s.leagueIds ??= ['pl'];
+  },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

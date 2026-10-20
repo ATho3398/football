@@ -193,7 +193,7 @@ export function evVar(state: GameState, v: EvVar): number {
     case 'hasRival': return rivalOf(state) ? 1 : 0;
     case 'captain': return isCaptain(state) ? 1 : 0;
     case 'clubSeasons': return clubSeasons(state);
-    case 'foreign': return isForeign(p) ? 1 : 0;
+    case 'foreign': return isForeign(state) ? 1 : 0;
     case 'contractLeft': return state.market?.contract ? state.market.contract.until - state.league.season : 9;
     case 'offseason': return state.phase === 'season' ? 0 : 1;
     case 'home': case 'adapt': case 'team': case 'mental': return lifeVar(state, v);

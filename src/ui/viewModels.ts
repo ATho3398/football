@@ -44,6 +44,8 @@ import {
 import { INJURY_NAMES_KO } from '../injury';
 import { shownTracks } from '../records';
 import { clubKo, initialTeams, leaguePosition, sortedTable, teamById } from '../league';
+import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
+import { normalizeLeagues } from '../otherLeagues';
 import { abroadLegends, FUTURE_STARS, futureDebut, futureEntry, LEGEND_BY_ID, legendClub, legendPeak, legendPlacement, legendRosterPlayer, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../legends';
 import { OUTSIDE_BY_ID } from '../../data/outsideClubs';
 import { findRosterPlayer, naturalOvr } from '../roster';
@@ -723,7 +725,7 @@ export function trainingOptionsVM(g: GameState, date: string): { date: string; i
   const injured = kind === 'rehab' || (kind === 'rest' && !!g.player.injury);
   const planned = plannedDefault(g, date);
   // 생활 하루 행동 (C.63 b, pending 47 4번): 훈련 칸에서 훈련 대신 고른다. 외국어 공부는 외국인 선수만
-  const life = LIFE_KINDS.filter((k) => k !== 'language' || isForeign(g.player));
+  const life = LIFE_KINDS.filter((k) => k !== 'language' || isForeign(g));
   // 원정 전날 이동일 (C.74b): 영상 분석·회복만
   const travel = !injured && isTravelDay(g, date);
   const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : travel ? [...BALANCE.travelDay.allowed] : [...TRAINING_KINDS, ...life];
@@ -1564,6 +1566,8 @@ export interface NewGameForm {
   legends?: string;
   /** 미래 스타 팩 (C.75y): 'on' | 'off' */
   futureStars?: string;
+  /** 고른 리그 (C.75m 리그 고르기): 데이터 없는 리그(준비 중)는 시작할 때 빠진다 */
+  leagues?: string[];
   /** 가상 유망주 시드 (입력 시드 또는 무작위, C.37) */
   roll: string;
   /** "다른 포지션에서 고르기" 펼침 */
@@ -1573,12 +1577,25 @@ export interface NewGameForm {
   photo?: string;
 }
 
+/** 리그 고르기 (C.75m): 카탈로그 순, 내 리그 필수, 데이터 없는 리그는 준비 중 */
+export function leaguePickerVM(leagueIds: readonly string[]): import('./views/screens').NewGameVM['leagues'] {
+  const months = { 'autumn-spring': '8월~5월', 'spring-autumn': '3월~12월' } as const;
+  return leagueCatalog().map((e) => {
+    const ready = !!leagueData(e.id);
+    return {
+      id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · ${months[e.calendar]}`,
+      on: ready && leagueIds.includes(e.id), mine: e.id === leagueIds[0], ready,
+    };
+  });
+}
+
 /** 아직 리그 밖 표에 없는 미래 스타 첫 팀 이름 (C.75y) */
 const FUTURE_TEAM_KO: Readonly<Record<string, string>> = { 'x:ren': '스타드 렌', 'x:bir': '버밍엄 시티' };
 
 export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const seedForPreview = f.seed.trim() || 'preview';
-  const reals = selectableRealPlayers().map((p) => {
+  const leagueIds = normalizeLeagues(f.leagues ?? DEFAULT_LEAGUES);
+  const reals = selectableRealPlayers(leagueIds).map((p) => {
     const gen = generatePlayer(p, seedForPreview);
     return {
       id: p.id, name: p.nameKo, club: clubKo(p.club), age: BALANCE.newGame.startYear - p.birthYear, position: p.position,
@@ -1641,6 +1658,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
       desc: d === 'normal' ? 'XP·평점·부상 모두 기본값' : `XP ${pct(D[d].xp)} · 평점 ${D[d].rating > 0 ? '+' : '−'}${Math.abs(D[d].rating)} · 부상 ${pct(D[d].injury)}`,
     })),
     seed: f.seed, reals, realId: f.realId, legends: legendsOn, futureStars: futureOn, legendList, futureList,
+    leagues: leaguePickerVM(leagueIds),
     selected: sel ? { id: sel.id, name: sel.name, ovr: sel.ovr, club: sel.club, age: sel.age, position: sel.position, ...(legendSel ? { legend: true, peak: legendSel.peak, youthKo: legendSel.youthKo } : {}) } : null,
     // 능력치 접힘 줄 (디자인 130): 개수 · 평균(1~20) · 약점 3개
     attrSummary: prospect ? (() => {
