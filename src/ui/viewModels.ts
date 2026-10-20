@@ -1,7 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
-import { pickLeagueOf, prospectTeamPick } from './teamPickVM';
+import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
@@ -195,7 +195,7 @@ function returnLabel(g: GameState): string {
   return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 개막 ${Math.ceil(carry / 7)}주 뒤`;
 }
 
-export interface BannerVM { tone: 'injury' | 'warning' | 'info' | 'success'; title: string; body?: string; action?: string; act?: string; to?: string }
+export interface BannerVM { tone: 'injury' | 'warning' | 'info' | 'success'; title: string; body?: string; action?: string; act?: string; to?: string; /** 아이콘 칸 + 라임 낮은 면 (240B 도감) */ icon?: 'album' }
 
 function injuryBanner(g: GameState): BannerVM | null {
   const inj = g.player.injury;
@@ -1122,7 +1122,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
   }
   if (m.recovered) banners.push({ tone: 'success', title: '부상에서 회복했어요', body: '다음 경기부터 나설 수 있어요.' });
   // 포토카드 (C.75t): 이 경기로 새로 모은 장 수
-  if (m.newPhotos) banners.push({ tone: 'success', title: `새 포토카드 ${m.newPhotos}장`, body: '같은 경기에 뛴 실제 선수를 도감에 모았어요.', action: '도감 보기', act: 'go', to: 'dex' });
+  if (m.newPhotos) banners.push({ tone: 'info', icon: 'album', title: `새 포토카드 ${m.newPhotos}장`, body: '같은 경기에 뛴 실제 선수를 도감에 모았어요.', action: '도감 보기', act: 'go', to: 'dex' });
   // 컵 (C.67): 진출·탈락·우승 → C.76j 디자인 214 대회 배너(cupBanner, seasonVM)로 옮김
   if (m.nat) {
     const c = g.national?.career;
@@ -1708,6 +1708,7 @@ export function leaguePickerVM(leagueIds: readonly string[], realMode = false): 
       on, mine: e.id === leagueIds[0], ready,
       // 내 리그로 (C.76c) → 45b b: 내 리그는 시작 팀으로 정한다 (리그 고르기는 다른 리그 묶음만)
       canMine: false,
+      group: leagueGroupOf(e.country, e.tier),
     };
   });
 }
