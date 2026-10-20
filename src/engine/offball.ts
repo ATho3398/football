@@ -799,7 +799,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const pressDist = (O.pressDistBase + t.pressing * O.pressDistRange) * (a.line === 3 ? Math.max(0.1, O.attackerPress + O.attackerPressPer * (t.pressing - 0.55)) : 1);
     const d = dist(a.x, a.y, b.x, b.y);
     const danger = dist(b.x, b.y, gx0, gy0) < O.dangerPress;
-    const second = rank === 1 && sitPressers(s, a.team) >= 2 && t.pressing * (0.5 + a.role.press) > 0.6;
+    // 둘째 압박자 (C.76s 가설 1): 압박 높음이면 상황표 인원(2)대로 역할과 무관하게, 아니면 압박 성향 × 역할
+    const second = rank === 1 && sitPressers(s, a.team) >= 2 && (pressLevel(s, a.team) >= 2 || t.pressing * (0.5 + a.role.press) > 0.6);
     let wants = rank === 0 || second;
     // ④ 수비 의무 면제: 공에 가장 가깝고 아주 가까울 때만 압박한다
     const exempt = hasModule(a.role, 'exempt');
@@ -822,7 +823,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const deep = tendency === 'block' || tendency === 'bus';
     if (a.line === 3 && deep && closerForward(s, a, b.x, b.y)) wants = false;
     if (a.line === 3 && (tendency === 'counter' || (tendency === 'bus' && TENDENCY.busStay > 0)) && isTopForward(s, a)) wants = false;
-    if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : 0.6))) {
+    if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : O.secondPressDist))) {
       // 공과 자기 골 사이에서 압박. 첫 압박 선수는 가장 위험한 전진 패스 대상을 등 뒤로 가리는 각도 (커버 섀도, E.22 A)
       const [gx, gy] = ownGoal(dir);
       const gd = dist(b.x, b.y, gx, gy) || 1;

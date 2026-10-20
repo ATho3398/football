@@ -491,8 +491,8 @@ function stepTail(s: SimState): void {
   // 이동
   for (const a of s.agents) {
     if (!a.onPitch) continue;
-    // 압박 전술의 스태미나 소모 × (0.95 + 0.15 × pressing) (E.19 ③)
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, (0.95 + 0.15 * s.teams[a.team].tactics.pressing) * s.env.drain, s.env.recover);
+    // 압박 전술의 스태미나 소모 × (pressDrainBase + pressDrainPer × pressing) (E.19 ③, C.76s 0.85 + 0.35p)
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * s.teams[a.team].tactics.pressing) * s.env.drain, s.env.recover);
   }
 
   // 공

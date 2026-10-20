@@ -2,6 +2,7 @@
 
 import { ENGINE } from './config';
 import { L1 } from './pitch';
+import { duelEdgeOf } from './physics';
 import type { Agent } from './state';
 import type { FieldAttributes } from '../attributes';
 
@@ -23,7 +24,7 @@ export function dribbleProb(att: Agent, def: Agent, space = 0): number {
   const d = def.attrs;
   const atk = a.dribbling * 0.5 + a.agility * 0.2 + a.acceleration * 0.15 + a.ballControl * 0.15;
   const dfn = d.tackling * 0.45 + d.defensivePositioning * 0.25 + d.pace * 0.15 + d.marking * 0.15;
-  return duelTail(L1((atk - dfn) / PR.dribbleScale + PR.dribbleBias + space + att.duelEdge - def.duelEdge));
+  return duelTail(L1((atk - dfn) / PR.dribbleScale + PR.dribbleBias + space + duelEdgeOf(att) - duelEdgeOf(def)));
 }
 
 /** 박스 안 땅볼 수신 경합 (C.29 fix2 가설 B): 받는 선수 a 가 contestDist 안 수비수 b 를 이기고 공을 받을 확률 (받는 쪽 유리, 공중볼과 같은 구조) */
@@ -32,7 +33,7 @@ export function receiveWin(a: Agent, b: Agent): number {
   const d = b.attrs;
   const atk = t.ballControl * 0.5 + (t.strength + a.body.strength) * 0.3 + t.agility * 0.2;
   const dfn = d.marking * 0.5 + d.tackling * 0.3 + d.defensivePositioning * 0.2;
-  return duelTail(L1((atk - dfn) / PR.receiveScale + PR.receiveBias + a.duelEdge - b.duelEdge));
+  return duelTail(L1((atk - dfn) / PR.receiveScale + PR.receiveBias + duelEdgeOf(a) - duelEdgeOf(b)));
 }
 
 export function aerialScore(a: Agent): number {
@@ -42,7 +43,7 @@ export function aerialScore(a: Agent): number {
 
 /** a 가 b 를 이길 확률 */
 export function aerialWin(a: Agent, b: Agent): number {
-  return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + a.duelEdge - b.duelEdge));
+  return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + duelEdgeOf(a) - duelEdgeOf(b)));
 }
 
 /**

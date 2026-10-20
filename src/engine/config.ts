@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 30;
+export const ENGINE_VERSION = 31;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -61,7 +61,13 @@ export const ENGINE = {
     drainAttrBase: 2.2,
     drainAttrSlope: 1.65,
     staminaRecover: 0.0005,
-    staminaLowFrom: 60,
+    /** 피로 시작 스태미나 (C.76s 44h-c2: 60 → 70, 75분+ 선발 대부분이 걸리도록). 아래 tiredRatio = 1 − 스태미나/staminaLowFrom */
+    staminaLowFrom: 70,
+    /** C.76s 가설 2: 지친 선수의 경합(duelEdge) −tiredDuel × tiredRatio (드리블·태클·버티기·수신·공중볼 공통) */
+    tiredDuel: 0.4,
+    /** C.76s 가설 1: 압박 전술 스태미나 소모 배수 = pressDrainBase + pressDrainPer × pressing (옛 0.95 + 0.15p: 균형 1.03 / 높음 1.07 → 균형 1.04 / 높음 1.13 / 낮음 0.96) */
+    pressDrainBase: 0.85,
+    pressDrainPer: 0.35,
     /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율) */
     fatigueIntensity: 0.35,
     /** 지친 선수의 최대 속도 비율 (스태미나 0 일 때, staminaLowFrom 에서 1) */
@@ -197,6 +203,8 @@ export const ENGINE = {
     markSigma: 0.04,
     /** 압박: 공에 가까운 수비 1~2명. 압박 거리 = pressDistBase + pressing × pressDistRange */
     pressers: 2,
+    /** 둘째 압박자가 공으로 가는 거리 = pressDist × secondPressDist. 압박 높음(pressLevel 2)이면 역할 압박 성향과 무관하게 둘째도 공으로 (C.76s 44h-c2 가설 1, plan.sit 의 pressers 2 를 실제 2명으로) */
+    secondPressDist: 0.6,
     /** 공이 자기 골에서 이 거리 안이면 첫 압박자는 거리와 무관하게 압박한다 (m). 둘째는 C.75c 부터 커버 (plan) */
     dangerPress: 30,
     /**
@@ -281,9 +289,9 @@ export const ENGINE = {
      * 역압박 (E.18 A3): 공을 잃은 순간부터 (counterBase + counterPerPress × pressing)초, 공에서 counterRadius m 안 최대
      * plan.sit.H.pressers[압박 단계] 명 (C.75c, 게겐 gegenMax). 가담 확률 = counterJoin + counterJoinPress × 역할 press + counterJoinWork × 노력/100
      */
-    counterBase: 3,
+    counterBase: 4,
     counterPerPress: 2,
-    counterRadius: 10,
+    counterRadius: 14,
     counterJoin: 0.4,
     counterJoinPress: 0.4,
     counterJoinWork: 0.2,
@@ -417,6 +425,8 @@ export const ENGINE = {
      */
     tempBase: 0.114,
     tempSlope: 1.42,
+    /** C.76s 가설 2: 지친 선수의 판단 온도 τ × (1 + tiredTemp × tiredRatio) — 효용 1위 밖을 더 고른다 */
+    tiredTemp: 0.6,
     /**
      * 판단 후보 (E.22 C): 효용 1위에서 plausibleGap(골 단위, 효용 스케일 전) 안의 후보와, 실제로 나오는 실수(유지로 공 끌기,
      * 안전한 백패스, 무리한 슛)만 고를 수 있다. 엉뚱한 선택(먼 옆 패스 등)은 후보에서 뺀다
@@ -622,7 +632,10 @@ export const ENGINE = {
     /** 슈팅 콘(공-골대 사이) 안 수비수 1명당 블록 확률, 최대 */
     blockPer: 0.15,
     blockMax: 0.4,
-    coneWidth: 1.2,
+    /** C.76s 44h-c2 가설 3(밀집 블록 현실화, 사용자 확정): 1.2 → 2.0 — 박스에 사람이 많으면 슛이 몸에 맞는다 (양 팀 대칭, pBlock 0.17 → 0.21). 총량은 keeper.saveBase 로 */
+    coneWidth: 2.0,
+    /** C.76s 가설 2: 지친 선수의 패스 성공 확률 −tiredPass × tiredRatio */
+    tiredPass: 0.06,
     /** 블록된 공이 라인 밖(코너)으로 나갈 확률 */
     blockCorner: 0.7,
 
@@ -882,8 +895,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) */
-    saveBase: 1.62,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지). C.76s: coneWidth 2.0(블록 ↑) 총량 보정 1.60 */
+    saveBase: 1.60,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
