@@ -257,6 +257,13 @@ export const ENGINE = {
     /** 계수 ≥ focusDoubleMin 이면 둘째 수비(더블팀) 조건의 박스를 focusDoubleExtra m 넓힌다 */
     focusDoubleMin: 0.5,
     focusDoubleExtra: 5,
+    /**
+     * 박스 안 2선 마크 (C.76w, 미해결 8·11 — 수비 자원을 ST 한 명에서 박스 안 2선으로 재배정, 공격 코드 무수정): 박스 + boxManSlack m 안에
+     * 마커 없는 다른 상대(줄 ≥ 2 전부 — CAM·CM 침투자 포함)가 있으면 둘째 수비는 위협 1위 더블팀 대신 그중 위협도 1위를, boxManMax 명까지
+     * 위협 순으로 1명씩 골 쪽 stMark 로 마크한다(파 포스트 자리 하나는 남긴다). 없을 때만 지금처럼 더블팀. 줄 2 존 마크도 마커 있는 focus 는 뺀다
+     */
+    boxManMax: 2,
+    boxManSlack: 3,
     /** 커버 섀도 대상 가치 × (1 + focusShadowW × 계수): 패스 길 차단이 엘리트 쪽으로 */
     focusShadowW: 0.5,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */

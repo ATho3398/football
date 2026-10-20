@@ -895,19 +895,23 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 
   // 마킹: 존 근처의 위협적인 상대. 수비 주의 집중 대상(E.20 8번)이 존 근처에 있으면 그 선수를 먼저, 더 가깝게
   const [zx, zy] = toPitch(nx, ny, dir);
+  const focus = focusThreat(s, a.team);
+  // 줄 2 존 마크의 ST 쏠림 해소 (C.76w, 미해결 8·11): focus 가 이미 boxDefense 마커를 가진 상태(markZone + 위협 1위 마커)면
+  // 존 마크는 focus 를 빼고 존 근처 다른 상대(2선 침투자가 대개 여기 걸린다)를 맡는다
+  const focusHeld = markZone && threatMarker(s, a.team) !== null;
   let mark: Agent | null = null;
   let best = 14;
   for (const o of s.agents) {
     // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
     if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner) continue;
+    if (focusHeld && o === focus) continue;
     const d = dist(o.x, o.y, zx, zy);
     if (d < best) {
       best = d;
       mark = o;
     }
   }
-  const focus = focusThreat(s, a.team);
-  if (focus && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);
@@ -991,8 +995,19 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     // 박스 안이면 가까운 수비 1명이 더 붙는다 (공 쪽)
     const inBox = Math.abs(t.x - gx) <= ENGINE.pitch.boxDepth + extra && Math.abs(t.y - gy) <= ENGINE.pitch.boxWidth / 2 + extra;
     // C.75c: 위협이 공 가까이(커버 거리 + 마크 거리 안)면 압박자·커버가 이미 있으므로 둘째는 붙지 않고 자리를 덮는다
-    const ballNear = dist(t.x, t.y, b.x, b.y) <= O.plan.coverBehind + O.stMark;
-    const second = inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+    const nearBall = O.plan.coverBehind + O.stMark;
+    const ballNear = dist(t.x, t.y, b.x, b.y) <= nearBall;
+    // 박스 안 2선 마크 (C.76w, 미해결 8·11): 박스 + boxManSlack m 안에 마커 없는 다른 상대(줄 ≥ 2 전부 — CAM·CM 침투자 포함, 공 가까이는 압박자·커버 몫)가 있으면
+    // 둘째는 위협 1위 더블팀 대신 그중 위협도 1위를 골 쪽 stMark 로 마크하고, boxManMax 명까지 위협 순으로 1명씩 붙는다. 없을 때(또는 boxManMax 0 = 끔)만 지금처럼 더블팀
+    const others: Agent[] = [];
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team === a.team || o === owner || o === t || o.line < 2) continue;
+      if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.boxManSlack || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.boxManSlack) continue;
+      if (dist(o.x, o.y, b.x, b.y) <= nearBall) continue;
+      others.push(o);
+    }
+    others.sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
+    const second = (!others.length || !O.boxManMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
     if (marker === a) {
@@ -1023,6 +1038,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       return true;
     }
     rest = defs.filter((o) => o !== marker && o !== second);
+    let deepT2: Agent | null = null;
     // 깊은 블록 둘째 ST 마크 (C.76p 가설 2): 위협 2위 ST/CF 가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark
     if (isDeepBlock(s, a.team) && rest.length) {
       let t2: Agent | null = null;
@@ -1045,7 +1061,25 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
           return true;
         }
         rest = rest.filter((o) => o !== m2);
+        deepT2 = u;
       }
+    }
+    // 덮는 자리 앞에 사람 (C.76w (b)): 박스 안 미마크 상대(위협 순)에게 남은 수비수 중 가장 가까운 1명씩, boxManMax 명까지 골 쪽 stMark
+    let marks = 0;
+    for (const u of others) {
+      if (marks >= O.boxManMax || !rest.length) break;
+      if (u === deepT2) continue;
+      const m = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
+      marks++;
+      if (m === a) {
+        const gd2 = dist(u.x, u.y, gx, gy) || 1;
+        a.tx = clamp(u.x + ((gx - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
+        a.ty = clamp(u.y + ((gy - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+        a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
+        a.minRun = false;
+        return true;
+      }
+      rest = rest.filter((o) => o !== m);
     }
   }
   if (!cover) return false;
@@ -1076,6 +1110,12 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
 
 const focusCache = new WeakMap<SimState, { tick: number; team: number; focus: Agent | null }[]>();
 
+/** 위협도 (E.20 8번 + C.76a 능력 가중, 수비 골 (gx, gy) 기준): focusThreat 과 박스 안 2선 마크(C.76w)가 같은 식을 쓴다 */
+function threatValue(o: Agent, gx: number, gy: number): number {
+  const inBox = Math.abs(o.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(o.y - gy) <= ENGINE.pitch.boxWidth / 2;
+  return Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange) + (inBox ? O.focusBox : 0) + O.focusAbilityW * threatAbility(o);
+}
+
 /**
  * 위협 가중 (C.76a, 미해결 8·11, 사용자 제안 "위협 가중 수비"): 마무리 능력 계수 clamp((finishSkill(슈팅) − 70)/20, −0.5, 1).
  * 수비 주의 집중(focusThreat)·위협 1위 마크 거리·커버 섀도 대상에만 들어간다 — 마커 수·압박 항은 그대로 (미해결 8 과 다른 종류)
@@ -1099,8 +1139,7 @@ export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   let bv = 0;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === defTeam || o.line < 2 || o.idx === s.ball.owner) continue;
-    const inBox = Math.abs(o.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(o.y - gy) <= ENGINE.pitch.boxWidth / 2;
-    const v = Math.max(0, 1 - dist(o.x, o.y, gx, gy) / O.focusRange) + (inBox ? O.focusBox : 0) + O.focusAbilityW * threatAbility(o);
+    const v = threatValue(o, gx, gy);
     if (v > bv) {
       bv = v;
       best = o;

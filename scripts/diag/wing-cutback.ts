@@ -1,3 +1,4 @@
+// @ts-nocheck — C.76u 브랜치(claude/c76u-wide-cutback, 미배포)의 src(finalThirdJob export·offball.edgeWingFromX) 위에서만 돈다. 기록용으로 가져옴(C.76w)
 // 진단 (C.76u, 미해결 9 LM/RM 슈팅 비중): 생성 팀 4-4-2(LM/RM) 대 4-3-3(LW/RW) 중립 N경기를 틱 단위로 돌려
 //   공이 상대 최종 3분의 1에 있을 때 측면 선수(LM/RM·LW/RW)가 어디에 있는지(상황별: 자기 소유 / 같은 쪽 측면 / 반대쪽 측면 / 중앙),
 //   슈팅이 어떤 상황·어떤 공 얻기 뒤에 나오는지, 측면 공의 소유자가 누구(포지션)인지 센다. 엔진 코드는 건드리지 않는다.
