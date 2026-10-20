@@ -185,7 +185,7 @@ function startVM(f: CustomForm, ovr: number, league = 'pl'): CustomVM['start'] {
   const S = BALANCE.startClub;
   const O = BALANCE.transfer.offers;
   const trialAge = f.age <= S.trialMaxAge;
-  // 내 리그 팀 (C.75y)
+  // 내 리그 팀 (C.76c)
   const teams = initialTeams(league);
   const allTeams = [...teams].sort((a, b) => b.rating - a.rating).map((t) => ({ id: t.id, ko: t.nameKo }));
   const eff = ovr + Math.max(0, O.youthAge - f.age) * O.youthPerYear;

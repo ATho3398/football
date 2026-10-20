@@ -54,7 +54,7 @@ export interface TransferRec {
   /** 실제 선수 */
   real?: boolean;
   /**
-   * from 이 리그 팀이면 빈자리를 채운 선수: 가상 선수 (리그 밖 club 에서 옴) 또는 real = 다른 고른 리그의 실제 선수 (C.75y, id = NPC id, club = 그 리그 팀 id)
+   * from 이 리그 팀이면 빈자리를 채운 선수: 가상 선수 (리그 밖 club 에서 옴) 또는 real = 다른 고른 리그의 실제 선수 (C.76c, id = NPC id, club = 그 리그 팀 id)
    */
   fill?: { id: string; ovr: number; age: number; club: string; name: string; real?: true };
   /** to 가 리그 팀이면 자리를 비우려고 내보낸 선수 */
@@ -71,7 +71,7 @@ const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
 export const isOutside = (id: string): boolean => id.startsWith('x:');
 
-/** 팀 이름 (리그 팀 또는 리그 밖 클럽, 다른 리그 팀 C.75y) */
+/** 팀 이름 (리그 팀 또는 리그 밖 클럽, 다른 리그 팀 C.76c) */
 export function clubNameKo(league: LeagueState, id: string): string {
   if (isOutside(id)) return OUTSIDE_BY_ID[id]?.nameKo ?? id;
   return league.teams.find((t) => t.id === id)?.nameKo ?? leagueTeamById(id)?.nameKo ?? id;
@@ -101,13 +101,13 @@ export function ro(word: string): string {
 export const windowSeason = (league: LeagueState, w: Window): number => (w === 'summer' ? league.season + 1 : league.season);
 
 /** 겨울 이적시장 마지막 날 (그날이 끝나면 NPC 이동) */
-/** 시즌 중 이적시장 (겨울 = 1월). 춘추제 리그(3~12월 시즌, C.75y)는 그해 7월 (여름 = 시즌 끝 비시즌) */
+/** 시즌 중 이적시장 (겨울 = 1월). 춘추제 리그(3~12월 시즌, C.76c)는 그해 7월 (여름 = 시즌 끝 비시즌) */
 export const winterDeadline = (season: number, kind: 'autumn-spring' | 'spring-autumn' = 'autumn-spring'): IsoDate =>
   kind === 'spring-autumn' ? isoDate(season, 7, 31) : isoDate(season + 1, 1, 31);
 export const winterOpen = (season: number, kind: 'autumn-spring' | 'spring-autumn' = 'autumn-spring'): IsoDate =>
   kind === 'spring-autumn' ? isoDate(season, 7, 1) : isoDate(season + 1, 1, 1);
 
-/** 이적시장 이름 (C.75y): 8~5월 리그 = 시즌 중 겨울 · 비시즌 여름, 3~12월 리그 = 시즌 중 여름(7월) · 비시즌 겨울 */
+/** 이적시장 이름 (C.76c): 8~5월 리그 = 시즌 중 겨울 · 비시즌 여름, 3~12월 리그 = 시즌 중 여름(7월) · 비시즌 겨울 */
 export function windowKo(league: Pick<LeagueState, 'id'>, w: Window): string {
   const sa = calendarKind(league.id) === 'spring-autumn';
   return (w === 'winter') !== sa ? '겨울' : '여름';
@@ -122,7 +122,7 @@ export function midWindowKo(league: Pick<LeagueState, 'id'>): string {
 
 /**
  * 기록 하나를 로스터에 적용한다. 팀 로스터 객체는 새로 만든다 (players 배열 교체).
- * 실제 선수 보충(fill.real, C.75y)은 그때 NPC 상태가 있어야 한다 (npcs 없으면 가상 선수로)
+ * 실제 선수 보충(fill.real, C.76c)은 그때 NPC 상태가 있어야 한다 (npcs 없으면 가상 선수로)
  */
 export function applyTransfer(rosters: Rosters, rec: TransferRec, worldSeed: string, npcs?: readonly NpcState[]): void {
   const fromR = rosters[rec.from];
@@ -274,16 +274,16 @@ function destinations(state: GameState, from: string, p: RosterPlayer, ovr: numb
     const r = state.rosters[t.id];
     if (r) add(t.id, t.rating, positionNeed(r, p.position, ovr));
   }
-  // 리그 밖 클럽: 고른 리그의 팀과 같은 클럽이면 그 리그 팀 id 로 (C.75y, 아래 다른 리그 팀에서 한 번만)
+  // 리그 밖 클럽: 고른 리그의 팀과 같은 클럽이면 그 리그 팀 id 로 (C.76c, 아래 다른 리그 팀에서 한 번만)
   const ids = state.leagueIds ?? [];
   for (const c of OUTSIDE_CLUBS) if (canonicalClub(c.id, ids) === c.id) add(c.id, c.rating, D.outsideNeed);
-  // 다른 고른 리그 팀 (C.75y, 45b: 이적 시장 = 고른 리그 전체). 로스터가 없어 리그 밖 클럽처럼 필요도 고정
+  // 다른 고른 리그 팀 (C.76c, 45b: 이적 시장 = 고른 리그 전체). 로스터가 없어 리그 밖 클럽처럼 필요도 고정
   for (const lg of state.otherLeagues ?? []) for (const t of lg.teams) add(t.id, t.rating, D.outsideNeed);
   return out;
 }
 
 /**
- * 빈자리 보충 실제 선수 (C.75y): 다른 고른 리그(내 리그 제외) 팀에 있는 은퇴 안 한 실제 선수 중 같은 포지션군·OVR 이 보충 OVR ± realGap 안,
+ * 빈자리 보충 실제 선수 (C.76c): 다른 고른 리그(내 리그 제외) 팀에 있는 은퇴 안 한 실제 선수 중 같은 포지션군·OVR 이 보충 OVR ± realGap 안,
  * 지금 팀 레이팅이 받는 팀 + realFromGap 이하 (강팀 선수가 약팀으로 내려오지 않게). realShare 확률로 고르고(가까운 순 상위 3 중 하나),
  * 없으면 가상 선수. 이번 이적시장에 이미 움직인 선수는 뺀다
  */
@@ -369,7 +369,7 @@ export function runNpcWindow(state: GameState, w: Window): TransferRec[] {
     const filler = makeFiller(fillId, m.teamId, m.player.position, fOvr, randInt(rng, T.fill.minAge, T.fill.maxAge), label, state.worldSeed);
     // 빈자리 보충은 나간 뒤 인원이 fillBelow 아래일 때만 (C.46)
     const fill = state.rosters[m.teamId]!.players.length - 1 < BALANCE.squad.fillBelow;
-    // 다른 고른 리그의 실제 선수로 보충 (C.75y). 난수는 따로 (PL 만 고른 게임은 그대로)
+    // 다른 고른 리그의 실제 선수로 보충 (C.76c). 난수는 따로 (PL 만 고른 게임은 그대로)
     const realIn = fill ? realFillCandidate(state, m.player.position, fOvr, fromRating, arrived, rngFor(state.worldSeed, 'real-fill', label, w, k)) : undefined;
     const toR = state.rosters[dest.id];
     const rel = toR ? releaseCandidate(toR, m.player.position, arrived, m.player.age)?.id : undefined;
@@ -686,7 +686,7 @@ export function makeOfferSet(state: GameState, w: Window, tag: string | number =
   const offers: Offer[] = picked.map(({ t, interest, wage }) => ({
     teamId: t.id, kind: 'transfer', years: randInt(rng, ylo, yhi), wage: wage!, start: expectedStart(state, t.id), interest,
   }));
-  // 다른 리그 제안 (C.75y): 비시즌 여름 창, 내 리그와 달력이 같은 고른 리그 팀. 난수는 따로 (다른 리그가 없으면 그대로)
+  // 다른 리그 제안 (C.76c): 비시즌 여름 창, 내 리그와 달력이 같은 고른 리그 팀. 난수는 따로 (다른 리그가 없으면 그대로)
   if (w === 'summer' && state.phase !== 'season') offers.push(...abroadOffers(state, tag, tier, cur, value, ylo, yhi));
   // 소속 구단 수락 판정 (C.48): 계약 중(몸값 > 0)이고 이적 명단이 아니면. 난수는 따로 (임대 제안이 바뀌지 않게)
   const refused: RefusedOffer[] = [];
@@ -719,13 +719,13 @@ export function makeOfferSet(state: GameState, w: Window, tag: string | number =
   return { offers: kept, refused };
 }
 
-/** 내 선수가 옮길 수 있는 다른 리그 (C.75y): 고른 다른 리그 중 내 리그와 달력이 같은 리그 (시즌 번호가 같이 간다) */
+/** 내 선수가 옮길 수 있는 다른 리그 (C.76c): 고른 다른 리그 중 내 리그와 달력이 같은 리그 (시즌 번호가 같이 간다) */
 export function movableLeagues(state: Pick<GameState, 'league' | 'otherLeagues'>): string[] {
   const kind = calendarKind(state.league.id);
   return (state.otherLeagues ?? []).filter((o) => calendarKind(o.id) === kind).map((o) => o.id);
 }
 
-/** 다른 리그 제안 (C.75y): 관심 상위 n 개 (BALANCE.transfer.offers.abroad), 감당 가능한 팀만, 2년 이상 남으면 지금 팀보다 강한 팀만 */
+/** 다른 리그 제안 (C.76c): 관심 상위 n 개 (BALANCE.transfer.offers.abroad), 감당 가능한 팀만, 2년 이상 남으면 지금 팀보다 강한 팀만 */
 function abroadOffers(state: GameState, tag: string | number, tier: OfferTier, cur: number, value: number, ylo: number, yhi: number): Offer[] {
   const ids = new Set(movableLeagues(state));
   if (!ids.size) return [];
@@ -828,7 +828,7 @@ export function acceptOffer(state: GameState, index: number, deduct: (points: nu
     onContractSigned(state, m.contract, `${clubNameKo(state.league, o.teamId)} 이적`);
   }
   m.moves.push({ season, w, from, to: o.teamId, ...(o.kind === 'loan' ? { loan: true } : {}) });
-  // 다른 리그 팀 (C.75y): 새 리그 로스터를 만들고 다음 시즌부터 그 리그가 내 리그 (applyLeagueMove)
+  // 다른 리그 팀 (C.76c): 새 리그 로스터를 만들고 다음 시즌부터 그 리그가 내 리그 (applyLeagueMove)
   prepareLeagueMove(state, o.teamId);
   // 원클럽맨 계열 (C.45): 이적이면 떨어지고 새 구단 기록 (임대는 이적 아님)
   if (o.kind !== 'loan') onClubChange(state, o.teamId);

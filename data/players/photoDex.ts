@@ -11,7 +11,7 @@ export const DEX_LEAGUES: readonly (readonly string[])[] = [
   ['seriea', 'serie a'],
   ['bundesliga'],
   ['ligue1', 'ligue 1'],
-  // C.75y (45b): 리그 고르기 카탈로그 순
+  // C.76c (45b): 리그 고르기 카탈로그 순
   ['bundesliga2', '2. bundesliga'],
   ['eredivisie'],
   ['primeira', 'primeira liga'],
@@ -23,7 +23,7 @@ export const DEX_LEAGUES: readonly (readonly string[])[] = [
 ];
 
 /**
- * 2018-19 최종 순위 (리그별, 구단 이름 또는 팀 id 여러 표기, 소문자 비교). 표에 없는 구단은 그 리그 맨 뒤 — C.75y 부터 리그 데이터(data/leagues) 팀 순서,
+ * 2018-19 최종 순위 (리그별, 구단 이름 또는 팀 id 여러 표기, 소문자 비교). 표에 없는 구단은 그 리그 맨 뒤 — C.76c 부터 리그 데이터(data/leagues) 팀 순서,
  * 거기도 없으면 이름순 (src/photocards.ts clubRank)
  */
 export const DEX_CLUB_RANK: readonly (readonly string[])[] = [

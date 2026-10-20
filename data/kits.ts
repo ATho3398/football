@@ -67,7 +67,7 @@ const CLUB_KITS_BASE: Readonly<Record<string, KitPair>> = {
 };
 
 /** 국가(BALANCE.appearance.byNationality 이름) → 홈·원정 (2018 월드컵 무렵, 4.3). 대표팀 경기 팀 id 는 `n:<국가>` */
-/** 구단 표 + 같은 클럽의 리그 데이터 id (C.75y, 45b: laliga:bar = x:bar). 표에 없는 리그 팀은 팀 색에서 자동 (src/pixel.ts) */
+/** 구단 표 + 같은 클럽의 리그 데이터 id (C.76c, 45b: laliga:bar = x:bar). 표에 없는 리그 팀은 팀 색에서 자동 (src/pixel.ts) */
 export const CLUB_KITS: Readonly<Record<string, KitPair>> = {
   ...CLUB_KITS_BASE,
   ...Object.fromEntries(Object.entries(CLUB_KITS_BASE).flatMap(([id, k]) => (OUTSIDE_TO_LEAGUE[id] ? [[OUTSIDE_TO_LEAGUE[id]!, k] as const] : []))),

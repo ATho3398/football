@@ -219,7 +219,7 @@ export interface GameState {
   leagueIds?: string[];
   /** 고른 다른 리그 (빠른 시뮬, 리그별 순위·지난 시즌 기록). 없으면 내 리그만 */
   otherLeagues?: OtherLeague[];
-  /** 내 리그 이동 기록 (C.75y): 첫 줄 = 시작 리그. 없으면 이동 없음 (로스터 재생성이 같은 자리에서 새 리그 로스터를 만든다) */
+  /** 내 리그 이동 기록 (C.76c): 첫 줄 = 시작 리그. 없으면 이동 없음 (로스터 재생성이 같은 자리에서 새 리그 로스터를 만든다) */
   myLeagues?: LeagueMove[];
   npcs: NpcState[];
   /** 팀 로스터 세이브 정보 (23번): 시즌 갱신 횟수. 로스터 자체는 시드로 다시 만든다 */
@@ -354,11 +354,11 @@ type NewGameStart =
 
 /**
  * 새 게임 옵션 + 고른 리그 (C.75m, 리그 고르기 화면). 없으면 내 리그(PL)만.
- * 내 리그 (C.75y, 45b): 실제 선수는 그 선수 소속 리그, 그 밖은 leagues 맨 앞 (없으면 PL)
+ * 내 리그 (C.76c, 45b): 실제 선수는 그 선수 소속 리그, 그 밖은 leagues 맨 앞 (없으면 PL)
  */
 export type NewGameOptions = NewGameStart & { leagues?: readonly string[] };
 
-/** 새 게임의 내 리그 (C.75y): 실제 선수 = 소속 팀 리그, 레전드·유망주·커스텀 = 고른 리그 맨 앞 (내 리그로 시작할 수 있는 리그만, 없으면 PL) */
+/** 새 게임의 내 리그 (C.76c): 실제 선수 = 소속 팀 리그, 레전드·유망주·커스텀 = 고른 리그 맨 앞 (내 리그로 시작할 수 있는 리그만, 없으면 PL) */
 export function startLeagueOf(opts: NewGameOptions): string {
   if (opts.mode === 'real' && !isLegendId(opts.playerId)) {
     const club = REAL_PLAYER_BY_ID.get(opts.playerId)?.club;
@@ -442,7 +442,7 @@ export function rosterShirts(roster: { players: { shirt?: number }[] } | undefin
 
 /**
  * 실제 선수로 시작 가능한 선수: 소속팀이 고른 리그 중 내 리그로 시작할 수 있는 리그에 있는 선수 (C.75m).
- * C.75y (45b): 모든 리그 연결 — 고른 리그의 실제 선수 전부 (그 선수를 고르면 그 리그가 내 리그)
+ * C.76c (45b): 모든 리그 연결 — 고른 리그의 실제 선수 전부 (그 선수를 고르면 그 리그가 내 리그)
  */
 export function selectableRealPlayers(leagueIds: readonly string[] = ['pl']): FieldPlayerData[] {
   const on = new Set(leagueIds.filter((id) => PLAYABLE_LEAGUES.includes(id)));
@@ -457,7 +457,7 @@ export function randomSeed(): string {
 }
 
 /**
- * 내 선수를 뺀 실제 NPC 초기 상태: A등급 전부 + 고른 리그의 리그 데이터 선수 (C.75y). 레전드 팩 2판(C.75x)·미래 스타 팩(C.75y)이면
+ * 내 선수를 뺀 실제 NPC 초기 상태: A등급 전부 + 고른 리그의 리그 데이터 선수 (C.76c). 레전드 팩 2판(C.75x)·미래 스타 팩(C.76c)이면
  * 팩에 든 선수와 같은 사람은 뺀다 (지금은 없음)
  */
 function initialNpcs(worldSeed: string, realPlayerId: string | undefined, legendPack = 0, future = false, leagueIds: readonly string[] = ['pl']): NpcState[] {
@@ -465,7 +465,7 @@ function initialNpcs(worldSeed: string, realPlayerId: string | undefined, legend
   return realPlayersFor(leagueIds).filter((p) => p.id !== realPlayerId && !drop?.has(p.id)).map((p) => createNpc(p, worldSeed, BALANCE.newGame.startYear));
 }
 
-/** 내 리그 첫 시즌이 된 미래 스타를 로스터에 넣는다 (C.75y). season = 막 시작하는 시즌, leagueIds = 고른 리그 (맨 앞 = 내 리그) */
+/** 내 리그 첫 시즌이 된 미래 스타를 로스터에 넣는다 (C.76c). season = 막 시작하는 시즌, leagueIds = 고른 리그 (맨 앞 = 내 리그) */
 function addFutureStars(rosters: Rosters, worldSeed: string, season: number, teams: readonly { id: string; baseRating: number }[], leagueIds: readonly string[] = ['pl']): void {
   const spawns: LegendSpawn[] = futureSpawns(worldSeed, season, teams.map((t) => ({ id: t.id, rating: t.baseRating })), leagueIds);
   if (spawns.length) addLegendSpawns(rosters, spawns, worldSeed, season, Object.fromEntries(teams.map((t) => [t.id, t.baseRating])));
@@ -489,7 +489,7 @@ export function rebuildRosters(
   moves: readonly LeagueMove[] = [{ at: 0, id: leagueIds[0] ?? 'pl' }],
 ): Rosters {
   const start = BALANCE.newGame.startYear;
-  // 내 리그 (C.75y): 시작 리그(이동 기록 첫 줄, 없으면 고른 리그 맨 앞). 로스터는 내 리그 팀만 만든다
+  // 내 리그 (C.76c): 시작 리그(이동 기록 첫 줄, 없으면 고른 리그 맨 앞). 로스터는 내 리그 팀만 만든다
   let teams = initialTeams(moves[0]?.id ?? leagueIds[0]);
   const base = Object.fromEntries(teams.map((t) => [t.id, t.baseRating]));
   // 레전드 팩 판 (C.75x): 옛 세이브(판 없음)는 1 = C.47 117명
@@ -506,14 +506,14 @@ export function rebuildRosters(
   // 이적 기록 (C.42): 시즌 갱신 k 번째 전에 at = k 인 기록(그 시즌 겨울 → 시즌 끝 여름)을 차례로 다시 적용한다
   for (let k = 0; k < updates; k++) {
     replayTransfers(rosters, transfers, k, worldSeed, npcs);
-    // 실제 선수 소속 (C.75y): 이적 기록대로 (리그 이동 때 새 리그 로스터가 지금 소속을 본다)
+    // 실제 선수 소속 (C.76c): 이적 기록대로 (리그 이동 때 새 리그 로스터가 지금 소속을 본다)
     syncNpcClubs(npcs, transfers.filter((r) => r.at === k), { teams } as LeagueState);
     npcs = npcs.map((n) => growNpc(n, worldSeed, start + k));
     rosters = updateRostersForSeason(rosters, worldSeed, start + k, base, npcs);
     // 미래 스타 (C.75y): 다음 시즌이 구현 리그 첫 시즌이면 시즌 갱신 직후 들어온다 (플레이 중 시즌 끝과 같은 자리)
     if (future) addFutureStars(rosters, worldSeed, start + k + 1, teams, [myLg]);
     if (pack >= 3) addLegendArrivals(rosters, worldSeed, start + k + 1, teams, legends.except);
-    // 리그 이동 (C.75y): 그 비시즌에 다른 리그 팀으로 옮겼으면 새 리그 로스터 (다음 시즌이 시작됐으면 옛 리그 로스터는 뺀다)
+    // 리그 이동 (C.76c): 그 비시즌에 다른 리그 팀으로 옮겼으면 새 리그 로스터 (다음 시즌이 시작됐으면 옛 리그 로스터는 뺀다)
     const mv = moveAt(moves, k + 1);
     if (mv) {
       const moved = moveRosters(worldSeed, mv.id, start + k + 1, npcs, future);
@@ -530,13 +530,13 @@ export function rebuildRosters(
   return rosters;
 }
 
-/** 로스터 재생성의 고른 리그 (맨 앞 = 내 리그, C.75y). 옛 세이브는 PL 만 */
+/** 로스터 재생성의 고른 리그 (맨 앞 = 내 리그, C.76c). 옛 세이브는 PL 만 */
 export function rosterLeagues(state: Pick<GameState, 'league' | 'leagueIds'>): string[] {
   const ids = state.leagueIds ?? [state.league.id ?? 'pl'];
   return [state.league.id ?? ids[0] ?? 'pl', ...ids.filter((id) => id !== (state.league.id ?? ids[0]))];
 }
 
-/** 유망주·커스텀 시작 팀 순위 범위 (C.75y: 팀이 20개보다 적은 리그는 팀 수까지) */
+/** 유망주·커스텀 시작 팀 순위 범위 (C.76c: 팀이 20개보다 적은 리그는 팀 수까지) */
 function rankRange(teams: number): { min: number; max: number } {
   const R = BALANCE.newGame.teamRankRange;
   const max = Math.min(R.max, teams);
@@ -552,7 +552,7 @@ function drawName(prng: Rng, name: string): string {
 export function newGame(opts: NewGameOptions): GameState {
   const worldSeed = opts.seed?.trim() || randomSeed();
   const season = BALANCE.newGame.startYear;
-  // 고른 리그 (C.75m): 내 리그(C.75y: 실제 선수 소속 리그 또는 고른 리그 맨 앞)는 경기 엔진, 나머지는 빠른 시뮬
+  // 고른 리그 (C.75m): 내 리그(C.76c: 실제 선수 소속 리그 또는 고른 리그 맨 앞)는 경기 엔진, 나머지는 빠른 시뮬
   const leagueIds = normalizeLeagues(opts.leagues, startLeagueOf(opts));
   setSquadLeague(leagueIds[0]!);
   const league = createLeague(worldSeed, season, leagueIds[0]);
@@ -787,7 +787,7 @@ export interface NextMatch {
   cup?: MyCupTie;
 }
 
-/** 이번 라운드부터 내 팀 경기가 있는 첫 라운드 (홀수 팀 리그의 쉬는 라운드를 건너뛴다, C.75y MLS). 없으면 -1 */
+/** 이번 라운드부터 내 팀 경기가 있는 첫 라운드 (홀수 팀 리그의 쉬는 라운드를 건너뛴다, C.76c MLS). 없으면 -1 */
 function myRoundFrom(state: GameState, from: number): number {
   const me = state.player.teamId;
   for (let r = from; r < state.league.schedule.length; r++) if (state.league.schedule[r]!.some((x) => x.home === me || x.away === me)) return r;
@@ -832,7 +832,7 @@ function updateFatigueForMatch(p: PlayerState, minutes: number): void {
 // ── 하루 단위 진행 (25.1~25.2 5·7번, 부록 C.38) ──
 
 /** 이번 시즌 일정 (시드로 다시 만든다) */
-/** 내 리그 이번 시즌 달력 (PL = seasonCalendar 그대로, 다른 리그 = 리그 달력, C.75y) */
+/** 내 리그 이번 시즌 달력 (PL = seasonCalendar 그대로, 다른 리그 = 리그 달력, C.76c) */
 export function calendarOf(state: GameState): SeasonCalendar {
   return leagueCalendar(state.worldSeed, state.league, calendarKind(state.league.id));
 }
@@ -1390,7 +1390,7 @@ export function endDay(state: GameState): TrainingDayResult {
   managerDayEnd(state);
   // 이벤트 (C.63): 기한 지난 선택, 예약, 슬롯, 하루 이벤트
   eventsDayEnd(state, ended);
-  // 쉬는 라운드 (C.75y): 내 경기가 없는 라운드는 그 라운드 경기가 다 끝나면 넘긴다 (마지막 라운드가 쉬는 라운드여도 시즌이 끝난다)
+  // 쉬는 라운드 (C.76c): 내 경기가 없는 라운드는 그 라운드 경기가 다 끝나면 넘긴다 (마지막 라운드가 쉬는 라운드여도 시즌이 끝난다)
   const L = state.league;
   while (L.round < L.schedule.length && myRoundFrom(state, L.round) !== L.round && L.schedule[L.round]!.every((f) => f.homeGoals !== undefined)) L.round++;
   // 리그가 끝났고 내 컵 경기도 더 없으면 (결승 뒤 우승 확정·탈락이 하루 끝에 정해진 경우) 시즌 끝 (C.67)
@@ -1569,7 +1569,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   const nx = nextMatch(state);
   if (nx?.cup) return playMyCup(state, opts, nx.cup);
   const { league, player } = state;
-  // 쉬는 라운드 (C.75y, 홀수 팀 리그): 내 경기가 있는 라운드로. 쉬는 라운드의 다른 경기는 날짜대로 치른다
+  // 쉬는 라운드 (C.76c, 홀수 팀 리그): 내 경기가 있는 라운드로. 쉬는 라운드의 다른 경기는 날짜대로 치른다
   const mine = myRoundFrom(state, league.round);
   if (mine > league.round) league.round = mine;
   const roundIdx = league.round;
@@ -2263,7 +2263,7 @@ export function startNextSeason(state: GameState): void {
   (state.archive ??= []).push(archiveSeason(state));
   // 세이브 상한 (C.64): 오래된 시즌은 요약만
   trimArchive(state.archive);
-  // 리그 이동 (C.75y): 다른 리그 팀으로 옮겼으면 그 리그가 내 리그, 아니면 같은 리그 다음 시즌
+  // 리그 이동 (C.76c): 다른 리그 팀으로 옮겼으면 그 리그가 내 리그, 아니면 같은 리그 다음 시즌
   if (!applyLeagueMove(state)) state.league = nextSeasonLeague(state.league, state.worldSeed, state.nextRatings ?? seasonTeamRatings(state));
   delete state.nextRatings;
   if (state.market) state.market.request = null;

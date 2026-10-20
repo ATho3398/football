@@ -31,7 +31,7 @@ export const packLegends = (pack: number = LEGEND_PACK): readonly LegendData[] =
   pack >= 3 ? LEGENDS : pack >= 2 ? LEGENDS.filter((l) => l.group !== 'ext') : LEGENDS.filter((l) => !l.group);
 
 /**
- * 기본 리그 (C.75y 옛 규칙의 "구현 리그"): 고른 리그를 주지 않으면 PL 만. C.75y(45b)부터 미래 스타는 그 게임에서 고른 리그 기준이다
+ * 기본 리그 (C.76c 옛 규칙의 "구현 리그"): 고른 리그를 주지 않으면 PL 만. C.76c(45b)부터 미래 스타는 그 게임에서 고른 리그 기준이다
  * (등장 예정 = 고른 리그 중 가장 이른 첫 시즌, 로스터에 들어오는 것은 내 리그 첫 시즌)
  */
 export const IMPLEMENTED_LEAGUES: readonly LeagueId[] = ['pl'];
@@ -105,7 +105,7 @@ const rngOf = (worldSeed: string, part: string, id: string): Rng => createRng(ha
 export const futureAge = (l: LegendData, season: number): number => season - l.born![0] - (l.born![1] > 8 ? 1 : 0);
 
 /**
- * 미래 스타의 등장 자리 (C.75y): 고른 리그 중 가장 이른 첫 시즌 (팀 = 리그 팀 id). 없으면 undefined (그 리그를 고르지 않음)
+ * 미래 스타의 등장 자리 (C.76c): 고른 리그 중 가장 이른 첫 시즌 (팀 = 리그 팀 id). 없으면 undefined (그 리그를 고르지 않음)
  */
 export function futureEntry(l: LegendData, leagues: readonly string[] = IMPLEMENTED_LEAGUES): FutureEntry | undefined {
   const e = [...(l.entries ?? [])].filter((x) => leagues.includes(x.league)).sort((a, b) => a.season - b.season)[0];
@@ -128,7 +128,7 @@ export function legendAge(l: LegendData, worldSeed: string): number {
 /** 나이로 정한 전성기까지 모자란 OVR */
 export const legendGap = (age: number): number => agingRate(BALANCE.legends.startGap, age);
 
-/** 소속 팀: 실제 유스 구단이 리그 팀이면 그 팀 (리그 밖 표 id 면 같은 클럽의 리그 팀, C.75y), 아니면 수준이 가까운 리그 팀 near 곳 중 하나 */
+/** 소속 팀: 실제 유스 구단이 리그 팀이면 그 팀 (리그 밖 표 id 면 같은 클럽의 리그 팀, C.76c), 아니면 수준이 가까운 리그 팀 near 곳 중 하나 */
 export function legendClub(l: LegendData, worldSeed: string, teams: readonly { id: string; rating: number }[]): string {
   if (teams.some((t) => t.id === l.youth)) return l.youth;
   const y = OUTSIDE_TO_LEAGUE[l.youth];
@@ -167,7 +167,7 @@ export function legendStartAttributes(l: LegendData, age: number, worldSeed: str
 /** 로스터 선수 하나 (가상 선수 성장 곡선을 그대로 쓴다: 전성기 OVR = 데이터, 전성기 나이 29·GK 30). older = 리그 밖에서 보낸 시즌 수 (C.75w 이적 유입) */
 export function legendRosterPlayer(l: LegendData, worldSeed: string, season: number, older = 0): RosterPlayer {
   const L = BALANCE.legends;
-  // 미래 스타: 들어오는 시즌의 실제 나이 (C.75y: PL 밖 리그 등장·리그 이동도 그 시즌 기준. PL 등장은 전과 같다)
+  // 미래 스타: 들어오는 시즌의 실제 나이 (C.76c: PL 밖 리그 등장·리그 이동도 그 시즌 기준. PL 등장은 전과 같다)
   const age = l.group === 'future' ? futureAge(l, season) : legendAge(l, worldSeed) + older;
   const start = legendStartAttributes(l, age, worldSeed);
   const rng = rngOf(worldSeed, 'contract', l.id);
@@ -196,7 +196,7 @@ export function legendRosterPlayer(l: LegendData, worldSeed: string, season: num
 export interface LegendSpawn { legend: LegendData; teamId: string; player: RosterPlayer }
 
 const spawnOf = (l: LegendData, worldSeed: string, season: number, teams: readonly { id: string; rating: number }[], mine: readonly string[] = IMPLEMENTED_LEAGUES): LegendSpawn => {
-  // 미래 스타 (C.75y): 내 리그 등장 기록의 그 팀 (리그 팀이 아니면 수준 가까운 팀으로)
+  // 미래 스타 (C.76c): 내 리그 등장 기록의 그 팀 (리그 팀이 아니면 수준 가까운 팀으로)
   const e = l.group === 'future' ? futureEntry(l, mine) : undefined;
   const teamId = e && teams.some((t) => t.id === e.team) ? e.team : legendClub(l, worldSeed, teams);
   return { legend: l, teamId, player: { ...legendRosterPlayer(l, worldSeed, season), youth: teamId } };
@@ -284,7 +284,7 @@ export const abroadLegends = (worldSeed: string, season: number, except?: string
   legendPlacement(worldSeed, initialTeams(myLeague).map((t) => ({ id: t.id, rating: t.baseRating })), except).abroad.filter((a) => a.season > season);
 
 /**
- * 이 시즌(season)에 내 리그에 처음 들어오는 미래 스타 (C.75y). 게임 시작 시즌이면 그 전에 이미 뛰던 선수까지.
+ * 이 시즌(season)에 내 리그에 처음 들어오는 미래 스타 (C.76c). 게임 시작 시즌이면 그 전에 이미 뛰던 선수까지.
  * leagueIds = 고른 리그 (맨 앞 = 내 리그). 로스터는 내 리그만 있어 내 리그 등장 기록으로 들어온다 (다른 고른 리그 등장은 월드 "등장 예정"에만)
  */
 export function futureSpawns(worldSeed: string, season: number, teams: readonly { id: string; rating: number }[], leagueIds: readonly string[] = IMPLEMENTED_LEAGUES): LegendSpawn[] {

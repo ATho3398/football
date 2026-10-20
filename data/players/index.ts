@@ -20,8 +20,8 @@ import { PLAYERS as SAUDI } from './saudi';
 export const A_GRADE_PLAYERS: FieldPlayerData[] = [messi, ...stars].filter((p) => !(p.id in REAL_RETIRED_2018_2020));
 
 /**
- * 리그 데이터 세션(C.75n~s)의 실제 선수 (C.75y, 45b): 리그 id → 필드 선수. 그 리그를 고른 게임에서만 NPC 가 된다
- * (A_GRADE_PLAYERS 는 늘 NPC — PL 만 고른 게임은 C.75y 전과 같다)
+ * 리그 데이터 세션(C.75n~s)의 실제 선수 (C.76c, 45b): 리그 id → 필드 선수. 그 리그를 고른 게임에서만 NPC 가 된다
+ * (A_GRADE_PLAYERS 는 늘 NPC — PL 만 고른 게임은 C.76c 전과 같다)
  */
 export const LEAGUE_PLAYERS: Readonly<Record<string, readonly FieldPlayerData[]>> = {
   laliga: LALIGA, seriea: SERIEA, bundesliga: BUNDESLIGA, ligue1: LIGUE1, championship: CHAMPIONSHIP, bundesliga2: BUNDESLIGA2,

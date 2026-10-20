@@ -1,5 +1,5 @@
-// C.75y 다른 리그 시작 연기 시험: 내 리그를 바꿔 시즌을 끝까지 돌리고 상태를 찍는다.
-// 실행: npx vite-node scripts/diag/c75y-smoke.ts -- <리그 id> [real 선수 id] [시즌 수]
+// C.76c 다른 리그 시작 연기 시험: 내 리그를 바꿔 시즌을 끝까지 돌리고 상태를 찍는다.
+// 실행: npx vite-node scripts/diag/c76c-smoke.ts -- <리그 id> [real 선수 id] [시즌 수]
 import { newGame, playOthers, playRound, startNextSeason, endDay, isMatchDay, calendarOf, type GameState } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { sortedTable } from '../../src/league';
@@ -11,8 +11,8 @@ const real = args[1] && args[1] !== '-' ? args[1] : undefined;
 const seasons = Number(args[2] ?? 1);
 const t0 = performance.now();
 const g: GameState = real
-  ? newGame({ mode: 'real', playerId: real, seed: 'c75y-smoke', difficulty: 'normal', leagues: [lg, 'pl', 'laliga', 'kleague1', 'mls'] })
-  : newGame({ mode: 'prospect', position: 'ST', seed: 'c75y-smoke', difficulty: 'normal', leagues: [lg, 'pl', 'laliga', 'kleague1', 'mls'] });
+  ? newGame({ mode: 'real', playerId: real, seed: 'c76c-smoke', difficulty: 'normal', leagues: [lg, 'pl', 'laliga', 'kleague1', 'mls'] })
+  : newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-smoke', difficulty: 'normal', leagues: [lg, 'pl', 'laliga', 'kleague1', 'mls'] });
 console.log('새 게임', Math.round(performance.now() - t0), 'ms · 내 리그', g.league.id, g.league.name, '· 팀', g.player.teamId, '· 날짜', g.calendar.date, '· 개막', calendarOf(g).opening, '· 고른 리그', g.leagueIds?.join(','));
 console.log('로스터 팀', Object.keys(g.rosters).length, '· 실제 선수(내 팀)', g.rosters[g.player.teamId]!.players.filter((p) => p.real).map((p) => p.nameKo).join(', '));
 console.log('컵', g.cups?.fa ? `${g.cups.fa.rounds[0]!.length * 2}팀 ${g.cups.fa.dates.join(' ')}` : '없음', '· 챔스', g.cups?.ucl ? `${g.cups.ucl.groups.flat().length}팀` : '없음');

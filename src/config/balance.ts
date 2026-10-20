@@ -616,7 +616,7 @@ export const BALANCE = {
     fill: {
       offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29,
       /**
-       * 다른 고른 리그의 실제 선수로 보충 (C.75y, 45b: 이적 시장 = 고른 리그 전체): 확률 realShare, 같은 포지션군 · OVR 이 보충 OVR ± realGap · realMaxAge 세 이하,
+       * 다른 고른 리그의 실제 선수로 보충 (C.76c, 45b: 이적 시장 = 고른 리그 전체): 확률 realShare, 같은 포지션군 · OVR 이 보충 OVR ± realGap · realMaxAge 세 이하,
        * 지금 팀 레이팅 ≤ 받는 팀 레이팅 + realFromGap (강팀에서 약팀으로 내려오지 않게). 다른 리그를 고르지 않으면 없음 (PL 만 고른 게임은 그대로)
        */
       realShare: 0.35, realGap: 3, realMaxAge: 31, realFromGap: 2,
@@ -640,7 +640,7 @@ export const BALANCE = {
       /** 바이아웃 = 계약할 때 몸값(그 계약 연수 기준) × buyoutMul */
       buyoutMul: 1.8,
       /**
-       * 다른 리그 제안 (C.75y, 45b: 이적 시장 = 고른 리그 전체): 비시즌(여름 창)에만, 고른 다른 리그 중 내 리그와 달력이 같은 리그 팀에서
+       * 다른 리그 제안 (C.76c, 45b: 이적 시장 = 고른 리그 전체): 비시즌(여름 창)에만, 고른 다른 리그 중 내 리그와 달력이 같은 리그 팀에서
        * 관심 상위 [최소, 최대]개를 내 리그 제안에 더한다 (남은 계약 단계별). 받아들이면 다음 시즌부터 그 리그가 내 리그
        */
       abroad: { last: [1, 2], one: [0, 1], more: [0, 1] } as Record<'last' | 'one' | 'more', [number, number]>,
@@ -1191,7 +1191,7 @@ export const BALANCE = {
       bundesliga: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
       ligue1: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
     } as Record<'pl' | 'championship' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1', { min: number; max: number; u21Extra: number; nonHomegrownMax: number }>,
-    /** 표에 없는 리그 (C.75y, 45b: 2. 분데스리가·에레디비시·프리메이라·사우디·K리그1·J1·브라질·MLS): 게임 기본 규칙, 비자국 육성 상한 없음 */
+    /** 표에 없는 리그 (C.76c, 45b: 2. 분데스리가·에레디비시·프리메이라·사우디·K리그1·J1·브라질·MLS): 게임 기본 규칙, 비자국 육성 상한 없음 */
     defaultRule: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 99 },
     /** 21세 이하 = 그 시즌 나이 ≤ u21Age (2018-19 PL 은 1997-01-01 이후 출생) */
     u21Age: 21,

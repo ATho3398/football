@@ -155,7 +155,7 @@ const ui = {
   /** 리그 스타 묶음 · 리그 기록 거르기 (C.64) */
   starGroup: 'league' as 'league' | 'world' | 'young',
   worldBoard: 'goals' as 'goals' | 'assists' | 'rating',
-  /** 월드 순위·득점 리그 (C.75y): '' = 내 리그, 아니면 고른 다른 리그 id */
+  /** 월드 순위·득점 리그 (C.76c): '' = 내 리그, 아니면 고른 다른 리그 id */
   worldLeague: '',
   /** 재계약 화면에서 고른 연수 (C.42) */
   renewYears: null as number | null,
@@ -664,7 +664,7 @@ globalThis.matchMedia?.(LANDPHONE_QUERY).addEventListener?.('change', () => rend
 
 function render(): void {
   const g = ui.game;
-  // 시즌 이름 (C.75y): 3~12월 리그가 내 리그면 "2018"
+  // 시즌 이름 (C.76c): 3~12월 리그가 내 리그면 "2018"
   setSeasonLabelKind(g ? calendarKind(g.league.id) : 'autumn-spring');
   const nav = g && !NAV_HIDDEN.includes(ui.screen) && !(g.phase === 'retired') ? dock(dockVM(g)) : '';
   const live = liveScreen();
@@ -1820,7 +1820,7 @@ app.addEventListener('click', (ev) => {
       ui.worldBoard = v as typeof ui.worldBoard;
       render();
       return;
-    // 월드 리그 고르기 (C.75y)
+    // 월드 리그 고르기 (C.76c)
     case 'world-league':
       ui.worldLeague = v ?? '';
       render();
@@ -1874,7 +1874,7 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
-    // 내 리그로 (C.75y): 고른 리그를 맨 앞으로
+    // 내 리그로 (C.76c): 고른 리그를 맨 앞으로
     case 'ng-league-mine': {
       readFormInputs();
       const ids = normalizeLeagues(ui.form.leagues);
@@ -1886,7 +1886,7 @@ app.addEventListener('click', (ev) => {
     case 'ng-leagues':
       readFormInputs();
       {
-        // 내 리그는 그대로 맨 앞 (C.75y)
+        // 내 리그는 그대로 맨 앞 (C.76c)
         const mine = normalizeLeagues(ui.form.leagues)[0]!;
         ui.form.leagues = v === 'mine' ? [mine] : normalizeLeagues(v === 'all' ? leagueCatalog().map((e) => e.id) : [...DEFAULT_LEAGUES], mine);
       }

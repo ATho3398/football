@@ -71,7 +71,7 @@ const state = {
 // ── 이름 색인 (구단 이름 → id, 페이스팩 파일 이름 → 키) ──
 
 interface ClubInfo { id: string; name: string; nameKo: string }
-/** 구단 목록: 등록된 모든 리그 팀 (C.75y) + 리그 밖 클럽 중 리그 팀이 아닌 클럽 (같은 클럽 x: id 는 이름 색인에서 리그 팀으로) */
+/** 구단 목록: 등록된 모든 리그 팀 (C.76c) + 리그 밖 클럽 중 리그 팀이 아닌 클럽 (같은 클럽 x: id 는 이름 색인에서 리그 팀으로) */
 const CLUBS: ClubInfo[] = [
   ...allLeagueData().flatMap((d) => d.teams.map((t) => ({ id: t.id, name: t.name, nameKo: t.nameKo }))),
   ...OUTSIDE_CLUBS.filter((c) => !OUTSIDE_TO_LEAGUE[c.id]),
@@ -185,7 +185,7 @@ export function pixelLayerUrls(person: PixelPerson, kit: string): string[] | und
 
 /** 페이스온 > 레포 로고 */
 export function crestSrc(teamId: string): string | undefined {
-  // 같은 클럽 두 id (C.75y): 리그 팀 id ↔ 리그 밖 x: id 의 업로드·로고를 같이 쓴다
+  // 같은 클럽 두 id (C.76c): 리그 팀 id ↔ 리그 밖 x: id 의 업로드·로고를 같이 쓴다
   const a = aliasOf(teamId);
   return state.faceOn.get(`t:${teamId}`)?.urls.crest ?? state.photos.clubs[teamId] ?? (a ? state.faceOn.get(`t:${a}`)?.urls.crest ?? state.photos.clubs[a] : undefined);
 }

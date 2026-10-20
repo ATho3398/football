@@ -19,7 +19,7 @@ const BASE: Readonly<Record<string, readonly [string, string]>> = {
   'x:ipw': ['#3a64a3', '#ffffff'], 'x:wig': ['#1d59af', '#ffffff'],
 };
 
-/** 표 + 리그 데이터 팀 (C.75y, 45b): 같은 클럽(x: 짝)은 표 색을 같이 쓰고, 표에 없으면 리그 데이터 색 */
+/** 표 + 리그 데이터 팀 (C.76c, 45b): 같은 클럽(x: 짝)은 표 색을 같이 쓰고, 표에 없으면 리그 데이터 색 */
 export const TEAM_COLORS: Readonly<Record<string, readonly [string, string]>> = (() => {
   const out: Record<string, readonly [string, string]> = { ...BASE };
   for (const d of allLeagueData()) {

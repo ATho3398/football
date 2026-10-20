@@ -10,13 +10,13 @@ import { createRng, hashSeed, type Rng } from './rng';
 import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
 
-/** 다른 리그 득점왕 한 줄 (지난 시즌 기록, C.75y): [이름, 팀 id, 골] */
+/** 다른 리그 득점왕 한 줄 (지난 시즌 기록, C.76c): [이름, 팀 id, 골] */
 export type TopScorer = [string, string, number];
 
-/** 다른 리그 상태 = 리그 시즌 + 지난 시즌 최종 순위 (팀 id 순위 순, 최근 maxPast 시즌) + 이번 시즌 득점·도움 (C.75y) */
+/** 다른 리그 상태 = 리그 시즌 + 지난 시즌 최종 순위 (팀 id 순위 순, 최근 maxPast 시즌) + 이번 시즌 득점·도움 (C.76c) */
 export interface OtherLeague extends LeagueState {
   past?: { season: number; top: string[]; scorer?: TopScorer }[];
-  /** 이번 시즌 선수 기록 (C.75y, 45b): 선수 id → [골, 도움]. 빠른 시뮬 경기의 득점자를 그 팀 시드 로스터에서 뽑는다 */
+  /** 이번 시즌 선수 기록 (C.76c, 45b): 선수 id → [골, 도움]. 빠른 시뮬 경기의 득점자를 그 팀 시드 로스터에서 뽑는다 */
   stats?: Record<string, [number, number]>;
   /** 기록이 있는 선수 이름·팀: 선수 id → [이름, 팀 id] */
   names?: Record<string, [string, string]>;
@@ -60,7 +60,7 @@ function nextOf(worldSeed: string, lg: OtherLeague): { next: LeagueState; openin
   return { next, opening };
 }
 
-// ── 다른 리그 팀 로스터 (C.75y): 득점자 뽑기·컵 상대. 시드로 시즌마다 만들고(세이브에 안 담음) 실제 선수는 소속 팀에 넣는다 ──
+// ── 다른 리그 팀 로스터 (C.76c): 득점자 뽑기·컵 상대. 시드로 시즌마다 만들고(세이브에 안 담음) 실제 선수는 소속 팀에 넣는다 ──
 
 const ROSTERS = new Map<string, TeamRoster>();
 const ROSTER_CACHE_MAX = 600;
@@ -137,7 +137,7 @@ function syncOne(worldSeed: string, start: OtherLeague, upto: IsoDate, done: (lg
           createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), teamById(lg, f.home).rating, teamById(lg, f.away).rating,
         );
         recordResult(lg, f, hg, ag);
-        // 득점자 (C.75y): 따로 시드라 점수·순위는 C.75m 과 같다
+        // 득점자 (C.76c): 따로 시드라 점수·순위는 C.75m 과 같다
         if (hg + ag) addScorers(worldSeed, lg, f.home, f.away, hg, ag, createRng(hashSeed(`${worldSeed}:olg-g:${lg.id}:${lg.season}:${r}:${i}`)), npcs);
         n++;
       });
@@ -156,7 +156,7 @@ function syncOne(worldSeed: string, start: OtherLeague, upto: IsoDate, done: (lg
   return n;
 }
 
-/** 그 리그 이번 시즌 남은 경기를 모두 치른다 (날짜와 무관, 같은 시드 — 내 리그로 옮길 때, C.75y). 치른 경기 수 */
+/** 그 리그 이번 시즌 남은 경기를 모두 치른다 (날짜와 무관, 같은 시드 — 내 리그로 옮길 때, C.76c). 치른 경기 수 */
 export function finishOtherSeason(worldSeed: string, lg: OtherLeague, npcs?: readonly NpcState[]): number {
   let n = 0;
   while (lg.round < lg.schedule.length) {

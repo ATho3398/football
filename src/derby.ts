@@ -1,4 +1,4 @@
-// 더비 판정 (C.44 pending 52 5번): 명시 표(data/derbies.ts) + 리그 데이터 더비(C.75y) → 없으면 다른 리그·가상 구단끼리 같은 지역이면 자동 지역 더비.
+// 더비 판정 (C.44 pending 52 5번): 명시 표(data/derbies.ts) + 리그 데이터 더비(C.76c) → 없으면 다른 리그·가상 구단끼리 같은 지역이면 자동 지역 더비.
 // 같은 리그 구단끼리는 명시 표만 쓴다 (모든 런던 팀 맞대결이 더비가 되지 않게). 5-2 라이벌 이벤트·큰 경기 배율은 BALANCE.derby 훅
 
 import { DERBIES, REGION, REGION_DERBY_KO, type DerbyDef } from '../data/derbies';
@@ -12,13 +12,13 @@ export interface DerbyInfo {
   auto: boolean;
 }
 
-/** 같은 클럽 두 id(x: ↔ 리그 데이터, C.75y)는 리그 데이터 id 로 본다 */
+/** 같은 클럽 두 id(x: ↔ 리그 데이터, C.76c)는 리그 데이터 id 로 본다 */
 const canon = (id: string) => OUTSIDE_TO_LEAGUE[id] ?? id;
 const key = (a: string, b: string) => {
   const [x, y] = [canon(a), canon(b)];
   return x < y ? `${x}|${y}` : `${y}|${x}`;
 };
-/** 명시 표 먼저, 그다음 리그 데이터 더비 (C.75y, 45b — 같은 짝이면 앞의 것) */
+/** 명시 표 먼저, 그다음 리그 데이터 더비 (C.76c, 45b — 같은 짝이면 앞의 것) */
 const TABLE = new Map<string, DerbyDef>();
 for (const d of [
   ...DERBIES,
@@ -39,7 +39,7 @@ export function derbyOf(a: string, b: string): DerbyInfo | null {
   if (a === b) return null;
   const d = TABLE.get(key(a, b));
   if (d) return { name: d.name, big: !!d.big, auto: false };
-  // 같은 리그 구단끼리는 명시 표만 (C.75y: PL 밖 리그도 같은 규칙)
+  // 같은 리그 구단끼리는 명시 표만 (C.76c: PL 밖 리그도 같은 규칙)
   const la = leagueOfClub(a);
   if (la && la === leagueOfClub(b)) return null;
   const ra = regionOf(a);

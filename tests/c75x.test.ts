@@ -69,7 +69,7 @@ describe('미래 스타 팩 (C.75y: 레전드 팩과 따로, 구현 리그 첫 �
   });
 
   it('등장 전에는 없고 첫 시즌 시작에 그 팀으로 들어온다 (rebuild 와 같음), 시작은 낮고 성장한다', () => {
-    const ws = 'c75y-fs';
+    const ws = 'c76c-fs';
     const opt = { on: false, future: true };
     const r0 = rebuildRosters(ws, undefined, 0, undefined, [], opt);
     expect([...ids(r0)].filter((id) => id.startsWith('fs-'))).toEqual([]);

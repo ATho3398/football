@@ -70,18 +70,18 @@ export const LEAGUE_CATALOG: readonly LeagueEntry[] = [
 export const DEFAULT_LEAGUES: readonly string[] = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'championship'];
 
 /**
- * 내 리그로 시작할 수 있는 리그: 로스터·실제 선수·컵·이적이 연결된 리그. C.75y(45b)부터 등록된 14개 리그 전부.
+ * 내 리그로 시작할 수 있는 리그: 로스터·실제 선수·컵·이적이 연결된 리그. C.76c(45b)부터 등록된 14개 리그 전부.
  * 고른 다른 리그는 "함께 진행"(빠른 시뮬 순위표·득점 기록)
  */
 export const PLAYABLE_LEAGUES: readonly string[] = LEAGUE_DATA.map((d) => d.id);
 
-/** 국내 컵 이름 (C.75y, 45b): 리그 국가 → 한글 이름. 표에 없으면 '국내 컵' */
+/** 국내 컵 이름 (C.76c, 45b): 리그 국가 → 한글 이름. 표에 없으면 '국내 컵' */
 export const DOMESTIC_CUP_KO: Readonly<Record<string, string>> = {
   England: 'FA컵', Spain: '코파 델 레이', Italy: '코파 이탈리아', Germany: 'DFB 포칼', France: '쿠프 드 프랑스', Netherlands: 'KNVB 베이커르',
   Portugal: '타사 드 포르투갈', 'Saudi Arabia': '킹스컵', 'Korea Republic': 'FA컵', Japan: '일왕배', Brazil: '코파 두 브라질', 'United States': 'US 오픈컵',
 };
 
-/** 챔피언스리그(UEFA)에 나가는 리그 국가 (C.75y). 나머지 리그(사우디·K·J·브라질·MLS)는 챔스 없음 */
+/** 챔피언스리그(UEFA)에 나가는 리그 국가 (C.76c). 나머지 리그(사우디·K·J·브라질·MLS)는 챔스 없음 */
 export const UEFA_COUNTRIES: ReadonlySet<string> = new Set(['England', 'Spain', 'Italy', 'Germany', 'France', 'Netherlands', 'Portugal']);
 
 const byId = new Map<string, LeagueData>();

@@ -340,7 +340,7 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
   45: (s) => { s.photos ??= emptyPhotos(); },
   // 46 → 47 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
-  // 48 → 49 (C.75y, 45b): 다른 리그 득점 기록(otherLeagues[].stats)·이적 기록의 실제 선수 보충(fill.real)·내 리그 이동 기록(myLeagues) 은
+  // 48 → 49 (C.76c, 45b): 다른 리그 득점 기록(otherLeagues[].stats)·이적 기록의 실제 선수 보충(fill.real)·내 리그 이동 기록(myLeagues) 은
   // 새 필드라 옛 세이브는 없음 (PL 만 고른 상태 그대로)
   48: () => {},
   46: (s) => {
@@ -372,7 +372,7 @@ export function migrate(raw: any): GameState {
   const state = raw as GameState;
   // 이름 풀 판 (C.45 8번): namePool 이 없는 옛 세이브는 옛 풀로 다시 만들어 생성 선수 이름을 지킨다
   setNamePoolVersion(state.namePool ?? 1);
-  // 내 리그 (C.75y): 로스터를 만들기 전에 리그 규칙을 맞춘다
+  // 내 리그 (C.76c): 로스터를 만들기 전에 리그 규칙을 맞춘다
   setSquadLeague(state.league.id);
   state.rosters = rebuildRosters(state.worldSeed, state.player.realPlayerId, state.roster.updates, state.npcs, state.transfers, { on: !!state.legends, except: state.player.legendId, pack: state.legendPack, future: !!state.futureStars }, rosterLeagues(state), leagueMoves(state));
   // 내 등번호 자리 비우기 (C.45, 표시용): 경기 때와 같은 로스터가 되게

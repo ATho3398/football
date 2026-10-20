@@ -46,7 +46,7 @@ export interface DexCandidate {
 }
 
 /**
- * 게임 안 실제 선수 전원 (도감 후보). 새 리그 선수 데이터(data/players/<리그>.ts)가 생기면 여기 active 목록에 더한다 (45b, C.75y: 13개 리그 필드 선수.
+ * 게임 안 실제 선수 전원 (도감 후보). 새 리그 선수 데이터(data/players/<리그>.ts)가 생기면 여기 active 목록에 더한다 (45b, C.76c: 13개 리그 필드 선수.
  * 리그 데이터 GK 는 경기에 나오지 않아 빼 둔다). 2018-07 ~ 2020-12 은퇴자도 실제 선수라 넣는다 (레전드 팩으로 나온다)
  */
 export function dexCandidates(): DexCandidate[] {
@@ -67,7 +67,7 @@ function tableIndex(table: readonly (readonly string[])[], key: string | undefin
 
 const KIND_ORDER: Readonly<Record<DexKind, number>> = { active: 0, legend: 1, future: 2 };
 
-/** 리그 데이터 팀 순서 (C.75y): 구단 이름(소문자) → 리그 안 자리 */
+/** 리그 데이터 팀 순서 (C.76c): 구단 이름(소문자) → 리그 안 자리 */
 const DATA_CLUB_ORDER: ReadonlyMap<string, number> = new Map(allLeagueData().flatMap((d) => d.teams.map((t, i) => [lc(t.name), i] as const)));
 
 /** 구단 순위 자리: 순위 표 → 리그 데이터 팀 순서 (표 뒤) → 둘 다 없으면 맨 뒤 */

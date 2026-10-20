@@ -63,7 +63,7 @@ export function clubKo(name: string | undefined): string {
   return OUTSIDE_CLUBS.find((c) => c.name === name)?.nameKo ?? name;
 }
 
-/** 실제 선수 데이터의 club 이름 → 팀 id (등록된 모든 리그 팀, C.75y). 로스터는 내 리그 팀만 만들므로 다른 리그 선수는 NPC 로만 남는다 */
+/** 실제 선수 데이터의 club 이름 → 팀 id (등록된 모든 리그 팀, C.76c). 로스터는 내 리그 팀만 만들므로 다른 리그 선수는 NPC 로만 남는다 */
 export const CLUB_TO_TEAM: Record<string, string> = Object.fromEntries(
   allLeagueData().flatMap((d) => d.teams.map((t) => [t.name, t.id] as const)),
 );
@@ -190,7 +190,7 @@ export function leagueTeamById(id: string): LeagueTeamRef | undefined {
   return teamIndex.map.get(id);
 }
 
-/** 팀 id 의 리그 (등록된 리그 팀이 아니면 undefined, C.75y) */
+/** 팀 id 의 리그 (등록된 리그 팀이 아니면 undefined, C.76c) */
 export function leagueOfTeam(id: string | undefined): string | undefined {
   return id ? leagueTeamById(id)?.league : undefined;
 }

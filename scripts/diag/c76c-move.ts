@@ -1,4 +1,4 @@
-// C.75y 리그 이동 시험: PL 에서 한 시즌 → 비시즌 다른 리그 제안 수락 → 다음 시즌 그 리그. 세이브 왕복 로스터가 같은지 본다
+// C.76c 리그 이동 시험: PL 에서 한 시즌 → 비시즌 다른 리그 제안 수락 → 다음 시즌 그 리그. 세이브 왕복 로스터가 같은지 본다
 import { newGame, playRound, startNextSeason, endDay, isMatchDay, playOthers, acceptMyOffer, type GameState } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { serialize, deserialize } from '../../src/save';
@@ -14,7 +14,7 @@ function season(g: GameState): void {
     autoAllocate(g.player);
   }
 }
-const g = newGame({ mode: 'real', playerId: process.argv[2] ?? 'kane', seed: 'c75y-move', difficulty: 'normal', leagues: ['pl', 'laliga', 'bundesliga', 'kleague1'], futureStars: true });
+const g = newGame({ mode: 'real', playerId: process.argv[2] ?? 'kane', seed: 'c76c-move', difficulty: 'normal', leagues: ['pl', 'laliga', 'bundesliga', 'kleague1'], futureStars: true });
 season(g);
 const offers = g.market.offers ?? [];
 console.log('비시즌 제안', offers.map((o) => `${o.teamId}(${leagueOfTeam(o.teamId)})`).join(', '));

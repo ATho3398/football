@@ -1,12 +1,12 @@
-// C.75y 확인 캡처 (45b 타리그 연결): 새 게임 내 리그로 · 실제 선수 리그 표시 · K리그1 시작 홈 · 라리가(메시) 시작 홈 · 월드 리그 탭(MLS 컨퍼런스·라리가 득점) · 이적 소식 다른 리그 선수 · 도감 새 번호.
-// 세로 폰 390×844 기본 · PC 1280×800 (W H PREFIX). 세이브는 scripts/diag/c75y-saves.ts 로 만든다 (SAVES 폴더)
-// 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c75y-capture.mjs [playwright 모듈 경로] [저장 폴더]
+// C.76c 확인 캡처 (45b 타리그 연결): 새 게임 내 리그로 · 실제 선수 리그 표시 · K리그1 시작 홈 · 라리가(메시) 시작 홈 · 월드 리그 탭(MLS 컨퍼런스·라리가 득점) · 이적 소식 다른 리그 선수 · 도감 새 번호.
+// 세로 폰 390×844 기본 · PC 1280×800 (W H PREFIX). 세이브는 scripts/diag/c76c-saves.ts 로 만든다 (SAVES 폴더)
+// 실행: npm run build && npx vite preview --port 4173 & 그다음 node scripts/c76c-capture.mjs [playwright 모듈 경로] [저장 폴더]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.argv[2] ?? 'playwright');
-const OUT = process.argv[3] ?? new URL('../docs/c75y-check/', import.meta.url).pathname;
+const OUT = process.argv[3] ?? new URL('../docs/c76c-check/', import.meta.url).pathname;
 const W = Number(process.env.W ?? 390);
 const H = Number(process.env.H ?? 844);
 const P = process.env.PREFIX ?? '';
@@ -107,10 +107,10 @@ await act('ng-lg-open'); await act('ng-leagues', '[data-v="all"]'); await page.w
 await page.evaluate(() => document.querySelector('.real-list')?.scrollIntoView({ block: 'start' }));
 await shot('03_실제선수-리그표시');
 // 4. 메시(라리가) 시작 홈
-await load('c75y-b.fcsave.gz');
+await load('c76c-b.fcsave.gz');
 await shot('04_라리가-메시-시작-홈');
 // 5~8. PL + 다른 리그 4개, 2월
-await load('c75y-a.fcsave.gz');
+await load('c76c-a.fcsave.gz');
 await tab('world');
 await act('world-tab', '[data-v="table"]'); await page.waitForTimeout(300); await top();
 await shot('05_월드-순위-리그탭');

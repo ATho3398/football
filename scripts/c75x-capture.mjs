@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.argv[2] ?? 'playwright');
-const OUT = process.argv[3] ?? new URL('../docs/design/c75y-check/', import.meta.url).pathname;
+const OUT = process.argv[3] ?? new URL('../docs/design/c76c-check/', import.meta.url).pathname;
 const W = Number(process.env.W ?? 1280);
 const H = Number(process.env.H ?? 800);
 const P = process.env.PREFIX ?? '';

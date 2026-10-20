@@ -129,7 +129,7 @@ function leaguePicker(vm: NewGameVM, open: boolean): string {
   const row = (l: NewGameVM['leagues'][number]) => {
     const chip = l.mine ? '<span class="ng-lg__chip is-mine">내 리그 · 필수</span>' : !l.ready ? '<span class="ng-lg__chip is-wait">준비 중</span>' : '';
     const dis = l.mine || !l.ready;
-    // 내 리그로 (C.75y): 고른 리그 줄 오른쪽 작은 버튼 (줄 버튼 밖, 체크와 따로)
+    // 내 리그로 (C.76c): 고른 리그 줄 오른쪽 작은 버튼 (줄 버튼 밖, 체크와 따로)
     const mineBtn = l.canMine ? `<button type="button" class="ng-lg__mine" data-act="ng-league-mine" data-v="${esc(l.id)}">내 리그로</button>` : '';
     return `<div class="ng-lg__item"><button type="button" class="ng-lg__row${l.on ? ' is-on' : ''}${l.ready ? '' : ' is-wait'}" data-act="ng-league" data-v="${esc(l.id)}" role="checkbox" aria-checked="${l.on}"${dis ? ' disabled' : ''}><span class="ng-lg__box">${l.on ? Icon({ name: 'check', size: 14, strokeWidth: 3 }) : ''}</span><span class="grow"><b>${esc(l.name)}</b><small>${esc(l.sub)}</small></span>${chip}</button>${mineBtn}</div>`;
   };
@@ -364,7 +364,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
     : `<p class="small muted">${board === 'rating' ? `아직 ${vm.ratingMin}경기 이상 뛴 선수가 없어요.` : '아직 기록이 없어요. 경기가 진행되면 순위가 쌓여요.'}</p>`}`;
   // 디자인 146: 팀 옆 "재" 열 = 재정 등급 4단 막대(색 없음) + 아래 범례 (팀 수)
   const tierCount = FIN_TIERS.map((t) => ({ t, n: vm.table.filter((r) => r.tier === t).length }));
-  // 리그 고르기 (C.75y, 45b): 내 리그 + 고른 다른 리그 (순위표·득점 탭)
+  // 리그 고르기 (C.76c, 45b): 내 리그 + 고른 다른 리그 (순위표·득점 탭)
   const leagueBar = vm.leagueTabs.length && (tab === 'table' || tab === 'scorers')
     ? Tabs({ items: vm.leagueTabs, value: vm.leagueSel, variant: 'segment', scroll: true, act: 'world-league', label: '리그 고르기' }) : '';
   const o = vm.other;
@@ -395,7 +395,7 @@ export function worldView(vm: WorldVM, tab: 'table' | 'stars' | 'scorers' | 'tra
   return `${hero}<div class="body">${tabs}${leagueBar}${tab === 'table' ? table : tab === 'cups' ? cups : tab === 'scorers' ? (o ? otherScorersHtml(o) : scorers) : tab === 'transfers' ? transfers : stars}</div>`;
 }
 
-/** 순위표 (내 리그는 팀 상세로 이어지고 재정 막대·범례, 다른 리그는 이름만, C.75y) */
+/** 순위표 (내 리그는 팀 상세로 이어지고 재정 막대·범례, 다른 리그는 이름만, C.76c) */
 function leagueTableHtml(rows: WorldRowVM[], teams: number, mine: boolean): string {
   const team = (r: WorldRowVM) => mine
     ? `<button type="button" class="dt-link team" data-act="team-open" data-v="${esc(r.teamId)}">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</button>`
@@ -406,7 +406,7 @@ function leagueTableHtml(rows: WorldRowVM[], teams: number, mine: boolean): stri
     </table><div class="legend small"><span><i class="k top"></i>상위 4팀</span><span><i class="k low"></i>하위 3팀</span><span class="grow r">${mine ? '팀 전력 = 라인업 평균' : '빠른 계산 · 팀 전력 = 데이터 레이팅'}</span></div></div>`;
 }
 
-/** 다른 리그 순위 (C.75y): 상태 줄 · (컨퍼런스별) 순위표 · 지난 시즌 */
+/** 다른 리그 순위 (C.76c): 상태 줄 · (컨퍼런스별) 순위표 · 지난 시즌 */
 function otherTable(o: OtherLeagueVM): string {
   const head = `<p class="small muted wl-other"><b>${esc(o.name)}</b> · ${esc(o.sub)} · ${esc(o.season)} · ${esc(o.status)}</p>`;
   const body = o.groups ? o.groups.map((g) => `${SectionTitle({ title: g.title })}${leagueTableHtml(g.rows, g.rows.length, false)}`).join('') : leagueTableHtml(o.table, o.table.length, false);
@@ -414,7 +414,7 @@ function otherTable(o: OtherLeagueVM): string {
   return `${head}${body}${last}<p class="small muted">다른 리그는 빠른 계산으로 진행돼요(승강 없음). 득점자는 그 팀 선수단에서 뽑아요.</p>`;
 }
 
-/** 다른 리그 득점 순위 (C.75y) */
+/** 다른 리그 득점 순위 (C.76c) */
 function otherScorersHtml(o: OtherLeagueVM): string {
   if (!o.scorers.length) return `<p class="small muted">${esc(o.name)} · ${esc(o.status)} · 아직 기록이 없어요.</p>`;
   return `<p class="small muted wl-other"><b>${esc(o.name)}</b> · ${esc(o.season)} · ${esc(o.status)}</p><div class="panel tbl-panel"><table class="tbl league">

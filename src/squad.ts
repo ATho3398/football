@@ -12,14 +12,14 @@ import { naturalOvr, pickLineup, posGroup, type RosterPlayer, type TeamRoster } 
 
 export type LeagueKey = string;
 
-/** 지금 리그 (내 리그, C.75y: 새 게임·불러오기에서 setSquadLeague 로 맞춘다. 로스터 재생성 전에 정해야 같은 결과) */
+/** 지금 리그 (내 리그, C.76c: 새 게임·불러오기에서 setSquadLeague 로 맞춘다. 로스터 재생성 전에 정해야 같은 결과) */
 let currentLeague: LeagueKey = 'pl';
 export const CURRENT_LEAGUE = (): LeagueKey => currentLeague;
 export function setSquadLeague(id: string): void {
   currentLeague = id;
 }
 
-/** 리그 규칙: 표에 없는 리그는 기본 규칙 (BALANCE.squad.defaultRule, C.75y) */
+/** 리그 규칙: 표에 없는 리그는 기본 규칙 (BALANCE.squad.defaultRule, C.76c) */
 export const squadRule = (league: LeagueKey = currentLeague) =>
   (BALANCE.squad.leagues as Record<string, typeof BALANCE.squad.defaultRule>)[league] ?? BALANCE.squad.defaultRule;
 

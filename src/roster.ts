@@ -350,7 +350,7 @@ export function makeFiller(id: string, teamId: string, position: Position, ovr: 
   return p;
 }
 
-/** 다른 고른 리그의 실제 선수가 이적시장 빈자리를 채운다 (C.75y, 45b). 계약·충성도는 id·시즌 시드 (재생성 때 같은 값) */
+/** 다른 고른 리그의 실제 선수가 이적시장 빈자리를 채운다 (C.76c, 45b). 계약·충성도는 id·시즌 시드 (재생성 때 같은 값) */
 export function realFiller(n: NpcState, season: number, worldSeed: string): RosterPlayer {
   return realEntry(n, season, rngFor(worldSeed, 'real-fill', n.id, season));
 }

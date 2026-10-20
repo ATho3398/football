@@ -42,7 +42,7 @@ export const MANAGER_STYLE_KO: Readonly<Record<ManagerStyle, string>> = {
 };
 
 /**
- * 표 + 리그 데이터 팀 감독 (C.75y, 45b): 리그 데이터는 이름·홈구장만 있어 성향은 실용(neutral).
+ * 표 + 리그 데이터 팀 감독 (C.76c, 45b): 리그 데이터는 이름·홈구장만 있어 성향은 실용(neutral).
  * 리그 밖 x: 클럽은 같은 클럽의 리그 데이터 감독
  */
 export const MANAGERS: Readonly<Record<string, ManagerData>> = (() => {

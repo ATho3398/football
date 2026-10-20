@@ -1,6 +1,6 @@
-// C.75y 리그별 시즌 측정 (부록 C.75y 7번): 리그마다 빠른 시뮬 N시즌(다른 리그로 고를 때와 같은 계산) + 내 리그로 한 시즌(내 경기 엔진 + 다른 경기 quick).
+// C.76c 리그별 시즌 측정 (부록 C.76c 7번): 리그마다 빠른 시뮬 N시즌(다른 리그로 고를 때와 같은 계산) + 내 리그로 한 시즌(내 경기 엔진 + 다른 경기 quick).
 // 평균 득점(경기당) · 레이팅 순위와 최종 순위 스피어만 상관 · 우승 팀의 레이팅 순위 분포. 마지막에 14개 리그를 다 고른 시즌 진행 시간.
-// 실행: npx vite-node scripts/diag/c75y-leagues.ts -- [빠른 시뮬 시즌 수(기본 40)] [engine] [speed] [only=mls,saudi] [nofast]
+// 실행: npx vite-node scripts/diag/c76c-leagues.ts -- [빠른 시뮬 시즌 수(기본 40)] [engine] [speed] [only=mls,saudi] [nofast]
 import { allLeagueData } from '../../data/leagues';
 import { createLeague, recordResult, simulateScore, sortedTable, teamById, type LeagueState } from '../../src/league';
 import { createRng, hashSeed } from '../../src/rng';
@@ -66,7 +66,7 @@ if (doEngine) {
   console.log('| 리그 | 경기당 득점 | 레이팅↔순위 상관 | 우승 (레이팅 순위) | 내 팀 순위 | 시즌 시간 |');
   console.log('|---|---|---|---|---|---|');
   for (const d of allLeagueData().filter((x) => !only || only.includes(x.id))) {
-    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75y-e', difficulty: 'normal', leagues: [d.id] });
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-e', difficulty: 'normal', leagues: [d.id] });
     const ms = playSeason(g);
     const lg = g.league;
     const champ = sortedTable(lg)[0]!.teamId;
@@ -79,7 +79,7 @@ if (doSpeed) {
   const all = allLeagueData().map((d) => d.id);
   for (const [label, ids] of [['PL 만', ['pl']], ['기본 6개', ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'championship']], ['14개 전부', all]] as const) {
     const t0 = performance.now();
-    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75y-sp', difficulty: 'normal', leagues: [...ids] });
+    const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-sp', difficulty: 'normal', leagues: [...ids] });
     const make = performance.now() - t0;
     const ms = playSeason(g);
     console.log(`- ${label}: 새 게임 ${Math.round(make)} ms · 시즌 ${(ms / 1000).toFixed(1)}초 · NPC ${g.npcs.length}명 · 세이브 ${Math.round(JSON.stringify(g).length / 1024)} KB(압축 전)`);

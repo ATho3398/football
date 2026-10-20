@@ -155,7 +155,7 @@ describe('인물 (3번)', () => {
 describe('유니폼 (4번)', () => {
   it('표: PL 20 + 리그 밖 34 구단 id 가 게임 id 와 같고, 대표팀 23, 모두 팩 유니폼', () => {
     const ids = [...initialTeams().map((t) => t.id), ...OUTSIDE_CLUBS.map((c) => c.id)].sort();
-    // C.75y: 같은 클럽의 리그 데이터 id 도 같은 유니폼 (laliga:bar = x:bar)
+    // C.76c: 같은 클럽의 리그 데이터 id 도 같은 유니폼 (laliga:bar = x:bar)
     const alias = Object.keys(CLUB_KITS).filter((id) => !ids.includes(id));
     expect(Object.keys(CLUB_KITS).filter((id) => ids.includes(id)).sort()).toEqual(ids);
     for (const id of alias) expect(CLUB_KITS[id]).toEqual(CLUB_KITS[LEAGUE_TO_OUTSIDE[id]!]);

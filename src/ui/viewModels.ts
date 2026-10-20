@@ -92,7 +92,7 @@ export function visiblePoints(g: GameState): number {
   return isUnlocked(g.guide, 'growth') ? g.player.unspentPoints : 0;
 }
 
-/** 시즌 이름 표시 방식 (C.75y): 내 리그가 3~12월 리그면 "2018", 아니면 "2018-19". 화면이 그릴 때 내 리그로 맞춘다 */
+/** 시즌 이름 표시 방식 (C.76c): 내 리그가 3~12월 리그면 "2018", 아니면 "2018-19". 화면이 그릴 때 내 리그로 맞춘다 */
 let labelKind: 'autumn-spring' | 'spring-autumn' = 'autumn-spring';
 export function setSeasonLabelKind(kind: 'autumn-spring' | 'spring-autumn'): void {
   labelKind = kind;
@@ -1257,20 +1257,20 @@ export interface WorldVM {
   /** 리그 기록 순위 (C.64): 득점 · 도움 · 평점(자격 출전 ratingMin 이상) */
   boards: Record<BoardKind, ScorerVM[]>;
   ratingMin: number;
-  /** 리그 고르기 (C.75y, 45b): 내 리그('') + 고른 다른 리그. 다른 리그가 없으면 빈 목록 */
+  /** 리그 고르기 (C.76c, 45b): 내 리그('') + 고른 다른 리그. 다른 리그가 없으면 빈 목록 */
   leagueTabs: { id: string; label: string }[];
   /** 지금 보는 리그 ('' = 내 리그) */
   leagueSel: string;
   /** 고른 다른 리그 순위·득점 (leagueSel 이 다른 리그일 때) */
   other: OtherLeagueVM | null;
-  /** 컨퍼런스 순위 (MLS, C.75y): 내 리그가 컨퍼런스 리그면 묶음별 순위 */
+  /** 컨퍼런스 순위 (MLS, C.76c): 내 리그가 컨퍼런스 리그면 묶음별 순위 */
   groups: TableGroupVM[] | null;
 }
 
 export type WorldRowVM = WorldVM['table'][number];
 export interface TableGroupVM { title: string; rows: WorldRowVM[] }
 
-/** 다른 리그 보기 (C.75y): 빠른 시뮬 순위·득점 순위·지난 시즌 */
+/** 다른 리그 보기 (C.76c): 빠른 시뮬 순위·득점 순위·지난 시즌 */
 export interface OtherLeagueVM {
   id: string; name: string; sub: string; season: string; round: number; rounds: number;
   /** 한 줄 상태: "개막 전 · 3월 3일 개막" / "12R / 33" / "시즌 종료 · 우승 ○○" */
@@ -1672,13 +1672,13 @@ export function leaguePickerVM(leagueIds: readonly string[], realMode = false): 
     return {
       id: e.id, name: e.nameKo, sub: `${e.countryKo} · ${e.tier}부 · ${e.teams}팀 · ${months[e.calendar]}`,
       on, mine: e.id === leagueIds[0], ready,
-      // 내 리그로 (C.75y): 고른 리그 중 내 리그가 아닌 줄. 실제 선수 모드는 선수 소속 리그가 내 리그라 없음
+      // 내 리그로 (C.76c): 고른 리그 중 내 리그가 아닌 줄. 실제 선수 모드는 선수 소속 리그가 내 리그라 없음
       canMine: on && e.id !== leagueIds[0] && !realMode && PLAYABLE_LEAGUES.includes(e.id),
     };
   });
 }
 
-/** 클럽 영문 이름 → 리그 한글 이름 (실제 선수 목록의 리그 표시, C.75y) */
+/** 클럽 영문 이름 → 리그 한글 이름 (실제 선수 목록의 리그 표시, C.76c) */
 function clubLeagueKo(club: string): string {
   const id = leagueOfTeam(CLUB_TO_TEAM[club]);
   return id ? leagueData(id)?.nameKo ?? id : '';
@@ -1691,7 +1691,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   const seedForPreview = f.seed.trim() || 'preview';
   const formIds = normalizeLeagues(f.leagues ?? DEFAULT_LEAGUES);
   const realData = selectableRealPlayers(formIds);
-  // 내 리그 (C.75y): 실제 선수를 고르면 그 선수 소속 리그, 아니면 고른 리그 맨 앞
+  // 내 리그 (C.76c): 실제 선수를 고르면 그 선수 소속 리그, 아니면 고른 리그 맨 앞
   const realPick = f.mode === 'real' ? realData.find((p) => p.id === f.realId) : undefined;
   const leagueIds = normalizeLeagues(formIds, realPick ? leagueOfTeam(CLUB_TO_TEAM[realPick.club]) : formIds[0]);
   const many = formIds.length > 1;
@@ -1716,7 +1716,7 @@ export function newGameVM(f: NewGameForm): import('./views/screens').NewGameVM {
   // 미래 스타 (C.75y): 구현 리그 첫 시즌 순, 그 리그가 없으면 "리그 추가 후 등장"
   const futureOn = f.futureStars === 'on';
   const futureList = futureOn && f.mode === 'real' ? FUTURE_STARS.map((l) => {
-    // 로스터에 들어오는 것은 내 리그 첫 시즌 (C.75y)
+    // 로스터에 들어오는 것은 내 리그 첫 시즌 (C.76c)
     const mine = leagueIds.slice(0, 1);
     const d = futureDebut(l, mine);
     const e = futureEntry(l, mine);
@@ -1963,7 +1963,7 @@ export function myTacticVM(g: GameState): TacticVM {
 export interface CupTieVM { date: string; h: string; a: string; hId: string; aId: string; score: string | null; note: string; w: string | null; me: boolean }
 export interface CupsWorldVM {
   season: string;
-  /** 국내 컵 이름 (C.75y: 내 리그 국가 컵). 없으면 FA컵 */
+  /** 국내 컵 이름 (C.76c: 내 리그 국가 컵). 없으면 FA컵 */
   cupName?: string;
   ucl: null | {
     my: string; winner: string | null;

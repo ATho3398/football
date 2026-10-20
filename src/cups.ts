@@ -68,7 +68,7 @@ export interface CupsState {
 export const COMP_NAMES_KO: Record<CompId, string> = { fa: 'FA컵', ucl: '챔스' };
 export const COMP_FULL_KO: Record<CompId, string> = { fa: 'FA컵', ucl: '챔피언스리그' };
 
-/** 국내 컵 이름 (C.75y): 내 리그 국가의 컵 (PL·챔피언십 = FA컵) */
+/** 국내 컵 이름 (C.76c): 내 리그 국가의 컵 (PL·챔피언십 = FA컵) */
 export function cupNameKo(leagueId: string | undefined): string {
   return DOMESTIC_CUP_KO[leagueData(leagueId ?? 'pl')?.country ?? 'England'] ?? '국내 컵';
 }
@@ -130,7 +130,7 @@ function freeDateNear(target: IsoDate, busy: Set<IsoDate>, after: IsoDate | null
 
 /**
  * FA컵(국내 컵) 단계 날짜: 32강 1월 초, 16강 1월 말, 8강 3월, 4강 4월 (리그 없는 컵 주말 우선), 결승 = 최종 라운드 다음 주 토요일.
- * 팀이 적은 컵(16·8팀, C.75y)은 앞 단계를 건너뛴다 (16팀 = 16강부터). 춘추제 리그는 6개월 당긴다 (7월·9월·10월)
+ * 팀이 적은 컵(16·8팀, C.76c)은 앞 단계를 건너뛴다 (16팀 = 16강부터). 춘추제 리그는 6개월 당긴다 (7월·9월·10월)
  */
 export function faDates(state: GameState, rounds = cupRounds(state)): IsoDate[] {
   const C = BALANCE.cups;
@@ -145,7 +145,7 @@ export function faDates(state: GameState, rounds = cupRounds(state)): IsoDate[] 
 
 function faTarget(state: GameState, stage: number): IsoDate {
   const [y, m, d] = BALANCE.cups.fa.stages[stage]!;
-  // 춘추제 (C.75y): 3~12월 시즌이라 같은 해 6개월 앞 (1월 → 7월)
+  // 춘추제 (C.76c): 3~12월 시즌이라 같은 해 6개월 앞 (1월 → 7월)
   if (calendarKind(state.league.id) === 'spring-autumn') return isoDate(state.league.season, m + 6, d);
   return isoDate(y ? state.league.season + 1 : state.league.season, m, d);
 }
@@ -156,7 +156,7 @@ function cupRounds(state: GameState): number {
 }
 
 /**
- * 국내 컵 참가 팀: PL = 리그 20 + 하부 가상 12 (FA_CUP_EXTRA, 그대로). 다른 리그 (C.75y) = 내 리그 + 같은 나라 다른 리그(데이터) 팀을
+ * 국내 컵 참가 팀: PL = 리그 20 + 하부 가상 12 (FA_CUP_EXTRA, 그대로). 다른 리그 (C.76c) = 내 리그 + 같은 나라 다른 리그(데이터) 팀을
  * 레이팅 순으로 32·16·8팀 중 들어가는 가장 큰 수만큼 (내 팀은 늘 넣는다 — 상위 팀이 앞 라운드를 건너뛴 것으로 본다)
  */
 export function domesticCupTeams(state: GameState): string[] {
@@ -245,7 +245,7 @@ function advance(state: GameState, comp: CupComp): void {
   comp.rounds.push(draw(state.worldSeed, state.league.season, comp, winners));
   // 추첨 때 날짜를 남은 팀 기준으로 다시 잡는다 (결승 제외): 남은 팀의 리그 경기와만 간격을 지키면 되므로 자리가 넓어진다
   const s = currentStage(comp);
-  // 단계 수가 적은 컵 (C.75y): 앞 단계를 건너뛴 만큼 날짜 표 자리를 민다
+  // 단계 수가 적은 컵 (C.76c): 앞 단계를 건너뛴 만큼 날짜 표 자리를 민다
   const skip = BALANCE.cups.fa.stages.length + 1 - comp.dates.length;
   if (s + skip < BALANCE.cups.fa.stages.length && daysBetween(state.calendar.date, comp.dates[s]!) > 0) {
     // 챔스 경기도 피한다 (C.67b)
@@ -267,7 +267,7 @@ const rosterCache = new Map<string, TeamRoster>();
 export function cupRoster(state: GameState, id: string): TeamRoster {
   const r = state.rosters?.[id];
   if (r) return r;
-  // 다른 리그 팀 (C.75y): 그 시즌 시드 로스터 (실제 선수 포함, 다른 리그 득점 기록과 같은 로스터)
+  // 다른 리그 팀 (C.76c): 그 시즌 시드 로스터 (실제 선수 포함, 다른 리그 득점 기록과 같은 로스터)
   if (!id.startsWith('x:') && leagueTeamById(id)) return leagueTeamRoster(state.worldSeed, id, teamById(state.league, id).rating, state.league.season, state.npcs);
   const key = `${state.worldSeed}:${id}`;
   let hit = rosterCache.get(key);
@@ -365,7 +365,7 @@ export function cupsFinish(state: GameState): void {
 
 /**
  * 챔스 출전: 지난 시즌 리그 상위 4팀 (첫 시즌 = 2017-18 실제 순위) + 외부 28팀.
- * C.75y (45b): 외부 클럽이 고른 리그 팀이면 그 리그 팀 id. 내 리그가 PL 이 아니면 내 리그(1부) 상위 4 + PL 상위 4 + 외부 클럽(내 리그 팀 제외)을
+ * C.76c (45b): 외부 클럽이 고른 리그 팀이면 그 리그 팀 id. 내 리그가 PL 이 아니면 내 리그(1부) 상위 4 + PL 상위 4 + 외부 클럽(내 리그 팀 제외)을
  * 32팀까지(모자라면 유럽 리그 팀 레이팅 순으로 채움). 유럽 밖 리그(사우디·K·J·브라질·MLS)는 챔스 없음 (빈 목록)
  */
 export function uclEntrants(state: GameState): string[] {
@@ -411,7 +411,7 @@ function teamBusy(state: GameState, teamId: string, cups: CupsState | null = sta
   const fa = cups?.fa;
   if (fa) {
     const reach = teamReach(fa, teamId);
-    // 우승 팀이면 reach = 단계 수 (C.75y: 시즌 끝 한꺼번에 계산할 때 챔스 추첨이 FA 우승 뒤에 올 수 있다)
+    // 우승 팀이면 reach = 단계 수 (C.76c: 시즌 끝 한꺼번에 계산할 때 챔스 추첨이 FA 우승 뒤에 올 수 있다)
     const alive = reach >= 0 && !fa.rounds[reach]?.some((t) => t.w && t.w !== teamId && (t.h === teamId || t.a === teamId));
     fa.dates.forEach((d, s) => { if (s <= reach || (alive && s > reach)) out.add(d); });
   }
@@ -471,7 +471,7 @@ function createUcl(state: GameState, cups: CupsState): UclComp | null {
   const U = BALANCE.cups.ucl;
   const y0 = state.league.season;
   if (daysBetween(state.calendar.date, tuesdayOf(y0, U.groupWeeks[0]!)) < 0) return null;
-  // 유럽 밖 리그 (C.75y): 출전 팀이 없으면 챔스 없음
+  // 유럽 밖 리그 (C.76c): 출전 팀이 없으면 챔스 없음
   const entrants = uclEntrants(state);
   if (entrants.length < 32) return null;
   const u: UclComp = { id: 'ucl', groups: drawGroups(state, entrants), gs: [], ko: [] };
