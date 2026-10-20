@@ -1084,6 +1084,8 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     });
   }
   if (m.recovered) banners.push({ tone: 'success', title: '부상에서 회복했어요', body: '다음 경기부터 나설 수 있어요.' });
+  // 포토카드 (C.75t): 이 경기로 새로 모은 장 수
+  if (m.newPhotos) banners.push({ tone: 'success', title: `새 포토카드 ${m.newPhotos}장`, body: '같은 경기에 뛴 실제 선수를 도감에 모았어요.', action: '도감 보기', act: 'go', to: 'dex' });
   // 컵 (C.67): 진출·탈락·우승
   if (m.cup && m.cup.decisive === false) {
     // 조별리그·1차전 (C.67b): 승부가 나지 않는 경기 — 조 순위 또는 2차전 안내

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 57;
+export const BALANCE_VERSION = 58;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -962,6 +962,11 @@ export const BALANCE = {
       cultSeasons: 3, cultHeroRep: 1.01,
       traitorForm: 0.1,
     },
+  },
+
+  // ── 포토카드 도감 (C.75t): 카드 테두리 = OVR 등급 (카드 희귀도 색 재사용) ──
+  photocards: {
+    grade: { legend: 88, epic: 82, rare: 75 },
   },
 
   // ── 레전드 팩 (pending 63, C.47): 2018-19 세계에 15~22세로. 시작 OVR = 전성기 OVR − startGap(나이), 전성기 나이 peakAge ──

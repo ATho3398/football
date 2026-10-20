@@ -73,6 +73,9 @@ import { answerEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
 import { financeView, type FinanceTab } from './views/finance';
+import { photoDexView } from './views/photos';
+import { photoDexVM } from './photoVM';
+import type { PhotoSort } from '../photocards';
 import { financeVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
 import { buyPack, buyShopCard, donate, donateBlocked, moveInvest, setLife, useTp, type InvestKind, type LifeItem, type TpKind } from '../wealth';
@@ -114,7 +117,7 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -225,6 +228,8 @@ const ui = {
   playerTab: 'attrs' as PlayerTab,
   /** 재정 화면 탭 (C.68b) */
   financeTab: 'money' as FinanceTab,
+  /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
+  dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null },
   lookName: false,
   /** 선수 포지션 탭 레전더리 대회 조건 펼침 (C.71a 디자인 182) */
   legendOpen: false,
@@ -504,6 +509,7 @@ function screenHtml(): string {
     }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
+    case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip));
     case 'replay':
       if (ui.replay) return replayView(ui.replay.vm(replayStaticVM(ui.replay.replay, g)));
       break;
@@ -2123,6 +2129,19 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     // 재정 b (C.68b): 탭 · 카드 상점 · 카드팩 · TP · 집·차 · 기부 · 투자 · 에이전트
+    // 포토카드 도감 (C.75t): 정렬 · 방향 · 카드 뒤집기
+    case 'pc-sort':
+      ui.dex = { ...ui.dex, sort: (v ?? 'no') as PhotoSort, flip: null };
+      render();
+      return;
+    case 'pc-dir':
+      ui.dex = { ...ui.dex, desc: !ui.dex.desc };
+      render();
+      return;
+    case 'pc-flip':
+      ui.dex = { ...ui.dex, flip: ui.dex.flip === v ? null : v ?? null };
+      render();
+      return;
     case 'fn-tab':
       ui.financeTab = (v ?? 'money') as FinanceTab;
       render();
