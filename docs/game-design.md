@@ -5565,7 +5565,18 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 **디자인 없는 새 화면**: 없음(데이터만).
 
-명령 시각 2026-10-20 14:43 KST / 답변 시각 ANSWER_TIME KST / 걸린 시간 ELAPSED
+명령 시각 2026-10-20 14:43 KST / 답변 시각 2026-10-20 14:54 KST / 걸린 시간 약 12분
+
+### C.75s 45d6단계 리그 데이터 MLS·사우디 — 데이터 파일만 (게임 연결 없음) **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로, 게임 결과 불변)
+
+- 새 파일: `data/leagues/types.ts`(45 공통 형식, 지시문 원문 그대로), `data/leagues/mls.ts`, `data/leagues/saudi.ts`, `data/players/mls.ts`, `data/players/saudi.ts`, `tests/leagues-mls.test.ts`, `tests/leagues-saudi.test.ts`. 다른 파일은 손대지 않음(배선은 45a·45b).
+- **MLS 2018** (`mls`, United States, tier 1, spring-autumn): 실제 참가 **23팀**(동부 11·서부 12, 단일 리그 — 컨퍼런스는 팀 줄 메모와 `MLS_CONFERENCE`). 레이팅 **59~68**(뉴욕 레드불스·애틀랜타 68 ≈ 챔피언십 상위, 산호세 59). 감독 = 2018 개막(비에이라·마치·마르티노 등), 홈구장 = 개막 시점(D.C.는 아우디 필드 이전 전 RFK). 더비 11(엘 트라피코·캐스케이디아 3·허드슨 리버·애틀랜틱 컵·텍사스·로키 마운틴·캘리포니아 클라시코·캐나디언 클라시크·트릴리엄 컵).
+- **사우디 프로리그 2018-19** (`saudi`, Saudi Arabia, tier 1, autumn-spring): 실제 참가 **16팀**(14→16 확대 첫 시즌). 레이팅 **58~71**(알힐랄·알나스르 71 ≈ PL 하위 −0~4, 강등 3팀 58~59). 팀·도시·홈구장·개막 감독은 위키백과 "2018–19 Saudi Pro League" 표로 확인(알나스르 개막 감독 = 카레뇨, 비토리아는 그 뒤). 팀 색은 확실하지 않은 4팀(알타아원·알파이살리·알하젬·알바틴) 비움. 더비 7.
+- **선수**: MLS **23명**, 사우디 **22명**(필드만 — stars.ts Row 형식에 GK 없음). 능력치 척도: 리그 최고 선수(벨라·조빈코·알미론·마르티네스) 대략 76~80 중심, 사우디 대표·외국인 66~78. potentialTier topClass·special 위주(데이비스 worldClass, 애덤스 topClass, 유망주 spread 6~9), reputation 120~450. 기존 data/players(stars·messi·레전드·미래 스타)와 이름 중복 **0** — 레전드 팩에 있는 **루니·즐라탄·다비드 비야·슈바인슈타이거는 제외**. 조빈코는 2019년 1월 알힐랄 이적이라 MLS(토론토)에만 둠.
+- outsideClubs.ts와 겹치는 클럽 없음(이름·레이팅 맞출 대상 없음).
+- 출처 메모: 팀 목록·컨퍼런스·감독·구장(MLS)은 기억 기반, 사우디 표는 위키 확인. 선수 능력치는 기억 기반 초안(조정 예정).
+- 검증: typecheck 통과, 테스트(팀 수 23·16, id 형식 `<리그>:<3글자>`·중복, 더비 팀 존재, 선수 15~25명·능력치 25개 1~99·club = 리그 팀 이름·league = 리그 이름·기존 선수 이름/id 겹침 없음).
+- 새 화면·패널: 없음.
 
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
