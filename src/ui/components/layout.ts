@@ -78,7 +78,7 @@ export interface HeroPanelProps {
 }
 
 /** 미페 머리말 이름 칸 폭(폰 390: left 16 ~ right 130)과 글자 크기: 풀 50 · compact 36 → 최소 24px (B-apply 2절) */
-export const HERO_NAME = { width: 244, full: 50, compact: 36, min: 24 } as const;
+export const HERO_NAME = { width: 244, full: 50, compact: 36, min: 24, slack: 2 } as const;
 
 /** Black Han Sans 글자 폭 근사(em): 한글 0.83 · 공백 0.3 · 라틴·숫자 0.56 · 그 밖 0.5. 실측 손흥민 50px = 125px, 바스티안 슈바인슈타이거 ≈ 25.8px에서 244px */
 export function heroNameEm(name: string): number {
@@ -87,11 +87,11 @@ export function heroNameEm(name: string): number {
   return w;
 }
 
-/** 이름이 칸에 맞는 글자 크기 (정수 px, base → min). 화면에서는 그린 뒤 실제 폭으로 한 번 더 맞춘다 (main.ts fitHeroNames) */
+/** 이름이 칸에 맞는 글자 크기 (정수 px, base → min). 근사 em이 실폭과 1px 안쪽으로 붙어 slack 2px를 빼고 잰다(C.75u, 율리안 린트너 46→45). 화면에서는 그린 뒤 실제 폭으로 한 번 더 맞춘다 (main.ts fitHeroNames) */
 export function heroNameSize(name: string, compact = false, width: number = HERO_NAME.width): number {
   const base = compact ? HERO_NAME.compact : HERO_NAME.full;
   const em = heroNameEm(name);
-  return em <= 0 ? base : Math.max(HERO_NAME.min, Math.min(base, Math.floor(width / em)));
+  return em <= 0 ? base : Math.max(HERO_NAME.min, Math.min(base, Math.floor((width - HERO_NAME.slack) / em)));
 }
 
 /** 글자 머리말 판별 (bundle.js HeroPanel): 숫자·기호·단위 한 글자 말고 다른 글자가 있으면 글자 값 (48px 한 줄, compact 22px) */

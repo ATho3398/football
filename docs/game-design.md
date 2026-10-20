@@ -5595,6 +5595,19 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-20 14:43 KST / 답변 시각 2026-10-20 14:54 KST / 걸린 시간 약 12분
 
+### C.75u 45단계 홈 머리말 긴 이름 잘림 · 선수 머리말 겹침 수정 **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
+
+- 제보(2026-10-20 15:45, 폰): 홈 얼굴 머리말 "율리안 린트너"가 46px 그대로 "율리안 린트…"로 말줄임. 사용자 결정: 두 줄 나누기 안 됨 → **한 줄 유지, 글씨만 줄여 맞춤**, 최소 24px에서도 넘칠 때만 말줄임.
+- 원인: `fitHeroNames()`(src/ui/main.ts)가 정수로 반올림되는 `scrollWidth > clientWidth + 0.5`로 넘침을 봐서 46px 글자 폭 243.39px vs 칸 244px처럼 1px 미만 넘침을 못 잡음(브라우저는 말줄임).
+- 수정: ① `fitHeroNames()`가 Range로 글자 실폭을 소수점까지 재서 `칸 폭 − 1px`보다 넓으면 1px씩 줄임(Range 폭이 없는 환경은 예전 비교). ② `document.fonts` `loadingdone` 때 다시 맞춤. ③ 첫 추정 `heroNameSize`에 `HERO_NAME.slack` 2px 여유(244 → 242로 계산, 율리안 린트너 46 → 45) — 첫 그림부터 거의 안 넘침. 다른 이름 맞춤 함수는 없음(`scrollWidth` 나머지 2곳은 가로 스크롤 버튼용).
+- **추가(U 16:18, 사용자 16:02 선수 화면 캡처)** 같은 얼굴 머리말(선수 화면은 compact): ① 위 막대 제목 "선수"가 머리카락에 겹침 → 제목에 검정 받침(`--surface-0`, 사선 `--skew-sm`, 뒤로 버튼과 같은 모양). ⑤ 칩 4개가 2줄로 넘쳐 아래 붙은 이름 묶음이 위로 밀림(②③의 원인) → 칩 한 줄(`nowrap`, 10.5px, 줄 폭은 OVR 앞까지 +36px, 그래도 넘치면 칩마다 말줄임). ②③ 눈썹 줄·이름이 사선·등번호에 걸침 → compact 사선 면 140 → 180px(오른쪽 50% → 44%), 라임 선 bottom 120 → 150px으로 올려 눈썹 줄까지 검정 면 안. ④ OVR과 등번호 겹침은 디자인이라 그대로(사용자 16:17). 큰 등번호·사선·얼굴은 유지.
+- 확인 캡처 `docs/c75u-check/`(스크립트 `scripts/c75u-capture.mjs`, 겹침 수치 검사 `report.json`): 폰 390×844 홈·선수 × 율리안 린트너 45/36px, 로베르트 레반도프스키 27px, 바스티안 슈바인슈타이거 25px — 모두 한 줄·잘림 없음, 칩 1줄·칩 잘림 없음, 눈썹·이름 모두 사선 면 윗변·라임 선 아래. PC 1280×800 홈·선수(율리안 린트너) 같은 검사 통과. 좁힌 폰 360×780(작업 폴더만, 이름 수정만 시험): 린트너 40px·레반도프스키 24px 잘림 없음, 슈바인슈타이거는 24px에서도 넘쳐 규칙대로 말줄임. 얼굴 머리말은 홈·선수 두 화면만 쓴다.
+- 테스트: `tests/c75u.test.ts` 6개(첫 추정 45px·slack 안쪽, Range 비교·loadingdone 소스 확인, 칩 한 줄·제목 받침·compact 사선 CSS, 버전). `tests/c75k.test.ts` 버전 고정 → 패턴. 전체 테스트 **103파일 856개**·typecheck·build·balance:engine:check 통과. 밸런스 수치 무변경.
+- PATCH_LABEL 'C.75u', STAGE_LABEL '45단계'.
+- 디자인 없는 새 화면: 없음.
+
+명령 시각 2026-10-20 15:57 KST / 답변 시각 2026-10-20 16:50 KST / 걸린 시간 약 53분 (추가 지시 16:18 포함)
+
 ### C.75s 45d6단계 리그 데이터 MLS·사우디 — 데이터 파일만 (게임 연결 없음) **`main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로, 게임 결과 불변)
 
 - 새 파일: `data/leagues/types.ts`(45 공통 형식, 지시문 원문 그대로), `data/leagues/mls.ts`, `data/leagues/saudi.ts`, `data/players/mls.ts`, `data/players/saudi.ts`, `tests/leagues-mls.test.ts`, `tests/leagues-saudi.test.ts`. 다른 파일은 손대지 않음(배선은 45a·45b).
@@ -5762,12 +5775,14 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 3. **같은 패턴이지만 이번에는 안 바꾼 오토 정지 이벤트**(선택형, 지금처럼 "선택 이벤트가 오면 멈춤" 켜면 멈춤 · 끄면 기한 뒤 기본 선택): 벤치가 길어져요(`m_benchRun`, 감독 신뢰 vs 언론 불만), 자선(`s_charity`)·스폰서(`s_sponsor`) 연쇄, 유스 클리닉(`s_youthClinic`), 추가 훈련(`s_extraTraining`), 동료 생일(`s_birthday`), 전술 면담(`s_tacticsTalk`), 팬 행사(`s_fans`), 잡지 표지(`s_cover`), 명품 광고(`s_luxury`)·명품 구매(`n_luxuryBuy`), SNS 논란(`s_social`), 새 경쟁자(`d_newCompetitor`), 주장 제안(`d_captainOffer`), 멘토(`d_mentor`), 생활 이벤트(`data/lifeEvents.ts` 선택형 — 집에서 온 전화 등). **중요 결정이라 제외(계속 멈춤)**: 이적 제안·재계약(`marketPending`), 사업 투자(`n_investDeal`, 돈). 부상 복귀 선택은 C.74b부터 자동(완전 회복).
 
 **검증**
-- typecheck · 테스트 **105파일 900개** 통과(main C.75m 병합 뒤) — 새 `tests/c75z.test.ts` 9개(버전 · 발자국 두 개·주발 is-main·숫자·반전·읽기 이름표 · 몸·태그 탭에 발자국 · 인터뷰 4개 · 손해 계산(파장 이벤트 포함) · 고른 답 = 고를 수 있는 답 중 최소·같으면 기본 · 막힌 답 안 고름 · 자동 답: 새 인터뷰만 답·진행 전 알림과 다른 선택 이벤트(`m_benchRun`)는 그대로·인박스 "자동 진행 답" · 직접 진행은 답을 기다림). `tests/c75t.test.ts` 버전 값 검사는 형식 검사로.
+- typecheck · 테스트 **106파일 906개** 통과(main C.75m·C.75u 병합 뒤) — 새 `tests/c75z.test.ts` 9개(버전 · 발자국 두 개·주발 is-main·숫자·반전·읽기 이름표 · 몸·태그 탭에 발자국 · 인터뷰 4개 · 손해 계산(파장 이벤트 포함) · 고른 답 = 고를 수 있는 답 중 최소·같으면 기본 · 막힌 답 안 고름 · 자동 답: 새 인터뷰만 답·진행 전 알림과 다른 선택 이벤트(`m_benchRun`)는 그대로·인박스 "자동 진행 답" · 직접 진행은 답을 기다림). `tests/c75t.test.ts` 버전 값 검사는 형식 검사로.
 - 실제 화면 자동 진행(`scripts/c75z-capture.mjs`, 손흥민 12경기): 폰 — 결승골 인터뷰 자동 답(팬들에게 감사) 뒤 10경기째 스폰서 제안(인터뷰 아님)에서만 멈춤 · PC — 다큐 인터뷰 자동 답(거절) 뒤 12경기 끝까지 멈추지 않음. 가로 넘침 0.
 - BALANCE·엔진 무관(새 수치 없음, 게임 코어는 자동 진행에서만 부르는 함수 추가). `npm run balance:check` **회귀 가드 19/19 통과**, `balance:engine:check` **경량 가드 모두 통과**(경기당 696 ms 워커, 순간이동 0), build 통과 (main C.75m 병합 뒤).
 - 확인 캡처 `docs/c75x-check/` 6장(폰 390×844 · PC 1280×800): 선수-몸태그 · pc-선수-몸태그 · 커스텀-몸 · 자동진행-끝 · 인박스-인터뷰자동답 · pc-인박스-인터뷰자동답.
 
 **디자인 없는 화면 목록**: 새 화면 0개. 바뀐 칸 1종 — 신체 칸의 "주발 · 약발" 발자국 칸(몸·태그 탭 · 상세 몸 탭 · 새 게임 신체 · 커스텀 몸, 같은 컴포넌트).
+
+명령 시각 2026-10-20 16:16 KST / 답변 시각 2026-10-20 17:40 KST / 걸린 시간 약 0
 
 ### C.75l 44f-a단계 엔진 블록 E-4 — 결과 불변 엔진 속도 15% · ST 슈팅 반응(미해결 1) 해결 · 역할 득실(미해결 4) 1회 조정 **`main` 배포 — 1 해결, 4 부분** (ENGINE_VERSION 26 → 27, BALANCE_VERSION 그대로, SAVE_FORMAT_VERSION 그대로)
 
