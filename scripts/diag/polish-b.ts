@@ -44,6 +44,8 @@ interface Side {
   n: number; goals: number; shots: number; sot: number; xg: number; saves: number; poss: number; passes: number; passOk: number;
   long: number; longByOrigin: Record<string, number>; drib: number; dribOk: number; through: number; fouls: number; foulBy: Record<string, number>;
   byGroup: Record<string, { shots: number; goals: number; xg: number }>;
+  /** 7대: 포지션군 × (거리 구간 | 경로 | 자유/압박 | 헤더 | 줄) 교차 슈팅/골/xG — 미해결 11 분포 축 분해 */
+  byGroupKey: Record<string, { shots: number; goals: number; xg: number }>;
   byDist: { shots: number; sot: number; goals: number; xg: number }[];
   // 결정 분석
   dec: number; decMistake: number; shootExists: number; shootBest: number; shootChosen: number; shootChosenNotBest: number; shootChosenGap: number[];
@@ -82,7 +84,7 @@ interface Side {
 }
 const side = (): Side => ({
   n: 0, goals: 0, shots: 0, sot: 0, xg: 0, saves: 0, poss: 0, passes: 0, passOk: 0, long: 0, longByOrigin: {}, drib: 0, dribOk: 0, through: 0, fouls: 0, foulBy: {},
-  byGroup: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
+  byGroup: {}, byGroupKey: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
   dec: 0, decMistake: 0, shootExists: 0, shootBest: 0, shootChosen: 0, shootChosenNotBest: 0, shootChosenGap: [0, 0, 0], shotXgChosen: [], shotXgWhenBest: [], bestTypeWhenShoot: {},
   typeMatch: 0, typeMismatch: 0, pathMine: {}, pathEngine: [0, 0, 0, 0, 0, 0, 0], goalPathEngine: [0, 0, 0, 0, 0, 0, 0], stShotsFromReceiveSec: [], stShotDist: [],
   thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, gains: {}, byGain: {}, shotComp: {}, byTime: {}, crowd: { n: 0, near5: 0, boxDef: 0, boxDefL1: 0, boxDefL2: 0, boxAtt: 0, xgByNear: {}, xgByBoxDiff: {} }, ovo: { n: 0, on: 0, goals: 0, pOn: 0, pSave: 0, xg: 0, n12: 0, on12: 0, goals12: 0, nH: 0, n12f: 0, on12f: 0, goals12f: 0 }, ovoBy: {}, lineBy: {}, byLine: {}, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, subs: 0, subsLate: 0, distFull: 0, nFull: 0, sprints: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
@@ -105,6 +107,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
   const ovoLast = new Map<Agent, { t: number; d: number; hdr: boolean }>();
   const ovoKeys = new Map<Agent, string[]>();
   const shotCompKeys = new Map<Agent, string[]>();
+  const groupKeys = new Map<Agent, string[]>();
   const distPrev = new Map<Agent, number>();
   let pendingMistake = false;
   let prevOwner = -1;
@@ -294,6 +297,16 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
           if (group(a.pos) === 'ST') { S.stShotsFromReceiveSec.push(dt); S.stShotDist.push(d); }
         }
         inc(S.pathMine, path);
+        {
+          // 7대: 포지션군 교차 키 (거리·경로·자유/압박·헤더·줄). 자유 = 슈터 3 m 안 상대 필드 선수 0 (콘은 안 봄)
+          const dirA = attackDir(a.team, s.half); let near3 = 0;
+          for (const o of s.agents) { if (!o.onPitch || o.team === a.team || o.line === 0) continue; if (dist(o.x, o.y, a.x, a.y) <= 3) near3++; }
+          const hdr = s.ball.flight?.kind === 'shot' && s.ball.flight.passer === a.idx ? !!s.ball.flight.shot?.header : false;
+          const grp = group(a.pos);
+          const keys = [`${grp}:d${DBINS[dbin(d)]}`, `${grp}:${path}`, `${grp}:${near3 === 0 ? 'free' : 'press'}`, `${grp}:${hdr ? 'header' : 'foot'}`, `${grp}:line${a.line}`, `${grp}:${g?.detail ?? 'other'}`, `${grp}:pos=${a.pos}`, `${grp}:all`];
+          for (const k of keys) { const v = (S.byGroupKey[k] ??= { shots: 0, goals: 0, xg: 0 }); v.shots++; v.xg += xg; }
+          groupKeys.set(a, keys);
+        }
         S.pathEngine[a.shotPath]!++;
         const bg = (S.byGot[g?.detail ?? 'other'] ??= { shots: 0, goals: 0, xg: 0 }); bg.shots++; bg.xg += xg;
         if (group(a.pos) === 'ST') { const bs = (S.byGotST[g?.detail ?? 'other'] ??= { shots: 0, goals: 0, xg: 0 }); bs.shots++; bs.xg += xg; }
@@ -332,6 +345,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         const a = s.agents.find((x) => x.id === e.players[0])!;
         S.goals++;
         { for (const k of shotCompKeys.get(a) ?? []) if (S.shotComp[k]) S.shotComp[k]!.goals++; shotCompKeys.delete(a); }
+        { for (const k of groupKeys.get(a) ?? []) (S.byGroupKey[k] ??= { shots: 0, goals: 0, xg: 0 }).goals++; groupKeys.delete(a); }
         { const o1 = ovoLast.get(a); if (o1 && s.t - o1.t < 4) { S.ovo.goals++; for (const k of ovoKeys.get(a) ?? []) (S.ovoBy[k] ??= { n: 0, goals: 0 }).goals++; if (o1.d <= 12) { S.ovo.goals12++; if (!o1.hdr) S.ovo.goals12f++; } ovoLast.delete(a); } }
         (S.byGroup[group(a.pos)] ??= { shots: 0, goals: 0, xg: 0 }).goals++;
         S.goalPathEngine[a.shotPath]!++;
@@ -389,6 +403,10 @@ function report(label: string, out: [Side, Side]): void {
     const other = out[1 - i]!;
     console.log(`[팀 ${i}] 득점 ${q(S.goals)} 슈팅 ${q(S.shots)} 유효 ${q(S.sot)} xG/슛 ${(S.xg / S.shots).toFixed(3)} 유효률 ${(100 * S.sot / S.shots).toFixed(0)}% 유효→골 ${(100 * S.goals / S.sot).toFixed(0)}% | 상대 GK 선방률 ${(100 * other.saves / S.sot).toFixed(1)}% | 점유 ${(100 * S.poss / n).toFixed(1)}% 패스 ${q(S.passes)} 성공 ${(100 * S.passOk / S.passes).toFixed(1)}% 롱 ${(100 * S.long / S.passes).toFixed(1)}% 드리블 ${q(S.drib)}/${(100 * S.dribOk / S.drib).toFixed(0)}% 침투수신 ${q(S.through)} 파울 ${q(S.fouls)}`);
     console.log(`  포지션별 슈팅/골/xG: ${Object.entries(S.byGroup).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
+    for (const grp of ['ST', 'WING', 'MID', 'DEF']) {
+      const es = Object.entries(S.byGroupKey).filter(([k]) => k.startsWith(grp + ':')).sort((a, b) => b[1].goals - a[1].goals);
+      if (es.length) console.log(`  ${grp} 교차(7대) 슈팅/골/xG·골률%: ${es.map(([k, v]) => `${k.slice(grp.length + 1)} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}·${(100 * v.goals / Math.max(1, v.shots)).toFixed(0)}`).join(' · ')}`);
+    }
     console.log(`  거리별 슈팅(유효률/골/xG): ${S.byDist.map((d, k) => `${DBINS[k]}m~ ${q(d.shots)}(${(100 * d.sot / Math.max(1, d.shots)).toFixed(0)}%/${q(d.goals)}/${(d.xg / Math.max(1, d.shots)).toFixed(3)})`).join(' · ')}`);
     console.log(`  결정(상대 진영) ${q(S.dec)}/경기, 1위 밖 선택 ${(100 * S.decMistake / S.dec).toFixed(0)}% · 슛 후보 있음 ${q(S.shootExists)}, 그중 슛이 1위 ${(100 * S.shootBest / S.shootExists).toFixed(0)}%, 슛 선택 ${q(S.shootChosen)} (1위 아닌데 선택 ${q(S.shootChosenNotBest)} = ${(100 * S.shootChosenNotBest / Math.max(1, S.shootChosen)).toFixed(0)}%; 효용 차 ≤gap/≤2gap/>2gap = ${S.shootChosenGap.join('/')})`);
     const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
