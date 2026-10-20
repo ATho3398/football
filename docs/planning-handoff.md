@@ -525,3 +525,9 @@
 - **시작 처리**: ① S(`session_01Pi4aAWoFd5yBP3mZfCURwD`)에 "T 준비 완료 + T ID" ② 실행 중 세션에 "보고는 T, 마스터 브랜치 claude/planning-t": **C.75e** `session_017T9WF4hLi61PnoeaLCaYMv`(Fable fix 44c-b 수비 마크 배정·마커 떼기) / **C.75f** `session_01ChTjmw46HWdDpbXUwW5RuP`(44d 평점·윙 산출) / **엔진관리자3** `session_017LRoCE5KxG6odpy1NX6DiN`(Fable, 대기, 브랜치 claude/engine-manager-3) / UI_3 `session_01C6qKgj7gT2gz5rWv7WYBdx`(12차 뒤 쌓기, 작은 1) ③ S 제목 앞 `draft_` ④ S 자동 확인 예약 `trig_01A9rAPHtdf15eXNx98cE1iX`(11:48, S로 감) 삭제 후 T가 새로 60분 ⑤ handoff 8.37에 기록·푸시.
 - **다음 순서**: C.75e·C.75f 보고 처리 → (C.75e가 필요하다고 하면) 44c-c 전환 상황 → **44e~ E-4 묶음**(엔진관리자3에 처방 요청: 미해결 1~7 + pending 129 끝의 E-4 항목들 — 맡기기 판단 스탯 연동·자동 카드 금지·카드 강화·리셋 즉발·하프타임 전술·판단 스탯 생활·지시 카드 신뢰·패스 받는 빈도·레전더리 가드 경계·몰고 가다 슛·결과 불변 속도 패치, 2~3패치로 나눔) → 대표팀 + 타리그(pending 126·132, a/b/c) → 수집 시스템(pending 130). 11·12차 디자인이 오면 U 적용 패치.
 - 공통: 엔진 블록은 E.15 표 개선으로 판정, fix는 문제당 1회(실패면 미해결). 병렬 세션은 파일 영역 나누고 버전 서로 알림. docs 병합은 git merge만. Fable 세션은 동시에 1개까지 권장(5시간 한도).
+
+### 8.37 마스터 세션 T (2026-10-20 10:49 KST~, `session_01KEPYWMJvsVNyeS7vpS8kSs`, 브랜치 `claude/planning-t`)
+- S가 만든 세션 → `lineage` 깊이 2(한도 8). 환경 "player ONE"(env_01STK8eBPczqRtyrxxUJL5DJ). 브랜치 `claude/planning-t`(claude/planning-s cee1b33에서 분기, 푸시).
+- 시작 처리(10:50 KST): ① S에 "T 준비 완료 + T ID"(delivered) ② C.75e·C.75f·엔진관리자3·UI_3에 "보고는 T, 마스터 브랜치 claude/planning-t"(모두 delivered) ③ S 제목 `draft_S_축구 커리어 게임 마스터`(S 최종 20.9달러·48.3만) ④ S 예약 `trig_01A9rAPHtdf15eXNx98cE1iX` 삭제 → T 자동 확인 send_later `trig_01QkJj2Hd3ZdXB556HjhWvFz`(11:50 KST) ⑤ `NTFY_TOPIC` 있음 확인(값은 적지 않음).
+- 한도: 시작 시 5시간 한도 `allowed_warning`(13:00 KST 풀림) — Fable·큰 세션 동시 실행 자제.
+- 다음: C.75e·C.75f 보고 처리 → (필요하면 44c-c) → 44e~ E-4 묶음(엔진관리자3 처방) → 대표팀 + 타리그 → 수집 시스템(pending 129~133).
