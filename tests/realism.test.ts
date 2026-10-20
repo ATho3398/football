@@ -106,8 +106,9 @@ describe('E3.5 A5, A8 전술 엔진 층 (E.19)', () => {
   it('성향 기본값과 세부 전술 단계', () => {
     expect(tacticsOf('tikitaka')).toEqual({ tendency: 'tikitaka', lineHeight: 0.65, pressing: 0.8, style: 0.85, width: 1.15 });
     expect(tacticsOf('block')).toEqual({ tendency: 'block', lineHeight: 0.35, pressing: 0.3, style: 0.2, width: 0.85 });
-    expect(levelOf('lineHeight', 0.6)).toBe(2);
-    expect(TENDENCIES).toHaveLength(6);
+    expect(levelOf('lineHeight', 0.6)).toBe(3);
+    expect(tacticsOf('bus')).toEqual({ tendency: 'bus', lineHeight: 0.2, pressing: 0.3, style: 0.2, width: 0.85 });
+    expect(TENDENCIES).toHaveLength(7);
   });
   it('실제 팀은 데이터 성향·포메이션·style, 가상 팀은 레이팅 구간별 성향과 레이팅 비례 style', () => {
     const mci = teamPlan('mci', 85, '4-4-2');
@@ -138,9 +139,9 @@ describe('E3.5 A5, A8 전술 엔진 층 (E.19)', () => {
     s.teams[0].stats.goals = 0;
     s.teams[1].stats.goals = 1;
     aiAdjust(s);
-    expect(s.teams[0].tactics.lineHeight).toBe(LEVELS.lineHeight[2]);
+    expect(s.teams[0].tactics.lineHeight).toBe(LEVELS.lineHeight[3]);
     expect(s.teams[0].tactics.pressing).toBe(LEVELS.pressing[2]);
-    expect(s.teams[1].tactics.lineHeight).toBe(LEVELS.lineHeight[0]);
+    expect(s.teams[1].tactics.lineHeight).toBe(LEVELS.lineHeight[1]);
     expect(s.teams[1].tactics.pressing).toBe(LEVELS.pressing[1]);
   });
   it('전술 결정성: 같은 시드 + 같은 전술 = 같은 결과, 전술이 다르면 결과가 다르다', () => {

@@ -66,6 +66,7 @@ export const ICON_PATHS = {
   "t-counter": "M3 19l7-7 3 3 8-9 M15 6h6v6",
   "t-direct": "M4 19c3-11 10-14 16-12 M16.5 3.5L20 7l-3.5 3.5 M3 19h3",
   "t-block": "M4 6h16v4.5H4z M4 10.5h16V15H4z M4 15h16v4.5H4z M9 6v4.5 M15 6v4.5 M12 10.5V15 M9 15v4.5 M15 15v4.5",
+  "t-bus": "M4 5h16v12H4z M4 11h16 M8 5v6 M16 5v6 M12 5v6 M4 17v2.5h3V17 M17 17v2.5h3V17 M7.5 14.5h.01 M16.5 14.5h.01",
   newchoice: "M4 12h6 M10 12l5-6h5 M10 12l5 6h5 M19 3v6 M16 6h6",
   signature: "M4 20c2.5-.5 4.5-2 6-4.5 M14 3.5l6.5 6.5-7.5 7.5-4-1.5-1.5-4z M14.2 9.8h.01",
   "pos-all": "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16z M4 12h16",

@@ -12,15 +12,26 @@ import type { SimState } from './state';
 import { TEAM_STYLE, TEAM_TACTICS } from './teamData';
 import type { Tactics, Tendency } from './types';
 
-export const TENDENCIES: readonly Tendency[] = ['balanced', 'tikitaka', 'gegenpress', 'counter', 'direct', 'block'];
+export const TENDENCIES: readonly Tendency[] = ['balanced', 'tikitaka', 'gegenpress', 'counter', 'direct', 'block', 'bus'];
 
 export const TENDENCY_NAMES_KO: Record<Tendency, string> = {
-  balanced: '균형', tikitaka: '티키타카', gegenpress: '게겐프레싱', counter: '역습', direct: '직선(롱볼)', block: '수비 블록',
+  balanced: '균형', tikitaka: '티키타카', gegenpress: '게겐프레싱', counter: '역습', direct: '직선(롱볼)', block: '수비 블록', bus: '버스 세우기',
 };
 
-/** 세부 전술 3단계 값 (E.19 ③). 빌드업은 짧게 / 혼합 / 직선 순 */
+/** 성향 한 줄 설명 (전술 화면·하프타임 안내용, C.76k) */
+export const TENDENCY_DESC_KO: Record<Tendency, string> = {
+  balanced: '라인·압박·빌드업·폭 모두 보통',
+  tikitaka: '높은 라인에서 짧은 패스로 돌리다 확실한 기회만 쏜다',
+  gegenpress: '공을 잃으면 바로 되찾는 전방 압박',
+  counter: '낮게 서서 뺏자마자 빠르게 앞으로',
+  direct: '타깃 ST 에게 롱볼, 세컨드볼과 크로스',
+  block: '박스 경계까지 내려서 두 줄 간격 12 m 블록',
+  bus: '라인을 박스 앞까지 내리고 두 줄로 버틴다',
+};
+
+/** 세부 전술 단계 값 (E.19 ③). 라인은 4단(C.76k '매우 낮음' = 박스 앞 20 m), 나머지는 3단. 빌드업은 짧게 / 혼합 / 직선 순 */
 export const LEVELS = {
-  lineHeight: [0.35, 0.5, 0.65],
+  lineHeight: [0.2, 0.35, 0.5, 0.65],
   pressing: [0.3, 0.55, 0.8],
   style: [0.85, 0.5, 0.2],
   width: [0.85, 1.0, 1.15],
@@ -29,20 +40,29 @@ export type Detail = keyof typeof LEVELS;
 export const DETAILS: readonly Detail[] = ['lineHeight', 'pressing', 'style', 'width'];
 export const DETAIL_NAMES_KO: Record<Detail, string> = { lineHeight: '수비 라인', pressing: '압박', style: '빌드업', width: '공격 폭' };
 /** 단계 이름 (I.16 세그먼트): 빌드업은 짧게 / 혼합 / 직선, 폭은 좁게 / 보통 / 넓게 */
-export const LEVEL_NAMES_KO: Record<Detail, [string, string, string]> = {
-  lineHeight: ['낮음', '보통', '높음'], pressing: ['낮음', '보통', '높음'], style: ['짧게', '혼합', '직선'], width: ['좁게', '보통', '넓게'],
+export const LEVEL_NAMES_KO: Record<Detail, readonly string[]> = {
+  lineHeight: ['매우 낮음', '낮음', '보통', '높음'], pressing: ['낮음', '보통', '높음'], style: ['짧게', '혼합', '직선'], width: ['좁게', '보통', '넓게'],
 };
-/** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게) */
-export type Level = 0 | 1 | 2;
+/** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게). 라인만 0 매우 낮음 / 1 낮음 / 2 보통 / 3 높음 (C.76k) */
+export type Level = 0 | 1 | 2 | 3;
+/** 세부 전술의 마지막 단계 번호 (라인 3, 나머지 2) */
+export function levelMax(detail: Detail): Level {
+  return (LEVELS[detail].length - 1) as Level;
+}
+/** 단계 번호가 그 세부 전술에 있는가 (세이브 검사용) */
+export function validLevel(detail: Detail, v: unknown): v is Level {
+  return Number.isInteger(v) && (v as number) >= 0 && (v as number) < LEVELS[detail].length;
+}
 
-/** 성향별 세부 전술 기본값 [라인, 압박, 빌드업, 폭] (E.19 ①) */
+/** 성향별 세부 전술 기본값 [라인, 압박, 빌드업, 폭] (E.19 ①). 라인은 4단이라 보통 = 2 */
 const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
-  balanced: [1, 1, 1, 1],
-  tikitaka: [2, 2, 0, 2],
-  gegenpress: [2, 2, 1, 1],
-  counter: [0, 0, 2, 1],
-  direct: [1, 1, 2, 2],
-  block: [0, 0, 2, 0],
+  balanced: [2, 1, 1, 1],
+  tikitaka: [3, 2, 0, 2],
+  gegenpress: [3, 2, 1, 1],
+  counter: [1, 0, 2, 1],
+  direct: [2, 1, 2, 2],
+  block: [1, 0, 2, 0],
+  bus: [0, 0, 2, 0],
 };
 
 /** 성향의 세부 전술 기본 단계 (E.19 ①) */
@@ -54,12 +74,14 @@ export function tendencyLevels(tendency: Tendency): Record<Detail, Level> {
 export function tacticsOf(tendency: Tendency, levels?: Partial<Record<Detail, Level>>): Tactics {
   const [l, p, b, w] = TENDENCY_LEVELS[tendency];
   const lv = { lineHeight: l, pressing: p, style: b, width: w, ...levels };
+  // 3단 세부 전술에 단계 3 이 오면 마지막 단계로 (라인만 4단, C.76k)
+  const at = (d: Detail): number => LEVELS[d][Math.min(lv[d], LEVELS[d].length - 1)]!;
   return {
     tendency,
-    lineHeight: LEVELS.lineHeight[lv.lineHeight],
-    pressing: LEVELS.pressing[lv.pressing],
-    style: LEVELS.style[lv.style],
-    width: LEVELS.width[lv.width],
+    lineHeight: at('lineHeight'),
+    pressing: at('pressing'),
+    style: at('style'),
+    width: at('width'),
   };
 }
 
@@ -80,6 +102,7 @@ const RECOMMENDED: Partial<Record<Tendency, Partial<Record<string, string[]>>>> 
   counter: { CB: ['coverCB'], CDM: ['anchor'], WING: ['wingForward'], ST: ['advancedForward'] },
   direct: { CB: ['stopper'], FB: ['attackingFullback'], WING: ['classicWinger'], ST: ['targetMan'] },
   block: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], CM: ['holdingCM'], ST: ['targetMan'] },
+  bus: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], CM: ['holdingCM'], ST: ['targetMan'] },
 };
 
 /** 포지션별로 고를 수 있는 역할 (E.6 역할 표) */
@@ -173,6 +196,10 @@ export const TENDENCY = {
   /** 수비 블록: 수비-중원 간격 상한 (m), 수비 라인 상한 (박스 경계, m) */
   blockGap: 12,
   blockLineMax: 16.5,
+  /** 버스 세우기 (C.76k, 사용자 확정 ③): 수비 라인 상한 14 m(박스 앞), 수비-중원 간격 상한 8 m(두 줄), 최전방 1명은 역습 출구로 하프라인 부근(counterStayX) */
+  busGap: 8,
+  busLineMax: 14,
+  busStay: 1,
 };
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */
@@ -183,6 +210,7 @@ export function widthCrossMul(width: number): number {
 /**
  * 경기 중 AI 조정 (E.19): 70분 이후 1골 차로 지고 있으면 라인과 압박을 한 단계 올리고, 1골 차로 이기고 있으면 라인을 한 단계 내린다.
  * 2골 이상 차이는 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위, C.29 fix2).
+ * 뒤질 때 올리기는 상대가 underdogGap 이상 강하면 하지 않는다 (C.76k 사용자 확정 ②: 약팀은 강팀에게 지고 있어도 내려앉은 채로. 강팀이 약팀에게 질 때·비등할 때만 올린다).
  * 모든 팀에 같은 규칙 (직접 모드의 내 팀은 E4 이후 사용자가 바꾼다)
  */
 export function aiAdjust(s: SimState): void {
@@ -191,17 +219,19 @@ export function aiAdjust(s: SimState): void {
   for (const team of [0, 1] as const) {
     const T = s.teams[team];
     if (s.input.mode === 'live' && s.input.myTeam === team) continue;
+    const opp = s.teams[team === 0 ? 1 : 0];
     const base = T.setup.tactics;
-    const diff = T.stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
-    const step = (d: Detail, by: number) => LEVELS[d][clamp(levelOf(d, base[d]) + by, 0, 2)]!;
+    const diff = T.stats.goals - opp.stats.goals;
+    const underdog = opp.setup.rating - T.setup.rating >= ENGINE.tactics.underdogGap;
+    const step = (d: Detail, by: number) => LEVELS[d][clamp(levelOf(d, base[d]) + by, 0, levelMax(d))]!;
     T.tactics = { ...base };
-    // 점수 차 (C.29 fix2): 2골 이상이면 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위)
-    if (diff <= -big || diff >= big) {
+    // 점수 차 (C.29 fix2): 2골 이상이면 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위 — 약팀은 위로 안 올림)
+    if (diff >= big || (diff <= -big && !underdog)) {
       const by = diff > 0 ? -1 : 1;
       T.tactics.lineHeight = step('lineHeight', by);
       T.tactics.pressing = step('pressing', by);
     } else if (s.t < 70 * 60) continue;
-    else if (diff === -1) {
+    else if (diff === -1 && !underdog) {
       T.tactics.lineHeight = step('lineHeight', 1);
       T.tactics.pressing = step('pressing', 1);
     } else if (diff === 1) T.tactics.lineHeight = step('lineHeight', -1);

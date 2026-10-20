@@ -29,9 +29,9 @@ export function FeedItem(p: FeedItemProps): string {
 
 // ── Tactic chips (ScoreBar 가 쓰는 하위 컴포넌트) ──
 
-export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block';
-const TSTYLES: Record<TacticStyle, string> = { balanced: '균형', tikitaka: '티키타카', gegen: '게겐프레싱', counter: '역습', direct: '직선', block: '수비 블록' };
-const TSTYLE_ICON: Record<TacticStyle, IconName> = { balanced: 't-balanced', tikitaka: 't-tikitaka', gegen: 't-gegen', counter: 't-counter', direct: 't-direct', block: 't-block' };
+export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block' | 'bus';
+const TSTYLES: Record<TacticStyle, string> = { balanced: '균형', tikitaka: '티키타카', gegen: '게겐프레싱', counter: '역습', direct: '직선', block: '수비 블록', bus: '버스 세우기' };
+const TSTYLE_ICON: Record<TacticStyle, IconName> = { balanced: 't-balanced', tikitaka: 't-tikitaka', gegen: 't-gegen', counter: 't-counter', direct: 't-direct', block: 't-block', bus: 't-bus' };
 
 export function TacticEmblem(p: { tactic: TacticStyle; size?: number; away?: boolean; on?: boolean }): string {
   const size = p.size ?? 40;

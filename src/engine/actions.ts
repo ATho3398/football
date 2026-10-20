@@ -456,8 +456,8 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     team.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     // 구석일수록 막기 어렵다. 능력치가 높으면 구석으로
-    // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번)
-    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1);
+    // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번). 쫓기며 쏘면 구석을 못 노린다 (C.76k, 압박 × cornerPressure)
+    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
     const ty = gy + side * corner * (G / 2 - 0.3);
     shotFlight(s, a, {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,

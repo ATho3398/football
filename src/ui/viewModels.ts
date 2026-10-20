@@ -82,7 +82,7 @@ import {
   customized, fitOf, formationLabel, fitScore, leagueFitAverages, previewLineup, slotPos, type Fit, type MyTactics,
 } from '../myTactics';
 import {
-  DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_NAMES_KO, tendencyLevels,
+  DETAIL_NAMES_KO, DETAILS, LEVEL_NAMES_KO, recommendedRole, ROLE_OPTIONS, roleFit, roleGroup, TENDENCIES, TENDENCY_DESC_KO, TENDENCY_NAMES_KO, tendencyLevels,
   type Detail, type Level,
 } from '../engine/tactics';
 import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
@@ -109,7 +109,7 @@ export const designTier = (t: Tier): DesignTier => DESIGN_TIER[t];
 const FORM_STEP: Record<FormLevel, 1 | 2 | 3 | 4 | 5> = { veryBad: 1, bad: 2, normal: 3, good: 4, veryGood: 5 };
 
 const TACTIC_STYLE: Record<Tendency, TacticStyle> = {
-  balanced: 'balanced', tikitaka: 'tikitaka', gegenpress: 'gegen', counter: 'counter', direct: 'direct', block: 'block',
+  balanced: 'balanced', tikitaka: 'tikitaka', gegenpress: 'gegen', counter: 'counter', direct: 'direct', block: 'block', bus: 'bus',
 };
 export const tacticStyle = (t: Tendency): TacticStyle => TACTIC_STYLE[t];
 
@@ -1848,8 +1848,10 @@ export interface TacticsVM {
   opp: { name: string; tactic?: TacticVM; home: boolean } | null;
   chips: string[];
   open: boolean;
-  tendencies: { id: Tendency; style: TacticStyle; name: string; fit: Fit; on: boolean }[];
+  tendencies: { id: Tendency; style: TacticStyle; name: string; desc: string; fit: Fit; on: boolean }[];
   tendencyName: string;
+  /** 고른 성향 한 줄 설명 (C.76k) */
+  tendencyDesc: string;
   formations: { id: string; label: string }[];
   /** 탭 값 (커스텀이면 'custom') */
   formation: string;
@@ -1871,7 +1873,7 @@ export interface TacticsVM {
   };
 }
 
-const LEVEL_ID = ['0', '1', '2'] as const;
+const LEVEL_ID = ['0', '1', '2', '3'] as const;
 
 /** 전술 적합도 리그 평균 (로스터는 시즌 안에서 바뀌지 않으므로 세계 시드·시즌으로 기억) */
 let fitCache: { key: string; avg: Record<Tendency, number | null> } | null = null;
@@ -1931,9 +1933,10 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     chips: [TENDENCY_NAMES_KO[t.tendency], formationLabel(t), `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
     open: g.guide.tacticsDetailOpen,
     tendencies: TENDENCIES.map((id) => ({
-      id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], fit: fitOf(fitScore(id, fitLineup), fitAvg[id]), on: id === t.tendency,
+      id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], desc: TENDENCY_DESC_KO[id], fit: fitOf(fitScore(id, fitLineup), fitAvg[id]), on: id === t.tendency,
     })),
     tendencyName: TENDENCY_NAMES_KO[t.tendency],
+    tendencyDesc: TENDENCY_DESC_KO[t.tendency],
     formations: [...FORMATIONS.map((f) => ({ id: f, label: f })), { id: 'custom', label: '커스텀' }],
     formation: t.custom ? 'custom' : t.formation,
     formationName: formationLabel(t),
@@ -1976,8 +1979,8 @@ export interface HalftimeVM {
 export function halftimeSets(base: Pick<HalftimeDraft, 'tendency' | 'levels'>): { name: string; desc: string; tendency: Tendency; levels: Record<Detail, Level> }[] {
   return [
     { name: '경기 전 전술', desc: '시작할 때 정한 그대로', tendency: base.tendency, levels: { ...base.levels } },
-    { name: '리드 지키기', desc: '라인·압박 낮게, 폭 좁게', tendency: base.tendency, levels: { ...base.levels, lineHeight: 0, pressing: 0, width: 0 } },
-    { name: '총공세', desc: '라인·압박 높게, 직선 빌드업, 넓게', tendency: base.tendency, levels: { lineHeight: 2, pressing: 2, style: 2, width: 2 } },
+    { name: '리드 지키기', desc: '라인·압박 낮게, 폭 좁게', tendency: base.tendency, levels: { ...base.levels, lineHeight: 1, pressing: 0, width: 0 } },
+    { name: '총공세', desc: '라인·압박 높게, 직선 빌드업, 넓게', tendency: base.tendency, levels: { lineHeight: 3, pressing: 2, style: 2, width: 2 } },
   ];
 }
 
