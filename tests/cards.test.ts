@@ -111,16 +111,16 @@ describe('카드 효과 엔진 (부록 F, C.36)', () => {
     expect(out.engine.decisions.some((d) => d.card)).toBe(true);
   });
 
-  it('자동 경기 카드 규칙 (F.5): 자동 모드는 카드 기회에 카드를 자동으로 쓰고, 직접 모드에서 맡기기만 하면 카드를 쓰지 않는다', () => {
+  it('자동 경기 카드 규칙 (F.5, C.75h 개정): 자동 모드는 킥오프 패시브 장착만, 직접 모드에서 맡기기만 하면 자동과 같다', () => {
     const g = game('CB');
     const rm = startedRound(g);
     const deck = starterDeck('defense').map((c) => c.id);
     const auto = playMyMatch({ ...rm.input, cards: { deck } });
     expect(auto.engine.cards!.uses.length).toBeGreaterThan(0);
-    expect(auto.engine.cards!.uses.every((u) => u.auto)).toBe(true);
+    expect(auto.engine.cards!.uses.every((u) => u.auto && u.scene === 'kickoff')).toBe(true);
     const del = playMyMatch({ ...rm.input, cards: { deck }, control: { mode: 'direct', stop: 'important', policy: () => 'delegate' } });
-    // 반응 카드(공중볼·상대 슈팅, 정지 없음)만 자동으로 쓸 수 있다
-    for (const u of del.engine.cards!.uses) expect(['oppShot', 'corner', 'aerial', 'oppCorner', 'oppFreeKick']).toContain(u.scene);
+    // 결정 순간 카드(반응 카드 포함)는 맡기면 쓰지 않는다: 쓴 카드 = 자동과 같은 킥오프 패시브
+    expect(del.engine.cards!.uses).toEqual(auto.engine.cards!.uses);
   });
 
   // 기준(automation 2번 ⑤ "경기 계산 2초")은 경기 한 번 단위 (C.63): 준비(새 게임·선발 라운드 찾기)는 재지 않고, 첫 경기(냉시작 — 모듈 로드·JIT)는

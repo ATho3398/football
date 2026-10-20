@@ -611,7 +611,7 @@ export function decisionTemp(a: Agent): number {
  * 시야 제한 (E.22 C): 이 후보가 보이는가. 패스·크로스만 가려질 수 있다 (유지, 몰고 가기, 돌파, 슛, 클리어링은 항상 보인다).
  * 몸 방향 밖이거나 반대편 전환이면 scan 확률, 침투 패스는 throughSee 확률 (시야 능력치)
  */
-function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean {
+export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean {
   if (c.receiver < 0 || c.type === 'layoff') return true;
   const dir = attackDir(a.team, s.half);
   const sp = Math.hypot(a.vx, a.vy);
