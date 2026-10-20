@@ -1,4 +1,5 @@
 // 팩 개봉 연출 고르기 (C.76o) — 이 한 줄만 바꾸면 대체 연출로 바뀐다. 방법은 docs/pack-animation.md
+// 표지 한 장(가장 쉬움): public/anim/pack/cover.png (종류별 cover-<종류>.png) 만 넣으면 팩 그림이 그 이미지로 바뀐다 (설정 없음).
 //   코드 모션 그래픽(기본):   { kind: 'motion' }
 //   영상(희귀도별 webm/mp4):  { kind: 'video', ext: 'webm' }        → public/anim/pack/pack-<희귀도>.webm
 //   PNG 시퀀스:               { kind: 'sequence', frames: 60, fps: 30 } → public/anim/pack/pack-<희귀도>/0001.png …
@@ -7,3 +8,6 @@
 import type { PackAnimConfig } from './types';
 
 export const PACK_ANIM: PackAnimConfig = { kind: 'motion' };
+
+/** 표지 이미지: tear = 찢는 선 위치(위에서 비율), 이미지가 없으면 코드로 그린 기본 팩 */
+export const PACK_COVER = { tear: 0.12 };

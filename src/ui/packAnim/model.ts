@@ -91,6 +91,20 @@ export function sequenceFrame(r: AnimRarity, i: number, dir = PACK_ANIM_DIR): st
   return `${dir}pack-${r}/${String(i + 1).padStart(4, '0')}.png`;
 }
 
+/** 표지 후보 (먼저 있는 것): 팩은 cover-<종류>.png → cover.png, 선택권은 cover-<종류>.png 만 (없으면 팩 없이 빛 구슬) */
+export function coverFiles(kind: 'pack' | 'pick', cover: string | undefined, dir = PACK_ANIM_DIR): string[] {
+  const own = cover ? [`${dir}cover-${cover}.png`] : [];
+  return kind === 'pack' ? [...own, `${dir}cover.png`] : own;
+}
+
+/** 표지를 찢는 선(지그재그)으로 자른 clip-path: 'top' = 위 띠, 'body' = 몸통. tear = 위에서 비율 */
+export function coverClip(part: 'top' | 'body', tear: number, teeth = 10): string {
+  const t = Math.max(0.03, Math.min(0.5, tear)) * 100;
+  const zig: string[] = [];
+  for (let i = 0; i <= teeth * 2; i++) zig.push(`${((i / (teeth * 2)) * 100).toFixed(1)}% ${(t + (i % 2 ? 1.5 : -1.5)).toFixed(1)}%`);
+  return part === 'top' ? `polygon(0% 0%, 100% 0%, ${[...zig].reverse().join(', ')})` : `polygon(${zig.join(', ')}, 100% 100%, 0% 100%)`;
+}
+
 // ── 선택권 공개를 한 번만 보여 주기 (같은 선택권을 다시 열면 바로 고르기 화면) ──
 
 const SEEN_KEY = 'po-pick-seen';

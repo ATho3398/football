@@ -730,7 +730,7 @@ function revealPick(): void {
     return animCard(cardById(id)!, { isNew: n === 0, dup: n > 0 });
   });
   const fancy = p.source !== 'level' && p.source !== 'season' && rarityRank(bestRarity(cards.map((c) => c.rarity))) >= 2;
-  void playPackReveal({ pack: { kind: 'pick', name: p.label, fancy }, cards });
+  void playPackReveal({ pack: { kind: 'pick', name: p.label, fancy, cover: fancy ? 'achievement' : 'pick' }, cards });
 }
 
 /** 더보기 펼침 줄 (C.63c): 가로 스크롤 위치에 따라 처음·끝 흐림 */
@@ -2418,7 +2418,7 @@ app.addEventListener('click', (ev) => {
           have[id] = n + 1;
           return animCard(cardById(id)!, { isNew: n === 0, dup: n > 0 });
         });
-        void playPackReveal({ pack: { kind: 'pack', name: '일반 카드팩' }, cards }).then((shown) => {
+        void playPackReveal({ pack: { kind: 'pack', name: '일반 카드팩', cover: 'normal' }, cards }).then((shown) => {
           if (!shown) showToast({ kind: 'info', title: `카드팩 · ${got.length}장`, body: got.map((id) => cardById(id)?.name ?? id).join(' · ') }, 2600);
         });
       }
@@ -2433,7 +2433,7 @@ app.addEventListener('click', (ev) => {
     case 'pack-anim-demo': {
       // 설정 미리보기 (C.76o): 고른 희귀도가 최고인 팩. 세이브·카드는 바뀌지 않는다
       const r = v === 'rare' || v === 'epic' || v === 'legendary' ? v : 'common';
-      void playPackReveal({ pack: { kind: el.dataset.k === 'pick' ? 'pick' : 'pack', name: el.dataset.k === 'pick' ? '미리보기 · 업적 선택권' : '일반 카드팩', fancy: el.dataset.k === 'pick' }, cards: demoAnimCards(r), results: el.dataset.k !== 'pick', force: 'full' });
+      void playPackReveal({ pack: { kind: el.dataset.k === 'pick' ? 'pick' : 'pack', name: el.dataset.k === 'pick' ? '미리보기 · 업적 선택권' : '일반 카드팩', fancy: el.dataset.k === 'pick', cover: el.dataset.k === 'pick' ? 'achievement' : 'normal' }, cards: demoAnimCards(r), results: el.dataset.k !== 'pick', force: 'full' });
       return;
     }
     case 'fn-tp':

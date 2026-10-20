@@ -8,6 +8,8 @@ export interface PackInfo {
   name: string;
   /** 업적·시즌 목표 선택권(에픽·전설) — 더 화려하게 */
   fancy?: boolean;
+  /** 표지 종류 (public/anim/pack/cover-<cover>.png, 팩은 없으면 cover.png → 코드로 그린 기본 팩). 예 'normal' · 'achievement' · 'pick' */
+  cover?: string;
 }
 
 /** 공개할 카드 한 장. html 은 앞면 마크업(GameCard full) */

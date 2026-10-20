@@ -3,7 +3,8 @@
 //       → (전설) 워크아웃 → 카드가 뒷면으로 날아와 줄 섬 → 탭마다/모두 열기로 3D 뒤집기 → [결과 보기]/[고르기].
 // 선택권(kind 'pick')은 팩 없이 가운데 빛 → 공개. 결과·확률은 이미 정해진 값을 보여 주기만 한다.
 
-import { RARITY_FX, RARITY_KO, burstCount, rarityRank } from './model';
+import { PACK_COVER } from './config';
+import { RARITY_FX, RARITY_KO, burstCount, coverClip, coverFiles, rarityRank } from './model';
 import { Particles } from './particles';
 import { Run } from './run';
 import { sfx } from './sound';
@@ -50,6 +51,39 @@ function packSvg(name: string, part: 'top' | 'body'): string {
     <text x="100" y="232" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">${name.replace(/[<&>"]/g, '')}</text>
     <text x="100" y="252" text-anchor="middle" font-size="9" font-weight="700" letter-spacing="2" fill="#ffffff" fill-opacity=".55">CARD PACK</text>
   </svg>`;
+}
+
+const BASE = (): string => (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';
+
+/** 표지 이미지 찾기: 후보를 차례로 읽어 처음 열리는 것 (없으면 null = 코드 팩). 한 번 찾은 결과는 기억 */
+const coverCache = new Map<string, Promise<string | null>>();
+export function findCover(files: string[]): Promise<string | null> {
+  const key = files.join('|');
+  if (!files.length || typeof Image === 'undefined') return Promise.resolve(null);
+  let p = coverCache.get(key);
+  if (!p) {
+    p = (async () => {
+      for (const f of files) {
+        const url = `${BASE()}${f}`;
+        const ok = await new Promise<boolean>((res) => {
+          const im = new Image();
+          const t = setTimeout(() => res(false), 2500);
+          im.onload = () => { clearTimeout(t); res(im.naturalWidth > 0); };
+          im.onerror = () => { clearTimeout(t); res(false); };
+          im.src = url;
+        });
+        if (ok) return url;
+      }
+      return null;
+    })();
+    coverCache.set(key, p);
+  }
+  return p;
+}
+
+/** 표지 이미지 팩: 같은 그림을 찢는 선으로 위 띠·몸통 두 장으로 잘라 겹친다 */
+function coverHtml(url: string, part: 'top' | 'body'): string {
+  return `<div class="pk-cover" style="background-image:url('${url.replace(/'/g, '%27')}');clip-path:${coverClip(part, PACK_COVER.tear)}"></div>`;
 }
 
 /** 카드 뒷면 */
@@ -307,11 +341,13 @@ export function createMotionAnimation(): PackAnimation {
       let center = { x: W / 2, y: H * 0.45 };
       let untilt: () => void = () => undefined;
       try {
-        if (o.pack.kind === 'pack') {
+        const cover = await findCover(coverFiles(o.pack.kind, o.pack.cover));
+        if (cur.done) return;
+        if (o.pack.kind === 'pack' || cover) {
           // 1. 팩 등장
           const wrap = document.createElement('div');
           wrap.className = 'pk-packwrap';
-          wrap.innerHTML = `<div class="pk-float"><div class="pk-aura"></div><div class="pk-pack"><div class="pk-pack__body">${packSvg(o.pack.name, 'body')}</div><div class="pk-pack__top">${packSvg(o.pack.name, 'top')}</div><div class="pk-glare"></div><div class="pk-slit"></div></div></div>`;
+          wrap.innerHTML = `<div class="pk-float"><div class="pk-aura"></div><div class="pk-pack${cover ? ' has-cover' : ''}"${cover ? ` style="--tear:${PACK_COVER.tear * 100}%"` : ''}><div class="pk-pack__body">${cover ? coverHtml(cover, 'body') : packSvg(o.pack.name, 'body')}</div><div class="pk-pack__top">${cover ? coverHtml(cover, 'top') : packSvg(o.pack.name, 'top')}</div><div class="pk-glare"${cover ? ` style="-webkit-mask-image:url('${cover}');mask-image:url('${cover}');-webkit-mask-size:100% 100%;mask-size:100% 100%"` : ''}></div><div class="pk-slit"></div></div></div>`;
           const hint = document.createElement('p');
           hint.className = 'pk-hint';
           hint.textContent = HOVER() ? '클릭해서 열기 · 마우스로 기울여 보세요' : '탭해서 열기 · 위로 밀거나 길게 눌러도 돼요';
@@ -329,7 +365,7 @@ export function createMotionAnimation(): PackAnimation {
           hint.remove();
           const pr = pack.getBoundingClientRect();
           const sr = scene.getBoundingClientRect();
-          const tearY = pr.top - sr.top + pr.height * 0.16;
+          const tearY = pr.top - sr.top + pr.height * (cover ? PACK_COVER.tear : 0.16);
           center = { x: pr.left - sr.left + pr.width / 2, y: pr.top - sr.top + pr.height / 2 };
           // 2. 떨림 — 중간에 최고 희귀도 색으로 한 번 더 번쩍 (암시)
           sfx('tremble', best);

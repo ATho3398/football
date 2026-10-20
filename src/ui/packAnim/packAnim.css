@@ -44,7 +44,9 @@
 }
 .pk-pack.is-sway .pk-glare { animation: pk-glare 3.4s ease-in-out infinite; }
 .pk-pack.is-torn .pk-glare { opacity: 0; }
-.pk-slit { position: absolute; left: 2%; right: 2%; top: 15.5%; height: 3px; border-radius: 3px; background: #fff; box-shadow: 0 0 14px 5px var(--pk-c, #fff); opacity: 0; }
+.pk-cover { position: absolute; inset: 0; background: center / 100% 100% no-repeat; }
+.pk-pack.has-cover .pk-glare { border-radius: 0; }
+.pk-slit { position: absolute; left: 2%; right: 2%; top: var(--tear, 15.5%); height: 3px; border-radius: 3px; background: #fff; box-shadow: 0 0 14px 5px var(--pk-c, #fff); opacity: 0; }
 .pk-shard {
   position: absolute; z-index: 3; width: 16px; height: 20px; margin: -10px 0 0 -8px; pointer-events: none;
   background: linear-gradient(160deg, #3a4252, #1b1f27); border-top: 2px solid var(--pk-acc); clip-path: polygon(0 0, 100% 18%, 62% 100%, 8% 70%);
