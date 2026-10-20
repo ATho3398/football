@@ -15,7 +15,7 @@ import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText, rollProspect } from '../aptitude';
-import { LIFE_KINDS, isForeign, isLifeKind, lifeHints } from '../life';
+import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../life';
 import { BALANCE } from '../config/balance';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
@@ -295,7 +295,7 @@ export interface TrialVM {
   maxGames: number;
 }
 
-export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string }
+export interface DayCellVM { d: number; date: string; today: boolean; past: boolean; kind: '' | 'home' | 'away' | 'league' | 'break'; title: string; /** C.76i (디자인 200): 생활 하루 행동 날 = 아이콘 + 두 글자 */ life?: LifeKind; lifeShort?: string; /** C.76i (디자인 216): 컵·대표팀 경기 날 = 트로피 */ cup?: boolean }
 
 export interface DayVM {
   /** "8월 11일 (토)" */
@@ -311,7 +311,7 @@ export interface DayVM {
   daysTo: number | null;
   nextLabel: string | null;
   quick: boolean;
-  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string }[];
+  upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string; /** C.76i (디자인 216): 대회 칩 (컵·대표팀) */ cup?: string }[];
   month: { title: string; lead: number; days: DayCellVM[] };
 }
 
@@ -354,7 +354,7 @@ export function dayVM(g: GameState): DayVM | null {
       if (!(b.kind === 'cup' && [...cupDays.keys()].some((d) => Math.abs(daysBetween(d, b.date)) <= 1))) upcoming.push({ date: dateLabel(b.date), text: BREAK_KO[b.kind], kind: 'break' });
     }
     if (upcoming.length >= 6) break;
-    upcoming.push({ date: dateLabel(x.date), text: `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: x.home ? '홈' : '원정', team: x.opp });
+    upcoming.push({ date: dateLabel(x.date), text: x.cup || x.nat ? teamById(g.league, x.opp).nameKo : `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: x.home ? '홈' : '원정', team: x.opp, ...(x.cup || x.nat ? { cup: x.comp } : {}) });
   }
   if (upcoming.length < 6 && g.league.round >= g.league.schedule.length - 5) upcoming.push({ date: dateLabel(cal.final), text: '시즌 종료', kind: 'end' });
   const y = +today.slice(0, 4);
@@ -367,9 +367,10 @@ export function dayVM(g: GameState): DayVM | null {
     const mine = myDates.get(d);
     const vac = !mine && daysBetween(today, d) >= 0 && isVacationDay(g, d);
     const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) || vac ? 'break' : leagueDays.has(d) ? 'league' : '';
-    const plan = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? TRAINING_SHORT_KO[dayPlan(g, d)] : '';
+    const pk = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? dayPlan(g, d) : null;
+    const plan = pk ? TRAINING_SHORT_KO[pk] : '';
     const title = mine ? `${mine.r < 0 ? cupDays.get(d)!.label : `${mine.r + 1}R`} ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
-    days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title });
+    days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title, ...(pk && isLifeKind(pk) ? { life: pk, lifeShort: plan.slice(0, 2) } : {}), ...(mine && mine.r < 0 ? { cup: true } : {}) });
   }
   return {
     date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, full: `${m}월 ${+today.slice(8, 10)}일 (${'일월화수목금토'[weekdayOf(today)]})`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,

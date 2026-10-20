@@ -5,13 +5,14 @@ import { BALANCE } from '../config/balance';
 import { daysBetween } from '../calendar';
 import { dayPlan, myMatchPosition, type GameState } from '../game';
 import {
-  captainCandidate, competition, ensureManager, managerData, meetingBlocked, meetingLine, meetingOptions, nextMeetingHint, startChance,
+  bestPosition, captainCandidate, competition, ensureManager, managerData, meetingBlocked, meetingLine, meetingOptions, nextMeetingHint, startChance,
   type MeetingKind, type MeetingOption,
 } from '../manager';
 import { MANAGER_STYLE_KO } from '../../data/managers';
-import { proficientOvr } from '../proficiency';
+import { proficiencyOf, proficientOvr } from '../proficiency';
 import { teamById } from '../league';
 import { requestEligibility } from '../transfer';
+import type { FieldPosition } from '../positions';
 
 export interface RivalRowVM { name: string; detail: string; total: string; me: boolean; w: [number, number, number, number] }
 export interface TrustLogVM { v: string; t: string; when: string; up: boolean }
@@ -80,6 +81,11 @@ export function competitionVM(g: GameState): CompetitionVM | null {
   };
 }
 
+/** 면담 선택지 + 결과 예고 (C.76i 디자인 191·192: 요구 강도 칩 · "이걸 고르면" 신뢰도 막대 ± · 보상 칩) */
+export interface MeetingOptionVM extends MeetingOption {
+  pv: { delta: number; chips: { label: string; tone: 'up' | 'down' | 'brand' | '' }[] };
+}
+
 export interface MeetingVM {
   kind: MeetingKind;
   trust: number;
@@ -87,13 +93,23 @@ export interface MeetingVM {
   line: string;
   section: string;
   chips: (string | { label: string; soft?: boolean })[];
-  options: MeetingOption[];
+  options: MeetingOptionVM[];
   blocked: string | null;
+  /** 감독 · 내 역할 줄 (C.76i) */
+  mgrName: string; mgrStyle: string;
+  role: { title: string; line: string };
+  /** 포지션 제안: 지금 → 제안 두 칸 */
+  compare: { cur: PosCellVM; sug: PosCellVM } | null;
 }
 
-const KIND_KO: Record<MeetingKind, string> = { low: '출전·신뢰 면담', reward: '보상 면담', position: '포지션 제안' };
+export interface PosCellVM { pos: string; formation: string; ovr: number; prof: number; chance: number }
 
-/** 감독 면담 화면 (디자인 45). 열린 면담이 없으면 null */
+const KIND_KO: Record<MeetingKind, string> = { low: '출전·신뢰 면담', reward: '보상 면담', position: '포지션 제안' };
+const LOW_ORDER = ['effort', 'complain', 'request'];
+const LOW_TAG: Record<string, string> = { effort: '요구 약하게', complain: '요구 세게', request: '요구 가장 세게' };
+const POS_TAG: Record<string, string> = { follow: '받기', decline: '거절' };
+
+/** 감독 면담 화면 (디자인 45 → C.76i 191·192). 열린 면담이 없으면 null */
 export function meetingVM(g: GameState): MeetingVM | null {
   const m = ensureManager(g);
   const kind = m.meeting;
@@ -101,12 +117,40 @@ export function meetingVM(g: GameState): MeetingVM | null {
   const md = managerData(g.player.teamId, g);
   const req = requestEligibility(g, true);
   const t = Math.round(m.trust);
-  const level = t >= BALANCE.manager.meeting.rewardFrom ? '신뢰도 높음' : t < BALANCE.manager.meeting.lowBelow ? '신뢰도 낮음' : '신뢰도 보통';
+  const X = BALANCE.manager.meeting;
+  const level = t >= X.rewardFrom ? '신뢰도 높음' : t < X.lowBelow ? '신뢰도 낮음' : '신뢰도 보통';
+  const p = g.player;
+  const team = teamById(g.league, p.teamId);
+  const pos = myMatchPosition(g);
+  const chanceAt = (ps: FieldPosition) => Math.round(startChance(g, proficientOvr(p, ps), team.rating, p.fatigue) * 100);
+  const chance = chanceAt(pos);
+  const rank = competition(g, pos, 2).findIndex((r) => r.me) + 1;
+  const best = bestPosition(g);
+  const formation = g.tactics.formation;
+  const cell = (ps: FieldPosition): PosCellVM => ({ pos: ps, formation, ovr: proficientOvr(p, ps), prof: Math.round(proficiencyOf(p, ps)), chance: chanceAt(ps) });
+  const rest = { label: '오늘 훈련 → 휴식', tone: '' as const };
+  const pv = (o: MeetingOption): MeetingOptionVM['pv'] => {
+    switch (o.id) {
+      case 'effort': return { delta: X.effortTrust, chips: [{ label: `신뢰도 +${X.effortTrust}`, tone: 'up' }, { label: `훈련 XP ×${X.effortXp} · ${X.effortDays}일`, tone: 'brand' }, rest] };
+      case 'complain': return { delta: -X.complainTrust, chips: [{ label: `신뢰도 −${X.complainTrust}`, tone: 'down' }, { label: `기회 ${Math.round(X.complainChance * 100)}%`, tone: 'brand' }, rest] };
+      case 'request': return { delta: 0, chips: [{ label: '이적 명단 요청', tone: 'brand' }, rest] };
+      case 'slot': return { delta: 0, chips: [{ label: `보상 · ${o.title}`, tone: 'up' }, { label: `${pos} 선발 · ${X.slotGames}경기`, tone: 'brand' }, rest] };
+      case 'card': return { delta: 0, chips: [{ label: `보상 · ${o.title}`, tone: 'up' }, { label: '희귀 3택 1', tone: 'brand' }, rest] };
+      case 'start': return { delta: 0, chips: [{ label: `보상 · ${o.title}`, tone: 'up' }, { label: `선발 ${Math.round(X.startFloor * 100)}%+ · ${X.startGames}경기`, tone: 'brand' }, rest] };
+      case 'follow': return { delta: X.posTrust, chips: [{ label: `신뢰도 +${X.posTrust}`, tone: 'up' }, { label: `선발 확률 ${chance}% → ${chanceAt(best.pos)}%`, tone: 'up' }, { label: `내 위치 ${pos} → ${best.pos}`, tone: 'brand' }, rest] };
+      default: return { delta: 0, chips: [{ label: '변화 없음', tone: '' }, rest] };
+    }
+  };
+  let opts = meetingOptions(g, kind, req);
+  if (kind === 'low') opts = LOW_ORDER.map((id) => opts.find((o) => o.id === id)).filter((o): o is MeetingOption => !!o);
   return {
     kind, trust: t, manager: md ? `${md.nameKo} 감독` : '감독', line: meetingLine(g, kind),
     section: kind === 'reward' ? '보상 고르기' : kind === 'position' ? '제안에 답하기' : '어떻게 할까요',
     chips: [level, { label: KIND_KO[kind], soft: true }],
-    options: meetingOptions(g, kind, req),
+    options: opts.map((o) => ({ ...o, ...(kind === 'low' ? { tag: LOW_TAG[o.id] } : kind === 'position' ? { tag: POS_TAG[o.id] } : {}), pv: pv(o) })),
     blocked: meetingBlocked(g, dayPlan(g)),
+    mgrName: md?.nameKo ?? '감독 정보 없음', mgrStyle: md ? MANAGER_STYLE_KO[md.style] : '',
+    role: { title: chance >= 50 ? '주전' : '교체 자원', line: `${pos} ${rank || '—'}순위 · 선발 ${chance}%` },
+    compare: kind === 'position' ? { cur: cell(pos), sug: cell(best.pos) } : null,
   };
 }
