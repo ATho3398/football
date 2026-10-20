@@ -577,8 +577,9 @@ export const ENGINE = {
     shotPerM: 0.015,
     shotPressure: 0.15,
     /**
-     * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 0 이면 pOn += shotFree × max(0, 1 − 거리/shotFreeRef).
-     * "수비가 없다"는 정확도 가산 (0.38: 8 m 0.545 → 0.77, 12 m 0.485 → 0.64, 20 m+ 0; 0.30 은 12 m 안 빗나감 50 으로 부족). 판단식·실제가 같은 함수라 E.15.1 안
+     * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0(GK 제외) 이면
+     * pOn(마무리 배수 뒤) += shotFree × max(0, 1 − 거리/shotFreeRef) × 각도. "수비가 없다"는 상황 보너스라 능력과 무관하게 더한다
+     * (0.38: 8 m +0.23, 12 m +0.15, 20 m+ 0; 0.30 은 12 m 안 빗나감 50 으로 부족, 배수 안에 넣으면 scoring 30골+ 2.7·리그 1.52). 판단식·실제가 같은 함수라 E.15.1 안
      */
     shotFree: 0.38,
     shotFreeRef: 20,
@@ -832,8 +833,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW·1대1 보너스의 총량 되돌림 1.70 → 1.74 (0.01 = 득점 −0.067; 1.76 은 득점 1.20 으로 과소) */
-    saveBase: 1.74,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: 근거리 항 closeW·1대1 보너스의 총량 되돌림 1.70 → 1.77 (0.01 = 득점 −0.067) */
+    saveBase: 1.77,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -847,9 +848,12 @@ export const ENGINE = {
     cornerW: 0.35,
     distW: 0.55,
     distRef: 30,
-    /** 근거리 항 (C.76a, 미해결 12): 헤더가 아닌 슛은 δ += closeW × max(0, 1 − 거리/closeRef) — closeRef m 안 가까운 슛(1대1)만 GK 가 막기 어렵고 그 밖은 불변 */
+    /**
+     * 근거리 항 (C.76a, 미해결 12): 헤더가 아닌 슛은 δ += closeW × max(0, 1 − 거리/closeRef) — closeRef m 안 가까운 슛(1대1)만 GK 가 막기 어렵고 그 밖은 불변.
+     * closeRef 12 는 1대1 슛이 대개 9~12 m 에서 나와 실효가 거의 없었다(12 m 안 선방 41%) → 15 (10.5 m 에서 δ +0.135)
+     */
     closeW: 0.45,
-    closeRef: 12,
+    closeRef: 15,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
     catchBase: 0.3,
     catchSkill: 0.5,

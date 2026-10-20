@@ -249,13 +249,16 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     pOn = clamp(PR.headerBase - PR.headerPerM * d, PR.shotMin, PR.shotMax);
     speed = PR.headerSpeed;
   } else {
-    // 1대1 보너스 (C.76a, 미해결 12): 슛 길 콘 안 수비 0 이고 pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게)
-    const free = blockers === 0 && nearField >= PR.pressureDist ? PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) : 0;
-    pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + free + formBonus(a), PR.shotMin, PR.shotMax);
+    pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + formBonus(a), PR.shotMin, PR.shotMax);
     speed = B.shotSpeed;
   }
-  pOn *= Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
-  pOn = Math.min(PR.shotCap, pOn * finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot'));
+  const angle = Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
+  pOn *= angle;
+  pOn *= finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot');
+  // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
+  // 마무리 배수 뒤에 더해 능력과 무관한 상황 보너스로 둔다 (배수 안에 넣으면 엘리트 ST 에 비례해 몰린다 — 미해결 11 축)
+  if (!header && blockers === 0 && nearField >= PR.pressureDist) pOn += PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) * angle;
+  pOn = Math.min(PR.shotCap, pOn);
   const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
   const pGoal = 1 - leagueSaveProb(speed, 0.5, d, header);
   const xg = (1 - pBlock) * pOn * pGoal;
