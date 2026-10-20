@@ -1,7 +1,7 @@
 // 커스텀 생성 화면 (pending 47 2·49 1, 부록 C.45 → C.58 디자인 124~129 6단계). 새 게임의 기본 시작 방식 (C.74d: 랜덤은 [전체 랜덤]·[이 단계 랜덤]으로 합침).
 // 단계: 기본(이름·나이·포지션) → 몸(키·몸무게·주발·약발) → 외모(국적·인종·기본 사진·도트 머리, C.73c) → 태그 → 능력치 배분 → 시작(소속·옵션)
 
-import { Avatar, Banner, Button, esc, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
+import { Avatar, Banner, Button, esc, FootPair, Icon, PointBar, SectionTitle, Stepper, TagChip, TextField } from '../components';
 import { ALL_KITS, personOf } from '../../pixel';
 import { defaultPhotoSrc, pixelLayerUrls } from '../faces';
 import type { FacePhoto } from '../../identity';
@@ -46,7 +46,12 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
   const cuAct = (k: string, v: number) => ({ act: 'cu', data: { k, v: String(v) } });
   let body = '';
   if (st === 1) {
-    body = `${TextField({ label: '이름', value: vm.name, placeholder: '예: 김민준', hint: '비우면 랜덤 이름이에요.', input: { id: 'f-name', maxLength: 12 }, clearable: false })}
+    // 국적·인종을 이름보다 먼저 (C.75z, 사용자 16:19): 이름 [랜덤]은 고른 국적·인종에 맞춰 뽑는다
+    body = `${SectionTitle({ title: '국적' })}
+    <label class="field"><select id="cu-nat" class="cu-select">${vm.nationalities.map((n) => `<option value="${esc(n.id)}"${n.id === vm.nationality ? ' selected' : ''}>${esc(n.ko)}</option>`).join('')}</select></label>
+    ${SectionTitle({ title: '인종', action: '기본 사진 · 경기 아이콘 피부' })}${chips('app', vm.appearances.map((a) => ({ id: a.id, label: a.ko, on: a.id === vm.appearance })))}
+    <div class="cu-name">${TextField({ label: '이름', value: vm.name, placeholder: '예: 김민준', hint: '비우면 국적에 맞는 랜덤 이름이에요. 국적·인종을 바꾸면 랜덤 이름은 새로 뽑아요.', input: { id: 'f-name', maxLength: 12 }, clearable: false })}${
+      Button({ variant: 'secondary', size: 'sm', icon: 'swap', act: 'cu-name-rand', children: '랜덤', className: 'cu-name__rand' })}</div>
     ${Stepper({ label: '나이', value: vm.age, unit: '세', min: vm.ageMin, max: vm.ageMax, sub: `배분 포인트 ${sgn(vm.agePts)}`, subTone: vm.agePts >= 0 ? 'gain' : 'cost', onMinus: cuAct('age', -1), onPlus: cuAct('age', 1) })}
     <p class="small muted">나이가 많을수록 포인트가 많지만 성장할 시간이 짧아요. 15~18세는 유스 구단 1군 테스트, 19~23세는 소속팀에서 시작해요. 랜덤 생성은 17세예요.</p>
     ${SectionTitle({ title: '포지션', action: `${vm.positionKo} · 시작 OVR ${vm.ovr}` })}
@@ -58,12 +63,10 @@ export function customBody(vm: CustomVM, step: number, modeTabs: string, options
     <p class="small muted">키가 크면 공중볼·헤더에 유리하고 속도·가속·민첩 상한이 내려가요. 몸무게가 많으면 몸싸움 +, 가속·민첩 조금 −.</p>
     ${SectionTitle({ title: '주발' })}${chips('foot', [{ id: 'right', label: '오른발', on: b.foot === 'right' }, { id: 'left', label: '왼발', on: b.foot === 'left' }])}
     ${SectionTitle({ title: '약발', action: '5 = 양발잡이' })}${chips('wf', vm.weakOptions.map((o) => ({ id: String(o.v), label: String(o.v), sub: `${sgn(o.pts)}P`, on: o.on })))}
+    <div class="cu-feet">${FootPair({ foot: b.foot, weakFoot: b.weakFoot, size: 40 })}<small class="muted">${esc(b.footKo)} 주발 · 약발 ${b.weakFoot}${b.weakFoot >= 5 ? ' (양발잡이)' : ''}</small></div>
     <p class="small muted">약발 쪽으로 차야 하는 슛·크로스·긴 패스의 정확도가 약발 1이면 ×0.75, 5면 그대로예요. 경기 뒤 약발 훈련·포인트로 올릴 수 있어요.</p>`;
   } else if (st === 3) {
-    body = `${SectionTitle({ title: '국적' })}
-    <label class="field"><select id="cu-nat" class="cu-select">${vm.nationalities.map((n) => `<option value="${esc(n.id)}"${n.id === vm.nationality ? ' selected' : ''}>${esc(n.ko)}</option>`).join('')}</select></label>
-    ${SectionTitle({ title: '인종', action: '기본 사진 · 경기 아이콘 피부' })}${chips('app', vm.appearances.map((a) => ({ id: a.id, label: a.ko, on: a.id === vm.appearance })))}
-    ${SectionTitle({ title: '기본 사진', action: '인종을 고르면 자동 · 따로 바꿔도 돼요' })}${photoRow('cu', 'photo', vm.photos, vm.facePhoto)}
+    body = `${SectionTitle({ title: '기본 사진', action: '인종(기본 단계)을 고르면 자동 · 따로 바꿔도 돼요' })}${photoRow('cu', 'photo', vm.photos, vm.facePhoto)}
     ${SectionTitle({ title: '경기 화면 도트 머리' })}${chips('hair', [{ id: '', label: '자동', on: !vm.hair }, ...vm.hairs.map((h) => ({ id: h.id, label: h.ko, on: h.id === vm.hair }))])}
     <p class="small muted">겉모습만 바뀌고 경기 결과에는 영향이 없어요. 시작한 뒤에도 설정 → 페이스온·경기 아이콘에서 바꿀 수 있어요.</p>`;
   } else if (st === 4) {
@@ -162,9 +165,9 @@ function stepSummary(vm: CustomVM, n: number): string {
   const tc = vm.traitCount;
   const s2 = vm.start;
   switch (n) {
-    case 1: return `${vm.name || '이름 랜덤'} · ${vm.age}세 · ${vm.position}`;
+    case 1: return [vm.nationalities.find((x) => x.id === vm.nationality)?.ko, vm.name || '이름 랜덤', `${vm.age}세`, vm.position].filter(Boolean).join(' · ');
     case 2: return `${b.height}cm · ${b.weight}kg · ${b.footKo} · 약발 ${b.weakFoot}`;
-    case 3: return [vm.nationalities.find((x) => x.id === vm.nationality)?.ko, vm.appearances.find((x) => x.id === vm.appearance)?.ko].filter(Boolean).join(' · ');
+    case 3: return [`사진 ${vm.photos.find((x) => x.id === vm.facePhoto)?.ko ?? '기본'}`, vm.hair ? vm.hairs.find((h) => h.id === vm.hair)?.ko : '머리 자동'].filter(Boolean).join(' · ');
     case 4: {
       const pts = vm.traits.filter((t) => t.on).reduce((a, t) => a + (t.perm || t.ptsRemovable === null ? t.pts : t.ptsRemovable), 0);
       return `장점 ${tc.pro} · 단점 ${tc.con}${pts ? ` · ${sgn(pts)}P` : ''}`;
@@ -196,7 +199,7 @@ function customWide(vm: CustomVM, st: number, modeTabs: string, bar: string, bod
   const preview = `<div class="panel cu-preview">
       <div class="cu-preview__head"><span class="grow"><b>${esc(vm.name || '이름 랜덤')}</b><small>${vm.age}세 · ${vm.position} · ${esc(vm.nationalities.find((x) => x.id === vm.nationality)?.ko ?? '')}</small></span><span class="cu-preview__ovr"><b class="po-num">${vm.ovr}</b><small>${vm.position} OVR</small></span></div>
       ${looks}
-      <p class="small cu-preview__body">${vm.body.height}cm · ${vm.body.weight}kg · ${esc(vm.body.footKo)} · 약발 ${vm.body.weakFoot}</p>
+      <p class="small cu-preview__body">${vm.body.height}cm · ${vm.body.weight}kg · ${FootPair({ foot: vm.body.foot, weakFoot: vm.body.weakFoot, size: 22 })}</p>
       ${tags ? `<div class="cu-preview__tags">${tags}</div>` : '<small class="muted">태그 없음</small>'}
     </div>`;
   return `<div class="cu-pc"><div class="cu-pc__steps">${modeTabs}${steps}</div><div class="cu-pc__main">${bar}<div class="cu-step-body">${body}</div></div>

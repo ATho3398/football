@@ -59,7 +59,7 @@ export interface InboxRowVM {
 function rowOf(g: GameState, x: InboxItem): InboxRowVM {
   const pending = isPending(x);
   const left = x.due ? daysBetween(g.calendar.date, x.due) : 0;
-  const status = pending ? (left > 0 ? `답할 것 · ${left}일 남음` : '답할 것 · 오늘까지') : x.answer ? `${x.answer.auto ? '기본 선택' : '답함'} · ${x.answer.label}` : '';
+  const status = pending ? (left > 0 ? `답할 것 · ${left}일 남음` : '답할 것 · 오늘까지') : x.answer ? `${x.answer.auto ? (x.answer.text.startsWith('자동 진행') ? '자동 진행 답' : '기본 선택') : '답함'} · ${x.answer.label}` : '';
   return {
     id: x.id, cat: INBOX_CAT_KO[x.cat], icon: CAT_ICON[x.cat], when: dateLabel(x.date), title: x.title, body: x.answer ? x.answer.text : x.body,
     unread: !x.read || pending, pending, status, ...(x.link ? { link: x.link } : {}),
