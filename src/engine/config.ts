@@ -299,13 +299,18 @@ export const ENGINE = {
      * **지금은 끔(stepOutMax 0)**: 켜면 `role-pair 800 ST` 짝 조건 두 시드 펄스 나인 대비 −0.04/−0.09(가설 1 만 −0.02)·2선 골 포처 팀 대비 +0.06/+0.03(가설 1 만 +0.12)이고
      * 모든 팀 CB 에 걸려 다른 ST 역할 득실이 ±0.06~0.08 흔들림 — 나간 CB 의 빈자리를 2선이 제때 못 쓴다. 켤 때 값 7
      */
+    /**
+     * C.77e 가설 2 (§9.13.7): 후보를 ST/CF + 중앙 레인(|y − W/2| ≤ stepOutLane m)으로 좁히고(윙어 제외) 처방 값 base 0.35·미끼 0.5·판단 0.45 로 되돌려 켬(stepOutMax 7).
+     * 미끼는 C.77e 가설 1 의 인계 러너 반복 침투가 펄스 나인 팀에 공급한다
+     */
     stepOutMin: 4,
     stepOutReach: 12,
-    stepOutMax: 0,
+    stepOutLane: 12,
+    stepOutMax: 7,
     stepOutBall: [25, 45] as [number, number],
-    stepOutBase: 0.75,
-    stepOutDecoy: 0.35,
-    stepOutJudge: 0.6,
+    stepOutBase: 0.35,
+    stepOutDecoy: 0.5,
+    stepOutJudge: 0.45,
     stepOutP: [0.05, 0.9] as [number, number],
     stepOutHold: 1.5,
     decoyZone: 12,

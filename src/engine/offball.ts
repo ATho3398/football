@@ -759,7 +759,8 @@ function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal
   const oline = offsideLine(s, opp);
   const odir = attackDir(opp, s.half);
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line !== 3 || o.idx === s.ball.owner) continue;
+    // C.77e 가설 2: 내려온 9번만 — ST/CF, 중앙 레인 (하프스페이스 윙어 제외)
+    if (!o.onPitch || o.team === a.team || (o.pos !== 'ST' && o.pos !== 'CF') || o.idx === s.ball.owner || Math.abs(o.y - W / 2) > O.stepOutLane) continue;
     const ahead = (oline - toNorm(o.x, o.y, odir)[0]) * L;
     if (ahead < O.stepOutMin || ahead > O.stepOutReach) continue;
     // 그 상대에게 가장 가까운 CB 만 판단한다
