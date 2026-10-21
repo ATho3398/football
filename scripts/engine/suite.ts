@@ -361,9 +361,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       const S2 = `표준 경기 경로·분포 (${STD_FORMATION}, ${eq.length}경기, E.22 0번)`;
       const gb = (gs: PosGroup[], f: (p: CompactPlayer) => number) => sum(eq.flatMap((m) => m.players.filter((p) => gs.includes(groupOf(p))).map(f)));
       const tot = gb(GROUPS, (p) => p.goals);
-      add(S2, 'gSTn', '득점 비율 ST', '38~48', ratio(gb(['ST'], (p) => p.goals), tot) * 100, 38, 48, 0);
+      add(S2, 'gSTn', '득점 비율 ST', '32~40 (C.76x 재정의)', ratio(gb(['ST'], (p) => p.goals), tot) * 100, 32, 40, 0);
       add(S2, 'gWINGn', '득점 비율 윙어', '20~28', ratio(gb(['WING'], (p) => p.goals), tot) * 100, 20, 28, 0);
-      add(S2, 'gMIDn', '득점 비율 미드', '18~28', ratio(gb(['CDM', 'CM', 'CAM'], (p) => p.goals), tot) * 100, 18, 28, 0);
+      add(S2, 'gMIDn', '득점 비율 미드', '24~32 (C.76x 재정의)', ratio(gb(['CDM', 'CM', 'CAM'], (p) => p.goals), tot) * 100, 24, 32, 0);
       add(S2, 'gDEFn', '득점 비율 수비', '8~14', ratio(gb(['CB', 'FB'], (p) => p.goals), tot) * 100, 8, 14, 0);
       const stot = gb(GROUPS, (p) => p.shots);
       add(S2, 'sSTn', '슈팅 비율 ST', '30~35', ratio(gb(['ST'], (p) => p.shots), stot) * 100, 30, 35, 0);
@@ -416,9 +416,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const S = `분포 (표준 ${eq.length}경기 + 포메이션 5종 각 ${M('formation').length / 5}경기)`;
     const goalsBy = (gs: PosGroup[]) => sum(distSet.flatMap((m) => m.players.filter((p) => gs.includes(groupOf(p))).map((p) => p.goals)));
     const total = goalsBy(GROUPS);
-    add(S, 'gST', '득점 비율 ST/CF %', '38~48', ratio(goalsBy(['ST']), total) * 100, 38, 48);
+    add(S, 'gST', '득점 비율 ST/CF %', '32~40 (C.76x 재정의)', ratio(goalsBy(['ST']), total) * 100, 32, 40);
     add(S, 'gWING', '득점 비율 윙어 %', '20~28', ratio(goalsBy(['WING']), total) * 100, 20, 28);
-    add(S, 'gMID', '득점 비율 미드 %', '18~28', ratio(goalsBy(['CDM', 'CM', 'CAM']), total) * 100, 18, 28);
+    add(S, 'gMID', '득점 비율 미드 %', '24~32 (C.76x 재정의)', ratio(goalsBy(['CDM', 'CM', 'CAM']), total) * 100, 24, 32);
     add(S, 'gDEF', '득점 비율 수비 %', '8~14', ratio(goalsBy(['CB', 'FB']), total) * 100, 8, 14);
     const rec = GROUPS.map((g) => [g, sum(distSet.flatMap((m) => m.players.filter((p) => groupOf(p) === g).map((p) => p.received)))] as const)
       .sort((a, b) => b[1] - a[1]);
@@ -611,9 +611,14 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'lgTop10ST', '득점 상위 10명 중 ST/CF 수 (참고)', '약 5~6', st10, 4, 7, 1, {
       note: per.map((x) => x.top10.map((t) => `${t[0]} ${t[1]}(${t[2]})`).join(' ')).join(' | '),
     });
+    // C.76x (44h-g, §9.13 득점 분포 목표 재정의): 포지션군 비율은 현실 리그 전체(ST 32~40·미드 24~32)로 두고, 이상치는 개인 가드로 잡는다
+    //   — "CAM 한 명이 시즌 27골" 이 진짜 이상치. 포지션군 MID 시즌 최다 득점자 평균 ≤ 22, 득점 상위 10 중 CAM ≤ 1 (balance:scoring 판정)
+    const cam10 = avg(per.map((x) => x.top10.filter((t) => t[2] === 'CAM').length));
+    add(S, 'lgTop10CAM', '득점 상위 10명 중 CAM 수', '≤ 1 (C.76x 개인 가드)', cam10, 0, 1, 1);
     for (const grp of ['FW', 'WING', 'MID', 'DEF']) {
       const xs = per.map((x) => x.byGroup.get(grp)).filter((v): v is [string, number] => !!v);
       extra.push(`포지션군 ${grp} 시즌 최다 득점자: 평균 ${avg(xs.map((v) => v[1])).toFixed(1)} · 최대 ${Math.max(0, ...xs.map((v) => v[1]))} — ${xs.map((v) => `${v[0]} ${v[1]}`).join(', ')}`);
+      if (grp === 'MID') add(S, 'lgMidTop', '포지션군 MID 시즌 최다 득점자 골', '≤ 22 (C.76x 개인 가드)', xs.length ? avg(xs.map((v) => v[1])) : 0, 0, 22, 1, { note: xs.map((v) => `${v[0]} ${v[1]}`).join(', ') });
     }
     const gpl = [0, 1, 2, 3, 4, 5, 6].map((k) => sum(lg.flatMap((ms) => ms.map((mm) => mm.goalPaths[k]!))));
     extra.push(`실제 시즌 골 경로 % (패스/돌파·몰고/코너/프리킥/PK/리바운드/그 밖): ${gpl.map((v) => (ratio(v, sum(gpl)) * 100).toFixed(0)).join(' / ')}`);
