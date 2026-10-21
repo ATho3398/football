@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 35;
+export const ENGINE_VERSION = 36;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -266,6 +266,41 @@ export const ENGINE = {
      */
     boxManMax: 0,
     boxManSlack: 3,
+    /**
+     * 2선 침투자 "좁은 추적" (C.77b 44h-i, 8대 §9.15, 미해결 8·11 — 사용자 결정 "전면 마크 아님: 박스로 뛰는 2선을 CDM 또는 가장 가까운 CM 이 따라붙는다").
+     * 대상 = 상대 줄 2(CDM/CM/CAM) 중 소유자 아님 · 우리 골 trackZone m 안(유지는 +3 m 히스테리시스) 또는 이동 목표가 골 trackTargetZone m 안이고 자신은 목표보다 3 m 이상 멀리(들어오는 중).
+     * 위협 순으로 팀당 trackMax 명. 추적자 = 우리 줄 2 CDM(홀딩 CM) → CM(LM/RM·CAM·줄 1 제외), 압박 rank 0·둘째 압박자·역압박·커버·수신자 압박·면제·이미 추적 중은 뺀다.
+     * 침투자 쪽(같은 측면) CDM 이 trackCdmMax m 안이면 그 CDM, 아니면 가장 가까운 후보가 trackPickMax m 안일 때만(멀리서 끌려오지 않게 — 전면 마크와 갈리는 지점).
+     * 배정은 trackHold 초 유지 뒤에도 침투자가 대상 조건을 만족하는 동안 유지, 존 +3 m 밖 trackRelease 초·소유 바뀜·리스타트·침투자가 소유자·추적자가 압박 담당이 되면 해제.
+     * 자리 = 침투자와 우리 골을 잇는 선에서 골 쪽 trackGap m(박스 밖 trackGapOut), 공이 측면이면 stBallSide 만큼 공 쪽, 선읽기 trackLead 초 × 수비 포지셔닝/100 × 침투자 속도, 오차 markSigma × (100 − (마킹+포지셔닝)/2).
+     * 거리 > trackUrgent m 면 urgent. lineX + midGap 상한·스크린·coverShiftY 를 적용하지 않는다(추적자는 박스까지 들어간다). 수비 줄(boxDefense)·공격 코드 무수정. trackMax 0 = 끔(엔진 33 과 같다)
+     */
+    trackZone: 22,
+    /**
+     * 가설 2 ① (§9.15.4, 시간) 측정 뒤 끔 (C.77b): 24(목표가 24 m 안으로 잡히는 순간부터; 공격 'edge' 22 가 들어오므로 CDM 포지션 공격수는 ⓑ 에서 뺀다 trackTargetNoCdm 1) + trackLead 0.8 + trackRunUrgent 1 + trackHandoff 1 은
+     * runner-track 40 받는 순간 ≤ 1.5 m 28 → 28% · ≤ 3 m 70 → 70%(추적자 자신의 거리 5.8 → 4.5 m 만), gap 120 CAM 골 0.33/0.35 → 0.35/0.33 — 가설 1 뒤 ≤ 3 m 가 65% 위라 처방 조건 미충족·효과 없음 → 20 / 0.5 / 0 / 0
+     */
+    trackTargetZone: 20,
+    trackTargetNoCdm: 0,
+    /**
+     * 8대 §9.15.6 ② 는 1 로 시작을 권했지만, 측정(C.77b)은 1 은 줄 대응(lineTiers 1)과 함께만 재어 30골+ 2.40 ✗ 였고 2(줄 대응 없음)가 같은 시드 scoring 통과(30골+ 1.80 · MID 최다 19.6 · 상위 10 CAM 0.8) → 2
+     * 줄 대응 (a0, 사용자 원칙 "상대 1선은 최후방이, 2·3선은 수미·중미가"): 존 마크 후보를 줄로 짝짓기(우리 줄 1 ↔ 상대 줄 3, 줄 2 ↔ 줄 2, focus 쏠림은 줄 1 만). **0 = 끔**:
+     * 켜면 CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)이고 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34, 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 의 "ST 풀림" 통로)
+     */
+    trackMax: 2,
+    lineTiers: 0,
+    trackCdmMax: 9,
+    trackPickMax: 12,
+    trackHold: 0.7,
+    trackRelease: 0.5,
+    trackGap: 1.5,
+    trackGapOut: 2.0,
+    trackLead: 0.5,
+    trackUrgent: 2,
+    /** 가설 2 ①: 침투자가 urgent(뛰는 중)이면 추적자도 항상 urgent (1). 측정 뒤 0 */
+    trackRunUrgent: 0,
+    /** 가설 2 ② 비행 중 인계 (1): 추적 중인 침투자에게 패스가 떠 있으면 수신자 압박 담당(closeDownPick)은 도착 시간과 무관하게 그 추적자. 측정 뒤 0 */
+    trackHandoff: 0,
     /** 커버 섀도 대상 가치 × (1 + focusShadowW × 계수): 패스 길 차단이 엘리트 쪽으로 */
     focusShadowW: 0.5,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */
@@ -906,6 +941,7 @@ export const ENGINE = {
      * C.76s: 엔진 32(지친 선수의 패스·판단 흐트러짐)로 패스 중심 포지션의 델타 합이 내려가 600경기로 다시 쟀다(최종 설정 측정: GK 0.98, CB 0.99, FB 0.83, CDM 1.35, CM 1.60, CAM 1.30, WING 1.02, ST 1.75). 가드(6.3~6.7)를 벗어났던 **CAM 만 1.51 → 1.26** 반영(CAM 6.53) — 8군을 모두 6.5 로 맞추면 평점 σ 가 0.70 아래(가드 0.7~0.9)로 내려가서 나머지(6.34~6.57, 가드 안)는 다음 재측정 때.
      * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
+    // C.77b 44h-i: 2선 추적 뒤 rating-parts 600(엔진 34 기준) ST 평균 델타 1.871 — 병렬 C.76z 가 같은 재측정으로 1.86 을 먼저 씀, 그 값 유지(차이 0.01 = 평점 0.009)
     center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.26, WING: 1.18, ST: 1.86 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,

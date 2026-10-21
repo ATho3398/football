@@ -10,7 +10,7 @@ import { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toP
 import { Purpose, rand, randn } from './rng';
 import { hasModule } from './roles';
 import { TENDENCY } from './tactics';
-import type { Agent, DefSit, SimState } from './state';
+import type { Agent, DefSit, Line, SimState } from './state';
 
 const O = ENGINE.offball;
 const F = ENGINE.formation;
@@ -451,6 +451,8 @@ export function updateOffball(s: SimState, a: Agent): void {
 
   const attacking = s.possTeam === a.team;
   const [bnx, bny] = ballNorm(s, a.team);
+  // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
+  if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
   if (attacking) attackTarget(s, a, dir, bnx, bny);
   else defendTarget(s, a, dir, bnx, bny);
 }
@@ -853,6 +855,12 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  // 2선 침투자 추적 (C.77b 44h-i, §9.15 가설 1): 압박 다음, 면제·스크린·줄 2 존 마크 앞. 줄 2 추적자만, 수비 줄(boxDefense)은 그대로
+  if (a.line === 2 && O.trackMax > 0) {
+    trackPlan(s, a.team, gx0, gy0);
+    if (a.trackIdx >= 0 && trackTarget(s, a, dir, gx0, gy0)) return;
+  }
+
   ensureErrors(s, a);
   // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
@@ -899,19 +907,27 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 줄 2 존 마크의 ST 쏠림 해소 (C.76w (c), 미해결 8·11 — boxManMax > 0 일 때만, 지금은 0 = 끔): focus 가 이미 boxDefense 마커를 가진 상태(markZone + 위협 1위 마커)면
   // 존 마크는 focus 를 빼고 존 근처 다른 상대(2선 침투자가 대개 여기 걸린다)를 맡는다
   const focusHeld = O.boxManMax > 0 && markZone && threatMarker(s, a.team) !== null;
+  // 줄 대응 (C.77b (a0), 사용자 원칙 "상대 1선은 우리 최후방이, 상대 2·3선은 우리 3선(수미·중미)이 막는다"): 존 마크 후보를 줄로 짝짓는다 —
+  // 우리 줄 1 → [상대 줄 3, 그다음 줄 2] · 우리 줄 2 → [상대 줄 2, 그다음 줄 3] · 우리 줄 3 → [상대 줄 1·2, 그다음 줄 3]. 첫 단계에 14 m 안 상대가 있으면 그 안에서만,
+  // 없을 때만 다음 단계(대형이 달라 짝이 남을 때의 인계). focus(대개 ST) 쏠림은 우리 줄 1 에만 — 줄 2 는 focus 가 자기 첫 단계(줄 2)일 때만 (지금까지는 줄과 무관하게 가장 가까운 상대·focus 라 줄 2 가 ST 로 쏠리고 상대 2선은 비었다, 미해결 8)
+  // **지금은 끔(lineTiers 0, 부록 C.77b)**: 켜면(1) CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)인데 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34 로 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 와 같은 "ST 풀림" 통로)
+  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : a.line === 1 ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
   let mark: Agent | null = null;
   let best = 14;
-  for (const o of s.agents) {
-    // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
-    if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner) continue;
-    if (focusHeld && o === focus) continue;
-    const d = dist(o.x, o.y, zx, zy);
-    if (d < best) {
-      best = d;
-      mark = o;
+  for (const tier of tiers) {
+    for (const o of s.agents) {
+      // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
+      if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || !tier.includes(o.line)) continue;
+      if (focusHeld && o === focus) continue;
+      const d = dist(o.x, o.y, zx, zy);
+      if (d < best) {
+        best = d;
+        mark = o;
+      }
     }
+    if (mark) break;
   }
-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);
@@ -1266,6 +1282,17 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
       second = o;
     }
   }
+  // 비행 중 인계 (C.77b 가설 2 ②): 수신자를 추적 중인 선수가 있으면 도착 시간과 무관하게 그 추적자가 담당 (추적자 + 수신자 압박 2명이 되지 않게)
+  if (O.trackHandoff > 0 && O.trackMax > 0) {
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team !== team || o.trackIdx !== rcv.idx || o === marker || hasModule(o.role, 'exempt')) continue;
+      if (pick !== o) {
+        if (second === o) second = pick;
+        pick = o;
+      }
+      break;
+    }
+  }
   if (!deep || !(rcv.pos === 'ST' || rcv.pos === 'CF')) second = null;
   return { pick, second };
 }
@@ -1329,6 +1356,144 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
   return pick;
 }
 /** 위협 1위를 마크하는 CB (가장 가까운 CB). 없으면 null */
+/**
+ * 2선 침투자 추적 배정 (C.77b 44h-i, 8대 §9.15 가설 1, 미해결 8·11): 틱마다 팀당 1회(closeDownPlan 식 캐시). 결과는 Agent.trackIdx·trackUntil·trackOut 에 남는다(기억).
+ * ① 해제: 우리 공·리스타트면 전부. 침투자가 소유자·벤치·대상 조건 밖 trackRelease 초(존 +3 m 히스테리시스, trackHold 안에는 유지)·추적자가 압박/역압박/커버/수신자 압박 담당이면 그 배정.
+ * ② 대상: 상대 줄 2 중 소유자 아님 · 우리 골 trackZone 안 또는 이동 목표가 trackTargetZone 안이고 자신은 목표보다 3 m 이상 멀리(들어오는 중). 위협 순(threatValue), 팀당 trackMax 명.
+ * ③ 추적자: 우리 줄 2 CDM(홀딩 CM)·CM 중 한가한 선수. 침투자 쪽 CDM 이 trackCdmMax 안이면 그 CDM, 아니면 가장 가까운 후보가 trackPickMax 안일 때만. 난수 없음, 동률은 idx
+ */
+const trackCache = new WeakMap<SimState, number[]>();
+function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
+  let cache = trackCache.get(s);
+  if (!cache) trackCache.set(s, (cache = [-1, -1]));
+  if (cache[team] === s.tick) return;
+  cache[team] = s.tick;
+  const b = s.ball;
+  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+  const att = owner ? owner.team : s.possTeam;
+  const ours: Agent[] = [];
+  for (const o of s.agents) if (o.onPitch && o.team === team && o.line === 2) ours.push(o);
+  const release = (a: Agent) => { a.trackIdx = -1; a.trackOut = -1; };
+  if (att === team || s.restart) {
+    for (const a of ours) if (a.trackIdx >= 0) release(a);
+    return;
+  }
+  const zone = O.trackZone;
+  // 대상 조건 (slack = 유지 히스테리시스)
+  const isRunner = (o: Agent, slack: number): boolean => {
+    if (!o.onPitch || o.team !== att || o.line !== 2 || o === owner) return false;
+    const dg = dist(o.x, o.y, gx, gy);
+    if (dg < zone + slack) return true;
+    if (O.trackTargetNoCdm > 0 && o.pos === 'CDM') return false;
+    const tg = dist(o.tx, o.ty, gx, gy);
+    return tg < O.trackTargetZone + slack && dg > tg + 3;
+  };
+  // 추적자가 바쁜가 (압박 rank 0·둘째 압박자·역압박·커버·수신자 압박·면제)
+  const tm = s.teams[team];
+  const t = effectiveTactics(s, team);
+  const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
+  const second2 = sitPressers(s, team) >= 2;
+  const busy = (a: Agent): boolean => {
+    if (hasModule(a.role, 'exempt')) return true;
+    if (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx)) return true;
+    if (tm.coverAgent === a.idx && s.t < tm.coverUntil) return true;
+    if (cd.pick === a || cd.second === a) return true;
+    if (owner) {
+      const rank = ballRank(s, a, b.x, b.y);
+      if (rank === 0) return true;
+      if (rank === 1 && second2 && (pressLevel(s, team) >= 2 || t.pressing * (0.5 + a.role.press) > 0.6)) return true;
+    }
+    return false;
+  };
+  // ① 기존 배정 점검
+  const tracked = new Set<number>();
+  let n = 0;
+  for (const a of ours) {
+    if (a.trackIdx < 0) continue;
+    const r = s.agents[a.trackIdx];
+    if (!r || r.idx === b.owner || busy(a)) { release(a); continue; }
+    if (isRunner(r, 3)) a.trackOut = -1;
+    else {
+      if (a.trackOut < 0) a.trackOut = s.t;
+      if (s.t >= a.trackUntil && s.t - a.trackOut >= O.trackRelease) { release(a); continue; }
+    }
+    tracked.add(r.idx);
+    n++;
+  }
+  if (n >= O.trackMax) return;
+  // ② 새 대상 (위협 순)
+  const runners: Agent[] = [];
+  for (const o of s.agents) if (!tracked.has(o.idx) && isRunner(o, 0)) runners.push(o);
+  if (!runners.length) return;
+  runners.sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
+  // ③ 후보 추적자 (한가한 CDM/CM)
+  const cands: Agent[] = [];
+  for (const a of ours) {
+    if (a.trackIdx >= 0) continue;
+    if (!(a.pos === 'CDM' || a.role.id === 'holdingCM' || a.pos === 'CM')) continue;
+    if (busy(a)) continue;
+    cands.push(a);
+  }
+  for (const r of runners) {
+    if (n >= O.trackMax || !cands.length) break;
+    const side = Math.sign(r.y - W / 2) || 1;
+    let pick: Agent | null = null;
+    let bd = Infinity;
+    // 침투자 쪽 CDM 이 trackCdmMax 안이면 그 CDM (CDM 이 하나뿐이면 그 CDM)
+    const cdms = cands.filter((a) => a.pos === 'CDM' || a.role.id === 'holdingCM');
+    for (const a of cdms) {
+      if (cdms.length > 1 && (Math.sign(a.y - W / 2) || 1) !== side) continue;
+      const d = dist(a.x, a.y, r.x, r.y);
+      if (d <= O.trackCdmMax && (d < bd || (d === bd && pick && a.idx < pick.idx))) { bd = d; pick = a; }
+    }
+    if (!pick) {
+      for (const a of cands) {
+        const d = dist(a.x, a.y, r.x, r.y);
+        if (d <= O.trackPickMax && (d < bd || (d === bd && pick && a.idx < pick.idx))) { bd = d; pick = a; }
+      }
+    }
+    if (!pick) continue;
+    pick.trackIdx = r.idx;
+    pick.trackUntil = s.t + O.trackHold;
+    pick.trackOut = -1;
+    cands.splice(cands.indexOf(pick), 1);
+    n++;
+  }
+}
+
+/**
+ * 추적 자리 (C.77b, C.75d markTarget 의 박스 안 식만): 침투자(선읽기 trackLead 초 × 수비 포지셔닝/100 × 속도)와 우리 골을 잇는 선에서 골 쪽 trackGap m(박스 밖 trackGapOut),
+ * 공이 측면이면 stBallSide 만큼 공 쪽. 오차 markSigma × (100 − (마킹+포지셔닝)/2). 거리 > trackUrgent 면 urgent. 침투자가 없으면 false
+ */
+function trackTarget(s: SimState, a: Agent, dir: 1 | -1, gx: number, gy: number): boolean {
+  const r = s.agents[a.trackIdx];
+  if (!r || !r.onPitch) return false;
+  ensureErrors(s, a);
+  const b = s.ball;
+  const lead = O.trackLead * (a.attrs.defensivePositioning / 100);
+  const rx = r.x + r.vx * lead;
+  const ry = r.y + r.vy * lead;
+  const gd = dist(rx, ry, gx, gy) || 1;
+  let ux = (gx - rx) / gd;
+  let uy = (gy - ry) / gd;
+  if (Math.abs(toNorm(b.x, b.y, dir)[1] - 0.5) >= O.wideBall) {
+    const bd = dist(rx, ry, b.x, b.y) || 1;
+    ux = ux * (1 - O.stBallSide) + ((b.x - rx) / bd) * O.stBallSide;
+    uy = uy * (1 - O.stBallSide) + ((b.y - ry) / bd) * O.stBallSide;
+    const un = Math.sqrt(ux * ux + uy * uy) || 1;
+    ux /= un;
+    uy /= un;
+  }
+  const inBox = Math.abs(rx - gx) <= ENGINE.pitch.boxDepth && Math.abs(ry - gy) <= ENGINE.pitch.boxWidth / 2;
+  const gap = inBox ? O.trackGap : O.trackGapOut;
+  const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
+  a.tx = clamp(rx + ux * gap + a.errX * sigma, 0.3, L - 0.3);
+  a.ty = clamp(ry + uy * gap + a.errY * sigma, 0.3, W - 0.3);
+  a.urgent = dist(a.tx, a.ty, a.x, a.y) > O.trackUrgent || (O.trackRunUrgent > 0 && r.urgent);
+  a.minRun = false;
+  return true;
+}
+
 function threatMarker(s: SimState, team: 0 | 1): Agent | null {
   const threat = focusThreat(s, team);
   if (!threat) return null;
