@@ -15,6 +15,9 @@
 - **비용**: 전체 측정(`balance:engine:check`, `balance:scoring`, `balance:sweep --tactics`)은 진단 1건당 최대 2회. 긴 실행은 백그라운드로 돌리고 출력을 스크래치패드 파일에 받는다. PNG는 읽지 않는다. 컨텍스트 50만을 넘으면 보고서를 커밋하고 기획 세션에 교체를 알린다.
 - **세션 이름 규칙**: 새 세션을 열면 이전 세션 제목 앞에 `draft_`가 붙는다(기획 세션이 한다).
 
+### 지금 상태 (9대 시작, 2026-10-21 21:4x KST — 대기 중)
+- **9대 `session_01Br1jtc3FrJL9Xt3WmYFQwB`**(Fable, 제목 `엔진관리자9`), 작업 브랜치 **`claude/engine-manager-9`**(main 5b6b8b7 에서 따고 `origin/claude/engine-manager-8` 병합 — docs·`scripts/diag/line-after-loss.ts` 포함, 충돌 없음). 마스터 Y `session_01PgUwPFtt8b6h4UmF4SbRvY`. 아래 8대 블록의 대기 처방 4개를 그대로 이어받는다(마스터 결정 뒤 열리면 해당 §에 §재진단). 진행 중 코드 세션 C.77g(게겐 체력 비용 배포·부분 종결, `session_013YqKR4fqsUc44crQCiSHem`)의 "해결 어려움" 도 9대가 받는다. main 에는 아직 푸시하지 않음(C.77g 배포 중이라 Pages 취소 방지 — C.77g 가 main 병합 때 docs 를 같이 가져가거나, 코드 세션이 없을 때 1회).
+
 ### 지금 상태 (8대 → 9대 인수인계, 2026-10-21 21:38 KST — 컨텍스트 약 65만·비용 약 64달러로 교체, Y 21:30 지시)
 - **8대 `session_01DJK7MaPzJ2edGU3ywbiw3H`**(Fable xhigh, 제목 `엔진관리자8`), 작업 브랜치 **`claude/engine-manager-8`**(main 5b6b8b7 = C.77d·엔진 37 을 담음, 8대 docs·진단 스크립트 전부 푸시됨). 마스터 **Y `session_01PgUwPFtt8b6h4UmF4SbRvY`**(`claude/planning-y`). 8대는 깨우지 않는다. **9대는 `claude/engine-manager-9` 를 main 에서 따고 `git merge origin/claude/engine-manager-8`**(docs 충돌은 양쪽 유지). 사용자 규칙(13:53): 엔진 코드·fix 세션은 **Opus(높음) 1차, 같은 문제 2회 실패 시 Fable**(Fable 한도 80%) — 처방은 Opus 가 따라 하기 쉽게 파일·함수·상수·측정 명령·커밋 단위 분기 확인까지. 엔진관리자는 Fable xhigh 그대로.
 - **main 엔진 37(5b6b8b7, 지문 4b00b4752cdd11db)·BALANCE 73** 기준선: quick 600 득점 **1.28** · ST/윙/미드/수비 **32/23/32/13**(C.76x 재정의 목표 ST 32~40·미드 24~32) · Δ+8 1.86 / Δ−8 0.82 · 롱패스 16.7% · 같은 시드 scoring(출전율 켬, C.77c `npcAbsentP` 0.08) 30골+ **0.90** / 중앙값 30 / 리그 1.32 / MID 최다 17.7 / 상위 10 CAM 0.7 · `engine:check` 경량 가드 통과(ST 6.58·XP 1.13) · `gap 120` CAM 골 < ST 골(한 팀만, 두 팀은 엔진 35 재측정에서만) · 상성 `tactic-pair 200` 게겐 대 티키 +0.63 · 균형 +0.29 · 역습 +0.80 · 버스 +0.72 · 블록 +0.70 · 직선 +0.46 · sweep 7×7 0.82.
