@@ -306,7 +306,7 @@ export const ENGINE = {
     stepOutMin: 4,
     stepOutReach: 12,
     stepOutLane: 12,
-    stepOutMax: 7,
+    stepOutMax: 0,
     stepOutBall: [25, 45] as [number, number],
     stepOutBase: 0.35,
     stepOutDecoy: 0.5,
