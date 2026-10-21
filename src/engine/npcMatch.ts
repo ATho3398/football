@@ -3,7 +3,7 @@
 
 import type { TeamRoster } from '../roster';
 import type { MatchEnv } from './env';
-import { teamSetupFromRoster } from './setup';
+import { npcTeamSetup } from './setup';
 import { createMatch } from './sim';
 
 export interface NpcMatchInput {
@@ -52,8 +52,9 @@ export function summarize(r: {
 }
 
 export function playNpcMatch(m: NpcMatchInput): NpcMatchResult {
-  const home = teamSetupFromRoster(m.home, m.homeRating, m.awayRating, m.worldSeed, undefined, m.leagueAvg);
-  const away = teamSetupFromRoster(m.away, m.awayRating, m.homeRating, m.worldSeed, undefined, m.leagueAvg);
+  // C.77c: 결장 추첨(npcAbsentP)을 거친 선발 — 측정 리그(job.ts runLeagueMatchJob)와 같은 함수
+  const home = npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg);
+  const away = npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg);
   const sim = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}) });
   return summarize(sim.runToEnd());
 }

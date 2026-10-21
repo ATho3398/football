@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 69;
+export const BALANCE_VERSION = 70;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -590,6 +590,15 @@ export const BALANCE = {
     seasonFormSd: 1.5,
     /** 계약이 끝나고 이적하지 않은 선수는 재계약 1~4년 (이적은 transfer, 18.6) */
     renewYears: { min: 1, max: 4 },
+    /**
+     * NPC 경기당 결장 확률 (C.77c, 엔진관리자8 §9.15.9 권장 A): 부상 약 0.04 + 로테이션 약 0.04 → 시즌 출전 약 35경기(현실 득점왕급 33~37).
+     * (worldSeed, 경기 시드, 선수 id) 로 결정적 추첨, 결장 선수는 pickLineup 에서 빠지고 벤치가 대신 선발. 득점 확률과 무관한 현실 조건이라 결과 할당이 아니다.
+     * NPC 누적 피로·부상이 없어서 둔 임시 대체 — pending 142(NPC 피로·컵 일정·부상)에서 교체한다. 내 선수·내 팀 출전 규칙(부상·벤치 결장)과 무관.
+     * 측정(`balance:scoring` 리그 시즌)과 본편 다른 경기(npcMatch)가 같은 함수를 쓴다.
+     */
+    npcAbsentP: 0.08,
+    /** 결장 추첨 뒤 남겨 두는 최소 인원 (선발 11 + 교체 3). 마지막 남은 GK 는 결장하지 않는다 */
+    npcAbsentMin: 14,
   },
 
   // ── 이적과 계약 (18.6 NPC 점수 모델, 18.10 내 선수, 부록 C.42). 수치는 모두 초안 ──
