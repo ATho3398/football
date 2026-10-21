@@ -57,6 +57,9 @@ const TS = { n: 0, d: [0, 0, 0, 0, 0], on: [0, 0, 0, 0, 0] }; // 받기 전 -3/-
 const UP = { n: 0, track: 0, ball: 0, land: 0, cover: 0, slot: 0, other: 0, restart: 0 }; // 추적자가 목표를 갱신한 틱의 분기 분류(침투자 존 안일 때만)
 const CV = { n: 0, assigned: 0, any3: 0, any5: 0, tr3: 0 }; // 열린 경기(리스타트 아님) 존 안 침투자 틱 커버리지
 const RA = { age: [] as number[], dByAge: [[], [], [], []] as number[][] }; // 받는 순간 배정 경과(초)와 그때 거리
+const JT = { n: 0, jumpN: 0, jumpSum: 0, revN: 0, spdN: 0, dTgt: 0 }; // 목표 흔들림(틱 간 목표 이동)·방향 반전(속도와 목표 방향 cos < 0)·목표까지 거리
+const prevTgt = new WeakMap<Agent, [number, number, boolean]>();
+const ID = { n: 0, dev: 0, idealJumpSum: 0, idealJumpN: 0, lagAlong: 0, lagN: 0 }; // 이상 목표(침투자 + 골 쪽 gap, 오차·선읽기·공 쪽 없음)와 실제 목표의 차 · 이상 목표의 틱 간 이동 · 침투자 진행 방향 기준 추적자 지연
 const RR = { assignedD: [] as number[], releasedD: [] as number[] };
 const RX = { n: 0, dTarget: [] as number[], urgent: 0, vt: [] as number[], runnerMove1s: [] as number[], sinceEntry: [] as number[], flightDur: [] as number[], tgtOnRunner: 0, tgtOnLanding: 0, closeNoTracker: 0 };
 
@@ -208,6 +211,25 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
           else UP.other++;
         }
       }
+      if (tgtOnRunner) {
+        JT.n++; JT.dTgt += dTarget;
+        const pt = prevTgt.get(a);
+        if (pt && pt[2]) { const j = dist(a.tx, a.ty, pt[0], pt[1]); if (j > 0.05) { JT.jumpN++; JT.jumpSum += j; } }
+        {
+          const dDir = attackDir(a.team, s.half);
+          const [gx, gy] = ownGoal(dDir);
+          const gd = dist(r.x, r.y, gx, gy) || 1;
+          const inBox = Math.abs(r.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(r.y - gy) <= ENGINE.pitch.boxWidth / 2;
+          const gap = inBox ? ENGINE.offball.trackGap : ENGINE.offball.trackGapOut;
+          const ix = r.x + ((gx - r.x) / gd) * gap, iy = r.y + ((gy - r.y) / gd) * gap;
+          ID.n++; ID.dev += dist(a.tx, a.ty, ix, iy);
+          const pr0 = prevPos.get(r);
+          if (pr0) { const gd0 = dist(pr0[0], pr0[1], gx, gy) || 1; const ix0 = pr0[0] + ((gx - pr0[0]) / gd0) * gap, iy0 = pr0[1] + ((gy - pr0[1]) / gd0) * gap; ID.idealJumpN++; ID.idealJumpSum += dist(ix, iy, ix0, iy0); }
+        }
+        const sp = Math.hypot(a.vx, a.vy);
+        if (sp > 1) { JT.spdN++; const cx = ((a.tx - a.x) * a.vx + (a.ty - a.y) * a.vy) / ((dTarget || 1) * sp); if (cx < 0) JT.revN++; }
+      }
+      prevTgt.set(a, [a.tx, a.ty, tgtOnRunner]);
       const pa = prevPos.get(a), pr = prevPos.get(r);
       const vt = pa ? dist(a.x, a.y, pa[0], pa[1]) / dt : 0;
       const vr = pr ? dist(r.x, r.y, pr[0], pr[1]) / dt : 0;
@@ -275,3 +297,5 @@ console.log(`  받기 전 시계열(추적자 있음 ${TS.n}): −3 s ${f(TS.d[0
 console.log(`  추적자 목표 갱신 틱(침투자 존 안) ${UP.n}: 추적 분기 ${pct(UP.track, UP.n)} · 공 3 m(압박) ${pct(UP.ball, UP.n)} · 착지점(수신자 압박) ${pct(UP.land, UP.n)} · 공↔골 커버 ${pct(UP.cover, UP.n)} · 리스타트 ${pct(UP.restart, UP.n)} · 기타 ${pct(UP.other, UP.n)}`);
 console.log(`열린 경기 존 안 침투자 틱 ${CV.n}: 추적자 배정 ${pct(CV.assigned, CV.n)} · 추적자 ≤ 3 m ${pct(CV.tr3, CV.n)} · 아무 수비 ≤ 3 m ${pct(CV.any3, CV.n)} · ≤ 5 m ${pct(CV.any5, CV.n)}`);
 console.log(`받는 순간 배정 경과: 중앙값 ${f(med(RA.age))} s · <1 s ${pct(RA.age.filter((x) => x < 1).length, RA.age.length)} · 1~2 ${pct(RA.age.filter((x) => x >= 1 && x < 2).length, RA.age.length)} · 2~4 ${pct(RA.age.filter((x) => x >= 2 && x < 4).length, RA.age.length)} · 4+ ${pct(RA.age.filter((x) => x >= 4).length, RA.age.length)} | 그때 거리 ${RA.dByAge.map((x) => f(avg(x))).join(' / ')} m (≤ 1.5: ${RA.dByAge.map((x) => pct(x.filter((y) => y <= 1.5).length, x.length)).join(' / ')})`);
+console.log(`  목표 쥔 틱 ${JT.n}: 목표까지 ${f(JT.dTgt / JT.n)} m · 목표 이동(틱 간 > 0.05 m) 초당 ${f((JT.jumpN / JT.n) * 10)}회 · 평균 ${f(JT.jumpSum / Math.max(1, JT.jumpN))} m · 방향 반전(속도 > 1 m/s 중 목표가 뒤) ${pct(JT.revN, JT.spdN)}`);
+console.log(`  실제 목표 ↔ 이상 목표(침투자 + 골 쪽 gap 만) 차 ${f(ID.dev / ID.n)} m · 이상 목표의 틱 간 이동 ${f((ID.idealJumpSum / Math.max(1, ID.idealJumpN)) * 10)} m/s`);
