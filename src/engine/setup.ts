@@ -1,5 +1,6 @@
 // 로스터 → 엔진 입력 (E.2 TeamSetup)
 
+import { BALANCE } from '../config/balance';
 import { pickLineup, type RosterPlayer, type TeamRoster } from '../roster';
 import { ENGINE } from './config';
 import { gkFieldAttributes } from './sim';
@@ -64,6 +65,36 @@ export function underdogPlan(teamId: string, rating: number, oppRating: number, 
   const steps = big ? 2 : 1;
   const down = (d: 'lineHeight' | 'pressing') => LEVELS[d][Math.max(0, levelOf(d, base[d]) - steps)]!;
   return { ...base, lineHeight: big ? LEVELS.lineHeight[0] : down('lineHeight'), pressing: down('pressing') };
+}
+
+/**
+ * NPC 결장 추첨 (C.77c, 엔진관리자8 §9.15.9 권장 A): 로스터 선수마다 경기당 BALANCE.roster.npcAbsentP(부상 + 로테이션) 확률로
+ * (worldSeed, 경기 시드, 선수 id) 결정적 추첨. 결장 선수는 pickLineup 의 exclude 로 빠지고 벤치가 대신 선발된다.
+ * NPC 누적 피로(경기 사이 피로·회복·선발 페널티)는 미구현이라 그 임시 대체 — pending 142 에서 교체. 내 선수·내 팀 출전 규칙과 무관.
+ * 안전: 남는 인원이 npcAbsentMin 아래로 가는 결장과 마지막 남은 GK 의 결장은 하지 않는다 (결과 할당이 아니라 인원 보장)
+ */
+export function npcAbsences(roster: TeamRoster, worldSeed: string, matchSeed: number, p: number = BALANCE.roster.npcAbsentP): Set<string> {
+  const out = new Set<string>();
+  if (p <= 0) return out;
+  const players = roster.players;
+  let gks = players.filter((x) => x.position === 'GK').length;
+  let left = players.length;
+  for (const x of players) {
+    if (left <= BALANCE.roster.npcAbsentMin) break;
+    const gk = x.position === 'GK';
+    if (gk && gks <= 1) continue;
+    if (createRng(hashSeed(`${worldSeed}:absent:${matchSeed}:${x.id}`))() < p) {
+      out.add(x.id);
+      left--;
+      if (gk) gks--;
+    }
+  }
+  return out;
+}
+
+/** NPC 팀 엔진 입력 (C.77c): 결장 추첨을 거친 teamSetupFromRoster. 측정(runLeagueMatchJob)과 본편(playNpcMatch)이 같이 쓴다 */
+export function npcTeamSetup(roster: TeamRoster, rating: number, oppRating: number, worldSeed: string, matchSeed: number, leagueAvg?: number): TeamSetup {
+  return teamSetupFromRoster(roster, rating, oppRating, worldSeed, npcAbsences(roster, worldSeed, matchSeed), leagueAvg);
 }
 
 export function teamSetupFromRoster(
