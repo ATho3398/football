@@ -195,6 +195,8 @@ export const ENGINE = {
     /** 침투 확률에 곱하는 속도 보정 = 1 + runPace × (속도 − 70)/100 (빠를수록 뒷공간을 더 노린다) */
     runPace: 2.5,
     runSeconds: 3,
+    /** 전환 침투 (C.77f 가설 B): 열린 경기에서 공을 얻은 뒤 이 시간(초) 안에는 공보다 앞선 줄 3·침투 성향(run ≥ lateRunRun) 줄 2가 난수 없이 뛴다 */
+    transitionRunT: 4,
     /** 침투 중 라인 오차 배율 (오프사이드 빈도) */
     runLineError: 3,
     /** 오프사이드 라인 오차 σ = (100 − 공격 위치선정) × offsideSigma (m) */
