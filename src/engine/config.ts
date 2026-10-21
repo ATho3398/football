@@ -625,6 +625,9 @@ export const ENGINE = {
     raceCap: 1.5,
     /** 수비수는 돌아서 뛰어야 한다: 달리기 경쟁에서 수비수 도착 시간에 더하는 시간 (초) */
     raceTurn: 0.3,
+    /** C.77a 가설 3(44h-h): 앞으로 뛰던(자기 골 반대쪽 속도 > raceTurnBackFrom × 최고 속도) 수비수는 멈추고 돌아서는 비용을 더 낸다 (초, 모든 팀 공통 물리 — 역압박·높은 라인이 가장 자주 문다) */
+    raceTurnBack: 0.6,
+    raceTurnBackFrom: 0.3,
     /** 이 거리(m)를 넘는 패스는 공중볼 (착지점 경합) */
     airPass: 30,
     shortPassMax: 25,

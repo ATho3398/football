@@ -433,7 +433,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (running) {
       // 침투 패스: 받는 선수와 가장 가까운 수비수의 달리기 경쟁 (도착 시간 차, 초). 빠른 선수가 뒷공간을 더 잘 받는다
       const [def] = nearestOutfield(s, r, tx, ty);
-      let tDef = def ? dist(def.x, def.y, tx, ty) / def.maxSpeed + PR.raceTurn : Infinity;
+      // 앞으로 뛰던 수비수(속도의 자기 골 반대쪽 성분, 이 공격 방향 dir 의 반대)는 방향 전환 비용 raceTurnBack 을 더 낸다 (C.77a 가설 3)
+      const turnBack = def && -def.vx * dir > PR.raceTurnBackFrom * def.maxSpeed ? PR.raceTurnBack : 0;
+      let tDef = def ? dist(def.x, def.y, tx, ty) / def.maxSpeed + PR.raceTurn + turnBack : Infinity;
       // 목표점이 상대 GK 처리 구역 안이면 GK 도 달리기 경쟁에 들어간다 (C.28). GK 가 더 빠르면 실패한 패스는 GK 가 끊는다
       if (oppGk && keeperZone(s, oppGk, tx, ty)) {
         const tGk = dist(oppGk.x, oppGk.y, tx, ty) / oppGk.maxSpeed + ENGINE.keeper.throughDelay;
