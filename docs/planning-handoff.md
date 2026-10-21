@@ -741,3 +741,15 @@
 - (09:51 KST, 사용자) "실축과 같을 필요 없다, 2선↓·ST 그대로면 맞는 방향 아닌가, 왜 실패?" → 전면 마크 실패 판정은 총량 가드(1.25~1.45)였고 포지션별 골은 안 쟀음을 인정. 엔진관리자8에 전면 마크(C.75d) 재측정 요청: 포지션별 골·scoring·saveBase 보정 뒤 30골+(측정 최대 3회).
 - (09:54 KST, 사용자 결정) 전면 마크 재측정 취소(엔진관리자8에 now로 알림). CAM 대안은 **좁은 B**: 2선 박스 침투 시 CDM 또는 가까운 CM이 따라붙음(전면 마크 아님) → 엔진관리자8에 44h-i 처방 요청, C.76x(A) 뒤 순차. C(CAM 역할 재설계)는 필요시 뒤.
 - (09:56 KST, 사용자) "상대 1선은 최후방 수비가, 2·3선은 우리 3선이 막는 게 보통 아님? 구조화돼 있나?" → X 코드 확인: 줄 대응 책임 없음(존 14 m 근접 + focus 쏠림, boxDefense는 줄 1만, 줄 2는 midGap으로 수비 라인 앞에 묶여 수미가 침투자를 못 따라감). 44h-i 처방에 줄 대응 구조(줄1↔상대 줄3, CDM↔상대 줄2, 추적 시 midGap 해제, 대형별 짝 규칙) 추가 요청(엔진관리자8, next).
+
+### 8.50 X 정리 (2026-10-21 10:00 KST, X 교체 — 대화 41만 토큰)
+- X 동안 끝남: C.76n·p·q·s·t(draft_ 처리, C.76t는 run 266 성공 뒤) → **47단계 끝** · C.76s(44h-c2 게겐 대가 부분, 엔진 32) · C.76w(44h-e 부분 — 코너 상수만, 엔진 33·BALANCE 68, 박스 안 2선 마크는 끔) · 실패·미배포: C.76u(9 LM/RM)·C.76v(44h-c3 secondPressDist). 엔진관리자6 → 7 → 8 교체(6·7 draft_).
+- **사용자 결정(X 동안)**: 미해결 9 목표 재정의(LM/RM 7~9%·슈팅 ≥ 0.9) · 게겐 이동 목표 8.2 · 득점 비율 재정의 ST 32~40·미드 24~32(개인 가드 MID 최다 ≤ 22·CAM 상위10 ≤ 1은 **기록만**, 사용자 "한 명쯤 27골은 그럴 수 있다") · 미해결 8 박스 안 마크 보류 · **게겐 종결 거부 → 가위바위보**(§9.14: 체력 페널티 강화·라인 내린 팀 압박 저항·뒷공간 처벌; 게겐 > 티키타카, 게겐 < 역습·버스·후반) · **CAM 대안 = 좁은 B + 줄 대응 구조**(상대 1선 ↔ 우리 최후방, 상대 2·3선 ↔ 우리 3선; 2선 침투 시 CDM/가까운 CM이 박스까지 추적, midGap 해제; 전면 마크 아님, 테스트로 재측정 안 함) — A(C.76x 침투 깊이)는 진행, C(CAM 역할 재설계)는 필요 시.
+- 진행 중(Y가 받음): **C.76x** 44h-g `session_01223CEFumzPFBGrsedRYqgG` · **C.76y** 44h-f2 역할 득실 `session_01KPqtC2n1qRhmoGYTgLaoLL` · **C.76z** 44h-f3 롱패스 `session_019iHEvqxDPHBSGC9JSpEJ6z` · **엔진관리자8** `session_01DJK7MaPzJ2edGU3ywbiw3H`(44h-i 줄 대응 처방 작성 중, xhigh 사용자 설정 필요) · UI_5 `session_01Jep69tcqmNVqesWrwWp8cP`(14차 디자인 사용자 대기, C.76t 새 화면 알림됨). 남은 draft_: C.76t `session_01AtJwUj5htcr8KutgVzzBac`·C.76w `session_01Wy61cuFukJVAvGsoqopTxQ` — run 266(b27ac6f) 성공 뒤.
+
+### 8.51 다음 마스터 세션(Y)이 할 일
+- **X가 만들면 깊이 7 → 사용자가 앱에서 직접 연다**(8.48 규칙). 제목 `Y_축구 커리어 게임 마스터`, 브랜치 `claude/planning-y`(planning-x 최신에서 만들어 푸시). 환경 "player ONE"(NTFY_TOPIC 있음).
+- 먼저 읽기: `CLAUDE.md`, `docs/automation.md`(0번·7번), 이 문서 8.49~8.51, `docs/engine-diagnosis-e4.md` §9.13·§9.14(claude/engine-manager-8), `docs/engine-issues.md`.
+- **시작 처리**: ① X(`session_012GNg6RDeZPkuVx81rChZ91`)에 "Y 준비 완료 + Y ID" ② 실행 중 세션에 "보고는 Y(ID), 마스터 브랜치 claude/planning-y, 답장 불필요": C.76x·C.76y·C.76z·엔진관리자8(이 넷은 priority later)·UI_5(later) ③ X 제목 앞 `draft_` ④ X 예약 없음 → Y 자동 확인 send_later 60분 ⑤ NTFY_TOPIC 확인(값 출력 금지) ⑥ handoff 8.52에 기록·푸시.
+- **다음 순서**: run 266 성공 → C.76t·w draft_ / C.76z 끝 → **C.77a 44h-h 게겐 가위바위보**(§9.14, Fable 3h·10회·25달러) / C.76x 끝 + 엔진관리자8 44h-i 처방 → **C.77b 44h-i 줄 대응·2선 추적**(offball.ts, C.76x 뒤) / 그 뒤 44h-f1(미해결 9 LM/RM, 분해 먼저 — 줄 대응 뒤라 다시 볼 것) / 엔진 블록 끝 → pending 142 시스템(전술별 누적 부하 → 부상·노쇠, NPC 포함, Opus) → UI_5 14차 디자인 오면 50단계 적용 → P단계·6단계. 다음 새 이름 **C.77a**(44h-h), C.77b(44h-i). 엔진 코드 세션은 모두 Fable(사용자 규칙). 사용자 요청은 맨 뒤(같은 축 작업이면 당기고 이유 보고).
+- 진행 중 사용자 질문 없음. 주의: X는 한 번 `git checkout origin/main --`로 HEAD가 분리돼 커밋 1개를 다시 옮겼다 — 마스터는 브랜치에서만 커밋.
