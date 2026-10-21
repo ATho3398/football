@@ -6593,7 +6593,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.76z 44h-f3단계 엔진 블록 — 롱패스 비율·빌드업 손실(미해결 2 + 3 의 게겐 대 버스·역습 칸): **원인은 `loss()` 손실 비용이 아니라 `choose()` 의 "안전한 백패스 실수 후보"(길이 제한 없음) — 압박 없는 30 m+ 백패스를 실수 후보에서 빼고(판단식 1줄) 총량 보정 `saveBase` +0.02, 부분 해결 `main` 배포** (ENGINE_VERSION 33 → 34, BALANCE_VERSION 68 → 69, SAVE_FORMAT_VERSION 그대로)
 
-지시: 마스터 X `docs/session-prompts/C.76z.md`, 엔진관리자7 `docs/engine-diagnosis-e4.md` §9.13 (c)(§3.5 "상수로는 안 된다" 그대로 받아 판단식만). 브랜치 `claude/c76z-long-pass`. `PATCH_LABEL` = `C.76z`, `STAGE_LABEL` 그대로(47단계). Fable 높음. 2026-10-21 09:34 ~ [[END]] KST, 비용 약 [[COST]]달러(예산 2시간·측정 6회·15달러). 측정: 기준선(same-seed·pass-dist 40·tactic-pair 200 ×2·새 진단 3개) 1 · 가설 1 quick 600 1 · 가설 2·2b pass-dist 1 · 가설 2 quick 600 + 기준선 quick 600 1 · saveBase 보정 quick 600 1 · 최종(같은 시드 scoring·engine:check·sweep 7×7·tactic-pair ×2·pass-dist) 1 = 6회. 병렬 세션 C.76x(44h-g)·C.76y(44h-f2)와 파일 안 겹침.
+지시: 마스터 X `docs/session-prompts/C.76z.md`, 엔진관리자7 `docs/engine-diagnosis-e4.md` §9.13 (c)(§3.5 "상수로는 안 된다" 그대로 받아 판단식만). 브랜치 `claude/c76z-long-pass`. `PATCH_LABEL` = `C.76z`, `STAGE_LABEL` 그대로(47단계). Fable 높음. 2026-10-21 09:34 ~ 13:35 KST, 비용 약 28달러(예산 2시간·측정 6회·15달러). 측정: 기준선(same-seed·pass-dist 40·tactic-pair 200 ×2·새 진단 3개) 1 · 가설 1 quick 600 1 · 가설 2·2b pass-dist 1 · 가설 2 quick 600 + 기준선 quick 600 1 · saveBase 보정 quick 600 1 · 최종(같은 시드 scoring·engine:check·sweep 7×7·tactic-pair ×2·pass-dist) 1 = 6회. 병렬 세션 C.76x(44h-g)·C.76y(44h-f2)와 파일 안 겹침.
 
 **진단 일치 확인(엔진 33 main 45be7f3)**: `same-seed 30` 지문 6ab3059beba28723 ✓. `pass-dist 40 76 76` 30 m+ 21.6 / 21.0%(성공 50~52%), 0~10 m 6.8%. `tactic-pair 200 gegenpress vs=bus` **+0.81**(1.60 / 0.79, 상대 진영 탈취 **28.6**, 버스 슈팅 허용 8.0) · `vs=counter` +0.91(1.91 / 1.00, 탈취 24.6). **처방이 가정한 원인("빗나간 롱볼의 손실 비용이 싸다")은 판단식 안에서 재현되지 않았다** — 아래 분해. 대신 같은 파일(`onball.ts`) 판단식의 다른 자리(`choose()` 실수 후보)에서 원인이 나와 그대로 진행했다(진단 불일치 ⑤ 로 되돌리지 않고 부록·엔진관리자7 보고에 기록).
 
@@ -6632,7 +6632,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | `pass-dist 40 76 76` 30 m+ / 성공 / 0~10 m | 21.3% / 51 / 6.8 | **17.8% / 50 / 7.2** | 10~16 ✗(경계) |
 | 같은 시드 30경기 지문 | 6ab3059beba28723 | **8391c5db881ef32d**(center 전 033d1e569947aae1) | 의도된 변경 |
 | 경기 계산 (워커) | 961 ms | 620 ms(quick) | ≤ 2초 ✓ |
-`npm run typecheck` ✓ · `npm test` 전체 통과 **1,063개 / 126파일**(c76z 4개 추가; `c75v` CDM sureBack 시드 c76x-0~3 → c76z-0~5 — 장면이 흔들린 시드 교체, 가드 완화 아님; `cards` 2초 테스트는 측정 동시 실행 중 1회 실패(3,108 ms) → 단독 ✓) · `npm run build` ✓ · `balance:check` [[BALANCECHECK]].
+`npm run typecheck` ✓ · `npm test` 전체 통과 **1,063개 / 126파일**(c76z 4개 추가; `c75v` CDM sureBack 시드 c76x-0~3 → c76z-0~5 — 장면이 흔들린 시드 교체, 가드 완화 아님; `cards` 2초 테스트는 측정 동시 실행 중 1회 실패(3,108 ms) → 단독 ✓) · `npm run build` ✓ · `balance:check` **회귀 가드 19/19 통과**(worktree, 약 2시간 50분 — 컨테이너 재시작으로 1회 다시 돌림).
 
 **새 화면**: 없음.
 **남은 것 → `docs/engine-issues.md`**: 미해결 2 는 **부분 해결**(롱패스 19.7 → 16.7, 목표 16 경계; 0~10 m 6.8 → 7.2% 는 그대로 오프볼 간격 문제). 남은 롱볼(앞으로 가는 56%)은 중원 효용 스케일(0.01~0.02) 대 `plausibleGap` 0.015·판단 온도의 구조 — 공격 진영 기준으로 맞춘 E.22 C 선택 모델이 중원에서는 거의 균등 추첨이 된다(결정당 후보 풀 롱 1.4·숏 2.9). 다음 통로는 "gap·온도를 그 자리의 가치 스케일에 비례"(판단식 구조, 점유·빌드업 전반에 닿아 별도 세션). 롱패스 성공률 43%(가드 50~60)는 정의상 내려간 것(위 ④). 미해결 3 게겐 대 버스 칸은 탈취가 28.6 → 23.3 으로 내려왔으나 득실차는 그대로(+0.73) — §9.13.2 대로 목표 재정의로 종결, 버스 칸은 득점 총량 축.
