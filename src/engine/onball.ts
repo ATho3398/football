@@ -641,11 +641,15 @@ export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean
   return p >= 1 || rand(s.seed, s.tick, a.idx, Purpose.Vision, k) < p;
 }
 
-/** 실제로 나오는 실수 (E.22 C): 유지로 공 끌기, 안전한 백패스, 무리한 슛. 효용이 낮아도 고를 수 있다 */
+/**
+ * 실제로 나오는 실수 (E.22 C): 유지로 공 끌기, 안전한 백패스, 무리한 슛. 효용이 낮아도 고를 수 있다.
+ * 안전한 백패스는 짧은 패스(롱볼 거리 미만)만이다 (C.76z, 미해결 2): 30 m 넘게 뒤로 보내는 롱볼은 "안전한 실수"가 아니라
+ * 효용 1위 gap 안에 들어야 고를 수 있다 (엔진 33 에서 고른 롱볼의 37% 가 gap 밖인데 이 분기로 들어왔다)
+ */
 function isMistake(s: SimState, a: Agent, c: Candidate, maxU: number): boolean {
   if (c.type === 'hold') return true;
   if (c.type === 'shoot') return c.u >= maxU - O.mistakeShotGap * O.plausibleGap;
-  return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) < -2;
+  return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) < -2 && (dist(a.x, a.y, c.x, c.y) < TA.longBall || pressureAt(s, a) > 0);
 }
 
 /**
