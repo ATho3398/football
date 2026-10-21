@@ -6763,7 +6763,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 `npm run typecheck` ✓ · `npm test` 전체 **1,062개 / 126파일** ✓(c76y 3개 추가) · `npm run build` ✓. 측정 4회(예산 6), 09:34 ~ 12:5x(측정·조정은 1시간, 나머지는 가드 동시 실행·balance:check 대기).
 
-**main 병합(C.76x 44h-g ee53e99: 득점 분포 목표 재정의·`suite.ts` 가드, 엔진 상수는 끔 → 엔진 코드 무변경) 뒤 재확인(늦게 끝난 쪽 몫)**: 지문 6ab3059beba28723 그대로 · quick 600 득점 1.32 · 31/22/36/11 · Δ+8 1.90 / Δ−8 0.86(ST 31 < 32·미드 36 > 32 는 C.76x 가 재정의한 목표로 C.76x main 과 같은 값 — 이 패치 가드 아님) · `engine:check` 6.51 / 0.70 / ST 6.68 / CAM 6.64 / XP 비 1.11 경량 가드 모두 통과 · typecheck ✓ · 테스트 1,062개 / 126파일 ✓ · build ✓. `ENGINE_VERSION` 34(main 33 + 1), `BALANCE_VERSION` 69 그대로(main 값, `balance.ts` 무수정).
+**main 병합(C.76x 44h-g ee53e99: 득점 분포 목표 재정의·`suite.ts` 가드, 엔진 상수는 끔 → 엔진 코드 무변경) 뒤 재확인(늦게 끝난 쪽 몫)**: 지문 6ab3059beba28723 그대로 · quick 600 득점 1.32 · 31/22/36/11 · Δ+8 1.90 / Δ−8 0.86(ST 31 < 32·미드 36 > 32 는 C.76x 가 재정의한 목표로 C.76x main 과 같은 값 — 이 패치 가드 아님) · `engine:check` 6.51 / 0.70 / ST 6.68 / CAM 6.64 / XP 비 1.11 경량 가드 모두 통과 · typecheck ✓ · 테스트 1,062개 / 126파일 ✓ · build ✓. `ENGINE_VERSION` 34(main 33 + 1), `BALANCE_VERSION` main 값 그대로(`balance.ts` 무수정). **두 번째 병합(C.77c 44h-h NPC 출전율·결장 83e1fe4, `setup.ts npcTeamSetup`·`job.ts`·`BALANCE_VERSION` 70) 뒤 재확인**: 지문 6ab3059beba28723 그대로(같은 시드 경기는 결장 추첨 밖) · quick 600 1.32 · 31/22/36/11 · 1.90 / 0.86 · `engine:check` 6.51 / 0.70 / ST 6.68 / CAM 6.64 / XP 비 1.11 경량 가드 모두 통과 · typecheck ✓ · 테스트 **1,068개 / 127파일** ✓(c77c 6개 포함) · build ✓ — 모두 C.77c main 과 같다.
 
 **새 화면**: 없음.
 
