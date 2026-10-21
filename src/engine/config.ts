@@ -165,6 +165,9 @@ export const ENGINE = {
     /** 유지·짧은 패스·백패스 효용 × (possBase + possSlope × style), 롱볼·클리어링·최전방 직행 × (directBase − possSlope × style) */
     possBase: 0.85,
     possSlope: 0.3,
+    /** 선택 폭 성향 비례 (C.77k, 44h-f3c): style ≤ styleDirectAt 면 중원도 넓게(빠르게 앞으로), ≥ styleMixedAt 면 gapFloor·tempFloor 까지 좁힌다 */
+    styleDirectAt: 0.2,
+    styleMixedAt: 0.5,
     directBase: 1.15,
     /** 롱볼 기준 거리 (m), 최전방 직행: ST/CF 에게 이 거리 이상 전진하는 패스 */
     longBall: 30,
@@ -519,7 +522,8 @@ export const ENGINE = {
      * C.77i 실패(미배포): 처방 0.3 은 모든 전술 롱패스 5~10% 로 과함, 0.9 가 측정 중 가장 나았지만 직선형 하한 ✗ (부록 C.77i)
      */
     scaleRefDist: 25,
-    gapFloor: 0.9,
+    /** 바닥은 팀 빌드업 성향 비례 (C.77k, 44h-f3c): k = clamp((style − tactics.styleDirectAt)/(styleMixedAt − styleDirectAt), 0, 1), 바닥 = 1 − (1 − floor) × k */
+    gapFloor: 0.8,
     tempFloor: 0.4,
     /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
     mistakeShotGap: 2,
