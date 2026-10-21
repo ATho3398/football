@@ -185,6 +185,8 @@ export const TENDENCY = {
   gegenMax: 3,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
+  /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
+  gegenDrain: 1.15,
   /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
   counterWinMul: 1.12,
   counterWinTime: 6,
