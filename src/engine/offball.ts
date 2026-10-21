@@ -488,23 +488,16 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   let job: ReturnType<typeof finalThirdJob> = null;
   // 측면 공이면 침투 중인 선수도 박스 안 역할 자리로 (E.22 B: 침투 중인 반대편 윙어가 자기 측면 라인에 머물러 박스 인원이 모자랐다)
   if (third && (!running || wide)) {
+    const side = bny < 0.5 ? -1 : 1;
     job = finalThirdJob(s, a, owner);
     // 중앙이면 ST 는 그대로, 침투 미드는 공 반대편 박스 채널로 늦게 들어간다 (2선 박스 도착, E.15.1)
     if (!wide && (job === 'near' || job === 'far')) job = null;
     if (wide && job === 'halfSpace') job = null;
-  }
-  // 인계 러너 (C.77e 가설 1 조정 1): 최종 3분의 1 전(공이 상대 골 nineFromX 안)에도 9번 자리 일을 맡는다 — 상대 CB 의 따라나옴 판단 구간과 겹치게
-  const mateBall = !!owner && owner.team === a.team && owner !== a;
-  if (!third && !running && mateBall && RM.nineRunFrom > 0 && bnx >= RM.nineFromX && finalThirdJob(s, a, owner!) === 'nine') job = 'nine';
-  // 달리는 중이면 침투 자리 그대로 (측면 공이어도 라인을 넘는다)
-  if (job === 'nine' && running) job = null;
-  if (job) {
-    const side = bny < 0.5 ? -1 : 1;
     if (job === 'nine') {
-      // 펄스 나인 인계 (C.77d 가설 1): 내려온 9번이 비운 자리 — 중앙 (공 쪽으로 조금). C.77e 가설 1: 라인 뒤 nineRunFrom m 에서 기다렸다가
-      // 라인을 넘는 침투를 건다 (끝나면 nineRunGap 초 동안 다시 물러섰다가 재무장 — 라인을 넘나드는 반복 침투, 난수 없음)
-      nx = line - (RM.nineRunFrom > 0 ? RM.nineRunFrom + 0.5 : 0.5) / L;
+      // 펄스 나인 인계 (C.77d 가설 1): 내려온 9번이 비운 자리 — 라인 바로 앞 중앙 (공 쪽으로 조금)
+      nx = line - 0.5 / L;
       ny = 0.5 + side * 0.04;
+      // 인계 러너 반복 침투 (C.77e 가설 1): 라인 뒤 nineRunFrom m 이상이면 라인을 넘는 침투를 건다 (끝난 뒤 nineRunGap 초 쉬고 재무장)
       if (RM.nineRunFrom > 0 && s.t >= a.runUntil + RM.nineRunGap && (line - toNorm(a.x, a.y, dir)[0]) * L >= RM.nineRunFrom) a.runUntil = s.t + O.runSeconds;
     } else if (job === 'cutback' && !wide) {
       nx = 1 - O.boxRunDepth / L;
