@@ -270,7 +270,7 @@ describe('결정 순간 개선 (C.40, pending 39 5항)', () => {
   it('최소 정지 보장 없음: "결정적 순간만"은 0회 경기도 된다, 자동 모드는 멈추지 않는다', () => {
     const counts: number[] = [];
     for (const grp of ['CDM', 'FB']) {
-      const g = game(grp, 'c77d-zero-1'); // C.77d: 엔진 37 에서 c40-zero 는 최소 4회라 시드 교체 (장면 시드 의존)
+      const g = game(grp, 'c77g-zero-3'); // C.77d: 엔진 37 에서 c40-zero 는 최소 4회라 시드 교체, C.77g(엔진 38) 뒤 c77d-zero-1 도 최소 4회라 c77g-zero-3(2·6회)으로 (장면 시드 의존)
       const rm = startedRound(g);
       counts.push(playMyMatch({ ...rm.input, cards: { deck: [] }, control: { mode: 'direct', stop: 'critical', policy: () => 'delegate' } }).engine.decisions.length);
       expect(playMyMatch({ ...rm.input, control: { mode: 'auto', stop: 'all', policy: () => 'delegate' } }).engine.decisions.length).toBe(0);

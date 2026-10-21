@@ -18,7 +18,7 @@ import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, 
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
 import { initPhysics, moveAgent } from './physics';
-import { aiAdjust } from './tactics';
+import { aiAdjust, TENDENCY } from './tactics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
 import { defaultRole, roleById } from './roles';
@@ -497,7 +497,12 @@ function stepTail(s: SimState): void {
   for (const a of s.agents) {
     if (!a.onPitch) continue;
     // 압박 전술의 스태미나 소모 × (pressDrainBase + pressDrainPer × pressing) (E.19 ③, C.76s 0.85 + 0.35p)
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * s.teams[a.team].tactics.pressing) * s.env.drain, s.env.recover);
+    // C.77a 가설 1: 게겐프레싱 팀 × gegenDrain, 역압박 가담 중 × counterDrain
+    const tm = s.teams[a.team];
+    const drain = (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * tm.tactics.pressing)
+      * (tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1)
+      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1);
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover);
   }
 
   // 공
