@@ -5,6 +5,7 @@ import { pickLineup, type RosterPlayer, type TeamRoster } from '../roster';
 import { ENGINE } from './config';
 import { gkFieldAttributes } from './sim';
 import { createRng, hashSeed } from '../rng';
+import { ROLES } from './roles';
 import { LEVELS, levelOf, recommendedRole, tacticsOf, teamPlan } from './tactics';
 import type { PlayerSpec, Tactics, TeamSetup, Tendency } from './types';
 
@@ -37,10 +38,18 @@ export function defaultTactics(teamId: string, rating: number, _oppRating = rati
 /** 슬롯 역할을 성향 추천 역할로 채운다 (E.19 ②). 이미 정한 역할은 둔다 */
 export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpec['position']): void {
   const taken = new Set(setup.lineup.map((p) => p.role).filter((r): r is string => !!r));
+  const filled: PlayerSpec[] = [];
   for (const p of [...setup.lineup].sort((a, b) => a.slot - b.slot)) {
     if (p.role) continue;
     p.role = recommendedRole(setup.tactics.tendency, slotPos(p.slot), p.attrs, taken).id;
     taken.add(p.role);
+    filled.push(p);
+  }
+  // 펄스 나인 짝 (C.77d 가설 0): 펄스 나인이 있는데 공격형 CM/CAM(run ≥ nineMateRun)이 없으면 이번에 채운 마지막 CM 을 박스투박스로
+  const mid = (p: PlayerSpec) => slotPos(p.slot) === 'CM' || slotPos(p.slot) === 'CAM';
+  if (taken.has('falseNine') && !setup.lineup.some((p) => mid(p) && (ROLES[p.role ?? '']?.run ?? 0) >= ENGINE.roles.nineMateRun)) {
+    const last = filled.filter((p) => slotPos(p.slot) === 'CM').pop();
+    if (last) last.role = 'boxToBox';
   }
 }
 

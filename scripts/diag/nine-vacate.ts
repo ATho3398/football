@@ -44,8 +44,10 @@ interface Acc {
   cbDist: number; cbWithin3: number; cbStepOut: number; cbStepOutN: number; l2In20: number; wingIn20: number;
   shots: number; goals: number; byGroup: Record<string, { shots: number; goals: number; inBox: number; dsum: number }>;
   oppShots: number; oppGoals: number; counterShots: number; f3Samples: number; possF3: number; stTouches: number; stDeepTouches: number;
+  /** C.77d: 가장 가까운 CB 의 수비 위치선정과 그 표본에서 2 m+ 앞으로 나왔는가 (판단 상·하위 1/3 비교) */
+  cbJudge: [number, number][];
 }
-const mkAcc = (): Acc => ({ games: 0, samples: 0, boxN: [0, 0, 0, 0], near20: 0, stGoal: 0, stBehind: 0, stInBox: 0, stNear20: 0, cbDist: 0, cbWithin3: 0, cbStepOut: 0, cbStepOutN: 0, l2In20: 0, wingIn20: 0, shots: 0, goals: 0, byGroup: {}, oppShots: 0, oppGoals: 0, counterShots: 0, f3Samples: 0, possF3: 0, stTouches: 0, stDeepTouches: 0 });
+const mkAcc = (): Acc => ({ games: 0, samples: 0, boxN: [0, 0, 0, 0], near20: 0, stGoal: 0, stBehind: 0, stInBox: 0, stNear20: 0, cbDist: 0, cbWithin3: 0, cbStepOut: 0, cbStepOutN: 0, l2In20: 0, wingIn20: 0, shots: 0, goals: 0, byGroup: {}, oppShots: 0, oppGoals: 0, counterShots: 0, f3Samples: 0, possF3: 0, stTouches: 0, stDeepTouches: 0, cbJudge: [] });
 const grp = (pos: string) => (pos === 'ST' || pos === 'CF' ? 'ST' : pos === 'LW' || pos === 'RW' || pos === 'LM' || pos === 'RM' ? 'WING' : pos === 'CB' || pos === 'LB' || pos === 'RB' || pos === 'LWB' || pos === 'RWB' ? 'DEF' : 'MID');
 
 function analyze(home: TeamSetup, away: TeamSetup, seed: number, acc: Acc): void {
@@ -121,6 +123,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, acc: Acc): void
             const lineX = lineSum / lineN;
             const out = (lineX - toNorm(cb.x, cb.y, dirH)[0]) * L;
             if (out > 2) { acc.cbStepOut += out; acc.cbStepOutN++; }
+            acc.cbJudge.push([cb.attrs.defensivePositioning, out > 2 ? 1 : 0]);
           }
         }
       }
@@ -145,6 +148,13 @@ ROLES.forEach((role, k) => {
   console.log(`  최종 3분의 1 공격 때(1초 표본 ${a.f3Samples}): 박스 안 공격 인원 0/1/2/3+ = ${a.boxN.map((v) => pct(v, F)).join(' / ')} · 골 20 m 안 인원 ${f(a.near20 / F)}(줄 2 ${f(a.l2In20 / F)} · 윙 ${f(a.wingIn20 / F)})`);
   console.log(`  ST: 골 거리 ${f(a.stGoal / F, 1)} m · 오프사이드 라인 뒤 ${f(a.stBehind / F, 1)} m · 박스 안 ${pct(a.stInBox, F)} · 20 m 안 ${pct(a.stNear20, F)} · ST 터치 ${f(a.stTouches / a.games, 1)}(골 25 m 밖 ${pct(a.stDeepTouches, a.stTouches)})`);
   console.log(`  상대 CB ↔ ST: 가장 가까운 CB ${f(a.cbDist / F, 1)} m · 3 m 안 ${pct(a.cbWithin3, F)} · CB 가 수비 줄보다 2 m+ 앞으로 나와 있음 ${pct(a.cbStepOutN, F)}(평균 ${f(a.cbStepOut / (a.cbStepOutN || 1), 1)} m)`);
+  const cj = a.cbJudge.slice().sort((x, y) => x[0] - y[0]);
+  const third = Math.floor(cj.length / 3);
+  const rate = (xs: [number, number][]) => (xs.length ? (100 * xs.reduce((t, v) => t + v[1], 0)) / xs.length : NaN);
+  const lo = rate(cj.slice(0, third)), hi = rate(cj.slice(cj.length - third));
+  console.log(`  CB 판단(수비 위치선정) 하위 1/3 따라나옴 ${f(lo, 0)}% (≤ ${cj[third - 1]?.[0] ?? '-'}) · 상위 1/3 ${f(hi, 0)}% (≥ ${cj[cj.length - third]?.[0] ?? '-'}) · 차 ${f(lo - hi, 0)} pp`);
   const g = a.byGroup;
+  const l2 = ['WING', 'MID'].reduce((t, k2) => [t[0]! + (g[k2]?.shots ?? 0), t[1]! + (g[k2]?.goals ?? 0)], [0, 0]);
+  console.log(`  2선(윙+미드) 슛/골 ${f(l2[0]! / a.games)}/${f(l2[1]! / a.games)} · ST 골 ${f((g.ST?.goals ?? 0) / a.games)}`);
   console.log(`  홈 슛 포지션군: ${['ST', 'WING', 'MID', 'DEF'].map((k2) => { const v = g[k2]; return v ? `${k2} ${f(v.shots / a.games)}/${f(v.goals / a.games)} (박스 안 ${pct(v.inBox, v.shots)}, ${f(v.dsum / v.shots, 1)} m)` : `${k2} 0`; }).join(' · ')}`);
 });
