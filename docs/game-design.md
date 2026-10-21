@@ -6597,7 +6597,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.77m 142단계(142a) — NPC 피로·피로 수치 상향(pending 142, 사용자 10/21 10:50 "훈련 피로 늘리고 경기당 피로도 늘리고"): **경기당 피로 22 → 30 · 기본 훈련 주 회복 26.5 → 21, NPC 에 내 선수와 같은 피로·회복·피로 부상 + 선발 피로 로테이션(측정·본편 같은 함수), C.77c `npcAbsentP` 0.08 → 0(끔) — 같은 시드 scoring 관문 통과, `main` 배포** (ENGINE_VERSION 39 그대로 — 엔진 코드 무변경, quick 600 값 동일; BALANCE_VERSION 75 → 76; SAVE_FORMAT_VERSION 54 → 55)
 
-- 지시: 마스터 Z `docs/session-prompts/C.77m.md`. 근거 pending 142 · 부록 C.77c 진단 ③④ · 7.1 피로. 브랜치 `claude/c77m-npc-fatigue`(main 098c3a3). `PATCH_LABEL` = `C.77m`. `STAGE_LABEL` 그대로(47단계) — 142 는 17.2 표에 단계 번호가 없어 지시대로 main 값을 둔다. Opus 높음. 2026-10-22 02:24 ~ 03:xx KST.
+- 지시: 마스터 Z `docs/session-prompts/C.77m.md`. 근거 pending 142 · 부록 C.77c 진단 ③④ · 7.1 피로. 브랜치 `claude/c77m-npc-fatigue`(main 098c3a3). `PATCH_LABEL` = `C.77m`. `STAGE_LABEL` 그대로(47단계) — 142 는 17.2 표에 단계 번호가 없어 지시대로 main 값을 둔다. Opus 높음. 2026-10-22 02:24 ~ 04:0x KST.
 - **피로 수치 (`src/config/balance.ts`)**: `fatigue.perMatch90` 22 → **30**(기준 거리 10,300 m 를 뛰면) · `fatigue.weeklyRecovery` 25 → **21**(= 기본 훈련 주 휴식 5.5 + 기술 3 × 4 + 영상 3.5) · 훈련날 회복 ↓ `training.kinds` 기술 4 → 3, 고강도 2 → 1, 포지션·세트피스 4 → 3, 영상 4.5 → 3.5, 회복 5.5 → 5, 휴식 6 → 5.5, 약발 4 → 3, 생활 행동 −0.5~1(가족 4.5·언어 3.5·팀 식사 3.5·치료 4.5·여행 5.5·미디어 3). 휴가 6·부상 중 40/주는 그대로. 계산: 주 1경기 90분 주전은 경기 날 아침 피로가 주 +9 쯤 쌓여 **6주째에 penaltyFrom 50 을 넘고**, 주 2경기(3·4일 간격)면 주 +39 라 **2주 안에** 넘는다(142b 컵·유럽 일정 전제). 자동 훈련 프리셋 문턱 `training.presets.lowCondition` 65 → **50**(= 100 − penaltyFrom) · `freshCondition` 85 → **75** — 그대로면 회복 중심 주가 늘어 훈련 XP 시즌 119 → 101.
 - **NPC 피로 (`src/npcFit.ts` 새 파일)**: 선수 id → `[경기 뒤 피로, 날 번호, 부상 복귀 날]`(`GameState.npcFit`, 세이브). 회복은 읽을 때 `weeklyRecovery ÷ 7 × 지난 날 수`로 계산(매일 수천 명을 돌지 않음), 다 회복한 기록은 하루 끝(`endDay`)에 지움(세이브 약 2KB). 규칙은 내 선수와 같다 — 경기 뒤 피로 += `perMatch90 × 이동 거리 / fatigueRefDistance`(`fatigueFromDistance` 와 같은 식, 엔진 선수 기록의 거리), 부상 확률 = `injury.ts injuryChance`(경기 시작 피로 30 초과분 × 0.02 · 신체 · 나이, 난이도 보통·태그 없음) × `fatigue.npc.injuryMul` 1, 기간은 같은 등급 표(경상 1~3주 70% · 중상 8~16주 27% · 시즌아웃 20주 3%), 난수 (worldSeed, 경기 시드, 선수 id). 비시즌(`startNextSeason`)에 모두 지움.
 - **선발 로테이션 (`roster.ts pickLineup` penalty · `engine/setup.ts`)**: 선발 점수 −(피로 − 50) × `fatigue.npc.selectPerPoint` 0.3(OVR 점수, 피로 70 이면 −6) → 지친 주전 대신 벤치. 부상 선수는 `npcInjuredOut` 으로 명단에서 빠짐(인원 14·마지막 GK 보장은 C.77c 와 같은 규칙). 경기 시작 스태미나 = `startStamina(피로)`(내 선수와 같은 식, `adapter.ts` → `setup.ts` 로 옮김). 팀 레이팅(`rosterRating`)은 감점 없는 값 그대로.
@@ -6622,6 +6622,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 　출전 경기 전 피로 평균 / 50 초과 | 4.3 / 0.3% | **25.9 / 20.7%** | 목표(쉬어야 하는 주가 생김) ✓ |
 | 　훈련 XP / 경기 XP / 게이지 상승 / 30세 OVR | 119 / 605 / 1.38 / 78.9 | 108 / 546 / 1.18 / 78.1 (프리셋 문턱 전 101 / 549 / 1.16 / 78.1) | 기록 |
 | 　주간 계획 회복(주 환산) | 24.3 | 20.9 | — |
+
+- **`balance:check`**(로컬, 03:00 nohup 시작): 60분 안에 판정이 끝나지 않음(04:00 까지 최적 배분 일반 티어 30세 OVR 75 ✓ 만 출력, ✗ 없음) → 규칙(automation.md 0번 엔진 측정 운영 ③)대로 다른 관문 통과로 main 푸시, CI 판정에 맡김. 실패하면 이 세션이 처리.
 
 읽는 법: ① 출전율은 이제 결장 추첨이 아니라 피로 로테이션 + 피로 부상에서 나온다 — 상위 ST 선발 35.1 → 34.2(현실 33~36), 30골+ 2.00 → 1.20. 지친 선수는 경기 시작 스태미나가 낮아 교체가 빨라지고 몸이 무거워 리그 득점이 1.39 → 1.33 으로 내려갔다(하한 1.3 안). ② 내 선수는 "쉬어야 하는 주"가 생겼다: 출전 경기 5번 중 1번은 아침 피로 50 초과(선발 확률 −, 평점 −, 부상 ↑). 그 대가로 경기 XP(−60, 선발·평점 페널티)와 게이지(기술 대신 회복 훈련) 가 줄어 30세 OVR −0.8 — 커리어 가드는 balance:check 결과(아래)로 본다.
 
