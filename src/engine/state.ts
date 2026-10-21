@@ -91,6 +91,10 @@ export interface Agent {
   trackIdx: number;
   trackUntil: number;
   trackOut: number;
+  /** CB 따라나옴 판단 (C.77d 가설 2): 판단한 상대 idx(−1 없음), 따라 나가는가, 결정 유지 시각 */
+  stepOutIdx: number;
+  stepOutGo: boolean;
+  stepOutUntil: number;
   /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
   paceCap: number;
   /**

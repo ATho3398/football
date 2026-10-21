@@ -52,6 +52,8 @@ export function substitute(s: SimState, out: Agent, inA: Agent): void {
   inA.trackIdx = -1;
   inA.trackUntil = 0;
   inA.trackOut = -1;
+  inA.stepOutIdx = -1;
+  inA.stepOutUntil = 0;
   inA.enteredAt = s.elapsed;
   inA.pos = out.pos;
   inA.line = out.line;

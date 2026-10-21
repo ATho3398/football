@@ -121,7 +121,7 @@ export const ROLE_DESC_KO: Record<string, string> = {
   crackWinger: '공을 달라고 하고 1대1로 계속 제쳐요. 수비 복귀는 덜 해요.', raumdeuter: '수비 사이 빈 공간을 찾아 박스 안으로 스며들어요.',
   wideMid: '측면을 오르내리며 압박과 복귀를 성실히 해요.',
   poacher: '박스 안에 머물며 마무리에 집중해요.', targetMan: '앞에서 버티며 공중볼과 롱볼을 받아 줘요.',
-  falseNine: '상대 수비와 미드 사이로 내려와 받아 연결해요.', advancedForward: '수비 라인을 계속 깨고 뒷공간으로 달려요.',
+  falseNine: '상대 수비와 미드 사이로 내려와 받아 연결해요. 윙 포워드·공격형 미드와 함께 쓰는 역할이에요.', advancedForward: '수비 라인을 계속 깨고 뒷공간으로 달려요.',
   classic10: '공을 받아 킬패스로 기회를 만들어요.', shadowStriker: '공격수 뒤 빈 공간에서 박스로 뛰어들어요.',
   freeRole: '자리에 얽매이지 않고 빈 공간을 찾아 다녀요. 수비 부담이 적어요.', boxCrasher: '늦게 박스로 침투하고 중거리도 노려요.',
   enganche: '라인 사이에 서서 공을 요구하고 지켜요. 수비 부담이 적어요.',

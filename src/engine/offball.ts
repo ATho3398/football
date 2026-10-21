@@ -739,6 +739,49 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'nine' | 'cutback' 
 }
 
 /**
+ * CB 따라나옴 판단 (C.77d 가설 2, §9.13.5): 상대 공격 줄(줄 3, 공 가진 선수 제외)이 실제 라인보다 stepOutMin~stepOutReach m 앞(줄 사이)에 있고
+ * 공이 우리 골 stepOutBall[0]~[1] m 일 때, 그 선수에게 가장 가까운 CB 1명이 따라 나갈지 정한다 (역할 이름은 보지 않는다 — 물리 조건).
+ * p = clamp(stepOutBase + stepOutDecoy × 미끼 − stepOutJudge × 판단, stepOutP). 미끼 = 다른 상대(줄 2·3)가 이 CB decoyZone m 안에서
+ * 우리 골 쪽으로 decoySpeed m/s 이상 달리고 있음(짝이 뒷공간을 노릴 때만 속임이 된다), 판단 = clamp((수비 위치선정 − 50) / 40, 0, 1).
+ * 결정은 stepOutHold 초 유지(시드 난수). 따라 나가기로 했으면 그 상대, 아니면 null
+ */
+function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal: number): Agent | null {
+  if (a.pos !== 'CB' || ballGoal < O.stepOutBall[0] || ballGoal > O.stepOutBall[1]) return null;
+  let pick: Agent | null = null;
+  let pd = Infinity;
+  // 줄 사이 깊이는 실제 라인(상대에게 오프사이드 라인 = 우리 둘째 수비수) 기준 — 전술 라인 lineX 는 공이 25~45 m 일 때 실제 라인보다 깊다 (C.77d 조정 1)
+  const opp = (a.team === 0 ? 1 : 0) as 0 | 1;
+  const oline = offsideLine(s, opp);
+  const odir = attackDir(opp, s.half);
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line !== 3 || o.idx === s.ball.owner) continue;
+    const ahead = (oline - toNorm(o.x, o.y, odir)[0]) * L;
+    if (ahead < O.stepOutMin || ahead > O.stepOutReach) continue;
+    // 그 상대에게 가장 가까운 CB 만 판단한다
+    const d = dist(o.x, o.y, a.x, a.y);
+    if (s.agents.some((c) => c !== a && c.onPitch && c.team === a.team && c.pos === 'CB' && c.line === 1 && dist(o.x, o.y, c.x, c.y) < d)) continue;
+    if (d < pd) {
+      pd = d;
+      pick = o;
+    }
+  }
+  if (!pick) {
+    a.stepOutIdx = -1;
+    return null;
+  }
+  if (pick.idx !== a.stepOutIdx || s.t >= a.stepOutUntil) {
+    const decoy = s.agents.some((o) => o.onPitch && o.team !== a.team && o !== pick && (o.line === 2 || o.line === 3)
+      && o.vx * dir <= -O.decoySpeed && dist(o.x, o.y, a.x, a.y) <= O.decoyZone) ? 1 : 0;
+    const judge = clamp((a.attrs.defensivePositioning - 50) / 40, 0, 1);
+    const p = clamp(O.stepOutBase + O.stepOutDecoy * decoy - O.stepOutJudge * judge, O.stepOutP[0], O.stepOutP[1]);
+    a.stepOutIdx = pick.idx;
+    a.stepOutGo = rand(s.seed, s.tick, a.idx, Purpose.StepOut) < p;
+    a.stepOutUntil = s.t + O.stepOutHold;
+  }
+  return a.stepOutGo ? pick : null;
+}
+
+/**
  * 펄스 나인이 내려와 9번 자리가 비었는가 (C.77d 가설 1): 팀의 ST/CF 가 한 명이고 줄 사이 역할(between)이며
  * 오프사이드 라인보다 roles.nineDeepGap m 이상 뒤에 있다
  */
@@ -949,6 +992,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (mark) break;
   }
   if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
+  // CB 따라나옴 (C.77d 가설 2): 줄 사이로 내려온 상대 공격수를 따라 나갈지 가장 가까운 CB 가 판단한다 (나가기로 하면 그 선수를 라인 앞까지 마크)
+  const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, lineX, ballGoal) : null;
+  if (stepOut) mark = stepOut;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);
@@ -966,7 +1012,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const [mnx, mny] = toNorm(mx, my, dir);
     if (a.line === 1) {
       ny = ny * 0.5 + mny * 0.5;
-      nx = Math.min(nx, mnx);
+      // 라인 뒤로만 (마크 쪽으로 내려섬). 따라 나가기로 했으면 마크 자리까지 라인 앞으로, 최대 stepOutMax m
+      nx = stepOut ? Math.max(nx, Math.min(mnx, lineX + O.stepOutMax / L)) : Math.min(nx, mnx);
     } else {
       const w = a.line === 3 ? 0.3 : 0.65;
       nx = nx * (1 - w) + mnx * w;

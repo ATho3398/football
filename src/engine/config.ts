@@ -288,6 +288,28 @@ export const ENGINE = {
      * 켜면 CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)이고 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34, 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 의 "ST 풀림" 통로)
      */
     trackMax: 2,
+    /**
+     * CB 따라나옴 (C.77d 가설 2, §9.13.5 사용자 13:22 "상대 수비 판단은 따라 나갈까 결정에만"): 상대 공격 줄이 실제 라인(오프사이드 라인)보다 stepOutMin~stepOutReach m 앞(줄 사이)에 있고
+     * 공이 우리 골 stepOutBall m 범위면 그에게 가장 가까운 CB 가 p = clamp(stepOutBase + stepOutDecoy × 미끼 − stepOutJudge × 판단, stepOutP) 로 따라 나간다
+     * (미끼 = 다른 상대가 CB decoyZone m 안에서 우리 골 쪽으로 decoySpeed m/s 이상, 판단 = (수비 위치선정 − 50) / 40). 결정은 stepOutHold 초 유지, 나가면 전술 라인 앞 최대 stepOutMax m. stepOutMax 0 = 끔.
+     * C.77d 조정 1: 처방의 2~7 m(전술 라인 기준)은 포처(라인 앞 2.7 m)가 펄스 나인보다 더 자주 걸려(판단 구간 32 대 14%) 실제 라인 기준 4~12 m 로
+     */
+    /**
+     * C.77d 조정 2: 처방 p(base 0.35·판단 0.45)는 위치선정 77 안팎 CB 에서 미끼 없을 때 0.05 라 판단 구간 따라감 3% → base 0.75·판단 0.6 (판단 구간 CB 2 m+ 앞 6 → 22%, 위치선정 55 대 90 = 33 대 19%).
+     * **지금은 끔(stepOutMax 0)**: 켜면 `role-pair 800 ST` 짝 조건 두 시드 펄스 나인 대비 −0.04/−0.09(가설 1 만 −0.02)·2선 골 포처 팀 대비 +0.06/+0.03(가설 1 만 +0.12)이고
+     * 모든 팀 CB 에 걸려 다른 ST 역할 득실이 ±0.06~0.08 흔들림 — 나간 CB 의 빈자리를 2선이 제때 못 쓴다. 켤 때 값 7
+     */
+    stepOutMin: 4,
+    stepOutReach: 12,
+    stepOutMax: 0,
+    stepOutBall: [25, 45] as [number, number],
+    stepOutBase: 0.75,
+    stepOutDecoy: 0.35,
+    stepOutJudge: 0.6,
+    stepOutP: [0.05, 0.9] as [number, number],
+    stepOutHold: 1.5,
+    decoyZone: 12,
+    decoySpeed: 1,
     lineTiers: 0,
     trackCdmMax: 9,
     trackPickMax: 12,

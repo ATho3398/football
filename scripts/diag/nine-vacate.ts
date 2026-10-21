@@ -1,5 +1,6 @@
 // 진단 (엔진 관리자 8대, 미해결 4 펄스 나인 재진단): 홈 4-3-3 슬롯 9(ST) 역할만 바꿔(기본 falseNine 대 poacher) 최종 3분의 1 공격 때
 // "박스에 누가 있는가"(공격 인원·ST 깊이·2선 러너)와 "상대 CB 가 내려온 9번을 따라 나오는가"를 1초마다 세고, 홈 슛을 포지션군·거리로 나눈다. 엔진 무수정.
+// BAND=1: 공 25~45 m 표본(C.77d 가설 2 판단 구간)
 // 실행: npx vite-node scripts/diag/nine-vacate.ts -- [경기수=40] [역할1=falseNine] [역할2=poacher] [포메이션=4-3-3] [경로=값 ...]
 import { ENGINE, ENGINE_VERSION } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
@@ -36,6 +37,8 @@ const mk = (side: string, i: number, role: string | null): TeamSetup => {
   if (role) { const p = s.lineup.find((x) => x.slot === SLOT); if (p) p.role = role; }
   // PAIR=1: 짝 조건(사용자 13:18) — 윙 둘 다 윙 포워드(run 0.8) + CM 한 명 박스투박스(run 0.6). 4-3-3 슬롯 8·10 윙, 6 CM
   if (role && process.env.PAIR === '1') for (const [sl, rid] of [[8, 'wingForward'], [10, 'wingForward'], [6, 'boxToBox']] as const) { const p = s.lineup.find((x) => x.slot === sl); if (p) p.role = rid; }
+  // CBDP=n (C.77d): 원정(수비 쪽) CB 의 수비 위치선정을 n 으로 — 가설 2 판단 능력치 반응 확인
+  if (!role && process.env.CBDP) for (const p of s.lineup) if (FORMATION_SLOTS[s.formation][p.slot]!.pos === 'CB') p.attrs.defensivePositioning = Number(process.env.CBDP);
   return s;
 };
 
@@ -46,8 +49,10 @@ interface Acc {
   oppShots: number; oppGoals: number; counterShots: number; f3Samples: number; possF3: number; stTouches: number; stDeepTouches: number;
   /** C.77d: 가장 가까운 CB 의 수비 위치선정과 그 표본에서 2 m+ 앞으로 나왔는가 (판단 상·하위 1/3 비교) */
   cbJudge: [number, number][];
+  /** 공이 우리 골(상대 골) 25~45 m 일 때(C.77d 가설 2 의 판단 구간) 표본 · CB 2 m+ 앞 · 그 CB 가 ST 를 판단 중 · 따라가기로 함 */
+  mid: number; midOut: number; midJudge: number; midGo: number; aheadH: number[]; midDecoy: number;
 }
-const mkAcc = (): Acc => ({ games: 0, samples: 0, boxN: [0, 0, 0, 0], near20: 0, stGoal: 0, stBehind: 0, stInBox: 0, stNear20: 0, cbDist: 0, cbWithin3: 0, cbStepOut: 0, cbStepOutN: 0, l2In20: 0, wingIn20: 0, shots: 0, goals: 0, byGroup: {}, oppShots: 0, oppGoals: 0, counterShots: 0, f3Samples: 0, possF3: 0, stTouches: 0, stDeepTouches: 0, cbJudge: [] });
+const mkAcc = (): Acc => ({ games: 0, samples: 0, boxN: [0, 0, 0, 0], near20: 0, stGoal: 0, stBehind: 0, stInBox: 0, stNear20: 0, cbDist: 0, cbWithin3: 0, cbStepOut: 0, cbStepOutN: 0, l2In20: 0, wingIn20: 0, shots: 0, goals: 0, byGroup: {}, oppShots: 0, oppGoals: 0, counterShots: 0, f3Samples: 0, possF3: 0, stTouches: 0, stDeepTouches: 0, cbJudge: [], mid: 0, midOut: 0, midJudge: 0, midGo: 0, aheadH: [0, 0, 0, 0, 0], midDecoy: 0 });
 const grp = (pos: string) => (pos === 'ST' || pos === 'CF' ? 'ST' : pos === 'LW' || pos === 'RW' || pos === 'LM' || pos === 'RM' ? 'WING' : pos === 'CB' || pos === 'LB' || pos === 'RB' || pos === 'LWB' || pos === 'RWB' ? 'DEF' : 'MID');
 
 function analyze(home: TeamSetup, away: TeamSetup, seed: number, acc: Acc): void {
@@ -90,7 +95,9 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, acc: Acc): void
     if (s.tick % 10 !== 0 || s.restart || !owner || owner.team !== 0 || owner.line === 0) continue;
     const [bnx] = toNorm(s.ball.x, s.ball.y, dirH);
     acc.samples++;
-    if (bnx < ENGINE.offball.lateRunFromX) continue;
+    // BAND=1 (C.77d): 최종 3분의 1 대신 공이 상대 골 25~45 m 인 표본만 (가설 2 CB 판단 구간)
+    const bgd = dist(s.ball.x, s.ball.y, gx, gy);
+    if (process.env.BAND === '1' ? bgd < 25 || bgd > 45 : bnx < ENGINE.offball.lateRunFromX) continue;
     acc.f3Samples++;
     const line = offsideLine(s, 0);
     let box = 0, near20 = 0, l2 = 0, wing = 0;
@@ -102,7 +109,9 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, acc: Acc): void
       if (d <= 20) { near20++; if (a.line === 2) l2++; if (a.pos === 'LW' || a.pos === 'RW') wing++; }
       if (a.pos === 'ST' || a.pos === 'CF') {
         acc.stGoal += d;
-        acc.stBehind += (line - toNorm(a.x, a.y, dirH)[0]) * L;
+        const behind = (line - toNorm(a.x, a.y, dirH)[0]) * L;
+        acc.stBehind += behind;
+        acc.aheadH[behind < 2 ? 0 : behind < 4 ? 1 : behind < 7 ? 2 : behind < 12 ? 3 : 4]!++;
         if (inBox) acc.stInBox++;
         if (d <= 20) acc.stNear20++;
         // 상대 CB
@@ -124,6 +133,15 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, acc: Acc): void
             const out = (lineX - toNorm(cb.x, cb.y, dirH)[0]) * L;
             if (out > 2) { acc.cbStepOut += out; acc.cbStepOutN++; }
             acc.cbJudge.push([cb.attrs.defensivePositioning, out > 2 ? 1 : 0]);
+            const bg = dist(s.ball.x, s.ball.y, gx, gy);
+            if (bg >= 25 && bg <= 45) {
+              acc.mid++;
+              if (out > 2) acc.midOut++;
+              const c = cb as unknown as { stepOutIdx?: number; stepOutGo?: boolean };
+              if (c.stepOutIdx === a.idx) { acc.midJudge++; if (c.stepOutGo) acc.midGo++; }
+              const cbA = cb;
+              if (s.agents.some((o) => o.onPitch && o.team === 0 && o !== a && (o.line === 2 || o.line === 3) && o.vx * dirH >= ENGINE.offball.decoySpeed && dist(o.x, o.y, cbA.x, cbA.y) <= ENGINE.offball.decoyZone)) acc.midDecoy++;
+            }
           }
         }
       }
@@ -153,6 +171,8 @@ ROLES.forEach((role, k) => {
   const rate = (xs: [number, number][]) => (xs.length ? (100 * xs.reduce((t, v) => t + v[1], 0)) / xs.length : NaN);
   const lo = rate(cj.slice(0, third)), hi = rate(cj.slice(cj.length - third));
   console.log(`  CB 판단(수비 위치선정) 하위 1/3 따라나옴 ${f(lo, 0)}% (≤ ${cj[third - 1]?.[0] ?? '-'}) · 상위 1/3 ${f(hi, 0)}% (≥ ${cj[cj.length - third]?.[0] ?? '-'}) · 차 ${f(lo - hi, 0)} pp`);
+  console.log(`  ST 가 라인보다 앞(m) <2 / 2~4 / 4~7 / 7~12 / 12+ = ${a.aheadH.map((v) => pct(v, F)).join(' / ')}`);
+  console.log(`  공 25~45 m 구간(가설 2 판단 구간) 표본 ${pct(a.mid, F)} · 그때 CB 2 m+ 앞 ${pct(a.midOut, a.mid)} · 가장 가까운 CB 가 ST 를 판단 중 ${pct(a.midJudge, a.mid)} · 따라가기로 함 ${pct(a.midGo, a.mid)} · 미끼 있음 ${pct(a.midDecoy, a.mid)}`);
   const g = a.byGroup;
   const l2 = ['WING', 'MID'].reduce((t, k2) => [t[0]! + (g[k2]?.shots ?? 0), t[1]! + (g[k2]?.goals ?? 0)], [0, 0]);
   console.log(`  2선(윙+미드) 슛/골 ${f(l2[0]! / a.games)}/${f(l2[1]! / a.games)} · ST 골 ${f((g.ST?.goals ?? 0) / a.games)}`);
