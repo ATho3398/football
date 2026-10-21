@@ -7,7 +7,7 @@ import {
 } from '../src/game';
 import { playNpcMatch, summarize } from '../src/engine/npcMatch';
 import { createMatch, frameOf } from '../src/engine/sim';
-import { teamSetupFromRoster } from '../src/engine/setup';
+import { npcTeamSetup } from '../src/engine/setup';
 import { runJob } from '../src/engine/jobs';
 import { playMyMatch } from '../src/engine/adapter';
 import { roundMatch } from '../src/game';
@@ -114,8 +114,9 @@ describe('전 경기 엔진 (25.1~25.2 4번)', () => {
     // 프레임을 매 틱 기록하며 돌린다
     const m = job.input;
     const sim = createMatch({
-      home: teamSetupFromRoster(m.home, m.homeRating, m.awayRating, m.worldSeed, undefined, m.leagueAvg),
-      away: teamSetupFromRoster(m.away, m.awayRating, m.homeRating, m.worldSeed, undefined, m.leagueAvg),
+      // C.77c: 다른 경기 선발은 결장 추첨을 거친 npcTeamSetup (playNpcMatch 와 같은 함수)
+      home: npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg),
+      away: npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg),
       mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}),
     });
     const frames = [];
