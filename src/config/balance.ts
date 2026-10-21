@@ -426,7 +426,9 @@ export const BALANCE = {
      * 부상 중 → 회복 중심, 경기 2번 이상 또는 경기 간격 busyGap 일 이하 → 경기 많은 주, 체력 lowCondition 미만 → 회복 중심,
      * 경기 1번 이하이고 체력 freshCondition 이상 → 기술 집중, 그 밖 → 균형
      */
-    presets: { lowCondition: 65, freshCondition: 85, busyGap: 3 },
+    // C.77m: 피로 수치 상향으로 주 1경기 주전 아침 피로가 평균 약 24 → 회복 중심 문턱을 체력 65 → 50(= 100 − fatigue.penaltyFrom),
+    // 기술 집중 85 → 75 로 (그대로면 회복 중심 주가 늘어 훈련 XP 시즌 119 → 101, 30세 OVR −0.8)
+    presets: { lowCondition: 50, freshCondition: 75, busyGap: 3 },
     /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
     weeklyXpCap: 6,
     /**
@@ -606,6 +608,7 @@ export const BALANCE = {
      * (worldSeed, 경기 시드, 선수 id) 로 결정적 추첨, 결장 선수는 pickLineup 에서 빠지고 벤치가 대신 선발. 득점 확률과 무관한 현실 조건이라 결과 할당이 아니다.
      * NPC 누적 피로·부상이 없어서 둔 임시 대체 — pending 142(NPC 피로·컵 일정·부상)에서 교체한다. 내 선수·내 팀 출전 규칙(부상·벤치 결장)과 무관.
      * 측정(`balance:scoring` 리그 시즌)과 본편 다른 경기(npcMatch)가 같은 함수를 쓴다.
+     * C.77m (pending 142a): NPC 피로·피로 부상(fatigue.npc)이 출전율을 대신해 0.08 → 0 (끔). 같은 시드 scoring 10시즌: 상위 10 ST 선발 34.2 · 30골+ 1.20
      */
     npcAbsentP: 0,
     /** 결장 추첨 뒤 남겨 두는 최소 인원 (선발 11 + 교체 3). 마지막 남은 GK 는 결장하지 않는다 */
