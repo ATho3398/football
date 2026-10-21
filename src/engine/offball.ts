@@ -465,9 +465,6 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   let urgent = false;
 
-  // 전환 침투 (C.77f 가설 B): 공을 얻은 직후에는 공보다 앞선 최전방(역습 출구 포함)·침투 성향 2선이 뛴다 (난수 없음, 갱신마다 재무장)
-  if (s.t >= a.runUntil && owner && owner.team === a.team && owner !== a && s.t - s.teams[a.team].wonAt <= O.transitionRunT
-    && (a.line === 3 || (a.line === 2 && a.role.run >= O.lateRunRun)) && toNorm(a.x, a.y, dir)[0] > bnx) a.runUntil = s.t + O.runSeconds;
   // 침투: 공격 위치선정 × run 비례 확률로 수비 라인 근처로 달린다
   if (s.t >= a.runUntil && a.line >= 2 && owner && owner.team === a.team) {
     let chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance * Math.max(0.3, 1 + (O.runPace * (a.attrs.pace - 70)) / 100);
