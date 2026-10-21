@@ -4,7 +4,7 @@
 import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../src/attributes';
 import { ENGINE } from '../../src/engine/config';
 import { TENDENCY } from '../../src/engine/tactics';
-import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
+import { fillRoles, npcTeamSetup, teamSetupFromRoster } from '../../src/engine/setup';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
@@ -320,8 +320,9 @@ export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
     const leagueAvg = ids.reduce((t, id) => t + w!.ratings[id]!, 0) / ids.length;
     const rh = w.ratings[j.home]!;
     const ra = w.ratings[j.away]!;
-    const home = teamSetupFromRoster(w.rosters[j.home]!, rh, ra, j.worldSeed, undefined, leagueAvg);
-    const away = teamSetupFromRoster(w.rosters[j.away]!, ra, rh, j.worldSeed, undefined, leagueAvg);
+    // C.77c: 결장 추첨(roster.npcAbsentP)을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
+    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg);
+    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg);
     const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
     const scorers: Record<string, number> = {};
     const pos: Record<string, string> = {};
