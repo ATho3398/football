@@ -266,6 +266,26 @@ export const ENGINE = {
      */
     boxManMax: 0,
     boxManSlack: 3,
+    /**
+     * 2선 침투자 "좁은 추적" (C.77b 44h-i, 8대 §9.15, 미해결 8·11 — 사용자 결정 "전면 마크 아님: 박스로 뛰는 2선을 CDM 또는 가장 가까운 CM 이 따라붙는다").
+     * 대상 = 상대 줄 2(CDM/CM/CAM) 중 소유자 아님 · 우리 골 trackZone m 안(유지는 +3 m 히스테리시스) 또는 이동 목표가 골 trackTargetZone m 안이고 자신은 목표보다 3 m 이상 멀리(들어오는 중).
+     * 위협 순으로 팀당 trackMax 명. 추적자 = 우리 줄 2 CDM(홀딩 CM) → CM(LM/RM·CAM·줄 1 제외), 압박 rank 0·둘째 압박자·역압박·커버·수신자 압박·면제·이미 추적 중은 뺀다.
+     * 침투자 쪽(같은 측면) CDM 이 trackCdmMax m 안이면 그 CDM, 아니면 가장 가까운 후보가 trackPickMax m 안일 때만(멀리서 끌려오지 않게 — 전면 마크와 갈리는 지점).
+     * 배정은 trackHold 초 유지 뒤에도 침투자가 대상 조건을 만족하는 동안 유지, 존 +3 m 밖 trackRelease 초·소유 바뀜·리스타트·침투자가 소유자·추적자가 압박 담당이 되면 해제.
+     * 자리 = 침투자와 우리 골을 잇는 선에서 골 쪽 trackGap m(박스 밖 trackGapOut), 공이 측면이면 stBallSide 만큼 공 쪽, 선읽기 trackLead 초 × 수비 포지셔닝/100 × 침투자 속도, 오차 markSigma × (100 − (마킹+포지셔닝)/2).
+     * 거리 > trackUrgent m 면 urgent. lineX + midGap 상한·스크린·coverShiftY 를 적용하지 않는다(추적자는 박스까지 들어간다). 수비 줄(boxDefense)·공격 코드 무수정. trackMax 0 = 끔(엔진 33 과 같다)
+     */
+    trackZone: 22,
+    trackTargetZone: 20,
+    trackMax: 2,
+    trackCdmMax: 9,
+    trackPickMax: 12,
+    trackHold: 0.7,
+    trackRelease: 0.5,
+    trackGap: 1.5,
+    trackGapOut: 2.0,
+    trackLead: 0.5,
+    trackUrgent: 2,
     /** 커버 섀도 대상 가치 × (1 + focusShadowW × 계수): 패스 길 차단이 엘리트 쪽으로 */
     focusShadowW: 0.5,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */

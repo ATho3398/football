@@ -50,6 +50,8 @@ interface Ep {
   entryT: number; entryAny: number; entryL2: number; entryL1: number;
   lastTrue: number; ended: number; recv: number; recvD: number; recvAny: number; recvL2: number; shot: number; shotD: number; shotAny: number; goal: number; minAny: number;
   concurrent: number;
+  /** C.77b: 추적 배정(a.trackIdx 읽기) — 에피소드 중 한 번이라도 배정됨, 첫 추적자 포지션, 받는 순간 추적자 거리(없으면 Infinity) */
+  tracked: boolean; trackerPos: string | null; recvTrack: number;
 }
 const eps: Ep[] = [];
 const sum = { games: 0, midShots: 0, midGoals: 0, midShotsIn: 0, midGoalsIn: 0, midBoxRecv: 0, midBoxRecvIn: 0, camShots: 0, camGoals: 0, stShots: 0, stGoals: 0 };
@@ -119,6 +121,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
           if (o.line === 2) l2 = Math.min(l2, d);
         }
         ep.recv = t; ep.recvD = dist(owner.x, owner.y, gx, gy); ep.recvAny = any; ep.recvL2 = l2;
+        for (const o of s.agents) if (o.onPitch && o.team !== owner.team && o.trackIdx === owner.idx) ep.recvTrack = Math.min(ep.recvTrack, dist(o.x, o.y, owner.x, owner.y));
         if (active.has(owner)) endEp(ep, t);
       }
     }
@@ -143,6 +146,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
         concurrent++;
         if (ep) {
           ep.lastTrue = t;
+          for (const d of D) if (d.trackIdx === o.idx) { if (!ep.tracked) { ep.tracked = true; ep.trackerPos = d.pos; } break; }
           let any = Infinity, l2 = Infinity, l1 = Infinity;
           for (const d of D) { const dd = dist(d.x, d.y, o.x, o.y); any = Math.min(any, dd); if (d.line === 2) l2 = Math.min(l2, dd); if (d.line === 1) l1 = Math.min(l1, dd); }
           ep.minAny = Math.min(ep.minAny, any);
@@ -167,7 +171,8 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number): void {
             } else if (d.pos === 'CM') cm0 = Math.min(cm0, dd);
           }
           const l2goalSide = l2near ? dist(l2near.x, l2near.y, gx, gy) < dg : false;
-          const e: Ep = { a: o, team: att, kind: running ? 'run' : 'job', t0: t, d0: dg, pos: o.pos, cdm0, cdmBusy, cdmSide0, cm0, l2n0, l2goalSide, any0, l1n0, pace: o.attrs.pace, cdmPace, entryT: 0, entryAny: 0, entryL2: 0, entryL1: 0, lastTrue: t, ended: 0, recv: 0, recvD: 0, recvAny: 0, recvL2: 0, shot: 0, shotD: 0, shotAny: 0, goal: 0, minAny: any0, concurrent: 0 };
+          const e: Ep = { a: o, team: att, kind: running ? 'run' : 'job', t0: t, d0: dg, pos: o.pos, cdm0, cdmBusy, cdmSide0, cm0, l2n0, l2goalSide, any0, l1n0, pace: o.attrs.pace, cdmPace, entryT: 0, entryAny: 0, entryL2: 0, entryL1: 0, lastTrue: t, ended: 0, recv: 0, recvD: 0, recvAny: 0, recvL2: 0, shot: 0, shotD: 0, shotAny: 0, goal: 0, minAny: any0, concurrent: 0, tracked: false, trackerPos: null, recvTrack: Infinity };
+          for (const d of D) if (d.trackIdx === o.idx) { e.tracked = true; e.trackerPos = d.pos; break; }
           if (dg <= 20) { e.entryT = t; e.entryAny = any0; e.entryL2 = l2n0; e.entryL1 = l1n0; }
           active.set(o, e); eps.push(e);
         }
@@ -197,6 +202,9 @@ console.log(`20 m 선 도달 때(${en.length}): 아무 수비 ${f(avg(en.map((e)
 const rc = eps.filter((e) => e.recv > 0);
 console.log(`받음 ${rc.length} (${pct(rc.length, eps.length)}, 경기당 ${f(rc.length / G)}): 골 거리 ${f(avg(rc.map((e) => e.recvD)))} m (≤ 16.5 ${pct(rc.filter((e) => e.recvD <= 16.5).length, rc.length)}) · 받는 순간 아무 수비 ${f(avg(rc.map((e) => e.recvAny)))} m (≤ 1.5 ${pct(rc.filter((e) => e.recvAny <= 1.5).length, rc.length)}, ≤ 3 ${pct(rc.filter((e) => e.recvAny <= 3).length, rc.length)}) · 줄 2 수비 ${f(avg(rc.map((e) => e.recvL2)))} m (≤ 3 ${pct(rc.filter((e) => e.recvL2 <= 3).length, rc.length)}) · 시작 → 받음 ${f(avg(rc.map((e) => e.recv - e.t0)))} s`);
 console.log(`  시작 → 받음: ≤ 1 s ${pct(rc.filter((e) => e.recv - e.t0 <= 1).length, rc.length)} · ≤ 2 s ${pct(rc.filter((e) => e.recv - e.t0 <= 2).length, rc.length)} · ≤ 4 s ${pct(rc.filter((e) => e.recv - e.t0 <= 4).length, rc.length)} · 받음 중 시작 때 CDM ≤ 6 m ${pct(rc.filter((e) => e.cdm0 <= 6).length, rc.length)} · 줄 2 ≤ 6 m ${pct(rc.filter((e) => e.l2n0 <= 6).length, rc.length)}`);
+const tr = eps.filter((e) => e.tracked);
+const rt = rc.filter((e) => Number.isFinite(e.recvTrack));
+console.log(`추적 배정(C.77b): 에피소드 중 배정 ${pct(tr.length, eps.length)} (CDM ${pct(tr.filter((e) => e.trackerPos === 'CDM').length, tr.length)} · CM ${pct(tr.filter((e) => e.trackerPos === 'CM').length, tr.length)}) · 받음 중 받는 순간 추적자 있음 ${pct(rt.length, rc.length)} · 그 거리 ${f(avg(rt.map((e) => e.recvTrack)))} m (≤ 1.5 ${pct(rt.filter((e) => e.recvTrack <= 1.5).length, rt.length)}, ≤ 3 ${pct(rt.filter((e) => e.recvTrack <= 3).length, rt.length)}) · 배정된 에피소드 받음 ${pct(tr.filter((e) => e.recv > 0).length, tr.length)} / 미배정 ${pct(eps.filter((e) => !e.tracked && e.recv > 0).length, eps.length - tr.length)}`);
 const sh = eps.filter((e) => e.shot > 0);
 console.log(`슛 ${sh.length} (경기당 ${f(sh.length / G, 2)}, 받은 것의 ${pct(sh.length, rc.length)}) · 골 ${eps.reduce((p, e) => p + e.goal, 0)} (경기당 ${f(eps.reduce((p, e) => p + e.goal, 0) / G, 2)}) · 슛 거리 ${f(avg(sh.map((e) => e.shotD)))} m · 슛 순간 아무 수비 ${f(avg(sh.map((e) => e.shotAny)))} m (≤ 3 ${pct(sh.filter((e) => e.shotAny <= 3).length, sh.length)})`);
 for (const k of ['run', 'job'] as const) {

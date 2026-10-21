@@ -87,6 +87,10 @@ export interface Agent {
   /** 수비 1대1 판단 (E.23): 다음 판단 시각, 패스길 막기 유지 시각 */
   duelNext: number;
   laneUntil: number;
+  /** 2선 침투자 추적 (C.77b 44h-i): 따라붙는 상대 idx(−1 없음), 배정 유지 시각(trackHold), 침투자가 존 밖으로 나간 시각(−1 = 안) */
+  trackIdx: number;
+  trackUntil: number;
+  trackOut: number;
   /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
   paceCap: number;
   /**

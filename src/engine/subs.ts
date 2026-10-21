@@ -42,10 +42,16 @@ export function substitute(s: SimState, out: Agent, inA: Agent): void {
   delayRestart(s, ENGINE.restart.sub, 2);
   out.onPitch = false;
   out.leftAt = s.elapsed;
+  // 2선 추적 (C.77b): 나가는 선수의 배정은 풀고, 그 선수를 따라붙던 동료도 푼다 (들어오는 선수는 −1 로 시작)
+  out.trackIdx = -1;
+  for (const o of s.agents) if (o.trackIdx === out.idx) { o.trackIdx = -1; o.trackOut = -1; }
   inA.idx = s.agents.length;
   s.agents.push(inA);
   s.bench[out.team] = s.bench[out.team].filter((b) => b !== inA);
   inA.onPitch = true;
+  inA.trackIdx = -1;
+  inA.trackUntil = 0;
+  inA.trackOut = -1;
   inA.enteredAt = s.elapsed;
   inA.pos = out.pos;
   inA.line = out.line;
