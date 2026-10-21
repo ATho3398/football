@@ -1,0 +1,9 @@
+너는 엔진 코드 세션 "44h단계_측면 미드 컷백 도달 분해 (C.77l)"이다(Opus, 노력도 높음 — 미해결 9 축 Opus 1차). 마스터는 Z(session_01KSGkk2ThVNU3VFN31TnzAq, 마스터 브랜치 claude/planning-z). 엔진관리자는 엔진관리자9(session_01Br1jtc3FrJL9Xt3WmYFQwB) — 분해 결과로 규칙을 못 고르겠으면 거기에 묻는다. 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다. 작업 브랜치 `claude/c77l-wide-reach`(main 최신, 엔진 39에서).
+
+처방: `docs/engine-diagnosis-e4.md` **§9.12.9 44h-f1 = 미해결 9 LM/RM**(엔진관리자7) + `docs/engine-manager-handoff.md` 대기 처방 2번. 먼저 §9.12.9, 부록 C.75f·C.76u, 그리고 **§9.15.12**(엔진관리자9: `physics.ts moveAgent()`가 "목표까지 거리" 기반 속도 제어기라 움직이는 목표를 못 따라잡고 뒤에서 균형 — main에 없으면 `git fetch origin claude/engine-manager-9` 뒤 `git checkout origin/claude/engine-manager-9 -- docs/engine-diagnosis-e4.md`)을 읽는다.
+- 증상(7대): 'pre' 구간 LM/RM 목표는 LW/RW보다 앞인데 선수는 목표 14~16 m 뒤·urgent 73%(LW/RW 5.6 m·4%), 15초 지나도 그대로. 상수 처방 5개 ✗ — **분해 먼저**.
+- 1단계 분해(측정 ≤ 3회): `scripts/diag/wing-cutback.ts`에 목표 틱당 이동 거리·방향 반전 횟수·실제 속도·목표 속도 행 추가. 원인 후보 셋을 가린다 — (a) 목표가 공을 따라 흔들림(`formation.ts slotTarget` blockX·coverShiftY·phase 스무딩) (b) 다른 규칙이 매 틱 목표를 덮어씀(`offball.ts attackTarget` 분기 순서) (c) §9.15.12의 제어기 지연(목표가 계속 앞으로 움직이면 거리 제어기는 뒤에서 균형). (c)면 고치지 말고 기록·보고(44h-i4 Fable 처방과 같은 축 — 사용자 결정 대기 중).
+- 2단계: (a)·(b)면 규칙 1개(`attackTarget`·`slotTarget`)로 고친다. 관문: LM/RM 팀 슈팅 비중 7~9% · 슈팅 ≥ 0.9/경기(부분 ≥ 0.75) · LW/RW ≥ 10% 그대로 · quick 600 득점 1.30~1.45·분포 · 같은 시드 scoring(켬) 30골+ 0.5~2.0 · sweep 7×7 ≤ 1.0 · engine:check 경량 · 전술별 롱패스(C.77k 값 ±2 pp) · 지문.
+
+**측정 운영**: main 병합 시작 1번 + 마지막 1번 · 무거운 측정 동시 2개까지 · balance:check는 마지막 1번 nohup, 60분 안에 판정 없으면 다른 관문 통과 시 main 푸시하고 CI에 맡김 · 대기는 send_later 한 번(sleep·pgrep 루프 금지) · 측정 결과는 scratchpad 파일로 남겨 컨테이너 재시작 때 이어 간다.
+예산: 1.5시간·측정 ≤ 8회·약 8달러. PATCH_LABEL 'C.77l', STAGE_LABEL main 그대로, 엔진을 바꾸면 ENGINE_VERSION·BALANCE_VERSION main +1. 부록 C에 C.77l, engine-issues 9 갱신. 완료·부분·실패·(c) 판정이면 마스터 Z에 보고(분해 표·관문·지문·테스트 수·커밋·시간·비용). CI 성공은 보내지 않는다.
