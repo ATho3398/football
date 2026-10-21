@@ -6591,7 +6591,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.76w 44h-e단계 엔진 블록 — 박스 안 2선 마크·득점 분포·코너(미해결 8·11): **가설 1(박스 안 2선 마크) 실패 → 끔(boxManMax 0), 가설 2(코너 상수 3개)만 `main` 배포** (ENGINE_VERSION 32 → 33, BALANCE_VERSION 67 → 68(XP 비 가드 상한 1.2 → 1.15 복귀; 병렬 C.76t 가 67 을 먼저 씀), SAVE_FORMAT_VERSION 그대로)
 
-지시: 마스터 X `docs/session-prompts/C.76w.md`, 엔진관리자7 `docs/engine-diagnosis-e4.md` §9.12(가설 1·2·3, 통과 기준 §9.12.3). 브랜치 `claude/c76w-box-marking`. `PATCH_LABEL` = `C.76w`, `STAGE_LABEL` 그대로(47단계). Fable 높음. 2026-10-21 06:31 ~ [[END]] KST, 비용 [[COST]]달러(예산 3.5시간·30달러). polish-b 120경기 2회(gap·liv) + defense-shape 40 1회 + 같은 시드 scoring 4회(관문 3 + 최종 1) + quick 600 5회(설정 1 + 변형 3 + 최종은 balance:check 안) + engine:check 1 + sweep 7×7 1 + tac 120 bus·block 1 + corners 60 1 + balance:check 1 + 수신·슛 순간 분해 스크립트(스크래치) 약 10회.
+지시: 마스터 X `docs/session-prompts/C.76w.md`, 엔진관리자7 `docs/engine-diagnosis-e4.md` §9.12(가설 1·2·3, 통과 기준 §9.12.3). 브랜치 `claude/c76w-box-marking`. `PATCH_LABEL` = `C.76w`, `STAGE_LABEL` 그대로(47단계). Fable 높음. 2026-10-21 06:31 ~ 09:2x KST, 비용 약 17달러(예산 3.5시간·30달러). polish-b 120경기 2회(gap·liv) + defense-shape 40 1회 + 같은 시드 scoring 4회(관문 3 + 최종 1) + quick 600 5회(설정 1 + 변형 3 + 최종은 balance:check 안) + engine:check 1 + sweep 7×7 1 + tac 120 bus·block 1 + corners 60 1 + balance:check 1 + 수신·슛 순간 분해 스크립트(스크래치) 약 10회.
 
 **진단 일치**(엔진 32 main 6910247): `same-seed 30` 지문 300338da03b1bfb4 ✓. 가설 1 코드 직후 `defense-shape 40`·`gap 120` 으로 처방이 가정한 전제(수비 자원이 ST 한 명에게 세 겹 — 3경기 boxDefense 분기 집계: 위협 1위 마커 2,215 · **더블팀 1,681** · 자리 1,031; 박스 안 비ST 수신 1.5 m 안 ≈ 10%)는 재현됐다. 재현되지 않은 것은 **그 전제에서 처방이 기대한 결과**(2선 마크 → CAM 골 ↓·ST 몫 ↑·총량 유지)다 — 아래.
 
@@ -6638,7 +6638,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 같은 시드 30경기 지문 | 300338da03b1bfb4 | **6ab3059beba28723** | 의도된 변경(코너 상수) |
 | 경기 계산 (워커) | 678 ms | 961 ms(quick, 동시 실행 중) | ≤ 2초 ✓ |
 
-`npm run typecheck` ✓ · `npm test` 전체 통과 **1,048개 / 124파일**(c76w 3개 추가; `c75v` CDM sureBack 시드 c76u-0~2 → c76x-0~3 — 코너 상수로 장면이 흔들린 시드 교체, 가드 완화 아님; 첫 실행은 balance:check 와 동시라 그 1개만 실패 → 시드 교체 뒤 단독 ✓) · `npm run build` ✓ · `balance:check` **회귀 가드 19/19 통과**(약 1시간 20분, scoring·engine:check·sweep 와 동시 실행). 평점 center 재측정은 ST 몫이 안 움직였고 `engine:check` 8군이 가드 안이라 하지 않았다(ST 6.68 ≤ 6.7, `rating.center` 그대로). saveBase 는 quick 1.32 가 1.30~1.45 안이라 그대로(1.62).
+**main 병합(C.76t 47b 시상 ea9e22a, 엔진·`scripts/engine` 무수정) 뒤**: 지문 6ab3059beba28723 그대로, typecheck ✓ · 테스트 1,059개 / 125파일 ✓ · build ✓(엔진 가드는 병합 전 측정값 유지). `npm run typecheck` ✓ · `npm test` 전체 통과 **1,048개 / 124파일**(c76w 3개 추가; `c75v` CDM sureBack 시드 c76u-0~2 → c76x-0~3 — 코너 상수로 장면이 흔들린 시드 교체, 가드 완화 아님; 첫 실행은 balance:check 와 동시라 그 1개만 실패 → 시드 교체 뒤 단독 ✓) · `npm run build` ✓ · `balance:check` **회귀 가드 19/19 통과**(약 1시간 20분, scoring·engine:check·sweep 와 동시 실행). 평점 center 재측정은 ST 몫이 안 움직였고 `engine:check` 8군이 가드 안이라 하지 않았다(ST 6.68 ≤ 6.7, `rating.center` 그대로). saveBase 는 quick 1.32 가 1.30~1.45 안이라 그대로(1.62).
 
 **새 화면**: 없음.
 
