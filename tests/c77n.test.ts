@@ -21,15 +21,15 @@ const G = newGame({ mode: 'prospect', position: 'ST', seed: 'c77n-g', difficulty
 const roster = (id: string, seed: string) => createTeamRoster({ id, rating: 80 }, seed, 2018, []);
 
 describe('C.77n NPC 컵 간이 경기 피로', () => {
-  it('선발 11명에게 90분 기준 거리 피로(perMatch90)가 쌓이고 부하 1 × 성향 계수', () => {
+  it('선발 11명에게 cupMinutes 분 피로가 쌓이고 부하 = 분/90 × 성향 계수', () => {
     const r = roster('t', 'c77n-q');
     const map: NpcFitMap = {};
     const load: NpcLoadMap = {};
     const lines = npcQuickMatch(map, load, [r], 100, 'c77n-q', 1);
     expect(lines).toHaveLength(11);
     for (const l of lines) {
-      expect(npcFatigueOn(map[l.id], 100)).toBeCloseTo(BALANCE.fatigue.perMatch90, 1);
-      expect(load[l.id]![0]).toBeGreaterThan(0.8);
+      expect(npcFatigueOn(map[l.id], 100)).toBeCloseTo((BALANCE.fatigue.perMatch90 * BALANCE.fatigue.npc.cupMinutes) / 90, 1);
+      expect(load[l.id]![0]).toBeGreaterThan(0.6);
       expect(load[l.id]![0]).toBeLessThan(1.2);
     }
   });

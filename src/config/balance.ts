@@ -397,7 +397,9 @@ export const BALANCE = {
      * cup — NPC 끼리 컵·챔스 간이 경기 피로 (C.77n, pending 142b): 레이팅 간이 계산 경기도 pickLineup(그날 컨디션)으로 선발 11명을 뽑아
      * 90분·기준 거리 피로와 부상 판정만 더한다(엔진 없이). 결과(스코어)는 그대로. npc.cup = false 면 C.77m 과 같다
      */
-    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true },
+    // cupMinutes: 간이 경기 선발 1명 출전 분(피로·부하 = 기준 거리 × 분/90). 90 이면 챔스 팀 ST 리그 선발 28.3 · 30골+ 0.40(관문 ✗) →
+    // 교체(보통 3명 60~75분)·컵 로테이션 몫을 빼고 70 (C.77n 조정 1)
+    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true, cupMinutes: 70 },
   },
 
   // ── 시즌 누적 부하 (C.77n, pending 142b — 게겐 대가: 피로↑ → 부상↑ → 선수 생명↓, 내 선수·NPC 같은 함수 src/load.ts) ──
