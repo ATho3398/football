@@ -564,11 +564,18 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       const sc = new Map<string, number>();
       const pos = new Map<string, string>();
       const tm = new Map<string, string>();
+      // C.77c: 선수별 [출전, 선발, 출전 분 합]
+      const app = new Map<string, [number, number, number]>();
       let kaneShots = 0;
       let kaneApps = 0;
       for (const m of ms) {
         for (const [id, p] of Object.entries(m.pos)) pos.set(id, p);
         for (const [id, t2] of Object.entries(m.team ?? {})) tm.set(id, t2);
+        for (const [id, [st, min]] of Object.entries(m.apps ?? {})) {
+          const a = app.get(id) ?? [0, 0, 0];
+          if (min > 0 || st) { a[0]++; a[1] += st; a[2] += min; }
+          app.set(id, a);
+        }
         if (m.shots.kane !== undefined || m.home === 'tot' || m.away === 'tot') {
           kaneShots += m.shots.kane ?? 0;
           kaneApps++;
@@ -599,7 +606,12 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       const midTop = byGroup.get('MID');
       const midTeam = midTop ? tm.get(midTop[0]) : undefined;
       const stOfTeam = midTeam ? [...sc.entries()].filter(([id]) => tm.get(id) === midTeam && (pos.get(id) === 'ST' || pos.get(id) === 'CF')).reduce((x, y) => (y[1] > x[1] ? y : x), ['-', 0] as [string, number]) : (['-', 0] as [string, number]);
-      return { top, leak, champ, boot, goals, kane: sc.get('kane') ?? 0, kaneShots: kaneShots / Math.max(1, kaneApps), top10, over30, byGroup, midPair: midTop ? `${midTop[0]} ${midTop[1]} ↔ ${midTeam ?? '?'} ${stOfTeam[0]} ${stOfTeam[1]}` : '-' };
+      // C.77c: 득점 상위 10 중 ST/CF 의 선발 수·출전 수·평균 출전 분 (결장 모델 전후 비교 기록)
+      const stApps = top10.filter((t) => t[2] === 'ST' || t[2] === 'CF').map(([id, g]) => ({ id, g, a: app.get(id) ?? [0, 0, 0] }));
+      const stStarts = stApps.length ? avg(stApps.map((x) => x.a[1])) : 0;
+      const stMins = stApps.length ? avg(stApps.map((x) => x.a[2] / Math.max(1, x.a[0]))) : 0;
+      const stAppsNote = stApps.map((x) => `${x.id} ${x.g}골 ${x.a[1]}선발/${x.a[0]}출전 ${(x.a[2] / Math.max(1, x.a[0])).toFixed(0)}분`).join(' ');
+      return { top, leak, champ, boot, goals, kane: sc.get('kane') ?? 0, kaneShots: kaneShots / Math.max(1, kaneApps), top10, over30, byGroup, midPair: midTop ? `${midTop[0]} ${midTop[1]} ↔ ${midTeam ?? '?'} ${stOfTeam[0]} ${stOfTeam[1]}` : '-', stStarts, stMins, stAppsNote };
     });
     const m = (f: (x: (typeof per)[number]) => number) => avg(per.map(f));
     add(S, 'lgTopGF', '최다 득점 팀 골', '85~105', m((x) => x.top[1].gf), 85, 105, 0, { note: per.map((x) => `${x.top[0]} ${x.top[1].gf}`).join(', ') });
@@ -622,6 +634,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     const cam10 = avg(per.map((x) => x.top10.filter((t) => t[2] === 'CAM').length));
     add(S, 'lgTop10CAM', '득점 상위 10명 중 CAM 수 (기록)', '≤ 1 참고 (C.76x, 관문 아님)', cam10, 0, 1, 1);
     extra.push(`MID 최다 득점자 ↔ 그 팀 ST 최다 득점 (시즌별, C.76x): ${per.map((x) => x.midPair).join(' | ')}`);
+    // C.77c: NPC 결장 모델(roster.npcAbsentP) 전후 비교 — 상위 10 ST/CF 의 시즌 선발 수·평균 출전 분 (기록, 관문 아님)
+    add(S, 'lgSTStarts', '득점 상위 10 ST/CF 시즌 선발 수 (기록)', '약 33~37 (C.77c 결장 모델, 관문 아님)', m((x) => x.stStarts), 30, 38, 1, { note: `평균 출전 ${m((x) => x.stMins).toFixed(0)}분` });
+    extra.push(`상위 10 ST/CF 출전 (시즌별, C.77c): ${per.map((x) => x.stAppsNote).join(' | ')}`);
     for (const grp of ['FW', 'WING', 'MID', 'DEF']) {
       const xs = per.map((x) => x.byGroup.get(grp)).filter((v): v is [string, number] => !!v);
       extra.push(`포지션군 ${grp} 시즌 최다 득점자: 평균 ${avg(xs.map((v) => v[1])).toFixed(1)} · 최대 ${Math.max(0, ...xs.map((v) => v[1]))} — ${xs.map((v) => `${v[0]} ${v[1]}`).join(', ')}`);

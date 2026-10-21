@@ -141,6 +141,8 @@ export interface LeagueMatchOut {
   /** 팀 슈팅·골 경로 합 (양 팀) */
   shotPaths: number[];
   goalPaths: number[];
+  /** 출전한 선수 id → [선발 1/0, 출전 분] (C.77c: 출전 수·선발 수·평균 출전 분 기록) */
+  apps?: Record<string, [number, number]>;
 }
 
 export type JobOut = MatchOut | SeasonOut | LeagueMatchOut;
@@ -325,16 +327,19 @@ export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
     const pos: Record<string, string> = {};
     const team: Record<string, string> = {};
     const shots: Record<string, number> = {};
+    const apps: Record<string, [number, number]> = {};
+    const starters = new Set([...home.lineup, ...away.lineup].map((p) => p.id));
     for (const p of r.players) {
-      if (p.goals) {
-        scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
+      if (p.goals) scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
+      if (p.shots) shots[p.id] = (shots[p.id] ?? 0) + p.shots;
+      if (p.goals || p.minutes > 0 || starters.has(p.id)) {
         pos[p.id] = p.position;
         team[p.id] = p.team === 0 ? j.home : j.away;
+        apps[p.id] = [starters.has(p.id) ? 1 : 0, p.minutes];
       }
-      if (p.shots) shots[p.id] = (shots[p.id] ?? 0) + p.shots;
     }
     const add = (k: 'shotPaths' | 'goalPaths') => r.teamStats[0][k].map((v, i) => v + r.teamStats[1][k][i]!);
-    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths') };
+    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths'), apps };
   } finally {
     restore();
   }
