@@ -276,8 +276,14 @@ export const ENGINE = {
      * 거리 > trackUrgent m 면 urgent. lineX + midGap 상한·스크린·coverShiftY 를 적용하지 않는다(추적자는 박스까지 들어간다). 수비 줄(boxDefense)·공격 코드 무수정. trackMax 0 = 끔(엔진 33 과 같다)
      */
     trackZone: 22,
+    /**
+     * 가설 2 ① (§9.15.4, 시간) 측정 뒤 끔 (C.77b): 24(목표가 24 m 안으로 잡히는 순간부터; 공격 'edge' 22 가 들어오므로 CDM 포지션 공격수는 ⓑ 에서 뺀다 trackTargetNoCdm 1) + trackLead 0.8 + trackRunUrgent 1 + trackHandoff 1 은
+     * runner-track 40 받는 순간 ≤ 1.5 m 28 → 28% · ≤ 3 m 70 → 70%(추적자 자신의 거리 5.8 → 4.5 m 만), gap 120 CAM 골 0.33/0.35 → 0.35/0.33 — 가설 1 뒤 ≤ 3 m 가 65% 위라 처방 조건 미충족·효과 없음 → 20 / 0.5 / 0 / 0
+     */
     trackTargetZone: 20,
-    trackMax: 2,
+    trackTargetNoCdm: 0,
+    /** 8대 §9.15.6 ②: 1 로 시작(CAM → ST 둘째 통로를 덜 연다 — 30골+ 문턱) */
+    trackMax: 1,
     trackCdmMax: 9,
     trackPickMax: 12,
     trackHold: 0.7,
@@ -286,6 +292,10 @@ export const ENGINE = {
     trackGapOut: 2.0,
     trackLead: 0.5,
     trackUrgent: 2,
+    /** 가설 2 ①: 침투자가 urgent(뛰는 중)이면 추적자도 항상 urgent (1). 측정 뒤 0 */
+    trackRunUrgent: 0,
+    /** 가설 2 ② 비행 중 인계 (1): 추적 중인 침투자에게 패스가 떠 있으면 수신자 압박 담당(closeDownPick)은 도착 시간과 무관하게 그 추적자. 측정 뒤 0 */
+    trackHandoff: 0,
     /** 커버 섀도 대상 가치 × (1 + focusShadowW × 계수): 패스 길 차단이 엘리트 쪽으로 */
     focusShadowW: 0.5,
     /** ST 마크는 공이 자기 골 stMarkZone m 안이면 한다 (박스 앞 블록보다 넓게: ST 가 내려와 받는 자리부터) */

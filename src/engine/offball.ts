@@ -10,7 +10,7 @@ import { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toP
 import { Purpose, rand, randn } from './rng';
 import { hasModule } from './roles';
 import { TENDENCY } from './tactics';
-import type { Agent, DefSit, SimState } from './state';
+import type { Agent, DefSit, Line, SimState } from './state';
 
 const O = ENGINE.offball;
 const F = ENGINE.formation;
@@ -907,19 +907,26 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 줄 2 존 마크의 ST 쏠림 해소 (C.76w (c), 미해결 8·11 — boxManMax > 0 일 때만, 지금은 0 = 끔): focus 가 이미 boxDefense 마커를 가진 상태(markZone + 위협 1위 마커)면
   // 존 마크는 focus 를 빼고 존 근처 다른 상대(2선 침투자가 대개 여기 걸린다)를 맡는다
   const focusHeld = O.boxManMax > 0 && markZone && threatMarker(s, a.team) !== null;
+  // 줄 대응 (C.77b (a0), 사용자 원칙 "상대 1선은 우리 최후방이, 상대 2·3선은 우리 3선(수미·중미)이 막는다"): 존 마크 후보를 줄로 짝짓는다 —
+  // 우리 줄 1 → [상대 줄 3, 그다음 줄 2] · 우리 줄 2 → [상대 줄 2, 그다음 줄 3] · 우리 줄 3 → [상대 줄 1·2, 그다음 줄 3]. 첫 단계에 14 m 안 상대가 있으면 그 안에서만,
+  // 없을 때만 다음 단계(대형이 달라 짝이 남을 때의 인계). focus(대개 ST) 쏠림은 우리 줄 1 에만 — 줄 2 는 focus 가 자기 첫 단계(줄 2)일 때만 (지금까지는 줄과 무관하게 가장 가까운 상대·focus 라 줄 2 가 ST 로 쏠리고 상대 2선은 비었다, 미해결 8)
+  const tiers: Line[][] = a.line === 1 ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
   let mark: Agent | null = null;
   let best = 14;
-  for (const o of s.agents) {
-    // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
-    if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner) continue;
-    if (focusHeld && o === focus) continue;
-    const d = dist(o.x, o.y, zx, zy);
-    if (d < best) {
-      best = d;
-      mark = o;
+  for (const tier of tiers) {
+    for (const o of s.agents) {
+      // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
+      if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || !tier.includes(o.line)) continue;
+      if (focusHeld && o === focus) continue;
+      const d = dist(o.x, o.y, zx, zy);
+      if (d < best) {
+        best = d;
+        mark = o;
+      }
     }
+    if (mark) break;
   }
-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);
@@ -1274,6 +1281,17 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
       second = o;
     }
   }
+  // 비행 중 인계 (C.77b 가설 2 ②): 수신자를 추적 중인 선수가 있으면 도착 시간과 무관하게 그 추적자가 담당 (추적자 + 수신자 압박 2명이 되지 않게)
+  if (O.trackHandoff > 0 && O.trackMax > 0) {
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team !== team || o.trackIdx !== rcv.idx || o === marker || hasModule(o.role, 'exempt')) continue;
+      if (pick !== o) {
+        if (second === o) second = pick;
+        pick = o;
+      }
+      break;
+    }
+  }
   if (!deep || !(rcv.pos === 'ST' || rcv.pos === 'CF')) second = null;
   return { pick, second };
 }
@@ -1365,6 +1383,7 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
     if (!o.onPitch || o.team !== att || o.line !== 2 || o === owner) return false;
     const dg = dist(o.x, o.y, gx, gy);
     if (dg < zone + slack) return true;
+    if (O.trackTargetNoCdm > 0 && o.pos === 'CDM') return false;
     const tg = dist(o.tx, o.ty, gx, gy);
     return tg < O.trackTargetZone + slack && dg > tg + 3;
   };
@@ -1469,7 +1488,7 @@ function trackTarget(s: SimState, a: Agent, dir: 1 | -1, gx: number, gy: number)
   const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
   a.tx = clamp(rx + ux * gap + a.errX * sigma, 0.3, L - 0.3);
   a.ty = clamp(ry + uy * gap + a.errY * sigma, 0.3, W - 0.3);
-  a.urgent = dist(a.tx, a.ty, a.x, a.y) > O.trackUrgent;
+  a.urgent = dist(a.tx, a.ty, a.x, a.y) > O.trackUrgent || (O.trackRunUrgent > 0 && r.urgent);
   a.minRun = false;
   return true;
 }
