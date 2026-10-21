@@ -746,7 +746,10 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'nine' | 'cutback' 
  * 결정은 stepOutHold 초 유지(시드 난수). 따라 나가기로 했으면 그 상대, 아니면 null
  */
 function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal: number): Agent | null {
-  if (a.pos !== 'CB' || ballGoal < O.stepOutBall[0] || ballGoal > O.stepOutBall[1]) return null;
+  if (a.pos !== 'CB' || ballGoal < O.stepOutBall[0] || ballGoal > O.stepOutBall[1]) {
+    a.stepOutIdx = -1;
+    return null;
+  }
   let pick: Agent | null = null;
   let pd = Infinity;
   // 줄 사이 깊이는 실제 라인(상대에게 오프사이드 라인 = 우리 둘째 수비수) 기준 — 전술 라인 lineX 는 공이 25~45 m 일 때 실제 라인보다 깊다 (C.77d 조정 1)

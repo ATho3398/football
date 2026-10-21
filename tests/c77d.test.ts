@@ -61,14 +61,18 @@ describe('C.77d 펄스 나인 미끼·2선 인계', () => {
         const m = createMatch(input(91));
         const s = m.state;
         let goTicks = 0, judged = 0, bad = 0;
+        const prev = new Map<object, number>();
         while (!s.done) {
           m.step();
           for (const d of s.agents) {
+            const p = prev.get(d) ?? -1;
+            prev.set(d, d.stepOutIdx);
             if (d.stepOutIdx < 0) continue;
             judged++;
+            if (d.stepOutGo) goTicks++;
+            if (p === d.stepOutIdx) continue; // 판단한 순간만 불변식 확인 (판단 뒤 그 선수가 판단 구간 밖 분기로 가면 idx 가 남는다)
             const o = s.agents[d.stepOutIdx]!;
             if (d.pos !== 'CB' || o.team === d.team || o.line !== 3) bad++;
-            if (d.stepOutGo) goTicks++;
           }
         }
         return { goTicks, judged, bad, score: `${s.teams[0].stats.goals}-${s.teams[1].stats.goals}` };
