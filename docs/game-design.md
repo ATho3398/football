@@ -6628,7 +6628,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | `MATRIX=50 RECHECK=100 sweep --tactics` 7×7 최대 / 게겐 평균 / 버스 평균 | 0.69 / +0.50 / −0.36 | **0.78 / +0.48 / −0.48**(게겐이 모든 성향을 이기는 것 그대로 — 미해결 3) | ≤ 1.0 |
 | 같은 시드 30경기 지문 | 6ab3059beba28723 | **d2f8a672e847258c**(center 재측정 전 28ab003b2e408704 — 경기 결과는 같고 평점만 다름) | 의도된 변경 |
 | `balance:check` 회귀 가드 | 19/19 | «BAL» | — |
-| typecheck · test · build | ✓ · 1,059 / 125 | «TEST» | — |
+| typecheck · test · build | ✓ · 1,059 / 125 | **✓ · 1,063개 / 126파일 ✓**(c77b 4개 추가; 2초 성능 테스트(`cards` 경기 계산) 1개가 balance:check·sweep·scoring 동시 실행 중 2,025 ms 로 1회 ✗ → 단독 재실행 16/16 ✓, C.76w 와 같은 부하 현상) · **build ✓** | — |
 
 **새 화면**: 없음.
 
