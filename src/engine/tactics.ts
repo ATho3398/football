@@ -202,11 +202,6 @@ export const TENDENCY = {
   busGap: 8,
   busLineMax: 14,
   busStay: 1,
-  /** C.77a 가설 2(44h-h): 수비 라인 낮음·매우 낮음(lineHeight ≤ deepLineMax) 팀은 압박 속(≥ deepSafePressure) 짧은 안전 패스·클리어 효용 × deepSafe, GK 롱볼 × deepGkLong (내려앉는 팀이 압박을 풀어냄) */
-  deepLineMax: 0.35,
-  deepSafePressure: 0.5,
-  deepSafe: 1.15,
-  deepGkLong: 1.1,
 };
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */
