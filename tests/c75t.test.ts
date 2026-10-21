@@ -163,7 +163,7 @@ describe('도감 화면', () => {
 
 describe('세이브 46', () => {
   it('옛 세이브(45) = 빈 도감', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(55);
+    expect(SAVE_FORMAT_VERSION).toBe(56);
     const g: GameState = game();
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 45;

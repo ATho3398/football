@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 76;
+export const BALANCE_VERSION = 77;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -393,9 +393,31 @@ export const BALANCE = {
     /**
      * NPC 피로 (C.77m, pending 142a): 내 선수와 같은 규칙(경기 뒤 거리 비례 피로·하루 weeklyRecovery ÷ 7 회복·피로 부상)을 NPC 에도.
      * 선발 점수 −(피로 − penaltyFrom) × selectPerPoint (OVR 점수) → 지친 주전 대신 벤치 로테이션, 경기 시작 스태미나 = startStamina(피로).
-     * 부상 확률 = injury 와 같은 식(난이도 보통·태그 없음) × injuryMul. on = false 면 NPC 피로·부상 없음(C.77c 이전과 같은 선발)
+     * 부상 확률 = injury 와 같은 식(난이도 보통·태그 없음) × injuryMul. on = false 면 NPC 피로·부상 없음(C.77c 이전과 같은 선발).
+     * cup — NPC 끼리 컵·챔스 간이 경기 피로 (C.77n, pending 142b): 레이팅 간이 계산 경기도 pickLineup(그날 컨디션)으로 선발 11명을 뽑아
+     * 90분·기준 거리 피로와 부상 판정만 더한다(엔진 없이). 결과(스코어)는 그대로. npc.cup = false 면 C.77m 과 같다
      */
-    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1 },
+    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true },
+  },
+
+  // ── 시즌 누적 부하 (C.77n, pending 142b — 게겐 대가: 피로↑ → 부상↑ → 선수 생명↓, 내 선수·NPC 같은 함수 src/load.ts) ──
+  // 경기 부하 = 출전 분/90 × 이동 거리/기준 거리 × 팀 성향 계수 (간이 경기는 거리 = 기준). 표준 90분 1경기 = 1.
+  // 실축 근거: 고강도 압박 팀(클롭 리버풀·랑닉 계열)은 팀 고강도 질주 거리가 리그 평균보다 10~20% 많고, 연간 출전 분·주 2경기 누적이
+  // 근육 부상의 가장 큰 위험 인자(UEFA 부상 연구 — 4일 미만 간격 경기에서 부상률 상승). 노쇠 가산은 근거가 약해 작게(0.5~1시즌) 둔다.
+  load: {
+    on: true,
+    /** 팀 성향 계수 (조정 손잡이 ①: 게겐 1.15 = 고강도 질주 +15%) */
+    tendency: { balanced: 1, tikitaka: 1.05, gegenpress: 1.15, counter: 0.95, direct: 0.95, block: 0.9, bus: 0.85 } as Record<string, number>,
+    /** 부상 확률 × (1 + max(0, 시즌 누적 부하 − injuryFrom) × injuryPerPoint) (손잡이 ②: 리그 주전 시즌 끝 약 32 → ×1.06, 챔스 게겐 주전 55 → ×1.24) */
+    injuryFrom: 25,
+    injuryPerPoint: 0.008,
+    /** 시즌 끝: 마모 += max(0, 시즌 부하 − wearFrom) (손잡이 ③: 리그 주전 평균 ≈ 32 → 거의 0, 게겐 주전 ≈ 37 → +7, 챔스 게겐 ≈ 55 → +25) */
+    wearFrom: 30,
+    /** 노쇠: 노화 나이 + min(maxShift, 마모 × agePerWear) 시즌(소수는 곡선 보간), 하락 속도 × (1 + min(maxRate, 마모 × ratePerWear)) (손잡이 ④) */
+    agePerWear: 0.02,
+    maxShift: 1,
+    ratePerWear: 0.0015,
+    maxRate: 0.1,
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──

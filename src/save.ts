@@ -372,6 +372,8 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   53: (s) => { s.globalAwards ??= { years: [] }; },
   // 54 → 55 (C.77m, pending 142a): NPC 피로·부상(npcFit). 옛 세이브 = 모든 NPC 피로 0·부상 없음에서 시작 (경기를 치르며 쌓인다)
   54: (s) => { s.npcFit ??= {}; },
+  // 55 → 56 (C.77n, pending 142b): 시즌 누적 부하·마모(npcLoad, player.load·wear). 옛 세이브 = 부하·마모 0 에서 시작
+  55: (s) => { s.npcLoad ??= {}; },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

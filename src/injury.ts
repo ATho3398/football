@@ -1,6 +1,7 @@
 // 부상 (7.3, 부록 D.2): 출전 경기마다 판정, 등급 추첨, 영구 하락
 
 import { injuryMul, type Tagged } from './tags';
+import { loadInjuryMul } from './load';
 import { BALANCE, type Difficulty } from './config/balance';
 import { PHYSICAL, randInt, type AttributeDelta } from './growth';
 import type { Rng } from './rng';
@@ -12,7 +13,7 @@ export const INJURY_NAMES_KO: Record<InjuryGrade, string> = {
 
 /** 이번 경기에서 다칠 확률. fatigue 는 경기 시작 때 피로 */
 export function injuryChance(
-  p: Pick<PlayerState, 'attributes' | 'age' | 'fatigue'> & Tagged, minutes: number, difficulty: Difficulty,
+  p: Pick<PlayerState, 'attributes' | 'age' | 'fatigue'> & { load?: number } & Tagged, minutes: number, difficulty: Difficulty,
 ): number {
   const I = BALANCE.injury;
   if (minutes <= 0) return 0;
@@ -20,7 +21,8 @@ export function injuryChance(
   const physical = I.physicalBase - (I.physicalSlope * (p.attributes.strength + p.attributes.stamina)) / 2 / 100;
   const age = p.age >= I.ageFrom ? I.ageMultiplier : 1;
   // 장단점 (C.45): 유리몸 ×1.5, 철강왕 ×0.6
-  return I.base * Math.min(1, minutes / 90) * BALANCE.difficulty[difficulty].injury * fatigue * physical * age * injuryMul(p);
+  // 시즌 누적 부하 (C.77n): 경기 전 이번 시즌 누적 부하가 load.injuryFrom 을 넘은 만큼 가산 (내 선수·NPC 같은 식)
+  return I.base * Math.min(1, minutes / 90) * BALANCE.difficulty[difficulty].injury * fatigue * physical * age * injuryMul(p) * loadInjuryMul(p.load);
 }
 
 function rollGrade(rng: Rng): InjuryGrade {

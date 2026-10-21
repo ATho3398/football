@@ -9,6 +9,9 @@ import { ENGINE } from './engine/config';
 import { gkFieldAttributes } from './engine/sim';
 import { createRng, hashSeed } from './rng';
 import { injuryChance } from './injury';
+import { addNpcLoad, matchLoad, tendencyLoad, type NpcLoadMap } from './load';
+import { teamPlan } from './engine/tactics';
+import { rosterRating } from './roster';
 import type { RosterPlayer, TeamRoster } from './roster';
 import type { PlayerLine } from './engine/npcMatch';
 
@@ -75,18 +78,44 @@ function npcInjuryDays(rng: () => number): number {
 /** 경기 한 줄: 선수 id · 출전 분 · 이동 거리(m) */
 export interface NpcLine { id: string; minutes: number; distance: number }
 
+const TENDENCY_LOAD = new Map<string, number>();
+
 /**
- * 경기 뒤 (day 날): 뛴 선수마다 피로 += 거리 비례, 부상 판정(확률 = 내 선수 injuryChance — 경기 시작 피로·신체·나이, 난이도 보통·태그 없음).
+ * 팀 성향 부하 계수 (C.77n): 데이터 팀은 데이터 성향, 아니면 teamPlan 시드 추첨(레이팅 = 로스터 레이팅). 팀·월드 시드마다 캐시
+ * (경기마다 상대에 맞춘 약자 전술 조정은 보지 않는다 — 시즌 누적 근사)
+ */
+export function rosterLoadMul(roster: TeamRoster, worldSeed: string): number {
+  const key = `${worldSeed}:${roster.teamId}`;
+  let v = TENDENCY_LOAD.get(key);
+  if (v === undefined) {
+    if (TENDENCY_LOAD.size > 512) TENDENCY_LOAD.clear();
+    v = tendencyLoad(teamPlan(roster.teamId, rosterRating(roster), roster.formation, worldSeed).tendency);
+    TENDENCY_LOAD.set(key, v);
+  }
+  return v;
+}
+
+/**
+ * 경기 뒤 (day 날): 뛴 선수마다 피로 += 거리 비례, 부상 판정(확률 = 내 선수 injuryChance — 경기 시작 피로·신체·나이, 난이도 보통·태그 없음
+ * × 시즌 누적 부하 배율 C.77n). load 를 주면 경기 부하(분 × 거리 × 팀 성향)를 시즌 누적에 더한다.
  * 난수는 (worldSeed, 경기 시드, 선수 id) 로 결정적. 로스터에 없는 id(내 선수 등)는 건너뛴다
  */
-export function npcAfterMatch(map: NpcFitMap, rosters: readonly TeamRoster[], lines: readonly NpcLine[], day: number, worldSeed: string, matchSeed: number): void {
+export function npcAfterMatch(
+  map: NpcFitMap, rosters: readonly TeamRoster[], lines: readonly NpcLine[], day: number, worldSeed: string, matchSeed: number, load?: NpcLoadMap,
+): void {
   if (!BALANCE.fatigue.npc.on) return;
   const byId = new Map<string, RosterPlayer>();
-  for (const r of rosters) for (const p of r.players) byId.set(p.id, p);
+  const mulOf = new Map<string, number>();
+  for (const r of rosters) {
+    const mul = load ? rosterLoadMul(r, worldSeed) : 1;
+    for (const p of r.players) { byId.set(p.id, p); mulOf.set(p.id, mul); }
+  }
   for (const l of lines) {
     if (l.minutes <= 0) continue;
     const p = byId.get(l.id);
     if (!p) continue;
+    const seasonLoad = load?.[l.id]?.[0];
+    if (load) addNpcLoad(load, l.id, matchLoad(l.minutes, l.distance, mulOf.get(l.id)!));
     const old = map[l.id];
     const before = npcFatigueOn(old, day);
     const f = Math.min(BALANCE.fatigue.max, before + npcMatchFatigue(l.distance));
@@ -94,7 +123,7 @@ export function npcAfterMatch(map: NpcFitMap, rosters: readonly TeamRoster[], li
     if (old?.[2] !== undefined && old[2] > day) fit[2] = old[2];
     const attributes = p.attributes ?? gkFieldAttributes(p.gk!.attrs);
     const rng = createRng(hashSeed(`${worldSeed}:npc-injury:${matchSeed}:${l.id}`));
-    if (rng() < injuryChance({ attributes, age: p.age, fatigue: before }, l.minutes, 'normal') * BALANCE.fatigue.npc.injuryMul) {
+    if (rng() < injuryChance({ attributes, age: p.age, fatigue: before, load: seasonLoad }, l.minutes, 'normal') * BALANCE.fatigue.npc.injuryMul) {
       fit[2] = day + 1 + npcInjuryDays(rng);
     }
     map[l.id] = fit;

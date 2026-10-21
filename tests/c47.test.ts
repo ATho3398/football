@@ -191,8 +191,8 @@ describe('세이브 26 → 27 (C.47)', () => {
     raw.saveFormat = 26;
     delete raw.legends;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(55);
-    expect(back.saveFormat).toBe(55);
+    expect(SAVE_FORMAT_VERSION).toBe(56);
+    expect(back.saveFormat).toBe(56);
     expect(back.legends).toBe(false);
     expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
   });

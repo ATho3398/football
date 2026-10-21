@@ -220,6 +220,15 @@ export function agingRate(curve: readonly (readonly [number, number])[], age: nu
   return rate;
 }
 
+/** 나이 + shift(시즌, 소수 가능) 의 곡선 값: 두 정수 나이 사이 선형 보간 (C.77n 마모). shift 0 이면 agingRate 그대로 */
+export function agingRateShifted(curve: readonly (readonly [number, number])[], age: number, shift: number): number {
+  if (shift <= 0) return agingRate(curve, age);
+  const a = age + shift;
+  const lo = Math.floor(a);
+  const f = a - lo;
+  return (1 - f) * agingRate(curve, lo) + f * agingRate(curve, lo + 1);
+}
+
 /** 포지션별 노화 배율: OVR 비중이 큰 능력치일수록 크고, 25개 평균은 1 (aging.positionFocus) */
 const FOCUS_CACHE = new Map<string, Record<FieldAttribute, number>>();
 export function agingFocus(pos: FieldPosition, s: number = BALANCE.aging.positionFocus): Record<FieldAttribute, number> {
@@ -244,17 +253,19 @@ function computeAgingFocus(pos: FieldPosition, s: number): Record<FieldAttribute
  * 노련함 능력치는 veteran.agingFromAge 전까지 면제, 그 뒤로는 기술/멘탈 하락 × agingFactor (6.1.1).
  * pos 를 주면 포지션 OVR 에 중요한 능력치가 더 많이 떨어진다 (aging.positionFocus)
  */
-export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition, mul = 1, skip: { phys?: boolean; other?: boolean } = {}): AttributeDelta {
+export function applyAging(attrs: FieldAttributes, age: number, rng: Rng, pos?: FieldPosition, mul = 1, skip: { phys?: boolean; other?: boolean } = {}, shift = 0): AttributeDelta {
   const A = BALANCE.aging;
   const V = BALANCE.veteran;
+  // 시즌 누적 마모 (C.77n): 곡선을 shift 시즌 앞당겨 읽는다 (소수는 두 나이 사이 보간)
+  const at = (curve: readonly (readonly [number, number])[]): number => agingRateShifted(curve, age, shift);
   const late = age >= A.lateFrom;
   // 38세부터 (C.45): 골고루(lateFocus) + 체력·속도·가속 추가 배율. mul = 노익장 ×0.6
   const focus = pos ? agingFocus(pos, late ? A.lateFocus : A.positionFocus) : null;
   const delta: AttributeDelta = {};
   for (const a of FIELD_ATTRIBUTES) {
     let rate: number;
-    if (isVeteranAttribute(a)) rate = age < V.agingFromAge ? 0 : agingRate(A.other, age) * V.agingFactor;
-    else rate = agingRate(PHYSICAL.includes(a) ? A.physical : A.other, age);
+    if (isVeteranAttribute(a)) rate = age + shift < V.agingFromAge ? 0 : at(A.other) * V.agingFactor;
+    else rate = at(PHYSICAL.includes(a) ? A.physical : A.other);
     if (focus) rate *= focus[a];
     if (late) rate *= A.lateExtra[a] ?? 1;
     rate *= mul;

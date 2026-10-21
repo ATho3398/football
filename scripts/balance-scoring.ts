@@ -25,6 +25,6 @@ for (const row of r.rows) {
 const topGF = r.rows.find((x) => x.key === 'lgTopGF');
 const tops = (topGF?.note ?? '').split(', ').map((t) => Number(t.split(' ')[1]));
 console.log(`최다 득점 팀 최대 ${Math.max(...tops)} (참고 ≤120)`);
-for (const e of r.extra) if (e.startsWith('포지션군') || e.startsWith('실제 시즌') || e.startsWith('MID 최다') || e.startsWith('상위 10 ST') || e.startsWith('NPC 피로')) console.log(e);
+for (const e of r.extra) if (e.startsWith('포지션군') || e.startsWith('실제 시즌') || e.startsWith('MID 최다') || e.startsWith('상위 10 ST') || e.startsWith('NPC 피로') || e.startsWith('NPC 컵') || e.startsWith('주전(')) console.log(e);
 console.log(`\n${nSeasons}시즌 ${((Date.now() - t0) / 1000).toFixed(0)}초 — ${fails.length ? `실패: ${fails.join(', ')}` : '득점 분포 통과'}`);
 process.exit(fails.length ? 1 : 0);

@@ -8,7 +8,8 @@ import { realAppearance, rollAppearance, type Appearance } from './appearance';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
 import { BALANCE } from './config/balance';
 import { FORMATION_SLOTS, FORMATIONS, type Formation, type FormationSlot } from './formations';
-import { agingRate, randInt, skillTier } from './growth';
+import { agingRate, agingRateShifted, randInt, skillTier } from './growth';
+import { wearAging } from './load';
 import { CLUB_TO_TEAM } from './league';
 import { growNpc, shiftOvr, type NpcState } from './npc';
 import { attributeOvrWeight, positionOvr, positionOvrExact, profileOf, type FieldPosition } from './positions';
@@ -676,13 +677,13 @@ export function addLegendSpawns(rosters: Rosters, spawns: readonly LegendSpawn[]
 // ── 시즌 갱신 (5.6 성장/노화, 은퇴 보충) ──
 
 /** 가상 필드 선수 성장: NPC 성장 곡선(growNpc)을 그대로 쓴다 */
-function growVirtualField(p: RosterPlayer, worldSeed: string, season: number): RosterPlayer {
+function growVirtualField(p: RosterPlayer, worldSeed: string, season: number, wear = 0): RosterPlayer {
   const n: NpcState = {
     id: p.id, name: p.name, nameKo: p.nameKo, club: '', position: p.position as FieldPosition, age: p.age,
     potentialTier: p.potentialTier, peakOvr: p.peakOvr, peakAge: p.peakAge, attributes: { ...p.attributes! },
     lastChange: 0, retired: false,
   };
-  const g = growNpc(n, worldSeed, season);
+  const g = growNpc(n, worldSeed, season, wear);
   return { ...p, age: g.age, attributes: g.attributes };
 }
 
@@ -702,9 +703,10 @@ function growVirtualGk(p: RosterPlayer, worldSeed: string, season: number): Rost
   return { ...p, age: p.age + 1, gk: { ...p.gk!, attrs } };
 }
 
-function retires(p: RosterPlayer, rng: Rng): boolean {
+function retires(p: RosterPlayer, rng: Rng, shift = 0): boolean {
   if (p.age >= BALANCE.retirement.forcedAge) return true;
-  return rng() < agingRate(BALANCE.roster.retireChance, p.age);
+  // 시즌 누적 마모 (C.77n): 은퇴 확률 곡선도 노쇠와 같이 shift 시즌 앞당겨 읽는다
+  return rng() < agingRateShifted(BALANCE.roster.retireChance, p.age, shift);
 }
 
 /** 은퇴 자리 보충: 같은 포지션의 가상 신인. 전성기 OVR 은 팀 장기 평균 레이팅 근처 */
@@ -726,7 +728,7 @@ function makeRookie(teamId: string, position: Position, baseRating: number, worl
  * 가상 선수 성장/노화 → 은퇴(가상: 확률, 실제: NpcState.retired) → 신인 보충 → 재계약
  */
 export function updateRostersForSeason(
-  rosters: Rosters, worldSeed: string, season: number, baseRatings: Record<string, number>, npcs: NpcState[],
+  rosters: Rosters, worldSeed: string, season: number, baseRatings: Record<string, number>, npcs: NpcState[], wearOf: (id: string) => number = () => 0,
 ): Rosters {
   const R = BALANCE.roster;
   const byId = new Map(npcs.map((n) => [n.id, n]));
@@ -743,8 +745,9 @@ export function updateRostersForSeason(
         retired = !n || n.retired;
         next = n ? { ...p, age: n.age, attributes: { ...n.attributes } } : p;
       } else {
-        next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season);
-        retired = retires(next, rng);
+        const wear = wearOf(p.id);
+        next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season, wear);
+        retired = retires(next, rng, wearAging(wear).shift);
       }
       if (retired) {
         players.push(makeRookie(teamId, p.position, baseRatings[teamId] ?? 70, worldSeed, season, k++));

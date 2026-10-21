@@ -22,6 +22,8 @@ const rows: { age: number; match: number; train: number; ach: number; total: num
 // C.77m: 경기 날 아침 피로 (내 경기마다), 50 넘은 경기 수
 const morning: number[] = [];
 const ovr30: number[] = [];
+// C.77n: 30세 때 누적 마모 (시즌 부하 − load.wearFrom 합)
+const wear30: number[] = [];
 for (let i = 0; i < N; i++) {
   const tier = TIERS[i % TIERS.length]!;
   const g: GameState = newGame({ mode: 'prospect', position: PLAYABLE_POSITIONS[i % PLAYABLE_POSITIONS.length]!, seed: `train-${i}`, difficulty: 'normal' });
@@ -50,7 +52,7 @@ for (let i = 0; i < N; i++) {
       ups: t?.season.ups ?? 0, fatigue: t?.season.fatigue ?? 0, plan, days, apps: h.apps,
       starts: (h as { starts?: number }).starts ?? 0, inj: (h as { injuries?: number }).injuries ?? 0, rehab: (h as { injuredWeeks?: number }).injuredWeeks ?? 0,
     });
-    if (g.player.age === 30) ovr30.push(playerOvr(g.player));
+    if (g.player.age === 30) { ovr30.push(playerOvr(g.player)); wear30.push(g.player.wear ?? 0); }
     if (g.phase !== 'offseason') break;
     startNextSeason(g);
   }
@@ -70,4 +72,4 @@ console.log(`  게이지 능력치 상승 시즌 평균 ${avg(all.map((x) => x.u
 const tot = avg(all.map((x) => x.match + x.train));
 console.log(`  훈련 XP 시즌 합계 ${avg(all.map((x) => x.train)).toFixed(0)} = 경기+훈련 XP 의 ${(avg(all.map((x) => x.train)) / tot * 100).toFixed(0)}%`);
 console.log(`  (C.77m) 시즌 출전 ${avg(all.map((x) => x.apps)).toFixed(1)} · 선발 ${avg(all.map((x) => x.starts)).toFixed(1)} · 부상 ${avg(all.map((x) => x.inj)).toFixed(2)}회 · 부상 결장 ${avg(all.map((x) => x.rehab)).toFixed(1)}주/시즌 · 출전 경기 전 피로 평균 ${avg(morning).toFixed(1)} · 50 초과 ${(morning.filter((f) => f > 50).length / Math.max(1, morning.length) * 100).toFixed(1)}%`);
-console.log(`  30세 OVR 평균 ${avg(ovr30).toFixed(1)}`);
+console.log(`  30세 OVR 평균 ${avg(ovr30).toFixed(1)} · (C.77n) 30세 누적 마모 평균 ${avg(wear30).toFixed(1)} (최대 ${Math.max(0, ...wear30).toFixed(1)})`);

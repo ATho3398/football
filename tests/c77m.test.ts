@@ -134,7 +134,7 @@ describe('C.77m 본편 연결·세이브', () => {
   });
 
   it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcFit 저장·옛 세이브(54) 이전`, () => {
-    expect(SAVE_FORMAT_VERSION).toBe(55);
+    expect(SAVE_FORMAT_VERSION).toBe(56);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77m-s', difficulty: 'normal' });
     g.npcFit = { x: [12.5, 9000, 9010] };
     const old = JSON.parse(serialize(g));
@@ -142,7 +142,7 @@ describe('C.77m 본편 연결·세이브', () => {
     old.saveFormat = 54;
     delete old.npcFit;
     const m = migrate(old);
-    expect(m.saveFormat).toBe(55);
+    expect(m.saveFormat).toBe(56);
     expect(m.npcFit).toEqual({});
   });
 });

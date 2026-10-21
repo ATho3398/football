@@ -4,6 +4,7 @@ import { FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './a
 import { BALANCE } from './config/balance';
 import { generatePlayer } from './generate';
 import { applyAging, applyVeteranGrowth, randInt } from './growth';
+import { wearAging } from './load';
 import { attributeOvrWeight, positionOvr, profileOf, type FieldPosition } from './positions';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import type { FieldPlayerData, Tier } from './types';
@@ -76,7 +77,7 @@ export function shiftOvr(attrs: FieldAttributes, pos: FieldPosition, d: number, 
 }
 
 /** 시즌 종료 NPC 성장. age 는 그 시즌의 나이이며, 처리 후 +1 된다 */
-export function growNpc(n: NpcState, worldSeed: string, season: number): NpcState {
+export function growNpc(n: NpcState, worldSeed: string, season: number, wear = 0): NpcState {
   if (n.retired) return n;
   const N = BALANCE.npc;
   const rng = createRng(hashSeed(`${worldSeed}:npc-growth:${n.id}:${season}`));
@@ -95,7 +96,9 @@ export function growNpc(n: NpcState, worldSeed: string, season: number): NpcStat
     // 전성기 이후: 노련함 성장 + 노화 곡선 + 시즌 운 (6.1.1).
     // 전성기 전에는 전성기 OVR 접근 곡선에 노련함이 이미 포함된 것으로 본다
     applyVeteranGrowth(attrs, n.age, rng);
-    applyAging(attrs, n.age, rng, n.position);
+    // 시즌 누적 마모 (C.77n): 노쇠 나이 앞당김·하락 속도 가산 (마모 없으면 그대로)
+    const w = wearAging(wear);
+    applyAging(attrs, n.age, rng, n.position, w.mul, {}, w.shift);
     shiftOvr(attrs, n.position, Math.round(gaussian(rng) * N.seasonLuck * 0.5), rng);
   }
 

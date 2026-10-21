@@ -210,8 +210,8 @@ describe('내 선수 이적과 계약 (18.10, 부록 C.42)', () => {
     delete raw.market;
     for (const v of Object.values(raw.playerStats) as number[][]) v.length = 4;
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(55);
-    expect(back.saveFormat).toBe(55);
+    expect(SAVE_FORMAT_VERSION).toBe(56);
+    expect(back.saveFormat).toBe(56);
     expect(back.transfers).toEqual([]);
     expect(back.market.contract.teamId).toBe(g.player.teamId);
     expect(back.market.offers).toBeNull();
