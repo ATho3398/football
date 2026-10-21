@@ -2858,3 +2858,8 @@ main:has(.fn-body) .po-hero__chips > * { min-width: 0; flex: 0 1 auto; overflow:
 .aw-body .aw-desc { margin: -4px 0 8px; }
 .aw-body .aw-more summary { cursor: pointer; padding: 8px 0 4px; }
 .aw-body .tbl td.l small { font-weight: 400; }
+/* 시상식 (C.76t) */
+.aw-body .aw-cer-open { margin-top: 8px; }
+.aw-body .aw-cer-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.aw-body .aw-cer-win { display: flex; gap: 12px; align-items: center; padding: 10px 0; }
+.aw-body .aw-cer-name { font-size: 1.3em; }

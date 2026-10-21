@@ -198,7 +198,7 @@ describe('진열실', () => {
 
 describe('세이브 48', () => {
   it('옛 세이브(47) = 빈 진열 · 교환 기록 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(53);
+    expect(SAVE_FORMAT_VERSION).toBe(54);
     const g = game();
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 47;
