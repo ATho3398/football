@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 33;
+export const ENGINE_VERSION = 34;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -321,13 +321,14 @@ export const ENGINE = {
     lateRunRun: 0.4,
     /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
     cutbackZone: 15,
-    /** 2선 늦은 침투 (E.22 B): 공이 측면이면 침투 미드는 골에서 lateRunDepth m (박스 안) */
+    /** 2선 늦은 침투 (E.22 B): 공이 측면이면 침투 미드는 골에서 lateRunDepth m (박스 안, 페널티 지점).
+     * C.76x(44h-g) 측정: 17(박스 꼭대기)·15 는 CAM 골 → ST 로 옮기지만(MID 최다 27.2 → 20.9) 같은 시드 scoring 30골+ 1.70 → 2.60 / 2.10(관문 ≤ 2.0 ✗) — 11 유지 */
     lateRunDepth: 11,
     /** 세트피스 (E.22 B): 코너·측면 프리킥 때 박스에 들어가는 CB 최대 수 */
     setPieceCB: 2,
     /** 세트피스 수비 대인 마크 인원 (E.22 B, 나머지는 지역 수비) */
     setPieceMark: 3,
-    /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율) */
+    /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율; C.76x 측정 19·17 ✗, lateRunDepth 와 같은 이유로 13 유지) */
     boxRunDepth: 13,
     /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스 */
     backPostDepth: 8,
