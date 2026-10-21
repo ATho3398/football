@@ -305,9 +305,13 @@ export const BALANCE = {
   // 출전 경기마다 확률 = base × 출전 비율 × 난이도 배율 × 피로 보정 × 신체 보정 × 나이 보정
   injury: {
     base: 0.02,
-    /** 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint */
-    fatigueFrom: 30,
-    fatiguePerPoint: 0.02,
+    /**
+     * 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint.
+     * C.77m: 피로 수치 상향(경기 22 → 30, 회복 ↓)으로 경기 전 피로 평균 약 4 → 26 이라 30·0.02 그대로면 balance:check 부상 풀타임 환산 ✗(같은 시드 진단 0.83 → 1.06).
+     * 문턱 30 → 60(penaltyFrom 50 보다 위 = "지친 몸"), 기울기 0.02 → 0.01 → 0.83(기준선과 같음, `scripts/diag/injury-per38.ts`). 피로 80 이면 × 1.2
+     */
+    fatigueFrom: 60,
+    fatiguePerPoint: 0.01,
     /** 신체 보정 = physicalBase - physicalSlope × (근력 + 체력) / 2 / 100 */
     physicalBase: 1.3,
     physicalSlope: 0.6,

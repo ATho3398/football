@@ -19,8 +19,9 @@ describe('부상 확률 (부록 D.2)', () => {
     expect(injuryChance(p, 0, 'normal')).toBe(0);
     expect(injuryChance(p, 90, 'easy')).toBeCloseTo(0.014);
     expect(injuryChance(p, 90, 'hard')).toBeCloseTo(0.026);
-    expect(injuryChance({ ...p, fatigue: 30 }, 90, 'normal')).toBeCloseTo(0.02);
-    expect(injuryChance({ ...p, fatigue: 55 }, 90, 'normal')).toBeCloseTo(0.03);
+    // C.77m: 피로 보정 문턱 30 → 60, 기울기 0.02 → 0.01 (피로 80 이면 × 1.2)
+    expect(injuryChance({ ...p, fatigue: 60 }, 90, 'normal')).toBeCloseTo(0.02);
+    expect(injuryChance({ ...p, fatigue: 80 }, 90, 'normal')).toBeCloseTo(0.024);
     expect(injuryChance({ ...p, attributes: flat(100) }, 90, 'normal')).toBeCloseTo(0.014);
     expect(injuryChance({ ...p, age: 30 }, 90, 'normal')).toBeCloseTo(0.026);
   });
