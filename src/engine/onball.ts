@@ -4,7 +4,7 @@
 import { weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
-import { duelEdgeOf, tiredRatio } from './physics';
+import { duelEdgeOf, reachTime, tiredRatio } from './physics';
 import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { hasModule } from './roles';
@@ -432,17 +432,18 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     let gkWins = -1;
     if (running) {
       // 침투 패스: 받는 선수와 가장 가까운 수비수의 달리기 경쟁 (도착 시간 차, 초). 빠른 선수가 뒷공간을 더 잘 받는다
+      // 도착 시간은 현재 속도·가속을 본다 (C.77f 가설 A): 물러나던 CB 는 그 순간부터 최고 속도가 아니다
       const [def] = nearestOutfield(s, r, tx, ty);
-      let tDef = def ? dist(def.x, def.y, tx, ty) / def.maxSpeed + PR.raceTurn : Infinity;
+      let tDef = def ? reachTime(def, tx, ty) + PR.raceTurn : Infinity;
       // 목표점이 상대 GK 처리 구역 안이면 GK 도 달리기 경쟁에 들어간다 (C.28). GK 가 더 빠르면 실패한 패스는 GK 가 끊는다
       if (oppGk && keeperZone(s, oppGk, tx, ty)) {
-        const tGk = dist(oppGk.x, oppGk.y, tx, ty) / oppGk.maxSpeed + ENGINE.keeper.throughDelay;
+        const tGk = reachTime(oppGk, tx, ty) + ENGINE.keeper.throughDelay;
         if (tGk < tDef) {
           tDef = tGk;
           gkWins = oppGk.idx;
         }
       }
-      if (Number.isFinite(tDef)) race = PR.raceGain * clamp(tDef - dist(r.x, r.y, tx, ty) / r.maxSpeed, -PR.raceCap, PR.raceCap);
+      if (Number.isFinite(tDef)) race = PR.raceGain * clamp(tDef - reachTime(r, tx, ty), -PR.raceCap, PR.raceCap);
     }
     // 롱패스(공중볼)는 착지점에서 가까운 수비수와 공중볼 경합을 한다 (판정과 같은 P, actions resolveFlight)
     let aerial = 1;

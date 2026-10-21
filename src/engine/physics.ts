@@ -32,6 +32,22 @@ export function effectiveMax(a: Agent): number {
   return a.maxSpeed * (P.tiredMaxFloor + ((1 - P.tiredMaxFloor) * a.stamina) / P.staminaLowFrom);
 }
 
+/**
+ * 도착 시간 (C.77f 가설 A): 현재 속도의 목표 방향 성분 v0 에서 accel 로 effectiveMax 까지 가속하며 d 를 가는 시간.
+ * moveAgent 와 같은 운동학(반대 방향이면 v0 = 0). 침투 패스 달리기 경쟁이 쓴다
+ */
+export function reachTime(a: Agent, x: number, y: number): number {
+  const dx = x - a.x;
+  const dy = y - a.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 1e-6) return 0;
+  const vmax = effectiveMax(a);
+  const v0 = Math.min(vmax, Math.max(0, (a.vx * dx + a.vy * dy) / d));
+  const dAcc = (vmax * vmax - v0 * v0) / (2 * a.accel);
+  if (d <= dAcc) return (Math.sqrt(v0 * v0 + 2 * a.accel * d) - v0) / a.accel;
+  return (vmax - v0) / a.accel + (d - dAcc) / vmax;
+}
+
 /** 목표 속도: 거리별 걷기/조깅/러닝, 긴급하면 최대 속도. 목표 근처에서는 감속 */
 function desiredSpeed(a: Agent, d: number, cap: number): number {
   if (d < P.arriveDist) return 0;
