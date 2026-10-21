@@ -6601,7 +6601,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 2. **가설 2 ①② 측정 뒤 끔** (`trackTargetZone 24 + trackTargetNoCdm 1 + trackLead 0.8 + trackRunUrgent 1 + trackHandoff 1`(closeDownPick 에서 수신자를 추적 중인 선수를 먼저)): 가설 1 뒤 받는 순간 ≤ 3 m 가 70% 로 처방 조건(65% 아래)에 걸리지 않았고, 재어 보니 ≤ 1.5 m 28 → 28% · ≤ 3 m 70 → 70%(추적자 자신의 거리만 5.8 → 4.5 m), `gap 120` CAM 골 0.33/0.35 → 0.35/0.33 — 효과 없음 → 20 / 0 / 0.5 / 0 / 0. 코드는 상수로 남김.
 3. **줄 대응 (a0) 측정 뒤 끔** (`offball.lineTiers` 0; Y 10:16 보강 — 존 마크 후보 단계화: 우리 줄 1 → [상대 줄 3, 줄 2], 줄 2 → [상대 줄 2, 줄 3], 줄 3 → [상대 줄 1·2, 줄 3], 첫 단계에 14 m 안 상대가 있으면 그 안에서만, focus 쏠림은 줄 1 만): trackMax 1 과 함께 재니 **CAM 골은 줄지 않고(gap Δ0 0.33/0.35 → 0.33/0.32) 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36 · quick ST 31 → 34**, 같은 시드 scoring **30골+ 1.80 → 2.40 ✗**(득점왕 중앙값 35, 리그 1.35, MID 최다 22.4, 상위 10 CAM 1.2, 승점 101) — C.76w 가설 1 의 "ST 가 풀리면 30골+" 통로 그대로. 1 이면 모두 가설 1 과 같다. 사용자 원칙(09:56)의 구조는 코드에 있고 상수로 다시 켤 수 있다.
 4. `trackMax` 는 Y 지시의 1 이 아니라 **2**: 1 은 줄 대응과 함께만 재어(위) 관문 ✗ 였고, 2(줄 대응 없음)가 관문 통과. `keeper.saveBase` 는 1.62 그대로(quick 600 1.31 ✓, 1.30~1.45 안이라 그대로 — 아래).
-5. `scripts/diag/runner-track.ts` 에 추적 배정 행(`Ep.tracked/trackerPos/recvTrack`, `a.trackIdx` 읽기). `tests/c77b.test.ts` 4개(상수 범위·결정성·불변식(추적자는 줄 2 CDM/CM, 대상은 상대 줄 2, 배정 순간 12 m 안)·trackMax 0 이면 배정 0·존 22 안 줄 2 틱 중 추적 ≥ 30%). `ENGINE_VERSION` 33 → 34, `BALANCE_VERSION` 69 → 70.
+5. **평점 center 재측정** (§9.12.7, C.26 방식): ST 몫 31 → 34 로 `engine:check` ST 평점 6.68 → **6.75**(가드 6.3~6.7 ✗) → `rating-parts 600`(엔진 34, 선발 45분 이상 1,909명) ST 평균 델타 1.871 → `rating.center.ST` 1.68 → **1.87**(가드 밖 군만; 다른 7군 측정값 CAM 1.34 · CDM 1.41 · CM 1.61 · WING 1.01 · CB 0.96 · FB 0.81 · GK 1.00 은 가드 안이라 그대로, 전부 넣으면 σ 가 0.70 아래로). 정규화 상수 재측정이지 고무줄이 아니다.
+6. `scripts/diag/runner-track.ts` 에 추적 배정 행(`Ep.tracked/trackerPos/recvTrack`, `a.trackIdx` 읽기). `tests/c77b.test.ts` 4개(상수 범위·결정성·불변식(추적자는 줄 2 CDM/CM, 대상은 상대 줄 2, 배정 순간 12 m 안)·trackMax 0 이면 배정 0·존 22 안 줄 2 틱 중 추적 ≥ 30%). `ENGINE_VERSION` 33 → 34, `BALANCE_VERSION` 69 → 70.
 
 **측정 1 — 가설별 `runner-track 40`(존 22, 두 팀 합) · `gap 120` Δ0 두 팀 · 같은 시드 scoring 10시즌 (10:2x~11:3x KST)**
 | 설정 | 4-2-3-1 배정률(CDM) · 받는 순간 ≤ 1.5 / ≤ 3 m · 줄 2 수비 ≤ 3 m · 받음/경기 · 에피소드 슛/골 | 4-3-3 배정률 · ≤ 1.5 / ≤ 3 m · 받음 · 골 · 미드 박스 수신(40경기) | gap Δ0 CAM 골 · ST 골 · MID free 슛 · MID xG/슛 · 박스 안 수신(1.5 m 안) · 득점 | scoring 30골+ / 중앙값 / 리그 / MID 최다 / 상위 10 CAM |
@@ -6624,7 +6625,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | `liv 120 liv A` 리버풀 MID 골 · ST 골 · 총 | 0.91 · 0.74 · 2.81 | **0.60 ✓ · 0.96 ✓ · 2.76 ✓**(리버풀 4-3-3 CM 이 CDM 대신 맡음) | ≤ 0.65 · ≥ 0.74 · ≤ 3.0 |
 | `tac 120 bus` 실점 | 1.48 | **1.43 ✓**(버스 득점 0.93) | ≤ 1.55 |
 | `engine:check` 평점 평균 / σ / ST / CDM / CM / XP 비 / 순간이동 | 6.51 / 0.70 / 6.68 / 6.45 / 6.38 / 1.11 / 0 | «ENG» | 8군 6.3~6.7 · 0.7~0.9 · ≤ 1.15 · 0 |
-| 같은 시드 30경기 지문 | 6ab3059beba28723 | **28ab003b2e408704** | 의도된 변경 |
+| 같은 시드 30경기 지문 | 6ab3059beba28723 | **d2f8a672e847258c**(center 재측정 전 28ab003b2e408704 — 경기 결과는 같고 평점만 다름) | 의도된 변경 |
 | `balance:check` 회귀 가드 | 19/19 | «BAL» | — |
 | typecheck · test · build | ✓ · 1,059 / 125 | «TEST» | — |
 
