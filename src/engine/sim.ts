@@ -376,16 +376,17 @@ export function step(s: SimState): void {
 function stepBody(s: SimState): void {
   const dt = T.dt;
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
-  // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격)
+  // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격), 추적자는 trackRefresh 초마다 (C.77h)
   const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
   updateSituations(s);
   for (const a of s.agents) {
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh)) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || (a.trackIdx >= 0 && ENGINE.offball.trackRefresh > 0 && a.nextOffball - s.t > ENGINE.offball.trackRefresh)) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));
       if (looseNow && a.line === 0) a.nextOffball = Math.min(a.nextOffball, s.t + ENGINE.keeper.chaseRefresh);
+      if (a.trackIdx >= 0 && ENGINE.offball.trackRefresh > 0) a.nextOffball = Math.min(a.nextOffball, s.t + ENGINE.offball.trackRefresh);
     }
   }
 

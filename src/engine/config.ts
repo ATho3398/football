@@ -321,6 +321,12 @@ export const ENGINE = {
     trackGapOut: 2.0,
     trackLead: 0.5,
     trackUrgent: 2,
+    /**
+     * 추적자 갱신·urgent 히스테리시스 (C.77h 44h-i2, 8대 §9.15.10 가설 1): 추적 중(trackIdx ≥ 0)이면 오프볼 목표를 trackRefresh 초마다 다시 본다(GK chaseRefresh 와 같은 자리, 기본 간격 0.35~0.65초 사이에
+     * 침투자가 3~5 m 더 뛰어 걷기→뛰기를 되풀이하던 것). urgent 는 trackUrgent m 위에서 켜지고 trackUrgentOff m 아래에서만 꺼진다. trackRefresh 0 · trackUrgentOff = trackUrgent 면 엔진 38 과 같다
+     */
+    trackRefresh: 0.2,
+    trackUrgentOff: 0.8,
     /** 가설 2 ①: 침투자가 urgent(뛰는 중)이면 추적자도 항상 urgent (1). 측정 뒤 0 */
     trackRunUrgent: 0,
     /** 가설 2 ② 비행 중 인계 (1): 추적 중인 침투자에게 패스가 떠 있으면 수신자 압박 담당(closeDownPick)은 도착 시간과 무관하게 그 추적자. 측정 뒤 0 */

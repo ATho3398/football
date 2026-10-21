@@ -6593,6 +6593,27 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
+### C.77h 44h-i2단계 엔진 블록 — 추적 갱신 간격·urgent 히스테리시스(미해결 8·11): **진단 불일치 ⑤ — 가설 1 뒤 받는 순간 ≤ 1.5 m 29 → 32%(불일치 선 29 ± 3 안), `main` 배포 없음** (ENGINE_VERSION 38 · BALANCE_VERSION 74 · SAVE_FORMAT_VERSION 그대로, main 코드 무변경)
+
+- 지시: 마스터 Z `docs/session-prompts/C.77h.md`, 처방 엔진관리자8 `docs/engine-diagnosis-e4.md` §9.15.10 44h-i2. 브랜치 `claude/c77h-track-refresh`(main d7f88d3, 엔진 38). Opus 높음. 2026-10-21 23:52 ~ 23:58 KST. `PATCH_LABEL`·`STAGE_LABEL` 그대로(배포 없음).
+- **한 일(코드, 브랜치에만)**: `sim.ts stepBody` 오프볼 갱신 조건에 `|| (a.trackIdx >= 0 && trackRefresh > 0 && nextOffball − t > trackRefresh)` + 다음 갱신 상한(GK `chaseRefresh` 와 같은 자리), `offball.ts trackTarget()` urgent 히스테리시스(켜짐 `trackUrgent` 2 m, 이미 urgent 면 `trackUrgentOff` 아래에서만 꺼짐), 새 상수 `offball.trackRefresh` **0.2** · `trackUrgentOff` **0.8**(0 · 2 면 엔진 38 과 같다 — 기준선은 이 덮어쓰기로 같은 코드에서 잼).
+
+**측정 — `MODE=zone TRACK_ZONE=22 runner-track 40` (C.77b 의 "존 22" 표와 같은 방식; 기준선 4-2-3-1 ≤ 1.5 m 29% 로 §9.15.10 과 일치)**
+| 설정 | 4-2-3-1 받는 순간 ≤ 1.5 / ≤ 3 m · 줄 2 수비 ≤ 3 m · 받음/경기 · 배정 · 추적자 거리(≤ 1.5 m) · 에피소드 골/경기 | 4-3-3 ≤ 1.5 / ≤ 3 m · 받음/경기 · 배정 · 추적자 거리 · 골 |
+|---|---|---|
+| 엔진 38 기준(`trackRefresh=0 trackUrgentOff=2`) | 29 / 70% · 60% · 37.0 · 77% · 5.7 m (4%) · 1.02 | 19 / 50% · 31.6 · 72% · 6.5 m · 0.23 |
+| **가설 1 (0.2 · 0.8)** | **32 / 76%** · 67% · **34.5** · 77% · **5.5 m (5%)** · 0.57 | **24 / 57%** · 30.1 · 72% · 6.7 m · 0.42 |
+| 탐침: 갱신 0.05초(≈ 매 3틱) | 33 / 76% · 69% · 33.5 · 78% · 5.7 m (6%) | — |
+| 탐침: 히스테리시스만 최대(`trackUrgentOff` 0) | 31 / 74% · 65% · 35.9 · 77% · 5.6 m (6%) | — |
+
+읽는 법: 갱신을 0.35~0.65초 → 0.2초(심지어 0.05초)로 줄여도 **추적자 자신의 받는 순간 거리는 5.5~5.7 m 그대로**이고 ≤ 1.5 m 는 32~33% 에서 멈춘다(목표 ≥ 36, 부분 33). 팀 전체 ≤ 3 m 70 → 76%·받음 37.0 → 34.5 는 움직였지만, §9.15.10 이 가정한 "갱신 사이 걷기↔뛰기 토글이 늦음의 원인" 은 재현되지 않았다 — 지시("29 ± 3 이면 조정 말고 멈추고 보고")대로 멈춤. 가설 2(`trackGap` 2.0)·가설 3(`lineTiers` 1 출전율 켬)·총량·`gap 120`·`defense-shape`·quick·scoring·`engine:check`·게겐 상성표는 재지 않음(엔진 무배포라 상성표는 C.77g 값 그대로). 남은 차이 감소 (32−29)/(36−29) = 43% < 50% 라 부분 해결도 아님.
+
+- **8대에 넘김(재진단 1회, automation 3번 ⑤)**: 추적자가 5~6 m 뒤에 머무는 원인 후보 — ① 목표 자리가 "침투자와 골 사이 골 쪽 1.5 m"(선읽기 0.5초 × 포지셔닝)라 뒤에서 출발한 추적자는 같은 속도로 뛰는 침투자를 기하적으로 못 따라잡음(pace 69 대 70) ② 수신의 24% 가 존 진입 2초 안(§9.15.10 "구조적으로 못 닿는 몫") ③ 오차 σ ≈ 1.2 m. 재현: `git switch claude/c77h-track-refresh && MODE=zone TRACK_ZONE=22 npx vite-node scripts/diag/runner-track.ts -- 40 4-2-3-1 balanced balanced [offball.trackRefresh=0 offball.trackUrgentOff=2]`(1분).
+- 검증: typecheck ✓(브랜치). test·balance 는 배포 없음이라 돌리지 않음. 지문 기록 없음(main 무변경).
+- **새 화면**: 없음.
+
+명령 시각 2026-10-21 23:52 KST / 답변 시각 2026-10-21 23:58 KST / 걸린 시간 약 7분(측정 runner-track 8회, 각 1분)
+
 ### C.77g 44h-h단계 엔진 블록 — 게겐 체력 비용 배포·게겐 축 부분 종결(미해결 3 게겐 축): **C.77a 가설 1(`tendency.gegenDrain` 1.15·`physics.counterDrain` 1.5)만 `main` 배포, 미해결 3 게겐 축은 "부분 해결"로 닫음** (ENGINE_VERSION 37 → 38, BALANCE_VERSION 73 → 74, SAVE_FORMAT_VERSION 그대로)
 
 - 지시: 마스터 Y `docs/session-prompts/C.77g.md`, 사용자 결정 2026-10-21 21:3x KST("게겐 상성은 체력 비용만 배포하고 미해결 3 게겐 축은 부분 해결로 종결, 게겐 고유 약점 처방은 나중 엔진 블록"). 브랜치 `claude/c77g-gegen-drain`. `PATCH_LABEL` = `C.77g`, `STAGE_LABEL` 그대로(47단계). Opus 높음. 2026-10-21 21:32 ~ 23:5x KST(컨테이너 재시작 2회로 quick·scoring 재실행).

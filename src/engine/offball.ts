@@ -1534,7 +1534,7 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
 
 /**
  * 추적 자리 (C.77b, C.75d markTarget 의 박스 안 식만): 침투자(선읽기 trackLead 초 × 수비 포지셔닝/100 × 속도)와 우리 골을 잇는 선에서 골 쪽 trackGap m(박스 밖 trackGapOut),
- * 공이 측면이면 stBallSide 만큼 공 쪽. 오차 markSigma × (100 − (마킹+포지셔닝)/2). 거리 > trackUrgent 면 urgent. 침투자가 없으면 false
+ * 공이 측면이면 stBallSide 만큼 공 쪽. 오차 markSigma × (100 − (마킹+포지셔닝)/2). 거리 > trackUrgent 면 urgent(이미 urgent 면 trackUrgentOff 아래에서 꺼짐). 침투자가 없으면 false
  */
 function trackTarget(s: SimState, a: Agent, dir: 1 | -1, gx: number, gy: number): boolean {
   const r = s.agents[a.trackIdx];
@@ -1560,7 +1560,9 @@ function trackTarget(s: SimState, a: Agent, dir: 1 | -1, gx: number, gy: number)
   const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
   a.tx = clamp(rx + ux * gap + a.errX * sigma, 0.3, L - 0.3);
   a.ty = clamp(ry + uy * gap + a.errY * sigma, 0.3, W - 0.3);
-  a.urgent = dist(a.tx, a.ty, a.x, a.y) > O.trackUrgent || (O.trackRunUrgent > 0 && r.urgent);
+  // urgent 히스테리시스 (C.77h): 켜짐 trackUrgent m, 이미 뛰는 중이면 trackUrgentOff m 아래에서만 꺼짐(경계 하나면 걷기↔뛰기 토글)
+  const td = dist(a.tx, a.ty, a.x, a.y);
+  a.urgent = td > O.trackUrgent || (a.urgent && td > O.trackUrgentOff) || (O.trackRunUrgent > 0 && r.urgent);
   a.minRun = false;
   return true;
 }
