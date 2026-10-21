@@ -6595,7 +6595,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.77e 44h-f2c단계 엔진 블록 — 펄스 나인 침투·CB 속임 2차(미해결 4): **실패 — 미배포. 가설 1(인계 러너 반복 침투)·가설 2(좁힌 CB 따라나옴) 모두 관문 ✗, 미해결 4 는 "득실 해결·속임 메커니즘 미구현" 으로 닫음** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로, main 코드 무변경)
 
-지시: 마스터 Y `docs/session-prompts/C.77e.md`, 엔진관리자8 `docs/engine-diagnosis-e4.md` §9.13.7(44h-f2c). 브랜치 `claude/c77e-false-nine-run`. Opus 높음(같은 문제 Opus 2차). 2026-10-21 19:45 ~ 21:2x KST. main 병합은 시작 1회(5b6b8b7). 측정: `polish-b role 40` 4회 · `nine-vacate 40` 8회 · `role-pair 800 ST PAIR=1` 4회(가설 1 두 시드 + main 기준선 두 시드).
+지시: 마스터 Y `docs/session-prompts/C.77e.md`, 엔진관리자8 `docs/engine-diagnosis-e4.md` §9.13.7(44h-f2c). 브랜치 `claude/c77e-false-nine-run`. Opus 높음(같은 문제 Opus 2차). 2026-10-21 19:45 ~ 21:18 KST. main 병합은 시작 1회(5b6b8b7). 측정: `polish-b role 40` 4회 · `nine-vacate 40` 8회 · `role-pair 800 ST PAIR=1` 4회(가설 1 두 시드 + main 기준선 두 시드).
 
 **사용자 의도(그대로)**: 펄스 나인은 최후방 수비를 속이는 역할 — ST 본인 골은 적은 게 정상, 그 팀 2선 득점 ↑. 짝 없으면 약한 게 정상. 상대 판단은 "따라 나갈까" 에만 능력치로.
 
@@ -6627,7 +6627,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 **새 화면**: 없음.
 
-명령 시각 2026-10-21 19:45 KST / 답변 시각 21:2x KST / 걸린 시간 약 1시간 35분
+명령 시각 2026-10-21 19:45 KST / 답변 시각 21:18 KST / 걸린 시간 1시간 33분
 
 ### C.77d 44h-f2b단계 엔진 블록 — 펄스 나인 미끼·2선 인계(미해결 4): **가설 0 AI 짝 규칙 + 가설 1 2선 러너 9번 자리 `main` 배포 — 짝 조건 관문(2선 골 ↑·ST 골 하한·팀 득실) 통과, 가설 2 CB 따라나옴은 측정 뒤 끔(부분 해결)** (ENGINE_VERSION 36 → 37, BALANCE_VERSION 72 → 73, SAVE_FORMAT_VERSION 그대로)
 
