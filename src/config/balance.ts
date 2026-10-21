@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 75;
+export const BALANCE_VERSION = 76;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -374,18 +374,28 @@ export const BALANCE = {
   // ── 피로 (7.1) ──
   fatigue: {
     max: 100,
-    /** 90분 출전 시 증가량 */
-    perMatch90: 22,
     /**
-     * 주간 회복량. 하루 단위 진행(부록 C.38)에서는 하루가 끝날 때마다 ÷ 7 씩 회복한다(경기 날 포함, 7일 간격이면 지금 주간 값과 같다).
+     * 90분 출전 시 증가량 (기준 거리 ENGINE.match.fatigueRefDistance 를 뛰면). C.77m(pending 142a, 사용자 "경기당 피로도 늘리고"): 22 → 30.
+     * 주 1경기 기본 훈련 주(회복 21)면 주전은 주 +9 쯤 쌓여 몇 주 연속이면 penaltyFrom 50 을 넘고, 주 2경기면 주 +40 쯤 빨리 쌓인다
+     */
+    perMatch90: 30,
+    /**
+     * 주간 회복량 = 기본 훈련 주(휴식 5.5 + 기술 3 × 4 + 영상 3.5 = 21) 합계. C.77m: 25 → 21 (훈련날 회복 ↓ 와 같이).
+     * NPC 는 하루 ÷ 7 씩 (경기 날 포함), 내 선수는 그날 훈련 회복(training.kinds) — 여름 대표팀 사이·세이브 공백은 이 값 ÷ 7.
      * 부상 중인 날은 noMatchWeekRecovery ÷ 7
      */
-    weeklyRecovery: 25,
+    weeklyRecovery: 21,
     noMatchWeekRecovery: 40,
     /** 이 값을 넘으면 평점/선발 확률 페널티 */
     penaltyFrom: 50,
     ratingPenaltyPerPoint: 0.02,
     startPenaltyPerPoint: 0.01,
+    /**
+     * NPC 피로 (C.77m, pending 142a): 내 선수와 같은 규칙(경기 뒤 거리 비례 피로·하루 weeklyRecovery ÷ 7 회복·피로 부상)을 NPC 에도.
+     * 선발 점수 −(피로 − penaltyFrom) × selectPerPoint (OVR 점수) → 지친 주전 대신 벤치 로테이션, 경기 시작 스태미나 = startStamina(피로).
+     * 부상 확률 = injury 와 같은 식(난이도 보통·태그 없음) × injuryMul. on = false 면 NPC 피로·부상 없음(C.77c 이전과 같은 선발)
+     */
+    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1 },
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
@@ -393,22 +403,23 @@ export const BALANCE = {
     kinds: {
       // C.44: 경기 다음 날 휴식 고정 → 기본 주(경기 1개) 기술 훈련 3일 → 4일. 주 합계를 C.43 과 같게 (XP 3.5, 피로 회복 26.5, 게이지 칸 비율):
       // xp 1.0 → 0.75, fatigue 3.5 → 4.0, gauge.full 30 → 40
-      tech: { xp: 0.75, fatigue: 4.0 },
-      intense: { xp: 1.5, fatigue: 2 },
-      position: { xp: 0.5, fatigue: 4 },
-      setpiece: { xp: 0.5, fatigue: 4 },
-      video: { xp: 0.5, fatigue: 4.5 },
-      recovery: { xp: 0, fatigue: 5.5 },
-      rest: { xp: 0, fatigue: 6 },
+      // C.77m (pending 142a, 사용자 "훈련 피로 늘리고"): 훈련날 회복 ↓ — 기본 주 회복 26.5 → 21 (기술 4 → 3, 휴식 6 → 5.5, 영상 4.5 → 3.5, 나머지 −0.5~1)
+      tech: { xp: 0.75, fatigue: 3.0 },
+      intense: { xp: 1.5, fatigue: 1 },
+      position: { xp: 0.5, fatigue: 3 },
+      setpiece: { xp: 0.5, fatigue: 3 },
+      video: { xp: 0.5, fatigue: 3.5 },
+      recovery: { xp: 0, fatigue: 5 },
+      rest: { xp: 0, fatigue: 5.5 },
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
-      weakFoot: { xp: 0.75, fatigue: 4.0 },
+      weakFoot: { xp: 0.75, fatigue: 3.0 },
       // 생활 하루 행동 (pending 47 4번, C.63 b): 훈련 대신. XP 없음, 회복은 휴식~회복 훈련 사이. 효과는 BALANCE.life.actions
-      family: { xp: 0, fatigue: 5 },
-      language: { xp: 0, fatigue: 4.5 },
-      teamMeal: { xp: 0, fatigue: 4.5 },
-      therapy: { xp: 0, fatigue: 5 },
-      trip: { xp: 0, fatigue: 6 },
-      media: { xp: 0, fatigue: 4 },
+      family: { xp: 0, fatigue: 4.5 },
+      language: { xp: 0, fatigue: 3.5 },
+      teamMeal: { xp: 0, fatigue: 3.5 },
+      therapy: { xp: 0, fatigue: 4.5 },
+      trip: { xp: 0, fatigue: 5.5 },
+      media: { xp: 0, fatigue: 3 },
     },
     /**
      * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
@@ -596,7 +607,7 @@ export const BALANCE = {
      * NPC 누적 피로·부상이 없어서 둔 임시 대체 — pending 142(NPC 피로·컵 일정·부상)에서 교체한다. 내 선수·내 팀 출전 규칙(부상·벤치 결장)과 무관.
      * 측정(`balance:scoring` 리그 시즌)과 본편 다른 경기(npcMatch)가 같은 함수를 쓴다.
      */
-    npcAbsentP: 0.08,
+    npcAbsentP: 0,
     /** 결장 추첨 뒤 남겨 두는 최소 인원 (선발 11 + 교체 3). 마지막 남은 GK 는 결장하지 않는다 */
     npcAbsentMin: 14,
   },

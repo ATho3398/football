@@ -15,6 +15,11 @@ import type { EngineResult } from '../../src/engine/types';
 import { newGame, playRound, rebuildRosters } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { createTeamRoster, rosterRating, teamRatings, type Rosters } from '../../src/roster';
+import { BALANCE } from '../../src/config/balance';
+import { buildSchedule } from '../../src/league';
+import { daysBetween, seasonCalendar } from '../../src/calendar';
+import { createRng, hashSeed } from '../../src/rng';
+import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type NpcFitMap } from '../../src/npcFit';
 import { setEnvironmentFixed } from '../../src/weather';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
@@ -96,7 +101,20 @@ export interface LeagueMatchJob {
   overrides?: Record<string, number>;
 }
 
-export type Job = MatchJob | SeasonJob | LeagueMatchJob;
+/**
+ * 실제 선수 리그 한 시즌 (C.77m, pending 142a): 380경기를 실제 달력(seasonCalendar) 날짜 순서로 한 작업에서 이어 치르며 NPC 피로·부상(npcFit)을 쌓는다.
+ * 경기 시드는 LeagueMatchJob 과 같은 (홈, 원정) 순번 seed0 + k 라서 BALANCE.fatigue.npc.on = false 면 경기별 결과가 그대로다
+ */
+export interface LeagueSeasonJob {
+  kind: 'leagueSeason';
+  worldSeed: string;
+  /** 팀 id 순서 (시드 순번용, LeagueMatchJob 의 이중 반복과 같은 순서) */
+  ids: string[];
+  seed0: number;
+  overrides?: Record<string, number>;
+}
+
+export type Job = MatchJob | SeasonJob | LeagueMatchJob | LeagueSeasonJob;
 
 export type CompactPlayer = Omit<PlayerStats, 'id'> & { starter: boolean; parts?: RatingParts };
 
@@ -145,7 +163,22 @@ export interface LeagueMatchOut {
   apps?: Record<string, [number, number]>;
 }
 
-export type JobOut = MatchOut | SeasonOut | LeagueMatchOut;
+/** 리그 시즌 결과 (C.77m): 경기별 결과 + NPC 피로·부상 기록 */
+export interface LeagueSeasonOut {
+  kind: 'leagueSeason';
+  matches: LeagueMatchOut[];
+  fit: {
+    /** 부상 횟수 · 부상 결장 선수-경기 수 */
+    injuries: number;
+    injuredOut: number;
+    /** 선발 선수-경기 수 · 그중 경기 날 아침 피로가 penaltyFrom 을 넘은 수 · 선발 아침 피로 합 */
+    starts: number;
+    startsOver: number;
+    startFatigue: number;
+  };
+}
+
+export type JobOut = MatchOut | SeasonOut | LeagueMatchOut | LeagueSeasonOut;
 
 /** 균형 전술 (E.19 균형: 라인 보통 / 압박 보통 / 빌드업 혼합 / 폭 보통) */
 export const BALANCED: Partial<Tactics> = { tendency: 'balanced', lineHeight: 0.5, pressing: 0.55, style: 0.5, width: 1 };
@@ -307,22 +340,36 @@ export function runSeasonJob(j: SeasonJob): SeasonOut {
 
 const worlds = new Map<string, { rosters: Rosters; ratings: Record<string, number> }>();
 
+function leagueWorld(worldSeed: string): { rosters: Rosters; ratings: Record<string, number> } {
+  let w = worlds.get(worldSeed);
+  if (!w) {
+    const rosters = rebuildRosters(worldSeed, undefined, 0);
+    w = { rosters, ratings: teamRatings(rosters) };
+    worlds.set(worldSeed, w);
+  }
+  return w;
+}
+
 export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
   const restore = applyOverrides(j.overrides);
   try {
-    let w = worlds.get(j.worldSeed);
-    if (!w) {
-      const rosters = rebuildRosters(j.worldSeed, undefined, 0);
-      w = { rosters, ratings: teamRatings(rosters) };
-      worlds.set(j.worldSeed, w);
-    }
+    return playLeagueMatch(j).out;
+  } finally {
+    restore();
+  }
+}
+
+/** 리그 한 경기 (cond = NPC 피로·부상, C.77m). 엔진 결과도 돌려준다 (피로 쌓기용) */
+function playLeagueMatch(j: Omit<LeagueMatchJob, 'kind'>, cond?: NpcCond): { out: LeagueMatchOut; r: EngineResult; starters: Set<string> } {
+  {
+    const w = leagueWorld(j.worldSeed);
     const ids = Object.keys(w.ratings);
-    const leagueAvg = ids.reduce((t, id) => t + w!.ratings[id]!, 0) / ids.length;
+    const leagueAvg = ids.reduce((t, id) => t + w.ratings[id]!, 0) / ids.length;
     const rh = w.ratings[j.home]!;
     const ra = w.ratings[j.away]!;
-    // C.77c: 결장 추첨(roster.npcAbsentP)을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
-    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg);
-    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg);
+    // C.77c·C.77m: 결장 추첨·피로·부상을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
+    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg, cond);
+    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg, cond);
     const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
     const scorers: Record<string, number> = {};
     const pos: Record<string, string> = {};
@@ -340,12 +387,48 @@ export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
       }
     }
     const add = (k: 'shotPaths' | 'goalPaths') => r.teamStats[0][k].map((v, i) => v + r.teamStats[1][k][i]!);
-    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths'), apps };
+    return { out: { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths'), apps }, r, starters };
+  }
+}
+
+export function runLeagueSeasonJob(j: LeagueSeasonJob): LeagueSeasonOut {
+  const restore = applyOverrides(j.overrides);
+  try {
+    const w = leagueWorld(j.worldSeed);
+    const seeds = new Map<string, number>();
+    let k = j.seed0;
+    for (const h of j.ids) for (const a of j.ids) if (h !== a) seeds.set(`${h}:${a}`, k++);
+    const schedule = buildSchedule(j.ids, createRng(hashSeed(`${j.worldSeed}:season-schedule`)));
+    const cal = seasonCalendar(j.worldSeed, 2018, schedule);
+    const fixtures = schedule.flatMap((round, r) => round.map((f, i) => ({ f, date: cal.fixtureDates[r]![i]!, r, i })));
+    fixtures.sort((x, y) => daysBetween(y.date, x.date) || x.r - y.r || x.i - y.i);
+    const map: NpcFitMap = {};
+    const fit = { injuries: 0, injuredOut: 0, starts: 0, startsOver: 0, startFatigue: 0 };
+    const matches: LeagueMatchOut[] = [];
+    for (const { f, date } of fixtures) {
+      const day = dayNum(date);
+      const seed = seeds.get(`${f.home}:${f.away}`)!;
+      const rosters = [w.rosters[f.home]!, w.rosters[f.away]!];
+      const cond = npcConditions(map, rosters, day);
+      const { out, r, starters } = playLeagueMatch({ worldSeed: j.worldSeed, home: f.home, away: f.away, seed }, cond);
+      for (const id of starters) {
+        const fa = cond?.[id]?.[0] ?? 0;
+        fit.starts++;
+        fit.startFatigue += fa;
+        if (fa > BALANCE.fatigue.penaltyFrom) fit.startsOver++;
+      }
+      for (const ro of rosters) for (const p of ro.players) if (cond?.[p.id]?.[1] === 1) fit.injuredOut++;
+      const before = new Set(Object.entries(map).filter(([, v]) => npcInjuredOn(v, day + 1)).map(([id]) => id));
+      npcAfterMatch(map, rosters, r.players, day, j.worldSeed, seed);
+      for (const [id, v] of Object.entries(map)) if (!before.has(id) && npcInjuredOn(v, day + 1)) fit.injuries++;
+      matches.push(out);
+    }
+    return { kind: 'leagueSeason', matches, fit };
   } finally {
     restore();
   }
 }
 
 export function runJob(j: Job): JobOut {
-  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : runLeagueMatchJob(j);
+  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : j.kind === 'leagueSeason' ? runLeagueSeasonJob(j) : runLeagueMatchJob(j);
 }

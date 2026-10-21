@@ -146,7 +146,7 @@ describe('화면 · 세이브', () => {
   });
   it('세이브 53 왕복 · 52 → 53 마이그레이션', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(55);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.years.at(-1)!.res.ballonDor!.length).toBe(30);
     const raw = JSON.parse(serialize(g));

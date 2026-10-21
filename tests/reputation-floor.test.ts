@@ -162,6 +162,6 @@ describe('티어 달성 (부록 C.27)', () => {
   });
 
   it('세이브 형식은 그대로 (티어는 점수로 판정)', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(55);
   });
 });

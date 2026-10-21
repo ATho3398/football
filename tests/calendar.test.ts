@@ -173,7 +173,7 @@ describe('세이브 17 → 18 (부록 C.38)', () => {
     raw.player.injury = { grade: 'minor', weeksTotal: 3, weeksLeft: 2, season: 2018, round: 5, permanent: {} };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(55);
     const cal = calendarOf(back);
     expect(back.calendar.date).toBe(cal.roundDates[back.league.round]);
     expect(back.player.injury).toMatchObject({ daysLeft: 14, daysTotal: 21 });

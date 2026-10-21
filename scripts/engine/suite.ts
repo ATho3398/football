@@ -10,6 +10,7 @@ import type { TeamStats } from '../../src/engine/types';
 import type { AttrMod, CompactPlayer, Job, JobOut, LeagueMatchOut, MatchJob, MatchOut, SeasonOut, TeamSpec } from './job';
 import { runJobs } from './pool';
 import { BALANCED } from './job';
+import { BALANCE } from '../../src/config/balance';
 
 export type Mode = 'full' | 'light' | 'sweep';
 
@@ -232,13 +233,10 @@ export function buildSets(mode: Mode, overrides?: Record<string, number>): SetDe
   for (const engine of ['agent', 'quick'] as const) {
     sets.push({ name: `season:${engine}`, jobs: n(z.seasons, (i) => ({ kind: 'season', playerId: SEASON_PLAYERS[i % 6]![1], seed: `season-${i}`, engine, ...o })) });
   }
-  // 실제 선수 리그 (실제 로스터 20팀, 홈·원정 2회전 380경기 × 시즌)
+  // 실제 선수 리그 (실제 로스터 20팀, 홈·원정 2회전 380경기 × 시즌). C.77m: NPC 피로·부상을 쌓도록 시즌 하나를 한 작업에서 달력 순서로
+  //   (경기 시드는 예전 경기별 작업과 같은 (홈, 원정) 순번 — NPC 피로를 끄면 경기별 결과가 그대로)
   for (let k = 0; k < z.league; k++) {
-    const ws = `league-${k}`;
-    const ids = LEAGUE_IDS;
-    const jobs: Job[] = [];
-    let seed = 30000 + k * 1000;
-    for (const h of ids) for (const a of ids) if (h !== a) jobs.push({ kind: 'league', worldSeed: ws, home: h, away: a, seed: seed++, ...o });
+    const jobs: Job[] = [{ kind: 'leagueSeason', worldSeed: `league-${k}`, ids: LEAGUE_IDS, seed0: 30000 + k * 1000, ...o }];
     sets.push({ name: `league:${k}`, jobs });
   }
   return sets.filter((s) => s.jobs.length > 0);
@@ -555,7 +553,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
   }
 
   // 실제 선수 시즌 (E.20 5번, 3시즌 평균)
-  const lg = [...res.keys()].filter((k) => k.startsWith('league:')).map((k) => res.get(k) as LeagueMatchOut[]);
+  const lgRaw = [...res.keys()].filter((k) => k.startsWith('league:')).map((k) => res.get(k)!);
+  const lg = lgRaw.map((xs) => xs.flatMap((x) => (x.kind === 'leagueSeason' ? x.matches : x.kind === 'league' ? [x] : [])));
+  const lgFit = lgRaw.flatMap((xs) => xs.flatMap((x) => (x.kind === 'leagueSeason' ? [x.fit] : [])));
   if (lg.length) {
     const S = `실제 선수 시즌 (실제 로스터 20팀 전 경기 엔진, ${lg.length}시즌 평균)`;
     const per = lg.map((ms) => {
@@ -637,6 +637,11 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     // C.77c: NPC 결장 모델(roster.npcAbsentP) 전후 비교 — 상위 10 ST/CF 의 시즌 선발 수·평균 출전 분 (기록, 관문 아님)
     add(S, 'lgSTStarts', '득점 상위 10 ST/CF 시즌 선발 수 (기록)', '약 33~37 (C.77c 결장 모델, 관문 아님)', m((x) => x.stStarts), 30, 38, 1, { note: `평균 출전 ${m((x) => x.stMins).toFixed(0)}분` });
     extra.push(`상위 10 ST/CF 출전 (시즌별, C.77c): ${per.map((x) => x.stAppsNote).join(' | ')}`);
+    // C.77m: NPC 피로·부상 (시즌 평균, 20팀 합)
+    if (lgFit.length) {
+      const f = (g: (x: (typeof lgFit)[number]) => number) => avg(lgFit.map(g));
+      extra.push(`NPC 피로 (C.77m, 시즌 평균 20팀 합): 부상 ${f((x) => x.injuries).toFixed(1)}회 · 부상 결장 선수-경기 ${f((x) => x.injuredOut).toFixed(0)} · 선발 아침 피로 평균 ${(f((x) => x.startFatigue) / Math.max(1, f((x) => x.starts))).toFixed(1)} · 피로 ${BALANCE.fatigue.penaltyFrom} 넘은 선발 ${(f((x) => x.startsOver) / Math.max(1, f((x) => x.starts)) * 100).toFixed(1)}%`);
+    }
     for (const grp of ['FW', 'WING', 'MID', 'DEF']) {
       const xs = per.map((x) => x.byGroup.get(grp)).filter((v): v is [string, number] => !!v);
       extra.push(`포지션군 ${grp} 시즌 최다 득점자: 평균 ${avg(xs.map((v) => v[1])).toFixed(1)} · 최대 ${Math.max(0, ...xs.map((v) => v[1]))} — ${xs.map((v) => `${v[0]} ${v[1]}`).join(', ')}`);

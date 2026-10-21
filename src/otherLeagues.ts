@@ -10,6 +10,7 @@ import { createRng, hashSeed, type Rng } from './rng';
 import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
+import { dayNum, npcAfterMatch, npcConditions, npcLines, type NpcFitMap } from './npcFit';
 import { envField, matchConditions } from './matchEnv';
 import { derbyOf } from './derby';
 import { leagueWeight, matchClutch } from './clutch';
@@ -133,7 +134,7 @@ function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: stri
 export interface OtherLeagueJob { lg: string; season: number; r: number; i: number; input: NpcMatchInput }
 
 /** 그날(date) 열리는 다른 리그 경기 중 아직 결과가 없는 것의 엔진 입력 (리그 순서 · 라운드 · 경기 순) */
-export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: OtherLeague[]; npcs?: readonly NpcState[] }, date: IsoDate): OtherLeagueJob[] {
+export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: OtherLeague[]; npcs?: readonly NpcState[]; npcFit?: NpcFitMap }, date: IsoDate): OtherLeagueJob[] {
   const out: OtherLeagueJob[] = [];
   for (const lg of state.otherLeagues ?? []) {
     if (lg.round >= lg.schedule.length) continue;
@@ -146,12 +147,16 @@ export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: Other
         if (f.homeGoals !== undefined || dates[i] !== date) return;
         const hr = teamById(lg, f.home).rating;
         const ar = teamById(lg, f.away).rating;
+        const home = leagueTeamRoster(state.worldSeed, f.home, hr, lg.season, state.npcs);
+        const away = leagueTeamRoster(state.worldSeed, f.away, ar, lg.season, state.npcs);
+        // NPC 피로·부상 (C.77m): 경기 날 아침 컨디션
+        const cond = npcConditions(state.npcFit, [home, away], dayNum(date));
         out.push({
           lg: lg.id, season: lg.season, r, i,
           input: {
-            home: leagueTeamRoster(state.worldSeed, f.home, hr, lg.season, state.npcs), away: leagueTeamRoster(state.worldSeed, f.away, ar, lg.season, state.npcs),
+            home, away,
             homeRating: hr, awayRating: ar, seed: hashSeed(`${state.worldSeed}:olg-e:${lg.id}:${lg.season}:${r}:${i}`), worldSeed: state.worldSeed,
-            leagueAvg: avg, ...envField(matchConditions(state.worldSeed, date, f.home)),
+            leagueAvg: avg, ...envField(matchConditions(state.worldSeed, date, f.home)), ...(cond ? { cond } : {}),
           },
         });
       });
@@ -161,11 +166,16 @@ export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: Other
 }
 
 /** 엔진 결과를 그 리그에 기록한다: 순위표 · 선수 기록 (골·도움·출전·평점·분). 이미 결과가 있으면 그대로 */
-export function applyOtherLeagueJob(state: { otherLeagues?: OtherLeague[] }, job: Pick<OtherLeagueJob, 'lg' | 'season' | 'r' | 'i' | 'input'>, res: NpcMatchResult): void {
+export function applyOtherLeagueJob(state: { worldSeed?: string; otherLeagues?: OtherLeague[]; npcFit?: NpcFitMap }, job: Pick<OtherLeagueJob, 'lg' | 'season' | 'r' | 'i' | 'input'>, res: NpcMatchResult): void {
   const lg = state.otherLeagues?.find((o) => o.id === job.lg && o.season === job.season);
   const f = lg?.schedule[job.r]?.[job.i];
   if (!lg || !f || f.homeGoals !== undefined) return;
   recordResult(lg, f, res.hg, res.ag);
+  // NPC 피로·부상 (C.77m): 경기 뒤 거리 비례 피로·부상 판정
+  if (state.worldSeed !== undefined) {
+    const date = otherLeagueCalendar(state.worldSeed, lg).fixtureDates[job.r]![job.i]!;
+    npcAfterMatch((state.npcFit ??= {}), [job.input.home, job.input.away], npcLines(res), dayNum(date), state.worldSeed, job.input.seed);
+  }
   const stats = (lg.stats ??= {});
   const names = (lg.names ??= {});
   const who = new Map<string, [string, string]>([

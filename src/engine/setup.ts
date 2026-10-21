@@ -5,9 +5,15 @@ import { pickLineup, type RosterPlayer, type TeamRoster } from '../roster';
 import { ENGINE } from './config';
 import { gkFieldAttributes } from './sim';
 import { createRng, hashSeed } from '../rng';
+import { npcSelectPenalty, type NpcCond } from '../npcFit';
 import { ROLES } from './roles';
 import { LEVELS, levelOf, recommendedRole, tacticsOf, teamPlan } from './tactics';
 import type { PlayerSpec, Tactics, TeamSetup, Tendency } from './types';
+
+/** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16). 내 선수(adapter)와 NPC(C.77m) 공통 */
+export function startStamina(fatigue: number): number {
+  return Math.max(30, 100 - fatigue * ENGINE.match.staminaPerFatigue);
+}
 
 export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec {
   return {
@@ -101,16 +107,44 @@ export function npcAbsences(roster: TeamRoster, worldSeed: string, matchSeed: nu
   return out;
 }
 
-/** NPC 팀 엔진 입력 (C.77c): 결장 추첨을 거친 teamSetupFromRoster. 측정(runLeagueMatchJob)과 본편(playNpcMatch)이 같이 쓴다 */
-export function npcTeamSetup(roster: TeamRoster, rating: number, oppRating: number, worldSeed: string, matchSeed: number, leagueAvg?: number): TeamSetup {
-  return teamSetupFromRoster(roster, rating, oppRating, worldSeed, npcAbsences(roster, worldSeed, matchSeed), leagueAvg);
+/**
+ * NPC 부상 결장 (C.77m): cond 의 부상 선수를 뺀다. 안전은 npcAbsences 와 같다 — 남는 인원이 npcAbsentMin 아래로 가거나
+ * 마지막 남은 GK 면 빼지 않는다 (부상 중이라도 명단을 채운다)
+ */
+export function npcInjuredOut(roster: TeamRoster, cond: NpcCond | undefined, into: Set<string> = new Set()): Set<string> {
+  if (!cond) return into;
+  const players = roster.players;
+  let gks = players.filter((x) => x.position === 'GK' && !into.has(x.id)).length;
+  let left = players.length - players.filter((x) => into.has(x.id)).length;
+  for (const x of players) {
+    if (into.has(x.id) || cond[x.id]?.[1] !== 1) continue;
+    if (left <= BALANCE.roster.npcAbsentMin) break;
+    const gk = x.position === 'GK';
+    if (gk && gks <= 1) continue;
+    into.add(x.id);
+    left--;
+    if (gk) gks--;
+  }
+  return into;
+}
+
+/**
+ * NPC 팀 엔진 입력: 결장 추첨(C.77c npcAbsentP) + 피로·부상(C.77m cond — 부상 결장, 선발 점수 피로 감점, 시작 스태미나)을 거친 teamSetupFromRoster.
+ * 측정(runLeagueSeasonJob)과 본편(playNpcMatch)이 같이 쓴다
+ */
+export function npcTeamSetup(
+  roster: TeamRoster, rating: number, oppRating: number, worldSeed: string, matchSeed: number, leagueAvg?: number, cond?: NpcCond,
+): TeamSetup {
+  const out = npcInjuredOut(roster, cond, npcAbsences(roster, worldSeed, matchSeed));
+  return teamSetupFromRoster(roster, rating, oppRating, worldSeed, out, leagueAvg, true, cond);
 }
 
 export function teamSetupFromRoster(
   roster: TeamRoster, rating: number, oppRating: number, worldSeed = '', exclude: ReadonlySet<string> = new Set(), leagueAvg?: number,
-  aiAdapt = true,
+  aiAdapt = true, cond?: NpcCond,
 ): TeamSetup {
-  const lu = pickLineup(roster, exclude);
+  const fat = (id: string) => cond?.[id]?.[0] ?? 0;
+  const lu = pickLineup(roster, exclude, cond ? (id) => npcSelectPenalty(fat(id)) : undefined);
   const byId = new Map(roster.players.map((p) => [p.id, p]));
   const plan = teamPlan(roster.teamId, rating, roster.formation, worldSeed, leagueAvg);
   if (aiAdapt) plan.tactics = underdogPlan(roster.teamId, rating, oppRating, plan.tactics, worldSeed);
@@ -118,8 +152,8 @@ export function teamSetupFromRoster(
     teamId: roster.teamId,
     formation: roster.formation,
     ...(roster.customSlots ? { customSlots: roster.customSlots } : {}),
-    lineup: lu.slots.map((s) => specOf(byId.get(s.playerId)!, s.slot)),
-    bench: lu.bench.map((id) => specOf(byId.get(id)!, -1)),
+    lineup: lu.slots.map((s) => specOf(byId.get(s.playerId)!, s.slot, startStamina(fat(s.playerId)))),
+    bench: lu.bench.map((id) => specOf(byId.get(id)!, -1, startStamina(fat(id)))),
     tactics: plan.tactics,
     rating,
   };

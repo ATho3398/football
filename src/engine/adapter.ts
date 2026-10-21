@@ -11,7 +11,8 @@ import type { FieldAttributes } from '../attributes';
 import type { Body } from '../body';
 import { proficiencyPenalty } from '../proficiency';
 import { ENGINE } from './config';
-import { teamSetupFromRoster } from './setup';
+import { npcInjuredOut, startStamina, teamSetupFromRoster } from './setup';
+import type { NpcCond } from '../npcFit';
 import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
 import { applyHalftimeTactics, buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
@@ -75,12 +76,12 @@ export interface EngineMatchInput {
   env?: Partial<MatchEnv>;
   /** 동료 호흡·상대 분석·패스 받는 빈도 (C.74c). 없으면 호흡 0·관계 보통·리포트 없음 */
   rapport?: RapportInput;
+  /** NPC 피로·부상 (C.77m): 동료·상대 선수 그날 아침 컨디션. 없으면 모두 피로 0 */
+  npcCond?: NpcCond;
 }
 
-/** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
-export function startStamina(fatigue: number): number {
-  return Math.max(30, 100 - fatigue * ENGINE.match.staminaPerFatigue);
-}
+/** 경기 시작 스태미나 (E.16): setup.ts 로 옮김 (C.77m NPC 공통) */
+export { startStamina };
 
 /** 내 선수가 들어갈 슬롯: 같은 포지션군 중 OVR 이 가장 낮은 선수 자리, 없으면 GK 를 뺀 가장 낮은 선수 */
 function mySlot(setup: TeamSetup, pos: FieldPosition): number {
@@ -109,8 +110,9 @@ export function judgeAttrs(attrs: FieldAttributes, pen: number): FieldAttributes
 export function buildMyMatch(m: EngineMatchInput) {
   const t = m.myTactics;
   const myRoster = t ? withSlots(m.myRoster, t) : m.myRoster;
-  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
-  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
+  const c = m.npcCond;
+  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, npcInjuredOut(myRoster, c), m.leagueAvg, false, c);
+  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, npcInjuredOut(m.oppRoster, c), m.leagueAvg, true, c);
   const meSpec: PlayerSpec = {
     id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: judgeAttrs(proficientAttrs(m.me.attributes, m.me.proficiency), m.me.judgePen ?? 0),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,

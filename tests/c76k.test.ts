@@ -102,7 +102,7 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     raw.saveFormat = 50;
     const m = migrate(raw);
     expect(m.tactics.levels.lineHeight).toBe(1);
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(55);
     const bus = makeTactics('bus', '4-4-2', 'ST');
     expect(validTactics(bus)).toBe(true);
     expect(bus.levels.lineHeight).toBe(0);

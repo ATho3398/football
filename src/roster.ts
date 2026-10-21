@@ -445,12 +445,18 @@ function selectionScore(p: RosterPlayer, pos: Position): number {
   return ovr - (NEAR[slot].includes(own) ? R.nearGroupPenalty : R.outOfGroupPenalty);
 }
 
-/** 슬롯별로 OVR 이 높은 선수가 선발 (23번). 선택 점수 내림차순 탐욕 배정. 벤치 7명은 포지션군별 */
-export function pickLineup(roster: TeamRoster, exclude: ReadonlySet<string> = new Set()): Lineup {
+/**
+ * 슬롯별로 OVR 이 높은 선수가 선발 (23번). 선택 점수 내림차순 탐욕 배정. 벤치 7명은 포지션군별.
+ * penalty: 선수별 선택 점수 감점 (C.77m NPC 피로 로테이션). 팀 레이팅(rating)은 감점 없는 슬롯 OVR 평균
+ */
+export function pickLineup(roster: TeamRoster, exclude: ReadonlySet<string> = new Set(), penalty?: (id: string) => number): Lineup {
   const slots = roster.customSlots ?? FORMATION_SLOTS[roster.formation];
   const pool = roster.players.filter((p) => !exclude.has(p.id));
   const pairs: { pi: number; si: number; score: number }[] = [];
-  pool.forEach((p, pi) => slots.forEach((s, si) => pairs.push({ pi, si, score: selectionScore(p, s.pos) })));
+  pool.forEach((p, pi) => {
+    const pen = penalty?.(p.id) ?? 0;
+    slots.forEach((s, si) => pairs.push({ pi, si, score: selectionScore(p, s.pos) - pen }));
+  });
   // 같은 점수면 선수 순서, 슬롯 순서 (결정성)
   pairs.sort((a, b) => b.score - a.score || a.pi - b.pi || a.si - b.si);
   const usedP = new Set<number>();
