@@ -497,8 +497,6 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       // 펄스 나인 인계 (C.77d 가설 1): 내려온 9번이 비운 자리 — 라인 바로 앞 중앙 (공 쪽으로 조금)
       nx = line - 0.5 / L;
       ny = 0.5 + side * 0.04;
-      // 인계 러너 반복 침투 (C.77e 가설 1): 라인 뒤 nineRunFrom m 이상이면 라인을 넘는 침투를 건다 (끝난 뒤 nineRunGap 초 쉬고 재무장)
-      if (RM.nineRunFrom > 0 && s.t >= a.runUntil + RM.nineRunGap && (line - toNorm(a.x, a.y, dir)[0]) * L >= RM.nineRunFrom) a.runUntil = s.t + O.runSeconds;
     } else if (job === 'cutback' && !wide) {
       nx = 1 - O.boxRunDepth / L;
       ny = 0.5 - side * O.boxRunSpread;
@@ -759,8 +757,7 @@ function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal
   const oline = offsideLine(s, opp);
   const odir = attackDir(opp, s.half);
   for (const o of s.agents) {
-    // C.77e 가설 2: 내려온 9번만 — ST/CF, 중앙 레인 (하프스페이스 윙어 제외)
-    if (!o.onPitch || o.team === a.team || (o.pos !== 'ST' && o.pos !== 'CF') || o.idx === s.ball.owner || Math.abs(o.y - W / 2) > O.stepOutLane) continue;
+    if (!o.onPitch || o.team === a.team || o.line !== 3 || o.idx === s.ball.owner) continue;
     const ahead = (oline - toNorm(o.x, o.y, odir)[0]) * L;
     if (ahead < O.stepOutMin || ahead > O.stepOutReach) continue;
     // 그 상대에게 가장 가까운 CB 만 판단한다
