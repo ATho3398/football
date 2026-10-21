@@ -493,7 +493,11 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     // 중앙이면 ST 는 그대로, 침투 미드는 공 반대편 박스 채널로 늦게 들어간다 (2선 박스 도착, E.15.1)
     if (!wide && (job === 'near' || job === 'far')) job = null;
     if (wide && job === 'halfSpace') job = null;
-    if (job === 'cutback' && !wide) {
+    if (job === 'nine') {
+      // 펄스 나인 인계 (C.77d 가설 1): 내려온 9번이 비운 자리 — 라인 바로 앞 중앙 (공 쪽으로 조금)
+      nx = line - 0.5 / L;
+      ny = 0.5 + side * 0.04;
+    } else if (job === 'cutback' && !wide) {
       nx = 1 - O.boxRunDepth / L;
       ny = 0.5 - side * O.boxRunSpread;
     } else if (job === 'cutback') {
@@ -708,7 +712,7 @@ function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null 
  * 공이 상대 최종 3분의 1 측면일 때의 역할 (E.18 A2): 침투 성향(run ≥ 0.4) CM/CAM 중 공에 가장 가까운 1명은 컷백 존,
  * 다음 미드 1명은 박스 경계 바깥(세컨드 볼, 중거리), ST/CF 2명은 니어/파 포스트 (공에 가까운 쪽이 니어)
  */
-function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
+function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'nine' | 'cutback' | 'edge' | 'near' | 'far' | 'backPost' | 'halfSpace' | null {
   const mates = s.agents.filter((o) => o.onPitch && o.team === a.team && o !== owner);
   const bd = (o: Agent) => dist(o.x, o.y, s.ball.x, s.ball.y);
   // 윙어: 공이 반대쪽 측면이면 먼 포스트로, 공이 중앙이면 같은 쪽 하프스페이스로 파고든다
@@ -729,9 +733,26 @@ function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'cutback' | 'edge' 
   const mids = mates.filter((o) => o.pos === 'CM' || o.pos === 'CAM');
   const runners = mids.filter((o) => o.role.run >= O.lateRunRun).sort((x, y) => bd(x) - bd(y));
   const runner = runners[0] ?? mids.slice().sort((x, y) => y.role.run - x.role.run || bd(x) - bd(y))[0];
-  if (runner === a) return 'cutback';
+  if (runner === a) return deepNine(s, a.team) ? 'nine' : 'cutback';
   const rest = mates.filter((o) => (o.pos === 'CM' || o.pos === 'CAM' || o.pos === 'CDM') && o !== runner).sort((x, y) => bd(x) - bd(y));
   return rest[0] === a ? 'edge' : null;
+}
+
+/**
+ * 펄스 나인이 내려와 9번 자리가 비었는가 (C.77d 가설 1): 팀의 ST/CF 가 한 명이고 줄 사이 역할(between)이며
+ * 오프사이드 라인보다 roles.nineDeepGap m 이상 뒤에 있다
+ */
+function deepNine(s: SimState, team: 0 | 1): boolean {
+  if (RM.nineDeepGap <= 0) return false;
+  let st: Agent | null = null;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || (o.pos !== 'ST' && o.pos !== 'CF')) continue;
+    if (st) return false;
+    st = o;
+  }
+  if (!st || !hasModule(st.role, 'between')) return false;
+  const [sx] = toNorm(st.x, st.y, attackDir(team, s.half));
+  return (offsideLine(s, team) - sx) * L >= RM.nineDeepGap;
 }
 
 function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
