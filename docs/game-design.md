@@ -6638,7 +6638,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 같은 시드 30경기 지문 | 300338da03b1bfb4 | **6ab3059beba28723** | 의도된 변경(코너 상수) |
 | 경기 계산 (워커) | 678 ms | 961 ms(quick, 동시 실행 중) | ≤ 2초 ✓ |
 
-`npm run typecheck` ✓ · `npm test` [[TESTS]] · `npm run build` [[BUILD]] · `balance:check` [[BALCHECK]]. 평점 center 재측정은 ST 몫이 안 움직였고 `engine:check` 8군이 가드 안이라 하지 않았다(ST 6.68 ≤ 6.7, `rating.center` 그대로). saveBase 는 quick 1.32 가 1.30~1.45 안이라 그대로(1.62).
+`npm run typecheck` ✓ · `npm test` 전체 통과 **1,048개 / 124파일**(c76w 3개 추가; `c75v` CDM sureBack 시드 c76u-0~2 → c76x-0~3 — 코너 상수로 장면이 흔들린 시드 교체, 가드 완화 아님; 첫 실행은 balance:check 와 동시라 그 1개만 실패 → 시드 교체 뒤 단독 ✓) · `npm run build` ✓ · `balance:check` **회귀 가드 19/19 통과**(약 1시간 20분, scoring·engine:check·sweep 와 동시 실행). 평점 center 재측정은 ST 몫이 안 움직였고 `engine:check` 8군이 가드 안이라 하지 않았다(ST 6.68 ≤ 6.7, `rating.center` 그대로). saveBase 는 quick 1.32 가 1.30~1.45 안이라 그대로(1.62).
 
 **새 화면**: 없음.
 

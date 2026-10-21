@@ -45,7 +45,8 @@ describe('C.75v 결정 순간 선택지 라벨·확실한 선택지·최대 5개
   // C.76p(엔진 30, 깊은 블록 밀집·1대1 보너스) 뒤 c76b-0~2 에도 없어져 c76p 시드로
   // C.76q(엔진 31, PK·saveBase 1.64) 뒤 c76p 에도 없어져 (C.76q 는 c76b-1·c76b-7 을 더했음) sureBack 이 있는 c76b-1·c76b-7(각 1장면)을 더한다 (CDM·CM 64경기에 2장면뿐인 드문 장면)
   // C.76s(엔진 32, 피로 → 경합·판단·패스) 뒤 다시 없어져 sureBack 이 있는 c76u-0~2(1장면, c76u-1)로
-  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 3, 'c76u')];
+  // C.76w(엔진 33, 코너 상수 3개) 뒤 c76u-0~2 에 없어져 c76x-0~3(1장면, c76x-3; c76w-0~7·c76z-0~11 은 0장면)으로
+  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 4, 'c76x')];
 
   it('소유 정지: 최대 5개 · 같은 후보/같은 이름 줄 없음 · 확률 순(몰고 가다 슛은 끝) · 라벨은 구간', () => {
     expect(all.length).toBeGreaterThan(20);
