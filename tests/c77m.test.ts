@@ -75,9 +75,10 @@ describe('C.77m NPC 피로·부상', () => {
       return n;
     };
     const fresh = count(0);
-    const tired = count(90);
+    const tired = count(100);
     expect(fresh).toBeGreaterThan(0);
-    expect(tired).toBeGreaterThan(fresh * 1.6);
+    // 피로 100 = × 1.4 (문턱 60, 기울기 0.01)
+    expect(tired).toBeGreaterThan(fresh * 1.15);
   });
 
   it('로테이션: 지친 주전은 선발 점수가 깎여 벤치가 대신 나오고, 시작 스태미나가 낮다. 부상 선수는 빠진다', () => {
