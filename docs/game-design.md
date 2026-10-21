@@ -6595,7 +6595,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.77g 44h-h단계 엔진 블록 — 게겐 체력 비용 배포·게겐 축 부분 종결(미해결 3 게겐 축): **C.77a 가설 1(`tendency.gegenDrain` 1.15·`physics.counterDrain` 1.5)만 `main` 배포, 미해결 3 게겐 축은 "부분 해결"로 닫음** (ENGINE_VERSION 37 → 38, BALANCE_VERSION 73 → 74, SAVE_FORMAT_VERSION 그대로)
 
-- 지시: 마스터 Y `docs/session-prompts/C.77g.md`, 사용자 결정 2026-10-21 21:3x KST("게겐 상성은 체력 비용만 배포하고 미해결 3 게겐 축은 부분 해결로 종결, 게겐 고유 약점 처방은 나중 엔진 블록"). 브랜치 `claude/c77g-gegen-drain`. `PATCH_LABEL` = `C.77g`, `STAGE_LABEL` 그대로(47단계). Opus 높음. 2026-10-21 21:32 ~ 22:4x KST.
+- 지시: 마스터 Y `docs/session-prompts/C.77g.md`, 사용자 결정 2026-10-21 21:3x KST("게겐 상성은 체력 비용만 배포하고 미해결 3 게겐 축은 부분 해결로 종결, 게겐 고유 약점 처방은 나중 엔진 블록"). 브랜치 `claude/c77g-gegen-drain`. `PATCH_LABEL` = `C.77g`, `STAGE_LABEL` 그대로(47단계). Opus 높음. 2026-10-21 21:32 ~ 23:5x KST(컨테이너 재시작 2회로 quick·scoring 재실행).
 - **한 일**: ① main(엔진 37, 5b6b8b7) 위에 C.77a 가설 1 커밋 d50212e 만 cherry-pick(81f84cb). 코드 변경은 그것뿐(`TENDENCY.gegenDrain` 게겐 전원 소모 ×1.15 + 역압박 가담 중 `physics.counterDrain` ×1.5, 모든 팀). ② C.77a·C.77e·C.77f 브랜치의 docs(부록 C.77a·C.77e·C.77f, engine-issues 2·3·4, `docs/engine-attempt-c77a.md`, §9.14.1)는 C.77f 브랜치(앞 둘을 이미 병합)에서 `docs/` checkout 으로, 엔진관리자8 최신 docs(4e9879a, §9.14.2·인수인계·`scripts/diag/line-after-loss.ts`)는 병합으로 반영. ③ 테스트 장면 시드 교체(엔진 결과 의존, 가드 완화 아님): `cards` C.40 "0회 경기도 된다" c77d-zero-1(엔진 38 에서 최소 4회) → **c77g-zero-3**(CDM 2 · FB 6회), `c75v` CDM sureBack c77d-0~6(0장면) → **c77g-12~19**(4장면, c77g-14·c77g-19; c77g-0~11 은 0장면). ④ `engine-issues` 3 에 게겐 축 부분 해결·종결 기록.
 
 **상성표 (`tactic-pair 200 75:75 gegenpress vs=X`, 게겐 득실차 · 게겐 상대 진영 탈취) — C.77a 가설 1 값 그대로 재현**
@@ -6617,11 +6617,13 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | `MATRIX=50 RECHECK=100 sweep --tactics` 7×7 최대 / 게겐 행 평균 / 게겐 대 티키 | 0.71 / — / +0.19 | **0.68 ✓ / +0.42**(+0.17·+0.12·+0.59·+0.47·+0.48·+0.68) / +0.12 | ≤ 1.0 |
 | `engine:check` 경량 | 통과 | **모두 통과** | — |
 | 같은 시드 30경기 지문 | 4b00b4752cdd11db | **962cc94681b64ab5**(가설 1 — 의도된 변경) | — |
-| typecheck · test · build · balance:check | — | **✓ · 1,079개 / 130파일 ✓**(시드 교체 2개) · build ✓ · balance:check BCHECK | — |
+| typecheck · test · build · balance:check | — | **✓ · 1,079개 / 130파일 ✓**(시드 교체 2개) · build ✓ · balance:check 는 로컬 60분 안에 판정이 안 나와(그때까지 나온 섹션 ✗ 없음) **CI 에 맡김** | — |
 
 **남은 것(미해결 3 게겐 축, 부분 해결로 닫음)**: 대 역습 +0.47 · 버스 +0.61 · 블록 +0.59 · 직선 +0.29 · 균형 +0.21. 공통 전환 규칙(C.77f A·B)은 공을 가장 자주·높이 얻는 게겐에 비례해 이득이라 상성을 못 뒤집는다. 게겐 고유 약점 처방(§9.14.2 G1 역압박 중 라인 유지 · G2 출구 1명 1회)은 다음 엔진 블록.
 
 **새 화면**: 없음.
+
+명령 시각 2026-10-21 21:32 KST / 답변 시각 23:5x KST / 걸린 시간 약 2시간 20분
 
 ### C.77f 44h-h2단계 엔진 블록 — 게겐 상성 2차·전환 침투(미해결 3 게겐 축, §9.14.1): **중단 — A+B 뒤에도 게겐 대 역습 +0.40(> +0.3), `main` 배포 없음**
 
