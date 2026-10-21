@@ -910,7 +910,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 줄 대응 (C.77b (a0), 사용자 원칙 "상대 1선은 우리 최후방이, 상대 2·3선은 우리 3선(수미·중미)이 막는다"): 존 마크 후보를 줄로 짝짓는다 —
   // 우리 줄 1 → [상대 줄 3, 그다음 줄 2] · 우리 줄 2 → [상대 줄 2, 그다음 줄 3] · 우리 줄 3 → [상대 줄 1·2, 그다음 줄 3]. 첫 단계에 14 m 안 상대가 있으면 그 안에서만,
   // 없을 때만 다음 단계(대형이 달라 짝이 남을 때의 인계). focus(대개 ST) 쏠림은 우리 줄 1 에만 — 줄 2 는 focus 가 자기 첫 단계(줄 2)일 때만 (지금까지는 줄과 무관하게 가장 가까운 상대·focus 라 줄 2 가 ST 로 쏠리고 상대 2선은 비었다, 미해결 8)
-  const tiers: Line[][] = a.line === 1 ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
+  // **지금은 끔(lineTiers 0, 부록 C.77b)**: 켜면(1) CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)인데 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34 로 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 와 같은 "ST 풀림" 통로)
+  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : a.line === 1 ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
   let mark: Agent | null = null;
   let best = 14;
   for (const tier of tiers) {
@@ -926,7 +927,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
     if (mark) break;
   }
-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   if (mark) {
     const [gx, gy] = ownGoal(dir);

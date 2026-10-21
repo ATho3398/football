@@ -282,8 +282,13 @@ export const ENGINE = {
      */
     trackTargetZone: 20,
     trackTargetNoCdm: 0,
-    /** 8대 §9.15.6 ②: 1 로 시작(CAM → ST 둘째 통로를 덜 연다 — 30골+ 문턱) */
-    trackMax: 1,
+    /**
+     * 8대 §9.15.6 ② 는 1 로 시작을 권했지만, 측정(C.77b)은 1 은 줄 대응(lineTiers 1)과 함께만 재어 30골+ 2.40 ✗ 였고 2(줄 대응 없음)가 같은 시드 scoring 통과(30골+ 1.80 · MID 최다 19.6 · 상위 10 CAM 0.8) → 2
+     * 줄 대응 (a0, 사용자 원칙 "상대 1선은 최후방이, 2·3선은 수미·중미가"): 존 마크 후보를 줄로 짝짓기(우리 줄 1 ↔ 상대 줄 3, 줄 2 ↔ 줄 2, focus 쏠림은 줄 1 만). **0 = 끔**:
+     * 켜면 CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)이고 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34, 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 의 "ST 풀림" 통로)
+     */
+    trackMax: 2,
+    lineTiers: 0,
     trackCdmMax: 9,
     trackPickMax: 12,
     trackHold: 0.7,
@@ -944,8 +949,7 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). */
-    /** C.77b 44h-i: 2선 추적으로 quick 600 득점 1.32 → 1.27(목표 1.30~1.45 아래) → E.23 총량 규칙대로 0.01 1회 1.62 → 1.61 */
-    saveBase: 1.61,
+    saveBase: 1.62,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
