@@ -513,6 +513,13 @@ export const ENGINE = {
      * 안전한 백패스, 무리한 슛)만 고를 수 있다. 엉뚱한 선택(먼 옆 패스 등)은 후보에서 뺀다
      */
     plausibleGap: 0.015,
+    /**
+     * 가치 비례 gap·온도 (C.77i, 44h-f3b, 미해결 2): vScale = 공 위치 가치 / 골 scaleRefDist m 중앙 가치. gap × clamp(vScale, gapFloor, 1),
+     * τ × clamp(vScale, tempFloor, 1). 중원은 효용 스케일이 0.01~0.02 라 절대 gap 0.015 가 그럴듯한 후보를 거의 균등 추첨했다
+     */
+    scaleRefDist: 25,
+    gapFloor: 0.3,
+    tempFloor: 0.4,
     /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
     mistakeShotGap: 2,
     /**
