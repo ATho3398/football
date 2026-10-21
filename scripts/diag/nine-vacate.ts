@@ -34,6 +34,8 @@ const mk = (side: string, i: number, role: string | null): TeamSetup => {
   for (const p of s.lineup) delete p.role;
   fillRoles(s, (slot) => slots[slot]!.pos);
   if (role) { const p = s.lineup.find((x) => x.slot === SLOT); if (p) p.role = role; }
+  // PAIR=1: 짝 조건(사용자 13:18) — 윙 둘 다 윙 포워드(run 0.8) + CM 한 명 박스투박스(run 0.6). 4-3-3 슬롯 8·10 윙, 6 CM
+  if (role && process.env.PAIR === '1') for (const [sl, rid] of [[8, 'wingForward'], [10, 'wingForward'], [6, 'boxToBox']] as const) { const p = s.lineup.find((x) => x.slot === sl); if (p) p.role = rid; }
   return s;
 };
 
@@ -135,7 +137,7 @@ for (let i = 0; i < N; i++) {
 }
 const f = (x: number, k = 2) => (Number.isFinite(x) ? x.toFixed(k) : '-');
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(0)}%` : '-');
-console.log(`nine-vacate · ${N}경기 ${FORMATION} 홈 슬롯 ${SLOT} 역할 ${ROLES.join(' / ')} 대 원정 균형 (엔진 ${ENGINE_VERSION})`);
+console.log(`nine-vacate · ${N}경기 ${FORMATION} 홈 슬롯 ${SLOT} 역할 ${ROLES.join(' / ')} 대 원정 균형 (엔진 ${ENGINE_VERSION})${process.env.PAIR === '1' ? ' · 짝 조건(윙 포워드 ×2 + 박스투박스)' : ''}`);
 ROLES.forEach((role, k) => {
   const a = accs[k]!;
   const F = a.f3Samples || 1;
