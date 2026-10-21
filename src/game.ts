@@ -87,13 +87,14 @@ import type { NameOverrides } from './names';
 import { weatherInjuryMul, type WeatherKind } from './weather';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
+import type { MatchClips } from './highlightClips';
 import {
   acceptOffer, autoResolveMarket, initialContract, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow, syncNpcClubs,
   type MarketState, type TransferRec,
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 56;
+export const SAVE_FORMAT_VERSION = 57;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -239,6 +240,8 @@ export interface GameState {
   /** 팀별 로스터. 세이브에 담지 않고 불러올 때 rebuildRosters 로 재생성한다 */
   rosters: Rosters;
   lastMatch?: MatchReport;
+  /** 경기 후 하이라이트 3개 (24.6, C.77o, SAVE_FORMAT_VERSION 57): 내 최근 CLIP.keep 경기, 클립 구간 프레임만 */
+  clips?: MatchClips[];
   lastSeasonSummary?: SeasonSummary;
   /** 단계적 공개와 첫 플레이 안내 상태 (21.3·21.4, 부록 C.23) */
   guide: GuideState;

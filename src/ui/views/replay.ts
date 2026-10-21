@@ -25,6 +25,8 @@ export interface ReplayVM extends ReplayStaticVM {
   sceneLabel: string;
   /** 장면 전환 중: 넘어가는 시계와 요약 */
   transition: { from: string; to: string; summary: string } | null;
+  /** 경기 후 하이라이트 클립 재생 (24.6, C.77o): 정해 준 장면만, 실시간 없음 */
+  clips?: boolean;
 }
 
 const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', decision: '내 결정', me: '내 장면', opponent: '상대', shot: '슈팅' };
@@ -49,7 +51,7 @@ export function replayView(vm: ReplayVM): string {
     ...(vm.transition ? { minuteTo: vm.transition.to } : {}),
     speed: ended ? false : `${vm.speed}×`, speeds: SPEEDS.map((s) => `${s}×`), paused: vm.paused,
     onSpeed: { act: 'rp-speed' }, onPause: { act: 'rp-toggle' }, onSkip: { act: 'rp-skip' },
-    onLive: { act: 'rp-live' }, onHighlight: { act: 'rp-highlight' },
+    onLive: { act: 'rp-live' }, onHighlight: { act: 'rp-highlight' }, ...(vm.clips ? { noLive: true } : {}),
   });
   const overlay = vm.transition ? `<div class="tr-clock po-num">${esc(vm.transition.from)}' ${Icon({ name: 'arrow-flat', size: 22 })} ${esc(vm.transition.to)}'</div>` : '';
   const legendLeft = vm.mode === 'transition' ? '<i class="dot faint"></i>다음 장면으로 넘어가는 중 · 약 1초'
@@ -57,7 +59,7 @@ export function replayView(vm: ReplayVM): string {
     : ended ? '<i class="dot faint"></i>경기 종료'
     : `<i class="dot"></i>장면 ${vm.scene} · 실제 속도 ${vm.speed}×`;
   const tiles = total
-    ? `<div class="panel hl-panel"><div class="kv small"><b>오늘의 하이라이트</b><span class="muted">${total}장면 · 약 ${Math.round(total * 13)}초 · 장면당 10~15초</span></div>
+    ? `<div class="panel hl-panel"><div class="kv small"><b>${vm.clips ? '하이라이트 클립' : '오늘의 하이라이트'}</b><span class="muted">${vm.clips ? `${total}개 · 클립당 약 16초 (앞뒤 8초)` : `${total}장면 · 약 ${Math.round(total * 13)}초 · 장면당 10~15초`}</span></div>
       <div class="scene-tiles" style="grid-template-columns:repeat(${total},minmax(0,1fr))">${vm.scenes.map((s, i) => {
         const n = i + 1;
         const cls = vm.mode === 'live' || ended ? 'done' : n < vm.scene ? 'done' : n === vm.scene ? (vm.mode === 'transition' ? 'done' : 'on') : vm.mode === 'transition' && n === vm.scene + 1 ? 'next' : '';
@@ -105,6 +107,8 @@ export class ReplayPlayer {
   mode: ReplayMode = 'scene';
   idx = 0;
   readonly scenes: Scene[];
+  /** 장면을 정해서 받았다 (하이라이트 클립): 클립 밖 프레임이 없어 실시간으로 넘어가지 않는다 */
+  readonly fixedScenes: boolean;
   private tr = 0;
   private trFrom: ReplayFrame | null = null;
   private trTo: ReplayFrame | null = null;
@@ -119,10 +123,12 @@ export class ReplayPlayer {
   /** 세로 피치 잘라 보기 카메라 (C.56, 5차 118 crop [34,100]): 공을 따라간다. 처음·결정 장면 다시 보기는 바로 맞춤 */
   private readonly camera = new PitchCamera();
   private camSnap = true;
-  constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer?: MarkerRenderer) {
+  /** scenes = 장면을 정해서 줄 때 (경기 후 하이라이트 3개, 24.6 C.77o). 없으면 전개 하이라이트 장면 선택 */
+  constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer?: MarkerRenderer, scenes?: Scene[]) {
     this.players = playerMap(replay);
     this.settled = settledFrames(replay, HL.settleTol);
-    this.scenes = selectScenes(replay);
+    this.scenes = scenes ?? selectScenes(replay);
+    this.fixedScenes = !!scenes;
     if (this.scenes.length) {
       this.e = this.scenes[0]!.start;
       if (this.e > 1) this.summaries.push(this.summary(0, this.e));
@@ -151,6 +157,7 @@ export class ReplayPlayer {
     return {
       ...base, speed: this.speed, paused: this.paused, mode: this.mode, scene: this.idx + 1,
       scenes: sceneTiles(r, this.scenes), sceneLabel: sc ? sceneName(r, sc).replace(/^\S+' /, '') : '', transition,
+      ...(this.fixedScenes ? { clips: true } : {}),
     };
   }
 
@@ -194,6 +201,7 @@ export class ReplayPlayer {
 
   /** [여기서부터 실시간]: 지금 시점부터 끊김 없이 실제 속도로 */
   goLive(): void {
+    if (this.fixedScenes) return;
     if (this.mode === 'transition' && this.trTo) this.e = this.trTo.e;
     this.mode = 'live';
     this.paused = false;

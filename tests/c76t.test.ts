@@ -178,7 +178,7 @@ describe('화면', () => {
 describe('세이브', () => {
   it('세이브 54 왕복 · 53 → 54', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(56);
+    expect(SAVE_FORMAT_VERSION).toBe(57);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.months!.length).toBe(g.globalAwards!.months!.length);
     expect(back.globalAwards!.years.at(-1)!.res['toty@pl']!.length).toBe(11);
@@ -186,6 +186,6 @@ describe('세이브', () => {
     raw.saveFormat = 53;
     delete raw.globalAwards.months;
     expect(migrate(raw).globalAwards!.months).toBeUndefined();
-    expect(migrate(raw).saveFormat).toBe(56);
+    expect(migrate(raw).saveFormat).toBe(57);
   });
 });

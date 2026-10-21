@@ -45,6 +45,14 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   const rewatch = vm.hasAvgMap ? `<div class="panel mr-rewatch"><div class="mr-rewatch__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.highlights.length}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}</small></span></div>
     ${Button({ block: true, icon: 'play', act: 'hl-rewatch', children: '하이라이트 다시보기' })}
     <small class="muted">경기가 끝나면 이 화면으로 바로 와요. 다시보기가 끝나면 여기로 돌아와요.</small></div>` : '';
+  // 경기 후 하이라이트 3개 (24.6, P단계 C.77o): 골 · 결정적 장면 · 내 최고 순간, 앞뒤 8초. 세이브에 남아 불러온 뒤에도 본다.
+  // 새 디자인 전 최소 구현 — 결정 기록 줄(dec-row)과 같은 모양 (docs/ui-requests/c77o-highlight-clips.md)
+  const cl = vm.clips ?? [];
+  const clips = cl.length
+    ? `${SectionTitle({ title: '하이라이트 클립', action: `${cl.length}개 · 앞뒤 8초` })}<div class="dec-list mr-clips">${cl.map((c, i) => `
+        <button type="button" data-act="clip-play" data-v="${i}" aria-label="${esc(c.minute)} ${esc(c.label)} 다시 보기" class="panel dec-row dec-neutral mr-clip is-${c.kind}"><span class="po-num dec-min">${esc(c.minute)}</span><span class="dec-main"><small>${esc(c.label)}</small><b>${esc(c.text)}</b></span><span class="dec-play">${Icon({ name: 'play', size: 16 })}</span></button>`).join('')}</div>
+      ${cl.length > 1 ? Button({ variant: 'ghost', block: true, icon: 'play', act: 'clip-play', data: { v: 'all' }, children: `${cl.length}개 이어 보기` }) : ''}`
+    : '';
   // 득점 (디자인 117 · 155): 우리 골 = 라임 면, 실점 = 주황 테두리. 이름을 누르면 선수 상세 (C.53)
   const goals = vm.goals.length
     ? `${SectionTitle({ title: '득점', action: '누르면 선수 상세' })}<div class="mr-goals">${goalRows(vm.goals)}</div>`
@@ -102,13 +110,14 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       </div>`;
   // PC 2열 (C.61, 폰 2,600px대 → 한 화면): 왼쪽 = 점수 · 하이라이트 · 득점 · 결정 · 쓴 카드, 오른쪽 = 내 기록 · 보상 · 버튼 · 전술 리포트·평균 위치
   if (isWide()) {
-    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${cupBanner(vm.cupBanner)}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
+    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${clips}${cupBanner(vm.cupBanner)}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
   }
   return `
     ${hero}
     <div class="body">
       ${head}
       ${rewatch}
+      ${clips}
       ${cupBanner(vm.cupBanner)}
       ${banners(vm.banners)}
       ${jx}

@@ -1,6 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { CLIP_KO, findClips, type ClipKind } from '../highlightClips';
 import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
@@ -1081,6 +1082,8 @@ export interface MatchResultVM {
   highlights: FeedVM[];
   report: (TacticalReport & { my: TacticVM; opp: TacticVM; possession: number }) | null;
   hasAvgMap: boolean;
+  /** 경기 후 하이라이트 3개 (24.6, C.77o): 세이브에 남은 클립. 불러온 뒤에도 다시 볼 수 있다 */
+  clips?: { kind: ClipKind; label: string; minute: string; text: string }[];
   my: { label: string; value: string }[];
   /** "전체 보기"에 펼치는 나머지 기록 (부록 C.30) */
   myMore: { label: string; value: string }[];
@@ -1195,6 +1198,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.nat?.pens ? ` (승부차기 ${m.nat.pens[0]}-${m.nat.pens[1]})` : ''}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
+    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => ({ kind: c.kind, label: CLIP_KO[c.kind], minute: `${c.minute}'`, text: c.text })),
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,
