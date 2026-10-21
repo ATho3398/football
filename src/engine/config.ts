@@ -480,6 +480,8 @@ export const ENGINE = {
      */
     nineRunFrom: 6,
     nineRunGap: 2.5,
+    /** C.77e 가설 1 조정 1: 인계 러너가 9번 자리 일을 맡기 시작하는 공 위치(정규화 x, 0.57 = 상대 골 45 m — CB 따라나옴 판단 구간 stepOutBall 끝) */
+    nineFromX: 0.57,
     /** ② 빌드업(공이 이 x 이하, 정규화) 때 하프백은 CB 사이로, 인버티드 풀백은 미드 줄 하프스페이스로, 리베로는 수비-미드 사이로 */
     buildupX: 0.55,
     invertY: 0.2,
