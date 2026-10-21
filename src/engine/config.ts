@@ -645,6 +645,8 @@ export const ENGINE = {
     /** 레인 위험 × (1 + laneVision × (60 − 시야)/100) */
     laneVision: 1.0,
     pressurePenalty: 0.4,
+    /** C.77a 가설 2(44h-h): 압박 저항 — 압박 벌점 × (1 − pressResist × clamp(((침착성 + 볼 컨트롤)/2 − 60)/40, 0, 1)) (침착 80·컨트롤 80 이면 −20%) */
+    pressResist: 0.4,
     /** 받는 선수 압박(마크) 패널티: 성공 확률에서 빼는 값과 위치 가치에서 빼는 값 */
     receiverPressure: 0.3,
     /** 받는 선수 압박 거리 기준 (m) */

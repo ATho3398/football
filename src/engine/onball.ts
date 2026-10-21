@@ -121,7 +121,9 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
-  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
+  // 압박 저항 (C.77a 가설 2): 침착성·볼 컨트롤이 높으면 압박 벌점이 줄어든다
+  const resist = 1 - PR.pressResist * clamp(((a.attrs.composure + a.attrs.ballControl) / 2 - 60) / 40, 0, 1);
+  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * resist * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   return passSkillApply(p, skill);
 }
 
@@ -409,6 +411,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   // 경기 상황 (E.20 10번, C.29 fix2): 크게 앞선 팀은 전진 패스·슛·드리블을 덜 하고 안전 패스·유지로 기운다 (팀 공용 행동)
   const risk = leadRiskMul(s, a.team);
   const safeRisk = 1 / risk;
+  // 내려앉는 팀 (C.77a 가설 2): 라인 낮음·매우 낮음이면 압박 속 짧은 안전 패스·클리어 × deepSafe, 드리블·몰고 가기 ÷ deepSafe, GK 는 롱볼 출구
+  const deep = tac.lineHeight <= TENDENCY.deepLineMax;
+  const deepSafe = deep && pressure >= TENDENCY.deepSafePressure ? TENDENCY.deepSafe : 1;
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -482,7 +487,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const wMul = forward ? winMul : 1;
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
-    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk));
+    const deepMul = !forward && !running && d0 < TA.longBall ? deepSafe : isGk && deep && d0 >= TA.longBall ? TENDENCY.deepGkLong : 1;
+    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * deepMul * (forward ? risk : safeRisk));
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -546,14 +552,14 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
         const dp = (who: Agent) => clamp(dribbleProb(who, def!, (second ? -PR.spaceSecondPenalty : 0) + stance) + formBonus(who), 0.02, 0.98);
         const p = dp(a);
         const pj = judgedP(p, dp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk);
+        const u = weight(pj * value + (1 - pj) * lossHere, (a.role.pref.dribble * risk) / deepSafe);
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
         // 몰고 가기: 가는 길로 좁혀 오는 수비수들의 압박으로 빼앗길 확률. 공을 지키는 능력치가 줄인다 (C.17 결정 3)
         const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
         const p = cp(a);
         const pj = judgedP(p, cp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk);
+        const u = weight(pj * value + (1 - pj) * lossHere, (a.role.pref.dribble * a.role.pref.carry * risk) / deepSafe);
         out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
       }
     }
@@ -592,7 +598,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const [tx, ty] = toPitch(clamp(ax + 0.42, 0, 0.9), 0.5 + (ay - 0.5) * 0.5, dir);
       const p = 0.45;
       const [nx, ny] = toNorm(tx, ty, dir);
-      const u = weight(p * positionValue(nx, ny) + (1 - p) * loss(nx, ny), a.role.pref.clear * mDirect);
+      const u = weight(p * positionValue(nx, ny) + (1 - p) * loss(nx, ny), a.role.pref.clear * mDirect * deepSafe);
       out.push({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
     }
   }
