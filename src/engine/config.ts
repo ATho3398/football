@@ -988,7 +988,8 @@ export const ENGINE = {
      * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
     // C.77b 44h-i: 2선 추적 뒤 rating-parts 600(엔진 34 기준) ST 평균 델타 1.871 — 병렬 C.76z 가 같은 재측정으로 1.86 을 먼저 씀, 그 값 유지(차이 0.01 = 평점 0.009)
-    center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.26, WING: 1.18, ST: 1.86 } as Record<string, number>,
+    // C.77k 44h-f3c: 엔진 39 engine:check ST 풀타임 무득점 5.90(가드 5.9 경계 ✗, ST 평균 6.49) — ST 만 1.86 → 1.83(평점 +0.027)
+    center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.26, WING: 1.18, ST: 1.83 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
