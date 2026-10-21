@@ -36,7 +36,8 @@ export function effectiveMax(a: Agent): number {
 function desiredSpeed(a: Agent, d: number, cap: number): number {
   if (d < P.arriveDist) return 0;
   let v: number;
-  if (a.urgent) v = d < P.walkDist ? P.jog : cap;
+  // 사람을 따라가는 추적자 (C.77j): 목표가 움직이는 사람 곁이라 walkDist 안 조깅이면 사람보다 느려진다 — chaseWalkDist 안에서만 조깅
+  if (a.urgent) v = d < (a.chase ? P.chaseWalkDist : P.walkDist) ? P.jog : cap;
   else if (d < P.walkDist) v = P.walk;
   else if (d < P.jogDist) v = P.jog;
   else if (d < P.runDist) v = P.run;

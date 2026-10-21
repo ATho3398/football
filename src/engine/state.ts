@@ -66,6 +66,8 @@ export interface Agent {
   recoverUrgent: boolean;
   /** 복귀: 러닝 이상으로 달린다 (목표가 자기 골 쪽 10 m 이상) */
   minRun: boolean;
+  /** 사람을 따라가는 중 (C.77j): 추적자(trackTarget)가 목표를 쥐었다. urgent 면 chaseWalkDist 안에서만 조깅으로 떨어진다. 오프볼 갱신마다 해제 */
+  chase: boolean;
   /** 스태미나 소모 배율 (수적 열세 1.15, E.18 A6) */
   drainMul: number;
   /** 신체·양발 실행 보정 (부록 C.45): 공중볼·몸싸움·가속/민첩·GK 리치·약발 */

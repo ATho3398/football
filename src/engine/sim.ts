@@ -90,7 +90,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, errX: 0, errY: 0, errTick: -1, errDone: -1, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
+    runUntil: 0, errX: 0, errY: 0, errTick: -1, errDone: -1, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, chase: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
   };
@@ -376,16 +376,17 @@ export function step(s: SimState): void {
 function stepBody(s: SimState): void {
   const dt = T.dt;
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
-  // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격)
+  // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격), 추적자는 trackRefresh 초마다 (C.77h)
   const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
   updateSituations(s);
   for (const a of s.agents) {
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh)) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || (a.trackIdx >= 0 && ENGINE.offball.trackRefresh > 0 && a.nextOffball - s.t > ENGINE.offball.trackRefresh)) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));
       if (looseNow && a.line === 0) a.nextOffball = Math.min(a.nextOffball, s.t + ENGINE.keeper.chaseRefresh);
+      if (a.trackIdx >= 0 && ENGINE.offball.trackRefresh > 0) a.nextOffball = Math.min(a.nextOffball, s.t + ENGINE.offball.trackRefresh);
     }
   }
 
