@@ -416,8 +416,11 @@ export const BALANCE = {
     on: true,
     /** 팀 성향 계수 (조정 손잡이 ①: 게겐 1.15 = 고강도 질주 +15%) */
     tendency: { balanced: 1, tikitaka: 1.05, gegenpress: 1.15, counter: 0.95, direct: 0.95, block: 0.9, bus: 0.85 } as Record<string, number>,
-    /** 부상 확률 × (1 + max(0, 시즌 누적 부하 − injuryFrom) × injuryPerPoint) (손잡이 ②: 리그 주전 시즌 끝 약 32 → ×1.06, 챔스 게겐 주전 55 → ×1.24) */
-    injuryFrom: 25,
+    /**
+     * 부상 확률 × (1 + max(0, 시즌 누적 부하 − injuryFrom) × injuryPerPoint) (손잡이 ②). 25 면 내 선수 부상 풀타임 환산 0.833 → 0.846
+     * (가드 0.4~0.8 여유 없음) → 35: 보통 주전(시즌 끝 28~33)은 가산 없음, 게겐·챔스 고부하(40~50)만 시즌 막판 ×1.04~1.12
+     */
+    injuryFrom: 35,
     injuryPerPoint: 0.008,
     /** 시즌 끝: 마모 += max(0, 시즌 부하 − wearFrom) (손잡이 ③: 리그 주전 평균 ≈ 32 → 거의 0, 게겐 주전 ≈ 37 → +7, 챔스 게겐 ≈ 55 → +25) */
     wearFrom: 30,
