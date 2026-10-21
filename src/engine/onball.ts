@@ -661,8 +661,12 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
   const pool0 = vis.length ? vis : cands;
   let maxU = -Infinity;
   for (const c of pool0) maxU = Math.max(maxU, c.u);
-  const pool = pool0.filter((c) => c.u >= maxU - O.plausibleGap || isMistake(s, a, c, maxU));
-  const tau = decisionTemp(a);
+  // 가치 비례 gap·온도 (C.77i, 44h-f3b): 효용 스케일이 작은 중원에서는 gap·τ 를 그 자리 가치 / 기준점(골 scaleRefDist m 중앙) 가치에 비례해 줄인다.
+  // 기준점보다 앞(vScale ≥ 1)은 그대로. 실수 후보(isMistake)는 절대 gap 그대로
+  const vScale = positionValue(...toNorm(a.x, a.y, attackDir(a.team, s.half))) / positionValue(1 - O.scaleRefDist / L, 0.5);
+  const gap = O.plausibleGap * clamp(vScale, O.gapFloor, 1);
+  const pool = pool0.filter((c) => c.u >= maxU - gap || isMistake(s, a, c, maxU));
+  const tau = decisionTemp(a) * clamp(vScale, O.tempFloor, 1);
   // 패스 받는 빈도 (C.74c): 동료가 나에게 주는 후보의 선택 가중 × 팀 관계·호흡 배율 (효용은 그대로, 없으면 1)
   const ws = pool.map((c) => Math.exp(((c.u - maxU) * O.utilityScale) / tau) * (s.rapport ? toMeMul(s, a, c.receiver) : 1));
   const total = ws.reduce((t, w) => t + w, 0);
