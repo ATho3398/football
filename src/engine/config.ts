@@ -515,10 +515,11 @@ export const ENGINE = {
     plausibleGap: 0.015,
     /**
      * 가치 비례 gap·온도 (C.77i, 44h-f3b, 미해결 2): vScale = 공 위치 가치 / 골 scaleRefDist m 중앙 가치. gap × clamp(vScale, gapFloor, 1),
-     * τ × clamp(vScale, tempFloor, 1). 중원은 효용 스케일이 0.01~0.02 라 절대 gap 0.015 가 그럴듯한 후보를 거의 균등 추첨했다
+     * τ × clamp(vScale, tempFloor, 1). 중원은 효용 스케일이 0.01~0.02 라 절대 gap 0.015 가 그럴듯한 후보를 거의 균등 추첨했다.
+     * C.77i 실패(미배포): 처방 0.3 은 모든 전술 롱패스 5~10% 로 과함, 0.9 가 측정 중 가장 나았지만 직선형 하한 ✗ (부록 C.77i)
      */
     scaleRefDist: 25,
-    gapFloor: 0.3,
+    gapFloor: 0.9,
     tempFloor: 0.4,
     /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
     mistakeShotGap: 2,
