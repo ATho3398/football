@@ -6614,11 +6614,11 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 3. **기준 장면** `tests/scenes/`(하네스 `harness.ts` = 실제 경기 상태 + 엔진 moveAgent·판단 주기 0.5초·keeperTarget·saveProb·shotCover·candidates/choose, 장면 `scenes.ts`, 목표 `targets.ts` 전부 enabled false, 전체 0.2초): ① 같은 속도 추적 간격 2.2 → 9.3 m(4초) ② 급정지 뒤 수비 되돌아서기 2.5초·지나침 5.4 m ③ 뒤 공간 도착 차 빠른 90 대 느린 CB 60 1.1초 / 같은 속도 1.0초 ④ GK 반대편 패스 뒤 선방 — 느린 횡패스 0.04 · 빠른 컷백 0 · 자리 잡은 GK 0.53(패스 비행 중 GK 가 걷는다) ⑤ 백패스 막힘 40.7%(위험 판단) / 열림 6.3%(전부 isMistake). 상세 표는 engine-issues 로드맵 절.
 4. **컵 득점자·출전 시간**(`src/cups.ts`·`src/npcQuick.ts`): 간이 경기 출전 명단 = 선발 11명 90분(GK 포함) + 교체 `fatigue.npc.cupSubs` [60, 68, 75]분에 필드 선발이 나가고(`cupSubOrder` ST → WING → CAM → CM → FB → CDM → CB, 같으면 피로 높은 쪽) 벤치 같은 포지션군 OVR 1위가 남은 분(거리·피로·부하·부상 확률 모두 분 비례). 득점자·도움 = 그 명단에서 포지션군 가중 × 분/90(옛: OVR 상위 14명, 선발·부상 무관 — 옛 방식 득점 확률 중 미출전 선수 몫 7.8%, `scripts/diag/c77w-cup.ts`). 다른 리그 팀은 컨디션 없는 명단(월드·시즌·팀 캐시). 내 리그 팀 팀당 컵 출전 분 770 → 990(옛 70분 × 11). 테스트: 득점자·도움 1000건+ 중 미출전 0, 부상 선수 명단·득점 제외.
 5. **부상 기간**: 경상 1~3주 70% / 중상 8~16주 27% / 시즌아웃 3% → 경상 60% / **중등도 4~7주 21%** / 중상 16% / 시즌아웃 3%. 부상 1건 기대 결장(시즌아웃 25주 가정) 5.39 → 5.03주(−7%, ±10% 안). 영구 하락은 중상 이상만(중등도 없음).
-6. **saveBase 1.66 engine:check**: ENGINE_CHECK_RESULT
+6. **saveBase 1.66 engine:check**(main 1.66 그대로 1회, 1560경기 477초): **경량 가드 모두 통과** — 득점 1.39(가드 1.1~1.6), GK 선방률 12 m 밖 70.5%(68~76 ✓) · 전체 63.7%(기록), 득점 비율 ST 34 · 윙어 26 · 미드 32 · 수비 8 모두 ✓, 순간이동 0. 상수 조정 없음.
 7. 문서: engine-issues 로드맵 절(현재값·빅찬스 부분 해결·`saveBase` 가 판단 식 `onball.ts leagueSaveProb` 에도 들어가 슛 선택 빈도를 같이 바꾼다는 메모), pending 143 가중치 정규화 규칙 한 줄.
 
 - 새 화면·큰 패널: **0개**(엔진 측정·테스트·간이 계산만, 부상 등급 이름 "중등도" 한 단어가 기존 부상 표시에 나온다).
-- 테스트 TEST_COUNT · balance:check BALANCE_CHECK_RESULT
+- 테스트 142파일 1180개 통과(새 c77w 3개 · 장면 5개) · typecheck 통과 · balance:check BALANCE_CHECK_RESULT
 
 ### C.77t 44h단계 엔진 블록 — GK 위치 선방·빅찬스(사용자 요청 2026-10-22 20:2x KST "키퍼 찬스 ㄱㄱ", 엔진관리자9 §9.17.3 44h-k): **선방 확률에 GK 도달 항(슛 순간 GK 위치) · 판단 xG 도 같은 식 · GK 자세 잡기 · `saveBase` 1.63 → 1.66 · 휘슬 미룸 — quick 600 과 같은 시드 scoring 30골+ 를 같이 맞추는 `saveBase` 가 없어(관문 1개 미달) 보류했다가 사용자 결정(2026-10-23 00:1x KST, 선택지 (a))으로 1.66 그대로 `main` 배포, 30골+ 0.30 은 기록** (ENGINE_VERSION 39 → 40, BALANCE_VERSION 81 → 82, SAVE_FORMAT_VERSION 그대로 — 비행 중 슛 정보 `cover` 는 경기 상태 안, 세이브 구조 무변경)
 
