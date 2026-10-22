@@ -903,3 +903,4 @@
 - (00:48 KST) C.77u 사용자 1차 적용 완료(브랜치 475be7d): 레반도프스키 교체·로이스 256 누끼, 도르트문트·바이에른 로고. main은 C.77v·t 뒤.
 - (01:25 KST) **C.77v main 963a5de 배포**(Pages run 287 성공 01:23, android run 4 성공 — APK 아티팩트 https://github.com/ATho3398/football/actions/runs/39797260767). C.77v draft_. C.77t에 main 푸시 지시(now). 검수 묶음 docs/review/2026-10-22-z-review.md(planning-z) + ChatGPT 프롬프트 사용자에게 전달.
 - (01:26 KST) **C.77t main bb23bc3 푸시**(ENGINE 40·BALANCE 82, 테스트 1,172). CI는 C.77t 확인. 다음 C.77u.
+- (01:4x KST) **사용자 결정: 외부 설계안대로 '공통 규칙 로드맵' 진행, 전부 Opus 5.5(Fable 없음)**. automation.md 0번 맨 위 규칙, engine-issues.md 맨 위 로드맵 표(1 C.77w 측정·장면·정합성 → 2 이동·도착 → 3 수신·백패스 → 4 GK·슈팅 → 5 전환 → 6 역할 → 마지막 총량). 원칙: 동작 판정과 밸런스 판정 분리, 가드 깨면 상수 0으로 main. C.77w 지시문 작성. 진행 중 CI: Pages 288(C.77t bb23bc3) 01:25 시작.
