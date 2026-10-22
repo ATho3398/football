@@ -12,6 +12,7 @@ import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCust
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
 import { autoCustom } from '../custom';
 import { HL } from '../highlights';
+import { clipScenes, findClips, makeMatchClips, unpackClips, withClips } from '../highlightClips';
 import './design/tokens.css';
 import './design/bundle.css';
 import './design/skin-b.css';
@@ -190,6 +191,8 @@ const ui = {
   recentDirty: false,
   /** 다시 보기 중이면 끝났을 때 돌아갈 화면 (경기 중 잠금 아님): 지난 경기 = 선수, 방금 경기 하이라이트 = 결과 (C.50) */
   rewatch: false as false | 'player' | 'match',
+  /** 하이라이트 클립 다시 보기 중이면 그 전 재생기 (C.77o): 끝나면 되돌린다 */
+  clipBack: null as null | { replay: ReplayPlayer | null },
   /** 전술 화면 편집 중인 전술 (저장 전). 들어올 때 저장한 전술을 복사한다 (I.16) */
   tac: null as TacticsDraftUI | null,
   /** 다른 팀·선수 상세 (C.53): 보고 있는 팀·선수, 탭, 뒤로 가기 쌓임 (상세 화면끼리 오가면 쌓이고 다른 화면으로 가면 비운다) */
@@ -410,6 +413,9 @@ function cupsView(g: GameState): string {
 async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string }; nat?: { label: string } }): Promise<void> {
   const { season, round } = rep;
   const label = `${rep.nat ? rep.nat.label : rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  // 경기 후 하이라이트 3개 (24.6, C.77o): 클립 구간 프레임만 세이브에 (최근 CLIP.keep 경기)
+  const mc = makeMatchClips(r, { season, round, label });
+  if (mc) g.clips = withClips(g.clips, mc);
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
@@ -969,6 +975,7 @@ function liveContinue(g: GameState): void {
  */
 function finishPlay(g: GameState, out?: MyMatchOutput): void {
   ui.rewatch = false;
+  ui.clipBack = null;
   let replay: Replay | null = null;
   const trust0 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
   const rep0 = g.player.reputation;
@@ -994,6 +1001,14 @@ function finishPlay(g: GameState, out?: MyMatchOutput): void {
 function rewatchExit(): void {
   const back = ui.rewatch;
   ui.rewatch = false;
+  if (ui.clipBack) {
+    // 하이라이트 클립 (C.77o): 클립 전 재생기(방금 경기면 끝난 상태, 불러온 세이브면 없음)로 되돌린다
+    ui.replay?.stop();
+    ui.replay = ui.clipBack.replay;
+    ui.clipBack = null;
+    go('match');
+    return;
+  }
   if (back === 'match' && ui.replay) {
     ui.replay.skip();
     go('match');
@@ -3475,6 +3490,21 @@ app.addEventListener('click', (ev) => {
       ui.rewatch = 'match';
       go('replay');
       return;
+    case 'clip-play': {
+      // 경기 후 하이라이트 3개 (24.6, C.77o): 하나(v = 번호) 또는 모두(v = all). 끝나면 결과 화면으로
+      const lm = g?.lastMatch;
+      const mc = lm ? findClips(g.clips, lm.season, lm.round) : undefined;
+      if (!mc) return;
+      const pick = v === 'all' ? mc.clips : mc.clips.filter((_, i) => String(i) === v);
+      if (!pick.length) return;
+      ui.replay?.stop();
+      ui.clipBack = { replay: ui.replay };
+      setPitchWeather(lm?.cond?.weather);
+      ui.replay = new ReplayPlayer(unpackClips(mc), () => render(), undefined, clipScenes(pick));
+      ui.rewatch = 'match';
+      go('replay');
+      return;
+    }
     case 'replay-open': {
       const [season, round] = (v ?? '').split(':').map(Number);
       const x = ui.recent.find((r) => r.season === season && r.round === round);
@@ -3508,6 +3538,7 @@ async function loadSlot(slot: SaveSlot): Promise<void> {
     ui.game = loaded;
     ui.replay = null;
     ui.rewatch = false;
+    ui.clipBack = null;
     ui.recent = await loadReplays(slot);
     ui.recentDirty = slot !== 'auto';
     syncReplayIndex();
