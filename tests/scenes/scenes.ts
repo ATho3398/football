@@ -9,7 +9,7 @@ import { candidates, choose, type Candidate } from '../../src/engine/onball';
 import { L, W } from '../../src/engine/pitch';
 import { probe } from '../../src/engine/probe';
 import type { Agent, SimState } from '../../src/engine/state';
-import { DT, gap, move, pick, place, REFRESH, sane, sceneState, setBody } from './harness';
+import { DT, gap, move, pick, place, REFRESH, sane, sceneState, setBody, withEngine } from './harness';
 
 export interface SceneOut {
   values: Record<string, number>;
@@ -399,42 +399,52 @@ export function sceneGiveGo(): SceneOut {
 }
 
 /**
- * ⑧ 받으러 나오기 (C.77y): 공을 가진 CB 에게서 15 m 앞 CM 에 마커가 1.2 m 붙어 있다. 1.5초 뒤 수신 각도(마커와 거리·CB → CM 패스 성공 확률).
- * 마커는 엔진 오프더볼 판단 대신 반응 주기(REFRESH)마다 CM 의 골 쪽 1.2 m 를 쫓는다 (자기 이동 능력·C.77x 목표 속도)
+ * ⑧ 받으러 나오기 (C.77y): 공을 가진 CB 에게서 15 m 앞 CM 에 마커가 공 쪽 1.2 m 로 붙어 패스 길을 반쯤 막는다. 1.5초 뒤 CB → CM 패스 성공 확률·마커와 거리.
+ * 마커는 반응 주기(REFRESH)마다 CM 의 공 쪽 1.2 m 를 쫓는다(자기 이동 능력·C.77x 목표 속도). 같은 장면을 받으러 나오기 끔(checkDist 0)으로도 돌려 차이를 본다
  */
 export function sceneCheck(): SceneOut {
-  const s = sceneState(5);
-  const owner = pick(s, 0, 1, 1);
-  const recv = pick(s, 0, 2, 1);
-  const marker = pick(s, 1, 2, 1);
-  clearOthers(s, [owner, recv, marker]);
-  setBody(recv, 75);
-  setBody(marker, 75);
-  place(owner, 40, 30);
-  place(recv, 55, 36);
-  place(marker, 56.2, 36);
-  own(s, owner);
-  const passP = () => candidates(s, owner).find((c) => c.receiver === recv.idx && (c.type === 'pass' || c.type === 'through'))?.p ?? 0;
-  const p0 = passP();
-  const sep0 = gap(recv, marker);
-  const nextD = { at: 0 };
-  let next = 0;
-  let ok = true;
-  for (let t = 0; t < 1.5 - 1e-9; t += DT) {
-    if (t + 1e-9 >= next) {
-      updateOffball(s, recv);
-      next = t + REFRESH;
+  const run = () => {
+    const s = sceneState(5);
+    const owner = pick(s, 0, 1, 1);
+    const recv = pick(s, 0, 2, 1);
+    const marker = pick(s, 1, 2, 1);
+    clearOthers(s, [owner, recv, marker]);
+    setBody(recv, 75);
+    setBody(marker, 75);
+    place(owner, 40, 30);
+    place(recv, 55, 36);
+    own(s, owner);
+    // 받는 선수를 자기 오프더볼 목표(받으러 나오기 없이)에 세운다 — 끈 장면에서 제자리여야 차이가 받으러 나오기 몫이다
+    withEngine({ 'offball.checkDist': 0 }, () => updateOffball(s, recv));
+    place(recv, recv.tx, recv.ty);
+    const dl = Math.hypot(40 - recv.x, 30 - recv.y);
+    const ux = (40 - recv.x) / dl;
+    const uy = (30 - recv.y) / dl;
+    place(marker, recv.x + ux * 1.2, recv.y + uy * 1.2);
+    const x0 = recv.x;
+    const y0 = recv.y;
+    const passP = () => candidates(s, owner).find((c) => c.receiver === recv.idx && (c.type === 'pass' || c.type === 'through'))?.p ?? 0;
+    const p0 = passP();
+    const nextD = { at: 0 };
+    let next = 0;
+    let ok = true;
+    for (let t = 0; t < 1.5 - 1e-9; t += DT) {
+      if (t + 1e-9 >= next) {
+        updateOffball(s, recv);
+        next = t + REFRESH;
+      }
+      track(marker, recv, t, nextD, ux * 1.2, uy * 1.2);
+      move(recv);
+      move(marker);
+      s.t += DT;
+      s.tick++;
+      ok &&= sane(recv, marker);
     }
-    track(marker, recv, t, nextD, 1.2, 0);
-    move(recv);
-    move(marker);
-    s.t += DT;
-    s.tick++;
-    ok &&= sane(recv, marker);
-  }
-  // 받는 선수에서 본 소유자와 마커 사이 각도 (도): 180 에 가까울수록 마커가 등 뒤 (공과 사이에 없다)
-  const ang = (Math.acos(((owner.x - recv.x) * (marker.x - recv.x) + (owner.y - recv.y) * (marker.y - recv.y)) / (gap(owner, recv) * gap(marker, recv) || 1)) * 180) / Math.PI;
-  return { values: { sep0, sepEnd: gap(recv, marker), p0, pEnd: passP(), moved: Math.hypot(recv.x - 55, recv.y - 36), angle: ang }, sane: ok };
+    return { p0, p: passP(), sep: gap(recv, marker), moved: Math.hypot(recv.x - x0, recv.y - y0), ok };
+  };
+  const on = run();
+  const off = withEngine({ 'offball.checkDist': 0 }, run);
+  return { values: { p0: on.p0, pEnd: on.p, pNoCheck: off.p, sepEnd: on.sep, sepNoCheck: off.sep, moved: on.moved, movedNoCheck: off.moved }, sane: on.ok && off.ok };
 }
 
 export const SCENES = { chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival, giveGo: sceneGiveGo, check: sceneCheck } as const;

@@ -1,6 +1,7 @@
 // 기준 장면 목표 (C.77w): enabled = false 면 지금 값 기록과 기본 불변식만 검사한다. 로드맵 2~4단계 패치가 해당 장면을 켜고 check 를 채운다.
 // current = C.77w 측정값 (엔진 40, 지문 11ab14dbb9cf9706). 패치가 동작을 바꾸면 이 표를 같이 고친다.
 // C.77x(엔진 41): ① 간격 2.24 m 일정 ② 되돌아서기 1.2초·지나침 2.6 m ③ 느린 CB +1.14초 / 같은 속도 +0.61초 ⑥ 도착 시간 오차 최대 0.07초
+// C.77y: ⑤ 열림 백패스 6.3 → 0% · 막힘 40.7 → 47.5%(이유 보존) ⑦ 패서 침투 4 → 48.5% · 리턴 침투 패스 성공 0.10 → 0.76(켬)/0.57(끔) ⑧ 패스 성공 0.57 → 0.97 (끈 장면 0.57), 옆으로 3.9 m
 
 import type { SceneId } from './scenes';
 
@@ -30,7 +31,7 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
   },
   // C.77y: 패서 침투 ≥ 30% · 목표가 마커 뒤 · 1초 뒤 리턴(침투) 패스 후보
   giveGo: { goal: '⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계)', enabled: true, both: true, check: (v) => v.runRate! >= 0.3 && v.targetBehind! > 0 && v.returnThrough === 1 && v.returnP! >= 0.4 },
-  // C.77y: 마커 2 m 안 → 1.5초 동안 옆으로 3~5 m 움직이고 소유자 → 받는 선수 패스 성공 확률 +0.03 이상 (마커와 거리는 기록 — 마커도 쫓는다)
-  check: { goal: '⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계)', enabled: true, both: true, check: (v) => v.moved! >= 2.5 && v.moved! <= 6 && v.pEnd! >= v.p0! + 0.03 },
+  // C.77y: 마커가 공 쪽 2 m 안 → 1.5초 동안 옆으로 2.5~6 m, CB → CM 패스 성공 확률이 받으러 나오기 끈 같은 장면보다 +0.03 이상 (마커도 반응 주기로 쫓는다)
+  check: { goal: '⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계)', enabled: true, both: true, check: (v) => v.pEnd! >= v.pNoCheck! + 0.03 && v.moved! >= 2.5 && v.moved! <= 6 },
   arrival: { goal: '⑥ 판단용 도착 시간 = 실제 이동 (2단계, 오차 ≤ 0.2초)', enabled: true, check: (v) => v.maxErr! <= 0.2 },
 };
