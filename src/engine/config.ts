@@ -225,22 +225,23 @@ export const ENGINE = {
      * 수신 움직임 (C.77y, 공통 규칙 로드맵 3단계 B2). 0 이면 각 동작 꺼짐(옛 동작).
      * ⒜ 받으러 나오기: 같은 편 소유자가 checkPassMax m 안이고 내 checkMark m 안에 상대가 있으면 마커 반대쪽 옆으로 checkDist m (공 쪽으로 checkToBall 몫)
      */
-    checkDist: 4,
+    /** 지금 0(꺼짐, 켠 값 4 · giveGoChance 0.6 · swapShare 0.6 · abortLane 0.35): 켜면 quick 득점 1.49 ✗ (부록 C.77y) */
+    checkDist: 0,
     checkMark: 2,
     checkPassMax: 35,
     checkToBall: 0.3,
     /** ⒝ 주고 달리기(2:1): 상대 진영에서 성공 패스를 한 선수(줄 2·3, run ≥ giveGoRun)가 받은 지 giveGoT 초 안에 giveGoChance × 공격 위치선정/100 확률로 받은 선수 마커의 뒤(공격 방향 giveGoDepth m, 패서 쪽 giveGoLane m)로 침투 */
-    giveGoChance: 0.6,
+    giveGoChance: 0,
     giveGoT: 1.0,
     giveGoRun: 0.3,
     giveGoDepth: 8,
     giveGoLane: 4,
     /** ⒞ 자리 교환: 같은 줄 동료가 자기 자리에서 swapDrop m+ 내려와 있으면 그 자리에 가장 가까운 같은 줄 동료(swapRange m 안) 1명이 그 자리 쪽으로 swapShare 만큼 (팀에 한 번에 1명) */
-    swapShare: 0.6,
+    swapShare: 0,
     swapDrop: 8,
     swapRange: 22,
     /** ⒟ 침투 취소: 침투 중 소유자 → 나 패스 길 위험이 abortLane 이상이거나 오프사이드 라인보다 abortOffside m+ 앞이면 침투를 멈추고 라인 abortBack m 안쪽으로 되돌아 나온다 (0 = 끔) */
-    abortLane: 0.35,
+    abortLane: 0,
     abortOffside: 1.5,
     abortBack: 1.5,
     /** 침투 중 라인 오차 배율 (오프사이드 빈도) */
@@ -579,7 +580,8 @@ export const ENGINE = {
      * 백패스 가치 (C.77y, 공통 규칙 로드맵 3단계 B1): 1 = 짧은 백패스를 isMistake 실수 풀에서 빼고 백패스 후보 효용에 가치 항을 더한다, 0 = 옛 동작
      * (30 m 미만 뒤로 2 m+ 패스는 효용과 무관하게 항상 실수 후보). 가치 항 = 압박 탈출 + 보존 × 보존 가중 + 반대편 전환 × 보존 가중 − 기회 비용 × 비용 가중 (골 단위, 효용에 그대로 더함)
      */
-    backModel: 1,
+    /** 지금 0(꺼짐, 켠 값 1): 켜면 quick 득점 1.42 → 1.93 · engine:check 득점 2.02 ✗ (부록 C.77y) */
+    backModel: 0,
     /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
     backEscape: 0.012,
     backEscapeExtra: 0.25,

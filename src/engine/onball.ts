@@ -696,6 +696,9 @@ export function decisionTemp(a: Agent): number {
  */
 export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean {
   if (c.receiver < 0 || c.type === 'layoff') return true;
+  // 2:1 (C.77y): 방금 나에게 공을 준 동료의 주고 달리기는 받으면서 봤다 (받는 순간 패서 쪽을 보고 있었다)
+  const lp = s.lastPass;
+  if (c.type === 'through' && lp && lp.receiver === a.idx && lp.passer === c.receiver && s.agents[c.receiver]?.giveGo && ENGINE.offball.giveGoChance > 0) return true;
   const dir = attackDir(a.team, s.half);
   const sp = Math.hypot(a.vx, a.vy);
   const [fx, fy] = a.backToGoal ? [-dir, 0] : sp > 0.5 ? [a.vx / sp, a.vy / sp] : [dir, 0];
