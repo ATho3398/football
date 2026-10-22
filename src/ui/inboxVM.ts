@@ -77,6 +77,13 @@ function meetTags(g: GameState): { label: string; brand: boolean }[] {
   ];
 }
 
+/** 옛 링크 → 새 위치 (C.77q): 코치 후보·스태프 소식의 재정 링크는 훈련 › 코치·스태프로 */
+function linkOf(x: InboxItem): InboxItem['link'] {
+  const l = x.link;
+  if (l?.to === 'finance' && (x.key?.startsWith('cand:') || x.key?.startsWith('staff-end:'))) return { ...l, to: 'staff' };
+  return l;
+}
+
 const lastMeetId = (g: GameState) => g.inbox?.items.filter((i) => i.key?.startsWith('meet:')).at(-1)?.id;
 
 function rowOf(g: GameState, x: InboxItem): InboxRowVM {
@@ -85,7 +92,7 @@ function rowOf(g: GameState, x: InboxItem): InboxRowVM {
   const status = pending ? (left > 0 ? `답할 것 · ${left}일 남음` : '답할 것 · 오늘까지') : x.answer ? `${x.answer.auto ? (x.answer.text.startsWith('자동 진행') ? '자동 진행 답' : '기본 선택') : '답함'} · ${x.answer.label}` : '';
   return {
     id: x.id, cat: INBOX_CAT_KO[x.cat], icon: CAT_ICON[x.cat], when: dateLabel(x.date), title: x.title, body: x.answer ? x.answer.text : x.body,
-    unread: !x.read || pending, pending, status, ...(x.link ? { link: x.link } : {}),
+    unread: !x.read || pending, pending, status, ...(x.link ? { link: linkOf(x) } : {}),
     ...(x.key?.startsWith('meet:') && x.id === lastMeetId(g) ? { tags: meetTags(g) } : {}),
     chip: pending ? (left > 0 ? `답 필요 · ${left}일 남음` : '답 필요 · 오늘까지') : x.answer ? `${x.answer.auto ? '기본 선택' : '답함'} · ${x.answer.label}` : '',
   };

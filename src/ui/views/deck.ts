@@ -130,6 +130,12 @@ function cardVM(g: GameState, def: CardDef, deck: string[], role: string | undef
   };
 }
 
+/** 카드 한 장 상세 (C.77q 상점·팩 결과): 지금 경기에 쓰는 덱 기준. 없는 카드 id 면 null */
+export function cardDetailVM(g: GameState, id: string, role: string | undefined): DeckCardVM | null {
+  const def = cardById(id);
+  return def ? cardVM(g, def, g.cards.decks[g.cards.active] ?? [], role) : null;
+}
+
 export function deckVM(g: GameState, set: number, role: string | undefined): DeckVM {
   const col = g.cards;
   const deck = col.decks[set] ?? [];

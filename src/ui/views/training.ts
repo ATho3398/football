@@ -111,7 +111,7 @@ export function gaugeSection(vm: TrainingVM): string {
   return `${SectionTitle({ title: '기술 훈련 게이지', action: `시즌 +${vm.seasonUps}/${vm.seasonMax}` })}
     <div class="tr-focus">${Tabs({ items, value: vm.focus, act: 'train-focus', label: '기술 훈련 묶음', scroll: true })}</div>
     <div class="tr-gauges">${cells}</div>
-    <p class="small muted">기술 훈련을 하면 고른 묶음 +1칸. 다 차면 그 묶음에서 가장 낮은 능력치가 1/5칸 올라요(칸 수 = ${BALANCE.training.gauge.full} × 그 능력치의 포인트 비용, 묶음당 시즌 +${BALANCE.training.gauge.bundleSeasonMax}, 전체 +${vm.seasonMax}). [자동]이면 시즌 상한이 남은 묶음 중 내 포지션 OVR에 가장 크게 들어가는 묶음이 차요. 30세부터는 천천히 차요. 코치가 있으면 그 코치의 전문 능력치가 목표가 되고 더 빨리 차요(재정 화면).</p>`;
+    <p class="small muted">기술 훈련을 하면 고른 묶음 +1칸. 다 차면 그 묶음에서 가장 낮은 능력치가 1/5칸 올라요(칸 수 = ${BALANCE.training.gauge.full} × 그 능력치의 포인트 비용, 묶음당 시즌 +${BALANCE.training.gauge.bundleSeasonMax}, 전체 +${vm.seasonMax}). [자동]이면 시즌 상한이 남은 묶음 중 내 포지션 OVR에 가장 크게 들어가는 묶음이 차요. 30세부터는 천천히 차요. 코치가 있으면 그 코치의 전문 능력치가 목표가 되고 더 빨리 차요(코치는 훈련 › 스태프 탭).</p>`;
 }
 
 /** 하루 훈련 고르기 (디자인 92·150): 줄을 고르고 아래 [○○으로]로 확정, [프리셋대로]는 그날 바꾼 것을 지운다 */
