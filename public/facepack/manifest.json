@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-22T12:06:33.807Z",
+  "generated": "2026-10-22T14:06:16.718Z",
   "players": {
     "messi": {
       "file": "players/messi.png",
@@ -1665,43 +1665,43 @@
   "clubs": {
     "mci": {
       "file": "clubs/mci.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/330px-Manchester_City_FC_badge.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/330px-Manchester_City_FC_badge.svg.png",
       "page": "https://en.wikipedia.org/wiki/Manchester_City_F.C.",
       "title": "Manchester City F.C."
     },
     "liv": {
       "file": "clubs/liv.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/330px-Liverpool_FC.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/250px-Liverpool_FC.svg.png",
       "page": "https://en.wikipedia.org/wiki/Liverpool_F.C.",
       "title": "Liverpool F.C."
     },
     "che": {
       "file": "clubs/che.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/cc/Chelsea_FC.svg/330px-Chelsea_FC.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/c/cc/Chelsea_FC.svg/330px-Chelsea_FC.svg.png",
       "page": "https://en.wikipedia.org/wiki/Chelsea_F.C.",
       "title": "Chelsea F.C."
     },
     "tot": {
       "file": "clubs/tot.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/b/b4/Tottenham_Hotspur.svg/330px-Tottenham_Hotspur.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b4/Tottenham_Hotspur.svg/120px-Tottenham_Hotspur.svg.png",
       "page": "https://en.wikipedia.org/wiki/Tottenham_Hotspur_F.C.",
       "title": "Tottenham Hotspur F.C."
     },
     "mun": {
       "file": "clubs/mun.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/330px-Manchester_United_FC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/Manchester_United_FC_crest.svg/330px-Manchester_United_FC_crest.svg.png",
       "page": "https://en.wikipedia.org/wiki/Manchester_United_F.C.",
       "title": "Manchester United F.C."
     },
     "ars": {
       "file": "clubs/ars.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/5/53/Arsenal_FC.svg/330px-Arsenal_FC.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/5/53/Arsenal_FC.svg/330px-Arsenal_FC.svg.png",
       "page": "https://en.wikipedia.org/wiki/Arsenal_F.C.",
       "title": "Arsenal F.C."
     },
     "eve": {
       "file": "clubs/eve.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/7/7c/Everton_FC_logo.svg/330px-Everton_FC_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7c/Everton_FC_logo.svg/330px-Everton_FC_logo.svg.png",
       "page": "https://en.wikipedia.org/wiki/Everton_F.C.",
       "title": "Everton F.C."
     },
