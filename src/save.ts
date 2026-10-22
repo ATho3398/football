@@ -370,6 +370,12 @@ const MIGRATIONS: Record<number, (s: any) => void> = {
   52: (s) => { s.globalAwards ??= { years: [] }; },
   // 53 → 54 (C.76t, 47b): 리그 · 시즌 중 상 — 이달의 선수(globalAwards.months · potm) · 대륙 대회(years[].cont) 는 선택 필드. 옛 세이브 = 기록 없음
   53: (s) => { s.globalAwards ??= { years: [] }; },
+  // 54 → 55 (C.77m, pending 142a): NPC 피로·부상(npcFit). 옛 세이브 = 모든 NPC 피로 0·부상 없음에서 시작 (경기를 치르며 쌓인다)
+  54: (s) => { s.npcFit ??= {}; },
+  // 55 → 56 (C.77n, pending 142b): 시즌 누적 부하·마모(npcLoad, player.load·wear). 옛 세이브 = 부하·마모 0 에서 시작
+  55: (s) => { s.npcLoad ??= {}; },
+  // 56 → 57 (C.77o, 24.6): 경기 후 하이라이트 3개 보관(clips). 옛 세이브 = 빈 목록 (지난 경기는 클립이 없다)
+  56: (s) => { s.clips ??= []; },
   25: (s) => {
     const offseason = s.phase !== 'season';
     const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;

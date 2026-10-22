@@ -154,6 +154,9 @@ export interface PlayerState {
   level: number;
   unspentPoints: number;
   fatigue: number;
+  /** 시즌 누적 부하 (C.77n, 부상 확률 가산) · 지난 시즌까지 마모 (노쇠 가산). 없으면 0 */
+  load?: number;
+  wear?: number;
   reputation: number;
   /** 현재 부상. 없으면 null */
   injury: Injury | null;

@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 74;
+export const BALANCE_VERSION = 80;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -304,16 +304,22 @@ export const BALANCE = {
   // ── 부상 (7.3, 부록 D.2) ──
   // 출전 경기마다 확률 = base × 출전 비율 × 난이도 배율 × 피로 보정 × 신체 보정 × 나이 보정
   injury: {
-    base: 0.02,
-    /** 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint */
-    fatigueFrom: 30,
-    fatiguePerPoint: 0.02,
+    // C.77n (CI 280 balance:check 부상 풀타임 환산 0.86 ✗, 30세 이상 0.97 — C.77m 피로 상향 몫): 0.02 → 0.019. 0.018 이면 부상이 줄어 레전더리 30세까지 월드클래스 10/48 = 0.208 ✗(CI 281) → 0.019 = 9/48
+    base: 0.019,
+    /**
+     * 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint.
+     * C.77m: 피로 수치 상향(경기 22 → 30, 회복 ↓)으로 경기 전 피로 평균 약 4 → 26 이라 30·0.02 그대로면 balance:check 부상 풀타임 환산 ✗(같은 시드 진단 0.83 → 1.06).
+     * 문턱 30 → 60(penaltyFrom 50 보다 위 = "지친 몸"), 기울기 0.02 → 0.01 → 0.83(기준선과 같음, `scripts/diag/injury-per38.ts`). 피로 80 이면 × 1.2
+     */
+    fatigueFrom: 60,
+    fatiguePerPoint: 0.01,
     /** 신체 보정 = physicalBase - physicalSlope × (근력 + 체력) / 2 / 100 */
     physicalBase: 1.3,
     physicalSlope: 0.6,
     /** 나이 보정: 이 나이 이상이면 × ageMultiplier */
     ageFrom: 30,
-    ageMultiplier: 1.3,
+    // C.77n: 1.3 → 1.1 (30세 이상 부상 풀타임 환산 1.04 → 가드 0.4~0.8 안. 30세 이상만이라 30세까지 성장·위상 가드는 그대로)
+    ageMultiplier: 1.1,
     /** 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks */
     grades: {
       minor: { chance: 0.7, weeks: [1, 3] as [number, number] },
@@ -374,18 +380,59 @@ export const BALANCE = {
   // ── 피로 (7.1) ──
   fatigue: {
     max: 100,
-    /** 90분 출전 시 증가량 */
-    perMatch90: 22,
     /**
-     * 주간 회복량. 하루 단위 진행(부록 C.38)에서는 하루가 끝날 때마다 ÷ 7 씩 회복한다(경기 날 포함, 7일 간격이면 지금 주간 값과 같다).
+     * 90분 출전 시 증가량 (기준 거리 ENGINE.match.fatigueRefDistance 를 뛰면). C.77m(pending 142a, 사용자 "경기당 피로도 늘리고"): 22 → 30.
+     * 주 1경기 기본 훈련 주(회복 21)면 주전은 주 +9 쯤 쌓여 몇 주 연속이면 penaltyFrom 50 을 넘고, 주 2경기면 주 +40 쯤 빨리 쌓인다
+     */
+    perMatch90: 30,
+    /**
+     * 주간 회복량 = 기본 훈련 주(휴식 5.5 + 기술 3 × 4 + 영상 3.5 = 21) 합계. C.77m: 25 → 21 (훈련날 회복 ↓ 와 같이).
+     * NPC 는 하루 ÷ 7 씩 (경기 날 포함), 내 선수는 그날 훈련 회복(training.kinds) — 여름 대표팀 사이·세이브 공백은 이 값 ÷ 7.
      * 부상 중인 날은 noMatchWeekRecovery ÷ 7
      */
-    weeklyRecovery: 25,
+    weeklyRecovery: 21,
     noMatchWeekRecovery: 40,
     /** 이 값을 넘으면 평점/선발 확률 페널티 */
     penaltyFrom: 50,
     ratingPenaltyPerPoint: 0.02,
     startPenaltyPerPoint: 0.01,
+    /**
+     * NPC 피로 (C.77m, pending 142a): 내 선수와 같은 규칙(경기 뒤 거리 비례 피로·하루 weeklyRecovery ÷ 7 회복·피로 부상)을 NPC 에도.
+     * 선발 점수 −(피로 − penaltyFrom) × selectPerPoint (OVR 점수) → 지친 주전 대신 벤치 로테이션, 경기 시작 스태미나 = startStamina(피로).
+     * 부상 확률 = injury 와 같은 식(난이도 보통·태그 없음) × injuryMul. on = false 면 NPC 피로·부상 없음(C.77c 이전과 같은 선발).
+     * cup — NPC 끼리 컵·챔스 간이 경기 피로 (C.77n, pending 142b): 레이팅 간이 계산 경기도 pickLineup(그날 컨디션)으로 선발 11명을 뽑아
+     * 90분·기준 거리 피로와 부상 판정만 더한다(엔진 없이). 결과(스코어)는 그대로. npc.cup = false 면 C.77m 과 같다
+     */
+    // cupMinutes: 간이 경기 선발 1명 출전 분(피로·부하 = 기준 거리 × 분/90). 90 이면 챔스 팀 ST 리그 선발 28.3 · 30골+ 0.40(관문 ✗) →
+    // 교체(보통 3명 60~75분)·컵 로테이션 몫을 빼고 70 (C.77n 조정 1)
+    // cupRestFrom: 간이 컵 경기 선발 감점 시작 피로 (리그는 penaltyFrom 50) — 지친 주전은 리그보다 컵에서 먼저 쉰다(컵 로테이션).
+    //   C.77n 조정 2: 70분만으로는 챔스 팀 ST 리그 선발 29.4 · 30골+ 0.20 (관문 ✗)
+    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true, cupMinutes: 70, cupRestFrom: 25 },
+  },
+
+  // ── 시즌 누적 부하 (C.77n, pending 142b — 게겐 대가: 피로↑ → 부상↑ → 선수 생명↓, 내 선수·NPC 같은 함수 src/load.ts) ──
+  // 경기 부하 = 출전 분/90 × 이동 거리/기준 거리 × 팀 성향 계수 (간이 경기는 거리 = 기준). 표준 90분 1경기 = 1.
+  // 실축 근거: 고강도 압박 팀(클롭 리버풀·랑닉 계열)은 팀 고강도 질주 거리가 리그 평균보다 10~20% 많고, 연간 출전 분·주 2경기 누적이
+  // 근육 부상의 가장 큰 위험 인자(UEFA 부상 연구 — 4일 미만 간격 경기에서 부상률 상승). 노쇠 가산은 근거가 약해 작게(0.5~1시즌) 둔다.
+  load: {
+    on: true,
+    /** 팀 성향 계수 (조정 손잡이 ①: 게겐 1.15 = 고강도 질주 +15%) */
+    tendency: { balanced: 1, tikitaka: 1.05, gegenpress: 1.15, counter: 0.95, direct: 0.95, block: 0.9, bus: 0.85 } as Record<string, number>,
+    /**
+     * 부상 확률 × (1 + max(0, 시즌 누적 부하 − injuryFrom) × injuryPerPoint) (손잡이 ②). 25 면 내 선수 부상 풀타임 환산 0.833 → 0.846
+     * (가드 0.4~0.8 여유 없음) → 35: 보통 주전(시즌 끝 28~33)은 가산 없음, 게겐·챔스 고부하(40~50)만 시즌 막판 ×1.04~1.12
+     */
+    injuryFrom: 35,
+    injuryPerPoint: 0.008,
+    /** 시즌 끝: 마모 += max(0, 시즌 부하 − wearFrom) (손잡이 ③: 리그 주전 평균 ≈ 32 → 거의 0, 게겐 주전 ≈ 37 → +7, 챔스 게겐 ≈ 55 → +25) */
+    wearFrom: 30,
+    /** 노쇠: 노화 나이 + min(maxShift, 마모 × agePerWear) 시즌(소수는 곡선 보간), 하락 속도 × (1 + min(maxRate, 마모 × ratePerWear)) (손잡이 ④) */
+    /** 노쇠 가산은 이 나이부터 (C.77n CI 280: 29세 이하에도 걸면 실제 선수 정점 여지 적중 0.72 ✗ — 정점 전 성장은 건드리지 않는다) */
+    wearAgeFrom: 30,
+    agePerWear: 0.02,
+    maxShift: 1,
+    ratePerWear: 0.0015,
+    maxRate: 0.1,
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
@@ -393,29 +440,32 @@ export const BALANCE = {
     kinds: {
       // C.44: 경기 다음 날 휴식 고정 → 기본 주(경기 1개) 기술 훈련 3일 → 4일. 주 합계를 C.43 과 같게 (XP 3.5, 피로 회복 26.5, 게이지 칸 비율):
       // xp 1.0 → 0.75, fatigue 3.5 → 4.0, gauge.full 30 → 40
-      tech: { xp: 0.75, fatigue: 4.0 },
-      intense: { xp: 1.5, fatigue: 2 },
-      position: { xp: 0.5, fatigue: 4 },
-      setpiece: { xp: 0.5, fatigue: 4 },
-      video: { xp: 0.5, fatigue: 4.5 },
-      recovery: { xp: 0, fatigue: 5.5 },
-      rest: { xp: 0, fatigue: 6 },
+      // C.77m (pending 142a, 사용자 "훈련 피로 늘리고"): 훈련날 회복 ↓ — 기본 주 회복 26.5 → 21 (기술 4 → 3, 휴식 6 → 5.5, 영상 4.5 → 3.5, 나머지 −0.5~1)
+      tech: { xp: 0.75, fatigue: 3.0 },
+      intense: { xp: 1.5, fatigue: 1 },
+      position: { xp: 0.5, fatigue: 3 },
+      setpiece: { xp: 0.5, fatigue: 3 },
+      video: { xp: 0.5, fatigue: 3.5 },
+      recovery: { xp: 0, fatigue: 5 },
+      rest: { xp: 0, fatigue: 5.5 },
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
-      weakFoot: { xp: 0.75, fatigue: 4.0 },
+      weakFoot: { xp: 0.75, fatigue: 3.0 },
       // 생활 하루 행동 (pending 47 4번, C.63 b): 훈련 대신. XP 없음, 회복은 휴식~회복 훈련 사이. 효과는 BALANCE.life.actions
-      family: { xp: 0, fatigue: 5 },
-      language: { xp: 0, fatigue: 4.5 },
-      teamMeal: { xp: 0, fatigue: 4.5 },
-      therapy: { xp: 0, fatigue: 5 },
-      trip: { xp: 0, fatigue: 6 },
-      media: { xp: 0, fatigue: 4 },
+      family: { xp: 0, fatigue: 4.5 },
+      language: { xp: 0, fatigue: 3.5 },
+      teamMeal: { xp: 0, fatigue: 3.5 },
+      therapy: { xp: 0, fatigue: 4.5 },
+      trip: { xp: 0, fatigue: 5.5 },
+      media: { xp: 0, fatigue: 3 },
     },
     /**
      * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
      * 부상 중 → 회복 중심, 경기 2번 이상 또는 경기 간격 busyGap 일 이하 → 경기 많은 주, 체력 lowCondition 미만 → 회복 중심,
      * 경기 1번 이하이고 체력 freshCondition 이상 → 기술 집중, 그 밖 → 균형
      */
-    presets: { lowCondition: 65, freshCondition: 85, busyGap: 3 },
+    // C.77m: 피로 수치 상향으로 주 1경기 주전 아침 피로가 평균 약 24 → 회복 중심 문턱을 체력 65 → 50(= 100 − fatigue.penaltyFrom),
+    // 기술 집중 85 → 75 로 (그대로면 회복 중심 주가 늘어 훈련 XP 시즌 119 → 101, 30세 OVR −0.8)
+    presets: { lowCondition: 50, freshCondition: 75, busyGap: 3 },
     /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
     weeklyXpCap: 6,
     /**
@@ -595,8 +645,9 @@ export const BALANCE = {
      * (worldSeed, 경기 시드, 선수 id) 로 결정적 추첨, 결장 선수는 pickLineup 에서 빠지고 벤치가 대신 선발. 득점 확률과 무관한 현실 조건이라 결과 할당이 아니다.
      * NPC 누적 피로·부상이 없어서 둔 임시 대체 — pending 142(NPC 피로·컵 일정·부상)에서 교체한다. 내 선수·내 팀 출전 규칙(부상·벤치 결장)과 무관.
      * 측정(`balance:scoring` 리그 시즌)과 본편 다른 경기(npcMatch)가 같은 함수를 쓴다.
+     * C.77m (pending 142a): NPC 피로·피로 부상(fatigue.npc)이 출전율을 대신해 0.08 → 0 (끔). 같은 시드 scoring 10시즌: 상위 10 ST 선발 34.2 · 30골+ 1.20
      */
-    npcAbsentP: 0.08,
+    npcAbsentP: 0,
     /** 결장 추첨 뒤 남겨 두는 최소 인원 (선발 11 + 교체 3). 마지막 남은 GK 는 결장하지 않는다 */
     npcAbsentMin: 14,
   },

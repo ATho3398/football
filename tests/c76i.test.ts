@@ -9,7 +9,7 @@ import { inboxDetailBody, inboxView } from '../src/ui/views/inbox';
 import { meetingVM } from '../src/ui/managerVM';
 import { meetingView } from '../src/ui/views/manager';
 import { financeVM } from '../src/ui/financeVM';
-import { financeView } from '../src/ui/views/finance';
+import { agentSection, financeView, shopView } from '../src/ui/views/finance';
 import { dayVM, trainingOptionsVM } from '../src/ui/viewModels';
 import { calendarSection } from '../src/ui/views/home';
 import { trainingSheet } from '../src/ui/views/training';
@@ -104,11 +104,13 @@ describe('C.76i 재정 (206 · 219 · 220)', () => {
     expect(vm.netShort).not.toContain('원');
     expect(vm.prices.map((p) => p.rarity)).toEqual(['common', 'rare', 'epic', 'legendary']);
     for (const s of vm.shop ?? []) expect(s.max).toBe(2);
-    expect(financeView(vm, 'shop')).toContain('fn-prices');
+    expect(shopView(vm)).toContain('fn-prices');
     const life = financeView(vm, 'life');
     expect(life).toContain('fn-fold');
-    expect(life).toContain('일반 에이전트');
-    expect(life).toContain('고급 에이전트');
+    // C.77q: 에이전트는 선수 › 계약으로
+    expect(agentSection(vm.agent)).toContain('일반 에이전트');
+    expect(agentSection(vm.agent)).toContain('고급 에이전트');
+    expect(life).not.toContain('일반 에이전트');
     expect(life).toContain('"자선가"까지');
   });
 });

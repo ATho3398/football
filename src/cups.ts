@@ -14,6 +14,8 @@ import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roste
 import { createRng, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import type { GameState } from './game';
+import { dayNum } from './npcFit';
+import { npcQuickMatch } from './npcQuick';
 
 export type CompId = 'fa' | 'ucl';
 
@@ -315,6 +317,17 @@ function quickTie(state: GameState, comp: CupComp, stage: number, i: number): vo
   const rng = rngFor(state.worldSeed, 'cup', comp.id, state.league.season, 'tie', stage, i);
   const [hg, ag] = simulateScore(rng, teamById(state.league, tie.h).rating, teamById(state.league, tie.a).rating);
   settleTie(state, comp, stage, i, hg, ag, scorers(state, rng, tie, hg, ag));
+  quickFit(state, tie, tie.d ?? comp.dates[stage]!, `${comp.id}:${state.league.season}:${stage}:${i}`);
+}
+
+/**
+ * 간이 경기 피로·부상·부하 (C.77n, pending 142b): 내 리그 팀(로스터가 있는 팀)만 선발 11명에게 90분 피로를 더한다.
+ * 다른 리그 팀은 그 리그 경기도 간이 계산이라 피로를 두지 않는다. 스코어·득점자 난수와 따로 (시드 문자열)
+ */
+function quickFit(state: GameState, t: CupTie, date: IsoDate, key: string): void {
+  const rosters = [t.h, t.a].map((id) => state.rosters?.[id]).filter((r): r is TeamRoster => !!r);
+  if (!rosters.length) return;
+  npcQuickMatch((state.npcFit ??= {}), (state.npcLoad ??= {}), rosters, dayNum(date), state.worldSeed, hashSeed(`${state.worldSeed}:cupfit:${key}`));
 }
 
 const isMine = (state: GameState, t: CupTie): boolean => t.h === state.player.teamId || t.a === state.player.teamId;
@@ -400,7 +413,7 @@ export function uclEntrants(state: GameState): string[] {
 const isLeagueTeam = (state: GameState, id: string): boolean => state.league.teams.some((t) => t.id === id);
 
 /** 그 주(목표일이 든 주)의 화요일 */
-function tuesdayOf(y0: number, [y, m, d]: readonly [number, number, number]): IsoDate {
+export function tuesdayOf(y0: number, [y, m, d]: readonly [number, number, number]): IsoDate {
   const t = isoDate(y ? y0 + 1 : y0, m, d);
   return addDays(t, (2 - weekday(t) + 7) % 7);
 }
@@ -547,6 +560,7 @@ function uclQuick(state: GameState, u: UclComp, m: UclMatch): void {
   const [hg, ag] = simulateScore(rng, teamById(state.league, m.t.h).rating, teamById(state.league, m.t.a).rating);
   // 득점자는 녹아웃만 (조별 48경기 득점 기록은 세이브만 키운다)
   uclSettle(state, u, m, hg, ag, m.kind === 'group' ? undefined : scorers(state, rng, m.t, hg, ag));
+  quickFit(state, m.t, m.t.d!, `ucl:${state.league.season}:${m.kind}:${m.md}:${m.stage}:${m.i}`);
 }
 
 /** 단계가 끝났으면 다음 추첨: 조별 → 16강(조 1위 vs 다른 조 2위, 같은 리그 피함, 1위가 2차전 홈) → 8강·4강(무작위) → 결승 */

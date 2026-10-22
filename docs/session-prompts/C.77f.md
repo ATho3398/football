@@ -1,0 +1,12 @@
+너는 엔진 코드 세션 "44h단계_게겐 상성 2차·전환 침투 (C.77f)"이다(**Opus, 노력도 높음 — 같은 문제(미해결 3 게겐 상성)의 Opus 2차**. 이번에도 관문을 못 넘으면 Fable로 넘기지 말고 멈춰 보고 — 마스터가 사용자에게 게겐 종결 여부를 다시 묻는다). 마스터는 Y(session_01PgUwPFtt8b6h4UmF4SbRvY, 마스터 브랜치 claude/planning-y). 처방은 엔진관리자8(session_01DJK7MaPzJ2edGU3ywbiw3H, 브랜치 claude/engine-manager-8) — "해결 어려움·진단 불일치"는 엔진관리자8에 send_message(마스터에는 짧게). 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다(1·2·3번 fix 규칙, 7번).
+
+먼저 읽기: CLAUDE.md → docs/automation.md → `git fetch origin claude/engine-manager-8` 후 `docs/engine-diagnosis-e4.md` **§9.14.1 전체**(44h-h2 — 근본: 모든 팀 전환 공격이 약함, 뒷공간 처벌 미작동) + §9.14 관문 표 → main 부록 C.77a(실패 기록)·C.77d·C.77e → `docs/engine-issues.md` 2·3 → 브랜치 `claude/c77a-gegen-cost`의 가설 1 커밋 d50212e(체력 비용 gegenDrain 1.15·counterDrain 1.5). main은 엔진 37(5b6b8b7). C.77e는 미배포(브랜치 claude/c77e-false-nine-run — 그 docs는 git merge로).
+
+사용자 의도: 게겐은 **"티키타카엔 세지만 단점이 명확한 전술"** — 게겐 > 티키타카 · ≈ 균형 · < 역습·롱볼·버스 · ≈ 블록. 대가 = 후반에 지침, 높은 라인 뒤 공간을 역습에 내줌, 내려앉는 팀은 압박을 풀어냄.
+
+범위(§9.14.1, 가설마다 커밋 1개): 가설 1 체력 비용(d50212e cherry-pick, 그대로 함께 배포) → **A** 침투 경쟁 운동학(`onball.ts candidates()` tDef에 현재 속도·가속, `moveAgent`와 같은 식, 새 상수 없음) → **B** 전환 4초 전방 침투(`transitionRunT`, 공보다 앞선 줄 3·run ≥ 0.4 줄 2에 `runUntil`, 역습 출구 포함) → **C**(조건부) 압박 ≥ 0.5에서만 '유지'를 실수 후보로(총량 ↑면 saveBase). 엔진 37 기준선은 C.77a 값 사용 가능(티키 +0.63·균형 +0.29·역습 +0.80·버스 +0.72·블록 +0.70·직선 +0.46). 관문: §9.14 표(티키 +0.2~+0.5 · 균형 ±0.15 · 역습 ≤ 0(부분 ≤ +0.15) · 버스·블록 ≤ +0.25(부분 ≤ +0.3) · 75'+ 게겐 득실 ≤ −0.10 · 역습 팀 침투 수신 ≥ 22% · 역습 슈팅 ≥ 2.0 · 버스 슈팅 ≥ 1.5 · 게겐 탈취 대 버스·블록 ≤ 23) + 기록 행 게겐 대 직선 ≤ +0.1. **A+B 뒤에도 대 역습 > +0.3이면 중단·보고**. 가드: §9.14.1대로(quick 600 1.30~1.45 · Δ+8 1.8~2.4 · 같은 시드 scoring 30골+ 0.5~2.0(빠른 엘리트 ↑ 시 raceCap 1.5 → 1.0)·중앙값 25~35 · 오프사이드 기록 · sweep 7×7 ≤ 1.0 · 선발 끝까지 뛴 선수 7.5~8.5 km · tac bus 실점 ≤ 1.55 · engine:check 경량 · 지문 변경 기록). 결과 할당·고무줄 금지.
+
+**측정 운영(꼭 지킬 것)**: ① main 병합은 시작 1번 + 마지막 검증 직전 1번만 ② 무거운 측정(tactic-pair 200·scoring·sweep·quick 600·balance:check)은 동시에 2개까지(tactic-pair 3개+는 워커 소실) ③ balance:check는 마지막에 1번, `nohup … > log 2>&1 &`. 60분 안에 판정이 없으면 다른 관문이 모두 통과한 경우에 한해 main 푸시하고 CI에 맡김(실패하면 네가 처리) ④ 대기는 send_later 한 번으로(sleep·pgrep 루프 금지 — C.77e가 pgrep이 자기 자신에 걸려 50분 헛대기).
+
+예산: 2.5시간·약 12달러(Opus). PATCH_LABEL 'C.77f', STAGE_LABEL main 그대로, ENGINE_VERSION·BALANCE_VERSION은 푸시 직전 main +1. 부록 C에 C.77f, engine-issues 2·3 갱신. 엔진관리자8·C.77a·C.77e 브랜치 docs는 git merge로.
+완료·실패면 마스터에 보고(가설별 상성표 전후·관문·지문·테스트 수·커밋·걸린 시간·비용). CI 성공은 보내지 않는다(실패만).

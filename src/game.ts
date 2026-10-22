@@ -28,7 +28,7 @@ import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar
 import { playNpcMatch, summarize, type GoalRec, type NpcMatchInput, type NpcMatchResult } from './engine/npcMatch';
 import { createNpc, growNpc, type NpcState } from './npc';
 import {
-  addLegendSpawns, assignShirts, createRosters, findRosterPlayer, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters,
+  addLegendSpawns, assignShirts, createRosters, findRosterPlayer, freeShirt, setNamePoolVersion, syncRealPlayers, teamRatings, updateRostersForSeason, type Rosters, type TeamRoster,
 } from './roster';
 import { positionOvr, type PlayablePosition } from './positions';
 import { afterTeamMatch, engineProficiency, initialProficiency, initialProfLog, proficientOvr } from './proficiency';
@@ -56,6 +56,8 @@ import { PHOTO_OF, randomNameFor, rollIdentity, type FacePhoto, type Race } from
 import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
+import { dayNum, npcAfterMatch, npcConditions, npcLines, pruneNpcFit, rosterLoadMul, type NpcCond, type NpcFitMap } from './npcFit';
+import { closeNpcLoadSeason, matchLoad, npcWear, seasonWear, wearAging, type NpcLoadMap } from './load';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
 import { addTrust, afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, trustOf, upsetForm, type ManagerState } from './manager';
@@ -85,13 +87,14 @@ import type { NameOverrides } from './names';
 import { weatherInjuryMul, type WeatherKind } from './weather';
 import type { PixelOverrides } from './pixel';
 import type { FieldPosition } from './positions';
+import type { MatchClips } from './highlightClips';
 import {
   acceptOffer, autoResolveMarket, initialContract, initialMarket, marketPending, onDayEnd, openOffseasonMarket, replayTransfers, runNpcWindow, syncNpcClubs,
   type MarketState, type TransferRec,
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 54;
+export const SAVE_FORMAT_VERSION = 57;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -223,6 +226,10 @@ export interface GameState {
   league: LeagueState;
   /** 새 게임에서 고른 리그 (C.75m): 내 리그가 맨 앞. 옛 세이브는 ['pl'] */
   leagueIds?: string[];
+  /** NPC 피로·부상 (C.77m, SAVE_FORMAT_VERSION 55): 선수 id → [경기 뒤 피로, 날 번호, 복귀 날 번호]. 엔진으로 치른 경기만 쌓인다. 시즌이 바뀌면 비운다 */
+  npcFit?: NpcFitMap;
+  /** 시즌 누적 부하 (C.77n, SAVE_FORMAT_VERSION 56): 선수 id → [이번 시즌 부하, 지난 시즌까지 마모]. 내 리그 경기(엔진·컵 간이)만 쌓인다 */
+  npcLoad?: NpcLoadMap;
   /** 고른 다른 리그 (빠른 시뮬, 리그별 순위·지난 시즌 기록). 없으면 내 리그만 */
   otherLeagues?: OtherLeague[];
   /** 내 리그 이동 기록 (C.76c): 첫 줄 = 시작 리그. 없으면 이동 없음 (로스터 재생성이 같은 자리에서 새 리그 로스터를 만든다) */
@@ -233,6 +240,8 @@ export interface GameState {
   /** 팀별 로스터. 세이브에 담지 않고 불러올 때 rebuildRosters 로 재생성한다 */
   rosters: Rosters;
   lastMatch?: MatchReport;
+  /** 경기 후 하이라이트 3개 (24.6, C.77o, SAVE_FORMAT_VERSION 57): 내 최근 CLIP.keep 경기, 클립 구간 프레임만 */
+  clips?: MatchClips[];
   lastSeasonSummary?: SeasonSummary;
   /** 단계적 공개와 첫 플레이 안내 상태 (21.3·21.4, 부록 C.23) */
   guide: GuideState;
@@ -892,15 +901,21 @@ export function otherJob(state: GameState, r: number, i: number): OtherJob {
   const { league } = state;
   const f = league.schedule[r]![i]!;
   // 날씨·심판 (C.74a): 내 경기와 같은 규칙 (그 경기 날짜 · 홈팀)
-  const cond = matchConditions(state.worldSeed, calendarOf(state).fixtureDates[r]![i]!, f.home);
+  const date = calendarOf(state).fixtureDates[r]![i]!;
+  const cond = matchConditions(state.worldSeed, date, f.home);
+  const home = state.rosters[f.home]!;
+  const away = state.rosters[f.away]!;
+  // NPC 피로·부상 (C.77m): 경기 날 아침 컨디션 (미리 계산 키에 들어가므로 그날 값으로)
+  const npc = npcConditions(state.npcFit, [home, away], dayNum(date));
   return {
     r, i,
     input: {
-      home: state.rosters[f.home]!, away: state.rosters[f.away]!,
+      home, away,
       homeRating: teamById(league, f.home).rating, awayRating: teamById(league, f.away).rating,
       seed: hashSeed(`${state.worldSeed}:other:${league.season}:${r}:${i}`), worldSeed: state.worldSeed,
       leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
       ...envField(cond),
+      ...(npc ? { cond: npc } : {}),
     },
   };
 }
@@ -920,6 +935,14 @@ function addPlayerLines(state: GameState, res: NpcMatchResult): void {
   }
 }
 
+/** 내 선수 시즌 누적 부하 (C.77n): 경기 부하 = 분 × 이동 거리 × 소속 팀 성향 계수 (대표팀 경기는 계수 1) */
+function addMyLoad(state: GameState, minutes: number, distance: number | undefined, club = true): void {
+  if (!BALANCE.load.on || minutes <= 0) return;
+  const p = state.player;
+  const r = club ? state.rosters?.[p.teamId] : undefined;
+  p.load = Math.round(((p.load ?? 0) + matchLoad(minutes, distance, r ? rosterLoadMul(r, state.worldSeed) : 1)) * 100) / 100;
+}
+
 /** 다른 경기 결과를 기록한다: 순위표, 스코어·득점자·도움, 선수 시즌 합계 */
 export function applyOther(state: GameState, r: number, i: number, res: NpcMatchResult): void {
   const f = state.league.schedule[r]![i]!;
@@ -927,6 +950,9 @@ export function applyOther(state: GameState, r: number, i: number, res: NpcMatch
   recordResult(state.league, f, res.hg, res.ag);
   if (res.goals.length) f.g = res.goals;
   addPlayerLines(state, res);
+  // NPC 피로·부상 (C.77m): 경기 뒤 거리 비례 피로·부상 판정 (otherJob 과 같은 시드)
+  const date = calendarOf(state).fixtureDates[r]![i]!;
+  npcAfterMatch((state.npcFit ??= {}), [state.rosters[f.home]!, state.rosters[f.away]!], npcLines(res), dayNum(date), state.worldSeed, hashSeed(`${state.worldSeed}:other:${state.league.season}:${r}:${i}`), (state.npcLoad ??= {}));
 }
 
 /**
@@ -1420,6 +1446,8 @@ export function endDay(state: GameState): TrainingDayResult {
   if (todaysOthers(state).length) throw new Error('오늘 다른 경기가 남았음');
   const ended = state.calendar.date;
   const r = dayStep(state, ended);
+  // NPC 피로 (C.77m): 다 회복한 선수 기록은 지운다
+  pruneNpcFit(state.npcFit, dayNum(ended) + 1);
   // 재정 (C.68a): 일요일 주 정산, 코치 후보 도착
   moneyDayEnd(state, ended);
   // 재정 b (C.68b): 일요일 차 효과 · 이벤트형 투자 제안
@@ -1571,8 +1599,21 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
     // 날씨·심판 (C.74a): 엔진 실행 배율. 맑음·보통 심판이면 붙이지 않는다
     ...envField(env),
     ...(rapport ? { rapport } : {}),
+    // NPC 피로·부상 (C.77m): 동료·상대 경기 날 아침 컨디션
+    ...npcCondField(state, [state.rosters[player.teamId]!, oppRoster], myMatchDate(state) ?? state.calendar.date),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
+}
+
+/** NPC 피로·부상 (C.77m): 내 경기 동료·상대의 그날 아침 컨디션. 없으면 붙이지 않는다 */
+function npcCondField(state: GameState, rosters: TeamRoster[], date: IsoDate): { npcCond?: NpcCond } {
+  const c = npcConditions(state.npcFit, rosters, dayNum(date));
+  return c ? { npcCond: c } : {};
+}
+
+/** 내 경기(리그·컵) 뒤 동료·상대 NPC 피로·부상 (C.77m, 다른 경기와 같은 규칙). 오늘이 경기 날 */
+function npcAfterMyMatch(state: GameState, input: EngineMatchInput, sum: NpcMatchResult): void {
+  npcAfterMatch((state.npcFit ??= {}), [input.myRoster, input.oppRoster], npcLines(sum), dayNum(state.calendar.date), state.worldSeed, input.seed, (state.npcLoad ??= {}));
 }
 
 /** 판단 스탯 생활 페널티 (C.75i): 0 이면 엔진 입력에 붙이지 않는다 */
@@ -1687,6 +1728,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     const sum = summarize(engineOut.engine);
     if (sum.goals.length) myFx.g = sum.goals;
     addPlayerLines(state, sum);
+    if (rm) npcAfterMyMatch(state, rm.input, sum);
   }
 
   // 기록, XP, 피로
@@ -1762,6 +1804,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
+    addMyLoad(state, result.minutes, my?.distance);
   }
   // 경기 XP × 0.8, 결장 경기는 0 (옛 결장 주 훈련 XP·재활 XP 는 하루 훈련으로, 25.3 1번). 30세부터 고령 감쇠 (6.1)
   result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * veteranXpMultiplier(player.age)) : 0;
@@ -1872,7 +1915,9 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   }
   // 대진 기록 (홈 기준), 득점 기록은 엔진 경기만
   const [hg, ag] = mc.home ? [result.goalsFor, result.goalsAgainst] : [result.goalsAgainst, result.goalsFor];
-  mc.settle(hg, ag, engineOut ? summarize(engineOut.engine).goals : undefined);
+  const cupSum = engineOut ? summarize(engineOut.engine) : undefined;
+  mc.settle(hg, ag, cupSum?.goals);
+  if (rm && cupSum) npcAfterMyMatch(state, rm.input, cupSum);
   const out = cupOutcome(state, mc);
   // 컵 기록
   const c = (player.season.cup ??= { apps: 0, goals: 0, assists: 0, ratingSum: 0 });
@@ -1901,6 +1946,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
+    addMyLoad(state, result.minutes, my?.distance);
   }
   result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * BALANCE.cups.matchXpMul * veteranXpMultiplier(player.age) * xpMul(player, false)) : 0;
   if (state.training) {
@@ -2061,6 +2107,7 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
   if (result.minutes > 0) {
     if (my) player.fatigue = Math.min(BALANCE.fatigue.max, player.fatigue + fatigueFromDistance(my.distance));
     else updateFatigueForMatch(player, result.minutes);
+    addMyLoad(state, result.minutes, my?.distance, false);
   }
   result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * N.matchXpMul * veteranXpMultiplier(player.age) * xpMul(player, false)) : 0;
   if (state.training && !summer) {
@@ -2392,7 +2439,11 @@ export function endSeason(state: GameState): SeasonSummary {
   const evergreen = judgeEvergreen(player, season, age, ovrBefore, tagCh);
   judgeLateBloomer(player, season, ovrBefore, tagCh);
   judgeNatural(player, naturalInput(state, ovrBefore), tagCh);
-  const aging = applyAging(player.attributes, age, rng, player.position, evergreen ? agingMul(player) : 1, lateBloomerSkip(player, age));
+  // 시즌 누적 마모 (C.77n): 이번 시즌 부하 → 마모, 노쇠 나이 앞당김·하락 속도 가산
+  player.wear = Math.round(((player.wear ?? 0) + seasonWear(player.load)) * 10) / 10;
+  player.load = 0;
+  const wa = wearAging(player.wear, age);
+  const aging = applyAging(player.attributes, age, rng, player.position, (evergreen ? agingMul(player) : 1) * wa.mul, lateBloomerSkip(player, age), wa.shift);
 
   // 5. 나이
   player.age = age + 1;
@@ -2419,10 +2470,13 @@ export function endSeason(state: GameState): SeasonSummary {
   // 구단 재정 (C.46): 다가올 시즌 예산 = 등급 + 이번 시즌 순위 상금 (판 선수 몸값은 이적 기록으로 더해진다)
   ensureFinance(state, season + 1, Object.fromEntries(sortedTable(league).map((r, i) => [r.teamId, i + 1])));
   const summer = runNpcWindow(state, 'summer');
-  state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season));
+  // 시즌 누적 마모 (C.77n): NPC 시즌 부하 → 마모 (성장·은퇴 전에)
+  closeNpcLoadSeason(state.npcLoad);
+  const wearOf = (id: string) => npcWear(state.npcLoad, id);
+  state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season, wearOf(n.id)));
   const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
   const photoSnap = photoSnapshot(state);
-  state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs);
+  state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs, wearOf);
   // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 들어온다 (rebuildRosters 와 같은 자리)
   if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams, rosterLeagues(state));
   // 레전드 팩 3판 (C.76b): 리그 밖 레전드 이적 유입 (rebuildRosters 와 같은 자리)
@@ -2535,6 +2589,8 @@ export function startNextSeason(state: GameState): void {
   state.matchLog = [];
   // 비시즌 휴가 (25.3 5번): 피로 하루 −6 이라 소집 때는 0. 개막 7일 전 소집부터 훈련 계획과 첫 경기 준비
   state.player.fatigue = 0;
+  // NPC 피로·부상 (C.77m): 비시즌에 모두 회복 (시즌 넘는 부상은 이번 범위 밖 — 내 선수 비시즌 회복 offseasonWeeks 와 같은 쪽)
+  delete state.npcFit;
   healDays(state.player, BALANCE.injury.offseasonWeeks * 7);
   state.calendar = { date: campDate(state) };
   // 다른 리그 (C.75m): 비시즌 동안 치른 경기 · 새 시즌

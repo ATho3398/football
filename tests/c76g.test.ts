@@ -30,12 +30,13 @@ describe('C.76g 공통 컴포넌트', () => {
 });
 
 describe('C.76g 홈', () => {
-  it('머리말 도구: 안 읽은 인박스 → 알림 종 배지, 코치 후보 → 재정 동전 배지 (197·211), 도감 = album', () => {
+  it('머리말 도구: 안 읽은 인박스 → 알림 종 배지, 코치 후보 → 호루라기 배지(C.77q: 훈련 › 코치·스태프), 도감 = album', () => {
     const vm = homeVM(son());
     expect(homeView({ ...vm, inbox: 0, money: 0 })).not.toContain('data-to="inbox"');
     const html = homeView({ ...vm, inbox: 3, money: 2 });
     expect(html).toContain('aria-label="알림 3"');
-    expect(html).toContain('aria-label="재정 · 코치 후보 2"');
+    expect(html).toContain('aria-label="코치 후보 2"');
+    expect(html).toContain('data-to="staff"');
     expect(html).toContain(ICON_PATHS.album.slice(0, 20));
   });
   it('부상 칩 (228) · 시즌 목표는 다음 경기 바로 아래 (204)', () => {

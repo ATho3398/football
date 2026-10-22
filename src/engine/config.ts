@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 38;
+export const ENGINE_VERSION = 39;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -165,6 +165,9 @@ export const ENGINE = {
     /** 유지·짧은 패스·백패스 효용 × (possBase + possSlope × style), 롱볼·클리어링·최전방 직행 × (directBase − possSlope × style) */
     possBase: 0.85,
     possSlope: 0.3,
+    /** 선택 폭 성향 비례 (C.77k, 44h-f3c): style ≤ styleDirectAt 면 중원도 넓게(빠르게 앞으로), ≥ styleMixedAt 면 gapFloor·tempFloor 까지 좁힌다 */
+    styleDirectAt: 0.2,
+    styleMixedAt: 0.5,
     directBase: 1.15,
     /** 롱볼 기준 거리 (m), 최전방 직행: ST/CF 에게 이 거리 이상 전진하는 패스 */
     longBall: 30,
@@ -513,6 +516,15 @@ export const ENGINE = {
      * 안전한 백패스, 무리한 슛)만 고를 수 있다. 엉뚱한 선택(먼 옆 패스 등)은 후보에서 뺀다
      */
     plausibleGap: 0.015,
+    /**
+     * 가치 비례 gap·온도 (C.77i, 44h-f3b, 미해결 2): vScale = 공 위치 가치 / 골 scaleRefDist m 중앙 가치. gap × clamp(vScale, gapFloor, 1),
+     * τ × clamp(vScale, tempFloor, 1). 중원은 효용 스케일이 0.01~0.02 라 절대 gap 0.015 가 그럴듯한 후보를 거의 균등 추첨했다.
+     * C.77i 실패(미배포): 처방 0.3 은 모든 전술 롱패스 5~10% 로 과함, 0.9 가 측정 중 가장 나았지만 직선형 하한 ✗ (부록 C.77i)
+     */
+    scaleRefDist: 25,
+    /** 바닥은 팀 빌드업 성향 비례 (C.77k, 44h-f3c): k = clamp((style − tactics.styleDirectAt)/(styleMixedAt − styleDirectAt), 0, 1), 바닥 = 1 − (1 − floor) × k */
+    gapFloor: 0.8,
+    tempFloor: 0.4,
     /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
     mistakeShotGap: 2,
     /**
@@ -976,7 +988,8 @@ export const ENGINE = {
      * scale 은 전체 σ 약 0.75. ST 는 경기당 0.58골이라 평균을 6.5 에 두면 무득점 경기가 6.0 아래로 내려가서 +0.14 (평균 약 6.65)
      */
     // C.77b 44h-i: 2선 추적 뒤 rating-parts 600(엔진 34 기준) ST 평균 델타 1.871 — 병렬 C.76z 가 같은 재측정으로 1.86 을 먼저 씀, 그 값 유지(차이 0.01 = 평점 0.009)
-    center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.26, WING: 1.18, ST: 1.86 } as Record<string, number>,
+    // C.77k 44h-f3c: 엔진 39 engine:check ST 풀타임 무득점 5.90(가드 5.9 경계 ✗, ST 평균 6.49) — ST 만 1.86 → 1.83(평점 +0.027)
+    center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.26, WING: 1.18, ST: 1.83 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },

@@ -2,6 +2,7 @@
 // 팀 전술은 사용자가 정하므로 전술 자체에는 신뢰도 보너스/벌점이 없다 (D.11 6번). 엔진(src/engine)은 건드리지 않고
 // 선발 판정(roundMatch·빠른 경기)의 OVR 입력에만 신뢰도 항을 더한다. 수치는 BALANCE.manager
 
+import { dayNum, npcFatigueOn, npcSelectPenalty } from './npcFit';
 import { BALANCE } from './config/balance';
 import { MANAGER_STYLE_KO, managerOf, type ManagerData } from '../data/managers';
 import { addDays, daysBetween, type IsoDate } from './calendar';
@@ -171,9 +172,12 @@ export function competition(state: GameState, pos: FieldPosition, n = 2): ScoreR
   const me: ScoreRow = { name: p.name, me: true, age: p.age, ovr, trust: r1(trust), form: r1(form), fatigue: fat, total: r1(ovr + trust + form + fat), detail: '' };
   const roster = state.rosters?.[p.teamId]?.players ?? [];
   const npcTrust = r1(trustTerm(M.npcTrust));
+  // NPC 피로 (C.77m): 그 선수의 오늘 피로 선발 감점 (NPC 선발과 같은 식)
+  const today = dayNum(state.calendar.date);
   const rivals = roster.filter((x) => !x.gk).map((x) => {
     const o = slotOvr(x, pos);
-    return { name: x.nameKo, me: false, age: x.age, ovr: o, trust: npcTrust, form: 0, fatigue: 0, total: r1(o + npcTrust), detail: '' };
+    const fat = 0 - r1(npcSelectPenalty(npcFatigueOn(state.npcFit?.[x.id], today)));
+    return { name: x.nameKo, me: false, age: x.age, ovr: o, trust: npcTrust, form: 0, fatigue: fat, total: r1(o + npcTrust + fat), detail: '' };
   }).sort((a, b) => b.total - a.total).slice(0, n);
   return [me, ...rivals].sort((a, b) => b.total - a.total);
 }

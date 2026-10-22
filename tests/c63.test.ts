@@ -142,7 +142,7 @@ describe('이벤트 엔진·인박스 (20.3·20.4)', () => {
   it('세이브 33: 왕복, 32 세이브 이식(인박스 없음 → 처음 쓸 때)', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c63-save', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(57);
     const back = deserialize(serialize(g));
     expect(back.inbox?.items.length).toBe(g.inbox?.items.length);
     expect(back.events?.slots).toEqual(g.events?.slots);
@@ -302,8 +302,8 @@ describe('경기 외 생활 (pending 47 4번, C.63 b)', () => {
 
 describe('모바일 독 (C.63c)', () => {
   it('더보기 = 독 옆 펼침 줄(인박스 포함, 끌어 넘김) — 순서는 C.66 에서 홈 · 선수 · [다음]', () => {
-    expect(DOCK_PHONE).toEqual(['home', 'player', 'prog', 'schedule', 'more']);
-    expect(DOCK_PC.slice(0, 6)).toEqual(['home', 'player', 'deck', 'tactics', 'inbox', 'prog']);
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
+    expect(DOCK_PC.slice(0, 6)).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog']);
     const vm = { screen: 'home', prog: { label: '진행 중', icon: 'running' as const, act: 'noop', kind: 'running' as const }, tacticsOpen: false, points: 0, more: true, inbox: 2 };
     const html = dock(vm);
     expect(html).toContain('dock-more__scroll');

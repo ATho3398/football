@@ -100,6 +100,8 @@ export interface SceneStripProps {
   minute: string | number;
   /** onLive / onHighlight / onSettings 대신 동작. onSettings 가 없으면 톱니를 숨긴다 (설정 항목이 없을 때) */
   onLive?: Action; onHighlight?: Action; onSettings?: Action;
+  /** [여기서부터 실시간] 숨김 (하이라이트 클립 재생, C.77o: 클립 밖 프레임이 없다) */
+  noLive?: boolean;
   settingsOn?: boolean;
   idPrefix?: string;
 }
@@ -116,7 +118,7 @@ function sceneStrip(p: SceneStripProps, solo: boolean): string {
     : view === 'transition' ? `<span><b>장면 전환</b> · 다음 <span class="po-num">${idx + 1}/${total}</span></span>`
     : view ? `<span><b>하이라이트</b> · 장면 <span class="po-num">${idx}/${total}</span>${sc.minute != null ? ` · <span class="po-num">${esc(sc.minute)}'</span>` : ''}${sc.label ? ` ${esc(sc.label)}` : ''}</span>`
     : '';
-  const acts = `${view === 'highlight' || view === 'transition'
+  const acts = `${(view === 'highlight' || view === 'transition') && !p.noLive
     ? `<button type="button" class="po-strip__btn"${actAttrs(p.onLive ?? {})}${view === 'transition' ? ' disabled' : ''}>${Icon({ name: 'play', size: 11, filled: true })}여기서부터 실시간</button>` : ''}${
     view === 'live' ? `<button type="button" class="po-strip__btn"${actAttrs(p.onHighlight ?? {})}>${Icon({ name: 'video', size: 11 })}하이라이트로 돌아가기</button>` : ''}${
     p.onSettings ? `<button type="button" class="${cx('po-strip__gear', p.settingsOn && 'is-on')}" aria-label="경기 설정"${actAttrs(p.onSettings)}>${Icon({ name: 'settings', size: 17 })}</button>` : ''}`;

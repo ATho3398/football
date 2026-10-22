@@ -7,6 +7,7 @@ import { realAppearance } from '../../appearance';
 import { BALANCE } from '../../config/balance';
 import type { GameState } from '../../game';
 import { clubKo, teamById } from '../../league';
+import { GOAL_SPLASH_PREF_KO, loadGoalSplashPref } from '../goalSplash/model';
 import { PACK_ANIM_PREF_KO, RARITY_KO as PACK_RARITY_KO, loadPackAnimPref } from '../packAnim/model';
 import { Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, PixelTile, SectionTitle, Switch, Tabs, TextField, type IconName } from '../components';
 import {
@@ -464,9 +465,11 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     <p class="small muted">B = 꺾인 모서리·이탤릭 숫자(기본) · A = 둥근 알약 모양. 색과 화면 내용은 같아요. 이 기기에 저장돼요.</p>
     <div class="kv"><span>팩 개봉 연출</span></div>${Tabs({ items: (['full', 'short', 'off'] as const).map((k) => ({ id: k, label: PACK_ANIM_PREF_KO[k] })), value: loadPackAnimPref(), act: 'pack-anim-set', fill: true, label: '팩 개봉 연출' })}
     <p class="small muted">카드팩·카드 선택권을 열 때 연출이에요. 움직임 줄이기를 켠 기기는 '전체'도 짧게 보여요. 결과·확률과는 무관해요.</p>
+    <div class="kv"><span>골 연출</span></div>${Tabs({ items: (['on', 'off'] as const).map((k) => ({ id: k, label: GOAL_SPLASH_PREF_KO[k] })), value: loadGoalSplashPref(), act: 'goal-splash-set', fill: true, label: '골 연출' })}
+    <p class="small muted">우리 팀 골이 들어가면 'GOAL!'이 날아와요(약 1.6초, 탭하면 닫혀요). 움직임 줄이기를 켠 기기는 가운데에서 잠깐 떠요.</p>
     <div class="kv"><span>연출 미리보기</span><small class="muted">카드·세이브는 그대로예요</small></div><div class="btn-row even">${(['common', 'rare', 'epic', 'legendary'] as const).map((r) => Button({ variant: 'secondary', size: 'sm', act: 'pack-anim-demo', data: { v: r }, children: PACK_RARITY_KO[r] })).join('')}${Button({ variant: 'secondary', size: 'sm', act: 'pack-anim-demo', data: { v: 'legendary', k: 'pick' }, children: '선택권' })}</div>
     <small class="set-links__label">하위 화면</small><div class="set-links">${links}</div>`;
-  const lookSub = `스타일 ${SKIN_KO[skin()]} · 팩 연출 ${PACK_ANIM_PREF_KO[loadPackAnimPref()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
+  const lookSub = `스타일 ${SKIN_KO[skin()]} · 팩 연출 ${PACK_ANIM_PREF_KO[loadPackAnimPref()]} · 골 연출 ${GOAL_SPLASH_PREF_KO[loadGoalSplashPref()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
   const saves = `<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>${
     // C.73d: 초기화면(타이틀)으로. 자동 저장 뒤 나간다. 경기 중에는 숨긴다

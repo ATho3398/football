@@ -3,6 +3,7 @@
 
 import type { TeamRoster } from '../roster';
 import type { MatchEnv } from './env';
+import type { NpcCond } from '../npcFit';
 import { npcTeamSetup } from './setup';
 import { createMatch } from './sim';
 
@@ -16,13 +17,15 @@ export interface NpcMatchInput {
   leagueAvg?: number;
   /** 날씨·심판 실행 배율 (C.74a). 없으면 맑음·보통 심판 */
   env?: Partial<MatchEnv>;
+  /** NPC 피로·부상 (C.77m): 두 팀 선수 그날 아침 컨디션. 없으면 모두 피로 0 */
+  cond?: NpcCond;
 }
 
 /** 골 기록: [분, 팀(0 홈·1 원정), 득점자 id, 도움 id(없으면 null)] */
 export type GoalRec = [number, 0 | 1, string, string | null];
 
-/** 선수 기록: [id, 출전 분, 골, 도움, 평점 ×10 (정수)] */
-export type PlayerLine = [string, number, number, number, number];
+/** 선수 기록: [id, 출전 분, 골, 도움, 평점 ×10 (정수), 이동 거리 m (정수, C.77m NPC 피로)] */
+export type PlayerLine = [string, number, number, number, number, number?];
 
 export interface NpcMatchResult {
   hg: number;
@@ -41,20 +44,20 @@ export function goalMinute(t: number, halfSeconds = 2700): number {
 export function summarize(r: {
   homeGoals: number; awayGoals: number;
   events: { t: number; type: string; team: 0 | 1; players: string[] }[];
-  players: { id: string; minutes: number; goals: number; assists: number; rating: number }[];
+  players: { id: string; minutes: number; goals: number; assists: number; rating: number; distance: number }[];
 }): NpcMatchResult {
   return {
     hg: r.homeGoals,
     ag: r.awayGoals,
     goals: r.events.filter((e) => e.type === 'goal').map((e) => [goalMinute(e.t), e.team, e.players[0]!, e.players[1] ?? null]),
-    players: r.players.filter((p) => p.minutes > 0).map((p) => [p.id, p.minutes, p.goals, p.assists, Math.round(p.rating * 10)]),
+    players: r.players.filter((p) => p.minutes > 0).map((p) => [p.id, p.minutes, p.goals, p.assists, Math.round(p.rating * 10), Math.round(p.distance)]),
   };
 }
 
 export function playNpcMatch(m: NpcMatchInput): NpcMatchResult {
-  // C.77c: 결장 추첨(npcAbsentP)을 거친 선발 — 측정 리그(job.ts runLeagueMatchJob)와 같은 함수
-  const home = npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg);
-  const away = npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg);
+  // C.77c·C.77m: 결장 추첨·피로·부상을 거친 선발 — 측정 리그(job.ts runLeagueSeasonJob)와 같은 함수
+  const home = npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg, m.cond);
+  const away = npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg, m.cond);
   const sim = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}) });
   return summarize(sim.runToEnd());
 }

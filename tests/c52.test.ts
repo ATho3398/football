@@ -74,11 +74,12 @@ describe('훈련 프리셋 (C.52)', () => {
     if (busyWeek) expect(recommendPreset(g, busyWeek).id).toBe('busy');
     const quiet = dates.find((d, i) => i > 0 && daysBetween(dates[i - 1]!, d) >= 7 && weekStart(d) !== weekStart(dates[i - 1]!) && weekStart(d) !== weekStart(dates[i + 1] ?? addDays(d, 30)));
     if (quiet) {
-      g.player.fatigue = 50;
+      // C.77m: 문턱 체력 65·85 → 50·75 (피로 50 초과 = 회복 중심, 25 이하 = 기술 집중)
+      g.player.fatigue = 60;
       expect(recommendPreset(g, quiet).id).toBe('recovery');
       g.player.fatigue = 0;
       expect(recommendPreset(g, quiet).id).toBe('focus');
-      g.player.fatigue = 25;
+      g.player.fatigue = 40;
       expect(recommendPreset(g, quiet).id).toBe('balance');
     }
     g.player.injury = { grade: 'minor', weeksTotal: 1, daysTotal: 5, daysLeft: 5, date: g.calendar.date, season: g.league.season, round: 1, permanent: {} };
@@ -116,7 +117,7 @@ describe('훈련 프리셋 (C.52)', () => {
     raw.saveFormat = 30;
     for (const k of ['preset', 'presetWeek', 'presetAuto', 'presetManual', 'customPresets', 'presetSeq']) delete raw.training[k];
     const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(57);
     expect(back.training).toMatchObject({ preset: 'balance', presetAuto: true, customPresets: [] });
     playRound(back, { engine: 'quick' });
   });

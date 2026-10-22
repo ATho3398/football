@@ -24,7 +24,7 @@ function toMatchDay(g: GameState): void {
 }
 
 describe('훈련 (25.3, 부록 C.41)', () => {
-  it('기본 주간 계획 (C.44): 경기 다음 날 휴식(고정), 전날 영상, 나머지 기술. 7일 주 체력 회복 합계 26.5, 훈련 XP 3.5 (C.43 과 같게)', () => {
+  it('기본 주간 계획 (C.44): 경기 다음 날 휴식(고정), 전날 영상, 나머지 기술. 7일 주 체력 회복 합계 21 (C.77m: 26.5 → 21 = fatigue.weeklyRecovery), 훈련 XP 3.5 (C.43 과 같게)', () => {
     expect(defaultPlan(1, 6)).toBe('rest');
     expect(defaultPlan(2, 5)).toBe('tech');
     expect(defaultPlan(3, 4)).toBe('tech');
@@ -34,7 +34,7 @@ describe('훈련 (25.3, 부록 C.41)', () => {
     expect(defaultPlan(2, 1)).toBe('video');
     expect(defaultPlan(1, 1)).toBe('rest');
     const week = [1, 2, 3, 4, 5, 6].map((d) => defaultPlan(d, 7 - d));
-    expect(week.reduce((t, k) => t + T.kinds[k].fatigue, 0)).toBeCloseTo(26.5, 6);
+    expect(week.reduce((t, k) => t + T.kinds[k].fatigue, 0)).toBeCloseTo(21, 6);
     expect(week.reduce((t, k) => t + T.kinds[k].xp, 0)).toBeCloseTo(3.5, 6);
   });
 
@@ -165,7 +165,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     raw.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: 2018, untilRound: 4 };
     const back = deserialize(JSON.stringify(raw));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(57);
     expect(back.training.focus).toBe('auto');
     expect(back.archive).toEqual([]);
     expect(back.player.advice).toMatchObject({ untilDays: BALANCE.aptitude.advice.windowDays });
@@ -183,7 +183,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     delete raw.archive;
     delete raw.player.profLog;
     const back = migrate(raw);
-    expect(back.saveFormat).toBe(54);
+    expect(back.saveFormat).toBe(57);
     expect(back.player.profLog).toBeDefined();
     expect(back.training).toBeDefined();
   });
@@ -205,7 +205,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     expect(ls.size).toBe(0);
     expect(listSaves()[2]?.name).toBe('old');
     const loadedOld = await loadGame('2');
-    expect(loadedOld?.saveFormat).toBe(54);
+    expect(loadedOld?.saveFormat).toBe(57);
     expect(await saveGame('1', g)).toBe(true);
     const meta = listSaves()[1]!;
     expect(meta.size).toBeLessThan(serialize(g).length / 3);

@@ -8,23 +8,23 @@ import { createTeamRoster } from '../src/roster';
 const roster = (id: string, seed: string) => createTeamRoster({ id, rating: 80 }, seed, 2018, []);
 
 describe('C.77c NPC 결장 추첨', () => {
-  it('상수: absentP 0.08 (부상 0.04 + 로테이션 0.04), 최소 인원 14', () => {
-    expect(BALANCE.roster.npcAbsentP).toBe(0.08);
+  it('상수: absentP 0 (C.77m 에서 NPC 피로·부상이 대신해 끔, C.77c 값 0.08), 최소 인원 14', () => {
+    expect(BALANCE.roster.npcAbsentP).toBe(0);
     expect(BALANCE.roster.npcAbsentMin).toBe(14);
   });
 
   it('같은 (worldSeed, 경기 시드) 면 같은 결장, 시드가 다르면 다른 결장', () => {
     const r = roster('t1', 'c77c-a');
-    const a = npcAbsences(r, 'w1', 5);
-    expect([...npcAbsences(r, 'w1', 5)]).toEqual([...a]);
-    const seeds = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => [...npcAbsences(r, 'w1', s)].join(','));
+    const a = npcAbsences(r, 'w1', 5, 0.08);
+    expect([...npcAbsences(r, 'w1', 5, 0.08)]).toEqual([...a]);
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8].map((s) => [...npcAbsences(r, 'w1', s, 0.08)].join(','));
     expect(new Set(seeds).size).toBeGreaterThan(1);
   });
 
   it('결장률은 경기당 약 8% (선수 24명 × 경기 400 표본), 0 이면 결장 없음', () => {
     const r = roster('t2', 'c77c-b');
     let n = 0;
-    for (let s = 0; s < 400; s++) n += npcAbsences(r, 'w2', s).size;
+    for (let s = 0; s < 400; s++) n += npcAbsences(r, 'w2', s, 0.08).size;
     const rate = n / (400 * r.players.length);
     expect(rate).toBeGreaterThan(0.06);
     expect(rate).toBeLessThan(0.10);
@@ -42,7 +42,18 @@ describe('C.77c NPC 결장 추첨', () => {
     expect(lu.lineup.every((p) => !abs.has(p.id))).toBe(true);
   });
 
-  it('npcTeamSetup: 결장 선수는 선발·벤치에서 빠지고 11명이 채워진다', () => {
+  it('npcTeamSetup: 결장 선수는 선발·벤치에서 빠지고 11명이 채워진다 (C.77c 값 0.08 로 켜서)', () => {
+    const R = BALANCE.roster as { npcAbsentP: number };
+    const keep = R.npcAbsentP;
+    R.npcAbsentP = 0.08;
+    try {
+      absentCase();
+    } finally {
+      R.npcAbsentP = keep;
+    }
+  });
+
+  const absentCase = () => {
     const r = roster('t4', 'c77c-d');
     let seed = 0;
     let abs = npcAbsences(r, 'w4', seed);
@@ -54,7 +65,7 @@ describe('C.77c NPC 결장 추첨', () => {
     // 결장이 없는 선발(기존 경로)과는 다르다
     const base = teamSetupFromRoster(r, 80, 80, 'w4', undefined, 75);
     expect(s.lineup.map((p) => p.id).sort()).not.toEqual(base.lineup.map((p) => p.id).sort());
-  });
+  };
 
   it('playNpcMatch: 같은 입력이면 같은 결과 (결정성 유지)', () => {
     const input = { home: roster('h', 'c77c-h'), away: roster('a', 'c77c-aw'), homeRating: 80, awayRating: 78, seed: 123, worldSeed: 'w5', leagueAvg: 75 };

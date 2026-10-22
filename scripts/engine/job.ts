@@ -15,6 +15,14 @@ import type { EngineResult } from '../../src/engine/types';
 import { newGame, playRound, rebuildRosters } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { createTeamRoster, rosterRating, teamRatings, type Rosters } from '../../src/roster';
+import { BALANCE } from '../../src/config/balance';
+import { buildSchedule } from '../../src/league';
+import { addDays, daysBetween, seasonCalendar } from '../../src/calendar';
+import { tuesdayOf } from '../../src/cups';
+import { npcQuickMatch } from '../../src/npcQuick';
+import type { NpcLoadMap } from '../../src/load';
+import { createRng, hashSeed } from '../../src/rng';
+import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type NpcFitMap } from '../../src/npcFit';
 import { setEnvironmentFixed } from '../../src/weather';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
@@ -96,7 +104,20 @@ export interface LeagueMatchJob {
   overrides?: Record<string, number>;
 }
 
-export type Job = MatchJob | SeasonJob | LeagueMatchJob;
+/**
+ * 실제 선수 리그 한 시즌 (C.77m, pending 142a): 380경기를 실제 달력(seasonCalendar) 날짜 순서로 한 작업에서 이어 치르며 NPC 피로·부상(npcFit)을 쌓는다.
+ * 경기 시드는 LeagueMatchJob 과 같은 (홈, 원정) 순번 seed0 + k 라서 BALANCE.fatigue.npc.on = false 면 경기별 결과가 그대로다
+ */
+export interface LeagueSeasonJob {
+  kind: 'leagueSeason';
+  worldSeed: string;
+  /** 팀 id 순서 (시드 순번용, LeagueMatchJob 의 이중 반복과 같은 순서) */
+  ids: string[];
+  seed0: number;
+  overrides?: Record<string, number>;
+}
+
+export type Job = MatchJob | SeasonJob | LeagueMatchJob | LeagueSeasonJob;
 
 export type CompactPlayer = Omit<PlayerStats, 'id'> & { starter: boolean; parts?: RatingParts };
 
@@ -145,7 +166,31 @@ export interface LeagueMatchOut {
   apps?: Record<string, [number, number]>;
 }
 
-export type JobOut = MatchOut | SeasonOut | LeagueMatchOut;
+/** 리그 시즌 결과 (C.77m): 경기별 결과 + NPC 피로·부상 기록 */
+export interface LeagueSeasonOut {
+  kind: 'leagueSeason';
+  matches: LeagueMatchOut[];
+  fit: {
+    /** 부상 횟수 · 부상 결장 선수-경기 수 */
+    injuries: number;
+    injuredOut: number;
+    /** 선발 선수-경기 수 · 그중 경기 날 아침 피로가 penaltyFrom 을 넘은 수 · 선발 아침 피로 합 */
+    starts: number;
+    startsOver: number;
+    startFatigue: number;
+    /** C.77n: 챔스 팀(상위 4) — 챔스 간이 경기 수 · 그 팀 선수 부상(리그·챔스 합) · 리그 선발 · 그중 아침 피로 50 초과 */
+    uclMatches?: number;
+    uclInjuries?: number;
+    uclStarts?: number;
+    uclStartsOver?: number;
+    /** C.77n: 시즌 끝 선수 부하 [팀 id, 부하] (부하 10 이상만, 성향별 비교) */
+    loads?: [string, number][];
+  };
+  /** 챔스 팀 id */
+  ucl?: string[];
+}
+
+export type JobOut = MatchOut | SeasonOut | LeagueMatchOut | LeagueSeasonOut;
 
 /** 균형 전술 (E.19 균형: 라인 보통 / 압박 보통 / 빌드업 혼합 / 폭 보통) */
 export const BALANCED: Partial<Tactics> = { tendency: 'balanced', lineHeight: 0.5, pressing: 0.55, style: 0.5, width: 1 };
@@ -307,22 +352,36 @@ export function runSeasonJob(j: SeasonJob): SeasonOut {
 
 const worlds = new Map<string, { rosters: Rosters; ratings: Record<string, number> }>();
 
+function leagueWorld(worldSeed: string): { rosters: Rosters; ratings: Record<string, number> } {
+  let w = worlds.get(worldSeed);
+  if (!w) {
+    const rosters = rebuildRosters(worldSeed, undefined, 0);
+    w = { rosters, ratings: teamRatings(rosters) };
+    worlds.set(worldSeed, w);
+  }
+  return w;
+}
+
 export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
   const restore = applyOverrides(j.overrides);
   try {
-    let w = worlds.get(j.worldSeed);
-    if (!w) {
-      const rosters = rebuildRosters(j.worldSeed, undefined, 0);
-      w = { rosters, ratings: teamRatings(rosters) };
-      worlds.set(j.worldSeed, w);
-    }
+    return playLeagueMatch(j).out;
+  } finally {
+    restore();
+  }
+}
+
+/** 리그 한 경기 (cond = NPC 피로·부상, C.77m). 엔진 결과도 돌려준다 (피로 쌓기용) */
+function playLeagueMatch(j: Omit<LeagueMatchJob, 'kind'>, cond?: NpcCond): { out: LeagueMatchOut; r: EngineResult; starters: Set<string> } {
+  {
+    const w = leagueWorld(j.worldSeed);
     const ids = Object.keys(w.ratings);
-    const leagueAvg = ids.reduce((t, id) => t + w!.ratings[id]!, 0) / ids.length;
+    const leagueAvg = ids.reduce((t, id) => t + w.ratings[id]!, 0) / ids.length;
     const rh = w.ratings[j.home]!;
     const ra = w.ratings[j.away]!;
-    // C.77c: 결장 추첨(roster.npcAbsentP)을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
-    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg);
-    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg);
+    // C.77c·C.77m: 결장 추첨·피로·부상을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
+    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg, cond);
+    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg, cond);
     const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
     const scorers: Record<string, number> = {};
     const pos: Record<string, string> = {};
@@ -340,12 +399,107 @@ export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
       }
     }
     const add = (k: 'shotPaths' | 'goalPaths') => r.teamStats[0][k].map((v, i) => v + r.teamStats[1][k][i]!);
-    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths'), apps };
+    return { out: { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths'), apps }, r, starters };
+  }
+}
+
+/**
+ * 측정용 챔스 일정 (C.77n): 상위 4팀(cups.ucl.firstSeason — 본편 첫 시즌 출전 팀)의 조별 6경기 + 녹아웃(16강 85% · 8강·4강 각 50% 진출,
+ * 홈·원정 2경기, 결승은 리그 뒤라 뺌). 날짜 = 그 주 화·수 중 그 팀 리그 경기와 cups.minGap 일 이상 떨어진 날(안 되면 minGapLoose, 1)
+ */
+export function harnessUcl(worldSeed: string, ids: readonly string[], schedule: readonly { home: string; away: string }[][], dates: readonly (readonly string[])[]): { team: string; date: string; k: number }[] {
+  const C = BALANCE.cups;
+  const out: { team: string; date: string; k: number }[] = [];
+  C.ucl.firstSeason.filter((t) => ids.includes(t)).forEach((team, ti) => {
+    const busy = new Set<string>();
+    schedule.forEach((round, r) => round.forEach((f, i) => { if (f.home === team || f.away === team) busy.add(dates[r]![i]!); }));
+    const pick = (tue: string, first: number): string => {
+      const days = first ? [addDays(tue, 1), tue] : [tue, addDays(tue, 1)];
+      const free = (d: string, gap: number) => { for (let k = -(gap - 1); k <= gap - 1; k++) if (busy.has(addDays(d, k))) return false; return true; };
+      for (const gap of [C.minGap, C.minGapLoose, 1]) for (const d of [...days, addDays(tue, 2)]) if (free(d, gap)) return d;
+      return days[0]!;
+    };
+    let k = 0;
+    const add = (d: string) => { busy.add(d); out.push({ team, date: d, k: k++ }); };
+    C.ucl.groupWeeks.forEach((w, md) => add(pick(tuesdayOf(2018, w), (ti + md) % 2)));
+    const rng = createRng(hashSeed(`${worldSeed}:hucl-reach:${team}`));
+    const reach = [0.85, 0.5, 0.5];
+    for (let s2 = 0; s2 < C.ucl.koWeeks.length; s2++) {
+      if (rng() >= reach[s2]!) break;
+      for (const w of C.ucl.koWeeks[s2]!) add(pick(tuesdayOf(2018, w), ti % 2));
+    }
+  });
+  return out;
+}
+
+export function runLeagueSeasonJob(j: LeagueSeasonJob): LeagueSeasonOut {
+  // 측정 기준선 (C.77n): C77N_OFF=1 이면 컵 간이 피로·누적 부하를 끈 C.77m 경로 (워커도 같은 환경 변수)
+  if (process.env.C77N_OFF === '1') {
+    (BALANCE.fatigue.npc as { cup: boolean }).cup = false;
+    (BALANCE.load as { on: boolean }).on = false;
+  }
+  const restore = applyOverrides(j.overrides);
+  try {
+    const w = leagueWorld(j.worldSeed);
+    const seeds = new Map<string, number>();
+    let k = j.seed0;
+    for (const h of j.ids) for (const a of j.ids) if (h !== a) seeds.set(`${h}:${a}`, k++);
+    const schedule = buildSchedule(j.ids, createRng(hashSeed(`${j.worldSeed}:season-schedule`)));
+    const cal = seasonCalendar(j.worldSeed, 2018, schedule);
+    const fixtures = schedule.flatMap((round, r) => round.map((f, i) => ({ f, date: cal.fixtureDates[r]![i]!, r, i })));
+    fixtures.sort((x, y) => daysBetween(y.date, x.date) || x.r - y.r || x.i - y.i);
+    const map: NpcFitMap = {};
+    const load: NpcLoadMap = {};
+    const fit = { injuries: 0, injuredOut: 0, starts: 0, startsOver: 0, startFatigue: 0, uclMatches: 0, uclInjuries: 0, uclStarts: 0, uclStartsOver: 0 };
+    const matches: LeagueMatchOut[] = [];
+    // C.77n (pending 142b): 상위 4팀 챔스 주중 경기(간이) — 본편 cups.ts 간이 경기와 같은 npcQuickMatch
+    const ucl = BALANCE.fatigue.npc.cup ? harnessUcl(j.worldSeed, j.ids, schedule, cal.fixtureDates) : [];
+    const uclTeams = new Set(ucl.map((x) => x.team));
+    const teamOf = new Map<string, string>();
+    for (const id of j.ids) for (const p of w.rosters[id]!.players) teamOf.set(p.id, id);
+    const events = [...fixtures.map((x) => ({ date: x.date, f: x.f as typeof x.f | null, u: null as (typeof ucl)[number] | null })), ...ucl.map((u) => ({ date: u.date, f: null, u }))];
+    events.sort((x, y) => daysBetween(y.date, x.date) || (x.f ? 0 : 1) - (y.f ? 0 : 1));
+    const countNew = (day: number, run: () => void) => {
+      const before = new Set(Object.entries(map).filter(([, v]) => npcInjuredOn(v, day + 1)).map(([id]) => id));
+      run();
+      for (const [id, v] of Object.entries(map)) if (!before.has(id) && npcInjuredOn(v, day + 1)) {
+        fit.injuries++;
+        if (uclTeams.has(teamOf.get(id)!)) fit.uclInjuries++;
+      }
+    };
+    for (const { f: fx, u, date } of events) {
+      const day = dayNum(date);
+      if (u) {
+        fit.uclMatches++;
+        countNew(day, () => npcQuickMatch(map, load, [w.rosters[u.team]!], day, j.worldSeed, hashSeed(`${j.worldSeed}:hucl:${u.team}:${u.k}`)));
+        continue;
+      }
+      const f = fx!;
+      const seed = seeds.get(`${f.home}:${f.away}`)!;
+      const rosters = [w.rosters[f.home]!, w.rosters[f.away]!];
+      const cond = npcConditions(map, rosters, day);
+      const { out, r, starters } = playLeagueMatch({ worldSeed: j.worldSeed, home: f.home, away: f.away, seed }, cond);
+      for (const id of starters) {
+        const fa = cond?.[id]?.[0] ?? 0;
+        fit.starts++;
+        fit.startFatigue += fa;
+        if (fa > BALANCE.fatigue.penaltyFrom) fit.startsOver++;
+        if (uclTeams.has(teamOf.get(id)!)) {
+          fit.uclStarts++;
+          if (fa > BALANCE.fatigue.penaltyFrom) fit.uclStartsOver++;
+        }
+      }
+      for (const ro of rosters) for (const p of ro.players) if (cond?.[p.id]?.[1] === 1) fit.injuredOut++;
+      countNew(day, () => npcAfterMatch(map, rosters, r.players, day, j.worldSeed, seed, load));
+      matches.push(out);
+    }
+    const loads = Object.entries(load).filter(([, v]) => v[0] >= 10).map(([id, v]) => [teamOf.get(id) ?? '?', v[0]] as [string, number]);
+    return { kind: 'leagueSeason', matches, fit: { ...fit, loads }, ucl: [...uclTeams] };
   } finally {
     restore();
   }
 }
 
 export function runJob(j: Job): JobOut {
-  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : runLeagueMatchJob(j);
+  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : j.kind === 'leagueSeason' ? runLeagueSeasonJob(j) : runLeagueMatchJob(j);
 }

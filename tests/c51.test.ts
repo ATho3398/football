@@ -46,12 +46,12 @@ describe('경기 준비 (C.51)', () => {
     expect(f.at(-1)).toBe(a > b ? 'W' : a < b ? 'L' : 'D');
   });
 
-  it('홈 [경기 시작]은 경기 준비로 (같은 act), 직접/자동은 홈 한 줄(C.70 디자인 161) + 경기 준비', () => {
+  it('홈 [경기 시작]은 경기 준비로 (같은 act), 직접/자동은 경기 준비 · 설정만 (C.77q, 홈 줄은 뺌)', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c51-home', difficulty: 'normal' });
     toMatchDay(g);
     const html = homeView(homeVM(g));
     expect(html).toContain('data-act="play"');
-    expect(html).toContain('data-act="ctl-mode"');
+    expect(html).not.toContain('data-act="ctl-mode"');
   });
 
   it('경기 준비는 상태를 바꾸지 않는다 (같은 세이브·같은 설정 → 같은 결과)', () => {

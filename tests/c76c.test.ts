@@ -342,12 +342,12 @@ describe('도감 번호 (C.76c 6번)', () => {
 
 describe('세이브 49 (C.76c)', () => {
   it('옛 세이브(48) = 그대로 (PL 만 고른 상태), 다른 리그 득점 기록 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(54);
+    expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-v', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 48;
     const back = migrate(old);
-    expect(back.saveFormat).toBe(54);
+    expect(back.saveFormat).toBe(57);
     expect(back.league.id).toBe('pl');
     expect(back.leagueIds).toEqual(['pl']);
     expect(back.myLeagues).toBeUndefined();
