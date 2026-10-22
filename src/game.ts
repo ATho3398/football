@@ -2439,7 +2439,7 @@ export function endSeason(state: GameState): SeasonSummary {
   // 시즌 누적 마모 (C.77n): 이번 시즌 부하 → 마모, 노쇠 나이 앞당김·하락 속도 가산
   player.wear = Math.round(((player.wear ?? 0) + seasonWear(player.load)) * 10) / 10;
   player.load = 0;
-  const wa = wearAging(player.wear);
+  const wa = wearAging(player.wear, age);
   const aging = applyAging(player.attributes, age, rng, player.position, (evergreen ? agingMul(player) : 1) * wa.mul, lateBloomerSkip(player, age), wa.shift);
 
   // 5. 나이

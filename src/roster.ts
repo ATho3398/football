@@ -747,7 +747,7 @@ export function updateRostersForSeason(
       } else {
         const wear = wearOf(p.id);
         next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season, wear);
-        retired = retires(next, rng, wearAging(wear).shift);
+        retired = retires(next, rng, wearAging(wear, next.age).shift);
       }
       if (retired) {
         players.push(makeRookie(teamId, p.position, baseRatings[teamId] ?? 70, worldSeed, season, k++));

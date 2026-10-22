@@ -46,7 +46,7 @@ for (const [name, load] of variants) {
       const k = ages.indexOf(p.age);
       if (k >= 0) ovrAt[k]!.push(o);
       if (p.age === 30) w30 += wear;
-      const q = p.age >= BALANCE.retirement.forcedAge ? 1 : agingRateShifted(BALANCE.roster.retireChance, p.age, wearAging(wear).shift);
+      const q = p.age >= BALANCE.retirement.forcedAge ? 1 : agingRateShifted(BALANCE.roster.retireChance, p.age, wearAging(wear, p.age).shift);
       eRetire += alive * q * p.age;
       alive *= 1 - q;
     }

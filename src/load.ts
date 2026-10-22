@@ -29,10 +29,10 @@ export function loadInjuryMul(load: number | undefined): number {
 /** 시즌 끝 마모 증가분 */
 export const seasonWear = (load: number | undefined): number => (BALANCE.load.on ? Math.max(0, (load ?? 0) - BALANCE.load.wearFrom) : 0);
 
-/** 마모 → 노쇠 [나이 이동(시즌), 하락 속도 배율] */
-export function wearAging(wear: number | undefined): { shift: number; mul: number } {
+/** 마모 → 노쇠 [나이 이동(시즌), 하락 속도 배율]. age 를 주면 load.wearAgeFrom 전에는 가산 없음 (정점 전 성장 보호) */
+export function wearAging(wear: number | undefined, age?: number): { shift: number; mul: number } {
   const L = BALANCE.load;
-  if (!L.on || !wear) return { shift: 0, mul: 1 };
+  if (!L.on || !wear || (age !== undefined && age < L.wearAgeFrom)) return { shift: 0, mul: 1 };
   return { shift: Math.min(L.maxShift, wear * L.agePerWear), mul: 1 + Math.min(L.maxRate, wear * L.ratePerWear) };
 }
 
