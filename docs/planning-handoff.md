@@ -902,3 +902,4 @@
 - (00:4x KST) **사용자 규칙: 사진·로고 교체 같은 간단 에셋 작업은 캡처 검증 생략** — id 이름 태그로 파일만 교체 + --index + typecheck·test. C.77u·UI_5에 전달.
 - (00:48 KST) C.77u 사용자 1차 적용 완료(브랜치 475be7d): 레반도프스키 교체·로이스 256 누끼, 도르트문트·바이에른 로고. main은 C.77v·t 뒤.
 - (01:25 KST) **C.77v main 963a5de 배포**(Pages run 287 성공 01:23, android run 4 성공 — APK 아티팩트 https://github.com/ATho3398/football/actions/runs/39797260767). C.77v draft_. C.77t에 main 푸시 지시(now). 검수 묶음 docs/review/2026-10-22-z-review.md(planning-z) + ChatGPT 프롬프트 사용자에게 전달.
+- (01:26 KST) **C.77t main bb23bc3 푸시**(ENGINE 40·BALANCE 82, 테스트 1,172). CI는 C.77t 확인. 다음 C.77u.
