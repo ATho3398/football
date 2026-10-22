@@ -18,7 +18,7 @@ import { compNameKo, cupNameKo, domesticCupTeams, uclEntrants } from '../src/cup
 import { otherScorers, syncOtherLeagues } from '../src/otherLeagues';
 import { movableLeagues, midWindowKo, windowKo, winterOpen } from '../src/transfer';
 import { squadRule } from '../src/squad';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { addDays } from '../src/calendar';
 import { createRng, hashSeed } from '../src/rng';
 import { dexCandidates, dexHash } from '../src/photocards';
@@ -341,12 +341,13 @@ describe('도감 번호 (C.76c 6번)', () => {
 });
 
 describe('세이브 49 (C.76c)', () => {
-  it('옛 세이브(48) = 그대로 (PL 만 고른 상태), 다른 리그 득점 기록 없음', () => {
+  it('옛 세이브(48)는 이어 할 수 없음, 같은 형식 PL 세이브 = 그대로', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-v', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 48;
-    const back = migrate(old);
+    expect(() => restore(old)).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(57);
     expect(back.league.id).toBe('pl');
     expect(back.leagueIds).toEqual(['pl']);

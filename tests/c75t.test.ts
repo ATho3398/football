@@ -7,7 +7,7 @@ import {
   collectPhotos, DEX_NO, dexAppend, dexCandidates, dexHash, photoGrade, photoRetirements, photoSnapshot, photoViews, sortPhotos,
 } from '../src/photocards';
 import { findRosterPlayer } from '../src/roster';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { photoDexVM } from '../src/ui/photoVM';
 import { photoDexView } from '../src/ui/views/photos';
 import { matchResultVM } from '../src/ui/viewModels';
@@ -162,15 +162,13 @@ describe('도감 화면', () => {
 });
 
 describe('세이브 46', () => {
-  it('옛 세이브(45) = 빈 도감', () => {
+  it('옛 세이브(45)는 이어 할 수 없음, 같은 형식은 도감 그대로', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g: GameState = game();
     const raw = JSON.parse(serialize(g));
+    expect(restore(JSON.parse(serialize(g))).photos).toEqual(g.photos);
     raw.saveFormat = 45;
-    delete raw.photos;
-    const back = migrate(raw);
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(back.photos).toEqual({ cards: [] });
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 
   it('버전 표시', () => {

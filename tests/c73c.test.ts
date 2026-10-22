@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
 import { FACE_PHOTOS, PHOTO_OF, raceNationalities, RACES, rollIdentity } from '../src/identity';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { customAct, customSpec, customVM, initialCustomForm, SKIN_OF } from '../src/ui/customVM';
 import { myFace, newGameVM } from '../src/ui/viewModels';
 import { newGameView } from '../src/ui/views/screens';
@@ -105,21 +105,17 @@ describe('랜덤 선수 다인종 (예전엔 국적이 없어 한국·동양계�
 });
 
 describe('세이브 41 (SAVE_FORMAT_VERSION)', () => {
-  it('옛 세이브(40)는 지금 외모로 인종·사진을 채운다 (실제 선수는 없음)', () => {
+  it('외모·사진 세이브 왕복, 옛 세이브(40)는 이어 할 수 없음 (실제 선수는 사진 없음)', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = prospect('c73c-save');
     const back = deserialize(serialize(g));
     expect(back.player.facePhoto).toBe(g.player.facePhoto);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 40;
-    delete raw.player.facePhoto;
-    delete raw.player.appearance;
-    delete raw.player.nationality;
-    const old = deserialize(JSON.stringify(raw));
-    expect([old.player.appearance, old.player.facePhoto]).toEqual(['eastAsian', 'asian']);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    expect([back.player.appearance, back.player.facePhoto]).toEqual([g.player.appearance, g.player.facePhoto]);
     const real = newGame({ mode: 'real', playerId: newGameVM({ mode: 'real', name: '', position: 'ST', seed: '', difficulty: 'normal', realId: '', roll: 'x', others: false }).reals[0]!.id, seed: 'c73c-real', difficulty: 'normal' });
     const r2 = JSON.parse(serialize(real));
-    r2.saveFormat = 40;
     expect(deserialize(JSON.stringify(r2)).player.facePhoto).toBeUndefined();
     expect(myFace(real).photo).toBeUndefined();
   });

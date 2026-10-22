@@ -6,7 +6,7 @@ import { CLIP, clipReplay, clipScenes, findClips, makeMatchClips, pickClips, unp
 import { frameAt, interpolateFrame, scoreAt, type Replay, type ReplayFrame } from '../src/replay';
 import { createTeamRoster } from '../src/roster';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { numberCircleRenderer, type MarkerInput } from '../src/ui/pitch/renderer';
 import { ReplayPlayer } from '../src/ui/views/replay';
 
@@ -180,7 +180,7 @@ describe('C.77o 24.6 경기 후 하이라이트 3개', () => {
 });
 
 describe(`C.77o 세이브 형식 ${SAVE_FORMAT_VERSION}`, () => {
-  it('clips 저장 왕복, 옛 세이브(56)는 빈 목록으로 이전', () => {
+  it('clips 저장 왕복, 옛 세이브(56)는 이어 할 수 없음', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77o-s', difficulty: 'normal' });
     const r: Replay = play(5);
@@ -190,9 +190,6 @@ describe(`C.77o 세이브 형식 ${SAVE_FORMAT_VERSION}`, () => {
     expect(unpackClips(back.clips![0]!).frames.length).toBe(clipReplay(r, g.clips[0]!.clips).frames.length);
     const old = JSON.parse(serialize(g));
     old.saveFormat = 56;
-    delete old.clips;
-    const m = migrate(old);
-    expect(m.saveFormat).toBe(57);
-    expect(m.clips).toEqual([]);
+    expect(() => restore(old)).toThrow(SaveFormatError);
   });
 });

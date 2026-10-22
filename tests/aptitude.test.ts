@@ -8,7 +8,7 @@ import { APT_GROUPS, TALENT_TYPES } from '../src/config/aptitude';
 import { canChangePosition, emptySeasonStats, newGame, SAVE_FORMAT_VERSION, selectableRealPlayers } from '../src/game';
 import { positionOvr } from '../src/positions';
 import { gainProficiency, initialProficiency, requestPositionChange } from '../src/proficiency';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import type { PlayerState, SeasonRecord } from '../src/types';
 
 const A = BALANCE.aptitude;
@@ -189,23 +189,12 @@ describe('포변 조언 (pending 31 3번, 36 ①②)', () => {
 });
 
 describe('세이브 16 → 17 (C.37)', () => {
-  it('옛 세이브: 지금 주 포지션 기준 적성(엇갈림 없음), 재능 타입은 능력치에서 추정, 조언 없음', () => {
+  it('적성 세이브 왕복, 옛 세이브(16)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'mig16', difficulty: 'normal' });
-    const raw = JSON.parse(serialize(g));
-    delete raw.player.aptitude;
-    delete raw.player.advice;
-    delete raw.player.adviceLog;
-    delete raw.player.aptBoost;
-    raw.saveFormat = 16;
-    const back = deserialize(JSON.stringify(raw));
     expect(SAVE_FORMAT_VERSION).toBe(57);
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    const a = back.player.aptitude!;
-    expect(a.hidden).toBeNull();
-    expect(a.mult.CM).toBeGreaterThanOrEqual(1.2);
-    expect(talentById(a.talent)).toBeDefined();
-    expect(back.player.advice).toBeNull();
-    expect(back.player.adviceLog).toEqual([]);
-    expect(deserialize(serialize(back)).player.aptitude).toEqual(a);
+    expect(deserialize(serialize(g)).player.aptitude).toEqual(g.player.aptitude);
+    const raw = JSON.parse(serialize(g));
+    raw.saveFormat = 16;
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });

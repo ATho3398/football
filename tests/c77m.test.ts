@@ -8,7 +8,7 @@ import { createTeamRoster, pickLineup } from '../src/roster';
 import { dayNum, npcAfterMatch, npcConditions, npcFatigueOn, npcInjuredOn, npcLines, npcSelectPenalty, type NpcFitMap } from '../src/npcFit';
 import { planFatigue } from '../src/training';
 import { newGame, otherJob, SAVE_FORMAT_VERSION, todaysOthers } from '../src/game';
-import { migrate, serialize } from '../src/save';
+import { restore, SaveFormatError, serialize } from '../src/save';
 
 const roster = (id: string, seed: string) => createTeamRoster({ id, rating: 80 }, seed, 2018, []);
 const REF = ENGINE.match.fatigueRefDistance;
@@ -134,16 +134,14 @@ describe('C.77m 본편 연결·세이브', () => {
     expect(otherJob(g, r, i).input.cond?.[pid]?.[0]).toBeGreaterThan(0);
   });
 
-  it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcFit 저장·옛 세이브(54) 이전`, () => {
+  it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcFit 저장·옛 세이브(54)는 이어 할 수 없음`, () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77m-s', difficulty: 'normal' });
     g.npcFit = { x: [12.5, 9000, 9010] };
     const old = JSON.parse(serialize(g));
     expect(old.npcFit).toEqual({ x: [12.5, 9000, 9010] });
+    expect(restore(old).npcFit).toEqual({ x: [12.5, 9000, 9010] });
     old.saveFormat = 54;
-    delete old.npcFit;
-    const m = migrate(old);
-    expect(m.saveFormat).toBe(57);
-    expect(m.npcFit).toEqual({});
+    expect(() => restore(old)).toThrow(SaveFormatError);
   });
 });

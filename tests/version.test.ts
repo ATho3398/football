@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE_VERSION } from '../src/config/balance';
 import { ENGINE_VERSION } from '../src/engine/config';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { PATCH_LABEL, saveStartNotice, versionLabel } from '../src/version';
 
 describe('버전 표시 (21.5.1)', () => {
@@ -31,14 +31,11 @@ describe('버전 표시 (21.5.1)', () => {
     expect(deserialize(serialize(g)).startPatch).toBe(PATCH_LABEL);
   });
 
-  it('이전 형식(6) 세이브는 시작 버전 없음(null)으로 변환', () => {
+  it('옛 세이브(6)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'ver-old', difficulty: 'normal' });
     const raw = JSON.parse(serialize(g));
-    delete raw.startPatch;
     raw.saveFormat = 6;
-    const loaded = deserialize(JSON.stringify(raw));
-    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.startPatch).toBeNull();
-    expect(saveStartNotice(loaded.startPatch)).toBe('이전 버전에서 시작한 세이브예요.');
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    expect(saveStartNotice(null)).toBe('이전 버전에서 시작한 세이브예요.');
   });
 });

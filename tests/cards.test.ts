@@ -7,7 +7,7 @@ import { bandKind, bestChoice, type MomentPolicy } from '../src/engine/moments';
 import { ENGINE } from '../src/engine/config';
 import { newGame, playRound, roundMatch, selectableRealPlayers, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
 import { posGroup } from '../src/roster';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 
 const C = BALANCE.cards;
 
@@ -215,16 +215,15 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
     for (const g of ['attack', 'midfield', 'defense'] as const) expect(CARDS.filter((c) => c.group === g && c.effects.some((e) => e.type === 'addOption')).length).toBeGreaterThanOrEqual(4);
   });
 
-  it('세이브 15 → 16: 카드 모음이 생기고 (시작 덱), 저장·불러오기 그대로', () => {
+  it('카드 모음 저장·불러오기 그대로, 옛 세이브(15)는 이어 할 수 없음', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = game('ST', 'cards-mig');
     g.player.level = 7;
     const raw = JSON.parse(serialize(g));
-    delete raw.cards;
     raw.saveFormat = 15;
-    const back = migrate(raw);
+    expect(() => restore(raw)).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
     expect(back.cards.decks[0]).toEqual(starterDeck('attack').map((c) => c.id));
-    expect(back.cards.levelMark).toBe(5);
     const again = deserialize(serialize(back));
     expect(again.cards).toEqual(back.cards);
   });

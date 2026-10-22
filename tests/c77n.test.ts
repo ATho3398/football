@@ -15,7 +15,7 @@ import { buildSchedule } from '../src/league';
 import { seasonCalendar } from '../src/calendar';
 import { createRng, hashSeed } from '../src/rng';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
-import { migrate, serialize } from '../src/save';
+import { restore, SaveFormatError, serialize } from '../src/save';
 
 const G = newGame({ mode: 'prospect', position: 'ST', seed: 'c77n-g', difficulty: 'normal' });
 const roster = (id: string, seed: string) => createTeamRoster({ id, rating: 80 }, seed, 2018, []);
@@ -135,7 +135,7 @@ describe('C.77n 시즌 누적 부하', () => {
 });
 
 describe('C.77n 세이브', () => {
-  it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcLoad·player.load·wear 저장, 옛 세이브(55) 이전`, () => {
+  it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcLoad·player.load·wear 저장, 옛 세이브(55)는 이어 할 수 없음`, () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77n-s', difficulty: 'normal' });
     g.npcLoad = { x: [12.5, 3] };
@@ -145,9 +145,6 @@ describe('C.77n 세이브', () => {
     expect(old.npcLoad).toEqual({ x: [12.5, 3] });
     expect(old.player.wear).toBe(1.5);
     old.saveFormat = 55;
-    delete old.npcLoad;
-    const m = migrate(old);
-    expect(m.saveFormat).toBe(57);
-    expect(m.npcLoad).toEqual({});
+    expect(() => restore(old)).toThrow(SaveFormatError);
   });
 });

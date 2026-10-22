@@ -6,8 +6,8 @@ import {
   cellPos, customLabel, customProblem, customSlots, FORMATION_SLOTS, FORMATIONS, nearestCell, presetCells,
 } from '../src/formations';
 import { formationLabel, moveSlot, previewLineup, slotPos, startCustom, validTactics, withFormation } from '../src/myTactics';
-import { deserialize, serialize } from '../src/save';
-import { LEGACY_ROLE_IDS, ROLE_KEYS, ROLE_NAMES_KO, ROLE_OPTIONS, ROLES } from '../src/engine/roles';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
+import { ROLE_KEYS, ROLE_NAMES_KO, ROLE_OPTIONS, ROLES } from '../src/engine/roles';
 import { SIGNATURE_CARDS } from '../src/signatureCards';
 import { createMatch } from '../src/engine/sim';
 import { teamSetupFromRoster } from '../src/engine/setup';
@@ -150,18 +150,15 @@ describe('포메이션 8종과 커스텀 (E.5, E.5.1)', () => {
 });
 
 describe('세이브 12 → 13 (E.21 1번)', () => {
-  it('예전 역할 id 는 새 이름으로, 커스텀은 없음', () => {
+  it('전술 역할·커스텀 세이브 왕복, 옛 세이브(12)는 이어 할 수 없음', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = game('CM', 'roles-mig');
+    const back = deserialize(serialize(g));
+    expect(back.tactics.custom).toEqual(g.tactics.custom);
+    expect(back.tactics.roles).toEqual(g.tactics.roles);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 12;
-    delete raw.tactics.custom;
-    raw.tactics.roles = raw.tactics.roles.map((_: unknown, i: number) => (i === 9 ? 'linkUp' : i === 6 ? 'advanced8' : i === 1 ? 'invertedFullback' : null));
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.tactics.custom).toBeNull();
-    expect(back.tactics.roles[9]).toBe(LEGACY_ROLE_IDS.linkUp);
-    expect(back.tactics.roles[6]).toBe('mezzala');
-    expect(back.tactics.roles[1]).toBe('invertedFullback');
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 
   it('예전 역할 id 로 만든 엔진 입력도 새 역할로 읽는다', () => {

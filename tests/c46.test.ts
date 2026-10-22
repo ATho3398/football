@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { autoMarket, newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { squadCount, squadRule, withinRules } from '../src/squad';
 import { financeTier, marketValue, npcValue, remainingBudget, seasonBudgets, tierLabel, wageBill, wageCap } from '../src/finance';
 import { isOutside, makeOfferSet, makeOffers, myValue, runNpcWindow } from '../src/transfer';
@@ -128,21 +128,18 @@ describe('구단 재정 (C.46, pending 62.2)', () => {
   });
 });
 
-describe('세이브 25 → 26 (C.46)', () => {
-  it('구단 예산이 생기고 로스터는 새 규칙으로 다시 만들어진다, 왕복 그대로', () => {
+describe('세이브 (C.46)', () => {
+  it('구단 예산·로스터 왕복 그대로, 옛 세이브(25)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'LW', seed: 'c46-save', difficulty: 'normal' });
     finishSeason(g);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 25;
-    delete raw.finance;
-    for (const r of raw.transfers) delete r.fee;
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
-    expect(back.finance?.season).toBe(g.league.season + 1);
-    expect(Object.keys(back.finance!.budgets)).toHaveLength(20);
-    for (const r of Object.values(back.rosters)) expect(withinRules(r.players)).toBe(true);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
     const again = deserialize(serialize(g));
+    expect(again.saveFormat).toBe(SAVE_FORMAT_VERSION);
+    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(Object.keys(again.finance!.budgets)).toHaveLength(20);
+    for (const r of Object.values(again.rosters)) expect(withinRules(r.players)).toBe(true);
     expect(again.finance).toEqual(g.finance);
     expect(again.rosters).toEqual(g.rosters);
   });

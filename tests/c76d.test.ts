@@ -9,7 +9,7 @@ import {
   callChance, ensureNational, myTournament, nationalSeasonEnd, participants, runTournament, tournamentAchievement, tournamentsIn, type NatMatch,
 } from '../src/national';
 import { awardBadges } from '../src/badges';
-import { migrate, serialize, deserialize } from '../src/save';
+import { restore, SaveFormatError, serialize, deserialize } from '../src/save';
 
 const game = (seed = 'c76d') => newGame({ mode: 'real', playerId: 'son', seed, difficulty: 'normal' });
 
@@ -240,17 +240,13 @@ describe('시즌 진행 · 세이브', () => {
     expect(g.lastSeasonSummary!.nat).toBeDefined();
   }, 120_000);
 
-  it(`세이브 ${SAVE_FORMAT_VERSION}: 왕복 · 옛 세이브(47) = 대표팀 기록 없음으로 마이그레이션`, () => {
+  it(`세이브 ${SAVE_FORMAT_VERSION}: 왕복 · 옛 세이브(47)는 이어 할 수 없음`, () => {
     const g = atTier(game(), 'worldClass');
     toFirstWindow(g);
     const back = deserialize(serialize(g));
     expect(back.national).toEqual(g.national);
     const raw = JSON.parse(serialize(g));
-    delete raw.national;
     raw.saveFormat = 47;
-    const m = migrate(raw);
-    expect(m.national?.nation).toBe('Korea Republic');
-    expect(m.national?.career.apps).toBe(0);
-    expect(m.national?.fixtures).toEqual([]);
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 });

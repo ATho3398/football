@@ -1,0 +1,50 @@
+{
+  "url": "http://localhost:38263/football/",
+  "errors": [],
+  "steps": {
+    "1_online_sw": {
+      "scope": "http://localhost:38263/football/",
+      "controlled": true,
+      "caches": [
+        "po-a9779b2-79ab6c86"
+      ],
+      "cached": 401
+    },
+    "1_precache_list": {
+      "files": 401
+    },
+    "2_offline_title": {
+      "ok": true,
+      "offline": true
+    },
+    "2_offline_newgame": {
+      "home": true
+    },
+    "2_offline_match": {
+      "result": true,
+      "offlineRequestsToServer": [
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js",
+        "/football/sw.js"
+      ],
+      "faces": 2
+    },
+    "3_update_banner": {
+      "text": "새 버전\n다시 열면 적용돼요 (자동 저장 뒤)\n다시 열기\n나중에"
+    },
+    "3_after_reload": {
+      "caches": [
+        "po-a9779b2-79ab6c86-next"
+      ],
+      "banner": false,
+      "cont": true
+    }
+  }
+}

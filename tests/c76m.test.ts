@@ -8,7 +8,7 @@ import { playNpcMatch } from '../src/engine/npcMatch';
 import { applyOther, calendarOf, endDay, isMatchDay, newGame, otherJob, playOthers, playRound, todaysOthers, upcomingOthers, type GameState } from '../src/game';
 import { applyOtherLeagueJob, calendarKind, otherLeagueCalendar, otherLeagueJobs } from '../src/otherLeagues';
 import { createLeague, nextSeasonLeague } from '../src/league';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { allLeagueData } from '../data/leagues';
 
 /** 가짜 워커: 받은 일을 fn 으로 계산해 다음 마이크로태스크에 돌려준다 */
@@ -191,18 +191,13 @@ describe('모든 리그 8~5월 (C.76m)', () => {
     }
   });
 
-  it('세이브 51 → 52: 진행 중 3~12월 시즌은 옛 달력대로 끝내고(legacyCal), 다음 시즌부터 8~5월', () => {
+  it('옛 달력 표시(legacyCal) 시즌은 3~12월로 끝내고 다음 시즌부터 8~5월, 옛 세이브(51)는 이어 할 수 없다 (C.77r)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76m-m', difficulty: 'normal', leagues: ['kleague1', 'pl', 'mls', 'jleague1'] });
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 51;
-    // MLS 는 치른 경기가 있고 J1 은 개막 전이었다고 치자
-    const mls = raw.otherLeagues.find((o: { id: string }) => o.id === 'mls');
-    mls.table[0].played = 3;
-    const m = migrate(raw);
-    expect(m.league.legacyCal).toBe('spring-autumn');
-    expect(m.otherLeagues!.find((o) => o.id === 'mls')!.legacyCal).toBe('spring-autumn');
-    expect(m.otherLeagues!.find((o) => o.id === 'jleague1')!.legacyCal).toBeUndefined();
-    expect(m.otherLeagues!.find((o) => o.id === 'pl')!.legacyCal).toBeUndefined();
+    expect(() => restore(raw)).toThrow(SaveFormatError);
+    const m = g;
+    m.league.legacyCal = 'spring-autumn';
     // 옛 달력: 3월 개막 ~ 그해 12월
     expect(calendarOf(m).opening.slice(5, 7)).toBe('03');
     expect(calendarOf(m).final.slice(0, 7)).toBe(`${m.league.season}-12`);

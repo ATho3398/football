@@ -6,7 +6,7 @@ import { SCENE_LABEL, type MomentPolicy, type SceneId } from '../src/engine/mome
 import { ATTACK_MAX, customProblem, presetCells } from '../src/formations';
 import { newGame, playRound, roundMatch, selectableRealPlayers, type GameState } from '../src/game';
 import { posGroup } from '../src/roster';
-import { migrate } from '../src/save';
+import { restore, SaveFormatError } from '../src/save';
 
 function game(group: string, seed = 'mom'): GameState {
   const p = selectableRealPlayers().find((x) => posGroup(x.position) === group)!;
@@ -133,7 +133,7 @@ describe('카드 데이터 76장 (F.4, C.34)', () => {
 });
 
 describe('커스텀 포메이션 공격 줄 최대 4명 (C.34 임시 규칙)', () => {
-  it('공격 줄 5명 이상은 놓을 수 없고, 옛 세이브의 그런 대형은 프리셋으로 되돌린다', () => {
+  it('공격 줄 5명 이상은 놓을 수 없고, 옛 세이브(13)는 이어 할 수 없다', () => {
     const c = presetCells('4-3-3');
     // 중원 셋을 2선 공격 칸으로 → 공격 6명
     const mids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter((i) => c[i]! >= 10 && c[i]! < 20).slice(0, 3);
@@ -144,10 +144,6 @@ describe('커스텀 포메이션 공격 줄 최대 4명 (C.34 임시 규칙)', (
     const g = game('ST', 'mig');
     const raw = JSON.parse(JSON.stringify({ ...g, rosters: undefined }));
     raw.saveFormat = 13;
-    delete raw.control;
-    raw.tactics = { ...raw.tactics, custom: heavy };
-    const s = migrate(raw);
-    expect(s.control).toEqual({ mode: 'direct', stop: 'important' });
-    expect(s.tactics.custom).toBeNull();
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 });

@@ -5,7 +5,7 @@ import { LEGEND_ROWS } from '../data/players/legends';
 import { newGame, playRound } from '../src/game';
 import { LEGEND_BY_ID } from '../src/legends';
 import type { Replay } from '../src/replay';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { matchResultVM } from '../src/ui/viewModels';
 import { matchResultView } from '../src/ui/views/matchResult';
 
@@ -25,18 +25,15 @@ describe('선수 이름 한국 통용 표기 (C.50)', () => {
     expect(A_GRADE_PLAYERS.find((p) => p.id === 'hazard')!.nameKo).toBe('에덴 아자르');
   });
 
-  it('세이브 29 → 30: 저장된 이름을 데이터 id 로 다시 읽는다 (NPC·내 선수)', () => {
+  it('옛 세이브(29)는 이어 할 수 없음, 지금 형식 왕복은 통용 표기 그대로 (NPC·내 선수)', () => {
     const g = newGame({ mode: 'real', playerId: 'lg-cruyff', seed: 'c50-mig', difficulty: 'normal' });
     expect(g.player.name).toBe('요한 크루이프');
-    const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 29;
-    raw.player.name = '헨드릭 요하네스 크라위프';
-    const hz = raw.npcs.find((n: { id: string }) => n.id === 'hazard');
-    hz.nameKo = '에당 아자르';
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(57);
+    const back = deserialize(serialize(g));
     expect(back.player.name).toBe(LEGEND_BY_ID.get('lg-cruyff')!.nameKo);
     expect(back.npcs.find((n) => n.id === 'hazard')!.nameKo).toBe('에덴 아자르');
+    const raw = JSON.parse(serialize(g));
+    raw.saveFormat = 29;
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });
 
