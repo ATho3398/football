@@ -3,14 +3,24 @@
 // ⒝ 수비 늦음: 상대 슛 순간 3 m 안 우리 필드 선수 0 → 맡은 수비(추적 배정, 없으면 목표가 슈터에 가장 가까운 선수)의 목표가 슈터에서 6 m+ = 배정 없음 / 2.5~6 m = 목표 오차 / 그 안 = 이동 지연(목표까지 거리)
 // ⒞ 좋은 찬스(xG 0.3+) 실패: 블록 / 빗나감 / 선방
 // ⒟ 백패스(2 m+ 뒤로 짧은 패스): 실수 후보에서 뽑힘(isMistake, gap 밖) / 전방 대안 없음(앞 5 m+ 성공 0.6+ 패스·침투 후보가 안 보임) / 위험 판단(전방 대안이 있는데 gap 안에서 백패스)
-// npx vite-node scripts/diag/why.ts -- [경기수=20] [홈레이팅=75] [원정레이팅=75]
+// npx vite-node scripts/diag/why.ts -- [경기수=20] [홈레이팅=75] [원정레이팅=75] [경로=값 ...]
+import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { teamSetupFromRoster } from '../../src/engine/setup';
 import { attackDir } from '../../src/engine/pitch';
 import { probe, type ShotProbe } from '../../src/engine/probe';
 import { createTeamRoster, rosterRating } from '../../src/roster';
 
-const args = process.argv.slice(2).filter((a) => a !== '--');
+const allArgs = process.argv.slice(2).filter((a) => a !== '--');
+// 경로=값 인자로 ENGINE 상수 덮어쓰기 (C.77x)
+for (const a of allArgs.filter((x) => x.includes('='))) {
+  const [k, v] = a.split('=') as [string, string];
+  const path = k.split('.');
+  let o = ENGINE as unknown as Record<string, unknown>;
+  for (const key of path.slice(0, -1)) o = o[key] as Record<string, unknown>;
+  o[path[path.length - 1]!] = Number(v);
+}
+const args = allArgs.filter((x) => !x.includes('='));
 const N = Number(args[0] ?? 20), HR = Number(args[1] ?? 75), AR = Number(args[2] ?? 75);
 
 const through = { decisions: 0, none: 0, hidden: 0, outGap: [] as number[], notPicked: 0, picked: 0 };

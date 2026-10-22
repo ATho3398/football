@@ -89,7 +89,7 @@ function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
 }
 
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
-export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1): void {
+export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1, lookX = NaN, lookY = NaN): void {
   const cap = effectiveMax(a) * speedScale;
   // 앞먹임 (C.77x): 움직이는 목표는 그 속도로 같이 움직이고, 원하는 속도에 목표 속도를 더한다
   const fx = P.feed > 0 ? a.tvx * P.feed : 0;
@@ -141,6 +141,13 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
       wy = 0;
       want = 0;
     } else if (want > P.walk + 1e-9) turnHead(a, ux, uy, dt);
+    else if (Number.isFinite(lookX)) {
+      // 서 있거나 걷는 동안은 공 쪽(lookX, lookY)으로 몸을 돌린다 — 뒤로 뛰려면 다시 돌아야 한다
+      const lx = lookX - a.x;
+      const ly = lookY - a.y;
+      const ld = Math.sqrt(lx * lx + ly * ly);
+      if (ld > 1) turnHead(a, lx / ld, ly / ld, dt);
+    }
     // (느리게 뛰기 시작할 때도 몸은 갈 쪽으로 돌아간다 — 뒷걸음(걷기 이하)은 몸 방향 그대로)
   } else if (sp > 1 && want > 0) {
     // 큰 방향 전환은 속도 유지율만큼만 이어 간다 (옛 동작)

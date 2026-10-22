@@ -511,7 +511,7 @@ function stepTail(s: SimState): void {
     // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
     if (a.idx === b.owner) clearFeed(a);
     else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover);
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover, a.idx === b.owner ? NaN : b.x, b.y);
   }
 
   // 공
