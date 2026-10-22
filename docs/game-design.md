@@ -6596,7 +6596,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
-### C.77t 44h단계 엔진 블록 — GK 위치 선방·빅찬스(사용자 요청 2026-10-22 20:2x KST "키퍼 찬스 ㄱㄱ", 엔진관리자9 §9.17.3 44h-k): **선방 확률에 GK 도달 항(슛 순간 GK 위치) · 판단 xG 도 같은 식 · GK 자세 잡기 · `saveBase` 1.63 → 1.66 · 휘슬 미룸 — quick 600 과 같은 시드 scoring 30골+ 를 같이 맞추는 `saveBase` 가 없어(관문 1개 미달) `main` 배포 보류, 작업 브랜치에 둠** (브랜치에서 ENGINE_VERSION 39 → 40, BALANCE_VERSION 81 → 82, SAVE_FORMAT_VERSION 그대로 — 비행 중 슛 정보 `cover` 는 경기 상태 안, 세이브 구조 무변경)
+### C.77t 44h단계 엔진 블록 — GK 위치 선방·빅찬스(사용자 요청 2026-10-22 20:2x KST "키퍼 찬스 ㄱㄱ", 엔진관리자9 §9.17.3 44h-k): **선방 확률에 GK 도달 항(슛 순간 GK 위치) · 판단 xG 도 같은 식 · GK 자세 잡기 · `saveBase` 1.63 → 1.66 · 휘슬 미룸 — quick 600 과 같은 시드 scoring 30골+ 를 같이 맞추는 `saveBase` 가 없어(관문 1개 미달) 보류했다가 사용자 결정(2026-10-23 00:1x KST, 선택지 (a))으로 1.66 그대로 `main` 배포, 30골+ 0.30 은 기록** (ENGINE_VERSION 39 → 40, BALANCE_VERSION 81 → 82, SAVE_FORMAT_VERSION 그대로 — 비행 중 슛 정보 `cover` 는 경기 상태 안, 세이브 구조 무변경)
 
 - 지시: 마스터 Z `docs/session-prompts/C.77t.md`, 처방 `docs/engine-diagnosis-e4.md` §9.17(엔진관리자9 브랜치 3d412a1 에서 그 파일과 `scripts/diag/shot-xg.ts` 를 가져옴). Opus 높음(44h-k Opus 1차). 브랜치 `claude/c77t-gk-reach`(main 7317535 위). `PATCH_LABEL` = `C.77t`, `STAGE_LABEL` 그대로(47단계). 2026-10-22 20:43 ~ 2026-10-22 23:3x KST(컨테이너 재시작 2회 — 턴을 끝내고 기다리는 동안 컨테이너가 회수돼 scoring·sweep 를 두 번 다시 돌림).
 
@@ -6656,17 +6656,49 @@ C 의 "GK 옆 위치를 공–골 가운데 선 위로"(스위퍼 8 m 앞에서 
 | 테스트 | 통과 | 139파일 1,169개 ✓ (새 `tests/c77t.test.ts` 5개, `c75v` sureBack 시드 c77t-7 · `highlights` 시드 104 로 옮김 — 엔진이 바뀔 때마다 옮겨 온 드문 장면 시드) |
 | 지문 `same-seed 30` | 기록 | **4fcb3d22e15fb2cd**(C.77s b122c8681733c750) |
 | `moment-ev` 슛 선택지 0.3+ | 기록 | 측정 예산 초과로 이번엔 재지 않음(스크립트에 줄만 추가) — 판단 xG 분포는 위 `shot-xg` 와 같은 식 |
-| balance:check | — | main 배포 보류라 돌리지 않음 |
+| balance:check | — | 사용자 결정 뒤 main 병합(C.77v) 위에서 CI 에 맡김 |
 
 **틀릴 수 있는 곳 대조**: (i) 중거리 골 ↑ — 그대로 나왔다(12 m 밖 선방 72 → 61%). 처방대로 `reachBase` 2.0 에 더해, 원인이 GK **이동이 느린 것**이라 자세 잡기를 더했다(반응 시간 0.2초는 GK 쪽을 더 약하게 해 쓰지 않음). (ii) 헤더 과다 — 그대로 나왔고 하한 0.5 로 모자라 헤더를 도달 항 밖으로. (iii) 엘리트 몰림 — 반대로 나왔다: 빅찬스가 모든 공격 선수에게 생겨 30골+ 가 1.0~2.0(C.77k) → 0.3 으로 내려감. `saveBase` 를 내리면 30골+ 는 돌아오지만(1.65 → 0.50) quick 600 동레이팅 득점이 1.55 로 넘친다(0.01 에 +0.13 — 지금까지의 0.067 의 두 배, 도달 항이 판단 xG 를 같이 움직여 슛 선택이 늘어남).
 
-**배포 판단(마스터에)**: 관문 미달 2개 — ① 0.5+ 0.9%(부분 기준 2% 미달) ② quick 득점 ↔ scoring 30골+ 를 한 `saveBase` 로 못 맞춤(1.66 은 30골+ 0.30). 규칙(가드가 깨지면 배포하지 않음)대로 main 에 올리지 않았다. 선택지: (a) 1.66 으로 배포하고 30골+ 0.30 을 기록(득점 분포는 고르게 바뀐 것) (b) 1.65 로 배포하고 quick 1.55 를 기록 (c) 보류하고 다음 GK 처방(옆 이동 속도·크로스 중 이동)과 묶어 다시. 권장 (a) — 사용자 요청(빅찬스 등장)의 핵심인 0.3+ 는 관문 안이고 30골+ 는 10시즌 3명 대 5명 차이(표본 잡음 큼).
+**배포 판단(마스터에)**: 관문 미달 2개 — ① 0.5+ 0.9%(부분 기준 2% 미달) ② quick 득점 ↔ scoring 30골+ 를 한 `saveBase` 로 못 맞춤(1.66 은 30골+ 0.30). 규칙(가드가 깨지면 배포하지 않음)대로 일단 main 에 올리지 않았고, 마스터 Z 를 거친 사용자 결정 **(a) 1.66 배포 · 30골+ 0.30 기록**(2026-10-23 00:1x KST)으로 C.77v main 위에 병합해 배포했다. 선택지: (a) 1.66 으로 배포하고 30골+ 0.30 을 기록(득점 분포는 고르게 바뀐 것) (b) 1.65 로 배포하고 quick 1.55 를 기록 (c) 보류하고 다음 GK 처방(옆 이동 속도·크로스 중 이동)과 묶어 다시. 권장 (a) — 사용자 요청(빅찬스 등장)의 핵심인 0.3+ 는 관문 안이고 30골+ 는 10시즌 3명 대 5명 차이(표본 잡음 큼).
 
 **남은 것 → `docs/engine-issues.md` 14**: ① 0.5+ 0.9%(목표 3~6) — 1대1 pOn 이 0.58 이라 cover 0 이어도 xG 0.5 를 잘 못 넘는다(상단은 pOn 쪽). ② 6야드 발 슛 실제 골률 5.9%(목표 30%+) — 6야드 슛은 GK 가 쏠린 장면이 아니라 몸싸움 속(압박 0.90·수비 0.4 m)이라 이번 처방 밖(§9.17.2 ②). ③ GK 가 공 반대편에서 늦게 옮기는 장면이 아직 남는다(cover 0 유효 슈팅 약 13%, 발 슛 8~16 m 25%) — 다음 GK 처방 후보(옆 이동 속도·크로스 비행 중 이동). ④ 미해결 12(`closeW`)는 흡수(1대1 실제 골률 23 → 29~44%, `closeW` 0 그대로), 미해결 6(선방률)은 12 m 밖 68.4% 로 범위 안.
 
 **새 화면**: 없음.
 
 명령 시각 2026-10-22 20:43 KST / 답변 시각 2026-10-22 23:3x KST / 걸린 시간 약 2시간 50분(예산 2.5시간 초과 — 컨테이너 재시작 2회로 scoring·sweep 3번)
+### C.77v 50단계 — 앱 포장: 안드로이드 APK(사용자 요청 2026-10-22 20:4x KST "앱으로 묶기 가능하면 진행"): **Capacitor 8 껍데기 앱(`android/`)이 배포 사이트(https://atho3398.github.io/football/)를 연다(`server.url`) — 웹 배포 = 앱 업데이트, 오프라인은 C.77r 서비스 워커 · GitHub Actions `android` 워크플로가 APK 를 빌드해 아티팩트로 올림(Pages 배포와 별도) · 저장 화면에 "앱 세이브는 웹판과 따로" 한 줄, `main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 게임 로직 무변경, STAGE_LABEL 그대로)
+
+**구현**
+1. **Capacitor**(`capacitor.config.json`, devDependencies `@capacitor/cli`·`core`·`android` 8.5.3): 앱 id `io.github.atho3398.playerone`, 이름 PLAYER ONE, `server.url` = 배포 사이트, `server.errorPath` = `offline.html`(첫 실행을 인터넷 없이 했을 때 "인터넷 연결이 필요해요 · 다시 시도"). webDir `android-shell/`(index.html·offline.html 두 파일만 — dist 를 APK 에 넣지 않는다). `android/` 는 `npx cap add android` 산출물을 커밋(복사본 `assets/public` 은 .gitignore — CI 가 `npx cap sync` 로 넣는다). 웹 번들은 Capacitor 를 import 하지 않는다(웹판 크기·동작 그대로).
+2. **앱 모양**: 아이콘 = C.77r manifest 아이콘(`scripts/android-icons.py` 가 `public/icons` 로 mipmap 5밀도·적응형 앞면(maskable 안전 영역 → 66dp)·둥근 아이콘·스플래시 PNG 를 만든다, 결과 커밋) · 적응형 배경·스플래시·창 배경·상태바·내비게이션바 #16171B(manifest 색) · 상태바 아이콘 밝게(`SystemBars.style DARK`) · **세로 고정**(`screenOrientation="portrait"`). viewport 는 그대로(viewport-fit 없음)라 Capacitor 가 바 높이만큼 웹뷰를 띄워 겹침 없음.
+3. **버전**: versionCode = Actions 실행 번호(덮어 설치가 되려면 늘어나야 함), versionName = 태그 이름 또는 `build-<번호>`.
+4. **서명**: 저장소 시크릿 없이 디버그 키. 키는 커밋하지 않고 Actions 캐시(`po-android-debug-keystore-v1`)에 두어 매번 같은 키 → 덮어 설치 가능. 캐시가 지워지면(7일 넘게 실행 없음) 새 키가 생겨 "앱이 설치되지 않음" — 그때는 앱에서 [내보내기] 백업 → 앱 삭제 → 새 APK 설치 → [가져오기].
+5. **웹 코드**: `pwa/register.ts isNativeApp()`(window.Capacitor.isNativePlatform — Capacitor 가 server.url 페이지에도 넣는다). 서비스 워커는 앱에서도 그대로 등록(오프라인·새 버전 "다시 열기" 띠가 웹과 같다). 저장 화면 PWA 안내 아래 한 줄: 앱이면 "안드로이드 앱의 세이브는 앱 안 저장소(IndexedDB)에 따로 … 앱을 지우면 세이브도 지워져요", 웹이면 "APK 로 설치하면 세이브는 웹판과 따로". 테스트 `tests/nativeApp.test.ts` 3개.
+6. **워크플로** `.github/workflows/android.yml`: 수동 실행(workflow_dispatch) · `v*` 태그 푸시 · 이 파일을 고친 브랜치 푸시. 단계 = npm ci → cap sync → 디버그 키 캐시 → `./gradlew assembleDebug` → `player-one-<번호>.apk` 를 아티팩트 `player-one-apk`(30일 보관)로. Pages 워크플로는 건드리지 않음.
+
+**설치 방법**(사용자): GitHub 저장소 → **Actions** → 왼쪽 **android** → (새로 만들려면 오른쪽 **Run workflow** → main → Run) → 최신 실행(초록 체크) 클릭 → 아래 **Artifacts** 의 `player-one-apk` 내려받기 → zip 을 풀어 `player-one-<번호>.apk` 를 폰으로 옮김 → 폰에서 열기 → "출처를 알 수 없는 앱 설치" 허용(설정 › 보안 또는 파일 앱별 허용) → 설치. 웹판(https://atho3398.github.io/football/)과 세이브가 따로라 옮기려면 [내보내기]/[가져오기]. 게임 업데이트는 웹 배포와 같이 온다 — APK 를 다시 설치할 필요 없음(앱을 열면 새 버전 "다시 열기" 띠). APK 를 새로 만들 일은 아이콘·이름·앱 설정을 바꿀 때뿐.
+
+**관문**
+| 관문 | 결과 |
+|---|---|
+| typecheck · test · build | ✓ · 139파일 1,167개 ✓(새 `tests/nativeApp.test.ts` 3개) · ✓ (balance·engine 은 코드 무변경이라 로컬 재측정 생략, CI 가 판정) |
+| 워크플로 1회 실행 | 1차 실패(`android-actions/setup-android` 가 sdkmanager `tools` 패키지 없음으로 종료 → 러너 기본 SDK 쓰게 단계 제거) → 2차 **성공**(dist 묶기 방식, 실행 39777860214, 약 2분 15초, 17.2 MB) → 방식 변경 뒤 3차 **성공**(server.url 껍데기, 실행 39785147794, **약 1분**) · 아티팩트 `player-one-apk` **4.3 MB**(4,312,700 바이트, 30일 보관) |
+| 웹 동작 무변경 | 서비스 워커 분기·안내 한 줄만(웹에서는 isNativeApp 거짓) |
+
+**방식 비교와 선택**(마스터 Z 22:13 KST "앱 업데이트되면 어떤 방식?"):
+| | 사이트 여는 껍데기(채택, Capacitor `server.url`) | dist 를 APK 에 묶기(첫 시도) | TWA(Bubblewrap) |
+|---|---|---|---|
+| 업데이트 | 웹 배포 = 앱 업데이트(재설치 없음, "다시 열기" 띠) | 패치마다 새 APK 재설치(version.json 비교 안내 필요) | 웹 배포 = 업데이트 |
+| 첫 실행 | 인터넷 필요(이후 서비스 워커 캐시로 오프라인) | 인터넷 없이 됨 | 인터넷 필요 |
+| 세이브 위치 | 앱 웹뷰 저장소(origin atho3398.github.io) — 크롬 웹판과 따로 | 앱 웹뷰(https://localhost) — 웹판과 따로 | 크롬 저장소 — 크롬 웹판과 **공유** |
+| APK 크기 | 4.3 MB | 17.2 MB | 작음 |
+| 조건 | 없음 | 없음 | 도메인 루트 `/.well-known/assetlinks.json` 필요 — `atho3398.github.io/football/` 프로젝트 페이지는 루트에 못 올려 주소창이 보이는 커스텀 탭이 됨 |
+선택 이유: 업데이트마다 재설치가 없고(사용자 질문의 핵심), TWA 는 이 저장소 주소에서 검증 파일을 둘 수 없어 주소창이 남는다. 첫 실행만 인터넷이 필요한 것은 offline.html 안내로 덮는다. 첫 시도(dist 묶기) 실행 39777860214 의 APK 는 17.2 MB 였다.
+
+**데스크톱(Windows, 선택)**: 이번엔 기록만. Tauri(웹뷰2, 설치 파일 ~5 MB, Rust 빌드 windows 러너 10분+)가 Electron(~80 MB)보다 가볍다 — 하려면 같은 워크플로에 `windows-latest` job + `tauri-action`. PC 는 웹판·PWA 설치(크롬 주소창 설치 아이콘)로 이미 오프라인 앱처럼 쓸 수 있어 우선순위 낮음.
+
+**새 화면**: 없음(저장 화면 안내 한 줄).
 
 ### C.77s 44h단계 — 소극적 백패스 평점 감점 · 위험 감수 실패 완화 · 결정 카드 기대 평점(사용자 요청 pending 145, 엔진관리자9 §9.16 세션 A): **평점 규칙 3개 + 결정 카드 숫자, 엔진 행동 무변경, `main` 배포** (ENGINE_VERSION 39 그대로 — 같은 시드 30경기 지문(평점 제외, `NORATING=1 same-seed 30`) `02579a923829505c` 수정 전후 동일, 평점 포함 지문은 평점이 들어 있어 `c74c09c2627a3d33` → `b122c8681733c750`; BALANCE_VERSION 80 → 81; SAVE_FORMAT_VERSION 그대로 — 세이브 구조 무변경)
 
