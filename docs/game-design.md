@@ -6618,7 +6618,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 7. 문서: engine-issues 로드맵 절(현재값·빅찬스 부분 해결·`saveBase` 가 판단 식 `onball.ts leagueSaveProb` 에도 들어가 슛 선택 빈도를 같이 바꾼다는 메모), pending 143 가중치 정규화 규칙 한 줄.
 
 - 새 화면·큰 패널: **0개**(엔진 측정·테스트·간이 계산만, 부상 등급 이름 "중등도" 한 단어가 기존 부상 표시에 나온다).
-- 테스트 142파일 1180개 통과(새 c77w 3개 · 장면 5개) · typecheck 통과 · balance:check BALANCE_CHECK_RESULT
+- 테스트 142파일 1180개 통과(새 c77w 3개 · 장면 5개) · typecheck 통과 · balance:check: 로컬 nohup 1회(02:07 KST 시작)가 첫 표 출력 뒤 판정 없이 멈춤(프로세스 사라짐, 60분 넘김) — 측정 운영 규칙대로 다시 돌리지 않고 main 푸시 뒤 CI 판정에 맡김
 
 ### C.77t 44h단계 엔진 블록 — GK 위치 선방·빅찬스(사용자 요청 2026-10-22 20:2x KST "키퍼 찬스 ㄱㄱ", 엔진관리자9 §9.17.3 44h-k): **선방 확률에 GK 도달 항(슛 순간 GK 위치) · 판단 xG 도 같은 식 · GK 자세 잡기 · `saveBase` 1.63 → 1.66 · 휘슬 미룸 — quick 600 과 같은 시드 scoring 30골+ 를 같이 맞추는 `saveBase` 가 없어(관문 1개 미달) 보류했다가 사용자 결정(2026-10-23 00:1x KST, 선택지 (a))으로 1.66 그대로 `main` 배포, 30골+ 0.30 은 기록** (ENGINE_VERSION 39 → 40, BALANCE_VERSION 81 → 82, SAVE_FORMAT_VERSION 그대로 — 비행 중 슛 정보 `cover` 는 경기 상태 안, 세이브 구조 무변경)
 
