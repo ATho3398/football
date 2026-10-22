@@ -556,7 +556,9 @@ function stepTail(s: SimState): void {
   s.t += dt;
   s.elapsed += dt;
   s.tick++;
-  if (s.t >= s.halfEnd) {
+  // 슛이 날아가는 중에는 휘슬을 미룬다 (C.77t: 선방·골 판정 전에 전반이 끝나 유효 슈팅이 사라지던 것)
+  const shotInAir = s.ball.flight?.kind === 'shot' && (s.ball.flight.outcome === 'shot' || s.ball.flight.outcome === 'goal');
+  if (s.t >= s.halfEnd && !shotInAir) {
     if (s.half === 1) {
       event(s, 'halftime', 0, []);
       startSecondHalf(s);

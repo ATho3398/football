@@ -4,7 +4,7 @@ import { weakFootMul } from '../body';
 import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
-import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
+import { catchProb, claimProb, farSide, keeperOf, keeperZone, saveProb, shotCover } from './keeper';
 import { ballRank, inOwnBox, updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
@@ -455,7 +455,8 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
   const foot = header ? 1 : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
   // 상대 분석 (C.74c): 슈팅이 리포트 약점이면 유효 슈팅 × 약점 공략
   const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot * (s.rapport ? exploitMul(s, a, 'shoot') : 1);
-  const side = r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1;
+  // GK 반대편 구석 (C.77t): GK 가 골대 가운데에서 비켜 있으면 먼 쪽을 노린다 (판단용 shotModel 과 같은 규칙)
+  const side = farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1);
   const speed = m.speed * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
   if (onTarget) {
     team.stats.shotsOnTarget++;
@@ -493,6 +494,8 @@ function shotFlight(s: SimState, a: Agent, fl: Flight): void {
   const uy = fl.toY - fl.fromY;
   const len2 = ux * ux + uy * uy;
   const k = gk && len2 > 1 ? ((gk.x - fl.fromX) * ux + (gk.y - fl.fromY) * uy) / len2 : 1;
+  // GK 도달 항 (C.77t): 몸을 날리기 전, 슛 순간 GK 위치로 잰다
+  if (!sh.penalty) sh.cover = shotCover(gk, fl.fromX, fl.fromY, fl.toX, fl.toY, sh.speed, sh.header);
   if (gk && !sh.penalty && k > 0.05 && k < 1 - 0.3 / Math.sqrt(len2)) {
     sh.goalX = fl.toX;
     sh.goalY = fl.toY;
@@ -520,7 +523,8 @@ function shotArrives(s: SimState, fl: Flight): void {
   const sh = fl.shot!;
   const dir = attackDir(shooter.team, s.half);
   // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
-  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  // GK 도달 항 (C.77t): 슛 순간 GK 가 슛 선에서 멀면 선방 × cover
+  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
   // 선방률 지표 (C.76q, 미해결 6): 12 m 밖 유효 슈팅만 따로 센다 (1대1·PK 제외)
   const far = !sh.penalty && sh.d >= FAR_SAVE_FROM;
   if (far) s.teams[shooter.team].stats.farOnTarget++;

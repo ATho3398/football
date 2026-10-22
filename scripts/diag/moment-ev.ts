@@ -82,3 +82,9 @@ for (const key of ['ALL', 'ALL 자기 1/3', 'ALL 그 밖', ...groups]) {
   console.log(`${key}: 정지 ${r.stops} · 봇 최선 슛 ${pct(r.best.shot, r.stops)} / 공격 ${pct(r.best.attack, r.stops)} / 안전 ${pct(r.best.safe, r.stops)} (백패스 ${pct(r.bestBack, r.stops)}) · 공격 선택지 있음 ${pct(r.hasAtt, r.stops)} · 백패스 있음 ${pct(r.hasBack, r.stops)}`);
   console.log(`   EV 평균 슛 ${f(avg(r.ev.shot))} · 공격 ${f(avg(r.ev.attack))} · 안전 ${f(avg(r.ev.safe))} · 백패스 ${f(avg(r.back))} | 확률 평균 슛 ${f(avg(r.p.shot), 2)} · 공격 ${f(avg(r.p.attack), 2)} · 안전 ${f(avg(r.p.safe), 2)} | 최선 공격 − 최선 안전 EV: 평균 ${f(avg(r.gap))} · 공격이 낫다 ${pct(r.gap.filter((x) => x > 0).length, r.gap.length)}`);
 }
+// C.77t (44h-k §9.17): 슛 선택지 확률(= 판단 xG) 꼭대기 — 0.3+ · 0.4+ · 0.5+ 비율과 최댓값
+{
+  const ps = G.ALL?.p.shot ?? [];
+  const share = (t: number) => pct(ps.filter((x) => x >= t).length, ps.length);
+  console.log(`슛 선택지 ${ps.length}개 · 확률 0.3+ ${share(0.3)} · 0.4+ ${share(0.4)} · 0.5+ ${share(0.5)} · 최대 ${f(ps.length ? Math.max(...ps) : NaN, 2)}`);
+}

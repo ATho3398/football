@@ -15,10 +15,11 @@ const replayOf = (seed: number) => playMyMatch({
 describe('전개 하이라이트 (24.3 개정)', () => {
   // C.76s(엔진 32): 같은 이유로 94 → 95. C.45: 시드 91 은 엔진 20 에서 첫 장면이 공이 죽은 시간(빨리 감기)에 시작해 실제 속도 확인에 맞지 않아 92 로. C.75c(엔진 24): 같은 이유로 93. C.76q(엔진 31): 같은 이유로 94
   // C.77b(엔진 36, 2선 추적 + C.76z·C.77c 병합): 95 는 첫 장면 앞 3초에 공 죽은 시간(빨리 감기)이 생겨 96 으로 (95~108 중 96~103·106·108 통과)
-  const r = replayOf(96);
+  // C.77t(엔진 40, GK 도달 항): 96 이 같은 이유로 깨져 104 로 (97~112 중 104~106·108·110·112 통과)
+  const r = replayOf(104);
   const scenes = selectScenes(r);
   it('같은 경기면 장면 선택과 장면 시각이 늘 같다 (결정적)', () => {
-    expect(selectScenes(replayOf(96))).toEqual(scenes);
+    expect(selectScenes(replayOf(104))).toEqual(scenes);
     expect(selectScenes(r)).toEqual(scenes);
   });
   it('장면 6~8개, 각 10~15초, 시간 순, 같은 시간대(20초 안) 중복 없음', () => {

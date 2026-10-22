@@ -142,6 +142,8 @@ export interface Flight {
   shot?: { speed: number; corner: number; d: number; header: boolean; penalty?: boolean;
     /** 2단계 비행 (C.24): 세이브 실패 시 골라인 도착점과 남은 비행 시간 */
     goalX?: number; goalY?: number; rest?: number;
+    /** GK 도달 항 (C.77t): 슛 순간 GK 위치로 잰 cover, 선방 확률에 곱한다 */
+    cover?: number;
     /** 카드 선방 보정 (C.36): 상대 GK 선방 확률에 더한다 */
     cardSave?: number };
   /** 카드 크로스 보정 (C.36): 착지 공중볼에서 공격 쪽 승리 확률에 더한다 */

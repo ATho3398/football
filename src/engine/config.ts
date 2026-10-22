@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 39;
+export const ENGINE_VERSION = 40;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1019,8 +1019,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). */
-    saveBase: 1.63,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). */
+    saveBase: 1.66,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -1041,6 +1041,25 @@ export const ENGINE = {
      */
     closeW: 0,
     closeRef: 15,
+    /**
+     * GK 도달 항 (C.77t, 44h-k · 진단 §9.17): 슛 순간 GK 위치에서 슛 선(공 → 노린 골라인 점)까지의 수직 거리 e, 공이 GK 에 닿는 시간 tb = |GK − 공| / 슛 속도,
+     * 도달 반경 reach = reachBase + diveSpeed × tb × 선방/80, cover = clamp(1 − (e − reach)/reachSpan, 0, 1) → 선방 확률 × cover.
+     * GK 가 슛 선 위에 있으면 1(이전과 같음), 쏠려 있으면 0 에 가깝다(빈 골). 판단용 xG(shotModel)도 같은 식(실제 GK 위치 · 리그 GK 선방 · GK 반대편 구석)
+     */
+    /** C.77t: 처방 1.6 은 12 m 밖 선방률 65% 라 §9.17.3 (i) 대로 2.0 */
+    reachBase: 2.0,
+    diveSpeed: 4.0,
+    reachSpan: 1.5,
+    /** GK 반응 시간 (초): tb 에서 뺀다 (0 아래는 0) */
+    reactTime: 0,
+    /** 판단용 (C.77t): 동료에게 패스해 그가 쏠 슛의 가치를 볼 때, 패스 비행 + receiveLead 초 동안 GK 가 setSpeed m/s 로 자리를 옮긴다고 본다 (지금 GK 위치 그대로 보면 패스가 과대평가된다) */
+    setSpeed: 4,
+    receiveLead: 0.3,
+    /** 헤더의 cover 하한 (크로스 순간 GK 가 아직 옮기는 중이라 헤더만 따로 받친다) */
+    /** C.77t: 하한 0.5 도 헤더 실제 골률 28 → 50% 라 1(헤더는 도달 항 밖, 이전과 같음) */
+    headerCoverMin: 1,
+    /** GK 가 골 가운데에서 이만큼(m) 넘게 비켜 있으면 슈터는 반대편 구석을 노린다 (실제·판단 같은 규칙). 그 안이면 좌우 무작위 */
+    farSideMin: 0.25,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
     catchBase: 0.3,
     catchSkill: 0.5,
@@ -1061,6 +1080,8 @@ export const ENGINE = {
     /** 각 좁히기 (E.20): 상대가 공을 가지고 박스 안 골에서 rushDist m 안이면 GK 는 공과 골 사이 rushGap m 앞까지 나온다 */
     rushDist: 12,
     rushGap: 1.5,
+    /** 자세 잡기 (C.77t): 상대 소유자가 골에서 setDist m 안이면 GK 자리 이동을 서두른다(긴급). 0 이면 끔 */
+    setDist: 30,
     /** 루즈볼 추격 (C.28): 공 경로(chaseHorizon 초)에서 GK 가 닿는 첫 점이 처리 구역(자기 박스, 스위퍼는 박스 밖 sweepRange m 까지) 안이고
      * GK 도착(반응 + 거리/최대 속도)이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료보다 늦지 않으면 나간다. 이미 나갔으면 여유 chaseKeep */
     chaseHorizon: 4,

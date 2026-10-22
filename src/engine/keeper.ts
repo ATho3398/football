@@ -3,7 +3,7 @@
 import type { GkAttributes } from '../attributes';
 import { BALANCE } from '../config/balance';
 import { ENGINE } from './config';
-import { attackDir, clamp, L1, ownGoal } from './pitch';
+import { attackDir, clamp, dist, L1, ownGoal, segDist } from './pitch';
 import type { Agent, SimState } from './state';
 
 const K = ENGINE.keeper;
@@ -28,6 +28,27 @@ export function saveProb(gk: Agent | null, speed: number, corner: number, d: num
   const g = gkAttrs(gk);
   // GK 리치 (C.45): 키 보정
   return clamp(base - K.saveDelta * saveDifficulty(speed, corner, d, header) + (K.saveSkill * (g.shotStopping - K.saveCenter)) / 100 + (gk?.body.gkSave ?? 0), 0.05, 0.95);
+}
+
+/** GK 반대편 구석 (C.77t): GK 가 골 가운데 gy 에서 farSideMin m 넘게 비켜 있으면 반대쪽(±1), 아니면 null (무작위) */
+export function farSide(gk: Agent | null, gy: number): -1 | 1 | null {
+  if (!gk || Math.abs(gk.y - gy) <= K.farSideMin) return null;
+  return gk.y < gy ? 1 : -1;
+}
+
+/** GK 도달 항 cover 0~1 (C.77t): (kx, ky) GK, (fx, fy) → (tx, ty) 슛 선, 선방 능력치 stop. 선방 확률에 곱한다 */
+export function keeperCover(kx: number, ky: number, fx: number, fy: number, tx: number, ty: number, speed: number, stop: number, lead = 0): number {
+  const [e] = segDist(kx, ky, fx, fy, tx, ty);
+  const tb = Math.max(0, dist(kx, ky, fx, fy) / Math.max(1, speed) - K.reactTime);
+  // lead: 슛까지 남은 시간(초, 판단용 — 패스가 가는 동안 GK 가 자리를 옮긴다)
+  const reach = K.reachBase + K.diveSpeed * tb * (stop / 80) + K.setSpeed * lead;
+  return clamp(1 - (e - reach) / K.reachSpan, 0, 1);
+}
+
+/** GK 가 이 슛 선을 덮는 정도 (실제 판정용): GK 가 없으면 1 */
+export function shotCover(gk: Agent | null, fx: number, fy: number, tx: number, ty: number, speed: number, header = false): number {
+  const c = gk ? keeperCover(gk.x, gk.y, fx, fy, tx, ty, speed, gkAttrs(gk).shotStopping) : 1;
+  return header ? Math.max(K.headerCoverMin, c) : c;
 }
 
 export function catchProb(gk: Agent | null): number {
