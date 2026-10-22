@@ -887,3 +887,4 @@
 - (20:49 KST) **C.77u 시작** `session_01YKtbLua91x7weCjEzuEgud` `claude/c77u-facepack`(브랜치 먼저, main 푸시는 C.77t 뒤).
 - (20:58 KST) C.77u 막힘: 환경 네트워크 정책이 위키백과·위키미디어 차단(403) — en/ko.wikipedia.org·upload/thumb/commons.wikimedia.org·wikidata.org. 사용자에게 Allowed domains 추가 요청. 그동안 C.77u는 네트워크 없는 부분(스크립트 확장·기존 237명 rembg 투명화·출처 표시·지연 로딩) 진행.
 - (21:16 KST) **C.77u 브랜치 완료**(cfbdc96, 28분): 위키 차단으로 새 리그 로고 0/225·리그 실명 선수 0/509(사용자 Network access 허용 뒤 `npm run facepack` 한 번), 스크립트 전 리그 245팀·509선수 준비, 기존 237명 rembg 배경 제거(128px라 큰 누끼는 흐림 → 256px 출력 여부 사용자 결정 후보), 출처 패널, 리그별 지연 로딩, public 9.61→8.98MB, 테스트 1,170. main은 C.77t 뒤. **누수 5/5 → 다음 완료 때 점검**. **C.77v 시작**(안드로이드 APK, 브랜치 먼저).
+- (21:2x KST) 사용자: 페이스팩 256px 다시 받기 승인 → C.77u에 전달(위키 재시도, 막히면 알림).
