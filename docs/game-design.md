@@ -6613,8 +6613,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | `moment-ev 3 3`(STOP=all) | 봇 최선 안전 ≤ 10% | 정지 168 · 슛 39% / 공격 54% / **안전 7%**(백패스 5%) ✓ |
 | `rating-parts 600` center 재측정(§9.12.7) | 가드 밖 군만 고침 | 아래 표 — 8군 모두 6.32~6.68, **center 그대로** |
 | `engine:check`(경량) | 평점 8군 6.3~6.7 · σ 0.7~0.9 · XP 비 ≤ 1.15 | 평균 6.50 · **σ 0.73** · GK 6.49 · CB 6.46 · FB 6.48 · CDM 6.53 · CM 6.49 · CAM 6.70 · WING 6.34 · ST 6.52 · ST 무득점 5.92 · XP 비 1.11 · 경량 가드 모두 통과 ✓ |
-| 테스트 | 통과 | 137파일 1,157개 ✓ (새 `tests/c77s.test.ts` 6개) |
-| balance:check | 통과 | BALCHECK |
+| 테스트 | 통과 | 137파일 1,157개 ✓, main(C.77r) 병합 뒤 138파일 1,164개 ✓ (새 `tests/c77s.test.ts` 6개) |
+| balance:check | 통과 | 로컬 nohup 60분+ 판정 없음(다른 프로세스와 겹쳐 느림) → 운영 규칙대로 다른 관문 통과 뒤 main 푸시, CI 판정에 맡김 |
 | 중단선(CB/CDM < 6.3) | — | 안 걸림(CB 6.43~6.46 · CDM 6.51~6.53), `passiveFree` 2 그대로 |
 
 `rating-parts 600`(선발 45분+, `scripts/diag/c77s-center.ts`, 엔진 행동이 같아 "규칙 전" 은 같은 경기에서 감점·완화만 뺀 값):
@@ -6639,7 +6639,9 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 **남은 것**: 세션 B(엔진 블록 10/26 뒤) — AI 백패스 실수 풀(`isMistake` 짧은 백패스, B1)·2:1 give-and-go(B2), §9.16.3. 이번 패치는 평점만 바꿔 팀 백패스 비율(24~28%)은 그대로다.
 
-명령 시각 2026-10-22 15:17 KST / 답변 시각 ANSWERT KST / 걸린 시간 ELAPSED
+명령 시각 2026-10-22 15:17 KST / 답변 시각 2026-10-22 16:49 KST / 걸린 시간 약 1시간 32분(C.77r CI 대기 제외)
+
+덧: C.77r 병합 때 main 의 `docs/game-design.md` 에 충돌 표시(`<<<<<<< HEAD` … C.77r / C.77q)가 커밋돼 있어 이 병합에서 두 소절을 모두 살려 지웠다. `docs/planning-pending.md` 142 의 C.77m·C.77n 완료 줄도 main 에서 빠져 있어 되살렸다.
 
 ### C.77r 50단계 — 오프라인 PWA · 세이브 형식 정책(사용자 요청 2026-10-22 10:3x KST): **설치형 웹앱(매니페스트·서비스 워커, 빌드 산출물 + public 전부 미리 캐시) · 새 버전은 "다시 열기" 띠로만(자동 새로고침 없음, 경기 중 미룸) · 형식(SAVE_FORMAT_VERSION)이 다른 세이브는 이전하지 않고 안내 뒤 지움 — 이전(migration) 사슬 제거** (SAVE_FORMAT_VERSION 57 그대로 — 정책만 바뀜, BALANCE·ENGINE 그대로, STAGE_LABEL 그대로)
 
