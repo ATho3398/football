@@ -17,8 +17,10 @@ import { LEAGUE_CLUB_OVERRIDES } from './overrides';
 const UA = 'PlayerOneFacepack/0.2 (https://github.com/ATho3398/football; personal use)';
 const SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 const API = 'https://en.wikipedia.org/w/api.php';
-const MIN_GAP_MS = 1100;
-const BACKOFF_MS = [2000, 4000, 8000, 16000];
+/** 요청 사이 최소 간격. 공유 IP 에서 429 가 잦으면 FACEPACK_GAP_MS 로 늘린다 (C.77u: 6000 으로 돌림) */
+const MIN_GAP_MS = Number(process.env.FACEPACK_GAP_MS ?? 1500);
+/** 429·5xx·네트워크 오류 뒤 기다림 (C.77u: 공유 IP 라 429 가 길게 이어져 늘림). retry-after 가 더 길면 그것 */
+const BACKOFF_MS = [5000, 15000, 30000, 60000, 120000, 240000];
 /** 출력 한 변 (C.77u 사용자 승인: 128 → 256, 머리말 큰 누끼가 선명하게). 옛 128 파일은 --force 로 다시 받을 때 바뀐다 */
 const SIZE = 256;
 
@@ -125,7 +127,7 @@ async function politeFetch(url: string): Promise<Response> {
       throw new Error(`요청 실패: ${url}`);
     }
     const retryAfter = Number(res?.headers.get('retry-after'));
-    const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : BACKOFF_MS[attempt]!;
+    const delay = Math.max(BACKOFF_MS[attempt]!, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 0);
     console.warn(`  ${res?.status ?? '네트워크 오류'} → ${delay / 1000}초 뒤 재시도 (${attempt + 1}/${BACKOFF_MS.length})`);
     await sleep(delay);
   }
@@ -138,19 +140,24 @@ async function summary(title: string): Promise<Summary | undefined> {
   return (await res.json()) as Summary;
 }
 
+/** 위키미디어 썸네일 표준 폭 (그 밖의 폭은 400) */
+const THUMB_STEPS = [120, 250, 330, 500, 960, 1280];
+
 /**
- * 받을 이미지 주소: 썸네일을 원하는 폭으로 다시 요청한다(로고 330px, 선수 640px — 배경 제거·얼굴 크롭에 해상도가 필요).
- * 원본이 그보다 작으면 원본, 썸네일이 없으면 원본
+ * 받을 이미지 주소: 썸네일을 원하는 폭으로 다시 요청한다(로고 330px, 선수 500px — 배경 제거·256px 크롭에 해상도가 필요).
+ * 원본이 그보다 작으면 원본, 썸네일이 없으면 원본. thumb.wikimedia.org 는 upload.wikimedia.org 로 바꾼다(같은 파일, 네트워크 허용 호스트)
  */
 function imageUrl(s: Summary, px: number): string | undefined {
   const t = s.thumbnail;
   const o = s.originalimage;
+  const step = THUMB_STEPS.find((w) => w >= px) ?? px;
+  let url: string | undefined;
   if (t) {
-    if (o && o.width <= px && !/\.svg$/i.test(o.source)) return o.source;
-    if (t.width !== px && /\/\d+px-/.test(t.source)) return t.source.replace(/\/\d+px-/, `/${px}px-`);
-    return t.source;
-  }
-  return o?.source;
+    if (o && o.width <= step && !/\.svg$/i.test(o.source)) url = o.source;
+    else if (/\/\d+px-/.test(t.source)) url = t.source.replace(/\/\d+px-/, `/${step}px-`);
+    else url = t.source;
+  } else url = o?.source;
+  return url?.split('?')[0]!.replace('://thumb.wikimedia.org/', '://upload.wikimedia.org/');
 }
 
 async function download(url: string, dest: string): Promise<void> {
@@ -167,20 +174,29 @@ function fileNameOf(url: string): string | undefined {
 
 const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
 
-/** 위키미디어 파일 메타데이터 (en 위키 API 는 커먼즈 파일도 같이 답한다) */
-async function license(url: string): Promise<Pick<ManifestEntry, 'license' | 'artist' | 'filePage'> | undefined> {
-  const name = fileNameOf(url);
-  if (!name) return undefined;
-  const q = `${API}?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=extmetadata%7Curl&titles=${encodeURIComponent(`File:${name}`)}`;
-  const res = await politeFetch(q);
-  if (!res.ok) return undefined;
-  const j = (await res.json()) as { query?: { pages?: { imageinfo?: { descriptionurl?: string; extmetadata?: Record<string, { value?: string }> }[] }[] } };
-  const info = j.query?.pages?.[0]?.imageinfo?.[0];
-  if (!info) return undefined;
-  const md = info.extmetadata ?? {};
-  const lic = md.LicenseShortName?.value ?? (md.NonFree?.value ? 'Non-free (fair use)' : undefined);
-  const artist = md.Artist?.value ? stripHtml(md.Artist.value).slice(0, 120) : undefined;
-  return { license: lic ? stripHtml(lic) : undefined, artist, filePage: info.descriptionurl };
+type License = Pick<ManifestEntry, 'license' | 'artist' | 'filePage'>;
+
+/** 위키미디어 파일 메타데이터, 50개씩 한 요청 (en 위키 API 는 커먼즈 파일도 같이 답한다). 파일 이름 → 메타데이터 */
+async function licenses(names: string[]): Promise<Map<string, License>> {
+  const out = new Map<string, License>();
+  for (let i = 0; i < names.length; i += 50) {
+    const chunk = names.slice(i, i + 50);
+    const q = `${API}?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=extmetadata%7Curl&titles=${encodeURIComponent(chunk.map((n) => `File:${n}`).join('|'))}`;
+    const res = await politeFetch(q);
+    if (!res.ok) { console.warn(`  라이선스 ${res.status} (${chunk.length}건 건너뜀)`); continue; }
+    type Page = { title?: string; imageinfo?: { descriptionurl?: string; extmetadata?: Record<string, { value?: string }> }[] };
+    const j = (await res.json()) as { query?: { pages?: Page[]; normalized?: { from: string; to: string }[] } };
+    const back = new Map((j.query?.normalized ?? []).map((n) => [n.to, n.from]));
+    for (const pg of j.query?.pages ?? []) {
+      const info = pg.imageinfo?.[0];
+      if (!info || !pg.title) continue;
+      const md = info.extmetadata ?? {};
+      const lic = md.LicenseShortName?.value ?? (md.NonFree?.value ? 'Non-free (fair use)' : undefined);
+      const name = (back.get(pg.title) ?? pg.title).replace(/^File:/, '');
+      out.set(name, { license: lic ? stripHtml(lic) : undefined, artist: md.Artist?.value ? stripHtml(md.Artist.value).slice(0, 120) : undefined, filePage: info.descriptionurl });
+    }
+  }
+  return out;
 }
 
 // 정사각형 정규화 (C.43 개정, 사용자 "원형 틀 없이 PNG 그대로"): 자르지 않고 긴 쪽을 SIZE 에 맞춘 뒤
@@ -265,7 +281,14 @@ async function runJob(job: Job, manifest: Manifest, withCutout: boolean): Promis
   mkdirSync(dirname(dest), { recursive: true });
   const tried: string[] = [];
   for (const c of job.candidates) {
-    const s = await summary(c.title);
+    let s: Summary | undefined;
+    try {
+      s = await summary(c.title);
+    } catch (e) {
+      // 429 가 재시도 뒤에도 이어지면 이 항목만 못 찾음으로 두고 다음으로 (다음 실행에서 다시)
+      tried.push(`${c.title}: ${(e as Error).message}`);
+      break;
+    }
     if (!s) { tried.push(`${c.title}: 문서 없음`); continue; }
     if (s.type === 'disambiguation') { tried.push(`${c.title}: 동음이의`); continue; }
     const bad = job.accept(s);
@@ -285,9 +308,7 @@ async function runJob(job: Job, manifest: Manifest, withCutout: boolean): Promis
     const title = s.title ?? c.title;
     const entry: ManifestEntry = { file, source: url, page: pageUrl(s, title), title };
     if (job.league !== 'pl') entry.league = job.league;
-    try {
-      Object.assign(entry, await license(url));
-    } catch { /* 메타데이터는 --license 로 다시 채울 수 있다 */ }
+    // 라이선스는 요청을 아끼려고 여기서 받지 않고 --license 로 50건씩 묶어 받는다
     if (prev && prev.file !== file && existsSync(join(OUT, prev.file))) rmSync(join(OUT, prev.file));
     manifest[job.kind][job.id] = entry;
     if (job.kind === 'players' && withCutout) pendingCutout.push({ id: job.id, raw, dest });
@@ -538,22 +559,24 @@ function cutoutExisting(): void {
   console.log(`배경 제거 ${done.size}/${pairs.length} · public/facepack ${dirBytes(OUT)} 바이트`);
 }
 
-/** --license: 라이선스 메타데이터가 없는 항목만 채운다 */
+/** --license: 라이선스 메타데이터가 없는 항목만 채운다 (50건씩 묶음) */
 async function fillLicenses(): Promise<void> {
   const manifest = loadManifest();
-  let n = 0;
+  const todo: { e: ManifestEntry; name: string }[] = [];
   for (const kind of ['players', 'clubs'] as const) {
-    for (const [id, e] of Object.entries(manifest[kind])) {
-      if (e.license) continue;
-      const lic = await license(e.source).catch(() => undefined);
-      if (!lic) { console.log(`[${kind}] ${id}: 메타데이터 없음`); continue; }
-      Object.assign(e, lic);
-      n++;
-      if (n % 20 === 0) saveManifest(manifest);
+    for (const e of Object.values(manifest[kind])) {
+      const name = e.license ? undefined : fileNameOf(e.source);
+      if (name) todo.push({ e, name });
     }
   }
+  const got = await licenses([...new Set(todo.map((t) => t.name))]);
+  let n = 0;
+  for (const t of todo) {
+    const lic = got.get(t.name) ?? got.get(t.name.replace(/_/g, ' '));
+    if (lic) { Object.assign(t.e, lic); n++; }
+  }
   saveManifest(manifest);
-  console.log(`라이선스 채움 ${n}건`);
+  console.log(`라이선스 채움 ${n}/${todo.length}건`);
 }
 
 async function main(): Promise<void> {
