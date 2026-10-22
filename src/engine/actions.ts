@@ -942,6 +942,8 @@ function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight,
   b.reserve = res;
   a.tx = b.x;
   a.ty = b.y;
+  a.tvx = a.tvy = 0;
+  a.tvIdx = -1;
   a.urgent = true;
 }
 

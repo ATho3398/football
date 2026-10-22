@@ -4,7 +4,7 @@ import { ENGINE } from './config';
 import { reaction } from './core';
 import { keeperZone, sweepRange } from './keeper';
 import { finishSkill } from './duel';
-import { effectiveMax, landingVelocity } from './physics';
+import { arrivalTime, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -205,9 +205,9 @@ export function ballPathAt(s: SimState, t: number): { x: number; y: number; sp: 
   return { x: x + (vx / sp) * d, y: y + (vy / sp) * d, sp: sp - dec * tt, air: false };
 }
 
-/** 선수가 (x, y)에 닿는 시간: 반응 + 거리 / 유효 최대 속도. 이미 공을 보고 있었으면(ready) 반응 없이 */
+/** 선수가 (x, y)에 닿는 시간: 반응 + 이동 시간(C.77x arrivalTime — 지금 속도·방향 → 감속·뒤돌기 → 가속 → 최고 속도). 이미 공을 보고 있었으면(ready) 반응 없이 */
 function arrival(a: Agent, x: number, y: number, ready = false): number {
-  return (ready ? 0 : reaction(a)) + dist(a.x, a.y, x, y) / effectiveMax(a);
+  return (ready ? 0 : reaction(a)) + arrivalTime(a, x, y);
 }
 
 /**
@@ -323,6 +323,10 @@ function celebrate(s: SimState, a: Agent, g: NonNullable<NonNullable<SimState['r
 /** 오프더볼 목표 갱신 */
 export function updateOffball(s: SimState, a: Agent): void {
   a.minRun = false;
+  // 목표 속도 (C.77x): 사람을 따라가는 목표를 정하는 곳만 채운다
+  a.tvx = 0;
+  a.tvy = 0;
+  a.tvIdx = -1;
   a.paceCap = 0;
   const dir = attackDir(a.team, s.half);
   const b = s.ball;
@@ -816,6 +820,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (k === 0) {
       a.tx = owner.x;
       a.ty = owner.y;
+      feedFrom(a, owner);
       a.urgent = true;
       return;
     }
@@ -887,6 +892,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       const bd0 = dist(b.x, b.y, gx0, gy0) || 1;
       a.tx = b.x + ((gx0 - b.x) / bd0) * ENGINE.defense.boxPressGap;
       a.ty = b.y + ((gy0 - b.y) / bd0) * ENGINE.defense.boxPressGap;
+      feedFrom(a, owner);
       a.urgent = true;
       return;
     }
@@ -915,6 +921,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       }
       a.tx = b.x + ux * gap;
       a.ty = b.y + uy * gap;
+      feedFrom(a, owner);
       a.urgent = true;
       return;
     }
@@ -1002,6 +1009,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, lineX, ballGoal) : null;
   if (stepOut) mark = stepOut;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
+  let markFeed: [number, number, number, number, number] | null = null;
   if (mark) {
     const [gx, gy] = ownGoal(dir);
     const gd = dist(mark.x, mark.y, gx, gy) || 1;
@@ -1016,15 +1024,24 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const mx = mark.x + ux * goalSide + a.errX * sigma;
     const my = mark.y + uy * goalSide + a.errY * sigma;
     const [mnx, mny] = toNorm(mx, my, dir);
+    // 목표 속도 (C.77x): 목표 중 마크 자리를 따르는 몫(줄 1: y 반, x 는 마크 자리를 고른 때만 · 줄 2·3: 섞는 비율)만큼 마크 상대의 속도
+    let fwx: number;
+    let fwy: number;
     if (a.line === 1) {
       ny = ny * 0.5 + mny * 0.5;
       // 라인 뒤로만 (마크 쪽으로 내려섬). 따라 나가기로 했으면 마크 자리까지 라인 앞으로, 최대 stepOutMax m
+      const nx0 = nx;
       nx = stepOut ? Math.max(nx, Math.min(mnx, lineX + O.stepOutMax / L)) : Math.min(nx, mnx);
+      fwx = nx === mnx && nx !== nx0 ? 1 : 0;
+      fwy = 0.5;
     } else {
       const w = a.line === 3 ? 0.3 : 0.65;
       nx = nx * (1 - w) + mnx * w;
       ny = ny * (1 - w) + mny * w;
+      fwx = w;
+      fwy = w;
     }
+    markFeed = [mark.vx * fwx, mark.vy * fwy, mark.idx, fwx, fwy];
   }
   // 복귀 (E.18 A3): 목표가 자기 골 쪽으로 10 m 이상이면 러닝 이상, 20 m 이상이면 (긴급 복귀 판단 시) 최대 속도
   const [ax] = toNorm(a.x, a.y, dir);
@@ -1032,6 +1049,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   void bnx;
   void bny;
   setTarget(a, nx, ny, dir, back >= O.recoverSprint && a.recoverUrgent);
+  if (markFeed) [a.tvx, a.tvy, a.tvIdx, a.tvwx, a.tvwy] = markFeed;
   a.minRun = back >= O.recoverRun;
 }
 
@@ -1117,6 +1135,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       }
       a.tx = clamp(t.x + ux * O.stMark * focus + a.errX * O.markSigma, 0.3, L - 0.3);
       a.ty = clamp(t.y + uy * O.stMark * focus + a.errY * O.markSigma, 0.3, W - 0.3);
+      feedFrom(a, t);
       a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
       a.minRun = false;
       return true;
@@ -1125,6 +1144,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       const bd = dist(t.x, t.y, b.x, b.y) || 1;
       a.tx = clamp(t.x + ((b.x - t.x) / bd) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
       a.ty = clamp(t.y + ((b.y - t.y) / bd) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+      feedFrom(a, t);
       a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
       a.minRun = false;
       return true;
@@ -1148,6 +1168,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
           const gd2 = dist(u.x, u.y, gx, gy) || 1;
           a.tx = clamp(u.x + ((gx - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
           a.ty = clamp(u.y + ((gy - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+          feedFrom(a, u);
           a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
           a.minRun = false;
           return true;
@@ -1167,6 +1188,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
         const gd2 = dist(u.x, u.y, gx, gy) || 1;
         a.tx = clamp(u.x + ((gx - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
         a.ty = clamp(u.y + ((gy - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+        feedFrom(a, u);
         a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
         a.minRun = false;
         return true;
@@ -1563,6 +1585,7 @@ function trackTarget(s: SimState, a: Agent, dir: 1 | -1, gx: number, gy: number)
   const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
   a.tx = clamp(rx + ux * gap + a.errX * sigma, 0.3, L - 0.3);
   a.ty = clamp(ry + uy * gap + a.errY * sigma, 0.3, W - 0.3);
+  feedFrom(a, r);
   a.urgent = dist(a.tx, a.ty, a.x, a.y) > O.trackUrgent || (O.trackRunUrgent > 0 && r.urgent);
   a.minRun = false;
   return true;
@@ -1589,7 +1612,19 @@ function closerForward(s: SimState, a: Agent, bx: number, by: number): boolean {
 
 /** 오프더볼 갱신 때 위치 오차를 새로 뽑는다 */
 export function refreshErrors(s: SimState, a: Agent): void {
+  // C.77x: errHold 초 동안은 같은 오차를 유지한다
+  if (s.t - a.errT < O.errHold) return;
   a.errTick = s.tick;
+  a.errT = s.t;
+}
+
+/** 목표 속도 = 따라가는 사람의 인지된 속도 (C.77x, 판단 순간 값을 다음 판단까지 유지) */
+function feedFrom(a: Agent, o: Agent): void {
+  a.tvx = o.vx;
+  a.tvy = o.vy;
+  a.tvIdx = o.idx;
+  a.tvwx = 1;
+  a.tvwy = 1;
 }
 
 /** 오차를 읽기 전에: 갱신 틱의 값을 그때 뽑는다 (해시 난수라 언제 뽑아도 같다, C.75l) */

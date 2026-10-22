@@ -17,7 +17,7 @@ import { candidates, choose, judgementOf, notePassive } from './onball';
 import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, slipPick, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
-import { initPhysics, moveAgent } from './physics';
+import { clearFeed, initPhysics, moveAgent, perceiveFeed } from './physics';
 import { aiAdjust, TENDENCY } from './tactics';
 import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
 import { Purpose, rand } from './rng';
@@ -88,9 +88,9 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     // 줄 소속: 커스텀 칸은 칸의 줄(E.5.1), 아니면 포지션
     idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
-    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
+    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, errX: 0, errY: 0, errTick: -1, errDone: -1, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
+    runUntil: 0, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
   };
@@ -335,6 +335,7 @@ function startSecondHalf(s: SimState): void {
     // C.45: 시계가 전반 추가시간(예 2840초)에서 2700초로 돌아가므로 전반에 잡아 둔 시각들도 비운다.
     // 그대로 두면 오프더볼 갱신이 전반 끝 시각까지 멈춰 후반 시작 뒤 최대 2분 넘게 제자리에 서 있는 선수가 생긴다
     a.nextOffball = 0;
+    a.errT = -Infinity;
     a.beatenUntil = 0;
     a.duelNext = 0;
     a.laneUntil = 0;
@@ -507,6 +508,9 @@ function stepTail(s: SimState): void {
     const drain = (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * tm.tactics.pressing)
       * (tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1)
       * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1);
+    // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
+    if (a.idx === b.owner) clearFeed(a);
+    else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
     moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover);
   }
 

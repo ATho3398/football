@@ -160,6 +160,10 @@ export function kickoffPositions(s: SimState, team: 0 | 1): void {
     a.vx = a.vy = 0;
     a.tx = a.x;
     a.ty = a.y;
+    a.tvx = a.tvy = 0;
+    a.tvIdx = -1;
+    a.hx = dir;
+    a.hy = 0;
     a.paceCap = 0;
   }
 }

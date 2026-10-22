@@ -4,7 +4,7 @@
 import { weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 import { ENGINE } from './config';
-import { duelEdgeOf, tiredRatio } from './physics';
+import { arrivalTime, duelEdgeOf, tiredRatio } from './physics';
 import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { hasModule } from './roles';
@@ -446,16 +446,17 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (running) {
       // 침투 패스: 받는 선수와 가장 가까운 수비수의 달리기 경쟁 (도착 시간 차, 초). 빠른 선수가 뒷공간을 더 잘 받는다
       const [def] = nearestOutfield(s, r, tx, ty);
-      let tDef = def ? dist(def.x, def.y, tx, ty) / def.maxSpeed + PR.raceTurn : Infinity;
+      // 도착 시간 (C.77x): 이동과 같은 운동 규칙(arrivalTime). 뒤돌기를 운동 규칙이 셈하면(turnModel) raceTurn 은 더하지 않는다
+      let tDef = def ? arrivalTime(def, tx, ty) + (ENGINE.physics.turnModel > 0 ? 0 : PR.raceTurn) : Infinity;
       // 목표점이 상대 GK 처리 구역 안이면 GK 도 달리기 경쟁에 들어간다 (C.28). GK 가 더 빠르면 실패한 패스는 GK 가 끊는다
       if (oppGk && keeperZone(s, oppGk, tx, ty)) {
-        const tGk = dist(oppGk.x, oppGk.y, tx, ty) / oppGk.maxSpeed + ENGINE.keeper.throughDelay;
+        const tGk = arrivalTime(oppGk, tx, ty) + ENGINE.keeper.throughDelay;
         if (tGk < tDef) {
           tDef = tGk;
           gkWins = oppGk.idx;
         }
       }
-      if (Number.isFinite(tDef)) race = PR.raceGain * clamp(tDef - dist(r.x, r.y, tx, ty) / r.maxSpeed, -PR.raceCap, PR.raceCap);
+      if (Number.isFinite(tDef)) race = PR.raceGain * clamp(tDef - arrivalTime(r, tx, ty), -PR.raceCap, PR.raceCap);
     }
     // 롱패스(공중볼)는 착지점에서 가까운 수비수와 공중볼 경합을 한다 (판정과 같은 P, actions resolveFlight)
     let aerial = 1;
@@ -794,7 +795,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   let dur = Math.max(0.2, d / speed);
   // 침투 패스는 달려 들어가는 선수가 닿는 시간에 맞춰 공간으로 보낸다
   const rc = s.agents[c.receiver];
-  if (c.type === 'through' && rc) dur = Math.max(dur, dist(rc.x, rc.y, c.x, c.y) / (rc.maxSpeed * 0.9));
+  if (c.type === 'through' && rc) dur = Math.max(dur, arrivalTime(rc, c.x, c.y));
   const fl: Flight = {
     kind: air ? 'long' : 'pass', fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',

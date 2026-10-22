@@ -33,6 +33,17 @@ export interface Agent {
   /** 이동 목표와 목표 속도 */
   tx: number;
   ty: number;
+  /** 목표의 속도 (C.77x 이동 제어기 앞먹임): 사람을 따라가는 목표(추적·마크·압박)면 그 사람의 인지된 속도, 그 밖에는 0. 목표 점도 이 속도로 움직인다 */
+  tvx: number;
+  tvy: number;
+  /** 따라가는 사람 idx (−1 없음). 목표 속도는 그 사람의 속도를 feedLag 초 늦게 따라간다(인지 지연) */
+  tvIdx: number;
+  /** 목표 속도에 곱하는 x·y 비율 (존 마크는 섞는 몫만, 그 밖 1) */
+  tvwx: number;
+  tvwy: number;
+  /** 몸 방향 단위 벡터 (C.77x 뒤돌기): 빠르게 움직이면 속도 방향, 느리면 마지막 방향 그대로 */
+  hx: number;
+  hy: number;
   urgent: boolean;
   maxSpeed: number;
   accel: number;
@@ -52,6 +63,8 @@ export interface Agent {
   /** 오차를 새로 뽑을 틱 / 마지막으로 뽑은 틱 (C.75l: 읽을 때만 계산, 같은 값) */
   errTick: number;
   errDone: number;
+  /** 오차를 마지막으로 새로 뽑은 시각 (C.77x errHold 동안 유지) */
+  errT: number;
   /** 제쳐진 뒤 이 시각까지 태클 불가 */
   beatenUntil: number;
   onPitch: boolean;

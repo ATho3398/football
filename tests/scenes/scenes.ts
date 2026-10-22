@@ -4,6 +4,7 @@
 import { ENGINE } from '../../src/engine/config';
 import { keeperOf, saveProb, shotCover, farSide } from '../../src/engine/keeper';
 import { keeperTarget } from '../../src/engine/offball';
+import { arrivalTime } from '../../src/engine/physics';
 import { candidates, choose } from '../../src/engine/onball';
 import { L, W } from '../../src/engine/pitch';
 import { probe } from '../../src/engine/probe';
@@ -21,6 +22,12 @@ function track(d: Agent, a: Agent, t: number, next: { at: number }, ox: number, 
   if (t + 1e-9 >= next.at) {
     d.tx = a.x + ox;
     d.ty = a.y + oy;
+    // 목표 속도 = 따라가는 공격수의 (판단 순간) 속도 — 엔진 offball 추적·마크·압박과 같다 (C.77x)
+    d.tvx = a.vx;
+    d.tvy = a.vy;
+    d.tvIdx = a.idx;
+    d.tvwx = 1;
+    d.tvwy = 1;
     d.urgent = true;
     next.at = t + REFRESH;
   }
@@ -112,14 +119,17 @@ export function sceneHighLine(): SceneOut {
       a.ty = 34;
       // CB 는 공격수와 골 사이 (공격수 앞 2 m)로
       track(d, a, t, next, 2, 0);
+      const ax0 = a.x;
+      const dx0 = d.x;
       move(a);
       move(d);
       ok &&= sane(a, d);
+      // 선을 넘은 시각은 틱 안에서 선형 보간 (C.77x: 0.1초 눈금보다 촘촘하게)
       if (Number.isNaN(ta) && a.x >= goalLine) {
-        ta = t + DT;
+        ta = t + DT * ((goalLine - ax0) / Math.max(1e-9, a.x - ax0));
         behind = a.x - d.x;
       }
-      if (Number.isNaN(td) && d.x >= goalLine) td = t + DT;
+      if (Number.isNaN(td) && d.x >= goalLine) td = t + DT * ((goalLine - dx0) / Math.max(1e-9, d.x - dx0));
     }
     return { arriveGap: (Number.isNaN(td) ? 8 : td) - ta, distBehind: behind, ok };
   };
@@ -255,5 +265,45 @@ export function sceneBackpass(): SceneOut {
   };
 }
 
-export const SCENES = { chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass } as const;
+/** ⑥ 판단용 도착 시간(arrivalTime) 대 실제 이동(moveAgent): 서 있음(앞·뒤 보고)·앞으로 달림·반대로 달림·옆으로 달림 × 거리 10·25 m × 속도 60·90 의 최대 오차 (C.77x) */
+export function sceneArrival(): SceneOut {
+  const s = sceneState(3);
+  const a = pick(s, 1, 1);
+  const reach = 0.5;
+  let maxErr = 0;
+  let sumErr = 0;
+  let n = 0;
+  let ok = true;
+  // [시작 속도 (+x = 목표 쪽), 몸 방향 (서 있을 때)]
+  const starts: [number, number, number][] = [[0, 0, 1], [0, 0, -1], [6, 0, 1], [-8, 0, -1], [0, 6, 1]];
+  for (const pace of [60, 90]) {
+    for (const dist of [10, 25]) {
+      for (const [vx, vy, h] of starts) {
+        setBody(a, pace);
+        place(a, 30, 34, vx, vy);
+        if (vx === 0 && vy === 0) a.hx = h;
+        a.urgent = true;
+        const px = 30 + dist;
+        const pred = arrivalTime(a, px, 34, reach);
+        let act = NaN;
+        for (let t = 0; t < 10 - 1e-9 && Number.isNaN(act); t += DT) {
+          a.tx = px + 20;
+          a.ty = 34;
+          const x0 = a.x;
+          move(a);
+          ok &&= sane(a);
+          if (a.x >= px - reach) act = t + DT * ((px - reach - x0) / Math.max(1e-9, a.x - x0));
+        }
+        const e = Math.abs(pred - act);
+        if (process.env.ARRDBG) console.log(`arr pace ${pace} d ${dist} v ${vx},${vy} h ${h} pred ${pred.toFixed(2)} act ${act.toFixed(2)}`);
+        maxErr = Math.max(maxErr, e);
+        sumErr += e;
+        n++;
+      }
+    }
+  }
+  return { values: { maxErr, meanErr: sumErr / n }, sane: ok };
+}
+
+export const SCENES = { chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival } as const;
 export type SceneId = keyof typeof SCENES;

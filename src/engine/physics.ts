@@ -52,22 +52,95 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   return v;
 }
 
+/** 180° 몸 돌리기 시간 (C.77x): pivotBase − pivotSlope × 민첩(몸무게 보정 뒤, turnKeep 과 같은 값)/100 */
+export function pivotTime(a: Agent): number {
+  const agi = (a.turnKeep - P.turnKeepBase) / P.turnKeepSlope;
+  return Math.max(0.1, P.pivotBase - P.pivotSlope * agi);
+}
+
+/** 목표 속도 비우기 (C.77x): 사람을 따라가지 않는 목표를 정하는 곳 */
+export function clearFeed(a: Agent): void {
+  a.tvx = 0;
+  a.tvy = 0;
+  a.tvIdx = -1;
+}
+
+/** 인지된 목표 속도 (C.77x): 따라가는 사람 o 의 속도(× 섞는 비율)를 feedLag 초 늦게 따라간다. moveAgent 바로 앞에서 */
+export function perceiveFeed(a: Agent, o: Agent, dt: number): void {
+  if (!o.onPitch) {
+    clearFeed(a);
+    return;
+  }
+  const k = P.feedLag > 0 ? Math.min(1, dt / P.feedLag) : 1;
+  a.tvx += (o.vx * a.tvwx - a.tvx) * k;
+  a.tvy += (o.vy * a.tvwy - a.tvy) * k;
+}
+
+/** 몸 방향을 (ux, uy) 쪽으로 180°/pivotTime 각속도만큼 돌린다 */
+function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
+  const step = (Math.PI / pivotTime(a)) * dt;
+  const cur = Math.atan2(a.hy, a.hx);
+  let diff = Math.atan2(uy, ux) - cur;
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  const ang = cur + Math.sign(diff || 1) * Math.min(Math.abs(diff), step);
+  a.hx = Math.cos(ang);
+  a.hy = Math.sin(ang);
+}
+
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
 export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1): void {
+  const cap = effectiveMax(a) * speedScale;
+  // 앞먹임 (C.77x): 움직이는 목표는 그 속도로 같이 움직이고, 원하는 속도에 목표 속도를 더한다
+  const fx = P.feed > 0 ? a.tvx * P.feed : 0;
+  const fy = P.feed > 0 ? a.tvy * P.feed : 0;
+  const feeding = fx !== 0 || fy !== 0;
   const dx = a.tx - a.x;
   const dy = a.ty - a.y;
   const d = Math.sqrt(dx * dx + dy * dy);
-  const cap = effectiveMax(a) * speedScale;
-  const want = desiredSpeed(a, d, cap);
+  const corr = desiredSpeed(a, d, cap);
   let wx = 0;
   let wy = 0;
-  if (want > 0 && d > 1e-6) {
-    wx = (dx / d) * want;
-    wy = (dy / d) * want;
+  if (corr > 0 && d > 1e-6) {
+    wx = (dx / d) * corr;
+    wy = (dy / d) * corr;
+  }
+  let want = corr;
+  if (feeding) {
+    wx += fx;
+    wy += fy;
+    want = Math.sqrt(wx * wx + wy * wy);
+    if (want > cap) {
+      wx *= cap / want;
+      wy *= cap / want;
+      want = cap;
+    }
   }
   const sp = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
-  // 큰 방향 전환은 속도 유지율만큼만 이어 간다
-  if (sp > 1 && want > 0) {
+  let reversing = false;
+  if (P.turnModel > 0) {
+    // 뒤돌기 (C.77x): 빠르면 몸 방향 = 속도 방향. 반대로 가려면 감속(reverseBrake × 가속 × turnKeep)하며 몸을 돌리고, 서 있다가 뒤로 뛰려면 몸부터 돌린다
+    // (180° = pivotTime, 90° 안으로 들 때까지 가속 없음). 걷기 이하 조정(뒷걸음)과 GK 는 몸을 돌리지 않는다
+    let ux = 0;
+    let uy = 0;
+    if (want > 0) {
+      ux = wx / want;
+      uy = wy / want;
+      reversing = sp > P.faceSpeed && a.vx * ux + a.vy * uy < 0;
+    }
+    if (reversing) turnHead(a, ux, uy, dt);
+    else if (sp > P.faceSpeed) {
+      a.hx = a.vx / sp;
+      a.hy = a.vy / sp;
+    } else if (want > P.walk + 1e-9 && a.hx * ux + a.hy * uy < 0 && a.line !== 0) {
+      turnHead(a, ux, uy, dt);
+      // 도는 동안은 서서 돈다
+      wx = 0;
+      wy = 0;
+      want = 0;
+    }
+  } else if (sp > 1 && want > 0) {
+    // 큰 방향 전환은 속도 유지율만큼만 이어 간다 (옛 동작)
     const cos = (a.vx * wx + a.vy * wy) / (sp * want);
     if (cos < 0) {
       a.vx *= a.turnKeep;
@@ -77,7 +150,9 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   let ax = wx - a.vx;
   let ay = wy - a.vy;
   const am = Math.sqrt(ax * ax + ay * ay);
-  const maxDv = (want < sp ? a.accel * 1.5 : a.accel) * dt;
+  // 감속: 옛 동작 가속 × 1.5, 뒤돌기 모델이면 멈추든 돌든 가속 × reverseBrake × turnKeep (민첩할수록 세게 선다)
+  const brake = P.turnModel > 0 ? P.reverseBrake * a.turnKeep : 1.5;
+  const maxDv = (reversing || want < sp ? a.accel * brake : a.accel) * dt;
   if (am > maxDv) {
     ax = (ax / am) * maxDv;
     ay = (ay / am) * maxDv;
@@ -86,6 +161,11 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   a.vy += ay;
   a.x = clamp(a.x + a.vx * dt, -2, L + 2);
   a.y = clamp(a.y + a.vy * dt, -2, W + 2);
+  // 목표 점도 같은 틱에 목표 속도로 움직인다
+  if (feeding) {
+    a.tx = clamp(a.tx + fx * dt, 0.3, L - 0.3);
+    a.ty = clamp(a.ty + fy * dt, 0.3, W - 0.3);
+  }
 
   const v = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
   a.stats.distance += v * dt;
@@ -96,6 +176,67 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * recoverScale * dt * 10);
   else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * (P.drainAttrBase - (P.drainAttrSlope * a.attrs.stamina) / 100) * dt * 10);
+}
+
+/**
+ * 판단용 도착 시간 (C.77x, 공통 규칙 로드맵 2단계): moveAgent 와 같은 운동 규칙으로 (x, y) 를 지나는 시각(초, 반응 시간 제외).
+ * 지금 속도·몸 방향 → (반대쪽이면) 감속 reverseBrake × 가속 × turnKeep · 몸 돌리기 pivotTime → 가속 → 유효 최대 속도. 목표점에서 멈추는 감속은 넣지 않는다(지나가는 시각).
+ * reach = 이 거리 안에 들면 닿은 것으로 본다
+ */
+export function arrivalTime(a: Agent, x: number, y: number, reach = 0): number {
+  const dx = x - a.x;
+  const dy = y - a.y;
+  const d0 = Math.sqrt(dx * dx + dy * dy);
+  let d = d0 - reach;
+  if (d <= 0) return 0;
+  const ux = dx / d0;
+  const uy = dy / d0;
+  const cap = effectiveMax(a);
+  const acc0 = a.accel;
+  const sp = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
+  const vp = sp > 0 ? (a.vx * ux + a.vy * uy) : 0;
+  let t = 0;
+  let v0: number;
+  if (P.turnModel <= 0) {
+    // 옛 동작: 반대쪽이면 속도 × turnKeep 즉시, 그 뒤 가속
+    v0 = vp;
+    if (vp < 0 && sp > 1) v0 = vp * a.turnKeep;
+    if (v0 < 0) {
+      const tb = -v0 / acc0;
+      t += tb;
+      d += (v0 * v0) / (2 * acc0);
+      v0 = 0;
+    }
+  } else {
+    const pt = pivotTime(a);
+    v0 = Math.max(0, vp);
+    // 몸 방향과 갈 방향 사이 각
+    let ang = Math.acos(Math.max(-1, Math.min(1, sp > P.faceSpeed ? vp / sp : a.hx * ux + a.hy * uy)));
+    if (sp > P.faceSpeed && vp < 0) {
+      // 반대쪽으로 달리는 중: 감속하며 몸을 돌린다 (그동안 멀어지는 거리를 더한다)
+      const brake = acc0 * P.reverseBrake * a.turnKeep;
+      const tb = (sp - P.faceSpeed) / brake;
+      t += tb;
+      d += (-vp * (sp + P.faceSpeed) * 0.5 * tb) / sp;
+      ang -= (tb * Math.PI) / pt;
+      // faceSpeed 아래에서는 보통 가속으로 남은 반대 속도를 지운다 (아래 가속 식이 음수 v0 를 그대로 다룬다)
+      // (감속은 틱 단위라 faceSpeed 아래로 반 틱만큼 더 내려간다)
+      v0 = (vp / sp) * Math.max(0, P.faceSpeed - 0.5 * brake * ENGINE.time.dt);
+    }
+    if (ang > Math.PI / 2 && a.line !== 0) {
+      // 남은 몸 돌리기: 90° 안으로 들 때까지 (서서 돈다)
+      t += ((ang - Math.PI / 2) / Math.PI) * pt;
+      v0 = 0;
+    }
+  }
+  if (v0 >= cap) return t + d / v0;
+  // 옆으로 달리던 속도(갈 방향에 수직)를 지우는 데 가속을 나눠 쓴다 (moveAgent 의 가속 한계는 벡터 크기)
+  const vq = Math.abs(a.vx * uy - a.vy * ux);
+  const acc = vq > 0 && v0 >= 0 ? acc0 * ((cap - v0) / Math.sqrt((cap - v0) * (cap - v0) + vq * vq)) : acc0;
+  const ta = (cap - v0) / acc;
+  const da = (cap * cap - v0 * v0) / (2 * acc);
+  if (d <= da) return t + (-v0 + Math.sqrt(v0 * v0 + 2 * acc * d)) / acc;
+  return t + ta + (d - da) / cap;
 }
 
 /** 루즈 비행이 끝난 뒤 공의 속도 (E.18 A4, C.24 after): 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 */
