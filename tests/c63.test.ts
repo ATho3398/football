@@ -10,7 +10,7 @@ import { addTrust, ensureManager, scaleDelta } from '../src/manager';
 import { pickRival, rivalOf, rivalVerdict } from '../src/rival';
 import { coachAfterMatch, coachOf, isCaptain, setCaptain } from '../src/club';
 import { fill, josa } from '../src/text';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { collectNotices, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from '../src/ui/inboxVM';
 import { homeInboxSection, inboxDetailView, inboxView, rivalSection } from '../src/ui/views/inbox';
 import { teamDetailVM } from '../src/ui/detailVM';
@@ -139,7 +139,7 @@ describe('이벤트 엔진·인박스 (20.3·20.4)', () => {
     expect(inboxDetailView(inboxDetailVM(g, c.id)!, null)).toContain('data-act="inbox-answer"');
   });
 
-  it('세이브 33: 왕복, 32 세이브 이식(인박스 없음 → 처음 쓸 때)', () => {
+  it('세이브 33: 왕복, 32 세이브는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c63-save', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(g, { engine: 'quick' });
     expect(SAVE_FORMAT_VERSION).toBe(57);
@@ -149,9 +149,7 @@ describe('이벤트 엔진·인박스 (20.3·20.4)', () => {
     const raw = JSON.parse(serialize(g));
     delete raw.inbox; delete raw.events; delete raw.rival;
     raw.saveFormat = 32;
-    const old = migrate(raw);
-    playRound(old, { engine: 'quick' });
-    expect(old.events).toBeTruthy();
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 });
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
 import { FACE_PHOTOS, PHOTO_OF, raceNationalities, RACES, rollIdentity } from '../src/identity';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { customAct, customSpec, customVM, initialCustomForm, SKIN_OF } from '../src/ui/customVM';
 import { myFace, newGameVM } from '../src/ui/viewModels';
 import { newGameView } from '../src/ui/views/screens';

@@ -5,7 +5,7 @@ import { cardById } from '../src/config/cards';
 import { chapterEventMul, chapterOf, chapterReviewed, chaptersFromHistory, pendingChapterReview } from '../src/chapters';
 import { newGame, playRound, retire, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
 import { EVENTS } from '../data/events';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { makeGoals } from '../src/seasonGoals';
 import { chapterReviewVM, homeVM, playerVM, seasonVM } from '../src/ui/viewModels';
 import { chapterView, seasonView } from '../src/ui/views/screens';

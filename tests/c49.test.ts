@@ -4,7 +4,7 @@ import { attrDisplay, displayProgress } from '../src/attributes';
 import { BALANCE } from '../src/config/balance';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
 import { raiseAttribute } from '../src/growth';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { allocateVM } from '../src/ui/viewModels';
 import { allocateView } from '../src/ui/views/screens';
 
@@ -46,18 +46,11 @@ describe('포인트 = 화면 칸 (C.49)', () => {
 });
 
 describe('세이브 28 → 29 (C.49)', () => {
-  it('남은 포인트 ÷ 5 올림, allocation 없앰', () => {
+  it('옛 세이브(28)는 이어 할 수 없음', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c49-mig', difficulty: 'normal' });
-    for (const [old, now] of [[0, 0], [5, 1], [7, 2], [11, 3]] as const) {
-      const raw = JSON.parse(serialize(g));
-      raw.saveFormat = 28;
-      raw.player.unspentPoints = old;
-      raw.player.allocation = { levels: 2, raised: { pace: 3 } };
-      const back = deserialize(JSON.stringify(raw));
-      expect(back.saveFormat).toBe(57);
-      expect(back.player.unspentPoints).toBe(now);
-      expect('allocation' in back.player).toBe(false);
-    }
+    const raw = JSON.parse(serialize(g));
+    raw.saveFormat = 28;
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });

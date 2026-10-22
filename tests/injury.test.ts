@@ -4,7 +4,7 @@ import { BALANCE } from '../src/config/balance';
 import { dayPlan, endDay, isMatchDay, newGame, playOthers, playRound, SAVE_FORMAT_VERSION, startNextSeason } from '../src/game';
 import { healDays, injuryChance, rollInjury } from '../src/injury';
 import { createRng } from '../src/rng';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { daysBetween } from '../src/calendar';
 
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;

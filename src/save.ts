@@ -1,44 +1,14 @@
 // 저장/불러오기 (B.8, 25.4·부록 C.41): IndexedDB + gzip 압축, 수동 슬롯 3 + 자동 저장, 파일 내보내기/가져오기.
-// C.40 까지의 localStorage 세이브는 initSaves 가 처음 한 번 옮긴다
+// 형식(SAVE_FORMAT_VERSION)이 다른 옛 세이브는 이전하지 않는다: 안내 뒤 지운다 (C.77r, 사용자 2026-10-22)
 
-import { PROSPECT_NATIONALITY, rollAppearance, type Appearance } from './appearance';
-import { PHOTO_OF } from './identity';
-import { A_GRADE_PLAYERS } from '../data/players';
-import { BALANCE } from './config/balance';
 import { myShirt, rebuildRosters, rosterLeagues, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { setSquadLeague } from './squad';
 import { leagueMoves } from './leagueMove';
-import { initRecords } from './records';
-import { emptyPhotos } from './photocards';
-import { emptyShowcase } from './jerseys';
-import { ensureFinance } from './finance';
-import { sortedTable } from './league';
-import { leagueData } from '../data/leagues';
 import { setNamePoolVersion } from './roster';
-import { migrateRoleId } from './engine/roles';
-import { chaptersFromHistory } from './chapters';
-import { initialGuide, progressOf, refreshUnlocks } from './unlocks';
-import { generatePlayer } from './generate';
-import { realPeakTarget } from './growth';
-import { emptyRecord } from './matchRecord';
-import { positionOvr } from './positions';
-import { initialProficiency, initialProfLog, profKey } from './proficiency';
 import { migratedTactics, validTactics } from './myTactics';
-import { customProblem } from './formations';
-import { initCollection } from './cardCollection';
-import { aptitudeSeed, mainPositionAptitude } from './aptitude';
-import { daysBetween, seasonCalendar } from './calendar';
-import { initTraining } from './training';
 import { compress, decompress, storeBackend, type Encoding } from './saveStore';
 import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
 import type { Replay } from './replay';
-import { initialMarket } from './transfer';
-import { realBody, rollBody } from './body';
-import { REAL_CAREER } from '../data/players/careers';
-import { LEGEND_BY_ID } from './legends';
-import { awardsFromTotals, trimArchive } from './worldStats';
-import { initNational } from './national';
-import { myNationality } from './life';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -61,11 +31,6 @@ export interface SaveMeta {
 /** 리플레이 프레임을 남기는 내 최근 경기 수 (25.4 2번) */
 export const REPLAY_KEEP = 5;
 
-interface SaveFile {
-  meta: SaveMeta;
-  state: GameState;
-}
-
 function storage(): Storage | null {
   try {
     return globalThis.localStorage ?? null;
@@ -80,322 +45,27 @@ export function serialize(state: GameState): string {
   return JSON.stringify(rest);
 }
 
-/**
- * 이전 형식 세이브 변환. 키 = 변환 전 형식, 값 = 다음 형식으로 바꾸는 함수.
- * SAVE_FORMAT_VERSION 을 올릴 때마다 하나씩 추가한다.
- */
-const MIGRATIONS: Record<number, (s: any) => void> = {
-  // 1 → 2: 폼 (부록 D.1). 이전 경기 평점은 남아 있지 않으므로 빈 기록에서 시작
-  1: (s) => {
-    s.player.recentRatings = [];
-    if (s.lastMatch) s.lastMatch.formBonus = 0;
-  },
-  // 2 → 3: 부상 (부록 D.2). 부상 없음, 기록은 0
-  2: (s) => {
-    s.player.injury = null;
-    for (const st of [s.player.season, ...s.player.history]) {
-      st.injuries = 0;
-      st.injuredWeeks = 0;
-    }
-  },
-  // 3 → 4: 실제 선수 정점 목표 (부록 D.7 #1). 시작 능력치는 시드로 다시 만들 수 있다
-  3: (s) => {
-    const data = A_GRADE_PLAYERS.find((d) => d.id === s.player.realPlayerId);
-    if (!data) return;
-    const gen = generatePlayer(data, s.worldSeed);
-    s.player.peakTarget = realPeakTarget(positionOvr(gen.attributes, data.position), BALANCE.newGame.startYear - data.birthYear);
-  },
-  // 4 → 5: 팀 로스터 (23번). 지난 시즌 수만큼 시즌 갱신을 다시 적용한다. 이번 시즌 팀 레이팅은 세이브 값을 유지
-  4: (s) => {
-    const done = s.league.season - BALANCE.newGame.startYear + (s.phase === 'season' ? 0 : 1);
-    s.roster = { updates: Math.max(0, done) };
-  },
-  // 5 → 6: 카드와 출장 정지 (부록 E.10). 기록은 0, 정지 없음
-  5: (s) => {
-    s.player.suspended = 0;
-    for (const st of [s.player.season, ...s.player.history]) {
-      st.yellows = 0;
-      st.reds = 0;
-    }
-  },
-  // 6 → 7: 세이브 시작 버전 (21.5.1). 이전 세이브는 시작 버전을 모른다
-  6: (s) => {
-    s.startPatch = null;
-  },
-  // 7 → 8: 포지션 숙련도와 레전드 배지 (부록 D.3, D.4). 주 포지션 100·거리 기준 초기값, 실제 선수는 서브 포지션 70. 배지는 없음에서 시작
-  7: (s) => {
-    const data = A_GRADE_PLAYERS.find((d) => d.id === s.player.realPlayerId);
-    s.player.proficiency = initialProficiency(s.player.position, data?.subPositions ?? []);
-    s.player.badges = [];
-  },
-  // 8 → 9 (부록 C.23): 위상 점수는 그대로, 티어는 새 기준으로 다시 계산된다(티어는 저장하지 않고 점수·수상 기록으로 계산).
-  // 수상 기록이 없으므로 레전더리였던 선수는 월드클래스가 된다. 이전 주 포지션 목록, 단계적 공개·안내 상태 추가
-  8: (s) => {
-    s.player.honors = { ballonDor: 0, trebles: 0, worldCups: 0 };
-    s.player.formerPositions = s.player.formerPosition ? [s.player.formerPosition] : [];
-    s.guide = initialGuide();
-    // 이미 경기를 치른 세이브는 첫 경기 오버레이를 건너뛴다. 열린 기능의 소개는 한 번 보여 준다
-    s.guide.firstMatchSeen = progressOf(s).matches > 0;
-    refreshUnlocks(s);
-  },
-  // 9 → 10 (부록 C.25): 부진 연속 수(0에서 시작)와 이번 시즌 부진 감점 합계
-  9: (s) => {
-    s.player.slumpStreak = 0;
-    s.player.season.slumpPenalty = 0;
-  },
-  // 10 → 11 (부록 C.30): 이번 시즌 경기 목록과 경기 기록 합계. 이전 경기 기록은 남아 있지 않으므로 빈 기록에서 시작
-  10: (s) => {
-    s.matchLog = [];
-    s.player.season.rec = emptyRecord();
-    s.player.season.recApps = 0;
-  },
-  // 11 → 12 (부록 C.32, E.19 저장): 내 팀 전술. 로스터를 다시 만든 뒤 "균형 + 팀 데이터 포메이션 + 주 포지션 슬롯"으로 채운다 (migrate 끝)
-  11: (s) => {
-    s.tactics = null;
-  },
-  // 12 → 13 (부록 C.33, E.21 1번): 역할 이름 변경(인사이드 포워드 → 윙포워드, 윙어 → 정통 윙어, 연계형 → 펄스 나인,
-  // 플레이메이커 → 클래식 10번, 공격형 8번 → 메짤라, CDM 딥라잉 플레이메이커 → 레지스타)과 커스텀 포메이션(없음)
-  12: (s) => {
-    if (s.tactics) {
-      s.tactics.custom = null;
-      if (Array.isArray(s.tactics.roles)) s.tactics.roles = s.tactics.roles.map((r: string | null) => migrateRoleId(r));
-    }
-  },
-  // 13 → 14 (부록 C.34, E.11): 내 선수 결정 순간 설정 (직접 모드, 중요한 순간만). 이전 경기의 결정 기록은 없다
-  // 커스텀 포메이션 공격 줄 최대 4명 (C.34 임시 규칙): 넘는 대형은 프리셋으로 되돌린다 (전술의 나머지는 그대로)
-  13: (s) => {
-    s.control = { mode: 'direct', stop: 'important' };
-    if (s.tactics && Array.isArray(s.tactics.custom) && customProblem(s.tactics.custom) !== null) s.tactics.custom = null;
-  },
-  // 14 → 15 (부록 C.35, E5 최소): 결정 기록에 화면이 보여 준 결과(seen)가 붙는다. 선택 필드라 옛 기록은 그대로 (평점 판정을 쓴다)
-  14: () => {},
-  // 15 → 16 (부록 C.36, 3단계 카드): 카드 모음. 주 포지션군 시작 덱 8장(덱 세트 3개 같은 덱), 숙련도·역할 출전 0,
-  // 레벨 선택권은 지금 레벨까지 지난 것으로 친다 (변환 직후 선택권이 몰려 나오지 않게)
-  15: (s) => {
-    s.cards = initCollection(s.player.position, s.player.level ?? 0);
-  },
-  // 16 → 17 (부록 C.37, pending 36 ⑤): 숨은 포지션 적성. 지금 주 포지션군 1.2~1.4·나머지 0.7~1.0(엇갈림 없음),
-  // 재능 타입은 능력치에서 추정. 조언 없음, 지난 시즌 기록의 포지션은 모른다(조언 판정은 지금 주 포지션으로 본다)
-  16: (s) => {
-    s.player.aptitude = mainPositionAptitude(s.player.position, s.player.attributes, aptitudeSeed(s.worldSeed));
-    s.player.advice = null;
-    s.player.adviceLog = [];
-    s.player.aptBoost = null;
-  },
-  // 17 → 18 (부록 C.38, 25.1~25.2): 하루 단위 캘린더. 날짜 = 이번 라운드 첫 경기 날 (비시즌이면 최종 라운드 날).
-  // 피로는 그 날부터 내 경기까지 하루씩 회복하므로, 옛 "경기 전 주간 회복"과 같아지게 모자란 날만큼 미리 회복해 둔다.
-  // 부상 남은 주 → 남은 날 (× 7). 다른 경기 기록·선수 합계는 이번 라운드부터 쌓인다. 진행 설정은 전체 엔진
-  17: (s) => {
-    const cal = seasonCalendar(s.worldSeed, s.league.season, s.league.schedule);
-    const r = s.league.round;
-    if (s.phase === 'season' && r < s.league.schedule.length) {
-      const date = cal.roundDates[r]!;
-      const i = s.league.schedule[r].findIndex((f: any) => f.home === s.player.teamId || f.away === s.player.teamId);
-      const gap = Math.max(0, daysBetween(date, cal.fixtureDates[r]![i]!));
-      const F = BALANCE.fatigue;
-      const weekly = s.player.injury ? F.noMatchWeekRecovery : F.weeklyRecovery;
-      s.player.fatigue = Math.max(0, s.player.fatigue - (weekly * Math.max(0, 7 - gap)) / 7);
-      s.calendar = { date };
-    } else {
-      s.calendar = { date: cal.final };
-    }
-    for (const inj of [s.player.injury, s.lastMatch?.injury]) {
-      if (!inj) continue;
-      inj.daysTotal = inj.weeksTotal * 7;
-      inj.daysLeft = (inj.weeksLeft ?? inj.weeksTotal) * 7;
-      delete inj.weeksLeft;
-    }
-    s.playerStats = {};
-    s.options = { quickOthers: false };
-  },
-  // 18 → 19 (부록 C.39, D.3 개정): 숙련도 값은 그대로, 포지션별 진행 기록만 추가. 출전 수는 남아 있는 이번 시즌 경기 목록에서 세고
-  // (지난 시즌은 모른다), 100인 포지션은 100 달성으로 본다. 연속 미출전은 0에서 시작
-  18: (s) => {
-    const log = initialProfLog(s.player.proficiency);
-    for (const m of s.matchLog ?? []) {
-      const k = m.minutes > 0 && m.position ? profKey(m.position) : null;
-      if (k && log[k]) log[k]!.apps++;
-    }
-    s.player.profLog = log;
-    // 능력치 바둑판의 이번 시즌 변화는 변환 시점부터
-    s.player.seasonStartAttrs = { ...s.player.attributes };
-  },
-  // 19 → 20 (부록 C.41, 25.3·25.4): 훈련 상태(기본 계획·게이지 0에서 시작), 지난 시즌 보존 기록(없음에서 시작 — 옛 세이브는 지난 시즌 경기 목록이 없다).
-  // 포변 조언 기간 "다음 시즌 4라운드" → "소집 뒤 30일".
-  // 이미 다음 시즌 중인 조언은 남은 라운드를 날로 바꾸지 않고 30일을 그대로 준다 (짧아지지 않게)
-  19: (s) => {
-    s.training = initTraining(s.calendar.date);
-    s.archive = [];
-    if (s.player.advice) {
-      delete s.player.advice.untilRound;
-      s.player.advice.untilDays = BALANCE.aptitude.advice.windowDays;
-    }
-  },
-  // 20 → 21 (부록 C.42, 18.6·18.10): NPC 이적 기록(없음에서 시작), 내 선수 계약(지금 팀, 오늘부터 — 가상 유망주 3년, 실제 선수 시드),
-  // 제안·요청 없음. 비시즌 세이브는 다음 시즌 레이팅을 startNextSeason 이 다시 계산하고, 제안은 다음 비시즌부터 온다
-  20: (s) => {
-    s.transfers = [];
-    s.market = initialMarket(s);
-    if (s.phase !== 'season') s.market.contract = { ...s.market.contract, from: s.league.season + 1, until: s.market.contract.until + 1 };
-  },
-  // C.44: 시즌 시작 레벨 (시즌 종료 화면 레벨 변화). 옛 세이브는 모르므로 비워 둔다 (화면은 지금 레벨만)
-  21: () => {},
-  // 22 → 23 (부록 C.44a): 이름 고치기(별명·짧은 이름) 없음에서 시작. 실제 선수 한글 이름을 한국 통용 표기로 (반 다이크 등, 표시만)
-  22: (s) => {
-    s.nameOverrides = {};
-    const ko = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.nameKo]));
-    for (const n of s.npcs ?? []) if (ko.has(n.id)) n.nameKo = ko.get(n.id);
-  },
-  // 23 → 24 (부록 C.45): 내 선수 신체·양발(실제 선수 = 데이터, 유망주 = `me:<시드>` 분포), 장단점 없음(옛 커리어에 새로 붙이지 않는다),
-  // 등번호(실제 선수 = 데이터, 유망주 = 경기 때 팀의 빈 관례 번호), 도트 아이콘 직접 바꾸기 없음. 강제 은퇴로 끝난 세이브는 그대로 은퇴 상태
-  23: (s) => {
-    const p = s.player;
-    const real = p.realPlayerId ? A_GRADE_PLAYERS.find((d) => d.id === p.realPlayerId) : undefined;
-    p.body = (p.realPlayerId && realBody(p.realPlayerId)) || rollBody(`me:${s.worldSeed}`, p.position);
-    p.traits = [];
-    if (real) p.shirt = real.shirtNumber;
-    s.pixelOverrides = { players: {}, kits: {} };
-  },
-  // 24 → 25 (C.45 2차, pending 66): 장단점(traits)과 스토리 태그를 하나의 태그(tags)로. 이름 바뀜(다혈질 → 문제아, 기복 → 롤러코스터,
-  // 스타 플레이어 → 스타 기질), 늦은 개화는 플레이 전용 "늦게 핀 꽃"(34c)이 되어 생성 선택분은 빠진다. 1차에서 고른 장단점은 영구. 원클럽맨 판정 기록
-  24: (s) => {
-    const p = s.player;
-    const RENAME: Record<string, string> = { hotHead: 'troublemaker', inconsistent: 'rollercoaster', star: 'starQuality' };
-    const start = s.league.season - (p.history?.length ?? 0);
-    const created = (p.traits ?? []).filter((id: string) => id !== 'lateBloomer').map((id: string) => ({ id: RENAME[id] ?? id, perm: true, season: start }));
-    const story = (p.tags ?? []).map((t: { id: string; name?: string; club?: string; season: number; date?: string }) => ({
-      id: t.id, perm: t.id !== 'oneClubMan', season: t.season, ...(t.date ? { date: t.date } : {}), ...(t.name ? { name: t.name } : {}), ...(t.club ? { club: t.club } : {}),
-    }));
-    p.tags = [...created, ...story];
-    delete p.traits;
-    const moved = (s.market?.moves ?? []).filter((m: { loan?: boolean; back?: boolean }) => !m.loan && !m.back);
-    const real = p.realPlayerId ? REAL_CAREER[p.realPlayerId] : undefined;
-    p.clubRun = moved.length
-      ? { club: p.teamId, renewals: 0, since: moved.at(-1).season, first: false }
-      : { club: p.teamId, renewals: 0, since: real?.since ?? start, first: true };
-    if (real && !p.youth) p.youth = { club: real.youth };
-  },
-  // 25 → 26 (C.46): 구단 재정. 이번 이적 시즌 예산 (비시즌이면 이번 시즌 순위, 시즌 중이면 레이팅 순). 옛 이적 기록에는 몸값이 없어 쓴 돈 0.
-  // 로스터는 새 규칙(21세 이하 추가 유망주, 인원 맞추기)으로 다시 만들어진다
-  // 26 → 27 (C.47): 레전드 팩 옵션(옛 세이브는 끔), 태그 기록 필드(늦게 핀 꽃 면제·방출 구단·자연 발생 태그 판정 기록)는 없으면 빈 값
-  26: (s) => {
-    s.legends = false;
-  },
-  // 27 → 28 (C.48): 계약 바이아웃(없으면 계약 길이로 계산, myBuyout), 소속 구단이 거절한 제안(market.refused, 없으면 없음). 옮길 값 없음
-  27: () => {},
-  // 28 → 29 (C.49, pending 80): 성장 포인트를 1~20 화면 칸 단위로. 남은 포인트 ÷ 5 올림(손해 없게), 레벨당 한 능력치 상한 기록(allocation) 없앰
-  28: (s) => {
-    const p = s.player;
-    p.unspentPoints = Math.ceil((p.unspentPoints ?? 0) / 5);
-    delete p.allocation;
-  },
-  // 29 → 30 (C.50, pending 82 1번): 실제 선수·레전드 한글 이름을 한국 통용 이름으로(요한 크루이프 등). 저장된 이름을 데이터 id 로 다시 읽는다
-  // (NPC·이적 기록·내 선수). 레전드 로스터 선수는 로드 때 데이터에서 다시 만들어지므로 따로 옮길 것 없음
-  29: (s) => {
-    const ko = new Map<string, string>([...A_GRADE_PLAYERS.map((d) => [d.id, d.nameKo] as const), ...[...LEGEND_BY_ID.values()].map((l) => [l.id, l.nameKo] as const)]);
-    for (const n of s.npcs ?? []) if (ko.has(n.id)) n.nameKo = ko.get(n.id);
-    for (const t of s.transfers ?? []) if (ko.has(t.id)) t.name = ko.get(t.id);
-    const me = s.player.realPlayerId ?? s.player.legendId;
-    if (me && ko.has(me)) s.player.name = ko.get(me);
-  },
-  // 30 → 31 (C.52, pending 82 6번): 훈련 프리셋. 균형(= 지금까지의 기본 계획) · 자동 적용 켬 · 커스텀 없음, 이번 주는 다음 하루 진행 때 정한다
-  30: (s) => {
-    if (s.training) Object.assign(s.training, { preset: 'balance', presetWeek: '', presetAuto: true, presetManual: false, customPresets: [], presetSeq: 0 });
-  },
-  // 31 → 32 (C.62): 감독 신뢰도·면담(manager)과 시즌 기록 선수 이름(statNames). 옛 세이브는 둘 다 없음 → 다음 경기·화면에서 새 팀 시작값으로 만든다
-  31: () => {},
-  // 32 → 33 (C.63): 인박스·이벤트·라이벌·경질 감독·주장·생활 지표. 옛 세이브는 모두 없음 → 처음 쓸 때 만든다 (라이벌·슬롯은 다음 시즌부터)
-  32: () => {},
-  // 33 → 34 (C.64): 지난 시즌 시상 줄(aw)과 세이브 상한(오래된 시즌은 요약). 옛 기록은 선수 합계에서 시상을 다시 만들고(영플레이어 없음) 상한대로 줄인다
-  33: (s) => {
-    for (const a of s.archive ?? []) a.aw ??= awardsFromTotals(a.players ?? {});
-    if (s.archive) trimArchive(s.archive);
-  },
-  // 34 → 35 (C.65): 시즌 목표(goals). 옛 세이브는 없음 → 시즌 중이면 다음 화면·경기에서 이번 시즌 목표를 만든다 (지금까지 기록으로 진행 표시)
-  34: () => {},
-  // 35 → 36 (C.67a): 컵 대진(cups)·가족 휴가(events.leave)·컵 기록(season.cup). 옛 세이브는 없음 → 다음 하루 진행 때 이번 시즌 FA컵을 만든다
-  // (32강 날짜가 이미 지났으면 이번 시즌은 컵 없음, 다음 시즌부터)
-  35: () => {},
-  // 36 → 37 (C.67b): 챔스(cups.ucl)·챔스 우승 기록(honors.ucl). 옛 세이브는 없음 → 이번 시즌은 챔스 없이, 다음 시즌부터
-  36: () => {},
-  // 37 → 38 (C.68a): 개인 재정·스태프(money). 옛 세이브는 없음 → 처음 쓸 때 잔고 0 으로 만든다 (이미 치른 이번 시즌 출전·골은 보너스 없음,
-  // 그 전 주급은 다음 시즌 시작 때 52주 − 정산한 주 몫에 같이 들어간다)
-  37: () => {},
-  // 38 → 39 (C.68b): 재정 b — money.shop·house·car·charity·invest·agent, cards.tp·tpUsed. 모두 없으면 기본값(숙소·차 없음·기부 0·투자 0·TP 0)
-  38: () => {},
-  // 39 → 40 (C.73a): 커리어 챕터 기록(chapters). 지난 시즌 기록(history)을 나이로 묶어 채운다 (리뷰·선택권 없음)
-  39: (s) => { s.chapters = chaptersFromHistory(s); },
-  // 40 → 41 (C.73c): 내 선수 기본 사진(player.facePhoto). 가상 선수(랜덤·커스텀)는 지금 보이는 외모군으로 인종·사진을 채운다 (실제 선수·레전드는 없음)
-  40: (s) => {
-    const p = s.player;
-    if (p.realPlayerId || p.legendId) return;
-    p.appearance ??= rollAppearance(`me:${s.worldSeed}`, p.nationality ?? PROSPECT_NATIONALITY);
-    p.facePhoto ??= PHOTO_OF[p.appearance as Appearance];
-  },
-  // 41 → 42 (C.74b): 기록 추적(records) — 이미 넘은 통산 이정표는 보상 없이 달성으로. 부상 복귀 선택(injury.ret)·재부상 창(player.reinjury)은 없으면 보통
-  41: (s) => { s.records ??= initRecords(s); },
-  // 42 → 43 (C.74c): 동료 호흡(chem). 옛 세이브는 없음 → 다음 내 경기부터 0에서 쌓인다
-  42: () => {},
-  // 43 → 44 (C.75x): 레전드 팩 판(legendPack). 옛 세이브는 없음 = 1판(C.47 117명) 그대로, 도르트문트 레전드·미래 스타는 새 게임부터
-  43: () => {},
-  // 44 → 45 (C.75y): 미래 스타를 레전드 팩에서 떼어 "미래 스타 팩"(futureStars)으로. 2판 세이브(C.75x)는 미래 스타 끔으로 옮김(도르트문트 레전드는 그대로)
-  44: () => {},
-  // 45 → 46 (C.75t): 포토카드 도감(photos). 옛 세이브는 빈 도감 → 다음 내 경기부터 모은다
-  45: (s) => { s.photos ??= emptyPhotos(); },
-  // 46 → 47 (C.75m): 리그 id·국가·부(league.id·country·tier)와 고른 리그(leagueIds). 옛 세이브 = PL 하나 (다른 리그 없음)
-  // 48 → 49 (C.76c, 45b): 다른 리그 득점 기록(otherLeagues[].stats)·이적 기록의 실제 선수 보충(fill.real)·내 리그 이동 기록(myLeagues) 은
-  // 새 필드라 옛 세이브는 없음 (PL 만 고른 상태 그대로)
-  48: () => {},
-  46: (s) => {
-    s.league.id ??= 'pl';
-    s.league.country ??= 'England';
-    s.league.tier ??= 1;
-    s.leagueIds ??= ['pl'];
-  },
-  // 47 → 48 (C.76b): 유니폼 교환 기록 · 진열 배치(showcase). 옛 세이브는 빈 진열 · 교환 기록 없음
-  47: (s) => { s.showcase ??= emptyShowcase(); },
-  // 49 → 50 (C.76d): 대표팀(national). 옛 세이브 = 대표팀 기록 없음 (국적은 지금 선수 기준, 다음 A매치 주간부터 소집 판정)
-  49: (s) => { s.national ??= initNational(myNationality(s.player)); },
-  // C.76k: 수비 라인 단계에 '매우 낮음'(0)이 앞에 들어가 저장된 라인 단계 0~2(낮음/보통/높음)는 1~3 으로
-  50: (s) => { if (s.tactics?.levels && typeof s.tactics.levels.lineHeight === 'number') s.tactics.levels.lineHeight += 1; },
-  // 51 → 52 (C.76m): 모든 리그 8~5월 통일. 옛 3~12월 리그(K리그1·J1·브라질·MLS)의 진행 중 시즌은 옛 달력대로 끝낸다(legacyCal) —
-  // 내 리그는 늘(날짜·컵·이적시장이 그 달력에 걸려 있음), 다른 리그는 치른 경기가 있을 때만(개막 전이면 새 달력 = PL 과 같은 시즌 번호).
-  // 다음 시즌부터 8~5월 (nextSeasonLeague 가 표시를 지운다)
-  51: (s) => {
-    const sa = (id: string) => leagueData(id)?.calendar === 'spring-autumn';
-    if (sa(s.league.id)) s.league.legacyCal = 'spring-autumn';
-    for (const lg of s.otherLeagues ?? []) if (sa(lg.id) && lg.table.some((r: { played: number }) => r.played > 0)) lg.legacyCal = 'spring-autumn';
-  },
-  // 52 → 53 (C.76n, 병렬 C.76k·C.76m 이 51·52 를 먼저 씀): 개인 시상 역대 수상자(globalAwards). 옛 세이브 = 수상 기록 없음 (다음 시즌 끝 시상식부터)
-  52: (s) => { s.globalAwards ??= { years: [] }; },
-  // 53 → 54 (C.76t, 47b): 리그 · 시즌 중 상 — 이달의 선수(globalAwards.months · potm) · 대륙 대회(years[].cont) 는 선택 필드. 옛 세이브 = 기록 없음
-  53: (s) => { s.globalAwards ??= { years: [] }; },
-  // 54 → 55 (C.77m, pending 142a): NPC 피로·부상(npcFit). 옛 세이브 = 모든 NPC 피로 0·부상 없음에서 시작 (경기를 치르며 쌓인다)
-  54: (s) => { s.npcFit ??= {}; },
-  // 55 → 56 (C.77n, pending 142b): 시즌 누적 부하·마모(npcLoad, player.load·wear). 옛 세이브 = 부하·마모 0 에서 시작
-  55: (s) => { s.npcLoad ??= {}; },
-  // 56 → 57 (C.77o, 24.6): 경기 후 하이라이트 3개 보관(clips). 옛 세이브 = 빈 목록 (지난 경기는 클립이 없다)
-  56: (s) => { s.clips ??= []; },
-  25: (s) => {
-    const offseason = s.phase !== 'season';
-    const ranks = offseason ? Object.fromEntries(sortedTable(s.league).map((r, i) => [r.teamId, i + 1])) : undefined;
-    ensureFinance(s, s.league.season + (offseason ? 1 : 0), ranks);
-  },
-};
+/** 세이브 형식이 지금 게임과 달라 이어 할 수 없음 (C.77r). 옛 세이브는 이전하지 않는다 (사용자 2026-10-22) */
+export class SaveFormatError extends Error {
+  constructor(readonly found: unknown) {
+    super('이 세이브는 이전 버전 형식이라 이어 할 수 없습니다');
+    this.name = 'SaveFormatError';
+  }
+}
 
-export function migrate(raw: any): GameState {
-  const from = raw.saveFormat;
-  if (typeof from !== 'number' || from > SAVE_FORMAT_VERSION) {
-    throw new Error(`세이브 형식이 맞지 않습니다 (세이브 ${from}, 게임 ${SAVE_FORMAT_VERSION})`);
-  }
-  for (let v = from; v < SAVE_FORMAT_VERSION; v++) {
-    const step = MIGRATIONS[v];
-    if (!step) throw new Error(`세이브 형식 ${v} 을 변환할 수 없습니다`);
-    step(raw);
-    raw.saveFormat = v + 1;
-  }
+/** 이 세이브(JSON 객체)를 지금 게임에서 이어 할 수 있나: 형식 번호가 SAVE_FORMAT_VERSION 과 같아야 한다 */
+export function sameFormat(raw: unknown): boolean {
+  return !!raw && typeof raw === 'object' && (raw as { saveFormat?: unknown }).saveFormat === SAVE_FORMAT_VERSION;
+}
+
+/**
+ * 세이브 복원 (C.77r): 형식이 지금과 같을 때만. 다르면 이전(migration)하지 않고 SaveFormatError.
+ * 로스터는 시드로 다시 만든다
+ */
+export function restore(raw: any): GameState {
+  if (!sameFormat(raw)) throw new SaveFormatError(raw?.saveFormat);
   const state = raw as GameState;
-  // 이름 풀 판 (C.45 8번): namePool 이 없는 옛 세이브는 옛 풀로 다시 만들어 생성 선수 이름을 지킨다
+  // 이름 풀 판 (C.45 8번)
   setNamePoolVersion(state.namePool ?? 1);
   // 내 리그 (C.76c): 로스터를 만들기 전에 리그 규칙을 맞춘다
   setSquadLeague(state.league.id);
@@ -407,7 +77,7 @@ export function migrate(raw: any): GameState {
 }
 
 export function deserialize(json: string): GameState {
-  return migrate(JSON.parse(json));
+  return restore(JSON.parse(json));
 }
 
 // ── 저장소 (25.4, 부록 C.41): IndexedDB + gzip. 슬롯 목록은 메모리에 들고 있어 화면이 바로 그린다 ──
@@ -431,28 +101,17 @@ function metaOf(slot: SaveSlot, state: GameState, size?: number): SaveMeta {
 }
 
 /**
- * 저장소 열기: 슬롯 목록을 읽고, 옛 localStorage 세이브(C.40 까지)는 처음 한 번 IndexedDB 로 옮긴 뒤 지운다.
- * 옮긴 세이브는 형식 그대로 (불러올 때 migrate 로 변환)
+ * 저장소 열기: 슬롯 목록을 읽는다. 옛 localStorage 세이브(C.40 까지)는 형식이 달라 이어 할 수 없으므로 지운다 (C.77r)
  */
 export function initSaves(): Promise<void> {
   return (ready ??= (async () => {
     const db = storeBackend();
     const ls = storage();
     for (const slot of SAVE_SLOTS) {
-      const key = PREFIX + slot;
-      const legacy = ls?.getItem(key);
-      if (legacy) {
-        try {
-          const file = JSON.parse(legacy) as SaveFile;
-          if (!(await db.get(`slot:${slot}`))) {
-            const json = JSON.stringify(file.state);
-            const { data, enc } = await compress(json);
-            await db.put(`slot:${slot}`, { meta: { ...file.meta, size: data.length }, data, enc, raw: json.length } satisfies StoredSave);
-          }
-          ls!.removeItem(key);
-        } catch {
-          // 깨진 옛 세이브는 그대로 둔다
-        }
+      try {
+        ls?.removeItem(PREFIX + slot);
+      } catch {
+        // 못 지우면 그대로 둔다 (읽지 않는다)
       }
       const rec = await db.get<StoredSave>(`slot:${slot}`);
       if (rec) metas.set(slot, rec.meta);
@@ -491,11 +150,17 @@ export async function saveGame(slot: SaveSlot, state: GameState): Promise<boolea
   }
 }
 
+/** 슬롯 불러오기. 형식이 다른 옛 세이브면 그 슬롯(리플레이 포함)을 지우고 SaveFormatError (C.77r) */
 export async function loadGame(slot: SaveSlot): Promise<GameState | null> {
   await initSaves();
   const rec = await storeBackend().get<StoredSave>(`slot:${slot}`);
   if (!rec) return null;
-  return deserialize(await decompress(rec.data));
+  try {
+    return deserialize(await decompress(rec.data));
+  } catch (e) {
+    if (e instanceof SaveFormatError) await deleteSave(slot);
+    throw e;
+  }
 }
 
 export async function deleteSave(slot: SaveSlot): Promise<void> {
@@ -569,10 +234,10 @@ export function exportFileName(state: GameState): string {
   return `football-career_${state.league.season}_${state.calendar?.date ?? `r${state.league.round}`}.fcsave.gz`;
 }
 
-/** 가져오기: 압축 파일이나 그냥 JSON 모두 받는다. 옛 형식은 변환한다 */
+/** 가져오기: 압축 파일이나 그냥 JSON 모두 받는다. 형식이 다른 옛 세이브는 SaveFormatError (저장하지 않는다, C.77r) */
 export async function importSave(bytes: Uint8Array): Promise<GameState> {
   const text = await decompress(bytes);
   const file = JSON.parse(text) as { kind?: string; state?: unknown };
   if (file.kind !== FILE_KIND || !file.state) throw new Error('이 게임의 세이브 파일이 아니에요');
-  return migrate(file.state);
+  return restore(file.state);
 }

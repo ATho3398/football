@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { newGame, playRound, SAVE_FORMAT_VERSION } from '../src/game';
 import { autoShortKo, labelName, setNameOverride, shortNames, type NameOverrides } from '../src/names';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import {
   attackDirOf, pitchProjection, setPitchNames, setPitchOrient, setPitchSize, markerRadius,
 } from '../src/ui/pitch/renderer';

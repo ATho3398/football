@@ -11,7 +11,7 @@ import { npcTeamSetup } from '../src/engine/setup';
 import { runJob } from '../src/engine/jobs';
 import { playMyMatch } from '../src/engine/adapter';
 import { roundMatch } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { planFatigue } from '../src/training';
 
 describe('일정 생성 (25.1~25.2 6번, 부록 C.38)', () => {

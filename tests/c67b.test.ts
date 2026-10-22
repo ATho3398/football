@@ -5,7 +5,7 @@ import { daysBetween, weekday } from '../src/calendar';
 import { BALANCE } from '../src/config/balance';
 import { cupAchievements, groupTable, myCupMatches, uclEntrants, uclMatches, uclReachLabel } from '../src/cups';
 import { calendarOf, endSeason, newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { autoSheetVM, cupsWorldVM, homeVM } from '../src/ui/viewModels';
 import { cupsSection } from '../src/ui/views/screens';
 
@@ -181,15 +181,12 @@ describe('화면 (디자인 없음)', () => {
 });
 
 describe('세이브 37', () => {
-  it('왕복 그대로 · 36 세이브(챔스 없음)는 이번 시즌 챔스 없이 진행', () => {
+  it('왕복 그대로 · 옛 세이브(36)는 이어 할 수 없음', () => {
     const g = real('c67b-save');
     expect(SAVE_FORMAT_VERSION).toBe(57);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 36;
-    delete raw.cups.ucl;
-    const old = deserialize(JSON.stringify(raw));
-    for (let k = 0; k < 6; k++) playRound(old, { engine: 'quick' });
-    expect(old.cups!.ucl ?? null).toBeNull();
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });

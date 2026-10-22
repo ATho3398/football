@@ -5,7 +5,7 @@ import { emptySeasonStats, newGame, personalReputation, playRound, SAVE_FORMAT_V
 import { legendaryConditions, legendaryHonorsMet, nextReputationTier, reputationTier } from '../src/growth';
 import { requestPositionChange } from '../src/proficiency';
 import { settledFrames, type Replay, type ReplayFrame } from '../src/replay';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { checklistItems, FEATURES, isUnlocked, pendingIntro, refreshUnlocks, resetTips, tipFor } from '../src/unlocks';
 
 const H = (ballonDor: number, trebles = 0, worldCups = 0) => ({ ballonDor, trebles, worldCups });

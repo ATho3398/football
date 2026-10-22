@@ -6,7 +6,7 @@ import {
   cellPos, customLabel, customProblem, customSlots, FORMATION_SLOTS, FORMATIONS, nearestCell, presetCells,
 } from '../src/formations';
 import { formationLabel, moveSlot, previewLineup, slotPos, startCustom, validTactics, withFormation } from '../src/myTactics';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { LEGACY_ROLE_IDS, ROLE_KEYS, ROLE_NAMES_KO, ROLE_OPTIONS, ROLES } from '../src/engine/roles';
 import { SIGNATURE_CARDS } from '../src/signatureCards';
 import { createMatch } from '../src/engine/sim';

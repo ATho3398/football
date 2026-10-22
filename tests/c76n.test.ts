@@ -8,7 +8,7 @@ import { awardsVM } from '../src/ui/awardsVM';
 import { awardsView } from '../src/ui/views/awards';
 import { MY_ID } from '../src/engine/adapter';
 import { daysBetween } from '../src/calendar';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { PATCH_LABEL, STAGE_LABEL } from '../src/version';
 import type { GoalRec } from '../src/engine/npcMatch';
 
@@ -144,16 +144,14 @@ describe('화면 · 세이브', () => {
     const hist = awardsView(awardsVM(g, null, 'goldenBoot'), 'history');
     expect(hist).toContain('2019');
   });
-  it('세이브 53 왕복 · 52 → 53 마이그레이션', () => {
+  it('세이브 왕복 · 52 는 이어 할 수 없음', () => {
     const g = seasonDone();
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.years.at(-1)!.res.ballonDor!.length).toBe(30);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 52;
-    delete raw.globalAwards;
-    const m = migrate(raw);
-    expect(m.globalAwards).toEqual({ years: [] });
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
   it('버전 라벨', () => {
     expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/); // 병렬 패치 병합에도 통과 (C.76q)

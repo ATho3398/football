@@ -49,7 +49,7 @@ import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { leagueOfTeam, teamById } from '../league';
 import {
-  copyReplays, deleteSave, exportFileName, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, saveGame,
+  copyReplays, deleteSave, exportFileName, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, SaveFormatError, saveGame,
   saveReplays, unpackReplayBytes, type SaveSlot, type StoredReplay,
 } from '../save';
 import type { Replay } from '../replay';
@@ -105,6 +105,7 @@ import { contractView, marketCard, newsSection, offersView, tagNewsSection } fro
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, setPrecomputeStatus, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
 import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
+import { applyUpdate, registerServiceWorker, updateReady } from '../pwa/register';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artLayer } from './components/gameCard';
 import { emptyOverrides, kitClash, setKitOverride, setPersonOverride } from '../pixel';
@@ -251,6 +252,8 @@ const ui = {
   set: { ...SET_UI_DEFAULT } as SetUI,
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
+  /** 새 버전 알림 띠 [나중에] (C.77r): 이번 실행 동안 숨긴다 */
+  swLater: false,
   /** 선수 화면 태그 전체 시트 (C.47 → C.58 디자인 135) */
   tagsAll: false,
   /** 선수 화면 탭 (C.58 디자인 93~96·134·136), 몸·태그 탭 이름표 편집 펼침 */
@@ -746,7 +749,11 @@ function render(): void {
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount, ui.autoPrefs) : '')
     + (ui.moreSheet && g && isWide() && !isLandPhone() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '')
     + celebrateHtml(g);
-  app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
+  // 새 버전 (C.77r): 경기 중·진행 띠·모달이 떠 있을 때는 미룬다 (자동으로 새로고침하지 않는다)
+  const upd = updateReady() && !ui.swLater && !live && !bandToast && !m
+    ? `<div class="sw-update" role="status"><span class="grow"><b>새 버전</b><small>다시 열면 적용돼요 (자동 저장 뒤)</small></span>${Button({ size: 'sm', act: 'sw-reload', children: '다시 열기' })}${Button({ variant: 'ghost', size: 'sm', act: 'sw-later', children: '나중에' })}</div>`
+    : '';
+  app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}${upd}`;
   fitHeroNames();
   bindDockMore();
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
@@ -1660,6 +1667,15 @@ app.addEventListener('click', (ev) => {
   }
 
   switch (act) {
+    case 'sw-reload':
+      // 새 버전으로 (C.77r): 자동 저장을 끝낸 뒤 넘어간다
+      if (liveScreen()) return;
+      void autosave().then(applyUpdate);
+      return;
+    case 'sw-later':
+      ui.swLater = true;
+      render();
+      return;
     case 'intro-ok':
       if (!g) return;
       g.guide.introsSeen.push(el.dataset.id as FeatureId);
@@ -3557,7 +3573,9 @@ async function loadSlot(slot: SaveSlot): Promise<void> {
     go(loaded.phase === 'retired' ? 'retired' : 'home');
     warmPool();
   } catch (e) {
-    showToast((e as Error).message);
+    // 형식이 다른 옛 세이브 (C.77r): loadGame 이 그 슬롯을 이미 지웠다
+    if (e instanceof SaveFormatError) showToast({ kind: 'info', title: e.message, body: '현재 버전에서는 이어 할 수 없어 이 슬롯을 지웠어요. 새 게임으로 시작해 주세요.' }, 4200);
+    else showToast((e as Error).message);
   }
 }
 const loadLog: number[] = [];
@@ -3583,7 +3601,8 @@ app.addEventListener('change', (ev) => {
       warmPool();
       showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.${cards ? ` 카드 이미지 ${cards}장.` : ''}` }, 2600);
     } catch (e) {
-      showToast((e as Error).message || '가져오지 못했어요');
+      if (e instanceof SaveFormatError) showToast({ kind: 'info', title: e.message, body: '현재 버전에서는 이어 할 수 없어 가져오지 않았어요.' }, 4200);
+      else showToast((e as Error).message || '가져오지 못했어요');
     }
   })();
 });
@@ -3784,3 +3803,5 @@ app.addEventListener('error', (ev) => {
   else if (t instanceof SVGImageElement) t.closest('.po-art-g')?.remove();
 }, true);
 void initSaves().then(render, () => render());
+// 오프라인 PWA (C.77r): 배포 빌드에서만 서비스 워커. 새 버전이 설치되면 알림 띠
+registerServiceWorker(() => render());

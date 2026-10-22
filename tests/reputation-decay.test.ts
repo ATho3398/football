@@ -7,7 +7,7 @@ import {
   endSeason, newGame, playRound, rankPenalty, ratingRank, SAVE_FORMAT_VERSION, seasonGainCap, slumpPenalty, slumpThreshold,
 } from '../src/game';
 import { leaguePosition } from '../src/league';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import type { SeasonRecord } from '../src/types';
 import { matchResultVM, homeVM, seasonVM } from '../src/ui/viewModels';
 

@@ -6,7 +6,7 @@ import { teamSetupFromRoster, underdogPlan } from '../src/engine/setup';
 import { aiAdjust, LEVEL_NAMES_KO, LEVELS, levelOf, recommendedRole, tacticsOf, TENDENCIES, TENDENCY, TENDENCY_DESC_KO, TENDENCY_NAMES_KO, tendencyLevels, validLevel } from '../src/engine/tactics';
 import { halftimeSets, tacticsVM } from '../src/ui/viewModels';
 import { makeTactics, validTactics } from '../src/myTactics';
-import { migrate, serialize } from '../src/save';
+import { restore, SaveFormatError, serialize } from '../src/save';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
 import { createTeamRoster } from '../src/roster';
 import type { EngineInput } from '../src/engine/types';
@@ -95,13 +95,11 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     expect(sets[1]!.levels.lineHeight).toBe(1);
     expect(sets[2]!.levels.lineHeight).toBe(3);
   });
-  it('세이브 50 → 51: 저장된 라인 단계 +1 (낮음 0 → 1), 버스 성향은 저장 검사 통과', () => {
+  it('옛 세이브(50)는 이어 할 수 없음, 버스 성향은 저장 검사 통과', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76k', difficulty: 'normal' });
-    g.tactics = { ...g.tactics, levels: { ...g.tactics.levels, lineHeight: 0 } };
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 50;
-    const m = migrate(raw);
-    expect(m.tactics.levels.lineHeight).toBe(1);
+    expect(() => restore(raw)).toThrow(SaveFormatError);
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const bus = makeTactics('bus', '4-4-2', 'ST');
     expect(validTactics(bus)).toBe(true);

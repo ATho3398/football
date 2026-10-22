@@ -10,7 +10,7 @@ import {
   scoutBlocked, signingBonus, staffRecoveryMul, staffSlots, startScout, toggleLeave, type Staff,
 } from '../src/money';
 import { createRng } from '../src/rng';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { gaugeNeed, techDay } from '../src/training';
 import { financeVM } from '../src/ui/financeVM';
 import { financeView } from '../src/ui/views/finance';
