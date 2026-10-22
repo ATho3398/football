@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 79;
+export const BALANCE_VERSION = 80;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -304,8 +304,8 @@ export const BALANCE = {
   // ── 부상 (7.3, 부록 D.2) ──
   // 출전 경기마다 확률 = base × 출전 비율 × 난이도 배율 × 피로 보정 × 신체 보정 × 나이 보정
   injury: {
-    // C.77n (CI 280 balance:check 부상 풀타임 환산 0.86 ✗, 30세 이상 0.97 — C.77m 피로 상향 몫): 0.02 → 0.018 (+ ageMultiplier 1.2: 로컬 injury-per38 0.832 → 0.757, CI 는 로컬보다 약 +0.03)
-    base: 0.018,
+    // C.77n (CI 280 balance:check 부상 풀타임 환산 0.86 ✗, 30세 이상 0.97 — C.77m 피로 상향 몫): 0.02 → 0.019. 0.018 이면 부상이 줄어 레전더리 30세까지 월드클래스 10/48 = 0.208 ✗(CI 281) → 0.019 = 9/48
+    base: 0.019,
     /**
      * 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint.
      * C.77m: 피로 수치 상향(경기 22 → 30, 회복 ↓)으로 경기 전 피로 평균 약 4 → 26 이라 30·0.02 그대로면 balance:check 부상 풀타임 환산 ✗(같은 시드 진단 0.83 → 1.06).
@@ -318,8 +318,8 @@ export const BALANCE = {
     physicalSlope: 0.6,
     /** 나이 보정: 이 나이 이상이면 × ageMultiplier */
     ageFrom: 30,
-    // C.77n: 1.3 → 1.2 (30세 이상 부상 풀타임 환산 1.04 → 가드 0.4~0.8 안)
-    ageMultiplier: 1.2,
+    // C.77n: 1.3 → 1.1 (30세 이상 부상 풀타임 환산 1.04 → 가드 0.4~0.8 안. 30세 이상만이라 30세까지 성장·위상 가드는 그대로)
+    ageMultiplier: 1.1,
     /** 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks */
     grades: {
       minor: { chance: 0.7, weeks: [1, 3] as [number, number] },
