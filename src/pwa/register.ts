@@ -9,7 +9,7 @@ export function updateReady(): boolean {
   return !!waiting;
 }
 
-/** 안드로이드 앱(APK, C.77v) 안에서 도는가: Capacitor 가 페이지보다 먼저 window.Capacitor 를 넣는다 */
+/** 안드로이드 앱(APK, C.77v) 안에서 도는가: Capacitor 가 배포 사이트 페이지에도 window.Capacitor 를 넣는다 */
 export function isNativeApp(): boolean {
   const cap = (globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
   return !!cap?.isNativePlatform?.();
@@ -17,8 +17,8 @@ export function isNativeApp(): boolean {
 
 export function registerServiceWorker(onUpdate: () => void): void {
   const sw = globalThis.navigator?.serviceWorker;
-  // 앱은 파일을 APK 안에 들고 있어 서비스 워커가 필요 없다 (새 버전 = 새 APK 설치)
-  if (!sw || !import.meta.env.PROD || isNativeApp()) return;
+  // 안드로이드 앱(C.77v)도 배포 사이트를 열므로 웹과 똑같이 서비스 워커로 오프라인·새 버전 띠를 쓴다
+  if (!sw || !import.meta.env.PROD) return;
   const found = (w: ServiceWorker | null): void => {
     // 처음 설치(이전 컨트롤러 없음)는 새 버전이 아니다
     if (!w || !sw.controller) return;

@@ -6596,17 +6596,17 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
-### C.77v 50단계 — 앱 포장: 안드로이드 APK(사용자 요청 2026-10-22 20:4x KST "앱으로 묶기 가능하면 진행"): **Capacitor 8 로 웹 빌드(dist)를 감싼 안드로이드 프로젝트(`android/`) · GitHub Actions `android` 워크플로가 APK 를 빌드해 아티팩트로 올림(Pages 배포와 별도) · 앱 안에서는 서비스 워커 끔 · 저장 화면에 "앱 세이브는 웹판과 따로" 한 줄, `main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 게임 로직 무변경, STAGE_LABEL 그대로)
+### C.77v 50단계 — 앱 포장: 안드로이드 APK(사용자 요청 2026-10-22 20:4x KST "앱으로 묶기 가능하면 진행"): **Capacitor 8 껍데기 앱(`android/`)이 배포 사이트(https://atho3398.github.io/football/)를 연다(`server.url`) — 웹 배포 = 앱 업데이트, 오프라인은 C.77r 서비스 워커 · GitHub Actions `android` 워크플로가 APK 를 빌드해 아티팩트로 올림(Pages 배포와 별도) · 저장 화면에 "앱 세이브는 웹판과 따로" 한 줄, `main` 배포** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 게임 로직 무변경, STAGE_LABEL 그대로)
 
 **구현**
-1. **Capacitor**(`capacitor.config.json`, devDependencies `@capacitor/cli`·`core`·`android` 8.5.3): 앱 id `io.github.atho3398.playerone`, 이름 PLAYER ONE, webDir `dist`. `android/` 는 `npx cap add android` 산출물을 커밋(웹 파일 복사본 `assets/public` 은 .gitignore — CI 가 `npx cap sync` 로 넣는다). 웹 번들은 Capacitor 를 import 하지 않는다(웹판 크기·동작 그대로).
+1. **Capacitor**(`capacitor.config.json`, devDependencies `@capacitor/cli`·`core`·`android` 8.5.3): 앱 id `io.github.atho3398.playerone`, 이름 PLAYER ONE, `server.url` = 배포 사이트, `server.errorPath` = `offline.html`(첫 실행을 인터넷 없이 했을 때 "인터넷 연결이 필요해요 · 다시 시도"). webDir `android-shell/`(index.html·offline.html 두 파일만 — dist 를 APK 에 넣지 않는다). `android/` 는 `npx cap add android` 산출물을 커밋(복사본 `assets/public` 은 .gitignore — CI 가 `npx cap sync` 로 넣는다). 웹 번들은 Capacitor 를 import 하지 않는다(웹판 크기·동작 그대로).
 2. **앱 모양**: 아이콘 = C.77r manifest 아이콘(`scripts/android-icons.py` 가 `public/icons` 로 mipmap 5밀도·적응형 앞면(maskable 안전 영역 → 66dp)·둥근 아이콘·스플래시 PNG 를 만든다, 결과 커밋) · 적응형 배경·스플래시·창 배경·상태바·내비게이션바 #16171B(manifest 색) · 상태바 아이콘 밝게(`SystemBars.style DARK`) · **세로 고정**(`screenOrientation="portrait"`). viewport 는 그대로(viewport-fit 없음)라 Capacitor 가 바 높이만큼 웹뷰를 띄워 겹침 없음.
 3. **버전**: versionCode = Actions 실행 번호(덮어 설치가 되려면 늘어나야 함), versionName = 태그 이름 또는 `build-<번호>`.
 4. **서명**: 저장소 시크릿 없이 디버그 키. 키는 커밋하지 않고 Actions 캐시(`po-android-debug-keystore-v1`)에 두어 매번 같은 키 → 덮어 설치 가능. 캐시가 지워지면(7일 넘게 실행 없음) 새 키가 생겨 "앱이 설치되지 않음" — 그때는 앱에서 [내보내기] 백업 → 앱 삭제 → 새 APK 설치 → [가져오기].
-5. **웹 코드**: `pwa/register.ts isNativeApp()`(window.Capacitor.isNativePlatform) — 앱이면 서비스 워커 등록 안 함(파일이 APK 안에 있고, 새 버전 = 새 APK). 저장 화면 PWA 안내 아래 한 줄: 앱이면 "안드로이드 앱의 세이브는 앱 안 저장소(IndexedDB)에 따로 … 앱을 지우면 세이브도 지워져요", 웹이면 "APK 로 설치하면 세이브는 웹판과 따로". 테스트 `tests/nativeApp.test.ts` 3개.
-6. **워크플로** `.github/workflows/android.yml`: 수동 실행(workflow_dispatch) · `v*` 태그 푸시 · 이 파일을 고친 브랜치 푸시. 단계 = npm ci → build → cap sync → 디버그 키 캐시 → `./gradlew assembleDebug` → `player-one-<번호>.apk` 를 아티팩트 `player-one-apk`(30일 보관)로. Pages 워크플로는 건드리지 않음.
+5. **웹 코드**: `pwa/register.ts isNativeApp()`(window.Capacitor.isNativePlatform — Capacitor 가 server.url 페이지에도 넣는다). 서비스 워커는 앱에서도 그대로 등록(오프라인·새 버전 "다시 열기" 띠가 웹과 같다). 저장 화면 PWA 안내 아래 한 줄: 앱이면 "안드로이드 앱의 세이브는 앱 안 저장소(IndexedDB)에 따로 … 앱을 지우면 세이브도 지워져요", 웹이면 "APK 로 설치하면 세이브는 웹판과 따로". 테스트 `tests/nativeApp.test.ts` 3개.
+6. **워크플로** `.github/workflows/android.yml`: 수동 실행(workflow_dispatch) · `v*` 태그 푸시 · 이 파일을 고친 브랜치 푸시. 단계 = npm ci → cap sync → 디버그 키 캐시 → `./gradlew assembleDebug` → `player-one-<번호>.apk` 를 아티팩트 `player-one-apk`(30일 보관)로. Pages 워크플로는 건드리지 않음.
 
-**설치 방법**(사용자): GitHub 저장소 → **Actions** → 왼쪽 **android** → (새로 만들려면 오른쪽 **Run workflow** → main → Run) → 최신 실행(초록 체크) 클릭 → 아래 **Artifacts** 의 `player-one-apk` 내려받기 → zip 을 풀어 `player-one-<번호>.apk` 를 폰으로 옮김 → 폰에서 열기 → "출처를 알 수 없는 앱 설치" 허용(설정 › 보안 또는 파일 앱별 허용) → 설치. 웹판(https://atho3398.github.io/football/)과 세이브가 따로라 옮기려면 [내보내기]/[가져오기]. 게임 업데이트는 자동이 아니다 — 새 버전을 쓰려면 워크플로를 다시 실행해 새 APK 를 덮어 설치.
+**설치 방법**(사용자): GitHub 저장소 → **Actions** → 왼쪽 **android** → (새로 만들려면 오른쪽 **Run workflow** → main → Run) → 최신 실행(초록 체크) 클릭 → 아래 **Artifacts** 의 `player-one-apk` 내려받기 → zip 을 풀어 `player-one-<번호>.apk` 를 폰으로 옮김 → 폰에서 열기 → "출처를 알 수 없는 앱 설치" 허용(설정 › 보안 또는 파일 앱별 허용) → 설치. 웹판(https://atho3398.github.io/football/)과 세이브가 따로라 옮기려면 [내보내기]/[가져오기]. 게임 업데이트는 웹 배포와 같이 온다 — APK 를 다시 설치할 필요 없음(앱을 열면 새 버전 "다시 열기" 띠). APK 를 새로 만들 일은 아이콘·이름·앱 설정을 바꿀 때뿐.
 
 **관문**
 | 관문 | 결과 |
@@ -6614,6 +6614,16 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | typecheck · test · build | ✓ · 139파일 1,167개 ✓(새 `tests/nativeApp.test.ts` 3개) · ✓ (balance·engine 은 코드 무변경이라 로컬 재측정 생략, CI 가 판정) |
 | 워크플로 1회 실행 | 1차 실패(`android-actions/setup-android` 가 sdkmanager `tools` 패키지 없음으로 종료 → 러너 기본 SDK 쓰게 단계 제거) → 2차 **성공**(실행 39777860214, 약 2분 15초) · 아티팩트 `player-one-apk` **17.2 MB**(17,155,216 바이트, 30일 보관) |
 | 웹 동작 무변경 | 서비스 워커 분기·안내 한 줄만(웹에서는 isNativeApp 거짓) |
+
+**방식 비교와 선택**(마스터 Z 22:13 KST "앱 업데이트되면 어떤 방식?"):
+| | 사이트 여는 껍데기(채택, Capacitor `server.url`) | dist 를 APK 에 묶기(첫 시도) | TWA(Bubblewrap) |
+|---|---|---|---|
+| 업데이트 | 웹 배포 = 앱 업데이트(재설치 없음, "다시 열기" 띠) | 패치마다 새 APK 재설치(version.json 비교 안내 필요) | 웹 배포 = 업데이트 |
+| 첫 실행 | 인터넷 필요(이후 서비스 워커 캐시로 오프라인) | 인터넷 없이 됨 | 인터넷 필요 |
+| 세이브 위치 | 앱 웹뷰 저장소(origin atho3398.github.io) — 크롬 웹판과 따로 | 앱 웹뷰(https://localhost) — 웹판과 따로 | 크롬 저장소 — 크롬 웹판과 **공유** |
+| APK 크기 | 작음(웹 파일 없음) | 17.2 MB | 작음 |
+| 조건 | 없음 | 없음 | 도메인 루트 `/.well-known/assetlinks.json` 필요 — `atho3398.github.io/football/` 프로젝트 페이지는 루트에 못 올려 주소창이 보이는 커스텀 탭이 됨 |
+선택 이유: 업데이트마다 재설치가 없고(사용자 질문의 핵심), TWA 는 이 저장소 주소에서 검증 파일을 둘 수 없어 주소창이 남는다. 첫 실행만 인터넷이 필요한 것은 offline.html 안내로 덮는다. 첫 시도(dist 묶기) 실행 39777860214 의 APK 는 17.2 MB 였다.
 
 **데스크톱(Windows, 선택)**: 이번엔 기록만. Tauri(웹뷰2, 설치 파일 ~5 MB, Rust 빌드 windows 러너 10분+)가 Electron(~80 MB)보다 가볍다 — 하려면 같은 워크플로에 `windows-latest` job + `tauri-action`. PC 는 웹판·PWA 설치(크롬 주소창 설치 아이콘)로 이미 오프라인 앱처럼 쓸 수 있어 우선순위 낮음.
 

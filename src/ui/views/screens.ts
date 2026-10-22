@@ -732,7 +732,7 @@ export function savesView(vm: SavesVMOut, canSave: boolean, version: VersionVM, 
     <input type="file" id="import-file" accept=".gz,.json,.zip,application/gzip,application/json,application/zip" hidden>
     <p class="small muted">저장은 이 브라우저(IndexedDB, 압축)에 남아요. 지난 시즌은 경기 요약·하이라이트·결정 기록과 다른 경기 스코어·득점자, 선수 시즌 합계만 남기고, 경기 재생 화면은 내 최근 5경기만 남아요.</p>
     <p class="small muted">홈 화면에 추가(앱 설치)하면 인터넷 없이도 플레이돼요.${isIOS() ? ' <b>iPhone·iPad 사파리는 오래 쓰지 않으면 저장 공간을 지울 수 있어요 — 위 [내보내기]로 파일 백업을 해 두세요.</b>' : ''}</p>
-    <p class="small muted">${isNativeApp() ? '안드로이드 앱의 세이브는 앱 안 저장소(IndexedDB)에 따로 남아 웹판과 섞이지 않아요. 옮기려면 [내보내기] 파일을 상대 쪽에서 [가져오기] 하세요. 앱을 지우면 세이브도 지워져요.' : '안드로이드 앱(APK)으로 설치하면 세이브는 앱 안에 따로 저장돼 이 웹판과 섞이지 않아요.'}</p>
+    <p class="small muted">${isNativeApp() ? '안드로이드 앱의 세이브는 앱 안 저장소(IndexedDB)에 따로 남아 브라우저 웹판과 섞이지 않아요. 옮기려면 [내보내기] 파일을 상대 쪽에서 [가져오기] 하세요. 앱을 지우면 세이브도 지워져요.' : '안드로이드 앱(APK)으로 설치하면 세이브는 앱 안에 따로 저장돼 이 웹판과 섞이지 않아요.'}</p>
     ${versionFooter(version)}
   </div>`;
 }
