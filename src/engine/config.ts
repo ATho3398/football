@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 41;
+export const ENGINE_VERSION = 40;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -47,7 +47,8 @@ export const ENGINE = {
      * C.77x 이동 제어기 앞먹임 (공통 규칙 로드맵 2단계): 움직이는 목표(추적·마크·압박 대상)를 따라갈 때 원하는 속도 = 목표 속도(tvx, tvy) × feed + 거리 보정 속도,
      * 합을 최고 속도로 자른다. 목표 점도 tv × feed 로 움직인다. 0 = 꺼짐(옛 "점으로 가는" 제어기)
      */
-    feed: 1,
+    /** 지금 0(꺼짐): 켜면(1) 같은 시드 scoring 30골+ 0·리그 1.24 (부록 C.77x). 기준 장면은 켠 값(tests/scenes/harness.ts MOTION_ON)으로 돈다 */
+    feed: 0,
     /** 인지 지연 (초): 목표 속도가 따라가는 사람의 실제 속도를 따라잡는 시간 상수 */
     feedLag: 0.25,
     /** 따라갈 때 거리 보정 속도 하한 = feedGain × 목표까지 거리 (m/s, 정지 감속 √(2·가속·거리)·최고 속도 안) */
@@ -56,13 +57,15 @@ export const ENGINE = {
      * C.77x 뒤돌기 (turnModel 1 = 켬, 0 = 옛 동작: 반대 방향이면 속도 × turnKeep 즉시): 빠르게(faceSpeed 넘게) 달리면 몸 방향 = 속도 방향.
      * 반대로 가려면 reverseBrake × 가속 × turnKeep 로 감속하고, 느려지면 몸을 돌린다(180° = pivotBase − pivotSlope × 민첩/100 초, 90° 안으로 돌 때까지 가속 없음)
      */
-    turnModel: 1,
+    /** 지금 0(꺼짐, 켠 값 1 — 부록 C.77x) */
+    turnModel: 0,
     faceSpeed: 1.5,
     pivotBase: 2.2,
     pivotSlope: 2.2,
     reverseBrake: 2,
     /** C.77x 판단용 도착 시간: 1 = arrivalTime(이동과 같은 운동 규칙), 0 = 옛 거리 / 최고 속도 (침투 경합은 + raceTurn) */
-    arrivalModel: 1,
+    /** 지금 0(꺼짐, 켠 값 1): 켜면 engine:check 평점 CAM 6.77 ✗ (부록 C.77x) */
+    arrivalModel: 0,
     walk: 1.5,
     jog: 3.1,
     run: 5.5,
@@ -229,7 +232,8 @@ export const ENGINE = {
     jitter: 0.1,
     markSigma: 0.04,
     /** C.77x: 위치 오차(errX/Y)를 새로 뽑는 최소 간격 (초). 오프더볼 갱신마다 새로 뽑으면 목표가 초당 4~5회 수 m 씩 뛴다 (§9.15.12). 0 = 옛 동작(갱신마다) */
-    errHold: 0.5,
+    /** 지금 0(꺼짐, 켠 값 0.5): 켜면 quick 600 득점 1.46 ✗ (부록 C.77x) */
+    errHold: 0,
     /** 압박: 공에 가까운 수비 1~2명. 압박 거리 = pressDistBase + pressing × pressDistRange */
     pressers: 2,
     /** 둘째 압박자가 공으로 가는 거리 = pressDist × secondPressDist. 압박 높음(pressLevel 2)이면 역할 압박 성향과 무관하게 둘째도 공으로 (C.76s 44h-c2 가설 1, plan.sit 의 pressers 2 를 실제 2명으로) */
