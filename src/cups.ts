@@ -14,8 +14,8 @@ import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roste
 import { createRng, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import type { GameState } from './game';
-import { dayNum } from './npcFit';
-import { npcQuickMatch } from './npcQuick';
+import { dayNum, type NpcLine } from './npcFit';
+import { lineupLines, npcQuickMatch, quickLines } from './npcQuick';
 
 export type CompId = 'fa' | 'ucl';
 
@@ -292,23 +292,41 @@ function pickWeighted<T>(rng: Rng, items: readonly T[], w: (x: T) => number, ski
   return list.at(-1) ?? null;
 }
 
-/** 득점자·도움을 라인업에서 뽑는다 (포지션군 가중치) */
-function scorers(state: GameState, rng: Rng, tie: CupTie, hg: number, ag: number): GoalRec[] {
+/**
+ * 득점자·도움을 그 경기 출전 명단에서 뽑는다 (C.77w): 가중치 = 포지션군 × 출전 분/90. 명단은 quickLines(내 리그 팀은 그날 부상·피로 반영,
+ * 다른 리그 팀은 컨디션 없이 — 시즌·팀마다 캐시). 옛: OVR 상위 squadTop 명 (실제 선발·부상과 무관)
+ */
+export function cupScorers(state: GameState, rng: Rng, tie: CupTie, hg: number, ag: number, lines: readonly NpcLine[][]): GoalRec[] {
   const C = BALANCE.cups;
   const out: GoalRec[] = [];
   ([[tie.h, hg, 0], [tie.a, ag, 1]] as const).forEach(([id, n, side]) => {
     if (!n) return;
-    // 라인업 계산(pickLineup)은 무거워 OVR 상위 squadTop 명에서 뽑는다 (시즌 시뮬 시간 보호)
-    const lu = cupRoster(state, id).players.map((p) => ({ id: p.id, g: posGroup(p.position), o: naturalOvr(p) }))
-      .sort((x, y) => y.o - x.o).slice(0, C.squadTop);
+    const g = new Map(cupRoster(state, id).players.map((p) => [p.id, posGroup(p.position)]));
+    const lu = lines[side]!.map((l) => ({ id: l.id, g: g.get(l.id)!, m: l.minutes / 90 }));
     for (let k = 0; k < n; k++) {
-      const sc = pickWeighted(rng, lu, (x) => C.scorerWeight[x.g]);
+      const sc = pickWeighted(rng, lu, (x) => C.scorerWeight[x.g] * x.m);
       if (!sc) continue;
-      const as = rng() < C.assistChance ? pickWeighted(rng, lu, (x) => C.assistWeight[x.g], sc) : null;
+      const as = rng() < C.assistChance ? pickWeighted(rng, lu, (x) => C.assistWeight[x.g] * x.m, sc) : null;
       out.push([1 + Math.floor(rng() * 90), side, sc.id, as?.id ?? null]);
     }
   });
   return out.sort((x, y) => x[0] - y[0]);
+}
+
+const lineCache = new Map<string, NpcLine[]>();
+
+/** 간이 경기 한 팀 출전 명단: 내 리그 팀(로스터 있음)은 그날 컨디션, 아니면 컨디션 없는 명단 (월드·시즌·팀마다 캐시) */
+export function cupLines(state: GameState, id: string, date: IsoDate): NpcLine[] {
+  const r = state.rosters?.[id];
+  if (r) return quickLines(r, state.npcFit, dayNum(date));
+  const key = `${state.worldSeed}:${state.league.season}:${id}`;
+  let hit = lineCache.get(key);
+  if (!hit) {
+    if (lineCache.size > 256) lineCache.clear();
+    hit = lineupLines(cupRoster(state, id), undefined);
+    lineCache.set(key, hit);
+  }
+  return hit;
 }
 
 /** 레이팅 간이 경기 하나 */
@@ -316,18 +334,20 @@ function quickTie(state: GameState, comp: CupComp, stage: number, i: number): vo
   const tie = comp.rounds[stage]![i]!;
   const rng = rngFor(state.worldSeed, 'cup', comp.id, state.league.season, 'tie', stage, i);
   const [hg, ag] = simulateScore(rng, teamById(state.league, tie.h).rating, teamById(state.league, tie.a).rating);
-  settleTie(state, comp, stage, i, hg, ag, scorers(state, rng, tie, hg, ag));
-  quickFit(state, tie, tie.d ?? comp.dates[stage]!, `${comp.id}:${state.league.season}:${stage}:${i}`);
+  const date = tie.d ?? comp.dates[stage]!;
+  const lines = [cupLines(state, tie.h, date), cupLines(state, tie.a, date)];
+  settleTie(state, comp, stage, i, hg, ag, cupScorers(state, rng, tie, hg, ag, lines));
+  quickFit(state, tie, date, `${comp.id}:${state.league.season}:${stage}:${i}`, lines);
 }
 
 /**
- * 간이 경기 피로·부상·부하 (C.77n, pending 142b): 내 리그 팀(로스터가 있는 팀)만 선발 11명에게 90분 피로를 더한다.
+ * 간이 경기 피로·부상·부하 (C.77n, pending 142b): 내 리그 팀(로스터가 있는 팀)만 출전 명단(득점자와 같은 명단, C.77w)에 출전 분 피로를 더한다.
  * 다른 리그 팀은 그 리그 경기도 간이 계산이라 피로를 두지 않는다. 스코어·득점자 난수와 따로 (시드 문자열)
  */
-function quickFit(state: GameState, t: CupTie, date: IsoDate, key: string): void {
-  const rosters = [t.h, t.a].map((id) => state.rosters?.[id]).filter((r): r is TeamRoster => !!r);
-  if (!rosters.length) return;
-  npcQuickMatch((state.npcFit ??= {}), (state.npcLoad ??= {}), rosters, dayNum(date), state.worldSeed, hashSeed(`${state.worldSeed}:cupfit:${key}`));
+function quickFit(state: GameState, t: CupTie, date: IsoDate, key: string, lines: readonly NpcLine[][]): void {
+  const mine = [t.h, t.a].map((id, k) => [state.rosters?.[id], lines[k]!] as const).filter((x): x is readonly [TeamRoster, NpcLine[]] => !!x[0]);
+  if (!mine.length) return;
+  npcQuickMatch((state.npcFit ??= {}), (state.npcLoad ??= {}), mine.map((x) => x[0]), dayNum(date), state.worldSeed, hashSeed(`${state.worldSeed}:cupfit:${key}`), mine.flatMap((x) => x[1]));
 }
 
 const isMine = (state: GameState, t: CupTie): boolean => t.h === state.player.teamId || t.a === state.player.teamId;
@@ -559,8 +579,9 @@ function uclQuick(state: GameState, u: UclComp, m: UclMatch): void {
   const rng = rngFor(state.worldSeed, 'cup', 'ucl', state.league.season, 'tie', m.kind, m.md, m.stage, m.i);
   const [hg, ag] = simulateScore(rng, teamById(state.league, m.t.h).rating, teamById(state.league, m.t.a).rating);
   // 득점자는 녹아웃만 (조별 48경기 득점 기록은 세이브만 키운다)
-  uclSettle(state, u, m, hg, ag, m.kind === 'group' ? undefined : scorers(state, rng, m.t, hg, ag));
-  quickFit(state, m.t, m.t.d!, `ucl:${state.league.season}:${m.kind}:${m.md}:${m.stage}:${m.i}`);
+  const lines = [cupLines(state, m.t.h, m.t.d!), cupLines(state, m.t.a, m.t.d!)];
+  uclSettle(state, u, m, hg, ag, m.kind === 'group' ? undefined : cupScorers(state, rng, m.t, hg, ag, lines));
+  quickFit(state, m.t, m.t.d!, `ucl:${state.league.season}:${m.kind}:${m.md}:${m.stage}:${m.i}`, lines);
 }
 
 /** 단계가 끝났으면 다음 추첨: 조별 → 16강(조 1위 vs 다른 조 2위, 같은 리그 피함, 1위가 2차전 홈) → 8강·4강(무작위) → 결승 */

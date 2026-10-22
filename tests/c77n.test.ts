@@ -21,29 +21,29 @@ const G = newGame({ mode: 'prospect', position: 'ST', seed: 'c77n-g', difficulty
 const roster = (id: string, seed: string) => createTeamRoster({ id, rating: 80 }, seed, 2018, []);
 
 describe('C.77n NPC 컵 간이 경기 피로', () => {
-  it('선발 11명에게 cupMinutes 분 피로가 쌓이고 부하 = 분/90 × 성향 계수', () => {
+  it('출전 명단(선발 11 + 교체, C.77w)에게 출전 분 피로가 쌓이고 부하 = 분/90 × 성향 계수', () => {
     const r = roster('t', 'c77n-q');
     const map: NpcFitMap = {};
     const load: NpcLoadMap = {};
     const lines = npcQuickMatch(map, load, [r], 100, 'c77n-q', 1);
-    expect(lines).toHaveLength(11);
+    expect(lines).toHaveLength(11 + BALANCE.fatigue.npc.cupSubs.length);
     for (const l of lines) {
-      expect(npcFatigueOn(map[l.id], 100)).toBeCloseTo((BALANCE.fatigue.perMatch90 * BALANCE.fatigue.npc.cupMinutes) / 90, 1);
-      expect(load[l.id]![0]).toBeGreaterThan(0.6);
-      expect(load[l.id]![0]).toBeLessThan(1.2);
+      expect(npcFatigueOn(map[l.id], 100)).toBeCloseTo((BALANCE.fatigue.perMatch90 * l.minutes) / 90, 1);
+      expect(load[l.id]![0]).toBeGreaterThan(0.6 * (l.minutes / 90));
+      expect(load[l.id]![0]).toBeLessThan(1.2 * (l.minutes / 90));
     }
   });
 
   it('주 2경기(3·4일 간격)면 주전이 2주 안에 피로 50 을 넘어 다음 간이 경기 선발에서 빠진다(로테이션)', () => {
     const r = roster('t', 'c77n-rot');
     const map: NpcFitMap = {};
-    const first = new Set(quickLines(r, map, 0).map((l) => l.id));
+    const first = new Set(quickLines(r, map, 0).filter((l) => !l.sub).map((l) => l.id));
     let day = 0;
     let rotated = false;
     for (let k = 0; k < 5 && !rotated; k++) {
       npcQuickMatch(map, undefined, [r], day, 'c77n-rot', k);
       day += k % 2 ? 4 : 3;
-      const now = quickLines(r, map, day).map((l) => l.id);
+      const now = quickLines(r, map, day).filter((l) => !l.sub).map((l) => l.id);
       rotated = now.some((id) => !first.has(id));
     }
     expect(rotated).toBe(true);

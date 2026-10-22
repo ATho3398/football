@@ -262,8 +262,8 @@ for (const strategy of ['best', 'random'] as Strategy[]) {
   const target = per38(seasonsAll);
   console.log(`  38경기 풀타임 환산: 전체 ${target.toFixed(2)}회 · 29세 이하 ${per38(seasonsAll.filter((x) => x.age < 30)).toFixed(2)}회 · 30세 이상 ${per38(seasonsAll.filter((x) => x.age >= 30)).toFixed(2)}회`);
   console.log(`  목표: 주전 시즌당 0.4~0.8회 → 풀타임 환산 ${target.toFixed(2)}회 ${check('부상 풀타임 환산', target, 0.4, 0.8)}`);
-  const grades: InjuryGrade[] = ['minor', 'major', 'seasonEnding'];
-  const names: Record<InjuryGrade, string> = { minor: '경상', major: '중상', seasonEnding: '시즌아웃' };
+  const grades: InjuryGrade[] = ['minor', 'moderate', 'major', 'seasonEnding'];
+  const names: Record<InjuryGrade, string> = { minor: '경상', moderate: '중등도', major: '중상', seasonEnding: '시즌아웃' };
   console.log(`  등급: ${grades.map((g) => {
     const xs = injuriesAll.filter((x) => x.grade === g);
     return `${names[g]} ${xs.length}건 (${((xs.length / injuriesAll.length) * 100).toFixed(0)}%, 평균 ${xs.length ? avg(xs.map((x) => x.weeks)).toFixed(1) : '-'}주)`;

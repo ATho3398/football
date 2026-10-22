@@ -14,6 +14,7 @@ import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, ownGoal, pos
 import { duelEdgeOf, landingVelocity, tiredRatio } from './physics';
 import { LONG_SHOT_FROM } from './env';
 import { exploitMul } from './rapport';
+import { probe, probeShot, probeShotEnd } from './probe';
 import { Purpose, rand, randn } from './rng';
 import type { Agent, BallReserve, Flight, SimState } from './state';
 
@@ -436,6 +437,7 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
 
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', m, gx, gy, m.speed);
     const blocker = bb ? bb.me : s.agents.filter((o) => o.onPitch && o.team !== a.team && o.line !== 0)
       .sort((x, y) => dist(x.x, x.y, a.x, a.y) - dist(y.x, y.y, a.x, a.y))[0];
     event(s, 'block', a.team, [a.id, blocker?.id ?? '']);
@@ -465,15 +467,18 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번). 쫓기며 쏘면 구석을 못 노린다 (C.76k, 압박 × cornerPressure)
     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
     const ty = gy + side * corner * (G / 2 - 0.3);
+    const shot = { speed, corner, d: m.d, header, ...(cm?.save ? { cardSave: cm.save } : {}) };
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
     shotFlight(s, a, {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
-      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d: m.d, header, ...(cm?.save ? { cardSave: cm.save } : {}) },
+      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
     });
     event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
     return;
   }
   // 빗나감: 골라인 밖으로 → 골킥
   const missY = gy + side * (G / 2 + 0.5 + r(s, a.idx, Purpose.Shot, 4) * 6);
+  if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'miss', m, gx + dir * 3, missY, speed);
   s.ball.owner = -1;
   s.ball.reserve = null;
   s.ball.flight = {
@@ -530,6 +535,7 @@ function shotArrives(s: SimState, fl: Flight): void {
   if (far) s.teams[shooter.team].stats.farOnTarget++;
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < (sh.cardSave ? clamp(pSave + sh.cardSave, 0.02, 0.98) : pSave)) {
     s.teams[defTeam].stats.saves++;
+    if (probe.shot) probeShotEnd(sh, 'save');
     if (far) s.teams[shooter.team].stats.farSaves++;
     if (gk) gk.stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
@@ -556,6 +562,7 @@ function shotArrives(s: SimState, fl: Flight): void {
     s.ball.flight = { ...fl, fromX: s.ball.x, fromY: s.ball.y, toX: sh.goalX, toY: sh.goalY, t0: s.t, dur: Math.max(0.05, sh.rest ?? 0.1), outcome: 'goal' };
     return;
   }
+  if (probe.shot) probeShotEnd(sh, 'goal');
   goal(s, shooter);
 }
 
@@ -846,6 +853,7 @@ export function resolveFlight(s: SimState): void {
       shotArrives(s, fl);
       return;
     case 'goal':
+      if (probe.shot) probeShotEnd(fl.shot, 'goal');
       goal(s, passer);
       return;
     case 'aerial':
@@ -1065,7 +1073,9 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
     t.stats.shots++;
     s.lastWasShot = true;
     event(s, 'freeKick', a.team, [a.id], { direct: 1 });
-    if (r(s, a.idx, Purpose.FreeKick) < ENGINE.setPiece.wallBlock * (cm?.direct ? cm.blockMul : 1)) {
+    const wall = ENGINE.setPiece.wallBlock * (cm?.direct ? cm.blockMul : 1);
+    if (r(s, a.idx, Purpose.FreeKick) < wall) {
+      if (probe.shot) probeShot(s, a, 'fk', 'block', { xg: null, pOn: directFkOn(a, d), pBlock: wall, d }, gx, gy, ENGINE.ball.shotSpeed);
       event(s, 'block', a.team, [a.id]);
       const ang = r(s, a.idx, Purpose.FreeKick, 1) * Math.PI * 2;
       bounceAt(s, a, a.x + dir * 9, a.y, Math.cos(ang) * 6, Math.sin(ang) * 6, (1 - a.team) as 0 | 1, -1);
@@ -1079,11 +1089,14 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
       const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * PR.cornerRange, 0, 1);
+      const shot = { speed, corner, d, header: false, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) };
+      if (probe.shot) probeShot(s, a, 'fk', 'onTarget', { xg: null, pOn, pBlock: wall, d }, gx, gy + side * corner * (G / 2 - 0.3), speed, shot);
       shotFlight(s, a, {
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,
-        passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d, header: false, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) },
+        passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
       });
     } else {
+      if (probe.shot) probeShot(s, a, 'fk', 'miss', { xg: null, pOn, pBlock: wall, d }, gx + dir * 3, gy, speed);
       s.ball.owner = -1;
       s.ball.reserve = null;
       s.ball.flight = {
@@ -1122,6 +1135,9 @@ function bounceAt(s: SimState, a: Agent, x: number, y: number, vx: number, vy: n
   };
 }
 
+/** 측정용 PK xG (probe 기록, 판정에는 쓰지 않는다) */
+const PK_XG = 0.76;
+
 /** PK (E.10): 키커의 슈팅과 침착성, GK 선방 */
 /** PK 성공 확률 (E.10). on = 카드 보정 %p (C.36) */
 export function penaltyProb(s: SimState, a: Agent, on: number): number {
@@ -1153,15 +1169,22 @@ export function takePenalty(s: SimState, a: Agent): void {
     const side = r(s, a.idx, Purpose.Penalty, 3) < 0.5 ? -1 : 1;
     const speed = ENGINE.ball.shotSpeed;
     const d = dist(a.x, a.y, gx, gy);
+    const shot = { speed, corner: 1, d, header: false, penalty: true };
+    if (probe.shot) probeShot(s, a, 'pk', 'onTarget', { xg: PK_XG, pOn: p, pBlock: 0, d }, gx, gy + side * (G / 2 - 0.6), speed, shot);
     s.ball.owner = -1;
     s.ball.reserve = null;
     s.ball.flight = {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * (G / 2 - 0.6), t0: s.t, dur: d / speed, air: false,
-      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner: 1, d, header: false, penalty: true },
+      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
     };
     return;
   }
+  const pkProbe = (outcome: 'save' | 'miss'): void => {
+    const [gx, gy] = oppGoal(dir);
+    probeShot(s, a, 'pk', outcome, { xg: PK_XG, pOn: p, pBlock: 0, d: dist(a.x, a.y, gx, gy) }, gx, gy, ENGINE.ball.shotSpeed);
+  };
   if (r(s, a.idx, Purpose.Penalty, 1) < SP.penaltySaveShare) {
+    if (probe.shot) pkProbe('save');
     t.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     s.teams[def].stats.saves++;
@@ -1171,5 +1194,6 @@ export function takePenalty(s: SimState, a: Agent): void {
     bounceAt(s, a, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
     return;
   }
+  if (probe.shot) pkProbe('miss');
   setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, 'auto');
 }

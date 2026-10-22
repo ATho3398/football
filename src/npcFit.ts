@@ -71,12 +71,15 @@ export const npcMatchFatigue = (distance: number): number => (BALANCE.fatigue.pe
 function npcInjuryDays(rng: () => number): number {
   const G = BALANCE.injury.grades;
   const r = rng();
-  const [lo, hi] = r < G.minor.chance ? G.minor.weeks : r < G.minor.chance + G.major.chance ? G.major.weeks : [G.seasonEnding.minWeeks, G.seasonEnding.minWeeks];
+  const m1 = G.minor.chance;
+  const m2 = m1 + G.moderate.chance;
+  const m3 = m2 + G.major.chance;
+  const [lo, hi] = r < m1 ? G.minor.weeks : r < m2 ? G.moderate.weeks : r < m3 ? G.major.weeks : [G.seasonEnding.minWeeks, G.seasonEnding.minWeeks];
   return (lo + Math.floor(rng() * (hi - lo + 1))) * 7;
 }
 
-/** 경기 한 줄: 선수 id · 출전 분 · 이동 거리(m) */
-export interface NpcLine { id: string; minutes: number; distance: number }
+/** 경기 한 줄: 선수 id · 출전 분 · 이동 거리(m) · 교체 투입 (C.77w, 간이 경기만) */
+export interface NpcLine { id: string; minutes: number; distance: number; sub?: boolean }
 
 const TENDENCY_LOAD = new Map<string, number>();
 

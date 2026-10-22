@@ -15,6 +15,7 @@ import { offsideRisk } from './referee';
 import { offsideLine } from './offball';
 import { TENDENCY, widthCrossMul } from './tactics';
 import { chemMul, exploitMul, toMeMul } from './rapport';
+import { probe } from './probe';
 import type { Agent, Flight, SimState } from './state';
 import type { Tendency } from './types';
 
@@ -766,6 +767,7 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
     }
   }
   recordDecision(s, a, pool0, pool[pick]!);
+  if (probe.decide) probe.decide(s, { a, cands, vis: pool0, pool, chosen: pool[pick]!, maxU, gap });
   return pool[pick]!;
 }
 

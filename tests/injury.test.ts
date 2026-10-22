@@ -32,7 +32,7 @@ describe('부상 확률 (부록 D.2)', () => {
 
 describe('부상 등급과 영구 하락', () => {
   function rolls(age: number, n: number) {
-    const out = { minor: 0, major: 0, seasonEnding: 0, permanent: 0, weeks: { minor: [99, 0], major: [99, 0] } };
+    const out = { minor: 0, moderate: 0, major: 0, seasonEnding: 0, permanent: 0, weeks: { minor: [99, 0], moderate: [99, 0], major: [99, 0] } };
     const pl = newGame({ mode: 'prospect', position: 'CB', seed: 'inj', difficulty: 'normal' }).player;
     for (let i = 0; i < n; i++) {
       pl.age = age;
@@ -51,7 +51,7 @@ describe('부상 등급과 영구 하락', () => {
       const drops = Object.entries(inj.permanent);
       if (drops.length) {
         out.permanent++;
-        expect(inj.grade).not.toBe('minor');
+        expect(['major', 'seasonEnding']).toContain(inj.grade);
         expect(drops.length).toBeLessThanOrEqual(2);
         for (const [, d] of drops) expect(d).toBeGreaterThanOrEqual(-3);
       }
@@ -59,13 +59,15 @@ describe('부상 등급과 영구 하락', () => {
     return out;
   }
 
-  it('경상 70% (1~3주) / 중상 27% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20%', () => {
+  it('경상 60% (1~3주) / 중등도 21% (4~7주, C.77w) / 중상 16% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20%', () => {
     const n = 4000;
     const r = rolls(25, n);
-    expect(r.minor / n).toBeCloseTo(0.7, 1);
-    expect(r.major / n).toBeCloseTo(0.27, 1);
+    expect(r.minor / n).toBeCloseTo(0.6, 1);
+    expect(r.moderate / n).toBeCloseTo(0.21, 1);
+    expect(r.major / n).toBeCloseTo(0.16, 1);
     expect(r.seasonEnding / n).toBeCloseTo(0.03, 1);
     expect(r.weeks.minor).toEqual([1, 3]);
+    expect(r.weeks.moderate).toEqual([4, 7]);
     expect(r.weeks.major).toEqual([8, 16]);
     expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.2, 1);
   });

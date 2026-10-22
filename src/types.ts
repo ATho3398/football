@@ -65,7 +65,7 @@ export type PlayerData = FieldPlayerData | GoalkeeperData;
 // ── 게임 진행 상태 (1단계) ──
 
 
-export type InjuryGrade = 'minor' | 'major' | 'seasonEnding';
+export type InjuryGrade = 'minor' | 'moderate' | 'major' | 'seasonEnding';
 
 /** 부상 (7.3) */
 export interface Injury {

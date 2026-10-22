@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 82;
+export const BALANCE_VERSION = 83;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -320,10 +320,15 @@ export const BALANCE = {
     ageFrom: 30,
     // C.77n: 1.3 → 1.1 (30세 이상 부상 풀타임 환산 1.04 → 가드 0.4~0.8 안. 30세 이상만이라 30세까지 성장·위상 가드는 그대로)
     ageMultiplier: 1.1,
-    /** 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks */
+    /**
+     * 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks.
+     * C.77w: 3~8주 빈 구간에 중간(4~7주)을 넣었다 — 옛 경상 70% · 중상 27% · 시즌아웃 3% → 60 / 21 / 16 / 3.
+     * 부상 1건 기대 결장(시즌아웃 25주로 보면) 5.39 → 5.03주(−7%, 지시 ±10% 안). 영구 하락은 중상 이상만이라 건수가 줄어든다(0.30 → 0.19 × chance)
+     */
     grades: {
-      minor: { chance: 0.7, weeks: [1, 3] as [number, number] },
-      major: { chance: 0.27, weeks: [8, 16] as [number, number] },
+      minor: { chance: 0.6, weeks: [1, 3] as [number, number] },
+      moderate: { chance: 0.21, weeks: [4, 7] as [number, number] },
+      major: { chance: 0.16, weeks: [8, 16] as [number, number] },
       seasonEnding: { chance: 0.03, minWeeks: 20 },
     },
     /** 부상 중 주당 재활 XP (출전 대신) */
@@ -403,11 +408,16 @@ export const BALANCE = {
      * cup — NPC 끼리 컵·챔스 간이 경기 피로 (C.77n, pending 142b): 레이팅 간이 계산 경기도 pickLineup(그날 컨디션)으로 선발 11명을 뽑아
      * 90분·기준 거리 피로와 부상 판정만 더한다(엔진 없이). 결과(스코어)는 그대로. npc.cup = false 면 C.77m 과 같다
      */
-    // cupMinutes: 간이 경기 선발 1명 출전 분(피로·부하 = 기준 거리 × 분/90). 90 이면 챔스 팀 ST 리그 선발 28.3 · 30골+ 0.40(관문 ✗) →
-    // 교체(보통 3명 60~75분)·컵 로테이션 몫을 빼고 70 (C.77n 조정 1)
+    // cupSubs (C.77w, 옛 cupMinutes 70 대신): 간이 경기 교체 투입 분. GK·필드 선발은 90분, 교체 수만큼 필드 선발이 이 분에 나가고 벤치 선수가 남은 분을 뛴다
+    //   (나가는 순서 cupSubOrder 포지션군 앞쪽부터, 같으면 피로 높은 쪽 — 공격수가 먼저 쉰다). 피로·부하 = 기준 거리 × 분/90.
+    //   옛 C.77n: 선발 11명 70분(교체·로테이션 몫을 뺀 근사, 90 이면 챔스 팀 ST 리그 선발 28.3 · 30골+ 0.40 관문 ✗)
     // cupRestFrom: 간이 컵 경기 선발 감점 시작 피로 (리그는 penaltyFrom 50) — 지친 주전은 리그보다 컵에서 먼저 쉰다(컵 로테이션).
     //   C.77n 조정 2: 70분만으로는 챔스 팀 ST 리그 선발 29.4 · 30골+ 0.20 (관문 ✗)
-    npc: { on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true, cupMinutes: 70, cupRestFrom: 25 },
+    npc: {
+      on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true, cupRestFrom: 25,
+      cupSubs: [60, 68, 75] as number[],
+      cupSubOrder: ['ST', 'WING', 'CAM', 'CM', 'FB', 'CDM', 'CB'] as string[],
+    },
   },
 
   // ── 시즌 누적 부하 (C.77n, pending 142b — 게겐 대가: 피로↑ → 부상↑ → 선수 생명↓, 내 선수·NPC 같은 함수 src/load.ts) ──
@@ -1727,7 +1737,7 @@ export const BALANCE = {
     /** 내 팀 없는 경기 득점자 가중치 (포지션군), 도움 확률·가중치 */
     scorerWeight: { GK: 0, CB: 0.6, FB: 0.5, CDM: 0.6, CM: 1.4, CAM: 2.6, WING: 3, ST: 5 },
     assistChance: 0.72,
-    /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
+    /** 다른 리그 득점자 후보 = 로스터 OVR 상위 n 명 (otherLeagues.ts. 컵 득점자는 C.77w 부터 출전 명단에서) */
     squadTop: 14,
     assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
   },

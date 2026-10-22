@@ -8,7 +8,7 @@ import type { Rng } from './rng';
 import type { Injury, InjuryGrade, PlayerState } from './types';
 
 export const INJURY_NAMES_KO: Record<InjuryGrade, string> = {
-  minor: '경상', major: '중상', seasonEnding: '시즌아웃',
+  minor: '경상', moderate: '중등도', major: '중상', seasonEnding: '시즌아웃',
 };
 
 /** 이번 경기에서 다칠 확률. fatigue 는 경기 시작 때 피로 */
@@ -29,7 +29,8 @@ function rollGrade(rng: Rng): InjuryGrade {
   const G = BALANCE.injury.grades;
   const r = rng();
   if (r < G.minor.chance) return 'minor';
-  if (r < G.minor.chance + G.major.chance) return 'major';
+  if (r < G.minor.chance + G.moderate.chance) return 'moderate';
+  if (r < G.minor.chance + G.moderate.chance + G.major.chance) return 'major';
   return 'seasonEnding';
 }
 
@@ -37,7 +38,8 @@ function rollGrade(rng: Rng): InjuryGrade {
 function rollPermanent(p: PlayerState, grade: InjuryGrade, rng: Rng): AttributeDelta {
   const P = BALANCE.injury.permanent;
   const delta: AttributeDelta = {};
-  if (grade === 'minor') return delta;
+  // 중상 이상만 (C.77w: 중등도 4~7주는 영구 하락 없음)
+  if (grade === 'minor' || grade === 'moderate') return delta;
   const chance = P.chance * (p.age >= P.ageFrom ? P.ageMultiplier : 1);
   if (rng() >= chance) return delta;
   const pool = [...PHYSICAL];
