@@ -61,6 +61,8 @@ export const ENGINE = {
     pivotBase: 2.2,
     pivotSlope: 2.2,
     reverseBrake: 2,
+    /** C.77x 판단용 도착 시간: 1 = arrivalTime(이동과 같은 운동 규칙), 0 = 옛 거리 / 최고 속도 (침투 경합은 + raceTurn) */
+    arrivalModel: 1,
     walk: 1.5,
     jog: 3.1,
     run: 5.5,

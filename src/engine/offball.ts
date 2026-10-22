@@ -4,7 +4,7 @@ import { ENGINE } from './config';
 import { reaction } from './core';
 import { keeperZone, sweepRange } from './keeper';
 import { finishSkill } from './duel';
-import { arrivalTime, landingVelocity } from './physics';
+import { arrivalTime, effectiveMax, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
 import { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
@@ -207,7 +207,7 @@ export function ballPathAt(s: SimState, t: number): { x: number; y: number; sp: 
 
 /** 선수가 (x, y)에 닿는 시간: 반응 + 이동 시간(C.77x arrivalTime — 지금 속도·방향 → 감속·뒤돌기 → 가속 → 최고 속도). 이미 공을 보고 있었으면(ready) 반응 없이 */
 function arrival(a: Agent, x: number, y: number, ready = false): number {
-  return (ready ? 0 : reaction(a)) + arrivalTime(a, x, y);
+  return (ready ? 0 : reaction(a)) + (ENGINE.physics.arrivalModel > 0 ? arrivalTime(a, x, y) : dist(a.x, a.y, x, y) / effectiveMax(a));
 }
 
 /**

@@ -94,6 +94,7 @@ export const MOTION_ON: Record<string, number> = {
   'physics.pivotSlope': 2.2,
   'physics.reverseBrake': 2,
   'offball.errHold': 0.5,
+  'physics.arrivalModel': 1,
 };
 
 /** ENGINE 상수를 경로=값으로 잠시 덮어쓰고 fn 을 돌린 뒤 되돌린다 */
