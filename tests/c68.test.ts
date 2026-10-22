@@ -205,7 +205,7 @@ describe('의료 효과', () => {
 });
 
 describe('재정 화면·세이브 38', () => {
-  it('VM·화면이 그려지고, 세이브 왕복 · 37 세이브(재정 없음)는 잔고 0 으로 시작', () => {
+  it('VM·화면이 그려지고, 세이브 왕복 · 옛 세이브(37)는 이어 할 수 없음', () => {
     const g = prospect('c68-ui');
     advance(g, 10);
     startScout(g);
@@ -219,11 +219,10 @@ describe('재정 화면·세이브 38', () => {
     expect(deserialize(serialize(g)).money).toEqual(g.money);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 37;
-    delete raw.money;
-    const old = deserialize(JSON.stringify(raw));
-    expect(old.money).toBeUndefined();
-    advance(old, 8);
-    expect(ensureMoney(old).cash).toBeGreaterThan(0);
-    expect(flowsIn(ensureMoney(old).season)).toBeGreaterThan(0);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
+    advance(back, 8);
+    expect(ensureMoney(back).cash).toBeGreaterThan(0);
+    expect(flowsIn(ensureMoney(back).season)).toBeGreaterThan(0);
   });
 });

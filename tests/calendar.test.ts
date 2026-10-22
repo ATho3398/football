@@ -160,29 +160,22 @@ describe('전 경기 엔진 (25.1~25.2 4번)', () => {
 });
 
 describe('세이브 17 → 18 (부록 C.38)', () => {
-  it('라운드 기반 세이브: 이번 라운드 첫 경기 날로, 부상 주 → 일, 선수 기록·설정 추가', () => {
+  it('세이브 왕복 뒤 이어서 진행, 옛 세이브(17)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig18', difficulty: 'normal' });
     for (let k = 0; k < 5; k++) playRound(g, { engine: 'quick' });
+    expect(SAVE_FORMAT_VERSION).toBe(57);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 17;
-    delete raw.calendar;
-    delete raw.playerStats;
-    delete raw.options;
-    // 옛 라운드 방식: 이번 라운드의 다른 경기는 아직 없다
-    for (const f of raw.league.schedule[raw.league.round]) { delete f.homeGoals; delete f.awayGoals; }
-    raw.player.injury = { grade: 'minor', weeksTotal: 3, weeksLeft: 2, season: 2018, round: 5, permanent: {} };
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
-    const cal = calendarOf(back);
-    expect(back.calendar.date).toBe(cal.roundDates[back.league.round]);
-    expect(back.player.injury).toMatchObject({ daysLeft: 14, daysTotal: 21 });
-    expect(back.playerStats).toEqual({});
-    expect(back.options).toEqual({ quickOthers: false });
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
+    expect(back.calendar).toEqual(g.calendar);
+    expect(back.playerStats).toEqual(g.playerStats);
+    expect(back.options).toEqual(g.options);
     // 이어서 진행할 수 있다
+    const before = back.calendar.date;
     playRound(back, { engine: 'quick' });
-    expect(back.league.round).toBe(6);
-    expect(daysBetween(cal.roundDates[5]!, back.calendar.date)).toBeGreaterThan(0);
+    expect(back.league.round).toBe(g.league.round + 1);
+    expect(daysBetween(before, back.calendar.date)).toBeGreaterThan(0);
     expect(addDays(back.calendar.date, 0)).toBe(back.calendar.date);
   });
 });

@@ -118,17 +118,16 @@ describe('순위 감점과 시즌 상한 (부록 C.25)', () => {
 });
 
 describe('세이브 변환 9 → 10 (부록 C.25)', () => {
-  it('부진 연속 0, 시즌 부진 감점 0에서 시작', () => {
+  it('부진 연속·시즌 부진 감점 세이브 왕복, 옛 세이브(9)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig10', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(s, { engine: 'quick' });
+    expect(SAVE_FORMAT_VERSION).toBe(57);
+    const loaded = deserialize(serialize(s));
+    expect(loaded.saveFormat).toBe(57);
+    expect(loaded.player.slumpStreak).toBe(s.player.slumpStreak);
+    expect(loaded.player.season.slumpPenalty).toBe(s.player.season.slumpPenalty);
     const old = JSON.parse(serialize(s));
     old.saveFormat = 9;
-    delete old.player.slumpStreak;
-    delete old.player.season.slumpPenalty;
-    const loaded = deserialize(JSON.stringify(old));
-    expect(SAVE_FORMAT_VERSION).toBe(57);
-    expect(loaded.saveFormat).toBe(57);
-    expect(loaded.player.slumpStreak).toBe(0);
-    expect(loaded.player.season.slumpPenalty).toBe(0);
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
   });
 });

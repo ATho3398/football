@@ -3,7 +3,7 @@ import { BALANCE } from '../src/config/balance';
 import {
   acceptMyOffer, autoMarket, endDay, isMatchDay, newGame, playOthers, playRound, rebuildRosters, SAVE_FORMAT_VERSION, startNextSeason, type GameState,
 } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { withinRules } from '../src/squad';
 import { naturalOvr, type Rosters } from '../src/roster';
 import {
@@ -201,18 +201,15 @@ describe('내 선수 이적과 계약 (18.10, 부록 C.42)', () => {
     expect(weakMovePenalty(400, 85, 70)).toBe(20);
   });
 
-  it('세이브 20 → 21: 이적 기록 없음, 계약 = 지금 팀, 제안 없음', () => {
+  it('옛 세이브(20)는 이어 할 수 없음, 지금 형식은 계약 = 지금 팀, 제안 없음으로 이어 한다', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig21', difficulty: 'normal' });
     for (let k = 0; k < 3; k++) playRound(g, { engine: 'quick' });
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 20;
-    delete raw.transfers;
-    delete raw.market;
-    for (const v of Object.values(raw.playerStats) as number[][]) v.length = 4;
-    const back = deserialize(JSON.stringify(raw));
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
     expect(SAVE_FORMAT_VERSION).toBe(57);
     expect(back.saveFormat).toBe(57);
-    expect(back.transfers).toEqual([]);
     expect(back.market.contract.teamId).toBe(g.player.teamId);
     expect(back.market.offers).toBeNull();
     finishSeason(back);

@@ -122,20 +122,16 @@ describe('부상 진행', () => {
 });
 
 describe('세이브 변환 2 → 3', () => {
-  it('부상 필드를 채운다', () => {
+  it('부상 필드 세이브 왕복, 옛 세이브(2)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig3', difficulty: 'normal' });
     while (s.phase === 'season') playRound(s, { engine: 'quick' });
     const old = JSON.parse(serialize(s));
     old.saveFormat = 2;
-    delete old.player.injury;
-    for (const st of [old.player.season, ...old.player.history]) {
-      delete st.injuries;
-      delete st.injuredWeeks;
-    }
-    const loaded = deserialize(JSON.stringify(old));
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
+    const loaded = deserialize(serialize(s));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.player.injury).toBeNull();
-    expect(loaded.player.history[0]).toMatchObject({ injuries: 0, injuredWeeks: 0 });
+    expect(loaded.player.injury).toEqual(s.player.injury);
+    expect(loaded.player.history[0]).toMatchObject({ injuries: s.player.history[0]!.injuries, injuredWeeks: s.player.history[0]!.injuredWeeks });
     startNextSeason(loaded);
     playRound(loaded);
   });

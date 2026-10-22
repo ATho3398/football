@@ -6,7 +6,7 @@ import { legendaryConditions, legendaryHonorsMet, nextReputationTier, reputation
 import { requestPositionChange } from '../src/proficiency';
 import { settledFrames, type Replay, type ReplayFrame } from '../src/replay';
 import { deserialize, SaveFormatError, serialize } from '../src/save';
-import { checklistItems, FEATURES, isUnlocked, pendingIntro, refreshUnlocks, resetTips, tipFor } from '../src/unlocks';
+import { checklistItems, FEATURES, isUnlocked, refreshUnlocks, resetTips, tipFor } from '../src/unlocks';
 
 const H = (ballonDor: number, trebles = 0, worldCups = 0) => ({ ballonDor, trebles, worldCups });
 
@@ -63,39 +63,20 @@ describe('위상 티어 (8.1 개정, 부록 C.23)', () => {
 });
 
 describe('세이브 변환 8 → 9 (부록 C.23)', () => {
-  function oldSave(rep: number, rounds = 0) {
+  it('위상·안내 상태 세이브 왕복, 옛 세이브(8)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig9', difficulty: 'normal' });
-    for (let i = 0; i < rounds; i++) playRound(s, { engine: 'quick' });
-    s.player.reputation = rep;
+    for (let i = 0; i < 2; i++) playRound(s, { engine: 'quick' });
+    s.player.reputation = 950;
+    expect(SAVE_FORMAT_VERSION).toBe(57);
+    const loaded = deserialize(serialize(s));
+    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
+    expect(loaded.player.reputation).toBe(950);
+    expect(loaded.player.honors).toEqual(s.player.honors);
+    expect(loaded.player.formerPositions).toEqual(s.player.formerPositions);
+    expect(loaded.guide).toEqual(s.guide);
     const old = JSON.parse(serialize(s));
     old.saveFormat = 8;
-    delete old.player.honors;
-    delete old.player.formerPositions;
-    delete old.guide;
-    return old;
-  }
-
-  it('위상 점수는 그대로, 티어만 새 기준으로 (예전 레전더리 850+ → 월드클래스)', () => {
-    const loaded = deserialize(JSON.stringify(oldSave(950)));
-    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
-    expect(loaded.player.reputation).toBe(950);
-    expect(loaded.player.honors).toEqual(H(0));
-    expect(reputationTier(loaded.player.reputation, loaded.player.honors)).toBe('worldClass');
-    // 예전 기준 월드클래스(600)였던 점수 → 탑클래스, 예전 스페셜(150) → 일반
-    expect(reputationTier(deserialize(JSON.stringify(oldSave(600))).player.reputation)).toBe('topClass');
-    expect(reputationTier(deserialize(JSON.stringify(oldSave(150))).player.reputation)).toBe('normal');
-  });
-
-  it('이전 주 포지션 목록, 안내 상태 추가. 이미 경기를 치렀으면 성장이 바로 열리고 소개는 한 번', () => {
-    const fresh = deserialize(JSON.stringify(oldSave(0)));
-    expect(fresh.player.formerPositions).toEqual([]);
-    expect(fresh.guide.unlocked).toEqual([]);
-    expect(fresh.guide.firstMatchSeen).toBe(false);
-    const played = deserialize(JSON.stringify(oldSave(0, 2)));
-    expect(isUnlocked(played.guide, 'growth')).toBe(true);
-    expect(pendingIntro(played.guide)?.id).toBe('growth');
-    expect(played.guide.firstMatchSeen).toBe(true);
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
   });
 });
 

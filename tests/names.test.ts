@@ -66,17 +66,16 @@ describe('짧은 이름 (C.44a)', () => {
 });
 
 describe('세이브 22 → 23 (C.44a)', () => {
-  it('nameOverrides 빈 값, NPC 한글 이름은 지금 표기로', () => {
+  it('nameOverrides 빈 값, NPC 한글 이름은 지금 표기 · 옛 세이브(22)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig21', difficulty: 'normal' });
-    const raw = JSON.parse(serialize(g));
-    delete raw.nameOverrides;
-    for (const n of raw.npcs) if (n.id === 'van-dijk') n.nameKo = '버질 판데이크';
-    raw.saveFormat = 22;
-    const back = deserialize(JSON.stringify(raw));
+    const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(back.nameOverrides).toEqual({});
     const vd = back.npcs.find((n) => n.id === 'van-dijk');
     if (vd) expect(vd.nameKo).toBe('버질 반 다이크');
+    const raw = JSON.parse(serialize(g));
+    raw.saveFormat = 22;
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 
   it('별명은 세이브에 남는다', () => {
