@@ -19,7 +19,8 @@ const SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 const API = 'https://en.wikipedia.org/w/api.php';
 const MIN_GAP_MS = 1100;
 const BACKOFF_MS = [2000, 4000, 8000, 16000];
-const SIZE = 128;
+/** 출력 한 변 (C.77u 사용자 승인: 128 → 256, 머리말 큰 누끼가 선명하게). 옛 128 파일은 --force 로 다시 받을 때 바뀐다 */
+const SIZE = 256;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
@@ -75,9 +76,9 @@ interface Summary {
 
 interface ManifestEntry {
   file: string; source: string; page: string; title: string;
-  /** 배경을 지운 사진 (C.77u). 128px 라 미페 머리말 큰 누끼(cutout, C.57)는 켜지 않고 액자 안에 보인다 */
+  /** 배경을 지운 사진 (C.77u) */
   nobg?: boolean;
-  /** 머리말 큰 누끼로 보일 사진 (C.57). 고해상도 원본으로 크게 만들 때만 손으로 켠다 */
+  /** 머리말 큰 누끼로 보일 사진 (C.57): 원본에서 256px 이상으로 배경을 지운 사진만. 옛 128px 는 nobg 만(액자 안) */
   cutout?: boolean;
   /** 리그 데이터 항목이면 리그 id (C.77u, 지연 로딩 폴더와 같다) */
   league?: string;
@@ -202,12 +203,12 @@ function cutoutReady(): boolean {
 }
 
 /** 배경 제거 + 얼굴·상반신 크롭 (cutout.py) 한 번에 여러 장. 성공한 출력 경로 */
-function cutoutBatch(pairs: [src: string, dest: string][]): Set<string> {
+function cutoutBatch(pairs: [src: string, dest: string][], size = SIZE): Set<string> {
   const done = new Set<string>();
   for (let i = 0; i < pairs.length; i += 40) {
     const chunk = pairs.slice(i, i + 40);
     try {
-      const out = execFileSync(PYTHON, [join(HERE, 'cutout.py'), '--size', String(SIZE), '--model', CUTOUT_MODEL, ...chunk.flat()], { stdio: ['ignore', 'pipe', 'inherit'] });
+      const out = execFileSync(PYTHON, [join(HERE, 'cutout.py'), '--size', String(size), '--model', CUTOUT_MODEL, ...chunk.flat()], { stdio: ['ignore', 'pipe', 'inherit'] });
       for (const line of out.toString().split('\n')) {
         const m = line.match(/ -> (.+)$/);
         if (m) done.add(m[1]!);
@@ -490,13 +491,19 @@ function reconvert(): void {
       }
     }
   }
-  markCutout(manifest, cutoutBatch(pairs));
+  markCutout(manifest, cutoutBatch(pairs), new Set(pairs.map((p) => p[1])));
   saveManifest(manifest);
   console.log(`다시 만듦 · public/facepack ${dirBytes(OUT)} 바이트`);
 }
 
-function markCutout(manifest: Manifest, done: Set<string>): void {
-  for (const e of Object.values(manifest.players)) if (done.has(join(OUT, e.file))) e.nobg = true;
+/** 배경 제거된 선수 표시. 원본(RAW)에서 SIZE ≥ 256 으로 만든 것만 머리말 큰 누끼(cutout) — 128 PNG 를 키우지 않는다 */
+function markCutout(manifest: Manifest, done: Set<string>, fromRaw: Set<string>): void {
+  for (const e of Object.values(manifest.players)) {
+    if (!done.has(join(OUT, e.file))) continue;
+    e.nobg = true;
+    if (SIZE >= 256 && fromRaw.has(join(OUT, e.file))) e.cutout = true;
+    else delete e.cutout;
+  }
 }
 
 /**
@@ -508,16 +515,25 @@ function cutoutExisting(): void {
     process.exit(1);
   }
   const manifest = loadManifest();
-  const pairs: [string, string][] = [];
+  // 원본(RAW)이 있으면 원본에서 SIZE 로, 없으면 지금 PNG 를 그 크기 그대로(키우지 않는다)
+  const fromRaw: [string, string][] = [];
+  const fromPng: [string, string][] = [];
   for (const [id, e] of Object.entries(manifest.players)) {
     if (e.nobg) continue;
     const dest = join(OUT, e.file);
     if (!existsSync(dest)) continue;
-    pairs.push([findRaw('players', id) ?? dest, dest]);
+    const raw = findRaw('players', id);
+    if (raw) fromRaw.push([raw, dest]);
+    else fromPng.push([dest, dest]);
   }
-  console.log(`배경 제거 ${pairs.length}장 (모델 ${CUTOUT_MODEL})`);
-  const done = cutoutBatch(pairs);
-  markCutout(manifest, done);
+  const pngSize = (f: string) => Number(execFileSync('identify', ['-format', '%w', `${f}[0]`]).toString().trim()) || SIZE;
+  console.log(`배경 제거 원본에서 ${fromRaw.length}장 · 지금 PNG 에서 ${fromPng.length}장 (모델 ${CUTOUT_MODEL})`);
+  const done = cutoutBatch(fromRaw);
+  const bySize = new Map<number, [string, string][]>();
+  for (const p of fromPng) bySize.set(pngSize(p[0]), [...(bySize.get(pngSize(p[0])) ?? []), p]);
+  for (const [size, list] of bySize) for (const f of cutoutBatch(list, size)) done.add(f);
+  markCutout(manifest, done, new Set(fromRaw.map((p) => p[1])));
+  const pairs = [...fromRaw, ...fromPng];
   saveManifest(manifest);
   console.log(`배경 제거 ${done.size}/${pairs.length} · public/facepack ${dirBytes(OUT)} 바이트`);
 }
@@ -582,7 +598,7 @@ async function main(): Promise<void> {
   }
   if (pendingCutout.length) {
     console.log(`배경 제거 ${pendingCutout.length}장…`);
-    markCutout(manifest, cutoutBatch(pendingCutout.map((p) => [p.raw, p.dest])));
+    markCutout(manifest, cutoutBatch(pendingCutout.map((p) => [p.raw, p.dest])), new Set(pendingCutout.map((p) => p.dest)));
   }
   saveManifest(manifest);
 

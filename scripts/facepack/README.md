@@ -1,7 +1,7 @@
 # 페이스팩 수집 스크립트
 
 실제 선수(A등급·레전드·미래 스타 + 리그 데이터 실명 선수·GK)의 사진과 등록된 모든 리그 구단 로고를 위키백과에서 받아
-128×128 정사각형 PNG 로 줄여 `public/facepack/` 에 저장한다. 로고는 자르지 않고 짧은 쪽을 투명으로 채워 가운데 맞춤,
+256×256 정사각형 PNG 로 줄여(C.77u 사용자 승인, 옛 파일은 128) `public/facepack/` 에 저장한다. 로고는 자르지 않고 짧은 쪽을 투명으로 채워 가운데 맞춤,
 선수 사진은 배경을 지우고(`cutout.py`, rembg) 얼굴·상반신 중심으로 자른다(C.77u).
 
 ## 실행
@@ -10,7 +10,7 @@
 npm install            # node_modules 가 없을 때
 npm run facepack                       # 선수+구단, 이미 있는 파일은 건너뜀
 npm run facepack -- --only players     # 선수만 (clubs: 구단만)
-npm run facepack -- --force            # 있는 파일도 다시 받기
+npm run facepack -- --force            # 있는 파일도 다시 받기 (옛 128px 를 256px·큰 누끼로 바꿀 때)
 npm run facepack -- --league laliga,seriea   # 그 리그만 (pl = PL 구단 + A등급·레전드·미래 스타)
 npm run facepack -- --cutout           # 배경이 남은 선수 사진만 배경 제거 (네트워크 없음)
 npm run facepack -- --license          # 라이선스 메타데이터가 빈 항목 채우기
