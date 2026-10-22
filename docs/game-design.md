@@ -6703,7 +6703,42 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 7. 문서: engine-issues 로드맵 절(현재값·빅찬스 부분 해결·`saveBase` 가 판단 식 `onball.ts leagueSaveProb` 에도 들어가 슛 선택 빈도를 같이 바꾼다는 메모), pending 143 가중치 정규화 규칙 한 줄.
 
 - 새 화면·큰 패널: **0개**(엔진 측정·테스트·간이 계산만, 부상 등급 이름 "중등도" 한 단어가 기존 부상 표시에 나온다).
-- 테스트 142파일 1180개 통과(새 c77w 3개 · 장면 5개) · typecheck 통과 · balance:check BALANCE_CHECK_RESULT
+- 테스트 142파일 1180개 통과(새 c77w 3개 · 장면 5개) · typecheck 통과 · balance:check: 로컬 nohup 1회(02:07 KST 시작)가 첫 표 출력 뒤 판정 없이 멈춤(프로세스 사라짐, 60분 넘김) — 측정 운영 규칙대로 다시 돌리지 않고 main 푸시 뒤 CI 판정에 맡김
+
+### C.77u 50단계 — 페이스팩 확장: 새 리그 로고·실제 선수 사진(사용자 요청 2026-10-22 20:4x KST): **수집 스크립트를 전 리그 구단(245팀)·리그 실명 선수(506 + GK 3)로 넓힘 · 선수 사진 배경 제거(rembg, 로컬) · 매니페스트에 위키미디어 라이선스 · 설정 › 저장과 안내에 사진·로고 출처 · 리그 폴더 페이스팩은 미리 캐시하지 않음(지연 로딩)** (BALANCE·ENGINE·SAVE_FORMAT 그대로, STAGE_LABEL 그대로 47단계, 엔진 코드 무변경)
+
+**막힘 — 위키백과 접속 불가(처음)**: 이 세션 환경의 네트워크 정책이 en/ko.wikipedia.org · upload/thumb/commons.wikimedia.org · wikidata.org 를 막아(프록시 403) **새 리그 로고·새 선수 사진은 이번에 받지 못함**(리그별 0건, 기존 PL 20구단·237명만). 마스터 Z에 알림. 허용되면 `npm run facepack` 한 번으로 받는다(아래). pypi·github(rembg 모델)는 열려 있어 배경 제거는 진행.
+
+**수집 스크립트** (`scripts/facepack/fetch.ts`, `overrides.ts`, `cutout.py`)
+- 구단: `allLeagueData()` 전 리그. 리그 데이터 id(`laliga:bar`)는 `clubs/<리그>/<코드>.png`(콜론 없는 경로), PL 은 그대로 `clubs/<id>.png`. 문서 제목은 `overrides.ts`(리그 데이터 225팀 중 이름과 문서 제목이 갈리는 팀, 영어 위키 제목·리다이렉트; 챔피언십은 대부분 `<이름> F.C.` 로 찾음) → `<이름> F.C.` → `<이름>` → `<이름> FC` → `<이름> A.F.C.`.
+- 선수: A등급·레전드·미래 스타(기존) + `LEAGUE_PLAYERS`·`LEAGUE_GOALKEEPERS`(A등급과 겹치는 id 제외) → `players/<리그>/<id>.png`. 문서 고르기·의심 판정은 A등급과 같음(출생연도 확인). 하위 리그 실명 선수 대량 입력은 하지 않음(사용자: 가상).
+- 선수 원본은 640px 썸네일로 받아(배경 제거·크롭에 해상도 필요) 실행 끝에 `cutout.py` 한 번에 처리: rembg `isnet-general-use`(u2net_human_seg 보다 경계 깨끗 — 시험 6장 비교) → 불투명 상자 안 빈 곳 20% 넘는 원본(이미 투명)은 지우기 건너뜀 → 머리 가로 중심(사람 위쪽 18% 줄의 알파 중심)·사람 높이 70% 정사각 크롭 → 128×128 RGBA PNG. 파이썬은 `FACEPACK_PYTHON`(rembg 없으면 배경 그대로 두고 경고).
+- 매니페스트 항목에 `league`(리그 데이터), `nobg`(배경 지움), `license`·`artist`·`filePage`(en 위키 API `imageinfo` extmetadata — 커먼즈 파일도 답함; 비자유 로고는 `Non-free (fair use)`). 기존 257항목의 라이선스는 접속 불가로 이번엔 비어 있음 — 목록에는 문서 링크만, 허용되면 `--license` 로 채움.
+- 새 옵션: `--league pl,laliga`(그 리그만, 나머지 보고서 행 유지) · `--cutout`(배경 남은 선수만 배경 제거, 원본 없으면 지금 PNG 에서, 네트워크 없음) · `--license`(라이선스 빈 항목 채움). `report.md` 맨 위에 리그별 구단·선수 수집 표.
+- 다시 돌리는 법(네트워크 허용 뒤): `python3 -m venv .venv && .venv/bin/pip install "rembg[cpu]"` → `FACEPACK_PYTHON=.venv/bin/python npm run facepack` → `npm run facepack -- --license`.
+
+**기존 237명 배경 제거**: 원본(RAW)이 없는 세션이라 지금 128 PNG 에서 `--cutout` 으로 처리(237/237, CPU 약 4분). 전후 `docs/c77u-check/00_배경제거-전후.png`. 대부분 깨끗, 원본이 전신 사진인 몇 명은 작게 남고(128px 한계), 원래 사진이 트로피·동상인 2~3명은 그대로(문서 대표 이미지 문제 — override 대상).
+- **머리말**: 128px 를 미페 머리말 큰 누끼(C.57 `cutout`)로 키우면 폰·PC 모두 크게 흐려져서(확인 캡처) `cutout` 은 켜지 않고 `nobg` 로만 표시 — 머리말은 지금처럼 액자 안(배경이 투명해져 액자 바탕에 사람만). 큰 누끼는 고해상도(≥256) 출력을 정할 때 `cutout: true` 로 켠다(용량 약 2.5배).
+
+**256px 전환 (사용자 승인 21:2x KST, 마스터 Z 전달)**: 출력 한 변 `SIZE` 128 → 256(로고·선수). 원본(500px 썸네일)에서 배경을 지운 256px 선수 사진만 `cutout: true`(머리말 큰 누끼) + `nobg`, 원본 없이 지금 PNG 에서 지운 것은 그 크기 그대로(업스케일 안 함) `nobg` 만. 22:54 KST 위키 접속이 열려 `--force` 재수집을 시작했지만 위키미디어가 공유 출구 IP 에 429(retry-after 10~50초)를 걸어 실효 약 8팀/시간 — 1시간 40분에 PL 13팀만 256px 로 받음(레스터는 429 로 실패, 옛 128 유지). 그 과정에서 고친 것: Node fetch 프록시(`NODE_USE_ENV_PROXY=1`, `NODE_EXTRA_CA_CERTS`), `thumb.wikimedia.org` → `upload.wikimedia.org`(같은 파일), 썸네일 표준 폭만(120·250·330·500·960·1280, 그 밖은 400), 429 물러남 5초~4분·한 항목 실패해도 계속, `FACEPACK_GAP_MS`, 라이선스 50건 묶음 요청(`--license`).
+
+**나머지 사진·로고는 사용자가 직접 넣음 (사용자 00:1x KST "사진은 내가 할게, 나머진 멈춰")**: 수집을 멈추고 지금까지 받은 것으로 마무리. 넣는 법:
+- 파일 위치: 구단 `public/facepack/clubs/<리그>/<코드>.png`(팀 id `리그:코드`, 예 `laliga:bar` → `clubs/laliga/bar.png`; PL 은 `clubs/<id>.png`), 선수 `public/facepack/players/<리그>/<선수 id>.png`(리그 데이터 선수; A등급·레전드·미래 스타는 `players/<id>.png`). id 는 `data/leagues/<리그>.ts`·`data/players/<리그>.ts` 의 id. WebP 도 된다.
+- 크기: 정사각 256×256 권장(투명 PNG; 로고는 가운데, 선수는 얼굴·상반신). 배경이 있는 선수 사진은 `FACEPACK_PYTHON=<rembg 깔린 파이썬> npm run facepack -- --cutout` 으로 지울 수 있다(크기는 그대로).
+- 매니페스트 갱신: `npm run facepack -- --index` — 위 폴더에서 매니페스트에 없는 파일을 찾아 올린다(출처 '사용자', 모르는 id 는 경고 뒤 건너뜀). 그다음 커밋하면 게임·출처 목록에 나온다. 리그 폴더는 미리 캐시 밖(처음 볼 때 캐시).
+- 앱 안에서만 바꾸려면 기존 페이스온(설정 › 꾸미기 › 페이스온, zip 가져오기)도 그대로 쓸 수 있다.
+
+**사용자 사진·로고 1차 (UI_5 `claude/ui-5` 6fa3217, 명세 `docs/ui-requests/facepack-user-apply.md`, 원본 `docs/design/incoming/facepack-user/`)**: 레반도프스키(위키 사진 교체 → `players/lewandowski.png`)·마르코 로이스(새로 → `players/bundesliga/marco-reus.png`)는 UI_5 가 이미 배경 제거·게임 톤 보정(아래 페이드)한 그림이라 `cutout.py` 로 크롭만(이미 투명 판정) 256×256, 매니페스트 `nobg`·`cutout: true`(머리말 큰 누끼), 출처 `사용자`. 도르트문트·바이에른 로고는 받은 그림 그대로 256 정사각 가운데 → `clubs/bundesliga/{bvb,bay}.png`(키 `bundesliga:bvb`·`bundesliga:bay`; 리그 밖 `x:bvb`·`x:bay` 는 `aliasOf` 로 같은 로고). 확인 캡처 `docs/c77u-check/06_사용자-1차-머리말-분데스로고.png`(레반도프스키 시작 홈 머리말 누끼 · 분데스리가 순위표 바이에른·도르트문트 로고, 폰, 페이지 오류 0). 이 뒤에 UI_5 가 같은 폴더·표에 쌓는 것은 다음 작은 에셋 패치에서.
+
+**출처 표시** (`src/ui/faces.ts` `photoCredits()`, `src/ui/views/settings.ts` `creditsBlock`): 설정 › 저장과 안내에 "사진·로고 출처" 줄 + "사진·로고 출처: 위키백과/위키미디어 커먼즈 …" 한 줄(늘 보임), [출처 목록 (n)] 을 누르면 구단 로고 → 선수 사진 순으로 문서 링크(새 탭)·라이선스(파일 문서 링크)·저작자(펼칠 때만 그림, 최대 높이 360px 스크롤). `ui.set.credits`(세이브 밖).
+
+**지연 로딩** (`src/pwa/swBuild.ts` `precached`): `facepack/clubs/<리그>/`·`facepack/players/<리그>/` 는 sw.js 미리 캐시 목록에서 뺌 → 그 리그 화면이 처음 요청할 때 fetch 처리기가 캐시에 넣는다(C.77r 그대로). 버전 해시는 계속 전체 파일 기준. PL·A등급·레전드·매니페스트는 미리 캐시.
+
+**용량**: public 9,614,304 → 8,980,496 바이트(−0.63MB), public/facepack 6,558,558 → 5,924,750 바이트(배경 제거로 PNG 가 작아짐). 미리 캐시 401개 그대로. 새 리그 로고(약 20KB × 225)·리그 선수(약 25KB × 509)를 받으면 약 +17MB 예상인데 전부 지연 로딩 폴더라 설치 크기는 그대로.
+
+**검증**: `npm run typecheck` ✓ · `npm test` 139파일 1170 ✓(새 `tests/c77u.test.ts` 6: 매니페스트 파일·경로 규칙, nobg·128 RGBA, 미리 캐시 거르기, 출처 목록·설정 화면, 머리말 액자) · `npm run build` ✓ · 엔진 지문 `NORATING=1 same-seed 30` `02579a923829505c`(C.77s 와 같음) · 확인 캡처 `docs/c77u-check/`(폰 390×844: 홈 머리말·선수·월드 순위 PL 로고·설정 출처 목록, PC 1280×800: 홈 머리말·설정 출처 목록; 페이지 오류 0, 가로 넘침 0). 새 리그 순위표 로고는 받지 못해 자동 엠블럼 그대로(캡처 없음).
+
+**새 화면**: 없음(설정 › 저장과 안내 안 출처 목록 패널 1 — 작은 패널).
 
 ### C.77t 44h단계 엔진 블록 — GK 위치 선방·빅찬스(사용자 요청 2026-10-22 20:2x KST "키퍼 찬스 ㄱㄱ", 엔진관리자9 §9.17.3 44h-k): **선방 확률에 GK 도달 항(슛 순간 GK 위치) · 판단 xG 도 같은 식 · GK 자세 잡기 · `saveBase` 1.63 → 1.66 · 휘슬 미룸 — quick 600 과 같은 시드 scoring 30골+ 를 같이 맞추는 `saveBase` 가 없어(관문 1개 미달) 보류했다가 사용자 결정(2026-10-23 00:1x KST, 선택지 (a))으로 1.66 그대로 `main` 배포, 30골+ 0.30 은 기록** (ENGINE_VERSION 39 → 40, BALANCE_VERSION 81 → 82, SAVE_FORMAT_VERSION 그대로 — 비행 중 슛 정보 `cover` 는 경기 상태 안, 세이브 구조 무변경)
 
