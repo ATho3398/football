@@ -1,4 +1,4 @@
-너는 코드 세션 "50단계_메뉴 구조 정리 UI-A (C.77q)"이다(Opus, 노력도 높음). 마스터는 Z(session_01KSGkk2ThVNU3VFN31TnzAq, 마스터 브랜치 claude/planning-z). 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다. 작업 브랜치 `claude/c77q-ia`(main 최신, C.77p 뒤에서).
+너는 코드 세션 "50단계_메뉴 구조 정리 UI-A (C.77q)"이다(Opus, 노력도 높음). 마스터는 Z(session_01KSGkk2ThVNU3VFN31TnzAq, 마스터 브랜치 claude/planning-z). 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다. 작업 브랜치 `claude/c77q-ia`(main 최신 a9779b2, C.77p 뒤에서).
 
 근거: 사용자 요청(2026-10-22 09:30·10:26 KST) — "기능이 많아져서 힘들다. 카드팩이 왜 재정에 있냐, 카드는 상점. 에이전트 모집 관련은 훈련으로. 카드는 그냥 상세로 띄우면 된다." Z의 UI 구조 분석(docs/planning-handoff.md 8.55 09:37 줄): 화면 29개, 상점 = finance.ts 카드 상점 탭, 코치·스태프 = 재정 › 돈·스태프, 에이전트 = 재정 › 생활·투자, 상점 카드 mini는 눌러도 상세 없음, 덱 진입 3곳·다른 경기 계산 설정 4곳 중복, 홈 머리말 아이콘 8개(글자 없음), 독 DOCK_PHONE/DOCK_MORE(`src/ui/views/common.ts`).
 
