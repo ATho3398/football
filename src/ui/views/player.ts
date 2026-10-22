@@ -47,6 +47,8 @@ export interface PlayerParts {
   legendOpen?: boolean;
   /** 기록 탭 맨 위 기록 도전 (C.74b) */
   records?: string;
+  /** 에이전트 섹션 html (C.77q, 계약 탭) */
+  agent?: string;
 }
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
@@ -68,7 +70,8 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
     if (t === 'body') return parts.body;
     if (t === 'pos') return posTab(vm, !!parts.legendOpen);
     if (t === 'record') return `${parts.records ?? ''}${recordTab(vm)}`;
-    return parts.market ? contractSection(parts.market) : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
+    // C.77q: 에이전트(재정 › 생활·투자에서 옮김)는 계약 아래
+    return parts.market ? contractSection(parts.market) + (parts.agent ?? '') : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
   };
   // PC 2열 (C.61 디자인 121·153): 왼쪽 = 프로필 줄 + 능력치 늘, 오른쪽 = 탭 4개(몸·태그 · 포지션 · 기록 · 계약). 능력치 탭이면 오른쪽은 몸·태그
   if (isWide()) {

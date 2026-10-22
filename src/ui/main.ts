@@ -37,7 +37,7 @@ import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { elapsedMapper, replayEvents, replayPlayers } from '../replay';
 import { ENGINE } from '../engine/config';
-import { animCard, cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, demoAnimCards, myRoleId } from './views/deck';
+import { animCard, cardDetailVM, cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, demoAnimCards, myRoleId } from './views/deck';
 import { playGoalSplash, saveGoalSplashPref } from './goalSplash';
 import { markPickSeen, pickKey, pickSeen, playPackReveal, rarityRank, savePackAnimPref, bestRarity, type PackAnimPref } from './packAnim';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
@@ -66,10 +66,10 @@ import {
   adviceCardVM, allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, type DockVM } from './views/common';
+import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
-import { alertCard, homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsSection, scheduleView } from './views/home';
+import { alertCard, homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
 import { takeFreshRecords } from '../records';
 import { goalsSection, homeInboxSection, inboxDetailBody, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
@@ -79,7 +79,7 @@ import { claimNewGameBonus, loadLegacy, recordRetirement, type LegacyStore } fro
 import { answerEvent, autoAnswerInterviews, eventById, fireEvent } from '../events';
 import { competitionSection, meetingView } from './views/manager';
 import { competitionVM, meetingVM } from './managerVM';
-import { financeView, type FinanceTab } from './views/finance';
+import { agentSection, financeView, shopView, staffSection, type FinanceTab } from './views/finance';
 import { photoDexView } from './views/photos';
 import { photoDexVM } from './photoVM';
 import { nationalView, type NationalTab } from './views/national';
@@ -87,7 +87,7 @@ import { nationalVM } from './nationalVM';
 import { awardsView, type AwardsTab } from './views/awards';
 import { awardsVM } from './awardsVM';
 import type { PhotoSort } from '../photocards';
-import { financeVM } from './financeVM';
+import { agentVM, financeVM, staffVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
 import { buyPack, buyShopCard, donate, donateBlocked, moveInvest, setLife, useTp, type InvestKind, type LifeItem, type TpKind } from '../wealth';
 import { holdMeeting, type MeetingChoice } from '../manager';
@@ -133,7 +133,8 @@ import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonT
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
 
-type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'chapter' | 'dex' | 'showroom' | 'national' | 'awards';
+type TrainTab = 'pre' | 'cal' | 'g' | 'staff';
+type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'shop' | 'chapter' | 'dex' | 'showroom' | 'national' | 'awards';
 
 interface ModalState {
   title: string; body?: string; rows?: [string, string][]; confirm: string; act: string; data?: Record<string, string>; tone?: 'info' | 'warning' | 'danger';
@@ -183,8 +184,8 @@ const ui = {
   trainSheet: null as string | null,
   /** 하루 훈련 시트에서 고른 줄 (확정 전, C.57) */
   trainPick: null as string | null,
-  /** 훈련·일정 화면 탭 (C.52) */
-  trainTab: 'pre' as 'pre' | 'cal' | 'g',
+  /** 훈련·일정 화면 탭 (C.52, C.77q 스태프 탭 추가) */
+  trainTab: 'pre' as TrainTab,
   /** 커스텀 프리셋 편집 시트 (C.52): id null = 새로 만들기 */
   presetSheet: null as null | { id: string | null; sel: number; draft: { name: string; slots: TrainingKind[] } | null },
   /** 내 최근 5경기 리플레이 (25.4 2번, C.41): 자동 저장 슬롯과 같이 저장한다. dirty 면 다음 자동 저장 때 쓴다 */
@@ -257,6 +258,8 @@ const ui = {
   playerTab: 'attrs' as PlayerTab,
   /** 재정 화면 탭 (C.68b) */
   financeTab: 'money' as FinanceTab,
+  /** 상점에서 방금 연 카드팩 (C.77q, 세이브 밖): 상점 화면에 mini 로 남겨 눌러서 상세를 본다 */
+  lastPack: [] as string[],
   /** 포토카드 도감 (C.75t): 정렬 · 내림차순 · 뒤집은 카드 */
   dex: { sort: 'no' as PhotoSort, desc: false, flip: null as string | null, open: false },
   /** 대표팀 화면 (C.76d): 탭 · 고른 대회 */
@@ -449,6 +452,14 @@ function go(screen: Screen): void {
   }
 }
 
+/** 옛 진입점 → 새 위치 (C.77q 메뉴 정리, routeOf): 탭을 맞추고 화면을 돌려준다 */
+function redirectScreen(to: string, tab?: string): Screen {
+  const r = routeOf(to, tab);
+  if (r.trainTab) ui.trainTab = r.trainTab;
+  if (r.playerTab) ui.playerTab = r.playerTab as PlayerTab;
+  return r.screen as Screen;
+}
+
 let toastTimer = 0;
 function showToast(t: ToastProps | string, ms = 1600): void {
   ui.toast = typeof t === 'string' ? { kind: 'info', title: t } : t;
@@ -527,16 +538,18 @@ function screenHtml(): string {
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
       // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (기록·주전 경쟁·라이벌) → 안내·포변. C.76g (디자인 204): 시즌 목표는 다음 경기 바로 아래
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsSection(recordRowsVM(g)) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '', homeTodoRow(g.cards?.picks.length ?? 0) + seasonCompsSection(seasonCompsVM(g))) + guideResetLink() + sheet;
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsLinkRow(recordRowsVM(g).length) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '', homeTodoRow(g.cards?.picks.length ?? 0) + seasonCompsSection(seasonCompsVM(g))) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
       const tOpts = ui.trainSheet ? trainingOptionsVM(g, ui.trainSheet) : null;
       const tv = hvm.training;
-      // 훈련·일정 탭 (C.52, 디자인 159): 훈련 프리셋 · 일정 · 게이지
-      const tab = tv ? ui.trainTab : 'cal';
-      const tabs = tv ? Tabs({ items: [{ id: 'pre', label: '훈련 프리셋' }, { id: 'cal', label: '일정' }, { id: 'g', label: '게이지' }], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련·일정' }) : '';
-      const body = !tv ? '' : tab === 'pre' ? presetSection(tv.presets) + weekPreview(tv) : tab === 'g' ? gaugeSection(tv) : trainingSection(tv, false);
+      // 훈련·일정 탭 (C.52, 디자인 159): 훈련 프리셋 · 일정 · 게이지 · 코치·스태프(C.77q, 재정에서 옮김 — 비시즌에도 일정 · 코치·스태프 두 탭)
+      const tab: TrainTab = tv || ui.trainTab === 'staff' ? ui.trainTab : 'cal';
+      const coach = g.phase !== 'retired' ? (g.money?.candidates.length ?? 0) : 0;
+      const staffTab = { id: 'staff', label: coach ? `스태프 ${coach}` : '스태프' };
+      const tabs = g.phase === 'retired' ? '' : Tabs({ items: tv ? [{ id: 'pre', label: '훈련 프리셋' }, { id: 'cal', label: '일정' }, { id: 'g', label: '게이지' }, staffTab] : [{ id: 'cal', label: '일정' }, staffTab], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련·일정' });
+      const body = tab === 'staff' ? staffSection(staffVM(g)) : !tv ? '' : tab === 'pre' ? presetSection(tv.presets) + weekPreview(tv) : tab === 'g' ? gaugeSection(tv) : trainingSection(tv, false);
       const pSheet = tv && ui.presetSheet ? presetEditSheet(presetEditVM(g, ui.presetSheet.id, ui.presetSheet.draft, ui.presetSheet.sel)) : '';
       return scheduleView(hvm, tabs + body, tab === 'cal') + (tOpts ? trainingSheet({ ...tOpts, weakFoot: weakFootLine(g) }, ui.trainSheet!, ui.trainPick) : '') + pSheet;
     }
@@ -551,7 +564,7 @@ function screenHtml(): string {
       const youth = p.youth ? youthClubName(g, p.youth.club) : '';
       const body = bodySection(p, g.phase !== 'retired' && p.body.weakFoot < 5 && p.unspentPoints >= BALANCE.weakFoot.pointCost, myShirt(g), youth, myLookWithEdit(g),
         p.youth && g.league.teams.some((t) => t.id === p.youth!.club) ? p.youth.club : '');
-      return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)) + compRecordSection(compRecordVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
+      return playerView(playerVM(g), { tab: ui.playerTab, body, records: recordsSection(recordRowsVM(g)) + compRecordSection(compRecordVM(g)), market: g.phase !== 'retired' ? marketVM(g) : null, agent: g.phase !== 'retired' ? agentSection(agentVM(g)) : '', points: p.unspentPoints, retired: g.phase === 'retired', legendOpen: ui.legendOpen })
         + (ui.tagsAll ? tagsSheet(p, p.name, youth) : '');
     }
     case 'world': return worldView(worldVM(g, ui.worldLeague), ui.worldTab, ui.worldTab === 'transfers' ? newsSection(newsVM(g), ui.more) + tagNewsSection((g.tagNews ?? []).slice().reverse().map((n) => ({ season: seasonLabel(n.season), name: n.name, team: teamById(g.league, n.teamId).nameKo, tag: n.tag })), ui.more) : '', ui.more, ui.starGroup, ui.worldBoard, ui.worldTab === 'cups' ? cupsView(g) : '');
@@ -574,6 +587,11 @@ function screenHtml(): string {
     }
     case 'contract': return contractView(marketVM(g), ui.renewYears);
     case 'finance': return financeView(financeVM(g), ui.financeTab);
+    case 'shop': {
+      // 상점 (C.77q): 카드를 누르면 덱과 같은 카드 상세 시트 (from 'view' = 닫기만)
+      const sc = ui.cardSheet?.from === 'view' ? cardDetailVM(g, ui.cardSheet.id, myRoleId(g)) : null;
+      return shopView(financeVM(g), { lastPack: ui.lastPack, sheet: sc });
+    }
     case 'dex': return photoDexView(photoDexVM(g, ui.dex.sort, ui.dex.desc, ui.dex.flip), ui.dex.open);
     case 'showroom': return showroomView(showroomVM(g));
     case 'national': return nationalView(nationalVM(g, ui.nat.cup), ui.nat.tab);
@@ -821,7 +839,7 @@ function dockVM(g: GameState): DockVM {
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
   } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
   else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
-  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g), finance: g.money?.candidates.length ?? 0 };
+  return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g), coach: g.money?.candidates.length ?? 0 };
 }
 
 /** "경기 중 · 돌아가기" 띠 (C.39, C.54 디자인 60): 다른 화면 위에. 첫 줄 = 분·스코어, 둘째 줄 = 상태, 오른쪽 [경기로 돌아가기] */
@@ -1951,7 +1969,7 @@ app.addEventListener('click', (ev) => {
       ui.moreSheet = false;
       if (ui.cardSheet?.from === 'view') ui.cardSheet = null;
       if (ui.screen === 'new') readFormInputs();
-      const to = (act === 'go-tab' ? v : el.dataset.to) as Screen;
+      const to = redirectScreen((act === 'go-tab' ? v : el.dataset.to) ?? 'home', el.dataset.tab);
       if (to === 'deck') {
         ui.deckBack = ui.screen === 'prep' ? 'prep' : 'home';
         ui.deckSet = null;
@@ -2526,7 +2544,9 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'fn-tab':
-      ui.financeTab = (v ?? 'money') as FinanceTab;
+      // 옛 재정 › 카드 상점 탭 (C.77q) → 상점 화면
+      if (v === 'shop') { go(redirectScreen('finance', v)); return; }
+      ui.financeTab = v === 'life' ? 'life' : 'money';
       render();
       return;
     case 'fn-buy':
@@ -2543,12 +2563,15 @@ app.addEventListener('click', (ev) => {
       const got = buyPack(g);
       if (got.length) {
         autosave();
+        ui.lastPack = got;
         const cards = got.map((id) => {
           const n = have[id] ?? 0;
           have[id] = n + 1;
           return animCard(cardById(id)!, { isNew: n === 0, dup: n > 0 });
         });
-        void playPackReveal({ pack: { kind: 'pack', name: '일반 카드팩', cover: 'normal' }, cards }).then((shown) => {
+        // 결과 줄을 누르면 그 카드 상세 (C.77q): 상점 화면 위 덱과 같은 시트
+        const onPick = (id: string) => { ui.cardSheet = { id, from: 'view' }; if (ui.screen !== 'shop') go('shop'); else render(); };
+        void playPackReveal({ pack: { kind: 'pack', name: '일반 카드팩', cover: 'normal' }, cards, onPick }).then((shown) => {
           if (!shown) showToast({ kind: 'info', title: `카드팩 · ${got.length}장`, body: got.map((id) => cardById(id)?.name ?? id).join(' · ') }, 2600);
         });
       }
@@ -2700,7 +2723,7 @@ app.addEventListener('click', (ev) => {
       go('schedule');
       return;
     case 'train-tab':
-      if (v === 'pre' || v === 'cal' || v === 'g') ui.trainTab = v;
+      if (v === 'pre' || v === 'cal' || v === 'g' || v === 'staff') ui.trainTab = v;
       render();
       return;
     case 'preset-pick':

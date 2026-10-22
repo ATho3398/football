@@ -81,6 +81,26 @@ function lifeVM(g: GameState, kind: LifeItem): FinanceVM['life'][number] {
   };
 }
 
+export type StaffVM = Pick<FinanceVM, 'slots' | 'used' | 'tierName' | 'staff' | 'scout' | 'candidates' | 'candUntil'>;
+
+/** 코치·스태프 (C.77q: 훈련 화면 탭). 상점(ensureShop)을 건드리지 않게 재정 VM 과 따로 만든다 */
+export function staffVM(g: GameState): StaffVM {
+  const m = ensureMoney(g);
+  return {
+    slots: staffSlots(g), used: m.staff.filter((s) => !s.leaving).length, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation, g.player.honors)],
+    staff: m.staff.map((s) => row(g, s, false)),
+    scout: { cost: moneyLabel(scoutCost(g)), blocked: m.scout ? null : scoutBlocked(g), waiting: m.scout ? `${dateLabel(m.scout.arrive)} 도착 예정 · 후보 ${m.scout.n}명` : null },
+    candidates: m.candidates.map((s) => row(g, s, true)),
+    candUntil: m.candUntil ? dateLabel(m.candUntil) : null,
+  };
+}
+
+/** 에이전트 (C.77q: 선수 › 계약) */
+export function agentVM(g: GameState): FinanceVM['agent'] {
+  const W = BALANCE.wealth;
+  return { premium: ensureMoney(g).agent === 'premium', fee: pct(BALANCE.money.agent), feePremium: pct(W.agentPremium.fee), wageUp: pct(W.agentPremium.wage) };
+}
+
 export function financeVM(g: GameState): FinanceVM {
   const m = ensureMoney(g);
   const w = myWage(g);
@@ -105,11 +125,7 @@ export function financeVM(g: GameState): FinanceVM {
       { label: '스폰서', value: sponsor > 0 ? `시즌 끝 약 ${moneyLabel(Math.round(sponsor / 500) * 500)}` : `탑클래스 위상부터` },
       { label: '생활비', value: `주 ${moneyLabel(Math.round(w * B.living))} (연봉의 ${Math.round(B.living * 100)}%)` },
     ],
-    slots: staffSlots(g), used: m.staff.filter((s) => !s.leaving).length, tierName: TIER_NAMES_KO[tier],
-    staff: m.staff.map((s) => row(g, s, false)),
-    scout: { cost: moneyLabel(scoutCost(g)), blocked: m.scout ? null : scoutBlocked(g), waiting: m.scout ? `${dateLabel(m.scout.arrive)} 도착 예정 · 후보 ${m.scout.n}명` : null },
-    candidates: m.candidates.map((s) => row(g, s, true)),
-    candUntil: m.candUntil ? dateLabel(m.candUntil) : null,
+    ...staffVM(g),
     ledger: m.ledger.slice(-14).reverse().map(([date, cat, amount, note]) => ({
       date: dateLabel(date), label: `${MONEY_CAT_KO[cat]}${note ? ` · ${note}` : ''}`, amount: moneyLabel(amount, true), plus: amount > 0,
     })),
@@ -151,7 +167,7 @@ function wealthVM(g: GameState) {
       })),
       deals: iv.deals.map((d) => ({ label: d.label, amount: moneyLabel(d.amount) })),
     },
-    agent: { premium: m.agent === 'premium', fee: pct(B().agent), feePremium: pct(W.agentPremium.fee), wageUp: pct(W.agentPremium.wage) },
+    agent: agentVM(g),
   };
 }
 

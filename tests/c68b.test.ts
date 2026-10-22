@@ -10,7 +10,7 @@ import { book, ensureMoney, flowsIn, flowsOut, lifeYearly, myWage, onContractSig
 import { deserialize, serialize } from '../src/save';
 import { goalLabel, goalMet, makeGoals, valueLabel } from '../src/seasonGoals';
 import { financeVM } from '../src/ui/financeVM';
-import { financeView } from '../src/ui/views/finance';
+import { financeView, shopView } from '../src/ui/views/finance';
 import { npcAnnualWage, npcValue } from '../src/finance';
 import {
   acceptDeal, assetScore, buyPack, buyShopCard, cardBlocked, donate, endingScores, ensureShop, moveInvest, netWorth, packBlocked, setLife, tpBlocked, useTp,
@@ -237,8 +237,9 @@ describe('재정 화면 탭·세이브 39', () => {
     moveInvest(g, 'deposit', 10000);
     const vm = financeVM(g);
     expect(vm.shop!.length).toBeGreaterThanOrEqual(3);
-    for (const tab of ['money', 'shop', 'life'] as const) expect(financeView(vm, tab)).toContain('재정 탭');
-    expect(financeView(vm, 'shop')).toContain('카드팩');
+    for (const tab of ['money', 'life'] as const) expect(financeView(vm, tab)).toContain('재정 탭');
+    // C.77q: 카드 상점은 상점 화면으로
+    expect(shopView(vm)).toContain('카드팩');
     expect(financeView(vm, 'life')).toContain('엔딩 자산 점수');
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const back = deserialize(serialize(g));

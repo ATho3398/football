@@ -2,7 +2,7 @@
 // 캘린더·주전 경쟁·신뢰도·전술 버튼은 아직 없는 기능이라 숨긴다 (I.19)
 
 import {
-  BottomSheet, Button, Crest, Tabs, OptionRow, FormIndicator, HeroPanel, IconButton, Icon, PlayerCard, SectionTitle, TacticChip, esc, staminaOf, type IconName,
+  BottomSheet, Button, Crest, OptionRow, FormIndicator, HeroPanel, IconButton, Icon, PlayerCard, SectionTitle, TacticChip, esc, staminaOf, type IconName,
 } from '../components';
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
@@ -37,9 +37,9 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
 
 export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = '', after = ''): string {
   const n = vm.next;
-  // C.70 (디자인 161): 날짜 옆은 저장·설정. C.76g (디자인 197·211): 안 읽은 인박스가 있으면 알림 종(배지), 코치 후보가 있으면 재정 동전(배지)
+  // C.70 (디자인 161): 날짜 옆은 저장·설정. C.76g (디자인 197·211): 안 읽은 인박스가 있으면 알림 종(배지), 코치 후보가 있으면 호루라기(배지, C.77q: 훈련 › 스태프로)
   const tools = (vm.inbox ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `알림 ${vm.inbox}`, variant: 'ghost', badge: vm.inbox }) : '')
-    + (vm.money ? IconButton({ act: 'go', data: { to: 'finance' }, name: 'coin', label: `재정 · 코치 후보 ${vm.money}`, variant: 'ghost', badge: vm.money }) : '')
+    + (vm.money ? IconButton({ act: 'go', data: { to: 'staff' }, name: 'whistle', label: `코치 후보 ${vm.money}`, variant: 'ghost', badge: vm.money }) : '')
     + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
     // 포토카드 도감 (C.75t, C.76g 디자인 240B album 아이콘)
     + IconButton({ act: 'go', data: { to: 'dex' }, name: 'album', label: '포토카드 도감', variant: 'ghost' })
@@ -86,8 +86,6 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         ${envRow(n.env)}
         <div class="hm-tac">${n.myTactic ? TacticChip({ size: 'sm', ...n.myTactic }) : ''}<span class="vs">vs</span>${n.oppTactic ? TacticChip({ size: 'sm', team: n.opp, away: true, ...n.oppTactic }) : ''}<span class="grow"></span>${
           n.tacticsOpen ? Button({ size: 'sm', variant: 'ghost', icon: 'tactic', act: 'tac-open', children: '전술' }) : ''}</div>
-        <div class="hm-ctl"><span class="grow">내 선수 결정 · <b>${n.control.mode === 'direct' ? '멈추면 내가 골라요' : '엔진이 대신 골라요'}</b></span>${
-          Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: n.control.mode, act: 'ctl-mode', label: '내 선수 결정' })}</div>
         <div class="hm-btns">${main}<div class="hm-btns__row">${subs}</div></div>`, 'next-card');
   } else if (vm.phase === 'offseason') {
     next = `${SectionTitle({ title: '비시즌 휴가' })}${panel(`<p class="muted">${esc(vm.season)} 시즌이 끝났어요. 휴가 중에는 훈련 선택이 없고 체력이 회복돼요.</p>
@@ -194,7 +192,7 @@ export function positionSheet(options: PositionOptionVM[], pick: string, inSeaso
   });
 }
 
-/** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력, 다른 경기 계산 방식 */
+/** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력 (다른 경기 계산 방식 고르기는 C.77q 에 설정 · 경기 준비만 남김) */
 export function calendarSection(d: DayVM): string {
   const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}${u.cup ? ' is-cup' : ''}"><span class="cal-date">${esc(u.date)}</span>${u.cup ? `<span class="cal-cup">${Icon({ name: 'trophy', size: 12 })}${esc(u.cup)}</span>` : ''}${u.team ? `<button type="button" class="dt-link grow" data-act="team-open" data-v="${esc(u.team)}">${esc(u.text)}</button>` : `<span class="grow">${esc(u.text)}</span>`}${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
   const blanks = Array.from({ length: d.month.lead }, () => '<span class="cal-cell blank"></span>').join('');
@@ -203,8 +201,7 @@ export function calendarSection(d: DayVM): string {
     ${panel(`<ul class="cal-list">${list}</ul>
       <div class="cal-grid" role="grid" aria-label="${esc(d.month.title)} 달력">${['일', '월', '화', '수', '목', '금', '토'].map((w) => `<span class="cal-wd">${w}</span>`).join('')}${blanks}${cells}</div>
       <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span>${d.month.days.some((c) => c.cup) ? `<span>${Icon({ name: 'trophy', size: 10 })} 컵·챔스</span>` : ''}${d.month.days.some((c) => c.life) ? '<span class="cal-life-key">생활(아이콘 + 두 글자)</span>' : ''}</div>
-      <div class="kv"><span class="small">다른 경기 계산</span>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: d.quick ? 'quick' : 'engine', act: 'opt-quick', label: '다른 경기 계산' })}</div>
-      <p class="small muted">${d.quick ? '느린 기기용: 다른 팀 경기를 통계로 바로 계산해요. 선수 기록(득점 순위)은 내 경기만 남아요.' : '다른 팀 경기도 22명 엔진으로 계산해요. 경기 날 [계속]이 몇 초 걸릴 수 있고, 진행 중 [중단]으로 멈출 수 있어요.'}</p>`)}`;
+      <p class="small muted">다른 경기 계산(${d.quick ? '빠른 진행' : '전체 엔진'})은 설정 › 경기 진행에서 바꿔요.</p>`)}`;
 }
 
 /** 훈련·일정 화면 (C.44 독): 오늘 훈련·주간 계획·게이지 + 일정·달력 */
@@ -219,6 +216,13 @@ export function scheduleView(vm: HomeVM, training: string, calendar = true): str
     ? panel(`<p class="muted">비시즌 휴가 중이에요. 훈련 선택이 없고 체력이 회복돼요.${vm.camp ? ` ${esc(vm.camp)} 소집부터 훈련 계획이 다시 시작돼요.` : ''}</p>`)
     : '';
   return `${hero}<div class="body">${off}${training}${vm.day && calendar ? calendarSection(vm.day) : ''}${versionFooter(vm.version)}</div>`;
+}
+
+/** 홈 기록 도전 한 줄 (C.77q): 기록 섹션은 선수 › 기록에만, 홈은 링크 한 줄 */
+export function recordsLinkRow(n: number): string {
+  if (!n) return '';
+  return `<button type="button" class="panel hm-deck" data-act="go" data-to="player" data-tab="record"><span class="hm-train__icon">${Icon({ name: 'target', size: 18 })}</span>
+      <small>기록 도전</small><b class="grow"><span class="po-num">${n}</span>개 진행 중</b><span class="hm-deck__link">선수 › 기록${Icon({ name: 'chevron-right', size: 16 })}</span></button>`;
 }
 
 /** 기록 추적 (C.74b, pending 77-10, 디자인 없음 · 시즌 목표 줄 모양): 남은 기록 1~3줄 */

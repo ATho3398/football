@@ -108,6 +108,8 @@
 .pk-res__eyebrow { margin: 0; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, .6); }
 .pk-res ul { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
 .pk-res__row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: #1c2028; }
+.pk-res__row[data-card] { cursor: pointer; }
+.pk-res__row[data-card]:hover, .pk-res__row[data-card]:focus-visible { outline: 1px solid var(--pk-c, #c6f432); }
 .pk-res__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rc); box-shadow: 0 0 8px var(--rc); flex: none; }
 .pk-res__name { flex: 1; min-width: 0; display: grid; }
 .pk-res__name b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
