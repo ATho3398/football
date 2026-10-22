@@ -73,7 +73,13 @@ export interface Agent {
   /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
   duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
-  rt: { forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number; relief?: number };
+  rt: {
+    forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number; relief?: number;
+    /** 위험 감수 실패 (C.77s A2): 마지막 선택이 전진·침투 패스·크로스·돌파인가, 그 뒤 상대 진영(마지막 1/3 앞)에서 잃은 횟수 */
+    risky?: boolean; riskLost?: number;
+    /** 소극적 백패스 (C.77s A1): 횟수, 허용을 넘긴 가중 합, 같은 소유 순번(passivePoss = 그 소유의 possStartT), 역습 허용을 쓴 소유 */
+    passive?: number; passiveW?: number; passiveSeq?: number; passivePoss?: number; passiveCtr?: number;
+  };
   /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
   cardBoost?: { tackle: number; air: number };
   /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */

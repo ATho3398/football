@@ -26,13 +26,16 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
   if (!lo || lo.team === newTeam) return;
   lo.rt.lost++;
   const nx = attackDir(lo.team, s.half) > 0 ? lo.x / L : 1 - lo.x / L;
+  // 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파 뒤 상대 진영이면 절반 (마지막 1/3 은 attackLost 로 이미 절반, 겹치지 않음)
+  const risk = !!lo.rt.risky && nx > 0.5 && nx <= 2 / 3;
   if (nx < 1 / 3) lo.rt.dangerLost++;
   else if (nx > 2 / 3) lo.rt.attackLost++;
+  else if (risk) lo.rt.riskLost = (lo.rt.riskLost ?? 0) + 1;
   // 직접 모드 도박 실패 완화 (C.75a): 고른 선택지 바로 뒤 내 공 상실이면 감점 일부를 되돌린다
   const rl = s.moments.relief;
   if (rl && lo.spec.isMe && s.t - rl.t <= ENGINE.moments.reliefWindow) {
     const R = ENGINE.rating;
-    const cost = nx < 1 / 3 ? R.dangerLost : nx > 2 / 3 ? R.lost * R.attackLostFactor : R.lost;
+    const cost = nx < 1 / 3 ? R.dangerLost : nx > 2 / 3 ? R.lost * R.attackLostFactor : risk ? R.lost * R.riskLostFactor : R.lost;
     lo.rt.relief = (lo.rt.relief ?? 0) - rl.k * cost;
   }
 }
@@ -40,6 +43,7 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
 export function setOwner(s: SimState, a: Agent): void {
   const b = s.ball;
   recordLoss(s, a.team);
+  a.rt.risky = false;
   // 결정 결과는 첫 소유 변경에서 끝난다 (C.75a 실패 완화는 그때까지만)
   s.moments.relief = null;
   s.lastOwner = a.idx;

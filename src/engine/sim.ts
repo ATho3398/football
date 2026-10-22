@@ -13,7 +13,7 @@ import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './ref
 import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
 import { refreshErrors, updateOffball, updateSituations } from './offball';
-import { candidates, choose, judgementOf } from './onball';
+import { candidates, choose, judgementOf, notePassive } from './onball';
 import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, slipPick, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
@@ -225,11 +225,15 @@ function decide(s: SimState, a: Agent): void {
   if (s.cards && a.spec.isMe) {
     prepCands(s, a, cands);
     const r = autoCardDecide(s, a, cands);
+    const c = r ? r.cand : slipPick(s, a, cands, choose(s, a, cands));
+    notePassive(s, a, c, cands);
     if (r) return runMine(s, a, r.cand, r.mod, r.use, true);
-    return runMine(s, a, slipPick(s, a, cands, choose(s, a, cands)), null, null, false);
+    return runMine(s, a, c, null, null, false);
   }
   // 판단 미끄러짐 (C.75h B안): 내 선수만
   const c = a.spec.isMe ? slipPick(s, a, cands, choose(s, a, cands)) : choose(s, a, cands);
+  // 소극적 백패스 (C.77s A1): 평점 기록만 (선택은 그대로)
+  notePassive(s, a, c, cands);
   if (c.type !== 'holdup') a.backToGoal = false;
   execute(s, a, c);
 }
@@ -461,6 +465,7 @@ function applyChoice(s: SimState, choice: MomentChoice): void {
   }
   if (m.type === 'onball') {
     const o = s.agents[s.ball.owner]!;
+    if (r.cand) notePassive(s, o, r.cand, (m as Moment & { cands?: Candidate[] }).cands ?? []);
     if (r.cand && s.cards) runMine(s, o, r.cand, r.mod, r.use, true, r.down);
     else if (r.cand) {
       if (r.cand.type !== 'holdup') o.backToGoal = false;

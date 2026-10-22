@@ -19,7 +19,7 @@ import { ENGINE } from './config';
 import { duelEdgeOf } from './physics';
 import { directiveVariants } from './directive';
 import { aerialScore, dribbleProb, duelTail } from './duel';
-import { candidates, choose, judgementOf, shotModel, visible, type ActionType, type Candidate } from './onball';
+import { candidates, choose, judgementOf, passivePreview, riskyAction, shotModel, visible, type ActionType, type Candidate } from './onball';
 import { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
 import { ratingDelta, ratingParts } from './rating';
 import { Purpose, rand } from './rng';
@@ -70,6 +70,10 @@ export interface MomentOption {
   exploit?: boolean;
   /** 2단 행동 (C.75k 몰고 가다 슛): 이 행동(몰고 가기) 뒤 다음 결정에서 슛. p 는 첫 단(몰고 가기) 성공 확률 */
   chain?: { type: 'shoot'; p: number };
+  /** 소극적 백패스 감점 (C.77s A1·A3, 평점 단위 < 0): 이 백패스를 고르면 성공·실패와 무관하게 붙는다. 없으면 감점 없음 */
+  passive?: number;
+  /** 기대 평점 (C.77s A3, 표시용): 최적 플레이 봇과 같은 optionValue (성공 뒤 이어질 공격 몫·소극적 감점 포함) */
+  ev?: number;
   /** 내부: 후보 인덱스 / 1대1 행동 번호 */
   ref: number;
 }
@@ -285,7 +289,8 @@ function ratingEstimate(s: SimState, a: Agent, c: Candidate): [number, number] {
   const R = ENGINE.rating;
   const dir = attackDir(a.team, s.half);
   const [ax] = toNorm(a.x, a.y, dir);
-  const lost = ax < 1 / 3 ? R.dangerLost : ax > 2 / 3 ? R.lost * R.attackLostFactor : R.lost;
+  // 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파는 상대 진영이면 riskLostFactor (core recordLoss 와 같은 규칙)
+  const lost = ax < 1 / 3 ? R.dangerLost : ax > 2 / 3 ? R.lost * R.attackLostFactor : ax > 0.5 && riskyAction(s, a, c) ? R.lost * R.riskLostFactor : R.lost;
   const fwd = (c.x - a.x) * dir > 3;
   switch (c.type) {
     case 'shoot': return [R.goal * R.scale, 0];
@@ -457,6 +462,9 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const mk = (c: Candidate, kind: OptionKind = 'safe') => {
     const o = optionOf(s, a, c, kind, cands.indexOf(c), adj);
     if (c.type === 'shoot' && s.cards) o.p = round2(shotP(s, a, c.p));
+    // 소극적 백패스 (C.77s A3): 남은 허용 횟수를 넣은 감점
+    const pv = round2(passivePreview(s, a, c, cands));
+    if (pv < 0) o.passive = pv;
     return o;
   };
   // 같은 이름 줄(예 같은 수비수 돌파 방향만 다름)은 기대 평점이 큰 하나만 (C.75v)
@@ -491,6 +499,8 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   if (!enoughChoices(options, cards)) return false;
   // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로 (카드 선택지는 onballCards 에서, 몰고 가다 슛은 첫 단 확률로)
   for (const o of options) o.down = round2(o.down * failFactor(o.chain ? o.chain.p : o.p));
+  // 기대 평점 (C.77s A3): 카드에 보이는 값 (실패 평점 완화 뒤)
+  for (const o of [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]) o.ev = round2(optionValue(o));
   settleMoment(s, true);
   const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
   const shotNote = shotNoteOf(s, a, cands, [...options, ...cards.flatMap((mc) => (mc.usable && mc.option ? [mc.option] : []))], box);
@@ -1251,7 +1261,8 @@ export function optionValue(o: MomentOption, dp = 0): number {
   const chain = o.action === 'shoot' ? 0
     : o.action === 'pass' || o.action === 'through' || o.action === 'cutback' || o.action === 'layoff' || o.action === 'cross' ? o.value * R.assist * R.scale
     : o.value * R.goal * R.scale * 0.5;
-  return p * (o.up + chain) + (1 - p) * o.down;
+  // 소극적 백패스 감점 (C.77s A1)은 성공·실패와 무관하게 붙는다
+  return p * (o.up + chain) + (1 - p) * o.down + (o.passive ?? 0);
 }
 
 /**

@@ -216,6 +216,8 @@ export interface ChoiceButtonProps extends Action {
   deltaSource?: string;
   success: { text: string; rating: string };
   fail: { text: string; rating: string };
+  /** 기대 평점 (C.77s A3): 성공 뒤 이어질 공격 몫까지 넣은 값, 성공·실패 줄 옆 한 줄 */
+  ev?: string;
   offside?: 'low' | 'mid' | 'high';
   /** 상대 분석 리포트 약점을 노리는 선택지 (C.74c): "약점 공략" 칩 (접은 줄에도 보인다) */
   exploit?: boolean;
@@ -248,7 +250,8 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
     : `<span class="po-choice__prob">${d ? `<s class="po-num">${p.chance}%</s>` : ''}<b class="${cx('po-num', d > 0 && 'is-up', d < 0 && 'is-down')}">${shown}<small>%</small></b>${
       d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar"><i style="width:${shown}%"></i></span></span>`;
   return `<button type="button" class="${cx('po-choice', `po-choice--${p.kind}`, p.kind === 'play' && `po-rarity--${p.rarity ?? 'rare'}`, p.compact && 'po-choice--compact', p.collapsed && 'po-choice--row', p.certain && 'is-certain', p.selected && 'is-selected')}"${actAttrs(p)} aria-pressed="${!!p.selected}"${p.disabled ? ' disabled' : ''}>
-    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}</span></span>${prob}</button>`;
+    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}${
+      p.ev ? `<span class="po-out po-out--ev">${Icon({ name: 'chance', size: 14, strokeWidth: 3 })}<span>기대 평점</span><b class="po-num">${esc(p.ev)}</b></span>` : ''}</span></span>${prob}</button>`;
 }
 
 // ── ResultSplash (결정 결과, 5차 82~84): 도장(성공/실패) + 제목 + 설명 + 평점 ──

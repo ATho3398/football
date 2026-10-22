@@ -6,7 +6,7 @@ import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
@@ -44,6 +44,8 @@ function launch(s: SimState, a: Agent, fl: Flight): void {
 
 export function execute(s: SimState, a: Agent, c: Candidate): void {
   const team = s.teams[a.team];
+  // 위험 감수 실패 (C.77s A2): 이 선택 뒤 상대 진영에서 잃으면 감점 완화
+  a.rt.risky = riskyAction(s, a, c);
   switch (c.type) {
     case 'pass':
     case 'through':

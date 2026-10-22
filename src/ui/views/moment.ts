@@ -81,7 +81,8 @@ function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { nam
   return ChoiceButton({
     act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.chain ? CHAIN_NAME : o.label, chance,
     ...(chance !== null && delta ? { chanceDelta: Math.max(-chance, Math.min(99 - chance, delta)), deltaSource: '카드' } : {}),
-    success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: signedR(o.down) },
+    success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: `${signedR(o.down)}${o.passive ? ` · 소극적 ${signedR(o.passive)}` : ''}` },
+    ...(o.ev !== undefined ? { ev: signedR(o.ev) } : {}),
     ...(o.offside ? { offside: o.offside } : {}), ...(o.exploit ? { exploit: true } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
   });
 }

@@ -16,6 +16,7 @@ import { offsideLine } from './offball';
 import { TENDENCY, widthCrossMul } from './tactics';
 import { chemMul, exploitMul, toMeMul } from './rapport';
 import type { Agent, Flight, SimState } from './state';
+import type { Tendency } from './types';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
@@ -650,6 +651,77 @@ function isMistake(s: SimState, a: Agent, c: Candidate, maxU: number): boolean {
   if (c.type === 'hold') return true;
   if (c.type === 'shoot') return c.u >= maxU - O.mistakeShotGap * O.plausibleGap;
   return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) < -2 && (dist(a.x, a.y, c.x, c.y) < TA.longBall || pressureAt(s, a) > 0);
+}
+
+/**
+ * 소극적 백패스 감점 가중 (C.77s, pending 145 A1): 압박 없이(pressureAt 0) 같은 후보 풀에 앞으로 passiveFwd m+ 가는 패스(p ≥ passiveOpenP)가
+ * 있는데 passiveBack m+ 뒤로(또는 하프라인을 넘어 자기 진영으로) 주는 패스면 가중(1 이상), 아니거나 상황 예외면 0.
+ * commit 이면 순번·역습 허용을 기록한다. 평점에만 쓰고 선택은 바꾸지 않는다 (난수 없음, 지문 불변)
+ */
+function passiveWeight(s: SimState, a: Agent, c: Candidate, pool: Candidate[], commit: boolean): number {
+  const R = ENGINE.rating;
+  if (c.type !== 'pass') return 0;
+  const dir = attackDir(a.team, s.half);
+  const [ax] = toNorm(a.x, a.y, dir);
+  const [cx] = toNorm(c.x, c.y, dir);
+  if ((a.x - c.x) * dir < R.passiveBack && !(ax >= 0.5 && cx < 0.5 && c.x * dir < a.x * dir)) return 0;
+  if (pressureAt(s, a) > 0) return 0;
+  if (!pool.some((o) => (o.type === 'pass' || o.type === 'through') && (o.x - a.x) * dir >= R.passiveFwd && o.p >= R.passiveOpenP)) return 0;
+  const tm = s.teams[a.team];
+  const lead = tm.stats.goals - s.teams[1 - a.team]!.stats.goals;
+  const min = s.t / 60;
+  if (lead >= 2 || (lead === 1 && min >= R.passiveLeadMin)) return 0;
+  if (s.possOrigin !== 'open' && s.t - s.possStartT <= R.passiveRestartT) return 0;
+  const tac = tm.tactics;
+  if (tac.tendency === 'bus' || tac.tendency === 'block') return 0;
+  const rt = a.rt;
+  if (tac.tendency === 'counter' && ax < 0.5 && rt.passiveCtr !== s.possStartT) {
+    if (commit) rt.passiveCtr = s.possStartT;
+    return 0;
+  }
+  const seq = (rt.passivePoss === s.possStartT ? rt.passiveSeq ?? 0 : 0) + 1;
+  if (commit) {
+    rt.passivePoss = s.possStartT;
+    rt.passiveSeq = seq;
+  }
+  let w = 1;
+  if (attackTendency(tac.tendency) || tac.pressing >= R.passiveHighPress) w *= R.passiveAttackMul;
+  if (min >= R.passiveLateMin && lead <= 0) w *= R.passiveLateMul;
+  if (seq >= R.passiveRepeatFrom) w *= R.passiveRepeatMul;
+  return w;
+}
+
+function attackTendency(t: Tendency): boolean {
+  return t === 'gegenpress' || t === 'direct';
+}
+
+/** 소극적 백패스를 센다 (C.77s A1): 허용 횟수를 넘긴 것부터 가중을 passiveW 에 더한다. 고른 후보가 확정된 뒤 (엔진 결정·직접 모드 선택) 한 번 부른다 */
+export function notePassive(s: SimState, a: Agent, c: Candidate, pool: Candidate[]): void {
+  const w = passiveWeight(s, a, c, pool, true);
+  if (w <= 0) return;
+  const rt = a.rt;
+  rt.passive = (rt.passive ?? 0) + 1;
+  if (rt.passive > passiveFree(s, a)) rt.passiveW = (rt.passiveW ?? 0) + w;
+}
+
+function passiveFree(s: SimState, a: Agent): number {
+  const R = ENGINE.rating;
+  return attackTendency(s.teams[a.team].tactics.tendency) ? R.passiveFreeAttack : R.passiveFree;
+}
+
+/** 이 후보를 지금 고르면 붙을 소극적 백패스 감점 (C.77s A3, 평점 단위 ≤ 0): 남은 허용·경기 최대를 반영. 결정 순간 표시용 (기록하지 않는다) */
+export function passivePreview(s: SimState, a: Agent, c: Candidate, pool: Candidate[]): number {
+  const R = ENGINE.rating;
+  const w = passiveWeight(s, a, c, pool, false);
+  if (w <= 0 || (a.rt.passive ?? 0) + 1 <= passiveFree(s, a)) return 0;
+  const used = (a.rt.passiveW ?? 0) * R.passive;
+  return Math.max(R.passiveMax - used, w * R.passive) * R.scale;
+}
+
+/** 위험 감수 행동 (C.77s A2): 전진(passiveFwd m+)·침투 패스·크로스·돌파. 이 선택 뒤 상대 진영에서 잃으면 감점이 riskLostFactor 배 */
+export function riskyAction(s: SimState, a: Agent, c: Candidate): boolean {
+  if (c.type === 'through' || c.type === 'cross' || c.type === 'dribble') return true;
+  return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) >= ENGINE.rating.passiveFwd;
 }
 
 /**

@@ -23,6 +23,12 @@ export interface RatingParts {
   lost: number;
   dangerLost: number;
   attackLost: number;
+  /** 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파 뒤 상대 진영(마지막 1/3 앞)에서 잃은 횟수. 없으면 0 */
+  riskLost?: number;
+  /** 소극적 백패스 (C.77s A1): 허용 횟수를 넘긴 가중 합 (× passive, 경기 최대 passiveMax). 없으면 0 */
+  passive?: number;
+  /** 소극적 백패스 횟수 (허용 안 포함, 측정용 — 평점 식에는 passive 만 쓴다) */
+  passiveN?: number;
   fouls: number;
   offsides: number;
   yellows: number;
@@ -72,6 +78,9 @@ export function ratingParts(s: SimState, a: Agent, duration: number, final = fal
     lost: rt.lost,
     dangerLost: rt.dangerLost,
     attackLost: rt.attackLost,
+    ...(rt.riskLost ? { riskLost: rt.riskLost } : {}),
+    ...(rt.passiveW ? { passive: rt.passiveW } : {}),
+    ...(rt.passive ? { passiveN: rt.passive } : {}),
     fouls: st.fouls,
     offsides: st.offsides,
     yellows: st.yellows,
@@ -95,7 +104,11 @@ export function ratingDelta(p: RatingParts, R: RatingConfig = ENGINE.rating): nu
   d += p.keyPasses * R.keyPass + Math.max(0, p.onTarget - p.goals) * R.onTarget + p.goals * R.goal + p.assists * R.assist;
   d += p.dribbles * R.dribble + p.tackles * R.tackle + p.interceptions * R.interception + p.aerials * R.aerial;
   // 공 상실: 우리 진영 1/3 은 위험 지역 감점, 상대 진영 마지막 1/3 은 시도에 따른 상실이라 절반 (C.26)
-  d += (p.lost - p.dangerLost - p.attackLost) * R.lost + p.attackLost * R.lost * R.attackLostFactor + p.dangerLost * R.dangerLost;
+  // 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파 뒤 상대 진영이면 riskLostFactor
+  const risk = p.riskLost ?? 0;
+  d += (p.lost - p.dangerLost - p.attackLost - risk) * R.lost + p.attackLost * R.lost * R.attackLostFactor + risk * R.lost * R.riskLostFactor + p.dangerLost * R.dangerLost;
+  // 소극적 백패스 (C.77s A1): 경기 최대 passiveMax
+  if (p.passive) d += Math.max(R.passiveMax, p.passive * R.passive);
   d += p.fouls * R.foul + p.offsides * R.offside + p.yellows * R.yellow + p.red * R.red;
   d += p.conceded * R.conceded + p.saves * R.save + p.cleanSheet * R.cleanSheet;
   d += p.result > 0 ? R.win : p.result < 0 ? R.loss : R.draw;

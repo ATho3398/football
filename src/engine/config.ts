@@ -962,6 +962,29 @@ export const ENGINE = {
     dangerLost: -0.1,
     /** 상대 진영 마지막 1/3 에서의 공 상실은 lost × 이 비율 (C.26) */
     attackLostFactor: 0.5,
+    /** 위험 감수 실패 (C.77s, pending 145 A2): 전진(8 m+)·침투 패스·크로스·돌파를 고른 뒤 상대 진영(마지막 1/3 앞)에서 잃으면 lost × 이 비율 */
+    riskLostFactor: 0.5,
+    /**
+     * 소극적 백패스 (C.77s, pending 145 A1): 압박 없이(pressureAt 0) 같은 후보 풀에 앞으로 passiveFwd m+ 가는 패스(p ≥ passiveOpenP)가 있는데
+     * passiveBack m+ 뒤로(또는 자기 진영으로 넘겨) 준 패스. 경기당 passiveFree 회(공격 성향 passiveFreeAttack)를 넘긴 것부터 passive × 가중, 경기 최대 passiveMax(행동 델타 단위).
+     * 가중: 게겐·직선 성향 또는 압박 passiveHighPress 이상 × passiveAttackMul, passiveLateMin 분 뒤 지거나 비기면 × passiveLateMul, 같은 소유 passiveRepeatFrom 번째부터 × passiveRepeatMul.
+     * 예외: 2골+ 리드 · passiveLeadMin 분 뒤 1골 리드 · 버스·블록 · 역습의 자기 진영 백패스 소유당 1회 · 재개 뒤 passiveRestartT 초 안. 평점에만 쓴다(선택은 그대로)
+     */
+    passive: -0.05,
+    passiveFree: 2,
+    passiveFreeAttack: 1,
+    passiveMax: -0.4,
+    passiveOpenP: 0.65,
+    passiveBack: 5,
+    passiveFwd: 8,
+    passiveHighPress: 0.7,
+    passiveAttackMul: 1.5,
+    passiveLateMul: 1.5,
+    passiveLateMin: 60,
+    passiveRepeatMul: 2,
+    passiveRepeatFrom: 3,
+    passiveLeadMin: 80,
+    passiveRestartT: 2,
     foul: -0.05,
     offside: -0.05,
     yellow: -0.2,
