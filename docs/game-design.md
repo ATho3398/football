@@ -6598,7 +6598,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 ### C.77u 50단계 — 페이스팩 확장: 새 리그 로고·실제 선수 사진(사용자 요청 2026-10-22 20:4x KST): **수집 스크립트를 전 리그 구단(245팀)·리그 실명 선수(506 + GK 3)로 넓힘 · 선수 사진 배경 제거(rembg, 로컬) · 매니페스트에 위키미디어 라이선스 · 설정 › 저장과 안내에 사진·로고 출처 · 리그 폴더 페이스팩은 미리 캐시하지 않음(지연 로딩)** (BALANCE·ENGINE·SAVE_FORMAT 그대로, STAGE_LABEL 그대로 47단계, 엔진 코드 무변경)
 
-**막힘 — 위키백과 접속 불가**: 이 세션 환경의 네트워크 정책이 en/ko.wikipedia.org · upload/thumb/commons.wikimedia.org · wikidata.org 를 막아(프록시 403) **새 리그 로고·새 선수 사진은 이번에 받지 못함**(리그별 0건, 기존 PL 20구단·237명만). 마스터 Z에 알림. 허용되면 `npm run facepack` 한 번으로 받는다(아래). pypi·github(rembg 모델)는 열려 있어 배경 제거는 진행.
+**막힘 — 위키백과 접속 불가(처음)**: 이 세션 환경의 네트워크 정책이 en/ko.wikipedia.org · upload/thumb/commons.wikimedia.org · wikidata.org 를 막아(프록시 403) **새 리그 로고·새 선수 사진은 이번에 받지 못함**(리그별 0건, 기존 PL 20구단·237명만). 마스터 Z에 알림. 허용되면 `npm run facepack` 한 번으로 받는다(아래). pypi·github(rembg 모델)는 열려 있어 배경 제거는 진행.
 
 **수집 스크립트** (`scripts/facepack/fetch.ts`, `overrides.ts`, `cutout.py`)
 - 구단: `allLeagueData()` 전 리그. 리그 데이터 id(`laliga:bar`)는 `clubs/<리그>/<코드>.png`(콜론 없는 경로), PL 은 그대로 `clubs/<id>.png`. 문서 제목은 `overrides.ts`(리그 데이터 225팀 중 이름과 문서 제목이 갈리는 팀, 영어 위키 제목·리다이렉트; 챔피언십은 대부분 `<이름> F.C.` 로 찾음) → `<이름> F.C.` → `<이름>` → `<이름> FC` → `<이름> A.F.C.`.
@@ -6611,7 +6611,13 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 **기존 237명 배경 제거**: 원본(RAW)이 없는 세션이라 지금 128 PNG 에서 `--cutout` 으로 처리(237/237, CPU 약 4분). 전후 `docs/c77u-check/00_배경제거-전후.png`. 대부분 깨끗, 원본이 전신 사진인 몇 명은 작게 남고(128px 한계), 원래 사진이 트로피·동상인 2~3명은 그대로(문서 대표 이미지 문제 — override 대상).
 - **머리말**: 128px 를 미페 머리말 큰 누끼(C.57 `cutout`)로 키우면 폰·PC 모두 크게 흐려져서(확인 캡처) `cutout` 은 켜지 않고 `nobg` 로만 표시 — 머리말은 지금처럼 액자 안(배경이 투명해져 액자 바탕에 사람만). 큰 누끼는 고해상도(≥256) 출력을 정할 때 `cutout: true` 로 켠다(용량 약 2.5배).
 
-**256px 전환 (사용자 승인 21:2x KST, 마스터 Z 전달)**: 출력 한 변 `SIZE` 128 → 256(로고·선수). 원본(640px)에서 배경을 지운 256px 선수 사진만 `cutout: true`(머리말 큰 누끼) + `nobg`, 원본 없이 지금 PNG 에서 지운 것은 그 크기 그대로(128 → 256 업스케일 안 함) `nobg` 만. 22:13 KST 다시 시도해도 위키 403 이라 파일은 아직 128 그대로 — 허용되면 `FACEPACK_PYTHON=.venv/bin/python npm run facepack -- --force` 로 전 리그 로고·리그 선수·기존 237명을 256 으로 다시 받고 `-- --license`. 예상 용량 약 2.5배(리그 폴더는 지연 로딩).
+**256px 전환 (사용자 승인 21:2x KST, 마스터 Z 전달)**: 출력 한 변 `SIZE` 128 → 256(로고·선수). 원본(500px 썸네일)에서 배경을 지운 256px 선수 사진만 `cutout: true`(머리말 큰 누끼) + `nobg`, 원본 없이 지금 PNG 에서 지운 것은 그 크기 그대로(업스케일 안 함) `nobg` 만. 22:54 KST 위키 접속이 열려 `--force` 재수집을 시작했지만 위키미디어가 공유 출구 IP 에 429(retry-after 10~50초)를 걸어 실효 약 8팀/시간 — 1시간 40분에 PL 13팀만 256px 로 받음(레스터는 429 로 실패, 옛 128 유지). 그 과정에서 고친 것: Node fetch 프록시(`NODE_USE_ENV_PROXY=1`, `NODE_EXTRA_CA_CERTS`), `thumb.wikimedia.org` → `upload.wikimedia.org`(같은 파일), 썸네일 표준 폭만(120·250·330·500·960·1280, 그 밖은 400), 429 물러남 5초~4분·한 항목 실패해도 계속, `FACEPACK_GAP_MS`, 라이선스 50건 묶음 요청(`--license`).
+
+**나머지 사진·로고는 사용자가 직접 넣음 (사용자 00:1x KST "사진은 내가 할게, 나머진 멈춰")**: 수집을 멈추고 지금까지 받은 것으로 마무리. 넣는 법:
+- 파일 위치: 구단 `public/facepack/clubs/<리그>/<코드>.png`(팀 id `리그:코드`, 예 `laliga:bar` → `clubs/laliga/bar.png`; PL 은 `clubs/<id>.png`), 선수 `public/facepack/players/<리그>/<선수 id>.png`(리그 데이터 선수; A등급·레전드·미래 스타는 `players/<id>.png`). id 는 `data/leagues/<리그>.ts`·`data/players/<리그>.ts` 의 id. WebP 도 된다.
+- 크기: 정사각 256×256 권장(투명 PNG; 로고는 가운데, 선수는 얼굴·상반신). 배경이 있는 선수 사진은 `FACEPACK_PYTHON=<rembg 깔린 파이썬> npm run facepack -- --cutout` 으로 지울 수 있다(크기는 그대로).
+- 매니페스트 갱신: `npm run facepack -- --index` — 위 폴더에서 매니페스트에 없는 파일을 찾아 올린다(출처 '사용자', 모르는 id 는 경고 뒤 건너뜀). 그다음 커밋하면 게임·출처 목록에 나온다. 리그 폴더는 미리 캐시 밖(처음 볼 때 캐시).
+- 앱 안에서만 바꾸려면 기존 페이스온(설정 › 꾸미기 › 페이스온, zip 가져오기)도 그대로 쓸 수 있다.
 
 **출처 표시** (`src/ui/faces.ts` `photoCredits()`, `src/ui/views/settings.ts` `creditsBlock`): 설정 › 저장과 안내에 "사진·로고 출처" 줄 + "사진·로고 출처: 위키백과/위키미디어 커먼즈 …" 한 줄(늘 보임), [출처 목록 (n)] 을 누르면 구단 로고 → 선수 사진 순으로 문서 링크(새 탭)·라이선스(파일 문서 링크)·저작자(펼칠 때만 그림, 최대 높이 360px 스크롤). `ui.set.credits`(세이브 밖).
 

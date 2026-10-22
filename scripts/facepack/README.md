@@ -13,12 +13,13 @@ npm run facepack -- --only players     # 선수만 (clubs: 구단만)
 npm run facepack -- --force            # 있는 파일도 다시 받기 (옛 128px 를 256px·큰 누끼로 바꿀 때)
 npm run facepack -- --league laliga,seriea   # 그 리그만 (pl = PL 구단 + A등급·레전드·미래 스타)
 npm run facepack -- --cutout           # 배경이 남은 선수 사진만 배경 제거 (네트워크 없음)
-npm run facepack -- --license          # 라이선스 메타데이터가 빈 항목 채우기
+npm run facepack -- --license          # 라이선스 메타데이터가 빈 항목 채우기 (50건씩 묶음)
+npm run facepack -- --index            # 손으로 넣은 파일을 매니페스트에 올리기 (네트워크 없음)
 ```
 
 배경 제거 준비(한 번): `python3 -m venv .venv && .venv/bin/pip install "rembg[cpu]"` 뒤 `FACEPACK_PYTHON=.venv/bin/python` 을 붙여 실행.
 모델은 `FACEPACK_CUTOUT_MODEL`(기본 `isnet-general-use`, `~/.u2net/` 에 없으면 rembg 가 github 에서 받는다). rembg 가 없으면 선수 사진은 배경 그대로 두고 경고한다.
-네트워크: en.wikipedia.org, upload.wikimedia.org(이미지) 접속이 필요하다.
+네트워크: en.wikipedia.org, upload.wikimedia.org(이미지) 접속이 필요하다. 프록시 환경에서는 `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=<CA 묶음>`, 429 가 잦으면 `FACEPACK_GAP_MS=6000`.
 
 - 필요: Node 18+(내장 fetch), ImageMagick `convert`/`identify`(WebP 지원).
 - 원본은 저장소 밖 임시 폴더에 둔다. 위치는 `FACEPACK_RAW_DIR` 로 바꿀 수 있다(기본 OS 임시 폴더/facepack-raw).

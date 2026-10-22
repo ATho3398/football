@@ -1,5 +1,5 @@
 // 페이스팩 수집: 실제 선수 사진과 구단 로고를 위키백과 REST 요약 API 로 받아 작은 이미지로 저장한다.
-// 실행: npm run facepack -- [--only players|clubs] [--league <id,...>] [--force] [--cutout] [--license] [--reconvert]
+// 실행: npm run facepack -- [--only players|clubs] [--league <id,...>] [--force] [--cutout] [--license] [--reconvert] [--index]
 // 출력: public/facepack/{players,clubs}/*.png (정사각형, 투명 채움), public/facepack/manifest.json, scripts/facepack/report.md
 // 리그 데이터(C.75n~s) 구단·실명 선수는 하위 폴더 clubs/<리그>/<코드>.png, players/<리그>/<선수 id>.png (리그별 지연 로딩, C.77u)
 // 선수 사진은 배경을 지운다(C.77u, scripts/facepack/cutout.py · rembg, 로컬). 파이썬은 FACEPACK_PYTHON(기본 python3)
@@ -579,7 +579,44 @@ async function fillLicenses(): Promise<void> {
   console.log(`라이선스 채움 ${n}/${todo.length}건`);
 }
 
+/**
+ * --index (C.77u): 손으로 넣은 파일을 매니페스트에 올린다 (네트워크 없음). public/facepack 아래
+ * clubs/<팀 id>.png · clubs/<리그>/<코드>.png(팀 id 리그:코드) · players/<선수 id>.png · players/<리그>/<선수 id>.png 중
+ * 매니페스트에 없거나 경로가 다른 것. 출처는 '사용자'로 적는다. 없는 팀·선수 id 는 경고만 하고 건너뛴다
+ */
+function indexManual(): void {
+  const manifest = loadManifest();
+  const teams = new Set(allLeagueData().flatMap((d) => d.teams.map((t) => t.id)));
+  const players = new Set([...A_GRADE_PLAYERS, ...LEGENDS, ...FUTURE_STARS, ...Object.values(LEAGUE_PLAYERS).flat(), ...Object.values(LEAGUE_GOALKEEPERS).flat()].map((p) => p.id));
+  let added = 0;
+  for (const kind of ['clubs', 'players'] as const) {
+    const root = join(OUT, kind);
+    if (!existsSync(root)) continue;
+    const files: string[] = [];
+    for (const f of readdirSync(root)) {
+      const p = join(root, f);
+      if (statSync(p).isDirectory()) for (const g of readdirSync(p)) files.push(`${f}/${g}`);
+      else files.push(f);
+    }
+    for (const rel of files) {
+      const m = rel.match(/^(?:([^/]+)\/)?([^/]+)\.(png|webp)$/i);
+      if (!m) continue;
+      const [, lg, stem] = m as unknown as [string, string | undefined, string];
+      const id = kind === 'clubs' && lg ? `${lg}:${stem}` : stem;
+      if (!(kind === 'clubs' ? teams : players).has(id)) { console.warn(`[${kind}] ${rel}: 모르는 id ${id}, 건너뜀`); continue; }
+      const file = `${kind}/${rel}`;
+      const e = manifest[kind][id];
+      if (e?.file === file) continue;
+      manifest[kind][id] = { file, source: '사용자', page: '', title: e?.title ?? id, ...(lg && kind === 'players' ? { league: lg } : {}) };
+      added++;
+    }
+  }
+  saveManifest(manifest);
+  console.log(`매니페스트에 올림 ${added}건`);
+}
+
 async function main(): Promise<void> {
+  if (args.includes('--index')) return indexManual();
   if (args.includes('--reconvert')) return reconvert();
   if (args.includes('--cutout')) return cutoutExisting();
   // 연결 확인: 실패하면 출력물을 건드리지 않고 끝낸다
