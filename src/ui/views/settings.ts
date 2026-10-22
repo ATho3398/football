@@ -11,7 +11,7 @@ import { GOAL_SPLASH_PREF_KO, loadGoalSplashPref } from '../goalSplash/model';
 import { PACK_ANIM_PREF_KO, RARITY_KO as PACK_RARITY_KO, loadPackAnimPref } from '../packAnim/model';
 import { Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, PixelTile, SectionTitle, Switch, Tabs, TextField, type IconName } from '../components';
 import {
-  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, heroFaceOf, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
+  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, heroFaceOf, faceOnKeys, faceOnUrls, faceStats, photoCredits, repoCrest, squareLayout, type FaceRef, type FaceSlot,
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import type { LookVM } from './body';
@@ -405,7 +405,7 @@ export function cropStyle(c: { zoom: number; x: number; y: number; slot: FaceSlo
 export type SetPage = 'main' | 'names' | 'pixel' | 'faceon' | 'cardart';
 export type SetSec = 'play' | 'view' | 'look' | 'saves' | 'pack';
 /** 설정 화면 상태: 보고 있는 화면, 펼친 섹션 (하나만, null = 모두 접힘) */
-export interface SetUI { page: SetPage; open: SetSec | null }
+export interface SetUI { page: SetPage; open: SetSec | null; /** 사진·로고 출처 목록 펼침 (C.77u) */ credits?: boolean }
 export const SET_UI_DEFAULT: SetUI = { page: 'main', open: 'play' };
 
 const SECTIONS: { id: SetSec; label: string; title: string }[] = [
@@ -435,6 +435,19 @@ export function setPrecomputeStatus(s: { ready: number; total: number } | null):
   precompute = s;
 }
 const STOP_KO: Record<string, string> = { all: '모든 순간', important: '중요한 순간만', critical: '결정적 순간만' };
+
+/** 사진·로고 출처 (C.77u): 한 줄 안내 + 펼치면 매니페스트의 문서·라이선스 목록 (펼칠 때만 그린다) */
+function creditsBlock(open: boolean): string {
+  const list = photoCredits();
+  const clubs = list.filter((c) => c.kind === 'clubs').length;
+  const head = `<div class="kv"><span>사진·로고 출처</span>${Button({ variant: 'ghost', size: 'sm', act: 'set-credits', children: open ? '목록 닫기' : `출처 목록 (${list.length})` })}</div>
+    <p class="small muted set-credits__lead">사진·로고 출처: 위키백과/위키미디어 커먼즈. 선수 사진은 배경을 지우고 작게 줄였어요. 각 파일의 라이선스를 따르며, 구단 로고는 대부분 비자유 저작물이라 개인 용도로만 써요.</p>`;
+  if (!open) return head;
+  const link = (href: string | undefined, text: string) => (href ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text));
+  const row = (c: (typeof list)[number]) => `<li>${link(c.page, c.title)}<small class="muted">${[c.license ? link(c.filePage, c.license) : c.filePage ? link(c.filePage, '파일') : '', c.artist ? esc(c.artist) : ''].filter(Boolean).join(' · ')}</small></li>`;
+  return `${head}<div class="set-credits"><b class="small">구단 로고 ${clubs}</b><ul>${list.filter((c) => c.kind === 'clubs').map(row).join('')}</ul>
+    <b class="small">선수 사진 ${list.length - clubs}</b><ul>${list.filter((c) => c.kind === 'players').map(row).join('')}</ul></div>`;
+}
 
 function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: boolean, ca: CardArtUI): string {
   const hero = HeroPanel({
@@ -473,7 +486,8 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
   const saves = `<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>${
     // C.73d: 초기화면(타이틀)으로. 자동 저장 뒤 나간다. 경기 중에는 숨긴다
-    g && !locked ? `<div class="kv"><span>초기화면</span>${Button({ variant: 'secondary', size: 'sm', icon: 'home', act: 'to-title', children: '초기화면으로' })}</div>` : ''}`;
+    g && !locked ? `<div class="kv"><span>초기화면</span>${Button({ variant: 'secondary', size: 'sm', icon: 'home', act: 'to-title', children: '초기화면으로' })}</div>` : ''}
+    ${creditsBlock(!!set.credits)}`;
   const st = faceStats();
   const pack = `<p class="small">내가 올린 이미지(카드 이미지 포함, <b>cards/</b> 폴더)를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
     <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0 && userArtCount() === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`;
@@ -482,7 +496,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     const cur: SetSec = set.open ?? 'play';
     const bodies: Record<SetSec, [string, string, boolean?]> = {
       play: [playSub, play, locked && !!g], view: [pvSub, pv], look: [lookSub, look],
-      saves: [`세이브 관리 · 첫 플레이 안내 다시 보기${g && !locked ? ' · 초기화면으로' : ''}`, saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
+      saves: [`세이브 관리 · 첫 플레이 안내 다시 보기${g && !locked ? ' · 초기화면으로' : ''} · 사진·로고 출처`, saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
     };
     const [sub, body, lk] = bodies[cur];
     return `${hero}<div class="body set-body">${pc2(setNav('main', cur), `${locked ? Banner({ tone: 'warning', title: '경기 중이에요', children: '경기 진행 설정은 경기가 끝나면 바꿀 수 있어요. 화면 보기·꾸미기는 지금도 돼요.' }) : ''}${
@@ -494,7 +508,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     ${section('play', playSub, open('play'), play, locked && !!g)}
     ${section('view', pvSub, open('view'), pv)}
     ${section('look', lookSub, open('look'), look)}
-    ${section('saves', '세이브 관리 · 첫 플레이 안내 다시 보기', open('saves'), saves)}
+    ${section('saves', '세이브 관리 · 첫 플레이 안내 다시 보기 · 사진·로고 출처', open('saves'), saves)}
     ${section('pack', `이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, open('pack'), pack)}
     <input type="file" id="fp-file" accept=".zip,application/zip" hidden>
     ${versionFooter(version)}

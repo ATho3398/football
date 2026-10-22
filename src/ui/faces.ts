@@ -34,7 +34,12 @@ const NEAR_SLOTS: Readonly<Record<AgeSlot, readonly AgeSlot[]>> = {
   young: ['young', 'prime', 'veteran'], prime: ['prime', 'young', 'veteran'], veteran: ['veteran', 'prime', 'young'],
 };
 
-interface PhotoEntry { file: string; source?: string; page?: string; title?: string; /** 배경 없는 사진 (C.57) */ cutout?: boolean }
+interface PhotoEntry { file: string; source?: string; page?: string; title?: string; /** 배경 없는 사진 (C.57) */ cutout?: boolean;
+  /** 배경을 지운 사진 (C.77u, 128px 라 머리말은 액자 그대로) */ nobg?: boolean;
+  /** 위키미디어 파일 메타데이터 (C.77u) */ license?: string; artist?: string; filePage?: string }
+
+/** 설정 › 저장과 안내 › 사진·로고 출처 목록 한 줄 (C.77u) */
+export interface PhotoCredit { kind: 'players' | 'clubs'; id: string; title: string; page?: string; license?: string; artist?: string; filePage?: string }
 interface PhotoManifest { players?: Record<string, PhotoEntry>; clubs?: Record<string, PhotoEntry> }
 interface BaseEntry { file: string; appearance: Appearance }
 
@@ -55,6 +60,8 @@ export function defaultPhotoSrc(photo: FacePhoto, kind: 'face' | 'full' = 'face'
 
 const state = {
   photos: { players: {} as Record<string, string>, clubs: {} as Record<string, string>, cutout: new Set<string>() },
+  /** 레포 사진·로고 출처 (C.77u) */
+  credits: [] as PhotoCredit[],
   base: [] as BaseEntry[],
   /** 도트 얼굴 (캐릭터 보기): 선수 id → 파일, 외모군 → 파일 목록 */
   pixel: { players: {} as Record<string, string>, appearance: {} as Partial<Record<Appearance, string[]>> },
@@ -209,6 +216,11 @@ export function repoCrest(teamId: string): string | undefined {
   return state.photos.clubs[teamId] ?? (a ? state.photos.clubs[a] : undefined);
 }
 
+/** 레포 사진·로고 출처 (C.77u, 매니페스트 순서: 구단 → 선수) */
+export function photoCredits(): readonly PhotoCredit[] {
+  return state.credits;
+}
+
 export function faceOnKeys(): { key: string; name: string; slots: FaceSlot[] }[] {
   return [...state.faceOn.entries()].map(([key, v]) => ({ key, name: v.name, slots: Object.keys(v.urls) as FaceSlot[] }));
 }
@@ -301,6 +313,9 @@ export async function initFaces(): Promise<void> {
     if (e.cutout === true) state.photos.cutout.add(id);
   }
   for (const [id, e] of Object.entries(pm?.clubs ?? {})) state.photos.clubs[id] = FACEPACK_DIR + e.file;
+  state.credits = (['clubs', 'players'] as const).flatMap((kind) => Object.entries(pm?.[kind] ?? {}).map(([id, e]) => ({
+    kind, id, title: e.title ?? id, page: e.page, license: e.license, artist: e.artist, filePage: e.filePage,
+  })));
   state.base = (bm?.faces ?? []).filter((f) => f && typeof f.file === 'string' && typeof f.appearance === 'string');
   try {
     const store = storeBackend();
