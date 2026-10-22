@@ -6611,8 +6611,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 **관문**
 | 관문 | 결과 |
 |---|---|
-| typecheck · test · build | @@TESTS@@ |
-| 워크플로 1회 실행 | @@RUN@@ |
+| typecheck · test · build | ✓ · 139파일 1,167개 ✓(새 `tests/nativeApp.test.ts` 3개) · ✓ (balance·engine 은 코드 무변경이라 로컬 재측정 생략, CI 가 판정) |
+| 워크플로 1회 실행 | 1차 실패(`android-actions/setup-android` 가 sdkmanager `tools` 패키지 없음으로 종료 → 러너 기본 SDK 쓰게 단계 제거) → 2차 **성공**(실행 39777860214, 약 2분 15초) · 아티팩트 `player-one-apk` **17.2 MB**(17,155,216 바이트, 30일 보관) |
 | 웹 동작 무변경 | 서비스 워커 분기·안내 한 줄만(웹에서는 isNativeApp 거짓) |
 
 **데스크톱(Windows, 선택)**: 이번엔 기록만. Tauri(웹뷰2, 설치 파일 ~5 MB, Rust 빌드 windows 러너 10분+)가 Electron(~80 MB)보다 가볍다 — 하려면 같은 워크플로에 `windows-latest` job + `tauri-action`. PC 는 웹판·PWA 설치(크롬 주소창 설치 아이콘)로 이미 오프라인 앱처럼 쓸 수 있어 우선순위 낮음.
