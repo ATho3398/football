@@ -498,17 +498,8 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   let running = s.t < a.runUntil;
   // 라인을 타는 정확도: 능력치가 낮을수록 라인보다 앞에 설 확률이 높다
   const sigma = ((100 - a.attrs.offTheBall) * O.offsideSigma) / L;
-  // ⒟ 침투 취소 (C.77y): 소유자에게서 나에게 오는 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
-  if (running && O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight) {
-    const [anx] = toNorm(a.x, a.y, dir);
-    if ((anx - line) * L >= O.abortOffside || laneRisk(s, owner, a.x, a.y).risk >= O.abortLane) {
-      a.runUntil = s.t;
-      a.giveGo = false;
-      running = false;
-      nx = Math.min(nx, line - O.abortBack / L);
-      urgent = true;
-    }
-  }
+  const n0x = nx;
+  const n0y = ny;
   if (running) {
     nx = line + a.errX * sigma * O.runLineError;
     if (a.giveGo && gRef && (flying || owner?.team === a.team)) {
@@ -520,6 +511,18 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
+    // ⒟ 침투 취소 (C.77y): 소유자에게서 달리는 목표까지 패스 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
+    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight) {
+      const [anx] = toNorm(a.x, a.y, dir);
+      if ((anx - line) * L >= O.abortOffside || laneRisk(s, owner, px, py).risk >= O.abortLane) {
+        a.runUntil = s.t;
+        a.giveGo = false;
+        running = false;
+        nx = Math.min(n0x, line - O.abortBack / L);
+        ny = n0y;
+        urgent = true;
+      }
+    }
   } else if (a.line >= 2) {
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
   }
