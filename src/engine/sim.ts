@@ -213,6 +213,13 @@ function restartDue(s: SimState): boolean {
 
 /** 소유자 결정. 내 선수이고 덱이 있으면 (C.36) 패시브를 얹고, 자동 모드 카드 기회면 F.5 규칙으로 카드를 쓴다 */
 function decide(s: SimState, a: Agent): void {
+  // 원터치 (C.78b): 받는 순간 미리 정한 행동을 그대로 실행 (판단·기록은 그때 끝났다)
+  if (a.pre) {
+    const c = a.pre;
+    a.pre = null;
+    if (c.type !== 'holdup') a.backToGoal = false;
+    return execute(s, a, c);
+  }
   const cands = candidates(s, a);
   // 몰고 가다 슛 둘째 단 (C.75k, 직접 모드에서 고른 의도만): 슛 후보가 있으면 그 슛
   const forced = a.intent ? intentShot(s, a, cands) : null;

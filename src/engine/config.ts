@@ -134,6 +134,45 @@ export const ENGINE = {
     /** 루즈볼을 따라가는 팀별 인원 */
     chasers: 2,
   },
+  // ── 수신·첫 터치 공통 규칙 (C.78b, 공통 규칙 로드맵 5단계 2차) ──
+  receive: {
+    /**
+     * 정지 시간 차등 (0 = 옛 동작 receiveTime + 반응 × 0.5 ≈ 1.1초 고정). 1 이면 패스 수신의 정지 시간 =
+     * clamp(base − touchSkill × (볼 컨트롤 − 70)/100 + ballSpeed × max(0, 공 속도 − 12)/10 + press × 압박(3 m 안 가까울수록) + back × 등지고 받음 − run × 달리며 받음 + 반응 × reactMul, min, max).
+     * 앞을 보고 압박 없이 받는 좋은 첫 터치는 짧고, 등지고 빠른 공을 압박 속에서 받으면 길다
+     */
+    timeModel: 0,
+    base: 0.5,
+    touchSkill: 0.6,
+    ballSpeed: 0.08,
+    press: 0.3,
+    pressDist: 3,
+    back: 0.25,
+    run: 0.1,
+    reactMul: 0.3,
+    min: 0.3,
+    max: 1.1,
+    /** 방향 전환 첫 터치 (timeModel 1): 수신 때 pressDist 안 상대가 있으면 정지 시간 동안 그 반대쪽(앞쪽으로 기움)으로 turnAway m 받아 놓는다. 달리며 받으면 진행 방향으로 계속 몬다 */
+    turnAway: 1.5,
+    /** 침투 패스를 받을 선수의 달리기 목표 = 도착점 + 패스 방향 runOn m (0 = 옛 동작: 도착점에서 멈춤, 받을 때 속도 2.3 m/s) */
+    runOn: 0,
+    /** runOn 일 때 침투 패스 도착점에서 달리는(3 m/s+) 받을 선수가 이 거리(m) 안이면 굴려 보내지 않고 바로 받는다 */
+    runSnap: 2.5,
+    /**
+     * 미리 정하기 (0 = 끔): 땅볼 패스가 날아오는 동안 받는 선수가 다음 행동을 미리 고른다(받는 순간 인지된 상황, 판단력·시야는 choose 그대로).
+     * 원터치 행동(패스·침투·컷백·레이오프·슛)을 고르면 다음 틱에 바로 실행하고, 그 실행 성공은 원터치 배수 otMul 로 판정(같은 패스 판정 식·같은 shotModel):
+     * otMul = clamp(1 − otBase − otSpeed × max(0, 공 속도 − 12)/10 − otPress × 압박 + otSkill × (볼 컨트롤 − 70)/100, otMin, 1).
+     * 원터치가 아니면(유지·몰기·돌파) 공을 멈추고 timeModel 정지 시간 뒤 다시 정한다. 컨트롤 쪽 후보는 정지 시간 동안 다가오는 압박만큼 ctrlCost 를 뺀다
+     */
+    oneTouch: 0,
+    otBase: 0.06,
+    otSpeed: 0.05,
+    otPress: 0.12,
+    otSkill: 0.25,
+    otMin: 0.6,
+    ctrlCost: 0.25,
+    ctrlClose: 4,
+  },
 
   // ── 팀 전술 층 (E.5) ──
   formation: {

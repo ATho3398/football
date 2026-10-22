@@ -2,11 +2,11 @@
 
 import { weakFootMul } from '../body';
 import { ENGINE } from './config';
-import { event, looseBall, reaction, setOwner, setRestart } from './core';
+import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
 import { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb, type ShotCtx } from './keeper';
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
@@ -24,6 +24,7 @@ const FAR_SAVE_FROM = 12;
 const PR = ENGINE.prob;
 const B = ENGINE.ball;
 const K = ENGINE.keeper;
+const RC = ENGINE.receive;
 const G = ENGINE.pitch.goalWidth;
 
 function r(s: SimState, a: number, p: number, k = 0): number {
@@ -935,7 +936,8 @@ function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight,
   const b = s.ball;
   const res: BallReserve = { idx: a.idx, until: s.t + B.reserveTime, kind, from, ...(fl ? { fl } : {}) };
   const d = dist(a.x, a.y, b.x, b.y);
-  if (d <= B.snapReceive) {
+  // 침투 패스를 달리며 받기 (C.78b receive.runOn): 공과 나란히 달려 runSnap m 안이면 굴려 보내지 않고 바로 받는다 (멈춰 공을 기다리지 않게)
+  if (d <= B.snapReceive || (fl?.through && ENGINE.receive.runOn > 0 && d <= ENGINE.receive.runSnap && Math.hypot(a.vx, a.vy) >= 3)) {
     caught(s, a, res);
     return;
   }
@@ -993,7 +995,48 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       }
       s.lastPass = { passer: passer.idx, receiver: a.idx, t: s.t };
       if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
+      if (RC.timeModel > 0 || RC.oneTouch > 0) firstTouch(s, a, fl);
     }
+  }
+}
+
+/**
+ * 첫 터치 (C.78b, 로드맵 5단계 2차): 패스 수신의 정지 시간을 첫 터치·공 속도·압박·몸 방향·달리는 중으로 차등(timeModel),
+ * 압박 반대쪽(또는 달리던 쪽)으로 공을 받아 놓고, 땅볼이면 날아오는 동안 미리 정한 원터치 행동을 다음 틱에 실행한다(oneTouch)
+ */
+function firstTouch(s: SimState, a: Agent, fl: Flight): void {
+  const speed = (fl.aimD ?? Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY)) / Math.max(0.05, fl.dur);
+  const [opp, dNear] = nearestOppOf(s, a);
+  const pr = Math.max(0, 1 - dNear / RC.pressDist);
+  const sp = Math.hypot(a.vx, a.vy);
+  if (RC.timeModel > 0) {
+    const t = receiveTime(s, a, speed, a.backToGoal);
+    // 컷백·레이오프는 원래 빠르게 (반응 시간)
+    a.cooldown = fl.quick ? Math.min(a.cooldown, t) : t;
+    // 받아 놓기: 달리며 받으면 진행 방향으로, 압박이 있으면 그 반대쪽(공격 방향으로 기움)으로 turnAway m
+    if (sp >= 3) {
+      a.tx = clamp(a.x + a.vx * a.cooldown, 1, L - 1);
+      a.ty = clamp(a.y + a.vy * a.cooldown, 1, W - 1);
+    } else if (opp && pr > 0) {
+      const dir = attackDir(a.team, s.half);
+      let ux = (a.x - opp.x) / Math.max(0.1, dNear) + 0.5 * dir;
+      let uy = (a.y - opp.y) / Math.max(0.1, dNear);
+      const n = Math.hypot(ux, uy) || 1;
+      ux /= n;
+      uy /= n;
+      a.tx = clamp(a.x + ux * RC.turnAway, 1, L - 1);
+      a.ty = clamp(a.y + uy * RC.turnAway, 1, W - 1);
+    }
+  }
+  // 미리 정하기: 땅볼만, 직접 모드 내 선수(결정 순간 화면)·카드 경기 내 선수는 그대로
+  if (RC.oneTouch <= 0 || fl.air || a.line === 0 || (a.spec.isMe && (s.cards || s.moments.control.mode === 'direct'))) return;
+  const c = preDecide(s, a, speed, a.cooldown);
+  if (!c) return;
+  a.pre = c;
+  a.cooldown = 0;
+  if (c.type === 'shoot') {
+    a.otMul = oneTouchMul(a, speed, pr);
+    a.otUntil = s.t + 0.25;
   }
 }
 

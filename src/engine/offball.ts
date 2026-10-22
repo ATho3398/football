@@ -422,6 +422,12 @@ export function updateOffball(s: SimState, a: Agent): void {
   if (fl && (fl.outcome === 'receive' && fl.receiver === a.idx || fl.outcome === 'intercept' && fl.interceptor === a.idx)) {
     a.tx = fl.toX;
     a.ty = fl.toY;
+    // 침투 패스는 달리며 받는다 (C.78b receive.runOn): 도착점에서 멈추지 않게 패스 방향으로 runOn m 더 (받는 판정은 도착점 4 m 안 그대로)
+    if (ENGINE.receive.runOn > 0 && fl.outcome === 'receive' && fl.through) {
+      const d = Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) || 1;
+      a.tx = clamp(fl.toX + ((fl.toX - fl.fromX) / d) * ENGINE.receive.runOn, 1, L - 1);
+      a.ty = clamp(fl.toY + ((fl.toY - fl.fromY) / d) * ENGINE.receive.runOn, 1, W - 1);
+    }
     a.urgent = true;
     return;
   }

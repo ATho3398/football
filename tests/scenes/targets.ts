@@ -2,6 +2,7 @@
 // current = C.77w 측정값 (엔진 40, 지문 11ab14dbb9cf9706). 패치가 동작을 바꾸면 이 표를 같이 고친다.
 // C.77x(엔진 41): ① 간격 2.24 m 일정 ② 되돌아서기 1.2초·지나침 2.6 m ③ 느린 CB +1.14초 / 같은 속도 +0.61초 ⑥ 도착 시간 오차 최대 0.07초
 // C.77z: ④ 실제 패스 비행·박스 비움·기대 구석으로 다시 짬 — 끈 모델 느린 횡패스 선방 0.29 · 빠른 컷백 0 · 가운데/비킴 0.67/0.02 · 빈 골 0.67 · 1대1 0.22 · 밀집 0.10 → 켬(KEEPER_ON) 0.61 · 0.13 · 0.56/0.10 · 0.95 · 0.34 · 0.08
+// C.78b: ⑫ 원터치 리턴 0.67 · 그 리턴 마커 뒤 0.69 ⑬ 침투 수신 뒤 슛 0.6 · 2.4초 · 4.2 m/s ⑭ 정지 1.10 대 0.68초 · 안전 0.9 · 압박 탈출 1.0 (x·y·z·78a 켬)
 // C.77y: ⑤ 열림 백패스 6.3 → 0% · 막힘 40.7 → 47.5%(이유 보존) ⑦ 패서 침투 4 → 48.5% · 리턴 침투 패스 성공 0.10 → 0.76(켬)/0.57(끔) ⑧ 패스 성공 0.57 → 0.97 (끈 장면 0.57), 옆으로 3.9 m
 
 import type { SceneId } from './scenes';
@@ -16,6 +17,8 @@ export interface SceneTarget {
   both?: boolean;
   /** C.78a: x·y·z 전부 켬 / 전부 끔 둘 다(전환 상수 TRANSITION_ON 은 켬) */
   xyz?: boolean;
+  /** C.78b: x·y·z·78a 전부 켬 / 전부 끔 둘 다(수신 상수 TOUCH_ON 은 켬) */
+  touch?: boolean;
 }
 
 export const TARGETS: Record<SceneId, SceneTarget> = {
@@ -56,5 +59,20 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
   allIn: {
     goal: '⑪ 몰빵 대형 잃은 직후 상대 역습 슛 기회 (5단계)', enabled: true, xyz: true,
     check: (v) => v.chanceAllIn! >= v.chanceFour! * 1.15 && v.freeAllIn! > v.freeFour! + 1,
+  },
+  // C.78b: 받는 순간(0.2초 안) 원터치 리턴 ≥ 10% · 그 원터치 리턴을 패서가 마커보다 골 쪽에서 받는 비율 ≥ 50% · 리턴 ≥ 40% (수신 끔: 원터치 0 · 리턴 1.2초 뒤)
+  oneTwo: {
+    goal: '⑫ 2:1 원터치 리턴 — 받는 순간 리턴, 패서가 마커 뒤에서 받음 (5단계 2차)', enabled: true, touch: true,
+    check: (v) => v.oneTouch! >= 0.1 && v.otBehind! >= 0.5 && v.returnRate! >= 0.4,
+  },
+  // C.78b: 침투 수신 뒤 슛 ≥ 40% · 받은 뒤 슛까지 ≤ 2.6초 · 받을 때 속도 ≥ 3.5 m/s (수신 끔: 슛 10~20% · 2.7~3.3초 · 3.1 m/s)
+  runIn: {
+    goal: '⑬ 뒤 공간 침투 수신 → 슛까지 시간 (쫓아오는 CB 대비, 5단계 2차)', enabled: true, touch: true,
+    check: (v) => v.shotRate! >= 0.4 && v.shotTime! <= 2.6 && v.recvSpeed! >= 3.5,
+  },
+  // C.78b: 등지고 압박 속 정지 시간이 앞 보고 자유보다 ≥ 0.3초 길다 · 첫 행동이 공 지키기·레이오프·백패스 ≥ 70% · 백패스면 이유 1위 압박 탈출 ≥ 50%
+  backPress: {
+    goal: '⑭ 등지고 압박 속 수신 — 정지 시간 길고 공 지키기·백패스 이유 압박 탈출 (5단계 2차)', enabled: true, touch: true,
+    check: (v) => v.stopBack! >= v.stopFree! + 0.3 && v.safeRate! >= 0.7 && (v.backs === 0 || v.escapeShare! >= 0.5),
   },
 };

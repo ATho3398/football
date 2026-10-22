@@ -125,6 +125,15 @@ export const TRANSITION_ON: Record<string, number> = {
   'offball.exitRun': 1,
 };
 
+/** C.78b 새 동작 상수의 "켜진" 값 (수신 정지 시간 차등·원터치 미리 정하기·침투 달리며 받기): 설정이 0(꺼짐)이어도 장면 테스트는 이 값으로 돈다 */
+export const TOUCH_ON: Record<string, number> = {
+  'receive.timeModel': 1,
+  'receive.oneTouch': 1,
+  'receive.runOn': 3,
+};
+export const TRANSITION_OFF: Record<string, number> = Object.fromEntries(Object.keys(TRANSITION_ON).map((k) => [k, 0]));
+export const TOUCH_OFF: Record<string, number> = Object.fromEntries(Object.keys(TOUCH_ON).map((k) => [k, 0]));
+
 /** C.77y·C.77z 상수의 "꺼진" 값 — C.78a 장면은 x·y·z 켬/끔 둘 다에서 통과해야 한다 */
 export const RECEIVE_OFF: Record<string, number> = Object.fromEntries(Object.keys(RECEIVE_ON).map((k) => [k, 0]));
 export const KEEPER_OFF: Record<string, number> = Object.fromEntries(Object.keys(KEEPER_ON).map((k) => [k, 0]));

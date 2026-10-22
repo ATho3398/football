@@ -49,6 +49,24 @@ export interface Candidate {
   cardD?: number;
   /** 백패스 가치 항 (C.77y): 효용에 더한 성분 (압박 탈출·보존·전환·기회 비용·인지 오차, 골 단위). 측정·장면이 이유를 분류한다 */
   back?: { escape: number; keep: number; sw: number; cost: number; noise: number };
+  /** 원터치 (C.78b): 받는 순간 미리 정한 원터치 행동 (성공 확률에 원터치 배수가 들어 있다) */
+  ot?: boolean;
+}
+
+const RC = ENGINE.receive;
+
+/** 원터치 판단 중인 선수(본인·평균 선수)와 공 속도·압박 (C.78b). 판단 밖에서는 null */
+let otNow: { a: Agent; av: Agent; speed: number; pr: number } | null = null;
+
+/** 원터치 실행 배수 (C.78b): 공이 빠를수록·압박이 클수록 낮고 첫 터치(볼 컨트롤)가 좋을수록 높다 */
+export function oneTouchMul(who: Agent, speed: number, pr: number): number {
+  return clamp(1 - RC.otBase - (RC.otSpeed * Math.max(0, speed - 12)) / 10 - RC.otPress * pr + (RC.otSkill * (who.attrs.ballControl - 70)) / 100, RC.otMin, 1);
+}
+
+/** 지금 판정에 걸리는 원터치 배수: 원터치 판단 중인 본인·평균 선수, 또는 원터치 실행 중(otUntil 전)인 선수. 그 밖 1 */
+function otOf(s: SimState, who: Agent): number {
+  if (otNow && (who === otNow.a || who === otNow.av)) return oneTouchMul(who, otNow.speed, otNow.pr);
+  return who.otUntil !== undefined && s.t < who.otUntil ? who.otMul ?? 1 : 1;
 }
 
 /** 가장 가까운 상대와 거리 */
@@ -131,7 +149,8 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
   const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
-  return passSkillApply(p, skill);
+  // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
+  return passSkillApply(p, skill) * (otNow ? otOf(s, a) : 1);
 }
 
 /** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
@@ -278,6 +297,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   if (ENGINE.keeper.timeModel && press3 > 1) pOn = Math.max(PR.shotMin, pOn - ENGINE.keeper.shotCrowd * (press3 - 1));
   pOn *= angle;
   pOn *= finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot');
+  // 원터치 슛 (C.78b): 판단(미리 정하기)과 실행(다음 틱 shoot)이 같은 배수
+  if (!header && !at) pOn *= otOf(s, a);
   // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
   // 마무리 배수 뒤에 더해 능력과 무관한 상황 보너스로 둔다 (배수 안에 넣으면 엘리트 ST 에 비례해 몰린다 — 미해결 11 축)
   if (!header && blockers === 0 && nearField >= PR.pressureDist) pOn += PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) * angle;
@@ -547,7 +568,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       if (d > O.layoffDist || d < 2) continue;
       const [rx, ry] = toNorm(r.x, r.y, dir);
       if (rx >= ax) continue; // 앞을 보고 받을 2선 (공보다 자기 골 쪽)
-      const layP = (who: Agent) => passSkillApply(PR.passBase - PR.passPerM * d + formBonus(who), who.attrs.shortPassing);
+      const layP = (who: Agent) => passSkillApply(PR.passBase - PR.passPerM * d + formBonus(who), who.attrs.shortPassing) * (otNow ? otOf(s, who) : 1);
       const p = layP(a);
       const pj = judgedP(p, layP(av));
       let value = positionValue(rx, ry) * support(r, r.x, r.y);
@@ -822,7 +843,7 @@ export function riskyAction(s: SimState, a: Agent, c: Candidate): boolean {
  * softmax 선택 (E.22 C): 보이는 후보 중 효용 1위에서 plausibleGap 안의 후보와 실수 유형만, 온도 τ (판단 품질)로 고른다.
  * 보이는 후보가 없으면 (유지는 항상 보인다) 전체에서
  */
-export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
+export function choose(s: SimState, a: Agent, cands: Candidate[], pre = false): Candidate {
   const vis = cands.filter((c, k) => visible(s, a, c, k));
   const pool0 = vis.length ? vis : cands;
   let maxU = -Infinity;
@@ -847,9 +868,41 @@ export function choose(s: SimState, a: Agent, cands: Candidate[]): Candidate {
       break;
     }
   }
+  // 미리 정하기 (C.78b): 컨트롤을 고르면 결정이 아니다 (정지 시간 뒤 다시 정한다) — 기록·측정 훅은 원터치만
+  if (pre && !pool[pick]!.ot) return pool[pick]!;
   recordDecision(s, a, pool0, pool[pick]!);
   if (probe.decide) probe.decide(s, { a, cands, vis: pool0, pool, chosen: pool[pick]!, maxU, gap });
   return pool[pick]!;
+}
+
+const OT_TYPES = new Set<ActionType>(['pass', 'through', 'cutback', 'layoff', 'shoot']);
+
+/**
+ * 미리 정하기 (C.78b, receive.oneTouch): 땅볼 패스를 받는 순간(공이 오는 동안 본 상황) 원터치 행동과 '멈추고 다루기'를 한 번에 고른다.
+ * 원터치 후보 = 원터치 배수를 넣은 같은 후보 식(패스·침투·컷백·레이오프·슛), 다루기 후보 = 모든 후보 그대로에 정지 시간 tCtrl 동안
+ * 다가오는 압박(가장 가까운 상대가 ctrlClose m/s 로 좁힘)만큼 ctrlCost 비율을 상실 쪽으로. 선택은 choose 그대로(판단력·시야·온도).
+ * 원터치를 고르면 그 후보, 다루기를 고르면 null
+ */
+export function preDecide(s: SimState, a: Agent, speed: number, tCtrl: number): Candidate | null {
+  const [, dNear] = nearestOpponent(s, a);
+  const pr = Math.max(0, 1 - dNear / RC.pressDist);
+  const ctrl = candidates(s, a);
+  otNow = { a, av: averageSelf(a), speed, pr };
+  let ot: Candidate[];
+  try {
+    ot = candidates(s, a).filter((c) => OT_TYPES.has(c.type));
+  } finally {
+    otNow = null;
+  }
+  const k = RC.ctrlCost * clamp(1 - (dNear - RC.ctrlClose * tCtrl) / RC.pressDist, 0, 1);
+  const lossHere = lossCost(...toNorm(a.x, a.y, attackDir(a.team, s.half)));
+  for (const c of ctrl) c.u = (1 - k) * c.u + k * lossHere;
+  for (const c of ot) c.ot = true;
+  const pool = [...ot, ...ctrl];
+  const c = choose(s, a, pool, true);
+  if (!c.ot) return null;
+  notePassive(s, a, c, pool);
+  return c;
 }
 
 /** 측정용 (E.22 0번): 상대 진영 결정에서 고른 후보의 효용 순위 (보이는 후보 중) (판단 품질 55 / 70 / 85 구간별 최선·차선·나머지) */
