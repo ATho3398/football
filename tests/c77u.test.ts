@@ -30,7 +30,10 @@ describe('페이스팩 매니페스트 (C.77u)', () => {
   it('선수 사진은 배경을 지웠다 (nobg 표시, 128×128 RGBA PNG). 머리말 큰 누끼(cutout)는 128px 라 켜지 않는다', () => {
     const players = Object.values(manifest.players);
     expect(players.length).toBeGreaterThanOrEqual(237);
-    expect(players.every((e) => e.nobg === true && !e.cutout)).toBe(true);
+    expect(players.every((e) => e.nobg === true)).toBe(true);
+    // 머리말 큰 누끼(cutout)는 사용자가 준 고해상도 사진만 (위키 128px 는 액자)
+    expect(Object.entries(manifest.players).filter(([, e]) => e.cutout).map(([id]) => id).sort()).toEqual(
+      Object.entries(manifest.players).filter(([, e]) => e.source === '사용자').map(([id]) => id).sort());
     const png = readFileSync(join(PUB, 'facepack', manifest.players.son!.file));
     expect(png.readUInt32BE(16)).toBe(128); // IHDR 폭
     expect(png.readUInt32BE(20)).toBe(128);
@@ -67,6 +70,11 @@ describe('사진·로고 출처 (C.77u)', () => {
     expect(list.find((c) => c.id === 'son')?.page).toContain('wikipedia.org');
     expect(heroFaceOf({ id: 'son' })).toEqual({ src: 'facepack/players/son.png', cutout: false });
     expect(crestSrc('mci')).toBe('facepack/clubs/mci.png');
+    // 사용자 사진·로고 1차 (UI_5): 레반도프스키 교체·로이스 새로(머리말 누끼), 분데스리가 키 → 리그 폴더, 리그 밖 x:bay 도 같은 로고
+    expect(heroFaceOf({ id: 'lewandowski' })).toEqual({ src: 'facepack/players/lewandowski.png', cutout: true });
+    expect(heroFaceOf({ id: 'marco-reus' })).toEqual({ src: 'facepack/players/bundesliga/marco-reus.png', cutout: true });
+    expect(crestSrc('bundesliga:bvb')).toBe('facepack/clubs/bundesliga/bvb.png');
+    expect(crestSrc('x:bay')).toBe('facepack/clubs/bundesliga/bay.png');
   });
 
   it('설정 › 저장과 안내: 출처 한 줄은 늘, 목록은 펼쳤을 때만', () => {

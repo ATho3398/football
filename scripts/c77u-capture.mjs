@@ -71,7 +71,7 @@ const start = async (mode, id, seed, shotNew = false) => {
   if (mode === 'real') {
     await act('form', '[data-k="mode"][data-v="real"]');
     await page.waitForTimeout(300);
-    if (!(await has(`[data-act="form"][data-k="realId"][data-v="${id}"]`))) { await page.fill('#f-rq', '손흥민'); await page.locator('#f-rq').dispatchEvent('change'); await page.waitForTimeout(600); }
+    if (!(await has(`[data-act="form"][data-k="realId"][data-v="${id}"]`))) { await page.fill('#f-rq', process.env.QUERY ?? '손흥민'); await page.locator('#f-rq').dispatchEvent('change'); await page.waitForTimeout(600); }
     await page.locator(`[data-act="form"][data-k="realId"][data-v="${id}"]`).first().click();
   }
   await page.waitForTimeout(200);
@@ -90,7 +90,16 @@ const start = async (mode, id, seed, shotNew = false) => {
 
 
 const go = async (to) => { await page.evaluate((t) => { const b = document.createElement('button'); b.dataset.act = 'go'; b.dataset.to = t; document.querySelector('main')?.appendChild(b); b.click(); }, to); await page.waitForTimeout(500); await dismiss(); await top(); };
-if (await start('real', 'son', process.env.SEED ?? 'c77u-check')) {
+if (process.env.USERPACK) {
+  // 사용자 사진·로고 1차 (UI_5): 레반도프스키 머리말 누끼 + 분데스리가 순위표 로고
+  if (await start('real', 'lewandowski', 'c77u-user')) {
+    await tab('home'); await page.waitForTimeout(600);
+    await shot('06_사용자-레반도프스키-머리말');
+    await tab('world'); await page.waitForTimeout(400);
+    await page.evaluate(() => document.querySelector('[data-act="world-league"][data-v="bundesliga"]')?.click()); await page.waitForTimeout(600); await top();
+    await shot('07_사용자-분데스리가-로고');
+  }
+} else if (await start('real', 'son', process.env.SEED ?? 'c77u-check')) {
   await tab('home'); await page.waitForTimeout(600);
   if (want('01')) await shot('01_홈-머리말');
   await tab('player'); await page.waitForTimeout(400);

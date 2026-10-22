@@ -6619,6 +6619,8 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 매니페스트 갱신: `npm run facepack -- --index` — 위 폴더에서 매니페스트에 없는 파일을 찾아 올린다(출처 '사용자', 모르는 id 는 경고 뒤 건너뜀). 그다음 커밋하면 게임·출처 목록에 나온다. 리그 폴더는 미리 캐시 밖(처음 볼 때 캐시).
 - 앱 안에서만 바꾸려면 기존 페이스온(설정 › 꾸미기 › 페이스온, zip 가져오기)도 그대로 쓸 수 있다.
 
+**사용자 사진·로고 1차 (UI_5 `claude/ui-5` 6fa3217, 명세 `docs/ui-requests/facepack-user-apply.md`, 원본 `docs/design/incoming/facepack-user/`)**: 레반도프스키(위키 사진 교체 → `players/lewandowski.png`)·마르코 로이스(새로 → `players/bundesliga/marco-reus.png`)는 UI_5 가 이미 배경 제거·게임 톤 보정(아래 페이드)한 그림이라 `cutout.py` 로 크롭만(이미 투명 판정) 256×256, 매니페스트 `nobg`·`cutout: true`(머리말 큰 누끼), 출처 `사용자`. 도르트문트·바이에른 로고는 받은 그림 그대로 256 정사각 가운데 → `clubs/bundesliga/{bvb,bay}.png`(키 `bundesliga:bvb`·`bundesliga:bay`; 리그 밖 `x:bvb`·`x:bay` 는 `aliasOf` 로 같은 로고). 확인 캡처 `docs/c77u-check/06_사용자-1차-머리말-분데스로고.png`(레반도프스키 시작 홈 머리말 누끼 · 분데스리가 순위표 바이에른·도르트문트 로고, 폰, 페이지 오류 0). 이 뒤에 UI_5 가 같은 폴더·표에 쌓는 것은 다음 작은 에셋 패치에서.
+
 **출처 표시** (`src/ui/faces.ts` `photoCredits()`, `src/ui/views/settings.ts` `creditsBlock`): 설정 › 저장과 안내에 "사진·로고 출처" 줄 + "사진·로고 출처: 위키백과/위키미디어 커먼즈 …" 한 줄(늘 보임), [출처 목록 (n)] 을 누르면 구단 로고 → 선수 사진 순으로 문서 링크(새 탭)·라이선스(파일 문서 링크)·저작자(펼칠 때만 그림, 최대 높이 360px 스크롤). `ui.set.credits`(세이브 밖).
 
 **지연 로딩** (`src/pwa/swBuild.ts` `precached`): `facepack/clubs/<리그>/`·`facepack/players/<리그>/` 는 sw.js 미리 캐시 목록에서 뺌 → 그 리그 화면이 처음 요청할 때 fetch 처리기가 캐시에 넣는다(C.77r 그대로). 버전 해시는 계속 전체 파일 기준. PL·A등급·레전드·매니페스트는 미리 캐시.

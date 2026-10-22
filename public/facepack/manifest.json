@@ -179,10 +179,11 @@
     },
     "lewandowski": {
       "file": "players/lewandowski.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Robert_Lewandowski_NYCFC_v_Chicago_25_July_2026-383.jpg/330px-Robert_Lewandowski_NYCFC_v_Chicago_25_July_2026-383.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
-      "page": "https://en.wikipedia.org/wiki/Robert_Lewandowski",
+      "source": "사용자",
+      "page": "",
       "title": "Robert Lewandowski",
-      "nobg": true
+      "nobg": true,
+      "cutout": true
     },
     "suarez": {
       "file": "players/suarez.png",
@@ -1660,6 +1661,15 @@
       "page": "https://en.wikipedia.org/wiki/J%C3%BAlio_C%C3%A9sar_(football_goalkeeper%2C_born_1979)",
       "title": "Júlio César (football goalkeeper, born 1979)",
       "nobg": true
+    },
+    "marco-reus": {
+      "file": "players/bundesliga/marco-reus.png",
+      "source": "사용자",
+      "page": "",
+      "title": "Marco Reus",
+      "league": "bundesliga",
+      "nobg": true,
+      "cutout": true
     }
   },
   "clubs": {
@@ -1782,6 +1792,20 @@
       "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/4/43/Huddersfield_Town_AFC_crest.svg/330px-Huddersfield_Town_AFC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
       "page": "https://en.wikipedia.org/wiki/Huddersfield_Town_A.F.C.",
       "title": "Huddersfield Town A.F.C."
+    },
+    "bundesliga:bvb": {
+      "file": "clubs/bundesliga/bvb.png",
+      "source": "사용자",
+      "page": "",
+      "title": "Borussia Dortmund",
+      "league": "bundesliga"
+    },
+    "bundesliga:bay": {
+      "file": "clubs/bundesliga/bay.png",
+      "source": "사용자",
+      "page": "",
+      "title": "FC Bayern Munich",
+      "league": "bundesliga"
     }
   }
 }
