@@ -885,3 +885,4 @@
 - (20:2x KST) **사용자 "키퍼 찬스 ㄱㄱ"** → **C.77t = 44h-k GK 위치 선방**(Opus 1차) 시작 `session_01KXHUiwM2Mz2cVEkq8BPoYS` `claude/c77t-gk-reach`, saveBase 0.01 규칙 예외 승인(모양만 바꾸기). 지시문 C.77t.md(푸시 전 충돌 표시 검사 추가). 사용자 질문 "선수풀 확장?" → 6단계 설명.
 - (20:5x KST) **사용자**: ① 하위 리그 실제 선수 입력 불필요 — 가상으로(6단계 선수풀 확장 중 실명 대량 입력 철회) ② 앱 포장 가능하면 진행 → **C.77v**(Capacitor/TWA 안드로이드 APK, GitHub Actions 빌드·아티팩트, 데스크톱 선택) ③ **Fable 필요 없는 것 먼저** ④ **새 리그 팀 로고 + 실제 선수 사진(배경 투명화)** → **C.77u**(facepack 확장, 위키백과/커먼즈, rembg 등 로컬 투명화, 출처 표시). Opus 큐: C.77t(진행) → C.77u → C.77v → pending 144(유망주 로열로드) → 143(감독 성향, 선발=엔진 지문, Opus 가능). 지시문 C.77u·v 작성.
 - (20:49 KST) **C.77u 시작** `session_01YKtbLua91x7weCjEzuEgud` `claude/c77u-facepack`(브랜치 먼저, main 푸시는 C.77t 뒤).
+- (20:58 KST) C.77u 막힘: 환경 네트워크 정책이 위키백과·위키미디어 차단(403) — en/ko.wikipedia.org·upload/thumb/commons.wikimedia.org·wikidata.org. 사용자에게 Allowed domains 추가 요청. 그동안 C.77u는 네트워크 없는 부분(스크립트 확장·기존 237명 rembg 투명화·출처 표시·지연 로딩) 진행.
