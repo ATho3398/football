@@ -97,6 +97,18 @@ export const MOTION_ON: Record<string, number> = {
   'physics.arrivalModel': 1,
 };
 
+/** C.77y 새 동작 상수의 "켜진" 값 (백패스 가치·수신 움직임): 설정이 0(꺼짐)이어도 장면 테스트는 이 값으로 돈다 */
+export const RECEIVE_ON: Record<string, number> = {
+  'onball.backModel': 1,
+  'offball.checkDist': 4,
+  'offball.giveGoChance': 0.6,
+  'offball.swapShare': 0.6,
+  'offball.abortLane': 0.35,
+};
+
+/** C.77x 이동 상수의 "꺼진" 값 (옛 동작) — 3단계 장면이 2단계 없이도 작동하는지 본다 */
+export const MOTION_OFF: Record<string, number> = Object.fromEntries(Object.keys(MOTION_ON).map((k) => [k, 0]));
+
 /** ENGINE 상수를 경로=값으로 잠시 덮어쓰고 fn 을 돌린 뒤 되돌린다 */
 export function withEngine<T>(over: Record<string, number>, fn: () => T): T {
   const old: [Record<string, unknown>, string, unknown][] = [];

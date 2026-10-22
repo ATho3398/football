@@ -221,6 +221,28 @@ export const ENGINE = {
     /** 침투 확률에 곱하는 속도 보정 = 1 + runPace × (속도 − 70)/100 (빠를수록 뒷공간을 더 노린다) */
     runPace: 2.5,
     runSeconds: 3,
+    /**
+     * 수신 움직임 (C.77y, 공통 규칙 로드맵 3단계 B2). 0 이면 각 동작 꺼짐(옛 동작).
+     * ⒜ 받으러 나오기: 같은 편 소유자가 checkPassMax m 안이고 내 checkMark m 안에 상대가 있으면 마커 반대쪽 옆으로 checkDist m (공 쪽으로 checkToBall 몫)
+     */
+    checkDist: 4,
+    checkMark: 2,
+    checkPassMax: 35,
+    checkToBall: 0.3,
+    /** ⒝ 주고 달리기(2:1): 상대 진영에서 성공 패스를 한 선수(줄 2·3, run ≥ giveGoRun)가 받은 지 giveGoT 초 안에 giveGoChance × 공격 위치선정/100 확률로 받은 선수 마커의 뒤(공격 방향 giveGoDepth m, 패서 쪽 giveGoLane m)로 침투 */
+    giveGoChance: 0.6,
+    giveGoT: 1.0,
+    giveGoRun: 0.3,
+    giveGoDepth: 8,
+    giveGoLane: 4,
+    /** ⒞ 자리 교환: 같은 줄 동료가 자기 자리에서 swapDrop m+ 내려와 있으면 그 자리에 가장 가까운 같은 줄 동료(swapRange m 안) 1명이 그 자리 쪽으로 swapShare 만큼 (팀에 한 번에 1명) */
+    swapShare: 0.6,
+    swapDrop: 8,
+    swapRange: 22,
+    /** ⒟ 침투 취소: 침투 중 소유자 → 나 패스 길 위험이 abortLane 이상이거나 오프사이드 라인보다 abortOffside m+ 앞이면 침투를 멈추고 라인 abortBack m 안쪽으로 되돌아 나온다 (0 = 끔) */
+    abortLane: 0.35,
+    abortOffside: 1.5,
+    abortBack: 1.5,
     /** 침투 중 라인 오차 배율 (오프사이드 빈도) */
     runLineError: 3,
     /** 오프사이드 라인 오차 σ = (100 − 공격 위치선정) × offsideSigma (m) */
@@ -553,6 +575,32 @@ export const ENGINE = {
     tempFloor: 0.4,
     /** 무리한 슛 (C.29, 진단 12 B0 ①): 슛은 효용 1위에서 mistakeShotGap × plausibleGap 안일 때만 실수 후보로 남는다. 유지·백패스 실수는 그대로 */
     mistakeShotGap: 2,
+    /**
+     * 백패스 가치 (C.77y, 공통 규칙 로드맵 3단계 B1): 1 = 짧은 백패스를 isMistake 실수 풀에서 빼고 백패스 후보 효용에 가치 항을 더한다, 0 = 옛 동작
+     * (30 m 미만 뒤로 2 m+ 패스는 효용과 무관하게 항상 실수 후보). 가치 항 = 압박 탈출 + 보존 × 보존 가중 + 반대편 전환 × 보존 가중 − 기회 비용 × 비용 가중 (골 단위, 효용에 그대로 더함)
+     */
+    backModel: 1,
+    /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
+    backEscape: 0.012,
+    backEscapeExtra: 0.25,
+    /** 공 보존 = backKeep × 받는 선수 여유(가장 가까운 상대 거리 / backKeepRoom, 상한 1) */
+    backKeep: 0.004,
+    backKeepRoom: 10,
+    /** 반대편 전환 = backSwitch × (1 − 길 위험) — 받는 선수에서 공 반대 측면(공과 y 차 ≥ backSwitchDy m)의 동료에게 가는 패스 길 위험이 가장 낮은 것, 그 동료 backSwitchFree m 안 상대 없음 */
+    backSwitch: 0.004,
+    backSwitchDy: 20,
+    backSwitchFree: 5,
+    /** 기회 비용 = backCost × 앞으로 backFwd m+ 가는 패스·침투 후보의 최대 (성공 확률 × 받는 자리 가치) */
+    backCost: 0.5,
+    backFwd: 8,
+    /** 상황 위험 (보존 가중 = 1 + 합, 비용 가중 = 1 + 합): 리드 · 버스·블록·티키 → 보존 ↑ / 게겐·직선 · 지거나 비기는 backLateMin 분 뒤 → 비용 ↑ */
+    backLeadKeep: 0.5,
+    backTendKeep: 0.5,
+    backTendCost: 0.5,
+    backLateCost: 0.5,
+    backLateMin: 60,
+    /** 인지 오차: 백패스 가치 항 추정 잡음 σ = backNoise × (1 − 판단 품질) (판단력 낮은 선수의 실수는 이 잡음과 비슷한 후보 사이 softmax 로만) */
+    backNoise: 0.01,
     /**
      * 시야 제한 (E.22 C): 몸 방향(움직이는 방향, 등지고 받았으면 자기 골 쪽, 서 있으면 공격 방향)에서 visionCone + visionConeSlope × (시야 − 50) 도
      * 밖이거나 옆으로 switchDist m 넘게 가는 패스(반대편 전환)는 scanBase + scanSlope × (시야 − 50)/50 확률로만 보인다.

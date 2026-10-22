@@ -3,12 +3,12 @@
 
 import { ENGINE } from '../../src/engine/config';
 import { keeperOf, saveProb, shotCover, farSide } from '../../src/engine/keeper';
-import { keeperTarget } from '../../src/engine/offball';
+import { keeperTarget, updateOffball } from '../../src/engine/offball';
 import { arrivalTime } from '../../src/engine/physics';
-import { candidates, choose } from '../../src/engine/onball';
+import { candidates, choose, type Candidate } from '../../src/engine/onball';
 import { L, W } from '../../src/engine/pitch';
 import { probe } from '../../src/engine/probe';
-import type { Agent } from '../../src/engine/state';
+import type { Agent, SimState } from '../../src/engine/state';
 import { DT, gap, move, pick, place, REFRESH, sane, sceneState, setBody } from './harness';
 
 export interface SceneOut {
@@ -232,7 +232,7 @@ export function sceneBackpass(): SceneOut {
     s.possTeam = 0;
     s.possOrigin = 'open';
     s.possStartT = s.t - 30;
-    const res = { back: 0, mistake: 0, noFwd: 0, risk: 0, fwd: 0, ok: true };
+    const res = { back: 0, side: 0, mistake: 0, noFwd: 0, risk: 0, fwd: 0, escape: 0, keep: 0, ok: true };
     const old = probe.decide;
     probe.decide = (_s, p) => {
       const c = p.chosen;
@@ -242,7 +242,13 @@ export function sceneBackpass(): SceneOut {
         if (c.u < p.maxU - p.gap) res.mistake++;
         else if (!fwd.length) res.noFwd++;
         else res.risk++;
+        // 이유 (C.77y 백패스 가치 항): 압박 탈출 대 보존(보존 + 전환) 중 큰 쪽
+        if (c.back) {
+          if (c.back.escape >= c.back.keep + c.back.sw) res.escape++;
+          else res.keep++;
+        }
       } else if ((c.type === 'pass' || c.type === 'through') && c.x - p.a.x >= 5) res.fwd++;
+      else if (c.type === 'pass') res.side++;
     };
     const tick0 = s.tick;
     for (let k = 0; k < 400; k++) {
@@ -258,8 +264,10 @@ export function sceneBackpass(): SceneOut {
   const pc = (n: number) => n / 400;
   return {
     values: {
-      blockedBack: pc(B.back), blockedFwd: pc(B.fwd), blockedMistake: pc(B.mistake), blockedNoFwd: pc(B.noFwd), blockedRisk: pc(B.risk),
-      openBack: pc(O.back), openFwd: pc(O.fwd), openMistake: pc(O.mistake), openNoFwd: pc(O.noFwd), openRisk: pc(O.risk),
+      blockedBack: pc(B.back), blockedSide: pc(B.side), blockedFwd: pc(B.fwd), blockedMistake: pc(B.mistake), blockedNoFwd: pc(B.noFwd), blockedRisk: pc(B.risk),
+      blockedEscape: pc(B.escape), blockedKeep: pc(B.keep),
+      openBack: pc(O.back), openSide: pc(O.side), openFwd: pc(O.fwd), openMistake: pc(O.mistake), openNoFwd: pc(O.noFwd), openRisk: pc(O.risk),
+      openEscape: pc(O.escape), openKeep: pc(O.keep),
     },
     sane: B.ok && O.ok,
   };
@@ -305,5 +313,128 @@ export function sceneArrival(): SceneOut {
   return { values: { maxErr, meanErr: sumErr / n }, sane: ok };
 }
 
-export const SCENES = { chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival } as const;
+/** 열린 플레이 소유: 팀 0 이 공을 가진 채 (owner) 30초째 소유 */
+function own(s: SimState, owner: Agent): void {
+  s.ball.owner = owner.idx;
+  s.ball.x = owner.x;
+  s.ball.y = owner.y;
+  s.ball.flight = null;
+  s.ball.reserve = null;
+  s.possTeam = 0;
+  s.possOrigin = 'open';
+  s.possStartT = s.t - 30;
+}
+
+/** 나머지 선수는 경기에서 비켜 둔다 (팀 0 은 자기 진영 뒤, 팀 1 은 깊은 줄) — 장면 선수만 남긴다 */
+function clearOthers(s: SimState, keep: Agent[]): void {
+  let i = 0;
+  for (const o of s.agents) {
+    if (keep.includes(o)) continue;
+    if (o.line === 0) place(o, o.team === 0 ? 3 : L - 3, 34);
+    else if (o.team === 0) place(o, 30, 4 + (i++ % 10) * 6.5);
+    else place(o, 101, 4 + (i++ % 10) * 6.5);
+  }
+}
+
+/**
+ * ⑦ 2:1 (C.77y): 상대 진영에서 CM 이 ST 에게 패스한 직후. 패서가 침투를 고르는 비율(200 틱)·달리는 목표가 받은 선수 마커 뒤인가·
+ * 1초 뒤 받은 선수의 리턴(침투) 패스 후보가 생기는가 · 그 성공 확률. 마커·나머지 수비는 엔진 오프더볼 판단(반응 주기·이동 능력)으로 움직인다
+ */
+export function sceneGiveGo(): SceneOut {
+  const s = sceneState(4);
+  const passer = pick(s, 0, 2, 1);
+  const recv = pick(s, 0, 3, 0);
+  const marker = pick(s, 1, 1, 1);
+  const cover = pick(s, 1, 1, 2);
+  clearOthers(s, [passer, recv, marker, cover]);
+  passer.role = { ...passer.role, run: 0.6 };
+  passer.attrs = { ...passer.attrs, offTheBall: 80 };
+  setBody(passer, 80);
+  place(passer, 66, 26);
+  place(recv, 76, 34);
+  place(marker, 78, 34.5);
+  place(cover, 88, 24);
+  own(s, recv);
+  s.lastPass = { passer: passer.idx, receiver: recv.idx, t: s.t };
+  const tick0 = s.tick;
+  let runs = 0;
+  let first = -1;
+  for (let k = 0; k < 200; k++) {
+    s.tick = tick0 + k;
+    passer.giveGoT = -1;
+    passer.giveGo = false;
+    passer.runUntil = 0;
+    updateOffball(s, passer);
+    if (s.t < passer.runUntil) {
+      runs++;
+      if (first < 0) first = k;
+    }
+  }
+  let ok = sane(...s.agents);
+  // 첫 침투 틱에서 1초 진행: 패서·마커·덮는 수비 모두 엔진 오프더볼 판단 (REFRESH 마다)
+  s.tick = tick0 + Math.max(0, first);
+  passer.giveGoT = -1;
+  passer.runUntil = 0;
+  updateOffball(s, passer);
+  const behind = (passer.tx - marker.x) * 1;
+  const movers = [passer, marker, cover];
+  let next = 0;
+  for (let t = 0; t < 1.0 - 1e-9; t += DT) {
+    if (t + 1e-9 >= next) {
+      for (const m of movers) if (m !== passer || t > 0) updateOffball(s, m);
+      next = t + REFRESH;
+    }
+    for (const m of movers) move(m);
+    s.t += DT;
+    s.tick++;
+    ok &&= sane(...movers);
+  }
+  const ret = candidates(s, recv).filter((c: Candidate) => c.receiver === passer.idx);
+  const thr = ret.find((c) => c.type === 'through');
+  return {
+    values: { runRate: runs / 200, targetBehind: behind, passerAdvance: passer.x - 66, returnThrough: thr ? 1 : 0, returnP: thr?.p ?? 0 },
+    sane: ok,
+  };
+}
+
+/**
+ * ⑧ 받으러 나오기 (C.77y): 공을 가진 CB 에게서 15 m 앞 CM 에 마커가 1.2 m 붙어 있다. 1.5초 뒤 수신 각도(마커와 거리·CB → CM 패스 성공 확률).
+ * 마커는 엔진 오프더볼 판단 대신 반응 주기(REFRESH)마다 CM 의 골 쪽 1.2 m 를 쫓는다 (자기 이동 능력·C.77x 목표 속도)
+ */
+export function sceneCheck(): SceneOut {
+  const s = sceneState(5);
+  const owner = pick(s, 0, 1, 1);
+  const recv = pick(s, 0, 2, 1);
+  const marker = pick(s, 1, 2, 1);
+  clearOthers(s, [owner, recv, marker]);
+  setBody(recv, 75);
+  setBody(marker, 75);
+  place(owner, 40, 30);
+  place(recv, 55, 36);
+  place(marker, 56.2, 36);
+  own(s, owner);
+  const passP = () => candidates(s, owner).find((c) => c.receiver === recv.idx && (c.type === 'pass' || c.type === 'through'))?.p ?? 0;
+  const p0 = passP();
+  const sep0 = gap(recv, marker);
+  const nextD = { at: 0 };
+  let next = 0;
+  let ok = true;
+  for (let t = 0; t < 1.5 - 1e-9; t += DT) {
+    if (t + 1e-9 >= next) {
+      updateOffball(s, recv);
+      next = t + REFRESH;
+    }
+    track(marker, recv, t, nextD, 1.2, 0);
+    move(recv);
+    move(marker);
+    s.t += DT;
+    s.tick++;
+    ok &&= sane(recv, marker);
+  }
+  // 받는 선수에서 본 소유자와 마커 사이 각도 (도): 180 에 가까울수록 마커가 등 뒤 (공과 사이에 없다)
+  const ang = (Math.acos(((owner.x - recv.x) * (marker.x - recv.x) + (owner.y - recv.y) * (marker.y - recv.y)) / (gap(owner, recv) * gap(marker, recv) || 1)) * 180) / Math.PI;
+  return { values: { sep0, sepEnd: gap(recv, marker), p0, pEnd: passP(), moved: Math.hypot(recv.x - 55, recv.y - 36), angle: ang }, sane: ok };
+}
+
+export const SCENES = { chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival, giveGo: sceneGiveGo, check: sceneCheck } as const;
 export type SceneId = keyof typeof SCENES;

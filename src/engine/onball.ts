@@ -47,6 +47,8 @@ export interface Candidate {
   keeper?: number;
   /** 카드로 더한 성공 확률 %p (C.36, 한 행동 상한 계산용). 카드가 없으면 없다 */
   cardD?: number;
+  /** 백패스 가치 항 (C.77y): 효용에 더한 성분 (압박 탈출·보존·전환·기회 비용·인지 오차, 골 단위). 측정·장면이 이유를 분류한다 */
+  back?: { escape: number; keep: number; sw: number; cost: number; noise: number };
 }
 
 /** 가장 가까운 상대와 거리 */
@@ -99,11 +101,16 @@ export interface LaneInfo {
 }
 
 export function laneRisk(s: SimState, a: Agent, tx: number, ty: number): LaneInfo {
+  return laneRiskAt(s, a.team, a.x, a.y, tx, ty);
+}
+
+/** (fx, fy) → (tx, ty) 패스 길 위험 (team 편이 차는 공) */
+export function laneRiskAt(s: SimState, team: 0 | 1, fx: number, fy: number, tx: number, ty: number): LaneInfo {
   let risk = 0;
   const cutters: LaneInfo['cutters'] = [];
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team) continue;
-    const [d, t] = segDist(o.x, o.y, a.x, a.y, tx, ty);
+    if (!o.onPitch || o.team === team) continue;
+    const [d, t] = segDist(o.x, o.y, fx, fy, tx, ty);
     if (d >= PR.laneWidth || t <= 0.05) continue;
     const prox = 1 - d / PR.laneWidth;
     const w = (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * prox;
@@ -505,6 +512,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     out.push({ type: cutback ? 'cutback' : running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
   }
 
+  if (O.backModel > 0) backValue(s, a, out, dir);
+
   // 포스트플레이 (E.18 A2): 등지고 받은 ST/CF 의 버티기와 레이오프
   if (a.backToGoal && (a.pos === 'ST' || a.pos === 'CF')) {
     for (const r of s.agents) {
@@ -620,6 +629,46 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   return out;
 }
 
+/**
+ * 백패스 가치 항 (C.77y, 로드맵 3단계 B1): 뒤로 2 m+ 가는 패스 후보의 효용에 압박 탈출·공 보존·반대편 전환을 더하고 전진 기회 비용을 뺀다.
+ * 보존·전환은 상황 보존 가중(리드·버스·블록·티키), 비용은 비용 가중(게겐·직선·지는 60분+)을 곱한다. 판단력이 낮을수록 이 항을 잘못 읽는다(인지 오차)
+ */
+function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1): void {
+  let fwdBest = 0;
+  for (const c of out) {
+    if ((c.type === 'pass' || c.type === 'through') && (c.x - a.x) * dir >= O.backFwd) fwdBest = Math.max(fwdBest, c.p * c.value);
+  }
+  let n25 = 0;
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && dist(o.x, o.y, a.x, a.y) < 2.5) n25++;
+  const press = Math.min(1, pressureAt(s, a) + O.backEscapeExtra * Math.max(0, n25 - 1));
+  const tm = s.teams[a.team];
+  const tac = tm.tactics;
+  const lead = tm.stats.goals - s.teams[1 - a.team]!.stats.goals;
+  const keepW = 1 + (lead > 0 ? O.backLeadKeep : 0) + (tac.tendency === 'bus' || tac.tendency === 'block' || tac.tendency === 'tikitaka' ? O.backTendKeep : 0);
+  const costW = 1 + (attackTendency(tac.tendency) ? O.backTendCost : 0) + (lead <= 0 && s.t / 60 >= O.backLateMin ? O.backLateCost : 0);
+  for (const c of out) {
+    if (c.type !== 'pass' || (c.x - a.x) * dir >= -2) continue;
+    const r = s.agents[c.receiver]!;
+    const room = nearestOpponent(s, r, c.x, c.y)[1];
+    const rp = Math.max(0, 1 - room / PR.receiverPressureDist);
+    const escape = O.backEscape * press * (1 - rp);
+    const keep = O.backKeep * Math.min(1, room / O.backKeepRoom) * keepW;
+    // 반대편 전환: 받는 자리에서 공 반대 측면 동료에게 열린 길
+    let swBest = 0;
+    for (const m of s.agents) {
+      if (!m.onPitch || m.team !== a.team || m === r || m === a || m.line === 0) continue;
+      if ((m.y - a.y) * (W / 2 - a.y) <= 0 || Math.abs(m.y - a.y) < O.backSwitchDy) continue;
+      if (nearestOpponent(s, m)[1] < O.backSwitchFree) continue;
+      swBest = Math.max(swBest, 1 - Math.min(1, laneRiskAt(s, a.team, c.x, c.y, m.x, m.y).risk));
+    }
+    const sw = O.backSwitch * swBest * keepW;
+    const cost = O.backCost * fwdBest * costW;
+    const noise = O.backNoise * (1 - a.judgement) * randn(s.seed, s.tick, a.idx, Purpose.BackRead, c.receiver);
+    c.u += escape + keep + sw - cost + noise;
+    c.back = { escape, keep, sw, cost, noise };
+  }
+}
+
 /** 앞선 골 수에 따른 전진 선택(전진 패스·슛·드리블·크로스) 효용 배수 (2골 이상 leadRisk2, 3골 이상 leadRisk3). 안전 패스·유지는 역수 */
 export function leadRiskMul(s: SimState, team: 0 | 1): number {
   const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
@@ -665,6 +714,8 @@ export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean
 function isMistake(s: SimState, a: Agent, c: Candidate, maxU: number): boolean {
   if (c.type === 'hold') return true;
   if (c.type === 'shoot') return c.u >= maxU - O.mistakeShotGap * O.plausibleGap;
+  // C.77y: 백패스 가치 항(backModel)이 켜지면 백패스도 효용 1위 gap 안에 들어야 고른다 (실수 = 가치 항 인지 오차 + softmax)
+  if (O.backModel > 0) return false;
   return c.type === 'pass' && (c.x - a.x) * attackDir(a.team, s.half) < -2 && (dist(a.x, a.y, c.x, c.y) < TA.longBall || pressureAt(s, a) > 0);
 }
 

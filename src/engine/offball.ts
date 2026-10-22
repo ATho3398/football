@@ -472,6 +472,17 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   let urgent = false;
 
+  if (s.t >= a.runUntil) a.giveGo = false;
+  // ⒝ 주고 달리기 (C.77y, 2:1): 방금 상대 진영에서 성공 패스를 했으면 받은 선수 마커의 뒤 공간으로 (패스당 1번 굴림)
+  const lp = s.lastPass;
+  if (O.giveGoChance > 0 && lp && lp.passer === a.idx && owner && owner.idx === lp.receiver && owner.team === a.team && s.t - lp.t <= O.giveGoT
+    && a.giveGoT !== lp.t && a.line >= 2 && a.role.run >= O.giveGoRun && toNorm(owner.x, owner.y, dir)[0] >= 0.5) {
+    a.giveGoT = lp.t;
+    if (rand(s.seed, s.tick, a.idx, Purpose.GiveGo) < (O.giveGoChance * a.attrs.offTheBall) / 100) {
+      a.runUntil = s.t + O.runSeconds;
+      a.giveGo = true;
+    }
+  }
   // 침투: 공격 위치선정 × run 비례 확률로 수비 라인 근처로 달린다
   if (s.t >= a.runUntil && a.line >= 2 && owner && owner.team === a.team) {
     let chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance * Math.max(0.3, 1 + (O.runPace * (a.attrs.pace - 70)) / 100);
@@ -479,11 +490,29 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (a.role.run >= O.lateRunRun && !hasModule(a.role, 'between') && s.agents.some((o) => o.onPitch && o.team === a.team && o.role.id === 'falseNine')) chance *= 1 + RM.nineVacate;
     if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) a.runUntil = s.t + O.runSeconds;
   }
-  const running = s.t < a.runUntil;
+  let running = s.t < a.runUntil;
   // 라인을 타는 정확도: 능력치가 낮을수록 라인보다 앞에 설 확률이 높다
   const sigma = ((100 - a.attrs.offTheBall) * O.offsideSigma) / L;
+  // ⒟ 침투 취소 (C.77y): 소유자에게서 나에게 오는 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
+  if (running && O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight) {
+    const [anx] = toNorm(a.x, a.y, dir);
+    if ((anx - line) * L >= O.abortOffside || laneRisk(s, owner, a.x, a.y).risk >= O.abortLane) {
+      a.runUntil = s.t;
+      a.giveGo = false;
+      running = false;
+      nx = Math.min(nx, line - O.abortBack / L);
+      urgent = true;
+    }
+  }
   if (running) {
     nx = line + a.errX * sigma * O.runLineError;
+    if (a.giveGo && owner && owner.team === a.team) {
+      // 2:1: 받은 선수 위치에서 공격 방향 giveGoDepth m, 패서 쪽 레인 (라인 안쪽까지)
+      const [onx, ony] = toNorm(owner.x, owner.y, dir);
+      const [, any] = toNorm(a.x, a.y, dir);
+      nx = Math.min(nx, onx + O.giveGoDepth / L);
+      ny = clamp(ony + (any >= ony ? 1 : -1) * (O.giveGoLane / W), 0.03, 0.97);
+    }
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
   } else if (a.line >= 2) {
@@ -574,8 +603,105 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const spot = freeSpot(s, a, owner);
     if (spot) [nx, ny] = toNorm(spot[0], spot[1], dir);
   }
+  // ⒞ 자리 교환 (C.77y): 같은 줄 동료가 자기 자리에서 내려와 비운 자리를 가장 가까운 같은 줄 동료 1명이 맡는다
+  if (!running && !job && mate && O.swapShare > 0) {
+    const sw = swapPlan(s, a.team, dir);
+    if (sw && sw.b === a.idx) {
+      nx += (sw.nx - nx) * O.swapShare;
+      ny += (sw.ny - ny) * O.swapShare;
+    }
+  }
+  // ⒜ 받으러 나오기 (C.77y): 마커가 checkMark m 안이면 마커 반대쪽 옆으로 짧게 (공 쪽으로 조금) 움직여 패스 각도를 만든다
+  if (!running && !job && mate && O.checkDist > 0 && a.line >= 2 && dist(a.x, a.y, owner!.x, owner!.y) <= O.checkPassMax) {
+    const [m, md] = nearestFieldOpp(s, a);
+    if (m && md <= O.checkMark) {
+      const bx = owner!.x - a.x;
+      const by = owner!.y - a.y;
+      const bl = Math.hypot(bx, by) || 1;
+      // 공 방향에 수직인 두 방향 중 마커에서 멀어지는 쪽
+      let px = -by / bl;
+      let py = bx / bl;
+      if (px * (a.x - m.x) + py * (a.y - m.y) < 0) [px, py] = [-px, -py];
+      const k = O.checkDist;
+      const x = clamp(a.x + px * k + (bx / bl) * k * O.checkToBall, 1, L - 1);
+      const y = clamp(a.y + py * k + (by / bl) * k * O.checkToBall, 1, W - 1);
+      const [cnx, cny] = toNorm(x, y, dir);
+      nx = Math.min(cnx, line - 0.5 / L);
+      ny = cny;
+      urgent = true;
+    }
+  }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/** 가장 가까운 상대 필드 선수 (GK 제외) */
+function nearestFieldOpp(s: SimState, a: Agent): [Agent | null, number] {
+  let best: Agent | null = null;
+  let bd = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    const d = dist(o.x, o.y, a.x, a.y);
+    if (d < bd) {
+      bd = d;
+      best = o;
+    }
+  }
+  return [best, bd];
+}
+
+/** 소유자 → 점 패스 길 위험 (onball laneRisk 와 같은 식, 순환 import 를 피해 여기 둔다) */
+function laneRisk(s: SimState, from: Agent, tx: number, ty: number): { risk: number } {
+  const PR = ENGINE.prob;
+  let risk = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === from.team) continue;
+    const [d, t] = segDist(o.x, o.y, from.x, from.y, tx, ty);
+    if (d >= PR.laneWidth || t <= 0.05) continue;
+    risk += (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * (1 - d / PR.laneWidth);
+  }
+  return { risk };
+}
+
+/** 자리 교환 계획 (C.77y): 팀에서 자기 자리보다 swapDrop m+ 가장 많이 내려온 2·3줄 선수의 자리와 그 자리를 맡을 같은 줄 동료 1명. 틱마다 한 번 계산 */
+const swapCache = new WeakMap<SimState, { tick: number; plan: (SwapPlan | null | undefined)[] }>();
+interface SwapPlan { b: number; nx: number; ny: number }
+function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
+  let c = swapCache.get(s);
+  if (!c || c.tick !== s.tick) {
+    c = { tick: s.tick, plan: [undefined, undefined] };
+    swapCache.set(s, c);
+  }
+  const cached = c.plan[team];
+  if (cached !== undefined) return cached;
+  let best: Agent | null = null;
+  let bestDrop: number = O.swapDrop;
+  let spot: [number, number] = [0, 0];
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line < 2 || s.t < o.runUntil || s.ball.owner === o.idx) continue;
+    const [sx, sy] = slotTarget(s, o);
+    const drop = (sx - toNorm(o.x, o.y, dir)[0]) * L;
+    if (drop >= bestDrop) {
+      bestDrop = drop;
+      best = o;
+      spot = [sx, sy];
+    }
+  }
+  let plan: SwapPlan | null = null;
+  if (best) {
+    const [px, py] = toPitch(spot[0], spot[1], dir);
+    let bd: number = O.swapRange;
+    for (const o of s.agents) {
+      if (!o.onPitch || o.team !== team || o === best || o.line !== best.line || s.t < o.runUntil || s.ball.owner === o.idx) continue;
+      const d = dist(o.x, o.y, px, py);
+      if (d < bd) {
+        bd = d;
+        plan = { b: o.idx, nx: spot[0], ny: spot[1] };
+      }
+    }
+  }
+  c.plan[team] = plan;
+  return plan;
 }
 
 /** 상대 팀 줄 평균 x (우리 공격 방향 정규화). 그 줄에 아무도 없으면 null */

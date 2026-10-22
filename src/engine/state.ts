@@ -57,6 +57,9 @@ export interface Agent {
   nextOffball: number;
   /** 침투 종료 시각 */
   runUntil: number;
+  /** 주고 달리기 (C.77y): 마지막으로 굴린 패스(lastPass.t) · 지금 침투가 2:1 달리기인가 */
+  giveGoT: number;
+  giveGo: boolean;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
   errX: number;
   errY: number;
