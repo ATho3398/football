@@ -1,0 +1,66 @@
+name: android
+
+# 안드로이드 APK (C.77v): Capacitor 로 웹 빌드(dist)를 감싼 설치 파일. Pages 배포와 따로 돈다(이 워크플로가 실패해도 배포는 그대로)
+# 받는 법: Actions → android → 최신 실행 → Artifacts 의 player-one-apk 내려받기 → 압축 풀고 폰에서 설치("알 수 없는 앱 설치" 허용)
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+    # 이 워크플로 파일을 고친 브랜치 푸시는 한 번 빌드해 본다 (태그 푸시는 paths 와 상관없이 빌드)
+    branches: ['**']
+    paths: ['.github/workflows/android.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      # 서명 키: 저장소 시크릿 없이 디버그 키를 Actions 캐시에 두고 매번 같은 키로 서명한다(덮어 설치가 되게). 키는 커밋하지 않는다.
+      # 캐시가 지워지면(7일 넘게 안 쓰면) 새 키가 생겨 덮어 설치가 안 된다 — 그때는 [내보내기]로 백업 뒤 지우고 새로 설치
+      - uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: po-android-debug-keystore-v1
+      - name: debug keystore
+        run: |
+          mkdir -p ~/.android
+          [ -f ~/.android/debug.keystore ] || keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+      - name: assembleDebug
+        working-directory: android
+        env:
+          PO_VERSION_NAME: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+        run: ./gradlew assembleDebug --no-daemon
+      - name: rename
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/player-one-${{ github.run_number }}.apk"
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-one-apk
+          path: out/*.apk
+          retention-days: 30
+          # APK 는 이미 압축(zip)이라 다시 압축하지 않는다
+          compression-level: 0

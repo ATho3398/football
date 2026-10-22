@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.atho3398.playerone",
+  "appName": "PLAYER ONE",
+  "webDir": "dist",
+  "backgroundColor": "#16171b",
+  "android": {
+    "backgroundColor": "#16171b"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
+}
