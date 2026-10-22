@@ -50,14 +50,16 @@ export const ENGINE = {
     feed: 1,
     /** 인지 지연 (초): 목표 속도가 따라가는 사람의 실제 속도를 따라잡는 시간 상수 */
     feedLag: 0.25,
+    /** 따라갈 때 거리 보정 속도 하한 = feedGain × 목표까지 거리 (m/s, 정지 감속 √(2·가속·거리)·최고 속도 안) */
+    feedGain: 2,
     /**
      * C.77x 뒤돌기 (turnModel 1 = 켬, 0 = 옛 동작: 반대 방향이면 속도 × turnKeep 즉시): 빠르게(faceSpeed 넘게) 달리면 몸 방향 = 속도 방향.
      * 반대로 가려면 reverseBrake × 가속 × turnKeep 로 감속하고, 느려지면 몸을 돌린다(180° = pivotBase − pivotSlope × 민첩/100 초, 90° 안으로 돌 때까지 가속 없음)
      */
     turnModel: 1,
     faceSpeed: 1.5,
-    pivotBase: 2.0,
-    pivotSlope: 1.8,
+    pivotBase: 2.2,
+    pivotSlope: 2.2,
     reverseBrake: 2,
     walk: 1.5,
     jog: 3.1,

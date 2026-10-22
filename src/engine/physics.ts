@@ -98,7 +98,9 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const dx = a.tx - a.x;
   const dy = a.ty - a.y;
   const d = Math.sqrt(dx * dx + dy * dy);
-  const corr = desiredSpeed(a, d, cap);
+  // 사람을 따라갈 때 거리 보정은 거리 비례(feedGain × 거리)까지 올린다 — 걷기·조깅 단계로만 좁히면 움직이는 목표와의 간격이 닫히지 않는다
+  let corr = desiredSpeed(a, d, cap);
+  if (feeding && P.feedGain > 0 && d >= P.arriveDist) corr = Math.max(corr, Math.min(P.feedGain * d, Math.sqrt(2 * a.accel * d), cap));
   let wx = 0;
   let wy = 0;
   if (corr > 0 && d > 1e-6) {
@@ -138,7 +140,8 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
       wx = 0;
       wy = 0;
       want = 0;
-    }
+    } else if (want > P.walk + 1e-9) turnHead(a, ux, uy, dt);
+    // (느리게 뛰기 시작할 때도 몸은 갈 쪽으로 돌아간다 — 뒷걸음(걷기 이하)은 몸 방향 그대로)
   } else if (sp > 1 && want > 0) {
     // 큰 방향 전환은 속도 유지율만큼만 이어 간다 (옛 동작)
     const cos = (a.vx * wx + a.vy * wy) / (sp * want);

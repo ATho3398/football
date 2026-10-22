@@ -88,7 +88,11 @@ export function sane(...as: Agent[]): boolean {
 export const MOTION_ON: Record<string, number> = {
   'physics.feed': 1,
   'physics.feedLag': 0.25,
+  'physics.feedGain': 2,
   'physics.turnModel': 1,
+  'physics.pivotBase': 2.2,
+  'physics.pivotSlope': 2.2,
+  'physics.reverseBrake': 2,
   'offball.errHold': 0.5,
 };
 
