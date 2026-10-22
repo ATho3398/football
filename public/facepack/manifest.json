@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-22T14:24:45.006Z",
+  "generated": "2026-10-22T14:32:54.762Z",
   "players": {
     "messi": {
       "file": "players/messi.png",
@@ -1743,7 +1743,7 @@
     },
     "new": {
       "file": "clubs/new.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/8/87/Newcastle_United_FC_2026_crest.svg/330px-Newcastle_United_FC_2026_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/8/87/Newcastle_United_FC_2026_crest.svg/330px-Newcastle_United_FC_2026_crest.svg.png",
       "page": "https://en.wikipedia.org/wiki/Newcastle_United_F.C.",
       "title": "Newcastle United F.C."
     },
