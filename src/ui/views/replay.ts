@@ -11,6 +11,7 @@ import {
 import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
 import { pitchViewButton } from './common';
 import { isWide } from '../skin';
+import { closeGoalSplash, myGoalsBetween, playGoalSplash } from '../goalSplash';
 import { activeRenderer, cropLength, drawFrame, fitCanvas, PitchCamera, playerMap, readPalette, REPLAY_CROP, setPitchTeams, type MarkerRenderer } from '../pitch/renderer';
 
 export type ReplayMode = 'scene' | 'transition' | 'live' | 'ended';
@@ -123,6 +124,8 @@ export class ReplayPlayer {
   /** 세로 피치 잘라 보기 카메라 (C.56, 5차 118 crop [34,100]): 공을 따라간다. 처음·결정 장면 다시 보기는 바로 맞춤 */
   private readonly camera = new PitchCamera();
   private camSnap = true;
+  /** 우리 팀 골이 재생 중에 찍힌 순간 (C.77p 골 연출). 테스트는 바꿔 끼운다 */
+  onMyGoal: () => void = () => void playGoalSplash('rp-canvas');
   /** scenes = 장면을 정해서 줄 때 (경기 후 하이라이트 3개, 24.6 C.77o). 없으면 전개 하이라이트 장면 선택 */
   constructor(readonly replay: Replay, private readonly onChange: () => void, private readonly renderer?: MarkerRenderer, scenes?: Scene[]) {
     this.players = playerMap(replay);
@@ -197,6 +200,7 @@ export class ReplayPlayer {
     this.clipEnd = null;
     this.e = this.replay.duration;
     this.mode = 'ended';
+    closeGoalSplash();
   }
 
   /** [여기서부터 실시간]: 지금 시점부터 끊김 없이 실제 속도로 */
@@ -225,6 +229,16 @@ export class ReplayPlayer {
   /** 실제 시간 dt 초만큼 진행 */
   advance(dt: number): void {
     const r = this.replay;
+    // 골 연출 (C.77p): 재생으로 지나간 구간만 본다 (건너뛰기·장면 점프·전환은 진행이 아니다)
+    // 끝나면 finish() 가 시점을 경기 끝으로 옮기므로, 이번에 실제로 재생한 끝 시점(to)을 먼저 잰다
+    const from = this.e;
+    const lim = this.mode === 'scene' ? this.scenes[this.idx]!.end : this.mode === 'live' ? this.clipEnd ?? r.duration : from;
+    const to = Math.min(lim, from + dt * this.speed * this.ffFactor());
+    this.step(dt, r);
+    if (myGoalsBetween(r.events, r.side, from, to) > 0) this.onMyGoal();
+  }
+
+  private step(dt: number, r: Replay): void {
     if (this.mode === 'scene') {
       const sc = this.scenes[this.idx]!;
       this.e = Math.min(sc.end, this.e + dt * this.speed * this.ffFactor());

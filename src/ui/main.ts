@@ -38,6 +38,7 @@ import type { Moment, StopLevel } from '../engine/moments';
 import { elapsedMapper, replayEvents, replayPlayers } from '../replay';
 import { ENGINE } from '../engine/config';
 import { animCard, cardSheet, deckHomeSection, deckUnusable, deckView, deckVM, demoAnimCards, myRoleId } from './views/deck';
+import { playGoalSplash, saveGoalSplashPref } from './goalSplash';
 import { markPickSeen, pickKey, pickSeen, playPackReveal, rarityRank, savePackAnimPref, bestRarity, type PackAnimPref } from './packAnim';
 import { canAdd, deckProblems, takePick } from '../cardCollection';
 import { cardById } from '../config/cards';
@@ -946,7 +947,11 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
     const oc = ui.live?.oc;
     if (!oc || oc.pitch !== pitch) return;
     oc.vm.shown = true;
-    if (ui.screen === 'moment') render();
+    if (ui.screen === 'moment') {
+      render();
+      // 골 연출 (C.77p): 결정 결과(우리 골) 판이 먼저 뜨고 그 위 피치에 한 번. 실점에는 없다
+      if (vm.band.tone === 'goal') playGoalSplash('mo-canvas');
+    }
     // 다른 화면으로 나가 있으면 넘기지 않는다 (돌아오면 다시 잰다, C.39)
     oc.timer = window.setTimeout(() => {
       if (ui.screen === 'moment') liveContinue(g);
@@ -2550,6 +2555,11 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'goal-splash-set':
+      if (v !== 'on' && v !== 'off') return;
+      saveGoalSplashPref(v);
+      render();
+      return;
     case 'pack-anim-set':
       if (v !== 'full' && v !== 'short' && v !== 'off') return;
       savePackAnimPref(v as PackAnimPref);
