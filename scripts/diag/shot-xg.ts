@@ -5,7 +5,7 @@
 import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { teamSetupFromRoster } from '../../src/engine/setup';
-import { shotModel } from '../../src/engine/onball';
+import { shotExec, shotModel } from '../../src/engine/onball';
 import { probe, type ShotProbe } from '../../src/engine/probe';
 import { createTeamRoster, rosterRating } from '../../src/roster';
 const allArgs = process.argv.slice(2).filter((a) => a !== '--');
@@ -16,7 +16,7 @@ for (const a of allArgs.filter((x) => x.includes('='))) {
 const args = allArgs.filter((x) => !x.includes('='));
 const N = Number(args[0] ?? 40), HR = Number(args[1] ?? 75), AR = Number(args[2] ?? 75);
 
-interface Rec extends ShotProbe { quick: boolean; blockers: number; near: number }
+interface Rec extends ShotProbe { quick: boolean; blockers: number; near: number; ex: number; exOn: number; exSave: number }
 interface Old { xg: number; header: boolean; pen: boolean }
 const shots: Rec[] = [];
 const olds: Old[] = [];
@@ -29,12 +29,16 @@ probe.shot = (s, p) => {
   let near = Infinity;
   for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) near = Math.min(near, Math.hypot(o.x - a.x, o.y - a.y));
   // probeShotEnd 가 나중에 원본 p 의 결과를 save·goal 로 고치므로 같은 객체에 덧붙여 모은다
-  shots.push(Object.assign(p, { quick: s.t - (curOwnT.get(a.idx) ?? -9) <= 0.6, blockers: mm?.blockers ?? 0, near }));
+  // C.77z: 실행 쪽 기대 골 확률 (실제 상대 GK 능력·키, 같은 식) — 판단(리그 GK)과 실제 골률 사이를 가른다
+  const e = mm ? shotExec(s, a, p.kind === 'header') : null;
+  const ex = e ? e.goal : NaN;
+  const exOn = e ? e.m.pOn * (e.goal / Math.max(1e-9, (1 - e.m.pBlock) * e.m.pOn * (1 - e.pSave))) : NaN;
+  shots.push(Object.assign(p, { quick: s.t - (curOwnT.get(a.idx) ?? -9) <= 0.6, blockers: mm?.blockers ?? 0, near, ex, exOn, exSave: e ? e.pSave : NaN }));
 };
 
 for (let i = 0; i < N; i++) {
   const h = createTeamRoster({ id: `h${i}`, rating: HR }, `sx-h${i}`, 2018, []); const a = createTeamRoster({ id: `a${i}`, rating: AR }, `sx-a${i}`, 2018, []);
-  const m = createMatch({ home: teamSetupFromRoster(h, rosterRating(h), HR, `sxh${i}`), away: teamSetupFromRoster(a, rosterRating(a), AR, `sxa${i}`), mode: 'auto', difficulty: 'normal', seed: 8800 + i, bigMatch: false, neutral: true });
+  const m = createMatch({ home: teamSetupFromRoster(h, rosterRating(h), HR, `sxh${i}`), away: teamSetupFromRoster(a, rosterRating(a), AR, `sxa${i}`), mode: 'auto', difficulty: 'normal', seed: Number(process.env.SEED0 ?? 8800) + i, bigMatch: false, neutral: true });
   const s = m.state; let prev: unknown = null; let prevOwner = -1;
   curOwnT = new Map();
   while (!s.done) {
@@ -76,9 +80,12 @@ console.log(`| xG 0.5+ | ${pc(O.filter((x) => x.xg >= 0.5).length, O.length)} | 
 console.log(`| xG 합/경기 | ${(O.reduce((t, x) => t + x.xg, 0) / N).toFixed(2)} | ${(S.reduce((t, x) => t + x.xg!, 0) / N).toFixed(2)} |`);
 
 const bands = [[0, 0.05], [0.05, 0.1], [0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.4, 0.5], [0.5, 1]];
-// C.77z: 판단 xG 보정 — 구간별 판단 평균 대 실제 골률 (차 = 실제/판단 − 1, ±30% 관문 · 표본 30 미만은 괄호)
+// C.77z: 판단 xG 보정 — 구간별 판단 평균(실행 쪽 기대: 실제 GK) 대 실제 골률 (차 = 실제/판단 − 1, ±30% 관문 · 표본 30 미만은 괄호)
 const cal = [[0, 0.05], [0.05, 0.1], [0.1, 0.2], [0.2, 0.3], [0.3, 0.5], [0.5, 1.01]];
-console.log('\nxG 보정(판단 평균 → 실제 골률, 차): ' + cal.map(([lo, hi]) => { const B = S.filter((x) => x.xg! >= lo! && x.xg! < hi!); const j = avg(B.map((x) => x.xg!)); const g = B.filter((x) => x.outcome === 'goal').length / (B.length || 1); const t = `${lo}~${hi} n${B.length} ${f(j)}→${f(g)} ${B.length ? `${((g / j - 1) * 100).toFixed(0)}%` : '-'}`; return B.length < 30 ? `(${t})` : t; }).join(' · '));
+console.log('\nxG 보정(판단 평균 → 실제 골률, 차): ' + cal.map(([lo, hi]) => { const B = S.filter((x) => x.xg! >= lo! && x.xg! < hi!); const j = avg(B.map((x) => x.xg!)); const g = B.filter((x) => x.outcome === 'goal').length / (B.length || 1); const e = avg(B.map((x) => x.ex)); const t = `${lo}~${hi} n${B.length} ${f(j)}(실행 ${f(e)})→${f(g)} ${B.length ? `${((g / j - 1) * 100).toFixed(0)}%` : '-'}`; return B.length < 30 ? `(${t})` : t; }).join(' · '));
+// C.77z: 단계별 (기대 → 실제) — 블록 · 블록 아님 중 유효 · 유효 중 골
+console.log('단계별(기대→실제): ' + cal.map(([lo, hi]) => { const B = S.filter((x) => x.xg! >= lo! && x.xg! < hi!); const nb = B.filter((x) => x.outcome !== 'block'); const on = nb.filter((x) => x.outcome !== 'miss'); const pc0 = (a: number, b: number) => (b ? (a / b).toFixed(3) : '-');
+  return `${lo}~${hi} 블록 ${f(avg(B.map((x) => x.pBlock)))}→${pc0(B.length - nb.length, B.length)} · 유효 ${f(avg(nb.map((x) => x.exOn)))}→${pc0(on.length, nb.length)} · 골 ${f(avg(on.map((x) => 1 - x.exSave)))}→${pc0(on.filter((x) => x.outcome === 'goal').length, on.length)}`; }).join('\n  '));
 console.log('\nxG 구간(새): ' + bands.map(([lo, hi]) => { const B = S.filter((x) => x.xg! >= lo! && x.xg! < hi!); return `${lo}~${hi} ${pc(B.length, S.length)} (골 ${pc(B.filter((x) => x.outcome === 'goal').length, B.length)})`; }).join(' · '));
 const cats: [string, (x: Rec) => boolean][] = [
   ['1대1(콘 0·3 m 안 0·16.5 m 안)', (x) => x.kind === 'foot' && x.blockers === 0 && x.near >= 3 && x.d <= 16.5],
