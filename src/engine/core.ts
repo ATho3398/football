@@ -89,6 +89,11 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   tm.counterUntil = 0;
   if (!open) return;
   s.teams[team === 0 ? 1 : 0].wonAt = s.t;
+  // 전환 수비 (C.78a): 상실 시각·라인 기록 초기화, 탈취 팀 출구·제한 침투 (G2)
+  tm.lostAt = s.t;
+  tm.lineAtLoss = -1;
+  tm.brokeAt = -100;
+  if (O.exitRun > 0) exitRuns(s, team === 0 ? 1 : 0);
   // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록·버스 세우기는 역압박 없이 즉시 복귀
   const tendency = tm.tactics.tendency;
   if (tendency === 'counter' || tendency === 'block' || tendency === 'bus') return;
@@ -103,6 +108,35 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
   }
   if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);
+}
+
+/**
+ * 탈취 팀 출구 (C.78a ⑤, G2): 최전방(슬롯 x 가장 앞 공격 줄 = 전진 패스 받을 출구)은 그대로 두고, 공보다 앞의 공격 줄·측면(LM/RM/WB) 선수 중
+ * 빈 곳(가장 가까운 상대 거리 × (0.5 + 침투 성향)) 순 exitRunners 명만 1회 침투한다. 난수 없음 (모두에게 침투를 늘리지 않는다 — C.77f 교훈)
+ */
+function exitRuns(s: SimState, win: 0 | 1): void {
+  const O = ENGINE.offball;
+  const dir = attackDir(win, s.half);
+  const bnx = dir > 0 ? s.ball.x / L : 1 - s.ball.x / L;
+  let top: Agent | null = null;
+  for (const a of s.agents) if (a.onPitch && a.team === win && a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
+  const cands = s.agents.filter((a) => {
+    if (!a.onPitch || a.team !== win || a === top || a.idx === s.ball.owner || a.line === 0) return false;
+    if (!(a.line === 3 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB')) return false;
+    const nx = dir > 0 ? a.x / L : 1 - a.x / L;
+    return nx > bnx;
+  });
+  // 빈 곳에 있는 선수부터 (가장 가까운 상대 필드 선수까지 거리 × 침투 성향) — 상대 수비가 적은 쪽이 뛴다
+  const room = (a: Agent) => {
+    let d = 40;
+    for (const o of s.agents) if (o.onPitch && o.team !== win && o.line !== 0) d = Math.min(d, dist(o.x, o.y, a.x, a.y));
+    return d * (0.5 + a.role.run);
+  };
+  cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
+  for (const a of cands.slice(0, O.exitRunners)) {
+    a.runUntil = s.t + O.runSeconds;
+    a.exitRun = true;
+  }
 }
 
 /** 지친 선수는 역압박 가담·긴급 복귀를 덜 한다 (E.20 5번): 스태미나 staminaLowFrom 아래에서 비례, 0 이면 tiredFloor */

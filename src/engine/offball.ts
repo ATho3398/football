@@ -135,7 +135,50 @@ function defensiveLine(s: SimState, team: 0 | 1): number {
   if (phase < 0) nx += F.defendShift[1] * -phase;
   else nx += F.attackShift[1] * phase;
   if (phase < 0) nx = Math.min(nx, bx - F.lineBehindBall / L);
+  // 역압박 중 라인 유지 (C.78a ② G1): 잃는 순간의 높이(상한 lineHold)에서 내려오지 않는다. 뚫리면(pressBreak) 역압박이 끝나 지금처럼 내려온다
+  const tm = s.teams[team];
+  if (O.lineHold > 0 && tm.lineAtLoss >= 0 && s.t < tm.counterUntil && tm.counterPressers.length > 0) nx = Math.max(nx, Math.min(tm.lineAtLoss, O.lineHold));
   return clamp(nx, F.lineMin, 0.7);
+}
+
+/**
+ * 전환 수비 틱 (C.78a, 상수가 모두 0 이면 아무것도 안 한다): sim stepBody 가 오프더볼 갱신 앞에서 부른다. 난수 없음.
+ * ② 잃은 직후 첫 틱에 그 순간 수비 줄의 실제 높이를 잰다(lineHold). ① 역압박이 뚫렸으면(상대 소유자 또는 떠 있는 상대 패스 착지점이 가담자 모두보다 pressBreakGap m 이상 우리 골 쪽)
+ * 역압박을 그 자리에서 끝내고(counterUntil = 지금) 가담자는 긴급 복귀로 바로 다시 판단한다 — 복귀에 드는 시간은 이동 규칙 그대로
+ */
+export function transitionTick(s: SimState): void {
+  if (O.lineHold <= 0 && O.pressBreak <= 0) return;
+  for (const team of [0, 1] as const) {
+    const tm = s.teams[team];
+    if (O.lineHold > 0 && tm.lineAtLoss < 0 && s.t - tm.lostAt < 1) {
+      // 잃는 순간 수비 줄의 실제 자리 (정규화 x 평균)
+      const d = attackDir(team, s.half);
+      let sum = 0;
+      let n = 0;
+      for (const a of s.agents) if (a.onPitch && a.team === team && a.line === 1) { sum += toNorm(a.x, a.y, d)[0]; n++; }
+      tm.lineAtLoss = n ? sum / n : 0;
+    }
+    if (O.pressBreak <= 0 || s.t >= tm.counterUntil || !tm.counterPressers.length) continue;
+    const dir = attackDir(team, s.half);
+    const b = s.ball;
+    let x: number | null = null;
+    if (b.owner >= 0) {
+      const o = s.agents[b.owner]!;
+      if (o.team !== team) x = toNorm(o.x, o.y, dir)[0];
+    } else if (b.flight && b.flight.outcome === 'receive' && b.flight.receiver >= 0 && s.agents[b.flight.receiver]!.team !== team) {
+      x = toNorm(b.flight.toX, b.flight.toY, dir)[0];
+    }
+    if (x === null) continue;
+    const gap = O.pressBreakGap / L;
+    if (!tm.counterPressers.every((i) => toNorm(s.agents[i]!.x, s.agents[i]!.y, dir)[0] > x! + gap)) continue;
+    tm.counterUntil = s.t;
+    tm.brokeAt = s.t;
+    for (const i of tm.counterPressers) {
+      const a = s.agents[i]!;
+      a.recoverUrgent = true;
+      a.nextOffball = s.t;
+    }
+  }
 }
 
 function setTarget(a: Agent, nx: number, ny: number, dir: 1 | -1, urgent: boolean): void {
@@ -492,7 +535,10 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   let urgent = false;
 
-  if (s.t >= a.runUntil) a.giveGo = false;
+  if (s.t >= a.runUntil) {
+    a.giveGo = false;
+    a.exitRun = false;
+  }
   // ⒝ 주고 달리기 (C.77y, 2:1): 상대 진영으로 성공할 패스를 막 찼거나(날아가는 중) 방금 받게 했으면 받는 선수 마커의 뒤 공간으로.
   // 굴림은 패스당 1번 (giveGoT = 마지막 굴린 시각: 날아가는 중 굴렸으면 받은 뒤에는 안 굴린다)
   const fl = s.ball.flight;
@@ -529,6 +575,8 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       nx = Math.min(nx, onx + O.giveGoDepth / L);
       ny = clamp(ony + (any >= ony ? 1 : -1) * (O.giveGoLane / W), 0.03, 0.97);
     }
+    // 탈취 뒤 출구 침투 (C.78a ⑤): 골 쪽 안쪽 길(중앙에서 exitLane 배)로 대각선 침투
+    if (a.exitRun) ny = 0.5 + (ny - 0.5) * O.exitLane;
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
     // ⒟ 침투 취소 (C.77y): 소유자에게서 달리는 목표까지 패스 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
@@ -1086,6 +1134,21 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  // 남은 수비 분담 (C.78a ③): 잃은 뒤 restWindow 초, 공이 우리 박스 존 밖이면 압박에 안 간 선수가 위협 상대를 한 명에 한 명(닿을 수 있는 수비만) 또는 커버 자리
+  if (O.restMark > 0 && owner && owner.team !== a.team && !boxZone && s.t - tm.lostAt <= O.restWindow) {
+    const job = restPlan(s, a.team).get(a.idx);
+    if (job) {
+      ensureErrors(s, a);
+      const sigma = (100 - (a.attrs.marking + a.attrs.defensivePositioning) / 2) * O.markSigma;
+      a.tx = clamp(job.x + (job.mark ? a.errX * sigma : 0), 0.3, L - 0.3);
+      a.ty = clamp(job.y + (job.mark ? a.errY * sigma : 0), 0.3, W - 0.3);
+      if (job.mark) feedFrom(a, s.agents[job.o]!);
+      a.urgent = true;
+      a.minRun = false;
+      return;
+    }
+  }
+
   // 2선 침투자 추적 (C.77b 44h-i, §9.15 가설 1): 압박 다음, 면제·스크린·줄 2 존 마크 앞. 줄 2 추적자만, 수비 줄(boxDefense)은 그대로
   if (a.line === 2 && O.trackMax > 0) {
     trackPlan(s, a.team, gx0, gy0);
@@ -1202,7 +1265,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const back = (ax - nx) * L;
   void bnx;
   void bny;
-  setTarget(a, nx, ny, dir, back >= O.recoverSprint && a.recoverUrgent);
+  // 뚫린 역압박 가담자 (C.78a ①): 뚫린 뒤 restWindow 초 동안 자리가 골 쪽이면 전력 복귀
+  const beaten = O.pressBreak > 0 && s.t - tm.brokeAt <= O.restWindow && tm.counterPressers.includes(a.idx) && back > 3;
+  setTarget(a, nx, ny, dir, (back >= O.recoverSprint && a.recoverUrgent) || beaten);
   if (markFeed) [a.tvx, a.tvy, a.tvIdx, a.tvwx, a.tvwy] = markFeed;
   a.minRun = back >= O.recoverRun;
 }
@@ -1612,6 +1677,69 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
  * ② 대상: 상대 줄 2 중 소유자 아님 · 우리 골 trackZone 안 또는 이동 목표가 trackTargetZone 안이고 자신은 목표보다 3 m 이상 멀리(들어오는 중). 위협 순(threatValue), 팀당 trackMax 명.
  * ③ 추적자: 우리 줄 2 CDM(홀딩 CM)·CM 중 한가한 선수. 침투자 쪽 CDM 이 trackCdmMax 안이면 그 CDM, 아니면 가장 가까운 후보가 trackPickMax 안일 때만. 난수 없음, 동률은 idx
  */
+/**
+ * 남은 수비 분담 (C.78a ③): 잃은 뒤 restWindow 초 동안 팀당 틱마다 1회. 위협 = 공보다 우리 골 쪽(또는 나란히)의 상대 필드 선수(소유자 제외), 위협 순 restMax 명.
+ * 수비 = 역압박 가담·공에 가장 가까운 1명·커버·면제를 뺀 수비 줄과 공보다 우리 골 쪽의 중원. 위협마다 마크 자리(1초 뒤 그 상대 자리의 골 쪽 1.5 m)에
+ * 가장 빨리 닿는 남은 수비가 1초 + restSlack 안이면 마크, 아니면 그 수비가 골 쪽 restCoverGap m 커버 자리. 난수 없음
+ */
+interface RestJob { x: number; y: number; o: number; mark: boolean }
+const restCache = new WeakMap<SimState, { tick: number; plan: Map<number, RestJob> }[]>();
+function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
+  let c = restCache.get(s);
+  if (!c) restCache.set(s, (c = [{ tick: -1, plan: new Map() }, { tick: -1, plan: new Map() }]));
+  const e = c[team]!;
+  if (e.tick === s.tick) return e.plan;
+  e.tick = s.tick;
+  const plan = (e.plan = new Map<number, RestJob>());
+  const b = s.ball;
+  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+  if (!owner || owner.team === team) return plan;
+  const tm = s.teams[team];
+  const dir = attackDir(team, s.half);
+  const [gx, gy] = ownGoal(dir);
+  const bnx = toNorm(b.x, b.y, dir)[0];
+  const threats = s.agents
+    .filter((o) => o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < bnx + 0.03)
+    .sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx)
+    .slice(0, O.restMax);
+  const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
+  const free = s.agents.filter((a) => a.onPitch && a.team === team && (a.line === 1 || (a.line === 2 && toNorm(a.x, a.y, dir)[0] < bnx))
+    && !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !hasModule(a.role, 'exempt') && ballRank(s, a, b.x, b.y) > 0);
+  for (const o of threats) {
+    if (!free.length) break;
+    const px = clamp(o.x + o.vx, 0.3, L - 0.3);
+    const py = clamp(o.y + o.vy, 0.3, W - 0.3);
+    const gd = dist(px, py, gx, gy) || 1;
+    const ux = (gx - px) / gd;
+    const uy = (gy - py) / gd;
+    const mx = px + ux * 1.5;
+    const my = py + uy * 1.5;
+    let best: Agent | null = null;
+    let bt = Infinity;
+    for (const d of free) {
+      const t = arrivalTime(d, mx, my, 0.5);
+      if (t < bt || (t === bt && best && d.idx < best.idx)) { bt = t; best = d; }
+    }
+    if (!best) break;
+    free.splice(free.indexOf(best), 1);
+    if (bt <= 1 + O.restSlack) plan.set(best.idx, { x: mx, y: my, o: o.idx, mark: true });
+    else {
+      const k = Math.min(O.restCoverGap, gd * 0.5);
+      plan.set(best.idx, { x: px + ux * k, y: py + uy * k, o: o.idx, mark: false });
+    }
+  }
+  return plan;
+}
+
+/** 추적 배정 도달 판정 (C.78a ④): 침투자 목표점(목표가 1 m 넘게 떨어져 있으면 목표, 아니면 1초 뒤 자리)에 침투자 + trackReachSlack 초 안에 닿는가 */
+function canReach(a: Agent, r: Agent): boolean {
+  if (O.trackReach <= 0) return true;
+  const far = dist(r.tx, r.ty, r.x, r.y) > 1;
+  const px = far ? r.tx : r.x + r.vx;
+  const py = far ? r.ty : r.y + r.vy;
+  return arrivalTime(a, px, py, 1) <= arrivalTime(r, px, py) + O.trackReachSlack;
+}
+
 const trackCache = new WeakMap<SimState, number[]>();
 function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   let cache = trackCache.get(s);
@@ -1694,12 +1822,12 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
     for (const a of cdms) {
       if (cdms.length > 1 && (Math.sign(a.y - W / 2) || 1) !== side) continue;
       const d = dist(a.x, a.y, r.x, r.y);
-      if (d <= O.trackCdmMax && (d < bd || (d === bd && pick && a.idx < pick.idx))) { bd = d; pick = a; }
+      if (d <= O.trackCdmMax && (d < bd || (d === bd && pick && a.idx < pick.idx)) && canReach(a, r)) { bd = d; pick = a; }
     }
     if (!pick) {
       for (const a of cands) {
         const d = dist(a.x, a.y, r.x, r.y);
-        if (d <= O.trackPickMax && (d < bd || (d === bd && pick && a.idx < pick.idx))) { bd = d; pick = a; }
+        if (d <= O.trackPickMax && (d < bd || (d === bd && pick && a.idx < pick.idx)) && canReach(a, r)) { bd = d; pick = a; }
       }
     }
     if (!pick) continue;

@@ -24,6 +24,7 @@ import type { NpcLoadMap } from '../../src/load';
 import { createRng, hashSeed } from '../../src/rng';
 import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type NpcFitMap } from '../../src/npcFit';
 import { setEnvironmentFixed } from '../../src/weather';
+import { transRun, type TransOut } from './transProbe';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -83,6 +84,8 @@ export interface MatchJob {
   parts?: boolean;
   /** 이 슬롯 선수의 위치·터치·침투를 추적한다 (E3.7 역할 반응) */
   track?: { team: 0 | 1; slot: number };
+  /** 전환 측정 (C.78a transProbe): 잃은 순간 배치·8초 결과·추적 배정 시점 */
+  trans?: boolean;
 }
 
 export interface SeasonJob {
@@ -133,6 +136,7 @@ export interface MatchOut {
   elapsed75: number;
   ms: number;
   track?: TrackOut;
+  trans?: TransOut;
 }
 
 export interface SeasonOut {
@@ -310,6 +314,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(j.forceRed ? { forceRed: j.forceRed } : {}),
     });
     const track = j.track ? trackRun(sim, j.track.team, j.track.slot) : undefined;
+    const trans = j.trans ? transRun(sim) : undefined;
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -326,6 +331,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       elapsed75: r.elapsed75,
       ms,
       ...(track ? { track: track(r) } : {}),
+      ...(trans ? { trans } : {}),
     };
   } finally {
     restore();

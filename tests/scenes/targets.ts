@@ -14,6 +14,8 @@ export interface SceneTarget {
   check?: (v: Record<string, number>) => boolean;
   /** C.77y: 이동 제어기(C.77x MOTION_ON) 켠 상태와 끈 상태 둘 다에서 통과해야 한다 (3단계가 2단계 위에서 작동하는지) */
   both?: boolean;
+  /** C.78a: x·y·z 전부 켬 / 전부 끔 둘 다(전환 상수 TRANSITION_ON 은 켬) */
+  xyz?: boolean;
 }
 
 export const TARGETS: Record<SceneId, SceneTarget> = {
@@ -40,4 +42,19 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
   // C.77y: 마커가 공 쪽 2 m 안 → 1.5초 동안 옆으로 2.5~6 m, CB → CM 패스 성공 확률이 받으러 나오기 끈 같은 장면보다 +0.03 이상 (마커도 반응 주기로 쫓는다)
   check: { goal: '⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계)', enabled: true, both: true, check: (v) => v.pEnd! >= v.pNoCheck! + 0.03 && v.moved! >= 2.5 && v.moved! <= 6 },
   arrival: { goal: '⑥ 판단용 도착 시간 = 실제 이동 (2단계, 오차 ≤ 0.2초)', enabled: true, check: (v) => v.maxErr! <= 0.2 },
+  // C.78a: 3명 가담 뒤 뚫림 — 감지 ≤ 0.3초 · 돌아서기 ≤ 1.0초 · 둘이 공과 나란히 오기까지 1~7초(자리 비운 비용) · 1초 뒤 뒤 공간(오프사이드 라인 깊이)이 1명 가담보다 넓거나 같다
+  pressBreak: {
+    goal: '⑨ 역압박 3명 가담 뒤 뚫림 — 뒤 공간·복귀 시간 (5단계)', enabled: true, xyz: true,
+    check: (v) => v.detect3! <= 0.3 && v.turn3! <= 1.0 && v.back3! >= 1.0 && v.back3! < 7 && v.space3! >= v.space1!,
+  },
+  // C.78a: 높은 라인 + 느린 CB — 침투 패스 판단 성공 확률이 빠른 CB 보다 ≥ 0.05 높고, 실제 달리기 ST 우위가 ≥ 0.2초 크다
+  slowLine: {
+    goal: '⑩ 높은 라인 + 느린 CB 대 빠른 ST 뒤공간 패스 (5단계)', enabled: true, xyz: true,
+    check: (v) => v.hasThrough === 1 && v.pSlow! >= v.pFast! + 0.05 && v.marginSlow! >= v.marginFast! + 0.2,
+  },
+  // C.78a: 몰빵(수비 줄 2명)이 잃은 1초 뒤 상대 역습 기회(10 m+ 전진 패스 성공 × 가치 합)가 수비 줄 4명보다 1.15배 이상 · 자유로운 상대 공격수가 1명 넘게 더 많다
+  allIn: {
+    goal: '⑪ 몰빵 대형 잃은 직후 상대 역습 슛 기회 (5단계)', enabled: true, xyz: true,
+    check: (v) => v.chanceAllIn! >= v.chanceFour! * 1.15 && v.freeAllIn! > v.freeFour! + 1,
+  },
 };

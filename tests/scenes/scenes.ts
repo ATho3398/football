@@ -10,6 +10,7 @@ import { L, W } from '../../src/engine/pitch';
 import { probe } from '../../src/engine/probe';
 import type { Agent, SimState } from '../../src/engine/state';
 import { DT, gap, move, pick, place, REFRESH, sane, sceneState, setBody, withEngine } from './harness';
+import { sceneAllIn, scenePressBreak, sceneSlowLine } from './transition';
 
 export interface SceneOut {
   values: Record<string, number>;
@@ -491,5 +492,8 @@ export function sceneCheck(): SceneOut {
   return { values: { p0: on.p0, pEnd: on.p, pNoCheck: off.p, sepEnd: on.sep, sepNoCheck: off.sep, moved: on.moved, movedNoCheck: off.moved }, sane: on.ok && off.ok };
 }
 
-export const SCENES = { chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival, giveGo: sceneGiveGo, check: sceneCheck } as const;
+export const SCENES = {
+  chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival, giveGo: sceneGiveGo, check: sceneCheck,
+  pressBreak: scenePressBreak, slowLine: sceneSlowLine, allIn: sceneAllIn,
+} as const;
 export type SceneId = keyof typeof SCENES;

@@ -419,6 +419,30 @@ export const ENGINE = {
     counterJoinWork: 0.2,
     /** 패스 길 압박 위치: 소유자에서 가까운 동료까지의 비율 */
     counterLane: 0.35,
+    /**
+     * 전환 수비 (C.78a, 공통 규칙 로드맵 5단계). 모두 0 = 끔(C.77z 와 같은 동작). 켜는 값은 tests/scenes/harness.ts TRANSITION_ON.
+     * ① pressBreak 1: 역압박이 뚫리면(상대 소유자가 가담자 모두보다 pressBreakGap m 이상 우리 골 쪽, 또는 그렇게 착지할 상대 패스가 떠 있음) 그 순간 역압박을 끝내고
+     *    가담자는 긴급 복귀로 다시 판단한다(복귀 시간은 이동·뒤돌기 규칙 그대로 — 자리를 비운 비용). 창(counterUntil)이 남았다고 계속 쫓지 않는다.
+     * ② lineHold > 0 (G1): 역압박이 살아 있는 동안 수비 라인을 잃는 순간의 높이(상한 lineHold, 정규화 x)로 유지한다. 뚫리거나 창이 끝나면 지금처럼 내려온다.
+     * ③ restMark 1: 잃은 뒤 restWindow 초 동안 역압박에 안 간 수비 줄·공 뒤 중원이 공보다 앞(우리 골 쪽)의 위협 상대를 위협 순으로 한 명에 한 명 맡는다 —
+     *    마크 자리(1초 뒤 상대 자리의 골 쪽 1.5 m)에 그 상대보다 restSlack 초 안에 닿는 수비만, 아무도 못 닿으면 가장 빨리 닿는 수비가 골 쪽 restCoverGap m 커버 자리로.
+     * ④ trackReach 1: 2선 추적 배정(trackPlan)도 닿을 수 있는 후보만(침투자 목표점 도착이 침투자 + trackReachSlack 초 안), 못 닿으면 다음 후보·없으면 배정 안 함(존이 맡음).
+     * ⑤ exitRun 1 (G2): 열린 경기에서 공을 빼앗은 팀은 최전방(출구)을 남기고 공보다 앞 공격·측면 선수 중 빈 곳(가장 가까운 상대 거리 × (0.5 + 침투 성향)) 순 exitRunners 명만 1회 침투(runUntil).
+     */
+    pressBreak: 0,
+    pressBreakGap: 2,
+    lineHold: 0,
+    restMark: 0,
+    restWindow: 4,
+    restSlack: 0.4,
+    restCoverGap: 6,
+    restMax: 4,
+    trackReach: 0,
+    trackReachSlack: 0.5,
+    exitRun: 0,
+    exitRunners: 1,
+    /** 출구 침투자의 달리는 길 y = 중앙 + (자기 길 − 중앙) × exitLane (골 쪽 안쪽 대각선) */
+    exitLane: 0.4,
     /** 복귀: 목표가 자기 골 쪽으로 recoverRun m 이상이면 러닝 이상, recoverSprint m 이상이면 최대 속도 (긴급 복귀 판단 확률 recoverJudge + recoverWork × 노력/100) */
     recoverRun: 10,
     recoverSprint: 25,

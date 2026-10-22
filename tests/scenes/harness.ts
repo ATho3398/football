@@ -3,7 +3,7 @@
 // 장면은 지금 동작을 수치로 돌려준다. 목표 판정은 targets.ts 의 enabled (로드맵 2~4단계 패치가 켠다).
 
 import { ENGINE } from '../../src/engine/config';
-import { createMatch } from '../../src/engine/sim';
+import { createMatch, type MatchSim } from '../../src/engine/sim';
 import { teamSetupFromRoster } from '../../src/engine/setup';
 import { initPhysics, moveAgent, perceiveFeed } from '../../src/engine/physics';
 import { L, W } from '../../src/engine/pitch';
@@ -17,6 +17,9 @@ export const REFRESH = ENGINE.time.offballInterval;
 /** 장면용 경기 상태: 75 대 75 고정 로스터, 킥오프 재개를 지운 열린 플레이 (시각 10분) */
 let cur: SimState | null = null;
 
+/** 마지막 sceneState 의 경기 (C.78a ⑪: 전체 틱을 엔진 step 으로 돌리는 장면) */
+export let sceneSim: MatchSim | null = null;
+
 export function sceneState(seed = 1): SimState {
   const h = createTeamRoster({ id: 'sc-h', rating: 75 }, `scene-h${seed}`, 2018, []);
   const a = createTeamRoster({ id: 'sc-a', rating: 75 }, `scene-a${seed}`, 2018, []);
@@ -26,6 +29,7 @@ export function sceneState(seed = 1): SimState {
   });
   const s = m.state;
   cur = s;
+  sceneSim = m;
   s.restart = null;
   s.t = 600;
   s.tick = 6000;
@@ -111,6 +115,19 @@ export const KEEPER_ON: Record<string, number> = {
   'keeper.timeModel': 1,
   'keeper.flightSet': 1,
 };
+
+/** C.78a 새 동작 상수의 "켜진" 값 (전환 수비·게겐·출구): 설정이 0(꺼짐)이어도 장면 테스트는 이 값으로 돈다 */
+export const TRANSITION_ON: Record<string, number> = {
+  'offball.pressBreak': 1,
+  'offball.lineHold': 0.55,
+  'offball.restMark': 1,
+  'offball.trackReach': 1,
+  'offball.exitRun': 1,
+};
+
+/** C.77y·C.77z 상수의 "꺼진" 값 — C.78a 장면은 x·y·z 켬/끔 둘 다에서 통과해야 한다 */
+export const RECEIVE_OFF: Record<string, number> = Object.fromEntries(Object.keys(RECEIVE_ON).map((k) => [k, 0]));
+export const KEEPER_OFF: Record<string, number> = Object.fromEntries(Object.keys(KEEPER_ON).map((k) => [k, 0]));
 
 /** C.77x 이동 상수의 "꺼진" 값 (옛 동작) — 3단계 장면이 2단계 없이도 작동하는지 본다 */
 export const MOTION_OFF: Record<string, number> = Object.fromEntries(Object.keys(MOTION_ON).map((k) => [k, 0]));

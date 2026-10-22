@@ -61,6 +61,8 @@ export interface Agent {
   /** 주고 달리기 (C.77y): 마지막으로 굴린 패스(lastPass.t) · 지금 침투가 2:1 달리기인가 */
   giveGoT: number;
   giveGo: boolean;
+  /** 탈취 뒤 출구 침투 중 (C.78a ⑤ G2): 달리는 동안 골 쪽 안쪽 길로 */
+  exitRun: boolean;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
   errX: number;
   errY: number;
@@ -227,6 +229,10 @@ export interface TeamState {
   counterPressers: number[];
   /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
   wonAt: number;
+  /** 전환 수비 (C.78a): 마지막 열린 경기 상실 시각 · 그 순간 수비 라인(−1 = 아직 안 잼) · 역압박이 뚫린 시각 */
+  lostAt: number;
+  lineAtLoss: number;
+  brokeAt: number;
   /** 돌파 후 커버 (E.22 A): 이 시각까지 이 선수가 돌파한 상대의 진행 방향을 막는다 */
   coverUntil: number;
   coverAgent: number;
