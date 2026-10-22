@@ -890,3 +890,4 @@
 - (21:2x KST) 사용자: 페이스팩 256px 다시 받기 승인 → C.77u에 전달(위키 재시도, 막히면 알림).
 - (22:13 KST) 사용자: "오프라인도 커밋" → 이미 C.77r로 배포됨(17:33). 앱 업데이트 방식 질문 → C.77v에 "배포 사이트를 여는 TWA/server.url 우선(웹 배포=앱 업데이트), 묶음 방식이면 version.json 비교 안내" 전달.
 - (22:14 KST) C.77u 256px: 위키 여전히 403(컨테이너 정책 변경 미적용 가능). 스크립트 SIZE 256 준비, 파일은 128 그대로(3b6e94e). 위키 허용된 새 세션에서 `npm run facepack -- --force` + `--license` 재수집 필요 → 사용자에게 Network access 변경 여부 확인.
+- (22:2x KST) 사용자 "다시 체크" → Z 컨테이너 en.wikipedia.org 200·upload.wikimedia.org 정상 → C.77u에 재수집 지시(now).
