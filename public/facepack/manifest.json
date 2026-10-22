@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-22T14:06:16.718Z",
+  "generated": "2026-10-22T14:24:45.006Z",
   "players": {
     "messi": {
       "file": "players/messi.png",
@@ -1713,31 +1713,31 @@
     },
     "whu": {
       "file": "clubs/whu.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/c2/West_Ham_United_FC_logo.svg/330px-West_Ham_United_FC_logo.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c2/West_Ham_United_FC_logo.svg/250px-West_Ham_United_FC_logo.svg.png",
       "page": "https://en.wikipedia.org/wiki/West_Ham_United_F.C.",
       "title": "West Ham United F.C."
     },
     "wol": {
       "file": "clubs/wol.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/c/c9/Wolverhampton_Wanderers_FC_crest.svg/330px-Wolverhampton_Wanderers_FC_crest.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c9/Wolverhampton_Wanderers_FC_crest.svg/330px-Wolverhampton_Wanderers_FC_crest.svg.png",
       "page": "https://en.wikipedia.org/wiki/Wolverhampton_Wanderers_F.C.",
       "title": "Wolverhampton Wanderers F.C."
     },
     "cry": {
       "file": "clubs/cry.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/a/a2/Crystal_Palace_FC_logo_%282022%29.svg/330px-Crystal_Palace_FC_logo_%282022%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a2/Crystal_Palace_FC_logo_%282022%29.svg/330px-Crystal_Palace_FC_logo_%282022%29.svg.png",
       "page": "https://en.wikipedia.org/wiki/Crystal_Palace_F.C.",
       "title": "Crystal Palace F.C."
     },
     "wat": {
       "file": "clubs/wat.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/e2/Watford.svg/330px-Watford.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e2/Watford.svg/330px-Watford.svg.png",
       "page": "https://en.wikipedia.org/wiki/Watford_F.C.",
       "title": "Watford F.C."
     },
     "bou": {
       "file": "clubs/bou.png",
-      "source": "https://thumb.wikimedia.org/wikipedia/en/thumb/e/e5/AFC_Bournemouth_%282013%29.svg/330px-AFC_Bournemouth_%282013%29.svg.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "source": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e5/AFC_Bournemouth_%282013%29.svg/250px-AFC_Bournemouth_%282013%29.svg.png",
       "page": "https://en.wikipedia.org/wiki/AFC_Bournemouth",
       "title": "AFC Bournemouth"
     },
