@@ -207,7 +207,7 @@ export function sceneKeeper(): SceneOut {
 
 /** ⑤ 전방 막힘 대 열림: 같은 자리 소유자(CM, 하프라인 2.5 m 앞)의 선택 400번 중 백패스 비율과 이유 */
 export function sceneBackpass(): SceneOut {
-  const run = (blocked: boolean): { back: number; mistake: number; noFwd: number; risk: number; fwd: number; ok: boolean } => {
+  const run = (blocked: boolean) => {
     const s = sceneState(2);
     const mine = s.agents.filter((a) => a.team === 0);
     const opp = s.agents.filter((a) => a.team === 1 && a.line !== 0);
@@ -353,7 +353,7 @@ export function sceneGiveGo(): SceneOut {
   place(passer, 66, 26);
   place(recv, 76, 34);
   place(marker, 78, 34.5);
-  place(cover, 88, 24);
+  place(cover, 90, 42);
   own(s, recv);
   s.lastPass = { passer: passer.idx, receiver: recv.idx, t: s.t };
   const tick0 = s.tick;
@@ -391,6 +391,7 @@ export function sceneGiveGo(): SceneOut {
   }
   const ret = candidates(s, recv).filter((c: Candidate) => c.receiver === passer.idx);
   const thr = ret.find((c) => c.type === 'through');
+  if (process.env.GGDBG) console.log(JSON.stringify({ thr, passer: [passer.x, passer.y, passer.tx, passer.ty, passer.vx], marker: [marker.x, marker.y], cover: [cover.x, cover.y], recv: [recv.x, recv.y] }));
   return {
     values: { runRate: runs / 200, targetBehind: behind, passerAdvance: passer.x - 66, returnThrough: thr ? 1 : 0, returnP: thr?.p ?? 0 },
     sane: ok,

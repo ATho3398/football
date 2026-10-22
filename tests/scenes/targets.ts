@@ -29,7 +29,7 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
       && v.blockedMistake === 0 && v.blockedBack! + v.blockedSide! >= 0.2,
   },
   // C.77y: 패서 침투 ≥ 30% · 목표가 마커 뒤 · 1초 뒤 리턴(침투) 패스 후보
-  giveGo: { goal: '⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계)', enabled: true, both: true, check: (v) => v.runRate! >= 0.3 && v.targetBehind! > 0 && v.returnThrough === 1 },
+  giveGo: { goal: '⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계)', enabled: true, both: true, check: (v) => v.runRate! >= 0.3 && v.targetBehind! > 0 && v.returnThrough === 1 && v.returnP! >= 0.4 },
   // C.77y: 마커 2 m 안 → 1.5초 동안 옆으로 3~5 m 움직이고 소유자 → 받는 선수 패스 성공 확률 +0.03 이상 (마커와 거리는 기록 — 마커도 쫓는다)
   check: { goal: '⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계)', enabled: true, both: true, check: (v) => v.moved! >= 2.5 && v.moved! <= 6 && v.pEnd! >= v.p0! + 0.03 },
   arrival: { goal: '⑥ 판단용 도착 시간 = 실제 이동 (2단계, 오차 ≤ 0.2초)', enabled: true, check: (v) => v.maxErr! <= 0.2 },

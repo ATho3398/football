@@ -438,7 +438,11 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const running = s.t < r.runUntil;
     let tx = clamp(r.x + r.vx * O.leadTime, 1, L - 1);
     let ty = clamp(r.y + r.vy * O.leadTime, 1, W - 1);
-    if (running) {
+    if (running && r.giveGo && ENGINE.offball.giveGoChance > 0) {
+      // 2:1 리턴 패스 (C.77y): 주고 달리는 선수가 노리는 마커 뒤 공간(달리기 목표)으로
+      tx = clamp(r.tx, 1, L - 1);
+      ty = clamp(r.ty, 1, W - 1);
+    } else if (running) {
       // 침투 패스: 오프사이드 라인 뒤 공간으로 (E.20 4번)
       const room = (1 - line) * L;
       const depth = clamp(O.throughShare * (room - O.throughStop), O.throughMin, O.throughMax);

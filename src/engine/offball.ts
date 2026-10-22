@@ -574,7 +574,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (!running && a.role.drop > 0 && nx > ox) nx -= (a.role.drop * O.dropDist) / L * 0.5;
     const [px, py] = toPitch(nx, ny, dir);
     const d = dist(px, py, owner.x, owner.y);
-    if (d < supMin && d > 0.1) {
+    if (d < supMin && d > 0.1 && !(running && a.giveGo)) {
       const k = supMin / d;
       const [qx, qy] = [owner.x + (px - owner.x) * k, owner.y + (py - owner.y) * k];
       [nx, ny] = toNorm(qx, qy, dir);
