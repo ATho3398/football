@@ -8,7 +8,7 @@ import { duelEdgeOf, tiredRatio } from './physics';
 import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { hasModule } from './roles';
-import { claimProb, keeperOf, keeperZone, saveDifficulty } from './keeper';
+import { claimProb, farSide, keeperCover, keeperOf, keeperZone, saveDifficulty } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { offsideRisk } from './referee';
@@ -227,7 +227,8 @@ function goalAngle(x: number, y: number, gx: number): number {
   return Math.abs(a2 - a1);
 }
 
-export function shotModel(s: SimState, a: Agent, header = false, at?: { x: number; y: number }): ShotModel {
+/** lead: 슛까지 남은 시간(초) — 동료에게 갈 패스의 가치를 볼 때 패스 비행 시간 (GK 가 그동안 자리를 옮긴다, C.77t) */
+export function shotModel(s: SimState, a: Agent, header = false, at?: { x: number; y: number }, lead = 0): ShotModel {
   const dir = attackDir(a.team, s.half);
   const [gx, gy] = oppGoal(dir);
   const px = at?.x ?? a.x;
@@ -268,13 +269,23 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   pOn = Math.min(PR.shotCap, pOn);
   const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
   // 구석 (C.76k): 쫓기며 쏘면 구석을 못 노린다 — 판단용 구석 0.5 도 실제와 같은 식 (E.15.1)
-  const pGoal = 1 - leagueSaveProb(speed, 0.5 * (1 - PR.cornerPressure * pressure), d, header);
+  const corner = 0.5 * (1 - PR.cornerPressure * pressure);
+  // GK 도달 항 (C.77t): 실제 GK 위치 · 리그 GK 선방 · GK 반대편 구석(가운데면 GK 쪽과 같은 거리라 아무 쪽) — 실제 판정과 같은 식
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const reach = gk ? keeperCover(gk.x, gk.y, px, py, gx, gy + (farSide(gk, gy) ?? 1) * corner * (G / 2 - 0.3), speed, ENGINE.keeper.leagueShotStopping, lead) : 1;
+  const cover = header ? Math.max(ENGINE.keeper.headerCoverMin, reach) : reach;
+  const pGoal = 1 - leagueSaveProb(speed, corner, d, header) * cover;
   const xg = (1 - pBlock) * pOn * pGoal;
   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
   const K = ENGINE.keeper;
   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
   const rebound = (1 - pBlock) * pOn * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
   return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure };
+}
+
+/** 땅볼 패스 d m 가 닿아 받을 때까지 (초, C.77t 판단용 GK 이동 시간) — 패스 속도는 makePass 와 같은 식 */
+function passLead(s: SimState, d: number): number {
+  return d / (clamp(B.passSpeedBase + B.passSpeedPerM * d, B.passSpeedMin, B.passSpeedMax) * s.env.passSpeed) + ENGINE.keeper.receiveLead;
 }
 
 // 마무리 능력치 finishSkill 은 duel.ts (C.76a: offball 위협 가중 수비와 공유)
@@ -467,7 +478,8 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (dist(tx, ty, gx0, gy0) <= PR.shotMaxDist && rx > 0.6 && !receivesBack(a.x, a.y, tx, ty, dir)) {
       // 받는 선수의 슈팅 가치도 판단용이므로 본인·리그 평균 혼합 (E.20 1번과 같은 원칙)
       const at = { x: tx, y: ty };
-      value = Math.max(value, judgedP(shotModel(s, r, false, at).value, shotModel(s, averageSelf(r), false, at).value));
+      const lead = passLead(s, dist(a.x, a.y, tx, ty));
+      value = Math.max(value, judgedP(shotModel(s, r, false, at, lead).value, shotModel(s, averageSelf(r), false, at, lead).value));
     }
     const lossR = loss(rx, ry);
     value = value * (1 - pLoseR) + pLoseR * lossR;
@@ -502,7 +514,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const p = layP(a);
       const pj = judgedP(p, layP(av));
       let value = positionValue(rx, ry) * support(r, r.x, r.y);
-      if (dist(r.x, r.y, gx0, gy0) <= PR.shotMaxDist) value = Math.max(value, judgedP(shotModel(s, r, false).value, shotModel(s, averageSelf(r), false).value));
+      if (dist(r.x, r.y, gx0, gy0) <= PR.shotMaxDist) value = Math.max(value, judgedP(shotModel(s, r, false, undefined, passLead(s, d)).value, shotModel(s, averageSelf(r), false, undefined, passLead(s, d)).value));
       const u = weight(pj * value + (1 - pj) * loss(rx, ry), a.role.pref.pass);
       out.push({ type: 'layoff', p, u, x: r.x, y: r.y, receiver: r.idx, value });
     }

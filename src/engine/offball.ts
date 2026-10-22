@@ -283,6 +283,9 @@ export function keeperTarget(s: SimState, a: Agent): void {
       a.tx = owner.x + ((gx - owner.x) / gd) * K.rushGap;
       a.ty = owner.y + ((gy - owner.y) / gd) * K.rushGap;
       a.urgent = true;
+    } else if (gd < K.setDist) {
+      // 자세 잡기 (C.77t): 상대가 슛 거리 안에서 공을 가지면 자리를 걸어서가 아니라 서둘러 옮긴다 (GK 위치가 선방에 들어간 뒤)
+      a.urgent = true;
     }
   }
 }
