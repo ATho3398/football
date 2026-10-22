@@ -8,7 +8,7 @@ import { awardsVM, ceremonyVM } from '../src/ui/awardsVM';
 import { awardsView } from '../src/ui/views/awards';
 import { MY_ID } from '../src/engine/adapter';
 import { uclReach } from '../src/cups';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 
 let cached: GameState | null = null;
 /** 한 시즌을 빠른 진행으로 끝낸 게임 (비시즌, 2018-19 · 손흥민 · 기본 6개 리그) */
@@ -176,7 +176,7 @@ describe('화면', () => {
 });
 
 describe('세이브', () => {
-  it('세이브 54 왕복 · 53 → 54', () => {
+  it('세이브 왕복 · 53 은 이어 할 수 없음', () => {
     const g = seasonDone();
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const back = deserialize(serialize(g));
@@ -184,8 +184,6 @@ describe('세이브', () => {
     expect(back.globalAwards!.years.at(-1)!.res['toty@pl']!.length).toBe(11);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 53;
-    delete raw.globalAwards.months;
-    expect(migrate(raw).globalAwards!.months).toBeUndefined();
-    expect(migrate(raw).saveFormat).toBe(57);
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 });

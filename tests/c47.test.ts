@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { newGame, rebuildRosters, SAVE_FORMAT_VERSION } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { LEGEND_ROWS, LEGEND_RETIRED_BY, REAL_RETIRED_2018_2020 } from '../data/players/legends';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { LEGENDS, legendPlacement, legendGap, legendPeak, legendRosterPlayer, legendSpawns } from '../src/legends';
@@ -184,17 +184,17 @@ describe('커리어 태그 효과 (C.47, pending 64): 그 구단에 있을 때�
   });
 });
 
-describe('세이브 26 → 27 (C.47)', () => {
-  it('레전드 팩 끔으로 변환, 왕복 그대로', () => {
+describe('세이브 (C.47)', () => {
+  it('왕복 그대로, 옛 세이브(26)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c47-mig', difficulty: 'normal' });
-    const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 26;
-    delete raw.legends;
-    const back = deserialize(JSON.stringify(raw));
+    const back = deserialize(serialize(g));
     expect(SAVE_FORMAT_VERSION).toBe(57);
     expect(back.saveFormat).toBe(57);
-    expect(back.legends).toBe(false);
+    expect(back.legends).toBe(g.legends);
     expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
+    const raw = JSON.parse(serialize(g));
+    raw.saveFormat = 26;
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });
 

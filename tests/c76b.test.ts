@@ -7,7 +7,7 @@ import {
   chanceFrom, jerseyBlocked, jerseyPool, requestJersey, showcasePut, showcaseTake, showItems, showroomSlots, shownItems, storedItems,
 } from '../src/jerseys';
 import { photoViews } from '../src/photocards';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { jerseyPanelVM, showroomVM } from '../src/ui/jerseyVM';
 import { photoDexVM } from '../src/ui/photoVM';
 import { matchResultView } from '../src/ui/views/matchResult';
@@ -197,16 +197,14 @@ describe('진열실', () => {
 });
 
 describe('세이브 48', () => {
-  it('옛 세이브(47) = 빈 진열 · 교환 기록 없음', () => {
+  it('옛 세이브(47)는 이어 할 수 없다 (C.77r), 같은 형식은 진열 그대로', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const g = game();
     const raw = JSON.parse(serialize(g));
+    expect(showroomVM(restore(JSON.parse(serialize(g)))).shown).toEqual(showroomVM(g).shown);
     raw.saveFormat = 47;
     delete raw.showcase;
-    const back = migrate(raw);
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(back.showcase).toEqual({ swaps: [], shown: [] });
-    expect(showroomVM(back).shown).toEqual([]);
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 
   it('버전 표시', () => {

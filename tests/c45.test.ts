@@ -8,7 +8,7 @@ import { applyAging } from '../src/growth';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import { createRng } from '../src/rng';
 import { buyWeakFoot, endDay, isMatchDay, myShirt, newGame, playOthers, playRound, setDayTraining, type CustomSpec } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { shortNames } from '../src/names';
 import { replayPlayers } from '../src/replay';
 import { teamSetupFromRoster } from '../src/engine/setup';
@@ -244,22 +244,18 @@ describe('약발 강화 (C.45 1번)', () => {
 });
 
 describe('세이브 23 → 24 (C.45 7번)', () => {
-  it('신체·장단점·등번호·도트 직접 바꾸기 기본값, 왕복', () => {
+  it('신체·장단점·등번호·도트 왕복, 옛 세이브(23)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'mig24', difficulty: 'normal' });
+    const back = deserialize(serialize(g));
+    expect(back.saveFormat).toBe(57);
+    expect(back.player.body).toEqual(g.player.body);
+    expect(back.player.tags).toEqual(g.player.tags);
+    expect(back.player.shirt).toBe(g.player.shirt);
+    expect(back.pixelOverrides).toEqual(g.pixelOverrides);
+    expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 23;
-    delete raw.player.body;
-    delete raw.player.tags;
-    delete raw.player.shirt;
-    delete raw.pixelOverrides;
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(57);
-    expect(back.player.body).toEqual(realBody('kane'));
-    expect(back.player.tags).toEqual([]);
-    expect(back.player.clubRun).toMatchObject({ club: 'tot', first: true });
-    expect(back.player.shirt).toBe(10);
-    expect(back.pixelOverrides).toEqual({ players: {}, kits: {} });
-    expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });
 

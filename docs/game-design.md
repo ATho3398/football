@@ -6641,6 +6641,30 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-22 15:17 KST / 답변 시각 ANSWERT KST / 걸린 시간 ELAPSED
 
+### C.77r 50단계 — 오프라인 PWA · 세이브 형식 정책(사용자 요청 2026-10-22 10:3x KST): **설치형 웹앱(매니페스트·서비스 워커, 빌드 산출물 + public 전부 미리 캐시) · 새 버전은 "다시 열기" 띠로만(자동 새로고침 없음, 경기 중 미룸) · 형식(SAVE_FORMAT_VERSION)이 다른 세이브는 이전하지 않고 안내 뒤 지움 — 이전(migration) 사슬 제거** (SAVE_FORMAT_VERSION 57 그대로 — 정책만 바뀜, BALANCE·ENGINE 그대로, STAGE_LABEL 그대로)
+
+**PWA**
+- `public/manifest.webmanifest`(PLAYER ONE, `start_url`·`scope`·`id` = `./`, standalone, 테마·배경 #16171b, 아이콘 192·512·maskable 512 — `public/icons/`, 다크 바탕 라임 "P1"), `index.html` 에 manifest·apple-touch-icon(180)·iOS 메타.
+- `src/pwa/swBuild.ts`(순수, 빌드용): `listFiles(dist)`(하위 폴더 포함, sw.js·소스맵 제외) · `buildVersion`(커밋 + 파일 내용 sha1 8자리) · `swSource(files, version)`. `vite.config.ts` 의 플러그인 `po-service-worker` 가 `closeBundle` 에서 `dist/sw.js` 를 쓴다(외부 라이브러리 없음). 지금 빌드 401개(약 11MB) 미리 캐시.
+- 서비스 워커: install = 24개씩 `cache: 'reload'` 로 전부 받기(skipWaiting 안 함), activate = `po-` 로 시작하는 옛 캐시 지우기 + clients.claim, fetch = 같은 출처 GET 캐시 먼저(쿼리 무시 — 얼굴 manifest `no-cache` 도 캐시 판), 없으면 네트워크 → 캐시, 페이지 이동은 index.html. 모든 경로가 sw.js 기준 상대(`./…`)라 Pages `/football/` 하위 경로에서 동작.
+- `src/pwa/register.ts`: 배포 빌드에서만 `./sw.js` 등록, 앱으로 돌아올 때마다 `reg.update()`. 새 버전이 설치(대기)되면 화면 위 띠 "새 버전 · 다시 열면 적용돼요 [다시 열기][나중에]" — 경기 중(결정 순간·실시간 재생)·자동 진행 띠·모달이 있으면 숨김. [다시 열기] = 자동 저장 끝낸 뒤 `skip-waiting` → controllerchange → 새로고침.
+- 저장 화면에 "홈 화면에 추가하면 인터넷 없이도 플레이돼요" + iPhone·iPad 이면 "사파리는 오래 쓰지 않으면 저장 공간을 지울 수 있어요 — [내보내기]로 파일 백업" 한 줄.
+
+**세이브 형식 정책** (`src/save.ts`)
+- `MIGRATIONS` 사슬·`migrate` 제거 → `restore(raw)`: `saveFormat === SAVE_FORMAT_VERSION` 일 때만 복원(로스터는 시드로 다시 만듦), 아니면 `SaveFormatError`("이 세이브는 이전 버전 형식이라 이어 할 수 없습니다"). `sameFormat(raw)`.
+- `loadGame`(수동·자동 저장 [이어하기]): 형식이 다르면 그 슬롯과 리플레이를 지우고 오류 → 화면 토스트 "…이어 할 수 없습니다 · 현재 버전에서는 이어 할 수 없어 이 슬롯을 지웠어요". `importSave`: 같은 안내, 저장 안 함.
+- 옛 localStorage 세이브(C.40 까지, `football-career:<slot>`)는 옮기지 않고 지운다. 명예의 전당·기기 설정 등 세이브 밖 localStorage 는 그대로.
+- 테스트: 옛 형식 이전을 보던 테스트 50개 파일을 "옛 세이브(N)는 이어 할 수 없음 + 지금 형식 왕복"으로 바꿈(이전 결과만 보던 C.67 "32강 지난 옛 세이브" 1개는 지움).
+
+**관문**: typecheck ✓ · test **136파일 1,142개** 통과(새 `tests/c77r.test.ts` 10개: 같은 형식 복원·다른 형식(낮음·높음·없음·문자열) 오류 · 다른 형식 슬롯 불러오기 → 안내·슬롯·리플레이 삭제, 다른 슬롯 그대로 · 파일 가져오기 안내·저장 안 함 · 세이브 밖 localStorage 유지 · 저장·복원 뒤 같은 진행 · 서비스 워커 파일 목록·버전·소스·매니페스트 설치 조건) · build ✓ · 같은 시드 지문 `9f4821552ba78385` 수정 전후 동일(`scripts/c74a-fingerprint.ts`).
+
+**오프라인 재접속 확인** `docs/c77r-check/`(`scripts/c77r-offline.mjs`, 헤드리스 Chromium 폰 390×844, dist 를 `/football/` 하위 경로로 서빙): ① 온라인 1회 열기 → 서비스 워커가 페이지 제어·캐시 401개 ② 네트워크 끔 + 서버도 응답 안 함 → 새로고침 → 타이틀 ✓ · 새 게임(손흥민) 홈 ✓ · 경기 1번 결과 화면 ✓ (그동안 서버에 닿은 요청은 브라우저 자체의 sw.js 갱신 확인뿐) ③ 네트워크 켬 · sw.js 버전 바꿈 → 띠 표시 → [다시 열기] → 새로고침, 캐시는 새 버전 하나만 · 화면 오류 0.
+
+**PWA 설치 가능 점검(Lighthouse 비슷한, CDP `Page.getInstallabilityErrors`·`getAppManifest`, `docs/c77r-check/installable.json`)**: 설치 가능 오류 0 · 매니페스트 오류 0 · name/short_name · standalone · start_url/scope `./` · 아이콘 192·512·maskable · theme-color 메타 · viewport · apple-touch-icon · 서비스 워커가 start_url 제어 · 오프라인 start_url 200.
+
+**디자인 없는 새 화면/패널 목록**: 새 버전 알림 띠 1개(작은 고정 띠, 기존 버튼 재사용).
+
+**남은 것**: ① 미리 캐시가 약 11MB라 첫 설치 때 한 번 받는다(페이스팩 6.8MB 포함, 지시대로 전부) ② iOS 는 사파리 저장소 정리 정책 때문에 파일 백업 안내만(코드로 막을 수 없음) ③ 형식이 다른 슬롯도 목록에는 눌러 보기 전까지 남는다(불러올 때 안내·삭제).
 ### C.77q 50단계 — 메뉴 구조 정리 UI-A(사용자 요청 2026-10-22 09:30·10:26 KST "기능이 많아져서 힘들다. 카드팩이 왜 재정에 있냐, 카드는 상점. 에이전트 모집 관련은 훈련으로. 카드는 그냥 상세로 띄우면 된다", 마스터 Z UI 구조 분석 `docs/planning-handoff.md` 8.55): **상점 화면 분리(독 [상점]) · 상점·팩 결과 카드 → 기존 카드 상세 시트 · 코치·스태프 → 훈련 [스태프] 탭 · 에이전트 → 선수 › 계약 · 독 재배치(폰 홈·훈련·[다음]·선수·상점·더보기) · 홈/일정 중복 설정 제거, `main` 배포** (ENGINE_VERSION·BALANCE_VERSION 그대로 — 엔진·밸런스 무변경, 같은 시드 지문 `9f4821552ba78385` 수정 전후 동일; SAVE_FORMAT_VERSION 그대로 — 화면 위치만 바뀜, 세이브 구조 무변경. 새 디자인 없이 기존 컴포넌트·토큰만)
 
 **구현**

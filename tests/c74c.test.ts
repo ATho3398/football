@@ -6,7 +6,7 @@ import { MY_ID, playMyMatch } from '../src/engine/adapter';
 import { resolveRapport } from '../src/engine/rapport';
 import { myScoutReport, newGame, playRound, roundMatch, SAVE_FORMAT_VERSION, selectableRealPlayers, type GameState } from '../src/game';
 import { chemAfterMatch, chemFrac, chemPassMul, chemSeasonEnd, ensureChem, markerOf, passTargetMul, rapportInput, scoutReport, topChemMates } from '../src/rapport';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { prepVM } from '../src/ui/prepVM';
 import { playerVM } from '../src/ui/viewModels';
 import { prepView } from '../src/ui/views/prep';
@@ -83,7 +83,7 @@ describe('동료 호흡', () => {
     expect(Object.keys(ensureChem(g).mins)).toHaveLength(0);
   });
 
-  it('playRound 뒤 호흡이 쌓이고 세이브 왕복, 41 세이브는 호흡 없이 43 으로', () => {
+  it('playRound 뒤 호흡이 쌓이고 세이브 왕복, 41 세이브는 이어 할 수 없음', () => {
     const g = game('c74c-r');
     for (let i = 0; i < 2; i++) playRound(g);
     const back = deserialize(serialize(g));
@@ -91,8 +91,7 @@ describe('동료 호흡', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
     const old = JSON.parse(serialize(g));
     old.saveFormat = 41;
-    delete old.chem;
-    expect(migrate(old).saveFormat).toBe(57);
+    expect(() => restore(old)).toThrow(SaveFormatError);
   });
 });
 

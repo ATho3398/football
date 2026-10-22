@@ -5,7 +5,7 @@ import { newGame, playRound, SAVE_FORMAT_VERSION, type GameState, type SeasonArc
 import { inboxList } from '../src/inbox';
 import { npcReputation } from '../src/finance';
 import { naturalOvr } from '../src/roster';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { leaderboard, npcStanding, ratingMinApps, seasonAwards, trimArchive, worldAfterRound, worldSeasonEnd } from '../src/worldStats';
 import { worldVM } from '../src/ui/viewModels';
 import { worldView } from '../src/ui/views/screens';
@@ -152,7 +152,7 @@ describe('세이브 상한 (지난 시즌 요약)', () => {
     }
   });
 
-  it('세이브 34: 왕복, 33 세이브 이식(시상 줄 만들고 상한대로 줄임)', () => {
+  it('세이브 왕복, 옛 세이브(33)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c64-save', difficulty: 'normal' });
     playRound(g, { engine: 'quick' });
     expect(SAVE_FORMAT_VERSION).toBe(57);
@@ -161,11 +161,9 @@ describe('세이브 상한 (지난 시즌 요약)', () => {
     g.archive = [2014, 2015, 2016, 2017].map((season) => ({ season, teamId: g.player.teamId, my: [], results: [], players: { ...players }, table: [] }));
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 33;
-    const o = deserialize(JSON.stringify(raw));
-    expect(o.archive.every((a) => a.aw && a.aw.length > 0)).toBe(true);
-    expect(o.archive[0]!.slim).toBe(true);
-    expect(o.archive.at(-1)!.slim).toBeUndefined();
-    const back = deserialize(serialize(o));
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
     expect(back.archive.length).toBe(4);
+    expect(back.archive).toEqual(g.archive);
   });
 });

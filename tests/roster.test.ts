@@ -8,7 +8,7 @@ import { createRng } from '../src/rng';
 import {
   attributesFromOvr, capVirtualAttributes, gkAttributesFromOvr, gkOvr, naturalOvr, pickLineup, posGroup, rosterRating,
 } from '../src/roster';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { withinRules } from '../src/squad';
 
 function playSeason(s: GameState) {
@@ -209,18 +209,12 @@ describe('로스터 시즌 갱신과 저장 (23번)', () => {
     expect(json.length).toBeLessThan(118_500);
   });
 
-  it('형식 4 세이브를 열면 지난 시즌 수만큼 갱신한 로스터가 생긴다', () => {
+  it('옛 세이브(4)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'LW', seed: 'mig', difficulty: 'normal' });
     playSeason(s);
     const raw = JSON.parse(serialize(s));
-    delete raw.roster;
     raw.saveFormat = 4;
-    const loaded = deserialize(JSON.stringify(raw));
-    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.roster.updates).toBe(1);
-    // 옛 형식 세이브에는 이적이 없었다 (C.42): 이적 기록 없이 다시 만든다
-    expect(loaded.rosters).toEqual(rebuildRosters('mig', undefined, 1, s.npcs));
-    expect(loaded.transfers).toEqual([]);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 
   it('20시즌 뒤에도 팀 레이팅이 장기 평균에서 크게 벗어나지 않는다', () => {

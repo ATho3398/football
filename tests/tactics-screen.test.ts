@@ -6,7 +6,7 @@ import { FORMATION_SLOTS } from '../src/formations';
 import {
   customized, defaultSlot, fitOf, migratedTactics, previewLineup, slotPos, teamDefaultTactics, teamRoles, validTactics, withFormation, withTendency,
 } from '../src/myTactics';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { LEVELS, tendencyLevels } from '../src/engine/tactics';
 import { TEAM_TACTICS } from '../src/engine/teamData';
 import { isUnlocked } from '../src/unlocks';
@@ -118,16 +118,11 @@ describe('세이브 (SAVE_FORMAT_VERSION 12)', () => {
     expect(SAVE_FORMAT_VERSION).toBe(57);
   });
 
-  it('11 → 12: 균형 + 팀 데이터 포메이션 + 주 포지션 슬롯', () => {
+  it('옛 세이브(11)는 이어 할 수 없음', () => {
     const g = game('CM', 'mig');
     const raw = JSON.parse(serialize(g));
-    delete raw.tactics;
     raw.saveFormat = 11;
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.tactics).toEqual(migratedTactics(g.player.teamId, back.rosters[g.player.teamId], 'CM'));
-    expect(back.tactics.tendency).toBe('balanced');
-    const hasCm = FORMATION_SLOTS[back.tactics.formation].some((s) => s.pos === 'CM');
-    expect(myMatchPosition(back)).toBe(hasCm ? 'CM' : FORMATION_SLOTS[back.tactics.formation][defaultSlot(back.tactics.formation, 'CM')]!.pos);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 
   it('잘못된 전술 값은 기본값으로 고친다', () => {

@@ -3,7 +3,7 @@ import { formBonus, formLevel, pushRating } from '../src/form';
 import { newGame, playRound, SAVE_FORMAT_VERSION } from '../src/game';
 import { simulateMatch, type MatchInput } from '../src/match';
 import { createRng } from '../src/rng';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 
 describe('폼 (부록 D.1)', () => {
   it('5경기 미만이면 보정 없음, 최근 5경기만 남긴다', () => {
@@ -47,20 +47,16 @@ describe('폼 (부록 D.1)', () => {
   });
 });
 
-describe('세이브 변환', () => {
-  it('형식 1 세이브를 현재 형식으로 변환한다 (1 → 2 → 3)', () => {
+describe('세이브 형식', () => {
+  it('옛 세이브(1)는 이어 할 수 없음, 지금 형식은 불러와 이어 한다', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig', difficulty: 'normal' });
     playRound(s);
     const old = JSON.parse(serialize(s));
     old.saveFormat = 1;
-    delete old.player.recentRatings;
-    delete old.lastMatch.formBonus;
-    delete old.player.injury;
-    const loaded = deserialize(JSON.stringify(old));
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
+    const loaded = deserialize(serialize(s));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.player.recentRatings).toEqual([]);
-    expect(loaded.lastMatch?.formBonus).toBe(0);
-    expect(loaded.player.injury).toBeNull();
+    expect(loaded.player.recentRatings).toEqual(s.player.recentRatings);
     playRound(loaded);
   });
 

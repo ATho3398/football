@@ -1,0 +1,21 @@
+{
+  "installabilityErrors": [],
+  "manifestErrors": [],
+  "name": "PLAYER ONE — 축구 커리어",
+  "short_name": "PLAYER ONE",
+  "display": "standalone",
+  "start_url": "./",
+  "scope": "./",
+  "theme_color": "#16171b",
+  "background_color": "#16171b",
+  "icons": [
+    "192x192 any",
+    "512x512 any",
+    "512x512 maskable"
+  ],
+  "themeMeta": "#16171b",
+  "viewport": "width=device-width, initial-scale=1.0",
+  "appleTouch": true,
+  "swControlsStartUrl": true,
+  "offlineStartUrl": 200
+}

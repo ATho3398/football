@@ -8,7 +8,7 @@ import {
   startTrust, trainingXpMul, trustTerm, type MatchTrustInput,
 } from '../src/manager';
 import { requestEligibility } from '../src/transfer';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { teamDetailVM } from '../src/ui/detailVM';
 import { competitionVM, meetingVM } from '../src/ui/managerVM';
 import { competitionSection, meetingView } from '../src/ui/views/manager';
@@ -242,7 +242,7 @@ describe('이적 요청 신뢰도 훅 (C.42 requestEligibility)', () => {
 });
 
 describe('화면·세이브 (C.62)', () => {
-  it('홈 주전 경쟁 카드 · 면담 띠 문구 · 세이브 왕복 · 32', () => {
+  it('홈 주전 경쟁 카드 · 면담 띠 문구 · 세이브 왕복 · 옛 세이브(31)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'real', playerId: 'son', seed: 'c62-ui', difficulty: 'normal' });
     for (let r = 0; r < 2; r++) {
       toMatchDay(g);
@@ -261,13 +261,10 @@ describe('화면·세이브 (C.62)', () => {
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(SAVE_FORMAT_VERSION).toBe(57);
     expect(back.manager).toEqual(g.manager);
-    // 옛 세이브 (31): manager 없음 → 새 팀 시작값
+    // 옛 세이브(31)는 이어 할 수 없음
     const old = JSON.parse(serialize(g));
     old.saveFormat = 31;
-    delete old.manager;
-    delete old.statNames;
-    const o = deserialize(JSON.stringify(old));
-    expect(ensureManager(o).trust).toBe(startTrust(o, o.player.teamId));
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
   });
 
   it('시즌 기록 이름 (pending 96 ④): 리그를 떠난 선수도 이름으로', () => {
