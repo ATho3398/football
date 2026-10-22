@@ -6612,7 +6612,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 관문 | 결과 |
 |---|---|
 | typecheck · test · build | ✓ · 139파일 1,167개 ✓(새 `tests/nativeApp.test.ts` 3개) · ✓ (balance·engine 은 코드 무변경이라 로컬 재측정 생략, CI 가 판정) |
-| 워크플로 1회 실행 | 1차 실패(`android-actions/setup-android` 가 sdkmanager `tools` 패키지 없음으로 종료 → 러너 기본 SDK 쓰게 단계 제거) → 2차 **성공**(실행 39777860214, 약 2분 15초) · 아티팩트 `player-one-apk` **17.2 MB**(17,155,216 바이트, 30일 보관) |
+| 워크플로 1회 실행 | 1차 실패(`android-actions/setup-android` 가 sdkmanager `tools` 패키지 없음으로 종료 → 러너 기본 SDK 쓰게 단계 제거) → 2차 **성공**(dist 묶기 방식, 실행 39777860214, 약 2분 15초, 17.2 MB) → 방식 변경 뒤 3차 **성공**(server.url 껍데기, 실행 39785147794, **약 1분**) · 아티팩트 `player-one-apk` **4.3 MB**(4,312,700 바이트, 30일 보관) |
 | 웹 동작 무변경 | 서비스 워커 분기·안내 한 줄만(웹에서는 isNativeApp 거짓) |
 
 **방식 비교와 선택**(마스터 Z 22:13 KST "앱 업데이트되면 어떤 방식?"):
@@ -6621,7 +6621,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 업데이트 | 웹 배포 = 앱 업데이트(재설치 없음, "다시 열기" 띠) | 패치마다 새 APK 재설치(version.json 비교 안내 필요) | 웹 배포 = 업데이트 |
 | 첫 실행 | 인터넷 필요(이후 서비스 워커 캐시로 오프라인) | 인터넷 없이 됨 | 인터넷 필요 |
 | 세이브 위치 | 앱 웹뷰 저장소(origin atho3398.github.io) — 크롬 웹판과 따로 | 앱 웹뷰(https://localhost) — 웹판과 따로 | 크롬 저장소 — 크롬 웹판과 **공유** |
-| APK 크기 | 작음(웹 파일 없음) | 17.2 MB | 작음 |
+| APK 크기 | 4.3 MB | 17.2 MB | 작음 |
 | 조건 | 없음 | 없음 | 도메인 루트 `/.well-known/assetlinks.json` 필요 — `atho3398.github.io/football/` 프로젝트 페이지는 루트에 못 올려 주소창이 보이는 커스텀 탭이 됨 |
 선택 이유: 업데이트마다 재설치가 없고(사용자 질문의 핵심), TWA 는 이 저장소 주소에서 검증 파일을 둘 수 없어 주소창이 남는다. 첫 실행만 인터넷이 필요한 것은 offline.html 안내로 덮는다. 첫 시도(dist 묶기) 실행 39777860214 의 APK 는 17.2 MB 였다.
 
