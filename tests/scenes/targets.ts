@@ -22,7 +22,12 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
   stop: { goal: '② 급정지 반응 시간·지나친 거리 (2단계)', enabled: true, check: (v) => v.reactTime! <= 1.2 + 1e-6 && v.maxPast! <= 3 },
   // C.77x 켬: 느린 CB(60) 도착 차가 같은 속도(80) 대비 +0.4초 이상
   highLine: { goal: '③ 뒤도는 느린 CB 불리 (2단계, 5단계 높은 라인 비용)', enabled: true, check: (v) => v.slowArriveGap! - v.evenArriveGap! >= 0.4 },
-  keeper: { goal: '④ GK 이동 시간 대 선방, 느린 횡패스 대 빠른 컷백 (4단계)', enabled: false },
+  // C.77z: 같은 슛 GK 가운데 대 비킴 선방 차 ≥ 0.25 · 느린 횡패스 뒤 GK 복귀 선방 ≥ 0.35 대 빠른 컷백 ≤ 0.2 · 빈 골문 ≥ 0.8 · 1대1 0.3~0.5 · 밀집(3명) ≤ 0.12
+  keeper: {
+    goal: '④ GK 대응 시간 — 가운데/비킴, 느린 횡패스/빠른 컷백, 빈 골문·1대1·밀집 (4단계)', enabled: true, both: true,
+    check: (v) => v.centerSave! - v.asideSave! >= 0.25 && v.slowSave! >= 0.35 && v.fastSave! <= 0.2
+      && v.emptyGoal! >= 0.8 && v.oneOnOneGoal! >= 0.3 && v.oneOnOneGoal! <= 0.5 && v.crowdGoal! <= 0.12,
+  },
   // C.77y 켬: 열림 백패스 ≤ 3% · 실수(gap 밖) 0 · 이유는 압박 탈출/보존뿐 / 막힘은 백패스·옆 패스가 남음
   backpass: {
     goal: '⑤ 막힘/열림에 따라 백패스 비율·이유가 다름 (3단계)', enabled: true, both: true,

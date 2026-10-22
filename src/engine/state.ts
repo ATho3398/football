@@ -9,6 +9,7 @@ import type { BodyMods } from '../body';
 import type { MatchEnv } from './env';
 import type { Rapport } from './rapport';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
+import type { ShotCtx } from './keeper';
 
 /** 0 GK, 1 수비, 2 중원, 3 공격 */
 export type Line = 0 | 1 | 2 | 3;
@@ -161,7 +162,9 @@ export interface Flight {
     /** GK 도달 항 (C.77t): 슛 순간 GK 위치로 잰 cover, 선방 확률에 곱한다 */
     cover?: number;
     /** 카드 선방 보정 (C.36): 상대 GK 선방 확률에 더한다 */
-    cardSave?: number };
+    cardSave?: number;
+    /** 슛 1건 자료 (C.77z): 슛 순간 실제 값 — 선방은 판단과 같은 식 saveChance(ctx) */
+    ctx?: ShotCtx };
   /** 카드 크로스 보정 (C.36): 착지 공중볼에서 공격 쪽 승리 확률에 더한다 */
   cardEdge?: number;
 }

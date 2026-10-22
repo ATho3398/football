@@ -2,10 +2,10 @@
 // 팀 0 이 +x 로 공격(전반), 팀 1 골은 x = L.
 
 import { ENGINE } from '../../src/engine/config';
-import { keeperOf, saveProb, shotCover, farSide } from '../../src/engine/keeper';
-import { keeperTarget, updateOffball } from '../../src/engine/offball';
+import { keeperOf } from '../../src/engine/keeper';
+import { keeperFlightDue, keeperTarget, updateOffball } from '../../src/engine/offball';
 import { arrivalTime } from '../../src/engine/physics';
-import { candidates, choose, type Candidate } from '../../src/engine/onball';
+import { candidates, choose, shotExec, type Candidate } from '../../src/engine/onball';
 import { L, W } from '../../src/engine/pitch';
 import { probe } from '../../src/engine/probe';
 import type { Agent, SimState } from '../../src/engine/state';
@@ -141,67 +141,111 @@ export function sceneHighLine(): SceneOut {
   };
 }
 
-/** ④ GK 반대편으로 내준 패스 뒤 슛: 패스 속도(느린 횡패스 10 m/s · 빠른 컷백 18 m/s)별 GK 이동·도달 항·선방 확률, 자리 잡은 GK 기준값 */
+/** ④ 장면용: 공격 팀 둘(패서·슈터)과 상대 GK 외 모두를 하프라인 부근으로 치운다 (박스 안 수비 0) */
+function clearBox(s: SimState, keep: Agent[]): void {
+  let k = 0;
+  for (const a of s.agents) {
+    if (keep.includes(a) || (a.team === 1 && a.line === 0)) continue;
+    place(a, L / 2 - 10 + (k % 4) * 6, 4 + Math.floor(k / 4) * 12);
+    k++;
+  }
+}
+
+function ballAt(s: SimState, x: number, y: number, owner: number): void {
+  const b = s.ball;
+  b.x = x;
+  b.y = y;
+  b.owner = owner;
+  b.flight = null;
+  b.reserve = null;
+}
+
+/**
+ * ④ GK 대응 시간 (C.77w 장면, C.77z 판정): (가) GK 반대편으로 내준 패스 뒤 슛 — 패스 속도(느린 횡패스 10 m/s · 빠른 컷백 18 m/s)별 GK 이동·덮는 정도·선방,
+ * 패스는 실제 비행(공 비행 객체)이고 GK 는 엔진과 같은 다시 보기 규칙(판단 주기 + 패스 뒤 반응 시간 keeperFlightDue)으로 keeperTarget 을 따른다.
+ * (나) 같은 슛 GK 가운데 대 비킴 (다) 빈 골문 · 1대1 · 밀집(3명) 성공률 = 실행 식(shotExec)
+ */
 export function sceneKeeper(): SceneOut {
-  const shotSpeed = 29;
-  const corner = 0.7;
   const run = (passSpeed: number, preset: boolean): { cover: number; pSave: number; off: number; moved: number; ok: boolean } => {
     const s = sceneState(1);
     const gk = keeperOf(s, 1)!;
     const passer = pick(s, 0, 3, 0);
     const shooter = pick(s, 0, 3, 1);
+    clearBox(s, [passer, shooter]);
     const [px, py] = [L - 12, W / 2 + 14];
     const [sx, sy] = [L - 11, W / 2 - 3];
     place(passer, px, py);
     place(shooter, sx, sy);
     const b = s.ball;
-    const at = (x: number, y: number, owner: number): void => {
-      b.x = x;
-      b.y = y;
-      b.owner = owner;
-      b.flight = null;
-      b.reserve = null;
-    };
     // 시작: 패서가 공을 가짐, GK 는 그때 자리 (preset 이면 슈터가 공을 가졌을 때 자리)
-    at(preset ? sx : px, preset ? sy : py, preset ? shooter.idx : passer.idx);
+    ballAt(s, preset ? sx : px, preset ? sy : py, preset ? shooter.idx : passer.idx);
     keeperTarget(s, gk);
     place(gk, gk.tx, gk.ty);
     const x0 = gk.x;
     const y0 = gk.y;
     const pd = Math.hypot(sx - px, sy - py);
     const dur = pd / passSpeed;
-    let next = 0;
+    const t0 = s.t;
+    if (!preset) {
+      ballAt(s, px, py, -1);
+      b.flight = { kind: 'pass', fromX: px, fromY: py, toX: sx, toY: sy, t0, dur, air: false, passer: passer.idx, receiver: shooter.idx, outcome: 'receive', interceptor: -1 };
+    }
+    // 엔진 판단 주기의 평균 위상 (REFRESH/2 에 첫 갱신)
+    let next = t0 + REFRESH / 2;
     let ok = true;
     const settle = 0.3;
-    for (let t = 0; t < dur + settle - 1e-9; t += DT) {
-      const k = Math.min(1, t / dur);
-      if (!preset) at(px + (sx - px) * k, py + (sy - py) * k, k >= 1 ? shooter.idx : -1);
-      if (t + 1e-9 >= next) {
+    const n = Math.round((dur + settle) / DT);
+    for (let i = 1; i <= n; i++) {
+      s.t = t0 + i * DT;
+      const k = Math.min(1, (s.t - t0) / dur);
+      if (!preset) {
+        if (k < 1) {
+          b.x = px + (sx - px) * k;
+          b.y = py + (sy - py) * k;
+        } else if (b.owner < 0) ballAt(s, sx, sy, shooter.idx);
+      }
+      if (s.t + 1e-9 >= next || keeperFlightDue(s, gk)) {
         keeperTarget(s, gk);
-        next = t + REFRESH;
+        next = s.t + REFRESH;
       }
       move(gk);
       ok &&= sane(gk);
     }
-    // 슛: GK 반대편 구석 (엔진 shoot 과 같은 farSide 규칙)
-    const side = farSide(gk, W / 2) ?? -1;
-    const ty = W / 2 + side * corner * (ENGINE.pitch.goalWidth / 2 - 0.3);
-    const d = Math.hypot(L - sx, W / 2 - sy);
-    const cover = shotCover(gk, sx, sy, L, ty, shotSpeed);
-    at(sx, sy, shooter.idx);
-    keeperTarget(s, gk);
-    return { cover, pSave: saveProb(gk, shotSpeed, corner, d) * cover, off: Math.hypot(gk.x - gk.tx, gk.y - gk.ty), moved: Math.hypot(gk.x - x0, gk.y - y0), ok };
+    ballAt(s, sx, sy, shooter.idx);
+    const e = shotExec(s, shooter);
+    return { cover: e.cover, pSave: e.pSave, off: Math.hypot(gk.x - gk.tx, gk.y - gk.ty), moved: Math.hypot(gk.x - x0, gk.y - y0), ok };
   };
   const slow = run(10, false);
   const fast = run(18, false);
   const set = run(18, true);
+  // (나)(다) 정지 장면: 슈터 한 명, GK 는 자기 자리(keeperTarget) 또는 지정 자리, 수비는 지정한 수만
+  const still = (sx: number, sy: number, gkAt: [number, number] | null, defs: [number, number][]): { goal: number; pSave: number; ok: boolean } => {
+    const s = sceneState(1);
+    const gk = keeperOf(s, 1)!;
+    const shooter = pick(s, 0, 3, 1);
+    const ds = s.agents.filter((a) => a.team === 1 && a.line !== 0).slice(0, defs.length);
+    clearBox(s, [shooter, ...ds]);
+    place(shooter, sx, sy);
+    defs.forEach(([x, y], i) => place(ds[i]!, x, y));
+    ballAt(s, sx, sy, shooter.idx);
+    keeperTarget(s, gk);
+    place(gk, gkAt ? gkAt[0] : gk.tx, gkAt ? gkAt[1] : gk.ty);
+    const e = shotExec(s, shooter);
+    return { goal: e.goal, pSave: e.pSave, ok: sane(gk, shooter, ...ds) };
+  };
+  const center = still(L - 14, W / 2 - 4, null, []);
+  const aside = still(L - 14, W / 2 - 4, [L - 3, W / 2 + 3], []);
+  const empty = still(L - 9, W / 2 - 2, [L - 5, W / 2 + 7], []);
+  const oneOnOne = still(L - 12, W / 2 - 1, null, []);
+  const crowd = still(L - 14, W / 2, null, [[L - 12.5, W / 2 + 0.3], [L - 13.5, W / 2 + 1.8], [L - 13, W / 2 - 1.8]]);
   return {
     values: {
       slowCover: slow.cover, slowSave: slow.pSave, slowOff: slow.off, slowMoved: slow.moved,
       fastCover: fast.cover, fastSave: fast.pSave, fastOff: fast.off, fastMoved: fast.moved,
       setCover: set.cover, setSave: set.pSave,
+      centerSave: center.pSave, asideSave: aside.pSave, emptyGoal: empty.goal, oneOnOneGoal: oneOnOne.goal, crowdGoal: crowd.goal,
     },
-    sane: slow.ok && fast.ok && set.ok,
+    sane: slow.ok && fast.ok && set.ok && center.ok && aside.ok && empty.ok && oneOnOne.ok && crowd.ok,
   };
 }
 

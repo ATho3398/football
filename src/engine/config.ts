@@ -1128,6 +1128,33 @@ export const ENGINE = {
     reachSpan: 1.5,
     /** GK 반응 시간 (초): tb 에서 뺀다 (0 아래는 0) */
     reactTime: 0,
+    /**
+     * GK 대응 시간 모델 (C.77z, 로드맵 4단계 — keeper.coverOf): 1 이면 tBall = 공이 GK 대응 지점(슛 선 위 GK 수선의 발)까지 가는 시간,
+     * 반응 시간 reactBase − reactSkill × (선방 − saveCenter)/100 동안은 GK 의 지금 속도(슛 선 쪽 성분, ±driftMax)로, 그 뒤 다이빙 · 헤더도 같은 식(headerCoverMin 예외 없음, 반응 + headerReact) ·
+     * 판단 xG 에 약발 배율 · 빈 골(가운데로 차도 GK 가 못 닿음)이면 유효 슈팅 확률이 openOn 쪽으로. 0 이면 C.77t 식 그대로(꺼짐)
+     */
+    timeModel: 0,
+    /** 대응 시간 모델의 기본 닿는 범위 (m, 반응 전 몸·팔로 닿는 거리). 1.4 · 반응 0.15 · 시간 기준 0.6 도 장면 ④ 는 통과하지만 유효 슈팅 득점 전환이 49% 로 GK 가 너무 약해(quick 600 1.99) 2.0 · 0.1 · 0.4 (부록 C.77z) */
+    timeReach: 2.0,
+    /** 판단용 기대 선방: 실행 구석 분포(난수 × cornerRange)를 이 개수 점의 평균으로 (timeModel 1) */
+    cornerQuad: 4,
+    /** 대응 시간 모델 δ 시간 항의 기준 (초): 반응 뒤 남은 시간이 이만큼이면 거리 항 0 (GK 깊이 3 m · 반응 0.1 에서 약 17 m 슛) */
+    availRef: 0.4,
+    /** 밀집 슛 (C.77z): 3 m 안 상대 필드 선수 둘째부터 한 명마다 유효 슈팅 확률 −shotCrowd (판단·실행 같은 pOn) */
+    shotCrowd: 0.08,
+    reactBase: 0.1,
+    reactSkill: 0.4,
+    driftMax: 6,
+    headerReact: 0,
+    /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
+    openOn: 0.95,
+    /** 헤더 공 속도 (C.77z): headerSpeed × clamp(1 + headerCrossW × (크로스 속도 / ball.airSpeed − 1), 0.8, 1.2) — 능력치 무관 (E.20 7번) */
+    headerCrossW: 0.5,
+    /**
+     * 패스 비행 중 GK 자리 (C.77z): 1 이면 상대가 받을 패스·크로스의 도착점이 골에서 setDist m 안일 때 GK 는 그 점 기준 슛 각도 자리
+     * (골 가운데 → 도착점 선 위, 깊이 classicMin, 골대 ±1 m 안)로 서둘러 옮긴다 — 패스를 찬 뒤 GK 반응 시간(reactOf)에 다시 본다. 0 이면 지금 공 위치 기준 걸어서(옛 동작)
+     */
+    flightSet: 0,
     /** 판단용 (C.77t): 동료에게 패스해 그가 쏠 슛의 가치를 볼 때, 패스 비행 + receiveLead 초 동안 GK 가 setSpeed m/s 로 자리를 옮긴다고 본다 (지금 GK 위치 그대로 보면 패스가 과대평가된다) */
     setSpeed: 4,
     receiveLead: 0.3,

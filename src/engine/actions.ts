@@ -4,7 +4,7 @@ import { weakFootMul } from '../body';
 import { ENGINE } from './config';
 import { event, looseBall, reaction, setOwner, setRestart } from './core';
 import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
-import { catchProb, claimProb, farSide, keeperOf, keeperZone, saveProb, shotCover } from './keeper';
+import { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb, type ShotCtx } from './keeper';
 import { ballRank, inOwnBox, updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
@@ -402,7 +402,8 @@ function recordShot(s: SimState, a: Agent, penalty = false): void {
   s.lastShotT[a.team] = s.t;
 }
 
-export function shoot(s: SimState, a: Agent, header: boolean): void {
+/** inSpeed: 헤더면 들어온 크로스 공 속도 (m/s, C.77z 헤더 공 속도) */
+export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number): void {
   // 상대 슈팅 카드 장면 (C.40): 직접 모드에서 몸으로 막기 카드가 있으면 슛 전에 멈춘다 (결정 뒤 sim 이 같은 틱에 다시 부른다)
   if (s.cards && !header && oppShotMoment(s, a)) return;
   const dir = attackDir(a.team, s.half);
@@ -458,8 +459,11 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
   // 상대 분석 (C.74c): 슈팅이 리포트 약점이면 유효 슈팅 × 약점 공략
   const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot * (s.rapport ? exploitMul(s, a, 'shoot') : 1);
   // GK 반대편 구석 (C.77t): GK 가 골대 가운데에서 비켜 있으면 먼 쪽을 노린다 (판단용 shotModel 과 같은 규칙)
-  const side = farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1);
-  const speed = m.speed * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const side = farSide(gk, gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1);
+  // 헤더 공 속도 (C.77z, timeModel 1): 크로스가 빠를수록 빠르다 (능력치 무관)
+  const base = header && K.timeModel && inSpeed ? m.speed * clamp(1 + K.headerCrossW * (inSpeed / ENGINE.ball.airSpeed - 1), 0.8, 1.2) : m.speed;
+  const speed = base * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
   if (onTarget) {
     team.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
@@ -467,7 +471,9 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번). 쫓기며 쏘면 구석을 못 노린다 (C.76k, 압박 × cornerPressure)
     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
     const ty = gy + side * corner * (G / 2 - 0.3);
-    const shot = { speed, corner, d: m.d, header, ...(cm?.save ? { cardSave: cm.save } : {}) };
+    // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
+    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0 };
+    const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
     shotFlight(s, a, {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
@@ -499,8 +505,8 @@ function shotFlight(s: SimState, a: Agent, fl: Flight): void {
   const uy = fl.toY - fl.fromY;
   const len2 = ux * ux + uy * uy;
   const k = gk && len2 > 1 ? ((gk.x - fl.fromX) * ux + (gk.y - fl.fromY) * uy) / len2 : 1;
-  // GK 도달 항 (C.77t): 몸을 날리기 전, 슛 순간 GK 위치로 잰다
-  if (!sh.penalty) sh.cover = shotCover(gk, fl.fromX, fl.fromY, fl.toX, fl.toY, sh.speed, sh.header);
+  // GK 도달 항 (C.77t): 몸을 날리기 전, 슛 순간 GK 위치로 잰다 (C.77z: 슛 1건 자료 그대로)
+  if (!sh.penalty && sh.ctx) sh.cover = coverOf(sh.ctx);
   if (gk && !sh.penalty && k > 0.05 && k < 1 - 0.3 / Math.sqrt(len2)) {
     sh.goalX = fl.toX;
     sh.goalY = fl.toY;
@@ -529,7 +535,8 @@ function shotArrives(s: SimState, fl: Flight): void {
   const dir = attackDir(shooter.team, s.half);
   // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
   // GK 도달 항 (C.77t): 슛 순간 GK 가 슛 선에서 멀면 선방 × cover
-  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  // C.77z: 판단과 같은 식 saveChance(슛 순간 자료 — 막기 어려움 × 덮는 정도)
+  const pSave = (sh.ctx ? saveChance(sh.ctx) : saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1)) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
   // 선방률 지표 (C.76q, 미해결 6): 12 m 밖 유효 슈팅만 따로 센다 (1대1·PK 제외)
   const far = !sh.penalty && sh.d >= FAR_SAVE_FROM;
   if (far) s.teams[shooter.team].stats.farOnTarget++;
@@ -775,7 +782,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       const [wx, wy] = [winner.x, winner.y];
       winner.x = b.x;
       winner.y = b.y;
-      shoot(s, winner, true);
+      shoot(s, winner, true, Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) / Math.max(0.05, fl.dur));
       winner.x = wx;
       winner.y = wy;
       return;
@@ -1091,7 +1098,11 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
       const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * PR.cornerRange, 0, 1);
-      const shot = { speed, corner, d, header: false, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) };
+      const ctx: ShotCtx = {
+        fx: a.x, fy: a.y, svx: a.vx, svy: a.vy, d, header: false, press3: 0, pressure: 0, tx: gx, ty: gy + side * corner * (G / 2 - 0.3), corner, speed,
+        ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), lead: 0,
+      };
+      const shot = { speed, corner, d, header: false, ctx, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) };
       if (probe.shot) probeShot(s, a, 'fk', 'onTarget', { xg: null, pOn, pBlock: wall, d }, gx, gy + side * corner * (G / 2 - 0.3), speed, shot);
       shotFlight(s, a, {
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,

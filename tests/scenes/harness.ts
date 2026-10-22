@@ -1,5 +1,5 @@
 // 기준 장면 하네스 (C.77w, 공통 규칙 로드맵 1단계): 실제 경기 상태(createMatch)를 만들고 선수를 직접 배치해 몇 초만 돌린다.
-// 이동은 엔진의 moveAgent(physics.ts)·판단 주기(time.offballInterval)·GK 자리(keeperTarget)·선방 식(saveProb·shotCover)·후보/선택(candidates·choose)을 그대로 쓴다.
+// 이동은 엔진의 moveAgent(physics.ts)·판단 주기(time.offballInterval)·GK 자리(keeperTarget)·선방 식(C.77z saveChance — 판단·실행 공용)·후보/선택(candidates·choose)을 그대로 쓴다.
 // 장면은 지금 동작을 수치로 돌려준다. 목표 판정은 targets.ts 의 enabled (로드맵 2~4단계 패치가 켠다).
 
 import { ENGINE } from '../../src/engine/config';
@@ -104,6 +104,12 @@ export const RECEIVE_ON: Record<string, number> = {
   'offball.giveGoChance': 0.6,
   'offball.swapShare': 0.6,
   'offball.abortLane': 0.35,
+};
+
+/** C.77z 새 동작 상수의 "켜진" 값 (GK 대응 시간 모델·패스 비행 중 GK 자리): 설정이 0(꺼짐)이어도 장면 테스트는 이 값으로 돈다 */
+export const KEEPER_ON: Record<string, number> = {
+  'keeper.timeModel': 1,
+  'keeper.flightSet': 1,
 };
 
 /** C.77x 이동 상수의 "꺼진" 값 (옛 동작) — 3단계 장면이 2단계 없이도 작동하는지 본다 */

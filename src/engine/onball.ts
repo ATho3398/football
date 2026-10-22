@@ -8,7 +8,7 @@ import { arrivalTime, duelEdgeOf, tiredRatio } from './physics';
 import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
 import { manDiff } from './formation';
 import { hasModule } from './roles';
-import { claimProb, farSide, keeperCover, keeperOf, keeperZone, saveDifficulty } from './keeper';
+import { claimProb, coverOf, expectedSave, farSide, gkCtx, keeperOf, keeperZone, saveChance, type ShotCtx } from './keeper';
 import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
 import { Purpose, rand, randn } from './rng';
 import { offsideRisk } from './referee';
@@ -227,6 +227,10 @@ export interface ShotModel {
   blockers: number;
   /** 슛 순간 압박 0~1 (pressureAt, C.76k 구석 보정용) */
   pressure: number;
+  /** 판단 xG 에 넣은 약발 배율 (C.77z timeModel 1, 아니면 1). pOn 에는 안 들어 있다 — 실행은 pOn × 실제 약발 */
+  foot: number;
+  /** 슛 1건 자료 (C.77z): 실행은 이것을 실제 값으로 바꿔 같은 saveChance 로 판정한다 */
+  ctx: ShotCtx;
 }
 
 function goalAngle(x: number, y: number, gx: number): number {
@@ -244,20 +248,21 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const d = dist(px, py, gx, gy);
   const t = a.attrs;
   const pressure = pressureAt(s, a, px, py);
+  const K = ENGINE.keeper;
   // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
   let blockers = 0;
   // 1대1 조건용: 가장 가까운 상대 필드 선수 거리 (GK 는 뺀다 — 나온 GK 는 세이브 식이 맡고, 압박 항 pressure 는 그대로 GK 포함)
   let nearField = Infinity;
-  if (!header) {
-    for (const o of s.agents) {
-      if (!o.onPitch || o.team === a.team || o.line === 0) continue;
-      const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
-      if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
-      if (PR.shotFree > 0) {
-        const od = dist(o.x, o.y, px, py);
-        if (od < nearField) nearField = od;
-      }
-    }
+  // 3 m 안 상대 필드 선수 (C.77z 슛 1건 자료)
+  let press3 = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    const od = dist(o.x, o.y, px, py);
+    if (od <= 3) press3++;
+    if (header) continue;
+    const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
+    if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
+    if (PR.shotFree > 0 && od < nearField) nearField = od;
   }
   let pOn: number;
   let speed: number;
@@ -269,6 +274,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     speed = B.shotSpeed;
   }
   const angle = Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
+  // 밀집 (C.77z timeModel 1): 3 m 안 상대 필드 선수가 둘 이상이면 한 명마다 유효 슈팅 −shotCrowd (서둘러 찬다 — 가장 가까운 한 명은 압박 항이 맡는다)
+  if (ENGINE.keeper.timeModel && press3 > 1) pOn = Math.max(PR.shotMin, pOn - ENGINE.keeper.shotCrowd * (press3 - 1));
   pOn *= angle;
   pOn *= finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot');
   // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
@@ -278,17 +285,37 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
   // 구석 (C.76k): 쫓기며 쏘면 구석을 못 노린다 — 판단용 구석 0.5 도 실제와 같은 식 (E.15.1)
   const corner = 0.5 * (1 - PR.cornerPressure * pressure);
-  // GK 도달 항 (C.77t): 실제 GK 위치 · 리그 GK 선방 · GK 반대편 구석(가운데면 GK 쪽과 같은 거리라 아무 쪽) — 실제 판정과 같은 식
+  // 슛 1건 자료 (C.77z): 실제 GK 위치·속도 · 리그 GK 선방 · GK 반대편 구석(가운데면 GK 쪽과 같은 거리라 아무 쪽) — 실행(actions shoot)과 같은 식 saveChance
   const gk = keeperOf(s, (1 - a.team) as 0 | 1);
-  const reach = gk ? keeperCover(gk.x, gk.y, px, py, gx, gy + (farSide(gk, gy) ?? 1) * corner * (G / 2 - 0.3), speed, ENGINE.keeper.leagueShotStopping, lead) : 1;
-  const cover = header ? Math.max(ENGINE.keeper.headerCoverMin, reach) : reach;
-  const pGoal = 1 - leagueSaveProb(speed, corner, d, header) * cover;
-  const xg = (1 - pBlock) * pOn * pGoal;
+  const ctx: ShotCtx = {
+    fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure,
+    tx: gx, ty: gy + (farSide(gk, gy) ?? 1) * corner * (G / 2 - 0.3), corner, speed,
+    gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
+  };
+  // 빈 골 (C.77z): 가운데로 차도 GK 가 못 닿으면 구석을 노릴 필요가 없다 — 유효 슈팅 확률이 openOn 쪽으로
+  if (K.timeModel && gk) pOn += Math.max(0, K.openOn * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
+  // 약발 (C.45): 판단도 실행과 같은 배율 (C.77z, timeModel 1 일 때만 — 0 이면 판단은 약발을 모른다, 옛 동작)
+  const foot = K.timeModel && !header ? weakFootMul(a.body, dir, gx - px, gy - py) : 1;
+  // 판단 = 실행의 기대값 (C.77z timeModel 1): 구석 분포 평균. 0 이면 기대 구석 한 점 (옛 동작)
+  const pGoal = 1 - (K.timeModel ? expectedSave(ctx, gy, farSide(gk, gy) ?? 1, 1 - PR.cornerPressure * pressure) : saveChance(ctx));
+  const xg = (1 - pBlock) * pOn * foot * pGoal;
   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
-  const K = ENGINE.keeper;
   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
-  const rebound = (1 - pBlock) * pOn * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
-  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure };
+  const rebound = (1 - pBlock) * pOn * foot * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
+  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx };
+}
+
+/**
+ * 실행 쪽 기대값 (C.77z, 장면·테스트용): 판단 자료(shotModel.ctx)에 실제 상대 GK(위치·속도·선방·키)와 실제 약발을 넣은 같은 식(saveChance).
+ * 구석·공 속도는 기대값 — 실제 shoot() 은 그것을 뽑는다. 상대 GK 가 리그 GK(선방 leagueShotStopping·키 0)이고 timeModel 1 이면 goal = shotModel().xg
+ */
+export function shotExec(s: SimState, a: Agent, header = false): { goal: number; pSave: number; cover: number; m: ShotModel } {
+  const m = shotModel(s, a, header);
+  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)) };
+  const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+  const foot = header ? 1 : weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy - a.y);
+  const pSave = ENGINE.keeper.timeModel ? expectedSave(ctx, gy, farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1, 1 - PR.cornerPressure * m.pressure) : saveChance(ctx);
+  return { goal: (1 - m.pBlock) * m.pOn * foot * (1 - pSave), pSave, cover: coverOf(ctx), m };
 }
 
 /** 땅볼 패스 d m 가 닿아 받을 때까지 (초, C.77t 판단용 GK 이동 시간) — 패스 속도는 makePass 와 같은 식 */
@@ -302,12 +329,6 @@ export { finishSkill };
 /** 마무리 배수 = clamp(1 + finishPerPoint × (마무리 능력치 − 70), finishMin, finishMax). 유효 슈팅(= 골 확률)에 곱한다 */
 export function finishMult(t: FieldAttributes, kind: 'shot' | 'long' | 'header' | 'freeKick'): number {
   return clamp(1 + PR.finishPerPoint * (finishSkill(t, kind) - PR.skillCenter), PR.finishMin, PR.finishMax);
-}
-
-/** 리그 평균 GK 의 세이브 확률 (판단용. 실제 판정은 상대 GK 능력치) */
-function leagueSaveProb(speed: number, corner: number, d: number, header = false): number {
-  const K = ENGINE.keeper;
-  return clamp(K.saveBase - K.saveDelta * saveDifficulty(speed, corner, d, header) + (K.saveSkill * (K.leagueShotStopping - K.saveCenter)) / 100, 0.05, 0.95);
 }
 
 /** 같은 팀 동료 중 상대 박스 안 */

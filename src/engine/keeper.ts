@@ -45,10 +45,112 @@ export function keeperCover(kx: number, ky: number, fx: number, fy: number, tx: 
   return clamp(1 - (e - reach) / K.reachSpan, 0, 1);
 }
 
-/** GK 가 이 슛 선을 덮는 정도 (실제 판정용): GK 가 없으면 1 */
-export function shotCover(gk: Agent | null, fx: number, fy: number, tx: number, ty: number, speed: number, header = false): number {
-  const c = gk ? keeperCover(gk.x, gk.y, fx, fy, tx, ty, speed, gkAttrs(gk).shotStopping) : 1;
-  return header ? Math.max(K.headerCoverMin, c) : c;
+/**
+ * 슛 1건 자료 (C.77z, 공통 규칙 로드맵 4단계): 판단(onball shotModel — 인지한 값: 리그 GK 능력·기대 구석·기대 공 속도)과
+ * 실행(actions shoot → shotArrives — 실제 값: 상대 GK 능력·뽑은 구석·뽑은 공 속도)이 같은 구조를 같은 식(saveChance)으로 읽는다.
+ */
+export interface ShotCtx {
+  /** 슈터 위치·속도 */
+  fx: number;
+  fy: number;
+  svx: number;
+  svy: number;
+  /** 골 가운데까지 (m) */
+  d: number;
+  header: boolean;
+  /** 3 m 안 상대 필드 선수 수 · 압박 0~1 (pressureAt) */
+  press3: number;
+  pressure: number;
+  /** 노린 골라인 점 · 구석 0~1 */
+  tx: number;
+  ty: number;
+  corner: number;
+  /** 공 속도 (m/s) */
+  speed: number;
+  /** GK 위치·속도 (없으면 null — 덮는 정도 1) */
+  gk: { x: number; y: number; vx: number; vy: number } | null;
+  /** GK 선방 능력·키 보정 (판단 = 리그 GK, 키 0) */
+  stop: number;
+  body: number;
+  /** 판단용: 슛까지 남은 시간 (초, 패스가 가는 동안 GK 가 자리를 옮긴다) */
+  lead: number;
+}
+
+/** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
+export function reactOf(stop: number): number {
+  return Math.max(0, K.reactBase - (K.reactSkill * (stop - K.saveCenter)) / 100);
+}
+
+/**
+ * GK 가 슛 선을 덮는 정도 0~1 (C.77z 대응 시간 모델, keeper.timeModel 1): 공이 GK 대응 지점(GK 에서 슛 선에 내린 수선의 발)을 지날 때까지 남은 시간
+ * tBall = 그 점까지 공 거리 / 공 속도. GK 는 반응 시간(reactOf) 동안은 지금 속도 그대로(슛 선 쪽 성분 — 반대로 움직이면 잃는다), 그 뒤 diveSpeed × 선방/80 으로 몸을 날린다.
+ * 닿는 범위 reach = timeReach + 그 둘 + setSpeed × lead 대 슛 선까지 거리 e: cover = clamp(1 − (e − reach)/reachSpan, 0, 1).
+ * timeModel 0 이면 C.77t 식(tb = |GK − 슈터|/속도 − reactTime, GK 속도 무시, 헤더는 headerCoverMin 하한) 그대로.
+ */
+export function coverOf(c: ShotCtx): number {
+  const g = c.gk;
+  if (!g) return 1;
+  if (!K.timeModel) {
+    const v = keeperCover(g.x, g.y, c.fx, c.fy, c.tx, c.ty, c.speed, c.stop, c.lead);
+    return c.header ? Math.max(K.headerCoverMin, v) : v;
+  }
+  return timeTerms(c)[0];
+}
+
+/** 대응 시간 모델 (timeModel 1): [덮는 정도, 반응 뒤 남은 시간(초)] */
+function timeTerms(c: ShotCtx): [number, number] {
+  const g = c.gk;
+  if (!g) return [1, K.availRef];
+  const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
+  const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
+  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0);
+  // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
+  let drift = 0;
+  if (e > 1e-6) {
+    const px = c.fx + (c.tx - c.fx) * k;
+    const py = c.fy + (c.ty - c.fy) * k;
+    drift = clamp(((px - g.x) * g.vx + (py - g.y) * g.vy) / e, -K.driftMax, K.driftMax) * Math.min(tBall, react);
+  }
+  const dive = Math.max(0, tBall - react);
+  const reach = K.timeReach + K.diveSpeed * dive * (c.stop / 80) + drift + K.setSpeed * c.lead;
+  return [clamp(1 - (e - reach) / K.reachSpan, 0, 1), dive + c.lead];
+}
+
+/**
+ * 선방 확률 (C.77z): 판단·실행 공용 = 막기 어려움 δ × 덮는 정도. 날씨·카드 보정은 실행 쪽에서 곱한다.
+ * timeModel 1 이면 δ 의 거리 항 distW × (1 − 거리/distRef) 대신 시간 항 distW × (1 − 반응 뒤 남은 시간/availRef) — 같은 거리라도 GK 가 가깝거나 공이 빠르면 어렵다
+ */
+export function saveChance(c: ShotCtx): number {
+  let cover: number;
+  let delta: number;
+  if (K.timeModel) {
+    const [cv, avail] = timeTerms(c);
+    cover = cv;
+    delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
+  } else {
+    delta = saveDifficulty(c.speed, c.corner, c.d, c.header);
+    cover = coverOf(c);
+  }
+  return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * cover;
+}
+
+/**
+ * 판단용 기대 선방 (C.77z, timeModel 1): 실행은 구석을 난수 × cornerRange(최대 1)로 뽑아 GK 반대편으로 차므로, 판단은 그 분포의 cornerQuad 점 평균으로 본다
+ * (덮는 정도가 구석에 비선형이라 기대 구석 한 점이면 판단이 실제보다 GK 를 세게 본다). base = 압박 보정 전 구석 1 의 골라인 y 오프셋 방향(±1)
+ */
+export function expectedSave(c: ShotCtx, gy: number, side: number, cornerMul: number): number {
+  const n = K.cornerQuad;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const corner = Math.min(1, ((i + 0.5) / n) * ENGINE.prob.cornerRange) * cornerMul;
+    sum += saveChance({ ...c, corner, ty: gy + side * corner * (ENGINE.pitch.goalWidth / 2 - 0.3) });
+  }
+  return sum / n;
+}
+
+/** GK 자료 (실행: 실제 GK 위치·속도·능력·키) */
+export function gkCtx(gk: Agent | null): Pick<ShotCtx, 'gk' | 'stop' | 'body'> {
+  return { gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: gkAttrs(gk).shotStopping, body: gk?.body.gkSave ?? 0 };
 }
 
 export function catchProb(gk: Agent | null): number {

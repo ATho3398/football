@@ -12,7 +12,7 @@ import { computeRatings } from './rating';
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
 import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
-import { refreshErrors, updateOffball, updateSituations } from './offball';
+import { keeperFlightDue, refreshErrors, updateOffball, updateSituations } from './offball';
 import { candidates, choose, judgementOf, notePassive } from './onball';
 import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, slipPick, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
@@ -388,7 +388,7 @@ function stepBody(s: SimState): void {
   updateSituations(s);
   for (const a of s.agents) {
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh)) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || keeperFlightDue(s, a)) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));

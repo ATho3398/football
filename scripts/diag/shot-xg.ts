@@ -76,6 +76,9 @@ console.log(`| xG 0.5+ | ${pc(O.filter((x) => x.xg >= 0.5).length, O.length)} | 
 console.log(`| xG 합/경기 | ${(O.reduce((t, x) => t + x.xg, 0) / N).toFixed(2)} | ${(S.reduce((t, x) => t + x.xg!, 0) / N).toFixed(2)} |`);
 
 const bands = [[0, 0.05], [0.05, 0.1], [0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.4, 0.5], [0.5, 1]];
+// C.77z: 판단 xG 보정 — 구간별 판단 평균 대 실제 골률 (차 = 실제/판단 − 1, ±30% 관문 · 표본 30 미만은 괄호)
+const cal = [[0, 0.05], [0.05, 0.1], [0.1, 0.2], [0.2, 0.3], [0.3, 0.5], [0.5, 1.01]];
+console.log('\nxG 보정(판단 평균 → 실제 골률, 차): ' + cal.map(([lo, hi]) => { const B = S.filter((x) => x.xg! >= lo! && x.xg! < hi!); const j = avg(B.map((x) => x.xg!)); const g = B.filter((x) => x.outcome === 'goal').length / (B.length || 1); const t = `${lo}~${hi} n${B.length} ${f(j)}→${f(g)} ${B.length ? `${((g / j - 1) * 100).toFixed(0)}%` : '-'}`; return B.length < 30 ? `(${t})` : t; }).join(' · '));
 console.log('\nxG 구간(새): ' + bands.map(([lo, hi]) => { const B = S.filter((x) => x.xg! >= lo! && x.xg! < hi!); return `${lo}~${hi} ${pc(B.length, S.length)} (골 ${pc(B.filter((x) => x.outcome === 'goal').length, B.length)})`; }).join(' · '));
 const cats: [string, (x: Rec) => boolean][] = [
   ['1대1(콘 0·3 m 안 0·16.5 m 안)', (x) => x.kind === 'foot' && x.blockers === 0 && x.near >= 3 && x.d <= 16.5],

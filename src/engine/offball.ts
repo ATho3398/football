@@ -2,7 +2,7 @@
 
 import { ENGINE } from './config';
 import { reaction } from './core';
-import { keeperZone, sweepRange } from './keeper';
+import { gkAttrs, keeperZone, reactOf, sweepRange } from './keeper';
 import { finishSkill } from './duel';
 import { arrivalTime, effectiveMax, landingVelocity } from './physics';
 import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
@@ -274,6 +274,18 @@ export function keeperTarget(s: SimState, a: Agent): void {
   a.tx = gx + dir * depth;
   a.ty = clamp(gy + (s.ball.y - gy) * K.lateral, gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
   a.urgent = false;
+  // 패스 비행 중 자리 (C.77z flightSet): 상대가 받을 패스·크로스의 도착점이 슛 거리(setDist) 안이면 그 점 기준 슛 각도 자리로 서둘러 옮긴다
+  const fl = s.ball.flight;
+  if (K.flightSet && fl && !s.restart && (fl.outcome === 'receive' || fl.outcome === 'aerial') && s.agents[fl.passer]?.team !== a.team) {
+    const fd = dist(fl.toX, fl.toY, gx, gy);
+    if (fd < K.setDist && fd > 0.1) {
+      const dep = Math.min(K.classicMin, fd / 2);
+      a.tx = gx + ((fl.toX - gx) / fd) * dep;
+      a.ty = clamp(gy + ((fl.toY - gy) / fd) * dep, gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
+      a.urgent = true;
+      return;
+    }
+  }
   // 각 좁히기: 상대 소유자가 박스 안 골 가까이 들어오면 공과 골 사이로 나간다
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (owner && owner.team !== a.team && !s.restart) {
@@ -288,6 +300,14 @@ export function keeperTarget(s: SimState, a: Agent): void {
       a.urgent = true;
     }
   }
+}
+
+/** 패스 비행 중 GK 다시 보기 (C.77z flightSet): 패스·크로스를 찬 뒤 GK 반응 시간(reactOf)이 지나는 틱에 자리를 다시 잡는다 */
+export function keeperFlightDue(s: SimState, a: Agent): boolean {
+  const fl = s.ball.flight;
+  if (!ENGINE.keeper.flightSet || a.line !== 0 || !fl || (fl.outcome !== 'receive' && fl.outcome !== 'aerial')) return false;
+  const tr = fl.t0 + reactOf(gkAttrs(a).shotStopping);
+  return s.t >= tr && s.t - ENGINE.time.dt < tr;
 }
 
 /** (x, y)가 그 팀 자기 박스 안인가 */
