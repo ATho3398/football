@@ -12,18 +12,21 @@ const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v
 describe('부상 확률 (부록 D.2)', () => {
   const p = { attributes: flat(50), age: 25, fatigue: 0 };
 
-  it('0.02 × 출전 비율 × 난이도 × 피로 × 신체 × 나이', () => {
+  it('기본 × 출전 비율 × 난이도 × 피로 × 신체 × 나이', () => {
+    // C.77n: 기본 0.02 → 0.019, 30세 이상 × 1.3 → 1.1 (balance.ts injury 를 읽는다)
+    const I = BALANCE.injury;
+    const b = I.base;
     // 신체 보정 = 1.3 - 0.6 × 0.5 = 1.0
-    expect(injuryChance(p, 90, 'normal')).toBeCloseTo(0.02);
-    expect(injuryChance(p, 45, 'normal')).toBeCloseTo(0.01);
+    expect(injuryChance(p, 90, 'normal')).toBeCloseTo(b, 6);
+    expect(injuryChance(p, 45, 'normal')).toBeCloseTo(b / 2, 6);
     expect(injuryChance(p, 0, 'normal')).toBe(0);
-    expect(injuryChance(p, 90, 'easy')).toBeCloseTo(0.014);
-    expect(injuryChance(p, 90, 'hard')).toBeCloseTo(0.026);
+    expect(injuryChance(p, 90, 'easy')).toBeCloseTo(b * BALANCE.difficulty.easy.injury, 6);
+    expect(injuryChance(p, 90, 'hard')).toBeCloseTo(b * BALANCE.difficulty.hard.injury, 6);
     // C.77m: 피로 보정 문턱 30 → 60, 기울기 0.02 → 0.01 (피로 80 이면 × 1.2)
-    expect(injuryChance({ ...p, fatigue: 60 }, 90, 'normal')).toBeCloseTo(0.02);
-    expect(injuryChance({ ...p, fatigue: 80 }, 90, 'normal')).toBeCloseTo(0.024);
-    expect(injuryChance({ ...p, attributes: flat(100) }, 90, 'normal')).toBeCloseTo(0.014);
-    expect(injuryChance({ ...p, age: 30 }, 90, 'normal')).toBeCloseTo(0.026);
+    expect(injuryChance({ ...p, fatigue: 60 }, 90, 'normal')).toBeCloseTo(b, 6);
+    expect(injuryChance({ ...p, fatigue: 80 }, 90, 'normal')).toBeCloseTo(b * 1.2, 6);
+    expect(injuryChance({ ...p, attributes: flat(100) }, 90, 'normal')).toBeCloseTo(b * 0.7, 6);
+    expect(injuryChance({ ...p, age: 30 }, 90, 'normal')).toBeCloseTo(b * I.ageMultiplier, 6);
   });
 });
 
