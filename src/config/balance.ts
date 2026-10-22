@@ -342,6 +342,8 @@ export const BALANCE = {
       ageMultiplier: 1.5,
       attrs: [1, 2] as [number, number],
       drop: [1, 3] as [number, number],
+      /** 중등도(4~7주, C.77w) 영구 하락 확률 = chance × moderateMul (0 이면 중상 이상만) */
+      moderateMul: 0,
     },
   },
 

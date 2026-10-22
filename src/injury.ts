@@ -38,9 +38,9 @@ function rollGrade(rng: Rng): InjuryGrade {
 function rollPermanent(p: PlayerState, grade: InjuryGrade, rng: Rng): AttributeDelta {
   const P = BALANCE.injury.permanent;
   const delta: AttributeDelta = {};
-  // 중상 이상만 (C.77w: 중등도 4~7주는 영구 하락 없음)
-  if (grade === 'minor' || grade === 'moderate') return delta;
-  const chance = P.chance * (p.age >= P.ageFrom ? P.ageMultiplier : 1);
+  // 중등도는 chance × moderateMul (C.77w)
+  if (grade === 'minor') return delta;
+  const chance = P.chance * (p.age >= P.ageFrom ? P.ageMultiplier : 1) * (grade === 'moderate' ? P.moderateMul : 1);
   if (rng() >= chance) return delta;
   const pool = [...PHYSICAL];
   const n = randInt(rng, P.attrs[0], P.attrs[1]);
