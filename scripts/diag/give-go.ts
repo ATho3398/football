@@ -1,6 +1,7 @@
 // 진단 (엔진 관리자 9대, pending 145 ③): 패스 직후 패서가 앞으로 뛰는가 (2:1 / give-and-go). 엔진 코드는 건드리지 않는다.
 // npx vite-node scripts/diag/give-go.ts -- [경기수=20] [전술=balanced]
 //   성공한 오픈 플레이 패스(필드 선수, 상대 진영 절반 이상에서) 뒤 0~2초: 패서의 전진 이동(m)·runUntil 이 선 비율·최고 속도, 받은 선수가 2초 안에 패서에게 되돌려 준 비율(리턴 패스)
+import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
 import { tacticsOf } from '../../src/engine/tactics';
@@ -8,7 +9,16 @@ import type { Tendency, TeamSetup } from '../../src/engine/types';
 import { attackDir, toNorm } from '../../src/engine/pitch';
 import { FORMATION_SLOTS } from '../../src/formations';
 import { createTeamRoster, rosterRating } from '../../src/roster';
-const args = process.argv.slice(2).filter((a) => a !== '--');
+const allArgs = process.argv.slice(2).filter((a) => a !== '--');
+// 경로=값 인자로 ENGINE 상수 덮어쓰기 (C.77y: 새 동작 상수가 꺼져 있어 켠 값으로 잰다)
+for (const a of allArgs.filter((x) => x.includes('='))) {
+  const [k, v] = a.split('=') as [string, string];
+  const path = k.split('.');
+  let o = ENGINE as unknown as Record<string, unknown>;
+  for (const key of path.slice(0, -1)) o = o[key] as Record<string, unknown>;
+  o[path[path.length - 1]!] = Number(v);
+}
+const args = allArgs.filter((x) => !x.includes('='));
 const N = Number(args[0] ?? 20); const TN = (args[1] ?? 'balanced') as Tendency;
 const mk = (side: string, i: number, tn: Tendency): TeamSetup => {
   const r = createTeamRoster({ id: `v${side}${i}`, rating: 75 }, `diagR-${side}-${i}`, 2018, []);
