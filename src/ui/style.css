@@ -1410,6 +1410,10 @@ input.po-field__value::placeholder { font-weight: 600; color: var(--ink-faint); 
 .set-sec__body[hidden] { display: none; }
 .set-sec__body { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
 .set-sec__body .kv > span:first-child { font-size: 13px; font-weight: 800; }
+.set-credits { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); }
+.set-credits ul { margin: 0 0 6px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.set-credits li { display: flex; flex-direction: column; gap: 1px; font-size: 13px; overflow-wrap: anywhere; }
+.set-credits a { color: inherit; }
 .set-kv { padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); }
 .set-links { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .set-link { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: var(--surface-2); color: var(--ink); text-align: left; font-family: var(--font-sans); cursor: pointer; }

@@ -21,6 +21,14 @@ export function listFiles(dir: string): string[] {
   return out.filter((f) => f !== SW_FILE && !f.endsWith('.map')).sort();
 }
 
+/**
+ * 미리 캐시할 파일인지 (C.77u 리그별 지연 로딩): 리그 데이터 페이스팩(facepack/clubs/<리그>/, facepack/players/<리그>/)은
+ * 미리 받지 않고, 그 리그 화면이 처음 요청할 때 fetch 가 캐시에 넣는다. PL·A등급·레전드(폴더 바로 아래)는 미리 캐시
+ */
+export function precached(file: string): boolean {
+  return !/^facepack\/(clubs|players)\/[^/]+\//.test(file);
+}
+
 /** 버전: 커밋 + 파일 이름·내용 해시 앞 8자리 (같은 커밋이라도 내용이 바뀌면 새 캐시) */
 export function buildVersion(dir: string, files: string[], commit: string): string {
   const h = createHash('sha1');
@@ -30,13 +38,13 @@ export function buildVersion(dir: string, files: string[], commit: string): stri
 
 /**
  * 서비스 워커 소스. 경로는 모두 sw.js 위치(= base './') 기준 상대 경로라 GitHub Pages 하위 경로(/football/)에서도 동작한다.
- * - install: 전부 미리 캐시 (skipWaiting 안 함 — 화면이 고른다)
+ * - install: 전부 미리 캐시, 리그 페이스팩만 빼고(precached, C.77u) (skipWaiting 안 함 — 화면이 고른다)
  * - activate: 'po-' 로 시작하는 옛 캐시 지우기
  * - fetch: 같은 출처 GET 은 캐시 먼저(쿼리 무시), 없으면 네트워크 → 캐시에 넣기. 페이지 이동은 index.html
  * - message 'skip-waiting': 대기 중인 새 버전으로 넘어간다
  */
 export function swSource(files: string[], version: string): string {
-  const list = ['./', ...files.map((f) => `./${f}`)];
+  const list = ['./', ...files.filter(precached).map((f) => `./${f}`)];
   return `// 자동 생성 (src/pwa/swBuild.ts, C.77r) — 고치지 말 것
 const VERSION = ${JSON.stringify(version)};
 const CACHE = ${JSON.stringify(CACHE_PREFIX)} + VERSION;

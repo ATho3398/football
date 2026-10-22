@@ -1729,6 +1729,10 @@ app.addEventListener('click', (ev) => {
       autosave();
       render();
       return;
+    case 'set-credits':
+      ui.set.credits = !ui.set.credits;
+      render();
+      return;
     case 'tips-reset':
       if (!g) return;
       resetTips(g.guide);
