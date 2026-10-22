@@ -473,11 +473,16 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   let urgent = false;
 
   if (s.t >= a.runUntil) a.giveGo = false;
-  // ⒝ 주고 달리기 (C.77y, 2:1): 방금 상대 진영에서 성공 패스를 했으면 받은 선수 마커의 뒤 공간으로 (패스당 1번 굴림)
+  // ⒝ 주고 달리기 (C.77y, 2:1): 상대 진영으로 성공할 패스를 막 찼거나(날아가는 중) 방금 받게 했으면 받는 선수 마커의 뒤 공간으로.
+  // 굴림은 패스당 1번 (giveGoT = 마지막 굴린 시각: 날아가는 중 굴렸으면 받은 뒤에는 안 굴린다)
+  const fl = s.ball.flight;
+  const flying = fl && fl.passer === a.idx && fl.kind === 'pass' && fl.outcome === 'receive' && !fl.through ? fl : null;
   const lp = s.lastPass;
-  if (O.giveGoChance > 0 && lp && lp.passer === a.idx && owner && owner.idx === lp.receiver && owner.team === a.team && s.t - lp.t <= O.giveGoT
-    && a.giveGoT !== lp.t && a.line >= 2 && a.role.run >= O.giveGoRun && toNorm(owner.x, owner.y, dir)[0] >= 0.5) {
-    a.giveGoT = lp.t;
+  const gRef = flying ? [flying.toX, flying.toY] as const : owner ? [owner.x, owner.y] as const : null;
+  const gNew = flying ? a.giveGoT < flying.t0
+    : !!lp && lp.passer === a.idx && !!owner && owner.idx === lp.receiver && owner.team === a.team && s.t - lp.t <= O.giveGoT && a.giveGoT < lp.t - 2;
+  if (O.giveGoChance > 0 && gNew && gRef && s.t >= a.runUntil && a.line >= 2 && a.role.run >= O.giveGoRun && toNorm(gRef[0], gRef[1], dir)[0] >= 0.5) {
+    a.giveGoT = s.t;
     if (rand(s.seed, s.tick, a.idx, Purpose.GiveGo) < (O.giveGoChance * a.attrs.offTheBall) / 100) {
       a.runUntil = s.t + O.runSeconds;
       a.giveGo = true;
@@ -506,9 +511,9 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   if (running) {
     nx = line + a.errX * sigma * O.runLineError;
-    if (a.giveGo && owner && owner.team === a.team) {
-      // 2:1: 받은 선수 위치에서 공격 방향 giveGoDepth m, 패서 쪽 레인 (라인 안쪽까지)
-      const [onx, ony] = toNorm(owner.x, owner.y, dir);
+    if (a.giveGo && gRef && (flying || owner?.team === a.team)) {
+      // 2:1: 받는 선수(날아가는 중이면 받을 자리)에서 공격 방향 giveGoDepth m, 패서 쪽 레인 (라인 안쪽까지)
+      const [onx, ony] = toNorm(gRef[0], gRef[1], dir);
       const [, any] = toNorm(a.x, a.y, dir);
       nx = Math.min(nx, onx + O.giveGoDepth / L);
       ny = clamp(ony + (any >= ony ? 1 : -1) * (O.giveGoLane / W), 0.03, 0.97);
