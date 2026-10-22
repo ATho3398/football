@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 83;
+export const BALANCE_VERSION = 84;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -322,13 +322,14 @@ export const BALANCE = {
     ageMultiplier: 1.1,
     /**
      * 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks.
-     * C.77w: 3~8주 빈 구간에 중간(4~7주)을 넣었다 — 옛 경상 70% · 중상 27% · 시즌아웃 3% → 60 / 21 / 16 / 3.
-     * 부상 1건 기대 결장(시즌아웃 25주로 보면) 5.39 → 5.03주(−7%, 지시 ±10% 안). 영구 하락은 중상 이상만이라 건수가 줄어든다(0.30 → 0.19 × chance)
+     * C.77w: 3~8주 빈 구간에 중등도(4~7주)를 넣었다 — 옛 경상 70% · 중상 27% · 시즌아웃 3% → 60 / 15 / 22 / 3.
+     * 첫 배분 60 / 21 / 16 / 3(기대 결장 −7%)은 CI run 290 balance:check "레전더리 30세까지 월드클래스 도달" 0.229 ✗(0.1~0.2) — 긴 부상(8주+)이 줄어 성장 시간이 늘었다.
+     * 중상 비율을 되돌린 60 / 15 / 22 / 3 + 중등도 영구 하락 ×0.5 로 같은 가드 9/48 = 0.188(옛 등급과 같음), 부상 1건 평균 5.38주(옛 5.44) — `scripts/diag/legend30.ts`
      */
     grades: {
       minor: { chance: 0.6, weeks: [1, 3] as [number, number] },
-      moderate: { chance: 0.21, weeks: [4, 7] as [number, number] },
-      major: { chance: 0.16, weeks: [8, 16] as [number, number] },
+      moderate: { chance: 0.15, weeks: [4, 7] as [number, number] },
+      major: { chance: 0.22, weeks: [8, 16] as [number, number] },
       seasonEnding: { chance: 0.03, minWeeks: 20 },
     },
     /** 부상 중 주당 재활 XP (출전 대신) */
@@ -342,6 +343,8 @@ export const BALANCE = {
       ageMultiplier: 1.5,
       attrs: [1, 2] as [number, number],
       drop: [1, 3] as [number, number],
+      /** 중등도(4~7주, C.77w) 영구 하락 확률 = chance × moderateMul (0 이면 중상 이상만) */
+      moderateMul: 0.5,
     },
   },
 

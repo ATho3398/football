@@ -51,7 +51,7 @@ describe('부상 등급과 영구 하락', () => {
       const drops = Object.entries(inj.permanent);
       if (drops.length) {
         out.permanent++;
-        expect(['major', 'seasonEnding']).toContain(inj.grade);
+        expect(inj.grade).not.toBe('minor');
         expect(drops.length).toBeLessThanOrEqual(2);
         for (const [, d] of drops) expect(d).toBeGreaterThanOrEqual(-3);
       }
@@ -59,23 +59,23 @@ describe('부상 등급과 영구 하락', () => {
     return out;
   }
 
-  it('경상 60% (1~3주) / 중등도 21% (4~7주, C.77w) / 중상 16% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20%', () => {
+  it('경상 60% (1~3주) / 중등도 15% (4~7주, C.77w) / 중상 22% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20% · 중등도는 그 절반', () => {
     const n = 4000;
     const r = rolls(25, n);
     expect(r.minor / n).toBeCloseTo(0.6, 1);
-    expect(r.moderate / n).toBeCloseTo(0.21, 1);
-    expect(r.major / n).toBeCloseTo(0.16, 1);
+    expect(r.moderate / n).toBeCloseTo(0.15, 1);
+    expect(r.major / n).toBeCloseTo(0.22, 1);
     expect(r.seasonEnding / n).toBeCloseTo(0.03, 1);
     expect(r.weeks.minor).toEqual([1, 3]);
     expect(r.weeks.moderate).toEqual([4, 7]);
     expect(r.weeks.major).toEqual([8, 16]);
-    expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.2, 1);
+    expect(r.permanent / (r.major + r.seasonEnding + BALANCE.injury.permanent.moderateMul * r.moderate)).toBeCloseTo(0.2, 1);
   });
 
   it('30세 이상은 영구 하락 확률 × 1.5', () => {
     const n = 4000;
     const r = rolls(31, n);
-    expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.3, 1);
+    expect(r.permanent / (r.major + r.seasonEnding + BALANCE.injury.permanent.moderateMul * r.moderate)).toBeCloseTo(0.3, 1);
   });
 });
 
