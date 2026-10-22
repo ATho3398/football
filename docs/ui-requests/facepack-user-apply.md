@@ -2,11 +2,17 @@
 
 사용자가 사진·로고를 주고 이름을 알려 준다 → UI_5가 배경을 지워(rembg isnet-general-use) 정리해 이 폴더에 올린다 → 코드 세션이 레포 facepack에 넣어 배포한다. **앞으로 같은 방식으로 계속 온다**(사용자: "사진에 이름만 달아서 보내면"). 이 표에 줄을 더해 간다.
 
-## 이번 묶음 (1차, 사용자 확인 "지금 딱 좋아")
+## 처리 규칙 (사용자 확정 2026-10-22 00:45 KST "앞으로 저렇게")
+1. 배경 지우기: rembg `isnet-general-use` → 투명 영역 둘레로 자르기, 긴 쪽 900px 이하.
+2. **게임 톤 보정(피파 미페 느낌)**: `tools/grade.py <입력> <출력> [페이드]` — 언샵 2단(디테일 r6 60% + 선명 r1.2 120%), S커브 대비, 채도 ×1.22, 하이라이트 따뜻·그림자 푸르게, 밝기 ×1.03, **아래 페이드**(기본 아래 22%, 제곱 2.2 곡선 — 워터마크가 있으면 34%까지).
+3. 사용자에게 어두운 배경 미리보기 → 확인 뒤 이 폴더·표에 넣고 마스터에 알림.
+4. 이름은 사용자가 준다(얼굴로 판별하지 않음). 로고는 받은 그림 그대로(투명 PNG, 긴 쪽 320 이하).
+
+## 이번 묶음 (1차, 사용자 확인 "지금 딱 좋아" → 게임 톤 보정판으로 교체 00:45)
 | 파일 (`docs/design/incoming/facepack-user/`) | 대상 | 게임 id | 비고 |
 |---|---|---|---|
-| `players/marco-reus.webp` (846×748, 투명) | 마르코 로이스 | `marco-reus` (data/players/bundesliga.ts) | 지금 facepack 없음 → 새로 |
-| `players/lewandowski.webp` (613×468, 투명) | 로베르트 레반도프스키 | `lewandowski` (data/players/stars.ts) | 지금 위키 사진(players/lewandowski.png) **바꿈**. 아래쪽에 원본 워터마크 "AFP BBNews"가 남아 있음 — 얼굴 칸(정사각)은 위쪽만 써서 안 보임, 머리말 전신은 아래 사선 면이 덮는지 확인 |
+| `players/marco-reus.webp` (846×748, 투명, 보정·아래 페이드 22%) | 마르코 로이스 | `marco-reus` (data/players/bundesliga.ts) | 지금 facepack 없음 → 새로 |
+| `players/lewandowski.webp` (613×468, 투명, 보정·아래 페이드 34%) | 로베르트 레반도프스키 | `lewandowski` (data/players/stars.ts) | 지금 위키 사진(players/lewandowski.png) **바꿈**. 원본 워터마크는 아래 페이드로 가려짐 |
 | `clubs/bvb.png` (250×251, 투명) | 보루시아 도르트문트 | `bundesliga:bvb` | 사용자: 팀 로고도 바꿈 |
 | `clubs/bay.png` (320×320, 투명) | 바이에른 뮌헨 | `bundesliga:bay` (`x:bay` 리그 밖 표도 같은 로고) | 사용자: 팀 로고도 바꿈 |
 
