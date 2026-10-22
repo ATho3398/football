@@ -901,3 +901,4 @@
 - (00:44 KST) UI_5 경유 사용자 사진 1차(claude/ui-5 ad851d5 docs/design/incoming/facepack-user/, 명세 facepack-user-apply.md): 로이스·레반도프스키 투명 사진, 도르트문트·바이에른 로고 → C.77u 브랜치에 같이 넣게 지시. 이후 들어오는 건 작은 에셋 패치로 묶음.
 - (00:4x KST) **사용자 규칙: 사진·로고 교체 같은 간단 에셋 작업은 캡처 검증 생략** — id 이름 태그로 파일만 교체 + --index + typecheck·test. C.77u·UI_5에 전달.
 - (00:48 KST) C.77u 사용자 1차 적용 완료(브랜치 475be7d): 레반도프스키 교체·로이스 256 누끼, 도르트문트·바이에른 로고. main은 C.77v·t 뒤.
+- (01:25 KST) **C.77v main 963a5de 배포**(Pages run 287 성공 01:23, android run 4 성공 — APK 아티팩트 https://github.com/ATho3398/football/actions/runs/39797260767). C.77v draft_. C.77t에 main 푸시 지시(now). 검수 묶음 docs/review/2026-10-22-z-review.md(planning-z) + ChatGPT 프롬프트 사용자에게 전달.
