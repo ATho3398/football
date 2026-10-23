@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 45;
+export const ENGINE_VERSION = 46;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -503,6 +503,22 @@ export const ENGINE = {
      * 버스·블록은 중원 줄 x 를 수비 라인 + 성향 간격(busGap·blockGap)에 고정(위로도 아래로도) — 박스 앞 존을 막는 두 줄. 0 = 끔
      */
     compact: 1,
+    /**
+     * 슛 레인 막기 (C.78h): 공을 가진 상대가 우리 골 laneRange m 안이면 공에 가장 가까운 수비(압박자, 소유자보다 골 쪽에 있을 때만 — 뒤에서 쫓으면 옛 압박)는 공으로 바로 가지 않고 슈터가 찰 만한 구석 쪽 슛 길 위
+     * 슈터 앞 clamp(골까지 × laneGapPer, laneGapMin, laneGapMax) m 에 선다(박스 안이면 defense.boxPressGap, 옛 박스 압박 거리). 찰 만한 쪽 = 그 구석으로 차는 발의 약발 배율 + 몸 방향(그 구석 방향과의 cos × laneFace)
+     * + GK 반대편 laneGk, 같으면 주발 쪽(오른발 = 공격 방향 왼쪽). 판단력이 낮으면 반대쪽으로 읽는다(확률 laneMiss × (1 − (수비 위치 선정 + 가로채기)/200), 판단 주기마다 새로).
+     * 둘째(공에 둘째로 가까운 수비)는 남는 쪽 길 위 압박자 + laneCoverGap m(박스 안은 옛 커버 거리 plan.coverBehind) — 그 자리까지 laneCoverReach m 안일 때만(아니면 옛 커버 자리). 나머지는 그대로. 0 = 끔
+     */
+    laneBlock: 1,
+    laneRange: 25,
+    laneGapPer: 0.07,
+    laneGapMin: 1.2,
+    laneGapMax: 2.5,
+    laneCoverReach: 8,
+    laneCoverGap: 2,
+    laneMiss: 0.6,
+    laneFace: 0.1,
+    laneGk: 0.05,
     compactFrom: 50,
     compactFollow: 0.4,
     /** 밀집 중 중원 줄 마크 비중 (평소 0.65 — 존 자리와 마크 자리 사이) */
@@ -745,6 +761,14 @@ export const ENGINE = {
     holdLose: 0.5,
     /** 드리블(공 몰고 전진) 거리 (m) */
     carryDist: 6,
+    /** 각도 만들기 (C.78h): 슛 거리에서 슛 길이 막혔으면(pBlock > 0) 옆으로 laneCarry m(앞으로 laneCarryFwd m) 치는 몰기 후보 둘 — 그 자리 슛 가치(수비는 따라옴)가 지금 슛 가치보다 클 때만, 도착점 가치 = 그 슛 가치. 0 = 끔 */
+    laneCarry: 3,
+    laneCarryFwd: 1,
+    /**
+     * 각도 만들기 판단의 GK 이동 시간(초, shotModel lead). 0: GK 는 이미 골 앞에 서 있다 — lead 로 리치를 늘리는 C.77t 식은 패스가 가는 동안 GK 가 옮기는 몫이라
+     * 옆 3 m 몰기에 0.35 초만 넣어도 골 확률이 0.19 → 0.06 으로 떨어져 각도 만들기가 사라진다. 수비는 따라온다고 본다(압박·밀집·1대1 조건은 지금 자리)
+     */
+    laneCarryTime: 0,
     /** 패스 후보 최대 거리 (m) */
     passMaxDist: 50,
     /** 리시버 앞쪽 리드 (초 × 리시버 속도) */
@@ -937,6 +961,13 @@ export const ENGINE = {
      * C.76q(PK) 병합 뒤 engine:check 평점 ST 6.74(가드 ≤ 6.7) ✗ 이고 득점 1.28 이라 saveBase 를 더 올릴 수 없었다(두 가드 동시 불가, automation 3번 ④). 부록 C.76p 추가 절
      */
     coneWidth: 1.2,
+    /**
+     * 슛 레인 (C.78h): 슈터가 두 구석 쪽 슛 길(기대 구석)마다 콘 블록·약발을 따로 보고, 두 쪽이 다르면 기대 골((1 − 블록) × 약발 × (1 − 선방))이 큰 쪽으로 찬다
+     * (같으면 옛 규칙: GK 반대편, 가운데면 무작위). 판단(shotModel)과 실행(shoot)이 같은 쪽·같은 블록. 0 = 끔(골 가운데 선 콘·가운데 약발, 옛 동작)
+     */
+    laneSide: 1,
+    /** 밀집 블록 레인 (C.78h, laneSide 1 일 때): blockDense 를 세는 수비 = 슈터 denseR m 안 · 그 쪽 슛 길 denseLaneW m 안(골 쪽 대신). 0 = 골 쪽 전부(C.78d) */
+    denseLaneW: 2,
     /** C.76s 가설 2: 지친 선수의 패스 성공 확률 −tiredPass × tiredRatio */
     tiredPass: 0.06,
     /** 블록된 공이 라인 밖(코너)으로 나갈 확률 */

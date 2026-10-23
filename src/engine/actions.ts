@@ -450,7 +450,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
 
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
-    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', m, gx, gy, m.speed);
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', m, gx, m.side ? m.ctx.ty : gy, m.speed);
     const blocker = bb ? bb.me : s.agents.filter((o) => o.onPitch && o.team !== a.team && o.line !== 0)
       .sort((x, y) => dist(x.x, x.y, a.x, a.y) - dist(y.x, y.y, a.x, a.y))[0];
     event(s, 'block', a.team, [a.id, blocker?.id ?? '']);
@@ -467,12 +467,13 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   }
 
   // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
-  const foot = header ? 1 : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
+  // 약발 (C.78h laneSide): 찰 쪽 구석으로 차는 발 (판단 shotModel 과 같은 쪽·같은 기대 구석). 끄면 골 가운데 방향 (옛 동작)
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const side = m.side || (farSide(gk, gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1));
+  const foot = header ? 1 : PR.laneSide > 0 ? weakFootMul(a.body, dir, gx - a.x, gy + side * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
   // 상대 분석 (C.74c): 슈팅이 리포트 약점이면 유효 슈팅 × 약점 공략
   const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot * (s.rapport ? exploitMul(s, a, 'shoot') : 1);
-  // GK 반대편 구석 (C.77t): GK 가 골대 가운데에서 비켜 있으면 먼 쪽을 노린다 (판단용 shotModel 과 같은 규칙)
-  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
-  const side = farSide(gk, gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1);
+  // GK 반대편 구석 (C.77t): GK 가 골대 가운데에서 비켜 있으면 먼 쪽을 노린다 (판단용 shotModel 과 같은 규칙) — 위에서 정함 (C.78h: 두 슛 길이 다르면 shotModel 이 고른 쪽)
   // 헤더 공 속도 (C.77z, timeModel 1): 크로스가 빠를수록 빠르다 (능력치 무관)
   const base = header && K.timeModel && inSpeed ? m.speed * clamp(1 + K.headerCrossW * (inSpeed / ENGINE.ball.airSpeed - 1), 0.8, 1.2) : m.speed;
   const speed = base * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));

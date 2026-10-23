@@ -1,11 +1,12 @@
 // 오프더볼 움직임 (E.6): 공격 시 슬롯 + 지원 + 침투(오프사이드 라인 인지), 수비 시 마킹 + 라인 동기화 + 압박
 
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import { weakFootMul } from '../body';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import { reaction } from './core';
 import * as keeper_ from './keeper';
-const { gkAttrs, keeperZone, reactOf, sweepRange } = keeper_;
+const { farSide, gkAttrs, keeperOf, keeperZone, reactOf, sweepRange } = keeper_;
 import * as duel_ from './duel';
 const { finishSkill } = duel_;
 import * as physics_ from './physics';
@@ -1129,6 +1130,41 @@ function deepNine(s: SimState, team: 0 | 1): boolean {
   return (offsideLine(s, team) - sx) * L >= RM.nineDeepGap;
 }
 
+/**
+ * 슛 레인 (C.78h): 수비 a 가 읽은 상대 소유자 o 의 찰 만한 구석 쪽(우리 골 gy 기준 ±1). 그 구석으로 차는 발의 약발 배율 + 몸 방향(hx, hy 와 그 구석 방향의 cos × laneFace)
+ * + 우리 GK 반대편 laneGk, 같으면 주발 쪽. 판단력이 낮으면 반대로 읽는다 (판단 주기 errTick 마다 새로 뽑는 해시 난수)
+ */
+function laneGuess(s: SimState, a: Agent, o: Agent, gx: number, gy: number): -1 | 1 {
+  const od = attackDir(o.team, s.half);
+  const cy = 0.5 * (ENGINE.pitch.goalWidth / 2 - 0.3);
+  const far = farSide(keeperOf(s, a.team), gy);
+  let best: -1 | 1 = 1;
+  let bestV = -Infinity;
+  for (const sd of [-1, 1] as const) {
+    const dx = gx - o.x;
+    const dy = gy + sd * cy - o.y;
+    let v = weakFootMul(o.body, od, dx, dy);
+    // 몸 방향 (hx, hy: 단위 벡터, 움직이면 달리는 방향)
+    v += O.laneFace * ((o.hx * dx + o.hy * dy) / (Math.hypot(dx, dy) || 1));
+    if (far === sd) v += O.laneGk;
+    // 같으면 주발 쪽: 오른발은 공격 방향 왼쪽(y × 공격 방향 < 0)으로 감아 찬다 (body weakFootMul 과 같은 약속)
+    if (v === bestV ? (o.body.foot === 'right' ? -od : od) === sd : v > bestV) {
+      best = sd;
+      bestV = v;
+    }
+  }
+  const judge = (a.attrs.defensivePositioning + a.attrs.interception) / 200;
+  return rand(s.seed, a.errTick, a.idx, Purpose.Mark, 7) < O.laneMiss * (1 - judge) ? (-best as -1 | 1) : best;
+}
+
+/** 슛 레인 자리 (C.78h): 소유자 o 에서 우리 골 sd 쪽 기대 구석으로 가는 길 위 gap m */
+function laneSpot(o: Agent, gx: number, gy: number, sd: number, gap: number): [number, number] {
+  const ty = gy + sd * 0.5 * (ENGINE.pitch.goalWidth / 2 - 0.3);
+  const ld = dist(o.x, o.y, gx, ty) || 1;
+  const k = Math.min(gap, ld * 0.8);
+  return [clamp(o.x + ((gx - o.x) / ld) * k, 0.3, L - 0.3), clamp(o.y + ((ty - o.y) / ld) * k, 0.3, W - 0.3)];
+}
+
 function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
   const t = effectiveTactics(s, a.team);
   const b = s.ball;
@@ -1205,6 +1241,33 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (exempt && !(rank === 0 && d < pressDist * RM.exemptPress)) wants = false;
     // 박스 안 압박 (E.23, C.75c): 공이 우리 박스 안이면 가장 가까운 1명이 성향과 무관하게 바로 붙고, 둘째는 공 뒤 커버
     const ownBox = Math.abs(b.x - gx0) <= ENGINE.pitch.boxDepth && Math.abs(b.y - gy0) <= ENGINE.pitch.boxWidth / 2;
+    // 슛 레인 막기 (C.78h): 슈팅 거리 소유자에게 압박자는 찰 만한 구석 쪽 슛 길 위, 둘째는 남는 쪽 길 위 (닿을 수 있을 때만)
+    if (O.laneBlock > 0 && rank <= 1 && !exempt) {
+      const og = dist(owner.x, owner.y, gx0, gy0);
+      // 골 쪽에 있는 수비만 (뒤에서 쫓아오는 수비는 옛 압박 — 앞에서 레인을 닫으며 다가갈 수 없다)
+      if (og <= O.laneRange && (a.x - owner.x) * (gx0 - owner.x) + (a.y - owner.y) * (gy0 - owner.y) > 0) {
+        const gap = ownBox ? ENGINE.defense.boxPressGap : clamp(og * O.laneGapPer, O.laneGapMin, O.laneGapMax);
+        if (rank === 0) {
+          const [lx, ly] = laneSpot(owner, gx0, gy0, laneGuess(s, a, owner, gx0, gy0), gap);
+          a.tx = lx;
+          a.ty = ly;
+          feedFrom(a, owner);
+          a.urgent = true;
+          return;
+        }
+        const p = nearestTo(s, a.team, b.x, b.y);
+        if (p && p !== a) {
+          // 남는 쪽 슛 길 위: 박스 밖은 압박자 + laneCoverGap m, 박스 안은 옛 커버 자리(공 뒤 coverBehind m)와 같은 거리
+          const [lx, ly] = laneSpot(owner, gx0, gy0, -laneGuess(s, p, owner, gx0, gy0), ownBox ? Math.min(O.plan.coverBehind, og * 0.5) : gap + O.laneCoverGap);
+          if (dist(a.x, a.y, lx, ly) <= O.laneCoverReach) {
+            a.tx = lx;
+            a.ty = ly;
+            a.urgent = true;
+            return;
+          }
+        }
+      }
+    }
     if (ownBox && rank === 1) {
       coverSpot(a, dir, b.x, b.y);
       return;

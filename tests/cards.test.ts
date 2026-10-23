@@ -242,7 +242,8 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
 
 describe('결정 순간 개선 (C.40, pending 39 5항)', () => {
   it('직접 모드 정지: 판정 있는 선택지는 모두 90% 이하, 안전/균형/도박은 성공 확률 순, 고를 거리(선택지 2개 이상 또는 카드)가 있다', () => {
-    const g = game('WING', 'c40');
+    // C.78h(엔진 46, 슛 레인): c40 선발 경기에 정지 0 이라 c78h-1(11번; c78h-0~3 중 0·3 은 4·2번) — 장면은 그대로, 시드만
+    const g = game('WING', 'c78h-1');
     const rm = startedRound(g);
     const seen: Parameters<MomentPolicy>[0][] = [];
     const pol: MomentPolicy = (m) => {

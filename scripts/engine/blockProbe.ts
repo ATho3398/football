@@ -68,6 +68,23 @@ export interface BlockTeam {
   /** 모든 오픈 플레이 탈취 · 15초 슛 */
   wins: number;
   winShot15: number;
+  /** 슛 레인 (C.78h 0번, 발 슛만): 수 · 실제 겨눈 선(골문 안으로 자른 점) 1.2 m 안 수비 1명+ 인 슛 · 그중 슈터 6 m 안 · 레인 위 수비 수 합
+   *  · 가장 가까운 골 쪽 수비: 공-골 중앙 선에서 가로 |거리| 합 · 겨눈 쪽에 선 수 · 실제 궤적까지 거리 합 · 슈터까지 거리 합
+   *  · 2초 안 경로 패스/몰기(2초+ 소유)/루즈볼 · 경로별 레인 위 슛 · 받는 순간(2초 안 받은 공) 가장 가까운 수비 가로 |거리| 합·수 */
+  ln: number;
+  lnOn: number;
+  lnOn6: number;
+  lnCnt: number;
+  lnLat: number;
+  lnSame: number;
+  lnTraj: number;
+  lnNear: number;
+  lnVia: number[];
+  lnViaOn: number[];
+  lnRecvLat: number;
+  lnRecvN: number;
+  lnBlocked: number;
+  lnXg: number;
 }
 
 export interface BlockOut {
@@ -80,6 +97,7 @@ function empty(): BlockTeam {
     sh: 0, shDef: 0, shMid: 0, shGap: 0, shZoneUs: 0, shZoneThem: 0, shBoxUs: 0, shBoxThem: 0, shBehind: 0,
     btw: 0, btwNear: 0, btwNear1: 0, btwShot6: 0, crossFaced: 0,
     low: 0, lowT1: 0, lowFwd: 0, lowFwdN: 0, lowDec: 0, lowAhead3: 0, lowRun3: 0, lowShot15: 0, lowGoal15: 0, lowF3: 0, lowKeep5: 0, lowKeep10: 0, lowLong: 0, lowLongKeep: 0, wins: 0, winShot15: 0,
+    ln: 0, lnOn: 0, lnOn6: 0, lnCnt: 0, lnLat: 0, lnSame: 0, lnTraj: 0, lnNear: 0, lnVia: [0, 0, 0], lnViaOn: [0, 0, 0], lnRecvLat: 0, lnRecvN: 0, lnBlocked: 0, lnXg: 0,
   };
 }
 
@@ -103,11 +121,22 @@ function lines(s: SimState, def: 0 | 1): [number, number] {
   return [dn ? d / dn : 0, mn ? m / mn : 0];
 }
 
+/** 점 (x, y) 에서 선분 (ax, ay)→(bx, by) 까지 거리 · 선분 위 비율 t */
+function seg(x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] {
+  const ux = bx - ax, uy = by - ay;
+  const l2 = ux * ux + uy * uy || 1;
+  const t = ((x - ax) * ux + (y - ay) * uy) / l2;
+  const k = Math.max(0, Math.min(1, t));
+  return [Math.hypot(x - ax - ux * k, y - ay - uy * k), t];
+}
+
 export function blockRun(sim: MatchSim): BlockOut {
   const s = sim.state;
   const out: BlockOut = { team: [empty(), empty()] };
   /** 선수별 마지막 수신 (시각·경로 종류) */
-  const lastRecv = new Map<number, { t: number; via: number }>();
+  const lastRecv = new Map<number, { t: number; via: number; lat: number }>();
+  let ownSince = 0;
+  let recvLat = 0;
   let curFl: Flight | null = null;
   let endedFl: Flight | null = null;
   let prevOwner = s.ball.owner;
@@ -141,7 +170,7 @@ export function blockRun(sim: MatchSim): BlockOut {
     const vk = lr && st.t - lr.t <= 4 ? lr.via : 4;
     T.via[vk]!++;
     T.viaXg[vk]! += p.xg ?? 0;
-    if (lr && st.t - lr.t <= 4) { T.saRecvT += st.t - lr.t; T.saRecvN++; }
+    if (lr && lr.via !== 4 && st.t - lr.t <= 4) { T.saRecvT += st.t - lr.t; T.saRecvN++; }
     {
       const gx = attackDir(p.team, st.half) > 0 ? L : 0;
       const dg = dist(p.x, p.y, gx, W / 2);
@@ -152,6 +181,40 @@ export function blockRun(sim: MatchSim): BlockOut {
     if (st.t - lastShotT[p.team]! <= 6) T.via[5]!++;
     lastShotT[p.team] = st.t;
     shots.push({ def, p });
+    if (p.kind === 'foot') {
+      const gx = attackDir(p.team, st.half) > 0 ? L : 0;
+      const gy = W / 2;
+      const ay2 = Math.max(gy - 3.66, Math.min(gy + 3.66, p.aimY));
+      const dg = dist(p.x, p.y, gx, gy);
+      let on = 0, on6 = 0, near: { o: SimState['agents'][number]; d: number } | null = null;
+      for (const o of st.agents) {
+        if (!o.onPitch || o.team !== def || o.line === 0) continue;
+        const od = dist(o.x, o.y, p.x, p.y);
+        const [e, tt] = seg(o.x, o.y, p.x, p.y, gx, ay2);
+        if (e < 1.2 && tt > 0.02 && tt < 0.95) { on++; if (od <= 6) on6++; }
+        if (dist(o.x, o.y, gx, gy) < dg && (!near || od < near.d)) near = { o, d: od };
+      }
+      T.ln++;
+      T.lnXg += p.xg ?? 0;
+      if (p.outcome === 'block') T.lnBlocked++;
+      T.lnCnt += on;
+      if (on) T.lnOn++;
+      if (on6) T.lnOn6++;
+      if (near) {
+        // 공-골 중앙 선에서 가로 부호 거리 (겨눈 쪽 +)
+        const ux = gx - p.x, uy = gy - p.y, ul = Math.hypot(ux, uy) || 1;
+        const cr = ((near.o.x - p.x) * uy - (near.o.y - p.y) * ux) / ul;
+        const crAim = ((gx - p.x) * uy - (ay2 - p.y) * ux) / ul;
+        T.lnLat += Math.abs(cr);
+        if (Math.abs(crAim) > 0.01 && cr * crAim > 0) T.lnSame++;
+        T.lnTraj += seg(near.o.x, near.o.y, p.x, p.y, gx, ay2)[0];
+        T.lnNear += near.d;
+      }
+      const vk2 = lr && st.t - lr.t <= 2 ? (lr.via === 4 ? 2 : 0) : st.t - ownSince >= 2 ? 1 : 2;
+      T.lnVia[vk2]!++;
+      if (on) T.lnViaOn[vk2]!++;
+      if (lr && st.t - lr.t <= 2 && lr.via !== 4) { T.lnRecvLat += lr.lat; T.lnRecvN++; }
+    }
   };
   probe.decide = (st, p) => {
     const a = p.a;
@@ -181,6 +244,24 @@ export function blockRun(sim: MatchSim): BlockOut {
       // 수신
       if (b.owner >= 0 && b.owner !== prevOwner) {
         const o = s.agents[b.owner]!;
+        ownSince = t;
+        {
+          // 받는 순간 가장 가까운 골 쪽 수비의 공-골 중앙 선 가로 거리 (C.78h)
+          const gx = attackDir(o.team, s.half) > 0 ? L : 0;
+          const dg = dist(o.x, o.y, gx, W / 2);
+          let nd = 99, lat = 0;
+          for (const q of s.agents) {
+            if (!q.onPitch || q.team === o.team || q.line === 0) continue;
+            const qd = dist(q.x, q.y, o.x, o.y);
+            if (qd < nd && dist(q.x, q.y, gx, W / 2) < dg) {
+              nd = qd;
+              const ux = gx - o.x, uy = W / 2 - o.y, ul = Math.hypot(ux, uy) || 1;
+              lat = Math.abs(((q.x - o.x) * uy - (q.y - o.y) * ux) / ul);
+            }
+          }
+          if (!(endedFl && endedFl.passer >= 0 && s.agents[endedFl.passer]!.team === o.team && endedFl.kind !== 'shot' && endedFl.kind !== 'clear')) lastRecv.set(o.idx, { t, via: 4, lat });
+          else recvLat = lat;
+        }
         const fl = endedFl;
         if (fl && fl.passer >= 0 && s.agents[fl.passer]!.team === o.team && fl.kind !== 'shot' && fl.kind !== 'clear') {
           const def = (1 - o.team) as 0 | 1;
@@ -188,7 +269,7 @@ export function blockRun(sim: MatchSim): BlockOut {
           const [dl, ml] = lines(s, def);
           const between = z > dl + 1 && z < ml + 2 && z < 35 && ay <= 20;
           const via = fl.fromCross || fl.kind === 'cross' ? 0 : between ? 1 : fl.through ? 2 : 3;
-          lastRecv.set(o.idx, { t, via });
+          lastRecv.set(o.idx, { t, via, lat: recvLat });
           if (between && !s.restart) {
             const T = out.team[def];
             T.btw++;

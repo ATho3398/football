@@ -116,4 +116,19 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
     goal: '㉓ 펄스 나인 내려옴 → CB 안 따라감 → 돌아서 전진 (C.78e)', enabled: true,
     check: (v) => v.faceHold! >= 0.6 && v.faceHold! > v.faceNoTurn! + 0.4 && v.fwdHold! > v.fwdNoTurn! && v.followNear! <= v.followFar! - 0.2 && v.followNear! < v.followNearOff!,
   },
+  // C.78h ㉖: 오른발 정면 20 m — 판단 높은 수비가 주발 쪽 길에 ≥ 75%(낮은 수비보다 많음) · 슈터 앞 1.2~2.5 m · 고른 쪽 기대 구석 길에서 0.3 m 안 · 레인 끔(옛 압박)과 다름
+  laneRight: {
+    goal: '㉖ 박스 앞 오른발 공격수 정면 — 수비가 주발로 찰 구석 쪽 슛 길에 섬 (C.78h)', enabled: true,
+    check: (v) => v.same! >= 0.75 && v.same! > v.sameLow! && v.gap! >= 1.2 && v.gap! <= 2.6 && v.off! <= 0.3,
+  },
+  // C.78h ㉗: 왼발 같은 자리 — 반대쪽(y 큰 쪽) 길 ≥ 75%, 오른발 장면과 서는 쪽이 갈린다
+  laneLeft: {
+    goal: '㉗ 왼발 공격수 같은 자리 — 수비가 레인 반대쪽에 섬 (C.78h)', enabled: true,
+    check: (v) => v.same! >= 0.75 && v.sameRight! >= 0.75 && v.off! <= 0.3,
+  },
+  // C.78h ㉘: 앞 3.5 m 수비가 두 길을 막으면 옆으로 친 몰기가 길 밖 같은 거리 수비 때보다 많고(각도 만들기 끔보다도), 슛은 적다 · 옆 몰기 도착점 블록 < 지금 자리
+  laneAngle: {
+    goal: '㉘ 레인 막힘 → 공격수가 옆으로 한 번 치고 각도 만듦 (C.78h)', enabled: true,
+    check: (v) => v.side! > v.sideOpen! && v.side! > v.sideOff! && v.shoot! < v.shootOpen! && v.pbThere! < v.pbHere!,
+  },
 };
