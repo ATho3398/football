@@ -654,6 +654,8 @@ export const ENGINE = {
      */
     landShare: 1,
     landScale: 0.6,
+    /** 되찾은 세컨드볼의 가치 몫: 착지점 루즈볼은 경합 중이라(다음 결정 전 다시 빼앗길 수 있음) 그 자리 가치의 일부만 (롱패스 실패분에만) */
+    landKeep: 0.4,
     /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
     backEscape: 0.012,
     backEscapeExtra: 0.25,

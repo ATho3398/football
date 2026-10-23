@@ -562,7 +562,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     if (O.landShare > 0 && d0 > PR.airPass) {
       const pjF = judgedP(pFlight, flightP(av));
       const q = landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a);
-      u += (1 - pjF) * q * (positionValue(rx, ry) - lossR);
+      u += (1 - pjF) * q * O.landKeep * (positionValue(rx, ry) - lossR);
     }
     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
     const pOff = offsideRisk(s, a, r);

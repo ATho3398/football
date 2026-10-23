@@ -2,7 +2,7 @@
 // 롱볼(30 m+)·GK 롱킥의 착지 높이·높은 라인 뒤 착지·유지 여부 ⒞ 뺏은 뒤 15초 슈팅·높은 라인 뒤 패스 시도/성공 ⒟ 골 출처(세트피스·높은 탈취·역습·지공).
 // MatchJob.gegen 이 켜지면 job.ts 가 경기를 한 틱씩 돌리며 부른다. 엔진 상태는 읽기만 한다(probe.decide 훅만 씀, 지문 불변).
 
-import { attackDir, dist, toNorm } from '../../src/engine/pitch';
+import { attackDir, dist, L, toNorm, W } from '../../src/engine/pitch';
 import { probe } from '../../src/engine/probe';
 import type { MatchSim } from '../../src/engine/sim';
 import type { Flight, SimState } from '../../src/engine/state';
@@ -56,6 +56,12 @@ export interface GegenTeam {
   lowNearL: number;
   lowRe5: number;
   lowPress: number;
+  /** 높은 라인 뒤 패스를 받은 순간: 상대 골 거리 합 · 가장 가까운 상대 필드 거리 합 · 공보다 앞(골 쪽)이거나 10 m 안 동료 수 합 · 그 뒤 8초 슛 · 8초 안 잃음 */
+  bRecvD: number;
+  bNear: number;
+  bSup: number;
+  bShot8: number;
+  bLost8: number;
 }
 
 export interface GegenOut {
@@ -67,7 +73,7 @@ function empty(): GegenTeam {
     wins: 0, winZ: [0, 0, 0, 0], shot10Z: [0, 0, 0, 0], goal15Z: [0, 0, 0, 0], shot15: 0, behindTry: 0, behindOk: 0,
     oppTicks: 0, oppDeepTicks: 0, pressNear: 0, pDec: 0, pShort: 0, pLong: 0, pClear: 0, pCarry: 0, pHold: 0, gkDec: 0, gkLong: 0,
     lb: 0, lbNx: 0, lbBehind: 0, lbKeep: 0, lbFwd: 0, lbBehindKeep: 0, gSet: 0, gHigh: 0, gCounter: 0, gSlow: 0,
-    hiH: 0, hiBy: [0, 0, 0, 0, 0, 0], hiPossT: 0, pP: [0, 0, 0, 0, 0], pOk: [0, 0, 0, 0, 0], pN: [0, 0, 0, 0, 0], lowNearW: 0, lowNearL: 0, lowRe5: 0, lowPress: 0,
+    hiH: 0, hiBy: [0, 0, 0, 0, 0, 0], hiPossT: 0, pP: [0, 0, 0, 0, 0], pOk: [0, 0, 0, 0, 0], pN: [0, 0, 0, 0, 0], lowNearW: 0, lowNearL: 0, lowRe5: 0, lowPress: 0, bRecvD: 0, bNear: 0, bSup: 0, bShot8: 0, bLost8: 0,
   };
 }
 
@@ -96,6 +102,7 @@ export function gegenRun(sim: MatchSim): GegenOut {
   const goalsPrev = [s.teams[0].stats.goals, s.teams[1].stats.goals];
   let curFl: Flight | null = null;
   let flInfo: { team: 0 | 1; long: boolean; nx: number; behind: boolean; behindPass: boolean } | null = null;
+  let bWatch: { team: 0 | 1; t: number; shots: number; done: boolean } | null = null;
   let landed: { team: 0 | 1; t: number; behind: boolean; behindPass: boolean; long: boolean } | null = null;
   const kindOf = (c: { type: string; receiver: number; x: number; y: number }, ax: number, ay: number) =>
     c.type === 'clear' ? 2 : c.receiver >= 0 ? (dist(ax, ay, c.x, c.y) >= 30 ? 1 : 0) : c.type === 'carry' || c.type === 'dribble' ? 3 : 4;
@@ -180,10 +187,32 @@ export function gegenRun(sim: MatchSim): GegenOut {
             if (o.line === 3) T.lbFwd++;
             if (landed.behind) T.lbBehindKeep++;
           }
-          if (landed.behindPass) T.behindOk++;
+          if (landed.behindPass) {
+            T.behindOk++;
+            const dir = attackDir(o.team, s.half);
+            const gx = dir > 0 ? L : 0;
+            T.bRecvD += dist(o.x, o.y, gx, W / 2);
+            let nd = 99;
+            let sup = 0;
+            const onx = toNorm(o.x, o.y, dir)[0];
+            for (const q of s.agents) {
+              if (!q.onPitch || q.line === 0 || q === o) continue;
+              if (q.team !== o.team) nd = Math.min(nd, dist(q.x, q.y, o.x, o.y));
+              else if (toNorm(q.x, q.y, dir)[0] > onx - 10 / L) sup++;
+            }
+            T.bNear += nd;
+            T.bSup += sup;
+            bWatch = { team: o.team, t, shots: s.teams[o.team].stats.shots, done: false };
+          }
         }
         landed = null;
       } else if (landed && (t - landed.t > 3 || s.restart)) landed = null;
+      if (bWatch && !bWatch.done) {
+        const T = out.team[bWatch.team];
+        if (s.teams[bWatch.team].stats.shots > bWatch.shots) { T.bShot8++; bWatch.done = true; }
+        else if (s.possTeam !== bWatch.team && !s.restart) { T.bLost8++; bWatch.done = true; }
+        else if (t - bWatch.t > 8) bWatch.done = true;
+      }
       // 탈취
       if (s.possTeam !== prevPoss && !s.restart && s.possOrigin === 'open' && (s.possTeam === 0 || s.possTeam === 1)) {
         const win = s.possTeam as 0 | 1;
