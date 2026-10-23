@@ -202,6 +202,10 @@ export const TENDENCY = {
   busGap: 8,
   busLineMax: 14,
   busStay: 1,
+  /** 깊은 블록 밀집 (C.78d ①, ENGINE.offball.compact): 수비·중원 줄 가로 폭 배수 (슬롯 간격 × 이 값) */
+  compactW: { bus: 0.5, block: 0.55, counter: 0.65 } as Partial<Record<Tendency, number>>,
+  /** 탈취 뒤 역습 지원 인원 (C.78d ②, ENGINE.offball.supportRun): 버스 1 · 블록 1 · 역습 2 */
+  supportRunners: { bus: 1, block: 1, counter: 2 } as Partial<Record<Tendency, number>>,
 };
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */

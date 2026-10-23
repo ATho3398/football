@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 43;
+export const ENGINE_VERSION = 44;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -484,6 +484,28 @@ export const ENGINE = {
     exitRunners: 1,
     /** 출구 침투자의 달리는 길 y = 중앙 + (자기 길 − 중앙) × exitLane (골 쪽 안쪽 대각선) */
     exitLane: 0.4,
+    /**
+     * 깊은 블록 밀집 (C.78d ①, 버스·블록·역습 성향): compact 1 이면 상대가 공을 가진 채 공이 우리 골 compactFrom m 안일 때
+     * 수비·중원 줄의 y = 중앙 + (슬롯 y − 중앙) × 성향 폭(TENDENCY.compactW) + (공 y − 중앙) × compactFollow — 공 쪽으로 좁게 쏠린 블록(먼 쪽 측면은 비운다).
+     * 버스·블록은 중원 줄 x 를 수비 라인 + 성향 간격(busGap·blockGap)에 고정(위로도 아래로도) — 박스 앞 존을 막는 두 줄. 0 = 끔
+     */
+    compact: 1,
+    compactFrom: 50,
+    compactFollow: 0.4,
+    /** 밀집 중 중원 줄 마크 비중 (평소 0.65 — 존 자리와 마크 자리 사이) */
+    compactMark: 0.25,
+    /** 밀집 중 박스 안 미마크 상대 마크 인원 (버스·블록, C.76w boxManMax 를 깊은 블록에만 — 평소 0) */
+    deepBoxMan: 3,
+    /** 줄 사이 수신 (C.78d ①): 소유자가 수비 라인 ~ 중원 줄 + holdSlack m 사이면 중원 줄은 압박·커버 2명 말고 밀집 자리를 지킨다 */
+    holdSlack: 3,
+    /**
+     * 탈취 뒤 역습 지원 (C.78d ②): supportRun 1 이면 버스·블록·역습 팀이 자기 절반에서 열린 경기로 뺏을 때, 출구 침투(exitRun) 다음으로
+     * 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관·소유자·최전방 제외) TENDENCY.supportRunners 명이 측면 길(중앙 ± supportLane)로 1회 침투(runUntil).
+     * 같은 창(TENDENCY.counterWinTime) 동안 버스·블록도 역습과 같은 전진·침투 패스 배수(counterWinMul) — 첫 패스는 전진 출구. 0 = 끔
+     */
+    supportRun: 1,
+    supportLane: 0.28,
+    supportSeconds: 5,
     /** 복귀: 목표가 자기 골 쪽으로 recoverRun m 이상이면 러닝 이상, recoverSprint m 이상이면 최대 속도 (긴급 복귀 판단 확률 recoverJudge + recoverWork × 노력/100) */
     recoverRun: 10,
     recoverSprint: 25,
@@ -875,6 +897,12 @@ export const ENGINE = {
     /** 슈팅 콘(공-골대 사이) 안 수비수 1명당 블록 확률, 최대 */
     blockPer: 0.15,
     blockMax: 0.4,
+    /** 밀집 블록 (C.78d ①): 슈터 denseR m 안 골 쪽 상대 필드 선수가 둘째부터 한 명마다 블록 확률 +blockDense (몸 던지기, 상한 blockMax). 판단·실행 같은 shotModel. 0 = 끔 */
+    blockDense: 0.05,
+    denseR: 4,
+    /** 밀집 공중볼 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비 수 − 공격 수가 양수면 한 명마다 공격 쪽 경합 로짓 −aerialCrowd. 0 = 끔 */
+    aerialCrowd: 0.35,
+    aerialCrowdR: 4,
     /**
      * C.76p 가설 3 (사용자 확정 2026-10-21 00:09 KST, §9.11.1 '밀집 블록 현실화' — 박스에 사람이 많으면 슛이 몸에 맞는다) 는 **되돌림(1.2 유지)**:
      * 2.0(+saveBase −0.02) 은 같은 시드 scoring 30골+ 0.20(하한 0.5)·리버풀 최대 119 로 분포 관문 ✗, 1회 조정 1.6(+saveBase −0.02) 은 scoring 통과(30골+ 1.00) 지만

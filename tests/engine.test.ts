@@ -74,13 +74,14 @@ describe('경기 엔진 코어 (E1)', () => {
     expect(s.agents.filter((a) => a.onPitch)).toHaveLength(22 - s.teams[0].stats.reds - s.teams[1].stats.reds);
   });
 
-  it('이동 거리: 필드 선수 90분 6.5~13.5 km, GK 는 훨씬 적다', () => {
+  it('이동 거리: 필드 선수 90분 6.5~14 km, GK 는 훨씬 적다', () => {
     for (const p of result.players) {
       if (p.minutes < 85) continue;
       if (p.position === 'GK') expect(p.distance).toBeLessThan(5000);
       else {
         expect(p.distance).toBeGreaterThan(6500);
-        expect(p.distance).toBeLessThan(13500);
+        // C.78d(엔진 44): 역습 지원 달리기(5초 전력)로 시드 11 에 13.7 km 선수가 나와 상한 13.5 → 14 km (실제 최다 13.5~14.5 km)
+        expect(p.distance).toBeLessThan(14000);
       }
     }
   });

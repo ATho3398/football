@@ -270,6 +270,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const K = ENGINE.keeper;
   // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
   let blockers = 0;
+  // 밀집 (C.78d ①): 슈터 denseR m 안 골 쪽 상대 필드 선수
+  let dense = 0;
   // 1대1 조건용: 가장 가까운 상대 필드 선수 거리 (GK 는 뺀다 — 나온 GK 는 세이브 식이 맡고, 압박 항 pressure 는 그대로 GK 포함)
   let nearField = Infinity;
   // 3 m 안 상대 필드 선수 (C.77z 슛 1건 자료)
@@ -281,6 +283,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     if (header) continue;
     const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
     if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
+    if (od <= PR.denseR && dist(o.x, o.y, gx, gy) < d) dense++;
     if (PR.shotFree > 0 && od < nearField) nearField = od;
   }
   let pOn: number;
@@ -303,7 +306,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   // 마무리 배수 뒤에 더해 능력과 무관한 상황 보너스로 둔다 (배수 안에 넣으면 엘리트 ST 에 비례해 몰린다 — 미해결 11 축)
   if (!header && blockers === 0 && nearField >= PR.pressureDist) pOn += PR.shotFree * Math.max(0, 1 - d / PR.shotFreeRef) * angle;
   pOn = Math.min(PR.shotCap, pOn);
-  const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer);
+  const pBlock = Math.min(PR.blockMax, blockers * PR.blockPer + PR.blockDense * Math.max(0, dense - 1));
   // 구석 (C.76k): 쫓기며 쏘면 구석을 못 노린다 — 판단용 구석 0.5 도 실제와 같은 식 (E.15.1)
   const corner = 0.5 * (1 - PR.cornerPressure * pressure);
   // 슛 1건 자료 (C.77z): 실제 GK 위치·속도 · 리그 GK 선방 · GK 반대편 구석(가운데면 GK 쪽과 같은 거리라 아무 쪽) — 실행(actions shoot)과 같은 식 saveChance
@@ -477,10 +480,10 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
   const style = tac.style;
   const mPoss = TA.possBase + TA.possSlope * style;
   const mDirect = TA.directBase - TA.possSlope * style;
-  // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛, 역습 6초 전진·침투 패스 효용 배수
+  // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛, 역습 6초 전진·침투 패스 효용 배수 (C.78d ②: 버스·블록도 역습과 같은 첫 패스 전진 출구)
   const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
   const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
-    : tac.tendency === 'counter' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
+    : (tac.tendency === 'counter' || (ENGINE.offball.supportRun > 0 && (tac.tendency === 'bus' || tac.tendency === 'block'))) && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
   const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;

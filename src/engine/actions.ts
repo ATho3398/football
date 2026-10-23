@@ -727,8 +727,16 @@ function resolveAerial(s: SimState, fl: Flight): void {
   }
   let bestA: Agent | null = null;
   let bestD: Agent | null = null;
+  let nA = 0;
+  let nD = 0;
   for (const a of s.agents) {
-    if (!a.onPitch || a.line === 0 || dist(a.x, a.y, b.x, b.y) > R) continue;
+    if (!a.onPitch || a.line === 0) continue;
+    const d = dist(a.x, a.y, b.x, b.y);
+    if (d <= PR.aerialCrowdR) {
+      if (a.team === att) nA++;
+      else nD++;
+    }
+    if (d > R) continue;
     if (a.team === att) {
       if (!bestA || aerialScore(a) > aerialScore(bestA)) bestA = a;
     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
@@ -751,7 +759,9 @@ function resolveAerial(s: SimState, fl: Flight): void {
       foul(s, defFoul ? bestD : bestA, defFoul ? bestA : bestD, b.x, b.y);
       return;
     }
-    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
+    // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
+    const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
+    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin

@@ -544,6 +544,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   if (s.t >= a.runUntil) {
     a.giveGo = false;
     a.exitRun = false;
+    a.supportRun = false;
   }
   // ⒝ 주고 달리기 (C.77y, 2:1): 상대 진영으로 성공할 패스를 막 찼거나(날아가는 중) 방금 받게 했으면 받는 선수 마커의 뒤 공간으로.
   // 굴림은 패스당 1번 (giveGoT = 마지막 굴린 시각: 날아가는 중 굴렸으면 받은 뒤에는 안 굴린다)
@@ -583,10 +584,13 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
     // 탈취 뒤 출구 침투 (C.78a ⑤): 골 쪽 안쪽 길(중앙에서 exitLane 배)로 대각선 침투
     if (a.exitRun) ny = 0.5 + (ny - 0.5) * O.exitLane;
+    // 역습 지원 (C.78d ②): 자기 쪽 측면 길(중앙 ± supportLane)로 앞으로
+    if (a.supportRun) ny = 0.5 + (toNorm(a.x, a.y, dir)[1] >= 0.5 ? 1 : -1) * O.supportLane;
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
     // ⒟ 침투 취소 (C.77y): 소유자에게서 달리는 목표까지 패스 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
-    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight) {
+    // 역습 지원·출구 달리기 (C.78d ②)는 취소하지 않는다 — 정해진 길로 끝까지 (자기 ⅓ 에서 시작하면 패스 길이 늘 막혀 보여 바로 취소됐다)
+    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight && !(O.supportRun > 0 && (a.supportRun || a.exitRun))) {
       const [anx] = toNorm(a.x, a.y, dir);
       if ((anx - line) * L >= O.abortOffside || laneRisk(s, owner, px, py).risk >= O.abortLane) {
         a.runUntil = s.t;
@@ -1140,6 +1144,22 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  // 줄 사이 수신 (C.78d ①): 밀집 중 상대 소유자가 우리 수비 줄과 중원 줄 사이(+holdSlack m)면 압박 1명·커버 1명만 반응하고 나머지 중원은 밀집 자리(공 쪽으로 좁힌 줄)를 지킨다 — 한 번에 1명, 옆이 메움
+  if (O.compact > 0 && a.line === 2 && owner && owner.team !== a.team && !hasModule(a.role, 'exempt')) {
+    const tdc = s.teams[a.team].tactics.tendency;
+    const cw2 = TENDENCY.compactW[tdc];
+    if (cw2 !== undefined && bnx * L < O.compactFrom) {
+      const lx = defensiveLine(s, a.team);
+      const lineX2 = tdc === 'block' ? Math.min(lx, TENDENCY.blockLineMax / L) : tdc === 'bus' ? Math.min(lx, TENDENCY.busLineMax / L) : lx;
+      const gap2 = tdc === 'block' ? Math.min(F.midGap, TENDENCY.blockGap / L) : tdc === 'bus' ? Math.min(F.midGap, TENDENCY.busGap / L) : F.midGap;
+      const [onx] = toNorm(owner.x, owner.y, dir);
+      if (onx >= lineX2 && onx <= lineX2 + gap2 + O.holdSlack / L && ballRank(s, a, b.x, b.y) >= 2) {
+        setTarget(a, lineX2 + gap2, clamp(0.5 + (a.sy - 0.5) * cw2 + (bny - 0.5) * O.compactFollow, 0.05, 0.95), dir, false);
+        return;
+      }
+    }
+  }
+
   // 남은 수비 분담 (C.78a ③): 잃은 뒤 restWindow 초, 공이 우리 박스 존 밖이면 압박에 안 간 선수가 위협 상대를 한 명에 한 명(닿을 수 있는 수비만) 또는 커버 자리
   if (O.restMark > 0 && owner && owner.team !== a.team && !boxZone && s.t - tm.lostAt <= O.restWindow) {
     const job = restPlan(s, a.team).get(a.idx);
@@ -1187,6 +1207,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     return;
   }
   ny = coverShiftY(s, a, ny);
+  // 깊은 블록 밀집 (C.78d ①): 공이 우리 골 compactFrom m 안이면 수비·중원 줄은 공 쪽으로 좁게, 버스·블록 중원 줄은 수비 라인 + 간격에 고정
+  const cw = O.compact > 0 && owner && owner.team !== a.team && (a.line === 1 || a.line === 2) ? TENDENCY.compactW[tendency] : undefined;
+  const compacted = cw !== undefined && bnx * L < O.compactFrom;
+  if (compacted) {
+    ny = clamp(0.5 + (a.sy - 0.5) * cw + (bny - 0.5) * O.compactFollow, 0.05, 0.95);
+    if (a.line === 2 && tendency !== 'counter') nx = lineX + midGap;
+  }
   // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목. 홀딩 CM 도 같이 (E3.7 역할 반응: 수비 역할의 수비 효과)
   if ((a.pos === 'CDM' || a.role.id === 'holdingCM') && owner && owner.team !== a.team) {
     const spot = screenSpot(s, a, owner, dir, lineX);
@@ -1258,7 +1285,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       fwx = nx === mnx && nx !== nx0 ? 1 : 0;
       fwy = 0.5;
     } else {
-      const w = a.line === 3 ? 0.3 : 0.65;
+      // 깊은 블록 밀집 (C.78d ①): 중원 줄은 존(밀집 자리) 위주 — 마크 비중 compactMark
+      const w = a.line === 3 ? 0.3 : compacted ? O.compactMark : 0.65;
       nx = nx * (1 - w) + mnx * w;
       ny = ny * (1 - w) + mny * w;
       fwx = w;
@@ -1342,7 +1370,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     // 줄 2(CAM·CM 침투자) 먼저, 그다음 위협도 — 니어·파 포스트의 윙어(골에 더 가까워 위협도가 높다)보다 페널티 지점의 2선이 먼저 (위협도 순이면 마크가 윙어에게 가 윙 득점만 줄었다: quick 600 윙 20 → 15)
     others.sort((x, y) => Number(y.line === 2) - Number(x.line === 2) || threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
     // 엘리트 가드 (C.76w 가설 3): 집중 대상의 마무리 계수 ≥ focusDoubleMin 이면 2선 마크보다 더블팀이 먼저다 (2선 마크로 ST 가 풀리자 같은 시드 scoring 30골+ 1.6 → 3.3~4.1)
-    const second = (abil >= O.focusDoubleMin || !others.length || !O.boxManMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+    // 깊은 블록 밀집 (C.78d ①): 버스·블록·역습(낮은 블록)은 남는 수비가 많으니 박스 안 미마크 상대를 deepBoxMan 명까지 맡는다 (박스 안 사람 앞에 사람)
+    const manMax = TENDENCY.compactW[s.teams[a.team].tactics.tendency] !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
+    const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
     if (marker === a) {
@@ -1405,7 +1435,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     // 덮는 자리 앞에 사람 (C.76w (b)): 박스 안 미마크 상대(위협 순)에게 남은 수비수 중 가장 가까운 1명씩, boxManMax 명까지 골 쪽 stMark
     let marks = 0;
     for (const u of others) {
-      if (marks >= O.boxManMax || !rest.length) break;
+      if (marks >= manMax || !rest.length) break;
       if (u === deepT2) continue;
       const m = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
       marks++;

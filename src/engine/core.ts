@@ -150,9 +150,21 @@ function exitRuns(s: SimState, win: 0 | 1): void {
     return d * (0.5 + a.role.run);
   };
   cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
-  for (const a of cands.slice(0, O.exitRunners)) {
+  const exits = cands.slice(0, O.exitRunners);
+  for (const a of exits) {
     a.runUntil = s.t + O.runSeconds;
     a.exitRun = true;
+  }
+  // 역습 지원 (C.78d ②): 버스·블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
+  const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
+  if (!n) return;
+  const b = s.ball;
+  const sup = s.agents.filter((a) => a.onPitch && a.team === win && a !== top && a.idx !== b.owner && !exits.includes(a)
+    && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB'));
+  sup.sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y) || x.idx - y.idx);
+  for (const a of sup.slice(0, n)) {
+    a.runUntil = s.t + O.supportSeconds;
+    a.supportRun = true;
   }
 }
 

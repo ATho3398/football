@@ -26,6 +26,7 @@ import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type 
 import { setEnvironmentFixed } from '../../src/weather';
 import { transRun, type TransOut } from './transProbe';
 import { gegenRun, type GegenOut } from './gegenProbe';
+import { blockRun, type BlockOut } from './blockProbe';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -89,6 +90,8 @@ export interface MatchJob {
   trans?: boolean;
   /** 게겐 상성 분해 (C.78c gegenProbe): 탈취 높이·압박 회피 롱볼·뒤 공간 패스·골 출처 */
   gegen?: boolean;
+  /** 깊은 블록 분해 (C.78d blockProbe): 허용 슛 위치·xG·블록 · 수비 모양 · 줄 사이 수신 · 자기 ⅓ 탈취 뒤 역습 */
+  block?: boolean;
 }
 
 export interface SeasonJob {
@@ -141,6 +144,7 @@ export interface MatchOut {
   track?: TrackOut;
   trans?: TransOut;
   gegen?: GegenOut;
+  block?: BlockOut;
 }
 
 export interface SeasonOut {
@@ -320,6 +324,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const track = j.track ? trackRun(sim, j.track.team, j.track.slot) : undefined;
     const trans = j.trans ? transRun(sim) : undefined;
     const gegen = j.gegen ? gegenRun(sim) : undefined;
+    const block = j.block ? blockRun(sim) : undefined;
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -338,6 +343,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(track ? { track: track(r) } : {}),
       ...(trans ? { trans } : {}),
       ...(gegen ? { gegen } : {}),
+      ...(block ? { block } : {}),
     };
   } finally {
     restore();

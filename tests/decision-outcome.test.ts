@@ -64,8 +64,8 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
 
   it('실제 경기: 결정마다 구간이 결정 시점에서 시작해 6초(골이면 골 프레임까지) 안, 하이라이트에 결정 장면', () => {
     const p = selectableRealPlayers().find((x) => posGroup(x.position) === 'ST')!;
-    // C.77k(엔진 39): oc-<id> 는 하이라이트 결정 장면 0개라 시드 교체 (장면 시드 의존)
-    const g: GameState = newGame({ mode: 'real', playerId: p.id, seed: 'c77k-oc-1', difficulty: 'normal' });
+    // C.77k(엔진 39): oc-<id> 는 하이라이트 결정 장면 0개라 시드 교체 (장면 시드 의존). C.78d(엔진 44): c77k-oc-1 도 0개라 c78d-oc-0 으로 (0·2 통과, 1 은 0개)
+    const g: GameState = newGame({ mode: 'real', playerId: p.id, seed: 'c78d-oc-0', difficulty: 'normal' });
     let rm = roundMatch(g);
     for (let k = 0; k < 6 && !rm.plan.started; k++) {
       playRound(g);
