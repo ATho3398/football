@@ -469,15 +469,6 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     return O.supportBase + (1 - O.supportBase) * Math.min(1, n / O.supportNeed);
   };
   const lossHere = loss(ax, ay);
-  // 열린 공간 (C.78c ③): 그 자리보다 상대 골 쪽 상대 필드 선수 수가 적을수록 가치 ↑
-  const oppNx: number[] = [];
-  if (O.spaceGain > 0) for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) oppNx.push(toNorm(o.x, o.y, dir)[0]);
-  const open = (nx: number): number => {
-    if (O.spaceGain <= 0) return 1;
-    let n = 0;
-    for (const x of oppNx) if (x > nx) n++;
-    return 1 + O.spaceGain * clamp((O.spaceRef - n) / O.spaceRef, 0, 1);
-  };
   const safeMul = manDiff(s, a.team) < 0 ? ENGINE.referee.shortSafe : 1;
   const isGk = a.line === 0;
   const out: Candidate[] = [];
@@ -556,7 +547,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const [rx, ry] = toNorm(tx, ty, dir);
     // 받는 자리의 가치 × 지원도 (E.20 2번). 받는 순간 압박이 있으면 그만큼 다음 결정 전에 빼앗길 수 있다 (유지 효용과 같은 식)
     const pLoseR = O.holdLose * rp;
-    let value = positionValue(rx, ry) * support(r, tx, ty) * open(rx);
+    let value = positionValue(rx, ry) * support(r, tx, ty);
     // 받는 자리에서 슛을 노릴 수 있으면 그 기대값도 가치로 본다 (같은 골 단위, 슛은 지원과 무관). 골을 등지고 받는 패스는 바로 슛할 수 없다 (E.18 A2)
     if (dist(tx, ty, gx0, gy0) <= PR.shotMaxDist && rx > 0.6 && !receivesBack(a.x, a.y, tx, ty, dir)) {
       // 받는 선수의 슈팅 가치도 판단용이므로 본인·리그 평균 혼합 (E.20 1번과 같은 원칙)
@@ -642,7 +633,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       }
       // 도착 지점의 가치: 그 자리에서 다음 결정 전에 빼앗길 확률만큼 상실 비용 (받는 자리 가치, 유지 효용과 같은 식, E.20)
       const qEnd = loseProb(s, a, cx, cy);
-      const value = positionValue(nx, ny) * open(nx) * (1 - qEnd) + qEnd * loss(nx, ny);
+      const value = positionValue(nx, ny) * (1 - qEnd) + qEnd * loss(nx, ny);
       if (def) {
         // 수비 자세 (E.23): 수비수는 바깥쪽으로 몬다. 중앙 쪽으로 꺾는 돌파는 어렵고 바깥쪽은 조금 쉽다
         const D = ENGINE.defense;

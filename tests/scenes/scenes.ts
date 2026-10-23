@@ -12,6 +12,7 @@ import type { Agent, SimState } from '../../src/engine/state';
 import { DT, gap, move, pick, place, REFRESH, sane, sceneState, setBody, withEngine } from './harness';
 import { sceneAllIn, scenePressBreak, sceneSlowLine } from './transition';
 import { sceneBackPress, sceneOneTwo, sceneRunIn } from './receive';
+import { sceneBuildPress, sceneDeepPress, sceneLongEscape } from './gegen';
 
 export interface SceneOut {
   values: Record<string, number>;
@@ -497,5 +498,6 @@ export const SCENES = {
   chase: sceneChase, stop: sceneStop, highLine: sceneHighLine, keeper: sceneKeeper, backpass: sceneBackpass, arrival: sceneArrival, giveGo: sceneGiveGo, check: sceneCheck,
   pressBreak: scenePressBreak, slowLine: sceneSlowLine, allIn: sceneAllIn,
   oneTwo: sceneOneTwo, runIn: sceneRunIn, backPress: sceneBackPress,
+  deepPress: sceneDeepPress, longEscape: sceneLongEscape, buildPress: sceneBuildPress,
 } as const;
 export type SceneId = keyof typeof SCENES;

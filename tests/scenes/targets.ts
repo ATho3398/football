@@ -75,4 +75,12 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
     goal: '⑭ 등지고 압박 속 수신 — 정지 시간 길고 공 지키기·백패스 이유 압박 탈출 (5단계 2차)', enabled: true, touch: true,
     check: (v) => v.stopBack! >= v.stopFree! + 0.3 && v.safeRate! >= 0.7 && (v.backs === 0 || v.escapeShare! >= 0.5),
   },
+  // C.78c ⑮⑰: 기록만 — 지금 방향이 거꾸로(깊은 블록 상대 6초 안 높은 탈취 0.15~0.20 대 티키 빌드업 0.0, 버스의 첫 처리 롱볼 0.11~0.16 대 티키 0.33). 엔진관리자 재진단 대상
+  deepPress: { goal: '⑮ 깊은 블록 상대 게겐 압박 — 상대가 건너뛰어 높은 탈취 작음 (C.78c, 기록)', enabled: false },
+  // C.78c ⑯: 착지점 몫 켬이 끔보다 롱볼(30 m+)을 더 고르고, ST 에게 가는 공은 라인 뒤 · ST 가 수비보다 먼저 닿음 · 착지점 몫 > 0.5
+  longEscape: {
+    goal: '⑯ 압박받은 CB 가 롱볼로 높은 라인 뒤로 건너뜀 — 판단이 착지 경합을 봄 (C.78c)', enabled: true,
+    check: (v) => v.longOn! > v.longOff! && v.behind === 1 && v.tSt! < v.tDef! && v.q! > 0.5,
+  },
+  buildPress: { goal: '⑰ 티키 빌드업 상대 게겐 압박 — 높은 탈취 많음 (C.78c, 기록)', enabled: false },
 };

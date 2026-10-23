@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 42;
+export const ENGINE_VERSION = 43;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -656,12 +656,6 @@ export const ENGINE = {
     landScale: 0.6,
     /** 되찾은 세컨드볼의 가치 몫: 착지점 루즈볼은 경합 중이라(다음 결정 전 다시 빼앗길 수 있음) 그 자리 가치의 일부만 (롱패스 실패분에만) */
     landKeep: 0.4,
-    /**
-     * 열린 공간 가치 (C.78c ③, 공통 규칙): 받는·몰고 갈 자리보다 상대 골 쪽에 있는 상대 필드 선수가 spaceRef 명보다 적으면 그 자리 가치 × (1 + spaceGain × 빈 몫).
-     * 높은 라인 뒤·역압박에 올라온 팀 뒤(수비가 공 앞에 적음)로 가는 전진이 실제 기회만큼 비싸진다. 깊은 블록 앞(골 쪽에 8~9명)은 0 — 성향 상수가 아니라 상대 배치. 0 = 옛 동작
-     */
-    spaceGain: 0.6,
-    spaceRef: 4,
     /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
     backEscape: 0.012,
     backEscapeExtra: 0.25,
