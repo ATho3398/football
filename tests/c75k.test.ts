@@ -103,7 +103,8 @@ describe('C.75k 몰고 가다 슛', () => {
       return i;
     };
     let followed = 0;
-    for (let k = 0; k < 6 && followed === 0; k++) {
+    // C.78c(착지점 몫): 처음 6 시드에 "고른 뒤 슛" 이 없어져 40 시드까지 (첫 성공에서 멈춤 — 동작 존재 확인)
+    for (let k = 0; k < 40 && followed === 0; k++) {
       times = [];
       const out = playMyMatch({ ...rm.input, seed: rm.input.seed + k, control: { mode: 'direct', stop: 'all', policy: pol } });
       // 둘째 단: 고른 뒤 의도 시간(+ 반응) 안에 내 슛
