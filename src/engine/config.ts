@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 40;
+export const ENGINE_VERSION = 41;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -48,7 +48,7 @@ export const ENGINE = {
      * 합을 최고 속도로 자른다. 목표 점도 tv × feed 로 움직인다. 0 = 꺼짐(옛 "점으로 가는" 제어기)
      */
     /** 지금 0(꺼짐): 켜면(1) 같은 시드 scoring 30골+ 0·리그 1.24 (부록 C.77x). 기준 장면은 켠 값(tests/scenes/harness.ts MOTION_ON)으로 돈다 */
-    feed: 0,
+    feed: 1,
     /** 인지 지연 (초): 목표 속도가 따라가는 사람의 실제 속도를 따라잡는 시간 상수 */
     feedLag: 0.25,
     /** 따라갈 때 거리 보정 속도 하한 = feedGain × 목표까지 거리 (m/s, 정지 감속 √(2·가속·거리)·최고 속도 안) */
@@ -58,14 +58,14 @@ export const ENGINE = {
      * 반대로 가려면 reverseBrake × 가속 × turnKeep 로 감속하고, 느려지면 몸을 돌린다(180° = pivotBase − pivotSlope × 민첩/100 초, 90° 안으로 돌 때까지 가속 없음)
      */
     /** 지금 0(꺼짐, 켠 값 1 — 부록 C.77x) */
-    turnModel: 0,
+    turnModel: 1,
     faceSpeed: 1.5,
     pivotBase: 2.2,
     pivotSlope: 2.2,
     reverseBrake: 2,
     /** C.77x 판단용 도착 시간: 1 = arrivalTime(이동과 같은 운동 규칙), 0 = 옛 거리 / 최고 속도 (침투 경합은 + raceTurn) */
     /** 지금 0(꺼짐, 켠 값 1): 켜면 engine:check 평점 CAM 6.77 ✗ (부록 C.77x) */
-    arrivalModel: 0,
+    arrivalModel: 1,
     walk: 1.5,
     jog: 3.1,
     run: 5.5,
@@ -226,22 +226,22 @@ export const ENGINE = {
      * ⒜ 받으러 나오기: 같은 편 소유자가 checkPassMax m 안이고 내 checkMark m 안에 상대가 있으면 마커 반대쪽 옆으로 checkDist m (공 쪽으로 checkToBall 몫)
      */
     /** 지금 0(꺼짐, 켠 값 4 · giveGoChance 0.6 · swapShare 0.6 · abortLane 0.35): 켜면 quick 득점 1.49 ✗ (부록 C.77y) */
-    checkDist: 0,
+    checkDist: 4,
     checkMark: 2,
     checkPassMax: 35,
     checkToBall: 0.3,
     /** ⒝ 주고 달리기(2:1): 상대 진영에서 성공 패스를 한 선수(줄 2·3, run ≥ giveGoRun)가 받은 지 giveGoT 초 안에 giveGoChance × 공격 위치선정/100 확률로 받은 선수 마커의 뒤(공격 방향 giveGoDepth m, 패서 쪽 giveGoLane m)로 침투 */
-    giveGoChance: 0,
+    giveGoChance: 0.6,
     giveGoT: 1.0,
     giveGoRun: 0.3,
     giveGoDepth: 8,
     giveGoLane: 4,
     /** ⒞ 자리 교환: 같은 줄 동료가 자기 자리에서 swapDrop m+ 내려와 있으면 그 자리에 가장 가까운 같은 줄 동료(swapRange m 안) 1명이 그 자리 쪽으로 swapShare 만큼 (팀에 한 번에 1명) */
-    swapShare: 0,
+    swapShare: 0.6,
     swapDrop: 8,
     swapRange: 22,
     /** ⒟ 침투 취소: 침투 중 소유자 → 나 패스 길 위험이 abortLane 이상이거나 오프사이드 라인보다 abortOffside m+ 앞이면 침투를 멈추고 라인 abortBack m 안쪽으로 되돌아 나온다 (0 = 끔) */
-    abortLane: 0,
+    abortLane: 0.35,
     abortOffside: 1.5,
     abortBack: 1.5,
     /** 침투 중 라인 오차 배율 (오프사이드 빈도) */
@@ -256,7 +256,7 @@ export const ENGINE = {
     markSigma: 0.04,
     /** C.77x: 위치 오차(errX/Y)를 새로 뽑는 최소 간격 (초). 오프더볼 갱신마다 새로 뽑으면 목표가 초당 4~5회 수 m 씩 뛴다 (§9.15.12). 0 = 옛 동작(갱신마다) */
     /** 지금 0(꺼짐, 켠 값 0.5): 켜면 quick 600 득점 1.46 ✗ (부록 C.77x) */
-    errHold: 0,
+    errHold: 0.5,
     /** 압박: 공에 가까운 수비 1~2명. 압박 거리 = pressDistBase + pressing × pressDistRange */
     pressers: 2,
     /** 둘째 압박자가 공으로 가는 거리 = pressDist × secondPressDist. 압박 높음(pressLevel 2)이면 역할 압박 성향과 무관하게 둘째도 공으로 (C.76s 44h-c2 가설 1, plan.sit 의 pressers 2 를 실제 2명으로) */
@@ -429,17 +429,17 @@ export const ENGINE = {
      * ④ trackReach 1: 2선 추적 배정(trackPlan)도 닿을 수 있는 후보만(침투자 목표점 도착이 침투자 + trackReachSlack 초 안), 못 닿으면 다음 후보·없으면 배정 안 함(존이 맡음).
      * ⑤ exitRun 1 (G2): 열린 경기에서 공을 빼앗은 팀은 최전방(출구)을 남기고 공보다 앞 공격·측면 선수 중 빈 곳(가장 가까운 상대 거리 × (0.5 + 침투 성향)) 순 exitRunners 명만 1회 침투(runUntil).
      */
-    pressBreak: 0,
+    pressBreak: 1,
     pressBreakGap: 2,
-    lineHold: 0,
-    restMark: 0,
+    lineHold: 0.55,
+    restMark: 1,
     restWindow: 4,
     restSlack: 0.4,
     restCoverGap: 6,
     restMax: 4,
-    trackReach: 0,
+    trackReach: 1,
     trackReachSlack: 0.5,
-    exitRun: 0,
+    exitRun: 1,
     exitRunners: 1,
     /** 출구 침투자의 달리는 길 y = 중앙 + (자기 길 − 중앙) × exitLane (골 쪽 안쪽 대각선) */
     exitLane: 0.4,
@@ -605,7 +605,7 @@ export const ENGINE = {
      * (30 m 미만 뒤로 2 m+ 패스는 효용과 무관하게 항상 실수 후보). 가치 항 = 압박 탈출 + 보존 × 보존 가중 + 반대편 전환 × 보존 가중 − 기회 비용 × 비용 가중 (골 단위, 효용에 그대로 더함)
      */
     /** 지금 0(꺼짐, 켠 값 1): 켜면 quick 득점 1.42 → 1.93 · engine:check 득점 2.02 ✗ (부록 C.77y) */
-    backModel: 0,
+    backModel: 1,
     /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
     backEscape: 0.012,
     backEscapeExtra: 0.25,
@@ -1158,7 +1158,7 @@ export const ENGINE = {
      * 판단 xG 에 약발 배율 · 빈 골(가운데로 차도 GK 가 못 닿음)이면 유효 슈팅 확률이 openOn 쪽으로. 0 이면 C.77t 식 그대로(꺼짐).
      * **지금 0(부록 C.77z)**: 켜면 quick 600 득점 1.41 · 같은 시드 scoring 은 통과하지만 engine:check ST 무득점 평점 5.80(가드 5.9~) · 12 m 밖 선방률 66.4%(가드 68~76) — 마지막 단계에서 켠다
      */
-    timeModel: 0,
+    timeModel: 1,
     /** 대응 시간 모델의 기본 닿는 범위 (m, 반응 전 몸·팔로 닿는 거리). 1.4 · 반응 0.15 · 시간 기준 0.6 도 장면 ④ 는 통과하지만 유효 슈팅 득점 전환이 49% 로 GK 가 너무 약해(quick 600 1.99) 2.0 · 0.1 · 0.4 (부록 C.77z) */
     timeReach: 2.0,
     /** 판단용 기대 선방: 실행 구석 분포(난수 × cornerRange)를 이 개수 점의 평균으로 (timeModel 1) */
@@ -1179,7 +1179,7 @@ export const ENGINE = {
      * 패스 비행 중 GK 자리 (C.77z): 1 이면 상대가 받을 패스·크로스의 도착점이 골에서 setDist m 안일 때 GK 는 그 점 기준 슛 각도 자리
      * (골 가운데 → 도착점 선 위, 깊이 classicMin, 골대 ±1 m 안)로 서둘러 옮긴다 — 패스를 찬 뒤 GK 반응 시간(reactOf)에 다시 본다. 0 이면 지금 공 위치 기준 걸어서(옛 동작)
      */
-    flightSet: 0,
+    flightSet: 1,
     /** 판단용 (C.77t): 동료에게 패스해 그가 쏠 슛의 가치를 볼 때, 패스 비행 + receiveLead 초 동안 GK 가 setSpeed m/s 로 자리를 옮긴다고 본다 (지금 GK 위치 그대로 보면 패스가 과대평가된다) */
     setSpeed: 4,
     receiveLead: 0.3,
