@@ -1039,14 +1039,24 @@ function firstTouch(s: SimState, a: Agent, fl: Flight): void {
     }
   }
   // 미리 정하기: 땅볼만. 내 선수는 뺀다(직접 모드 결정 순간 화면·카드와 겹치지 않게, 자동·맡기기·직접 결과가 같아야 한다)
-  if (RC.oneTouch <= 0 || fl.air || a.line === 0 || a.spec.isMe) return;
-  const c = preDecide(s, a, speed, a.cooldown);
-  if (!c) return;
-  a.pre = c;
-  a.cooldown = 0;
-  if (c.type === 'shoot') {
-    a.otMul = oneTouchMul(a, speed, pr);
-    a.otUntil = s.t + 0.25;
+  if (RC.oneTouch > 0 && !fl.air && a.line !== 0 && !a.spec.isMe) {
+    const c = preDecide(s, a, speed, a.cooldown);
+    if (c) {
+      a.pre = c;
+      a.cooldown = 0;
+      if (c.type === 'shoot') {
+        a.otMul = oneTouchMul(a, speed, pr);
+        a.otUntil = s.t + 0.25;
+      }
+      return;
+    }
+  }
+  // 돌아서기 (C.78e ②): 원터치가 아니고 등지고 받았어도 turnFree m 안에 상대가 없으면 정지 시간(등짐 비용 포함) 동안 돌아서 앞을 보고 다음 결정을 한다
+  // (줄 사이에서 받은 공격수를 CB 가 따라오지 않으면 돌아서 전진할 시간을 얻는다)
+  if (RC.turnFree > 0 && a.backToGoal && dNear >= RC.turnFree) {
+    a.backToGoal = false;
+    a.hx = attackDir(a.team, s.half);
+    a.hy = 0;
   }
 }
 

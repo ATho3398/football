@@ -99,4 +99,19 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
     goal: '⑳ 줄 사이 수신자에게 수비 1명 튀어나감·옆이 메움 (C.78d)', enabled: true,
     check: (v) => v.received! >= 0.8 && v.pressers! <= 1.2 && v.multi! <= 0.15 && v.multi! < v.multiOff! && v.near1! <= 2.5 && v.gapMax! <= 10,
   },
+  // C.78e ㉑: 반대쪽 측면 크로스 — LM 이 박스 안 먼 포스트 채널에 같은 장면 LW 보다 1초 넘게 늦지 않게 · 도착 ≥ 80% · 도착 규칙 끔보다 빠르고 크로스 순간 먼 포스트에 더 가깝다
+  wideArrive: {
+    goal: '㉑ 반대쪽 측면 크로스 때 LM/RM 먼 포스트 도착 시각 (C.78e)', enabled: true,
+    check: (v) => v.lmArr! >= 0.8 && v.lmT! <= v.lwT! + 1 && v.lmT! < v.lmOffT! && v.lmEnd! < v.lmOffEnd!,
+  },
+  // C.78e ㉒: CB 따라감 ≥ 40% · 2선 빈자리 채널 침투 ≥ 25%(끔보다 0.2 이상 많음) · 그 채널로 패스 ≥ 10%(끔보다 많음)
+  nineFollow: {
+    goal: '㉒ 펄스 나인 내려옴 → CB 따라감 → 2선 빈자리 침투 패스 (C.78e)', enabled: true,
+    check: (v) => v.follow! >= 0.4 && v.run! >= 0.25 && v.run! >= v.runOff! + 0.2 && v.pass! >= 0.1 && v.pass! > v.passOff!,
+  },
+  // C.78e ㉓: CB 가 라인을 지키면 받은 0.3초 뒤 앞을 봄 ≥ 60%(돌아서기 끔 ≈ 0) · 첫 행동 전진이 돌아서기 끔보다 많음 · 상대 중원이 먼저 닿으면 CB 따라감이 0.2 이상 적고 판단 끔보다 적다
+  nineHold: {
+    goal: '㉓ 펄스 나인 내려옴 → CB 안 따라감 → 돌아서 전진 (C.78e)', enabled: true,
+    check: (v) => v.faceHold! >= 0.6 && v.faceHold! > v.faceNoTurn! + 0.4 && v.fwdHold! > v.fwdNoTurn! && v.followNear! <= v.followFar! - 0.2 && v.followNear! < v.followNearOff!,
+  },
 };

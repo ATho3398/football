@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 44;
+export const ENGINE_VERSION = 45;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -156,6 +156,8 @@ export const ENGINE = {
     max: 1.1,
     /** 방향 전환 첫 터치 (timeModel 1): 수신 때 pressDist 안 상대가 있으면 정지 시간 동안 그 반대쪽(앞쪽으로 기움)으로 turnAway m 받아 놓는다. 달리며 받으면 진행 방향으로 계속 몬다 */
     turnAway: 1.5,
+    /** 돌아서기 (C.78e ②): 등지고 받았어도 원터치가 아니고 이 거리(m) 안에 상대가 없으면 정지 시간 동안 돌아선다 (앞을 보고 다음 결정). 0 = 끔 */
+    turnFree: 4,
     /** 침투 패스를 받을 선수의 달리기 목표 = 도착점 + 패스 방향 runOn m (0 = 옛 동작: 도착점에서 멈춤, 받을 때 속도 2.3 m/s) */
     runOn: 3,
     /** runOn 일 때 침투 패스 도착점에서 달리는(3 m/s+) 받을 선수가 이 거리(m) 안이면 굴려 보내지 않고 바로 받는다 */
@@ -391,13 +393,24 @@ export const ENGINE = {
      */
     /**
      * C.77d 조정 2: 처방 p(base 0.35·판단 0.45)는 위치선정 77 안팎 CB 에서 미끼 없을 때 0.05 라 판단 구간 따라감 3% → base 0.75·판단 0.6 (판단 구간 CB 2 m+ 앞 6 → 22%, 위치선정 55 대 90 = 33 대 19%).
-     * **지금은 끔(stepOutMax 0)**: 켜면 `role-pair 800 ST` 짝 조건 두 시드 펄스 나인 대비 −0.04/−0.09(가설 1 만 −0.02)·2선 골 포처 팀 대비 +0.06/+0.03(가설 1 만 +0.12)이고
-     * 모든 팀 CB 에 걸려 다른 ST 역할 득실이 ±0.06~0.08 흔들림 — 나간 CB 의 빈자리를 2선이 제때 못 쓴다. 켤 때 값 7
+     * C.77d 때 꺼 둔 이유: 켜면 `role-pair 800 ST` 짝 조건 두 시드 펄스 나인 대비 −0.04/−0.09(가설 1 만 −0.02)·2선 골 포처 팀 대비 +0.06/+0.03(가설 1 만 +0.12)이고
+     * 모든 팀 CB 에 걸려 다른 ST 역할 득실이 ±0.06~0.08 흔들림 — 나간 CB 의 빈자리를 2선이 제때 못 쓴다. → C.78e 에서 켬(7): 중원 먼저 판단(stepOutMidLead)·실제 라인 기준 한계·받는 공격수도 판단 + 빈자리 침투(gapRun)와 함께
      */
     stepOutMin: 4,
     stepOutReach: 12,
-    stepOutMax: 0,
-    stepOutBall: [25, 45] as [number, number],
+    stepOutMax: 7,
+    /**
+     * CB 따라나옴 판단 (C.78e ②, 펄스 나인 연결): 우리 중원 줄 누가 CB 보다 stepOutMidLead 초 이상 먼저 닿으면 p × (1 − 판단 × stepOutMidCut)(중원이 압박, CB 는 라인),
+     * 아니면 p + 판단 × stepOutAlone. stepOutMidLead 0 = 끔(C.77d 판단 그대로)
+     */
+    stepOutMidLead: 0.3,
+    stepOutMidCut: 0.8,
+    stepOutAlone: 0.4,
+    /** CB 빈자리 침투 (C.78e ②): 따라 나간 CB 가 나머지 수비 줄보다 gapOpen m 앞이면 그 채널로 gapReach 초 안에 가장 먼저 닿는 2선·측면 1명이 침투. gapRun 0 = 끔 */
+    gapRun: 1,
+    gapOpen: 3,
+    gapReach: 4,
+    stepOutBall: [25, 52] as [number, number],
     stepOutBase: 0.75,
     stepOutDecoy: 0.35,
     stepOutJudge: 0.6,
@@ -535,6 +548,20 @@ export const ENGINE = {
     halfSpaceSpread: 0.18,
     boxRunSpread: 0.12,
     edgeZone: 22,
+    /**
+     * 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 이 공이 상대 진영 wideFromX(정규화)를 넘으면 역할 자리로 — 반대쪽 측면 공 = 먼 포스트, 같은 쪽 = 오버랩(소유자 앞 overlapAhead m, 터치라인 wideTouch)
+     * 또는 언더랩(소유자 앞 underlapAhead m 이상·하프스페이스; 풀백이 공을 가졌거나 소유자보다 wideFbAhead m 뒤까지 바깥으로 올라와 있거나 소유자가 터치라인 wideTouch 밖이면),
+     * 중앙 공 = 넓은 역할은 깊이 잡은 측면·안쪽 역할은 하프스페이스. 도착 예상이 wideLate 초보다 늦으면 전력. wideArrive 0 = 끔
+     */
+    wideArrive: 1,
+    wideFromX: 0.45,
+    /** 넓게 머무는 자리의 깊이: 오프사이드 라인 wideDepth m 뒤 (윙어처럼 마지막 줄을 잡는다) */
+    wideDepth: 2,
+    wideLate: 1,
+    overlapAhead: 8,
+    underlapAhead: 6,
+    wideFbAhead: 5,
+    wideTouch: 0.42,
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
     postSpread: 4,

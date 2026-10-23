@@ -66,6 +66,8 @@ export interface Agent {
   exitRun: boolean;
   /** 탈취 뒤 역습 지원 달리기 중 (C.78d ②): 달리는 동안 측면 길로 */
   supportRun: boolean;
+  /** CB 빈자리 침투 중 (C.78e ②): 달리는 동안 이 y(정규화)로, 아니면 −1 */
+  gapY: number;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
   errX: number;
   errY: number;

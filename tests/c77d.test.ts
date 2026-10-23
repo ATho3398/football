@@ -27,7 +27,7 @@ describe('C.77d 펄스 나인 미끼·2선 인계', () => {
     expect(ENGINE.roles.nineMateRun).toBe(0.5);
     expect(ENGINE.roles.nineDeepGap).toBeGreaterThan(0);
     expect(O.stepOutMin).toBeLessThan(O.stepOutReach);
-    expect(O.stepOutMax).toBe(0); // 지금은 끔 (켤 때 7)
+    expect(O.stepOutMax).toBe(7); // C.78e: 켬 (펄스 나인 연결 — 중원 먼저 판단·빈자리 침투와 함께)
     expect(O.stepOutBall[0]).toBeGreaterThanOrEqual(O.boxZone);
     expect(O.stepOutP[0]).toBeGreaterThan(0);
     expect(O.stepOutP[1]).toBeLessThan(1);

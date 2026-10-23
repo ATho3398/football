@@ -545,6 +545,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     a.giveGo = false;
     a.exitRun = false;
     a.supportRun = false;
+    a.gapY = -1;
   }
   // ⒝ 주고 달리기 (C.77y, 2:1): 상대 진영으로 성공할 패스를 막 찼거나(날아가는 중) 방금 받게 했으면 받는 선수 마커의 뒤 공간으로.
   // 굴림은 패스당 1번 (giveGoT = 마지막 굴린 시각: 날아가는 중 굴렸으면 받은 뒤에는 안 굴린다)
@@ -559,6 +560,14 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (rand(s.seed, s.tick, a.idx, Purpose.GiveGo) < (O.giveGoChance * a.attrs.offTheBall) / 100) {
       a.runUntil = s.t + O.runSeconds;
       a.giveGo = true;
+    }
+  }
+  // CB 빈자리 침투 (C.78e ②): 상대 CB 가 내려온 우리 공격수를 따라 나가 수비 줄에 빈자리가 생기면 그 자리에 가장 먼저 닿는 2선·측면 1명이 뒤로 달린다
+  if (O.gapRun > 0 && s.t >= a.runUntil && a.line >= 2 && owner && owner.team === a.team && owner !== a) {
+    const g = gapPlan(s, a.team, dir);
+    if (g && g.runner === a.idx) {
+      a.runUntil = s.t + O.runSeconds;
+      a.gapY = g.ny;
     }
   }
   // 침투: 공격 위치선정 × run 비례 확률로 수비 라인 근처로 달린다
@@ -586,11 +595,13 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (a.exitRun) ny = 0.5 + (ny - 0.5) * O.exitLane;
     // 역습 지원 (C.78d ②): 자기 쪽 측면 길(중앙 ± supportLane)로 앞으로
     if (a.supportRun) ny = 0.5 + (toNorm(a.x, a.y, dir)[1] >= 0.5 ? 1 : -1) * O.supportLane;
+    // CB 빈자리 침투 (C.78e ②): 빈자리 채널로
+    if (a.gapY >= 0) ny = a.gapY;
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
     // ⒟ 침투 취소 (C.77y): 소유자에게서 달리는 목표까지 패스 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
-    // 역습 지원·출구 달리기 (C.78d ②)는 취소하지 않는다 — 정해진 길로 끝까지 (자기 ⅓ 에서 시작하면 패스 길이 늘 막혀 보여 바로 취소됐다)
-    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight && !(O.supportRun > 0 && (a.supportRun || a.exitRun))) {
+    // 역습 지원·출구 달리기 (C.78d ②)·CB 빈자리 침투 (C.78e ②)는 취소하지 않는다 — 정해진 길로 끝까지 (자기 ⅓ 에서 시작하면 패스 길이 늘 막혀 보여 바로 취소됐다)
+    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight && !(O.supportRun > 0 && (a.supportRun || a.exitRun)) && a.gapY < 0) {
       const [anx] = toNorm(a.x, a.y, dir);
       if ((anx - line) * L >= O.abortOffside || laneRisk(s, owner, px, py).risk >= O.abortLane) {
         a.runUntil = s.t;
@@ -645,17 +656,33 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       urgent = dist(px, py, a.x, a.y) > 6;
     }
   }
+  // 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 은 공이 상대 진영 wideFromX 를 넘는 순간(최종 ⅓ 진입 전)부터 역할 자리로 출발한다 —
+  // 반대쪽 측면 공 = 먼 포스트(크로스 대상), 같은 쪽 측면 = 오버랩(바깥·앞) 또는 언더랩(하프스페이스) — 같은 쪽 풀백·소유자가 터치라인을 쓰면 언더랩,
+  // 중앙 공 = 넓게 머무는 역할(정통 윙어·와이드 미드)은 깊이 잡은 측면, 안으로 들어오는 역할은 하프스페이스. 도착이 wideLate 초보다 늦으면 전력으로
+  // 우리 패스가 날아가는 중이면 받는 선수를 소유자로 본다 (패스마다 자리를 놓고 멈추지 않게)
+  let wideJob = false;
+  const wOwner = owner ?? (fl && fl.receiver >= 0 && fl.outcome === 'receive' && s.agents[fl.passer]?.team === a.team ? s.agents[fl.receiver]! : null);
+  if (O.wideArrive > 0 && a.line === 2 && (a.pos === 'LM' || a.pos === 'RM') && wOwner && wOwner.team === a.team && wOwner !== a && bnx >= O.wideFromX && (!running || Math.abs(bny - 0.5) >= O.lateRunWide)) {
+    const t = wideMidSpot(s, a, wOwner, dir, bnx, bny, line);
+    if (t) {
+      [nx, ny] = t;
+      const [px, py] = toPitch(nx, ny, dir);
+      urgent = arrival(a, px, py, true) > O.wideLate;
+      job = null;
+      wideJob = true;
+    }
+  }
   // 역할 움직임 모듈 (E.6 D.13): ② 줄 사이 이동, ① 빈 공간 찾기 (침투·최종 3분의 1 역할 중이 아닐 때)
   const mate = !!owner && owner.team === a.team && owner !== a;
-  if (!running && !job && hasModule(a.role, 'between')) [nx, ny] = betweenLines(s, a, dir, nx, ny, bnx);
-  if (!running && !job && mate && hasModule(a.role, 'space')) [nx, ny] = findSpace(s, a, dir, nx, ny, line);
+  if (!running && !job && !wideJob && hasModule(a.role, 'between')) [nx, ny] = betweenLines(s, a, dir, nx, ny, bnx);
+  if (!running && !job && !wideJob && mate && hasModule(a.role, 'space')) [nx, ny] = findSpace(s, a, dir, nx, ny, line);
   // 내려와서 받기 / 지원 간격 (티키타카는 지원 삼각형 간격이 좁다, E.19)
   const tiki = s.teams[a.team].tactics.tendency === 'tikitaka';
   // 빌드업 전술: 짧게일수록 지원 간격이 좁다 (E.19 ③)
   const sk = 1 + F.styleSupport * (0.5 - s.teams[a.team].tactics.style);
   const supMin = (tiki ? TENDENCY.tikiSupport[0] : O.supportMin) * sk;
   const supMax = (tiki ? TENDENCY.tikiSupport[1] : O.supportMax) * sk;
-  if (owner && owner.team === a.team && owner !== a && !job) {
+  if (owner && owner.team === a.team && owner !== a && !job && !wideJob) {
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
     if (!running && a.role.drop > 0 && nx > ox) nx -= (a.role.drop * O.dropDist) / L * 0.5;
     const [px, py] = toPitch(nx, ny, dir);
@@ -676,7 +703,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
   // ③ 공 요구 (E.6 D.13): 소유자 쪽으로 다가가 받을 자리를 내민다 (지원 간격 최소까지)
-  if (!running && !job && mate && hasModule(a.role, 'demand')) {
+  if (!running && !job && !wideJob && mate && hasModule(a.role, 'demand')) {
     const [px, py] = toPitch(nx, ny, dir);
     const d = dist(px, py, owner!.x, owner!.y);
     if (d > supMin + 1) {
@@ -690,7 +717,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (spot) [nx, ny] = toNorm(spot[0], spot[1], dir);
   }
   // ⒞ 자리 교환 (C.77y): 같은 줄 동료가 자기 자리에서 내려와 비운 자리를 가장 가까운 같은 줄 동료 1명이 맡는다
-  if (!running && !job && mate && O.swapShare > 0) {
+  if (!running && !job && !wideJob && mate && O.swapShare > 0) {
     const sw = swapPlan(s, a.team, dir);
     if (sw && sw.b === a.idx) {
       nx += (sw.nx - nx) * O.swapShare;
@@ -698,7 +725,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
   // ⒜ 받으러 나오기 (C.77y): 마커가 checkMark m 안이면 마커 반대쪽 옆으로 짧게 (공 쪽으로 조금) 움직여 패스 각도를 만든다
-  if (!running && !job && mate && O.checkDist > 0 && a.line >= 2 && dist(a.x, a.y, owner!.x, owner!.y) <= O.checkPassMax) {
+  if (!running && !job && !wideJob && mate && O.checkDist > 0 && a.line >= 2 && dist(a.x, a.y, owner!.x, owner!.y) <= O.checkPassMax) {
     const [m, md] = nearestFieldOpp(s, a);
     if (m && md <= O.checkMark) {
       const bx = owner!.x - a.x;
@@ -719,6 +746,31 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/** 안으로 들어오는 측면 역할 (C.78e ①): 같은 쪽 측면 공이면 언더랩, 중앙 공이면 하프스페이스 */
+const INSIDE_WIDE = new Set(['wingForward', 'raumdeuter', 'crackWinger']);
+
+/** 측면 미드 도착 자리 (C.78e ①, 정규화). null = 기존 규칙 */
+function wideMidSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, bnx: number, bny: number, line: number): [number, number] | null {
+  const side = a.sy < 0.5 ? -1 : 1;
+  const cap = line - 0.5 / L;
+  if (Math.abs(bny - 0.5) >= O.lateRunWide) {
+    const ballSide = bny < 0.5 ? -1 : 1;
+    // 반대쪽 측면: 먼 포스트 (크로스 대상)
+    if (ballSide !== side) return [Math.min(cap, 1 - O.backPostDepth / L), 0.5 - ballSide * O.backPostSpread];
+    const [onx, ony] = toNorm(owner.x, owner.y, dir);
+    let fb: Agent | null = null;
+    for (const o of s.agents) if (o.onPitch && o.team === a.team && o.line === 1 && (o.pos === 'LB' || o.pos === 'RB' || o.pos === 'LWB' || o.pos === 'RWB') && Math.sign(o.sy - 0.5) === side) fb = o;
+    const fbOut = !!fb && fb !== owner && (() => { const [fx, fy] = toNorm(fb.x, fb.y, dir); return fx >= onx - O.wideFbAhead / L && Math.abs(fy - 0.5) >= Math.abs(toNorm(a.x, a.y, dir)[1] - 0.5); })();
+    // 같은 쪽: 풀백이 공을 가졌거나 바깥으로 올라와 있거나 소유자가 터치라인을 쓰면 언더랩, 아니면 역할대로 (안쪽 역할 = 언더랩)
+    const under = owner === fb || fbOut || Math.abs(ony - 0.5) >= O.wideTouch || INSIDE_WIDE.has(a.role.id);
+    if (under) return [Math.min(cap, Math.max(onx + O.underlapAhead / L, 1 - O.halfSpaceDepth / L)), 0.5 + side * O.halfSpaceSpread];
+    return [Math.min(cap, Math.max(onx + O.overlapAhead / L, cap - O.wideDepth / L)), 0.5 + side * O.wideTouch];
+  }
+  // 중앙 공: 넓게 머무는 역할은 깊이 잡은 측면, 안쪽 역할은 하프스페이스
+  if (INSIDE_WIDE.has(a.role.id)) return [Math.min(cap, 1 - O.halfSpaceDepth / L), 0.5 + side * O.halfSpaceSpread];
+  return [cap - O.wideDepth / L, 0.5 + side * O.wideTouch];
 }
 
 /** 가장 가까운 상대 필드 선수 (GK 제외) */
@@ -750,6 +802,45 @@ function laneRisk(s: SimState, from: Agent, tx: number, ty: number): { risk: num
 }
 
 /** 자리 교환 계획 (C.77y): 팀에서 자기 자리보다 swapDrop m+ 가장 많이 내려온 2·3줄 선수의 자리와 그 자리를 맡을 같은 줄 동료 1명. 틱마다 한 번 계산 */
+/**
+ * CB 빈자리 (C.78e ②): 상대 CB 가 따라 나가기로 했고(stepOutGo) 나머지 수비 줄보다 gapOpen m 이상 앞에 있으면 그 CB 의 y 채널·수비 줄 깊이가 빈자리.
+ * 그 자리에 가장 먼저 닿는(도착 시간) 우리 줄 2·3 선수 1명(공 가진 선수·따라 나간 CB 가 붙은 선수 제외, gapReach 초 안)이 침투한다. 판단은 위치만 (E.15.1)
+ */
+const gapCache = new WeakMap<SimState, { tick: number; plan: ({ runner: number; ny: number } | null | undefined)[] }>();
+function gapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): { runner: number; ny: number } | null {
+  let c = gapCache.get(s);
+  if (!c || c.tick !== s.tick) {
+    c = { tick: s.tick, plan: [undefined, undefined] };
+    gapCache.set(s, c);
+  }
+  const cached = c.plan[team];
+  if (cached !== undefined) return cached;
+  let plan: { runner: number; ny: number } | null = null;
+  for (const cb of s.agents) {
+    if (!cb.onPitch || cb.team === team || cb.pos !== 'CB' || !cb.stepOutGo || cb.stepOutIdx < 0) continue;
+    let lx = 0;
+    let n = 0;
+    for (const o of s.agents) if (o.onPitch && o.team === cb.team && o.line === 1 && o !== cb) { lx += toNorm(o.x, o.y, dir)[0]; n++; }
+    if (!n) continue;
+    lx /= n;
+    const [cnx, cny] = toNorm(cb.x, cb.y, dir);
+    if ((lx - cnx) * L < O.gapOpen) continue;
+    const [px, py] = toPitch(lx, cny, dir);
+    let best: number = O.gapReach;
+    for (const a of s.agents) {
+      if (!a.onPitch || a.team !== team || a.line < 2 || a.idx === s.ball.owner || a.idx === cb.stepOutIdx || s.t < a.runUntil) continue;
+      const t = arrival(a, px, py);
+      if (t < best) {
+        best = t;
+        plan = { runner: a.idx, ny: cny };
+      }
+    }
+    if (plan) break;
+  }
+  c.plan[team] = plan;
+  return plan;
+}
+
 const swapCache = new WeakMap<SimState, { tick: number; plan: (SwapPlan | null | undefined)[] }>();
 interface SwapPlan { b: number; nx: number; ny: number }
 function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
@@ -976,7 +1067,8 @@ function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal
   const oline = offsideLine(s, opp);
   const odir = attackDir(opp, s.half);
   for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line !== 3 || o.idx === s.ball.owner) continue;
+    // C.78e ②: 공을 가졌거나 받는 중인 공격수도 판단한다 (줄 사이 수신 — 따라 나가 붙을지)
+    if (!o.onPitch || o.team === a.team || o.line !== 3 || (O.stepOutMidLead <= 0 && o.idx === s.ball.owner)) continue;
     const ahead = (oline - toNorm(o.x, o.y, odir)[0]) * L;
     if (ahead < O.stepOutMin || ahead > O.stepOutReach) continue;
     // 그 상대에게 가장 가까운 CB 만 판단한다
@@ -995,7 +1087,14 @@ function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal
     const decoy = s.agents.some((o) => o.onPitch && o.team !== a.team && o !== pick && (o.line === 2 || o.line === 3)
       && o.vx * dir <= -O.decoySpeed && dist(o.x, o.y, a.x, a.y) <= O.decoyZone) ? 1 : 0;
     const judge = clamp((a.attrs.defensivePositioning - 50) / 40, 0, 1);
-    const p = clamp(O.stepOutBase + O.stepOutDecoy * decoy - O.stepOutJudge * judge, O.stepOutP[0], O.stepOutP[1]);
+    let p = clamp(O.stepOutBase + O.stepOutDecoy * decoy - O.stepOutJudge * judge, O.stepOutP[0], O.stepOutP[1]);
+    // 줄 사이 수신 판단 (C.78e ②, C.78d 와 같은 판단): 우리 중원 줄 누가 그 선수에게 CB 보다 stepOutMidLead 초 이상 먼저 닿으면 중원이 압박하고 CB 는 라인을 지킨다.
+    // 판단 좋은 CB 일수록 이 구분이 정확하다 (중원이 먼저면 p × (1 − 판단 × stepOutMidCut), 아무도 못 닿으면 + 판단 × stepOutAlone)
+    if (O.stepOutMidLead > 0) {
+      const tc = arrival(a, pick.x, pick.y);
+      const midFirst = s.agents.some((m) => m.onPitch && m.team === a.team && m.line === 2 && arrival(m, pick.x, pick.y) + O.stepOutMidLead <= tc);
+      p = clamp(midFirst ? p * (1 - judge * O.stepOutMidCut) : p + judge * O.stepOutAlone, O.stepOutP[0], O.stepOutP[1]);
+    }
     a.stepOutIdx = pick.idx;
     a.stepOutGo = rand(s.seed, s.tick, a.idx, Purpose.StepOut) < p;
     a.stepOutUntil = s.t + O.stepOutHold;
@@ -1281,7 +1380,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       ny = ny * 0.5 + mny * 0.5;
       // 라인 뒤로만 (마크 쪽으로 내려섬). 따라 나가기로 했으면 마크 자리까지 라인 앞으로, 최대 stepOutMax m
       const nx0 = nx;
-      nx = stepOut ? Math.max(nx, Math.min(mnx, lineX + O.stepOutMax / L)) : Math.min(nx, mnx);
+      // C.78e ②: 나가는 한계는 전술 라인과 실제 라인(상대에게 오프사이드 라인) 중 앞쪽 기준 — 전술 라인은 공이 25~45 m 일 때 실제보다 깊어 따라 나가기로 해도 물러섰다
+      const outX = O.stepOutMidLead > 0 ? Math.max(lineX, 1 - offsideLine(s, (a.team === 0 ? 1 : 0) as 0 | 1)) : lineX;
+      nx = stepOut ? Math.max(nx, Math.min(mnx, outX + O.stepOutMax / L)) : Math.min(nx, mnx);
       fwx = nx === mnx && nx !== nx0 ? 1 : 0;
       fwy = 0.5;
     } else {
