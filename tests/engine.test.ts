@@ -81,7 +81,8 @@ describe('경기 엔진 코어 (E1)', () => {
       else {
         expect(p.distance).toBeGreaterThan(6500);
         // C.78d(엔진 44): 역습 지원 달리기(5초 전력)로 시드 11 에 13.7 km 선수가 나와 상한 13.5 → 14 km (실제 최다 13.5~14.5 km)
-        expect(p.distance).toBeLessThan(14000);
+        // C.78e(엔진 45, 마스터 Z 승인 — 마지막 단계 재검토): 시드 11 CDM 14.02 km(시드 12·13 최다 13.50·13.28, 규칙 하나씩 끄면 12.7~14.03 으로 흔들림) → 상한 14.5 km = 실제 최다 범위 위끝
+        expect(p.distance).toBeLessThan(14500);
       }
     }
   });
