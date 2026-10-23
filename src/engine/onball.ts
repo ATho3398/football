@@ -549,6 +549,19 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     return O.supportBase + (1 - O.supportBase) * Math.min(1, n / O.supportNeed);
   };
   const lossHere = loss(ax, ay);
+  // 뒤 공간 (C.78g): 상대 필드 선수의 정규화 x (받는 곳보다 골 쪽 인원)
+  const SP = ENGINE.transition;
+  const oppNx: number[] = [];
+  if (SP.space > 0 || SP.counterBonus > 0) for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) oppNx.push(toNorm(o.x, o.y, dir)[0]);
+  // 역습 상황 보너스 (C.78g, 사용자 "역습 상황에 보상 점수를 좀 더"): 오픈 플레이 탈취 뒤 counterTime 초 동안, 공보다 앞(우리 쪽)에 남은 상대 몫 × 상대 라인 뒤 열린 공간 몫.
+  // 전진 후보의 효용에 counterBonus × 이 값 × 전진(정규화) × 판단 성공 확률을 더한다(상한 counterCap) — 성공 확률·실행은 그대로, 고를 이유만
+  let counterK = 0;
+  if (SP.counterBonus > 0 && s.possTeam === a.team && s.possOrigin === 'open' && s.t - s.teams[a.team].wonAt <= SP.counterTime && oppNx.length) {
+    let up = 0;
+    for (const x of oppNx) if (x < ax) up++;
+    counterK = (up / oppNx.length) * clamp(1 - offsideLine(s, a.team), 0, 1);
+  }
+  const cBonus = (pj: number, fwd: number) => (counterK > 0 && fwd > 0 ? Math.min(SP.counterCap, SP.counterBonus * counterK * fwd * pj) : 0);
   const safeMul = manDiff(s, a.team) < 0 ? ENGINE.referee.shortSafe : 1;
   const isGk = a.line === 0;
   const out: Candidate[] = [];
@@ -629,7 +642,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const [rx, ry] = toNorm(tx, ty, dir);
     // 받는 자리의 가치 × 지원도 (E.20 2번). 받는 순간 압박이 있으면 그만큼 다음 결정 전에 빼앗길 수 있다 (유지 효용과 같은 식)
     const pLoseR = O.holdLose * rp;
-    let value = positionValue(rx, ry) * support(r, tx, ty);
+    const supR = support(r, tx, ty);
+    let value = positionValue(rx, ry) * supR;
+    // 뒤 공간 가치 (C.78g): 크게 앞으로 가는 패스를 받는 곳보다 골 쪽 상대가 적으면, 받은 뒤 빈 곳으로 몰고 갈 자리의 가치 (성공 확률은 그대로)
+    if (SP.space > 0 && rx - ax >= SP.spaceFwd && rx < SP.spaceStop) {
+      let behind = 0;
+      for (const x of oppNx) if (x > rx) behind++;
+      if (behind < SP.spaceBack) value = Math.max(value, positionValue(Math.min(SP.spaceStop, rx + (SP.spaceRun * (1 - behind / SP.spaceBack)) / L), ry) * supR);
+    }
     // 받는 자리에서 슛을 노릴 수 있으면 그 기대값도 가치로 본다 (같은 골 단위, 슛은 지원과 무관). 골을 등지고 받는 패스는 바로 슛할 수 없다 (E.18 A2)
     if (dist(tx, ty, gx0, gy0) <= PR.shotMaxDist && rx > 0.6 && !receivesBack(a.x, a.y, tx, ty, dir)) {
       // 받는 선수의 슈팅 가치도 판단용이므로 본인·리그 평균 혼합 (E.20 1번과 같은 원칙)
@@ -657,7 +677,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
-    u = weight(u, passW);
+    u = weight(u, passW) + cBonus(pj, rx - ax);
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -669,7 +689,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
-      ot.out.push({ type, p: pO, u: weight(uO, passW), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
     }
   }
 
@@ -735,7 +755,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       }
       // 도착 지점의 가치: 그 자리에서 다음 결정 전에 빼앗길 확률만큼 상실 비용 (받는 자리 가치, 유지 효용과 같은 식, E.20)
       const qEnd = loseProb(s, a, cx, cy);
-      const value = positionValue(nx, ny) * (1 - qEnd) + qEnd * loss(nx, ny);
+      let pv = positionValue(nx, ny);
+      // 뒤 공간 가치 (C.78g): 몰고 간 자리보다 골 쪽 상대가 적으면 그 앞 빈 곳까지 계속 몰고 갈 자리의 가치 (패스와 같은 식, spaceCarry 0 = 끔)
+      if (SP.space > 0 && SP.spaceCarry > 0 && dir * ux > 0.5 && nx < SP.spaceStop) {
+        let behind = 0;
+        for (const x of oppNx) if (x > nx) behind++;
+        if (behind < SP.spaceBack) pv = Math.max(pv, positionValue(Math.min(SP.spaceStop, nx + (SP.spaceCarry * SP.spaceRun * (1 - behind / SP.spaceBack)) / L), ny));
+      }
+      const value = pv * (1 - qEnd) + qEnd * loss(nx, ny);
       if (def) {
         // 수비 자세 (E.23): 수비수는 바깥쪽으로 몬다. 중앙 쪽으로 꺾는 돌파는 어렵고 바깥쪽은 조금 쉽다
         const D = ENGINE.defense;
@@ -743,14 +770,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         const dp = (who: Agent) => clamp(dribbleProb(who, def!, (second ? -PR.spaceSecondPenalty : 0) + stance) + formBonus(who), 0.02, 0.98);
         const p = dp(a);
         const pj = judgedP(p, dp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk);
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk) + cBonus(pj, nx - ax);
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
         // 몰고 가기: 가는 길로 좁혀 오는 수비수들의 압박으로 빼앗길 확률. 공을 지키는 능력치가 줄인다 (C.17 결정 3)
         const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
         const p = cp(a);
         const pj = judgedP(p, cp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk);
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk) + cBonus(pj, nx - ax);
         out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
       }
     }

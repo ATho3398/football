@@ -16,6 +16,7 @@ import { sceneBuildPress, sceneDeepPress, sceneLongEscape } from './gegen';
 import { sceneBetweenLines, sceneBlockBuild, sceneBlockCounter } from './block';
 import { sceneNineFollow, sceneNineHold, sceneWideArrive } from './roles';
 import { sceneLaneAngle, sceneLaneLeft, sceneLaneRight } from './lane';
+import { sceneBalancedSwing, sceneGegenBus } from './swing';
 
 export interface SceneOut {
   values: Record<string, number>;
@@ -505,5 +506,6 @@ export const SCENES = {
   blockBuild: sceneBlockBuild, blockCounter: sceneBlockCounter, betweenLines: sceneBetweenLines,
   wideArrive: sceneWideArrive, nineFollow: sceneNineFollow, nineHold: sceneNineHold,
   laneRight: sceneLaneRight, laneLeft: sceneLaneLeft, laneAngle: sceneLaneAngle,
+  gegenBus: sceneGegenBus, balancedSwing: sceneBalancedSwing,
 } as const;
 export type SceneId = keyof typeof SCENES;
