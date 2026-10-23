@@ -26,7 +26,7 @@ describe('C.78a 전환 수비', () => {
   });
 
   it('전환 상수를 켜면 결정적이고 결과가 달라진다', () => {
-    const off = match(7802).runToEnd();
+    const off = withEngine(Object.fromEntries(Object.keys(TRANSITION_ON).map((k) => [k, 0])), () => match(7802).runToEnd());
     const [a, b] = withEngine(TRANSITION_ON, () => [match(7802).runToEnd(), match(7802).runToEnd()]);
     expect(JSON.stringify(a!.teamStats)).toBe(JSON.stringify(b!.teamStats));
     expect(JSON.stringify(a!.teamStats)).not.toBe(JSON.stringify(off.teamStats));
