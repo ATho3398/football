@@ -44,11 +44,14 @@ describe('C.77z 슛 1건 자료 · 판단 = 실행', () => {
     });
   });
   it('꺼짐(timeModel 0): saveChance = 옛 saveProb × 옛 도달 항 (지문 불변)', () => {
-    const { s, a, gk } = setup(L - 12, W / 2 - 3, [L - 4, W / 2 + 2]);
-    const m = shotModel(s, a);
-    const ctx = { ...m.ctx, ...gkCtx(gk), corner: 0.8, ty: W / 2 + 2.4, speed: 30 };
-    const old = saveProb(gk, 30, 0.8, m.d) * keeperCover(gk.x, gk.y, ctx.fx, ctx.fy, ctx.tx, ctx.ty, 30, ENGINE.keeper.leagueShotStopping);
-    expect(saveChance(ctx)).toBe(old);
+    // C.78b: 설정은 켬(사용자 2026-10-23) — 꺼진 경로 검사는 상수를 명시적으로 꺼서 유지
+    withEngine({ 'keeper.timeModel': 0, 'keeper.flightSet': 0 }, () => {
+      const { s, a, gk } = setup(L - 12, W / 2 - 3, [L - 4, W / 2 + 2]);
+      const m = shotModel(s, a);
+      const ctx = { ...m.ctx, ...gkCtx(gk), corner: 0.8, ty: W / 2 + 2.4, speed: 30 };
+      const old = saveProb(gk, 30, 0.8, m.d) * keeperCover(gk.x, gk.y, ctx.fx, ctx.fy, ctx.tx, ctx.ty, 30, ENGINE.keeper.leagueShotStopping);
+      expect(saveChance(ctx)).toBe(old);
+    });
   });
   it('대응 시간: 빠른 공·가까운 GK 는 덜 막고, 슛 선 쪽으로 움직이던 GK 는 더 덮는다', () => {
     withEngine(KEEPER_ON, () => {
