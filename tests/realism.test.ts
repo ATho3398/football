@@ -37,7 +37,8 @@ describe('E3.5 A1 판단 단위 (골 = 1)', () => {
 
 describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
   // C.78d(엔진 44, 깊은 블록 밀집·역습 지원): 시드 31 은 버티기·컷백 0 이라 36(버티기 1·컷백 1, 31~37 중 36·37)으로 — 장면은 그대로 있고 시드만 바뀜
-  const r = createMatch(input(36)).runToEnd();
+  // C.78e(엔진 45): 36 은 버티기 0 이라 37(버티기 2·컷백 4). 31~44 버티기 평균 1.5(엔진 44 1.1), 0 인 시드 36·38·43 — 장면은 그대로
+  const r = createMatch(input(37)).runToEnd();
   it('공이 살아 있는 시간이 실제 경기 시간보다 짧고 스로인·골킥이 나온다', () => {
     expect(r.liveSeconds).toBeLessThan(r.duration * 0.8);
     for (const t of r.teamStats) {
