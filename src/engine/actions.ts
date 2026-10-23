@@ -1,21 +1,32 @@
 // 행동 실행과 결과 판정: 패스, 드리블 돌파, 태클, 슛, 크로스, 클리어링, 공중볼, 세이브
 
 import { weakFootMul } from '../body';
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
-import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
-import { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb, type ShotCtx } from './keeper';
+import * as duel_ from './duel';
+const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
+import { type ShotCtx } from './keeper';
+import * as keeper_ from './keeper';
+const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
 import { ballRank, inOwnBox, updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
-import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, ownGoal, positionValue, segDist, toNorm, W } from './pitch';
-import { duelEdgeOf, landingVelocity, tiredRatio } from './physics';
-import { LONG_SHOT_FROM } from './env';
-import { exploitMul } from './rapport';
-import { probe, probeShot, probeShotEnd } from './probe';
-import { Purpose, rand, randn } from './rng';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, ownGoal, positionValue, segDist, toNorm, W } = pitch_;
+import * as physics_ from './physics';
+const { duelEdgeOf, landingVelocity, tiredRatio } = physics_;
+import * as env_ from './env';
+const { LONG_SHOT_FROM } = env_;
+import * as rapport_ from './rapport';
+const { exploitMul } = rapport_;
+import * as probe_ from './probe';
+const { probe, probeShot, probeShotEnd } = probe_;
+import * as rng_ from './rng';
+const { Purpose, rand, randn } = rng_;
 import type { Agent, BallReserve, Flight, SimState } from './state';
 
 /** 선방률 지표의 거리 기준 (C.76q): 이보다 먼 유효 슈팅만 farOnTarget·farSaves 로 센다 */

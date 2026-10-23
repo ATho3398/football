@@ -3,19 +3,32 @@
 
 import { weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
-import { ENGINE } from './config';
-import { arrivalTime, duelEdgeOf, tiredRatio } from './physics';
-import { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } from './duel';
-import { manDiff } from './formation';
-import { hasModule } from './roles';
-import { claimProb, coverOf, expectedSave, farSide, gkCtx, keeperOf, keeperZone, saveChance, type ShotCtx } from './keeper';
-import { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
-import { Purpose, rand, randn } from './rng';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as physics_ from './physics';
+const { arrivalTime, duelEdgeOf, tiredRatio } = physics_;
+import * as duel_ from './duel';
+const { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } = duel_;
+import * as formation_ from './formation';
+const { manDiff } = formation_;
+import * as roles_ from './roles';
+const { hasModule } = roles_;
+import { type ShotCtx } from './keeper';
+import * as keeper_ from './keeper';
+const { claimProb, coverOf, expectedSave, farSide, gkCtx, keeperOf, keeperZone, saveChance } = keeper_;
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand, randn } = rng_;
 import { offsideRisk } from './referee';
 import { offsideLine } from './offball';
-import { TENDENCY, widthCrossMul } from './tactics';
-import { chemMul, exploitMul, toMeMul } from './rapport';
-import { probe } from './probe';
+import * as tactics_ from './tactics';
+const { TENDENCY, widthCrossMul } = tactics_;
+import * as rapport_ from './rapport';
+const { chemMul, exploitMul, toMeMul } = rapport_;
+import * as probe_ from './probe';
+const { probe } = probe_;
 import type { Agent, Flight, SimState } from './state';
 import type { Tendency } from './types';
 

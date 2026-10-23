@@ -2,12 +2,16 @@
 
 import { BALANCE } from '../config/balance';
 import { pickLineup, type RosterPlayer, type TeamRoster } from '../roster';
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { gkFieldAttributes } from './sim';
 import { createRng, hashSeed } from '../rng';
 import { npcSelectPenalty, type NpcCond } from '../npcFit';
-import { ROLES } from './roles';
-import { LEVELS, levelOf, recommendedRole, tacticsOf, teamPlan } from './tactics';
+import * as roles_ from './roles';
+const { ROLES } = roles_;
+import * as tactics_ from './tactics';
+const { LEVELS, levelOf, recommendedRole, tacticsOf, teamPlan } = tactics_;
 import type { PlayerSpec, Tactics, TeamSetup, Tendency } from './types';
 
 /** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16). 내 선수(adapter)와 NPC(C.77m) 공통 */

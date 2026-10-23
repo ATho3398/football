@@ -5,9 +5,14 @@ import type { FieldAttributes } from '../attributes';
 import { FORMATION_SLOTS, FORMATIONS, type Formation } from '../formations';
 import { createRng, hashSeed } from '../rng';
 import type { Position } from '../types';
-import { ENGINE } from './config';
-import { clamp } from './pitch';
-import { defaultRole, ROLE_KEYS, ROLE_OPTIONS, ROLES, type Role } from './roles';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { clamp } = pitch_;
+import { type Role } from './roles';
+import * as roles_ from './roles';
+const { defaultRole, ROLE_KEYS, ROLE_OPTIONS, ROLES } = roles_;
 import type { SimState } from './state';
 import { TEAM_STYLE, TEAM_TACTICS } from './teamData';
 import type { Tactics, Tendency } from './types';

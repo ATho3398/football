@@ -1,15 +1,25 @@
 // 오프더볼 움직임 (E.6): 공격 시 슬롯 + 지원 + 침투(오프사이드 라인 인지), 수비 시 마킹 + 라인 동기화 + 압박
 
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { reaction } from './core';
-import { gkAttrs, keeperZone, reactOf, sweepRange } from './keeper';
-import { finishSkill } from './duel';
-import { arrivalTime, effectiveMax, landingVelocity } from './physics';
-import { ballNorm, manDiff, slotTarget, teamPhase } from './formation';
-import { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } from './pitch';
-import { Purpose, rand, randn } from './rng';
-import { hasModule } from './roles';
-import { TENDENCY } from './tactics';
+import * as keeper_ from './keeper';
+const { gkAttrs, keeperZone, reactOf, sweepRange } = keeper_;
+import * as duel_ from './duel';
+const { finishSkill } = duel_;
+import * as physics_ from './physics';
+const { arrivalTime, effectiveMax, landingVelocity } = physics_;
+import * as formation_ from './formation';
+const { ballNorm, manDiff, slotTarget, teamPhase } = formation_;
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand, randn } = rng_;
+import * as roles_ from './roles';
+const { hasModule } = roles_;
+import * as tactics_ from './tactics';
+const { TENDENCY } = tactics_;
 import type { Agent, DefSit, Line, SimState } from './state';
 
 const O = ENGINE.offball;

@@ -4,7 +4,9 @@
 
 import { BALANCE } from '../config/balance';
 import { cardById, type CardDef } from '../config/cards';
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { emptyMod, type CardReport, type Variant } from './cards';
 import type { Candidate } from './onball';
 import type { SimState } from './state';

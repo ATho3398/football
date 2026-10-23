@@ -1,8 +1,12 @@
 // 듀얼 (E.8): 드리블 1대1, 태클, 공중볼
 
-import { ENGINE } from './config';
-import { L1 } from './pitch';
-import { duelEdgeOf } from './physics';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { L1 } = pitch_;
+import * as physics_ from './physics';
+const { duelEdgeOf } = physics_;
 import type { Agent } from './state';
 import type { FieldAttributes } from '../attributes';
 

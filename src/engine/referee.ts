@@ -1,9 +1,13 @@
 // 심판 (E.10): 파울, 어드밴티지, 카드와 퇴장(수적 열세), 오프사이드
 
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { delayRestart, event, setRestart } from './core';
-import { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } from './pitch';
-import { Purpose, rand } from './rng';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
 import type { Agent, CardType, SimState } from './state';
 import { bestBench, emergencyKeeper, substitute } from './subs';
 

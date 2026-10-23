@@ -15,16 +15,24 @@ import {
   airScenes, boostValue, buildVariant, cardRand, emptyMod, handView, inShotCone, judgeShift, masteryBonus, passiveValue, playCard, prepCands, reactiveCards, startWatch, tagsOf,
   type ActionMod, type CardUse, type MomentCard, type OptionCtx, type ReactCard, type Variant,
 } from './cards';
-import { ENGINE } from './config';
-import { duelEdgeOf } from './physics';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as physics_ from './physics';
+const { duelEdgeOf } = physics_;
 import { directiveVariants } from './directive';
-import { aerialScore, dribbleProb, duelTail } from './duel';
+import * as duel_ from './duel';
+const { aerialScore, dribbleProb, duelTail } = duel_;
 import { candidates, choose, judgementOf, passivePreview, riskyAction, shotModel, visible, type ActionType, type Candidate } from './onball';
-import { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } from './pitch';
-import { ratingDelta, ratingParts } from './rating';
-import { Purpose, rand } from './rng';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } = pitch_;
+import * as rating_ from './rating';
+const { ratingDelta, ratingParts } = rating_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
 import { offsideRisk } from './referee';
-import { chemMul, isExploit } from './rapport';
+import * as rapport_ from './rapport';
+const { chemMul, isExploit } = rapport_;
 import type { Agent, SimState } from './state';
 
 const M = ENGINE.moments;

@@ -2,8 +2,11 @@
 
 import type { GkAttributes } from '../attributes';
 import { BALANCE } from '../config/balance';
-import { ENGINE } from './config';
-import { attackDir, clamp, dist, L1, ownGoal, segDist } from './pitch';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, L1, ownGoal, segDist } = pitch_;
 import type { Agent, SimState } from './state';
 
 const K = ENGINE.keeper;

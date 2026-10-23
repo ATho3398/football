@@ -6596,6 +6596,30 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
+### C.78f 44h단계 경기 계산 속도(CI 2초 테스트 여유, Opus 1차): **엔진 모듈의 가져온 값(설정·피치·난수·물리·대형·경합·GK·역할·전술 등 순환 없는 모듈)을 파일 맨 위 지역 상수로 — vitest(vite-node)는 모듈 내보내기 객체가 `Object.create(null)`(사전 모드) + 접근자라 가져온 이름을 쓸 때마다 느린 조회를 거쳤다. 결과 같은 최적화(30경기 지문 전후 같음), 경기당 −38% · 2초 테스트 자동 −37%** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 동작·밸런스·세이브 무변경)
+
+지시: `docs/session-prompts/C.78f.md`(마스터 Z). 브랜치 `claude/c78f-speed`(origin/claude/c78e-roles c09ee35 위). `PATCH_LABEL` = `C.78f`, `STAGE_LABEL` 그대로. Opus 5.5 높음.
+
+**측정기**: `scripts/c78f-speed.ts` — `fp 30`(같은 시드 내 경기 15 + 다른 경기 15, 결과·이벤트 전체 해시) · `time 6`(데운 뒤 6경기 평균 ms). 이 컨테이너는 C.78e 보고 기계보다 약 1.7배 느리다(전 1.37초 대 0.78~0.80초).
+
+**1. 프로파일(전, `node --cpu-prof`, 자기 시간)**: moveAgent 8.3% · stepTail 6.3% · defendTarget 6.0% · stepBody 5.3% · updateOffball 5.1% · turnHead 3.9% · GC 3.5% · attackTarget 3.1% · candidates 2.4% · step 1.4%(포함: updateOffball 35.9 · stepTail 24.7 · defendTarget 16.4 · moveAgent 12.8 · candidates 11.2). 줄 단위로 보면 `a.x = clamp(…, L + 2)` 같은 줄이 moveAgent 의 ¼ — `__vite_ssr_import_N__.clamp`·`.L` 조회 비용. 같은 코드를 esbuild 한 묶음(접근자 없음)으로 돌리면 경기당 1,016 ms 대 vite-node 1,330~1,520 ms → 접근자 몫 약 25~30%(C.78c 표의 "import 접근자 7.8%"는 접근자 함수 자기 시간만 센 값, 조회는 호출한 줄로 잡힌다).
+
+**2. 변경**: 엔진 18개 파일에서 순환에 끼지 않는 모듈(config·pitch·rng·physics·formation·duel·keeper·roles·tactics·env·rapport·probe·state·rating)의 값 가져오기를 `import * as m_ from './m'; const { … } = m_;`로(파일 맨 위 1회 조회). 순환 모듈(core·offball·onball·actions·moments·cards·referee·subs) 함수는 그대로 — 남은 차이(묶음 대비 0~5%)가 작아 넣지 않음. 브라우저 묶음(rollup)에는 영향 거의 없음(원래 접근자 없음).
+
+**3. 후 프로파일(자기 시간)**: moveAgent 7.5 · defendTarget 5.7 · stepBody 5.6 · updateOffball 5.1 · turnHead 5.0 · GC 4.6 · stepTail 3.5 · attackTarget 3.1 · candidates 2.7 · arrivalTime 1.6 — 고르게 퍼져 함수 하나 손봐도 몇 % 안팎. 지시 후보(틱 단위 거리 행렬·후보 탐색 재계산·임시 배열·제곱 거리)는 이미 팀 계획 대부분이 틱 캐시(closeDown·deepCut·rest·track·focus·gap·swap)라 이득 대비 복잡도가 커서 넣지 않았다. turnHead 삼각함수는 결과가 비트 단위로 같게 바꿀 수 없어 그대로.
+
+| 측정(이 컨테이너) | 전 | 후 |
+|---|---|---|
+| 경기당 ms(6경기 평균, 3회) | 1,336 · 1,366 · 1,558 | **860 · 888 · 885** |
+| 2초 테스트 자동 | 1,479 · 1,312 · 1,325 | **830 · 891 · 871** |
+| 2초 테스트 직접 | 1,300 · 1,242 · 1,201 | **762 · 744 · 784** |
+| 냉시작(표시만) | 3,034 · 2,755 · 2,558 | 2,021 · 1,957 · 2,285 |
+| 지문 30경기 | 86925c5308fef7ed | **86925c5308fef7ed** ✓ |
+
+C.78e 기계 기준으로 옮기면 경기당 약 0.50초 · 2초 테스트 자동 약 540 ms → CI(약 2배) 약 1.1초.
+
+**관문**: 지문 불변 ✓ · typecheck ✓ · npm test 1224 ✓ · build ✓ · 밸런스 수치 무변경(balance 미실행). 디자인 없는 새 화면: 없음.
+
 ### C.78e 44h단계 역할 움직임 — 측면 미드 도착·펄스 나인 연결(공통 규칙 로드맵 6단계, 미해결 4·9, Opus 1차): **측면 미드 도착(공 하프라인 넘으면 역할 자리로 출발: 반대쪽 측면 = 먼 포스트 · 같은 쪽 = 오버랩/언더랩(풀백·소유자가 터치라인을 쓰면 언더랩) · 중앙 = 넓은 역할 측면 깊이·안쪽 역할 하프스페이스, 늦으면 전력, 날아가는 우리 패스는 받는 선수 기준) · CB 따라나옴 켬(중원이 먼저 닿으면 CB 는 라인 — C.78d 줄 사이 수신 판단, 실제 라인 기준 한계, 받는 공격수도 판단) · CB 빈자리 침투(가장 먼저 닿는 2선·측면 1명, 침투 취소 제외) · 돌아서기(등지고 받아도 4 m 안 상대 없으면 정지 시간 동안 돌아섬, 공통 첫 터치) · 기준 장면 ㉑㉒㉓ ✓ — 동작 관문: LM/RM 깊이 도착 차 2.4/2.0 → 0.56/0.12초 ✓ · 연결 고리 전 단계 ↑ ✓ · 역할 ±0.1 초과 옛 6개 → 0개(지금 엔진 기준선 3 → 3개, 잡음 수준) · 테스트 기준값 3개는 마스터 Z 결정으로 처리(이동 거리 상한 14.5 km · 피로 시드 교체 · 장면 ⑱ 120시드 잡음 폭 가드)** (ENGINE_VERSION 44 → **45**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진 설정·선수 상태 필드 1개(`gapY`, 경기 안에서만 씀)만, 세이브 구조 무변경)
 
 지시: `docs/session-prompts/C.78e.md`(마스터 Z). 브랜치 `claude/c78e-roles`(origin/claude/c78d-block 위, x~78d 전부 켬). `PATCH_LABEL` = `C.78e`, `STAGE_LABEL` 그대로. Opus 5.5 높음.

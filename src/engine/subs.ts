@@ -3,11 +3,16 @@
 import { BALANCE } from '../config/balance';
 import { positionOvr, type FieldPosition } from '../positions';
 import { gkOvr, posGroup } from '../roster';
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { delayRestart, event } from './core';
-import { lineOf } from './formation';
-import { attackDir, toPitch, W } from './pitch';
-import { Purpose, rand } from './rng';
+import * as formation_ from './formation';
+const { lineOf } = formation_;
+import * as pitch_ from './pitch';
+const { attackDir, toPitch, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
 import type { Agent, SimState } from './state';
 
 const SB = ENGINE.subs;

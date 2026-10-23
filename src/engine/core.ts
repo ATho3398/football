@@ -1,11 +1,17 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
-import { ENGINE } from './config';
-import { tiredRatio } from './physics';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as physics_ from './physics';
+const { tiredRatio } = physics_;
 import { effectiveTactics, pressLevel } from './offball';
-import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
-import { Purpose, rand } from './rng';
-import { TENDENCY } from './tactics';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
+import * as tactics_ from './tactics';
+const { TENDENCY } = tactics_;
 import type { Agent, RestartType, SimState } from './state';
 import type { MatchEvent } from './types';
 

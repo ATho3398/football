@@ -1,7 +1,10 @@
 // 선수 이동 (E.4): 목표 지점까지 거리와 긴급도로 이동 강도를 정하고 가속도/방향 전환/스태미나를 반영
 
-import { ENGINE } from './config';
-import { clamp, L, W } from './pitch';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { clamp, L, W } = pitch_;
 import type { Agent, Flight } from './state';
 
 const P = ENGINE.physics;

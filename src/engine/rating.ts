@@ -1,8 +1,11 @@
 // 평점 (E.12, C.26): 6.5 + scale × (행동 델타 합 + 팀 결과 − 포지션 center), 3.0~10.0
 
 import { posGroup } from '../roster';
-import { ENGINE } from './config';
-import { clamp } from './pitch';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { clamp } = pitch_;
 import type { Agent, SimState } from './state';
 
 type RatingConfig = typeof ENGINE.rating;
