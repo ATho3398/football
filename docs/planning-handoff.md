@@ -940,3 +940,4 @@
 - (14:30 KST) C.78e 세션 시작 session_01A5NgUMyJ3zt6YLXzGoVU5K (c78d 기반, 6단계 역할, 예산 15달러 상한·테스트 기준 낮추기 금지 명시). 대기열: C.78c CI → C.78d → C.78e.
 - (14:3x KST) C.78b: run 293 밸런스 단계 실패 줄은 로그 꼬리에 안 보임(빌드 목록에 밀림, 전체 로그 다운로드는 프록시 403). 마지막 단계 전에 balance:check 요약을 GITHUB_STEP_SUMMARY로 남기는 작은 변경 후보로 기록.
 - (15:3x KST) Pages 294(C.78c) ✗ — 2초 테스트 2207 ms(러너). C.78c가 실패 잡 1회 재실행(75분). Z: 재실행 1회만, 원인(이동 제어기·arrivalTime 핫스팟) 최적화 지시 — 기준·실행 순서 변경 금지.
+- (15:5x KST) C.78c: 294 재실행 test ✓(배포 진행). 최적화 2개는 c78c 브랜치에만 → C.78d가 병합해 실음(지시함). 프로파일: updateOffball 41%(defendTarget 18.5·attackTarget 9.8)·moveAgent 17%·candidates 14%·preDecide 6.4% — 끔 수준(870 ms)까지는 오프볼 판단 구조 손질 필요 → **속도 패치(C.78f 후보)를 C.78e 뒤에 둠**(2초 테스트 여유 확보).
