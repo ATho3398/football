@@ -48,9 +48,10 @@ describe('엔진 (호흡 0·관계 보통·리포트 없음 = 이전 엔진)', (
   it('호흡·패스 받는 빈도·리포트는 결정적이고 기준과 다르다', () => {
     const g = game();
     const rp = { chem: all(g, chemPassMul(full)), toMe: all(g, passTargetMul(100, full)) };
-    const a = playMyMatch({ ...input(g, 22), rapport: rp });
-    const b = playMyMatch({ ...input(g, 22), rapport: rp });
-    const base = playMyMatch(input(g, 22));
+    // C.78h(엔진 47, 슛 레인 + C.78g 병합): 시드 22·23 은 호흡을 켜도 팀 기록이 같아 24 로(24~27 은 다름) — 시드만
+    const a = playMyMatch({ ...input(g, 24), rapport: rp });
+    const b = playMyMatch({ ...input(g, 24), rapport: rp });
+    const base = playMyMatch(input(g, 24));
     expect(b.engine.teamStats).toEqual(a.engine.teamStats);
     expect(a.engine.teamStats).not.toEqual(base.engine.teamStats);
   });
