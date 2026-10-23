@@ -45,7 +45,9 @@ describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
     }
   });
   it('컷백·버티기가 나오고 재개 대기 시간은 범위 안 (골 후 킥오프 45~75초)', () => {
-    const tot = (k: 'cutbacks' | 'holdups') => r.teamStats[0][k] + r.teamStats[1][k];
+    // C.78c(착지점 몫): 시드 31 경기의 버티기가 0 이 되어 33 경기를 더해 본다 (31~40 중 0 은 31·32·35·36 — 동작 존재 확인, 시드만)
+    const r33 = createMatch(input(33)).runToEnd();
+    const tot = (k: 'cutbacks' | 'holdups') => r.teamStats[0][k] + r.teamStats[1][k] + r33.teamStats[0][k] + r33.teamStats[1][k];
     expect(tot('holdups')).toBeGreaterThan(0);
     const s = createState(input(32));
     let checked = 0;
