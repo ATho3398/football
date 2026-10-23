@@ -150,7 +150,7 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
   const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
-  return passSkillApply(p, skill) * (otNow ? otOf(s, a) : 1);
+  return passSkillApply(p, skill);
 }
 
 /** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
@@ -432,6 +432,9 @@ export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLa
   let tOpp = Infinity;
   for (const o of s.agents) {
     if (!o.onPitch || o.line === 0 || o === except) continue;
+    const best = o.team === team ? tOwn : tOpp;
+    // 도착 시간은 직선 거리 / max(최대 속력, 지금 속력)보다 짧을 수 없다 — 그 하한이 이미 지금 최솟값보다 크면 계산하지 않는다 (결과 같음)
+    if (AM && Number.isFinite(best) && Math.max(tLand, (dist(o.x, o.y, x, y) - PR.aerialRadius) / Math.max(o.maxSpeed, Math.hypot(o.vx, o.vy))) > best + 1e-6) continue;
     const t = Math.max(tLand, AM ? arrivalTime(o, x, y, PR.aerialRadius) : Math.max(0, dist(o.x, o.y, x, y) - PR.aerialRadius) / o.maxSpeed);
     if (o.team === team) { if (t < tOwn) tOwn = t; } else if (t < tOpp) tOpp = t;
   }
@@ -446,7 +449,10 @@ export function judgedP(self: number, avg: number): number {
 }
 
 /** 후보 행동 생성. Candidate.p 는 실제 판정용(본인), 효용 u 는 판단용 P(본인·리그 평균 혼합)로 계산한다 */
-export function candidates(s: SimState, a: Agent): Candidate[] {
+/** 원터치 후보 (C.78b preDecide): 같은 계산에서 패스·침투·컷백·레이오프·슛의 원터치 판(성공 확률 × 원터치 배수)을 ot.out 에 따로 담는다 */
+export interface OtReq { speed: number; pr: number; out: Candidate[] }
+
+export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const dir = attackDir(a.team, s.half);
   const [ax, ay] = toNorm(a.x, a.y, dir);
   const here = positionValue(ax, ay);
@@ -543,10 +549,12 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
       if (def && dd < PR.contestDist) aerial = receiveWin(r, def);
     }
-    const flightP = (who: Agent) => clamp(passProbability(s, who, tx, ty, 'pass', lane, PR.receiverPressure * rp) + race, PR.passMin, PR.passCap);
-    const pFlight = flightP(a);
+    const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
+    const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);
+    const flightP = (pp: number) => clamp(pp + race, PR.passMin, PR.passCap);
+    const pFlight = flightP(ppA);
     const p = pFlight * aerial;
-    const pj = judgedP(p, flightP(av) * aerial);
+    const pj = judgedP(p, flightP(ppAv) * aerial);
     const [rx, ry] = toNorm(tx, ty, dir);
     // 받는 자리의 가치 × 지원도 (E.20 2번). 받는 순간 압박이 있으면 그만큼 다음 결정 전에 빼앗길 수 있다 (유지 효용과 같은 식)
     const pLoseR = O.holdLose * rp;
@@ -560,16 +568,15 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     }
     const lossR = loss(rx, ry);
     value = value * (1 - pLoseR) + pLoseR * lossR;
-    let u = pj * value + (1 - pj) * lossR;
-    // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙)
-    if (O.landShare > 0 && d0 > PR.airPass) {
-      const pjF = judgedP(pFlight, flightP(av));
-      const q = landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a);
-      u += (1 - pjF) * q * O.landKeep * (positionValue(rx, ry) - lossR);
-    }
     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
     const pOff = offsideRisk(s, a, r);
-    if (pOff > 0) u = (1 - pOff) * u + pOff * lossR;
+    const uOf = (pj: number) => {
+      const u = pj * value + (1 - pj) * lossR;
+      return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
+    };
+    // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
+    const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
+    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * landGain;
     const forward = rx > ax + 0.03;
     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
@@ -578,14 +585,27 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const wMul = forward ? winMul : 1;
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
-    u = weight(u, a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk));
+    const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
+    u = weight(u, passW);
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
-    out.push({ type: cutback ? 'cutback' : running ? 'through' : 'pass', p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
+    const type = cutback ? 'cutback' : running ? 'through' : 'pass';
+    out.push({ type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
+    if (ot) {
+      // 원터치 판: 같은 길·경쟁·가치, 패스 판정만 × 원터치 배수 (본인·평균 선수 각자)
+      const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
+      const pO = pF * aerial;
+      const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
+      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
+      ot.out.push({ type, p: pO, u: weight(uO, passW), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+    }
   }
 
-  if (O.backModel > 0) backValue(s, a, out, dir);
+  if (O.backModel > 0) {
+    backValue(s, a, out, dir);
+    if (ot) backValue(s, a, ot.out, dir, out);
+  }
 
   // 포스트플레이 (E.18 A2): 등지고 받은 ST/CF 의 버티기와 레이오프
   if (a.backToGoal && (a.pos === 'ST' || a.pos === 'CF')) {
@@ -595,13 +615,21 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       if (d > O.layoffDist || d < 2) continue;
       const [rx, ry] = toNorm(r.x, r.y, dir);
       if (rx >= ax) continue; // 앞을 보고 받을 2선 (공보다 자기 골 쪽)
-      const layP = (who: Agent) => passSkillApply(PR.passBase - PR.passPerM * d + formBonus(who), who.attrs.shortPassing) * (otNow ? otOf(s, who) : 1);
-      const p = layP(a);
-      const pj = judgedP(p, layP(av));
+      const layP = (who: Agent) => passSkillApply(PR.passBase - PR.passPerM * d + formBonus(who), who.attrs.shortPassing);
+      const lA = layP(a);
+      const lAv = layP(av);
+      const p = lA;
+      const pj = judgedP(p, lAv);
       let value = positionValue(rx, ry) * support(r, r.x, r.y);
       if (dist(r.x, r.y, gx0, gy0) <= PR.shotMaxDist) value = Math.max(value, judgedP(shotModel(s, r, false, undefined, passLead(s, d)).value, shotModel(s, averageSelf(r), false, undefined, passLead(s, d)).value));
-      const u = weight(pj * value + (1 - pj) * loss(rx, ry), a.role.pref.pass);
+      const lossL = loss(rx, ry);
+      const u = weight(pj * value + (1 - pj) * lossL, a.role.pref.pass);
       out.push({ type: 'layoff', p, u, x: r.x, y: r.y, receiver: r.idx, value });
+      if (ot) {
+        const pO = lA * oneTouchMul(a, ot.speed, ot.pr);
+        const pjO = judgedP(pO, lAv * oneTouchMul(av, ot.speed, ot.pr));
+        ot.out.push({ type: 'layoff', p: pO, u: weight(pjO * value + (1 - pjO) * lossL, a.role.pref.pass), x: r.x, y: r.y, receiver: r.idx, value, ot: true });
+      }
     }
     const [def, dd] = nearestOpponent(s, a);
     if (def && dd <= O.holdupRange) {
@@ -669,6 +697,21 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
       const longShot = dist(a.x, a.y, gx, gy) > ENGINE.roles.longShotDist ? a.role.pref.longShot : 1;
       const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk);
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
+      if (ot) {
+        // 원터치 슛: 같은 shotModel 에 원터치 배수 (본인·평균 선수)
+        otNow = { a, av, speed: ot.speed, pr: ot.pr };
+        let mO: ShotModel;
+        let vjO: number;
+        try {
+          mO = shotModel(s, a);
+          vjO = judgedP(mO.value, shotModel(s, av).value);
+        } finally {
+          otNow = null;
+        }
+        const tikiO = tac.tendency === 'tikitaka' && mO.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
+        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk);
+        ot.out.push({ type: 'shoot', p: mO.xg, u: uO, x: gx, y: gy, receiver: -1, value: mO.value, ot: true });
+      }
     }
 
     // 크로스: 측면 최종 3분의 1, 박스 안 동료 1명 이상
@@ -707,7 +750,7 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
  * 백패스 가치 항 (C.77y, 로드맵 3단계 B1): 뒤로 2 m+ 가는 패스 후보의 효용에 압박 탈출·공 보존·반대편 전환을 더하고 전진 기회 비용을 뺀다.
  * 보존·전환은 상황 보존 가중(리드·버스·블록·티키), 비용은 비용 가중(게겐·직선·지는 60분+)을 곱한다. 판단력이 낮을수록 이 항을 잘못 읽는다(인지 오차)
  */
-function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1): void {
+function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: Candidate[]): void {
   let fwdBest = 0;
   for (const c of out) {
     if ((c.type === 'pass' || c.type === 'through') && (c.x - a.x) * dir >= O.backFwd) fwdBest = Math.max(fwdBest, c.p * c.value);
@@ -720,8 +763,28 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1): void {
   const lead = tm.stats.goals - s.teams[1 - a.team]!.stats.goals;
   const keepW = 1 + (lead > 0 ? O.backLeadKeep : 0) + (tac.tendency === 'bus' || tac.tendency === 'block' || tac.tendency === 'tikitaka' ? O.backTendKeep : 0);
   const costW = 1 + (attackTendency(tac.tendency) ? O.backTendCost : 0) + (lead <= 0 && s.t / 60 >= O.backLateMin ? O.backLateCost : 0);
+  // 전환 대상 동료(공 반대 측면·자유) 는 후보마다 같다 — 한 번만 (C.78b 계산 줄이기, 결과 같음)
+  let mates: Agent[] | null = null;
   for (const c of out) {
     if (c.type !== 'pass' || (c.x - a.x) * dir >= -2) continue;
+    // 원터치 판(C.78b): 같은 받는 선수·자리의 다루기 판에서 압박 탈출·보존·전환·인지 오차는 같다 — 기회 비용만 이 목록의 전진 기대값으로
+    const same = prev?.find((x) => x.back && x.receiver === c.receiver && x.type === 'pass' && x.x === c.x && x.y === c.y);
+    if (same) {
+      const { escape, keep, sw, noise } = same.back!;
+      const cost = O.backCost * fwdBest * costW;
+      c.u += escape + keep + sw - cost + noise;
+      c.back = { escape, keep, sw, cost, noise };
+      continue;
+    }
+    if (!mates) {
+      mates = [];
+      for (const m of s.agents) {
+        if (!m.onPitch || m.team !== a.team || m === a || m.line === 0) continue;
+        if ((m.y - a.y) * (W / 2 - a.y) <= 0 || Math.abs(m.y - a.y) < O.backSwitchDy) continue;
+        if (nearestOpponent(s, m)[1] < O.backSwitchFree) continue;
+        mates.push(m);
+      }
+    }
     const r = s.agents[c.receiver]!;
     const room = nearestOpponent(s, r, c.x, c.y)[1];
     const rp = Math.max(0, 1 - room / PR.receiverPressureDist);
@@ -729,10 +792,8 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1): void {
     const keep = O.backKeep * Math.min(1, room / O.backKeepRoom) * keepW;
     // 반대편 전환: 받는 자리에서 공 반대 측면 동료에게 열린 길
     let swBest = 0;
-    for (const m of s.agents) {
-      if (!m.onPitch || m.team !== a.team || m === r || m === a || m.line === 0) continue;
-      if ((m.y - a.y) * (W / 2 - a.y) <= 0 || Math.abs(m.y - a.y) < O.backSwitchDy) continue;
-      if (nearestOpponent(s, m)[1] < O.backSwitchFree) continue;
+    for (const m of mates) {
+      if (m === r) continue;
       swBest = Math.max(swBest, 1 - Math.min(1, laneRiskAt(s, a.team, c.x, c.y, m.x, m.y).risk));
     }
     const sw = O.backSwitch * swBest * keepW;
@@ -914,19 +975,12 @@ const OT_TYPES = new Set<ActionType>(['pass', 'through', 'cutback', 'layoff', 's
 export function preDecide(s: SimState, a: Agent, speed: number, tCtrl: number): Candidate | null {
   const [, dNear] = nearestOpponent(s, a);
   const pr = Math.max(0, 1 - dNear / RC.pressDist);
-  const ctrl = candidates(s, a);
-  otNow = { a, av: averageSelf(a), speed, pr };
-  let ot: Candidate[];
-  try {
-    ot = candidates(s, a).filter((c) => OT_TYPES.has(c.type));
-  } finally {
-    otNow = null;
-  }
+  const ot: OtReq = { speed, pr, out: [] };
+  const ctrl = candidates(s, a, ot);
   const k = RC.ctrlCost * clamp(1 - (dNear - RC.ctrlClose * tCtrl) / RC.pressDist, 0, 1);
   const lossHere = lossCost(...toNorm(a.x, a.y, attackDir(a.team, s.half)));
   for (const c of ctrl) c.u = (1 - k) * c.u + k * lossHere;
-  for (const c of ot) c.ot = true;
-  const pool = [...ot, ...ctrl];
+  const pool = [...ot.out, ...ctrl];
   const c = choose(s, a, pool, true);
   if (!c.ot) return null;
   notePassive(s, a, c, pool);
