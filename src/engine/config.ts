@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 47;
+export const ENGINE_VERSION = 48;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -627,6 +627,26 @@ export const ENGINE = {
     underlapAhead: 6,
     wideFbAhead: 5,
     wideTouch: 0.42,
+    /**
+     * 풀백 오버래핑 (C.78i ②): 우리 팀이 공을 갖고 공이 fbOverlapFromX(정규화) 이상일 때, 풀백(LB/RB/LWB/RWB, 줄 사이 역할 제외)은
+     * 자기 앞 측면 길(자기 x + fbOverlapAhead m, 터치라인 wideTouch)의 fbOverlapFree m 안에 상대가 없으면, 판단마다
+     * fbOverlapChance × 측면 배수 × 침투 성향(run / 0.5) × 성향 배수(fbOverlapTend) × 체력(스태미나 fbOverlapTired 아래면 비례로 줄어듦) 확률로
+     * (측면 배수: 그 측면 상대 윙어가 면제 역할이 아니고 fbTrackDist m 안이면 따라 내려오므로 fbOverlapTracked, 높이 남은 크랙형·빈 측면은 1)
+     * fbOverlapSeconds 초 동안 공 앞 fbOverlapAhead m 측면 길(오프사이드 라인 안쪽)로 전진한다. 한 팀에 한 번에 한 쪽만.
+     * 남은 수비(같은 줄 다른 수비 + CDM, 공보다 우리 골 쪽)가 우리 골 쪽에 남은 상대 공격 인원 + fbOverlapRest 보다 적으면 나가지 않는다(높이 남은 윙어가 풀백을 묶음).
+     * 수비 쪽: 면제 아닌 측면 선수는 자기 측면으로 오버래핑하는 상대 풀백(fbTrackDist × 1.5 m 안)을 골 쪽 fbTrackGoal m 에서 따라 내려온다. 0 = 끔
+     */
+    fbOverlap: 1,
+    fbOverlapFromX: 0.4,
+    fbOverlapTracked: 0.3,
+    fbTrackDist: 22,
+    fbTrackGoal: 1.5,
+    fbOverlapAhead: 10,
+    fbOverlapFree: 9,
+    fbOverlapChance: 0.25,
+    fbOverlapSeconds: 5,
+    fbOverlapTired: 60,
+    fbOverlapRest: 1,
     /** ST 2명: 니어/파 포스트 (골에서 m, 중앙에서 y 간격 m) */
     postDepth: 6,
     postSpread: 4,
@@ -710,8 +730,11 @@ export const ENGINE = {
     demandApproach: 0.35,
     /** ④ 수비 의무 면제: 수비 때 이 x(정규화) 뒤로 오지 않는다 (중원 줄, 공격 줄), 압박은 공에 가장 가깝고 이 거리 비율 안일 때만 */
     exemptMidX: 0.42,
-    /** C.78e ③ 시험(되돌림): 0.62(윙어 평소 수비 깊이 약 0.61 위)로 올리면 크랙형 대비 +0.05 → +0.12 · 실점 2.62 → 2.57 — 높이 남은 윙어가 상대 풀백을 묶어 비용이 아니라 이득. 0.5 유지 */
-    exemptAttX: 0.5,
+    /**
+     * C.78e ③ 시험(되돌림): 0.62 로 올리면 크랙형 대비 +0.05 → +0.12 — 높이 남은 윙어가 상대 풀백을 묶어 비용이 아니라 이득.
+     * C.78i ①: 윙어 평소 수비 깊이(약 0.61) 위 0.62 — 면제가 실제로 작동하고, 비용은 상대 풀백 오버래핑(offball.fbOverlap)으로 낸다
+     */
+    exemptAttX: 0.62,
     exemptPress: 0.5,
     /** ④ 커버 재배분: 면제 선수 쪽(슬롯 y)으로 옮기는 비율 (가장 가까운 중원 동료 1명) */
     coverShift: 0.3,

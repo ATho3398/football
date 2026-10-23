@@ -144,4 +144,10 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
     goal: '㉕ 균형 대 균형 — 잃은 팀이 덜 올라와 있으면 전환 순간 효과 작음 (C.78g)', enabled: true,
     check: (v) => Math.abs(v.adv! - v.advOff!) <= 3 && Math.abs(v.half! - v.halfOff!) <= 0.1,
   },
+  // C.78i ㉙: 크랙형 RW 가 정통보다 3 m+ 높이 남고 · 상대 LB 오버래핑 시작 ≥ 60%(정통보다 0.2 이상 많음, 끔 0) · LB 가 상대 골 40 m 안에서 받음·그 측면 최종 ⅓ 진입이 끔보다 많다
+  // (40 시드: RW 깊이 64.1 대 56.4 m · 시작 0.90 대 0.50 · 끔 0 · LB 받음 0.18 대 끔 0 · 진입 0.28 대 끔 0.08, 부록 C.78i)
+  wingerOverlap: {
+    goal: '㉙ 크랙형 윙어 높이 남음 → 상대 풀백 오버래핑 → 그 측면 진입·크로스 (C.78i)', enabled: true,
+    check: (v) => v.rwDepth! >= v.rwDepthClassic! + 3 && v.start! >= 0.6 && v.start! >= v.startClassic! + 0.2 && v.startOff === 0 && v.lbGot! > v.lbGotOff! && v.flank! > v.flankOff!,
+  },
 };

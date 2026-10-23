@@ -49,6 +49,8 @@ export interface TeamSpec {
 /** 추적 선수 요약 (E3.7 역할 반응): 위치는 그 팀 공격 방향 정규화 */
 export interface TrackOut {
   samples: number;
+  /** 그 측면 상대 풀백 (C.78i): 오버래핑 시작 횟수 · 상대 공격 시 평균 x(상대 공격 방향) · 상대 진영 ⅓ 비율 · 크로스 · 슈팅 */
+  opFb?: { overlaps: number; ax: number; f3: number; crosses: number; shots: number };
   /** 평균 위치 (전체 / 공격 시 / 수비 시) */
   x: number; y: number; ax: number; ay: number; dx: number; dy: number;
   attSamples: number;
@@ -265,10 +267,26 @@ function trackRun(sim: MatchSim, team: 0 | 1, slot: number): (r: EngineResult) =
   const acc = { n: 0, x: 0, y: 0, an: 0, ax: 0, ay: 0, dx: 0, dy: 0, wide: 0, box: 0, f3: 0, touches: 0, runs: 0, space: 0 };
   let lastOwner = -1;
   const runSeen = new Map<number, number>();
+  const fb = { overlaps: 0, an: 0, ax: 0, f3: 0, slot: -1 };
+  let fbWas = false;
   while (!s.done) {
     sim.step();
     const a = s.agents.find((o) => o.onPitch && o.team === team && o.stats.slot === slot);
     if (!a) continue;
+    // 그 측면 상대 풀백 (상대 정규화 y 는 반대: 슬롯 y 반대쪽)
+    const f = s.agents.find((o) => o.onPitch && o.team !== team && (o.pos === 'LB' || o.pos === 'RB' || o.pos === 'LWB' || o.pos === 'RWB') && Math.sign(o.sy - 0.5) === -Math.sign(a.sy - 0.5));
+    if (f) {
+      fb.slot = f.stats.slot;
+      const on = f.overlap && s.t < f.runUntil;
+      if (on && !fbWas) fb.overlaps++;
+      fbWas = on;
+      if (s.tick % 10 === 0 && !s.restart && s.possTeam !== team) {
+        const fx = toNorm(f.x, f.y, attackDir(f.team, s.half))[0];
+        fb.an++;
+        fb.ax += fx;
+        if (fx > 2 / 3) fb.f3++;
+      }
+    }
     if (s.ball.owner === a.idx && lastOwner !== a.idx) acc.touches++;
     lastOwner = s.ball.owner;
     if (a.runUntil > s.t && runSeen.get(a.idx) !== a.runUntil) {
@@ -301,7 +319,9 @@ function trackRun(sim: MatchSim, team: 0 | 1, slot: number): (r: EngineResult) =
     const dn = Math.max(1, acc.n - acc.an);
     const p = r.players.find((x) => x.team === team && x.slot === slot);
     const { id: _id, ...stats } = p ?? r.players[0]!;
+    const fp = r.players.find((x) => x.team !== team && x.slot === fb.slot);
     return {
+      opFb: { overlaps: fb.overlaps, ax: fb.ax / Math.max(1, fb.an), f3: fb.f3 / Math.max(1, fb.an), crosses: fp?.crosses ?? 0, shots: fp?.shots ?? 0 },
       samples: acc.n, x: acc.x / n, y: acc.y / n, ax: acc.ax / an, ay: acc.ay / an, dx: acc.dx / dn, dy: acc.dy / dn, attSamples: acc.an,
       wide: acc.wide / n, box: acc.box / n, final3: acc.f3 / n, touches: acc.touches, runs: acc.runs, space: acc.space / an, stats,
     };

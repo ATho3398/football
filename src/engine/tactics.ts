@@ -211,6 +211,8 @@ export const TENDENCY = {
   compactW: { bus: 0.5, block: 0.55, counter: 0.65 } as Partial<Record<Tendency, number>>,
   /** 탈취 뒤 역습 지원 인원 (C.78d ②, ENGINE.offball.supportRun): 버스 1 · 블록 1 · 역습 2 */
   supportRunners: { bus: 1, block: 1, counter: 2 } as Partial<Record<Tendency, number>>,
+  /** 풀백 오버래핑 성향 배수 (C.78i ②, ENGINE.offball.fbOverlap): 없으면 1 */
+  fbOverlapTend: { bus: 0.3, block: 0.5, counter: 0.7, tikitaka: 1.15, gegenpress: 1.2, direct: 0.9 } as Partial<Record<Tendency, number>>,
 };
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */

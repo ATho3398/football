@@ -591,8 +591,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const running = s.t < r.runUntil;
     let tx = clamp(r.x + r.vx * O.leadTime, 1, L - 1);
     let ty = clamp(r.y + r.vy * O.leadTime, 1, W - 1);
-    if (running && r.giveGo && ENGINE.offball.giveGoChance > 0) {
-      // 2:1 리턴 패스 (C.77y): 주고 달리는 선수가 노리는 마커 뒤 공간(달리기 목표)으로
+    if (running && ((r.giveGo && ENGINE.offball.giveGoChance > 0) || r.overlap)) {
+      // 2:1 리턴 패스 (C.77y): 주고 달리는 선수가 노리는 마커 뒤 공간(달리기 목표)으로. 오버래핑 풀백 (C.78i ②)도 달리는 앞 측면 길(달리기 목표)로
       tx = clamp(r.tx, 1, L - 1);
       ty = clamp(r.ty, 1, W - 1);
     } else if (running) {

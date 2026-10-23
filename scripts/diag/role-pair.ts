@@ -75,7 +75,10 @@ for (const g of use) {
     const acc = { ST: [0, 0], L2: [0, 0], X: [0, 0] } as Record<string, [number, number]>;
     xs.forEach((m, k) => { const tm = k % 2 === 0 ? 0 : 1; for (const p of m.players) if (p.team === tm) { const v = acc[grp(p.position)]!; v[0] += p.goals; v[1] += p.shots; } });
     const split = `ST 골/슛 ${(acc.ST![0] / n).toFixed(2)}/${(acc.ST![1] / n).toFixed(2)} · 2선 골/슛 ${(acc.L2![0] / n).toFixed(2)}/${(acc.L2![1] / n).toFixed(2)}`;
-    rows.push({ role, gd, se: sd / Math.sqrt(n), line: `${gf.toFixed(2)} | ${(gf - gd).toFixed(2)} | ${line}`, split });
+    // 그 측면 상대 풀백 (C.78i): 오버래핑 · 상대 공격 시 x · 상대 ⅓ 비율 · 크로스 · 슈팅 / 경기
+    const F = (f: (o: NonNullable<NonNullable<MatchOut['track']>['opFb']>) => number) => xs.reduce((a, m) => a + (m.track!.opFb ? f(m.track!.opFb) : 0), 0) / n;
+    const fbs = ` · 상대 풀백 오버래핑 ${F((o) => o.overlaps).toFixed(2)} · 공격 x ${F((o) => o.ax).toFixed(3)} · ⅓ ${(100 * F((o) => o.f3)).toFixed(1)}% · 크로스 ${F((o) => o.crosses).toFixed(2)} · 슈팅 ${F((o) => o.shots).toFixed(2)}`;
+    rows.push({ role, gd, se: sd / Math.sqrt(n), line: `${gf.toFixed(2)} | ${(gf - gd).toFixed(2)} | ${line}`, split: split + fbs });
   }
   const mean = rows.reduce((a, r) => a + r.gd, 0) / rows.length;
   for (const r of rows) console.log(`| ${ROLE_NAMES_KO[r.role]} | ${r.gd >= 0 ? '+' : ''}${r.gd.toFixed(2)} | ${r.se.toFixed(2)} | ${r.gd - mean >= 0 ? '+' : ''}${(r.gd - mean).toFixed(2)} | ${r.line} |`);

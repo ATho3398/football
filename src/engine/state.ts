@@ -72,6 +72,8 @@ export interface Agent {
   supportRun: boolean;
   /** CB 빈자리 침투 중 (C.78e ②): 달리는 동안 이 y(정규화)로, 아니면 −1 */
   gapY: number;
+  /** 풀백 오버래핑 중 (C.78i ②): 달리는 동안 공 앞 측면 길로 */
+  overlap: boolean;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
   errX: number;
   errY: number;

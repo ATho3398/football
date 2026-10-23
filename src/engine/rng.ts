@@ -13,7 +13,7 @@ function fmix(h: number): number {
 const PURPOSES = [
   'Decide', 'Pass', 'Intercept', 'Loose', 'Control', 'Offball', 'Run', 'Mark', 'Dribble', 'Tackle', 'Shot', 'Save',
   'Aerial', 'Foul', 'Card', 'Restart', 'Added', 'Cross', 'Sub', 'Advantage', 'Offside', 'Corner', 'Injury', 'Block',
-  'Keeper', 'Misc', 'Rating', 'Header', 'Clear', 'Penalty', 'FreeKick', 'Vision', 'Cards', 'StepOut', 'BackRead', 'GiveGo',
+  'Keeper', 'Misc', 'Rating', 'Header', 'Clear', 'Penalty', 'FreeKick', 'Vision', 'Cards', 'StepOut', 'BackRead', 'GiveGo', 'Overlap',
 ] as const;
 export const Purpose = Object.fromEntries(PURPOSES.map((p, i) => [p, i + 1])) as Record<(typeof PURPOSES)[number], number>;
 

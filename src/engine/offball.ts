@@ -557,6 +557,17 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     a.exitRun = false;
     a.supportRun = false;
     a.gapY = -1;
+    a.overlap = false;
+  }
+  // 풀백 오버래핑 (C.78i ②): 그 측면 상대 윙어가 높이 남았고 앞 측면 길이 비었으면 공 앞으로 전진 (한 팀에 한 쪽)
+  const ready = O.fbOverlap > 0 && s.t >= a.runUntil && owner && owner.team === a.team && owner !== a ? overlapReady(s, a, dir, bnx) : 0;
+  if (ready > 0) {
+    const tm = TENDENCY.fbOverlapTend[s.teams[a.team].tactics.tendency] ?? 1;
+    const tired = Math.min(1, a.stamina / O.fbOverlapTired);
+    if (rand(s.seed, s.tick, a.idx, Purpose.Overlap) < O.fbOverlapChance * ready * (a.role.run / 0.5) * tm * tired) {
+      a.runUntil = s.t + O.fbOverlapSeconds;
+      a.overlap = true;
+    }
   }
   // ⒝ 주고 달리기 (C.77y, 2:1): 상대 진영으로 성공할 패스를 막 찼거나(날아가는 중) 방금 받게 했으면 받는 선수 마커의 뒤 공간으로.
   // 굴림은 패스당 1번 (giveGoT = 마지막 굴린 시각: 날아가는 중 굴렸으면 받은 뒤에는 안 굴린다)
@@ -608,11 +619,17 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (a.supportRun) ny = 0.5 + (toNorm(a.x, a.y, dir)[1] >= 0.5 ? 1 : -1) * O.supportLane;
     // CB 빈자리 침투 (C.78e ②): 빈자리 채널로
     if (a.gapY >= 0) ny = a.gapY;
+    // 풀백 오버래핑 (C.78i ②): 공(또는 자기) 앞 fbOverlapAhead m 측면 길, 오프사이드 라인 안쪽
+    if (a.overlap) {
+      const [anx] = toNorm(a.x, a.y, dir);
+      nx = Math.min(line - 0.5 / L, Math.max(anx, bnx) + O.fbOverlapAhead / L);
+      ny = 0.5 + (a.sy < 0.5 ? -1 : 1) * O.wideTouch;
+    }
     const [px, py] = toPitch(nx, ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
     // ⒟ 침투 취소 (C.77y): 소유자에게서 달리는 목표까지 패스 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
     // 역습 지원·출구 달리기 (C.78d ②)·CB 빈자리 침투 (C.78e ②)는 취소하지 않는다 — 정해진 길로 끝까지 (자기 ⅓ 에서 시작하면 패스 길이 늘 막혀 보여 바로 취소됐다)
-    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight && !(O.supportRun > 0 && (a.supportRun || a.exitRun)) && a.gapY < 0) {
+    if (O.abortLane > 0 && owner && owner.team === a.team && owner !== a && !s.ball.flight && !(O.supportRun > 0 && (a.supportRun || a.exitRun)) && a.gapY < 0 && !a.overlap) {
       const [anx] = toNorm(a.x, a.y, dir);
       if ((anx - line) * L >= O.abortOffside || laneRisk(s, owner, px, py).risk >= O.abortLane) {
         a.runUntil = s.t;
@@ -759,6 +776,60 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+const FB_POS = new Set(['LB', 'RB', 'LWB', 'RWB']);
+const WIDE_POS = new Set(['LW', 'RW', 'LM', 'RM']);
+
+/**
+ * 풀백 오버래핑 조건 (C.78i ②, 정규화 = 풀백 팀 공격 방향): 풀백(줄 사이 역할 제외)·공 fbOverlapFromX 이상·같은 팀 다른 오버래핑 없음 ·
+ * 앞 측면 길(자기 x + fbOverlapAhead m, 터치라인 wideTouch)의 fbOverlapFree m 안 상대 없음 ·
+ * 남은 수비(같은 줄 다른 수비 + CDM, 공보다 우리 골 쪽) ≥ 공보다 우리 골 쪽 상대 필드 선수 + fbOverlapRest (높이 남은 공격수가 풀백을 묶는다).
+ * 돌려주는 값 = 확률 배수: 0 안 됨 · 그 측면 상대 윙어(LW/RW/LM/RM)가 면제 역할이 아니고 fbTrackDist m 안이면 따라 내려오므로 fbOverlapTracked · 아니면 1 (높이 남은 크랙형·빈 측면)
+ */
+function overlapReady(s: SimState, a: Agent, dir: 1 | -1, bnx: number): number {
+  if (a.line !== 1 || !FB_POS.has(a.pos) || hasModule(a.role, 'between') || bnx < O.fbOverlapFromX) return 0;
+  const side = a.sy < 0.5 ? -1 : 1;
+  const [anx] = toNorm(a.x, a.y, dir);
+  let rest = 0;
+  let high = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.line === 0) continue;
+    const onx = toNorm(o.x, o.y, dir)[0];
+    if (o.team === a.team) {
+      if (o !== a && o.overlap && s.t < o.runUntil) return 0;
+      if (o !== a && (o.line === 1 || o.pos === 'CDM') && onx < bnx) rest++;
+    } else if (onx < bnx) high++;
+  }
+  if (rest < high + O.fbOverlapRest) return 0;
+  const [px, py] = toPitch(Math.min(0.97, anx + O.fbOverlapAhead / L), 0.5 + side * O.wideTouch, dir);
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && dist(o.x, o.y, px, py) < O.fbOverlapFree) return 0;
+  const w = sideWinger(s, a);
+  return w && !hasModule(w.role, 'exempt') && dist(w.x, w.y, a.x, a.y) <= O.fbTrackDist ? O.fbOverlapTracked : 1;
+}
+
+/** 풀백 a 의 측면을 맡는 상대 윙어 (슬롯 기준: 상대 정규화 y 는 반대라 슬롯 y 가 반대쪽이면 같은 측면). 여럿이면 가까운 쪽 */
+function sideWinger(s: SimState, a: Agent): Agent | null {
+  const side = a.sy < 0.5 ? -1 : 1;
+  let w: Agent | null = null;
+  let wd = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || !WIDE_POS.has(o.pos) || Math.sign(o.sy - 0.5) !== -side) continue;
+    const d = dist(o.x, o.y, a.x, a.y);
+    if (d < wd) { wd = d; w = o; }
+  }
+  return w;
+}
+
+/** 오버래핑 추적 (C.78i ②): 면제 아닌 측면 선수(LW/RW/LM/RM)가 맡는 측면의 상대 풀백이 오버래핑 중이고 fbTrackDist × 1.5 m 안이면 그 풀백 */
+function overlapToTrack(s: SimState, a: Agent): Agent | null {
+  if (O.fbOverlap <= 0 || !WIDE_POS.has(a.pos) || hasModule(a.role, 'exempt')) return null;
+  const side = a.sy < 0.5 ? -1 : 1;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === a.team || !o.overlap || s.t >= o.runUntil || Math.sign(o.sy - 0.5) !== -side) continue;
+    if (dist(o.x, o.y, a.x, a.y) <= O.fbTrackDist * 1.5) return o;
+  }
+  return null;
 }
 
 /** 안으로 들어오는 측면 역할 (C.78e ①): 같은 쪽 측면 공이면 언더랩, 중앙 공이면 하프스페이스 */
@@ -1374,6 +1445,16 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   // 역습 (E.19)·버스 세우기 (C.76k, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
   if ((tendency === 'counter' || (tendency === 'bus' && TENDENCY.busStay > 0)) && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
+  // 오버래핑 추적 (C.78i ②): 면제 아닌 측면 선수는 자기 측면으로 오버래핑하는 상대 풀백을 골 쪽 fbTrackGoal m 에서 따라 내려온다
+  const ov = owner && owner.team !== a.team ? overlapToTrack(s, a) : null;
+  if (ov) {
+    const [gx, gy] = ownGoal(dir);
+    const d = dist(ov.x, ov.y, gx, gy) || 1;
+    a.tx = clamp(ov.x + ov.vx * 0.5 + ((gx - ov.x) / d) * O.fbTrackGoal, 0.5, L - 0.5);
+    a.ty = clamp(ov.y + ov.vy * 0.5 + ((gy - ov.y) / d) * O.fbTrackGoal, 0.5, W - 0.5);
+    a.urgent = true;
+    return;
+  }
   // ④ 수비 의무 면제 (E.6 D.13): 깊이 복귀하지 않고 마크도 하지 않는다 (다음 공격 기점). 빈자리는 커버 재배분이 메운다
   if (hasModule(a.role, 'exempt') && a.line >= 2) {
     nx = Math.max(nx, a.line === 3 ? RM.exemptAttX : RM.exemptMidX);

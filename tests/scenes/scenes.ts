@@ -17,6 +17,7 @@ import { sceneBetweenLines, sceneBlockBuild, sceneBlockCounter } from './block';
 import { sceneNineFollow, sceneNineHold, sceneWideArrive } from './roles';
 import { sceneLaneAngle, sceneLaneLeft, sceneLaneRight } from './lane';
 import { sceneBalancedSwing, sceneGegenBus } from './swing';
+import { sceneWingerOverlap } from './overlap';
 
 export interface SceneOut {
   values: Record<string, number>;
@@ -507,5 +508,6 @@ export const SCENES = {
   wideArrive: sceneWideArrive, nineFollow: sceneNineFollow, nineHold: sceneNineHold,
   laneRight: sceneLaneRight, laneLeft: sceneLaneLeft, laneAngle: sceneLaneAngle,
   gegenBus: sceneGegenBus, balancedSwing: sceneBalancedSwing,
+  wingerOverlap: sceneWingerOverlap,
 } as const;
 export type SceneId = keyof typeof SCENES;
