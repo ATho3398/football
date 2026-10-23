@@ -63,6 +63,8 @@ opps.forEach((vs, i) => {
     const hw = T.winZ[3]!;
     console.log(`  ⒜' 높은 탈취 ${pm(hw)}/경기: 우리 역압박 창 안 ${pc(T.hiH, hw)}% · 잃은 팀 마지막 결정 짧은/롱/걷기/몰기/유지/없음 ${T.hiBy.map((x) => pc(x, hw)).join('/')}% · 잃은 팀 소유 ${(T.hiPossT / Math.max(1, hw)).toFixed(1)} s`);
     console.log(`  ⒝' 압박받는 결정 판단 p → 실제 성공(짧은/롱/걷기/몰기/유지): ${T.pN.map((x, j) => `${(T.pP[j]! / Math.max(1, x)).toFixed(2)}→${(T.pOk[j]! / Math.max(1, x)).toFixed(2)}`).join(' · ')}`);
+    const lo = T.winZ[0]!;
+    console.log(`  ⒜" 우리 ⅓ 탈취 ${pm(lo)}/경기: 공 14 m 안 우리 ${(T.lowNearW / Math.max(1, lo)).toFixed(2)} · 잃은 팀 ${(T.lowNearL / Math.max(1, lo)).toFixed(2)} · 잃은 팀 역압박 가담 ${(T.lowPress / Math.max(1, lo)).toFixed(2)} · 잃은 팀 5초 안 되찾음 ${pc(T.lowRe5, lo)}%`);
     console.log(`  ⒟ 골/경기 세트 ${pm(T.gSet)} · 높은 탈취 ${pm(T.gHigh)} · 역습 ${pm(T.gCounter)} · 지공 ${pm(T.gSlow)}`);
   }
 });

@@ -51,6 +51,11 @@ export interface GegenTeam {
   pP: number[];
   pOk: number[];
   pN: number[];
+  /** 우리 진영 ⅓ 탈취(= 상대가 우리 골 쪽 깊이에서 잃음) 때 공 14 m 안 우리 수 합 · 잃은 팀 수 합 · 잃은 팀이 5초 안 되찾음 · 잃은 팀 역압박 가담 합 */
+  lowNearW: number;
+  lowNearL: number;
+  lowRe5: number;
+  lowPress: number;
 }
 
 export interface GegenOut {
@@ -62,7 +67,7 @@ function empty(): GegenTeam {
     wins: 0, winZ: [0, 0, 0, 0], shot10Z: [0, 0, 0, 0], goal15Z: [0, 0, 0, 0], shot15: 0, behindTry: 0, behindOk: 0,
     oppTicks: 0, oppDeepTicks: 0, pressNear: 0, pDec: 0, pShort: 0, pLong: 0, pClear: 0, pCarry: 0, pHold: 0, gkDec: 0, gkLong: 0,
     lb: 0, lbNx: 0, lbBehind: 0, lbKeep: 0, lbFwd: 0, lbBehindKeep: 0, gSet: 0, gHigh: 0, gCounter: 0, gSlow: 0,
-    hiH: 0, hiBy: [0, 0, 0, 0, 0, 0], hiPossT: 0, pP: [0, 0, 0, 0, 0], pOk: [0, 0, 0, 0, 0], pN: [0, 0, 0, 0, 0],
+    hiH: 0, hiBy: [0, 0, 0, 0, 0, 0], hiPossT: 0, pP: [0, 0, 0, 0, 0], pOk: [0, 0, 0, 0, 0], pN: [0, 0, 0, 0, 0], lowNearW: 0, lowNearL: 0, lowRe5: 0, lowPress: 0,
   };
 }
 
@@ -196,6 +201,12 @@ export function gegenRun(sim: MatchSim): GegenOut {
           T.hiPossT += t - possStart[1 - win]!;
         }
         possStart[win] = t;
+        const lw0 = lastWin[(1 - win) as 0 | 1];
+        if (lw0 && lw0.z === 0 && t - lw0.t <= 5 && lw0.t !== t) out.team[(1 - win) as 0 | 1].lowRe5++;
+        if (z === 0) {
+          for (const o of s.agents) if (o.onPitch && o.line !== 0 && dist(o.x, o.y, b.x, b.y) <= 14) { if (o.team === win) T.lowNearW++; else T.lowNearL++; }
+          T.lowPress += s.teams[1 - win]!.counterPressers.length;
+        }
         lastWin[win] = { t, z, shot10: false, shot15: false };
       }
       if (s.possTeam !== prevPoss && s.restart) possStart[s.possTeam] = t;

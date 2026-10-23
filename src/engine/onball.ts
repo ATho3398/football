@@ -419,6 +419,24 @@ export function averageSelf(a: Agent): Agent {
   return av;
 }
 
+/**
+ * 착지점 몫 (C.78c ②): (x, y)에 tLand 초 뒤 떨어지는 공에 team 이 먼저 닿을 몫. 양 팀 필드 선수(GK·except 제외) 가장 빠른 도착 시간(착지 전 도착은 tLand)의 차를
+ * landScale 로 로지스틱. 둘 다 착지 전에 와 있으면 0.5 (공중볼 경합). 판단 전용 — 실행은 실제 이동·경합이 정한다
+ */
+export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLand: number, except?: Agent): number {
+  const AM = ENGINE.physics.arrivalModel > 0;
+  let tOwn = Infinity;
+  let tOpp = Infinity;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.line === 0 || o === except) continue;
+    const t = Math.max(tLand, AM ? arrivalTime(o, x, y, PR.aerialRadius) : Math.max(0, dist(o.x, o.y, x, y) - PR.aerialRadius) / o.maxSpeed);
+    if (o.team === team) { if (t < tOwn) tOwn = t; } else if (t < tOpp) tOpp = t;
+  }
+  if (!Number.isFinite(tOwn)) return 0;
+  if (!Number.isFinite(tOpp)) return 1;
+  return 1 / (1 + Math.exp(-(tOpp - tOwn) / O.landScale));
+}
+
 /** 판단용 성공 확률: 본인과 리그 평균 선수의 혼합 (E.20 1번) */
 export function judgedP(self: number, avg: number): number {
   return O.judgeSelf * self + (1 - O.judgeSelf) * avg;
@@ -540,6 +558,12 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     const lossR = loss(rx, ry);
     value = value * (1 - pLoseR) + pLoseR * lossR;
     let u = pj * value + (1 - pj) * lossR;
+    // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙)
+    if (O.landShare > 0 && d0 > PR.airPass) {
+      const pjF = judgedP(pFlight, flightP(av));
+      const q = landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a);
+      u += (1 - pjF) * q * (positionValue(rx, ry) - lossR);
+    }
     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
     const pOff = offsideRisk(s, a, r);
     if (pOff > 0) u = (1 - pOff) * u + pOff * lossR;
@@ -661,8 +685,9 @@ export function candidates(s: SimState, a: Agent): Candidate[] {
     // 클리어링: 수비 3분의 1, 압박이 심할 때
     if (ax < PR.clearMaxX && pressure > PR.clearPressure) {
       const [tx, ty] = toPitch(clamp(ax + 0.42, 0, 0.9), 0.5 + (ay - 0.5) * 0.5, dir);
-      const p = 0.45;
       const [nx, ny] = toNorm(tx, ty, dir);
+      // 걷어내기 (C.78c ②): 착지점에 먼저 닿을 몫 (옛 동작 0.45 고정)
+      const p = O.landShare > 0 ? landingShare(s, a.team, tx, ty, dist(a.x, a.y, tx, ty) / B.airSpeed, a) : 0.45;
       const u = weight(p * positionValue(nx, ny) + (1 - p) * loss(nx, ny), a.role.pref.clear * mDirect);
       out.push({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
     }

@@ -647,6 +647,13 @@ export const ENGINE = {
      */
     /** 지금 0(꺼짐, 켠 값 1): 켜면 quick 득점 1.42 → 1.93 · engine:check 득점 2.02 ✗ (부록 C.77y) */
     backModel: 1,
+    /**
+     * 착지점 몫 (C.78c ②, 공통 규칙): 1 = 롱패스(30 m+) 실패분·걷어내기의 판단이 실행과 같은 규칙 — 착지 시각에 양 팀 필드 선수 가장 빠른 도착(arrivalTime,
+     * 착지 전 도착은 착지 시각으로) 차로 우리 팀이 먼저 닿을 몫 = 1 / (1 + exp(−(상대 − 우리) / landScale)). 0 = 옛 동작(실패 = 착지점 상실, 걷어내기 p 0.45 고정).
+     * 상대 라인이 높아 착지점이 비면 몫이 크고(압박을 건너뛰는 롱볼), 깊은 블록 쪽으로 차면 작다 — 성향 상수가 아니라 상대 배치에 반응
+     */
+    landShare: 1,
+    landScale: 0.6,
     /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
     backEscape: 0.012,
     backEscapeExtra: 0.25,
