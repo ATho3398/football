@@ -7,6 +7,7 @@ import { teamSetupFromRoster } from '../src/engine/setup';
 import type { EngineInput } from '../src/engine/types';
 import { attackDir } from '../src/engine/pitch';
 import { createTeamRoster } from '../src/roster';
+import { withEngine } from './scenes/harness';
 
 const home = createTeamRoster({ id: 'h', rating: 75 }, 'c76z-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 75 }, 'c76z-a', 2018, []);
@@ -47,11 +48,14 @@ describe('C.76z 롱 백패스는 실수 후보가 아니다', () => {
     expect(ENGINE.onball.plausibleGap).toBe(0.015);
   });
   it('압박 없음: gap 밖의 짧은 백패스(12 m)는 실수 후보로 가끔 고르지만, 같은 효용의 롱 백패스(36 m)는 한 번도 고르지 않는다', () => {
-    expect(backPicks(12)).toBeGreaterThan(0);
-    expect(backPicks(36)).toBe(0);
+    // C.78b: 실수 후보 경로는 백패스 가치 모델(C.77y backModel)을 끈 옛 판단식 — 설정은 켬이라 명시적으로 끈다
+    withEngine({ 'onball.backModel': 0 }, () => {
+      expect(backPicks(12)).toBeGreaterThan(0);
+      expect(backPicks(36)).toBe(0);
+    });
   });
   it('압박 있음(상대 1 m): 롱 백패스(36 m)도 실수 후보로 가끔 고른다', () => {
-    expect(backPicks(36, true)).toBeGreaterThan(0);
+    withEngine({ 'onball.backModel': 0 }, () => expect(backPicks(36, true)).toBeGreaterThan(0));
   });
   it('결정성: 같은 시드 두 번 돌리면 같은 결과', () => {
     const a = createMatch(input(9)); const b = createMatch(input(9));

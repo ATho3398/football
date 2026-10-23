@@ -1,4 +1,4 @@
-// 전환 측정 (C.78a, 공통 규칙 로드맵 5단계 0번 분해): 열린 경기에서 공을 잃은 순간 잃은 팀의 배치와 그 뒤 8초 결과, 2선 추적 배정 시점을 잰다.
+// 전환 측정 (C.78a, 공통 규칙 로드맵 5단계 0번 분해): 열린 경기에서 공을 잃은 순간 잃은 팀의 배치와 그 뒤 WIN(15)초 결과(C.78b: 8 → 15초, 사용자 2026-10-23 "8초는 너무 타이트"), 2선 추적 배정 시점을 잰다.
 // MatchJob.trans 가 켜지면 job.ts 가 경기를 한 틱씩 돌리며 부른다. 엔진 상태는 읽기만 한다(probe.shot 훅만 씀, 지문 불변).
 
 import { offsideLine } from '../../src/engine/offball';
@@ -8,6 +8,9 @@ import { probe } from '../../src/engine/probe';
 import type { MatchSim } from '../../src/engine/sim';
 
 /** 잃은 팀 기준 합계 (팀마다) */
+/** 상실 뒤 상대 슈팅·xG·골·오프사이드를 세는 창 (초). C.78a 8 → C.78b 15 (사용자 2026-10-23) */
+export const TRANS_WIN = 15;
+
 export interface TransTeam {
   /** 오픈 플레이 소유 상실 수 */
   n: number;
@@ -27,17 +30,17 @@ export interface TransTeam {
   beaten: number;
   beatT: number;
   recov: number;
-  /** 4초 안 상대 침투 패스 시도 · 8초 안 상대 슈팅 · xG · 골 */
+  /** 4초 안 상대 침투 패스 시도 · WIN 초 안 상대 슈팅 · xG · 골 */
   thr4: number;
   shot8: number;
   xg8: number;
   goal8: number;
-  /** 가담 수별 8초 안 상대 슈팅 [0,1,2,3+] */
+  /** 가담 수별 WIN 초 안 상대 슈팅 [0,1,2,3+] */
   shotByP: number[];
-  /** 4초 안 상대 침투 패스를 받은 에피소드 · 8초 안 상대 오프사이드 */
+  /** 4초 안 상대 침투 패스를 받은 에피소드 · WIN 초 안 상대 오프사이드 */
   thrRecv: number;
   off8: number;
-  /** 받은 침투 패스: 받는 순간 우리 골 거리 합 · 그 뒤(8초 창 안) 슈팅 · 받는 순간 가장 가까운 우리 필드 선수 거리 합 */
+  /** 받은 침투 패스: 받는 순간 우리 골 거리 합 · 그 뒤(WIN 초 창 안) 슈팅 · 받는 순간 가장 가까운 우리 필드 선수 거리 합 */
   thrRecvD: number;
   thrShot: number;
   thrRecvNear: number;
@@ -113,7 +116,7 @@ export function transRun(sim: MatchSim): TransOut {
     // 그 팀이 공을 빼앗은 직후의 슈팅이면 마지막 에피소드에 xG
     for (let i = eps.length - 1; i >= 0; i--) {
       const ep = eps[i]!;
-      if (ep.team !== p.team && st.t - ep.t0 <= 8) {
+      if (ep.team !== p.team && st.t - ep.t0 <= TRANS_WIN) {
         out.team[ep.team].xg8 += p.xg ?? 0;
         break;
       }
@@ -153,7 +156,7 @@ export function transRun(sim: MatchSim): TransOut {
       }
       for (const ep of eps) {
         const dt = t - ep.t0;
-        if (dt > 8.5) continue;
+        if (dt > TRANS_WIN + 0.5) continue;
         const opp = (1 - ep.team) as 0 | 1;
         const T = out.team[ep.team];
         const dir = attackDir(ep.team, s.half);
@@ -197,13 +200,13 @@ export function transRun(sim: MatchSim): TransOut {
           for (const a of s.agents) if (a.onPitch && a.team === ep.team && a.line !== 0) nd = Math.min(nd, dist(a.x, a.y, r.x, r.y));
           T.thrRecvNear += nd;
         }
-        if (dt <= 8 && !ep.off && newOff.includes(opp)) { ep.off = true; T.off8++; }
-        if (dt <= 8 && !ep.shot && s.teams[opp].stats.shots > shotsPrev[opp]!) { ep.shot = true; T.shot8++; T.shotByP[pb(ep.p)]!++; if (ep.thrGot) T.thrShot++; }
-        if (dt <= 8 && !ep.goal && s.teams[opp].stats.goals > goalsPrev[opp]!) { ep.goal = true; T.goal8++; }
+        if (dt <= TRANS_WIN && !ep.off && newOff.includes(opp)) { ep.off = true; T.off8++; }
+        if (dt <= TRANS_WIN && !ep.shot && s.teams[opp].stats.shots > shotsPrev[opp]!) { ep.shot = true; T.shot8++; T.shotByP[pb(ep.p)]!++; if (ep.thrGot) T.thrShot++; }
+        if (dt <= TRANS_WIN && !ep.goal && s.teams[opp].stats.goals > goalsPrev[opp]!) { ep.goal = true; T.goal8++; }
       }
       thrPrev = thr;
       for (const k of [0, 1] as const) { shotsPrev[k] = s.teams[k].stats.shots; goalsPrev[k] = s.teams[k].stats.goals; }
-      while (eps.length && t - eps[0]!.t0 > 9) {
+      while (eps.length && t - eps[0]!.t0 > TRANS_WIN + 1) {
         const ep = eps.shift()!;
         if (ep.beatAt >= 0 && !ep.recovered) out.team[ep.team].recov += Math.min(8, t - ep.beatAt);
       }

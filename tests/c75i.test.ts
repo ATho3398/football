@@ -62,7 +62,8 @@ describe('C.75i 지시 카드 (F.4)', () => {
   it('직접 모드 경기: 지시 카드 선택지 = 엔진 후보 그대로, 독단 성공 평점은 사후 가산, 감독의 신뢰는 신뢰 70 이상만', () => {
     const pool = selectableRealPlayers();
     const p = pool.find((x) => posGroup(x.position) === 'ST')!;
-    const g = newGame({ mode: 'real', playerId: p.id, seed: `c75i-${p.id}`, difficulty: 'normal' });
+    // C.78b(엔진 42, 수신·첫 터치 + x·y·z·78a 켬): 원래 시드는 지시 카드 장면 0(신뢰 카드 4) — 다른 시드(-1·-3·-4·-5)에는 그대로 있어 시드만 -1 로 (지시 8 · 신뢰 10)
+    const g = newGame({ mode: 'real', playerId: p.id, seed: `c75i-${p.id}-1`, difficulty: 'normal' });
     const rm = roundMatch(g, { cards: false });
     const deck = [...starterDeck('attack').map((c) => c.id), 'dirFollow', 'dirSolo', 'dirTrust', 'dirSolo', 'dirFollow'];
     let dirSeen = 0;

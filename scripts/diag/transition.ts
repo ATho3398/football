@@ -1,4 +1,4 @@
-// 진단 (C.78a, 공통 규칙 로드맵 5단계 0번 분해): 공을 잃은 순간 양 팀 배치와 그 뒤 8초 결과를 전술별·몰빵 대형별로, 2선 추적 배정 시점(닿을 수 있었나)을 잰다.
+// 진단 (C.78a, 공통 규칙 로드맵 5단계 0번 분해): 공을 잃은 순간 양 팀 배치와 그 뒤 15초(transProbe TRANS_WIN, C.78b: 8 → 15) 결과를 전술별·몰빵 대형별로, 2선 추적 배정 시점(닿을 수 있었나)을 잰다.
 // 실행: npx vite-node scripts/diag/transition.ts -- [경기수=40] 대상... [vs=balanced] [form=4-4-2] [경로=값 ...]
 //   대상: 성향 이름(gegenpress, balanced, counter, bus, block, tikitaka, direct) + 선택 @라인,압박,빌드업,폭 · 또는 cust:번호(C.33 custom-sweep 의 무작위 커스텀 대형, 균형 전술)
 //   상대는 vs 성향 4-4-2. 홈/원정 반씩, 같은 시드. 표의 "잃은 팀" = 대상 팀이 잃었을 때 / "상대가 잃음" = 상대 팀이 잃었을 때(대상의 전환 공격)
@@ -65,7 +65,7 @@ const zT = (): TransTeam => ({ n: 0, pressers: 0, byP: [0, 0, 0, 0], ahead: 0, b
 const zA = (): TransAssign => ({ n: 0, runnerRunning: 0, standOnRunning: 0, delay: 0, d0: 0, unreachable: 0, d2: 0, n2: 0 });
 
 console.log(`\n전환 분해 · ${n}경기씩 · 상대 ${vs} 4-4-2 · 대상 대형 ${form} · 덮어쓰기 ${JSON.stringify(overrides)}`);
-console.log('| 대상 | 누가 잃음 | 상실/경기 | 가담 평균 · 0/1/2/3명 % | 공 앞 · 뒤 | 수비 줄 0/2/4 s | 뒤 공간 0/2/4 s | 뒤 공간 2 s 가담 0/1/2/3 | 뚫림 % · 시각 · 복귀 s | 4 s 침투 % · 받음 % · 8 s 오프사이드 % · 받은 곳 골 m · 그때 수비 m · 받고 슛 % | 8 s 슈팅 % · 가담 0/1/2/3 | 8 s xG/100 · 골/100 | 득실/경기 |');
+console.log('| 대상 | 누가 잃음 | 상실/경기 | 가담 평균 · 0/1/2/3명 % | 공 앞 · 뒤 | 수비 줄 0/2/4 s | 뒤 공간 0/2/4 s | 뒤 공간 2 s 가담 0/1/2/3 | 뚫림 % · 시각 · 복귀 s | 4 s 침투 % · 받음 % · 15 s 오프사이드 % · 받은 곳 골 m · 그때 수비 m · 받고 슛 % | 15 s 슈팅 % · 가담 0/1/2/3 | 15 s xG/100 · 골/100 | 득실/경기 |');
 console.log('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
 const assignRows: string[] = [];
 specs.forEach((sp, i) => {
