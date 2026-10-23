@@ -568,13 +568,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const u = pj * value + (1 - pj) * lossR;
       return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
     };
-    let u = uOf(pj);
-    // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙)
-    if (O.landShare > 0 && d0 > PR.airPass) {
-      const pjF = judgedP(pFlight, flightP(ppAv));
-      const q = landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a);
-      u += (1 - pjF) * q * O.landKeep * (positionValue(rx, ry) - lossR);
-    }
+    // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
+    const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
+    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * landGain;
     const forward = rx > ax + 0.03;
     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
@@ -595,7 +591,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
-      ot.out.push({ type, p: pO, u: weight(uOf(pjO), passW), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
+      ot.out.push({ type, p: pO, u: weight(uO, passW), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
     }
   }
 
