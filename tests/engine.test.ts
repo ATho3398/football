@@ -117,7 +117,8 @@ describe('결정과 듀얼 (E2)', () => {
     expect(avg((t) => t.shots)).toBeGreaterThan(6);
     expect(avg((t) => t.shots)).toBeLessThan(20);
     expect(avg((t) => t.goals)).toBeGreaterThan(0.5);
-    expect(avg((t) => t.goals)).toBeLessThan(2.5);
+    // 2026-10-23 사용자: 움직임 먼저 — C.78e 켬 2.60(병합 뒤 2.56), 로드맵 마지막 단계에서 2.5로 되돌림 (마스터 Z 승인)
+    expect(avg((t) => t.goals)).toBeLessThan(2.8);
     const saveRate = avg((t) => t.saves) / avg((t) => t.shotsOnTarget);
     // C.78b: 새 동작 전부 켬(사용자 2026-10-23 09:00 "움직임 먼저, 밸런스는 마지막 단계") 선방률 51.7% — 마지막 단계에서 0.55 로 되돌린다
     // C.78c: 착지점 몫 켬(롱볼 세컨드볼 판단) 24경기 46.5% — 밸런스는 보고만(사용자 2026-10-23 "움직임 먼저"), 마지막 단계에서 0.55 로 되돌린다

@@ -981,6 +981,9 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
     case 'win':
       a.gotBy = 'receive';
       a.carryN = 0;
+      // C.78e: 받는 틱에 공을 받은 선수 발밑으로 (C.78b runOn 은 2.5 m 안에서 바로 받는다 — 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
+      b.x = a.x;
+      b.y = a.y;
       a.dribbleT = -100;
       return;
     case 'gain':
