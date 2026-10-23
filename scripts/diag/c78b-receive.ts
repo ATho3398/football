@@ -56,20 +56,24 @@ for (let i = 0; i < N; i++) {
   const s = m.state;
   let prevOwner = -1;
   let lastFl: { speed: number; fromX: number; fromY: number; thr: boolean } | null = null;
+  open = null;
+  decided = null;
+  last.clear();
   while (!s.done) {
     const fl = s.ball.flight;
     if (fl && fl.outcome === 'receive' && (fl.kind === 'pass' || fl.kind === 'long')) lastFl = { speed: fl.aimD ? fl.aimD / fl.dur : 15, fromX: fl.fromX, fromY: fl.fromY, thr: !!fl.through };
     m.step();
     const o = s.ball.owner;
     if (open && (o !== open.a || decided)) {
-      const a = s.agents[open.a]!;
+      const a: Agent | undefined = s.agents[open.a];
+      if (!a) { open = null; decided = null; continue; }
       if (decided) recs.push({ ...open, dt: decided.t - open.t0, d1: decided.d, type: decided.type });
       else recs.push({ ...open, dt: s.t - open.t0, d1: nearOpp(s, a), type: 'lost' });
       open = null;
       decided = null;
     }
     if (o >= 0 && o !== prevOwner && s.lastPass && s.lastPass.receiver === o && Math.abs(s.lastPass.t - s.t) < 0.25 && !s.restart) {
-      const a = s.agents[o]!;
+      const a: Agent = s.agents[o]!;
       const dir = attackDir(a.team, s.half);
       open = {
         a: o, t0: s.t, thr: !!lastFl?.thr, v: Math.hypot(a.vx, a.vy), press: nearOpp(s, a), speed: lastFl?.speed ?? 15, back: a.backToGoal, run: Math.hypot(a.vx, a.vy) >= 3,
