@@ -46,6 +46,10 @@ export interface Agent {
   /** 몸 방향 단위 벡터 (C.77x 뒤돌기): 빠르게 움직이면 속도 방향, 느리면 마지막 방향 그대로 */
   hx: number;
   hy: number;
+  /** turnHead 몸 각도 기억 (C.78c 속도): hx·hy 가 이 값이면 atan2(hy, hx) = hA — 결과는 같다 */
+  hMx: number;
+  hMy: number;
+  hA: number;
   urgent: boolean;
   maxSpeed: number;
   accel: number;

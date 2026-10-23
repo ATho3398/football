@@ -88,7 +88,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     // 줄 소속: 커스텀 칸은 칸의 줄(E.5.1), 아니면 포지션
     idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
-    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, urgent: false,
+    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,

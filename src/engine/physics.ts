@@ -79,7 +79,13 @@ export function perceiveFeed(a: Agent, o: Agent, dt: number): void {
 /** 몸 방향을 (ux, uy) 쪽으로 180°/pivotTime 각속도만큼 돌린다 */
 function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
   const step = (Math.PI / pivotTime(a)) * dt;
-  const cur = Math.atan2(a.hy, a.hx);
+  // 같은 몸 방향이면 지난번 atan2 그대로 (같은 입력 같은 값)
+  if (a.hx !== a.hMx || a.hy !== a.hMy) {
+    a.hMx = a.hx;
+    a.hMy = a.hy;
+    a.hA = Math.atan2(a.hy, a.hx);
+  }
+  const cur = a.hA;
   let diff = Math.atan2(uy, ux) - cur;
   while (diff > Math.PI) diff -= 2 * Math.PI;
   while (diff < -Math.PI) diff += 2 * Math.PI;

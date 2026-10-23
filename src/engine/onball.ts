@@ -429,6 +429,9 @@ export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLa
   let tOpp = Infinity;
   for (const o of s.agents) {
     if (!o.onPitch || o.line === 0 || o === except) continue;
+    const best = o.team === team ? tOwn : tOpp;
+    // 도착 시간은 직선 거리 / max(최대 속력, 지금 속력)보다 짧을 수 없다 — 그 하한이 이미 지금 최솟값보다 크면 계산하지 않는다 (결과 같음)
+    if (AM && Number.isFinite(best) && Math.max(tLand, (dist(o.x, o.y, x, y) - PR.aerialRadius) / Math.max(o.maxSpeed, Math.hypot(o.vx, o.vy))) > best + 1e-6) continue;
     const t = Math.max(tLand, AM ? arrivalTime(o, x, y, PR.aerialRadius) : Math.max(0, dist(o.x, o.y, x, y) - PR.aerialRadius) / o.maxSpeed);
     if (o.team === team) { if (t < tOwn) tOwn = t; } else if (t < tOpp) tOpp = t;
   }
