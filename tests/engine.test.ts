@@ -90,7 +90,8 @@ describe('경기 엔진 코어 (E1)', () => {
 
 describe('결정과 듀얼 (E2)', () => {
   // C.76p: 6경기(유효 슈팅 약 40개)는 선방률 55~85 하한이 1.5σ 라 흔들려 24경기로 (엔진 30 에서 6경기 51%, 12경기 52%, 같은 설정 다른 시드 36경기 69%, quick 600 66%)
-  const results = Array.from({ length: 24 }, (_, i) => createMatch(input(100 + i)).runToEnd());
+  // C.78i(엔진 48, 마스터 AA 2026-10-24): 24경기(100~123) 선방률 0.407 — 시드 묶음 잡음(다른 48경기 0.509)이라 표본을 연속 72경기(100~171)로 키움
+  const results = Array.from({ length: 72 }, (_, i) => createMatch(input(100 + i)).runToEnd());
 
   it('기록 정합성: 골 ≤ 유효 슈팅 ≤ 슈팅, 선방 = 상대 유효 슈팅 − 상대 골, 골 이벤트 수 = 득점', () => {
     for (const r of results) {
@@ -124,6 +125,7 @@ describe('결정과 듀얼 (E2)', () => {
     // C.78b: 새 동작 전부 켬(사용자 2026-10-23 09:00 "움직임 먼저, 밸런스는 마지막 단계") 선방률 51.7% — 마지막 단계에서 0.55 로 되돌린다
     // C.78c: 착지점 몫 켬(롱볼 세컨드볼 판단) 24경기 46.5% — 밸런스는 보고만(사용자 2026-10-23 "움직임 먼저"), 마지막 단계에서 0.55 로 되돌린다
     expect(saveRate).toBeGreaterThan(0.45);
+    console.log(`[engine.test 72경기] 팀당 득점 ${avg((t) => t.goals).toFixed(2)} · 선방률 ${saveRate.toFixed(3)}`);
     expect(saveRate).toBeLessThan(0.85);
     for (const f of [(t: (typeof all)[number]) => t.tackles, (t: (typeof all)[number]) => t.dribbles, (t: (typeof all)[number]) => t.crosses, (t: (typeof all)[number]) => t.aerials, (t: (typeof all)[number]) => t.interceptions]) {
       expect(avg(f)).toBeGreaterThan(3);
