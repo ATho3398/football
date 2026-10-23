@@ -973,3 +973,4 @@
 - 먼저 읽기: `CLAUDE.md`, `docs/automation.md` 0번, 이 문서 8.55 끝부분~8.57, `docs/engine-issues.md` 맨 위 로드맵·결과 절.
 - **시작 처리**: ① Z(`session_01KSGkk2ThVNU3VFN31TnzAq`)에 "AA 준비 완료 + AA ID" ② C.78g·C.78h에 "보고는 AA(ID), 마스터 브랜치 claude/planning-aa, 답장 불필요"(priority later) ③ Z 제목 앞 `draft_` ④ Z 남은 예약 확인(list_triggers, Z에 걸린 것 delete) ⑤ 8.58에 기록·푸시.
 - 다음: C.78g·h 보고 처리 → 먼저 끝난 쪽 "푸시 ㄱ"(CI 약 75~90분, 직렬) → 다른 쪽 → C.78i 시작(지시문 C.78i.md) → 사용자 확인 뒤 C.78j. 지시문 형식은 C.78g.md.
+- (00:46 KST) **AA 세션 시작 session_018XxYnHYMrMm11h6ffmGz44** (claude/planning-aa). 이후 Z는 AA 준비 완료 알림 오면 대기만.
