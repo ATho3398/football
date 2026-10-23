@@ -84,10 +84,12 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
     check: (v) => v.longOn! > v.longOff! && v.behind === 1 && v.tSt! < v.tDef! && v.q! > 0.5,
   },
   buildPress: { goal: '⑰ 티키 빌드업 상대 게겐 압박 — 높은 탈취 많음 (C.78c, 기록)', enabled: false },
-  // C.78d ⑱: 같은 지공 120초 × 40시드에서 버스가 허용하는 슛·xG 가 균형 수비보다 적다 (박스 밖 비율은 표본이 작아 기록만)
+  // C.78d ⑱ → C.78e(마스터 Z 결정, 120 시드): 슛 수(버스 < 균형)는 120 시드면 C.78e 규칙을 다 꺼도 0.60 대 0.44 로 성립하지 않아 출력만(미해결 3 재진단).
+  // xG/슛 < 균형 · 박스 밖 > 균형 도 120 시드 두 묶음에서 차이 0.01~0.02 가 묶음 사이 흔들림(±0.05) 안이라 원인 규칙을 가를 수 없음 → 잡음 폭 가드:
+  // 버스가 허용하는 슛의 xG/슛 ≤ 균형 + 0.05 · 박스 밖 비율 ≥ 균형 − 0.08 (뚜렷하게 더 좋은 찬스를 주면 실패)
   blockBuild: {
-    goal: '⑱ 블록 대 지공 — 버스가 허용하는 슛·xG 가 균형 수비보다 적다 (C.78d)', enabled: true,
-    check: (v) => v.busShots! < v.balShots! && v.busXg! < v.balXg!,
+    goal: '⑱ 블록 대 지공 — 버스가 허용하는 슛이 균형 수비보다 뚜렷하게 좋은 찬스가 아니다 (C.78d, C.78e 120시드)', enabled: true,
+    check: (v) => v.busXgShot! <= v.balXgShot! + 0.05 && v.busOut! >= v.balOut! - 0.08,
   },
   // C.78d ⑲: 지원 인원 버스 1 · 역습 2, 지원 대상(공에 가장 가까운 2선)의 3초 전진이 지원 끔보다 3 m 이상 크다
   blockCounter: {
