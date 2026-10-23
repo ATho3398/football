@@ -25,6 +25,7 @@ import { createRng, hashSeed } from '../../src/rng';
 import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type NpcFitMap } from '../../src/npcFit';
 import { setEnvironmentFixed } from '../../src/weather';
 import { transRun, type TransOut } from './transProbe';
+import { gegenRun, type GegenOut } from './gegenProbe';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -86,6 +87,8 @@ export interface MatchJob {
   track?: { team: 0 | 1; slot: number };
   /** 전환 측정 (C.78a transProbe): 잃은 순간 배치·8초 결과·추적 배정 시점 */
   trans?: boolean;
+  /** 게겐 상성 분해 (C.78c gegenProbe): 탈취 높이·압박 회피 롱볼·뒤 공간 패스·골 출처 */
+  gegen?: boolean;
 }
 
 export interface SeasonJob {
@@ -137,6 +140,7 @@ export interface MatchOut {
   ms: number;
   track?: TrackOut;
   trans?: TransOut;
+  gegen?: GegenOut;
 }
 
 export interface SeasonOut {
@@ -315,6 +319,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
     });
     const track = j.track ? trackRun(sim, j.track.team, j.track.slot) : undefined;
     const trans = j.trans ? transRun(sim) : undefined;
+    const gegen = j.gegen ? gegenRun(sim) : undefined;
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -332,6 +337,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ms,
       ...(track ? { track: track(r) } : {}),
       ...(trans ? { trans } : {}),
+      ...(gegen ? { gegen } : {}),
     };
   } finally {
     restore();
