@@ -66,7 +66,7 @@ export function oneTouchMul(who: Agent, speed: number, pr: number): number {
 /** 지금 판정에 걸리는 원터치 배수: 원터치 판단 중인 본인·평균 선수, 또는 원터치 실행 중(otUntil 전)인 선수. 그 밖 1 */
 function otOf(s: SimState, who: Agent): number {
   if (otNow && (who === otNow.a || who === otNow.av)) return oneTouchMul(who, otNow.speed, otNow.pr);
-  return who.otUntil !== undefined && s.t < who.otUntil ? who.otMul ?? 1 : 1;
+  return s.t < who.otUntil ? who.otMul : 1;
 }
 
 /** 가장 가까운 상대와 거리 */

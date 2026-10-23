@@ -25,7 +25,8 @@ export function bestBench(s: SimState, team: 0 | 1, pos: Agent['pos']): Agent | 
   let bestScore = -Infinity;
   for (const b of s.bench[team]) {
     if (b.leftAt !== null || b.onPitch) continue;
-    if (b.spec.isMe && !s.input.myMinutes) continue;
+    // 내 선수는 출전 구간 시작 전에는 AI 교체로 들어가지 않는다 (C.78b: 70분 투입 계획인데 60분 AI 교체로 먼저 들어가던 것)
+    if (b.spec.isMe && (!s.input.myMinutes || s.t / 60 < s.input.myMinutes.start)) continue;
     const score = slotOvr(b, pos) - (posGroup(b.spec.position) === g ? 0 : 6);
     if (score > bestScore) {
       bestScore = score;

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 41;
+export const ENGINE_VERSION = 42;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -135,7 +135,7 @@ export const ENGINE = {
     chasers: 2,
   },
   // ── 수신·첫 터치 공통 규칙 (C.78b, 공통 규칙 로드맵 5단계 2차) ──
-  // **지금 timeModel·oneTouch·runOn 0(꺼짐, 켠 값 1 · 1 · 3 = 장면 하네스 TOUCH_ON)**: 켜면 quick 600 득점 1.42 → 1.91 ✗(하나씩 quick 300: 정지 시간 1.85 · 원터치 1.67 · 달리며 받기 1.41),
+  // **켬(사용자 2026-10-23 09:00 "움직임이 더 중요", 밸런스는 마지막 단계; 끈 값 0 · 0 · 0 = 옛 동작)**: 켜면 quick 600 득점 1.42 → 1.91 ✗(하나씩 quick 300: 정지 시간 1.85 · 원터치 1.67 · 달리며 받기 1.41),
   // 슈팅 22.4 → 27.9/경기·1대1 3.3 → 7.0%·xG 보정은 ±15% 안(새 찬스는 실제로 좋은 찬스) — 총량 맞추기는 로드맵 마지막 단계 (부록 C.78b)
   receive: {
     /**
@@ -143,7 +143,7 @@ export const ENGINE = {
      * clamp(base − touchSkill × (볼 컨트롤 − 70)/100 + ballSpeed × max(0, 공 속도 − 12)/10 + press × 압박(3 m 안 가까울수록) + back × 등지고 받음 − run × 달리며 받음 + 반응 × reactMul, min, max).
      * 앞을 보고 압박 없이 받는 좋은 첫 터치는 짧고, 등지고 빠른 공을 압박 속에서 받으면 길다
      */
-    timeModel: 0,
+    timeModel: 1,
     base: 0.5,
     touchSkill: 0.6,
     ballSpeed: 0.08,
@@ -157,7 +157,7 @@ export const ENGINE = {
     /** 방향 전환 첫 터치 (timeModel 1): 수신 때 pressDist 안 상대가 있으면 정지 시간 동안 그 반대쪽(앞쪽으로 기움)으로 turnAway m 받아 놓는다. 달리며 받으면 진행 방향으로 계속 몬다 */
     turnAway: 1.5,
     /** 침투 패스를 받을 선수의 달리기 목표 = 도착점 + 패스 방향 runOn m (0 = 옛 동작: 도착점에서 멈춤, 받을 때 속도 2.3 m/s) */
-    runOn: 0,
+    runOn: 3,
     /** runOn 일 때 침투 패스 도착점에서 달리는(3 m/s+) 받을 선수가 이 거리(m) 안이면 굴려 보내지 않고 바로 받는다 */
     runSnap: 2.5,
     /**
@@ -166,7 +166,7 @@ export const ENGINE = {
      * otMul = clamp(1 − otBase − otSpeed × max(0, 공 속도 − 12)/10 − otPress × 압박 + otSkill × (볼 컨트롤 − 70)/100, otMin, 1).
      * 원터치가 아니면(유지·몰기·돌파) 공을 멈추고 timeModel 정지 시간 뒤 다시 정한다. 컨트롤 쪽 후보는 정지 시간 동안 다가오는 압박만큼 ctrlCost 를 뺀다
      */
-    oneTouch: 0,
+    oneTouch: 1,
     otBase: 0.06,
     otSpeed: 0.05,
     otPress: 0.12,

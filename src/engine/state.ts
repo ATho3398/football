@@ -83,9 +83,9 @@ export interface Agent {
   /** 상대 골을 등지고 받았다 (포스트플레이 후보, E.18 A2). 다음 결정 후 해제 */
   backToGoal: boolean;
   /** 원터치 (C.78b): 받는 순간 미리 정한 행동(다음 결정에서 그대로 실행), 원터치 슛 실행 배수와 그 유효 시각 */
-  pre?: Candidate | null;
-  otMul?: number;
-  otUntil?: number;
+  pre: Candidate | null;
+  otMul: number;
+  otUntil: number;
   /** 소유를 잃었을 때 긴급 복귀를 판단했는가 (확률 0.6 + 0.4 × 노력/100, 소유가 바뀔 때마다 새로, E.18 A3) */
   recoverUrgent: boolean;
   /** 복귀: 러닝 이상으로 달린다 (목표가 자기 골 쪽 10 m 이상) */

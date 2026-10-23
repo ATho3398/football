@@ -1028,8 +1028,8 @@ function firstTouch(s: SimState, a: Agent, fl: Flight): void {
       a.ty = clamp(a.y + uy * RC.turnAway, 1, W - 1);
     }
   }
-  // 미리 정하기: 땅볼만, 직접 모드 내 선수(결정 순간 화면)·카드 경기 내 선수는 그대로
-  if (RC.oneTouch <= 0 || fl.air || a.line === 0 || (a.spec.isMe && (s.cards || s.moments.control.mode === 'direct'))) return;
+  // 미리 정하기: 땅볼만. 내 선수는 뺀다(직접 모드 결정 순간 화면·카드와 겹치지 않게, 자동·맡기기·직접 결과가 같아야 한다)
+  if (RC.oneTouch <= 0 || fl.air || a.line === 0 || a.spec.isMe) return;
   const c = preDecide(s, a, speed, a.cooldown);
   if (!c) return;
   a.pre = c;
