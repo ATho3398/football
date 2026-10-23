@@ -6,6 +6,7 @@ const { ENGINE } = config_;
 import * as physics_ from './physics';
 const { tiredRatio } = physics_;
 import { effectiveTactics, pressLevel } from './offball';
+import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
 const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
 import * as rng_ from './rng';
@@ -16,6 +17,7 @@ import type { Agent, RestartType, SimState } from './state';
 import type { MatchEvent } from './types';
 
 const T = ENGINE.time;
+const TR = ENGINE.transition;
 
 export function event(s: SimState, type: MatchEvent['type'], team: 0 | 1, players: string[], params?: MatchEvent['params']): void {
   s.events.push({ t: Math.round(s.t * 10) / 10, type, team, players, ...(params ? { params } : {}) });
@@ -78,7 +80,8 @@ export function setOwner(s: SimState, a: Agent): void {
   b.z = 0;
   b.lastTouch = a.idx;
   b.lastTeam = a.team;
-  if (s.possTeam !== a.team) {
+  const gained = s.possTeam !== a.team;
+  if (gained) {
     s.possTeam = a.team;
     s.possSince = s.t;
     s.possOrigin = 'open';
@@ -89,6 +92,18 @@ export function setOwner(s: SimState, a: Agent): void {
   }
   a.cooldown = ENGINE.receive.timeModel > 0 ? receiveTime(s, a, inSpeed, false) : ENGINE.ball.receiveTime + reaction(a) * 0.5;
   if (a.pre) a.pre = null;
+  // 뺏은 선수는 첫 판단 정지 없음 (C.78g): 오픈 플레이 탈취 순간 미리 정하기(C.78b) — 바로 하는 행동(원터치 패스·침투·슛)이면 정지 없이, 다루기면 정지 시간 뒤
+  if (gained && TR.winPre > 0 && ENGINE.receive.oneTouch > 0 && a.line !== 0 && !a.spec.isMe) {
+    const c = preDecide(s, a, inSpeed, a.cooldown);
+    if (c) {
+      a.pre = c;
+      a.cooldown = 0;
+      if (c.type === 'shoot') {
+        a.otMul = oneTouchMul(a, inSpeed, pressureNear(s, a));
+        a.otUntil = s.t + 0.25;
+      }
+    }
+  }
   a.gotBy = 'gain';
   a.lastMoveT = -100;
   a.carryN = 0;
@@ -117,6 +132,7 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   tm.lineAtLoss = -1;
   tm.brokeAt = -100;
   if (O.exitRun > 0) exitRuns(s, team === 0 ? 1 : 0);
+  transitionMoment(s, team);
   // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록·버스 세우기는 역압박 없이 즉시 복귀
   const tendency = tm.tactics.tendency;
   if (tendency === 'counter' || tendency === 'block' || tendency === 'bus') return;
@@ -172,6 +188,43 @@ function exitRuns(s: SimState, win: 0 | 1): void {
     a.runUntil = s.t + O.supportSeconds;
     a.supportRun = true;
   }
+}
+
+/**
+ * 전환 순간 (C.78g): ① 뺏긴 팀 필드 선수는 다음 오프더볼 판단이 lossMin~lossMax 초 늦다(판단력·수비 위치선정 — 잃기 전 목표로 계속 움직이며 다시 본다)
+ * ② 뺏은 팀 최전방·출구·지원 침투는 바로 다시 판단하고, 앞을 보고 있던 선수는 공격 방향으로 이미 달리며 출발한다. 난수 없음
+ */
+function transitionMoment(s: SimState, lost: 0 | 1): void {
+
+  if (TR.lossDelay > 0) {
+    for (const a of s.agents) {
+      if (!a.onPitch || a.team !== lost || a.line === 0) continue;
+      const q = clamp(((a.judgement * 100 + a.attrs.defensivePositioning) / 2 - TR.lossRef0) / (TR.lossRef1 - TR.lossRef0), 0, 1);
+      a.nextOffball = Math.max(a.nextOffball, s.t) + TR.lossMax - (TR.lossMax - TR.lossMin) * q;
+    }
+  }
+  if (TR.startRun <= 0) return;
+  const win = (1 - lost) as 0 | 1;
+  const dir = attackDir(win, s.half);
+  let top: Agent | null = null;
+  for (const a of s.agents) if (a.onPitch && a.team === win && a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
+  for (const a of s.agents) {
+    if (!a.onPitch || a.team !== win || a.idx === s.ball.owner || !(a === top || a.exitRun || a.supportRun)) continue;
+    a.nextOffball = s.t;
+    if (a.hx * dir < TR.startFace) continue;
+    const v = TR.startRun * a.maxSpeed;
+    const sp = Math.hypot(a.vx, a.vy);
+    if (sp >= v) continue;
+    a.vx = a.hx * v;
+    a.vy = a.hy * v;
+  }
+}
+
+/** 수신 압박 비율 (preDecide 와 같은 식): pressDist m 안 가장 가까운 상대 필드 선수가 가까울수록 1 */
+function pressureNear(s: SimState, a: Agent): number {
+  let d = Infinity;
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) d = Math.min(d, Math.hypot(o.x - a.x, o.y - a.y));
+  return Math.max(0, 1 - d / ENGINE.receive.pressDist);
 }
 
 /** 지친 선수는 역압박 가담·긴급 복귀를 덜 한다 (E.20 5번): 스태미나 staminaLowFrom 아래에서 비례, 0 이면 tiredFloor */

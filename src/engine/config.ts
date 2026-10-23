@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 45;
+export const ENGINE_VERSION = 46;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -178,6 +178,44 @@ export const ENGINE = {
     ctrlClose: 4,
   },
 
+  /**
+   * 전환 순간 (C.78g): 역습이 통하는 원리 = 뺏긴 팀이 흐트러져 있다. 성공률·속도 버프 없이 판단 시각과 판단 가치만 바꾼다. 0 이면 각 동작 꺼짐(옛 동작).
+   */
+  transition: {
+    /**
+     * 뺏긴 팀 혼란: 오픈 플레이로 공을 잃은 순간 잃은 팀 필드 선수의 다음 오프더볼 판단을 lossMax − (lossMax − lossMin) × q 초 늦춘다
+     * (q = clamp(((판단력×100 + 수비 위치선정)/2 − lossRef0)/(lossRef1 − lossRef0), 0, 1)). 그동안은 잃기 전 목표(공격 자리)로 계속 움직인다 — 다시 보는 시간.
+     * 앞에서 압박하던 선수의 몸 돌리기는 이동 규칙(C.77x 뒤돌기) 그대로
+     */
+    lossDelay: 1,
+    lossMin: 0.3,
+    lossMax: 0.5,
+    lossRef0: 40,
+    lossRef1: 90,
+    /**
+     * 뺏은 선수의 첫 판단 (오픈 플레이 탈취 — 가로채기·태클·루즈볼, GK·내 선수 제외): 1 이면 탈취 순간 미리 정하기(C.78b receive.oneTouch 와 같은 식) —
+     * 바로 하는 행동(원터치 패스·침투·컷백·레이오프·슛)을 고르면 정지 없이 실행, 다루기를 고르면 수신 정지 시간 뒤 다시 정한다 (0 = 옛 동작: 늘 정지 시간)
+     */
+    winPre: 1,
+    /**
+     * 뺏은 팀 즉시 전진: 최전방(C.78a 출구)·출구 침투·역습 지원 선수는 그 순간 바로 다시 판단하고(오프더볼 갱신 대기 없음),
+     * 앞을 보고 있던(몸 방향 · 공격 방향 ≥ startFace) 선수는 공격 방향 startRun × 최고 속도로 이미 달리며 출발한다 (0 = 끔)
+     */
+    startRun: 0.6,
+    startFace: 0.3,
+    /**
+     * 뒤 공간 가치 (판단 효용만, 성공 확률 무변경): spaceFwd(정규화) 이상 앞으로 가는 패스·침투 패스의 받는 자리 가치를, 받는 곳보다 골 쪽에 있는 상대 필드 선수가
+     * spaceBack 명보다 적으면 받은 뒤 빈 곳으로 몰고 갈 거리 spaceRun × (1 − 골 쪽 인원/spaceBack) m (상대 골 spaceStop 정규화 앞까지) 앞의 위치 가치로 본다 (0 = 끔)
+     */
+    space: 1,
+    spaceFwd: 0.12,
+    spaceBack: 5,
+    spaceRun: 30,
+    spaceStop: 0.85,
+    /** 몰고 가기에도 같은 뒤 공간 가치 (앞으로 몰 때만, 빈 곳으로 더 몰 거리 = spaceCarry × spaceRun 식, 0 = 끔) */
+    spaceCarry: 0,
+  },
+
   // ── 팀 전술 층 (E.5) ──
   formation: {
     /** 줄별 x 시프트: [GK, 수비, 중원, 공격] */
@@ -259,6 +297,9 @@ export const ENGINE = {
     /** 공 소유자와 유지할 간격 (m) */
     supportMin: 12,
     supportMax: 25,
+    /** 압박받는 소유자의 지원 간격 (C.78g): 소유자에게 가장 가까운 상대가 supportPressDist m 안이면 supportMin × (1 − supportPress × (1 − 거리/supportPressDist)) (0 = 끔) */
+    supportPress: 0.5,
+    supportPressDist: 6,
     /** 침투 확률(오프더볼 갱신마다) = run × 공격 위치선정/100 × runChance */
     runChance: 0.035,
     /** 침투 확률에 곱하는 속도 보정 = 1 + runPace × (속도 − 70)/100 (빠를수록 뒷공간을 더 노린다) */

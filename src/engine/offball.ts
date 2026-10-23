@@ -690,9 +690,11 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const tiki = s.teams[a.team].tactics.tendency === 'tikitaka';
   // 빌드업 전술: 짧게일수록 지원 간격이 좁다 (E.19 ③)
   const sk = 1 + F.styleSupport * (0.5 - s.teams[a.team].tactics.style);
-  const supMin = (tiki ? TENDENCY.tikiSupport[0] : O.supportMin) * sk;
+  let supMin = (tiki ? TENDENCY.tikiSupport[0] : O.supportMin) * sk;
   const supMax = (tiki ? TENDENCY.tikiSupport[1] : O.supportMax) * sk;
   if (owner && owner.team === a.team && owner !== a && !job && !wideJob) {
+    // 압박받는 소유자 (C.78g): 가장 가까운 상대가 supportPressDist m 안이면 가까울수록 최소 간격을 supportPress 몫까지 줄인다 — 짧은 탈출 패스 각도
+    if (O.supportPress > 0) supMin *= 1 - O.supportPress * Math.max(0, 1 - nearestFieldOpp(s, owner)[1] / O.supportPressDist);
     const [ox, oy] = toNorm(owner.x, owner.y, dir);
     if (!running && a.role.drop > 0 && nx > ox) nx -= (a.role.drop * O.dropDist) / L * 0.5;
     const [px, py] = toPitch(nx, ny, dir);
