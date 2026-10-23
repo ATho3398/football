@@ -43,6 +43,14 @@ export interface GegenTeam {
   gHigh: number;
   gCounter: number;
   gSlow: number;
+  /** 높은 탈취(⅔+)의 출처: 우리 역압박 창 안 · 잃은 팀 마지막 결정 종류별 수(짧은·롱·걷기·몰기/드리블·유지·없음) · 잃은 팀 소유 시간 합 */
+  hiH: number;
+  hiBy: number[];
+  hiPossT: number;
+  /** 압박받는 결정의 판단 p 합 · 성공(같은 팀 다음 결정) 수 — [짧은, 롱, 걷기, 몰기, 유지] */
+  pP: number[];
+  pOk: number[];
+  pN: number[];
 }
 
 export interface GegenOut {
@@ -54,6 +62,7 @@ function empty(): GegenTeam {
     wins: 0, winZ: [0, 0, 0, 0], shot10Z: [0, 0, 0, 0], goal15Z: [0, 0, 0, 0], shot15: 0, behindTry: 0, behindOk: 0,
     oppTicks: 0, oppDeepTicks: 0, pressNear: 0, pDec: 0, pShort: 0, pLong: 0, pClear: 0, pCarry: 0, pHold: 0, gkDec: 0, gkLong: 0,
     lb: 0, lbNx: 0, lbBehind: 0, lbKeep: 0, lbFwd: 0, lbBehindKeep: 0, gSet: 0, gHigh: 0, gCounter: 0, gSlow: 0,
+    hiH: 0, hiBy: [0, 0, 0, 0, 0, 0], hiPossT: 0, pP: [0, 0, 0, 0, 0], pOk: [0, 0, 0, 0, 0], pN: [0, 0, 0, 0, 0],
   };
 }
 
@@ -83,10 +92,18 @@ export function gegenRun(sim: MatchSim): GegenOut {
   let curFl: Flight | null = null;
   let flInfo: { team: 0 | 1; long: boolean; nx: number; behind: boolean; behindPass: boolean } | null = null;
   let landed: { team: 0 | 1; t: number; behind: boolean; behindPass: boolean; long: boolean } | null = null;
+  const kindOf = (c: { type: string; receiver: number; x: number; y: number }, ax: number, ay: number) =>
+    c.type === 'clear' ? 2 : c.receiver >= 0 ? (dist(ax, ay, c.x, c.y) >= 30 ? 1 : 0) : c.type === 'carry' || c.type === 'dribble' ? 3 : 4;
+  /** 팀별 마지막 결정 (종류·시각) · 압박받는 결정 대기 (종류, 판단 p) */
+  const lastDec: ({ k: number; t: number } | null)[] = [null, null];
+  let pend: { team: 0 | 1; k: number } | null = null;
+  const possStart = [0, 0];
   const oldDecide = probe.decide;
   probe.decide = (st, p) => {
     const a = p.a;
     const c = p.chosen;
+    if (pend && pend.team === a.team) { out.team[a.team].pOk[pend.k]!++; pend = null; }
+    if (c.type !== 'shoot') lastDec[a.team] = { k: kindOf(c, a.x, a.y), t: st.t };
     if (st.possOrigin !== 'open' && st.restart) return;
     const T = out.team[a.team];
     if (a.line === 0) {
@@ -101,6 +118,12 @@ export function gegenRun(sim: MatchSim): GegenOut {
     if (near > 5) return;
     T.pDec++;
     if (c.type === 'shoot') return;
+    {
+      const k = kindOf(c, a.x, a.y);
+      T.pN[k]!++;
+      T.pP[k]! += c.p;
+      pend = { team: a.team, k };
+    }
     if (c.type === 'clear') T.pClear++;
     else if (c.receiver >= 0) { if (dist(a.x, a.y, c.x, c.y) >= 30) T.pLong++; else T.pShort++; }
     else if (c.type === 'carry' || c.type === 'dribble') T.pCarry++;
@@ -164,8 +187,18 @@ export function gegenRun(sim: MatchSim): GegenOut {
         const T = out.team[win];
         T.wins++;
         T.winZ[z]!++;
+        const pd = pend as { team: 0 | 1; k: number } | null;
+        if (pd && pd.team !== win) pend = null;
+        if (z === 3) {
+          if (t - 0.2 < s.teams[win].counterUntil && s.teams[win].counterPressers.length) T.hiH++;
+          const ld = lastDec[1 - win];
+          T.hiBy[ld && t - ld.t <= 4 ? ld.k : 5]!++;
+          T.hiPossT += t - possStart[1 - win]!;
+        }
+        possStart[win] = t;
         lastWin[win] = { t, z, shot10: false, shot15: false };
       }
+      if (s.possTeam !== prevPoss && s.restart) possStart[s.possTeam] = t;
       prevPoss = s.possTeam;
       // 상대 소유 틱의 압박 기회
       if (b.owner >= 0) {

@@ -60,6 +60,9 @@ opps.forEach((vs, i) => {
     console.log(`  ⒝ 압박받는 결정(자기 절반·5 m) ${pm(T.pDec)}/경기: 짧은 ${pc(T.pShort, T.pDec)} · 롱 ${pc(T.pLong, T.pDec)} · 걷기 ${pc(T.pClear, T.pDec)} · 몰기 ${pc(T.pCarry, T.pDec)} · 유지 ${pc(T.pHold, T.pDec)}% · GK 결정 ${pm(T.gkDec)} 롱 ${pc(T.gkLong, T.gkDec)}%`);
     console.log(`     자기 절반 30 m+ ${pm(T.lb)}/경기 · 착지 높이 ${(T.lbNx / Math.max(1, T.lb)).toFixed(2)} · 라인 뒤 착지 ${pc(T.lbBehind, T.lb)}% · 3초 안 유지 ${pc(T.lbKeep, T.lb)}% (공격 줄 ${pc(T.lbFwd, T.lbKeep)}%) · 라인 뒤 착지 유지 ${pc(T.lbBehindKeep, T.lbBehind)}%`);
     console.log(`  ⒞ 탈취 뒤 15초 슛 ${pc(T.shot15, T.wins)}% · 높은 라인 뒤 패스 ${pm(T.behindTry)}/경기 성공 ${pc(T.behindOk, T.behindTry)}%`);
+    const hw = T.winZ[3]!;
+    console.log(`  ⒜' 높은 탈취 ${pm(hw)}/경기: 우리 역압박 창 안 ${pc(T.hiH, hw)}% · 잃은 팀 마지막 결정 짧은/롱/걷기/몰기/유지/없음 ${T.hiBy.map((x) => pc(x, hw)).join('/')}% · 잃은 팀 소유 ${(T.hiPossT / Math.max(1, hw)).toFixed(1)} s`);
+    console.log(`  ⒝' 압박받는 결정 판단 p → 실제 성공(짧은/롱/걷기/몰기/유지): ${T.pN.map((x, j) => `${(T.pP[j]! / Math.max(1, x)).toFixed(2)}→${(T.pOk[j]! / Math.max(1, x)).toFixed(2)}`).join(' · ')}`);
     console.log(`  ⒟ 골/경기 세트 ${pm(T.gSet)} · 높은 탈취 ${pm(T.gHigh)} · 역습 ${pm(T.gCounter)} · 지공 ${pm(T.gSlow)}`);
   }
 });
