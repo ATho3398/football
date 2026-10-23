@@ -212,6 +212,14 @@ export const ENGINE = {
     spaceBack: 5,
     spaceRun: 30,
     spaceStop: 0.85,
+    /**
+     * 역습 상황 보너스 (사용자 2026-10-24 00:3x "역습 상황에 보상 점수를 좀 더"): 오픈 플레이 탈취 뒤 counterTime 초 동안
+     * k = (공보다 우리 쪽에 남은 상대 필드 선수 몫) × (1 − 상대 오프사이드 라인 정규화 높이) 일 때, 앞으로 가는 패스·침투·몰기·돌파 후보 효용에
+     * min(counterCap, counterBonus × k × 전진(정규화) × 판단 성공 확률) 을 더한다. 실패할 롱볼은 성공 확률만큼만 받는다 (0 = 끔)
+     */
+    counterBonus: 0.5,
+    counterTime: 4,
+    counterCap: 0.03,
     /** 몰고 가기에도 같은 뒤 공간 가치 (앞으로 몰 때만, 빈 곳으로 더 몰 거리 = spaceCarry × spaceRun 식, 0 = 끔) */
     spaceCarry: 0,
   },

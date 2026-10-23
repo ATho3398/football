@@ -10,7 +10,7 @@ import { pick, place, sane, sceneSim, sceneState, withEngine } from './harness';
 import type { SceneOut } from './scenes';
 
 /** 전환 순간 규칙 끔 (C.78g) */
-export const SWING_OFF = { 'transition.lossDelay': 0, 'transition.winPre': 0, 'transition.startRun': 0, 'transition.space': 0 };
+export const SWING_OFF = { 'transition.lossDelay': 0, 'transition.winPre': 0, 'transition.startRun': 0, 'transition.space': 0, 'transition.counterBonus': 0 };
 
 function layout(s: SimState, xs0: number[], xs1: number[]): void {
   for (const team of [0, 1] as const) {
