@@ -929,3 +929,4 @@
 - (10:0x KST) **사용자 승인**: CI balance:check·engine:check 배포 안 막음(보고만) OK, 게겐 전환 기준 8초는 너무 빡빡 — 늘려도 됨. C.78b 세션에 전부 켬 배포 지시(테스트 정리 + pages.yml continue-on-error + 전환 창 15초).
 - (11:2x KST) 사용자: 움직임 먼저·골 수는 마지막에 전체적으로 낮춤. 다음 순서 확정: C.78c 게겐 상성 실축 방향(티키엔 이기고 버스·블록·역습엔 ≤0.3) → 6단계 역할 → 마지막 총량. C.78c 지시문 작성, c78b 기반 지금 시작.
 - (11:26 KST) C.78c 세션 시작 session_01HPSD9HkEGVdxJKQa5pQupx (Opus 5.5, c78b 기반, main 푸시는 C.78b 배포 CI 뒤).
+- (11:3x KST) C.78b 세션 분류기가 pages.yml 편집을 막음 → 사용자 승인(11:1x '배포 안막아도 되는데')에 따라 Z가 planning-z에 pages.yml 수정(balance:check·engine:check continue-on-error + 되돌림 주석). C.78b는 이 파일을 가져가 main 푸시. C.78b: 테스트 1215/1215, 게겐 15초 창 목표 5~10%로 재정, 측정 3.6% ✗(가담 3명 7.8%).

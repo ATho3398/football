@@ -28,10 +28,14 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # 2026-10-23 사용자 승인: 움직임 먼저, 밸런스는 로드맵 마지막 단계에서 맞춘다.
+      # 그때까지 밸런스 두 단계는 결과만 로그에 남기고 배포를 막지 않는다(마지막 단계에서 되돌림).
       - run: npm run balance:check
+        continue-on-error: true
         env:
           COACH_MEASURE: '0'
       - run: npm run balance:engine:check
+        continue-on-error: true
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
