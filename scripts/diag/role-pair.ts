@@ -31,8 +31,11 @@ for (const a of all) {
 }
 const use = groups.length ? groups : Object.keys(GROUPS);
 
+// ROLES=crackWinger,classicWinger (C.78i): 그 역할만 (생략하면 전부)
+const only = process.env.ROLES ? process.env.ROLES.split(',') : null;
+const roleList = (g: string) => ROLE_OPTIONS[g]!.filter((r) => !only || only.includes(r));
 const plan: { group: string; role: string }[] = [];
-for (const g of use) for (const role of ROLE_OPTIONS[g]!) plan.push({ group: g, role });
+for (const g of use) for (const role of roleList(g)) plan.push({ group: g, role });
 const jobs: MatchJob[] = [];
 for (const { group, role } of plan) {
   const G = GROUPS[group]!;
@@ -56,7 +59,7 @@ for (const g of use) {
   console.log('| 역할 | 득실차 | ±SE | 대비 평균 | 득점 | 실점 | 평균 x | 공격 x | 수비 x | 측면 거리 | 박스% | 최종1/3% | 공간 m | 터치 | 침투 | 슈팅 | 패스 | 롱% | 드리블 | 크로스 | 태클+인터셉트 | 이동 km |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   const rows: { role: string; gd: number; se: number; line: string; split: string }[] = [];
-  for (const role of ROLE_OPTIONS[g]!) {
+  for (const role of roleList(g)) {
     const xs = outs.slice(i * n, (i + 1) * n);
     i++;
     const gds = xs.map((m, k) => (k % 2 === 0 ? m.homeGoals - m.awayGoals : m.awayGoals - m.homeGoals));
