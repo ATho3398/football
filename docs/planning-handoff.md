@@ -1001,3 +1001,4 @@
 - (10/26 20:55 KST) C.78k main **d1eff39** 푸시(planning-aa docs 4개 병합 포함). test 단계 확인 21:20(C.78k 자체).
 - (10/26 21:01 KST) **C.78l 준비 완료**(25d8485): 원인 = balance:check가 커리어 720개를 한 스레드로(99분). worker_threads 병렬·중복 24개 제거(720→696)·같은 순서로 합침, pages.yml에 balance job 분리(배포는 balance 안 기다림, continue-on-error 그대로 — C.78j가 deploy needs에 balance 추가로 차단 복구), $GITHUB_STEP_SUMMARY 가드 표. 같은 커밋 출력 80줄 한 글자도 같음(15/15). 예상 CI: 배포 약 10분, balance job 30~40분(옛 약 2시간). **AA: 푸시 ㄱ**(main d1eff39 merge 후).
 - (10/26 21:20 KST) **C.78j 중간 질문**: 기준 quick 600 득점 2.55/팀·12 m 밖 선방 61.7%, xG 구간 보정은 이미 맞음(+37% 사라짐). saveBase만 올리면 슛이 GK 빈 순간으로 몰려 효과 없음, timeReach 올리면 장면 ④ 깨짐. 원인: 12 m 밖 실점 절반이 스위퍼 GK가 슛 순간 8.4 m 앞·슛 선 밖(sweeperMin 8 m 하한). **AA 결정**: GK 자리 수정 승인, 단 ④ GK 클래식 교체 금지·컷백 선방 ≤0.2 등 실축 기준 유지 → 깊이 ≤3 m는 중앙 슛 각도일 때만, 측면·바이라인은 기존 규칙; 기하 의존 값만 근거 적고 재측정; ④ 깨지면 빼고 다른 레버로.
+- (10/26 21:32 KST) run 300(C.78k) 취소 → run 301(c99b840, C.78l+k) 진행. C.78k draft_. 누수 카운트 3/5(C.78i 뒤 h·i·k).
