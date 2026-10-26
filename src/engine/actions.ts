@@ -1008,6 +1008,9 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       a.dribbleT = -100;
       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
+      // C.78m: 받는 틱에 공을 받은 선수 발밑으로 (C.78e win 분기와 같음 — runOn 2.5 m 안 바로 받기에서 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
+      b.x = a.x;
+      b.y = a.y;
       if (fl.quick) a.cooldown = reaction(a);
       passer.stats.passesCompleted++;
       s.teams[passer.team].stats.passesCompleted++;

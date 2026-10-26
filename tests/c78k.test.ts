@@ -90,9 +90,13 @@ describe('C.78k ① 키커가 교체·퇴장해도 재개가 사라지지 않는
 
 describe('C.78k ② 하프타임 뒤 전반 시각이 남지 않는다', () => {
   it('전반 추가시간 슛 뒤 후반 첫 슛은 리바운드가 아니고, 원터치·커버·역압박 등 전반 시각이 후반으로 이어지지 않는다', () => {
-    const s = createState(input(5));
     // 전반 추가시간 안 (s.t > 2700): 되돌아간 시계 기준 미래 시각이 되는 구간
-    runTo(s, s.halfEnd - 20);
+    // C.78m(엔진 51): seed 5 는 halfEnd − 20 뒤 재개를 기다리다 하프타임을 넘김(준비 단계 시드 의존) → 전반에 남는 첫 시드
+    const s = [5, 6, 7, 8, 9].map((sd) => {
+      const x = createState(input(sd));
+      runTo(x, x.halfEnd - 20);
+      return x;
+    }).find((x) => x.half === 1)!;
     expect(s.t).toBeGreaterThan(ENGINE.time.halfSeconds);
     expect(s.half).toBe(1);
     // 전반 끝: 팀 0 공격수가 상대 박스에서 슛, 원터치 실행 중·돌파 후 커버 중·역압박 중 (엔진이 쓰는 그 필드들)
