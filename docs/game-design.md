@@ -6596,6 +6596,16 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
+### C.78o 44h단계 직접 모드 맡기기 = 자동 경기(미해결 7, Opus 1차): **재현 안 됨 → 원인은 C.75h 에서 이미 사라진 "자동 경기만 결정 순간 카드 자동 사용"으로 확인, 엔진 코드 변경 없이 회귀 테스트만** (ENGINE_VERSION 51 그대로 · BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 변경 0, 같은 시드 30경기 지문 `da8991c27fbc6e27` = origin/main ff57f24a)
+
+**1. 재현(지금 main ff57f24a)**: 같은 입력으로 자동 1회 + 직접 모드 화면 경로(정책 없이 멈춤 → `resolve('delegate')`, 하프타임은 변경 없음) 1회를 틱마다 맞대어(공·선수 위치·쿨다운·`duelNext`·점수) 첫 갈림 틱을 찾았다(`scripts/diag/c78o-direct.ts`). 포지션군 ST·WING·CM·CB·FB·CAM × 카드 있음/없음 × 정지 important/all, 정책 경로(`policy: () => 'delegate'`)까지(`c78o-sweep.ts`·`c78o-cb.ts`) — **100경기+ 갈림 0**(1대1 수비 `duel`/`press` 정지가 있는 CB·CM 경기 포함).
+
+**2. 원인(옛 커밋 비교)**: C.75h 직전(84a7f0a3^)에서 같은 비교 → 카드 덱을 든 경기만 CB·CM 4/12 갈림, 카드 없는 경기 0. C.75h(84a7f0a3)에서 0/12. 갈림은 난수 호출 순서나 `duelNext` 가 아니라 **자동 경기만 결정 순간에 카드를 자동으로 쓰던 옛 F.5 규칙**(`autoCardDuel` 1대1 태클 카드·`autoCardDecide` 소유 카드) — 직접 모드 맡기기는 카드를 쓰지 않아 1대1 장면부터 갈렸다. C.75h `BALANCE.cards.autoMoments: false`(자동 경기 결정 순간 카드 금지)로 이미 해소. 결정 정지 쪽은 카운터 기반 난수(`rand(seed, tick, idx, purpose)`)라 호출 순서와 무관하고, 정지·재개가 자동 경기 상태를 바꾸는 곳도 찾지 못했다.
+
+**3. 회귀 테스트** `tests/c78o.test.ts`: CB·CM 카드 경기 4개(정지 important/all, CB 는 1대1 정지 1회 이상 확인) — 직접 전부 맡기기 = 자동의 점수·이벤트열·선수 기록 완전 일치. **C.75h 직전 커밋에서 4/4 실패**(점수 1-3 대 2-1 등), C.75h·지금 main 에서 통과.
+
+**4. 관문**: 지문 불변 ✓(엔진 무변경) · typecheck ✓ · npm test 149 파일 1255 ✓(장면 테스트·직접 모드 정지/재개/맡기기 기존 테스트 `moments`·`c75h`·`c75k` 포함) · 밸런스 측정 불필요(지문 불변). 예외 처리: `autoMoments: true`(측정 비교용 옛 규칙)로 되돌리면 다시 갈린다 — 의도된 차이.
+
 ### C.78m 44h단계_총량 2차 — GK 자리 공–골 선 위로(엔진관리자10 재진단 가설 1 단독): **`keeperTarget()` 기본 자리를 "기준점(상대 소유자, 없으면 공) → 골 가운데 선 위 깊이 d 인 점"으로(`keeper.arcSet` 1, 0 = 옛 사각 격자) — c78m-chance 120 발 슛 득점 1.85 → 1.45 · 12 m 밖 선방 64.4 → 75.0% · quick 600 득점 2.34 → 2.13 · 12 m 밖 선방 66.4 → 73.4% ✓ · receive 분기 공 발밑(순간이동 가드), 총량은 아직 목표(1.25~1.45) 밖 → C.78n(가설 2)** (ENGINE_VERSION 50 → **51**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진 설정·GK 자리 규칙만)
 
 지시: `docs/session-prompts/C.78m.md`(마스터 AB). 근거 `docs/engine-diagnosis-c78m.md` §3·§4·§5 가설 1. 브랜치 `claude/c78m-keeper`(origin/main 8f81ffb + `claude/engine-manager-10` 병합). `PATCH_LABEL` = `C.78m`, `STAGE_LABEL` 그대로. Opus 5.5 높음.
