@@ -21,7 +21,8 @@ function rm(group: string, seed: string, rounds: number) {
 describe('직접 모드 전부 맡기기 = 자동 경기 (C.78o, 미해결 7)', () => {
   // 수정 전(C.75h 직전 커밋)에는 CB·CM 카드 경기 넷 중 넷이 갈렸다 (scripts/diag/c78o-sweep.ts)
   it.each([
-    ['CB', 'same', 0, 'important'],
+    // C.78q(엔진 54): 라운드+0 경기는 1대1 수비 멈춤이 안 나와(장면 시드 의존) +2 로 — 비교 단언은 그대로
+    ['CB', 'same', 2, 'important'],
     ['CB', 'same', 1, 'all'],
     ['CM', 'same', 0, 'important'],
     ['CM', 'same', 1, 'all'],
