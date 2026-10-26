@@ -1010,3 +1010,4 @@
 - (10/26 23:0x KST) 엔진관리자10 지시문(docs/session-prompts/엔진관리자10.md): 득점 출처(GK 슛 선 밖 찬스 — 수비 쪽인지 공격 쪽인지, 움직임 유지 조건), 미해결 3·4·5 같은 뿌리 여부, 짧은 패스. 산출 docs/engine-diagnosis-c78m.md.
 - (10/26 23:06 KST) **엔진관리자10 시작 session_01LbN446N2RRYWdKBX7gd82q**(Opus, claude/engine-manager-10, c78j 기반, 3h·15달러). automation.md 엔진관리자 ID 갱신. 엔진관리자9(Fable) draft_ 대상(깨우지 않음).
 - (10/26 23:31 KST) **C.78j 배포 완료**(main 8f81ffb, run 302 deploy 23:14, ENGINE 50). C.78j draft_. **누수 카운트 5/5 → 점검 필요**(h·i·k·l·j). 진행 중: 엔진관리자10.
+- (10/26 23:32 KST) **누수 점검 5/5 → 0/5**: football 끝난 세션 모두 draft_(C.78h·i·j·k·l, 엔진관리자9), 남은 football 예약 없음(켜진 예약 2건은 블리치 마스터N — 손대지 않음). 비용 h 15.2·i 10.8·k 10.3·l 5.3·j 15.3달러(j 상한 20 안, h는 예산 12~15 근소 초과). 컨텍스트 50만 넘은 세션 없음(AA 약 50만 근처면 교체 검토). 진행: 엔진관리자10.
