@@ -1008,3 +1008,4 @@
 - (10/26 22:1x KST) **사용자: 피로 "추천대로"** → 그대로(perMatch90 30·회복 유지, 로테이션 유도 의도로 기록, 피로 테스트는 지금 시드 유지). C.78j에 전달.
 - (10/26 23:04 KST) **C.78j 준비 끝·부분 해결**(8c5694f, ENGINE 50): keeper.setLine(슛 거리·골 앞 각도·수비 앞섬일 때 GK 깊이 ≤3 m, 측면·12 m 안·단독 돌파는 옛 자리) + diveSpeed 4→6 + blockProbe 회수 분리. quick 600 득점 2.55→2.34·12 m 밖 선방 61.7→66.4%, scoring 리그 2.23·30골+ 6.2, engine:check 실패 12(평점은 총량 따라 오름, 계수 무변경). 장면 39/39 ✓, test 1,250 ✓, 비용 12.9달러. 되돌리기 안 함(1안). **AA: 푸시 ㄱ**.
 - (10/26 23:0x KST) 엔진관리자10 지시문(docs/session-prompts/엔진관리자10.md): 득점 출처(GK 슛 선 밖 찬스 — 수비 쪽인지 공격 쪽인지, 움직임 유지 조건), 미해결 3·4·5 같은 뿌리 여부, 짧은 패스. 산출 docs/engine-diagnosis-c78m.md.
+- (10/26 23:06 KST) **엔진관리자10 시작 session_01LbN446N2RRYWdKBX7gd82q**(Opus, claude/engine-manager-10, c78j 기반, 3h·15달러). automation.md 엔진관리자 ID 갱신. 엔진관리자9(Fable) draft_ 대상(깨우지 않음).
