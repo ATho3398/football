@@ -116,6 +116,8 @@ export interface Agent {
   };
   /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
   cardBoost?: { tackle: number; air: number };
+  /** 공을 잡은 시각 (C.78k 유지 가치 감소: 서 있는 동안 줄어든다) */
+  ballT: number;
   /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */
   gotBy: 'receive' | 'gain';
   lastMoveT: number;

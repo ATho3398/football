@@ -91,7 +91,9 @@ describe('C.78k ① 키커가 교체·퇴장해도 재개가 사라지지 않는
 describe('C.78k ② 하프타임 뒤 전반 시각이 남지 않는다', () => {
   it('전반 추가시간 슛 뒤 후반 첫 슛은 리바운드가 아니고, 원터치·커버·역압박 등 전반 시각이 후반으로 이어지지 않는다', () => {
     const s = createState(input(5));
-    runTo(s, s.halfEnd - 3);
+    // 전반 추가시간 안 (s.t > 2700): 되돌아간 시계 기준 미래 시각이 되는 구간
+    runTo(s, s.halfEnd - 20);
+    expect(s.t).toBeGreaterThan(ENGINE.time.halfSeconds);
     expect(s.half).toBe(1);
     // 전반 끝: 팀 0 공격수가 상대 박스에서 슛, 원터치 실행 중·돌파 후 커버 중·역압박 중 (엔진이 쓰는 그 필드들)
     const dir = attackDir(0, 1);
@@ -190,15 +192,17 @@ function myInput(seed: number, where: 'lineup' | 'bench', mm: { start: number; e
 
 describe('C.78k ⑤ 경기 중 부상 퇴장 (myMinutes.end < 90)', () => {
   it('공을 가진 채 부상이면 경기를 멈추고 그 팀 간접 프리킥으로 재개 (공 주인 없는 채로 두지 않는다)', () => {
-    const { input: inp, myId } = myInput(41, 'lineup', { start: 0, end: 30 });
+    const { input: inp, myId } = myInput(41, 'lineup', { start: 0, end: 90 });
     const s = createState(inp);
-    runTo(s, 30 * 60 - 0.25);
+    runTo(s, 25 * 60);
     const me = s.agents.find((a) => a.id === myId)!;
     expect(me.onPitch).toBe(true);
+    // 경기 전 부상 판정이 정한 퇴장 분 = 지금 (공을 가진 순간)
+    s.input.myMinutes = { start: 0, end: s.t / 60 };
     setOwner(s, me);
     me.cooldown = 10;
-    while (me.onPitch) step(s);
-    expect(s.t / 60).toBeLessThan(30.1);
+    step(s);
+    expect(me.onPitch).toBe(false);
     const r = s.restart!;
     expect(r).not.toBeNull();
     expect(r.type).toBe('freeKick');
@@ -275,4 +279,29 @@ describe('C.78k ⑥ 내 선수 투입 예약: 팀당 3명 + 출전 보장', () =
       expect(me.enteredAt).toBeGreaterThanOrEqual(70 * 60 - 1);
     }
   });
+});
+
+describe('C.78k ⑦ 경기 정지: 압박 없는 소유자가 공을 무한히 쥐지 않는다', () => {
+  // 기준 코드(eaebab6)에서 이 로스터는 상대가 블록 성향이면 자기 진영 CB 가 'hold' 를 매번 골라 공을 무한히 쥐었다 (시드 36: 후반 45분 내내, 시드 12: 37분)
+  const rh = createTeamRoster({ id: 'h', rating: 75 }, 'rules-h', 2018, []);
+  const ra = createTeamRoster({ id: 'a', rating: 75 }, 'rules-a', 2018, []);
+  for (const seed of [12, 36]) {
+    it(`시드 ${seed}: 한 선수가 공을 연속으로 쥔 최장 시간 30초 미만, 후반 패스가 이어진다`, () => {
+      const s = createState({ home: teamSetupFromRoster(rh, 75, 75), away: teamSetupFromRoster(ra, 75, 75), mode: 'auto', difficulty: 'normal', seed, bigMatch: false });
+      let o = -2;
+      let since = 0;
+      let longest = 0;
+      let passesAt60 = 0;
+      while (!s.done) {
+        step(s);
+        if (s.ball.owner !== o || s.restart) {
+          o = s.ball.owner;
+          since = s.elapsed;
+        } else if (o >= 0) longest = Math.max(longest, s.elapsed - since);
+        if (!passesAt60 && s.t >= 60 * 60) passesAt60 = s.teams[0].stats.passes + s.teams[1].stats.passes;
+      }
+      expect(longest).toBeLessThan(30);
+      expect(s.teams[0].stats.passes + s.teams[1].stats.passes - passesAt60).toBeGreaterThan(100);
+    });
+  }
 });
