@@ -146,6 +146,18 @@ export function selectScenes(r: Replay): Scene[] {
   };
   take(goals.sort((a, b) => a.key - b.key));
   take(decisions.sort(byWeight), HL.maxDecisions);
+  // 결정 장면 1칸 보장 (C.78k, 마스터 AA): 골이 칸을 다 채웠거나 시간대가 겹쳐 결정 장면이 하나도 못 들어갔으면
+  // 가장 낮은 우선순위 골 1개(상대 골 먼저, 그 안에서 이른 것)를 빼고 들어갈 수 있는 가장 중요한 결정 장면을 넣는다
+  if (decisions.length && !chosen.some((c) => c.kind === 'decision')) {
+    const order = chosen.filter((c) => c.kind === 'goal').sort((a, b) => (a.team === my ? 1 : 0) - (b.team === my ? 1 : 0) || a.key - b.key);
+    for (const g of order) {
+      const rest = chosen.filter((c) => c !== g);
+      const d = decisions.find((c) => rest.every((x) => Math.abs(x.key - c.key) >= HL.gap));
+      if (!d) continue;
+      chosen.splice(chosen.indexOf(g), 1, d);
+      break;
+    }
+  }
   // 상대 주요 공격 1~2개 자리를 남긴다 (상대 전술 확인용)
   const oppSlots = Math.min(2, oppAttacks.length);
   const reserve = Math.max(0, HL.maxScenes - oppSlots);
