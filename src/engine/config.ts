@@ -115,8 +115,8 @@ export const ENGINE = {
     passSpeedMax: 26,
     /** 공중볼(크로스, 롱볼) 평균 속도 */
     airSpeed: 18,
-    /** 슈팅 속도 (능력치와 무관, E.20 7번: 마무리 능력은 마무리 배수 한 곳에서). C.78n: 29 → 25 실축 보정(실축 평균 19~25 m/s, 29 고정 = 모든 슛이 강슛) — quick 600 득점 2.13 → 1.85 */
-    shotSpeed: 25,
+    /** 슈팅 속도 (능력치와 무관, E.20 7번: 마무리 능력은 마무리 배수 한 곳에서). C.78n: 25 시험(quick 600 2.13 → 1.85)은 장면 ④ 빠른 컷백 선방 0.34·⑬·㉘ 슛 선택을 깨서 되돌림 */
+    shotSpeed: 29,
     controlDist: 0.9,
     controlMaxSpeed: 12,
     /** 받기 (C.24): 받을 선수가 snapReceive m 안이면 바로 소유, 그 밖이면 reserveRoll m/s 로 굴려 보내고 reserveCatch m 안에서 잡는다.
@@ -1382,7 +1382,7 @@ export const ENGINE = {
     /** 판단용 기대 선방: 실행 구석 분포(난수 × cornerRange)를 이 개수 점의 평균으로 (timeModel 1) */
     cornerQuad: 4,
     /** 대응 시간 모델 δ 시간 항의 기준 (초): 반응 뒤 남은 시간이 이만큼이면 거리 항 0 (GK 깊이 3 m · 반응 0.1 에서 약 17 m 슛) */
-    availRef: 0.3, // C.78n: 0.4 → 0.3 (가설 2(b), 슛 속도 25 위 quick 600 1.85 → 1.77)
+    availRef: 0.4, // C.78n: 0.3 시험(슛 속도 25 위 1.85 → 1.77)은 장면 ④·⑬·㉘ 을 더 깨서 되돌림
     /** 밀집 슛 (C.77z): 3 m 안 상대 필드 선수 둘째부터 한 명마다 유효 슈팅 확률 −shotCrowd (판단·실행 같은 pOn) */
     shotCrowd: 0.08,
     reactBase: 0.1,
