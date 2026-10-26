@@ -6596,6 +6596,15 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
+### C.78l 44h단계 CI 밸런스 점검 속도·요약(Opus 1차): **balance:check 커리어 시뮬을 워커 병렬로(판정 그대로) · 밸런스 두 단계를 build 와 따로 도는 `balance` job 으로 · 가드 표를 실행 요약 화면(`$GITHUB_STEP_SUMMARY`)에** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 측정 스크립트·workflow 만, 수치·세이브 무변경)
+
+1. **분해(CI 실행 299, eaebab6)**: build job 118분 = test 7분 + **balance:check 99분** + balance:engine:check 11분 + 나머지 1분. balance:check(COACH_MEASURE=0)는 커리어 720개를 **한 스레드에서 차례로** 돌렸다: 가상 유망주 2전략 × 5티어 × 48시드 480 · 레전더리 35세 추가 시드 48 · 실제 선수 3명 × 12 = 36 · A등급 18명 × 6 = 108 · [C.42 이적] 정책 비교 2정책 × 2티어 × 12 = 48(그중 정책 stay 24개는 본 표본 앞 12시드와 같은 계산). 커리어끼리는 시드만으로 정해지는 독립 계산이다. engine:check 는 이미 워커 병렬.
+2. **속도**: 커리어 시뮬을 `scripts/balance/career.ts`(작업 명세 = 종류·티어·시드·전략·정책·측정 모드 → 결과)로 옮기고, `scripts/balance.ts` 는 필요한 커리어를 먼저 모두 모아 **같은 명세는 한 번만**(720 → 696개) `scripts/balance/pool.ts`(engine pool 과 같은 esbuild 묶음 + worker_threads, `WORKERS` 기본 코어 수, 0 이면 메인 스레드)로 돌린 뒤, 출력·가드 계산은 C.78l 전과 같은 순서로 결과를 명세로 찾는다. 측정 모드(코치 풀 투자·평범한 지출·기록 보상·대표팀)는 전역 변수 대신 작업마다 명세로 넘긴다. 측정용 덮어쓰기(VET·ONECLUB·COACH_SCALE·MED_SCALE·COACH_XP)는 career.ts 맨 위라 워커에도 같이 적용. 표본 수·가드 기준은 그대로.
+3. **결정성(같은 출력)**: ① 같은 커밋 eaebab6 의 CI 실행 299 balance:check 출력 80줄과 새 코드(3워커) 출력이 **한 글자도 같음**(15/15 통과, 30세 OVR 75 / 85.8 / 70 / 82.1 · 부상 0.8 · 레전더리 35세 900+ 22/96 등) ② 작은 표본(SEEDS=2 등)·COACH_MEASURE 켬(코치·경제·기록 보상·대표팀 측정 줄 포함)으로 옛 스크립트 대 새 스크립트 출력 같음.
+4. **시간**: 로컬(4코어, 3워커, 다른 실행과 CPU 공유) balance:check 34.6분. CI(4코어)에서 약 25~30분 예상. 그리고 밸런스 두 단계를 `balance` job 으로 떼어 build 와 동시에 돌리므로, **배포는 밸런스를 기다리지 않는다**(build ≈ test 7분 + 1분 → 배포 약 10분, 옛 약 2시간). continue-on-error(보고만)는 그대로 — 로드맵 마지막 단계(C.78j 몫)에서 CI 차단을 되돌릴 때 `deploy` 의 `needs` 에 `balance` 를 더한다(pages.yml 주석).
+5. **요약**: `scripts/balance/summary.ts` — CI(`GITHUB_STEP_SUMMARY` 있을 때)만 가드마다 통과·이름·값·기준·비고 표를 쓰고 실패를 맨 위에. balance:check 는 회귀 가드 전부, balance:engine:check 는 경량 가드 행·스탯 반응·순간이동(알려진 미해결은 비고, 판정은 기존과 같음 — 로컬 확인: 실패 10개 = 로그 "[경량 가드] 실패 10개"). 로컬 출력은 그대로.
+6. 디자인 없는 새 화면/패널: 없음.
+
 ### C.78i 44h단계 윙어 수비 면제 비용·풀백 오버래핑(미해결 4, Opus 1차): **면제선 `roles.exemptAttX` 0.5 → 0.62(윙어 평소 수비 깊이 약 0.61 위 — 면제가 실제로 작동) · 상대 풀백 오버래핑(`offball.fbOverlap`, 앞 측면 길이 비고 남은 수비가 충분하면 공 앞 측면 길로 전진, 한 팀 한 쪽, 공격 성향·침투 성향·체력 반영 — 그 측면 상대 윙어가 면제 아니고 가까우면 따라오므로 확률 ×0.3, 남은 공격수가 풀백을 묶는 조건도 그대로) · 오버래핑 풀백에게는 달리기 목표(앞 측면 길)로 패스 · 면제 아닌 측면 선수는 오버래핑 풀백을 골 쪽에서 따라 내려옴 · 기준 장면 ㉙ ✓ — 동작 관문: 면제 작동 ✓ · 크랙형 상대 측면 풀백 전진 ↑ ✓ · 크랙형 실점 > 정통 ✗(2.76 대 2.81, 오버래핑이 슛·골로 안 이어짐 → 미해결 4 재진단, 마스터 AA "움직임 관문 3/4로 배포")** (ENGINE_VERSION 47 → **48**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진 설정·선수 상태 필드 1개(`overlap`, 경기 안에서만 씀), 세이브 구조 무변경)
 
 지시: `docs/session-prompts/C.78i.md`(마스터 AA). 브랜치 `claude/c78i-winger`(claude/c78h-shot-lane da78010 위, C.78g+h 포함). `PATCH_LABEL` = `C.78i`, `STAGE_LABEL` 그대로. Opus 5.5 높음.
