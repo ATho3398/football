@@ -1011,3 +1011,17 @@
 - (10/26 23:06 KST) **엔진관리자10 시작 session_01LbN446N2RRYWdKBX7gd82q**(Opus, claude/engine-manager-10, c78j 기반, 3h·15달러). automation.md 엔진관리자 ID 갱신. 엔진관리자9(Fable) draft_ 대상(깨우지 않음).
 - (10/26 23:31 KST) **C.78j 배포 완료**(main 8f81ffb, run 302 deploy 23:14, ENGINE 50). C.78j draft_. **누수 카운트 5/5 → 점검 필요**(h·i·k·l·j). 진행 중: 엔진관리자10.
 - (10/26 23:32 KST) **누수 점검 5/5 → 0/5**: football 끝난 세션 모두 draft_(C.78h·i·j·k·l, 엔진관리자9), 남은 football 예약 없음(켜진 예약 2건은 블리치 마스터N — 손대지 않음). 비용 h 15.2·i 10.8·k 10.3·l 5.3·j 15.3달러(j 상한 20 안, h는 예산 12~15 근소 초과). 컨텍스트 50만 넘은 세션 없음(AA 약 50만 근처면 교체 검토). 진행: 엔진관리자10.
+
+### 8.59 AA 정리 (2026-10-26 23:3x KST, AA 교체 — 대화 52만 토큰, 비용 약 24.5달러)
+- AA 동안 배포: C.78g(전환 순간·역습 보너스)·C.78h(슛 궤적 차단)·C.78i(윙어 면제·풀백 오버래핑) → run 299 · C.78k(엔진 정합성 7건 + 경기 정지 결함)·C.78l(CI 병렬화·요약, 푸시→배포 약 9분) → run 301 · C.78j(GK 슛 거리 깊이 setLine·diveSpeed 6, 부분 해결) → run 302. **main 8f81ffb, ENGINE 50**, 테스트 1,250, 장면 ①~㉙(39개).
+- 사용자 결정·규칙(AA 동안): ① **코딩 세션 병렬 2개까지**(10/26 19:5x, automation 0번) ② 피로 그대로(perMatch90 30, 로테이션 유도) ③ "움직임 유지하고 득점만" — 공격 움직임을 줄여야 하는 처방이면 **사용자에게 먼저 묻는다**(AA 약속) ④ 외부 리뷰 6건 수긍/반박 → C.78k로 처리 ⑤ 마지막 보고 시각 **10/26 19:05 KST**.
+- 현재 수치(quick 600): 득점 팀당 2.34(목표 1.25~1.45) · 12 m 밖 선방 66.4%(68~76) · 슛 15.6 · scoring 리그 2.23 · engine:check 실패 12(평점은 총량 따라 오름, 계수 무변경). 전역 실행 레버로는 1.35 불가(C.78j 판단, 판단=실행 구조).
+- 아직 완화 중인 테스트 기준: engine.test 득점 상한 3.1(→2.5) · 선방률 하한 0.45, 표본 144경기(→0.55) · 이동 거리 14.5 km(→14) · CI balance·engine:check continue-on-error(deploy needs에 balance 추가로 복구, pages.yml 주석).
+- 진행 중: **엔진관리자10** `session_01LbN446N2RRYWdKBX7gd82q`(Opus, claude/engine-manager-10, 지시문 docs/session-prompts/엔진관리자10.md) — 득점 출처(GK 슛 선 밖 찬스 팀당 1.12개 → 0.68골, 수비 쪽/공격 쪽), 미해결 3·4·5 같은 뿌리 여부, 짧은 패스. 산출 docs/engine-diagnosis-c78m.md.
+- 누수 점검 0/5(23:32 완료). 다른 프로젝트(블리치 마스터N) 예약은 손대지 않는다.
+
+### 8.60 다음 마스터 세션(AB)이 할 일
+- 제목 `AB_축구 커리어 게임 마스터`, 브랜치 `claude/planning-ab`(planning-aa 최신에서). 로그는 8.61에.
+- 먼저 읽기: CLAUDE.md, docs/automation.md 0번, 이 문서 8.58 끝부분~8.60, docs/engine-issues.md 맨 위 로드맵·"C.78j 결과 · 재진단 의뢰".
+- 시작 처리: ① AA(`session_018XxYnHYMrMm11h6ffmGz44`)에 "AB 준비 완료 + ID" ② 엔진관리자10에 "보고는 AB(ID)로, 답장 불필요"(priority later) ③ AA 제목 앞 `draft_` ④ AA에 걸린 예약 확인(list_triggers, persistent_session_id가 AA인 것 delete) ⑤ 8.61에 기록·푸시.
+- 다음: 엔진관리자10 처방 받기 → **처방이 공격 움직임을 줄이는 쪽이면 사용자에게 먼저 묻기**, 수비 쪽이면 C.78m(총량 2차 + 되돌리기: 기준 3개·CI 차단 복구) 연다(지시문 형식 C.78k.md·C.78j.md 참고) → ChatGPT 검수 결과가 사용자에게서 오면 재진단에 합침. 병렬 2개까지.
