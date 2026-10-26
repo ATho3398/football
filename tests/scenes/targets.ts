@@ -33,8 +33,9 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
   // C.77z: 같은 슛 GK 가운데 대 비킴 선방 차 ≥ 0.25 · 느린 횡패스 뒤 GK 복귀 선방 ≥ 0.35 대 빠른 컷백 ≤ 0.2 · 빈 골문 ≥ 0.8 · 1대1 0.3~0.5 · 밀집(3명) ≤ 0.12
   keeper: {
     goal: '④ GK 대응 시간 — 가운데/비킴, 느린 횡패스/빠른 컷백, 빈 골문·1대1·밀집 (4단계)', enabled: true, both: true,
-    // C.78m(마스터 AB 승인): GK 기본 자리가 공–골 선 위(arcSet)라 수치가 움직임 → 실축 순서·범위로: 느린 횡패스 선방 > 빠른 컷백 · 빠른 컷백 ≤ 0.2 · 1대1 0.3~0.5 · 빈 골 ≥ 0.9 · 밀집 ≤ 0.1
-    check: (v) => v.centerSave! - v.asideSave! >= 0.25 && v.slowSave! > v.fastSave! && v.fastSave! <= 0.2
+    // C.78m(마스터 AB 승인 2026-10-27 00:22): GK 기본 자리가 공–골 선 위(arcSet)라 측면 패서를 향한 시작점이 골라인·가까운 포스트 쪽으로 바뀌어
+    // 빠른 컷백 선방 0.169 → 0.220 → 실축 순서·범위로: 느린 횡패스 − 빠른 컷백 ≥ 0.3 · 빠른 컷백 ≤ 0.25 · 1대1 0.3~0.5 · 빈 골 ≥ 0.9 · 밀집 ≤ 0.1
+    check: (v) => v.centerSave! - v.asideSave! >= 0.25 && v.slowSave! - v.fastSave! >= 0.3 && v.fastSave! <= 0.25
       && v.emptyGoal! >= 0.9 && v.oneOnOneGoal! >= 0.3 && v.oneOnOneGoal! <= 0.5 && v.crowdGoal! <= 0.1,
   },
   // C.77y 켬: 열림 백패스 ≤ 3% · 실수(gap 밖) 0 · 이유는 압박 탈출/보존뿐 / 막힘은 백패스·옆 패스가 남음
