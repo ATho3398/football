@@ -992,3 +992,4 @@
 - (10/26 19:05 KST) **사용자 "크레딧 없어서 미뤄놓은 거 보고"** → 보고함(아래 답변 요약: C.78j 대기, Fable 보류분은 Opus 로드맵으로 처리됨, 재진단 후보 목록, 보류 미해결 1·7, 50단계 15차 디자인 대기). 7일 한도 10/26 19:00 풀림. **마지막 보고 시각: 2026-10-26 19:05 KST**.
 - (10/26 19:4x KST) 사용자가 외부 리뷰 엔진 결함 6건 전달 → AA 코드 대조: 1·2·3·4 수긍(1은 aiSubs가 재개 대기 중에만 돌아 자연 경기에서도 발생 가능), 5 전제 틀림(myMinutes.end<90은 경기 전 부상일 때만 → 즉시 퇴장 의도, 남은 건 공 소유 중 부상 퇴장의 중단 없는 owner=-1·교체권 없을 때 재배치 누락), 6 설계(실제로 4번 교체 가능).
 - (10/26 19:5x KST) **사용자 "진행, 추천대로, 코딩 세션 병렬 2개까지"** → automation.md 0번에 병렬 2개 규칙. 순서: **C.78k 정합성(엔진) ∥ C.78l CI 속도·요약(scripts·workflow)** → C.78j 총량(k 뒤, 측정이 k에 의존). 지시문 docs/session-prompts/C.78k.md·C.78l.md.
+- (10/26 19:55 KST) **C.78k 시작 session_01V5iWabcmCxBXa4hcWSkQpf**(claude/c78k-integrity, main eaebab6 기반, ENGINE 49, 2.5h·12달러) · **C.78l 시작 session_012tkRQGzQxVkytE5cGrZTjq**(claude/c78l-ci, scripts·workflow만, 2h·10달러). main 푸시는 먼저 끝난 쪽부터 AA "푸시 ㄱ". 그 뒤 C.78j(지시문 AA·현재 되돌릴 값으로 갱신 후).
