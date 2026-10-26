@@ -998,3 +998,4 @@
 - (10/26 20:53 KST) **C.78k 준비 완료**(d71b04f, ENGINE 49): 테스트 1250/1250, 회귀 20개(수정 전 20/20 실패), 결정성 ✓(b7252d68d0c3), 2초 테스트 1063/1014 ms. 항목: ① pickTaker/takerReady(PK=penaltyTaker) ② resetHalfClocks(시간축 s.t 하나, 출전 시간만 elapsed) ③ 개인 stats.saves ④ substitute(…, at: SubSlot)·playerLost 분리 ⑤ 공 가진 부상 → 그 팀 간접 프리킥·injury 이벤트 ⑥ reservedSubs/availableSubs ⑦ holdFresh. 하이라이트 결정 장면 1칸 보장. **AA: 푸시 ㄱ**(main eaebab6 그대로).
 - (10/26 20:5x KST) C.78j.md 갱신(마스터 AA, 기반 c78k d71b04f, 현재 득점 2.7~2.8·되돌릴 값 3.1/0.45(144경기)/14.5, ⒜ 탈취 정의 ⒝ xG 구간 ⒞ 피로 원인 추가, CI 차단 복구는 C.78l main 반영 뒤). 사용자 "추천대로"(k 먼저 → j) + 병렬 2개(l 진행 중) → C.78j 지금 시작.
 - (10/26 20:55 KST) **C.78j 시작 session_01AidMvyoDJvwhWjn6sWLbst**(claude/c78j-balance, c78k d71b04f 기반, 4h·20달러). 병렬: C.78l(CI). C.78l에 k main 반영·j 병렬 알림. C.78k는 main 푸시 중 → CI test 확인 후 draft_.
+- (10/26 20:55 KST) C.78k main **d1eff39** 푸시(planning-aa docs 4개 병합 포함). test 단계 확인 21:20(C.78k 자체).
