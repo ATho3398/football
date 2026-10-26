@@ -795,7 +795,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // 슛이 골이 아니면(빗나감·선방·블록) 공은 대개 상대 골 앞에서 상대에게 간다: 다른 후보와 같은 식 U = P × V + (1 − P) × C (E.22 C)
       const shotLoss = O.shotLoss ? loss(0.97, 0.5) : 0;
       const longShot = dist(a.x, a.y, gx, gy) > ENGINE.roles.longShotDist ? a.role.pref.longShot : 1;
-      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk);
+      // 판단 보정 (C.78p): 열린 찬스 슛 선호 — 효용에만, 실행·xG 는 그대로
+      const sBias = shootBias(m, goalAngle(a.x, a.y, gx));
+      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias;
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
       // 각도 만들기 (C.78h): 슛 길이 막혔으면(블록 > 0) 옆으로 laneCarry m 치는 몰기 — 그 자리 슛 가치(수비는 따라온다 — 압박·밀집은 지금 자리, 슛 길 콘·각도는 도착점, GK 는 laneCarryTime 초 동안 자리를 옮김)가 지금 슛보다 클 때만, 도착점 가치 = 그 슛 가치
       if (O.laneCarry > 0 && m.pBlock > 0) {
@@ -804,13 +806,17 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
           const cy = clamp(a.y + sd * O.laneCarry, 1, W - 1);
           const [nx, ny] = toNorm(cx, cy, dir);
           const qEnd = loseProb(s, a, cx, cy);
-          const sv = shotModel(s, a, false, { x: cx, y: cy }, O.laneCarryTime, true).value;
-          if (sv <= m.value) continue;
+          const mT = shotModel(s, a, false, { x: cx, y: cy }, O.laneCarryTime, true);
+          const sv = mT.value;
+          // 판단 보정 (C.78p): 친 뒤 쏠 슛의 선호도 같이 본다 (도착점 슛 보정 대 지금 슛 보정) — 효용에만
+          const bT = shootBias(mT, goalAngle(cx, cy, gx));
+          if (sv + bT <= m.value + sBias) continue;
           const value = sv * (1 - qEnd) + qEnd * loss(nx, ny);
+          const valueU = value + bT * (1 - qEnd);
           const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
           const p = cp(a);
           const pj = judgedP(p, cp(av));
-          out.push({ type: 'carry', p, u: weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk), x: cx, y: cy, receiver: -1, value });
+          out.push({ type: 'carry', p, u: weight(pj * valueU + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk), x: cx, y: cy, receiver: -1, value });
         }
       }
       if (ot) {
@@ -825,7 +831,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
           otNow = null;
         }
         const tikiO = tac.tendency === 'tikitaka' && mO.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
-        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk);
+        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk) + shootBias(mO, goalAngle(a.x, a.y, gx));
         ot.out.push({ type: 'shoot', p: mO.xg, u: uO, x: gx, y: gy, receiver: -1, value: mO.value, ot: true });
       }
     }
@@ -859,7 +865,25 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const pLose = loseProb(s, a);
   const holdU = weight((1 - pLose) * here * holdFresh(s, a) + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold);
   out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
+  // 판단 보정 (C.78p): 슛 밖 행동은 상황 함수 1 (기본값 0 = 끔)
+  for (const c of out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];
+  if (ot) for (const c of ot.out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];
   return out;
+}
+
+/**
+ * 판단 보정 — 슛 선호 (C.78p, ENGINE.decide.bias.shoot): 열린 찬스일수록 큰 효용 보너스.
+ * 상황 함수 = 거리(shootNear m 안 1 → shootFar m 0) × 슛 레인(1 − 블록/shootLaneRef) × 각도(goalAngle/shotAngleRef) × (1 − shootPress × 압박).
+ * 판단에 보이는 특징만 쓰고 GK 자리·점수·시간은 안 본다 (GK 가 빈 순간으로 슛이 몰리지 않게). 판단 효용에만 더하고 실행·xG 는 그대로
+ */
+export function shootBias(m: ShotModel, angle: number): number {
+  const DB = ENGINE.decide.bias;
+  if (!DB.shoot) return 0;
+  const fd = clamp((DB.shootFar - m.d) / (DB.shootFar - DB.shootNear), 0, 1);
+  const fl = clamp(1 - m.pBlock / DB.shootLaneRef, 0, 1);
+  const fa = Math.min(1, angle / PR.shotAngleRef);
+  const fp = clamp(1 - DB.shootPress * m.pressure, 0, 1);
+  return DB.shoot * fd * fl * fa * fp;
 }
 
 /**

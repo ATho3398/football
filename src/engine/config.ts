@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 52;
+export const ENGINE_VERSION = 53;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -115,8 +115,9 @@ export const ENGINE = {
     passSpeedMax: 26,
     /** 공중볼(크로스, 롱볼) 평균 속도 */
     airSpeed: 18,
-    /** 슈팅 속도 (능력치와 무관, E.20 7번: 마무리 능력은 마무리 배수 한 곳에서). C.78n: 25 시험(quick 600 2.13 → 1.85)은 장면 ④ 빠른 컷백 선방 0.34·⑬·㉘ 슛 선택을 깨서 되돌림 */
-    shotSpeed: 29,
+    /** 슈팅 속도 (능력치와 무관, E.20 7번: 마무리 능력은 마무리 배수 한 곳에서). C.78n: 25 시험(quick 600 2.13 → 1.85)은 장면 ④ 빠른 컷백 선방 0.34·⑬·㉘ 슛 선택을 깨서 되돌림.
+     *  C.78p: 29 → 27 — 판단 보정(decide.bias.shoot)과 짝(슛 선택은 보정이 지킴). 25 는 12 m 밖 선방 86% · 1대1 골 < 0.25(availRef 0.2 위) */
+    shotSpeed: 27,
     controlDist: 0.9,
     controlMaxSpeed: 12,
     /** 받기 (C.24): 받을 선수가 snapReceive m 안이면 바로 소유, 그 밖이면 reserveRoll m/s 로 굴려 보내고 reserveCatch m 안에서 잡는다.
@@ -911,6 +912,36 @@ export const ENGINE = {
     shotScale: 1,
   },
 
+  // ── 판단 보정 (C.78p, 사용자 2026-10-27 02:2x "특정 상황에서 그 행동을 할 때 주는 보상을 임의로 늘려 선택을 더 하게") ──
+  decide: {
+    /**
+     * 행동 선호 보정: 판단(choose) 효용에만 더하는 보너스 = 행동별 기본값(골 단위 효용) × 상황 함수(0~1, 판단에 보이는 특징만).
+     * 실행 확률·결과(성공 판정·xG·선방)에는 들어가지 않는다 — 실행 레버를 내려 그 행동을 덜 고르게 된 만큼만 되살린다(결과 할당 아님).
+     * 상황 함수: shoot = 열린 찬스(거리 × 슛 레인 × 각도 × 압박), 나머지 = 1(아직 안 씀). 0 = 끔
+     */
+    bias: {
+      /** C.78p: 0.14 — 실행 레버(슛 속도 27 · availRef 0.2 · shotBase 0.62)로 판단 xG 가 내려가 장면 ⑬(침투 수신 → 슛 0.2)·㉘(열린 쪽 슛 0) 이 깨진 만큼 되살림 */
+      shoot: 0.14,
+      pass: 0,
+      through: 0,
+      cutback: 0,
+      layoff: 0,
+      holdup: 0,
+      carry: 0,
+      dribble: 0,
+      cross: 0,
+      clear: 0,
+      hold: 0,
+      /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
+      shootNear: 13,
+      shootFar: 18,
+      /** 슛 레인: 1 − 블록 확률 / shootLaneRef (0 아래 0) — 막힌 레인은 보정 없음 */
+      shootLaneRef: 0.45,
+      /** 압박: 1 − shootPress × 압박(0~1) */
+      shootPress: 0.3,
+    },
+  },
+
   // ── 확률 모델 (E.8) ──
   prob: {
     /**
@@ -1007,8 +1038,8 @@ export const ENGINE = {
     finishMax: 1.25,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
-    /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②) */
-    shotBase: 0.665,
+    /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②). C.78p: 0.665 → 0.62 — 판단 보정과 짝(0.58·0.60 은 장면 ④ 1대1 골 < 0.25) */
+    shotBase: 0.62,
     shotPerM: 0.015,
     shotPressure: 0.15,
     /**
@@ -1382,7 +1413,7 @@ export const ENGINE = {
     /** 판단용 기대 선방: 실행 구석 분포(난수 × cornerRange)를 이 개수 점의 평균으로 (timeModel 1) */
     cornerQuad: 4,
     /** 대응 시간 모델 δ 시간 항의 기준 (초): 반응 뒤 남은 시간이 이만큼이면 거리 항 0 (GK 깊이 3 m · 반응 0.1 에서 약 17 m 슛) */
-    availRef: 0.4, // C.78n: 0.3 시험(슛 속도 25 위 1.85 → 1.77)은 장면 ④·⑬·㉘ 을 더 깨서 되돌림
+    availRef: 0.2, // C.78n: 0.3 시험(슛 속도 25 위 1.85 → 1.77)은 장면 ④·⑬·㉘ 을 더 깨서 되돌림. C.78p: 0.4 → 0.2(근거리에서 GK 가 덜 쫓김) — 판단 보정과 짝, 0.15 는 1대1 골 0.23
     /** 밀집 슛 (C.77z): 3 m 안 상대 필드 선수 둘째부터 한 명마다 유효 슈팅 확률 −shotCrowd (판단·실행 같은 pOn) */
     shotCrowd: 0.08,
     reactBase: 0.1,
