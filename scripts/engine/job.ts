@@ -27,6 +27,7 @@ import { setEnvironmentFixed } from '../../src/weather';
 import { transRun, type TransOut } from './transProbe';
 import { gegenRun, type GegenOut } from './gegenProbe';
 import { blockRun, type BlockOut } from './blockProbe';
+import { boxRun, type BoxOut } from './boxProbe';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -94,6 +95,8 @@ export interface MatchJob {
   gegen?: boolean;
   /** 깊은 블록 분해 (C.78d blockProbe): 허용 슛 위치·xG·블록 · 수비 모양 · 줄 사이 수신 · 자기 ⅓ 탈취 뒤 역습 */
   block?: boolean;
+  /** 박스 수신 분해 (C.78p boxProbe): 박스로 가는 패스·박스 수신 수비 거리·받은 뒤 3초·12 m 안 슛 앞 장면, 박스 안 수비 인원별 */
+  box?: boolean;
 }
 
 export interface SeasonJob {
@@ -147,6 +150,7 @@ export interface MatchOut {
   trans?: TransOut;
   gegen?: GegenOut;
   block?: BlockOut;
+  box?: BoxOut;
 }
 
 export interface SeasonOut {
@@ -345,6 +349,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const trans = j.trans ? transRun(sim) : undefined;
     const gegen = j.gegen ? gegenRun(sim) : undefined;
     const block = j.block ? blockRun(sim) : undefined;
+    const box = j.box ? boxRun(sim) : undefined;
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -364,6 +369,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(trans ? { trans } : {}),
       ...(gegen ? { gegen } : {}),
       ...(block ? { block } : {}),
+      ...(box ? { box } : {}),
     };
   } finally {
     restore();
