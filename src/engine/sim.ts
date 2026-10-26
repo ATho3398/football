@@ -17,7 +17,7 @@ import * as rating_ from './rating';
 const { computeRatings } = rating_;
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
-import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
+import { event, kickoffPositions, kickoffTaker, nearestTaker, penaltyTaker, setOwner, setRestart } from './core';
 import { keeperFlightDue, refreshErrors, transitionTick, updateOffball, updateSituations } from './offball';
 import { candidates, choose, judgementOf, notePassive } from './onball';
 import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, slipPick, takeMoment, type Moment, type MomentChoice } from './moments';
@@ -149,8 +149,23 @@ export function createState(input: EngineInput): SimState {
   return s;
 }
 
+/** 재개 키커 다시 고르기 (C.78k): 종류별 원래 선정 규칙 (킥오프 = 가장 앞선 선수, PK = 지정 키커, 그 밖 = 공에 가장 가까운 선수). 없으면 −1 */
+function pickTaker(s: SimState, r: NonNullable<SimState['restart']>): number {
+  if (r.type === 'kickoff') return kickoffTaker(s, r.team)?.idx ?? -1;
+  if (r.type === 'penalty') return penaltyTaker(s, r.team);
+  return nearestTaker(s, r.type, r.team, r.x, r.y);
+}
+
+/** 키커가 경기장에 있는가 (교체·퇴장으로 빠졌으면 false) */
+function takerReady(s: SimState, r: NonNullable<SimState['restart']>): boolean {
+  const t = s.agents[r.taker];
+  return !!t && t.onPitch && t.team === r.team;
+}
+
 function executeRestart(s: SimState): void {
   const r = s.restart!;
+  // 키커가 빠졌으면 (C.78k) 같은 팀에서 다시 고른다. 고를 사람이 없을 때만 재개를 버린다
+  if (!takerReady(s, r)) r.taker = pickTaker(s, r);
   const taker = s.agents[r.taker];
   s.restart = null;
   for (const a of s.agents) a.paceCap = 0;
@@ -197,11 +212,16 @@ function executeSetPiece(s: SimState): void {
 function restartDue(s: SimState): boolean {
   const r = s.restart!;
   const R = ENGINE.restart;
-  let taker = s.agents[r.taker];
-  if (!taker || !taker.onPitch) {
-    executeRestart(s);
-    return false;
+  // 키커가 교체·퇴장으로 빠졌다 (C.78k): 재개는 그대로 두고 같은 팀 대체 키커가 공으로 간다 (PK 는 지정 키커 규칙)
+  if (!takerReady(s, r)) {
+    const pick = pickTaker(s, r);
+    if (pick < 0) {
+      executeRestart(s);
+      return false;
+    }
+    r.taker = pick;
   }
+  let taker = s.agents[r.taker]!;
   if (dist(taker.x, taker.y, r.x, r.y) < R.takerReach) return runRestart(s);
   r.at0 ??= r.at;
   if (s.t >= r.at0 + R.lateMax) {
@@ -348,6 +368,8 @@ function ballOut(s: SimState): void {
 
 function startSecondHalf(s: SimState): void {
   s.half = 2;
+  // 시계가 되돌아가는 폭 (전반 추가시간)
+  const back = s.t - T.halfSeconds;
   s.t = T.halfSeconds;
   const added2 = 60 * (T.addedSecond[0] + Math.floor(rand(s.seed, 1, 0, Purpose.Added) * (T.addedSecond[1] - T.addedSecond[0] + 1)));
   s.halfEnd = 2 * T.halfSeconds + added2;
@@ -371,10 +393,59 @@ function startSecondHalf(s: SimState): void {
     a.trackOut = -1;
     a.stepOutIdx = -1;
     a.stepOutUntil = 0;
+    // C.78k: 원터치(미리 정한 행동·실행 배수), 몰고 가다 슛 의도, 측정용 몰고 가기·돌파 시각, 소극적 백패스 소유 순번(possStartT 가 후반 시각과 겹칠 수 있다)
+    a.pre = null;
+    a.otUntil = -1;
+    a.intent = null;
+    a.lastMoveT = -100;
+    a.dribbleT = -100;
+    a.carryN = 0;
+    a.rt.passivePoss = undefined;
+    a.rt.passiveSeq = undefined;
+    a.rt.passiveCtr = undefined;
     a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover * s.env.recover);
   }
+  resetHalfClocks(s, back);
   kickoffPositions(s, 1);
   setRestart(s, 'kickoff', 1, L / 2, W / 2, 0);
+}
+
+/**
+ * 하프타임 시각 초기화 (C.78k): 시계(s.t)가 전반 추가시간(예 2840초)에서 2700초로 돌아가므로, s.t 로 잰 "이 시각까지 유효"·"마지막으로 ~한 시각"을
+ * 경기 시작 때 값으로 되돌린다. 그대로 두면 후반 초반 최대 약 2분 동안 전반 끝 사건이 방금 일어난 일로 읽힌다
+ * (리바운드 슛·결정 순간 분류, 원터치 배수, 돌파 후 커버, 역압박·역습·전환 수비 창, 어시스트 후보 패스 등).
+ * 하프타임은 경기 중단이라 진행 중이던 결정 순간·카드 판정도 여기서 닫는다 (경기 끝과 같은 방식). 카드 드로우 일정만 경기 시간으로 이어 간다
+ */
+function resetHalfClocks(s: SimState, back: number): void {
+  s.lastShotT = [-100, -100];
+  s.lastPass = null;
+  s.possSince = s.t;
+  s.possStartT = s.t;
+  for (const tm of s.teams) {
+    tm.counterUntil = 0;
+    tm.counterPressers = [];
+    tm.wonAt = -100;
+    tm.lostAt = -100;
+    tm.lineAtLoss = -1;
+    tm.brokeAt = -100;
+    tm.coverUntil = 0;
+    tm.coverAgent = -1;
+    tm.sitSince = s.t;
+    tm.sitCandSince = s.t;
+  }
+  settleMoment(s, true);
+  const ms = s.moments;
+  ms.lastStopT = -100;
+  ms.relief = null;
+  const cs = s.cards;
+  if (cs) {
+    cardsFinish(s);
+    cs.lastOccT = -100;
+    cs.lastTackleT = -100;
+    cs.react = null;
+    for (const c of cs.combos) c.armedT = s.t;
+    if (cs.started) cs.nextDraw -= back;
+  }
 }
 
 function finish(s: SimState): void {

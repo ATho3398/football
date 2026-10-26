@@ -9,7 +9,7 @@ const { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } = pitch_
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import type { Agent, CardType, SimState } from './state';
-import { bestBench, emergencyKeeper, substitute } from './subs';
+import { availableSubs, bestBench, emergencyKeeper, substitute } from './subs';
 
 const R = ENGINE.referee;
 const N = 0.5;
@@ -27,17 +27,21 @@ export function sendOff(s: SimState, a: Agent): void {
   a.stats.red = true;
   s.teams[a.team].stats.reds++;
   if (s.ball.owner === a.idx) s.ball.owner = -1;
+  playerLost(s, a);
+}
+
+/**
+ * 교체 없이 한 명이 빠졌다 (퇴장, 교체권 없는 부상 — C.78k): GK 면 벤치 GK 교체(공격수 1명 대신) 또는 필드 선수 GK,
+ * 아니면 같은 줄 간격을 다시 나눈다. 그 뒤 수적 열세 재배치
+ */
+export function playerLost(s: SimState, a: Agent): void {
   if (a.line === 0) {
-    const gk = s.teams[a.team].subsLeft > 0 ? bestBench(s, a.team, 'GK') : null;
+    const gk = availableSubs(s, a.team) > 0 ? bestBench(s, a.team, 'GK') : null;
     const out = s.agents.filter((x) => x.onPitch && x.team === a.team && x.line !== 0 && !x.spec.isMe).sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
     if (gk && gk.gk && out) {
-      // 공격수 1명을 빼고 벤치 GK 투입 (빠진 자리는 GK 슬롯으로)
+      // 공격수 1명을 빼고 벤치 GK 를 빠진 GK 자리에 (C.78k: 나가는 공격수의 포지션·줄은 그대로 두고, 새 GK 가 GK 포지션·슬롯을 받는다)
       const outLine = out.line;
-      out.pos = 'GK';
-      out.line = 0;
-      out.sx = 0.04;
-      out.sy = 0.5;
-      substitute(s, out, gk);
+      substitute(s, out, gk, { pos: 'GK', line: 0, sx: 0.04, sy: 0.5, slot: a.stats.slot });
       respace(s, a.team, outLine);
     } else emergencyKeeper(s, a.team);
     shortHanded(s, a.team);

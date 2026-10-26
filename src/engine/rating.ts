@@ -38,7 +38,7 @@ export interface RatingParts {
   red: number;
   /** 수비/중원/GK 만 센 실점 */
   conceded: number;
-  /** GK 만 (교체로 나갔으면 절반) */
+  /** 본인 선방 (C.78k: 팀 선방이 아니라 GK 로 뛴 동안 실제로 막은 수) */
   saves: number;
   cleanSheet: number;
   /** 1 승 / 0 무 / −1 패 */
@@ -89,7 +89,7 @@ export function ratingParts(s: SimState, a: Agent, duration: number, final = fal
     yellows: st.yellows,
     red: st.red ? 1 : 0,
     conceded: a.line <= 2 ? rt.conceded : 0,
-    saves: a.line === 0 ? s.teams[a.team].stats.saves * (a.leftAt !== null ? 0.5 : 1) : 0,
+    saves: st.saves,
     cleanSheet: a.line <= 1 && ga === 0 && minutes >= R.cleanSheetMinMinutes ? 1 : 0,
     result: gf > ga ? 1 : gf < ga ? -1 : 0,
     ...(rt.card ? { card: rt.card } : {}),
