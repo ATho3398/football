@@ -270,7 +270,7 @@ describe('결정 순간 개선 (C.40, pending 39 5항)', () => {
   it('최소 정지 보장 없음: "결정적 순간만"은 0회 경기도 된다, 자동 모드는 멈추지 않는다', () => {
     const counts: number[] = [];
     for (const grp of ['CDM', 'FB']) {
-      const g = game(grp, 'c78e-zero-3'); // C.78e(엔진 45): c77k-zero-2 최소 5회라 c78e-zero-0 → C.78c·C.78d 병합·받는 틱 공 붙임 뒤 c78e-zero-3(CDM 0·FB 2회; c78e-zero-0~7 중 1·2·3·4·7) 으로. C.77k(엔진 39): c77g-zero-3 최소 6회라 c77k-zero-2 로. C.77d: 엔진 37 에서 c40-zero 는 최소 4회라 시드 교체, C.77g(엔진 38) 뒤 c77d-zero-1 도 최소 4회라 c77g-zero-3(2·6회)으로 (장면 시드 의존)
+      const g = game(grp, 'c78j-zero-0'); // C.78j(엔진 50, GK 슛 거리 깊이): c78e-zero-3 최소 5회라 c78j-zero-0(CDM 1·FB 6회; c78j-zero-0~7 중 0·2·3·4·6) 으로. C.78e(엔진 45): c77k-zero-2 최소 5회라 c78e-zero-0 → C.78c·C.78d 병합·받는 틱 공 붙임 뒤 c78e-zero-3(CDM 0·FB 2회; c78e-zero-0~7 중 1·2·3·4·7) 으로. C.77k(엔진 39): c77g-zero-3 최소 6회라 c77k-zero-2 로. C.77d: 엔진 37 에서 c40-zero 는 최소 4회라 시드 교체, C.77g(엔진 38) 뒤 c77d-zero-1 도 최소 4회라 c77g-zero-3(2·6회)으로 (장면 시드 의존)
       const rm = startedRound(g);
       counts.push(playMyMatch({ ...rm.input, cards: { deck: [] }, control: { mode: 'direct', stop: 'critical', policy: () => 'delegate' } }).engine.decisions.length);
       expect(playMyMatch({ ...rm.input, control: { mode: 'auto', stop: 'all', policy: () => 'delegate' } }).engine.decisions.length).toBe(0);
