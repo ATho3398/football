@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 53;
+export const ENGINE_VERSION = 54;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -395,8 +395,9 @@ export const ENGINE = {
      * 위협 가중 수비 (C.76a, 미해결 8·11 — 사용자 제안): 마커 수는 늘리지 않고 이미 있는 주의를 마무리 좋은 선수 쪽으로 옮긴다.
      * 능력 계수 = clamp((finishSkill(슈팅) − focusAbilityCenter) / focusAbilityRange, −0.5, 1) (85 짜리 ST 0.75, 생성 75 팀 ST 약 0.25).
      * focusThreat 위협도 += focusAbilityW × 계수 (85 짜리 +0.22 = 골에서 11 m 더 먼 자리에서도 위협 1위; C.76w 가설 3 의 0.5 는 효과 없어 되돌림)
+     * C.78q: 0.3 → 0 — 마무리 능력이 오르면 집중 1위가 ST 로 옮겨 ST 슛 −16%·골 −2~−8%(미해결 1 반응 뒤집힘). 엘리트 몫은 focusTight·focusDoubleMin 이 맡는다
      */
-    focusAbilityW: 0.3,
+    focusAbilityW: 0,
     focusAbilityCenter: 70,
     focusAbilityRange: 20,
     /** 위협 1위의 마크 거리 = stMark × focusMark × (1 − focusTight × 계수) (85 짜리 ≈ 0.9 m, 약한 마무리는 조금 느슨; C.76w 가설 3 의 0.45 는 같은 시드 scoring 30골+ 3.3 → 4.1 로 효과 없어 되돌림) */
@@ -793,8 +794,9 @@ export const ENGINE = {
      */
     landShare: 1,
     landScale: 0.6,
-    /** 되찾은 세컨드볼의 가치 몫: 착지점 루즈볼은 경합 중이라(다음 결정 전 다시 빼앗길 수 있음) 그 자리 가치의 일부만 (롱패스 실패분에만) */
-    landKeep: 0.4,
+    /** 되찾은 세컨드볼의 가치 몫: 착지점 루즈볼은 경합 중이라(다음 결정 전 다시 빼앗길 수 있음) 그 자리 가치의 일부만 (롱패스 실패분에만).
+     *  판단 전용 항(candidates() 패스 효용만, 실행 무관). C.78q: 0.4 → 0.1 — 짧게 지키는 점유 가치가 가치표에 안 보여 롱이 21% 로 많던 것을 판단 보정(롱 15%, 롱 성공 46~49% 유지) */
+    landKeep: 0.1,
     /** 압박 탈출 = backEscape × 압박(pressureAt + 2.5 m 안 둘째 상대부터 backEscapeExtra 씩, 상한 1) × (1 − 받는 선수 수신 압박) */
     backEscape: 0.012,
     backEscapeExtra: 0.25,
