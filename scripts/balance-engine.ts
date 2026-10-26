@@ -9,6 +9,7 @@
 import { analyze, buildSets, guardFailures, guardKnown, runSets } from './engine/suite';
 import { printResult, writeReport } from './engine/report';
 import { countTeleports } from './engine/teleport';
+import { writeStepSummary, type GuardRow } from './balance/summary';
 
 const argv = process.argv;
 const light = argv.includes('--light');
@@ -34,6 +35,19 @@ if (light) {
   const known = guardKnown(r);
   if (known.length) console.log(`\n[경량 가드] 알려진 미해결 ${known.length}개 (실패로 세지 않음):\n  ${known.join('\n  ')}`);
   console.log(fails.length ? `\n[경량 가드] 실패 ${fails.length}개:\n  ${fails.join('\n  ')}` : '\n[경량 가드] 모두 통과');
+  // C.78l: CI 실행 요약 표 (알려진 미해결은 통과로 세고 비고에 적는다 — 위 판정과 같음)
+  const rows: GuardRow[] = [
+    ...r.rows.filter((row) => row.guard).map((row) => ({
+      name: row.label, value: row.value.toFixed(row.digits), min: row.guard![0], max: row.guard![1],
+      ok: !!row.known || (row.value >= row.guard![0] && row.value <= row.guard![1]),
+      note: row.known && !(row.value >= row.guard![0] && row.value <= row.guard![1]) ? `알려진 미해결: ${row.known}` : '',
+    })),
+    ...r.responses.filter((x) => x.guard !== undefined).map((x) => ({
+      name: `스탯 반응 ${x.target} ${x.metric}`, value: x.change.toFixed(2), min: x.guard!, max: '', ok: x.change >= x.guard!,
+    })),
+    { name: `순간이동 (${tp.matches}경기: 선수·공·킥오프 진영 밖)`, value: `${tp.player} · ${tp.ball} · ${tp.kickoffOut}`, min: 0, max: 0, ok: !(tp.player || tp.ball || tp.kickoffOut) },
+  ];
+  writeStepSummary(rows, 'balance:engine:check 경량 가드');
   if (check && fails.length) process.exit(1);
 }
 process.exit(0);

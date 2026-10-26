@@ -31,22 +31,18 @@ const OVR30_TARGET: Record<Strategy, Partial<Record<Tier, [number, number]>>> = 
   random: { normal: [68, 72], legendary: [79, 83] },
 };
 
-import { FIELD_ATTRIBUTES } from '../src/attributes';
 import {
-  autoAllocate, playerOvr, raiseAttribute, raiseBlock, reputationTier, TIERS_ASC, TIER_NAMES_KO,
+  reputationTier, TIERS_ASC, TIER_NAMES_KO,
 } from '../src/growth';
-import { autoMarket, newGame, playRound, selectableRealPlayers, startNextSeason, type GameState } from '../src/game';
+import { selectableRealPlayers } from '../src/game';
 import { BALANCE } from '../src/config/balance';
-import { isOutside } from '../src/transfer';
-import { PLAYABLE_POSITIONS } from '../src/positions';
-import { createRng } from '../src/rng';
-import { autoStaff, CHOICE_CATS, ensureMoney, flowsIn, flowsOut } from '../src/money';
-import { assetScore, autoSpend, careerNet, netWorth } from '../src/wealth';
+import { assetScore } from '../src/wealth';
 import type { InjuryGrade, Tier } from '../src/types';
-import { setEnvironmentFixed } from '../src/weather';
+import { END_AGE, jobKey, type CareerJob, type CareerMode, type Policy, type Run, type Strategy } from './balance/career';
+import { runCareers } from './balance/pool';
+import { writeStepSummary } from './balance/summary';
 
-// 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
-setEnvironmentFixed(true);
+// 측정은 맑음·보통 심판 고정 (부록 C.74a)·측정용 덮어쓰기(VET·ONECLUB·COACH_SCALE·MED_SCALE·COACH_XP)는 scripts/balance/career.ts (워커도 같이)
 
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 const SEEDS_PER_TIER = Number(env.SEEDS ?? 48);
@@ -56,10 +52,7 @@ const LEGEND_SEEDS = Number(env.LEGEND_SEEDS ?? 96);
  * 내 선수 이적 정책 (C.42): stay = 제안 모두 거절·재계약 (C.41 까지와 같은 한 팀 커리어), best = 레이팅 +2 이상·주전/로테이션 제안 중 최고 수락.
  * 회귀 가드는 POLICY(기본 stay)로 판정하고, 다른 정책은 [C.42 이적] 측정 줄에 따로 보여 준다
  */
-const POLICY = (env.POLICY ?? 'stay') as 'stay' | 'best';
-/** 측정용: 고령 XP 감쇠 덮어쓰기 (C.49), 예 VET='[[30,0.7],[32,0.5]]' */
-if (env.VET) (BALANCE.matchXp as { veteranMultiplier: [number, number][] }).veteranMultiplier = JSON.parse(env.VET);
-if (env.ONECLUB !== undefined) (BALANCE.badges as { oneClubEnabled: boolean }).oneClubEnabled = env.ONECLUB === '1';
+const POLICY = (env.POLICY ?? 'stay') as Policy;
 /**
  * 스태프 정책 (C.68a): none = 스태프 없음 (C.67 까지와 같은 경로, 회귀 가드 판정 기본), full = 슬롯이 비면 모집·고용하는 코치 풀 투자 (autoStaff).
  * 기본 실행은 가드 뒤에 [C.68 재정] 줄로 full 도 매번 잰다 (마스터 P 2026-10-19: 레전더리 35세 900+ 13/48 = 0.271 — 기준선 12/48 이 경계라
@@ -70,123 +63,58 @@ const COACH = (env.COACH ?? 'none') as 'none' | 'full';
  * 기록 보상 (C.74b, pending 77-10): 회귀 가드는 보상 끔(RECORDS 기본 off — 기록 추적·달성 판정만 돌고 XP·위상 0), 보상 켬은 가드 뒤 [C.74b 기록 보상] 측정 줄.
  * 레전더리 35세 900+ 기준선 12/48 = 0.25 경계를 XP 보상이 크기와 무관하게(5~20 모두) 시드 하나(legendary-26, 856 → 939)로 넘긴다 — C.68a 코치와 같은 처리
  */
-const RECORD_REWARD = structuredClone(BALANCE.records.reward) as Record<string, [number, number]>;
-const setRecordReward = (on: boolean) => {
-  const r = BALANCE.records.reward as unknown as Record<string, [number, number]>;
-  for (const k of Object.keys(RECORD_REWARD)) r[k] = on ? [...RECORD_REWARD[k]!] : [0, 0];
-};
-setRecordReward(env.RECORDS === 'on');
+const RECORDS = env.RECORDS === 'on';
 /**
  * 대표팀 (C.76d): 회귀 가드는 대표팀 끔(NATIONAL 기본 off — 소집 확률 0, 대회 명단 없음), 켬은 가드 뒤 [C.76d 대표팀] 측정 줄.
  * 레전더리 30세까지 900+ 기준선 9/48 = 0.1875 경계를 대표팀 경기(A매치 출전 48경기, 월드컵 우승 없음)가 시드 하나(legendary-26, 887 → 920)로 넘긴다 — C.68a 코치·C.74b 기록 보상과 같은 처리
  */
-const NATIONAL_CALLUP = structuredClone(BALANCE.national.callup) as Record<string, number>;
-const setNational = (on: boolean) => {
-  const c = BALANCE.national.callup as unknown as Record<string, number>;
-  for (const k of Object.keys(NATIONAL_CALLUP)) if (k !== 'minAge') c[k] = on ? NATIONAL_CALLUP[k]! : 0;
-};
-setNational(env.NATIONAL === 'on');
-let coachMode: 'none' | 'full' = COACH;
-/** C.68b 경제 점검: 코치 풀 투자 + 평범한 지출(autoSpend). 코치 측정 줄과 따로 돌린다 (기부가 위상을 올려 900+ 비율 비교가 흐려지지 않게) */
-let spendMode = false;
+const NATIONAL = env.NATIONAL === 'on';
+/** 회귀 가드 판정 모드 */
+const BASE: CareerMode = { coach: COACH, spend: false, records: RECORDS, national: NATIONAL };
 /**
  * 코치 풀 투자 측정 줄·경제 점검 (C.68a·C.68b) 켜기. 로컬 기본 켜짐, CI(pages.yml balance:check)는 COACH_MEASURE=0 으로 끔
  * (마스터 P 2026-10-19 02:40: C.68a 뒤 CI 22 → 44분). 끄면 경제 가드 4개도 빠지고 회귀 가드 15개만 판정
  */
 const COACH_MEASURE = env.COACH_MEASURE !== '0';
-/** 측정용 (C.68a): 코치 배율 배수 COACH_SCALE, XP 몫 COACH_XP */
-if (env.COACH_SCALE) for (const k of Object.keys(BALANCE.staff.coach.boost)) (BALANCE.staff.coach.boost as Record<string, number>)[k]! *= Number(env.COACH_SCALE);
-if (env.MED_SCALE) for (const r of Object.values(BALANCE.staff.medical)) for (const k of Object.keys(r)) (r as Record<string, number>)[k]! *= Number(env.MED_SCALE);
-if (env.COACH_XP !== undefined) (BALANCE.staff.coach as { xpShare: number }).xpShare = Number(env.COACH_XP);
-const END_AGE = 37;
-type Strategy = 'best' | 'random';
 
-function spend(state: GameState, strategy: Strategy, rng: () => number): void {
-  if (strategy === 'best') {
-    autoAllocate(state.player);
-    return;
-  }
-  for (let k = 0; k < 300 && state.player.unspentPoints > 0; k++) {
-    const a = FIELD_ATTRIBUTES[Math.floor(rng() * FIELD_ATTRIBUTES.length)]!;
-    if (!raiseBlock(state.player, a)) raiseAttribute(state.player, a);
-  }
+/**
+ * C.78l: 커리어는 시드마다 독립이라 먼저 필요한 커리어를 모두 모아 워커로 병렬 실행하고(같은 명세는 한 번만 — 예: [C.42 이적] 정책 stay 12시드 = 본 표본 앞 12개),
+ * 아래 출력·가드 계산은 결과를 명세로 찾아 C.78l 전과 같은 순서로 한다
+ */
+const plan = new Map<string, CareerJob>();
+const prospect = (tier: Tier, i: number, strategy: Strategy, mode: CareerMode = BASE, policy: Policy = POLICY): CareerJob =>
+  ({ kind: 'prospect', tier, i, strategy, policy, ...mode });
+const real = (id: string, seed: string, i: number): CareerJob => ({ kind: 'real', id, seed, i, strategy: 'best', policy: POLICY, ...BASE });
+const want = (job: CareerJob) => void plan.set(jobKey(job), job);
+const seeds = (n: number, from = 0) => Array.from({ length: n }, (_, k) => from + k);
+
+const REAL_SEEDS = Number(env.REAL_SEEDS ?? 12);
+const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
+const FULL_SEEDS = Number(env.FULL_SEEDS ?? SEEDS_PER_TIER);
+const ECON_SEEDS = Number(env.ECON_SEEDS ?? env.FULL_SEEDS ?? SEEDS_PER_TIER);
+const COACH_FULL: CareerMode = { ...BASE, coach: 'full' };
+const ECON: CareerMode = { ...BASE, coach: 'full', spend: true };
+const REC_ON: CareerMode = { ...BASE, records: true };
+const NAT_ON: CareerMode = { ...BASE, national: true };
+const REAL_ALL = selectableRealPlayers();
+const POLICY_OTHER: Policy = POLICY === 'stay' ? 'best' : 'stay';
+for (const strategy of ['best', 'random'] as Strategy[]) for (const tier of TIERS_ASC) for (const i of seeds(SEEDS_PER_TIER)) want(prospect(tier, i, strategy));
+for (const id of ['kane', 'rashford', 'son']) for (const i of seeds(REAL_SEEDS)) want(real(id, `real-${id}-${i}`, i));
+for (const d of REAL_ALL) for (const i of seeds(ALL_REAL_SEEDS)) want(real(d.id, `real-all-${d.id}-${i}`, i));
+for (const i of seeds(Math.max(0, LEGEND_SEEDS - SEEDS_PER_TIER), SEEDS_PER_TIER)) want(prospect('legendary', i, 'best'));
+for (const pol of [POLICY, POLICY_OTHER]) for (const tier of ['normal', 'legendary'] as Tier[]) for (const i of seeds(12)) want(prospect(tier, i, 'best', BASE, pol));
+if (COACH_MEASURE) {
+  for (const [tier, strategy] of [['legendary', 'best'], ['normal', 'best'], ['legendary', 'random'], ['normal', 'random']] as const) for (const i of seeds(FULL_SEEDS)) want(prospect(tier, i, strategy, COACH_FULL));
+  for (const tier of ['normal', 'legendary'] as Tier[]) for (const i of seeds(ECON_SEEDS)) want(prospect(tier, i, 'best', ECON));
+  if (!RECORDS) for (const tier of ['legendary', 'normal'] as Tier[]) for (const i of seeds(SEEDS_PER_TIER)) want(prospect(tier, i, 'best', REC_ON));
+  if (!NATIONAL) for (const tier of ['legendary', 'normal'] as Tier[]) for (const i of seeds(SEEDS_PER_TIER)) want(prospect(tier, i, 'best', NAT_ON));
 }
+const planned = [...plan.values()];
+const results = new Map<string, Run>();
+(await runCareers(planned)).forEach((r, k) => results.set(jobKey(planned[k]!), r));
+const get = (job: CareerJob) => results.get(jobKey(job))!;
+const simulateCareer = (tier: Tier, i: number, strategy: Strategy, mode: CareerMode = BASE) => get(prospect(tier, i, strategy, mode));
 
-function simulateCareer(tier: Tier, i: number, strategy: Strategy) {
-  const position = PLAYABLE_POSITIONS[i % PLAYABLE_POSITIONS.length]!;
-  const state = newGame({ mode: 'prospect', position, seed: `balance-${tier}-${i}`, difficulty: 'normal' });
-  state.player.potentialTier = tier;
-  return { position, ...runCareer(state, strategy, i) };
-}
-
-/** 능력치 high 이상 개수 */
-const countAtLeast = (state: GameState, high: number) => FIELD_ATTRIBUTES.filter((a) => state.player.attributes[a] >= high).length;
-
-function runCareer(state: GameState, strategy: Strategy, rngSeed: number, policy: 'stay' | 'best' = POLICY) {
-  const rng = createRng(rngSeed);
-  const ovrByAge: Record<number, number> = { [state.player.age]: playerOvr(state.player) };
-  const high95ByAge: Record<number, number> = {};
-  const max99ByAge: Record<number, number> = {};
-  const repByAge: Record<number, number> = { [state.player.age]: state.player.reputation };
-  let starts = 0;
-  let seasons = 0;
-  let offers = 0;
-  const npc: { moved: number; total: number; lowLoy: number; lowMoved: number; exp: number; expMoved: number }[] = [];
-  const injuries: { grade: InjuryGrade; weeks: number; permanent: number; age: number }[] = [];
-  const seasonLog: { age: number; apps: number; starts: number; minutes: number; injuries: number; injuredWeeks: number }[] = [];
-  const money: { age: number; net: number; need: number; cash: number; staff: number; worth: number }[] = [];
-  while (state.player.age < END_AGE) {
-    const snap = Object.values(state.rosters).flatMap((r) => r.players.map((p) => ({ id: p.id, low: p.loyalty < 40, exp: p.contractEnd <= state.league.season + 1 })));
-    const n0 = state.transfers.length;
-    while (state.phase === 'season') {
-      const report = playRound(state, { engine: 'quick' });
-      if (coachMode === 'full') autoStaff(state);
-      const inj = report.injury;
-      if (inj) {
-        const permanent = Object.values(inj.permanent).reduce((t, d) => t + (d ?? 0), 0);
-        injuries.push({ grade: inj.grade, weeks: inj.weeksTotal, permanent, age: state.player.age });
-      }
-      spend(state, strategy, rng);
-    }
-    spend(state, strategy, rng);
-    const rec = state.player.history.at(-1)!;
-    seasonLog.push({
-      age: rec.age, apps: rec.apps, starts: rec.starts, minutes: rec.minutes, injuries: rec.injuries, injuredWeeks: rec.injuredWeeks,
-    });
-    starts += rec.starts;
-    seasons++;
-    ovrByAge[state.player.age] = playerOvr(state.player);
-    repByAge[state.player.age] = state.player.reputation;
-    high95ByAge[state.player.age] = countAtLeast(state, 95);
-    max99ByAge[state.player.age] = countAtLeast(state, 99);
-    const moved = new Set(state.transfers.slice(n0).map((r) => r.id));
-    npc.push({
-      moved: moved.size, total: snap.length, lowLoy: snap.filter((x) => x.low).length, lowMoved: snap.filter((x) => x.low && moved.has(x.id)).length,
-      exp: snap.filter((x) => x.exp).length, expMoved: snap.filter((x) => x.exp && moved.has(x.id)).length,
-    });
-    if (state.phase !== 'offseason') break;
-    offers += state.market.offers?.length ?? 0;
-    autoMarket(state, policy);
-    startNextSeason(state);
-    // 재정 (C.68a): 시즌 순수입 (비시즌 몫까지 들어간 지난 시즌 합계) · 잔고 · 스태프 수. C.68b: 순자산, 코치 풀 투자 측정이면 평범한 지출(autoSpend)
-    const h = ensureMoney(state).history.at(-1)!;
-    const net = flowsIn(h.flows) - flowsOut(h.flows);
-    // 필수 순수입 = 순수입에서 고르는 지출(카드·집·차 구매·기부)을 뺀 것 — 코치 풀 투자에도 양수인지 (19.11)
-    money.push({ age: state.player.age - 1, net, need: net - CHOICE_CATS.reduce((t, c) => t + (h.flows[c] ?? 0), 0), cash: h.cash, staff: ensureMoney(state).staff.length, worth: netWorth(state) });
-    if (spendMode) autoSpend(state);
-  }
-  const moves = state.market.moves.filter((m) => !m.back).length;
-  const intoLeague = state.transfers.filter((r) => !isOutside(r.to)).length;
-  const hist = state.player.history.map((h) => ({ age: h.age, xp: h.achievementXp, moms: h.moms, gi: h.goals + h.assists, apps: h.apps, goals: h.goals, rating: h.apps ? h.ratingSum / h.apps : 0 }));
-  const badgeAges = state.player.badges.map((b) => state.player.history.find((h) => h.season === b.season)?.age ?? 0);
-  return {
-    ovrByAge, repByAge, high95ByAge, max99ByAge, starts: starts / seasons, injuries, seasonLog, hist, badgeAges,
-    offers: offers / Math.max(1, seasons), moves, npc, intoLeague, oneClub: state.player.badges.some((b) => b.id === 'oneClub10'), money,
-    career: careerNet(state), worth: netWorth(state),
-  };
-}
-
-type Run = ReturnType<typeof simulateCareer>;
 const avg = (xs: number[]) => xs.reduce((t, x) => t + x, 0) / xs.length;
 const allRuns: Record<Strategy, Run[]> = { best: [], random: [] };
 
@@ -195,7 +123,7 @@ for (const strategy of ['best', 'random'] as Strategy[]) {
   console.log(`\n[${strategy === 'best' ? '최적 배분' : '무작위 배분'}] 티어별 평균 OVR (시드 ${SEEDS_PER_TIER}개, 포지션 순환, 난이도 보통)`);
   console.log(['티어'.padEnd(6), ...ages.map((a) => String(a).padStart(4)), '  선발/시즌', ' 30세 범위'].join(''));
   for (const tier of TIERS_ASC) {
-    const runs = Array.from({ length: SEEDS_PER_TIER }, (_, i) => simulateCareer(tier, i, strategy));
+    const runs = seeds(SEEDS_PER_TIER).map((i) => simulateCareer(tier, i, strategy));
     allRuns[strategy].push(...runs);
     const avgAt = (age: number) => runs.reduce((t, r) => t + (r.ovrByAge[age] ?? 0), 0) / runs.length;
     const at30 = runs.map((r) => r.ovrByAge[30] ?? 0);
@@ -277,15 +205,11 @@ const median = (xs: number[]) => {
   const v = [...xs].sort((a, b) => a - b);
   return v.length % 2 ? v[(v.length - 1) / 2]! : (v[v.length / 2 - 1]! + v[v.length / 2]!) / 2;
 };
-const REAL_SEEDS = Number(env.REAL_SEEDS ?? 12);
-const realRuns = (id: string, strategy: Strategy) =>
-  Array.from({ length: REAL_SEEDS }, (_, i) =>
-    runCareer(newGame({ mode: 'real', playerId: id, seed: `real-${id}-${i}`, difficulty: 'normal' }), strategy, i));
-const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
+const realRuns = (id: string) => seeds(REAL_SEEDS).map((i) => get(real(id, `real-${id}-${i}`, i)));
 {
   console.log(`\n[D.6/D.7 실제 선수] 최적 배분, 시드 ${REAL_SEEDS}개 평균. 목표(D.7): 정점 = 시작 OVR + 시작 나이별 여지 (≤20 +10 / 21~23 +8 / 24~26 +7 / 27~29 +4 / 30+ +2, ±1.5)`);
   for (const id of ['kane', 'rashford', 'son']) {
-    const runs = realRuns(id, 'best');
+    const runs = realRuns(id);
     const age0 = Math.min(...Object.keys(runs[0]!.ovrByAge).map(Number));
     const start = avg(runs.map((r) => r.ovrByAge[age0]!));
     const peak = avg(runs.map((r) => Math.max(...Object.values(r.ovrByAge))));
@@ -297,7 +221,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
     );
   }
   // 목표: 실제 선수는 어떤 경우에도 99 능력치가 2개를 넘지 않는다 / 정점 여지가 나이별 목표 ±1.5 안
-  const all = selectableRealPlayers();
+  const all = REAL_ALL;
   const stSeasons: Run['hist'] = [];
   let over2 = 0;
   let worst = { id: '', n: 0 };
@@ -307,11 +231,10 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
     const deltas: number[] = [];
     let room = 0;
     for (let i = 0; i < ALL_REAL_SEEDS; i++) {
-      const state = newGame({ mode: 'real', playerId: d.id, seed: `real-all-${d.id}-${i}`, difficulty: 'normal' });
-      const start = playerOvr(state.player);
-      room = state.player.peakTarget! - start;
-      const r = runCareer(state, 'best', i);
-      if (state.player.position === 'ST' || state.player.position === 'CF') stSeasons.push(...r.hist);
+      const r = get(real(d.id, `real-all-${d.id}-${i}`, i));
+      const start = r.startOvr;
+      room = r.peakRoom;
+      if (r.position === 'ST' || r.position === 'CF') stSeasons.push(...r.hist);
       deltas.push(Math.max(...Object.values(r.ovrByAge)) - start);
       const n = Math.max(...Object.values(r.max99ByAge));
       if (n > 2) over2++;
@@ -342,7 +265,7 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
     // 그 행만 레전더리 최적 시드를 LEGEND_SEEDS(기본 96)로 늘리고(앞 48개 + 시드 48~95 추가) 기준 ≤ 0.30 (p 0.25 · n 96 의 1σ 0.044)
     let legend35 = '';
     if (strategy === 'best') {
-      const extra = Array.from({ length: Math.max(0, LEGEND_SEEDS - SEEDS_PER_TIER) }, (_, k) => simulateCareer('legendary', SEEDS_PER_TIER + k, 'best'));
+      const extra = seeds(Math.max(0, LEGEND_SEEDS - SEEDS_PER_TIER), SEEDS_PER_TIER).map((i) => simulateCareer('legendary', i, 'best'));
       const lr = [...perTier('legendary'), ...extra];
       const n = lr.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
       legend35 = ` · 레전더리 35세 900+ ${n}/${lr.length} = ${(n / lr.length).toFixed(3)}(≤ 0.30) ${check('레전더리 35세 월드클래스 비율', n / lr.length, 0, 0.3, true)}`;
@@ -386,15 +309,9 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
   console.log(`  NPC 시즌당 이동 ${(rate * 100).toFixed(1)}% (목표 5~15%) · 충성도 40 미만 ${(sum('lowMoved') / sum('lowLoy') * 100).toFixed(1)}% · 계약 만료 ${(sum('expMoved') / sum('exp') * 100).toFixed(1)}%`);
   console.log(`  내 선수: 비시즌 제안 평균 ${avg(runs.map((r) => r.offers)).toFixed(1)}개 · 커리어 이적 ${avg(runs.map((r) => r.moves)).toFixed(2)}회 · 한 팀 10시즌 배지 ${(runs.filter((r) => r.oneClub).length / runs.length * 100).toFixed(0)}%`);
   // 다른 정책 비교 (레전더리·일반 최적 배분 각 12 시드): 커리어 이적 횟수, 30세 OVR·위상
-  const other = POLICY === 'stay' ? 'best' : 'stay';
-  for (const pol of [POLICY, other] as const) {
+  for (const pol of [POLICY, POLICY_OTHER]) {
     for (const tier of ['normal', 'legendary'] as Tier[]) {
-      const rs = Array.from({ length: 12 }, (_, i) => {
-        const position = PLAYABLE_POSITIONS[i % PLAYABLE_POSITIONS.length]!;
-        const state = newGame({ mode: 'prospect', position, seed: `balance-${tier}-${i}`, difficulty: 'normal' });
-        state.player.potentialTier = tier;
-        return runCareer(state, 'best', i, pol);
-      });
+      const rs = seeds(12).map((i) => get(prospect(tier, i, 'best', BASE, pol)));
       console.log(`  정책 ${pol} ${TIER_NAMES_KO[tier]} 최적 12시드: 커리어 이적 ${avg(rs.map((r) => r.moves)).toFixed(2)}회 · 30세 OVR ${avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1)} · 30세 위상 중앙값 ${median(rs.map((r) => r.repByAge[30] ?? 0)).toFixed(0)} · 한 팀 배지 ${rs.filter((r) => r.oneClub).length}/12`);
     }
   }
@@ -403,15 +320,11 @@ const ALL_REAL_SEEDS = Number(env.ALL_REAL_SEEDS ?? 6);
 // ── C.68a 코치 풀 투자 측정 (가드 아님, 마스터 P 2026-10-19 01:05: 회귀 가드는 COACH=none, full 은 매번 측정 줄로) ──
 // 레전더리 35세 900+ 기준선이 12/48 = 0.25 경계라 시드 하나로 뒤집힌다 (부록 C.68a). 시드 FULL_SEEDS(기본 48)
 if (COACH_MEASURE) {
-  const FULL_SEEDS = Number(env.FULL_SEEDS ?? SEEDS_PER_TIER);
-  const prev = coachMode;
-  coachMode = 'full';
-  const fullRuns = (tier: Tier, strategy: Strategy) => Array.from({ length: FULL_SEEDS }, (_, i) => simulateCareer(tier, i, strategy));
+  const fullRuns = (tier: Tier, strategy: Strategy) => seeds(FULL_SEEDS).map((i) => simulateCareer(tier, i, strategy, COACH_FULL));
   const lb = fullRuns('legendary', 'best');
   const nb = fullRuns('normal', 'best');
   const lr = fullRuns('legendary', 'random');
   const nr = fullRuns('normal', 'random');
-  coachMode = prev;
   const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
   const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
   const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
@@ -430,14 +343,8 @@ if (COACH_MEASURE) {
 
 // ── C.68b 경제 점검 (19.11): 코치 풀 투자 + 평범한 지출(autoSpend: 집·차·기부(15억 넘는 순수입의 60% + 5%)·남는 돈 20% 투자), 최적 배분 ──
 if (COACH_MEASURE) {
-  const ECON_SEEDS = Number(env.ECON_SEEDS ?? env.FULL_SEEDS ?? SEEDS_PER_TIER);
-  const prev = coachMode;
-  coachMode = 'full';
-  spendMode = true;
-  const runsOf = (tier: Tier) => Array.from({ length: ECON_SEEDS }, (_, i) => simulateCareer(tier, i, 'best'));
+  const runsOf = (tier: Tier) => seeds(ECON_SEEDS).map((i) => simulateCareer(tier, i, 'best', ECON));
   const econRuns = [['일반', runsOf('normal')], ['레전더리', runsOf('legendary')]] as const;
-  coachMode = prev;
-  spendMode = false;
   console.log(`\n[C.68b 경제] 코치 풀 투자 + 평범한 지출(시드 ${ECON_SEEDS}, 최적 배분) — 19.11 표: 평범한 유망주 약 178억·자산 74 · 스타 약 346억·84`);
   const q = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))]!;
   const econ: { name: string; neg: number; all: number; score: number }[] = [];
@@ -461,12 +368,10 @@ if (COACH_MEASURE) {
 }
 
 // ── C.74b 기록 보상 측정 (가드 아님): 보상을 켠 레전더리·일반 최적 배분 ──
-if (COACH_MEASURE && env.RECORDS !== 'on') {
-  setRecordReward(true);
-  const runs = (tier: Tier) => Array.from({ length: SEEDS_PER_TIER }, (_, i) => simulateCareer(tier, i, 'best'));
+if (COACH_MEASURE && !RECORDS) {
+  const runs = (tier: Tier) => seeds(SEEDS_PER_TIER).map((i) => simulateCareer(tier, i, 'best', REC_ON));
   const lb = runs('legendary');
   const nb = runs('normal');
-  setRecordReward(false);
   const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
   const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
   const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
@@ -476,12 +381,10 @@ if (COACH_MEASURE && env.RECORDS !== 'on') {
 }
 
 // ── C.76d 대표팀 측정 (가드 아님): 대표팀을 켠 레전더리·일반 최적 배분 ──
-if (COACH_MEASURE && env.NATIONAL !== 'on') {
-  setNational(true);
-  const runs = (tier: Tier) => Array.from({ length: SEEDS_PER_TIER }, (_, i) => simulateCareer(tier, i, 'best'));
+if (COACH_MEASURE && !NATIONAL) {
+  const runs = (tier: Tier) => seeds(SEEDS_PER_TIER).map((i) => simulateCareer(tier, i, 'best', NAT_ON));
   const lb = runs('legendary');
   const nb = runs('normal');
-  setNational(false);
   const at30 = (rs: Run[]) => avg(rs.map((r) => r.ovrByAge[30] ?? 0)).toFixed(1);
   const wc30 = lb.filter((r) => Object.entries(r.repByAge).some(([a, v]) => Number(a) <= 30 && v >= 900)).length;
   const wc35 = lb.filter((r) => (r.repByAge[35] ?? 0) >= 900).length;
@@ -495,5 +398,6 @@ if (COACH_MEASURE && env.NATIONAL !== 'on') {
   const failed = checks.filter((c) => !c.ok);
   console.log(`\n[회귀 가드] ${checks.length - failed.length}/${checks.length} 통과`);
   for (const c of failed) console.log(`  ✗ ${c.name}: ${c.value} (목표 ${c.min}~${c.max})`);
+  writeStepSummary(checks);
   if (CHECK && failed.length) (globalThis as { process?: { exit(code: number): never } }).process?.exit(1);
 }

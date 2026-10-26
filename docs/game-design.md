@@ -6596,6 +6596,14 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 명령 시각 2026-10-21 06:22 KST / 답변 시각 07:03 KST / 걸린 시간 약 45분
 
+### C.78l 44h단계 CI 밸런스 점검 속도·요약(Opus 1차): **balance:check 커리어 시뮬을 워커 병렬로(판정 그대로) · 밸런스 두 단계를 build 와 따로 도는 `balance` job 으로 · 가드 표를 실행 요약 화면(`$GITHUB_STEP_SUMMARY`)에** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 측정 스크립트·workflow 만, 수치·세이브 무변경)
+
+1. **분해(CI 실행 299, eaebab6)**: build job 118분 = test 7분 + **balance:check 99분** + balance:engine:check 11분 + 나머지 1분. balance:check(COACH_MEASURE=0)는 커리어 720개를 **한 스레드에서 차례로** 돌렸다: 가상 유망주 2전략 × 5티어 × 48시드 480 · 레전더리 35세 추가 시드 48 · 실제 선수 3명 × 12 = 36 · A등급 18명 × 6 = 108 · [C.42 이적] 정책 비교 2정책 × 2티어 × 12 = 48(그중 정책 stay 24개는 본 표본 앞 12시드와 같은 계산). 커리어끼리는 시드만으로 정해지는 독립 계산이다. engine:check 는 이미 워커 병렬.
+2. **속도**: 커리어 시뮬을 `scripts/balance/career.ts`(작업 명세 = 종류·티어·시드·전략·정책·측정 모드 → 결과)로 옮기고, `scripts/balance.ts` 는 필요한 커리어를 먼저 모두 모아 **같은 명세는 한 번만**(720 → 696개) `scripts/balance/pool.ts`(engine pool 과 같은 esbuild 묶음 + worker_threads, `WORKERS` 기본 코어 수, 0 이면 메인 스레드)로 돌린 뒤, 출력·가드 계산은 C.78l 전과 같은 순서로 결과를 명세로 찾는다. 측정 모드(코치 풀 투자·평범한 지출·기록 보상·대표팀)는 전역 변수 대신 작업마다 명세로 넘긴다. 측정용 덮어쓰기(VET·ONECLUB·COACH_SCALE·MED_SCALE·COACH_XP)는 career.ts 맨 위라 워커에도 같이 적용. 표본 수·가드 기준은 그대로.
+3. **결정성(같은 출력)**: ① 같은 커밋 eaebab6 의 CI 실행 299 balance:check 출력 80줄과 새 코드(3워커) 출력이 **한 글자도 같음**(15/15 통과, 30세 OVR 75 / 85.8 / 70 / 82.1 · 부상 0.8 · 레전더리 35세 900+ 22/96 등) ② 작은 표본(SEEDS=2 등)·COACH_MEASURE 켬(코치·경제·기록 보상·대표팀 측정 줄 포함)으로 옛 스크립트 대 새 스크립트 출력 같음.
+4. **시간**: 로컬(4코어, 3워커, 다른 실행과 CPU 공유) balance:check 34.6분. CI(4코어)에서 약 25~30분 예상. 그리고 밸런스 두 단계를 `balance` job 으로 떼어 build 와 동시에 돌리므로, **배포는 밸런스를 기다리지 않는다**(build ≈ test 7분 + 1분 → 배포 약 10분, 옛 약 2시간). continue-on-error(보고만)는 그대로 — 로드맵 마지막 단계(C.78j 몫)에서 CI 차단을 되돌릴 때 `deploy` 의 `needs` 에 `balance` 를 더한다(pages.yml 주석).
+5. **요약**: `scripts/balance/summary.ts` — CI(`GITHUB_STEP_SUMMARY` 있을 때)만 가드마다 통과·이름·값·기준·비고 표를 쓰고 실패를 맨 위에. balance:check 는 회귀 가드 전부, balance:engine:check 는 경량 가드 행·스탯 반응·순간이동(알려진 미해결은 비고, 판정은 기존과 같음 — 로컬 확인: 실패 10개 = 로그 "[경량 가드] 실패 10개"). 로컬 출력은 그대로.
+6. 디자인 없는 새 화면/패널: 없음.
 ### C.78k 44h단계 엔진 상태 전이·기록 정합성(Opus 1차): **키커가 교체·퇴장해도 재개 유지(같은 팀 대체 키커, PK 는 지정 키커 규칙) · 하프타임 전반 시각 초기화(리바운드·원터치·커버·역압박·전환 창·어시스트 후보 패스·결정 순간·카드 판정) · GK 선방 평점 = 본인 실제 선방(풀타임 GK 절반 버그) · GK 퇴장 대응 때 나가는 공격수 기록 보존·새 GK 는 퇴장 GK 슬롯 · 공 가진 채 부상이면 간접 프리킥 중단·교체권 없이 빠지면 퇴장과 같은 재배치 · 내 선수 투입 예약(AI 교체·GK 퇴장 대응이 1장 남김 — 팀당 3명 + 출전 보장) · 경기 정지 해소(압박 없는 소유자가 'hold' 를 무한 반복 — 서 있기 가치가 공 잡은 뒤 시간에 따라 줄어듦, main 의 300경기 중 30초+ 소유 444회 → 0)** (ENGINE_VERSION 48 → **49**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진 동작·기록만, 세이브 구조 무변경)
 
 지시: `docs/session-prompts/C.78k.md`(마스터 AA). 브랜치 `claude/c78k-integrity`(origin/main eaebab6 위). `PATCH_LABEL` = `C.78k`, `STAGE_LABEL` 그대로. Opus 5.5 높음. 범위 밖(과다 득점·버스 허용 슛·크랙형 실점)은 건드리지 않음, 득점·GK·평점 계수 무변경.
