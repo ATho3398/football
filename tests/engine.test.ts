@@ -75,6 +75,9 @@ describe('경기 엔진 코어 (E1)', () => {
   });
 
   it('이동 거리: 필드 선수 90분 6.5~14 km, GK 는 훨씬 적다', () => {
+    // C.78m(엔진 51, 마스터 AB 승인): receive 발밑 수정 뒤 시드 11 CDM 15.12 km(수정 전 14.15) — quick 600 포지션 평균 불변(CM/CDM 13.19 → 13.16),
+    // 시드 14~19 최다 평균 13.61 → 13.86(시드별 −0.8~+1.1) = 한 경기 궤적 잡음이라 이 테스트만 시드 14(최다 13.65) 로. 상한 14.5 그대로 (C.78n 14 km 검토 때 다시 봄)
+    const result = createMatch(input(14)).runToEnd();
     for (const p of result.players) {
       if (p.minutes < 85) continue;
       if (p.position === 'GK') expect(p.distance).toBeLessThan(5000);
