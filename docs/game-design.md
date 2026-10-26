@@ -6608,6 +6608,12 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 6. **receive 발밑(마스터 AB 승인)**: 궤적이 바뀌며 순간이동 가드에 공 1회(3.22 m) — 패스 `receive` 분기가 C.78b runOn(2.5 m 안 달리며 받기)에서 공을 비행 끝점에 둔 채 소유만 바꿔 다음 틱에 튐. C.78e `win` 분기와 같은 처방(받는 틱 끝, 첫 터치·미리 정하기 판단 뒤 `b.x = a.x · b.y = a.y`). 회귀 `tests/c78m.test.ts`(수정 전 2.2 m 로 실패). 수정 뒤 quick 600: 득점 **2.13** · 슛 15.1 · 유효 5.1 · 12 m 밖 선방 **73.4% ✓** · 전체 58.3 · Δ+8 2.82 / Δ−8 1.48 ✗ · Δ±15 3.79/1.05 ✗ · 리그 2.07 ✗ · 30골+ 5.33 ✗ · 득점왕 중앙값 39 ✗ · 이동 거리 CM/CDM 13.19 → 13.16 · 경기당 1435 ms.
 7. **테스트 기준**: engine.test 144경기 득점 2.41 → 상한 3.1 → **2.5** · 선방률 0.552 → 하한 0.45 → **0.55** 되돌림. 이동 거리 14.5 km 그대로 — 시드 11 CDM 15.12 km(수정 전 14.15, quick 600 평균 불변) 라 이 테스트만 시드 14(최다 13.65, 마스터 AB). CI continue-on-error 그대로. 시드 의존 테스트: cards 최소 정지 시드 c78j-zero-0 → c78m-zero-5 · c78k ② 전반에 남는 첫 시드 · c75v sureBack 시드 c78m-15 CDM 추가.
 
+### C.78n 44h단계_총량 3차 — 실축 보정 상수 (엔진관리자10 가설 2·3): **관문 ✗ 실패 · main 미배포** — quick 600 득점 2.13 → ① 슛 속도 25: 1.85 → ② + availRef 0.3: 1.77 → ③ + 빈 골 거리 감쇠: 1.72(목표 1.25~1.45). ①② 가 장면 ④(빠른 컷백 선방 0.34~0.37 > 0.25 · 1대1 0.27~0.28 < 0.3)·⑬·㉘(열린 찬스 슛 선택 감소)·engine.test 선방률(0.526 < 0.55)을 깸, ③ 단독은 잡음(2.10) (ENGINE_VERSION 51 → 52 브랜치만)
+
+지시: `docs/session-prompts/C.78n.md`(마스터 AB). 브랜치 `claude/c78n-calib`(origin/claude/c78m-keeper 9979f05). `PATCH_LABEL` = `C.78n`, `STAGE_LABEL` 그대로. Opus 5.5 높음.
+- 넣은 코드(브랜치): `onball.ts shotModel()` 빈 골 보정 × clamp(1 − (d − `openFrom`)/`openSpan`, `openFloor`, 1)(`keeper.openFrom` 11 · `openSpan` 14(0 = 끔) · `openFloor` 0.55) · `scripts/diag/c78n-scenes.ts`(레버별 장면 ④·⑬·㉘). `ball.shotSpeed` 29 · `keeper.availRef` 0.4 는 시험 뒤 되돌림.
+- 표·원인·재현: `docs/engine-issues.md` "총량 3차 C.78n 결과". 되돌리기(14 km · CI 차단 복구)는 하지 않음.
+
 ### C.78j 44h단계 마지막 단계 1차 — 총량 되돌리기 시도: **GK 슛 거리 깊이(스위퍼가 상대 중거리 소유 때 골라인 8 m 앞에 서 있던 결함) · GK 다이빙 속도 4 → 6 m/s · 블록 측정기 슛 뒤 회수 분리 — 관문 ✗(부분): quick 600 득점 2.55 → 2.34(목표 1.25~1.45) · 12 m 밖 선방 61.7 → 66.4%(68~76). 전역 실행 레버만으로는 1.35 불가로 판단 → 엔진관리자 재진단, 테스트 기준·CI continue-on-error 는 그대로(마스터 AA 1안)** (ENGINE_VERSION 49 → **50**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진 설정·GK 자리 규칙만, 세이브 구조 무변경)
 
 지시: `docs/session-prompts/C.78j.md`(마스터 AA). 브랜치 `claude/c78j-balance`(claude/c78k-integrity d1eff39 위, 뒤에 origin/main C.78l c99b840 병합). `PATCH_LABEL` = `C.78j`, `STAGE_LABEL` 그대로. Opus 5.5 높음. 2026-10-26 20:55 ~ 22:xx KST.
