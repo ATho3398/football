@@ -352,6 +352,8 @@ export function keeperTarget(s: SimState, a: Agent): void {
     } else if (gd < K.setDist) {
       // 자세 잡기 (C.77t): 상대가 슛 거리 안에서 공을 가지면 자리를 걸어서가 아니라 서둘러 옮긴다 (GK 위치가 선방에 들어간 뒤)
       a.urgent = true;
+      // 슛 거리 깊이 (C.78j): 상대가 슛 거리 안에서 공을 가지면 스위퍼도 setDepth m 보다 앞에 서 있지 않는다 (옆 자리는 그대로)
+      if (K.setLine) a.tx = gx + dir * Math.min(depth, K.setDepth);
     }
   }
 }

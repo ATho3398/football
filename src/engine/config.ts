@@ -1427,6 +1427,12 @@ export const ENGINE = {
     rushGap: 1.5,
     /** 자세 잡기 (C.77t): 상대 소유자가 골에서 setDist m 안이면 GK 자리 이동을 서두른다(긴급). 0 이면 끔 */
     setDist: 30,
+    /**
+     * 슛 거리 깊이 (C.78j): 1 이면 상대 소유자가 setDist m 안(rushDist 각 좁히기 밖)일 때 GK 깊이 ≤ setDepth m (스위퍼 최소 sweeperMin 8 m 대신).
+     * 0 이면 옛 깊이 — 12 m 밖 슛 순간 스위퍼가 골라인 8 m 앞(슛 선 밖)에 서 있는 경우가 12 m 밖 실점의 절반(부록 C.78j)
+     */
+    setLine: 0,
+    setDepth: 3,
     /** 루즈볼 추격 (C.28): 공 경로(chaseHorizon 초)에서 GK 가 닿는 첫 점이 처리 구역(자기 박스, 스위퍼는 박스 밖 sweepRange m 까지) 안이고
      * GK 도착(반응 + 거리/최대 속도)이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료보다 늦지 않으면 나간다. 이미 나갔으면 여유 chaseKeep */
     chaseHorizon: 4,
