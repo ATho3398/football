@@ -999,3 +999,4 @@
 - (10/26 20:5x KST) C.78j.md 갱신(마스터 AA, 기반 c78k d71b04f, 현재 득점 2.7~2.8·되돌릴 값 3.1/0.45(144경기)/14.5, ⒜ 탈취 정의 ⒝ xG 구간 ⒞ 피로 원인 추가, CI 차단 복구는 C.78l main 반영 뒤). 사용자 "추천대로"(k 먼저 → j) + 병렬 2개(l 진행 중) → C.78j 지금 시작.
 - (10/26 20:55 KST) **C.78j 시작 session_01AidMvyoDJvwhWjn6sWLbst**(claude/c78j-balance, c78k d71b04f 기반, 4h·20달러). 병렬: C.78l(CI). C.78l에 k main 반영·j 병렬 알림. C.78k는 main 푸시 중 → CI test 확인 후 draft_.
 - (10/26 20:55 KST) C.78k main **d1eff39** 푸시(planning-aa docs 4개 병합 포함). test 단계 확인 21:20(C.78k 자체).
+- (10/26 21:01 KST) **C.78l 준비 완료**(25d8485): 원인 = balance:check가 커리어 720개를 한 스레드로(99분). worker_threads 병렬·중복 24개 제거(720→696)·같은 순서로 합침, pages.yml에 balance job 분리(배포는 balance 안 기다림, continue-on-error 그대로 — C.78j가 deploy needs에 balance 추가로 차단 복구), $GITHUB_STEP_SUMMARY 가드 표. 같은 커밋 출력 80줄 한 글자도 같음(15/15). 예상 CI: 배포 약 10분, balance job 30~40분(옛 약 2시간). **AA: 푸시 ㄱ**(main d1eff39 merge 후).
