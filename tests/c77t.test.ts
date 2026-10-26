@@ -24,10 +24,11 @@ describe('C.77t GK 도달 항', () => {
   });
 
   it('공이 GK 에 늦게 닿을수록·선방이 높을수록 도달 반경이 넓다', () => {
-    const near = keeperCover(1, 32.5, 6, 34, 0, 36, 28, 76);
-    const far = keeperCover(1, 32.5, 20, 34, 0, 36, 28, 76);
+    // C.78j: diveSpeed 6 이면 32.5 는 두 경우 모두 1(포화) — 1 m 더 비킨 GK 로 비교
+    const near = keeperCover(1, 31.5, 6, 34, 0, 36, 28, 76);
+    const far = keeperCover(1, 31.5, 20, 34, 0, 36, 28, 76);
     expect(far).toBeGreaterThan(near);
-    expect(keeperCover(1, 32.5, 6, 34, 0, 36, 28, 90)).toBeGreaterThanOrEqual(keeperCover(1, 32.5, 6, 34, 0, 36, 28, 40));
+    expect(keeperCover(1, 31.5, 6, 34, 0, 36, 28, 90)).toBeGreaterThanOrEqual(keeperCover(1, 31.5, 6, 34, 0, 36, 28, 40));
     expect(K.reachBase).toBeGreaterThan(0);
   });
 

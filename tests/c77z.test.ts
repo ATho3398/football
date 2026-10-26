@@ -55,7 +55,8 @@ describe('C.77z 슛 1건 자료 · 판단 = 실행', () => {
   });
   it('대응 시간: 빠른 공·가까운 GK 는 덜 막고, 슛 선 쪽으로 움직이던 GK 는 더 덮는다', () => {
     withEngine(KEEPER_ON, () => {
-      const { s, a, gk } = setup(L - 16, W / 2 - 4, [L - 3, W / 2]);
+      // C.78j: diveSpeed 6 이면 가운데 GK 는 두 경우 모두 덮는 정도 1(포화) — 1 m 비킨 GK 로 비교
+      const { s, a, gk } = setup(L - 16, W / 2 - 4, [L - 3, W / 2 + 1]);
       const ctx = { ...shotModel(s, a).ctx, ...gkCtx(gk), ty: W / 2 - 2.8, corner: 0.9 };
       expect(saveChance({ ...ctx, speed: 34 })).toBeLessThan(saveChance({ ...ctx, speed: 22 }));
       const toward = coverOf({ ...ctx, gk: { ...ctx.gk!, vy: -4 } });

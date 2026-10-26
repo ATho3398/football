@@ -354,7 +354,9 @@ export function keeperTarget(s: SimState, a: Agent): void {
       a.urgent = true;
       // 슛 거리 깊이 (C.78j): 상대가 골 앞 슛 각도(골 쪽 거리 대비 옆 거리 ≤ setCentral)에서 공을 가지면 스위퍼도 setDepth m 보다 앞에 서 있지 않는다.
       // 측면·바이라인 쪽 공은 옛 자리 그대로 (컷백은 GK 가 가로질러야 하는 상황으로 남는다). 옆 자리는 그대로
-      if (K.setLine && gd >= K.setFrom && Math.abs(owner.y - gy) <= K.setCentral * Math.abs(owner.x - gx)) a.tx = gx + dir * Math.min(depth, K.setDepth);
+      // 단독 돌파(골 쪽에 우리 필드 수비가 없음)면 스위퍼는 그대로 맞으러 나온다
+      if (K.setLine && gd >= K.setFrom && Math.abs(owner.y - gy) <= K.setCentral * Math.abs(owner.x - gx)
+        && s.agents.some((o) => o.onPitch && o.team === a.team && o.line !== 0 && dist(o.x, o.y, gx, gy) < gd - K.setBehind)) a.tx = gx + dir * Math.min(depth, K.setDepth);
     }
   }
 }
