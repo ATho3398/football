@@ -1391,6 +1391,10 @@ export const ENGINE = {
     headerReact: 0,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
+    /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
+    openFrom: 11,
+    openSpan: 14,
+    openFloor: 0.55,
     /** 헤더 공 속도 (C.77z): headerSpeed × clamp(1 + headerCrossW × (크로스 속도 / ball.airSpeed − 1), 0.8, 1.2) — 능력치 무관 (E.20 7번) */
     headerCrossW: 0.5,
     /**
