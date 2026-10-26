@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 50;
+export const ENGINE_VERSION = 51;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1421,8 +1421,10 @@ export const ENGINE = {
     classicMax: 6,
     sweeperMin: 8,
     sweeperMax: 14,
-    /** 공 y 를 따라가는 비율 */
+    /** 공 y 를 따라가는 비율 (arcSet 0 경로만) */
     lateral: 0.25,
+    /** 기본 자리 기하 (C.78m): 1 이면 기준점(상대 소유자, 없으면 공) → 골 가운데 선 위 깊이 d 인 점(flightSet·setDepth 와 같은 기하). 0 이면 옛 사각 격자(깊이 x · 옆 y × lateral) — 측면 각에서 슛 선을 평균 3.2 m 벗어남 */
+    arcSet: 1,
     /** 각 좁히기 (E.20): 상대가 공을 가지고 박스 안 골에서 rushDist m 안이면 GK 는 공과 골 사이 rushGap m 앞까지 나온다 */
     rushDist: 12,
     rushGap: 1.5,

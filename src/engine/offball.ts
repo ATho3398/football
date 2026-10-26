@@ -325,8 +325,21 @@ export function keeperTarget(s: SimState, a: Agent): void {
   // 공이 멀수록 전진
   const far = clamp((bx - 0.2) / 0.6, 0, 1);
   const depth = sweeper ? K.sweeperMin + (K.sweeperMax - K.sweeperMin) * far : K.classicMin + (K.classicMax - K.classicMin) * far;
-  a.tx = gx + dir * depth;
-  a.ty = clamp(gy + (s.ball.y - gy) * K.lateral, gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
+  const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
+  // 기본 자리 (C.78m arcSet): 기준점(상대 소유자, 없으면 공) → 골 가운데 선 위 깊이 depth 인 점. 0 이면 옛 사각 격자(깊이 x · 옆 y × lateral)
+  const ref = owner && owner.team !== a.team ? owner : s.ball;
+  const arc = (d: number): void => {
+    const rx = Math.max(0, (ref.x - gx) * dir);
+    const ry = ref.y - gy;
+    const rd = Math.hypot(rx, ry);
+    a.tx = gx + dir * (rd > 0.1 ? (rx / rd) * d : d);
+    a.ty = clamp(gy + (rd > 0.1 ? (ry / rd) * d : 0), gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
+  };
+  if (K.arcSet) arc(depth);
+  else {
+    a.tx = gx + dir * depth;
+    a.ty = clamp(gy + (s.ball.y - gy) * K.lateral, gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
+  }
   a.urgent = false;
   // 패스 비행 중 자리 (C.77z flightSet): 상대가 받을 패스·크로스의 도착점이 슛 거리(setDist) 안이면 그 점 기준 슛 각도 자리로 서둘러 옮긴다
   const fl = s.ball.flight;
@@ -341,7 +354,6 @@ export function keeperTarget(s: SimState, a: Agent): void {
     }
   }
   // 각 좁히기: 상대 소유자가 박스 안 골 가까이 들어오면 공과 골 사이로 나간다
-  const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (owner && owner.team !== a.team && !s.restart) {
     const gd = dist(owner.x, owner.y, gx, gy);
     const inBox = Math.abs(owner.x - gx) <= ENGINE.pitch.boxDepth && Math.abs(owner.y - gy) <= ENGINE.pitch.boxWidth / 2;
@@ -356,7 +368,10 @@ export function keeperTarget(s: SimState, a: Agent): void {
       // 측면·바이라인 쪽 공은 옛 자리 그대로 (컷백은 GK 가 가로질러야 하는 상황으로 남는다). 옆 자리는 그대로
       // 단독 돌파(골 쪽에 우리 필드 수비가 없음)면 스위퍼는 그대로 맞으러 나온다
       if (K.setLine && gd >= K.setFrom && Math.abs(owner.y - gy) <= K.setCentral * Math.abs(owner.x - gx)
-        && s.agents.some((o) => o.onPitch && o.team === a.team && o.line !== 0 && dist(o.x, o.y, gx, gy) < gd - K.setBehind)) a.tx = gx + dir * Math.min(depth, K.setDepth);
+        && s.agents.some((o) => o.onPitch && o.team === a.team && o.line !== 0 && dist(o.x, o.y, gx, gy) < gd - K.setBehind)) {
+        if (K.arcSet) arc(Math.min(depth, K.setDepth));
+        else a.tx = gx + dir * Math.min(depth, K.setDepth);
+      }
     }
   }
 }
