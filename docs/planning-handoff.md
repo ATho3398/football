@@ -1044,3 +1044,4 @@
 - (10/27 01:51 KST) **C.78m 배포 완료**(run 303, deploy 01:39, main ff57f24a, ENGINE 51). balance job(보고만) 진행. C.78m draft_. **누수 카운트 1/5**(m). 진행: C.78n·C.78o.
 - (10/27 01:54 KST) **C.78o 준비 완료**(0ae0cff3, 17분·약 3달러): 지금 main에서 재현 0(100경기+). 원인은 옛 F.5 자동 경기 카드 자동 사용(autoCardDuel·autoCardDecide) — C.75h(autoMoments:false)에서 이미 사라짐(C.75h 직전 4/12 갈림 → 0/12). 엔진 diff 0, 회귀 tests/c78o.test.ts(옛 커밋 4/4 실패 → 통과), 지문 불변, test 1255 ✓. **미해결 7 해결 확인**. **AB: 푸시 ㄱ**.
 - (10/27 01:5x KST) 엔진관리자11 지시문(docs/session-prompts/엔진관리자11.md): ① 박스 수비 구조(미해결 3·4·5, 수신·첫 터치 저지, C.78d와 다른 축인지) ② 미해결 1 재측정 ③ 미해결 2 패스 분포. 총량 의존 측정은 C.78n main 반영 뒤. "한 번 더 실패면 멈춤" 규칙 → 성공 확률 높은 처방만, 확률 의견 요구. 산출 engine-diagnosis-c78p.md.
+- (10/27 01:55 KST) **엔진관리자11 시작 session_011166FUD66PJ1S7t1sHXLcx**(Opus, claude/engine-manager-11, main 기반, 3h·15달러). 엔진관리자10 draft_(15.9달러). automation.md 엔진관리자 ID 갱신. 진행: C.78n · C.78o(main 푸시 중) · 엔진관리자11.
