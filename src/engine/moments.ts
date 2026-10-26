@@ -225,7 +225,8 @@ function wouldStop(s: SimState, a: Agent, stake: number, stops: number, lastT: n
   const group = posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position);
   let th = ((catchUp ? M.autoThreshold : M.threshold)[group] ?? 0.45) * M.stopMul[stop] * mul;
   if (catchUp && stop !== 'critical') {
-    const played = Math.max(0, (s.t - a.enteredAt) / 60);
+    // 출전 시간은 elapsed 축 (enteredAt 과 같은 축, C.78k: s.t 는 후반에 전반 추가시간만큼 되돌아간다)
+    const played = Math.max(0, (s.elapsed - a.enteredAt) / 60);
     const expected = M.autoMinStops * share * Math.min(1, played / mins);
     if (stops < expected - 1) th *= M.autoCatchUpMul;
   }

@@ -855,7 +855,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
 
   // 유지: 지금 위치 가치 × (1 − 다음 결정까지 빼앗길 확률). 빼앗기면 상실 비용 (다른 후보와 같은 식)
   const pLose = loseProb(s, a);
-  const holdU = weight((1 - pLose) * here + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold);
+  const holdU = weight((1 - pLose) * here * holdFresh(s, a) + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold);
   out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
   return out;
 }
@@ -925,6 +925,18 @@ export function leadRiskMul(s: SimState, team: 0 | 1): number {
 }
 
 /** 앞선 골 수에 따른 유지 템포 배수 (느려진다) */
+/**
+ * 공 쥐고 서 있기의 남은 가치 (C.78k): exp(−공 잡은 뒤 시간 / holdStale). 리드 중 holdWasteMin 분 이후(시간 끌기)는 holdWasteMul 배 천천히.
+ * 판단에만 쓰는 가치 항이다 — 빼앗길 확률(실행 판정 P)은 그대로라 판단 = 실행
+ */
+function holdFresh(s: SimState, a: Agent): number {
+  const OB = ENGINE.onball;
+  if (OB.holdStale <= 0) return 1;
+  const lead = s.teams[a.team].stats.goals - s.teams[a.team === 0 ? 1 : 0].stats.goals;
+  const waste = lead > 0 && s.t >= OB.holdWasteMin * 60 ? OB.holdWasteMul : 1;
+  return Math.exp(-Math.max(0, s.t - a.ballT) / (OB.holdStale * waste));
+}
+
 export function leadTempoMul(s: SimState, team: 0 | 1): number {
   const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
   return lead >= 3 ? TA.leadTempo3 : lead >= 2 ? TA.leadTempo2 : 1;

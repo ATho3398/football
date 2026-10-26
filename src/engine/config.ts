@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 48;
+export const ENGINE_VERSION = 49;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -879,6 +879,14 @@ export const ENGINE = {
     carryClose: 0.3,
     carrySkill: 0.3,
     holdTime: 1.0,
+    /**
+     * 공 쥐고 서 있기의 가치 감소 (C.78k, 경기 정지 미해결 8): 유지 후보의 "지금 자리 가치" 몫 × exp(−공 잡은 뒤 시간 / holdStale 초).
+     * 서 있는 동안 상대는 자리를 잡고 우리 움직임은 식는다 — 앞이 비면 몰고 나가기·안전 패스가 이긴다. 0 이면 끔.
+     * 시간 끌기(리드 중이고 holdWasteMin 분 이후)에는 holdWasteMul 배 천천히 준다 (몇 초 더 쥐는 것이 이득, 무한히는 아님)
+     */
+    holdStale: 3,
+    holdWasteMin: 80,
+    holdWasteMul: 3,
     /**
      * 효용 스케일: softmax 전에 곱한다 (C.16 결정 3: 상한을 풀고 4·5·6·8·12 를 측정했다. 1 올릴 때마다 롱패스 비율 −1.7%p, 득점 +0.3골이라 4 유지) (τ 는 이 스케일 기준). 골 단위에서 τ 0.06 선수가 효용 차 0.01골이면 약 60:40,
      * 0.03골이면 약 77:23 (E.18 A1)

@@ -105,6 +105,7 @@ export function setOwner(s: SimState, a: Agent): void {
     }
   }
   a.gotBy = 'gain';
+  a.ballT = s.t;
   a.lastMoveT = -100;
   a.carryN = 0;
   a.dribbleT = -100;
