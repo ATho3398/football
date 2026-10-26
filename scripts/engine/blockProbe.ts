@@ -58,6 +58,9 @@ export interface BlockTeam {
   lowAhead3: number;
   lowRun3: number;
   lowShot15: number;
+  /** C.78j ⒜: 그중 상대 슛 뒤 3초 안 회수(막은 슛·쳐낸 공·걷어낸 공을 주운 탈취) 수 · 그 15초 슛 — 나머지가 진짜 탈취 */
+  lowPost: number;
+  lowPostShot15: number;
   lowGoal15: number;
   lowF3: number;
   /** 자기 ⅓ 탈취 뒤 5초·10초에도 계속 소유(중간에 안 잃음) · 첫 패스가 롱(30 m+)인 수 · 그 롱패스 뒤 3초 안 우리 소유 */
@@ -96,7 +99,7 @@ function empty(): BlockTeam {
     sa: 0, saBox: 0, saZ14: 0, saFar: 0, saHead: 0, saXg: 0, saBlocked: 0, saPBlock: 0, saPress3: 0, saD: 0, saGoals: 0, saSetPoss: 0, viaXg: [0, 0, 0, 0, 0, 0], headXg: 0, boxXg: 0, saDense6: 0, saRecvT: 0, saRecvN: 0, via: [0, 0, 0, 0, 0, 0],
     sh: 0, shDef: 0, shMid: 0, shGap: 0, shZoneUs: 0, shZoneThem: 0, shBoxUs: 0, shBoxThem: 0, shBehind: 0,
     btw: 0, btwNear: 0, btwNear1: 0, btwShot6: 0, crossFaced: 0,
-    low: 0, lowT1: 0, lowFwd: 0, lowFwdN: 0, lowDec: 0, lowAhead3: 0, lowRun3: 0, lowShot15: 0, lowGoal15: 0, lowF3: 0, lowKeep5: 0, lowKeep10: 0, lowLong: 0, lowLongKeep: 0, wins: 0, winShot15: 0,
+    low: 0, lowT1: 0, lowFwd: 0, lowFwdN: 0, lowDec: 0, lowAhead3: 0, lowRun3: 0, lowShot15: 0, lowPost: 0, lowPostShot15: 0, lowGoal15: 0, lowF3: 0, lowKeep5: 0, lowKeep10: 0, lowLong: 0, lowLongKeep: 0, wins: 0, winShot15: 0,
     ln: 0, lnOn: 0, lnOn6: 0, lnCnt: 0, lnLat: 0, lnSame: 0, lnTraj: 0, lnNear: 0, lnVia: [0, 0, 0], lnViaOn: [0, 0, 0], lnRecvLat: 0, lnRecvN: 0, lnBlocked: 0, lnXg: 0,
   };
 }
@@ -144,7 +147,7 @@ export function blockRun(sim: MatchSim): BlockOut {
   const wonAt = [-100, -100];
   let nextShape = 0;
   const btwWatch: { def: 0 | 1; t: number; rcv: number; shots: number; n1: boolean; done: boolean }[] = [];
-  const lowWatch: { team: 0 | 1; t: number; shots: number; goals: number; dec: boolean; a3: boolean; f3: boolean; shot: boolean; goal: boolean; lost: boolean; k5: boolean; k10: boolean; longT: number }[] = [];
+  const lowWatch: { post: boolean; team: 0 | 1; t: number; shots: number; goals: number; dec: boolean; a3: boolean; f3: boolean; shot: boolean; goal: boolean; lost: boolean; k5: boolean; k10: boolean; longT: number }[] = [];
   const winWatch: { team: 0 | 1; t: number; shots: number; shot: boolean }[] = [];
   const lastShotT = [-100, -100];
   const shots: { def: 0 | 1; p: { outcome: string } }[] = [];
@@ -305,7 +308,10 @@ export function blockRun(sim: MatchSim): BlockOut {
         const [z] = depth(s, win, b.x, b.y);
         if (z < L / 3) {
           T.low++;
-          lowWatch.push({ team: win, t, shots: s.teams[win].stats.shots, goals: s.teams[win].stats.goals, dec: false, a3: false, f3: false, shot: false, goal: false, lost: false, k5: false, k10: false, longT: -1 });
+          // C.78j ⒜: 상대 슛(막힌 슛 포함, 측정 훅 시각) 뒤 3초 안이면 슛 뒤 회수
+          const post = t - lastShotT[(1 - win) as 0 | 1]! <= 3;
+          if (post) T.lowPost++;
+          lowWatch.push({ post, team: win, t, shots: s.teams[win].stats.shots, goals: s.teams[win].stats.goals, dec: false, a3: false, f3: false, shot: false, goal: false, lost: false, k5: false, k10: false, longT: -1 });
         }
       }
       prevPoss = s.possTeam;
@@ -313,7 +319,7 @@ export function blockRun(sim: MatchSim): BlockOut {
       for (const w of lowWatch) {
         if (t - w.t > 15) continue;
         const T = out.team[w.team];
-        if (!w.shot && s.teams[w.team].stats.shots > w.shots) { w.shot = true; T.lowShot15++; }
+        if (!w.shot && s.teams[w.team].stats.shots > w.shots) { w.shot = true; T.lowShot15++; if (w.post) T.lowPostShot15++; }
         if (!w.goal && s.teams[w.team].stats.goals > w.goals) { w.goal = true; T.lowGoal15++; }
         if (!w.lost && s.possTeam !== w.team && !s.restart) w.lost = true;
         if (!w.k5 && t - w.t >= 5) { w.k5 = true; if (!w.lost) T.lowKeep5++; }

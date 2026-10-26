@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 49;
+export const ENGINE_VERSION = 50;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1365,7 +1365,8 @@ export const ENGINE = {
      */
     /** C.77t: 처방 1.6 은 12 m 밖 선방률 65% 라 §9.17.3 (i) 대로 2.0 */
     reachBase: 2.0,
-    diveSpeed: 4.0,
+    /** C.78j: 4 → 6 (GK 깊이 수정과 함께 12 m 밖 선방 61.7 → 67.6%, 장면 ④ 빠른 컷백 0.18 ≤ 0.2) */
+    diveSpeed: 6,
     reachSpan: 1.5,
     /** GK 반응 시간 (초): tb 에서 뺀다 (0 아래는 0) */
     reactTime: 0,
@@ -1434,6 +1435,8 @@ export const ENGINE = {
      */
     setLine: 1,
     setCentral: 0.84,
+    /** 슛 거리 깊이를 쓰는 소유자 최소 거리 (m): 그 안(각 좁히기 경계 rushDist 근처)은 옛 자리 — 장면 ④ 1대1(12 m) 기하 유지 */
+    setFrom: 13,
     setDepth: 3,
     /** 루즈볼 추격 (C.28): 공 경로(chaseHorizon 초)에서 GK 가 닿는 첫 점이 처리 구역(자기 박스, 스위퍼는 박스 밖 sweepRange m 까지) 안이고
      * GK 도착(반응 + 거리/최대 속도)이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료보다 늦지 않으면 나간다. 이미 나갔으면 여유 chaseKeep */
