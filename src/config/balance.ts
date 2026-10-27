@@ -469,8 +469,8 @@ export const BALANCE = {
     seasonMinutes: 1500,
     careerShift: [[3, 1], [5, 2]] as [number, number][],
     maxTotalShift: 3,
-    /** 게겐 이동을 거는 기간 = wearAgeFrom(30) 부터 이동 × careerWindow 시즌 (3시즌 → 30~31세, 5시즌 → 30~33세) */
-    careerWindow: 2,
+    /** 게겐 이동을 거는 기간 = wearAgeFrom(30) 부터 이동 × careerWindow 시즌 미만 (3시즌 → 30~31세, 5시즌 → 30~32세). C.78t 2(2시즌): balance 18/19 — 36−30 ST/CAM −2.1 ✗(main −1.8) → 1.5 */
+    careerWindow: 1.5,
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
