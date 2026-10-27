@@ -6616,7 +6616,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 
 - 제안 수는 그대로(관심 순서만 바뀜). 주급 평균이 30% 넘게 줄지 않는 것은 강팀일수록 기본 주급이 높아서(팀 레이팅 가산)다.
 - 테스트 `tests/c78u.test.ts` 4개(가산 범위 · 판정 · 잠재력 상위 19세 OVR 67 상위 6팀 제안 · 23세 가산 끄기 전후 제안 같음), `tests/c76n.test.ts` STAGE_LABEL 52단계.
-- 검증: BALANCE_CHECK_LINE
+- 검증: typecheck ✓ · test 1259 ✓(버전 라벨 테스트 6개 정규식을 50번대 단계까지 넓힘; 카드 2초 테스트는 balance:check 동시 실행 부하로 2106 ms 한 번 → 단독 839 ms ✓) · `npm run balance:check` 회귀 가드 **19/19 ✓** — 이적: NPC 이동 8.9% · 비시즌 제안 2.7개 · best 정책 커리어 이적 일반 2.92 · 레전더리 3.92회 · 30세 위상 중앙값 stay 313/626 · best 171/999, 재정·경제·성장·위상 표 가드 안. 엔진 무수정이라 balance:engine:check 생략.
 - **새 화면**: 없음(OfferCard 메모 줄·재계약 화면 한 줄 추가).
 
 ### C.78o 44h단계 직접 모드 맡기기 = 자동 경기(미해결 7, Opus 1차): **재현 안 됨 → 원인은 C.75h 에서 이미 사라진 "자동 경기만 결정 순간 카드 자동 사용"으로 확인, 엔진 코드 변경 없이 회귀 테스트만** (ENGINE_VERSION 51 그대로 · BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 변경 0, 같은 시드 30경기 지문 `da8991c27fbc6e27` = origin/main ff57f24a)
