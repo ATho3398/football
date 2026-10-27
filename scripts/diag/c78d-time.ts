@@ -7,7 +7,7 @@ import type { Tendency } from '../../src/engine/types';
 
 const n = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? 30);
 const OFF = { 'offball.compact': 0, 'offball.supportRun': 0, 'offball.deepBoxMan': 0, 'prob.blockDense': 0, 'prob.aerialCrowd': 0 };
-const pairs: [Tendency, Tendency][] = [['balanced', 'bus'], ['gegenpress', 'block'], ['balanced', 'counter']];
+const pairs: [Tendency, Tendency][] = [['balanced', 'block'], ['gegenpress', 'block'], ['balanced', 'counter']];
 const job = (k: number, overrides: Record<string, number>): MatchJob => {
   const [x, y] = pairs[k % pairs.length]!;
   return { kind: 'match', seed: 31000 + k, neutral: true, home: std('a', 31000 + k, 75, '4-4-2', tacticsOf(x)), away: std('b', 31000 + k, 75, '4-4-2', tacticsOf(y)), overrides };

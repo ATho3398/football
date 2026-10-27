@@ -11,7 +11,7 @@ import type { MatchEnv } from './env';
 import type { RapportInput } from './rapport';
 
 /** 전술 성향 7종 (E.19 ①, C.76k 버스 세우기) */
-export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block' | 'bus';
+export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
 
 export interface Tactics {
   /** 전술 성향: 세부 전술 기본값과 고유 행동 (E.19) */

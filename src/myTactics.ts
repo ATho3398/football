@@ -6,7 +6,7 @@ import type { FieldAttributes } from './attributes';
 import { customLabel, customProblem, customSlots, FORMATIONS, presetCells, slotsOf, type CustomCells, type Formation } from './formations';
 import { positionDistance } from './proficiency';
 import { pickLineup, posGroup, type RosterPlayer, type Rosters, type TeamRoster } from './roster';
-import { DETAILS, recommendedRole, ROLE_OPTIONS, roleGroup, tacticsOf, tendencyLevels, validLevel, type Detail, type Level } from './engine/tactics';
+import { DETAILS, recommendedRole, ROLE_OPTIONS, roleGroup, tacticsOf, TENDENCIES, tendencyLevels, validLevel, type Detail, type Level } from './engine/tactics';
 import { TEAM_TACTICS } from './engine/teamData';
 import type { Tactics, Tendency } from './engine/types';
 import type { Position } from './types';
@@ -158,7 +158,7 @@ export function teamRoles(t: MyTactics, attrs: (FieldAttributes | undefined)[]):
 /** 저장 값 검사 (세이브를 손으로 고쳤거나 다음 패치에서 포메이션이 바뀐 경우 기본값으로) */
 export function validTactics(t: unknown): t is MyTactics {
   const x = t as MyTactics | undefined;
-  if (!x || !isFormation(x.formation) || !Array.isArray(x.roles) || x.roles.length !== 11 || !x.levels) return false;
+  if (!x || !TENDENCIES.includes(x.tendency) || !isFormation(x.formation) || !Array.isArray(x.roles) || x.roles.length !== 11 || !x.levels) return false;
   if (x.custom !== null && (!Array.isArray(x.custom) || customProblem(x.custom) !== null)) return false;
   const s = slotsOf(x.formation, x.custom)[x.mySlot];
   return !!s && s.pos !== 'GK' && DETAILS.every((d) => validLevel(d, x.levels[d]));
@@ -174,7 +174,6 @@ const FIT_KEYS: Record<Tendency, [Who, (keyof FieldAttributes)[]][]> = {
   counter: [['att', ['pace', 'acceleration', 'offTheBall']]],
   direct: [['all', ['longPassing']], ['st', ['heading', 'strength']]],
   block: [['all', ['marking', 'defensivePositioning', 'tackling']]],
-  bus: [['all', ['marking', 'defensivePositioning', 'tackling']]],
 };
 
 export interface FitPlayer { pos: Position; attrs?: FieldAttributes }

@@ -3,13 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { ENGINE } from '../src/engine/config';
 import { createState } from '../src/engine/sim';
 import { teamSetupFromRoster, underdogPlan } from '../src/engine/setup';
-import { aiAdjust, LEVEL_NAMES_KO, LEVELS, levelOf, recommendedRole, tacticsOf, TENDENCIES, TENDENCY, TENDENCY_DESC_KO, TENDENCY_NAMES_KO, tendencyLevels, validLevel } from '../src/engine/tactics';
+import { aiAdjust, blockRow, LEVEL_NAMES_KO, LEVELS, levelOf, recommendedRole, tacticsOf, TENDENCIES, TENDENCY, TENDENCY_DESC_KO, TENDENCY_NAMES_KO, tendencyLevels, validLevel } from '../src/engine/tactics';
 import { halftimeSets, tacticsVM } from '../src/ui/viewModels';
 import { makeTactics, validTactics } from '../src/myTactics';
 import { restore, SaveFormatError, serialize } from '../src/save';
 import { newGame, SAVE_FORMAT_VERSION } from '../src/game';
 import { createTeamRoster } from '../src/roster';
 import type { EngineInput } from '../src/engine/types';
+
+/** 큰 차 약팀이 고르는 성향@라인 단계 (C.78s H1) */
+const UNDERDOG_SEEN = ['block@0', 'block@1'];
 
 const home = createTeamRoster({ id: 'h', rating: 75 }, 'real-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 75 }, 'real-a', 2018, []);
@@ -33,27 +36,27 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     // 3단 세부 전술에 단계 3 이 와도 마지막 단계
     expect(tacticsOf('balanced', { pressing: 3 }).pressing).toBe(0.8);
   });
-  it("새 성향 'bus' = 버스 세우기: 매우 낮음 / 압박 낮음 / 직선 / 좁게, 상수와 설명, 추천 역할은 블록 + 타깃맨", () => {
-    expect(TENDENCIES).toContain('bus');
-    expect(TENDENCY_NAMES_KO.bus).toBe('버스 세우기');
-    expect(TENDENCY_DESC_KO.bus.length).toBeGreaterThan(5);
-    expect(tacticsOf('bus')).toEqual({ tendency: 'bus', lineHeight: 0.2, pressing: 0.3, style: 0.2, width: 0.85 });
-    expect(TENDENCY.busLineMax).toBeLessThan(TENDENCY.blockLineMax);
-    expect(TENDENCY.busGap).toBeLessThan(TENDENCY.blockGap);
+  it("버스 세우기 = 수비 블록 + 라인 매우 낮음 (C.78s H1): 성향 목록에 없고, 블록 라인 단계표 0 이 옛 버스 수치", () => {
+    expect(TENDENCIES).not.toContain('bus');
+    expect(TENDENCY_DESC_KO.block).toContain('버스');
+    const bus = tacticsOf('block', { lineHeight: 0 });
+    expect(bus).toEqual({ tendency: 'block', lineHeight: 0.2, pressing: 0.3, style: 0.2, width: 0.85 });
+    expect(blockRow(bus)).toEqual({ lineMax: 14, gap: 8, stay: 1, compactW: 0.5, fbOverlap: 0.3 });
+    expect(blockRow(tacticsOf('block'))).toEqual({ lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 });
+    expect(blockRow(tacticsOf('balanced'))).toBeNull();
     const r = createTeamRoster({ id: 'v1', rating: 70 }, 'w', 2018, []);
     const st = r.players.find((p) => p.position === 'ST')!;
-    expect(recommendedRole('bus', 'ST', st.attributes!).id).toBe('targetMan');
+    expect(recommendedRole('block', 'ST', st.attributes!).id).toBe('targetMan');
   });
-  it('약팀 대응: 큰 차이면 버스/블록/역습 중 하나 + 라인 매우 낮음 + 압박 두 단계 아래, 작은 차이는 한 단계', () => {
+  it('약팀 대응: 큰 차이면 블록@매우 낮음(버스)/블록@낮음 중 하나 + 압박 두 단계 아래, 작은 차이는 한 단계', () => {
     const base = tacticsOf('balanced');
     const seen = new Set<string>();
     for (let i = 0; i < 40; i++) {
       const t = underdogPlan(`t${i}`, 70, 84, base, 'w');
-      seen.add(t.tendency);
-      expect(t.lineHeight).toBe(LEVELS.lineHeight[0]);
+      seen.add(`${t.tendency}@${levelOf('lineHeight', t.lineHeight)}`);
       expect(t.pressing).toBe(LEVELS.pressing[0]);
     }
-    expect([...seen].sort()).toEqual(['block', 'bus', 'counter']);
+    expect([...seen].sort()).toEqual(UNDERDOG_SEEN);
     const small = underdogPlan('t', 70, 76, tacticsOf('tikitaka'), 'w');
     expect(['tikitaka', 'block', 'counter']).toContain(small.tendency);
     if (small.tendency === 'tikitaka') expect(small.lineHeight).toBe(LEVELS.lineHeight[2]);
@@ -101,16 +104,17 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     raw.saveFormat = 50;
     expect(() => restore(raw)).toThrow(SaveFormatError);
     expect(SAVE_FORMAT_VERSION).toBe(57);
-    const bus = makeTactics('bus', '4-4-2', 'ST');
+    const bus = { ...makeTactics('block', '4-4-2', 'ST'), levels: { ...tendencyLevels('block'), lineHeight: 0 as const } };
     expect(validTactics(bus)).toBe(true);
-    expect(bus.levels.lineHeight).toBe(0);
+    // 옛 세이브의 'bus' 성향은 검사에서 걸러져 기본 전술로 (C.78s H1, 세이브 형식 그대로)
+    expect(validTactics({ ...bus, tendency: 'bus' as never })).toBe(false);
     expect(validTactics({ ...bus, levels: { ...bus.levels, pressing: 3 } })).toBe(false);
-    // 전술 화면: 성향 7개 + 라인 선택지 4개 + 설명 한 줄
+    // 전술 화면: 성향 6개 + 라인 선택지 4개 + 설명 한 줄
     g.tactics = bus;
     const vm = tacticsVM(g, { draft: structuredClone(g.tactics), pickMe: false, sheet: null, sheetPick: null });
-    expect(vm.tendencies).toHaveLength(7);
-    expect(vm.tendencies.find((t) => t.id === 'bus')!.name).toBe('버스 세우기');
-    expect(vm.tendencyDesc).toBe(TENDENCY_DESC_KO.bus);
+    expect(vm.tendencies).toHaveLength(6);
+    expect(vm.tendencies.some((t) => (t.id as string) === 'bus')).toBe(false);
+    expect(vm.tendencyDesc).toBe(TENDENCY_DESC_KO.block);
     expect(vm.details.find((d) => d.key === 'lineHeight')!.items.map((i) => i.label)).toEqual(['매우 낮음', '낮음', '보통', '높음']);
   });
 });

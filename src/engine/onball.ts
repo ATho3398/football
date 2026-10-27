@@ -572,14 +572,29 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const style = tac.style;
   const mPoss = TA.possBase + TA.possSlope * style;
   const mDirect = TA.directBase - TA.possSlope * style;
-  // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛, 역습 6초 전진·침투 패스 효용 배수 (C.78d ②: 버스·블록도 역습과 같은 첫 패스 전진 출구)
+  // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛, 역습 6초 전진·침투 패스 효용 배수 (C.78d ②: 블록도 역습과 같은 첫 패스 전진 출구)
   const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
   const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
-    : (tac.tendency === 'counter' || (ENGINE.offball.supportRun > 0 && (tac.tendency === 'bus' || tac.tendency === 'block'))) && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
+    : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
+  // 역습 탈취 뒤 전진 (C.78s H2): 배수 대신 판단 보정 decide.bias.counterFwd × 성공 확률 × 전진 거리 × 받는 곳 앞 공간 (침투 패스, counterWinTime 초 안, 실행 불변)
+  const DB = ENGINE.decide.bias;
+  const ctrFwd = DB.counterFwd > 0 && tac.tendency === 'counter' && sinceWin <= TENDENCY.counterWinTime;
+  if (ctrFwd && !oppNx.length) for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) oppNx.push(toNorm(o.x, o.y, dir)[0]);
+  const fwdBias = (rx: number, pj: number, running: boolean): number => {
+    if (!ctrFwd || rx - ax < 0.03 || !running) return 0;
+    let behind = 0;
+    for (const x of oppNx) if (x > rx) behind++;
+    return DB.counterFwd * pj * Math.min(1, ((rx - ax) * L) / DB.counterFwdRef) * clamp(1 - behind / DB.counterSpaceBack, 0, 1);
+  };
   const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
   const line = offsideLine(s, a.team);
+  // 블록 탈출구 (C.78s H3): 블록이 자기 절반에서 뺏은 뒤 counterWinTime 초 안, 상대 마지막 수비 줄이 높으면(우리 기준 blockExitLine 이하)
+  // 그 줄 뒤로 가는 롱·침투 패스에 판단 보정 decide.bias.blockExit × 판단 성공 확률 (실행 불변 — 롱볼 성공·세컨드볼은 지금 규칙)
+  const blockExit = DB.blockExit > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime && ax < 0.5 && line <= TENDENCY.blockExitLine;
+  const exitBias = (rx: number, pj: number, running: boolean, d0: number): number =>
+    blockExit && (rx - ax) * L >= DB.blockExitFwd && (running || d0 >= TA.longBall) ? DB.blockExit * (DB.blockExitP > 0 ? pj : 1) : 0;
   const oppGk = keeperOf(s, (1 - a.team) as 0 | 1);
   // 경기 상황 (E.20 10번, C.29 fix2): 크게 앞선 팀은 전진 패스·슛·드리블을 덜 하고 안전 패스·유지로 기운다 (팀 공용 행동)
   const risk = leadRiskMul(s, a.team);
@@ -679,7 +694,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
-    u = weight(u, passW) + cBonus(pj, rx - ax);
+    u = weight(u, passW) + cBonus(pj, rx - ax) + fwdBias(rx, pj, running) + exitBias(rx, pj, running, d0);
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -691,7 +706,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
-      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + fwdBias(rx, pjO, running) + exitBias(rx, pjO, running, d0), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
     }
   }
 
@@ -901,7 +916,7 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: 
   const tm = s.teams[a.team];
   const tac = tm.tactics;
   const lead = tm.stats.goals - s.teams[1 - a.team]!.stats.goals;
-  const keepW = 1 + (lead > 0 ? O.backLeadKeep : 0) + (tac.tendency === 'bus' || tac.tendency === 'block' || tac.tendency === 'tikitaka' ? O.backTendKeep : 0);
+  const keepW = 1 + (lead > 0 ? O.backLeadKeep : 0) + (tac.tendency === 'block' || tac.tendency === 'tikitaka' ? O.backTendKeep : 0);
   const costW = 1 + (attackTendency(tac.tendency) ? O.backTendCost : 0) + (lead <= 0 && s.t / 60 >= O.backLateMin ? O.backLateCost : 0);
   // 전환 대상 동료(공 반대 측면·자유) 는 후보마다 같다 — 한 번만 (C.78b 계산 줄이기, 결과 같음)
   let mates: Agent[] | null = null;
@@ -1029,7 +1044,7 @@ function passiveWeight(s: SimState, a: Agent, c: Candidate, pool: Candidate[], c
   if (lead >= 2 || (lead === 1 && min >= R.passiveLeadMin)) return 0;
   if (s.possOrigin !== 'open' && s.t - s.possStartT <= R.passiveRestartT) return 0;
   const tac = tm.tactics;
-  if (tac.tendency === 'bus' || tac.tendency === 'block') return 0;
+  if (tac.tendency === 'block') return 0;
   const rt = a.rt;
   if (tac.tendency === 'counter' && ax < 0.5 && rt.passiveCtr !== s.possStartT) {
     if (commit) rt.passiveCtr = s.possStartT;

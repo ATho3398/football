@@ -12,6 +12,10 @@ import type { Tendency } from '../../src/engine/types';
 import { pick, place, sane, sceneSim, sceneState, withEngine } from './harness';
 import type { SceneOut } from './scenes';
 
+/** 버스 세우기 = 수비 블록 + 라인 매우 낮음 (C.78s H1) */
+type Tend = Tendency | 'bus';
+const tacOf = (t: Tend) => (t === 'bus' ? tacticsOf('block', { lineHeight: 0 }) : tacticsOf(t));
+
 /** 줄마다 x, y 는 고르게 (팀별 [GK, 수비, 중원, 공격] x) */
 function layout(s: SimState, xs0: number[], xs1: number[]): void {
   for (const team of [0, 1] as const) {
@@ -35,17 +39,17 @@ function giveBall(s: SimState, o: Agent): void {
   s.possStartT = s.t;
 }
 
-function setTactics(s: SimState, t0: Tendency, t1: Tendency): void {
-  s.teams[0].tactics = tacticsOf(t0);
+function setTactics(s: SimState, t0: Tend, t1: Tend): void {
+  s.teams[0].tactics = tacOf(t0);
   s.teams[0].setup.tactics = s.teams[0].tactics;
-  s.teams[1].tactics = tacticsOf(t1);
+  s.teams[1].tactics = tacOf(t1);
   s.teams[1].setup.tactics = s.teams[1].tactics;
 }
 
 /**
  * 지공(팀 0 균형)이 상대 진영 40 m 에서 공을 갖고 120초(그 뒤 흐름 그대로): 팀 0 의 슛 수 · 박스 밖 비율 · 블록 비율 · xG 합. 팀 1 = def 성향(시드마다 같은 배치에서 시작)
  */
-function buildRun(def: Tendency, N: number) {
+function buildRun(def: Tend, N: number) {
   let shots = 0, out = 0, blocked = 0, xg = 0;
   let ok = true;
   const old = probe.shot;
@@ -96,7 +100,7 @@ export function sceneBlockBuild(): SceneOut {
  * 블록 팀(팀 1)이 자기 골 18 m 에서 공을 뺏은 직후 15초 (팀 0 은 공격 대형으로 올라와 있음): 지원 달리기 인원 · 지원 대상(공에 가장 가까운 2선) 3초 전진 m ·
  * 15초 안 슛 비율 · 15초 안 상대 ⅓ 도달
  */
-function counterRun(t1: Tendency, N: number) {
+function counterRun(t1: Tend, N: number) {
   let sup = 0, exit = 0, run3 = 0, shot = 0, f3 = 0;
   let ok = true;
   for (let k = 0; k < N; k++) {
@@ -161,7 +165,7 @@ export function sceneBlockCounter(): SceneOut {
  * 받은 1초 뒤: 이동 목표가 소유자 2 m 안인 팀 1 선수 수(튀어나감 — 한 번에 1명이면 1 안팎, 둘 이상 비율 multi) · 받는 순간·1초 뒤 가장 가까운 수비 거리 ·
  * 압박자를 뺀 중원 줄의 가로 간격 최댓값(옆이 메우면 구멍이 작다). 밀집 끔(offball.compact 0)과 비교
  */
-function betweenRun(t1: Tendency, N: number) {
+function betweenRun(t1: Tend, N: number) {
   let steppers = 0, multi = 0, near1 = 0, received = 0, near0 = 0, gapMax = 0;
   let ok = true;
   for (let k = 0; k < N; k++) {

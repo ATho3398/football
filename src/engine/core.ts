@@ -5,7 +5,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import * as physics_ from './physics';
 const { tiredRatio } = physics_;
-import { effectiveTactics, pressLevel } from './offball';
+import { effectiveTactics, offsideLine, pressLevel } from './offball';
 import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
 const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
@@ -134,9 +134,9 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   tm.brokeAt = -100;
   if (O.exitRun > 0) exitRuns(s, team === 0 ? 1 : 0);
   transitionMoment(s, team);
-  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록·버스 세우기는 역압박 없이 즉시 복귀
+  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록(버스 포함)은 역압박 없이 즉시 복귀
   const tendency = tm.tactics.tendency;
-  if (tendency === 'counter' || tendency === 'block' || tendency === 'bus') return;
+  if (tendency === 'counter' || tendency === 'block') return;
   const b = s.ball;
   const near = s.agents
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
@@ -178,8 +178,11 @@ function exitRuns(s: SimState, win: 0 | 1): void {
     a.runUntil = s.t + O.runSeconds;
     a.exitRun = true;
   }
-  // 역습 지원 (C.78d ②): 버스·블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
-  const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
+  // 역습 지원 (C.78d ②): 블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
+  // 블록 탈출구 (C.78s H3): 상대 마지막 수비 줄이 높으면(blockExitLine) 블록 지원 주자 blockExitRunners 명 (최전방 + 공 쪽 윙어 몫)
+  const tdw = s.teams[win].tactics.tendency;
+  const n = O.supportRun > 0 && bnx < 0.5
+    ? tdw === 'block' && offsideLine(s, win) <= TENDENCY.blockExitLine ? TENDENCY.blockExitRunners : TENDENCY.supportRunners[tdw] ?? 0 : 0;
   if (!n) return;
   const b = s.ball;
   const sup = s.agents.filter((a) => a.onPitch && a.team === win && a !== top && a.idx !== b.owner && !exits.includes(a)

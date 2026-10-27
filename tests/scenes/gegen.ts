@@ -11,6 +11,10 @@ import type { Tendency } from '../../src/engine/types';
 import { pick, place, sane, sceneSim, sceneState, setBody, withEngine } from './harness';
 import type { SceneOut } from './scenes';
 
+/** 버스 세우기 = 수비 블록 + 라인 매우 낮음 (C.78s H1) */
+type Tend = Tendency | 'bus';
+const tacOf = (t: Tend) => (t === 'bus' ? tacticsOf('block', { lineHeight: 0 }) : tacticsOf(t));
+
 /** 줄마다 x, y 는 고르게 (팀별 [GK, 수비, 중원, 공격] x) */
 function layout(s: SimState, xs0: number[], xs1: number[]): void {
   for (const team of [0, 1] as const) {
@@ -38,7 +42,7 @@ function giveBall(s: SimState, o: Agent): void {
  * 게겐(팀 0)이 공을 잃은 직후 8초를 엔진 step 으로: 역압박 가담 수 · 상대 첫 공 처리(30 m+ 롱볼·걷어내기 비율) · 6초 안 게겐 되찾음 · 되찾은 높이(상대 골에서 m).
  * 첫 공 처리 = 상대 팀이 처음 공을 차거나(비행) 잃은 순간
  */
-function lossRun(opp: Tendency, xs0: number[], xs1: number[], ballAt: [number, number], N: number) {
+function lossRun(opp: Tend, xs0: number[], xs1: number[], ballAt: [number, number], N: number) {
   let press = 0;
   let long = 0;
   let firsts = 0;
@@ -50,7 +54,7 @@ function lossRun(opp: Tendency, xs0: number[], xs1: number[], ballAt: [number, n
     const s = sceneState(150 + k);
     s.teams[0].tactics = tacticsOf('gegenpress');
     s.teams[0].setup.tactics = s.teams[0].tactics;
-    s.teams[1].tactics = tacticsOf(opp);
+    s.teams[1].tactics = tacOf(opp);
     s.teams[1].setup.tactics = s.teams[1].tactics;
     layout(s, xs0, xs1);
     // 공 주변: 상대 중원 1명이 공, 게겐 공격 줄·중원이 공 근처(잃은 순간)
@@ -109,7 +113,7 @@ export function sceneLongEscape(): SceneOut {
   const run = (landShare: number) => withEngine({ 'onball.landShare': landShare }, () => {
     const s = sceneState(16);
     s.teams[0].tactics = tacticsOf('gegenpress');
-    s.teams[1].tactics = tacticsOf('bus');
+    s.teams[1].tactics = tacOf('bus');
     layout(s, [6, 45, 62, 80], [L - 1, L - 10, L - 18, 47]);
     const cb = pick(s, 1, 1, 1);
     const st = pick(s, 1, 3, 0);

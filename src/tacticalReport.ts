@@ -93,7 +93,6 @@ export function tendencyVerdict(r: ReportInput): Verdict | null {
       }
       return null;
     case 'block':
-    case 'bus':
       if (x.onTarget <= T.block.okOppOnMax && x.centralShots <= T.block.okOppCentralMax) {
         return v(true, '블록이 버텼어요', `상대 유효 슈팅 ${x.onTarget}개`);
       }

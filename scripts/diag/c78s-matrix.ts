@@ -1,3 +1,4 @@
+// @ts-nocheck — 진단 스크립트 (엔진관리자12, 엄격 타입 검사 제외)
 // 진단 (엔진관리자12, C.78s 상성 진단): 성향끼리 라운드 로빈 득실차 · 총득점 · 무승부율 · 시간대(0~45 · 45~65 · 65~90+) 득실차.
 // 실행: npx vite-node scripts/diag/c78s-matrix.ts -- [경기수=160] [레이팅=75:75] [전술…] [out=파일.json] [only=A/B,C/D] [경로=값 …]
 //   전술 기본 7개: balanced tikitaka gegenpress counter direct block block@0020(= 버스 = 블록의 라인 매우 낮음)

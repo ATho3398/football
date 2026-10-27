@@ -17,10 +17,11 @@ import type { SimState } from './state';
 import { TEAM_STYLE, TEAM_TACTICS } from './teamData';
 import type { Tactics, Tendency } from './types';
 
-export const TENDENCIES: readonly Tendency[] = ['balanced', 'tikitaka', 'gegenpress', 'counter', 'direct', 'block', 'bus'];
+/** 성향 6종 (C.78s H1: 버스 세우기는 성향이 아니라 수비 블록의 라인 '매우 낮음' — pending 146) */
+export const TENDENCIES: readonly Tendency[] = ['balanced', 'tikitaka', 'gegenpress', 'counter', 'direct', 'block'];
 
 export const TENDENCY_NAMES_KO: Record<Tendency, string> = {
-  balanced: '균형', tikitaka: '티키타카', gegenpress: '게겐프레싱', counter: '역습', direct: '직선(롱볼)', block: '수비 블록', bus: '버스 세우기',
+  balanced: '균형', tikitaka: '티키타카', gegenpress: '게겐프레싱', counter: '역습', direct: '직선(롱볼)', block: '수비 블록',
 };
 
 /** 성향 한 줄 설명 (전술 화면·하프타임 안내용, C.76k) */
@@ -28,10 +29,9 @@ export const TENDENCY_DESC_KO: Record<Tendency, string> = {
   balanced: '라인·압박·빌드업·폭 모두 보통',
   tikitaka: '높은 라인에서 짧은 패스로 돌리다 확실한 기회만 쏜다',
   gegenpress: '공을 잃으면 바로 되찾는 전방 압박',
-  counter: '낮게 서서 뺏자마자 빠르게 앞으로',
+  counter: '하프라인 부근에 좁게 모여 기다리다 뺏자마자 빠른 윙어·ST 에게',
   direct: '타깃 ST 에게 롱볼, 세컨드볼과 크로스',
-  block: '박스 경계까지 내려서 두 줄 간격 12 m 블록',
-  bus: '라인을 박스 앞까지 내리고 두 줄로 버틴다',
+  block: '내려서 두 줄 블록. 라인 매우 낮음 = 박스 앞 버스 세우기',
 };
 
 /** 세부 전술 단계 값 (E.19 ③). 라인은 4단(C.76k '매우 낮음' = 박스 앞 20 m), 나머지는 3단. 빌드업은 짧게 / 혼합 / 직선 순 */
@@ -64,10 +64,9 @@ const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
   balanced: [2, 1, 1, 1],
   tikitaka: [3, 2, 0, 2],
   gegenpress: [3, 2, 1, 1],
-  counter: [1, 0, 2, 1],
+  counter: [2, 1, 1, 1],
   direct: [2, 1, 2, 2],
   block: [1, 0, 2, 0],
-  bus: [0, 0, 2, 0],
 };
 
 /** 성향의 세부 전술 기본 단계 (E.19 ①) */
@@ -107,7 +106,6 @@ const RECOMMENDED: Partial<Record<Tendency, Partial<Record<string, string[]>>>> 
   counter: { CB: ['coverCB'], CDM: ['anchor'], WING: ['wingForward'], ST: ['advancedForward'] },
   direct: { CB: ['stopper'], FB: ['attackingFullback'], WING: ['classicWinger'], ST: ['targetMan'] },
   block: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], CM: ['holdingCM'], ST: ['targetMan'] },
-  bus: { CB: ['stopper', 'coverCB'], FB: ['defensiveFullback'], CDM: ['anchor'], CM: ['holdingCM'], ST: ['targetMan'] },
 };
 
 /** 포지션별로 고를 수 있는 역할 (E.6 역할 표) */
@@ -192,28 +190,65 @@ export const TENDENCY = {
   gegenWinTime: 4,
   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
   gegenDrain: 1.15,
-  /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
+  /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */
   counterWinMul: 1.12,
   counterWinTime: 6,
-  counterStayX: 0.48,
+  /**
+   * 역습 (C.78s H2, pending 146 사용자 정의 "라인 올리고 1·2선 하프라인 부근 좁게, 탈취 뒤 빠른 윙어·ST"): 라인 보통·압박 보통·빌드업 혼합이지만
+   * 공이 우리 기준 counterPressX(정규화)까지 넘어오기 전에는 압박하지 않는다. 수비-중원 간격 counterGap m.
+   * 수비 때 최전방 + 공 먼 쪽 윙어(counterStay 2)는 counterStayX 이상에 남는다(면제와 같은 규칙, 빈자리는 커버 재배분).
+   * 측정(240경기, 대 균형): 공격 줄도 중원 + 8 m 로 묶으면 −0.2, 빌드업 직선 −0.1, 잔류 0명 −0.15 — 그래서 공격 줄은 묶지 않고 빌드업은 혼합
+   */
+  counterPressX: 0.55,
+  counterGap: 10,
+  counterStay: 2,
+  counterStayX: 0.52,
+  /** 블록 탈출구 (C.78s H3): 상대 마지막 수비 줄(우리 기준 정규화 x)이 이 값 이하면 높은 라인 — 롱·침투 보정(decide.bias.blockExit)과 지원 주자 blockExitRunners 명 */
+  blockExitLine: 0.6,
+  blockExitRunners: 2,
+  /** 블록 라인 매우 낮음(옛 버스): 남는 최전방 x (정규화) */
+  busStayX: 0.48,
   /** 직선: 타깃 ST 롱볼 효용 배수, 크로스 효용 배수, 세컨드볼 위치 (착지점 뒤 m) */
   directTargetMul: 1.1,
   directCrossMul: 1.08,
   directSecond: [10, 15] as [number, number],
-  /** 수비 블록: 수비-중원 간격 상한 (m), 수비 라인 상한 (박스 경계, m) */
-  blockGap: 12,
-  blockLineMax: 16.5,
-  /** 버스 세우기 (C.76k, 사용자 확정 ③): 수비 라인 상한 14 m(박스 앞), 수비-중원 간격 상한 8 m(두 줄), 최전방 1명은 역습 출구로 하프라인 부근(counterStayX) */
-  busGap: 8,
-  busLineMax: 14,
-  busStay: 1,
-  /** 깊은 블록 밀집 (C.78d ①, ENGINE.offball.compact): 수비·중원 줄 가로 폭 배수 (슬롯 간격 × 이 값) */
-  compactW: { bus: 0.5, block: 0.55, counter: 0.65 } as Partial<Record<Tendency, number>>,
-  /** 탈취 뒤 역습 지원 인원 (C.78d ②, ENGINE.offball.supportRun): 버스 1 · 블록 1 · 역습 2 */
-  supportRunners: { bus: 1, block: 1, counter: 2 } as Partial<Record<Tendency, number>>,
+  /**
+   * 수비 블록 라인 단계표 (C.78s H1, pending 146 "버스 = 블록의 라인 낮음"): 블록의 수비 라인 상한·수비-중원 간격 상한(m)·하프라인 부근 잔류 최전방 수·
+   * 밀집 폭 배수·풀백 오버래핑 배수를 라인 단계(0 매우 낮음 ~ 3 높음)로 정한다. 단계 0 = 옛 버스 세우기(C.76k: 14 m · 8 m · 1명 · 0.5 · 0.3), 1 = 옛 블록
+   */
+  blockByLine: [
+    { lineMax: 14, gap: 8, stay: 1, compactW: 0.5, fbOverlap: 0.3 },
+    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+    { lineMax: 22, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+    { lineMax: 28, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+  ] as readonly BlockRow[],
+  /** 깊은 블록 밀집 (C.78d ①, ENGINE.offball.compact): 수비·중원 줄 가로 폭 배수 (슬롯 간격 × 이 값). 블록은 blockByLine */
+  compactW: { counter: 0.65 } as Partial<Record<Tendency, number>>,
+  /** 탈취 뒤 역습 지원 인원 (C.78d ②, ENGINE.offball.supportRun): 블록 1 · 역습 2 */
+  supportRunners: { block: 1, counter: 2 } as Partial<Record<Tendency, number>>,
   /** 풀백 오버래핑 성향 배수 (C.78i ②, ENGINE.offball.fbOverlap): 없으면 1 */
-  fbOverlapTend: { bus: 0.3, block: 0.5, counter: 0.7, tikitaka: 1.15, gegenpress: 1.2, direct: 0.9 } as Partial<Record<Tendency, number>>,
+  fbOverlapTend: { counter: 0.7, tikitaka: 1.15, gegenpress: 1.2, direct: 0.9 } as Partial<Record<Tendency, number>>,
 };
+
+/** 블록 라인 단계 한 줄 (C.78s H1) */
+export interface BlockRow { lineMax: number; gap: number; stay: number; compactW: number; fbOverlap: number }
+
+/** 수비 블록이면 지금 라인 단계의 줄 (경기 중 조정으로 라인이 바뀌면 같이 바뀐다), 아니면 null */
+export function blockRow(t: Tactics): BlockRow | null {
+  return t.tendency === 'block' ? TENDENCY.blockByLine[levelOf('lineHeight', t.lineHeight)]! : null;
+}
+/** 깊은 밀집 폭 배수 (블록은 라인 단계, 역습은 성향 값), 밀집하지 않는 성향은 undefined */
+export function compactWOf(t: Tactics): number | undefined {
+  return blockRow(t)?.compactW ?? TENDENCY.compactW[t.tendency];
+}
+/** 풀백 오버래핑 성향 배수 */
+export function fbOverlapOf(t: Tactics): number {
+  return blockRow(t)?.fbOverlap ?? TENDENCY.fbOverlapTend[t.tendency] ?? 1;
+}
+/** 블록이 수비 때 하프라인 부근에 남기는 최전방 수 (라인 단계, 역습은 offball counterStayer) */
+export function stayForwards(t: Tactics): number {
+  return blockRow(t)?.stay ?? 0;
+}
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */
 export function widthCrossMul(width: number): number {

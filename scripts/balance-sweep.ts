@@ -125,7 +125,7 @@ async function tacticsMatrix(): Promise<void> {
     }
   }
   // 약팀 블록 (E.19 검증 D.21, pending 15 질문 9): 약팀(70)이 강팀(78, 균형)을 상대로 균형 / 수비 블록 / 역습일 때 실점·득실차
-  const WEAK: [string, Tendency][] = [['균형', 'balanced'], ['수비 블록', 'block'], ['역습', 'counter'], ['버스 세우기', 'bus']];
+  const WEAK: [string, Tendency][] = [['균형', 'balanced'], ['수비 블록', 'block'], ['역습', 'counter']];
   const weakIdx = new Map<string, [number, number]>();
   for (const [name, t] of WEAK) {
     const start = jobs.length;

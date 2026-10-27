@@ -63,13 +63,14 @@ export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpe
   }
 }
 
-/** 큰 레이팅 차에서 약팀이 고르는 성향 (C.76k 사용자 확정 ①③: 버스/블록/역습 셋 중 하나) */
-const UNDERDOG_BIG: readonly Tendency[] = ['bus', 'block', 'counter'];
+/** 큰 레이팅 차에서 약팀이 고르는 성향과 라인 단계 (C.76k 사용자 확정 ①③, C.78s H1: 버스 = 블록의 라인 매우 낮음, H2: 높은 라인 역습은 큰 차에서 고르지 않는다) */
+const UNDERDOG_BIG: readonly [Tendency, number][] = [['block', 0], ['block', 1]];
 
 /**
  * 약팀의 상대별 대응 (E.20 9번, C.17 결정 4, AI 감독): 상대 레이팅이 underdogGap 이상 높으면 라인·압박을 한 단계 내리고,
  * underdogSwitch 확률(시드)로 성향을 수비 블록/역습으로 바꾼다.
- * underdogBigGap 이상이면(C.76k 사용자 확정 ①) 버스 세우기/수비 블록/역습 중 하나를 확정하고 라인은 '매우 낮음'(바닥), 압박은 두 단계 내린다.
+ * underdogBigGap 이상이면(C.76k 사용자 확정 ①) 블록@라인 매우 낮음(버스)/블록@낮음 중 하나를 확정하고 라인은 그 단계, 압박은 두 단계 내린다.
+ * 역습(C.78s H2, 라인 보통에서 하프라인 부근 압박)은 작은 차에서만 고르고 라인은 내리지 않는다(뒷공간을 덮는 라인 높이가 성향의 일부)
  * 내 팀(사용자 전술)에는 쓰지 않는다
  */
 export function underdogPlan(teamId: string, rating: number, oppRating: number, tactics: Tactics, worldSeed: string): Tactics {
@@ -78,12 +79,13 @@ export function underdogPlan(teamId: string, rating: number, oppRating: number, 
   if (gap < T.underdogGap) return tactics;
   const big = gap >= T.underdogBigGap;
   const rng = createRng(hashSeed(`${worldSeed}:underdog:${teamId}:${Math.round(oppRating * 10)}`));
-  const tendency: Tendency = big ? UNDERDOG_BIG[Math.min(2, Math.floor(rng() * 3))]!
+  const pick = big ? UNDERDOG_BIG[Math.min(UNDERDOG_BIG.length - 1, Math.floor(rng() * UNDERDOG_BIG.length))]! : null;
+  const tendency: Tendency = pick ? pick[0]
     : rng() < T.underdogSwitch ? (rng() < 0.5 ? 'block' : 'counter') : tactics.tendency;
   const base = tendency === tactics.tendency ? tactics : { ...tacticsOf(tendency), style: tactics.style };
   const steps = big ? 2 : 1;
   const down = (d: 'lineHeight' | 'pressing') => LEVELS[d][Math.max(0, levelOf(d, base[d]) - steps)]!;
-  return { ...base, lineHeight: big ? LEVELS.lineHeight[0] : down('lineHeight'), pressing: down('pressing') };
+  return { ...base, lineHeight: pick ? LEVELS.lineHeight[pick[1]]! : tendency === 'counter' ? base.lineHeight : down('lineHeight'), pressing: down('pressing') };
 }
 
 /**

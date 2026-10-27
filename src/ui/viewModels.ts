@@ -112,7 +112,7 @@ export const designTier = (t: Tier): DesignTier => DESIGN_TIER[t];
 const FORM_STEP: Record<FormLevel, 1 | 2 | 3 | 4 | 5> = { veryBad: 1, bad: 2, normal: 3, good: 4, veryGood: 5 };
 
 const TACTIC_STYLE: Record<Tendency, TacticStyle> = {
-  balanced: 'balanced', tikitaka: 'tikitaka', gegenpress: 'gegen', counter: 'counter', direct: 'direct', block: 'block', bus: 'bus',
+  balanced: 'balanced', tikitaka: 'tikitaka', gegenpress: 'gegen', counter: 'counter', direct: 'direct', block: 'block',
 };
 export const tacticStyle = (t: Tendency): TacticStyle => TACTIC_STYLE[t];
 

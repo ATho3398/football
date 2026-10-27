@@ -9,6 +9,10 @@ import type { Tendency } from '../../src/engine/types';
 import { pick, place, sane, sceneSim, sceneState, withEngine } from './harness';
 import type { SceneOut } from './scenes';
 
+/** 버스 세우기 = 수비 블록 + 라인 매우 낮음 (C.78s H1) */
+type Tend = Tendency | 'bus';
+const tacOf = (t: Tend) => (t === 'bus' ? tacticsOf('block', { lineHeight: 0 }) : tacticsOf(t));
+
 /** 전환 순간 규칙 끔 (C.78g) */
 export const SWING_OFF = { 'transition.lossDelay': 0, 'transition.winPre': 0, 'transition.startRun': 0, 'transition.space': 0, 'transition.counterBonus': 0 };
 
@@ -22,10 +26,10 @@ function layout(s: SimState, xs0: number[], xs1: number[]): void {
   }
 }
 
-function setTactics(s: SimState, t0: Tendency, t1: Tendency): void {
-  s.teams[0].tactics = tacticsOf(t0);
+function setTactics(s: SimState, t0: Tend, t1: Tend): void {
+  s.teams[0].tactics = tacOf(t0);
   s.teams[0].setup.tactics = s.teams[0].tactics;
-  s.teams[1].tactics = tacticsOf(t1);
+  s.teams[1].tactics = tacOf(t1);
   s.teams[1].setup.tactics = s.teams[1].tactics;
 }
 
@@ -34,7 +38,7 @@ function setTactics(s: SimState, t0: Tendency, t1: Tendency): void {
  * 뺏은 뒤 4초: 공 전진 거리 m(팀 1 공격 방향, 공을 가진 채 — 그 전에 잃으면 마지막으로 가진 자리) · 4초 유지 비율 · 8초 안 공을 가진 채 상대 진영(하프라인 넘음) 비율 · 첫 패스 전진 m(4초 안 패스가 없으면 0) · 첫 결정까지 초 ·
  * 1초 뒤 공에서 10 m 안 팀 0 수: 뺏긴 팀이 다시 모이는 속도
  */
-export function swingRun(t0: Tendency, t1: Tendency, xs0: number[], xs1: number[], wx: number, N: number) {
+export function swingRun(t0: Tend, t1: Tend, xs0: number[], xs1: number[], wx: number, N: number) {
   let adv = 0, fwd = 0, first = 0, near1 = 0, keep = 0, half = 0;
   let ok = true;
   for (let k = 0; k < N; k++) {

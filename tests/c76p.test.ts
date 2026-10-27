@@ -11,7 +11,7 @@ const home = createTeamRoster({ id: 'h', rating: 75 }, 'c76p-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 75 }, 'c76p-a', 2018, []);
 const input = (seed: number, tendency: 'bus' | 'block' | 'balanced'): EngineInput => {
   const h = teamSetupFromRoster(home, 75, 75);
-  h.tactics = tacticsOf(tendency);
+  h.tactics = tendency === 'bus' ? tacticsOf('block', { lineHeight: 0 }) : tacticsOf(tendency);
   return { home: h, away: teamSetupFromRoster(away, 75, 75), mode: 'auto', difficulty: 'normal', seed, bigMatch: false, neutral: true };
 };
 
