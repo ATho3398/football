@@ -11,7 +11,7 @@ import { createRng } from '../src/rng';
 import type { Tier } from '../src/types';
 
 setEnvironmentFixed(true);
-if (process.env.PROSPECT_OFF) BALANCE.transfer.prospect.maxAge = -1;
+if (process.env.PROSPECT_OFF) Object.assign(BALANCE.transfer.prospect, { maxAge: -1 });
 const N = Number(process.argv.find((a) => /^\d+$/.test(a)) ?? 60);
 const avg = (xs: number[]) => (xs.length ? xs.reduce((t, x) => t + x, 0) / xs.length : 0);
 

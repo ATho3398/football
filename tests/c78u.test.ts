@@ -56,11 +56,11 @@ describe('유망주 계약 — 로열로드 (C.78u, pending 144)', () => {
     const g = youngster('c78u-old', 24, 'worldClass');
     const a = makeOfferSet(g, 'summer').offers;
     const keep = P.maxAge;
-    P.maxAge = -1;
+    Object.assign(P, { maxAge: -1 });
     try {
       expect(makeOfferSet(g, 'summer').offers).toEqual(a);
     } finally {
-      P.maxAge = keep;
+      Object.assign(P, { maxAge: keep });
     }
     expect(a.some((o) => o.prospect)).toBe(false);
   });
