@@ -20,6 +20,7 @@
     "balance:cards": "vite-node scripts/balance-cards.ts --",
     "balance:aptitude": "vite-node scripts/balance-aptitude.ts --",
     "balance:training": "vite-node scripts/balance-training.ts --",
+    "balance:prospect": "vite-node scripts/balance-prospect.ts --",
     "balance:transfer": "vite-node scripts/balance-transfer.ts --",
     "balance:custom": "vite-node scripts/balance-custom.ts --",
     "balance:goals": "vite-node scripts/balance-goals.ts --",

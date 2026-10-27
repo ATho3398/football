@@ -460,6 +460,8 @@ export interface Offer {
   youth?: boolean;
   /** 제안 이적료 (만 원, C.48). 계약 만료(자유계약)·임대면 없음 */
   fee?: number;
+  /** 유망주 계약 (C.78u): 강팀이 잠재력을 보고 낸 저연봉·장기 계약 */
+  prospect?: boolean;
 }
 
 /** 소속 구단이 거절한 제안 (C.48): 고를 수 없고 뉴스 한 줄 */
@@ -475,7 +477,7 @@ export interface MarketState {
   /** 제안이 온 이적시장 */
   offerWindow?: Window;
   /** 계약 만료: 재계약 선택이 남았다 */
-  renewal: { years: number[]; wage: number } | null;
+  renewal: { years: number[]; wage: number; prospect?: boolean } | null;
   /** 이적 요청 결과 (시즌당 1번) */
   request: { season: number; accepted: boolean } | null;
   /** 커리어 이적 (내 선수) */
@@ -492,6 +494,27 @@ export interface MarketState {
 export function contractYears(age: number): [number, number] {
   const row = BALANCE.transfer.years.find(([maxAge]) => age <= maxAge)!;
   return [row[1], row[2]];
+}
+
+/** 유망주 가산 (C.78u): 팀이 보는 유효 OVR 에 더하는 잠재력·위상 몫. prospect.maxAge 세 넘으면 0 */
+export function prospectBoost(p: Pick<GameState['player'], 'age' | 'peakTarget' | 'potentialTier' | 'reputation'>, ovr: number): number {
+  const P = BALANCE.transfer.prospect;
+  if (p.age > P.maxAge) return 0;
+  const pot = p.peakTarget !== undefined ? Math.max(0, p.peakTarget - ovr) * P.peakWeight : P.tierBoost[p.potentialTier];
+  return Math.min(P.maxBoost, pot + p.reputation / P.repDiv);
+}
+
+/** 유망주 계약인지 (C.78u): prospect.maxAge 세 이하이고 그 팀이 내 나이 가산 유효 OVR(OVR + 어린 만큼 youthPerYear)보다 minGap 이상 강하다 */
+export function isProspectDeal(p: Pick<GameState['player'], 'age'>, ovr: number, teamRating: number): boolean {
+  const T = BALANCE.transfer;
+  return p.age <= T.prospect.maxAge && teamRating >= ovr + Math.max(0, T.offers.youthAge - p.age) * T.offers.youthPerYear + T.prospect.minGap;
+}
+
+/** 계약 조건 (C.78u): 유망주 계약이면 주급 × wageMul (50만 원 단위)·연수 범위 prospect.years, 아니면 그대로 */
+function dealTerms(p: GameState['player'], ovr: number, teamRating: number, wage: number): { wage: number; years: [number, number]; prospect: boolean } {
+  const P = BALANCE.transfer.prospect;
+  if (!isProspectDeal(p, ovr, teamRating)) return { wage, years: contractYears(p.age), prospect: false };
+  return { wage: Math.max(50, Math.round((wage * P.wageMul) / 50) * 50), years: P.years, prospect: true };
 }
 
 /** 주급 (만 원, 19.11 곡선): 위상 앵커 사이 로그 선형 × 팀 규모 × OVR, ±15%, 50만 원 단위 */
@@ -605,7 +628,8 @@ function interestOf(state: GameState, teamId: string, rng: Rng): number {
   const roster = state.rosters[teamId];
   const need = roster ? positionNeed(roster, p.position, ovr) : 0.5;
   // 수준이 맞는 팀일수록 관심 (어린 선수는 잠재력만큼 OVR 을 높여 본다)
-  const eff = ovr + Math.max(0, O.youthAge - p.age) * O.youthPerYear;
+  // 유망주 (C.78u): 잠재력·위상만큼 더 높여 본다 (강팀 커트라인 완화)
+  const eff = ovr + Math.max(0, O.youthAge - p.age) * O.youthPerYear + prospectBoost(p, ovr);
   return -Math.abs(eff - ratingOf(state, teamId) - O.fitOffset) * O.fit + need * O.needWeight + p.reputation / O.repDiv + gaussian(rng) * O.noiseSd;
 }
 
@@ -683,9 +707,11 @@ export function makeOfferSet(state: GameState, w: Window, tag: string | number =
   const n = randInt(rng, ...O.byYears[tier]);
   const [ylo, yhi] = contractYears(p.age);
   const picked = pool.filter((x) => x.wage !== null && (tier !== 'more' || ratingOf(state, x.t.id) > cur)).slice(0, n);
-  const offers: Offer[] = picked.map(({ t, interest, wage }) => ({
-    teamId: t.id, kind: 'transfer', years: randInt(rng, ylo, yhi), wage: wage!, start: expectedStart(state, t.id), interest,
-  }));
+  const offers: Offer[] = picked.map(({ t, interest, wage }) => {
+    const d = dealTerms(p, ovr, ratingOf(state, t.id), wage!);
+    const [lo, hi] = d.prospect ? d.years : [ylo, yhi];
+    return { teamId: t.id, kind: 'transfer', years: randInt(rng, lo, hi), wage: d.wage, start: expectedStart(state, t.id), interest, ...(d.prospect ? { prospect: true } : {}) };
+  });
   // 다른 리그 제안 (C.76c): 비시즌 여름 창, 내 리그와 달력이 같은 고른 리그 팀. 난수는 따로 (다른 리그가 없으면 그대로)
   if (w === 'summer' && state.phase !== 'season') offers.push(...abroadOffers(state, tag, tier, cur, value, ylo, yhi));
   // 소속 구단 수락 판정 (C.48): 계약 중(몸값 > 0)이고 이적 명단이 아니면. 난수는 따로 (임대 제안이 바뀌지 않게)
@@ -738,9 +764,11 @@ function abroadOffers(state: GameState, tag: string | number, tier: OfferTier, c
     .filter((x) => x.wage !== null && (tier !== 'more' || ratingOf(state, x.t.id) > cur))
     .sort((a, b) => b.interest - a.interest || a.t.id.localeCompare(b.t.id));
   const n = randInt(rng, ...O.abroad[tier]);
-  return pool.slice(0, n).map(({ t, interest, wage }) => ({
-    teamId: t.id, kind: 'transfer' as const, years: randInt(rng, ylo, yhi), wage: wage!, start: expectedStart(state, t.id), interest,
-  }));
+  return pool.slice(0, n).map(({ t, interest, wage }) => {
+    const d = dealTerms(p, ovr, ratingOf(state, t.id), wage!);
+    const [lo, hi] = d.prospect ? d.years : [ylo, yhi];
+    return { teamId: t.id, kind: 'transfer' as const, years: randInt(rng, lo, hi), wage: d.wage, start: expectedStart(state, t.id), interest, ...(d.prospect ? { prospect: true } : {}) };
+  });
 }
 
 /** 고를 수 있는 제안만 (구단이 거절한 제안 빼고) */
@@ -773,8 +801,10 @@ export function openOffseasonMarket(state: GameState): void {
   }
   const rating = ratingOf(state, p.teamId);
   if (m.contract.until <= season) {
-    const [lo, hi] = contractYears(p.age);
-    m.renewal = { years: Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), wage: wageFor(p.reputation, proficientOvr(p, p.position), rating, wageMul(p)) };
+    const ovr = proficientOvr(p, p.position);
+    const d = dealTerms(p, ovr, rating, wageFor(p.reputation, ovr, rating, wageMul(p)));
+    const [lo, hi] = d.years;
+    m.renewal = { years: Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), wage: d.wage, ...(d.prospect ? { prospect: true } : {}) };
   }
   openOffers(state, 'summer');
 }

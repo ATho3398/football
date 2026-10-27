@@ -180,6 +180,6 @@ describe('경기 화면 · 버전', () => {
 
   it('버전 라벨', () => {
     expect(PATCH_LABEL).toMatch(/^C\.7[4-9]/);
-    expect(STAGE_LABEL).toMatch(/^4[3-9]단계/);
+    expect(STAGE_LABEL).toMatch(/^(4[3-9]|5\d)단계/);
   });
 });
