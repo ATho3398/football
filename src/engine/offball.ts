@@ -1063,13 +1063,13 @@ function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, l
 
 /** ④ 커버 재배분 (E.6 D.13): 수비 의무를 면제받은 동료(중원·공격 줄)의 자리 쪽 y 로 가장 가까운 중원 동료 1명이 옮긴다 */
 function coverShiftY(s: SimState, a: Agent, ny: number): number {
-  if (a.line !== 2 || exemptOf(s, a)) return ny;
+  if (a.line !== 2 || hasModule(a.role, 'exempt')) return ny;
   for (const e of s.agents) {
-    if (!e.onPitch || e.team !== a.team || e.line < 2 || !exemptOf(s, e)) continue;
+    if (!e.onPitch || e.team !== a.team || e.line < 2 || !hasModule(e.role, 'exempt')) continue;
     let pick: Agent | null = null;
     let pd = Infinity;
     for (const o of s.agents) {
-      if (!o.onPitch || o.team !== a.team || o.line !== 2 || o === e || exemptOf(s, o)) continue;
+      if (!o.onPitch || o.team !== a.team || o.line !== 2 || o === e || hasModule(o.role, 'exempt')) continue;
       const d = Math.abs(o.sy - e.sy) + Math.abs(o.sx - e.sx) * 0.5;
       if (d < pd - 1e-9) {
         pd = d;
@@ -1330,7 +1330,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const second = rank === 1 && sitPressers(s, a.team) >= 2 && (pressLevel(s, a.team) >= 2 || t.pressing * (0.5 + a.role.press) > 0.6);
     let wants = rank === 0 || second;
     // ④ 수비 의무 면제: 공에 가장 가깝고 아주 가까울 때만 압박한다
-    const exempt = exemptOf(s, a);
+    const exempt = hasModule(a.role, 'exempt');
     if (exempt && !(rank === 0 && d < pressDist * RM.exemptPress)) wants = false;
     // 박스 안 압박 (E.23, C.75c): 공이 우리 박스 안이면 가장 가까운 1명이 성향과 무관하게 바로 붙고, 둘째는 공 뒤 커버
     const ownBox = Math.abs(b.x - gx0) <= ENGINE.pitch.boxDepth && Math.abs(b.y - gy0) <= ENGINE.pitch.boxWidth / 2;
@@ -1377,8 +1377,6 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const tac0 = s.teams[a.team].tactics;
     if (a.line === 3 && tac0.tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
     if (a.line === 3 && stayForwards(tac0) > 0 && isTopForward(s, a)) wants = false;
-    // 역습 (C.78s H2): 공이 하프라인 부근(우리 기준 counterPressX)까지 오기 전에는 압박하지 않고 줄 자리를 지킨다 — 게겐처럼 앞에서 쫓지 않는다
-    if (tac0.tendency === 'counter' && bnx > TENDENCY.counterPressX) wants = false;
     if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : O.secondPressDist))) {
       // 공과 자기 골 사이에서 압박. 첫 압박 선수는 가장 위험한 전진 패스 대상을 등 뒤로 가리는 각도 (커버 섀도, E.22 A)
       const [gx, gy] = ownGoal(dir);
@@ -1411,7 +1409,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   // 줄 사이 수신 (C.78d ①): 밀집 중 상대 소유자가 우리 수비 줄과 중원 줄 사이(+holdSlack m)면 압박 1명·커버 1명만 반응하고 나머지 중원은 밀집 자리(공 쪽으로 좁힌 줄)를 지킨다 — 한 번에 1명, 옆이 메움
-  if (O.compact > 0 && a.line === 2 && owner && owner.team !== a.team && !exemptOf(s, a)) {
+  if (O.compact > 0 && a.line === 2 && owner && owner.team !== a.team && !hasModule(a.role, 'exempt')) {
     const tac2 = s.teams[a.team].tactics;
     const cw2 = compactWOf(tac2);
     if (cw2 !== undefined && bnx * L < O.compactFrom) {
@@ -1462,13 +1460,11 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 수비 블록 (E.19, C.78s H1 라인 단계표): 수비 라인 상한·수비-중원 간격 상한 — 라인 매우 낮음 = 박스 앞 14 m · 8 m 두 줄(옛 버스 세우기), 낮음 = 박스 경계 16.5 m · 12 m
   const br = blockRow(tac);
   if (br) lineX = Math.min(lineX, br.lineMax / L);
-  // 역습 (C.78s H2): 수비-중원 counterGap m — 2선이 올린 라인 바로 앞, 하프라인 부근에 모인다
-  const ctr = tendency === 'counter';
-  const midGap = br ? Math.min(F.midGap, br.gap / L) : ctr ? Math.min(F.midGap, TENDENCY.counterGap / L) : F.midGap;
+  const midGap = br ? Math.min(F.midGap, br.gap / L) : F.midGap;
   if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
-  // 블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
-  if (stayForwards(tac) > 0 && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
+  // 역습 (E.19)·블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
+  if (stayForwards(tac) > 0 && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.counterStayX);
   // 오버래핑 추적 (C.78i ②): 면제 아닌 측면 선수는 자기 측면으로 오버래핑하는 상대 풀백을 골 쪽 fbTrackGoal m 에서 따라 내려온다
   const ov = owner && owner.team !== a.team ? overlapToTrack(s, a) : null;
   if (ov) {
@@ -1480,11 +1476,6 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     return;
   }
   // ④ 수비 의무 면제 (E.6 D.13): 깊이 복귀하지 않고 마크도 하지 않는다 (다음 공격 기점). 빈자리는 커버 재배분이 메운다
-  // 역습 잔류 (C.78s H2): 최전방 + 공 먼 쪽 윙어는 counterStayX 이상에 남아 탈취 뒤 첫 패스를 받는다 (면제와 같은 규칙, 빈자리는 커버 재배분)
-  if (ctr && counterStayer(s, a)) {
-    setTarget(a, Math.max(nx, TENDENCY.counterStayX), ny, dir, false);
-    return;
-  }
   if (hasModule(a.role, 'exempt') && a.line >= 2) {
     nx = Math.max(nx, a.line === 3 ? RM.exemptAttX : RM.exemptMidX);
     setTarget(a, nx, ny, dir, false);
@@ -1861,37 +1852,6 @@ function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: num
   return [nx, ny];
 }
 
-const WIDE_ATT: ReadonlySet<string> = new Set(['LW', 'RW', 'LM', 'RM']);
-const stayCache = new WeakMap<SimState, { tick: number; top: [number, number]; far: [number, number] }>();
-/** 역습 잔류 선수 (C.78s H2, pending 146 "탈취 뒤 빠른 윙어·ST"): 최전방(슬롯 x 가장 앞 공격 줄) + 공에서 가장 먼 쪽 측면 공격수(LW·RW·LM·RM) 1명. 틱마다 팀당 한 번 */
-function counterStayer(s: SimState, a: Agent): boolean {
-  if (a.line < 2) return false;
-  let c = stayCache.get(s);
-  if (!c) stayCache.set(s, (c = { tick: -1, top: [-1, -1], far: [-1, -1] }));
-  if (c.tick !== s.tick) {
-    c.tick = s.tick;
-    for (const team of [0, 1] as const) {
-      let top: Agent | null = null;
-      let far: Agent | null = null;
-      for (const o of s.agents) {
-        if (!o.onPitch || o.team !== team) continue;
-        if (o.line === 3 && (!top || o.sx > top.sx || (o.sx === top.sx && o.idx < top.idx))) top = o;
-      }
-      for (const o of s.agents) {
-        if (TENDENCY.counterStay < 2 || !o.onPitch || o.team !== team || o === top || !WIDE_ATT.has(o.pos)) continue;
-        if (!far || Math.abs(o.y - s.ball.y) > Math.abs(far.y - s.ball.y) + 1e-9) far = o;
-      }
-      c.top[team] = TENDENCY.counterStay > 0 ? top?.idx ?? -1 : -1;
-      c.far[team] = far?.idx ?? -1;
-    }
-  }
-  return c.top[a.team] === a.idx || c.far[a.team] === a.idx;
-}
-/** 수비 의무 면제 (E.6 D.13 역할 모듈) 또는 역습 잔류 선수 (C.78s H2) */
-function exemptOf(s: SimState, a: Agent): boolean {
-  return hasModule(a.role, 'exempt') || (s.teams[a.team].tactics.tendency === 'counter' && counterStayer(s, a));
-}
-
 /** 팀의 가장 앞 공격수 (슬롯 x 기준, 같으면 idx) */
 function isTopForward(s: SimState, a: Agent): boolean {
   for (const o of s.agents) {
@@ -1938,7 +1898,7 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
   let bt = Infinity;
   let bt2 = Infinity;
   for (const o of s.agents) {
-    if (!o.onPitch || o.team !== team || o.line === 0 || o === marker || exemptOf(s, o)) continue;
+    if (!o.onPitch || o.team !== team || o.line === 0 || o === marker || hasModule(o.role, 'exempt')) continue;
     const t = arrival(o, fl.toX, fl.toY);
     if (t < bt || (t === bt && pick && o.idx < pick.idx)) {
       bt2 = bt;
@@ -1953,7 +1913,7 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
   // 비행 중 인계 (C.77b 가설 2 ②): 수신자를 추적 중인 선수가 있으면 도착 시간과 무관하게 그 추적자가 담당 (추적자 + 수신자 압박 2명이 되지 않게)
   if (O.trackHandoff > 0 && O.trackMax > 0) {
     for (const o of s.agents) {
-      if (!o.onPitch || o.team !== team || o.trackIdx !== rcv.idx || o === marker || exemptOf(s, o)) continue;
+      if (!o.onPitch || o.team !== team || o.trackIdx !== rcv.idx || o === marker || hasModule(o.role, 'exempt')) continue;
       if (pick !== o) {
         if (second === o) second = pick;
         pick = o;
@@ -2008,7 +1968,7 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
   let pick: { a: Agent; x: number; y: number } | null = null;
   let bt = Infinity;
   for (const o of s.agents) {
-    if (!o.onPitch || o.team !== team || o.line === 0 || o === cd.pick || o === cd.second || o === marker || exemptOf(s, o)) continue;
+    if (!o.onPitch || o.team !== team || o.line === 0 || o === cd.pick || o === cd.second || o === marker || hasModule(o.role, 'exempt')) continue;
     const [d, t] = segDist(o.x, o.y, b.x, b.y, fl.toX, fl.toY);
     if (d > O.deepCutReach || t <= 0.02 || t >= 0.98) continue;
     const px = b.x + (fl.toX - b.x) * t;
@@ -2056,7 +2016,7 @@ function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
     .slice(0, O.restMax);
   const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
   const free = s.agents.filter((a) => a.onPitch && a.team === team && (a.line === 1 || (a.line === 2 && toNorm(a.x, a.y, dir)[0] < bnx))
-    && !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) > 0);
+    && !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !hasModule(a.role, 'exempt') && ballRank(s, a, b.x, b.y) > 0);
   for (const o of threats) {
     if (!free.length) break;
     const px = clamp(o.x + o.vx, 0.3, L - 0.3);

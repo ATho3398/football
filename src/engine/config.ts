@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 54;
+export const ENGINE_VERSION = 55;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -934,18 +934,6 @@ export const ENGINE = {
       cross: 0,
       clear: 0,
       hold: 0,
-      /**
-       * 역습 탈취 뒤 전진 (C.78s H2, TENDENCY 역습): 역습 팀이 뺏은 뒤 counterWinTime 초 안, 앞으로 가는 침투 패스(달리는 받는 선수)에
-       * counterFwd × 판단 성공 확률 × min(1, 전진 m / counterFwdRef) × (1 − 받는 곳보다 골 쪽 상대 필드 선수 / counterSpaceBack).
-       * 0 = 끔: 240경기 대 균형에서 0.04 −0.1 · 0.08 −0.1 · 0.1 −0.25(받는 쪽이 못 받는 전진 패스가 늘어 잃은 뒤 역습을 맞음) — 장치만 두고 끈다
-       */
-      counterFwd: 0,
-      counterFwdRef: 20,
-      counterSpaceBack: 5,
-      /** 블록 탈출구 (C.78s H3, onball): 높은 라인 상대에게 뺏은 뒤 blockExitFwd m 이상 앞으로 가는 롱·침투 패스 보정 (× 판단 성공 확률) */
-      blockExit: 0.06,
-      blockExitFwd: 15,
-      blockExitP: 1,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

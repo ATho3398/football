@@ -12,7 +12,7 @@ import { createTeamRoster } from '../src/roster';
 import type { EngineInput } from '../src/engine/types';
 
 /** 큰 차 약팀이 고르는 성향@라인 단계 (C.78s H1) */
-const UNDERDOG_SEEN = ['block@0', 'block@1'];
+const UNDERDOG_SEEN = ['block@0', 'block@1', 'counter@0'];
 
 const home = createTeamRoster({ id: 'h', rating: 75 }, 'real-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 75 }, 'real-a', 2018, []);
@@ -48,7 +48,7 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     const st = r.players.find((p) => p.position === 'ST')!;
     expect(recommendedRole('block', 'ST', st.attributes!).id).toBe('targetMan');
   });
-  it('약팀 대응: 큰 차이면 블록@매우 낮음(버스)/블록@낮음 중 하나 + 압박 두 단계 아래, 작은 차이는 한 단계', () => {
+  it('약팀 대응: 큰 차이면 블록@매우 낮음(버스)/블록@낮음/역습 중 하나 + 압박 두 단계 아래, 작은 차이는 한 단계', () => {
     const base = tacticsOf('balanced');
     const seen = new Set<string>();
     for (let i = 0; i < 40; i++) {

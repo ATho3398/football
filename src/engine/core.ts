@@ -5,7 +5,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import * as physics_ from './physics';
 const { tiredRatio } = physics_;
-import { effectiveTactics, offsideLine, pressLevel } from './offball';
+import { effectiveTactics, pressLevel } from './offball';
 import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
 const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
@@ -179,10 +179,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
     a.exitRun = true;
   }
   // 역습 지원 (C.78d ②): 블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
-  // 블록 탈출구 (C.78s H3): 상대 마지막 수비 줄이 높으면(blockExitLine) 블록 지원 주자 blockExitRunners 명 (최전방 + 공 쪽 윙어 몫)
-  const tdw = s.teams[win].tactics.tendency;
-  const n = O.supportRun > 0 && bnx < 0.5
-    ? tdw === 'block' && offsideLine(s, win) <= TENDENCY.blockExitLine ? TENDENCY.blockExitRunners : TENDENCY.supportRunners[tdw] ?? 0 : 0;
+  const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
   if (!n) return;
   const b = s.ball;
   const sup = s.agents.filter((a) => a.onPitch && a.team === win && a !== top && a.idx !== b.owner && !exits.includes(a)

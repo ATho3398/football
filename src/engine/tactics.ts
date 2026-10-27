@@ -29,7 +29,7 @@ export const TENDENCY_DESC_KO: Record<Tendency, string> = {
   balanced: '라인·압박·빌드업·폭 모두 보통',
   tikitaka: '높은 라인에서 짧은 패스로 돌리다 확실한 기회만 쏜다',
   gegenpress: '공을 잃으면 바로 되찾는 전방 압박',
-  counter: '하프라인 부근에 좁게 모여 기다리다 뺏자마자 빠른 윙어·ST 에게',
+  counter: '낮게 서서 뺏자마자 빠르게 앞으로',
   direct: '타깃 ST 에게 롱볼, 세컨드볼과 크로스',
   block: '내려서 두 줄 블록. 라인 매우 낮음 = 박스 앞 버스 세우기',
 };
@@ -64,7 +64,7 @@ const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
   balanced: [2, 1, 1, 1],
   tikitaka: [3, 2, 0, 2],
   gegenpress: [3, 2, 1, 1],
-  counter: [2, 1, 1, 1],
+  counter: [1, 0, 2, 1],
   direct: [2, 1, 2, 2],
   block: [1, 0, 2, 0],
 };
@@ -158,6 +158,9 @@ export interface TeamPlan {
   tactics: Tactics;
 }
 
+/** 데이터 없는 중위 팀의 성향 후보 (C.78s H1): 옛 7종 순서 그대로 — 마지막 '버스' 칸은 블록 + 라인 매우 낮음 (시드 추첨 결과를 바꾸지 않게) */
+const MID_POOL: readonly (Tendency | 'bus')[] = [...TENDENCIES, 'bus'];
+
 /**
  * 팀 데이터 전술 (E.19 AI 팀 전술): 실제 팀은 데이터의 성향·포메이션, 빌드업은 E.18 A5 연속 값.
  * 데이터가 없는 팀은 시드로 성향을 고른다 (레이팅이 리그 평균 +3 이상 / −3 이하 / 그 사이). 포메이션은 로스터 값
@@ -166,15 +169,18 @@ export function teamPlan(teamId: string, rating: number, formation: Formation, w
   const T = ENGINE.tactics;
   const data = TEAM_TACTICS[teamId];
   let tendency: Tendency;
+  let bus = false;
   if (data) tendency = data.tendency;
   else {
     const rng = createRng(hashSeed(`${worldSeed}:tendency:${teamId}`));
-    const pool: readonly Tendency[] = rating >= leagueAvg + 3 ? ['tikitaka', 'gegenpress', 'balanced']
-      : rating <= leagueAvg - 3 ? ['block', 'direct', 'counter'] : TENDENCIES;
-    tendency = pool[Math.floor(rng() * pool.length)]!;
+    const pool: readonly (Tendency | 'bus')[] = rating >= leagueAvg + 3 ? ['tikitaka', 'gegenpress', 'balanced']
+      : rating <= leagueAvg - 3 ? ['block', 'direct', 'counter'] : MID_POOL;
+    const pick = pool[Math.floor(rng() * pool.length)]!;
+    bus = pick === 'bus';
+    tendency = bus ? 'block' : (pick as Tendency);
   }
   const style = TEAM_STYLE[teamId] ?? clamp(0.5 + T.stylePerRating * (rating - leagueAvg), T.styleMin, T.styleMax);
-  return { tendency, formation: data?.formation ?? formation, tactics: { ...tacticsOf(tendency), style } };
+  return { tendency, formation: data?.formation ?? formation, tactics: { ...tacticsOf(tendency, bus ? { lineHeight: 0 } : undefined), style } };
 }
 
 /** 성향 고유 행동의 수치 (E.19 ①, 세부 전술로 표현되지 않는 부분). 배수는 E.20 4번에서 축소 (1.15 → 1.08, 1.2 → 1.1, 1.25 → 1.12, 역압박 +1초, 가담 최대 3명) */
@@ -190,37 +196,24 @@ export const TENDENCY = {
   gegenWinTime: 4,
   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
   gegenDrain: 1.15,
-  /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */
+  /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
   counterWinMul: 1.12,
   counterWinTime: 6,
-  /**
-   * 역습 (C.78s H2, pending 146 사용자 정의 "라인 올리고 1·2선 하프라인 부근 좁게, 탈취 뒤 빠른 윙어·ST"): 라인 보통·압박 보통·빌드업 혼합이지만
-   * 공이 우리 기준 counterPressX(정규화)까지 넘어오기 전에는 압박하지 않는다. 수비-중원 간격 counterGap m.
-   * 수비 때 최전방 + 공 먼 쪽 윙어(counterStay 2)는 counterStayX 이상에 남는다(면제와 같은 규칙, 빈자리는 커버 재배분).
-   * 측정(240경기, 대 균형): 공격 줄도 중원 + 8 m 로 묶으면 −0.2, 빌드업 직선 −0.1, 잔류 0명 −0.15 — 그래서 공격 줄은 묶지 않고 빌드업은 혼합
-   */
-  counterPressX: 0.55,
-  counterGap: 10,
-  counterStay: 2,
-  counterStayX: 0.52,
-  /** 블록 탈출구 (C.78s H3): 상대 마지막 수비 줄(우리 기준 정규화 x)이 이 값 이하면 높은 라인 — 롱·침투 보정(decide.bias.blockExit)과 지원 주자 blockExitRunners 명 */
-  blockExitLine: 0.6,
-  blockExitRunners: 2,
-  /** 블록 라인 매우 낮음(옛 버스): 남는 최전방 x (정규화) */
-  busStayX: 0.48,
+  counterStayX: 0.48,
   /** 직선: 타깃 ST 롱볼 효용 배수, 크로스 효용 배수, 세컨드볼 위치 (착지점 뒤 m) */
   directTargetMul: 1.1,
   directCrossMul: 1.08,
   directSecond: [10, 15] as [number, number],
   /**
    * 수비 블록 라인 단계표 (C.78s H1, pending 146 "버스 = 블록의 라인 낮음"): 블록의 수비 라인 상한·수비-중원 간격 상한(m)·하프라인 부근 잔류 최전방 수·
-   * 밀집 폭 배수·풀백 오버래핑 배수를 라인 단계(0 매우 낮음 ~ 3 높음)로 정한다. 단계 0 = 옛 버스 세우기(C.76k: 14 m · 8 m · 1명 · 0.5 · 0.3), 1 = 옛 블록
+   * 밀집 폭 배수·풀백 오버래핑 배수를 라인 단계(0 매우 낮음 ~ 3 높음)로 정한다. 단계 0 = 옛 버스 세우기(C.76k: 14 m · 8 m · 1명 · 0.5 · 0.3), 1 = 옛 블록.
+   * 2·3 은 옛 블록과 같다(박스 경계 상한 — 라인을 올려도 블록은 블록)
    */
   blockByLine: [
     { lineMax: 14, gap: 8, stay: 1, compactW: 0.5, fbOverlap: 0.3 },
     { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
-    { lineMax: 22, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
-    { lineMax: 28, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
   ] as readonly BlockRow[],
   /** 깊은 블록 밀집 (C.78d ①, ENGINE.offball.compact): 수비·중원 줄 가로 폭 배수 (슬롯 간격 × 이 값). 블록은 blockByLine */
   compactW: { counter: 0.65 } as Partial<Record<Tendency, number>>,
@@ -245,9 +238,9 @@ export function compactWOf(t: Tactics): number | undefined {
 export function fbOverlapOf(t: Tactics): number {
   return blockRow(t)?.fbOverlap ?? TENDENCY.fbOverlapTend[t.tendency] ?? 1;
 }
-/** 블록이 수비 때 하프라인 부근에 남기는 최전방 수 (라인 단계, 역습은 offball counterStayer) */
+/** 수비 때 하프라인 부근(counterStayX)에 남는 최전방 수 (역습 1, 블록은 라인 단계) */
 export function stayForwards(t: Tactics): number {
-  return blockRow(t)?.stay ?? 0;
+  return t.tendency === 'counter' ? 1 : blockRow(t)?.stay ?? 0;
 }
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */

@@ -113,7 +113,7 @@ describe('E3.5 A5, A8 전술 엔진 층 (E.19)', () => {
     expect(tacticsOf('block')).toEqual({ tendency: 'block', lineHeight: 0.35, pressing: 0.3, style: 0.2, width: 0.85 });
     expect(levelOf('lineHeight', 0.6)).toBe(3);
     expect(tacticsOf('block', { lineHeight: 0 })).toEqual({ tendency: 'block', lineHeight: 0.2, pressing: 0.3, style: 0.2, width: 0.85 });
-    expect(TENDENCIES).toHaveLength(7);
+    expect(TENDENCIES).toHaveLength(6);
   });
   it('실제 팀은 데이터 성향·포메이션·style, 가상 팀은 레이팅 구간별 성향과 레이팅 비례 style', () => {
     const mci = teamPlan('mci', 85, '4-4-2');
