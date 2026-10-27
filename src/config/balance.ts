@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 84;
+export const BALANCE_VERSION = 85;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -722,6 +722,15 @@ export const BALANCE = {
        * 관심 상위 [최소, 최대]개를 내 리그 제안에 더한다 (남은 계약 단계별). 받아들이면 다음 시즌부터 그 리그가 내 리그
        */
       abroad: { last: [1, 2], one: [0, 1], more: [0, 1] } as Record<'last' | 'one' | 'more', [number, number]>,
+    },
+    /**
+     * 유망주 계약 — 로열로드 (C.78u, pending 144): maxAge 세 이하면 팀이 잠재력·위상을 보고 유효 OVR 을 더 올려 본다 (강팀 제안 커트라인 완화).
+     * 가산 = 실제 선수 (정점 목표 − OVR) × peakWeight · 가상 유망주 tierBoost[잠재력] + 위상 / repDiv, 최대 maxBoost (offers.youthPerYear 나이 가산에 더한다).
+     * 그 팀 레이팅 ≥ OVR + 나이 가산 + minGap 이면 "유망주 계약": 주급 × wageMul, 계약 years[최소, 최대]년 (재계약도 지금 팀이 그만큼 강하면 같은 조건)
+     */
+    prospect: {
+      maxAge: 22, peakWeight: 0.5, repDiv: 100, maxBoost: 12, minGap: 4, wageMul: 0.7, years: [4, 5] as [number, number],
+      tierBoost: { normal: 0, special: 2, topClass: 5, worldClass: 8, legendary: 10 } satisfies Record<Tier, number>,
     },
     /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
     loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },

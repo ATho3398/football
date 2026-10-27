@@ -16,6 +16,8 @@ export interface OfferVM {
   /** 유스 구단 계약 제안 (C.45), 자유계약의 마지막 남은 제안 (거절 불가) */
   youth?: boolean;
   lastFree?: boolean;
+  /** 유망주 계약 (C.78u): 저연봉·장기 */
+  prospect?: boolean;
   /** 구단 재정 등급 (C.46) */
   tier: string;
   /** 제안 이적료 (C.48, 계약 중일 때만) */
@@ -40,7 +42,7 @@ export interface MarketVM {
   /** 남은 계약에 따른 이번 창 제안 단계 안내 (C.48) */
   tierNote: string;
   offers: OfferVM[] | null; window: string; pending: boolean;
-  renewal: { years: number[]; wage: string; annual: string } | null;
+  renewal: { years: number[]; wage: string; annual: string; prospect?: boolean } | null;
   request: { ok: boolean; reason: string; chance: number | null; status: string | null };
   notice: string | null;
   moves: { season: string; text: string }[];
@@ -94,7 +96,7 @@ export function marketVM(g: GameState): MarketVM {
       return {
         i, team: clubNameKo(g.league, o.teamId), teamId: o.teamId, league: !isOutside(o.teamId), rating: r, rank: teamRank(g, o.teamId), diff: Math.round((r - cur) * 10) / 10, loan: o.kind === 'loan',
         years: o.years, wage: wageLabel(o.wage), annual: annualLabel(o.wage), start: startLabel(o.start), startPct: Math.round(o.start * 100), tier: tierLabel(o.teamId),
-        ...(o.youth ? { youth: true } : {}), ...(o.fee ? { fee: valueLabel(o.fee) } : {}),
+        ...(o.youth ? { youth: true } : {}), ...(o.prospect ? { prospect: true } : {}), ...(o.fee ? { fee: valueLabel(o.fee) } : {}),
         ...(m.free && (m.offers?.length ?? 0) <= 1 ? { lastFree: true } : {}),
         wagePct: c.wage > 0 ? Math.round((o.wage / c.wage - 1) * 100) : 0,
         repLoss: o.kind === 'loan' ? 0 : weakMovePenalty(p.reputation, cur, r),
@@ -103,7 +105,7 @@ export function marketVM(g: GameState): MarketVM {
     }) ?? null,
     window: `${windowKo(g.league, m.offerWindow ?? 'summer')} 이적시장`,
     pending: marketPending(g),
-    renewal: m.renewal ? { years: m.renewal.years, wage: wageLabel(m.renewal.wage), annual: annualLabel(m.renewal.wage) } : null,
+    renewal: m.renewal ? { years: m.renewal.years, wage: wageLabel(m.renewal.wage), annual: annualLabel(m.renewal.wage), ...(m.renewal.prospect ? { prospect: true } : {}) } : null,
     request: {
       ok: el.ok, reason: el.reason, chance: el.ok ? Math.round(releaseChance(g) * 100) : null,
       status: req ? (req.accepted ? (m.offers ? '이적 명단 · 제안이 왔어요' : `이적 명단 · ${midWindowKo(g.league)} 이적시장에 제안이 와요`) : '구단이 요청을 거절했어요') : null,
