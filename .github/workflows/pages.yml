@@ -35,8 +35,7 @@ jobs:
           path: dist
 
   # C.78l: 밸런스 점검은 build 와 따로 병렬로 돈다 (커리어 시뮬은 워커 병렬, 가드 표는 실행 요약 화면).
-  # 2026-10-23 사용자 승인: 움직임 먼저, 밸런스는 로드맵 마지막 단계에서 맞춘다.
-  # 그때까지 밸런스 두 단계는 결과만 로그에 남기고 배포를 막지 않는다(마지막 단계에서 되돌림 — 그때 deploy 의 needs 에 balance 를 더한다).
+  # C.78r(로드맵 마지막 단계): 2026-10-23 부터 보고만(continue-on-error) 하던 두 단계를 다시 배포 차단으로 — deploy 가 balance 를 기다린다.
   balance:
     runs-on: ubuntu-latest
     steps:
@@ -47,14 +46,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run balance:check
-        continue-on-error: true
         env:
           COACH_MEASURE: '0'
       - run: npm run balance:engine:check
-        continue-on-error: true
 
   deploy:
-    needs: build
+    needs: [build, balance]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
