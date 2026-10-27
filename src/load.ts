@@ -40,12 +40,14 @@ export function gegenShift(seasons: number | undefined): number {
 
 /**
  * 마모 → 노쇠 [나이 이동(시즌), 하락 속도 배율]. age 를 주면 load.wearAgeFrom 전에는 가산 없음 (정점 전 성장 보호).
- * gegen = 게겐 시즌 수 (C.78t): gegenShift 만큼 더 앞당기고, 그 이동은 wearAgeFrom − 이동 나이부터 건다 ("노화가 1~2년 빨리")
+ * gegen = 게겐 시즌 수 (C.78t): gegenShift 만큼 더 앞당긴다 — wearAgeFrom 부터 이동 × careerWindow 시즌 동안만
+ * (급한 하락 구간이 1~2년 일찍 오고, 그 뒤는 나이 곡선대로. 정점 전 성장·30대 후반 누적 하락은 건드리지 않는다)
  */
 export function wearAging(wear: number | undefined, age?: number, gegen?: number): { shift: number; mul: number } {
   const L = BALANCE.load;
   const g = gegenShift(gegen);
-  const gOn = g > 0 && (age === undefined || age >= L.wearAgeFrom - g);
+  const G = BALANCE.gegenCost;
+  const gOn = g > 0 && (age === undefined || (age >= L.wearAgeFrom && age < L.wearAgeFrom + g * G.careerWindow));
   const wOn = L.on && !!wear && (age === undefined || age >= L.wearAgeFrom);
   const ws = wOn ? Math.min(L.maxShift, wear! * L.agePerWear) : 0;
   const shift = Math.min(Math.max(L.maxShift, BALANCE.gegenCost.maxTotalShift), ws + (gOn ? g : 0));

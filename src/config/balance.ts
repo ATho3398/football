@@ -456,7 +456,8 @@ export const BALANCE = {
   //    수치: 게겐 주전 풀타임(리그 38 + 컵 ~8) 이면 전반기 끝 ≈ 25, 후반기 상한 cap 에 닿아 경기 날 피로 ≈ 24 + 40 → penaltyFrom 50 을 넘는다.
   //    로테이션 4경기에 1번 쉬면 (3 × 1.4 − 6) < 0 이라 거의 쌓이지 않는다
   // ② 선수 생명: 시즌 게겐 클럽 출전 seasonMinutes 분 이상 = 게겐 시즌 1. careerShift [게겐 시즌 이상, 노화 앞당김 시즌] — 3시즌 −1년, 5시즌 −2년.
-  //    노쇠 곡선(aging·은퇴 확률)을 앞당겨 읽고, 앞당긴 만큼 이른 나이(load.wearAgeFrom − 이동)부터 건다. 마모 이동(load.maxShift 1)과 따로 더해 maxTotalShift 3 상한(게겐 이동이 마모에 먹히지 않게).
+  //    노쇠 곡선(aging·은퇴 확률)을 앞당겨 읽는다 — load.wearAgeFrom(30) 부터 이동 × careerWindow 시즌 동안(급한 하락 구간이 1~2년 일찍).
+  //    C.78t 1차(28세부터 · 끝까지): balance 정점 여지 0.72 ✗ · 36−30 CB/CM −3.1 ✗ · ST/CAM −2.8 ✗(main −2.3 · −1.8) → 지금 방식. 마모 이동(load.maxShift 1)과 따로 더해 maxTotalShift 3 상한(게겐 이동이 마모에 먹히지 않게).
   //    내 선수·NPC(실제·가상, GameState.npcLoad 3·4번째 칸) 모두
   gegenCost: {
     on: true,
@@ -468,6 +469,8 @@ export const BALANCE = {
     seasonMinutes: 1500,
     careerShift: [[3, 1], [5, 2]] as [number, number][],
     maxTotalShift: 3,
+    /** 게겐 이동을 거는 기간 = wearAgeFrom(30) 부터 이동 × careerWindow 시즌 (3시즌 → 30~31세, 5시즌 → 30~33세) */
+    careerWindow: 2,
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──

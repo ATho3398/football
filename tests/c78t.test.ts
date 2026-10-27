@@ -16,12 +16,15 @@ describe('C.78t 선수 생명 (게겐 시즌 → 노쇠 앞당김)', () => {
     for (const [w, a] of [[0, 31], [20, 29], [20, 31], [80, 34]] as const) expect(wearAging(w, a, 0)).toEqual(wearAging(w, a));
   });
 
-  it('게겐 이동은 wearAgeFrom − 이동 나이부터 (5시즌이면 28세부터), 마모 이동과 더해진다', () => {
+  it('게겐 이동은 wearAgeFrom 부터 이동 × careerWindow 시즌 동안 (5시즌 30~33세, 3시즌 30~31세), 마모 이동과 더해진다', () => {
     const from = BALANCE.load.wearAgeFrom;
-    expect(wearAging(0, from - 3, 5).shift).toBe(0);
-    expect(wearAging(0, from - 2, 5).shift).toBe(2);
-    expect(wearAging(0, from - 2, 3).shift).toBe(0);
-    expect(wearAging(0, from - 1, 3).shift).toBe(1);
+    const w = BALANCE.gegenCost.careerWindow;
+    expect(wearAging(0, from - 1, 5).shift).toBe(0);
+    expect(wearAging(0, from, 5).shift).toBe(2);
+    expect(wearAging(0, from + 2 * w - 1, 5).shift).toBe(2);
+    expect(wearAging(0, from + 2 * w, 5).shift).toBe(0);
+    expect(wearAging(0, from + w - 1, 3).shift).toBe(1);
+    expect(wearAging(0, from + w, 3).shift).toBe(0);
     expect(wearAging(50, from, 5).shift).toBeCloseTo(Math.min(BALANCE.load.maxShift, 50 * BALANCE.load.agePerWear) + 2, 5);
   });
 
