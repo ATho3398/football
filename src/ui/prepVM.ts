@@ -53,7 +53,7 @@ export interface PrepVM {
   me: { pos: string; posKo: string; role: string; roleDesc: string; prof: number; ovr: number; mainPos: string; off: boolean };
   /** 출전: 결장 사유가 있으면 out, 1군 테스트면 보장, 아니면 선발 가능성(%) */
   start: { out: string | null; trial: { n: number; of: number } | null; chance: number };
-  condition: { fatigue: number; form: 1 | 2 | 3 | 4 | 5; formLabel: string; yellows: number; yellowEvery: number; injury: string | null; suspended: number };
+  condition: { fatigue: number; form: 1 | 2 | 3 | 4 | 5; formLabel: string; yellows: number; yellowEvery: number; injury: string | null; suspended: number; seasonFatigue?: number };
   deck: { active: number; sets: { idx: number; count: number; ok: boolean; unusable: number }[]; picks: number; /** 지금 고른 덱 세트의 카드 (C.66c) */ cards: DeckCardVM[] };
   control: MatchControl;
   quick: boolean;
@@ -122,6 +122,7 @@ export function prepVM(g: GameState): PrepVM | null {
       formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,
       yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery, yellowEvery: BALANCE.discipline.yellowBanEvery,
       injury: p.injury ? `${p.injury.daysLeft}일 남음` : null, suspended: p.suspended,
+      ...((p.seasonFatigue ?? 0) >= 1 ? { seasonFatigue: Math.round(p.seasonFatigue!) } : {}),
     },
     deck: {
       active: g.cards.active,

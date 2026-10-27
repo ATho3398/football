@@ -89,7 +89,7 @@ describe('동료 호흡', () => {
     for (let i = 0; i < 2; i++) playRound(g);
     const back = deserialize(serialize(g));
     expect(back.chem).toEqual(g.chem);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const old = JSON.parse(serialize(g));
     old.saveFormat = 41;
     expect(() => restore(old)).toThrow(SaveFormatError);
@@ -153,7 +153,7 @@ describe('화면', () => {
 
   it('버전', () => {
     expect(PATCH_LABEL).toMatch(/^C\.7[4-9]/);
-    expect(STAGE_LABEL).toMatch(/^(4\d|5\d)단계$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(22);
     expect(BALANCE_VERSION).toBeGreaterThanOrEqual(53);
   });

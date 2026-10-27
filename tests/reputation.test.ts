@@ -67,7 +67,7 @@ describe('세이브 변환 8 → 9 (부록 C.23)', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig9', difficulty: 'normal' });
     for (let i = 0; i < 2; i++) playRound(s, { engine: 'quick' });
     s.player.reputation = 950;
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const loaded = deserialize(serialize(s));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(loaded.player.reputation).toBe(950);

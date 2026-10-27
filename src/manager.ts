@@ -167,7 +167,8 @@ export function competition(state: GameState, pos: FieldPosition, n = 2): ScoreR
   const ovr = proficientOvr(p, pos) + startBonus(p, p.teamId);
   const trust = trustTerm(trustOf(state));
   const form = formTerm(p.recentRatings);
-  const fat = fatigueTerm(p.fatigue);
+  // 시즌 누적 피로 (C.78t, 게겐 비용)까지 — 경기 선발 판정(matchFatigue)과 같은 값
+  const fat = fatigueTerm(Math.min(BALANCE.fatigue.max, p.fatigue + (p.seasonFatigue ?? 0)));
   const r1 = (v: number) => Math.round(v * 10) / 10;
   const me: ScoreRow = { name: p.name, me: true, age: p.age, ovr, trust: r1(trust), form: r1(form), fatigue: fat, total: r1(ovr + trust + form + fat), detail: '' };
   const roster = state.rosters?.[p.teamId]?.players ?? [];

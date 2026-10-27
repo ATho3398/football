@@ -81,7 +81,7 @@ describe('C.75a 버전', () => {
   it('라벨 · 엔진 23', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
     expect(PATCH_LABEL).toMatch(/^C\.7[5-9]/);
-    expect(STAGE_LABEL).toMatch(/^(4[4-9]|5\d)단계$/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(ENGINE.moments.minOptions).toBe(2);
     const { ENGINE_VERSION } = await import('../src/engine/config');
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(23);

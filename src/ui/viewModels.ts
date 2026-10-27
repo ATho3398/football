@@ -136,6 +136,8 @@ export interface ConditionVM {
   formLabel: string;
   yellows: number;
   yellowEvery: number;
+  /** 시즌 누적 피로 (C.78t 게겐 비용, 경기 체력에서 더 빠진다). 0 이면 없음 */
+  seasonFatigue?: number;
   /** 생활 힌트 (C.63 b): 숨은 생활 지표를 숫자 없이 문장으로 */
   life?: string[];
 }
@@ -146,6 +148,7 @@ function conditionVM(g: GameState): ConditionVM {
   const b = formBonus(p.recentRatings);
   return {
     fatigue: Math.round(p.fatigue),
+    ...((p.seasonFatigue ?? 0) >= 1 ? { seasonFatigue: Math.round(p.seasonFatigue!) } : {}),
     form: FORM_STEP[formLevel(p.recentRatings)],
     formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,
     yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery,
@@ -1865,6 +1868,8 @@ export interface TacticsVM {
   tendencyName: string;
   /** 고른 성향 한 줄 설명 (C.76k) */
   tendencyDesc: string;
+  /** 게겐프레싱 비용 경고 한 줄 (C.78t). 다른 성향이면 없음 */
+  tendencyWarn?: string;
   formations: { id: string; label: string }[];
   /** 탭 값 (커스텀이면 'custom') */
   formation: string;
@@ -1950,6 +1955,7 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     })),
     tendencyName: TENDENCY_NAMES_KO[t.tendency],
     tendencyDesc: TENDENCY_DESC_KO[t.tendency],
+    ...(BALANCE.gegenCost.on && t.tendency === BALANCE.gegenCost.tendency ? { tendencyWarn: '체력 소모 큼 · 오래 쓰면 선수 생명 단축' } : {}),
     formations: [...FORMATIONS.map((f) => ({ id: f, label: f })), { id: 'custom', label: '커스텀' }],
     formation: t.custom ? 'custom' : t.formation,
     formationName: formationLabel(t),

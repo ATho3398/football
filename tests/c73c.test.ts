@@ -106,7 +106,7 @@ describe('랜덤 선수 다인종 (예전엔 국적이 없어 한국·동양계�
 
 describe('세이브 41 (SAVE_FORMAT_VERSION)', () => {
   it('외모·사진 세이브 왕복, 옛 세이브(40)는 이어 할 수 없음 (실제 선수는 사진 없음)', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = prospect('c73c-save');
     const back = deserialize(serialize(g));
     expect(back.player.facePhoto).toBe(g.player.facePhoto);

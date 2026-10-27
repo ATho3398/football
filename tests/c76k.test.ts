@@ -103,7 +103,7 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 50;
     expect(() => restore(raw)).toThrow(SaveFormatError);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const bus = { ...makeTactics('block', '4-4-2', 'ST'), levels: { ...tendencyLevels('block'), lineHeight: 0 as const } };
     expect(validTactics(bus)).toBe(true);
     // 옛 세이브의 'bus' 성향은 검사에서 걸러져 기본 전술로 (C.78s H1, 세이브 형식 그대로)

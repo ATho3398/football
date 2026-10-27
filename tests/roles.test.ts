@@ -151,7 +151,7 @@ describe('포메이션 8종과 커스텀 (E.5, E.5.1)', () => {
 
 describe('세이브 12 → 13 (E.21 1번)', () => {
   it('전술 역할·커스텀 세이브 왕복, 옛 세이브(12)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = game('CM', 'roles-mig');
     const back = deserialize(serialize(g));
     expect(back.tactics.custom).toEqual(g.tactics.custom);

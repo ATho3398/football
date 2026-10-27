@@ -146,7 +146,7 @@ describe('화면 · 세이브', () => {
   });
   it('세이브 왕복 · 52 는 이어 할 수 없음', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.years.at(-1)!.res.ballonDor!.length).toBe(30);
     const raw = JSON.parse(serialize(g));
@@ -155,7 +155,7 @@ describe('화면 · 세이브', () => {
   });
   it('버전 라벨', () => {
     expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/); // 병렬 패치 병합에도 통과 (C.76q)
-    expect(STAGE_LABEL).toBe('52단계');
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/); // 병렬 패치 병합에도 통과 (C.78t)
   });
   it('하루 끝 훅은 발표 날짜 전에는 아무것도 하지 않는다', () => {
     const g = seasonDone();

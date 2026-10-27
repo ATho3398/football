@@ -99,6 +99,7 @@ export function prepView(vm: PrepVM): string {
   const why = [
     ...(c.injury ? [`${Icon({ name: 'danger', size: 14 })}<span class="fail">부상 · ${esc(c.injury)}</span>`] : []),
     ...(c.suspended > 0 ? [`${Icon({ name: 'danger', size: 14 })}<span class="fail">출장 정지 · ${c.suspended}경기 남음</span>`] : []),
+    ...(c.seasonFatigue ? [`${Icon({ name: 'clock', size: 14 })}<span>시즌 누적 피로 ${c.seasonFatigue} · 경기 체력에서 더 빠져요 (쉬는 경기에 풀려요)</span>`] : []),
     ...(!s.out && stamina < low ? [`${Icon({ name: 'clock', size: 14 })}<span>체력 ${stamina} · ${low} 아래면 벤치로 밀릴 수 있어요</span>`] : []),
     ...(!s.out && c.yellows >= c.yellowEvery - 1 ? [`<i class="prep-why__card" aria-hidden="true"></i><span>경고 ${c.yellows}/${c.yellowEvery} · 한 장 더 받으면 다음 경기는 정지예요</span>`] : []),
   ];

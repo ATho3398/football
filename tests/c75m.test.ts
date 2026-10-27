@@ -234,13 +234,13 @@ describe('세이브 (C.75m)', () => {
   });
 
   it('옛 세이브(46)는 이어 할 수 없음, 같은 형식 PL 하나 세이브 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75m-m', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 46;
     expect(() => restore(old)).toThrow(SaveFormatError);
     const m = deserialize(serialize(g));
-    expect(m.saveFormat).toBe(57);
+    expect(m.saveFormat).toBe(58);
     expect(m.leagueIds).toEqual(['pl']);
     expect(m.league.id).toBe('pl');
     expect(m.league.country).toBe('England');

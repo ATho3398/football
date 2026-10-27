@@ -247,7 +247,7 @@ describe('세이브 23 → 24 (C.45 7번)', () => {
   it('신체·장단점·등번호·도트 왕복, 옛 세이브(23)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'mig24', difficulty: 'normal' });
     const back = deserialize(serialize(g));
-    expect(back.saveFormat).toBe(57);
+    expect(back.saveFormat).toBe(58);
     expect(back.player.body).toEqual(g.player.body);
     expect(back.player.tags).toEqual(g.player.tags);
     expect(back.player.shirt).toBe(g.player.shirt);

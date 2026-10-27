@@ -157,6 +157,13 @@ export interface PlayerState {
   /** 시즌 누적 부하 (C.77n, 부상 확률 가산) · 지난 시즌까지 마모 (노쇠 가산). 없으면 0 */
   load?: number;
   wear?: number;
+  /**
+   * 게겐프레싱 비용 (C.78t): 시즌 누적 피로(경기 날 피로에 더한다, 시즌 끝 0) · 이번 시즌 게겐 클럽 출전 분 · 게겐 시즌 수(노쇠 앞당김).
+   * 없으면 0
+   */
+  seasonFatigue?: number;
+  gegenMin?: number;
+  gegenSeasons?: number;
   reputation: number;
   /** 현재 부상. 없으면 null */
   injury: Injury | null;

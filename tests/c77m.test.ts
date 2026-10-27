@@ -135,7 +135,7 @@ describe('C.77m 본편 연결·세이브', () => {
   });
 
   it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcFit 저장·옛 세이브(54)는 이어 할 수 없음`, () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77m-s', difficulty: 'normal' });
     g.npcFit = { x: [12.5, 9000, 9010] };
     const old = JSON.parse(serialize(g));

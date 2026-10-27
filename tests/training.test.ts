@@ -160,7 +160,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     for (let k = 0; k < 3; k++) playRound(g, { engine: 'quick' });
     const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     expect(back.training).toEqual(g.training);
     playRound(back, { engine: 'quick' });
     expect(back.league.round).toBe(4);
