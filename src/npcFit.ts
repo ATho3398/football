@@ -9,7 +9,7 @@ import { ENGINE } from './engine/config';
 import { gkFieldAttributes } from './engine/sim';
 import { createRng, hashSeed } from './rng';
 import { injuryChance } from './injury';
-import { addNpcLoad, matchLoad, tendencyLoad, type NpcLoadMap } from './load';
+import { addNpcGegen, addNpcLoad, matchLoad, tendencyLoad, type NpcLoadMap } from './load';
 import { teamPlan } from './engine/tactics';
 import { rosterRating } from './roster';
 import type { RosterPlayer, TeamRoster } from './roster';
@@ -81,22 +81,25 @@ function npcInjuryDays(rng: () => number): number {
 /** 경기 한 줄: 선수 id · 출전 분 · 이동 거리(m) · 교체 투입 (C.77w, 간이 경기만) */
 export interface NpcLine { id: string; minutes: number; distance: number; sub?: boolean }
 
-const TENDENCY_LOAD = new Map<string, number>();
+const TENDENCY = new Map<string, string>();
 
 /**
- * 팀 성향 부하 계수 (C.77n): 데이터 팀은 데이터 성향, 아니면 teamPlan 시드 추첨(레이팅 = 로스터 레이팅). 팀·월드 시드마다 캐시
+ * 팀 성향 (C.77n 부하 계수·C.78t 게겐 비용): 데이터 팀은 데이터 성향, 아니면 teamPlan 시드 추첨(레이팅 = 로스터 레이팅). 팀·월드 시드마다 캐시
  * (경기마다 상대에 맞춘 약자 전술 조정은 보지 않는다 — 시즌 누적 근사)
  */
-export function rosterLoadMul(roster: TeamRoster, worldSeed: string): number {
+export function rosterTendency(roster: TeamRoster, worldSeed: string): string {
   const key = `${worldSeed}:${roster.teamId}`;
-  let v = TENDENCY_LOAD.get(key);
+  let v = TENDENCY.get(key);
   if (v === undefined) {
-    if (TENDENCY_LOAD.size > 512) TENDENCY_LOAD.clear();
-    v = tendencyLoad(teamPlan(roster.teamId, rosterRating(roster), roster.formation, worldSeed).tendency);
-    TENDENCY_LOAD.set(key, v);
+    if (TENDENCY.size > 512) TENDENCY.clear();
+    v = teamPlan(roster.teamId, rosterRating(roster), roster.formation, worldSeed).tendency as string;
+    TENDENCY.set(key, v);
   }
   return v;
 }
+
+/** 팀 성향 부하 계수 (C.77n) */
+export const rosterLoadMul = (roster: TeamRoster, worldSeed: string): number => tendencyLoad(rosterTendency(roster, worldSeed));
 
 /**
  * 경기 뒤 (day 날): 뛴 선수마다 피로 += 거리 비례, 부상 판정(확률 = 내 선수 injuryChance — 경기 시작 피로·신체·나이, 난이도 보통·태그 없음
@@ -109,9 +112,11 @@ export function npcAfterMatch(
   if (!BALANCE.fatigue.npc.on) return;
   const byId = new Map<string, RosterPlayer>();
   const mulOf = new Map<string, number>();
+  const gegenOf = new Set<string>();
   for (const r of rosters) {
     const mul = load ? rosterLoadMul(r, worldSeed) : 1;
-    for (const p of r.players) { byId.set(p.id, p); mulOf.set(p.id, mul); }
+    const gegen = !!load && rosterTendency(r, worldSeed) === BALANCE.gegenCost.tendency;
+    for (const p of r.players) { byId.set(p.id, p); mulOf.set(p.id, mul); if (gegen) gegenOf.add(p.id); }
   }
   for (const l of lines) {
     if (l.minutes <= 0) continue;
@@ -119,6 +124,8 @@ export function npcAfterMatch(
     if (!p) continue;
     const seasonLoad = load?.[l.id]?.[0];
     if (load) addNpcLoad(load, l.id, matchLoad(l.minutes, l.distance, mulOf.get(l.id)!));
+    // 게겐 클럽 출전 분 (C.78t 선수 생명): 시즌 끝 gegenCost.seasonMinutes 이상이면 게겐 시즌 +1
+    if (load && gegenOf.has(l.id)) addNpcGegen(load, l.id, l.minutes);
     const old = map[l.id];
     const before = npcFatigueOn(old, day);
     const f = Math.min(BALANCE.fatigue.max, before + npcMatchFatigue(l.distance));

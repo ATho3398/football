@@ -191,7 +191,7 @@ describe('포변 조언 (pending 31 3번, 36 ①②)', () => {
 describe('세이브 16 → 17 (C.37)', () => {
   it('적성 세이브 왕복, 옛 세이브(16)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'mig16', difficulty: 'normal' });
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     expect(deserialize(serialize(g)).player.aptitude).toEqual(g.player.aptitude);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 16;

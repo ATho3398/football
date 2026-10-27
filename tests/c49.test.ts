@@ -47,7 +47,7 @@ describe('포인트 = 화면 칸 (C.49)', () => {
 
 describe('세이브 28 → 29 (C.49)', () => {
   it('옛 세이브(28)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c49-mig', difficulty: 'normal' });
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 28;

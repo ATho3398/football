@@ -183,7 +183,7 @@ describe('화면 (디자인 없음)', () => {
 describe('세이브 37', () => {
   it('왕복 그대로 · 옛 세이브(36)는 이어 할 수 없음', () => {
     const g = real('c67b-save');
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 36;

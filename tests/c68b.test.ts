@@ -241,7 +241,7 @@ describe('재정 화면 탭·세이브 39', () => {
     // C.77q: 카드 상점은 상점 화면으로
     expect(shopView(vm)).toContain('카드팩');
     expect(financeView(vm, 'life')).toContain('엔딩 자산 점수');
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const back = deserialize(serialize(g));
     expect(back.money!.house).toBe(2);
     expect(back.money!.charity!.total).toBe(10000);

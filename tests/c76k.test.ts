@@ -100,7 +100,7 @@ describe('C.76k 라인 4단 · 버스 세우기', () => {
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 50;
     expect(() => restore(raw)).toThrow(SaveFormatError);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const bus = makeTactics('bus', '4-4-2', 'ST');
     expect(validTactics(bus)).toBe(true);
     expect(bus.levels.lineHeight).toBe(0);

@@ -163,7 +163,7 @@ describe('세이브 17 → 18 (부록 C.38)', () => {
   it('세이브 왕복 뒤 이어서 진행, 옛 세이브(17)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig18', difficulty: 'normal' });
     for (let k = 0; k < 5; k++) playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 17;
     expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);

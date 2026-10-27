@@ -259,7 +259,7 @@ describe('화면·세이브 (C.62)', () => {
     addTrust(g, 5, '테스트');
     const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     expect(back.manager).toEqual(g.manager);
     // 옛 세이브(31)는 이어 할 수 없음
     const old = JSON.parse(serialize(g));

@@ -115,7 +115,7 @@ describe('세이브 (SAVE_FORMAT_VERSION 12)', () => {
     g.tactics = { ...g.tactics, tendency: 'block', levels: { lineHeight: 0, pressing: 0, style: 2, width: 0 } };
     const back = deserialize(serialize(g));
     expect(back.tactics).toEqual(g.tactics);
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
   });
 
   it('옛 세이브(11)는 이어 할 수 없음', () => {

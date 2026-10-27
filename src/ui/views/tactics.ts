@@ -16,6 +16,7 @@ export function tacticsView(vm: TacticsVM): string {
   const tend = `${SectionTitle({ title: '① 전술 성향', action: vm.opp?.tactic ? '적합도 = 우리 선발 능력치' : '' })}
     <div class="tac-grid">${vm.tendencies.map((t) => TacticChip({ tactic: t.style, fit: t.fit, selected: t.on, act: 'tac-tend', data: { v: t.id } })).join('')}</div>
     <p class="small"><b>${esc(vm.tendencyName)}</b> · ${esc(vm.tendencyDesc)}</p>
+    ${vm.tendencyWarn ? `<p class="small warn">${esc(vm.tendencyWarn)}</p>` : ''}
     <p class="small muted">성향을 고르면 세부 전술과 역할의 기본값이 채워지고, "자세히"에서 그 위에 바꿀 수 있어요.</p>`;
 
   const toggle = Button({

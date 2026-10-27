@@ -342,13 +342,13 @@ describe('도감 번호 (C.76c 6번)', () => {
 
 describe('세이브 49 (C.76c)', () => {
   it('옛 세이브(48)는 이어 할 수 없음, 같은 형식 PL 세이브 = 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-v', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 48;
     expect(() => restore(old)).toThrow(SaveFormatError);
     const back = deserialize(serialize(g));
-    expect(back.saveFormat).toBe(57);
+    expect(back.saveFormat).toBe(58);
     expect(back.league.id).toBe('pl');
     expect(back.leagueIds).toEqual(['pl']);
     expect(back.myLeagues).toBeUndefined();

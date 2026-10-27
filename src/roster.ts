@@ -677,13 +677,13 @@ export function addLegendSpawns(rosters: Rosters, spawns: readonly LegendSpawn[]
 // ── 시즌 갱신 (5.6 성장/노화, 은퇴 보충) ──
 
 /** 가상 필드 선수 성장: NPC 성장 곡선(growNpc)을 그대로 쓴다 */
-function growVirtualField(p: RosterPlayer, worldSeed: string, season: number, wear = 0): RosterPlayer {
+function growVirtualField(p: RosterPlayer, worldSeed: string, season: number, wear = 0, gegen = 0): RosterPlayer {
   const n: NpcState = {
     id: p.id, name: p.name, nameKo: p.nameKo, club: '', position: p.position as FieldPosition, age: p.age,
     potentialTier: p.potentialTier, peakOvr: p.peakOvr, peakAge: p.peakAge, attributes: { ...p.attributes! },
     lastChange: 0, retired: false,
   };
-  const g = growNpc(n, worldSeed, season, wear);
+  const g = growNpc(n, worldSeed, season, wear, gegen);
   return { ...p, age: g.age, attributes: g.attributes };
 }
 
@@ -728,7 +728,7 @@ function makeRookie(teamId: string, position: Position, baseRating: number, worl
  * 가상 선수 성장/노화 → 은퇴(가상: 확률, 실제: NpcState.retired) → 신인 보충 → 재계약
  */
 export function updateRostersForSeason(
-  rosters: Rosters, worldSeed: string, season: number, baseRatings: Record<string, number>, npcs: NpcState[], wearOf: (id: string) => number = () => 0,
+  rosters: Rosters, worldSeed: string, season: number, baseRatings: Record<string, number>, npcs: NpcState[], wearOf: (id: string) => number = () => 0, gegenOf: (id: string) => number = () => 0,
 ): Rosters {
   const R = BALANCE.roster;
   const byId = new Map(npcs.map((n) => [n.id, n]));
@@ -746,8 +746,9 @@ export function updateRostersForSeason(
         next = n ? { ...p, age: n.age, attributes: { ...n.attributes } } : p;
       } else {
         const wear = wearOf(p.id);
-        next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season, wear);
-        retired = retires(next, rng, wearAging(wear, next.age).shift);
+        const gegen = gegenOf(p.id);
+        next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season, wear, gegen);
+        retired = retires(next, rng, wearAging(wear, next.age, gegen).shift);
       }
       if (retired) {
         players.push(makeRookie(teamId, p.position, baseRatings[teamId] ?? 70, worldSeed, season, k++));

@@ -121,9 +121,9 @@ describe('세이브 변환 9 → 10 (부록 C.25)', () => {
   it('부진 연속·시즌 부진 감점 세이브 왕복, 옛 세이브(9)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig10', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(s, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const loaded = deserialize(serialize(s));
-    expect(loaded.saveFormat).toBe(57);
+    expect(loaded.saveFormat).toBe(58);
     expect(loaded.player.slumpStreak).toBe(s.player.slumpStreak);
     expect(loaded.player.season.slumpPenalty).toBe(s.player.season.slumpPenalty);
     const old = JSON.parse(serialize(s));

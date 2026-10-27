@@ -198,7 +198,7 @@ describe('진열실', () => {
 
 describe('세이브 48', () => {
   it('옛 세이브(47)는 이어 할 수 없다 (C.77r), 같은 형식은 진열 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const g = game();
     const raw = JSON.parse(serialize(g));
     expect(showroomVM(restore(JSON.parse(serialize(g)))).shown).toEqual(showroomVM(g).shown);

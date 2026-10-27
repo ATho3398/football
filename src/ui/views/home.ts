@@ -100,6 +100,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
         <div class="hm-stamina"><span>체력</span><span class="hm-stamina__bar" aria-hidden="true"><i class="${stamina <= 30 ? 'is-low' : stamina < 100 - BALANCE.fatigue.penaltyFrom ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
         <div class="hm-stamina__scale"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
         ${staminaNote(c.fatigue)}
+        ${c.seasonFatigue ? `<p class="small warn">시즌 누적 피로 ${c.seasonFatigue} · 경기 체력 −${c.seasonFatigue} (게겐 경기마다 쌓이고 쉬는 경기에 풀려요)</p>` : ''}
         ${(c.life?.length ?? 0) > 1 ? `<div class="lf-hints">${c.life!.slice(1).map((h) => `<p class="small warn">${Icon({ name: 'face', size: 14 })} ${esc(h)}</p>`).join('')}</div>` : ''}
         <div class="kv">${FormIndicator({ level: c.form, showLabel: true })}<span class="muted small">${esc(c.formLabel)}</span></div>`, 'hm-cond');
   const card = PlayerCard({ player: vm.card, variant: 'compact' });

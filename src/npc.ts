@@ -77,7 +77,7 @@ export function shiftOvr(attrs: FieldAttributes, pos: FieldPosition, d: number, 
 }
 
 /** 시즌 종료 NPC 성장. age 는 그 시즌의 나이이며, 처리 후 +1 된다 */
-export function growNpc(n: NpcState, worldSeed: string, season: number, wear = 0): NpcState {
+export function growNpc(n: NpcState, worldSeed: string, season: number, wear = 0, gegen = 0): NpcState {
   if (n.retired) return n;
   const N = BALANCE.npc;
   const rng = createRng(hashSeed(`${worldSeed}:npc-growth:${n.id}:${season}`));
@@ -96,8 +96,8 @@ export function growNpc(n: NpcState, worldSeed: string, season: number, wear = 0
     // 전성기 이후: 노련함 성장 + 노화 곡선 + 시즌 운 (6.1.1).
     // 전성기 전에는 전성기 OVR 접근 곡선에 노련함이 이미 포함된 것으로 본다
     applyVeteranGrowth(attrs, n.age, rng);
-    // 시즌 누적 마모 (C.77n): 노쇠 나이 앞당김·하락 속도 가산 (마모 없으면 그대로)
-    const w = wearAging(wear, n.age);
+    // 시즌 누적 마모 (C.77n): 노쇠 나이 앞당김·하락 속도 가산 (마모 없으면 그대로). 게겐 시즌 (C.78t): 노쇠 1~2년 앞당김
+    const w = wearAging(wear, n.age, gegen);
     applyAging(attrs, n.age, rng, n.position, w.mul, {}, w.shift);
     shiftOvr(attrs, n.position, Math.round(gaussian(rng) * N.seasonLuck * 0.5), rng);
   }

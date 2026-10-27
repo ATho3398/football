@@ -178,7 +178,7 @@ describe('화면', () => {
 describe('세이브', () => {
   it('세이브 왕복 · 53 은 이어 할 수 없음', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(57);
+    expect(SAVE_FORMAT_VERSION).toBe(58);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.months!.length).toBe(g.globalAwards!.months!.length);
     expect(back.globalAwards!.years.at(-1)!.res['toty@pl']!.length).toBe(11);

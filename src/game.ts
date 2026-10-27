@@ -56,8 +56,8 @@ import { PHOTO_OF, randomNameFor, rollIdentity, type FacePhoto, type Race } from
 import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
-import { dayNum, npcAfterMatch, npcConditions, npcLines, pruneNpcFit, rosterLoadMul, type NpcCond, type NpcFitMap } from './npcFit';
-import { closeNpcLoadSeason, matchLoad, npcWear, seasonWear, wearAging, type NpcLoadMap } from './load';
+import { dayNum, npcAfterMatch, npcConditions, npcLines, pruneNpcFit, rosterLoadMul, rosterTendency, type NpcCond, type NpcFitMap } from './npcFit';
+import { closeNpcLoadSeason, gegenSeasonDone, matchLoad, npcGegen, npcWear, seasonWear, wearAging, type NpcLoadMap } from './load';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
 import { addTrust, afterMyMatch, bestPosition, managerDayEnd, startChance, trainingXpMul, trustOf, upsetForm, type ManagerState } from './manager';
@@ -94,7 +94,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 57;
+export const SAVE_FORMAT_VERSION = 58;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -943,6 +943,30 @@ function addMyLoad(state: GameState, minutes: number, distance: number | undefin
   p.load = Math.round(((p.load ?? 0) + matchLoad(minutes, distance, r ? rosterLoadMul(r, state.worldSeed) : 1)) * 100) / 100;
 }
 
+/** 내 클럽 경기 전술이 게겐프레싱 (C.78t): 내 전술(없으면 팀 성향) */
+export function myClubGegen(state: GameState): boolean {
+  const G = BALANCE.gegenCost;
+  if (!G.on) return false;
+  const r = state.rosters?.[state.player.teamId];
+  return (state.tactics?.tendency ?? (r ? rosterTendency(r, state.worldSeed) : undefined)) === G.tendency;
+}
+
+/** 경기에 쓰는 피로 = 경기 날 피로 + 시즌 누적 피로 (C.78t, 선발 확률·평점·엔진 시작 스태미나 통로) */
+export const matchFatigue = (state: GameState, fatigue: number): number =>
+  Math.min(BALANCE.fatigue.max, fatigue + (state.player.seasonFatigue ?? 0));
+
+/** 클럽 경기 뒤 시즌 누적 피로 (C.78t): 게겐으로 뛰면 분 비례 +, 아니면(벤치·결장·다른 성향) 회복. 게겐 출전 분 누적 */
+function gegenAfterClubMatch(state: GameState, minutes: number): void {
+  const G = BALANCE.gegenCost;
+  if (!G.on) return;
+  const p = state.player;
+  const sf = p.seasonFatigue ?? 0;
+  if (minutes > 0 && myClubGegen(state)) {
+    p.seasonFatigue = Math.round(Math.min(G.cap, sf + (G.perMatch90 * minutes) / 90) * 10) / 10;
+    p.gegenMin = (p.gegenMin ?? 0) + minutes;
+  } else if (sf > 0) p.seasonFatigue = Math.round(Math.max(0, sf - G.restRecovery) * 10) / 10;
+}
+
 /** 다른 경기 결과를 기록한다: 순위표, 스코어·득점자·도움, 선수 시즌 합계 */
 export function applyOther(state: GameState, r: number, i: number, res: NpcMatchResult): void {
   const f = state.league.schedule[r]![i]!;
@@ -1556,8 +1580,9 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const suspended = !injured && !fx.cup && player.suspended > 0;
   const leave = onLeave(state, myMatchDate(state) ?? state.calendar.date);
   const key: string | number = fx.cup ? fx.cup.key : roundIdx;
-  const fatigue = cond.fatigue;
-  const p = { ...player, fatigue };
+  // 선발·엔진 시작 스태미나는 시즌 누적 피로까지 (C.78t), 부상 판정은 경기 날 피로만 (게겐 부상은 시즌 부하 load 가 맡는다)
+  const fatigue = matchFatigue(state, cond.fatigue);
+  const p = { ...player, fatigue: cond.fatigue };
   const myTeam = teamById(league, player.teamId);
   const opp = teamById(league, fx.opponentId);
   const pos = myMatchPosition(state);
@@ -1711,10 +1736,10 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   } else {
     result = simulateMatch(
       {
-        ovr, position: player.position, fatigue: player.fatigue,
+        ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue),
         teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
         formBonus: form, injured: injured || suspended || leave, ...(state.trial ? { forceStart: true } : {}),
-        startP: startChance(state, ovr, myTeam.rating, player.fatigue),
+        startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue)),
       },
       rngFor(seed, 'match', league.season, roundIdx),
     );
@@ -1806,6 +1831,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     else updateFatigueForMatch(player, result.minutes);
     addMyLoad(state, result.minutes, my?.distance);
   }
+  gegenAfterClubMatch(state, result.minutes);
   // 경기 XP × 0.8, 결장 경기는 0 (옛 결장 주 훈련 XP·재활 XP 는 하루 훈련으로, 25.3 1번). 30세부터 고령 감쇠 (6.1)
   result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * veteranXpMultiplier(player.age)) : 0;
   // 늦은 개화 (C.45): 경기 XP 배율
@@ -1906,9 +1932,9 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   } else {
     result = simulateMatch(
       {
-        ovr, position: player.position, fatigue: player.fatigue,
+        ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue),
         teamRating: myTeam.rating, oppRating: opp.rating, home: mc.home, difficulty: state.difficulty,
-        formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, player.fatigue), bigMatch: mc.big,
+        formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue)), bigMatch: mc.big,
       },
       rngFor(seed, 'match', league.season, key),
     );
@@ -1948,6 +1974,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
     else updateFatigueForMatch(player, result.minutes);
     addMyLoad(state, result.minutes, my?.distance);
   }
+  gegenAfterClubMatch(state, result.minutes);
   result.xp = result.minutes > 0 ? Math.round(result.xp * BALANCE.training.matchXpScale * BALANCE.cups.matchXpMul * veteranXpMultiplier(player.age) * xpMul(player, false)) : 0;
   if (state.training) {
     state.training.hints = [];
@@ -2020,8 +2047,8 @@ function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } 
   const nat = ensureNational(state);
   const cond = summer ? { fatigue: player.fatigue, injury: player.injury } : projectedCondition(state, m.date);
   const injured = cond.injury !== null;
-  const fatigue = cond.fatigue;
-  const p = { ...player, fatigue };
+  const fatigue = matchFatigue(state, cond.fatigue);
+  const p = { ...player, fatigue: cond.fatigue };
   const myR = nationRating(nat.nation);
   const oppR = nationRating(m.opp);
   const pos = player.position as FieldPosition;
@@ -2085,7 +2112,7 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
   } else {
     result = simulateMatch(
       {
-        ovr, position: player.position, fatigue: player.fatigue, teamRating: myR, oppRating: oppR, home: m.home, difficulty: state.difficulty,
+        ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue), teamRating: myR, oppRating: oppR, home: m.home, difficulty: state.difficulty,
         formBonus: form, injured, startP: natStartChance(ovr, nationRating(nat.nation)), bigMatch: NAT_BIG(m),
       },
       rngFor(seed, 'natmatch', m.key),
@@ -2442,7 +2469,11 @@ export function endSeason(state: GameState): SeasonSummary {
   // 시즌 누적 마모 (C.77n): 이번 시즌 부하 → 마모, 노쇠 나이 앞당김·하락 속도 가산
   player.wear = Math.round(((player.wear ?? 0) + seasonWear(player.load)) * 10) / 10;
   player.load = 0;
-  const wa = wearAging(player.wear, age);
+  // 게겐 비용 (C.78t): 시즌 게겐 출전 분 → 게겐 시즌, 시즌 누적 피로 0
+  if (gegenSeasonDone(player.gegenMin)) player.gegenSeasons = (player.gegenSeasons ?? 0) + 1;
+  player.gegenMin = 0;
+  player.seasonFatigue = 0;
+  const wa = wearAging(player.wear, age, player.gegenSeasons);
   const aging = applyAging(player.attributes, age, rng, player.position, (evergreen ? agingMul(player) : 1) * wa.mul, lateBloomerSkip(player, age), wa.shift);
 
   // 5. 나이
@@ -2473,10 +2504,12 @@ export function endSeason(state: GameState): SeasonSummary {
   // 시즌 누적 마모 (C.77n): NPC 시즌 부하 → 마모 (성장·은퇴 전에)
   closeNpcLoadSeason(state.npcLoad);
   const wearOf = (id: string) => npcWear(state.npcLoad, id);
-  state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season, wearOf(n.id)));
+  // 게겐 시즌 (C.78t 선수 생명): 노쇠·은퇴 곡선 앞당김
+  const gegenOf = (id: string) => npcGegen(state.npcLoad, id);
+  state.npcs = state.npcs.map((n) => growNpc(n, state.worldSeed, season, wearOf(n.id), gegenOf(n.id)));
   const base = Object.fromEntries(league.teams.map((t) => [t.id, t.baseRating]));
   const photoSnap = photoSnapshot(state);
-  state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs, wearOf);
+  state.rosters = updateRostersForSeason(state.rosters, state.worldSeed, season, base, state.npcs, wearOf, gegenOf);
   // 미래 스타 (C.75x): 다음 시즌이 데뷔 시즌이면 들어온다 (rebuildRosters 와 같은 자리)
   if (state.futureStars) addFutureStars(state.rosters, state.worldSeed, season + 1, league.teams, rosterLeagues(state));
   // 레전드 팩 3판 (C.76b): 리그 밖 레전드 이적 유입 (rebuildRosters 와 같은 자리)

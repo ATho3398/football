@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 84;
+export const BALANCE_VERSION = 85;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -446,6 +446,28 @@ export const BALANCE = {
     maxShift: 1,
     ratePerWear: 0.0015,
     maxRate: 0.1,
+  },
+
+  // ── 게겐프레싱 비용 (C.78t, pending 146 ② 사용자 "둘 다") — 게임 시스템 쪽, 엔진 판단 코드는 그대로 ──
+  // 실축 근거: 클롭 도르트문트 2기(2012~15)·리버풀 2020~21 시즌 후반 부상·경기력 하락, 로이스·괴체·헨더슨 등 고강도 압박 주전의 이른 노쇠.
+  // ① 시즌 누적 피로: 게겐 팀(경기 전술 성향 gegenpress) 클럽 경기에서 뛴 분마다 쌓이고, 뛰지 않은 클럽 경기(벤치·결장)마다 회복.
+  //    경기 직전 컨디션 피로(fatigue) 에 더해 같은 통로(선발 확률·평점 페널티·엔진 시작 스태미나)로만 들어간다. 부상 확률은 시즌 부하(load)가 이미 맡아 더하지 않는다.
+  //    내 선수만(NPC 피로는 주간 회복 모델 npcFit 이라 시즌 기록이 없고, 넣으면 엔진 측정 리그 선발이 바뀐다). 시즌 끝 0.
+  //    수치: 게겐 주전 풀타임(리그 38 + 컵 ~8) 이면 전반기 끝 ≈ 25, 후반기 상한 cap 에 닿아 경기 날 피로 ≈ 24 + 40 → penaltyFrom 50 을 넘는다.
+  //    로테이션 4경기에 1번 쉬면 (3 × 1.4 − 6) < 0 이라 거의 쌓이지 않는다
+  // ② 선수 생명: 시즌 게겐 클럽 출전 seasonMinutes 분 이상 = 게겐 시즌 1. careerShift [게겐 시즌 이상, 노화 앞당김 시즌] — 3시즌 −1년, 5시즌 −2년.
+  //    노쇠 곡선(aging·은퇴 확률)을 앞당겨 읽고, 앞당긴 만큼 이른 나이(load.wearAgeFrom − 이동)부터 건다. 마모 이동(load.maxShift 1)과 따로 더해 maxTotalShift 3 상한(게겐 이동이 마모에 먹히지 않게).
+  //    내 선수·NPC(실제·가상, GameState.npcLoad 3·4번째 칸) 모두
+  gegenCost: {
+    on: true,
+    tendency: 'gegenpress',
+    perMatch90: 1.4,
+    /** 게겐으로 뛰지 않은 클럽 경기(벤치·결장, 또는 다른 성향 경기)마다 회복 — 전술을 바꿔도 같은 속도로 빠진다 */
+    restRecovery: 6,
+    cap: 40,
+    seasonMinutes: 1500,
+    careerShift: [[3, 1], [5, 2]] as [number, number][],
+    maxTotalShift: 3,
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
