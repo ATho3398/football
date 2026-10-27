@@ -162,6 +162,12 @@ export interface TeamStats {
   /** (C.76q) 12 m 밖(PK 제외) 유효 슈팅 도착 / 그중 선방 — 미해결 6 선방률 지표 */
   farOnTarget: number;
   farSaves: number;
+  /**
+   * (C.78r) 12 m 밖 유효 슈팅을 슛 상황 구간으로 나눈 도착 / 선방 — 선택 효과를 뺀 선방률 가드(구간별 선방률 × 고정 가중).
+   * 구간 = 거리(12~16.5 · 16.5~25 · 25 m+) × GK 자리(슛 순간 덮는 정도 ≥ 0.9 자리 잡음 · 미만), 순서 [거리 * 2 + (자리 잡음 ? 0 : 1)]
+   */
+  farBinOn: number[];
+  farBinSaves: number[];
 }
 
 export interface PlayerStats {

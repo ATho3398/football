@@ -1362,7 +1362,9 @@ export const ENGINE = {
      */
     // C.77b 44h-i: 2선 추적 뒤 rating-parts 600(엔진 34 기준) ST 평균 델타 1.871 — 병렬 C.76z 가 같은 재측정으로 1.86 을 먼저 씀, 그 값 유지(차이 0.01 = 평점 0.009)
     // C.77k 44h-f3c: 엔진 39 engine:check ST 풀타임 무득점 5.90(가드 5.9 경계 ✗, ST 평균 6.49) — ST 만 1.86 → 1.83(평점 +0.027)
-    center: { GK: 0.99, CB: 0.94, FB: 0.81, CDM: 1.5, CM: 1.78, CAM: 1.26, WING: 1.18, ST: 1.83 } as Record<string, number>,
+    // C.78r(엔진 54, 로드맵 마지막 단계): 8군 전부 다시 잼 — `rating-parts 720 … 20000`(engine:check 표본 13000~ 과 다른 시드) + `scripts/diag/c78r-rating-fit.ts`(칸 가중 평균이 6.5, ST 6.65 가 되게).
+    // 엔진 54 델타 합 분해(패스 · 슛 · 골도움 · 수비 · 상실 · GK · 결과): CDM 2.22 · 0.26 · 0.14 · 0.63 · −0.46 · −0.13 · −0.06 = 2.59 — 평점이 높던 원인은 득점이 아니라 패스 몫(GK 패스 1.42 · ST 패스 1.45). σ 0.79 · ST 무득점 6.06
+    center: { GK: 1.58, CB: 0.85, FB: 0.61, CDM: 2.58, CM: 2.17, CAM: 2.04, WING: 1.06, ST: 2.41 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },

@@ -299,6 +299,13 @@ function groupOf(p: CompactPlayer): PosGroup {
 
 // ── 지표 계산 ──
 
+/**
+ * 12 m 밖 선방률 고정 가중 (C.78r): 실축 12 m 밖 유효 슈팅의 거리 분포(12~16.5 · 16.5~25 · 25 m+)와 GK 가 자리 잡은 슛 비율 — 추정, 부록 C.78r.
+ * 엔진이 어떤 상황을 쏘는지(선택)와 무관하게 같은 상황 묶음으로 선방률을 잰다
+ */
+const FAR_STD_D = [0.45, 0.45, 0.1];
+const FAR_STD_SET = 0.95;
+
 export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number): SuiteResult {
   const M = (name: string) => (res.get(name) ?? []) as MatchOut[];
   const rows: Row[] = [];
@@ -338,9 +345,23 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
     add(S, 'aerials', '공중볼 경합', '약 35', perTeam(eq, (s) => s.aerials), 30, 40);
     // 선방률 (C.76q, 미해결 6): 판정은 12 m 밖(PK 제외) 유효 슈팅 선방률로 재정의 — 가까운 슛은 골·먼 슛은 선방이 현실이라 전체 68~72 는 1대1 목표와 양립하기 어렵다. 전체 선방률은 기록만
     add(S, 'savePct', 'GK 선방률 % (전체, 기록)', '기록 (옛 목표 68~72)', ratio(totTeam(eq, (s) => s.saves), totTeam(eq, (s) => s.shotsOnTarget)) * 100, 0, 100);
-    add(S, 'saveFar', 'GK 선방률 % (12 m 밖, PK 제외)', '68~76 (C.76q 재정의, 엔진 31 약 72)', ratio(totTeam(eq, (s) => s.farSaves), totTeam(eq, (s) => s.farOnTarget)) * 100, 68, 76, 1, {
+    // C.78r: 원래(섞인) 12 m 밖 선방률은 기록만 — 판단 보정(C.78p) 뒤 GK 가 자리 잡은 슛을 더 고르는 선택 효과가 섞인다(같은 엔진 bias 0 / 0.14 = 65.7 / 85.8%)
+    add(S, 'saveFarRaw', 'GK 선방률 % (12 m 밖, PK 제외, 섞인 값 기록)', '기록 (옛 목표 68~76, C.76q)', ratio(totTeam(eq, (s) => s.farSaves), totTeam(eq, (s) => s.farOnTarget)) * 100, 0, 100, 1, {
       note: `12 m 밖 유효 ${perTeam(eq, (s) => s.farOnTarget).toFixed(2)} / 전체 유효 ${perTeam(eq, (s) => s.shotsOnTarget).toFixed(2)}`,
     });
+    // C.78r: 선택 효과를 뺀 12 m 밖 선방률 = 상황 구간별 선방률 × 고정 가중(부록 C.78r). 구간 = 거리(12~16.5 · 16.5~25 · 25 m+) × GK 자리(슛 순간 덮는 정도 0.9 이상)
+    // 가중 = 실축 거리 분포(FAR_STD_D) × GK 자리 잡음 FAR_STD_SET, GK 빈 슛(표본이 작아 거리 묶음 하나)은 1 − FAR_STD_SET. 같은 엔진 bias 0 / 0.14 = 87.2 / 87.9 (섞인 값 65.7 / 85.8)
+    {
+      const on = [0, 1, 2, 3, 4, 5].map((k) => totTeam(eq, (s) => s.farBinOn[k] ?? 0));
+      const sv = [0, 1, 2, 3, 4, 5].map((k) => totTeam(eq, (s) => s.farBinSaves[k] ?? 0));
+      const setR = [0, 1, 2].map((d) => ratio(sv[d * 2]!, on[d * 2]!));
+      const emptyR = ratio(sv[1]! + sv[3]! + sv[5]!, on[1]! + on[3]! + on[5]!);
+      const std = FAR_STD_D.reduce((t, w, d) => t + w * (FAR_STD_SET * setR[d]! + (1 - FAR_STD_SET) * emptyR), 0) * 100;
+      add(S, 'saveFar', 'GK 선방률 % (12 m 밖, 상황 고정 가중)', '79~87 (C.78r, 실축 추정 약 83)', std, 79, 87, 1, {
+        guard: [76, 90],
+        note: `GK 자리 12~16.5 ${(setR[0]! * 100).toFixed(0)}% (${on[0]}) · 16.5~25 ${(setR[1]! * 100).toFixed(0)}% (${on[2]}) · 25+ ${(setR[2]! * 100).toFixed(0)}% (${on[4]}) · GK 빈 ${(emptyR * 100).toFixed(0)}% (${on[1]! + on[3]! + on[5]!}) — 실축 추정 약 75 · 88 · 95`,
+      });
+    }
     const km = (g: string[]) => avg(eq.flatMap((m) => m.players.filter((p) => g.includes(p.position) && p.minutes >= 85).map((p) => p.distance / 1000)));
     add(S, 'distCM', '이동 거리 CM/CDM km', '10~12', km(['CM', 'CDM']), 10, 12, 2);
     add(S, 'distDef', '이동 거리 수비수 km', '9~10.5', km(['CB', 'LB', 'RB']), 9, 10.5, 2);

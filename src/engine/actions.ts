@@ -31,6 +31,9 @@ import type { Agent, BallReserve, Flight, SimState } from './state';
 
 /** 선방률 지표의 거리 기준 (C.76q): 이보다 먼 유효 슈팅만 farOnTarget·farSaves 로 센다 */
 const FAR_SAVE_FROM = 12;
+/** 상황 구간 (C.78r): 거리 경계(박스 선 16.5 · 25 m)와 GK 자리 잡음 기준(슛 순간 덮는 정도) — 지표만, 판정에 안 쓴다 */
+const FAR_BIN_D = [16.5, 25];
+const FAR_BIN_SET = 0.9;
 
 const PR = ENGINE.prob;
 const B = ENGINE.ball;
@@ -552,11 +555,18 @@ function shotArrives(s: SimState, fl: Flight): void {
   const pSave = (sh.ctx ? saveChance(sh.ctx) : saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1)) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
   // 선방률 지표 (C.76q, 미해결 6): 12 m 밖 유효 슈팅만 따로 센다 (1대1·PK 제외)
   const far = !sh.penalty && sh.d >= FAR_SAVE_FROM;
-  if (far) s.teams[shooter.team].stats.farOnTarget++;
+  const bin = far ? (sh.d >= FAR_BIN_D[1]! ? 2 : sh.d >= FAR_BIN_D[0]! ? 1 : 0) * 2 + ((sh.cover ?? 1) >= FAR_BIN_SET ? 0 : 1) : -1;
+  if (far) {
+    s.teams[shooter.team].stats.farOnTarget++;
+    s.teams[shooter.team].stats.farBinOn[bin]!++;
+  }
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < (sh.cardSave ? clamp(pSave + sh.cardSave, 0.02, 0.98) : pSave)) {
     s.teams[defTeam].stats.saves++;
     if (probe.shot) probeShotEnd(sh, 'save');
-    if (far) s.teams[shooter.team].stats.farSaves++;
+    if (far) {
+      s.teams[shooter.team].stats.farSaves++;
+      s.teams[shooter.team].stats.farBinSaves[bin]!++;
+    }
     if (gk) gk.stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
     // 날씨 (C.74a): 젖은 공 캐치 × gkCatch (놓치면 쳐내기·리바운드)
