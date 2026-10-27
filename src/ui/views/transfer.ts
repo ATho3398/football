@@ -56,7 +56,7 @@ function refusedLines(vm: MarketVM): string {
 
 /** OfferCard (디자인 97 · 145, C.60): 팀 이름 → 팀 상세(C.53), 재정 등급 · 이적료 · 친정 표시 · 지금과 비교 한 줄 */
 function offerCard(o: OfferVM, selected: boolean, freeFee = false): string {
-  const note = [`전력 ${signed(o.diff)}`, o.wagePct ? `지금보다 주급 ${o.wagePct > 0 ? '+' : '−'}${Math.abs(o.wagePct)}%` : '주급 그대로', o.repLoss ? `약팀 이적 · 위상 약 −${o.repLoss}` : ''].filter(Boolean).join(' · ');
+  const note = [o.prospect ? '유망주 계약 · 잠재력을 보고 낸 저연봉 장기 계약' : '', `전력 ${signed(o.diff)}`, o.wagePct ? `지금보다 주급 ${o.wagePct > 0 ? '+' : '−'}${Math.abs(o.wagePct)}%` : '주급 그대로', o.repLoss ? `약팀 이적 · 위상 약 −${o.repLoss}` : ''].filter(Boolean).join(' · ');
   return OfferCard({
     offer: {
       club: o.team, league: o.league ? '리그' : '리그 밖', ...(o.league ? { rank: o.rank } : {}), strength: o.rating, apps: o.start, starts: o.startPct,
@@ -136,6 +136,7 @@ export function contractView(vm: MarketVM, years: number | null): string {
   const sel = years ?? r.years[Math.floor(r.years.length / 2)]!;
   return `${hero}<div class="body">
     ${SectionTitle({ title: '연장', action: `주급 ${r.wage} · 연 ${r.annual}` })}
+    ${r.prospect ? '<p class="small muted">유망주 계약 · 잠재력을 보고 낸 저연봉 장기 계약</p>' : ''}
     <div class="opts">${r.years.map((y) => OptionRow({ act: 'renew-years', data: { v: String(y) }, radio: true, selected: y === sel, title: `${y}년`, desc: `${esc(vm.contract.team)}에서 ${y}시즌 더` })).join('')}</div>
     ${Button({ size: 'lg', block: true, act: 'renew', data: { v: String(sel) }, children: `${sel}년 재계약` })}
     ${SectionTitle({ title: 'FA 이적' })}
