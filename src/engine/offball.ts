@@ -1684,7 +1684,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     // 엘리트 가드 (C.76w 가설 3): 집중 대상의 마무리 계수 ≥ focusDoubleMin 이면 2선 마크보다 더블팀이 먼저다 (2선 마크로 ST 가 풀리자 같은 시드 scoring 30골+ 1.6 → 3.3~4.1)
     // 깊은 블록 밀집 (C.78d ①): 버스·블록·역습(낮은 블록)은 남는 수비가 많으니 박스 안 미마크 상대를 deepBoxMan 명까지 맡는다 (박스 안 사람 앞에 사람)
     const manMax0 = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
-    // 줄 인원 맞춤 (C.79e 실험, lineMatchMan 1): 초과 인원만큼 박스 안 미마크 상대 마크 인원을 늘린다
+    // 줄 인원 맞춤 (C.79e, lineMatchMan 1): 초과 인원만큼 박스 안 미마크 상대 마크 인원을 늘린다
     const manMax = O.lineMatch > 0 && O.lineMatchMan > 0 && lm.surplus > 0 ? Math.max(manMax0, lm.surplus) : manMax0;
     const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
@@ -2120,9 +2120,9 @@ function canReach(a: Agent, r: Agent): boolean {
   return arrivalTime(a, px, py, 1) <= arrivalTime(r, px, py) + O.trackReachSlack;
 }
 
-// 줄 인원 맞춤 내려앉기 (C.79e 실험 스위치, pending 147 ①, 기본 lineMatch 0 = 끔): 상대가 공을 가졌을 때 상대 공격 줄 인원(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽의 상대, 소유자 제외)이
-// 우리 수비 줄 인원(압박 아닌 줄 1)보다 많으면 그 차만큼 줄 2 선수(바쁘지 않은 선수 중 가장 깊은 순, 이미 내려온 선수 우선)가 수비 줄로 내려와 줄 1 처럼 행동한다
-// (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 0 이면 유지, 음수면 올라간다 (히스테리시스)
+// 줄 인원 맞춤 내려앉기 (C.79e, pending 147 ①, lineMatch 0 = 끔): 상대가 공을 가졌을 때 상대 공격 줄 인원(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽의 상대, 소유자 제외)이
+// 우리 수비 줄 인원(압박 아닌 줄 1)보다 lineMatchMin(2) 명 이상 많으면 그 차만큼 줄 2 선수(바쁘지 않은 선수 중 가장 깊은 순, 이미 내려온 선수 우선)가 수비 줄로 내려와 줄 1 처럼 행동한다
+// (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 문턱 − 1 이면 유지, 그 아래면 올라간다 (히스테리시스)
 interface LineMatch { drop: Set<number>; surplus: number }
 const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
 const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
@@ -2153,7 +2153,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   let atts = 0;
   for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
   const surplus = atts - defs;
-  // 문턱 lineMatchMin(기본 1): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
+  // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
   const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
   if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus });
   const tm = s.teams[team];

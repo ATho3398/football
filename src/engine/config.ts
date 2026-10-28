@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 58;
+export const ENGINE_VERSION = 59;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -503,12 +503,12 @@ export const ENGINE = {
     decoySpeed: 1,
     lineTiers: 0,
     /**
-     * 줄 인원 맞춤 내려앉기 (C.79e 실험, pending 147 ①, 0 = 끔): 상대 공격 줄(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽 상대, 소유자 제외) 인원이 우리 수비 줄(압박 아닌 줄 1)
-     * 인원보다 많으면 그 차만큼 줄 2 가 수비 줄로 내려와 줄 1 처럼 행동한다. lineMatchMan 1 이면 초과 인원만큼 박스 안 미마크 상대 마크(boxManMax)도 늘린다
+     * 줄 인원 맞춤 내려앉기 (C.79e, pending 147 ①, 0 = 끔): 상대 공격 줄(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽 상대, 소유자 제외) 인원이 우리 수비 줄(압박 아닌 줄 1)
+     * 인원보다 lineMatchMin 명 이상 많으면 그 차만큼 줄 2 가 수비 줄로 내려와 줄 1 처럼 행동한다. lineMatchMan 1 이면 초과 인원만큼 박스 안 미마크 상대 마크(boxManMax)도 늘린다
      */
-    lineMatch: 0,
+    lineMatch: 1,
     lineMatchBand: 8,
-    lineMatchMin: 1,
+    lineMatchMin: 2,
     lineMatchMan: 1,
     /**
      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
@@ -1431,7 +1431,8 @@ export const ENGINE = {
     // C.77k 44h-f3c: 엔진 39 engine:check ST 풀타임 무득점 5.90(가드 5.9 경계 ✗, ST 평균 6.49) — ST 만 1.86 → 1.83(평점 +0.027)
     // C.78r(엔진 54, 로드맵 마지막 단계): 8군 전부 다시 잼 — `rating-parts 720 … 20000`(engine:check 표본 13000~ 과 다른 시드) + `scripts/diag/c78r-rating-fit.ts`(칸 가중 평균이 6.5, ST 6.65 가 되게).
     // 엔진 54 델타 합 분해(패스 · 슛 · 골도움 · 수비 · 상실 · GK · 결과): CDM 2.22 · 0.26 · 0.14 · 0.63 · −0.46 · −0.13 · −0.06 = 2.59 — 평점이 높던 원인은 득점이 아니라 패스 몫(GK 패스 1.42 · ST 패스 1.45). σ 0.79 · ST 무득점 6.06
-    center: { GK: 1.58, CB: 0.85, FB: 0.61, CDM: 2.58, CM: 2.17, CAM: 2.04, WING: 1.06, ST: 2.41 } as Record<string, number>,
+    // C.79e(엔진 59, 줄 인원 맞춤 — 줄 2 가 수비 줄로 내려옴): engine:check CAM 6.28(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 1.95(그 표본 지금 6.42) — 가드 밖 CAM 만 2.04 → 1.95(§9.12.7)
+    center: { GK: 1.58, CB: 0.85, FB: 0.61, CDM: 2.58, CM: 2.17, CAM: 1.95, WING: 1.06, ST: 2.41 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
