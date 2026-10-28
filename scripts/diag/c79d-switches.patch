@@ -1,0 +1,286 @@
+diff --git a/src/engine/actions.ts b/src/engine/actions.ts
+index e2b4d00..0438981 100644
+--- a/src/engine/actions.ts
++++ b/src/engine/actions.ts
+@@ -822,7 +822,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
+       winner.y = wy;
+       return;
+     }
+-    giveBall(s, winner, 'win');
++    giveBall(s, winner, 'win', fl);
+     return;
+   }
+   // 수비가 이김: 헤더 걷어내기 (가끔 코너)
+@@ -837,8 +837,15 @@ function resolveAerial(s: SimState, fl: Flight): void {
+     giveBall(s, winner, 'gain');
+     return;
+   }
++  headerClear(s, winner, def, dirDef);
++}
++
++/** 헤더 걷어내기 (E.18 A4): 수비 winner 가 머리로 걷어낸 공 — clearDist m 루즈볼 비행, 측면이면 바깥쪽 편향. resolveAerial 과 롱볼 착지 경합(C.79d P5)이 같이 쓴다 */
++function headerClear(s: SimState, winner: Agent, def: 0 | 1, dirDef: 1 | -1, fromLong = false): void {
++  const b = s.ball;
+   countClearance(s, winner, b.x, b.y);
+-  const [lo, hi] = PR.clearDist;
++  const mul = fromLong && PR.longClearMul > 0 ? PR.longClearMul : 1;
++  const [lo, hi] = [PR.clearDist[0] * mul, PR.clearDist[1] * mul];
+   const len = lo + (hi - lo) * r(s, winner.idx, Purpose.Header, 1);
+   // 걷어내기 방향 산포 σ (E.18 A4). 측면 경합이면 바깥쪽 편향
+   const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
+@@ -914,6 +921,12 @@ export function resolveFlight(s: SimState): void {
+             def.stats.aerialDuels++;
+             if (r(s, rc.idx, Purpose.Aerial, 1) >= longRecvWin(rc, def)) {
+               def.stats.aerialsWon++;
++              // 실험 (엔진관리자15, C.79d P5): 수비가 이긴 롱볼은 longLossClear 확률로 헤더 걷어내기(루즈볼 세컨드볼), 나머지는 소유
++              if (PR.longLossClear > 0 && r(s, def.idx, Purpose.Header, 2) < PR.longLossClear) {
++                s.teams[rc.team].longLossT = s.t;
++                headerClear(s, def, def.team, attackDir(def.team, s.half), true);
++                return;
++              }
+               giveBall(s, def, 'gain');
+               return;
+             }
+@@ -1005,6 +1018,12 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
+     case 'win':
+       a.gotBy = 'receive';
+       a.carryN = 0;
++      if (res.fl && res.fl.kind === 'long' && !res.fl.fromCross) {
++        // 실험 (엔진관리자15, C.79d): 롱볼 수신 시각 기록(P2) · 공중 경합으로 받은 롱볼도 등지고 받음 판정(P3, receive.aerialBack)
++        s.teams[a.team].longRecvT = s.t;
++        s.teams[a.team].longRecvIdx = a.idx;
++        if (RC.aerialBack > 0) a.backToGoal = receivesBack(res.fl.fromX, res.fl.fromY, b.x, b.y, attackDir(a.team, s.half));
++      }
+       // C.78e: 받는 틱에 공을 받은 선수 발밑으로 (C.78b runOn 은 2.5 m 안에서 바로 받는다 — 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
+       b.x = a.x;
+       b.y = a.y;
+@@ -1020,6 +1039,11 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
+       a.dribbleT = -100;
+       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
+       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
++      if (fl.kind === 'long') {
++        // 실험 (엔진관리자15, C.79d P2): 롱볼 수신 시각 기록
++        s.teams[a.team].longRecvT = s.t;
++        s.teams[a.team].longRecvIdx = a.idx;
++      }
+       if (fl.quick) a.cooldown = reaction(a);
+       passer.stats.passesCompleted++;
+       s.teams[passer.team].stats.passesCompleted++;
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index f0d05d1..b157dad 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -171,6 +171,8 @@ export const ENGINE = {
+   // **켬(사용자 2026-10-23 09:00 "움직임이 더 중요", 밸런스는 마지막 단계; 끈 값 0 · 0 · 0 = 옛 동작)**: 켜면 quick 600 득점 1.42 → 1.91 ✗(하나씩 quick 300: 정지 시간 1.85 · 원터치 1.67 · 달리며 받기 1.41),
+   // 슈팅 22.4 → 27.9/경기·1대1 3.3 → 7.0%·xG 보정은 ±15% 안(새 찬스는 실제로 좋은 찬스) — 총량 맞추기는 로드맵 마지막 단계 (부록 C.78b)
+   receive: {
++    /** 실험 (엔진관리자15, C.79d P3): 1 이면 공중 경합으로 이긴 롱볼(크로스 아님)도 패스 수신과 같이 등지고 받음(receivesBack)을 판정해 포스트플레이(버티기·레이오프) 후보가 생긴다. 0 = 옛 동작(앞을 본 것으로) */
++    aerialBack: 0,
+     /**
+      * 정지 시간 차등 (0 = 옛 동작 receiveTime + 반응 × 0.5 ≈ 1.1초 고정). 1 이면 패스 수신의 정지 시간 =
+      * clamp(base − touchSkill × (볼 컨트롤 − 70)/100 + ballSpeed × max(0, 공 속도 − 12)/10 + press × 압박(3 m 안 가까울수록) + back × 등지고 받음 − run × 달리며 받음 + 반응 × reactMul, min, max).
+@@ -606,6 +608,30 @@ export const ENGINE = {
+     compactFollow: 0.4,
+     /** 실험 (엔진관리자14, 미해결 3 I1): 1 이면 밀집 줄의 공 y 를 부드러운 공(formation.ballSmoothing)으로 따라간다(인지 지연). 0 = 지금 공 (옛 동작) */
+     compactSmooth: 0,
++    /**
++     * 실험 (엔진관리자15, C.79d P1 직선 타깃 어깨 대기): 1 이면 직선 성향 팀이 자기 진영(공 x < directShoulderFrom)에서 공을 가질 때 타깃 ST(헤더 + 근력 최고, onball targetForward 와 같은 식)는
++     * 내려와 받지 않고 오프사이드 라인 − directShoulderGap m 에 머문다(롱볼 착지점을 최종 ⅓ 으로). 침투·최종 ⅓ 역할 중이면 그대로. 0 = 옛 동작
++     */
++    directShoulder: 0,
++    directShoulderFrom: 0.5,
++    directShoulderGap: 1.5,
++    /**
++     * 실험 (엔진관리자15, C.79d P2 직선 레이오프 지원): 우리 롱볼(30 m+ 공중)을 받은 뒤 directLayoff 초 동안(받은 선수가 공을 갖고 있는 한) 받은 선수에게 가까운 2선 2명은
++     * 받은 선수 뒤 directLayoffBack m · 옆 ±directLayoffSide m(레이오프·세컨드볼 자리, layoffDist 안)로 간다. 0 = 끔
++     */
++    directLayoff: 0,
++    directLayoffBack: 7,
++    directLayoffSide: 4,
++    /**
++     * 실험 (엔진관리자15, C.79d P4 직선 앞 주자 — "큰 선수 + 작은 선수"): 우리 롱볼(30 m+ 공중)이 떠 있을 때 착지점에 가까운 공격수(타깃 아님) directRunner 명은
++     * 착지점 앞 directRunnerAhead m · 옆 ±directRunnerSide m(오프사이드 라인 안쪽)로 달린다 — 받은 뒤 앞 동료(떨군 공·전진 패스 상대)가 되게. 받은 뒤 directRunnerHold 초 동안 유지. 0 = 끔
++     */
++    directRunner: 0,
++    directRunnerAhead: 8,
++    directRunnerSide: 6,
++    directRunnerHold: 2,
++    /** 실험 (C.79d P5b 세컨드볼 압박): 1 이면 우리 롱볼을 상대가 헤더로 걷어낸 비행(longLossT 에 시작한 clear 비행) 중 착지점에 가까운 2선 2명이 걷어낸 공 착지점(둘째는 5 m 뒤)으로 간다. 0 = 끔 */
++    directSecondClear: 0,
+     /** 밀집 중 중원 줄 마크 비중 (평소 0.65 — 존 자리와 마크 자리 사이) */
+     compactMark: 0.25,
+     /** 밀집 중 박스 안 미마크 상대 마크 인원 (버스·블록, C.76w boxManMax 를 깊은 블록에만 — 평소 0) */
+@@ -976,6 +1002,12 @@ export const ENGINE = {
+       /** 같은 보정의 모든 성향 몫 (역습 상황 자체 — H1 로 모든 팀의 탈취 뒤 롱볼이 줄어 quick 역습 슈팅 % 가 내려간 만큼). 역습 성향은 counterRunAll + counterRun */
+       counterRunAll: 0,
+       counterRunFwd: 10,
++      /**
++       * 실험 (엔진관리자15, C.79d P6 조건부 직선 롱볼): 직선 성향 팀의 공중(airPass 초과)·전진 패스 중 ① 오픈 플레이 탈취 뒤 counterWinTime 초 안(전환) 또는
++       * ② 착지점이 상대 진영 directLongX 이상(최종 ⅓)인 것에만 directLong × 판단 성공 확률을 더한다 — 빌드업 '직선' 배수(모든 롱볼 선호) 대신 상황부 선호. 0 = 끔
++       */
++      directLong: 0,
++      directLongX: 0.67,
+       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
+       shootNear: 13,
+       shootFar: 18,
+@@ -1152,6 +1184,13 @@ export const ENGINE = {
+     aerialRadius: 2,
+     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
+     longContest: 2.8,
++    /**
++     * 실험 (엔진관리자15, C.79d P5 롱볼 경합 헤더 걷어내기): 롱패스 착지 경합에서 수비가 이기면 이 확률로 깨끗한 소유 대신 헤더로 걷어낸다(resolveAerial 의 걷어내기와 같은 비행 —
++     * clearDist·clearSpreadDeg, 루즈볼). 떨어진 공은 세컨드볼(directSecond 2선 자리). 0 = 옛 동작(수비가 바로 소유). 판단(candidates 롱패스 실패 비용)은 아직 옛 식
++     */
++    longLossClear: 0,
++    /** 실험 (C.79d P5b): 롱볼 경합 헤더 걷어내기 거리 = clearDist × 이 배수 (0 = 1). 떨어지는 롱볼의 헤더는 자유 헤더보다 짧다 */
++    longClearMul: 0,
+     aerialScale: 16,
+     /**
+      * 직선 수신 (C.79c, 사용자 정의 pending 146 "직선은 받는 쪽 퍼스트 터치·피지컬·공중 경합이 좋아야 하는 선수빨 전술"): 크로스가 아닌 공중볼(롱패스·걷어내기·롱킥)의
+diff --git a/src/engine/offball.ts b/src/engine/offball.ts
+index 9d59f2b..b671938 100644
+--- a/src/engine/offball.ts
++++ b/src/engine/offball.ts
+@@ -556,6 +556,60 @@ export function updateOffball(s: SimState, a: Agent): void {
+       return;
+     }
+   }
++  // 실험 (엔진관리자15, C.79d P5b): 세컨드볼 압박 — 우리 롱볼을 상대가 헤더로 걷어낸 비행 중 가까운 2선 2명은 걷어낸 공 착지점으로
++  if (O.directSecondClear > 0 && fl && fl.kind === 'clear' && a.line === 2 && s.agents[fl.passer]?.team !== a.team
++    && Math.abs(fl.t0 - s.teams[a.team].longLossT) <= 0.05 && s.teams[a.team].tactics.tendency === 'direct') {
++    const mids = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 2)
++      .sort((x, y) => dist(x.x, x.y, fl.toX, fl.toY) - dist(y.x, y.y, fl.toX, fl.toY));
++    const k = mids.indexOf(a);
++    if (k >= 0 && k < 2) {
++      a.tx = clamp(fl.toX - dir * (k === 0 ? 0 : 5), 1, L - 1);
++      a.ty = clamp(fl.toY + (k === 0 ? 0 : 3), 1, W - 1);
++      a.urgent = true;
++      return;
++    }
++  }
++  // 실험 (엔진관리자15, C.79d P4): 직선 앞 주자 — 우리 롱볼이 떠 있거나 막 받았으면(directRunnerHold 초) 받는 선수가 아닌 공격수 directRunner 명은 착지점(받은 선수) 앞 자리로
++  if (O.directRunner > 0 && a.line === 3 && s.teams[a.team].tactics.tendency === 'direct') {
++    const tm = s.teams[a.team];
++    const flying = fl && fl.kind === 'long' && !fl.fromCross && s.agents[fl.passer]?.team === a.team && fl.receiver !== a.idx ? fl : null;
++    const rc = !flying && tm.longRecvIdx >= 0 && tm.longRecvIdx !== a.idx && s.t - tm.longRecvT <= O.directRunnerHold ? s.agents[tm.longRecvIdx] : undefined;
++    const held = rc && rc.team === a.team && (b.owner === rc.idx || b.reserve?.idx === rc.idx) ? rc : null;
++    const px = flying ? flying.toX : held ? held.x : NaN;
++    const py = flying ? flying.toY : held ? held.y : NaN;
++    if (Number.isFinite(px)) {
++      const target = flying ? flying.receiver : held!.idx;
++      const fwds = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 3 && o.idx !== target)
++        .sort((x, y) => dist(x.x, x.y, px, py) - dist(y.x, y.y, px, py));
++      const k = fwds.indexOf(a);
++      if (k >= 0 && k < O.directRunner) {
++        const line = offsideLine(s, a.team);
++        const [lnx] = [line];
++        const [pnx, pny] = toNorm(px, py, dir);
++        const nx = Math.min(lnx - 0.5 / L, pnx + O.directRunnerAhead / L);
++        const ny = clamp(pny + (k % 2 === 0 ? 1 : -1) * (a.sy >= 0.5 ? 1 : -1) * (O.directRunnerSide / W), 0.03, 0.97);
++        [a.tx, a.ty] = toPitch(nx, ny, dir);
++        a.urgent = true;
++        return;
++      }
++    }
++  }
++  // 실험 (엔진관리자15, C.79d P2): 직선 레이오프 지원 — 우리 롱볼을 받은 선수가 공을 갖고 있는 directLayoff 초 동안 가까운 2선 2명은 그 선수 뒤·옆 자리로
++  if (O.directLayoff > 0 && a.line === 2 && s.teams[a.team].tactics.tendency === 'direct') {
++    const tm = s.teams[a.team];
++    const rc = tm.longRecvIdx >= 0 ? s.agents[tm.longRecvIdx] : undefined;
++    if (rc && rc.team === a.team && rc !== a && s.t - tm.longRecvT <= O.directLayoff && (b.owner === rc.idx || b.reserve?.idx === rc.idx)) {
++      const mids = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 2)
++        .sort((x, y) => dist(x.x, x.y, rc.x, rc.y) - dist(y.x, y.y, rc.x, rc.y));
++      const k = mids.indexOf(a);
++      if (k >= 0 && k < 2) {
++        a.tx = clamp(rc.x - dir * O.directLayoffBack, 1, L - 1);
++        a.ty = clamp(rc.y + (k === 0 ? -1 : 1) * O.directLayoffSide, 1, W - 1);
++        a.urgent = true;
++        return;
++      }
++    }
++  }
+ 
+   const attacking = s.possTeam === a.team;
+   const [bnx, bny] = ballNorm(s, a.team);
+@@ -565,6 +619,16 @@ export function updateOffball(s: SimState, a: Agent): void {
+   else defendTarget(s, a, dir, bnx, bny);
+ }
+ 
++/** 직선 타깃 ST (실험 C.79d P1): 헤더 + 근력이 가장 높은 공격수 — onball targetForward 와 같은 식(순환 import 를 피해 여기 둔다) */
++function directTargetOf(s: SimState, team: 0 | 1): Agent | null {
++  let best: Agent | null = null;
++  for (const o of s.agents) {
++    if (!o.onPitch || o.team !== team || o.line !== 3) continue;
++    if (!best || o.attrs.heading + o.attrs.strength > best.attrs.heading + best.attrs.strength) best = o;
++  }
++  return best;
++}
++
+ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+   ensureErrors(s, a);
+   const shortHanded = manDiff(s, a.team) < 0;
+@@ -623,6 +687,10 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+     if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) a.runUntil = s.t + O.runSeconds;
+   }
+   let running = s.t < a.runUntil;
++  // 실험 (엔진관리자15, C.79d P1): 직선 타깃 ST 어깨 대기 — 우리 공이 자기 진영일 때 타깃 ST 는 오프사이드 라인 − directShoulderGap m 에 머문다(내려와 받기·지원 간격·공 쪽 당김 제외)
++  const shoulder = O.directShoulder > 0 && a.line === 3 && !running && !!owner && owner.team === a.team && owner !== a && bnx < O.directShoulderFrom
++    && s.teams[a.team].tactics.tendency === 'direct' && directTargetOf(s, a.team) === a;
++  if (shoulder) nx = Math.max(nx, line - O.directShoulderGap / L);
+   // 라인을 타는 정확도: 능력치가 낮을수록 라인보다 앞에 설 확률이 높다
+   const sigma = ((100 - a.attrs.offTheBall) * O.offsideSigma) / L;
+   const n0x = nx;
+@@ -733,7 +801,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   const sk = 1 + F.styleSupport * (0.5 - s.teams[a.team].tactics.style);
+   let supMin = (tiki ? TENDENCY.tikiSupport[0] : O.supportMin) * sk;
+   const supMax = (tiki ? TENDENCY.tikiSupport[1] : O.supportMax) * sk;
+-  if (owner && owner.team === a.team && owner !== a && !job && !wideJob) {
++  if (owner && owner.team === a.team && owner !== a && !job && !wideJob && !shoulder) {
+     // 압박받는 소유자 (C.78g): 가장 가까운 상대가 supportPressDist m 안이면 가까울수록 최소 간격을 supportPress 몫까지 줄인다 — 짧은 탈출 패스 각도
+     if (O.supportPress > 0) supMin *= 1 - O.supportPress * Math.max(0, 1 - nearestFieldOpp(s, owner)[1] / O.supportPressDist);
+     const [ox, oy] = toNorm(owner.x, owner.y, dir);
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index df1655c..6f088d0 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -719,7 +719,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
+     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
+     const runB = counterRunB > 0 && (running || d0 > PR.airPass) && (rx - ax) * L >= ENGINE.decide.bias.counterRunFwd ? counterRunB : 0;
+-    u = weight(u, passW) + cBonus(pj, rx - ax) + runB * pj;
++    // 실험 (C.79d P6): 직선 성향 조건부 롱볼 보정 — 전환(탈취 뒤 counterWinTime 초) 또는 최종 ⅓ 착지 공중 전진 패스에만
++    const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
++      && ((sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open') || rx >= ENGINE.decide.bias.directLongX) ? ENGINE.decide.bias.directLong : 0;
++    u = weight(u, passW) + cBonus(pj, rx - ax) + runB * pj + dLongB * pj;
+     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
+     const gd = dist(tx, ty, gx0, gy0);
+     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
+diff --git a/src/engine/sim.ts b/src/engine/sim.ts
+index acff280..3d323ad 100644
+--- a/src/engine/sim.ts
++++ b/src/engine/sim.ts
+@@ -134,7 +134,7 @@ export function createState(input: EngineInput): SimState {
+     bsx: L / 2, bsy: W / 2,
+     teams: setups.map((setup) => ({
+       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
+-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
++      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, longRecvT: -100, longRecvIdx: -1, longLossT: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+     })) as SimState['teams'],
+     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
+     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
+diff --git a/src/engine/state.ts b/src/engine/state.ts
+index ae38b39..5532b39 100644
+--- a/src/engine/state.ts
++++ b/src/engine/state.ts
+@@ -250,6 +250,11 @@ export interface TeamState {
+   counterPressers: number[];
+   /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
+   wonAt: number;
++  /** 실험 (엔진관리자15, C.79d P2): 마지막으로 우리 롱볼(30 m+ 공중)을 받은 시각·선수 idx (offball.directLayoff 가 읽는다) */
++  longRecvT: number;
++  longRecvIdx: number;
++  /** 실험 (C.79d P5b): 우리 롱볼이 착지 경합에서 상대 헤더로 걷어내진 시각 */
++  longLossT: number;
+   /** 전환 수비 (C.78a): 마지막 열린 경기 상실 시각 · 그 순간 수비 라인(−1 = 아직 안 잼) · 역압박이 뚫린 시각 */
+   lostAt: number;
+   lineAtLoss: number;
