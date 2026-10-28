@@ -9,7 +9,7 @@ const { ENGINE } = config_;
 import * as physics_ from './physics';
 const { arrivalTime, duelEdgeOf, tiredRatio } = physics_;
 import * as duel_ from './duel';
-const { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } = duel_;
+const { aerialScore, aerialWin, dribbleProb, duelTail, finishSkill, longRecvScore, longRecvWin, longTouchApply, receiveWin } = duel_;
 import * as formation_ from './formation';
 const { manDiff } = formation_;
 import * as roles_ from './roles';
@@ -512,17 +512,21 @@ export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLa
   const AM = ENGINE.physics.arrivalModel > 0;
   let tOwn = Infinity;
   let tOpp = Infinity;
+  let aOwn: Agent | null = null;
+  let aOpp: Agent | null = null;
   for (const o of s.agents) {
     if (!o.onPitch || o.line === 0 || o === except) continue;
     const best = o.team === team ? tOwn : tOpp;
     // 도착 시간은 직선 거리 / max(최대 속력, 지금 속력)보다 짧을 수 없다 — 그 하한이 이미 지금 최솟값보다 크면 계산하지 않는다 (결과 같음)
     if (AM && Number.isFinite(best) && Math.max(tLand, (dist(o.x, o.y, x, y) - PR.aerialRadius) / Math.max(o.maxSpeed, Math.hypot(o.vx, o.vy))) > best + 1e-6) continue;
     const t = Math.max(tLand, AM ? arrivalTime(o, x, y, PR.aerialRadius) : Math.max(0, dist(o.x, o.y, x, y) - PR.aerialRadius) / o.maxSpeed);
-    if (o.team === team) { if (t < tOwn) tOwn = t; } else if (t < tOpp) tOpp = t;
+    if (o.team === team) { if (t < tOwn) { tOwn = t; aOwn = o; } } else if (t < tOpp) { tOpp = t; aOpp = o; }
   }
   if (!Number.isFinite(tOwn)) return 0;
   if (!Number.isFinite(tOpp)) return 1;
-  return 1 / (1 + Math.exp(-(tOpp - tOwn) / O.landScale));
+  // 직선 수신 (C.79c): 먼저 닿는 두 선수의 경합 점수 차 (실행 resolveAerial 과 같은 점수: 차 보낸 팀 longRecvScore 대 aerialScore)
+  const skill = PR.landSkill > 0 && aOwn && aOpp ? (PR.landSkill * (longRecvScore(aOwn) - aerialScore(aOpp))) / PR.recvScale : 0;
+  return 1 / (1 + Math.exp(-((tOpp - tOwn) / O.landScale + skill)));
 }
 
 /** 판단용 성공 확률: 본인과 리그 평균 선수의 혼합 (E.20 1번) */
@@ -647,7 +651,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     let aerial = 1;
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.longContest) aerial = aerialWin(r, def);
+      if (def && dd < PR.longContest) aerial = longRecvWin(r, def);
     } else if (inOppBox(tx, ty, dir)) {
       // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
       const [def, dd] = nearestOutfield(s, r, tx, ty);
@@ -655,7 +659,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     }
     const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);
-    const flightP = (pp: number) => clamp(pp + race, PR.passMin, PR.passCap);
+    // 롱볼 퍼스트 터치 (C.79c): 공중 패스는 받는 선수의 볼 컨트롤·점프·근력이 실패 몫을 줄이거나 늘린다 (실행은 같은 pFlight)
+    const flightP = (pp: number) => (d0 > PR.airPass ? longTouchApply(clamp(pp + race, PR.passMin, PR.passCap), r) : clamp(pp + race, PR.passMin, PR.passCap));
     const pFlight = flightP(ppA);
     const p = pFlight * aerial;
     const pj = judgedP(p, flightP(ppAv) * aerial);
