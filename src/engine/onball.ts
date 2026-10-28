@@ -161,7 +161,7 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
-  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
+  const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) * (PR.pressDistRef > 0 ? Math.min(1, d / PR.pressDistRef) : 1) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
   return passSkillApply(p, skill);
 }
@@ -298,6 +298,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const cy = corner * (G / 2 - 0.3);
   let bN = 0;
   let bP = 0;
+  // 실험 (엔진관리자14): GK 시야를 가리는 수비 = 슛 길 콘 안이면서 슈터보다 골 쪽(비율 ≥ keeper.screenFrom)인 수비 (가까운 수비는 블록 몫)
+  let sN = 0;
+  let sP = 0;
+  let sAll = 0;
   let dN = 0;
   let dP = 0;
   for (const o of s.agents) {
@@ -307,9 +311,9 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     if (header) continue;
     if (lane) {
       const [cn, tn] = segDist(o.x, o.y, px, py, gx, gy - cy);
-      if (cn < PR.coneWidth && tn > 0.02 && tn < 0.95) bN++;
+      if (cn < PR.coneWidth && tn > 0.02 && tn < 0.95) { bN++; if (tn >= K.screenFrom) sN++; }
       const [cp, tp] = segDist(o.x, o.y, px, py, gx, gy + cy);
-      if (cp < PR.coneWidth && tp > 0.02 && tp < 0.95) bP++;
+      if (cp < PR.coneWidth && tp > 0.02 && tp < 0.95) { bP++; if (tp >= K.screenFrom) sP++; }
       // 밀집 블록도 그 쪽 슛 길 denseLaneW m 안 수비만 (C.78h: 골 쪽이어도 길에서 먼 수비는 몸을 못 던진다)
       if (PR.denseLaneW > 0 && od <= PR.denseR) {
         if (cn < PR.denseLaneW && tn > 0) dN++;
@@ -317,7 +321,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
       }
     } else {
       const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
-      if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
+      if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) { blockers++; if (ct >= K.screenFrom) sAll++; }
     }
     if (od <= PR.denseR && dist(o.x, o.y, gx, gy) < d) dense++;
     if (PR.shotFree > 0 && od < nearField) nearField = od;
@@ -357,7 +361,9 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const openD = K.openSpan > 0 ? Math.min(1, Math.max(K.openFloor, 1 - (d - K.openFrom) / K.openSpan)) : 1;
   if (K.timeModel && gk) pOn += Math.max(0, K.openOn * openD * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
   const cornerMul = 1 - PR.cornerPressure * pressure;
-  const saveOf = (sd: number) => (K.timeModel ? expectedSave({ ...ctx, ty: gy + sd * cy }, gy, sd, cornerMul) : saveChance({ ...ctx, ty: gy + sd * cy }));
+  // 실험 (엔진관리자14): 슛 길 콘 안 수비 수 = GK 시야 가림(screen) — 쪽마다 따로
+  ctx.screen = sAll;
+  const saveOf = (sd: number, scr: number = sAll) => (K.timeModel ? expectedSave({ ...ctx, ty: gy + sd * cy, screen: scr }, gy, sd, cornerMul) : saveChance({ ...ctx, ty: gy + sd * cy, screen: scr }));
   let pBlock: number;
   let foot: number;
   let pGoal: number;
@@ -375,16 +381,17 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
       pBlock = pbN;
       foot = fN;
       blockers = bN;
-      pGoal = 1 - saveOf(far ?? 1);
+      pGoal = 1 - saveOf(far ?? 1, sN);
     } else {
-      const gN = 1 - saveOf(-1);
-      const gP = 1 - saveOf(1);
+      const gN = 1 - saveOf(-1, sN);
+      const gP = 1 - saveOf(1, sP);
       if ((1 - pbP) * fP * gP >= (1 - pbN) * fN * gN) {
         side = 1; pBlock = pbP; foot = fP; pGoal = gP; blockers = bP;
       } else {
         side = -1; pBlock = pbN; foot = fN; pGoal = gN; blockers = bN;
       }
       ctx.ty = gy + side * cy;
+      ctx.screen = side > 0 ? sP : sN;
     }
   } else {
     pBlock = Math.min(PR.blockMax, blockers * PR.blockPer + denseB);
@@ -578,6 +585,15 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
   const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
     : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
+  // 판단 보정 — 역습 전진 롱·침투 (C.78y, ENGINE.decide.bias.counterRunAll + 역습 성향 counterRun): 오픈 플레이 탈취 뒤 counterWinTime 초 안이면
+  // 앞 공간(공보다 앞에 남은 상대 몫 × 상대 라인 뒤 열린 몫) × 기본값 × 판단 성공 확률을 크게 전진하는 롱(공중)·침투 패스 효용에 더한다(안 될 공은 덜). 실행·성공 확률은 그대로
+  let counterRunB = 0;
+  const runBase = ENGINE.decide.bias.counterRunAll + (tac.tendency === 'counter' ? ENGINE.decide.bias.counterRun : 0);
+  if (runBase > 0 && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open' && oppNx.length) {
+    let up = 0;
+    for (const x of oppNx) if (x < ax) up++;
+    counterRunB = runBase * (up / oppNx.length) * clamp(1 - offsideLine(s, a.team), 0, 1);
+  }
   const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
@@ -662,16 +678,32 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       value = Math.max(value, judgedP(shotModel(s, r, false, at, lead).value, shotModel(s, averageSelf(r), false, at, lead).value));
     }
     const lossR = loss(rx, ry);
+    // 실패 비용 (C.78x H1, 판단 = 실행): makePass 와 같은 몫으로 차단은 레인 수비수 자리(t 지점), 빗나감은 목표점에서 잃는다. GK 가 끊는 침투는 목표점
+    let lossF = lossR;
+    let iShare = 0;
+    if (PR.failLossModel > 0 && gkWins < 0 && (Number(PR.failLossModel) === 1 || d0 > PR.airPass)) {
+      const tot = lane.cutters.reduce((t, x) => t + x.w, 0);
+      if (tot > 0) {
+        iShare = Math.min(1, PR.interceptShare + tot * 0.3);
+        let li = 0;
+        for (const x of lane.cutters) {
+          const [cx, cy] = toNorm(a.x + (tx - a.x) * x.t, a.y + (ty - a.y) * x.t, dir);
+          li += (x.w / tot) * loss(cx, cy);
+        }
+        lossF = iShare * li + (1 - iShare) * lossR;
+      }
+    }
     value = value * (1 - pLoseR) + pLoseR * lossR;
     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
     const pOff = offsideRisk(s, a, r);
     const uOf = (pj: number) => {
-      const u = pj * value + (1 - pj) * lossR;
+      const u = pj * value + (1 - pj) * lossF;
       return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
     };
     // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
     const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
-    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * landGain;
+    // 세컨드볼은 빗나간 몫(1 − 차단 몫)만 (차단은 상대가 바로 가진다)
+    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * (1 - iShare) * landGain;
     const forward = rx > ax + 0.03;
     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
@@ -681,7 +713,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
-    u = weight(u, passW) + cBonus(pj, rx - ax);
+    const runB = counterRunB > 0 && (running || d0 > PR.airPass) && (rx - ax) * L >= ENGINE.decide.bias.counterRunFwd ? counterRunB : 0;
+    u = weight(u, passW) + cBonus(pj, rx - ax) + runB * pj;
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -692,8 +725,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
-      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
-      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
+      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + runB * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
     }
   }
 

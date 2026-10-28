@@ -966,6 +966,14 @@ export const ENGINE = {
       cross: 0,
       clear: 0,
       hold: 0,
+      /**
+       * C.78y: 역습 전진 롱·침투 — 역습 성향, 오픈 플레이 탈취 뒤 TENDENCY.counterWinTime 초 안, counterRunFwd m 이상 전진하는 공중(airPass 초과)·침투 패스에
+       * counterRun × 앞 공간(공보다 앞 상대 몫 × 상대 라인 뒤 열린 몫). H1(공중 실패 비용 = 실행 식)으로 역습이 전환 롱볼을 덜 고르게 된 만큼 되살림. 0 = 끔
+       */
+      counterRun: 0,
+      /** 같은 보정의 모든 성향 몫 (역습 상황 자체 — H1 로 모든 팀의 탈취 뒤 롱볼이 줄어 quick 역습 슈팅 % 가 내려간 만큼). 역습 성향은 counterRunAll + counterRun */
+      counterRunAll: 0,
+      counterRunFwd: 10,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
@@ -1026,6 +1034,8 @@ export const ENGINE = {
     /** 레인 위험 × (1 + laneVision × (60 − 시야)/100) */
     laneVision: 1.0,
     pressurePenalty: 0.4,
+    /** 실험 (엔진관리자14, 미해결 2): 패서 압박 감점 × min(1, 거리/pressDistRef) — 짧은 패스는 압박 속에서도 쉽다 (판단·실행 같은 함수). 0 = 끔(옛 동작) */
+    pressDistRef: 0,
     /** 받는 선수 압박(마크) 패널티: 성공 확률에서 빼는 값과 위치 가치에서 빼는 값 */
     receiverPressure: 0.3,
     /** 받는 선수 압박 거리 기준 (m) */
@@ -1033,6 +1043,8 @@ export const ENGINE = {
     pressureDist: 3,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
     interceptShare: 0.4,
+    /** 판단의 패스 실패 비용 (C.78x H1): 1 = 실행(makePass)과 같은 식 — 차단 몫(interceptShare + 레인 가중 × 0.3)은 레인 수비수 자리, 나머지(빗나감)는 목표점에서 잃는다. 2 = 공중 패스(airPass 초과)만. 0 = 옛 판단(실패 전부 목표점) */
+    failLossModel: 0,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 
@@ -1456,6 +1468,10 @@ export const ENGINE = {
     reactSkill: 0.4,
     driftMax: 6,
     headerReact: 0,
+    /** 실험 (엔진관리자14, 미해결 6): 슛 길 콘 안 상대 수비가 1명 이상이면 GK 반응 시간 + screenReact 초(가려짐은 1번만) (시야 가림, 판단·실행 같은 식). 0 = 끔 */
+    screenReact: 0,
+    /** 실험: 가림으로 세는 콘 안 수비의 슛 선 위치 비율 하한 (슈터 0 ~ 골 1) — 슈터 가까이 선 수비는 블록 몫, 골 쪽 수비가 GK 시야를 가린다 */
+    screenFrom: 0.4,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
