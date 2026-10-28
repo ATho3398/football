@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 56;
+export const ENGINE_VERSION = 57;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1033,6 +1033,13 @@ export const ENGINE = {
     pressureDist: 3,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
     interceptShare: 0.4,
+    /**
+     * 판단의 패스 실패 비용 (C.78x H1 → C.79b): 1 = 실행(makePass)과 같은 식 — 차단 몫(interceptShare + 레인 가중 × 0.3)은 레인 수비수 자리, 나머지(빗나감)는 목표점에서 잃는다.
+     * 2 = 공중 패스(airPass 초과)만. 0 = 옛 판단(실패 전부 목표점). C.79b: 2 + failLossBlock 1 (블록 행 레버, 상성 블록 행 +0.14 — 부록 C.79b)
+     */
+    failLossModel: 2,
+    /** C.79b: 1 이면 failLossModel 을 블록 성향(버스 포함) 패서에게만 — 깊은 블록만 자기 진영 롱볼이 레인에서 끊기는 비용을 안다(전 팀이면 득점 −0.2·이동 거리 +0.3 km, C.78y). 0 = 모든 성향 */
+    failLossBlock: 1,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 
