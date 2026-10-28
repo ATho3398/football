@@ -6706,6 +6706,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 테스트 · 장면 · 결정성 · 2초 | 전부 | — | 1268/1268 ✓(장면 39/39) |
 | engine:check 경량 가드 | 전부 | — | center 전 CAM 6.28 ✗ 1개 → CAM center 뒤 **모두 통과**(득점 1.40 · Δ+8 2.15 / 1.00 · 평점 6.53 / σ 0.77 · CAM 6.36 · ST 6.63 · ST 무득점 6.07 · XP 비 0.97 · 순간이동 0) |
 
+- 가드: typecheck ✓ · test 1268 ✓ · build ✓ · `balance:check` 는 로컬 60분 경계라 CI 에 맡김(엔진 밖 커리어 시뮬). 시간·비용: 02:06 ~ 03:2x KST 약 1시간 20분(측정: custom-sweep 400 1 · quick 600 1 · 상성 3칸 480 1 · 이동 거리 1 · rating-parts 720 1 · engine:check 2 · 시드 탐색 4).
 - **테스트 시드 재선정(단언 그대로, 진단서 예고 5개)**: `c75v` sureBack — c79b-0 에도 없어져 `c79e-2~3` CDM(각 1회; c79e-0~29 중 2·3) 추가 · `c76w` boxManMax 2 대 0 비율 — 77~79 차 +0.004(줄 2 가 내려와 0 일 때도 마크가 늘어남) → **86~88**(+0.097; 77~92 세 시드 묶음 중 78·79·80·81·86·92 통과) · `c78o` CB 정지 important 라운드 +4 1대1 멈춤 0 → **+3**(1대1 3회; +0~5 중 +1·2·3) · `highlights` 105 첫 장면 공 죽은 시간 → **106**(105~125 중 106~110·112·113·115~123·125 통과).
 
 ### C.79d 44h단계_직선 = 빌드업 보통 + 전환 롱볼 (마스터 AC `docs/session-prompts/C.79d.md`, Opus 1차, 근거 `docs/engine-diagnosis-c79d.md` §4.1 P6): **① `TENDENCY_LEVELS.direct` [2,1,2,2] → [2,1,1,2](빌드업 '직선' → '혼합') ② 판단 보정 `decide.bias.directLong` 0.1 — 직선 성향 · 오픈 플레이 탈취 뒤 `TENDENCY.counterWinTime` 6초 안 · 공중(airPass 초과) 전진 패스에만 + directLong × 판단 성공 확률(실행·성공 확률 불변). 직선 행 Δs +0.12 · 직선 > 블록 0.00 → +0.14 · 롱% 17~20(균형 14) 유지** (ENGINE_VERSION 56 → 57; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
