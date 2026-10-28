@@ -67,9 +67,10 @@ interface Side {
   stayN: number; stayTicks: number;
   deepPoss: number; // 상대 골 25 m 안에서 소유한 틱
   xg: number; cXg: number; cN: number; cGoal: number; gsLe1: number;
-  lineDef: number; lineAtt: number; lineN: number; lineAttHi: number; // 수비 때 내 수비 줄 평균 x(자기 골 기준 정규화) · 공격 때 내 수비 줄 평균 x · 공격 때 내 줄 ≥ 0.4 인 틱 // 슛 xG 합 · 역습 슛(탈취 8초 안) xG 합·수·골 · 골 쪽 수비 ≤ 1 슛 수
+  lineDef: number; lineAtt: number; lineN: number; lineAttHi: number;
+  zoneSeq: number[]; zoneSeqShot: number[]; // 상대 골 25 m 안 연속 소유 구간 길이 분포 [<3s, 3~6, 6~10, 10~20, 20+] · 그 구간이 슛으로 끝난 수 // 수비 때 내 수비 줄 평균 x(자기 골 기준 정규화) · 공격 때 내 수비 줄 평균 x · 공격 때 내 줄 ≥ 0.4 인 틱 // 슛 xG 합 · 역습 슛(탈취 8초 안) xG 합·수·골 · 골 쪽 수비 ≤ 1 슛 수
 }
-const mk = (): Side => ({ pa: [[0, 0], [0, 0], [0, 0], [0, 0]], pc: [[0, 0], [0, 0], [0, 0], [0, 0]], cutAssign: [0, 0, 0, 0], cutJudge: [0, 0, 0, 0], cutWin: [0, 0, 0, 0], lost: Array.from({ length: 3 }, () => [0, 0, 0, 0, 0]), shots: 0, counterShots: 0, goals: 0, possTicks: 0, winShot10: 0, wins: 0, stayN: 0, stayTicks: 0, deepPoss: 0, xg: 0, cXg: 0, cN: 0, cGoal: 0, gsLe1: 0, lineDef: 0, lineAtt: 0, lineN: 0, lineAttHi: 0 });
+const mk = (): Side => ({ pa: [[0, 0], [0, 0], [0, 0], [0, 0]], pc: [[0, 0], [0, 0], [0, 0], [0, 0]], cutAssign: [0, 0, 0, 0], cutJudge: [0, 0, 0, 0], cutWin: [0, 0, 0, 0], lost: Array.from({ length: 3 }, () => [0, 0, 0, 0, 0]), shots: 0, counterShots: 0, goals: 0, possTicks: 0, winShot10: 0, wins: 0, stayN: 0, stayTicks: 0, deepPoss: 0, xg: 0, cXg: 0, cN: 0, cGoal: 0, gsLe1: 0, lineDef: 0, lineAtt: 0, lineN: 0, lineAttHi: 0, zoneSeq: [0, 0, 0, 0, 0], zoneSeqShot: [0, 0, 0, 0, 0] });
 const S: Side[] = [mk(), mk()]; // 0 = A, 1 = B
 const CDZ = ENGINE.offball.closeDownZone;
 
@@ -104,6 +105,9 @@ for (let k = 0; k < n; k++) {
   let lastLossInfo: { type: number } | null = null; // 비행 결과로 잃었을 때 종류
   let pendingLoss: { team: 0 | 1; x: number; y: number; type: number } | null = null;
   const shotsBefore = [0, 0];
+  let zone: { team: 0 | 1; ticks: number; out: number; shotAt: number } | null = null;
+  const zbin = (tk: number) => (tk < 30 ? 0 : tk < 60 ? 1 : tk < 100 ? 2 : tk < 200 ? 3 : 4);
+  const endZone = () => { if (zone && zone.ticks >= 5) { const bi = zbin(zone.ticks); S[who(zone.team)]!.zoneSeq[bi]!++; if (zone.shotAt >= 0) S[who(zone.team)]!.zoneSeqShot[bi]!++; } zone = null; };
   let lastWonT = [-100, -100];
   let wonShotDone = [true, true];
   while (!s.done) {
@@ -112,7 +116,7 @@ for (let k = 0; k < n; k++) {
     const prevCut = s.teams.map((tm) => ({ fl: tm.cutFlight, idx: tm.cutIdx }));
     sim.step();
     const b = s.ball;
-    if (s.restart) { lastFl = null; cur = null; lastOwner = -1; lastOwnerTeam = -1; pendingLoss = null; continue; }
+    if (s.restart) { lastFl = null; cur = null; lastOwner = -1; lastOwnerTeam = -1; pendingLoss = null; endZone(); continue; }
     // 비행 시작
     if (b.flight && b.flight !== lastFl) {
       const fl = b.flight;
@@ -163,7 +167,11 @@ for (let k = 0; k < n; k++) {
       // 상대 골 25 m 안 소유
       const dirO = attackDir(o.team, s.half);
       const [gx, gy] = ownGoal(-dirO as 1 | -1);
-      if (dist(b.x, b.y, gx, gy) < CDZ) S[who(o.team)]!.deepPoss++;
+      const inZ = dist(b.x, b.y, gx, gy) < CDZ;
+      if (inZ) S[who(o.team)]!.deepPoss++;
+      if (zone && zone.team !== o.team) endZone();
+      if (inZ) { if (!zone) zone = { team: o.team, ticks: 0, out: 0, shotAt: -1 }; zone.ticks++; zone.out = 0; }
+      else if (zone) { zone.out++; if (zone.out > 20) endZone(); }
       // 수비 팀 잔류 인원 (틱 표본): 수비 팀 선수 중 자기 기준 x ≥ 0.5 (하프라인 위)
       const dt = (1 - o.team) as 0 | 1;
       const dirD = attackDir(dt, s.half);
@@ -186,6 +194,7 @@ for (let k = 0; k < n; k++) {
       const sh = s.teams[t]!.stats.shots;
       if (sh > shotsBefore[t]!) {
         shotsBefore[t] = sh;
+        if (zone && zone.team === t) zone.shotAt = s.t;
         if (!wonShotDone[t] && s.t - lastWonT[t]! <= 10) { S[who(t)]!.winShot10++; wonShotDone[t] = true; }
       }
     }
@@ -208,6 +217,7 @@ for (const i of [0, 1] as const) {
   for (let bi = 0; bi < 4; bi++) {
     console.log(`  ${BINS[bi]!.padEnd(6)} | ${f1(x.pa[bi]![0]! + x.pa[bi]![1]!).padStart(5)} ${pct(x.pc[bi]![0]! + x.pc[bi]![1]!, x.pa[bi]![0]! + x.pa[bi]![1]!).padStart(3)}% | ${f1(x.pa[bi]![1]!).padStart(5)} ${pct(x.pc[bi]![1]!, x.pa[bi]![1]!).padStart(3)}% | ${f1(x.cutAssign[bi]!)} / ${f1(x.cutJudge[bi]!)} / ${f1(x.cutWin[bi]!)}`);
   }
+  console.log(`  상대 25 m 안 연속 소유 구간/경기 [<3s · 3~6 · 6~10 · 10~20 · 20+]: ${x.zoneSeq.map((v, i) => `${f1(v)}(슛 ${f1(x.zoneSeqShot[i]!)})`).join(' · ')}`);
   const Z = ['자기⅓', '중원', '상대⅓'];
   const T = ['패스실패', '가로채기', 'deepCut', '몸싸움·드리블', '기타'];
   console.log(`  상실/경기: ${Z.map((z, zi) => `${z} ${f1(x.lost[zi]!.reduce((a, b) => a + b, 0))} (${T.map((t, ti) => `${t} ${f1(x.lost[zi]![ti]!)}`).join(' · ')})`).join(' | ')}`);
