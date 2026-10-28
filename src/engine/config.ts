@@ -538,10 +538,6 @@ export const ENGINE = {
     lineMatchBand: 8,
     lineMatchMin: 2,
     lineMatchMan: 1,
-    /** 몰빵 전용 조건 (C.79g 실험, 0 = 끔): lineMatchAbs = 상대 공격 줄 절대 인원 하한 · lineMatchLess = 내려오는 인원 = 초과 − 이 값 · lineMatchBack = 상대 뒤(공보다 상대 골 쪽, GK 제외) 인원 상한 */
-    lineMatchAbs: 0,
-    lineMatchLess: 0,
-    lineMatchBack: 0,
     /**
      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
      * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로

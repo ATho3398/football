@@ -2181,22 +2181,9 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   let atts = 0;
   for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
   const surplus = atts - defs;
-  // C.79g 실험 몰빵 전용 조건 (0 = 끔): lineMatchAbs — 상대 공격 줄 절대 인원 ≥ 이 값일 때만(그보다 1 적으면 유지) ·
-  // lineMatchBack — 상대 뒤(우리 기준 공보다 우리 공격 쪽, GK 제외) 인원 ≤ 이 값일 때만(1 많으면 유지)
-  let gate = 2;
-  if (O.lineMatchAbs > 0) gate = Math.min(gate, atts >= O.lineMatchAbs ? 2 : atts >= O.lineMatchAbs - 1 ? 1 : 0);
-  if (O.lineMatchBack > 0) {
-    const bx = toNorm(b.x, b.y, dir)[0];
-    let back = 0;
-    for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && toNorm(o.x, o.y, dir)[0] > bx) back++;
-    gate = Math.min(gate, back <= O.lineMatchBack ? 2 : back <= O.lineMatchBack + 1 ? 1 : 0);
-  }
-  // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부(lineMatchLess 만큼 덜), 문턱 − 1 이면 유지, 그 아래면 올라간다
-  const hold = O.lineMatchLess > 0 ? Math.min(prev.drop.size, Math.max(0, surplus - O.lineMatchLess)) : prev.drop.size;
-  const need = gate === 0 ? 0 : surplus >= O.lineMatchMin && gate === 2 ? surplus - O.lineMatchLess : surplus >= O.lineMatchMin - 1 ? hold : 0;
-  // 박스 마크 인원 몫: 조건이 막으면 0, lineMatchLess 만큼 덜 (스위치 0 이면 초과 그대로)
-  const man = gate === 0 ? 0 : surplus - O.lineMatchLess;
-  if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus: man });
+  // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
+  const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
+  if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus });
   const tm = s.teams[team];
   const [gx, gy] = ownGoal(dir);
   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
@@ -2212,7 +2199,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   cands.sort((x, y) => Number(prev.drop.has(y.idx)) - Number(prev.drop.has(x.idx)) || toNorm(x.x, x.y, dir)[0] - toNorm(y.x, y.y, dir)[0] || x.idx - y.idx);
   const drop = new Set<number>();
   for (const o of cands.slice(0, need)) drop.add(o.idx);
-  return (e.plan = { drop, surplus: man });
+  return (e.plan = { drop, surplus });
 }
 
 // 박스 수 맞춤 마크 (C.79e 실험 스위치 boxMatch, pending 147 ①·C.78q 가설 2, 기본 0 = 끔): 우리 박스(+boxManSlack m) 안의 상대 중 마커가 없는 선수(위협 1위·공 근처·추적 중·boxDefense 가 맡을 manMax 명 제외)에게

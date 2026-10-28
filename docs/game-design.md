@@ -6689,6 +6689,24 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 가드: typecheck ✓ · test 152파일 1268 ✓(장면 전부·결정성·순간이동·경기 계산 2초 포함; 기준값 변경 = 약팀 큰 차 성향 목록 역습 제외(H2), 이동 거리 테스트 시드 평균) · engine:check 경량 가드 모두 ✓(득점 1.48 · 12 m 밖 선방 상황 고정 88.5 · 순간이동 0) · **balance:check 회귀 가드 19/19 ✓**(로컬, 13:36~15:0x).
 - **새 화면**: 없음(역습 설명 문구만).
 
+### C.79g 44h단계_줄 인원 맞춤 몰빵 전용 조건 (마스터 AC `docs/session-prompts/C.79g.md`, Opus 1차, 근거 C.79f 문턱 3 측정 `claude/c79f-linematch3` 765e700): **관문 미달 → 배포 안 함, main(문턱 2, ENGINE 59) 유지. 엔진 코드 변경 0, 스위치는 `scripts/diag/c79g-switches.patch`**
+
+- 브랜치 `claude/c79g-linematch-abs` = origin/main 285581a + origin/claude/engine-manager-17 70d1c9c. **주의: engine-manager-17 에는 docs·diag 말고도 `src/engine` C.79f 실험 스위치(기본 0)가 들어 있다** — 측정은 그 위에서 했고(모두 기본 0), 이 브랜치는 main 으로 푸시하지 않는다.
+- 스위치(`lineMatchPlan()`, 판단에 보이는 상대 위치·인원만, 기본 0 = 동작 불변): A `offball.lineMatchAbs` 상대 공격 줄 절대 인원 ≥ 값일 때만(1 적으면 유지) · B `lineMatchLess` 내려오는 인원 = 초과 − 값(박스 마크 몫도) · C `lineMatchBack` 상대 뒤(공보다 상대 골 쪽, GK 제외) 인원 ≤ 값일 때만(1 많으면 유지). C 는 지시값 2 가 몰빵 ✗ 라 3 도 잼.
+
+| 변형 | 몰빵 `DETAIL=35,base custom-sweep … 800` (≤ +0.3) | 게겐>직선 (≥ +0.15) | 게겐>티키 (≥ +0.10) | 순환 G>T>D>B (≥ +0.25) | 역습>균형 · 티키≥역습 (방향) | 판정 |
+|---|---|---|---|---|---|---|
+| main 문턱 2 (C.79e/엔진관리자17 기준표) | +0.17 | +0.01 | +0.07 | +0.10 | +0.14 · +0.05 | — |
+| 문턱 3 (C.79f) | +0.37 ✗ | +0.13 | +0.14 | +0.23 | −0.01 ✗ · −0.11 ✗ | ✗ |
+| A 절대 ≥ 5 | +0.28 ✓ (1.77/1.49) | −0.02 ✗ | +0.01 ✗ | +0.03 ✗ | +0.01 · −0.06 ✗ | ✗ |
+| B 초과 − 1 | +0.26 ✓ (1.77/1.51) | +0.01 ✗ | +0.10 ✓ | −0.00 ✗ | +0.03 · −0.08 ✗ | ✗ |
+| C 뒤 ≤ 2 | +0.38 ✗ (1.84/1.46) | — | — | — | — | ✗ |
+| C 뒤 ≤ 3 | +0.28 ✓ (1.73/1.45) | 0.00 ✗ | +0.13 ✓ | +0.04 ✗ | +0.07 · −0.09 ✗ | ✗ |
+
+- 상성은 `WORKERS=2 c78s-matrix.ts -- 480 out=… 경로=값` 21칸(양방향, 칸 SE ±0.06~0.07) + `c78z-fit.ts`. 결과 json `scripts/diag/c79g-m{A,B,C3}-matrix.json`, 몰빵 표 `c79g-sweep.txt`.
+- **읽기**: 발동을 크게 줄인 A·C 도 게겐>직선이 0 근처, 순환 +0.03~0.04 — 줄 인원 맞춤이 덜 켜질수록 게겐 칸이 돌아와야 한다는 C.79f 의 가정과 맞지 않는다(문턱 3 의 +0.13·+0.23 은 같은 잡음 안). 티키≥역습은 네 변형 모두 뒤집혔다. **C.79e 가 상성을 움직였다는 판단(엔진관리자17 §1, 다른 엔진 버전 기준표와의 비교)부터 확인 필요** → 다음 추천: 지금 main 위 `offball.lineMatch=0` 21칸 1회(약 45분)로 C.79e 몫만 분리, 그 결과로 게겐 칸을 줄 인원 맞춤과 따로 다룰지 판단.
+- 가드: 엔진 코드 변경 0 이라 typecheck·test·quick·이동 거리·장면·평점 재측정 안 함. 시간·비용: 06:15 ~ 08:2x KST 약 2시간 10분(측정: 몰빵 800 ×4 · 상성 21칸 ×3; 대기 스크립트가 자기 pgrep 에 걸려 약 30분 허비).
+
 ### C.79e 44h단계_상대 공격 줄 인원 맞춤 내려앉기 (마스터 AC `docs/session-prompts/C.79e.md`, Opus 1차, 근거 `docs/engine-diagnosis-c79e.md` §1·§4.1 A2, pending 147 ①): **상대가 공을 가졌을 때 상대 공격 줄(우리 수비 줄 평균 x + 8 m 안쪽·골 쪽, 소유자 제외) 인원이 압박 아닌 줄 1 보다 2명 이상 많으면 그 차만큼 바쁘지 않은 줄 2(가장 깊은 순)가 수비 줄로 내려와 줄 1처럼 행동(boxDefense 마크·덮기·라인 동기화·존 마크). 몰빵 35 대 균형 4-4-2 400경기 득실 +0.39 → +0.19 ✓** (ENGINE_VERSION 58 → **59**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 - 브랜치 `claude/c79e-linematch` = origin/main 6fa03da + origin/claude/engine-manager-16 230d6cb(진단·탐침 도구·실험 스위치) merge. 코드는 엔진관리자16 의 `offball.ts lineMatchPlan()`·`defendTarget()` asDef·`boxDefense()` manMax·`trackPlan()` busy 그대로, 기본값만 `offball.lineMatch` 0 → **1** · `lineMatchMin` 1 → **2**(`lineMatchBand` 8 · `lineMatchMan` 1). 같이 들어온 다른 실험 스위치(`boxMatch` · `onball.carryShot`·`carryGk` · `keeper.screenReact`·`screenJudge`)는 기본 꺼짐 그대로(C4 = 다음 몫). 문턱 1(A1)·boxMatch(B)는 진단에서 ✗ — 쓰지 않음.
 - **평점 center**: engine:check 평점 CAM **6.28**(가드 6.3~6.7 ✗, 줄 2 CAM 이 수비 줄로 내려옴) → `rating-parts 720 … 20000`(engine:check 와 다른 시드) + `c78r-rating-fit` 로 맞춤 CAM 1.95(그 표본 CAM 6.42 · 나머지 7군 6.47~6.58 가드 안) → **가드 밖 CAM 만 `rating.center.CAM` 2.04 → 1.95**(§9.12.7 규칙, 정규화 상수 재측정).
