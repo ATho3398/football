@@ -976,6 +976,8 @@ export const ENGINE = {
       /** 같은 보정의 모든 성향 몫 (역습 상황 자체 — H1 로 모든 팀의 탈취 뒤 롱볼이 줄어 quick 역습 슈팅 % 가 내려간 만큼). 역습 성향은 counterRunAll + counterRun */
       counterRunAll: 0,
       counterRunFwd: 10,
+      /** C.79b I2: 블록 성향(버스 포함) 걷어내기 보정 — 자기 ⅓ 압박 속 클리어 후보 효용에 clearBlock × 압박(0~1)을 더한다 (판단만, 실행 그대로). 0 = 끔 */
+      clearBlock: 0,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
@@ -1047,6 +1049,10 @@ export const ENGINE = {
     interceptShare: 0.4,
     /** 판단의 패스 실패 비용 (C.78x H1): 1 = 실행(makePass)과 같은 식 — 차단 몫(interceptShare + 레인 가중 × 0.3)은 레인 수비수 자리, 나머지(빗나감)는 목표점에서 잃는다. 2 = 공중 패스(airPass 초과)만. 0 = 옛 판단(실패 전부 목표점) */
     failLossModel: 0,
+    /** C.79b R2: 1 이면 failLossModel 을 블록 성향(버스 포함) 패서에게만 (자기 진영 깊은 곳 상실을 아는 쪽만). 0 = 모든 성향 */
+    failLossBlock: 0,
+    /** C.79b R2: failLossModel 을 패서 위치 x(정규화) < failLossMaxX 일 때만. 0 = 어디서나 */
+    failLossMaxX: 0,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 

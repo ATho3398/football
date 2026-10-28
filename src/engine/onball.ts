@@ -681,7 +681,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 실패 비용 (C.78x H1, 판단 = 실행): makePass 와 같은 몫으로 차단은 레인 수비수 자리(t 지점), 빗나감은 목표점에서 잃는다. GK 가 끊는 침투는 목표점
     let lossF = lossR;
     let iShare = 0;
-    if (PR.failLossModel > 0 && gkWins < 0 && (Number(PR.failLossModel) === 1 || d0 > PR.airPass)) {
+    if (PR.failLossModel > 0 && gkWins < 0 && (Number(PR.failLossModel) === 1 || d0 > PR.airPass) && (!PR.failLossBlock || tac.tendency === 'block') && (!PR.failLossMaxX || ax < PR.failLossMaxX)) {
       const tot = lane.cutters.reduce((t, x) => t + x.w, 0);
       if (tot > 0) {
         iShare = Math.min(1, PR.interceptShare + tot * 0.3);
@@ -892,7 +892,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // 걷어내기 (C.78c ②): 착지점에 먼저 닿을 몫 (옛 동작 0.45 고정)
       const p = O.landShare > 0 ? landingShare(s, a.team, tx, ty, dist(a.x, a.y, tx, ty) / B.airSpeed, a) : 0.45;
       const u = weight(p * positionValue(nx, ny) + (1 - p) * loss(nx, ny), a.role.pref.clear * mDirect);
-      out.push({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
+      // 블록 걷어내기 보정 (C.79b I2): 깊은 블록은 압박 속 자기 ⅓ 에서 위험한 연결보다 걷어내기를 고른다 — 압박이 셀수록 (판단만)
+      const clearB = tac.tendency === 'block' ? ENGINE.decide.bias.clearBlock * pressure : 0;
+      out.push({ type: 'clear', p, u: u + clearB, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
     }
   }
 
