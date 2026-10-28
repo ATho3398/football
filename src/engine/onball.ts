@@ -212,7 +212,7 @@ export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who
   for (const o of s.agents) {
     if (!o.onPitch || o.team === a.team) continue;
     const d = carryReachDist(s, o, a, cx, cy);
-    if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
+    if (d < PR.pressureDist) keep *= 1 - O.holdLose * (o.line === 0 ? O.carryGk : 1) * (1 - d / PR.pressureDist);
   }
   const skill = who.attrs.dribbling * 0.5 + who.attrs.ballControl * 0.5;
   return clamp((1 - keep) * Math.exp((-O.carrySkill * (skill - PR.skillCenter)) / 10), 0, 0.95);
@@ -265,6 +265,8 @@ export interface ShotModel {
   ctx: ShotCtx;
   /** 찰 쪽 (C.78h laneSide): ±1 = 두 슛 길이 달라 고른 쪽, 0 = 옛 규칙(GK 반대편, 가운데면 실행이 무작위) */
   side: -1 | 0 | 1;
+  /** GK 시야 가림 (C.79a): 왼쪽(−1)·오른쪽(+1) 슛 길 콘 안 골 쪽 상대 필드 선수 수 — 실행은 찬 쪽 값을 ctx.screen 에 넣는다 */
+  screens: [number, number];
 }
 
 function goalAngle(x: number, y: number, gx: number): number {
@@ -300,6 +302,9 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   let bP = 0;
   let dN = 0;
   let dP = 0;
+  // GK 시야 가림 (C.79a): 슛 길 콘 안 선 위치 ≥ screenFrom 상대 필드 선수
+  let sN = 0;
+  let sP = 0;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === a.team || o.line === 0) continue;
     const od = follow ? dist(o.x, o.y, a.x, a.y) : dist(o.x, o.y, px, py);
@@ -308,8 +313,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     if (lane) {
       const [cn, tn] = segDist(o.x, o.y, px, py, gx, gy - cy);
       if (cn < PR.coneWidth && tn > 0.02 && tn < 0.95) bN++;
+      if (cn < PR.coneWidth && tn >= K.screenFrom && tn < 1) sN++;
       const [cp, tp] = segDist(o.x, o.y, px, py, gx, gy + cy);
       if (cp < PR.coneWidth && tp > 0.02 && tp < 0.95) bP++;
+      if (cp < PR.coneWidth && tp >= K.screenFrom && tp < 1) sP++;
       // 밀집 블록도 그 쪽 슛 길 denseLaneW m 안 수비만 (C.78h: 골 쪽이어도 길에서 먼 수비는 몸을 못 던진다)
       if (PR.denseLaneW > 0 && od <= PR.denseR) {
         if (cn < PR.denseLaneW && tn > 0) dN++;
@@ -318,6 +325,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     } else {
       const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
+      if (cd < PR.coneWidth && ct >= K.screenFrom && ct < 1) {
+        sN++;
+        sP++;
+      }
     }
     if (od <= PR.denseR && dist(o.x, o.y, gx, gy) < d) dense++;
     if (PR.shotFree > 0 && od < nearField) nearField = od;
@@ -351,13 +362,17 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure,
     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
     gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
+    screen: (far ?? 1) < 0 ? sN : sP,
   };
   // 빈 골 (C.77z): 가운데로 차도 GK 가 못 닿으면 구석을 노릴 필요가 없다 — 유효 슈팅 확률이 openOn 쪽으로
   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)
   const openD = K.openSpan > 0 ? Math.min(1, Math.max(K.openFloor, 1 - (d - K.openFrom) / K.openSpan)) : 1;
   if (K.timeModel && gk) pOn += Math.max(0, K.openOn * openD * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
   const cornerMul = 1 - PR.cornerPressure * pressure;
-  const saveOf = (sd: number) => (K.timeModel ? expectedSave({ ...ctx, ty: gy + sd * cy }, gy, sd, cornerMul) : saveChance({ ...ctx, ty: gy + sd * cy }));
+  const saveOf = (sd: number) => {
+    const c = { ...ctx, ty: gy + sd * cy, screen: sd < 0 ? sN : sP };
+    return K.timeModel ? expectedSave(c, gy, sd, cornerMul) : saveChance(c);
+  };
   let pBlock: number;
   let foot: number;
   let pGoal: number;
@@ -385,6 +400,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
         side = -1; pBlock = pbN; foot = fN; pGoal = gN; blockers = bN;
       }
       ctx.ty = gy + side * cy;
+      ctx.screen = (side < 0 ? sN : sP) > 0 ? K.screenJudge : 0;
     }
   } else {
     pBlock = Math.min(PR.blockMax, blockers * PR.blockPer + denseB);
@@ -397,7 +413,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
   const rebound = (1 - pBlock) * pOn * foot * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
-  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx, side };
+  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx, side, screens: [sN, sP] };
 }
 
 /**
@@ -406,10 +422,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
  */
 export function shotExec(s: SimState, a: Agent, header = false): { goal: number; pSave: number; cover: number; m: ShotModel } {
   const m = shotModel(s, a, header);
-  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)) };
   const [gx, gy] = oppGoal(attackDir(a.team, s.half));
   const lane = PR.laneSide > 0 && !header;
   const sd = m.side || (farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1);
+  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] > 0 ? 1 : 0 };
   const foot = header ? 1 : lane ? weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy + sd * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy - a.y);
   const pSave = ENGINE.keeper.timeModel ? expectedSave(ctx, gy, sd, 1 - PR.cornerPressure * m.pressure) : saveChance(ctx);
   return { goal: (1 - m.pBlock) * m.pOn * foot * (1 - pSave), pSave, cover: coverOf(ctx), m };
@@ -784,6 +800,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         let behind = 0;
         for (const x of oppNx) if (x > nx) behind++;
         if (behind < SP.spaceBack) pv = Math.max(pv, positionValue(Math.min(SP.spaceStop, nx + (SP.spaceCarry * SP.spaceRun * (1 - behind / SP.spaceBack)) / L), ny));
+      }
+      // 몰고 가서 슛 (C.79e 실험 carryShot, 0 = 끔): 앞을 막는 수비가 없고 도착점이 슛 거리면 도착점의 슛 가치(carryShotTime 초 뒤, GK 는 그동안 자리를 옮김 — laneCarry 와 같은 식)와
+      // 그 슛의 판단 보정을 자리 가치 대신 본다 — 지금 자리 3% 슛보다 7 m 더 몰고 간 뒤의 슛이 낫다는 것을 판단이 안다 (판단만, 실행·성공 확률 불변)
+      let shotV = 0;
+      if (O.carryShot > 0 && !def && dir * ux > 0.5 && dist(cx, cy, gx0, gy0) <= PR.shotMaxDist && nx > 0.6) {
+        const mT = shotModel(s, a, false, { x: cx, y: cy }, O.carryShotTime, true);
+        shotV = (mT.value * O.shotScale + shootBias(mT, goalAngle(cx, cy, gx0))) * O.carryShot;
+        pv = Math.max(pv, shotV);
       }
       const value = pv * (1 - qEnd) + qEnd * loss(nx, ny);
       if (def) {

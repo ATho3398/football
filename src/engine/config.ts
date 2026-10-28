@@ -502,6 +502,21 @@ export const ENGINE = {
     decoyZone: 12,
     decoySpeed: 1,
     lineTiers: 0,
+    /**
+     * 줄 인원 맞춤 내려앉기 (C.79e 실험, pending 147 ①, 0 = 끔): 상대 공격 줄(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽 상대, 소유자 제외) 인원이 우리 수비 줄(압박 아닌 줄 1)
+     * 인원보다 많으면 그 차만큼 줄 2 가 수비 줄로 내려와 줄 1 처럼 행동한다. lineMatchMan 1 이면 초과 인원만큼 박스 안 미마크 상대 마크(boxManMax)도 늘린다
+     */
+    lineMatch: 0,
+    lineMatchBand: 8,
+    lineMatchMin: 1,
+    lineMatchMan: 1,
+    /**
+     * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
+     * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
+     */
+    boxMatch: 0,
+    boxMatchMax: 3,
+    boxMatchReach: 25,
     trackCdmMax: 9,
     trackPickMax: 12,
     trackHold: 0.7,
@@ -912,6 +927,11 @@ export const ENGINE = {
      * 공을 지키는 능력(드리블·볼 컨트롤) 10 마다 실패 × exp(−carrySkill)
      */
     carryClose: 0.3,
+    /** 몰고 가기 실패에서 GK 의 몫 (C.79e 실험, 1 = 필드 선수와 같음 = 지금): GK 가 길에 닿는 실효 거리의 상실 확률에 곱한다 (GK 는 돌파·태클 1대1에 없다) */
+    carryGk: 1,
+    /** 몰고 가서 슛 (C.79e 실험, 0 = 끔): 앞을 막는 수비 없는 전진 몰기의 도착점이 슛 거리면 자리 가치 = max(자리 가치, 도착점 슛 가치 × carryShot), 슛 가치는 carryShotTime 초 뒤 GK 자리로 */
+    carryShot: 0,
+    carryShotTime: 1,
     carrySkill: 0.3,
     holdTime: 1.0,
     /**
@@ -1471,6 +1491,13 @@ export const ENGINE = {
     reactSkill: 0.4,
     driftMax: 6,
     headerReact: 0,
+    /**
+     * GK 시야 가림 (C.79a 코드, C.79e 실험 스위치 — 기본 screenReact 0 = 끔): 슛 길 콘(prob.coneWidth) 안에 슈터보다 골 쪽(슛 선 위치 ≥ screenFrom) 상대 필드 선수가
+     * 1명 이상이면 GK 반응 시간 + screenReact × 가중. 가중은 실행 1, 판단(shotModel) screenJudge — C.79e "가림의 판단 몫만 낮추기"(1 = C.79a 와 같은 판단=실행)
+     */
+    screenReact: 0,
+    screenFrom: 0.4,
+    screenJudge: 1,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */

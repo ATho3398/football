@@ -1299,6 +1299,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
 
   const [gx0, gy0] = ownGoal(dir);
   const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
+  // 줄 인원 맞춤 (C.79e 실험): 내려온 줄 2 선수는 아래에서 줄 1 처럼 행동한다
+  const dropped = lineMatchPlan(s, a.team).drop.has(a.idx);
+  const asDef = a.line === 1 || dropped;
   // 비행 중 수신자 압박 (C.76k 단계 B): 상대 패스가 우리 골 closeDownZone 안으로 떠 있으면 착지점에 가장 빨리 닿는 1명이 미리 나간다
   // 깊은 블록 (C.76p 가설 2): 간격 deepCloseDownGap, 수신자가 ST/CF 면 둘째도 착지점 골 쪽 deepCloseDownSecond m
   if (!owner && a.line !== 0) {
@@ -1416,7 +1419,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   // 줄 사이 수신 (C.78d ①): 밀집 중 상대 소유자가 우리 수비 줄과 중원 줄 사이(+holdSlack m)면 압박 1명·커버 1명만 반응하고 나머지 중원은 밀집 자리(공 쪽으로 좁힌 줄)를 지킨다 — 한 번에 1명, 옆이 메움
-  if (O.compact > 0 && a.line === 2 && owner && owner.team !== a.team && !exemptOf(s, a)) {
+  if (O.compact > 0 && a.line === 2 && !dropped && owner && owner.team !== a.team && !exemptOf(s, a)) {
     const tac2 = s.teams[a.team].tactics;
     const cw2 = compactWOf(tac2);
     if (cw2 !== undefined && bnx * L < O.compactFrom) {
@@ -1448,9 +1451,25 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   // 2선 침투자 추적 (C.77b 44h-i, §9.15 가설 1): 압박 다음, 면제·스크린·줄 2 존 마크 앞. 줄 2 추적자만, 수비 줄(boxDefense)은 그대로
-  if (a.line === 2 && O.trackMax > 0) {
+  if (a.line === 2 && !dropped && O.trackMax > 0) {
     trackPlan(s, a.team, gx0, gy0);
     if (a.trackIdx >= 0 && trackTarget(s, a, dir, gx0, gy0)) return;
+  }
+
+  // 박스 수 맞춤 마크 (C.79e 실험): 추적 다음, 줄 2 존 마크 앞 — 마커 없는 박스 안 상대에게 골 쪽 밀착
+  if (a.line === 2 && !dropped && O.boxMatch > 0) {
+    const u0 = boxMatchPlan(s, a.team, gx0, gy0).get(a.idx);
+    if (u0 !== undefined) {
+      const u = s.agents[u0]!;
+      ensureErrors(s, a);
+      const gd2 = dist(u.x, u.y, gx0, gy0) || 1;
+      a.tx = clamp(u.x + ((gx0 - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
+      a.ty = clamp(u.y + ((gy0 - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+      feedFrom(a, u);
+      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
+      a.minRun = false;
+      return;
+    }
   }
 
   ensureErrors(s, a);
@@ -1458,7 +1477,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
   const ballGoal = dist(b.x, b.y, gx0, gy0);
   const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
-  if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
+  if (asDef && markZone && boxDefense(s, a, dir, boxZone)) return;
 
   let [nx, ny] = slotTarget(s, a);
   const tac = s.teams[a.team].tactics;
@@ -1470,7 +1489,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 역습 (C.78s H2): 수비-중원 counterGap m — 2선이 올린 라인 바로 앞, 하프라인 부근에 모인다
   const ctr = tendency === 'counter';
   const midGap = br ? Math.min(F.midGap, br.gap / L) : ctr ? Math.min(F.midGap, TENDENCY.counterGap / L) : F.midGap;
-  if (a.line === 2) nx = Math.min(nx, lineX + midGap);
+  if (dropped) nx = Math.min(nx, lineX);
+  else if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   // 블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
   if (stayForwards(tac) > 0 && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
@@ -1501,17 +1521,17 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const compacted = cw !== undefined && bnx * L < O.compactFrom;
   if (compacted) {
     ny = clamp(0.5 + (a.sy - 0.5) * cw + (bny - 0.5) * O.compactFollow, 0.05, 0.95);
-    if (a.line === 2 && tendency !== 'counter') nx = lineX + midGap;
+    if (a.line === 2 && !dropped && tendency !== 'counter') nx = lineX + midGap;
   }
   // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목. 홀딩 CM 도 같이 (E3.7 역할 반응: 수비 역할의 수비 효과)
-  if ((a.pos === 'CDM' || a.role.id === 'holdingCM') && owner && owner.team !== a.team) {
+  if ((a.pos === 'CDM' || a.role.id === 'holdingCM') && !dropped && owner && owner.team !== a.team) {
     const spot = screenSpot(s, a, owner, dir, lineX);
     if (spot) {
       setTarget(a, spot[0], spot[1], dir, false);
       return;
     }
   }
-  if (a.line === 1) {
+  if (asDef) {
     // 수비 라인 동기화. 오차는 수비 포지셔닝과 마킹
     const sigma = ((100 - (a.attrs.defensivePositioning + a.attrs.marking) / 2) * O.markSigma) / L;
     nx = lineX + a.errX * sigma;
@@ -1527,7 +1547,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 우리 줄 1 → [상대 줄 3, 그다음 줄 2] · 우리 줄 2 → [상대 줄 2, 그다음 줄 3] · 우리 줄 3 → [상대 줄 1·2, 그다음 줄 3]. 첫 단계에 14 m 안 상대가 있으면 그 안에서만,
   // 없을 때만 다음 단계(대형이 달라 짝이 남을 때의 인계). focus(대개 ST) 쏠림은 우리 줄 1 에만 — 줄 2 는 focus 가 자기 첫 단계(줄 2)일 때만 (지금까지는 줄과 무관하게 가장 가까운 상대·focus 라 줄 2 가 ST 로 쏠리고 상대 2선은 비었다, 미해결 8)
   // **지금은 끔(lineTiers 0, 부록 C.77b)**: 켜면(1) CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)인데 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34 로 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 와 같은 "ST 풀림" 통로)
-  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : a.line === 1 ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
+  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : asDef ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
   let mark: Agent | null = null;
   let best = 14;
   for (const tier of tiers) {
@@ -1543,7 +1563,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
     if (mark) break;
   }
-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) mark = focus;
   // CB 따라나옴 (C.77d 가설 2): 줄 사이로 내려온 상대 공격수를 따라 나갈지 가장 가까운 CB 가 판단한다 (나가기로 하면 그 선수를 라인 앞까지 마크)
   const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, lineX, ballGoal) : null;
   if (stepOut) mark = stepOut;
@@ -1566,7 +1586,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     // 목표 속도 (C.77x): 목표 중 마크 자리를 따르는 몫(줄 1: y 반, x 는 마크 자리를 고른 때만 · 줄 2·3: 섞는 비율)만큼 마크 상대의 속도
     let fwx: number;
     let fwy: number;
-    if (a.line === 1) {
+    if (asDef) {
       ny = ny * 0.5 + mny * 0.5;
       // 라인 뒤로만 (마크 쪽으로 내려섬). 따라 나가기로 했으면 마크 자리까지 라인 앞으로, 최대 stepOutMax m
       const nx0 = nx;
@@ -1613,7 +1633,8 @@ function oppStrikerInBox(s: SimState, team: 0 | 1, dir: 1 | -1): boolean {
 function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean {
   const b = s.ball;
   const [gx, gy] = ownGoal(dir);
-  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 1 && ballRank(s, o, b.x, b.y) >= 2);
+  const lm = lineMatchPlan(s, a.team);
+  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && (o.line === 1 || lm.drop.has(o.idx)) && ballRank(s, o, b.x, b.y) >= 2);
   if (!defs.includes(a)) return false;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
   const oppDir = (-dir) as 1 | -1;
@@ -1662,7 +1683,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     others.sort((x, y) => Number(y.line === 2) - Number(x.line === 2) || threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
     // 엘리트 가드 (C.76w 가설 3): 집중 대상의 마무리 계수 ≥ focusDoubleMin 이면 2선 마크보다 더블팀이 먼저다 (2선 마크로 ST 가 풀리자 같은 시드 scoring 30골+ 1.6 → 3.3~4.1)
     // 깊은 블록 밀집 (C.78d ①): 버스·블록·역습(낮은 블록)은 남는 수비가 많으니 박스 안 미마크 상대를 deepBoxMan 명까지 맡는다 (박스 안 사람 앞에 사람)
-    const manMax = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
+    const manMax0 = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
+    // 줄 인원 맞춤 (C.79e 실험, lineMatchMan 1): 초과 인원만큼 박스 안 미마크 상대 마크 인원을 늘린다
+    const manMax = O.lineMatch > 0 && O.lineMatchMan > 0 && lm.surplus > 0 ? Math.max(manMax0, lm.surplus) : manMax0;
     const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
@@ -2097,6 +2120,119 @@ function canReach(a: Agent, r: Agent): boolean {
   return arrivalTime(a, px, py, 1) <= arrivalTime(r, px, py) + O.trackReachSlack;
 }
 
+// 줄 인원 맞춤 내려앉기 (C.79e 실험 스위치, pending 147 ①, 기본 lineMatch 0 = 끔): 상대가 공을 가졌을 때 상대 공격 줄 인원(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽의 상대, 소유자 제외)이
+// 우리 수비 줄 인원(압박 아닌 줄 1)보다 많으면 그 차만큼 줄 2 선수(바쁘지 않은 선수 중 가장 깊은 순, 이미 내려온 선수 우선)가 수비 줄로 내려와 줄 1 처럼 행동한다
+// (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 0 이면 유지, 음수면 올라간다 (히스테리시스)
+interface LineMatch { drop: Set<number>; surplus: number }
+const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
+const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
+function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
+  if (O.lineMatch <= 0) return NO_MATCH;
+  let cache = lineMatchCache.get(s);
+  if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH }, { tick: -1, plan: NO_MATCH }]));
+  const e = cache[team]!;
+  if (e.tick === s.tick) return e.plan;
+  const prev = e.tick === s.tick - 1 ? e.plan : NO_MATCH;
+  e.tick = s.tick;
+  const b = s.ball;
+  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+  const att = owner ? owner.team : s.possTeam;
+  if (att === team || s.restart) return (e.plan = NO_MATCH);
+  const dir = attackDir(team, s.half);
+  let lx = 0;
+  let ln = 0;
+  let defs = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line !== 1) continue;
+    lx += toNorm(o.x, o.y, dir)[0];
+    ln++;
+    if (ballRank(s, o, b.x, b.y) >= 2) defs++;
+  }
+  if (!ln) return (e.plan = NO_MATCH);
+  const band = lx / ln + O.lineMatchBand / L;
+  let atts = 0;
+  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
+  const surplus = atts - defs;
+  // 문턱 lineMatchMin(기본 1): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
+  const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
+  if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus });
+  const tm = s.teams[team];
+  const [gx, gy] = ownGoal(dir);
+  const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
+  const cands: Agent[] = [];
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line !== 2 || exemptOf(s, o)) continue;
+    if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
+    if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
+    if (cd.pick === o || cd.second === o) continue;
+    if (ballRank(s, o, b.x, b.y) < 2) continue;
+    cands.push(o);
+  }
+  cands.sort((x, y) => Number(prev.drop.has(y.idx)) - Number(prev.drop.has(x.idx)) || toNorm(x.x, x.y, dir)[0] - toNorm(y.x, y.y, dir)[0] || x.idx - y.idx);
+  const drop = new Set<number>();
+  for (const o of cands.slice(0, need)) drop.add(o.idx);
+  return (e.plan = { drop, surplus });
+}
+
+// 박스 수 맞춤 마크 (C.79e 실험 스위치 boxMatch, pending 147 ①·C.78q 가설 2, 기본 0 = 끔): 우리 박스(+boxManSlack m) 안의 상대 중 마커가 없는 선수(위협 1위·공 근처·추적 중·boxDefense 가 맡을 manMax 명 제외)에게
+// 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 붙인다 — 골 쪽 stMark 밀착. 줄 1 의 배치(집중 대상 마크·더블팀·덮는 자리)는 그대로(ST 풀림 통로를 건드리지 않는다)
+const boxMatchCache = new WeakMap<SimState, { tick: number; plan: Map<number, number> }[]>();
+const NO_BOX_MATCH = new Map<number, number>();
+function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<number, number> {
+  if (O.boxMatch <= 0) return NO_BOX_MATCH;
+  let cache = boxMatchCache.get(s);
+  if (!cache) boxMatchCache.set(s, (cache = [{ tick: -1, plan: NO_BOX_MATCH }, { tick: -1, plan: NO_BOX_MATCH }]));
+  const e = cache[team]!;
+  if (e.tick === s.tick) return e.plan;
+  e.tick = s.tick;
+  const b = s.ball;
+  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+  const att = owner ? owner.team : s.possTeam;
+  if (att === team || s.restart) return (e.plan = NO_BOX_MATCH);
+  const threat = focusThreat(s, team);
+  const nearBall = O.plan.coverBehind + O.stMark;
+  const tracked = new Set<number>();
+  for (const o of s.agents) if (o.onPitch && o.team === team && o.trackIdx >= 0) tracked.add(o.trackIdx);
+  const others: Agent[] = [];
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team === team || o === owner || o === threat || o.line === 0) continue;
+    if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.boxManSlack || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.boxManSlack) continue;
+    if (dist(o.x, o.y, b.x, b.y) <= nearBall) continue;
+    others.push(o);
+  }
+  if (!others.length) return (e.plan = NO_BOX_MATCH);
+  // boxDefense 의 others 순서·manMax 와 같게: 그 수만큼은 줄 1 이 맡는다 (줄 2 ≥ 2 먼저, 위협 순)
+  others.sort((x, y) => Number(y.line === 2) - Number(x.line === 2) || threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
+  const manMax = compactWOf(s.teams[team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
+  const targets = others.filter((o) => !tracked.has(o.idx)).slice(manMax);
+  if (!targets.length) return (e.plan = NO_BOX_MATCH);
+  const tm = s.teams[team];
+  const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
+  const free: Agent[] = [];
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line !== 2 || exemptOf(s, o) || o.trackIdx >= 0) continue;
+    if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
+    if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
+    if (cd.pick === o || cd.second === o) continue;
+    if (ballRank(s, o, b.x, b.y) < 2) continue;
+    free.push(o);
+  }
+  const plan = new Map<number, number>();
+  for (const u of targets) {
+    if (plan.size >= O.boxMatchMax || !free.length) break;
+    let best: Agent | null = null;
+    let bd: number = O.boxMatchReach;
+    for (const d of free) {
+      const dd = dist(d.x, d.y, u.x, u.y);
+      if (dd < bd || (dd === bd && best && d.idx < best.idx)) { bd = dd; best = d; }
+    }
+    if (!best) continue;
+    free.splice(free.indexOf(best), 1);
+    plan.set(best.idx, u.idx);
+  }
+  return (e.plan = plan);
+}
+
 const trackCache = new WeakMap<SimState, number[]>();
 function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   let cache = trackCache.get(s);
@@ -2128,8 +2264,10 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   const t = effectiveTactics(s, team);
   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
   const second2 = sitPressers(s, team) >= 2;
+  const lm = lineMatchPlan(s, team);
   const busy = (a: Agent): boolean => {
     if (hasModule(a.role, 'exempt')) return true;
+    if (lm.drop.has(a.idx)) return true;
     if (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx)) return true;
     if (tm.coverAgent === a.idx && s.t < tm.coverUntil) return true;
     if (cd.pick === a || cd.second === a) return true;
