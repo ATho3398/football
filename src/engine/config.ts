@@ -1476,9 +1476,11 @@ export const ENGINE = {
     reactSkill: 0.4,
     driftMax: 6,
     headerReact: 0,
-    /** 실험 (엔진관리자14, 미해결 6): 슛 길 콘 안 상대 수비가 1명 이상이면 GK 반응 시간 + screenReact 초(가려짐은 1번만) (시야 가림, 판단·실행 같은 식). 0 = 끔 */
+    /**
+     * GK 시야 가림 (C.79a, 엔진관리자14 미해결 6): 슛 길 콘(prob.coneWidth) 안에 슈터보다 골 쪽(슛 선 위치 ≥ screenFrom, 0 = 슈터 · 1 = 골라인) 상대 필드 선수가
+     * 1명 이상이면 GK 반응 시간 + screenReact 초. 판단(shotModel)과 실행(saveChance)이 같은 식 (timeModel 1 일 때만). 0 = 끔
+     */
     screenReact: 0,
-    /** 실험: 가림으로 세는 콘 안 수비의 슛 선 위치 비율 하한 (슈터 0 ~ 골 1) — 슈터 가까이 선 수비는 블록 몫, 골 쪽 수비가 GK 시야를 가린다 */
     screenFrom: 0.4,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,

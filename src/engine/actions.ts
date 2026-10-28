@@ -488,7 +488,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
     const ty = gy + side * corner * (G / 2 - 0.3);
     // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
-    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0 };
+    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] };
     const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
     shotFlight(s, a, {
