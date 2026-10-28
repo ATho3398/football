@@ -1384,7 +1384,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     // 수비 블록: 공격 줄은 1명만 압박 / 역습: 남는 최전방은 압박하지 않는다 (E.19)
     const tac0 = s.teams[a.team].tactics;
     if (a.line === 3 && tac0.tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
-    if (a.line === 3 && stayForwards(tac0) > 0 && isTopForward(s, a)) wants = false;
+    if (a.line === 3 && (stayForwards(tac0) > 0 || blockStayNow(s, a.team)) && isTopForward(s, a)) wants = false;
     // 역습 (C.78s H2): 공이 하프라인 부근(우리 기준 counterPressX)까지 오기 전에는 압박하지 않고 줄 자리를 지킨다 — 게겐처럼 앞에서 쫓지 않는다
     if (tac0.tendency === 'counter' && bnx > TENDENCY.counterPressX) wants = false;
     if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : O.secondPressDist))) {
@@ -1493,7 +1493,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   else if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   // 블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
-  if (stayForwards(tac) > 0 && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
+  if ((stayForwards(tac) > 0 || blockStayNow(s, a.team)) && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
   // 오버래핑 추적 (C.78i ②): 면제 아닌 측면 선수는 자기 측면으로 오버래핑하는 상대 풀백을 골 쪽 fbTrackGoal m 에서 따라 내려온다
   const ov = owner && owner.team !== a.team ? overlapToTrack(s, a) : null;
   if (ov) {
@@ -1996,6 +1996,25 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
 /** 깊은 블록 성향(수비 블록, 라인 단계 무관)인가 */
 function isDeepBlock(s: SimState, team: 0 | 1): boolean {
   return s.teams[team].tactics.tendency === 'block';
+}
+/** 블록 출구 잔류 (C.79f 실험): 블록이 수비 중이고 상대 필드 선수가 우리 골 closeDownZone 안에 blockStayCommit 명 이상이면 true. 틱마다 팀당 1회 */
+const blockStayCache = new WeakMap<SimState, { tick: number; v: [boolean, boolean] }>();
+function blockStayNow(s: SimState, team: 0 | 1): boolean {
+  if (O.blockStayCommit <= 0 || !isDeepBlock(s, team)) return false;
+  let c = blockStayCache.get(s);
+  if (!c) blockStayCache.set(s, (c = { tick: -1, v: [false, false] }));
+  if (c.tick !== s.tick) {
+    c.tick = s.tick;
+    for (const t of [0, 1] as const) {
+      c.v[t] = false;
+      if (!isDeepBlock(s, t) || s.possTeam === t) continue;
+      const [gx, gy] = ownGoal(attackDir(t, s.half));
+      let n = 0;
+      for (const o of s.agents) if (o.onPitch && o.team !== t && o.line !== 0 && dist(o.x, o.y, gx, gy) < O.closeDownZone) n++;
+      c.v[t] = n >= O.blockStayCommit;
+    }
+  }
+  return c.v[team];
 }
 
 /**

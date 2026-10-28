@@ -414,6 +414,11 @@ export const ENGINE = {
     deepCutShortLen: 22,
     deepCutShortRadius: 2.0,
     /**
+     * 블록 출구 잔류 (C.79f 실험 스위치, 엔진관리자17 — 상대가 많이 올라오면 럭키 찬스용 타깃 1명을 남긴다): 블록(라인 단계 무관)이 수비할 때
+     * 상대 필드 선수가 우리 골 closeDownZone m 안에 blockStayCommit 명 이상이면 최전방 1명이 버스처럼(busStayX) 남아 압박하지 않는다. 0 = 끔
+     */
+    blockStayCommit: 0,
+    /**
      * 깊은 블록 받는 순간 밀착 (C.76p 가설 2): block/bus 팀의 수신자 압박은 위협 1위 마커를 빼지 않고(마커가 가장 빠르면 마커가 나간다) 간격 deepCloseDownGap m,
      * 수신자가 ST/CF 면 도착 둘째도 착지점에서 우리 골 쪽 deepCloseDownSecond m 로 간다. 둘째 ST(위협 2위 ST/CF)가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark 로 마크
      */
