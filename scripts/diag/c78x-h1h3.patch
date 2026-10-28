@@ -1,0 +1,78 @@
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index beed765..2e84fb3 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -1033,6 +1033,8 @@ export const ENGINE = {
+     pressureDist: 3,
+     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
+     interceptShare: 0.4,
++    /** 판단의 패스 실패 비용 (C.78x H1): 1 = 실행(makePass)과 같은 식 — 차단 몫(interceptShare + 레인 가중 × 0.3)은 레인 수비수 자리, 나머지(빗나감)는 목표점에서 잃는다. 2 = 공중 패스(airPass 초과)만. 0 = 옛 판단(실패 전부 목표점) */
++    failLossModel: 1,
+     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
+     looseError: 6,
+ 
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 1c6620d..6ae9dea 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -662,16 +662,32 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+       value = Math.max(value, judgedP(shotModel(s, r, false, at, lead).value, shotModel(s, averageSelf(r), false, at, lead).value));
+     }
+     const lossR = loss(rx, ry);
++    // 실패 비용 (C.78x H1, 판단 = 실행): makePass 와 같은 몫으로 차단은 레인 수비수 자리(t 지점), 빗나감은 목표점에서 잃는다. GK 가 끊는 침투는 목표점
++    let lossF = lossR;
++    let iShare = 0;
++    if (PR.failLossModel > 0 && gkWins < 0 && (PR.failLossModel === 1 || d0 > PR.airPass)) {
++      const tot = lane.cutters.reduce((t, x) => t + x.w, 0);
++      if (tot > 0) {
++        iShare = Math.min(1, PR.interceptShare + tot * 0.3);
++        let li = 0;
++        for (const x of lane.cutters) {
++          const [cx, cy] = toNorm(a.x + (tx - a.x) * x.t, a.y + (ty - a.y) * x.t, dir);
++          li += (x.w / tot) * loss(cx, cy);
++        }
++        lossF = iShare * li + (1 - iShare) * lossR;
++      }
++    }
+     value = value * (1 - pLoseR) + pLoseR * lossR;
+     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
+     const pOff = offsideRisk(s, a, r);
+     const uOf = (pj: number) => {
+-      const u = pj * value + (1 - pj) * lossR;
++      const u = pj * value + (1 - pj) * lossF;
+       return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
+     };
+     // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
+     const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
+-    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * landGain;
++    // 세컨드볼은 빗나간 몫(1 − 차단 몫)만 (차단은 상대가 바로 가진다)
++    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * (1 - iShare) * landGain;
+     const forward = rx > ax + 0.03;
+     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
+     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
+@@ -692,7 +708,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+       const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
+       const pO = pF * aerial;
+       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
+-      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
++      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
+       ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+     }
+   }
+diff --git a/src/engine/tactics.ts b/src/engine/tactics.ts
+index 7d6a770..598d6df 100644
+--- a/src/engine/tactics.ts
++++ b/src/engine/tactics.ts
+@@ -222,9 +222,9 @@ export const TENDENCY = {
+    */
+   blockByLine: [
+     { lineMax: 14, gap: 8, stay: 1, compactW: 0.5, fbOverlap: 0.3 },
+-    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+-    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+-    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
++    { lineMax: 16.5, gap: 12, stay: 1, compactW: 0.55, fbOverlap: 0.5 },
++    { lineMax: 16.5, gap: 12, stay: 1, compactW: 0.55, fbOverlap: 0.5 },
++    { lineMax: 16.5, gap: 12, stay: 1, compactW: 0.55, fbOverlap: 0.5 },
+   ] as readonly BlockRow[],
+   /** 깊은 블록 밀집 (C.78d ①, ENGINE.offball.compact): 수비·중원 줄 가로 폭 배수 (슬롯 간격 × 이 값). 블록은 blockByLine */
+   compactW: { counter: 0.65 } as Partial<Record<Tendency, number>>,
