@@ -597,7 +597,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛, 역습 6초 전진·침투 패스 효용 배수 (C.78d ②: 블록도 역습과 같은 첫 패스 전진 출구)
   const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
   const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
-    : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
+    : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime
+      ? TENDENCY.counterWinMul * (s.t < s.teams[a.team].breakUntil ? ENGINE.offball.blockBreakMul : 1) : 1; // 블록 럭키 찬스 (C.79f 실험): 효용만
   const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;

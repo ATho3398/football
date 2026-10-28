@@ -425,6 +425,15 @@ export const ENGINE = {
      */
     lineAttackHigh: 0,
     /**
+     * 블록 럭키 찬스 (C.79f 실험 스위치, 엔진관리자17 — 탐침: 블록이 공을 뺏는 순간 상대 필드 선수가 우리 골 closeDownZone 안에 5명 이상인 탈취가
+     * 티키·역습 상대 19~23/경기, 균형·직선 상대 5/경기인데 그 뒤 10초 안 슛은 0.3): 블록 팀이 열린 경기에서 뺏을 때 상대가 blockBreakCommit 명 이상
+     * 우리 closeDownZone 안에 있으면 TENDENCY.counterWinTime 초 동안 출구·지원 침투를 blockBreakExtra 명 더 보내고(판단: 보이는 상대 배치만),
+     * 전진·침투 패스 효용 배수 counterWinMul × blockBreakMul (효용만, 실행·성공 확률 불변). 0 = 끔
+     */
+    blockBreakCommit: 0,
+    blockBreakExtra: 1,
+    blockBreakMul: 1.3,
+    /**
      * 깊은 블록 받는 순간 밀착 (C.76p 가설 2): block/bus 팀의 수신자 압박은 위협 1위 마커를 빼지 않고(마커가 가장 빠르면 마커가 나간다) 간격 deepCloseDownGap m,
      * 수신자가 ST/CF 면 도착 둘째도 착지점에서 우리 골 쪽 deepCloseDownSecond m 로 간다. 둘째 ST(위협 2위 ST/CF)가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark 로 마크
      */

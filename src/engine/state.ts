@@ -264,6 +264,8 @@ export interface TeamState {
   cutIdx: number;
   /** 짧은 패스 가로채기 (C.79f 실험): 이번 cutter 의 가로채기 확률 배수 (늦게 닿는 만큼 깎임, 보통 1) */
   cutMul: number;
+  /** 블록 럭키 찬스 (C.79f 실험): 상대가 많이 올라온 채 뺏은 뒤 전환 창 끝 시각 */
+  breakUntil: number;
   /** 수비 상황 판정 (C.75c): 지금 상황과 그 시작 시각, 바뀌려는 후보와 그 시작 시각. '-' = 우리 공 */
   sit: DefSit;
   sitSince: number;

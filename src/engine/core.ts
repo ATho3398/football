@@ -9,7 +9,7 @@ const BU = ENGINE.physics.burst;
 import { effectiveTactics, pressLevel } from './offball';
 import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, L, ownGoal, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import * as tactics_ from './tactics';
@@ -175,13 +175,23 @@ function exitRuns(s: SimState, win: 0 | 1): void {
     return d * (0.5 + a.role.run);
   };
   cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
-  const exits = cands.slice(0, O.exitRunners);
+  // 블록 럭키 찬스 (C.79f 실험): 뺏는 순간 상대 필드 선수가 우리 골 closeDownZone 안에 blockBreakCommit 명 이상이면 전환 창 동안 침투 인원 +blockBreakExtra
+  const tmW = s.teams[win];
+  let extra = 0;
+  tmW.breakUntil = 0;
+  if (O.blockBreakCommit > 0 && tmW.tactics.tendency === 'block') {
+    const [gx, gy] = ownGoal(dir);
+    let commit = 0;
+    for (const o of s.agents) if (o.onPitch && o.team !== win && o.line !== 0 && dist(o.x, o.y, gx, gy) < O.closeDownZone) commit++;
+    if (commit >= O.blockBreakCommit) { extra = O.blockBreakExtra; tmW.breakUntil = s.t + TENDENCY.counterWinTime; }
+  }
+  const exits = cands.slice(0, O.exitRunners + extra);
   for (const a of exits) {
     a.runUntil = s.t + O.runSeconds;
     a.exitRun = true;
   }
   // 역습 지원 (C.78d ②): 블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
-  const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
+  const n = (O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0) + extra;
   if (!n) return;
   const b = s.ball;
   const sup = s.agents.filter((a) => a.onPitch && a.team === win && a !== top && a.idx !== b.owner && !exits.includes(a)
