@@ -1,0 +1,163 @@
+diff --git a/src/engine/actions.ts b/src/engine/actions.ts
+index 22152170..9ea2e467 100644
+--- a/src/engine/actions.ts
++++ b/src/engine/actions.ts
+@@ -488,7 +488,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
+     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
+     const ty = gy + side * corner * (G / 2 - 0.3);
+     // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
+-    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0 };
++    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] };
+     const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
+     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
+     shotFlight(s, a, {
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index beed765f..e75b2f41 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -1,7 +1,7 @@
+ // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
+ // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
+ 
+-export const ENGINE_VERSION = 56;
++export const ENGINE_VERSION = 57;
+ 
+ export const ENGINE = {
+   // ── 좌표, 시간 (E.3) ──
+@@ -1404,7 +1404,7 @@ export const ENGINE = {
+   // ── 골키퍼 (E.9) ──
+   keeper: {
+     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). */
+-    saveBase: 1.66,
++    saveBase: 1.74,
+     saveCenter: 75,
+     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
+     leagueShotStopping: 76,
+@@ -1456,6 +1456,12 @@ export const ENGINE = {
+     reactSkill: 0.4,
+     driftMax: 6,
+     headerReact: 0,
++    /**
++     * GK 시야 가림 (C.79a, 엔진관리자14 미해결 6): 슛 길 콘(prob.coneWidth) 안에 슈터보다 골 쪽(슛 선 위치 ≥ screenFrom, 0 = 슈터 · 1 = 골라인) 상대 필드 선수가
++     * 1명 이상이면 GK 반응 시간 + screenReact 초. 판단(shotModel)과 실행(saveChance)이 같은 식 (timeModel 1 일 때만)
++     */
++    screenReact: 0.2,
++    screenFrom: 0.4,
+     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
+     openOn: 0.95,
+     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
+diff --git a/src/engine/keeper.ts b/src/engine/keeper.ts
+index c3812ad6..9e1ce44f 100644
+--- a/src/engine/keeper.ts
++++ b/src/engine/keeper.ts
+@@ -77,6 +77,8 @@ export interface ShotCtx {
+   body: number;
+   /** 판단용: 슛까지 남은 시간 (초, 패스가 가는 동안 GK 가 자리를 옮긴다) */
+   lead: number;
++  /** GK 시야 가림 (C.79a): 슛 길 콘 안 골 쪽(선 위치 ≥ screenFrom) 상대 필드 선수 수 — 1명 이상이면 반응 + screenReact. 없으면 0 */
++  screen?: number;
+ }
+ 
+ /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
+@@ -106,7 +108,7 @@ function timeTerms(c: ShotCtx): [number, number] {
+   if (!g) return [1, K.availRef];
+   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
+   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
+-  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0);
++  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact : 0);
+   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
+   let drift = 0;
+   if (e > 1e-6) {
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 1c6620d2..bc801927 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -265,6 +265,8 @@ export interface ShotModel {
+   ctx: ShotCtx;
+   /** 찰 쪽 (C.78h laneSide): ±1 = 두 슛 길이 달라 고른 쪽, 0 = 옛 규칙(GK 반대편, 가운데면 실행이 무작위) */
+   side: -1 | 0 | 1;
++  /** GK 시야 가림 (C.79a): 왼쪽(−1)·오른쪽(+1) 슛 길 콘 안 골 쪽 상대 필드 선수 수 — 실행은 찬 쪽 값을 ctx.screen 에 넣는다 */
++  screens: [number, number];
+ }
+ 
+ function goalAngle(x: number, y: number, gx: number): number {
+@@ -300,6 +302,9 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+   let bP = 0;
+   let dN = 0;
+   let dP = 0;
++  // GK 시야 가림 (C.79a): 슛 길 콘 안 선 위치 ≥ screenFrom 상대 필드 선수
++  let sN = 0;
++  let sP = 0;
+   for (const o of s.agents) {
+     if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+     const od = follow ? dist(o.x, o.y, a.x, a.y) : dist(o.x, o.y, px, py);
+@@ -308,8 +313,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     if (lane) {
+       const [cn, tn] = segDist(o.x, o.y, px, py, gx, gy - cy);
+       if (cn < PR.coneWidth && tn > 0.02 && tn < 0.95) bN++;
++      if (cn < PR.coneWidth && tn >= K.screenFrom && tn < 1) sN++;
+       const [cp, tp] = segDist(o.x, o.y, px, py, gx, gy + cy);
+       if (cp < PR.coneWidth && tp > 0.02 && tp < 0.95) bP++;
++      if (cp < PR.coneWidth && tp >= K.screenFrom && tp < 1) sP++;
+       // 밀집 블록도 그 쪽 슛 길 denseLaneW m 안 수비만 (C.78h: 골 쪽이어도 길에서 먼 수비는 몸을 못 던진다)
+       if (PR.denseLaneW > 0 && od <= PR.denseR) {
+         if (cn < PR.denseLaneW && tn > 0) dN++;
+@@ -318,6 +325,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     } else {
+       const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
+       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
++      if (cd < PR.coneWidth && ct >= K.screenFrom && ct < 1) {
++        sN++;
++        sP++;
++      }
+     }
+     if (od <= PR.denseR && dist(o.x, o.y, gx, gy) < d) dense++;
+     if (PR.shotFree > 0 && od < nearField) nearField = od;
+@@ -351,13 +362,17 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure,
+     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
+     gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
++    screen: (far ?? 1) < 0 ? sN : sP,
+   };
+   // 빈 골 (C.77z): 가운데로 차도 GK 가 못 닿으면 구석을 노릴 필요가 없다 — 유효 슈팅 확률이 openOn 쪽으로
+   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)
+   const openD = K.openSpan > 0 ? Math.min(1, Math.max(K.openFloor, 1 - (d - K.openFrom) / K.openSpan)) : 1;
+   if (K.timeModel && gk) pOn += Math.max(0, K.openOn * openD * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
+   const cornerMul = 1 - PR.cornerPressure * pressure;
+-  const saveOf = (sd: number) => (K.timeModel ? expectedSave({ ...ctx, ty: gy + sd * cy }, gy, sd, cornerMul) : saveChance({ ...ctx, ty: gy + sd * cy }));
++  const saveOf = (sd: number) => {
++    const c = { ...ctx, ty: gy + sd * cy, screen: sd < 0 ? sN : sP };
++    return K.timeModel ? expectedSave(c, gy, sd, cornerMul) : saveChance(c);
++  };
+   let pBlock: number;
+   let foot: number;
+   let pGoal: number;
+@@ -385,6 +400,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+         side = -1; pBlock = pbN; foot = fN; pGoal = gN; blockers = bN;
+       }
+       ctx.ty = gy + side * cy;
++      ctx.screen = side < 0 ? sN : sP;
+     }
+   } else {
+     pBlock = Math.min(PR.blockMax, blockers * PR.blockPer + denseB);
+@@ -397,7 +413,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
+   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
+   const rebound = (1 - pBlock) * pOn * foot * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
+-  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx, side };
++  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx, side, screens: [sN, sP] };
+ }
+ 
+ /**
+@@ -406,10 +422,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+  */
+ export function shotExec(s: SimState, a: Agent, header = false): { goal: number; pSave: number; cover: number; m: ShotModel } {
+   const m = shotModel(s, a, header);
+-  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)) };
+   const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+   const lane = PR.laneSide > 0 && !header;
+   const sd = m.side || (farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1);
++  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] };
+   const foot = header ? 1 : lane ? weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy + sd * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy - a.y);
+   const pSave = ENGINE.keeper.timeModel ? expectedSave(ctx, gy, sd, 1 - PR.cornerPressure * m.pressure) : saveChance(ctx);
+   return { goal: (1 - m.pBlock) * m.pOn * foot * (1 - pSave), pSave, cover: coverOf(ctx), m };
