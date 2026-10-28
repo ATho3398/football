@@ -1040,6 +1040,9 @@ export const ENGINE = {
     failLossModel: 2,
     /** C.79b: 1 이면 failLossModel 을 블록 성향(버스 포함) 패서에게만 — 깊은 블록만 자기 진영 롱볼이 레인에서 끊기는 비용을 안다(전 팀이면 득점 −0.2·이동 거리 +0.3 km, C.78y). 0 = 모든 성향 */
     failLossBlock: 1,
+    /** C.79b: failLossModel 을 패서 위치 x(정규화) 범위 [failLossMinX, failLossMaxX) 에서만. MaxX 0 = 위 끝 없음 */
+    failLossMinX: 0,
+    failLossMaxX: 0,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 
