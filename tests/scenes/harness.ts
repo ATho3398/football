@@ -54,6 +54,9 @@ export function pick(s: SimState, team: 0 | 1, line: 0 | 1 | 2 | 3, k = 0): Agen
 export function setBody(a: Agent, pace: number, acceleration = pace, agility = pace): void {
   a.attrs = { ...a.attrs, pace, acceleration, agility };
   a.stamina = 100;
+  // 순간 체력도 가득 (C.78w 2단 체력 — 앞 장면의 질주가 남지 않게)
+  a.burst = 100;
+  a.burstOut = false;
   initPhysics(a);
 }
 
