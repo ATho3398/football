@@ -128,7 +128,7 @@ export const ENGINE = {
       accelFloor: 0.85,
       judgeLo: 20,
       judgeHi: 55,
-      pressMin: 35,
+      pressMin: 50,
       recoverFloor: 0.5,
       runFloor: 0.4,
     },
