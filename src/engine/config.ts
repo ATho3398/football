@@ -1053,6 +1053,8 @@ export const ENGINE = {
     failLossBlock: 0,
     /** C.79b R2: failLossModel 을 패서 위치 x(정규화) < failLossMaxX 일 때만. 0 = 어디서나 */
     failLossMaxX: 0,
+    /** C.79b: failLossModel 을 패서 위치 x(정규화) ≥ failLossMinX 일 때만. 0 = 어디서나 */
+    failLossMinX: 0,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 

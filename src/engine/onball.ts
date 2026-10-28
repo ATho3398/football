@@ -690,7 +690,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 실패 비용 (C.78x H1, 판단 = 실행): makePass 와 같은 몫으로 차단은 레인 수비수 자리(t 지점), 빗나감은 목표점에서 잃는다. GK 가 끊는 침투는 목표점
     let lossF = lossR;
     let iShare = 0;
-    if (PR.failLossModel > 0 && gkWins < 0 && (Number(PR.failLossModel) === 1 || d0 > PR.airPass) && (!PR.failLossBlock || tac.tendency === 'block') && (!PR.failLossMaxX || ax < PR.failLossMaxX)) {
+    if (PR.failLossModel > 0 && gkWins < 0 && (Number(PR.failLossModel) === 1 || d0 > PR.airPass) && (!PR.failLossBlock || tac.tendency === 'block') && (!PR.failLossMaxX || ax < PR.failLossMaxX) && ax >= PR.failLossMinX) {
       const tot = lane.cutters.reduce((t, x) => t + x.w, 0);
       if (tot > 0) {
         iShare = Math.min(1, PR.interceptShare + tot * 0.3);

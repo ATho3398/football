@@ -7,6 +7,7 @@ import { createTeamRoster } from '../../src/roster';
 const args = process.argv.slice(2).filter((x) => x !== '--').map(Number);
 (ENGINE.prob as { failLossModel: number }).failLossModel = args[0]!;
 (ENGINE.decide.bias as { counterRunAll: number }).counterRunAll = args[1]!;
+if (args[6] !== undefined) (ENGINE.prob as { failLossMinX: number }).failLossMinX = args[6]!;
 if (args[5] !== undefined) (ENGINE.prob as { failLossMaxX: number }).failLossMaxX = args[5]!;
 if (args[4] !== undefined) (ENGINE.keeper as { screenReact: number }).screenReact = args[4]!;
 const home = createTeamRoster({ id: 'h', rating: 76 }, 'eng-h', 2018, []);
