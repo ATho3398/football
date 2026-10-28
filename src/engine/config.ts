@@ -604,6 +604,8 @@ export const ENGINE = {
     laneGk: 0.05,
     compactFrom: 50,
     compactFollow: 0.4,
+    /** 실험 (엔진관리자14, 미해결 3 I1): 1 이면 밀집 줄의 공 y 를 부드러운 공(formation.ballSmoothing)으로 따라간다(인지 지연). 0 = 지금 공 (옛 동작) */
+    compactSmooth: 0,
     /** 밀집 중 중원 줄 마크 비중 (평소 0.65 — 존 자리와 마크 자리 사이) */
     compactMark: 0.25,
     /** 밀집 중 박스 안 미마크 상대 마크 인원 (버스·블록, C.76w boxManMax 를 깊은 블록에만 — 평소 0) */

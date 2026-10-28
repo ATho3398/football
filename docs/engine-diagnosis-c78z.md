@@ -110,7 +110,7 @@
 - R3 역습 −0.11: 역습 혼합안(C.78w)이 역습을 전체적으로 +0.3 세게 했다(C.78s 기록) → 역습 2선 잔류 2명 → 1명. 공격 움직임 감소라 사용자 질문.
 
 **상호작용 레버 (직선/블록 +0.2 · 블록/역습·티키 +0.1)**
-- I1 **블록 줄 이동 인지 지연**(C.78s C.78t H1, 아직 안 함): 밀집 줄이 따라가는 공 y 를 `feedLag` 처럼 늦게 — 반대 전환이 **밀집 블록에게만** 먹힌다(높은 라인 팀은 밀집하지 않으니 무관) = 직선/블록 전용. 확률 45%.
+- I1 **블록 줄 이동 인지 지연**(C.78s C.78t H1, 아직 안 함): 밀집 줄(`offball.ts` compact ny :1503·줄 사이 수신 :1429)은 **지금 공 위치**(`ballNorm`)를 그 틱에 따라가고, 대형(`slotTarget`)만 부드러운 공(`smoothBallNorm`, `ballSmoothing` 1.5초)을 쓴다. 밀집 줄도 부드러운 공을 따라가게 하면(스위치 `offball.compactSmooth` 1, 새 상수 없음) 반대 전환 착지 순간 먼 쪽이 1~2초 늦게 메워진다 — **밀집하는 팀(블록·버스·역습)에게만** 생기는 비용 = 직선/블록 전용 상호작용. 이번에 4칸 480 측정(§3.7). 확률 45%.
 - I2 **블록의 걷어내기**: 자기 ⅓ 압박 속에서 `clear`(걷어내기) 후보가 롱패스보다 싸게 보이도록 — 지금은 롱패스 실패 비용이 목표점이라 롱패스가 늘 걷어내기를 이긴다(C.78x §2.3). H1(공중만) + 걷어내기 가치(착지점 몫)가 같이 들어가면 **높은 압박 팀 상대로만** 블록 상실이 준다(티키·게겐 상대 상호작용). 블록 행도 같이 오르므로 R2 와 묶는다.
 - I3 블록 최전방 잔류는 행 비용(수비 1명 감소)이 상호작용 이득보다 크다(C.78x H3 −0.25) — 제외.
 
@@ -216,7 +216,7 @@
 | `npx vite-node scripts/diag/backpass.ts -- 30 tikitaka balanced gegenpress direct counter block` · `give-go.ts -- 20 balanced` | 게겐 압박 없는 백패스 20.0/경기 · 리턴 패스 12.1% | |
 | `npx vitest run tests/scenes` (screenReact 0.3 임시) | 39/39 ✓ | 콘 전체 가림(E5)은 ㉘ ✗ |
 
-실험 스위치(`scripts/diag/c78z-switches.patch`, 전부 기본 0 = 엔진 56 과 같음): `keeper.screenReact`·`screenFrom`(G1) · `prob.pressDistRef`(미해결 2 ⒜) · `prob.failLossModel`·`decide.bias.counterRun/counterRunAll`(C.78y H1·보정, 되돌린 것을 스위치로 보관).
+실험 스위치(`scripts/diag/c78z-switches.patch`, 전부 기본 0 = 엔진 56 과 같음): `keeper.screenReact`·`screenFrom`(G1) · `offball.compactSmooth`(미해결 3 I1) · `prob.pressDistRef`(미해결 2 ⒜) · `prob.failLossModel`·`decide.bias.counterRun/counterRunAll`(C.78y H1·보정, 되돌린 것을 스위치로 보관).
 
 ## 9. 처방 묶음 (코드 세션 단위, 파일 안 겹침, 통과 가능성 순)
 
