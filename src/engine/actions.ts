@@ -6,7 +6,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
 import * as duel_ from './duel';
-const { aerialScore, dribbleProb, duelTail, longRecvScore, longRecvWin, receiveWin } = duel_;
+const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
 import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
@@ -747,7 +747,6 @@ function resolveAerial(s: SimState, fl: Flight): void {
       return;
     }
   }
-  const attScore = fl.fromCross ? aerialScore : longRecvScore;
   let bestA: Agent | null = null;
   let bestD: Agent | null = null;
   let nA = 0;
@@ -761,8 +760,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     if (d > R) continue;
     if (a.team === att) {
-      // 크로스가 아닌 공중볼(롱킥·걷어내기)은 차 보낸 팀이 퍼스트 터치·근력·점프로 받는다 (C.79c, landingShare 와 같은 점수)
-      if (!bestA || attScore(a) > attScore(bestA)) bestA = a;
+      if (!bestA || aerialScore(a) > aerialScore(bestA)) bestA = a;
     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
   }
   if (!bestA && !bestD) {
@@ -785,7 +783,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
     const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
-    const pA0 = duelTail(1 / (1 + Math.exp(-((attScore(bestA) - aerialScore(bestD)) / (fl.fromCross ? PR.aerialScale : PR.recvScale) + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
+    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
@@ -822,7 +820,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       winner.y = wy;
       return;
     }
-    giveBall(s, winner, 'win', fl);
+    giveBall(s, winner, 'win');
     return;
   }
   // 수비가 이김: 헤더 걷어내기 (가끔 코너)
@@ -837,15 +835,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
     giveBall(s, winner, 'gain');
     return;
   }
-  headerClear(s, winner, def, dirDef);
-}
-
-/** 헤더 걷어내기 (E.18 A4): 수비 winner 가 머리로 걷어낸 공 — clearDist m 루즈볼 비행, 측면이면 바깥쪽 편향. resolveAerial 과 롱볼 착지 경합(C.79d P5)이 같이 쓴다 */
-function headerClear(s: SimState, winner: Agent, def: 0 | 1, dirDef: 1 | -1, fromLong = false): void {
-  const b = s.ball;
   countClearance(s, winner, b.x, b.y);
-  const mul = fromLong && PR.longClearMul > 0 ? PR.longClearMul : 1;
-  const [lo, hi] = [PR.clearDist[0] * mul, PR.clearDist[1] * mul];
+  const [lo, hi] = PR.clearDist;
   const len = lo + (hi - lo) * r(s, winner.idx, Purpose.Header, 1);
   // 걷어내기 방향 산포 σ (E.18 A4). 측면 경합이면 바깥쪽 편향
   const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
@@ -919,14 +910,8 @@ export function resolveFlight(s: SimState): void {
             s.teams[1].stats.aerials++;
             rc.stats.aerialDuels++;
             def.stats.aerialDuels++;
-            if (r(s, rc.idx, Purpose.Aerial, 1) >= longRecvWin(rc, def)) {
+            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
               def.stats.aerialsWon++;
-              // 실험 (엔진관리자15, C.79d P5): 수비가 이긴 롱볼은 longLossClear 확률로 헤더 걷어내기(루즈볼 세컨드볼), 나머지는 소유
-              if (PR.longLossClear > 0 && r(s, def.idx, Purpose.Header, 2) < PR.longLossClear) {
-                s.teams[rc.team].longLossT = s.t;
-                headerClear(s, def, def.team, attackDir(def.team, s.half), true);
-                return;
-              }
               giveBall(s, def, 'gain');
               return;
             }
@@ -1018,12 +1003,6 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
     case 'win':
       a.gotBy = 'receive';
       a.carryN = 0;
-      if (res.fl && res.fl.kind === 'long' && !res.fl.fromCross) {
-        // 실험 (엔진관리자15, C.79d): 롱볼 수신 시각 기록(P2) · 공중 경합으로 받은 롱볼도 등지고 받음 판정(P3, receive.aerialBack)
-        s.teams[a.team].longRecvT = s.t;
-        s.teams[a.team].longRecvIdx = a.idx;
-        if (RC.aerialBack > 0) a.backToGoal = receivesBack(res.fl.fromX, res.fl.fromY, b.x, b.y, attackDir(a.team, s.half));
-      }
       // C.78e: 받는 틱에 공을 받은 선수 발밑으로 (C.78b runOn 은 2.5 m 안에서 바로 받는다 — 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
       b.x = a.x;
       b.y = a.y;
@@ -1039,11 +1018,6 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       a.dribbleT = -100;
       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
-      if (fl.kind === 'long') {
-        // 실험 (엔진관리자15, C.79d P2): 롱볼 수신 시각 기록
-        s.teams[a.team].longRecvT = s.t;
-        s.teams[a.team].longRecvIdx = a.idx;
-      }
       if (fl.quick) a.cooldown = reaction(a);
       passer.stats.passesCompleted++;
       s.teams[passer.team].stats.passesCompleted++;

@@ -134,7 +134,7 @@ export function createState(input: EngineInput): SimState {
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, longRecvT: -100, longRecvIdx: -1, longLossT: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],

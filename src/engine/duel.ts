@@ -51,35 +51,6 @@ export function aerialWin(a: Agent, b: Agent): number {
 }
 
 /**
- * 롱볼 받는 점수 (C.79c, 직선 수신): 공을 차 보낸 팀의 받는 선수는 헤더 대신 퍼스트 터치(볼 컨트롤)·근력·점프로 받아 낸다.
- * aerialScore 와 recvTouch 만큼 섞는다(0 = 옛 공중볼 점수). 크로스(헤더 슈팅 경합)는 쓰지 않는다
- */
-export function longRecvScore(a: Agent): number {
-  const w = PR.recvTouch;
-  return w ? (1 - w) * aerialScore(a) + w * recvRaw(a) : aerialScore(a);
-}
-
-/** 롱볼 받는 능력 (C.79c): 볼 컨트롤(퍼스트 터치) recvW[0] + 점프 recvW[1] + 근력(몸무게 보정 포함) recvW[2] + 키 보정 */
-export function recvRaw(a: Agent): number {
-  const t = a.attrs;
-  return t.ballControl * PR.recvW[0] + t.jumping * PR.recvW[1] + (t.strength + a.body.strength) * PR.recvW[2] + a.body.aerial;
-}
-
-/**
- * 롱볼 퍼스트 터치 (C.79c): 공중 패스(airPass 초과) 성공 확률의 실패 몫 × exp(−touchSkill × (받는 능력 − touchCenter) / 10).
- * 패서 능력치(passSkillApply)와 같은 모양 — 받는 능력이 touchCenter 인 선수는 그대로. 판단과 실행이 같은 pFlight 를 쓴다(candidates → makePass)
- */
-export function longTouchApply(p: number, r: Agent): number {
-  if (!PR.touchSkill) return p;
-  return Math.min(PR.passCap, Math.max(PR.passMin, 1 - (1 - p) * Math.exp((-PR.touchSkill * (recvRaw(r) - PR.touchCenter)) / 10)));
-}
-
-/** 롱볼 착지 경합 (C.79c): 받는 선수 a(longRecvScore)가 수비 b(aerialScore)를 이길 확률. 판단(candidates 롱패스)·실행(resolveFlight 롱볼 수신)·착지점 경합(resolveAerial)·착지점 몫(landingShare)이 같은 식 */
-export function longRecvWin(a: Agent, b: Agent): number {
-  return duelTail(L1((longRecvScore(a) - aerialScore(b)) / PR.recvScale + duelEdgeOf(a) - duelEdgeOf(b)));
-}
-
-/**
  * 마무리 능력치 (E.20 7번): 슈팅(중거리는 중거리 슛, 헤더는 헤더, 프리킥은 프리킥) × 0.6 + 침착성 × 0.25 + 결정력 × 0.15.
  * C.76a: onball 과 offball(위협 가중 수비) 이 같이 쓰므로 순환 import 없는 이 모듈에 둔다 (onball 이 다시 내보낸다)
  */

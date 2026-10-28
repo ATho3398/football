@@ -77,8 +77,6 @@ export interface ShotCtx {
   body: number;
   /** 판단용: 슛까지 남은 시간 (초, 패스가 가는 동안 GK 가 자리를 옮긴다) */
   lead: number;
-  /** 실험 (엔진관리자14): 슛 길 콘 안 상대 수비 수 (GK 시야 가림) */
-  screen?: number;
 }
 
 /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
@@ -108,7 +106,7 @@ function timeTerms(c: ShotCtx): [number, number] {
   if (!g) return [1, K.availRef];
   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
-  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + K.screenReact * Math.min(1, c.screen ?? 0);
+  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0);
   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
   let drift = 0;
   if (e > 1e-6) {

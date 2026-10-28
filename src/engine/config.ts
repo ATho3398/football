@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 56;
+export const ENGINE_VERSION = 57;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -171,8 +171,6 @@ export const ENGINE = {
   // **켬(사용자 2026-10-23 09:00 "움직임이 더 중요", 밸런스는 마지막 단계; 끈 값 0 · 0 · 0 = 옛 동작)**: 켜면 quick 600 득점 1.42 → 1.91 ✗(하나씩 quick 300: 정지 시간 1.85 · 원터치 1.67 · 달리며 받기 1.41),
   // 슈팅 22.4 → 27.9/경기·1대1 3.3 → 7.0%·xG 보정은 ±15% 안(새 찬스는 실제로 좋은 찬스) — 총량 맞추기는 로드맵 마지막 단계 (부록 C.78b)
   receive: {
-    /** 실험 (엔진관리자15, C.79d P3): 1 이면 공중 경합으로 이긴 롱볼(크로스 아님)도 패스 수신과 같이 등지고 받음(receivesBack)을 판정해 포스트플레이(버티기·레이오프) 후보가 생긴다. 0 = 옛 동작(앞을 본 것으로) */
-    aerialBack: 0,
     /**
      * 정지 시간 차등 (0 = 옛 동작 receiveTime + 반응 × 0.5 ≈ 1.1초 고정). 1 이면 패스 수신의 정지 시간 =
      * clamp(base − touchSkill × (볼 컨트롤 − 70)/100 + ballSpeed × max(0, 공 속도 − 12)/10 + press × 압박(3 m 안 가까울수록) + back × 등지고 받음 − run × 달리며 받음 + 반응 × reactMul, min, max).
@@ -606,32 +604,6 @@ export const ENGINE = {
     laneGk: 0.05,
     compactFrom: 50,
     compactFollow: 0.4,
-    /** 실험 (엔진관리자14, 미해결 3 I1): 1 이면 밀집 줄의 공 y 를 부드러운 공(formation.ballSmoothing)으로 따라간다(인지 지연). 0 = 지금 공 (옛 동작) */
-    compactSmooth: 0,
-    /**
-     * 실험 (엔진관리자15, C.79d P1 직선 타깃 어깨 대기): 1 이면 직선 성향 팀이 자기 진영(공 x < directShoulderFrom)에서 공을 가질 때 타깃 ST(헤더 + 근력 최고, onball targetForward 와 같은 식)는
-     * 내려와 받지 않고 오프사이드 라인 − directShoulderGap m 에 머문다(롱볼 착지점을 최종 ⅓ 으로). 침투·최종 ⅓ 역할 중이면 그대로. 0 = 옛 동작
-     */
-    directShoulder: 0,
-    directShoulderFrom: 0.5,
-    directShoulderGap: 1.5,
-    /**
-     * 실험 (엔진관리자15, C.79d P2 직선 레이오프 지원): 우리 롱볼(30 m+ 공중)을 받은 뒤 directLayoff 초 동안(받은 선수가 공을 갖고 있는 한) 받은 선수에게 가까운 2선 2명은
-     * 받은 선수 뒤 directLayoffBack m · 옆 ±directLayoffSide m(레이오프·세컨드볼 자리, layoffDist 안)로 간다. 0 = 끔
-     */
-    directLayoff: 0,
-    directLayoffBack: 7,
-    directLayoffSide: 4,
-    /**
-     * 실험 (엔진관리자15, C.79d P4 직선 앞 주자 — "큰 선수 + 작은 선수"): 우리 롱볼(30 m+ 공중)이 떠 있을 때 착지점에 가까운 공격수(타깃 아님) directRunner 명은
-     * 착지점 앞 directRunnerAhead m · 옆 ±directRunnerSide m(오프사이드 라인 안쪽)로 달린다 — 받은 뒤 앞 동료(떨군 공·전진 패스 상대)가 되게. 받은 뒤 directRunnerHold 초 동안 유지. 0 = 끔
-     */
-    directRunner: 0,
-    directRunnerAhead: 8,
-    directRunnerSide: 6,
-    directRunnerHold: 2,
-    /** 실험 (C.79d P5b 세컨드볼 압박): 1 이면 우리 롱볼을 상대가 헤더로 걷어낸 비행(longLossT 에 시작한 clear 비행) 중 착지점에 가까운 2선 2명이 걷어낸 공 착지점(둘째는 5 m 뒤)으로 간다. 0 = 끔 */
-    directSecondClear: 0,
     /** 밀집 중 중원 줄 마크 비중 (평소 0.65 — 존 자리와 마크 자리 사이) */
     compactMark: 0.25,
     /** 밀집 중 박스 안 미마크 상대 마크 인원 (버스·블록, C.76w boxManMax 를 깊은 블록에만 — 평소 0) */
@@ -995,19 +967,10 @@ export const ENGINE = {
       clear: 0,
       hold: 0,
       /**
-       * C.78y: 역습 전진 롱·침투 — 역습 성향, 오픈 플레이 탈취 뒤 TENDENCY.counterWinTime 초 안, counterRunFwd m 이상 전진하는 공중(airPass 초과)·침투 패스에
-       * counterRun × 앞 공간(공보다 앞 상대 몫 × 상대 라인 뒤 열린 몫). H1(공중 실패 비용 = 실행 식)으로 역습이 전환 롱볼을 덜 고르게 된 만큼 되살림. 0 = 끔
+       * C.79d: 직선 전환 롱볼 — 직선 성향 팀의 공중(airPass 초과)·전진 패스 중 오픈 플레이 탈취 뒤 TENDENCY.counterWinTime 초 안인 것에만 directLong × 판단 성공 확률.
+       * 빌드업 '직선' 배수(모든 롱볼 선호, 직선 성향 기본 단계에서 뺌) 대신 전환 상황부 선호. 0 = 끔
        */
-      counterRun: 0,
-      /** 같은 보정의 모든 성향 몫 (역습 상황 자체 — H1 로 모든 팀의 탈취 뒤 롱볼이 줄어 quick 역습 슈팅 % 가 내려간 만큼). 역습 성향은 counterRunAll + counterRun */
-      counterRunAll: 0,
-      counterRunFwd: 10,
-      /**
-       * 실험 (엔진관리자15, C.79d P6 조건부 직선 롱볼): 직선 성향 팀의 공중(airPass 초과)·전진 패스 중 ① 오픈 플레이 탈취 뒤 counterWinTime 초 안(전환) 또는
-       * ② 착지점이 상대 진영 directLongX 이상(최종 ⅓)인 것에만 directLong × 판단 성공 확률을 더한다 — 빌드업 '직선' 배수(모든 롱볼 선호) 대신 상황부 선호. 0 = 끔
-       */
-      directLong: 0,
-      directLongX: 0.67,
+      directLong: 0.1,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
@@ -1068,8 +1031,6 @@ export const ENGINE = {
     /** 레인 위험 × (1 + laneVision × (60 − 시야)/100) */
     laneVision: 1.0,
     pressurePenalty: 0.4,
-    /** 실험 (엔진관리자14, 미해결 2): 패서 압박 감점 × min(1, 거리/pressDistRef) — 짧은 패스는 압박 속에서도 쉽다 (판단·실행 같은 함수). 0 = 끔(옛 동작) */
-    pressDistRef: 0,
     /** 받는 선수 압박(마크) 패널티: 성공 확률에서 빼는 값과 위치 가치에서 빼는 값 */
     receiverPressure: 0.3,
     /** 받는 선수 압박 거리 기준 (m) */
@@ -1077,8 +1038,6 @@ export const ENGINE = {
     pressureDist: 3,
     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
     interceptShare: 0.4,
-    /** 판단의 패스 실패 비용 (C.78x H1): 1 = 실행(makePass)과 같은 식 — 차단 몫(interceptShare + 레인 가중 × 0.3)은 레인 수비수 자리, 나머지(빗나감)는 목표점에서 잃는다. 2 = 공중 패스(airPass 초과)만. 0 = 옛 판단(실패 전부 목표점) */
-    failLossModel: 0,
     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
     looseError: 6,
 
@@ -1184,27 +1143,7 @@ export const ENGINE = {
     aerialRadius: 2,
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
-    /**
-     * 실험 (엔진관리자15, C.79d P5 롱볼 경합 헤더 걷어내기): 롱패스 착지 경합에서 수비가 이기면 이 확률로 깨끗한 소유 대신 헤더로 걷어낸다(resolveAerial 의 걷어내기와 같은 비행 —
-     * clearDist·clearSpreadDeg, 루즈볼). 떨어진 공은 세컨드볼(directSecond 2선 자리). 0 = 옛 동작(수비가 바로 소유). 판단(candidates 롱패스 실패 비용)은 아직 옛 식
-     */
-    longLossClear: 0,
-    /** 실험 (C.79d P5b): 롱볼 경합 헤더 걷어내기 거리 = clearDist × 이 배수 (0 = 1). 떨어지는 롱볼의 헤더는 자유 헤더보다 짧다 */
-    longClearMul: 0,
     aerialScale: 16,
-    /**
-     * 직선 수신 (C.79c, 사용자 정의 pending 146 "직선은 받는 쪽 퍼스트 터치·피지컬·공중 경합이 좋아야 하는 선수빨 전술"): 크로스가 아닌 공중볼(롱패스·걷어내기·롱킥)의
-     * 착지 경합에서 차 보낸 팀 선수의 점수 = (1 − recvTouch) × 공중볼 점수 + recvTouch × (볼 컨트롤 recvW[0] + 점프 recvW[1] + 근력 recvW[2] + 키 보정).
-     * 로짓 = (받는 점수 − 수비 공중볼 점수) / recvScale. landingShare(판단의 착지점 몫)는 양 팀 첫 도착 선수의 같은 점수 차 / recvScale × landSkill 을 더한다.
-     * recvTouch 0 · recvScale = aerialScale · landSkill 0 = 옛 동작
-     */
-    recvTouch: 0,
-    recvW: [0.4, 0.3, 0.3] as [number, number, number],
-    recvScale: 16,
-    landSkill: 0,
-    /** 롱볼 퍼스트 터치 (C.79c, duel.ts longTouchApply): 공중 패스 실패 몫 × exp(−touchSkill × (받는 능력 − touchCenter) / 10). 0 = 끔 */
-    touchSkill: 0,
-    touchCenter: 70,
     /**
      * 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B, duel.ts receiveWin): 착지점이 상대 박스 안이고 contestDist m 안에 상대 필드 선수가 있으면
      * P(받음) = L1((볼 컨트롤 0.5 + 근력 0.3 + 민첩 0.2 − (마킹 0.5 + 태클 0.3 + 수비 포지셔닝 0.2)) / receiveScale + receiveBias). 판단(candidates)과 판정(resolveFlight)이 같은 식
@@ -1522,10 +1461,6 @@ export const ENGINE = {
     reactSkill: 0.4,
     driftMax: 6,
     headerReact: 0,
-    /** 실험 (엔진관리자14, 미해결 6): 슛 길 콘 안 상대 수비가 1명 이상이면 GK 반응 시간 + screenReact 초(가려짐은 1번만) (시야 가림, 판단·실행 같은 식). 0 = 끔 */
-    screenReact: 0,
-    /** 실험: 가림으로 세는 콘 안 수비의 슛 선 위치 비율 하한 (슈터 0 ~ 골 1) — 슈터 가까이 선 수비는 블록 몫, 골 쪽 수비가 GK 시야를 가린다 */
-    screenFrom: 0.4,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
