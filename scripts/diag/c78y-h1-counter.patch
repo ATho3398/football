@@ -1,0 +1,104 @@
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index beed765..de29fcb 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -966,6 +966,14 @@ export const ENGINE = {
+       cross: 0,
+       clear: 0,
+       hold: 0,
++      /**
++       * C.78y: 역습 전진 롱·침투 — 역습 성향, 오픈 플레이 탈취 뒤 TENDENCY.counterWinTime 초 안, counterRunFwd m 이상 전진하는 공중(airPass 초과)·침투 패스에
++       * counterRun × 앞 공간(공보다 앞 상대 몫 × 상대 라인 뒤 열린 몫). H1(공중 실패 비용 = 실행 식)으로 역습이 전환 롱볼을 덜 고르게 된 만큼 되살림. 0 = 끔
++       */
++      counterRun: 0,
++      /** 같은 보정의 모든 성향 몫 (역습 상황 자체 — H1 로 모든 팀의 탈취 뒤 롱볼이 줄어 quick 역습 슈팅 % 가 내려간 만큼). 역습 성향은 counterRunAll + counterRun */
++      counterRunAll: 0.6,
++      counterRunFwd: 10,
+       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
+       shootNear: 13,
+       shootFar: 18,
+@@ -1033,6 +1041,8 @@ export const ENGINE = {
+     pressureDist: 3,
+     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
+     interceptShare: 0.4,
++    /** 판단의 패스 실패 비용 (C.78x H1): 1 = 실행(makePass)과 같은 식 — 차단 몫(interceptShare + 레인 가중 × 0.3)은 레인 수비수 자리, 나머지(빗나감)는 목표점에서 잃는다. 2 = 공중 패스(airPass 초과)만. 0 = 옛 판단(실패 전부 목표점) */
++    failLossModel: 2,
+     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
+     looseError: 6,
+ 
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 1c6620d..5d34474 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -578,6 +578,15 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+   const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
+   const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
+     : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
++  // 판단 보정 — 역습 전진 롱·침투 (C.78y, ENGINE.decide.bias.counterRunAll + 역습 성향 counterRun): 오픈 플레이 탈취 뒤 counterWinTime 초 안이면
++  // 앞 공간(공보다 앞에 남은 상대 몫 × 상대 라인 뒤 열린 몫) × 기본값 × 판단 성공 확률을 크게 전진하는 롱(공중)·침투 패스 효용에 더한다(안 될 공은 덜). 실행·성공 확률은 그대로
++  let counterRunB = 0;
++  const runBase = ENGINE.decide.bias.counterRunAll + (tac.tendency === 'counter' ? ENGINE.decide.bias.counterRun : 0);
++  if (runBase > 0 && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open' && oppNx.length) {
++    let up = 0;
++    for (const x of oppNx) if (x < ax) up++;
++    counterRunB = runBase * (up / oppNx.length) * clamp(1 - offsideLine(s, a.team), 0, 1);
++  }
+   const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
+   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
+   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
+@@ -662,16 +671,32 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+       value = Math.max(value, judgedP(shotModel(s, r, false, at, lead).value, shotModel(s, averageSelf(r), false, at, lead).value));
+     }
+     const lossR = loss(rx, ry);
++    // 실패 비용 (C.78x H1, 판단 = 실행): makePass 와 같은 몫으로 차단은 레인 수비수 자리(t 지점), 빗나감은 목표점에서 잃는다. GK 가 끊는 침투는 목표점
++    let lossF = lossR;
++    let iShare = 0;
++    if (PR.failLossModel > 0 && gkWins < 0 && (Number(PR.failLossModel) === 1 || d0 > PR.airPass)) {
++      const tot = lane.cutters.reduce((t, x) => t + x.w, 0);
++      if (tot > 0) {
++        iShare = Math.min(1, PR.interceptShare + tot * 0.3);
++        let li = 0;
++        for (const x of lane.cutters) {
++          const [cx, cy] = toNorm(a.x + (tx - a.x) * x.t, a.y + (ty - a.y) * x.t, dir);
++          li += (x.w / tot) * loss(cx, cy);
++        }
++        lossF = iShare * li + (1 - iShare) * lossR;
++      }
++    }
+     value = value * (1 - pLoseR) + pLoseR * lossR;
+     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
+     const pOff = offsideRisk(s, a, r);
+     const uOf = (pj: number) => {
+-      const u = pj * value + (1 - pj) * lossR;
++      const u = pj * value + (1 - pj) * lossF;
+       return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
+     };
+     // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
+     const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
+-    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * landGain;
++    // 세컨드볼은 빗나간 몫(1 − 차단 몫)만 (차단은 상대가 바로 가진다)
++    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * (1 - iShare) * landGain;
+     const forward = rx > ax + 0.03;
+     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
+     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
+@@ -681,7 +706,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
+     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
+     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
+-    u = weight(u, passW) + cBonus(pj, rx - ax);
++    const runB = counterRunB > 0 && (running || d0 > PR.airPass) && (rx - ax) * L >= ENGINE.decide.bias.counterRunFwd ? counterRunB : 0;
++    u = weight(u, passW) + cBonus(pj, rx - ax) + runB * pj;
+     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
+     const gd = dist(tx, ty, gx0, gy0);
+     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
+@@ -692,8 +718,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+       const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
+       const pO = pF * aerial;
+       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
+-      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
+-      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
++      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
++      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + runB * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+     }
+   }
+ 
