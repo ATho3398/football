@@ -12,7 +12,7 @@ const { finishSkill } = duel_;
 import * as physics_ from './physics';
 const { arrivalTime, burstReady, effectiveMax, landingVelocity } = physics_;
 import * as formation_ from './formation';
-const { ballNorm, manDiff, slotTarget, smoothBallNorm, teamPhase } = formation_;
+const { ballNorm, manDiff, slotTarget, teamPhase } = formation_;
 import * as pitch_ from './pitch';
 const { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
@@ -1426,7 +1426,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       const gap2 = br2 ? Math.min(F.midGap, br2.gap / L) : F.midGap;
       const [onx] = toNorm(owner.x, owner.y, dir);
       if (onx >= lineX2 && onx <= lineX2 + gap2 + O.holdSlack / L && ballRank(s, a, b.x, b.y) >= 2) {
-        setTarget(a, lineX2 + gap2, clamp(0.5 + (a.sy - 0.5) * cw2 + ((O.compactSmooth > 0 ? smoothBallNorm(s, a.team)[1] : bny) - 0.5) * O.compactFollow, 0.05, 0.95), dir, false);
+        setTarget(a, lineX2 + gap2, clamp(0.5 + (a.sy - 0.5) * cw2 + (bny - 0.5) * O.compactFollow, 0.05, 0.95), dir, false);
         return;
       }
     }
@@ -1500,9 +1500,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const cw = O.compact > 0 && owner && owner.team !== a.team && (a.line === 1 || a.line === 2) ? compactWOf(tac) : undefined;
   const compacted = cw !== undefined && bnx * L < O.compactFrom;
   if (compacted) {
-    // 실험 (엔진관리자14, 미해결 3 I1): 밀집 줄이 따라가는 공 y 를 대형과 같은 부드러운 공(ballSmoothing)으로 — 반대 전환 착지 순간 먼 쪽이 늦게 메워진다 (compactSmooth 1)
-    const cby = O.compactSmooth > 0 ? smoothBallNorm(s, a.team)[1] : bny;
-    ny = clamp(0.5 + (a.sy - 0.5) * cw + (cby - 0.5) * O.compactFollow, 0.05, 0.95);
+    ny = clamp(0.5 + (a.sy - 0.5) * cw + (bny - 0.5) * O.compactFollow, 0.05, 0.95);
     if (a.line === 2 && tendency !== 'counter') nx = lineX + midGap;
   }
   // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목. 홀딩 CM 도 같이 (E3.7 역할 반응: 수비 역할의 수비 효과)
