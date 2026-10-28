@@ -83,7 +83,9 @@ describe('경기 엔진 코어 (E1)', () => {
     // C.78w(엔진 56, 2단 체력): 한 시드 최다는 궤적 잡음(시드 14 13.56 → 14.18, 시드 16 13.70 → 12.88)이라 시드 11~16 경기별 최다의 평균 ≤ 14 km 로 본다
     // (2단 체력 끔 13.91 · 켬 13.90, 시드 11~30 끔 14.21 · 켬 13.94 — scripts/diag/c78w-dist.ts). 한 선수 상한 15 km
     let sumTop = 0;
-    const seeds = [11, 12, 13, 14, 15, 16];
+    // C.79b(엔진 58, 블록 자기 ⅓ 롱볼 실패 비용, 마스터 AC 승인): 6시드 평균은 궤적 잡음이 지배(같은 엔진에서 R2 범위만 바꿔 13.99~14.50) → 시드 11~30(20경기) 평균 ≤ 14.1 km
+    // (main C.79d 14.02 · C.79b 14.03 — scripts/diag/c78y-dist.ts). 한 선수 상한 15 km 그대로
+    const seeds = Array.from({ length: 20 }, (_, i) => 11 + i);
     for (const seed of seeds) {
       const result = createMatch(input(seed)).runToEnd();
       let top = 0;
@@ -98,7 +100,7 @@ describe('경기 엔진 코어 (E1)', () => {
       }
       sumTop += top;
     }
-    expect(sumTop / seeds.length).toBeLessThan(14000);
+    expect(sumTop / seeds.length).toBeLessThan(14100);
   });
 });
 
