@@ -1148,3 +1148,4 @@
 - 먼저 읽기: CLAUDE.md, docs/automation.md 0번(맨 위 3줄 필독), 이 문서 8.64 끝부분~8.66, docs/planning-pending.md 146·147, docs/engine-issues.md 미해결 목록.
 - 시작 처리: ① AC(`session_01YVaigKWgUisM6WkGkEWkkY`)에 "AD 준비 완료 + ID"(later, 답장 불필요) ② AC 제목 앞 `draft_` ③ 실행 중 세션에 "보고는 AD(ID)로, 마스터 브랜치 claude/planning-ad, 답장 불필요" — **엔진관리자16 `session_01YVaigLEHnToQ9esAjkHR3D`** ④ list_triggers — persistent_session_id가 AC인 것 delete ⑤ 8.67에 기록·푸시.
 - 엔진관리자16 보고가 오면 처방마다 바로 코드 세션(최대 3개, 파일 안 겹치게)을 연다. 지시문 틀은 docs/session-prompts/C.79d.md(관문 통과분은 마스터 승인 없이 main 푸시·안 된 것 먼저 보고). 다음 패치 이름 C.79e부터, 엔진관리자 다음 번호 17.
+- (10/29 00:31 KST) 엔진관리자16 시작 확인(몰빵 기준 재측정 cust:35 대 균형 200경기 중 → 상대 공격 줄 인원 맞춤 규칙 실험).
