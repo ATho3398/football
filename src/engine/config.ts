@@ -1002,6 +1002,12 @@ export const ENGINE = {
       /** 같은 보정의 모든 성향 몫 (역습 상황 자체 — H1 로 모든 팀의 탈취 뒤 롱볼이 줄어 quick 역습 슈팅 % 가 내려간 만큼). 역습 성향은 counterRunAll + counterRun */
       counterRunAll: 0,
       counterRunFwd: 10,
+      /**
+       * 실험 (엔진관리자15, C.79d P6 조건부 직선 롱볼): 직선 성향 팀의 공중(airPass 초과)·전진 패스 중 ① 오픈 플레이 탈취 뒤 counterWinTime 초 안(전환) 또는
+       * ② 착지점이 상대 진영 directLongX 이상(최종 ⅓)인 것에만 directLong × 판단 성공 확률을 더한다 — 빌드업 '직선' 배수(모든 롱볼 선호) 대신 상황부 선호. 0 = 끔
+       */
+      directLong: 0,
+      directLongX: 0.67,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
