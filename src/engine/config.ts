@@ -406,6 +406,14 @@ export const ENGINE = {
     deepCutP: 0.6,
     deepCutSkill: 0.5,
     /**
+     * 짧은 패스 가로채기 (C.79f 실험 스위치, 엔진관리자17 — 블록 줄 사이 짧은 패스에 수비수가 발을 내민다): 땅볼 패스 길이 < deepCutShortLen m 이면
+     * 패스 선 위 가장 가까운 점 도착이 공보다 deepCutShort 초까지 늦어도 cutter 로 보내고(늦은 만큼 가로채기 확률 × (1 − 늦음/deepCutShort)),
+     * 판정 반경은 deepCutShortRadius m. 0 = 끔(옛 동작, 짧은 패스는 공보다 먼저 닿는 선수가 거의 없어 사실상 안 잡힌다)
+     */
+    deepCutShort: 0,
+    deepCutShortLen: 22,
+    deepCutShortRadius: 2.0,
+    /**
      * 깊은 블록 받는 순간 밀착 (C.76p 가설 2): block/bus 팀의 수신자 압박은 위협 1위 마커를 빼지 않고(마커가 가장 빠르면 마커가 나간다) 간격 deepCloseDownGap m,
      * 수신자가 ST/CF 면 도착 둘째도 착지점에서 우리 골 쪽 deepCloseDownSecond m 로 간다. 둘째 ST(위협 2위 ST/CF)가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark 로 마크
      */
@@ -1174,6 +1182,19 @@ export const ENGINE = {
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
     aerialScale: 16,
+    /**
+     * 직선 수신 (C.79c, 사용자 정의 pending 146 "직선은 받는 쪽 퍼스트 터치·피지컬·공중 경합이 좋아야 하는 선수빨 전술"): 크로스가 아닌 공중볼(롱패스·걷어내기·롱킥)의
+     * 착지 경합에서 차 보낸 팀 선수의 점수 = (1 − recvTouch) × 공중볼 점수 + recvTouch × (볼 컨트롤 recvW[0] + 점프 recvW[1] + 근력 recvW[2] + 키 보정).
+     * 로짓 = (받는 점수 − 수비 공중볼 점수) / recvScale. landingShare(판단의 착지점 몫)는 양 팀 첫 도착 선수의 같은 점수 차 / recvScale × landSkill 을 더한다.
+     * recvTouch 0 · recvScale = aerialScale · landSkill 0 = 옛 동작
+     */
+    recvTouch: 0,
+    recvW: [0.4, 0.3, 0.3] as [number, number, number],
+    recvScale: 16,
+    landSkill: 0,
+    /** 롱볼 퍼스트 터치 (C.79c, duel.ts longTouchApply): 공중 패스 실패 몫 × exp(−touchSkill × (받는 능력 − touchCenter) / 10). 0 = 끔 */
+    touchSkill: 0,
+    touchCenter: 70,
     /**
      * 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B, duel.ts receiveWin): 착지점이 상대 박스 안이고 contestDist m 안에 상대 필드 선수가 있으면
      * P(받음) = L1((볼 컨트롤 0.5 + 근력 0.3 + 민첩 0.2 − (마킹 0.5 + 태클 0.3 + 수비 포지셔닝 0.2)) / receiveScale + receiveBias). 판단(candidates)과 판정(resolveFlight)이 같은 식

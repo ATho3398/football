@@ -6,7 +6,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
 import * as duel_ from './duel';
-const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
+const { aerialScore, dribbleProb, duelTail, longRecvScore, longRecvWin, receiveWin } = duel_;
 import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
@@ -747,6 +747,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       return;
     }
   }
+  const attScore = fl.fromCross ? aerialScore : longRecvScore;
   let bestA: Agent | null = null;
   let bestD: Agent | null = null;
   let nA = 0;
@@ -760,7 +761,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     if (d > R) continue;
     if (a.team === att) {
-      if (!bestA || aerialScore(a) > aerialScore(bestA)) bestA = a;
+      // 크로스가 아닌 공중볼(롱킥·걷어내기)은 차 보낸 팀이 퍼스트 터치·근력·점프로 받는다 (C.79c, landingShare 와 같은 점수)
+      if (!bestA || attScore(a) > attScore(bestA)) bestA = a;
     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
   }
   if (!bestA && !bestD) {
@@ -783,7 +785,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
     const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
-    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
+    const pA0 = duelTail(1 / (1 + Math.exp(-((attScore(bestA) - aerialScore(bestD)) / (fl.fromCross ? PR.aerialScale : PR.recvScale) + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
@@ -864,10 +866,12 @@ export function deepCut(s: SimState, px: number, py: number): boolean {
       tm.cutIdx = -1;
       continue;
     }
-    if (segDist(a.x, a.y, px, py, b.x, b.y)[0] > O.deepCutRadius) continue;
+    // 짧은 패스 (C.79f 실험): 판정 반경 deepCutShortRadius, 확률 × cutMul
+    const short = O.deepCutShort > 0 && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) < O.deepCutShortLen;
+    if (segDist(a.x, a.y, px, py, b.x, b.y)[0] > (short ? O.deepCutShortRadius : O.deepCutRadius)) continue;
     // 판정은 한 비행에 1회: cutFlight 는 남기고 cutIdx 만 −1 (오프볼이 같은 비행에 다시 보내지 않게)
     tm.cutIdx = -1;
-    const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100);
+    const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100) * (short ? tm.cutMul : 1);
     if (r(s, a.idx, Purpose.Intercept, 2) < p) {
       giveBall(s, a, 'intercept');
       return true;
@@ -910,7 +914,7 @@ export function resolveFlight(s: SimState): void {
             s.teams[1].stats.aerials++;
             rc.stats.aerialDuels++;
             def.stats.aerialDuels++;
-            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
+            if (r(s, rc.idx, Purpose.Aerial, 1) >= longRecvWin(rc, def)) {
               def.stats.aerialsWon++;
               giveBall(s, def, 'gain');
               return;

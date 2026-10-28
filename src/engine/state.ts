@@ -262,6 +262,8 @@ export interface TeamState {
   /** 깊은 블록 비행 중 가로채기 (C.76p): 이 비행(cutFlight)의 패스 선에 들어간 선수 idx. 판정은 한 비행에 1회(판정 뒤 cutIdx −1, cutFlight 는 유지) */
   cutFlight: Flight | null;
   cutIdx: number;
+  /** 짧은 패스 가로채기 (C.79f 실험): 이번 cutter 의 가로채기 확률 배수 (늦게 닿는 만큼 깎임, 보통 1) */
+  cutMul: number;
   /** 수비 상황 판정 (C.75c): 지금 상황과 그 시작 시각, 바뀌려는 후보와 그 시작 시각. '-' = 우리 공 */
   sit: DefSit;
   sitSince: number;

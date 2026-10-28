@@ -2003,7 +2003,7 @@ function isDeepBlock(s: SimState, team: 0 | 1): boolean {
  * 수신자 압박 담당·위협 1위 마커·GK·면제를 뺀 선수 중, 지금 공 위치 → 착지점 선분 위 가장 가까운 점(선에서 deepCutReach m 안)에
  * 공보다 먼저 닿는 선수가 있으면 도착이 가장 빠른 1명과 그 점. 정해지면 팀 상태(cutFlight·cutIdx)에 적어 sim 의 deepCut 판정 대상이 된다. 난수 없음
  */
-const deepCutCache = new WeakMap<SimState, { tick: number; pick: { a: Agent; x: number; y: number } | null }[]>();
+const deepCutCache = new WeakMap<SimState, { tick: number; pick: { a: Agent; x: number; y: number; mul: number } | null }[]>();
 function deepCutAgent(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
   let cache = deepCutCache.get(s);
   if (!cache) deepCutCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
@@ -2015,10 +2015,11 @@ function deepCutAgent(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Ag
     const tm = s.teams[team];
     tm.cutFlight = s.ball.flight;
     tm.cutIdx = c.pick.a.idx;
+    tm.cutMul = c.pick.mul;
   }
   return c.pick;
 }
-function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
+function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number; mul: number } | null {
   if (!isDeepBlock(s, team)) return null;
   const b = s.ball;
   const fl = b.flight;
@@ -2033,7 +2034,9 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
   if (remain <= 0.05) return null;
   const cd = closeDownPlan(s, team, gx, gy);
   const marker = threatMarker(s, team);
-  let pick: { a: Agent; x: number; y: number } | null = null;
+  // 짧은 패스 (C.79f 실험): 늦게 닿아도 deepCutShort 초 안이면 발을 내민다 (확률은 늦은 만큼 깎임)
+  const slack = O.deepCutShort > 0 && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) < O.deepCutShortLen ? O.deepCutShort : 0;
+  let pick: { a: Agent; x: number; y: number; mul: number } | null = null;
   let bt = Infinity;
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== team || o.line === 0 || o === cd.pick || o === cd.second || o === marker || exemptOf(s, o)) continue;
@@ -2042,10 +2045,11 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
     const px = b.x + (fl.toX - b.x) * t;
     const py = b.y + (fl.toY - b.y) * t;
     const ta = arrival(o, px, py);
-    if (ta > remain * t) continue;
+    const late = ta - remain * t;
+    if (late > slack) continue;
     if (ta < bt || (ta === bt && pick && o.idx < pick.a.idx)) {
       bt = ta;
-      pick = { a: o, x: px, y: py };
+      pick = { a: o, x: px, y: py, mul: late > 0 ? 1 - late / slack : 1 };
     }
   }
   return pick;
