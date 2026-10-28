@@ -1,0 +1,9 @@
+너는 엔진 코드 세션 "44h단계_직선 = 빌드업 보통 + 전환 롱볼 (C.79d)"이다(Opus 5.5, 노력도 높음). 마스터는 AC(session_01YVaigKWgUisM6WkGkEWkkY, claude/planning-ac). 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다(0번 맨 위 3줄 필독). 작업 브랜치 `claude/c79d-direct` — origin/main 최신에서 시작, 시작 때 origin/claude/engine-manager-15(d26480b) merge. main 푸시 전 origin/main merge.
+
+근거: `docs/engine-diagnosis-c79d.md`(엔진관리자15) §4.1 P6. 직선 대 균형 −0.38 중 −0.30이 빌드업 '직선'(style 2) 단계 자체 — 이 엔진에서 롱볼은 그 자체로 손해, 직선 고유 로직 몫 ≈ 0. 처방 **P6**: `TENDENCY_LEVELS.direct` [2,1,2,2] → **[2,1,1,2]**(빌드업 보통) + **전환 롱볼만 판단 보정** `decide.bias.directLong` **0.1 또는 0.15만**(직선 성향 · 오픈 플레이 탈취 뒤 6초 · 공중 전진 패스 · +값 × 판단 성공 확률, 실행 불변). 패치 `scripts/diag/c79d-switches.patch`의 **P6 부분만** 들여오고 P1~P5는 들여오지 말 것. 0.6은 롱% 37 폭주 — 금지.
+관문(480·양방향 측정기 + c78z-fit): 직선 행 Δs ≥ +0.10 · 직선 > 블록 ≥ +0.10 · 티키 > 직선 ≥ +0.05 · 게겐 > 직선 · 역습 > 직선 방향 유지 · 다른 행 ±0.05 · 직선 롱% 균형보다 높게(정체성 유지, 탐침 18~19 대 14) · **quick 득점 1.48 ± 0.05** · 장면 전부(특히 ⑯ 롱볼 착지).
+가드: Δ±8 · 득점 분포 · 평점 · engine:check · balance:check(배포 차단) · 결정성 · 순간이동 0 · 2초 · 이동 거리(C.78w 기준). 성향 기본 단계 변경이라 AI 팀 전술·전술 화면 기본값도 같이 바뀜 — 확인.
+병렬: C.79b(claude/c79b-interaction — offball 밀집·onball candidates 걷어내기/실패 비용·keeper)가 돈다. 너는 tactics.ts TENDENCY_LEVELS·config decide.bias·bias 적용 지점만. onball 같은 함수를 건드리면 merge로 풀고, main 푸시는 직렬(먼저 끝난 쪽 먼저, 뒤는 merge 후 재검증).
+측정 운영: main 병합 시작 1번 + 마지막 1번 · **워커 풀 동시 2개까지(3개면 프로세스 죽음)** · 긴 측정 턴 안 10분 덩어리 · balance:check 마지막 1번(60분 넘으면 다른 관문 통과 시 main 푸시하고 CI에) · 대기 send_later 한 번 · scratchpad · 푸시 전 충돌 표시 검사.
+main 푸시: 관문 통과하면 AC 승인 없이 바로(planning-ac docs·engine-manager-15 docs 병합, 푸시 직전 main CI 확인). 미달이면 되돌리고 보고.
+예산 **2.5시간·12달러**. PATCH_LABEL 'C.79d', STAGE_LABEL 그대로, ENGINE_VERSION +1(main 최신 +1), BALANCE 필요 시 +1. 부록 C.79d, engine-issues 미해결 3 갱신. 끝나면 AC에 send_message로 보고(안 된 것 먼저). CI 성공은 보내지 않는다.
