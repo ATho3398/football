@@ -1147,5 +1147,7 @@
 - 제목 `AD_축구 커리어 게임 마스터`, 브랜치 `claude/planning-ad`(planning-ac 최신에서). 로그는 8.67에.
 - 먼저 읽기: CLAUDE.md, docs/automation.md 0번(맨 위 3줄 필독), 이 문서 8.64 끝부분~8.66, docs/planning-pending.md 146·147, docs/engine-issues.md 미해결 목록.
 - 시작 처리: ① AC(`session_01YVaigKWgUisM6WkGkEWkkY`)에 "AD 준비 완료 + ID"(later, 답장 불필요) ② AC 제목 앞 `draft_` ③ 실행 중 세션에 "보고는 AD(ID)로, 마스터 브랜치 claude/planning-ad, 답장 불필요" — **엔진관리자16 `session_01YVaigLEHnToQ9esAjkHR3D`** ④ list_triggers — persistent_session_id가 AC인 것 delete ⑤ 8.67에 기록·푸시.
+- **C.79e(줄 인원 맞춤, 엔진관리자16 처방 A2) 진행 중** — AD 시작 처리 ③에 C.79e 세션도 포함.
 - 엔진관리자16 보고가 오면 처방마다 바로 코드 세션(최대 3개, 파일 안 겹치게)을 연다. 지시문 틀은 docs/session-prompts/C.79d.md(관문 통과분은 마스터 승인 없이 main 푸시·안 된 것 먼저 보고). 다음 패치 이름 C.79e부터, 엔진관리자 다음 번호 17.
 - (10/29 00:31 KST) 엔진관리자16 시작 확인(몰빵 기준 재측정 cust:35 대 균형 200경기 중 → 상대 공격 줄 인원 맞춤 규칙 실험).
+- (10/29 02:1x KST) **엔진관리자16 중간 1(몰빵)**: 안 된 것 — 사용자 전제 '수비 인원 부족'은 이 엔진에선 아님(박스 수비 5.2명인데 수신 44%가 3 m 안 무마크, 마크 인원 늘려도 거의 안 변함) · 몰빵 빌드업 실패 없음(customProblem이 진짜 몰빵을 못 만듦) · 뒷공간 슛이 15 m xG 0.03짜리(C.78p 슛 판단 보정 + 몰기 상실이 GK를 수비수로 셈). 된 것 — **A2 줄 인원 맞춤 내려앉기**(lineMatch 1·문턱 2): cust35 +0.47→+0.08·득점 1.47·이동 거리 13.93·장면 ✓, 55% → **C.79e 엶**. 후속 carryShot·carryGk(뒷공간 처벌) 측정 중. 미해결 6: 가림 판단 몫 0이어도 득점 +0.29(실행 몫) → 득점 가드 상향 결정 없인 처방 없음.
