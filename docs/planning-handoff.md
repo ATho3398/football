@@ -1147,7 +1147,7 @@
 - 제목 `AD_축구 커리어 게임 마스터`, 브랜치 `claude/planning-ad`(planning-ac 최신에서). 로그는 8.67에.
 - 먼저 읽기: CLAUDE.md, docs/automation.md 0번(맨 위 3줄 필독), 이 문서 8.64 끝부분~8.66, docs/planning-pending.md 146·147, docs/engine-issues.md 미해결 목록.
 - 시작 처리: ① AC(`session_01YVaigKWgUisM6WkGkEWkkY`)에 "AD 준비 완료 + ID"(later, 답장 불필요) ② AC 제목 앞 `draft_` ③ 실행 중 세션에 "보고는 AD(ID)로, 마스터 브랜치 claude/planning-ad, 답장 불필요" — **엔진관리자16 `session_01YVaigLEHnToQ9esAjkHR3D`** ④ list_triggers — persistent_session_id가 AC인 것 delete ⑤ 8.67에 기록·푸시.
-- (갱신 10/29 04:44) C.79e 배포 완료. 엔진관리자17 끝(draft_). **C.79f `session_01YVaigJk5rUvwCGpAJmxEmS` 진행 중**(lineMatchMin 3) — AD 시작 처리 ③에 C.79f 포함. (옛 줄:) C.79e(줄 인원 맞춤, 엔진관리자16 처방 A2) 진행 중 `session_01YVaigHkshjWFDbp3AK9AoG`** — AD 시작 처리 ③에 C.79e 세션도 포함.
+- (갱신 10/29 04:44) C.79e 배포 완료. 엔진관리자17 끝(draft_). C.79f 끝(실패). **C.79g `session_01YVaigHyNnbVBTN8C8MCnJS` 진행 중**(몰빵 전용 조건) — AD 시작 처리 ③에 C.79g 포함. (옛 줄:) C.79e(줄 인원 맞춤, 엔진관리자16 처방 A2) 진행 중 `session_01YVaigHkshjWFDbp3AK9AoG`** — AD 시작 처리 ③에 C.79e 세션도 포함.
 - 엔진관리자16 보고가 오면 처방마다 바로 코드 세션(최대 3개, 파일 안 겹치게)을 연다. 지시문 틀은 docs/session-prompts/C.79d.md(관문 통과분은 마스터 승인 없이 main 푸시·안 된 것 먼저 보고). 다음 패치 이름 C.79e부터, 엔진관리자 다음 번호 17.
 - (10/29 00:31 KST) 엔진관리자16 시작 확인(몰빵 기준 재측정 cust:35 대 균형 200경기 중 → 상대 공격 줄 인원 맞춤 규칙 실험).
 - (10/29 02:1x KST) **엔진관리자16 중간 1(몰빵)**: 안 된 것 — 사용자 전제 '수비 인원 부족'은 이 엔진에선 아님(박스 수비 5.2명인데 수신 44%가 3 m 안 무마크, 마크 인원 늘려도 거의 안 변함) · 몰빵 빌드업 실패 없음(customProblem이 진짜 몰빵을 못 만듦) · 뒷공간 슛이 15 m xG 0.03짜리(C.78p 슛 판단 보정 + 몰기 상실이 GK를 수비수로 셈). 된 것 — **A2 줄 인원 맞춤 내려앉기**(lineMatch 1·문턱 2): cust35 +0.47→+0.08·득점 1.47·이동 거리 13.93·장면 ✓, 55% → **C.79e 엶**. 후속 carryShot·carryGk(뒷공간 처벌) 측정 중. 미해결 6: 가림 판단 몫 0이어도 득점 +0.29(실행 몫) → 득점 가드 상향 결정 없인 처방 없음.
@@ -1160,3 +1160,4 @@
 - (10/29 05:4x KST) **엔진관리자17 최종**(70d1c9c, 57분): 안 된 것 — 블록 상호작용 두 칸·직선/블록 **처방 없음**(레버 5개 전부 폐기; 다음 축 R3 잔류 출구+첫 패스 롱볼+출구 질주 30% — 보류) · 직선/블록은 반대 전환 기전 없음 · 직선 선수빨 프로필 고쳐 −0.07·E 묶음 −0.03(병목 = 받은 뒤 슛 전환) 처방 없음. **발견: C.79e가 상성을 움직임**(게겐/직선 +0.26→+0.01·게겐>티키 −0.19→−0.07·순환 G>T>D>B +0.31→+0.10 ✗, 대신 역습>균형 ✓) → 권장 ② lineMatchMin 3 재측정 → **C.79f 엶**(2h·10달러). 엔진관리자17 draft_.
 - (10/29 05:42 KST) **C.79f 시작 `session_01YVaigJk5rUvwCGpAJmxEmS`**(claude/c79f-linematch3). 엔진관리자17 draft_(18.9달러). 누수 1/5.
 - (10/29 06:1x KST) **C.79f 실패(미배포)**(765e700, 32분): 문턱 3 → 몰빵 +0.37 ✗(꺼진 것과 같음)·게겐>직선 +0.13·순환 +0.23(근소 ✗)·게겐>티키 ✓·역습>균형·티키≥역습 ✗. 문턱 2.5 = 3과 같음. → 다음 추천 **C.79g 몰빵 전용 조건**(A 공격 줄 절대 ≥5 · B 초과−1 · C 상대 수비 ≤2) 엶.
+- (10/29 06:15 KST) **C.79g 시작 `session_01YVaigHyNnbVBTN8C8MCnJS`**(claude/c79g-linematch-abs, 3h·15달러). C.79f draft_(1.2달러). 누수 2/5.
