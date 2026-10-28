@@ -6689,6 +6689,30 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 가드: typecheck ✓ · test 152파일 1268 ✓(장면 전부·결정성·순간이동·경기 계산 2초 포함; 기준값 변경 = 약팀 큰 차 성향 목록 역습 제외(H2), 이동 거리 테스트 시드 평균) · engine:check 경량 가드 모두 ✓(득점 1.48 · 12 m 밖 선방 상황 고정 88.5 · 순간이동 0) · **balance:check 회귀 가드 19/19 ✓**(로컬, 13:36~15:0x).
 - **새 화면**: 없음(역습 설명 문구만).
 
+### C.79d 44h단계_직선 = 빌드업 보통 + 전환 롱볼 (마스터 AC `docs/session-prompts/C.79d.md`, Opus 1차, 근거 `docs/engine-diagnosis-c79d.md` §4.1 P6): **① `TENDENCY_LEVELS.direct` [2,1,2,2] → [2,1,1,2](빌드업 '직선' → '혼합') ② 판단 보정 `decide.bias.directLong` 0.1 — 직선 성향 · 오픈 플레이 탈취 뒤 `TENDENCY.counterWinTime` 6초 안 · 공중(airPass 초과) 전진 패스에만 + directLong × 판단 성공 확률(실행·성공 확률 불변). 직선 행 Δs +0.12 · 직선 > 블록 0.00 → +0.14 · 롱% 17~20(균형 14) 유지** (ENGINE_VERSION 56 → 57; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
+
+- 브랜치 `claude/c79d-direct`(origin/main 54c4be8 + engine-manager-15 d26480b 문서·도구, 마지막에 origin/main ee599c1(C.79b 문서 — 엔진 코드 무변경) 병합). `c79d-switches.patch` 는 **P6 부분만** 손으로 옮김(최종 ⅓ 조건 ② 는 지움 — 진단서 권고 X=2 와 같은 동작). engine-manager-15 가 `src` 에 넣어 둔 P1~P5·C.79c 스위치(기본 0)는 들여오지 않음(`src` 는 main 기준).
+- 측정 `npx vite-node scripts/diag/c78s-matrix.ts -- 480 only=direct/balanced,direct/block,direct/tikitaka,direct/gegenpress,direct/counter,direct/block@0020 [decide.bias.directLong=0.15]` → 기준표(`scripts/diag/c78y-base-matrix.json`)의 직선 6칸을 바꿔 끼워 `c78z-fit.ts`. 0.1 값은 엔진관리자15 P6f(`c79d-P6f-matrix.json`)와 칸마다 같은 값으로 재현(스위치 기본 0 이 지문 불변이었음을 확인).
+
+| 칸 (A 기준, 480 양방향 ±SE) | 기준(C.78y) | **0.1 (채택)** | 0.15 | 관문 |
+|---|---|---|---|---|
+| 직선 대 균형 | −0.29 | **−0.06** (±0.07) | −0.15 | — |
+| 직선 > 블록 | 0.00 | **+0.14** (±0.07) | +0.12 | ≥ +0.10 ✓ |
+| 티키 > 직선 | +0.24 | **+0.07** (±0.06) | +0.16 | ≥ +0.05 ✓ |
+| 게겐 > 직선 | +0.14 | **+0.26** (±0.06) | +0.14 | 방향 ✓ |
+| 역습 > 직선 | +0.52 | **+0.17** (±0.07) | +0.13 | 방향 ✓ |
+| 직선 대 버스 | −0.04 | +0.01 (±0.07) | +0.05 | — |
+| 행 강도 Δs | | 직선 **+0.12** · 균형 −0.03 · 티키 −0.02 · 게겐 +0.02 · 역습 −0.05 · 블록 −0.02 · 버스 −0.01 | 직선 +0.12 · 역습 **−0.06 ✗** · 나머지 ±0.02 | 직선 ≥ +0.10 ✓ · 다른 행 ±0.05 ✓(0.1) |
+| 상호작용 RMS · 순환 G>T>D>B | 0.090 · +0.32 | 0.070 · +0.29 | 0.064 · +0.36 | |
+| 롱% 직선/상대 | 21/14 (대 균형) | 18/14 · 19/22 · 19/8 · 19/13 · 17/18 · 20/22 | — | 균형(14)보다 높게 ✓ |
+
+- **0.1 채택**: 0.15 는 직선 > 블록·게겐 > 직선이 줄고 역습 행 −0.06 으로 "다른 행 ±0.05" 를 넘는다. 0.6 폭주(진단서 §3.2c)는 재지 않음(지시 금지).
+- **가드**: typecheck ✓ · test 152 파일 1268 ✓(장면 전부 — ⑯ 롱볼 착지 포함 · 결정성 · 순간이동 · 이동 거리 C.78w 기준 · 2초) · quick 600(`SWEEP_N=600 SWEEP_D=100 SWEEP_D15=0 SWEEP_LEAGUE=0`) 득점 **1.46**(1.48 ± 0.05 ✓; 균형끼리라 이 패치가 닿지 않는 경로 — 보정은 직선 성향 전용) · Δ+8 2.04 / Δ−8 0.90 ✓ · 경기 1087 ms ✓ · 평점·득점 분포는 engine:check·balance:check 결과(아래).
+- **성향 기본 단계 변경이 닿는 곳**: 전술 화면·하프타임에서 성향을 '직선'으로 고르면 기본 빌드업이 '혼합'(세부 전술 초기화 값, `tendencyLevels`)으로 나온다 — 이미 저장된 내 전술 `levels` 는 그대로. **AI 팀 전술은 빌드업이 E.18 A5 연속 값(`TEAM_STYLE` / 레이팅 식)이라 단계 변경이 닿지 않고**, 직선 성향 AI 팀은 전환 롱볼 판단 보정만 받는다. 언더독 전환(`setup.ts`)은 블록·역습으로만 바꿔 직선 기본값을 쓰지 않는다.
+- 디자인 없는 새 화면·패널: 없음.
+- 엔진 문제 기록: `docs/engine-issues.md` 미해결 3 에 C.79d 결과 추가.
+@@GUARDS@@
+
 ### C.78y 44h단계_상성 측정 480·롱볼 판단=실행(공중)·역습 보정 (마스터 AC `docs/session-prompts/C.78y.md`, Opus 1차): **① 상성 측정기 개선 배포 — `c78s-matrix` 칸당 480경기 · 양방향(같은 시드에서 A 가 로스터 a 인 경기와 b 인 경기를 짝, 홈/원정도 짝 안에서 바꿈) · SE = 시드 짝 평균의 표준오차, 이 측정기로 main(C.78w) 21쌍 새 기준표 ② H1 공중만(판단 패스 실패 비용 = 실행 식) + ③ 역습 판단 보정(탈취 뒤 전진 롱·침투) — 관문 일부(블록 > 티키 · 티키 ≥ 역습 · 게겐 > 역습 · 역습 > 균형 · quick 역습 슈팅 % ✓)지만 블록 ≥ 게겐 ✗ · 티키 > 직선 ✗ · 균형 대 직선 ✗ 에 가드 득점 1.48 → 1.28 ✗ · 이동 거리 14.20 km ✗ → 되돌림(코드 `scripts/diag/c78y-h1-counter.patch`)** (ENGINE_VERSION 56 그대로 — `src/engine` 변경 0; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 
 - 브랜치 `claude/c78y-matrix`(origin/main 16275e3 + origin/claude/c78x-longball 병합). 측정 `npx vite-node scripts/diag/c78s-matrix.ts -- 480`(기본, 4 코어 중 워커 2 로 약 45분; `dirs=1` = 옛 방식, `only=A/B,…` 칸 나누기). 진단 도구 `scripts/diag/c78y-dist.ts`(이동 거리 테스트 팀 시드 평균, H1·보정 스위치) · `scripts/diag/c78y-swing.ts`(장면 ㉔·㉕ 값).
