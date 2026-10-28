@@ -65,7 +65,7 @@ const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
   tikitaka: [3, 2, 0, 2],
   gegenpress: [3, 2, 1, 1],
   counter: [2, 1, 1, 1],
-  direct: [2, 1, 2, 2],
+  direct: [2, 1, 1, 2],
   block: [1, 0, 2, 0],
 };
 

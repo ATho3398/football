@@ -697,7 +697,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
-    u = weight(u, passW) + cBonus(pj, rx - ax);
+    // 직선 전환 롱볼 (C.79d): 직선 성향 · 오픈 플레이 탈취 뒤 counterWinTime 초 안 · 공중(airPass 초과) 전진 패스에만 판단 보정 (실행 불변)
+    const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
+      && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open' ? ENGINE.decide.bias.directLong : 0;
+    u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj;
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;

@@ -966,6 +966,11 @@ export const ENGINE = {
       cross: 0,
       clear: 0,
       hold: 0,
+      /**
+       * C.79d: 직선 전환 롱볼 — 직선 성향 팀의 공중(airPass 초과)·전진 패스 중 오픈 플레이 탈취 뒤 TENDENCY.counterWinTime 초 안인 것에만 directLong × 판단 성공 확률.
+       * 빌드업 '직선' 배수(모든 롱볼 선호, 직선 성향 기본 단계에서 뺌) 대신 전환 상황부 선호. 0 = 끔
+       */
+      directLong: 0.1,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

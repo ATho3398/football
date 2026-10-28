@@ -1,7 +1,7 @@
 // @ts-nocheck — 진단 스크립트 (엔진관리자12, 엄격 타입 검사 제외)
 // 진단 (엔진관리자12, C.78s 질문 3): 선수 적합도 효과 — 같은 OVR(포지션 OVR 정확값 보존)에서 성향에 맞는 능력치를 +d, 나머지를 그만큼 내린 선수단(맞음)과
 // 거꾸로(안 맞음)를 균형 상대(조정 없음)와 붙인다. 대조: 같은 능력치 이동을 균형 전술로 했을 때 차이. 선수빨 = (X 맞음 − X 안 맞음) − (균형 맞음_X − 균형 안 맞음_X).
-// 실행: npx vite-node scripts/diag/c78s-fit.ts -- [경기수=200] [d=10] [성향…]   (기본 tikitaka counter direct block gegenpress)
+// 실행: npx vite-node scripts/diag/c78s-fit.ts -- [경기수=200] [d=10] [성향…] [경로=값 …]   (기본 tikitaka counter direct block gegenpress)
 import type { AttrMod, MatchJob, MatchOut } from '../engine/job';
 import { runJobs } from '../engine/pool';
 import { std } from '../engine/suite';
@@ -15,9 +15,11 @@ import type { Tendency } from '../../src/engine/types';
 
 const all = process.argv.slice(2).filter((a) => a !== '--');
 let n = 200, d = 10;
+const overrides: Record<string, number> = {}; // C.79c: 경로=값 상수 덮어쓰기 (c78s-matrix 와 같은 표기)
 const tends: Tendency[] = [];
 for (const a of all) {
   if (a.startsWith('d=')) d = Number(a.slice(2));
+  else if (a.includes('=')) { const [k, v] = a.split('='); overrides[k!] = Number(v); }
   else if (/^\d+$/.test(a)) n = Number(a);
   else tends.push(a as Tendency);
 }
@@ -75,7 +77,7 @@ for (const st of sets) for (let k = 0; k < n; k++) {
   const op = std('b', seed, 75, '4-4-2', tacticsOf('balanced'));
   const meTeam = (k % 2 ? 0 : 1) as 0 | 1;
   const mods = fitMods(meTeam, 'a', seed, 75, st.tend, st.sign, devs);
-  jobs.push(meTeam === 0 ? { kind: 'match', seed, neutral: true, home: me, away: op, mods } : { kind: 'match', seed, neutral: true, home: op, away: me, mods });
+  jobs.push(meTeam === 0 ? { kind: 'match', seed, neutral: true, home: me, away: op, mods, overrides } : { kind: 'match', seed, neutral: true, home: op, away: me, mods, overrides });
 }
 const outs = await runJobs<MatchOut>(jobs, { label: `적합도 ${jobs.length}경기` });
 const gd = sets.map((_, i) => {
@@ -93,5 +95,12 @@ tends.forEach((t, i) => {
   const inter = a.v.map((x, k) => x - b.v[k]! - c.v[k]! + e.v[k]!);
   const im = inter.reduce((s, x) => s + x, 0) / n, ise = Math.sqrt(inter.reduce((s, x) => s + (x - im) ** 2, 0) / n / n);
   console.log(`| ${t} | ${a.mean.toFixed(2)} | ${b.mean.toFixed(2)} | ${dx.toFixed(2)} (±${se(a.v, b.v).toFixed(2)}) | ${c.mean.toFixed(2)} | ${e.mean.toFixed(2)} | ${db.toFixed(2)} | ${im >= 0 ? '+' : ''}${im.toFixed(2)} (±${ise.toFixed(2)}) | ${a.gf.toFixed(2)} |`);
+});
+// C.79c: 세트별 내 팀 롱패스 · 성공률 · 슛 · 공중볼 경합 (STATS=1)
+if (process.env.STATS) sets.forEach((st, i) => {
+  const xs = outs.slice(i * n, (i + 1) * n);
+  const me = (m: MatchOut, k: number) => m.team[k % 2 ? 0 : 1]!;
+  const avg = (f: (t: any) => number) => (xs.reduce((t, m, k) => t + f(me(m, k)), 0) / n).toFixed(2);
+  console.log(`${st.tac}(${st.tend}) ${st.sign > 0 ? '맞음' : '안맞음'}: 롱 ${avg((t) => t.longPasses)} 성공 ${avg((t) => t.longCompleted)} 슛 ${avg((t) => t.shots)} 공중 ${avg((t) => t.aerials)} 득점 ${gd[i]!.gf.toFixed(2)}`);
 });
 process.exit(0);
