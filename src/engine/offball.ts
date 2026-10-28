@@ -556,6 +556,60 @@ export function updateOffball(s: SimState, a: Agent): void {
       return;
     }
   }
+  // 실험 (엔진관리자15, C.79d P5b): 세컨드볼 압박 — 우리 롱볼을 상대가 헤더로 걷어낸 비행 중 가까운 2선 2명은 걷어낸 공 착지점으로
+  if (O.directSecondClear > 0 && fl && fl.kind === 'clear' && a.line === 2 && s.agents[fl.passer]?.team !== a.team
+    && Math.abs(fl.t0 - s.teams[a.team].longLossT) <= 0.05 && s.teams[a.team].tactics.tendency === 'direct') {
+    const mids = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 2)
+      .sort((x, y) => dist(x.x, x.y, fl.toX, fl.toY) - dist(y.x, y.y, fl.toX, fl.toY));
+    const k = mids.indexOf(a);
+    if (k >= 0 && k < 2) {
+      a.tx = clamp(fl.toX - dir * (k === 0 ? 0 : 5), 1, L - 1);
+      a.ty = clamp(fl.toY + (k === 0 ? 0 : 3), 1, W - 1);
+      a.urgent = true;
+      return;
+    }
+  }
+  // 실험 (엔진관리자15, C.79d P4): 직선 앞 주자 — 우리 롱볼이 떠 있거나 막 받았으면(directRunnerHold 초) 받는 선수가 아닌 공격수 directRunner 명은 착지점(받은 선수) 앞 자리로
+  if (O.directRunner > 0 && a.line === 3 && s.teams[a.team].tactics.tendency === 'direct') {
+    const tm = s.teams[a.team];
+    const flying = fl && fl.kind === 'long' && !fl.fromCross && s.agents[fl.passer]?.team === a.team && fl.receiver !== a.idx ? fl : null;
+    const rc = !flying && tm.longRecvIdx >= 0 && tm.longRecvIdx !== a.idx && s.t - tm.longRecvT <= O.directRunnerHold ? s.agents[tm.longRecvIdx] : undefined;
+    const held = rc && rc.team === a.team && (b.owner === rc.idx || b.reserve?.idx === rc.idx) ? rc : null;
+    const px = flying ? flying.toX : held ? held.x : NaN;
+    const py = flying ? flying.toY : held ? held.y : NaN;
+    if (Number.isFinite(px)) {
+      const target = flying ? flying.receiver : held!.idx;
+      const fwds = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 3 && o.idx !== target)
+        .sort((x, y) => dist(x.x, x.y, px, py) - dist(y.x, y.y, px, py));
+      const k = fwds.indexOf(a);
+      if (k >= 0 && k < O.directRunner) {
+        const line = offsideLine(s, a.team);
+        const [lnx] = [line];
+        const [pnx, pny] = toNorm(px, py, dir);
+        const nx = Math.min(lnx - 0.5 / L, pnx + O.directRunnerAhead / L);
+        const ny = clamp(pny + (k % 2 === 0 ? 1 : -1) * (a.sy >= 0.5 ? 1 : -1) * (O.directRunnerSide / W), 0.03, 0.97);
+        [a.tx, a.ty] = toPitch(nx, ny, dir);
+        a.urgent = true;
+        return;
+      }
+    }
+  }
+  // 실험 (엔진관리자15, C.79d P2): 직선 레이오프 지원 — 우리 롱볼을 받은 선수가 공을 갖고 있는 directLayoff 초 동안 가까운 2선 2명은 그 선수 뒤·옆 자리로
+  if (O.directLayoff > 0 && a.line === 2 && s.teams[a.team].tactics.tendency === 'direct') {
+    const tm = s.teams[a.team];
+    const rc = tm.longRecvIdx >= 0 ? s.agents[tm.longRecvIdx] : undefined;
+    if (rc && rc.team === a.team && rc !== a && s.t - tm.longRecvT <= O.directLayoff && (b.owner === rc.idx || b.reserve?.idx === rc.idx)) {
+      const mids = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 2)
+        .sort((x, y) => dist(x.x, x.y, rc.x, rc.y) - dist(y.x, y.y, rc.x, rc.y));
+      const k = mids.indexOf(a);
+      if (k >= 0 && k < 2) {
+        a.tx = clamp(rc.x - dir * O.directLayoffBack, 1, L - 1);
+        a.ty = clamp(rc.y + (k === 0 ? -1 : 1) * O.directLayoffSide, 1, W - 1);
+        a.urgent = true;
+        return;
+      }
+    }
+  }
 
   const attacking = s.possTeam === a.team;
   const [bnx, bny] = ballNorm(s, a.team);
@@ -563,6 +617,16 @@ export function updateOffball(s: SimState, a: Agent): void {
   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
   if (attacking) attackTarget(s, a, dir, bnx, bny);
   else defendTarget(s, a, dir, bnx, bny);
+}
+
+/** 직선 타깃 ST (실험 C.79d P1): 헤더 + 근력이 가장 높은 공격수 — onball targetForward 와 같은 식(순환 import 를 피해 여기 둔다) */
+function directTargetOf(s: SimState, team: 0 | 1): Agent | null {
+  let best: Agent | null = null;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line !== 3) continue;
+    if (!best || o.attrs.heading + o.attrs.strength > best.attrs.heading + best.attrs.strength) best = o;
+  }
+  return best;
 }
 
 function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
@@ -623,6 +687,10 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) a.runUntil = s.t + O.runSeconds;
   }
   let running = s.t < a.runUntil;
+  // 실험 (엔진관리자15, C.79d P1): 직선 타깃 ST 어깨 대기 — 우리 공이 자기 진영일 때 타깃 ST 는 오프사이드 라인 − directShoulderGap m 에 머문다(내려와 받기·지원 간격·공 쪽 당김 제외)
+  const shoulder = O.directShoulder > 0 && a.line === 3 && !running && !!owner && owner.team === a.team && owner !== a && bnx < O.directShoulderFrom
+    && s.teams[a.team].tactics.tendency === 'direct' && directTargetOf(s, a.team) === a;
+  if (shoulder) nx = Math.max(nx, line - O.directShoulderGap / L);
   // 라인을 타는 정확도: 능력치가 낮을수록 라인보다 앞에 설 확률이 높다
   const sigma = ((100 - a.attrs.offTheBall) * O.offsideSigma) / L;
   const n0x = nx;
@@ -733,7 +801,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const sk = 1 + F.styleSupport * (0.5 - s.teams[a.team].tactics.style);
   let supMin = (tiki ? TENDENCY.tikiSupport[0] : O.supportMin) * sk;
   const supMax = (tiki ? TENDENCY.tikiSupport[1] : O.supportMax) * sk;
-  if (owner && owner.team === a.team && owner !== a && !job && !wideJob) {
+  if (owner && owner.team === a.team && owner !== a && !job && !wideJob && !shoulder) {
     // 압박받는 소유자 (C.78g): 가장 가까운 상대가 supportPressDist m 안이면 가까울수록 최소 간격을 supportPress 몫까지 줄인다 — 짧은 탈출 패스 각도
     if (O.supportPress > 0) supMin *= 1 - O.supportPress * Math.max(0, 1 - nearestFieldOpp(s, owner)[1] / O.supportPressDist);
     const [ox, oy] = toNorm(owner.x, owner.y, dir);

@@ -250,6 +250,11 @@ export interface TeamState {
   counterPressers: number[];
   /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
   wonAt: number;
+  /** 실험 (엔진관리자15, C.79d P2): 마지막으로 우리 롱볼(30 m+ 공중)을 받은 시각·선수 idx (offball.directLayoff 가 읽는다) */
+  longRecvT: number;
+  longRecvIdx: number;
+  /** 실험 (C.79d P5b): 우리 롱볼이 착지 경합에서 상대 헤더로 걷어내진 시각 */
+  longLossT: number;
   /** 전환 수비 (C.78a): 마지막 열린 경기 상실 시각 · 그 순간 수비 라인(−1 = 아직 안 잼) · 역압박이 뚫린 시각 */
   lostAt: number;
   lineAtLoss: number;

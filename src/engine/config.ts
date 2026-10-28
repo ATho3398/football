@@ -171,6 +171,8 @@ export const ENGINE = {
   // **켬(사용자 2026-10-23 09:00 "움직임이 더 중요", 밸런스는 마지막 단계; 끈 값 0 · 0 · 0 = 옛 동작)**: 켜면 quick 600 득점 1.42 → 1.91 ✗(하나씩 quick 300: 정지 시간 1.85 · 원터치 1.67 · 달리며 받기 1.41),
   // 슈팅 22.4 → 27.9/경기·1대1 3.3 → 7.0%·xG 보정은 ±15% 안(새 찬스는 실제로 좋은 찬스) — 총량 맞추기는 로드맵 마지막 단계 (부록 C.78b)
   receive: {
+    /** 실험 (엔진관리자15, C.79d P3): 1 이면 공중 경합으로 이긴 롱볼(크로스 아님)도 패스 수신과 같이 등지고 받음(receivesBack)을 판정해 포스트플레이(버티기·레이오프) 후보가 생긴다. 0 = 옛 동작(앞을 본 것으로) */
+    aerialBack: 0,
     /**
      * 정지 시간 차등 (0 = 옛 동작 receiveTime + 반응 × 0.5 ≈ 1.1초 고정). 1 이면 패스 수신의 정지 시간 =
      * clamp(base − touchSkill × (볼 컨트롤 − 70)/100 + ballSpeed × max(0, 공 속도 − 12)/10 + press × 압박(3 m 안 가까울수록) + back × 등지고 받음 − run × 달리며 받음 + 반응 × reactMul, min, max).
@@ -606,6 +608,30 @@ export const ENGINE = {
     compactFollow: 0.4,
     /** 실험 (엔진관리자14, 미해결 3 I1): 1 이면 밀집 줄의 공 y 를 부드러운 공(formation.ballSmoothing)으로 따라간다(인지 지연). 0 = 지금 공 (옛 동작) */
     compactSmooth: 0,
+    /**
+     * 실험 (엔진관리자15, C.79d P1 직선 타깃 어깨 대기): 1 이면 직선 성향 팀이 자기 진영(공 x < directShoulderFrom)에서 공을 가질 때 타깃 ST(헤더 + 근력 최고, onball targetForward 와 같은 식)는
+     * 내려와 받지 않고 오프사이드 라인 − directShoulderGap m 에 머문다(롱볼 착지점을 최종 ⅓ 으로). 침투·최종 ⅓ 역할 중이면 그대로. 0 = 옛 동작
+     */
+    directShoulder: 0,
+    directShoulderFrom: 0.5,
+    directShoulderGap: 1.5,
+    /**
+     * 실험 (엔진관리자15, C.79d P2 직선 레이오프 지원): 우리 롱볼(30 m+ 공중)을 받은 뒤 directLayoff 초 동안(받은 선수가 공을 갖고 있는 한) 받은 선수에게 가까운 2선 2명은
+     * 받은 선수 뒤 directLayoffBack m · 옆 ±directLayoffSide m(레이오프·세컨드볼 자리, layoffDist 안)로 간다. 0 = 끔
+     */
+    directLayoff: 0,
+    directLayoffBack: 7,
+    directLayoffSide: 4,
+    /**
+     * 실험 (엔진관리자15, C.79d P4 직선 앞 주자 — "큰 선수 + 작은 선수"): 우리 롱볼(30 m+ 공중)이 떠 있을 때 착지점에 가까운 공격수(타깃 아님) directRunner 명은
+     * 착지점 앞 directRunnerAhead m · 옆 ±directRunnerSide m(오프사이드 라인 안쪽)로 달린다 — 받은 뒤 앞 동료(떨군 공·전진 패스 상대)가 되게. 받은 뒤 directRunnerHold 초 동안 유지. 0 = 끔
+     */
+    directRunner: 0,
+    directRunnerAhead: 8,
+    directRunnerSide: 6,
+    directRunnerHold: 2,
+    /** 실험 (C.79d P5b 세컨드볼 압박): 1 이면 우리 롱볼을 상대가 헤더로 걷어낸 비행(longLossT 에 시작한 clear 비행) 중 착지점에 가까운 2선 2명이 걷어낸 공 착지점(둘째는 5 m 뒤)으로 간다. 0 = 끔 */
+    directSecondClear: 0,
     /** 밀집 중 중원 줄 마크 비중 (평소 0.65 — 존 자리와 마크 자리 사이) */
     compactMark: 0.25,
     /** 밀집 중 박스 안 미마크 상대 마크 인원 (버스·블록, C.76w boxManMax 를 깊은 블록에만 — 평소 0) */
@@ -1152,6 +1178,13 @@ export const ENGINE = {
     aerialRadius: 2,
     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
     longContest: 2.8,
+    /**
+     * 실험 (엔진관리자15, C.79d P5 롱볼 경합 헤더 걷어내기): 롱패스 착지 경합에서 수비가 이기면 이 확률로 깨끗한 소유 대신 헤더로 걷어낸다(resolveAerial 의 걷어내기와 같은 비행 —
+     * clearDist·clearSpreadDeg, 루즈볼). 떨어진 공은 세컨드볼(directSecond 2선 자리). 0 = 옛 동작(수비가 바로 소유). 판단(candidates 롱패스 실패 비용)은 아직 옛 식
+     */
+    longLossClear: 0,
+    /** 실험 (C.79d P5b): 롱볼 경합 헤더 걷어내기 거리 = clearDist × 이 배수 (0 = 1). 떨어지는 롱볼의 헤더는 자유 헤더보다 짧다 */
+    longClearMul: 0,
     aerialScale: 16,
     /**
      * 직선 수신 (C.79c, 사용자 정의 pending 146 "직선은 받는 쪽 퍼스트 터치·피지컬·공중 경합이 좋아야 하는 선수빨 전술"): 크로스가 아닌 공중볼(롱패스·걷어내기·롱킥)의

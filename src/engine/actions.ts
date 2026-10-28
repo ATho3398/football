@@ -822,7 +822,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       winner.y = wy;
       return;
     }
-    giveBall(s, winner, 'win');
+    giveBall(s, winner, 'win', fl);
     return;
   }
   // 수비가 이김: 헤더 걷어내기 (가끔 코너)
@@ -837,8 +837,15 @@ function resolveAerial(s: SimState, fl: Flight): void {
     giveBall(s, winner, 'gain');
     return;
   }
+  headerClear(s, winner, def, dirDef);
+}
+
+/** 헤더 걷어내기 (E.18 A4): 수비 winner 가 머리로 걷어낸 공 — clearDist m 루즈볼 비행, 측면이면 바깥쪽 편향. resolveAerial 과 롱볼 착지 경합(C.79d P5)이 같이 쓴다 */
+function headerClear(s: SimState, winner: Agent, def: 0 | 1, dirDef: 1 | -1, fromLong = false): void {
+  const b = s.ball;
   countClearance(s, winner, b.x, b.y);
-  const [lo, hi] = PR.clearDist;
+  const mul = fromLong && PR.longClearMul > 0 ? PR.longClearMul : 1;
+  const [lo, hi] = [PR.clearDist[0] * mul, PR.clearDist[1] * mul];
   const len = lo + (hi - lo) * r(s, winner.idx, Purpose.Header, 1);
   // 걷어내기 방향 산포 σ (E.18 A4). 측면 경합이면 바깥쪽 편향
   const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
@@ -914,6 +921,12 @@ export function resolveFlight(s: SimState): void {
             def.stats.aerialDuels++;
             if (r(s, rc.idx, Purpose.Aerial, 1) >= longRecvWin(rc, def)) {
               def.stats.aerialsWon++;
+              // 실험 (엔진관리자15, C.79d P5): 수비가 이긴 롱볼은 longLossClear 확률로 헤더 걷어내기(루즈볼 세컨드볼), 나머지는 소유
+              if (PR.longLossClear > 0 && r(s, def.idx, Purpose.Header, 2) < PR.longLossClear) {
+                s.teams[rc.team].longLossT = s.t;
+                headerClear(s, def, def.team, attackDir(def.team, s.half), true);
+                return;
+              }
               giveBall(s, def, 'gain');
               return;
             }
@@ -1005,6 +1018,12 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
     case 'win':
       a.gotBy = 'receive';
       a.carryN = 0;
+      if (res.fl && res.fl.kind === 'long' && !res.fl.fromCross) {
+        // 실험 (엔진관리자15, C.79d): 롱볼 수신 시각 기록(P2) · 공중 경합으로 받은 롱볼도 등지고 받음 판정(P3, receive.aerialBack)
+        s.teams[a.team].longRecvT = s.t;
+        s.teams[a.team].longRecvIdx = a.idx;
+        if (RC.aerialBack > 0) a.backToGoal = receivesBack(res.fl.fromX, res.fl.fromY, b.x, b.y, attackDir(a.team, s.half));
+      }
       // C.78e: 받는 틱에 공을 받은 선수 발밑으로 (C.78b runOn 은 2.5 m 안에서 바로 받는다 — 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
       b.x = a.x;
       b.y = a.y;
@@ -1020,6 +1039,11 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       a.dribbleT = -100;
       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
+      if (fl.kind === 'long') {
+        // 실험 (엔진관리자15, C.79d P2): 롱볼 수신 시각 기록
+        s.teams[a.team].longRecvT = s.t;
+        s.teams[a.team].longRecvIdx = a.idx;
+      }
       if (fl.quick) a.cooldown = reaction(a);
       passer.stats.passesCompleted++;
       s.teams[passer.team].stats.passesCompleted++;
