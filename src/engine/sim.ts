@@ -24,7 +24,7 @@ import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, 
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
 import * as physics_ from './physics';
-const { clearFeed, initPhysics, moveAgent, perceiveFeed } = physics_;
+const { burstCap, clearFeed, initPhysics, moveAgent, perceiveFeed } = physics_;
 import * as tactics_ from './tactics';
 const { aiAdjust, TENDENCY } = tactics_;
 import * as pitch_ from './pitch';
@@ -102,7 +102,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, urgent: false,
-    maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
+    maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
@@ -404,6 +404,8 @@ function startSecondHalf(s: SimState): void {
     a.rt.passiveSeq = undefined;
     a.rt.passiveCtr = undefined;
     a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover * s.env.recover);
+    a.burst = burstCap(a);
+    a.burstOut = false;
   }
   resetHalfClocks(s, back);
   kickoffPositions(s, 1);

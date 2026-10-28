@@ -29,7 +29,7 @@ export const TENDENCY_DESC_KO: Record<Tendency, string> = {
   balanced: '라인·압박·빌드업·폭 모두 보통',
   tikitaka: '높은 라인에서 짧은 패스로 돌리다 확실한 기회만 쏜다',
   gegenpress: '공을 잃으면 바로 되찾는 전방 압박',
-  counter: '낮게 서서 뺏자마자 빠르게 앞으로',
+  counter: '하프라인 부근에 좁게 모여 기다리다 뺏자마자 빠른 윙어·ST 에게',
   direct: '타깃 ST 에게 롱볼, 세컨드볼과 크로스',
   block: '내려서 두 줄 블록. 라인 매우 낮음 = 박스 앞 버스 세우기',
 };
@@ -64,7 +64,7 @@ const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
   balanced: [2, 1, 1, 1],
   tikitaka: [3, 2, 0, 2],
   gegenpress: [3, 2, 1, 1],
-  counter: [1, 0, 2, 1],
+  counter: [2, 1, 1, 1],
   direct: [2, 1, 2, 2],
   block: [1, 0, 2, 0],
 };
@@ -196,10 +196,21 @@ export const TENDENCY = {
   gegenWinTime: 4,
   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
   gegenDrain: 1.15,
-  /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
+  /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */
   counterWinMul: 1.12,
   counterWinTime: 6,
-  counterStayX: 0.48,
+  /**
+   * 역습 (C.78s H2, pending 146 사용자 정의 "라인 올리고 1·2선 하프라인 부근 좁게, 탈취 뒤 빠른 윙어·ST"): 라인 보통·압박 보통·빌드업 혼합이지만
+   * 공이 우리 기준 counterPressX(정규화)까지 넘어오기 전에는 압박하지 않는다. 수비-중원 간격 counterGap m.
+   * 수비 때 최전방 + 공 먼 쪽 윙어(counterStay 2)는 counterStayX 이상에 남는다(면제와 같은 규칙, 빈자리는 커버 재배분).
+   * 측정(240경기, 대 균형): 공격 줄도 중원 + 8 m 로 묶으면 −0.2, 빌드업 직선 −0.1, 잔류 0명 −0.15 — 그래서 공격 줄은 묶지 않고 빌드업은 혼합
+   */
+  counterPressX: 0.55,
+  counterGap: 10,
+  counterStay: 2,
+  counterStayX: 0.52,
+  /** 블록 라인 매우 낮음(옛 버스): 남는 최전방 x (정규화) */
+  busStayX: 0.48,
   /** 직선: 타깃 ST 롱볼 효용 배수, 크로스 효용 배수, 세컨드볼 위치 (착지점 뒤 m) */
   directTargetMul: 1.1,
   directCrossMul: 1.08,
@@ -238,9 +249,9 @@ export function compactWOf(t: Tactics): number | undefined {
 export function fbOverlapOf(t: Tactics): number {
   return blockRow(t)?.fbOverlap ?? TENDENCY.fbOverlapTend[t.tendency] ?? 1;
 }
-/** 수비 때 하프라인 부근(counterStayX)에 남는 최전방 수 (역습 1, 블록은 라인 단계) */
+/** 블록이 수비 때 하프라인 부근에 남기는 최전방 수 (라인 단계, 역습은 offball counterStayer) */
 export function stayForwards(t: Tactics): number {
-  return t.tendency === 'counter' ? 1 : blockRow(t)?.stay ?? 0;
+  return blockRow(t)?.stay ?? 0;
 }
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */

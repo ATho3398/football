@@ -55,6 +55,10 @@ export interface Agent {
   accel: number;
   turnKeep: number;
   stamina: number;
+  /** 순간 체력 0~100 (C.78w 2단 체력, physics.burst) */
+  burst: number;
+  /** 순간 체력 바닥 상태 (C.78w): 0 에 닿으면 켜지고 burst.outUntil 까지 차야 꺼진다 — 그동안 러닝 상한 */
+  burstOut: boolean;
   /** 판단 품질 0~1 (E.7) */
   judgement: number;
   /** 다음 온더볼 결정까지 남은 시간 */

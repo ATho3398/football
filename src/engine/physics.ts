@@ -29,10 +29,38 @@ export function duelEdgeOf(a: Agent): number {
   return a.duelEdge - P.tiredDuel * tiredRatio(a);
 }
 
-/** 스태미나에 따른 유효 최대 속도 */
+const B = P.burst;
+
+/** 순간 체력 상한 (C.78w): 경기 체력 비례 capFloor ~ 100 */
+export function burstCap(a: Agent): number {
+  return 100 * (B.capFloor + ((1 - B.capFloor) * Math.max(0, Math.min(100, a.stamina))) / 100);
+}
+
+/** 판단에 보이는 순간 체력 여유 (C.78w): judgeLo 아래 0 ~ judgeHi 위 1. 2단 체력을 끄면 1 */
+export function burstReady(a: Agent): number {
+  if (B.on <= 0) return 1;
+  return clamp((a.burst - B.judgeLo) / (B.judgeHi - B.judgeLo), 0, 1);
+}
+
+/** 순간 체력으로 연속 스프린트할 수 있는 초 (가속·체력 능력치) */
+function burstSecs(a: Agent): number {
+  return clamp(B.secBase + (B.secSlope * ((a.attrs.acceleration + a.attrs.stamina) / 2 - 70)) / 100, B.secMin, B.secMax);
+}
+
+/** 유효 가속 (C.78w): 경기 체력 staminaLowFrom 아래에서 accelFloor 까지 */
+export function effectiveAccel(a: Agent): number {
+  if (B.on <= 0 || a.stamina >= P.staminaLowFrom) return a.accel;
+  return a.accel * (B.accelFloor + ((1 - B.accelFloor) * Math.max(0, a.stamina)) / P.staminaLowFrom);
+}
+
+/** 스태미나에 따른 유효 최대 속도. 순간 체력이 lowFrom 아래면 러닝 상한(maxSpeed × runCap) 쪽으로 (C.78w) */
 export function effectiveMax(a: Agent): number {
-  if (a.stamina >= P.staminaLowFrom) return a.maxSpeed;
-  return a.maxSpeed * (P.tiredMaxFloor + ((1 - P.tiredMaxFloor) * a.stamina) / P.staminaLowFrom);
+  let v = a.stamina >= P.staminaLowFrom ? a.maxSpeed : a.maxSpeed * (P.tiredMaxFloor + ((1 - P.tiredMaxFloor) * a.stamina) / P.staminaLowFrom);
+  if (B.on > 0 && (a.burstOut || a.burst < B.lowFrom)) {
+    const lim = a.maxSpeed * B.runCap;
+    if (v > lim) v = a.burstOut ? lim : lim + ((v - lim) * Math.max(0, a.burst)) / B.lowFrom;
+  }
+  return v;
 }
 
 /** 목표 속도: 거리별 걷기/조깅/러닝, 긴급하면 최대 속도. 목표 근처에서는 감속 */
@@ -51,7 +79,7 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   // 지치면 조깅·러닝 강도가 떨어진다 (스태미나 staminaLowFrom 아래에서, 0 이면 1 − fatigueIntensity)
   if (v > P.walk && a.stamina < P.staminaLowFrom) v *= 1 - (P.fatigueIntensity * (P.staminaLowFrom - a.stamina)) / P.staminaLowFrom;
   // 멈출 수 있는 속도
-  v = Math.min(v, Math.sqrt(2 * a.accel * d), cap);
+  v = Math.min(v, Math.sqrt(2 * effectiveAccel(a) * d), cap);
   return v;
 }
 
@@ -100,6 +128,7 @@ function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
 export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1, lookX = NaN, lookY = NaN): void {
   const cap = effectiveMax(a) * speedScale;
+  const accel = effectiveAccel(a);
   // 앞먹임 (C.77x): 움직이는 목표는 그 속도로 같이 움직이고, 원하는 속도에 목표 속도를 더한다
   const fx = P.feed > 0 ? a.tvx * P.feed : 0;
   const fy = P.feed > 0 ? a.tvy * P.feed : 0;
@@ -109,7 +138,7 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const d = Math.sqrt(dx * dx + dy * dy);
   // 사람을 따라갈 때 거리 보정은 거리 비례(feedGain × 거리)까지 올린다 — 걷기·조깅 단계로만 좁히면 움직이는 목표와의 간격이 닫히지 않는다
   let corr = desiredSpeed(a, d, cap);
-  if (feeding && P.feedGain > 0 && d >= P.arriveDist) corr = Math.max(corr, Math.min(P.feedGain * d, Math.sqrt(2 * a.accel * d), cap));
+  if (feeding && P.feedGain > 0 && d >= P.arriveDist) corr = Math.max(corr, Math.min(P.feedGain * d, Math.sqrt(2 * accel * d), cap));
   let wx = 0;
   let wy = 0;
   if (corr > 0 && d > 1e-6) {
@@ -171,7 +200,7 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const am = Math.sqrt(ax * ax + ay * ay);
   // 감속: 옛 동작 가속 × 1.5, 뒤돌기 모델이면 멈추든 돌든 가속 × reverseBrake × turnKeep (민첩할수록 세게 선다)
   const brake = P.turnModel > 0 ? P.reverseBrake * a.turnKeep : 1.5;
-  const maxDv = (reversing || want < sp ? a.accel * brake : a.accel) * dt;
+  const maxDv = (reversing || want < sp ? accel * brake : accel) * dt;
   if (am > maxDv) {
     ax = (ax / am) * maxDv;
     ay = (ay / am) * maxDv;
@@ -191,6 +220,24 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const sprinting = v > a.maxSpeed * P.sprintRatio;
   if (sprinting && !a.sprinting) a.stats.sprints++;
   a.sprinting = sprinting;
+  // 순간 체력 (C.78w): 스프린트 중 소모, 러닝 상한 아래면 걷기·조깅·러닝 순으로 빠르게 다시 찬다 (상한·재충전은 경기 체력 비례)
+  if (B.on > 0) {
+    // 러닝 상한(runCap)과 스프린트 판정 사이는 그 비율만큼 소모 (바닥 직전 판정 속도 바로 아래에서 버티지 않게)
+    const lim = a.maxSpeed * B.runCap;
+    const hi = a.maxSpeed * P.sprintRatio;
+    if (v > lim + 1e-9) {
+      a.burst = Math.max(0, a.burst - (100 / burstSecs(a)) * (sprinting ? 1 : (v - lim) / (hi - lim)) * dt);
+      if (a.burst <= 0) a.burstOut = true;
+    } else {
+      const top = burstCap(a);
+      if (a.burst < top) {
+        const mul = v < P.walk * 1.1 ? B.walkMul : v < P.jog * 1.1 ? B.jogMul : B.runMul;
+        const st = B.refillFloor + ((1 - B.refillFloor) * Math.max(0, Math.min(100, a.stamina))) / 100;
+        a.burst = Math.min(top, a.burst + (100 / B.refillSec) * mul * st * recoverScale * dt);
+      } else a.burst = top;
+      if (a.burstOut && a.burst >= Math.min(B.outUntil, top)) a.burstOut = false;
+    }
+  }
   // 스태미나 (E.4)
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * recoverScale * dt * 10);
@@ -211,7 +258,7 @@ export function arrivalTime(a: Agent, x: number, y: number, reach = 0): number {
   const ux = dx / d0;
   const uy = dy / d0;
   const cap = effectiveMax(a);
-  const acc0 = a.accel;
+  const acc0 = effectiveAccel(a);
   const sp = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
   const vp = sp > 0 ? (a.vx * ux + a.vy * uy) : 0;
   let t = 0;

@@ -4,7 +4,8 @@
 import * as config_ from './config';
 const { ENGINE } = config_;
 import * as physics_ from './physics';
-const { tiredRatio } = physics_;
+const { burstReady, tiredRatio } = physics_;
+const BU = ENGINE.physics.burst;
 import { effectiveTactics, pressLevel } from './offball';
 import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
@@ -122,7 +123,8 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const tm = s.teams[team];
   for (const a of s.agents) {
     if (!a.onPitch || a.team !== team) continue;
-    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a);
+    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a)
+      * (BU.recoverFloor + (1 - BU.recoverFloor) * burstReady(a));
   }
   tm.counterPressers = [];
   tm.counterUntil = 0;
@@ -144,7 +146,7 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.plan.sit.H.pressers[pressLevel(s, team)]!;
   for (const a of near) {
     if (tm.counterPressers.length >= max) break;
-    const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a);
+    const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a) * burstReady(a);
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
   }
   if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 55;
+export const ENGINE_VERSION = 56;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -100,6 +100,38 @@ export const ENGINE = {
     /** 스태미나 0 일 때 역압박 가담·긴급 복귀 판단 확률 배율 (staminaLowFrom 에서 1) */
     tiredFloor: 0.3,
     halftimeRecover: 10,
+    /**
+     * 2단 체력 (C.78w, 사용자 제안 "피파식"): 순간 체력 burst 0~100 + 경기 체력(stamina).
+     * ① 순간 체력: 스프린트(속도 > 최대 속도 × sprintRatio) 중 초당 100 / 지속 초 씩 준다 — 지속 초 = secBase + secSlope × ((가속 + 체력) / 2 − 70) / 100 (secMin~secMax).
+     *    lowFrom 아래에서 최고 속도가 maxSpeed × runCap(스프린트 판정 아래 = 러닝 상한) 쪽으로 내려가고, 0 에 닿으면 outUntil 까지 다시 찰 때까지 질주 불가(러닝 상한).
+     *    스프린트가 아니면 초당 100 / refillSec × (걷기 이하 walkMul · 조깅 이하 jogMul · 그 위 runMul) 씩 다시 찬다.
+     * ② 경기 체력이 순간 체력 상한(capFloor ~ 100)·재충전 속도(refillFloor ~ 1)를 경기 체력 비례로, 가속(accelFloor ~ 1)을 staminaLowFrom 아래에서 깎는다(최고 속도는 tiredMaxFloor).
+     * ③ 판단(자기 순간 체력만): burstReady = (순간 체력 − judgeLo) / (judgeHi − judgeLo) (0~1) — 둘째 압박자는 순간 체력 pressMin 이상만,
+     *    역압박 가담 × burstReady, 긴급 복귀 × (recoverFloor + (1 − recoverFloor) × burstReady), 침투 질주 확률 × (runFloor + (1 − runFloor) × burstReady).
+     * on 0 = 끔(옛 1단 체력)
+     */
+    burst: {
+      on: 1,
+      secBase: 12.5,
+      secSlope: 10,
+      secMin: 10,
+      secMax: 15,
+      lowFrom: 10,
+      outUntil: 25,
+      runCap: 0.78,
+      refillSec: 45,
+      walkMul: 1.5,
+      jogMul: 1,
+      runMul: 0.3,
+      capFloor: 0.5,
+      refillFloor: 0.5,
+      accelFloor: 0.85,
+      judgeLo: 20,
+      judgeHi: 55,
+      pressMin: 35,
+      recoverFloor: 0.5,
+      runFloor: 0.4,
+    },
   },
 
   // ── 공 (E.4) ──
