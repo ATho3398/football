@@ -1490,6 +1490,11 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const ctr = tendency === 'counter';
   const midGap = br ? Math.min(F.midGap, br.gap / L) : ctr ? Math.min(F.midGap, TENDENCY.counterGap / L) : F.midGap;
   if (dropped) nx = Math.min(nx, lineX);
+  else if (a.line === 1 && O.lineAttackHigh > 0 && s.possTeam === a.team && teamPhase(s, a.team) >= 0 && !(owner && owner.team !== a.team)) {
+    // 공격 때 높은 라인 (C.79f 실험): 라인 단계만큼 수비 줄이 올라서서 피치를 좁힌다 (뒷공간 비용은 전환 때 난다)
+    const hi = lineX + O.lineAttackHigh * (effectiveTactics(s, a.team).lineHeight - 0.5);
+    nx = Math.max(nx, Math.min(hi, 0.7));
+  }
   else if (a.line === 2) nx = Math.min(nx, lineX + midGap);
   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
   // 블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다

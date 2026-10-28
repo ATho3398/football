@@ -419,6 +419,12 @@ export const ENGINE = {
      */
     blockStayCommit: 0,
     /**
+     * 공격 때 높은 라인 (C.79f 실험 스위치, 엔진관리자17 — 라인 단계가 수비 줄을 ±4.7 m 밖에 못 움직여 티키·게겐이 "높은 라인" 의 뒷공간 비용을 안 낸다):
+     * 우리 소유(phase ≥ 0) 일 때 수비 줄(줄 1, 내려온 선수·마크 제외)은 수비 라인 + lineAttackHigh × (lineHeight − 0.5) 이상으로 올라선다
+     * (라인 높음 0.65 → +0.15 × k 정규화, 보통 0.5 → 0, 낮음은 음수라 효과 없음). 0 = 끔
+     */
+    lineAttackHigh: 0,
+    /**
      * 깊은 블록 받는 순간 밀착 (C.76p 가설 2): block/bus 팀의 수신자 압박은 위협 1위 마커를 빼지 않고(마커가 가장 빠르면 마커가 나간다) 간격 deepCloseDownGap m,
      * 수신자가 ST/CF 면 도착 둘째도 착지점에서 우리 골 쪽 deepCloseDownSecond m 로 간다. 둘째 ST(위협 2위 ST/CF)가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark 로 마크
      */
