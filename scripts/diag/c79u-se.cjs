@@ -1,4 +1,4 @@
-// 진단 (엔진관리자20 c79u): 상성 json 의 칸 SE(비짝·짝)와 행 강도 SE. 실행: node scripts/diag/c79u-se.js scripts/diag/c79k-main-matrix.json [...]
+// 진단 (엔진관리자20 c79u): 상성 json 의 칸 SE(비짝·짝)와 행 강도 SE. 실행: node scripts/diag/c79u-se.cjs scripts/diag/c79k-main-matrix.json [...]
 const fs = require('fs');
 for (const f of process.argv.slice(2)) {
   const r = JSON.parse(fs.readFileSync(f));
