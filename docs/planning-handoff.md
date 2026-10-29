@@ -1146,6 +1146,7 @@
 ### 8.66 다음 마스터 세션(AD)이 할 일
 - 제목 `AD_축구 커리어 게임 마스터`, 브랜치 `claude/planning-ad`(planning-ac 최신에서). 로그는 8.67에.
 - 먼저 읽기: CLAUDE.md, docs/automation.md 0번(맨 위 3줄 필독), 이 문서 8.64 끝부분~8.66, docs/planning-pending.md 146·147, docs/engine-issues.md 미해결 목록.
+- (10/29 15:00 추가) 실행 중 세션: UI_5 `session_01Jep69tcqmNVqesWrwWp8cP`(16차 디자인 구성 작성 중) — 시작 처리 ③에서 보고처 AD로. 엔진·게임 시스템 대기열 빔, 다음은 UI 50단계(16.md 받은 뒤 사용자 디자인 → 코드).
 - 시작 처리: ① AC(`session_01YVaigKWgUisM6WkGkEWkkY`)에 "AD 준비 완료 + ID"(later, 답장 불필요) ② AC 제목 앞 `draft_` ③ 실행 중 세션에 "보고는 AD(ID)로, 마스터 브랜치 claude/planning-ad, 답장 불필요" — **엔진관리자16 `session_01YVaigLEHnToQ9esAjkHR3D`** ④ list_triggers — persistent_session_id가 AC인 것 delete ⑤ 8.67에 기록·푸시.
 - (갱신 10/29 04:44) C.79e 배포 완료. 엔진관리자17 끝(draft_). C.79f·C.79g 끝(실패). 엔진관리자18 끝. **C.79i(53단계 감독 성향 기용) `session_01YVaigHaQRQsejbSM9U93Df` 진행 중** — AD 시작 처리 ③에 C.79i 포함. (옛 줄:) C.79e(줄 인원 맞춤, 엔진관리자16 처방 A2) 진행 중 `session_01YVaigHkshjWFDbp3AK9AoG`** — AD 시작 처리 ③에 C.79e 세션도 포함.
 - 엔진관리자16 보고가 오면 처방마다 바로 코드 세션(최대 3개, 파일 안 겹치게)을 연다. 지시문 틀은 docs/session-prompts/C.79d.md(관문 통과분은 마스터 승인 없이 main 푸시·안 된 것 먼저 보고). 다음 패치 이름 C.79e부터, 엔진관리자 다음 번호 17.
@@ -1169,3 +1170,4 @@
 - (10/29 10:56 KST) **C.79i 시작 `session_01YVaigHaQRQsejbSM9U93Df`**(claude/c79i-manager-style, 2.5h·12달러). 엔진관리자18 draft_(14.8달러). 누수 4/5.
 - (10/29 12:0x KST) **C.79i main 3bac957**(53단계, BALANCE 88, 1h9m): 선발 점수 = 슬롯 OVR + 성향 가중(src/selection.ts, NPC·내 선수 같은 식), 성향 7종·실제 감독 36명 배정, NPC 기록 칸 4개(세이브 +2KB, SAVE 그대로). 측정: 맨시티 로테이션 선발 교체 4.6→5.6·후반 피로 48→42, 토트넘 스타 교체 3.6→2.1·피로 48→54, 유망주 팀 23세 이하 +0.6~2.7%p, 내 선수 성향별 선발 6.8~10.2(유망주 기준). 안 된 것: 경기 준비 화면 한 줄 없음(홈 카드만) · 유망주 '컵 우선'·엄격 훈련 태도·NPC 케미 데이터 없어 빠짐 · 리그 경기당 골 2.74→2.86(한 시즌, 잡음 가능) · local balance는 19/19까지만, 측정 줄은 CI. test 1276. 배포 확인 13:10. **대기열: UI 50단계만 남음(사용자 확인 필요) → 자동 진행 멈춤 대상**.
 - (10/29 13:1x KST) **C.79i 배포 완료**(run 318, main 3bac957). C.79i draft_. **누수 5/5 점검 → 0/5**: 활성 football 세션 없음(전부 draft_), 예약 없음, 비용 예산 안. **대기열 빔 — 사용자 결정(UI 50단계)·AD 열기 대기, 자동 진행 멈춤.**
+- (10/29 14:5x KST) **사용자 "보고"**(마지막 보고 10/26 19:05 AA 이후 = AB·AC 전부) → 보고함. **마지막 보고 시각: 2026-10-29 15:00 KST**. 사용자: UI 관리자에게 "현재 구조대로 필요한 디자인 구성 다시 제시" → **UI_5 `session_01Jep69tcqmNVqesWrwWp8cP`에 전달**(docs/ui-requests/16.md, 10/22 뒤 화면 변경 목록 포함). AD 프롬프트 다시 제공. AD 시작 처리 ③에 UI_5도 포함.
