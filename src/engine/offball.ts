@@ -561,9 +561,25 @@ export function updateOffball(s: SimState, a: Agent): void {
   const [bnx, bny] = ballNorm(s, a.team);
   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
-  if (attacking) attackTarget(s, a, dir, bnx, bny);
-  else defendTarget(s, a, dir, bnx, bny);
+  if (attacking) {
+    attackTarget(s, a, dir, bnx, bny);
+    // lineMatchJog 3 (엔진관리자19 실험): 방금(lineMatchJogReturn 초 안) 내려와 있던 줄 2 선수는 공격 자리 복귀를 서두르지 않는다
+    if (O.lineMatchJog >= 3 && a.line === 2 && s.t - (lastDrop.get(a) ?? -99) < O.lineMatchJogReturn && !(s.t < a.runUntil)) a.urgent = false;
+  } else {
+    defendTarget(s, a, dir, bnx, bny);
+    // lineMatchJog (엔진관리자19 실험): 1 = 내려온 줄 2 선수는 조깅으로 · 2 = 박스 안 상대를 전담 마크 중일 때는 그대로 · 3 = 수비는 그대로, 복귀만 조깅
+    if (O.lineMatchJog > 0 && a.line === 2 && lineMatchPlan(s, a.team).drop.has(a.idx)) {
+      lastDrop.set(a, s.t);
+      if (O.lineMatchJog < 3) {
+        const [gx, gy] = ownGoal(dir);
+        const marking = O.lineMatchJog >= 2 && a.tvIdx >= 0 && Math.abs(a.tx - gx) <= ENGINE.pitch.boxDepth + O.boxManSlack && Math.abs(a.ty - gy) <= ENGINE.pitch.boxWidth / 2 + O.boxManSlack;
+        if (!marking) a.urgent = false;
+      }
+    }
+  }
 }
+/** lineMatchJog 3: 선수별 마지막으로 내려와 있던 시각 (엔진 상태 밖, 스위치 0 이면 안 쓴다) */
+const lastDrop = new WeakMap<Agent, number>();
 
 function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
   ensureErrors(s, a);

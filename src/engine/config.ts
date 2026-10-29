@@ -523,6 +523,10 @@ export const ENGINE = {
     lineMatchAbs: 0,
     /** 실험 스위치 (엔진관리자19, 사용자 제안, 0 = 끔): 1 이면 줄 인원 맞춤으로 내려온 줄 2 선수가 박스 안 미마크 상대 전담 마크(밀착·따라감)를 먼저 맡고(내려온 수만큼 마크 인원 보장), 줄 1 은 집중 대상 마크·더블팀·덮는 자리를 지킨다. 남는 내려온 선수는 덮는 자리 */
     lineMatchRole: 0,
+    /** 실험 스위치 (엔진관리자19, AD 질문 ③, 0 = 끔): 1 이면 줄 인원 맞춤으로 내려온 줄 2 선수는 수비 때 서두르지 않는다(urgent 끔 = 조깅 속도) — Keep 0.3 이 이동 거리 한 선수 15 km 를 넘기는 것을 막는 후보. 2 면 박스 안 전담 마크(markTight) 중일 때만 서두른다 */
+    lineMatchJog: 0,
+    /** lineMatchJog 3: 수비 때는 그대로, 내려왔다가 우리 공이 되면 lineMatchJogReturn 초 동안 공격 자리 복귀를 서두르지 않는다(조깅 복귀) — 이동 거리는 복귀 질주가 만든다는 가설 */
+    lineMatchJogReturn: 4,
     /**
      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
      * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
@@ -1551,6 +1555,8 @@ export const ENGINE = {
     leagueFeint: 70,
     /** 예측 속임 읽을 시간 (초, 0 = 거리 무관): 공이 GK 대응 지점까지 오는 시간 tBall 이 readMinT 미만이면 기울지 않고(1대1·근거리는 자세 유지), readMinT ~ 2 × readMinT 사이는 비례 — 장면 ④ 1대1 골 하한 */
     readMinT: 0,
+    /** readMinT 의 비례 구간 폭 (초, 0 = readMinT 와 같음 → 2 × readMinT 에서 전부): readMinT ~ readMinT + readRampT 사이 비례 */
+    readRampT: 0,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */

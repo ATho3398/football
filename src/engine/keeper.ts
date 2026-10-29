@@ -152,7 +152,7 @@ export function saveChance(c: ShotCtx): number {
       // 읽을 시간: 공이 대응 지점까지 오는 시간이 짧으면(근거리·1대1) 기울지 않는다
       const [, k] = segDist(c.gk.x, c.gk.y, c.fx, c.fy, c.tx, c.ty);
       const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
-      commit *= clamp((tBall - K.readMinT) / K.readMinT, 0, 1);
+      commit *= clamp((tBall - K.readMinT) / (K.readRampT > 0 ? K.readRampT : K.readMinT), 0, 1);
     }
     if (commit <= 0) return one(0);
     return (1 - commit) * one(0) + commit * (pc * one(-K.readLead) + (1 - pc) * one(K.readWrong));

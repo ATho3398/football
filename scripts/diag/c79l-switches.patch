@@ -33,10 +33,10 @@ index b945e87..748d036 100644
   * 공을 선수에게 (C.24): snapReceive m 안이면 바로 소유, 그 밖이면 선수를 옮기지 않고 공을 그 선수 쪽으로 굴린다
   * (reserveRoll m/s, 그 선수는 컨트롤 판정 없이 잡는다. 받기 집계는 실제로 잡는 순간, ballReserved)
 diff --git a/src/engine/config.ts b/src/engine/config.ts
-index e8d16f5..407f800 100644
+index e8d16f5..7a074ef 100644
 --- a/src/engine/config.ts
 +++ b/src/engine/config.ts
-@@ -510,6 +510,19 @@ export const ENGINE = {
+@@ -510,6 +510,23 @@ export const ENGINE = {
      lineMatchBand: 8,
      lineMatchMin: 2,
      lineMatchMan: 1,
@@ -53,10 +53,14 @@ index e8d16f5..407f800 100644
 +    lineMatchAbs: 0,
 +    /** 실험 스위치 (엔진관리자19, 사용자 제안, 0 = 끔): 1 이면 줄 인원 맞춤으로 내려온 줄 2 선수가 박스 안 미마크 상대 전담 마크(밀착·따라감)를 먼저 맡고(내려온 수만큼 마크 인원 보장), 줄 1 은 집중 대상 마크·더블팀·덮는 자리를 지킨다. 남는 내려온 선수는 덮는 자리 */
 +    lineMatchRole: 0,
++    /** 실험 스위치 (엔진관리자19, AD 질문 ③, 0 = 끔): 1 이면 줄 인원 맞춤으로 내려온 줄 2 선수는 수비 때 서두르지 않는다(urgent 끔 = 조깅 속도) — Keep 0.3 이 이동 거리 한 선수 15 km 를 넘기는 것을 막는 후보. 2 면 박스 안 전담 마크(markTight) 중일 때만 서두른다 */
++    lineMatchJog: 0,
++    /** lineMatchJog 3: 수비 때는 그대로, 내려왔다가 우리 공이 되면 lineMatchJogReturn 초 동안 공격 자리 복귀를 서두르지 않는다(조깅 복귀) — 이동 거리는 복귀 질주가 만든다는 가설 */
++    lineMatchJogReturn: 4,
      /**
       * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
       * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
-@@ -517,6 +530,21 @@ export const ENGINE = {
+@@ -517,6 +534,21 @@ export const ENGINE = {
      boxMatch: 0,
      boxMatchMax: 3,
      boxMatchReach: 25,
@@ -78,7 +82,7 @@ index e8d16f5..407f800 100644
      trackCdmMax: 9,
      trackPickMax: 12,
      trackHold: 0.7,
-@@ -927,6 +955,11 @@ export const ENGINE = {
+@@ -927,6 +959,11 @@ export const ENGINE = {
       * 공을 지키는 능력(드리블·볼 컨트롤) 10 마다 실패 × exp(−carrySkill)
       */
      carryClose: 0.3,
@@ -90,7 +94,7 @@ index e8d16f5..407f800 100644
      /** 몰고 가기 실패에서 GK 의 몫 (C.79e 실험, 1 = 필드 선수와 같음 = 지금): GK 가 길에 닿는 실효 거리의 상실 확률에 곱한다 (GK 는 돌파·태클 1대1에 없다) */
      carryGk: 1,
      /** 몰고 가서 슛 (C.79e 실험, 0 = 끔): 앞을 막는 수비 없는 전진 몰기의 도착점이 슛 거리면 자리 가치 = max(자리 가치, 도착점 슛 가치 × carryShot), 슛 가치는 carryShotTime 초 뒤 GK 자리로 */
-@@ -1499,6 +1532,25 @@ export const ENGINE = {
+@@ -1499,6 +1536,27 @@ export const ENGINE = {
      screenReact: 0,
      screenFrom: 0.4,
      screenJudge: 1,
@@ -113,11 +117,13 @@ index e8d16f5..407f800 100644
 +    leagueFeint: 70,
 +    /** 예측 속임 읽을 시간 (초, 0 = 거리 무관): 공이 GK 대응 지점까지 오는 시간 tBall 이 readMinT 미만이면 기울지 않고(1대1·근거리는 자세 유지), readMinT ~ 2 × readMinT 사이는 비례 — 장면 ④ 1대1 골 하한 */
 +    readMinT: 0,
++    /** readMinT 의 비례 구간 폭 (초, 0 = readMinT 와 같음 → 2 × readMinT 에서 전부): readMinT ~ readMinT + readRampT 사이 비례 */
++    readRampT: 0,
      /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
      openOn: 0.95,
      /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
 diff --git a/src/engine/keeper.ts b/src/engine/keeper.ts
-index 49cdd41..2bfe2de 100644
+index 49cdd41..6e4a760 100644
 --- a/src/engine/keeper.ts
 +++ b/src/engine/keeper.ts
 @@ -79,6 +79,8 @@ export interface ShotCtx {
@@ -182,7 +188,7 @@ index 49cdd41..2bfe2de 100644
 +      // 읽을 시간: 공이 대응 지점까지 오는 시간이 짧으면(근거리·1대1) 기울지 않는다
 +      const [, k] = segDist(c.gk.x, c.gk.y, c.fx, c.fy, c.tx, c.ty);
 +      const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
-+      commit *= clamp((tBall - K.readMinT) / K.readMinT, 0, 1);
++      commit *= clamp((tBall - K.readMinT) / (K.readRampT > 0 ? K.readRampT : K.readMinT), 0, 1);
 +    }
 +    if (commit <= 0) return one(0);
 +    return (1 - commit) * one(0) + commit * (pc * one(-K.readLead) + (1 - pc) * one(K.readWrong));
@@ -193,10 +199,38 @@ index 49cdd41..2bfe2de 100644
  
  /**
 diff --git a/src/engine/offball.ts b/src/engine/offball.ts
-index 611bbce..9dcf1f5 100644
+index 611bbce..035e84d 100644
 --- a/src/engine/offball.ts
 +++ b/src/engine/offball.ts
-@@ -1680,7 +1680,12 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
+@@ -561,9 +561,25 @@ export function updateOffball(s: SimState, a: Agent): void {
+   const [bnx, bny] = ballNorm(s, a.team);
+   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
+   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
+-  if (attacking) attackTarget(s, a, dir, bnx, bny);
+-  else defendTarget(s, a, dir, bnx, bny);
++  if (attacking) {
++    attackTarget(s, a, dir, bnx, bny);
++    // lineMatchJog 3 (엔진관리자19 실험): 방금(lineMatchJogReturn 초 안) 내려와 있던 줄 2 선수는 공격 자리 복귀를 서두르지 않는다
++    if (O.lineMatchJog >= 3 && a.line === 2 && s.t - (lastDrop.get(a) ?? -99) < O.lineMatchJogReturn && !(s.t < a.runUntil)) a.urgent = false;
++  } else {
++    defendTarget(s, a, dir, bnx, bny);
++    // lineMatchJog (엔진관리자19 실험): 1 = 내려온 줄 2 선수는 조깅으로 · 2 = 박스 안 상대를 전담 마크 중일 때는 그대로 · 3 = 수비는 그대로, 복귀만 조깅
++    if (O.lineMatchJog > 0 && a.line === 2 && lineMatchPlan(s, a.team).drop.has(a.idx)) {
++      lastDrop.set(a, s.t);
++      if (O.lineMatchJog < 3) {
++        const [gx, gy] = ownGoal(dir);
++        const marking = O.lineMatchJog >= 2 && a.tvIdx >= 0 && Math.abs(a.tx - gx) <= ENGINE.pitch.boxDepth + O.boxManSlack && Math.abs(a.ty - gy) <= ENGINE.pitch.boxWidth / 2 + O.boxManSlack;
++        if (!marking) a.urgent = false;
++      }
++    }
++  }
+ }
++/** lineMatchJog 3: 선수별 마지막으로 내려와 있던 시각 (엔진 상태 밖, 스위치 0 이면 안 쓴다) */
++const lastDrop = new WeakMap<Agent, number>();
+ 
+ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+   ensureErrors(s, a);
+@@ -1680,7 +1696,12 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
      // 깊은 블록 밀집 (C.78d ①): 버스·블록·역습(낮은 블록)은 남는 수비가 많으니 박스 안 미마크 상대를 deepBoxMan 명까지 맡는다 (박스 안 사람 앞에 사람)
      const manMax0 = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
      // 줄 인원 맞춤 (C.79e, lineMatchMan 1): 초과 인원만큼 박스 안 미마크 상대 마크 인원을 늘린다
@@ -210,7 +244,7 @@ index 611bbce..9dcf1f5 100644
      const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
      const gd = dist(t.x, t.y, gx, gy) || 1;
      const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
-@@ -1736,7 +1741,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
+@@ -1736,7 +1757,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
      for (const u of others) {
        if (marks >= manMax || !rest.length) break;
        if (u === deepT2) continue;
@@ -221,7 +255,7 @@ index 611bbce..9dcf1f5 100644
        marks++;
        if (m === a) {
          markTight(a, u, gx, gy);
-@@ -2102,19 +2109,29 @@ function canReach(a: Agent, r: Agent): boolean {
+@@ -2102,19 +2125,29 @@ function canReach(a: Agent, r: Agent): boolean {
  // (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 문턱 − 1 이면 유지, 그 아래면 올라간다 (히스테리시스)
  interface LineMatch { drop: Set<number>; surplus: number }
  const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
@@ -255,7 +289,7 @@ index 611bbce..9dcf1f5 100644
    const dir = attackDir(team, s.half);
    let lx = 0;
    let ln = 0;
-@@ -2127,13 +2144,21 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
+@@ -2127,13 +2160,21 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
    }
    if (!ln) return (e.plan = NO_MATCH);
    const band = lx / ln + O.lineMatchBand / L;
