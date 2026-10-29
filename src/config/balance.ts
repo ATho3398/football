@@ -1384,7 +1384,7 @@ export const BALANCE = {
     involvementMax: 3,
     /** 감독 기억 감쇠: 출전 경기마다 신뢰도가 50 쪽으로 이만큼 (비율) 돌아온다 (오래된 인상은 옅어짐, 추천안) */
     reversion: 0.04,
-    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) − 피로 70 이상 fatigueMinus (화면 분해) */
+    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) (fatigueFrom·fatigueMinus 는 C.79n 부터 안 씀 — 화면 피로 칸도 실제 선발 식 myFatigueTerm) */
     trustPerPoint: 0.06, formScale: 5, formMax: 1.5, fatigueFrom: 70, fatigueMinus: 2,
     /** 경쟁자 (NPC) 신뢰도 고정 */
     npcTrust: 60,

@@ -13,7 +13,8 @@ import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
 import { ensureNational, natId, natLabel, natRoster, nationFromId } from '../national';
 import { FOOT_KO } from '../body';
-import { TAGS } from '../tags';
+import { formMul, TAGS } from '../tags';
+import { ENGINE } from '../engine/config';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText } from '../aptitude';
@@ -142,15 +143,29 @@ export interface ConditionVM {
   life?: string[];
 }
 
+/**
+ * 폼 효과 문구 (C.79n): 엔진 경기(기본)에서 폼은 평점에 더해지지 않고 내 선수 패스·드리블·유효 슈팅 성공 확률에
+ * 폼 × formToProb 로 들어간다 (E.16). 빠른 경기(통계)에서만 평점에 그대로 더한다
+ */
+export function formEffectLabel(b: number, engine = true): string {
+  const s = b >= 0 ? '+' : '−';
+  if (!engine) return `평점 보정 ${s}${Math.abs(b).toFixed(2)}`;
+  const pp = Math.round(Math.abs(b) * ENGINE.match.formToProb * 1000) / 10;
+  return `성공 확률 ${s}${pp}%p`;
+}
+
+/** 내 상태 폼 줄 (C.79n): 최근 평점 폼(롤러코스터·꾸준함 배율 포함)의 엔진 효과. N경기 미만이면 n/N경기 */
+export function formLine(p: GameState['player']): string {
+  return p.recentRatings.length >= BALANCE.form.games ? formEffectLabel(formBonus(p.recentRatings, formMul(p))) : `${p.recentRatings.length}/${BALANCE.form.games}경기`;
+}
+
 function conditionVM(g: GameState): ConditionVM {
   const p = g.player;
-  const enough = p.recentRatings.length >= BALANCE.form.games;
-  const b = formBonus(p.recentRatings);
   return {
     fatigue: Math.round(p.fatigue),
     ...((p.seasonFatigue ?? 0) >= 1 ? { seasonFatigue: Math.round(p.seasonFatigue!) } : {}),
     form: FORM_STEP[formLevel(p.recentRatings)],
-    formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,
+    formLabel: formLine(p),
     yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery,
     yellowEvery: BALANCE.discipline.yellowBanEvery,
     life: lifeHints(g),
@@ -1074,6 +1089,8 @@ export interface MatchResultVM {
   comp: string;
   opp: string; scoreLine: string; outcome: 'win' | 'draw' | 'loss'; outcomeKo: string;
   rating: number | null; appearance: string; formBonus: number;
+  /** 엔진 경기였나 (C.79n): 폼 칩을 성공 확률 효과로. 빠른 경기·없음이면 평점 보정 */
+  formEngine?: boolean;
   chips: string[];
   banners: BannerVM[];
   highlights: FeedVM[];
@@ -1193,7 +1210,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
     round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
     opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.nat?.pens ? ` (승부차기 ${m.nat.pens[0]}-${m.nat.pens[1]})` : ''}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
-    rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, chips, banners, highlights, report,
+    rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, ...(m.engine ? { formEngine: true } : {}), chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
     clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => ({ kind: c.kind, label: CLIP_KO[c.kind], minute: `${c.minute}'`, text: c.text })),
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },

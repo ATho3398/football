@@ -3,14 +3,14 @@
 import { isCaptain } from '../club';
 import { BALANCE } from '../config/balance';
 import { daysBetween } from '../calendar';
-import { dayPlan, myMatchPosition, type GameState } from '../game';
+import { dayPlan, myMatchDate, myMatchPosition, myStartChance, myStartInputs, type GameState } from '../game';
 import {
-  bestPosition, captainCandidate, competition, ensureManager, managerData, meetingBlocked, meetingLine, meetingOptions, nextMeetingHint, startChance,
-  type MeetingKind, type MeetingOption,
+  bestPosition, captainCandidate, competition, ensureManager, managerData, meetingBlocked, meetingLine, meetingOptions, nextMeetingHint,
+  type CompetitionInputs, type MeetingKind, type MeetingOption,
 } from '../manager';
 import { MANAGER_STYLE_HINT, MANAGER_STYLE_KO } from '../../data/managers';
 import { proficiencyOf, proficientOvr } from '../proficiency';
-import { teamById } from '../league';
+import { dayNum } from '../npcFit';
 import { requestEligibility } from '../transfer';
 import type { FieldPosition } from '../positions';
 
@@ -45,13 +45,19 @@ function when(days: number): string {
   return `${Math.floor(days / 7)}주 전`;
 }
 
+/** 주전 경쟁 입력 (C.79n): 다음 경기 날 피로·상대 레이팅·NPC 컨디션 날 — 실제 선발 판정과 같게 */
+function competitionInputs(g: GameState): CompetitionInputs {
+  const d = myMatchDate(g);
+  return { ...myStartInputs(g), ...(d ? { day: dayNum(d) } : {}) };
+}
+
 /** 홈 "주전 경쟁" 카드 (디자인 22): 시즌 중에만 */
 export function competitionVM(g: GameState): CompetitionVM | null {
   if (g.phase !== 'season' || g.trial) return null;
   const m = ensureManager(g);
   const p = g.player;
   const pos = myMatchPosition(g);
-  const rows = competition(g, pos, 2);
+  const rows = competition(g, pos, 2, competitionInputs(g));
   // 막대 50점부터 (디자인 22): 회색 = 슬롯 OVR(+ 음수 항), 파랑 = 신뢰도 +, 라임 = 폼 +, 빨강 = 빠진 몫(피로·음수 신뢰·폼)
   const top = Math.max(...rows.map((r) => r.ovr + Math.max(0, r.trust) + Math.max(0, r.form))) + 2;
   const span = Math.max(1, top - 50);
@@ -64,8 +70,7 @@ export function competitionVM(g: GameState): CompetitionVM | null {
       w: [pct(r.ovr + neg - 50), pct(Math.max(0, r.trust)), pct(Math.max(0, r.form)), pct(-neg)] as [number, number, number, number],
     };
   });
-  const team = teamById(g.league, p.teamId);
-  const chance = Math.round(startChance(g, proficientOvr(p, pos), team.rating, p.fatigue) * 100);
+  const chance = Math.round(myStartChance(g, proficientOvr(p, pos)) * 100);
   const md = managerData(p.teamId, g);
   const X = BALANCE.manager.meeting;
   const perks = [
@@ -123,11 +128,10 @@ export function meetingVM(g: GameState): MeetingVM | null {
   const X = BALANCE.manager.meeting;
   const level = t >= X.rewardFrom ? '신뢰도 높음' : t < X.lowBelow ? '신뢰도 낮음' : '신뢰도 보통';
   const p = g.player;
-  const team = teamById(g.league, p.teamId);
   const pos = myMatchPosition(g);
-  const chanceAt = (ps: FieldPosition) => Math.round(startChance(g, proficientOvr(p, ps), team.rating, p.fatigue) * 100);
+  const chanceAt = (ps: FieldPosition) => Math.round(myStartChance(g, proficientOvr(p, ps)) * 100);
   const chance = chanceAt(pos);
-  const rank = competition(g, pos, 2).findIndex((r) => r.me) + 1;
+  const rank = competition(g, pos, 2, competitionInputs(g)).findIndex((r) => r.me) + 1;
   const best = bestPosition(g);
   const formation = g.tactics.formation;
   const cell = (ps: FieldPosition): PosCellVM => ({ pos: ps, formation, ovr: proficientOvr(p, ps), prof: Math.round(proficiencyOf(p, ps)), chance: chanceAt(ps) });

@@ -6,12 +6,11 @@ import { dateLabel } from '../calendar';
 import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
 import { derbyOf } from '../derby';
-import { formBonus, formLevel } from '../form';
-import { matchCompLabel, myMatchPosition, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
+import { formLevel } from '../form';
+import { matchCompLabel, myMatchPosition, myStartChance, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
 import { ensureNational, natId } from '../national';
 import type { ScoutReport } from '../rapport';
 import { leaguePosition, teamById, type LeagueState } from '../league';
-import { startChance } from '../manager';
 import { proficientOvr } from '../proficiency';
 import { isUnlocked } from '../unlocks';
 import { POSITION_NAMES_KO } from '../positions';
@@ -22,7 +21,7 @@ import { DETAILS, LEVEL_NAMES_KO, type Detail } from '../engine/tactics';
 import { proficiencyOf } from '../proficiency';
 import { ROLE_DESC_KO } from '../engine/roles';
 import type { FormationSlotProps } from './components';
-import { myTacticVM, teamTactic, type TacticVM } from './viewModels';
+import { formLine, myTacticVM, teamTactic, type TacticVM } from './viewModels';
 import { deckCardsVM, deckUnusable, myRoleId, type DeckCardVM } from './views/deck';
 
 export type FormMark = 'W' | 'D' | 'L';
@@ -100,8 +99,6 @@ export function prepVM(g: GameState): PrepVM | null {
   const slots: FormationSlotProps[] = lineup.map((x) => ({ pos: x.pos, x: Math.round(10 + x.y * 80), y: Math.round(8 + x.x * 95), me: x.me, ...(x.me ? { ovr } : {}) }));
   const tr = g.trial;
   const team = (id: string, rating: number, name: string, tactic?: TacticVM): PrepTeamVM => ({ id, name, rank: leaguePosition(L, id), rating: Math.round(rating), form: teamForm(L, id), ...(tactic ? { tactic } : {}) });
-  const enough = p.recentRatings.length >= BALANCE.form.games;
-  const b = formBonus(p.recentRatings);
   return {
     date: dateLabel(g.calendar.date),
     comp: matchCompLabel(g, fx),
@@ -116,10 +113,10 @@ export function prepVM(g: GameState): PrepVM | null {
     hint: g.training.hints[0] ?? null,
     slots, formation: myTacticVM(g).formation ?? '',
     me: { pos, posKo: POSITION_NAMES_KO[pos], role: role ? ROLE_NAMES_KO[role] ?? role : '', roleDesc: role ? ROLE_DESC_KO[role] ?? '' : '', prof: Math.floor(proficiencyOf(p, pos)), ovr, mainPos: p.position, off: pos !== p.position },
-    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round((fx.nat ? natStartChance(proficientOvr(p, p.position), my.rating) : startChance(g, ovr, my.rating, p.fatigue)) * 100) },
+    start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round((fx.nat ? natStartChance(proficientOvr(p, p.position), my.rating) : myStartChance(g, ovr)) * 100) },
     condition: {
       fatigue: Math.round(p.fatigue), form: FORM_STEP[formLevel(p.recentRatings)],
-      formLabel: enough ? `평점 보정 ${b >= 0 ? '+' : '−'}${Math.abs(b).toFixed(2)}` : `${p.recentRatings.length}/${BALANCE.form.games}경기`,
+      formLabel: formLine(p),
       yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery, yellowEvery: BALANCE.discipline.yellowBanEvery,
       injury: p.injury ? `${p.injury.daysLeft}일 남음` : null, suspended: p.suspended,
       ...((p.seasonFatigue ?? 0) >= 1 ? { seasonFatigue: Math.round(p.seasonFatigue!) } : {}),
