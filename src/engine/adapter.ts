@@ -58,6 +58,8 @@ export interface EngineMatchInput {
   myRating: number;
   oppRating: number;
   home: boolean;
+  /** 중립 경기 (컵·챔스 결승, 대표팀 대회, C.79o): 엔진 홈 이점 없음 */
+  neutral?: boolean;
   me: MyPlayerInput;
   plan: MyMatchPlan;
   difficulty: Difficulty;
@@ -151,6 +153,7 @@ export function buildMyMatch(m: EngineMatchInput) {
     difficulty: m.difficulty,
     seed: m.seed,
     bigMatch: m.bigMatch ?? false,
+    ...(m.neutral ? { neutral: true } : {}),
     ...(m.plan.minutes ? { myMinutes: m.plan.minutes } : {}),
     ...(m.control ? { control: m.control } : {}),
     ...(m.cards?.deck.length && m.plan.minutes ? { cards: m.cards } : {}),

@@ -810,6 +810,11 @@ export interface NextMatch {
   nat?: NatMatch;
 }
 
+/** 중립 경기 (C.79o): 컵·챔스 결승, 대표팀 대회(평가전 말고). 홈 이점이 없고 화면에 "중립" */
+export const isNeutralMatch = (fx: { cup?: MyCupTie | null; nat?: NatMatch | null }): boolean => !!fx.cup?.final || (!!fx.nat && fx.nat.comp !== 'friendly');
+/** 홈 · 원정 · 중립 */
+export const venueKo = (home: boolean, neutral?: boolean): string => (neutral ? '중립' : home ? '홈' : '원정');
+
 /** 이번 라운드부터 내 팀 경기가 있는 첫 라운드 (홀수 팀 리그의 쉬는 라운드를 건너뛴다, C.76c MLS). 없으면 -1 */
 function myRoundFrom(state: GameState, from: number): number {
   const me = state.player.teamId;
@@ -1286,7 +1291,7 @@ function opponentHints(state: GameState): string[] {
     out.push(`${opp.nameKo} 최근 ${last.length}경기 ${form} · 득점 ${gf} 실점 ${ga}`);
   }
   const rank = [...league.teams].sort((a, b) => b.rating - a.rating).findIndex((t) => t.id === opp.id) + 1;
-  out.push(`${opp.nameKo} 전력 ${Math.round(opp.rating)} (${fx.nat ? '대표팀' : `리그 ${rank}위`}) · ${fx.home ? '우리 홈' : '상대 홈'} 경기`);
+  out.push(`${opp.nameKo} 전력 ${Math.round(opp.rating)} (${fx.nat ? '대표팀' : `리그 ${rank}위`}) · ${isNeutralMatch(fx) ? '중립' : fx.home ? '우리 홈' : '상대 홈'} 경기`);
   const roster = fx.nat ? natRoster(state, fx.nat.opp) : state.rosters[opp.id];
   const stats = state.playerStats ?? {};
   const top = roster?.players.map((pl) => ({ pl, g: stats[pl.id]?.[1] ?? 0 })).sort((a, b) => b.g - a.g)[0];
@@ -1621,7 +1626,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   const rapport = rapportInput(state, state.rosters[player.teamId]!, scoutReport(oppRoster, pos));
   const input: EngineMatchInput = {
     myRoster: state.rosters[player.teamId]!, oppRoster,
-    myRating: myTeam.rating, oppRating: opp.rating, home: fx.home,
+    myRating: myTeam.rating, oppRating: opp.rating, home: fx.home, ...(isNeutralMatch(fx) ? { neutral: true } : {}),
     me: { position: pos, attributes: player.attributes, fatigue, form: form + (!started && minutes > 0 && tagHas(player, 'superSub') ? BALANCE.tags.natural.superSubForm : 0), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player), ...judgePenField(state) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:engine:${league.season}:${key}`), worldSeed: seed,
     leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length, myTactics: state.tactics,
@@ -1746,7 +1751,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     result = simulateMatch(
       {
         ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue),
-        teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
+        teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, neutral: isNeutralMatch(fx), difficulty: state.difficulty,
         formBonus: form, injured: injured || suspended || leave, ...(state.trial ? { forceStart: true } : {}),
         startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue), opp.rating),
       },
@@ -1942,7 +1947,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
     result = simulateMatch(
       {
         ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue),
-        teamRating: myTeam.rating, oppRating: opp.rating, home: mc.home, difficulty: state.difficulty,
+        teamRating: myTeam.rating, oppRating: opp.rating, home: mc.home, neutral: mc.final, difficulty: state.difficulty,
         formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue), opp.rating), bigMatch: mc.big,
       },
       rngFor(seed, 'match', league.season, key),
@@ -2080,7 +2085,7 @@ function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } 
   const opp = teamById(state.league, natId(m.opp));
   const input: EngineMatchInput = {
     myRoster: natRoster(state, nat.nation), oppRoster: natRoster(state, m.opp),
-    myRating: myR, oppRating: oppR, home: m.home,
+    myRating: myR, oppRating: oppR, home: m.home, ...(isNeutralMatch({ nat: m }) ? { neutral: true } : {}),
     me: { position: pos, attributes: player.attributes, fatigue, form: natForm(state), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player), ...judgePenField(state) },
     plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:natengine:${m.key}`), worldSeed: seed, leagueAvg: (myR + oppR) / 2,
     ...(NAT_BIG(m) ? { bigMatch: true } : {}),
@@ -2121,7 +2126,7 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
   } else {
     result = simulateMatch(
       {
-        ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue), teamRating: myR, oppRating: oppR, home: m.home, difficulty: state.difficulty,
+        ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue), teamRating: myR, oppRating: oppR, home: m.home, neutral: isNeutralMatch({ nat: m }), difficulty: state.difficulty,
         formBonus: form, injured, startP: natStartChance(ovr, nationRating(nat.nation)), bigMatch: NAT_BIG(m),
       },
       rngFor(seed, 'natmatch', m.key),

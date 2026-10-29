@@ -6,7 +6,7 @@ import { applyOtherLeagueJob, calendarKind, normalizeLeagues, otherLeagueJobs, s
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
-import { buyWeakFoot, chooseInjuryReturn, choosePreset, matchCompLabel, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
+import { buyWeakFoot, chooseInjuryReturn, choosePreset, isNeutralMatch, matchCompLabel, venueKo, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
 import { compNameKo, type CompId } from '../cups';
 import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCustomForm } from './customVM';
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
@@ -1395,7 +1395,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
     const what = fx ? `${matchCompLabel(g, fx)} ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : '훈련일 진행 중';
     // C.76j (디자인 215): 계산 중인 경기가 컵·챔스·대표팀이면 대회 단계 칩
     const chip = fx && (fx.cup || fx.nat) ? (prepCupBadge(matchCompLabel(g, fx))) : '';
-    updateAutoLayer(layer, { n: played, m: total, meta: `${dateLabel(g.calendar.date)} · ${fx ? `${fx.home ? '홈' : '원정'} · ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : what}`, lines, rank: myRow(), pts: prefs.alloc ? spent : Math.max(0, g.player.unspentPoints - pts0), alloc: prefs.alloc, chip });
+    updateAutoLayer(layer, { n: played, m: total, meta: `${dateLabel(g.calendar.date)} · ${fx ? `${venueKo(fx.home, isNeutralMatch(fx))} · ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : what}`, lines, rank: myRow(), pts: prefs.alloc ? spent : Math.max(0, g.player.unspentPoints - pts0), alloc: prefs.alloc, chip });
   };
   try {
     for (;;) {

@@ -1202,7 +1202,7 @@ export const ENGINE = {
   match: {
     /**
      * 홈 이점 (E.18 A7, 능력치 가산 대신 세 갈래): ① 판단 품질 + homeJudgement ② 듀얼(드리블, 태클, 공중볼, 버티기) 로짓 + homeDuel
-     * ③ 원정 팀 행위의 파울 판정 확률 × awayFoul, 카드 확률 × awayCard. 빠른 경기는 기존 +1.5 레이팅
+     * ③ 원정 팀 행위의 파울 판정 확률 × awayFoul, 카드 확률 × awayCard. 빠른 경기는 BALANCE.match.homeRating (C.79o)
      */
     homeJudgement: 0.03,
     homeDuel: 0.06,

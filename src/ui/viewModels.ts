@@ -7,7 +7,7 @@ import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { topChemMates, type ChemMateVM } from '../rapport';
-import { matchCompLabel, myMatchConditions, myShirt, rosterLeagues, weekFreeDays } from '../game';
+import { isNeutralMatch, matchCompLabel, myMatchConditions, myShirt, rosterLeagues, venueKo, weekFreeDays } from '../game';
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
@@ -267,7 +267,7 @@ export interface HomeVM {
   phase: GameState['phase'];
   banners: BannerVM[];
   next: null | {
-    my: string; opp: string; home: boolean; myRating: number; oppRating: number;
+    my: string; opp: string; home: boolean; neutral?: boolean; myRating: number; oppRating: number;
     /** 컵·챔스 경기 배지 (C.67b) */
     cup?: { label: string; comp: CompId | 'nat' };
     myTactic?: TacticVM; oppTactic?: TacticVM;
@@ -378,7 +378,7 @@ export function dayVM(g: GameState): DayVM | null {
       if (!(b.kind === 'cup' && [...cupDays.keys()].some((d) => Math.abs(daysBetween(d, b.date)) <= 1))) upcoming.push({ date: dateLabel(b.date), text: BREAK_KO[b.kind], kind: 'break' });
     }
     if (upcoming.length >= 6) break;
-    upcoming.push({ date: dateLabel(x.date), text: x.cup || x.nat ? teamById(g.league, x.opp).nameKo : `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: x.home ? '홈' : '원정', team: x.opp, ...(x.cup || x.nat ? { cup: x.comp } : {}) });
+    upcoming.push({ date: dateLabel(x.date), text: x.cup || x.nat ? teamById(g.league, x.opp).nameKo : `${x.comp} ${teamById(g.league, x.opp).nameKo}`, kind: x.home ? 'home' : 'away', sub: venueKo(x.home, x.neutral), team: x.opp, ...(x.cup || x.nat ? { cup: x.comp } : {}) });
   }
   if (upcoming.length < 6 && g.league.round >= g.league.schedule.length - 5) upcoming.push({ date: dateLabel(cal.final), text: '시즌 종료', kind: 'end' });
   const y = +today.slice(0, 4);
@@ -460,7 +460,7 @@ export function homeVM(g: GameState): HomeVM {
       banners.push({ tone: 'warning', title: `출장 정지 ${p.suspended}경기`, body: `${opp.nameKo}전에 나설 수 없어요. 경기가 없는 날 훈련으로 XP를 받아요.` });
     }
     next = {
-      my: my.nameKo, opp: opp.nameKo, home: fx.home, myRating: my.rating, oppRating: opp.rating,
+      my: my.nameKo, opp: opp.nameKo, home: fx.home, neutral: isNeutralMatch(fx), myRating: my.rating, oppRating: opp.rating,
       myTactic: myTacticVM(g), oppTactic: teamTactic(opp.id), out: !!inj || p.suspended > 0,
       tacticsOpen: isUnlocked(g.guide, 'tactics'),
       control: g.control,
@@ -544,19 +544,19 @@ export interface AutoSheetVM {
 }
 
 /** 남은 내 경기 (리그 + 추첨된 컵, 날짜 순, C.67) */
-function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; comp: string; cup: CompId | null; nat?: boolean }[] {
+function myUpcoming(g: GameState): { date: string; opp: string; home: boolean; neutral?: boolean; comp: string; cup: CompId | null; nat?: boolean }[] {
   const me = g.player.teamId;
   const cal = calendarOf(g);
-  const out: { date: string; opp: string; home: boolean; comp: string; cup: CompId | null; nat?: boolean }[] = [];
+  const out: { date: string; opp: string; home: boolean; neutral?: boolean; comp: string; cup: CompId | null; nat?: boolean }[] = [];
   for (let r = g.league.round; r < g.league.schedule.length; r++) {
     const i = g.league.schedule[r]!.findIndex((f) => f.home === me || f.away === me);
     if (i < 0) continue;
     const f = g.league.schedule[r]![i]!;
     out.push({ date: cal.fixtureDates[r]![i]!, opp: f.home === me ? f.away : f.home, home: f.home === me, comp: `${r + 1}R`, cup: null });
   }
-  if (g.phase === 'season') for (const c of myCupMatches(g)) if (c.tie.hg === undefined) out.push({ date: c.date, opp: c.opponentId, home: c.home, comp: c.label, cup: c.comp });
+  if (g.phase === 'season') for (const c of myCupMatches(g)) if (c.tie.hg === undefined) out.push({ date: c.date, opp: c.opponentId, home: c.home, neutral: c.final, comp: c.label, cup: c.comp });
   // 대표팀 (C.76d): 잡힌 A매치
-  if (g.phase === 'season') for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.gf === undefined) out.push({ date: m.date, opp: natId(m.opp), home: m.home, comp: natLabel(m), cup: null, nat: true });
+  if (g.phase === 'season') for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.gf === undefined) out.push({ date: m.date, opp: natId(m.opp), home: m.home, neutral: m.comp !== 'friendly', comp: natLabel(m), cup: null, nat: true });
   return out.sort((a, b) => daysBetween(b.date, a.date));
 }
 
@@ -566,7 +566,7 @@ function natTarget(g: GameState, list: ReturnType<typeof myUpcoming>): AutoTarge
   const x = list[k];
   return {
     id: 'aMatch', label: '국가대표 A매치', available: true,
-    next: x ? { date: dateLabel(x.date), iso: x.date, text: `${x.comp} · ${teamById(g.league, x.opp).nameKo}전 · ${x.home ? '홈' : '원정'}`, before: k, left: list.filter((y) => y.nat).length } : null,
+    next: x ? { date: dateLabel(x.date), iso: x.date, text: `${x.comp} · ${teamById(g.league, x.opp).nameKo}전 · ${venueKo(x.home, x.neutral)}`, before: k, left: list.filter((y) => y.nat).length } : null,
     ...(x ? {} : { note: '소집되면 A매치 주간 경기가 잡혀요 (발표는 휴식기 5일 전)' }),
   };
 }
@@ -583,7 +583,7 @@ export function autoSheetVM(g: GameState): AutoSheetVM {
     const x = list[k];
     return {
       id: id === 'fa' ? 'cup' : 'ucl', label, available: has,
-      next: x ? { date: dateLabel(x.date), iso: x.date, text: `${x.comp} · ${teamById(g.league, x.opp).nameKo}전 · ${x.home ? '홈' : '원정'}`, before: k, left: list.filter((y) => y.cup === id).length } : null,
+      next: x ? { date: dateLabel(x.date), iso: x.date, text: `${x.comp} · ${teamById(g.league, x.opp).nameKo}전 · ${venueKo(x.home, x.neutral)}`, before: k, left: list.filter((y) => y.cup === id).length } : null,
       ...(x ? {} : { note: reach === '출전 안 함' ? `이번 시즌 ${label}에 나가지 않아요` : `${label} ${reach}` }),
     };
   };
@@ -1871,7 +1871,7 @@ export interface TacticsDraftUI {
 }
 
 export interface TacticsVM {
-  opp: { name: string; tactic?: TacticVM; home: boolean } | null;
+  opp: { name: string; tactic?: TacticVM; home: boolean; neutral?: boolean } | null;
   chips: string[];
   open: boolean;
   tendencies: { id: Tendency; style: TacticStyle; name: string; desc: string; fit: Fit; on: boolean }[];
@@ -1957,7 +1957,7 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     };
   }
   return {
-    opp: opp && fx ? { name: opp.nameKo, home: fx.home, ...(teamTactic(opp.id) ? { tactic: teamTactic(opp.id)! } : {}) } : null,
+    opp: opp && fx ? { name: opp.nameKo, home: fx.home, neutral: isNeutralMatch(fx), ...(teamTactic(opp.id) ? { tactic: teamTactic(opp.id)! } : {}) } : null,
     chips: [TENDENCY_NAMES_KO[t.tendency], formationLabel(t), `라인 ${lv('lineHeight')}`, `압박 ${lv('pressing')}`, `빌드업 ${lv('style')}`, `폭 ${lv('width')}`],
     open: g.guide.tacticsDetailOpen,
     tendencies: TENDENCIES.map((id) => ({

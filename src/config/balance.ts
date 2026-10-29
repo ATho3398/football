@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 88;
+export const BALANCE_VERSION = 89;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -250,7 +250,11 @@ export const BALANCE = {
     subMinutes: { min: 15, max: 30 },
     baseGoals: 1.35,
     goalsK: 0.05,
-    homeBonus: 0.25,
+    /**
+     * 빠른 경기 홈 이점 (C.79o): 홈 팀 득점 기대값만 레이팅 +homeRating 으로 계산(원정 득점은 그대로). 옛 골 덧셈 +0.25 와
+     * 같은 크기(전 리그 홈 승/무/패 44/22/34)에 맞췄다. 중립 경기(컵·챔스 결승, 대표팀 대회)에는 붙이지 않는다
+     */
+    homeRating: 3.4,
     scorerShare: {
       ST: 0.3, CF: 0.22, LW: 0.15, RW: 0.15, CAM: 0.12, CM: 0.06, LM: 0.1, RM: 0.1,
       CDM: 0.03, LB: 0.03, RB: 0.03, LWB: 0.03, RWB: 0.03, CB: 0.04,
