@@ -1,7 +1,7 @@
 // 오프더볼 움직임 (E.6): 공격 시 슬롯 + 지원 + 침투(오프사이드 라인 인지), 수비 시 마킹 + 라인 동기화 + 압박
 
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
-import { weakFootMul } from '../body';
+import { shotFootMul } from '../body';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import { reaction } from './core';
@@ -1227,26 +1227,37 @@ function deepNine(s: SimState, team: 0 | 1): boolean {
 }
 
 /**
- * 슛 레인 (C.78h): 수비 a 가 읽은 상대 소유자 o 의 찰 만한 구석 쪽(우리 골 gy 기준 ±1). 그 구석으로 차는 발의 약발 배율 + 몸 방향(hx, hy 와 그 구석 방향의 cos × laneFace)
- * + 우리 GK 반대편 laneGk, 같으면 주발 쪽. 판단력이 낮으면 반대로 읽는다 (판단 주기 errTick 마다 새로 뽑는 해시 난수)
+ * 슛 레인 (C.78h): 수비 a 가 읽은 상대 소유자 o 의 찰 만한 구석 쪽(우리 골 gy 기준 ±1). 그 구석으로 차는 발의 약발 배율(C.79q: 슛과 같은 shotFootMul —
+ * 몸 방향 기준 발, 급함 = 원터치면 1·아니면 가장 가까운 우리 선수 압박) + 몸 방향(hx, hy 와 그 구석 방향의 cos × laneFace)
+ * + 우리 GK 반대편 laneGk, 같으면 주발로 감아 차는 쪽(몸 방향 기준 오른발 = 왼쪽, 왼발 = 오른쪽 — 안으로 치고 들어온 인버티드 윙어는 파 포스트).
+ * 판단력이 낮으면 반대로 읽는다 (판단 주기 errTick 마다 새로 뽑는 해시 난수)
  */
 function laneGuess(s: SimState, a: Agent, o: Agent, gx: number, gy: number): -1 | 1 {
-  const od = attackDir(o.team, s.half);
   const cy = 0.5 * (ENGINE.pitch.goalWidth / 2 - 0.3);
   const far = farSide(keeperOf(s, a.team), gy);
+  let rush = 1;
+  if (s.t >= o.otUntil) {
+    let nd = Infinity;
+    for (const q of s.agents) if (q.onPitch && q.team === a.team) nd = Math.min(nd, dist(q.x, q.y, o.x, o.y));
+    rush = Math.max(0, 1 - nd / ENGINE.prob.pressureDist);
+  }
   let best: -1 | 1 = 1;
   let bestV = -Infinity;
+  let bestC = -Infinity;
   for (const sd of [-1, 1] as const) {
     const dx = gx - o.x;
     const dy = gy + sd * cy - o.y;
-    let v = weakFootMul(o.body, od, dx, dy);
+    const dd = Math.hypot(dx, dy) || 1;
+    let v = shotFootMul(o.body, o.hx, o.hy, dx, dy, rush);
     // 몸 방향 (hx, hy: 단위 벡터, 움직이면 달리는 방향)
-    v += O.laneFace * ((o.hx * dx + o.hy * dy) / (Math.hypot(dx, dy) || 1));
+    v += O.laneFace * ((o.hx * dx + o.hy * dy) / dd);
     if (far === sd) v += O.laneGk;
-    // 같으면 주발 쪽: 오른발은 공격 방향 왼쪽(y × 공격 방향 < 0)으로 감아 찬다 (body weakFootMul 과 같은 약속)
-    if (v === bestV ? (o.body.foot === 'right' ? -od : od) === sd : v > bestV) {
+    // 같으면 주발로 감아 차는 쪽: 몸 방향 기준 가로 성분 (오른쪽 +), 왼발은 오른쪽으로·오른발은 왼쪽으로 (body shotWeakShare 와 같은 약속)
+    const curl = ((o.hx * dy - o.hy * dx) / dd) * (o.body.foot === 'left' ? 1 : -1);
+    if (v > bestV || (v === bestV && curl > bestC)) {
       best = sd;
       bestV = v;
+      bestC = curl;
     }
   }
   const judge = (a.attrs.defensivePositioning + a.attrs.interception) / 200;

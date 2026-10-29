@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 90;
+export const BALANCE_VERSION = 91;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -970,6 +970,8 @@ export const BALANCE = {
      */
     weakFrom: 0.25,
     weakFull: 0.75,
+    /** 슛 (C.79q): 시간이 있으면(압박·원터치 없음) 공을 주발 쪽으로 옮겨 찬다 — 약발 몫 × (1 − shotSet × (1 − 급함)) */
+    shotSet: 0.8,
     /** 패스는 거리로도 섞는다: passFrom m 이하 짧은 패스는 몸을 돌려 차므로 0, passFull m 이상은 전부 (C.45 첫 측정: 짧은 옆 패스까지 걸면 패스 성공률 −3%p) */
     passFrom: 12,
     passFull: 30,
