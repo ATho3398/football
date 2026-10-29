@@ -1437,21 +1437,22 @@ export const BALANCE = {
      * 성향별 배율·추가 항 (pending 143 초안 비율 그대로): ovr = (자연 OVR − 팀 레이팅) × ovr 를 더함(+면 스타, −면 오버롤 덜 봄),
      * form·last·fatigue·trust = 실용 항 배율, youth = youthAge 이하 가산(+약한 상대 youthWeakOpp: 상대가 youthWeakGap 이상 낮을 때),
      * streak = 연속 선발 streakFrom 경기째부터 1경기당 감점, keep = 직전 경기 선발 가산(주전 고정)
-     *  스타 중용: 오버롤 0.75/0.55 → +0.36, 평점 0.08/0.15 → ×0.53, 피로 0.07/0.15 → ×0.47
+     *  스타 중용: 평점 0.08/0.15 → ×0.53. 초안 오버롤 +0.36·피로 ×0.47 은 리그 시즌 측정에서 토트넘이 선발을 거의 안 바꿈(경기당 0.65명,
+     *    후반 선발 아침 피로 65 — 기준 48) → 오버롤 +0.25 · 피로 ×0.8 (지친 스타도 결국 쉰다)
      *  경쟁형: 오버롤 0.40/0.55 → −0.27, 최근 5 0.25/0.15 → ×1.67, 직전 0.15/0.05 → ×3
      *  로테이션: 피로 0.30/0.15 → ×2, 3경기 연속 선발부터 −1.2/경기
      *  엄격: 감독 관계 0.15/0.07 → ×2.1, 직전 평점 ×2 (훈련 태도 대신 — 태도 데이터 없음)
      *  유망주: 23세 이하 +1.5, 약한 상대(3 이상 낮음) +1.5 더 (컵 구분은 선발 입력에 없어 약팀전만)
-     *  주전 고정: 직전 경기 선발 +1.0, 폼 ×0.7, 피로 ×0.7
+     *  주전 고정: 직전 경기 선발 +0.6, 폼 ×0.7, 피로 ×0.85 (첫 측정 +1.0·×0.7 은 선발 교체 경기당 3.5 → 2.1명, 후반 피로 +6 으로 과함)
      */
     styles: {
       neutral: { ovr: 0, form: 1, last: 1, fatigue: 1, trust: 1, youth: 0, streak: 0, keep: 0 },
-      star: { ovr: 0.36, form: 0.53, last: 0.5, fatigue: 0.47, trust: 1, youth: 0, streak: 0, keep: 0 },
+      star: { ovr: 0.25, form: 0.53, last: 0.5, fatigue: 0.8, trust: 1, youth: 0, streak: 0, keep: 0 },
       competitive: { ovr: -0.27, form: 1.67, last: 3, fatigue: 1, trust: 1, youth: 0, streak: 0, keep: 0 },
       rotation: { ovr: 0, form: 1, last: 1, fatigue: 2, trust: 1, youth: 0, streak: 1.2, keep: 0 },
       strict: { ovr: 0, form: 1, last: 2, fatigue: 1, trust: 2.1, youth: 0, streak: 0, keep: 0 },
       youth: { ovr: 0, form: 1, last: 1, fatigue: 1, trust: 1, youth: 1.5, streak: 0, keep: 0 },
-      steady: { ovr: 0, form: 0.7, last: 0.7, fatigue: 0.7, trust: 1, youth: 0, streak: 0, keep: 1.0 },
+      steady: { ovr: 0, form: 0.7, last: 0.7, fatigue: 0.85, trust: 1, youth: 0, streak: 0, keep: 0.6 },
     } as Record<string, { ovr: number; form: number; last: number; fatigue: number; trust: number; youth: number; streak: number; keep: number }>,
     youthAge: 23, youthWeakOpp: 1.5, youthWeakGap: 3, streakFrom: 3,
   },
