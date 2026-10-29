@@ -561,9 +561,17 @@ export function updateOffball(s: SimState, a: Agent): void {
   const [bnx, bny] = ballNorm(s, a.team);
   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
-  if (attacking) attackTarget(s, a, dir, bnx, bny);
-  else defendTarget(s, a, dir, bnx, bny);
+  if (attacking) {
+    attackTarget(s, a, dir, bnx, bny);
+    // 복귀 조깅 (C.79t, 엔진관리자19 M2): 방금(lineMatchJogReturn 초 안) 내려와 있던 줄 2 선수는 공격 자리 복귀를 서두르지 않는다 (침투 달리기 중은 그대로)
+    if (O.lineMatchJog >= 3 && a.line === 2 && s.t - (lastDrop.get(a) ?? -99) < O.lineMatchJogReturn && !(s.t < a.runUntil)) a.urgent = false;
+  } else {
+    defendTarget(s, a, dir, bnx, bny);
+    if (O.lineMatchJog >= 3 && a.line === 2 && lineMatchPlan(s, a.team).drop.has(a.idx)) lastDrop.set(a, s.t);
+  }
 }
+/** 복귀 조깅 (C.79t): 선수별 마지막으로 내려와 있던 시각 (엔진 상태 밖, 스위치 0 이면 안 쓴다) */
+const lastDrop = new WeakMap<Agent, number>();
 
 function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
   ensureErrors(s, a);
