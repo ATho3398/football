@@ -32,7 +32,7 @@ if (!part || part === 'A') {
     let u23 = 0;
     let all = 0;
     for (const m of ms) {
-      const st = new Set(Object.entries(m.apps ?? {}).filter(([pid, v]) => v[0] === 1 && m.team[pid] === id).map(([pid]) => pid));
+      const st = new Set(Object.entries(m.apps ?? {}).filter(([pid, v]) => v[0] === 1 && m.team?.[pid] === id).map(([pid]) => pid));
       if (prev) changes += [...st].filter((x) => !prev!.has(x)).length;
       prev = st;
       for (const x of st) { cnt.set(x, (cnt.get(x) ?? 0) + 1); all++; if ((age.get(x) ?? 99) <= 23) u23++; }
@@ -58,7 +58,7 @@ if (!part || part === 'B') {
     else if (d <= -3 && d >= -9 && bench.length < SEEDS) bench.push(p.id);
   }
   const kinds: [string, (i: number) => ReturnType<typeof newGame>][] = [
-    ['유망주', (i) => newGame({ mode: 'prospect', position: (['ST', 'CM', 'CB', 'LW'] as const)[i % 4], seed: `c79i-p${i}`, difficulty: 'normal' })],
+    ['유망주', (i) => newGame({ mode: 'prospect', position: (['ST', 'CM', 'CB', 'LW'] as const)[i % 4]!, seed: `c79i-p${i}`, difficulty: 'normal' })],
     ['주전', (i) => newGame({ mode: 'real', playerId: starters[i % starters.length]!, seed: `c79i-s${i}`, difficulty: 'normal' })],
     ['벤치', (i) => newGame({ mode: 'real', playerId: bench[i % bench.length]!, seed: `c79i-b${i}`, difficulty: 'normal' })],
   ];
