@@ -605,7 +605,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // 점유 가치 (C.79m, 사용자 "짧은 패스는 점유 가치 높이는 패치"): 소유를 지키는 선택(패스·유지)에 possess × 판단 성공 확률 × 받는(지키는) 곳 여유(1 − 다음 결정 전 상실 확률).
   // 판단 효용에만 더한다(실행·성공 확률 불변). 성향별 가중(티키타카 최고 · 직선·블록 낮게) × 빌드업 단계(짧게일수록 큼)
   const DP = ENGINE.decide.possess;
-  const possK = DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5));
+  // 공격 ⅓ 에서는 줄인다(zoneFrom → zoneTo 에서 0): 골 앞은 공을 지키기보다 위험을 감수하는 곳
+  const possK = DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5)) * (DP.zoneTo > DP.zoneFrom ? clamp((DP.zoneTo - ax) / (DP.zoneTo - DP.zoneFrom), 0, 1) : 1);
 
   // 패스 / 침투 패스
   for (const r of s.agents) {

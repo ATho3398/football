@@ -1019,6 +1019,9 @@ export const ENGINE = {
       /** 패스 거리 가중: near m 안 1, far m 에서 0 (선형) — 짧은 패스일수록 공을 지킨다 */
       near: 10,
       far: 25,
+      /** 패서 자리(정규화 x, 상대 골 쪽 1): zoneFrom 까지 1, zoneTo 에서 0 (선형). zoneTo ≤ zoneFrom 이면 끔 */
+      zoneFrom: 0.55,
+      zoneTo: 0.8,
     },
   },
 
