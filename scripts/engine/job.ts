@@ -98,6 +98,8 @@ export interface MatchJob {
   block?: boolean;
   /** 박스 수신 분해 (C.78p boxProbe): 박스로 가는 패스·박스 수신 수비 거리·받은 뒤 3초·12 m 안 슛 앞 장면, 박스 안 수비 인원별 */
   box?: boolean;
+  /** 패스 거리 분포 (C.79m): 팀별 패스(침투·컷백·레이오프 포함, 크로스 제외) 노린 거리 0·10·20·30·40 m 칸 시도 수 */
+  pdist?: boolean;
 }
 
 export interface SeasonJob {
@@ -152,6 +154,7 @@ export interface MatchOut {
   gegen?: GegenOut;
   block?: BlockOut;
   box?: BoxOut;
+  pdist?: [number[], number[]];
 }
 
 export interface SeasonOut {
@@ -353,6 +356,21 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const gegen = j.gegen ? gegenRun(sim) : undefined;
     const block = j.block ? blockRun(sim) : undefined;
     const box = j.box ? boxRun(sim) : undefined;
+    let pdist: [number[], number[]] | undefined;
+    if (j.pdist) {
+      pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      const s0 = sim.state;
+      let seen: unknown = null;
+      while (!s0.done) {
+        if (s0.moments.pending) sim.resolve('delegate');
+        else sim.step();
+        const fl = s0.ball.flight;
+        if (fl && fl !== seen && fl.aimD !== undefined && fl.passer >= 0 && !fl.fromCross) {
+          seen = fl;
+          pdist[s0.agents[fl.passer]!.team]![Math.min(4, Math.floor(fl.aimD / 10))]!++;
+        }
+      }
+    }
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -373,6 +391,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(gegen ? { gegen } : {}),
       ...(block ? { block } : {}),
       ...(box ? { box } : {}),
+      ...(pdist ? { pdist } : {}),
     };
   } finally {
     restore();

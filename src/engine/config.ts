@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 59;
+export const ENGINE_VERSION = 60;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -998,6 +998,27 @@ export const ENGINE = {
       shootLaneRef: 0.45,
       /** 압박: 1 − shootPress × 압박(0~1) */
       shootPress: 0.3,
+    },
+    /**
+     * 점유 가치 (C.79m, 사용자 2026-10-30 "짧은 패스는 점유 가치 높이는 패치, 티키타카에선 더 높게, 롱볼(직선)이나 수비(블록)에선 좀 낮추고").
+     * 가치표(positionValue)는 골까지 거리 함수뿐이라 옆·뒤 짧은 패스가 지금 자리와 같은 가치 + 실패 비용만 얻었다(c78z §2) — 공을 지키는 것 자체의 가치.
+     * 패스 후보 효용 += 성향값 × (1 + style × (빌드업 − 0.5)) × 거리 가중(near~far) × 판단 성공 확률 × (1 − 받는 순간 압박 상실 확률),
+     * 유지 효용 += 같은 값 × hold × (1 − 유지 상실 확률). 판단 효용에만(실행 불변). 0 = 끔
+     */
+    possess: {
+      balanced: 0.012,
+      tikitaka: 0.018,
+      gegenpress: 0.008,
+      counter: 0.01,
+      direct: 0,
+      block: 0,
+      /** 빌드업 단계 기울기 (짧게 0.85 · 혼합 0.5 · 직선 0.2) */
+      style: 0,
+      /** 유지 몫 (패스 대비) */
+      hold: 0,
+      /** 패스 거리 가중: near m 안 1, far m 에서 0 (선형) — 짧은 패스일수록 공을 지킨다 */
+      near: 10,
+      far: 25,
     },
   },
 
