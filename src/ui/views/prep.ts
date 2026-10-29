@@ -94,7 +94,7 @@ export function prepView(vm: PrepVM): string {
   const c = vm.condition;
   const stamina = Math.max(0, Math.min(100, 100 - c.fatigue));
   const s = vm.start;
-  // C.70 (디자인 166): 머리 오른쪽 경고 n/n, 폼 줄 오른쪽 평점 보정, 아래 판 = 선발 가능성 막대 % + 결장 사유
+  // C.70 (디자인 166): 머리 오른쪽 경고 n/n, 폼 줄 오른쪽 폼 효과(C.79n 엔진 = 성공 확률 %p), 아래 판 = 선발 가능성 막대 % + 결장 사유
   const low = 100 - BALANCE.fatigue.penaltyFrom;
   const why = [
     ...(c.injury ? [`${Icon({ name: 'danger', size: 14 })}<span class="fail">부상 · ${esc(c.injury)}</span>`] : []),

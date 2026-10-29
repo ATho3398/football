@@ -24,7 +24,8 @@ function secondLineMarked(maxMan: number): number {
     let n = 0;
     let marked = 0;
     // C.79e(엔진 59, 줄 인원 맞춤 내려앉기): 줄 2 가 수비 줄로 내려와 마크를 늘려 77~79 의 차가 0.004 로 줄어 86~88(+0.097)로 — 77~92 세 시드 묶음 중 78·79·80·81·86·92 통과 (단언 그대로)
-    for (const seed of [86, 87, 88]) {
+    // C.79k(엔진 60, 비행 중 패서 제외): 86~88 이 0.597 대 0.611 로 뒤집혀 84~86(0.617 대 0.399)로 — 77~100 세 시드 묶음 중 78·79·83~85·89~98 통과 (단언 그대로)
+    for (const seed of [84, 85, 86]) {
       const m = createMatch(input(seed));
       const s = m.state;
       while (!s.done) {

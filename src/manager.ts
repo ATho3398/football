@@ -136,9 +136,21 @@ export function formTerm(recent: readonly number[]): number {
   return clamp(formBonus(recent) * M.formScale, -M.formMax, M.formMax);
 }
 
-/** 피로 항 (화면 분해용, 실제 선발 확률은 startProbability 의 피로 곱을 쓴다) */
-export function fatigueTerm(fatigue: number): number {
-  return fatigue >= B().fatigueFrom ? -B().fatigueMinus : 0;
+/**
+ * 내 선발 점수의 피로 몫 (C.79n, 화면 분해용 · OVR 단위): startChance 의 피로 효과 전부.
+ * ① startProbability 피로 곱 1 − (피로 − penaltyFrom) × startPenaltyPerPoint 를 OVR 로 환산 — 곱하기 전 확률 p0 이 (1 − 곱)×p0 만큼
+ * 줄어드는 것을 startPerOvr 로 나눈 값 (근사: 확률 상·하한에 걸린 구간에서는 OVR 감점과 정확히 같지 않다)
+ * ② 감독 성향 피로 배율 몫 (styleOvrBonus 의 피로 항, NPC 와 같은 selectPerPoint × (배율 − 1))
+ */
+export function myFatigueTerm(state: GameState, ovr: number, teamRating: number, fatigue: number, oppRating: number | null = null): number {
+  const F = BALANCE.fatigue;
+  const MT = BALANCE.match;
+  const over = Math.max(0, fatigue - F.penaltyFrom);
+  const style = styleOvrBonus(state, ovr, teamRating, fatigue, oppRating) - styleOvrBonus(state, ovr, teamRating, 0, oppRating);
+  const total = ovr + selectionBonus(state) + styleOvrBonus(state, ovr, teamRating, fatigue, oppRating);
+  const p0 = clamp(MT.startBase + (total - teamRating) * MT.startPerOvr, MT.startMin, MT.startMax);
+  const mul = Math.min(1, over * F.startPenaltyPerPoint);
+  return -(mul * p0) / MT.startPerOvr + style;
 }
 
 /** 지금 팀 감독 기용 성향 가중 (C.79i) */
@@ -193,33 +205,40 @@ export function startChance(state: GameState, ovr: number, teamRating: number, f
 
 export interface ScoreRow { name: string; me: boolean; age: number; ovr: number; trust: number; form: number; fatigue: number; total: number; detail: string }
 
-/** 주전 경쟁 (홈 카드, 18.2): 나와 그 슬롯 경쟁자 상위 n명의 선발 점수 분해 */
-export function competition(state: GameState, pos: FieldPosition, n = 2): ScoreRow[] {
+/** 주전 경쟁 카드 입력 (C.79n): 실제 선발 판정과 같은 값 — 경기 날 피로(matchFatigue), 상대 레이팅, NPC 컨디션 날(경기 날). 없으면 오늘 값 */
+export interface CompetitionInputs { fatigue?: number; oppRating?: number | null; day?: number }
+
+/**
+ * 주전 경쟁 (홈 카드, 18.2): 나와 그 슬롯 경쟁자 상위 n명의 선발 점수 분해 (OVR 단위).
+ * 피로 칸 = 실제 선발 식의 피로 몫 전부 (C.79n): 나 = startProbability 피로 곱의 OVR 환산 + 감독 성향 피로 배율 몫, NPC = 피로 감점 × 성향 배율
+ */
+export function competition(state: GameState, pos: FieldPosition, n = 2, inp: CompetitionInputs = {}): ScoreRow[] {
   const p = state.player;
   const M = B();
   const w = myStyleWeights(state);
   const rating = teamById(state.league, p.teamId)?.rating ?? 70;
+  const oppRating = inp.oppRating === undefined ? null : inp.oppRating;
   const base = proficientOvr(p, pos);
   const ovr = base + startBonus(p, p.teamId);
   const trust = trustTerm(trustOf(state)) * w.trust;
   // 시즌 누적 피로 (C.78t, 게겐 비용)까지 — 경기 선발 판정(matchFatigue)과 같은 값
-  const fatigue = Math.min(BALANCE.fatigue.max, p.fatigue + (p.seasonFatigue ?? 0));
-  // 폼 칸 = 감독 성향 항(C.79i: 최근·직전 평점, 케미, 연속 선발, 오버롤 강조, 유망주, 피로 배율 몫) — 선발 확률과 같은 식
-  const form = selectionBonus(state) - startBonus(p, p.teamId) - trustTerm(trustOf(state)) * w.trust + styleOvrBonus(state, base, rating, fatigue);
-  const fat = fatigueTerm(fatigue);
+  const fatigue = inp.fatigue ?? Math.min(BALANCE.fatigue.max, p.fatigue + (p.seasonFatigue ?? 0));
+  // 폼 칸 = 감독 성향 항(C.79i: 최근·직전 평점, 케미, 연속 선발, 오버롤 강조, 유망주) — 피로 몫은 피로 칸으로
+  const form = selectionBonus(state) - startBonus(p, p.teamId) - trustTerm(trustOf(state)) * w.trust + styleOvrBonus(state, base, rating, 0, oppRating);
+  const fat = myFatigueTerm(state, base, rating, fatigue, oppRating);
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  const me: ScoreRow = { name: p.name, me: true, age: p.age, ovr, trust: r1(trust), form: r1(form), fatigue: fat, total: r1(ovr + trust + form + fat), detail: '' };
+  const me: ScoreRow = { name: p.name, me: true, age: p.age, ovr, trust: r1(trust), form: r1(form), fatigue: r1(fat), total: r1(ovr + trust + form + fat), detail: '' };
   const roster = state.rosters?.[p.teamId]?.players ?? [];
   const npcTrust = r1(trustTerm(M.npcTrust));
   // NPC (C.77m 피로 · C.79i 감독 성향): 그 선수의 오늘 선발 점수 보정 (NPC 선발과 같은 식) — 피로 칸 = 피로 감점 × 성향 배율, 폼 칸 = 나머지
-  const today = dayNum(state.calendar.date);
+  const today = inp.day ?? dayNum(state.calendar.date);
   const team = state.rosters?.[p.teamId];
   const cond = team ? npcConditions(state.npcFit, [team], today) : undefined;
   const style = coachOf(state, p.teamId)?.style;
   const rivals = roster.filter((x) => !x.gk).map((x) => {
     const o = slotOvr(x, pos);
     const fat = 0 - r1(npcSelectPenalty(npcFatigueOn(state.npcFit?.[x.id], today)) * w.fatigue);
-    const frm = r1(npcSelectBonus(x, cond?.[x.id], { style, rating, oppRating: rating }) - fat);
+    const frm = r1(npcSelectBonus(x, cond?.[x.id], { style, rating, oppRating: oppRating ?? rating }) - fat);
     return { name: x.nameKo, me: false, age: x.age, ovr: o, trust: npcTrust, form: frm, fatigue: fat, total: r1(o + npcTrust + frm + fat), detail: '' };
   }).sort((a, b) => b.total - a.total).slice(0, n);
   return [me, ...rivals].sort((a, b) => b.total - a.total);
