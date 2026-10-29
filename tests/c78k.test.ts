@@ -70,8 +70,11 @@ describe('C.78k ① 키커가 교체·퇴장해도 재개가 사라지지 않는
         if (how === 'sub') substitute(s, taker, s.bench[0].find((b) => !b.gk)!);
         else giveCard(s, taker, 'red');
         expect(taker.onPitch).toBe(false);
-        for (let i = 0; i < 2000 && s.restart; i++) step(s);
-        expect(s.restart).toBeNull();
+        // C.79m: PK 는 찬 순간에 멈춘다 — 빗나가 바로 골킥이 되면(시드 결과) 그 골킥까지 돌아 possOrigin 이 바뀐다
+        const kicked = () => c.type === 'penalty' && s.events.some((e) => e.type === 'penalty' && e.t >= t0 && e.team === 0);
+        for (let i = 0; i < 2000 && s.restart && !kicked(); i++) step(s);
+        // (찬 같은 틱에 빗나가 골킥 재개가 잡혀 있을 수 있다)
+        if (!kicked()) expect(s.restart).toBeNull();
         // 같은 팀이 같은 종류로 실제 재개했다 (재개를 버렸으면 possOrigin·마지막 터치가 바뀌지 않는다)
         expect(s.possOrigin).toBe(c.type);
         expect(s.possStartT).toBeGreaterThan(t0);
