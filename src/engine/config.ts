@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 60;
+export const ENGINE_VERSION = 61;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1002,6 +1002,34 @@ export const ENGINE = {
       /** 압박: 1 − shootPress × 압박(0~1) */
       shootPress: 0.3,
     },
+    /**
+     * 점유 가치 (C.79m 식 + C.79u 전환 창, 사용자 2026-10-30 "짧은 패스는 점유 가치 높이는 패치, 티키타카에선 더 높게, 롱볼(직선)이나 수비(블록)에선 좀 낮추고").
+     * 가치표(positionValue)는 골까지 거리 함수뿐이라 옆·뒤 짧은 패스가 지금 자리와 같은 가치 + 실패 비용만 얻었다(c78z §2) — 공을 지키는 것 자체의 가치.
+     * 패스 후보 효용 += 성향값 × (1 + style × (빌드업 − 0.5)) × 거리 가중(near m 안 1 → far m 에서 0) × 자리 가중(정규화 x zoneFrom 까지 1 → zoneTo 에서 0) × 판단 성공 확률 × (1 − 받는 순간 상실 확률),
+     * 유지 효용 += 같은 값 × hold × (1 − 유지 상실 확률). 판단 효용에만(실행 불변). 0 = 끔
+     * C.79u(진단 c79u K1b): 4차 값 ×1.25 + winOff — 탈취 직후 6초 창에서 짧게 지키면 상대(직선·블록)의 상대 진영 탈취·전환이 줄어 행이 옮겨 갔다(비점유 득실 −0.20 → −0.03)
+     */
+    possess: {
+      balanced: 0.01,
+      tikitaka: 0.022,
+      gegenpress: 0.01,
+      counter: 0.0125,
+      /** 직선·블록은 낮게(사용자): 0 */
+      direct: 0,
+      block: 0,
+      /** 빌드업 단계 기울기 (짧게 0.85 · 혼합 0.5 · 직선 0.2) */
+      style: 0,
+      /** 유지 몫 (패스 대비) */
+      hold: 0,
+      /** 패스 거리 가중: near m 안 1, far m 에서 0 (선형) — 짧은 패스일수록 공을 지킨다 */
+      near: 10,
+      far: 25,
+      /** 패서 자리(정규화 x, 상대 골 쪽 1): zoneFrom 까지 1, zoneTo 에서 0 (선형). zoneTo ≤ zoneFrom 이면 끔 */
+      zoneFrom: 0.55,
+      zoneTo: 0.8,
+      /** 전환 창 (C.79u): 오픈 플레이 탈취 뒤 이 초 안에는 전 성향 점유 가치 0 — 뺏은 직후는 전진(0 = 끔) */
+      winOff: 6,
+    },
   },
 
   // ── 확률 모델 (E.8) ──
@@ -1435,7 +1463,7 @@ export const ENGINE = {
     // C.78r(엔진 54, 로드맵 마지막 단계): 8군 전부 다시 잼 — `rating-parts 720 … 20000`(engine:check 표본 13000~ 과 다른 시드) + `scripts/diag/c78r-rating-fit.ts`(칸 가중 평균이 6.5, ST 6.65 가 되게).
     // 엔진 54 델타 합 분해(패스 · 슛 · 골도움 · 수비 · 상실 · GK · 결과): CDM 2.22 · 0.26 · 0.14 · 0.63 · −0.46 · −0.13 · −0.06 = 2.59 — 평점이 높던 원인은 득점이 아니라 패스 몫(GK 패스 1.42 · ST 패스 1.45). σ 0.79 · ST 무득점 6.06
     // C.79e(엔진 59, 줄 인원 맞춤 — 줄 2 가 수비 줄로 내려옴): engine:check CAM 6.28(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 1.95(그 표본 지금 6.42) — 가드 밖 CAM 만 2.04 → 1.95(§9.12.7)
-    center: { GK: 1.58, CB: 0.85, FB: 0.61, CDM: 2.58, CM: 2.17, CAM: 1.95, WING: 1.06, ST: 2.41 } as Record<string, number>,
+    center: { GK: 1.58, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.35, CAM: 1.95, WING: 1.06, ST: 2.45 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
