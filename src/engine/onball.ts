@@ -379,6 +379,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
     gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
     screen: (far ?? 1) < 0 ? sN : sP,
+    // 슈터 속임 능력 (C.79s keeper.read): 판단·실행 같은 값
+    feint: t.composure * 0.5 + t.ballControl * 0.3 + t.vision * 0.2,
   };
   // 빈 골 (C.77z): 가운데로 차도 GK 가 못 닿으면 구석을 노릴 필요가 없다 — 유효 슈팅 확률이 openOn 쪽으로
   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)
