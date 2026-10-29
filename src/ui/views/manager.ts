@@ -11,7 +11,7 @@ export function competitionSection(vm: CompetitionVM): string {
       <div class="mg-row__head"><span class="mg-row__name">${esc(r.name)} <small>${esc(r.detail)}</small></span><b class="po-num">${esc(r.total)}</b></div>
       <div class="mg-bar" aria-hidden="true"><i class="o" style="width:${r.w[0]}%"></i><i class="t" style="width:${r.w[1]}%"></i><i class="f" style="width:${r.w[2]}%"></i><i class="x" style="width:${r.w[3]}%"></i></div>
     </div>`).join('');
-  const legend = `<div class="mg-legend"><span><i class="o"></i>슬롯 OVR</span><span><i class="t"></i>신뢰도</span><span><i class="f"></i>폼</span><span><i class="x"></i>피로</span><span class="grow"></span><span>막대 50점부터</span></div>`;
+  const legend = `<div class="mg-legend"><span><i class="o"></i>슬롯 OVR</span><span><i class="t"></i>신뢰도</span><span><i class="f"></i>폼·성향</span><span><i class="x"></i>피로</span><span class="grow"></span><span>막대 50점부터</span></div>`;
   const log = vm.log.length
     ? `<div class="mg-log">${vm.log.map((y) => `<div class="mg-log__row"><b class="po-num ${y.up ? 'ok' : 'fail'}">${esc(y.v)}</b><span>${esc(y.t)}</span><span class="muted">${esc(y.when)}</span></div>`).join('')}</div>`
     : '<p class="small muted">아직 변화가 없어요. 출전 경기 평점·골·도움·승패·경고로 오르내려요.</p>';
@@ -23,6 +23,7 @@ export function competitionSection(vm: CompetitionVM): string {
   return `${SectionTitle({ title: `주전 경쟁 · ${vm.pos}`, action: `선발 확률 ${vm.chance}%` })}
     ${panel(`<div class="mg-boss">${Avatar({ size: 44 })}<div class="grow"><small class="muted">감독</small><b>${esc(vm.mgrName)}</b>${vm.mgrStyle ? `<small class="muted">${esc(vm.mgrStyle)}</small>` : ''}</div><span class="mg-boss__trust"><small class="muted">신뢰도</small><span><b class="po-num">${vm.trust}</b><small class="po-num"> / 100</small></span></span></div>
       <div class="mg-trustbar" role="meter" aria-label="감독 신뢰도" aria-valuenow="${vm.trust}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(0, Math.min(100, vm.trust))}%"></i></div>
+      ${vm.styleLine ? `<p class="small muted mg-style">${esc(vm.styleLine)}</p>` : ''}
       <div class="mg-rows">${rows}${legend}</div>
       ${perks}
       <hr class="mg-hr">

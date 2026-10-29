@@ -8,6 +8,8 @@ const { ENGINE } = config_;
 import { gkFieldAttributes } from './sim';
 import { createRng, hashSeed } from '../rng';
 import { npcSelectPenalty, type NpcCond } from '../npcFit';
+import { npcSelectPenaltyFn } from '../selection';
+import type { ManagerStyle } from '../../data/managers';
 import * as roles_ from './roles';
 const { ROLES } = roles_;
 import * as tactics_ from './tactics';
@@ -136,21 +138,25 @@ export function npcInjuredOut(roster: TeamRoster, cond: NpcCond | undefined, int
 
 /**
  * NPC 팀 엔진 입력: 결장 추첨(C.77c npcAbsentP) + 피로·부상(C.77m cond — 부상 결장, 선발 점수 피로 감점, 시작 스태미나)을 거친 teamSetupFromRoster.
- * 측정(runLeagueSeasonJob)과 본편(playNpcMatch)이 같이 쓴다
+ * style = 감독 기용 성향(C.79i, 없으면 실용). 측정(runLeagueSeasonJob)과 본편(playNpcMatch)이 같이 쓴다
  */
 export function npcTeamSetup(
   roster: TeamRoster, rating: number, oppRating: number, worldSeed: string, matchSeed: number, leagueAvg?: number, cond?: NpcCond,
+  style: ManagerStyle | null = 'neutral',
 ): TeamSetup {
   const out = npcInjuredOut(roster, cond, npcAbsences(roster, worldSeed, matchSeed));
-  return teamSetupFromRoster(roster, rating, oppRating, worldSeed, out, leagueAvg, true, cond);
+  return teamSetupFromRoster(roster, rating, oppRating, worldSeed, out, leagueAvg, true, cond, style);
 }
 
 export function teamSetupFromRoster(
   roster: TeamRoster, rating: number, oppRating: number, worldSeed = '', exclude: ReadonlySet<string> = new Set(), leagueAvg?: number,
-  aiAdapt = true, cond?: NpcCond,
+  aiAdapt = true, cond?: NpcCond, style?: ManagerStyle | null,
 ): TeamSetup {
   const fat = (id: string) => cond?.[id]?.[0] ?? 0;
-  const lu = pickLineup(roster, exclude, cond ? (id) => npcSelectPenalty(fat(id)) : undefined);
+  // 선발 점수 (C.79i): 감독 성향을 주면 성향 가중(평점·피로·유망주 등), 안 주면(측정 도구) 예전처럼 피로 감점만
+  const pen = style !== undefined ? npcSelectPenaltyFn(roster, cond, { style, rating, oppRating })
+    : cond ? (id: string) => npcSelectPenalty(fat(id)) : undefined;
+  const lu = pickLineup(roster, exclude, pen);
   const byId = new Map(roster.players.map((p) => [p.id, p]));
   const plan = teamPlan(roster.teamId, rating, roster.formation, worldSeed, leagueAvg);
   if (aiAdapt) plan.tactics = underdogPlan(roster.teamId, rating, oppRating, plan.tactics, worldSeed);

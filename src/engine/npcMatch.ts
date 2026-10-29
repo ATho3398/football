@@ -4,6 +4,7 @@
 import type { TeamRoster } from '../roster';
 import type { MatchEnv } from './env';
 import type { NpcCond } from '../npcFit';
+import type { ManagerStyle } from '../../data/managers';
 import { npcTeamSetup } from './setup';
 import { createMatch } from './sim';
 
@@ -19,6 +20,8 @@ export interface NpcMatchInput {
   env?: Partial<MatchEnv>;
   /** NPC 피로·부상 (C.77m): 두 팀 선수 그날 아침 컨디션. 없으면 모두 피로 0 */
   cond?: NpcCond;
+  /** 두 팀 감독 기용 성향 [홈, 원정] (C.79i). 없으면 실용 */
+  styles?: [ManagerStyle, ManagerStyle];
 }
 
 /** 골 기록: [분, 팀(0 홈·1 원정), 득점자 id, 도움 id(없으면 null)] */
@@ -56,8 +59,8 @@ export function summarize(r: {
 
 export function playNpcMatch(m: NpcMatchInput): NpcMatchResult {
   // C.77c·C.77m: 결장 추첨·피로·부상을 거친 선발 — 측정 리그(job.ts runLeagueSeasonJob)와 같은 함수
-  const home = npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg, m.cond);
-  const away = npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg, m.cond);
+  const home = npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg, m.cond, m.styles?.[0] ?? 'neutral');
+  const away = npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg, m.cond, m.styles?.[1] ?? 'neutral');
   const sim = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}) });
   return summarize(sim.runToEnd());
 }

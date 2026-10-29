@@ -67,7 +67,9 @@ describe('데이터 연결 (C.76c 1번)', () => {
     expect(CLUB_KITS['laliga:bar']).toEqual(CLUB_KITS['x:bar']);
     expect(managerOf('laliga:bar')?.name).toBe(leagueData('laliga')!.teams.find((t) => t.id === 'laliga:bar')!.manager);
     expect(managerOf('x:bar')).toEqual(managerOf('laliga:bar'));
-    expect(managerOf('kleague1:jbh')?.style).toBe('neutral');
+    // C.79i: 리그 데이터 감독 성향 표 (최강희 = 주전 고정), 표에 없으면 실용
+    expect(managerOf('kleague1:jbh')?.style).toBe('steady');
+    expect(managerOf('laliga:bar')?.style).toBe('steady');
   });
 
   it('더비: 리그 데이터 더비 + 같은 클럽 두 id 는 같은 더비, 같은 리그 팀끼리는 표만', () => {

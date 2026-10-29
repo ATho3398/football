@@ -17,6 +17,11 @@ import { createRng, hashSeed } from './rng';
 import { startBonus, tagAt, tagHas } from './tags';
 import { grantMeetingPick } from './cardCollection';
 import { captainDownMul, coachOf } from './club';
+import { lastPart, streakPart, styleWeights, youthPart, type StyleWeights } from './selection';
+import { chemFrac } from './rapport';
+import { environmentFixed } from './weather';
+import { npcSelectBonus } from './selection';
+import { npcConditions } from './npcFit';
 import type { GameState } from './game';
 
 const B = () => BALANCE.manager;
@@ -141,20 +146,53 @@ export function fatigueTerm(fatigue: number): number {
   return fatigue >= B().fatigueFrom ? -B().fatigueMinus : 0;
 }
 
-/** 선발 판정에 넣는 OVR 보정: 태그(원클럽맨·아카데미) + 신뢰도 + 폼 */
-export function selectionBonus(state: GameState): number {
-  const p = state.player;
-  return startBonus(p, p.teamId) + trustTerm(trustOf(state)) + formTerm(p.recentRatings);
+/** 지금 팀 감독 기용 성향 가중 (C.79i) */
+export function myStyleWeights(state: GameState): StyleWeights {
+  return styleWeights(coachOf(state, state.player.teamId)?.style);
+}
+
+/** 동료 케미 항 (C.79i, OVR 단위): 같이 뛴 분 상위 3명 호흡 평균 × chemMax. 측정 고정·다른 팀 기록이면 0 */
+export function chemTerm(state: GameState): number {
+  const c = state.chem;
+  if (!c || c.teamId !== state.player.teamId || environmentFixed()) return 0;
+  const top = Object.values(c.mins).sort((a, b) => b - a).slice(0, 3);
+  return top.length ? (top.reduce((t, v) => t + chemFrac(v), 0) / 3) * BALANCE.selection.chemMax : 0;
+}
+
+/** 내 클럽 경기 연속 선발 수 (matchLog 끝에서부터) */
+export function myStartStreak(state: GameState): number {
+  let n = 0;
+  for (let i = state.matchLog.length - 1; i >= 0 && state.matchLog[i]!.started; i--) n++;
+  return n;
 }
 
 /**
- * 이번 경기 선발 확률 (18.2): 기존 B.4 곡선(팀 레이팅 기준)에 선발 점수 보정을 넣고, 면담 보상(선호 슬롯 보장 = 1, 주전 보장 = 최소 startFloor,
- * 불만 표출로 얻은 기회 = 1)을 건다. 1군 테스트는 호출 쪽에서 따로 보장
+ * 선발 판정에 넣는 OVR 보정: 태그(원클럽맨·아카데미) + 신뢰도 + 폼 — 감독 기용 성향(C.79i)이 신뢰도·폼 배율과 직전 평점·케미·연속 선발·주전 고정 항을 더한다
  */
-export function startChance(state: GameState, ovr: number, teamRating: number, fatigue: number): number {
+export function selectionBonus(state: GameState): number {
+  const p = state.player;
+  const w = myStyleWeights(state);
+  const last = p.recentRatings.length ? p.recentRatings[p.recentRatings.length - 1]! : null;
+  const streak = myStartStreak(state);
+  return startBonus(p, p.teamId) + trustTerm(trustOf(state)) * w.trust + formTerm(p.recentRatings) * w.form + lastPart(last, w) + chemTerm(state)
+    + streakPart(streak, w) + (streak > 0 ? w.keep : 0);
+}
+
+/** 감독 성향의 OVR·나이·피로 항 (C.79i): 오버롤 강조 × (OVR − 팀 레이팅), 유망주 가산, 피로 배율(기본 피로는 startProbability 곱이 맡고 그 나머지 몫) */
+export function styleOvrBonus(state: GameState, ovr: number, teamRating: number, fatigue: number, oppRating: number | null = null): number {
+  const w = myStyleWeights(state);
+  return w.ovr * (ovr - teamRating) + youthPart(state.player.age, teamRating, oppRating, w)
+    - Math.max(0, fatigue - BALANCE.fatigue.penaltyFrom) * BALANCE.fatigue.npc.selectPerPoint * (w.fatigue - 1);
+}
+
+/**
+ * 이번 경기 선발 확률 (18.2): 기존 B.4 곡선(팀 레이팅 기준)에 선발 점수 보정(감독 성향 C.79i 포함)을 넣고, 면담 보상(선호 슬롯 보장 = 1, 주전 보장 = 최소 startFloor,
+ * 불만 표출로 얻은 기회 = 1)을 건다. 1군 테스트는 호출 쪽에서 따로 보장. oppRating 을 주면 유망주 성향의 약한 상대 가산
+ */
+export function startChance(state: GameState, ovr: number, teamRating: number, fatigue: number, oppRating: number | null = null): number {
   const m = ensureManager(state);
   if ((m.perks.slot ?? 0) > 0 || (m.perks.chance ?? 0) > 0) return 1;
-  const p = startProbability(ovr + selectionBonus(state), teamRating, fatigue);
+  const p = startProbability(ovr + selectionBonus(state) + styleOvrBonus(state, ovr, teamRating, fatigue, oppRating), teamRating, fatigue);
   return (m.perks.start ?? 0) > 0 ? Math.max(p, MM().startFloor) : p;
 }
 
@@ -164,21 +202,30 @@ export interface ScoreRow { name: string; me: boolean; age: number; ovr: number;
 export function competition(state: GameState, pos: FieldPosition, n = 2): ScoreRow[] {
   const p = state.player;
   const M = B();
-  const ovr = proficientOvr(p, pos) + startBonus(p, p.teamId);
-  const trust = trustTerm(trustOf(state));
-  const form = formTerm(p.recentRatings);
+  const w = myStyleWeights(state);
+  const rating = teamById(state.league, p.teamId)?.rating ?? 70;
+  const base = proficientOvr(p, pos);
+  const ovr = base + startBonus(p, p.teamId);
+  const trust = trustTerm(trustOf(state)) * w.trust;
   // 시즌 누적 피로 (C.78t, 게겐 비용)까지 — 경기 선발 판정(matchFatigue)과 같은 값
-  const fat = fatigueTerm(Math.min(BALANCE.fatigue.max, p.fatigue + (p.seasonFatigue ?? 0)));
+  const fatigue = Math.min(BALANCE.fatigue.max, p.fatigue + (p.seasonFatigue ?? 0));
+  // 폼 칸 = 감독 성향 항(C.79i: 최근·직전 평점, 케미, 연속 선발, 오버롤 강조, 유망주, 피로 배율 몫) — 선발 확률과 같은 식
+  const form = selectionBonus(state) - startBonus(p, p.teamId) - trustTerm(trustOf(state)) * w.trust + styleOvrBonus(state, base, rating, fatigue);
+  const fat = fatigueTerm(fatigue);
   const r1 = (v: number) => Math.round(v * 10) / 10;
   const me: ScoreRow = { name: p.name, me: true, age: p.age, ovr, trust: r1(trust), form: r1(form), fatigue: fat, total: r1(ovr + trust + form + fat), detail: '' };
   const roster = state.rosters?.[p.teamId]?.players ?? [];
   const npcTrust = r1(trustTerm(M.npcTrust));
-  // NPC 피로 (C.77m): 그 선수의 오늘 피로 선발 감점 (NPC 선발과 같은 식)
+  // NPC (C.77m 피로 · C.79i 감독 성향): 그 선수의 오늘 선발 점수 보정 (NPC 선발과 같은 식) — 피로 칸 = 피로 감점 × 성향 배율, 폼 칸 = 나머지
   const today = dayNum(state.calendar.date);
+  const team = state.rosters?.[p.teamId];
+  const cond = team ? npcConditions(state.npcFit, [team], today) : undefined;
+  const style = coachOf(state, p.teamId)?.style;
   const rivals = roster.filter((x) => !x.gk).map((x) => {
     const o = slotOvr(x, pos);
-    const fat = 0 - r1(npcSelectPenalty(npcFatigueOn(state.npcFit?.[x.id], today)));
-    return { name: x.nameKo, me: false, age: x.age, ovr: o, trust: npcTrust, form: 0, fatigue: fat, total: r1(o + npcTrust + fat), detail: '' };
+    const fat = 0 - r1(npcSelectPenalty(npcFatigueOn(state.npcFit?.[x.id], today)) * w.fatigue);
+    const frm = r1(npcSelectBonus(x, cond?.[x.id], { style, rating, oppRating: rating }) - fat);
+    return { name: x.nameKo, me: false, age: x.age, ovr: o, trust: npcTrust, form: frm, fatigue: fat, total: r1(o + npcTrust + frm + fat), detail: '' };
   }).sort((a, b) => b.total - a.total).slice(0, n);
   return [me, ...rivals].sort((a, b) => b.total - a.total);
 }

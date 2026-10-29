@@ -8,7 +8,7 @@ import {
   bestPosition, captainCandidate, competition, ensureManager, managerData, meetingBlocked, meetingLine, meetingOptions, nextMeetingHint, startChance,
   type MeetingKind, type MeetingOption,
 } from '../manager';
-import { MANAGER_STYLE_KO } from '../../data/managers';
+import { MANAGER_STYLE_HINT, MANAGER_STYLE_KO } from '../../data/managers';
 import { proficiencyOf, proficientOvr } from '../proficiency';
 import { teamById } from '../league';
 import { requestEligibility } from '../transfer';
@@ -32,6 +32,8 @@ export interface CompetitionVM {
   perks: string[];
   /** 주장 칩 (C.63): 주장 / 주장 후보(C.62 영원한) / 없음 */
   captain: '' | '주장' | '주장 후보';
+  /** 감독 기용 성향 한 줄 (C.79i): "기용 성향: 경쟁형 — 최근 5경기·직전 경기 평점이 중요" */
+  styleLine: string;
 }
 
 const sign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
@@ -78,6 +80,7 @@ export function competitionVM(g: GameState): CompetitionVM | null {
     mgrName: md?.nameKo ?? '감독 정보 없음', mgrStyle: md ? MANAGER_STYLE_KO[md.style] : '',
     log: m.log.slice().reverse().map((e) => ({ v: sign(r1(e.delta)), t: e.why, when: when(daysBetween(e.date, g.calendar.date)), up: e.delta > 0 })),
     hint: nextMeetingHint(g), meeting: m.meeting, captain: isCaptain(g) ? '주장' : captainCandidate(g) ? '주장 후보' : '',
+    styleLine: md ? `기용 성향: ${MANAGER_STYLE_KO[md.style]} — ${MANAGER_STYLE_HINT[md.style]}` : '',
   };
 }
 

@@ -5,6 +5,7 @@ import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../
 import { ENGINE } from '../../src/engine/config';
 import { TENDENCY } from '../../src/engine/tactics';
 import { fillRoles, npcTeamSetup, teamSetupFromRoster } from '../../src/engine/setup';
+import { managerOf } from '../../data/managers';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
@@ -196,6 +197,8 @@ export interface LeagueSeasonOut {
     starts: number;
     startsOver: number;
     startFatigue: number;
+    /** C.79i: 팀별 [선발 선수-경기, 선발 아침 피로 합, 시즌 후반(마지막 1/3) 선발, 그 피로 합] */
+    teams?: Record<string, [number, number, number, number]>;
     /** C.77n: 챔스 팀(상위 4) — 챔스 간이 경기 수 · 그 팀 선수 부상(리그·챔스 합) · 리그 선발 · 그중 아침 피로 50 초과 */
     uclMatches?: number;
     uclInjuries?: number;
@@ -424,8 +427,9 @@ function playLeagueMatch(j: Omit<LeagueMatchJob, 'kind'>, cond?: NpcCond): { out
     const rh = w.ratings[j.home]!;
     const ra = w.ratings[j.away]!;
     // C.77c·C.77m: 결장 추첨·피로·부상을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
-    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg, cond);
-    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg, cond);
+    // 감독 기용 성향 (C.79i): 본편과 같이 팀 감독 데이터 (없으면 실용)
+    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg, cond, managerOf(j.home)?.style ?? 'neutral');
+    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg, cond, managerOf(j.away)?.style ?? 'neutral');
     const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
     const scorers: Record<string, number> = {};
     const pos: Record<string, string> = {};
@@ -496,6 +500,8 @@ export function runLeagueSeasonJob(j: LeagueSeasonJob): LeagueSeasonOut {
     const load: NpcLoadMap = {};
     const fit = { injuries: 0, injuredOut: 0, starts: 0, startsOver: 0, startFatigue: 0, uclMatches: 0, uclInjuries: 0, uclStarts: 0, uclStartsOver: 0 };
     const matches: LeagueMatchOut[] = [];
+    const teams: Record<string, [number, number, number, number]> = {};
+    const lateDay = dayNum(fixtures[Math.floor((fixtures.length * 2) / 3)]!.date);
     // C.77n (pending 142b): 상위 4팀 챔스 주중 경기(간이) — 본편 cups.ts 간이 경기와 같은 npcQuickMatch
     const ucl = BALANCE.fatigue.npc.cup ? harnessUcl(j.worldSeed, j.ids, schedule, cal.fixtureDates) : [];
     const uclTeams = new Set(ucl.map((x) => x.team));
@@ -525,6 +531,9 @@ export function runLeagueSeasonJob(j: LeagueSeasonJob): LeagueSeasonOut {
       const { out, r, starters } = playLeagueMatch({ worldSeed: j.worldSeed, home: f.home, away: f.away, seed }, cond);
       for (const id of starters) {
         const fa = cond?.[id]?.[0] ?? 0;
+        const tt = (teams[teamOf.get(id)!] ??= [0, 0, 0, 0]);
+        tt[0]++; tt[1] += fa;
+        if (day >= lateDay) { tt[2]++; tt[3] += fa; }
         fit.starts++;
         fit.startFatigue += fa;
         if (fa > BALANCE.fatigue.penaltyFrom) fit.startsOver++;
@@ -538,7 +547,7 @@ export function runLeagueSeasonJob(j: LeagueSeasonJob): LeagueSeasonOut {
       matches.push(out);
     }
     const loads = Object.entries(load).filter(([, v]) => v[0] >= 10).map(([id, v]) => [teamOf.get(id) ?? '?', v[0]] as [string, number]);
-    return { kind: 'leagueSeason', matches, fit: { ...fit, loads }, ucl: [...uclTeams] };
+    return { kind: 'leagueSeason', matches, fit: { ...fit, loads, teams }, ucl: [...uclTeams] };
   } finally {
     restore();
   }

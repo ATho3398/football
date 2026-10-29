@@ -11,6 +11,7 @@ import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roste
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
 import { dayNum, npcAfterMatch, npcConditions, npcLines, type NpcFitMap } from './npcFit';
+import { coachStylesField } from './club';
 import { envField, matchConditions } from './matchEnv';
 import { derbyOf } from './derby';
 import { leagueWeight, matchClutch } from './clutch';
@@ -157,6 +158,8 @@ export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: Other
             home, away,
             homeRating: hr, awayRating: ar, seed: hashSeed(`${state.worldSeed}:olg-e:${lg.id}:${lg.season}:${r}:${i}`), worldSeed: state.worldSeed,
             leagueAvg: avg, ...envField(matchConditions(state.worldSeed, date, f.home)), ...(cond ? { cond } : {}),
+            // 감독 기용 성향 (C.79i): 리그 데이터 감독
+            ...coachStylesField({}, f.home, f.away),
           },
         });
       });

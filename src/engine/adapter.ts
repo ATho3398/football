@@ -15,6 +15,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { npcInjuredOut, startStamina, teamSetupFromRoster } from './setup';
 import type { NpcCond } from '../npcFit';
+import type { ManagerStyle } from '../../data/managers';
 import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
 import { applyHalftimeTactics, buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
@@ -80,6 +81,8 @@ export interface EngineMatchInput {
   rapport?: RapportInput;
   /** NPC 피로·부상 (C.77m): 동료·상대 선수 그날 아침 컨디션. 없으면 모두 피로 0 */
   npcCond?: NpcCond;
+  /** 감독 기용 성향 [내 팀, 상대] (C.79i). 없으면 실용 */
+  styles?: [ManagerStyle, ManagerStyle];
 }
 
 /** 경기 시작 스태미나 (E.16): setup.ts 로 옮김 (C.77m NPC 공통) */
@@ -113,8 +116,8 @@ export function buildMyMatch(m: EngineMatchInput) {
   const t = m.myTactics;
   const myRoster = t ? withSlots(m.myRoster, t) : m.myRoster;
   const c = m.npcCond;
-  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, npcInjuredOut(myRoster, c), m.leagueAvg, false, c);
-  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, npcInjuredOut(m.oppRoster, c), m.leagueAvg, true, c);
+  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, npcInjuredOut(myRoster, c), m.leagueAvg, false, c, m.styles?.[0] ?? 'neutral');
+  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, npcInjuredOut(m.oppRoster, c), m.leagueAvg, true, c, m.styles?.[1] ?? 'neutral');
   const meSpec: PlayerSpec = {
     id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: judgeAttrs(proficientAttrs(m.me.attributes, m.me.proficiency), m.me.judgePen ?? 0),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,

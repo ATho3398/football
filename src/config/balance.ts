@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 87;
+export const BALANCE_VERSION = 88;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1418,6 +1418,42 @@ export const BALANCE = {
       /** 포지션 제안을 따르면 */
       posTrust: 3,
     },
+  },
+
+  // ── 감독 성향별 선수 기용 (부록 C.79i, pending 143): 선발 점수 = 슬롯 OVR + 아래 항(OVR 단위). NPC 선발(pickLineup 의 penalty)과 내 선발 확률(startChance)이 같이 쓴다 ──
+  selection: {
+    /**
+     * 실용(neutral) 기본 항 — 마스터 초안 가중(오버롤 0.55 · 최근 5 0.15 · 직전 0.05 · 피로 0.15 · 감독 관계 0.07 · 케미 0.03)을 OVR 단위로 옮긴 것.
+     * 기준을 기존 보정된 값에 맞췄다: 최근 5경기 폼 = 기존 formTerm(평점 1점당 1.5, ±1.5 — 내 선발 확률·출전 가드 그대로),
+     * 직전 평점 = 그 1/3 (0.05/0.15) 기울기 0.5·±0.75, 피로 = 기존 NPC 선발 감점(50 넘은 1점당 0.3 ≈ 0.15/0.55), 감독 관계 = 기존 trustPerPoint.
+     * 케미(내 선수만, 동료 호흡 상위 3명 평균 0~1) × chemMax. NPC 평점은 경기 뒤 지수 평균(formAlpha ≈ 최근 5경기 창)으로 담고, formMinGames 경기 전에는 0
+     */
+    formPerPoint: 1.5, formMax: 1.5, lastPerPoint: 0.5, lastMax: 0.75, chemMax: 0.6, formAlpha: 0.33, formMinGames: 3,
+    /** NPC 평점 기록 보관: 마지막 경기 뒤 이 날수가 지나면 지운다 (세이브 크기) */
+    formKeepDays: 42,
+    /** 출전 분이 이 값 이상이면 선발로 센다 (연속 선발) */
+    startMinutes: 46,
+    /**
+     * 성향별 배율·추가 항 (pending 143 초안 비율 그대로): ovr = (자연 OVR − 팀 레이팅) × ovr 를 더함(+면 스타, −면 오버롤 덜 봄),
+     * form·last·fatigue·trust = 실용 항 배율, youth = youthAge 이하 가산(+약한 상대 youthWeakOpp: 상대가 youthWeakGap 이상 낮을 때),
+     * streak = 연속 선발 streakFrom 경기째부터 1경기당 감점, keep = 직전 경기 선발 가산(주전 고정)
+     *  스타 중용: 오버롤 0.75/0.55 → +0.36, 평점 0.08/0.15 → ×0.53, 피로 0.07/0.15 → ×0.47
+     *  경쟁형: 오버롤 0.40/0.55 → −0.27, 최근 5 0.25/0.15 → ×1.67, 직전 0.15/0.05 → ×3
+     *  로테이션: 피로 0.30/0.15 → ×2, 3경기 연속 선발부터 −1.2/경기
+     *  엄격: 감독 관계 0.15/0.07 → ×2.1, 직전 평점 ×2 (훈련 태도 대신 — 태도 데이터 없음)
+     *  유망주: 23세 이하 +1.5, 약한 상대(3 이상 낮음) +1.5 더 (컵 구분은 선발 입력에 없어 약팀전만)
+     *  주전 고정: 직전 경기 선발 +1.0, 폼 ×0.7, 피로 ×0.7
+     */
+    styles: {
+      neutral: { ovr: 0, form: 1, last: 1, fatigue: 1, trust: 1, youth: 0, streak: 0, keep: 0 },
+      star: { ovr: 0.36, form: 0.53, last: 0.5, fatigue: 0.47, trust: 1, youth: 0, streak: 0, keep: 0 },
+      competitive: { ovr: -0.27, form: 1.67, last: 3, fatigue: 1, trust: 1, youth: 0, streak: 0, keep: 0 },
+      rotation: { ovr: 0, form: 1, last: 1, fatigue: 2, trust: 1, youth: 0, streak: 1.2, keep: 0 },
+      strict: { ovr: 0, form: 1, last: 2, fatigue: 1, trust: 2.1, youth: 0, streak: 0, keep: 0 },
+      youth: { ovr: 0, form: 1, last: 1, fatigue: 1, trust: 1, youth: 1.5, streak: 0, keep: 0 },
+      steady: { ovr: 0, form: 0.7, last: 0.7, fatigue: 0.7, trust: 1, youth: 0, streak: 0, keep: 1.0 },
+    } as Record<string, { ovr: number; form: number; last: number; fatigue: number; trust: number; youth: number; streak: number; keep: number }>,
+    youthAge: 23, youthWeakOpp: 1.5, youthWeakGap: 3, streakFrom: 3,
   },
 
   // ── 이벤트 엔진·인박스·라이벌·구단 (20번, 부록 C.63) ──

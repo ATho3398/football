@@ -26,7 +26,7 @@ export const COACH_POOL: readonly (Omit<ManagerData, 'stadiumKo'>)[] = [
   { name: 'Sam Allardyce', nameKo: '샘 앨러다이스', style: 'strict' },
   { name: 'Chris Hughton', nameKo: '크리스 휴턴', style: 'steady' },
   { name: 'Frank Lampard', nameKo: '프랭크 램파드', style: 'youth' },
-  { name: 'Carlo Ancelotti', nameKo: '카를로 안첼로티', style: 'steady' },
+  { name: 'Carlo Ancelotti', nameKo: '카를로 안첼로티', style: 'rotation' },
   { name: 'Graham Potter', nameKo: '그레이엄 포터', style: 'neutral' },
   { name: 'Dean Smith', nameKo: '딘 스미스', style: 'neutral' },
 ];
@@ -39,6 +39,13 @@ export function coachOf(state: Pick<GameState, 'coaches'>, teamId: string): Mana
   const c = state.coaches?.[teamId];
   if (c) return { name: c.name, nameKo: c.nameKo, style: c.style, stadiumKo: base?.stadiumKo ?? '' };
   return base;
+}
+
+/** 두 팀 감독 기용 성향 (C.79i, 엔진 입력 styles). 둘 다 실용이면 붙이지 않는다 (입력·미리 계산 키 그대로) */
+export function coachStylesField(state: Pick<GameState, 'coaches'>, a: string, b: string): { styles?: [ManagerStyle, ManagerStyle] } {
+  const sa = coachOf(state, a)?.style ?? 'neutral';
+  const sb = coachOf(state, b)?.style ?? 'neutral';
+  return sa === 'neutral' && sb === 'neutral' ? {} : { styles: [sa, sb] };
 }
 
 export function coachName(state: Pick<GameState, 'coaches'>, teamId: string): string {

@@ -64,7 +64,7 @@ import { addTrust, afterMyMatch, bestPosition, managerDayEnd, startChance, train
 import { directiveReward } from './engine/directive';
 import { archiveAwards, trimArchive, worldAfterRound, worldSeasonEnd } from './worldStats';
 import { eventForm, eventsAfterMatch, eventsCloseOffseason, eventsDayEnd, eventsSeasonEnd, eventsSeasonStart, onLeave, type EventsState } from './events';
-import { coachAfterMatch, type CoachRec } from './club';
+import { coachAfterMatch, coachStylesField, type CoachRec } from './club';
 import type { InboxState } from './inbox';
 import type { RivalState } from './rival';
 import { isLifeKind, lifeAction, lifeAfterMatch, lifeDayEnd, lifeForm, lifeJudgePenalty, lifeRecoveryMul, type LifeState } from './life';
@@ -916,6 +916,7 @@ export function otherJob(state: GameState, r: number, i: number): OtherJob {
       leagueAvg: league.teams.reduce((t, x) => t + x.rating, 0) / league.teams.length,
       ...envField(cond),
       ...(npc ? { cond: npc } : {}),
+      ...coachStylesField(state, f.home, f.away),
     },
   };
 }
@@ -1598,7 +1599,7 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
   // 1군 테스트 중 (C.45 10번)이면 출전 보장 (같은 난수를 써서 테스트가 없을 때 결과는 그대로)
   const startRoll = rng();
   // 선발 점수 (18.2, C.62): 태그 + 감독 신뢰도 + 폼, 면담 보상 (startChance)
-  const started = available && (!!state.trial || startRoll < startChance(state, ovr, myTeam.rating, fatigue));
+  const started = available && (!!state.trial || startRoll < startChance(state, ovr, myTeam.rating, fatigue, opp.rating));
   const minutes = started ? 90 : available && rng() < M.subChance ? randInt(rng, M.subMinutes.min, M.subMinutes.max) : 0;
   const plan: MyMatchPlan = { started, minutes: minutes > 0 ? { start: started ? 0 : 90 - minutes, end: 90 } : null };
   let preInjury: Injury | null = null;
@@ -1626,6 +1627,8 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
     ...(rapport ? { rapport } : {}),
     // NPC 피로·부상 (C.77m): 동료·상대 경기 날 아침 컨디션
     ...npcCondField(state, [state.rosters[player.teamId]!, oppRoster], myMatchDate(state) ?? state.calendar.date),
+    // 감독 기용 성향 (C.79i): 동료·상대 선발 점수
+    ...coachStylesField(state, player.teamId, opp.id),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
 }
@@ -1739,7 +1742,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
         ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue),
         teamRating: myTeam.rating, oppRating: opp.rating, home: fx.home, difficulty: state.difficulty,
         formBonus: form, injured: injured || suspended || leave, ...(state.trial ? { forceStart: true } : {}),
-        startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue)),
+        startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue), opp.rating),
       },
       rngFor(seed, 'match', league.season, roundIdx),
     );
@@ -1934,7 +1937,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
       {
         ovr, position: player.position, fatigue: matchFatigue(state, player.fatigue),
         teamRating: myTeam.rating, oppRating: opp.rating, home: mc.home, difficulty: state.difficulty,
-        formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue)), bigMatch: mc.big,
+        formBonus: form, injured: injured || leave, startP: startChance(state, ovr, myTeam.rating, matchFatigue(state, player.fatigue), opp.rating), bigMatch: mc.big,
       },
       rngFor(seed, 'match', league.season, key),
     );
