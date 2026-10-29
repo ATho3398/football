@@ -1,8 +1,11 @@
 // 날씨 (부록 C.74a, pending 75): 홈 구단 연고지의 월별 기후 확률로 경기 날씨를 정한다.
+// 잉글랜드·웨일스 = 잉글랜드 월 표 × 지역 배율, 그 밖 나라 = 실제 기후 평년값 환산 (C.79p, BALANCE.weather.climate)
 // (세계 시드, 경기 날짜, 홈팀) 만으로 정해지므로 세이브에 저장하지 않고 예보·경기·결과가 늘 같다 (결정성).
 // 효과는 엔진 실행 배율만 (src/engine/env.ts). 수치는 BALANCE.weather
 
 import { BALANCE } from './config/balance';
+import { allLeagueData } from '../data/leagues';
+import { OUTSIDE_TO_LEAGUE } from '../data/clubAlias';
 import type { IsoDate } from './calendar';
 import type { MatchEnv } from './engine/env';
 import { createRng, hashSeed } from './rng';
@@ -39,16 +42,65 @@ const TEAM_REGION: Readonly<Record<string, string>> = {
   new: 'northeast', hud: 'yorkshire', car: 'wales',
 };
 
-export function regionOf(teamId: string): string {
-  return TEAM_REGION[teamId] ?? 'europe';
+/** 리그 팀 id → [나라, 도시] (처음 쓸 때 만든다) */
+let teamPlace: Map<string, [string, string | undefined]> | null = null;
+
+function placeOf(teamId: string): [string, string | undefined] | undefined {
+  if (!teamPlace) {
+    teamPlace = new Map();
+    for (const d of allLeagueData()) for (const t of d.teams) teamPlace.set(t.id, [d.country, t.city]);
+  }
+  return teamPlace.get(OUTSIDE_TO_LEAGUE[teamId] ?? teamId);
 }
+
+/** 연고 지역: 잉글랜드·웨일스 지역(TEAM_REGION) → 나라·도시 기후 지역(BALANCE.weather.climate) → 그 밖은 europe (잉글랜드 월 표) */
+export function regionOf(teamId: string): string {
+  const eng = TEAM_REGION[teamId];
+  if (eng) return eng;
+  const C = BALANCE.weather.climate;
+  const place = placeOf(teamId);
+  const country = place?.[0] ?? C.outside[teamId];
+  const region = country ? ((place?.[1] && C.city[place[1]]) || C.country[country]) : undefined;
+  return region && C.normals[region] ? region : 'europe';
+}
+
+const DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** 평년값 → 그 달 날씨 가중 [맑음, 흐림, 비, 강풍, 폭염, 눈] (부록 C.79p 환산식) */
+export function normalsWeights(region: string, month: number): number[] {
+  const C = BALANCE.weather.climate;
+  const M = C.model;
+  const n = C.normals[region]!;
+  const i = month - 1;
+  const pd1 = n.pd[i]! * (1 - M.unitK * Math.log10(1 / n.unit));
+  const rain = Math.min(M.cap, (M.rainK * pd1 * 100) / DAYS[i]!);
+  const heat = Math.min(M.cap, M.heatK * Math.max(0, n.hi[i]! - M.heatT));
+  const snow = Math.min(M.cap, M.coldK * Math.max(0, M.coldT - n.lo[i]!));
+  // 강풍: 잉글랜드 월 가중 (남반구는 6개월 밀어서 같은 계절)
+  const south = n.hi[0]! > n.hi[6]!;
+  const wind = BALANCE.weather.month[((i + (south ? 6 : 0)) % 12) + 1]![3]!;
+  const rest = Math.max(M.minRest, 100 - rain - heat - snow - wind);
+  const f = Math.min(M.sunMax, M.sunBase + (M.sunK * n.sun[i]!) / DAYS[i]!);
+  return [rest * f, rest * (1 - f), rain, wind, heat, snow];
+}
+
+const normalsCache = new Map<string, number[]>();
 
 /** 그 지역·월의 날씨 확률 (합 1) */
 export function climate(teamId: string, month: number): Record<WeatherKind, number> {
   const W = BALANCE.weather;
-  const base = W.month[Math.min(12, Math.max(1, month))]!;
-  const [rain, wind, heat, snow] = W.region[regionOf(teamId)] ?? W.region.europe!;
-  const w = [base[0]!, base[1]!, base[2]! * rain, base[3]! * wind, base[4]! * heat, base[5]! * snow];
+  const m = Math.min(12, Math.max(1, month));
+  const region = regionOf(teamId);
+  let w: number[];
+  if (W.climate.normals[region]) {
+    const key = `${region}:${m}`;
+    w = normalsCache.get(key) ?? normalsWeights(region, m);
+    normalsCache.set(key, w);
+  } else {
+    const base = W.month[m]!;
+    const [rain, wind, heat, snow] = W.region[region] ?? W.region.europe!;
+    w = [base[0]!, base[1]!, base[2]! * rain, base[3]! * wind, base[4]! * heat, base[5]! * snow];
+  }
   const total = w.reduce((t, x) => t + x, 0) || 1;
   return Object.fromEntries(WEATHER_KINDS.map((k, i) => [k, w[i]! / total])) as Record<WeatherKind, number>;
 }

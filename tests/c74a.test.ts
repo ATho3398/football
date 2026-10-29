@@ -13,7 +13,7 @@ import { pitchWeather, setPitchWeather } from '../src/ui/pitch/renderer';
 import { envVM, homeVM, matchResultVM } from '../src/ui/viewModels';
 import { homeView } from '../src/ui/views/home';
 import { PATCH_LABEL, STAGE_LABEL } from '../src/version';
-import { climate, setEnvironmentFixed, weatherEnv, weatherFor, WEATHER_KINDS, type WeatherKind } from '../src/weather';
+import { climate, normalsWeights, regionOf, setEnvironmentFixed, weatherEnv, weatherFor, WEATHER_KINDS, type WeatherKind } from '../src/weather';
 import { addDays, daysBetween } from '../src/calendar';
 
 afterEach(() => setEnvironmentFixed(false));
@@ -83,6 +83,49 @@ describe('날씨 (연고지 월별 기후, 결정적)', () => {
     expect(climate('tot', 7).heat).toBeGreaterThan(0);
     expect(climate('new', 1).snow).toBeGreaterThan(climate('bou', 1).snow);
     expect(climate('car', 11).rain).toBeGreaterThan(climate('tot', 11).rain);
+  });
+
+  it('나라별 기후 (C.79p): 잉글랜드는 옛 공식 그대로, 다른 나라는 평년값 지역, 남반구는 계절 반대', () => {
+    // 잉글랜드·웨일스 (리그 밖 잉글랜드 클럽 포함) = 잉글랜드 월 표 × 지역 배율 그대로
+    const W = BALANCE.weather;
+    for (const t of ['tot', 'mci', 'car', 'championship:bla', 'x:lee', 'x:swa', 'zzz']) for (let m = 1; m <= 12; m++) {
+      const base = W.month[m]!;
+      const [r, wi, h, sn] = W.region[regionOf(t)]!;
+      const w = [base[0]!, base[1]!, base[2]! * r, base[3]! * wi, base[4]! * h, base[5]! * sn];
+      const tot = w.reduce((a, b) => a + b, 0);
+      WEATHER_KINDS.forEach((k, i) => expect(climate(t, m)[k]).toBeCloseTo(w[i]! / tot, 12));
+    }
+    expect(regionOf('x:lee')).toBe('europe');
+    // 리그 팀·챔스 외부 클럽 → 나라·도시 지역 (x: 는 같은 클럽의 리그 팀 도시로)
+    expect(regionOf('laliga:rma')).toBe('spain');
+    expect(regionOf('laliga:ath')).toBe('spain_n');
+    expect(regionOf('x:bar')).toBe('spain');
+    expect(regionOf('seriea:juv')).toBe('italy_n');
+    expect(regionOf('x:asm')).toBe('france_s');
+    expect(regionOf('x:zen')).toBe('russia');
+    expect(regionOf('brasileirao:fla')).toBe('brazil_n');
+    expect(regionOf('kleague1:fcs')).toBe('korea');
+    for (const t of ['laliga:sev', 'kleague1:fcs', 'brasileirao:pal', 'saudi:hil', 'x:gal']) for (let m = 1; m <= 12; m++) {
+      expect(WEATHER_KINDS.reduce((s, k) => s + climate(t, m)[k], 0)).toBeCloseTo(1, 9);
+    }
+    // 남반구: 1월이 여름
+    expect(climate('brasileirao:pal', 1).heat).toBeGreaterThan(climate('brasileirao:pal', 7).heat);
+    expect(climate('brasileirao:pal', 1).snow).toBe(0);
+    // 서울 1월 한파 > 런던, 리야드 여름 폭염 > 마드리드 > 런던, 리야드 비 거의 없음
+    expect(climate('kleague1:fcs', 1).snow).toBeGreaterThan(climate('tot', 1).snow * 2);
+    expect(climate('saudi:hil', 8).heat).toBeGreaterThan(climate('laliga:rma', 8).heat);
+    expect(climate('laliga:rma', 8).heat).toBeGreaterThan(climate('tot', 8).heat);
+    expect(climate('saudi:hil', 10).rain).toBeLessThan(0.02);
+  });
+
+  it('평년값 환산식 보정: 런던 히스로 평년값 → 잉글랜드 월 표와 각 칸 7%p 안', () => {
+    for (let m = 1; m <= 12; m++) {
+      const a = BALANCE.weather.month[m]!;
+      const b = normalsWeights('calLondon', m);
+      const ta = a.reduce((x, y) => x + y, 0);
+      const tb = b.reduce((x, y) => x + y, 0);
+      a.forEach((x, i) => expect(Math.abs(x / ta - b[i]! / tb)).toBeLessThan(0.07));
+    }
   });
 
   it('같은 (세계 시드, 날짜, 홈팀) = 같은 날씨, 시즌에 여러 날씨가 나온다', () => {
