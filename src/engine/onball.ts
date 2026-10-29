@@ -83,7 +83,7 @@ function otOf(s: SimState, who: Agent): number {
 }
 
 /** 가장 가까운 상대와 거리 */
-export function nearestOpponent(s: SimState, a: Agent, x = a.x, y = a.y): [Agent | null, number] {
+function nearestOpponent(s: SimState, a: Agent, x = a.x, y = a.y): [Agent | null, number] {
   let best: Agent | null = null;
   let bd = Infinity;
   for (const o of s.agents) {
@@ -230,7 +230,7 @@ function weight(u: number, m: number): number {
 }
 
 /** 버티기 성공 확률 (E.18 A2): L((근력 0.45 + 볼 컨트롤 0.35 + 민첩성 0.2 − (근력 0.45 + 태클 0.35 + 수비 포지셔닝 0.2)) / 12) */
-export function holdupProb(s: SimState, att: Agent, def: Agent): number {
+function holdupProb(s: SimState, att: Agent, def: Agent): number {
   const a = att.attrs;
   const d = def.attrs;
   const atk = (a.strength + att.body.strength) * 0.45 + a.ballControl * 0.35 + a.agility * 0.2;
@@ -990,7 +990,7 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: 
 }
 
 /** 앞선 골 수에 따른 전진 선택(전진 패스·슛·드리블·크로스) 효용 배수 (2골 이상 leadRisk2, 3골 이상 leadRisk3). 안전 패스·유지는 역수 */
-export function leadRiskMul(s: SimState, team: 0 | 1): number {
+function leadRiskMul(s: SimState, team: 0 | 1): number {
   const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
   return lead >= 3 ? TA.leadRisk3 : lead >= 2 ? TA.leadRisk2 : 1;
 }
@@ -1014,7 +1014,7 @@ export function leadTempoMul(s: SimState, team: 0 | 1): number {
 }
 
 /** 판단 온도 (E.22 C): τ = tempBase × exp(tempSlope × (0.7 − 판단 품질)) */
-export function decisionTemp(a: Agent): number {
+function decisionTemp(a: Agent): number {
   return O.tempBase * Math.exp(O.tempSlope * (0.7 - a.judgement)) * (1 + O.tiredTemp * tiredRatio(a));
 }
 
@@ -1160,8 +1160,6 @@ export function choose(s: SimState, a: Agent, cands: Candidate[], pre = false): 
   if (probe.decide) probe.decide(s, { a, cands, vis: pool0, pool, chosen: pool[pick]!, maxU, gap });
   return pool[pick]!;
 }
-
-const OT_TYPES = new Set<ActionType>(['pass', 'through', 'cutback', 'layoff', 'shoot']);
 
 /**
  * 미리 정하기 (C.78b, receive.oneTouch): 땅볼 패스를 받는 순간(공이 오는 동안 본 상황) 원터치 행동과 '멈추고 다루기'를 한 번에 고른다.

@@ -84,7 +84,7 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
 }
 
 /** 180° 몸 돌리기 시간 (C.77x): pivotBase − pivotSlope × 민첩(몸무게 보정 뒤, turnKeep 과 같은 값)/100 */
-export function pivotTime(a: Agent): number {
+function pivotTime(a: Agent): number {
   const agi = (a.turnKeep - P.turnKeepBase) / P.turnKeepSlope;
   return Math.max(0.1, P.pivotBase - P.pivotSlope * agi);
 }

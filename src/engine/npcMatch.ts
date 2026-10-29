@@ -38,7 +38,7 @@ export interface NpcMatchResult {
 }
 
 /** 경기 시계(초) → 분 (1~90, 추가시간은 45·90) */
-export function goalMinute(t: number, halfSeconds = 2700): number {
+function goalMinute(t: number, halfSeconds = 2700): number {
   if (t < halfSeconds) return Math.min(45, Math.floor(t / 60) + 1);
   return Math.min(90, Math.floor(t / 60) + 1);
 }

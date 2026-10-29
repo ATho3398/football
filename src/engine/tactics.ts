@@ -2,7 +2,7 @@
 // 전술은 선수의 움직임과 판단 방식만 바꾼다. 결과는 능력치와 위치에서 나온다 (E.15.1). 시너지·상성 보너스 표는 없다.
 
 import type { FieldAttributes } from '../attributes';
-import { FORMATION_SLOTS, FORMATIONS, type Formation } from '../formations';
+import { FORMATIONS, type Formation } from '../formations';
 import { createRng, hashSeed } from '../rng';
 import type { Position } from '../types';
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
@@ -51,7 +51,7 @@ export const LEVEL_NAMES_KO: Record<Detail, readonly string[]> = {
 /** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게). 라인만 0 매우 낮음 / 1 낮음 / 2 보통 / 3 높음 (C.76k) */
 export type Level = 0 | 1 | 2 | 3;
 /** 세부 전술의 마지막 단계 번호 (라인 3, 나머지 2) */
-export function levelMax(detail: Detail): Level {
+function levelMax(detail: Detail): Level {
   return (LEVELS[detail].length - 1) as Level;
 }
 /** 단계 번호가 그 세부 전술에 있는가 (세이브 검사용) */
@@ -132,7 +132,7 @@ export function roleFit(roleId: string, a: FieldAttributes): number {
 }
 
 /** 팀에 한 명만 두는 추천 역할 (내려와서 연결하는 ST): 투톱 둘 다 내려오면 박스에 아무도 없다 (부록 C.32) */
-export const SOLO_ROLES: ReadonlySet<string> = new Set(['falseNine']);
+const SOLO_ROLES: ReadonlySet<string> = new Set(['falseNine']);
 
 /**
  * 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②).
@@ -288,10 +288,6 @@ export function aiAdjust(s: SimState): void {
       T.tactics.pressing = step('pressing', 1);
     } else if (diff === 1) T.tactics.lineHeight = step('lineHeight', -1);
   }
-}
-
-export function formationSlots(f: Formation) {
-  return FORMATION_SLOTS[f];
 }
 
 export { FORMATIONS };

@@ -15,7 +15,7 @@ const D = () => BALANCE.cards.directive;
 
 export type DirectiveMode = 'follow' | 'solo' | 'trust';
 
-export function directiveMode(def: CardDef): DirectiveMode | null {
+function directiveMode(def: CardDef): DirectiveMode | null {
   const e = def.effects.find((x) => x.type === 'directive');
   return e && e.type === 'directive' ? e.mode : null;
 }

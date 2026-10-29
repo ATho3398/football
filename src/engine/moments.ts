@@ -729,7 +729,7 @@ function duelVariants(s: SimState, a: Agent, scene: SceneId, pWin: number): Duel
 }
 
 /** 전술적 파울 성공 확률 (F.4: 90%) */
-export const TACTICAL_FOUL = 0.9;
+const TACTICAL_FOUL = 0.9;
 
 /** 상대 소유자와 1대1 (내가 가장 가까운 수비수, duelRange 안): 멈출 순간이면 pending 을 채우고 true. 자동 모드 카드 기회도 여기서 */
 export function duelMoment(s: SimState): boolean {
@@ -815,7 +815,7 @@ type ReactPending = Moment & { react: { kind: 'air' | 'block'; until: number; sh
 
 /** 반응 카드 선택지: 바탕 확률 + 카드 보정 (상한 bonusCap) */
 function reactMoment(
-  s: SimState, a: Agent, kind: 'air' | 'block', scene: SceneId, list: ReactCard[], baseOpt: MomentOption, stake: number, extra: ReactPending['react'],
+  s: SimState, a: Agent, scene: SceneId, list: ReactCard[], baseOpt: MomentOption, stake: number, extra: ReactPending['react'],
 ): void {
   const cs = s.cards!;
   const view = handView(s, a, scene, [], [], false);
@@ -869,7 +869,7 @@ export function aerialMoment(s: SimState): boolean {
     to: { x: fl.toX, y: fl.toY }, ref: 0, value: 0,
   };
   const stake = M.stakeK * 0.15 * stakeMul(s, a.team);
-  reactMoment(s, a, 'air', scene, list, baseOpt, stake, { kind: 'air', until: fl.t0 + fl.dur + 1 });
+  reactMoment(s, a, scene, list, baseOpt, stake, { kind: 'air', until: fl.t0 + fl.dur + 1 });
   return true;
 }
 
@@ -889,13 +889,12 @@ export function oppShotMoment(s: SimState, shooter: Agent): boolean {
     kind: 'balanced', action: 'hold', label: '카드 없이 막기', p: round2(m.pBlock), success: '슛을 몸으로 막음', fail: `슛이 지나감 (상대 골 확률 ${Math.round(m.xg * 100)}%)`,
     up: round2(R.interception * R.scale), down: 0, to: { x: shooter.x, y: shooter.y }, target: shooter.spec.id, ref: 0, value: 0,
   };
-  reactMoment(s, a, 'block', 'oppShot', list, baseOpt, M.stakeK * m.xg * stakeMul(s, a.team), { kind: 'block', until: s.t + 0.5, shooter: shooter.idx });
+  reactMoment(s, a, 'oppShot', list, baseOpt, M.stakeK * m.xg * stakeMul(s, a.team), { kind: 'block', until: s.t + 0.5, shooter: shooter.idx });
   return true;
 }
 
 /** 자동 모드 1대1 카드 기회 (F.5): 플레이 카드(태클 변형·전술적 파울)는 엔진 판단식(1대1 효용 softmax)이 같이 평가, 아니면 첫 확률 카드 */
 function autoCardDuel(s: SimState, a: Agent, o: Agent, odds: ReturnType<typeof duelOdds>, scene: SceneId): void {
-  const cs = s.cards!;
   const dv = duelVariants(s, a, scene, odds.pWin);
   const us: number[] = [...odds.us];
   for (const v of dv) {
@@ -1221,7 +1220,7 @@ export function redrawNow(s: SimState, hand: number): boolean {
 }
 
 /** 멈춘 결정 순간의 패·카드 선택지를 지금 패로 다시 계산한다 (엔진 후보·기본 선택지는 그대로). 리셋을 쓴 장면이면 남은 리셋은 못 씀 */
-export function refreshPending(s: SimState): void {
+function refreshPending(s: SimState): void {
   const ms = s.moments;
   const m = ms.pending as (Moment & { cands?: Candidate[]; variants?: Variant[]; duelVariants?: DuelVariant[]; spVariants?: SpVariant[] }) | null;
   const a = s.agents.find((x) => x.spec.isMe && x.onPitch);

@@ -158,13 +158,9 @@ export const ROLE_KEYS: Record<string, (keyof FieldAttributes)[]> = {
 };
 
 /** E3.6 까지의 역할 id → 새 id (E.21 1번, 세이브 변환). 나머지 id 는 그대로 */
-export const LEGACY_ROLE_IDS: Record<string, string> = {
+const LEGACY_ROLE_IDS: Record<string, string> = {
   winger: 'classicWinger', insideForward: 'wingForward', linkUp: 'falseNine', playmaker: 'classic10', advanced8: 'mezzala', dlpDm: 'regista',
 };
-
-export function migrateRoleId(id: string | null): string | null {
-  return id === null ? null : LEGACY_ROLE_IDS[id] ?? id;
-}
 
 export function hasModule(role: Role, m: RoleModule): boolean {
   return role.modules.includes(m);

@@ -28,7 +28,7 @@ const { burstCap, clearFeed, initPhysics, moveAgent, perceiveFeed } = physics_;
 import * as tactics_ from './tactics';
 const { aiAdjust, TENDENCY } = tactics_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, outOfPlay, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, L, outOfPlay, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import * as roles_ from './roles';

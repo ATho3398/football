@@ -8,8 +8,6 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { delayRestart, event, nearestTaker, setRestart } from './core';
 import { playerLost } from './referee';
-import * as formation_ from './formation';
-const { lineOf } = formation_;
 import * as pitch_ from './pitch';
 const { attackDir, clamp, inOppBox, L, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
@@ -49,7 +47,7 @@ export interface SubSlot { pos: Agent['pos']; line: Agent['line']; sx: number; s
  * 내 선수 투입 예약 (C.78k): 출전 구간이 교체 투입(start > 0)이고 아직 벤치에 있으면 그 팀 교체 1장을 내 투입 몫으로 남긴다.
  * AI 교체·GK 퇴장 대응은 남은 교체에서 이 몫을 빼고 쓴다 (팀당 3명 + 내 출전 보장)
  */
-export function reservedSubs(s: SimState, team: 0 | 1): number {
+function reservedSubs(s: SimState, team: 0 | 1): number {
   const mm = s.input.myMinutes;
   const myId = s.input.myPlayerId;
   if (!mm || !myId || !(mm.start > 0)) return 0;

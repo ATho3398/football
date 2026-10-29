@@ -21,7 +21,7 @@ export function startStamina(fatigue: number): number {
   return Math.max(30, 100 - fatigue * ENGINE.match.staminaPerFatigue);
 }
 
-export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec {
+function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec {
   return {
     id: p.id,
     name: p.nameKo,
@@ -35,16 +35,6 @@ export function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec
     ...(p.body ? { body: p.body } : {}),
     ...(p.shirt !== undefined ? { shirt: p.shirt } : {}),
   };
-}
-
-/** 팀 빌드업 성향 style (E.18 A5): 실제 팀은 팀 데이터, 없으면 clamp(0.5 + 0.04 × (팀 레이팅 − 리그 평균), 0.2, 0.8) */
-export function teamStyle(teamId: string, rating: number, leagueAvg: number = ENGINE.tactics.leagueAvg): number {
-  return teamPlan(teamId, rating, '4-4-2', '', leagueAvg).tactics.style;
-}
-
-/** 팀 데이터 전술 (E.19): 성향 기본값의 세부 전술, 빌드업은 A5 연속 값 */
-export function defaultTactics(teamId: string, rating: number, _oppRating = rating, worldSeed = '', leagueAvg?: number): Tactics {
-  return teamPlan(teamId, rating, '4-4-2', worldSeed, leagueAvg).tactics;
 }
 
 /** 슬롯 역할을 성향 추천 역할로 채운다 (E.19 ②). 이미 정한 역할은 둔다 */

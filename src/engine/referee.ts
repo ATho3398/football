@@ -219,7 +219,7 @@ export function contactFouls(s: SimState): boolean {
 // ── 오프사이드 ──
 
 /** 받을 선수가 오프사이드 위치인가 (E.10): 상대 진영, 공과 뒤에서 두 번째 상대보다 상대 골 쪽 */
-export function offsideMargin(s: SimState, passer: Agent, receiver: Agent): number {
+function offsideMargin(s: SimState, passer: Agent, receiver: Agent): number {
   const dir = attackDir(passer.team, s.half);
   const [rx] = toNorm(receiver.x, receiver.y, dir);
   if (rx <= N) return -1;

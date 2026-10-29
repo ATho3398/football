@@ -225,7 +225,7 @@ export function requirementProblem(def: CardDef, attrs: Record<string, number>, 
   return null;
 }
 
-function reqProblem(s: SimState, a: Agent, def: CardDef): string | null {
+function reqProblem(a: Agent, def: CardDef): string | null {
   return requirementProblem(def, a.spec.attrs, a.pos, a.role.id);
 }
 
@@ -252,7 +252,7 @@ function probEffects(def: CardDef): ProbEffect[] {
   return def.effects.filter((e): e is ProbEffect => e.type === 'probDelta');
 }
 
-function passiveFor(s: SimState, a: Agent, tags: OptionTag[], box: boolean): number {
+function passiveFor(s: SimState, tags: OptionTag[], box: boolean): number {
   const cs = s.cards!;
   let v = 0;
   for (const id of cs.passives) {
@@ -298,7 +298,7 @@ export function prepCands(s: SimState, a: Agent, cands: Candidate[]): void {
   for (const c of cands) {
     if (c.type === 'shoot' || c.type === 'cross') continue;
     const tags = tagsOf(s, a, c);
-    const d = Math.min(C.bonusCap, passiveFor(s, a, tags, false) + comboFor(s, a, tags, false));
+    const d = Math.min(C.bonusCap, passiveFor(s, tags, false) + comboFor(s, a, tags, false));
     if (d === 0) continue;
     c.cardD = d;
     c.p = clamp(c.p + d, 0.01, 0.99);
@@ -312,7 +312,7 @@ export function shotCardMod(s: SimState, a: Agent): { on: number; save: number; 
   if (!cs || !a.spec.isMe) return null;
   const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
   const m = cs.mod;
-  const on = Math.min(C.bonusCap, (m?.on ?? 0) + passiveFor(s, a, ['shoot'], box) + comboFor(s, a, ['shoot'], true));
+  const on = Math.min(C.bonusCap, (m?.on ?? 0) + passiveFor(s, ['shoot'], box) + comboFor(s, a, ['shoot'], true));
   const save = m?.save ?? 0;
   const blockMul = m?.blockMul ?? 1;
   if (on === 0 && save === 0 && blockMul === 1) return null;
@@ -390,7 +390,7 @@ export function buildVariant(s: SimState, a: Agent, def: CardDef, hand: number, 
     mod.on = Math.min(C.bonusCap, delta);
     mod.save = -(eff.saveDelta ?? 0);
     mod.blockMul = eff.blockMul ?? 1;
-    p = shotGoalP(s, a, mod.on + passiveFor(s, a, ['shoot'], inOppBox(a.x, a.y, attackDir(a.team, s.half))), mod.save, mod.blockMul);
+    p = shotGoalP(s, a, mod.on + passiveFor(s, ['shoot'], inOppBox(a.x, a.y, attackDir(a.team, s.half))), mod.save, mod.blockMul);
     cand.p = p;
     cand.value = p;
     cand.u = base.p > 0 ? base.u * (p / base.p) : base.u;
@@ -499,7 +499,7 @@ export function handView(
     const def = cardById(id)!;
     const role = cardRole(def);
     const card: MomentCard = { hand: i, id, name: def.name, kind: def.kind, rarity: def.rarity, role, text: cardText(def), usable: false };
-    const req = reqProblem(s, a, def) ?? directiveProblem(s, def);
+    const req = reqProblem(a, def) ?? directiveProblem(s, def);
     if (req) return { ...card, reason: req };
     if (def.scenes.length && !def.scenes.includes(scene as never)) return { ...card, reason: '이 장면에서는 못 써요' };
     if (role === 'play') {
@@ -536,7 +536,7 @@ export function playCard(s: SimState, a: Agent, hand: number, scene: string, aut
   } else if (role === 'redraw') {
     // 리셋: 쓸 수 없는 카드부터(없으면 맨 앞) 1장 버리고 1장 뽑는다. dead = 이 장면에서 못 쓰는 카드의 원래 패 위치 (리셋 즉발, C.75h)
     const moved = (dead ?? []).filter((k) => k !== hand).map((k) => (k > hand ? k - 1 : k));
-    let k = moved.length ? moved[0]! : cs.hand.findIndex((h) => reqProblem(s, a, cardById(h)!) !== null);
+    let k = moved.length ? moved[0]! : cs.hand.findIndex((h) => reqProblem(a, cardById(h)!) !== null);
     if (k < 0) k = 0;
     if (cs.hand.length) cs.hand.splice(k, 1);
     drawCards(cs, 1);
@@ -567,7 +567,7 @@ function equipKickoff(s: SimState, a: Agent): void {
   for (let i = 0; i < cs.pile.length && cs.passives.length < C.passiveSlots;) {
     const id = cs.pile[i]!;
     const def = cardById(id)!;
-    if (cardRole(def) !== 'passive' || reqProblem(s, a, def) || cs.passives.includes(id)) {
+    if (cardRole(def) !== 'passive' || reqProblem(a, def) || cs.passives.includes(id)) {
       i++;
       continue;
     }
@@ -587,7 +587,7 @@ function snap(s: SimState, a: Agent): Snap {
   };
 }
 
-export function watchKind(action: string): WatchKind {
+function watchKind(action: string): WatchKind {
   switch (action) {
     case 'shoot': return 'shoot';
     case 'pass': case 'through': case 'cutback': case 'layoff': return 'pass';
@@ -708,7 +708,7 @@ export function reactiveCards(s: SimState, a: Agent, scenes: string[], base: Add
   const out: ReactCard[] = [];
   for (let i = 0; i < cs.hand.length; i++) {
     const def = cardById(cs.hand[i]!)!;
-    if (reqProblem(s, a, def) || !def.scenes.some((x) => scenes.includes(x))) continue;
+    if (reqProblem(a, def) || !def.scenes.some((x) => scenes.includes(x))) continue;
     const eff = def.effects.find((e): e is AddOption => e.type === 'addOption' && e.base === base) ?? null;
     if (eff) {
       out.push({ hand: i, def, value: (eff.probDelta ?? 0) + judgeShift(a, eff), eff });

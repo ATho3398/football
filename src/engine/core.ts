@@ -294,7 +294,7 @@ export function kickoffPositions(s: SimState, team: 0 | 1): void {
 }
 
 /** 범위 [lo, hi] 안 대기 시간 (시드) */
-export function restartWait(s: SimState, range: readonly [number, number], k = 0): number {
+function restartWait(s: SimState, range: readonly [number, number], k = 0): number {
   return range[0] + (range[1] - range[0]) * rand(s.seed, s.tick, 0, Purpose.Restart, k);
 }
 

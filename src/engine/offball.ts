@@ -714,7 +714,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   let wideJob = false;
   const wOwner = owner ?? (fl && fl.receiver >= 0 && fl.outcome === 'receive' && s.agents[fl.passer]?.team === a.team ? s.agents[fl.receiver]! : null);
   if (O.wideArrive > 0 && a.line === 2 && (a.pos === 'LM' || a.pos === 'RM') && wOwner && wOwner.team === a.team && wOwner !== a && bnx >= O.wideFromX && (!running || Math.abs(bny - 0.5) >= O.lateRunWide)) {
-    const t = wideMidSpot(s, a, wOwner, dir, bnx, bny, line);
+    const t = wideMidSpot(s, a, wOwner, dir, bny, line);
     if (t) {
       [nx, ny] = t;
       const [px, py] = toPitch(nx, ny, dir);
@@ -859,7 +859,7 @@ function overlapToTrack(s: SimState, a: Agent): Agent | null {
 const INSIDE_WIDE = new Set(['wingForward', 'raumdeuter', 'crackWinger']);
 
 /** 측면 미드 도착 자리 (C.78e ①, 정규화). null = 기존 규칙 */
-function wideMidSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, bnx: number, bny: number, line: number): [number, number] | null {
+function wideMidSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, bny: number, line: number): [number, number] | null {
   const side = a.sy < 0.5 ? -1 : 1;
   const cap = line - 0.5 / L;
   if (Math.abs(bny - 0.5) >= O.lateRunWide) {
@@ -1162,7 +1162,7 @@ export function finalThirdJob(s: SimState, a: Agent, owner: Agent): 'nine' | 'cu
  * 우리 골 쪽으로 decoySpeed m/s 이상 달리고 있음(짝이 뒷공간을 노릴 때만 속임이 된다), 판단 = clamp((수비 위치선정 − 50) / 40, 0, 1).
  * 결정은 stepOutHold 초 유지(시드 난수). 따라 나가기로 했으면 그 상대, 아니면 null
  */
-function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, lineX: number, ballGoal: number): Agent | null {
+function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, ballGoal: number): Agent | null {
   if (a.pos !== 'CB' || ballGoal < O.stepOutBall[0] || ballGoal > O.stepOutBall[1]) {
     a.stepOutIdx = -1;
     return null;
@@ -1462,12 +1462,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (u0 !== undefined) {
       const u = s.agents[u0]!;
       ensureErrors(s, a);
-      const gd2 = dist(u.x, u.y, gx0, gy0) || 1;
-      a.tx = clamp(u.x + ((gx0 - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
-      a.ty = clamp(u.y + ((gy0 - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
-      feedFrom(a, u);
-      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
-      a.minRun = false;
+      markTight(a, u, gx0, gy0);
       return;
     }
   }
@@ -1565,7 +1560,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) mark = focus;
   // CB 따라나옴 (C.77d 가설 2): 줄 사이로 내려온 상대 공격수를 따라 나갈지 가장 가까운 CB 가 판단한다 (나가기로 하면 그 선수를 라인 앞까지 마크)
-  const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, lineX, ballGoal) : null;
+  const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, ballGoal) : null;
   if (stepOut) mark = stepOut;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
   let markFeed: [number, number, number, number, number] | null = null;
@@ -1710,12 +1705,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       return true;
     }
     if (second === a) {
-      const bd = dist(t.x, t.y, b.x, b.y) || 1;
-      a.tx = clamp(t.x + ((b.x - t.x) / bd) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
-      a.ty = clamp(t.y + ((b.y - t.y) / bd) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
-      feedFrom(a, t);
-      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
-      a.minRun = false;
+      markTight(a, t, b.x, b.y);
       return true;
     }
     rest = defs.filter((o) => o !== marker && o !== second);
@@ -1734,12 +1724,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
         const u = t2;
         const m2 = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
         if (m2 === a) {
-          const gd2 = dist(u.x, u.y, gx, gy) || 1;
-          a.tx = clamp(u.x + ((gx - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
-          a.ty = clamp(u.y + ((gy - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
-          feedFrom(a, u);
-          a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
-          a.minRun = false;
+          markTight(a, u, gx, gy);
           return true;
         }
         rest = rest.filter((o) => o !== m2);
@@ -1754,12 +1739,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
       const m = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
       marks++;
       if (m === a) {
-        const gd2 = dist(u.x, u.y, gx, gy) || 1;
-        a.tx = clamp(u.x + ((gx - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
-        a.ty = clamp(u.y + ((gy - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
-        feedFrom(a, u);
-        a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
-        a.minRun = false;
+        markTight(a, u, gx, gy);
         return true;
       }
       rest = rest.filter((o) => o !== m);
@@ -1803,7 +1783,7 @@ function threatValue(o: Agent, gx: number, gy: number): number {
  * 위협 가중 (C.76a, 미해결 8·11, 사용자 제안 "위협 가중 수비"): 마무리 능력 계수 clamp((finishSkill(슈팅) − 70)/20, −0.5, 1).
  * 수비 주의 집중(focusThreat)·위협 1위 마크 거리·커버 섀도 대상에만 들어간다 — 마커 수·압박 항은 그대로 (미해결 8 과 다른 종류)
  */
-export function threatAbility(o: Agent): number {
+function threatAbility(o: Agent): number {
   return clamp((finishSkill(o.attrs, 'shot') - O.focusAbilityCenter) / O.focusAbilityRange, -0.5, 1);
 }
 
@@ -1936,9 +1916,6 @@ function isTopForward(s: SimState, a: Agent): boolean {
 interface CloseDown { pick: Agent | null; second: Agent | null }
 const NO_CLOSE: CloseDown = { pick: null, second: null };
 const closeDownCache = new WeakMap<SimState, { tick: number; cd: CloseDown }[]>();
-function closeDownAgent(s: SimState, team: 0 | 1, gx: number, gy: number): Agent | null {
-  return closeDownPlan(s, team, gx, gy).pick;
-}
 function closeDownPlan(s: SimState, team: 0 | 1, gx: number, gy: number): CloseDown {
   // 틱마다 팀당 한 번만 계산 (focusThreat 과 같은 캐시 — 결과 불변, 22명이 같은 탐색을 되풀이하지 않게)
   let cache = closeDownCache.get(s);
@@ -2393,6 +2370,16 @@ export function refreshErrors(s: SimState, a: Agent): void {
   if (s.t - a.errT < O.errHold) return;
   a.errTick = s.tick;
   a.errT = s.t;
+}
+
+/** u 를 (px, py) 쪽으로 stMark 만큼 밀착 마크 (마크 오차 포함, 3 m 넘게 남으면 서두름) */
+function markTight(a: Agent, u: Agent, px: number, py: number): void {
+  const d = dist(u.x, u.y, px, py) || 1;
+  a.tx = clamp(u.x + ((px - u.x) / d) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
+  a.ty = clamp(u.y + ((py - u.y) / d) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
+  feedFrom(a, u);
+  a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
+  a.minRun = false;
 }
 
 /** 목표 속도 = 따라가는 사람의 인지된 속도 (C.77x, 판단 순간 값을 다음 판단까지 유지) */
