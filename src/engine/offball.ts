@@ -2125,19 +2125,29 @@ function canReach(a: Agent, r: Agent): boolean {
 // (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 문턱 − 1 이면 유지, 그 아래면 올라간다 (히스테리시스)
 interface LineMatch { drop: Set<number>; surplus: number }
 const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
-const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
-function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
+const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch; since: number }[]>();
+/** 진단용 읽기 (엔진관리자18): 이 틱에 이미 계산된 줄 인원 맞춤 계획만 돌려준다 (계산하지 않음 — 지문 불변) */
+export function lineMatchPeek(s: SimState, team: 0 | 1, tick = s.tick): LineMatch | null {
+  const e = lineMatchCache.get(s)?.[team];
+  return e && e.tick === tick ? e.plan : null;
+}
+export function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   if (O.lineMatch <= 0) return NO_MATCH;
   let cache = lineMatchCache.get(s);
-  if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH }, { tick: -1, plan: NO_MATCH }]));
+  if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH, since: -1 }, { tick: -1, plan: NO_MATCH, since: -1 }]));
   const e = cache[team]!;
   if (e.tick === s.tick) return e.plan;
-  const prev = e.tick === s.tick - 1 ? e.plan : NO_MATCH;
+  const prev = e.tick === s.tick - 1 || (O.lineMatchKeep > 0 && e.tick >= 0 && (s.tick - e.tick) * ENGINE.time.dt <= O.lineMatchKeep) ? e.plan : NO_MATCH;
   e.tick = s.tick;
   const b = s.ball;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
   const att = owner ? owner.team : s.possTeam;
   if (att === team || s.restart) return (e.plan = NO_MATCH);
+  const tm = s.teams[team];
+  // 진단·실험 스위치 (엔진관리자18, 기본 0 = 동작 불변)
+  if (O.lineMatchSkipTend > 0 && tactics_.TENDENCIES[O.lineMatchSkipTend - 1] === tm.tactics.tendency) return (e.plan = NO_MATCH);
+  if (O.lineMatchNoPress > 0 && s.t < tm.counterUntil && tm.counterPressers.length > 0) return (e.plan = NO_MATCH);
+  if (O.lineMatchAfterWin > 0 && s.possOrigin === 'open' && s.t - s.teams[1 - team]!.wonAt < O.lineMatchAfterWin) return (e.plan = NO_MATCH);
   const dir = attackDir(team, s.half);
   let lx = 0;
   let ln = 0;
@@ -2150,13 +2160,19 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   }
   if (!ln) return (e.plan = NO_MATCH);
   const band = lx / ln + O.lineMatchBand / L;
+  // lineMatchFlight 1: 공이 떠 있으면 패서(공을 보낸 선수)를 소유자로 쳐서 공격 줄에서 뺀다 (지금은 비행 중 패서가 세어져 초과가 1 늘어난다)
+  const passer = O.lineMatchFlight > 0 && !owner && b.flight && b.flight.passer >= 0 ? s.agents[b.flight.passer] : null;
   let atts = 0;
-  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
+  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && o !== passer && toNorm(o.x, o.y, dir)[0] < band) atts++;
   const surplus = atts - defs;
+  // lineMatchHold: 초과 ≥ 문턱이 이 초 이상 이어져야 발동 (이미 내려와 있으면 유지)
+  if (O.lineMatchHold > 0) {
+    if (surplus >= O.lineMatchMin) { if (e.since < 0) e.since = s.t; } else e.since = -1;
+  }
+  const held = O.lineMatchHold > 0 && prev.drop.size === 0 && (e.since < 0 || s.t - e.since < O.lineMatchHold);
   // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
-  const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
+  const need = held ? 0 : surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
   if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus });
-  const tm = s.teams[team];
   const [gx, gy] = ownGoal(dir);
   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
   const cands: Agent[] = [];

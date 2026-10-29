@@ -15,10 +15,12 @@ import type { Tendency } from '../../src/engine/types';
 
 const all = process.argv.slice(2).filter((a) => a !== '--');
 let n = 200, d = 10;
+let profile = 'c78s'; // C.79f: profile=c79d 면 직선 프로필을 C.79d 정의(빌드업 보통 + 전환 롱볼, 받는 쪽 퍼스트 터치·피지컬·공중)로
 const overrides: Record<string, number> = {}; // C.79c: 경로=값 상수 덮어쓰기 (c78s-matrix 와 같은 표기)
 const tends: Tendency[] = [];
 for (const a of all) {
   if (a.startsWith('d=')) d = Number(a.slice(2));
+  else if (a.startsWith('profile=')) profile = a.slice(8);
   else if (a.includes('=')) { const [k, v] = a.split('='); overrides[k!] = Number(v); }
   else if (/^\d+$/.test(a)) n = Number(a);
   else tends.push(a as Tendency);
@@ -37,6 +39,11 @@ const FIT: Record<string, Partial<Record<G, FieldAttribute[]>>> = (() => {
     gegenpress: { CB: ['stamina', 'workRate', 'acceleration', 'tackling'], FB: ['stamina', 'workRate', 'acceleration', 'tackling'], MID: ['stamina', 'workRate', 'acceleration', 'tackling'], WING: ['stamina', 'workRate', 'acceleration', 'tackling'], ST: ['stamina', 'workRate', 'acceleration', 'tackling'] },
   };
 })();
+// C.79f (엔진관리자17): C.79d 뒤 직선 = 빌드업 보통 + 전환 롱볼 — 뒤·3선은 롱패스·시야(크로스), 받는 쪽(윙·ST)은 퍼스트 터치(볼 컨트롤)·피지컬(근력)·공중(점프·헤더), 윙은 전환 속도
+if (profile === 'c79d') FIT.direct = {
+  CB: ['longPassing', 'vision'], FB: ['longPassing', 'crossing', 'vision'], MID: ['longPassing', 'vision', 'crossing'],
+  WING: ['ballControl', 'strength', 'pace', 'acceleration'], ST: ['ballControl', 'strength', 'jumping', 'heading'],
+};
 /** 한 팀(시드)에서 같은 OVR 로 fit 능력치 ±d · 나머지 ∓δ 하는 mods. sign +1 맞음 / −1 안 맞음 */
 function fitMods(team: 0 | 1, side: string, seed: number, rating: number, tend: string, sign: 1 | -1, devs: number[]): AttrMod[] {
   const roster = createTeamRoster({ id: `v${side}${seed}`, rating }, `eng-${side}-${rating}-${seed}`, 2018, []);
@@ -87,7 +94,7 @@ const gd = sets.map((_, i) => {
   return { v, gf, mean: v.reduce((a, b) => a + b, 0) / n };
 });
 const se = (a: number[], b: number[]) => { const dd = a.map((x, i) => x - b[i]!); const m = dd.reduce((s, x) => s + x, 0) / dd.length; return Math.sqrt(dd.reduce((s, x) => s + (x - m) ** 2, 0) / dd.length / dd.length); };
-console.log(`\n적합도 d=${d}, ${n}경기씩, 75 대 75 균형, OVR 변화 최대 |${Math.max(...devs.map(Math.abs)).toFixed(3)}|`);
+console.log(`\n적합도 d=${d} 프로필 ${profile}, ${n}경기씩, 75 대 75 균형, OVR 변화 최대 |${Math.max(...devs.map(Math.abs)).toFixed(3)}|`);
 console.log('| 성향 | X 맞음 득실 | X 안 맞음 | X 차 (±SE) | 균형 맞음_X | 균형 안 맞음_X | 균형 차 | 선수빨(차의 차) | X 맞음 득점 |');
 tends.forEach((t, i) => {
   const [a, b, c, e] = [gd[4 * i]!, gd[4 * i + 1]!, gd[4 * i + 2]!, gd[4 * i + 3]!];
