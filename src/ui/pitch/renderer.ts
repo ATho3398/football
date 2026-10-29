@@ -859,9 +859,6 @@ let matchTeams: readonly [string, string] | null = null;
 export function setPitchTeams(teams: readonly [string, string] | null): void {
   matchTeams = teams;
 }
-export function pitchTeams(): readonly [string, string] | null {
-  return matchTeams;
-}
 
 /** 마커 → 겹쳐 그릴 16px 이미지 주소들(아래 → 위). 화면이 정한다 (선수 인물 + 경기 유니폼). 없으면 등번호 */
 let pixelLayers: (m: MarkerInput, teams: readonly [string, string] | null) => string[] | undefined = (m) => {

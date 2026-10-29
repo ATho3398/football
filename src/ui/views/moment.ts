@@ -35,7 +35,6 @@ export interface MomentVM {
   feed?: { minute: string; text: string; kind: FeedKind; mine: boolean }[];
 }
 
-const KIND_KO: Record<MomentOption['kind'], string> = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드' };
 const STOP_ITEMS: { id: StopLevel; label: string }[] = [
   { id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' },
 ];
@@ -43,14 +42,11 @@ const STOP_ITEMS: { id: StopLevel; label: string }[] = [
 export const KIND_COLOR: Record<MomentOption['kind'], string> = { safe: '#5ee0ff', balanced: '#d6ff3c', gamble: '#ff9a3d', card: '#b685ff' };
 
 const signedR = (x: number) => signed(x, 2);
+/** 직전 결정 결과 낱말 (없으면 빈칸) */
+const resultKo = (l: DecisionRecord | null) => (l ? (l.result === 'success' ? '성공' : l.result === 'fail' ? '실패' : '보통') : '');
 /** 몰고 가다 슛 줄 이름 (240A): 2단 행동을 그대로 "몰고 가기 → 슛" */
 const CHAIN_NAME = '몰고 가기 → 슛';
 const pctOf = (p: number | null) => (p === null ? null : Math.round(Math.max(0, Math.min(0.99, p)) * 100));
-
-export function lastResultText(r: DecisionRecord): string {
-  const res = r.result === 'success' ? '성공' : r.result === 'fail' ? '실패' : '결과 보통';
-  return `${r.minute}' ${SCENE_LABEL[r.scene]} · ${r.label} → ${res} (평점 ${signedR(r.delta)})`;
-}
 
 /** 지금 화면에 보이는 선택지: 기본 3개 + 고른 플레이 카드가 연 4번째 */
 export function shownOptions(m: Moment, card: number | null): MomentOption[] {
@@ -187,7 +183,7 @@ function belowStage(vm: MomentVM): string {
   const feed = vm.feed?.length
     ? vm.feed.map((f, i, a) => FeedItem({ minute: f.minute, text: f.text, kind: f.kind, mine: f.mine && i === a.length - 1, faint: i < a.length - 1 })).join('')
     : '<p class="mo-below__empty">경기 흐름을 모으는 중이에요</p>';
-  const res = l ? (l.result === 'success' ? '성공' : l.result === 'fail' ? '실패' : '보통') : '';
+  const res = resultKo(l);
   const choice = l ? (l.choice === 'delegate' ? '맡기기' : l.label) : '';
   return `<div class="mo-below">
       <div class="mo-below__box mo-below__flow"><small>최근 흐름</small>${feed}</div>
@@ -200,7 +196,7 @@ function belowStage(vm: MomentVM): string {
 /** 아래 묶음 (171): 직전 결정 · 정지 빈도 · 자동 전환. [확정] 줄 위, 스크롤로 내려서 본다 */
 function moreSettings(vm: MomentVM): string {
   const l = vm.last;
-  const res = l ? (l.result === 'success' ? '성공' : l.result === 'fail' ? '실패' : '보통') : '';
+  const res = resultKo(l);
   const last = l
     ? `<div class="mo-more__row mo-more__lastrow"><b>직전 결정</b><span class="po-num">${l.minute}' ${esc(SCENE_LABEL[l.scene])}</span></div>
       <div class="mo-last"><span class="mo-last__chip">${esc(l.label)}</span><span class="mo-last__arrow">→ ${res}</span><b class="po-num ${l.delta > 0 ? 'up' : l.delta < 0 ? 'down' : ''}">${signedR(l.delta)}</b></div>`

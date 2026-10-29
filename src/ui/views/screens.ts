@@ -7,7 +7,7 @@ import { teamPickHtml } from './teamPick';
 import { LEAGUE_GROUPS, type TeamPickVM } from '../teamPickVM';
 import { DEFAULT_LEAGUES } from '../../../data/leagues';
 import {
-  Avatar, FootPair, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, IconButton, Meter, OptionRow, PlayerCard, SectionTitle, StatBar, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
+  Avatar, FootPair, Banner, BottomSheet, Button, Crest, esc, FIN_TIERS, FinChip, HeroPanel, Icon, Meter, PlayerCard, SectionTitle, StatChip, Tabs, TagChip, TextField, TierBadge, type DesignTier,
 } from '../components';
 import type { AllocateVM, ChapterReviewVM, CupsWorldVM, CupTieVM, RetiredVM, SavesVMOut, SeasonVM, StarGroup, StarVM, VersionVM, WorldVM, WorldRowVM, OtherLeagueVM } from '../viewModels';
 import type { BoardKind } from '../../worldStats';
@@ -16,13 +16,12 @@ import { isWide } from '../skin';
 import { teamLink } from './detail';
 import { historyTable } from './player';
 import { attrGrid, type AttrGroupVM } from './attrGrid';
-import { attrDisplay, displayDelta } from '../../attributes';
+import { displayDelta } from '../../attributes';
 import { BALANCE } from '../../config/balance';
 import { FUTURE_STARS, LEGENDS } from '../../legends';
 
-/** 레전드 팩 인원 표기 기준 (C.52): 팩 전체 = LEGENDS 전체, 고를 수 있는 선수 = GK 제외 */
+/** 레전드 팩 인원 표기 기준 (C.52): 팩 전체 = LEGENDS 전체 */
 const LEGEND_TOTAL = LEGENDS.length;
-const LEGEND_GK = LEGENDS.filter((l) => l.position === 'GK').length;
 /** 도르트문트 레전드 (C.75x) · 미래 스타 수 */
 const LEGEND_BVB = LEGENDS.filter((l) => l.group === 'bvb').length;
 const FUTURE_TOTAL = FUTURE_STARS.length;
@@ -122,7 +121,6 @@ export interface NewGameUI {
   lpack?: 'all' | 'base' | 'bvb';
 }
 export const NEW_GAME_UI: NewGameUI = { realTab: 'real', rq: '', rsort: 'peak', rgroup: 'all', rshow: 10, attrsOpen: false, cuStep: 1 };
-const REAL_PAGE = 10;
 const REAL_MORE = 20;
 const POS_GROUP: Record<string, 'fw' | 'mf' | 'df'> = { ST: 'fw', CF: 'fw', LW: 'fw', RW: 'fw', LM: 'mf', RM: 'mf', CAM: 'mf', CM: 'mf', CDM: 'mf', LB: 'df', RB: 'df', CB: 'df' };
 

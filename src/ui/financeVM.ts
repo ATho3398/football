@@ -170,5 +170,3 @@ function wealthVM(g: GameState) {
     agent: agentVM(g),
   };
 }
-
-const B = () => BALANCE.money;

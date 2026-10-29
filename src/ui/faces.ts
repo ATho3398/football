@@ -9,7 +9,6 @@ import { allLeagueData } from '../../data/leagues';
 import { TEAM_COLORS } from '../../data/teamColors';
 import type { Appearance } from '../appearance';
 import type { FacePhoto } from '../identity';
-import { initialTeams } from '../league';
 import { hashSeed } from '../rng';
 import type { PeopleTable, PixelPerson } from '../pixel';
 import { storeBackend } from '../saveStore';

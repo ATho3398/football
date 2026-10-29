@@ -2,7 +2,7 @@
 // 인박스(5-2)가 아직 없어 제안은 홈 알림 카드로 알린다. 카드·박스는 C.39 바둑판(.ag-cell)·GameCard 톤
 
 import { ro } from '../../transfer';
-import { Avatar, Banner, Button, Crest, FinChip, HeroPanel, Icon, OfferCard, OptionRow, SectionTitle, TagChip, TransferRow, esc, type FinTierKo } from '../components';
+import { Banner, Button, Crest, FinChip, HeroPanel, Icon, OfferCard, OptionRow, SectionTitle, TagChip, TransferRow, esc, type FinTierKo } from '../components';
 import type { MarketVM, NewsVM, OfferVM } from '../transferVM';
 import { actionRow, panel } from './common';
 import { TAGS } from '../../tags';

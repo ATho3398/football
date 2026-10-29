@@ -32,7 +32,7 @@ import { gaugeSection, presetEditSheet, presetSection, todayRow, trainingSection
 import { playNpcMatch } from '../engine/npcMatch';
 import { EnginePool } from './enginePool';
 import type { EngineJob } from '../engine/jobs';
-import { adviceTakenText, checkAdviceTaken, rollProspect } from '../aptitude';
+import { adviceTakenText, checkAdviceTaken } from '../aptitude';
 import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
 import { elapsedMapper, replayEvents, replayPlayers } from '../replay';
@@ -61,15 +61,15 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
-import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, SectionTitle, Tabs, Toast, type ToastProps } from './components';
+import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, Tabs, Toast, type ToastProps } from './components';
 import {
-  adviceCardVM, allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
+  allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { dock, dockMoreSheet, panel, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
+import { dock, dockMoreSheet, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
-import { alertCard, homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
+import { homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
 import { takeFreshRecords } from '../records';
 import { goalsSection, homeInboxSection, inboxDetailBody, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
@@ -863,12 +863,17 @@ function livePlayers(g: GameState) {
   return replayPlayers(s.input.home, s.input.away).map((p) => (p.isMe ? { ...p, name: g.player.name } : p));
 }
 
+/** 피드 한 줄: 골 줄은 끝의 " — 스코어"를 떼고 */
+function feedLine(x: ReturnType<typeof replayEvents>[number], m: Moment): NonNullable<MomentVM['feed']>[number] {
+  return { minute: x.minute, text: x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text, kind: feedKind(x, m.side), mine: x.players[0] === m.me };
+}
+
 /** PC 결정 순간 "최근 흐름" (218, C.76f): 이 순간까지의 경기 이벤트 피드 마지막 2줄. 엔진 이벤트는 읽기만 한다 */
 function recentFeed(events: Parameters<typeof replayEvents>[0], players: Parameters<typeof replayEvents>[1], teams: [string, string], m: Moment): NonNullable<MomentVM['feed']> {
   return replayEvents(events, players, teams, elapsedMapper(events, ENGINE.time.halfSeconds))
     .filter((x) => x.type !== 'kickoff' && x.type !== 'halftime' && x.type !== 'fulltime')
     .slice(-2)
-    .map((x) => ({ minute: x.minute, text: x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text, kind: feedKind(x, m.side), mine: x.players[0] === m.me }));
+    .map((x) => feedLine(x, m));
 }
 
 /** 직접 모드 경기: 다음 결정 순간까지 돌리고 멈추면 결정 화면, 끝나면 결과 처리 */
@@ -956,7 +961,7 @@ function liveDecide(g: GameState, choice: number | 'delegate'): void {
   const lines = replayEvents(s.events, players, lv.teams, elapsedMapper(s.events, ENGINE.time.halfSeconds))
     .filter((x) => x.e >= e0 - 0.01 && x.e <= o.to + 2 && x.type !== 'kickoff' && x.type !== 'halftime' && x.type !== 'fulltime')
     .slice(0, 4)
-    .map((x) => ({ minute: x.minute, text: x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text, kind: feedKind(x, m.side), mine: x.players[0] === m.me }));
+    .map((x) => feedLine(x, m));
   const vm: OutcomeVM = {
     moment: m, teams: lv.teams, score, shown: false, band, kind: opt ? opt.kind : 'delegate', lines,
     headline, ratingDelta: delta, rating: before === null ? null : Math.max(0, Math.min(10, before + delta)), card: used?.name ?? null,
@@ -1046,13 +1051,6 @@ function rewatchExit(): void {
   }
   ui.replay = null;
   go('player');
-}
-
-/** 커리어 태그 획득·해제 홈 알림 (C.47 → C.57 디자인 133 알림 카드) */
-function tagNoticeBanner(g: GameState): string {
-  const n = g.tagNotice;
-  if (!n) return '';
-  return alertCard({ icon: 'star', eyebrow: `태그 · ${n.season}-${String((n.season + 1) % 100).padStart(2, '0')} 시즌 끝`, title: n.text, body: '선수 → 몸·태그에서 전체를 봐요.', close: 'tag-notice-close' });
 }
 
 /** 약발 훈련 줄 (디자인 150): 지금 게이지 · 시즌 */

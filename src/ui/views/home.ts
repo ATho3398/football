@@ -9,7 +9,7 @@ import { heroFaceOf } from '../faces';
 import { isLandPhone, isWide, skin } from '../skin';
 import type { DayVM, EnvVM, HomeVM, InjuryReturnVM, PositionOptionVM, RecordTrackVM, TrialVM } from '../viewModels';
 import type { WeatherKind } from '../../weather';
-import { actionRow, banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
+import { banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
 import { PLAN_ICON } from './training';
 
 /** 미페 머리말을 쓰는지 (C.57 → C.74e PC 도): B 테마 + 내 선수 사진(페이스온 > facepack > 기본 사진)이 있을 때. A 테마·사진 없음·가로 폰(한 줄 머리말, C.74e 범위 밖)은 일반 머리말 */
@@ -159,19 +159,6 @@ export function staminaNote(fatigue: number): string {
 
 /** 포변 조언 홈 알림 카드 (pending 36 ⑥, 부록 C.37). 인박스(5-2)가 생기면 그쪽으로 옮긴다 */
 export interface AdviceCardVM { kind: 'coach' | 'news'; eyebrow: string; title: string; body: string; window: string; pos: string }
-
-export function adviceCard(vm: AdviceCardVM): string {
-  return `<div class="panel advice-card advice-${vm.kind}" role="status">
-    <div class="advice-head"><span class="advice-eyebrow">${esc(vm.eyebrow)}</span><button type="button" class="advice-x" data-act="advice-close" aria-label="닫기">×</button></div>
-    <b class="advice-title">${esc(vm.title)}</b>
-    <p class="small">${esc(vm.body)}</p>
-    <p class="small muted">${esc(vm.window)}</p>
-    ${actionRow(
-      Button({ variant: 'secondary', size: 'sm', block: true, act: 'advice-close', children: '닫기' }),
-      Button({ size: 'sm', block: true, act: 'pos-open', data: { v: vm.pos }, children: `${vm.pos} 포지션 보기` }),
-    )}
-  </div>`;
-}
 
 /** "주 포지션 변경 요청" (부록 D.3): 홈 섹션 + 바텀시트. 비시즌, 포변 조언 기간에는 시즌 중에도 (C.37) */
 export function positionChangeSection(current: string, prof: number, advice = false): string {

@@ -89,7 +89,3 @@ export async function playPackReveal(o: { pack: PackInfo; cards: AnimCard[]; res
   if (picked) o.onPick?.(picked);
   return true;
 }
-
-export function packRevealOpen(): boolean {
-  return open;
-}

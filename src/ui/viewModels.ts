@@ -7,7 +7,7 @@ import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { topChemMates, type ChemMateVM } from '../rapport';
-import { matchCompLabel, myMatchConditions, myShirt, prospectExtras, rosterLeagues, weekFreeDays } from '../game';
+import { matchCompLabel, myMatchConditions, myShirt, rosterLeagues, weekFreeDays } from '../game';
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
@@ -16,7 +16,7 @@ import { FOOT_KO } from '../body';
 import { TAGS } from '../tags';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
-import { adviceOpen, adviceText, rollProspect } from '../aptitude';
+import { adviceOpen, adviceText } from '../aptitude';
 import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../life';
 import { awardsTodo } from './awardsVM';
 import { raceRank } from '../awards';
@@ -41,7 +41,7 @@ import {
 import {
   costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
-import { possessionSummary, type Scene } from '../highlights';
+import type { Scene } from '../highlights';
 import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlight, type SeasonHighlightKind } from '../seasonHighlights';
 import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
@@ -49,7 +49,7 @@ import {
 import { INJURY_NAMES_KO } from '../injury';
 import { shownTracks } from '../records';
 import { CLUB_TO_TEAM, clubKo, initialTeams, leagueOfTeam, leaguePosition, leagueTeamById, sortedTable, teamById, type LeagueState } from '../league';
-import { DEFAULT_LEAGUES, leagueCatalog, leagueData, PLAYABLE_LEAGUES } from '../../data/leagues';
+import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
 import { cupBannerVM, type CupBannerVM } from './seasonVM';
 import { calendarKind, normalizeLeagues, otherLeagueCalendar, otherScorers, type OtherLeague } from '../otherLeagues';
 import { MLS_CONFERENCE } from '../../data/leagues/mls';
@@ -189,15 +189,14 @@ function playerCardVM(g: GameState): PlayerCardVM {
 function returnLabel(g: GameState): string {
   const inj = g.player.injury!;
   const off = BALANCE.injury.offseasonWeeks * 7;
+  let carry = inj.daysLeft - off;
   if (g.phase === 'season') {
     const cal = calendarOf(g);
     // 다친 날이면 다음 날부터 줄어든다
     const back = addDays(g.calendar.date, inj.daysLeft + (inj.date === g.calendar.date ? 1 : 0));
     if (daysBetween(back, cal.final) >= 0) return dateLabel(back);
-    const carry = inj.daysLeft - daysBetween(g.calendar.date, cal.final) - off;
-    return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 개막 ${Math.ceil(carry / 7)}주 뒤`;
+    carry = inj.daysLeft - daysBetween(g.calendar.date, cal.final) - off;
   }
-  const carry = inj.daysLeft - off;
   return carry <= 0 ? '다음 시즌 개막' : `다음 시즌 개막 ${Math.ceil(carry / 7)}주 뒤`;
 }
 
@@ -786,8 +785,6 @@ export function campLabel(g: GameState): string {
 
 // ── 선수 (I.8, 디자인 44) ──
 
-export interface AttrRowVM { label: string; value: number; key: boolean }
-
 export interface PlayerVM {
   /** 호흡 좋은 동료 상위 3 (C.74c) */
   chem: ChemMateVM[];
@@ -892,7 +889,6 @@ export function attrGroupsVM(attrs: FieldAttributes, keys: readonly FieldAttribu
 export function playerVM(g: GameState): PlayerVM {
   const p = g.player;
   const keys = profileOf(p.position).keys;
-  const ovrs = allPositionOvrs(p.attributes);
   const tier = reputationTier(p.reputation, p.honors);
   const nx = nextReputationTier(p.reputation, p.honors);
   const fx = g.phase === 'season' ? nextFixture(g) : null;
@@ -1063,8 +1059,6 @@ export function replayLiveVM(r: Replay, f: ReplayFrame, e: number, extra: FeedVM
     },
   };
 }
-
-export const transitionSummary = possessionSummary;
 
 // ── 경기 후 (I.6, 디자인 38) ──
 
@@ -1392,7 +1386,6 @@ const STAR_MAX = 40;
 
 export function worldVM(g: GameState, leagueSel = ''): WorldVM {
   const rows = sortedTable(g.league);
-  const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
   const others = g.otherLeagues ?? [];
   const otherLg = leagueSel ? others.find((o) => o.id === leagueSel) : undefined;
   const myRows = leagueRows(g.league, g.player.teamId);

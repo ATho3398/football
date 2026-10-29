@@ -5,7 +5,6 @@ import { BALANCE } from '../../config/balance';
 import type { PlayerState } from '../../types';
 import { PLAY_DESC, TAGS, tagName } from '../../tags';
 import { BottomSheet, Button, Crest, esc, FootPair, Icon, SectionTitle, TagChip, TextField } from '../components';
-import { panel } from './common';
 
 /** 대표 태그 순서 (C.47): 커리어(스토리·플레이) → 장점 → 단점, 같은 종류는 최근 것 먼저 */
 export function featuredTags<T extends { id: keyof typeof TAGS; season: number }>(tags: readonly T[]): T[] {
