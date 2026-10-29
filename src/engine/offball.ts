@@ -2103,13 +2103,19 @@ function canReach(a: Agent, r: Agent): boolean {
 interface LineMatch { drop: Set<number>; surplus: number }
 const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
 const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
+/** 진단용 읽기 (엔진관리자18): 이 틱에 이미 계산된 줄 인원 맞춤 계획만 돌려준다 (계산하지 않음 — 지문 불변) */
+export function lineMatchPeek(s: SimState, team: 0 | 1, tick = s.tick): LineMatch | null {
+  const e = lineMatchCache.get(s)?.[team];
+  return e && e.tick === tick ? e.plan : null;
+}
 function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   if (O.lineMatch <= 0) return NO_MATCH;
   let cache = lineMatchCache.get(s);
   if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH }, { tick: -1, plan: NO_MATCH }]));
   const e = cache[team]!;
   if (e.tick === s.tick) return e.plan;
-  const prev = e.tick === s.tick - 1 ? e.plan : NO_MATCH;
+  // 유지 (C.79k 결함 ②): 수비 팀 아무도 오프볼 판단을 안 한 틱이 끼어도 lineMatchKeep 초 안의 마지막 계획을 prev 로 인정한다 (0 = 바로 전 틱만)
+  const prev = e.tick === s.tick - 1 || (e.tick >= 0 && (s.tick - e.tick) * ENGINE.time.dt <= O.lineMatchKeep) ? e.plan : NO_MATCH;
   e.tick = s.tick;
   const b = s.ball;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
@@ -2127,8 +2133,10 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   }
   if (!ln) return (e.plan = NO_MATCH);
   const band = lx / ln + O.lineMatchBand / L;
+  // 비행 중 패서 (C.79k 결함 ①, lineMatchFlight 1): 공이 떠 있으면 공을 보낸 선수를 소유자로 쳐서 공격 줄에서 뺀다 (안 빼면 패스할 때마다 초과가 1 늘어난다)
+  const passer = O.lineMatchFlight > 0 && !owner && b.flight && b.flight.passer >= 0 ? s.agents[b.flight.passer] : null;
   let atts = 0;
-  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
+  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && o !== passer && toNorm(o.x, o.y, dir)[0] < band) atts++;
   const surplus = atts - defs;
   // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
   const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;

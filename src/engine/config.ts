@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 59;
+export const ENGINE_VERSION = 60;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -510,6 +510,9 @@ export const ENGINE = {
     lineMatchBand: 8,
     lineMatchMin: 2,
     lineMatchMan: 1,
+    /** 결함 수정 (C.79k, 엔진관리자18 §1.2): lineMatchFlight 1 = 공이 떠 있을 때 패서를 소유자로 쳐서 공격 줄에서 뺀다(0 = 옛 동작) · lineMatchKeep s = 수비 팀 아무도 오프볼 판단을 안 한 틱이 끼어도 이 초 안의 마지막 계획을 유지 기준(prev)으로 인정(0 = 바로 전 틱만; 0.3 은 이동 거리 한 선수 15.03 km ✗ 라 기본 0, 부록 C.79k) */
+    lineMatchFlight: 1,
+    lineMatchKeep: 0,
     /**
      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
      * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
