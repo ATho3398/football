@@ -113,6 +113,9 @@ const mk = () => ({
 });
 type T = ReturnType<typeof mk>;
 const acc: [T, T] = [mk(), mk()];
+// 엔진관리자19 ③: 슛 출처 — 슛 직전 10 s 안 같은 팀의 마지막 수신 종류(롱볼 공중 / 땅볼 패스 / 없음·기타), 골도 같이
+const src: Record<string, { shots: number; goals: number }>[] = [{}, {}];
+const lastRecv: { kind: string; t: number }[] = [{ kind: '', t: -99 }, { kind: '', t: -99 }];
 const classify = (a: any, c: any, dir: number): string => {
   if (c.type !== 'pass' && c.type !== 'through') return c.type;
   const dx = (c.x - a.x) * dir;
@@ -166,6 +169,16 @@ for (let k = 0; k < n; k++) {
     }
   };
   probe.shot = (st, p) => {
+    {
+      const T = who(p.team);
+      const lr = lastRecv[p.team]!;
+      const key = p.kind === 'header' ? '헤더(크로스)' : st.t - lr.t <= 10 && lr.kind ? lr.kind : '기타(세트·리바운드·탈취 뒤)';
+      const e = (src[T]![key] ??= { shots: 0, goals: 0 });
+      e.shots++;
+      const ref = p;
+      Object.defineProperty(ref, 'outcome', { get() { return ref._o; }, set(v) { ref._o = v; if (v === 'goal') e.goals++; }, configurable: true });
+      ref.outcome = p.outcome;
+    }
     for (const w of windows) {
       if (w.team !== p.team || st.t - w.t > 10) continue;
       if (w.lostAt !== null) continue;
@@ -203,12 +216,13 @@ for (let k = 0; k < n; k++) {
         if (a.team === land.team) {
           if (land.kind === 'long') { if (land.loose) X.landLooseUs++; else { X.landRecv++; if (land.sw) X.landRecvSw++; } }
           if (a.line !== 0) windows.push(makeRec(a, land, land.loose));
+          if (a.line !== 0) lastRecv[a.team] = { kind: land.kind === 'long' ? '롱볼 수신 뒤' : '땅볼 수신 뒤', t };
         } else if (land.kind === 'long') { if (land.loose) X.landLooseThem++; else X.landAerialLost++; }
         done = true;
       } else if (b.flight && b.flight !== lastFl) {
         // 소유 없이 바로 찼다 (원터치) — 찬 선수가 받은 셈
         const a = s.agents[b.flight.passer]!;
-        if (a.team === land.team) { if (land.kind === 'long') { if (land.loose) X.landLooseUs++; else X.landRecv++; } if (a.line !== 0) windows.push(makeRec(a, land, land.loose)); }
+        if (a.team === land.team) { if (land.kind === 'long') { if (land.loose) X.landLooseUs++; else X.landRecv++; } if (a.line !== 0) { windows.push(makeRec(a, land, land.loose)); lastRecv[a.team] = { kind: land.kind === 'long' ? '롱볼 수신 뒤' : '땅볼 수신 뒤', t }; } }
         else if (land.kind === 'long') { if (land.loose) X.landLooseThem++; else X.landAerialLost++; }
         done = true;
       } else if (s.restart) { if (land.kind === 'long') X.landOut++; done = true; }
@@ -232,6 +246,7 @@ for (let k = 0; k < n; k++) {
   for (const tm of [0, 1] as const) { acc[who(tm)].shots += s.teams[tm].stats.shots; acc[who(tm)].goals += s.teams[tm].stats.goals; }
   probe.decide = undefined;
   probe.shot = undefined;
+  lastRecv[0] = { kind: '', t: -99 }; lastRecv[1] = { kind: '', t: -99 };
 }
 const pc = (a: number, b: number) => (b ? ((100 * a) / b).toFixed(1) : '-');
 const per = (a: number) => (a / n).toFixed(2);
@@ -267,6 +282,8 @@ for (const kind of ['long', 'short'] as const) {
     }
   });
 }
+console.log('\n### 슛 출처 (슛 직전 10 s 안 마지막 수신 종류, /경기 · 골)');
+for (let i = 0; i < 2; i++) { const nm = i === 0 ? 'A' : 'B'; console.log(`- ${nm} ${specs[i]}: ` + Object.entries(src[i]!).map(([k, v]) => `${k} ${(v.shots / n).toFixed(2)} (골 ${(v.goals / n).toFixed(2)})`).join(' · ')); }
 console.log('\n### 롱볼 수신 — 받는 선수 포지션군 · 등지고 받음 · 반대 전환별 (A 팀)');
 console.log('| 팀 | 분류 | 수신/경기 | 슛10% | 골10% | 상실10% | 첫 행동 | 둘째 행동 |');
 ['A', 'B'].forEach((nm, i) => {

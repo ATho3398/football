@@ -1683,6 +1683,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     let manMax = O.lineMatch > 0 && O.lineMatchMan > 0 && lm.surplus > 0 ? Math.max(manMax0, lm.surplus) : manMax0;
     // 여유 수비 마크 (엔진관리자19 실험 boxSpare, 0 = 끔): 마커(+더블팀)를 뺀 나머지가 덮는 자리 boxCoverKeep 곳보다 많으면 남는 만큼 미마크 상대를 마크
     if (O.boxSpare > 0 && others.length) manMax = Math.max(manMax, defs.length - 1 - (abil >= O.focusDoubleMin && inBox && !ballNear ? 1 : 0) - O.boxCoverKeep);
+    // 내려온 선수 역할 (엔진관리자19 실험 lineMatchRole, 사용자 제안): 내려온 줄 2 는 미마크 상대 전담 마크를 먼저 맡는다 (내려온 수만큼 마크 인원 보장)
+    const roleOn = O.lineMatchRole > 0 && lm.drop.size > 0;
+    if (roleOn && others.length) manMax = Math.max(manMax, lm.drop.size);
     const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
     const gd = dist(t.x, t.y, gx, gy) || 1;
     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
@@ -1738,7 +1741,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     for (const u of others) {
       if (marks >= manMax || !rest.length) break;
       if (u === deepT2) continue;
-      const m = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
+      // lineMatchRole: 내려온 선수 중 가까운 순 먼저, 없으면 나머지 중 가까운 순
+      const pool = roleOn ? rest.filter((o) => lm.drop.has(o.idx)) : [];
+      const m = (pool.length ? pool : rest).slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
       marks++;
       if (m === a) {
         markTight(a, u, gx, gy);

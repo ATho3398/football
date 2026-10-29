@@ -15,7 +15,10 @@ describe('기준 장면', () => {
       : t.xyz
       ? [['xyz on', { ...MOTION_ON, ...RECEIVE_ON, ...KEEPER_ON, ...TRANSITION_ON }], ['xyz off', { ...MOTION_OFF, ...RECEIVE_OFF, ...KEEPER_OFF, ...TRANSITION_ON }]]
       : t.both ? [['motion on', { ...MOTION_ON, ...RECEIVE_ON, ...KEEPER_ON }], ['motion off', { ...MOTION_OFF, ...RECEIVE_ON, ...KEEPER_ON }]] : [['', { ...MOTION_ON, ...RECEIVE_ON, ...KEEPER_ON }]];
-    for (const [label, over] of modes) {
+    for (const [label, over0] of modes) {
+      // 엔진관리자19: SCENE_OVER="경로=값,경로=값" 환경 변수로 진단 스위치를 얹어 장면을 돌려 본다 (기본 없음 = 그대로)
+      const extra = Object.fromEntries((process.env.SCENE_OVER ?? '').split(',').filter((x) => x.includes('=')).map((x) => { const [k, v] = x.split('='); return [k!, Number(v)]; }));
+      const over = { ...over0, ...extra };
       it(`${t.goal}${label ? ` [${label}]` : ''}`, () => {
         const out = withEngine(over, SCENES[id]);
         console.log(`[scene ${id}${label ? ` ${label}` : ''}] ${Object.entries(out.values).map(([k, v]) => `${k}=${Number.isFinite(v) ? v.toFixed(3) : v}`).join(' ')}`);
