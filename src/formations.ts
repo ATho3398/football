@@ -53,7 +53,6 @@ export const ROW_X = [0.2, 0.34, 0.44, 0.56, 0.64, 0.72] as const;
 export const LANE_Y = [0.1, 0.3, 0.5, 0.7, 0.9] as const;
 /** 수비 줄 측면 칸 x */
 const DEF_WIDE_X = 0.22;
-export const ROW_NAMES_KO = ['수비', '수비형 미드', '중앙 미드', '공격형 미드', '2선 공격', '최전방'] as const;
 /** 커스텀 포메이션: 슬롯 11개의 칸 (GK 슬롯은 -1) */
 export type CustomCells = number[];
 

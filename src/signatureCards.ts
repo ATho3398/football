@@ -62,7 +62,3 @@ export const SIGNATURE_CARDS: readonly SignatureCard[] = [
   c('coverCB', '최후의 태클', '뒷공간 1대1', '태클 +10%p, 실패 시 PK/퇴장 위험'),
   c('libero', '라인 깨는 운반', '중원까지 운반', '압박 영향 × 0.8'),
 ];
-
-export function signatureOf(role: string): SignatureCard | undefined {
-  return SIGNATURE_CARDS.find((x) => x.role === role);
-}

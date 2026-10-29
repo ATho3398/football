@@ -3,7 +3,7 @@
 import { proficientOvr } from './proficiency';
 import { ATTRIBUTE_GROUPS, attrDisplay, FIELD_ATTRIBUTES, type FieldAttribute, type FieldAttributes } from './attributes';
 import { BALANCE } from './config/balance';
-import { attributeOvrWeight, positionOvr, type FieldPosition } from './positions';
+import { attributeOvrWeight, type FieldPosition } from './positions';
 import type { Rng } from './rng';
 import type { Honors, PlayerState, Tier } from './types';
 

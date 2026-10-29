@@ -1,7 +1,7 @@
 // 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개, 기본 주간 계획 + 그날만 바꾸기, 훈련 XP 주간 상한, 기술 훈련 게이지.
 // 하루 진행(game.ts dayStep)이 그날 계획(dayPlan)을 적용한다. 수치는 모두 BALANCE.training
 
-import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from './attributes';
+import { ATTRIBUTE_GROUPS, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from './attributes';
 import { BALANCE } from './config/balance';
 import { addDays, weekday, type IsoDate } from './calendar';
 import { attributeOvrWeight, type FieldPosition } from './positions';
@@ -302,5 +302,3 @@ export function newTrainingSeason(t: TrainingState): void {
   t.eve = false;
   t.overrides = {};
 }
-
-export const attrNameKo = (a: FieldAttribute): string => ATTRIBUTE_NAMES_KO[a];

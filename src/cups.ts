@@ -10,7 +10,7 @@ import { allLeagueData, DOMESTIC_CUP_KO, leagueData, UEFA_COUNTRIES } from '../d
 import { canonicalClub, OUTSIDE_TO_LEAGUE } from '../data/clubAlias';
 import { leagueOfTeam, leagueTeamById, simulateScore, teamById } from './league';
 import { calendarKind, leagueTeamRoster } from './otherLeagues';
-import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
+import { createTeamRoster, posGroup, type TeamRoster } from './roster';
 import { createRng, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import type { GameState } from './game';
@@ -68,7 +68,6 @@ export interface CupsState {
 }
 
 export const COMP_NAMES_KO: Record<CompId, string> = { fa: 'FA컵', ucl: '챔스' };
-export const COMP_FULL_KO: Record<CompId, string> = { fa: 'FA컵', ucl: '챔피언스리그' };
 
 /** 국내 컵 이름 (C.76c): 내 리그 국가의 컵 (PL·챔피언십 = FA컵) */
 export function cupNameKo(leagueId: string | undefined): string {
@@ -477,7 +476,7 @@ function drawGroups(state: GameState, teams: string[]): string[][] {
     // 리그 팀을 먼저 놓아야 막다른 길이 없다
     const pot = shuffled(rng, sorted.slice(p * 8, p * 8 + 8)).sort((a, b) => +isLeagueTeam(state, b) - +isLeagueTeam(state, a));
     for (const id of pot) {
-      const open = groups.map((g, k) => k).filter((k) => groups[k]!.length === p);
+      const open = groups.map((_, k) => k).filter((k) => groups[k]!.length === p);
       const ok = open.filter((k) => !(isLeagueTeam(state, id) && groups[k]!.some((x) => isLeagueTeam(state, x))));
       const pick = (ok.length ? ok : open)[Math.floor(rng() * (ok.length ? ok : open).length)]!;
       groups[pick]!.push(id);

@@ -243,10 +243,6 @@ export function setNamePoolVersion(v: number | undefined): void {
   namePoolVersion = v === 1 ? 1 : 2;
 }
 
-export function getNamePoolVersion(): NamePoolVersion {
-  return namePoolVersion;
-}
-
 /** 비교용 이름 키: 악센트·대소문자 무시 */
 export function nameKey(name: string): string {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();

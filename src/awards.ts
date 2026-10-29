@@ -39,7 +39,6 @@ export type AwardId = string;
 export type JuryId = 'journalist' | 'players' | 'coach' | 'fan';
 export const JURY_KO: Record<JuryId, string> = { journalist: '기자단', players: '선수단', coach: '감독·주장', fan: '팬' };
 
-export const awardDefs = (): Record<AwardId, AwardDef> => A().defs;
 export const awardIds = (): AwardId[] => Object.keys(A().defs);
 /** 결과 키 '상@리그' (47b 리그 상) → 상 id · 리그 */
 export const awardBase = (key: string): AwardId => key.split('@')[0]!;
@@ -391,12 +390,15 @@ function runVote(state: GameState, id: AwardId, def: AwardDef, pool: Resume[], l
   if (!pool.length) return [];
   const mean: Record<Key, number> = {} as Record<Key, number>;
   const sd: Record<Key, number> = {} as Record<Key, number>;
-  for (const k of KEYS) {
-    const xs = pool.map((r) => r[k]);
-    const m = xs.reduce((t, x) => t + x, 0) / xs.length;
-    mean[k] = m;
-    sd[k] = Math.sqrt(xs.reduce((t, x) => t + (x - m) ** 2, 0) / xs.length) || 1;
-  }
+  const standardize = (rows: Resume[]) => {
+    for (const k of KEYS) {
+      const xs = rows.map((r) => r[k]);
+      const m = xs.reduce((t, x) => t + x, 0) / xs.length;
+      mean[k] = m;
+      sd[k] = Math.sqrt(xs.reduce((t, x) => t + (x - m) ** 2, 0) / xs.length) || 1;
+    }
+  };
+  standardize(pool);
   const z = (r: Resume, k: Key) => (r[k] - mean[k]) / sd[k];
   const juries = Object.entries(def.vote ?? {}) as [JuryId, number][];
   const base = (r: Resume, w: Record<Key, number>) => KEYS.reduce((t, k) => t + w[k] * z(r, k), 0);
@@ -405,12 +407,7 @@ function runVote(state: GameState, id: AwardId, def: AwardDef, pool: Resume[], l
   const comp = (r: Resume) => ws.reduce((t, [w, x]) => t + x * base(r, w), 0);
   const noms = [...pool].sort((a, b) => comp(b) - comp(a) || (a.id < b.id ? -1 : 1)).slice(0, def.nominees ?? 10);
   // 투표는 후보 안에서 다시 표준화한다 (전체 선수 기준이면 1위가 너무 앞서 만장일치가 된다)
-  for (const k of KEYS) {
-    const xs = noms.map((r) => r[k]);
-    const m = xs.reduce((t, x) => t + x, 0) / xs.length;
-    mean[k] = m;
-    sd[k] = Math.sqrt(xs.reduce((t, x) => t + (x - m) ** 2, 0) / xs.length) || 1;
-  }
+  standardize(noms);
   const pts = new Map<string, number>(noms.map((r) => [r.id, 0]));
   const firsts = new Map<string, number>();
   const points = def.points ?? [5, 3, 1];
@@ -966,11 +963,6 @@ function powerArticle(state: GameState, date: IsoDate): void {
 /** 은퇴 (커리어 끝): 남은 발표를 모두 한다 */
 export function awardsFlush(state: GameState): void {
   for (const y of state.globalAwards?.years ?? []) for (const k of Object.keys(y.due)) if (!y.shown.includes(k) && !k.endsWith(':nominees')) reveal(state, y, k, true);
-}
-
-/** 발표된 결과만 (화면·위상): 아직이면 null */
-export function shownRows(y: AwardYear, id: AwardId): AwardRow[] | null {
-  return y.shown.includes(id) ? y.res[id] ?? [] : null;
 }
 
 /** NPC 위상 (C.64 수상 개수): fromSeason 시즌부터 발표된 개인상 1위 (발롱도르 = standingBallonDor 개, 나머지 1개) */

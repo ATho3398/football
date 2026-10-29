@@ -114,9 +114,14 @@ export function createLeague(worldSeed: string, season: number, id = 'pl'): Leag
     season,
     round: 0,
     teams,
-    schedule: buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:${seedKey(id, 'schedule')}:${season}`)), roundRobinsOf(id, teams.length)),
+    schedule: seasonSchedule(worldSeed, id, season, teams),
     table: emptyTable(teams),
   };
+}
+
+/** 시즌 일정 (같은 시드·리그·시즌이면 같은 일정) */
+function seasonSchedule(worldSeed: string, id: string, season: number, teams: Team[]): Fixture[][] {
+  return buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:${seedKey(id, 'schedule')}:${season}`)), roundRobinsOf(id, teams.length));
 }
 
 function emptyTable(teams: Team[]): TableRow[] {
@@ -280,7 +285,7 @@ export function nextSeasonLeague(league: LeagueState, worldSeed: string, ratings
     season,
     round: 0,
     teams,
-    schedule: buildSchedule(teams.map((t) => t.id), createRng(hashSeed(`${worldSeed}:${seedKey(id, 'schedule')}:${season}`)), roundRobinsOf(id, teams.length)),
+    schedule: seasonSchedule(worldSeed, id, season, teams),
     table: emptyTable(teams),
   };
 }

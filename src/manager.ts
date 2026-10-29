@@ -4,7 +4,7 @@
 
 import { dayNum, npcFatigueOn, npcSelectPenalty } from './npcFit';
 import { BALANCE } from './config/balance';
-import { MANAGER_STYLE_KO, managerOf, type ManagerData } from '../data/managers';
+import { managerOf, type ManagerData } from '../data/managers';
 import { addDays, daysBetween, type IsoDate } from './calendar';
 import { formBonus } from './form';
 import { teamById } from './league';
@@ -61,11 +61,6 @@ export interface ManagerState {
 /** 그 팀 감독 (경질로 바뀌었으면 새 감독, C.63) */
 export function managerData(teamId: string, state?: Pick<GameState, 'coaches'>): ManagerData | null {
   return state ? coachOf(state, teamId) : managerOf(teamId);
-}
-
-export function managerLabel(teamId: string, state?: Pick<GameState, 'coaches'>): string {
-  const m = managerData(teamId, state);
-  return m ? `${m.nameKo} · ${MANAGER_STYLE_KO[m.style]}` : '감독 정보 없음';
 }
 
 function styleOf(state: Pick<GameState, 'coaches'>, teamId: string) {

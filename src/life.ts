@@ -12,7 +12,6 @@ import type { GameState } from './game';
 import type { DayPlan } from './training';
 
 export type LifeKey = 'home' | 'adapt' | 'team' | 'mental';
-export const LIFE_KEYS: readonly LifeKey[] = ['home', 'adapt', 'team', 'mental'];
 
 /** 생활 하루 행동 (훈련과 같은 칸) */
 export const LIFE_KINDS = ['family', 'language', 'teamMeal', 'therapy', 'trip', 'media'] as const;

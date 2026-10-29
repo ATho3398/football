@@ -203,7 +203,7 @@ export function moveIntents(state: GameState, w: Window): MoveIntent[] {
   const out: MoveIntent[] = [];
   const ranks = Object.fromEntries(sortedTable(league).map((r, i) => [r.teamId, i + 1]));
   // 이번 이적 시즌에 이적·보충으로 온 선수는 다시 움직이지 않는다 (시작 로스터도 joined = 첫 시즌이라 joined 로는 가리지 않는다)
-  const arrived = new Set((state.transfers ?? []).filter((r) => r.season === label).flatMap((r) => [r.id, r.fill?.id ?? '']));
+  const arrived = arrivedIds(state, label);
   for (const t of league.teams) {
     const roster = state.rosters[t.id];
     if (!roster) continue;
@@ -226,6 +226,11 @@ export function moveIntents(state: GameState, w: Window): MoveIntent[] {
     }
   }
   return out;
+}
+
+/** 이적 시즌 label 에 이적·보충으로 온 선수 id */
+function arrivedIds(state: GameState, label: number): Set<string> {
+  return new Set((state.transfers ?? []).filter((r) => r.season === label).flatMap((r) => [r.id, r.fill?.id ?? '']));
 }
 
 /** 이적 시즌 label 에 리그 팀이 영입한 수 (내 선수 제외) */
@@ -351,7 +356,7 @@ export function runNpcWindow(state: GameState, w: Window): TransferRec[] {
   const share = T.windowShare[w];
   const intents = moveIntents(state, w).filter((m) => rng() < m.p * share);
   const signed = signingsOf(state, label);
-  const arrived = new Set((state.transfers ?? []).filter((r) => r.season === label).flatMap((r) => [r.id, r.fill?.id ?? '']));
+  const arrived = arrivedIds(state, label);
   const before = Object.fromEntries(league.teams.map((t) => [t.id, rosterRating(state.rosters[t.id]!)]));
   const npcById = new Map((state.npcs ?? []).map((n) => [n.id, n]));
   const recs: TransferRec[] = [];

@@ -7,7 +7,7 @@ import { chaptersRetire, chaptersSeasonEnd, type ChaptersState } from './chapter
 import { BALANCE, BALANCE_VERSION, type Difficulty } from './config/balance';
 import { applyOtherLeagueJob, calendarKind, createOtherLeagues, normalizeLeagues, otherLeagueJobs, syncOtherLeagues, type OtherLeague } from './otherLeagues';
 import { setSquadLeague } from './squad';
-import { applyLeagueMove, leagueMoves, moveAt, moveRosters, type LeagueMove } from './leagueMove';
+import { applyLeagueMove, moveAt, moveRosters, type LeagueMove } from './leagueMove';
 import type { Replay } from './replay';
 import { generatePlayer } from './generate';
 import {
@@ -153,9 +153,6 @@ export interface MatchReport {
   /** 대표팀 경기 (C.76d): 대회·단계·승부차기 [내 팀, 상대]. 없으면 클럽 경기 */
   nat?: { comp: NatComp; stage: string; label: string; pens?: [number, number]; g?: GoalRec[] };
 }
-
-/** 컵 경기 보고의 round (리플레이 보관 키가 리그 라운드와 겹치지 않게): 100 이상 (FA 100+단계, 챔스 110+) */
-export const CUP_ROUND_BASE = 100;
 
 export interface SlumpReport { points: number; streak: number; threshold?: number; blocked?: number }
 
@@ -801,10 +798,6 @@ export function newGame(opts: NewGameOptions): GameState {
 /** 내 선수가 이번 경기에 뛰는 자리 (전술의 내 슬롯, E.19 ②) */
 export function myMatchPosition(state: GameState): FieldPosition {
   return slotPos(state.tactics, state.tactics.mySlot) as FieldPosition;
-}
-
-export function seasonLength(state: GameState): number {
-  return state.league.schedule.length;
 }
 
 /** 다음 내 경기 (리그 이번 라운드 또는 추첨된 컵 경기 중 날짜가 이른 것, C.67). cup 이 있으면 컵 경기 */

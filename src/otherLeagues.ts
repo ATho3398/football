@@ -276,8 +276,3 @@ export function syncOtherLeagues(state: { worldSeed: string; otherLeagues?: Othe
   });
   return n;
 }
-
-/** 그 리그의 지난 시즌 우승 팀 id (기록 없으면 undefined) */
-export function lastChampion(lg: OtherLeague): string | undefined {
-  return lg.past?.at(-1)?.top[0];
-}

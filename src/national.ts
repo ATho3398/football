@@ -6,7 +6,7 @@
 //    대회가 없는 해 6월에는 평가전 2경기. 업적 XP(18.12)·월드컵 우승 기록(honors.worldCups → 8.2 배지)은 시즌 끝 업적에 같이 들어간다.
 
 import { BALANCE } from './config/balance';
-import { CONFED_KO, nationOf, NATIONS, nationsIn, type Confed, type NationData } from '../data/nations';
+import { nationOf, NATIONS, nationsIn, type Confed, type NationData } from '../data/nations';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { addDays, daysBetween, type IsoDate } from './calendar';
 import { expectedGoals, poisson } from './league';
@@ -29,7 +29,6 @@ export const NAT_COMP_KO: Record<NatComp, string> = {
 
 /** 대표팀 팀 id (경기 엔진·유니폼 `n:<국가>`) */
 export const natId = (nation: string): string => `n:${nation}`;
-export const isNatId = (id: string): boolean => id.startsWith('n:');
 export const nationFromId = (id: string): string => id.slice(2);
 
 /** 내 대표팀 경기 하나 (치른 것은 결과 포함, 내 쪽 기준) */
@@ -529,5 +528,3 @@ export function nationalSeasonEnd(state: GameState, finalDate: IsoDate, play: Pl
 export function trimNational(nat: NationalState, max = 240): void {
   if (nat.fixtures.length > max) nat.fixtures.splice(0, nat.fixtures.length - max);
 }
-
-export const confedKo = (c: Confed): string => CONFED_KO[c];
