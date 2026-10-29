@@ -55,8 +55,9 @@ if (DETAIL) {
   const ids = DETAIL.split(',');
   const list = ids.map((id) => (id === 'base' ? presetCells('4-4-2') : forms[Number(id)]!));
   const jobs: MatchJob[] = [];
+  const seed0 = Number(process.env.SEED0 ?? 71000); // 엔진관리자18: 다른 시드 묶음으로 독립 재측정
   for (const cells of list) for (let k = 0; k < R; k++) {
-    const seed = 71000 + k;
+    const seed = seed0 + k;
     const me = { ...std('a', seed, 75, '4-4-2', 'balanced'), cells };
     const op = std('b', seed, 75, '4-4-2', 'balanced');
     jobs.push(k % 2 ? { kind: 'match', seed, neutral: true, home: me, away: op, overrides } : { kind: 'match', seed, neutral: true, home: op, away: me, overrides });

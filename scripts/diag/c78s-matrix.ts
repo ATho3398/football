@@ -21,8 +21,10 @@ let dirs = 2;
 let ratings = [75, 75];
 let out = '';
 let only: [string, string][] | null = null;
+let seed0 = 41000; // 엔진관리자18: seed= 로 다른 시드 묶음(독립 재측정)
 for (const a of all) {
   if (a.startsWith('out=')) out = a.slice(4);
+  else if (a.startsWith('seed=')) seed0 = Number(a.slice(5));
   else if (a.startsWith('dirs=')) dirs = Number(a.slice(5));
   else if (a.startsWith('only=')) only = a.slice(5).split(',').map((p) => p.split('/') as [string, string]);
   else if (a.includes('=')) { const [k, v] = a.split('='); overrides[k!] = Number(v); }
@@ -41,7 +43,7 @@ const jobs: MatchJob[] = [];
 // 경기 k: 시드 41000 + ⌊k/dirs⌋, 방향 d = k % dirs (d = 1 이면 A 가 로스터 b), A 홈 여부 = (⌊k/dirs⌋ + d) % 2
 const aHome = (k: number) => dirs === 1 ? k % 2 === 1 : (Math.floor(k / dirs) + (k % dirs)) % 2 === 1;
 for (const [a, b] of pairs) for (let k = 0; k < n; k++) {
-  const seed = 41000 + Math.floor(k / dirs);
+  const seed = seed0 + Math.floor(k / dirs);
   const flip = k % dirs === 1;
   const A = std(flip ? 'b' : 'a', seed, ratings[0], '4-4-2', tac(a));
   const B = std(flip ? 'a' : 'b', seed, ratings[1], '4-4-2', tac(b));

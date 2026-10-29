@@ -1,0 +1,402 @@
+diff --git a/src/engine/actions.ts b/src/engine/actions.ts
+index b945e87..da60549 100644
+--- a/src/engine/actions.ts
++++ b/src/engine/actions.ts
+@@ -6,7 +6,7 @@ import * as config_ from './config';
+ const { ENGINE } = config_;
+ import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
+ import * as duel_ from './duel';
+-const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
++const { aerialScore, dribbleProb, duelTail, longRecvScore, longRecvWin, receiveWin } = duel_;
+ import { type ShotCtx } from './keeper';
+ import * as keeper_ from './keeper';
+ const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
+@@ -747,6 +747,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
+       return;
+     }
+   }
++  const attScore = fl.fromCross ? aerialScore : longRecvScore;
+   let bestA: Agent | null = null;
+   let bestD: Agent | null = null;
+   let nA = 0;
+@@ -760,7 +761,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
+     }
+     if (d > R) continue;
+     if (a.team === att) {
+-      if (!bestA || aerialScore(a) > aerialScore(bestA)) bestA = a;
++      // 크로스가 아닌 공중볼(롱킥·걷어내기)은 차 보낸 팀이 퍼스트 터치·근력·점프로 받는다 (C.79c, landingShare 와 같은 점수)
++      if (!bestA || attScore(a) > attScore(bestA)) bestA = a;
+     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
+   }
+   if (!bestA && !bestD) {
+@@ -783,7 +785,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
+     }
+     // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
+     const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
+-    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
++    const pA0 = duelTail(1 / (1 + Math.exp(-((attScore(bestA) - aerialScore(bestD)) / (fl.fromCross ? PR.aerialScale : PR.recvScale) + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
+     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
+     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
+     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
+@@ -864,10 +866,12 @@ export function deepCut(s: SimState, px: number, py: number): boolean {
+       tm.cutIdx = -1;
+       continue;
+     }
+-    if (segDist(a.x, a.y, px, py, b.x, b.y)[0] > O.deepCutRadius) continue;
++    // 짧은 패스 (C.79f 실험): 판정 반경 deepCutShortRadius, 확률 × cutMul
++    const short = O.deepCutShort > 0 && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) < O.deepCutShortLen;
++    if (segDist(a.x, a.y, px, py, b.x, b.y)[0] > (short ? O.deepCutShortRadius : O.deepCutRadius)) continue;
+     // 판정은 한 비행에 1회: cutFlight 는 남기고 cutIdx 만 −1 (오프볼이 같은 비행에 다시 보내지 않게)
+     tm.cutIdx = -1;
+-    const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100);
++    const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100) * (short ? tm.cutMul : 1);
+     if (r(s, a.idx, Purpose.Intercept, 2) < p) {
+       giveBall(s, a, 'intercept');
+       return true;
+@@ -910,7 +914,7 @@ export function resolveFlight(s: SimState): void {
+             s.teams[1].stats.aerials++;
+             rc.stats.aerialDuels++;
+             def.stats.aerialDuels++;
+-            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
++            if (r(s, rc.idx, Purpose.Aerial, 1) >= longRecvWin(rc, def)) {
+               def.stats.aerialsWon++;
+               giveBall(s, def, 'gain');
+               return;
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index e8d16f5..7f3ddf8 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -405,6 +405,34 @@ export const ENGINE = {
+     deepCutRadius: 1.0,
+     deepCutP: 0.6,
+     deepCutSkill: 0.5,
++    /**
++     * 짧은 패스 가로채기 (C.79f 실험 스위치, 엔진관리자17 — 블록 줄 사이 짧은 패스에 수비수가 발을 내민다): 땅볼 패스 길이 < deepCutShortLen m 이면
++     * 패스 선 위 가장 가까운 점 도착이 공보다 deepCutShort 초까지 늦어도 cutter 로 보내고(늦은 만큼 가로채기 확률 × (1 − 늦음/deepCutShort)),
++     * 판정 반경은 deepCutShortRadius m. 0 = 끔(옛 동작, 짧은 패스는 공보다 먼저 닿는 선수가 거의 없어 사실상 안 잡힌다)
++     */
++    deepCutShort: 0,
++    deepCutShortLen: 22,
++    deepCutShortRadius: 2.0,
++    /**
++     * 블록 출구 잔류 (C.79f 실험 스위치, 엔진관리자17 — 상대가 많이 올라오면 럭키 찬스용 타깃 1명을 남긴다): 블록(라인 단계 무관)이 수비할 때
++     * 상대 필드 선수가 우리 골 closeDownZone m 안에 blockStayCommit 명 이상이면 최전방 1명이 버스처럼(busStayX) 남아 압박하지 않는다. 0 = 끔
++     */
++    blockStayCommit: 0,
++    /**
++     * 공격 때 높은 라인 (C.79f 실험 스위치, 엔진관리자17 — 라인 단계가 수비 줄을 ±4.7 m 밖에 못 움직여 티키·게겐이 "높은 라인" 의 뒷공간 비용을 안 낸다):
++     * 우리 소유(phase ≥ 0) 일 때 수비 줄(줄 1, 내려온 선수·마크 제외)은 수비 라인 + lineAttackHigh × (lineHeight − 0.5) 이상으로 올라선다
++     * (라인 높음 0.65 → +0.15 × k 정규화, 보통 0.5 → 0, 낮음은 음수라 효과 없음). 0 = 끔
++     */
++    lineAttackHigh: 0,
++    /**
++     * 블록 럭키 찬스 (C.79f 실험 스위치, 엔진관리자17 — 탐침: 블록이 공을 뺏는 순간 상대 필드 선수가 우리 골 closeDownZone 안에 5명 이상인 탈취가
++     * 티키·역습 상대 19~23/경기, 균형·직선 상대 5/경기인데 그 뒤 10초 안 슛은 0.3): 블록 팀이 열린 경기에서 뺏을 때 상대가 blockBreakCommit 명 이상
++     * 우리 closeDownZone 안에 있으면 TENDENCY.counterWinTime 초 동안 출구·지원 침투를 blockBreakExtra 명 더 보내고(판단: 보이는 상대 배치만),
++     * 전진·침투 패스 효용 배수 counterWinMul × blockBreakMul (효용만, 실행·성공 확률 불변). 0 = 끔
++     */
++    blockBreakCommit: 0,
++    blockBreakExtra: 1,
++    blockBreakMul: 1.3,
+     /**
+      * 깊은 블록 받는 순간 밀착 (C.76p 가설 2): block/bus 팀의 수신자 압박은 위협 1위 마커를 빼지 않고(마커가 가장 빠르면 마커가 나간다) 간격 deepCloseDownGap m,
+      * 수신자가 ST/CF 면 도착 둘째도 착지점에서 우리 골 쪽 deepCloseDownSecond m 로 간다. 둘째 ST(위협 2위 ST/CF)가 박스 + deepSecondStZone m 안이면 남은 수비수 중 가장 가까운 1명이 골 쪽 stMark 로 마크
+@@ -1174,6 +1202,19 @@ export const ENGINE = {
+     /** 롱패스 착지점에서 받는 선수와 이 거리 안 수비수가 있으면 경합 */
+     longContest: 2.8,
+     aerialScale: 16,
++    /**
++     * 직선 수신 (C.79c, 사용자 정의 pending 146 "직선은 받는 쪽 퍼스트 터치·피지컬·공중 경합이 좋아야 하는 선수빨 전술"): 크로스가 아닌 공중볼(롱패스·걷어내기·롱킥)의
++     * 착지 경합에서 차 보낸 팀 선수의 점수 = (1 − recvTouch) × 공중볼 점수 + recvTouch × (볼 컨트롤 recvW[0] + 점프 recvW[1] + 근력 recvW[2] + 키 보정).
++     * 로짓 = (받는 점수 − 수비 공중볼 점수) / recvScale. landingShare(판단의 착지점 몫)는 양 팀 첫 도착 선수의 같은 점수 차 / recvScale × landSkill 을 더한다.
++     * recvTouch 0 · recvScale = aerialScale · landSkill 0 = 옛 동작
++     */
++    recvTouch: 0,
++    recvW: [0.4, 0.3, 0.3] as [number, number, number],
++    recvScale: 16,
++    landSkill: 0,
++    /** 롱볼 퍼스트 터치 (C.79c, duel.ts longTouchApply): 공중 패스 실패 몫 × exp(−touchSkill × (받는 능력 − touchCenter) / 10). 0 = 끔 */
++    touchSkill: 0,
++    touchCenter: 70,
+     /**
+      * 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B, duel.ts receiveWin): 착지점이 상대 박스 안이고 contestDist m 안에 상대 필드 선수가 있으면
+      * P(받음) = L1((볼 컨트롤 0.5 + 근력 0.3 + 민첩 0.2 − (마킹 0.5 + 태클 0.3 + 수비 포지셔닝 0.2)) / receiveScale + receiveBias). 판단(candidates)과 판정(resolveFlight)이 같은 식
+diff --git a/src/engine/core.ts b/src/engine/core.ts
+index 640c1f1..0f3d4e4 100644
+--- a/src/engine/core.ts
++++ b/src/engine/core.ts
+@@ -9,7 +9,7 @@ const BU = ENGINE.physics.burst;
+ import { effectiveTactics, pressLevel } from './offball';
+ import { oneTouchMul, preDecide } from './onball';
+ import * as pitch_ from './pitch';
+-const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
++const { attackDir, clamp, dist, L, ownGoal, toPitch, W } = pitch_;
+ import * as rng_ from './rng';
+ const { Purpose, rand } = rng_;
+ import * as tactics_ from './tactics';
+@@ -175,13 +175,23 @@ function exitRuns(s: SimState, win: 0 | 1): void {
+     return d * (0.5 + a.role.run);
+   };
+   cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
+-  const exits = cands.slice(0, O.exitRunners);
++  // 블록 럭키 찬스 (C.79f 실험): 뺏는 순간 상대 필드 선수가 우리 골 closeDownZone 안에 blockBreakCommit 명 이상이면 전환 창 동안 침투 인원 +blockBreakExtra
++  const tmW = s.teams[win];
++  let extra = 0;
++  tmW.breakUntil = 0;
++  if (O.blockBreakCommit > 0 && tmW.tactics.tendency === 'block') {
++    const [gx, gy] = ownGoal(dir);
++    let commit = 0;
++    for (const o of s.agents) if (o.onPitch && o.team !== win && o.line !== 0 && dist(o.x, o.y, gx, gy) < O.closeDownZone) commit++;
++    if (commit >= O.blockBreakCommit) { extra = O.blockBreakExtra; tmW.breakUntil = s.t + TENDENCY.counterWinTime; }
++  }
++  const exits = cands.slice(0, O.exitRunners + extra);
+   for (const a of exits) {
+     a.runUntil = s.t + O.runSeconds;
+     a.exitRun = true;
+   }
+   // 역습 지원 (C.78d ②): 블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
+-  const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
++  const n = (O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0) + extra;
+   if (!n) return;
+   const b = s.ball;
+   const sup = s.agents.filter((a) => a.onPitch && a.team === win && a !== top && a.idx !== b.owner && !exits.includes(a)
+diff --git a/src/engine/duel.ts b/src/engine/duel.ts
+index 856019d..b8e1c21 100644
+--- a/src/engine/duel.ts
++++ b/src/engine/duel.ts
+@@ -50,6 +50,35 @@ export function aerialWin(a: Agent, b: Agent): number {
+   return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + duelEdgeOf(a) - duelEdgeOf(b)));
+ }
+ 
++/**
++ * 롱볼 받는 점수 (C.79c, 직선 수신): 공을 차 보낸 팀의 받는 선수는 헤더 대신 퍼스트 터치(볼 컨트롤)·근력·점프로 받아 낸다.
++ * aerialScore 와 recvTouch 만큼 섞는다(0 = 옛 공중볼 점수). 크로스(헤더 슈팅 경합)는 쓰지 않는다
++ */
++export function longRecvScore(a: Agent): number {
++  const w = PR.recvTouch;
++  return w ? (1 - w) * aerialScore(a) + w * recvRaw(a) : aerialScore(a);
++}
++
++/** 롱볼 받는 능력 (C.79c): 볼 컨트롤(퍼스트 터치) recvW[0] + 점프 recvW[1] + 근력(몸무게 보정 포함) recvW[2] + 키 보정 */
++export function recvRaw(a: Agent): number {
++  const t = a.attrs;
++  return t.ballControl * PR.recvW[0] + t.jumping * PR.recvW[1] + (t.strength + a.body.strength) * PR.recvW[2] + a.body.aerial;
++}
++
++/**
++ * 롱볼 퍼스트 터치 (C.79c): 공중 패스(airPass 초과) 성공 확률의 실패 몫 × exp(−touchSkill × (받는 능력 − touchCenter) / 10).
++ * 패서 능력치(passSkillApply)와 같은 모양 — 받는 능력이 touchCenter 인 선수는 그대로. 판단과 실행이 같은 pFlight 를 쓴다(candidates → makePass)
++ */
++export function longTouchApply(p: number, r: Agent): number {
++  if (!PR.touchSkill) return p;
++  return Math.min(PR.passCap, Math.max(PR.passMin, 1 - (1 - p) * Math.exp((-PR.touchSkill * (recvRaw(r) - PR.touchCenter)) / 10)));
++}
++
++/** 롱볼 착지 경합 (C.79c): 받는 선수 a(longRecvScore)가 수비 b(aerialScore)를 이길 확률. 판단(candidates 롱패스)·실행(resolveFlight 롱볼 수신)·착지점 경합(resolveAerial)·착지점 몫(landingShare)이 같은 식 */
++export function longRecvWin(a: Agent, b: Agent): number {
++  return duelTail(L1((longRecvScore(a) - aerialScore(b)) / PR.recvScale + duelEdgeOf(a) - duelEdgeOf(b)));
++}
++
+ /**
+  * 마무리 능력치 (E.20 7번): 슈팅(중거리는 중거리 슛, 헤더는 헤더, 프리킥은 프리킥) × 0.6 + 침착성 × 0.25 + 결정력 × 0.15.
+  * C.76a: onball 과 offball(위협 가중 수비) 이 같이 쓰므로 순환 import 없는 이 모듈에 둔다 (onball 이 다시 내보낸다)
+diff --git a/src/engine/offball.ts b/src/engine/offball.ts
+index d48d049..5f38d01 100644
+--- a/src/engine/offball.ts
++++ b/src/engine/offball.ts
+@@ -572,6 +572,11 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   const line = offsideLine(s, a.team);
+   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
+   let urgent = false;
++  // 공격 때 높은 라인 (C.79f 실험 스위치): 수비 줄은 수비 라인 + lineAttackHigh × (라인 단계 − 0.5) 이상으로 올라서서 피치를 좁힌다 (뒷공간 비용은 전환 때 난다)
++  if (O.lineAttackHigh > 0 && a.line === 1) {
++    const hi = defensiveLine(s, a.team) + O.lineAttackHigh * (effectiveTactics(s, a.team).lineHeight - 0.5);
++    nx = Math.max(nx, Math.min(hi, 0.7));
++  }
+ 
+   if (s.t >= a.runUntil) {
+     a.giveGo = false;
+@@ -1384,7 +1389,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+     // 수비 블록: 공격 줄은 1명만 압박 / 역습: 남는 최전방은 압박하지 않는다 (E.19)
+     const tac0 = s.teams[a.team].tactics;
+     if (a.line === 3 && tac0.tendency === 'block' && closerForward(s, a, b.x, b.y)) wants = false;
+-    if (a.line === 3 && stayForwards(tac0) > 0 && isTopForward(s, a)) wants = false;
++    if (a.line === 3 && (stayForwards(tac0) > 0 || blockStayNow(s, a.team)) && isTopForward(s, a)) wants = false;
+     // 역습 (C.78s H2): 공이 하프라인 부근(우리 기준 counterPressX)까지 오기 전에는 압박하지 않고 줄 자리를 지킨다 — 게겐처럼 앞에서 쫓지 않는다
+     if (tac0.tendency === 'counter' && bnx > TENDENCY.counterPressX) wants = false;
+     if (wants && (danger && rank === 0 || d < pressDist * (rank === 0 ? 1 : O.secondPressDist))) {
+@@ -1493,7 +1498,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   else if (a.line === 2) nx = Math.min(nx, lineX + midGap);
+   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
+   // 블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
+-  if (stayForwards(tac) > 0 && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
++  if ((stayForwards(tac) > 0 || blockStayNow(s, a.team)) && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
+   // 오버래핑 추적 (C.78i ②): 면제 아닌 측면 선수는 자기 측면으로 오버래핑하는 상대 풀백을 골 쪽 fbTrackGoal m 에서 따라 내려온다
+   const ov = owner && owner.team !== a.team ? overlapToTrack(s, a) : null;
+   if (ov) {
+@@ -1997,13 +2002,32 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
+ function isDeepBlock(s: SimState, team: 0 | 1): boolean {
+   return s.teams[team].tactics.tendency === 'block';
+ }
++/** 블록 출구 잔류 (C.79f 실험): 블록이 수비 중이고 상대 필드 선수가 우리 골 closeDownZone 안에 blockStayCommit 명 이상이면 true. 틱마다 팀당 1회 */
++const blockStayCache = new WeakMap<SimState, { tick: number; v: [boolean, boolean] }>();
++function blockStayNow(s: SimState, team: 0 | 1): boolean {
++  if (O.blockStayCommit <= 0 || !isDeepBlock(s, team)) return false;
++  let c = blockStayCache.get(s);
++  if (!c) blockStayCache.set(s, (c = { tick: -1, v: [false, false] }));
++  if (c.tick !== s.tick) {
++    c.tick = s.tick;
++    for (const t of [0, 1] as const) {
++      c.v[t] = false;
++      if (!isDeepBlock(s, t) || s.possTeam === t) continue;
++      const [gx, gy] = ownGoal(attackDir(t, s.half));
++      let n = 0;
++      for (const o of s.agents) if (o.onPitch && o.team !== t && o.line !== 0 && dist(o.x, o.y, gx, gy) < O.closeDownZone) n++;
++      c.v[t] = n >= O.blockStayCommit;
++    }
++  }
++  return c.v[team];
++}
+ 
+ /**
+  * 깊은 블록 비행 중 가로채기 담당 (C.76p 44h-c, §9.11.1 가설 1): 우리 팀이 block/bus 이고 상대 땅볼 패스 착지점이 우리 골 closeDownZone 안이면
+  * 수신자 압박 담당·위협 1위 마커·GK·면제를 뺀 선수 중, 지금 공 위치 → 착지점 선분 위 가장 가까운 점(선에서 deepCutReach m 안)에
+  * 공보다 먼저 닿는 선수가 있으면 도착이 가장 빠른 1명과 그 점. 정해지면 팀 상태(cutFlight·cutIdx)에 적어 sim 의 deepCut 판정 대상이 된다. 난수 없음
+  */
+-const deepCutCache = new WeakMap<SimState, { tick: number; pick: { a: Agent; x: number; y: number } | null }[]>();
++const deepCutCache = new WeakMap<SimState, { tick: number; pick: { a: Agent; x: number; y: number; mul: number } | null }[]>();
+ function deepCutAgent(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
+   let cache = deepCutCache.get(s);
+   if (!cache) deepCutCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
+@@ -2015,10 +2039,11 @@ function deepCutAgent(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Ag
+     const tm = s.teams[team];
+     tm.cutFlight = s.ball.flight;
+     tm.cutIdx = c.pick.a.idx;
++    tm.cutMul = c.pick.mul;
+   }
+   return c.pick;
+ }
+-function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
++function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number; mul: number } | null {
+   if (!isDeepBlock(s, team)) return null;
+   const b = s.ball;
+   const fl = b.flight;
+@@ -2033,7 +2058,9 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
+   if (remain <= 0.05) return null;
+   const cd = closeDownPlan(s, team, gx, gy);
+   const marker = threatMarker(s, team);
+-  let pick: { a: Agent; x: number; y: number } | null = null;
++  // 짧은 패스 (C.79f 실험): 늦게 닿아도 deepCutShort 초 안이면 발을 내민다 (확률은 늦은 만큼 깎임)
++  const slack = O.deepCutShort > 0 && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) < O.deepCutShortLen ? O.deepCutShort : 0;
++  let pick: { a: Agent; x: number; y: number; mul: number } | null = null;
+   let bt = Infinity;
+   for (const o of s.agents) {
+     if (!o.onPitch || o.team !== team || o.line === 0 || o === cd.pick || o === cd.second || o === marker || exemptOf(s, o)) continue;
+@@ -2042,10 +2069,11 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
+     const px = b.x + (fl.toX - b.x) * t;
+     const py = b.y + (fl.toY - b.y) * t;
+     const ta = arrival(o, px, py);
+-    if (ta > remain * t) continue;
++    const late = ta - remain * t;
++    if (late > slack) continue;
+     if (ta < bt || (ta === bt && pick && o.idx < pick.a.idx)) {
+       bt = ta;
+-      pick = { a: o, x: px, y: py };
++      pick = { a: o, x: px, y: py, mul: late > 0 ? 1 - late / slack : 1 };
+     }
+   }
+   return pick;
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 63381b3..0fa4bd4 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -9,7 +9,7 @@ const { ENGINE } = config_;
+ import * as physics_ from './physics';
+ const { arrivalTime, duelEdgeOf, tiredRatio } = physics_;
+ import * as duel_ from './duel';
+-const { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } = duel_;
++const { aerialScore, aerialWin, dribbleProb, duelTail, finishSkill, longRecvScore, longRecvWin, longTouchApply, receiveWin } = duel_;
+ import * as formation_ from './formation';
+ const { manDiff } = formation_;
+ import * as roles_ from './roles';
+@@ -521,17 +521,21 @@ export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLa
+   const AM = ENGINE.physics.arrivalModel > 0;
+   let tOwn = Infinity;
+   let tOpp = Infinity;
++  let aOwn: Agent | null = null;
++  let aOpp: Agent | null = null;
+   for (const o of s.agents) {
+     if (!o.onPitch || o.line === 0 || o === except) continue;
+     const best = o.team === team ? tOwn : tOpp;
+     // 도착 시간은 직선 거리 / max(최대 속력, 지금 속력)보다 짧을 수 없다 — 그 하한이 이미 지금 최솟값보다 크면 계산하지 않는다 (결과 같음)
+     if (AM && Number.isFinite(best) && Math.max(tLand, (dist(o.x, o.y, x, y) - PR.aerialRadius) / Math.max(o.maxSpeed, Math.hypot(o.vx, o.vy))) > best + 1e-6) continue;
+     const t = Math.max(tLand, AM ? arrivalTime(o, x, y, PR.aerialRadius) : Math.max(0, dist(o.x, o.y, x, y) - PR.aerialRadius) / o.maxSpeed);
+-    if (o.team === team) { if (t < tOwn) tOwn = t; } else if (t < tOpp) tOpp = t;
++    if (o.team === team) { if (t < tOwn) { tOwn = t; aOwn = o; } } else if (t < tOpp) { tOpp = t; aOpp = o; }
+   }
+   if (!Number.isFinite(tOwn)) return 0;
+   if (!Number.isFinite(tOpp)) return 1;
+-  return 1 / (1 + Math.exp(-(tOpp - tOwn) / O.landScale));
++  // 직선 수신 (C.79c): 먼저 닿는 두 선수의 경합 점수 차 (실행 resolveAerial 과 같은 점수: 차 보낸 팀 longRecvScore 대 aerialScore)
++  const skill = PR.landSkill > 0 && aOwn && aOpp ? (PR.landSkill * (longRecvScore(aOwn) - aerialScore(aOpp))) / PR.recvScale : 0;
++  return 1 / (1 + Math.exp(-((tOpp - tOwn) / O.landScale + skill)));
+ }
+ 
+ /** 판단용 성공 확률: 본인과 리그 평균 선수의 혼합 (E.20 1번) */
+@@ -593,7 +597,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+   // 성향 고유 행동 (E.19): 공을 뺏은 뒤 게겐프레싱 4초 전진 패스·슛, 역습 6초 전진·침투 패스 효용 배수 (C.78d ②: 블록도 역습과 같은 첫 패스 전진 출구)
+   const sinceWin = s.possTeam === a.team ? s.t - s.teams[a.team].wonAt : Infinity;
+   const winMul = tac.tendency === 'gegenpress' && sinceWin <= TENDENCY.gegenWinTime ? TENDENCY.gegenWinMul
+-    : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime ? TENDENCY.counterWinMul : 1;
++    : ENGINE.offball.supportRun > 0 && tac.tendency === 'block' && sinceWin <= TENDENCY.counterWinTime
++      ? TENDENCY.counterWinMul * (s.t < s.teams[a.team].breakUntil ? ENGINE.offball.blockBreakMul : 1) : 1; // 블록 럭키 찬스 (C.79f 실험): 효용만
+   const target = tac.tendency === 'direct' ? targetForward(s, a) : null;
+   // 컷백 자리 (E.18 A2): 상대 골라인 근처 측면
+   const cutZone = !isGk && ax >= O.cutbackFromX && Math.abs(ay - 0.5) >= O.cutbackWide;
+@@ -647,7 +652,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+     let aerial = 1;
+     if (d0 > PR.airPass) {
+       const [def, dd] = nearestOutfield(s, r, tx, ty);
+-      if (def && dd < PR.longContest) aerial = aerialWin(r, def);
++      if (def && dd < PR.longContest) aerial = longRecvWin(r, def);
+     } else if (inOppBox(tx, ty, dir)) {
+       // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
+       const [def, dd] = nearestOutfield(s, r, tx, ty);
+@@ -655,7 +660,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+     }
+     const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
+     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);
+-    const flightP = (pp: number) => clamp(pp + race, PR.passMin, PR.passCap);
++    // 롱볼 퍼스트 터치 (C.79c): 공중 패스는 받는 선수의 볼 컨트롤·점프·근력이 실패 몫을 줄이거나 늘린다 (실행은 같은 pFlight)
++    const flightP = (pp: number) => (d0 > PR.airPass ? longTouchApply(clamp(pp + race, PR.passMin, PR.passCap), r) : clamp(pp + race, PR.passMin, PR.passCap));
+     const pFlight = flightP(ppA);
+     const p = pFlight * aerial;
+     const pj = judgedP(p, flightP(ppAv) * aerial);
+diff --git a/src/engine/sim.ts b/src/engine/sim.ts
+index acff280..6eee2a7 100644
+--- a/src/engine/sim.ts
++++ b/src/engine/sim.ts
+@@ -134,7 +134,7 @@ export function createState(input: EngineInput): SimState {
+     bsx: L / 2, bsy: W / 2,
+     teams: setups.map((setup) => ({
+       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
+-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
++      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, cutMul: 1, breakUntil: 0, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+     })) as SimState['teams'],
+     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
+     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
+diff --git a/src/engine/state.ts b/src/engine/state.ts
+index ae38b39..72cc35b 100644
+--- a/src/engine/state.ts
++++ b/src/engine/state.ts
+@@ -262,6 +262,10 @@ export interface TeamState {
+   /** 깊은 블록 비행 중 가로채기 (C.76p): 이 비행(cutFlight)의 패스 선에 들어간 선수 idx. 판정은 한 비행에 1회(판정 뒤 cutIdx −1, cutFlight 는 유지) */
+   cutFlight: Flight | null;
+   cutIdx: number;
++  /** 짧은 패스 가로채기 (C.79f 실험): 이번 cutter 의 가로채기 확률 배수 (늦게 닿는 만큼 깎임, 보통 1) */
++  cutMul: number;
++  /** 블록 럭키 찬스 (C.79f 실험): 상대가 많이 올라온 채 뺏은 뒤 전환 창 끝 시각 */
++  breakUntil: number;
+   /** 수비 상황 판정 (C.75c): 지금 상황과 그 시작 시각, 바뀌려는 후보와 그 시작 시각. '-' = 우리 공 */
+   sit: DefSit;
+   sitSince: number;
