@@ -116,4 +116,4 @@
 - 재현: 한쪽 끔 `WORKERS=2 npx vite-node scripts/diag/c78s-matrix.ts -- 480 only=gegenpress/direct offball.lineMatchSkipTend=5` · 조건 `… -- 960 only=gegenpress/direct offball.lineMatchNoPress=1` · 독립 시드 `… -- 960 only=gegenpress/direct seed=51000 [offball.lineMatch=0]` · 몰빵 `[SEED0=73000] DETAIL=35,base WORKERS=2 npx vite-node scripts/diag/custom-sweep.ts -- 300 20 12 800 [경로=값]` · 탐침 `npx vite-node scripts/diag/c79h-lm.ts -- 40 gegenpress direct [offball.lineMatchSkipTend=5] [경로=값]`.
 - 측정: 상성 1칸 480 × 10 · 960 × 10 · 몰빵 800 × 7 · 탐침 40경기 × 14 · 120 × 3 · 480 × 2 · same-seed 12 × 2. 21칸 480(P) 은 65% 에서 백그라운드 셸 30분 한도에 같이 죽어 **못 마쳤다**(워커 풀 nohup 은 `wait` 가 있는 셸과 분리할 것). 워커 풀 2~3개 동시(각 WORKERS=2), 메인 스레드 탐침 2~3개 병렬. 시간 09:17 ~ 11:0x KST(약 1시간 50분).
 
-명령 시각 2026-10-29 09:17 KST / 작성 시각 10:58 KST / 걸린 시간 1시간 41분
+명령 시각 2026-10-29 09:17 KST / 작성 시각 10:53 KST / 걸린 시간 1시간 36분
