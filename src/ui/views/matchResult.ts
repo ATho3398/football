@@ -2,7 +2,7 @@
 // 내 결정 기록 (E.11, I.17 10번, 직접 모드로 멈춘 순간). 카드·신뢰도는 아직 없는 기능이라 숨긴다
 
 import { Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
-import type { MatchResultVM } from '../viewModels';
+import { formEffectLabel, type MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel, pc2 } from './common';
 import { isWide } from '../skin';
 import { personLink } from './detail';
@@ -74,7 +74,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   }
   const my = vm.my.length
     ? `${SectionTitle({ title: '내 기록', action: vm.appearance })}<div class="chips">${vm.my.map((m) => StatChip({ label: m.label, value: m.value })).join('')}${
-      vm.formBonus ? StatChip({ label: '폼 보정', value: `${vm.formBonus > 0 ? '+' : '−'}${Math.abs(vm.formBonus).toFixed(2)}`, tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
+      vm.formBonus ? StatChip({ label: vm.formEngine ? '폼 효과' : '폼 보정', value: formEffectLabel(vm.formBonus, !!vm.formEngine).replace(/^평점 보정 /, ''), tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
     : '';
   const RES = { success: '성공', fail: '실패', neutral: '보통' } as const;
   // 줄을 누르면 그 장면 리플레이 (E5 최소, 부록 C.35). 디자인 117: 3줄 + 더 보기

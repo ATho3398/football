@@ -1505,6 +1505,19 @@ function projectedCondition(state: GameState, to: IsoDate): Pick<PlayerState, 'f
   return p;
 }
 
+/** 다음 클럽 경기 선발 판정 입력 (C.79n, 화면용): 경기 날 아침 피로 + 시즌 누적 피로(matchFatigue)와 상대 레이팅 — roundMatch 와 같은 값 */
+export function myStartInputs(state: GameState): { fatigue: number; oppRating: number | null } {
+  const cond = projectedCondition(state, myMatchDate(state) ?? state.calendar.date);
+  const fx = nextFixture(state);
+  return { fatigue: matchFatigue(state, cond.fatigue), oppRating: fx && !fx.nat ? teamById(state.league, fx.opponentId).rating : null };
+}
+
+/** 다음 클럽 경기 선발 확률 (C.79n, 화면용): roundMatch 의 startChance 호출과 같은 입력. 1군 테스트 보장은 호출 쪽 */
+export function myStartChance(state: GameState, ovr: number): number {
+  const { fatigue, oppRating } = myStartInputs(state);
+  return startChance(state, ovr, teamById(state.league, state.player.teamId).rating, fatigue, oppRating);
+}
+
 export interface PlayOptions {
   /**
    * 내 경기 계산 방식. 'agent' = 에이전트 경기 엔진 (기본, 부록 E), 'quick' = 통계 방식 빠른 경기 (B.4).
