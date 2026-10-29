@@ -12,6 +12,7 @@ import { attackDir } from '../../src/engine/pitch';
 const N = Number(process.env.N ?? 400);
 const S0 = Number(process.env.START ?? 0);
 const B = BALANCE.body;
+if (process.env.SHOTSET) (B as { shotSet: number }).shotSet = Number(process.env.SHOTSET);
 const mk = (side: string, i: number) => {
   const r = createTeamRoster({ id: `v${side}${i}`, rating: 75 }, `eng-${side}-75-${i}`, 2018, []);
   r.formation = '4-3-3';
