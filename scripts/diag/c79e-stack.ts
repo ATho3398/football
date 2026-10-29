@@ -83,6 +83,11 @@ let boxRecv = 0, boxRecvFree = 0, boxRecvDef = 0, boxRecvDef2 = 0, boxRecvAtt = 
 let boxRecvO = 0, boxRecvFreeO = 0;
 // ⒞′ 마커 배정: 박스 수신자에게 배정된 수비(tvIdx = 수신자) 수·거리, 박스 안 공격수 중 배정 마커 있는 비율
 let recvAssigned = 0, recvAssignedN = 0, recvAssignDist = 0, recvAssignDistN = 0, boxAttN = 0, boxAttMarked = 0, boxAttNear = 0;
+// ⒞″ (엔진관리자19) 박스 수신 순간 배정 질: 박스 안 몰빵 공격수 중 3 m 안 수비 없음(free) 수 · 박스 안 수비 줄 1 중 3 m 안 공격수 없음(spare) 수 · 둘 다 ≥ 1 인 수신 비율 · 수신자 마커(tvIdx) 의 줄
+let freeAttSum = 0, spareDefSum = 0, bothN = 0, spareOnlyN = 0, recvMarkerL1 = 0, recvMarkerL2 = 0, recvMarkerTrack = 0;
+const spareHist: Record<string, number> = {};
+// ⒞‴ (엔진관리자19) 배정 바뀜: 몰빵 소유·공이 균형 수비 ⅓ 안일 때 균형 줄 1 의 tvIdx 가 틱마다 바뀌는 비율, 배정 평균 길이, 수신 순간 수신자 마커의 배정 나이
+let asgTicks = 0, asgChanges = 0, asgHas = 0, asgAgeSum = 0, asgAgeN = 0, asgAgeYoung = 0;
 // ⒟ 빌드업
 let seqOwn = 0, seqOwnLost = 0, seqOwnO = 0, seqOwnLostO = 0;
 let passOwn = [0, 0], passOwnOk = [0, 0];
@@ -146,10 +151,27 @@ for (let k = 0; k < n; k++) {
   };
   let lastOwner = -1;
   let seq: { team: 0 | 1; startOwn: boolean; crossed: boolean } | null = null;
+  const prevTv: Record<number, number> = {};
+  const asgT: Record<number, number> = {};
   const band = 8 / L;
   while (!s.done) {
     sim.step();
     const b = s.ball;
+    // 배정 바뀜 (⒞‴): 균형(수비) 줄 1 의 tvIdx 추적 — 매 틱
+    {
+      const possT = b.owner >= 0 ? s.agents[b.owner]!.team : s.possTeam;
+      const defT = (1 - possT) as 0 | 1;
+      const dirDf = attackDir(defT, s.half);
+      const bnxD = toNorm(b.x, b.y, dirDf)[0];
+      const hot = who(possT) === 0 && !s.restart && s.possOrigin === 'open' && bnxD < 0.34;
+      for (const q of s.agents) {
+        if (!q.onPitch || q.team !== defT || q.line !== 1) continue;
+        const pv = prevTv[q.idx] ?? -1;
+        if (q.tvIdx !== pv) { asgT[q.idx] = s.t; if (hot && pv >= 0 && q.tvIdx >= 0) asgChanges++; }
+        if (hot) { asgTicks++; if (q.tvIdx >= 0) asgHas++; }
+        prevTv[q.idx] = q.tvIdx;
+      }
+    }
     if (s.restart) { lastOwner = -1; seq = null; continue; }
     if (b.owner < 0) continue;
     const o = s.agents[b.owner]!;
@@ -179,6 +201,20 @@ for (let k = 0; k < n; k++) {
           for (const q of s.agents) if (q.onPitch && q.team === dt && q.line !== 0 && q.tvIdx === o.idx) { asg++; recvAssignDist += dist(q.x, q.y, o.x, o.y); recvAssignDistN++; }
           if (asg > 0) recvAssigned++;
           recvAssignedN++;
+          for (const q of s.agents) if (q.onPitch && q.team === dt && q.line !== 0 && q.tvIdx === o.idx) { if (q.line === 1) recvMarkerL1++; else if (q.trackIdx === o.idx) recvMarkerTrack++; else recvMarkerL2++; }
+          for (const q of s.agents) if (q.onPitch && q.team === dt && q.line === 1 && q.tvIdx === o.idx) { const age = s.t - (asgT[q.idx] ?? s.t); asgAgeSum += age; asgAgeN++; if (age < 0.5) asgAgeYoung++; }
+          {
+            let freeA = 0, spareD = 0;
+            const atts = s.agents.filter((q) => q.onPitch && q.team === ot && q.line !== 0 && inBox(q.x, q.y, gx, gy));
+            const defs1 = s.agents.filter((q) => q.onPitch && q.team === dt && q.line === 1 && inBox(q.x, q.y, gx, gy));
+            for (const q of atts) if (!s.agents.some((r) => r.onPitch && r.team === dt && r.line !== 0 && dist(r.x, r.y, q.x, q.y) <= 3)) freeA++;
+            for (const q of defs1) if (!atts.some((r) => dist(r.x, r.y, q.x, q.y) <= 3)) spareD++;
+            freeAttSum += freeA; spareDefSum += spareD;
+            if (freeA >= 1 && spareD >= 1) bothN++;
+            if (spareD >= 1) spareOnlyN++;
+            const key = `${Math.min(3, freeA)}/${Math.min(3, spareD)}`;
+            spareHist[key] = (spareHist[key] ?? 0) + 1;
+          }
           for (const q of s.agents) {
             if (!q.onPitch || q.team !== ot || q.line === 0 || !inBox(q.x, q.y, gx, gy)) continue;
             boxAttN++;
@@ -273,4 +309,6 @@ for (const T of [0, 1] as const) {
   }
 }
 console.log('⒞′ 마커 배정 (몰빵 박스 수신 순간): 수신자에게 배정된 수비(tvIdx) 있음 ' + pc(recvAssigned, recvAssignedN) + '% · 배정 수비 평균 거리 ' + (recvAssignDist / Math.max(1, recvAssignDistN)).toFixed(2) + ' m · 박스 안 공격수 중 배정 마커 있음 ' + pc(boxAttMarked, boxAttN) + '% · 2 m 안 수비 있음 ' + pc(boxAttNear, boxAttN) + '% (박스 안 공격수 표본 ' + boxAttN + ')');
+console.log('⒞″ 배정 질 (몰빵 박스 수신 순간, 엔진관리자19): 박스 안 공격수 중 3 m 안 수비 없음 평균 ' + f2(freeAttSum / Math.max(1, boxRecv)) + ' 명 · 박스 안 수비 줄 1 중 3 m 안 공격수 없음(여유) 평균 ' + f2(spareDefSum / Math.max(1, boxRecv)) + ' 명 · 자유 공격수 ≥1 이면서 여유 수비 ≥1 인 수신 ' + pc(bothN, boxRecv) + '% · 여유 수비 ≥1 ' + pc(spareOnlyN, boxRecv) + '% · 수신자 마커 줄 1/줄 2/추적 ' + recvMarkerL1 + '/' + recvMarkerL2 + '/' + recvMarkerTrack + ' · 분포(자유/여유): ' + Object.keys(spareHist).sort().map((k) => `${k}: ${pc(spareHist[k]!, boxRecv)}%`).join(' · '));
+console.log('⒞‴ 배정 바뀜 (균형 줄 1, 몰빵 소유·공이 수비 ⅓ 안): 배정 있음 ' + pc(asgHas, asgTicks) + '% 틱 · 배정 바뀜 ' + (10 * asgChanges / Math.max(1, asgHas)).toFixed(2) + ' 회/초 (평균 길이 ' + (asgHas / Math.max(1, asgChanges) / 10).toFixed(2) + ' s) · 수신자 마커(줄 1) 배정 나이 평균 ' + (asgAgeSum / Math.max(1, asgAgeN)).toFixed(2) + ' s · 0.5 s 미만 ' + pc(asgAgeYoung, asgAgeN) + '%');
 console.log('\n⒟ 빌드업: 자기 진영 시작 소유 중 하프라인 못 넘기고 잃음 — 몰빵 ' + pc(seqOwnLost, seqOwn) + '% (' + f2(seqOwn / n) + '/경기) · 상대 ' + pc(seqOwnLostO, seqOwnO) + '% (' + f2(seqOwnO / n) + '/경기) · 패스 성공률 몰빵 ' + pc(passOwnOk[0]!, passOwn[0]!) + ' 상대 ' + pc(passOwnOk[1]!, passOwn[1]!));

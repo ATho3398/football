@@ -510,6 +510,17 @@ export const ENGINE = {
     lineMatchBand: 8,
     lineMatchMin: 2,
     lineMatchMan: 1,
+    /** 진단 스위치 (엔진관리자18, 0 = 끔): 이 성향(TENDENCIES 순서 + 1: 균형 1 · 티키 2 · 게겐 3 · 역습 4 · 직선 5 · 블록 6)의 팀은 줄 인원 맞춤을 안 한다 — 어느 쪽 내려앉음이 상성을 움직이는지 가르는 용도 */
+    lineMatchSkipTend: 0,
+    /** 실험 스위치 (엔진관리자18, 0 = 끔): lineMatchFlight 1 = 공이 떠 있을 때 패서를 소유자로 쳐서 공격 줄에서 뺀다 · lineMatchHold = 초과가 문턱 이상인 상태가 이 초 이상 이어져야 내려온다(0 = 즉시) · lineMatchAfterWin = 상대가 오픈 플레이로 뺏은 뒤 이 초 안에는 안 내려온다 · lineMatchNoPress 1 = 우리 역압박 창 안이면 안 내려온다 */
+    lineMatchFlight: 0,
+    lineMatchHold: 0,
+    lineMatchAfterWin: 0,
+    lineMatchNoPress: 0,
+    /** 실험 스위치 (엔진관리자18, 0 = 끔): 수비 팀 선수 아무도 오프볼 판단을 안 한 틱이 끼어도 이 초 안의 마지막 계획을 prev 로 인정한다 (결함 ② 유지 끊김 수정) */
+    lineMatchKeep: 0,
+    /** 실험 스위치 (엔진관리자19, 0 = 끔): 초과가 1 이어도 상대 공격 줄 절대 인원(소유자·비행 중 패서 제외)이 이 수 이상이면 발동(초과만큼 내려옴) — 공격 줄 4명 + CB 2 대형(스윕 상위) 용 */
+    lineMatchAbs: 0,
     /**
      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
      * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
@@ -517,6 +528,21 @@ export const ENGINE = {
     boxMatch: 0,
     boxMatchMax: 3,
     boxMatchReach: 25,
+    /**
+     * 여유 수비 마크 (엔진관리자19 실험 스위치, 0 = 끔): boxDefense 에서 집중 대상 마커·더블팀을 뺀 나머지 수비 줄(줄 1 + 내려온 줄 2)이 덮는 자리 boxCoverKeep 곳보다 많으면
+     * 남는 만큼 박스 안 미마크 상대(others, 줄 2 먼저·위협 순)를 골 쪽 stMark 로 마크한다 (boxManMax 와 lineMatch 초과 몫의 max 위에 더함). 줄 2 는 안 쓴다(boxMatch 와 다름)
+     */
+    boxSpare: 0,
+    boxCoverKeep: 3,
+    /**
+     * 직선 롱볼 수신 뒤 2선 지원 달리기 (엔진관리자19 실험 스위치, 0 = 끔): 직선 성향 팀이 공중 롱패스(30 m+)를 상대 진영(x ≥ directRunFrom)에서 받으면
+     * 받은 선수 directRunDist m 안의 바쁘지 않은 2선·측면 선수 directRunners 명이 자기 레인(gapY) 그대로 오프사이드 라인까지 directRunSeconds 초 달린다 (공격 움직임 증가, 판단·실행 무변경)
+     */
+    directRun: 0,
+    directRunners: 2,
+    directRunSeconds: 4,
+    directRunDist: 25,
+    directRunFrom: 0.45,
     trackCdmMax: 9,
     trackPickMax: 12,
     trackHold: 0.7,
@@ -927,6 +953,11 @@ export const ENGINE = {
      * 공을 지키는 능력(드리블·볼 컨트롤) 10 마다 실패 × exp(−carrySkill)
      */
     carryClose: 0.3,
+    /**
+     * 뒤에서 쫓는 수비 (엔진관리자19 실험 스위치, 0 = 끔): 몰고 가는 길의 출발점보다 뒤(진행 방향 반대)에 있는 상대는 길까지 거리 대신 지금 거리를 쓰고,
+     * 좁히는 거리는 carryClose × 최고 속도 대신 max(0, 상대 최고 속도 − 내 최고 속도) × carryBehind(초) — 같은 속도면 뒤에서는 못 따라잡는다. 판단(carryLoseProb)·실행(pressureLoss) 같은 식
+     */
+    carryBehind: 0,
     /** 몰고 가기 실패에서 GK 의 몫 (C.79e 실험, 1 = 필드 선수와 같음 = 지금): GK 가 길에 닿는 실효 거리의 상실 확률에 곱한다 (GK 는 돌파·태클 1대1에 없다) */
     carryGk: 1,
     /** 몰고 가서 슛 (C.79e 실험, 0 = 끔): 앞을 막는 수비 없는 전진 몰기의 도착점이 슛 거리면 자리 가치 = max(자리 가치, 도착점 슛 가치 × carryShot), 슛 가치는 carryShotTime 초 뒤 GK 자리로 */
@@ -1499,6 +1530,12 @@ export const ENGINE = {
     screenReact: 0,
     screenFrom: 0.4,
     screenJudge: 1,
+    /**
+     * GK 역동작 (엔진관리자19 실험 스위치, 0 = 끔): GK 가 골라인 방향(옆)으로 움직이는 중일 때 그 반대쪽으로 가는 슛은 체중 이동 때문에
+     * 반응 시간 + wrongFoot × min(1, 반대쪽 옆 속도 / wrongFootRef) 초. 판단(shotModel ctx.gk 속도)·실행(saveChance) 같은 식(timeTerms)
+     */
+    wrongFoot: 0,
+    wrongFootRef: 3,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */

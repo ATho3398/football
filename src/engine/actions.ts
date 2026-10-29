@@ -917,6 +917,7 @@ export function resolveFlight(s: SimState): void {
             }
             rc.stats.aerialsWon++;
           }
+          if (ENGINE.offball.directRun > 0) directRuns(s, rc);
         } else if (inOppBox(b.x, b.y, attackDir(rc.team, s.half))) {
           // 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B): contestDist 안 수비수가 있으면 받는 선수와 듀얼. 지면 수비 소유(tackleKeep) 또는 루즈볼
           const [def, dd] = nearestOppOf(s, rc);
@@ -958,6 +959,21 @@ export function resolveFlight(s: SimState): void {
   }
   // 루즈볼: 진행 방향으로 굴러간다. 땅볼은 남은 속도 그대로, 공중볼은 튀면서 일부만 (E.18 A4 빗나간 패스)
   [b.vx, b.vy] = landingVelocity(fl);
+}
+
+/** 직선 롱볼 수신 뒤 2선 지원 달리기 (엔진관리자19 실험 offball.directRun, 0 = 끔): 난수 없음, 받은 선수에게 가까운 2선·측면 directRunners 명이 자기 레인으로 앞으로 */
+function directRuns(s: SimState, rc: Agent): void {
+  const O = ENGINE.offball;
+  if (s.teams[rc.team].tactics.tendency !== 'direct') return;
+  const dir = attackDir(rc.team, s.half);
+  if (toNorm(rc.x, rc.y, dir)[0] < O.directRunFrom) return;
+  const cands = s.agents.filter((a) => a.onPitch && a.team === rc.team && a !== rc && a.line !== 0 && s.t >= a.runUntil
+    && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB') && dist(a.x, a.y, rc.x, rc.y) <= O.directRunDist);
+  cands.sort((x, y) => dist(x.x, x.y, rc.x, rc.y) - dist(y.x, y.y, rc.x, rc.y) || x.idx - y.idx);
+  for (const a of cands.slice(0, O.directRunners)) {
+    a.runUntil = s.t + O.directRunSeconds;
+    a.gapY = clamp(toNorm(a.x, a.y, dir)[1], 0.15, 0.85);
+  }
 }
 
 /**

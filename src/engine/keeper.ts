@@ -109,7 +109,12 @@ function timeTerms(c: ShotCtx): [number, number] {
   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
   // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기)
-  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0);
+  let react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0);
+  // 역동작 (엔진관리자19 실험, wrongFoot 0 = 끔): 골라인 방향(y) 으로 노린 점의 반대쪽으로 움직이는 중이면 반응이 늦다 (체중 이동)
+  if (K.wrongFoot > 0) {
+    const vOpp = Math.max(0, -g.vy * (Math.sign(c.ty - g.y) || 1));
+    if (vOpp > 0) react += K.wrongFoot * Math.min(1, vOpp / K.wrongFootRef);
+  }
   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
   let drift = 0;
   if (e > 1e-6) {

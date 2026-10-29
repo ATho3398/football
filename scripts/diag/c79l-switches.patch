@@ -1,0 +1,211 @@
+diff --git a/src/engine/actions.ts b/src/engine/actions.ts
+index b945e87..748d036 100644
+--- a/src/engine/actions.ts
++++ b/src/engine/actions.ts
+@@ -917,6 +917,7 @@ export function resolveFlight(s: SimState): void {
+             }
+             rc.stats.aerialsWon++;
+           }
++          if (ENGINE.offball.directRun > 0) directRuns(s, rc);
+         } else if (inOppBox(b.x, b.y, attackDir(rc.team, s.half))) {
+           // 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B): contestDist 안 수비수가 있으면 받는 선수와 듀얼. 지면 수비 소유(tackleKeep) 또는 루즈볼
+           const [def, dd] = nearestOppOf(s, rc);
+@@ -960,6 +961,21 @@ export function resolveFlight(s: SimState): void {
+   [b.vx, b.vy] = landingVelocity(fl);
+ }
+ 
++/** 직선 롱볼 수신 뒤 2선 지원 달리기 (엔진관리자19 실험 offball.directRun, 0 = 끔): 난수 없음, 받은 선수에게 가까운 2선·측면 directRunners 명이 자기 레인으로 앞으로 */
++function directRuns(s: SimState, rc: Agent): void {
++  const O = ENGINE.offball;
++  if (s.teams[rc.team].tactics.tendency !== 'direct') return;
++  const dir = attackDir(rc.team, s.half);
++  if (toNorm(rc.x, rc.y, dir)[0] < O.directRunFrom) return;
++  const cands = s.agents.filter((a) => a.onPitch && a.team === rc.team && a !== rc && a.line !== 0 && s.t >= a.runUntil
++    && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB') && dist(a.x, a.y, rc.x, rc.y) <= O.directRunDist);
++  cands.sort((x, y) => dist(x.x, x.y, rc.x, rc.y) - dist(y.x, y.y, rc.x, rc.y) || x.idx - y.idx);
++  for (const a of cands.slice(0, O.directRunners)) {
++    a.runUntil = s.t + O.directRunSeconds;
++    a.gapY = clamp(toNorm(a.x, a.y, dir)[1], 0.15, 0.85);
++  }
++}
++
+ /**
+  * 공을 선수에게 (C.24): snapReceive m 안이면 바로 소유, 그 밖이면 선수를 옮기지 않고 공을 그 선수 쪽으로 굴린다
+  * (reserveRoll m/s, 그 선수는 컨트롤 판정 없이 잡는다. 받기 집계는 실제로 잡는 순간, ballReserved)
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index e8d16f5..156d535 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -510,6 +510,17 @@ export const ENGINE = {
+     lineMatchBand: 8,
+     lineMatchMin: 2,
+     lineMatchMan: 1,
++    /** 진단 스위치 (엔진관리자18, 0 = 끔): 이 성향(TENDENCIES 순서 + 1: 균형 1 · 티키 2 · 게겐 3 · 역습 4 · 직선 5 · 블록 6)의 팀은 줄 인원 맞춤을 안 한다 — 어느 쪽 내려앉음이 상성을 움직이는지 가르는 용도 */
++    lineMatchSkipTend: 0,
++    /** 실험 스위치 (엔진관리자18, 0 = 끔): lineMatchFlight 1 = 공이 떠 있을 때 패서를 소유자로 쳐서 공격 줄에서 뺀다 · lineMatchHold = 초과가 문턱 이상인 상태가 이 초 이상 이어져야 내려온다(0 = 즉시) · lineMatchAfterWin = 상대가 오픈 플레이로 뺏은 뒤 이 초 안에는 안 내려온다 · lineMatchNoPress 1 = 우리 역압박 창 안이면 안 내려온다 */
++    lineMatchFlight: 0,
++    lineMatchHold: 0,
++    lineMatchAfterWin: 0,
++    lineMatchNoPress: 0,
++    /** 실험 스위치 (엔진관리자18, 0 = 끔): 수비 팀 선수 아무도 오프볼 판단을 안 한 틱이 끼어도 이 초 안의 마지막 계획을 prev 로 인정한다 (결함 ② 유지 끊김 수정) */
++    lineMatchKeep: 0,
++    /** 실험 스위치 (엔진관리자19, 0 = 끔): 초과가 1 이어도 상대 공격 줄 절대 인원(소유자·비행 중 패서 제외)이 이 수 이상이면 발동(초과만큼 내려옴) — 공격 줄 4명 + CB 2 대형(스윕 상위) 용 */
++    lineMatchAbs: 0,
+     /**
+      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
+      * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
+@@ -517,6 +528,21 @@ export const ENGINE = {
+     boxMatch: 0,
+     boxMatchMax: 3,
+     boxMatchReach: 25,
++    /**
++     * 여유 수비 마크 (엔진관리자19 실험 스위치, 0 = 끔): boxDefense 에서 집중 대상 마커·더블팀을 뺀 나머지 수비 줄(줄 1 + 내려온 줄 2)이 덮는 자리 boxCoverKeep 곳보다 많으면
++     * 남는 만큼 박스 안 미마크 상대(others, 줄 2 먼저·위협 순)를 골 쪽 stMark 로 마크한다 (boxManMax 와 lineMatch 초과 몫의 max 위에 더함). 줄 2 는 안 쓴다(boxMatch 와 다름)
++     */
++    boxSpare: 0,
++    boxCoverKeep: 3,
++    /**
++     * 직선 롱볼 수신 뒤 2선 지원 달리기 (엔진관리자19 실험 스위치, 0 = 끔): 직선 성향 팀이 공중 롱패스(30 m+)를 상대 진영(x ≥ directRunFrom)에서 받으면
++     * 받은 선수 directRunDist m 안의 바쁘지 않은 2선·측면 선수 directRunners 명이 자기 레인(gapY) 그대로 오프사이드 라인까지 directRunSeconds 초 달린다 (공격 움직임 증가, 판단·실행 무변경)
++     */
++    directRun: 0,
++    directRunners: 2,
++    directRunSeconds: 4,
++    directRunDist: 25,
++    directRunFrom: 0.45,
+     trackCdmMax: 9,
+     trackPickMax: 12,
+     trackHold: 0.7,
+@@ -927,6 +953,11 @@ export const ENGINE = {
+      * 공을 지키는 능력(드리블·볼 컨트롤) 10 마다 실패 × exp(−carrySkill)
+      */
+     carryClose: 0.3,
++    /**
++     * 뒤에서 쫓는 수비 (엔진관리자19 실험 스위치, 0 = 끔): 몰고 가는 길의 출발점보다 뒤(진행 방향 반대)에 있는 상대는 길까지 거리 대신 지금 거리를 쓰고,
++     * 좁히는 거리는 carryClose × 최고 속도 대신 max(0, 상대 최고 속도 − 내 최고 속도) × carryBehind(초) — 같은 속도면 뒤에서는 못 따라잡는다. 판단(carryLoseProb)·실행(pressureLoss) 같은 식
++     */
++    carryBehind: 0,
+     /** 몰고 가기 실패에서 GK 의 몫 (C.79e 실험, 1 = 필드 선수와 같음 = 지금): GK 가 길에 닿는 실효 거리의 상실 확률에 곱한다 (GK 는 돌파·태클 1대1에 없다) */
+     carryGk: 1,
+     /** 몰고 가서 슛 (C.79e 실험, 0 = 끔): 앞을 막는 수비 없는 전진 몰기의 도착점이 슛 거리면 자리 가치 = max(자리 가치, 도착점 슛 가치 × carryShot), 슛 가치는 carryShotTime 초 뒤 GK 자리로 */
+@@ -1499,6 +1530,12 @@ export const ENGINE = {
+     screenReact: 0,
+     screenFrom: 0.4,
+     screenJudge: 1,
++    /**
++     * GK 역동작 (엔진관리자19 실험 스위치, 0 = 끔): GK 가 골라인 방향(옆)으로 움직이는 중일 때 그 반대쪽으로 가는 슛은 체중 이동 때문에
++     * 반응 시간 + wrongFoot × min(1, 반대쪽 옆 속도 / wrongFootRef) 초. 판단(shotModel ctx.gk 속도)·실행(saveChance) 같은 식(timeTerms)
++     */
++    wrongFoot: 0,
++    wrongFootRef: 3,
+     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
+     openOn: 0.95,
+     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
+diff --git a/src/engine/keeper.ts b/src/engine/keeper.ts
+index 49cdd41..689d774 100644
+--- a/src/engine/keeper.ts
++++ b/src/engine/keeper.ts
+@@ -109,7 +109,12 @@ function timeTerms(c: ShotCtx): [number, number] {
+   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
+   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
+   // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기)
+-  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0);
++  let react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0);
++  // 역동작 (엔진관리자19 실험, wrongFoot 0 = 끔): 골라인 방향(y) 으로 노린 점의 반대쪽으로 움직이는 중이면 반응이 늦다 (체중 이동)
++  if (K.wrongFoot > 0) {
++    const vOpp = Math.max(0, -g.vy * (Math.sign(c.ty - g.y) || 1));
++    if (vOpp > 0) react += K.wrongFoot * Math.min(1, vOpp / K.wrongFootRef);
++  }
+   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
+   let drift = 0;
+   if (e > 1e-6) {
+diff --git a/src/engine/offball.ts b/src/engine/offball.ts
+index 611bbce..2d0146a 100644
+--- a/src/engine/offball.ts
++++ b/src/engine/offball.ts
+@@ -1680,7 +1680,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
+     // 깊은 블록 밀집 (C.78d ①): 버스·블록·역습(낮은 블록)은 남는 수비가 많으니 박스 안 미마크 상대를 deepBoxMan 명까지 맡는다 (박스 안 사람 앞에 사람)
+     const manMax0 = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
+     // 줄 인원 맞춤 (C.79e, lineMatchMan 1): 초과 인원만큼 박스 안 미마크 상대 마크 인원을 늘린다
+-    const manMax = O.lineMatch > 0 && O.lineMatchMan > 0 && lm.surplus > 0 ? Math.max(manMax0, lm.surplus) : manMax0;
++    let manMax = O.lineMatch > 0 && O.lineMatchMan > 0 && lm.surplus > 0 ? Math.max(manMax0, lm.surplus) : manMax0;
++    // 여유 수비 마크 (엔진관리자19 실험 boxSpare, 0 = 끔): 마커(+더블팀)를 뺀 나머지가 덮는 자리 boxCoverKeep 곳보다 많으면 남는 만큼 미마크 상대를 마크
++    if (O.boxSpare > 0 && others.length) manMax = Math.max(manMax, defs.length - 1 - (abil >= O.focusDoubleMin && inBox && !ballNear ? 1 : 0) - O.boxCoverKeep);
+     const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+     const gd = dist(t.x, t.y, gx, gy) || 1;
+     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
+@@ -2102,19 +2104,29 @@ function canReach(a: Agent, r: Agent): boolean {
+ // (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 문턱 − 1 이면 유지, 그 아래면 올라간다 (히스테리시스)
+ interface LineMatch { drop: Set<number>; surplus: number }
+ const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
+-const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
+-function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
++const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch; since: number }[]>();
++/** 진단용 읽기 (엔진관리자18): 이 틱에 이미 계산된 줄 인원 맞춤 계획만 돌려준다 (계산하지 않음 — 지문 불변) */
++export function lineMatchPeek(s: SimState, team: 0 | 1, tick = s.tick): LineMatch | null {
++  const e = lineMatchCache.get(s)?.[team];
++  return e && e.tick === tick ? e.plan : null;
++}
++export function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
+   if (O.lineMatch <= 0) return NO_MATCH;
+   let cache = lineMatchCache.get(s);
+-  if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH }, { tick: -1, plan: NO_MATCH }]));
++  if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH, since: -1 }, { tick: -1, plan: NO_MATCH, since: -1 }]));
+   const e = cache[team]!;
+   if (e.tick === s.tick) return e.plan;
+-  const prev = e.tick === s.tick - 1 ? e.plan : NO_MATCH;
++  const prev = e.tick === s.tick - 1 || (O.lineMatchKeep > 0 && e.tick >= 0 && (s.tick - e.tick) * ENGINE.time.dt <= O.lineMatchKeep) ? e.plan : NO_MATCH;
+   e.tick = s.tick;
+   const b = s.ball;
+   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+   const att = owner ? owner.team : s.possTeam;
+   if (att === team || s.restart) return (e.plan = NO_MATCH);
++  const tm = s.teams[team];
++  // 진단·실험 스위치 (엔진관리자18, 기본 0 = 동작 불변)
++  if (O.lineMatchSkipTend > 0 && tactics_.TENDENCIES[O.lineMatchSkipTend - 1] === tm.tactics.tendency) return (e.plan = NO_MATCH);
++  if (O.lineMatchNoPress > 0 && s.t < tm.counterUntil && tm.counterPressers.length > 0) return (e.plan = NO_MATCH);
++  if (O.lineMatchAfterWin > 0 && s.possOrigin === 'open' && s.t - s.teams[1 - team]!.wonAt < O.lineMatchAfterWin) return (e.plan = NO_MATCH);
+   const dir = attackDir(team, s.half);
+   let lx = 0;
+   let ln = 0;
+@@ -2127,13 +2139,21 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
+   }
+   if (!ln) return (e.plan = NO_MATCH);
+   const band = lx / ln + O.lineMatchBand / L;
++  // lineMatchFlight 1: 공이 떠 있으면 패서(공을 보낸 선수)를 소유자로 쳐서 공격 줄에서 뺀다 (지금은 비행 중 패서가 세어져 초과가 1 늘어난다)
++  const passer = O.lineMatchFlight > 0 && !owner && b.flight && b.flight.passer >= 0 ? s.agents[b.flight.passer] : null;
+   let atts = 0;
+-  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
++  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && o !== passer && toNorm(o.x, o.y, dir)[0] < band) atts++;
+   const surplus = atts - defs;
++  // lineMatchHold: 초과 ≥ 문턱이 이 초 이상 이어져야 발동 (이미 내려와 있으면 유지)
++  if (O.lineMatchHold > 0) {
++    if (surplus >= O.lineMatchMin) { if (e.since < 0) e.since = s.t; } else e.since = -1;
++  }
++  const held = O.lineMatchHold > 0 && prev.drop.size === 0 && (e.since < 0 || s.t - e.since < O.lineMatchHold);
+   // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
+-  const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
++  // lineMatchAbs (엔진관리자19 실험): 초과 ≥ 1 이고 상대 공격 줄 절대 인원 ≥ lineMatchAbs 면 문턱과 무관하게 초과만큼
++  const absOn = O.lineMatchAbs > 0 && surplus >= 1 && atts >= O.lineMatchAbs;
++  const need = held ? 0 : surplus >= O.lineMatchMin || absOn ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
+   if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus });
+-  const tm = s.teams[team];
+   const [gx, gy] = ownGoal(dir);
+   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
+   const cands: Agent[] = [];
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index c216873..3ca51eb 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -221,6 +221,11 @@ export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who
+ /** 상대 o 가 몰고 가는 길(a → (cx, cy))에 닿는 실효 거리: 길까지 거리 − 몰고 가는 동안 좁히는 거리 (돌파당한 수비수는 좁히지 못한다) */
+ export function carryReachDist(s: SimState, o: Agent, a: Agent, cx: number, cy: number): number {
+   const [d] = segDist(o.x, o.y, a.x, a.y, cx, cy);
++  // 뒤에서 쫓는 수비 (엔진관리자19 실험 carryBehind): 출발점보다 뒤면 지금 거리 − 속도 차 × carryBehind 초
++  if (O.carryBehind > 0 && (o.x - a.x) * (cx - a.x) + (o.y - a.y) * (cy - a.y) < 0) {
++    const close = s.t < o.beatenUntil ? 0 : Math.max(0, o.maxSpeed - a.maxSpeed) * O.carryBehind;
++    return Math.max(0, dist(o.x, o.y, a.x, a.y) - close);
++  }
+   const close = s.t < o.beatenUntil ? 0 : O.carryClose * o.maxSpeed;
+   return Math.max(0, d - close);
+ }
