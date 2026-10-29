@@ -12,6 +12,7 @@ import { attackDir } from '../../src/engine/pitch';
 const N = Number(process.env.N ?? 400);
 const S0 = Number(process.env.START ?? 0);
 const B = BALANCE.body;
+if (process.env.CARRY) (B as { shotCarry: number }).shotCarry = Number(process.env.CARRY);
 if (process.env.SHOTSET) (B as { shotSet: number }).shotSet = Number(process.env.SHOTSET);
 const mk = (side: string, i: number) => {
   const r = createTeamRoster({ id: `v${side}${i}`, rating: 75 }, `eng-${side}-75-${i}`, 2018, []);
@@ -36,6 +37,7 @@ const add = (k: string, w: number, on: boolean, goal: boolean, xg: number) => {
   acc.set(k, x);
 };
 let goalsTot = 0;
+const split = new Map<string, [number, number]>();
 const t0 = Date.now();
 for (let i = S0; i < S0 + N; i++) {
   const sim = createMatch({ home: mk('a', i), away: mk('b', i), mode: 'auto', difficulty: 'normal', seed: 1000 + i, bigMatch: false, neutral: true });
@@ -58,6 +60,15 @@ for (let i = S0; i < S0 + N; i++) {
     const inv = side === 'C' ? '' : (side === 'R') === (foot === 'left') ? '인버티드' : '정통';
     const grp = a.pos === 'ST' ? 'ST' : a.pos === 'LW' || a.pos === 'RW' ? a.role.id : 'other';
     shots.push({ key: `${grp}|${side}|${foot}|${inv}`, w, p });
+    if (process.env.SPLIT && p.rush !== undefined && inv) {
+      const dx = p.aimX - a.x, dy = p.aimY - a.y, d = Math.hypot(dx, dy) || 1;
+      const cos = (a.hx * dx + a.hy * dy) / d;
+      const rb = p.rush >= 1 ? '원터치' : p.rush > 0 ? '압박' : '여유';
+      const hb = cos < 0 ? '등짐' : cos < 0.7 ? '옆' : '골쪽';
+      const k = `${inv}|${rb}|${hb}`;
+      const x = split.get(k) ?? [0, 0];
+      x[0]++; x[1] += w; split.set(k, x);
+    }
   };
   const r = sim.runToEnd();
   goalsTot += r.homeGoals + r.awayGoals;
@@ -77,4 +88,8 @@ const sum = (f: (k: string) => boolean) => { const t = { n: 0, weak: 0, weakN: 0
 for (const [lab, f] of [['윙 인버티드', (k: string) => k.endsWith('|인버티드')], ['윙 정통', (k: string) => k.endsWith('|정통')], ['ST', (k: string) => k.startsWith('ST|')], ['그 밖', (k: string) => k.startsWith('other|')]] as const) {
   const x = sum(f);
   console.log(`- ${lab}: 발 슛 ${x.n}, 약발 몫 ${(x.weak / x.n).toFixed(3)}, 약발 비율 ${(100 * x.weakN / x.n).toFixed(1)}%, 유효율 ${(100 * x.on / x.n).toFixed(1)}%, 골 ${x.goals} (${(x.goals / x.n).toFixed(3)}/슛)`);
+}
+if (process.env.SPLIT) {
+  console.log('| 구분 | 급함 | 몸 방향(슛 쪽 cos) | 슛 | 약발 몫 |');
+  for (const [k, [n, w]] of [...split.entries()].sort()) console.log(`| ${k.split('|').join(' | ')} | ${n} | ${(w / n).toFixed(3)} |`);
 }

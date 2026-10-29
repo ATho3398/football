@@ -11,7 +11,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, shotRush, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
@@ -458,9 +458,10 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   // 약발 (C.79q): 몸 방향 기준 발, 시간이 있으면 주발로 옮겨 찬다 (판단 shotModel 과 같은 함수·같은 급함)
   const footY = (PR.laneSide > 0 ? gy + side * m.ctx.corner * (G / 2 - 0.3) : gy) - a.y;
   const rush = shotRush(s, a, m.pressure);
-  const foot = header ? 1 : shotFootMul(a.body, a.hx, a.hy, gx - a.x, footY, rush);
+  const ot = shotOneTouch(s, a);
+  const foot = header ? 1 : shotFootMul(a.body, a.hx, a.hy, gx - a.x, footY, rush, ot);
   // 진단 기록용 약발 몫 (C.79q, 블록 포함)
-  const pm = probe.shot ? { ...m, ...(header ? {} : { weak: shotWeakShare(a.body, a.hx, a.hy, gx - a.x, footY, rush) }) } : m;
+  const pm = probe.shot ? { ...m, ...(header ? {} : { weak: shotWeakShare(a.body, a.hx, a.hy, gx - a.x, footY, rush, ot), rush }) } : m;
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', pm, gx, m.side ? m.ctx.ty : gy, m.speed);

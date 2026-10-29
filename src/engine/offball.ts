@@ -1248,7 +1248,7 @@ function laneGuess(s: SimState, a: Agent, o: Agent, gx: number, gy: number): -1 
     const dx = gx - o.x;
     const dy = gy + sd * cy - o.y;
     const dd = Math.hypot(dx, dy) || 1;
-    let v = shotFootMul(o.body, o.hx, o.hy, dx, dy, rush);
+    let v = shotFootMul(o.body, o.hx, o.hy, dx, dy, rush, s.t < o.otUntil);
     // 몸 방향 (hx, hy: 단위 벡터, 움직이면 달리는 방향)
     v += O.laneFace * ((o.hx * dx + o.hy * dy) / dd);
     if (far === sd) v += O.laneGk;
