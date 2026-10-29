@@ -335,9 +335,9 @@ export const ENGINE = {
 
   // ── 오프더볼 (E.6) ──
   offball: {
-    /** 공 소유자와 유지할 간격 (m) */
-    supportMin: 12,
-    supportMax: 25,
+    /** 공 소유자와 유지할 간격 (m). C.79m: 12 · 25 → 8 · 20 (c78z §2.3 B3 — 점유 가치와 짝, 짧은 후보를 늘림; 티키는 tikiSupport 그대로) */
+    supportMin: 8,
+    supportMax: 20,
     /** 압박받는 소유자의 지원 간격 (C.78g): 소유자에게 가장 가까운 상대가 supportPressDist m 안이면 supportMin × (1 − supportPress × (1 − 거리/supportPressDist)) (0 = 끔) */
     supportPress: 0.5,
     supportPressDist: 6,
@@ -1006,7 +1006,7 @@ export const ENGINE = {
      * 유지 효용 += 같은 값 × hold × (1 − 유지 상실 확률). 판단 효용에만(실행 불변). 0 = 끔
      */
     possess: {
-      balanced: 0.012,
+      balanced: 0.008,
       tikitaka: 0.018,
       gegenpress: 0.008,
       counter: 0.01,
