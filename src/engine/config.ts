@@ -1388,7 +1388,8 @@ export const ENGINE = {
   // ── 평점 (E.12) ──
   rating: {
     base: 6.0,
-    pass: 0.02,
+    /** C.79m: 0.02 → 0.017 — 점유 가치로 짧은 패스가 늘어(동레이팅 패스 502 → 554) 중원·CB 평점이 가드 위로(CB 6.72 · CDM·CM 6.78) 올라간 만큼 패스 1개 가치를 낮춤 */
+    pass: 0.017,
     forwardPass: 0.05,
     keyPass: 0.15,
     onTarget: 0.1,
