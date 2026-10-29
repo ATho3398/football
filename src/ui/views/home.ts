@@ -78,7 +78,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
       : Button({ variant: 'secondary', block: true, icon: 'clock', act: 'day-one', children: '하루 진행' }) + Button({ variant: 'secondary', block: true, icon: 'ff', act: 'sim-rest', children: '자동 진행' });
     const pct = Math.round((n.myRating / Math.max(1, n.myRating + n.oppRating)) * 1000) / 10;
     next = panel(`
-        <div class="hm-head"><span class="hm-title">다음 경기 <span>· ${esc(vm.comp)} · ${n.home ? '홈' : '원정'}</span></span><span class="hm-sub">${d.matchDay ? '오늘' : esc(vm.nextDate ?? d.nextLabel ?? '')}</span></div>
+        <div class="hm-head"><span class="hm-title">다음 경기 <span>· ${esc(vm.comp)} · ${n.neutral ? '중립' : n.home ? '홈' : '원정'}</span></span><span class="hm-sub">${d.matchDay ? '오늘' : esc(vm.nextDate ?? d.nextLabel ?? '')}</span></div>
         ${n.cup ? `<div class="comp-badge${n.cup.comp === 'fa' ? ' is-fa' : n.cup.comp === 'nat' ? ' is-nat' : ''}">${Icon({ name: n.cup.comp === 'nat' ? 'world' : 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(n.cup.label)}</b></div>` : ''}
         ${n.derby ? `<div class="derby-badge${n.derby.big ? ' is-big' : ''}">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b>${esc(n.derby.name)}</b><span>더비 매치</span></div>` : ''}
         <div class="vs-row"><span class="vs-team">${Crest({ name: n.my, size: 24 })}<span class="vs-name">${esc(n.my)}</span></span><span class="vs">vs</span><span class="vs-team away"><span class="vs-name">${esc(n.opp)}</span>${Crest({ name: n.opp, size: 24, color: 'var(--away)' })}</span></div>

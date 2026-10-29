@@ -223,15 +223,16 @@ export function poisson(rng: Rng, lambda: number): number {
   return k - 1;
 }
 
-/** 기대 득점 (B.4) */
+/** 기대 득점 (B.4). 홈 이점은 홈 팀 득점에만 레이팅 +homeRating (C.79o) */
 export function expectedGoals(own: number, opp: number, home: boolean): number {
   const M = BALANCE.match;
-  return M.baseGoals * Math.exp((own - opp) * M.goalsK) + (home ? M.homeBonus : 0);
+  return M.baseGoals * Math.exp((own - opp + (home ? M.homeRating : 0)) * M.goalsK);
 }
 
-export function simulateScore(rng: Rng, homeRating: number, awayRating: number): [number, number] {
+/** 레이팅 간이 경기. neutral(컵·챔스 결승, C.79o)이면 홈 이점 없음 */
+export function simulateScore(rng: Rng, homeRating: number, awayRating: number, neutral = false): [number, number] {
   return [
-    poisson(rng, expectedGoals(homeRating, awayRating, true)),
+    poisson(rng, expectedGoals(homeRating, awayRating, !neutral)),
     poisson(rng, expectedGoals(awayRating, homeRating, false)),
   ];
 }

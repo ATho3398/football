@@ -7,7 +7,7 @@ import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
 import { derbyOf } from '../derby';
 import { formLevel } from '../form';
-import { matchCompLabel, myMatchPosition, myStartChance, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
+import { isNeutralMatch, matchCompLabel, myMatchPosition, myStartChance, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
 import { ensureNational, natId } from '../national';
 import type { ScoutReport } from '../rapport';
 import { leaguePosition, teamById, type LeagueState } from '../league';
@@ -37,6 +37,8 @@ export interface PrepVM {
   date: string;
   comp: string;
   home: boolean;
+  /** 중립 경기 (컵·챔스 결승, 대표팀 대회, C.79o) */
+  neutral: boolean;
   derby: { name: string; big: boolean } | null;
   my: PrepTeamVM;
   opp: PrepTeamVM;
@@ -104,6 +106,7 @@ export function prepVM(g: GameState): PrepVM | null {
     comp: matchCompLabel(g, fx),
     cupBadge: fx.cup ? fx.cup.label.replace(/^챔스 /, '챔피언스리그 ').replace(' ', ' · ') : null,
     home: fx.home,
+    neutral: isNeutralMatch(fx),
     derby: d ? { name: d.name, big: d.big } : null,
     my: team(my.id, my.rating, my.nameKo, myTacticVM(g)),
     opp: team(opp.id, opp.rating, opp.nameKo, teamTactic(opp.id)),

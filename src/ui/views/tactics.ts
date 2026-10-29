@@ -10,7 +10,7 @@ export function tacticsView(vm: TacticsVM): string {
     title: '전술', back: { act: 'tac-back' }, right: vm.opp ? `${vm.opp.name}전` : '', eyebrow: '팀 전술 · 내가 정해요', chips: vm.chips,
   });
   const opp = vm.opp
-    ? `${SectionTitle({ title: '상대', action: `다음 경기 · ${vm.opp.home ? '홈' : '원정'}` })}
+    ? `${SectionTitle({ title: '상대', action: `다음 경기 · ${vm.opp.neutral ? '중립' : vm.opp.home ? '홈' : '원정'}` })}
       ${panel(`<div class="kv"><span>상대 전술</span>${vm.opp.tactic ? TacticChip({ size: 'sm', team: vm.opp.name, away: true, ...vm.opp.tactic }) : `<b>${esc(vm.opp.name)}</b>`}</div>`)}`
     : '';
   const tend = `${SectionTitle({ title: '① 전술 성향', action: vm.opp?.tactic ? '적합도 = 우리 선발 능력치' : '' })}

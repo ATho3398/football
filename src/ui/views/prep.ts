@@ -40,13 +40,13 @@ export function prepView(vm: PrepVM): string {
   if (tr) chips.push({ label: tr.n >= tr.of ? '1군 테스트 마지막 경기' : `1군 테스트 ${tr.n}/${tr.of}경기째`, soft: true });
   const hero = HeroPanel({
     title: '경기 준비', back: { act: 'go', data: { to: 'home' } }, compact: true, pad: false, progress: false,
-    eyebrow: `${vm.comp} · ${vm.home ? '홈' : '원정'} · ${vm.date}`, value: '오늘', chips,
+    eyebrow: `${vm.comp} · ${vm.neutral ? '중립' : vm.home ? '홈' : '원정'} · ${vm.date}`, value: '오늘', chips,
   });
 
   const total = vm.my.rating + vm.opp.rating;
   const share = total > 0 ? Math.round((vm.my.rating / total) * 100) : 50;
   // C.76j (디자인 212): 컵·챔스 경기면 상대 카드 맨 위 대회 배지(라임 꺾인 칩 · 트로피)
-  const badge = vm.cupBadge ? `<div class="prep-cup"><span class="prep-cup__chip">${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(vm.cupBadge)}</b></span><small class="prep-sub">${vm.home ? '홈' : '원정'}</small></div>` : '';
+  const badge = vm.cupBadge ? `<div class="prep-cup"><span class="prep-cup__chip">${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b>${esc(vm.cupBadge)}</b></span><small class="prep-sub">${vm.neutral ? '중립' : vm.home ? '홈' : '원정'}</small></div>` : '';
   const opp = card(`${badge}${head('상대', { label: '팀 상세', act: 'team-open', v: vm.opp.id })}
     <div class="prep-vs"><span class="prep-vs__me">${Crest({ name: vm.my.name, size: 28 })}<b>${esc(vm.my.name)}</b></span><span class="prep-vs__x">vs</span><span class="prep-vs__opp"><b>${esc(vm.opp.name)}</b>${Crest({ name: vm.opp.name, size: 28, color: 'var(--away)' })}</span></div>
     <div class="prep-bar"><span>전력 <b class="po-num">${vm.my.rating}</b> <small>${vm.my.rank ? `${vm.my.rank}위` : ''}</small></span><span class="prep-bar__track"><i style="width:${share}%"></i><i></i></span><span><small>${vm.opp.rank ? `${vm.opp.rank}위` : vm.opp.id.startsWith('n:') ? '대표팀' : '리그 밖'}</small> <b class="po-num is-away">${vm.opp.rating}</b></span></div>

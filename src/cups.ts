@@ -332,7 +332,8 @@ export function cupLines(state: GameState, id: string, date: IsoDate): NpcLine[]
 function quickTie(state: GameState, comp: CupComp, stage: number, i: number): void {
   const tie = comp.rounds[stage]![i]!;
   const rng = rngFor(state.worldSeed, 'cup', comp.id, state.league.season, 'tie', stage, i);
-  const [hg, ag] = simulateScore(rng, teamById(state.league, tie.h).rating, teamById(state.league, tie.a).rating);
+  // 결승은 중립 경기장 (C.79o)
+  const [hg, ag] = simulateScore(rng, teamById(state.league, tie.h).rating, teamById(state.league, tie.a).rating, comp.rounds[stage]!.length === 1);
   const date = tie.d ?? comp.dates[stage]!;
   const lines = [cupLines(state, tie.h, date), cupLines(state, tie.a, date)];
   settleTie(state, comp, stage, i, hg, ag, cupScorers(state, rng, tie, hg, ag, lines));
@@ -576,7 +577,7 @@ function uclSettle(state: GameState, u: UclComp, m: UclMatch, hg: number, ag: nu
 
 function uclQuick(state: GameState, u: UclComp, m: UclMatch): void {
   const rng = rngFor(state.worldSeed, 'cup', 'ucl', state.league.season, 'tie', m.kind, m.md, m.stage, m.i);
-  const [hg, ag] = simulateScore(rng, teamById(state.league, m.t.h).rating, teamById(state.league, m.t.a).rating);
+  const [hg, ag] = simulateScore(rng, teamById(state.league, m.t.h).rating, teamById(state.league, m.t.a).rating, m.kind === 'final');
   // 득점자는 녹아웃만 (조별 48경기 득점 기록은 세이브만 키운다)
   const lines = [cupLines(state, m.t.h, m.t.d!), cupLines(state, m.t.a, m.t.d!)];
   uclSettle(state, u, m, hg, ag, m.kind === 'group' ? undefined : cupScorers(state, rng, m.t, hg, ag, lines));
