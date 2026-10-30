@@ -1219,3 +1219,4 @@
 - (10/30 09:14 KST) 엔진관리자20 C.79t 조건: **게겐 팀만 Keep·조깅 제외(lineMatchKeepSkip 1)** → 게겐>티키 +0.17(main +0.18) 회복, 역압박 창 조건 효과 0. → **C.79v 지시문**(C.79t 브랜치 + keepSkip 1, 960 두 벌 재측정, 2h·9달러).
 - (10/30 09:11 KST) **C.79v 시작 `session_01YVaigG6uut2kePk2qCBxmv`**(claude/c79v-linematch-keep2). 진행: C.79q · C.79u · C.79v(코딩 3) · 엔진관리자20(최종 ~09:30) · C.79s CI. 대기: C.79r D1.
 - (10/30 09:18 KST) **엔진관리자20 최종**(d91c7a8, engine-diagnosis-c79u.md, 2h27m): 안 된 것 — 직선 대 역습·균형 상호작용 1.5σ 미확정(기록 항목) · K1b 21칸 960은 C.79u 몫 · C.79t 조건판의 이동 거리·몰빵 재측정은 C.79v 몫. 결론 = 위 판정 규칙 A + K1b + keepSkip. 엔진관리자20 draft_. **960 두 벌 판정 규칙을 automation.md 0번에 기록.**
+- (10/30 09:35 KST) **C.79s 배포 완료**(run 324, main 66b80c9, ENGINE 61). C.79s draft_. 누수 3/5. 진행: C.79q · C.79u · C.79v. 대기: C.79r D1(onball 겹침, C.79q·C.79u 중 하나 끝난 뒤).
