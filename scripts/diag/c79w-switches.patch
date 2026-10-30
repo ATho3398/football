@@ -1,0 +1,106 @@
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index 6ac3e82..d26d6e3 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -1029,6 +1029,10 @@ export const ENGINE = {
+       zoneTo: 0.8,
+       /** 전환 창 (C.79u): 오픈 플레이 탈취 뒤 이 초 안에는 전 성향 점유 가치 0 — 뺏은 직후는 전진(0 = 끔) */
+       winOff: 6,
++      /** 진단 스위치 (엔진관리자21 c79w, 기본 0 = 끔): pressRecv k = 받는 곳 압박(rp)에 비례해 점유 가치 ×max(0, 1 − k·rp) · pressPass k = 패서 압박에 비례 ×max(0, 1 − k·압박) · cpOff 1 = 상대 역압박 창(counterUntil 안·가담자 있음)에서는 점유 가치 0 */
++      pressRecv: 0,
++      pressPass: 0,
++      cpOff: 0,
+     },
+   },
+ 
+@@ -1077,6 +1081,8 @@ export const ENGINE = {
+     longFarFrom: 32,
+     longFarPerM: 0.015,
+     laneWidth: 1.8,
++    /** 진단 스위치 (엔진관리자21 c79w, 0 = 끔): 활성 역압박 가담자가 패스 길에 있으면 가로채기 몫 ×(1 + cpLaneAdd) */
++    cpLaneAdd: 0,
+     laneBase: 0.25,
+     laneIntercept: 0.15,
+     /** 레인 위험 × (1 + laneVision × (60 − 시야)/100) */
+diff --git a/src/engine/core.ts b/src/engine/core.ts
+index a91acb2..c149457 100644
+--- a/src/engine/core.ts
++++ b/src/engine/core.ts
+@@ -146,7 +146,9 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
+   const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.plan.sit.H.pressers[pressLevel(s, team)]!;
+   for (const a of near) {
+     if (tm.counterPressers.length >= max) break;
+-    const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a) * burstReady(a);
++    // 진단 스위치 (엔진관리자21 c79w, 0 = 끔): 게겐 성향은 가담 확률 × gegenJoinMul (2명씩 붙는 설계 — 가담자 수는 최대 인원이 아니라 이 확률이 묶는다)
++    const joinMul = tendency === 'gegenpress' && TENDENCY.gegenJoinMul > 0 ? TENDENCY.gegenJoinMul : 1;
++    const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a) * burstReady(a) * joinMul;
+     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
+   }
+   if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);
+diff --git a/src/engine/offball.ts b/src/engine/offball.ts
+index b114fd6..82989fe 100644
+--- a/src/engine/offball.ts
++++ b/src/engine/offball.ts
+@@ -1283,8 +1283,10 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+         .sort((x, y) => dist(x.x, x.y, owner.x, owner.y) - dist(y.x, y.y, owner.x, owner.y));
+       const m = mates[k - 1];
+       if (m) {
+-        a.tx = owner.x + (m.x - owner.x) * O.counterLane;
+-        a.ty = owner.y + (m.y - owner.y) * O.counterLane;
++        // 진단 스위치 (엔진관리자21 c79w): 게겐 성향은 가담자 2·3번이 패서 쪽(counterLane)이 아니라 수신자 쪽(gegenLane)에 붙는다 — 0 = 끔
++        const laneF = TENDENCY.gegenLane > 0 && tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenLane : O.counterLane;
++        a.tx = owner.x + (m.x - owner.x) * laneF;
++        a.ty = owner.y + (m.y - owner.y) * laneF;
+         a.urgent = true;
+         return;
+       }
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 8b8845d..c7de91d 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -144,7 +144,8 @@ export function laneRiskAt(s: SimState, team: 0 | 1, fx: number, fy: number, tx:
+     const [d, t] = segDist(o.x, o.y, fx, fy, tx, ty);
+     if (d >= PR.laneWidth || t <= 0.05) continue;
+     const prox = 1 - d / PR.laneWidth;
+-    const w = (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * prox;
++    let w = (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * prox;
++    if (PR.cpLaneAdd > 0) { const ot = s.teams[o.team]; if (s.t < ot.counterUntil && ot.counterPressers.includes(o.idx)) w *= 1 + PR.cpLaneAdd; }
+     risk += w;
+     cutters.push({ idx: o.idx, w, t });
+   }
+@@ -609,7 +610,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+   const DP = ENGINE.decide.possess;
+   // 공격 ⅓ 에서는 줄인다(zoneFrom → zoneTo 에서 0): 골 앞은 공을 지키기보다 위험을 감수하는 곳
+   // 전환 창 (C.79u): 오픈 플레이 탈취 뒤 winOff 초 안은 0 — 뺏은 직후는 전진(그 창의 짧은 패스가 상대 전환 기회를 지워 행을 옮겼다, 진단 c79u)
+-  const possK = DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff ? 0
++  const oppTmP = s.teams[a.team === 0 ? 1 : 0];
++  const cpNow = DP.cpOff > 0 && s.t < oppTmP.counterUntil && oppTmP.counterPressers.length > 0;
++  const possPassMul = DP.pressPass > 0 ? Math.max(0, 1 - DP.pressPass * pressureAt(s, a)) : 1;
++  const possK = (DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff) || cpNow ? 0
+     : DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5)) * (DP.zoneTo > DP.zoneFrom ? clamp((DP.zoneTo - ax) / (DP.zoneTo - DP.zoneFrom), 0, 1) : 1);
+ 
+   // 패스 / 침투 패스
+@@ -726,7 +730,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+     const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
+       && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open' ? ENGINE.decide.bias.directLong : 0;
+     // 점유 가치 (C.79m): 짧은 패스일수록(near m 안 1 → far m 에서 0) — 거리는 판단에 보이는 특징
+-    const possW = possK !== 0 ? possK * clamp((DP.far - d0) / Math.max(1e-6, DP.far - DP.near), 0, 1) : 0;
++    const possW = possK !== 0 ? possK * possPassMul * (DP.pressRecv > 0 ? Math.max(0, 1 - DP.pressRecv * rp) : 1) * clamp((DP.far - d0) / Math.max(1e-6, DP.far - DP.near), 0, 1) : 0;
+     u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj + possW * pj * (1 - pLoseR);
+     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
+     const gd = dist(tx, ty, gx0, gy0);
+diff --git a/src/engine/tactics.ts b/src/engine/tactics.ts
+index 9a08d8e..bb3f050 100644
+--- a/src/engine/tactics.ts
++++ b/src/engine/tactics.ts
+@@ -192,6 +192,10 @@ export const TENDENCY = {
+   /** 게겐프레싱: 역압박 +초, 최대 인원, 탈취 후 전진 패스·슛 효용 배수와 시간 */
+   gegenExtra: 1,
+   gegenMax: 3,
++  /** 진단 스위치 (엔진관리자21 c79w, 0 = 끔): 게겐 역압박 가담자 2·3번의 자리 = 소유자 → 가까운 동료 선분의 이 비율(counterLane 0.35 대신, 1 = 동료에 붙음) */
++  gegenLane: 0,
++  /** 진단 스위치 (엔진관리자21 c79w, 0 = 끔): 게겐 역압박 가담 확률 배수 */
++  gegenJoinMul: 0,
+   gegenWinMul: 1.08,
+   gegenWinTime: 4,
+   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
