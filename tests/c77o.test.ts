@@ -181,7 +181,7 @@ describe('C.77o 24.6 경기 후 하이라이트 3개', () => {
 
 describe(`C.77o 세이브 형식 ${SAVE_FORMAT_VERSION}`, () => {
   it('clips 저장 왕복, 옛 세이브(56)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77o-s', difficulty: 'normal' });
     const r: Replay = play(5);
     g.clips = withClips(g.clips, makeMatchClips(r, { season: 2018, round: 1, label: '1R' })!);

@@ -56,7 +56,9 @@ import { PHOTO_OF, randomNameFor, rollIdentity, type FacePhoto, type Race } from
 import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
-import { dayNum, npcAfterMatch, npcConditions, npcLines, pruneNpcFit, rosterLoadMul, rosterTendency, type NpcCond, type NpcFitMap } from './npcFit';
+import { engineCards, npcBanAfterMatch, quickCards, type NpcBanMap } from './npcBan';
+import { lineupLines } from './npcQuick';
+import { dayNum, npcAfterMatch, npcConditions, npcLines, pruneNpcFit, rosterLoadMul, rosterTendency, type NpcCond, type NpcFitMap, type NpcLine } from './npcFit';
 import { closeNpcLoadSeason, gegenSeasonDone, matchLoad, npcGegen, npcWear, seasonWear, wearAging, type NpcLoadMap } from './load';
 import type { Badge, FieldPlayerData, Injury, PlayerState, SeasonRecord, SeasonStats, Tier } from './types';
 import { PATCH_LABEL } from './version';
@@ -94,7 +96,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 58;
+export const SAVE_FORMAT_VERSION = 59;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -225,6 +227,8 @@ export interface GameState {
   leagueIds?: string[];
   /** NPC 피로·부상 (C.77m, SAVE_FORMAT_VERSION 55): 선수 id → [경기 뒤 피로, 날 번호, 복귀 날 번호]. 엔진으로 치른 경기만 쌓인다. 시즌이 바뀌면 비운다 */
   npcFit?: NpcFitMap;
+  /** NPC 출장 정지 (C.80a, SAVE_FORMAT_VERSION 59): 선수 id → [이번 시즌 리그 옐로 누적, 남은 정지 경기]. 리그 경기만. 시즌이 바뀌면 비운다 */
+  npcBan?: NpcBanMap;
   /** 시즌 누적 부하 (C.77n, SAVE_FORMAT_VERSION 56): 선수 id → [이번 시즌 부하, 지난 시즌까지 마모]. 내 리그 경기(엔진·컵 간이)만 쌓인다 */
   npcLoad?: NpcLoadMap;
   /** 고른 다른 리그 (빠른 시뮬, 리그별 순위·지난 시즌 기록). 없으면 내 리그만 */
@@ -904,7 +908,7 @@ export function otherJob(state: GameState, r: number, i: number): OtherJob {
   const home = state.rosters[f.home]!;
   const away = state.rosters[f.away]!;
   // NPC 피로·부상 (C.77m): 경기 날 아침 컨디션 (미리 계산 키에 들어가므로 그날 값으로)
-  const npc = npcConditions(state.npcFit, [home, away], dayNum(date));
+  const npc = npcConditions(state.npcFit, [home, away], dayNum(date), state.npcBan);
   return {
     r, i,
     input: {
@@ -976,6 +980,29 @@ export function applyOther(state: GameState, r: number, i: number, res: NpcMatch
   // NPC 피로·부상 (C.77m): 경기 뒤 거리 비례 피로·부상 판정 (otherJob 과 같은 시드)
   const date = calendarOf(state).fixtureDates[r]![i]!;
   npcAfterMatch((state.npcFit ??= {}), [state.rosters[f.home]!, state.rosters[f.away]!], npcLines(res), dayNum(date), state.worldSeed, hashSeed(`${state.worldSeed}:other:${state.league.season}:${r}:${i}`), (state.npcLoad ??= {}));
+  // NPC 출장 정지 (C.80a): 엔진 카드
+  npcBanAfterMatch((state.npcBan ??= {}), [state.rosters[f.home]!, state.rosters[f.away]!], engineCards(res));
+}
+
+/** 빠른 경기 출전 명단 캐시 (C.80a): 같은 로스터·같은 컨디션이면 명단이 같다 (밸런스 시뮬 시간) */
+const QUICK_LINEUP = new WeakMap<TeamRoster, { key: string; lines: NpcLine[] }>();
+function quickLineup(roster: TeamRoster, cond: NpcCond | undefined): NpcLine[] {
+  const key = `${roster.players.map((p) => p.id).join()}|${cond ? JSON.stringify(cond) : ''}`;
+  const hit = QUICK_LINEUP.get(roster);
+  if (hit?.key === key) return hit.lines;
+  const lines = lineupLines(roster, cond);
+  QUICK_LINEUP.set(roster, { key, lines });
+  return lines;
+}
+
+/**
+ * 빠른 경기(엔진 없음) 리그 경기의 NPC 카드·출장 정지 (C.80a): 그날 컨디션(부상·정지 결장)으로 출전 명단을 뽑아 카드를 굴린다.
+ * 스코어·피로와 무관 (명단은 카드 굴림에만 쓴다)
+ */
+function quickLeagueBans(state: GameState, rosters: readonly TeamRoster[], date: IsoDate, matchSeed: number): void {
+  if (!BALANCE.discipline.npc.on) return;
+  const cards = rosters.flatMap((ro) => quickCards(ro, quickLineup(ro, npcConditions(state.npcFit, [ro], dayNum(date), state.npcBan)), state.worldSeed, matchSeed));
+  npcBanAfterMatch((state.npcBan ??= {}), rosters, cards);
 }
 
 /**
@@ -992,6 +1019,9 @@ export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
       const f = state.league.schedule[r]![i]!;
       const [hg, ag] = simulateScore(rngFor(state.worldSeed, 'other', state.league.season, r, i), teamById(state.league, f.home).rating, teamById(state.league, f.away).rating);
       recordResult(state.league, f, hg, ag);
+      const home = state.rosters[f.home];
+      const away = state.rosters[f.away];
+      if (home && away) quickLeagueBans(state, [home, away], state.calendar.date, hashSeed(`${state.worldSeed}:other:${state.league.season}:${r}:${i}`));
     }
   }
 }
@@ -1637,16 +1667,16 @@ export function roundMatch(state: GameState, opts: { cards?: boolean } = {}): Ro
     ...envField(env),
     ...(rapport ? { rapport } : {}),
     // NPC 피로·부상 (C.77m): 동료·상대 경기 날 아침 컨디션
-    ...npcCondField(state, [state.rosters[player.teamId]!, oppRoster], myMatchDate(state) ?? state.calendar.date),
+    ...npcCondField(state, [state.rosters[player.teamId]!, oppRoster], myMatchDate(state) ?? state.calendar.date, !fx.cup),
     // 감독 기용 성향 (C.79i): 동료·상대 선발 점수
     ...coachStylesField(state, player.teamId, opp.id),
   };
   return { input, plan, preInjury, teams: fx.home ? [myTeam.nameKo, opp.nameKo] : [opp.nameKo, myTeam.nameKo], cond: env };
 }
 
-/** NPC 피로·부상 (C.77m): 내 경기 동료·상대의 그날 아침 컨디션. 없으면 붙이지 않는다 */
-function npcCondField(state: GameState, rosters: TeamRoster[], date: IsoDate): { npcCond?: NpcCond } {
-  const c = npcConditions(state.npcFit, rosters, dayNum(date));
+/** NPC 피로·부상 (C.77m): 내 경기 동료·상대의 그날 아침 컨디션. 없으면 붙이지 않는다. 리그 경기면 출장 정지도 결장 (C.80a) */
+function npcCondField(state: GameState, rosters: TeamRoster[], date: IsoDate, league = false): { npcCond?: NpcCond } {
+  const c = npcConditions(state.npcFit, rosters, dayNum(date), league ? state.npcBan : undefined);
   return c ? { npcCond: c } : {};
 }
 
@@ -1767,7 +1797,15 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     const sum = summarize(engineOut.engine);
     if (sum.goals.length) myFx.g = sum.goals;
     addPlayerLines(state, sum);
-    if (rm) npcAfterMyMatch(state, rm.input, sum);
+    if (rm) {
+      npcAfterMyMatch(state, rm.input, sum);
+      // NPC 출장 정지 (C.80a): 동료·상대 엔진 카드
+      npcBanAfterMatch((state.npcBan ??= {}), [rm.input.myRoster, rm.input.oppRoster], engineCards(sum));
+    }
+  } else {
+    const mine = state.rosters[player.teamId];
+    const oppR = state.rosters[opp.id];
+    if (mine && oppR) quickLeagueBans(state, [mine, oppR], state.calendar.date, hashSeed(`${seed}:engine:${league.season}:${roundIdx}`));
   }
 
   // 기록, XP, 피로
@@ -2638,6 +2676,7 @@ export function startNextSeason(state: GameState): void {
   state.player.fatigue = 0;
   // NPC 피로·부상 (C.77m): 비시즌에 모두 회복 (시즌 넘는 부상은 이번 범위 밖 — 내 선수 비시즌 회복 offseasonWeeks 와 같은 쪽)
   delete state.npcFit;
+  delete state.npcBan;
   healDays(state.player, BALANCE.injury.offseasonWeeks * 7);
   state.calendar = { date: campDate(state) };
   // 다른 리그 (C.75m): 비시즌 동안 치른 경기 · 새 시즌

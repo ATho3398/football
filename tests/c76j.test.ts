@@ -97,6 +97,6 @@ describe('208 · 210 · 211 · 212 · 224', () => {
   });
 
   it('PATCH_LABEL', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.7\d/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
   });
 });

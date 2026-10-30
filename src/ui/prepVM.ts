@@ -6,6 +6,7 @@ import { dateLabel } from '../calendar';
 import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
 import { derbyOf } from '../derby';
+import { npcBanLeft } from '../npcBan';
 import { formLevel } from '../form';
 import { isNeutralMatch, matchCompLabel, myMatchPosition, myStartChance, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
 import { ensureNational, natId } from '../national';
@@ -62,6 +63,8 @@ export interface PrepVM {
   scout: ScoutReport | null;
   /** 대회 배지 (C.76j 디자인 212): 컵·챔스 경기면 "챔피언스리그 · 조별 1차전" */
   cupBadge: string | null;
+  /** 상대 출장 정지 선수 (C.80a, 리그 경기만): "이름 (포지션)" */
+  oppBans: string[];
 }
 
 /** 전술 세부 짧은 이름 (디자인 156 "라인 높음 · 압박 높음 · 빌드업 혼합") */
@@ -133,5 +136,6 @@ export function prepVM(g: GameState): PrepVM | null {
     control: g.control,
     quick: !!g.options.quickOthers,
     scout: myScoutReport(g),
+    oppBans: fx.cup || fx.nat ? [] : (g.rosters[opp.id]?.players ?? []).filter((x) => npcBanLeft(g.npcBan, x.id) > 0).map((x) => `${x.nameKo} (${x.position})`),
   };
 }

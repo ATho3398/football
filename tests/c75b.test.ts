@@ -139,7 +139,7 @@ describe('C.75b 워커 풀', () => {
 
   it('버전: C.75b · 44단계 · 엔진 23 그대로', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.7[5-9]/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     const { ENGINE_VERSION } = await import('../src/engine/config');
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(23);
