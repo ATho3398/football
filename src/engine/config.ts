@@ -1224,6 +1224,7 @@ export const ENGINE = {
     /**
      * 박스 밖 땅볼 롱패스 수신 경합 (C.80g, 엔진관리자24 ②-1): 1 이면 박스 밖이라도 contestOutFrom m 이상 땅볼 패스의 착지 때
      * contestOutDist m 안 상대 필드 선수와 receiveWin 경합(박스 안과 같은 식·같은 결과). 판단(candidates)과 판정(resolveFlight)이 같은 식. 0 = 옛 동작.
+     * 전환 창 면제 (AD 재처방): 오픈 플레이 탈취 뒤 decide.possess.winOff 초(C.80f 티키 감점 면제와 같은 창, onball transitionWindow) 안에 찬 패스는 경합 없음 — 점유 빌드업 롱패스에만.
      * contestOutDist 처방 3 m → 2.5 m: 3 m 는 이동 거리 테스트(76:74 시드 11~30) 경기별 최다 평균 14.25 km · 한 선수 15.37 km 로 가드(14.1 · 15) 밖, 2.5 m 14.02 · 14.83
      */
     contestOut: 1,

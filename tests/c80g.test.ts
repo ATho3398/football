@@ -4,6 +4,7 @@ import { ENGINE } from '../src/engine/config';
 import { aerialWin, receiveWin } from '../src/engine/duel';
 import { teamSetupFromRoster } from '../src/engine/setup';
 import { createMatch } from '../src/engine/sim';
+import { transitionWindow } from '../src/engine/onball';
 import type { Agent } from '../src/engine/state';
 import { createTeamRoster } from '../src/roster';
 import { PATCH_LABEL } from '../src/version';
@@ -38,5 +39,20 @@ describe('C.80g 땅볼 롱패스 수신 경합', () => {
     const def = s.agents.find((a) => a.team === 1 && a.line > 0)!;
     expect(aerialWin(rc, def, 0, ENGINE.prob.airContestBias)).toBeGreaterThan(aerialWin(rc, def));
     expect(aerialWin(rc, def, 0, 0)).toBe(aerialWin(rc, def));
+  });
+
+  it('전환 창(오픈 플레이 탈취 뒤 winOff 초) 안 패스만 경합 면제', () => {
+    const s = state();
+    const a = s.agents.find((x) => x.team === 0 && x.line > 0)!;
+    s.possTeam = 0;
+    s.possOrigin = 'open';
+    s.t = 600;
+    s.teams[0].wonAt = 598;
+    expect(transitionWindow(s, a)).toBe(true);
+    s.teams[0].wonAt = 600 - ENGINE.decide.possess.winOff - 1;
+    expect(transitionWindow(s, a)).toBe(false);
+    s.teams[0].wonAt = 598;
+    s.possOrigin = 'setpiece' as typeof s.possOrigin;
+    expect(transitionWindow(s, a)).toBe(false);
   });
 });

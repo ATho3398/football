@@ -173,6 +173,8 @@ export interface Flight {
   through?: boolean;
   /** 노린 패스 거리 m (측정용, C.31) */
   aimD?: number;
+  /** 전환 창 패스 (C.80g): 박스 밖 땅볼 롱패스 수신 경합(contestOut) 면제 — 찰 때 정한다 (onball transitionWindow) */
+  transition?: boolean;
   /** 컷백/레이오프: 받는 선수가 반응 시간만에 다음 결정 (원터치, E.18 A2) */
   quick?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */

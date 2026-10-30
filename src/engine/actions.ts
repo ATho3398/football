@@ -929,9 +929,9 @@ export function resolveFlight(s: SimState): void {
           }
         } else {
           // 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B): contestDist 안 수비수가 있으면 받는 선수와 듀얼. 지면 수비 소유(tackleKeep) 또는 루즈볼
-          // 박스 밖 땅볼 롱패스 (C.80g ②-1): contestOutFrom m 이상이면 contestOutDist 안 수비수와 같은 경합
+          // 박스 밖 땅볼 롱패스 (C.80g ②-1): contestOutFrom m 이상이면 contestOutDist 안 수비수와 같은 경합. 전환 창 패스(fl.transition)는 면제
           const inBox = inOppBox(b.x, b.y, attackDir(rc.team, s.half));
-          const cd = inBox ? PR.contestDist : PR.contestOut > 0 && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) >= PR.contestOutFrom ? PR.contestOutDist : 0;
+          const cd = inBox ? PR.contestDist : PR.contestOut > 0 && !fl.transition && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) >= PR.contestOutFrom ? PR.contestOutDist : 0;
           const [def, dd] = cd > 0 ? nearestOppOf(s, rc) : [null, Infinity];
           if (def && dd < cd && r(s, rc.idx, Purpose.Control, 3) >= receiveWin(rc, def)) {
             def.stats.tackles++;
