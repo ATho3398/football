@@ -9,6 +9,7 @@
 2. 그 밑에 **작지만 실제인 행 이전(transfer)** 이 있다: 점유 가치를 받은 4성향(균형·티키·게겐·역습) 합 +0.11, 못 받은 3(직선·블록·버스) 합 −0.11 — 1·3·4차 모두 같은 부호(세 행 9/9 음수), 성향당 +0.03 / −0.04. 기제는 §2(탐침). 이 패턴의 참값이면 480 대 480 통과 확률 **4%**, 960 대 960 이어도 14%.
 3. 처방은 두 겹: **(A) 측정·판정 규칙**(960 두 시드 평균, SE 안 초과는 미달 아님, 칸·순환은 기록만) + **(B) 조건 = 오픈 플레이 탈취 뒤 6초 전환 창에서 점유 가치 끄기(`decide.possess.winOff` 6, 전 성향) + 값 ×1.25**(K1b, §4). 이전의 대부분이 그 6초 창(점유 가치 받은 팀이 뺏은 직후 짧게 지키며 상대의 전환 기회를 없앰)에서 나기 때문: 4칸 320 비점유 득실차 Δ 4차 −0.20 → K1b **−0.07**, 짧은 패스 성향 평균 **16.6 ✓**(티키 26.9 · 직선 12.0 · 블록 11.2 그대로). (A) 만으로 4차 설정 통과 확률 약 15%, (A)+(B) **약 70%**, 행 관문 ±0.08 이면 90%.
 4. 기각: 직선·블록 소량 0.004(직선 짧은 패스 +1%p ✗) · 직선·블록 보상 짝(이전 −0.12, 약함) · 자기 진영 한정·압박 비례(짧은 패스 15.0~15.6 ✗) · 목표 15%로 낮추기(얻는 것은 값 ×1.0 복귀뿐, §5).
+5. 덧붙임(AD 추가 요청) C.79t 게겐>티키 미달: **게겐 성향 팀만 Keep·복귀 조깅 제외**(`offball.lineMatchKeepSkip` 비트 1)로 +0.03 → +0.17(main +0.18, 두 시드) — 역압박 창 조건은 효과 0. §7.
 
 ## 1. 측정 잡음 — 관문이 얼마나 빡빡한가
 저장된 480 상성 json(`scripts/diag/c79k-main-matrix.json`·`c79f-main`·`c79e-main`·`c79g-main-lm0`)에서 직접 계산:
@@ -150,6 +151,7 @@
 - 분해 탐침: `npx vite-node scripts/diag/c79u-probe.ts -- 160 [P4]`(6칸 × 160, 12분/4코어) · `only=A/B,…` · `seed=`.
 - 짧은 패스: `npx vite-node scripts/diag/c79m-short.ts -- 120 [P4 …]`(성향 대 균형 120, 0~10 m · 롱% · 점유 · 득실).
 - 지문: `npx vite-node scripts/c74a-fingerprint.ts` → 3080459e3e957ce8(main 과 같음).
+- C.79t 조건(§7): C.79t 브랜치 1a4e4b3 위 `git apply scripts/diag/c79u-c79t-keepskip.patch` → `npx vite-node scripts/diag/c78s-matrix.ts -- 320 only=gegenpress/tikitaka seed=41000 offball.lineMatchKeepSkip=1 out=…`(시드 51000 도) — 320 × 2 = 4코어 3분.
 
 ## 7. 덧붙임 — C.79t(Keep 0.3 + 복귀 조깅) 게겐>티키 칸 조건 탐침 (AD 08:27 추가 요청)
 C.79t(`origin/claude/c79t-linematch-keep` 1a4e4b3)는 새 규칙에서 **게겐>티키 +0.18 → +0.03**(두 시드 다 하락) 하나로 미배포. 가설(C.79t): 게겐이 티키를 수비할 때 줄 2 가 Keep 으로 더 오래 내려와 역압박 인원이 줄어든다. C.79t 워크트리에 스위치 `offball.lineMatchKeepSkip`(기본 0, 비트 1 = 게겐 성향 팀은 Keep·복귀 조깅 안 씀 · 비트 2 = 우리 역압박 창(counterUntil 안, 가담자 있음)에서는 Keep 안 씀) — 패치 `scripts/diag/c79u-c79t-keepskip.patch`(C.79t 1a4e4b3 위). 게겐/티키 칸 320 × 시드 41000·51000(`c78s-matrix.ts -- 320 only=gegenpress/tikitaka seed=… offball.lineMatchKeepSkip=…`, json `scripts/diag/c79u-t-skip*-s*.json`):
