@@ -9,6 +9,7 @@ import { bmiOf, FOOT_KO } from '../body';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
 import { futureDebut, LEGEND_BY_ID } from '../legends';
 import { derbyOf } from '../derby';
+import { npcBanLeft } from '../npcBan';
 import { DETAILS, LEVEL_NAMES_KO, tendencyLevels, TENDENCY_NAMES_KO, type Detail } from '../engine/tactics';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { npcStanding } from '../worldStats';
@@ -48,7 +49,7 @@ export interface TeamDetailVM {
   /** 베스트 11 (로스터 자동 선발과 같은 규칙) */
   slots: FormationSlotProps[];
   squad: SquadGroupVM[]; squadSize: number;
-  /** 주요 선수: OVR 상위 3 + 팀 득점 1위 */
+  /** 주요 선수: OVR 상위 3 + 팀 득점 1위 + 출장 정지 선수 (C.80a) */
   key: (SquadRowVM & { note: string })[];
   matches: TeamMatchVM[];
   finance: { budget: string; wages: string };
@@ -114,6 +115,16 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
     .filter((x) => x.goals > 0).sort((a, b) => b.goals - a.goals)[0];
   const top = rows.filter((r) => !r.me).slice(0, 3).map((r) => ({ ...r, note: `OVR ${r.ovr}` }));
   const key = scorer && !top.some((t) => t.id === scorer.p.id) ? [...top, { ...rowOf(scorer.p), note: `팀 득점 1위 · ${scorer.goals}골` }] : top.map((t) => (scorer && t.id === scorer.p.id ? { ...t, note: `OVR ${t.ovr} · 팀 득점 1위 ${scorer.goals}골` } : t));
+  // 출장 정지 (C.80a): 주요 선수 칸에 이어 붙이고(이미 있으면 메모만 덧붙임), 메모 = 남은 경기 · 리그 옐로 누적
+  for (const p of players) {
+    const left = npcBanLeft(g.npcBan, p.id);
+    if (left <= 0) continue;
+    const b = g.npcBan![p.id]!;
+    const note = `출장 정지 ${left}경기 · 옐로 ${b[0]}장${b[2] ? ` · 퇴장 ${b[2]}` : ''}`;
+    const k = key.find((x) => x.id === p.id);
+    if (k) k.note = `${k.note} · ${note}`;
+    else key.push({ ...rowOf(p), note });
+  }
   const ratings = [...L.teams].sort((a, b) => b.rating - a.rating);
   const all = teamMatches(g, teamId);
   const d = mine ? null : derbyOf(g.player.teamId, teamId);

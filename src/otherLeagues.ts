@@ -10,6 +10,7 @@ import { createRng, hashSeed, type Rng } from './rng';
 import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
+import { engineCards, npcBanAfterMatch, type NpcBanMap } from './npcBan';
 import { dayNum, npcAfterMatch, npcConditions, npcLines, type NpcFitMap } from './npcFit';
 import { coachStylesField } from './club';
 import { envField, matchConditions } from './matchEnv';
@@ -135,7 +136,7 @@ function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: stri
 export interface OtherLeagueJob { lg: string; season: number; r: number; i: number; input: NpcMatchInput }
 
 /** 그날(date) 열리는 다른 리그 경기 중 아직 결과가 없는 것의 엔진 입력 (리그 순서 · 라운드 · 경기 순) */
-export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: OtherLeague[]; npcs?: readonly NpcState[]; npcFit?: NpcFitMap }, date: IsoDate): OtherLeagueJob[] {
+export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: OtherLeague[]; npcs?: readonly NpcState[]; npcFit?: NpcFitMap; npcBan?: NpcBanMap }, date: IsoDate): OtherLeagueJob[] {
   const out: OtherLeagueJob[] = [];
   for (const lg of state.otherLeagues ?? []) {
     if (lg.round >= lg.schedule.length) continue;
@@ -150,8 +151,8 @@ export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: Other
         const ar = teamById(lg, f.away).rating;
         const home = leagueTeamRoster(state.worldSeed, f.home, hr, lg.season, state.npcs);
         const away = leagueTeamRoster(state.worldSeed, f.away, ar, lg.season, state.npcs);
-        // NPC 피로·부상 (C.77m): 경기 날 아침 컨디션
-        const cond = npcConditions(state.npcFit, [home, away], dayNum(date));
+        // NPC 피로·부상 (C.77m): 경기 날 아침 컨디션 · 출장 정지 결장 (C.80a)
+        const cond = npcConditions(state.npcFit, [home, away], dayNum(date), state.npcBan);
         out.push({
           lg: lg.id, season: lg.season, r, i,
           input: {
@@ -169,7 +170,7 @@ export function otherLeagueJobs(state: { worldSeed: string; otherLeagues?: Other
 }
 
 /** 엔진 결과를 그 리그에 기록한다: 순위표 · 선수 기록 (골·도움·출전·평점·분). 이미 결과가 있으면 그대로 */
-export function applyOtherLeagueJob(state: { worldSeed?: string; otherLeagues?: OtherLeague[]; npcFit?: NpcFitMap }, job: Pick<OtherLeagueJob, 'lg' | 'season' | 'r' | 'i' | 'input'>, res: NpcMatchResult): void {
+export function applyOtherLeagueJob(state: { worldSeed?: string; otherLeagues?: OtherLeague[]; npcFit?: NpcFitMap; npcBan?: NpcBanMap }, job: Pick<OtherLeagueJob, 'lg' | 'season' | 'r' | 'i' | 'input'>, res: NpcMatchResult): void {
   const lg = state.otherLeagues?.find((o) => o.id === job.lg && o.season === job.season);
   const f = lg?.schedule[job.r]?.[job.i];
   if (!lg || !f || f.homeGoals !== undefined) return;
@@ -179,6 +180,8 @@ export function applyOtherLeagueJob(state: { worldSeed?: string; otherLeagues?: 
     const date = otherLeagueCalendar(state.worldSeed, lg).fixtureDates[job.r]![job.i]!;
     npcAfterMatch((state.npcFit ??= {}), [job.input.home, job.input.away], npcLines(res), dayNum(date), state.worldSeed, job.input.seed);
   }
+  // NPC 출장 정지 (C.80a): 엔진 카드 (빠른 계산 syncOtherLeagues 경로는 카드 없음)
+  npcBanAfterMatch((state.npcBan ??= {}), [job.input.home, job.input.away], engineCards(res));
   const stats = (lg.stats ??= {});
   const names = (lg.names ??= {});
   const who = new Map<string, [string, string]>([

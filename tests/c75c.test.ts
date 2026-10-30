@@ -99,7 +99,7 @@ describe('C.75c 수비 계획 (44c-a)', () => {
 
   it('버전: C.75c · 44단계 · 엔진 24', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.7[5-9]/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     const { ENGINE_VERSION } = await import('../src/engine/config');
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(24);
