@@ -666,11 +666,15 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     let aerial = 1;
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.longContest) aerial = aerialWin(r, def);
-    } else if (inOppBox(tx, ty, dir)) {
+      if (def && dd < PR.longContest + PR.airContestFar) aerial = aerialWin(r, def, dd < PR.longContest ? 0 : PR.airContestBias);
+    } else {
       // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
-      const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.contestDist) aerial = receiveWin(r, def);
+      // 박스 밖 땅볼 롱패스 (C.80g ②-1): contestOutFrom m 이상이면 contestOutDist 안 수비수와 같은 경합
+      const cd = inOppBox(tx, ty, dir) ? PR.contestDist : PR.contestOut > 0 && dist(a.x, a.y, tx, ty) >= PR.contestOutFrom ? PR.contestOutDist : 0;
+      if (cd > 0) {
+        const [def, dd] = nearestOutfield(s, r, tx, ty);
+        if (def && dd < cd) aerial = receiveWin(r, def);
+      }
     }
     const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);
