@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 67;
+export const ENGINE_VERSION = 68;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -998,11 +998,14 @@ export const ENGINE = {
        * C.80f: 티키 롱패스 감점 (사용자 2026-10-30 "짧은 패스는 조금 더 높게 주고 롱 패스에 조금 감점") — 티키타카 성향 패서의 tikiLongFrom m 넘는 패스 효용에서
        * tikiLong × 거리 가중(tikiLongFrom m 0 → tikiLongTo m 에서 1)을 뺀다. 판단 효용에만(실행 불변). 감점 안 함: 오픈 플레이 탈취 뒤 decide.possess.winOff 초 안(전환),
        * 역습 보너스가 걸린 상황, 판단 성공 확률 tikiLongShortP 이상인 tikiLongFrom m 안 패스 후보가 없을 때(압박 탈출). 0 = 끔
+       * C.80h (사용자 2026-10-30 "티키 그냥 긴 패스 점수 확 낮춰버려"): 0.05 → 0.25, 전환·역습은 면제 대신 tikiLongSoft 배(압박 탈출만 면제)
        */
-      tikiLong: 0.05,
+      tikiLong: 0.25,
       tikiLongFrom: 20,
       tikiLongTo: 30,
       tikiLongShortP: 0.75,
+      /** C.80h: 전환(winOff 초 안)·역습 보너스 상황의 감점 배수(완전 면제 대신). 압박 탈출(짧은 출구 없음)만 면제 */
+      tikiLongSoft: 0.5,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

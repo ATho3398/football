@@ -637,7 +637,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
 
   // 티키 롱패스 감점 (C.80f): 감점 후보와 짧은 출구(판단 성공 확률 tikiLongShortP 이상) 유무 — 패스 루프 뒤에 뺀다
   const DB = ENGINE.decide.bias;
-  const tikiLongOn = DB.tikiLong > 0 && tac.tendency === 'tikitaka' && counterK === 0 && !(DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff);
+  // C.80h: 전환(winOff)·역습 보너스 상황은 면제 대신 tikiLongSoft 배 감점
+  const tikiLongOn = DB.tikiLong > 0 && tac.tendency === 'tikitaka';
+  const tikiLongK = counterK !== 0 || (DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff) ? DB.tikiLongSoft : 1;
   const tikiLongs: { c: Candidate; pen: number }[] = [];
   let tikiShort = false;
 
@@ -763,7 +765,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const type = cutback ? 'cutback' : running ? 'through' : 'pass';
     out.push({ type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
     if (tikiLongOn) {
-      if (d0 > DB.tikiLongFrom) tikiLongs.push({ c: out[out.length - 1]!, pen: DB.tikiLong * clamp((d0 - DB.tikiLongFrom) / Math.max(1e-6, DB.tikiLongTo - DB.tikiLongFrom), 0, 1) });
+      if (d0 > DB.tikiLongFrom) tikiLongs.push({ c: out[out.length - 1]!, pen: DB.tikiLong * tikiLongK * clamp((d0 - DB.tikiLongFrom) / Math.max(1e-6, DB.tikiLongTo - DB.tikiLongFrom), 0, 1) });
       else if (pj >= DB.tikiLongShortP) tikiShort = true;
     }
     if (ot) {
