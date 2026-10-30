@@ -15,12 +15,15 @@ import type { Tendency } from '../../src/engine/types';
 
 const all = process.argv.slice(2).filter((a) => a !== '--');
 let n = 200, d = 10;
-let profile = 'c78s'; // C.79f: profile=c79d 면 직선 프로필을 C.79d 정의(빌드업 보통 + 전환 롱볼, 받는 쪽 퍼스트 터치·피지컬·공중)로
+let profile = 'c78s';
+let comp = 'all'; // 엔진관리자19: comp=nofinish 면 나머지 −δ 보상에서 마무리·공격 능력치(슈팅·중거리·침착·빅매치·프리킥·드리블·오프더볼)를 뺀다 (선수빨 측정이 마무리 능력을 깎지 않게)
+const NOFINISH = new Set(['shooting', 'longShots', 'composure', 'bigMatch', 'freeKick', 'dribbling', 'offTheBall']); // C.79f: profile=c79d 면 직선 프로필을 C.79d 정의(빌드업 보통 + 전환 롱볼, 받는 쪽 퍼스트 터치·피지컬·공중)로
 const overrides: Record<string, number> = {}; // C.79c: 경로=값 상수 덮어쓰기 (c78s-matrix 와 같은 표기)
 const tends: Tendency[] = [];
 for (const a of all) {
   if (a.startsWith('d=')) d = Number(a.slice(2));
   else if (a.startsWith('profile=')) profile = a.slice(8);
+  else if (a.startsWith('comp=')) comp = a.slice(5);
   else if (a.includes('=')) { const [k, v] = a.split('='); overrides[k!] = Number(v); }
   else if (/^\d+$/.test(a)) n = Number(a);
   else tends.push(a as Tendency);
@@ -60,7 +63,7 @@ function fitMods(team: 0 | 1, side: string, seed: number, rating: number, tend: 
     const next = { ...p.attrs };
     let dF = 0;
     for (const k of F) { const v = Math.max(1, Math.min(99, next[k] + sign * d)); dF += attributeOvrWeight(fp, k) * (v - next[k]); next[k] = v; }
-    const O = FIELD_ATTRIBUTES.filter((k) => !F.includes(k) && attributeOvrWeight(fp, k) > 0);
+    const O = FIELD_ATTRIBUTES.filter((k) => !F.includes(k) && attributeOvrWeight(fp, k) > 0 && (comp !== 'nofinish' || !NOFINISH.has(k)));
     // 나머지를 같은 양만큼 반대로 (경계에 걸리면 두세 번 나눠 맞춘다)
     for (let it = 0; it < 4 && Math.abs(dF) > 1e-6; it++) {
       const free = O.filter((k) => (dF > 0 ? next[k] > 1 : next[k] < 99));
@@ -75,6 +78,23 @@ function fitMods(team: 0 | 1, side: string, seed: number, rating: number, tend: 
   return mods;
 }
 const devs: number[] = [];
+// 엔진관리자19: MODS=1 이면 경기 없이 포지션군별 능력치 변화(맞음 +d 의 나머지 −δ)만 출력한다 — 시드 51000 한 팀
+if (process.env.MODS) {
+  const sumBy: Record<string, Record<string, number[]>> = {};
+  const roster = createTeamRoster({ id: 'va51000', rating: 75 }, 'eng-a-75-51000', 2018, []);
+  roster.formation = '4-4-2';
+  const setup = teamSetupFromRoster(roster, rosterRating(roster), 75, 'w51000');
+  const slots = FORMATION_SLOTS['4-4-2'];
+  const mods = fitMods(0, 'a', 51000, 75, tends[0]!, 1, []);
+  for (const m of mods) {
+    const pos = slots[m.slot]!.pos; const g = grp(pos);
+    for (const k of m.attrs) { (sumBy[g] ??= {})[k] ??= []; sumBy[g]![k]!.push(m.delta); }
+  }
+  for (const g of Object.keys(sumBy)) console.log(`${g}: ` + Object.entries(sumBy[g]!).map(([k, v]) => `${k} ${(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1)}`).join(' · '));
+  const st = setup.lineup.filter((p) => slots[p.slot]!.pos === 'ST').map((p) => `슈팅 ${p.attrs.shooting} 침착 ${p.attrs.composure} 볼컨 ${p.attrs.ballControl} 헤더 ${p.attrs.heading}`);
+  console.log('ST 원래 능력치: ' + st.join(' / '));
+  process.exit(0);
+}
 type Set_ = { tend: string; tac: string; sign: 1 | -1 };
 const sets: Set_[] = tends.flatMap((t) => [{ tend: t, tac: t, sign: 1 }, { tend: t, tac: t, sign: -1 }, { tend: t, tac: 'balanced', sign: 1 }, { tend: t, tac: 'balanced', sign: -1 }] as Set_[]);
 const jobs: MatchJob[] = [];
@@ -94,7 +114,7 @@ const gd = sets.map((_, i) => {
   return { v, gf, mean: v.reduce((a, b) => a + b, 0) / n };
 });
 const se = (a: number[], b: number[]) => { const dd = a.map((x, i) => x - b[i]!); const m = dd.reduce((s, x) => s + x, 0) / dd.length; return Math.sqrt(dd.reduce((s, x) => s + (x - m) ** 2, 0) / dd.length / dd.length); };
-console.log(`\n적합도 d=${d} 프로필 ${profile}, ${n}경기씩, 75 대 75 균형, OVR 변화 최대 |${Math.max(...devs.map(Math.abs)).toFixed(3)}|`);
+console.log(`\n적합도 d=${d} 프로필 ${profile} 보상 ${comp}, ${n}경기씩, 75 대 75 균형, OVR 변화 최대 |${Math.max(...devs.map(Math.abs)).toFixed(3)}|`);
 console.log('| 성향 | X 맞음 득실 | X 안 맞음 | X 차 (±SE) | 균형 맞음_X | 균형 안 맞음_X | 균형 차 | 선수빨(차의 차) | X 맞음 득점 |');
 tends.forEach((t, i) => {
   const [a, b, c, e] = [gd[4 * i]!, gd[4 * i + 1]!, gd[4 * i + 2]!, gd[4 * i + 3]!];

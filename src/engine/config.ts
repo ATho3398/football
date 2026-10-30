@@ -343,6 +343,12 @@ export const ENGINE = {
     supportPressDist: 6,
     /** 침투 확률(오프더볼 갱신마다) = run × 공격 위치선정/100 × runChance */
     runChance: 0.035,
+    /**
+     * C.79r (엔진관리자19 D1): 직선 성향 팀의 타깃 ST 1명(헤딩+근력 최고, onball targetForward 와 같은 선수)은 우리 공이 우리 진영(공 x < directHoldX)에 있는 동안
+     * 내려오지 않고 오프사이드 라인 끝(침투가 아닐 때의 라인 자리)에 붙어 선다 — 내려와 받기·지원 간격·공 요구·받으러 나오기·빈 공간·자리 교환을 건너뛴다(침투 판정·오프사이드 규칙 그대로). 0 = 끔
+     */
+    directHoldLine: 1,
+    directHoldX: 0.5,
     /** 침투 확률에 곱하는 속도 보정 = 1 + runPace × (속도 − 70)/100 (빠를수록 뒷공간을 더 노린다) */
     runPace: 2.5,
     runSeconds: 3,
@@ -994,6 +1000,12 @@ export const ENGINE = {
        * 빌드업 '직선' 배수(모든 롱볼 선호, 직선 성향 기본 단계에서 뺌) 대신 전환 상황부 선호. 0 = 끔
        */
       directLong: 0.1,
+      /**
+       * C.79r (엔진관리자19 D1): directLong 을 받는 선수가 침투 중(running)이고 목표점이 오프사이드 라인 directLongLine m 안~뒤인 공중 패스(라인 뒤 침투)에만 준다.
+       * 내려온 ST 발밑 공중 패스(라인 앞 9 m 수신)는 보정 없음. 0 = 옛 조건(모든 공중 전진 패스)
+       */
+      directLongBehind: 1,
+      directLongLine: 1,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

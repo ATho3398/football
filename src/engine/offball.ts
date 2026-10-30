@@ -665,6 +665,11 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   } else if (a.line >= 2) {
     nx = Math.min(nx, line - 1 / L + a.errX * sigma);
+    // 직선 타깃 ST 라인 붙박이 (C.79r): 우리 진영 빌드업 동안 내려오지 않고 라인 끝에서 뒷공간을 노린다
+    if (O.directHoldLine > 0 && owner && owner.team === a.team && owner !== a && bnx < O.directHoldX && holdLineForward(s, a)) {
+      setTarget(a, line - 1 / L + a.errX * sigma, ny, dir, false);
+      return;
+    }
   }
   // 공이 상대 최종 3분의 1 측면 (E.18 A2): 2선 늦은 침투(컷백 존), 세컨드 볼 담당, ST 니어/파 포스트
   const third = owner && owner.team === a.team && owner !== a && bnx >= O.lateRunFromX;
@@ -799,6 +804,17 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   void bny;
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/** 직선 성향 팀의 타깃 ST (C.79r, onball targetForward 와 같은 선택: 최전방 줄에서 헤딩+근력 최고) 이면 true */
+function holdLineForward(s: SimState, a: Agent): boolean {
+  if (a.line !== 3 || s.teams[a.team].tactics.tendency !== 'direct') return false;
+  let best: Agent | null = null;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== a.team || o.line !== 3) continue;
+    if (!best || o.attrs.heading + o.attrs.strength > best.attrs.heading + best.attrs.strength) best = o;
+  }
+  return best === a;
 }
 
 const FB_POS = new Set(['LB', 'RB', 'LWB', 'RWB']);

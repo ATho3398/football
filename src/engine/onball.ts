@@ -716,8 +716,11 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
     // 직선 전환 롱볼 (C.79d): 직선 성향 · 오픈 플레이 탈취 뒤 counterWinTime 초 안 · 공중(airPass 초과) 전진 패스에만 판단 보정 (실행 불변)
-    const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
-      && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open' ? ENGINE.decide.bias.directLong : 0;
+    // C.79r: directLongBehind 면 라인 뒤 침투(달리는 받는 선수 · 목표점이 라인 directLongLine m 안~뒤)에만
+    const DB = ENGINE.decide.bias;
+    const dLongB = DB.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
+      && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open'
+      && (!DB.directLongBehind || (running && rx >= line - DB.directLongLine / L)) ? DB.directLong : 0;
     u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj;
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
