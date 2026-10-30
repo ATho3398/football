@@ -188,8 +188,8 @@ describe('세이브 (C.47)', () => {
   it('왕복 그대로, 옛 세이브(26)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c47-mig', difficulty: 'normal' });
     const back = deserialize(serialize(g));
-    expect(SAVE_FORMAT_VERSION).toBe(58);
-    expect(back.saveFormat).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
+    expect(back.saveFormat).toBe(59);
     expect(back.legends).toBe(g.legends);
     expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
     const raw = JSON.parse(serialize(g));

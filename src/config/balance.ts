@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 90;
+export const BALANCE_VERSION = 92;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -358,6 +358,20 @@ export const BALANCE = {
     yellowBanEvery: 5,
     /** 퇴장/누적 시 출장 정지 경기 수 */
     banMatches: 1,
+    /**
+     * NPC 출장 정지 (C.80a): 같은 규칙을 NPC 에도(리그 경기만). 엔진 경기는 엔진 카드, 빠른 경기(엔진 없음)는 출전 명단에 카드 굴림.
+     * 굴림 수치 = 엔진 NPC 리그 경기 측정(scripts/c80a-cards.ts, 380경기): 90분당 옐로·레드 × 포지션군 배율 × 팀 성향 배율
+     */
+    npc: {
+      on: true,
+      /** 90분당 옐로·레드 (엔진 전체 평균: 팀당 경기 옐로 0.93·레드 0.041) */
+      yellow90: 0.0842,
+      red90: 0.0037,
+      /** 포지션군 배율 = 그 군 옐로율 ÷ 전체 (레드도 같은 배율 — 레드 표본이 작아 파울 많은 자리에 비례) */
+      group: { GK: 0, CB: 0.97, FB: 0.63, CDM: 1.42, CM: 1.87, CAM: 1.84, WING: 0.86, ST: 1.16 } as Record<string, number>,
+      /** 팀 성향 배율 = 그 성향 옐로율 ÷ 전체 */
+      tendency: { block: 0.97, balanced: 0.97, counter: 0.85, gegenpress: 1.07, direct: 1.23, tikitaka: 0.96 } as Record<string, number>,
+    },
   },
 
   // ── 캘린더 (25.1~25.2 6번, 부록 C.38): 2018-19 프리미어리그 패턴. 날짜는 [다음 해면 1, 월, 일] ──
@@ -970,6 +984,10 @@ export const BALANCE = {
      */
     weakFrom: 0.25,
     weakFull: 0.75,
+    /** 슛 (C.79q): 시간이 있으면(압박·원터치 없음) 공을 주발 쪽으로 옮겨 찬다 — 약발 몫 × (1 − shotSet × (1 − 급함)) */
+    shotSet: 0.8,
+    /** 슛 (C.79q): 발밑 공(원터치 아님)은 주발 인사이드로 몸 반대쪽까지 감아 찬다 — 약발이 시작하는 가로 성분 weakFrom + shotCarry */
+    shotCarry: 0.4,
     /** 패스는 거리로도 섞는다: passFrom m 이하 짧은 패스는 몸을 돌려 차므로 0, passFull m 이상은 전부 (C.45 첫 측정: 짧은 옆 패스까지 걸면 패스 성공률 −3%p) */
     passFrom: 12,
     passFull: 30,

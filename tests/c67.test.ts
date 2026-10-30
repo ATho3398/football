@@ -185,7 +185,7 @@ describe('가족 휴가 결장 (pending 102 ⑨)', () => {
 describe('세이브 36', () => {
   it('왕복 그대로 · 옛 세이브(35)는 이어 할 수 없음', () => {
     const g = real('c67-save');
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 35;
