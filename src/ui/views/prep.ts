@@ -102,7 +102,7 @@ export function prepView(vm: PrepVM): string {
     ...(c.suspended > 0 ? [`${Icon({ name: 'danger', size: 14 })}<span class="fail">출장 정지 · ${c.suspended}경기 남음</span>`] : []),
     ...(c.seasonFatigue ? [`${Icon({ name: 'clock', size: 14 })}<span>시즌 누적 피로 ${c.seasonFatigue} · 경기 체력에서 더 빠져요 (쉬는 경기에 풀려요)</span>`] : []),
     ...(!s.out && stamina < low ? [`${Icon({ name: 'clock', size: 14 })}<span>체력 ${stamina} · ${low} 아래면 벤치로 밀릴 수 있어요</span>`] : []),
-    ...(!s.out && c.yellows >= c.yellowEvery - 1 ? [`<i class="prep-why__card" aria-hidden="true"></i><span>경고 ${c.yellows}/${c.yellowEvery} · 한 장 더 받으면 다음 경기는 정지예요</span>`] : []),
+    ...(!s.out && c.yellowEvery > 0 && c.yellows >= c.yellowEvery - 1 ? [`<i class="prep-why__card" aria-hidden="true"></i><span>경고 ${c.yellows}/${c.yellowEvery} · 한 장 더 받으면 다음 경기는 정지예요</span>`] : []),
   ];
   // C.76j (디자인 223 · 166): 결장이면 막대 0% + 빨간 사유 줄, 90% 이상이면 사유 대신 초록 한 줄
   const chance = s.out
@@ -110,7 +110,7 @@ export function prepView(vm: PrepVM): string {
     : tr
       ? `<div class="prep-chance__head"><span>선발 가능성</span><b>1군 테스트 ${tr.n}/${tr.of}경기째 · 출전 보장</b></div>`
       : `<div class="prep-chance__head"><span>선발 가능성</span><span class="prep-chance__track"><i class="${s.chance < 50 ? 'is-low' : s.chance < 80 ? 'is-mid' : ''}" style="width:${s.chance}%"></i></span><b class="po-num">${s.chance}%</b></div>`;
-  const state = card(`<div class="prep-head"><b>내 상태</b><span class="prep-sub">경고 <b class="po-num${c.yellows >= c.yellowEvery - 1 ? ' warn' : ''}">${c.yellows}/${c.yellowEvery}</b></span></div>
+  const state = card(`<div class="prep-head"><b>내 상태</b><span class="prep-sub">경고 <b class="po-num${c.yellowEvery > 0 && c.yellows >= c.yellowEvery - 1 ? ' warn' : ''}">${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}</b></span></div>
     <div class="prep-stamina"><span>체력</span><span class="prep-stamina__track"><i class="${stamina <= 30 ? 'is-low' : stamina < 50 ? 'is-mid' : ''}" style="width:${stamina}%"></i></span><b class="po-num">${stamina}</b></div>
     <div class="prep-row">${FormIndicator({ level: c.form, showLabel: true })}<span class="prep-sub">${esc(c.formLabel)}</span></div>
     <div class="prep-chance">${chance}${!s.out && !tr && s.chance >= 90 && !why.length ? `<p class="prep-chance__line is-sure">${Icon({ name: 'check', size: 14 })}<b>선발 유력</b><span>지금 상태면 거의 선발이에요</span></p>` : ''}${why.length ? `<small class="prep-why__head">결장 사유</small><ul class="prep-why">${why.map((w) => `<li>${w}</li>`).join('')}</ul>` : ''}</div>`);

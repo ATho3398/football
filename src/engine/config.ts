@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 65;
+export const ENGINE_VERSION = 67;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1472,7 +1472,7 @@ export const ENGINE = {
     // C.78r(엔진 54, 로드맵 마지막 단계): 8군 전부 다시 잼 — `rating-parts 720 … 20000`(engine:check 표본 13000~ 과 다른 시드) + `scripts/diag/c78r-rating-fit.ts`(칸 가중 평균이 6.5, ST 6.65 가 되게).
     // 엔진 54 델타 합 분해(패스 · 슛 · 골도움 · 수비 · 상실 · GK · 결과): CDM 2.22 · 0.26 · 0.14 · 0.63 · −0.46 · −0.13 · −0.06 = 2.59 — 평점이 높던 원인은 득점이 아니라 패스 몫(GK 패스 1.42 · ST 패스 1.45). σ 0.79 · ST 무득점 6.06
     // C.79e(엔진 59, 줄 인원 맞춤 — 줄 2 가 수비 줄로 내려옴): engine:check CAM 6.28(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 1.95(그 표본 지금 6.42) — 가드 밖 CAM 만 2.04 → 1.95(§9.12.7)
-    // C.79x(엔진 64, 거리별·1대1 선방 + C.79u 점유 가치 2, AD 2026-10-30 16:53): engine:check CAM 6.74(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 2.10(그 표본 CAM 6.63 → 6.50) → 가드 밖 CAM 만 1.95 → 2.10
+    // C.79x(엔진 65, 거리별·1대1 선방 + C.79u 점유 가치 2, AD 2026-10-30 16:53): engine:check CAM 6.74(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 2.10(그 표본 CAM 6.63 → 6.50) → 가드 밖 CAM 만 1.95 → 2.10
     center: { GK: 1.58, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.35, CAM: 2.1, WING: 1.06, ST: 2.45 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
@@ -1663,12 +1663,12 @@ export const ENGINE = {
     contactDist: 1.0,
     /** 수비수가 자기 박스 안에서는 파울을 조심한다 (파울 확률 배율). E.22 B: 0.004 → 0.06 (PK 팀당 경기당 약 0.13, 세트피스 골 비중). C.29: 0.04 (파울 상수를 올려도 PK 유지). C.76q: 0.04 → 0.08 (PK 0.136/경기 → 현실 0.25~0.3, 미해결 13) */
     boxFoulFactor: 0.08,
-    /** 경고를 받은 선수의 파울 확률 배율, 두 번째 경고를 실제로 줄 확률 */
-    bookedCare: 0.5,
-    secondYellow: 0.5,
-    /** 파울 중 옐로 / 직접 레드 비율 */
-    yellowShare: 0.14,
-    redShare: 0.004,
+    /** 경고를 받은 선수의 파울 확률 배율, 두 번째 경고를 실제로 줄 확률. C.80d: 0.5·0.5 → 0.7·0.3 (옐로가 2배라 경고 누적 퇴장이 직접 레드보다 훨씬 많아지지 않게 — 실축 약 반반) */
+    bookedCare: 0.7,
+    secondYellow: 0.3,
+    /** 파울 중 옐로 / 직접 레드 비율. C.80d: 0.14·0.004 → 0.30·0.006 (팀당 경기 옐로 0.93 → 약 1.9, 레드 0.045 → 약 0.08 — 실축 PL 옐로 1.8~2.1·레드 0.06~0.10; 파울 수는 판정 밖이라 그대로) */
+    yellowShare: 0.3,
+    redShare: 0.006,
     /** 어드밴티지: 심판 성향, 보류 시간(초), 공격 3분의 1 구역 완화 배수 */
     advantageBias: 0.14,
     advantageWindow: 4,
@@ -1694,6 +1694,29 @@ export const ENGINE = {
     shortSafe: 1.15,
     extraLine: 0.05,
     extraPress: 0.05,
+  },
+  // ── 전술 적합도 보너스 (C.80e, fit.ts): 성향별 핵심 능력치 차이(선수단 − 리그 보통, 점수) × gain 을 그 성향 핵심 실행의 능력치에 더한다 (±cap) ──
+  tacticFit: {
+    /** 0 = 끔 */
+    on: 1,
+    /** 리그 보통 차이: 생성 선수단 선발(OVR 60~85, 포메이션 6개)의 포지션별 (핵심 평균 − 자기 평균) 평균 (scripts/diag/c80e-fitbase.ts) */
+    base: {
+      direct: { LB: -2.1, CB: -3.6, RB: -2.1, LWB: -2.1, RWB: -2.1, CDM: 0.1, CM: 4.8, CAM: 1.0, LM: 0.2, RM: 0.3, LW: 0.1, RW: 0.1, ST: 1.0, CF: 1.0 },
+      tikitaka: { LB: -1.6, CB: -3.0, RB: -1.2, LWB: -1.6, RWB: -1.2, CDM: -0.4, CM: 5.5, CAM: 6.0, LM: 0.6, RM: 0.5, LW: -0.3, RW: 0.3, ST: -1.1, CF: -1.1 },
+      counter: { LB: 2.3, CB: -3.4, RB: 2.0, LWB: 2.3, RWB: 2.1, CDM: -3.1, CM: -0.1, CAM: 0.2, LM: 5.4, RM: 5.3, LW: 6.2, RW: 5.7, ST: 6.5, CF: 6.5 },
+      gegenpress: { LB: 2.9, CB: 1.6, RB: 2.8, LWB: 2.9, RWB: 2.6, CDM: 6.2, CM: 1.0, CAM: -0.2, LM: -2.2, RM: -2.0, LW: -2.5, RW: -2.3, ST: -2.5, CF: -2.5 },
+    },
+    /** 보너스 상한 (능력치 점수) */
+    cap: 16,
+    /** 실행별 배율: long = 롱패스(정확도·성공), air = 공중 경합, touch = 퍼스트 터치(수신 정지·원터치), short = 짧은 패스, keep = 압박 속 키핑, run = 드리블 돌파, tackle = 태클·압박 듀얼 */
+    gain: {
+      // 직선 (관문, C.80e): 맞음/안 맞음 선수단 차이 ±7.7 → ±15 점. c78s-fit 400 선수빨 −0.12(0) · −0.20(1, 상한 8) · +0.34/+0.54(2, 시드 51000/41000)
+      direct: { long: 2, air: 2, touch: 2 },
+      // 티키·역습·게겐: 같은 틀로 작게 (기록만, 관문 없음)
+      tikitaka: { short: 0.5, keep: 0.5 },
+      counter: { run: 0.5 },
+      gegenpress: { tackle: 0.5 },
+    },
   },
 } as const;
 

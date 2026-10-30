@@ -34,6 +34,7 @@ import { offsideRisk } from './referee';
 import * as rapport_ from './rapport';
 const { chemMul, isExploit } = rapport_;
 import type { Agent, SimState } from './state';
+import { fitPts } from './fit';
 
 const M = ENGINE.moments;
 
@@ -755,7 +756,7 @@ export function duelMoment(s: SimState): boolean {
   }
   if (!shouldStop(s, a, stake)) return false;
   const R = ENGINE.rating;
-  const pBeat = dribbleProb(o, a);
+  const pBeat = dribbleProb(o, a, 0, fitPts(s, o.team, 'run') - fitPts(s, a.team, 'tackle'));
   const options: MomentOption[] = [
     {
       kind: 'safe', action: 'jockey', label: '따라붙으며 지연', p: null, success: '동료가 돌아올 시간을 범', fail: '판정 없음',

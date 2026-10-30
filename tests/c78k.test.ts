@@ -160,7 +160,8 @@ describe('C.78k ③ GK 선방 평점 = 본인 실제 선방', () => {
 
 describe('C.78k ④ GK 퇴장 대응: 나가는 공격수·들어오는 GK 기록', () => {
   it('나가는 공격수의 포지션·줄·평점 그룹 보존, 허위 선방 0, 새 GK 는 퇴장 GK 슬롯, 팀 10명', () => {
-    const s = createState(input(31));
+    // C.80e(엔진 66): 시드 31 은 30분 전에 다른 선수가 이미 빠져(교체·퇴장) 10명 가정이 깨져 32 로
+    const s = createState(input(32));
     runTo(s, 30 * 60);
     const gk0 = onPitch(s, 0).find((a) => a.line === 0)!;
     const before = new Map(onPitch(s, 0).map((a) => [a.idx, { pos: a.pos, line: a.line, sx: a.sx, statPos: a.stats.position }]));
