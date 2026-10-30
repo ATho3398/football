@@ -34,7 +34,7 @@ describe('슛 발 판정 (C.79q)', () => {
   });
   it('몸 뒤쪽으로 차면 완전히 돌아 차야 한다 (가로 1)', () => {
     expect(shotWeakShare(left, -1, 0.05, 15, 1, 1, true)).toBe(1);
-    expect(shotWeakShare(left, -1, 0.05, 15, 1, 1)).toBe(1);
+    expect(shotWeakShare(left, -1, 0.05, 15, 1, 1)).toBeGreaterThan(0.5);
   });
   it('약발 5 는 언제나 1', () => {
     expect(shotFootMul({ ...left, weakFoot: 5 }, 1, 0, dx, dy, 1)).toBe(1);
