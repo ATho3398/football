@@ -1418,6 +1418,20 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
   }
 
+  // 게겐 수신 후보 선제 마크 (C.80c, 근거 엔진관리자23 c79y ③ — TENDENCY.gegenMarkN, 0 = 끔): 압박에 안 간 선수가 소유자 주변 패스 후보를 공 쪽에서 미리 마크
+  if (TENDENCY.gegenMarkN > 0 && owner && owner.team !== a.team) {
+    const job = gegenMarkPlan(s, a.team).get(a.idx);
+    if (job) {
+      const u = s.agents[job.o]!;
+      a.tx = clamp(job.x, 0.3, L - 0.3);
+      a.ty = clamp(job.y, 0.3, W - 0.3);
+      feedFrom(a, u);
+      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 2;
+      a.minRun = false;
+      return;
+    }
+  }
+
   // 줄 사이 수신 (C.78d ①): 밀집 중 상대 소유자가 우리 수비 줄과 중원 줄 사이(+holdSlack m)면 압박 1명·커버 1명만 반응하고 나머지 중원은 밀집 자리(공 쪽으로 좁힌 줄)를 지킨다 — 한 번에 1명, 옆이 메움
   if (O.compact > 0 && a.line === 2 && !dropped && owner && owner.team !== a.team && !exemptOf(s, a)) {
     const tac2 = s.teams[a.team].tactics;
@@ -2041,6 +2055,55 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
  */
 interface RestJob { x: number; y: number; o: number; mark: boolean }
 const restCache = new WeakMap<SimState, { tick: number; plan: Map<number, RestJob> }[]>();
+// 게겐 수신 후보 선제 마크 계획 (C.80c, 근거 엔진관리자23 c79y ③ — TENDENCY.gegenMarkN 0 = 끔이면 호출되지 않는다):
+// 상대 소유자(필드 선수) 주변 gegenMarkRadius m 안 가까운 순 gegenMarkN 명의 패스 후보에, 압박(공 순위 0·1)·역압박·커버·면제가 아닌 우리 필드 선수 중
+// 마크 자리(후보 0.5초 뒤 자리의 공 쪽 gegenMarkGap m)에 가장 빨리 닿는 선수를 한 명에 한 명 — 도착이 gegenMarkSlack 초를 넘으면 그 후보는 비운다(닿을 수 없는 배정 금지).
+// 공이 우리 골 gegenMarkFrom m 안이면 없음(박스 수비 그대로). gegenMarkWindow > 0 이면 잃은 뒤 그 초 안에서만
+interface MarkJob { x: number; y: number; o: number }
+const gegenCache = new WeakMap<SimState, { tick: number; plan: Map<number, MarkJob> }[]>();
+function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
+  let c = gegenCache.get(s);
+  if (!c) gegenCache.set(s, (c = [{ tick: -1, plan: new Map() }, { tick: -1, plan: new Map() }]));
+  const e = c[team]!;
+  if (e.tick === s.tick) return e.plan;
+  e.tick = s.tick;
+  const plan = (e.plan = new Map<number, MarkJob>());
+  const G = TENDENCY;
+  const tm = s.teams[team];
+  if (G.gegenMarkN <= 0 || tm.tactics.tendency !== 'gegenpress') return plan;
+  const b = s.ball;
+  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+  if (!owner || owner.team === team || owner.line === 0) return plan;
+  if (G.gegenMarkWindow > 0 && s.t - tm.lostAt > G.gegenMarkWindow) return plan;
+  const dir = attackDir(team, s.half);
+  const [gx, gy] = ownGoal(dir);
+  if (dist(b.x, b.y, gx, gy) < G.gegenMarkFrom) return plan;
+  const cands = s.agents
+    .filter((o) => o.onPitch && o.team !== team && o.line !== 0 && o !== owner && dist(o.x, o.y, owner.x, owner.y) <= G.gegenMarkRadius)
+    .sort((x, y) => dist(x.x, x.y, owner.x, owner.y) - dist(y.x, y.y, owner.x, owner.y) || x.idx - y.idx)
+    .slice(0, G.gegenMarkN);
+  const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
+  const free = s.agents.filter((a) => a.onPitch && a.team === team && a.line !== 0 && !pressing.includes(a.idx)
+    && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) >= 2);
+  for (const o of cands) {
+    if (!free.length) break;
+    const px = clamp(o.x + o.vx * 0.5, 0.3, L - 0.3);
+    const py = clamp(o.y + o.vy * 0.5, 0.3, W - 0.3);
+    const od = dist(px, py, owner.x, owner.y) || 1;
+    const mx = px + ((owner.x - px) / od) * G.gegenMarkGap;
+    const my = py + ((owner.y - py) / od) * G.gegenMarkGap;
+    let best: Agent | null = null;
+    let bt = Infinity;
+    for (const d of free) {
+      const t = arrivalTime(d, mx, my, 0.5);
+      if (t < bt || (t === bt && best && d.idx < best.idx)) { bt = t; best = d; }
+    }
+    if (!best || bt > G.gegenMarkSlack) continue;
+    free.splice(free.indexOf(best), 1);
+    plan.set(best.idx, { x: mx, y: my, o: o.idx });
+  }
+  return plan;
+}
 function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
   let c = restCache.get(s);
   if (!c) restCache.set(s, (c = [{ tick: -1, plan: new Map() }, { tick: -1, plan: new Map() }]));
@@ -2060,8 +2123,9 @@ function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
     .sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx)
     .slice(0, O.restMax);
   const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
+  const gm = TENDENCY.gegenMarkN > 0 ? gegenMarkPlan(s, team) : null;
   const free = s.agents.filter((a) => a.onPitch && a.team === team && (a.line === 1 || (a.line === 2 && toNorm(a.x, a.y, dir)[0] < bnx))
-    && !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) > 0);
+    && !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) > 0 && !(gm && gm.has(a.idx)));
   for (const o of threats) {
     if (!free.length) break;
     const px = clamp(o.x + o.vx, 0.3, L - 0.3);
