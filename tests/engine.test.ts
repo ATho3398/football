@@ -94,7 +94,8 @@ describe('경기 엔진 코어 (E1)', () => {
         if (p.position === 'GK') expect(p.distance).toBeLessThan(5000);
         else {
           expect(p.distance).toBeGreaterThan(6500);
-          expect(p.distance).toBeLessThan(15000);
+          // C.79x(엔진 64, AD 2026-10-30 16:53 — C.80d 와 같은 근거 카드 궤적): 한 선수 상한 15 → 15.3 km (시드 11~30 평균 14.07 · 한 선수 최다 15.26)
+          expect(p.distance).toBeLessThan(15300);
           top = Math.max(top, p.distance);
         }
       }
