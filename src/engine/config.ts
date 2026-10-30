@@ -1185,6 +1185,19 @@ export const ENGINE = {
     receiveScale: 16,
     receiveBias: 0.5,
     /**
+     * 진단 스위치 (엔진관리자24 c80g, 기본 0 = 끔 — main 동작 불변): 박스 밖 땅볼 패스도 노린 거리 contestOutFrom m 이상이면 착지 때 contestOutDist m 안 상대 필드 선수와
+     * 박스 안과 같은 수신 경합(receiveWin). 판단(candidates)도 같은 식 — 받는 선수의 볼 컨트롤·근력·민첩이 롱패스 수신에 들어간다
+     */
+    contestOut: 0,
+    contestOutFrom: 20,
+    contestOutDist: 2,
+    /**
+     * 진단 스위치 (엔진관리자24 c80g, 기본 0 = 끔): 공중 롱볼 착지 경합 반경을 longContest 에서 longContest + airContestFar m 까지 넓힌다 —
+     * 그 사이 수비는 멀수록 받는 쪽 유리(로지스틱 입력 + airContestBias × (거리 − longContest)/airContestFar). longContest 안은 지금과 같다
+     */
+    airContestFar: 0,
+    airContestBias: 1.5,
+    /**
      * 크로스 경합에서 공격수 보정 (로지스틱 입력). E.22 B: 크로스 대상과 가장 가까운 수비수가 실제로 착지점으로 뛰어들어 경합이 생기면서
      * 0.9 → −1.0 (수비가 공을 마주 보고 먼저 닿는다. 크로스 성공률 25~30%, 코너 약 30개당 1골에 맞춘 묶음 B 보정)
      */

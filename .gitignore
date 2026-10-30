@@ -1,3 +1,4 @@
 node_modules
 dist
 .claude/worktrees/
+scripts/diag/c80g-m1-main.json

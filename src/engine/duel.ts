@@ -50,6 +50,21 @@ export function aerialWin(a: Agent, b: Agent): number {
   return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + duelEdgeOf(a) - duelEdgeOf(b)));
 }
 
+/** 롱볼 착지 경합 반경 (진단 스위치 c80g airContestFar, 0 이면 longContest 그대로) */
+export function longContestRadius(): number {
+  return PR.longContest + Math.max(0, PR.airContestFar);
+}
+
+/**
+ * 롱볼 착지 경합 (c80g): 수비 dd m — longContest 안은 aerialWin 그대로, 그 밖(airContestFar 안)은 멀수록 받는 쪽 유리 보정.
+ * airContestFar 0 이면 호출돼도 aerialWin 과 같다
+ */
+export function aerialWinAt(a: Agent, b: Agent, dd: number): number {
+  const far = PR.airContestFar;
+  const k = far > 0 ? Math.max(0, Math.min(1, (dd - PR.longContest) / far)) : 0;
+  return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + duelEdgeOf(a) - duelEdgeOf(b) + PR.airContestBias * k));
+}
+
 /**
  * 마무리 능력치 (E.20 7번): 슈팅(중거리는 중거리 슛, 헤더는 헤더, 프리킥은 프리킥) × 0.6 + 침착성 × 0.25 + 결정력 × 0.15.
  * C.76a: onball 과 offball(위협 가중 수비) 이 같이 쓰므로 순환 import 없는 이 모듈에 둔다 (onball 이 다시 내보낸다)

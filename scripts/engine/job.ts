@@ -29,6 +29,7 @@ import { transRun, type TransOut } from './transProbe';
 import { gegenRun, type GegenOut } from './gegenProbe';
 import { blockRun, type BlockOut } from './blockProbe';
 import { boxRun, type BoxOut } from './boxProbe';
+import { c80gRun, type C80gOut } from './c80gProbe';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -100,6 +101,8 @@ export interface MatchJob {
   box?: boolean;
   /** 패스 거리 분포 (C.79m): 팀별 패스(침투·컷백·레이오프 포함, 크로스 제외) 노린 거리 0·10·20·30·40 m 칸 시도 수 */
   pdist?: boolean;
+  /** 20 m+ 패스 분해·먼 수신 후보 커버 (엔진관리자24 c80gProbe) */
+  c80g?: boolean;
 }
 
 export interface SeasonJob {
@@ -155,6 +158,7 @@ export interface MatchOut {
   block?: BlockOut;
   box?: BoxOut;
   pdist?: [number[], number[]];
+  c80g?: [C80gOut, C80gOut];
 }
 
 export interface SeasonOut {
@@ -356,6 +360,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const gegen = j.gegen ? gegenRun(sim) : undefined;
     const block = j.block ? blockRun(sim) : undefined;
     const box = j.box ? boxRun(sim) : undefined;
+    const c80g = j.c80g ? c80gRun(sim) : undefined;
     let pdist: [number[], number[]] | undefined;
     if (j.pdist) {
       pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
@@ -392,6 +397,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(block ? { block } : {}),
       ...(box ? { box } : {}),
       ...(pdist ? { pdist } : {}),
+      ...(c80g ? { c80g } : {}),
     };
   } finally {
     restore();

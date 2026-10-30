@@ -9,7 +9,7 @@ const { ENGINE } = config_;
 import * as physics_ from './physics';
 const { arrivalTime, duelEdgeOf, tiredRatio } = physics_;
 import * as duel_ from './duel';
-const { aerialWin, dribbleProb, duelTail, finishSkill, receiveWin } = duel_;
+const { aerialWin, aerialWinAt, dribbleProb, duelTail, finishSkill, longContestRadius, receiveWin } = duel_;
 import * as formation_ from './formation';
 const { manDiff } = formation_;
 import * as roles_ from './roles';
@@ -666,11 +666,16 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     let aerial = 1;
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.longContest) aerial = aerialWin(r, def);
+      // c80g 스위치 airContestFar: 경합 반경 확장(멀수록 받는 쪽 유리), 0 이면 그대로
+      if (def && dd < longContestRadius()) aerial = PR.airContestFar > 0 ? aerialWinAt(r, def, dd) : aerialWin(r, def);
     } else if (inOppBox(tx, ty, dir)) {
       // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
       const [def, dd] = nearestOutfield(s, r, tx, ty);
       if (def && dd < PR.contestDist) aerial = receiveWin(r, def);
+    } else if (PR.contestOut > 0 && d0 >= PR.contestOutFrom) {
+      // c80g 스위치 contestOut: 박스 밖 contestOutFrom m 이상 땅볼 패스도 착지점 contestOutDist 안 수비수와 수신 경합 (판단 = 실행)
+      const [def, dd] = nearestOutfield(s, r, tx, ty);
+      if (def && dd < PR.contestOutDist) aerial = receiveWin(r, def);
     }
     const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);

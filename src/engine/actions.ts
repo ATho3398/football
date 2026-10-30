@@ -6,7 +6,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
 import * as duel_ from './duel';
-const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
+const { aerialScore, aerialWin, aerialWinAt, dribbleProb, duelTail, longContestRadius, receiveWin } = duel_;
 import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
@@ -911,22 +911,25 @@ export function resolveFlight(s: SimState): void {
         // 롱볼은 착지점에서 수비수와 경합
         if (fl.air) {
           const [def, dd] = nearestOppOf(s, rc);
-          if (def && dd < PR.longContest) {
+          // c80g 스위치: airContestFar > 0 이면 경합 반경 확장(멀수록 받는 쪽 유리), 0 이면 longContest · aerialWin 그대로
+          if (def && dd < longContestRadius()) {
             s.teams[0].stats.aerials++;
             s.teams[1].stats.aerials++;
             rc.stats.aerialDuels++;
             def.stats.aerialDuels++;
-            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
+            if (r(s, rc.idx, Purpose.Aerial, 1) >= (PR.airContestFar > 0 ? aerialWinAt(rc, def, dd) : aerialWin(rc, def))) {
               def.stats.aerialsWon++;
               giveBall(s, def, 'gain');
               return;
             }
             rc.stats.aerialsWon++;
           }
-        } else if (inOppBox(b.x, b.y, attackDir(rc.team, s.half))) {
+        } else if (inOppBox(b.x, b.y, attackDir(rc.team, s.half)) || (PR.contestOut > 0 && (fl.aimD ?? 0) >= PR.contestOutFrom)) {
           // 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B): contestDist 안 수비수가 있으면 받는 선수와 듀얼. 지면 수비 소유(tackleKeep) 또는 루즈볼
+          // c80g 스위치 contestOut: 박스 밖이라도 contestOutFrom m 이상 땅볼 패스는 contestOutDist 안 수비수와 같은 경합
+          const inBox = inOppBox(b.x, b.y, attackDir(rc.team, s.half));
           const [def, dd] = nearestOppOf(s, rc);
-          if (def && dd < PR.contestDist && r(s, rc.idx, Purpose.Control, 3) >= receiveWin(rc, def)) {
+          if (def && dd < (inBox ? PR.contestDist : PR.contestOutDist) && r(s, rc.idx, Purpose.Control, 3) >= receiveWin(rc, def)) {
             def.stats.tackles++;
             def.stats.tacklesWon++;
             s.teams[def.team].stats.tackles++;
