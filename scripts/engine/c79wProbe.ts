@@ -23,6 +23,17 @@ export interface C79wOut {
   dec: number; decShort: number; decP: number; decPShort: number; decPHold: number; decPLong: number; decPCarry: number;
   /** 상대 역압박 창 안 결정: 수 · <10 m 패스 · 유지 · 25 m+ · 몰기 · 선택 p 합 · 선택 효용−2위 효용 합(gap) */
   decCp: number; decCpShort: number; decCpHold: number; decCpLong: number; decCpCarry: number; decCpP: number;
+  /**
+   * 간격 표본 (엔진관리자23 c79y, 1초마다, 오픈 플레이·필드 선수 소유·정지 없음) — 소유 팀: 공 구역(자기⅓·중간·상대⅓)별 [표본 수, 가장 가까운 동료 거리 평균 합, 팀 폭(y 범위) 합, 팀 길이(x 범위) 합,
+   * 줄 1–2 간격 합, 줄 2–3 간격 합, 소유자 가장 가까운 동료 거리 합, 소유자 10 m 안 동료 수 합, 15 m 안 합, 가까운 후보 4명 중 자유(3 m 안 상대 없음) 수 합, 후보 4명의 가장 가까운 상대 거리 합, 후보 수 합]
+   */
+  sp: number[];
+  /** 수비 팀(상대 소유 중, 같은 조건·구역은 상대 기준) [표본 수, 공에서 가장 가까운 우리 선수 거리 합, 둘째 합, 소유자 5 m 안 우리 수 합, 우리 필드 무게중심–공 거리 합, 우리 폭 합, 우리 길이 합, 후보 4명 중 우리 선수 3 m 안 있는 수 합] */
+  df: number[];
+  /** 패스 거리 히스토그램 (오픈 플레이, 크로스 제외): 칸 0~5·5~10·10~15·15~20·20~25·25~30·30+ × [시도, 받음] */
+  passHist: number[];
+  /** 20 m+ 패스: 패서 자유/압박 × [시도, 받음] */
+  pass20: number[];
 }
 
 const empty = (): C79wOut => ({
@@ -33,7 +44,10 @@ const empty = (): C79wOut => ({
   winPass: [0, 0, 0], cpInt: 0, cpIntPresser: 0,
   dec: 0, decShort: 0, decP: 0, decPShort: 0, decPHold: 0, decPLong: 0, decPCarry: 0,
   decCp: 0, decCpShort: 0, decCpHold: 0, decCpLong: 0, decCpCarry: 0, decCpP: 0,
+  sp: new Array(3 * 12).fill(0) as number[], df: new Array(3 * 8).fill(0) as number[],
+  passHist: new Array(7 * 2).fill(0) as number[], pass20: new Array(4).fill(0) as number[],
 });
+export const SP_N = 12, DF_N = 8;
 
 export function c79wAdd(a: C79wOut, b: C79wOut): void {
   for (const k of Object.keys(a) as (keyof C79wOut)[]) {
@@ -57,7 +71,7 @@ export function c79wRun(sim: MatchSim): C79wOut[] {
   const lastWinZone: number[] = [-1, -1];
   let evI = s.events.length;
   let curFl: Flight | null = null;
-  const pending: { fl: Flight; team: 0 | 1; dk: number; cp: number; pr: number; win: boolean }[] = [];
+  const pending: { fl: Flight; team: 0 | 1; dk: number; cp: number; pr: number; win: boolean; d: number }[] = [];
   const flush = (cur: Flight | null) => {
     for (let i = pending.length - 1; i >= 0; i--) {
       const q = pending[i]!;
@@ -66,6 +80,10 @@ export function c79wRun(sim: MatchSim): C79wOut[] {
       const pi = C79W_PI(q.dk, q.cp, q.pr);
       const recv = q.fl.outcome === 'receive' && q.fl.receiver >= 0;
       T.pass[pi]!++;
+      const hb = Math.min(6, Math.floor(q.d / 5)) * 2;
+      T.passHist[hb]!++;
+      if (recv) T.passHist[hb + 1]!++;
+      if (q.d >= 20) { T.pass20[q.pr * 2]!++; if (recv) T.pass20[q.pr * 2 + 1]!++; }
       if (recv) {
         T.pass[pi + 1]!++;
         const r = s.agents[q.fl.receiver]!;
@@ -177,6 +195,47 @@ export function c79wRun(sim: MatchSim): C79wOut[] {
           if (t - pl.t > 10) pl.done = true;
         }
       }
+      // 간격 표본 (1초마다)
+      if (s.tick % 10 === 0 && s.possOrigin === 'open' && !s.restart && s.ball.owner >= 0) {
+        const ow = s.agents[s.ball.owner]!;
+        if (ow.line !== 0) {
+          const at = ow.team, dt = (at === 0 ? 1 : 0) as 0 | 1;
+          const nx = attackDir(at, s.half) > 0 ? s.ball.x / L : 1 - s.ball.x / L;
+          const z = nx < 1 / 3 ? 0 : nx < 2 / 3 ? 1 : 2;
+          const A = s.agents.filter((o) => o.onPitch && o.team === at && o.line !== 0);
+          const D = s.agents.filter((o) => o.onPitch && o.team === dt && o.line !== 0);
+          const near = (o: { x: number; y: number }, g: typeof A, skip?: unknown) => { let bd = Infinity; for (const p of g) { if (p === skip) continue; const d = dist(p.x, p.y, o.x, o.y); if (d < bd) bd = d; } return bd; };
+          const near2 = (o: { x: number; y: number }, g: typeof A): [number, number] => { let b1 = Infinity, b2 = Infinity; for (const p of g) { const d = dist(p.x, p.y, o.x, o.y); if (d < b1) { b2 = b1; b1 = d; } else if (d < b2) b2 = d; } return [b1, b2]; };
+          const range = (g: typeof A): [number, number] => { let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of g) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); } return [x1 - x0, y1 - y0]; };
+          const lineX = (g: typeof A, ln: number) => { let sx = 0, n = 0; for (const p of g) if (p.line === ln) { sx += attackDir(at, s.half) > 0 ? p.x : L - p.x; n++; } return n ? sx / n : NaN; };
+          const SP = out[at]!.sp, o0 = z * SP_N;
+          SP[o0]!++;
+          let sumNear = 0; for (const p of A) sumNear += near(p, A, p);
+          SP[o0 + 1]! += sumNear / Math.max(1, A.length);
+          const [alen, awid] = range(A);
+          SP[o0 + 2]! += awid; SP[o0 + 3]! += alen;
+          const l1 = lineX(A, 1), l2 = lineX(A, 2), l3 = lineX(A, 3);
+          SP[o0 + 4]! += Number.isNaN(l2 - l1) ? 0 : l2 - l1; SP[o0 + 5]! += Number.isNaN(l3 - l2) ? 0 : l3 - l2;
+          SP[o0 + 6]! += near(ow, A, ow);
+          let c10 = 0, c15 = 0;
+          for (const p of A) if (p !== ow) { const d = dist(p.x, p.y, ow.x, ow.y); if (d <= 10) c10++; if (d <= 15) c15++; }
+          SP[o0 + 7]! += c10; SP[o0 + 8]! += c15;
+          const cands = A.filter((p) => p !== ow).sort((x, y) => dist(x.x, x.y, ow.x, ow.y) - dist(y.x, y.y, ow.x, ow.y)).slice(0, 4);
+          let cfree = 0, cdist = 0, cmark = 0;
+          for (const p of cands) { const d = near(p, D); if (d > 3) cfree++; else cmark++; cdist += Math.min(d, 30); }
+          SP[o0 + 9]! += cfree; SP[o0 + 10]! += cdist; SP[o0 + 11]! += cands.length;
+          const DF = out[dt]!.df, d0 = z * DF_N;
+          DF[d0]!++;
+          const [b1, b2] = near2(s.ball, D);
+          DF[d0 + 1]! += Math.min(b1, 40); DF[d0 + 2]! += Math.min(b2, 40);
+          let w5 = 0, cx = 0, cy = 0;
+          for (const p of D) { if (dist(p.x, p.y, ow.x, ow.y) <= 5) w5++; cx += p.x; cy += p.y; }
+          DF[d0 + 3]! += w5;
+          DF[d0 + 4]! += D.length ? dist(cx / D.length, cy / D.length, s.ball.x, s.ball.y) : 0;
+          const [dlen, dwid] = range(D);
+          DF[d0 + 5]! += dwid; DF[d0 + 6]! += dlen; DF[d0 + 7]! += cmark;
+        }
+      }
       // 비행
       const fl = s.ball.flight;
       flush(fl);
@@ -192,7 +251,7 @@ export function c79wRun(sim: MatchSim): C79wOut[] {
           const win = t - s.teams[team].wonAt <= 6;
           if (win) { out[team]!.winPass[0]++; if (dk === 0) out[team]!.winPass[1]++; }
           spellPass++;
-          pending.push({ fl, team, dk, cp, pr, win });
+          pending.push({ fl, team, dk, cp, pr, win, d });
         }
       } else if (!fl) curFl = null;
     }

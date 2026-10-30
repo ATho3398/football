@@ -194,6 +194,27 @@ export const TENDENCY = {
   gegenMax: 3,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
+  /**
+   * 진단 스위치 (엔진관리자23 c79y, 모두 기본 0 = 끔, 사용자 지시 "티키는 게겐에 취약하게"):
+   * tikiSupportMul k — 티키 소유 중 지원 간격(tikiSupport) ×k · tikiWidthMul k — 티키 소유 중 슬롯 가로 폭 ×k · tikiDepthMul k — 티키 소유 중 슬롯 x 를 공 x 쪽으로 (x = 공 + (x − 공) × k, 줄 간격 압축)
+   * gegenCompact k — 게겐 소유 중 지원 간격 ×k (엔진관리자21 가설 1)
+   * gegenFollow k — 게겐 수비 시 블록 공 쪽 쏠림(blockX·blockY·follow) ×(1 + k) (사용자 2 ①)
+   * gegenSecondDist k — 게겐 둘째 압박자 가담 거리 배수(secondPressDist 0.6 대신, 사용자 2 ②)
+   * gegenMarkN n — 게겐 수비 전반: 압박 안 가는 선수가 소유자 주변 gegenMarkRadius m 안 가까운 순 n 명의 패스 후보를 공 쪽 gegenMarkGap m 에서 미리 마크(닿을 수 있는 선수만: 도착 ≤ gegenMarkSlack 초), 공이 우리 골 gegenMarkFrom m 밖일 때만 (사용자 2 ③).
+   * gegenMarkWindow w — >0 이면 잃은 뒤 w 초 안에서만 (엔진관리자21 가설 2 = 잃기 전/직후 배정의 대용)
+   */
+  tikiSupportMul: 0,
+  tikiWidthMul: 0,
+  tikiDepthMul: 0,
+  gegenCompact: 0,
+  gegenFollow: 0,
+  gegenSecondDist: 0,
+  gegenMarkN: 0,
+  gegenMarkRadius: 25,
+  gegenMarkGap: 1.5,
+  gegenMarkSlack: 1.5,
+  gegenMarkFrom: 30,
+  gegenMarkWindow: 0,
   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
   gegenDrain: 1.15,
   /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */

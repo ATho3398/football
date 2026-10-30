@@ -5,6 +5,7 @@ import type { Position } from '../types';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import * as pitch_ from './pitch';
+import * as tactics_ from './tactics';
 const { attackDir, clamp, toNorm } = pitch_;
 import type { Agent, Line, SimState } from './state';
 
@@ -57,7 +58,11 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
     if (a.line >= 2) x += F.pressBlock * (s.teams[a.team].tactics.pressing - 0.55) * -phase;
   }
   // 압박 전술 (C.76s): 수비 시 블록이 공을 더 따라간다 (pressFollow)
-  const follow = phase < 0 ? 1 + F.pressFollow * (s.teams[a.team].tactics.pressing - 0.55) * -phase : 1;
+  const tend = s.teams[a.team].tactics.tendency;
+  const TD = tactics_.TENDENCY;
+  // 진단 스위치 (엔진관리자23 c79y, 0 = 끔): 게겐 수비 시 공 쪽 쏠림 ×(1 + gegenFollow)
+  const gFollow = phase < 0 && tend === 'gegenpress' && TD.gegenFollow > 0 ? 1 + TD.gegenFollow * -phase : 1;
+  const follow = (phase < 0 ? 1 + F.pressFollow * (s.teams[a.team].tactics.pressing - 0.55) * -phase : 1) * gFollow;
   x += F.blockX * follow * (bx - 0.5);
   if (phase < 0 && a.line !== 0) {
     // 수비 블록: 가로로 좁히고 공 쪽으로 쏠린다
@@ -71,6 +76,11 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
     // dy: 측면 선호(+) / 중앙(−). 슬롯이 있는 쪽 터치라인 방향
     const side = a.sy < 0.5 ? -1 : a.sy > 0.5 ? 1 : 0;
     y += a.role.dy * F.roleDyScale * side * phase;
+    // 진단 스위치 (엔진관리자23 c79y, 0 = 끔): 티키 소유 중 압축 — 가로 폭 ×tikiWidthMul, x 는 공 x 쪽으로 (줄 간격 ×tikiDepthMul)
+    if (tend === 'tikitaka') {
+      if (TD.tikiWidthMul > 0) y = 0.5 + (y - 0.5) * (1 + (TD.tikiWidthMul - 1) * phase);
+      if (TD.tikiDepthMul > 0) x = bx + (x - bx) * (1 + (TD.tikiDepthMul - 1) * phase);
+    }
   }
   // 공 반대쪽 측면은 좁힌다
   if (Math.abs(a.sy - 0.5) > 0.25 && Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5)) {
