@@ -632,6 +632,12 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const possK = DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff ? 0
     : DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5)) * (DP.zoneTo > DP.zoneFrom ? clamp((DP.zoneTo - ax) / (DP.zoneTo - DP.zoneFrom), 0, 1) : 1);
 
+  // 티키 롱패스 감점 (C.80f): 감점 후보와 짧은 출구(판단 성공 확률 tikiLongShortP 이상) 유무 — 패스 루프 뒤에 뺀다
+  const DB = ENGINE.decide.bias;
+  const tikiLongOn = DB.tikiLong > 0 && tac.tendency === 'tikitaka' && counterK === 0 && !(DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff);
+  const tikiLongs: { c: Candidate; pen: number }[] = [];
+  let tikiShort = false;
+
   // 패스 / 침투 패스
   for (const r of s.agents) {
     if (r === a || !r.onPitch || r.team !== a.team) continue;
@@ -753,6 +759,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
     const type = cutback ? 'cutback' : running ? 'through' : 'pass';
     out.push({ type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
+    if (tikiLongOn) {
+      if (d0 > DB.tikiLongFrom) tikiLongs.push({ c: out[out.length - 1]!, pen: DB.tikiLong * clamp((d0 - DB.tikiLongFrom) / Math.max(1e-6, DB.tikiLongTo - DB.tikiLongFrom), 0, 1) });
+      else if (pj >= DB.tikiLongShortP) tikiShort = true;
+    }
     if (ot) {
       // 원터치 판: 같은 길·경쟁·가치, 패스 판정만 × 원터치 배수 (본인·평균 선수 각자)
       const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
@@ -760,8 +770,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
       ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      if (tikiLongOn && d0 > DB.tikiLongFrom) tikiLongs.push({ c: ot.out[ot.out.length - 1]!, pen: tikiLongs[tikiLongs.length - 1]!.pen });
     }
   }
+  if (tikiShort) for (const t of tikiLongs) t.c.u -= t.pen;
 
   if (O.backModel > 0) {
     backValue(s, a, out, dir);

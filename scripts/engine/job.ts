@@ -157,6 +157,8 @@ export interface MatchOut {
   block?: BlockOut;
   box?: BoxOut;
   pdist?: [number[], number[]];
+  /** 5 m 단위 패스 거리 (0~5 … 25~30 · 30+, C.80f) */
+  pdist5?: [number[], number[]];
   c79u?: C79uOut[];
 }
 
@@ -373,8 +375,10 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const block = j.block ? blockRun(sim) : undefined;
     const box = j.box ? boxRun(sim) : undefined;
     let pdist: [number[], number[]] | undefined;
+    let pdist5: [number[], number[]] | undefined;
     if (j.pdist && !j.c79u) {
       pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      pdist5 = [[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]];
       const s0 = sim.state;
       let seen: unknown = null;
       while (!s0.done) {
@@ -384,6 +388,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
         if (fl && fl !== seen && fl.aimD !== undefined && fl.passer >= 0 && !fl.fromCross) {
           seen = fl;
           pdist[s0.agents[fl.passer]!.team]![Math.min(4, Math.floor(fl.aimD / 10))]!++;
+          pdist5[s0.agents[fl.passer]!.team]![Math.min(6, Math.floor(fl.aimD / 5))]!++;
         }
       }
     }
@@ -455,6 +460,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(block ? { block } : {}),
       ...(box ? { box } : {}),
       ...(pdist ? { pdist } : {}),
+      ...(pdist5 ? { pdist5 } : {}),
       ...(c79u ? { c79u } : {}),
     };
   } finally {
