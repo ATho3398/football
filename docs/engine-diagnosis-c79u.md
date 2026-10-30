@@ -150,7 +150,7 @@
 - 960 합치기: `node scripts/diag/c79u-merge.cjs scripts/diag/c79u-main-960-matrix.json scripts/diag/c79k-main-matrix.json scripts/diag/c79u-main-s51-matrix.json` → 변형도 41000·51000 두 벌을 같은 식으로 합쳐 `c78z-fit.ts -- c79u-main-960-matrix.json 변형-960.json`.
 - 분해 탐침: `npx vite-node scripts/diag/c79u-probe.ts -- 160 [P4]`(6칸 × 160, 12분/4코어) · `only=A/B,…` · `seed=`.
 - 짧은 패스: `npx vite-node scripts/diag/c79m-short.ts -- 120 [P4 …]`(성향 대 균형 120, 0~10 m · 롱% · 점유 · 득실).
-- 지문: `npx vite-node scripts/c74a-fingerprint.ts` → 3080459e3e957ce8(main 과 같음).
+- 지문: `npx vite-node scripts/c74a-fingerprint.ts` → 3080459e3e957ce8(main 과 같음). 가드: `npm run typecheck` ✓ · `npm test` 155 파일 1285 ✓(스위치 0, 09:17 KST).
 - C.79t 조건(§7): C.79t 브랜치 1a4e4b3 위 `git apply scripts/diag/c79u-c79t-keepskip.patch` → `npx vite-node scripts/diag/c78s-matrix.ts -- 320 only=gegenpress/tikitaka seed=41000 offball.lineMatchKeepSkip=1 out=…`(시드 51000 도) — 320 × 2 = 4코어 3분.
 
 ## 7. 덧붙임 — C.79t(Keep 0.3 + 복귀 조깅) 게겐>티키 칸 조건 탐침 (AD 08:27 추가 요청)
