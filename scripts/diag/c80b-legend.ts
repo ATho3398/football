@@ -4,6 +4,7 @@ import { BALANCE } from '../../src/config/balance';
 import { runCareerJob } from '../balance/career';
 const env = process.env;
 (BALANCE.match as { drawRho: number }).drawRho = Number(env.RHO ?? BALANCE.match.drawRho);
+if (env.ACHX) (BALANCE.reputation as { fromAchievementXp: number }).fromAchievementXp = Number(env.ACHX);
 const from = Number(env.FROM ?? 0), n = Number(env.N ?? 48), tier = (env.TIER ?? 'legendary') as 'legendary';
 for (let i = from; i < from + n; i++) {
   const r = runCareerJob({ kind: 'prospect', tier, i, strategy: 'best', policy: 'stay', coach: 'none', spend: false, records: false, national: false });
