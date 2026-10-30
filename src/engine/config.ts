@@ -1222,9 +1222,10 @@ export const ENGINE = {
     contestOutDist: 2.5,
     /**
      * 공중 롱볼 먼 경합 (C.80g, 엔진관리자24 ②-2): 착지 때 가장 가까운 수비수가 longContest 밖 airContestFar m 안이면
-     * 늦게 닿는 경합 — aerialWin 에 받는 쪽 보정 airContestBias(로지스틱 입력)를 더해 판정. 0 = 끔
+     * 늦게 닿는 경합 — aerialWin 에 받는 쪽 보정 airContestBias(로지스틱 입력)를 더해 판정. 0 = 끔.
+     * 처방 3 m 는 끔: main C.80e 위에서 켜면 이동 거리 테스트 한 선수 15.39 km(> 15, 끄면 14.89) — 보조 처방이라 뺌(C.80e 직선 공중 보너스와 겹침도 피함)
      */
-    airContestFar: 3,
+    airContestFar: 0,
     airContestBias: 1.5,
     /**
      * 크로스 경합에서 공격수 보정 (로지스틱 입력). E.22 B: 크로스 대상과 가장 가까운 수비수가 실제로 착지점으로 뛰어들어 경합이 생기면서
