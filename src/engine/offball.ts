@@ -2082,7 +2082,8 @@ function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
     .filter((o) => o.onPitch && o.team !== team && o.line !== 0 && o !== owner && dist(o.x, o.y, owner.x, owner.y) <= G.gegenMarkRadius)
     .sort((x, y) => dist(x.x, x.y, owner.x, owner.y) - dist(y.x, y.y, owner.x, owner.y) || x.idx - y.idx)
     .slice(0, G.gegenMarkN);
-  const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
+  // 뚫린 역압박 가담자(C.78a ①, 뚫린 뒤 restWindow 초)는 복귀가 먼저 — 마크에 배정하지 않는다 (C.80c, 장면 ⑨)
+  const pressing = s.t < tm.counterUntil || (O.pressBreak > 0 && s.t - tm.brokeAt <= O.restWindow) ? tm.counterPressers : [];
   const free = s.agents.filter((a) => a.onPitch && a.team === team && a.line !== 0 && !pressing.includes(a.idx)
     && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) >= 2);
   for (const o of cands) {
