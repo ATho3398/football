@@ -171,7 +171,7 @@ export interface Sizes {
 export const SIZES: Record<Mode, Sizes> = {
   full: { neutral: 400, diff8: 200, diff15: 200, poss10: 200, home: 300, red: 400, formation: 40, response: 400, sens: 200, rating: 240, ovr5: 200, seasons: 6, tactic: 200, league: 3 },
   // C.28: 경량 평점 360경기(포지션당 약 70명, 평균 표본 오차 ±0.1), 스탯 반응 240쌍, 시즌 XP 비는 12시즌(선수 6명 × 시드 2)
-  light: { neutral: 120, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 240, sens: 0, rating: 360, ovr5: 0, seasons: 12, tactic: 0, league: 0 },
+  light: { neutral: 360, diff8: 120, diff15: 0, poss10: 0, home: 0, red: 0, formation: 0, response: 240, sens: 0, rating: 360, ovr5: 0, seasons: 12, tactic: 0, league: 0 },
   sweep: {
     neutral: Number(process.env.SWEEP_N ?? 60), diff8: Number(process.env.SWEEP_D ?? 40), diff15: Number(process.env.SWEEP_D15 ?? 0), poss10: 0, home: Number(process.env.SWEEP_HOME ?? 0), red: 0, formation: 0,
     response: Number(process.env.SWEEP_RESP ?? 40), sens: 0, rating: Number(process.env.SWEEP_RATING ?? 0), ovr5: 0, seasons: Number(process.env.SWEEP_SEASONS ?? 0), tactic: Number(process.env.SWEEP_TAC ?? 0),
@@ -320,7 +320,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
 
   if (eq.length) {
     const S = `동레이팅 75 중립 (균형 + ${STD_FORMATION}, ${eq.length}경기, 팀당)`;
-    add(S, 'goals', '득점', '1.35 ± 0.1', perTeam(eq, (s) => s.goals), 1.25, 1.45, 2, { guard: [1.1, 1.6] });
+    // C.79x(AD 2026-10-30, 엔진관리자22): 경량 120경기 SE ±0.076 이라 상한 1.6 이 참값 1.50 도 ~10% 막음 → 경량 neutral 360 · 득점 가드 1.30~1.65
+    add(S, 'goals', '득점', '1.35 ± 0.1', perTeam(eq, (s) => s.goals), 1.25, 1.45, 2, { guard: mode === 'light' ? [1.3, 1.65] : [1.1, 1.6] });
     add(S, 'poss', '점유율 (홈쪽 %)', '50 ± 3', avg(eq.map(poss)), 47, 53);
     add(S, 'passes', '패스 시도', '약 420', perTeam(eq, (s) => s.passes), 380, 460, 0);
     add(S, 'passPct', '패스 성공률 %', '80 ± 3', ratio(totTeam(eq, (s) => s.passesCompleted), totTeam(eq, (s) => s.passes)) * 100, 77, 83);

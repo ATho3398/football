@@ -211,7 +211,8 @@ export function sceneNineFollow(): SceneOut {
  * 판단: 상대 중원이 ST 에게 먼저 닿으면(midNear) CB 따라감이 그렇지 않을 때보다 적다 (CB 판단 끔과 비교)
  */
 export function sceneNineHold(): SceneOut {
-  const N = 30;
+  // C.79m(점유 가치): 30 → 60 — fwdHold 대 fwdNoTurn 차가 30표본 1건(0.233 대 0.267)으로 갈려 표본을 늘림(60: 0.267 대 0.25)
+  const N = 60;
   const hold = withEngine({ 'offball.stepOutMax': 0 }, () => nineRun(false, N));
   const holdNoTurn = withEngine({ 'offball.stepOutMax': 0, 'receive.turnFree': 0 }, () => nineRun(false, N));
   const go = withEngine({ 'offball.stepOutBase': 1, 'offball.stepOutJudge': 0, 'offball.stepOutDecoy': 0, 'offball.stepOutAlone': 0 }, () => nineRun(false, N));

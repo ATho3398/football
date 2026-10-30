@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 93;
+export const BALANCE_VERSION = 94;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -359,9 +359,12 @@ export const BALANCE = {
 
   // ── 징계 (부록 E.10) ──
   discipline: {
-    /** 시즌 옐로 누적 이 장수마다 출장 정지 */
-    yellowBanEvery: 5,
-    /** 퇴장/누적 시 출장 정지 경기 수 */
+    /**
+     * 리그 옐로 누적 출장 정지 (C.80d, 실제 PL 규칙): [누적 장수, 이 시즌 진행 비율(리그 몇 번째 경기 ÷ 전체) 안에 채워야 정지, 정지 경기 수].
+     * 5장(19/38 경기 안) 1경기 · 10장(32/38 안) 2경기 · 15장 3경기. 옛 "5장마다 1경기"는 엔진 옐로가 실축 수준(팀당 시즌 약 70장)이 되자 팀당 시즌 정지 8회
+     */
+    yellowBans: [[5, 19 / 38, 1], [10, 32 / 38, 2], [15, 1, 3]] as [number, number, number][],
+    /** 퇴장 시 출장 정지 경기 수 */
     banMatches: 1,
     /**
      * NPC 출장 정지 (C.80a): 같은 규칙을 NPC 에도(리그 경기만). 엔진 경기는 엔진 카드, 빠른 경기(엔진 없음)는 출전 명단에 카드 굴림.
@@ -369,13 +372,13 @@ export const BALANCE = {
      */
     npc: {
       on: true,
-      /** 90분당 옐로·레드 (엔진 전체 평균: 팀당 경기 옐로 0.93·레드 0.041) */
-      yellow90: 0.0842,
-      red90: 0.0037,
-      /** 포지션군 배율 = 그 군 옐로율 ÷ 전체 (레드도 같은 배율 — 레드 표본이 작아 파울 많은 자리에 비례) */
-      group: { GK: 0, CB: 0.97, FB: 0.63, CDM: 1.42, CM: 1.87, CAM: 1.84, WING: 0.86, ST: 1.16 } as Record<string, number>,
-      /** 팀 성향 배율 = 그 성향 옐로율 ÷ 전체 */
-      tendency: { block: 0.97, balanced: 0.97, counter: 0.85, gegenpress: 1.07, direct: 1.23, tikitaka: 0.96 } as Record<string, number>,
+      /** 90분당 옐로·레드 (엔진 전체 평균). C.80d: 엔진 카드 몫을 올려(팀당 경기 옐로 0.93 → 1.84·레드 0.041 → 0.075) 0.0842·0.0037 → 0.1674·0.0068 */
+      yellow90: 0.1674,
+      red90: 0.0068,
+      /** 포지션군 배율 = 그 군 옐로율 ÷ 전체 (레드도 같은 배율 — 레드 표본이 작아 파울 많은 자리에 비례). C.80d: C.80a·C.80d 측정(각 380경기) 평균 */
+      group: { GK: 0, CB: 0.91, FB: 0.62, CDM: 1.4, CM: 1.82, CAM: 1.62, WING: 0.94, ST: 1.27 } as Record<string, number>,
+      /** 팀 성향 배율 = 그 성향 옐로율 ÷ 전체. C.80d: 두 측정 평균 */
+      tendency: { block: 0.94, balanced: 0.94, counter: 0.86, gegenpress: 1.15, direct: 1.23, tikitaka: 0.97 } as Record<string, number>,
     },
   },
 

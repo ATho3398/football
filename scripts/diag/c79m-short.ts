@@ -1,6 +1,6 @@
 // @ts-nocheck — 진단 스크립트 (C.79m 점유 가치)
 // 성향별 패스 거리·점유: 성향 T 대 균형 n 경기(로스터·홈 양방향 짝), T 쪽 0~10 m 비중 · 30 m+ 비중 · 롱%(30 m+ 시도/패스) · 패스 성공 · 점유 · 득점.
-// 실행: npx vite-node scripts/diag/c79m-short.ts -- [경기수=120] [레이팅=75:75] [성향…] [opp=상대 성향] [경로=값 …]
+// 실행: npx vite-node scripts/diag/c79m-short.ts -- [경기수=120] [레이팅=75:75] [성향…] [경로=값 …]
 import type { MatchJob, MatchOut } from '../engine/job';
 import { runJobs } from '../engine/pool';
 import { std } from '../engine/suite';
@@ -12,10 +12,8 @@ const specs: string[] = [];
 let n = 120;
 let ratings = [75, 75];
 let seed0 = 41000;
-let opp = 'balanced'; // C.80c: opp= 상대 성향(기본 균형)
 for (const a of all) {
   if (a.startsWith('seed=')) seed0 = Number(a.slice(5));
-  else if (a.startsWith('opp=')) opp = a.slice(4);
   else if (a.includes('=')) { const [k, v] = a.split('='); overrides[k!] = Number(v); }
   else if (/^\d+$/.test(a)) n = Number(a);
   else if (/^\d+:\d+$/.test(a)) ratings = a.split(':').map(Number);
@@ -28,12 +26,12 @@ for (const t of specs) for (let k = 0; k < n; k++) {
   const seed = seed0 + Math.floor(k / 2);
   const flip = k % 2 === 1;
   const A = std(flip ? 'b' : 'a', seed, ratings[0], '4-4-2', tacticsOf(t));
-  const B = std(flip ? 'a' : 'b', seed, ratings[1], '4-4-2', tacticsOf(opp));
+  const B = std(flip ? 'a' : 'b', seed, ratings[1], '4-4-2', tacticsOf('balanced'));
   const j = aHome(k) ? { kind: 'match', seed, neutral: true, home: A, away: B, overrides, pdist: true } : { kind: 'match', seed, neutral: true, home: B, away: A, overrides, pdist: true };
   jobs.push(j as MatchJob);
 }
 const outs = await runJobs<MatchOut>(jobs, { label: `짧은 패스 ${jobs.length}경기` });
-console.log(`\n레이팅 ${ratings.join(' 대 ')}, 성향 대 ${opp} ${n}경기씩, 덮어쓰기 ${JSON.stringify(overrides)}`);
+console.log(`\n레이팅 ${ratings.join(' 대 ')}, 성향 대 균형 ${n}경기씩, 덮어쓰기 ${JSON.stringify(overrides)}`);
 console.log('| 성향 | 0~10 m % | 10~20 | 20~30 | 30 m+ | 롱% | 패스/경기 | 패스 성공 % | 점유 % | 득 / 실 | 상대(균형) 0~10 m % |');
 let sAll = 0;
 specs.forEach((t, i) => {

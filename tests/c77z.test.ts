@@ -15,7 +15,10 @@ function setup(sx: number, sy: number, gkAt: [number, number], gkV: [number, num
   for (const o of s.agents) if (o !== a && o !== gk) place(o, L / 2 - 15, 34);
   place(a, sx, sy);
   place(gk, gkAt[0], gkAt[1], gkV[0], gkV[1]);
-  gk.gk = { ...gk.gk!, attrs: { ...gk.gk!.attrs, shotStopping: ENGINE.keeper.leagueShotStopping } };
+  // C.79x: 1대1 GK 능력(선방 0.5 + 출전 범위 0.25 + 민첩 0.25)도 리그 값(oneOnOne.center)으로
+  const rest = (ENGINE.keeper.oneOnOne.center - 0.5 * ENGINE.keeper.leagueShotStopping) / 0.5;
+  gk.gk = { ...gk.gk!, attrs: { ...gk.gk!.attrs, shotStopping: ENGINE.keeper.leagueShotStopping, commandOfArea: rest } };
+  gk.attrs = { ...gk.attrs, agility: rest };
   gk.body = { ...gk.body, gkSave: 0 };
   s.ball.x = sx;
   s.ball.y = sy;
