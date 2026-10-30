@@ -79,6 +79,8 @@ export interface ShotCtx {
   lead: number;
   /** GK 시야 가림 (C.79a): 슛 길 콘 안 골 쪽(선 위치 ≥ screenFrom) 상대 필드 선수가 1명 이상이면 가중(실행 1 · 판단 screenJudge) — 반응 + screenReact × 가중. 없으면 0 */
   screen?: number;
+  /** 슈터 속임 능력 (C.79s keeper.read): 침착 0.5 + 볼 컨트롤 0.3 + 시야 0.2. 없으면(프리킥 등) leagueFeint */
+  feint?: number;
 }
 
 /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
@@ -103,13 +105,13 @@ export function coverOf(c: ShotCtx): number {
 }
 
 /** 대응 시간 모델 (timeModel 1): [덮는 정도, 반응 뒤 남은 시간(초)] */
-function timeTerms(c: ShotCtx): [number, number] {
+function timeTerms(c: ShotCtx, reactExtra = 0): [number, number] {
   const g = c.gk;
   if (!g) return [1, K.availRef];
   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
-  // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기)
-  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0);
+  // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기). reactExtra = 예측 속임(C.79s keeper.read) 의 ±(0 이면 그대로)
+  const react = Math.max(0, reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0) + reactExtra);
   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
   let drift = 0;
   if (e > 1e-6) {
@@ -127,17 +129,30 @@ function timeTerms(c: ShotCtx): [number, number] {
  * timeModel 1 이면 δ 의 거리 항 distW × (1 − 거리/distRef) 대신 시간 항 distW × (1 − 반응 뒤 남은 시간/availRef) — 같은 거리라도 GK 가 가깝거나 공이 빠르면 어렵다
  */
 export function saveChance(c: ShotCtx): number {
-  let cover: number;
-  let delta: number;
-  if (K.timeModel) {
-    const [cv, avail] = timeTerms(c);
-    cover = cv;
-    delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
-  } else {
-    delta = saveDifficulty(c.speed, c.corner, c.d, c.header);
-    cover = coverOf(c);
+  if (!K.timeModel) {
+    const delta = saveDifficulty(c.speed, c.corner, c.d, c.header);
+    return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * coverOf(c);
   }
-  return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * cover;
+  const one = (extra: number): number => {
+    const [cover, avail] = timeTerms(c, extra);
+    const delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
+    return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * cover;
+  };
+  // 예측 속임 (C.79s, 엔진관리자19 G2, read 0 = 끔): 기다림 · 맞음(반응 − readLead) · 틀림(반응 + readWrong = 역동작) 의 기대값 — 판단·실행 같은 식, 헤더 제외
+  if (K.read > 0 && c.gk && !c.header) {
+    const feint = c.feint ?? K.leagueFeint;
+    const pc = L1(((c.stop - K.saveCenter) - (feint - ENGINE.prob.skillCenter)) / K.readScale);
+    let commit = K.readCommit;
+    if (K.readMinT > 0) {
+      // 읽을 시간: 공이 대응 지점까지 오는 시간이 짧으면(근거리·1대1) 기울지 않는다
+      const [, k] = segDist(c.gk.x, c.gk.y, c.fx, c.fy, c.tx, c.ty);
+      const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
+      commit *= clamp((tBall - K.readMinT) / (K.readRampT > 0 ? K.readRampT : K.readMinT), 0, 1);
+    }
+    if (commit <= 0) return one(0);
+    return (1 - commit) * one(0) + commit * (pc * one(-K.readLead) + (1 - pc) * one(K.readWrong));
+  }
+  return one(0);
 }
 
 /**

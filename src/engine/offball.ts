@@ -564,7 +564,7 @@ export function updateOffball(s: SimState, a: Agent): void {
   if (attacking) {
     attackTarget(s, a, dir, bnx, bny);
     // 복귀 조깅 (C.79t, 엔진관리자19 M2): 방금(lineMatchJogReturn 초 안) 내려와 있던 줄 2 선수는 공격 자리 복귀를 서두르지 않는다 (침투 달리기 중은 그대로)
-    if (O.lineMatchJog >= 3 && a.line === 2 && s.t - (lastDrop.get(a) ?? -99) < O.lineMatchJogReturn && !(s.t < a.runUntil)) a.urgent = false;
+    if (O.lineMatchJog >= 3 && a.line === 2 && s.t - (lastDrop.get(a) ?? -99) < O.lineMatchJogReturn && !(s.t < a.runUntil) && !((O.lineMatchKeepSkip & 1) !== 0 && s.teams[a.team].tactics.tendency === 'gegenpress')) a.urgent = false;
   } else {
     defendTarget(s, a, dir, bnx, bny);
     if (O.lineMatchJog >= 3 && a.line === 2 && lineMatchPlan(s, a.team).drop.has(a.idx)) lastDrop.set(a, s.t);
@@ -2123,7 +2123,9 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   const e = cache[team]!;
   if (e.tick === s.tick) return e.plan;
   // 유지 (C.79k 결함 ②): 수비 팀 아무도 오프볼 판단을 안 한 틱이 끼어도 lineMatchKeep 초 안의 마지막 계획을 prev 로 인정한다 (0 = 바로 전 틱만)
-  const prev = e.tick === s.tick - 1 || (e.tick >= 0 && (s.tick - e.tick) * ENGINE.time.dt <= O.lineMatchKeep) ? e.plan : NO_MATCH;
+  const tmK = s.teams[team];
+  const keepSkip = O.lineMatchKeepSkip > 0 && (((O.lineMatchKeepSkip & 1) !== 0 && tmK.tactics.tendency === 'gegenpress') || ((O.lineMatchKeepSkip & 2) !== 0 && s.t < tmK.counterUntil && tmK.counterPressers.length > 0));
+  const prev = e.tick === s.tick - 1 || (!keepSkip && e.tick >= 0 && (s.tick - e.tick) * ENGINE.time.dt <= O.lineMatchKeep) ? e.plan : NO_MATCH;
   e.tick = s.tick;
   const b = s.ball;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;

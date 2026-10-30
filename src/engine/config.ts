@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 61;
+export const ENGINE_VERSION = 62;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -516,6 +516,8 @@ export const ENGINE = {
     /** 복귀 조깅 (C.79t, 엔진관리자19 M2, 0 = 끔): 3 = 수비 때는 그대로, 줄 인원 맞춤으로 내려와 있다가 우리 공이 되면 lineMatchJogReturn 초 동안 공격 자리 복귀를 서두르지 않는다(Keep 의 이동 거리 증가 = 복귀 질주) */
     lineMatchJog: 3,
     lineMatchJogReturn: 4,
+    /** 진단 스위치 (엔진관리자20 c79u, 0 = 끔): 비트 1 = 게겐 성향 팀은 Keep·복귀 조깅을 안 쓴다 · 비트 2 = 우리 역압박 창(counterUntil 안, 가담자 있음) 안에서는 Keep 을 안 쓴다 */
+    lineMatchKeepSkip: 1,
     /**
      * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
      * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
@@ -1505,6 +1507,22 @@ export const ENGINE = {
     screenReact: 0,
     screenFrom: 0.4,
     screenJudge: 1,
+    /**
+     * GK 예측 속임 (C.79s, 엔진관리자19 G2, 사용자 "역동작"): GK 는 슛 직전 슈터 몸 방향·디딤발을 보고 readCommit 확률로 한쪽에 미리 기운다(선행 출발), 나머지는 기다린다.
+     * 예측 적중 p = L1(((선방 − saveCenter) − (속임 − prob.skillCenter)) / readScale), 속임 = 슈터 침착 0.5 + 볼 컨트롤 0.3 + 시야 0.2 (판단·실행 같은 값, 없으면 leagueFeint).
+     * 맞으면 반응 시간 − readLead, 틀리면(슈터가 반대로 참 = 역동작) + readWrong. 선방 = (1 − commit) × 기다림 + commit × (p × 맞음 + (1 − p) × 틀림) — 판단(shotModel)·실행(saveChance) 같은 식(기대값, 난수 없음). 헤더 제외.
+     * GK 에 판단 능력치가 따로 없어 선방(shotStopping)이 읽기를 겸한다. readCommit 0.4 이상은 득점 가드(1.48) 밖 (엔진관리자19 R2 1.67)
+     */
+    read: 1,
+    readCommit: 0.3,
+    readScale: 20,
+    readLead: 0.2,
+    readWrong: 0.4,
+    leagueFeint: 70,
+    /** 예측 속임 읽을 시간 (초, 0 = 거리 무관): 공이 GK 대응 지점까지 오는 시간 tBall 이 readMinT 미만이면 기울지 않고(1대1·근거리는 자세 유지), readMinT ~ readMinT + readRampT 사이 비례 — 장면 ④ 1대1 골 하한 */
+    readMinT: 0.3,
+    /** readMinT 의 비례 구간 폭 (초, 0 = readMinT 와 같음 → 2 × readMinT 에서 전부) */
+    readRampT: 0,
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
