@@ -81,6 +81,10 @@ export interface ShotCtx {
   screen?: number;
   /** 슈터 속임 능력 (C.79s keeper.read): 침착 0.5 + 볼 컨트롤 0.3 + 시야 0.2. 없으면(프리킥 등) leagueFeint */
   feint?: number;
+  /** 1대1 슈터 마무리 (C.79x): 슈팅 0.5 + 침착 0.5. 없으면 oneOnOne.finCenter */
+  fin?: number;
+  /** 1대1 GK 능력 (C.79x): 선방 0.5 + 출전 범위 0.25 + 민첩 0.25 (판단 = 리그 값 oneOnOne.center). 없으면 center */
+  gk1?: number;
 }
 
 /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
@@ -136,6 +140,18 @@ export function distAdj(d: number): number {
 }
 
 /**
+ * 1대1 선방 보정 (C.79x, 사용자 2026-10-30 13:5x "saveBase 상향은 두고 1대1 만 따로 — GK 능력치로 차등", 엔진관리자22 c79z D2): 발 슛 · 압박 0(3 m 안 상대 필드 선수 0) ·
+ * 골 oneOnOne.maxD m 안이면 −drop + gk × (GK 1대1 능력 − center)/100 − fin × (슈터 마무리 − finCenter)/100. 판단(리그 GK)·실행(실제 GK) 같은 식
+ */
+export function oneOnOneAdj(c: ShotCtx): number {
+  const O = K.oneOnOne;
+  if (c.header || c.press3 > 0 || c.d >= O.maxD) return 0;
+  const g = c.gk1 ?? O.center;
+  const f = c.fin ?? O.finCenter;
+  return -O.drop + (O.gk * (g - O.center)) / 100 - (O.fin * (f - O.finCenter)) / 100;
+}
+
+/**
  * 선방 확률 (C.77z): 판단·실행 공용 = 막기 어려움 δ × 덮는 정도. 날씨·카드 보정은 실행 쪽에서 곱한다.
  * timeModel 1 이면 δ 의 거리 항 distW × (1 − 거리/distRef) 대신 시간 항 distW × (1 − 반응 뒤 남은 시간/availRef) — 같은 거리라도 GK 가 가깝거나 공이 빠르면 어렵다
  */
@@ -145,12 +161,14 @@ export function saveChance(c: ShotCtx): number {
     return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * coverOf(c);
   }
   const adj = c.header ? 0 : distAdj(c.d);
+  // 1대1 (C.79x): 거리 보정과 같이 상한 0.95 뒤에 더한다 (근거리 1대1 도 대개 상한 — 안에서 더하면 saveBase 상향을 못 되돌린다)
+  const post = adj + (c.gk ? oneOnOneAdj(c) : 0);
   const one = (extra: number): number => {
     const [cover, avail] = timeTerms(c, extra);
     const delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
     // 거리 보정(C.79x)은 상한 0.95 에 붙은 뒤에 더한다 — 12 m 밖은 대개 상한이라 안에서 더하면 안 먹는다. 위로는 distAdjMax 까지
     const p = clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95);
-    return (adj ? clamp(p + adj, 0.05, K.distAdjMax) : p) * cover;
+    return (post ? clamp(p + post, 0.05, K.distAdjMax) : p) * cover;
   };
   // 예측 속임 (C.79s, 엔진관리자19 G2, read 0 = 끔): 기다림 · 맞음(반응 − readLead) · 틀림(반응 + readWrong = 역동작) 의 기대값 — 판단·실행 같은 식, 헤더 제외
   if (K.read > 0 && c.gk && !c.header) {
@@ -184,8 +202,15 @@ export function expectedSave(c: ShotCtx, gy: number, side: number, cornerMul: nu
 }
 
 /** GK 자료 (실행: 실제 GK 위치·속도·능력·키) */
-export function gkCtx(gk: Agent | null): Pick<ShotCtx, 'gk' | 'stop' | 'body'> {
-  return { gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: gkAttrs(gk).shotStopping, body: gk?.body.gkSave ?? 0 };
+export function gkCtx(gk: Agent | null): Pick<ShotCtx, 'gk' | 'stop' | 'body' | 'gk1'> {
+  const g = gkAttrs(gk);
+  return { gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: g.shotStopping, body: gk?.body.gkSave ?? 0, gk1: gk1Of(gk) };
+}
+
+/** GK 1대1 능력 (C.79x): 선방 0.5 + 출전 범위 0.25 + 민첩 0.25 */
+export function gk1Of(gk: Agent | null): number {
+  const g = gkAttrs(gk);
+  return 0.5 * g.shotStopping + 0.25 * g.commandOfArea + 0.25 * (gk?.attrs.agility ?? 50);
 }
 
 export function catchProb(gk: Agent | null): number {
