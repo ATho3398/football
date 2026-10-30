@@ -13,11 +13,11 @@ const away = createTeamRoster({ id: 'a', rating: 75 }, 'c80g-a', 2018, []);
 const state = () => createMatch({ home: teamSetupFromRoster(home, 75, 75), away: teamSetupFromRoster(away, 75, 75), mode: 'auto', difficulty: 'normal', seed: 3, bigMatch: false }).state;
 
 describe('C.80g 땅볼 롱패스 수신 경합', () => {
-  it('스위치 기본값: 박스 밖 20 m+ 땅볼 3 m 경합 켬 · 공중 먼 경합 3 m', () => {
+  it('스위치 기본값: 박스 밖 20 m+ 땅볼 2.5 m 경합 켬 · 공중 먼 경합 3 m', () => {
     const P = ENGINE.prob;
     expect(P.contestOut).toBe(1);
     expect(P.contestOutFrom).toBe(20);
-    expect(P.contestOutDist).toBe(3);
+    expect(P.contestOutDist).toBe(2.5);
     expect(P.airContestFar).toBe(3);
     expect(P.airContestBias).toBeGreaterThan(0);
     expect(PATCH_LABEL).toMatch(/^C\.8/);
