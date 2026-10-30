@@ -136,7 +136,7 @@ describe('C.77n 시즌 누적 부하', () => {
 
 describe('C.77n 세이브', () => {
   it(`세이브 형식 ${SAVE_FORMAT_VERSION}: npcLoad·player.load·wear 저장, 옛 세이브(55)는 이어 할 수 없음`, () => {
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77n-s', difficulty: 'normal' });
     g.npcLoad = { x: [12.5, 3] };
     g.player.load = 4;

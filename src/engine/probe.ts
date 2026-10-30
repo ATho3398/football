@@ -31,6 +31,10 @@ export interface ShotProbe {
   gkX: number;
   gkY: number;
   gkSpeed: number;
+  /** 발 슛의 약발 몫 0~1 (C.79q shotWeakShare, 진단용). 헤더·프리킥·PK 는 없음 */
+  weak?: number;
+  /** 슛 급함 0~1 (C.79q shotRush, 진단용) */
+  rush?: number;
 }
 
 /** 결정 1건 (choose 직후) */
@@ -56,7 +60,7 @@ const open = new WeakMap<object, ShotProbe>();
 /** 슛 기록 (probe.shot 이 있을 때만 부른다). key = 유효 슈팅 비행의 shot 객체 */
 export function probeShot(
   s: SimState, a: Agent, kind: ShotProbe['kind'], outcome: ShotProbe['outcome'],
-  m: { xg: number | null; pOn: number; pBlock: number; d: number }, aimX: number, aimY: number, ballSpeed: number, key?: object,
+  m: { xg: number | null; pOn: number; pBlock: number; d: number; weak?: number; rush?: number }, aimX: number, aimY: number, ballSpeed: number, key?: object,
 ): void {
   let press3 = 0;
   let gk: Agent | null = null;
@@ -69,6 +73,8 @@ export function probeShot(
     t: s.t, team: a.team, shooter: a.idx, kind, outcome, xg: m.xg, pOn: m.pOn, pBlock: m.pBlock, d: m.d, x: a.x, y: a.y,
     speed: Math.hypot(a.vx, a.vy), press3, aimX, aimY, ballSpeed,
     gkX: gk?.x ?? NaN, gkY: gk?.y ?? NaN, gkSpeed: gk ? Math.hypot(gk.vx, gk.vy) : NaN,
+    ...(m.weak !== undefined ? { weak: m.weak } : {}),
+    ...(m.rush !== undefined ? { rush: m.rush } : {}),
   };
   if (key) open.set(key, p);
   probe.shot!(s, p);

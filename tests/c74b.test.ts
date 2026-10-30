@@ -156,7 +156,7 @@ describe('C.74b 기록 추적·도전 과제', () => {
     const g = game('mig42');
     g.player.history.push({ ...g.player.season, goals: 60, assists: 12, apps: 120, season: 2017, age: 25, teamId: g.player.teamId, leaguePosition: 5, achievementXp: 0, ovr: 80, reputation: 300 });
     const back = deserialize(serialize(g));
-    expect(back.saveFormat).toBe(58);
+    expect(back.saveFormat).toBe(59);
     expect(back.records).toEqual(g.records);
     expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
     const raw = JSON.parse(serialize(g));
@@ -168,7 +168,7 @@ describe('C.74b 기록 추적·도전 과제', () => {
 describe('C.74b 버전', () => {
   it('버전 라벨 · 밸런스 블록', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.7[4-9]/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(BALANCE.travelDay.allowed).toEqual(['video', 'recovery']);
   });

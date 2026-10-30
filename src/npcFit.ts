@@ -14,6 +14,7 @@ import { teamPlan } from './engine/tactics';
 import { rosterRating } from './roster';
 import type { RosterPlayer, TeamRoster } from './roster';
 import type { PlayerLine } from './engine/npcMatch';
+import type { NpcBanMap } from './npcBan';
 
 /**
  * [경기 뒤 피로, 그날 번호(마지막 경기 날), 부상 복귀 날 번호(그날부터 출전 가능, 없으면 부상 없음 — 세이브에선 null),
@@ -45,21 +46,25 @@ export function npcFatigueOn(fit: NpcFit | undefined, day: number): number {
 /** day 날 부상으로 결장 */
 export const npcInjuredOn = (fit: NpcFit | undefined, day: number): boolean => fit?.[2] != null && day < fit[2];
 
-/** 그날 두 팀 선수 컨디션. 피로 0·부상 없는 선수는 넣지 않는다 (입력이 작고, 쉬던 팀은 미리 계산 키가 그대로) */
-export function npcConditions(map: NpcFitMap | undefined, rosters: readonly TeamRoster[], day: number): NpcCond | undefined {
-  if (!map || !BALANCE.fatigue.npc.on) return undefined;
+/**
+ * 그날 두 팀 선수 컨디션. 피로 0·부상 없는 선수는 넣지 않는다 (입력이 작고, 쉬던 팀은 미리 계산 키가 그대로).
+ * ban 을 주면(리그 경기만, C.80a) 출장 정지 선수도 결장 칸 1 — 부상 결장과 같은 길로 선발에서 빠진다
+ */
+export function npcConditions(map: NpcFitMap | undefined, rosters: readonly TeamRoster[], day: number, ban?: NpcBanMap): NpcCond | undefined {
+  if ((!map && !ban) || !BALANCE.fatigue.npc.on) return undefined;
   const out: NpcCond = {};
   let n = 0;
   for (const r of rosters) {
     for (const p of r.players) {
-      const fit = map[p.id];
-      if (!fit) continue;
+      const fit = map?.[p.id];
+      const banned = (ban?.[p.id]?.[1] ?? 0) > 0;
+      if (!fit && !banned) continue;
       const f = Math.round(npcFatigueOn(fit, day) * 10) / 10;
-      const inj = npcInjuredOn(fit, day) ? 1 : 0;
-      const last = fit[3] ?? 0;
-      const streak = fit[6] ?? 0;
+      const inj = npcInjuredOn(fit, day) || banned ? 1 : 0;
+      const last = fit?.[3] ?? 0;
+      const streak = fit?.[6] ?? 0;
       if (f <= 0 && !inj && !last && !streak) continue;
-      out[p.id] = last || streak ? [f, inj, last, (fit[5] ?? 0) >= BALANCE.selection.formMinGames ? fit[4] ?? 0 : 0, streak] : [f, inj];
+      out[p.id] = last || streak ? [f, inj, last, (fit![5] ?? 0) >= BALANCE.selection.formMinGames ? fit![4] ?? 0 : 0, streak] : [f, inj];
       n++;
     }
   }
