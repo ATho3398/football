@@ -2090,7 +2090,8 @@ function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
     .slice(0, G.gegenMarkN);
   const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
   const free = s.agents.filter((a) => a.onPitch && a.team === team && a.line !== 0 && !pressing.includes(a.idx)
-    && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) >= 2);
+    && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) >= 2
+    && (G.gegenMarkBurst <= 0 || BU.on <= 0 || a.burst >= BU.pressMin));
   for (const o of cands) {
     if (!free.length) break;
     const px = clamp(o.x + o.vx * 0.5, 0.3, L - 0.3);

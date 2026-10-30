@@ -215,6 +215,8 @@ export const TENDENCY = {
   gegenMarkSlack: 1.5,
   gegenMarkFrom: 30,
   gegenMarkWindow: 0,
+  /** 진단 스위치 (엔진관리자23 c79y, 0 = 끔): 1 이면 2단 체력 순간 체력이 pressMin 아래인 선수는 선제 마크에 가담하지 않는다 (둘째 압박과 같은 규칙) */
+  gegenMarkBurst: 0,
   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
   gegenDrain: 1.15,
   /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */
