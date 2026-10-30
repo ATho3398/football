@@ -2,7 +2,7 @@
 
 작성: 엔진관리자22 (`session_01YVaigGWF6yn7hhGPFjXrbT`, Fable), 2026-10-30, 브랜치 `claude/engine-manager-22`(origin/main 66b80c9 = C.79s, ENGINE 61). 마스터 AD. main 엔진 코드 불변 — 탐침 `scripts/diag/c79z-bundles.ts`(묶음별 득점·골 경로·12 m 밖 선방 구간)·`c79z-shots.ts`(슛 1건 분해, probe 훅)·`c79z-scenes.ts`(장면 ④·⑬ 실행기), 실험 스위치는 측정용 작업 트리에만(`scripts/diag/c79z-switches.patch` — K1b 트리 `keeper.distAdj` 모사, `c79z-ux-switches.patch` — K1b + C.79x 병합 트리 `prob.onAdjD/V`·`decide.judgeDistAdj`, 모두 기본 0/1 = 끔).
 
-대상: `docs/session-prompts/엔진관리자22.md` — ① engine:check 경량 득점 1.67 이 튄 값인지(4묶음) ② C.79u 가 C.79s 위에서 득점을 올리는 기제 ③ C.79u + C.79x 를 같이 올렸을 때 팀당 1.48~1.55 에 넣는 총량 보정(장면 ④ 1대1 ≥ 0.25 · ⑬ 보호, saveBase 단독 금지). 측정 중 AD 가 C.79x 실측(f4820f5: 12~16.5 선방 83.2 → 77.9 ✓ 이지만 슛이 12~16.5 로 몰려 quick 1.46 → 1.65, saveBase 1.73 은 장면 ④ 1대1 0.220 ✗)을 보내 ③ 은 **saveBase 아닌 레버** 로 좁혔다.
+대상: `docs/session-prompts/엔진관리자22.md` — ① engine:check 경량 득점 1.67 이 튄 값인지(4묶음) ② C.79u 가 C.79s 위에서 득점을 올리는 기제 ③ C.79u + C.79x 를 같이 올렸을 때 팀당 1.48~1.55 에 넣는 총량 보정(장면 ④ 1대1 ≥ 0.25 · ⑬ 보호, saveBase 단독 금지). 측정 중 AD 가 C.79x 실측(f4820f5: 12~16.5 선방 83.2 → 77.9 ✓ 이지만 슛이 12~16.5 로 몰려 quick 1.46 → 1.65, saveBase 1.73 은 장면 ④ 1대1 0.220 ✗)을 보내 ③ 을 먼저 **saveBase 아닌 레버**(§3.2·§3.3)로 좁혔고, 13:5x KST 사용자 방향 확정("saveBase 상향 + 1대1 만 GK 능력치 차등으로 선방 낮춤")으로 **그 조합의 값 범위**(§3.4·§4)를 쟀다.
 
 표본 용어: **quick 600** = 동레이팅 75 균형 4-2-3-1 중립, 시드 1000~1599(`balance:quick`·`c79u-goals.ts` 와 같은 표본). **경량 120** = 그 첫 120경기(시드 1000~1119, `engine:check --light` neutral 집합과 같은 작업). 팀당 득점 SE: 120경기 ±0.075 · 300경기 ±0.048 · 600경기 ±0.033.
 
