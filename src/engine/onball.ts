@@ -720,7 +720,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const DB = ENGINE.decide.bias;
     const dLongB = DB.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
       && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open'
-      && (!DB.directLongBehind || (running && rx >= line - DB.directLongLine / L)) ? DB.directLong : 0;
+      && (!DB.directLongBehind || ((running || !DB.directLongRun) && rx >= line - DB.directLongLine / L)) ? DB.directLong : 0;
     u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj;
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);

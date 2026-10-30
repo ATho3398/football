@@ -1006,6 +1006,8 @@ export const ENGINE = {
        */
       directLongBehind: 1,
       directLongLine: 1,
+      /** 1 = 받는 선수가 침투 중일 때만, 0 = 라인 붙박이 ST 처럼 서 있는 선수도 목표점이 라인 directLongLine m 안이면 */
+      directLongRun: 1,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
