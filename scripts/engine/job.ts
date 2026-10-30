@@ -27,6 +27,7 @@ import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type 
 import { setEnvironmentFixed } from '../../src/weather';
 import { transRun, type TransOut } from './transProbe';
 import { gegenRun, type GegenOut } from './gegenProbe';
+import { c79wRun, type C79wOut } from './c79wProbe';
 import { blockRun, type BlockOut } from './blockProbe';
 import { boxRun, type BoxOut } from './boxProbe';
 
@@ -98,6 +99,8 @@ export interface MatchJob {
   block?: boolean;
   /** 박스 수신 분해 (C.78p boxProbe): 박스로 가는 패스·박스 수신 수비 거리·받은 뒤 3초·12 m 안 슛 앞 장면, 박스 안 수비 인원별 */
   box?: boolean;
+  /** 게겐 대 티키 기제 분해 탐침 (엔진관리자21 c79w) */
+  c79w?: boolean;
 }
 
 export interface SeasonJob {
@@ -152,6 +155,7 @@ export interface MatchOut {
   gegen?: GegenOut;
   block?: BlockOut;
   box?: BoxOut;
+  c79w?: C79wOut[];
 }
 
 export interface SeasonOut {
@@ -353,6 +357,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const gegen = j.gegen ? gegenRun(sim) : undefined;
     const block = j.block ? blockRun(sim) : undefined;
     const box = j.box ? boxRun(sim) : undefined;
+    const c79w = j.c79w ? c79wRun(sim) : undefined;
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -373,6 +378,7 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(gegen ? { gegen } : {}),
       ...(block ? { block } : {}),
       ...(box ? { box } : {}),
+      ...(c79w ? { c79w } : {}),
     };
   } finally {
     restore();
