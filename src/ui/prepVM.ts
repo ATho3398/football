@@ -5,6 +5,7 @@
 import { dateLabel } from '../calendar';
 import { deckProblems } from '../cardCollection';
 import { BALANCE } from '../config/balance';
+import { nextYellowBan, seasonFrac } from '../discipline';
 import { derbyOf } from '../derby';
 import { npcBanLeft } from '../npcBan';
 import { formLevel } from '../form';
@@ -123,7 +124,7 @@ export function prepVM(g: GameState): PrepVM | null {
     condition: {
       fatigue: Math.round(p.fatigue), form: FORM_STEP[formLevel(p.recentRatings)],
       formLabel: formLine(p),
-      yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery, yellowEvery: BALANCE.discipline.yellowBanEvery,
+      yellows: p.season.yellows, yellowEvery: nextYellowBan(p.season.yellows, seasonFrac(g.league.round, g.league.schedule.length)),
       injury: p.injury ? `${p.injury.daysLeft}일 남음` : null, suspended: p.suspended,
       ...((p.seasonFatigue ?? 0) >= 1 ? { seasonFatigue: Math.round(p.seasonFatigue!) } : {}),
     },
