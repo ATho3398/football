@@ -9,7 +9,7 @@ import { BALANCE } from './config/balance';
 import { nationOf, NATIONS, nationsIn, type Confed, type NationData } from '../data/nations';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { addDays, daysBetween, type IsoDate } from './calendar';
-import { expectedGoals, poisson } from './league';
+import { expectedGoals, scorePair } from './league';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import { createTeamRoster, type TeamRoster } from './roster';
 import { reputationTier, playerOvr } from './growth';
@@ -188,7 +188,7 @@ export function nationalDayEnd(state: GameState, breaks: readonly { date: IsoDat
     pushInbox(state, {
       key: `natcall:${w.key}`, cat: 'national', title: `${me.nameKo} 대표팀 소집`,
       body: added.length
-        ? `A매치 주간 대표팀에 뽑혔어요. ${added.map((m) => `${m.date.slice(5).replace('-', '/')} ${nationOf(m.opp).nameKo}전(${m.home ? '홈' : '원정'})`).join(' · ')}. 소집 기간에는 휴가 대신 대표팀 훈련을 해요.`
+        ? `A매치 주간 대표팀에 뽑혔어요. ${added.map((m) => `${m.date.slice(5).replace('-', '/')} ${nationOf(m.opp).nameKo}전(${m.comp !== 'friendly' ? '중립' : m.home ? '홈' : '원정'})`).join(' · ')}. 소집 기간에는 휴가 대신 대표팀 훈련을 해요.`
         : 'A매치 주간 대표팀에 뽑혔지만 클럽 일정과 겹쳐 경기는 뛰지 않아요.',
       link: { to: 'national', label: '대표팀' },
     });
@@ -289,7 +289,7 @@ export function nextWorldCupYear(fromYear: number): number {
   return y;
 }
 
-const neutralScore = (rng: Rng, a: number, b: number): [number, number] => [poisson(rng, expectedGoals(a, b, false)), poisson(rng, expectedGoals(b, a, false))];
+const neutralScore = (rng: Rng, a: number, b: number): [number, number] => scorePair(rng, expectedGoals(a, b, false), expectedGoals(b, a, false));
 
 function pensWinner(rng: Rng, a: number, b: number): boolean {
   const P = N().pens;
