@@ -45,6 +45,7 @@ function build(side: string, seed: number, rating: number, spec: string, opp: nu
 }
 const mk = () => ({ all: 0, allOk: 0, g: 0, gOk: 0, gNear: 0, gNearOk: 0, a: 0, aOk: 0, passes: 0, goals: 0 });
 const acc = [mk(), mk()];
+const near: [number, number, number][] = []; // 수비 2.5 m 안 땅볼 20 m+: [팀, 받는 선수 점수(볼컨 .5 + 근력 .3 + 민첩 .2), 받음]
 const [A, B] = specs as [string, string];
 for (let k = 0; k < n; k++) {
   const seed = seed0 + k;
@@ -65,7 +66,7 @@ for (let k = 0; k < n; k++) {
         const c = acc[side(pend.team)]!;
         const ok = own === pend.team ? 1 : 0;
         c.all++; c.allOk += ok;
-        if (pend.air) { c.a++; c.aOk += ok; } else { c.g++; c.gOk += ok; if (pend.near) { c.gNear++; c.gNearOk += ok; } }
+        if (pend.air) { c.a++; c.aOk += ok; } else { c.g++; c.gOk += ok; if (pend.near) { c.gNear++; c.gNearOk += ok; near.push([side(pend.team), pend.sc, ok]); } }
         pend = null;
       } else pend.left--;
     }
@@ -75,7 +76,7 @@ for (let k = 0; k < n; k++) {
         let nd = Infinity;
         const rc = cur.receiver >= 0 ? s.agents[cur.receiver] : null;
         if (rc) for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0) nd = Math.min(nd, dist(o.x, o.y, s.ball.x, s.ball.y));
-        pend = { team, air: !!cur.air, near: nd < 3, left: 10 };
+        pend = { team, air: !!cur.air, near: nd < 2.5, left: 10, sc: rc ? rc.attrs.ballControl * 0.5 + (rc.attrs.strength + rc.body.strength) * 0.3 + rc.attrs.agility * 0.2 : 0 };
       }
       cur = null;
     }
@@ -87,7 +88,13 @@ const pct = (a: number, b: number) => ((100 * a) / Math.max(1, b)).toFixed(1);
 console.log(`\n${A} 대 ${B} ${n}경기 seed ${seed0} 덮어쓰기 ${JSON.stringify(overrides)}`);
 [A, B].forEach((nm, i) => {
   const c = acc[i]!;
-  console.log(`${nm}: 패스 ${(c.passes / n).toFixed(0)} · 20m+ ${(c.all / n).toFixed(1)}/경기 받음 ${pct(c.allOk, c.all)}% · 땅볼 ${(c.g / n).toFixed(1)} ${pct(c.gOk, c.g)}% (3m 안 ${(c.gNear / n).toFixed(1)} ${pct(c.gNearOk, c.gNear)}%) · 공중 ${(c.a / n).toFixed(1)} ${pct(c.aOk, c.a)}% · 득점 ${(c.goals / n).toFixed(2)}`);
+  console.log(`${nm}: 패스 ${(c.passes / n).toFixed(0)} · 20m+ ${(c.all / n).toFixed(1)}/경기 받음 ${pct(c.allOk, c.all)}% · 땅볼 ${(c.g / n).toFixed(1)} ${pct(c.gOk, c.g)}% (2.5m 안 ${(c.gNear / n).toFixed(1)} ${pct(c.gNearOk, c.gNear)}%) · 공중 ${(c.a / n).toFixed(1)} ${pct(c.aOk, c.a)}% · 득점 ${(c.goals / n).toFixed(2)}`);
 });
+const scs = near.map((x) => x[1]).sort((x, y) => x - y);
+const med = scs[Math.floor(scs.length / 2)] ?? 0;
+for (const half of [0, 1]) {
+  const xs = near.filter((x) => (half ? x[1] >= med : x[1] < med));
+  console.log(`수비 2.5 m 안 땅볼 20 m+ — 받는 선수 점수 ${half ? '상위' : '하위'} 절반(기준 ${med.toFixed(1)}): ${xs.length}회 받음 ${pct(xs.reduce((t, x) => t + x[2], 0), xs.length)}%`);
+}
 console.log('JSON ' + JSON.stringify({ A, B, n, seed0, overrides, acc }));
 process.exit(0);
