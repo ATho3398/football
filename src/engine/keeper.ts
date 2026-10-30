@@ -124,6 +124,17 @@ function timeTerms(c: ShotCtx, reactExtra = 0): [number, number] {
   return [clamp(1 - (e - reach) / K.reachSpan, 0, 1), dive + c.lead];
 }
 
+/** 거리 구간별 선방 보정 (C.79x): distAdjD 점 사이 선형 보간, 양 끝 밖은 끝 값 */
+export function distAdj(d: number): number {
+  const D = K.distAdjD;
+  const V = K.distAdjV;
+  if (d <= D[0]!) return V[0]!;
+  for (let i = 1; i < D.length; i++) {
+    if (d <= D[i]!) return V[i - 1]! + ((V[i]! - V[i - 1]!) * (d - D[i - 1]!)) / (D[i]! - D[i - 1]!);
+  }
+  return V[V.length - 1]!;
+}
+
 /**
  * 선방 확률 (C.77z): 판단·실행 공용 = 막기 어려움 δ × 덮는 정도. 날씨·카드 보정은 실행 쪽에서 곱한다.
  * timeModel 1 이면 δ 의 거리 항 distW × (1 − 거리/distRef) 대신 시간 항 distW × (1 − 반응 뒤 남은 시간/availRef) — 같은 거리라도 GK 가 가깝거나 공이 빠르면 어렵다
@@ -133,10 +144,13 @@ export function saveChance(c: ShotCtx): number {
     const delta = saveDifficulty(c.speed, c.corner, c.d, c.header);
     return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * coverOf(c);
   }
+  const adj = c.header ? 0 : distAdj(c.d);
   const one = (extra: number): number => {
     const [cover, avail] = timeTerms(c, extra);
     const delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
-    return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * cover;
+    // 거리 보정(C.79x)은 상한 0.95 에 붙은 뒤에 더한다 — 12 m 밖은 대개 상한이라 안에서 더하면 안 먹는다. 위로는 distAdjMax 까지
+    const p = clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95);
+    return (adj ? clamp(p + adj, 0.05, K.distAdjMax) : p) * cover;
   };
   // 예측 속임 (C.79s, 엔진관리자19 G2, read 0 = 끔): 기다림 · 맞음(반응 − readLead) · 틀림(반응 + readWrong = 역동작) 의 기대값 — 판단·실행 같은 식, 헤더 제외
   if (K.read > 0 && c.gk && !c.header) {
