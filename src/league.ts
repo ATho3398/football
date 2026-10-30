@@ -229,12 +229,27 @@ export function expectedGoals(own: number, opp: number, home: boolean): number {
   return M.baseGoals * Math.exp((own - opp + (home ? M.homeRating : 0)) * M.goalsK);
 }
 
+/**
+ * 두 팀 득점 (C.80b): 독립 포아송에 Dixon-Coles 저득점 보정 ρ(`match.drawRho`)를 기각 표집으로 얹는다.
+ * τ(0,0) = 1 − λμρ · τ(0,1) = 1 + λρ · τ(1,0) = 1 + μρ · τ(1,1) = 1 − ρ, 나머지 1 — 각 팀 득점 분포(주변 분포·평균)는 그대로, 0-0·1-1 만 는다
+ */
+export function scorePair(rng: Rng, lh: number, la: number): [number, number] {
+  const rho = BALANCE.match.drawRho;
+  // τ 가 음수가 되지 않게 (λ 가 아주 크면 보정을 줄인다)
+  const r = Math.max(rho, -0.9 / Math.max(lh, la, 1));
+  const tau = (x: number, y: number): number =>
+    x === 0 && y === 0 ? 1 - lh * la * r : x === 0 && y === 1 ? 1 + lh * r : x === 1 && y === 0 ? 1 + la * r : x === 1 && y === 1 ? 1 - r : 1;
+  const max = Math.max(1, tau(0, 0), tau(1, 1), tau(0, 1), tau(1, 0));
+  for (let i = 0; ; i++) {
+    const x = poisson(rng, lh);
+    const y = poisson(rng, la);
+    if (r === 0 || i >= 50 || rng() * max < tau(x, y)) return [x, y];
+  }
+}
+
 /** 레이팅 간이 경기. neutral(컵·챔스 결승, C.79o)이면 홈 이점 없음 */
 export function simulateScore(rng: Rng, homeRating: number, awayRating: number, neutral = false): [number, number] {
-  return [
-    poisson(rng, expectedGoals(homeRating, awayRating, !neutral)),
-    poisson(rng, expectedGoals(awayRating, homeRating, false)),
-  ];
+  return scorePair(rng, expectedGoals(homeRating, awayRating, !neutral), expectedGoals(awayRating, homeRating, false));
 }
 
 export function recordResult(league: LeagueState, f: Fixture, hg: number, ag: number): void {

@@ -348,7 +348,7 @@ export function dayVM(g: GameState): DayVM | null {
   const cal = calendarOf(g);
   const today = g.calendar.date;
   const me = g.player.teamId;
-  const myDates = new Map<string, { home: boolean; opp: string; r: number }>();
+  const myDates = new Map<string, { home: boolean; opp: string; r: number; neutral?: boolean }>();
   const leagueDays = new Set<string>();
   g.league.schedule.forEach((round, r) => round.forEach((f, i) => {
     const d = cal.fixtureDates[r]![i]!;
@@ -356,11 +356,11 @@ export function dayVM(g: GameState): DayVM | null {
     if (f.home === me || f.away === me) myDates.set(d, { home: f.home === me, opp: f.home === me ? f.away : f.home, r });
   }));
   // 컵 (C.67): 내 컵 경기 (치른 것 + 추첨된 것)
-  const cupDays = new Map<string, { home: boolean; opp: string; label: string }>();
-  for (const c of myCupMatches(g)) cupDays.set(c.date, { home: c.home, opp: c.opponentId, label: c.label });
+  const cupDays = new Map<string, { home: boolean; opp: string; label: string; neutral?: boolean }>();
+  for (const c of myCupMatches(g)) cupDays.set(c.date, { home: c.home, opp: c.opponentId, label: c.label, neutral: isNeutralMatch({ cup: c }) });
   // 대표팀 (C.76d): 소집된 A매치 주간 경기
-  for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.key.startsWith('w:')) cupDays.set(m.date, { home: m.home, opp: natId(m.opp), label: natLabel(m) });
-  for (const [d, c] of cupDays) myDates.set(d, { home: c.home, opp: c.opp, r: -1 });
+  for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.key.startsWith('w:')) cupDays.set(m.date, { home: m.home, opp: natId(m.opp), label: natLabel(m), neutral: isNeutralMatch({ nat: m }) });
+  for (const [d, c] of cupDays) myDates.set(d, { home: c.home, opp: c.opp, r: -1, neutral: c.neutral });
   const breakDays = new Map<string, keyof typeof BREAK_KO>();
   for (const b of cal.breaks) for (let k = -1; k <= 0; k++) breakDays.set(addDays(b.date, k + 1), b.kind);
   const next = myMatchDate(g);
@@ -395,7 +395,7 @@ export function dayVM(g: GameState): DayVM | null {
     const kind: DayCellVM['kind'] = mine ? (mine.home ? 'home' : 'away') : breakDays.has(d) || vac ? 'break' : leagueDays.has(d) ? 'league' : '';
     const pk = !mine && daysBetween(today, d) >= 0 && daysBetween(d, cal.final) >= 0 ? dayPlan(g, d) : null;
     const plan = pk ? TRAINING_SHORT_KO[pk] : '';
-    const title = mine ? `${mine.r < 0 ? cupDays.get(d)!.label : `${mine.r + 1}R`} ${teamById(g.league, mine.opp).nameKo} ${mine.home ? '홈' : '원정'}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
+    const title = mine ? `${mine.r < 0 ? cupDays.get(d)!.label : `${mine.r + 1}R`} ${teamById(g.league, mine.opp).nameKo} ${venueKo(mine.home, mine.neutral)}` : [breakDays.has(d) ? BREAK_KO[breakDays.get(d)!] : kind === 'league' ? '다른 팀 경기' : '', plan ? `훈련: ${plan}` : ''].filter(Boolean).join(' · ');
     days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title, ...(pk && isLifeKind(pk) ? { life: pk, lifeShort: plan.slice(0, 2) } : {}), ...(mine && mine.r < 0 ? { cup: true } : {}) });
   }
   return {
