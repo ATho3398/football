@@ -70,8 +70,11 @@ describe('C.78k ① 키커가 교체·퇴장해도 재개가 사라지지 않는
         if (how === 'sub') substitute(s, taker, s.bench[0].find((b) => !b.gk)!);
         else giveCard(s, taker, 'red');
         expect(taker.onPitch).toBe(false);
-        for (let i = 0; i < 2000 && s.restart; i++) step(s);
-        expect(s.restart).toBeNull();
+        // C.79m: PK 는 찬 순간에 멈춘다 — 빗나가 바로 골킥이 되면(시드 결과) 그 골킥까지 돌아 possOrigin 이 바뀐다
+        const kicked = () => c.type === 'penalty' && s.events.some((e) => e.type === 'penalty' && e.t >= t0 && e.team === 0);
+        for (let i = 0; i < 2000 && s.restart && !kicked(); i++) step(s);
+        // (찬 같은 틱에 빗나가 골킥 재개가 잡혀 있을 수 있다)
+        if (!kicked()) expect(s.restart).toBeNull();
         // 같은 팀이 같은 종류로 실제 재개했다 (재개를 버렸으면 possOrigin·마지막 터치가 바뀌지 않는다)
         expect(s.possOrigin).toBe(c.type);
         expect(s.possStartT).toBeGreaterThan(t0);
@@ -157,7 +160,8 @@ describe('C.78k ③ GK 선방 평점 = 본인 실제 선방', () => {
 
 describe('C.78k ④ GK 퇴장 대응: 나가는 공격수·들어오는 GK 기록', () => {
   it('나가는 공격수의 포지션·줄·평점 그룹 보존, 허위 선방 0, 새 GK 는 퇴장 GK 슬롯, 팀 10명', () => {
-    const s = createState(input(31));
+    // C.80e(엔진 66): 시드 31 은 30분 전에 다른 선수가 이미 빠져(교체·퇴장) 10명 가정이 깨져 32 로
+    const s = createState(input(32));
     runTo(s, 30 * 60);
     const gk0 = onPitch(s, 0).find((a) => a.line === 0)!;
     const before = new Map(onPitch(s, 0).map((a) => [a.idx, { pos: a.pos, line: a.line, sx: a.sx, statPos: a.stats.position }]));

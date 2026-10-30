@@ -34,6 +34,7 @@ const { Purpose, rand } = rng_;
 import * as roles_ from './roles';
 const { defaultRole, roleById } = roles_;
 import { type Agent, type SimState } from './state';
+import { fitGaps } from './fit';
 import * as state_ from './state';
 const { emptyPlayerStats, emptyTeamStats } = state_;
 import type { EngineInput, EngineResult, Frame, PlayerSpec, Tactics, TeamSetup } from './types';
@@ -132,9 +133,10 @@ export function createState(input: EngineInput): SimState {
     agents, bench,
     ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null },
     bsx: L / 2, bsy: W / 2,
-    teams: setups.map((setup) => ({
+    teams: setups.map((setup, team) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
       tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],

@@ -36,7 +36,7 @@ describe('C.80g 땅볼 롱패스 수신 경합', () => {
     const s = state();
     const rc = s.agents.find((a) => a.team === 0 && a.line > 0)!;
     const def = s.agents.find((a) => a.team === 1 && a.line > 0)!;
-    expect(aerialWin(rc, def, ENGINE.prob.airContestBias)).toBeGreaterThan(aerialWin(rc, def));
-    expect(aerialWin(rc, def, 0)).toBe(aerialWin(rc, def));
+    expect(aerialWin(rc, def, 0, ENGINE.prob.airContestBias)).toBeGreaterThan(aerialWin(rc, def));
+    expect(aerialWin(rc, def, 0, 0)).toBe(aerialWin(rc, def));
   });
 });

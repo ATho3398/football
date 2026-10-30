@@ -23,10 +23,11 @@ export function duelTail(p: number): number {
 }
 
 /** 드리블 성공 확률. space 는 공간 보정 (양수 = 여유) */
-export function dribbleProb(att: Agent, def: Agent, space = 0): number {
+export function dribbleProb(att: Agent, def: Agent, space = 0, fit = 0): number {
   const a = att.attrs;
   const d = def.attrs;
-  const atk = a.dribbling * 0.5 + a.agility * 0.2 + a.acceleration * 0.15 + a.ballControl * 0.15;
+  // 전술 적합도 (C.80e): fit = 공격 쪽 돌파 보너스 − 수비 쪽 태클 보너스 (능력치 점수, fit.ts)
+  const atk = a.dribbling * 0.5 + a.agility * 0.2 + a.acceleration * 0.15 + a.ballControl * 0.15 + fit;
   const dfn = d.tackling * 0.45 + d.defensivePositioning * 0.25 + d.pace * 0.15 + d.marking * 0.15;
   return duelTail(L1((atk - dfn) / PR.dribbleScale + PR.dribbleBias + space + duelEdgeOf(att) - duelEdgeOf(def)));
 }
@@ -45,9 +46,9 @@ export function aerialScore(a: Agent): number {
   return a.attrs.heading * 0.5 + a.attrs.jumping * 0.3 + (a.attrs.strength + a.body.strength) * 0.2 + a.body.aerial;
 }
 
-/** a 가 b 를 이길 확률. bias 는 로지스틱 입력 보정 (C.80g: 늦게 닿는 먼 수비수와의 경합 airContestBias) */
-export function aerialWin(a: Agent, b: Agent, bias = 0): number {
-  return duelTail(L1((aerialScore(a) - aerialScore(b)) / PR.aerialScale + bias + duelEdgeOf(a) - duelEdgeOf(b)));
+/** a 가 b 를 이길 확률. fit = 전술 적합도 공중 보너스 차 (a − b, 능력치 점수, C.80e) · bias = 로지스틱 입력 보정 (C.80g: 늦게 닿는 먼 수비수와의 경합 airContestBias) */
+export function aerialWin(a: Agent, b: Agent, fit = 0, bias = 0): number {
+  return duelTail(L1((aerialScore(a) - aerialScore(b) + fit) / PR.aerialScale + bias + duelEdgeOf(a) - duelEdgeOf(b)));
 }
 
 /**
