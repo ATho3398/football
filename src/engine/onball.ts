@@ -640,6 +640,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // C.80h: 전환(winOff)·역습 보너스 상황은 면제 대신 tikiLongSoft 배 감점
   const tikiLongOn = DB.tikiLong > 0 && tac.tendency === 'tikitaka';
   const tikiLongK = counterK !== 0 || (DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff) ? DB.tikiLongSoft : 1;
+  // 전환 창 패스는 박스 밖 땅볼 롱패스 수신 경합 면제 (C.80g, 실행은 makePass 가 같은 함수로 Flight.transition)
+  const inTransition = PR.contestOut > 0 && transitionWindow(s, a);
   const tikiLongs: { c: Candidate; pen: number }[] = [];
   let tikiShort = false;
 
@@ -687,11 +689,15 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     let aerial = 1;
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.longContest) aerial = aerialWin(r, def, fitPts(s, r.team, 'air') - fitPts(s, def.team, 'air'));
-    } else if (inOppBox(tx, ty, dir)) {
+      if (def && dd < PR.longContest + PR.airContestFar) aerial = aerialWin(r, def, fitPts(s, r.team, 'air') - fitPts(s, def.team, 'air'), dd < PR.longContest ? 0 : PR.airContestBias);
+    } else {
       // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
-      const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.contestDist) aerial = receiveWin(r, def);
+      // 박스 밖 땅볼 롱패스 (C.80g ②-1): contestOutFrom m 이상이면 contestOutDist 안 수비수와 같은 경합
+      const cd = inOppBox(tx, ty, dir) ? PR.contestDist : PR.contestOut > 0 && !inTransition && dist(a.x, a.y, tx, ty) >= PR.contestOutFrom ? PR.contestOutDist : 0;
+      if (cd > 0) {
+        const [def, dd] = nearestOutfield(s, r, tx, ty);
+        if (def && dd < cd) aerial = receiveWin(r, def);
+      }
     }
     const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);
@@ -1244,6 +1250,16 @@ function recordDecision(s: SimState, a: Agent, cands: Candidate[], chosen: Candi
   s.teams[a.team].stats.decisions[band * 3 + Math.min(2, above)]!++;
 }
 
+/**
+ * 전환 창 (C.80g): 오픈 플레이 탈취 뒤 decide.possess.winOff 초(역습 창 transition.counterTime 포함) 안 — C.80f 티키 롱패스 감점 면제와 같은 창.
+ * 이 창의 패스는 박스 밖 땅볼 롱패스 수신 경합(prob.contestOut)을 면제한다. 판단(candidates)과 실행(makePass → Flight.transition)이 같은 함수
+ */
+export function transitionWindow(s: SimState, a: Agent): boolean {
+  if (s.possTeam !== a.team || s.possOrigin !== 'open') return false;
+  const win = Math.max(ENGINE.decide.possess.winOff, ENGINE.transition.counterBonus > 0 ? ENGINE.transition.counterTime : 0);
+  return win > 0 && s.t - s.teams[a.team].wonAt <= win;
+}
+
 /** 패스 실행: 결과(성공/인터셉트/루즈볼)는 차는 순간 정하고 공은 도착점까지 날아간다 */
 export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   const d = dist(a.x, a.y, c.x, c.y);
@@ -1259,6 +1275,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',
     quick: c.type === 'cutback' || c.type === 'layoff', aimD: d,
   };
+  if (PR.contestOut > 0 && transitionWindow(s, a)) fl.transition = true;
   // 약발 (C.45): 약발로 차야 하는 방향이면 실행 성공 확률 × 약발 배율 (판단의 P 는 그대로)
   const foot = weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y, true);
   // 날씨 (C.74a): 받기(퍼스트 터치) × touch, 공중 패스는 바람 × airPass (판단의 P 는 그대로)

@@ -46,9 +46,9 @@ export function aerialScore(a: Agent): number {
   return a.attrs.heading * 0.5 + a.attrs.jumping * 0.3 + (a.attrs.strength + a.body.strength) * 0.2 + a.body.aerial;
 }
 
-/** a 가 b 를 이길 확률. fit = 전술 적합도 공중 보너스 차 (a − b, 능력치 점수, C.80e) */
-export function aerialWin(a: Agent, b: Agent, fit = 0): number {
-  return duelTail(L1((aerialScore(a) - aerialScore(b) + fit) / PR.aerialScale + duelEdgeOf(a) - duelEdgeOf(b)));
+/** a 가 b 를 이길 확률. fit = 전술 적합도 공중 보너스 차 (a − b, 능력치 점수, C.80e) · bias = 로지스틱 입력 보정 (C.80g: 늦게 닿는 먼 수비수와의 경합 airContestBias) */
+export function aerialWin(a: Agent, b: Agent, fit = 0, bias = 0): number {
+  return duelTail(L1((aerialScore(a) - aerialScore(b) + fit) / PR.aerialScale + bias + duelEdgeOf(a) - duelEdgeOf(b)));
 }
 
 /**

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 68;
+export const ENGINE_VERSION = 69;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1224,6 +1224,22 @@ export const ENGINE = {
     contestDist: 2,
     receiveScale: 16,
     receiveBias: 0.5,
+    /**
+     * 박스 밖 땅볼 롱패스 수신 경합 (C.80g, 엔진관리자24 ②-1): 1 이면 박스 밖이라도 contestOutFrom m 이상 땅볼 패스의 착지 때
+     * contestOutDist m 안 상대 필드 선수와 receiveWin 경합(박스 안과 같은 식·같은 결과). 판단(candidates)과 판정(resolveFlight)이 같은 식. 0 = 옛 동작.
+     * 전환 창 면제 (AD 재처방): 오픈 플레이 탈취 뒤 decide.possess.winOff 초(C.80f 티키 감점 면제와 같은 창, onball transitionWindow) 안에 찬 패스는 경합 없음 — 점유 빌드업 롱패스에만.
+     * contestOutDist 처방 3 m → 2.5 m: 3 m 는 이동 거리 테스트(76:74 시드 11~30) 경기별 최다 평균 14.25 km · 한 선수 15.37 km 로 가드(14.1 · 15) 밖, 2.5 m 14.02 · 14.83
+     */
+    contestOut: 1,
+    contestOutFrom: 20,
+    contestOutDist: 2.5,
+    /**
+     * 공중 롱볼 먼 경합 (C.80g, 엔진관리자24 ②-2): 착지 때 가장 가까운 수비수가 longContest 밖 airContestFar m 안이면
+     * 늦게 닿는 경합 — aerialWin 에 받는 쪽 보정 airContestBias(로지스틱 입력)를 더해 판정. 0 = 끔.
+     * 처방 3 m 는 끔: main C.80e 위에서 켜면 이동 거리 테스트 한 선수 15.39 km(> 15, 끄면 14.89) — 보조 처방이라 뺌(C.80e 직선 공중 보너스와 겹침도 피함)
+     */
+    airContestFar: 0,
+    airContestBias: 1.5,
     /**
      * 크로스 경합에서 공격수 보정 (로지스틱 입력). E.22 B: 크로스 대상과 가장 가까운 수비수가 실제로 착지점으로 뛰어들어 경합이 생기면서
      * 0.9 → −1.0 (수비가 공을 마주 보고 먼저 닿는다. 크로스 성공률 25~30%, 코너 약 30개당 1골에 맞춘 묶음 B 보정)

@@ -38,7 +38,9 @@ describe('C.77s 평점 규칙', () => {
   });
 
   it('엔진 경기: 소극적 백패스를 세고, 허용 횟수를 넘긴 선수만 감점된다 (선택은 그대로)', () => {
-    const m = match();
+    // C.80g(엔진 68, 박스 밖 땅볼 롱패스 수신 경합): 시드 1000 경기에 소극적 백패스 0회(전제 조건만 깨짐) → 시드 1008(센 선수 3 · 감점 1, 감점 분기도 지남).
+    // 시드 1000~1009 센 선수 0 · 4 · 4 · 1 · 6 · 2 · 2 · 0 · 3 · 4 (scripts/diag/c80g-passive.ts)
+    const m = match(1008);
     m.runToEnd();
     const s = m.state;
     const counted = s.agents.filter((a) => (a.rt.passive ?? 0) > 0);
