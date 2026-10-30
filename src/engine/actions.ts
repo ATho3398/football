@@ -1,6 +1,6 @@
 // 행동 실행과 결과 판정: 패스, 드리블 돌파, 태클, 슛, 크로스, 클리어링, 공중볼, 세이브
 
-import { weakFootMul } from '../body';
+import { shotFootMul, shotWeakShare, weakFootMul } from '../body';
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
 import * as config_ from './config';
 const { ENGINE } = config_;
@@ -12,7 +12,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
@@ -452,9 +452,20 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   s.lastWasShot = true;
   s.exemptPass = false;
 
+  // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
+  // 약발 (C.78h laneSide): 찰 쪽 구석으로 차는 발 (판단 shotModel 과 같은 쪽·같은 기대 구석). 끄면 골 가운데 방향 (옛 동작)
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const side = m.side || (farSide(gk, gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1));
+  // 약발 (C.79q): 몸 방향 기준 발, 시간이 있으면 주발로 옮겨 찬다 (판단 shotModel 과 같은 함수·같은 급함)
+  const footY = (PR.laneSide > 0 ? gy + side * m.ctx.corner * (G / 2 - 0.3) : gy) - a.y;
+  const rush = shotRush(s, a, m.pressure);
+  const ot = shotOneTouch(s, a);
+  const foot = header ? 1 : shotFootMul(a.body, a.hx, a.hy, gx - a.x, footY, rush, ot);
+  // 진단 기록용 약발 몫 (C.79q, 블록 포함)
+  const pm = probe.shot ? { ...m, ...(header ? {} : { weak: shotWeakShare(a.body, a.hx, a.hy, gx - a.x, footY, rush, ot), rush }) } : m;
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
-    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', m, gx, m.side ? m.ctx.ty : gy, m.speed);
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', pm, gx, m.side ? m.ctx.ty : gy, m.speed);
     const blocker = bb ? bb.me : s.agents.filter((o) => o.onPitch && o.team !== a.team && o.line !== 0)
       .sort((x, y) => dist(x.x, x.y, a.x, a.y) - dist(y.x, y.y, a.x, a.y))[0];
     event(s, 'block', a.team, [a.id, blocker?.id ?? '']);
@@ -470,11 +481,6 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
     return;
   }
 
-  // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
-  // 약발 (C.78h laneSide): 찰 쪽 구석으로 차는 발 (판단 shotModel 과 같은 쪽·같은 기대 구석). 끄면 골 가운데 방향 (옛 동작)
-  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
-  const side = m.side || (farSide(gk, gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1));
-  const foot = header ? 1 : PR.laneSide > 0 ? weakFootMul(a.body, dir, gx - a.x, gy + side * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
   // 상대 분석 (C.74c): 슈팅이 리포트 약점이면 유효 슈팅 × 약점 공략
   const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot * (s.rapport ? exploitMul(s, a, 'shoot') : 1);
   // GK 반대편 구석 (C.77t): GK 가 골대 가운데에서 비켜 있으면 먼 쪽을 노린다 (판단용 shotModel 과 같은 규칙) — 위에서 정함 (C.78h: 두 슛 길이 다르면 shotModel 이 고른 쪽)
@@ -491,7 +497,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
     // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
     const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] > 0 ? 1 : 0 };
     const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
-    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', pm, gx, ty, speed, shot);
     shotFlight(s, a, {
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
@@ -501,7 +507,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   }
   // 빗나감: 골라인 밖으로 → 골킥
   const missY = gy + side * (G / 2 + 0.5 + r(s, a.idx, Purpose.Shot, 4) * 6);
-  if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'miss', m, gx + dir * 3, missY, speed);
+  if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'miss', pm, gx + dir * 3, missY, speed);
   s.ball.owner = -1;
   s.ball.reserve = null;
   s.ball.flight = {

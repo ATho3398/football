@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 91;
+export const BALANCE_VERSION = 93;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -255,6 +255,11 @@ export const BALANCE = {
      * 같은 크기(전 리그 홈 승/무/패 44/22/34)에 맞췄다. 중립 경기(컵·챔스 결승, 대표팀 대회)에는 붙이지 않는다
      */
     homeRating: 3.4,
+    /**
+     * 빠른 경기 무승부 보정 (C.80b): Dixon-Coles 저득점 보정 ρ(`scorePair`). 독립 포아송은 무승부 21.7%(실축 PL 23~26%)라
+     * −0.17 로 0-0·1-1 만 올린다 — 팀 득점 평균·홈/원정 득점 분포는 그대로(정확 계산 전 리그 42.4/25.2/32.4, 0-0 4.7 → 6.4%). 0 = 옛 독립 포아송
+     */
+    drawRho: -0.17,
     scorerShare: {
       ST: 0.3, CF: 0.22, LW: 0.15, RW: 0.15, CAM: 0.12, CM: 0.06, LM: 0.1, RM: 0.1,
       CDM: 0.03, LB: 0.03, RB: 0.03, LWB: 0.03, RWB: 0.03, CB: 0.04,
@@ -984,6 +989,10 @@ export const BALANCE = {
      */
     weakFrom: 0.25,
     weakFull: 0.75,
+    /** 슛 (C.79q): 시간이 있으면(압박·원터치 없음) 공을 주발 쪽으로 옮겨 찬다 — 약발 몫 × (1 − shotSet × (1 − 급함)) */
+    shotSet: 0.8,
+    /** 슛 (C.79q): 발밑 공(원터치 아님)은 주발 인사이드로 몸 반대쪽까지 감아 찬다 — 약발이 시작하는 가로 성분 weakFrom + shotCarry */
+    shotCarry: 0.4,
     /** 패스는 거리로도 섞는다: passFrom m 이하 짧은 패스는 몸을 돌려 차므로 0, passFull m 이상은 전부 (C.45 첫 측정: 짧은 옆 패스까지 걸면 패스 성공률 −3%p) */
     passFrom: 12,
     passFull: 30,

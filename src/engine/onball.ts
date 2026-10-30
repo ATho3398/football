@@ -1,7 +1,7 @@
 // 온더볼 의사결정 (E.7): 후보 행동의 효용 U = P × V + (1 − P) × C 를 softmax 로 고른다
 // 후보: 패스(각 동료), 침투 패스, 몰고 가기/드리블 돌파(전진·좌·우), 슛, 크로스, 클리어링, 유지
 
-import { weakFootMul } from '../body';
+import { shotFootMul, weakFootMul } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes } from '../attributes';
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
 import * as config_ from './config';
@@ -81,6 +81,16 @@ export function oneTouchMul(who: Agent, speed: number, pr: number): number {
 function otOf(s: SimState, who: Agent): number {
   if (otNow && (who === otNow.a || who === otNow.av)) return oneTouchMul(who, otNow.speed, otNow.pr);
   return s.t < who.otUntil ? who.otMul : 1;
+}
+
+/** 원터치 슛 (C.79q 약발): 원터치 판단 중이거나 실행 중(otUntil 전). at 이 있으면(다른 자리 가정) 아님 */
+export function shotOneTouch(s: SimState, a: Agent, at?: unknown): boolean {
+  return !at && (otNow ? a === otNow.a || a === otNow.av : s.t < a.otUntil);
+}
+
+/** 슛 급함 0~1 (C.79q 약발): 원터치면 1 — 공을 주발 쪽으로 옮길 시간이 없다. 그 밖 압박 */
+export function shotRush(s: SimState, a: Agent, pressure: number, at?: unknown): number {
+  return shotOneTouch(s, a, at) ? 1 : pressure;
 }
 
 /** 가장 가까운 상대와 거리 */
@@ -288,6 +298,12 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const d = dist(px, py, gx, gy);
   const t = a.attrs;
   const pressure = follow ? pressureAt(s, a) : pressureAt(s, a, px, py);
+  // 슛 발 (C.79q): 몸 방향 — 몰고 가서 차면(follow) 몰고 가는 방향, 아니면 지금 몸 방향. 급함은 원터치·압박
+  const cd = follow ? dist(a.x, a.y, px, py) : 0;
+  const hx = cd >= 1 ? (px - a.x) / cd : a.hx;
+  const hy = cd >= 1 ? (py - a.y) / cd : a.hy;
+  const rush = shotRush(s, a, pressure, at);
+  const ot = shotOneTouch(s, a, at);
   const K = ENGINE.keeper;
   // 기회의 질 (위치, 각도, 압박, 슈팅 종류): 리그 평균 마무리 선수 기준. 능력치는 마무리 배수 한 곳에서만 (E.20 7번)
   let blockers = 0;
@@ -389,8 +405,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     const dpB = PR.denseLaneW > 0 ? PR.blockDense * Math.max(0, dP - 1) : denseB;
     const pbN = Math.min(PR.blockMax, bN * PR.blockPer + dnB);
     const pbP = Math.min(PR.blockMax, bP * PR.blockPer + dpB);
-    const fN = K.timeModel ? weakFootMul(a.body, dir, gx - px, gy - cy - py) : 1;
-    const fP = K.timeModel ? weakFootMul(a.body, dir, gx - px, gy + cy - py) : 1;
+    const fN = K.timeModel ? shotFootMul(a.body, hx, hy, gx - px, gy - cy - py, rush, ot) : 1;
+    const fP = K.timeModel ? shotFootMul(a.body, hx, hy, gx - px, gy + cy - py, rush, ot) : 1;
     if (pbN === pbP && fN === fP) {
       pBlock = pbN;
       foot = fN;
@@ -410,7 +426,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   } else {
     pBlock = Math.min(PR.blockMax, blockers * PR.blockPer + denseB);
     // 약발 (C.45): 판단도 실행과 같은 배율 (C.77z, timeModel 1 일 때만 — 0 이면 판단은 약발을 모른다, 옛 동작)
-    foot = K.timeModel && !header ? weakFootMul(a.body, dir, gx - px, gy - py) : 1;
+    foot = K.timeModel && !header ? shotFootMul(a.body, hx, hy, gx - px, gy - py, rush, ot) : 1;
     // 판단 = 실행의 기대값 (C.77z timeModel 1): 구석 분포 평균. 0 이면 기대 구석 한 점 (옛 동작)
     pGoal = 1 - (K.timeModel ? expectedSave(ctx, gy, far ?? 1, cornerMul) : saveChance(ctx));
   }
@@ -431,7 +447,8 @@ export function shotExec(s: SimState, a: Agent, header = false): { goal: number;
   const lane = PR.laneSide > 0 && !header;
   const sd = m.side || (farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1);
   const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] > 0 ? 1 : 0 };
-  const foot = header ? 1 : lane ? weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy + sd * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy - a.y);
+  const rush = shotRush(s, a, m.pressure);
+  const foot = header ? 1 : shotFootMul(a.body, a.hx, a.hy, gx - a.x, (lane ? gy + sd * m.ctx.corner * (G / 2 - 0.3) : gy) - a.y, rush, shotOneTouch(s, a));
   const pSave = ENGINE.keeper.timeModel ? expectedSave(ctx, gy, sd, 1 - PR.cornerPressure * m.pressure) : saveChance(ctx);
   return { goal: (1 - m.pBlock) * m.pOn * foot * (1 - pSave), pSave, cover: coverOf(ctx), m };
 }
