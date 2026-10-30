@@ -6719,9 +6719,11 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | engine:check · test · typecheck | 전부 | **engine:check 경량 가드 모두 통과 ✓**(순간이동 0) · test 162파일 1314 ✓(시드 1개 교체) · typecheck ✓ · 이동 거리·장면 테스트 ✓ |
 
 - 티키 행 칸별(41000 / 51000, C.80f → C.80h): 균형 −0.03 → −0.11 / +0.04 → +0.03 · 게겐 −0.35 → −0.42 / −0.25 → −0.57 · 역습 +0.11 → +0.07 / +0.07 → +0.01 · 직선 +0.11 → +0.05 / +0.21 → +0.15 · 블록 +0.09 → +0.08 / 0.00 → +0.05 · 버스 +0.06 → +0.09 / +0.01 → +0.01. 행 하락은 대부분 게겐 칸(짧게 돌릴수록 게겐 선제 마크에 걸림, 설계 "티키는 게겐에 취약").
-- 시드 의존 테스트: `c78o.test` CB 'all' +0 경기에 1대1 멈춤이 없어져 +1 로(+1~5 통과, 비교 단언 그대로). `cards.test` 경기 계산 2초는 측정 동시 실행 부하 — 단독 재실행 ✓.
+- 시드 의존 테스트: `c78o.test` CB 'important' +3 경기에 1대1 멈춤이 없어져 +4 로(C.80g 병합 뒤, 'all' +0~2 통과 · 비교 단언 그대로). `cards.test` 경기 계산 2초는 측정 동시 실행 부하 — 단독 재실행 ✓.
 - **안 된 것**: 0.40(가장 센 값)은 티키 행 −0.076 으로 관문 밖 → 0.25. 점유 가치 티키 가중 보전은 쓰지 않음(0.25 가 감점만으로 통과). `balance:check` 는 60분 넘어 CI 에 맡김.
+- **main 반영(2026-10-31 00:3x, C.80g 뒤)**: origin/main 474ab56 병합 → ENGINE 68 → **69**. 병합 뒤 재측정: 게겐>티키 4묶음 짝(각 480, 같은 코드 tikiLong 0.05·tikiLongSoft 0 대비) 41000 +0.22 → +0.47 · 51000 +0.23 → +0.45 · 61000 +0.24 → +0.58 · 71000 +0.35 → +0.59 = **+0.26 → +0.52, 짝 Δ +0.27 ± 0.04 ✓** · quick 600 득점 **1.49 ✓**(유효 4.9 · 전환 30.6% · 롱 12.2%) · typecheck ✓ · test 163파일 1318 ✓(카드 2초는 단독 재실행 ✓) · engine:check 는 병합 전 통과, balance:check 는 CI.
 - 디자인 없는 새 화면: 없음.
+
 ### C.80g 53단계_땅볼 롱패스 수신 경합 (사용자 2026-10-30 17:1x KST "티키는 작고 기술 좋은 선수 전용인데 왜 롱패스도 잘 받나" · 21:5x "약한 애가 리시브 받는 건 괜찮다. 경합 상황에서 받는 게 안 되는 거다", 마스터 AD `docs/session-prompts/C.80g.md` + 재처방(21:36), Opus, 근거 엔진관리자24 `docs/engine-diagnosis-c80g.md` ②-1): **상대 박스 밖이라도 점유 빌드업 중 20 m 이상 땅볼 패스를 받는 순간 2.5 m 안에 상대 필드 선수가 있으면 박스 안과 같은 수신 경합(`receiveWin`: 볼 컨트롤 .5 + 근력 .3 + 민첩 .2 대 마킹 .5 + 태클 .3 + 수비 위치 .2, +0.5) — 지면 수비 소유(tackleKeep) 또는 루즈볼. 전환 창(오픈 플레이 탈취 뒤 winOff 6초, C.80f 티키 감점 면제와 같은 창 — 역습 창 4초 포함) 안에 찬 패스는 면제. 판단(`candidates`)도 같은 식(찰 때 판정해 Flight 에 실음). 공중 롱볼 먼 경합(②-2 `airContestFar`)은 코드만 두고 끔** (ENGINE_VERSION 67(C.80f) → **68**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 
 - 코드: `config.ts prob.contestOut 1 · contestOutFrom 20 · contestOutDist 2.5 · airContestFar 0 · airContestBias 1.5` · `onball.ts transitionWindow`(전환 창) · `candidates`(박스 안 contestDist, 밖은 전환 창 아니고 찬 자리→목표점 ≥ contestOutFrom 이면 contestOutDist) · `makePass`(전환 창이면 `Flight.transition`) · `actions.ts resolveFlight`(같은 규칙, `fl.transition` 면제) · `duel.ts aerialWin(a, b, fit, bias)`(C.80e fit 와 C.80g bias 둘 다). 엔진관리자24 브랜치가 세션 시작 때 없어서 처방문대로 직접 짬(같은 스위치 이름).
