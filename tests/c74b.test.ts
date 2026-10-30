@@ -168,7 +168,7 @@ describe('C.74b 기록 추적·도전 과제', () => {
 describe('C.74b 버전', () => {
   it('버전 라벨 · 밸런스 블록', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.7[4-9]/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(BALANCE.travelDay.allowed).toEqual(['video', 'recovery']);
   });

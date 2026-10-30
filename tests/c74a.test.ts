@@ -222,7 +222,7 @@ describe('경기 화면 · 버전', () => {
   });
 
   it('버전 라벨', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.7[4-9]/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });
