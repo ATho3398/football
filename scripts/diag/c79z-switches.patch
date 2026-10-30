@@ -1,0 +1,47 @@
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index 1f2dbad..7df0214 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -1546,6 +1546,8 @@ export const ENGINE = {
+     readMinT: 0.3,
+     /** readMinT 의 비례 구간 폭 (초, 0 = readMinT 와 같음 → 2 × readMinT 에서 전부) */
+     readRampT: 0,
++    /** 실험 (엔진관리자22 c79z, C.79x 모사, 기본 꺼짐 mid·far 0): 발 슛 거리별 선방 보정 — 매듭 (d1,0)·(d2,mid)·(d3,mid)·(d4,0)·(d5,far) 선형, 12~16.5 m 음수 · 25 m+ 양수 */
++    distAdj: { mid: 0, far: 0, d1: 12, d2: 13, d3: 16.5, d4: 20, d5: 25 },
+     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
+     openOn: 0.95,
+     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
+diff --git a/src/engine/keeper.ts b/src/engine/keeper.ts
+index bea45a5..8d537f2 100644
+--- a/src/engine/keeper.ts
++++ b/src/engine/keeper.ts
+@@ -128,15 +128,28 @@ function timeTerms(c: ShotCtx, reactExtra = 0): [number, number] {
+  * 선방 확률 (C.77z): 판단·실행 공용 = 막기 어려움 δ × 덮는 정도. 날씨·카드 보정은 실행 쪽에서 곱한다.
+  * timeModel 1 이면 δ 의 거리 항 distW × (1 − 거리/distRef) 대신 시간 항 distW × (1 − 반응 뒤 남은 시간/availRef) — 같은 거리라도 GK 가 가깝거나 공이 빠르면 어렵다
+  */
++/** 실험 (c79z): 거리 매듭 (12,0)·(13,mid)·(16.5,mid)·(20,0)·(25,far) 선형 보간, 25 m 넘으면 far. mid·far 둘 다 0 이면 0 */
++export function distAdjOf(d: number): number {
++  const X = (ENGINE.keeper as unknown as { distAdj?: { mid: number; far: number; d1: number; d2: number; d3: number; d4: number; d5: number } }).distAdj;
++  if (!X || (X.mid === 0 && X.far === 0)) return 0;
++  const ks: [number, number][] = [[X.d1, 0], [X.d2, X.mid], [X.d3, X.mid], [X.d4, 0], [X.d5, X.far]];
++  if (d <= ks[0]![0]) return 0;
++  if (d >= ks[ks.length - 1]![0]) return X.far;
++  for (let i = 1; i < ks.length; i++) if (d <= ks[i]![0]) { const [x0, y0] = ks[i - 1]!; const [x1, y1] = ks[i]!; return y0 + ((y1 - y0) * (d - x0)) / Math.max(1e-6, x1 - x0); }
++  return X.far;
++}
++
+ export function saveChance(c: ShotCtx): number {
+   if (!K.timeModel) {
+     const delta = saveDifficulty(c.speed, c.corner, c.d, c.header);
+     return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * coverOf(c);
+   }
++  // 실험 (엔진관리자22 c79z, C.79x 모사 — 기본 꺼짐): 발 슛 거리 구간별 선방 보정 distAdj(d) 를 saveBase 에 더한다 (판단·실행 같은 식). 헤더·12 m 안은 0
++  const dAdj = !c.header ? distAdjOf(c.d) : 0;
+   const one = (extra: number): number => {
+     const [cover, avail] = timeTerms(c, extra);
+     const delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
+-    return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * cover;
++    return clamp(K.saveBase + dAdj - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * cover;
+   };
+   // 예측 속임 (C.79s, 엔진관리자19 G2, read 0 = 끔): 기다림 · 맞음(반응 − readLead) · 틀림(반응 + readWrong = 역동작) 의 기대값 — 판단·실행 같은 식, 헤더 제외
+   if (K.read > 0 && c.gk && !c.header) {

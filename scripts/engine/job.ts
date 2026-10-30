@@ -237,7 +237,7 @@ function applyOverrides(o: Record<string, number> | undefined): () => void {
   return () => undo.reverse().forEach((f) => f());
 }
 
-function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup {
+export function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup {
   const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
   if (t.formation) roster.formation = t.formation;
   if (t.cells) roster.customSlots = customSlots(t.cells);
