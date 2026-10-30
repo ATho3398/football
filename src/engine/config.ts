@@ -515,7 +515,7 @@ export const ENGINE = {
     lineMatchKeep: 0.3,
     /** 복귀 조깅 (C.79t, 엔진관리자19 M2, 0 = 끔): 3 = 수비 때는 그대로, 줄 인원 맞춤으로 내려와 있다가 우리 공이 되면 lineMatchJogReturn 초 동안 공격 자리 복귀를 서두르지 않는다(Keep 의 이동 거리 증가 = 복귀 질주) */
     lineMatchJog: 3,
-    lineMatchJogReturn: 4,
+    lineMatchJogReturn: 3,
     /** 진단 스위치 (엔진관리자20 c79u, 0 = 끔): 비트 1 = 게겐 성향 팀은 Keep·복귀 조깅을 안 쓴다 · 비트 2 = 우리 역압박 창(counterUntil 안, 가담자 있음) 안에서는 Keep 을 안 쓴다 */
     lineMatchKeepSkip: 1,
     /**
