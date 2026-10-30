@@ -31,6 +31,7 @@ import * as probe_ from './probe';
 const { probe } = probe_;
 import type { Agent, Flight, SimState } from './state';
 import type { Tendency } from './types';
+import { fitPts } from './fit';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
@@ -157,7 +158,8 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 시야: 패스 길을 정확히 찾을수록 가로채일 위험이 줄어든다 (시야 60 기준)
   lane = { ...lane, risk: lane.risk * Math.max(0.3, 1 + (PR.laneVision * (60 - a.attrs.vision)) / 100) };
   const wLong = clamp((d - PR.skillBlendFrom) / (PR.skillBlendTo - PR.skillBlendFrom), 0, 1);
-  const skill = kind === 'cross' ? a.attrs.crossing : a.attrs.shortPassing * (1 - wLong) + a.attrs.longPassing * wLong;
+  // 전술 적합도 (C.80e): 짧은 구간 = 티키 short, 긴 구간 = 직선 long 보너스 (판단의 평균 선수도 같은 팀이라 같은 보너스)
+  const skill = kind === 'cross' ? a.attrs.crossing : (a.attrs.shortPassing + fitPts(s, a.team, 'short')) * (1 - wLong) + (a.attrs.longPassing + fitPts(s, a.team, 'long')) * wLong;
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
@@ -214,7 +216,8 @@ export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who
     const d = carryReachDist(s, o, a, cx, cy);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (o.line === 0 ? O.carryGk : 1) * (1 - d / PR.pressureDist);
   }
-  const skill = who.attrs.dribbling * 0.5 + who.attrs.ballControl * 0.5;
+  // 전술 적합도 (C.80e): 티키 압박 속 키핑
+  const skill = who.attrs.dribbling * 0.5 + who.attrs.ballControl * 0.5 + fitPts(s, a.team, 'keep');
   return clamp((1 - keep) * Math.exp((-O.carrySkill * (skill - PR.skillCenter)) / 10), 0, 0.95);
 }
 
@@ -649,7 +652,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     let aerial = 1;
     if (d0 > PR.airPass) {
       const [def, dd] = nearestOutfield(s, r, tx, ty);
-      if (def && dd < PR.longContest) aerial = aerialWin(r, def);
+      if (def && dd < PR.longContest) aerial = aerialWin(r, def, fitPts(s, r.team, 'air') - fitPts(s, def.team, 'air'));
     } else if (inOppBox(tx, ty, dir)) {
       // 박스 안 땅볼 패스는 착지점 contestDist 안 수비수와 수신 경합 (C.29 fix2 가설 B, 판정은 actions resolveFlight 가 같은 P 로)
       const [def, dd] = nearestOutfield(s, r, tx, ty);
@@ -816,7 +819,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         // 수비 자세 (E.23): 수비수는 바깥쪽으로 몬다. 중앙 쪽으로 꺾는 돌파는 어렵고 바깥쪽은 조금 쉽다
         const D = ENGINE.defense;
         const stance = ang === 0 ? 0 : Math.abs(cy - W / 2) < Math.abs(a.y - W / 2) ? -D.stanceInside : D.stanceOutside;
-        const dp = (who: Agent) => clamp(dribbleProb(who, def!, (second ? -PR.spaceSecondPenalty : 0) + stance) + formBonus(who), 0.02, 0.98);
+        const dp = (who: Agent) => clamp(dribbleProb(who, def!, (second ? -PR.spaceSecondPenalty : 0) + stance, fitPts(s, a.team, 'run') - fitPts(s, def!.team, 'tackle')) + formBonus(who), 0.02, 0.98);
         const p = dp(a);
         const pj = judgedP(p, dp(av));
         const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk) + cBonus(pj, nx - ax);

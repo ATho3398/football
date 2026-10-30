@@ -5,6 +5,7 @@ import { weakFootMul } from '../body';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
+import { fitPts } from './fit';
 import * as duel_ from './duel';
 const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
 import { type ShotCtx } from './keeper';
@@ -359,7 +360,7 @@ export function duelOdds(s: SimState, o: Agent, d: Agent): { pWin: number; pFoul
   const beaten = Math.max(0, positionValue(nx2, ny2) - here) + D.beatenBase;
   const behind = behindOwner(s, o, d);
   // 카드 패시브 (C.36, 내 선수만): 태클 성공 %p. 없으면 그대로
-  const pWin = clamp((1 - dribbleProb(o, d)) * (behind ? D.behindTackle : 1) + (d.cardBoost?.tackle ?? 0), 0.02, 0.98);
+  const pWin = clamp((1 - dribbleProb(o, d, 0, fitPts(s, o.team, 'run') - fitPts(s, d.team, 'tackle'))) * (behind ? D.behindTackle : 1) + (d.cardBoost?.tackle ?? 0), 0.02, 0.98);
   const pFoul = clamp(ENGINE.referee.tackleFoul * (behind ? D.behindFoul : 1) * foulFactor(s, o, o.x, o.y, d), 0, 1);
   // 탈취 가치: 상대 공격 가치가 사라지고 우리 공격이 시작된다 (루즈볼이면 절반)
   const [dx, dy] = toNorm(o.x, o.y, attackDir(d.team, s.half));
@@ -783,7 +784,9 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
     const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
-    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
+    // 전술 적합도 (C.80e): 크로스가 아닌 공중볼(롱볼·걷어낸 공) 경합에 직선 air 보너스
+    const fitAir = fl.fromCross ? 0 : fitPts(s, bestA.team, 'air') - fitPts(s, bestD.team, 'air');
+    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD) + fitAir) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
@@ -910,7 +913,7 @@ export function resolveFlight(s: SimState): void {
             s.teams[1].stats.aerials++;
             rc.stats.aerialDuels++;
             def.stats.aerialDuels++;
-            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
+            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def, fitPts(s, rc.team, 'air') - fitPts(s, def.team, 'air'))) {
               def.stats.aerialsWon++;
               giveBall(s, def, 'gain');
               return;
@@ -1048,7 +1051,8 @@ function firstTouch(s: SimState, a: Agent, fl: Flight): void {
   const pr = Math.max(0, 1 - dNear / RC.pressDist);
   const sp = Math.hypot(a.vx, a.vy);
   if (RC.timeModel > 0) {
-    const t = receiveTime(s, a, speed, a.backToGoal);
+    // 전술 적합도 (C.80e): 공중 롱볼 첫 터치 = 직선 touch 보너스
+    const t = receiveTime(s, a, speed, a.backToGoal, fl.air ? fitPts(s, a.team, 'touch') : 0);
     // 컷백·레이오프는 원래 빠르게 (반응 시간)
     a.cooldown = fl.quick ? Math.min(a.cooldown, t) : t;
     // 받아 놓기: 달리며 받으면 진행 방향으로, 압박이 있으면 그 반대쪽(공격 방향으로 기움)으로 turnAway m

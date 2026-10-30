@@ -53,13 +53,13 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
  * 수신 정지 시간 (C.78b receive.timeModel 1): 첫 터치(볼 컨트롤)·공 속도·압박(pressDist m 안 가장 가까운 상대 필드 선수)·몸 방향·달리는 중으로 min~max 초.
  * 패스 수신은 actions firstTouch 가, 그 밖의 소유(가로채기·루즈볼·태클)는 setOwner 가 부른다
  */
-export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean): number {
+export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean, touchFit = 0): number {
   const R = ENGINE.receive;
   let dNear = Infinity;
   for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) dNear = Math.min(dNear, Math.hypot(o.x - a.x, o.y - a.y));
   const pr = Math.max(0, 1 - dNear / R.pressDist);
   const run = clamp(Math.hypot(a.vx, a.vy) / 5, 0, 1);
-  return clamp(R.base - (R.touchSkill * (a.attrs.ballControl - 70)) / 100 + (R.ballSpeed * Math.max(0, speed - 12)) / 10 + R.press * pr
+  return clamp(R.base - (R.touchSkill * (a.attrs.ballControl + touchFit - 70)) / 100 + (R.ballSpeed * Math.max(0, speed - 12)) / 10 + R.press * pr
     + (back ? R.back : 0) - R.run * run + reaction(a) * R.reactMul, R.min, R.max);
 }
 

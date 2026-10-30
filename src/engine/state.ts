@@ -1,5 +1,6 @@
 // 엔진 내부 상태. 시뮬 함수들이 공유한다 (전역 상태 없음)
 
+import type { FitTendency } from './fit';
 import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
 import type { Position } from '../types';
 import type { MomentState } from './moments';
@@ -267,6 +268,8 @@ export interface TeamState {
   sitSince: number;
   sitCand: DefSit;
   sitCandSince: number;
+  /** 전술 적합도 (C.80e, fit.ts): 성향별 핵심 능력치 차이 − 리그 보통 (점수, 킥오프 선발 기준) */
+  fit: Record<FitTendency, number>;
 }
 
 /** 수비 상황 (C.75c, pending 41): A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박 */
