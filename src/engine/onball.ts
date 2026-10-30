@@ -604,6 +604,13 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // 경기 상황 (E.20 10번, C.29 fix2): 크게 앞선 팀은 전진 패스·슛·드리블을 덜 하고 안전 패스·유지로 기운다 (팀 공용 행동)
   const risk = leadRiskMul(s, a.team);
   const safeRisk = 1 / risk;
+  // 점유 가치 (C.79m, 사용자 "짧은 패스는 점유 가치 높이는 패치"): 소유를 지키는 선택(패스·유지)에 possess × 판단 성공 확률 × 받는(지키는) 곳 여유(1 − 다음 결정 전 상실 확률).
+  // 판단 효용에만 더한다(실행·성공 확률 불변). 성향별 가중(티키타카 최고 · 직선·블록 낮게) × 빌드업 단계(짧게일수록 큼)
+  const DP = ENGINE.decide.possess;
+  // 공격 ⅓ 에서는 줄인다(zoneFrom → zoneTo 에서 0): 골 앞은 공을 지키기보다 위험을 감수하는 곳
+  // 전환 창 (C.79u): 오픈 플레이 탈취 뒤 winOff 초 안은 0 — 뺏은 직후는 전진(그 창의 짧은 패스가 상대 전환 기회를 지워 행을 옮겼다, 진단 c79u)
+  const possK = DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff ? 0
+    : DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5)) * (DP.zoneTo > DP.zoneFrom ? clamp((DP.zoneTo - ax) / (DP.zoneTo - DP.zoneFrom), 0, 1) : 1);
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -718,7 +725,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 직선 전환 롱볼 (C.79d): 직선 성향 · 오픈 플레이 탈취 뒤 counterWinTime 초 안 · 공중(airPass 초과) 전진 패스에만 판단 보정 (실행 불변)
     const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
       && sinceWin <= TENDENCY.counterWinTime && s.possOrigin === 'open' ? ENGINE.decide.bias.directLong : 0;
-    u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj;
+    // 점유 가치 (C.79m): 짧은 패스일수록(near m 안 1 → far m 에서 0) — 거리는 판단에 보이는 특징
+    const possW = possK !== 0 ? possK * clamp((DP.far - d0) / Math.max(1e-6, DP.far - DP.near), 0, 1) : 0;
+    u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj + possW * pj * (1 - pLoseR);
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
@@ -730,7 +739,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
-      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
     }
   }
 
@@ -910,7 +919,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
 
   // 유지: 지금 위치 가치 × (1 − 다음 결정까지 빼앗길 확률). 빼앗기면 상실 비용 (다른 후보와 같은 식)
   const pLose = loseProb(s, a);
-  const holdU = weight((1 - pLose) * here * holdFresh(s, a) + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold);
+  const holdU = weight((1 - pLose) * here * holdFresh(s, a) + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold) + possK * DP.hold * (1 - pLose);
   out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
   // 판단 보정 (C.78p): 슛 밖 행동은 상황 함수 1 (기본값 0 = 끔)
   for (const c of out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];

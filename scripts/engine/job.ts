@@ -10,7 +10,7 @@ import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
 import { customSlots, FORMATION_SLOTS, type Formation } from '../../src/formations';
-import { attackDir, dist, toNorm } from '../../src/engine/pitch';
+import { attackDir, dist, L, toNorm } from '../../src/engine/pitch';
 import type { MatchSim } from '../../src/engine/sim';
 import type { EngineResult } from '../../src/engine/types';
 import { newGame, playRound, rebuildRosters } from '../../src/game';
@@ -98,6 +98,10 @@ export interface MatchJob {
   block?: boolean;
   /** 박스 수신 분해 (C.78p boxProbe): 박스로 가는 패스·박스 수신 수비 거리·받은 뒤 3초·12 m 안 슛 앞 장면, 박스 안 수비 인원별 */
   box?: boolean;
+  /** 패스 거리 분포 (C.79m): 팀별 패스(침투·컷백·레이오프 포함, 크로스 제외) 노린 거리 0·10·20·30·40 m 칸 시도 수 */
+  pdist?: boolean;
+  /** 점유 가치 분해 탐침 (엔진관리자20 c79u): 팀별 오픈 플레이 상실 위치(자기 ⅓·중간·상대 ⅓) · 탈취 뒤 6초 안 패스(수·공중·성공) · 30 m+ 패스(수·성공·공중볼 경합) · 소유 길이 */
+  c79u?: boolean;
 }
 
 export interface SeasonJob {
@@ -152,6 +156,21 @@ export interface MatchOut {
   gegen?: GegenOut;
   block?: BlockOut;
   box?: BoxOut;
+  pdist?: [number[], number[]];
+  c79u?: C79uOut[];
+}
+
+export interface C79uOut {
+  /** 오픈 플레이 상실 수: 자기 ⅓ · 중간 ⅓ · 상대 ⅓ (상실한 팀 기준 정규화 x) */
+  lossZone: [number, number, number];
+  /** 탈취 뒤 6초 안 패스: 수 · 공중(30 m+) 수 · 받음(receive) 수 · 공중 받음 수 */
+  tr: [number, number, number, number];
+  /** 30 m+ 패스 전체: 수 · 받음 · 공중볼 경합(aerial) · 가로챔(intercept) */
+  lg: [number, number, number, number];
+  /** 모든 패스: 수 · 받음 */
+  all: [number, number];
+  /** 오픈 플레이 소유 횟수 · 소유 시간 합(초) · 10초 이상 소유 수 */
+  poss: [number, number, number];
 }
 
 export interface SeasonOut {
@@ -353,6 +372,68 @@ export function runMatchJob(j: MatchJob): MatchOut {
     const gegen = j.gegen ? gegenRun(sim) : undefined;
     const block = j.block ? blockRun(sim) : undefined;
     const box = j.box ? boxRun(sim) : undefined;
+    let pdist: [number[], number[]] | undefined;
+    if (j.pdist && !j.c79u) {
+      pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      const s0 = sim.state;
+      let seen: unknown = null;
+      while (!s0.done) {
+        if (s0.moments.pending) sim.resolve('delegate');
+        else sim.step();
+        const fl = s0.ball.flight;
+        if (fl && fl !== seen && fl.aimD !== undefined && fl.passer >= 0 && !fl.fromCross) {
+          seen = fl;
+          pdist[s0.agents[fl.passer]!.team]![Math.min(4, Math.floor(fl.aimD / 10))]!++;
+        }
+      }
+    }
+    let c79u: C79uOut[] | undefined;
+    if (j.c79u) {
+      if (j.pdist) pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      const mk = (): C79uOut => ({ lossZone: [0, 0, 0], tr: [0, 0, 0, 0], lg: [0, 0, 0, 0], all: [0, 0], poss: [0, 0, 0] });
+      c79u = [mk(), mk()];
+      const s0 = sim.state;
+      let prevPoss = s0.possTeam, prevOrigin = s0.possOrigin, prevStart = s0.possStartT;
+      let seen: unknown = null;
+      const pending: { fl: { outcome: string; aimD?: number; passer: number }; team: 0 | 1; trans: boolean }[] = [];
+      const flush = (cur: unknown) => {
+        for (let i = pending.length - 1; i >= 0; i--) {
+          const q = pending[i]!;
+          if (q.fl === cur) continue;
+          const o = c79u![q.team]!;
+          const d = q.fl.aimD ?? 0;
+          const recv = q.fl.outcome === 'receive' ? 1 : 0;
+          o.all[0]++; o.all[1] += recv;
+          if (q.trans) { o.tr[0]++; if (d > 30) o.tr[1]++; o.tr[2] += recv; if (d > 30) o.tr[3] += recv; }
+          if (d > 30) { o.lg[0]++; o.lg[1] += recv; if (q.fl.outcome === 'aerial') o.lg[2]++; if (q.fl.outcome === 'intercept') o.lg[3]++; }
+          pending.splice(i, 1);
+        }
+      };
+      while (!s0.done) {
+        if (s0.moments.pending) sim.resolve('delegate');
+        else sim.step();
+        if (s0.possTeam !== prevPoss || s0.possStartT !== prevStart) {
+          // 소유가 바뀜: 이전 소유(오픈 플레이)의 길이, 새 소유가 오픈 플레이 탈취면 잃은 팀의 상실 위치
+          if (prevOrigin === 'open') { const o = c79u[prevPoss]!; const len = s0.t - prevStart; o.poss[0]++; o.poss[1] += len; if (len >= 10) o.poss[2]++; }
+          if (s0.possOrigin === 'open' && s0.possTeam !== prevPoss) {
+            const loser = prevPoss;
+            const nx = attackDir(loser, s0.half) > 0 ? s0.ball.x / L : 1 - s0.ball.x / L;
+            c79u[loser]!.lossZone[nx < 1 / 3 ? 0 : nx < 2 / 3 ? 1 : 2]++;
+          }
+          prevPoss = s0.possTeam; prevOrigin = s0.possOrigin; prevStart = s0.possStartT;
+        }
+        const fl = s0.ball.flight;
+        flush(fl);
+        if (fl && fl !== seen && fl.aimD !== undefined && fl.passer >= 0 && !fl.fromCross) {
+          seen = fl;
+          const team = s0.agents[fl.passer]!.team;
+          if (pdist) pdist[team]![Math.min(4, Math.floor(fl.aimD / 10))]!++;
+          const trans = s0.possOrigin === 'open' && s0.t - s0.teams[team].wonAt <= 6;
+          pending.push({ fl: fl as never, team, trans });
+        }
+      }
+      flush(null);
+    }
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -373,6 +454,8 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(gegen ? { gegen } : {}),
       ...(block ? { block } : {}),
       ...(box ? { box } : {}),
+      ...(pdist ? { pdist } : {}),
+      ...(c79u ? { c79u } : {}),
     };
   } finally {
     restore();
