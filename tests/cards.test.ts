@@ -216,7 +216,7 @@ describe('덱과 카드 모음 (F.1·F.3, I.17 9번)', () => {
   });
 
   it('카드 모음 저장·불러오기 그대로, 옛 세이브(15)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     const g = game('ST', 'cards-mig');
     g.player.level = 7;
     const raw = JSON.parse(serialize(g));
