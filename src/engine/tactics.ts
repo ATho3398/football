@@ -194,6 +194,18 @@ export const TENDENCY = {
   gegenMax: 3,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
+  /**
+   * 게겐 수신 후보 선제 마크 (C.80c, 사용자 2026-10-30 "2명이 소유자 압박하는 동안 나머지는 공 받을 후보를 미리 마크", 근거 엔진관리자23 c79y ③):
+   * 상대 소유자(필드 선수) 주변 gegenMarkRadius m 안 가까운 순 gegenMarkN 명의 패스 후보를, 압박·역압박·커버·면제가 아닌 게겐 선수가
+   * 공 쪽 gegenMarkGap m 에서 미리 마크(닿을 수 있는 선수만: 도착 ≤ gegenMarkSlack 초), 공이 우리 골 gegenMarkFrom m 밖일 때만. 0 = 끔.
+   * gegenMarkWindow w — >0 이면 잃은 뒤 w 초 안에서만 (0 = 수비 전반)
+   */
+  gegenMarkN: 6,
+  gegenMarkRadius: 25,
+  gegenMarkGap: 1.5,
+  gegenMarkSlack: 3,
+  gegenMarkFrom: 30,
+  gegenMarkWindow: 0,
   /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
   gegenDrain: 1.15,
   /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */

@@ -2,7 +2,7 @@
 
 import { BALANCE, type Difficulty } from './config/balance';
 import { randInt } from './growth';
-import { poisson, expectedGoals } from './league';
+import { expectedGoals, scorePair } from './league';
 import { DEFENDER_POSITIONS, type FieldPosition } from './positions';
 import { gaussian, type Rng } from './rng';
 
@@ -97,8 +97,9 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
 
   // 팀 득점. 내 선수는 출전 시간만큼 팀 전력에 작게 반영
   const ownRating = input.teamRating + (input.ovr - input.teamRating) * share * BALANCE.league.myPlayerInfluence;
-  const goalsFor = poisson(rng, expectedGoals(ownRating, input.oppRating, input.home && !input.neutral));
-  const goalsAgainst = poisson(rng, expectedGoals(input.oppRating, ownRating, !input.home && !input.neutral));
+  const [goalsFor, goalsAgainst] = scorePair(rng,
+    expectedGoals(ownRating, input.oppRating, input.home && !input.neutral),
+    expectedGoals(input.oppRating, ownRating, !input.home && !input.neutral));
   const outcome: MatchOutcome = goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw';
 
   if (minutes === 0) {
