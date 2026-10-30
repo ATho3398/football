@@ -1,0 +1,101 @@
+diff --git a/src/engine/actions.ts b/src/engine/actions.ts
+index b945e87..655ea9c 100644
+--- a/src/engine/actions.ts
++++ b/src/engine/actions.ts
+@@ -488,7 +488,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
+     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
+     const ty = gy + side * corner * (G / 2 - 0.3);
+     // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
+-    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] > 0 ? 1 : 0 };
++    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] > 0 ? 1 : 0, adjMul: 1 };
+     const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
+     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
+     shotFlight(s, a, {
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index 9b61136..357aeaf 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -971,6 +971,8 @@ export const ENGINE = {
+ 
+   // ── 판단 보정 (C.78p, 사용자 2026-10-27 02:2x "특정 상황에서 그 행동을 할 때 주는 보상을 임의로 늘려 선택을 더 하게") ──
+   decide: {
++    /** 실험 (엔진관리자22 c79z, 기본 1 = 판단·실행 같음): 판단이 보는 거리 선방 보정(C.79x distAdj) 배수 — 0 이면 판단은 거리 보정을 모른다(판단 보정 항) */
++    judgeDistAdj: 1,
+     /**
+      * 행동 선호 보정: 판단(choose) 효용에만 더하는 보너스 = 행동별 기본값(골 단위 효용) × 상황 함수(0~1, 판단에 보이는 특징만).
+      * 실행 확률·결과(성공 판정·xG·선방)에는 들어가지 않는다 — 실행 레버를 내려 그 행동을 덜 고르게 된 만큼만 되살린다(결과 할당 아님).
+@@ -1141,6 +1143,9 @@ export const ENGINE = {
+     /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②). C.78p: 0.665 → 0.62 — 판단 보정과 짝(0.58·0.60 은 장면 ④ 1대1 골 < 0.25) */
+     shotBase: 0.62,
+     shotPerM: 0.015,
++    /** 실험 (엔진관리자22 c79z, 기본 0): 발 슛 거리 구간별 유효 확률 배수 (1 + V) — C.79x 거리 선방 보정과 같은 매듭 */
++    onAdjD: [12, 13, 16.5, 17],
++    onAdjV: [0, 0, 0, 0],
+     shotPressure: 0.15,
+     /**
+      * 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0(GK 제외) 이면
+diff --git a/src/engine/keeper.ts b/src/engine/keeper.ts
+index f417408..f90eaf8 100644
+--- a/src/engine/keeper.ts
++++ b/src/engine/keeper.ts
+@@ -81,6 +81,8 @@ export interface ShotCtx {
+   screen?: number;
+   /** 슈터 속임 능력 (C.79s keeper.read): 침착 0.5 + 볼 컨트롤 0.3 + 시야 0.2. 없으면(프리킥 등) leagueFeint */
+   feint?: number;
++  /** 실험 (엔진관리자22 c79z): 거리 보정(distAdj) 배수 — 판단은 decide.judgeDistAdj, 실행 1 */
++  adjMul?: number;
+ }
+ 
+ /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
+@@ -144,7 +146,7 @@ export function saveChance(c: ShotCtx): number {
+     const delta = saveDifficulty(c.speed, c.corner, c.d, c.header);
+     return clamp(K.saveBase - K.saveDelta * delta + (K.saveSkill * (c.stop - K.saveCenter)) / 100 + c.body, 0.05, 0.95) * coverOf(c);
+   }
+-  const adj = c.header ? 0 : distAdj(c.d);
++  const adj = c.header ? 0 : distAdj(c.d) * (c.adjMul ?? 1);
+   const one = (extra: number): number => {
+     const [cover, avail] = timeTerms(c, extra);
+     const delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 8b8845d..18b1755 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -340,6 +340,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     speed = PR.headerSpeed;
+   } else {
+     pOn = clamp(PR.shotBase - PR.shotPerM * d - PR.shotPressure * pressure + formBonus(a), PR.shotMin, PR.shotMax);
++    // 실험 (엔진관리자22 c79z): 발 슛 거리 구간별 유효 확률 배수 (1 + onAdj(d)) — 판단·실행 같은 식, 기본 0
++    pOn *= 1 + onAdjOf(d);
+     speed = B.shotSpeed;
+   }
+   const angle = Math.min(1, goalAngle(px, py, gx) / PR.shotAngleRef);
+@@ -363,6 +365,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
+     gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
+     screen: (far ?? 1) < 0 ? sN : sP,
++    adjMul: ENGINE.decide.judgeDistAdj,
+     // 슈터 속임 능력 (C.79s keeper.read): 판단·실행 같은 값
+     feint: t.composure * 0.5 + t.ballControl * 0.3 + t.vision * 0.2,
+   };
+@@ -422,12 +425,20 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+  * 실행 쪽 기대값 (C.77z, 장면·테스트용): 판단 자료(shotModel.ctx)에 실제 상대 GK(위치·속도·선방·키)와 실제 약발을 넣은 같은 식(saveChance).
+  * 구석·공 속도는 기대값 — 실제 shoot() 은 그것을 뽑는다. 상대 GK 가 리그 GK(선방 leagueShotStopping·키 0)이고 timeModel 1 이면 goal = shotModel().xg
+  */
++/** 실험 (c79z): prob.onAdjD 점 사이 선형 보간, 양 끝 밖은 끝 값 */
++function onAdjOf(d: number): number {
++  const D = PR.onAdjD, V = PR.onAdjV;
++  if (d <= D[0]!) return V[0]!;
++  for (let i = 1; i < D.length; i++) if (d <= D[i]!) return V[i - 1]! + ((V[i]! - V[i - 1]!) * (d - D[i - 1]!)) / (D[i]! - D[i - 1]!);
++  return V[V.length - 1]!;
++}
++
+ export function shotExec(s: SimState, a: Agent, header = false): { goal: number; pSave: number; cover: number; m: ShotModel } {
+   const m = shotModel(s, a, header);
+   const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+   const lane = PR.laneSide > 0 && !header;
+   const sd = m.side || (farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1);
+-  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] > 0 ? 1 : 0 };
++  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] > 0 ? 1 : 0, adjMul: 1 };
+   const foot = header ? 1 : lane ? weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy + sd * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy - a.y);
+   const pSave = ENGINE.keeper.timeModel ? expectedSave(ctx, gy, sd, 1 - PR.cornerPressure * m.pressure) : saveChance(ctx);
+   return { goal: (1 - m.pBlock) * m.pOn * foot * (1 - pSave), pSave, cover: coverOf(ctx), m };
