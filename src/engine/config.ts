@@ -349,6 +349,12 @@ export const ENGINE = {
      */
     directHoldLine: 1,
     directHoldX: 0.5,
+    /**
+     * C.79r ③: 직선 성향 팀의 공중 롱볼(long)이 상대 진영(착지 x ≥ directFlyFrom)으로 떠 있는 동안, 받는 선수가 아닌 측면 선수(LM·RM·LW·RW·LWB·RWB)는
+     * 자기 레인(gapY) 그대로 오프사이드 라인으로 runSeconds 초 침투한다(세컨드볼 2명은 그대로) — 받은 뒤 앞 동료. 난수 없음. 0 = 끔
+     */
+    directFlyRun: 1,
+    directFlyFrom: 0.5,
     /** 침투 확률에 곱하는 속도 보정 = 1 + runPace × (속도 − 70)/100 (빠를수록 뒷공간을 더 노린다) */
     runPace: 2.5,
     runSeconds: 3,

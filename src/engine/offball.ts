@@ -557,6 +557,12 @@ export function updateOffball(s: SimState, a: Agent): void {
     }
   }
 
+  // 직선 롱볼 측면 침투 (C.79r ③): 우리 롱볼이 상대 진영으로 떠 있으면 측면 선수는 자기 레인으로 라인까지
+  if (O.directFlyRun > 0 && fl && fl.kind === 'long' && fl.receiver !== a.idx && s.t >= a.runUntil && WIDE_RUN.has(a.pos)
+    && s.agents[fl.passer]?.team === a.team && s.teams[a.team].tactics.tendency === 'direct' && toNorm(fl.toX, fl.toY, dir)[0] >= O.directFlyFrom) {
+    a.runUntil = s.t + O.runSeconds;
+    a.gapY = clamp(toNorm(a.x, a.y, dir)[1], 0.15, 0.85);
+  }
   const attacking = s.possTeam === a.team;
   const [bnx, bny] = ballNorm(s, a.team);
   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
@@ -818,6 +824,7 @@ function holdLineForward(s: SimState, a: Agent): boolean {
 }
 
 const FB_POS = new Set(['LB', 'RB', 'LWB', 'RWB']);
+const WIDE_RUN = new Set(['LM', 'RM', 'LW', 'RW', 'LWB', 'RWB']);
 const WIDE_POS = new Set(['LW', 'RW', 'LM', 'RM']);
 
 /**
