@@ -18,7 +18,7 @@
 ### 지금 상태 (24대, 2026-10-30 18:xx KST — c80g 진단 끝, 브랜치 `claude/engine-manager-24`, main 26462a7 = ENGINE 63)
 - 산출 `docs/engine-diagnosis-c80g.md`: 사용자 질문 "티키가 왜 롱패스를 잘 받나 / 먼 후보는 커버돼야" — 답: 티키 20 m+ 의 78%가 20~30 m **땅볼**이고 박스 밖 땅볼 수신식에는 받는 선수 능력치·받는 순간 수비 거리가 없다(2.8 m 안 76 대 8 m 밖 85). 줄 사이 먼 후보는 이미 83%가 8 m 안 — 커버가 아니라 수신식이 문제. 처방 = `prob.contestOut`(박스 밖 20 m+ 땅볼도 3 m 안 수비와 receiveWin, 판단 같은 식) + 보조 `prob.airContestFar` 3(공중 경합 반경 2.8 → 5.8 m, 멀수록 받는 쪽 유리). 스위치는 이 브랜치 src 에 기본 0 으로(지문 main 과 같음).
 - 새 도구: `scripts/engine/c80gProbe.ts`(job 플래그 `c80g` — 20 m+ 패스마다 받는 선수 능력치·찰 때/도착 때 수비 거리·자리·결과, 1초 커버 표본) · `scripts/diag/c80g-pass.ts`(성향별 표) · `c80g-curves.ts`(실행식 능력치 곡선표, 경기 없음). 1,120경기 약 6분(WORKERS 3).
-- 교훈: 측정 대기는 `until grep …; do sleep; done` 를 **run_in_background** 로(pgrep -f 는 자기 명령줄에 걸린다). 상성 2880경기와 quick 을 동시에 돌리면 상성이 1경기/초로 느려진다 — 큰 측정은 하나씩.
+- 교훈: 측정 대기는 `until grep …; do sleep; done` 를 **run_in_background** 로(pgrep -f·pkill -f 는 자기 명령줄에 걸린다 — `^node .*` 처럼 앞을 고정). 상성 2880경기와 quick 을 동시에 돌리면 상성이 1경기/초로 느려진다 — 큰 측정은 하나씩. **상성 측정 중에 `vitest run`(전체 테스트)을 같이 돌리면 워커가 죽고 pool 이 영원히 기다린다**(2850/2880 에서 멈춤, 결과 json 없음 → 처음부터 재측정 15분) — 테스트는 측정이 끝난 뒤.
 
 ### 지금 상태 (18대, 2026-10-29 11:xx KST — C.79h 진단 끝, 브랜치 `claude/engine-manager-18`)
 - 산출: `docs/engine-diagnosis-c79h.md`(줄 인원 맞춤이 게겐/직선 칸을 지운 이유) + 스위치 `scripts/diag/c79h-switches.patch`(기본 0, 지문 5607b59f104c8ddf 불변) + 도구 `c79h-lm.ts`(발동·슛 탐침, `lineMatchPeek` 읽기), `c78s-matrix.ts seed=`·`custom-sweep.ts SEED0=`(독립 시드 묶음).
