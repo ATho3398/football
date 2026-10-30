@@ -52,6 +52,7 @@ export function prepView(vm: PrepVM): string {
     <div class="prep-bar"><span>전력 <b class="po-num">${vm.my.rating}</b> <small>${vm.my.rank ? `${vm.my.rank}위` : ''}</small></span><span class="prep-bar__track"><i style="width:${share}%"></i><i></i></span><span><small>${vm.opp.rank ? `${vm.opp.rank}위` : vm.opp.id.startsWith('n:') ? '대표팀' : '리그 밖'}</small> <b class="po-num is-away">${vm.opp.rating}</b></span></div>
     <div class="prep-row">${vm.opp.tactic ? TacticChip({ size: 'sm', away: true, ...vm.opp.tactic }) : '<span></span>'}${formDots(vm.opp.form)}</div>
     ${vm.derby ? `<div class="prep-derby">${Icon({ name: 'star', size: 14, strokeWidth: 2.4 })}<b class="grow">${esc(vm.derby.name)} · 더비 매치</b>${vm.opp.rank ? `<small>순위 ${vm.my.rank}위 vs ${vm.opp.rank}위</small>` : ''}</div>` : ''}
+    ${vm.oppBans.length ? `<span class="prep-note">출장 정지 · ${esc(vm.oppBans.join(', '))}</span>` : ''}
     ${vm.hint ? `<span class="prep-note">영상 분석 힌트 · ${esc(vm.hint)}</span>` : ''}`);
 
   // 상대 분석 리포트 (C.74c): 나를 맡을 수비수 · 약점 1~2개 · 결정 순간 "약점 공략"

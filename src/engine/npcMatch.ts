@@ -27,8 +27,11 @@ export interface NpcMatchInput {
 /** 골 기록: [분, 팀(0 홈·1 원정), 득점자 id, 도움 id(없으면 null)] */
 export type GoalRec = [number, 0 | 1, string, string | null];
 
-/** 선수 기록: [id, 출전 분, 골, 도움, 평점 ×10 (정수), 이동 거리 m (정수, C.77m NPC 피로)] */
-export type PlayerLine = [string, number, number, number, number, number?];
+/**
+ * 선수 기록: [id, 출전 분, 골, 도움, 평점 ×10 (정수), 이동 거리 m (정수, C.77m NPC 피로), 옐로 장수, 퇴장 1]
+ * 카드 두 칸(C.80a NPC 출장 정지)은 카드를 받은 선수만 붙는다
+ */
+export type PlayerLine = [string, number, number, number, number, number?, number?, (0 | 1)?];
 
 export interface NpcMatchResult {
   hg: number;
@@ -47,13 +50,17 @@ function goalMinute(t: number, halfSeconds = 2700): number {
 export function summarize(r: {
   homeGoals: number; awayGoals: number;
   events: { t: number; type: string; team: 0 | 1; players: string[] }[];
-  players: { id: string; minutes: number; goals: number; assists: number; rating: number; distance: number }[];
+  players: { id: string; minutes: number; goals: number; assists: number; rating: number; distance: number; yellows?: number; red?: boolean }[];
 }): NpcMatchResult {
   return {
     hg: r.homeGoals,
     ag: r.awayGoals,
     goals: r.events.filter((e) => e.type === 'goal').map((e) => [goalMinute(e.t), e.team, e.players[0]!, e.players[1] ?? null]),
-    players: r.players.filter((p) => p.minutes > 0).map((p) => [p.id, p.minutes, p.goals, p.assists, Math.round(p.rating * 10), Math.round(p.distance)]),
+    players: r.players.filter((p) => p.minutes > 0).map((p): PlayerLine => {
+      const line: PlayerLine = [p.id, p.minutes, p.goals, p.assists, Math.round(p.rating * 10), Math.round(p.distance)];
+      if (p.yellows || p.red) line.push(p.yellows ?? 0, p.red ? 1 : 0);
+      return line;
+    }),
   };
 }
 

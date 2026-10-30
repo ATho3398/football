@@ -137,7 +137,7 @@ describe('세이브 (C.46)', () => {
     expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
     const again = deserialize(serialize(g));
     expect(again.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     expect(Object.keys(again.finance!.budgets)).toHaveLength(20);
     for (const r of Object.values(again.rosters)) expect(withinRules(r.players)).toBe(true);
     expect(again.finance).toEqual(g.finance);

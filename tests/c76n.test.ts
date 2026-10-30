@@ -146,7 +146,7 @@ describe('화면 · 세이브', () => {
   });
   it('세이브 왕복 · 52 는 이어 할 수 없음', () => {
     const g = seasonDone();
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     const back = deserialize(serialize(g));
     expect(back.globalAwards!.years.at(-1)!.res.ballonDor!.length).toBe(30);
     const raw = JSON.parse(serialize(g));

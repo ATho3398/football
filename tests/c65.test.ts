@@ -151,7 +151,7 @@ describe('세이브 35 (C.65)', () => {
   it('왕복, 옛 세이브(34)는 이어 할 수 없음', () => {
     const g = prospect('ST', 'c65-save');
     playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(58);
+    expect(SAVE_FORMAT_VERSION).toBe(59);
     const back = deserialize(serialize(g));
     expect(back.goals).toEqual(g.goals);
     const raw = JSON.parse(serialize(g));
