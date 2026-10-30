@@ -3,6 +3,7 @@
 
 import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Icon, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
 import { BALANCE } from '../../config/balance';
+import { yellowBanRule } from '../../discipline';
 import { heroFaceOf } from '../faces';
 import { isLandPhone, isWide, skin } from '../skin';
 import type { MarketVM } from '../transferVM';
@@ -53,7 +54,7 @@ export interface PlayerParts {
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const c = vm.condition;
-  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellows}/${c.yellowEvery}`, soft: true }, { label: vm.chapter, soft: true }];
+  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}`, soft: true }, { label: vm.chapter, soft: true }];
   const face = playerFace(vm);
   // 디자인 B 93·134·136: 사진이 있으면 compact 미페 머리말(290px), 없으면 compact 머리말(디자인 A 93)
   const hero = face
@@ -138,8 +139,8 @@ function recordTab(vm: PlayerVM): string {
   return `${seasonMatchesSection(vm.matches)}
     ${SectionTitle({ title: '경고와 출장' })}
     ${panel(`
-      <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
-      <span class="muted small">옐로카드 ${c.yellowEvery}장이 쌓이면 다음 1경기에 나올 수 없어요.</span>
+      <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}</b></span></div>
+      <span class="muted small">리그 옐로 ${yellowBanRule()} 출장 정지 (시즌마다 새로).</span>
       ${ban}`)}
     ${SectionTitle({ title: '호흡 좋은 동료', action: `패스 성공 최대 +${Math.round(BALANCE.chemistry.maxPass * 100)}%` })}
     ${panel(vm.chem.length

@@ -57,6 +57,7 @@ import type { FieldAttributes } from './attributes';
 import { adviceOpen, aptitudeSeed, checkAdviceTaken, evaluateAdvice, mainPositionAptitude, rollProspect } from './aptitude';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import { engineCards, npcBanAfterMatch, quickCards, type NpcBanMap } from './npcBan';
+import { seasonFrac, yellowBanMatches } from './discipline';
 import { lineupLines } from './npcQuick';
 import { dayNum, npcAfterMatch, npcConditions, npcLines, pruneNpcFit, rosterLoadMul, rosterTendency, type NpcCond, type NpcFitMap, type NpcLine } from './npcFit';
 import { closeNpcLoadSeason, gegenSeasonDone, matchLoad, npcGegen, npcWear, seasonWear, wearAging, type NpcLoadMap } from './load';
@@ -981,7 +982,7 @@ export function applyOther(state: GameState, r: number, i: number, res: NpcMatch
   const date = calendarOf(state).fixtureDates[r]![i]!;
   npcAfterMatch((state.npcFit ??= {}), [state.rosters[f.home]!, state.rosters[f.away]!], npcLines(res), dayNum(date), state.worldSeed, hashSeed(`${state.worldSeed}:other:${state.league.season}:${r}:${i}`), (state.npcLoad ??= {}));
   // NPC 출장 정지 (C.80a): 엔진 카드
-  npcBanAfterMatch((state.npcBan ??= {}), [state.rosters[f.home]!, state.rosters[f.away]!], engineCards(res));
+  npcBanAfterMatch((state.npcBan ??= {}), [state.rosters[f.home]!, state.rosters[f.away]!], engineCards(res), seasonFrac(r, state.league.schedule.length));
 }
 
 /** 빠른 경기 출전 명단 캐시 (C.80a): 같은 로스터·같은 컨디션이면 명단이 같다 (밸런스 시뮬 시간) */
@@ -999,10 +1000,10 @@ function quickLineup(roster: TeamRoster, cond: NpcCond | undefined): NpcLine[] {
  * 빠른 경기(엔진 없음) 리그 경기의 NPC 카드·출장 정지 (C.80a): 그날 컨디션(부상·정지 결장)으로 출전 명단을 뽑아 카드를 굴린다.
  * 스코어·피로와 무관 (명단은 카드 굴림에만 쓴다)
  */
-function quickLeagueBans(state: GameState, rosters: readonly TeamRoster[], date: IsoDate, matchSeed: number): void {
+function quickLeagueBans(state: GameState, rosters: readonly TeamRoster[], date: IsoDate, matchSeed: number, round: number): void {
   if (!BALANCE.discipline.npc.on) return;
   const cards = rosters.flatMap((ro) => quickCards(ro, quickLineup(ro, npcConditions(state.npcFit, [ro], dayNum(date), state.npcBan)), state.worldSeed, matchSeed));
-  npcBanAfterMatch((state.npcBan ??= {}), rosters, cards);
+  npcBanAfterMatch((state.npcBan ??= {}), rosters, cards, seasonFrac(round, state.league.schedule.length));
 }
 
 /**
@@ -1021,7 +1022,7 @@ export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
       recordResult(state.league, f, hg, ag);
       const home = state.rosters[f.home];
       const away = state.rosters[f.away];
-      if (home && away) quickLeagueBans(state, [home, away], state.calendar.date, hashSeed(`${state.worldSeed}:other:${state.league.season}:${r}:${i}`));
+      if (home && away) quickLeagueBans(state, [home, away], state.calendar.date, hashSeed(`${state.worldSeed}:other:${state.league.season}:${r}:${i}`), r);
     }
   }
 }
@@ -1800,12 +1801,12 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     if (rm) {
       npcAfterMyMatch(state, rm.input, sum);
       // NPC 출장 정지 (C.80a): 동료·상대 엔진 카드
-      npcBanAfterMatch((state.npcBan ??= {}), [rm.input.myRoster, rm.input.oppRoster], engineCards(sum));
+      npcBanAfterMatch((state.npcBan ??= {}), [rm.input.myRoster, rm.input.oppRoster], engineCards(sum), seasonFrac(roundIdx, league.schedule.length));
     }
   } else {
     const mine = state.rosters[player.teamId];
     const oppR = state.rosters[opp.id];
-    if (mine && oppR) quickLeagueBans(state, [mine, oppR], state.calendar.date, hashSeed(`${seed}:engine:${league.season}:${roundIdx}`));
+    if (mine && oppR) quickLeagueBans(state, [mine, oppR], state.calendar.date, hashSeed(`${seed}:engine:${league.season}:${roundIdx}`), roundIdx);
   }
 
   // 기록, XP, 피로
@@ -1822,17 +1823,19 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
     player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
     slump = applySlump(player, result.rating ?? 0);
   }
-  // 카드와 출장 정지 (E.10): 퇴장 1경기, 시즌 옐로 누적 yellowBanEvery 장마다 1경기
+  // 카드와 출장 정지 (E.10): 퇴장 1경기, 리그 옐로 누적은 실제 PL 규칙 (C.80d yellowBans)
   let cards: { yellows: number; red: boolean } | undefined;
   if (suspended) player.suspended--;
   const my = engineOut?.my;
   if (my && result.minutes > 0 && (my.yellows > 0 || my.red)) {
-    const before = Math.floor(s.yellows / BALANCE.discipline.yellowBanEvery);
+    const before = s.yellows;
     const yellows = my.red && my.yellows >= 2 ? 0 : my.yellows;
     s.yellows += yellows;
-    if (my.red) s.reds++;
-    const banned = my.red || Math.floor(s.yellows / BALANCE.discipline.yellowBanEvery) > before;
-    if (banned) player.suspended += BALANCE.discipline.banMatches;
+    if (my.red) {
+      s.reds++;
+      player.suspended += BALANCE.discipline.banMatches;
+    }
+    player.suspended += yellowBanMatches(before, s.yellows, seasonFrac(roundIdx, league.schedule.length));
     cards = { yellows: my.yellows, red: my.red };
   }
   // 부상: 결장한 라운드를 세고 (회복은 하루 단위, 다음 내 경기 전에 낫는지 표시), 출전했으면 판정 (피로는 경기 시작 때 값)

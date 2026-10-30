@@ -22,6 +22,7 @@ import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../
 import { awardsTodo } from './awardsVM';
 import { raceRank } from '../awards';
 import { BALANCE } from '../config/balance';
+import { nextYellowBan, seasonFrac, yellowBanRule } from '../discipline';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
 import {
@@ -135,6 +136,7 @@ export interface ConditionVM {
   fatigue: number;
   form: 1 | 2 | 3 | 4 | 5;
   formLabel: string;
+  /** 이번 시즌 리그 옐로, 다음 정지 기준 장수 (C.80d PL 규칙, 더 채울 기준이 없으면 0) */
   yellows: number;
   yellowEvery: number;
   /** 시즌 누적 피로 (C.78t 게겐 비용, 경기 체력에서 더 빠진다). 0 이면 없음 */
@@ -166,8 +168,8 @@ function conditionVM(g: GameState): ConditionVM {
     ...((p.seasonFatigue ?? 0) >= 1 ? { seasonFatigue: Math.round(p.seasonFatigue!) } : {}),
     form: FORM_STEP[formLevel(p.recentRatings)],
     formLabel: formLine(p),
-    yellows: p.season.yellows % BALANCE.discipline.yellowBanEvery,
-    yellowEvery: BALANCE.discipline.yellowBanEvery,
+    yellows: p.season.yellows,
+    yellowEvery: nextYellowBan(p.season.yellows, seasonFrac(g.league.round, g.league.schedule.length)),
     life: lifeHints(g),
   };
 }
@@ -1152,7 +1154,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     banners.push({ tone: 'info', title: `${m.nat.label} · 대표팀 기록`, body: `A매치 ${c?.apps ?? 0}경기 ${c?.goals ?? 0}골. 리그 기록과 따로 쌓여요.`, action: '대표팀', act: 'go', to: 'national' });
   }
   if (m.cards?.red) banners.push({ tone: 'warning', title: '퇴장당했어요', body: '다음 경기에 나설 수 없어요.' });
-  else if (g.player.suspended > 0 && g.phase === 'season') banners.push({ tone: 'warning', title: '다음 경기 출장 정지', body: `옐로카드 ${BALANCE.discipline.yellowBanEvery}장이 쌓였어요.` });
+  else if (g.player.suspended > 0 && g.phase === 'season') banners.push({ tone: 'warning', title: '다음 경기 출장 정지', body: `리그 경고 누적·퇴장 징계예요 (옐로 ${yellowBanRule()}).` });
   const slump = slumpBanner(g);
   if (slump) banners.push(slump);
   if (m.levelsGained > 0) {

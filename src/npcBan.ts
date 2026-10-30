@@ -1,9 +1,10 @@
-// NPC 출장 정지 (C.80a, 외부 피드백 R7): 내 선수와 같은 징계 규칙(BALANCE.discipline — 퇴장 1경기, 리그 옐로 yellowBanEvery 장마다 1경기).
+// NPC 출장 정지 (C.80a, 외부 피드백 R7): 내 선수와 같은 징계 규칙(BALANCE.discipline — 퇴장 1경기, 리그 옐로 누적 yellowBans: C.80d 실제 PL 규칙).
 // 리그 경기만 센다(컵·챔스 카드는 내 선수와 같이 세지 않는다). 엔진 경기는 엔진 출력(PlayerLine 카드 칸), 빠른 경기는 출전 명단에
 // 엔진 평균 카드율(포지션군 × 팀 성향, BALANCE.discipline.npc)로 결정적 굴림. 정지 선수는 그날 컨디션(NpcCond)의 결장 칸으로 선발에서 빠진다.
 // 시즌이 바뀌면 비운다(npcFit 과 같이)
 
 import { BALANCE } from './config/balance';
+import { yellowBanMatches } from './discipline';
 import { createRng, hashSeed } from './rng';
 import { posGroup, type TeamRoster } from './roster';
 import { rosterTendency, type NpcLine } from './npcFit';
@@ -48,9 +49,9 @@ export function quickCards(roster: TeamRoster, lines: readonly NpcLine[], worldS
 
 /**
  * 리그 경기 뒤: 두 팀에서 정지 중이던 선수는 1경기를 채우고(먼저), 이번 경기 카드를 더한다 — 내 선수와 같은 규칙
- * (두 번째 옐로 퇴장은 옐로 누적에 넣지 않는다, 누적이 yellowBanEvery 배수를 넘거나 퇴장이면 banMatches 경기)
+ * (두 번째 옐로 퇴장은 옐로 누적에 넣지 않는다, 퇴장이면 banMatches 경기, 옐로 누적은 yellowBanMatches — frac = 이 리그 경기의 시즌 진행 비율)
  */
-export function npcBanAfterMatch(ban: NpcBanMap, rosters: readonly TeamRoster[], cards: readonly CardLine[]): void {
+export function npcBanAfterMatch(ban: NpcBanMap, rosters: readonly TeamRoster[], cards: readonly CardLine[], frac: number): void {
   if (!BALANCE.discipline.npc.on) return;
   const D = BALANCE.discipline;
   const ids = new Set<string>();
@@ -64,22 +65,19 @@ export function npcBanAfterMatch(ban: NpcBanMap, rosters: readonly TeamRoster[],
   for (const c of cards) {
     if (!ids.has(c.id) || (!c.yellows && !c.red)) continue;
     const b = (ban[c.id] ??= [0, 0]);
-    const before = Math.floor(b[0] / D.yellowBanEvery);
+    const before = b[0];
     b[0] += c.red && c.yellows >= 2 ? 0 : c.yellows;
-    if (c.red) b[2] = (b[2] ?? 0) + 1;
-    if (c.red || Math.floor(b[0] / D.yellowBanEvery) > before) b[1] += D.banMatches;
+    if (c.red) {
+      b[2] = (b[2] ?? 0) + 1;
+      b[1] += D.banMatches;
+    }
+    b[1] += yellowBanMatches(before, b[0], frac);
   }
 }
 
-/** 이번 시즌 받은 출장 정지 [퇴장, 옐로 누적] (측정): 옐로 누적 정지 = 누적 ÷ yellowBanEvery */
-export function npcBanTotals(ban: NpcBanMap | undefined, ids: Iterable<string>): [number, number] {
+/** 이번 시즌 퇴장 수 (측정) */
+export function npcRedTotal(ban: NpcBanMap | undefined, ids: Iterable<string>): number {
   let red = 0;
-  let yel = 0;
-  for (const id of ids) {
-    const b = ban?.[id];
-    if (!b) continue;
-    red += b[2] ?? 0;
-    yel += Math.floor(b[0] / BALANCE.discipline.yellowBanEvery);
-  }
-  return [red, yel];
+  for (const id of ids) red += ban?.[id]?.[2] ?? 0;
+  return red;
 }

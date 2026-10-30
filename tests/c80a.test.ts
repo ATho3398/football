@@ -36,18 +36,18 @@ describe('C.80a NPC 출장 정지', () => {
     const r = roster('t1');
     const [a, b, c] = r.players.map((p) => p.id);
     const ban: NpcBanMap = {};
-    npcBanAfterMatch(ban, [r], [{ id: a!, yellows: 0, red: true }, { id: c!, yellows: 2, red: true }]);
+    npcBanAfterMatch(ban, [r], [{ id: a!, yellows: 0, red: true }, { id: c!, yellows: 2, red: true }], 0.1);
     expect(npcBanLeft(ban, a!)).toBe(1);
     expect(ban[c!]).toEqual([0, 1, 1]);
-    for (let k = 0; k < 4; k++) npcBanAfterMatch(ban, [r], [{ id: b!, yellows: 1, red: false }]);
+    for (let k = 0; k < 4; k++) npcBanAfterMatch(ban, [r], [{ id: b!, yellows: 1, red: false }], 0.1);
     expect(ban[b!]).toEqual([4, 0]);
     // 다음 경기: a·c 는 정지를 채우고, b 는 5장째 옐로로 정지
-    npcBanAfterMatch(ban, [r], [{ id: b!, yellows: 1, red: false }]);
+    npcBanAfterMatch(ban, [r], [{ id: b!, yellows: 1, red: false }], 0.2);
     expect(npcBanLeft(ban, a!)).toBe(0);
     expect(npcBanLeft(ban, c!)).toBe(0);
     expect(ban[b!]).toEqual([5, 1]);
     // 로스터 밖 선수(내 선수 등)는 세지 않는다
-    npcBanAfterMatch(ban, [r], [{ id: 'me', yellows: 0, red: true }]);
+    npcBanAfterMatch(ban, [r], [{ id: 'me', yellows: 0, red: true }], 0.2);
     expect(ban.me).toBeUndefined();
   });
 
@@ -79,11 +79,11 @@ describe('C.80a NPC 출장 정지', () => {
         if (c.red) red++;
       }
     }
-    // 엔진 측정: 팀당 경기 옐로 0.93 · 레드 0.041 (성향·포지션 구성에 따라 위아래)
-    expect(y / 2000).toBeGreaterThan(0.6);
-    expect(y / 2000).toBeLessThan(1.4);
-    expect(red / 2000).toBeGreaterThan(0.015);
-    expect(red / 2000).toBeLessThan(0.08);
+    // 엔진 측정 (C.80d): 팀당 경기 옐로 1.84 · 레드 0.075 (성향·포지션 구성에 따라 위아래)
+    expect(y / 2000).toBeGreaterThan(1.2);
+    expect(y / 2000).toBeLessThan(2.6);
+    expect(red / 2000).toBeGreaterThan(0.03);
+    expect(red / 2000).toBeLessThan(0.14);
   });
 
   it('본편 빠른 시즌: 정지가 쌓이고, 정지 선수는 다음 경기 입력에서 결장, 화면에 표시, 새 시즌에 비운다', () => {
@@ -109,9 +109,10 @@ describe('C.80a NPC 출장 정지', () => {
       }
     }
     expect(seen).toBe(true);
-    const total = Object.values(g.npcBan!).reduce((t, b) => t + (b[2] ?? 0) + Math.floor(b[0] / BALANCE.discipline.yellowBanEvery), 0);
+    // C.80d: 퇴장 + 옐로 5장 넘은 선수 (PL 규칙이라 5장째가 19경기 뒤면 정지가 없어 위 한도)
+    const total = Object.values(g.npcBan!).reduce((t, b) => t + (b[2] ?? 0) + (b[0] >= BALANCE.discipline.yellowBans[0]![0] ? 1 : 0), 0);
     expect(total / g.league.teams.length).toBeGreaterThan(1.5);
-    expect(total / g.league.teams.length).toBeLessThan(8);
+    expect(total / g.league.teams.length).toBeLessThan(12);
     endSeason(g);
     startNextSeason(g);
     expect(g.npcBan).toBeUndefined();

@@ -11,6 +11,7 @@ import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roste
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
 import { engineCards, npcBanAfterMatch, type NpcBanMap } from './npcBan';
+import { seasonFrac } from './discipline';
 import { dayNum, npcAfterMatch, npcConditions, npcLines, type NpcFitMap } from './npcFit';
 import { coachStylesField } from './club';
 import { envField, matchConditions } from './matchEnv';
@@ -181,7 +182,7 @@ export function applyOtherLeagueJob(state: { worldSeed?: string; otherLeagues?: 
     npcAfterMatch((state.npcFit ??= {}), [job.input.home, job.input.away], npcLines(res), dayNum(date), state.worldSeed, job.input.seed);
   }
   // NPC 출장 정지 (C.80a): 엔진 카드 (빠른 계산 syncOtherLeagues 경로는 카드 없음)
-  npcBanAfterMatch((state.npcBan ??= {}), [job.input.home, job.input.away], engineCards(res));
+  npcBanAfterMatch((state.npcBan ??= {}), [job.input.home, job.input.away], engineCards(res), seasonFrac(job.r, lg.schedule.length));
   const stats = (lg.stats ??= {});
   const names = (lg.names ??= {});
   const who = new Map<string, [string, string]>([
