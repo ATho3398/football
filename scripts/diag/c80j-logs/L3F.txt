@@ -1,0 +1,6 @@
+direct 대 block 80경기 seed 41000 sw 25 덮어쓰기 {"decide.bias.switchFollowLong":0.3,"decide.bias.switchFollowFromX":0.3,"decide.bias.switchFollowWide":0.1,"decide.bias.switchFollowMaxOpp":2}
+direct: 득실 -0.04 (득 1.09 실 1.13) · 슈팅 14.7 · 패스 500
+반대 전환 24.98/경기 (공중 75.4%) · 받음 67.0% · 받는 순간 5 m 안 0.57 · 10 m 안 1.18 · 5 m 안 ≤1명 85.4% · 10초 안 슈팅 9.0% · xG/받음 0.006
+  그중 상대 진영에서 찬 것 15.32/경기 · 받음 64.1% · 10초 안 슈팅 13.7% · xG/받음 0.010
+결정 793/경기 · 전환 후보 있음 91.0% · 그중 보임 89.7% · 고름 3.5% · 효용 1위와 차 중앙값 0.0268
+받은 선수 다음 행동: carry 28.1% · hold 19.7% · pass-back 16.7% · pass-fwd 9.9% · pass-long-fwd 8.3% · cross 4.6% · through 2.8% · pass-side 2.8% · pass-long-side/back 2.4% · shoot 1.7% · dribble 1.7% · cutback 0.8% · layoff 0.6% · holdup 0.2%

@@ -646,6 +646,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   let tikiShort = false;
   // 직선 반대 전환 (C.80i): 상대가 공보다 자기 골 쪽에 directSwitchBehind 명 이상 내려앉았고 패서가 directSwitchFromX 이상일 때만 (판단에 보이는 특징)
   const dSwitchOn = DB.directSwitch > 0 && tac.tendency === 'direct' && settledDeep(s, a);
+  // 반대 전환 받은 뒤 (C.80j): 받은 선수와 다음 switchFollowTouch 번 수신까지 몰기·크로스·컷백 가산, 앞 롱볼 감점 (actions markSwitchFollow 가 받는 순간 기록)
+  const swTm = s.teams[a.team];
+  const swK = s.possTeam === a.team && !s.restart && s.t - swTm.swAt <= DB.switchFollowTime && swTm.swN <= DB.switchFollowTouch
+    ? (tac.tendency === 'direct' ? DB.switchFollowDirect : 1) : 0;
 
   // 패스 / 침투 패스
   for (const r of s.agents) {
@@ -768,10 +772,15 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const possW = possK !== 0 ? possK * clamp((DP.far - d0) / Math.max(1e-6, DP.far - DP.near), 0, 1) : 0;
     // 직선 반대 전환 (C.80i): 옆 directSwitchDy m 이상 · 공 반대 측면 · 받는 자리 directSwitchFree m 안 상대 없음
     const dSw = dSwitchOn && Math.abs(ty - a.y) >= DB.directSwitchDy && (ty - W / 2) * (a.y - W / 2) < 0 && nearestOpponent(s, r, tx, ty)[1] >= DB.directSwitchFree ? DB.directSwitch : 0;
-    u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj + possW * pj * (1 - pLoseR) + dSw * pj;
     // 컷백: 골에서 9~18 m, 골대 양 끝이 보이는 각도 안의 동료에게 뒤로 내주는 패스 (판정은 숏패스 식 그대로)
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
+    // 반대 전환 받은 뒤 (C.80j): 컷백 가산(× 판단 성공 확률) · 앞 롱볼 감점(고정)
+    const swCut = swK > 0 && cutback ? swK * DB.switchFollowCross : 0;
+    const swLong = swK > 0 && d0 > DB.switchFollowLongFrom && (rx - ax) * L > DB.switchFollowLongFwd ? swK * DB.switchFollowLong : 0;
+    // 짧은 전진(switchFollowLongFrom m 안 · 3 m 넘게 앞)은 switchFollowFwd 가산 — 컷백과 같은 자리(× 판단 성공 확률)
+    const swFwd = swK > 0 && !cutback && d0 <= DB.switchFollowLongFrom && (rx - ax) * L > 3 ? swK * DB.switchFollowFwd : 0;
+    u = weight(u, passW) + cBonus(pj, rx - ax) + dLongB * pj + possW * pj * (1 - pLoseR) + dSw * pj + (swCut + swFwd) * pj - swLong;
     const type = cutback ? 'cutback' : running ? 'through' : 'pass';
     out.push({ type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
     if (tikiLongOn) {
@@ -784,7 +793,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
-      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO + (swCut + swFwd) * pjO - swLong, x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
       if (tikiLongOn && d0 > DB.tikiLongFrom) tikiLongs.push({ c: ot.out[ot.out.length - 1]!, pen: tikiLongs[tikiLongs.length - 1]!.pen });
     }
   }
@@ -875,14 +884,16 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         const dp = (who: Agent) => clamp(dribbleProb(who, def!, (second ? -PR.spaceSecondPenalty : 0) + stance, fitPts(s, a.team, 'run') - fitPts(s, def!.team, 'tackle')) + formBonus(who), 0.02, 0.98);
         const p = dp(a);
         const pj = judgedP(p, dp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk) + cBonus(pj, nx - ax);
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk) + cBonus(pj, nx - ax) + swK * DB.switchFollowDribble * pj;
         out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
       } else {
         // 몰고 가기: 가는 길로 좁혀 오는 수비수들의 압박으로 빼앗길 확률. 공을 지키는 능력치가 줄인다 (C.17 결정 3)
         const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
         const p = cp(a);
         const pj = judgedP(p, cp(av));
-        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk) + cBonus(pj, nx - ax);
+        // C.80j: 몰기는 안쪽으로 치는 것만 가산
+        const swIn = swK > 0 && Math.abs(cy - W / 2) < Math.abs(a.y - W / 2) - 1 ? swK * DB.switchFollowCarry : 0;
+        const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk) + cBonus(pj, nx - ax) + swIn * pj;
         out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
       }
     }
@@ -900,7 +911,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const longShot = dist(a.x, a.y, gx, gy) > ENGINE.roles.longShotDist ? a.role.pref.longShot : 1;
       // 판단 보정 (C.78p): 열린 찬스 슛 선호 — 효용에만, 실행·xG 는 그대로
       const sBias = shootBias(m, goalAngle(a.x, a.y, gx));
-      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias;
+      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias + swK * DB.switchFollowShoot;
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
       // 각도 만들기 (C.78h): 슛 길이 막혔으면(블록 > 0) 옆으로 laneCarry m 치는 몰기 — 그 자리 슛 가치(수비는 따라온다 — 압박·밀집은 지금 자리, 슛 길 콘·각도는 도착점, GK 는 laneCarryTime 초 동안 자리를 옮김)가 지금 슛보다 클 때만, 도착점 가치 = 그 슛 가치
       if (O.laneCarry > 0 && m.pBlock > 0) {
@@ -948,7 +959,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         const pj = judgedP(p, accOf(av) * ct.pWin);
         // 공격 폭 (좁게 0.9 / 넓게 1.1), 직선 성향 (E.19)
         const cMul = widthCrossMul(tac.width) * (tac.tendency === 'direct' ? TENDENCY.directCrossMul : 1);
-        const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk);
+        const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk) + swK * DB.switchFollowCross * pj;
         out.push({ type: 'cross', p, u, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
       }
     }

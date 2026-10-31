@@ -1017,6 +1017,31 @@ export const ENGINE = {
       directSwitchFromX: 0.4,
       /** C.80i: 직선 성향 패서의 반대 전환(옆 switchDist m 넘음)·몸 방향 밖 패스 보임 확률 가산(scanBase + 이 값, 상황 조건 없음 — 내려앉은 블록 앞으로만 좁히면 이득이 사라졌다). 0 = 끔 */
       directSwitchScan: 0.3,
+      /**
+       * C.80j: 반대 전환 받은 뒤 공격 — 측면(|정규화 y − 0.5| ≥ switchFollowWide)·정규화 x ≥ switchFollowFromX 에서 반대 전환(옆 switchFollowDy m 이상 · 공 반대 측면, 크로스·GK 제외)을
+       * 받았고 그 순간 switchFollowFree m 안 상대 필드 선수가 switchFollowMaxOpp 명 이하면, 받은 뒤 switchFollowTime 초 안 · 받은 선수와 다음 switchFollowTouch 번 수신까지(우리 공일 때)
+       * 몰기·드리블 후보에 switchFollowDribble × 판단 성공 확률, 크로스·컷백에 switchFollowCross × 판단 성공 확률을 더하고, 앞 롱볼(switchFollowLongFrom m 넘는 공중 · 전진 switchFollowLongFwd m 넘음)에서
+       * switchFollowLong 을 뺀다. 성향 무관, 직선 성향은 switchFollowDirect 배. 판단 효용에만(실행 불변). 셋 다 0 = 끔
+       */
+      switchFollowDribble: 0,
+      /** C.80j: 안쪽으로 치는 몰기(도착점이 지금보다 중앙 쪽 1 m 넘게)만 switchFollowCarry × 판단 성공 확률 */
+      switchFollowCarry: 0,
+      switchFollowCross: 0,
+      /** C.80j: 받은 뒤 짧은 전진 패스(switchFollowLongFrom m 안 · 3 m 넘게 앞, 컷백 제외) 가산 × 판단 성공 확률 */
+      switchFollowFwd: 0,
+      /** C.80j 실험: 받은 뒤 슛 후보 가산(고정). 0 = 끔 */
+      switchFollowShoot: 0,
+      switchFollowLong: 0,
+      switchFollowDirect: 1,
+      switchFollowDy: 25,
+      switchFollowWide: 0.2,
+      switchFollowFromX: 0.5,
+      switchFollowFree: 5,
+      switchFollowMaxOpp: 1,
+      switchFollowTime: 8,
+      switchFollowTouch: 1,
+      switchFollowLongFrom: 20,
+      switchFollowLongFwd: 10,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

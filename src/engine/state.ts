@@ -270,6 +270,9 @@ export interface TeamState {
   sitSince: number;
   sitCand: DefSit;
   sitCandSince: number;
+  /** 반대 전환 받은 뒤 (C.80j): 측면·상대 진영에서 반대 전환을 받은 시각(−100 = 없음)과 그 뒤 우리 팀이 받은 패스 수 */
+  swAt: number;
+  swN: number;
   /** 전술 적합도 (C.80e, fit.ts): 성향별 핵심 능력치 차이 − 리그 보통 (점수, 킥오프 선발 기준) */
   fit: Record<FitTendency, number>;
 }

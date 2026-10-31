@@ -1,0 +1,6 @@
+direct 대 block 80경기 seed 41000 sw 25 덮어쓰기 {"decide.bias.switchFollowCarry":0.3}
+direct: 득실 -0.17 (득 1.21 실 1.39) · 슈팅 14.1 · 패스 492
+반대 전환 24.41/경기 (공중 75.7%) · 받음 66.6% · 받는 순간 5 m 안 0.57 · 10 m 안 1.18 · 5 m 안 ≤1명 85.4% · 10초 안 슈팅 8.0% · xG/받음 0.005
+  그중 상대 진영에서 찬 것 14.65/경기 · 받음 62.8% · 10초 안 슈팅 12.4% · xG/받음 0.008
+결정 778/경기 · 전환 후보 있음 90.7% · 그중 보임 89.8% · 고름 3.4% · 효용 1위와 차 중앙값 0.0269
+받은 선수 다음 행동: carry 43.1% · pass-back 13.2% · hold 12.1% · pass-long-fwd 11.9% · pass-fwd 8.5% · pass-side 3.2% · cross 1.6% · through 1.5% · dribble 1.5% · pass-long-side/back 1.1% · layoff 1.0% · shoot 0.7% · cutback 0.4% · holdup 0.2% · clear 0.1%

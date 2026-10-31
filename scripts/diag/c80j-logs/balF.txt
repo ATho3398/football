@@ -1,0 +1,6 @@
+balanced 대 block 160경기 seed 41000 sw 25 덮어쓰기 {"decide.bias.switchFollowLong":0.3,"decide.bias.switchFollowFromX":0.3,"decide.bias.switchFollowWide":0.1,"decide.bias.switchFollowMaxOpp":2,"decide.bias.switchFollowFwd":0.3}
+balanced: 득실 -0.01 (득 1.21 실 1.22) · 슈팅 16.0 · 패스 516
+반대 전환 12.34/경기 (공중 65.5%) · 받음 58.6% · 받는 순간 5 m 안 0.67 · 10 m 안 1.24 · 5 m 안 ≤1명 80.6% · 10초 안 슈팅 13.0% · xG/받음 0.009
+  그중 상대 진영에서 찬 것 7.81/경기 · 받음 56.0% · 10초 안 슈팅 17.7% · xG/받음 0.013
+결정 815/경기 · 전환 후보 있음 90.8% · 그중 보임 69.4% · 고름 1.5% · 효용 1위와 차 중앙값 0.0254
+받은 선수 다음 행동: pass-fwd 24.3% · carry 19.4% · hold 18.8% · pass-back 12.5% · through 5.3% · pass-long-fwd 4.6% · dribble 3.3% · pass-side 3.1% · shoot 2.7% · cross 2.1% · pass-long-side/back 1.5% · cutback 1.1% · holdup 0.9% · layoff 0.3%

@@ -947,6 +947,7 @@ export function resolveFlight(s: SimState): void {
             return;
           }
         }
+        markSwitchFollow(s, rc, fl);
         giveBall(s, rc, 'receive', fl);
         return;
       }
@@ -977,6 +978,32 @@ export function resolveFlight(s: SimState): void {
  * 공을 선수에게 (C.24): snapReceive m 안이면 바로 소유, 그 밖이면 선수를 옮기지 않고 공을 그 선수 쪽으로 굴린다
  * (reserveRoll m/s, 그 선수는 컨트롤 판정 없이 잡는다. 받기 집계는 실제로 잡는 순간, ballReserved)
  */
+/**
+ * 반대 전환 받은 뒤 (C.80j): 옆 switchFollowDy m 이상 · 찬 자리와 목표점이 공 반대 측면인 패스(크로스·GK 제외)를
+ * 측면(|정규화 y − 0.5| ≥ switchFollowWide)·정규화 x ≥ switchFollowFromX 에서 받고 switchFollowFree m 안 상대 필드 선수가 switchFollowMaxOpp 명 이하면 그 시각을 남긴다.
+ * 그 밖의 우리 팀 패스 수신은 받은 수(swN)를 늘린다 — 판단(onball candidates)이 받은 선수와 다음 switchFollowTouch 번 수신까지만 보정
+ */
+function markSwitchFollow(s: SimState, rc: Agent, fl: Flight): void {
+  const DB = ENGINE.decide.bias;
+  if (DB.switchFollowDribble <= 0 && DB.switchFollowCarry <= 0 && DB.switchFollowCross <= 0 && DB.switchFollowLong <= 0) return;
+  const tm = s.teams[rc.team];
+  const ps = fl.passer >= 0 ? s.agents[fl.passer] : undefined;
+  const sw = !!ps && ps.team === rc.team && ps.line !== 0 && !fl.fromCross && Math.abs(fl.toY - fl.fromY) >= DB.switchFollowDy && (fl.toY - W / 2) * (fl.fromY - W / 2) < 0;
+  if (sw) {
+    const dir = attackDir(rc.team, s.half);
+    const nx = dir === 1 ? rc.x / L : 1 - rc.x / L;
+    const ny = rc.y / W;
+    let near = 0;
+    for (const o of s.agents) if (o.onPitch && o.team !== rc.team && o.line !== 0 && dist(o.x, o.y, rc.x, rc.y) <= DB.switchFollowFree) near++;
+    if (nx >= DB.switchFollowFromX && Math.abs(ny - 0.5) >= DB.switchFollowWide && near <= DB.switchFollowMaxOpp) {
+      tm.swAt = s.t;
+      tm.swN = 0;
+      return;
+    }
+  }
+  tm.swN++;
+}
+
 function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight, from = -1): void {
   const b = s.ball;
   const res: BallReserve = { idx: a.idx, until: s.t + B.reserveTime, kind, from, ...(fl ? { fl } : {}) };
