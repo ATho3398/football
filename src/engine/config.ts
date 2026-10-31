@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 69;
+export const ENGINE_VERSION = 70;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1006,6 +1006,17 @@ export const ENGINE = {
       tikiLongShortP: 0.75,
       /** C.80h: 전환(winOff 초 안)·역습 보너스 상황의 감점 배수(완전 면제 대신). 압박 탈출(짧은 출구 없음)만 면제 */
       tikiLongSoft: 0.5,
+      /**
+       * C.80i: 직선 반대 전환 — 직선 성향 패서가 상대 진영 쪽(정규화 x ≥ directSwitchFromX)에서, 상대 필드 선수 directSwitchBehind 명 이상이 공보다 자기 골 쪽에 내려앉은 상황에
+       * 옆으로 directSwitchDy m 이상 · 공 반대 측면으로 가는 패스(받는 자리 directSwitchFree m 안 상대 없음)에 directSwitch × 판단 성공 확률. 판단 효용에만(실행 불변). 0 = 끔
+       */
+      directSwitch: 0,
+      directSwitchDy: 25,
+      directSwitchFree: 5,
+      directSwitchBehind: 8,
+      directSwitchFromX: 0.4,
+      /** C.80i: 직선 성향 패서의 반대 전환(옆 switchDist m 넘음)·몸 방향 밖 패스 보임 확률 가산(scanBase + 이 값, 상황 조건 없음 — 내려앉은 블록 앞으로만 좁히면 이득이 사라졌다). 0 = 끔 */
+      directSwitchScan: 0.3,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
