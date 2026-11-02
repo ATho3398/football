@@ -933,7 +933,10 @@ export function resolveFlight(s: SimState): void {
           const inBox = inOppBox(b.x, b.y, attackDir(rc.team, s.half));
           const cd = inBox ? PR.contestDist : PR.contestOut > 0 && !fl.transition && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) >= PR.contestOutFrom ? PR.contestOutDist : 0;
           const [def, dd] = cd > 0 ? nearestOppOf(s, rc) : [null, Infinity];
-          if (def && dd < cd && r(s, rc.idx, Purpose.Control, 3) >= receiveWin(rc, def)) {
+          const pRecv = def && dd < cd ? receiveWin(rc, def) : 1;
+          const lostRecv = def !== null && dd < cd && r(s, rc.idx, Purpose.Control, 3) >= pRecv;
+          if (probe.receive && def && dd < cd) probe.receive(s, rc, def, dd, inBox, pRecv, !lostRecv);
+          if (def && lostRecv) {
             def.stats.tackles++;
             def.stats.tacklesWon++;
             s.teams[def.team].stats.tackles++;
