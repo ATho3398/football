@@ -24,13 +24,14 @@ function ctxAt(sx: number, sy: number, defender: boolean): ShotCtx {
 }
 
 describe('C.79x 거리별·1대1 선방', () => {
-  it('거리 보정: 12 m 안 0, 12~16.5 m 음수, 27 m 이상 끝 값, 그 사이 선형', () => {
+  it('거리 보정: 12 m 안 첫 값, 12~16.5 m 음수, 27 m 이상 끝 값, 그 사이 선형', () => {
     const K = ENGINE.keeper;
-    expect(distAdj(8)).toBe(0);
-    expect(distAdj(12)).toBe(0);
-    expect(distAdj(15)).toBeLessThan(0);
+    // C.80m: 12 m 안 첫 값 0 → +0.03 (경합 슛 되돌림)
+    expect(distAdj(8)).toBe(K.distAdjV[0]);
+    expect(distAdj(12)).toBe(K.distAdjV[0]);
+    expect(distAdj(15)).toBeLessThan(-0.1);
     expect(distAdj(30)).toBe(K.distAdjV[K.distAdjV.length - 1]);
-    expect(distAdj(12.5)).toBeCloseTo(K.distAdjV[1]! / 2, 6);
+    expect(distAdj(12.5)).toBeCloseTo((K.distAdjV[0]! + K.distAdjV[1]!) / 2, 6);
   });
   it('1대1 보정: 압박 0 · 12.5 m 안 발 슛만, 좋은 GK 는 덜 깎이고 좋은 슈터는 더 깎는다', () => {
     withEngine(KEEPER_ON, () => {
