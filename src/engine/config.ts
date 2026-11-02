@@ -1018,8 +1018,8 @@ export const ENGINE = {
       directSwitchBehind: 8,
       directSwitchFromX: 0.4,
       /** C.80i: 직선 성향 패서의 반대 전환(옆 switchDist m 넘음)·몸 방향 밖 패스 보임 확률 가산(scanBase + 이 값, 상황 조건 없음 — 내려앉은 블록 앞으로만 좁히면 이득이 사라졌다). 0 = 끔.
-       *  C.80o: 선방 패치(C.80m) 뒤 직선>블록 칸이 +0.07 → −0.02 로 되돌아가 0.3 → 0.4 */
-      directSwitchScan: 0.4,
+       *  C.80o: 선방 패치(C.80m) 뒤 직선>블록 칸이 +0.07 → −0.02 로 되돌아가 0.3 → 0.45(960: 0.4 −0.01 ✗ · 0.45 +0.08) */
+      directSwitchScan: 0.45,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

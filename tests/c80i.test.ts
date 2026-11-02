@@ -32,22 +32,22 @@ function seenShare(tendency: 'direct' | 'balanced', deep = true): number {
 }
 
 describe('C.80i 직선 반대 전환', () => {
-  it('스위치 기본값: 보임 가산 0.4 켬(C.80o 0.3 → 0.4) · 전환 판단 보너스 끔(코드만)', () => {
+  it('스위치 기본값: 보임 가산 0.45 켬(C.80o 0.3 → 0.45) · 전환 판단 보너스 끔(코드만)', () => {
     const B = ENGINE.decide.bias;
-    expect(B.directSwitchScan).toBe(0.4);
+    expect(B.directSwitchScan).toBe(0.45);
     expect(B.directSwitch).toBe(0);
     expect(B.directSwitchDy).toBe(25);
     expect(PATCH_LABEL).toMatch(/^C\.8/);
   });
 
-  it('직선 성향은 반대 전환 패스를 균형보다 더 자주 본다(시야 60: 약 38% → 약 68%, 상대 배치와 무관)', () => {
+  it('직선 성향은 반대 전환 패스를 균형보다 더 자주 본다(시야 60: 약 38% → 약 68%, C.80o 0.45 에서 약 84%, 상대 배치와 무관)', () => {
     const b = seenShare('balanced');
     expect(b).toBeGreaterThan(0.25);
     expect(b).toBeLessThan(0.5);
     for (const deep of [true, false]) {
       const d = seenShare('direct', deep);
-      expect(d).toBeGreaterThan(0.58);
-      expect(d).toBeLessThan(0.8);
+      expect(d).toBeGreaterThan(0.7);
+      expect(d).toBeLessThan(0.92);
     }
   });
 
