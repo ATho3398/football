@@ -639,7 +639,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // 공격 ⅓ 에서는 줄인다(zoneFrom → zoneTo 에서 0): 골 앞은 공을 지키기보다 위험을 감수하는 곳
   // 전환 창 (C.79u): 오픈 플레이 탈취 뒤 winOff 초 안은 0 — 뺏은 직후는 전진(그 창의 짧은 패스가 상대 전환 기회를 지워 행을 옮겼다, 진단 c79u)
   const possK = DP.winOff > 0 && s.possOrigin === 'open' && sinceWin <= DP.winOff ? 0
-    : DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5)) * (DP.zoneTo > DP.zoneFrom ? clamp((DP.zoneTo - ax) / (DP.zoneTo - DP.zoneFrom), 0, 1) : 1);
+    : DP[tac.tendency] * Math.max(0, 1 + DP.style * (style - 0.5)) * possZone(DP, tac.tendency === 'tikitaka', ax);
 
   // 티키 롱패스 감점 (C.80f): 감점 후보와 짧은 출구(판단 성공 확률 tikiLongShortP 이상) 유무 — 패스 루프 뒤에 뺀다
   const DB = ENGINE.decide.bias;
@@ -1292,6 +1292,12 @@ function recordDecision(s: SimState, a: Agent, cands: Candidate[], chosen: Candi
   let above = 0;
   for (const c of cands) if (c.u > u) above++;
   s.teams[a.team].stats.decisions[band * 3 + Math.min(2, above)]!++;
+}
+
+/** 점유 가치 자리 가중 (C.79m · C.80p): 패서 정규화 x 가 zoneFrom 까지 1, zoneTo 에서 0. 티키는 tikiZoneTo(> 0 이면)까지 늘린다 — 상대 진영에서도 짧게 지키며 누른다 */
+function possZone(DP: typeof ENGINE.decide.possess, tiki: boolean, ax: number): number {
+  const to = tiki && DP.tikiZoneTo > 0 ? DP.tikiZoneTo : DP.zoneTo;
+  return to > DP.zoneFrom ? clamp((to - ax) / (to - DP.zoneFrom), 0, 1) : 1;
 }
 
 /**

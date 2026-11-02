@@ -1060,6 +1060,8 @@ export const ENGINE = {
       /** 패서 자리(정규화 x, 상대 골 쪽 1): zoneFrom 까지 1, zoneTo 에서 0 (선형). zoneTo ≤ zoneFrom 이면 끔 */
       zoneFrom: 0.55,
       zoneTo: 0.8,
+      /** C.80p: 티키타카 성향만 자리 가중 끝(정규화 x). 0 = zoneTo 그대로 */
+      tikiZoneTo: 0,
       /** 전환 창 (C.79u): 오픈 플레이 탈취 뒤 이 초 안에는 전 성향 점유 가치 0 — 뺏은 직후는 전진(0 = 끔) */
       winOff: 6,
     },
