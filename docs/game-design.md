@@ -6722,7 +6722,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 상성 960 = `scripts/diag/c80m-matrix-41.json`·`-51.json`(51 은 측정 보조 세션), 기준 `c80i-matrix-41/51.json`, 합본 `c79u-merge.cjs` → `c80d-matrix-cmp.cjs`.
 - 시드 의존 테스트: `cards.test` 결정적 순간 0회 시드 c80f-zero-6 → **c80m-zero-0**(CDM 2·FB 1) · `c77s.test` 소극적 백패스 경기 시드 1008(센 선수 0) → **1002**(센 선수 5 · 감점 2). `engine.test` 이동 거리 기준 완화(위).
 - **안 된 것**: ① 이동 거리 테스트 기준을 넘어 완화로 통과(AD 승인) ② C.80k 병합 뒤 12~16.5 m 선방 75.0%로 목표 아래 1%p(재조정 안 함 — 총량 보정 때 같이 봄) ③ 16.5~25 m 선방이 86.0 → 81.6%로 같이 내려감(병합 뒤 86.1, 표본 250대라 잡음 큼) ④ 순환 티키>직선>블록 +0.05 → −0.19(관문은 4순환만, 티키>직선 칸 −0.12).
-- **main 반영**: origin/main ae7386f(C.80k) 병합 뒤 + claude/planning-ad docs 병합 → ENGINE 71 → **72**.
+- **main 반영(2026-11-03 04:4x KST)**: origin/main ae7386f(C.80k, CI 성공) 병합 뒤 + claude/planning-ad docs 병합 → ENGINE 71 → **72**. 병합 뒤 test 164파일 1321 ✓ · quick 600 1.54 · 게겐>티키 960 +0.46.
 - 디자인 없는 새 화면: 없음.
 
 ### C.80k 53단계_경합 받기 능력 차 (사용자 2026-10-30 "약한 애가 리시브 받는 건 ㄱㅊ, 경합 상황에서 받는 게 안 되는 거지", 마스터 AD `docs/session-prompts/C.80k.md`, Opus): **땅볼 수신 경합(`duel.ts receiveWin`, 박스 안·박스 밖 20 m+ 같은 식)의 능력 차 나눗수 `prob.receiveScale` 16 → 8 (기울기 2배)** (ENGINE_VERSION 70(C.80i) → **71**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
