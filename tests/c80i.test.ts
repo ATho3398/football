@@ -32,9 +32,9 @@ function seenShare(tendency: 'direct' | 'balanced', deep = true): number {
 }
 
 describe('C.80i 직선 반대 전환', () => {
-  it('스위치 기본값: 보임 가산 0.3 켬 · 전환 판단 보너스 끔(코드만)', () => {
+  it('스위치 기본값: 보임 가산 0.4 켬(C.80o 0.3 → 0.4) · 전환 판단 보너스 끔(코드만)', () => {
     const B = ENGINE.decide.bias;
-    expect(B.directSwitchScan).toBe(0.3);
+    expect(B.directSwitchScan).toBe(0.4);
     expect(B.directSwitch).toBe(0);
     expect(B.directSwitchDy).toBe(25);
     expect(PATCH_LABEL).toMatch(/^C\.8/);
