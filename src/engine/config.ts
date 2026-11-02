@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 70;
+export const ENGINE_VERSION = 71;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1233,7 +1233,8 @@ export const ENGINE = {
      * P(받음) = L1((볼 컨트롤 0.5 + 근력 0.3 + 민첩 0.2 − (마킹 0.5 + 태클 0.3 + 수비 포지셔닝 0.2)) / receiveScale + receiveBias). 판단(candidates)과 판정(resolveFlight)이 같은 식
      */
     contestDist: 2,
-    receiveScale: 16,
+    /** C.80k: 16 → 8 (능력 차 기울기 2배 — 같은 수비 조건 받는 선수 능력 4분위 Q4−Q1 6.9 → 25 %p, 평균 받음률 61.0 → 61.4 %. 박스 안·밖 같은 식) */
+    receiveScale: 8,
     receiveBias: 0.5,
     /**
      * 박스 밖 땅볼 롱패스 수신 경합 (C.80g, 엔진관리자24 ②-1): 1 이면 박스 밖이라도 contestOutFrom m 이상 땅볼 패스의 착지 때
