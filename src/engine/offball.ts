@@ -2072,7 +2072,7 @@ const restCache = new WeakMap<SimState, { tick: number; plan: Map<number, RestJo
 // 공이 우리 골 gegenMarkFrom m 안이면 없음(박스 수비 그대로). gegenMarkWindow > 0 이면 잃은 뒤 그 초 안에서만
 interface MarkJob { x: number; y: number; o: number }
 const gegenCache = new WeakMap<SimState, { tick: number; plan: Map<number, MarkJob> }[]>();
-function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
+export function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
   let c = gegenCache.get(s);
   if (!c) gegenCache.set(s, (c = [{ tick: -1, plan: new Map() }, { tick: -1, plan: new Map() }]));
   const e = c[team]!;
@@ -2116,7 +2116,7 @@ function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
   }
   return plan;
 }
-function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
+export function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
   let c = restCache.get(s);
   if (!c) restCache.set(s, (c = [{ tick: -1, plan: new Map() }, { tick: -1, plan: new Map() }]));
   const e = c[team]!;

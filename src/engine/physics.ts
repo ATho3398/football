@@ -64,7 +64,7 @@ export function effectiveMax(a: Agent): number {
 }
 
 /** 목표 속도: 거리별 걷기/조깅/러닝, 긴급하면 최대 속도. 목표 근처에서는 감속 */
-function desiredSpeed(a: Agent, d: number, cap: number): number {
+function desiredSpeed(a: Agent, d: number, cap: number, fatigueExtra = 0, fatigueExp = 1): number {
   if (d < P.arriveDist) return 0;
   let v: number;
   if (a.urgent) v = d < P.walkDist ? P.jog : cap;
@@ -77,7 +77,11 @@ function desiredSpeed(a: Agent, d: number, cap: number): number {
   // 복귀 (E.18 A3): 러닝 이상
   if (a.minRun && d >= P.walkDist) v = Math.max(v, P.run);
   // 지치면 조깅·러닝 강도가 떨어진다 (스태미나 staminaLowFrom 아래에서, 0 이면 1 − fatigueIntensity)
-  if (v > P.walk && a.stamina < P.staminaLowFrom) v *= 1 - (P.fatigueIntensity * (P.staminaLowFrom - a.stamina)) / P.staminaLowFrom;
+  // C.80l: 게겐 팀은 긴급하지 않은 이동(대형·조깅·먼 이동)만 지친 비율 r 의 거듭제곱 항을 더 깎는다(압박·추격 질주는 그대로) — × (1 − fatigueIntensity × r − fatigueExtra × r^fatigueExp) (TENDENCY.gegenFatigue·gegenFatigueExp, moveAgent 인자)
+  if (v > P.walk && a.stamina < P.staminaLowFrom) {
+    const r = (P.staminaLowFrom - a.stamina) / P.staminaLowFrom;
+    v *= 1 - P.fatigueIntensity * r - (fatigueExtra > 0 && !a.urgent ? fatigueExtra * Math.pow(Math.min(1, r), fatigueExp) : 0);
+  }
   // 멈출 수 있는 속도
   v = Math.min(v, Math.sqrt(2 * effectiveAccel(a) * d), cap);
   return v;
@@ -126,7 +130,7 @@ function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
 }
 
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
-export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1, lookX = NaN, lookY = NaN): void {
+export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1, lookX = NaN, lookY = NaN, fatigueExtra = 0, fatigueExp = 1): void {
   const cap = effectiveMax(a) * speedScale;
   const accel = effectiveAccel(a);
   // 앞먹임 (C.77x): 움직이는 목표는 그 속도로 같이 움직이고, 원하는 속도에 목표 속도를 더한다
@@ -137,7 +141,7 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const dy = a.ty - a.y;
   const d = Math.sqrt(dx * dx + dy * dy);
   // 사람을 따라갈 때 거리 보정은 거리 비례(feedGain × 거리)까지 올린다 — 걷기·조깅 단계로만 좁히면 움직이는 목표와의 간격이 닫히지 않는다
-  let corr = desiredSpeed(a, d, cap);
+  let corr = desiredSpeed(a, d, cap, fatigueExtra, fatigueExp);
   if (feeding && P.feedGain > 0 && d >= P.arriveDist) corr = Math.max(corr, Math.min(P.feedGain * d, Math.sqrt(2 * accel * d), cap));
   let wx = 0;
   let wy = 0;

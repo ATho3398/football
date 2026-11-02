@@ -614,7 +614,10 @@ function stepTail(s: SimState): void {
     // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
     if (a.idx === b.owner) clearFeed(a);
     else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover, a.idx === b.owner ? NaN : b.x, b.y);
+    // C.80l: 게겐프레싱 팀은 지친 강도 감소에 gegenFatigue × 지친 비율^gegenFatigueExp 를 더한다 (0 = 끔)
+    const gegen = tm.tactics.tendency === 'gegenpress';
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover, a.idx === b.owner ? NaN : b.x, b.y,
+      gegen ? TENDENCY.gegenFatigue : 0, TENDENCY.gegenFatigueExp);
   }
 
   // 공

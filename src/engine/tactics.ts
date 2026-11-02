@@ -206,8 +206,16 @@ export const TENDENCY = {
   gegenMarkSlack: 3,
   gegenMarkFrom: 30,
   gegenMarkWindow: 0,
-  /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게) */
-  gegenDrain: 1.15,
+  /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게).
+   *  C.80l: 1.15 → 1.08 — 선발 대부분이 40~60분에 바닥나 남은 시간을 바닥 체력으로 뛰었다(한 선수 15~16 km 꼬리). 대가는 gegenFatigue(바닥 근처 대형 이동 감속)로 */
+  gegenDrain: 1.08,
+  /**
+   * 게겐프레싱 팀의 지친 강도 추가 감소 (C.80l): 스태미나 staminaLowFrom 아래, 긴급하지 않은 이동(대형 자리·조깅·러닝·먼 이동)의 속도를
+   * × (1 − physics.fatigueIntensity × r − gegenFatigue × r^gegenFatigueExp) 로, r = 지친 비율(0 → 1, 스태미나 0). 압박·추격 등 긴급 질주는 그대로.
+   * 게겐 선수는 40~60분에 스태미나가 바닥나 그 뒤에도 대형 이동을 조깅·러닝으로 해 한 선수 15~16 km 꼬리가 났다. 0 = 끔
+   */
+  gegenFatigue: 0.35,
+  gegenFatigueExp: 3,
   /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */
   counterWinMul: 1.12,
   counterWinTime: 6,
