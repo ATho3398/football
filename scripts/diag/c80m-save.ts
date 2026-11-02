@@ -28,7 +28,7 @@ const names = ['0~6', '6~12', '12~16.5', '16.5~25', '25+', '1대1'];
 const bin = (d: number) => (d >= 25 ? 4 : d >= 16.5 ? 3 : d >= 12 ? 2 : d >= 6 ? 1 : 0);
 const all = [0, 0, 0, 0, 0, 0], sv = [0, 0, 0, 0, 0, 0], gl = [0, 0, 0, 0, 0, 0], shots = [0, 0, 0, 0, 0, 0];
 let hSv = 0, hGl = 0, fkSv = 0, fkGl = 0, goals = 0, nShots = 0;
-const recs: { kind: string; d: number; outcome: string }[] = [];
+const recs: { kind: string; d: number; outcome: string; press3: number }[] = [];
 probe.shot = (_s, p) => { recs.push(p); };
 for (let i = S0; i < S0 + N; i++) {
   recs.length = 0;
