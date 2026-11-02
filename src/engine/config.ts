@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 70;
+export const ENGINE_VERSION = 71;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -658,11 +658,12 @@ export const ENGINE = {
     setPieceMark: 3,
     /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율; C.76x 측정 19·17 ✗, lateRunDepth 와 같은 이유로 13 유지) */
     boxRunDepth: 13,
-    /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스 */
-    backPostDepth: 8,
-    backPostSpread: 0.1,
-    halfSpaceDepth: 17,
-    halfSpaceSpread: 0.18,
+    /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스
+     * C.80n (윙어 득점 비중 20% → 20~25%): 먼 포스트 8 m · 0.1 → 7 · 0.08, 하프스페이스 17 m · 0.18 → 15 · 0.15 — 윙어 슛의 70% 가 자기 쪽 박스 측면(좁은 각도, xG 0.06)이라 받는 자리를 골·중앙 쪽으로 */
+    backPostDepth: 7,
+    backPostSpread: 0.08,
+    halfSpaceDepth: 15,
+    halfSpaceSpread: 0.15,
     boxRunSpread: 0.12,
     edgeZone: 22,
     /**
