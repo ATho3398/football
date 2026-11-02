@@ -143,8 +143,9 @@ function defensiveLine(s: SimState, team: 0 | 1): number {
   const t = effectiveTactics(s, team);
   const [bx] = ballNorm(s, team);
   const phase = teamPhase(s, team);
-  // C.80p: 티키타카 성향은 수비 국면(phase < 0)에 라인을 tikiLineDrop(라인 높이 단위) 내려 뒷공간 커버 깊이를 둔다 (직선 롱볼 대응)
-  const drop = phase < 0 && F.tikiLineDrop > 0 && s.teams[team].tactics.tendency === 'tikitaka' ? F.tikiLineDrop : 0;
+  // C.80p: 티키타카 성향은 공격 국면(phase ≥ 0, 우리 소유)에 수비 라인을 tikiLineDrop(라인 높이 단위) 낮춰 뒷공간 커버 깊이를 남긴다 —
+  //   잃은 뒤 상대 전환 롱볼 대응. 수비 국면 내림은 측정에서 티키를 더 약하게 해(960 0.15: 티키>직선 −0.15 → −0.29) 공격 국면만
+  const drop = phase >= 0 && F.tikiLineDrop > 0 && s.teams[team].tactics.tendency === 'tikitaka' ? F.tikiLineDrop : 0;
   let nx = F.lineBase + (t.lineHeight - drop - 0.5) * F.lineRange + F.blockX * (bx - 0.5);
   if (phase < 0) nx += F.defendShift[1] * -phase;
   else nx += F.attackShift[1] * phase;
