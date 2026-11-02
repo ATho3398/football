@@ -1228,6 +1228,8 @@ export const ENGINE = {
     /** 크로스가 가까운 수비수에 맞고 코너가 될 확률 */
     crossBlockCorner: 0.3,
     crossWide: 0.25,
+    /** C.80n: 크로스 대상 고르기에서 먼 쪽(크로스 반대 측면) 윙어의 승산 × 가치 배수 (고르기에만, 실행·가치 불변). 1 = 끔 */
+    crossFarWing: 1,
     /** 크로스 착지 오차 σ = (100 − 크로스) × crossError (m) */
     crossError: 0.03,
     /** 착지점에서 이 거리 안 선수가 경합 */

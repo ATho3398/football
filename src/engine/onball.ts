@@ -482,23 +482,29 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
   const dir = attackDir(a.team, s.half);
   const gk = keeperOf(s, (1 - a.team) as 0 | 1);
   let best: { r: Agent; pWin: number; value: number } | null = null;
-  const all: { r: Agent; pWin: number; value: number }[] = [];
+  let bestW = 0;
+  const all: { r: Agent; pWin: number; value: number; w: number }[] = [];
+  const crossSide = Math.sign(toNorm(a.x, a.y, dir)[1] - 0.5);
   for (const r of boxTeammates(s, a, dir)) {
     const [def, dd] = nearestOpponent(s, r);
     let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def) : 0.85;
     if (gk && dist(gk.x, gk.y, r.x, r.y) < ENGINE.keeper.claimRange) pWin *= 1 - claimProb(gk);
     const value = shotModel(s, r, true).value * r.role.pref.header;
-    all.push({ r, pWin, value });
-    if (!best || pWin * value > best.pWin * best.value) best = { r, pWin, value };
+    // C.80n: 먼 쪽(크로스 반대 측면) 윙어 고르기 가중 — 대상 고르기에만 (돌려주는 가치·실행 불변)
+    const farWing = (r.pos === 'LW' || r.pos === 'RW' || r.pos === 'LM' || r.pos === 'RM') && Math.sign(r.sy - 0.5) !== crossSide;
+    const w = pWin * value * (farWing ? PR.crossFarWing : 1);
+    all.push({ r, pWin, value, w });
+    if (!best || w > bestW) { best = { r, pWin, value }; bestW = w; }
   }
   if (roll === undefined || all.length < 2) return best;
-  const tot = all.reduce((t, c) => t + c.pWin * c.value, 0);
+  const tot = all.reduce((t, c) => t + c.w, 0);
   let x = roll * tot;
   for (const c of all) {
-    x -= c.pWin * c.value;
-    if (x <= 0) return c;
+    x -= c.w;
+    if (x <= 0) return { r: c.r, pWin: c.pWin, value: c.value };
   }
-  return all[all.length - 1]!;
+  const l = all[all.length - 1]!;
+  return { r: l.r, pWin: l.pWin, value: l.value };
 }
 
 /** 타깃 ST: 헤더 + 근력이 가장 높은 공격수 (직선 성향, E.19) */
