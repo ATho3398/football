@@ -1024,6 +1024,13 @@ export const ENGINE = {
       shootLaneRef: 0.45,
       /** 압박: 1 − shootPress × 압박(0~1) */
       shootPress: 0.3,
+      /**
+       * C.80n: 반대발 윙어 컷인 슛 — 윙어(LW·RW·LM·RM)가 자기 측면 반대 발(왼쪽 윙어 오른발·오른쪽 윙어 왼발)이고 자기 쪽 측면~중앙(반대쪽 측면 wingCutCenter m 넘지 않음)에서 쏘는 슛 효용에
+       * wingCutShot × 거리(shootNear m 안 1 → wingCutFar m 에서 0) × 슛 레인(1 − 블록 / shootLaneRef)을 더한다. 판단 효용에만(실행·xG 불변). 0 = 끔
+       */
+      wingCutShot: 0,
+      wingCutFar: 24,
+      wingCutCenter: 7,
     },
     /**
      * 점유 가치 (C.79m 식 + C.79u 전환 창, 사용자 2026-10-30 "짧은 패스는 점유 가치 높이는 패치, 티키타카에선 더 높게, 롱볼(직선)이나 수비(블록)에선 좀 낮추고").

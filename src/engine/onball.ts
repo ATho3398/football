@@ -900,7 +900,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const longShot = dist(a.x, a.y, gx, gy) > ENGINE.roles.longShotDist ? a.role.pref.longShot : 1;
       // 판단 보정 (C.78p): 열린 찬스 슛 선호 — 효용에만, 실행·xG 는 그대로
       const sBias = shootBias(m, goalAngle(a.x, a.y, gx));
-      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias;
+      // C.80n: 반대발 윙어 컷인 슛 가산 (효용에만, 각도 만들기 비교에는 안 넣음)
+      const wBias = wingCutBias(s, a, m);
+      const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias + wBias;
       out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
       // 각도 만들기 (C.78h): 슛 길이 막혔으면(블록 > 0) 옆으로 laneCarry m 치는 몰기 — 그 자리 슛 가치(수비는 따라온다 — 압박·밀집은 지금 자리, 슛 길 콘·각도는 도착점, GK 는 laneCarryTime 초 동안 자리를 옮김)가 지금 슛보다 클 때만, 도착점 가치 = 그 슛 가치
       if (O.laneCarry > 0 && m.pBlock > 0) {
@@ -934,7 +936,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
           otNow = null;
         }
         const tikiO = tac.tendency === 'tikitaka' && mO.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
-        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk) + shootBias(mO, goalAngle(a.x, a.y, gx));
+        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk) + shootBias(mO, goalAngle(a.x, a.y, gx)) + wingCutBias(s, a, mO);
         ot.out.push({ type: 'shoot', p: mO.xg, u: uO, x: gx, y: gy, receiver: -1, value: mO.value, ot: true });
       }
     }
@@ -979,6 +981,19 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
  * 상황 함수 = 거리(shootNear m 안 1 → shootFar m 0) × 슛 레인(1 − 블록/shootLaneRef) × 각도(goalAngle/shotAngleRef) × (1 − shootPress × 압박).
  * 판단에 보이는 특징만 쓰고 GK 자리·점수·시간은 안 본다 (GK 가 빈 순간으로 슛이 몰리지 않게). 판단 효용에만 더하고 실행·xG 는 그대로
  */
+/** C.80n: 반대발 윙어 컷인 슛 판단 가산 (decide.bias.wingCutShot). 윙어가 아니거나 정발이거나 반대쪽 측면이면 0 */
+export function wingCutBias(s: SimState, a: Agent, m: ShotModel): number {
+  const DB = ENGINE.decide.bias;
+  if (!DB.wingCutShot || (a.pos !== 'LW' && a.pos !== 'RW' && a.pos !== 'LM' && a.pos !== 'RM')) return 0;
+  const side = a.sy < 0.5 ? -1 : 1;
+  if (a.body.foot !== (side < 0 ? 'right' : 'left')) return 0;
+  const off = (toNorm(a.x, a.y, attackDir(a.team, s.half))[1] - 0.5) * W;
+  if (off * side < -DB.wingCutCenter) return 0;
+  const fd = clamp((DB.wingCutFar - m.d) / (DB.wingCutFar - DB.shootNear), 0, 1);
+  const fl = clamp(1 - m.pBlock / DB.shootLaneRef, 0, 1);
+  return DB.wingCutShot * fd * fl;
+}
+
 export function shootBias(m: ShotModel, angle: number): number {
   const DB = ENGINE.decide.bias;
   if (!DB.shoot) return 0;
