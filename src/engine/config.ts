@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 72;
+export const ENGINE_VERSION = 73;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1592,8 +1592,9 @@ export const ENGINE = {
      * 시간 항(availRef)이 12 m 밖에서 포화해 선방률이 거리와 무관하게 평평하다 → 발 슛(헤더 제외)의 막기 어려움에서 나온 확률(상한 0.95 적용 뒤)에 distAdjV 를 더한다(덮는 정도를 곱하기 전, 빈 골은 그대로).
      * 슛 거리 d 가 distAdjD 사이면 선형 보간, 첫 점 아래는 distAdjV[0](0 = 12 m 안·1대1 불변), 끝 점 위는 끝 값. 판단(shotModel)·실행(shotArrives) 같은 식(saveChance)
      */
-    distAdjD: [12, 13, 16.5, 17, 24, 27],
-    distAdjV: [0, -0.09, -0.09, 0.02, 0.02, 0],
+    distAdjD: [12, 13, 16.5, 16.7, 24, 27],
+    /** C.80m(사용자 10/30 "12~16 m 는 좀 더 못 막게"): 12~16.5 m −0.09 → −0.145(선방 79.7 → 76.7%), 16.5 m 뒤 경사 17 → 16.7 m(박스 밖 바로 앞 덜 끌려 내려감), 12 m 안 0 → +0.03(경합 슛 쪽 득점 되돌림, 1대1 은 oneOnOne.drop 0.13 → 0.16 으로 상쇄) */
+    distAdjV: [0.03, -0.145, -0.145, 0.02, 0.02, 0],
     /** 거리 보정 뒤 선방 확률 상한 (보정 전 상한 0.95) */
     distAdjMax: 0.98,
     /**
@@ -1602,7 +1603,7 @@ export const ENGINE = {
      * 슈터 마무리(슈팅 0.5 + 침착 0.5) 가 finCenter 보다 높을수록 − fin/100 × 차. center·finCenter = 75:75 리그 평균(선발 GK 71.7 · 슛 가중 슈터 70.7).
      * maxD 12.5: 장면 ④ 1대1(12.04 m)이 들어가고, 16.5 m 까지 넓히면 12 m 밖 자유 슛(대개 상한)에 보정만 먹어 총량이 거꾸로 오른다(c79z 1.63~1.67)
      */
-    oneOnOne: { drop: 0.13, gk: 0.3, center: 72, fin: 0.2, finCenter: 71, maxD: 12.5 },
+    oneOnOne: { drop: 0.16, gk: 0.3, center: 72, fin: 0.2, finCenter: 71, maxD: 12.5 },
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
