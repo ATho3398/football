@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 84;
+export const ENGINE_VERSION = 85;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1550,7 +1550,7 @@ export const ENGINE = {
     // C.79e(엔진 59, 줄 인원 맞춤 — 줄 2 가 수비 줄로 내려옴): engine:check CAM 6.28(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 1.95(그 표본 지금 6.42) — 가드 밖 CAM 만 2.04 → 1.95(§9.12.7)
     // C.79x(엔진 65, 거리별·1대1 선방 + C.79u 점유 가치 2, AD 2026-10-30 16:53): engine:check CAM 6.74(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 2.10(그 표본 CAM 6.63 → 6.50) → 가드 밖 CAM 만 1.95 → 2.10
     // C.80u(엔진 82, 세트피스 헤더·1대1 보정 + 롱패스 병합 뒤): engine:check ST 6.73(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 ST 6.70(맞춤 2.56) — 가드 밖 ST 만 2.45 → 2.53(§9.12.7)
-    // C.81a(엔진 84, 크로스 박스 인원·saveBase 1.89): engine:check GK 6.70(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 GK 6.67(맞춤 1.77) — 가드 밖 GK 만 1.58 → 1.68(§9.12.7)
+    // C.81a(엔진 85, 크로스 박스 인원·saveBase 1.89): engine:check GK 6.70(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 GK 6.67(맞춤 1.77) — 가드 밖 GK 만 1.58 → 1.68(§9.12.7)
     center: { GK: 1.68, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.35, CAM: 2.1, WING: 1.06, ST: 2.53 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
@@ -1810,8 +1810,8 @@ export const ENGINE = {
   stackCap: {
     n: 5,
     link: 0.05,
-    /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) */
-    linkBase: 0.12,
+    /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) — C.80z 0.12 → 0.17 (공격 5명 커스텀 2-2-2-1-3 이 −0.2~−0.4 로 남아서) */
+    linkBase: 0.17,
     drain: 1,
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
@@ -1821,8 +1821,8 @@ export const ENGINE = {
     groups: ['WING', 'CAM', 'ST'] as readonly string[],
     /** 최전방 몰빵: ST·CF(포지션군 ST) 가 stN 명 이상이어도 걸린다 — 초과 m = max(공격 포지션 − n + 1, ST·CF − stN + 1). 표준 대형은 ST·CF 최대 2명 */
     stN: 3,
-    /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) */
-    stW: 2,
+    /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) — C.80z 2 → 3 (최전방 3명 대형 2-2-2-1-3·1-3-2-1-3 이 두 상대 모두 −0.5 넘게 지도록) */
+    stW: 3,
   },
 
   tacticFit: {

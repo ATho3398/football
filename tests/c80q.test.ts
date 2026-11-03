@@ -98,4 +98,16 @@ describe('C.80q 공격 몰빵 억제', () => {
     s.ball.owner = st.idx;
     expect(stackDrainMul(s, st)).toBe(1);
   });
+  it('C.80z 최전방 3명 커스텀(2-2-2-1-3 · 1-3-2-1-3, 공격 4명 + ST·CF 3명): 경기 상태에서 m = stW, 연계 배수·체력 배수 적용', () => {
+    for (const cells of [[-1, 17, 11, 26, 3, 12, 5, 2, 28, 8, 27], [-1, 5, 12, 27, 22, 28, 9, 11, 0, 7, 18]]) {
+      const s = state(cells);
+      const ps = s.agents.filter((x) => x.team === 0 && x.onPitch).map((x) => x.pos);
+      expect(stackCount(ps)).toBe(4);
+      expect(ps.filter((p) => p === 'ST' || p === 'CF').length).toBe(3);
+      expect(s.teams[0].stackOver).toBe(ENGINE.stackCap.stW);
+      const a = s.agents.find((x) => x.team === 0 && x.onPitch && x.pos === 'ST')!;
+      a.x = 52.5 + attackDir(0, s.half) * 20;
+      expect(stackLinkMul(s, a)).toBeCloseTo(Math.max(0, 1 - ENGINE.stackCap.linkBase - ENGINE.stackCap.link * ENGINE.stackCap.stW), 12);
+    }
+  });
 });
