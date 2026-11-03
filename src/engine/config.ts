@@ -1795,8 +1795,8 @@ export const ENGINE = {
   stackCap: {
     n: 5,
     link: 0.05,
-    /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) */
-    linkBase: 0.12,
+    /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) — C.80z 0.12 → 0.17 (공격 5명 커스텀 2-2-2-1-3 이 −0.2~−0.4 로 남아서) */
+    linkBase: 0.17,
     drain: 1,
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
