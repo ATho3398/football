@@ -1542,7 +1542,8 @@ export const ENGINE = {
     // 엔진 54 델타 합 분해(패스 · 슛 · 골도움 · 수비 · 상실 · GK · 결과): CDM 2.22 · 0.26 · 0.14 · 0.63 · −0.46 · −0.13 · −0.06 = 2.59 — 평점이 높던 원인은 득점이 아니라 패스 몫(GK 패스 1.42 · ST 패스 1.45). σ 0.79 · ST 무득점 6.06
     // C.79e(엔진 59, 줄 인원 맞춤 — 줄 2 가 수비 줄로 내려옴): engine:check CAM 6.28(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 1.95(그 표본 지금 6.42) — 가드 밖 CAM 만 2.04 → 1.95(§9.12.7)
     // C.79x(엔진 65, 거리별·1대1 선방 + C.79u 점유 가치 2, AD 2026-10-30 16:53): engine:check CAM 6.74(가드 6.3~6.7 ✗) → `rating-parts 720 … 20000` + `c78r-rating-fit` 맞춤 CAM 2.10(그 표본 CAM 6.63 → 6.50) → 가드 밖 CAM 만 1.95 → 2.10
-    center: { GK: 1.58, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.35, CAM: 2.1, WING: 1.06, ST: 2.45 } as Record<string, number>,
+    // C.80u(엔진 82, 세트피스 헤더·1대1 보정 + 롱패스 병합 뒤): engine:check ST 6.73(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 ST 6.70(맞춤 2.56) — 가드 밖 ST 만 2.45 → 2.53(§9.12.7)
+    center: { GK: 1.58, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.35, CAM: 2.1, WING: 1.06, ST: 2.53 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
