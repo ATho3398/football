@@ -5,9 +5,11 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 export const SW_FILE = 'sw.js';
-export const CACHE_PREFIX = 'po-';
+export { CACHE_PREFIX, VERSION_FILE } from './cachePrefix';
+import { CACHE_PREFIX, VERSION_FILE } from './cachePrefix';
 
 /** dist 안 파일 (상대 경로, '/' 구분, 정렬). sw.js 자신과 소스맵은 뺀다 */
+
 export function listFiles(dir: string): string[] {
   const out: string[] = [];
   const walk = (d: string): void => {
@@ -18,7 +20,7 @@ export function listFiles(dir: string): string[] {
     }
   };
   walk(dir);
-  return out.filter((f) => f !== SW_FILE && !f.endsWith('.map')).sort();
+  return out.filter((f) => f !== SW_FILE && f !== VERSION_FILE && !f.endsWith('.map')).sort();
 }
 
 /**
@@ -41,7 +43,8 @@ export function buildVersion(dir: string, files: string[], commit: string): stri
  * - install: 전부 미리 캐시, 리그 페이스팩만 빼고(precached, C.77u) (skipWaiting 안 함 — 화면이 고른다)
  * - activate: 'po-' 로 시작하는 옛 캐시 지우기
  * - fetch: 같은 출처 GET 은 캐시 먼저(쿼리 무시), 없으면 네트워크 → 캐시에 넣기. 페이지 이동은 index.html
- * - message 'skip-waiting': 대기 중인 새 버전으로 넘어간다
+ * - message 'skip-waiting' / 'SKIP_WAITING'(C.80x): 대기 중인 새 버전으로 넘어간다
+ * - version.json(C.80x): 캐시하지 않고 늘 네트워크 (새 배포 확인용)
  */
 export function swSource(files: string[], version: string): string {
   const list = ['./', ...files.filter(precached).map((f) => `./${f}`)];
@@ -68,7 +71,7 @@ self.addEventListener('activate', (ev) => {
 });
 
 self.addEventListener('message', (ev) => {
-  if (ev.data === 'skip-waiting') self.skipWaiting();
+  if (ev.data === 'skip-waiting' || ev.data === 'SKIP_WAITING') self.skipWaiting();
   else if (ev.data === 'version' && ev.source) ev.source.postMessage({ version: VERSION });
 });
 
@@ -77,6 +80,7 @@ self.addEventListener('fetch', (ev) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('/' + ${JSON.stringify(VERSION_FILE)})) return;
   ev.respondWith((async () => {
     const c = await caches.open(CACHE);
     if (req.mode === 'navigate') {

@@ -22,6 +22,11 @@ export function versionFooter(v: VersionVM): string {
   return `<p class="ver">${esc(v.label)}</p>`;
 }
 
+/** 설정 맨 아래 (C.80x): "버전 C.80x · 53단계 · [업데이트 확인]" */
+export function updateCheckRow(patch: string, stage: string): string {
+  return `<div class="upd-row"><span>버전 ${esc(patch)} · ${esc(stage)}</span>${Button({ variant: 'secondary', size: 'sm', act: 'upd-check', children: '업데이트 확인' })}</div>`;
+}
+
 /** 세이브 시작 버전이 다르면 중립 배너 (디자인 22) */
 export function startNotice(v: VersionVM): string {
   if (!v.notice) return '';

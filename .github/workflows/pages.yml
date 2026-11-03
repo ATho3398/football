@@ -14,7 +14,8 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # C.80x: 진행 중 CI 는 끝까지 돌리고 새 푸시는 최신 1개만 대기 (연속 푸시로 계속 취소되던 문제)
+  cancel-in-progress: false
 
 jobs:
   build:
