@@ -144,7 +144,12 @@ export function createUpdater(d: UpdaterDeps): Updater {
     found();
   };
 
-  const watchReg = (r: RegLike): void => {
+  /** reg.update() — 없거나 던져도 조용히 (오프라인·막힌 환경) */
+  const safeUpdate = (): Promise<unknown> => (reg ? Promise.resolve().then(() => reg?.update()).catch(() => undefined) : Promise.resolve());
+
+  const watchReg = (r: RegLike | null | undefined): void => {
+    // 서비스 워커가 막힌 환경에서는 register 가 registration 없이 끝날 수 있다 (C.80y 보고)
+    if (!r) return;
     reg = r;
     setWaiting(r.waiting);
     r.addEventListener('updatefound', () => {
@@ -159,7 +164,7 @@ export function createUpdater(d: UpdaterDeps): Updater {
     if (checking) return checking;
     checking = (async () => {
       try {
-        if (reg) await reg.update().catch(() => undefined);
+        await safeUpdate();
         const r = await d.fetchVersion().catch(() => null);
         if (r && isNewer(r, d.current.commit)) {
           st.remote = r;
@@ -209,9 +214,9 @@ export function createUpdater(d: UpdaterDeps): Updater {
       d.storage.set(UPDATED_FROM_KEY, d.current.commit);
       // 2) 서비스 워커는 있는데 대기 워커가 아직 없으면 설치를 잠깐 기다린다
       if (!waiting && reg && d.sw?.controller) {
-        await reg.update().catch(() => undefined);
+        await safeUpdate();
         for (let t = 0; t < INSTALL_WAIT_MS && !waiting; t += 250) {
-          if (reg.waiting) setWaiting(reg.waiting);
+          if (reg?.waiting) setWaiting(reg.waiting);
           else await sleep(250);
         }
       }

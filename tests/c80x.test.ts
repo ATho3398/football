@@ -161,6 +161,19 @@ describe('C.80x 서비스 워커 흐름 (가짜 registration)', () => {
   });
 });
 
+describe('C.80x 서비스 워커 막힘', () => {
+  it('register 가 registration 없이 끝나도(undefined) 오류 없이 version.json 으로만 감지·업데이트', async () => {
+    const sw = new FakeContainer(new FakeReg());
+    (sw as unknown as { register: () => Promise<undefined> }).register = () => Promise.resolve(undefined);
+    const t = setup({ sw, remote: NEW });
+    const u = createUpdater(t.d);
+    await u.start();
+    expect(await u.check()).toBe(true);
+    await u.apply(() => Promise.resolve());
+    expect(t.log.reloads).toEqual(['bbbbbbb']);
+  });
+});
+
 describe('C.80x 서비스 워커 없음 (version.json)', () => {
   it('새 커밋이면 배너, [업데이트] = 저장 뒤 ?v=새커밋 새로고침. 같은 커밋이면 배너 없음', async () => {
     const t = setup({ remote: { ...NEW, commit: 'aaaaaaa' } });
