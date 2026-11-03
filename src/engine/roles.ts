@@ -77,13 +77,13 @@ export const ROLES: Record<string, Role> = {
   // CDM
   anchor: r('anchor', -0.04, 0, 0.1, 0.4, 0.6, p({ safe: 1.2 })),
   ballWinner: r('ballWinner', 0, 0, 0.2, 0.2, 0.9, p()),
-  regista: r('regista', -0.06, 0, 0, 0.9, 0.5, p({ pass: 1.4, long: 1.3 }), ['demand', 'exempt']),
+  regista: r('regista', -0.06, 0, 0, 0.9, 0.4, p({ pass: 1.4, long: 1.3 }), ['demand', 'exempt']), // C.80v: press 0.1 → 0.4 (역할 대비 −0.13 → −0.08)
   halfBack: r('halfBack', -0.1, 0, 0, 0.6, 0.4, p({ safe: 1.2 }), ['between']),
   // 풀백 (LB, RB, LWB, RWB)
   attackingFullback: r('attackingFullback', 0.1, 0.2, 0.7, 0.1, 0.5, p({ cross: 1.4 })),
   defensiveFullback: r('defensiveFullback', -0.04, 0, 0.2, 0.2, 0.7, p({ safe: 1.2 })),
   invertedFullback: r('invertedFullback', 0.02, -0.3, 0.3, 0.6, 0.5, p({ pass: 1.2 }), ['between']),
-  completeWingback: r('completeWingback', 0.14, 0.25, 0.7, 0.1, 0.6, p({ cross: 1.3, dribble: 1.1 })),
+  completeWingback: r('completeWingback', 0.14, 0.25, 0.7, 0.1, 0.6, p({ cross: 1.3, dribble: 1.1 })), // C.80v: run 0.8 → 0.7 (−0.125 → −0.02)
   // CB
   stopper: r('stopper', 0.02, 0, 0, 0, 0.7, p({ clear: 1.2 })),
   ballPlayingCB: r('ballPlayingCB', -0.02, 0, 0.1, 0.2, 0.5, p({ forward: 1.3 })),
