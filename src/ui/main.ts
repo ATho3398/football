@@ -62,7 +62,6 @@ import {
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { PATCH_LABEL, STAGE_LABEL } from '../version';
-import { SAVE_FORMAT_VERSION } from '../game';
 import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, Tabs, Toast, type ToastProps } from './components';
 import {
   allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
