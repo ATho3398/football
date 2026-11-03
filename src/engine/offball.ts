@@ -14,7 +14,7 @@ const { arrivalTime, burstReady, effectiveMax, landingVelocity } = physics_;
 import * as formation_ from './formation';
 const { ballNorm, manDiff, slotTarget, teamPhase } = formation_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, ownGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import * as roles_ from './roles';
@@ -566,6 +566,30 @@ export function updateOffball(s: SimState, a: Agent): void {
   const [bnx, bny] = ballNorm(s, a.team);
   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
+  // 골문 앞 쇄도 (C.81a, 리바운드): 우리 소유자가 골 shotRushR m 안(슛 거리)이면 박스 안 2선·공격수 중 골 앞 shotRushDepth m 중앙 자리에 가장 가까운 shotRush 명이
+  // 그 자리(오프사이드 라인 안)로 — 슛이 쳐내지거나 막혀 흐를 때 골 앞에 이미 있도록 (엔진관리자26: 슛 뒤 따라 들어가면 늦다)
+  if (attacking && O.shotRush > 0 && a.line >= 2 && b.owner >= 0 && b.owner !== a.idx && !s.restart) {
+    const owner = s.agents[b.owner]!;
+    const gx = dir > 0 ? L : 0;
+    if (owner.team === a.team && dist(owner.x, owner.y, gx, W / 2) < O.shotRushR && inOppBox(a.x, a.y, dir)) {
+      const sx = gx - dir * O.shotRushDepth;
+      const da = dist(a.x, a.y, sx, W / 2);
+      let closer = 0;
+      for (const o of s.agents) {
+        if (o === a || !o.onPitch || o.team !== a.team || o.line < 2 || o.idx === b.owner || !inOppBox(o.x, o.y, dir)) continue;
+        const d = dist(o.x, o.y, sx, W / 2);
+        if (d < da || (d === da && o.idx < a.idx)) closer++;
+      }
+      if (closer < O.shotRush) {
+        const nx = Math.min(1 - O.shotRushDepth / L, offsideLine(s, a.team) - 0.5 / L);
+        const [px] = toPitch(nx, 0.5, dir);
+        a.tx = px;
+        a.ty = (a.y + W / 2) / 2;
+        a.urgent = true;
+        return;
+      }
+    }
+  }
   if (attacking) attackTarget(s, a, dir, bnx, bny);
   else defendTarget(s, a, dir, bnx, bny);
 }

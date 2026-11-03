@@ -29,7 +29,7 @@ const { burstCap, clearFeed, initPhysics, moveAgent, perceiveFeed } = physics_;
 import * as tactics_ from './tactics';
 const { aiAdjust, TENDENCY } = tactics_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, outOfPlay, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, outOfPlay, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import * as roles_ from './roles';
@@ -141,7 +141,7 @@ export function createState(input: EngineInput): SimState {
       stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
-    advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
+    advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100], boxLand: null,
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
     moments: initMoments(input.control), forcedDuel: null, cards: initCards(input.cards, input.seed),
     env: resolveEnv(input.env),
@@ -425,6 +425,7 @@ function startSecondHalf(s: SimState): void {
  */
 function resetHalfClocks(s: SimState, back: number): void {
   s.lastShotT = [-100, -100];
+  s.boxLand = null;
   s.lastPass = null;
   s.possSince = s.t;
   s.possStartT = s.t;
@@ -466,6 +467,7 @@ function finish(s: SimState): void {
 export function step(s: SimState): void {
   if (s.done || s.moments.pending) return;
   const dt = T.dt;
+  boxLandTick(s);
 
   checkAdvantage(s);
   if (s.restart && s.pendingCards.length) issuePendingCards(s);
@@ -480,6 +482,24 @@ export function step(s: SimState): void {
 
   if (s.restart && s.t >= s.restart.at && restartDue(s) && pauseOrDecide(s)) return;
   stepBody(s);
+}
+
+/** 측정용 (C.81a): 크로스·컷백 비행이 끝나는 순간 상대 박스 안 그 팀 필드 선수 수 (찬 선수 포함) */
+function boxLandTick(s: SimState): void {
+  const w = s.boxLand;
+  if (!w) return;
+  if (w.fl === null) {
+    if (s.ball.flight) w.fl = s.ball.flight;
+    else s.boxLand = null;
+    return;
+  }
+  if (s.ball.flight === w.fl) return;
+  const dir = attackDir(w.team, s.half);
+  let n = 0;
+  for (const a of s.agents) if (a.onPitch && a.team === w.team && a.line !== 0 && inOppBox(a.x, a.y, dir)) n++;
+  s.teams[w.team].stats.boxAtLand += n;
+  s.teams[w.team].stats.boxLandN++;
+  s.boxLand = null;
 }
 
 /** 오프더볼, 소유자 결정, 수비 태클, 이동·공·시계 (세트피스 결정 순간 뒤에는 여기서 이어 간다) */

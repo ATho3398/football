@@ -659,6 +659,7 @@ function countBox(s: SimState, a: Agent): void {
   for (const o of s.agents) if (o.onPitch && o.team === a.team && o !== a && inOppBox(o.x, o.y, dir)) n++;
   s.teams[a.team].stats.boxAtCross += n;
   s.teams[a.team].stats.boxCrossN++;
+  s.boxLand = { fl: null, team: a.team };
 }
 
 function cross(s: SimState, a: Agent, c: Candidate): void {

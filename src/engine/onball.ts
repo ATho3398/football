@@ -966,7 +966,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         // 공격 폭 (좁게 0.9 / 넓게 1.1), 직선 성향 (E.19)
         const cMul = widthCrossMul(tac.width) * (tac.tendency === 'direct' ? TENDENCY.directCrossMul : 1);
         const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk);
-        out.push({ type: 'cross', p, u, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
+        // C.81a (엔진관리자26 처방): 크로스 순간 박스 안 동료가 crossBoxMin 명보다 적으면 모자란 1명당 crossBox 감점 (판단만)
+        const boxLack = ENGINE.decide.bias.crossBox > 0 ? Math.max(0, ENGINE.decide.bias.crossBoxMin - boxTeammates(s, a, attackDir(a.team, s.half)).length) : 0;
+        out.push({ type: 'cross', p, u: u - ENGINE.decide.bias.crossBox * boxLack, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
       }
     }
 

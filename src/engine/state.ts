@@ -328,6 +328,8 @@ export interface SimState {
   offsideX: [number, number];
   /** 팀별 마지막 슈팅 시각 (측정용: 리바운드 경로) */
   lastShotT: [number, number];
+  /** 측정용 (C.81a): 착지 순간 박스 인원을 셀 크로스·컷백 비행 (fl null = 방금 찼음, 다음 스텝에 비행을 붙인다) */
+  boxLand: { fl: unknown; team: 0 | 1 } | null;
   /** 내 선수 결정 순간 (E.11, E4): 진행 상태와 기록. 자동 모드면 쓰지 않는다 */
   moments: MomentState;
   /** 결정 순간에서 고른 1대1 행동 (다음 defendDuels 한 번에만) */
@@ -347,7 +349,7 @@ export function emptyTeamStats(): TeamStats {
     dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
     throwIns: 0, goalKicks: 0, longPasses: 0, longCompleted: 0, longPSum: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
     centralShots: 0, oppHalfWins: 0, keyPasses: 0, cutbacks: 0, layoffs: 0, holdups: 0, holdupsWon: 0,
-    shotPaths: [0, 0, 0, 0, 0, 0, 0], goalPaths: [0, 0, 0, 0, 0, 0, 0], decisions: [0, 0, 0, 0, 0, 0, 0, 0, 0], boxAtCross: 0, boxCrossN: 0, tackleAttempts: 0, dispossessed: 0, farOnTarget: 0, farSaves: 0, farBinOn: [0, 0, 0, 0, 0, 0], farBinSaves: [0, 0, 0, 0, 0, 0],
+    shotPaths: [0, 0, 0, 0, 0, 0, 0], goalPaths: [0, 0, 0, 0, 0, 0, 0], decisions: [0, 0, 0, 0, 0, 0, 0, 0, 0], boxAtCross: 0, boxCrossN: 0, boxAtLand: 0, boxLandN: 0, tackleAttempts: 0, dispossessed: 0, farOnTarget: 0, farSaves: 0, farBinOn: [0, 0, 0, 0, 0, 0], farBinSaves: [0, 0, 0, 0, 0, 0],
   };
 }
 

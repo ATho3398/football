@@ -156,6 +156,9 @@ export interface TeamStats {
   /** 크로스·컷백 순간 상대 박스 안 우리 선수 수 합 / 횟수 */
   boxAtCross: number;
   boxCrossN: number;
+  /** 측정용 (C.81a): 크로스·컷백 공이 떨어지는(비행이 끝나는) 순간 상대 박스 안 우리 필드 선수 수 합 · 표본 수 */
+  boxAtLand: number;
+  boxLandN: number;
   /** (E.23) 수비수가 판단해서 시도한 태클 (1대1 경합 제외), 몰고 가기·유지 실패로 잃은 소유 */
   tackleAttempts: number;
   dispossessed: number;

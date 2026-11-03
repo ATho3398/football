@@ -646,7 +646,7 @@ export const ENGINE = {
     /** 내려와서 받기: drop × 이 거리만큼 공 쪽으로 (m) */
     dropDist: 8,
     /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 (E.22 B: 시작 0.75 → 크로스 가능 구역 0.68) */
-    lateRunFromX: 0.68,
+    lateRunFromX: 0.6,
     lateRunWide: 0.2,
     lateRunRun: 0.4,
     /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
@@ -668,7 +668,11 @@ export const ENGINE = {
     halfSpaceDepth: 17,
     halfSpaceSpread: 0.18,
     boxRunSpread: 0.12,
-    edgeZone: 22,
+    edgeZone: 12,
+    /** 골문 앞 쇄도 (C.81a, 리바운드): 소유자가 골 shotRushR m 안이면 박스 안 2선·공격수 중 골 앞 shotRushDepth m 중앙 자리에 가장 가까운 shotRush 명이 그 자리로. 0 = 끔 */
+    shotRush: 0,
+    shotRushR: 20,
+    shotRushDepth: 7,
     /**
      * 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 이 공이 상대 진영 wideFromX(정규화)를 넘으면 역할 자리로 — 반대쪽 측면 공 = 먼 포스트, 같은 쪽 = 오버랩(소유자 앞 overlapAhead m, 터치라인 wideTouch)
      * 또는 언더랩(소유자 앞 underlapAhead m 이상·하프스페이스; 풀백이 공을 가졌거나 소유자보다 wideFbAhead m 뒤까지 바깥으로 올라와 있거나 소유자가 터치라인 wideTouch 밖이면),
@@ -1005,6 +1009,9 @@ export const ENGINE = {
        * 빌드업 '직선' 배수(모든 롱볼 선호, 직선 성향 기본 단계에서 뺌) 대신 전환 상황부 선호. 0 = 끔
        */
       directLong: 0.1,
+      /** C.81a (엔진관리자26 처방): 박스 안 동료가 crossBoxMin 명보다 적으면 모자란 1명당 크로스 효용 −crossBox (판단 보정, 실행 불변 — 기다렸다 올리기) */
+      crossBox: 0.06,
+      crossBoxMin: 3,
       /**
        * C.80w: 공중 롱패스(airPass m 넘는 패스·침투) 효용 가중(weight, 1 = 끔) — 착지 정확도(prob.longMiss)를 올려 판단 성공 확률이 같이 오르면
        * 롱패스 시도 비율이 목표(10~16%)를 넘으므로 판단 효용 가중만 같이 낮춘다(판단 보정 원칙, 실행 불변)
@@ -1551,7 +1558,7 @@ export const ENGINE = {
   // ── 골키퍼 (E.9) ──
   keeper: {
     /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). C.79x: 거리 보정(distAdj, 12~16.5 m −0.09)으로 슛이 12~16.5 m 로 몰려 quick 600 1.46 → 1.65 라 총량 보정 +0.11 → 1.77(C.79q 병합 뒤) + 1대1(oneOnOne) 만 −0.13 으로 장면 ④ 유지(헤더·12 m 안 경합 슛 선방은 같이 오른다, 부록 C.79x). C.80o: 병렬 묶음(C.80k~n) 뒤 득점 총량 마무리 +0.01 → 1.78(quick 600 1.52 → 약 1.48~1.50, distAdjV −0.13 과 함께). C.80w: 롱볼 착지 정확도(prob.longMiss 0.6)로 롱볼이 덜 끊겨 상대 역습이 줄며 quick 600 1.50 → 1.37 이라 총량 보정 −0.03 → 1.75(1.76 은 1.44). C.80u(롱패스 C.80w 병합 뒤): 세트피스 헤더 GK 반응(headerReactSet 0.6)·코너 CB 3·헤더 0.65 득점 상승 되돌림 +0.07 → 1.82(병합 전 1.78 → 1.85 와 같은 폭) — 1대1 은 oneOnOne.drop 0.16 → 0.24 로 장면 ④ 유지. */
-    saveBase: 1.82,
+    saveBase: 1.88,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,

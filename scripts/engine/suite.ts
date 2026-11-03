@@ -409,7 +409,9 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       extra.push(`슈팅 경로 % (패스/돌파·몰고/코너/프리킥/PK/리바운드/그 밖): ${sp.map((v) => (ratio(v, sum(sp)) * 100).toFixed(0)).join(' / ')}`);
       add(S2, 'pk', 'PK (팀당)', '0.11~0.16 (경기당 0.22~0.32, C.76q)', perTeam(eq, (t) => t.shotPaths[4]!), 0.11, 0.16, 2);
       add(S2, 'cornerPerGoal', '코너 몇 개당 코너 골', '약 30 (20~40)', ratio(totTeam(eq, (t) => t.corners), gp[2]!), 20, 40, 0);
-      add(S2, 'boxAtCross', '크로스·컷백 순간 박스 안 인원', '3~4', ratio(totTeam(eq, (t) => t.boxAtCross), totTeam(eq, (t) => t.boxCrossN)), 3, 4, 1);
+      // C.81a: 목표 = 공이 떨어지는 순간(실축 통계 기준) 박스 안 공격 인원 3~4 (AD). 크로스·컷백 차는 순간 값은 기록만
+      add(S2, 'boxAtLand', '크로스·컷백 착지 순간 박스 안 공격 인원', '3~4', ratio(totTeam(eq, (t) => t.boxAtLand), totTeam(eq, (t) => t.boxLandN)), 3, 4, 2);
+      add(S2, 'boxAtCross', '크로스·컷백 차는 순간 박스 안 인원 (참고)', '-', ratio(totTeam(eq, (t) => t.boxAtCross), totTeam(eq, (t) => t.boxCrossN)), 0, 11, 2);
       const dec = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => totTeam(eq, (t) => t.decisions[k]!));
       const band = (b: number) => {
         const n = dec[b * 3]! + dec[b * 3 + 1]! + dec[b * 3 + 2]!;
