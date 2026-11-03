@@ -1,5 +1,5 @@
 // 저장/불러오기 (B.8, 25.4·부록 C.41): IndexedDB + gzip 압축, 수동 슬롯 3 + 자동 저장, 파일 내보내기/가져오기.
-// 형식(SAVE_FORMAT_VERSION)이 다른 옛 세이브는 이전하지 않는다: 안내 뒤 지운다 (C.77r, 사용자 2026-10-22)
+// 옛 형식 세이브는 불러올 때 지금 형식으로 이전한다 (C.80y, saveMigrations.ts). 이전 체계 전 형식(59 미만)만 안내 뒤 지운다
 
 import { myShirt, rebuildRosters, rosterLeagues, SAVE_FORMAT_VERSION, type GameState } from './game';
 import { setSquadLeague } from './squad';
@@ -9,6 +9,9 @@ import { migratedTactics, validTactics } from './myTactics';
 import { compress, decompress, storeBackend, type Encoding } from './saveStore';
 import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
 import type { Replay } from './replay';
+import { migrateSave, MIN_MIGRATABLE_FORMAT, needsMigration, SaveFormatError, SaveMigrationError } from './saveMigrations';
+
+export { SaveFormatError, SaveMigrationError } from './saveMigrations';
 
 const PREFIX = 'football-career:';
 export const SAVE_SLOTS = ['auto', '1', '2', '3'] as const;
@@ -45,26 +48,32 @@ export function serialize(state: GameState): string {
   return JSON.stringify(rest);
 }
 
-/** 세이브 형식이 지금 게임과 달라 이어 할 수 없음 (C.77r). 옛 세이브는 이전하지 않는다 (사용자 2026-10-22) */
-export class SaveFormatError extends Error {
-  constructor(readonly found: unknown) {
-    super('이 세이브는 이전 버전 형식이라 이어 할 수 없습니다');
-    this.name = 'SaveFormatError';
-  }
-}
-
-/** 이 세이브(JSON 객체)를 지금 게임에서 이어 할 수 있나: 형식 번호가 SAVE_FORMAT_VERSION 과 같아야 한다 */
+/** 이 세이브(JSON 객체)가 지금 형식 그대로인가 (이전 없이 이어 할 수 있나) */
 export function sameFormat(raw: unknown): boolean {
   return !!raw && typeof raw === 'object' && (raw as { saveFormat?: unknown }).saveFormat === SAVE_FORMAT_VERSION;
 }
 
 /**
- * 세이브 복원 (C.77r): 형식이 지금과 같을 때만. 다르면 이전(migration)하지 않고 SaveFormatError.
- * 로스터는 시드로 다시 만든다
+ * 세이브 복원 + 옛 형식이면 이전한 형식 번호 (C.80y). 원본 raw 는 건드리지 않는다.
+ * 이전 체계 전 형식·더 새 형식은 SaveFormatError, 이전 실패(단계 예외·검증 실패·복원 예외)는 SaveMigrationError
  */
-export function restore(raw: any): GameState {
-  if (!sameFormat(raw)) throw new SaveFormatError(raw?.saveFormat);
-  const state = raw as GameState;
+export function restoreWithInfo(raw: unknown): { state: GameState; migratedFrom: number | null } {
+  const { save, from } = migrateSave(raw);
+  const migrated = from !== SAVE_FORMAT_VERSION;
+  try {
+    return { state: restoreCurrent(save as GameState), migratedFrom: migrated ? from : null };
+  } catch (e) {
+    if (migrated) throw new SaveMigrationError(from, `복원: ${(e as Error)?.message ?? String(e)}`);
+    throw e;
+  }
+}
+
+/** 세이브 복원 (옛 형식이면 이전 뒤). 로스터는 시드로 다시 만든다 */
+export function restore(raw: unknown): GameState {
+  return restoreWithInfo(raw).state;
+}
+
+function restoreCurrent(state: GameState): GameState {
   // 이름 풀 판 (C.45 8번)
   setNamePoolVersion(state.namePool ?? 1);
   // 내 리그 (C.76c): 로스터를 만들기 전에 리그 규칙을 맞춘다
@@ -150,17 +159,68 @@ export async function saveGame(slot: SaveSlot, state: GameState): Promise<boolea
   }
 }
 
-/** 슬롯 불러오기. 형식이 다른 옛 세이브면 그 슬롯(리플레이 포함)을 지우고 SaveFormatError (C.77r) */
+/** 슬롯 불러오기 (옛 형식이면 이전, C.80y). 결과만 */
 export async function loadGame(slot: SaveSlot): Promise<GameState | null> {
+  return (await loadGameWithInfo(slot))?.state ?? null;
+}
+
+/**
+ * 슬롯 불러오기 (C.80y): 옛 형식(59 이상)이면 원본을 백업(`save_backup_v{n}`, 최근 1개)에 보관한 뒤 이전하고, 성공하면 슬롯을 새 형식으로 다시 쓴다.
+ * 이전 실패 → SaveMigrationError (슬롯·백업 그대로). 이전 체계 전 형식(59 미만) → 그 슬롯(리플레이 포함)을 지우고 SaveFormatError.
+ * 더 새 형식(옛 앱으로 연 경우) → 지우지 않고 SaveFormatError
+ */
+export async function loadGameWithInfo(slot: SaveSlot): Promise<{ state: GameState; migratedFrom: number | null } | null> {
   await initSaves();
-  const rec = await storeBackend().get<StoredSave>(`slot:${slot}`);
+  const db = storeBackend();
+  const rec = await db.get<StoredSave>(`slot:${slot}`);
   if (!rec) return null;
+  const json = await decompress(rec.data);
+  let raw: unknown;
   try {
-    return deserialize(await decompress(rec.data));
+    raw = JSON.parse(json);
+  } catch {
+    throw new Error('세이브 파일이 깨져 불러오지 못했어요');
+  }
+  if (needsMigration(raw)) await putBackup(slot, (raw as { saveFormat: number }).saveFormat, rec);
+  try {
+    const r = restoreWithInfo(raw);
+    if (r.migratedFrom !== null) {
+      // 새 형식으로 다시 써 둔다 (다음 불러오기는 이전 없이). meta 는 그대로(저장 시각 유지)
+      const { data, enc, raw: n } = await packState(r.state);
+      await db.put(`slot:${slot}`, { meta: { ...rec.meta, size: data.length }, data, enc, raw: n } satisfies StoredSave);
+    }
+    return r;
   } catch (e) {
-    if (e instanceof SaveFormatError) await deleteSave(slot);
+    if (e instanceof SaveFormatError && tooOld(e.found)) await deleteSave(slot);
     throw e;
   }
+}
+
+const tooOld = (v: unknown): boolean => typeof v !== 'number' || v < MIN_MIGRATABLE_FORMAT;
+
+// ── 이전 전 원본 백업 (C.80y): `save_backup_v{형식}` 하나만 둔다 (최근 1개) ──
+
+const BACKUP_PREFIX = 'save_backup_v';
+export interface SaveBackup { slot: SaveSlot; from: number; at: string; meta: SaveMeta; data: Uint8Array; enc: Encoding; raw: number }
+
+async function putBackup(slot: SaveSlot, from: number, rec: StoredSave): Promise<void> {
+  const db = storeBackend();
+  for (const k of await db.keys()) if (k.startsWith(BACKUP_PREFIX)) await db.del(k);
+  await db.put(`${BACKUP_PREFIX}${from}`, { slot, from, at: new Date().toISOString(), meta: rec.meta, data: rec.data, enc: rec.enc, raw: rec.raw } satisfies SaveBackup);
+}
+
+/** 가장 최근 이전 백업 (없으면 null) */
+export async function latestBackup(): Promise<SaveBackup | null> {
+  const db = storeBackend();
+  const k = (await db.keys()).find((x) => x.startsWith(BACKUP_PREFIX));
+  return k ? ((await db.get<SaveBackup>(k)) ?? null) : null;
+}
+
+/** 백업을 내보내기 파일(.fcsave.gz) 형식으로: 고친 버전이 나오면 [가져오기]로 다시 넣을 수 있다 */
+export async function backupFile(b: SaveBackup): Promise<{ bytes: Uint8Array; name: string }> {
+  const json = await decompress(b.data);
+  const { data } = await compress(`{"kind":"${FILE_KIND}","meta":${JSON.stringify(b.meta)},"state":${json}}`);
+  return { bytes: data, name: `football-career_backup_v${b.from}_${b.meta.season}_${b.meta.date ?? `r${b.meta.round}`}.fcsave.gz` };
 }
 
 export async function deleteSave(slot: SaveSlot): Promise<void> {
@@ -234,10 +294,19 @@ export function exportFileName(state: GameState): string {
   return `football-career_${state.league.season}_${state.calendar?.date ?? `r${state.league.round}`}.fcsave.gz`;
 }
 
-/** 가져오기: 압축 파일이나 그냥 JSON 모두 받는다. 형식이 다른 옛 세이브는 SaveFormatError (저장하지 않는다, C.77r) */
+/** 가져오기: 압축 파일이나 그냥 JSON 모두 받는다. 옛 형식이면 이전(C.80y). 이전 체계 전 형식은 SaveFormatError, 이전 실패는 SaveMigrationError */
 export async function importSave(bytes: Uint8Array): Promise<GameState> {
+  return (await importSaveWithInfo(bytes)).state;
+}
+
+export async function importSaveWithInfo(bytes: Uint8Array): Promise<{ state: GameState; migratedFrom: number | null }> {
   const text = await decompress(bytes);
-  const file = JSON.parse(text) as { kind?: string; state?: unknown };
+  let file: { kind?: string; state?: unknown };
+  try {
+    file = JSON.parse(text);
+  } catch {
+    throw new Error('이 게임의 세이브 파일이 아니에요');
+  }
   if (file.kind !== FILE_KIND || !file.state) throw new Error('이 게임의 세이브 파일이 아니에요');
-  return restore(file.state);
+  return restoreWithInfo(file.state);
 }

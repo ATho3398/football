@@ -2,7 +2,7 @@
 // > 기본 그림(public/cards/art/<파일>.webp, 시그니처는 역할 id 파일) > 지금 기본 장면(GameCard SVG). faces.ts 페이스온과 같은 구조.
 // 화면은 문자열로 그리므로 동기 조회만 한다. 사용자 그림은 시작할 때 읽고 다 읽으면 다시 그린다
 
-import { exportSave, importSave } from '../save';
+import { exportSave, importSaveWithInfo } from '../save';
 import type { GameState } from '../game';
 import { storeBackend } from '../saveStore';
 import { CARD_ART_TABLE, type ArtDefault } from './cardArtTable';
@@ -182,15 +182,15 @@ export async function exportSaveFile(state: GameState, withCards: boolean): Prom
 }
 
 /** 가져오기: zip(PK) 이면 세이브 + 카드 그림, 아니면 세이브만 */
-export async function importSaveFile(bytes: Uint8Array, known: (id: string) => boolean): Promise<{ state: GameState; cards: number }> {
+export async function importSaveFile(bytes: Uint8Array, known: (id: string) => boolean): Promise<{ state: GameState; cards: number; migratedFrom: number | null }> {
   if (bytes.length > 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) {
     const { readZip } = await import('./zip');
     const files = await readZip(bytes);
     const save = files.find((f) => /\.fcsave\.gz$|\.json$/i.test(f.name) && f.name !== 'cardart.json');
     if (!save) throw new Error('zip 안에 세이브 파일이 없어요');
-    const state = await importSave(save.data);
+    const { state, migratedFrom } = await importSaveWithInfo(save.data);
     const r = await importCardArtEntries(files, known);
-    return { state, cards: r.added };
+    return { state, cards: r.added, migratedFrom };
   }
-  return { state: await importSave(bytes), cards: 0 };
+  return { ...(await importSaveWithInfo(bytes)), cards: 0 };
 }
