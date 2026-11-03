@@ -9,7 +9,7 @@ import type { MatchSim } from '../../src/engine/sim';
 
 /** 잃은 팀 기준 합계 (팀마다) */
 /** 상실 뒤 상대 슈팅·xG·골·오프사이드를 세는 창 (초). C.78a 8 → C.78b 15 (사용자 2026-10-23) */
-export const TRANS_WIN = 15;
+export const TRANS_WIN = Number(process.env.TRANS_WIN ?? 15); // 엔진관리자25: 환경 변수로 창 길이(8·15초) 바꿔 재기
 
 export interface TransTeam {
   /** 오픈 플레이 소유 상실 수 */
