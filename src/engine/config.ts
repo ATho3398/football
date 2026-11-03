@@ -648,14 +648,14 @@ export const ENGINE = {
     /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 (E.22 B: 시작 0.75 → 크로스 가능 구역 0.68) */
     lateRunFromX: 0.68,
     lateRunWide: 0.2,
-    lateRunRun: 0.4,
+    lateRunRun: 0.25,
     /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
     cutbackZone: 15,
     /** 2선 늦은 침투 (E.22 B): 공이 측면이면 침투 미드는 골에서 lateRunDepth m (박스 안, 페널티 지점).
      * C.76x(44h-g) 측정: 17(박스 꼭대기)·15 는 CAM 골 → ST 로 옮기지만(MID 최다 27.2 → 20.9) 같은 시드 scoring 30골+ 1.70 → 2.60 / 2.10(관문 ≤ 2.0 ✗) — 11 유지 */
     lateRunDepth: 11,
     /** 세트피스 (E.22 B): 코너·측면 프리킥 때 박스에 들어가는 CB 최대 수 */
-    setPieceCB: 2,
+    setPieceCB: 3,
     /** 세트피스 수비 대인 마크 인원 (E.22 B, 나머지는 지역 수비) */
     setPieceMark: 3,
     /** 공이 최종 3분의 1 중앙일 때 침투 미드가 들어가는 박스 채널 (골에서 m, 중앙에서 y 비율; C.76x 측정 19·17 ✗, lateRunDepth 와 같은 이유로 13 유지) */
@@ -1228,7 +1228,7 @@ export const ENGINE = {
     blockCorner: 0.45,
 
     // 헤더 슈팅
-    headerBase: 0.58,
+    headerBase: 0.65,
     headerPerM: 0.025,
     headerSpeed: 22,
 
@@ -1648,7 +1648,7 @@ export const ENGINE = {
     /** GK 가 골 가운데에서 이만큼(m) 넘게 비켜 있으면 슈터는 반대편 구석을 노린다 (실제·판단 같은 규칙). 그 안이면 좌우 무작위 */
     farSideMin: 0.25,
     /** 캐치 확률 = catchBase + catchSkill × 핸들링/100 (나머지 쳐내기) */
-    catchBase: 0.3,
+    catchBase: 0.2,
     catchSkill: 0.5,
     /** 쳐낸 공이 코너가 될 확률 */
     /** C.76w 가설 2: 0.5 → 0.35 (쳐낸 공이 코너 대신 리바운드로 남는다) */
