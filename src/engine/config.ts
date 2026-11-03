@@ -1756,7 +1756,7 @@ export const ENGINE = {
    * air = 공중 경합(롱볼·걷어낸 공·크로스 헤더 경합 모두) · short = 짧은 패스 능력치 · keep = 공 지키기(압박 저항) · tackle = 태클(드리블 막기)
    */
   matchup: {
-    tikitaka: { direct: { air: 0, short: 0, keep: 0, tackle: 0 } },
+    tikitaka: { direct: { air: 2, short: 2, keep: 2, tackle: 2 } },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
 
   tacticFit: {
