@@ -1025,6 +1025,8 @@ export const ENGINE = {
       /** C.80p: 상대가 내려앉지 않았을 때(패서보다 자기 골 쪽 상대 필드 선수 directScanBehind 명 미만) 보임 가산 배수. 1 = 상황 무관(C.80i·o 그대로) */
       directScanOpen: 1,
       directScanBehind: 8,
+      /** C.80p: > 0 이면 '내려앉음' = 상대 필드 선수 평균 정규화 x(직선 공격 방향) ≥ 이 값 (directScanBehind 대신) */
+      directScanDeepX: 0,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,
