@@ -1625,7 +1625,7 @@ export const ENGINE = {
      * 슈터 마무리(슈팅 0.5 + 침착 0.5) 가 finCenter 보다 높을수록 − fin/100 × 차. center·finCenter = 75:75 리그 평균(선발 GK 71.7 · 슛 가중 슈터 70.7).
      * maxD 12.5: 장면 ④ 1대1(12.04 m)이 들어가고, 16.5 m 까지 넓히면 12 m 밖 자유 슛(대개 상한)에 보정만 먹어 총량이 거꾸로 오른다(c79z 1.63~1.67)
      */
-    oneOnOne: { drop: 0.16, gk: 0.3, center: 72, fin: 0.2, finCenter: 71, maxD: 12.5 },
+    oneOnOne: { drop: 0.24, gk: 0.3, center: 72, fin: 0.2, finCenter: 71, maxD: 12.5 },
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
