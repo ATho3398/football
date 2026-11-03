@@ -590,8 +590,8 @@ function shotArrives(s: SimState, fl: Flight): void {
       setRestart(s, 'corner', shooter.team, dir > 0 ? L : 0, s.ball.y < W / 2 ? 0 : W, 'auto');
       return;
     }
-    const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * 2.4;
-    looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * 7, Math.sin(ang) * 7, defTeam, gk?.idx ?? -1);
+    const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * K.parrySpread;
+    looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * K.parrySpeed, Math.sin(ang) * K.parrySpeed, defTeam, gk?.idx ?? -1);
     // 쳐낸 공은 잠깐 다시 손으로 못 잡는다 (C.28): 그 뒤에는 루즈볼 추격으로 다시 잡으러 간다
     if (gk) s.ball.handBlock = { idx: gk.idx, until: s.t + K.handBlock };
     return;

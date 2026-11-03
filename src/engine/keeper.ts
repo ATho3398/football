@@ -61,6 +61,8 @@ export interface ShotCtx {
   /** 골 가운데까지 (m) */
   d: number;
   header: boolean;
+  /** C.80u: 세트피스 헤더 (코너·프리킥 뒤 15초 안) — 반응 headerReactSet */
+  setPiece?: boolean;
   /** 3 m 안 상대 필드 선수 수 · 압박 0~1 (pressureAt) */
   press3: number;
   pressure: number;
@@ -115,7 +117,7 @@ function timeTerms(c: ShotCtx, reactExtra = 0): [number, number] {
   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
   // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기). reactExtra = 예측 속임(C.79s keeper.read) 의 ±(0 이면 그대로)
-  const react = Math.max(0, reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0) + reactExtra);
+  const react = Math.max(0, reactOf(c.stop) + (c.header ? (c.setPiece ? K.headerReactSet : K.headerReact) : 0) + (c.screen ? K.screenReact * c.screen : 0) + reactExtra);
   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
   let drift = 0;
   if (e > 1e-6) {
