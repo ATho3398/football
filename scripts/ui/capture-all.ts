@@ -2,7 +2,7 @@
 // 실행 (다시 찍기):
 //   1) npm run build && npx vite preview --port 4173 &   (빌드판이 개발 서버보다 훨씬 빠름)
 //   2) npx vite-node scripts/ui/capture-all.ts         (세이브를 만들고 → 두 크기로 찍음)
-//      ONLY=phone|pc  · FROM=번호(그 번호부터)  · URL=http://localhost:4173/ 로 바꿀 수 있음
+//      ONLY=phone|pc  · FROM=번호 · TO=번호(그 구간만, 앞 장면에 기대는 구간은 세이브를 넣는 장면부터)  · URL=http://localhost:4173/ 로 바꿀 수 있음
 // 세이브는 scripts/ui/make-saves.ts 로 만들고(실제 선수 10월·3월·비시즌·2시즌차 / 유망주 / 은퇴), 저장 화면 [가져오기]로 넣는다.
 // 결과: docs/ui-requests/17-full/captures/{phone,pc}/NN_화면이름_상태.png + captures/index.json(번호·이름·찍힘 여부)
 import { execFileSync } from 'node:child_process';
@@ -23,6 +23,7 @@ const OUT = join(ROOT, 'docs/ui-requests/17-full/captures');
 const SAVES = join(ROOT, 'node_modules/.ui6-saves');
 const URL_ = process.env.URL ?? 'http://localhost:4173/';
 const FROM = Number(process.env.FROM ?? 0);
+const TO = Number(process.env.TO ?? 9999);
 
 if (!existsSync(join(SAVES, 'C2_retired.json')) || process.env.RESAVE) {
   mkdirSync(SAVES, { recursive: true });
@@ -153,17 +154,21 @@ add('경기재생_골스플래시', async (c) => {
 add('경기재생_건너뛰기확인', async (c) => { await act(c, 'rp-skip'); return has(c, '[data-act="rp-skip-ok"]'); }, false);
 add('경기결과_첫경기', async (c) => { await act(c, 'rp-skip-ok'); await wait(c, 800); await closeOverlays(c); });
 add('경기결과_더보기펼침', async (c) => { let n = 0; while (n < 4 && (await act(c, 'more'))) n++; return n > 0; });
-add('홈_첫경기뒤', async (c) => { await goTo(c, 'home'); await closeOverlays(c); });
+add('포인트찍기_첫경기뒤', async (c) => { return goTo(c, 'allocate'); });
+add('포인트찍기_하나올림', async (c) => { await tap(c, '[data-act="alloc-sel"]'); return tap(c, '[data-act="raise"]:not([disabled])'); });
+add('포인트찍기_규칙펼침', async (c) => { return act(c, 'alloc-rule'); });
+add('홈_첫경기뒤', async (c) => { await act(c, 'alloc-cancel'); await act(c, 'modal-close'); await goTo(c, 'home'); await closeOverlays(c); });
+
 
 // 3. 실제 선수 · 시즌 중 10월 (A1)
 add('홈_시즌중_10월', async (c) => { await load(c, 'A1_real-oct'); await goTo(c, 'home'); await closeOverlays(c); });
 add('홈_더보기펼침', async (c) => { if (c.dev === 'pc') return false; return act(c, 'dock-more'); }, false);
 add('홈_자동진행시트', async (c) => { await closeOverlays(c); if (await has(c, '[data-act="dock-more"][aria-current]')) await act(c, 'dock-more'); return act(c, 'sim-rest'); }, false);
-add('훈련_프리셋', async (c) => { await act(c, 'sheet-close'); await c.p.keyboard.press('Escape'); await nav(c, 'schedule'); await act(c, 'train-tab', '[data-v="pre"]'); });
+add('훈련_프리셋', async (c) => { await closeOverlays(c); await c.p.keyboard.press('Escape'); await nav(c, 'schedule'); await act(c, 'train-tab', '[data-v="pre"]'); });
 add('훈련_프리셋편집시트', async (c) => { return act(c, 'preset-edit'); }, false);
-add('훈련_일정', async (c) => { await act(c, 'sheet-close'); await act(c, 'train-tab', '[data-v="cal"]'); });
+add('훈련_일정', async (c) => { await closeOverlays(c); await act(c, 'train-tab', '[data-v="cal"]'); });
 add('훈련_하루훈련시트', async (c) => { return act(c, 'train-day'); }, false);
-add('훈련_게이지', async (c) => { await act(c, 'sheet-close'); await act(c, 'train-tab', '[data-v="g"]'); });
+add('훈련_게이지', async (c) => { await closeOverlays(c); await act(c, 'train-tab', '[data-v="g"]'); });
 add('훈련_스태프', async (c) => { await act(c, 'train-tab', '[data-v="staff"]'); });
 add('선수_능력치', async (c) => { await nav(c, 'player'); await act(c, 'player-tab', '[data-v="attrs"]'); });
 add('선수_몸태그', async (c) => { await act(c, 'player-tab', '[data-v="body"]'); });
@@ -174,7 +179,7 @@ add('포인트찍기', async (c) => { await act(c, 'player-tab', '[data-v="attrs
 add('상점_기본', async (c) => { await act(c, 'alloc-cancel'); await nav(c, 'shop'); });
 add('상점_카드상세시트', async (c) => { return act(c, 'card-open'); }, false);
 add('상점_카드팩개봉연출', async (c) => {
-  await act(c, 'card-close');
+  await closeOverlays(c);
   if (!(await act(c, 'fn-pack'))) return false;
   if (await has(c, '[data-act="modal-ok"], .po-modal [data-act]')) await tap(c, '.po-modal .po-btn--primary, .po-modal [data-act]:not([data-act="modal-close"])');
   await wait(c, 1200);
@@ -209,10 +214,10 @@ add('선수상세_능력치', async (c) => { await act(c, 'team-tab', '[data-v="
 add('선수상세_기록', async (c) => { return act(c, 'person-tab', '[data-v="record"]'); });
 add('덱_편집', async (c) => { await nav(c, 'deck'); });
 add('덱_카드상세시트', async (c) => { return act(c, 'card-open'); }, false);
-add('전술_기본', async (c) => { await act(c, 'card-close'); await act(c, 'dock-more'); return act(c, 'tac-open'); });
+add('전술_기본', async (c) => { await closeOverlays(c); await act(c, 'dock-more'); return act(c, 'tac-open'); });
 add('전술_성향고르기', async (c) => { return act(c, 'tac-tend', '[data-v="gegen"], [data-v="gegenpress"]') || act(c, 'tac-tend'); });
 add('전술_세부편집', async (c) => { return act(c, 'tac-edit') || act(c, 'tac-detail'); });
-add('전술_떠나기확인', async (c) => { await act(c, 'tac-sheet-close'); await act(c, 'tac-back'); return has(c, '.po-modal'); }, false);
+add('전술_떠나기확인', async (c) => { await closeOverlays(c); await act(c, 'tac-back'); return has(c, '.po-modal'); }, false);
 add('도감', async (c) => { await act(c, 'tac-leave'); await act(c, 'modal-close'); await act(c, 'tac-back'); await goTo(c, 'home'); return goTo(c, 'dex'); });
 add('진열실', async (c) => { await goTo(c, 'home'); return goTo(c, 'showroom'); });
 add('대표팀_일정결과', async (c) => { await goTo(c, 'home'); return goTo(c, 'national'); });
@@ -237,15 +242,23 @@ add('저장_가져오기오류토스트', async (c) => {
 }, false);
 add('타이틀로_확인모달', async (c) => { await goTo(c, 'home'); await closeOverlays(c); return act(c, 'to-title'); }, false);
 add('타이틀_이어하기', async (c) => { await act(c, 'to-title-ok'); await wait(c, 500); return has(c, '.screen-title'); }, false);
-add('경기준비_시즌중', async (c) => { await act(c, 'continue'); await wait(c, 800); await toMatchDay(c); await act(c, 'play'); return has(c, '.screen-prep'); });
+add('경기준비_시즌중', async (c) => { await load(c, 'A1_real-oct'); await toMatchDay(c); await act(c, 'play'); return has(c, '.screen-prep'); });
 add('경기준비_상대팀', async (c) => { return act(c, 'team-open'); });
 add('경기준비_직접모드', async (c) => { await act(c, 'detail-back'); return act(c, 'ctl-mode', '[data-v="direct"]'); });
 add('결정순간_고르기전', async (c) => {
-  await act(c, 'prep-start');
-  await c.p.waitForSelector('.screen-moment, .screen-replay', { timeout: 60000 }).catch(() => undefined);
-  await wait(c, 1500);
-  if (await has(c, '[data-act="fm-close"]')) await act(c, 'fm-close');
-  return has(c, '.screen-moment');
+  // 선발은 경기를 시작해야 정해진다: 결장(벤치)이면 홈으로 가서 다음 경기로 (최대 4경기)
+  for (let k = 0; k < 4; k++) {
+    await act(c, 'prep-start');
+    await c.p.waitForSelector('.screen-moment, .screen-replay, .screen-match', { timeout: 90000 }).catch(() => undefined);
+    await wait(c, 1500);
+    if (await has(c, '[data-act="fm-close"]')) await act(c, 'fm-close');
+    if (await has(c, '.screen-moment')) return true;
+    await goTo(c, 'home');
+    await toMatchDay(c);
+    await act(c, 'play');
+    await act(c, 'ctl-mode', '[data-v="direct"]');
+  }
+  return false;
 }, false);
 add('결정순간_선택지고름', async (c) => { const ok = await act(c, 'mo-pick'); await wait(c, 600); return ok; }, false);
 add('결정순간_결과재생', async (c) => {
@@ -295,7 +308,7 @@ for (const [id, ko] of [['matches', '경기별'], ['months', '월별'], ['positi
 add('이적제안', async (c) => { return goTo(c, 'offers'); });
 add('재계약_비시즌', async (c) => { return goTo(c, 'contract'); });
 add('홈_비시즌', async (c) => { await goTo(c, 'home'); await closeOverlays(c); });
-add('챕터리뷰', async (c) => { return goTo(c, 'chapter'); });
+add('홈_비시즌_주포지션변경시트', async (c) => { return act(c, 'pos-open'); }, false);
 
 // 6. 2시즌차 9월 (A4)
 add('홈_2시즌차', async (c) => { await load(c, 'A4_real-s2-sep'); await goTo(c, 'home'); await closeOverlays(c); });
@@ -307,17 +320,15 @@ add('도감_2시즌차', async (c) => { await goTo(c, 'home'); return goTo(c, 'd
 add('덱_카드선택권', async (c) => { await nav(c, 'deck'); return has(c, '[data-act="pick-take"]'); });
 
 // 7. 가상 유망주 (B1·B2)
-add('홈_유망주_포인트배너', async (c) => { await load(c, 'B1_prospect-sep'); await goTo(c, 'home'); await closeOverlays(c); });
-add('포인트찍기_유망주', async (c) => { if (!(await goTo(c, 'allocate'))) return false; await tap(c, '[data-act="raise"]:not([disabled])'); });
-add('포인트찍기_규칙펼침', async (c) => { return act(c, 'alloc-rule'); });
-add('선수_유망주_능력치', async (c) => { await act(c, 'alloc-cancel'); await nav(c, 'player'); });
-add('홈_주포지션변경시트', async (c) => { await goTo(c, 'home'); return act(c, 'pos-open'); }, false);
+add('홈_유망주_부상중', async (c) => { await load(c, 'B1_prospect-sep'); await goTo(c, 'home'); await closeOverlays(c); });
+add('선수_유망주_능력치', async (c) => { await nav(c, 'player'); });
 add('시즌요약_유망주', async (c) => { await load(c, 'B2_prospect-offseason'); await closeOverlays(c); await act(c, 'go-tab', '[data-v="season"]'); });
 add('이적제안_유망주', async (c) => { return goTo(c, 'offers'); });
 
 // 8. 은퇴 (C1·C2)
 add('시즌요약_은퇴가능', async (c) => { await load(c, 'C1_old-offseason'); await closeOverlays(c); await act(c, 'go-tab', '[data-v="season"]'); });
-add('은퇴_확인모달', async (c) => { return act(c, 'retire'); }, false);
+add('챕터리뷰', async (c) => { if (!(await goTo(c, 'chapter'))) return false; return has(c, '.screen-chapter'); });
+add('은퇴_확인모달', async (c) => { await act(c, 'go-tab', '[data-v="season"]'); return act(c, 'retire'); }, false);
 add('은퇴_커리어요약', async (c) => { await load(c, 'C2_retired'); await closeOverlays(c); return has(c, '.screen-retired, .screen-home'); });
 add('은퇴_선수화면', async (c) => { return goTo(c, 'player'); });
 
@@ -343,7 +354,7 @@ for (const dev of (process.env.ONLY ? [process.env.ONLY] : ['phone', 'pc']) as (
   for (let i = 0; i < S.length; i++) {
     const s = S[i]!;
     const row = index[i]!;
-    if (FROM && i + 1 < FROM) continue;
+    if ((FROM && i + 1 < FROM) || i + 1 > TO) continue;
     let ok: boolean | void = false;
     try { ok = await Promise.race([s.run(c), new Promise<false>((r) => setTimeout(() => r(false), 120000))]); } catch (e) { console.error(`[${dev}] ${row.no} ${s.name} 실패`, (e as Error).message); ok = false; }
     const screen = await page.evaluate(() => document.querySelector('main.screen')?.className.replace('screen ', '') ?? '?').catch(() => '?');
@@ -363,5 +374,5 @@ for (const dev of (process.env.ONLY ? [process.env.ONLY] : ['phone', 'pc']) as (
   }
   await page.close();
 }
-writeFileSync(join(OUT, `index${process.env.ONLY ? `-${process.env.ONLY}` : ''}.json`), JSON.stringify(index, null, 1));
+if (!FROM && TO === 9999) writeFileSync(join(OUT, `index${process.env.ONLY ? `-${process.env.ONLY}` : ''}.json`), JSON.stringify(index, null, 1));
 await browser.close();
