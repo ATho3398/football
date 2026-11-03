@@ -341,6 +341,44 @@ add('라이트_홈', async (c) => {
 });
 add('라이트_선수', async (c) => { await nav(c, 'player'); await c.p.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); });
 
+// 10. 시즌 중 출전 경기 (자동 모드는 결과로 바로 감 → [하이라이트 다시보기]로 재생 화면). 결장이면 다음 경기로
+add('경기결과_출전', async (c) => {
+  await load(c, 'A1_real-oct');
+  for (let k = 0; k < 6; k++) {
+    await toMatchDay(c);
+    await act(c, 'play');
+    await act(c, 'ctl-mode', '[data-v="auto"]');
+    await act(c, 'prep-start');
+    await c.p.waitForSelector('.screen-match', { timeout: 90000 }).catch(() => undefined);
+    await wait(c, 1000);
+    await closeOverlays(c);
+    const benched = await c.p.evaluate(() => /결장/.test(document.querySelector('.po-hero')?.textContent ?? ''));
+    if (!benched && (await has(c, '.screen-match'))) return true;
+    await goTo(c, 'home');
+  }
+  return false;
+});
+add('경기결과_출전_더보기펼침', async (c) => { let n = 0; while (n < 4 && (await act(c, 'more'))) n++; return n > 0; });
+add('경기재생_시즌중_하이라이트', async (c) => {
+  await act(c, 'hl-rewatch');
+  await c.p.waitForSelector('.screen-replay', { timeout: 30000 }).catch(() => undefined);
+  await wait(c, 1500);
+  return has(c, '.screen-replay');
+}, false);
+add('경기재생_시즌중_골스플래시', async (c) => {
+  await act(c, 'rp-speed', '[data-v="4×"]');
+  const ok = await c.p.waitForSelector('.gs-layer', { timeout: 60000 }).then(() => true).catch(() => false);
+  await wait(c, 300);
+  return ok;
+}, false);
+add('경기재생_시즌중_실시간', async (c) => { await c.p.mouse.click(5, 5); await act(c, 'rp-live'); await wait(c, 1200); return has(c, '.screen-replay'); }, false);
+add('경기재생_시즌중_건너뛰기확인', async (c) => { await act(c, 'rp-skip'); return has(c, '[data-act="rp-skip-ok"]'); }, false);
+add('경기재생_클립재생', async (c) => {
+  await act(c, 'rp-skip-ok'); await wait(c, 800); await closeOverlays(c);
+  const ok = await act(c, 'clip-play'); await wait(c, 2000);
+  return ok && (await has(c, '.screen-replay'));
+}, false);
+
 // ── 실행 ──
 const browser = await pw.chromium.launch();
 const index: { no: string; name: string; phone?: boolean; pc?: boolean; phoneScreen?: string; pcScreen?: string }[] = S.map((s, i) => ({ no: String(i + 1).padStart(3, '0'), name: s.name }));
@@ -356,7 +394,7 @@ for (const dev of (process.env.ONLY ? [process.env.ONLY] : ['phone', 'pc']) as (
     const row = index[i]!;
     if ((FROM && i + 1 < FROM) || i + 1 > TO) continue;
     let ok: boolean | void = false;
-    try { ok = await Promise.race([s.run(c), new Promise<false>((r) => setTimeout(() => r(false), 120000))]); } catch (e) { console.error(`[${dev}] ${row.no} ${s.name} 실패`, (e as Error).message); ok = false; }
+    try { ok = await Promise.race([s.run(c), new Promise<false>((r) => setTimeout(() => r(false), 420000))]); } catch (e) { console.error(`[${dev}] ${row.no} ${s.name} 실패`, (e as Error).message); ok = false; }
     const screen = await page.evaluate(() => document.querySelector('main.screen')?.className.replace('screen ', '') ?? '?').catch(() => '?');
     if (ok === false) { console.log(`[${dev}] ${row.no} ${s.name} — 못 찍음 (지금 화면 ${screen})`); row[dev] = false; continue; }
     await wait(c, 300);
