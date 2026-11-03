@@ -192,6 +192,8 @@ export const TENDENCY = {
   /** 게겐프레싱: 역압박 +초, 최대 인원, 탈취 후 전진 패스·슛 효용 배수와 시간 */
   gegenExtra: 1,
   gegenMax: 3,
+  /** 게겐 역압박 가담 확률 가산 (C.80t, 엔진관리자25 ✗6 — 게겐 가담이 균형과 같아짐): 게겐이면 offball.counterJoin 에 더한다. 0 = 끔 */
+  gegenJoin: 0.35,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
   /**

@@ -11,6 +11,7 @@ import {
 import { memoryBackend, setStoreBackend } from '../src/saveStore';
 import { buildVersion, CACHE_PREFIX, listFiles, SW_FILE, swSource } from '../src/pwa/swBuild';
 import { PATCH_LABEL } from '../src/version';
+import { MIN_MIGRATABLE_FORMAT } from '../src/saveMigrations';
 
 const game = (seed: string) => {
   const g = newGame({ mode: 'prospect', position: 'ST', seed, difficulty: 'normal' });
@@ -24,15 +25,15 @@ describe('세이브 형식 정책 (C.77r)', () => {
     resetSaveCache();
   });
 
-  it('같은 형식은 그대로 복원, 다른 형식(낮음·높음·없음)은 SaveFormatError', () => {
+  it('같은 형식은 그대로 복원, 이전 체계 전 형식(59 미만)·더 새 형식·없음은 SaveFormatError (C.80y 부터 59 이상은 이전)', () => {
     const g = game('c77r-a');
     expect(serialize(deserialize(serialize(g)))).toBe(serialize(g));
-    for (const v of [SAVE_FORMAT_VERSION - 1, 1, SAVE_FORMAT_VERSION + 1, undefined, '57']) {
+    for (const v of [MIN_MIGRATABLE_FORMAT - 1, 1, SAVE_FORMAT_VERSION + 1, undefined, '57']) {
       const raw = JSON.parse(serialize(g));
       raw.saveFormat = v;
       expect(sameFormat(raw)).toBe(false);
       expect(() => restore(raw)).toThrow(SaveFormatError);
-      expect(() => restore(raw)).toThrow('이 세이브는 이전 버전 형식이라 이어 할 수 없습니다');
+      expect(() => restore(raw)).toThrow(v === SAVE_FORMAT_VERSION + 1 ? '이 세이브는 더 새 버전에서 저장돼 이어 할 수 없습니다' : '이 세이브는 이전 버전 형식이라 이어 할 수 없습니다');
     }
     expect(sameFormat(JSON.parse(serialize(g)))).toBe(true);
   });
@@ -44,7 +45,7 @@ describe('세이브 형식 정책 (C.77r)', () => {
     await saveReplays('auto', [{ season: 2018, round: 1, label: 'x', data: new Uint8Array([1]) }]);
     // 자동 저장 칸을 옛 형식으로 바꿔 쓴다
     const old = JSON.parse(serialize(g));
-    old.saveFormat = SAVE_FORMAT_VERSION - 1;
+    old.saveFormat = MIN_MIGRATABLE_FORMAT - 1;
     const json = JSON.stringify(old);
     const { data, enc } = await compress(json);
     const db = (await import('../src/saveStore')).storeBackend();
@@ -68,7 +69,7 @@ describe('세이브 형식 정책 (C.77r)', () => {
   it('파일 가져오기: 다른 형식은 같은 안내, 저장하지 않는다', async () => {
     const g = game('c77r-c');
     const old = JSON.parse(serialize(g));
-    old.saveFormat = SAVE_FORMAT_VERSION - 3;
+    old.saveFormat = MIN_MIGRATABLE_FORMAT - 1;
     const { data } = await compress(JSON.stringify({ kind: 'football-career-save', meta: {}, state: old }));
     await expect(importSave(data)).rejects.toThrow(SaveFormatError);
     await initSaves();

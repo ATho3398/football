@@ -19,10 +19,10 @@ function state(a: Tendency, b: Tendency) {
 }
 
 describe('C.80p 상대 성향별 보정', () => {
-  it('표: 티키 → 직선 칸만 공중·짧은 패스·공 지키기·태클 +2 (능력치 점수), 티키 행은 그 칸뿐 (C.80w 롱패스 칸은 c80w 테스트)', () => {
+  it('표: 티키 → 직선 칸만 공중·짧은 패스·공 지키기·태클 +2 (능력치 점수), 티키 행은 그 칸과 게겐 칸(C.80t) (C.80w 롱패스 칸은 c80w 테스트)', () => {
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 2, short: 2, keep: 2, tackle: 2 });
     expect(Object.keys(ENGINE.matchup).sort()).toEqual(['balanced', 'block', 'direct', 'tikitaka']);
-    expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct']);
+    expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct', 'gegenpress']); // C.80t: 티키 → 게겐 칸 추가
   });
 
   it('티키가 직선을 상대할 때만 걸리고 반대쪽(직선 팀)·다른 상대에는 0', () => {
@@ -32,7 +32,7 @@ describe('C.80p 상대 성향별 보정', () => {
     expect(matchupPts(s, 0, 'long')).toBe(0);
     expect(matchupPts(s, 1, 'air')).toBe(0);
     const g = state('tikitaka', 'gegenpress');
-    expect(matchupPts(g, 0, 'air')).toBe(0);
+    expect(matchupPts(g, 0, 'air')).toBe(0); // C.80t: 티키 → 게겐 칸은 짧은 패스·공 지키기만
   });
 
   it('fitPts(판단·실행 공통) 에 그대로 더해진다', () => {
