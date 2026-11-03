@@ -133,8 +133,27 @@ export function customProblem(cells: readonly number[]): string | null {
   return null;
 }
 
+/**
+ * 가운데가 빈 중앙 짝의 y (C.80s): 한 줄에 레인 1·3 이 있고 레인 2 가 비면 두 사람을 프리셋 중앙 짝 간격(0.36~0.38)으로 좁힌다.
+ * 격자 레인 0.3·0.7 그대로면 센터백·중앙 미드·투톱 사이가 27 m 벌어져 같은 4-4-2 가 프리셋보다 약 0.3골 진다 (엔진관리자25 ✗10).
+ */
+export const PAIR_Y = 0.37;
+/** 2선 공격 측면 칸(윙어) y: 프리셋 4-3-3·3-4-3 윙어 0.15~0.18 (격자 0.1 은 터치라인에 붙는다). 공격형 미드 측면 칸은 격자 그대로 — 0.15 로 옮기면 4-2-3-1 이 프리셋보다 +0.10 (C.80s 측정) */
+export const WING_Y = 0.15;
+
 export function customSlots(cells: readonly number[]): FormationSlot[] {
-  return cells.map((c, i) => (i === 0 || c < 0 ? GK : cellSlot(c)));
+  const has = new Set(cells.filter((c, i) => i > 0 && c >= 0));
+  return cells.map((c, i) => {
+    if (i === 0 || c < 0) return GK;
+    const sl = cellSlot(c);
+    const row = rowOf(c);
+    const lane = laneOf(c);
+    if ((lane === 1 || lane === 3) && !has.has(row * GRID_LANES + 2) && has.has(row * GRID_LANES + 4 - lane)) {
+      return { ...sl, y: lane === 1 ? PAIR_Y : 1 - PAIR_Y };
+    }
+    if (row === 4 && wideLane(lane)) return { ...sl, y: lane === 0 ? WING_Y : 1 - WING_Y };
+    return sl;
+  });
 }
 
 /** 프리셋을 격자 칸으로 옮긴다 (편집 시작점). 슬롯 순서를 유지하고, 같은 칸이면 다음으로 가까운 칸 */
