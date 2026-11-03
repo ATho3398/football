@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 76;
+export const ENGINE_VERSION = 77;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -768,6 +768,13 @@ export const ENGINE = {
     betweenK: 0.3,
     /** ② 펄스 나인이 있는 팀의 2선 침투 빈도 가산 (비운 중앙으로 뛰어든다) */
     nineVacate: 0.6,
+    /**
+     * 펄스 나인 빈자리 침투 (C.80r, 사용자 11/04 "CAM 이나 WF 가 깊숙이 안 들어가는 거 아님?"): 9번이 실제로 오프사이드 라인 nineDeepGap m 이상 뒤로 내려와 있으면
+     * 2선(CM·CAM·윙, run ≥ lateRunRun, 줄 사이 역할 제외) 침투 확률 × (1 + nineVacateRun), 그 침투는 중앙 + (자기 길 − 중앙) × nineVacateLane 길로.
+     * 측정(200경기): 최종 ⅓ ST 박스 체류 펄스 나인 24.7% 대 포처 34.0% 인데 2선 박스 중앙 인원은 0.25 대 0.23 — 빈자리를 거의 못 메웠다. 0 = 끔
+     */
+    nineVacateRun: 1.5,
+    nineVacateLane: 0.4,
     /**
      * 펄스 나인 짝 (C.77d 가설 0, §9.13.5 사용자 13:18): AI 팀이 펄스 나인을 쓰는데 run ≥ nineMateRun 인 CM/CAM 이 없으면 마지막 자동 CM 을 박스투박스로.
      * 펄스 나인은 내려와 CB 를 끌어내는 체계라 그 공간에 들어갈 공격형 미드가 있어야 한다 (내 팀은 사용자 선택이라 안 건드림)
