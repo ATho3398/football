@@ -1771,8 +1771,8 @@ export const ENGINE = {
     n: 5,
     link: 0.05,
     /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) */
-    linkBase: 0,
-    drain: 0.5,
+    linkBase: 0.12,
+    drain: 1,
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
     linkCrossErr: 3,
@@ -1781,6 +1781,8 @@ export const ENGINE = {
     groups: ['WING', 'CAM', 'ST'] as readonly string[],
     /** 최전방 몰빵: ST·CF(포지션군 ST) 가 stN 명 이상이어도 걸린다 — 초과 m = max(공격 포지션 − n + 1, ST·CF − stN + 1). 표준 대형은 ST·CF 최대 2명 */
     stN: 3,
+    /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) */
+    stW: 2,
   },
 
   tacticFit: {
