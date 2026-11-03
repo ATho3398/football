@@ -6691,6 +6691,20 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 가드: typecheck ✓ · test 152파일 1268 ✓(장면 전부·결정성·순간이동·경기 계산 2초 포함; 기준값 변경 = 약팀 큰 차 성향 목록 역습 제외(H2), 이동 거리 테스트 시드 평균) · engine:check 경량 가드 모두 ✓(득점 1.48 · 12 m 밖 선방 상황 고정 88.5 · 순간이동 0) · **balance:check 회귀 가드 19/19 ✓**(로컬, 13:36~15:0x).
 - **새 화면**: 없음(역습 설명 문구만).
 
+### C.80x 53단계_새 버전 알림·한 번에 업데이트 (사용자 2026-11-04 03:4x KST "이제 새 앱 나오면 무조건 지난 앱은 최신 버전 나왔다고 띄우고 버튼만 누르면 업데이트되게 바꿔.", 마스터 AD `docs/session-prompts/C.80x.md`, Opus): **새 배포가 나오면 화면 위 고정 배너 "새 버전이 나왔어요 · {PATCH · 단계} — [업데이트] [나중에]". [업데이트] 한 번 = 세이브 확정 저장 → 새 버전으로 → 새로고침 → "업데이트됨 · {버전}" 토스트** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진·세이브 무수정)
+
+1. **감지 두 갈래** (`src/pwa/update.ts`, 브라우저 연결 `src/pwa/register.ts`):
+   - 서비스 워커: `updatefound` → `installed`(대기) · 켤 때 이미 대기 중(`reg.waiting`). 처음 설치(컨트롤러 없음)는 새 버전이 아니다.
+   - 확인 시점: 앱 켤 때 · 화면으로 돌아올 때(`visibilitychange`) · 30분마다 `registration.update()` + `version.json`.
+   - `version.json`(빌드 때 `vite.config.ts` 가 만듦: patch·stage·engine·balance·save·commit·date): 지금 빌드 커밋과 다르면 새 버전. 서비스 워커가 없는 환경(일반 탭·서비스 워커 막힘)도 이걸로 감지. 서비스 워커는 이 파일을 캐시하지 않는다(늘 네트워크). 개발 빌드(커밋 dev)는 확인하지 않는다.
+2. **배너** (`main.ts`, 기존 Banner 컴포넌트를 고정 칸에): 실시간 경기 중이면 단추 없이 "경기가 끝나면 업데이트할 수 있어요"(경기 화면 띠 아래로 내림) — 결과 화면부터 [업데이트]. 진행 띠·모달이 떠 있을 때는 잠깐 숨김. [나중에] = 다음 확인(돌아올 때·30분) 때 다시 뜬다.
+3. **[업데이트]**: `autosave()` 완료 → 대기 워커에 `SKIP_WAITING`(옛 워커가 보내는 `skip-waiting` 도 받음) → 이 탭에서 누른 때만 `controllerchange` 에서 한 번 새로고침(무한 새로고침·다른 탭 경기 중 새로고침 방지). 대기 워커가 아직 없으면 `reg.update()` 로 설치를 최대 15초 기다림. 서비스 워커가 없으면 첫 화면(./, index.html)을 `cache: reload` 로 다시 받은 뒤 `?v=새커밋` 으로 새로고침. 서비스 워커가 쥐고 있는데 설치가 안 되면 'po-' 캐시를 비우고 등록 해제 뒤 새로고침.
+4. **새로고침 뒤**: 누르기 전 커밋을 `po-updated-from` 에 남겨, 다음 부팅에서 커밋이 바뀌었으면 "업데이트됨 · {PATCH · 단계}" 토스트 한 번, 그대로면 "업데이트를 아직 못 받았어요 · 잠시 뒤 다시 눌러 주세요".
+5. **세이브 이전(C.80y)과 경계**: 이 패치는 세이브·이전 코드를 건드리지 않는다. 업데이트 토스트는 부팅 직후(세이브 열기 전)에 뜨고, 세이브 열기·이전 실패 안내(C.80y 토스트·모달)가 뒤에 오면 그 안내가 덮는다 — 실패 안내가 늘 우선.
+6. **설정 맨 아래**: "버전 {PATCH_LABEL} · {STAGE_LABEL} · [업데이트 확인]" 줄(새 버전이면 배너, 아니면 "최신 버전이에요" 토스트).
+7. **확인**: 단위 테스트 `tests/c80x.test.ts`(가짜 registration — 대기 워커·updatefound·주기 확인·[나중에]·다른 탭 controllerchange·version.json 경로·새로고침 뒤 문구, 9개). Playwright 로 같은 경로(/football/)에 옛 빌드(커밋 old1111) → 새 빌드(new2222)로 바꿔 서빙: 서비스 워커 있음·막힘 두 경우 모두 [업데이트 확인] → 배너 → [업데이트] → "업데이트됨" 토스트 → 바닥 버전 줄 커밋 new2222, 다시 열어도 새 버전·배너 없음. 캡처 `docs/captures/c80x/`(sw-1-banner · sw-2-updated · nosw-1-banner · nosw-2-updated). 빌드 커밋은 시험용 `PO_BUILD_COMMIT` 로 덮어쓸 수 있다.
+8. **남은 것**: 실시간 경기 중 배너(단추 없음) 모양은 Playwright 로 찍지 않았다(렌더 조건만). 이번 배포를 받는 첫 번째 옛 앱(C.80q 이전 코드)은 옛 띠("새 버전 · 다시 열기")로 넘어오고, 그 다음 배포부터 새 배너가 뜬다.
+
 ### C.80q 53단계_공격 몰빵 억제 (마스터 AD `docs/session-prompts/C.80q.md` + AD 정정 3번, 근거 사용자 11/04 00:3x~01:0x "공격 몰빵 아직 안 고쳐짐?" → "골 결정력 말고 연계 잘 안 되고 수비 전환 때 체력 더 빨리 닳게" → "몰빵은 무조건 져야 해, 0.5골 이상 차이 나도 돼", Opus): **선발 대형에 공격 포지션(윙·CAM·ST 포지션군)이 5명 이상이거나 ST·CF가 3명 이상인 팀만 — ① 공격 진영 패스·침투·크로스 성공 확률 × (1 − 0.12 − 0.05 × 초과) ② 상대 소유 중 자기 골 쪽으로 복귀하는 공격 포지션 선수 체력 소모 × (1 + 1.0 × 초과). 초과 m = max(공격 포지션 − 4, 2 × (ST·CF − 2)). 표준 대형 8종은 안 걸림(공격 포지션 ≤ 4, ST·CF ≤ 2) → 상성표·quick 600·이동 거리 지문 그대로. 전술 화면에 "공격 인원 과다(공격 n명) — 연계 −x% · 수비 전환 체력 소모 +y%" 경고 한 줄** (ENGINE_VERSION 78(펄스 나인 a0c6b6b) → **79**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 
 - 코드: 새 `src/engine/stack.ts`(`stackCount`·`stackOver`·`stackPenalty`·`stackLinkMul`·`stackDrainMul`) · `config.ts ENGINE.stackCap { n 5, stN 3, stW 2, linkBase 0.12, link 0.05, drain 1, linkFromX 0.5, linkCrossErr 3, line 0 }` · `sim.ts createState` 팀 `stackOver`(킥오프 선발 기준) · 이동 체력 배수 · `onball.ts passProbability`(판단·실행 공통) × 연계 배수 · 크로스 판단 p × 연계 배수, 실행(`actions.ts`)은 1 − 배수 확률로 크로스 오차 × 3(안 걸리면 난수도 안 뽑음) · `offball.ts effectiveTactics` 라인 상향 항(`line`, 측정에서 역효과라 0) · `viewModels.stackWarnOf` + `tactics.ts` 경고 · 커스텀 편집 안내 문구 갱신.

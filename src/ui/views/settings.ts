@@ -15,7 +15,7 @@ import {
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import type { LookVM } from './body';
-import { panel, pc2, versionFooter } from './common';
+import { panel, pc2, updateCheckRow, versionFooter } from './common';
 import {
   pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO,
 } from '../pitch/renderer';
@@ -31,7 +31,7 @@ import { CARDS } from '../../config/cards';
 
 const CARDS_N = (): number => CARDS.length;
 import { isWide, skin, SKIN_KO } from '../skin';
-import { PATCH_LABEL } from '../../version';
+import { PATCH_LABEL, STAGE_LABEL } from '../../version';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
 export interface NameUI { q: string; team: string; sel: string | null }
@@ -500,7 +500,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     };
     const [sub, body, lk] = bodies[cur];
     return `${hero}<div class="body set-body">${pc2(setNav('main', cur), `${locked ? Banner({ tone: 'warning', title: '경기 중이에요', children: '경기 진행 설정은 경기가 끝나면 바꿀 수 있어요. 화면 보기·꾸미기는 지금도 돼요.' }) : ''}${
-      section(cur, sub, true, body, lk ?? false)}<input type="file" id="fp-file" accept=".zip,application/zip" hidden>${versionFooter(version)}`, 'set-pc')}</div>${cardArtOverlay(ca)}`;
+      section(cur, sub, true, body, lk ?? false)}<input type="file" id="fp-file" accept=".zip,application/zip" hidden>${updateCheckRow(PATCH_LABEL, STAGE_LABEL)}${versionFooter(version)}`, 'set-pc')}</div>${cardArtOverlay(ca)}`;
   }
   return `${hero}<div class="body set-body">
     ${jump}
@@ -511,7 +511,7 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     ${section('saves', '세이브 관리 · 첫 플레이 안내 다시 보기 · 사진·로고 출처', open('saves'), saves)}
     ${section('pack', `이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, open('pack'), pack)}
     <input type="file" id="fp-file" accept=".zip,application/zip" hidden>
-    ${versionFooter(version)}
+    ${updateCheckRow(PATCH_LABEL, STAGE_LABEL)}${versionFooter(version)}
   </div>${cardArtOverlay(ca)}`;
 }
 
