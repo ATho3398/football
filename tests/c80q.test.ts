@@ -41,7 +41,16 @@ describe('C.80q 공격 몰빵 억제', () => {
     expect(stackPenalty([...five]).link).toBeCloseTo(1 - link, 12);
     expect(stackPenalty([...six]).link).toBeCloseTo(1 - 2 * link, 12);
     expect(stackPenalty([...six]).drain).toBeCloseTo(1 + 2 * drain, 12);
-    expect(stackWarnOf([...six]).stackWarn).toBe(`공격 인원 과다(6명) — 연계 −${Math.round(2 * link * 100)}% · 수비 전환 체력 소모 +${Math.round(2 * drain * 100)}%`);
+    expect(stackWarnOf([...six]).stackWarn).toBe(`공격 인원 과다(공격 6명) — 연계 −${Math.round(2 * link * 100)}% · 수비 전환 체력 소모 +${Math.round(2 * drain * 100)}%`);
+  });
+
+  it('최전방 몰빵: 공격 포지션 4명이어도 ST·CF 3명이면 m 1, 4명이면 m 2 · 표준 대형은 ST·CF 최대 2명', () => {
+    const st3 = ['GK', 'CB', 'CB', 'LWB', 'CDM', 'CM', 'CM', 'CAM', 'ST', 'ST', 'ST'] as const;
+    const st4 = ['GK', 'CB', 'CB', 'LB', 'CDM', 'CM', 'RW', 'CF', 'CF', 'ST', 'ST'] as const;
+    expect(stackCount([...st3])).toBe(4);
+    expect(stackPenalty([...st3]).over).toBe(1);
+    expect(stackPenalty([...st4]).over).toBe(2);
+    for (const f of FORMATIONS) expect(FORMATION_SLOTS[f].filter((s) => s.pos === 'ST' || s.pos === 'CF').length).toBeLessThan(ENGINE.stackCap.stN);
   });
 
   it('경기 상태: 몰빵 팀만 걸리고, 공격 진영 패스 성공 확률(판단·실행 공통 passProbability)이 연계 배수만큼 준다', () => {

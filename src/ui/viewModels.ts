@@ -1994,7 +1994,7 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
 export function stackWarnOf(positions: readonly Position[]): { stackWarn?: string } {
   const p = stackPenalty(positions);
   if (p.over <= 0) return {};
-  return { stackWarn: `공격 인원 과다(${stackCount(positions)}명) — 연계 −${Math.round((1 - p.link) * 100)}% · 수비 전환 체력 소모 +${Math.round((p.drain - 1) * 100)}%` };
+  return { stackWarn: `공격 인원 과다(공격 ${stackCount(positions)}명) — 연계 −${Math.round((1 - p.link) * 100)}% · 수비 전환 체력 소모 +${Math.round((p.drain - 1) * 100)}%` };
 }
 
 /** 하프타임 전술 초안 (C.75k, E.19): 성향·세부 전술만 (역할·포메이션은 다음 단계) */

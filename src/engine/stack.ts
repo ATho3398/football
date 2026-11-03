@@ -5,16 +5,17 @@ import { ENGINE } from './config';
 import { attackDir, toNorm } from './pitch';
 import type { Agent, SimState } from './state';
 
-type StackCfg = { readonly n: number; readonly link: number; readonly drain: number; readonly groups: readonly string[] };
+type StackCfg = { readonly n: number; readonly stN: number; readonly link: number; readonly drain: number; readonly groups: readonly string[] };
 
 /** 공격 포지션 인원 (GK 포함 목록을 줘도 된다) */
 export function stackCount(positions: readonly Position[], cfg: StackCfg = ENGINE.stackCap): number {
   return positions.filter((p) => cfg.groups.includes(posGroup(p))).length;
 }
 
-/** 초과 인원 m = 인원 − n + 1 (n 미만이면 0) */
+/** 초과 인원 m = max(공격 포지션 − n + 1, ST·CF − stN + 1, 0) */
 export function stackOver(positions: readonly Position[], cfg: StackCfg = ENGINE.stackCap): number {
-  return Math.max(0, stackCount(positions, cfg) - cfg.n + 1);
+  const st = positions.filter((p) => posGroup(p) === 'ST').length;
+  return Math.max(0, stackCount(positions, cfg) - cfg.n + 1, st - cfg.stN + 1);
 }
 
 /** 연계 배수 max(0, 1 − link × m) · 수비 전환 체력 소모 배수 1 + drain × m (표시·테스트용 순수 함수) */

@@ -2,14 +2,15 @@
 // 실행: npx vite-node scripts/diag/c80q-stack-table.ts
 import { createRng, hashSeed } from '../../src/rng';
 import { cellExists, customLabel, customProblem, customSlots, FORMATION_SLOTS, FORMATIONS, GRID_LANES, GRID_ROWS } from '../../src/formations';
-import { stackCount, stackMul } from '../../src/engine/stack';
+import { stackCount, stackPenalty } from '../../src/engine/stack';
 import { ENGINE } from '../../src/engine/config';
 
-console.log(`stackCap n=${ENGINE.stackCap.n} k=${ENGINE.stackCap.k}`);
-console.log('| 표준 대형 | 공격 포지션 | 배수 |\n|---|---|---|');
+console.log(`stackCap n=${ENGINE.stackCap.n} stN=${ENGINE.stackCap.stN} link=${ENGINE.stackCap.link} drain=${ENGINE.stackCap.drain}`);
+const st = (ps) => ps.filter((p) => p === 'ST' || p === 'CF').length;
+console.log('| 표준 대형 | 공격 포지션 | ST·CF | 초과 m |\n|---|---|---|---|');
 for (const f of FORMATIONS) {
   const ps = FORMATION_SLOTS[f].map((s) => s.pos);
-  console.log(`| ${f} | ${stackCount(ps)} | ${stackMul(ps)} |`);
+  console.log(`| ${f} | ${stackCount(ps)} | ${st(ps)} | ${stackPenalty(ps).over} |`);
 }
 function randomCells(i) {
   const rng = createRng(hashSeed(`custom-sweep:${i}`));
@@ -26,10 +27,10 @@ const hit = [];
 for (let i = 0; i < 300; i++) {
   const c = randomCells(i);
   const ps = customSlots(c).map((s) => s.pos);
-  const n = stackCount(ps);
-  hist[n] = (hist[n] ?? 0) + 1;
-  if (stackMul(ps) < 1 || i === 35) hit.push(`${i} ${customLabel(c)} [${ps.slice(1).join(' ')}] 공격 ${n} × ${stackMul(ps).toFixed(2)}`);
+  const m = stackPenalty(ps).over;
+  hist[m] = (hist[m] ?? 0) + 1;
+  if ([35, 22, 25, 1, 58, 174, 199, 220, 131, 26, 240].includes(i)) hit.push(`${i} ${customLabel(c)} [${ps.slice(1).join(' ')}] 공격 ${stackCount(ps)} · ST·CF ${st(ps)} → m ${m}`);
 }
-console.log('\n무작위 커스텀 300 공격 포지션 분포', JSON.stringify(hist));
+console.log('\n무작위 커스텀 300 초과 m 분포', JSON.stringify(hist));
 console.log(hit.slice(0, 40).join('\n'));
 // 실제 로스터 팀은 프리셋 대형만 쓴다(roster.formation ∈ FORMATIONS, customSlots 는 내 팀 전술에서만) → 위 표준 표가 곧 로스터 표
