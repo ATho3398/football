@@ -77,6 +77,8 @@ export interface Agent {
   supportRun: boolean;
   /** CB 빈자리 침투 중 (C.78e ②): 달리는 동안 이 y(정규화)로, 아니면 −1 */
   gapY: number;
+  /** 펄스 나인 빈자리 침투 중 (C.80r): 9번이 내려온 순간 시작한 2선 침투 — 달리는 동안 중앙 쪽 길(roles.nineVacateLane)로 */
+  vacRun: boolean;
   /** 풀백 오버래핑 중 (C.78i ②): 달리는 동안 공 앞 측면 길로 */
   overlap: boolean;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
