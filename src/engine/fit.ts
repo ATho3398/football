@@ -65,6 +65,17 @@ export function fitGaps(players: { attrs: FieldAttributes; pos: Position }[]): R
 
 /** 이 선수 팀의 지금 성향이 그 실행의 주인이면 능력치 보너스(점수, ±cap). 아니면 0 */
 export function fitPts(s: SimState, team: 0 | 1, kind: FitKind): number {
+  return fitOnly(s, team, kind) + matchupPts(s, team, kind);
+}
+
+/** 상대 성향별 직접 보정 (C.80p): ENGINE.matchup[우리 성향][상대 성향][kind] 능력치 점수 (없으면 0) */
+export function matchupPts(s: SimState, team: 0 | 1, kind: FitKind): number {
+  const mine = s.teams[team].tactics.tendency;
+  const opp = s.teams[team === 0 ? 1 : 0].tactics.tendency;
+  return ENGINE.matchup[mine]?.[opp]?.[kind] ?? 0;
+}
+
+function fitOnly(s: SimState, team: 0 | 1, kind: FitKind): number {
   const F = ENGINE.tacticFit;
   if (!F.on) return 0;
   const tm = s.teams[team];

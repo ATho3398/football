@@ -5,7 +5,7 @@ import { shotFootMul, shotWeakShare, weakFootMul } from '../body';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
-import { fitPts } from './fit';
+import { fitPts, matchupPts } from './fit';
 import * as duel_ from './duel';
 const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
 import { type ShotCtx } from './keeper';
@@ -790,8 +790,8 @@ function resolveAerial(s: SimState, fl: Flight): void {
     }
     // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
     const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
-    // 전술 적합도 (C.80e): 크로스가 아닌 공중볼(롱볼·걷어낸 공) 경합에 직선 air 보너스
-    const fitAir = fl.fromCross ? 0 : fitPts(s, bestA.team, 'air') - fitPts(s, bestD.team, 'air');
+    // 전술 적합도 (C.80e): 크로스가 아닌 공중볼(롱볼·걷어낸 공) 경합에 직선 air 보너스. 상대 성향별 보정(C.80p)은 크로스에도
+    const fitAir = fl.fromCross ? matchupPts(s, bestA.team, 'air') - matchupPts(s, bestD.team, 'air') : fitPts(s, bestA.team, 'air') - fitPts(s, bestD.team, 'air');
     const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD) + fitAir) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;

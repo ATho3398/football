@@ -1750,6 +1750,15 @@ export const ENGINE = {
     extraPress: 0.05,
   },
   // ── 전술 적합도 보너스 (C.80e, fit.ts): 성향별 핵심 능력치 차이(선수단 − 리그 보통, 점수) × gain 을 그 성향 핵심 실행의 능력치에 더한다 (±cap) ──
+  /**
+   * 상대 성향별 직접 보정 (C.80p, 사용자 2026-11-03 10:2x "티키가 직선 상대할 때 관련 수치를 조금씩 높여"): matchup[우리 성향][상대 성향][실행] = 능력치 점수.
+   * 전술 적합도(fitPts)와 같은 자리에 더한다 — 판단(평균 선수 혼합 포함)과 실행이 같은 값을 본다. 없는 칸 = 0.
+   * air = 공중 경합(롱볼·걷어낸 공·크로스 헤더 경합 모두) · short = 짧은 패스 능력치 · keep = 공 지키기(압박 저항) · tackle = 태클(드리블 막기)
+   */
+  matchup: {
+    tikitaka: { direct: { air: 0, short: 0, keep: 0, tackle: 0 } },
+  } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
+
   tacticFit: {
     /** 0 = 끔 */
     on: 1,

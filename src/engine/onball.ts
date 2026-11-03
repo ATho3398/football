@@ -31,7 +31,7 @@ import * as probe_ from './probe';
 const { probe } = probe_;
 import type { Agent, Flight, SimState } from './state';
 import type { Tendency } from './types';
-import { fitPts } from './fit';
+import { fitPts, matchupPts } from './fit';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
@@ -487,7 +487,7 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
   const crossSide = Math.sign(toNorm(a.x, a.y, dir)[1] - 0.5);
   for (const r of boxTeammates(s, a, dir)) {
     const [def, dd] = nearestOpponent(s, r);
-    let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def) : 0.85;
+    let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def, matchupPts(s, r.team, 'air') - matchupPts(s, def.team, 'air')) : 0.85;
     if (gk && dist(gk.x, gk.y, r.x, r.y) < ENGINE.keeper.claimRange) pWin *= 1 - claimProb(gk);
     const value = shotModel(s, r, true).value * r.role.pref.header;
     // C.80n: 먼 쪽(크로스 반대 측면) 윙어 고르기 가중 — 대상 고르기에만 (돌려주는 가치·실행 불변)
