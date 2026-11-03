@@ -9,7 +9,7 @@ import { managerOf } from '../../data/managers';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
-import { customSlots, FORMATION_SLOTS, type Formation } from '../../src/formations';
+import { customSlots, FORMATION_SLOTS, type Formation, type FormationSlot } from '../../src/formations';
 import { attackDir, dist, L, toNorm } from '../../src/engine/pitch';
 import type { MatchSim } from '../../src/engine/sim';
 import type { EngineResult } from '../../src/engine/types';
@@ -46,6 +46,8 @@ export interface TeamSpec {
   roles?: Record<number, string>;
   /** 커스텀 포메이션 칸 (E.5.1, GK -1). formation 대신 쓴다 */
   cells?: number[];
+  /** 진단용 슬롯 직접 지정 (C.80s): cells 대신 쓴다 */
+  slots?: FormationSlot[];
 }
 
 /** 추적 선수 요약 (E3.7 역할 반응): 위치는 그 팀 공격 방향 정규화 */
@@ -262,6 +264,7 @@ export function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): Te
   const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
   if (t.formation) roster.formation = t.formation;
   if (t.cells) roster.customSlots = customSlots(t.cells);
+  if (t.slots) roster.customSlots = t.slots;
   const setup = teamSetupFromRoster(roster, rosterRating(roster), oppRating, worldSeed);
   const before = setup.tactics.tendency;
   if (t.tactics === 'balanced') setup.tactics = { ...setup.tactics, ...BALANCED };
