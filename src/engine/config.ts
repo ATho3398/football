@@ -1767,6 +1767,10 @@ export const ENGINE = {
    */
   matchup: {
     tikitaka: { direct: { air: 2, short: 2, keep: 2, tackle: 2 } },
+    // C.80w: 롱볼 착지 정확도(prob.longMiss) 뒤 직선>티키 +0.20·직선>게겐 +0.19 · 균형·블록(버스)>티키 +0.13~0.14 (상성 960) — 그 칸의 롱패스 능력치 점수만 되돌림
+    direct: { tikitaka: { long: -12 }, gegenpress: { long: -12 } },
+    balanced: { tikitaka: { long: -10 } },
+    block: { tikitaka: { long: -10 } },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
 
   tacticFit: {
