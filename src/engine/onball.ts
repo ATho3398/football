@@ -177,7 +177,7 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
   const ps = passSkillApply(p, skill);
   // 공중 롱패스 착지 정확도 (C.80w): 실패 확률 × longMiss
-  return kind === 'pass' && d > PR.airPass && PR.longMiss !== 1 ? 1 - (1 - ps) * PR.longMiss : ps;
+  return kind === 'pass' && d > PR.airPass ? 1 - (1 - ps) * PR.longMiss : ps;
 }
 
 /** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
