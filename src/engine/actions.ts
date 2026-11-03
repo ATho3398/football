@@ -13,6 +13,7 @@ import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
 import { ballRank, inOwnBox, updateOffball } from './offball';
 import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
+import { stackLinkMul } from './stack';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
@@ -86,6 +87,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
       const offside = fl.outcome === 'receive' && isOffside(s, a, receiver);
+      if (probe.long && dist(a.x, a.y, c.x, c.y) >= 30) probe.long(s, offside ? 'offside' : `launch:${fl.air ? 'air' : 'ground'}:${fl.outcome}`, c.p);
       s.exemptPass = false;
       if (offside) {
         callOffside(s, a, receiver);
@@ -683,8 +685,11 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   // 약발 (C.45): 크로스 오차 ÷ 약발 배율
   // 날씨 (C.74a): 강풍 크로스 오차 × longError
   const err = (((100 - a.attrs.crossing) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y)) * s.env.longError;
-  const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err, 0.5, L - 0.5);
-  const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err, 0.5, W - 0.5);
+  // 공격 몰빵 억제 (C.80q ①): 1 − 연계 배수 확률로 크로스 오차 × stackCap.linkCrossErr (판단 p 에 같은 배수, 안 걸리면 난수도 안 뽑는다)
+  const link = stackLinkMul(s, a);
+  const errX = link < 1 && r(s, a.idx, Purpose.Cross, 7) >= link ? ENGINE.stackCap.linkCrossErr : 1;
+  const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err * errX, 0.5, L - 0.5);
+  const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err * errX, 0.5, W - 0.5);
   const d = dist(a.x, a.y, tx, ty);
   launch(s, a, {
     kind: 'cross', fromX: a.x, fromY: a.y, toX: tx, toY: ty, t0: s.t, dur: Math.max(0.4, d / ENGINE.ball.airSpeed), air: true,
@@ -910,6 +915,8 @@ export function resolveFlight(s: SimState): void {
       return;
     case 'receive': {
       const rc = s.agents[fl.receiver]!;
+      const longP = probe.long && Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30 ? probe.long : undefined;
+      if (longP && !(rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4)) longP(s, 'arrive:far', dist(rc.x, rc.y, b.x, b.y));
       if (rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4) {
         // 롱볼은 착지점에서 수비수와 경합
         if (fl.air) {
@@ -922,6 +929,7 @@ export function resolveFlight(s: SimState): void {
             def.stats.aerialDuels++;
             if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def, fitPts(s, rc.team, 'air') - fitPts(s, def.team, 'air'), dd < PR.longContest ? 0 : PR.airContestBias)) {
               def.stats.aerialsWon++;
+              longP?.(s, 'arrive:airLost', dd);
               giveBall(s, def, 'gain');
               return;
             }
@@ -937,6 +945,7 @@ export function resolveFlight(s: SimState): void {
           const lostRecv = def !== null && dd < cd && r(s, rc.idx, Purpose.Control, 3) >= pRecv;
           if (probe.receive && def && dd < cd) probe.receive(s, rc, def, dd, inBox, pRecv, !lostRecv);
           if (def && lostRecv) {
+            longP?.(s, 'arrive:groundLost', dd);
             def.stats.tackles++;
             def.stats.tacklesWon++;
             s.teams[def.team].stats.tackles++;
@@ -950,6 +959,7 @@ export function resolveFlight(s: SimState): void {
             return;
           }
         }
+        longP?.(s, 'arrive:ok');
         giveBall(s, rc, 'receive', fl);
         return;
       }

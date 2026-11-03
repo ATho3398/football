@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 79;
+export const ENGINE_VERSION = 82;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1006,6 +1006,11 @@ export const ENGINE = {
        */
       directLong: 0.1,
       /**
+       * C.80w: 공중 롱패스(airPass m 넘는 패스·침투) 효용 가중(weight, 1 = 끔) — 착지 정확도(prob.longMiss)를 올려 판단 성공 확률이 같이 오르면
+       * 롱패스 시도 비율이 목표(10~16%)를 넘으므로 판단 효용 가중만 같이 낮춘다(판단 보정 원칙, 실행 불변)
+       */
+      longW: 0.25,
+      /**
        * C.80f: 티키 롱패스 감점 (사용자 2026-10-30 "짧은 패스는 조금 더 높게 주고 롱 패스에 조금 감점") — 티키타카 성향 패서의 tikiLongFrom m 넘는 패스 효용에서
        * tikiLong × 거리 가중(tikiLongFrom m 0 → tikiLongTo m 에서 1)을 뺀다. 판단 효용에만(실행 불변). 감점 안 함: 오픈 플레이 탈취 뒤 decide.possess.winOff 초 안(전환),
        * 역습 보너스가 걸린 상황, 판단 성공 확률 tikiLongShortP 이상인 tikiLongFrom m 안 패스 후보가 없을 때(압박 탈출). 0 = 끔
@@ -1125,6 +1130,11 @@ export const ENGINE = {
      */
     longFarFrom: 32,
     longFarPerM: 0.015,
+    /**
+     * C.80w: 공중 롱패스(airPass m 넘는 패스) 착지 정확도 — 비행 실패 확률(빗나감·차단) × longMiss (1 = 끔).
+     * passProbability 에 걸려 판단(본인·평균 선수)과 실행(makePass)이 같은 값을 본다 (엔진관리자25 ✗7: 성공률 36.7%, 실패 대부분이 비행 빗나감)
+     */
+    longMiss: 0.6,
     laneWidth: 1.8,
     laneBase: 0.25,
     laneIntercept: 0.15,
@@ -1539,8 +1549,8 @@ export const ENGINE = {
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). C.79x: 거리 보정(distAdj, 12~16.5 m −0.09)으로 슛이 12~16.5 m 로 몰려 quick 600 1.46 → 1.65 라 총량 보정 +0.11 → 1.77(C.79q 병합 뒤) + 1대1(oneOnOne) 만 −0.13 으로 장면 ④ 유지(헤더·12 m 안 경합 슛 선방은 같이 오른다, 부록 C.79x). C.80o: 병렬 묶음(C.80k~n) 뒤 득점 총량 마무리 +0.01 → 1.78(quick 600 1.52 → 약 1.48~1.50, distAdjV −0.13 과 함께). C.80u: 세트피스 헤더 반응 지연(headerReactSet 0.6)·코너 CB 3·헤더 0.65 득점 상승 되돌림 +0.08 → 1.86(펄스 나인 병합 뒤 quick 600 1.84 → 1.63 · 1.86 → 1.55 · 1.87 → 1.56 — 대부분 상한 0.95 근처라 0.01 당 변화가 작다), 1대1 은 oneOnOne.drop 0.16 → 0.24 로 장면 ④ 유지. */
-    saveBase: 1.85,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). C.79x: 거리 보정(distAdj, 12~16.5 m −0.09)으로 슛이 12~16.5 m 로 몰려 quick 600 1.46 → 1.65 라 총량 보정 +0.11 → 1.77(C.79q 병합 뒤) + 1대1(oneOnOne) 만 −0.13 으로 장면 ④ 유지(헤더·12 m 안 경합 슛 선방은 같이 오른다, 부록 C.79x). C.80o: 병렬 묶음(C.80k~n) 뒤 득점 총량 마무리 +0.01 → 1.78(quick 600 1.52 → 약 1.48~1.50, distAdjV −0.13 과 함께). C.80w: 롱볼 착지 정확도(prob.longMiss 0.6)로 롱볼이 덜 끊겨 상대 역습이 줄며 quick 600 1.50 → 1.37 이라 총량 보정 −0.03 → 1.75(1.76 은 1.44). C.80u(롱패스 C.80w 병합 뒤): 세트피스 헤더 GK 반응(headerReactSet 0.6)·코너 CB 3·헤더 0.65 득점 상승 되돌림 +0.07 → 1.82(병합 전 1.78 → 1.85 와 같은 폭) — 1대1 은 oneOnOne.drop 0.16 → 0.24 로 장면 ④ 유지. */
+    saveBase: 1.82,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -1770,7 +1780,37 @@ export const ENGINE = {
    */
   matchup: {
     tikitaka: { direct: { air: 2, short: 2, keep: 2, tackle: 2 } },
+    // C.80w: 롱볼 착지 정확도(prob.longMiss) 뒤 직선>티키 +0.20·직선>게겐 +0.19 · 균형·블록(버스)>티키 +0.13~0.14 (상성 960) — 그 칸의 롱패스 능력치 점수만 되돌림
+    direct: { tikitaka: { long: -15 }, gegenpress: { long: -12 } },
+    balanced: { tikitaka: { long: -10 } },
+    block: { tikitaka: { long: -7 } },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
+
+  /**
+   * 공격 몰빵 억제 (C.80q, 사용자 2026-11-04 00:4x "골 결정력 떨어뜨리는 거 말고, 연계 잘 안 되고, 수비 전환할 때 체력 더 빨리 닳는 걸로"):
+   * 선발 대형의 공격 포지션(포지션군 groups — 윙·CAM·ST) 인원 c 가 n 이상이거나 ST·CF 가 stN 이상이면 초과 m = max(c − n + 1, ST·CF − stN + 1) 로
+   * ① 연계: 공격 진영(패서 정규화 x ≥ linkFromX) 패스·침투·크로스 성공 확률 × max(0, 1 − link × m) — 판단·실행 같은 값
+   * ② 수비 전환 체력: 상대 소유 중 자기 골 쪽으로 움직이는 그 팀 공격 포지션 선수 체력 소모 × (1 + drain × m).
+   * ③ 수비 라인 자동 상향(사용자 00:5x "수비 라인 자동으로 올라오게 만들어서 뒷공간도 털리게"): 실효 라인 높이 + line × m.
+   * 표준 대형은 공격 포지션 최대 4명이라 걸리지 않는다. link·drain 0 = 끔
+   */
+  stackCap: {
+    n: 5,
+    link: 0.05,
+    /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) */
+    linkBase: 0.12,
+    drain: 1,
+    linkFromX: 0.5,
+    /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
+    linkCrossErr: 3,
+    /** ③ 수비 라인: 그 팀 실효 라인 높이(lineHeight 0~1) + line × m — 공격 줄에 끌려 라인이 올라가 뒷공간이 빈다 (0 = 끔) */
+    line: 0,
+    groups: ['WING', 'CAM', 'ST'] as readonly string[],
+    /** 최전방 몰빵: ST·CF(포지션군 ST) 가 stN 명 이상이어도 걸린다 — 초과 m = max(공격 포지션 − n + 1, ST·CF − stN + 1). 표준 대형은 ST·CF 최대 2명 */
+    stN: 3,
+    /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) */
+    stW: 2,
+  },
 
   tacticFit: {
     /** 0 = 끔 */

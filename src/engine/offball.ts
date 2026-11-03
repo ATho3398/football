@@ -33,9 +33,11 @@ export function effectiveTactics(s: SimState, team: 0 | 1): { lineHeight: number
   const base = s.teams[team].tactics;
   const d = manDiff(s, team);
   const R = ENGINE.referee;
-  if (d < 0) return { lineHeight: clamp(base.lineHeight - R.shortLine, 0, 1), pressing: clamp(base.pressing - R.shortPress, 0, 1) };
-  if (d > 0) return { lineHeight: clamp(base.lineHeight + R.extraLine, 0, 1), pressing: clamp(base.pressing + R.extraPress, 0, 1) };
-  return base;
+  // 공격 몰빵 억제 (C.80q ③): 공격 줄에 끌려 수비 라인이 올라간다 (안 걸리면 0)
+  const up = ENGINE.stackCap.line * s.teams[team].stackOver;
+  if (d < 0) return { lineHeight: clamp(base.lineHeight - R.shortLine + up, 0, 1), pressing: clamp(base.pressing - R.shortPress, 0, 1) };
+  if (d > 0) return { lineHeight: clamp(base.lineHeight + R.extraLine + up, 0, 1), pressing: clamp(base.pressing + R.extraPress, 0, 1) };
+  return up > 0 ? { lineHeight: clamp(base.lineHeight + up, 0, 1), pressing: base.pressing } : base;
 }
 
 /** 전술 압박 단계 0 낮음 / 1 보통 / 2 높음 (실효 pressing, C.75c 수비 계획 인원표) */

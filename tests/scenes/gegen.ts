@@ -110,7 +110,8 @@ export function sceneBuildPress(): SceneOut {
  * ST 에게 가는 롱볼 후보의 착지점 몫 · 착지점(라인 뒤) 도착 시간 ST 대 가장 가까운 게겐 수비
  */
 export function sceneLongEscape(): SceneOut {
-  const run = (landShare: number) => withEngine({ 'onball.landShare': landShare }, () => {
+  // C.80w: 공중 롱패스 착지 정확도·효용 가중(prob.longMiss·decide.bias.longW)은 끈다 — 이 장면은 착지점 몫(landShare) 켬·끔 차이만 잰다
+  const run = (landShare: number) => withEngine({ 'onball.landShare': landShare, 'prob.longMiss': 1, 'decide.bias.longW': 1 }, () => {
     const s = sceneState(16);
     s.teams[0].tactics = tacticsOf('gegenpress');
     s.teams[1].tactics = tacOf('bus');

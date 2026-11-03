@@ -19,9 +19,9 @@ function state(a: Tendency, b: Tendency) {
 }
 
 describe('C.80p 상대 성향별 보정', () => {
-  it('표: 티키 → 직선 칸만 공중·짧은 패스·공 지키기·태클 +2 (능력치 점수), 그 밖은 비어 있음', () => {
+  it('표: 티키 → 직선 칸만 공중·짧은 패스·공 지키기·태클 +2 (능력치 점수), 티키 행은 그 칸뿐 (C.80w 롱패스 칸은 c80w 테스트)', () => {
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 2, short: 2, keep: 2, tackle: 2 });
-    expect(Object.keys(ENGINE.matchup)).toEqual(['tikitaka']);
+    expect(Object.keys(ENGINE.matchup).sort()).toEqual(['balanced', 'block', 'direct', 'tikitaka']);
     expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct']);
   });
 

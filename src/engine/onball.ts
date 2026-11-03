@@ -32,6 +32,7 @@ const { probe } = probe_;
 import type { Agent, Flight, SimState } from './state';
 import type { Tendency } from './types';
 import { fitPts, matchupPts } from './fit';
+import { stackLinkMul } from './stack';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
@@ -175,7 +176,8 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
   const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
-  return passSkillApply(p, skill);
+  // 공격 몰빵 억제 (C.80q ①): 공격 진영 패스 × 연계 배수 (판단·실행 같은 값, 안 걸리면 1)
+  return passSkillApply(p, skill) * stackLinkMul(s, a);
 }
 
 /** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
@@ -711,7 +713,9 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     }
     const ppA = passProbability(s, a, tx, ty, 'pass', lane, PR.receiverPressure * rp);
     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp);
-    const flightP = (pp: number) => clamp(pp + race, PR.passMin, PR.passCap);
+    // 공중 롱패스 착지 정확도 (C.80w): 침투가 아닌(받는 선수가 달리지 않는) 목표점 airPass m 넘는(실행이 공중볼로 차는) 패스의 달리기 경쟁까지 더한 비행 실패 확률 × longMiss (판단·실행 같은 pFlight)
+    const lm = !running && dist(a.x, a.y, tx, ty) > PR.airPass ? PR.longMiss : 1;
+    const flightP = (pp: number) => clamp(1 - (1 - clamp(pp + race, PR.passMin, PR.passCap)) * lm, PR.passMin, PR.passCap);
     const pFlight = flightP(ppA);
     const p = pFlight * aerial;
     const pj = judgedP(p, flightP(ppAv) * aerial);
@@ -767,7 +771,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const tMul = target === r && d0 >= TA.longBall ? TENDENCY.directTargetMul : 1;
     const wMul = forward ? winMul : 1;
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
-    const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
+    // 공중 롱패스 효용 가중 (C.80w): 착지 정확도(prob.longMiss)와 짝 — 판단에만
+    const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1) * (!running && dist(a.x, a.y, tx, ty) > PR.airPass ? DB.longW : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
     // 직선 전환 롱볼 (C.79d): 직선 성향 · 오픈 플레이 탈취 뒤 counterWinTime 초 안 · 공중(airPass 초과) 전진 패스에만 판단 보정 (실행 불변)
     const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward
@@ -954,8 +959,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const ct = crossTarget(s, a);
       if (ct) {
         const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (who.attrs.crossing - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
-        const p = accOf(a) * ct.pWin;
-        const pj = judgedP(p, accOf(av) * ct.pWin);
+        // 공격 몰빵 억제 (C.80q ①): 연계 배수 — 실행(actions cross)은 1 − 배수 확률로 크로스가 크게 빗나간다
+        const link = stackLinkMul(s, a);
+        const p = accOf(a) * ct.pWin * link;
+        const pj = judgedP(p, accOf(av) * ct.pWin * link);
         // 공격 폭 (좁게 0.9 / 넓게 1.1), 직선 성향 (E.19)
         const cMul = widthCrossMul(tac.width) * (tac.tendency === 'direct' ? TENDENCY.directCrossMul : 1);
         const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk);
