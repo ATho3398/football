@@ -28,7 +28,8 @@
     "balance:chemistry": "vite-node scripts/balance-chemistry.ts --",
     "balance:jerseys": "vite-node scripts/balance-jerseys.ts --",
     "facepack": "vite-node scripts/facepack/fetch.ts --",
-    "dex:append": "vite-node scripts/dex-append.ts"
+    "dex:append": "vite-node scripts/dex-append.ts",
+    "save:fixture": "vite-node scripts/save-fixture.ts --"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.3",

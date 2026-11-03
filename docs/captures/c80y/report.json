@@ -1,0 +1,52 @@
+{
+  "errors": [
+    "TypeError: Cannot read properties of undefined (reading 'waiting')",
+    "TypeError: Cannot read properties of undefined (reading 'waiting')",
+    "TypeError: Cannot read properties of undefined (reading 'waiting')",
+    "TypeError: Cannot read properties of undefined (reading 'waiting')",
+    "TypeError: Cannot read properties of undefined (reading 'waiting')"
+  ],
+  "steps": [
+    {
+      "step": "old title",
+      "version": ""
+    },
+    {
+      "step": "old continue",
+      "toast": ""
+    },
+    {
+      "step": "new continue",
+      "toast": "세이브를 새 버전으로 옮겼어요이전 버전 원본은 백업해 뒀어요.",
+      "keys": [
+        "save_backup_v59",
+        "slot:1",
+        "slot:auto"
+      ]
+    },
+    {
+      "step": "reopen",
+      "toast": ""
+    },
+    {
+      "step": "saves",
+      "load1": 1
+    },
+    {
+      "step": "fail modal",
+      "modal": "이 세이브를 새 버전으로 옮기지 못했어요형식 59 세이브예요. 세이브는 지우지 않았어요 — 원본 백업을 내려받아 두면 고친 버전에서 [가져오기]로 이어 할 수 있어요.새로 시작이전 버전 백업 내려받기"
+    },
+    {
+      "step": "backup download",
+      "file": "football-career_backup_v59_2018_2018-09-14.fcsave.gz"
+    },
+    {
+      "step": "after fail keys",
+      "keys": [
+        "save_backup_v59",
+        "slot:1",
+        "slot:auto"
+      ]
+    }
+  ]
+}

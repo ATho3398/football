@@ -97,7 +97,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 59;
+export const SAVE_FORMAT_VERSION = 60;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
