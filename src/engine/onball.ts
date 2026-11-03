@@ -32,6 +32,7 @@ const { probe } = probe_;
 import type { Agent, Flight, SimState } from './state';
 import type { Tendency } from './types';
 import { fitPts, matchupPts } from './fit';
+import { stackLinkMul } from './stack';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
@@ -175,7 +176,8 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
   const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
-  return passSkillApply(p, skill);
+  // 공격 몰빵 억제 (C.80q ①): 공격 진영 패스 × 연계 배수 (판단·실행 같은 값, 안 걸리면 1)
+  return passSkillApply(p, skill) * stackLinkMul(s, a);
 }
 
 /** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
@@ -392,8 +394,6 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)
   const openD = K.openSpan > 0 ? Math.min(1, Math.max(K.openFloor, 1 - (d - K.openFrom) / K.openSpan)) : 1;
   if (K.timeModel && gk) pOn += Math.max(0, K.openOn * openD * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
-  // 공격 몰빵 억제 (C.80q): 선발 공격 포지션 n명 이상인 팀은 유효 슈팅 × stackMul (판단·실행 같은 값, 1 = 안 걸림)
-  pOn *= s.teams[a.team].stackMul;
   const cornerMul = 1 - PR.cornerPressure * pressure;
   const saveOf = (sd: number) => {
     const c = { ...ctx, ty: gy + sd * cy, screen: sd < 0 ? sN : sP };
@@ -954,8 +954,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const ct = crossTarget(s, a);
       if (ct) {
         const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (who.attrs.crossing - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
-        const p = accOf(a) * ct.pWin;
-        const pj = judgedP(p, accOf(av) * ct.pWin);
+        // 공격 몰빵 억제 (C.80q ①): 연계 배수 — 실행(actions cross)은 1 − 배수 확률로 크로스가 크게 빗나간다
+        const link = stackLinkMul(s, a);
+        const p = accOf(a) * ct.pWin * link;
+        const pj = judgedP(p, accOf(av) * ct.pWin * link);
         // 공격 폭 (좁게 0.9 / 넓게 1.1), 직선 성향 (E.19)
         const cMul = widthCrossMul(tac.width) * (tac.tendency === 'direct' ? TENDENCY.directCrossMul : 1);
         const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk);

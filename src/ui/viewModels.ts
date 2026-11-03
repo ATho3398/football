@@ -15,7 +15,7 @@ import { ensureNational, natId, natLabel, natRoster, nationFromId } from '../nat
 import { FOOT_KO } from '../body';
 import { formMul, TAGS } from '../tags';
 import { ENGINE } from '../engine/config';
-import { stackCount, stackMul } from '../engine/stack';
+import { stackCount, stackPenalty } from '../engine/stack';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText } from '../aptitude';
@@ -1883,7 +1883,7 @@ export interface TacticsVM {
   tendencyDesc: string;
   /** 게겐프레싱 비용 경고 한 줄 (C.78t). 다른 성향이면 없음 */
   tendencyWarn?: string;
-  /** 공격 몰빵 경고 한 줄 (C.80q): 선발 공격 포지션(윙·CAM·ST)이 ENGINE.stackCap.n 명 이상이면. 아니면 없음 */
+  /** 공격 몰빵 경고 한 줄 (C.80q): 선발 공격 포지션(윙·CAM·ST)이 ENGINE.stackCap.n 명 이상이면 연계·수비 전환 체력 페널티. 아니면 없음 */
   stackWarn?: string;
   formations: { id: string; label: string }[];
   /** 탭 값 (커스텀이면 'custom') */
@@ -1990,11 +1990,11 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
   };
 }
 
-/** 공격 몰빵 경고 (C.80q): 엔진과 같은 배수(stackMul) — 걸리면 "공격 인원 과다 — 골 결정력 −x%" */
+/** 공격 몰빵 경고 (C.80q): 엔진과 같은 배수(stackPenalty) — 걸리면 "공격 인원 과다 — 연계 −x% · 수비 전환 체력 소모 +y%" */
 export function stackWarnOf(positions: readonly Position[]): { stackWarn?: string } {
-  const mul = stackMul(positions);
-  if (mul >= 1) return {};
-  return { stackWarn: `공격 인원 과다(${stackCount(positions)}명) — 골 결정력 −${Math.round((1 - mul) * 100)}%` };
+  const p = stackPenalty(positions);
+  if (p.over <= 0) return {};
+  return { stackWarn: `공격 인원 과다(${stackCount(positions)}명) — 연계 −${Math.round((1 - p.link) * 100)}% · 수비 전환 체력 소모 +${Math.round((p.drain - 1) * 100)}%` };
 }
 
 /** 하프타임 전술 초안 (C.75k, E.19): 성향·세부 전술만 (역할·포메이션은 다음 단계) */

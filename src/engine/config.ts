@@ -1760,13 +1760,19 @@ export const ENGINE = {
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
 
   /**
-   * 공격 몰빵 강제 억제 (C.80q, 사용자 2026-11-04 00:3x "공격수 몰빵인 전술(n명 이상일 때) 골 확률 강제로 낮추셈"):
-   * 선발 대형의 공격 포지션(포지션군 groups — 윙·CAM·ST) 인원 c 가 n 이상이면 그 팀 슛의 유효 슈팅 확률(곧 xG — 판단 shotModel·실행 같은 값)에
-   * 배수 max(0, 1 − k × (c − n + 1)). 표준 대형은 공격 포지션 최대 4명이라 걸리지 않는다. k 0 = 끔
+   * 공격 몰빵 억제 (C.80q, 사용자 2026-11-04 00:4x "골 결정력 떨어뜨리는 거 말고, 연계 잘 안 되고, 수비 전환할 때 체력 더 빨리 닳는 걸로"):
+   * 선발 대형의 공격 포지션(포지션군 groups — 윙·CAM·ST) 인원 c 가 n 이상이면 초과 m = c − n + 1 로
+   * ① 연계: 공격 진영(패서 정규화 x ≥ linkFromX) 패스·침투·크로스 성공 확률 × max(0, 1 − link × m) — 판단·실행 같은 값
+   * ② 수비 전환 체력: 상대 소유 중 자기 골 쪽으로 움직이는 그 팀 공격 포지션 선수 체력 소모 × (1 + drain × m).
+   * 표준 대형은 공격 포지션 최대 4명이라 걸리지 않는다. link·drain 0 = 끔
    */
   stackCap: {
     n: 5,
-    k: 0.1,
+    link: 0.1,
+    drain: 0.5,
+    linkFromX: 0.5,
+    /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
+    linkCrossErr: 3,
     groups: ['WING', 'CAM', 'ST'] as readonly string[],
   },
 

@@ -272,8 +272,8 @@ export interface TeamState {
   sitCandSince: number;
   /** 전술 적합도 (C.80e, fit.ts): 성향별 핵심 능력치 차이 − 리그 보통 (점수, 킥오프 선발 기준) */
   fit: Record<FitTendency, number>;
-  /** 공격 몰빵 억제 배수 (C.80q, stack.ts): 킥오프 선발 공격 포지션 인원으로 정한 슛 유효 확률 배수 (1 = 안 걸림) */
-  stackMul: number;
+  /** 공격 몰빵 초과 인원 (C.80q, stack.ts): 킥오프 선발 공격 포지션 인원 − n + 1 (0 = 안 걸림) */
+  stackOver: number;
 }
 
 /** 수비 상황 (C.75c, pending 41): A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박 */

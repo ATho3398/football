@@ -3,7 +3,7 @@
 import { bodyMods } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../attributes';
 import { FORMATION_SLOTS } from '../formations';
-import { stackMul } from './stack';
+import { stackDrainMul, stackOver } from './stack';
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
 import * as config_ from './config';
 const { ENGINE } = config_;
@@ -138,7 +138,7 @@ export function createState(input: EngineInput): SimState {
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
       tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
       fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
-      stackMul: stackMul(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
+      stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
@@ -612,7 +612,9 @@ function stepTail(s: SimState): void {
     const tm = s.teams[a.team];
     const drain = (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * tm.tactics.pressing)
       * (tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1)
-      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1);
+      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1)
+      // 공격 몰빵 억제 (C.80q ②): 상대 소유 중 자기 골 쪽으로 복귀하는 공격 포지션 선수 체력 소모 ×
+      * (tm.stackOver > 0 ? stackDrainMul(s, a) : 1);
     // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
     if (a.idx === b.owner) clearFeed(a);
     else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
