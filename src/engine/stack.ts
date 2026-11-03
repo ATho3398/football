@@ -5,7 +5,7 @@ import { ENGINE } from './config';
 import { attackDir, toNorm } from './pitch';
 import type { Agent, SimState } from './state';
 
-type StackCfg = { readonly n: number; readonly stN: number; readonly link: number; readonly drain: number; readonly groups: readonly string[] };
+type StackCfg = { readonly n: number; readonly stN: number; readonly link: number; readonly linkBase: number; readonly drain: number; readonly groups: readonly string[] };
 
 /** 공격 포지션 인원 (GK 포함 목록을 줘도 된다) */
 export function stackCount(positions: readonly Position[], cfg: StackCfg = ENGINE.stackCap): number {
@@ -18,19 +18,19 @@ export function stackOver(positions: readonly Position[], cfg: StackCfg = ENGINE
   return Math.max(0, stackCount(positions, cfg) - cfg.n + 1, st - cfg.stN + 1);
 }
 
-/** 연계 배수 max(0, 1 − link × m) · 수비 전환 체력 소모 배수 1 + drain × m (표시·테스트용 순수 함수) */
+/** 연계 배수 max(0, 1 − linkBase − link × m) · 수비 전환 체력 소모 배수 1 + drain × m (표시·테스트용 순수 함수) */
 export function stackPenalty(positions: readonly Position[], cfg: StackCfg = ENGINE.stackCap): { over: number; link: number; drain: number } {
   const m = stackOver(positions, cfg);
-  return { over: m, link: Math.max(0, 1 - cfg.link * m), drain: 1 + cfg.drain * m };
+  return { over: m, link: m > 0 ? Math.max(0, 1 - cfg.linkBase - cfg.link * m) : 1, drain: 1 + cfg.drain * m };
 }
 
-/** 경기 중 연계 배수: 패서 팀이 걸렸고 패서가 공격 진영(정규화 x ≥ linkFromX)이면 1 − link × m, 아니면 1 */
+/** 경기 중 연계 배수: 패서 팀이 걸렸고 패서가 공격 진영(정규화 x ≥ linkFromX)이면 1 − linkBase − link × m, 아니면 1 */
 export function stackLinkMul(s: SimState, a: Agent): number {
   const m = s.teams[a.team].stackOver;
   if (m <= 0) return 1;
   const C = ENGINE.stackCap;
   const [nx] = toNorm(a.x, a.y, attackDir(a.team, s.half));
-  return nx >= C.linkFromX ? Math.max(0, 1 - C.link * m) : 1;
+  return nx >= C.linkFromX ? Math.max(0, 1 - C.linkBase - C.link * m) : 1;
 }
 
 /** 경기 중 체력 소모 배수: 걸린 팀의 공격 포지션 선수가 상대 소유 중 자기 골 쪽으로 움직이면 1 + drain × m, 아니면 1 */
