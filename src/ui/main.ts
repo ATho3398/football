@@ -6,7 +6,7 @@ import { applyOtherLeagueJob, calendarKind, normalizeLeagues, otherLeagueJobs, s
 import { isFacePhoto, isRace } from '../identity';
 import { bodySection, josaIGa, LOOK_NICK_MAX, tagsSheet, type LookVM } from './views/body';
 import { chapterReviewed } from '../chapters';
-import { buyWeakFoot, chooseInjuryReturn, choosePreset, isNeutralMatch, matchCompLabel, venueKo, myShirt, nextFixture, recommendPreset, setPresetAuto } from '../game';
+import { buyWeakFoot, chooseInjuryReturn, choosePreset, isNeutralMatch, matchCompLabel, venueKo, myShirt, nextFixture, recommendPreset, SAVE_FORMAT_VERSION, setPresetAuto } from '../game';
 import { compNameKo, type CompId } from '../cups';
 import { budgetOf, customAct, customNameAfter, customSpec, customVM, initialCustomForm } from './customVM';
 import { fitToBudget, prospectToCustom, randomStep, rollCustom, rolledSpec } from './customRandom';
@@ -49,7 +49,7 @@ import { autoAllocate, raiseAttribute } from '../growth';
 import { positionOvrExact, type PlayablePosition } from '../positions';
 import { leagueOfTeam, teamById } from '../league';
 import {
-  copyReplays, deleteSave, exportFileName, initSaves, listSaves, loadGame, loadReplays, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, SaveFormatError, saveGame,
+  backupFile, copyReplays, deleteSave, exportFileName, initSaves, latestBackup, listSaves, loadGameWithInfo, loadReplays, SaveMigrationError, packReplayBytes, REPLAY_KEEP, SAVE_SLOTS, SaveFormatError, saveGame,
   saveReplays, unpackReplayBytes, type SaveSlot, type StoredReplay,
 } from '../save';
 import type { Replay } from '../replay';
@@ -3589,6 +3589,20 @@ app.addEventListener('click', (ev) => {
     case 'delete':
       confirmModal({ title: '이 슬롯을 지울까요?', body: '지운 세이브는 되살릴 수 없어요.', confirm: '지우기', act: 'delete-ok', data: { slot: el.dataset.slot! }, tone: 'danger' });
       return;
+    case 'mig-backup':
+      // 이전 실패 안내 (C.80y): 옛 세이브 원본을 파일로 (고친 버전에서 [가져오기])
+      void (async () => {
+        const b = await latestBackup();
+        if (!b) return showToast('백업이 없어요');
+        const { bytes, name } = await backupFile(b);
+        downloadBytes(bytes, name, 'application/gzip');
+        showToast({ kind: 'info', title: '이전 버전 백업을 내려받았어요', body: `${name} · 세이브 슬롯은 그대로 남아 있어요.` }, 2600);
+      })();
+      return;
+    case 'mig-new':
+      ui.modal = null;
+      go('new');
+      return;
     case 'delete-ok':
       ui.modal = null;
       void deleteSave(el.dataset.slot as SaveSlot).then(render);
@@ -3600,8 +3614,9 @@ app.addEventListener('click', (ev) => {
 async function loadSlot(slot: SaveSlot): Promise<void> {
   try {
     const t0 = performance.now();
-    const loaded = await loadGame(slot);
-    if (!loaded) return;
+    const res = await loadGameWithInfo(slot);
+    if (!res) return;
+    const loaded = res.state;
     refreshUnlocks(loaded);
     ui.game = loaded;
     ui.replay = null;
@@ -3614,11 +3629,39 @@ async function loadSlot(slot: SaveSlot): Promise<void> {
     if (slot !== 'auto') void autosave();
     go(loaded.phase === 'retired' ? 'retired' : 'home');
     warmPool();
+    // 세이브 이전 (C.80y): 옛 형식을 새 형식으로 옮겼으면 한 번 알린다 (슬롯은 이미 새 형식으로 다시 써졌다)
+    if (res.migratedFrom !== null) showToast({ kind: 'info', title: '세이브를 새 버전으로 옮겼어요', body: '이전 버전 원본은 백업해 뒀어요.' }, 2600);
   } catch (e) {
-    // 형식이 다른 옛 세이브 (C.77r): loadGame 이 그 슬롯을 이미 지웠다
-    if (e instanceof SaveFormatError) showToast({ kind: 'info', title: e.message, body: '현재 버전에서는 이어 할 수 없어 이 슬롯을 지웠어요. 새 게임으로 시작해 주세요.' }, 4200);
-    else showToast((e as Error).message);
+    migrationFailed(e, '이 슬롯을 지웠어요');
   }
+}
+/**
+ * 불러오기·가져오기 실패 안내 (C.80y). 이전 실패: 세이브를 지우지 않고 [이전 버전 백업 내려받기] [새로 시작].
+ * 이전 체계 전 형식(59 미만): 안내만 (슬롯이면 loadGame 이 이미 지웠다)
+ */
+function migrationFailed(e: unknown, oldDone: string): void {
+  if (e instanceof SaveMigrationError) {
+    console.warn('세이브 이전 실패', e.from, e.reason);
+    confirmModal({
+      title: e.message, tone: 'warning',
+      body: `형식 ${e.from} 세이브예요. 세이브는 지우지 않았어요 — 원본 백업을 내려받아 두면 고친 버전에서 [가져오기]로 이어 할 수 있어요.`,
+      confirm: '이전 버전 백업 내려받기', act: 'mig-backup', cancel: { label: '새로 시작', act: 'mig-new' },
+    });
+  } else if (e instanceof SaveFormatError) {
+    const newer = typeof e.found === 'number' && e.found > SAVE_FORMAT_VERSION;
+    showToast({ kind: 'info', title: e.message, body: newer ? '앱을 최신 버전으로 업데이트한 뒤 이어 해 주세요.' : `현재 버전에서는 이어 할 수 없어 ${oldDone}. 새 게임으로 시작해 주세요.` }, 4200);
+  } else showToast((e as Error)?.message || '불러오지 못했어요');
+}
+
+function downloadBytes(bytes: Uint8Array, name: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 const loadLog: number[] = [];
 (globalThis as unknown as { __loadLog: number[] }).__loadLog = loadLog;
@@ -3631,7 +3674,7 @@ app.addEventListener('change', (ev) => {
   input.value = '';
   void (async () => {
     try {
-      const { state: st, cards } = await importSaveFile(new Uint8Array(await file.arrayBuffer()), (id) => !!cardById(id));
+      const { state: st, cards, migratedFrom } = await importSaveFile(new Uint8Array(await file.arrayBuffer()), (id) => !!cardById(id));
       refreshUnlocks(st);
       ui.game = st;
       ui.replay = null;
@@ -3641,10 +3684,11 @@ app.addEventListener('change', (ev) => {
       await autosave();
       go(st.phase === 'retired' ? 'retired' : 'home');
       warmPool();
-      showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.${cards ? ` 카드 이미지 ${cards}장.` : ''}` }, 2600);
+      showToast({ kind: 'info', title: '세이브를 가져왔어요', body: `${st.player.name} · ${seasonLabel(st.league.season)} 시즌. 자동 저장 슬롯에 들어갔어요.${cards ? ` 카드 이미지 ${cards}장.` : ''}${migratedFrom !== null ? ' 새 버전 형식으로 옮겼어요.' : ''}` }, 2600);
     } catch (e) {
-      if (e instanceof SaveFormatError) showToast({ kind: 'info', title: e.message, body: '현재 버전에서는 이어 할 수 없어 가져오지 않았어요.' }, 4200);
-      else showToast((e as Error).message || '가져오지 못했어요');
+      // 가져오기 이전 실패는 파일이 사용자 손에 있으니 안내만 (C.80y)
+      if (e instanceof SaveMigrationError) showToast({ kind: 'info', title: e.message, body: '가져오지 않았어요. 파일은 그대로 두고 다음 버전에서 다시 가져와 주세요.' }, 4200);
+      else migrationFailed(e, '가져오지 않았어요');
     }
   })();
 });
