@@ -1769,7 +1769,7 @@ export const ENGINE = {
    */
   stackCap: {
     n: 5,
-    link: 0.1,
+    link: 0.05,
     drain: 0.5,
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
