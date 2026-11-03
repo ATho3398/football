@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 79;
+export const ENGINE_VERSION = 81;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1769,6 +1769,32 @@ export const ENGINE = {
       gegenpress: { short: 2, keep: 2 },
     },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
+
+  /**
+   * 공격 몰빵 억제 (C.80q, 사용자 2026-11-04 00:4x "골 결정력 떨어뜨리는 거 말고, 연계 잘 안 되고, 수비 전환할 때 체력 더 빨리 닳는 걸로"):
+   * 선발 대형의 공격 포지션(포지션군 groups — 윙·CAM·ST) 인원 c 가 n 이상이거나 ST·CF 가 stN 이상이면 초과 m = max(c − n + 1, ST·CF − stN + 1) 로
+   * ① 연계: 공격 진영(패서 정규화 x ≥ linkFromX) 패스·침투·크로스 성공 확률 × max(0, 1 − link × m) — 판단·실행 같은 값
+   * ② 수비 전환 체력: 상대 소유 중 자기 골 쪽으로 움직이는 그 팀 공격 포지션 선수 체력 소모 × (1 + drain × m).
+   * ③ 수비 라인 자동 상향(사용자 00:5x "수비 라인 자동으로 올라오게 만들어서 뒷공간도 털리게"): 실효 라인 높이 + line × m.
+   * 표준 대형은 공격 포지션 최대 4명이라 걸리지 않는다. link·drain 0 = 끔
+   */
+  stackCap: {
+    n: 5,
+    link: 0.05,
+    /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) */
+    linkBase: 0.12,
+    drain: 1,
+    linkFromX: 0.5,
+    /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
+    linkCrossErr: 3,
+    /** ③ 수비 라인: 그 팀 실효 라인 높이(lineHeight 0~1) + line × m — 공격 줄에 끌려 라인이 올라가 뒷공간이 빈다 (0 = 끔) */
+    line: 0,
+    groups: ['WING', 'CAM', 'ST'] as readonly string[],
+    /** 최전방 몰빵: ST·CF(포지션군 ST) 가 stN 명 이상이어도 걸린다 — 초과 m = max(공격 포지션 − n + 1, ST·CF − stN + 1). 표준 대형은 ST·CF 최대 2명 */
+    stN: 3,
+    /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) */
+    stW: 2,
+  },
 
   tacticFit: {
     /** 0 = 끔 */
