@@ -1764,6 +1764,7 @@ export const ENGINE = {
    * 선발 대형의 공격 포지션(포지션군 groups — 윙·CAM·ST) 인원 c 가 n 이상이면 초과 m = c − n + 1 로
    * ① 연계: 공격 진영(패서 정규화 x ≥ linkFromX) 패스·침투·크로스 성공 확률 × max(0, 1 − link × m) — 판단·실행 같은 값
    * ② 수비 전환 체력: 상대 소유 중 자기 골 쪽으로 움직이는 그 팀 공격 포지션 선수 체력 소모 × (1 + drain × m).
+   * ③ 수비 라인 자동 상향(사용자 00:5x "수비 라인 자동으로 올라오게 만들어서 뒷공간도 털리게"): 실효 라인 높이 + line × m.
    * 표준 대형은 공격 포지션 최대 4명이라 걸리지 않는다. link·drain 0 = 끔
    */
   stackCap: {
@@ -1773,6 +1774,8 @@ export const ENGINE = {
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
     linkCrossErr: 3,
+    /** ③ 수비 라인: 그 팀 실효 라인 높이(lineHeight 0~1) + line × m — 공격 줄에 끌려 라인이 올라가 뒷공간이 빈다 (0 = 끔) */
+    line: 0,
     groups: ['WING', 'CAM', 'ST'] as readonly string[],
   },
 
