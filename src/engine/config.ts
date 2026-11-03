@@ -1586,6 +1586,8 @@ export const ENGINE = {
     driftMax: 6,
     /** C.80u: 0 → 0.4 — 헤더(코너·크로스)에 GK 반응 +0.4초. 헤더 성공률(headerBase)만으로는 선방이 상한 0.95 근처라 코너 54개당 1골에서 안 움직였다 → 반응 시간으로 덮는 정도를 낮춤(코너 약 40개당 1골, 수비수 골 10%) */
     headerReact: 0.4,
+    /** C.80u: 세트피스 헤더(코너·프리킥 뒤 15초 안)의 GK 반응 가산 (초) — headerReact 대신 */
+    headerReactSet: 0.4,
     /**
      * GK 시야 가림 (C.79a 코드, C.79e 실험 스위치 — 기본 screenReact 0 = 끔): 슛 길 콘(prob.coneWidth) 안에 슈터보다 골 쪽(슛 선 위치 ≥ screenFrom) 상대 필드 선수가
      * 1명 이상이면 GK 반응 시간 + screenReact × 가중. 가중은 실행 1, 판단(shotModel) screenJudge — C.79e "가림의 판단 몫만 낮추기"(1 = C.79a 와 같은 판단=실행)

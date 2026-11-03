@@ -379,6 +379,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const far = farSide(gk, gy);
   const ctx: ShotCtx = {
     fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure,
+    // C.80u: 세트피스(코너·프리킥 뒤 15초 안) 헤더면 GK 반응 headerReactSet — 판단·실행 같은 값
+    setPiece: header && s.t - s.possStartT < 15 && (s.possOrigin === 'corner' || s.possOrigin === 'freeKick'),
     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
     gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
     screen: (far ?? 1) < 0 ? sN : sP,
