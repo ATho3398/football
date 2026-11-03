@@ -1154,7 +1154,7 @@ export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean
     const DB = ENGINE.decide.bias;
     // C.80p: 상대가 내려앉지 않았으면(패서보다 자기 골 쪽 상대 필드 선수 directScanBehind 명 미만 — 높은 라인·점유 상대) 가산 × directScanOpen
     const scanAdd = DB.directSwitchScan > 0 && s.teams[a.team].tactics.tendency === 'direct'
-      ? DB.directSwitchScan * (DB.directScanOpen === 1 || oppSettled(s, a) ? 1 : DB.directScanOpen) : 0;
+      ? DB.directSwitchScan * (DB.directScanOpen >= 1 || oppSettled(s, a) ? 1 : DB.directScanOpen) : 0;
     p *= clamp(O.scanBase + scanAdd + O.scanSlope * v, 0.05, 1);
   }
   if (c.type === 'through') p *= clamp(O.throughSeeBase + O.throughSeeSlope * v, 0.05, 1);

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 75;
+export const ENGINE_VERSION = 76;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1023,10 +1023,10 @@ export const ENGINE = {
        *  C.80o: 선방 패치(C.80m) 뒤 직선>블록 칸이 +0.07 → −0.02 로 되돌아가 0.3 → 0.45(960: 0.4 −0.01 ✗ · 0.45 +0.08) */
       directSwitchScan: 0.45,
       /** C.80p: 상대가 내려앉지 않았을 때(패서보다 자기 골 쪽 상대 필드 선수 directScanBehind 명 미만) 보임 가산 배수. 1 = 상황 무관(C.80i·o 그대로) */
-      directScanOpen: 1,
+      directScanOpen: 0,
       directScanBehind: 8,
       /** C.80p: > 0 이면 '내려앉음' = 상대 필드 선수 평균 정규화 x(직선 공격 방향) ≥ 이 값 (directScanBehind 대신) */
-      directScanDeepX: 0,
+      directScanDeepX: 0.6,
       /** 슛 열린 찬스 — 거리: shootNear m 안 1, shootFar m 에서 0 (선형) */
       shootNear: 13,
       shootFar: 18,

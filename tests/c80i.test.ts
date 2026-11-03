@@ -40,15 +40,17 @@ describe('C.80i 직선 반대 전환', () => {
     expect(PATCH_LABEL).toMatch(/^C\.8/);
   });
 
-  it('직선 성향은 반대 전환 패스를 균형보다 더 자주 본다(시야 60: 약 38% → 약 68%, C.80o 0.45 에서 약 84%, 상대 배치와 무관)', () => {
+  it('직선 성향은 내려앉은 상대 앞에서 반대 전환 패스를 균형보다 더 자주 본다(시야 60: 약 38% → C.80o 0.45 에서 약 84%) · C.80p: 상대가 안 내려앉았으면(평균 x < 0.6) 가산 없음', () => {
     const b = seenShare('balanced');
     expect(b).toBeGreaterThan(0.25);
     expect(b).toBeLessThan(0.5);
-    for (const deep of [true, false]) {
-      const d = seenShare('direct', deep);
-      expect(d).toBeGreaterThan(0.7);
-      expect(d).toBeLessThan(0.92);
-    }
+    const d = seenShare('direct', true);
+    expect(d).toBeGreaterThan(0.7);
+    expect(d).toBeLessThan(0.92);
+    const open = seenShare('direct', false);
+    expect(Math.abs(open - b)).toBeLessThan(0.08);
+    expect(ENGINE.decide.bias.directScanOpen).toBe(0);
+    expect(ENGINE.decide.bias.directScanDeepX).toBe(0.6);
   });
 
   it('반대 전환 판단 보너스(끔)의 상황 조건: 패서 x ≥ directSwitchFromX · 상대 8명 이상 공 뒤', () => {
