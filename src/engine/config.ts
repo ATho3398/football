@@ -648,7 +648,7 @@ export const ENGINE = {
     /** 2선 늦은 침투 (E.18 A2): 공이 상대 최종 3분의 1 측면이면 침투 성향 미드 1명은 컷백 존, 1명은 박스 경계 바깥 (E.22 B: 시작 0.75 → 크로스 가능 구역 0.68) */
     lateRunFromX: 0.68,
     lateRunWide: 0.2,
-    lateRunRun: 0.25,
+    lateRunRun: 0.4,
     /** 컷백 존 (골에서 m, 페널티 아크 부근), 세컨드 볼 위치 (골에서 m) */
     cutbackZone: 15,
     /** 2선 늦은 침투 (E.22 B): 공이 측면이면 침투 미드는 골에서 lateRunDepth m (박스 안, 페널티 지점).
@@ -1653,6 +1653,9 @@ export const ENGINE = {
     /** 쳐낸 공이 코너가 될 확률 */
     /** C.76w 가설 2: 0.5 → 0.35 (쳐낸 공이 코너 대신 리바운드로 남는다) */
     parryCorner: 0.35,
+    /** 쳐낸 공 속도 (m/s)·방향 퍼짐(rad, ± 절반) — C.80u 전에는 actions.ts 에 7 · 2.4 고정 */
+    parrySpeed: 7,
+    parrySpread: 2.4,
     /** 크로스/롱볼 처리: 박스 안이고 GK 와 claimRange 안이면 L((출전 범위 − 60)/12 + claimBias) */
     claimRange: 6,
     claimBias: -3,
