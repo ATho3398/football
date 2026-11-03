@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 76;
+export const ENGINE_VERSION = 77;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1756,7 +1756,11 @@ export const ENGINE = {
    * air = 공중 경합(롱볼·걷어낸 공·크로스 헤더 경합 모두) · short = 짧은 패스 능력치 · keep = 공 지키기(압박 저항) · tackle = 태클(드리블 막기)
    */
   matchup: {
-    tikitaka: { direct: { air: 2, short: 2, keep: 2, tackle: 2 } },
+    tikitaka: {
+      direct: { air: 2, short: 2, keep: 2, tackle: 2 },
+      // C.80t: 티키 → 게겐 칸 짧은 패스·공 지키기 +2 (게겐>티키 +0.52 → +0.42, 엔진관리자25 ✗1)
+      gegenpress: { short: 2, keep: 2 },
+    },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
 
   tacticFit: {
