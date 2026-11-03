@@ -15,6 +15,7 @@ import { ensureNational, natId, natLabel, natRoster, nationFromId } from '../nat
 import { FOOT_KO } from '../body';
 import { formMul, TAGS } from '../tags';
 import { ENGINE } from '../engine/config';
+import { stackCount, stackMul } from '../engine/stack';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText } from '../aptitude';
@@ -69,7 +70,7 @@ import { tierLabel } from '../finance';
 import { restartLabel, type Replay, type ReplayEvent, type ReplayFrame } from '../replay';
 import type { SaveMeta } from '../save';
 import { reportInput, tacticalReport, type TacticalReport, type Tendency } from '../tacticalReport';
-import type { BadgeId, Tier } from '../types';
+import type { BadgeId, Position, Tier } from '../types';
 import { activeBadges, BADGE_DESC_KO, BADGE_NAMES_KO } from '../badges';
 import { positionPenalty, proficiencyOf, proficientOvr } from '../proficiency';
 import { saveStartNotice, versionLabel } from '../version';
@@ -1882,6 +1883,8 @@ export interface TacticsVM {
   tendencyDesc: string;
   /** 게겐프레싱 비용 경고 한 줄 (C.78t). 다른 성향이면 없음 */
   tendencyWarn?: string;
+  /** 공격 몰빵 경고 한 줄 (C.80q): 선발 공격 포지션(윙·CAM·ST)이 ENGINE.stackCap.n 명 이상이면. 아니면 없음 */
+  stackWarn?: string;
   formations: { id: string; label: string }[];
   /** 탭 값 (커스텀이면 'custom') */
   formation: string;
@@ -1968,6 +1971,7 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     tendencyName: TENDENCY_NAMES_KO[t.tendency],
     tendencyDesc: TENDENCY_DESC_KO[t.tendency],
     ...(BALANCE.gegenCost.on && t.tendency === BALANCE.gegenCost.tendency ? { tendencyWarn: '체력 소모 큼 · 오래 쓰면 선수 생명 단축' } : {}),
+    ...stackWarnOf(lineup.map((s) => s.pos as Position)),
     formations: [...FORMATIONS.map((f) => ({ id: f, label: f })), { id: 'custom', label: '커스텀' }],
     formation: t.custom ? 'custom' : t.formation,
     formationName: formationLabel(t),
@@ -1984,6 +1988,13 @@ export function tacticsVM(g: GameState, ui: TacticsDraftUI): TacticsVM {
     dirty: JSON.stringify(t) !== JSON.stringify(g.tactics),
     sheet,
   };
+}
+
+/** 공격 몰빵 경고 (C.80q): 엔진과 같은 배수(stackMul) — 걸리면 "공격 인원 과다 — 골 결정력 −x%" */
+export function stackWarnOf(positions: readonly Position[]): { stackWarn?: string } {
+  const mul = stackMul(positions);
+  if (mul >= 1) return {};
+  return { stackWarn: `공격 인원 과다(${stackCount(positions)}명) — 골 결정력 −${Math.round((1 - mul) * 100)}%` };
 }
 
 /** 하프타임 전술 초안 (C.75k, E.19): 성향·세부 전술만 (역할·포메이션은 다음 단계) */

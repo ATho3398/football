@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 76;
+export const ENGINE_VERSION = 77;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1758,6 +1758,17 @@ export const ENGINE = {
   matchup: {
     tikitaka: { direct: { air: 2, short: 2, keep: 2, tackle: 2 } },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
+
+  /**
+   * 공격 몰빵 강제 억제 (C.80q, 사용자 2026-11-04 00:3x "공격수 몰빵인 전술(n명 이상일 때) 골 확률 강제로 낮추셈"):
+   * 선발 대형의 공격 포지션(포지션군 groups — 윙·CAM·ST) 인원 c 가 n 이상이면 그 팀 슛의 유효 슈팅 확률(곧 xG — 판단 shotModel·실행 같은 값)에
+   * 배수 max(0, 1 − k × (c − n + 1)). 표준 대형은 공격 포지션 최대 4명이라 걸리지 않는다. k 0 = 끔
+   */
+  stackCap: {
+    n: 5,
+    k: 0.1,
+    groups: ['WING', 'CAM', 'ST'] as readonly string[],
+  },
 
   tacticFit: {
     /** 0 = 끔 */

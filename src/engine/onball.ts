@@ -392,6 +392,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)
   const openD = K.openSpan > 0 ? Math.min(1, Math.max(K.openFloor, 1 - (d - K.openFrom) / K.openSpan)) : 1;
   if (K.timeModel && gk) pOn += Math.max(0, K.openOn * openD * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
+  // 공격 몰빵 억제 (C.80q): 선발 공격 포지션 n명 이상인 팀은 유효 슈팅 × stackMul (판단·실행 같은 값, 1 = 안 걸림)
+  pOn *= s.teams[a.team].stackMul;
   const cornerMul = 1 - PR.cornerPressure * pressure;
   const saveOf = (sd: number) => {
     const c = { ...ctx, ty: gy + sd * cy, screen: sd < 0 ? sN : sP };
