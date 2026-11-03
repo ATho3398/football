@@ -62,6 +62,7 @@ import {
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
 import { PATCH_LABEL, STAGE_LABEL } from '../version';
+import { SAVE_FORMAT_VERSION } from '../game';
 import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, Tabs, Toast, type ToastProps } from './components';
 import {
   allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
@@ -774,7 +775,7 @@ function render(): void {
   const upd = us.available && !us.later && !bandToast && !m
     ? `<div class="sw-update">${Banner({
       tone: 'success', icon: 'info', title: `새 버전이 나왔어요 · ${versionName(us.remote)}`,
-      children: us.applying ? '저장하고 새 버전을 받는 중…' : live ? '경기가 끝나면 업데이트할 수 있어요' : '누르면 저장한 뒤 바로 바뀌어요',
+      children: us.applying ? '저장하고 새 버전을 받는 중…' : live ? '경기가 끝나면 업데이트할 수 있어요' : us.remote && us.remote.save !== SAVE_FORMAT_VERSION ? '누르면 저장한 뒤 바뀌어요 · 세이브는 새 버전으로 자동으로 옮겨져요' : '누르면 저장한 뒤 바로 바뀌어요',
       ...(us.applying || live ? {} : { action: '업데이트', onAction: { act: 'sw-reload' } }),
     })}${us.applying ? '' : Button({ variant: 'ghost', size: 'sm', act: 'sw-later', children: '나중에' })}</div>`
     : '';
