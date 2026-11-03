@@ -75,6 +75,19 @@ describe('포메이션 8종과 커스텀 (E.5, E.5.1)', () => {
     expect(customLabel(presetCells('4-4-2'))).toBe('4-4-2');
   });
 
+  it('가운데가 빈 중앙 짝은 프리셋 간격으로 좁힌다 (C.80s): 칸 4-4-2 의 센터백·중앙 미드·투톱 y 가 프리셋과 0.02 안', () => {
+    for (const f of ['4-4-2'] as const) {
+      const cs = customSlots(presetCells(f));
+      cs.forEach((s, i) => {
+        const p = FORMATION_SLOTS[f][i]!;
+        expect(Math.abs(s.y - p.y)).toBeLessThanOrEqual(0.03);
+      });
+    }
+    // 가운데(레인 2)가 차 있으면 그대로 0.3 · 0.7 (스리백)
+    const back3 = customSlots(presetCells('3-5-2'));
+    expect(back3.slice(1, 4).map((s) => s.y)).toEqual([0.3, 0.5, 0.7]);
+  });
+
   it('배치 규칙: 수비 3명 미만, 같은 칸 2명, 공격 0명은 안 된다', () => {
     const c = presetCells('4-3-3');
     expect(customProblem([...c.slice(0, 1), 12, ...c.slice(2)])).toBeNull();

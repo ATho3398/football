@@ -7,7 +7,7 @@ import { offsideLine, transitionTick, updateOffball } from '../../src/engine/off
 import { L } from '../../src/engine/pitch';
 import { tacticsOf } from '../../src/engine/tactics';
 import type { Agent, SimState } from '../../src/engine/state';
-import { DT, move, pick, place, REFRESH, sane, sceneState, setBody } from './harness';
+import { DT, move, pick, place, REFRESH, sane, sceneState, setBody, withEngine } from './harness';
 import type { SceneOut } from './scenes';
 
 /** 22명 배치: 팀별 줄마다 x, y 는 고르게. 팀 0 공격 중(높은 라인), 팀 1 은 자기 진영 */
@@ -159,8 +159,9 @@ export function sceneSlowLine(): SceneOut {
     }
     return { p: c?.p ?? 0, has: c ? 1 : 0, margin: (Number.isNaN(td) ? 6 : td) - (Number.isNaN(ta) ? 6 : ta), ok };
   };
-  const slow = run(60);
-  const fast = run(85);
+  // C.80w: 공중 롱패스 착지 정확도(prob.longMiss)는 모든 30 m+ 비행 실패를 같은 배수로 줄여 느린·빠른 CB 차이를 압축한다 — 이 장면은 달리기 경쟁 차이만 재므로 끈다
+  const slow = withEngine({ 'prob.longMiss': 1 }, () => run(60));
+  const fast = withEngine({ 'prob.longMiss': 1 }, () => run(85));
   return { values: { pSlow: slow.p, pFast: fast.p, hasThrough: slow.has * fast.has, marginSlow: slow.margin, marginFast: fast.margin }, sane: slow.ok && fast.ok };
 }
 
