@@ -1082,6 +1082,15 @@ export function settledDeep(s: SimState, a: Agent): boolean {
   return behind >= DB.directSwitchBehind;
 }
 
+/** 패서보다 자기 골 쪽(정규화 x 큼)에 있는 상대 필드 선수 수 (C.80p, 판단에 보이는 특징) */
+function behindCount(s: SimState, a: Agent): number {
+  const dir = attackDir(a.team, s.half);
+  const ax = toNorm(a.x, a.y, dir)[0];
+  let n = 0;
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && toNorm(o.x, o.y, dir)[0] > ax) n++;
+  return n;
+}
+
 /** 앞선 골 수에 따른 전진 선택(전진 패스·슛·드리블·크로스) 효용 배수 (2골 이상 leadRisk2, 3골 이상 leadRisk3). 안전 패스·유지는 역수 */
 function leadRiskMul(s: SimState, team: 0 | 1): number {
   const lead = s.teams[team].stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
@@ -1132,7 +1141,9 @@ export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean
   if (ang > (O.visionCone + O.visionConeSlope * (a.attrs.vision - 50)) / 2 || Math.abs(dy) > O.switchDist) {
     // C.80i: 직선 성향은 반대 전환·몸 방향 밖 패스를 directSwitchScan 만큼 더 잘 본다 (내려앉은 블록 앞으로만 좁히면 이득이 사라짐 — 부록 C.80i)
     const DB = ENGINE.decide.bias;
-    const scanAdd = DB.directSwitchScan > 0 && s.teams[a.team].tactics.tendency === 'direct' ? DB.directSwitchScan : 0;
+    // C.80p: 상대가 내려앉지 않았으면(패서보다 자기 골 쪽 상대 필드 선수 directScanBehind 명 미만 — 높은 라인·점유 상대) 가산 × directScanOpen
+    const scanAdd = DB.directSwitchScan > 0 && s.teams[a.team].tactics.tendency === 'direct'
+      ? DB.directSwitchScan * (DB.directScanOpen === 1 || behindCount(s, a) >= DB.directScanBehind ? 1 : DB.directScanOpen) : 0;
     p *= clamp(O.scanBase + scanAdd + O.scanSlope * v, 0.05, 1);
   }
   if (c.type === 'through') p *= clamp(O.throughSeeBase + O.throughSeeSlope * v, 0.05, 1);
