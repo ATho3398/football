@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 76;
+export const ENGINE_VERSION = 77;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -999,6 +999,11 @@ export const ENGINE = {
        */
       directLong: 0.1,
       /**
+       * C.80w: 공중 롱패스(airPass m 넘는 패스·침투) 효용 가중(weight, 1 = 끔) — 착지 정확도(prob.longMiss)를 올려 판단 성공 확률이 같이 오르면
+       * 롱패스 시도 비율이 목표(10~16%)를 넘으므로 판단 효용 가중만 같이 낮춘다(판단 보정 원칙, 실행 불변)
+       */
+      longW: 0.25,
+      /**
        * C.80f: 티키 롱패스 감점 (사용자 2026-10-30 "짧은 패스는 조금 더 높게 주고 롱 패스에 조금 감점") — 티키타카 성향 패서의 tikiLongFrom m 넘는 패스 효용에서
        * tikiLong × 거리 가중(tikiLongFrom m 0 → tikiLongTo m 에서 1)을 뺀다. 판단 효용에만(실행 불변). 감점 안 함: 오픈 플레이 탈취 뒤 decide.possess.winOff 초 안(전환),
        * 역습 보너스가 걸린 상황, 판단 성공 확률 tikiLongShortP 이상인 tikiLongFrom m 안 패스 후보가 없을 때(압박 탈출). 0 = 끔
@@ -1118,6 +1123,11 @@ export const ENGINE = {
      */
     longFarFrom: 32,
     longFarPerM: 0.015,
+    /**
+     * C.80w: 공중 롱패스(airPass m 넘는 패스) 착지 정확도 — 비행 실패 확률(빗나감·차단) × longMiss (1 = 끔).
+     * passProbability 에 걸려 판단(본인·평균 선수)과 실행(makePass)이 같은 값을 본다 (엔진관리자25 ✗7: 성공률 36.7%, 실패 대부분이 비행 빗나감)
+     */
+    longMiss: 0.6,
     laneWidth: 1.8,
     laneBase: 0.25,
     laneIntercept: 0.15,

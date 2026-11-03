@@ -175,7 +175,9 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
   const p = passDistBase(d) - lane.risk - PR.pressurePenalty * pressureAt(s, a) - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
-  return passSkillApply(p, skill);
+  const ps = passSkillApply(p, skill);
+  // 공중 롱패스 착지 정확도 (C.80w): 실패 확률 × longMiss
+  return kind === 'pass' && d > PR.airPass && PR.longMiss !== 1 ? 1 - (1 - ps) * PR.longMiss : ps;
 }
 
 /** 거리만으로 정한 패스 성공 기본값 (C.31): 숏 구간 passPerM, 25 m 너머 longPerM, longFarFrom 너머 longFarPerM */
@@ -765,7 +767,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const tMul = target === r && d0 >= TA.longBall ? TENDENCY.directTargetMul : 1;
     const wMul = forward ? winMul : 1;
     // 역할 (E.6, E3.7): 롱패스 선호, 받는 선수의 공 요구(③)
-    const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1);
+    // 공중 롱패스 효용 가중 (C.80w): 착지 정확도(prob.longMiss)와 짝 — 판단에만
+    const roleMul = (d0 >= TA.longBall ? a.role.pref.long : 1) * (hasModule(r.role, 'demand') ? ENGINE.roles.demandPass : 1) * (d0 > PR.airPass ? DB.longW : 1);
     const passW = a.role.pref.pass * (forward ? a.role.pref.forward : a.role.pref.safe * safeMul) * (direct ? mDirect : mPoss) * tMul * wMul * roleMul * (forward ? risk : safeRisk);
     // 직선 전환 롱볼 (C.79d): 직선 성향 · 오픈 플레이 탈취 뒤 counterWinTime 초 안 · 공중(airPass 초과) 전진 패스에만 판단 보정 (실행 불변)
     const dLongB = ENGINE.decide.bias.directLong > 0 && tac.tendency === 'direct' && d0 > PR.airPass && forward

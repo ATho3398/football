@@ -86,6 +86,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
       const offside = fl.outcome === 'receive' && isOffside(s, a, receiver);
+      if (probe.long && dist(a.x, a.y, c.x, c.y) >= 30) probe.long(s, offside ? 'offside' : `launch:${fl.air ? 'air' : 'ground'}:${fl.outcome}`, c.p);
       s.exemptPass = false;
       if (offside) {
         callOffside(s, a, receiver);
@@ -910,6 +911,8 @@ export function resolveFlight(s: SimState): void {
       return;
     case 'receive': {
       const rc = s.agents[fl.receiver]!;
+      const longP = probe.long && Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30 ? probe.long : undefined;
+      if (longP && !(rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4)) longP(s, 'arrive:far', dist(rc.x, rc.y, b.x, b.y));
       if (rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4) {
         // 롱볼은 착지점에서 수비수와 경합
         if (fl.air) {
@@ -922,6 +925,7 @@ export function resolveFlight(s: SimState): void {
             def.stats.aerialDuels++;
             if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def, fitPts(s, rc.team, 'air') - fitPts(s, def.team, 'air'), dd < PR.longContest ? 0 : PR.airContestBias)) {
               def.stats.aerialsWon++;
+              longP?.(s, 'arrive:airLost', dd);
               giveBall(s, def, 'gain');
               return;
             }
@@ -937,6 +941,7 @@ export function resolveFlight(s: SimState): void {
           const lostRecv = def !== null && dd < cd && r(s, rc.idx, Purpose.Control, 3) >= pRecv;
           if (probe.receive && def && dd < cd) probe.receive(s, rc, def, dd, inBox, pRecv, !lostRecv);
           if (def && lostRecv) {
+            longP?.(s, 'arrive:groundLost', dd);
             def.stats.tackles++;
             def.stats.tacklesWon++;
             s.teams[def.team].stats.tackles++;
@@ -950,6 +955,7 @@ export function resolveFlight(s: SimState): void {
             return;
           }
         }
+        longP?.(s, 'arrive:ok');
         giveBall(s, rc, 'receive', fl);
         return;
       }

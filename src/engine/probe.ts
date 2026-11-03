@@ -54,6 +54,8 @@ export const probe: {
   decide?: (s: SimState, p: DecideProbe) => void;
   /** 땅볼 수신 경합 1건 (C.80k 측정용): 받는 선수 rc · 경합 수비수 def · 거리 dd · 박스 안 · 받을 확률 p · 받음 */
   receive?: (s: SimState, rc: Agent, def: Agent, dd: number, inBox: boolean, p: number, won: boolean) => void;
+  /** 30 m+ 패스 단계별 결과 (C.80w 측정용): 실행 시 비행 결과(launch) · 도착 처리(arrive) */
+  long?: (s: SimState, ev: string, p?: number) => void;
 } = {};
 
 /** 유효 슈팅 비행의 shot 객체 → 기록 (결과를 save·goal 로 고친다) */
