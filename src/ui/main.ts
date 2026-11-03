@@ -61,6 +61,7 @@ import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
+import { PATCH_LABEL, STAGE_LABEL } from '../version';
 import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, Tabs, Toast, type ToastProps } from './components';
 import {
   allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
@@ -105,7 +106,8 @@ import { contractView, marketCard, newsSection, offersView, tagNewsSection } fro
 import { marketVM, newsVM } from './transferVM';
 import { cropStyle, foRangeText, lookupEntry, myLookVM, SET_UI_DEFAULT, settingsView, setPrecomputeStatus, type FaceOnUI, type NameUI, type PixelUI, type SetPage, type SetSec, type SetUI } from './views/settings';
 import { CARD_ART_UI_DEFAULT, caRangeText, type CardArtUI, type CardKindFilter } from './views/cardArtSettings';
-import { applyUpdate, registerServiceWorker, updateReady } from '../pwa/register';
+import { applyUpdate, checkForUpdate, laterUpdate, registerServiceWorker, takeUpdatedNotice, updateState } from '../pwa/register';
+import { versionName } from '../pwa/update';
 import { clearCardArt, exportSaveFile, importSaveFile, initCardArt, normalizeArt, setCardArt, setCardArtPos, userArtBlob, cardArtPos } from './cardArt';
 import { artLayer } from './components/gameCard';
 import { emptyOverrides, kitClash, setKitOverride, setPersonOverride } from '../pixel';
@@ -254,7 +256,6 @@ const ui = {
   /** 설정 화면에서 돌아갈 화면 */
   settingsBack: 'home' as Screen,
   /** 새 버전 알림 띠 [나중에] (C.77r): 이번 실행 동안 숨긴다 */
-  swLater: false,
   /** 선수 화면 태그 전체 시트 (C.47 → C.58 디자인 135) */
   tagsAll: false,
   /** 선수 화면 탭 (C.58 디자인 93~96·134·136), 몸·태그 탭 이름표 편집 펼침 */
@@ -767,9 +768,15 @@ function render(): void {
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount, ui.autoPrefs) : '')
     + (ui.moreSheet && g && isWide() && !isLandPhone() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '')
     + celebrateHtml(g);
-  // 새 버전 (C.77r): 경기 중·진행 띠·모달이 떠 있을 때는 미룬다 (자동으로 새로고침하지 않는다)
-  const upd = updateReady() && !ui.swLater && !live && !bandToast && !m
-    ? `<div class="sw-update" role="status"><span class="grow"><b>새 버전</b><small>다시 열면 적용돼요 (자동 저장 뒤)</small></span>${Button({ size: 'sm', act: 'sw-reload', children: '다시 열기' })}${Button({ variant: 'ghost', size: 'sm', act: 'sw-later', children: '나중에' })}</div>`
+  // 새 버전 (C.77r → C.80x): 새 배포가 나오면 늘 위에 고정 배너. [업데이트] 한 번 = 저장 → 새 버전으로 → 새로고침.
+  // 실시간 경기 중에는 배너만(단추는 경기가 끝난 결과 화면부터). 진행 띠·모달이 떠 있을 때는 잠깐 숨긴다
+  const us = updateState();
+  const upd = us.available && !us.later && !bandToast && !m
+    ? `<div class="sw-update">${Banner({
+      tone: 'success', icon: 'info', title: `새 버전이 나왔어요 · ${versionName(us.remote)}`,
+      children: us.applying ? '저장하고 새 버전을 받는 중…' : live ? '경기가 끝나면 업데이트할 수 있어요' : us.remote && us.remote.save !== SAVE_FORMAT_VERSION ? '누르면 저장한 뒤 바뀌어요 · 세이브는 새 버전으로 자동으로 옮겨져요' : '누르면 저장한 뒤 바로 바뀌어요',
+      ...(us.applying || live ? {} : { action: '업데이트', onAction: { act: 'sw-reload' } }),
+    })}${us.applying ? '' : Button({ variant: 'ghost', size: 'sm', act: 'sw-later', children: '나중에' })}</div>`
     : '';
   app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}${upd}`;
   fitHeroNames();
@@ -1684,13 +1691,22 @@ app.addEventListener('click', (ev) => {
 
   switch (act) {
     case 'sw-reload':
-      // 새 버전으로 (C.77r): 자동 저장을 끝낸 뒤 넘어간다
+      // 새 버전으로 (C.77r → C.80x): 세이브를 확정 저장한 뒤 넘어간다 (경기 중에는 못 누른다)
       if (liveScreen()) return;
-      void autosave().then(applyUpdate);
+      void applyUpdate(autosave);
       return;
     case 'sw-later':
-      ui.swLater = true;
-      render();
+      laterUpdate();
+      return;
+    case 'upd-check':
+      // 설정 맨 아래 [업데이트 확인] (C.80x)
+      showToast('새 버전 확인 중…', 1200);
+      void checkForUpdate().then((found) => {
+        if (found) {
+          ui.toast = null;
+          render();
+        } else showToast({ kind: 'info', title: '최신 버전이에요', body: versionName({ patch: PATCH_LABEL, stage: STAGE_LABEL }) }, 2000);
+      });
       return;
     case 'intro-ok':
       if (!g) return;
@@ -3874,3 +3890,8 @@ app.addEventListener('error', (ev) => {
 void initSaves().then(render, () => render());
 // 오프라인 PWA (C.77r): 배포 빌드에서만 서비스 워커. 새 버전이 설치되면 알림 띠
 registerServiceWorker(() => render());
+// 새 버전으로 새로고침한 뒤 첫 화면 (C.80x): "업데이트됨 · 버전" 토스트 한 번
+{
+  const n = takeUpdatedNotice();
+  if (n) showToast({ kind: 'info', title: n.text }, n.ok ? 2600 : 3600);
+}

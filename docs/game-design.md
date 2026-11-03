@@ -6730,6 +6730,22 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 테스트: 장면 ④ 1대1 골 0.219(saveBase 1.86, drop 0.16) → 0.263(drop 0.24) · 이동 거리 테스트는 saveBase 1.86 에서 15.54 km(시드 의존) → 1.85·1.82 통과 · `c76w` 시드 87~89 → 94~96(C.80w 와 같은 창) · `c80w` 상수 saveBase 1.75 → 1.82 · 2초 테스트는 측정 동시 실행 때만 2.11~2.18 s(단독 통과) · `c78o` CB 라운드 +3·+0 → +4·+1(1대1 멈춤 시드 의존, +1·2·4~6 통과) · **평점 정규화 `rating.center.ST` 2.45 → 2.53** — 롱패스 병합 뒤 engine:check ST 6.73(가드 ≤ 6.7) → `rating-parts 600` + `c78r-rating-fit`(그 표본 ST 6.70, 맞춤 2.56) 가드 밖 ST 만(§9.12.7) → ST 6.66 · 무득점 6.06, 경량 가드 모두 통과. 테스트 169파일 1344개 ✓ · typecheck ✓ · balance:check 는 CI.
 - **안 된 것**: ① 크로스·컷백 순간 박스 인원 2.5(목표 ≥ 3.0) — 늦은 침투 문턱·두 번째 미드 자리 깊이(edgeZone 12~16)·침투 출발 위치(0.5~0.58) 모두 무반응. 수치 레버로 안 됨 → 크로스 순간 누가 어디 있는지 진단 필요(오프사이드 라인 제한 `min(nx, line − 0.5/L)` 후보). ② 리바운드 골 3%(목표 ≥ 5) — 캐치 −0.1·쳐낸 공 3 m/s·코너 0.15 까지도 3~4%. 쳐낸 공을 수비가 먼저 줍는 구조로 보임(진단 필요). ③ 윙어 득점 비중 26%(지시 "20~25 유지", 롱패스 병합 전 23~24). ④ 직선>블록 −0.03(경계).
 - 측정 보조 세션 8개(draft_c80u-*), 상성 자료 `scripts/diag/c80u-N41-s41.json`·`c80u-N51-s51.json`(9a2ec13 960).
+
+### C.80x 53단계_새 버전 알림·한 번에 업데이트 (사용자 2026-11-04 03:4x KST "이제 새 앱 나오면 무조건 지난 앱은 최신 버전 나왔다고 띄우고 버튼만 누르면 업데이트되게 바꿔.", 마스터 AD `docs/session-prompts/C.80x.md`, Opus): **새 배포가 나오면 화면 위 고정 배너 "새 버전이 나왔어요 · {PATCH · 단계} — [업데이트] [나중에]". [업데이트] 한 번 = 세이브 확정 저장 → 새 버전으로 → 새로고침 → "업데이트됨 · {버전}" 토스트** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 엔진·세이브 무수정)
+
+1. **감지 두 갈래** (`src/pwa/update.ts`, 브라우저 연결 `src/pwa/register.ts`):
+   - 서비스 워커: `updatefound` → `installed`(대기) · 켤 때 이미 대기 중(`reg.waiting`). 처음 설치(컨트롤러 없음)는 새 버전이 아니다.
+   - 확인 시점: 앱 켤 때 · 화면으로 돌아올 때(`visibilitychange`) · 30분마다 `registration.update()` + `version.json`.
+   - `version.json`(빌드 때 `vite.config.ts` 가 만듦: patch·stage·engine·balance·save·commit·date): 지금 빌드 커밋과 다르면 새 버전. 서비스 워커가 없는 환경(일반 탭·서비스 워커 막힘)도 이걸로 감지. 서비스 워커는 이 파일을 캐시하지 않는다(늘 네트워크). 개발 빌드(커밋 dev)는 확인하지 않는다.
+2. **배너** (`main.ts`, 기존 Banner 컴포넌트를 고정 칸에): 실시간 경기 중이면 단추 없이 "경기가 끝나면 업데이트할 수 있어요"(경기 화면 띠 아래로 내림) — 결과 화면부터 [업데이트]. 진행 띠·모달이 떠 있을 때는 잠깐 숨김. 새 배포의 세이브 형식(version.json save)이 지금과 다르면 "세이브는 새 버전으로 자동으로 옮겨져요"(C.80y 와 맞춘 문구). [나중에] = 다음 확인(돌아올 때·30분) 때 다시 뜬다.
+3. **[업데이트]**: `autosave()` 완료 → 대기 워커에 `SKIP_WAITING`(옛 워커가 보내는 `skip-waiting` 도 받음) → 이 탭에서 누른 때만 `controllerchange` 에서 한 번 새로고침(무한 새로고침·다른 탭 경기 중 새로고침 방지). 대기 워커가 아직 없으면 `reg.update()` 로 설치를 최대 15초 기다림. 서비스 워커가 없으면 첫 화면(./, index.html)을 `cache: reload` 로 다시 받은 뒤 `?v=새커밋` 으로 새로고침. 서비스 워커가 쥐고 있는데 설치가 안 되면 'po-' 캐시를 비우고 등록 해제 뒤 새로고침.
+4. **새로고침 뒤**: 누르기 전 커밋을 `po-updated-from` 에 남겨, 다음 부팅에서 커밋이 바뀌었으면 "업데이트됨 · {PATCH · 단계}" 토스트 한 번, 그대로면 "업데이트를 아직 못 받았어요 · 잠시 뒤 다시 눌러 주세요".
+5. **세이브 이전(C.80y)과 경계**: 이 패치는 세이브·이전 코드를 건드리지 않는다. 업데이트 토스트는 부팅 직후(세이브 열기 전)에 뜨고, 세이브 열기·이전 실패 안내(C.80y 토스트·모달)가 뒤에 오면 그 안내가 덮는다 — 실패 안내가 늘 우선.
+6. **설정 맨 아래**: "버전 {PATCH_LABEL} · {STAGE_LABEL} · [업데이트 확인]" 줄(새 버전이면 배너, 아니면 "최신 버전이에요" 토스트).
+7. **확인**: 단위 테스트 `tests/c80x.test.ts`(가짜 registration — 대기 워커·updatefound·주기 확인·[나중에]·다른 탭 controllerchange·version.json 경로·새로고침 뒤 문구, 9개). Playwright 로 같은 경로(/football/)에 옛 빌드(커밋 old1111) → 새 빌드(new2222)로 바꿔 서빙: 서비스 워커 있음·막힘 두 경우 모두 [업데이트 확인] → 배너 → [업데이트] → "업데이트됨" 토스트 → 바닥 버전 줄 커밋 new2222, 다시 열어도 새 버전·배너 없음. 캡처 `docs/captures/c80x/`(sw-1-banner · sw-2-updated · nosw-1-banner · nosw-2-updated). 빌드 커밋은 시험용 `PO_BUILD_COMMIT` 로 덮어쓸 수 있다.
+8. **CI**: `.github/workflows/pages.yml` `concurrency.cancel-in-progress` true → **false** (마스터 AD 04:47 KST) — 진행 중 배포 CI 는 끝까지 돌고, 그 사이 새 푸시는 최신 1개만 대기. 연속 푸시로 CI 가 5번 연달아 취소되던 문제.
+9. **남은 것**: 실시간 경기 중 배너(단추 없음) 모양은 Playwright 로 찍지 않았다(렌더 조건만). 이번 배포를 받는 첫 번째 옛 앱(C.80q 이전 코드)은 옛 띠("새 버전 · 다시 열기")로 넘어오고, 그 다음 배포부터 새 배너가 뜬다.
+
 ### C.80t 53단계_게겐 역압박 되살리기·게겐>티키 폭 조정 (마스터 AD `docs/session-prompts/C.80t.md`, 근거 엔진관리자25 `docs/engine-health-em25.md` ✗1·✗6, Opus): **수치 2개 — ① 게겐 역압박 가담 확률 가산 `TENDENCY.gegenJoin` 0.35(새, `offball.counterJoin` 0.4 에 게겐만 더함) ② 상대 성향별 보정표 티키 → 게겐 칸 `ENGINE.matchup.tikitaka.gegenpress = { short: 2, keep: 2 }`(티키가 게겐 상대할 때 짧은 패스·공 지키기 +2 능력치 점수)** (ENGINE_VERSION 81(C.80w) → **82**, merge 순서 C.80v 77 · C.80r 78 · C.80q 79·80 · C.80s · C.80w 81 뒤; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 
 - 코드: `core.ts turnover` 역압박 가담 확률 = counterJoin + (게겐 ? gegenJoin : 0) + counterJoinPress × 역할 press + counterJoinWork × 노력/100 (× 피로·순간 체력). 판단 = 실행 문제 없음(난수 문턱만). 보정표는 C.80p `matchupPts` 그대로(판단·실행 같은 값).
