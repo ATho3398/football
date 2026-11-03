@@ -77,6 +77,8 @@ export interface Agent {
   supportRun: boolean;
   /** CB 빈자리 침투 중 (C.78e ②): 달리는 동안 이 y(정규화)로, 아니면 −1 */
   gapY: number;
+  /** 펄스 나인 빈자리 침투 중 (C.80r): 9번이 내려온 순간 시작한 2선 침투 — 달리는 동안 중앙 쪽 길(roles.nineVacateLane)로 */
+  vacRun: boolean;
   /** 풀백 오버래핑 중 (C.78i ②): 달리는 동안 공 앞 측면 길로 */
   overlap: boolean;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
@@ -272,6 +274,8 @@ export interface TeamState {
   sitCandSince: number;
   /** 전술 적합도 (C.80e, fit.ts): 성향별 핵심 능력치 차이 − 리그 보통 (점수, 킥오프 선발 기준) */
   fit: Record<FitTendency, number>;
+  /** 공격 몰빵 초과 인원 (C.80q, stack.ts): 킥오프 선발 공격 포지션 인원 − n + 1 (0 = 안 걸림) */
+  stackOver: number;
 }
 
 /** 수비 상황 (C.75c, pending 41): A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박 */

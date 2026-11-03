@@ -3,6 +3,7 @@
 import { bodyMods } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../attributes';
 import { FORMATION_SLOTS } from '../formations';
+import { stackDrainMul, stackOver } from './stack';
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
 import * as config_ from './config';
 const { ENGINE } = config_;
@@ -104,7 +105,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
+    runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
     pre: null, otMul: 1, otUntil: -1,
@@ -137,6 +138,7 @@ export function createState(input: EngineInput): SimState {
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
       tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
       fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
+      stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
     advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
@@ -382,6 +384,7 @@ function startSecondHalf(s: SimState): void {
     a.exitRun = false;
     a.supportRun = false;
     a.gapY = -1;
+    a.vacRun = false;
     a.overlap = false;
     // C.45: 시계가 전반 추가시간(예 2840초)에서 2700초로 돌아가므로 전반에 잡아 둔 시각들도 비운다.
     // 그대로 두면 오프더볼 갱신이 전반 끝 시각까지 멈춰 후반 시작 뒤 최대 2분 넘게 제자리에 서 있는 선수가 생긴다
@@ -610,7 +613,9 @@ function stepTail(s: SimState): void {
     const tm = s.teams[a.team];
     const drain = (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * tm.tactics.pressing)
       * (tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1)
-      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1);
+      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1)
+      // 공격 몰빵 억제 (C.80q ②): 상대 소유 중 자기 골 쪽으로 복귀하는 공격 포지션 선수 체력 소모 ×
+      * (tm.stackOver > 0 ? stackDrainMul(s, a) : 1);
     // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
     if (a.idx === b.owner) clearFeed(a);
     else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);

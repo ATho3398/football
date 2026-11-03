@@ -17,6 +17,7 @@ export function tacticsView(vm: TacticsVM): string {
     <div class="tac-grid">${vm.tendencies.map((t) => TacticChip({ tactic: t.style, fit: t.fit, selected: t.on, act: 'tac-tend', data: { v: t.id } })).join('')}</div>
     <p class="small"><b>${esc(vm.tendencyName)}</b> · ${esc(vm.tendencyDesc)}</p>
     ${vm.tendencyWarn ? `<p class="small warn">${esc(vm.tendencyWarn)}</p>` : ''}
+    ${vm.stackWarn ? `<p class="small warn">${esc(vm.stackWarn)}</p>` : ''}
     <p class="small muted">성향을 고르면 세부 전술과 역할의 기본값이 채워지고, "자세히"에서 그 위에 바꿀 수 있어요.</p>`;
 
   const toggle = Button({
@@ -31,7 +32,7 @@ export function tacticsView(vm: TacticsVM): string {
           <span class="small muted">${vm.edit
             ? '선수를 끌어다 놓거나, 선수를 누른 뒤 놓을 곳을 눌러요. 가까운 자리에 붙고 그 자리 포지션(FW·W·CM 등)이 정해져요. 수비 3명 이상, 중원·공격 1명 이상, 공격 줄은 최대 4명(임시 규칙: 공격수를 몰아넣는 대형이 지나치게 강해서 엔진을 고칠 때까지 막아 둬요).'
             : '대형 편집으로 선수 자리를 바꿀 수 있어요. 역할은 자리의 포지션에 맞춰 골라요.'}
-            실험 기능: 지금은 공격수를 아주 많이 둔 대형이 실제보다 유리하게 나와요(엔진 수정 예정).</span></span>
+            공격 포지션(윙·CAM·ST)을 5명 이상 두면 연계가 떨어지고 수비 전환 때 체력이 더 빨리 닳아요.</span></span>
           ${Button({ size: 'sm', variant: vm.edit ? 'primary' : 'secondary', icon: vm.edit ? 'check' : 'player', act: 'tac-edit', children: vm.edit ? '편집 끝' : '대형 편집' })}</div>`) : ''}
       ${FormationPitch({ slots: vm.slots, edit: vm.edit, label: `${vm.formationName} 포메이션, 내 위치 ${vm.me.pos}` })}
       ${panel(`<div class="kv tac-me"><span><b>내 위치 <span class="mine">${esc(vm.me.pos)} · ${esc(vm.me.role)}</span></b>

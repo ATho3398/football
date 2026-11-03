@@ -33,9 +33,11 @@ export function effectiveTactics(s: SimState, team: 0 | 1): { lineHeight: number
   const base = s.teams[team].tactics;
   const d = manDiff(s, team);
   const R = ENGINE.referee;
-  if (d < 0) return { lineHeight: clamp(base.lineHeight - R.shortLine, 0, 1), pressing: clamp(base.pressing - R.shortPress, 0, 1) };
-  if (d > 0) return { lineHeight: clamp(base.lineHeight + R.extraLine, 0, 1), pressing: clamp(base.pressing + R.extraPress, 0, 1) };
-  return base;
+  // 공격 몰빵 억제 (C.80q ③): 공격 줄에 끌려 수비 라인이 올라간다 (안 걸리면 0)
+  const up = ENGINE.stackCap.line * s.teams[team].stackOver;
+  if (d < 0) return { lineHeight: clamp(base.lineHeight - R.shortLine + up, 0, 1), pressing: clamp(base.pressing - R.shortPress, 0, 1) };
+  if (d > 0) return { lineHeight: clamp(base.lineHeight + R.extraLine + up, 0, 1), pressing: clamp(base.pressing + R.extraPress, 0, 1) };
+  return up > 0 ? { lineHeight: clamp(base.lineHeight + up, 0, 1), pressing: base.pressing } : base;
 }
 
 /** 전술 압박 단계 0 낮음 / 1 보통 / 2 높음 (실효 pressing, C.75c 수비 계획 인원표) */
@@ -581,6 +583,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     a.exitRun = false;
     a.supportRun = false;
     a.gapY = -1;
+    a.vacRun = false;
     a.overlap = false;
   }
   // 풀백 오버래핑 (C.78i ②): 그 측면 상대 윙어가 높이 남았고 앞 측면 길이 비었으면 공 앞으로 전진 (한 팀에 한 쪽)
@@ -621,9 +624,15 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     let chance = a.role.run * (a.attrs.offTheBall / 100) * O.runChance * Math.max(0.3, 1 + (O.runPace * (a.attrs.pace - 70)) / 100);
     // ② 줄 사이: 펄스 나인이 내려와 비운 중앙으로 2선(침투 성향 run ≥ lateRunRun)이 더 자주 뛰어든다 (E3.7 역할 반응)
     if (a.role.run >= O.lateRunRun && !hasModule(a.role, 'between') && s.agents.some((o) => o.onPitch && o.team === a.team && o.role.id === 'falseNine')) chance *= 1 + RM.nineVacate;
+    // 펄스 나인 빈자리 침투 (C.80r): 9번이 실제로 내려와(deepNine) 박스 중앙이 비었으면 2선(CM·CAM·윙, run ≥ lateRunRun)은 더 자주, 중앙 길로 뛰어든다
+    const vac = RM.nineVacateRun > 0 && a.pos !== 'ST' && a.pos !== 'CF' && a.role.run >= O.lateRunRun && !hasModule(a.role, 'between') && deepNine(s, a.team);
+    if (vac) chance *= 1 + RM.nineVacateRun;
     // 2단 체력 (C.78w): 순간 체력이 낮으면 침투 질주를 덜 고른다
     chance *= BU.runFloor + (1 - BU.runFloor) * burstReady(a);
-    if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) a.runUntil = s.t + O.runSeconds;
+    if (rand(s.seed, s.tick, a.idx, Purpose.Run) < chance) {
+      a.runUntil = s.t + O.runSeconds;
+      a.vacRun = vac;
+    }
   }
   let running = s.t < a.runUntil;
   // 라인을 타는 정확도: 능력치가 낮을수록 라인보다 앞에 설 확률이 높다
@@ -643,6 +652,8 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (a.exitRun) ny = 0.5 + (ny - 0.5) * O.exitLane;
     // 역습 지원 (C.78d ②): 자기 쪽 측면 길(중앙 ± supportLane)로 앞으로
     if (a.supportRun) ny = 0.5 + (toNorm(a.x, a.y, dir)[1] >= 0.5 ? 1 : -1) * O.supportLane;
+    // 펄스 나인 빈자리 침투 (C.80r): 중앙 쪽 길로
+    if (a.vacRun) ny = 0.5 + (ny - 0.5) * RM.nineVacateLane;
     // CB 빈자리 침투 (C.78e ②): 빈자리 채널로
     if (a.gapY >= 0) ny = a.gapY;
     // 풀백 오버래핑 (C.78i ②): 공(또는 자기) 앞 fbOverlapAhead m 측면 길, 오프사이드 라인 안쪽
