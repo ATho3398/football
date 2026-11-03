@@ -331,6 +331,8 @@ function updateLooseBall(s: SimState): void {
   for (const a of s.agents) {
     if (!a.onPitch || dist(a.x, a.y, b.x, b.y) > (b.reserve ? B.reserveSteal : B.controlDist)) continue;
     if (b.reserve && (a.team === s.agents[b.reserve.idx]!.team || a.idx === b.reserve.from)) continue;
+    // 실험 스위치 (엔진관리자26, 기본 0 = 끔): 쳐낸·놓친 GK 는 handBlock 동안 발 컨트롤도 못 한다
+    if (ENGINE.keeper.parryFootBlock > 0 && b.handBlock && b.handBlock.idx === a.idx && s.t < b.handBlock.until) continue;
     const pressure = nearestOpponentDist(s, a) < 2 ? 0.1 : 0;
     // 날씨 (C.74a): 젖은·언 공 컨트롤 × touch
     const p = (B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure) * s.env.touch;

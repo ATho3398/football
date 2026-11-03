@@ -669,6 +669,11 @@ export const ENGINE = {
     halfSpaceSpread: 0.18,
     boxRunSpread: 0.12,
     edgeZone: 22,
+    /** 실험 스위치 (엔진관리자26, 기본 0 = 끔): 우리 슛 뒤 shotFollow 초 동안(공이 아직 아무 팀 소유도 아닐 때) 골에서 shotFollowR m 안 2선·공격수(추격자 제외)는
+     * 골 앞 shotFollowDepth m · 중앙 쪽(자기 y 와 중앙의 중간) 리바운드 자리로 따라 들어간다 */
+    shotFollow: 0,
+    shotFollowR: 22,
+    shotFollowDepth: 8,
     /**
      * 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 이 공이 상대 진영 wideFromX(정규화)를 넘으면 역할 자리로 — 반대쪽 측면 공 = 먼 포스트, 같은 쪽 = 오버랩(소유자 앞 overlapAhead m, 터치라인 wideTouch)
      * 또는 언더랩(소유자 앞 underlapAhead m 이상·하프스페이스; 풀백이 공을 가졌거나 소유자보다 wideFbAhead m 뒤까지 바깥으로 올라와 있거나 소유자가 터치라인 wideTouch 밖이면),
@@ -1005,6 +1010,9 @@ export const ENGINE = {
        * 빌드업 '직선' 배수(모든 롱볼 선호, 직선 성향 기본 단계에서 뺌) 대신 전환 상황부 선호. 0 = 끔
        */
       directLong: 0.1,
+      /** 실험 스위치 (엔진관리자26, 기본 0 = 끔): 박스 안 동료가 crossBoxMin 명보다 적으면 모자란 1명당 크로스 효용 −crossBox */
+      crossBox: 0,
+      crossBoxMin: 3,
       /**
        * C.80w: 공중 롱패스(airPass m 넘는 패스·침투) 효용 가중(weight, 1 = 끔) — 착지 정확도(prob.longMiss)를 올려 판단 성공 확률이 같이 오르면
        * 롱패스 시도 비율이 목표(10~16%)를 넘으므로 판단 효용 가중만 같이 낮춘다(판단 보정 원칙, 실행 불변)
@@ -1722,6 +1730,10 @@ export const ENGINE = {
     handSpeedPenalty: 0.05,
     fumbleSpeed: [1.5, 3.5] as [number, number],
     handBlock: 0.6,
+    /** 실험 스위치 (엔진관리자26, 기본 0 = 끔): 쳐내거나 놓친 GK 는 parryDown 초 동안 제자리(쓰러짐) */
+    parryDown: 0,
+    /** 실험 스위치 (엔진관리자26, 기본 0 = 끔): 1 이면 쳐낸·놓친 GK 는 handBlock 초 동안 발 컨트롤도 못 한다 */
+    parryFootBlock: 0,
     /** 같은 팀 백패스는 발·몸으로 막는다 (C.28): 반경 footRange m, 보통 컨트롤 식이지만 공 속도 상한은 handMaxSpeed */
     footRange: 1.5,
     /** 루즈볼일 때 GK 오프더볼 갱신 간격 (초, C.28) */

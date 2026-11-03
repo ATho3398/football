@@ -478,6 +478,13 @@ export function updateOffball(s: SimState, a: Agent): void {
       return;
     }
   }
+  // 쳐낸 뒤 쓰러짐 (엔진관리자26 실험 스위치, 기본 0 = 끔): 쳐낸 GK 는 parryDown 초 동안 제자리
+  if (a.line === 0 && ENGINE.keeper.parryDown > 0 && b.handBlock && b.handBlock.idx === a.idx && s.t < b.handBlock.until - ENGINE.keeper.handBlock + ENGINE.keeper.parryDown) {
+    a.tx = a.x;
+    a.ty = a.y;
+    a.urgent = false;
+    return;
+  }
   if (a.line === 0 && !s.restart) {
     // 루즈볼 추격 (C.28): 처리 구역 안에서 상대보다 먼저 닿는 공이면 나간다
     const chase = keeperChase(s, a);
@@ -566,6 +573,16 @@ export function updateOffball(s: SimState, a: Agent): void {
   const [bnx, bny] = ballNorm(s, a.team);
   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
+  // 슛 따라 들어가기 (엔진관리자26 실험 스위치, 기본 0 = 끔)
+  if (attacking && O.shotFollow > 0 && b.owner < 0 && a.line >= 2 && s.t - s.lastShotT[a.team] < O.shotFollow && s.t >= s.lastShotT[a.team]) {
+    const [gx, gy] = [dir > 0 ? L : 0, W / 2];
+    if (dist(a.x, a.y, gx, gy) < O.shotFollowR) {
+      a.tx = gx - dir * O.shotFollowDepth;
+      a.ty = (a.y + gy) / 2;
+      a.urgent = true;
+      return;
+    }
+  }
   if (attacking) attackTarget(s, a, dir, bnx, bny);
   else defendTarget(s, a, dir, bnx, bny);
 }
