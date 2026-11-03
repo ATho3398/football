@@ -113,9 +113,10 @@ export const TARGETS: Record<SceneId, SceneTarget> = {
     check: (v) => v.lmArr! >= 0.8 && v.lmT! <= v.lwT! + 1 && v.lmT! < v.lmOffT! && v.lmEnd! < v.lmOffEnd!,
   },
   // C.78e ㉒: CB 따라감 ≥ 40% · 2선 빈자리 채널 침투 ≥ 25%(끔보다 0.2 이상 많음) · 그 채널로 패스 ≥ 10%(끔보다 많음)
+  // C.81a: 30시드 중 6개 차(0.2)가 부동소수 0.4 + 0.2 > 0.6 으로 ✗ 되던 경계 — 허용 오차 1e-9 (main 0.433/0.233, C.81a 0.600/0.400: 늦은 침투 출발 0.6 으로 끔 쪽도 채널 도착)
   nineFollow: {
     goal: '㉒ 펄스 나인 내려옴 → CB 따라감 → 2선 빈자리 침투 패스 (C.78e)', enabled: true,
-    check: (v) => v.follow! >= 0.4 && v.run! >= 0.25 && v.run! >= v.runOff! + 0.2 && v.pass! >= 0.1 && v.pass! > v.passOff!,
+    check: (v) => v.follow! >= 0.4 && v.run! >= 0.25 && v.run! >= v.runOff! + 0.2 - 1e-9 && v.pass! >= 0.1 && v.pass! > v.passOff!,
   },
   // C.78e ㉓: CB 가 라인을 지키면 받은 0.3초 뒤 앞을 봄 ≥ 60%(돌아서기 끔 ≈ 0) · 첫 행동 전진이 돌아서기 끔보다 많음 · 상대 중원이 먼저 닿으면 CB 따라감이 0.2 이상 적고 판단 끔보다 적다
   nineHold: {

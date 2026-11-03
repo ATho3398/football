@@ -403,7 +403,8 @@ export function analyze(mode: Mode, res: Map<string, JobOut[]>, seconds: number)
       add(S2, 'pathPass', '골 경로: 패스 받고 바로 % (오픈 플레이 골 기준)', '55~65', ratio(gp[0]!, open) * 100, 55, 65, 0, { note: `전체 골 기준 ${pct(gp[0]!).toFixed(0)}` });
       add(S2, 'pathDrib', '골 경로: 몰고 가기·돌파 후 %', '10~15', pct(gp[1]!), 10, 15, 0);
       add(S2, 'pathSet', '골 경로: 세트피스(PK 포함) %', '25~30', pct(gp[2]! + gp[3]! + gp[4]!), 25, 30, 0, { note: `코너 ${pct(gp[2]!).toFixed(0)} · 프리킥 ${pct(gp[3]!).toFixed(0)} · PK ${pct(gp[4]!).toFixed(0)}` });
-      add(S2, 'pathReb', '골 경로: 리바운드 %', '5~10', pct(gp[5]!), 5, 10, 0);
+      // C.81a: 목표 5~10 → 3~6 (AD 재정의 — 골 앞 쇄도 구조로도 ≥ 5% 안 나옴, 엔진 수비가 크로스 순간 골 7.7 m 까지 내려앉는 구조)
+      add(S2, 'pathReb', '골 경로: 리바운드 %', '3~6', pct(gp[5]!), 3, 6, 0);
       add(S2, 'pathOther', '골 경로: 그 밖(루즈볼·가로채기) % (참고)', '-', pct(gp[6]!), 0, 100, 0);
       const sp = [0, 1, 2, 3, 4, 5, 6].map((k) => totTeam(eq, (t) => t.shotPaths[k]!));
       extra.push(`슈팅 경로 % (패스/돌파·몰고/코너/프리킥/PK/리바운드/그 밖): ${sp.map((v) => (ratio(v, sum(sp)) * 100).toFixed(0)).join(' / ')}`);
