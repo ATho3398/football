@@ -1,5 +1,6 @@
 // 경기 시뮬 루프 (E.2, E.3): 10Hz 물리, 0.3~0.8초 간격 의사결정
 
+import { fieldOf, onOf } from './lists';
 import { bodyMods } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../attributes';
 import { FORMATION_SLOTS } from '../formations';
@@ -104,7 +105,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     // 줄 소속: 커스텀 칸은 칸의 줄(E.5.1), 아니면 포지션
     idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
-    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, urgent: false,
+    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, thUx: NaN, thUy: NaN, thHx: NaN, thHy: NaN, thStep: NaN, thRx: 0, thRy: 0, urgent: false,
     maxSpeed: 0, accel: 0, turnKeep: 0, pivotT: 0, burstSec: 0, drainAttr: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
@@ -347,7 +348,7 @@ function updateLooseBall(s: SimState): void {
 
 function nearestOpponentDist(s: SimState, a: Agent): number {
   let bd = Infinity;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team) bd = Math.min(bd, dist(o.x, o.y, a.x, a.y));
+  for (const o of onOf(s, (1 - a.team) as 0 | 1)) bd = Math.min(bd, dist(o.x, o.y, a.x, a.y));
   return bd;
 }
 
@@ -475,7 +476,7 @@ export function step(s: SimState): void {
   if (s.restart && s.pendingCards.length) issuePendingCards(s);
   const fr = s.input.forceRed;
   if (fr && Math.abs(s.t - fr.minute * 60) < dt / 2) {
-    const victim = s.agents.find((a) => a.onPitch && a.team === fr.team && a.line === 2 && !a.spec.isMe);
+    const victim = onOf(s, fr.team).find((a) => a.line === 2 && !a.spec.isMe);
     if (victim) giveCard(s, victim, 'red');
   }
   aiSubs(s);
@@ -498,7 +499,7 @@ function boxLandTick(s: SimState): void {
   if (s.ball.flight === w.fl) return;
   const dir = attackDir(w.team, s.half);
   let n = 0;
-  for (const a of s.agents) if (a.onPitch && a.team === w.team && a.line !== 0 && inOppBox(a.x, a.y, dir)) n++;
+  for (const a of fieldOf(s, w.team)) if (inOppBox(a.x, a.y, dir)) n++;
   s.teams[w.team].stats.boxAtLand += n;
   s.teams[w.team].stats.boxLandN++;
   s.boxLand = null;

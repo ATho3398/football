@@ -7,6 +7,7 @@
 // 남은 선택지가 2개 이상이거나 패에 지금 쓸 수 있는 장면 카드가 있을 때만 멈춘다. 공중볼·상대 슈팅·코너는 그 장면 반응 카드가 패에 있을 때만
 // 멈춰서 고르게 한다(카드 장면 정지, type 'react'). 엔진 판단식·확률과 자동 경로는 그대로다.
 
+import { fieldOf, onOf } from './lists';
 import { BALANCE } from '../config/balance';
 import { cardById, type OptionTag } from '../config/cards';
 import { posGroup } from '../roster';
@@ -742,7 +743,7 @@ export function duelMoment(s: SimState): boolean {
   const a = s.agents.find((x) => x.spec.isMe && x.onPitch);
   if (!a || a.team === o.team || !duelEligible(s, o, a)) return false;
   const da = dist(a.x, a.y, o.x, o.y);
-  for (const d of s.agents) if (d !== a && d.onPitch && d.team === a.team && d.line !== 0 && dist(d.x, d.y, o.x, o.y) < da) return false;
+  for (const d of fieldOf(s, a.team)) if (d !== a && dist(d.x, d.y, o.x, o.y) < da) return false;
   const odds = duelOdds(s, o, a);
   const dirO = attackDir(o.team, s.half);
   const gx = (dirO > 0 ? L : 0), gy = W / 2;
@@ -854,8 +855,7 @@ export function aerialMoment(s: SimState): boolean {
   if (!list.length) return false;
   // 예상 경합 상대: 착지점에 가장 가까운 상대 필드 선수
   let opp: Agent | null = null;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
     if (!opp || dist(o.x, o.y, fl.toX, fl.toY) < dist(opp.x, opp.y, fl.toX, fl.toY)) opp = o;
   }
   const PR = ENGINE.prob;

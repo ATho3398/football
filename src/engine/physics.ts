@@ -122,6 +122,18 @@ export function perceiveFeed(a: Agent, o: Agent, dt: number): void {
 /** 몸 방향을 (ux, uy) 쪽으로 180°/pivotTime 각속도만큼 돌린다 */
 function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
   const step = (Math.PI / pivotTime(a)) * dt;
+  // 같은 입력(몸 방향·갈 방향·한 틱 각도)이면 지난번 결과 그대로 (C.81e: 순수 함수라 같은 값 — 서서 공을 보는 선수)
+  // Object.is: −0 과 0 은 atan2 결과가 다르다
+  if (Object.is(ux, a.thUx) && Object.is(uy, a.thUy) && Object.is(a.hx, a.thHx) && Object.is(a.hy, a.thHy) && step === a.thStep) {
+    a.hx = a.thRx;
+    a.hy = a.thRy;
+    return;
+  }
+  a.thUx = ux;
+  a.thUy = uy;
+  a.thHx = a.hx;
+  a.thHy = a.hy;
+  a.thStep = step;
   // 같은 몸 방향이면 지난번 atan2 그대로 (같은 입력 같은 값)
   if (a.hx !== a.hMx || a.hy !== a.hMy) {
     a.hMx = a.hx;
@@ -135,6 +147,8 @@ function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
   const ang = cur + Math.sign(diff || 1) * Math.min(Math.abs(diff), step);
   a.hx = Math.cos(ang);
   a.hy = Math.sin(ang);
+  a.thRx = a.hx;
+  a.thRy = a.hy;
 }
 
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */

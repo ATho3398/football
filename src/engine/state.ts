@@ -51,6 +51,14 @@ export interface Agent {
   hMx: number;
   hMy: number;
   hA: number;
+  /** turnHead 지난 입력·결과 (C.81e 계산 속도): 입력이 모두 같으면 결과도 같다 */
+  thUx: number;
+  thUy: number;
+  thHx: number;
+  thHy: number;
+  thStep: number;
+  thRx: number;
+  thRy: number;
   urgent: boolean;
   maxSpeed: number;
   accel: number;

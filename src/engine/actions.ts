@@ -1,5 +1,6 @@
 // 행동 실행과 결과 판정: 패스, 드리블 돌파, 태클, 슛, 크로스, 클리어링, 공중볼, 세이브
 
+import { fieldOf, onOf } from './lists';
 import { shotFootMul, shotWeakShare, weakFootMul } from '../body';
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
 import * as config_ from './config';
@@ -141,8 +142,8 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
   if (r(s, a.idx, Purpose.Tackle, 7) < c.p) return false;
   let def: Agent | null = null;
   let bd: number = ENGINE.prob.pressureDist;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || s.t < o.beatenUntil) continue;
+  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+    if (s.t < o.beatenUntil) continue;
     // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에 가장 먼저 닿는 수비수(실효 거리), 유지는 지금 위치에서 가장 가까운 수비수
     const d = c.type === 'carry' ? carryReachDist(s, o, a, c.x, c.y) : dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
@@ -183,8 +184,8 @@ function tackleWon(s: SimState, att: Agent, def: Agent, tackle = true): void {
 function callCover(s: SimState, beaten: Agent, x: number, y: number): void {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of s.agents) {
-    if (o === beaten || !o.onPitch || o.team !== beaten.team || o.line === 0 || s.t < o.beatenUntil) continue;
+  for (const o of fieldOf(s, beaten.team)) {
+    if (o === beaten || s.t < o.beatenUntil) continue;
     const d = dist(o.x, o.y, x, y);
     if (d < bd) {
       bd = d;
@@ -387,8 +388,8 @@ function shadowValue(s: SimState, o: Agent, d: Agent): number {
   const dirA = attackDir(o.team, s.half);
   const ox = normX(o.x, dirA);
   let best = 0;
-  for (const m of s.agents) {
-    if (!m.onPitch || m.team !== o.team || m === o || m.line === 0) continue;
+  for (const m of fieldOf(s, o.team)) {
+    if (m === o) continue;
     const mx = normX(m.x, dirA), my = normY(m.y, dirA);
     if (mx <= ox || dist(m.x, m.y, o.x, o.y) > ENGINE.onball.passMaxDist) continue;
     best = Math.max(best, positionValue(mx, my));
@@ -468,7 +469,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', pm, gx, m.side ? m.ctx.ty : gy, m.speed);
-    const blocker = bb ? bb.me : s.agents.filter((o) => o.onPitch && o.team !== a.team && o.line !== 0)
+    const blocker = bb ? bb.me : fieldOf(s, (1 - a.team) as 0 | 1).filter((o) => true)
       .sort((x, y) => dist(x.x, x.y, a.x, a.y) - dist(y.x, y.y, a.x, a.y))[0];
     event(s, 'block', a.team, [a.id, blocker?.id ?? '']);
     if (blocker) blocker.stats.blocks++;
@@ -620,7 +621,7 @@ function goal(s: SimState, scorer: Agent): void {
     home: s.teams[0].stats.goals, away: s.teams[1].stats.goals,
   });
   s.lastPass = null;
-  for (const o of s.agents) if (o.onPitch && o.team !== scorer.team) o.rt.conceded++;
+  for (const o of onOf(s, (1 - scorer.team) as 0 | 1)) o.rt.conceded++;
   setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, 'auto');
   celebration(s, scorer);
 }
@@ -656,7 +657,7 @@ function celebration(s: SimState, scorer: Agent): void {
 function countBox(s: SimState, a: Agent): void {
   const dir = attackDir(a.team, s.half);
   let n = 0;
-  for (const o of s.agents) if (o.onPitch && o.team === a.team && o !== a && inOppBox(o.x, o.y, dir)) n++;
+  for (const o of onOf(s, a.team)) if (o !== a && inOppBox(o.x, o.y, dir)) n++;
   s.teams[a.team].stats.boxAtCross += n;
   s.teams[a.team].stats.boxCrossN++;
   s.boxLand = { fl: null, team: a.team };
@@ -701,8 +702,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   if (target?.onPitch) updateOffball(s, target);
   let def: Agent | null = null;
   let dd = Infinity;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
     const od = dist(o.x, o.y, tx, ty);
     if (od < dd) {
       dd = od;
@@ -1163,8 +1163,7 @@ export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s
 function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
     const d = dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
       bd = d;

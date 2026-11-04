@@ -83,6 +83,7 @@ export function substitute(s: SimState, out: Agent, inA: Agent, at?: SubSlot): v
   inA.enteredAt = s.elapsed;
   inA.pos = at ? at.pos : out.pos;
   inA.line = at ? at.line : out.line;
+  s.onVer++;
   // 슬롯 역할을 이어받는다 (E.19 ② 슬롯별 역할, E3.7)
   if (out.line !== 0 && inA.line !== 0) inA.role = out.role;
   inA.drainMul = out.drainMul;
@@ -175,6 +176,7 @@ export function emergencyKeeper(s: SimState, team: 0 | 1): void {
   if (!pick) return;
   pick.pos = 'GK';
   pick.line = 0;
+  s.onVer++;
   pick.gk = { attrs: { ...BALANCE.goalkeeper.fieldPlayerAsGk }, type: 'classic' };
   pick.sx = 0.04;
   pick.sy = 0.5;

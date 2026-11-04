@@ -1,6 +1,7 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
 // 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import { fieldOf, onOf } from './lists';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import * as physics_ from './physics';
@@ -56,7 +57,7 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
 export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean, touchFit = 0): number {
   const R = ENGINE.receive;
   let dNear = Infinity;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) dNear = Math.min(dNear, Math.hypot(o.x - a.x, o.y - a.y));
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) dNear = Math.min(dNear, Math.hypot(o.x - a.x, o.y - a.y));
   const pr = Math.max(0, 1 - dNear / R.pressDist);
   const run = clamp(Math.hypot(a.vx, a.vy) / 5, 0, 1);
   return clamp(R.base - (R.touchSkill * (a.attrs.ballControl + touchFit - 70)) / 100 + (R.ballSpeed * Math.max(0, speed - 12)) / 10 + R.press * pr
@@ -121,8 +122,7 @@ export function setOwner(s: SimState, a: Agent): void {
 export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const O = ENGINE.offball;
   const tm = s.teams[team];
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team) continue;
+  for (const a of onOf(s, team)) {
     a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a)
       * (BU.recoverFloor + (1 - BU.recoverFloor) * burstReady(a));
   }
@@ -161,7 +161,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
   const dir = attackDir(win, s.half);
   const bnx = dir > 0 ? s.ball.x / L : 1 - s.ball.x / L;
   let top: Agent | null = null;
-  for (const a of s.agents) if (a.onPitch && a.team === win && a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
+  for (const a of onOf(s, win)) if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
   const cands = s.agents.filter((a) => {
     if (!a.onPitch || a.team !== win || a === top || a.idx === s.ball.owner || a.line === 0) return false;
     if (!(a.line === 3 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB')) return false;
@@ -171,7 +171,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
   // 빈 곳에 있는 선수부터 (가장 가까운 상대 필드 선수까지 거리 × 침투 성향) — 상대 수비가 적은 쪽이 뛴다
   const room = (a: Agent) => {
     let d = 40;
-    for (const o of s.agents) if (o.onPitch && o.team !== win && o.line !== 0) d = Math.min(d, dist(o.x, o.y, a.x, a.y));
+    for (const o of fieldOf(s, (1 - win) as 0 | 1)) d = Math.min(d, dist(o.x, o.y, a.x, a.y));
     return d * (0.5 + a.role.run);
   };
   cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
@@ -184,8 +184,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
   const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
   if (!n) return;
   const b = s.ball;
-  const sup = s.agents.filter((a) => a.onPitch && a.team === win && a !== top && a.idx !== b.owner && !exits.includes(a)
-    && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB'));
+  const sup = onOf(s, win).filter((a) => a !== top && a.idx !== b.owner && !exits.includes(a) && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB'));
   sup.sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y) || x.idx - y.idx);
   for (const a of sup.slice(0, n)) {
     a.runUntil = s.t + O.supportSeconds;
@@ -200,8 +199,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
 function transitionMoment(s: SimState, lost: 0 | 1): void {
 
   if (TR.lossDelay > 0) {
-    for (const a of s.agents) {
-      if (!a.onPitch || a.team !== lost || a.line === 0) continue;
+    for (const a of fieldOf(s, lost)) {
       const q = clamp(((a.judgement * 100 + a.attrs.defensivePositioning) / 2 - TR.lossRef0) / (TR.lossRef1 - TR.lossRef0), 0, 1);
       a.nextOffball = Math.max(a.nextOffball, s.t) + TR.lossMax - (TR.lossMax - TR.lossMin) * q;
     }
@@ -210,9 +208,9 @@ function transitionMoment(s: SimState, lost: 0 | 1): void {
   const win = (1 - lost) as 0 | 1;
   const dir = attackDir(win, s.half);
   let top: Agent | null = null;
-  for (const a of s.agents) if (a.onPitch && a.team === win && a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== win || a.idx === s.ball.owner || !(a === top || a.exitRun || a.supportRun)) continue;
+  for (const a of onOf(s, win)) if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
+  for (const a of onOf(s, win)) {
+    if (a.idx === s.ball.owner || !(a === top || a.exitRun || a.supportRun)) continue;
     a.nextOffball = s.t;
     if (a.hx * dir < TR.startFace) continue;
     const v = TR.startRun * a.maxSpeed;
@@ -226,7 +224,7 @@ function transitionMoment(s: SimState, lost: 0 | 1): void {
 /** 수신 압박 비율 (preDecide 와 같은 식): pressDist m 안 가장 가까운 상대 필드 선수가 가까울수록 1 */
 function pressureNear(s: SimState, a: Agent): number {
   let d = Infinity;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) d = Math.min(d, Math.hypot(o.x - a.x, o.y - a.y));
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) d = Math.min(d, Math.hypot(o.x - a.x, o.y - a.y));
   return Math.max(0, 1 - d / ENGINE.receive.pressDist);
 }
 
@@ -260,8 +258,7 @@ export function looseBall(s: SimState, x: number, y: number, vx: number, vy: num
 /** 킥오프 키커: 그 팀에서 가장 앞선 필드 선수 (슬롯 기준) */
 export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
   let best: Agent | null = null;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team || a.line === 0) continue;
+  for (const a of fieldOf(s, team)) {
     if (!best || a.sx > best.sx) best = a;
   }
   return best;
@@ -271,8 +268,8 @@ export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
 export function kickoffPositions(s: SimState, team: 0 | 1): void {
   const taker = kickoffTaker(s, team);
   let mate: Agent | null = null;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team || a.line === 0 || a === taker) continue;
+  for (const a of fieldOf(s, team)) {
+    if (a === taker) continue;
     if (!mate || a.sx > mate.sx) mate = a;
   }
   for (const a of s.agents) {
@@ -325,8 +322,7 @@ export function delayRestart(s: SimState, range: readonly [number, number], k: n
 export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number): number {
   let pick = -1;
   let bd = Infinity;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team) continue;
+  for (const a of onOf(s, team)) {
     if (type === 'goalKick' ? a.line !== 0 : a.line === 0) continue;
     const d = dist(a.x, a.y, x, y);
     if (d < bd) {
@@ -341,8 +337,7 @@ export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: num
 export function penaltyTaker(s: SimState, team: 0 | 1): number {
   let pick = -1;
   let best = -Infinity;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team || a.line === 0) continue;
+  for (const a of fieldOf(s, team)) {
     const v = a.attrs.shooting + a.attrs.composure;
     if (v > best) {
       best = v;
