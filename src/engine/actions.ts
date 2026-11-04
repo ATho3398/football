@@ -31,6 +31,7 @@ const { probe, probeShot, probeShotEnd } = probe_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import type { Agent, BallReserve, Flight, SimState } from './state';
+import { mkFlight } from './state';
 
 /** 선방률 지표의 거리 기준 (C.76q): 이보다 먼 유효 슈팅만 farOnTarget·farSaves 로 센다 */
 const FAR_SAVE_FROM = 12;
@@ -501,10 +502,10 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
     const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] > 0 ? 1 : 0 };
     const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', pm, gx, ty, speed, shot);
-    shotFlight(s, a, {
+    shotFlight(s, a, mkFlight({
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
-    });
+    }));
     event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
     return;
   }
@@ -513,10 +514,10 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'miss', pm, gx + dir * 3, missY, speed);
   s.ball.owner = -1;
   s.ball.reserve = null;
-  s.ball.flight = {
+  s.ball.flight = mkFlight({
     kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: missY, t0: s.t, dur: Math.max(0.15, (m.d + 3) / speed), air: true,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
-  };
+  });
   event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
 }
 
@@ -693,11 +694,11 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err * errX, 0.5, L - 0.5);
   const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err * errX, 0.5, W - 0.5);
   const d = dist(a.x, a.y, tx, ty);
-  launch(s, a, {
+  launch(s, a, mkFlight({
     kind: 'cross', fromX: a.x, fromY: a.y, toX: tx, toY: ty, t0: s.t, dur: Math.max(0.4, d / ENGINE.ball.airSpeed), air: true,
     passer: a.idx, receiver: c.receiver, outcome: 'aerial', interceptor: -1, fromCross: true,
     ...(s.cards && a.spec.isMe && crossCardEdge(s, a) ? { cardEdge: crossCardEdge(s, a) } : {}),
-  });
+  }));
   // 헤더 경합 (E.22 B): 대상과 착지점에 가장 가까운 수비 필드 선수가 바로 뛰어든다
   if (target?.onPitch) updateOffball(s, target);
   let def: Agent | null = null;
@@ -736,10 +737,10 @@ export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'c
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
   const d = dist(a.x, a.y, tx, ty);
-  launch(s, a, {
+  launch(s, a, mkFlight({
     kind, fromX: a.x, fromY: a.y, toX: tx, toY: ty, t0: s.t, dur: Math.max(0.5, d / ENGINE.ball.airSpeed), air: true,
     passer: a.idx, receiver: -1, outcome: 'aerial', interceptor: -1,
-  });
+  }));
 }
 
 /** 착지점 공중볼 (E.8): GK 처리 → 양 팀 최고 점수 선수 경합 → 이긴 쪽 헤더/컨트롤/걷어내기 */
@@ -857,10 +858,10 @@ function resolveAerial(s: SimState, fl: Flight): void {
   const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
   const ang = randn(s.seed, s.tick, winner.idx, Purpose.Header, 3) * ((ENGINE.restart.clearSpreadDeg * Math.PI) / 180) + wideOut;
   looseBall(s, b.x, b.y, 0, 0, def, winner.idx);
-  s.ball.flight = {
+  s.ball.flight = mkFlight({
     kind: 'clear', fromX: b.x, fromY: b.y, toX: b.x + dirDef * Math.cos(ang) * len, toY: clamp(b.y + Math.sin(ang) * len, -2, W + 2),
     t0: s.t, dur: len / 16, air: true, passer: winner.idx, receiver: -1, outcome: 'loose', interceptor: -1,
-  };
+  });
 }
 
 /**
@@ -1222,18 +1223,18 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       };
       const shot = { speed, corner, d, header: false, ctx, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) };
       if (probe.shot) probeShot(s, a, 'fk', 'onTarget', { xg: null, pOn, pBlock: wall, d }, gx, gy + side * corner * (G / 2 - 0.3), speed, shot);
-      shotFlight(s, a, {
+      shotFlight(s, a, mkFlight({
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,
         passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
-      });
+      }));
     } else {
       if (probe.shot) probeShot(s, a, 'fk', 'miss', { xg: null, pOn, pBlock: wall, d }, gx + dir * 3, gy, speed);
       s.ball.owner = -1;
       s.ball.reserve = null;
-      s.ball.flight = {
+      s.ball.flight = mkFlight({
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: gy + side * (G / 2 + 1 + r(s, a.idx, Purpose.FreeKick, 5) * 4),
         t0: s.t, dur: (d + 3) / speed, air: true, passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
-      };
+      });
     }
     return true;
   }
@@ -1260,10 +1261,10 @@ function bounceAt(s: SimState, a: Agent, x: number, y: number, vx: number, vy: n
   const b = s.ball;
   b.owner = -1;
   b.reserve = null;
-  b.flight = {
+  b.flight = mkFlight({
     kind: 'shot', fromX: a.x, fromY: a.y, toX: x, toY: y, t0: s.t, dur: Math.max(0.1, d / ENGINE.ball.shotSpeed), air: false,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1, after: { vx, vy, team: lastTeam, touch: lastTouch },
-  };
+  });
 }
 
 /** 측정용 PK xG (probe 기록, 판정에는 쓰지 않는다) */
@@ -1304,10 +1305,10 @@ export function takePenalty(s: SimState, a: Agent): void {
     if (probe.shot) probeShot(s, a, 'pk', 'onTarget', { xg: PK_XG, pOn: p, pBlock: 0, d }, gx, gy + side * (G / 2 - 0.6), speed, shot);
     s.ball.owner = -1;
     s.ball.reserve = null;
-    s.ball.flight = {
+    s.ball.flight = mkFlight({
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * (G / 2 - 0.6), t0: s.t, dur: d / speed, air: false,
       passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
-    };
+    });
     return;
   }
   const pkProbe = (outcome: 'save' | 'miss'): void => {

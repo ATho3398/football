@@ -209,6 +209,18 @@ export interface Flight {
   cardEdge?: number;
 }
 
+/**
+ * 비행 객체를 늘 같은 모양(같은 키 순서, 없는 선택 키는 undefined)으로 (C.81e 계산 속도: 만드는 곳마다 키가 달라 V8 이 공 비행 읽기를 느린 경로로 하던 것).
+ * 읽는 값은 그대로다(없는 키 = undefined)
+ */
+export function mkFlight(f: Flight): Flight {
+  return {
+    kind: f.kind, fromX: f.fromX, fromY: f.fromY, toX: f.toX, toY: f.toY, t0: f.t0, dur: f.dur, air: f.air, passer: f.passer, receiver: f.receiver,
+    outcome: f.outcome, interceptor: f.interceptor, through: f.through, aimD: f.aimD, transition: f.transition, quick: f.quick, fromCross: f.fromCross,
+    after: f.after, shot: f.shot, cardEdge: f.cardEdge,
+  };
+}
+
 export interface Ball {
   x: number;
   y: number;

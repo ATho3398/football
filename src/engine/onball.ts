@@ -31,6 +31,7 @@ const { chemMul, exploitMul, toMeMul } = rapport_;
 import * as probe_ from './probe';
 const { probe } = probe_;
 import type { Agent, Flight, SimState } from './state';
+import { mkFlight } from './state';
 import type { Tendency } from './types';
 import { fitPts, matchupPts } from './fit';
 import { stackLinkMul } from './stack';
@@ -1367,11 +1368,11 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   // 침투 패스는 달려 들어가는 선수가 닿는 시간에 맞춰 공간으로 보낸다
   const rc = s.agents[c.receiver];
   if (c.type === 'through' && rc) dur = Math.max(dur, ENGINE.physics.arrivalModel > 0 ? arrivalTime(rc, c.x, c.y) : dist(rc.x, rc.y, c.x, c.y) / (rc.maxSpeed * 0.9));
-  const fl: Flight = {
+  const fl: Flight = mkFlight({
     kind: air ? 'long' : 'pass', fromX: a.x, fromY: a.y, toX: c.x, toY: c.y, t0: s.t, dur, air,
     passer: a.idx, receiver: c.receiver, outcome: 'receive', interceptor: -1, through: c.type === 'through',
     quick: c.type === 'cutback' || c.type === 'layoff', aimD: d,
-  };
+  });
   if (PR.contestOut > 0 && transitionWindow(s, a)) fl.transition = true;
   // 약발 (C.45): 약발로 차야 하는 방향이면 실행 성공 확률 × 약발 배율 (판단의 P 는 그대로)
   const foot = weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y, true);
