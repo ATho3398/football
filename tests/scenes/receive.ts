@@ -12,6 +12,8 @@ import type { SceneOut } from './scenes';
 /** 장면 선수와 GK 만 남긴다 */
 function only(s: SimState, keep: Agent[]): void {
   for (const o of s.agents) if (!keep.includes(o) && o.line !== 0) o.onPitch = false;
+  // onPitch 를 바꾸면 선수 목록 캐시 버전을 올린다 (C.81e lists.ts)
+  s.onVer++;
 }
 
 function own(s: SimState, o: Agent): void {

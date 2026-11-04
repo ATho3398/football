@@ -162,6 +162,9 @@ function turnHeadMV(a: Agent): void {
 
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
 export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1, lookX = NaN, lookY = NaN, fatigueExtra = 0, fatigueExp = 1): void {
+  // 능력치에서 나오는 고정값을 다시 (경기 엔진은 능력치를 바꾸지 않지만 장면 테스트는 바꾼 뒤 이 함수로 움직인다)
+  a.burstSec = burstSecs(a);
+  a.drainAttr = P.drainAttrBase - (P.drainAttrSlope * a.attrs.stamina) / 100;
   setMove(dt, speedScale, drainScale, recoverScale, lookX, lookY, fatigueExtra, fatigueExp);
   moveAgentMV(a);
 }

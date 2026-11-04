@@ -31,8 +31,10 @@ describe('C.76q PK·선방률 지표', () => {
       expect(s.restart!.taker).toBe(pick);
       // 빠진 선수는 고르지 않는다
       s.agents[pick]!.onPitch = false;
+      s.onVer++; // 선수 목록 캐시 (C.81e lists.ts)
       expect(penaltyTaker(s, team)).not.toBe(pick);
       s.agents[pick]!.onPitch = true;
+      s.onVer++;
     }
   });
 

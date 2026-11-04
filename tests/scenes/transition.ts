@@ -188,6 +188,8 @@ export function sceneAllIn(): SceneOut {
           a.sx = 0.85;
           place(a, 76, a.y);
         }
+        // 줄을 바꾸면 선수 목록 캐시 버전을 올린다 (C.81e lists.ts)
+        s.onVer++;
         for (const a of defs.filter((a) => a.line === 1)) place(a, 50, a.y < 34 ? 26 : 42);
       }
       s.teams[1].tactics = tacticsOf('counter');
