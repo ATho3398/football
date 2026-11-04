@@ -1,5 +1,5 @@
 // C.81e 브라우저 워커 엔진 시간 (PC 워커 흉내): 다른 팀 경기 N회를 Web Worker 안에서 — 냉(첫 경기)·온(나머지 평균)
-// 빌드: esbuild 로 묶어 scripts/c81e-worker-bench.mjs 가 Chromium 워커에서 돌린다
+// 빌드: esbuild 로 묶어 scripts/diag/c81e-worker-bench.mjs 가 Chromium 워커에서 돌린다
 import { teamSetupFromRoster } from '../../src/engine/setup';
 import { createMatch } from '../../src/engine/sim';
 import { createTeamRoster } from '../../src/roster';

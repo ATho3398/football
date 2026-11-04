@@ -6691,6 +6691,34 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - 가드: typecheck ✓ · test 152파일 1268 ✓(장면 전부·결정성·순간이동·경기 계산 2초 포함; 기준값 변경 = 약팀 큰 차 성향 목록 역습 제외(H2), 이동 거리 테스트 시드 평균) · engine:check 경량 가드 모두 ✓(득점 1.48 · 12 m 밖 선방 상황 고정 88.5 · 순간이동 0) · **balance:check 회귀 가드 19/19 ✓**(로컬, 13:36~15:0x).
 - **새 화면**: 없음(역습 설명 문구만).
 
+### C.81e 53단계_엔진 계산 속도 — 결과 불변 최적화 (마스터 AD `docs/session-prompts/C.81e.md`, 근거 C.81c 프로파일 "경기 1회 약 0.9 s · 평평한 프로파일 — 결과 비트 동일로 줄이려면 엔진 할당 줄이기 작업이 따로 필요", Opus): **경기 결과를 한 비트도 바꾸지 않고 경기 1회 계산 시간을 줄였다 — Chromium 워커(PC 워커와 같은 V8) 온 평균 765 → 483 ms(−37%) · 첫 경기 2.13 → 1.13 s(−47%), Node 온 평균 956 → 684 ms(−28%) · 첫 경기 2.75 → 1.29 s(−53%) · 100경기 합 97.4 → 69.1 s(−29%), GC 시간 27.9 → 15.6 ms/경기(−45%). 내 리그·[전부 엔진] 설정의 다른 경기 계산 시간이 이만큼 준다** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 동작·수치·난수 호출 순서·부동소수 연산 순서 무수정)
+
+- 가장 큰 원인은 계산량이 아니라 **V8 이 객체 모양 변화 때문에 느린 경로로 굳은 것**이었다(첫 경기 동안 선수·비행·후보 객체 모양이 바뀌며 핫 루프의 속성 읽기가 megamorphic 으로 굳고 최적화 코드가 버려짐). 그래서 첫 경기(냉)가 특히 많이 줄었다.
+  1. **선수 객체 모양 고정**(`sim.ts` makeAgent): 하프타임에 모든 선수에게 새로 붙던 `intent`, 내 선수에만 붙던 `cardBoost`, 평점 기록 `rt` 의 선택 필드를 처음부터 둔다(값은 null·undefined 그대로 — 읽는 값 같음). 0 같은 정수로 시작해 실수가 들어가는 필드(위치·속도·체력·시각…)는 만들자마자 실수를 한 번 넣었다 원래 값으로 되돌려(`fixDoubles`) 처음부터 실수 표현으로 둔다 — 상태(`t`·`elapsed`·`bsx`…)·공·팀 상태·선수 기록 `distance` 도 같이.
+  2. **능력치 객체 빠른 모드**(`curveAttrs`): 키를 하나씩 붙인 30개 능력치 객체는 V8 사전(해시) 모드였다 → 같은 키 순서로 펼쳐 빠른 객체로(능력치는 경기 내내 수백 번 읽힌다).
+  3. **비행·후보 객체 모양 고정**: 공 비행(`Flight`)을 만드는 10곳이 키가 달라(5모양+) 공 비행 읽기가 느린 경로였다 → `mkFlight`(state.ts)로 늘 같은 키 순서(없는 선택 키는 undefined). 판단 후보(`Candidate`)도 `mkCand`(onball.ts) — 패스 후보의 조건부 펼치기 `...(gkWins >= 0 ? { keeper } : {})` 도 없앰(같은 키 순서).
+  4. **실수 인자 상자 없애기**: 인라인되지 않는 이동 함수에 실수 인자를 넘기면 부를 때마다 숫자 상자를 새로 만든다(선수 22명 × 틱) → 이동·몸 돌리기는 인자를 모듈 칸(`physics.ts` `MV`, `setMove` + `moveAgentMV`)으로 넘긴다. `moveAgent(a, dt, …)` 공개 함수(장면 테스트용)는 그대로.
+- 계산 줄이기(같은 식·같은 순서):
+  5. **선수 목록 캐시**(`lists.ts` `onOf`·`fieldOf`): "뛰는 우리/상대 (필드) 선수" 거르기 반복 110곳을 미리 거른 배열(s.agents 순서 그대로)로. `s.onVer` 가 onPitch·line 이 바뀌거나 선수가 들어올 때(퇴장·교체·부상·GK 대체·수적 열세 재배치) 오르고 그때 다시 만든다. **onPitch·line 을 직접 바꾸는 코드(테스트 포함)는 `s.onVer++` 를 같이 한다** — 장면 테스트 2곳·c76q 테스트에 넣음. `manDiff` 도 같은 버전으로 캐시.
+  6. **배열 임시 객체 없애기**: `toNorm(...)[0]`·`const [a, b] = toNorm/toPitch/ownGoal/oppGoal/segDist/ballNorm/slotTarget(...)` → 같은 식의 스칼라(`normX`·`normY`·`pitchX`·`pitchY`·`segDistS`+`SEG.t`·`slotTargetS`+`SLOT`), 가장 가까운 상대는 거리를 돌려주고 선수는 `nearA`, 마크 목표 속도 배열 → 스칼라, 존 마크 줄 단계 배열은 상수로.
+  7. **같은 값 다시 쓰기**: 이동의 유효 가속(desiredSpeed 가 같은 값을 다시 구함), 선수마다 고정인 몸 돌리기 시간·연속 스프린트 초·체력 소모 능력치 항(`pivotT`·`burstSec`·`drainAttr`, initPhysics), 팀 체력 소모 몫(팀당 한 번, 곱하는 순서 그대로), 패스 확률의 패서 압박(평균 선수와 같은 자리·같은 팀이라 같은 값), 줄 맞춤의 공 순위(거리 한 번), 몸 돌리기는 입력(몸 방향·갈 방향·한 틱 각도, `Object.is` 로 −0 구분)이 지난번과 같으면 그 결과, 틱 캐시 12개(WeakMap) 앞에 마지막 경기 한 칸.
+- 함수별 자기 시간 (Node, 15경기 프로파일, ms/경기): moveAgent 150 → 135 · defendTarget 70 → 45 · turnHead 61 → 46 · updateOffball 57 → 29 · GC 54 → 30 · stepBody 51 → 39 · stepTail 48 → 28 · candidates 43 → 26 · attackTarget 34 → 17 · lineMatchPlan 29 → 26 · arrivalTime 25 → 24 · slotTarget 16 → 11 · laneRiskAt 15 → 9 · randn 14 → 14 · trackPlan 14 → 11 · ballRank 12 → 8 · effectiveAccel 12 → 0(이동에서 한 번) · positionValue 11 → 10 · focusThreat 10 → 7 · decide 10 → 7 · landingShare 10 → 8. 프로파일 합 1123 → 815 ms/경기(−27%).
+
+| 경기 1회 계산 (다른 팀 경기 `createMatch(...).runToEnd()`, 100경기) | main | C.81e | 변화 |
+|---|---|---|---|
+| Chromium Web Worker 온 평균 (PC 워커) | 765 ms | **483 ms** | **−37%** |
+| Chromium Web Worker 온 중앙값 | 756 ms | 470 ms | −38% |
+| Chromium Web Worker 첫 경기(냉) | 2,133 ms | 1,125 ms | −47% |
+| Node 온 평균 (2회 평균) | 956 ms | **684 ms** | **−28%** |
+| Node 온 중앙값 | 938 ms | 674 ms | −28% |
+| Node 첫 경기(냉) | 2,747 ms | 1,285 ms | −53% |
+| Node 100경기 합 | 97.4 s | 69.1 s | −29% |
+| GC 시간 (Node) | 27.9 ms/경기 (2.9%) | 15.6 ms/경기 (2.25%) | −45% |
+
+- 결과 불변(관문): 엔진 지문 `c74a-fingerprint` **43b925947da9b7c7** · `same-seed 60` **e53b73afea39b8c6** 전후 동일(C.81d merge 뒤에도 동일). 게임 진행 지문(`scripts/c81c-wait.mjs` 5경기, 새 main 61c56c9 빌드 대 이번 빌드) **2018-09-16:2d884ba9:27621** 동일, 페이지 오류 0. typecheck · test 1375 · `balance:engine:check`(경량 가드 모두 통과) · build 통과.
+- **안 된 것**: ① Node 온 평균 목표 −30% 에 조금 못 미침(−28%, 100경기 합 −29%; 브라우저 워커는 −37%). 남은 큰 몫은 이동(moveAgent·turnHead — 삼각함수 4번·실수 필드 상자 읽기)과 판단 탐색으로, 결과 비트를 지키며 더 줄이려면 선수 실수 필드를 Float64Array 로 옮기는 수준의 구조 변경이 필요 ② GC 비중은 2.9 → 2.25%(시간은 −45%로 거의 절반, 비중은 전체도 같이 줄어 절반이 안 됨).
+- 재현: `npx esbuild scripts/diag/c81e-bench.ts --bundle --platform=node --format=esm --outfile=/tmp/b.mjs && node /tmp/b.mjs 100`(main 은 같은 파일을 main 작업 트리에 복사해 묶음) · 브라우저 워커 `scripts/diag/c81e-bench-worker.ts` 를 iife 로 묶어 `node scripts/diag/c81e-worker-bench.mjs <worker.js> 100`.
+
 ### C.81d 53단계_다른 리그 계산 기본값 — 내 리그만 엔진 (마스터 AD `docs/session-prompts/C.81d.md`, 근거 사용자 11/04 13:5x KST "자동 경기 맡기면 대기가 너무 오래 걸려 / FM은 어떻게 돌려?", Opus): **설정 › 다른 경기 계산을 3단계로 — [내 리그만 엔진](기본) · [전부 엔진] · [전부 빠른 진행]. 기본값은 내 리그 다른 팀 경기만 22명 엔진, 고른 다른 리그는 점수 확률 + 득점자 추첨(기존 빠른 진행 경로 그대로). 한 주기 대기 PC 10.4 → 1.9 s · 폰 흉내 14.1 → 3.4 s. 내 리그 결과는 '전부 엔진'과 같은 시드에서 동일. 섞인 시상 표(내 리그 엔진 + 다른 리그 추정)는 추정 평점을 엔진 척도로 −0.33 보정** (SAVE_FORMAT_VERSION 60 → **61**, 이전 단계 `MIGRATIONS[60]` + `tests/fixtures/saves/v61.json`; BALANCE_VERSION 94 → **95**; ENGINE_VERSION 그대로 — `src/engine` 무수정)
 
 - 설정 값: `options.quickOthers`(참/거짓) → `options.others: 'mine' | 'all' | 'quick'`(`src/game.ts` `OthersMode`, 판정 `myLeagueQuick`·`otherLeaguesEngine`·`othersHow`). 'mine' 이면 그날 다른 리그 경기는 워커로 보내지 않고 하루 끝 `syncOtherLeagues`(빠른 계산)가 치르며, 미리 계산 목록(`upcomingOthers`)·비시즌 다른 리그 하루씩 엔진(`offseasonOthers`)도 '전부 엔진'일 때만. NPC 끼리 컵·챔스 경기는 원래부터 어느 설정이든 빠른 경기라 바뀐 것 없음(내 팀 컵 경기는 내 경기 엔진). 득점·도움 순위 시즌 목표(`seasonGoals` star)는 '전부 빠른 진행'만 빼고 그대로(내 리그 다른 팀 경기가 엔진 기록).
