@@ -129,8 +129,9 @@ function pickKind(state: GameState, source: GoalSource, tier: GoalTier, e: Expec
   if (source === 'club') return 'teamPos';
   if (source === 'manager') return e.start < G().appsBelow ? 'apps' : rng() < 0.6 ? 'rating' : 'moms';
   const grp = posGroup(state.player.position);
-  // 득점·도움 순위 목표는 다른 경기 기록이 쌓일 때만 (빠른 진행이면 내 기록뿐이라 순위가 뜻이 없다)
-  const star = !state.options.quickOthers && ['normal', 'special', 'topClass', 'worldClass', 'legendary'].indexOf(reputationTier(state.player.reputation, state.player.honors)) >= G().rankFromTier;
+  // 득점·도움 순위 목표는 다른 경기 기록이 쌓일 때만 (빠른 진행이면 내 기록뿐이라 순위가 뜻이 없다).
+  // C.81d '내 리그만 엔진'도 내 리그 다른 팀 경기는 엔진 기록이라 순위 목표 그대로
+  const star = state.options.others !== 'quick' && ['normal', 'special', 'topClass', 'worldClass', 'legendary'].indexOf(reputationTier(state.player.reputation, state.player.honors)) >= G().rankFromTier;
   if (grp === 'ST' || grp === 'WING') return tier === 'hard' && star ? 'goalRank' : 'goals';
   if (grp === 'CAM' || grp === 'CM') return tier === 'hard' && star ? 'assistRank' : grp === 'CAM' ? 'ga' : (e.assists >= e.goals ? 'assists' : 'ga');
   return 'cleanSheets';

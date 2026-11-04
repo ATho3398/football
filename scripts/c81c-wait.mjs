@@ -43,7 +43,7 @@ if (await has('#f-seed')) { await page.fill('#f-seed', process.env.SEED ?? 'c81c
 await page.locator('[data-act="start"]:visible').first().click();
 await page.waitForTimeout(800);
 await dismiss();
-await page.evaluate((q) => { const g = globalThis.__game(); g.control.mode = 'auto'; if (q) g.options = { quickOthers: true }; }, !!process.env.QUICK);
+await page.evaluate((q) => { const g = globalThis.__game(); g.control.mode = 'auto'; if (q) g.options = { others: q }; }, process.env.OTHERS ?? (process.env.QUICK ? 'quick' : ''));
 log('started', await page.evaluate(() => document.querySelector('#app')?.className), await page.evaluate(() => { const g = globalThis.__game(); return [g.worldSeed, g.calendar.date, g.player.name, g.player.teamId]; }));
 const rows = [];
 for (let i = 0; i < N; i++) {

@@ -97,7 +97,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 60;
+export const SAVE_FORMAT_VERSION = 61;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -259,8 +259,11 @@ export interface GameState {
   calendar: { date: IsoDate };
   /** 이번 시즌 모든 선수의 리그 기록 합계 (C.38, 다른 경기 포함). 내 선수는 player.season 에 따로 있다 */
   playerStats: Record<string, PlayerTotals>;
-  /** 진행 설정 (C.38): quickOthers 면 다른 경기를 빠른 경기(통계)로 계산한다 (느린 기기). 기본은 전체 엔진 */
-  options: { quickOthers: boolean };
+  /**
+   * 진행 설정 (C.38 → C.81d): 다른 경기 계산. 'mine' = 내 리그 다른 팀 경기만 22명 엔진, 고른 다른 리그는 빠른 경기(점수 확률 + 득점자 추첨, 기본) ·
+   * 'all' = 다른 리그까지 전부 엔진 · 'quick' = 전부 빠른 경기 (느린 기기). NPC 끼리 컵·챔스 경기는 어느 쪽이든 빠른 경기
+   */
+  options: { others: OthersMode };
   /** 훈련 (25.3, 부록 C.41): 날짜별 변경, 기술 훈련 게이지, 주간 XP 상한, 이번 시즌 합계 */
   training: TrainingState;
   /** 지난 시즌 기록 보존 (25.4, 부록 C.41): 내 경기 요약·하이라이트·결정, 다른 경기 스코어·득점자·도움, 선수 시즌 합계 */
@@ -746,7 +749,7 @@ export function newGame(opts: NewGameOptions): GameState {
     // 새 커리어는 개막 7일 전 소집부터 (25.3 5번, C.41)
     calendar: { date: addDays(leagueCalendar(worldSeed, league, calendarKind(league)).opening, -BALANCE.training.vacation.campDays) },
     playerStats: {},
-    options: { quickOthers: false },
+    options: { others: 'mine' },
     worldSeed,
     difficulty: opts.difficulty,
     phase: 'season',
@@ -1006,15 +1009,30 @@ function quickLeagueBans(state: GameState, rosters: readonly TeamRoster[], date:
   npcBanAfterMatch((state.npcBan ??= {}), rosters, cards, seasonFrac(round, state.league.schedule.length));
 }
 
+/** 다른 경기 계산 설정 (C.81d): 'mine' 내 리그만 엔진(기본) · 'all' 전부 엔진 · 'quick' 전부 빠른 진행 */
+export type OthersMode = 'mine' | 'all' | 'quick';
+
+/** 내 리그 다른 팀 경기를 빠른 경기로 계산하는가 ('quick') */
+export const myLeagueQuick = (state: Pick<GameState, 'options'>): boolean => state.options.others === 'quick';
+/** 고른 다른 리그 경기를 엔진으로 계산하는가 ('all'만. 아니면 하루 끝 syncOtherLeagues 가 빠른 경기로) */
+export const otherLeaguesEngine = (state: Pick<GameState, 'options'>): boolean => state.options.others === 'all';
+/** 설정 → playOthers·playRound 계산 방식 */
+export const othersHow = (state: Pick<GameState, 'options'>): 'engine' | 'mine' | 'quick' => {
+  const o = state.options.others;
+  return o === 'all' ? 'engine' : o;
+};
+
 /**
- * 오늘 다른 경기를 이 스레드에서 계산한다. 'engine' = 22명 엔진(프레임 없이), 'quick' = 빠른 경기 (통계, 밸런스 시뮬·느린 기기).
- * 화면은 Web Worker 풀로 같은 otherJob 을 계산해 applyOther 한다 (결과는 같다)
+ * 오늘 다른 경기를 이 스레드에서 계산한다. 'engine' = 내 리그 다른 팀 경기 + 고른 다른 리그를 22명 엔진(프레임 없이),
+ * 'mine' = 내 리그 다른 팀 경기만 엔진 (다른 리그는 하루 끝 빠른 계산, C.81d), 'quick' = 빠른 경기 (통계, 밸런스 시뮬·느린 기기).
+ * 화면은 Web Worker 풀로 같은 otherJob 을 계산해 applyOther 한다 (결과는 같다).
+ * 내 리그 경기 시드·입력은 다른 리그 계산과 무관해 'engine'·'mine' 의 내 리그 결과는 같다
  */
-export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
+export function playOthers(state: GameState, how: 'engine' | 'mine' | 'quick'): void {
   // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 엔진으로 (빠른 계산은 하루 끝 syncOtherLeagues 가 한다)
   if (how === 'engine') for (const j of otherLeagueJobs(state, state.calendar.date)) applyOtherLeagueJob(state, j, playNpcMatch(j.input));
   for (const [r, i] of todaysOthers(state)) {
-    if (how === 'engine') {
+    if (how !== 'quick') {
       applyOther(state, r, i, playNpcMatch(otherJob(state, r, i).input));
     } else {
       const f = state.league.schedule[r]![i]!;
@@ -1038,7 +1056,8 @@ export function upcomingOthers(state: GameState, days: number, within = 7, from 
   for (let d = from; d <= within && n < days; d++) {
     const date = addDays(state.calendar.date, d);
     const own = todaysOthers(state, date).map(([r, i]) => otherJob(state, r, i).input);
-    const lg = otherLeagueJobs(state, date).map((j) => j.input);
+    // 다른 리그는 '전부 엔진'일 때만 (C.81d: 기본 '내 리그만 엔진'이면 하루 끝 빠른 계산)
+    const lg = otherLeaguesEngine(state) ? otherLeagueJobs(state, date).map((j) => j.input) : [];
     if (!own.length && !lg.length) continue;
     out.push(...own, ...lg);
     n++;
@@ -1573,7 +1592,7 @@ export interface PlayOptions {
    * 내 경기 날까지 넘기는 날의 다른 경기 계산 (C.38). 기본 'quick' (테스트·밸런스). 화면은 Web Worker 로 미리 계산해 두므로
    * 경기 날에 부를 때는 남은 다른 경기가 없다
    */
-  others?: 'engine' | 'quick';
+  others?: 'engine' | 'mine' | 'quick';
 }
 
 /** 이번 라운드 내 경기의 엔진 입력 (상태를 바꾸지 않는다). 결장(부상·정지·벤치)이어도 입력은 만든다 */

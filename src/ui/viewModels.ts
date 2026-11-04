@@ -7,7 +7,7 @@ import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { topChemMates, type ChemMateVM } from '../rapport';
-import { isNeutralMatch, matchCompLabel, myMatchConditions, myShirt, rosterLeagues, venueKo, weekFreeDays } from '../game';
+import { type OthersMode, isNeutralMatch, matchCompLabel, myMatchConditions, myShirt, rosterLeagues, venueKo, weekFreeDays } from '../game';
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
@@ -92,6 +92,9 @@ import {
   type Detail, type Level,
 } from '../engine/tactics';
 import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
+
+/** 다른 경기 계산 설정 이름 (C.81d) */
+export const OTHERS_KO: Record<OthersMode, string> = { mine: '내 리그만 엔진', all: '전부 엔진', quick: '전부 빠른 진행' };
 export { ROLE_DESC_KO };
 
 // ── 공통 변환 ──
@@ -337,7 +340,8 @@ export interface DayVM {
   /** 다음 내 경기까지 남은 날 (오늘이면 0) */
   daysTo: number | null;
   nextLabel: string | null;
-  quick: boolean;
+  /** 다른 경기 계산 설정 이름 (C.81d) */
+  othersKo: string;
   upcoming: { date: string; text: string; kind: 'home' | 'away' | 'break' | 'end' | 'train'; sub?: string; /** 상대 팀 (C.53: 누르면 팀 상세) */ team?: string; /** C.76i (디자인 216): 대회 칩 (컵·대표팀) */ cup?: string }[];
   month: { title: string; lead: number; days: DayCellVM[] };
 }
@@ -400,7 +404,7 @@ export function dayVM(g: GameState): DayVM | null {
     days.push({ d: k + 1, date: d, today: d === today, past: daysBetween(d, today) > 0, kind, title, ...(pk && isLifeKind(pk) ? { life: pk, lifeShort: plan.slice(0, 2) } : {}), ...(mine && mine.r < 0 ? { cup: true } : {}) });
   }
   return {
-    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, full: `${m}월 ${+today.slice(8, 10)}일 (${'일월화수목금토'[weekdayOf(today)]})`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, quick: g.options?.quickOthers ?? false,
+    date: dateLabel(today), short: `${m}.${+today.slice(8, 10)}`, weekdayKo: `${'일월화수목금토'[weekdayOf(today)]}요일`, full: `${m}월 ${+today.slice(8, 10)}일 (${'일월화수목금토'[weekdayOf(today)]})`, year: y, matchDay: daysTo === 0, daysTo, nextLabel: next ? dateLabel(next) : null, othersKo: OTHERS_KO[g.options?.others ?? 'mine'],
     upcoming, month: { title: `${y}년 ${m}월`, lead: weekdayOf(first), days },
   };
 }

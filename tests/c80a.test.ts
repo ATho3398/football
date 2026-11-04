@@ -15,7 +15,7 @@ import { teamDetailVM } from '../src/ui/detailVM';
 const roster = (id: string) => createTeamRoster({ id, rating: 80 }, 'c80a', 2018, []);
 
 describe('C.80a NPC 출장 정지', () => {
-  it('세이브 형식 59', () => expect(SAVE_FORMAT_VERSION).toBe(60));
+  it('세이브 형식 59', () => expect(SAVE_FORMAT_VERSION).toBe(61));
 
   it('엔진 출력: 카드 받은 선수만 옐로·퇴장 칸이 붙는다', () => {
     const base = { goals: 0, assists: 0, rating: 6.5, distance: 9000 };
