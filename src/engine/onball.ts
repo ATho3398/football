@@ -794,7 +794,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const gd = dist(tx, ty, gx0, gy0);
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
     const type = cutback ? 'cutback' : running ? 'through' : 'pass';
-    out.push({ type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight, ...(gkWins >= 0 ? { keeper: gkWins } : {}) });
+    // C.81e: 조건부 펼치기 대신 같은 키 순서로 붙인다 (keeper 는 pFlight 뒤)
+    const cand: Candidate = { type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight };
+    if (gkWins >= 0) cand.keeper = gkWins;
+    out.push(cand);
     if (tikiLongOn) {
       if (d0 > DB.tikiLongFrom) tikiLongs.push({ c: out[out.length - 1]!, pen: DB.tikiLong * tikiLongK * clamp((d0 - DB.tikiLongFrom) / Math.max(1e-6, DB.tikiLongTo - DB.tikiLongFrom), 0, 1) });
       else if (pj >= DB.tikiLongShortP) tikiShort = true;
@@ -805,7 +808,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
-      ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+      const oc: Candidate = { type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF };
+      if (gkWins >= 0) oc.keeper = gkWins;
+      oc.ot = true;
+      ot.out.push(oc);
       if (tikiLongOn && d0 > DB.tikiLongFrom) tikiLongs.push({ c: ot.out[ot.out.length - 1]!, pen: tikiLongs[tikiLongs.length - 1]!.pen });
     }
   }
