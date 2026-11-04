@@ -14,7 +14,7 @@ const { arrivalTime, burstReady, effectiveMax, landingVelocity } = physics_;
 import * as formation_ from './formation';
 const { ballNorm, manDiff, slotTarget, teamPhase } = formation_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, normX, normY, ownGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, ownGoal, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import * as roles_ from './roles';
@@ -213,6 +213,29 @@ export function ballRank(s: SimState, a: Agent, bx: number, by: number): number 
     if (o === a || !o.onPitch || o.team !== a.team || o.line === 0) continue;
     if (dist(o.x, o.y, bx, by) < d) rank++;
   }
+  return rank;
+}
+
+/**
+ * ballRank 를 한 팀 여러 선수에게 (C.81e 계산 속도): 같은 점 (bx, by)·같은 위치에서 거리를 한 번만 잰다 — ballRank 와 같은 비교라 같은 값.
+ * rankFill 로 채운 뒤 rankOf(a) (위치가 바뀌기 전에만 쓴다)
+ */
+let rankD = new Float64Array(32);
+const rankIdx: number[] = [];
+function rankFill(s: SimState, team: 0 | 1, bx: number, by: number): void {
+  if (rankD.length < s.agents.length) rankD = new Float64Array(s.agents.length * 2);
+  rankIdx.length = 0;
+  for (const o of s.agents) {
+    if (!o.onPitch || o.team !== team || o.line === 0) continue;
+    rankD[o.idx] = dist(o.x, o.y, bx, by);
+    rankIdx.push(o.idx);
+  }
+}
+/** rankFill 한 팀의 필드 선수 a (onPitch, GK 아님)의 ballRank */
+function rankOf(a: Agent): number {
+  const d = rankD[a.idx]!;
+  let rank = 0;
+  for (const i of rankIdx) if (i !== a.idx && rankD[i]! < d) rank++;
   return rank;
 }
 
@@ -939,7 +962,7 @@ function laneRisk(s: SimState, from: Agent, tx: number, ty: number): { risk: num
   let risk = 0;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === from.team) continue;
-    const [d, t] = segDist(o.x, o.y, from.x, from.y, tx, ty);
+    const d = segDistS(o.x, o.y, from.x, from.y, tx, ty), t = SEG.t;
     if (d >= PR.laneWidth || t <= 0.05) continue;
     risk += (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * (1 - d / PR.laneWidth);
   }
@@ -1310,6 +1333,12 @@ function laneSpot(o: Agent, gx: number, gy: number, sd: number, gap: number): [n
   return [clamp(o.x + ((gx - o.x) / ld) * k, 0.3, L - 0.3), clamp(o.y + ((ty - o.y) / ld) * k, 0.3, W - 0.3)];
 }
 
+// 존 마크 줄 단계 (C.81e: 매번 새 배열을 만들지 않는다). TIER_123 은 GK 아닌 모든 줄이라 includes 를 건너뛴다
+const TIER_123: readonly Line[] = [1, 2, 3];
+const TIERS_ALL: readonly (readonly Line[])[] = [TIER_123];
+const TIERS_DEF: readonly (readonly Line[])[] = [[3], [2]];
+const TIERS_MID: readonly (readonly Line[])[] = [[2], [3]];
+const TIERS_ATT: readonly (readonly Line[])[] = [[1, 2], [3]];
 function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
   const t = effectiveTactics(s, a.team);
   const b = s.ball;
@@ -1605,13 +1634,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 우리 줄 1 → [상대 줄 3, 그다음 줄 2] · 우리 줄 2 → [상대 줄 2, 그다음 줄 3] · 우리 줄 3 → [상대 줄 1·2, 그다음 줄 3]. 첫 단계에 14 m 안 상대가 있으면 그 안에서만,
   // 없을 때만 다음 단계(대형이 달라 짝이 남을 때의 인계). focus(대개 ST) 쏠림은 우리 줄 1 에만 — 줄 2 는 focus 가 자기 첫 단계(줄 2)일 때만 (지금까지는 줄과 무관하게 가장 가까운 상대·focus 라 줄 2 가 ST 로 쏠리고 상대 2선은 비었다, 미해결 8)
   // **지금은 끔(lineTiers 0, 부록 C.77b)**: 켜면(1) CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)인데 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34 로 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 와 같은 "ST 풀림" 통로)
-  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : asDef ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
+  const tiers: readonly (readonly Line[])[] = O.lineTiers <= 0 ? TIERS_ALL : asDef ? TIERS_DEF : a.line === 2 ? TIERS_MID : TIERS_ATT;
   let mark: Agent | null = null;
   let best = 14;
   for (const tier of tiers) {
     for (const o of s.agents) {
       // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
-      if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || !tier.includes(o.line)) continue;
+      if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || (tier !== TIER_123 && !tier.includes(o.line))) continue;
       if (focusHeld && o === focus) continue;
       const d = dist(o.x, o.y, zx, zy);
       if (d < best) {
@@ -2077,7 +2106,7 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
   let bt = Infinity;
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== team || o.line === 0 || o === cd.pick || o === cd.second || o === marker || exemptOf(s, o)) continue;
-    const [d, t] = segDist(o.x, o.y, b.x, b.y, fl.toX, fl.toY);
+    const d = segDistS(o.x, o.y, b.x, b.y, fl.toX, fl.toY), t = SEG.t;
     if (d > O.deepCutReach || t <= 0.02 || t >= 0.98) continue;
     const px = b.x + (fl.toX - b.x) * t;
     const py = b.y + (fl.toY - b.y) * t;
@@ -2239,11 +2268,12 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   let lx = 0;
   let ln = 0;
   let defs = 0;
+  rankFill(s, team, b.x, b.y);
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== team || o.line !== 1) continue;
     lx += normX(o.x, dir);
     ln++;
-    if (ballRank(s, o, b.x, b.y) >= 2) defs++;
+    if (rankOf(o) >= 2) defs++;
   }
   if (!ln) return (e.plan = NO_MATCH);
   const band = lx / ln + O.lineMatchBand / L;
@@ -2259,12 +2289,13 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   const gx = (dir > 0 ? 0 : L), gy = W / 2;
   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
   const cands: Agent[] = [];
+  rankFill(s, team, b.x, b.y);
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== team || o.line !== 2 || exemptOf(s, o)) continue;
     if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
     if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
     if (cd.pick === o || cd.second === o) continue;
-    if (ballRank(s, o, b.x, b.y) < 2) continue;
+    if (rankOf(o) < 2) continue;
     cands.push(o);
   }
   cands.sort((x, y) => Number(prev.drop.has(y.idx)) - Number(prev.drop.has(x.idx)) || normX(x.x, dir) - normX(y.x, dir) || x.idx - y.idx);

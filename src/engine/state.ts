@@ -55,6 +55,10 @@ export interface Agent {
   maxSpeed: number;
   accel: number;
   turnKeep: number;
+  /** 선수마다 고정 (C.81e 계산 속도, initPhysics): 180° 몸 돌리기 시간 · 연속 스프린트 초 · 스태미나 소모 능력치 항 */
+  pivotT: number;
+  burstSec: number;
+  drainAttr: number;
   stamina: number;
   /** 순간 체력 0~100 (C.78w 2단 체력, physics.burst) */
   burst: number;

@@ -18,7 +18,7 @@ import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, normX, normY, oppGoal, ownGoal, positionValue, segDist, toNorm, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, normX, normY, oppGoal, ownGoal, positionValue, SEG, segDist, segDistS, toNorm, W } = pitch_;
 import * as physics_ from './physics';
 const { duelEdgeOf, landingVelocity, tiredRatio } = physics_;
 import * as env_ from './env';
@@ -879,7 +879,7 @@ export function deepCut(s: SimState, px: number, py: number): boolean {
       tm.cutIdx = -1;
       continue;
     }
-    if (segDist(a.x, a.y, px, py, b.x, b.y)[0] > O.deepCutRadius) continue;
+    if (segDistS(a.x, a.y, px, py, b.x, b.y) > O.deepCutRadius) continue;
     // 판정은 한 비행에 1회: cutFlight 는 남기고 cutIdx 만 −1 (오프볼이 같은 비행에 다시 보내지 않게)
     tm.cutIdx = -1;
     const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100);
@@ -1126,7 +1126,7 @@ export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s
   for (const gk of s.agents) {
     if (!gk.onPitch || gk.line !== 0) continue;
     // 이번 틱에 공이 지나간 길 (빠른 공은 틱당 3 m 가까이 움직인다)에서 가장 가까운 거리
-    const [gd, gt] = segDist(gk.x, gk.y, fromX, fromY, b.x, b.y);
+    const gd = segDistS(gk.x, gk.y, fromX, fromY, b.x, b.y), gt = SEG.t;
     if (gd > K.handRange) continue;
     const [cx, cy] = [fromX + (b.x - fromX) * gt, fromY + (b.y - fromY) * gt];
     if (b.handBlock && b.handBlock.idx === gk.idx && s.t < b.handBlock.until) continue;

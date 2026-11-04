@@ -6,7 +6,7 @@ import { BALANCE } from '../config/balance';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, L1, ownGoal, segDist, W } = pitch_;
+const { attackDir, clamp, dist, L, L1, ownGoal, SEG, segDist, segDistS, W } = pitch_;
 import type { Agent, SimState } from './state';
 
 const K = ENGINE.keeper;
@@ -41,7 +41,7 @@ export function farSide(gk: Agent | null, gy: number): -1 | 1 | null {
 
 /** GK 도달 항 cover 0~1 (C.77t): (kx, ky) GK, (fx, fy) → (tx, ty) 슛 선, 선방 능력치 stop. 선방 확률에 곱한다 */
 export function keeperCover(kx: number, ky: number, fx: number, fy: number, tx: number, ty: number, speed: number, stop: number, lead = 0): number {
-  const [e] = segDist(kx, ky, fx, fy, tx, ty);
+  const e = segDistS(kx, ky, fx, fy, tx, ty);
   const tb = Math.max(0, dist(kx, ky, fx, fy) / Math.max(1, speed) - K.reactTime);
   // lead: 슛까지 남은 시간(초, 판단용 — 패스가 가는 동안 GK 가 자리를 옮긴다)
   const reach = K.reachBase + K.diveSpeed * tb * (stop / 80) + K.setSpeed * lead;
@@ -114,7 +114,7 @@ export function coverOf(c: ShotCtx): number {
 function timeTerms(c: ShotCtx, reactExtra = 0): [number, number] {
   const g = c.gk;
   if (!g) return [1, K.availRef];
-  const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
+  const e = segDistS(g.x, g.y, c.fx, c.fy, c.tx, c.ty), k = SEG.t;
   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
   // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기). reactExtra = 예측 속임(C.79s keeper.read) 의 ±(0 이면 그대로)
   const react = Math.max(0, reactOf(c.stop) + (c.header ? (c.setPiece ? K.headerReactSet : K.headerReact) : 0) + (c.screen ? K.screenReact * c.screen : 0) + reactExtra);
@@ -179,7 +179,8 @@ export function saveChance(c: ShotCtx): number {
     let commit = K.readCommit;
     if (K.readMinT > 0) {
       // 읽을 시간: 공이 대응 지점까지 오는 시간이 짧으면(근거리·1대1) 기울지 않는다
-      const [, k] = segDist(c.gk.x, c.gk.y, c.fx, c.fy, c.tx, c.ty);
+      segDistS(c.gk.x, c.gk.y, c.fx, c.fy, c.tx, c.ty);
+      const k = SEG.t;
       const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
       commit *= clamp((tBall - K.readMinT) / (K.readRampT > 0 ? K.readRampT : K.readMinT), 0, 1);
     }

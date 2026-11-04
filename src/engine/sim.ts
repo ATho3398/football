@@ -104,7 +104,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
     sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, urgent: false,
-    maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
+    maxSpeed: 0, accel: 0, turnKeep: 0, pivotT: 0, burstSec: 0, drainAttr: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
     rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
@@ -627,14 +627,21 @@ function stepTail(s: SimState): void {
   settleMoment(s);
 
   // 이동
+  // 팀 몫 (C.81e: 팀마다 한 번 — 곱하는 순서 그대로라 같은 값)
+  const t0 = s.teams[0];
+  const t1 = s.teams[1];
+  const PH = ENGINE.physics;
+  const td0 = (PH.pressDrainBase + PH.pressDrainPer * t0.tactics.pressing) * (t0.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1);
+  const td1 = (PH.pressDrainBase + PH.pressDrainPer * t1.tactics.pressing) * (t1.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1);
+  const envDrain = s.env.drain;
+  const envRecover = s.env.recover;
   for (const a of s.agents) {
     if (!a.onPitch) continue;
     // 압박 전술의 스태미나 소모 × (pressDrainBase + pressDrainPer × pressing) (E.19 ③, C.76s 0.85 + 0.35p)
     // C.77a 가설 1: 게겐프레싱 팀 × gegenDrain, 역압박 가담 중 × counterDrain
-    const tm = s.teams[a.team];
-    const drain = (ENGINE.physics.pressDrainBase + ENGINE.physics.pressDrainPer * tm.tactics.pressing)
-      * (tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1)
-      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? ENGINE.physics.counterDrain : 1)
+    const tm = a.team === 0 ? t0 : t1;
+    const drain = (a.team === 0 ? td0 : td1)
+      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? PH.counterDrain : 1)
       // 공격 몰빵 억제 (C.80q ②): 상대 소유 중 자기 골 쪽으로 복귀하는 공격 포지션 선수 체력 소모 ×
       * (tm.stackOver > 0 ? stackDrainMul(s, a) : 1);
     // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
@@ -642,7 +649,7 @@ function stepTail(s: SimState): void {
     else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
     // C.80l: 게겐프레싱 팀은 지친 강도 감소에 gegenFatigue × 지친 비율^gegenFatigueExp 를 더한다 (0 = 끔)
     const gegen = tm.tactics.tendency === 'gegenpress';
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * s.env.drain, s.env.recover, a.idx === b.owner ? NaN : b.x, b.y,
+    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * envDrain, envRecover, a.idx === b.owner ? NaN : b.x, b.y,
       gegen ? TENDENCY.gegenFatigue : 0, TENDENCY.gegenFatigueExp);
   }
 

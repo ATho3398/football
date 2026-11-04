@@ -16,6 +16,10 @@ export function initPhysics(a: Agent): void {
   const q = a.body?.quickness ?? 0;
   a.accel = P.accelBase + (P.accelSlope * (t.acceleration - q)) / 100;
   a.turnKeep = P.turnKeepBase + (P.turnKeepSlope * (t.agility - q)) / 100;
+  // 선수마다 고정인 값 (C.81e 계산 속도: 이동마다 같은 식을 되풀이하지 않는다 — 같은 값)
+  a.pivotT = pivotTimeOf(a);
+  a.burstSec = burstSecs(a);
+  a.drainAttr = P.drainAttrBase - (P.drainAttrSlope * a.attrs.stamina) / 100;
 }
 
 /** 지친 비율 (C.76s): 스태미나 staminaLowFrom 아래에서 0 → 1 (스태미나 0). 최고 속도·경합·판단 온도·패스·역압박 가담이 같이 쓴다 */
@@ -90,6 +94,9 @@ function desiredSpeed(a: Agent, d: number, cap: number, fatigueExtra: number, fa
 
 /** 180° 몸 돌리기 시간 (C.77x): pivotBase − pivotSlope × 민첩(몸무게 보정 뒤, turnKeep 과 같은 값)/100 */
 function pivotTime(a: Agent): number {
+  return a.pivotT;
+}
+function pivotTimeOf(a: Agent): number {
   const agi = (a.turnKeep - P.turnKeepBase) / P.turnKeepSlope;
   return Math.max(0.1, P.pivotBase - P.pivotSlope * agi);
 }
@@ -231,7 +238,7 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
     const lim = a.maxSpeed * B.runCap;
     const hi = a.maxSpeed * P.sprintRatio;
     if (v > lim + 1e-9) {
-      a.burst = Math.max(0, a.burst - (100 / burstSecs(a)) * (sprinting ? 1 : (v - lim) / (hi - lim)) * dt);
+      a.burst = Math.max(0, a.burst - (100 / a.burstSec) * (sprinting ? 1 : (v - lim) / (hi - lim)) * dt);
       if (a.burst <= 0) a.burstOut = true;
     } else {
       const top = burstCap(a);
@@ -246,7 +253,7 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   // 스태미나 (E.4)
   const ratio = v / a.maxSpeed;
   if (v < P.walk * 1.1) a.stamina = Math.min(100, a.stamina + P.staminaRecover * recoverScale * dt * 10);
-  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * (P.drainAttrBase - (P.drainAttrSlope * a.attrs.stamina) / 100) * dt * 10);
+  else a.stamina = Math.max(0, a.stamina - ratio * ratio * P.staminaDrain * a.drainMul * drainScale * a.drainAttr * dt * 10);
 }
 
 /**
