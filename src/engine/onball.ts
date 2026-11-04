@@ -18,7 +18,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { claimProb, coverOf, expectedSave, farSide, gkCtx, keeperOf, keeperZone, saveChance } = keeper_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, oppGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, oppGoal, positionValue, segDist, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import { offsideRisk } from './referee';
@@ -294,7 +294,7 @@ function goalAngle(x: number, y: number, gx: number): number {
 /** follow: 수비가 따라온다 (C.78h 각도 만들기) — 압박·3 m·밀집·1대1 조건은 지금 자리(a.x, a.y)에서, 슛 길 콘·각도·거리는 at 에서 */
 export function shotModel(s: SimState, a: Agent, header = false, at?: { x: number; y: number }, lead = 0, follow = false): ShotModel {
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const px = at?.x ?? a.x;
   const py = at?.y ?? a.y;
   const d = dist(px, py, gx, gy);
@@ -450,7 +450,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
  */
 export function shotExec(s: SimState, a: Agent, header = false): { goal: number; pSave: number; cover: number; m: ShotModel } {
   const m = shotModel(s, a, header);
-  const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+  const gx = (attackDir(a.team, s.half) > 0 ? L : 0), gy = W / 2;
   const lane = PR.laneSide > 0 && !header;
   const sd = m.side || (farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1);
   const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] > 0 ? 1 : 0 };
@@ -488,7 +488,7 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
   let best: { r: Agent; pWin: number; value: number } | null = null;
   let bestW = 0;
   const all: { r: Agent; pWin: number; value: number; w: number }[] = [];
-  const crossSide = Math.sign(toNorm(a.x, a.y, dir)[1] - 0.5);
+  const crossSide = Math.sign(normY(a.y, dir) - 0.5);
   for (const r of boxTeammates(s, a, dir)) {
     const [def, dd] = nearestOpponent(s, r);
     let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def, matchupPts(s, r.team, 'air') - matchupPts(s, def.team, 'air')) : 0.85;
@@ -580,7 +580,7 @@ export interface OtReq { speed: number; pr: number; out: Candidate[] }
 
 export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const dir = attackDir(a.team, s.half);
-  const [ax, ay] = toNorm(a.x, a.y, dir);
+  const ax = normX(a.x, dir), ay = normY(a.y, dir);
   const here = positionValue(ax, ay);
   const pressure = pressureAt(s, a);
   const av = averageSelf(a);
@@ -590,7 +590,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== a.team || o.line === 0) continue;
     mates.push(o);
-    mateNx.push(toNorm(o.x, o.y, dir)[0]);
+    mateNx.push(normX(o.x, dir));
   }
   const loss = (nx: number, ny: number): number => {
     let ahead = 0;
@@ -607,7 +607,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // 뒤 공간 (C.78g): 상대 필드 선수의 정규화 x (받는 곳보다 골 쪽 인원)
   const SP = ENGINE.transition;
   const oppNx: number[] = [];
-  if (SP.space > 0 || SP.counterBonus > 0) for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) oppNx.push(toNorm(o.x, o.y, dir)[0]);
+  if (SP.space > 0 || SP.counterBonus > 0) for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) oppNx.push(normX(o.x, dir));
   // 역습 상황 보너스 (C.78g, 사용자 "역습 상황에 보상 점수를 좀 더"): 오픈 플레이 탈취 뒤 counterTime 초 동안, 공보다 앞(우리 쪽)에 남은 상대 몫 × 상대 라인 뒤 열린 공간 몫.
   // 전진 후보의 효용에 counterBonus × 이 값 × 전진(정규화) × 판단 성공 확률을 더한다(상한 counterCap) — 성공 확률·실행은 그대로, 고를 이유만
   let counterK = 0;
@@ -620,7 +620,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const safeMul = manDiff(s, a.team) < 0 ? ENGINE.referee.shortSafe : 1;
   const isGk = a.line === 0;
   const out: Candidate[] = [];
-  const [gx0, gy0] = oppGoal(dir);
+  const gx0 = (dir > 0 ? L : 0), gy0 = W / 2;
   const tac = s.teams[a.team].tactics;
   const style = tac.style;
   const mPoss = TA.possBase + TA.possSlope * style;
@@ -673,8 +673,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // 침투 패스: 오프사이드 라인 뒤 공간으로 (E.20 4번)
       const room = (1 - line) * L;
       const depth = clamp(O.throughShare * (room - O.throughStop), O.throughMin, O.throughMax);
-      const [, rny] = toNorm(r.x, r.y, dir);
-      [tx, ty] = toPitch(clamp(Math.max(toNorm(r.x, r.y, dir)[0], line) + depth / L, 0, 0.97), rny, dir);
+      const rny = normY(r.y, dir);
+      [tx, ty] = toPitch(clamp(Math.max(normX(r.x, dir), line) + depth / L, 0, 0.97), rny, dir);
     }
     const lane = laneRisk(s, a, tx, ty);
     const rp = Math.max(0, 1 - nearestOpponent(s, r, tx, ty)[1] / PR.receiverPressureDist);
@@ -719,7 +719,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const pFlight = flightP(ppA);
     const p = pFlight * aerial;
     const pj = judgedP(p, flightP(ppAv) * aerial);
-    const [rx, ry] = toNorm(tx, ty, dir);
+    const rx = normX(tx, dir), ry = normY(ty, dir);
     // 받는 자리의 가치 × 지원도 (E.20 2번). 받는 순간 압박이 있으면 그만큼 다음 결정 전에 빼앗길 수 있다 (유지 효용과 같은 식)
     const pLoseR = O.holdLose * rp;
     const supR = support(r, tx, ty);
@@ -747,7 +747,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         iShare = Math.min(1, PR.interceptShare + tot * 0.3);
         let li = 0;
         for (const x of lane.cutters) {
-          const [cx, cy] = toNorm(a.x + (tx - a.x) * x.t, a.y + (ty - a.y) * x.t, dir);
+          const cx = normX(a.x + (tx - a.x) * x.t, dir), cy = normY(a.y + (ty - a.y) * x.t, dir);
           li += (x.w / tot) * loss(cx, cy);
         }
         lossF = iShare * li + (1 - iShare) * lossR;
@@ -814,7 +814,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       if (r === a || !r.onPitch || r.team !== a.team || r.line < 2) continue;
       const d = dist(a.x, a.y, r.x, r.y);
       if (d > O.layoffDist || d < 2) continue;
-      const [rx, ry] = toNorm(r.x, r.y, dir);
+      const rx = normX(r.x, dir), ry = normY(r.y, dir);
       if (rx >= ax) continue; // 앞을 보고 받을 2선 (공보다 자기 골 쪽)
       const layP = (who: Agent) => passSkillApply(PR.passBase - PR.passPerM * d + formBonus(who), who.attrs.shortPassing);
       const lA = layP(a);
@@ -847,7 +847,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const uy = Math.sin(ang);
       const cx = clamp(a.x + ux * O.carryDist, 1, L - 1);
       const cy = clamp(a.y + uy * O.carryDist, 1, W - 1);
-      const [nx, ny] = toNorm(cx, cy, dir);
+      const nx = normX(cx, dir), ny = normY(cy, dir);
       let def: Agent | null = null;
       let second = false;
       let dd = Infinity;
@@ -901,7 +901,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     }
 
     // 슛 (골을 등지고 받았으면 먼저 돌아서야 한다)
-    const [gx, gy] = oppGoal(dir);
+    const gx = (dir > 0 ? L : 0), gy = W / 2;
     if (dist(a.x, a.y, gx, gy) <= PR.shotMaxDist && ax > 0.6 && !a.backToGoal) {
       const m = shotModel(s, a);
       const vj = judgedP(m.value, shotModel(s, av).value);
@@ -922,7 +922,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         for (const sd of [-1, 1]) {
           const cx = clamp(a.x + dir * O.laneCarryFwd, 1, L - 1);
           const cy = clamp(a.y + sd * O.laneCarry, 1, W - 1);
-          const [nx, ny] = toNorm(cx, cy, dir);
+          const nx = normX(cx, dir), ny = normY(cy, dir);
           const qEnd = loseProb(s, a, cx, cy);
           const mT = shotModel(s, a, false, { x: cx, y: cy }, O.laneCarryTime, true);
           const sv = mT.value;
@@ -975,7 +975,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 클리어링: 수비 3분의 1, 압박이 심할 때
     if (ax < PR.clearMaxX && pressure > PR.clearPressure) {
       const [tx, ty] = toPitch(clamp(ax + 0.42, 0, 0.9), 0.5 + (ay - 0.5) * 0.5, dir);
-      const [nx, ny] = toNorm(tx, ty, dir);
+      const nx = normX(tx, dir), ny = normY(ty, dir);
       // 걷어내기 (C.78c ②): 착지점에 먼저 닿을 몫 (옛 동작 0.45 고정)
       const p = O.landShare > 0 ? landingShare(s, a.team, tx, ty, dist(a.x, a.y, tx, ty) / B.airSpeed, a) : 0.45;
       const u = weight(p * positionValue(nx, ny) + (1 - p) * loss(nx, ny), a.role.pref.clear * mDirect);
@@ -1004,7 +1004,7 @@ export function wingCutBias(s: SimState, a: Agent, m: ShotModel): number {
   if (!DB.wingCutShot || (a.pos !== 'LW' && a.pos !== 'RW' && a.pos !== 'LM' && a.pos !== 'RM')) return 0;
   const side = a.sy < 0.5 ? -1 : 1;
   if (a.body.foot !== (side < 0 ? 'right' : 'left')) return 0;
-  const off = (toNorm(a.x, a.y, attackDir(a.team, s.half))[1] - 0.5) * W;
+  const off = (normY(a.y, attackDir(a.team, s.half)) - 0.5) * W;
   if (off * side < -DB.wingCutCenter) return 0;
   const fd = clamp((DB.wingCutFar - m.d) / (DB.wingCutFar - DB.shootNear), 0, 1);
   const fl = clamp(1 - m.pBlock / DB.shootLaneRef, 0, 1);
@@ -1086,19 +1086,19 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: 
 export function settledDeep(s: SimState, a: Agent): boolean {
   const DB = ENGINE.decide.bias;
   const dir = attackDir(a.team, s.half);
-  const ax = toNorm(a.x, a.y, dir)[0];
+  const ax = normX(a.x, dir);
   if (ax < DB.directSwitchFromX) return false;
   let behind = 0;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && toNorm(o.x, o.y, dir)[0] > ax) behind++;
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && normX(o.x, dir) > ax) behind++;
   return behind >= DB.directSwitchBehind;
 }
 
 /** 패서보다 자기 골 쪽(정규화 x 큼)에 있는 상대 필드 선수 수 (C.80p, 판단에 보이는 특징) */
 function behindCount(s: SimState, a: Agent): number {
   const dir = attackDir(a.team, s.half);
-  const ax = toNorm(a.x, a.y, dir)[0];
+  const ax = normX(a.x, dir);
   let n = 0;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && toNorm(o.x, o.y, dir)[0] > ax) n++;
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && normX(o.x, dir) > ax) n++;
   return n;
 }
 
@@ -1109,7 +1109,7 @@ function oppSettled(s: SimState, a: Agent): boolean {
   const dir = attackDir(a.team, s.half);
   let t = 0;
   let n = 0;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) { t += toNorm(o.x, o.y, dir)[0]; n++; }
+  for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0) { t += normX(o.x, dir); n++; }
   return n > 0 && t / n >= DB.directScanDeepX;
 }
 
@@ -1194,8 +1194,8 @@ function passiveWeight(s: SimState, a: Agent, c: Candidate, pool: Candidate[], c
   const R = ENGINE.rating;
   if (c.type !== 'pass') return 0;
   const dir = attackDir(a.team, s.half);
-  const [ax] = toNorm(a.x, a.y, dir);
-  const [cx] = toNorm(c.x, c.y, dir);
+  const ax = normX(a.x, dir);
+  const cx = normX(c.x, dir);
   if ((a.x - c.x) * dir < R.passiveBack && !(ax >= 0.5 && cx < 0.5 && c.x * dir < a.x * dir)) return 0;
   if (pressureAt(s, a) > 0) return 0;
   if (!pool.some((o) => (o.type === 'pass' || o.type === 'through') && (o.x - a.x) * dir >= R.passiveFwd && o.p >= R.passiveOpenP)) return 0;
@@ -1267,7 +1267,7 @@ export function choose(s: SimState, a: Agent, cands: Candidate[], pre = false): 
   for (const c of pool0) maxU = Math.max(maxU, c.u);
   // 가치 비례 gap·온도 (C.77i, 44h-f3b): 효용 스케일이 작은 중원에서는 gap·τ 를 그 자리 가치 / 기준점(골 scaleRefDist m 중앙) 가치에 비례해 줄인다.
   // 기준점보다 앞(vScale ≥ 1)은 그대로. 실수 후보(isMistake)는 절대 gap 그대로
-  const vScale = positionValue(...toNorm(a.x, a.y, attackDir(a.team, s.half))) / positionValue(1 - O.scaleRefDist / L, 0.5);
+  const vScale = positionValue(normX(a.x, attackDir(a.team, s.half)), normY(a.y, attackDir(a.team, s.half))) / positionValue(1 - O.scaleRefDist / L, 0.5);
   // 바닥은 빌드업 성향 비례 (C.77k, 44h-f3c): 직선(style ≤ styleDirectAt)은 1(넓게), 짧게·혼합(≥ styleMixedAt)은 gapFloor·tempFloor
   const k = clamp((s.teams[a.team].tactics.style - TA.styleDirectAt) / (TA.styleMixedAt - TA.styleDirectAt), 0, 1);
   const gap = O.plausibleGap * clamp(vScale, 1 - (1 - O.gapFloor) * k, 1);
@@ -1304,7 +1304,7 @@ export function preDecide(s: SimState, a: Agent, speed: number, tCtrl: number): 
   const ot: OtReq = { speed, pr, out: [] };
   const ctrl = candidates(s, a, ot);
   const k = RC.ctrlCost * clamp(1 - (dNear - RC.ctrlClose * tCtrl) / RC.pressDist, 0, 1);
-  const lossHere = lossCost(...toNorm(a.x, a.y, attackDir(a.team, s.half)));
+  const lossHere = lossCost(normX(a.x, attackDir(a.team, s.half)), normY(a.y, attackDir(a.team, s.half)));
   for (const c of ctrl) c.u = (1 - k) * c.u + k * lossHere;
   const pool = [...ot.out, ...ctrl];
   const c = choose(s, a, pool, true);
@@ -1316,7 +1316,7 @@ export function preDecide(s: SimState, a: Agent, speed: number, tCtrl: number): 
 /** 측정용 (E.22 0번): 상대 진영 결정에서 고른 후보의 효용 순위 (보이는 후보 중) (판단 품질 55 / 70 / 85 구간별 최선·차선·나머지) */
 function recordDecision(s: SimState, a: Agent, cands: Candidate[], chosen: Candidate): void {
   if (a.line === 0 || cands.length < 3) return;
-  const [nx] = toNorm(a.x, a.y, attackDir(a.team, s.half));
+  const nx = normX(a.x, attackDir(a.team, s.half));
   if (nx <= 0.5) return;
   const j = a.judgement - (a.duelEdge > 0 ? ENGINE.match.homeJudgement : 0);
   const band = j >= 0.5 && j < 0.6 ? 0 : j >= 0.65 && j < 0.75 ? 1 : j >= 0.8 && j < 0.9 ? 2 : -1;

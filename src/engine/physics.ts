@@ -64,7 +64,7 @@ export function effectiveMax(a: Agent): number {
 }
 
 /** 목표 속도: 거리별 걷기/조깅/러닝, 긴급하면 최대 속도. 목표 근처에서는 감속 */
-function desiredSpeed(a: Agent, d: number, cap: number, fatigueExtra = 0, fatigueExp = 1): number {
+function desiredSpeed(a: Agent, d: number, cap: number, fatigueExtra: number, fatigueExp: number, accel: number): number {
   if (d < P.arriveDist) return 0;
   let v: number;
   if (a.urgent) v = d < P.walkDist ? P.jog : cap;
@@ -83,7 +83,8 @@ function desiredSpeed(a: Agent, d: number, cap: number, fatigueExtra = 0, fatigu
     v *= 1 - P.fatigueIntensity * r - (fatigueExtra > 0 && !a.urgent ? fatigueExtra * Math.pow(Math.min(1, r), fatigueExp) : 0);
   }
   // 멈출 수 있는 속도
-  v = Math.min(v, Math.sqrt(2 * effectiveAccel(a) * d), cap);
+  // accel = effectiveAccel(a) (C.81e: moveAgent 가 이미 구한 같은 값)
+  v = Math.min(v, Math.sqrt(2 * accel * d), cap);
   return v;
 }
 
@@ -141,7 +142,7 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
   const dy = a.ty - a.y;
   const d = Math.sqrt(dx * dx + dy * dy);
   // 사람을 따라갈 때 거리 보정은 거리 비례(feedGain × 거리)까지 올린다 — 걷기·조깅 단계로만 좁히면 움직이는 목표와의 간격이 닫히지 않는다
-  let corr = desiredSpeed(a, d, cap, fatigueExtra, fatigueExp);
+  let corr = desiredSpeed(a, d, cap, fatigueExtra, fatigueExp, accel);
   if (feeding && P.feedGain > 0 && d >= P.arriveDist) corr = Math.max(corr, Math.min(P.feedGain * d, Math.sqrt(2 * accel * d), cap));
   let wx = 0;
   let wy = 0;

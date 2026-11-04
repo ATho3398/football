@@ -24,6 +24,10 @@ export function toNorm(x: number, y: number, dir: 1 | -1): [number, number] {
   return dir > 0 ? [x / L, y / W] : [1 - x / L, 1 - y / W];
 }
 
+/** toNorm 의 x·y 만 (C.81e: 배열을 만들지 않는다 — 같은 식) */
+export const normX = (x: number, dir: 1 | -1) => (dir > 0 ? x / L : 1 - x / L);
+export const normY = (y: number, dir: 1 | -1) => (dir > 0 ? y / W : 1 - y / W);
+
 export function toPitch(nx: number, ny: number, dir: 1 | -1): [number, number] {
   return dir > 0 ? [nx * L, ny * W] : [(1 - nx) * L, (1 - ny) * W];
 }

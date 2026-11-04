@@ -2,7 +2,7 @@
 import { posGroup } from '../roster';
 import type { Position } from '../types';
 import { ENGINE } from './config';
-import { attackDir, toNorm } from './pitch';
+import { attackDir, toNorm, normX } from './pitch';
 import type { Agent, SimState } from './state';
 
 type StackCfg = { readonly n: number; readonly stN: number; readonly link: number; readonly linkBase: number; readonly stW: number; readonly drain: number; readonly groups: readonly string[] };
@@ -29,7 +29,7 @@ export function stackLinkMul(s: SimState, a: Agent): number {
   const m = s.teams[a.team].stackOver;
   if (m <= 0) return 1;
   const C = ENGINE.stackCap;
-  const [nx] = toNorm(a.x, a.y, attackDir(a.team, s.half));
+  const nx = normX(a.x, attackDir(a.team, s.half));
   return nx >= C.linkFromX ? Math.max(0, 1 - C.linkBase - C.link * m) : 1;
 }
 

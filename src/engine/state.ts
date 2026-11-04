@@ -340,6 +340,10 @@ export interface SimState {
   env: MatchEnv;
   /** 동료 호흡·상대 분석·패스 받는 빈도 (C.74c). 없으면 null (호흡 0·관계 보통·리포트 없음 = 이전 엔진) */
   rapport: Rapport | null;
+  /** 계산 속도 (C.81e, 결과 불변): 선수 onPitch 가 바뀔 때마다 1 오른다 — manDiff 캐시(manVer·manD0 = 그때 팀 0 기준 인원 차) */
+  onVer: number;
+  manVer: number;
+  manD0: number;
 }
 
 export function emptyTeamStats(): TeamStats {

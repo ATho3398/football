@@ -18,7 +18,7 @@ import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, ownGoal, positionValue, segDist, toNorm, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, normX, normY, oppGoal, ownGoal, positionValue, segDist, toNorm, W } = pitch_;
 import * as physics_ from './physics';
 const { duelEdgeOf, landingVelocity, tiredRatio } = physics_;
 import * as env_ from './env';
@@ -354,24 +354,24 @@ export function duelEligible(s: SimState, o: Agent, d: Agent): boolean {
 export function duelOdds(s: SimState, o: Agent, d: Agent): { pWin: number; pFoul: number; beaten: number; us: [number, number, number] } {
   const D = ENGINE.defense;
   const dirA = attackDir(o.team, s.half);
-  const [ax, ay] = toNorm(o.x, o.y, dirA);
+  const ax = normX(o.x, dirA), ay = normY(o.y, dirA);
   const here = positionValue(ax, ay);
   const inBox = inOppBox(o.x, o.y, dirA);
   // 돌파 허용 비용: 소유자가 carryDist 앞으로 나간 자리 가치 − 지금 가치 (박스 안이면 슛 기회)
-  const [nx2, ny2] = toNorm(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), o.y, dirA);
+  const nx2 = normX(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), dirA), ny2 = normY(o.y, dirA);
   const beaten = Math.max(0, positionValue(nx2, ny2) - here) + D.beatenBase;
   const behind = behindOwner(s, o, d);
   // 카드 패시브 (C.36, 내 선수만): 태클 성공 %p. 없으면 그대로
   const pWin = clamp((1 - dribbleProb(o, d, 0, fitPts(s, o.team, 'run') - fitPts(s, d.team, 'tackle'))) * (behind ? D.behindTackle : 1) + (d.cardBoost?.tackle ?? 0), 0.02, 0.98);
   const pFoul = clamp(ENGINE.referee.tackleFoul * (behind ? D.behindFoul : 1) * foulFactor(s, o, o.x, o.y, d), 0, 1);
   // 탈취 가치: 상대 공격 가치가 사라지고 우리 공격이 시작된다 (루즈볼이면 절반)
-  const [dx, dy] = toNorm(o.x, o.y, attackDir(d.team, s.half));
+  const dx = normX(o.x, attackDir(d.team, s.half)), dy = normY(o.y, attackDir(d.team, s.half));
   const gain = (here + positionValue(dx, dy)) * (PR.tackleKeep + (1 - PR.tackleKeep) * 0.5);
   const foulCost = inBox ? ENGINE.setPiece.penaltyBase - here : D.foulCost;
   const uTackle = pWin * gain - (1 - pWin) * (beaten + pFoul * foulCost);
   const lane = shadowValue(s, o, d) - here;
   const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
-  const [dgx, dgy] = ownGoal(attackDir(d.team, s.half));
+  const dgx = (attackDir(d.team, s.half) > 0 ? 0 : L), dgy = W / 2;
   const jockey = dist(o.x, o.y, dgx, dgy) < D.jockeyNearDist || inOwnBox(d.team, s.half, o.x, o.y) ? D.jockeyNear : D.jockeyFar;
   return { pWin, pFoul, beaten, us: [uTackle, jockey, uLane] };
 }
@@ -385,11 +385,11 @@ function O_TEMP(j: number): number {
 /** 소유자 팀의 가장 위험한 패스 대상(공보다 수비 골에 가까운 선수 중 위치 가치 최대)의 가치 */
 function shadowValue(s: SimState, o: Agent, d: Agent): number {
   const dirA = attackDir(o.team, s.half);
-  const [ox] = toNorm(o.x, o.y, dirA);
+  const ox = normX(o.x, dirA);
   let best = 0;
   for (const m of s.agents) {
     if (!m.onPitch || m.team !== o.team || m === o || m.line === 0) continue;
-    const [mx, my] = toNorm(m.x, m.y, dirA);
+    const mx = normX(m.x, dirA), my = normY(m.y, dirA);
     if (mx <= ox || dist(m.x, m.y, o.x, o.y) > ENGINE.onball.passMaxDist) continue;
     best = Math.max(best, positionValue(mx, my));
   }
@@ -425,7 +425,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
   // 상대 슈팅 카드 장면 (C.40): 직접 모드에서 몸으로 막기 카드가 있으면 슛 전에 멈춘다 (결정 뒤 sim 이 같은 틱에 다시 부른다)
   if (s.cards && !header && oppShotMoment(s, a)) return;
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const m = shotModel(s, a, header);
   // 카드 (C.36): 내 슛 보정(유효 %p·선방·블록 배수), 상대 슛이면 내 몸으로 막기. 카드가 없으면 그대로
   const cm = s.cards ? shotCardMod(s, a) : null;
@@ -633,7 +633,7 @@ function celebration(s: SimState, scorer: Agent): void {
   const R = ENGINE.restart;
   const u = (k: number): number => rand(s.seed, s.tick, scorer.idx, Purpose.Restart, 20 + k);
   const dir = attackDir(scorer.team, s.half);
-  const [gx] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0);
   const cy = scorer.y < W / 2 ? 0 : W;
   const d = dist(scorer.x, scorer.y, gx, cy) || 1;
   const run = Math.min(R.celebrateRun[0] + (R.celebrateRun[1] - R.celebrateRun[0]) * u(0), Math.max(0, d - 3));
@@ -824,7 +824,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       s.teams[att].stats.passesCompleted++;
       s.lastPass = { passer: passer.idx, receiver: winner.idx, t: s.t };
     }
-    const [gx, gy] = oppGoal(dirAtt);
+    const gx = (dirAtt > 0 ? L : 0), gy = W / 2;
     if (inOppBox(b.x, b.y, dirAtt) && dist(b.x, b.y, gx, gy) < PR.headerMaxDist) {
       // 헤더는 공이 있는 자리에서 (판정은 착지점 기준, 선수는 옮기지 않는다, C.24)
       const [wx, wy] = [winner.x, winner.y];
@@ -1189,7 +1189,7 @@ export function takeCorner(s: SimState, a: Agent): boolean {
 /** 직접 프리킥: 30 m 이내, 골문이 보이면 슛 (벽 블록 확률), 측면이면 크로스. 아니면 일반 판단 */
 export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean {
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const d = dist(a.x, a.y, gx, gy);
   const central = Math.abs(a.y - gy) < 15;
   // 카드 직접 프리킥 (C.36): 키커 보정에 direct 가 있으면 슛을 고른다 (벽 블록 배수, 유효 %p, 선방 보정)
@@ -1297,7 +1297,7 @@ export function takePenalty(s: SimState, a: Agent): void {
     a.stats.shotsOnTarget++;
     s.lastPass = null;
     // 공이 골문까지 날아간 뒤 골 (재생에서 공이 골문에 들어가는 장면이 보이게, 판정은 이미 끝났다)
-    const [gx, gy] = oppGoal(dir);
+    const gx = (dir > 0 ? L : 0), gy = W / 2;
     const side = r(s, a.idx, Purpose.Penalty, 3) < 0.5 ? -1 : 1;
     const speed = ENGINE.ball.shotSpeed;
     const d = dist(a.x, a.y, gx, gy);
@@ -1312,7 +1312,7 @@ export function takePenalty(s: SimState, a: Agent): void {
     return;
   }
   const pkProbe = (outcome: 'save' | 'miss'): void => {
-    const [gx, gy] = oppGoal(dir);
+    const gx = (dir > 0 ? L : 0), gy = W / 2;
     probeShot(s, a, 'pk', outcome, { xg: PK_XG, pOn: p, pBlock: 0, d: dist(a.x, a.y, gx, gy) }, gx, gy, ENGINE.ball.shotSpeed);
   };
   if (r(s, a.idx, Purpose.Penalty, 1) < SP.penaltySaveShare) {

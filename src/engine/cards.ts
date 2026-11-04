@@ -12,7 +12,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { finishSkill, lossCost, shotModel, type Candidate } from './onball';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, oppGoal, toNorm, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, oppGoal, toNorm, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import type { Agent, SimState } from './state';
@@ -232,7 +232,7 @@ function reqProblem(a: Agent, def: CardDef): string | null {
 function whenOk(s: SimState, a: Agent, w: OptionWhen | undefined): boolean {
   if (!w) return true;
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const d = dist(a.x, a.y, gx, gy);
   if (w.minDist !== undefined && d < w.minDist) return false;
   if (w.maxDist !== undefined && d > w.maxDist) return false;
@@ -242,7 +242,7 @@ function whenOk(s: SimState, a: Agent, w: OptionWhen | undefined): boolean {
     if (!gk || Math.abs(gk.x - gx) < w.gkOut) return false;
   }
   if (w.wide && !(inOppBox(a.x, a.y, dir) && Math.abs(a.y - gy) > ENGINE.pitch.goalWidth)) return false;
-  if (w.ownHalf && toNorm(a.x, a.y, dir)[0] >= 0.5) return false;
+  if (w.ownHalf && normX(a.x, dir) >= 0.5) return false;
   return true;
 }
 
@@ -413,7 +413,7 @@ export function buildVariant(s: SimState, a: Agent, def: CardDef, hand: number, 
       cand.x = clamp(a.x + dir * eff.carry, 1, L - 1);
       cand.y = clamp(cand.y, 1, W - 1);
     }
-    const [nx, ny] = toNorm(a.x, a.y, attackDir(a.team, s.half));
+    const nx = normX(a.x, attackDir(a.team, s.half)), ny = normY(a.y, attackDir(a.team, s.half));
     cand.u = base.u + (p - base.p) * (base.value - lossCost(nx, ny));
   }
   return { hand, def, eff, cand, mod, p, baseCand: base };
@@ -749,7 +749,7 @@ export function airScenes(s: SimState, attacking: boolean, fromCross: boolean): 
 
 /** 내가 상대 슈팅 길(콘) 안인가 (몸으로 막기) */
 export function inShotCone(s: SimState, shooter: Agent, a: Agent): boolean {
-  const [gx, gy] = oppGoal(attackDir(shooter.team, s.half));
+  const gx = (attackDir(shooter.team, s.half) > 0 ? L : 0), gy = W / 2;
   const ux = gx - shooter.x;
   const uy = gy - shooter.y;
   const len2 = ux * ux + uy * uy || 1;

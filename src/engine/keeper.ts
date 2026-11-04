@@ -6,7 +6,7 @@ import { BALANCE } from '../config/balance';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L1, ownGoal, segDist } = pitch_;
+const { attackDir, clamp, dist, L, L1, ownGoal, segDist, W } = pitch_;
 import type { Agent, SimState } from './state';
 
 const K = ENGINE.keeper;
@@ -233,7 +233,7 @@ export function sweepRange(gk: Agent): number {
 
 /** (x, y)가 GK 의 처리 구역인가 (C.28): 자기 박스 안, 스위퍼는 박스 밖 sweepRange m 까지 */
 export function keeperZone(s: SimState, gk: Agent, x: number, y: number, range = sweepRange(gk)): boolean {
-  const [gx, gy] = ownGoal(attackDir(gk.team, s.half));
+  const gx = (attackDir(gk.team, s.half) > 0 ? 0 : L), gy = W / 2;
   const P = ENGINE.pitch;
   const dx = Math.max(0, Math.abs(x - gx) - P.boxDepth);
   const dy = Math.max(0, Math.abs(y - gy) - P.boxWidth / 2);

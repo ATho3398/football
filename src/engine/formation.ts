@@ -25,10 +25,14 @@ export function teamPhase(s: SimState, team: 0 | 1): number {
 
 /** 수적 열세/우세 보정 (E.10). 퇴장으로 인원이 다르면 */
 export function manDiff(s: SimState, team: 0 | 1): number {
-  let own = 0;
-  let opp = 0;
-  for (const a of s.agents) if (a.onPitch) (a.team === team ? own++ : opp++);
-  return own - opp;
+  // C.81e: onPitch 가 바뀌지 않았으면 지난 값 (onVer 는 onPitch 를 바꾸는 곳마다 오른다)
+  if (s.manVer !== s.onVer) {
+    let d = 0;
+    for (const a of s.agents) if (a.onPitch) d += a.team === 0 ? 1 : -1;
+    s.manD0 = d;
+    s.manVer = s.onVer;
+  }
+  return team === 0 ? s.manD0 : -s.manD0;
 }
 
 /** 공 위치 (팀 기준 정규화) */

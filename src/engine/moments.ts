@@ -25,7 +25,7 @@ import * as duel_ from './duel';
 const { aerialScore, dribbleProb, duelTail } = duel_;
 import { candidates, choose, judgementOf, passivePreview, riskyAction, shotModel, visible, type ActionType, type Candidate } from './onball';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, oppGoal, positionValue, toNorm } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, oppGoal, positionValue, toNorm, W } = pitch_;
 import * as rating_ from './rating';
 const { ratingDelta, ratingParts } = rating_;
 import * as rng_ from './rng';
@@ -298,7 +298,7 @@ function nameOf(s: SimState, idx: number): string {
 function ratingEstimate(s: SimState, a: Agent, c: Candidate): [number, number] {
   const R = ENGINE.rating;
   const dir = attackDir(a.team, s.half);
-  const [ax] = toNorm(a.x, a.y, dir);
+  const ax = normX(a.x, dir);
   // 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파는 상대 진영이면 riskLostFactor (core recordLoss 와 같은 규칙)
   const lost = ax < 1 / 3 ? R.dangerLost : ax > 2 / 3 ? R.lost * R.attackLostFactor : ax > 0.5 && riskyAction(s, a, c) ? R.lost * R.riskLostFactor : R.lost;
   const fwd = (c.x - a.x) * dir > 3;
@@ -387,7 +387,7 @@ function onballScene(s: SimState, a: Agent, cands: Candidate[]): SceneId {
 /** 소유 결정의 중요도 (E.11): stakeK × (최대 위치 가치 증가분 + 최대 xG) × 경기 중요도 × 긴장도 */
 function onballStake(s: SimState, a: Agent, cands: Candidate[]): number {
   const dir = attackDir(a.team, s.half);
-  const [ax, ay] = toNorm(a.x, a.y, dir);
+  const ax = normX(a.x, dir), ay = normY(a.y, dir);
   const here = positionValue(ax, ay);
   let gain = 0;
   let xg = 0;
@@ -665,13 +665,13 @@ export function halftimeMoment(s: SimState): boolean {
 function shotNoteOf(s: SimState, a: Agent, cands: Candidate[], shown: MomentOption[], box: boolean): string | undefined {
   if (shown.some((o) => o.action === 'shoot')) return undefined;
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const d = dist(a.x, a.y, gx, gy);
-  const near = d <= ENGINE.prob.shotMaxDist && toNorm(a.x, a.y, dir)[0] > 0.6;
+  const near = d <= ENGINE.prob.shotMaxDist && normX(a.x, dir) > 0.6;
   if (a.backToGoal && near) return '등지고 받음 — 먼저 돌아서야 슛할 수 있어요';
   const shot = cands.find((c) => c.type === 'shoot');
   if (shot) return box || shot.p >= 0.03 ? `슛 각이 거의 막힘 (골 확률 ${Math.round(shot.p * 100)}%)` : undefined;
-  if (!near && d <= ENGINE.prob.shotMaxDist + 8 && toNorm(a.x, a.y, dir)[0] > 0.6) return '슈팅 거리 밖 — 더 다가가야 해요';
+  if (!near && d <= ENGINE.prob.shotMaxDist + 8 && normX(a.x, dir) > 0.6) return '슈팅 거리 밖 — 더 다가가야 해요';
   return undefined;
 }
 
@@ -745,10 +745,10 @@ export function duelMoment(s: SimState): boolean {
   for (const d of s.agents) if (d !== a && d.onPitch && d.team === a.team && d.line !== 0 && dist(d.x, d.y, o.x, o.y) < da) return false;
   const odds = duelOdds(s, o, a);
   const dirO = attackDir(o.team, s.half);
-  const [gx, gy] = oppGoal(dirO);
-  const xg = dist(o.x, o.y, gx, gy) <= ENGINE.prob.shotMaxDist && toNorm(o.x, o.y, dirO)[0] > 0.6 ? shotModel(s, o).xg : 0;
+  const gx = (dirO > 0 ? L : 0), gy = W / 2;
+  const xg = dist(o.x, o.y, gx, gy) <= ENGINE.prob.shotMaxDist && normX(o.x, dirO) > 0.6 ? shotModel(s, o).xg : 0;
   const stake = M.stakeK * (odds.beaten + xg) * stakeMul(s, a.team);
-  const own = toNorm(o.x, o.y, attackDir(a.team, s.half))[0] < 0.5;
+  const own = normX(o.x, attackDir(a.team, s.half)) < 0.5;
   const scene: SceneId = own ? 'duel' : 'press';
   if (ms.control.mode !== 'direct') {
     if (autoOccasion(s, a, stake)) autoCardDuel(s, a, o, odds, scene);
@@ -1016,7 +1016,7 @@ export function setPieceMoment(s: SimState): boolean {
   if (!scene) return false;
   const R = ENGINE.rating;
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const pPen = scene === 'penalty' ? penaltyProb(s, a, 0) : 0;
   const options: MomentOption[] = scene === 'penalty'
     ? [{ kind: bandKind(round2(pPen)), action: 'shoot', label: 'PK 슈팅', p: round2(pPen), success: '골', fail: '선방·실축', up: round2(R.goal * R.scale), down: 0, to: { x: gx, y: gy }, ref: 0, value: pPen }]
@@ -1035,7 +1035,7 @@ export function setPieceMoment(s: SimState): boolean {
   // 자동 (F.5): 카드 선택지는 엔진이 같이 평가 (골 확률이 기본 처리보다 높으면), 아니면 첫 확률 카드
   cs.occ++;
   cs.lastOccT = s.t;
-  const [nx, ny] = toNorm(a.x, a.y, dir);
+  const nx = normX(a.x, dir), ny = normY(a.y, dir);
   const baseValue = scene === 'penalty' ? pPen : positionValue(nx, ny);
   const best = vars.reduce<SpVariant | null>((b, v) => (v.p > baseValue && (!b || v.p > b.p) ? v : b), null);
   if (best) {
@@ -1056,7 +1056,7 @@ export function setPieceMoment(s: SimState): boolean {
 /** 세트피스 결정 순간의 패 (슛 변형 선택지). 리셋 즉발 뒤 다시 계산할 때도 쓴다 (C.75h) */
 function setPieceCards(s: SimState, a: Agent, scene: SceneId, pPen: number, ctx: OptionCtx[]): { view: Moment['cards']; vars: SpVariant[] } {
   const R = ENGINE.rating;
-  const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+  const gx = (attackDir(a.team, s.half) > 0 ? L : 0), gy = W / 2;
   const vars = setPieceVariants(s, a, scene, pPen);
   const fake = vars.map((v) => ({ hand: v.hand }) as Variant);
   const view = handView(s, a, scene, ctx, fake, true).map((mc) => {
@@ -1082,7 +1082,7 @@ function setPieceVariants(s: SimState, a: Agent, scene: SceneId, pPen: number): 
   const cs = s.cards!;
   const out: SpVariant[] = [];
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const d = dist(a.x, a.y, gx, gy);
   for (const i of playable(s, a, scene)) {
     const def = cardById(cs.hand[i]!)!;

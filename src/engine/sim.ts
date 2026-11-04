@@ -146,6 +146,7 @@ export function createState(input: EngineInput): SimState {
     moments: initMoments(input.control), forcedDuel: null, cards: initCards(input.cards, input.seed),
     env: resolveEnv(input.env),
     rapport: resolveRapport(input.rapport),
+    onVer: 0, manVer: -1, manD0: 0,
   };
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);

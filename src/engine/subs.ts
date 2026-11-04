@@ -9,7 +9,7 @@ const { ENGINE } = config_;
 import { delayRestart, event, nearestTaker, setRestart } from './core';
 import { playerLost } from './referee';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, inOppBox, L, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, inOppBox, L, normX, normY, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import type { Agent, SimState } from './state';
@@ -65,6 +65,7 @@ export function substitute(s: SimState, out: Agent, inA: Agent, at?: SubSlot): v
   team.subsLeft--;
   delayRestart(s, ENGINE.restart.sub, 2);
   out.onPitch = false;
+  s.onVer++;
   out.leftAt = s.elapsed;
   // 2선 추적 (C.77b): 나가는 선수의 배정은 풀고, 그 선수를 따라붙던 동료도 푼다 (들어오는 선수는 −1 로 시작)
   out.trackIdx = -1;
@@ -73,6 +74,7 @@ export function substitute(s: SimState, out: Agent, inA: Agent, at?: SubSlot): v
   s.agents.push(inA);
   s.bench[out.team] = s.bench[out.team].filter((b) => b !== inA);
   inA.onPitch = true;
+  s.onVer++;
   inA.trackIdx = -1;
   inA.trackUntil = 0;
   inA.trackOut = -1;
@@ -145,6 +147,7 @@ export function myMinutes(s: SimState): void {
     if (inA) substitute(s, onPitch, inA);
     else {
       onPitch.onPitch = false;
+      s.onVer++;
       onPitch.leftAt = s.elapsed;
       if (s.ball.owner === onPitch.idx) s.ball.owner = -1;
       // 교체권 없이 빠지면 퇴장과 같은 인원 재배치 (C.78k)
@@ -159,7 +162,7 @@ export function myMinutes(s: SimState): void {
 /** 부상 중단 (C.78k): 그 자리에서 쓰러진 선수 팀의 간접 프리킥. 상대 박스 안이면 박스 바깥 선으로 (박스 안 간접 프리킥 대신) */
 function injuryStop(s: SimState, a: Agent): void {
   const dir = attackDir(a.team, s.half);
-  let [nx, ny] = toNorm(s.ball.x, s.ball.y, dir);
+  let nx = normX(s.ball.x, dir), ny = normY(s.ball.y, dir);
   if (inOppBox(s.ball.x, s.ball.y, dir)) nx = 1 - (ENGINE.pitch.boxDepth + 1) / L;
   const [x, y] = toPitch(nx, ny, dir);
   setRestart(s, 'freeKick', a.team, clamp(x, 1, L - 1), clamp(y, 1, W - 1), 'auto');

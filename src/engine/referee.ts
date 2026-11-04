@@ -5,7 +5,7 @@ import * as config_ from './config';
 const { ENGINE } = config_;
 import { delayRestart, event, setRestart } from './core';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, positionValue, toNorm, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import type { Agent, CardType, SimState } from './state';
@@ -23,6 +23,7 @@ function r(s: SimState, a: number, p: number, k = 0): number {
 /** 퇴장: 슬롯 제거, 같은 줄 선수들의 y 간격을 균등하게 다시 나눈다. GK 퇴장이면 GK 교체 또는 필드 선수가 GK */
 export function sendOff(s: SimState, a: Agent): void {
   a.onPitch = false;
+  s.onVer++;
   a.leftAt = s.elapsed;
   a.stats.red = true;
   s.teams[a.team].stats.reds++;
@@ -153,12 +154,12 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
 
   const team = victim.team;
   const dir = attackDir(team, s.half);
-  const [nx, ny] = toNorm(x, y, dir);
+  const nx = normX(x, dir), ny = normY(y, dir);
   const inBox = inOppBox(x, y, dir);
   // 어드밴티지 조건: 피해 팀이 소유, 이어 가는 가치 > 프리킥 가치
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (!inBox && owner && owner.team === team && card !== 'red') {
-    const [ox, oy] = toNorm(owner.x, owner.y, dir);
+    const ox = normX(owner.x, dir), oy = normY(owner.y, dir);
     const playOn = positionValue(ox, oy) * (ox > 0.66 ? 1.22 : 1);
     const fk = positionValue(nx, ny) * (nx > 0.7 ? 1.33 : 1);
     const bias = R.advantageBias * (nx > 0.66 ? R.advantageFinalThird : 1) * s.env.advantage;
@@ -221,14 +222,14 @@ export function contactFouls(s: SimState): boolean {
 /** 받을 선수가 오프사이드 위치인가 (E.10): 상대 진영, 공과 뒤에서 두 번째 상대보다 상대 골 쪽 */
 function offsideMargin(s: SimState, passer: Agent, receiver: Agent): number {
   const dir = attackDir(passer.team, s.half);
-  const [rx] = toNorm(receiver.x, receiver.y, dir);
+  const rx = normX(receiver.x, dir);
   if (rx <= N) return -1;
-  const [bx] = toNorm(s.ball.x, s.ball.y, dir);
+  const bx = normX(s.ball.x, dir);
   let first = 0;
   let second = 0;
   for (const o of s.agents) {
     if (!o.onPitch || o.team === passer.team) continue;
-    const nx = toNorm(o.x, o.y, dir)[0];
+    const nx = normX(o.x, dir);
     if (nx > first) {
       second = first;
       first = nx;
