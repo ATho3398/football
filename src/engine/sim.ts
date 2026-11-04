@@ -109,8 +109,10 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     maxSpeed: 0, accel: 0, turnKeep: 0, pivotT: 0, burstSec: 0, drainAttr: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
-    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
+    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0, card: undefined, relief: undefined, risky: undefined, riskLost: undefined, passive: undefined, passiveW: undefined, passiveSeq: undefined, passivePoss: undefined, passiveCtr: undefined }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
     pre: null, otMul: 1, otUntil: -1,
+    // C.81e 계산 속도: 나중에 붙던 속성을 처음부터 (하프타임에 모든 선수 객체 모양이 바뀌어 최적화 코드가 버려지던 것 — 값·판정 같음)
+    intent: null, cardBoost: undefined,
   };
   initPhysics(a);
   // 홈 이점 (E.18 A7): 판단 품질 + homeJudgement, 듀얼 로짓 + homeDuel (능력치 가산 없음)
