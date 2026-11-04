@@ -26,7 +26,7 @@ import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, 
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
 import * as physics_ from './physics';
-const { burstCap, clearFeed, initPhysics, moveAgent, perceiveFeed } = physics_;
+const { burstCap, clearFeed, initPhysics, moveAgentMV, perceiveFeed, setMove } = physics_;
 import * as tactics_ from './tactics';
 const { aiAdjust, TENDENCY } = tactics_;
 import * as pitch_ from './pitch';
@@ -679,8 +679,10 @@ function stepTail(s: SimState): void {
     else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
     // C.80l: 게겐프레싱 팀은 지친 강도 감소에 gegenFatigue × 지친 비율^gegenFatigueExp 를 더한다 (0 = 끔)
     const gegen = tm.tactics.tendency === 'gegenpress';
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * envDrain, envRecover, a.idx === b.owner ? NaN : b.x, b.y,
+    // C.81e: 인자를 칸에 담아 넘긴다 (moveAgent 와 같은 값 — 실수 인자 상자 만들기 없이)
+    setMove(dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * envDrain, envRecover, a.idx === b.owner ? NaN : b.x, b.y,
       gegen ? TENDENCY.gegenFatigue : 0, TENDENCY.gegenFatigueExp);
+    moveAgentMV(a);
   }
 
   // 공

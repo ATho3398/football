@@ -119,8 +119,17 @@ export function perceiveFeed(a: Agent, o: Agent, dt: number): void {
   a.tvy += (o.vy * a.tvwy - a.tvy) * k;
 }
 
-/** 몸 방향을 (ux, uy) 쪽으로 180°/pivotTime 각속도만큼 돌린다 */
-function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
+/**
+ * 실수 인자 칸 (C.81e 계산 속도, 값 불변): 인라인되지 않는 함수에 실수를 인자로 넘기면 V8 이 부를 때마다 숫자 상자를 새로 만든다(선수 22명 × 틱마다).
+ * 이동·몸 돌리기는 인자를 이 칸에 담아 넘긴다 — 같은 값
+ */
+const MV = { dt: 0.5, speedScale: 0.5, drainScale: 0.5, recoverScale: 0.5, lookX: 0.5, lookY: 0.5, fatigueExtra: 0.5, fatigueExp: 0.5, ux: 0.5, uy: 0.5 };
+
+/** 몸 방향을 (ux, uy) 쪽으로 180°/pivotTime 각속도만큼 돌린다. (ux, uy, dt) = MV 칸 (C.81e) */
+function turnHeadMV(a: Agent): void {
+  const ux = MV.ux;
+  const uy = MV.uy;
+  const dt = MV.dt;
   const step = (Math.PI / pivotTime(a)) * dt;
   // 같은 입력(몸 방향·갈 방향·한 틱 각도)이면 지난번 결과 그대로 (C.81e: 순수 함수라 같은 값 — 서서 공을 보는 선수)
   // Object.is: −0 과 0 은 atan2 결과가 다르다
@@ -153,6 +162,32 @@ function turnHead(a: Agent, ux: number, uy: number, dt: number): void {
 
 /** dt 동안 이동. speedScale 은 공 몰고 갈 때 등 */
 export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, recoverScale = 1, lookX = NaN, lookY = NaN, fatigueExtra = 0, fatigueExp = 1): void {
+  setMove(dt, speedScale, drainScale, recoverScale, lookX, lookY, fatigueExtra, fatigueExp);
+  moveAgentMV(a);
+}
+
+/** moveAgentMV 인자를 칸에 담는다 (인라인되는 곳에서 부른다) */
+export function setMove(dt: number, speedScale: number, drainScale: number, recoverScale: number, lookX: number, lookY: number, fatigueExtra: number, fatigueExp: number): void {
+  MV.dt = dt;
+  MV.speedScale = speedScale;
+  MV.drainScale = drainScale;
+  MV.recoverScale = recoverScale;
+  MV.lookX = lookX;
+  MV.lookY = lookY;
+  MV.fatigueExtra = fatigueExtra;
+  MV.fatigueExp = fatigueExp;
+}
+
+/** moveAgent 본체: 인자는 setMove 로 담은 MV 칸 */
+export function moveAgentMV(a: Agent): void {
+  const dt = MV.dt;
+  const speedScale = MV.speedScale;
+  const drainScale = MV.drainScale;
+  const recoverScale = MV.recoverScale;
+  const lookX = MV.lookX;
+  const lookY = MV.lookY;
+  const fatigueExtra = MV.fatigueExtra;
+  const fatigueExp = MV.fatigueExp;
   const cap = effectiveMax(a) * speedScale;
   const accel = effectiveAccel(a);
   // 앞먹임 (C.77x): 움직이는 목표는 그 속도로 같이 움직이고, 원하는 속도에 목표 속도를 더한다
@@ -194,23 +229,23 @@ export function moveAgent(a: Agent, dt: number, speedScale = 1, drainScale = 1, 
       uy = wy / want;
       reversing = sp > P.faceSpeed && a.vx * ux + a.vy * uy < 0;
     }
-    if (reversing) turnHead(a, ux, uy, dt);
+    if (reversing) { MV.ux = ux; MV.uy = uy; turnHeadMV(a); }
     else if (sp > P.faceSpeed) {
       a.hx = a.vx / sp;
       a.hy = a.vy / sp;
     } else if (want > P.walk + 1e-9 && a.hx * ux + a.hy * uy < 0 && a.line !== 0) {
-      turnHead(a, ux, uy, dt);
+      { MV.ux = ux; MV.uy = uy; turnHeadMV(a); }
       // 도는 동안은 서서 돈다
       wx = 0;
       wy = 0;
       want = 0;
-    } else if (want > P.walk + 1e-9) turnHead(a, ux, uy, dt);
+    } else if (want > P.walk + 1e-9) { MV.ux = ux; MV.uy = uy; turnHeadMV(a); }
     else if (Number.isFinite(lookX)) {
       // 서 있거나 걷는 동안은 공 쪽(lookX, lookY)으로 몸을 돌린다 — 뒤로 뛰려면 다시 돌아야 한다
       const lx = lookX - a.x;
       const ly = lookY - a.y;
       const ld = Math.sqrt(lx * lx + ly * ly);
-      if (ld > 1) turnHead(a, lx / ld, ly / ld, dt);
+      if (ld > 1) { MV.ux = lx / ld; MV.uy = ly / ld; turnHeadMV(a); }
     }
     // (느리게 뛰기 시작할 때도 몸은 갈 쪽으로 돌아간다 — 뒷걸음(걷기 이하)은 몸 방향 그대로)
   } else if (sp > 1 && want > 0) {
