@@ -23,6 +23,15 @@ export type RawSave = Record<string, any>;
 export const MIGRATIONS: Record<number, (save: RawSave) => RawSave> = {
   // 59 → 60 (C.80y): 체계 시연용 빈 단계. 필드 변화 없음
   59: (s) => s,
+  // 60 → 61 (C.81d): 다른 경기 계산 options.quickOthers(참/거짓) → options.others 3단계.
+  // 참(빠른 진행)은 'quick' 그대로. 거짓은 옛 기본값('전체 엔진')과 직접 고른 '전체 엔진'이 세이브에서 구분되지 않는다 —
+  // 거의 모두 기본값이라 새 기본값 '내 리그만 엔진'('mine')으로 옮긴다 (다른 리그를 안 고른 커리어는 'all' 과 같은 결과).
+  // 다른 리그까지 엔진을 원하는 사람은 설정에서 [전부 엔진]을 다시 고른다
+  60: (s) => {
+    const { quickOthers, ...rest } = (s.options ?? {}) as { quickOthers?: unknown; others?: unknown };
+    const others = rest.others === 'mine' || rest.others === 'all' || rest.others === 'quick' ? rest.others : quickOthers === true ? 'quick' : 'mine';
+    return { ...s, options: { ...rest, others } };
+  },
 };
 
 /** 형식 번호가 이전할 수 없을 만큼 옛것(이전 코드가 없던 시절)이거나 지금보다 새것 */
@@ -113,5 +122,7 @@ export function validateSave(s: unknown, target = SAVE_FORMAT_VERSION): string[]
   need('roster.updates', isObj(s.roster) && typeof s.roster.updates === 'number');
   need('npcs', Array.isArray(s.npcs));
   need('transfers', Array.isArray(s.transfers));
+  // 다른 경기 계산 (C.81d, 형식 61부터 3단계)
+  if (target >= 61) need('options.others', isObj(s.options) && ['mine', 'all', 'quick'].includes(s.options.others as string));
   return out;
 }

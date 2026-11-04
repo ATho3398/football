@@ -189,7 +189,7 @@ export function calendarSection(d: DayVM): string {
     ${panel(`<ul class="cal-list">${list}</ul>
       <div class="cal-grid" role="grid" aria-label="${esc(d.month.title)} 달력">${['일', '월', '화', '수', '목', '금', '토'].map((w) => `<span class="cal-wd">${w}</span>`).join('')}${blanks}${cells}</div>
       <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span>${d.month.days.some((c) => c.cup) ? `<span>${Icon({ name: 'trophy', size: 10 })} 컵·챔스</span>` : ''}${d.month.days.some((c) => c.life) ? '<span class="cal-life-key">생활(아이콘 + 두 글자)</span>' : ''}</div>
-      <p class="small muted">다른 경기 계산(${d.quick ? '빠른 진행' : '전체 엔진'})은 설정 › 경기 진행에서 바꿔요.</p>`)}`;
+      <p class="small muted">다른 경기 계산(${d.othersKo})은 설정 › 경기 진행에서 바꿔요.</p>`)}`;
 }
 
 /** 훈련·일정 화면 (C.44 독): 오늘 훈련·주간 계획·게이지 + 일정·달력 */

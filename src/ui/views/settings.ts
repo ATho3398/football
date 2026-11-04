@@ -34,6 +34,17 @@ import { isWide, skin, SKIN_KO } from '../skin';
 import { PATCH_LABEL, STAGE_LABEL } from '../../version';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
+
+/** 다른 경기 계산 3단계 (C.81d) */
+const OTHERS_TAB = { mine: '내 리그만 엔진', all: '전부 엔진', quick: '전부 빠른 진행' } as const;
+/** 단계마다 한 줄: 무엇을 엔진으로 · 속도 · 다른 리그 기록 정밀도 */
+function othersLines(otherLeagues: number): [keyof typeof OTHERS_TAB, string][] {
+  return [
+    ['mine', `기본. 내 리그 다른 팀 경기는 22명 엔진(득점·도움 순위 그대로)${otherLeagues ? `, 고른 다른 리그 ${otherLeagues}개는 점수 확률 + 득점자 추첨으로 바로 — 다른 리그 출전·평점은 추정이에요` : ''}.`],
+    ['all', `다른 리그${otherLeagues ? ` ${otherLeagues}개` : ''}까지 전부 엔진. 다른 리그 출전·평점까지 실제 기록이지만 날짜 넘김이 가장 느려요(한 주기 몇 초 ~ 수십 초).`],
+    ['quick', '느린 기기용. 내 리그 다른 팀 경기도 통계로 바로 — 가장 빠르지만 득점 순위는 내 경기와 득점자 추첨만 남아요.'],
+  ];
+}
 export interface NameUI { q: string; team: string; sel: string | null }
 
 /** 이름 고치기 칸 (설정·선수 화면 공용, 디자인 71): 풀네임 · 경기 화면 라벨, 별명·짧은 이름 TextField, [되돌리기][저장] */
@@ -460,11 +471,12 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     ? `<div class="kv"><span>내 선수 결정</span><span class="muted small">${g.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
       ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: g.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
       ${g.control.mode === 'direct' ? `<div class="kv"><span>정지 빈도</span></div>${Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: g.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' })}` : ''}
-      <div class="kv"><span>다른 경기 계산</span></div>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: g.options.quickOthers ? 'quick' : 'engine', act: 'opt-quick', fill: true, label: '다른 경기 계산' })}
-      <p class="small muted">${g.options.quickOthers ? '느린 기기용: 다른 팀 경기와 고른 다른 리그 경기를 통계로 바로 계산해요. 득점 순위는 내 경기와 득점자 추첨만 남아요.' : `다른 팀 경기${(g.otherLeagues?.length ?? 0) ? `와 고른 다른 리그 ${g.otherLeagues!.length}개 경기` : ''}도 22명 엔진으로 계산해요(워커 병렬). 홈·다른 화면에 있거나 내 경기를 보는 동안 앞으로 3일치를 미리 계산해 두어 날짜 넘김이 빨라져요(같은 결과).${precompute ? ` 지금 미리 계산 ${precompute.ready}/${precompute.total}경기.` : ' 이 기기는 워커가 없어 미리 계산하지 않아요.'}`}</p>
+      <div class="kv"><span>다른 경기 계산</span></div>${Tabs({ items: (['mine', 'all', 'quick'] as const).map((id) => ({ id, label: OTHERS_TAB[id] })), value: g.options.others, act: 'opt-quick', fill: true, label: '다른 경기 계산' })}
+      <ul class="small muted set-others">${othersLines(g.otherLeagues?.length ?? 0).map(([id, t]) => `<li${id === g.options.others ? ' class="is-on"' : ''}><b>${OTHERS_TAB[id]}</b> — ${t}</li>`).join('')}</ul>
+      <p class="small muted">${g.options.others === 'quick' ? '' : `홈·다른 화면에 있거나 내 경기를 보는 동안 앞으로 3일치 엔진 경기를 미리 계산해 두어 날짜 넘김이 빨라져요(같은 결과).${precompute ? ` 지금 미리 계산 ${precompute.ready}/${precompute.total}경기.` : ' 이 기기는 워커가 없어 미리 계산하지 않아요.'}`}</p>
       <div class="kv set-kv"><span>난이도</span><span><b>${DIFF_KO[g.difficulty] ?? g.difficulty}</b><small class="muted"> · 새 게임에서 정해요</small></span></div>`
     : '<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>';
-  const playSub = g ? [g.control.mode === 'direct' ? '직접' : '자동', ...(g.control.mode === 'direct' ? [STOP_KO[g.control.stop] ?? ''] : []), g.options.quickOthers ? '빠른 진행' : '전체 엔진', DIFF_KO[g.difficulty] ?? ''].join(' · ') : '게임 밖';
+  const playSub = g ? [g.control.mode === 'direct' ? '직접' : '자동', ...(g.control.mode === 'direct' ? [STOP_KO[g.control.stop] ?? ''] : []), OTHERS_TAB[g.options.others], DIFF_KO[g.difficulty] ?? ''].join(' · ') : '게임 밖';
   const pv = `<div class="kv"><span>선수 표시</span></div>${Tabs({ items: (['number', 'face', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
     <div class="set-orient"><div class="kv"><b>경기 화면 방향</b><small class="muted">결정 순간 · 하이라이트</small></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
       <p class="small muted">${PITCH_ORIENT_KO.landscape} = 폰을 세로로 들어도 피치는 가로(왼쪽 → 오른쪽 공격). ${PITCH_ORIENT_KO.portrait} = 세로 피치(내 팀이 아래 → 위).</p></div>

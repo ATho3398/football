@@ -6,7 +6,7 @@ let same = 0, total = 0;
 for (const k of [0, 5]) {
   const real = selectableRealPlayers()[k]!;
   const g = newGame({ seed: `c81c-tk-${k}`, mode: 'real', playerId: real.id, difficulty: 'normal' });
-  g.options = { quickOthers: true };
+  g.options = { others: 'quick' };
   let n = 0;
   while (n < N && g.phase === 'season') {
     if (!isMatchDay(g)) { playOthers(g, 'quick'); endDay(g); continue; }

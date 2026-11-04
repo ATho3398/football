@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 94;
+export const BALANCE_VERSION = 95;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1737,7 +1737,13 @@ export const BALANCE = {
      * 경기당 골·도움 = goals.rates[군] × (1 + (OVR − 팀 레이팅) × goals.ovrK, 0.5~1.8) × 팀 득점 비(0.5~1.8) × (0.7~1.3),
      * 평균 평점 = ratingBase + (OVR − 팀 레이팅) × ratingRel + (OVR − 75) × ratingOvr + (팀 득실 비 − 1) × ratingTeam ± ratingJitter
      */
-    estimate: { share: [0.95, 0.4, 0.06] as readonly number[], ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2 },
+    estimate: { share: [0.95, 0.4, 0.06] as readonly number[], ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
+      /**
+       * C.81d '내 리그만 엔진': 내 리그는 엔진 기록, 다른 리그는 추정 기록이 한 이력서 표에 섞일 때 다른 리그 추정 평점을 엔진 척도로 (평점 더하기).
+       * 측정(c81d-awards, 6개 리그 시즌 끝 발롱도르 후보 풀): 전부 엔진 후보 평균 평점 6.20~6.29 · 추정 6.52~6.64 → 차이 약 0.33.
+       * 보정 없으면 내 리그(엔진) 후보가 평점 표준점수에서 밀려 발롱도르 후보 30인이 다른 리그로 쏠린다. 전부 엔진·전부 빠른 진행은 섞이지 않아 안 쓴다
+       */
+      mixedRatingShift: -0.33 },
     /** 투표단 가중치 (이력서 항목 표준점수) · 노이즈(표준편차, 후보 안 종합 점수 표준편차 단위) · 성향 */
     juries: {
       journalist: { w: { out: 0.75, rat: 0.7, def: 0.4, tro: 2.6, nat: 0.9, clu: 0.9, sto: 0.8, fam: 0.3, tal: 0 }, noise: 0.6 },

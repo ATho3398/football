@@ -73,7 +73,7 @@ const goalCard = async (name) => {
   await page.waitForTimeout(250);
   await shot(name);
 };
-await page.evaluate(() => { const g = window.__game(); if (g) g.options.quickOthers = true; });
+await page.evaluate(() => { const g = window.__game(); if (g) g.options.others = 'quick'; });
 if (await has('[data-act="ctl-mode"][data-v="auto"]')) await act('ctl-mode', '[data-v="auto"]');
 await goalCard('홈_시즌목표-개막');
 report.goals = await page.evaluate(() => window.__game()?.goals?.list ?? null);

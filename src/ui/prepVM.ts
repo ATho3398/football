@@ -135,7 +135,7 @@ export function prepVM(g: GameState): PrepVM | null {
       cards: deckCardsVM(g, g.cards.active, role),
     },
     control: g.control,
-    quick: !!g.options.quickOthers,
+    quick: g.options.others === 'quick',
     scout: myScoutReport(g),
     oppBans: fx.cup || fx.nat ? [] : (g.rosters[opp.id]?.players ?? []).filter((x) => npcBanLeft(g.npcBan, x.id) > 0).map((x) => `${x.nameKo} (${x.position})`),
   };

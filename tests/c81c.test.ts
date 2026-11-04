@@ -63,7 +63,7 @@ describe('C.81c 자동 경기 미리 계산 (결과 불변)', () => {
 
   it('미리 계산 목록에서 오늘 빼기 (계산 중인 오늘 경기를 두 번 돌리지 않게): from = 1 이면 오늘 경기가 없다', () => {
     const h = newGame({ seed: 'c81c-up', mode: 'real', playerId: real.id, difficulty: 'normal' });
-    h.options = { quickOthers: true };
+    h.options = { others: 'quick' };
     // 다른 경기가 있는 날까지
     for (let k = 0; k < 40 && !todaysOthers(h).length; k++) { playOthers(h, 'quick'); endDay(h); }
     const today = todaysOthers(h).map(([r, i]) => specKey({ kind: 'npc', input: otherJob(h, r, i).input }));
@@ -78,7 +78,7 @@ describe('C.81c 자동 경기 미리 계산 (결과 불변)', () => {
 
   it('내 경기 입력은 그날 다른 경기 결과와 무관 (경기 날 도착 즉시 미리 계산해도 [경기 시작]에서 그대로 맞는다)', () => {
     const h = newGame({ seed: 'c81c-dep', mode: 'real', playerId: real.id, difficulty: 'normal' });
-    h.options = { quickOthers: true };
+    h.options = { others: 'quick' };
     for (let k = 0; k < 40 && !isMatchDay(h); k++) { playOthers(h, 'quick'); endDay(h); }
     expect(isMatchDay(h)).toBe(true);
     const a = roundMatch(h);

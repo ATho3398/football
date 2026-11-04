@@ -23,7 +23,7 @@ import { applySkin, isLandPhone, isWide, LANDPHONE_QUERY, setSkin, WIDE_QUERY } 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
-  acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, playOthers, randomSeed, playRound, retire, roundMatch,
+  acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, myLeagueQuick, otherLeaguesEngine, playOthers, randomSeed, playRound, retire, roundMatch,
   nextCampDate, startNextSeason, todaysOthers, upcomingOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
@@ -1153,7 +1153,7 @@ const PRECOMPUTE_DAYS = 3;
 let planSig = '';
 
 const planSigOf = (g: GameState): string =>
-  [g.calendar.date, g.phase, g.options.quickOthers ? 'q' : 'e', g.league.id, g.league.season, g.league.round, ...(g.otherLeagues ?? []).map((o) => `${o.id}${o.season}.${o.round}`)].join('|');
+  [g.calendar.date, g.phase, g.options.others, g.league.id, g.league.season, g.league.round, ...(g.otherLeagues ?? []).map((o) => `${o.id}${o.season}.${o.round}`)].join('|');
 
 const aheadJobs = (g: GameState, skipToday = false): EngineJob[] => upcomingOthers(g, PRECOMPUTE_DAYS, AHEAD_DAYS, skipToday ? 1 : 0).map((input): EngineJob => ({ kind: 'npc', input }));
 
@@ -1184,7 +1184,7 @@ function planAhead(g: GameState, skipToday = false): void {
   planSig = planSigOf(g);
   // 측정용 (부록 C.76m 전후 비교): __noPrecompute = true 면 미리 계산하지 않는다
   if (!pool().parallel || (globalThis as unknown as { __noPrecompute?: boolean }).__noPrecompute) return;
-  if (g.options.quickOthers || g.phase === 'retired') { enginePool?.clearPrefetch(); return; }
+  if (myLeagueQuick(g) || g.phase === 'retired') { enginePool?.clearPrefetch(); return; }
   pool().plan(aheadJobs(g, skipToday));
 }
 
@@ -1266,13 +1266,13 @@ function othersInBackground(g: GameState): void {
 
 async function othersTodayOnce(g: GameState, ahead = false, progress?: (done: number, total: number, pre?: number) => void): Promise<number> {
   const jobs = todaysOthers(g).map(([r, i]) => otherJob(g, r, i));
-  // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 같은 워커 풀로 (빠른 계산이면 하루 끝 syncOtherLeagues)
-  const lgJobs = g.options.quickOthers ? [] : otherLeagueJobs(g, g.calendar.date);
+  // 고른 다른 리그 (45b b): '전부 엔진'이면 그날 경기를 같은 워커 풀로 (C.81d 기본 '내 리그만 엔진'·빠른 진행이면 하루 끝 syncOtherLeagues)
+  const lgJobs = otherLeaguesEngine(g) ? otherLeagueJobs(g, g.calendar.date) : [];
   if (!jobs.length && !lgJobs.length) {
     if (ahead) planAhead(g);
     return 0;
   }
-  if (g.options.quickOthers) {
+  if (myLeagueQuick(g)) {
     playOthers(g, 'quick');
     return jobs.length;
   }
@@ -3276,10 +3276,10 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'opt-quick':
-      if (!g) return;
-      g.options = { quickOthers: v === 'quick' };
-      // 빠른 진행 = 미리 계산 안 함 (C.76m): 보관분을 버린다. 전체 엔진으로 돌아오면 유휴 때 다시
-      if (g.options.quickOthers) enginePool?.clearPrefetch();
+      if (!g || (v !== 'mine' && v !== 'all' && v !== 'quick')) return;
+      g.options = { others: v };
+      // 미리 계산 보관분을 버린다 (C.76m: 빠른 진행 = 미리 계산 안 함, C.81d: 내 리그만 엔진 = 다른 리그 보관분 필요 없음). 유휴 때 새 설정으로 다시
+      enginePool?.clearPrefetch();
       planSig = '';
       autosave();
       render();
@@ -3624,8 +3624,8 @@ app.addEventListener('click', (ev) => {
       if (!g) return;
       if (marketPending(g)) return pendingStop(g);
       void (async () => {
-        // 비시즌 동안 다른 리그 경기 (45b b): 풀 엔진이면 소집일 전날까지 하루씩 워커로 (빠른 계산이면 startNextSeason 이 한 번에)
-        if (!g.options.quickOthers && g.otherLeagues?.length && !ui.busy) {
+        // 비시즌 동안 다른 리그 경기 (45b b): '전부 엔진'이면 소집일 전날까지 하루씩 워커로 (그 밖이면 startNextSeason 이 빠른 계산으로 한 번에)
+        if (otherLeaguesEngine(g) && g.otherLeagues?.length && !ui.busy) {
           ui.busy = true;
           try {
             await offseasonOthers(g);

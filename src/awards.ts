@@ -315,6 +315,8 @@ export function buildResumes(state: GameState, natRec: TournamentRec | null = nu
           lineup ??= lineupSets(roster);
           raw = estimate(state.worldSeed, lg.season, p.id, p.position, ovr, lineup.s.has(p.id) ? 0 : lineup.b.has(p.id) ? 1 : 2, ctx);
           if (quickGoals) { raw.goals = x?.[0] ?? 0; raw.assists = x?.[1] ?? 0; }
+          // C.81d: 내 리그가 엔진 기록이면 다른 리그 추정 평점을 엔진 척도로 (섞인 표에서 한쪽으로 쏠리지 않게)
+          if (myEngine) raw.avg += A().estimate.mixedRatingShift;
         }
         if (raw.apps / Math.max(1, ctx.row?.played ?? 1) < Math.min(A().minShare, A().youngMinShare)) continue;
         const sto = story(p.age, ctx, Math.min(1, raw.apps / Math.max(1, ctx.row?.played ?? 1)), false);
