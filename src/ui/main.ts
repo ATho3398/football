@@ -30,8 +30,8 @@ import { addDays, dateLabel, daysBetween } from '../calendar';
 import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
 import { gaugeSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet, weekPreview } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
-import { EnginePool } from './enginePool';
-import type { EngineJob } from '../engine/jobs';
+import { EnginePool, specKey } from './enginePool';
+import { myReplayOutput, type EngineJob, type MyReplayOut } from '../engine/jobs';
 import { adviceTakenText, checkAdviceTaken } from '../aptitude';
 import { MyMatchRun, playMyMatch, type MyMatchOutput } from '../engine/adapter';
 import type { Moment, StopLevel } from '../engine/moments';
@@ -424,11 +424,22 @@ async function keepReplay(g: GameState, r: Replay, rep: { season: number; round:
   // 경기 후 하이라이트 3개 (24.6, C.77o): 클립 구간 프레임만 세이브에 (최근 CLIP.keep 경기)
   const mc = makeMatchClips(r, { season, round, label });
   if (mc) g.clips = withClips(g.clips, mc);
+  // 압축·저장은 결과 화면을 그린 뒤 (C.81c)
+  await afterPaint();
   const data = await packReplayBytes(r);
   ui.recent = [...ui.recent.filter((x) => !(x.season === season && x.round === round)), { season, round, label, data }].slice(-REPLAY_KEEP);
   ui.recentDirty = true;
   syncReplayIndex();
   void autosave();
+}
+
+/** 다음 그리기가 끝난 뒤 (C.81c: 결과 화면을 먼저 보여 주고 저장·압축은 그 뒤에) */
+function afterPaint(): Promise<void> {
+  return new Promise((res) => {
+    const raf = (globalThis as { requestAnimationFrame?: (f: () => void) => number }).requestAnimationFrame;
+    if (raf) raf(() => setTimeout(res, 0));
+    else setTimeout(res, 0);
+  });
 }
 
 function syncReplayIndex(): void {
@@ -1015,20 +1026,32 @@ function liveContinue(g: GameState): void {
  * C.50(pending 82 2번): 하이라이트를 강제로 보여 주지 않는다. 재생기는 끝난 상태로 두고(평균 위치·결정 장면 다시 보기용),
  * 하이라이트는 결과 화면 [하이라이트 다시보기]로만 본다
  */
-function finishPlay(g: GameState, out?: MyMatchOutput): void {
+function finishPlay(g: GameState, out?: MyMatchOutput, perf?: MatchPerf): void {
   ui.rewatch = false;
   ui.clipBack = null;
   let replay: Replay | null = null;
   const trust0 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
   const rep0 = g.player.reputation;
+  if (!out && perf) {
+    // 측정 (C.81c): 엔진 계산을 따로 잰다 (playRound 안과 같은 입력·같은 호출)
+    const rm = roundMatch(g);
+    out = playMyMatch(rm.input, { teams: rm.teams });
+    perf.lap('engine');
+  }
   const report = playRound(g, { ...(out ? { engineOut: out } : {}), onReplay: (r) => { replay = r; ui.replay = new ReplayPlayer(r, () => render()); ui.replay.skip(); } });
+  perf?.lap('round');
   // 날씨 (C.74a): 방금 경기 하이라이트·평균 위치·결정 장면은 그 경기 날씨로 그린다
   setPitchWeather(report.cond?.weather);
   if (replay) void keepReplay(g, replay, report);
+  perf?.lap('clips');
   const trust1 = g.manager?.teamId === g.player.teamId ? g.manager.trust : null;
   ui.matchDelta = { trust: trust0 !== null && trust1 !== null ? Math.round((trust1 - trust0) * 10) / 10 : null, rep: g.player.reputation - rep0 };
-  void autosave();
+  // 저장은 결과 화면을 그린 뒤 (C.81c: 상태 묶기·압축이 첫 그리기를 늦추지 않게)
+  void afterPaint().then(() => autosave());
+  perf?.lap('save');
   go('match');
+  perf?.lap('render');
+  perf?.paint();
   if (g.phase !== 'season') badgeToast(g);
   if (report.cardUnlock) showToast({ kind: 'info', title: `시그니처 카드 해금 · ${report.cardUnlock}`, body: '덱 편집에서 덱에 넣을 수 있어요.' }, 2200);
   else recordToast(g);
@@ -1132,31 +1155,70 @@ let planSig = '';
 const planSigOf = (g: GameState): string =>
   [g.calendar.date, g.phase, g.options.quickOthers ? 'q' : 'e', g.league.id, g.league.season, g.league.round, ...(g.otherLeagues ?? []).map((o) => `${o.id}${o.season}.${o.round}`)].join('|');
 
-const aheadJobs = (g: GameState): EngineJob[] => upcomingOthers(g, PRECOMPUTE_DAYS, AHEAD_DAYS).map((input): EngineJob => ({ kind: 'npc', input }));
+const aheadJobs = (g: GameState, skipToday = false): EngineJob[] => upcomingOthers(g, PRECOMPUTE_DAYS, AHEAD_DAYS, skipToday ? 1 : 0).map((input): EngineJob => ({ kind: 'npc', input }));
+
+/** 자동 진행(autoRun) 중: 내 경기는 재생 데이터 없이 따로 계산하므로 [경기 시작]용 미리 계산을 맡기지 않는다 */
+let autoRunning = false;
+
+/**
+ * [경기 시작] 자동 경기 미리 계산 (C.81c): 오늘이 경기 날이면 내 경기를 재생 데이터까지 지금 입력으로.
+ * 직접 모드로 뛰는 경기(결정 순간마다 멈춤)는 한 번에 계산하지 않으므로 없음. 입력이 바뀌면(선발·전술·카드·다른 경기 결과) 키가 달라져 다시 맡긴다
+ */
+function myAheadJob(g: GameState): EngineJob | null {
+  if (autoRunning || g.phase !== 'season' || !isMatchDay(g)) return null;
+  try {
+    const rm = roundMatch(g);
+    if (g.control.mode === 'direct' && rm.plan.minutes) return null;
+    return { kind: 'myr', input: rm.input, teams: rm.teams };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * 다른 경기 백그라운드 미리 계산 (C.75b → C.76m, 결과 불변): 앞으로 3일치 다른 경기를 지금 상태의 입력으로 워커에 맡겨 보관한다.
  * 그날이 오면 실제 입력을 다시 만들고, 입력이 같을 때만 보관한 결과를 쓴다(EnginePool.run) — 그 사이 세이브·불러오기·로스터·레이팅이 바뀌었으면 버리고 새로 계산.
  * 홈·다른 화면에 있는 동안, 내 경기를 보는 동안, 날짜를 넘기는 동안 노는 워커가 계산한다. 빠른 진행이면 하지 않는다
  */
-function planAhead(g: GameState): void {
+function planAhead(g: GameState, skipToday = false): void {
   planSig = planSigOf(g);
   // 측정용 (부록 C.76m 전후 비교): __noPrecompute = true 면 미리 계산하지 않는다
   if (!pool().parallel || (globalThis as unknown as { __noPrecompute?: boolean }).__noPrecompute) return;
   if (g.options.quickOthers || g.phase === 'retired') { enginePool?.clearPrefetch(); return; }
-  pool().plan(aheadJobs(g));
+  pool().plan(aheadJobs(g, skipToday));
+}
+
+/**
+ * 내 경기 미리 계산 표 (C.81c): [경기 시작] 자동 경기를 재생 데이터까지 워커에 실제 작업(우선)으로 맡겨 둔다.
+ * 키(입력 요약)가 같을 때만 [경기 시작]이 그 결과를 쓴다 — 선발·전술·카드 등 입력이 바뀌면 새로 맡긴다
+ */
+let myTicket: { key: string; p: Promise<MyReplayOut> } | null = null;
+function ensureMyTicket(g: GameState): void {
+  if (!pool().parallel || (globalThis as unknown as { __noPrecompute?: boolean }).__noPrecompute) return;
+  const job = myAheadJob(g);
+  if (!job) return;
+  const key = specKey(job);
+  if (myTicket?.key === key) return;
+  const p = pool().run(job, true) as Promise<MyReplayOut>;
+  p.catch(() => {});
+  myTicket = { key, p };
 }
 
 /** 유휴 때 미리 계산 맡기기 (렌더마다 부르지만 상태가 바뀌었을 때만 맡긴다) */
 let planIdle = false;
 function schedulePlan(): void {
   const g = ui.game;
-  if (!g || ui.busy || planIdle || planSigOf(g) === planSig) return;
+  // 경기 날(C.81c)이면 선발·전술·카드가 바뀌었을 수 있어 유휴 때 내 경기 입력을 확인한다
+  if (!g || ui.busy || planIdle || (planSigOf(g) === planSig && (ui.live || !(g.phase === 'season' && isMatchDay(g))))) return;
   planIdle = true;
   const go = () => {
     planIdle = false;
     const cur = ui.game;
-    if (cur && !ui.busy) planAhead(cur);
+    if (!cur || ui.busy) return;
+    ensureMyTicket(cur);
+    // 오늘 다른 경기를 뒤에서 계산 중이면 끝난 뒤에 (계산 중인 오늘 경기를 미리 계산 목록에 또 넣지 않게)
+    if (othersInFlight) { planSig = ''; return; }
+    if (planSigOf(cur) !== planSig) planAhead(cur);
   };
   const ric = (globalThis as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
   if (ric) ric(go, { timeout: 2000 });
@@ -1166,11 +1228,43 @@ function schedulePlan(): void {
 /** 게임을 연 뒤 (C.75b 첫 워커 데우기 → C.76m): 유휴 때 미리 계산을 맡긴다 */
 function warmPool(): void {
   planSig = '';
+  myTicket = null;
+  // 워커 하나는 바로 띄워 엔진 모듈을 불러 둔다 (C.81c: 첫 경기 냉시작을 줄임 — 미리 계산할 경기가 없는 날에도)
+  if (pool().parallel && !(globalThis as unknown as { __noPrecompute?: boolean }).__noPrecompute) pool().warm();
   schedulePlan();
 }
 
 /** 오늘 다른 경기를 계산한다: 전체 엔진은 Web Worker 풀에 나눠 병렬로, 빠른 진행은 바로 (같은 시드 같은 결과) */
+/** 지금 돌고 있는 오늘 다른 경기 계산 (C.81c): 뒤에서 도는 동안 다른 호출은 그것을 기다린 뒤 남은 것만 (두 번 계산·두 번 기록하지 않게) */
+let othersInFlight: Promise<number> | null = null;
+
 async function runOthersToday(g: GameState, ahead = false, progress?: (done: number, total: number, pre?: number) => void): Promise<number> {
+  while (othersInFlight) await othersInFlight.catch(() => 0);
+  const p = othersTodayOnce(g, ahead, progress);
+  othersInFlight = p;
+  try {
+    return await p;
+  } finally {
+    if (othersInFlight === p) othersInFlight = null;
+  }
+}
+
+/**
+ * 경기 날 다른 경기를 뒤에서 (C.81c): 경기 준비 화면을 기다리지 않고 바로 연다. 결과 기록 순서(다른 경기 → 내 경기)는 그대로 —
+ * [경기 시작]·날 넘기기는 이 계산이 끝나기를 기다린다(runOthersToday). 내 경기 입력은 다른 경기 결과와 무관해 미리 계산이 그대로 맞는다
+ */
+/** [경기 시작]이 뒤에서 도는 다른 경기를 기다리는 중이면 띄움 글에 진행 n/전체 (C.81c) */
+let othersWait: ((done: number, total: number) => void) | null = null;
+function othersInBackground(g: GameState): void {
+  void runOthersToday(g, false, (done, total) => othersWait?.(done, total)).then((n) => {
+    if (!n || ui.game !== g) return;
+    void autosave();
+    planSig = '';
+    if (!ui.busy && !ui.live) render();
+  }, () => {});
+}
+
+async function othersTodayOnce(g: GameState, ahead = false, progress?: (done: number, total: number, pre?: number) => void): Promise<number> {
   const jobs = todaysOthers(g).map(([r, i]) => otherJob(g, r, i));
   // 고른 다른 리그 (45b b): 풀 엔진이면 그날 경기를 같은 워커 풀로 (빠른 계산이면 하루 끝 syncOtherLeagues)
   const lgJobs = g.options.quickOthers ? [] : otherLeagueJobs(g, g.calendar.date);
@@ -1189,8 +1283,8 @@ async function runOthersToday(g: GameState, ahead = false, progress?: (done: num
   const tick = <T,>(p: Promise<T>): Promise<T> => p.then((x) => { done++; progress?.(done, total, pre); return x; });
   const runs = jobs.map((j) => tick(pool().npc(j.input).catch(() => playNpcMatch(j.input))));
   const lgRuns = lgJobs.map((j) => tick(pool().npc(j.input).catch(() => playNpcMatch(j.input))));
-  // 오늘 일을 다 맡긴 뒤 다음 날 것을 미리 (실제 작업이 먼저 돈다)
-  if (ahead) planAhead(g);
+  // 오늘 일을 다 맡긴 뒤 다음 날 것을 미리 (실제 작업이 먼저 돈다). 오늘 경기는 지금 계산 중이라 빼고 (C.81c: 전에는 같은 경기를 미리 계산으로 한 번 더 돌렸다)
+  if (ahead) planAhead(g, true);
   const outs = await Promise.all(runs);
   jobs.forEach((j, k) => applyOther(g, j.r, j.i, outs[k]!));
   const lgOuts = await Promise.all(lgRuns);
@@ -1260,7 +1354,9 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       if (marketPending(g)) break;
       // 경기 날이면 그날 다른 경기만 미리 계산하고 멈춘다 (내 경기는 [경기 시작])
       if (isMatchDay(g)) {
-        await runOthersToday(g, false, othersProgress(title, dateLabel(g.calendar.date)));
+        // 내 경기도 같이 맡긴다 (C.81c: 다른 경기 결과는 내 경기 입력에 들어가지 않는다 — 준비 화면에 오면 거의 끝나 있다)
+        ensureMyTicket(g);
+        othersInBackground(g);
         break;
       }
       // [계속]: 휴가가 시작한 날과 끝난 날(훈련 재개)에도 멈춘다 (25.3 5번: 휴가 중 [계속]은 휴장 끝까지 한 번에)
@@ -1316,40 +1412,48 @@ async function openPrep(g: GameState): Promise<void> {
     await advanceDays(g, 'continue');
     if (g.phase !== 'season' || marketPending(g) || !isMatchDay(g)) return;
   }
-  await othersFirst(g);
+  ensureMyTicket(g);
+  othersInBackground(g);
   ui.moreSheet = false;
   go('prep');
 }
 
-/** 그날 다른 경기가 남았으면 먼저 계산 */
-async function othersFirst(g: GameState): Promise<void> {
-  if (!todaysOthers(g).length) return;
-  ui.busy = true;
-  ui.toast = { kind: 'info', title: '오늘 다른 경기 계산 중', body: dateLabel(g.calendar.date) };
-  render();
-  try {
-    await runOthersToday(g);
-  } finally {
-    ui.busy = false;
-    ui.toast = null;
-  }
+/** 경기 대기 측정 (C.81c): [경기 시작]을 누른 뒤 결과 화면이 그려질 때까지 구간별 ms (캡처 스크립트가 __matchPerf 로 읽는다) */
+interface MatchPerf { lap: (k: string) => void; mark: (k: string, v: number) => void; paint: () => void }
+const matchPerfLog: Record<string, number>[] = [];
+(globalThis as unknown as { __matchPerf: typeof matchPerfLog }).__matchPerf = matchPerfLog;
+function matchPerf(): MatchPerf {
+  const t0 = performance.now();
+  let t = t0;
+  const rec: Record<string, number> = {};
+  return {
+    lap: (k) => { const n = performance.now(); rec[k] = (rec[k] ?? 0) + Math.round(n - t); t = n; },
+    mark: (k, v) => { rec[k] = v; },
+    // 다음 그리기까지 (화면이 실제로 바뀐 때): rAF 뒤 첫 작업
+    paint: () => requestAnimationFrame(() => setTimeout(() => { const n = performance.now(); rec.paint = Math.round(n - t); rec.total = Math.round(n - t0); matchPerfLog.push(rec); }, 0)),
+  };
 }
 
 /** 경기 준비 [경기 시작]: 내 경기를 시작한다 */
 async function startPlay(g: GameState): Promise<void> {
   if (marketPending(g)) return pendingStop(g);
   if (!isMatchDay(g)) return openPrep(g);
-  if (todaysOthers(g).length) {
+  const perf = matchPerf();
+  if (todaysOthers(g).length || othersInFlight) {
     ui.busy = true;
     ui.toast = { kind: 'info', title: '오늘 다른 경기 계산 중', body: dateLabel(g.calendar.date) };
     render();
+    const prog = othersProgress('오늘 다른 경기 계산 중', dateLabel(g.calendar.date));
+    othersWait = prog;
     try {
-      await runOthersToday(g);
+      await runOthersToday(g, false, prog);
     } finally {
+      othersWait = null;
       ui.busy = false;
       ui.toast = null;
     }
   }
+  perf.lap('others');
   ui.replay = null;
   // 직접 모드 (E.11): 내가 뛰는 경기면 결정 순간마다 멈춘다. 자동 모드·결장은 기존처럼 한 번에
   const rm = roundMatch(g);
@@ -1360,7 +1464,42 @@ async function startPlay(g: GameState): Promise<void> {
     liveAdvance(g);
     return;
   }
-  finishPlay(g);
+  // 자동 경기 (C.81c): 워커에서 재생 데이터까지 계산 — 경기 준비 화면에 있는 동안 미리 계산해 둔 것이 있으면 바로.
+  // 메인 스레드에서 직접 계산하는 것과 같은 호출(playMyMatch(input, { teams }))이라 결과가 같다. 워커를 못 쓰면 이전처럼 메인 스레드에서
+  let out: MyMatchOutput | undefined;
+  if (pool().parallel) {
+    const job: EngineJob = { kind: 'myr', input: rm.input, teams: rm.teams };
+    const key = specKey(job);
+    const t = myTicket?.key === key ? myTicket : null;
+    myTicket = null;
+    perf.mark('hit', t ? 1 : 0);
+    ui.busy = true;
+    let raw: MyReplayOut | undefined;
+    try {
+      // 미리 계산이 아직이면 띄움 글 (그사이 화면은 멈추지 않는다)
+      const p = t?.p ?? (pool().run(job) as Promise<MyReplayOut>);
+      const done = await Promise.race([p.then(() => true, () => true), nextFrame().then(() => false)]);
+      perf.mark('ready', done ? 1 : 0);
+      if (!done) {
+        ui.toast = { kind: 'info', title: '경기 계산 중', body: dateLabel(g.calendar.date) };
+        render();
+      }
+      raw = await p;
+    } catch {
+      raw = undefined;
+    } finally {
+      ui.busy = false;
+      ui.toast = null;
+    }
+    perf.lap('engine');
+    // 기다리는 사이 입력이 바뀌었으면(화면 이동 중 전술 변경 등) 버리고 지금 입력으로 계산
+    if (raw) {
+      const now = roundMatch(g);
+      if (specKey({ kind: 'myr', input: now.input, teams: now.teams }) === key) out = myReplayOutput(raw);
+    }
+    perf.lap('decode');
+  }
+  finishPlay(g, out, perf);
 }
 
 /**
@@ -1404,6 +1543,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
     const chip = fx && (fx.cup || fx.nat) ? (prepCupBadge(matchCompLabel(g, fx))) : '';
     updateAutoLayer(layer, { n: played, m: total, meta: `${dateLabel(g.calendar.date)} · ${fx ? `${venueKo(fx.home, isNeutralMatch(fx))} · ${teamById(g.league, fx.opponentId).nameKo}전 계산 중` : what}`, lines, rank: myRow(), pts: prefs.alloc ? spent : Math.max(0, g.player.unspentPoints - pts0), alloc: prefs.alloc, chip });
   };
+  autoRunning = true;
   try {
     for (;;) {
       if (g.phase !== 'season') { reason = 'season'; break; }
@@ -1461,6 +1601,7 @@ async function autoRun(g: GameState, opts: { matches: number; untilDate?: string
       if (ne) { newEvent = ne.title; reason = 'event'; break; }
     }
   } finally {
+    autoRunning = false;
     planSig = '';
     ui.busy = false;
     ui.stopReq = false;

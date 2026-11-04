@@ -11,9 +11,11 @@
 // C.76m 다른 경기 백그라운드 미리 계산: plan(jobs) = 앞으로 며칠 다른 경기 목록을 통째로 맡긴다 (목록에 없는 보관분은 버림, 가까운 날 먼저).
 // 미리 계산에 워커를 specWorkers 개까지 띄운다(하나는 실제 작업용으로 남김). 보관은 입력 키의 요약(digest)으로 해 메모리를 줄인다
 
-import { runJob, type EngineJob } from '../engine/jobs';
+import { myReplayOutput, runJob, type EngineJob, type MyReplayOut } from '../engine/jobs';
 import type { NpcMatchResult } from '../engine/npcMatch';
 import type { MyMatchOutput } from '../engine/adapter';
+
+type EngineMatchInputOf = Extract<EngineJob, { kind: 'myr' }>['input'];
 
 /** 워커 상한: 폰 메모리(워커마다 엔진 묶음 약 0.3MB + 힙)와 다른 경기 수(하루 최대 약 10경기)를 같이 본 값 */
 export const MAX_WORKERS = 6;
@@ -33,6 +35,8 @@ type Task = {
   reject: (e: Error) => void;
   promise: Promise<unknown>;
   started: boolean;
+  /** 줄 맨 앞 작업 (C.81c 내 경기) */
+  first?: boolean;
 };
 
 type Slot = { w: Worker; task: Task | null; timer: ReturnType<typeof setTimeout> | null };
@@ -210,8 +214,11 @@ export class EnginePool {
     t.reject(e);
   }
 
-  /** 경기를 계산한다. 같은 입력으로 미리 계산해 둔 것이 있으면 그 결과 (입력이 같으면 결과도 같다) */
-  run(job: EngineJob): Promise<unknown> {
+  /**
+   * 경기를 계산한다. 같은 입력으로 미리 계산해 둔 것이 있으면 그 결과 (입력이 같으면 결과도 같다).
+   * first (C.81c) = 줄 맨 앞에 (내 경기: 그날 다른 경기보다 먼저 끝나 [경기 시작]이 기다리지 않게. 계산 순서만 바뀌고 결과는 같다)
+   */
+  run(job: EngineJob, first = false): Promise<unknown> {
     this.stats.jobs++;
     let key: string | null = null;
     if (this.spec.size) try { key = specKey(job); } catch { key = null; }
@@ -222,7 +229,8 @@ export class EnginePool {
       hit.spec = false;
       if (!hit.started) {
         // 아직 대기 중이면 실제 작업으로 앞으로
-        this.queue = [hit, ...this.queue.filter((t) => t !== hit)];
+        // (맨 앞 작업(내 경기, C.81c) 뒤로)
+        this.queue = [...this.queue.filter((t) => t.first), hit, ...this.queue.filter((t) => t !== hit && !t.first)];
         this.pump();
       }
       // 미리 계산이 실패했으면(워커 오류) 다시 계산
@@ -232,7 +240,11 @@ export class EnginePool {
     const t = this.task(job, null, false);
     if (this.broken) this.onMain(t);
     else {
-      this.queue.push(t);
+      if (first) {
+        t.first = true;
+        this.queue.unshift(t);
+      }
+      else this.queue.push(t);
       this.pump();
     }
     return t.promise;
@@ -351,6 +363,11 @@ export class EnginePool {
 
   my(input: Extract<EngineJob, { kind: 'my' }>['input']): Promise<MyMatchOutput> {
     return this.run({ kind: 'my', input }) as Promise<MyMatchOutput>;
+  }
+
+  /** [경기 시작] 자동 경기 (C.81c): 재생 데이터까지. 미리 계산해 둔 것이 있으면 그 결과 */
+  myReplay(input: EngineMatchInputOf, teams: [string, string]): Promise<MyMatchOutput> {
+    return this.run({ kind: 'myr', input, teams }).then((x) => myReplayOutput(x as MyReplayOut));
   }
 
   /** 워커를 모두 내린다 */

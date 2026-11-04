@@ -1031,10 +1031,11 @@ export function playOthers(state: GameState, how: 'engine' | 'quick'): void {
  * 앞으로 다른 경기 엔진 입력 (C.76m 백그라운드 미리 계산): 오늘 남은 것부터 경기가 있는 날 days 일치(within 일 안), 가까운 날 먼저.
  * 날마다 내 리그 다른 팀 경기 → 고른 다른 리그 순. 내 팀 경기는 넣지 않는다. 상태를 바꾸지 않는다 (입력만 만든다)
  */
-export function upcomingOthers(state: GameState, days: number, within = 7): NpcMatchInput[] {
+export function upcomingOthers(state: GameState, days: number, within = 7, from = 0): NpcMatchInput[] {
   const out: NpcMatchInput[] = [];
   let n = 0;
-  for (let d = 0; d <= within && n < days; d++) {
+  // from (C.81c): 1 이면 오늘은 뺀다 (오늘 경기를 이미 계산 중일 때 같은 경기를 미리 계산 목록에 또 넣지 않게)
+  for (let d = from; d <= within && n < days; d++) {
     const date = addDays(state.calendar.date, d);
     const own = todaysOthers(state, date).map(([r, i]) => otherJob(state, r, i).input);
     const lg = otherLeagueJobs(state, date).map((j) => j.input);
