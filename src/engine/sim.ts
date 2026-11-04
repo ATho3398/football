@@ -94,6 +94,26 @@ export interface MatchSim {
   step(): void;
 }
 
+/**
+ * 실수 필드 표현 고정 (C.81e 계산 속도, 값 불변): 0 같은 정수로 시작해 나중에 실수가 들어가는 필드는 V8 이 첫 경기 중에 객체 모양을 바꾸고
+ * 그 사이 여러 모양을 본 읽기 자리가 느린 경로(megamorphic)로 굳는다. 만들자마자 실수를 한 번 넣었다가 원래 값으로 되돌려 처음부터 실수 표현으로 둔다
+ */
+function fixDoubles(o: object, keys: readonly string[]): void {
+  const r = o as Record<string, unknown>;
+  for (const k of keys) {
+    const v = r[k];
+    r[k] = 0.5;
+    r[k] = v;
+  }
+}
+/** 선수 객체에서 정수로만 쓰는 필드 (표현 고정에서 뺀다) */
+const AGENT_INT = new Set(['idx', 'team', 'line', 'tvIdx', 'errTick', 'errDone', 'carryN', 'shotPath', 'trackIdx', 'stepOutIdx']);
+let agentDoubles: string[] | null = null;
+const STATE_DOUBLES = ['t', 'elapsed', 'halfEnd', 'bsx', 'bsy', 'possSince', 'possStartT', 'elapsed75', 'nextSubCheck'] as const;
+const BALL_DOUBLES = ['x', 'y', 'z', 'vx', 'vy'] as const;
+const TEAM_DOUBLES = ['phase', 'counterUntil', 'wonAt', 'lostAt', 'lineAtLoss', 'brokeAt', 'coverUntil', 'sitSince', 'sitCandSince'] as const;
+const STATS_DOUBLES = ['distance', 'distance75', 'rating'] as const;
+
 function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, home: boolean): Agent {
   const slots = setup.customSlots ?? FORMATION_SLOTS[setup.formation];
   const slot = slots[spec.slot] ?? slots[0]!;
@@ -118,6 +138,9 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
   // 홈 이점 (E.18 A7): 판단 품질 + homeJudgement, 듀얼 로짓 + homeDuel (능력치 가산 없음)
   a.judgement = judgementOf(a) + (home ? ENGINE.match.homeJudgement : 0);
   a.duelEdge = home ? ENGINE.match.homeDuel : 0;
+  agentDoubles ??= Object.keys(a).filter((k) => typeof (a as unknown as Record<string, unknown>)[k] === 'number' && !AGENT_INT.has(k));
+  fixDoubles(a, agentDoubles);
+  fixDoubles(a.stats, STATS_DOUBLES);
   return a;
 }
 
@@ -152,6 +175,9 @@ export function createState(input: EngineInput): SimState {
     rapport: resolveRapport(input.rapport),
     onVer: 0, manVer: -1, manD0: 0,
   };
+  fixDoubles(s, STATE_DOUBLES);
+  fixDoubles(s.ball, BALL_DOUBLES);
+  for (const tm of s.teams) fixDoubles(tm, TEAM_DOUBLES);
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
   event(s, 'kickoff', 0, []);
