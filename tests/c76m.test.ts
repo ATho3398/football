@@ -121,6 +121,9 @@ describe('미리 계산 결정성 (C.76m): 미리 계산 여부·세이브 왕�
     const opts = { mode: 'prospect' as const, position: 'ST' as const, seed: 'c76m-d', difficulty: 'normal' as const, leagues: legs };
     let a = newGame(opts);
     const b = newGame(opts);
+    // 다른 리그까지 미리 계산하는 '전부 엔진' (C.81d: 기본 '내 리그만 엔진'은 다른 리그를 미리 계산하지 않는다)
+    a.options = { others: 'all' };
+    b.options = { others: 'all' };
     expect(snap(a)).toBe(snap(b));
     const pool = new EnginePool(4, () => new FakeWorker((j) => fakeMatch(j.input as NpcMatchInput)) as never, (j) => fakeMatch(j.input as NpcMatchInput));
     let total = 0;
