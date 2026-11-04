@@ -62,11 +62,11 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) .po-hero--compact.po-hero--text .po-hero__value { color: var(--on-brand); font-size: 22px; }
 
 /* 미페 머리말 (face): 등번호 + 투명 미페 + 사선 검정 면 */
-:where(html[data-skin="b"]) .po-hero--face { flex: none; padding: 0; height: 430px; border-bottom: 0; background: var(--surface-1); }
+:where(html[data-skin="b"]) .po-hero--face { flex: none; padding: 0; height: 450px; border-bottom: 0; background: var(--surface-1); }
 :where(html[data-skin="b"]) .po-hero--face::before, :where(html[data-skin="b"]) .po-hero--face::after { display: none; }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__kit { position: absolute; z-index: 0; right: -24px; top: -40px; font-family: var(--font-display); font-weight: 800; font-size: 480px; line-height: 440px; color: var(--brand); white-space: nowrap; }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__kit.is-two { font-size: 330px; right: -10px; top: 0; }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__face { position: absolute; z-index: 1; left: -36px; bottom: 64px; width: 380px; height: 380px; object-fit: contain; object-position: bottom; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__kit { position: absolute; z-index: 0; right: -24px; top: -20px; font-family: var(--font-display); font-weight: 800; font-size: 480px; line-height: 440px; color: var(--brand); white-space: nowrap; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__kit.is-two { font-size: 330px; right: -10px; top: 20px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face { position: absolute; z-index: 1; left: -36px; bottom: 30px; width: 356px; height: 356px; box-sizing: border-box; padding-top: 7%; object-fit: contain; object-position: bottom; } /* C.81f: 위에서부터 도구 줄(8~56) → 여유 8px → 사진(64~) → 사진 안 머리 위 여백 7%. 예전 380px·bottom 64 는 사진 위끝이 머리말 밖(−14px)이라 머리가 도구 줄 뒤에 깔렸다 */
 :where(html[data-skin="b"]) .po-hero--face .po-hero__slab { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 186px; background: var(--surface-0); clip-path: polygon(0 22%, 100% 50%, 100% 100%, 0 100%); }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__line { position: absolute; z-index: 2; left: 0; bottom: 148px; width: 250px; height: 14px; background: var(--brand); transform: skewY(6.4deg); transform-origin: left; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__bar { position: absolute; z-index: 3; left: var(--space-4); right: var(--space-4); top: 8px; }
@@ -82,9 +82,9 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) .po-hero--face .po-hero__num { position: absolute; z-index: 3; right: var(--space-4); bottom: 22px; height: auto; flex-direction: column; align-items: flex-end; gap: 2px; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__value { color: var(--ink); font-size: 96px; line-height: 80px; white-space: nowrap; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__unit { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: .12em; color: var(--ink-muted); }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact { display: block; height: 290px; border-radius: 0; } /* C.58: compact 격자(요청 5)를 끈다 — 자식은 모두 절대 위치 */
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { font-size: 320px; line-height: 300px; top: -24px; }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { width: 250px; height: 250px; bottom: 40px; left: -20px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact { display: block; height: 320px; border-radius: 0; } /* C.58: compact 격자(요청 5)를 끈다 — 자식은 모두 절대 위치 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { font-size: 320px; line-height: 300px; top: 6px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { width: 260px; height: 260px; bottom: 0; left: -20px; } /* C.81f: 머리말 290 → 320, 사진 위끝 60px(도구 줄 아래 52 + 8) · 아래는 사선 면 뒤로 */
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__slab { height: 180px; clip-path: polygon(0 22%, 100% 44%, 100% 100%, 0 100%); } /* C.75u: 140 → 180 · 오른쪽 50% → 44% — 눈썹 줄(소속·포지션·나이)까지 검정 면 안에 들어오게 */
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__line { bottom: 150px; width: 190px; height: 10px; } /* C.75u: 120 → 150, 사선 면 윗변에 맞춤 */
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__name { font-size: 36px; line-height: 40px; }

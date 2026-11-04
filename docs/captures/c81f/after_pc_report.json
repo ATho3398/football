@@ -1,0 +1,91 @@
+{
+ "W": 1280,
+ "H": 800,
+ "errors": [],
+ "screens": {
+  "01_가상-홈": {
+   "cutout": true,
+   "barBottom": 56,
+   "imgTop": 64,
+   "headY": 141,
+   "headGap": 85,
+   "heroH": 450,
+   "fold": 736,
+   "next": {
+    "cls": "panel next-card",
+    "top": 793,
+    "visiblePx": 0
+   }
+  },
+  "02_가상-선수": {
+   "cutout": true,
+   "barBottom": 52,
+   "imgTop": 60,
+   "headY": 148,
+   "headGap": 96,
+   "heroH": 320,
+   "fold": 736,
+   "next": {
+    "cls": "po-dock__go po-dock__next is-continue",
+    "top": 0,
+    "visiblePx": 736
+   }
+  },
+  "03_손흥민-홈": {
+   "cutout": false,
+   "barBottom": 56,
+   "imgTop": 64,
+   "headY": 77,
+   "headGap": 21,
+   "heroH": 450,
+   "fold": 736,
+   "next": {
+    "cls": "panel next-card",
+    "top": 776,
+    "visiblePx": 0
+   }
+  },
+  "04_손흥민-선수": {
+   "cutout": false,
+   "barBottom": 52,
+   "imgTop": 60,
+   "headY": 68,
+   "headGap": 16,
+   "heroH": 320,
+   "fold": 736,
+   "next": {
+    "cls": "po-dock__go po-dock__next is-continue",
+    "top": 0,
+    "visiblePx": 736
+   }
+  },
+  "05_네모사진-선수": {
+   "cutout": false,
+   "barBottom": 52,
+   "imgTop": 60,
+   "headY": 68,
+   "headGap": 16,
+   "heroH": 320,
+   "fold": 736,
+   "next": {
+    "cls": "po-dock__go po-dock__next is-continue",
+    "top": 0,
+    "visiblePx": 736
+   }
+  },
+  "06_네모사진-홈": {
+   "cutout": false,
+   "barBottom": 56,
+   "imgTop": 64,
+   "headY": 77,
+   "headGap": 21,
+   "heroH": 450,
+   "fold": 736,
+   "next": {
+    "cls": "panel next-card",
+    "top": 776,
+    "visiblePx": 0
+   }
+  }
+ }
+}

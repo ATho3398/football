@@ -1006,9 +1006,9 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 /* ── C.57 U5-c 홈 · 훈련·일정 · 자동 진행 (디자인 61~65 · 86~92 · 132 · 133 · 150, B 86·91·132) ── */
 /* 미페 머리말: 투명 아닌 사진은 네모 그대로 같은 자리(B-apply 2절). 모서리 B radius-md, 아래 정렬 */
 .po-hero__face.is-square { object-fit: cover; object-position: center top; border-radius: var(--radius-md); }
-/* C.76g (디자인 2부 HeroPanel photo · 236): 네모 사진 = 위에서 48px(compact 44px), 폰 230 · compact 128, 검정 3px 테두리, 라임 사선 줄 없음. PC 1024+ 는 --hero-photo 270 · 176 */
-:where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hp: var(--hero-photo, 230px); width: var(--hp); height: var(--hp); left: 16px; top: 48px; bottom: auto; background: var(--surface-2); box-shadow: 0 0 0 3px var(--surface-0); }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hp: var(--hero-photo, 128px); left: 16px; top: 44px; bottom: auto; }
+/* C.76g (디자인 2부 HeroPanel photo · 236) · C.81f: 네모 사진 = 위에서 64px(compact 60px, 도구 줄 아래 8px), 폰 230 · compact 128, 검정 3px 테두리, 라임 사선 줄 없음. PC 1024+ 는 --hero-photo 270 · 176 */
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hp: var(--hero-photo, 230px); width: var(--hp); height: var(--hp); left: 16px; top: 64px; bottom: auto; padding: 0; background: var(--surface-2); box-shadow: 0 0 0 3px var(--surface-0); }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hp: var(--hero-photo, 128px); left: 16px; top: 60px; bottom: auto; }
 :where(html[data-skin="b"]) .po-hero--photo .po-hero__line { display: none; }
 .po-hero--face .po-hero__name { display: block; max-width: 100%; }
 .po-hero--face .po-hero__right { display: inline-flex; align-items: center; gap: 2px; }
@@ -1019,8 +1019,8 @@ html[data-skin="b"] .mo-rsheet__title { font-weight: 400; }
 @media (min-width: 1024px) and (min-height: 521px), (min-width: 1024px) and (orientation: portrait) {
   :where(html[data-skin="b"]) .po-hero--face .po-hero__face { left: 0; }
   :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { left: 8px; }
-  :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hero-photo: 270px; left: 80px; top: 44px; }
-  :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hero-photo: 176px; left: 80px; top: 40px; }
+  :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hero-photo: 270px; left: 80px; top: 64px; }
+  :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hero-photo: 176px; left: 80px; top: 60px; }
   :where(html[data-skin="b"]) .po-hero--face .po-hero__eyebrow { align-self: flex-start; }
 }
 .hm-date { margin-right: 4px; font-size: 12px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
@@ -1880,7 +1880,7 @@ button.dec-row.panel { background: var(--surface-1); padding: 12px 14px; font-si
   .po-hero:not(:has(.po-hero__num)):not(.po-hero--face)::before, .po-hero:not(:has(.po-hero__num)):not(.po-hero--face)::after { display: none; }
   /* 미페 머리말은 쓰지 않는다 → 한 줄 + 왼쪽 40px 얼굴(사진/네모/도트 그대로) */
   :where(html[data-skin="b"]) .po-hero--face { background: var(--surface-0); border-bottom: 2px solid var(--brand); }
-  .po-hero--face .po-hero__face, :where(html[data-skin="b"]) .po-hero--face .po-hero__face, :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square, :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { order: 1; position: static; flex: none; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: center top; background: var(--surface-2); }
+  .po-hero--face .po-hero__face, :where(html[data-skin="b"]) .po-hero--face .po-hero__face, :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square, :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { order: 1; position: static; flex: none; width: 40px; height: 40px; padding: 0; border-radius: 50%; object-fit: cover; object-position: center top; background: var(--surface-2); }
   .po-hero--face .po-hero__title { display: none; }
   .po-hero--face .po-hero__name { order: 2; flex: 0 1 auto; min-width: 0; font-size: 18px !important; line-height: 22px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .po-hero--face .po-hero__num .po-hero__value { color: var(--brand-ink); }
