@@ -15,7 +15,7 @@ function match(seed: number) {
 
 describe('C.81a 박스 인원 · 리바운드', () => {
   it('상수: edgeZone 12 · lateRunFromX 0.6 · crossBox 0.06(3명) · 쇄도 끔 · 실험 스위치(parryDown·parryFootBlock·shotFollow) 없음', () => {
-    expect(ENGINE.offball.edgeZone).toBe(12);
+    expect(ENGINE.offball.edgeZone).toBe(18); // C.81b 12 → 18
     expect(ENGINE.offball.lateRunFromX).toBe(0.6);
     expect(ENGINE.decide.bias.crossBox).toBe(0.06);
     expect(ENGINE.decide.bias.crossBoxMin).toBe(3);

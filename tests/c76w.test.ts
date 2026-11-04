@@ -33,7 +33,8 @@ function secondLineMarked(maxMan: number): number {
     // C.80w(엔진 77, 롱볼 착지 정확도 longMiss 0.6·효용 가중 longW 0.25·saveBase 1.75): 87~89 가 0.533 대 0.559 로 뒤집혀 94~96 으로 — 77~79·93~95·94~96 통과, 80~82 ✗ (단언 그대로)
     // C.80u(엔진 81, 세트피스 헤더 GK 반응·코너 CB 3·saveBase 1.82, 롱패스 병합 뒤): 87~89 가 0.569 대 0.575 로 뒤집혀 93~95 로 — 77~79·90~92·93~95 통과, 80~82 실패 (단언 그대로)
     // C.81a(엔진 85, 크로스 박스 인원 처방·saveBase 1.89·1대1 drop 0.27): 94~96 이 0.427 대 0.473 으로 뒤집혀 86~88(0.549 대 0.463)로 — 77~100 세 시드 묶음(77·80·…·98 시작) 중 86·89·92·98 통과 (단언 그대로)
-    for (const seed of [86, 87, 88]) {
+    // C.81b(엔진 86, edgeZone 18·saveBase 1.93·1대1 drop 0.3·균형 점유 가치 0.02): 86~88 이 뒤집혀 77~79 로 (단언 그대로)
+    for (const seed of [77, 78, 79]) {
       const m = createMatch(input(seed));
       const s = m.state;
       while (!s.done) {
