@@ -72,6 +72,13 @@ export interface Candidate {
 
 const RC = ENGINE.receive;
 
+/**
+ * 후보 객체를 늘 같은 모양으로 (C.81e 계산 속도: 종류마다 키가 달라 V8 이 후보 읽기를 느린 경로로 하던 것). 없는 선택 키는 undefined — 읽는 값은 그대로
+ */
+export function mkCand(c: Candidate): Candidate {
+  return { type: c.type, p: c.p, u: c.u, x: c.x, y: c.y, receiver: c.receiver, value: c.value, opponent: c.opponent, pFlight: c.pFlight, keeper: c.keeper, cardD: c.cardD, back: c.back, ot: c.ot };
+}
+
 /** 원터치 판단 중인 선수(본인·평균 선수)와 공 속도·압박 (C.78b). 판단 밖에서는 null */
 let otNow: { a: Agent; av: Agent; speed: number; pr: number } | null = null;
 
@@ -796,7 +803,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const cutback = cutZone && !running && gd >= O.cutbackMin && gd <= O.cutbackMax && goalAngle(tx, ty, gx0) >= PR.shotAngleRef;
     const type = cutback ? 'cutback' : running ? 'through' : 'pass';
     // C.81e: 조건부 펼치기 대신 같은 키 순서로 붙인다 (keeper 는 pFlight 뒤)
-    const cand: Candidate = { type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight };
+    const cand: Candidate = mkCand({ type, p, u, x: tx, y: ty, receiver: r.idx, value, pFlight });
     if (gkWins >= 0) cand.keeper = gkWins;
     out.push(cand);
     if (tikiLongOn) {
@@ -809,7 +816,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       const pO = pF * aerial;
       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
       const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
-      const oc: Candidate = { type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF };
+      const oc: Candidate = mkCand({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF });
       if (gkWins >= 0) oc.keeper = gkWins;
       oc.ot = true;
       ot.out.push(oc);
@@ -840,18 +847,18 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       if (dist(r.x, r.y, gx0, gy0) <= PR.shotMaxDist) value = Math.max(value, judgedP(shotModel(s, r, false, undefined, passLead(s, d)).value, shotModel(s, averageSelf(r), false, undefined, passLead(s, d)).value));
       const lossL = loss(rx, ry);
       const u = weight(pj * value + (1 - pj) * lossL, a.role.pref.pass);
-      out.push({ type: 'layoff', p, u, x: r.x, y: r.y, receiver: r.idx, value });
+      out.push(mkCand({ type: 'layoff', p, u, x: r.x, y: r.y, receiver: r.idx, value }));
       if (ot) {
         const pO = lA * oneTouchMul(a, ot.speed, ot.pr);
         const pjO = judgedP(pO, lAv * oneTouchMul(av, ot.speed, ot.pr));
-        ot.out.push({ type: 'layoff', p: pO, u: weight(pjO * value + (1 - pjO) * lossL, a.role.pref.pass), x: r.x, y: r.y, receiver: r.idx, value, ot: true });
+        ot.out.push(mkCand({ type: 'layoff', p: pO, u: weight(pjO * value + (1 - pjO) * lossL, a.role.pref.pass), x: r.x, y: r.y, receiver: r.idx, value, ot: true }));
       }
     }
     const dd = nearestOpponent(s, a), def = nearA;
     if (def && dd <= O.holdupRange) {
       const p = holdupProb(s, a, def);
       const pj = judgedP(p, holdupProb(s, av, def));
-      out.push({ type: 'holdup', p, u: weight(pj * here + (1 - pj) * lossHere, a.role.pref.pass * a.role.pref.hold), x: a.x, y: a.y, receiver: -1, value: here, opponent: def.idx });
+      out.push(mkCand({ type: 'holdup', p, u: weight(pj * here + (1 - pj) * lossHere, a.role.pref.pass * a.role.pref.hold), x: a.x, y: a.y, receiver: -1, value: here, opponent: def.idx }));
     }
   }
 
@@ -904,14 +911,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         const p = dp(a);
         const pj = judgedP(p, dp(av));
         const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * risk) + cBonus(pj, nx - ax);
-        out.push({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx });
+        out.push(mkCand({ type: 'dribble', p, u, x: cx, y: cy, receiver: -1, value, opponent: def.idx }));
       } else {
         // 몰고 가기: 가는 길로 좁혀 오는 수비수들의 압박으로 빼앗길 확률. 공을 지키는 능력치가 줄인다 (C.17 결정 3)
         const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
         const p = cp(a);
         const pj = judgedP(p, cp(av));
         const u = weight(pj * value + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk) + cBonus(pj, nx - ax);
-        out.push({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value });
+        out.push(mkCand({ type: 'carry', p, u, x: cx, y: cy, receiver: -1, value }));
       }
     }
 
@@ -931,7 +938,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // C.80n: 반대발 윙어 컷인 슛 가산 (효용에만, 각도 만들기 비교에는 안 넣음)
       const wBias = wingCutBias(s, a, m);
       const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias + wBias;
-      out.push({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value });
+      out.push(mkCand({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value }));
       // 각도 만들기 (C.78h): 슛 길이 막혔으면(블록 > 0) 옆으로 laneCarry m 치는 몰기 — 그 자리 슛 가치(수비는 따라온다 — 압박·밀집은 지금 자리, 슛 길 콘·각도는 도착점, GK 는 laneCarryTime 초 동안 자리를 옮김)가 지금 슛보다 클 때만, 도착점 가치 = 그 슛 가치
       if (O.laneCarry > 0 && m.pBlock > 0) {
         for (const sd of [-1, 1]) {
@@ -949,7 +956,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
           const cp = (who: Agent) => clamp(0.98 * (1 - carryLoseProb(s, a, cx, cy, who)), 0.05, 0.98);
           const p = cp(a);
           const pj = judgedP(p, cp(av));
-          out.push({ type: 'carry', p, u: weight(pj * valueU + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk), x: cx, y: cy, receiver: -1, value });
+          out.push(mkCand({ type: 'carry', p, u: weight(pj * valueU + (1 - pj) * lossHere, a.role.pref.dribble * a.role.pref.carry * risk), x: cx, y: cy, receiver: -1, value }));
         }
       }
       if (ot) {
@@ -965,7 +972,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         }
         const tikiO = tac.tendency === 'tikitaka' && mO.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
         const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk) + shootBias(mO, goalAngle(a.x, a.y, gx)) + wingCutBias(s, a, mO);
-        ot.out.push({ type: 'shoot', p: mO.xg, u: uO, x: gx, y: gy, receiver: -1, value: mO.value, ot: true });
+        ot.out.push(mkCand({ type: 'shoot', p: mO.xg, u: uO, x: gx, y: gy, receiver: -1, value: mO.value, ot: true }));
       }
     }
 
@@ -983,7 +990,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
         const u = weight(pj * ct.value + (1 - pj) * loss(ax, ay), a.role.pref.cross * cMul * risk);
         // C.81a (엔진관리자26 처방): 크로스 순간 박스 안 동료가 crossBoxMin 명보다 적으면 모자란 1명당 crossBox 감점 (판단만)
         const boxLack = ENGINE.decide.bias.crossBox > 0 ? Math.max(0, ENGINE.decide.bias.crossBoxMin - boxTeammates(s, a, attackDir(a.team, s.half)).length) : 0;
-        out.push({ type: 'cross', p, u: u - ENGINE.decide.bias.crossBox * boxLack, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value });
+        out.push(mkCand({ type: 'cross', p, u: u - ENGINE.decide.bias.crossBox * boxLack, x: ct.r.x, y: ct.r.y, receiver: ct.r.idx, value: ct.value }));
       }
     }
 
@@ -994,14 +1001,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // 걷어내기 (C.78c ②): 착지점에 먼저 닿을 몫 (옛 동작 0.45 고정)
       const p = O.landShare > 0 ? landingShare(s, a.team, tx, ty, dist(a.x, a.y, tx, ty) / B.airSpeed, a) : 0.45;
       const u = weight(p * positionValue(nx, ny) + (1 - p) * loss(nx, ny), a.role.pref.clear * mDirect);
-      out.push({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) });
+      out.push(mkCand({ type: 'clear', p, u, x: tx, y: ty, receiver: -1, value: positionValue(nx, ny) }));
     }
   }
 
   // 유지: 지금 위치 가치 × (1 − 다음 결정까지 빼앗길 확률). 빼앗기면 상실 비용 (다른 후보와 같은 식)
   const pLose = loseProb(s, a);
   const holdU = weight((1 - pLose) * here * holdFresh(s, a) + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold) + possK * DP.hold * (1 - pLose);
-  out.push({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here });
+  out.push(mkCand({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here }));
   // 판단 보정 (C.78p): 슛 밖 행동은 상황 함수 1 (기본값 0 = 끔)
   for (const c of out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];
   if (ot) for (const c of ot.out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];
