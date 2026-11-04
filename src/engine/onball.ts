@@ -18,7 +18,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { claimProb, coverOf, expectedSave, farSide, gkCtx, keeperOf, keeperZone, saveChance } = keeper_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, normX, normY, oppGoal, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, oppGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import { offsideRisk } from './referee';
@@ -988,7 +988,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
 
     // 클리어링: 수비 3분의 1, 압박이 심할 때
     if (ax < PR.clearMaxX && pressure > PR.clearPressure) {
-      const [tx, ty] = toPitch(clamp(ax + 0.42, 0, 0.9), 0.5 + (ay - 0.5) * 0.5, dir);
+      const tx = pitchX(clamp(ax + 0.42, 0, 0.9), dir), ty = pitchY(0.5 + (ay - 0.5) * 0.5, dir);
       const nx = normX(tx, dir), ny = normY(ty, dir);
       // 걷어내기 (C.78c ②): 착지점에 먼저 닿을 몫 (옛 동작 0.45 고정)
       const p = O.landShare > 0 ? landingShare(s, a.team, tx, ty, dist(a.x, a.y, tx, ty) / B.airSpeed, a) : 0.45;

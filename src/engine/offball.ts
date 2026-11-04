@@ -12,9 +12,9 @@ const { finishSkill } = duel_;
 import * as physics_ from './physics';
 const { arrivalTime, burstReady, effectiveMax, landingVelocity } = physics_;
 import * as formation_ from './formation';
-const { ballNorm, manDiff, slotTarget, teamPhase } = formation_;
+const { manDiff, SLOT, slotTargetS, teamPhase } = formation_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, normX, normY, ownGoal, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, ownGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import * as roles_ from './roles';
@@ -165,7 +165,7 @@ export function offsideLine(s: SimState, team: 0 | 1): number {
 /** 상대 팀 수비 라인 x (자기 팀 기준 정규화). 수비수들이 같은 x 에 선다 */
 function defensiveLine(s: SimState, team: 0 | 1): number {
   const t = effectiveTactics(s, team);
-  const [bx] = ballNorm(s, team);
+  const bx = normX(s.ball.x, attackDir(team, s.half));
   const phase = teamPhase(s, team);
   // C.80p: 티키타카 성향은 공격 국면(phase ≥ 0, 우리 소유)에 수비 라인을 tikiLineDrop(라인 높이 단위) 낮춰 뒷공간 커버 깊이를 남긴다 —
   //   잃은 뒤 상대 전환 롱볼 대응. 수비 국면 내림은 측정에서 티키를 더 약하게 해(960 0.15: 티키>직선 −0.15 → −0.29) 공격 국면만
@@ -221,7 +221,7 @@ export function transitionTick(s: SimState): void {
 }
 
 function setTarget(a: Agent, nx: number, ny: number, dir: 1 | -1, urgent: boolean): void {
-  const [x, y] = toPitch(clamp(nx, 0.005, 0.995), clamp(ny, 0.01, 0.99), dir);
+  const x = pitchX(clamp(nx, 0.005, 0.995), dir), y = pitchY(clamp(ny, 0.01, 0.99), dir);
   a.tx = clamp(x + a.errY * O.jitter, 0.3, L - 0.3);
   a.ty = clamp(y + a.errX * O.jitter, 0.3, W - 0.3);
   a.urgent = urgent;
@@ -370,7 +370,7 @@ function keeperChase(s: SimState, a: Agent): [number, number] | null {
 export function keeperTarget(s: SimState, a: Agent): void {
   const dir = attackDir(a.team, s.half);
   const gx = (dir > 0 ? 0 : L), gy = W / 2;
-  const [bx] = ballNorm(s, a.team);
+  const bx = normX(s.ball.x, attackDir(a.team, s.half));
   const sweeper = a.gk?.type === 'sweeper';
   const K = ENGINE.keeper;
   // 공이 멀수록 전진
@@ -554,9 +554,10 @@ export function updateOffball(s: SimState, a: Agent): void {
     }
     if (goal && s.t < goal.until && celebrate(s, a, goal)) return;
     if (setPieceTarget(s, a)) return;
-    const [nx, ny] = slotTarget(s, a);
+    slotTargetS(s, a);
+    const nx = SLOT.x, ny = SLOT.y;
     // 프리킥/코너 등에서 공 근처 9 m 밖
-    let [x, y] = toPitch(nx, ny, dir);
+    let x = pitchX(nx, dir), y = pitchY(ny, dir);
     if (s.restart.team !== a.team && dist(x, y, s.restart.x, s.restart.y) < 9.15) {
       const d = dist(x, y, s.restart.x, s.restart.y) || 1;
       x = s.restart.x + ((x - s.restart.x) / d) * 9.2;
@@ -608,7 +609,7 @@ export function updateOffball(s: SimState, a: Agent): void {
   }
 
   const attacking = s.possTeam === a.team;
-  const [bnx, bny] = ballNorm(s, a.team);
+  const bnx = normX(b.x, dir), bny = normY(b.y, dir);
   // 2선 추적 (C.77b): 우리 공이 되면 배정은 바로 풀린다 (trackPlan 은 수비 때만 돌아 그대로 두면 다음 수비 첫 0.5초를 옛 대상에게 쓴다)
   if (attacking && a.trackIdx >= 0) { a.trackIdx = -1; a.trackOut = -1; }
   // 골문 앞 쇄도 (C.81a, 리바운드): 우리 소유자가 골 shotRushR m 안(슛 거리)이면 박스 안 2선·공격수 중 골 앞 shotRushDepth m 중앙 자리에 가장 가까운 shotRush 명이
@@ -627,7 +628,7 @@ export function updateOffball(s: SimState, a: Agent): void {
       }
       if (closer < O.shotRush) {
         const nx = Math.min(1 - O.shotRushDepth / L, offsideLine(s, a.team) - 0.5 / L);
-        const [px] = toPitch(nx, 0.5, dir);
+        const px = pitchX(nx, dir);
         a.tx = px;
         a.ty = (a.y + W / 2) / 2;
         a.urgent = true;
@@ -642,7 +643,8 @@ export function updateOffball(s: SimState, a: Agent): void {
 function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
   ensureErrors(s, a);
   const shortHanded = manDiff(s, a.team) < 0;
-  let [nx, ny] = slotTarget(s, a, shortHanded ? ENGINE.referee.shortAttackShift : 1);
+  slotTargetS(s, a, shortHanded ? ENGINE.referee.shortAttackShift : 1);
+  let nx = SLOT.x, ny = SLOT.y;
   const line = offsideLine(s, a.team);
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   let urgent = false;
@@ -731,7 +733,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       nx = Math.min(line - 0.5 / L, Math.max(anx, bnx) + O.fbOverlapAhead / L);
       ny = 0.5 + (a.sy < 0.5 ? -1 : 1) * O.wideTouch;
     }
-    const [px, py] = toPitch(nx, ny, dir);
+    const px = pitchX(nx, dir), py = pitchY(ny, dir);
     urgent = dist(px, py, a.x, a.y) > 3;
     // ⒟ 침투 취소 (C.77y): 소유자에게서 달리는 목표까지 패스 길이 닫혔거나 이미 오프사이드 라인보다 abortOffside m+ 앞이면 멈추고 라인 안쪽으로 되돌아 나온다
     // 역습 지원·출구 달리기 (C.78d ②)·CB 빈자리 침투 (C.78e ②)는 취소하지 않는다 — 정해진 길로 끝까지 (자기 ⅓ 에서 시작하면 패스 길이 늘 막혀 보여 바로 취소됐다)
@@ -786,7 +788,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     }
     if (job) {
       nx = Math.min(nx, line - 0.5 / L);
-      const [px, py] = toPitch(nx, ny, dir);
+      const px = pitchX(nx, dir), py = pitchY(ny, dir);
       urgent = dist(px, py, a.x, a.y) > 6;
     }
   }
@@ -800,7 +802,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     const t = wideMidSpot(s, a, wOwner, dir, bny, line);
     if (t) {
       [nx, ny] = t;
-      const [px, py] = toPitch(nx, ny, dir);
+      const px = pitchX(nx, dir), py = pitchY(ny, dir);
       urgent = arrival(a, px, py, true) > O.wideLate;
       job = null;
       wideJob = true;
@@ -821,7 +823,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (O.supportPress > 0) supMin *= 1 - O.supportPress * Math.max(0, 1 - nearestFieldOpp(s, owner)[1] / O.supportPressDist);
     const ox = normX(owner.x, dir), oy = normY(owner.y, dir);
     if (!running && a.role.drop > 0 && nx > ox) nx -= (a.role.drop * O.dropDist) / L * 0.5;
-    const [px, py] = toPitch(nx, ny, dir);
+    const px = pitchX(nx, dir), py = pitchY(ny, dir);
     const d = dist(px, py, owner.x, owner.y);
     if (d < supMin && d > 0.1 && !(running && a.giveGo)) {
       const k = supMin / d;
@@ -840,7 +842,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
   // ③ 공 요구 (E.6 D.13): 소유자 쪽으로 다가가 받을 자리를 내민다 (지원 간격 최소까지)
   if (!running && !job && !wideJob && mate && hasModule(a.role, 'demand')) {
-    const [px, py] = toPitch(nx, ny, dir);
+    const px = pitchX(nx, dir), py = pitchY(ny, dir);
     const d = dist(px, py, owner!.x, owner!.y);
     if (d > supMin + 1) {
       const k = Math.min(RM.demandApproach, (d - supMin) / d);
@@ -908,7 +910,7 @@ function overlapReady(s: SimState, a: Agent, dir: 1 | -1, bnx: number): number {
     } else if (onx < bnx) high++;
   }
   if (rest < high + O.fbOverlapRest) return 0;
-  const [px, py] = toPitch(Math.min(0.97, anx + O.fbOverlapAhead / L), 0.5 + side * O.wideTouch, dir);
+  const px = pitchX(Math.min(0.97, anx + O.fbOverlapAhead / L), dir), py = pitchY(0.5 + side * O.wideTouch, dir);
   for (const o of s.agents) if (o.onPitch && o.team !== a.team && dist(o.x, o.y, px, py) < O.fbOverlapFree) return 0;
   const w = sideWinger(s, a);
   return w && !hasModule(w.role, 'exempt') && dist(w.x, w.y, a.x, a.y) <= O.fbTrackDist ? O.fbOverlapTracked : 1;
@@ -1015,7 +1017,7 @@ function gapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): { runner: number; ny: n
     lx /= n;
     const cnx = normX(cb.x, dir), cny = normY(cb.y, dir);
     if ((lx - cnx) * L < O.gapOpen) continue;
-    const [px, py] = toPitch(lx, cny, dir);
+    const px = pitchX(lx, dir), py = pitchY(cny, dir);
     let best: number = O.gapReach;
     for (const a of s.agents) {
       if (!a.onPitch || a.team !== team || a.line < 2 || a.idx === s.ball.owner || a.idx === cb.stepOutIdx || s.t < a.runUntil) continue;
@@ -1046,7 +1048,8 @@ function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
   let spot: [number, number] = [0, 0];
   for (const o of s.agents) {
     if (!o.onPitch || o.team !== team || o.line < 2 || s.t < o.runUntil || s.ball.owner === o.idx) continue;
-    const [sx, sy] = slotTarget(s, o);
+    slotTargetS(s, o);
+    const sx = SLOT.x, sy = SLOT.y;
     const drop = (sx - normX(o.x, dir)) * L;
     if (drop >= bestDrop) {
       bestDrop = drop;
@@ -1056,7 +1059,7 @@ function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
   }
   let plan: SwapPlan | null = null;
   if (best) {
-    const [px, py] = toPitch(spot[0], spot[1], dir);
+    const px = pitchX(spot[0], dir), py = pitchY(spot[1], dir);
     let bd: number = O.swapRange;
     for (const o of s.agents) {
       if (!o.onPitch || o.team !== team || o === best || o.line !== best.line || s.t < o.runUntil || s.ball.owner === o.idx) continue;
@@ -1126,7 +1129,7 @@ function betweenLines(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number
  * 오프사이드 라인은 넘지 않는다. 위치만 고르고 결과는 바꾸지 않는다 (E.15.1)
  */
 function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, line: number): [number, number] {
-  const [cx, cy] = toPitch(nx, ny, dir);
+  const cx = pitchX(nx, dir), cy = pitchY(ny, dir);
   let best: [number, number] = [nx, ny];
   let bestScore = -Infinity;
   for (let k = -1; k < 12; k++) {
@@ -1588,7 +1591,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
   if (asDef && markZone && boxDefense(s, a, dir, boxZone)) return;
 
-  let [nx, ny] = slotTarget(s, a);
+  slotTargetS(s, a);
+  let nx = SLOT.x, ny = SLOT.y;
   const tac = s.teams[a.team].tactics;
   const tendency = tac.tendency;
   let lineX = defensiveLine(s, a.team);
@@ -1647,7 +1651,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   }
 
   // 마킹: 존 근처의 위협적인 상대. 수비 주의 집중 대상(E.20 8번)이 존 근처에 있으면 그 선수를 먼저, 더 가깝게
-  const [zx, zy] = toPitch(nx, ny, dir);
+  const zx = pitchX(nx, dir), zy = pitchY(ny, dir);
   const focus = focusThreat(s, a.team);
   // 줄 2 존 마크의 ST 쏠림 해소 (C.76w (c), 미해결 8·11 — boxManMax > 0 일 때만, 지금은 0 = 끔): focus 가 이미 boxDefense 마커를 가진 상태(markZone + 위협 1위 마커)면
   // 존 마크는 focus 를 빼고 존 근처 다른 상대(2선 침투자가 대개 여기 걸린다)를 맡는다
@@ -1677,7 +1681,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, ballGoal) : null;
   if (stepOut) mark = stepOut;
   const goalSide = O.markGoalSide * (mark && mark === focus ? O.focusMark : 1);
-  let markFeed: [number, number, number, number, number] | null = null;
+  // 마크 상대 목표 속도 (C.81e: 배열 없이)
+  let markFeed = false;
+  let mfx = 0;
+  let mfy = 0;
+  let mfi = -1;
+  let mfwx = 0;
+  let mfwy = 0;
   if (mark) {
     const gx = (dir > 0 ? 0 : L), gy = W / 2;
     const gd = dist(mark.x, mark.y, gx, gy) || 1;
@@ -1712,7 +1722,12 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
       fwx = w;
       fwy = w;
     }
-    markFeed = [mark.vx * fwx, mark.vy * fwy, mark.idx, fwx, fwy];
+    markFeed = true;
+    mfx = mark.vx * fwx;
+    mfy = mark.vy * fwy;
+    mfi = mark.idx;
+    mfwx = fwx;
+    mfwy = fwy;
   }
   // 복귀 (E.18 A3): 목표가 자기 골 쪽으로 10 m 이상이면 러닝 이상, 20 m 이상이면 (긴급 복귀 판단 시) 최대 속도
   const ax = normX(a.x, dir);
@@ -1722,7 +1737,13 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   // 뚫린 역압박 가담자 (C.78a ①): 뚫린 뒤 restWindow 초 동안 자리가 골 쪽이면 전력 복귀
   const beaten = O.pressBreak > 0 && s.t - tm.brokeAt <= O.restWindow && tm.counterPressers.includes(a.idx) && back > 3;
   setTarget(a, nx, ny, dir, (back >= O.recoverSprint && a.recoverUrgent) || beaten);
-  if (markFeed) [a.tvx, a.tvy, a.tvIdx, a.tvwx, a.tvwy] = markFeed;
+  if (markFeed) {
+    a.tvx = mfx;
+    a.tvy = mfy;
+    a.tvIdx = mfi;
+    a.tvwx = mfwx;
+    a.tvwy = mfwy;
+  }
   a.minRun = back >= O.recoverRun;
 }
 
@@ -1975,7 +1996,7 @@ function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: num
   const py = owner.y + (top.y - owner.y) * O.screenFrac;
   let nx = normX(px, dir), ny = normY(py, dir);
   nx = Math.max(nx, lineX + O.screenGap / L);
-  const [qx, qy] = toPitch(nx, ny, dir);
+  const qx = pitchX(nx, dir), qy = pitchY(ny, dir);
   for (const o of s.agents) {
     if (o === a || !o.onPitch || o.team !== a.team || (o.pos !== 'CDM' && o.role.id !== 'holdingCM')) continue;
     if (dist(o.x, o.y, qx, qy) < dist(a.x, a.y, qx, qy)) return null;

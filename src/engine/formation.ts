@@ -5,7 +5,7 @@ import type { Position } from '../types';
 import * as config_ from './config';
 const { ENGINE } = config_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, toNorm } = pitch_;
+const { attackDir, clamp, normX, normY, toNorm } = pitch_;
 import type { Agent, Line, SimState } from './state';
 
 export function lineOf(pos: Position): Line {
@@ -49,9 +49,19 @@ export function smoothBallNorm(s: SimState, team: 0 | 1): [number, number] {
  * 슬롯 목표 (팀 기준 정규화). phase 보간, 블록 쏠림, 역할 오프셋(공격 시)을 더한다
  */
 export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number, number] {
+  slotTargetS(s, a, attackShiftScale);
+  return [SLOT.x, SLOT.y];
+}
+
+/** slotTarget 을 배열 없이 (C.81e): 결과는 SLOT.x·SLOT.y (바로 다음에 읽는다) */
+export const SLOT = { x: 0, y: 0 };
+export function slotTargetS(s: SimState, a: Agent, attackShiftScale = 1): void {
   const F = ENGINE.formation;
   const phase = teamPhase(s, a.team);
-  const [bx, by] = smoothBallNorm(s, a.team);
+  // smoothBallNorm 과 같은 식
+  const sdir = attackDir(a.team, s.half);
+  const bx = normX(s.bsx, sdir);
+  const by = normY(s.bsy, sdir);
   let x = a.sx;
   let y = a.sy;
   if (phase >= 0) x += F.attackShift[a.line] * phase * attackShiftScale;
@@ -80,5 +90,6 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
   if (Math.abs(a.sy - 0.5) > 0.25 && Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5)) {
     y += (0.5 - a.sy) * F.narrowFar * Math.abs(by - 0.5) * 2;
   }
-  return [clamp(x, 0.01, 0.99), clamp(y, 0.03, 0.97)];
+  SLOT.x = clamp(x, 0.01, 0.99);
+  SLOT.y = clamp(y, 0.03, 0.97);
 }

@@ -9,7 +9,7 @@ const { ENGINE } = config_;
 import { delayRestart, event, nearestTaker, setRestart } from './core';
 import { playerLost } from './referee';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, inOppBox, L, normX, normY, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, inOppBox, L, normX, normY, pitchX, pitchY, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import type { Agent, SimState } from './state';
@@ -164,7 +164,7 @@ function injuryStop(s: SimState, a: Agent): void {
   const dir = attackDir(a.team, s.half);
   let nx = normX(s.ball.x, dir), ny = normY(s.ball.y, dir);
   if (inOppBox(s.ball.x, s.ball.y, dir)) nx = 1 - (ENGINE.pitch.boxDepth + 1) / L;
-  const [x, y] = toPitch(nx, ny, dir);
+  const x = pitchX(nx, dir), y = pitchY(ny, dir);
   setRestart(s, 'freeKick', a.team, clamp(x, 1, L - 1), clamp(y, 1, W - 1), 'auto');
   if (s.restart) s.restart.indirect = true;
 }
