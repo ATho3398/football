@@ -55,7 +55,8 @@ export function curveAttr(x: number): number {
 function curveAttrs<T extends object>(a: T): T {
   const out = {} as Record<string, number>;
   for (const [k, v] of Object.entries(a)) out[k] = curveAttr(v as number);
-  return out as T;
+  // C.81e 계산 속도: 키를 하나씩 붙인 객체는 V8 이 사전(느린) 모드로 둔다 — 같은 키 순서·같은 값으로 펼쳐 빠른 모드 객체로 (능력치는 경기 내내 수백 번 읽힌다)
+  return { ...out } as T;
 }
 
 /** GK 의 필드 능력치 (이동, 패스에 쓴다): 킥은 패스, 나머지는 보통 수준 */

@@ -24,6 +24,28 @@ const { TENDENCY, blockRow, compactWOf, fbOverlapOf, stayForwards } = tactics_;
 import type { Agent, DefSit, Line, SimState } from './state';
 
 const O = ENGINE.offball;
+
+/**
+ * 틱 캐시 저장소 (C.81e 계산 속도): WeakMap 앞에 마지막 경기 한 칸을 둔다 — 한 경기를 계산하는 동안 해시 조회 없이 같은 객체를 돌려준다(값은 WeakMap 과 같다)
+ */
+class StateMap<V> {
+  private readonly w = new WeakMap<SimState, V>();
+  private k: SimState | null = null;
+  private v: V | undefined = undefined;
+  get(s: SimState): V | undefined {
+    if (s === this.k) return this.v;
+    const v = this.w.get(s);
+    this.k = s;
+    this.v = v;
+    return v;
+  }
+  set(s: SimState, v: V): this {
+    this.w.set(s, v);
+    this.k = s;
+    this.v = v;
+    return this;
+  }
+}
 const F = ENGINE.formation;
 const RM = ENGINE.roles;
 const BU = ENGINE.physics.burst;
@@ -974,7 +996,7 @@ function laneRisk(s: SimState, from: Agent, tx: number, ty: number): { risk: num
  * CB 빈자리 (C.78e ②): 상대 CB 가 따라 나가기로 했고(stepOutGo) 나머지 수비 줄보다 gapOpen m 이상 앞에 있으면 그 CB 의 y 채널·수비 줄 깊이가 빈자리.
  * 그 자리에 가장 먼저 닿는(도착 시간) 우리 줄 2·3 선수 1명(공 가진 선수·따라 나간 CB 가 붙은 선수 제외, gapReach 초 안)이 침투한다. 판단은 위치만 (E.15.1)
  */
-const gapCache = new WeakMap<SimState, { tick: number; plan: ({ runner: number; ny: number } | null | undefined)[] }>();
+const gapCache = new StateMap<{ tick: number; plan: ({ runner: number; ny: number } | null | undefined)[] }>();
 function gapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): { runner: number; ny: number } | null {
   let c = gapCache.get(s);
   if (!c || c.tick !== s.tick) {
@@ -1009,7 +1031,7 @@ function gapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): { runner: number; ny: n
   return plan;
 }
 
-const swapCache = new WeakMap<SimState, { tick: number; plan: (SwapPlan | null | undefined)[] }>();
+const swapCache = new StateMap<{ tick: number; plan: (SwapPlan | null | undefined)[] }>();
 interface SwapPlan { b: number; nx: number; ny: number }
 function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
   let c = swapCache.get(s);
@@ -1863,7 +1885,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
   return false;
 }
 
-const focusCache = new WeakMap<SimState, { tick: number; team: number; focus: Agent | null }[]>();
+const focusCache = new StateMap<{ tick: number; team: number; focus: Agent | null }[]>();
 
 /** 위협도 (E.20 8번 + C.76a 능력 가중, 수비 골 (gx, gy) 기준): focusThreat 과 박스 안 2선 마크(C.76w)가 같은 식을 쓴다 */
 function threatValue(o: Agent, gx: number, gy: number): number {
@@ -1962,7 +1984,7 @@ function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: num
 }
 
 const WIDE_ATT: ReadonlySet<string> = new Set(['LW', 'RW', 'LM', 'RM']);
-const stayCache = new WeakMap<SimState, { tick: number; top: [number, number]; far: [number, number] }>();
+const stayCache = new StateMap<{ tick: number; top: [number, number]; far: [number, number] }>();
 /** 역습 잔류 선수 (C.78s H2, pending 146 "탈취 뒤 빠른 윙어·ST"): 최전방(슬롯 x 가장 앞 공격 줄) + 공에서 가장 먼 쪽 측면 공격수(LW·RW·LM·RM) 1명. 틱마다 팀당 한 번 */
 function counterStayer(s: SimState, a: Agent): boolean {
   if (a.line < 2) return false;
@@ -2007,7 +2029,7 @@ function isTopForward(s: SimState, a: Agent): boolean {
  */
 interface CloseDown { pick: Agent | null; second: Agent | null }
 const NO_CLOSE: CloseDown = { pick: null, second: null };
-const closeDownCache = new WeakMap<SimState, { tick: number; cd: CloseDown }[]>();
+const closeDownCache = new StateMap<{ tick: number; cd: CloseDown }[]>();
 function closeDownPlan(s: SimState, team: 0 | 1, gx: number, gy: number): CloseDown {
   // 틱마다 팀당 한 번만 계산 (focusThreat 과 같은 캐시 — 결과 불변, 22명이 같은 탐색을 되풀이하지 않게)
   let cache = closeDownCache.get(s);
@@ -2072,7 +2094,7 @@ function isDeepBlock(s: SimState, team: 0 | 1): boolean {
  * 수신자 압박 담당·위협 1위 마커·GK·면제를 뺀 선수 중, 지금 공 위치 → 착지점 선분 위 가장 가까운 점(선에서 deepCutReach m 안)에
  * 공보다 먼저 닿는 선수가 있으면 도착이 가장 빠른 1명과 그 점. 정해지면 팀 상태(cutFlight·cutIdx)에 적어 sim 의 deepCut 판정 대상이 된다. 난수 없음
  */
-const deepCutCache = new WeakMap<SimState, { tick: number; pick: { a: Agent; x: number; y: number } | null }[]>();
+const deepCutCache = new StateMap<{ tick: number; pick: { a: Agent; x: number; y: number } | null }[]>();
 function deepCutAgent(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Agent; x: number; y: number } | null {
   let cache = deepCutCache.get(s);
   if (!cache) deepCutCache.set(s, (cache = [{ tick: -1, pick: null }, { tick: -1, pick: null }]));
@@ -2132,13 +2154,13 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
  * 가장 빨리 닿는 남은 수비가 1초 + restSlack 안이면 마크, 아니면 그 수비가 골 쪽 restCoverGap m 커버 자리. 난수 없음
  */
 interface RestJob { x: number; y: number; o: number; mark: boolean }
-const restCache = new WeakMap<SimState, { tick: number; plan: Map<number, RestJob> }[]>();
+const restCache = new StateMap<{ tick: number; plan: Map<number, RestJob> }[]>();
 // 게겐 수신 후보 선제 마크 계획 (C.80c, 근거 엔진관리자23 c79y ③ — TENDENCY.gegenMarkN 0 = 끔이면 호출되지 않는다):
 // 상대 소유자(필드 선수) 주변 gegenMarkRadius m 안 가까운 순 gegenMarkN 명의 패스 후보에, 압박(공 순위 0·1)·역압박·커버·면제가 아닌 우리 필드 선수 중
 // 마크 자리(후보 0.5초 뒤 자리의 공 쪽 gegenMarkGap m)에 가장 빨리 닿는 선수를 한 명에 한 명 — 도착이 gegenMarkSlack 초를 넘으면 그 후보는 비운다(닿을 수 없는 배정 금지).
 // 공이 우리 골 gegenMarkFrom m 안이면 없음(박스 수비 그대로). gegenMarkWindow > 0 이면 잃은 뒤 그 초 안에서만
 interface MarkJob { x: number; y: number; o: number }
-const gegenCache = new WeakMap<SimState, { tick: number; plan: Map<number, MarkJob> }[]>();
+const gegenCache = new StateMap<{ tick: number; plan: Map<number, MarkJob> }[]>();
 export function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
   let c = gegenCache.get(s);
   if (!c) gegenCache.set(s, (c = [{ tick: -1, plan: new Map() }, { tick: -1, plan: new Map() }]));
@@ -2245,7 +2267,7 @@ function canReach(a: Agent, r: Agent): boolean {
 // (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 문턱 − 1 이면 유지, 그 아래면 올라간다 (히스테리시스)
 interface LineMatch { drop: Set<number>; surplus: number }
 const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
-const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
+const lineMatchCache = new StateMap<{ tick: number; plan: LineMatch }[]>();
 /** 진단용 읽기 (엔진관리자18): 이 틱에 이미 계산된 줄 인원 맞춤 계획만 돌려준다 (계산하지 않음 — 지문 불변) */
 export function lineMatchPeek(s: SimState, team: 0 | 1, tick = s.tick): LineMatch | null {
   const e = lineMatchCache.get(s)?.[team];
@@ -2306,7 +2328,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
 
 // 박스 수 맞춤 마크 (C.79e 실험 스위치 boxMatch, pending 147 ①·C.78q 가설 2, 기본 0 = 끔): 우리 박스(+boxManSlack m) 안의 상대 중 마커가 없는 선수(위협 1위·공 근처·추적 중·boxDefense 가 맡을 manMax 명 제외)에게
 // 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 붙인다 — 골 쪽 stMark 밀착. 줄 1 의 배치(집중 대상 마크·더블팀·덮는 자리)는 그대로(ST 풀림 통로를 건드리지 않는다)
-const boxMatchCache = new WeakMap<SimState, { tick: number; plan: Map<number, number> }[]>();
+const boxMatchCache = new StateMap<{ tick: number; plan: Map<number, number> }[]>();
 const NO_BOX_MATCH = new Map<number, number>();
 function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<number, number> {
   if (O.boxMatch <= 0) return NO_BOX_MATCH;
@@ -2363,7 +2385,7 @@ function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<num
   return (e.plan = plan);
 }
 
-const trackCache = new WeakMap<SimState, number[]>();
+const trackCache = new StateMap<number[]>();
 function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   let cache = trackCache.get(s);
   if (!cache) trackCache.set(s, (cache = [-1, -1]));
@@ -2567,7 +2589,7 @@ interface SpPlan {
   forward: Agent | undefined;
   markers: Agent[];
 }
-const spCache = new WeakMap<SimState, [SpPlan | null, SpPlan | null]>();
+const spCache = new StateMap<[SpPlan | null, SpPlan | null]>();
 
 function spPlan(s: SimState, team: 0 | 1): SpPlan {
   const r = s.restart!;
