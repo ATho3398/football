@@ -18,7 +18,9 @@ const jobs: MatchJob[] = Array.from({ length: n }, (_, k) => {
 });
 const t0 = Date.now();
 const res = await runJobs<MatchOut>(jobs, { label: 'rating-parts' });
-const rows = res.flatMap((m, k) => m.players.map((p) => ({ m: k, str: k % 3, team: p.team, starter: p.starter, min: p.minutes, pos: p.position, rating: p.rating, ...p.parts! })));
+const rows = res.flatMap((m, k) => m.players.map((p) => ({ m: k, str: k % 3, team: p.team, starter: p.starter, min: p.minutes, pos: p.position, rating: p.rating, ...p.parts!,
+  // C.81r: 평점 밖 수비 기록 (가중 후보를 다시 계산할 때)
+  ex: { blocks: p.blocks, clear: p.clearances, dClear: p.dangerClearances, tackleTry: p.tackles, dribPast: p.dribbledPast, dribFaced: p.dribblesFaced, aerialDuels: p.aerialDuels, received: p.received, passTry: p.passes } })));
 writeFileSync(out, JSON.stringify(rows));
 console.log(`${n}경기 ${rows.length}명 ${((Date.now() - t0) / 1000).toFixed(0)}초 → ${out}`);
 process.exit(0);
