@@ -53,6 +53,10 @@ export interface RatingParts {
   blocks?: number;
   clearances?: number;
   dangerClearances?: number;
+  /** 압박 성공 · 오프사이드 유도 · 라인 유지 분 (C.81u 수비 기록 칸). 없으면 0 */
+  pressWon?: number;
+  offsideWon?: number;
+  lineMin?: number;
   /** 공격 포지션(ST·WING·CAM) 무기여 경기 (C.75f, E-3): 45분 이상 뛰고 골·도움·키패스·유효슈팅·드리블 성공이 모두 0 이면 1. 경기 종료 평점에만 붙는다 */
   noContrib?: number;
 }
@@ -88,6 +92,9 @@ export function ratingParts(s: SimState, a: Agent, duration: number, final = fal
     ...(st.blocks ? { blocks: st.blocks } : {}),
     ...(st.clearances ? { clearances: st.clearances } : {}),
     ...(st.dangerClearances ? { dangerClearances: st.dangerClearances } : {}),
+    ...(rt.pressWon ? { pressWon: rt.pressWon } : {}),
+    ...(rt.offWon ? { offsideWon: rt.offWon } : {}),
+    ...(rt.lineT ? { lineMin: rt.lineT / 60 } : {}),
     lost: rt.lost,
     dangerLost: rt.dangerLost,
     attackLost: rt.attackLost,
@@ -124,6 +131,8 @@ export function ratingDelta(p: RatingParts, R: RatingConfig = ENGINE.rating): nu
   d += p.dribbles * R.dribble + p.tackles * R.tackle + p.interceptions * R.interception + p.aerials * R.aerial;
   // 수비 행동 (C.81r): 슛 블록 · 걷어내기(위험 지역 걷어내기는 dangerClear 를 더)
   d += (p.blocks ?? 0) * R.block + (p.clearances ?? 0) * R.clearance + (p.dangerClearances ?? 0) * R.dangerClear;
+  // 수비 기록 칸 (C.81u): 압박 성공 · 오프사이드 유도 · 라인 유지 분
+  d += (p.pressWon ?? 0) * R.pressWon + (p.offsideWon ?? 0) * R.offsideWon + (p.lineMin ?? 0) * R.lineMin;
   // 공 상실: 우리 진영 1/3 은 위험 지역 감점, 상대 진영 마지막 1/3 은 시도에 따른 상실이라 절반 (C.26)
   // 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파 뒤 상대 진영이면 riskLostFactor
   const risk = p.riskLost ?? 0;

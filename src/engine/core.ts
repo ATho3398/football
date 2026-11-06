@@ -90,6 +90,10 @@ export function setOwner(s: SimState, a: Agent): void {
     s.possOrigin = 'open';
     s.possStartT = s.t;
     turnover(s, (1 - a.team) as 0 | 1, true);
+    // 압박 성공 (C.81u, 세기만): 직전 상대 소유 중 공 가진 선수 곁(pressRadius)에 있던 우리 선수 — pressWindow 초 안이면 +1
+    for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!;
+      if (m.team === a.team && m.onPitch && (m.rt.pressT ?? -100) >= s.t - ENGINE.rating.pressWindow) { m.rt.pressWon = (m.rt.pressWon ?? 0) + 1; m.rt.pressT = -100; }
+    }
     const nx = attackDir(a.team, s.half) > 0 ? b.x / L : 1 - b.x / L;
     if (nx > 0.5) s.teams[a.team].stats.oppHalfWins++;
   }

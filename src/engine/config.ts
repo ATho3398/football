@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 91;
+export const ENGINE_VERSION = 92;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1517,6 +1517,17 @@ export const ENGINE = {
     block: 0.05,
     clearance: 0.04,
     dangerClear: 0,
+    /**
+     * 수비 기록 칸 (C.81u, 평점에 소폭 — 경기 행동은 세기만 하고 안 바뀐다):
+     * 압박 성공 = 상대 공 가진 선수 pressRadius m 안에 있던 뒤 pressWindow 초 안 팀 탈취(1회당 pressWon) ·
+     * 오프사이드 유도 = 수비 줄 선수 1회당 offsideWon · 라인 유지 = 상대 소유 중 수비 줄 평균 x 에서 lineTol m 안에 있던 분당 lineMin
+     */
+    pressRadius: 3,
+    pressWindow: 3,
+    lineTol: 4,
+    pressWon: 0.015 as number,
+    offsideWon: 0.02 as number,
+    lineMin: 0.005 as number,
     /** C.81r: −0.04 → −0.06 (공 요구 역할의 잦은 상실이 패스 몫에 묻히지 않게) */
     lost: -0.06,
     dangerLost: -0.1,
