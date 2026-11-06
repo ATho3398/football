@@ -112,4 +112,20 @@ for (let it = 0; it < iters; it++) {
   Q = run();
   console.error(`it ${it}`, 'lead', topRatio(Q, 'g1').toFixed(3), 'topGF', topGF().toFixed(2), JSON.stringify(score(Q)), 'top', topRatio(Q, 'g').toFixed(3), topRatio(Q, 'a').toFixed(3), JSON.stringify(C));
 }
+// 리그 × 포지션군 배수 (C.81w): 칸 비 ^ 0.8 (엔진 평균 0.3 이상 칸만), lmIters 번
+const LM = ((C as unknown as { leagueMul: Record<string, Record<string, number[]>> }).leagueMul ??= {});
+const lmIters = Number(process.env.LMITERS ?? 3);
+for (let it = 0; it < lmIters; it++) {
+  for (const k of Object.keys(E.cell)) {
+    const [c, g] = k.split(':') as [string, string];
+    if (!G.includes(g)) continue;
+    const e = E.cell[k]!; const q = Q.cell[k]; if (!q) continue;
+    const row = ((LM[c] ??= {})[g] ??= [1, 1]);
+    const rg = mean(e.g) / mean(q.g); const ra = mean(e.a) / mean(q.a);
+    if (mean(e.g) > 0.3 && Number.isFinite(rg) && rg > 0) row[0] = +(row[0]! * rg ** 0.8).toFixed(3);
+    if (mean(e.a) > 0.3 && Number.isFinite(ra) && ra > 0) row[1] = +(row[1]! * ra ** 0.8).toFixed(3);
+  }
+  Q = run();
+  console.error(`lm ${it}`, JSON.stringify(score(Q)), 'top', topRatio(Q, 'g').toFixed(3), topRatio(Q, 'a').toFixed(3));
+}
 console.log(JSON.stringify(C));

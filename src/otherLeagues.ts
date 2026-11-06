@@ -122,14 +122,17 @@ function otherScore(rng: Rng, lg: LeagueState, home: string, away: string): [num
 }
 
 /** 다른 리그 득점자 후보 (C.81q): 로스터마다 한 번 — 선발·벤치·그 밖(pickLineup, 시상 추정 출전과 같은 구분) 출전 몫 × 포지션군 × OVR(선발 평균 대비) 가중 */
+const BIG5 = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'];
 type ScorerPick = { p: TeamRoster['players'][number]; g: number; a: number };
 let SCORER_POOL = new WeakMap<TeamRoster, ScorerPick[]>();
 /** 진단(맞춤 스크립트): BALANCE.otherScorers 를 바꾼 뒤 후보 캐시를 비운다 */
 export function resetScorerPool(): void { SCORER_POOL = new WeakMap(); }
-function scorerPool(roster: TeamRoster): ScorerPick[] {
+function scorerPool(roster: TeamRoster, lgId: string): ScorerPick[] {
   let hit = SCORER_POOL.get(roster);
   if (hit) return hit;
   const C = BALANCE.otherScorers;
+  // C.81w: 리그 × 포지션군 [골, 도움] 배수 (빅5 는 리그 id, 그 밖은 'rest')
+  const LM = C.leagueMul?.[lgId] ?? C.leagueMul?.[BIG5.includes(lgId) ? '' : 'rest'];
   const lu = pickLineup(roster);
   const st = new Set(lu.slots.map((x) => x.playerId));
   const bn = new Set(lu.bench);
@@ -144,7 +147,8 @@ function scorerPool(roster: TeamRoster): ScorerPick[] {
     const share = q ? C.shareK![cls]! * (q[0]! + 2 * (q[1]! + q[2]! + q[3]!) + q[4]!) / 8 : C.share[cls]!;
     const rel = ovr.get(p.id)! - ref;
     // C.81w: 골 OVR 가중의 (OVR − 선발 평균)은 relCap 에서 멈춘다 — 엔진에선 팀 평균보다 훨씬 높은 스타(음바페·호날두)도 20~30골인데 빠른 진행은 36~48골을 몰아갔다
-    return { p, g: (C.scorerWeight[g] ?? 0) * share * Math.exp(Math.min(rel, C.relCap ?? Infinity) * C.ovrK), a: (C.assistWeight[g] ?? 0) * share * Math.exp(rel * C.ovrKAssist) };
+    const lm = LM?.[g];
+    return { p, g: (C.scorerWeight[g] ?? 0) * (lm?.[0] ?? 1) * share * Math.exp(Math.min(rel, C.relCap ?? Infinity) * C.ovrK), a: (C.assistWeight[g] ?? 0) * (lm?.[1] ?? 1) * share * Math.exp(rel * C.ovrKAssist) };
   }).filter((x) => x.g > 0 || x.a > 0);
   SCORER_POOL.set(roster, hit);
   return hit;
@@ -157,7 +161,7 @@ function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: stri
   const names = (lg.names ??= {});
   ([[home, hg], [away, ag]] as const).forEach(([id, n]) => {
     if (!n) return;
-    const lu = scorerPool(leagueTeamRoster(worldSeed, id, teamById(lg, id).rating, lg.season, npcs));
+    const lu = scorerPool(leagueTeamRoster(worldSeed, id, teamById(lg, id).rating, lg.season, npcs), lg.id);
     const bump = (x: ScorerPick, k: 0 | 1) => {
       const t = (stats[x.p.id] ??= [0, 0]);
       t[k] = t[k]! + 1;
