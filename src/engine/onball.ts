@@ -593,6 +593,16 @@ export function judgedP(self: number, avg: number): number {
 /** 원터치 후보 (C.78b preDecide): 같은 계산에서 패스·침투·컷백·레이오프·슛의 원터치 판(성공 확률 × 원터치 배수)을 ot.out 에 따로 담는다 */
 export interface OtReq { speed: number; pr: number; out: Candidate[] }
 
+/** 패스 비행 성공 확률 (candidates 의 옛 클로저 flightP 와 같은 식, C.81j) */
+function flightPOf(pp: number, race: number, lm: number): number {
+  return clamp(1 - (1 - clamp(pp + race, PR.passMin, PR.passCap)) * lm, PR.passMin, PR.passCap);
+}
+/** 패스 효용 (candidates 의 옛 클로저 uOf 와 같은 식, C.81j) */
+function passUOf(pj: number, value: number, lossF: number, pOff: number, lossR: number): number {
+  const u = pj * value + (1 - pj) * lossF;
+  return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
+}
+
 export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const dir = attackDir(a.team, s.half);
   const ax = normX(a.x, dir), ay = normY(a.y, dir);
@@ -731,10 +741,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     const ppAv = passProbability(s, av, tx, ty, 'pass', lane, PR.receiverPressure * rp, pressure);
     // 공중 롱패스 착지 정확도 (C.80w): 침투가 아닌(받는 선수가 달리지 않는) 목표점 airPass m 넘는(실행이 공중볼로 차는) 패스의 달리기 경쟁까지 더한 비행 실패 확률 × longMiss (판단·실행 같은 pFlight)
     const lm = !running && dist(a.x, a.y, tx, ty) > PR.airPass ? PR.longMiss : 1;
-    const flightP = (pp: number) => clamp(1 - (1 - clamp(pp + race, PR.passMin, PR.passCap)) * lm, PR.passMin, PR.passCap);
-    const pFlight = flightP(ppA);
+    // C.81j: 반복마다 클로저를 만들지 않는다 (flightPOf 는 같은 식)
+    const pFlight = flightPOf(ppA, race, lm);
     const p = pFlight * aerial;
-    const pj = judgedP(p, flightP(ppAv) * aerial);
+    const pj = judgedP(p, flightPOf(ppAv, race, lm) * aerial);
     const rx = normX(tx, dir), ry = normY(ty, dir);
     // 받는 자리의 가치 × 지원도 (E.20 2번). 받는 순간 압박이 있으면 그만큼 다음 결정 전에 빼앗길 수 있다 (유지 효용과 같은 식)
     const pLoseR = O.holdLose * rp;
@@ -772,14 +782,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     value = value * (1 - pLoseR) + pLoseR * lossR;
     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
     const pOff = offsideRisk(s, a, r);
-    const uOf = (pj: number) => {
-      const u = pj * value + (1 - pj) * lossF;
-      return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
-    };
     // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
     const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
     // 세컨드볼은 빗나간 몫(1 − 차단 몫)만 (차단은 상대가 바로 가진다)
-    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * (1 - iShare) * landGain;
+    let u = passUOf(pj, value, lossF, pOff, lossR) + (1 - judgedP(pFlight, flightPOf(ppAv, race, lm))) * (1 - iShare) * landGain;
     const forward = rx > ax + 0.03;
     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
@@ -812,10 +818,10 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     }
     if (ot) {
       // 원터치 판: 같은 길·경쟁·가치, 패스 판정만 × 원터치 배수 (본인·평균 선수 각자)
-      const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
+      const pF = flightPOf(ppA * oneTouchMul(a, ot.speed, ot.pr), race, lm);
       const pO = pF * aerial;
-      const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
-      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
+      const pjO = judgedP(pO, flightPOf(ppAv * oneTouchMul(av, ot.speed, ot.pr), race, lm) * aerial);
+      const uO = passUOf(pjO, value, lossF, pOff, lossR) + (landGain ? (1 - judgedP(pF, flightPOf(ppAv * oneTouchMul(av, ot.speed, ot.pr), race, lm))) * (1 - iShare) * landGain : 0);
       const oc: Candidate = mkCand({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax) + possW * pjO * (1 - pLoseR) + dSw * pjO, x: tx, y: ty, receiver: r.idx, value, pFlight: pF });
       if (gkWins >= 0) oc.keeper = gkWins;
       oc.ot = true;

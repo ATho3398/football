@@ -317,6 +317,57 @@ function arrival(a: Agent, x: number, y: number, ready = false): number {
  * GK 루즈볼 추격 (C.28): 공 경로에서 GK 가 닿는 첫 점이 처리 구역 안(자기 박스, 스위퍼는 박스 밖 sweepRange 까지)이고,
  * 그 시각이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료(필드)보다 늦지 않으면 그 점. 아니면 null
  */
+/**
+ * 공 경로 칸 (C.81j 계산 속도, 값 불변): keeperChase 의 경로 점을 객체 배열 대신 숫자 배열에 담는다 — ballPathAt 과 같은 식
+ */
+let PX = new Float64Array(64), PY = new Float64Array(64), PSP = new Float64Array(64);
+let PAIR = new Uint8Array(64), PFLY = new Uint8Array(64);
+/** ballPathAt(s, t) 를 칸 i 에 (같은 식) */
+function ballPathInto(s: SimState, t: number, i: number): void {
+  const b = s.ball;
+  const fl = b.flight;
+  let x = b.x, y = b.y, vx = b.vx, vy = b.vy;
+  if (fl) {
+    const left = Math.max(0, fl.t0 + fl.dur - s.t);
+    if (t < left) {
+      const k = clamp((s.t + t - fl.t0) / fl.dur, 0, 1);
+      PX[i] = fl.fromX + (fl.toX - fl.fromX) * k;
+      PY[i] = fl.fromY + (fl.toY - fl.fromY) * k;
+      PSP[i] = dist(fl.fromX, fl.fromY, fl.toX, fl.toY) / Math.max(0.05, fl.dur);
+      PAIR[i] = fl.air ? 1 : 0;
+      return;
+    }
+    x = fl.toX;
+    y = fl.toY;
+    const lv = landingVelocity(fl);
+    vx = lv[0];
+    vy = lv[1];
+    t -= left;
+  }
+  const sp = Math.sqrt(vx * vx + vy * vy);
+  PAIR[i] = 0;
+  if (sp < 1e-6) {
+    PX[i] = x;
+    PY[i] = y;
+    PSP[i] = 0;
+    return;
+  }
+  const dec = ENGINE.ball.groundDecel;
+  const tt = Math.min(t, sp / dec);
+  const d = sp * tt - 0.5 * dec * tt * tt;
+  PX[i] = x + (vx / sp) * d;
+  PY[i] = y + (vy / sp) * d;
+  PSP[i] = sp - dec * tt;
+}
+
+/** 경로 칸 0..n-1 에서 o 가 공보다 먼저 닿는 첫 시각 (공중에 떠 있는 동안은 못 닿는다) */
+function firstReach(o: Agent, n: number, step: number): number {
+  for (let i = 0; i < n; i++) {
+    if (!PAIR[i] && !PFLY[i] && arrival(o, PX[i]!, PY[i]!) <= i * step) return i * step;
+  }
+  return Infinity;
+}
+
 function keeperChase(s: SimState, a: Agent): [number, number] | null {
   const b = s.ball;
   const fl = b.flight;
@@ -325,31 +376,28 @@ function keeperChase(s: SimState, a: Agent): [number, number] | null {
   const range = sweepRange(a);
   const step = 0.1;
   const n = Math.round(K.chaseHorizon / step);
-  const path: { x: number; y: number; sp: number; air: boolean; fly?: boolean }[] = [];
-  for (let i = 0; i <= n; i++) {
-    const p = ballPathAt(s, i * step);
-    if (p.x < 0 || p.x > L || p.y < 0 || p.y > W) break;
-    // 비행 중인 공은 필드 선수가 잡지 못한다 (착지 뒤부터). 땅볼은 GK 만 박스 안에서 처리한다 (sim keeperHands)
-    if (fl && i * step < fl.t0 + fl.dur - s.t) (p as (typeof path)[number]).fly = true;
-    path.push(p);
+  if (PX.length < n + 1) {
+    PX = new Float64Array(n + 1); PY = new Float64Array(n + 1); PSP = new Float64Array(n + 1);
+    PAIR = new Uint8Array(n + 1); PFLY = new Uint8Array(n + 1);
   }
-  // 가장 이른 도착 (공보다 먼저 그 점에 닿는 첫 시각). 공중에 떠 있는 동안은 못 닿는다
-  const first = (o: Agent): number => {
-    for (let i = 0; i < path.length; i++) {
-      const p = path[i]!;
-      if (!p.air && !p.fly && arrival(o, p.x, p.y) <= i * step) return i * step;
-    }
-    return Infinity;
-  };
+  let len = 0;
+  for (let i = 0; i <= n; i++) {
+    ballPathInto(s, i * step, len);
+    const px = PX[len]!, py = PY[len]!;
+    if (px < 0 || px > L || py < 0 || py > W) break;
+    // 비행 중인 공은 필드 선수가 잡지 못한다 (착지 뒤부터). 땅볼은 GK 만 박스 안에서 처리한다 (sim keeperHands)
+    PFLY[len] = fl && i * step < fl.t0 + fl.dur - s.t ? 1 : 0;
+    len++;
+  }
   // 우리 팀 패스(백패스·수비 사이 패스)가 빗나간 것이면 GK 는 이미 공을 보고 있었다
   const ready = b.kick?.team === a.team && b.lastTeam === a.team;
   let gi = -1;
-  for (let i = 0; i < path.length; i++) {
-    const p = path[i]!;
+  for (let i = 0; i < len; i++) {
+    const px = PX[i]!, py = PY[i]!, sp = PSP[i]!;
     // 자기 박스 안은 손(백패스는 발로 막기)이라 빠른 공도, 박스 밖은 보통 컨트롤 속도까지
-    const box = keeperZone(s, a, p.x, p.y, 0);
-    if (p.air || (p.fly && !box) || (box ? p.sp > K.handMaxSpeed : p.sp >= ENGINE.ball.controlMaxSpeed) || !keeperZone(s, a, p.x, p.y, range)) continue;
-    if (arrival(a, p.x, p.y, ready) <= i * step) {
+    const box = keeperZone(s, a, px, py, 0);
+    if (PAIR[i] || (PFLY[i] && !box) || (box ? sp > K.handMaxSpeed : sp >= ENGINE.ball.controlMaxSpeed) || !keeperZone(s, a, px, py, range)) continue;
+    if (arrival(a, px, py, ready) <= i * step) {
       gi = i;
       break;
     }
@@ -359,10 +407,10 @@ function keeperChase(s: SimState, a: Agent): [number, number] | null {
   const margin = s.teams[a.team].gkChase ? K.chaseKeep : K.chaseMargin;
   for (let i_11 = 0, a_11 = s.agents; i_11 < a_11.length; i_11++) { const o = a_11[i_11]!;
     if (!o.onPitch || o === a) continue;
-    const to = first(o);
+    const to = firstReach(o, len, step);
     if (o.team !== a.team ? to < tg + margin : to < tg) return null;
   }
-  return [path[gi]!.x, path[gi]!.y];
+  return [PX[gi]!, PY[gi]!];
 }
 
 export function keeperTarget(s: SimState, a: Agent): void {
