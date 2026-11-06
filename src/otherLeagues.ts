@@ -4,7 +4,7 @@
 
 import { BALANCE } from './config/balance';
 import { leagueData, PLAYABLE_LEAGUES } from '../data/leagues';
-import { CLUB_TO_TEAM, createLeague, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById, type LeagueState } from './league';
+import { CLUB_TO_TEAM, createLeague, expectedGoals, nextSeasonLeague, recordResult, scorePair, simulateScore, sortedTable, teamById, type LeagueState } from './league';
 import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar } from './calendar';
 import { createRng, hashSeed, type Rng } from './rng';
 import { createTeamRoster, naturalOvr, pickLineup, posGroup, type TeamRoster } from './roster';
@@ -105,6 +105,15 @@ function pickWeighted<T>(rng: Rng, items: readonly T[], w: (x: T) => number, ski
   let r = rng() * total;
   for (const x of list) if ((r -= w(x)) <= 0) return x;
   return list.at(-1) ?? null;
+}
+
+/** 다른 리그 빠른 진행 한 경기 점수 (C.81q): 레이팅 간이 계산 × 리그 득점 배율(otherScorers.goalScale — 엔진 리그별 경기당 골에 맞춤, 없으면 1 = simulateScore 그대로) */
+function otherScore(rng: Rng, lg: LeagueState, home: string, away: string): [number, number] {
+  const hr = teamById(lg, home).rating;
+  const ar = teamById(lg, away).rating;
+  const k = BALANCE.otherScorers.goalScale[lg.id] ?? 1;
+  if (k === 1) return simulateScore(rng, hr, ar);
+  return scorePair(rng, expectedGoals(hr, ar, true) * k, expectedGoals(ar, hr, false) * k);
 }
 
 /** 다른 리그 득점자 후보 (C.81q): 로스터마다 한 번 — 선발·벤치·그 밖(pickLineup, 시상 추정 출전과 같은 구분) 출전 몫 × 포지션군 × OVR(선발 평균 대비) 가중 */
@@ -254,9 +263,7 @@ function syncOne(worldSeed: string, start: OtherLeague, upto: IsoDate, done: (lg
       lg.schedule[r]!.forEach((f, i) => {
         if (f.homeGoals !== undefined) return;
         if (daysBetween(dates[i]!, upto) < 0) { left++; return; }
-        const [hg, ag] = simulateScore(
-          createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), teamById(lg, f.home).rating, teamById(lg, f.away).rating,
-        );
+        const [hg, ag] = otherScore(createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), lg, f.home, f.away);
         recordResult(lg, f, hg, ag);
         // 득점자 (C.76c): 따로 시드라 점수·순위는 C.75m 과 같다
         if (hg + ag) addScorers(worldSeed, lg, f.home, f.away, hg, ag, createRng(hashSeed(`${worldSeed}:olg-g:${lg.id}:${lg.season}:${r}:${i}`)), npcs);
@@ -284,7 +291,7 @@ export function finishOtherSeason(worldSeed: string, lg: OtherLeague, npcs?: rea
     const r = lg.round;
     lg.schedule[r]!.forEach((f, i) => {
       if (f.homeGoals !== undefined) return;
-      const [hg, ag] = simulateScore(createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), teamById(lg, f.home).rating, teamById(lg, f.away).rating);
+      const [hg, ag] = otherScore(createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), lg, f.home, f.away);
       recordResult(lg, f, hg, ag);
       if (hg + ag) addScorers(worldSeed, lg, f.home, f.away, hg, ag, createRng(hashSeed(`${worldSeed}:olg-g:${lg.id}:${lg.season}:${r}:${i}`)), npcs);
       n++;
