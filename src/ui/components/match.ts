@@ -205,6 +205,8 @@ export type ChoiceKind = 'safe' | 'balanced' | 'gamble' | 'play';
 const CHOICE_KO: Record<ChoiceKind, string> = { safe: '안전', balanced: '균형', gamble: '도박', play: '플레이 카드' };
 const CHOICE_ICON: Record<ChoiceKind, IconName> = { safe: 'safe', balanced: 'balanced', gamble: 'gamble', play: 'newchoice' };
 const OFFSIDE_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '중간', n: 2 }, high: { l: '높음', n: 3 } } as const;
+/** 위험 등급 (C.81n): 실패 시 평점 손실 크기 */
+const RISK_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '보통', n: 2 }, high: { l: '높음', n: 3 } } as const;
 
 export interface ChoiceButtonProps extends Action {
   kind: ChoiceKind;
@@ -218,6 +220,8 @@ export interface ChoiceButtonProps extends Action {
   fail: { text: string; rating: string };
   /** 기대 평점 (C.77s A3): 성공 뒤 이어질 공격 몫까지 넣은 값, 성공·실패 줄 옆 한 줄 */
   ev?: string;
+  /** 위험 등급 (C.81n): 실패 시 평점 손실 ≤0.02 낮음 · ≤0.05 보통 · 그 위 높음. 판정 없는 선택지는 없음 */
+  risk?: 'low' | 'mid' | 'high';
   offside?: 'low' | 'mid' | 'high';
   /** 상대 분석 리포트 약점을 노리는 선택지 (C.74c): "약점 공략" 칩 (접은 줄에도 보인다) */
   exploit?: boolean;
@@ -235,11 +239,13 @@ export interface ChoiceButtonProps extends Action {
 
 export function ChoiceButton(p: ChoiceButtonProps): string {
   const off = p.offside ? OFFSIDE_STEP[p.offside] : null;
+  const risk = p.risk ? RISK_STEP[p.risk] : null;
   const d = p.chanceDelta ?? 0;
   const shown = p.chance === null ? null : Math.max(0, Math.min(99, p.chance + d));
   const tags = `<span class="po-choice__tags"><span class="po-kind po-kind--${p.kind}">${Icon({ name: CHOICE_ICON[p.kind], size: 12, strokeWidth: 2.4 })}${CHOICE_KO[p.kind]}</span>${
     p.exploit ? `<span class="po-exploit" title="상대 분석 리포트의 약점">${Icon({ name: 'target', size: 12, strokeWidth: 2.4 })}약점 공략</span>` : ''}${
     p.card ? `<span class="po-choice__card">${esc(p.card)}</span>` : ''}${
+    risk ? `<span class="po-risk po-risk--${p.risk}" title="실패하면 잃는 평점 크기">위험 ${risk.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= risk.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}${
     off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}</span>`;
   const out = (cls: 'ok' | 'bad', icon: IconName, o: { text: string; rating: string }) =>
     `<span class="po-out po-out--${cls}">${Icon({ name: icon, size: 14, strokeWidth: 3 })}<span>${esc(o.text)}</span><b class="po-num">${esc(o.rating)}</b></span>`;

@@ -23,6 +23,7 @@ import { LIFE_KINDS, isForeign, isLifeKind, lifeHints, type LifeKind } from '../
 import { awardsTodo } from './awardsVM';
 import { raceRank } from '../awards';
 import { BALANCE } from '../config/balance';
+import { potentialLabel, potentialRange } from '../potential';
 import { nextYellowBan, seasonFrac, yellowBanRule } from '../discipline';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { formBonus, formLevel, type FormLevel } from '../form';
@@ -181,6 +182,13 @@ function conditionVM(g: GameState): ConditionVM {
 export interface PlayerCardVM {
   name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore: number; level: number; xp: number; xpMax: number; team: string;
   face: FaceRef;
+  /** 잠재력 범위 "78~84" (C.81n, B6) */
+  potential: string;
+}
+
+/** 내 선수 잠재력 범위 글자 (C.81n): 선수 화면·홈 카드가 같은 값 */
+export function myPotential(g: GameState): string {
+  return potentialLabel(potentialRange(g.player, playerOvr(g.player), g.worldSeed));
 }
 
 /**
@@ -202,7 +210,7 @@ function playerCardVM(g: GameState): PlayerCardVM {
   const p = g.player;
   return {
     name: p.name, age: p.age, position: p.position, ovr: playerOvr(p), tier: designTier(reputationTier(p.reputation, p.honors)), tierScore: p.reputation,
-    level: p.level, xp: p.xp, xpMax: xpToLevel(p), team: teamById(g.league, p.teamId).nameKo, face: myFace(g),
+    level: p.level, xp: p.xp, xpMax: xpToLevel(p), team: teamById(g.league, p.teamId).nameKo, face: myFace(g), potential: myPotential(g),
   };
 }
 
@@ -818,6 +826,8 @@ export interface PlayerVM {
   kit: number;
   face: FaceRef;
   name: string; position: string; positionKo: string; age: number; ovr: number; team: string;
+  /** 잠재력 범위 "78~84" (C.81n, B6) */
+  potential: string;
   tier: DesignTier; tierName: string; reputation: number; repMax: number;
   next: { name: string; cut: number; from: number } | null;
   level: number; xp: number; xpMax: number; totalXp: number;
@@ -917,7 +927,7 @@ export function playerVM(g: GameState): PlayerVM {
   return {
     chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
     face: myFace(g), kit: myShirt(g),
-    name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p),
+    name: p.name, position: p.position, positionKo: POSITION_NAMES_KO[p.position], age: p.age, ovr: playerOvr(p), potential: myPotential(g),
     team: teamById(g.league, p.teamId).nameKo, teamId: p.teamId,
     tier: designTier(tier), tierName: TIER_NAMES_KO[tier], reputation: p.reputation, repMax: BALANCE.reputation.max,
     next: nx ? { name: TIER_NAMES_KO[nx.tier], cut: nx.cut, from: BALANCE.reputation.tierCuts[tier] } : null,
