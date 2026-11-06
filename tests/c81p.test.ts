@@ -126,8 +126,7 @@ describe('빠진 상태 화면', () => {
   });
 
   it('버전 표시', () => {
-    // C.81l(대표팀 큰 대회)이 뒤에 들어와 최신 패치 라벨은 C.81l
-    expect(PATCH_LABEL).toBe('C.81l');
+    expect(PATCH_LABEL).toMatch(/^C\.8/); // C.81k 뒤: 다음 패치가 라벨을 올린다 (c80g 와 같은 방식)
     expect(STAGE_LABEL).toBe('53단계');
   });
 });
