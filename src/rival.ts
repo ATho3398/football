@@ -2,6 +2,7 @@
 // 지표 = 시즌 골+도움, 평균 평점 (NPC 기록이 없으면 OVR 로 추정). 시즌 끝 비교 → 위상·신뢰도·인박스 기사 톤.
 // 교체: 리그를 떠남(이적·은퇴) 또는 위상 차이가 world.rivalMaxGap 을 넘을 때. 수치는 BALANCE.events.rival · BALANCE.world
 
+import { avgRating, ratingText, roundRating } from './avgRating';
 import { BALANCE } from './config/balance';
 import { teamById } from './league';
 import { proficientOvr } from './proficiency';
@@ -82,19 +83,19 @@ export function rivalOf(state: GameState): RivalView | null {
   const { p, teamId } = f;
   const st = state.playerStats?.[p.id];
   const me = state.player.season;
-  const myView = { ga: me.goals + me.assists, avg: me.apps ? Math.round((me.ratingSum / me.apps) * 100) / 100 : 0 };
+  const myView = { ga: me.goals + me.assists, avg: avgRating(me.ratingSum, me.apps) ?? 0 };
   const ovr = ovrOf(p);
   const rep = npcStanding(state, p.id, ovr);
   const myRep = state.player.reputation;
   if (st && st[0] > 0) {
-    return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, rep, myRep, apps: st[0], ga: st[1] + st[2], avg: Math.round((st[3] / 10 / st[0]) * 100) / 100, est: false, me: myView };
+    return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, rep, myRep, apps: st[0], ga: st[1] + st[2], avg: avgRating(st[3] / 10, st[0]) ?? 0, est: false, me: myView };
   }
   // 추정 (20.5 "NPC는 추정값"): 팀 경기 수 × 출전 비율, 포지션군별 경기당 골+도움 × OVR 배율, 평점 6.4 + (OVR − 70) × 0.03
   const games = state.league.round;
   const apps = Math.round(games * R().estApps);
   const rate: number = (R().estGa as Record<string, number>)[posGroup(p.position)] ?? 0.2;
   const ga = Math.round(apps * rate * Math.max(0.3, 1 + (ovr - 75) * 0.04));
-  const avg = apps ? Math.round((6.4 + (ovr - 70) * 0.03) * 100) / 100 : 0;
+  const avg = apps ? roundRating(6.4 + (ovr - 70) * 0.03) : 0;
   return { id: p.id, name: p.nameKo, team: teamById(state.league, teamId)?.nameKo ?? teamId, teamId, age: p.age, pos: p.position, ovr, rep, myRep, apps, ga, avg, est: true, me: myView };
 }
 
@@ -122,7 +123,7 @@ export function rivalSeasonEnd(state: GameState): void {
   if (rep) state.player.reputation = Math.max(0, state.player.reputation + rep);
   const trust = v > 0 ? X.winTrust : v < 0 ? X.loseTrust : 0;
   if (trust) addTrust(state, trust, `라이벌 ${r.name}${v > 0 ? '에게 이김' : '에게 짐'}`, { scaled: false });
-  const vars = { name: state.player.name, rival: r.name, rivalTeam: r.team, me: r.me.ga, them: r.ga, myAvg: r.me.avg.toFixed(2), theirAvg: r.avg.toFixed(2) };
+  const vars = { name: state.player.name, rival: r.name, rivalTeam: r.team, me: r.me.ga, them: r.ga, myAvg: ratingText(r.me.avg), theirAvg: ratingText(r.avg) };
   const rng = createRng(hashSeed(`${state.worldSeed}:rival-end:${state.league.season}`))();
   const lines = v > 0
     ? ['올 시즌 라이벌 {rival}({rivalTeam})에게 이겼어요. 골+도움 {me} 대 {them}, 평점 {myAvg} 대 {theirAvg}.', '"{rival}보다 {name}." 시즌 결산 기사가 {name}의 손을 들어 줬어요. 골+도움 {me} 대 {them}.', '라이벌 경쟁 승리. {rival}{과/와}의 비교에서 앞섰어요 ({me} 대 {them}).']

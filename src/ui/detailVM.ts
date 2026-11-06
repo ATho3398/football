@@ -2,6 +2,7 @@
 // 읽기 전용: 지금 세이브에 있는 값(리그 표·로스터·이적 기록·선수 기록 합계·지난 시즌 보관)을 모아 보여 주기만 한다.
 // 없는 데이터(다른 선수 레벨 등)는 만들지 않는다. 감독·홈구장은 C.62 data/managers.ts (2018-19 개막 기준)
 
+import { avgRatingText } from '../avgRating';
 import { MANAGER_STYLE_KO } from '../../data/managers';
 import { coachOf } from '../club';
 import { GK_ATTRIBUTES, type GkAttribute } from '../attributes';
@@ -215,7 +216,7 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
     posOvrs = Object.entries(all).map(([k, v]) => ({ pos: k, ovr: v, main: k === p.position })).sort((x, y) => Number(y.main) - Number(x.main) || y.ovr - x.ovr);
   }
   const history = (g.archive ?? []).map((s) => ({ s, t: s.players[id] })).filter((x) => x.t && x.t[0] > 0)
-    .map(({ s, t }) => ({ season: seasonLabel(s.season), apps: t![0], goals: t![1], assists: t![2], avg: (t![3] / t![0] / 10).toFixed(2) }))
+    .map(({ s, t }) => ({ season: seasonLabel(s.season), apps: t![0], goals: t![1], assists: t![2], avg: avgRatingText(t![3] / 10, t![0]) }))
     .reverse();
   const b = p.body;
   const wage = Math.round(npcAnnualWage(p, team.rating, rep));

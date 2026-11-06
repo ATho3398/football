@@ -22,8 +22,10 @@ export interface ReplayVM extends ReplayStaticVM {
   mode: ReplayMode;
   /** 지금 장면 번호 (1부터)와 장면 수 */
   scene: number;
-  scenes: { minute: string; label: string }[];
+  scenes: { minute: string; label: string; key: number }[];
   sceneLabel: string;
+  /** 지금 시점 (흐른 시간 e). 실시간에서는 이 시점까지 지나간 장면만 칸을 연다 (C.81o) */
+  at: number;
   /** 장면 전환 중: 넘어가는 시계와 요약 */
   transition: { from: string; to: string; summary: string } | null;
   /** 경기 후 하이라이트 클립 재생 (24.6, C.77o): 정해 준 장면만, 실시간 없음 */
@@ -32,13 +34,22 @@ export interface ReplayVM extends ReplayStaticVM {
 
 const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', decision: '내 결정', me: '내 장면', opponent: '상대', shot: '슈팅' };
 
-export function sceneTiles(r: Replay, scenes: Scene[]): { minute: string; label: string }[] {
+export function sceneTiles(r: Replay, scenes: Scene[]): { minute: string; label: string; key: number }[] {
   return scenes.map((sc) => {
-    if (sc.kind === 'decision') return { minute: `${sc.minute ?? ''}'`, label: SCENE_SHORT.decision };
+    if (sc.kind === 'decision') return { minute: `${sc.minute ?? ''}'`, label: SCENE_SHORT.decision, key: sc.key };
     const ev = r.events.find((x) => x.e >= sc.key - 0.01 && (x.type === 'shot' || x.type === 'goal'));
-    return { minute: ev ? `${ev.minute}'` : '', label: sc.kind === 'goal' && sc.team !== r.side ? '실점' : SCENE_SHORT[sc.kind] };
+    return { minute: ev ? `${ev.minute}'` : '', label: sc.kind === 'goal' && sc.team !== r.side ? '실점' : SCENE_SHORT[sc.kind], key: sc.key };
   });
 }
+
+/** 장면 칸 하나 (C.81o): 실시간은 지금 시점(at)까지 지나간 장면만 연다 — 아직 안 일어난 골·실점이 미리 보이지 않게 */
+export function sceneTileClass(vm: Pick<ReplayVM, 'mode' | 'scene' | 'at'>, n: number, key: number): string {
+  if (vm.mode === 'ended') return 'done';
+  if (vm.mode === 'live') return key <= vm.at + 0.01 ? 'done' : '';
+  return n < vm.scene ? 'done' : n === vm.scene ? (vm.mode === 'transition' ? 'done' : 'on') : vm.mode === 'transition' && n === vm.scene + 1 ? 'next' : '';
+}
+const tileInner = (s: { minute: string; label: string }, n: number, open: boolean) =>
+  `<span class="po-num">${open ? esc(s.minute) : '·'}</span><span>${open ? esc(s.label) : n}</span>`;
 
 export function replayView(vm: ReplayVM): string {
   const ended = vm.mode === 'ended';
@@ -63,8 +74,9 @@ export function replayView(vm: ReplayVM): string {
     ? `<div class="panel hl-panel"><div class="kv small"><b>${vm.clips ? '하이라이트 클립' : '오늘의 하이라이트'}</b><span class="muted">${vm.clips ? `${total}개 · 클립당 약 16초 (앞뒤 8초)` : `${total}장면 · 약 ${Math.round(total * 13)}초 · 장면당 10~15초`}</span></div>
       <div class="scene-tiles" style="grid-template-columns:repeat(${total},minmax(0,1fr))">${vm.scenes.map((s, i) => {
         const n = i + 1;
-        const cls = vm.mode === 'live' || ended ? 'done' : n < vm.scene ? 'done' : n === vm.scene ? (vm.mode === 'transition' ? 'done' : 'on') : vm.mode === 'transition' && n === vm.scene + 1 ? 'next' : '';
-        return `<div class="scene-tile ${cls}"><span class="po-num">${n <= vm.scene || cls === 'done' ? esc(s.minute) : '·'}</span><span>${n <= vm.scene || cls === 'done' ? esc(s.label) : n}</span></div>`;
+        const cls = sceneTileClass(vm, n, s.key);
+        const open = vm.mode === 'live' ? cls === 'done' : n <= vm.scene || cls === 'done';
+        return `<div class="scene-tile ${cls}" data-key="${s.key}">${tileInner(s, n, open)}</div>`;
       }).join('')}</div></div>`
     : '';
   const trCard = vm.transition
@@ -158,7 +170,7 @@ export class ReplayPlayer {
       transition = { from: m(this.trFrom, sc!.end), to: m(this.trTo, next.start), summary: possessionSummary(r, sc!.end, next.start) };
     }
     return {
-      ...base, speed: this.speed, paused: this.paused, mode: this.mode, scene: this.idx + 1,
+      ...base, speed: this.speed, paused: this.paused, mode: this.mode, scene: this.idx + 1, at: this.e,
       scenes: sceneTiles(r, this.scenes), sceneLabel: sc ? sceneName(r, sc).replace(/^\S+' /, '') : '', transition,
       ...(this.fixedScenes ? { clips: true } : {}),
     };
@@ -219,6 +231,19 @@ export class ReplayPlayer {
     this.idx = next;
     this.e = this.scenes[next]!.start;
     this.mode = 'scene';
+  }
+
+  /** 실시간 (C.81o): 지금 시점을 지난 장면 칸만 연다 (화면은 모드가 바뀔 때만 다시 그리므로 매 프레임 칸만 고친다) */
+  private openLiveTiles(at: number): void {
+    const tiles = document.querySelectorAll<HTMLElement>('.scene-tile[data-key]');
+    if (!tiles.length) return;
+    const list = sceneTiles(this.replay, this.scenes);
+    tiles.forEach((el, i) => {
+      const s = list[i];
+      if (!s || el.classList.contains('done') || s.key > at + 0.01) return;
+      el.classList.add('done');
+      el.innerHTML = tileInner(s, i + 1, true);
+    });
   }
 
   /** 재개 대기 중 모두 자리를 잡았으면 빨리 감기 배율 (디자인 18) */
@@ -307,6 +332,7 @@ export class ReplayPlayer {
     const clock = clockLabel(f, at > this.replay.halfE);
     const minute = this.ended && this.clipEnd === null ? '90+' : clock.includes(':') ? `${Number(clock.split(':')[0]) + 1}` : clock.replace(/'$/, '');
     set('rp-clock', `${minute}'`);
+    if (this.mode === 'live') this.openLiveTiles(at);
     set('rp-strip-min', `${minute}'`);
     const live = replayLiveVM(this.replay, f, at, this.summaries.filter((x) => x.e <= at + 0.01));
     // 재개 대기 라벨 (21.5.2 3번): 공이 죽어 있는 동안만
@@ -316,7 +342,8 @@ export class ReplayPlayer {
       note.hidden = !label;
       set('rp-note-text', label ?? '');
     }
-    if (label) set('rp-legend', `경기 중단 · ${label}${this.ffFactor() > 1 ? ` · 빨리 감기 ${HL.deadBallFf}×` : ''}`);
+    // 빨리 감기 배속 = 고른 배속 × 재개 대기 배율 (C.81o: 예전엔 2×·4×를 골라도 "4×"로 보였다)
+    if (label) set('rp-legend', `경기 중단 · ${label}${this.ffFactor() > 1 ? ` · 빨리 감기 ${this.speed * HL.deadBallFf}×` : ''}`);
     const key = `${live.feed.length}:${this.mode}:${live.possession}:${label}`;
     if (key !== this.shown) {
       this.shown = key;

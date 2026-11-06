@@ -116,19 +116,21 @@ export function rivalSection(vm: RivalCardVM): string {
   };
   const f = (v: number | null) => (v == null ? '—' : String(v));
   const avg = (v: string) => (v === '-' ? null : Number(v));
+  // 추정 라이벌 (C.81o): 골·도움은 따로 없어 "—"인데 합만 숫자로 보여 모순처럼 보였다 → 추정 값은 "≈"를 붙여 추정임을 칸마다 보인다
+  const est = (t: string) => (vm.est && t !== '—' && t !== '-' ? `≈${t}` : t);
   const tone = vm.lead > 0 ? 'is-ahead' : vm.lead < 0 ? 'is-behind' : 'is-tie';
   const chip = vm.lead > 0 ? `앞섬 · ${vm.lead}개` : vm.lead < 0 ? `뒤짐 · ${-vm.lead}개` : '동률';
   return `${SectionTitle({ title: `라이벌 · ${vm.name}`, action: vm.lead > 0 ? `${vm.lead}개 앞서요` : vm.lead < 0 ? `${-vm.lead}개 뒤져요` : '동률' })}
     ${panel(`<div class="rv-head">${Avatar({ size: 48 })}<div class="grow"><b class="rv-name">${esc(vm.name)}</b><p class="small muted">${Crest({ name: vm.team, size: 16 })}<button type="button" class="dt-link" data-act="team-open" data-v="${esc(vm.teamId)}">${esc(vm.team)}</button> · ${esc(vm.pos)} · ${vm.age}세 · 위상 ${vm.rep}</p></div><span class="rv-ovr"><b class="po-num">${vm.ovr}</b><small>OVR</small></span></div>
       <div class="rv-cmp"><div class="rv-cmp__who"><span class="is-me">나</span><span class="is-them">${esc(vm.name.split(' ').pop() ?? vm.name)}</span></div>
-        ${cmp('경기', vm.me.apps, vm.them.apps, f(vm.me.apps), f(vm.them.apps), false)}
+        ${cmp('경기', vm.me.apps, vm.them.apps, f(vm.me.apps), est(f(vm.them.apps)), false)}
         ${cmp('골', vm.me.goals, vm.them.goals, f(vm.me.goals), f(vm.them.goals))}
         ${cmp('도움', vm.me.assists, vm.them.assists, f(vm.me.assists), f(vm.them.assists))}
-        ${cmp('평균 평점', avg(vm.me.avg), avg(vm.them.avg), vm.me.avg, vm.them.avg)}
-        ${cmp('골+도움', vm.me.ga, vm.them.ga, String(vm.me.ga), String(vm.them.ga))}</div>
+        ${cmp('평균 평점', avg(vm.me.avg), avg(vm.them.avg), vm.me.avg, est(vm.them.avg))}
+        ${cmp('골+도움', vm.me.ga, vm.them.ga, String(vm.me.ga), est(String(vm.them.ga)))}</div>
       <div class="rv-bars" aria-hidden="true"><i class="is-me" style="width:${Math.round((vm.me.ga / max) * 100)}%"></i><i class="is-them" style="width:${Math.round((vm.them.ga / max) * 100)}%"></i></div>
-      <div class="rv-verdict ${tone}"><span class="rv-chip">${chip}</span><span class="small">골+도움 ${vm.me.ga} 대 ${vm.them.ga} · ${esc(vm.record)}</span></div>
-      <p class="small muted">골+도움과 평균 평점으로 겨뤄요. 시즌이 끝나면 비교 결과가 위상·감독 신뢰도에 조금 반영돼요.${vm.est ? ` ${esc(vm.name)} 기록은 추정이에요.` : ''} 내 위상 ${vm.myRep}.</p>`, 'mg-card rv-card')}`;
+      <div class="rv-verdict ${tone}"><span class="rv-chip">${chip}</span><span class="small">골+도움 ${vm.me.ga} 대 ${est(String(vm.them.ga))} · ${esc(vm.record)}</span></div>
+      <p class="small muted">골+도움과 평균 평점으로 겨뤄요. 시즌이 끝나면 비교 결과가 위상·감독 신뢰도에 조금 반영돼요.${vm.est ? ` ${esc(vm.name)} 기록은 추정이에요(≈ · 골·도움은 따로 없어 합만).` : ''} 내 위상 ${vm.myRep}.</p>`, 'mg-card rv-card')}`;
 }
 
 /** 보상 문구 "XP 50 · TP 1 · 희귀 카드 3택 1" → XP · 카드 선택권 칩 · TP (C.76g 디자인 204) */

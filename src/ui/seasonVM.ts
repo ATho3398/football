@@ -1,4 +1,5 @@
 // C.76j U8-e 뷰모델: 경기 결과 대회 배너(214) · 우승 축하 한 장(207). 데이터는 지금 세이브 그대로(새 저장 필드 없음)
+import { avgRatingText } from '../avgRating';
 import { compNameKo, GROUP_LETTERS, groupTable, KO_NAMES, reachLabel, stageName, uclReachLabel } from '../cups';
 import { leaguePosition, teamById } from '../league';
 import { dateLabel } from '../calendar';
@@ -122,7 +123,7 @@ export function celebrateVM(g: GameState): CelebrateVM | null {
   const cupName = compNameKo('fa', g.league.id);
   const career = { label: '커리어 우승', value: `리그 ${nLeague} · ${cupName} ${nCup} · 챔스 ${nUcl}` };
   const st = g.phase === 'season' ? g.player.season : g.player.history.at(-1) ?? g.player.season;
-  const avg = (sumR: number, n: number) => (n ? (sumR / n).toFixed(2) : '-');
+  const avg = avgRatingText;
   if (cupWon) {
     const c = st.cup ?? { apps: 0, goals: 0, assists: 0, ratingSum: 0 };
     const res = m.result;
@@ -161,7 +162,7 @@ export function compRecordVM(g: GameState): CompRecordVM {
   const st = g.phase === 'season' ? g.player.season : g.player.history.at(-1) ?? g.player.season;
   const season = g.phase === 'season' ? g.league.season : g.player.history.at(-1)?.season ?? g.league.season;
   const me = g.player.teamId;
-  const avg = (r: number, n: number) => (n ? (r / n).toFixed(2) : '-');
+  const avg = avgRatingText;
   const lgName = leagueData(g.league.id)?.nameKo ?? g.league.name;
   const pos = leaguePositionOf(g);
   const c = st.cup ?? { apps: 0, goals: 0, assists: 0, ratingSum: 0 };

@@ -1,4 +1,5 @@
 // 대표팀 화면 (C.76d): 국가·소집 확률·통산 기록, 대표팀 일정·결과(컵 표와 같은 줄), 지난 대회 조 순위·대진
+import { avgRatingText } from '../avgRating';
 import { BALANCE } from '../config/balance';
 import { CONFED_KO, nationOf } from '../../data/nations';
 import { calendarOf, type GameState } from '../game';
@@ -108,7 +109,7 @@ export function nationalVM(g: GameState, pick: string | null): NationalVM {
   return {
     nation: n.nameKo, nationId: natId(n.name), confed: CONFED_KO[n.confed], rating: n.rating, ovr: playerOvr(p),
     tier: TIER_NAMES_KO[reputationTier(p.reputation, p.honors)], callPct: Math.round(callChance(g) * 100), status,
-    career: { apps: c.apps, starts: c.starts, goals: c.goals, assists: c.assists, avg: c.apps ? (c.ratingSum / c.apps).toFixed(2) : '-', moms: c.moms },
+    career: { apps: c.apps, starts: c.starts, goals: c.goals, assists: c.assists, avg: avgRatingText(c.ratingSum, c.apps), moms: c.moms },
     upcoming: fixtures.filter((m) => m.gf === undefined).map((m) => fixtureVM(g, m)),
     results: fixtures.filter((m) => m.gf !== undefined).slice(-12).reverse().map((m) => fixtureVM(g, m)),
     next,

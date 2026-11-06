@@ -155,7 +155,7 @@ export interface LabelBox { id: string; text: string; x: number; y: number; w: n
  */
 export function layoutLabels(
   items: readonly LabelItem[], measure: (text: string, me: boolean) => { w: number; h: number },
-  place: { below: (rr: number) => number; gap: number; width: number; height: number },
+  place: { below: (rr: number) => number; gap: number; width: number; height: number; /** 위 자리는 쓰지 않는다 (평균 위치, C.81o) */ belowOnly?: boolean },
 ): LabelBox[] {
   const order = [...items].sort((a, b) => (a.me !== b.me ? (a.me ? -1 : 1) : a.carrier !== b.carrier ? (a.carrier ? -1 : 1) : a.dist - b.dist));
   const boxes: LabelBox[] = [];
@@ -175,7 +175,7 @@ export function layoutLabels(
     const free = (b: LabelBox) => !boxes.some((o) => hit(o, b)) && !marks.some((o) => o.id !== p.id && hit(o, b));
     let got: LabelBox | null = null;
     for (const t of texts) {
-      for (const up of [false, true]) {
+      for (const up of place.belowOnly ? [false] : [false, true]) {
         const b = spot(t, up);
         if (free(b)) {
           got = b;
@@ -293,7 +293,7 @@ interface Placed { id: string; info: ReplayPlayer; x: number; y: number; carrier
 /** 마커들을 겹침 순서(상대 → 우리 → 공 가진 선수 → 내 선수)로 그리고, 그 순서대로 이름 라벨 */
 function drawMarkers(
   ctx: CanvasRenderingContext2D, w: number, h: number, list: Placed[], renderer: MarkerRenderer, mySide: 0 | 1, r: number, pulse: number,
-  scope?: ReadonlyMap<string, ReplayPlayer>, ball?: [number, number],
+  scope?: ReadonlyMap<string, ReplayPlayer>, ball?: [number, number], belowOnly = false,
 ): void {
   const rank = (p: Placed) => (p.info.isMe ? 3 : p.carrier ? 2 : p.info.team === mySide ? 1 : 0);
   const sorted = [...list].sort((a, b) => rank(a) - rank(b));
@@ -321,7 +321,7 @@ function drawMarkers(
     ctx.font = `${me ? 800 : 600} ${size}px ${PALETTE.font}`;
     return { w: Math.ceil(ctx.measureText(text).width + 8), h: size + 4 };
   };
-  const boxes = layoutLabels(items, measure, { below: (rr) => renderer.labelBelow?.(rr) ?? below, gap: 2, width: w, height: h });
+  const boxes = layoutLabels(items, measure, { below: (rr) => renderer.labelBelow?.(rr) ?? below, gap: 2, width: w, height: h, belowOnly });
   for (const b of boxes) drawLabelBox(ctx, b, r);
 }
 
@@ -585,14 +585,18 @@ export function drawAveragePositions(
   drawPitch(ctx, w, h);
   const proj = pitchProjection(w, h, mySide === 0 ? 1 : -1);
   const r = markerRadius(Math.min(w, h * (PITCH_L / PITCH_W)));
+  // 가로 피치 (C.81o): pitchProjection 은 가로일 때 돌리지 않는다 → 원정(mySide 1)이면 180도 돌려 "우리 공격 방향 →"과 맞춘다
+  // (예전엔 원정 경기에서 우리 팀이 왼쪽으로 공격하게 그려져 우리 GK 자리에 상대 GK가 있었다)
+  const flip = !proj.portrait && mySide === 1;
   const list: Placed[] = [];
   for (const a of avg) {
     const info = players.get(a.id);
     if (!info) continue;
-    const [x, y] = proj.toScreen(a.x, a.y);
+    const [x, y] = proj.toScreen(flip ? PITCH_L - a.x : a.x, flip ? PITCH_W - a.y : a.y);
     list.push({ id: a.id, info, x, y, carrier: false });
   }
-  drawMarkers(ctx, w, h, list, renderer, mySide, r, 0);
+  // 평균 위치 이름표는 늘 마커 아래 (C.81o, 17차 검수 17번)
+  drawMarkers(ctx, w, h, list, renderer, mySide, r, 0, undefined, undefined, true);
 }
 
 export function playerMap(r: Replay): Map<string, ReplayPlayer> {
