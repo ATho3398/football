@@ -2176,7 +2176,7 @@ function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } 
     myRoster: natRoster(state, nat.nation), oppRoster: natRoster(state, m.opp),
     myRating: myR, oppRating: oppR, home: m.home, ...(isNeutralMatch({ nat: m }) ? { neutral: true } : {}),
     me: { position: pos, attributes: player.attributes, fatigue, form: natForm(state), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player), ...judgePenField(state) },
-    plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:natengine:${m.key}`), worldSeed: seed, leagueAvg: (myR + oppR) / 2,
+    plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:natengine:${m.key}`), worldSeed: seed, leagueAvg: (myR + oppR) / 2, nearestSlot: true,
     ...(NAT_BIG(m) ? { bigMatch: true } : {}),
     ...(opts.cards !== false && state.cards ? { cards: { ...cardInput(state.cards), trust: trustOf(state) } } : {}),
     ...envField(env),

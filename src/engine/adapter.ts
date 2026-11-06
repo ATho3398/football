@@ -17,6 +17,8 @@ import { npcInjuredOut, startStamina, teamSetupFromRoster } from './setup';
 import type { NpcCond } from '../npcFit';
 import type { ManagerStyle } from '../../data/managers';
 import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
+import { nearestSlotIndex } from './slotPick';
+import { FORMATION_SLOTS } from '../formations';
 import { applyHalftimeTactics, buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
 import type { EngineResult, PlayerSpec, PlayerStats, Tactics, TeamSetup } from './types';
@@ -73,6 +75,8 @@ export interface EngineMatchInput {
    * 같은 포지션군 중 가장 약한 자리 (이전 동작, 측정 스크립트용)
    */
   myTactics?: MyTactics;
+  /** 대표팀 경기 (C.81y): myTactics 가 없을 때 내 자리 = 내 주 포지션 칸 → 없으면 가장 가까운 칸 (slotPick.nearestSlotIndex). 없으면 mySlot */
+  nearestSlot?: boolean;
   /** 내 선수 결정 순간 (E.11): 직접/자동, 정지 빈도, 정책. 없으면 자동 */
   control?: MomentControl;
   /** 내 선수 카드 (C.36): 덱과 숙련도. 없으면 카드 없이 */
@@ -138,7 +142,7 @@ export function buildMyMatch(m: EngineMatchInput) {
   if (m.plan.minutes) {
     if (m.plan.started) {
       const k = t ? mySetup.lineup.findIndex((p) => p.slot === t.mySlot) : -1;
-      const i = k >= 0 ? k : mySlot(mySetup, m.me.position);
+      const i = k >= 0 ? k : m.nearestSlot ? nearestSlotIndex(mySetup.lineup, mySetup.customSlots ?? FORMATION_SLOTS[mySetup.formation], m.me.position) : mySlot(mySetup, m.me.position);
       meSpec.slot = mySetup.lineup[i]!.slot;
       mySetup.lineup[i] = meSpec;
     } else {
