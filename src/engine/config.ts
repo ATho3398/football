@@ -1500,7 +1500,7 @@ export const ENGINE = {
      */
     passKnee: { CB: 5, FB: 5, CAM: 20, WING: 18, ST: 45 } as Record<string, number>,
     passTail: 0.3 as number,
-    forwardKnee: { CB: 20, FB: 15, CDM: 18, CAM: 8, WING: 5, ST: 10 } as Record<string, number>,
+    forwardKnee: { CB: 20, FB: 15, CDM: 18, CM: 18, CAM: 8, WING: 5, ST: 10 } as Record<string, number>,
     forwardTail: 0.2 as number,
     /** C.81r: 0.15 → 0.11 (엔간체·프리롤 키패스 몫이 역할 차의 큰 부분) */
     keyPass: 0.11,
@@ -1593,16 +1593,20 @@ export const ENGINE = {
     // C.81h(엔진 89, 세컨볼·윙어 마무리): engine:check 경량 가드로 CAM 2.1 → 2.25 · ST 2.53 → 2.63
     // C.81r(엔진 90, 역할별 평점 쏠림 — 패스 체감·수비 가중·roleCenter): `rating-parts 720 … 20000`(역할 포함) 에서 8군 평균을 바꾸기 전(main 엔진 89 설정) 값 그대로 두게 다시 맞춤(c81r-role-opt TARGET_JSON) — engine:check 군 평균 6.55~6.69 · σ 0.81
     // C.81s(엔진 91, saveBase 2.02·상성 칸 + C.81r 병합 뒤): engine:check CM 6.70(가드 6.3~6.7 ✗, 반올림 경계) — 가드 밖 CM 만 2.46 → 2.51(약 −0.04, §9.12.7)
-    center: { GK: 1.72, CB: 1.15, FB: 0.62, CDM: 1.82, CM: 2.51, CAM: 1.84, WING: 0.79, ST: 2.17 } as Record<string, number>,
-    /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0 */
+    // C.81u(엔진 92, 수비 기록 칸 · CM 전진 패스 무릎 18 · 조건 평균 roleCenter): `rating-parts 720 … 20000` 에서 8군 평균을 main(엔진 91) 설정 값 그대로 두게 다시 맞춤(c81u-center) — σ 0.80 → 0.76
+    center: { GK: 1.72, CB: 1.34, FB: 0.76, CDM: 1.99, CM: 2.1, CAM: 1.85, WING: 0.85, ST: 2.1 } as Record<string, number>,
+    /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0.
+     *  C.81u: 대형(4-4-2·3-5-2·4-2-3-1·4-3-1-2)·전력 ±5·전술(게겐·블록·직선) 10조건 평균으로 다시 맞춤(c81u-role-cond 80경기 × 268칸). `역할@2` = 같은 군 둘 이상(투톱) */
     roleCenter: {
-      stopper: 0.01, ballPlayingCB: -0.01, coverCB: -0.09, libero: 0.09,
-      attackingFullback: 0, defensiveFullback: -0.09, invertedFullback: 0.1, completeWingback: -0.02,
-      anchor: 0.12, ballWinner: 0.06, regista: 0, halfBack: -0.18,
-      boxToBox: 0.08, deepPlaymaker: 0.02, mezzala: 0.04, carrier: 0.06, holdingCM: -0.2,
-      classic10: -0.17, shadowStriker: -0.09, freeRole: 0.19, boxCrasher: -0.07, enganche: 0.14,
-      classicWinger: -0.18, wingForward: 0.2, crackWinger: 0.02, raumdeuter: 0.11, wideMid: -0.14,
-      poacher: -0.1, targetMan: 0.02, falseNine: 0.08, advancedForward: 0,
+      stopper: 0.05, ballPlayingCB: -0.05, coverCB: -0.11, libero: 0.11,
+      attackingFullback: -0.03, defensiveFullback: -0.09, invertedFullback: 0.14, completeWingback: -0.04,
+      anchor: 0.08, ballWinner: 0.02, regista: 0.04, halfBack: -0.13,
+      boxToBox: 0.07, deepPlaymaker: 0, mezzala: 0.01, carrier: 0.01, holdingCM: -0.1,
+      classic10: -0.08, shadowStriker: -0.11, freeRole: 0.21, boxCrasher: -0.15, enganche: 0.12,
+      classicWinger: -0.19, wingForward: 0.19, crackWinger: 0.02, raumdeuter: 0.13, wideMid: -0.14,
+      poacher: -0.1, targetMan: -0.05, falseNine: 0.15, advancedForward: 0,
+      // 투톱(같은 군 둘 이상)의 ST 역할 (C.81u)
+      'poacher@2': 0.09, 'targetMan@2': 0.23, 'falseNine@2': -0.29, 'advancedForward@2': -0.03,
     } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,

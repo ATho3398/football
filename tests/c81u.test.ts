@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENGINE } from '../src/engine/config';
-import { ratingDelta, type RatingParts } from '../src/engine/rating';
+import { ratingDelta, ratingFromParts, type RatingParts } from '../src/engine/rating';
 import { runMatchJob, type MatchJob } from '../scripts/engine/job';
 import { std } from '../scripts/engine/suite';
 
@@ -23,6 +23,16 @@ describe('C.81u 수비 기록 칸', () => {
     expect(R.pressWon).toBeLessThanOrEqual(0.03);
     expect(R.offsideWon).toBeLessThanOrEqual(0.03);
     expect(R.lineMin).toBeLessThanOrEqual(0.01);
+  });
+
+  it('투톱(같은 군 둘 이상)이면 ST 역할 보정 `역할@2` 을 쓴다, 없으면 원톱 값', () => {
+    const p = blank({ group: 'ST', passes: 30, forward: 8, goals: 0 });
+    const lone = ratingFromParts({ ...p, role: 'falseNine' });
+    const pair = ratingFromParts({ ...p, role: 'falseNine', mates: 2 });
+    expect(R.roleCenter['falseNine@2']!).toBeLessThan(R.roleCenter.falseNine!);
+    expect(pair).toBeGreaterThan(lone);
+    // @2 값이 없는 역할은 원톱 값 그대로
+    expect(ratingFromParts({ ...blank({ group: 'CB' }), role: 'libero', mates: 2 })).toBe(ratingFromParts({ ...blank({ group: 'CB' }), role: 'libero' }));
   });
 
   it('경기에서 센다: 수비 줄은 라인 유지 시간·오프사이드 유도, 누군가는 압박 성공', () => {

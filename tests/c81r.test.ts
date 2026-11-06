@@ -23,11 +23,12 @@ describe('C.81r 평점 가중', () => {
     expect(fper(fk + 5)).toBeCloseTo(R.forwardPass * R.forwardTail);
   });
 
-  it('무릎이 없는 군(CM · GK)은 패스 체감이 없다', () => {
-    for (const group of ['CM', 'GK']) {
-      const d = ratingDelta(blank({ group, passes: 90, forward: 40 })) - ratingDelta(blank({ group }));
-      expect(d).toBeCloseTo(50 * R.pass + 40 * R.forwardPass);
-    }
+  it('무릎이 없는 군(GK, CM 안전 패스)은 패스 체감이 없다 — C.81u: CM 전진 패스는 무릎 있음', () => {
+    const d = ratingDelta(blank({ group: 'GK', passes: 90, forward: 40 })) - ratingDelta(blank({ group: 'GK' }));
+    expect(d).toBeCloseTo(50 * R.pass + 40 * R.forwardPass);
+    const fk = R.forwardKnee.CM!;
+    const c = ratingDelta(blank({ group: 'CM', passes: 90, forward: 40 })) - ratingDelta(blank({ group: 'CM' }));
+    expect(c).toBeCloseTo(50 * R.pass + (fk + (40 - fk) * R.forwardTail) * R.forwardPass);
   });
 
   it('수비 행동: 블록·걷어내기도 평점에 들어가고 태클·인터셉트 가중이 올랐다', () => {
@@ -49,7 +50,7 @@ describe('C.81r 평점 가중', () => {
     const p = blank({ passes: 30, forward: 10, keyPasses: 2 });
     const none = ratingFromParts(p);
     // 같은 행동이면 roleCenter 가 낮은(쏠림이 아래였던) 역할이 더 높은 평점
-    expect(ratingFromParts({ ...p, role: 'classic10' })).toBeGreaterThan(none);
+    expect(ratingFromParts({ ...p, role: 'boxCrasher' })).toBeGreaterThan(none);
     expect(ratingFromParts({ ...p, role: 'freeRole' })).toBeLessThan(none);
   });
 });
