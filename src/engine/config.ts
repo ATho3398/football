@@ -1563,7 +1563,7 @@ export const ENGINE = {
     // C.80u(엔진 82, 세트피스 헤더·1대1 보정 + 롱패스 병합 뒤): engine:check ST 6.73(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 ST 6.70(맞춤 2.56) — 가드 밖 ST 만 2.45 → 2.53(§9.12.7)
     // C.81a(엔진 85, 크로스 박스 인원·saveBase 1.89): engine:check GK 6.70(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 GK 6.67(맞춤 1.77) — 가드 밖 GK 만 1.58 → 1.68(§9.12.7)
     // C.81b(엔진 86, edgeZone 18·saveBase 1.93·균형 점유 가치 0.02): engine:check CM 6.70(가드 6.3~6.7 ✗) — 가드 밖 CM 만 2.35 → 2.43(scale 0.9 로 약 −0.07, §9.12.7)
-    center: { GK: 1.68, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.43, CAM: 2.1, WING: 1.06, ST: 2.53 } as Record<string, number>,
+    center: { GK: 1.68, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.43, CAM: 2.25, WING: 1.06, ST: 2.63 } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },

@@ -49,9 +49,13 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
   });
 
   it('경기 중 쳐낸 시각이 기록되고(parryT), 수비 지연은 하프타임·재개에서 비워진다', () => {
-    const sim = match(11);
+    // 쳐냄은 경기당 약 2회라 없는 시드도 있다 — 처음 쳐냄이 나오는 시드까지 (11~16)
+    let sim = match(11);
     let sawHold = false;
     let parryMax = -100;
+    for (let seed = 11; seed <= 16 && !sawHold; seed++) {
+    sim = match(seed);
+    parryMax = -100;
     while (!sim.state.done) {
       sim.step();
       parryMax = Math.max(parryMax, sim.state.teams[0].parryT, sim.state.teams[1].parryT);
@@ -62,6 +66,7 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
         expect(h.until - sim.state.t).toBeLessThanOrEqual(ENGINE.keeper.parryDefHold + 1e-9);
         if (sim.state.restart) expect(sim.state.ball.defHold).toBeNull();
       }
+    }
     }
     expect(sawHold).toBe(true);
     expect(parryMax).toBeGreaterThan(0);
