@@ -3,7 +3,7 @@
 
 import { avgRatingText, ratingText } from '../avgRating';
 import { clipClass, findClips } from '../highlightClips';
-import { HL_CLASS_KO, MY_GOAL_BADGE_KO, myGoalBadge, type HighlightClass } from '../highlightClass';
+import { clipTextMyFirst, HL_CLASS_KO, MY_GOAL_BADGE_KO, myGoalBadge, type HighlightClass } from '../highlightClass';
 import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
@@ -1250,7 +1250,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     opp, scoreLine: `${scoreText(res.goalsFor, res.goalsAgainst)}${m.nat?.pens ? ` (${pensText(m.nat.pens)})` : ''}${m.cup?.pens ? ` (${pensText(m.home ? [m.cup.pens[0], m.cup.pens[1]] : [m.cup.pens[1], m.cup.pens[0]])})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, ...(m.engine ? { formEngine: true } : {}), chips, banners, highlights, report,
     hasAvgMap: !!r, sceneCount: r ? selectScenes(r).length : 0, my, myMore,
-    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => { const k = clipClass(c, mySide); return { kind: k, label: HL_CLASS_KO[k], minute: `${c.minute}'`, text: c.text, ...(c.badge && k === 'goal' ? { badge: MY_GOAL_BADGE_KO[c.badge] } : {}) }; }),
+    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => { const k = clipClass(c, mySide); return { kind: k, label: HL_CLASS_KO[k], minute: `${c.minute}'`, text: clipTextMyFirst(c.text, mySide), ...(c.badge && k === 'goal' ? { badge: MY_GOAL_BADGE_KO[c.badge] } : {}) }; }),
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,

@@ -102,8 +102,18 @@ if (want('prep')) {
   await toPrep();
   await page.waitForTimeout(500); await dismiss(); await top();
   await shot('1_대표팀-준비-전술칸');
-  const card = page.locator('.prep-nat-tactic').first();
-  if (await card.count()) { await card.scrollIntoViewIfNeeded(); await shot('1b_대표팀-준비-전술칸-위치'); }
+  // 전술 칸을 화면 가운데로 (아래 고정 버튼 줄에 가리지 않게) — 가림 여부도 잰다
+  if (await has('.prep-nat-tactic')) {
+    await page.evaluate(() => document.querySelector('.prep-nat-tactic')?.closest('.panel, section, div')?.scrollIntoView({ block: 'center' }));
+    await page.waitForTimeout(300);
+    report.notes.prepCover = await page.evaluate(() => {
+      const r = document.querySelector('.prep-nat-tactic').getBoundingClientRect();
+      const bars = [...document.querySelectorAll('.prep-actions, .prep-foot, .dock-bar, [class*="sticky"]')].filter((x) => getComputedStyle(x).position === 'fixed' || getComputedStyle(x).position === 'sticky').map((x) => x.getBoundingClientRect().top).filter((t) => t > 0);
+      const barTop = bars.length ? Math.min(...bars) : innerHeight;
+      return { rowBottom: Math.round(r.bottom), barTop: Math.round(barTop), covered: r.bottom > barTop };
+    });
+    await shot('1b_대표팀-준비-전술칸-위치');
+  }
   report.notes.prep = await page.evaluate(() => ({ natLine: document.querySelector('.prep-nat-tactic')?.textContent?.trim() ?? null, tacOpen: !!document.querySelector('main.screen-prep [data-act="tac-open"]') }));
 }
 
@@ -197,12 +207,14 @@ if (want('moment')) {
     await page.evaluate(() => { globalThis.__game().guide.firstMatchSeen = true; });
     await act('hl-rewatch');
     await page.waitForTimeout(800);
-    if (await has('[data-act="rp-speed"]')) { for (let k = 0; k < 3; k++) await page.locator('[data-act="rp-speed"]').first().click().catch(() => null); }
-    // 장면을 넘기며(rp-skip) 득점 줄이 피드에 뜰 때까지 — 뜨면 그 순간(재생 중) 캡처
+    // 최고 배속 (배속 칩 마지막)
+    await page.locator('[data-act="rp-speed"]').last().click().catch(() => null);
+    // 장면을 넘기지 않고 실제 재생(최고 배속)으로 — 득점 줄이 피드에 뜨는 순간 캡처 (넘기면 피드가 그리기 전에 다음 장면으로 가 버린다)
     let ok = false;
-    for (let k = 0; k < 40 && !ok; k++) {
-      ok = await page.waitForFunction(() => !!document.querySelector('#rp-feed .po-feed--goal'), null, { timeout: 6000, polling: 100 }).then(() => true, () => false);
-      if (!ok) { await dismiss(); await page.locator('[data-act="rp-skip"]').first().click({ timeout: 2000 }).catch(() => null); }
+    for (let k = 0; k < 60 && !ok; k++) {
+      await dismiss();
+      ok = await page.waitForFunction(() => !!document.querySelector('#rp-feed .po-feed--goal'), null, { timeout: 5000, polling: 100 }).then(() => true, () => false);
+      if (!(await has('#rp-feed'))) break;
     }
     await dismiss();
     await page.waitForTimeout(300);
