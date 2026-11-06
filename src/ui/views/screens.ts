@@ -28,6 +28,7 @@ const FUTURE_TOTAL = FUTURE_STARS.length;
 import type { CustomVM } from '../customVM';
 import { customBody, photoRow } from './custom';
 import type { FacePhoto, Race } from '../../identity';
+import { pensText } from '../../text';
 
 // ── 타이틀 (55) ──
 
@@ -618,6 +619,12 @@ function growthDetail(vm: SeasonVM): string {
 
 // ── 은퇴 (56) ──
 
+/** 은퇴 카드 (C.81p): 현역 값인 XP 막대는 뺀다 (레벨 숫자는 최종 기록으로 남김) */
+function retiredCard<T extends { xp?: number; xpMax?: number }>(c: T): T {
+  const { xp: _xp, xpMax: _max, ...rest } = c;
+  return rest as T;
+}
+
 export function retiredView(vm: RetiredVM): string {
   const hero = HeroPanel({
     title: '은퇴', back: false, eyebrow: `${vm.card.name} · 커리어 평균 평점`, value: vm.avg, pad: false, progress: false,
@@ -626,7 +633,7 @@ export function retiredView(vm: RetiredVM): string {
   return `${hero}<div class="body">
     ${statTiles([{ value: vm.apps, label: '경기' }, { value: vm.goals, label: '골', hi: true }, { value: vm.assists, label: '도움' }, { value: vm.seasons, label: '시즌' }])}
     <div class="panel kv peak"><div><small>최종 위상</small>${TierBadge({ tier: vm.card.tier, score: vm.reputation })}</div><div class="r"><small>최고 OVR</small><b class="po-num hi">${vm.peakOvr}</b></div></div>
-    ${PlayerCard({ player: vm.card })}
+    ${PlayerCard({ player: retiredCard(vm.card) })}
     ${SectionTitle({ title: '재정 · 엔딩 점수', action: `자산 점수 ${vm.ending.asset}` })}
     ${panel(`<div class="kv"><span>순자산</span><b class="po-num">${esc(vm.ending.worth)}</b></div><div class="kv"><span>커리어 순수입</span><b class="po-num">${esc(vm.ending.career)}</b></div><div class="kv"><span>누적 기부</span><b class="po-num">${esc(vm.ending.charity)}${vm.ending.philanthropist ? ' · 자선가' : ''}</b></div>`)}
     ${vm.honors.length ? `${SectionTitle({ title: '업적 · 배지', action: `${vm.honors.length}개` })}<div class="chapter-honors">${vm.honors.map((h) => StatChip({ icon: h.badge ? 'star' : 'trophy', label: h.label, tone: h.badge ? 'success' : 'brand' })).join('')}</div>` : ''}
@@ -778,10 +785,10 @@ export function cupsSection(vm: CupsWorldVM, sub: CupSub = cupSubDefault(vm), fa
         const row = (side: 'h' | 'a') => {
           const k = side === 'h' ? 0 : 1;
           const c = (x: [number, number] | null | undefined) => `<span class="po-num">${x ? x[k] : '–'}</span>`;
-          return `<div class="ko-row${won(side) ? ' is-win' : ''}${lost(side) ? ' is-out' : ''}">${team(side === 'h' ? t.hId : t.aId, side === 'h' ? t.h : t.a, won(side))}${lg ? `${c(lg.l1)}${c(lg.l2)}<b class="ko-agg">${c(lg.agg)}</b>` : `<b class="ko-agg">${c(t.score ? (t.score.split('-').map(Number) as [number, number]) : null)}</b>`}</div>`;
+          return `<div class="ko-row${won(side) ? ' is-win' : ''}${lost(side) ? ' is-out' : ''}">${team(side === 'h' ? t.hId : t.aId, side === 'h' ? t.h : t.a, won(side))}${lg ? `${c(lg.l1)}${c(lg.l2)}<b class="ko-agg">${c(lg.agg)}</b>` : `<b class="ko-agg">${c(t.score ? (t.score.split(/\s*:\s*/u).map(Number) as [number, number]) : null)}</b>`}</div>`;
         };
         const pens = lg?.pens ?? t.pens;
-        const foot = t.w ? `${pens ? `승부차기 ${pens[0]}-${pens[1]} · ` : ''}${t.w} 진출${t.me && t.w !== vm.myTeam ? ' · 우리 팀 탈락' : ''}` : t.note || t.date;
+        const foot = t.w ? `${pens ? `${pensText(pens)} · ` : ''}${t.w} 진출${t.me && t.w !== vm.myTeam ? ' · 우리 팀 탈락' : ''}` : t.note || t.date;
         return `<div class="panel ko-tie${t.me ? ' is-me' : ''}">${lg ? '<div class="ko-tie__cols" aria-hidden="true"><span></span><span>1차</span><span>2차</span><span>합계</span></div>' : ''}${row('h')}${row('a')}<small class="muted ko-foot">${esc(foot)}</small></div>`;
       };
       const stages = u.ko.map((st) => ({ ...st, done: st.ties.every((t) => !!t.w) }));
@@ -814,8 +821,8 @@ export function cupsSection(vm: CupsWorldVM, sub: CupSub = cupSubDefault(vm), fa
       const chips = Tabs({ items: rounds.map((x, i) => ({ id: String(i), label: x.stage })), value: String(sel), variant: 'segment', scroll: true, act: 'cup-round', label: '라운드 고르기' });
       const one = (t: CupTieVM) => {
         const hw = !!t.w && t.w === t.h; const aw = !!t.w && t.w === t.a;
-        return `<div class="panel fa-tie${t.me ? ' is-me' : ''}"><div class="fa-tie__row"><span class="fa-tie__h">${team(t.hId, t.h, hw)}</span><b class="po-num fa-tie__score">${esc(t.score ?? 'vs')}</b><span class="fa-tie__a">${team(t.aId, t.a, aw)}</span></div>
-          <small class="muted">${esc(t.w ? `${t.pens ? `승부차기 ${t.pens[0]}-${t.pens[1]} · ` : ''}${t.w} 진출` : t.date)}</small></div>`;
+        return `<div class="panel fa-tie${t.me ? ' is-me' : ''}"><div class="fa-tie__row"><span class="fa-tie__h">${team(t.hId, t.h, hw)}</span><b class="po-num fa-tie__score score-cell">${esc(t.score ?? 'vs')}</b><span class="fa-tie__a">${team(t.aId, t.a, aw)}</span></div>
+          <small class="muted">${esc(t.w ? `${t.pens ? `${pensText(t.pens)} · ` : ''}${t.w} 진출` : t.date)}</small></div>`;
       };
       body = `${head(cup, f.winner ? `우승 ${f.winner}` : `우리 팀 · ${f.my}`, '')}${chips}
         <p class="small muted cup-head__s">${esc(r.stage)} · ${esc(r.date)} · 단판 · 비기면 승부차기</p>

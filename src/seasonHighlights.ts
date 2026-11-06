@@ -2,6 +2,7 @@
 // 시즌 종료 요약에 보여 주고, 같은 후보(점수 포함)를 챕터 리뷰 하이라이트 후보로도 쓴다. 기록만 읽는 순수 함수다
 
 import { BALANCE } from './config/balance';
+import { scoreText } from './text';
 import type { MatchLogEntry } from './matchRecord';
 
 export type SeasonHighlightKind = 'best' | 'goal' | 'crisis';
@@ -16,7 +17,7 @@ export interface SeasonHighlight {
 const H = () => BALANCE.seasonHighlights;
 
 function result(e: MatchLogEntry): string {
-  return `${e.goalsFor}-${e.goalsAgainst} ${e.goalsFor > e.goalsAgainst ? '승' : e.goalsFor < e.goalsAgainst ? '패' : '무'}`;
+  return `${scoreText(e.goalsFor, e.goalsAgainst)} ${e.goalsFor > e.goalsAgainst ? '승' : e.goalsFor < e.goalsAgainst ? '패' : '무'}`;
 }
 
 const venue = (e: MatchLogEntry) => (e.home ? '홈' : '원정');

@@ -10,7 +10,7 @@ const OUT_KO = { win: '승', draw: '무', loss: '패' } as const;
 
 function fixtureRow(f: NatFixtureVM): string {
   return `<div class="cup-tie"><span class="cup-tie__teams"><span class="dt-link team">${Crest({ name: f.opp, team: f.oppId, size: 16 })}${esc(f.opp)}</span>
-    <b class="po-num cup-tie__score">${esc(f.score ?? 'vs')}</b>${f.outcome ? `<small class="nat-out is-${f.outcome}">${OUT_KO[f.outcome]}</small>` : ''}</span>
+    <b class="po-num cup-tie__score score-cell">${esc(f.score ?? 'vs')}</b>${f.outcome ? `<small class="nat-out is-${f.outcome}">${OUT_KO[f.outcome]}</small>` : ''}</span>
     <small class="muted">${esc([f.date, f.label, f.venue, f.line].filter(Boolean).join(' · '))}</small></div>`;
 }
 
@@ -36,7 +36,7 @@ export function nationalView(vm: NationalVM, tab: NationalTab): string {
     const detail = t ? `${SectionTitle({ title: t.title, action: `우승 ${t.champion}` })}
       <p class="small"><b>${esc(vm.nation)}</b> ${esc(t.reach)}${t.live ? (t.called ? ' · 내가 뛰는 대회예요 — 경기는 일정 · 결과 탭' : '') : t.called ? ' · 나도 뛰었어요' : ' · 나는 명단 밖'}</p>
       ${t.ko.map((st) => `<h4 class="ag-head">${esc(st.name)}</h4>${panel(st.ties.map((x) => `<div class="cup-tie${x.me ? ' me' : ''}"><span class="cup-tie__teams"><span class="dt-link team">${Crest({ name: x.a, team: x.aId, size: 16 })}${esc(x.a)}</span>
-        <b class="po-num cup-tie__score">${esc(x.score)}</b><span class="dt-link team">${Crest({ name: x.b, team: x.bId, size: 16 })}${esc(x.b)}</span></span><small class="muted">${x.w ? `${esc(x.w)} 진출` : '예정'}</small></div>`).join(''))}`).join('')}
+        <b class="po-num cup-tie__score score-cell">${esc(x.score)}</b><span class="dt-link team">${Crest({ name: x.b, team: x.bId, size: 16 })}${esc(x.b)}</span></span><small class="muted">${x.w ? `${esc(x.w)} 진출` : '예정'}</small></div>`).join(''))}`).join('')}
       <h4 class="ag-head">조별리그</h4><div class="cup-groups">${t.groups.map((gr) => `<div class="panel tbl-panel${gr.mine ? ' is-mine' : ''}"><table class="tbl league">
         <tr><th class="l">${esc(gr.name)}</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>
         ${gr.rows.map((r) => `<tr class="${r.me ? 'me' : ''}${r.through ? ' top' : ''}"><td class="l">${Crest({ name: r.team, team: r.teamId, size: 16 })}${esc(r.team)}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gd}</td><td><b class="po-num">${r.pts}</b></td></tr>`).join('')}
