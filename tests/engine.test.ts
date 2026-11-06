@@ -90,6 +90,7 @@ describe('경기 엔진 코어 (E1)', () => {
     // scripts/diag/c80m-dist.ts) → 평균 < 14.2 km · 한 선수 < 15.4 km. 같은 묶음 C.80l(최다 이동 거리 줄임)이 들어간 뒤 다시 조인다
     // C.80o(엔진 75, 묶음 마무리 — 12~16.5 m 선방 −0.13 · saveBase 1.78 · 직선 전환 보임 0.45): 시드 11~30 평균 14.15 → 14.23 · 31~70 13.87 → 14.00 (궤적 잡음 + 직선 팀 몫 약 +0.1 km).
     //   20경기 평균이 잡음에 지배돼 시드 11~70(60경기)로 넓힌다: main 13.96 → 14.08 (원래 기준 14.1 은 여유 0.02 라 < 14.2 유지), 한 선수 최다 15.23 → 원래 기준 < 15.3 으로 되조임
+    // C.81i(엔진 88, 되조임): 지친 조깅·러닝 감속 physics.fatigueIntensity 0.35 → 0.4 로 60시드 평균 14.15 → 13.96 · 한 선수 최다 15.30 → 14.94 → 원래 기준 평균 < 14.1 km 복귀(한 선수 < 15.3 그대로)
     const seeds = Array.from({ length: 60 }, (_, i) => 11 + i);
     for (const seed of seeds) {
       const result = createMatch(input(seed)).runToEnd();
@@ -105,7 +106,7 @@ describe('경기 엔진 코어 (E1)', () => {
       }
       sumTop += top;
     }
-    expect(sumTop / seeds.length).toBeLessThan(14200);
+    expect(sumTop / seeds.length).toBeLessThan(14100);
   });
 });
 

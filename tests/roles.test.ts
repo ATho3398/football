@@ -34,7 +34,8 @@ describe('역할 31개 (E.6, E.21 1번)', () => {
     expect(has('space')).toEqual(['freeRole', 'raumdeuter', 'shadowStriker']);
     expect(has('between')).toEqual(['falseNine', 'halfBack', 'invertedFullback', 'libero']);
     expect(has('demand')).toEqual(['crackWinger', 'enganche', 'regista']);
-    expect(has('exempt')).toEqual(['crackWinger', 'enganche', 'freeRole', 'regista']);
+    // C.81i: 레지스타는 수비 면제(exempt)를 뺐다 (역할 대비 −0.09/−0.26 → −0.05/−0.06)
+    expect(has('exempt')).toEqual(['crackWinger', 'enganche', 'freeRole']);
   });
 
   it('시그니처 카드 31장은 역할마다 1장, 모두 희귀, 10경기 해금 (데이터만)', () => {

@@ -37,7 +37,7 @@ function cbPasses(longMiss: number) {
 describe('C.80w 롱패스 착지 정확도', () => {
   it('상수: longMiss 0.6 · longW 0.25 · saveBase 1.89 (C.80w 1.75 + C.80u 세트피스 헤더 되돌림 0.07 + C.81a 박스 인원 되돌림 0.07)', () => {
     expect(ENGINE.prob.longMiss).toBe(0.6);
-    expect(ENGINE.decide.bias.longW).toBe(0.25);
+    expect(ENGINE.decide.bias.longW).toBe(0.4); // C.81h 0.25 → 0.4 (롱패스 비율 10.9 → 12.5%)
     expect(ENGINE.keeper.saveBase).toBe(1.93); // C.81b
   });
 

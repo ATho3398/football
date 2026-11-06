@@ -237,6 +237,8 @@ export interface Ball {
   kick: { kind: FlightKind; team: 0 | 1; receiver: number } | null;
   /** 이 GK 는 이 시각까지 손 처리 불가 (쳐낸 공·놓친 공, C.28) */
   handBlock: { idx: number; until: number } | null;
+  /** C.81h: GK 가 쳐낸 뒤 수비 팀(team) 필드 선수의 루즈볼 컨트롤이 until 까지 × keeper.parryDefControl */
+  defHold: { team: 0 | 1; until: number } | null;
 }
 
 export interface BallReserve {
@@ -288,6 +290,8 @@ export interface TeamState {
   coverAgent: number;
   /** GK 가 루즈볼을 쫓는 중 (C.28): 필드 추격자를 1명 줄인다 */
   gkChase: boolean;
+  /** C.81h: 이 팀 GK 가 마지막으로 쳐낸 시각 (keeper.parryDownT 창) */
+  parryT: number;
   /** 깊은 블록 비행 중 가로채기 (C.76p): 이 비행(cutFlight)의 패스 선에 들어간 선수 idx. 판정은 한 비행에 1회(판정 뒤 cutIdx −1, cutFlight 는 유지) */
   cutFlight: Flight | null;
   cutIdx: number;

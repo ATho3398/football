@@ -159,11 +159,11 @@ export function createState(input: EngineInput): SimState {
   const s: SimState = {
     input, seed: input.seed >>> 0, t: 0, elapsed: 0, tick: 0, half: 1, halfEnd: T.halfSeconds + added1,
     agents, bench,
-    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null },
+    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null, defHold: null },
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup, team) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, parryT: -100, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
       fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
       stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
     })) as SimState['teams'],
@@ -364,7 +364,9 @@ function updateLooseBall(s: SimState): void {
     if (b.reserve && (a.team === s.agents[b.reserve.idx]!.team || a.idx === b.reserve.from)) continue;
     const pressure = nearestOpponentDist(s, a) < 2 ? 0.1 : 0;
     // 날씨 (C.74a): 젖은·언 공 컨트롤 × touch
-    const p = (B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure) * s.env.touch;
+    let p = (B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure) * s.env.touch;
+    // C.81h 세컨볼: GK 가 쳐낸 직후 수비 팀 필드 선수는 한 박자 늦는다
+    if (b.defHold && a.team === b.defHold.team && a.line !== 0 && s.t < b.defHold.until) p *= ENGINE.keeper.parryDefControl;
     const roll = rand(s.seed, s.tick, a.idx, Purpose.Control);
     if (roll < p && roll / p < bestRoll) {
       bestRoll = roll / p;
@@ -456,6 +458,7 @@ function startSecondHalf(s: SimState): void {
  */
 function resetHalfClocks(s: SimState, back: number): void {
   s.lastShotT = [-100, -100];
+  s.teams[0].parryT = s.teams[1].parryT = -100;
   s.boxLand = null;
   s.lastPass = null;
   s.possSince = s.t;
