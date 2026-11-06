@@ -14,7 +14,7 @@ import { moneyShort, myWage } from '../money';
 import { BALANCE } from '../config/balance';
 
 export const CAT_ICON: Record<InboxCat, IconName> = {
-  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target', money: 'coin', national: 'world',
+  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target', money: 'coin', national: 'world', cup: 'trophy',
 };
 
 /** 옛 알림 칸(C.37·C.42·C.47·C.48·C.62)을 인박스로 옮긴다 (화면을 그리기 전에 부른다, 같은 알림은 key 로 한 번만) */

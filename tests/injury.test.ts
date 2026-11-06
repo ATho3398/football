@@ -106,8 +106,11 @@ describe('부상 진행', () => {
     const left = 140 - daysBetween(from, s.calendar.date);
     expect(s.player.injury?.daysLeft).toBe(left);
     startNextSeason(s);
-    expect(s.player.injury?.daysLeft).toBe(left - BALANCE.injury.offseasonWeeks * 7);
-    expect(healDays(s.player, left)).toBe(true);
+    // C.81l: 시즌이 남은 컵 경기 날짜(결승)까지 이어져 비시즌 회복으로 다 나을 수도 있다 (다 나으면 부상 없음)
+    const after = left - BALANCE.injury.offseasonWeeks * 7;
+    expect(s.player.injury?.daysLeft ?? 0).toBe(Math.max(0, after));
+    if (after > 0) expect(healDays(s.player, left)).toBe(true);
+    else expect(s.player.injury).toBeNull();
   });
 
   it('부상 기록과 결정성: 세이브 왕복 후에도 같은 결과', () => {

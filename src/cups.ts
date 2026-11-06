@@ -14,6 +14,7 @@ import { createTeamRoster, posGroup, type TeamRoster } from './roster';
 import { createRng, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import type { GameState } from './game';
+import { pushInbox } from './inbox';
 import { dayNum, type NpcLine } from './npcFit';
 import { lineupLines, npcQuickMatch, quickLines } from './npcQuick';
 
@@ -353,28 +354,90 @@ function quickFit(state: GameState, t: CupTie, date: IsoDate, key: string, lines
 const isMine = (state: GameState, t: CupTie): boolean => t.h === state.player.teamId || t.a === state.player.teamId;
 const played = (t: CupTie): boolean => t.hg !== undefined;
 
-/** 하루 끝 (endDay): 오늘 열리는 내 팀 없는 컵 경기를 간이 계산하고, 단계가 끝났으면 다음 단계를 추첨한다 */
+/**
+ * 하루 끝 (endDay): 오늘(또는 지난 날짜인데 아직 안 치른) 내 팀 없는 컵 경기를 간이 계산하고, 단계가 끝났으면 다음 단계를 추첨한다.
+ * C.81l: 리그가 끝난 뒤 남은 경기(결승 등)도 시즌 끝에 몰지 않고 그 날짜에 여기서 치른다 (시즌 끝은 cupsPending 이 거짓이 될 때까지 미룬다) · 내 팀이 없는
+ * 단계가 끝나면 인박스 "컵" 소식
+ */
 export function cupsDayEnd(state: GameState, date: IsoDate): void {
   const cups = state.cups;
   if (!cups || cups.season !== state.league.season) return;
   const fa = cups.fa;
   if (fa && !fa.winner) {
     const s = currentStage(fa);
-    if (fa.dates[s] === date) {
+    if (daysBetween(fa.dates[s]!, date) >= 0) {
       fa.rounds[s]!.forEach((t, i) => {
         if (!t.w && !isMine(state, t)) quickTie(state, fa, s, i);
       });
+      faNews(state, fa, s);
       advance(state, fa);
     }
   }
   const u = cups.ucl;
   if (u && !u.winner) {
-    for (const m of uclMatches(u)) if (m.t.d === date && !played(m.t) && !isMine(state, m.t)) uclQuick(state, u, m);
+    for (const m of uclMatches(u)) if (m.t.d && daysBetween(m.t.d, date) >= 0 && !played(m.t) && !isMine(state, m.t)) uclQuick(state, u, m);
     uclAdvance(state, u);
+    uclNews(state, u);
   }
 }
 
-/** 시즌 끝: 남은 경기를 모두 간이 계산해 우승 팀까지 정한다 (내 팀이 이미 탈락했거나 시즌이 끝날 때) */
+/** 아직 안 끝난 컵이 있다 (C.81l): 시즌 끝을 마지막 컵 경기 날짜까지 미룬다 (내 팀이 떨어졌어도 결승까지 그 날짜에) */
+export function cupsPending(state: GameState): boolean {
+  const cups = state.cups;
+  if (!cups || cups.season !== state.league.season) return false;
+  return (!!cups.fa && !cups.fa.winner) || (!!cups.ucl && !cups.ucl.winner);
+}
+
+// ── 컵 소식 (C.81l): 내 팀이 없는 단계가 끝나면 그 날 인박스. 내 팀이 뛴 단계는 결과 화면이 있으니 뺀다 ──
+
+const teamKo = (state: GameState, id: string): string => teamById(state.league, id).nameKo;
+const tieLine = (state: GameState, t: CupTie): string => `${teamKo(state, t.h)} ${t.hg}-${t.ag}${t.p ? ` (PK ${t.p[0]}-${t.p[1]})` : ''} ${teamKo(state, t.a)}`;
+
+function faNews(state: GameState, fa: CupComp, s: number): void {
+  const round = fa.rounds[s]!;
+  if (round.some((t) => !t.w || isMine(state, t))) return;
+  const name = compNameKo('fa', state.league.id);
+  const stage = stageName(fa, s);
+  const final = round.length === 1;
+  pushInbox(state, {
+    key: `cupnews:fa:${state.league.season}:${s}`, cat: 'cup',
+    title: final ? `${name} 결승 — ${teamKo(state, round[0]!.w!)} 우승` : `${name} ${stage} 결과`,
+    body: final ? `${tieLine(state, round[0]!)}. ${teamKo(state, round[0]!.w!)}가 ${name}을 들어 올렸어요.` : `${round.map((t) => tieLine(state, t)).join(' · ')}. ${round.map((t) => teamKo(state, t.w!)).join('·')} 진출.`,
+    link: { to: 'world', label: '월드' },
+  });
+}
+
+function uclNews(state: GameState, u: UclComp): void {
+  const season = state.league.season;
+  const me = state.player.teamId;
+  const inGroups = u.groups.some((g) => g.includes(me));
+  // 조별리그 끝 → 16강 진출 팀 (내 팀이 조별에 없을 때만)
+  if (u.ko.length && !inGroups) {
+    const teams = u.ko[0]!.l1.flatMap((t) => [t.h, t.a]);
+    pushInbox(state, {
+      key: `cupnews:ucl:${season}:groups`, cat: 'cup', title: '챔스 조별리그 끝 — 16강 진출 팀',
+      body: `${teams.map((t) => teamKo(state, t)).join(' · ')}.`, link: { to: 'world', label: '월드' },
+    });
+  }
+  u.ko.forEach((st, s) => {
+    const fin = s === 3;
+    const legs: [CupTie[], string][] = fin ? [[st.l1, '']] : [[st.l1, ' 1차전'], [st.l2, ' 2차전']];
+    legs.forEach(([ties, leg], k) => {
+      if (!ties.length || ties.some((t) => !played(t) || isMine(state, t))) return;
+      const w = fin ? ties[0]!.w : null;
+      pushInbox(state, {
+        key: `cupnews:ucl:${season}:${s}:${k}`, cat: 'cup',
+        title: fin ? `챔스 결승 — ${teamKo(state, w!)} 우승` : `챔스 ${KO_NAMES[s]}${leg} 결과`,
+        body: fin
+          ? `${tieLine(state, ties[0]!)}. ${teamKo(state, w!)}가 유럽 정상에 올랐어요.`
+          : `${ties.map((t) => tieLine(state, t)).join(' · ')}.${k === 1 ? ` ${ties.map((t) => teamKo(state, t.w!)).join('·')} 진출.` : ''}`,
+        link: { to: 'world', label: '월드' },
+      });
+    });
+  });
+}
+
+/** 시즌 끝 안전망: 남은 경기를 모두 간이 계산해 우승 팀까지 정한다 (C.81l 부터는 날짜마다 cupsDayEnd 가 치러 보통 남는 게 없다) */
 export function cupsFinish(state: GameState): void {
   const cups = state.cups;
   if (!cups || cups.season !== state.league.season) return;

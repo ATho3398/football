@@ -117,7 +117,7 @@ describe('훈련 프리셋 (C.52)', () => {
     raw.saveFormat = 30;
     expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
     const back = deserialize(serialize(g));
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     expect(back.training).toEqual(g.training);
     playRound(back, { engine: 'quick' });
   });
