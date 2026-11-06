@@ -19,61 +19,19 @@
   }
  },
  "potential": {
-  "home": "잠재력 88~92",
-  "player": "88~92"
+  "home": "잠재력 87~91",
+  "player": "87~91"
  },
  "got": {
-  "moment": 2,
+  "moment": 1,
   "card": false,
   "mismatch": [],
   "rows": [
    [
     {
-     "name": "타일러 브라운에게 백패스",
-     "chain": false,
-     "chance": 86,
-     "up": 0.02,
-     "down": -0.04,
-     "passive": 0,
-     "ev": 0.01,
-     "risk": "mid"
-    },
-    {
-     "name": "크리스티안 에릭센에게 전진 패스",
-     "chain": false,
-     "chance": 74,
-     "up": 0.05,
-     "down": -0.02,
-     "passive": 0,
-     "ev": 0.03,
-     "risk": "low"
-    },
-    {
-     "name": "측면으로 몰고 가기",
+     "name": "해리 케인에게 패스",
      "chain": false,
      "chance": 71,
-     "up": 0,
-     "down": -0.04,
-     "passive": 0,
-     "ev": -0.01,
-     "risk": "mid"
-    },
-    {
-     "name": "해리 케인에게 전진 패스",
-     "chain": false,
-     "chance": 60,
-     "up": 0.05,
-     "down": -0.02,
-     "passive": 0,
-     "ev": 0.02,
-     "risk": "low"
-    }
-   ],
-   [
-    {
-     "name": "셰후 오콘에게 백패스",
-     "chain": false,
-     "chance": 81,
      "up": 0.02,
      "down": -0.02,
      "passive": 0,
@@ -81,9 +39,9 @@
      "risk": "low"
     },
     {
-     "name": "버질 반 다이크 1대1 돌파",
+     "name": "제이컵 웨이드 1대1 돌파",
      "chain": false,
-     "chance": 56,
+     "chance": 55,
      "up": 0.09,
      "down": -0.02,
      "passive": 0,
