@@ -9996,6 +9996,33 @@ C 의 "GK 옆 위치를 공–골 가운데 선 위로"(스위퍼 8 m 앞에서 
 - 프로파일 (Node, 15경기, 자기 시간 ms/경기, main → C.81j): moveAgentMV 123 → 126 · turnHeadMV 41 → 44 · defendTarget 39 → 36 · stepBody 36 → 34 · GC 28 → 14 · stepTail 27 → 25 · updateOffball 25 → 25 · candidates 22 → 20 · arrivalTime 21 → 22 · lineMatchPlan 19 → 16 · attackTarget 17 → 16 · randn 13 → 12 · landingShare 9 → 6 · keeperChase 6 → 5. 호출 횟수(경기당): moveAgentMV 125만 · turnHeadMV 66만 · rand 59만 · arrivalTime 29만 · updateOffball 23만 · slotTargetS 23만 · randn 16만 · candidates 2천.
 - 재현: 지문 `npx vite-node scripts/diag/c81j-fp.ts` · 속도 C.81e 와 같음(`scripts/diag/c81e-bench.ts`, `c81e-bench-worker.ts` + `c81e-worker-bench.mjs`).
 
+### C.81x 53단계_엔진 구조 속도: 선수 실수 필드 Float64Array (마스터 AD `docs/session-prompts/C.81x.md`, 앞 단계 C.81e·C.81j "남은 큰 덩어리 = 선수 이동·몸 돌리기, 더 줄이려면 선수 실수 필드를 Float64Array 로 옮기는 구조 변경", Fable): **구조 변경을 실제로 재 보니 이득이 없어 엔진을 바꾸지 않았다(경기 계산 시간·결과 모두 그대로). 선수 실수 필드를 Float64Array 구조체 배열로 옮겨도 이동 루프 시간이 같다(마이크로 실험 0~4%) — V8 이 선수 객체의 실수 필드를 이미 제자리 상자(Double 표현)로 두어 "실수 필드 상자 읽기"는 병목이 아니었다. 남은 큰 몫은 이동·몸 돌리기의 수식 자체(나눗셈 약 10개·제곱근 5개의 의존 사슬 ≈ 호출당 100 ns, atan2·cos·sin) 라 결과 비트를 지키면서 −25% 는 나올 수 없다. 더 줄이려면 결과가 바뀌는(ENGINE 번호가 오르는) 패치여야 한다** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 무수정, 측정 스크립트만 추가)
+
+- **안 된 것(먼저)**: 목표(Chromium 워커 320 ms 이하 · Node −25%)를 못 했다. 지시된 구조 변경은 아래 세 측정이 모두 "이득 없음"이라 700곳 넘는 `a.x`·`a.y` 참조를 바꾸는 큰 전환을 하지 않았다(바꿔도 같은 시간, 코드만 어려워짐). 엔진 코드 변경이 없으므로 지문·전후 ms 표는 기준값과 같다.
+- 왜 이득이 없나 (세 가지 직접 측정, 모두 `scripts/diag/c81x-*`):
+  1. **마이크로 실험** (`c81x-soa-micro.mjs`): `moveAgentMV`·`turnHeadMV` 와 같은 식·같은 분기를 선수 객체(실수 필드 약 30개, AoS)와 Float64Array 구조체 배열(SoA)로 각각 132만 번(22명 × 6만 틱, 경기 1회 호출 수와 같음) 돌림 — **AoS 106 ms · SoA 106 ms(차 0~4%)**, 검사합 같음. 호출당 80 ns 로 실제 엔진의 약 100 ns 와 같은 자리.
+  2. **실수 필드 저장이 상자를 새로 만드는가** (`c81x-store-alloc.ts`): 경기 6000틱 뒤 실제 선수 객체 `a.x`·`a.stats.distance`·공 `b.x` 에 5천만 번 실수를 저장 — **GC 0~1회(새 HeapNumber 없음)**. 즉 C.81e 의 `fixDoubles` 로 필드가 이미 Double 표현이라 저장은 제자리에 쓰고, 읽기는 포인터 한 번 더 따라가는 정도라 Float64Array 와 같다.
+  3. **실제 엔진 시제품**: 물리 필드 32개를 `a.f`(Float64Array)로 옮기고 `physics.ts` 는 배열을 직접, 나머지 700곳은 프로토타입 접근자(getter/setter)로 읽게 한 시제품 — 지문 `c81j-fp.ts` **cf7f8284225b1550 동일**(결과 불변 확인)이지만 시간은 **674~1194 ms 대 기준 511~523 ms(+30~130%)**: 접근자 경로가 필드 읽기보다 훨씬 느려, 전환은 700곳을 모두 배열 색인으로 고쳐야만 "같은 시간"이 된다(1번 실험). 되돌림.
+- 그럼 시간은 어디에 가나 (기준 main b5a3484, Node 22, 4코어 VM):
+  - CPU 프로파일 20경기 자기 시간 ms/경기(`c81x-profsum.mjs`): moveAgentMV **114(17%)** · turnHeadMV 39(6%) · defendTarget 35 · stepBody 31 · updateOffball 26 · GC 25 · stepTail 25 · arrivalTime 21 · candidates 20 · attackTarget 14 · lineMatchPlan 13 · randn 8 · slotTargetS 8 · trackPlan 8 — 위 둘이 23%, 나머지는 1~5% 씩 평평. turnHeadMV 는 줄별 틱의 77% 가 `atan2`·`atan2`·`cos`·`sin` 네 줄. moveAgentMV 는 호출당 약 100 ns = 나눗셈 약 10개 + 제곱근 5개(각 15~20 사이클)의 의존 사슬 ≈ 80 ns 바닥 — `(dx / d) * corr` 를 `dx * (corr / d)` 로 바꾸는 식의 재배열은 비트가 달라져 못 쓴다.
+  - V8 계층·최적화 상태(`node --prof`): 뜨거운 함수 전부 TurboFan 최적화 코드(`*`)에서 돈다. 비최적화 코드 틱 없음. 경기별 deopt(`--trace-deopt`) 1~2번째 경기 86·29회 뒤 8번째부터 경기당 0~2회(희귀 분기 첫 실행 "insufficient feedback"·`s.restart` 모양 "wrong map")라 반복 비용 아님. 메가모픽 IC 는 LoadIC 1.9% + KeyedLoadIC_Megamorphic 1.4%(`mkFlight` 안 읽기·역할/전술 표 키 조회·`ENGINE.decide.bias[type]`) — 고쳐도 3% 안.
+  - V8 플래그 실험(40경기 온 평균): 기본 517·521 · `--no-maglev` 515 · 인라인 누적 한도 2000 513 · 함수 한도 1200 514 · 둘 다(1200·3000) 495 — 모두 ±5% 잡음 폭(C.81j 의 "인라인 한도 −6%" 와 같은 크기). 인라인 추적(`--trace-turbo-inlining`)으로 moveAgentMV 안의 desiredSpeed·effectiveMax·effectiveAccel·burstCap·clamp 가 이미 인라인됨을 확인.
+  - 할당(`c81x-allocprof.mjs`, 죽은 객체 포함 표본): 경기당 약 300 MB 가 50곳 넘게 흩어짐(최대 자리 moveAgentMV 15 MB 5%, defendTarget 14 MB, updateOffball 13 MB, candidates 12+9 MB, defendDuels 10+3 MB…). GC 는 2~3% 라 한 곳을 없애도 1% 안.
+- 결론과 다음 후보(결과가 바뀌는 패치, 사용자 결정 필요 없음 — 마스터가 엔진 패치로 열 때 ENGINE 번호·상성 960·장면 관문 그대로): ① 몸 돌리기 삼각함수 근사(`turnHeadMV` 의 atan2·cos·sin → 다항 근사, 66만 호출 × 약 45 ns ≈ 경기당 30 ms, −6%) ② 서 있는 선수(목표 도착·속도 0·목표 속도 0) 이동 계산 건너뛰기 — 체력·순간 체력 회복만 남기면 비트가 바뀌므로 결과 변경으로 분류 ③ 오프볼 갱신 간격(`time.offballInterval`)·판단 후보 수 조정(판단 품질에 걸림). 결과 불변으로 남은 것은 `s.restart` 객체 모양 고정(`mkFlight` 식)·`lineMatchPlan().drop` Set → 선수별 플래그 같은 1% 안 항목뿐이라 열지 않는 편이 낫다.
+- 기준 측정(이번 main, 변경 없음 — `c81e-bench` 100경기 2회 · `c81e-bench-worker` + `c81e-worker-bench.mjs` 100경기 2회):
+
+| 경기 1회 계산 (다른 팀 경기 `createMatch(...).runToEnd()`, 100경기) | main b5a3484 (= C.81x) |
+|---|---|
+| Node 온 평균 / 중앙값 | 492 · 498 ms / 483 · 491 ms |
+| Node 첫 경기(냉) | 1,064 · 1,056 ms |
+| Node GC | 2.2 · 2.0% |
+| Chromium 153 Web Worker 온 평균 / 중앙값 (PC 워커) | 383 · 368 ms / 369 · 362 ms |
+| Chromium Web Worker 첫 경기(냉) | 994 · 868 ms |
+
+  (C.81j 표의 워커 429 ms 와 다른 것은 기계·회차 차 — 같은 날 같은 빌드도 ±5%.) 결과 불변 지문 `scripts/diag/c81j-fp.ts` 기준 **cf7f8284225b1550**(c74a 0c1b26ec41bdf831 · 재생 83c5d2fb82280946 · 상성 45259276b45757e1 · 다른 경기 92202bc334311037) — 엔진 무수정이라 그대로.
+- 관문: typecheck · test · build · `balance:engine:check` 통과(엔진 무수정). 새 화면: 없음.
+- 재현: `node scripts/diag/c81x-soa-micro.mjs` · `npx esbuild scripts/diag/c81x-store-alloc.ts --bundle --platform=node --format=esm --outfile=/tmp/sa.mjs && node /tmp/sa.mjs` · 프로파일 `node --cpu-prof <c81e-bench 번들> 20` → `node scripts/diag/c81x-profsum.mjs <cpuprofile> 20 moveAgentMV turnHeadMV` · 할당 `BENCH=<번들> OUT=/tmp/a.heapprofile node scripts/diag/c81x-allocprof.mjs x 15` → `c81x-profsum.mjs /tmp/a.heapprofile 15`.
+
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
 ### C.81m 53단계_다른 리그 추정 평점 리그별 실측 보정 (마스터 AD `docs/session-prompts/C.81m.md`, 근거 C.81d "섞인 시상 표 추정 평점 일괄 −0.33 — 표본 시즌 6개라 방향만 본 것", Opus): **'내 리그만 엔진'에서 다른 리그 추정 평점을 일괄 −0.33 대신 포지션군별로 엔진 척도에 맞춘다 — avg = 6.62 + (추정 − 6.62) × 퍼짐 + 이동 + 정규 잡음 × σ(선수·시즌 시드). 엔진은 포지션마다 평균이 달라(CDM 5.6 · CM 5.7 · CAM 5.8 · ST 6.1 · GK 6.3 · CB 6.4 · WING 6.4 · FB 6.6) 같은 OVR 에서도 시즌 평점이 퍼지는데(잔차 0.30~0.56), 추정은 포지션 차 없이 6.4~6.5 · 잔차 0.17 이라 일괄 이동으로는 CDM·CM 은 0.5 높고 FB 는 0.45 낮으며 상위 20명은 FB −0.96 · CB −0.55 였다. 8개 포지션군 모두 평균·상위 20명 평균이 엔진과 ±0.05 안. 추정 리그 실점 항목(def)은 × 0.67(빠른 진행 점수 확률은 상위 팀 독주가 엔진보다 커서 부풂)** (BALANCE_VERSION 97(C.81n) → **98**, merge 순서; ENGINE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 무수정, 세이브 필드 없음)
