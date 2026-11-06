@@ -22,7 +22,7 @@ describe('시상 추정 출전 몫 분포 (C.81w)', () => {
   });
 
   it('추정 리그 이력서 풀: 팀당 ST 후보가 벤치 전원(옛 2.1명)이 아니라 엔진처럼 2명 아래, FB 는 3명 이상', () => {
-    const g = newGame({ mode: 'prospect', position: 'GK', seed: 'c81w-u1', difficulty: 'normal', leagues: ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'] });
+    const g = newGame({ mode: 'prospect', position: 'CB', seed: 'c81w-u1', difficulty: 'normal', leagues: ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'] });
     for (const lg of g.otherLeagues ?? []) finishOtherSeason(g.worldSeed, lg, g.npcs);
     const rs = buildResumes(g).filter((r) => !r.me && r.lg !== g.league.id);
     const teams = (g.otherLeagues ?? []).reduce((t, lg) => t + lg.teams.length, 0);
@@ -35,7 +35,7 @@ describe('시상 추정 출전 몫 분포 (C.81w)', () => {
 describe('다른 리그 빠른 진행 점수 (C.81w)', () => {
   it('diffScale < 1: 빅5 1위 팀 경기당 득점이 엔진 범위(2.2~2.7)', () => {
     expect(BALANCE.otherScorers.diffScale).toBeLessThan(1);
-    const g = newGame({ mode: 'prospect', position: 'GK', seed: 'c81w-u2', difficulty: 'normal', leagues: ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'] });
+    const g = newGame({ mode: 'prospect', position: 'CB', seed: 'c81w-u2', difficulty: 'normal', leagues: ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'] });
     const tops: number[] = [];
     for (const lg of g.otherLeagues ?? []) {
       finishOtherSeason(g.worldSeed, lg, g.npcs);
