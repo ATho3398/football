@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 96;
+export const BALANCE_VERSION = 97;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1903,6 +1903,8 @@ export const BALANCE = {
     wcQuota: { UEFA: 13, CONMEBOL: 5, AFC: 5, CAF: 5, CONCACAF: 4, OFC: 0 },
     /** 대회 경기 날짜: 리그 최종 라운드 + startAfter 일부터 조별 gap 일 간격, 녹아웃 koGap 일 간격 */
     startAfter: 21, gap: 4, koGap: 4,
+    /** 대회 소집일 = 첫 조별 경기 campDays 일 전 (C.81l: 소집되면 클럽 시즌 끝 → 휴가 → 소집일부터 대표팀 훈련·경기를 달력 위에서 치른다) */
+    campDays: 7,
     /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
     tournamentBonus: 0.05,
     /** 세이브에 남기는 지난 대회 수 (조·대진 표) */

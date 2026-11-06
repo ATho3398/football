@@ -5,7 +5,7 @@ import { calendarOf, type GameState } from '../game';
 import { dateLabel, daysBetween } from '../calendar';
 import { pensText, scoreText } from '../text';
 import { reputationTier, playerOvr, TIER_NAMES_KO } from '../growth';
-import { callChance, ensureNational, myTournament, NAT_COMP_KO, natId, natLabel, natWindows, nextWorldCupYear, type NatMatch, type TournamentRec } from '../national';
+import { callChance, ensureNational, myTournament, NAT_COMP_KO, natId, natLabel, natWindows, nextWorldCupYear, tournamentRecord, type NatMatch, type TournamentRec } from '../national';
 
 export interface NatFixtureVM {
   date: string;
@@ -21,7 +21,7 @@ export interface NatFixtureVM {
 
 export interface NatTableVM { name: string; mine: boolean; rows: { team: string; teamId: string; p: number; w: number; d: number; l: number; gd: string; pts: number; me: boolean; through: boolean }[] }
 export interface NatTieVM { a: string; aId: string; b: string; bId: string; score: string; w: string; me: boolean }
-export interface NatTournamentVM { id: string; title: string; reach: string; champion: string; called: boolean; groups: NatTableVM[]; ko: { name: string; ties: NatTieVM[] }[]; note: string }
+export interface NatTournamentVM { id: string; title: string; reach: string; champion: string; called: boolean; groups: NatTableVM[]; ko: { name: string; ties: NatTieVM[] }[]; note: string; /** 달력 위에서 진행 중 (C.81l) */ live: boolean }
 
 export interface NationalVM {
   nation: string;
@@ -58,12 +58,13 @@ function fixtureVM(g: GameState, m: NatMatch): NatFixtureVM {
   };
 }
 
-function tournamentVM(t: TournamentRec, me: string): NatTournamentVM {
+function tournamentVM(t: TournamentRec, me: string, live = false): NatTournamentVM {
   const ko = t.ko.slice().reverse().map((r) => ({
     name: r.name,
     ties: r.ties.map((x) => ({
       a: nationOf(x.a).nameKo, aId: natId(x.a), b: nationOf(x.b).nameKo, bId: natId(x.b),
-      score: `${scoreText(x.ga, x.gb)}${x.pens ? ` (${pensText(x.pens)})` : ''}`, w: nationOf(x.winner).nameKo, me: x.a === me || x.b === me,
+      // 아직 안 치른 녹아웃 (진행 중인 대회, C.81l): 점수 자리에 vs, 진출 팀 없음
+      score: x.ga < 0 ? 'vs' : `${scoreText(x.ga, x.gb)}${x.pens ? ` (${pensText(x.pens)})` : ''}`, w: x.winner ? nationOf(x.winner).nameKo : '', me: x.a === me || x.b === me,
     })),
   }));
   const koTeams = new Set(t.ko[0]?.ties.flatMap((x) => [x.a, x.b]) ?? []);
@@ -77,7 +78,7 @@ function tournamentVM(t: TournamentRec, me: string): NatTournamentVM {
   groups.sort((a, b) => Number(b.mine) - Number(a.mine));
   const T = BALANCE.national.tournaments[t.comp];
   return {
-    id: t.id, title: `${t.year} ${NAT_COMP_KO[t.comp]}`, reach: t.qualified ? t.reach : '본선 진출 실패', champion: nationOf(t.champion).nameKo, called: t.called, groups, ko,
+    id: t.id, title: `${t.year} ${NAT_COMP_KO[t.comp]}${live ? ' (진행 중)' : ''}`, reach: t.qualified ? t.reach : '본선 진출 실패', champion: t.champion ? nationOf(t.champion).nameKo : '미정', called: t.called, groups, ko, live,
     note: `${T.teams}팀 · ${T.groups}개 조 1회전 → ${T.ko}강 녹아웃 (조 1·2위${T.ko > T.groups * 2 ? ' + 성적 좋은 3위' : ''}) · 녹아웃 무승부는 승부차기 · 내 경기가 아닌 경기는 전력으로 간이 계산`,
   };
 }
@@ -94,7 +95,9 @@ export function nationalVM(g: GameState, pick: string | null): NationalVM {
     const wins = natWindows(g, calendarOf(g).breaks);
     const upcoming = nat.fixtures.find((m) => m.season === season && m.gf === undefined);
     const nextW = wins.find((w) => nat.calls[w.key] === undefined && daysBetween(g.calendar.date, w.dates[0]!) > 0);
-    if (upcoming) status = `소집됨 · ${dateLabel(upcoming.date)} ${nationOf(upcoming.opp).nameKo}전`;
+    const live = nat.live;
+    if (live?.called && upcoming) status = `${live.year} ${NAT_COMP_KO[live.comp]} 소집 · 소집일 ${dateLabel(live.camp)} · ${dateLabel(upcoming.date)} ${nationOf(upcoming.opp).nameKo}전 (${upcoming.stage})`;
+    else if (upcoming) status = `소집됨 · ${dateLabel(upcoming.date)} ${nationOf(upcoming.opp).nameKo}전`;
     else if (nextW) status = `다음 A매치 주간 ${dateLabel(nextW.sat)} 무렵 · ${BALANCE.national.window.announce}일 전 명단 발표`;
     else status = '이번 시즌 A매치 주간이 끝났어요 · 시즌 뒤 여름에 대회 또는 평가전';
   } else status = '비시즌 · 다음 시즌 A매치 주간에 다시 소집 판정';
@@ -104,7 +107,10 @@ export function nationalVM(g: GameState, pick: string | null): NationalVM {
   const wc = nextWorldCupYear(year);
   const next = [comp ? `${g.phase === 'season' ? '이번' : '다음'} 여름 ${year} ${NAT_COMP_KO[comp]}` : `${g.phase === 'season' ? '이번' : '다음'} 여름 6월 평가전`, comp === 'wc' ? '' : `다음 월드컵 ${wc}`].filter(Boolean).join(' · ');
   const fixtures = nat.fixtures.filter((m) => m.season >= season - 1);
-  const ts = nat.tournaments.slice().reverse();
+  // 진행 중인 대회 (C.81l)가 맨 앞: 지금까지 결과로 만든 조 순위·대진
+  const live = nat.live && g.phase === 'season' ? nat.live : null;
+  const liveRec = live ? tournamentRecord(g, live) : null;
+  const ts = [...(liveRec ? [liveRec] : []), ...nat.tournaments.slice().reverse()];
   const t = ts.find((x) => x.id === pick) ?? ts[0] ?? null;
   return {
     nation: n.nameKo, nationId: natId(n.name), confed: CONFED_KO[n.confed], rating: n.rating, ovr: playerOvr(p),
@@ -114,7 +120,7 @@ export function nationalVM(g: GameState, pick: string | null): NationalVM {
     results: fixtures.filter((m) => m.gf !== undefined).slice(-12).reverse().map((m) => fixtureVM(g, m)),
     next,
     honors: nat.honors.slice().reverse().map((h) => ({ year: h.year, label: NAT_COMP_KO[h.comp], reach: h.reach, xp: h.xp })),
-    tournaments: ts.map((x) => ({ id: x.id, label: `${x.year} ${NAT_COMP_KO[x.comp]}` })),
-    tournament: t ? tournamentVM(t, nat.nation) : null,
+    tournaments: ts.map((x) => ({ id: x.id, label: `${x.year} ${NAT_COMP_KO[x.comp]}${x === liveRec ? ' (진행 중)' : ''}` })),
+    tournament: t ? tournamentVM(t, nat.nation, t === liveRec) : null,
   };
 }

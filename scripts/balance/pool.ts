@@ -3,7 +3,7 @@
 // WORKERS=0 이면 메인 스레드에서 차례로 (C.78l 전과 같은 경로)
 
 import { build } from 'esbuild';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, renameSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,15 +11,18 @@ import { Worker } from 'node:worker_threads';
 import { runCareerJob, type CareerJob, type Run } from './career';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const proc = (globalThis as { process?: { env: Record<string, string | undefined>; stderr: { write(s: string): void } } }).process;
+const proc = (globalThis as { process?: { pid?: number; env: Record<string, string | undefined>; stderr: { write(s: string): void } } }).process;
 
 async function bundle(): Promise<string> {
   const out = resolve(here, '../../node_modules/.cache/balance-harness/worker.mjs');
   mkdirSync(dirname(out), { recursive: true });
+  // C.81k: 여러 프로세스(로컬 조각 동시 실행)가 같은 파일을 덮어쓰다 반쯤 쓴 파일을 읽어 멈추지 않게 — 따로 쓰고 한 번에 바꿔 넣는다
+  const tmp = `${out}.${proc?.pid ?? 0}.tmp.mjs`;
   await build({
-    entryPoints: [join(here, 'worker.ts')], bundle: true, platform: 'node', format: 'esm', outfile: out,
+    entryPoints: [join(here, 'worker.ts')], bundle: true, platform: 'node', format: 'esm', outfile: tmp,
     logLevel: 'warning', target: 'node20',
   });
+  renameSync(tmp, out);
   return out;
 }
 
