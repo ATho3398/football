@@ -13,7 +13,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # C.81k: main 은 그대로 pages 한 줄. 다른 브랜치 수동 실행(검사만)은 브랜치별 줄이라 main 배포를 기다리거나 막지 않는다
+  group: ${{ github.ref == 'refs/heads/main' && 'pages' || format('pages-{0}', github.ref) }}
   # C.80x: 진행 중 CI 는 끝까지 돌리고 새 푸시는 최신 1개만 대기 (연속 푸시로 계속 취소되던 문제)
   cancel-in-progress: false
 
