@@ -10,12 +10,12 @@ import { derbyOf } from '../derby';
 import { npcBanLeft } from '../npcBan';
 import { formLevel } from '../form';
 import { isNeutralMatch, matchCompLabel, myMatchPosition, myStartChance, myScoutReport, natStartChance, nextFixture, type GameState } from '../game';
-import { ensureNational, natId } from '../national';
+import { ensureNational, natId, natPreviewLineup } from '../national';
 import type { ScoutReport } from '../rapport';
 import { leaguePosition, teamById, type LeagueState } from '../league';
 import { proficientOvr } from '../proficiency';
 import { isUnlocked } from '../unlocks';
-import { POSITION_NAMES_KO } from '../positions';
+import { POSITION_NAMES_KO, type FieldPosition } from '../positions';
 import { ROLE_NAMES_KO } from '../engine/roles';
 import type { MatchControl } from '../game';
 import { previewLineup } from '../myTactics';
@@ -96,14 +96,16 @@ export function prepVM(g: GameState): PrepVM | null {
   // 대표팀 경기 (C.76d): 내 쪽 = 대표팀, 출장 정지는 리그만
   const my = teamById(L, fx.nat ? natId(ensureNational(g).nation) : p.teamId);
   const opp = teamById(L, fx.opponentId);
-  const pos = myMatchPosition(g);
+  // C.81v3: 대표팀 경기는 클럽 전술(포메이션·내 슬롯)을 안 쓴다 — 엔진처럼 내 주 포지션 + 대표팀 포메이션
+  const natPv = fx.nat ? natPreviewLineup(g, fx.nat.opp) : null;
+  const pos = natPv ? (p.position as FieldPosition) : myMatchPosition(g);
   const ovr = proficientOvr(p, pos);
-  const role = myRoleId(g);
+  const role = natPv ? undefined : myRoleId(g);
   const d = derbyOf(p.teamId, opp.id);
   const out = p.injury ? '부상' : p.suspended > 0 && !fx.nat ? '출장 정지' : null;
   const roster = g.rosters[p.teamId];
   const t = g.tactics;
-  const lineup = roster ? previewLineup(t, roster, { name: p.name, attrs: p.attributes }) : [];
+  const lineup = natPv ? natPv.slots : roster ? previewLineup(t, roster, { name: p.name, attrs: p.attributes }) : [];
   const slots: FormationSlotProps[] = lineup.map((x) => ({ pos: x.pos, x: Math.round(10 + x.y * 80), y: Math.round(8 + x.x * 95), me: x.me, ...(x.me ? { ovr } : {}) }));
   const tr = g.trial;
   const team = (id: string, rating: number, name: string, tactic?: TacticVM): PrepTeamVM => ({ id, name, rank: leaguePosition(L, id), rating: Math.round(rating), form: teamForm(L, id), ...(tactic ? { tactic } : {}) });
@@ -121,7 +123,7 @@ export function prepVM(g: GameState): PrepVM | null {
     natFixed: !!fx.nat,
     tacticLine: DETAILS.map((d) => `${SHORT_DETAIL[d]} ${LEVEL_NAMES_KO[d][t.levels[d]]}`).join(' · '),
     hint: g.training.hints[0] ?? null,
-    slots, formation: myTacticVM(g).formation ?? '',
+    slots, formation: natPv ? natPv.formation : myTacticVM(g).formation ?? '',
     me: { pos, posKo: POSITION_NAMES_KO[pos], role: role ? ROLE_NAMES_KO[role] ?? role : '', roleDesc: role ? ROLE_DESC_KO[role] ?? '' : '', prof: Math.floor(proficiencyOf(p, pos)), ovr, mainPos: p.position, off: pos !== p.position },
     start: { out, trial: tr ? { n: tr.games + 1, of: tr.extended ? BALANCE.startClub.trialMaxGames : BALANCE.startClub.trialGames } : null, chance: out ? 0 : Math.round((fx.nat ? natStartChance(proficientOvr(p, p.position), my.rating) : myStartChance(g, ovr)) * 100) },
     condition: {

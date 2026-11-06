@@ -3,26 +3,29 @@
  "H": 844,
  "errors": [],
  "screens": {
-  "3c_결과화면": {
+  "1_대표팀-준비-전술칸": {
    "wide": 0
   },
-  "4b_리플레이-재생중-득점피드": {
+  "1b_대표팀-준비-전술칸-위치": {
+   "wide": 0
+  },
+  "1c_대표팀-준비-내포지션-대표팀포메이션": {
    "wide": 0
   }
  },
  "notes": {
-  "moment": {
-   "picked": 0,
-   "chips": [],
-   "decRows": []
+  "prepCover": {
+   "rowBottom": 432,
+   "barTop": 772,
+   "covered": false
   },
-  "replay": {
-   "goalFeed": true,
-   "feed": [
-    "10분간 우리 점유 52%",
-    "11'슈팅 (유효) 크리스티안 에릭센",
-    "11'골! 크리스티안 에릭센 (토트넘 홋스퍼) · 도움 해리 케인1 : 0"
-   ]
+  "prepPos": {
+   "info": "LW\n        숙련 100 · OVR 83",
+   "pitch": "4-4-2, 내 위치 LW"
+  },
+  "prep": {
+   "natLine": "대표팀 전술감독 고정 · 클럽 전술은 쓰지 않아요",
+   "tacOpen": false
   }
  }
 }

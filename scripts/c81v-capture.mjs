@@ -114,6 +114,13 @@ if (want('prep')) {
     });
     await shot('1b_대표팀-준비-전술칸-위치');
   }
+  // C.81v3: 내 포지션 그림 (대표팀 포메이션)
+  if (await has('.prep-pos')) {
+    await page.evaluate(() => document.querySelector('.prep-pos')?.scrollIntoView({ block: 'center' }));
+    await page.waitForTimeout(300);
+    report.notes.prepPos = await page.evaluate(() => ({ info: document.querySelector('.prep-pos__info')?.textContent?.trim(), pitch: document.querySelector('.prep-pos [aria-label]')?.getAttribute('aria-label') }));
+    await shot('1c_대표팀-준비-내포지션-대표팀포메이션');
+  }
   report.notes.prep = await page.evaluate(() => ({ natLine: document.querySelector('.prep-nat-tactic')?.textContent?.trim() ?? null, tacOpen: !!document.querySelector('main.screen-prep [data-act="tac-open"]') }));
 }
 

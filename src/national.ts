@@ -14,14 +14,16 @@ import { A_GRADE_PLAYERS } from '../data/players';
 import { addDays, daysBetween, type IsoDate } from './calendar';
 import { expectedGoals, scorePair } from './league';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
-import { createTeamRoster, type TeamRoster } from './roster';
+import { createTeamRoster, posGroup, type TeamRoster } from './roster';
+import { npcInjuredOut, teamSetupFromRoster } from './engine/setup';
+import { slotsOf } from './formations';
 import { reputationTier, playerOvr } from './growth';
 import { myNationality } from './life';
 import { pushInbox } from './inbox';
 import { NAME_POOLS, PLAYER_EXTRA_POOLS } from '../data/names';
 import { randomNameFor } from './identity';
 import type { GameState } from './game';
-import type { Tier } from './types';
+import type { Position, Tier } from './types';
 
 export type NatComp = 'friendly' | 'wc' | 'euro' | 'copa' | 'asian' | 'afcon' | 'gold' | 'ofc';
 export type TournamentComp = Exclude<NatComp, 'friendly'>;
@@ -825,4 +827,27 @@ export function nationalSeasonEnd(state: GameState, finalDate: IsoDate, play: Pl
 /** 세이브 크기: 경기 기록은 최근 maxFixtures 개 */
 export function trimNational(nat: NationalState, max = 240): void {
   if (nat.fixtures.length > max) nat.fixtures.splice(0, nat.fixtures.length - max);
+}
+
+/**
+ * 대표팀 경기 준비 "내 포지션" 그림 (C.81v3): 엔진(natRoundMatch → buildMyMatch)과 같은 계산 — 대표팀 로스터의 포메이션과 선발
+ * (teamSetupFromRoster, 감독 성향 실용·부상 결장 없음), 내 자리 = 내 주 포지션군에서 가장 뒤(OVR 낮은) 선발 자리(adapter mySlot 과 같은 규칙).
+ * 클럽 전술·포메이션은 쓰지 않는다. 엔진은 읽기만 한다
+ */
+export function natPreviewLineup(state: GameState, oppNation: string): { formation: string; slots: { pos: Position; x: number; y: number; me: boolean }[]; myPos: Position } {
+  const nat = ensureNational(state);
+  const roster = natRoster(state, nat.nation);
+  const myR = nationRating(nat.nation);
+  const oppR = nationRating(oppNation);
+  const setup = teamSetupFromRoster(roster, myR, oppR, state.worldSeed, npcInjuredOut(roster, undefined), (myR + oppR) / 2, false, undefined, 'neutral');
+  const g = posGroup(state.player.position as Position);
+  const outfield = setup.lineup.filter((p) => p.position !== 'GK' && p.slot >= 0);
+  const same = outfield.filter((p) => posGroup(p.position) === g);
+  const mine = (same.length ? same : outfield).at(-1)!.slot;
+  const slots = roster.customSlots ?? slotsOf(roster.formation);
+  return {
+    formation: roster.formation,
+    slots: setup.lineup.filter((p) => p.slot >= 0).map((p) => ({ pos: slots[p.slot]!.pos, x: slots[p.slot]!.x, y: slots[p.slot]!.y, me: p.slot === mine })),
+    myPos: slots[mine]!.pos,
+  };
 }

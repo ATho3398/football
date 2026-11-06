@@ -115,6 +115,19 @@ describe('대표팀 경기 준비 전술 칸 · 위험 등급 칩 (C.81v)', () =
     expect(vm.natFixed).toBe(true);
     expect(vm.tacticsOpen).toBe(false);
     expect(vm.my.tactic).toBeUndefined();
+    // C.81v3: 내 포지션 그림 = 대표팀 포메이션(대표팀 로스터) · 내 자리는 내 주 포지션군 · 내 포지션 = 주 포지션 (클럽 슬롯 아님)
+    const { natRoster, natPreviewLineup } = await import('../src/national');
+    const { posGroup } = await import('../src/roster');
+    const nat = ensureNational(g);
+    const fx = nat.fixtures.find((m) => m.date === g.calendar.date)!;
+    const pv = natPreviewLineup(g, fx.opp);
+    expect(vm.formation).toBe(natRoster(g, nat.nation).formation);
+    expect(pv.formation).toBe(vm.formation);
+    expect(vm.slots.length).toBe(11);
+    expect(vm.slots.filter((x) => x.me).length).toBe(1);
+    expect(vm.me.pos).toBe(g.player.position);
+    expect(posGroup(pv.myPos)).toBe(posGroup(g.player.position));
+    expect(vm.me.role).toBe('');
   }, 120_000);
 
   it('RiskChip: 결정 순간 칩과 같은 모양 (위험 낮음/보통/높음 + 막대 칸)', async () => {
