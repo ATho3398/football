@@ -42,7 +42,7 @@ function rows(h: string) {
 
 describe('C.81n 결정 순간 숫자', () => {
   it('버전', () => {
-    expect(PATCH_LABEL).toBe('C.81n');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
     expect(STAGE_LABEL).toBe('53단계');
   });
   it('위험 등급 = 실패 평점 손실 (≤0.02 낮음 · 0.03~0.05 보통 · >0.05 높음), 판정 없음은 없음', () => {

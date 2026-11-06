@@ -126,7 +126,7 @@ describe('빠진 상태 화면', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toBe('C.81p');
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/); // 뒤 패치가 올리면 바뀐다 (C.81n merge)
     expect(STAGE_LABEL).toBe('53단계');
   });
 });
