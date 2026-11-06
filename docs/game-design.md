@@ -9757,6 +9757,34 @@ C 의 "GK 옆 위치를 공–골 가운데 선 위로"(스위퍼 8 m 앞에서 
 - 테스트 `tests/c81o.test.ts`: 반올림 한 곳(6.765 → 6.77, 홈·라이벌·대회별 기록 같은 값, 화면 코드에 평점 `toFixed(2)` 직접 반올림 금지) · XP 기준 한 곳 · 척도 문구(코치 한계 ≤ 20, 판정 = 화면 값, 내부 값을 글에 넣는 코드 금지) · 득점 분(45+2 · 90+3, 골 기록 칸) · 등번호 겹침 없음 · 실시간 미래 칸 닫힘 · 포지션 시트 문구. 옛 테스트 2개 기대값 갱신(c68 코치 한계 76 → 78, c60 장면 수 = `sceneCount`).
 - **안 된 것·남은 것**: 12e 우승 오버레이 배경은 결승 세이브가 없어 확인 못 함. 13번 클립 분류("내 골"이 "내 최고 순간"으로 분류됨 — 실제 게임에서도 재현: 내 도움 골이 "내 최고 순간")은 이번 범위(12·14~18) 밖이라 17차 디자인 때. PC 캡처는 고친 뒤만(평균 위치 방향은 폰·PC 같은 코드).
 
+### C.81j 53단계_엔진 계산 속도 2 — 결과 불변 (마스터 AD `docs/session-prompts/C.81j.md`, 앞 단계 C.81e, Opus): **경기 결과를 한 비트도 바꾸지 않고 경기 1회 계산을 조금 더 줄였다 — Node 온 평균 약 −7%(구간 측정 2~100번째 경기 607 → 551 ms, 100경기 한 번 측정은 −3%로 기계 잡음 폭 안), Chromium 워커 온 평균 447 → 429 ms(−4%), 할당 경기당 654 → 311 MB(−52%), GC 시간 −40%. 목표(Node −25% · 워커 380 ms 이하)는 못 미침** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 식·순서·난수 무수정)
+
+- **안 된 것(먼저)**: 목표 Node −25% · 워커 483 → 380 ms 에 크게 못 미친다(−4~7%). 프로파일이 평평하고 가장 큰 몫이 결과 비트를 지키면 줄일 수 없는 계산이다 — ① 선수 이동 `moveAgentMV`(경기당 125만 번, 호출당 약 100 ns: 제곱근 5~6개·나눗셈이 이어진 의존 사슬)와 몸 돌리기 `turnHeadMV`(66만 번, atan2 2 · cos · sin) 가 Node 25% · 크롬 28% ② 정규 난수 `randn`(log·cos) ③ 판단 후보(`candidates` 경기당 2천 번, 1번 45 µs — 수신자마다 레인·패스 확률·슈팅 가치·세컨드볼). 수식·연산 순서를 바꾸지 않고 더 줄이려면 선수 실수 필드를 Float64Array 로 옮기는 수준의 구조 변경(C.81e 와 같은 결론)이나 삼각함수 근사(결과가 바뀜)가 필요하다. AD 후보 중 제곱근 생략(비교 경계에서 비트가 다를 수 있음)·공간 격자(22명이라 이득 없음)·판단 후보 중복 제거(preDecide 와 decide 는 다른 틱이라 중복 아님)는 쓰지 않았다. V8 인라인 한도를 넓히면(Node 플래그) −6% 더 나오지만 브라우저에서 쓸 수 없다.
+- 무엇을 바꿨나 (모두 같은 식·같은 순서):
+  1. **배열 for-of → 인덱스 반복 221곳**(`src/engine/*.ts`, 타입 검사기로 배열·튜플 반복만 골라 기계 변환): Node 22 V8 은 반복 안에 인라인 안 된 호출이 있으면 배열 반복자 객체를 없애지 못해 반복마다 할당했다(lineMatchPlan 한 곳만 89 → 60 MB/경기). 배열 반복자도 매 단계 length 를 다시 읽으므로 의미가 같다. 경기당 할당 654 → 351 MB. (크롬 153 의 V8 은 이미 대부분 없애서 브라우저 이득은 작다)
+  2. **GK 루즈볼 추격 경로**(`keeperChase`): 점 40개를 객체 배열 대신 숫자 배열(`ballPathInto` — `ballPathAt` 과 같은 식)에, 동료·상대 도착 검사 클로저 → `firstReach`.
+  3. **패스 후보 클로저 제거**(`candidates`): 수신자마다 만들던 `flightP`·`uOf` 클로저(잡은 실수 변수가 상자로 할당됨) → 모듈 함수 `flightPOf`·`passUOf`.
+  4. **`Math.hypot` → `hypot`(pitch.ts)**: V8 내장(Torque MathHypot)과 같은 순서(큰 값으로 나눈 제곱의 Kahan 합 → √ × 큰 값, 무한 > NaN > 0)를 JS 로. 내장 호출의 인자·결과 상자가 없어 약 4배 빠르다. Node·Chromium 에서 무작위·특수값 3천만 쌍 `Object.is` 비교 차이 0. (V8 이 아닌 엔진(Safari)에서는 그 엔진 Math.hypot 과 끝자리가 다를 수 있다 — Math.exp·cos 도 원래 엔진마다 다르다)
+  5. **`dist`·`clamp` 를 바이트코드 27바이트 아래로**(42 → 21+23, 32 → 18): V8 은 '작은 함수'를 인라인 예산과 무관하게 늘 인라인한다 — 큰 함수 안에서 호출로 남던 것.
+  6. `arrivalTime` 의 `Math.acos` 는 '남은 몸 돌리기'(GK 아님 · 90° 넘음)에만 쓰여 코사인이 0 이상이면 건너뜀(acos(≥0) ≤ 90° 라 그 조건이 거짓), 틱마다 22명에게 부르던 `keeperFlightDue` 앞에 `a.line === 0` 검사, `attackTarget`·`defendTarget` 의 공 정규화 좌표는 받는 쪽에서 같은 식으로(실수 인자 상자 없이).
+- 결과 불변(관문): 새 지문 `scripts/diag/c81j-fp.ts` = c74a 엔진 지문 + 내 경기 재생 데이터 3경기(엔진 결과·프레임 전체) + 상성 960 일부(성향 7개 라운드 로빈 21쌍 × 4경기, 4-4-2 · 시드 41000, MatchOut 전체, 시간 칸 `ms` 제외) + 다른 팀 경기 20회(EngineResult 전체), −0 구분. 기반 0b03931: 전후 **2e6d9654865cca3d** 동일. **푸시 직전 rebase 한 기반 8ace48f(C.81k·l·n·o·p 포함)에서 다시: 변경 전 main 76b09174d1a09af8 = 변경 후 76b09174d1a09af8**(c74a 43b925947da9b7c7 · 재생 bc90755abef912fd · 상성 e47e3d2b7c1c4d24 · 다른 경기 2d60282c81367aca 모두 같음). 장면 테스트 포함 test 1375 · typecheck · `balance:engine:check`(경량 가드 모두 통과, 순간이동 0) · build 통과.
+
+| 경기 1회 계산 (다른 팀 경기 `createMatch(...).runToEnd()`) | main | C.81j | 변화 |
+|---|---|---|---|
+| Node 온 평균, 구간 측정 2회 평균 (2~10 / 11~30 / 31~60 / 61~100번째) | 695 / 611 / 596 / 593 ms | 625 / 565 / 535 / 540 ms | −10 / −8 / −10 / −9% |
+| Node 온 평균, `c81e-bench` 100경기 2회 평균 | 584 ms | 567 ms | −3% |
+| Node 온 평균, 기준·이번 동시 실행 30경기 3회 | 624 ms | 582 ms | −7% |
+| Node 첫 경기(냉) | 1,175 ms | 1,165 ms | 같음 |
+| Node GC (100경기) | 1,184 ms (2.0%) | 688 ms (1.2%) | −42% |
+| 할당 (Node 표본 프로파일, 경기당) | 654 MB | 311 MB | −52% |
+| **Chromium 153 Web Worker 온 평균** (100경기 2회 평균, PC 워커) | 447 ms | **429 ms** | **−4%** |
+| Chromium Web Worker 온 중앙값 | 434 ms | 422 ms | −3% |
+| Chromium Web Worker 첫 경기(냉) | 1,076 ms | 963 ms | −10% |
+
+  이 기계(4코어 VM)는 같은 빌드도 회차마다 ±5% 흔들린다(C.81e 표의 main 765 ms 와 이번 main 447 ms 차이도 Chromium 판·기계 차). 폰 실측은 못 함(워커는 CPU 흉내가 안 걸림, C.81c).
+- 프로파일 (Node, 15경기, 자기 시간 ms/경기, main → C.81j): moveAgentMV 123 → 126 · turnHeadMV 41 → 44 · defendTarget 39 → 36 · stepBody 36 → 34 · GC 28 → 14 · stepTail 27 → 25 · updateOffball 25 → 25 · candidates 22 → 20 · arrivalTime 21 → 22 · lineMatchPlan 19 → 16 · attackTarget 17 → 16 · randn 13 → 12 · landingShare 9 → 6 · keeperChase 6 → 5. 호출 횟수(경기당): moveAgentMV 125만 · turnHeadMV 66만 · rand 59만 · arrivalTime 29만 · updateOffball 23만 · slotTargetS 23만 · randn 16만 · candidates 2천.
+- 재현: 지문 `npx vite-node scripts/diag/c81j-fp.ts` · 속도 C.81e 와 같음(`scripts/diag/c81e-bench.ts`, `c81e-bench-worker.ts` + `c81e-worker-bench.mjs`).
+
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
 ### D.0 부록 C 피드백에 대한 결정 (1단계 코드 변경 요청)
