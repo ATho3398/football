@@ -1856,7 +1856,7 @@ export const BALANCE = {
     cupForm: true,
     cupTrust: true,
     /** 업적 XP (5.3): 챔스 우승/준우승/4강/8강, 국내 컵 우승, 트레블(리그 + 국내 컵 + 챔스) */
-    xp: { uclWin: 400, uclFinal: 250, uclSemi: 150, uclQuarter: 80, faWin: 150, treble: 500 },
+    xp: { uclWin: 360, uclFinal: 225, uclSemi: 135, uclQuarter: 72, faWin: 150, treble: 500 },
     /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */
     minGap: 3, minGapLoose: 2,
     /** 승부차기 간이 판정: 홈(또는 첫 팀) 승률 = 0.5 + 레이팅 차 × ratingK, [min, max] */
