@@ -56,7 +56,7 @@ export const ROLES: Record<string, Role> = {
   wingForward: r('wingForward', 0.05, -0.1, 0.8, 0.1, 0.4, p({ shoot: 1.3 })),
   crackWinger: r('crackWinger', 0.02, 0.15, 0.3, 0.4, 0.2, p({ dribble: 1.5 }), ['demand', 'exempt']),
   raumdeuter: r('raumdeuter', 0.05, -0.2, 0.7, 0.1, 0.5, p({ shoot: 1.2, dribble: 0.6 }), ['space']),
-  wideMid: r('wideMid', -0.03, 0.25, 0.45, 0.2, 0.8, p({ cross: 1.1 })), // C.81i: run 0.3 → 0.45 · drop 0.3 → 0.2 (역할 대비 −0.17/−0.12 → −0.06/−0.08)
+  wideMid: r('wideMid', -0.03, 0.25, 0.3, 0.3, 0.8, p({ cross: 1.1 })), // C.81i: run 0.45·drop 0.2 로 −0.17/−0.12 → −0.06/−0.08 이었으나 C.81g 병합(엔진 88) 뒤 원래 값이 −0.08/−0.03, 바꾼 값이 −0.12/−0.14 라 그대로 둠
   // ST (ST, CF)
   poacher: r('poacher', 0.04, 0, 0.7, 0, 0.3, p({ shoot: 1.4, dribble: 0.8 })),
   targetMan: r('targetMan', 0, 0, 0.45, 0.3, 0.4, p({ header: 1.4, hold: 1.2 })),
