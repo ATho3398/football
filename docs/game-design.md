@@ -6752,7 +6752,7 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 | 게겐>티키 | +0.35~0.45 | +0.37 | +0.37 (칸 불변) |
 | 블록>게겐 | ≥ +0.05 | +0.10 | +0.10 (칸 불변) |
 
-- 관문 요약: quick 600 득점 **1.50** ✓(묶음 관문 1.43~1.60, 포지션별 이동 거리 13.15 · 11.55 · 10.75 km main 과 같음) · 이동 거리 테스트(60시드) 평균 14.09 · 최다 15.06 km ✓ · typecheck ✓ · test 1375개 ✓(장면 테스트 포함) · engine:check 경량 가드 ✓(순간이동 0) · balance:check 는 CI(BALANCE 수치 무변경). 테스트: `c80w` 상성 칸 기대값(직선 → 게겐 −6, 직선 → 블록 keep·short 1). 몰빵 테스트(`c80q`)는 drain 을 상수에서 읽어 그대로.
+- 관문 요약: quick 600 득점 **1.50** ✓(묶음 관문 1.43~1.60, 포지션별 이동 거리 13.15 · 11.55 · 10.75 km main 과 같음) · 이동 거리 테스트(60시드) 평균 14.09 · 최다 15.06 km ✓ · typecheck ✓ · test 1375개 ✓(장면 테스트 포함, main C.81j·C.81n 병합 뒤 1419개 ✓) · engine:check 경량 가드 ✓(순간이동 0) · balance:check 는 CI(BALANCE 수치 무변경). 테스트: `c80w` 상성 칸 기대값(직선 → 게겐 −6, 직선 → 블록 keep·short 1). 몰빵 테스트(`c80q`)는 drain 을 상수에서 읽어 그대로.
 - 측정: 몰빵 `IDS=91 R=400 SEEDS=71000,81000 OPP=both npx vite-node scripts/diag/c80z-stack.ts -- stackCap.drain=4`, 대형 슬롯 보기 `scripts/diag/c81g-show.ts`, 상성 칸 `c78s-matrix 480 seed=41000|51000 only=gegenpress/direct,direct/block,direct/block@0020`, 이동 거리 `S0=11 S1=70 c80m-dist`.
 
 ### C.81d 53단계_다른 리그 계산 기본값 — 내 리그만 엔진 (마스터 AD `docs/session-prompts/C.81d.md`, 근거 사용자 11/04 13:5x KST "자동 경기 맡기면 대기가 너무 오래 걸려 / FM은 어떻게 돌려?", Opus): **설정 › 다른 경기 계산을 3단계로 — [내 리그만 엔진](기본) · [전부 엔진] · [전부 빠른 진행]. 기본값은 내 리그 다른 팀 경기만 22명 엔진, 고른 다른 리그는 점수 확률 + 득점자 추첨(기존 빠른 진행 경로 그대로). 한 주기 대기 PC 10.4 → 1.9 s · 폰 흉내 14.1 → 3.4 s. 내 리그 결과는 '전부 엔진'과 같은 시드에서 동일. 섞인 시상 표(내 리그 엔진 + 다른 리그 추정)는 추정 평점을 엔진 척도로 −0.33 보정** (SAVE_FORMAT_VERSION 60 → **61**, 이전 단계 `MIGRATIONS[60]` + `tests/fixtures/saves/v61.json`; BALANCE_VERSION 94 → **95**; ENGINE_VERSION 그대로 — `src/engine` 무수정)
