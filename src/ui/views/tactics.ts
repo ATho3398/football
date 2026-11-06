@@ -93,7 +93,7 @@ export function halftimeView(vm: HalftimeVM): string {
   const team = (i: 0 | 1) => `<span class="${i === vm.side ? 'is-me' : 'is-opp'}">${esc(vm.teams[i])}</span>`;
   const top = `<div class="ht-top">
       <div class="ht-top__t"><b>하프타임</b><span>전반 종료 · 전술을 바꿀 수 있어요</span></div>
-      <div class="ht-score">${team(0)}<b class="po-num">${vm.score[0]}<i>:</i>${vm.score[1]}</b>${team(1)}</div>
+      <div class="ht-score">${team(0)}<b class="po-num score-cell">${vm.score[0]}&nbsp;<i>:</i>&nbsp;${vm.score[1]}</b>${team(1)}</div>
     </div>`;
   const sets = vm.sets.map((x) => `<button type="button" class="${cx('ht-set', x.on && 'is-on')}" data-act="ht-set" data-v="${x.id}" aria-pressed="${x.on}">
       <span class="ht-set__radio" aria-hidden="true"></span><b>${esc(x.name)}</b><small>${esc(x.desc)}</small></button>`).join('');

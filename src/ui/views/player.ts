@@ -54,15 +54,20 @@ export interface PlayerParts {
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const c = vm.condition;
-  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}`, soft: true }, { label: vm.chapter, soft: true }];
+  const ret = parts.retired ? retiredLine(vm) : null;
+  // 은퇴 (C.81p, 수정 요청 31번): 현역 값(나이 · 폼 · 옐로 · 다음 위상까지 · 레벨 막대)은 빼고 커리어 요약 줄
+  const chips = ret
+    ? [`${vm.age}세 은퇴`, `${ret.seasons}시즌`, { label: `위상 ${vm.tierName}`, soft: true }]
+    : [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}`, soft: true }, { label: vm.chapter, soft: true }];
+  const eyebrowTail = ret ? '은퇴' : `${vm.age}세`;
   const face = playerFace(vm);
   // 디자인 B 93·134·136: 사진이 있으면 compact 미페 머리말(290px), 없으면 compact 머리말(디자인 A 93)
   const hero = face
-    ? HeroPanel({ title: '선수', back: false, compact: true, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.name, eyebrow: `${vm.team} · ${vm.position} · ${vm.age}세`, value: vm.ovr, unit: 'OVR', chips })
-    : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${vm.age}세`, value: vm.ovr, unit: 'OVR', pad: false, progress: false, chips });
+    ? HeroPanel({ title: '선수', back: false, compact: true, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.name, eyebrow: `${vm.team} · ${vm.position} · ${eyebrowTail}`, value: vm.ovr, unit: 'OVR', chips })
+    : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${eyebrowTail}`, value: vm.ovr, unit: 'OVR', pad: false, progress: false, chips });
   // 프로필 줄 (디자인 93): 얼굴 · 위상 배지 + 다음 티어까지 · 레벨 막대 · [꾸미기](몸·태그 탭의 "내 모습")
   const repNote = vm.next ? `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점` : vm.isLegendary ? '최고 위상' : '레전더리는 업적 조건';
-  const profile = `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
+  const profile = ret ? retiredProfile(vm, ret) : `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
       <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>${esc(repNote)}</small></span>
       <span class="pl-lv"><small>Lv ${vm.level}</small><span class="pl-lv__bar" aria-hidden="true"><i style="width:${Math.round((vm.xp / Math.max(1, vm.xpMax)) * 100)}%"></i></span><small class="po-num">${vm.xp}/${vm.xpMax}</small></span>
     </div>${Button({ variant: 'secondary', size: 'sm', icon: 'edit', act: 'player-tab', data: { v: 'body', look: '1' }, children: '꾸미기' })}</div>`;
@@ -70,7 +75,7 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
     if (t === 'attrs') return attrsTab(vm, parts);
     if (t === 'body') return parts.body;
     if (t === 'pos') return posTab(vm, !!parts.legendOpen);
-    if (t === 'record') return `${parts.records ?? ''}${recordTab(vm)}`;
+    if (t === 'record') return `${parts.records ?? ''}${recordTab(vm, parts.retired)}`;
     // C.77q: 에이전트(재정 › 생활·투자에서 옮김)는 계약 아래
     return parts.market ? contractSection(parts.market) + (parts.agent ?? '') : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
   };
@@ -127,8 +132,23 @@ function posTab(vm: PlayerVM, open: boolean): string {
     <div class="pl-badges">${vm.badges.map(badge).join('')}</div>`;
 }
 
-/** 기록 탭 (디자인 95): 시즌 합계 · 경기별 · 경고와 출장 · 위상과 레벨 · 시즌별 */
-function recordTab(vm: PlayerVM): string {
+/** 은퇴한 선수의 커리어 합계 (시즌별 기록 합) */
+function retiredLine(vm: PlayerVM): { seasons: number; apps: number; goals: number; assists: number } {
+  const h = vm.history;
+  return { seasons: h.length, apps: h.reduce((a, r) => a + r.apps, 0), goals: h.reduce((a, r) => a + r.goals, 0), assists: h.reduce((a, r) => a + r.assists, 0) };
+}
+
+/** 은퇴 프로필 줄 (C.81p): 얼굴 · 최종 위상 · 커리어 합계 → [커리어 요약 보기]. 레벨 막대·다음 위상까지는 없다. [새 게임]은 독 가운데 키 하나(라임 주 버튼 1개) */
+function retiredProfile(vm: PlayerVM, r: ReturnType<typeof retiredLine>): string {
+  return `<div class="panel profile-row pl-profile pl-profile--retired">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
+      <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>은퇴 · 최종 위상</small></span>
+      <small class="pl-ret__line">${r.seasons}시즌 · ${r.apps}경기 · ${r.goals}골 · ${r.assists}도움 · ${vm.age}세 은퇴</small>
+    </div></div>
+    ${Button({ variant: 'secondary', block: true, icon: 'trophy', act: 'go', data: { to: 'retired' }, children: '커리어 요약 보기' })}`;
+}
+
+/** 기록 탭 (디자인 95): 시즌 합계 · 경기별 · 경고와 출장 · 위상과 레벨 · 시즌별. 은퇴(C.81p)면 경고·위상·레벨 칸 대신 최종 위상 한 줄 */
+function recordTab(vm: PlayerVM, retired = false): string {
   const c = vm.condition;
   const ban = vm.suspended > 0
     ? `<div class="ban-row"><i class="redcard"></i><span class="grow"><b>출장 정지 ${vm.suspended}경기 남음</b></span>${vm.nextOpp ? `<span class="fail small">${esc(vm.nextOpp)}전 결장</span>` : ''}</div>`
@@ -136,6 +156,13 @@ function recordTab(vm: PlayerVM): string {
   const rep = vm.next
     ? Meter({ value: vm.reputation - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점`, showValue: true, tone: 'brand' })
     : `<p class="muted small">${vm.isLegendary ? '최고 위상 티어예요.' : '월드클래스예요. 레전더리는 점수가 아니라 포지션 탭의 업적 조건으로 열려요.'}</p>`;
+  if (retired) {
+    return `${seasonMatchesSection(vm.matches, '마지막 시즌 경기 기록')}
+    ${SectionTitle({ title: '최종 위상', action: `누적 XP ${vm.totalXp}` })}
+    ${panel(`<div class="kv">${TierBadge({ tier: vm.tier, score: vm.reputation })}<span class="small muted">은퇴할 때 위상 · Lv ${vm.level}</span></div>`)}
+    ${SectionTitle({ title: '시즌별' })}
+    ${panel(historyTable(vm.history))}`;
+  }
   return `${seasonMatchesSection(vm.matches)}
     ${SectionTitle({ title: '경고와 출장' })}
     ${panel(`

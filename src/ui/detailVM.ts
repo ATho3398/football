@@ -28,6 +28,7 @@ import { NATIONALITY_KO } from './customVM';
 import type { FaceRef } from './faces';
 import { teamForm, type FormMark } from './prepVM';
 import { attrGroupsVM, designTier, myFace, seasonLabel, tacticStyle, type TacticVM } from './viewModels';
+import { scoreText } from '../text';
 
 export type TeamTab = 'overview' | 'squad' | 'tactics' | 'matches';
 export type PersonTab = 'attrs' | 'body' | 'pos' | 'record' | 'contract';
@@ -78,7 +79,7 @@ function teamMatches(g: GameState, teamId: string): TeamMatchVM[] {
     const oppId = home ? f.away : f.home;
     const played = f.homeGoals !== undefined && f.awayGoals !== undefined;
     const [a, b] = played ? (home ? [f.homeGoals!, f.awayGoals!] : [f.awayGoals!, f.homeGoals!]) : [0, 0];
-    out.push({ round: r + 1, opp: teamById(L, oppId).nameKo, oppId, home, score: played ? `${a}-${b}` : null, mark: played ? (a > b ? 'W' : a < b ? 'L' : 'D') : null });
+    out.push({ round: r + 1, opp: teamById(L, oppId).nameKo, oppId, home, score: played ? scoreText(a, b) : null, mark: played ? (a > b ? 'W' : a < b ? 'L' : 'D') : null });
   });
   return out;
 }
