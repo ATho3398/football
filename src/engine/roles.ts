@@ -56,7 +56,7 @@ export const ROLES: Record<string, Role> = {
   wingForward: r('wingForward', 0.05, -0.1, 0.8, 0.1, 0.4, p({ shoot: 1.3 })),
   crackWinger: r('crackWinger', 0.02, 0.15, 0.3, 0.4, 0.2, p({ dribble: 1.5 }), ['demand', 'exempt']),
   raumdeuter: r('raumdeuter', 0.05, -0.2, 0.7, 0.1, 0.5, p({ shoot: 1.2, dribble: 0.6 }), ['space']),
-  wideMid: r('wideMid', -0.03, 0.25, 0.3, 0.3, 0.8, p({ cross: 1.1 })),
+  wideMid: r('wideMid', -0.03, 0.25, 0.45, 0.2, 0.8, p({ cross: 1.1 })), // C.81i: run 0.3 → 0.45 · drop 0.3 → 0.2 (역할 대비 −0.17/−0.12 → −0.06/−0.08)
   // ST (ST, CF)
   poacher: r('poacher', 0.04, 0, 0.7, 0, 0.3, p({ shoot: 1.4, dribble: 0.8 })),
   targetMan: r('targetMan', 0, 0, 0.45, 0.3, 0.4, p({ header: 1.4, hold: 1.2 })),
@@ -70,14 +70,15 @@ export const ROLES: Record<string, Role> = {
   enganche: r('enganche', -0.02, 0, 0.1, 0.4, 0.1, p({ hold: 1.3, pass: 1.3 }), ['demand', 'exempt']),
   // CM
   boxToBox: r('boxToBox', 0, 0, 0.6, 0.4, 0.8, p()),
-  deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.25, 0.6, 0.4, p({ pass: 1.4, long: 1.2 })),
+  deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.25, 0.6, 0.5, p({ pass: 1.4, long: 1.2 })), // C.81i: press 0.4 → 0.5 (역할 대비 −0.13/−0.10 → −0.09/+0.06)
   mezzala: r('mezzala', 0.06, 0.15, 0.5, 0.2, 0.5, p({ shoot: 1.1, dribble: 1.1 })), // C.76y: run 0.6 → 0.5 (미해결 4)
   carrier: r('carrier', 0, 0, 0.3, 0.4, 0.5, p({ carry: 1.4 })),
   holdingCM: r('holdingCM', -0.06, 0, 0.1, 0.3, 0.7, p({ safe: 1.2 })),
   // CDM
   anchor: r('anchor', -0.04, 0, 0.1, 0.4, 0.6, p({ safe: 1.2 })),
   ballWinner: r('ballWinner', 0, 0, 0.2, 0.2, 0.9, p()),
-  regista: r('regista', -0.06, 0, 0, 0.9, 0.4, p({ pass: 1.4, long: 1.3 }), ['demand', 'exempt']), // C.80v: press 0.1 → 0.4 (역할 대비 −0.13 → −0.08)
+  // C.80v: press 0.1 → 0.4 (역할 대비 −0.13 → −0.08). C.81i: 수비 면제(exempt) 뺌 · press 0.4 → 0.6 · drop 0.9 → 0.7 (역할 대비 −0.09/−0.26 → −0.05/−0.06) — 공 요구(demand)는 그대로, 압박은 볼 위너 0.9 보다 낮아 "압박 의무 적음" 유지
+  regista: r('regista', -0.06, 0, 0, 0.7, 0.6, p({ pass: 1.4, long: 1.3 }), ['demand']),
   halfBack: r('halfBack', -0.1, 0, 0, 0.6, 0.4, p({ safe: 1.2 }), ['between']),
   // 풀백 (LB, RB, LWB, RWB)
   attackingFullback: r('attackingFullback', 0.1, 0.2, 0.7, 0.1, 0.5, p({ cross: 1.4 })),

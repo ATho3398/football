@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 86;
+export const ENGINE_VERSION = 87;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -93,8 +93,9 @@ export const ENGINE = {
     pressDrainPer: 0.75,
     /** C.77a 가설 1(44h-h): 역압박 가담 중(counterPressers, 역압박 창 안) 스태미나 소모 배수 — 3명이 4초 전력 질주하는 비용, 모든 팀 공통 */
     counterDrain: 1.5,
-    /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율) */
-    fatigueIntensity: 0.35,
+    /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율).
+     *  C.81i: 0.35 → 0.4 — 이동 거리 테스트(76:74 시드 11~70) 평균 14.15 → 13.96 km 로 기준 < 14.1 복귀. 게겐 대 티키 40경기 필드 평균 게겐 11.38 · 균형 11.20(우위 +0.18, 전 +0.12) 유지, 게겐 한 선수 최다 13.92 → 13.35 */
+    fatigueIntensity: 0.4,
     /** 지친 선수의 최대 속도 비율 (스태미나 0 일 때, staminaLowFrom 에서 1) */
     tiredMaxFloor: 0.85,
     /** 스태미나 0 일 때 역압박 가담·긴급 복귀 판단 확률 배율 (staminaLowFrom 에서 1) */
