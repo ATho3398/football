@@ -62,6 +62,15 @@ describe('점수 표기 하나 (수정 요청 4번)', () => {
   });
 });
 
+describe('미페 사진 안 위 여백 (C.81p 후속): 머리말 폭과 무관한 고정 px', () => {
+  it('padding-top 이 % 면 PC(머리말 1232px)에서 86px 가 돼 사진이 사선 면 뒤로 숨는다', () => {
+    const skin = readFileSync(new URL('../src/ui/design/skin-b.css', import.meta.url), 'utf8');
+    const rule = skin.split('\n').find((l) => l.startsWith(':where(html[data-skin="b"]) .po-hero--face .po-hero__face {'))!;
+    expect(rule).toMatch(/padding-top: 26px;/);
+    expect(rule).not.toMatch(/padding-top: [\d.]+%/);
+  });
+});
+
 describe('결과 도장 "보통" · "실점" (수정 요청 9번)', () => {
   const base: DecisionOutcome = { from: 0, to: 5, steps: ['따라붙어 지연'], goal: null, end: 'end', ok: null } as DecisionOutcome;
   it('판정 없는 흐름(따라붙기·패스길 막기) = 보통, 상대 골 = 실점', () => {
