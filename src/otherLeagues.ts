@@ -143,7 +143,8 @@ function scorerPool(roster: TeamRoster): ScorerPick[] {
     const q = C.shareK ? BALANCE.awards.estimate.shareQ[g]?.[cls] : undefined;
     const share = q ? C.shareK![cls]! * (q[0]! + 2 * (q[1]! + q[2]! + q[3]!) + q[4]!) / 8 : C.share[cls]!;
     const rel = ovr.get(p.id)! - ref;
-    return { p, g: (C.scorerWeight[g] ?? 0) * share * Math.exp(rel * C.ovrK), a: (C.assistWeight[g] ?? 0) * share * Math.exp(rel * C.ovrKAssist) };
+    // C.81w: 골 OVR 가중의 (OVR − 선발 평균)은 relCap 에서 멈춘다 — 엔진에선 팀 평균보다 훨씬 높은 스타(음바페·호날두)도 20~30골인데 빠른 진행은 36~48골을 몰아갔다
+    return { p, g: (C.scorerWeight[g] ?? 0) * share * Math.exp(Math.min(rel, C.relCap ?? Infinity) * C.ovrK), a: (C.assistWeight[g] ?? 0) * share * Math.exp(rel * C.ovrKAssist) };
   }).filter((x) => x.g > 0 || x.a > 0);
   SCORER_POOL.set(roster, hit);
   return hit;

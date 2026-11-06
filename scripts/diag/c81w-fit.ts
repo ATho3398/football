@@ -50,7 +50,7 @@ for (const pid of pids) for (let r = 0; r < reps; r++) {
   const g: GameState = newGame({ mode: 'real', playerId: pid, seed: `c81m-a-${pid}${r ? `-r${r}` : ''}`, difficulty: 'normal', leagues: [...DEFAULT_LEAGUES] } as never);
   games.push({ g, my: (g.league as { id: string }).id, init: JSON.stringify(g.otherLeagues) });
 }
-const C = BALANCE.otherScorers as unknown as { scorerWeight: Record<string, number>; assistWeight: Record<string, number>; assistChance: number; share: number[]; ovrK: number; ovrKAssist: number; diffScale?: number; goalScale: Record<string, number> };
+const C = BALANCE.otherScorers as unknown as { scorerWeight: Record<string, number>; assistWeight: Record<string, number>; assistChance: number; share: number[]; ovrK: number; ovrKAssist: number; relCap?: number; diffScale?: number; goalScale: Record<string, number> };
 const fitCap = args[5] !== '0';
 const G0: Record<string, number> = {};
 const lgGoals = () => { const o: Record<string, number> = {}; for (const { g } of games) for (const lg of g.otherLeagues as OtherLeague[]) { const t = sortedTable(lg); o[lg.id] = (o[lg.id] ?? 0) + t.reduce((s, r) => s + r.gf, 0) / Math.max(1, t.reduce((s, r) => s + r.played, 0)); } return o; };
@@ -87,9 +87,11 @@ function score(Q: ReturnType<typeof agg>) {
 const topRatio = (Q: ReturnType<typeof agg>, w: 'g' | 'a' | 'g1') => mean(Object.keys(E.top).map((k) => mean(Q.top[k]![w]) / mean(E.top[k]![w])));
 let Q = run();
 Object.assign(G0, lgGoals());
+const topGF = () => { const o: number[] = []; for (const { g } of games) for (const lg of g.otherLeagues as OtherLeague[]) if (MAJOR.includes(lg.id)) { const t = sortedTable(lg); o.push(Math.max(...t.map((r) => r.gf / Math.max(1, r.played)))); } return mean(o); };
+const TOPGF_E = Number(process.env.TOPGF ?? 2.45);
 const refitGoals = () => { const G = lgGoals(); for (const [lg, v] of Object.entries(G)) if (C.goalScale[lg] !== undefined || Math.abs(v / G0[lg]! - 1) > 0.01) C.goalScale[lg] = +((C.goalScale[lg] ?? 1) * (G0[lg]! / v)).toFixed(3); };
 if (args[6]) { C.diffScale = Number(args[6]); Q = run(); refitGoals(); Q = run(); }
-console.error('start', JSON.stringify(score(Q)), JSON.stringify(C));
+console.error('start', 'lead', topRatio(Q, 'g1').toFixed(3), 'topGF', topGF().toFixed(2), JSON.stringify(score(Q)), JSON.stringify(C));
 for (let it = 0; it < iters; it++) {
   // 포지션군 가중: 전체 포지션군 평균 비
   for (const g of G) {
@@ -103,8 +105,11 @@ for (let it = 0; it < iters; it++) {
   const tg = topRatio(Q, 'g'); const ta = topRatio(Q, 'a');
   C.ovrK = +(C.ovrK + Math.log(1 / tg) * 0.12).toFixed(4);
   C.ovrKAssist = +(C.ovrKAssist + Math.log(1 / ta) * 0.12).toFixed(4);
-  if (fitCap) { const r1 = topRatio(Q, 'g1'); C.diffScale = +Math.max(0.3, (C.diffScale ?? 1) * r1 ** -2).toFixed(3); Q = run(); refitGoals(); }
+  if (fitCap) {
+    C.diffScale = +Math.max(0.3, (C.diffScale ?? 1) * (TOPGF_E / topGF()) ** 1.5).toFixed(3); Q = run(); refitGoals(); Q = run();
+    const r1 = topRatio(Q, 'g1'); C.relCap = +Math.max(0, (C.relCap ?? 8) - Math.log(r1) * 25).toFixed(2); Q = run();
+  }
   Q = run();
-  console.error(`it ${it}`, 'lead', topRatio(Q, 'g1').toFixed(3), JSON.stringify(score(Q)), 'top', topRatio(Q, 'g').toFixed(3), topRatio(Q, 'a').toFixed(3), JSON.stringify(C));
+  console.error(`it ${it}`, 'lead', topRatio(Q, 'g1').toFixed(3), 'topGF', topGF().toFixed(2), JSON.stringify(score(Q)), 'top', topRatio(Q, 'g').toFixed(3), topRatio(Q, 'a').toFixed(3), JSON.stringify(C));
 }
 console.log(JSON.stringify(C));

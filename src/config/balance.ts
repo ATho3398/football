@@ -1886,6 +1886,8 @@ export const BALANCE = {
     shareK: [1, 1, 1] as readonly number[] | undefined,
     ovrK: 0.048,
     ovrKAssist: 0.066,
+    /** C.81w: 골 OVR 가중의 (OVR − 선발 평균) 상한 — 스타 몰아주기(득점왕 쏠림) 막기 (없으면 상한 없음) */
+    relCap: undefined as number | undefined,
     /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1) */
     /** C.81w: 빠른 진행 다른 리그 점수의 레이팅 차 효과 배율 (1 = 내 리그 빠른 진행과 같음) — 상위 팀 독주를 엔진에 맞춤 */
     diffScale: 1 as number | undefined,
