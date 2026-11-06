@@ -676,6 +676,16 @@ export const ENGINE = {
     shotRushR: 20,
     shotRushDepth: 7,
     /**
+     * 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안 + 슛 뒤 reboundRunT 초 안 루즈볼(추격자 아닌 선수)일 때, 골 reboundRunR m 안 2선·공격수(슈터 제외) 중
+     * 골 앞 reboundRunDepth m 자리(옆은 자기 y 를 중앙 ± reboundRunSpread m 로)에 가까운 reboundRun 명이 그 자리로 전력. reboundRunOffside 1 = 오프사이드 라인 안으로 제한. 0 = 끔
+     */
+    reboundRun: 3,
+    reboundRunR: 24,
+    reboundRunDepth: 7,
+    reboundRunSpread: 4.5,
+    reboundRunT: 2.5,
+    reboundRunOffside: 1,
+    /**
      * 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 이 공이 상대 진영 wideFromX(정규화)를 넘으면 역할 자리로 — 반대쪽 측면 공 = 먼 포스트, 같은 쪽 = 오버랩(소유자 앞 overlapAhead m, 터치라인 wideTouch)
      * 또는 언더랩(소유자 앞 underlapAhead m 이상·하프스페이스; 풀백이 공을 가졌거나 소유자보다 wideFbAhead m 뒤까지 바깥으로 올라와 있거나 소유자가 터치라인 wideTouch 밖이면),
      * 중앙 공 = 넓은 역할은 깊이 잡은 측면·안쪽 역할은 하프스페이스. 도착 예상이 wideLate 초보다 늦으면 전력. wideArrive 0 = 끔

@@ -682,6 +682,33 @@ export function updateOffball(s: SimState, a: Agent): void {
       }
     }
   }
+  // 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안(유효 슈팅·빗나감 비행) 과 슛 뒤 reboundRunT 초 안 공이 루즈일 때(쳐낸 공·막힌 공, 추격자가 아닌 선수),
+  // 골 reboundRunR m 안 2선·공격수(슈터 제외) 중 골 앞 reboundRunDepth m 자리에 가까운 reboundRun 명이 그 자리로 전력 — 쳐낸 순간 골 앞 공격 인원이 0.8명으로
+  // 구조적으로 적었다(엔진관리자26·C.81h). 공격만(수비는 같은 규칙 없음). 옆은 자기 y 를 중앙 ± reboundRunSpread m 안으로
+  if (O.reboundRun > 0 && a.line >= 2 && !s.restart) {
+    const ourShot = fl && fl.kind === 'shot' && s.agents[fl.passer]?.team === a.team ? fl.passer : -1;
+    const afterShot = b.owner < 0 && !fl && s.t - s.lastShotT[a.team] < O.reboundRunT;
+    if (ourShot >= 0 || afterShot) {
+      const gx = dir > 0 ? L : 0;
+      if (dist(a.x, a.y, gx, W / 2) < O.reboundRunR) {
+        const sx = gx - dir * O.reboundRunDepth;
+        const da = dist(a.x, a.y, sx, W / 2);
+        let closer = 0;
+        for (let i_13 = 0, a_13 = onOf(s, a.team); i_13 < a_13.length; i_13++) { const o = a_13[i_13]!;
+          if (o === a || o.line < 2 || o.idx === ourShot || dist(o.x, o.y, gx, W / 2) >= O.reboundRunR) continue;
+          const d = dist(o.x, o.y, sx, W / 2);
+          if (d < da || (d === da && o.idx < a.idx)) closer++;
+        }
+        if (closer < O.reboundRun) {
+          const nx = O.reboundRunOffside > 0 ? Math.min(1 - O.reboundRunDepth / L, offsideLine(s, a.team) - 0.5 / L) : 1 - O.reboundRunDepth / L;
+          a.tx = pitchX(nx, dir);
+          a.ty = W / 2 + clamp(a.y - W / 2, -O.reboundRunSpread, O.reboundRunSpread);
+          a.urgent = true;
+          return;
+        }
+      }
+    }
+  }
   // C.81j: bnx·bny 는 받는 쪽에서 같은 식으로 다시 구한다 (공 위치는 그사이 그대로 — 실수 인자 상자 없이)
   void bnx;
   void bny;
