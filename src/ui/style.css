@@ -2901,3 +2901,8 @@ body { overflow-wrap: break-word; }
 /* 탭 이름은 한 줄 ("몸· / 태그" 금지). 좁은 폰은 탭 사이를 줄여 들어가게 */
 .po-tab { white-space: nowrap; }
 @media (max-width: 380px) { .po-tabs--underline { gap: var(--space-2); } .po-tabs--underline .po-tab { font-size: 14px; } }
+/* C.81n 후속 (AD): 선택지 줄 = 이름(늘 다 보임, 필요하면 두 줄) → 아래 줄 칩(위험 · 약점 공략 · 카드). 안전·균형·도박 칩 없음 */
+.mo-opts .po-choice--row .po-choice__name, .app-moment .po-choice--compact .po-choice__name { flex: 1 1 100%; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: normal; word-break: keep-all; }
+.mo-opts .po-choice--row.is-selected .po-choice__name { display: block; -webkit-line-clamp: unset; }
+.mo-opts .po-choice--row .po-choice__main { row-gap: 4px; }
+.mo-opts .po-choice--row.po-choice--play .po-choice__card { display: inline-block; }

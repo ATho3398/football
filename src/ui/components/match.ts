@@ -203,7 +203,6 @@ export function PitchLegend(left: string): string {
 
 export type ChoiceKind = 'safe' | 'balanced' | 'gamble' | 'play';
 const CHOICE_KO: Record<ChoiceKind, string> = { safe: '안전', balanced: '균형', gamble: '도박', play: '플레이 카드' };
-const CHOICE_ICON: Record<ChoiceKind, IconName> = { safe: 'safe', balanced: 'balanced', gamble: 'gamble', play: 'newchoice' };
 const OFFSIDE_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '중간', n: 2 }, high: { l: '높음', n: 3 } } as const;
 /** 위험 등급 (C.81n): 실패 시 평점 손실 크기 */
 const RISK_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '보통', n: 2 }, high: { l: '높음', n: 3 } } as const;
@@ -220,6 +219,8 @@ export interface ChoiceButtonProps extends Action {
   fail: { text: string; rating: string };
   /** 기대 평점 (C.77s A3): 성공 뒤 이어질 공격 몫까지 넣은 값, 성공·실패 줄 옆 한 줄 */
   ev?: string;
+  /** 확률 막대 제목 (C.81n 후속): 성공 확률 구간 설명 "안전 · 성공 50% 이상" */
+  band?: string;
   /** 위험 등급 (C.81n): 실패 시 평점 손실 ≤0.02 낮음 · ≤0.05 보통 · 그 위 높음. 판정 없는 선택지는 없음 */
   risk?: 'low' | 'mid' | 'high';
   offside?: 'low' | 'mid' | 'high';
@@ -242,11 +243,14 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
   const risk = p.risk ? RISK_STEP[p.risk] : null;
   const d = p.chanceDelta ?? 0;
   const shown = p.chance === null ? null : Math.max(0, Math.min(99, p.chance + d));
-  const tags = `<span class="po-choice__tags"><span class="po-kind po-kind--${p.kind}">${Icon({ name: CHOICE_ICON[p.kind], size: 12, strokeWidth: 2.4 })}${CHOICE_KO[p.kind]}</span>${
+  // C.81n 후속 (AD): 줄 칩은 위험 등급 하나 — 안전·균형·도박(성공률 구간, 표시 전용)은 칩 대신 확률 막대 색과 막대 제목(title)으로만
+  const tagHtml = `${
     p.exploit ? `<span class="po-exploit" title="상대 분석 리포트의 약점">${Icon({ name: 'target', size: 12, strokeWidth: 2.4 })}약점 공략</span>` : ''}${
     p.card ? `<span class="po-choice__card">${esc(p.card)}</span>` : ''}${
     risk ? `<span class="po-risk po-risk--${p.risk}" title="실패하면 잃는 평점 크기">위험 ${risk.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= risk.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}${
-    off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}</span>`;
+    off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}`;
+  const tags = tagHtml ? `<span class="po-choice__tags">${tagHtml}</span>` : '';
+  const band = p.band ?? `성공 확률 구간 ${CHOICE_KO[p.kind]}`;
   const out = (cls: 'ok' | 'bad', icon: IconName, o: { text: string; rating: string }) =>
     `<span class="po-out po-out--${cls}">${Icon({ name: icon, size: 14, strokeWidth: 3 })}<span>${esc(o.text)}</span><b class="po-num">${esc(o.rating)}</b></span>`;
   const prob = p.certain
@@ -254,9 +258,9 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
     : shown === null
     ? '<span class="po-choice__prob"><b class="po-choice__none">판정 없음</b></span>'
     : `<span class="po-choice__prob">${d ? `<s class="po-num">${p.chance}%</s>` : ''}<b class="${cx('po-num', d > 0 && 'is-up', d < 0 && 'is-down')}">${shown}<small>%</small></b>${
-      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar"><i style="width:${shown}%"></i></span></span>`;
+      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar" title="${band}"><i style="width:${shown}%"></i></span></span>`;
   return `<button type="button" class="${cx('po-choice', `po-choice--${p.kind}`, p.kind === 'play' && `po-rarity--${p.rarity ?? 'rare'}`, p.compact && 'po-choice--compact', p.collapsed && 'po-choice--row', p.certain && 'is-certain', p.selected && 'is-selected')}"${actAttrs(p)} aria-pressed="${!!p.selected}"${p.disabled ? ' disabled' : ''}>
-    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}${
+    <span class="po-choice__main"><span class="po-choice__name">${esc(p.name)}</span>${tags}<span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}${
       p.ev ? `<span class="po-out po-out--ev">${Icon({ name: 'chance', size: 14, strokeWidth: 3 })}<span>기대 평점</span><b class="po-num">${esc(p.ev)}</b></span>` : ''}</span></span>${prob}</button>`;
 }
 
