@@ -77,6 +77,7 @@ export function setOwner(s: SimState, a: Agent): void {
   b.owner = a.idx;
   b.flight = null;
   b.reserve = null;
+  b.defHold = null;
   b.kick = null;
   b.vx = b.vy = 0;
   b.z = 0;
@@ -356,6 +357,7 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
   b.reserve = null;
   b.kick = null;
   b.handBlock = null;
+  b.defHold = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.x = clamp(x, 0, L);
