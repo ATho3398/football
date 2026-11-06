@@ -4,7 +4,7 @@
 
 import { BALANCE } from './config/balance';
 import { leagueData, PLAYABLE_LEAGUES } from '../data/leagues';
-import { CLUB_TO_TEAM, createLeague, expectedGoals, nextSeasonLeague, recordResult, scorePair, simulateScore, sortedTable, teamById, type LeagueState } from './league';
+import { CLUB_TO_TEAM, createLeague, nextSeasonLeague, recordResult, scorePair, simulateScore, sortedTable, teamById, type LeagueState } from './league';
 import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar } from './calendar';
 import { createRng, hashSeed, type Rng } from './rng';
 import { createTeamRoster, naturalOvr, pickLineup, posGroup, type TeamRoster } from './roster';
@@ -111,9 +111,14 @@ function pickWeighted<T>(rng: Rng, items: readonly T[], w: (x: T) => number, ski
 function otherScore(rng: Rng, lg: LeagueState, home: string, away: string): [number, number] {
   const hr = teamById(lg, home).rating;
   const ar = teamById(lg, away).rating;
-  const k = BALANCE.otherScorers.goalScale[lg.id] ?? 1;
-  if (k === 1) return simulateScore(rng, hr, ar);
-  return scorePair(rng, expectedGoals(hr, ar, true) * k, expectedGoals(ar, hr, false) * k);
+  const C = BALANCE.otherScorers;
+  const k = C.goalScale[lg.id] ?? 1;
+  const d = C.diffScale ?? 1;
+  if (k === 1 && d === 1) return simulateScore(rng, hr, ar);
+  // C.81w: 레이팅 차 효과 × diffScale — 빠른 진행은 상위 팀 독주가 엔진보다 커서(1위 팀 경기당 득점 2.7~2.9 대 2.2~2.5) 리그 득점왕이 엔진보다 4~6골 많았다
+  const M = BALANCE.match;
+  const xg = (own: number, opp: number, home: boolean) => M.baseGoals * Math.exp(((own - opp) * d + (home ? M.homeRating : 0)) * M.goalsK);
+  return scorePair(rng, xg(hr, ar, true) * k, xg(ar, hr, false) * k);
 }
 
 /** 다른 리그 득점자 후보 (C.81q): 로스터마다 한 번 — 선발·벤치·그 밖(pickLineup, 시상 추정 출전과 같은 구분) 출전 몫 × 포지션군 × OVR(선발 평균 대비) 가중 */

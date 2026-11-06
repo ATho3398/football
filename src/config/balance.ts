@@ -1887,6 +1887,8 @@ export const BALANCE = {
     ovrK: 0.048,
     ovrKAssist: 0.066,
     /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1) */
+    /** C.81w: 빠른 진행 다른 리그 점수의 레이팅 차 효과 배율 (1 = 내 리그 빠른 진행과 같음) — 상위 팀 독주를 엔진에 맞춤 */
+    diffScale: 1 as number | undefined,
     goalScale: { pl: 0.94, laliga: 1, seriea: 0.91, bundesliga: 0.9, ligue1: 0.88, championship: 0.73 } as Record<string, number>,
   },
   // ── 대표팀 · 국제 대회 (10번·18.12, 45c단계, 부록 C.76d) ──
