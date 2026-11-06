@@ -3,10 +3,12 @@
 
 import { BALANCE } from './config/balance';
 import { scoreText } from './text';
+import { HL_CLASS_KO } from './highlightClass';
 import type { MatchLogEntry } from './matchRecord';
 
 export type SeasonHighlightKind = 'best' | 'goal' | 'crisis';
-export const SEASON_HL_KO: Record<SeasonHighlightKind, string> = { best: '최고 평점 경기', goal: '골', crisis: '위기' };
+// 골 이름은 하이라이트 분류 한 곳(highlightClass, C.81o)과 같다. '최고 평점 경기'·'위기'는 경기 단위라 장면 분류 밖
+export const SEASON_HL_KO: Record<SeasonHighlightKind, string> = { best: '최고 평점 경기', goal: HL_CLASS_KO.goal, crisis: '위기' };
 
 export interface SeasonHighlight {
   kind: SeasonHighlightKind; text: string; score: number;
