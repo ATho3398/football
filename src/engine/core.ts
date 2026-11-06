@@ -10,7 +10,7 @@ const BU = ENGINE.physics.burst;
 import { effectiveTactics, pressLevel } from './offball';
 import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, hypot, L, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import * as tactics_ from './tactics';
@@ -57,9 +57,9 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
 export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean, touchFit = 0): number {
   const R = ENGINE.receive;
   let dNear = Infinity;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) dNear = Math.min(dNear, Math.hypot(o.x - a.x, o.y - a.y));
+  for (let i_1 = 0, a_1 = fieldOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!; dNear = Math.min(dNear, hypot(o.x - a.x, o.y - a.y)); }
   const pr = Math.max(0, 1 - dNear / R.pressDist);
-  const run = clamp(Math.hypot(a.vx, a.vy) / 5, 0, 1);
+  const run = clamp(hypot(a.vx, a.vy) / 5, 0, 1);
   return clamp(R.base - (R.touchSkill * (a.attrs.ballControl + touchFit - 70)) / 100 + (R.ballSpeed * Math.max(0, speed - 12)) / 10 + R.press * pr
     + (back ? R.back : 0) - R.run * run + reaction(a) * R.reactMul, R.min, R.max);
 }
@@ -67,7 +67,7 @@ export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean,
 export function setOwner(s: SimState, a: Agent): void {
   const b = s.ball;
   // 수신 정지 시간 (C.78b): 공을 잡는 순간 공 속도 (비행 중이면 비행 속도, 굴러가면 지금 속도)
-  const inSpeed = ENGINE.receive.timeModel > 0 ? (b.flight ? Math.hypot(b.flight.toX - b.flight.fromX, b.flight.toY - b.flight.fromY) / Math.max(0.05, b.flight.dur) : Math.hypot(b.vx, b.vy)) : 0;
+  const inSpeed = ENGINE.receive.timeModel > 0 ? (b.flight ? hypot(b.flight.toX - b.flight.fromX, b.flight.toY - b.flight.fromY) / Math.max(0.05, b.flight.dur) : hypot(b.vx, b.vy)) : 0;
   recordLoss(s, a.team);
   a.rt.risky = false;
   // 결정 결과는 첫 소유 변경에서 끝난다 (C.75a 실패 완화는 그때까지만)
@@ -122,7 +122,7 @@ export function setOwner(s: SimState, a: Agent): void {
 export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const O = ENGINE.offball;
   const tm = s.teams[team];
-  for (const a of onOf(s, team)) {
+  for (let i_2 = 0, a_2 = onOf(s, team); i_2 < a_2.length; i_2++) { const a = a_2[i_2]!;
     a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a)
       * (BU.recoverFloor + (1 - BU.recoverFloor) * burstReady(a));
   }
@@ -144,7 +144,7 @@ export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
     .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
   const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.plan.sit.H.pressers[pressLevel(s, team)]!;
-  for (const a of near) {
+  for (let i_3 = 0, a_3 = near; i_3 < a_3.length; i_3++) { const a = a_3[i_3]!;
     if (tm.counterPressers.length >= max) break;
     const p = (O.counterJoin + (tendency === 'gegenpress' ? TENDENCY.gegenJoin : 0) + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a) * burstReady(a);
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
@@ -161,7 +161,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
   const dir = attackDir(win, s.half);
   const bnx = dir > 0 ? s.ball.x / L : 1 - s.ball.x / L;
   let top: Agent | null = null;
-  for (const a of onOf(s, win)) if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
+  for (let i_4 = 0, a_4 = onOf(s, win); i_4 < a_4.length; i_4++) { const a = a_4[i_4]!; if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a; }
   const cands = s.agents.filter((a) => {
     if (!a.onPitch || a.team !== win || a === top || a.idx === s.ball.owner || a.line === 0) return false;
     if (!(a.line === 3 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB')) return false;
@@ -171,12 +171,12 @@ function exitRuns(s: SimState, win: 0 | 1): void {
   // 빈 곳에 있는 선수부터 (가장 가까운 상대 필드 선수까지 거리 × 침투 성향) — 상대 수비가 적은 쪽이 뛴다
   const room = (a: Agent) => {
     let d = 40;
-    for (const o of fieldOf(s, (1 - win) as 0 | 1)) d = Math.min(d, dist(o.x, o.y, a.x, a.y));
+    for (let i_5 = 0, a_5 = fieldOf(s, (1 - win) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!; d = Math.min(d, dist(o.x, o.y, a.x, a.y)); }
     return d * (0.5 + a.role.run);
   };
   cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
   const exits = cands.slice(0, O.exitRunners);
-  for (const a of exits) {
+  for (let i_6 = 0, a_6 = exits; i_6 < a_6.length; i_6++) { const a = a_6[i_6]!;
     a.runUntil = s.t + O.runSeconds;
     a.exitRun = true;
   }
@@ -186,7 +186,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
   const b = s.ball;
   const sup = onOf(s, win).filter((a) => a !== top && a.idx !== b.owner && !exits.includes(a) && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB'));
   sup.sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y) || x.idx - y.idx);
-  for (const a of sup.slice(0, n)) {
+  for (let i_7 = 0, a_7 = sup.slice(0, n); i_7 < a_7.length; i_7++) { const a = a_7[i_7]!;
     a.runUntil = s.t + O.supportSeconds;
     a.supportRun = true;
   }
@@ -199,7 +199,7 @@ function exitRuns(s: SimState, win: 0 | 1): void {
 function transitionMoment(s: SimState, lost: 0 | 1): void {
 
   if (TR.lossDelay > 0) {
-    for (const a of fieldOf(s, lost)) {
+    for (let i_8 = 0, a_8 = fieldOf(s, lost); i_8 < a_8.length; i_8++) { const a = a_8[i_8]!;
       const q = clamp(((a.judgement * 100 + a.attrs.defensivePositioning) / 2 - TR.lossRef0) / (TR.lossRef1 - TR.lossRef0), 0, 1);
       a.nextOffball = Math.max(a.nextOffball, s.t) + TR.lossMax - (TR.lossMax - TR.lossMin) * q;
     }
@@ -208,13 +208,13 @@ function transitionMoment(s: SimState, lost: 0 | 1): void {
   const win = (1 - lost) as 0 | 1;
   const dir = attackDir(win, s.half);
   let top: Agent | null = null;
-  for (const a of onOf(s, win)) if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a;
-  for (const a of onOf(s, win)) {
+  for (let i_9 = 0, a_9 = onOf(s, win); i_9 < a_9.length; i_9++) { const a = a_9[i_9]!; if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a; }
+  for (let i_10 = 0, a_10 = onOf(s, win); i_10 < a_10.length; i_10++) { const a = a_10[i_10]!;
     if (a.idx === s.ball.owner || !(a === top || a.exitRun || a.supportRun)) continue;
     a.nextOffball = s.t;
     if (a.hx * dir < TR.startFace) continue;
     const v = TR.startRun * a.maxSpeed;
-    const sp = Math.hypot(a.vx, a.vy);
+    const sp = hypot(a.vx, a.vy);
     if (sp >= v) continue;
     a.vx = a.hx * v;
     a.vy = a.hy * v;
@@ -224,7 +224,7 @@ function transitionMoment(s: SimState, lost: 0 | 1): void {
 /** 수신 압박 비율 (preDecide 와 같은 식): pressDist m 안 가장 가까운 상대 필드 선수가 가까울수록 1 */
 function pressureNear(s: SimState, a: Agent): number {
   let d = Infinity;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) d = Math.min(d, Math.hypot(o.x - a.x, o.y - a.y));
+  for (let i_11 = 0, a_11 = fieldOf(s, (1 - a.team) as 0 | 1); i_11 < a_11.length; i_11++) { const o = a_11[i_11]!; d = Math.min(d, hypot(o.x - a.x, o.y - a.y)); }
   return Math.max(0, 1 - d / ENGINE.receive.pressDist);
 }
 
@@ -235,7 +235,7 @@ function tiredness(a: Agent): number {
 
 function manDiffCount(s: SimState, team: 0 | 1): number {
   let d = 0;
-  for (const a of s.agents) if (a.onPitch) d += a.team === team ? 1 : -1;
+  for (let i_12 = 0, a_12 = s.agents; i_12 < a_12.length; i_12++) { const a = a_12[i_12]!; if (a.onPitch) d += a.team === team ? 1 : -1; }
   return d;
 }
 
@@ -258,7 +258,7 @@ export function looseBall(s: SimState, x: number, y: number, vx: number, vy: num
 /** 킥오프 키커: 그 팀에서 가장 앞선 필드 선수 (슬롯 기준) */
 export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
   let best: Agent | null = null;
-  for (const a of fieldOf(s, team)) {
+  for (let i_13 = 0, a_13 = fieldOf(s, team); i_13 < a_13.length; i_13++) { const a = a_13[i_13]!;
     if (!best || a.sx > best.sx) best = a;
   }
   return best;
@@ -268,11 +268,11 @@ export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
 export function kickoffPositions(s: SimState, team: 0 | 1): void {
   const taker = kickoffTaker(s, team);
   let mate: Agent | null = null;
-  for (const a of fieldOf(s, team)) {
+  for (let i_14 = 0, a_14 = fieldOf(s, team); i_14 < a_14.length; i_14++) { const a = a_14[i_14]!;
     if (a === taker) continue;
     if (!mate || a.sx > mate.sx) mate = a;
   }
-  for (const a of s.agents) {
+  for (let i_15 = 0, a_15 = s.agents; i_15 < a_15.length; i_15++) { const a = a_15[i_15]!;
     if (!a.onPitch) continue;
     const dir = attackDir(a.team, s.half);
     const nx = Math.min(a.sx * 0.9, 0.46);
@@ -322,7 +322,7 @@ export function delayRestart(s: SimState, range: readonly [number, number], k: n
 export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number): number {
   let pick = -1;
   let bd = Infinity;
-  for (const a of onOf(s, team)) {
+  for (let i_16 = 0, a_16 = onOf(s, team); i_16 < a_16.length; i_16++) { const a = a_16[i_16]!;
     if (type === 'goalKick' ? a.line !== 0 : a.line === 0) continue;
     const d = dist(a.x, a.y, x, y);
     if (d < bd) {
@@ -337,7 +337,7 @@ export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: num
 export function penaltyTaker(s: SimState, team: 0 | 1): number {
   let pick = -1;
   let best = -Infinity;
-  for (const a of fieldOf(s, team)) {
+  for (let i_17 = 0, a_17 = fieldOf(s, team); i_17 < a_17.length; i_17++) { const a = a_17[i_17]!;
     const v = a.attrs.shooting + a.attrs.composure;
     if (v > best) {
       best = v;

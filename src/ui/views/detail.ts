@@ -7,6 +7,7 @@ import type { LeftPersonVM, PersonDetailVM, PersonTab, SquadRowVM, TeamDetailVM,
 import type { FormMark } from '../prepVM';
 import { attrGrid } from './attrGrid';
 import { panel, statTiles } from './common';
+import { scoreText } from '../../text';
 
 const MARK_KO: Record<FormMark, string> = { W: '승', D: '무', L: '패' };
 /** 재정 등급 4단 막대 + 글자 (디자인 136·146 막대 모양, C.54: 컴포넌트 FinChip) */
@@ -40,7 +41,7 @@ function squadRow(r: SquadRowVM): string {
 
 function matchRow(m: TeamMatchVM): string {
   const res = m.mark ? `<i class="prep-form__m is-${m.mark}">${MARK_KO[m.mark]}</i>` : '<i class="prep-form__m">—</i>';
-  return `<button type="button" class="dt-match" data-act="team-open" data-v="${esc(m.oppId)}"><span class="po-num dt-match__r">${m.round}R</span>${Crest({ name: m.opp, team: m.oppId, size: 20 })}<span class="grow"><b>${esc(m.opp)}</b> <small>${m.home ? '홈' : '원정'}</small></span><b class="po-num">${m.score ?? '예정'}</b>${res}</button>`;
+  return `<button type="button" class="dt-match" data-act="team-open" data-v="${esc(m.oppId)}"><span class="po-num dt-match__r">${m.round}R</span>${Crest({ name: m.opp, team: m.oppId, size: 20 })}<span class="grow"><b>${esc(m.opp)}</b> <small>${m.home ? '홈' : '원정'}</small></span><b class="po-num score-cell">${m.score ?? '예정'}</b>${res}</button>`;
 }
 
 function formDots(f: FormMark[]): string {
@@ -90,7 +91,7 @@ export function teamDetailView(vm: TeamDetailVM, tab: TeamTab, back: boolean): s
   } else if (tab === 'tactics') {
     body = `${tactic}<p class="small muted">미니 피치는 지금 로스터로 고른 베스트 11이에요(부상·이적 반영). 숫자 = 그 자리 OVR, 누르면 선수 상세.</p>`;
   } else {
-    body = `${statTiles([{ value: r.played, label: '경기' }, { value: `${r.won}-${r.drawn}-${r.lost}`, label: '승-무-패' }, { value: `${r.gf}:${r.ga}`, label: '득점:실점' }, { value: r.points, label: '승점', hi: true }])}
+    body = `${statTiles([{ value: r.played, label: '경기' }, { value: `${r.won}-${r.drawn}-${r.lost}`, label: '승-무-패' }, { value: scoreText(r.gf, r.ga), label: '득점 : 실점' }, { value: r.points, label: '승점', hi: true }])}
       ${vsMe}${SectionTitle({ title: '이번 시즌 경기', action: `${played.length}/${vm.matches.length}` })}<div class="dt-list">${vm.matches.map(matchRow).join('')}</div>`;
   }
   return `${hero}<div class="body dt-body">${tabs}${body}<p class="small muted dt-foot">순위표·경기 준비·일정·이적 제안·득점 순위에서 팀 이름을 누르면 이 화면이 열려요. 읽기 전용.</p></div>`;

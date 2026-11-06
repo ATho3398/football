@@ -140,7 +140,8 @@ describe('코치 효과 (D.13 재설계)', () => {
     expect(coachBoost(g, p, 'passing')).toBeNull();
     // 한계 (일반 75): 넘으면 효과 없음
     ensureMoney(g).staff = [coach('normal', ['shooting'])];
-    p.attributes.shooting = 76;
+    // C.81o: 한계는 화면 1~20 값으로 판정 (일반 75 → 화면 15, 내부 77 = 화면 15 까지 받음, 78 = 화면 16 못 받음)
+    p.attributes.shooting = 78;
     expect(coachBoost(g, p, 'finishing')).toBeNull();
     p.attributes.shooting = 60;
     ensureMoney(g).staff = [coach('legendary', ['shooting'], 'a'), coach('worldClass', ['shooting'], 'b')];
@@ -215,7 +216,7 @@ describe('재정 화면·세이브 38', () => {
     const html = financeView(vm);
     expect(html).toContain('재정');
     expect(html).toContain('코치 모집');
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     expect(deserialize(serialize(g)).money).toEqual(g.money);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 37;

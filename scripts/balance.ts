@@ -41,6 +41,9 @@ import type { InjuryGrade, Tier } from '../src/types';
 import { END_AGE, jobKey, type CareerJob, type CareerMode, type Policy, type Run, type Strategy } from './balance/career';
 import { runCareers } from './balance/pool';
 import { writeStepSummary } from './balance/summary';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { deserialize, serialize } from 'node:v8';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a)·측정용 덮어쓰기(VET·ONECLUB·COACH_SCALE·MED_SCALE·COACH_XP)는 scripts/balance/career.ts (워커도 같이)
 
@@ -111,7 +114,35 @@ if (COACH_MEASURE) {
 }
 const planned = [...plan.values()];
 const results = new Map<string, Run>();
-(await runCareers(planned)).forEach((r, k) => results.set(jobKey(planned[k]!), r));
+/**
+ * C.81k: CI 조각 실행. SHARD=k/N 이면 작업 목록(위 순서 그대로)의 k, k+N, k+2N… 번째만 돌려 SHARD_OUT 파일에 (열쇠, 결과)를 쓰고 끝낸다.
+ * MERGE_DIR 가 있으면 그 폴더의 조각 파일을 모두 읽어 결과를 채우고(커리어를 다시 돌리지 않음) 아래 출력·가드를 그대로 한다.
+ * 결과는 worker postMessage 와 같은 v8 구조 복제(serialize)로 저장 — 한 번에 돈 것과 값이 같다. 빠진 작업이 있으면 판정하지 않고 실패
+ */
+const SHARD = env.SHARD;
+const MERGE_DIR = env.MERGE_DIR;
+if (SHARD) {
+  const [k, n] = SHARD.split('/').map(Number) as [number, number];
+  if (!(n >= 1 && k >= 0 && k < n)) throw new Error(`SHARD=${SHARD} 형식은 k/N (0 ≤ k < N)`);
+  const mine = planned.filter((_, idx) => idx % n === k);
+  const out = env.SHARD_OUT ?? `balance-shard-${k}.bin`;
+  const runs = await runCareers(mine);
+  writeFileSync(out, serialize({ total: planned.length, entries: mine.map((job, idx) => [jobKey(job), runs[idx]!]) }));
+  console.log(`[조각 ${k}/${n}] 커리어 ${mine.length}/${planned.length}개 → ${out}`);
+  (globalThis as { process?: { exit(code: number): never } }).process?.exit(0);
+} else if (MERGE_DIR) {
+  const files = readdirSync(MERGE_DIR, { recursive: true }).map(String).filter((f) => f.endsWith('.bin'));
+  for (const f of files) {
+    const data = deserialize(readFileSync(join(MERGE_DIR, f))) as { total: number; entries: [string, Run][] };
+    if (data.total !== planned.length) throw new Error(`조각 ${f}: 작업 수 ${data.total} ≠ 지금 계획 ${planned.length} (환경 변수가 다른 조각)`);
+    for (const [key, run] of data.entries) results.set(key, run);
+  }
+  const missing = planned.filter((job) => !results.has(jobKey(job))).length;
+  if (missing) throw new Error(`조각 합치기: ${files.length}개 파일에서 커리어 ${missing}/${planned.length}개가 빠짐`);
+  console.log(`[조각 합치기] 파일 ${files.length}개 · 커리어 ${planned.length}개`);
+} else {
+  (await runCareers(planned)).forEach((r, k) => results.set(jobKey(planned[k]!), r));
+}
 const get = (job: CareerJob) => results.get(jobKey(job))!;
 const simulateCareer = (tier: Tier, i: number, strategy: Strategy, mode: CareerMode = BASE) => get(prospect(tier, i, strategy, mode));
 

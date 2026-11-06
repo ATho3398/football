@@ -2,10 +2,13 @@
 // 시즌 종료 요약에 보여 주고, 같은 후보(점수 포함)를 챕터 리뷰 하이라이트 후보로도 쓴다. 기록만 읽는 순수 함수다
 
 import { BALANCE } from './config/balance';
+import { scoreText } from './text';
+import { HL_CLASS_KO } from './highlightClass';
 import type { MatchLogEntry } from './matchRecord';
 
 export type SeasonHighlightKind = 'best' | 'goal' | 'crisis';
-export const SEASON_HL_KO: Record<SeasonHighlightKind, string> = { best: '최고 평점 경기', goal: '골', crisis: '위기' };
+// 골 이름은 하이라이트 분류 한 곳(highlightClass, C.81o)과 같다. '최고 평점 경기'·'위기'는 경기 단위라 장면 분류 밖
+export const SEASON_HL_KO: Record<SeasonHighlightKind, string> = { best: '최고 평점 경기', goal: HL_CLASS_KO.goal, crisis: '위기' };
 
 export interface SeasonHighlight {
   kind: SeasonHighlightKind; text: string; score: number;
@@ -16,7 +19,7 @@ export interface SeasonHighlight {
 const H = () => BALANCE.seasonHighlights;
 
 function result(e: MatchLogEntry): string {
-  return `${e.goalsFor}-${e.goalsAgainst} ${e.goalsFor > e.goalsAgainst ? '승' : e.goalsFor < e.goalsAgainst ? '패' : '무'}`;
+  return `${scoreText(e.goalsFor, e.goalsAgainst)} ${e.goalsFor > e.goalsAgainst ? '승' : e.goalsFor < e.goalsAgainst ? '패' : '무'}`;
 }
 
 const venue = (e: MatchLogEntry) => (e.home ? '홈' : '원정');

@@ -40,7 +40,7 @@ function visible(cands: Candidate[]): Candidate[] {
 /** 엔진 효용 1위 후보 (지시 이행) */
 export function followCand(cands: Candidate[]): Candidate | null {
   let best: Candidate | null = null;
-  for (const c of visible(cands)) if (!best || c.u > best.u) best = c;
+  for (let i_1 = 0, a_1 = visible(cands); i_1 < a_1.length; i_1++) { const c = a_1[i_1]!; if (!best || c.u > best.u) best = c; }
   return best;
 }
 
@@ -48,7 +48,7 @@ export function followCand(cands: Candidate[]): Candidate | null {
 export function soloCand(cands: Candidate[]): Candidate | null {
   const top = followCand(cands);
   let best: Candidate | null = null;
-  for (const c of visible(cands)) if (SOLO_TYPES.has(c.type) && (!best || c.value > best.value)) best = c;
+  for (let i_2 = 0, a_2 = visible(cands); i_2 < a_2.length; i_2++) { const c = a_2[i_2]!; if (SOLO_TYPES.has(c.type) && (!best || c.value > best.value)) best = c; }
   return best && best !== top ? best : null;
 }
 
@@ -84,7 +84,7 @@ export function directiveReward(report: CardReport | undefined): DirectiveReward
   let follow = 0;
   let soloOk = 0;
   let soloFail = 0;
-  for (const u of report.uses) {
+  for (let i_3 = 0, a_3 = report.uses; i_3 < a_3.length; i_3++) { const u = a_3[i_3]!;
     if (u.auto) continue;
     if (u.id === 'dirFollow') follow++;
     else if (u.id === 'dirSolo' && u.result === 'success') soloOk++;
