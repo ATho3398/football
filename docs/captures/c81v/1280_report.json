@@ -1,0 +1,86 @@
+{
+ "W": 1280,
+ "H": 800,
+ "errors": [
+  "Cannot read properties of undefined (reading 'length')"
+ ],
+ "screens": {
+  "1_대표팀-준비-전술칸": {
+   "wide": 0
+  },
+  "1b_대표팀-준비-전술칸-위치": {
+   "wide": 0
+  },
+  "2_탈락다음날-홈": {
+   "wide": 0
+  },
+  "2b_탈락다음날-대회-진행중": {
+   "wide": 0
+  },
+  "2c_시즌끝": {
+   "wide": 0
+  },
+  "2d_인박스-대회소식": {
+   "wide": 0
+  },
+  "3_결정결과-재생중": {
+   "wide": 0
+  },
+  "3_결정결과-1": {
+   "wide": 0
+  },
+  "3_결정결과-2": {
+   "wide": 0
+  },
+  "3c_결과화면": {
+   "wide": 0
+  },
+  "4a_우승축하-오버레이": {
+   "wide": 0
+  }
+ },
+ "notes": {
+  "prep": {
+   "natLine": "대표팀 전술감독 고정 · 클럽 전술은 쓰지 않아요",
+   "tacOpen": false
+  },
+  "out": {
+   "before": {
+    "date": "2019-06-15",
+    "phase": "season",
+    "live": "asian2019"
+   },
+   "after": {
+    "date": "2019-06-27",
+    "phase": "offseason",
+    "news": [
+     "2019-06-18 2019 아시안컵 8강 결과",
+     "2019-06-22 2019 아시안컵 4강 결과",
+     "2019-06-26 2019 아시안컵 결승 — 호주 우승"
+    ]
+   },
+   "stops": [
+    "2019-06-27"
+   ]
+  },
+  "moment": {
+   "picked": 3,
+   "chips": [
+    {
+     "choice": "내 선택조던 톰린슨에게 백패스 (88%)위험 보통",
+     "risk": "위험 보통"
+    },
+    {
+     "choice": "내 선택공 지키기 (86%)위험 보통",
+     "risk": "위험 보통"
+    }
+   ],
+   "decRows": []
+  },
+  "title": {
+   "overlay": true,
+   "phase": "season",
+   "screen": "screen screen-match"
+  }
+ }
+}

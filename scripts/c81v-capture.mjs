@@ -32,7 +32,7 @@ const shot = async (name, full = false) => {
 async function dismiss() {
   for (let k = 0; k < 4; k++) {
     if (await has('[data-act="intro-ok"]')) await page.locator('[data-act="intro-ok"]').first().click();
-    else if (await has('[data-act="fm-close"]:visible')) await page.locator('[data-act="fm-close"]:visible').first().click();
+    else if (await has('.fm-card [data-act="fm-close"]')) await page.locator('.fm-card [data-act="fm-close"]').first().click();
     else if (await has('[data-act="tip-close"]')) await page.locator('[data-act="tip-close"]').first().click();
     else break;
     await page.waitForTimeout(150);
@@ -162,6 +162,7 @@ if (want('moment')) {
     await page.waitForSelector('[data-act="mo-confirm"], [data-act="oc-skip"], [data-act="ht-keep"], main.screen-match', { timeout: 180_000 }).catch(() => null);
     await page.waitForTimeout(400);
     await dismiss();
+    if (loop % 10 === 0) console.log('moment loop', loop, picked, await page.evaluate(() => [document.querySelector('main')?.className, [...document.querySelectorAll('[data-act]')].filter((b) => b.offsetParent).map((b) => b.dataset.act).slice(0, 12).join(',')]));
     if (await has('[data-act="ht-keep"]')) { await act('ht-keep'); continue; }
     if (await has('[data-act="oc-skip"]')) {
       if (picked && picked <= 2 && !report.screens[`3_결정결과-${picked}`]) {
@@ -173,6 +174,8 @@ if (want('moment')) {
     }
     if (!(await has('[data-act="mo-confirm"]'))) { await page.waitForTimeout(300); continue; }
     if (await has('.mo-react')) { await act('mo-pick-confirm', '[data-v="0"]').catch(() => act('mo-confirm')); continue; }
+    // 2번 고른 뒤로는 맡기기 + 자동(나머지 결정 순간에 멈추지 않음 — 캡처 시간 줄이기)
+    if (picked >= 3) { await page.evaluate(() => { const g = globalThis.__game(); g.control.mode = 'auto'; }); await act('mo-delegate').catch(() => null); continue; }
     // 판정 있는 선택지(위험 칩이 붙은 줄)를 골라 확정
     const idx = await page.evaluate(() => { const rows = [...document.querySelectorAll('.mo-opts .po-choice')]; const i = rows.findIndex((b) => b.querySelector('.po-risk')); return i < 0 ? 0 : i; });
     await page.locator('.mo-opts [data-act="mo-pick"]').nth(idx).click().catch(() => null);
@@ -190,6 +193,8 @@ if (want('moment')) {
   report.notes.moment = { picked, chips, decRows: await page.evaluate(() => [...document.querySelectorAll('.dec-row:not(.mr-clip) .dec-main b')].map((b) => b.textContent.trim())) };
   // 리플레이 재생 중 득점 피드 (방금 경기 리플레이 저장소)
   if (await has('[data-act="hl-rewatch"]')) {
+    // 첫 경기 안내 오버레이는 이미 본 것으로 (재생을 멈춰 두므로)
+    await page.evaluate(() => { globalThis.__game().guide.firstMatchSeen = true; });
     await act('hl-rewatch');
     await page.waitForTimeout(800);
     if (await has('[data-act="rp-speed"]')) { for (let k = 0; k < 3; k++) await page.locator('[data-act="rp-speed"]').first().click().catch(() => null); }
