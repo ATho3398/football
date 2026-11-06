@@ -65,7 +65,11 @@ export function prepView(vm: PrepVM): string {
     <p class="prep-scout__note">결정 순간 <b class="prep-exploit">약점 공략</b> 선택지(${esc(sc.actionsKo)})는 성공률 +${sc.bonus}% · 그 선수가 뛰는 동안</p>`) : '';
 
   const lock = '<span class="prep-note">전술은 3경기를 치르면 열려요.</span>';
-  const tactics = card(`${head('전술', vm.tacticsOpen ? { label: '바꾸기', act: 'tac-open' } : undefined)}
+  // C.81v: 대표팀 경기는 클럽 전술을 쓰지 않는다 → 한 줄 (바꾸기·잠금 안내 없음)
+  const tactics = vm.natFixed
+    ? card(`${head('전술')}
+    <div class="prep-row prep-nat-tactic">${Icon({ name: 'tactic', size: 16 })}<b>대표팀 전술</b><span class="prep-sub">감독 고정 · 클럽 전술은 쓰지 않아요</span></div>`)
+    : card(`${head('전술', vm.tacticsOpen ? { label: '바꾸기', act: 'tac-open' } : undefined)}
     <div class="prep-row">${vm.my.tactic ? TacticChip({ size: 'sm', ...vm.my.tactic }) : ''}<span class="prep-sub">${esc(vm.tacticLine)}</span></div>
     ${vm.tacticsOpen ? '' : lock}`);
 

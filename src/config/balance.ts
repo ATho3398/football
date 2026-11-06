@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 99;
+export const BALANCE_VERSION = 100;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1928,6 +1928,8 @@ export const BALANCE = {
     startAfter: 21, gap: 4, koGap: 4,
     /** 대회 소집일 = 첫 조별 경기 campDays 일 전 (C.81l: 소집되면 클럽 시즌 끝 → 휴가 → 소집일부터 대표팀 훈련·경기를 달력 위에서 치른다) */
     campDays: 7,
+    /** 내 나라가 떨어진 뒤 남은 대회 경기를 기다리는 최대 날 (C.81v): 마지막 대회 경기가 내 마지막 경기 + waitAfterOut 일 안이면 그 날짜에 진행·소식(휴가), 넘으면 그날 하루 끝에 몰아서(소식 날짜는 경기 날짜) */
+    waitAfterOut: 18,
     /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
     tournamentBonus: 0.05,
     /** 세이브에 남기는 지난 대회 수 (조·대진 표) */

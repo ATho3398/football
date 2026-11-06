@@ -599,10 +599,36 @@ export function myNationAlive(state: GameState, live: TournamentLive, view = tou
   return !view.done && view.alive.includes(myNation(state).name);
 }
 
-/** 달력 위 대회가 내 경기를 기다린다 (시즌 끝을 미룬다, C.81l) */
+/** 대회 마지막 경기(결승) 날짜: 조별 3회 뒤 녹아웃 단계마다 koGap 일 */
+export function tournamentEndDate(live: Pick<TournamentLive, 'comp' | 'start'>): IsoDate {
+  const rounds = Math.max(1, Math.round(Math.log2(N().tournaments[live.comp].ko)));
+  return addDays(live.start, 3 * N().gap + (rounds - 1) * N().koGap);
+}
+
+/** 내 나라가 치른 마지막 대회 경기 날짜 (없으면 null) */
+function myLastTournamentDate(state: GameState, live: TournamentLive): IsoDate | null {
+  const prefix = `t:${live.id}:`;
+  const mine = (state.national?.fixtures ?? []).filter((m) => m.key.startsWith(prefix) && m.gf !== undefined);
+  return mine.at(-1)?.date ?? null;
+}
+
+/**
+ * 달력 위 대회가 시즌 끝을 미룬다 (C.81l → C.81v): 내 나라가 남아 있으면 내 경기를, 떨어졌으면 남은 다른 나라 경기(결승까지)를 그 날짜에 —
+ * 단 내 마지막 경기 뒤 waitAfterOut 일 안에 대회가 끝날 때만 (넘으면 거짓 → 시즌 끝 처리가 남은 경기를 몰아서, 소식은 경기 날짜로)
+ */
 export function natTournamentAlive(state: GameState): boolean {
   const live = state.national?.live;
-  return !!live && live.called && live.year === state.league.season + 1 && myNationAlive(state, live);
+  if (!live || !live.called || live.year !== state.league.season + 1) return false;
+  const view = tournamentState(state, live);
+  if (view.done) return false;
+  if (myNationAlive(state, live, view)) return true;
+  const last = myLastTournamentDate(state, live);
+  return !!last && daysBetween(last, tournamentEndDate(live)) <= N().waitAfterOut;
+}
+
+/** 소집된 대회에서 내 나라가 떨어졌다 (그 뒤 빈 날짜는 휴가, C.81v) */
+export function myNationOut(state: GameState, live: TournamentLive): boolean {
+  return live.called && !myNationAlive(state, live);
 }
 
 /** 대회 기록 (끝났으면 우승·성적, 진행 중이면 champion '' · reach '진행 중'): 화면·시즌 끝 기록이 같이 쓴다 */
@@ -672,11 +698,44 @@ export function nationalKickoff(state: GameState, finalDate: IsoDate): Tournamen
   return live;
 }
 
-/** 하루 끝 (endDay, 날짜 = 끝난 날): 달력 위 대회의 그날까지 다른 나라 경기를 빠른 계산하고, 대진이 정해지면 내 다음 경기를 일정에 넣는다 */
+/** 하루 끝 (endDay, 날짜 = 끝난 날): 달력 위 대회의 그날까지 다른 나라 경기를 빠른 계산하고, 대진이 정해지면 내 다음 경기를 일정에 넣는다.
+ * 내 나라가 떨어진 뒤 끝난 단계는 인박스 소식 (C.81v) */
 export function tournamentDayEnd(state: GameState, date: IsoDate): void {
   const live = state.national?.live;
   if (!live || !live.called || live.year !== state.league.season + 1) return;
-  advanceTournament(state, live, date);
+  const view = advanceTournament(state, live, date);
+  tournamentNews(state, live, view);
+}
+
+/**
+ * 대회 소식 (C.81v, 컵 소식 C.81l 과 같은 꼴): 소집된 대회에서 내 나라가 없는 단계가 끝나면 그 경기 날짜로 인박스 "대표팀" 소식 —
+ * 조별 탈락이면 조별리그 끝(녹아웃 진출국), 내 나라가 없는 녹아웃 단계는 결과, 결승은 우승국. 내 나라가 뛴 단계는 결과 화면이 있으니 뺀다
+ */
+export function tournamentNews(state: GameState, live: TournamentLive, view = tournamentState(state, live)): void {
+  if (!live.called) return;
+  const me = myNation(state).name;
+  const name = `${live.year} ${NAT_COMP_KO[live.comp]}`;
+  const ko = (t: string) => nationOf(t).nameKo;
+  const dateOf = (prefix: string) => view.matches.filter((m) => m.key.startsWith(prefix)).map((m) => m.date).sort().at(-1)!;
+  const link = { to: 'national', label: '대표팀' } as const;
+  const first = view.ko[0];
+  if (first && !first.ties.some((t) => t.a === me || t.b === me)) {
+    pushInbox(state, {
+      key: `natnews:${live.id}:groups`, cat: 'national', date: dateOf('g'), title: `${name} 조별리그 끝 — ${first.name} 진출국`,
+      body: `${first.ties.flatMap((t) => [t.a, t.b]).map(ko).join(' · ')}.`, link,
+    });
+  }
+  view.ko.forEach((round, r) => {
+    if (round.ties.some((t) => !t.winner) || round.ties.some((t) => t.a === me || t.b === me)) return;
+    const line = (t: KoTie) => `${ko(t.a)} ${t.ga} : ${t.gb}${t.pens ? ` (PK ${t.pens[0]} : ${t.pens[1]})` : ''} ${ko(t.b)}`;
+    const final = round.ties.length === 1;
+    pushInbox(state, {
+      key: `natnews:${live.id}:k${r}`, cat: 'national', date: dateOf(`k${r}:`),
+      title: final ? `${name} 결승 — ${ko(round.ties[0]!.winner)} 우승` : `${name} ${round.name} 결과`,
+      body: final ? `${line(round.ties[0]!)}. ${ko(round.ties[0]!.winner)}가 ${name}을 들어 올렸어요.` : `${round.ties.map(line).join(' · ')}. ${round.ties.map((t) => ko(t.winner)).join('·')} 진출.`,
+      link,
+    });
+  });
 }
 
 /** 대회 성적 → 업적 (18.12): 소집된 대회만 */
@@ -718,6 +777,8 @@ export function nationalSeasonEnd(state: GameState, finalDate: IsoDate, play: Pl
       live = drawTournament(state, comp, year, finalDate, called);
     }
     const view = advanceTournament(state, live, null, play);
+    // C.81v: 탈락 뒤 기다림이 길어 몰아서 치른 남은 단계도 소식은 경기 날짜로 (소집된 대회만)
+    tournamentNews(state, live, view);
     const rec = tournamentRecord(state, live, view);
     const prefix = `t:${live.id}:`;
     const mine = nat.fixtures.filter((m) => m.key.startsWith(prefix));
