@@ -80,6 +80,18 @@ describe('C.81n 결정 순간 숫자', () => {
     expect(h).toContain(`확정 · 컷백 ${r.chance}%`);
     expect(r.ev).toBe(shownEv(opts[1]!, 0.123));
   });
+  it('줄 칩은 위험 하나 (안전·균형·도박 칩 없음, 구간은 막대 제목), 칩은 이름 뒤(아래 줄)', () => {
+    const h = momentView(vm);
+    expect(h).not.toContain('po-kind');
+    for (const b of h.split('<button type="button" class="po-choice').slice(1)) {
+      const name = b.indexOf('po-choice__name');
+      const risk = b.indexOf('po-risk');
+      expect(name).toBeGreaterThan(-1);
+      expect(risk).toBeGreaterThan(name);
+    }
+    expect(h).toContain('title="안전 구간 · 성공 50% 이상"');
+    expect(h).toContain('title="도박 구간 · 성공 25% 미만"');
+  });
   it('4번째(카드) 선택지는 플레이 카드를 고른 뒤에만 보인다', () => {
     const play = d.moment.cards.find((c) => c.option)!;
     const cm: Moment = { ...M, options: opts.slice(0, 3), cards: [play] };

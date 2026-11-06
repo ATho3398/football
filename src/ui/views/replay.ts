@@ -3,7 +3,8 @@
 // 결정 순간 정지와 선택 패널, 패, 직접/자동 토글은 없다 (E4). 설정 항목이 없어 톱니도 숨긴다.
 // 화면 모듈은 뷰모델만 받아 HTML 을 만들고(부록 H.2), 캔버스와 자주 바뀌는 값은 ReplayPlayer 가 갱신한다.
 
-import { HL, possessionSummary, selectScenes, type Scene } from '../../highlights';
+import { HL, possessionSummary, sceneClass, selectScenes, type Scene } from '../../highlights';
+import { HL_CLASS_SHORT } from '../../highlightClass';
 import { clockLabel, frameAt, frameIndex, interpolateFrame, scoreAt, settledFrames, SPEEDS, type Replay, type ReplayFrame } from '../../replay';
 import {
   Avatar, Button, esc, FeedItem, Icon, Pitch, PitchLegend, PossessionBar, ScoreBar, StatChip, type ScoreView,
@@ -35,10 +36,12 @@ export interface ReplayVM extends ReplayStaticVM {
 const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', decision: '내 결정', me: '내 장면', opponent: '상대', shot: '슈팅' };
 
 export function sceneTiles(r: Replay, scenes: Scene[]): { minute: string; label: string; key: number }[] {
+  // C.81o: 골·실점·기회·내 장면 이름은 highlightClass 한 곳
+  const labelOf = (sc: Scene) => { const c = sceneClass(sc, r.side); return c ? HL_CLASS_SHORT[c] : SCENE_SHORT[sc.kind]; };
   return scenes.map((sc) => {
     if (sc.kind === 'decision') return { minute: `${sc.minute ?? ''}'`, label: SCENE_SHORT.decision, key: sc.key };
     const ev = r.events.find((x) => x.e >= sc.key - 0.01 && (x.type === 'shot' || x.type === 'goal'));
-    return { minute: ev ? `${ev.minute}'` : '', label: sc.kind === 'goal' && sc.team !== r.side ? '실점' : SCENE_SHORT[sc.kind], key: sc.key };
+    return { minute: ev ? `${ev.minute}'` : '', label: labelOf(sc), key: sc.key };
   });
 }
 
