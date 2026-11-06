@@ -1,7 +1,7 @@
 // C.67a (39단계 5-6 a): 대회 틀 · FA컵(32팀 단판, 승부차기 간이 판정) · 일정 편입(컵 주말, 팀마다 경기 사이 2일 이상) ·
 // 내 팀 없는 경기 레이팅 간이 계산 · 내 컵 경기 전 엔진 · 결승이 남으면 시즌 끝 미룸 · 휴가 예외 · 가족 휴가 결장 · 세이브 36 이식
 import { describe, expect, it } from 'vitest';
-import { daysBetween, weekday } from '../src/calendar';
+import { addDays, daysBetween, weekday } from '../src/calendar';
 import { BALANCE } from '../src/config/balance';
 import { compTeams, faDates, reachLabel, stageName, teamReach } from '../src/cups';
 import { applyEffects } from '../src/events';
@@ -101,8 +101,19 @@ describe('한 시즌 진행', () => {
       const late = g.cups!.ucl?.ko.some((st) => [...st.l1, ...st.l2].some((t) => (t.h === g.player.teamId || t.a === g.player.teamId) && t.d! > calendarOf(g).final));
       if (late || (final.h !== g.player.teamId && final.a !== g.player.teamId)) continue;
       found = true;
-      expect(g.calendar.date).toBe(fa.dates[4]);
-      expect(g.lastMatch!.cup!.stage).toBe('결승');
+      // C.81l: 여름 대표팀 대회에 소집됐으면 시즌은 그 대회의 내 마지막 경기 날에 끝난다 (그 전에는 결승 날)
+      const nat = g.national?.live ? null : g.national?.tournaments.at(-1);
+      const tour = nat?.called ? g.national!.fixtures.filter((m) => m.key.startsWith(`t:${nat.id}:`)) : [];
+      if (tour.length) {
+        expect(g.calendar.date).toBe(tour.at(-1)!.date);
+        expect(g.lastMatch!.nat).toBeDefined();
+      } else {
+        // 챔스 결승(내 팀 없음)이 FA컵 결승보다 늦으면 그 다음 날 (C.81l)
+        const uclFinal = g.cups!.ucl?.ko[3]?.l1[0]?.d;
+        const later = uclFinal && uclFinal > fa.dates[4]! ? addDays(uclFinal, 1) : fa.dates[4];
+        expect(g.calendar.date).toBe(later);
+        expect(g.lastMatch!.cup!.stage).toBe('결승');
+      }
       break;
     }
     expect(found).toBe(true);
@@ -185,7 +196,7 @@ describe('가족 휴가 결장 (pending 102 ⑨)', () => {
 describe('세이브 36', () => {
   it('왕복 그대로 · 옛 세이브(35)는 이어 할 수 없음', () => {
     const g = real('c67-save');
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 35;

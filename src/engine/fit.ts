@@ -49,10 +49,10 @@ export function rawGap(attrs: FieldAttributes, pos: Position, t: FitTendency): n
 /** 선발 필드 선수(원래 능력치)의 성향별 (핵심 차이 − 그 포지션 리그 보통 차이) 평균 (능력치 점수) */
 export function fitGaps(players: { attrs: FieldAttributes; pos: Position }[]): Record<FitTendency, number> {
   const out = {} as Record<FitTendency, number>;
-  for (const t of FIT_TENDENCIES) {
+  for (let i_1 = 0, a_1 = FIT_TENDENCIES; i_1 < a_1.length; i_1++) { const t = a_1[i_1]!;
     let sum = 0;
     let n = 0;
-    for (const p of players) {
+    for (let i_2 = 0, a_2 = players; i_2 < a_2.length; i_2++) { const p = a_2[i_2]!;
       const g = rawGap(p.attrs, p.pos, t);
       if (g === null) continue;
       sum += g - ((ENGINE.tacticFit.base[t] as Partial<Record<Position, number>>)[p.pos] ?? 0);

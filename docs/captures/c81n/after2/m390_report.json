@@ -1,0 +1,55 @@
+{
+ "W": 390,
+ "H": 844,
+ "errors": [],
+ "screens": {
+  "홈-선수카드-잠재력": {
+   "wide": 0,
+   "hidden": [
+    "rail:안내 다시 보기"
+   ]
+  },
+  "선수-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-위험-기대평점": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "potential": {
+  "home": "잠재력 87~91",
+  "player": "87~91"
+ },
+ "got": {
+  "moment": 1,
+  "card": false,
+  "mismatch": [],
+  "rows": [
+   [
+    {
+     "name": "해리 케인에게 패스",
+     "chain": false,
+     "chance": 71,
+     "up": 0.02,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.01,
+     "risk": "low"
+    },
+    {
+     "name": "제이컵 웨이드 1대1 돌파",
+     "chain": false,
+     "chance": 55,
+     "up": 0.09,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.04,
+     "risk": "low"
+    }
+   ]
+  ],
+  "cut": []
+ }
+}

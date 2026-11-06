@@ -1814,7 +1814,8 @@ export const ENGINE = {
       gegenpress: { short: 2, keep: 2 },
     },
     // C.80w: 롱볼 착지 정확도(prob.longMiss) 뒤 직선>티키 +0.20·직선>게겐 +0.19 · 균형·블록(버스)>티키 +0.13~0.14 (상성 960) — 그 칸의 롱패스 능력치 점수만 되돌림
-    direct: { tikitaka: { long: -15 }, gegenpress: { long: -12 } },
+    // C.81g: 직선 → 게겐 롱패스 −12 → −6 (게겐>직선 +0.17 → +0.05) · 직선 → 블록(버스 포함) 공 지키기·짧은 패스 +1 (직선>블록 +0.03 → +0.06), 960 = 시드 41000·51000 각 480
+    direct: { tikitaka: { long: -15 }, gegenpress: { long: -6 }, block: { keep: 1, short: 1 } },
     balanced: { tikitaka: { long: -10 } },
     // C.81b: 블록 → 게겐 칸 공 지키기·공중 +2 (블록>게겐 −0.01 → +0.10, 960 = 시드 41000·51000 각 480)
     block: { tikitaka: { long: -7 }, gegenpress: { air: 2, keep: 2 } },
@@ -1833,7 +1834,8 @@ export const ENGINE = {
     link: 0.05,
     /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) — C.80z 0.12 → 0.17 (공격 5명 커스텀 2-2-2-1-3 이 −0.2~−0.4 로 남아서) */
     linkBase: 0.17,
-    drain: 1,
+    /** 수비 전환 체력 소모 배수 1 + drain × m — C.81g 1 → 4 (공격 5명·ST 2명 커스텀 2-2-2-1-3(초과 1)이 칸 4-4-2 상대 −0.36 → −0.70) */
+    drain: 4,
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
     linkCrossErr: 3,

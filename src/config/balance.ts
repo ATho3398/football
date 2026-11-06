@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 95;
+export const BALANCE_VERSION = 98;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -635,6 +635,13 @@ export const BALANCE = {
   } satisfies Record<Difficulty, { label: string; xp: number; rating: number; injury: number }>,
 
   // ── NPC 성장 (5.6, B.6) ──
+  /** 화면 표시 규칙 (C.81n, 판정·성장에는 안 쓴다) */
+  display: {
+    /** 결정 순간 위험 등급: 실패 시 평점 손실(화면의 실패 평점, 절댓값) ≤ low 낮음 · ≤ mid 보통 · 그 위 높음 */
+    risk: { low: 0.02, mid: 0.05 },
+    /** 내 선수 잠재력 범위 (B6): 반폭 = youngAge 이하 youngHalf → settledAge 이상 settledHalf (사이는 직선) */
+    potential: { youngAge: 17, youngHalf: 6, settledAge: 27, settledHalf: 1 },
+  },
   npc: {
     peakOvr: {
       normal: [60, 72],
@@ -1739,11 +1746,19 @@ export const BALANCE = {
      */
     estimate: { share: [0.95, 0.4, 0.06] as readonly number[], ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
       /**
-       * C.81d '내 리그만 엔진': 내 리그는 엔진 기록, 다른 리그는 추정 기록이 한 이력서 표에 섞일 때 다른 리그 추정 평점을 엔진 척도로 (평점 더하기).
-       * 측정(c81d-awards, 6개 리그 시즌 끝 발롱도르 후보 풀): 전부 엔진 후보 평균 평점 6.20~6.29 · 추정 6.52~6.64 → 차이 약 0.33.
-       * 보정 없으면 내 리그(엔진) 후보가 평점 표준점수에서 밀려 발롱도르 후보 30인이 다른 리그로 쏠린다. 전부 엔진·전부 빠른 진행은 섞이지 않아 안 쓴다
+       * C.81d '내 리그만 엔진': 내 리그는 엔진 기록, 다른 리그는 추정 기록이 한 이력서 표에 섞일 때 다른 리그 추정 평점을 엔진 척도로.
+       * C.81m: 일괄 −0.33 → 포지션군별 avg = ratingBase + (추정 − ratingBase) × mixedSpread + mixedShift + 정규 잡음 × mixedJitter.
+       * 측정(scripts/diag/c81m-*, 같은 시드 전부 엔진 10시즌 대 내 리그만 40시즌): 엔진은 포지션마다 평균이 다르고(CDM 5.6 ~ FB 6.6) 같은 OVR 에서도 시즌 평점이 퍼진다(잔차 0.3~0.56)
+       * — 추정은 포지션 차 없이 6.4~6.5, 잔차 0.17. 퍼짐 = 평점~OVR 기울기 비, 이동 = 평균 맞춤, 잡음 = 포지션별 상위 20명 평균 맞춤.
+       * 전부 엔진·전부 빠른 진행은 섞이지 않아 안 쓴다
        */
-      mixedRatingShift: -0.33 },
+      mixedShift: { GK: -0.2, CB: -0.06, FB: 0.1, CDM: -0.81, CM: -0.8, CAM: -0.67, WING: -0.1, ST: -0.38 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 평점 퍼짐 (포지션군별) = ratingBase 중심으로 (avg − ratingBase) × mixedSpread (1 = 그대로) */
+      mixedSpread: { GK: 0.45, CB: 0.85, FB: 0.85, CDM: 1.15, CM: 1.12, CAM: 0.94, WING: 0.77, ST: 1.16 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 평점 잡음 (포지션군별 표준편차, 선수·시즌 시드) — 엔진은 같은 OVR 이라도 시즌 평점이 퍼진다 */
+      mixedJitter: { GK: 0.25, CB: 0.43, FB: 0.56, CDM: 0.72, CM: 0.44, CAM: 0.41, WING: 0.39, ST: 0.37 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 리그 실점 항목(def) 배수 — 빠른 진행 점수 확률은 상위 팀 독주가 엔진보다 커서 상위 팀 수비수 def 가 부푼다 (1 = 그대로) */
+      mixedDef: 0.67 },
     /** 투표단 가중치 (이력서 항목 표준점수) · 노이즈(표준편차, 후보 안 종합 점수 표준편차 단위) · 성향 */
     juries: {
       journalist: { w: { out: 0.75, rat: 0.7, def: 0.4, tro: 2.6, nat: 0.9, clu: 0.9, sto: 0.8, fam: 0.3, tal: 0 }, noise: 0.6 },
@@ -1896,6 +1911,8 @@ export const BALANCE = {
     wcQuota: { UEFA: 13, CONMEBOL: 5, AFC: 5, CAF: 5, CONCACAF: 4, OFC: 0 },
     /** 대회 경기 날짜: 리그 최종 라운드 + startAfter 일부터 조별 gap 일 간격, 녹아웃 koGap 일 간격 */
     startAfter: 21, gap: 4, koGap: 4,
+    /** 대회 소집일 = 첫 조별 경기 campDays 일 전 (C.81l: 소집되면 클럽 시즌 끝 → 휴가 → 소집일부터 대표팀 훈련·경기를 달력 위에서 치른다) */
+    campDays: 7,
     /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
     tournamentBonus: 0.05,
     /** 세이브에 남기는 지난 대회 수 (조·대진 표) */

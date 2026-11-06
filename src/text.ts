@@ -45,3 +45,15 @@ export function fill(tpl: string, vars: Readonly<Record<string, string | number>
 export function pickText(list: readonly string[], r: number): string {
   return list[Math.min(list.length - 1, Math.floor(r * list.length))] ?? '';
 }
+
+// ── 점수 표기 (C.81p, 17차 1단계 수정 요청 4번) ──
+/** 점수 앞뒤 띄움에 쓰는 줄바꿈 없는 칸 */
+export const NBSP = ' ';
+/** 점수 표기 하나: "2 : 0" (앞뒤 띄움, 그 사이에서 줄이 바뀌지 않게 NBSP). 모든 화면이 이것만 쓴다 */
+export function scoreText(a: number, b: number): string {
+  return `${a}${NBSP}:${NBSP}${b}`;
+}
+/** 승부차기 꼬리: "승부차기 4 : 3" */
+export function pensText(p: readonly [number, number]): string {
+  return `승부차기${NBSP}${scoreText(p[0], p[1])}`;
+}

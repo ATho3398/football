@@ -59,7 +59,7 @@ export function playerLost(s: SimState, a: Agent): void {
  */
 function shortHanded(s: SimState, team: 0 | 1): void {
   const own = onOf(s, team).filter((x) => true);
-  for (const x of own) x.drainMul = R.shortDrain;
+  for (let i_1 = 0, a_1 = own; i_1 < a_1.length; i_1++) { const x = a_1[i_1]!; x.drainMul = R.shortDrain; }
   if (manDiffOf(s, team) >= 0) return;
   const att = own.filter((x) => x.line === 3).sort((x, y) => x.sx - y.sx);
   if (att.length >= 2) {
@@ -83,7 +83,7 @@ function shortHanded(s: SimState, team: 0 | 1): void {
 
 function manDiffOf(s: SimState, team: 0 | 1): number {
   let d = 0;
-  for (const x of s.agents) if (x.onPitch) d += x.team === team ? 1 : -1;
+  for (let i_2 = 0, a_2 = s.agents; i_2 < a_2.length; i_2++) { const x = a_2[i_2]!; if (x.onPitch) d += x.team === team ? 1 : -1; }
   return d;
 }
 
@@ -113,7 +113,7 @@ export function giveCard(s: SimState, a: Agent, card: CardType): void {
 export function issuePendingCards(s: SimState): void {
   const cards = s.pendingCards;
   s.pendingCards = [];
-  for (const c of cards) giveCard(s, s.agents[c.agent]!, c.card);
+  for (let i_3 = 0, a_3 = cards; i_3 < a_3.length; i_3++) { const c = a_3[i_3]!; giveCard(s, s.agents[c.agent]!, c.card); }
 }
 
 function rollCard(s: SimState, fouler: Agent): CardType | null {
@@ -211,7 +211,7 @@ export function checkAdvantage(s: SimState): void {
 export function contactFouls(s: SimState): boolean {
   const o = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (!o || s.restart) return false;
-  for (const d of fieldOf(s, (1 - o.team) as 0 | 1)) {
+  for (let i_4 = 0, a_4 = fieldOf(s, (1 - o.team) as 0 | 1); i_4 < a_4.length; i_4++) { const d = a_4[i_4]!;
     if (dist(d.x, d.y, o.x, o.y) > R.contactDist) continue;
     if (r(s, d.idx, Purpose.Foul, 5) < R.contactFoulRate * foulFactor(s, o, o.x, o.y, d)) return foul(s, d, o, o.x, o.y);
   }
@@ -228,7 +228,7 @@ function offsideMargin(s: SimState, passer: Agent, receiver: Agent): number {
   const bx = normX(s.ball.x, dir);
   let first = 0;
   let second = 0;
-  for (const o of onOf(s, (1 - passer.team) as 0 | 1)) {
+  for (let i_5 = 0, a_5 = onOf(s, (1 - passer.team) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!;
     const nx = normX(o.x, dir);
     if (nx > first) {
       second = first;

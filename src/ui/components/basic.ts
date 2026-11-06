@@ -197,15 +197,17 @@ export function StatBar(p: StatBarProps): string {
 
 // ── PlayerCard ──
 
-export interface PlayerCardData { name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore?: number; level: number; xp?: number; xpMax?: number; team: string; avatar?: string; crest?: string; face?: FaceRef }
+export interface PlayerCardData { name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore?: number; level: number; xp?: number; xpMax?: number; team: string; avatar?: string; crest?: string; face?: FaceRef; /** 잠재력 범위 표시 "78~84" (C.81n, 내 선수만) */ potential?: string }
 export interface PlayerCardProps { player: PlayerCardData; variant?: 'full' | 'compact' }
+
+const pot = (p: PlayerCardData) => (p.potential ? `<div class="po-pcard__pot">잠재력 <b class="po-num">${esc(p.potential)}</b></div>` : '');
 
 export function PlayerCard(props: PlayerCardProps): string {
   const p = props.player;
   if (props.variant === 'compact') {
-    return `<div class="${cx('po-pcard', 'po-pcard--compact', `po-tierframe--${p.tier}`)}">${Avatar({ src: p.avatar, name: p.name, size: 48, face: p.face })}<div class="po-pcard__main"><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${esc(p.position)} · ${p.age}세 · ${esc(p.team)}</div></div><div class="po-pcard__ovrbox"><b class="po-num">${p.ovr}</b><small>OVR</small></div></div>`;
+    return `<div class="${cx('po-pcard', 'po-pcard--compact', `po-tierframe--${p.tier}`)}">${Avatar({ src: p.avatar, name: p.name, size: 48, face: p.face })}<div class="po-pcard__main"><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${esc(p.position)} · ${p.age}세 · ${esc(p.team)}</div>${pot(p)}</div><div class="po-pcard__ovrbox"><b class="po-num">${p.ovr}</b><small>OVR</small></div></div>`;
   }
   return `<div class="${cx('po-pcard', `po-tierframe--${p.tier}`)}"><div class="po-pcard__top"><div class="po-pcard__ovr"><b class="po-num">${p.ovr}</b><span class="po-pcard__pos">${esc(p.position)}</span></div>${
-    Avatar({ src: p.avatar, name: p.name, size: 96, shape: 'square', face: p.face })}<div class="po-pcard__side">${Crest({ name: p.team, src: p.crest, size: 28 })}<span class="po-pcard__lv">LV<b class="po-num">${p.level}</b></span></div></div><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${p.age}세 · ${esc(p.team)}</div><div class="po-pcard__tier">${
+    Avatar({ src: p.avatar, name: p.name, size: 96, shape: 'square', face: p.face })}<div class="po-pcard__side">${Crest({ name: p.team, src: p.crest, size: 28 })}<span class="po-pcard__lv">LV<b class="po-num">${p.level}</b></span></div></div><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${p.age}세 · ${esc(p.team)}</div>${pot(p)}<div class="po-pcard__tier">${
     TierBadge({ tier: p.tier, score: p.tierScore, size: 'sm' })}</div>${p.xp != null ? Meter({ value: p.xp, max: p.xpMax, label: 'XP', showValue: true, tone: 'xp', className: 'po-pcard__xp' }) : ''}</div>`;
 }
