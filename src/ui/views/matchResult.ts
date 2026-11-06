@@ -6,6 +6,7 @@ import { formEffectLabel, type MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel, pc2 } from './common';
 import { isWide } from '../skin';
 import { personLink } from './detail';
+import { scoreText } from '../../text';
 import { jerseyPanel } from './showroom';
 import type { JerseyPanelVM } from '../jerseyVM';
 import type { CupBannerVM, CelebrateVM } from '../seasonVM';
@@ -23,7 +24,7 @@ function goalRows(goals: MatchResultVM['goals']): string {
   let m = 0, o = 0;
   return goals.map((x) => {
     if (x.mine) m++; else o++;
-    return `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num mr-goal__min">${esc(x.minute)}</span>${Icon({ name: 'ball', size: 16 })}<span class="grow">${x.mine ? '골! ' : '실점 · '}${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? ` <small>(도움 ${esc(x.assist)})</small>` : ''} <b class="po-num mr-goal__score">${m}-${o}</b></span>${x.id === 'me' ? '<span class="mr-goal__me">나</span>' : x.assistMe ? '<span class="mr-goal__me">나</span>' : ''}</div>`;
+    return `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num mr-goal__min">${esc(x.minute)}</span>${Icon({ name: 'ball', size: 16 })}<span class="grow mr-goal__who">${x.mine ? '골! ' : '실점 · '}${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? ` <small>(도움 ${esc(x.assist)})</small>` : ''}</span>${x.id === 'me' || x.assistMe ? '<span class="mr-goal__me">나</span>' : ''}<b class="po-num mr-goal__score score-cell">${scoreText(m, o)}</b></div>`;
   }).join('');
 }
 
@@ -39,7 +40,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
   });
   // C.70 (디자인 170·160): 한 줄 = 엠블럼 · 우리 팀 | 점수 | 상대 · 엠블럼 (내 얼굴은 머리말 평점과 겹쳐 뺌)
-  const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score">${esc(vm.scoreLine.replace('-', ' - '))}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>${
+  const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score score-cell">${esc(vm.scoreLine)}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>${
     vm.env ? `<div class="mr-env-line"><span class="mr-env is-${vm.env.weather}">${Icon({ name: ENV_ICON[vm.env.weather], size: 16 })}<b>${esc(vm.env.line)}</b><span>· 심판 ${esc(vm.env.referee)}</span></span></div>` : ''}`;
   // 경기가 끝나면 이 화면으로 바로 온다 (C.50 pending 82 2번). 하이라이트는 이 버튼으로만 — 디자인 155 (C.60): 머리 아래 패널
   const rewatch = vm.hasAvgMap ? `<div class="panel mr-rewatch"><div class="mr-rewatch__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.sceneCount}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}</small></span></div>

@@ -89,7 +89,7 @@ describe('경기 결과 (170 · 160)', () => {
   it('머리 한 줄 · 득점 그때 점수 · "나" 칩 · 쓴 카드 분 칸 · 판 안 [더 보기]', async () => {
     const { matchResultView } = await import('../src/ui/views/matchResult');
     const base = {
-      myTeam: '토트넘 홋스퍼', myTeamId: 'tot', opp: '첼시', oppId: 'che', face: { id: 'son', age: 26 }, scoreLine: '2-1', outcome: 'win', outcomeKo: '승', comp: '리그 1R', round: 1,
+      myTeam: '토트넘 홋스퍼', myTeamId: 'tot', opp: '첼시', oppId: 'che', face: { id: 'son', age: 26 }, scoreLine: '2\u00a0:\u00a01', outcome: 'win', outcomeKo: '승', comp: '리그 1R', round: 1,
       rating: 7.5, chips: ['도움 1', '선발 90분'], hasAvgMap: false, sceneCount: 0, highlights: [], banners: [], report: null, my: [], myMore: [], formBonus: 0, appearance: '선발 90분',
       decisions: [], decisionReplay: false, points: 0, seasonOver: false, xp: { value: 6, gained: 52, max: 272, level: 0, levelsGained: 0 },
       goals: [
@@ -101,9 +101,9 @@ describe('경기 결과 (170 · 160)', () => {
     };
     const html = matchResultView(base as never);
     expect(html).toContain('mr-head--row');
-    expect(html).toContain('2 - 1');
-    expect(html).toContain('>1-0<');
-    expect(html).toContain('>2-1<');
+    expect(html).toContain('>2\u00a0:\u00a01<');
+    expect(html).toContain('>1\u00a0:\u00a00<');
+    expect(html).toContain('mr-goal__score score-cell">2\u00a0:\u00a01<');
     expect(html).toContain('mr-goal__me');
     expect(html).toContain('cu-min');
     expect(html).toContain('2장 더 보기');

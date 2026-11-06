@@ -38,7 +38,7 @@ describe('시즌 하이라이트 3 (22.2 끝)', () => {
     expect(h.map((x) => x.kind)).toEqual(['best', 'goal', 'crisis']);
     expect(h[0]!.text).toContain('A전 평점 8.9');
     expect(h[0]!.text).toContain('MOM');
-    expect(h[1]!.text).toBe('B전 2골 · 2-1 승 · 승부를 가른 골');
+    expect(h[1]!.text).toBe('B전 2골 · 2\u00a0:\u00a01 승 · 승부를 가른 골');
     expect(h[2]!.text).toBe('부상으로 2경기 결장 (3~4R)');
   });
 

@@ -3,6 +3,7 @@ import { avgRatingText } from '../avgRating';
 import { compNameKo, GROUP_LETTERS, groupTable, KO_NAMES, reachLabel, stageName, uclReachLabel } from '../cups';
 import { leaguePosition, teamById } from '../league';
 import { dateLabel } from '../calendar';
+import { pensText, scoreText } from '../text';
 import { leagueData } from '../../data/leagues';
 import type { GameState } from '../game';
 import type { IconName } from './components';
@@ -48,26 +49,26 @@ export function cupBannerVM(g: GameState): CupBannerVM | null {
     const l1: [number, number] = h1 ? [t1.hg!, t1.ag!] : [t1.ag!, t1.hg!];
     const l2: [number, number] = t2.h === me ? [t2.hg!, t2.ag!] : [t2.ag!, t2.hg!];
     agg = [l1[0] + l2[0], l1[1] + l2[1]];
-    legs = `1차전 ${l1[0]}-${l1[1]} · 2차전 ${l2[0]}-${l2[1]}`;
+    legs = `1차전 ${scoreText(l1[0], l1[1])} · 2차전 ${scoreText(l2[0], l2[1])}`;
   }
   const next = nextStage(m.cup.comp, m.cup.stage);
-  const score = `${m.result.goalsFor}-${m.result.goalsAgainst}`;
+  const score = scoreText(m.result.goalsFor, m.result.goalsAgainst);
   if (pens) {
     return {
       tone: m.cup.through ? 'go' : 'pens', icon: 'target', kicker,
-      title: `${agg ? `합계 ${agg[0]}-${agg[1]}` : score} · 승부차기 ${pens[0]}-${pens[1]}`,
+      title: `${agg ? `합계 ${scoreText(agg[0], agg[1])}` : score} · ${pensText(pens)}`,
       body: m.cup.through ? `${next ? `${next} 진출` : '다음 단계 진출'}이에요.` : `${teamById(g.league, m.opponentId).nameKo} 진출 · 이번 시즌 ${name}은 여기까지예요.`,
-      big: `${pens[0]}-${pens[1]}`, bigLabel: '승부차기',
+      big: scoreText(pens[0], pens[1]), bigLabel: '승부차기',
     };
   }
   if (m.cup.through) {
     return agg
-      ? { tone: 'go', icon: 'swap', kicker, title: `합계 ${agg[0]}-${agg[1]} · ${next ?? '다음 단계'} 진출`, body: legs, big: `${agg[0]}-${agg[1]}`, bigLabel: '합계' }
+      ? { tone: 'go', icon: 'swap', kicker, title: `합계 ${scoreText(agg[0], agg[1])} · ${next ?? '다음 단계'} 진출`, body: legs, big: scoreText(agg[0], agg[1]), bigLabel: '합계' }
       : { tone: 'go', icon: 'levelup', kicker, title: `${next ?? '다음 단계'} 진출`, body: '다음 상대는 추첨으로 정해져요.' };
   }
   return {
     tone: 'out', icon: 'close', kicker, title: m.cup.stage === '결승' ? `${name} 준우승` : `${m.cup.stage.replace(/ ?[12]차전$/, '')} 탈락`,
-    body: `${agg ? `${legs} · ` : ''}이번 시즌 ${name}은 여기까지예요.`, ...(agg ? { big: `${agg[0]}-${agg[1]}`, bigLabel: '합계' } : {}),
+    body: `${agg ? `${legs} · ` : ''}이번 시즌 ${name}은 여기까지예요.`, ...(agg ? { big: scoreText(agg[0], agg[1]), bigLabel: '합계' } : {}),
   };
 }
 
@@ -128,7 +129,7 @@ export function celebrateVM(g: GameState): CelebrateVM | null {
     const c = st.cup ?? { apps: 0, goals: 0, assists: 0, ratingSum: 0 };
     const res = m.result;
     const opp = teamById(g.league, m.opponentId).nameKo;
-    const score = m.home ? `${team} ${res.goalsFor}-${res.goalsAgainst} ${opp}` : `${opp} ${res.goalsAgainst}-${res.goalsFor} ${team}`;
+    const score = m.home ? `${team} ${scoreText(res.goalsFor, res.goalsAgainst)} ${opp}` : `${opp} ${scoreText(res.goalsAgainst, res.goalsFor)} ${team}`;
     const name = compNameKo(m.cup!.comp, g.league.id);
     return {
       key: `${m.season}-${m.round}-${m.cup!.comp}`, season: seasonLabel(m.season), title: `${ucl ? '챔스' : name} 우승`,
