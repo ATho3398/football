@@ -139,3 +139,26 @@ function walk(dir: string): string[] {
     return statSync(p).isDirectory() ? walk(p) : [p];
   });
 }
+
+describe('하이라이트 분류 한 곳 (13번)', async () => {
+  const { classifyHighlight, HL_CLASS_KO, myGoalBadge } = await import('../src/highlightClass');
+  const { clipClass } = await import('../src/highlightClips');
+  const { sceneClass } = await import('../src/highlights');
+  it('우리 골(내 골·도움 포함) = 골, 상대 골 = 실점, 기회 = 결정적 장면, 골 아닌 내 장면 = 내 최고 순간', () => {
+    expect(classifyHighlight({ goal: true, team: 0, mine: true }, 0)).toBe('goal');
+    expect(classifyHighlight({ goal: true, team: 1 }, 0)).toBe('concede');
+    expect(classifyHighlight({ goal: false, team: 0 }, 0)).toBe('chance');
+    expect(classifyHighlight({ goal: false, team: 0, mine: true }, 0)).toBe('best');
+    expect(myGoalBadge(['me', 'x'], 'me')).toBe('myGoal');
+    expect(myGoalBadge(['x', 'me'], 'me')).toBe('myAssist');
+    expect(HL_CLASS_KO.chance).toBe('결정적 장면');
+    expect(HL_CLASS_KO.best).toBe('내 최고 순간');
+  });
+  it('결과 클립 · 재생 장면이 같은 분류 (옛 세이브 실점 클립 kind goal 도 실점)', () => {
+    expect(clipClass({ kind: 'goal', team: 1 }, 0)).toBe('concede');
+    expect(clipClass({ kind: 'goal', team: 1 }, 1)).toBe('goal');
+    expect(sceneClass({ kind: 'goal', team: 1 }, 0)).toBe('concede');
+    expect(sceneClass({ kind: 'me', team: 0 }, 0)).toBe(clipClass({ kind: 'best', team: 0 }, 0));
+    expect(sceneClass({ kind: 'chance', team: 1 }, 0)).toBe(clipClass({ kind: 'chance', team: 1 }, 0));
+  });
+});

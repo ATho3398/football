@@ -104,7 +104,7 @@ export function proficientAttrs(attrs: FieldAttributes, proficiency = 100): Fiel
   const pen = proficiencyPenalty(proficiency);
   if (pen <= 0) return { ...attrs };
   const out = {} as FieldAttributes;
-  for (const [k, v] of Object.entries(attrs) as [keyof FieldAttributes, number][]) out[k] = Math.max(1, v - pen);
+  for (let i_1 = 0, a_1 = Object.entries(attrs) as [keyof FieldAttributes, number][]; i_1 < a_1.length; i_1++) { const [k, v] = a_1[i_1]!; out[k] = Math.max(1, v - pen); }
   return out;
 }
 
@@ -132,7 +132,7 @@ export function buildMyMatch(m: EngineMatchInput) {
     if (t.custom) mySetup.formationName = formationLabel(t);
     const bySlot = new Map(mySetup.lineup.map((p) => [p.slot, p]));
     const roles = teamRoles(t, Array.from({ length: 11 }, (_, i) => (i === t.mySlot && m.plan.started ? meSpec.attrs : bySlot.get(i)?.gk ? undefined : bySlot.get(i)?.attrs)));
-    for (const p of mySetup.lineup) p.role = roles[p.slot];
+    for (let i_2 = 0, a_2 = mySetup.lineup; i_2 < a_2.length; i_2++) { const p = a_2[i_2]!; p.role = roles[p.slot]; }
     meSpec.role = roles[t.mySlot];
   }
   if (m.plan.minutes) {

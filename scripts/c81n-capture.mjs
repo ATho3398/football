@@ -144,17 +144,21 @@ for (let loop = 0; loop < 200 && got.moment < Number(process.env.MOMENTS ?? 3) &
     if (wr !== r.risk) got.mismatch.push({ ...r, wantRisk: wr });
   }
   got.rows.push(rows);
+  // C.81n 후속: 접힌 줄 이름이 잘리지 않는지 (말줄임·넘침)
+  const cut = await page.evaluate(() => [...document.querySelectorAll('.mo-opts .po-choice__name')].filter((e) => e.scrollWidth > e.clientWidth + 1 || getComputedStyle(e).textOverflow === 'ellipsis').map((e) => e.textContent));
+  (got.cut ??= []).push(...cut);
   if (got.moment === 1) { await top(); await shot('결정순간-위험-기대평점'); }
   // 플레이 카드 (4번째 선택지) 가 있으면 한 번 눌러 찍는다
   if (!got.card) {
     const before = (await readRows()).length;
     const cards = await page.locator('[data-act="mo-card"]:not([disabled])').count();
     for (let c = 0; c < cards && !got.card; c++) {
-      await page.locator('[data-act="mo-card"]:not([disabled])').nth(c).click().catch(() => null);
+      await page.locator('[data-act="mo-card"]:not([disabled])').nth(c).click({ timeout: 3000 }).catch(() => null);
       await page.waitForTimeout(300);
+      if (await has('.po-overlay')) { await page.keyboard.press('Escape'); await page.locator('.po-overlay[data-act="modal-close"]').first().click({ position: { x: 5, y: 5 }, timeout: 2000 }).catch(() => null); await page.waitForTimeout(200); continue; }
       const after = (await readRows()).length;
       if (after > before) { got.card = { before, after }; await shot('결정순간-카드-4번째'); }
-      await page.locator('[data-act="mo-card"]:not([disabled])').nth(c).click().catch(() => null);
+      await page.locator('[data-act="mo-card"]:not([disabled])').nth(c).click({ timeout: 3000 }).catch(() => null);
       await page.waitForTimeout(200);
     }
   }
@@ -165,5 +169,5 @@ for (let loop = 0; loop < 200 && got.moment < Number(process.env.MOMENTS ?? 3) &
 }
 report.got = got;
 writeFileSync(`${OUT}/${P}report.json`, JSON.stringify(report, null, 1));
-console.log(JSON.stringify({ errors: report.errors, potential: report.potential, moments: got.moment, card: got.card, mismatch: got.mismatch, rows: got.rows[0] }, null, 1));
+console.log(JSON.stringify({ errors: report.errors, potential: report.potential, moments: got.moment, card: got.card, mismatch: got.mismatch, cut: got.cut, rows: got.rows[0] }, null, 1));
 await browser.close();

@@ -2,7 +2,8 @@
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
 import { avgRatingText, ratingText } from '../avgRating';
-import { CLIP_KO, findClips, type ClipKind } from '../highlightClips';
+import { clipClass, findClips } from '../highlightClips';
+import { HL_CLASS_KO, MY_GOAL_BADGE_KO, myGoalBadge, type HighlightClass } from '../highlightClass';
 import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
@@ -46,7 +47,7 @@ import {
 import {
   costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
-import { selectScenes, type Scene } from '../highlights';
+import { sceneClass, selectScenes, type Scene } from '../highlights';
 import { minuteText } from '../engine/minute';
 import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlight, type SeasonHighlightKind } from '../seasonHighlights';
 import {
@@ -1041,7 +1042,11 @@ const SCENE_NAMES: Record<Scene['kind'], string> = { goal: '골', chance: '결�
 export function sceneName(r: Replay, sc: Scene): string {
   if (sc.kind === 'decision') return `${sc.minute ?? ''}' 내 결정 · ${sc.label}`;
   const ev = r.events.find((x) => x.e >= sc.key - 0.01 && (x.type === 'shot' || x.type === 'goal'));
-  const kind = sc.kind === 'goal' && sc.team !== r.side ? '실점' : SCENE_NAMES[sc.kind];
+  // C.81o: 골·실점·결정적 장면·내 최고 순간은 highlightClass 한 곳 이름. 내 골·내 도움은 골 이름 뒤 배지
+  const cls = sceneClass(sc, r.side);
+  const goal = cls === 'goal' ? r.events.find((x) => x.type === 'goal' && x.e >= sc.key - 0.01) : undefined;
+  const badge = goal ? myGoalBadge(goal.players, r.players.find((p) => p.isMe)?.id) : null;
+  const kind = cls ? `${HL_CLASS_KO[cls]}${badge ? ` · ${MY_GOAL_BADGE_KO[badge]}` : ''}` : SCENE_NAMES[sc.kind];
   return ev ? `${ev.minute}' ${kind}` : kind;
 }
 
@@ -1119,7 +1124,8 @@ export interface MatchResultVM {
   /** 하이라이트 다시보기 장면 수 = 재생 화면 장면 수 (C.81o: 같은 selectScenes 한 벌) */
   sceneCount: number;
   /** 경기 후 하이라이트 3개 (24.6, C.77o): 세이브에 남은 클립. 불러온 뒤에도 다시 볼 수 있다 */
-  clips?: { kind: ClipKind; label: string; minute: string; text: string }[];
+  /** 하이라이트 클립 (C.81o: 분류는 highlightClass 한 곳 — 골·실점·결정적 장면·내 최고 순간, 내 골·내 도움은 골 칸 안 배지) */
+  clips?: { kind: HighlightClass; label: string; minute: string; text: string; badge?: string }[];
   my: { label: string; value: string }[];
   /** "전체 보기"에 펼치는 나머지 기록 (부록 C.30) */
   myMore: { label: string; value: string }[];
@@ -1234,7 +1240,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     opp, scoreLine: `${scoreText(res.goalsFor, res.goalsAgainst)}${m.nat?.pens ? ` (${pensText(m.nat.pens)})` : ''}${m.cup?.pens ? ` (${pensText(m.home ? [m.cup.pens[0], m.cup.pens[1]] : [m.cup.pens[1], m.cup.pens[0]])})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, ...(m.engine ? { formEngine: true } : {}), chips, banners, highlights, report,
     hasAvgMap: !!r, sceneCount: r ? selectScenes(r).length : 0, my, myMore,
-    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => ({ kind: c.kind, label: CLIP_KO[c.kind], minute: `${c.minute}'`, text: c.text })),
+    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => { const k = clipClass(c, mySide); return { kind: k, label: HL_CLASS_KO[k], minute: `${c.minute}'`, text: c.text, ...(c.badge && k === 'goal' ? { badge: MY_GOAL_BADGE_KO[c.badge] } : {}) }; }),
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,

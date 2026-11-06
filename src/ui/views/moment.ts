@@ -69,6 +69,16 @@ function scoreTop(teams: [string, string], score: [number, number], side: 0 | 1,
     </div>`;
 }
 
+/** 성공 확률 구간 설명 (C.81n 후속, 막대 제목): 안전 ≥ labelBands.safe · 균형 ≥ labelBands.balanced · 도박 그 밖 */
+function bandText(o: MomentOption): string {
+  const B = ENGINE.moments.labelBands;
+  const s = Math.round(B.safe * 100);
+  const b = Math.round(B.balanced * 100);
+  if (o.kind === 'card') return '플레이 카드 선택지';
+  if (o.chain) return '몰고 가다 슛 · 2단 행동';
+  return o.kind === 'safe' ? `안전 구간 · 성공 ${s}% 이상` : o.kind === 'balanced' ? `균형 구간 · 성공 ${b}~${s - 1}%` : `도박 구간 · 성공 ${b}% 미만`;
+}
+
 /** 선택지 → ChoiceButton (compact). dp = 확률 카드 변화, 카드 선택지는 바탕 행동 대비. 숫자는 momentNumbers 한 곳에서 (C.81n) */
 function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { name: string; rarity: GameCardData['rarity'] } | null): string {
   const isCard = o.kind === 'card';
@@ -81,7 +91,7 @@ function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { nam
     act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.chain ? CHAIN_NAME : o.label, chance,
     ...(chance !== null && delta ? { chanceDelta: delta, deltaSource: '카드' } : {}),
     success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: `${signedR(o.down)}${o.passive ? ` · 소극적 ${signedR(o.passive)}` : ''}` },
-    ev: signedR(shownEv(o, dp)), ...(risk ? { risk } : {}),
+    ev: signedR(shownEv(o, dp)), ...(risk ? { risk } : {}), band: bandText(o),
     ...(o.offside ? { offside: o.offside } : {}), ...(o.exploit ? { exploit: true } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
   });
 }
