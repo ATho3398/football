@@ -9,10 +9,10 @@ import { BALANCE } from '../../src/config/balance';
 const args = process.argv.slice(2).filter((a) => a !== '--');
 const dir = args[0]!;
 const maxS = Number(args[1] ?? 99);
-const cfg = args[2] ? JSON.parse(args[2]) as { shift?: Record<string, number>; spread?: number } : null;
-const E = BALANCE.awards.estimate as { mixedShift: Record<string, number>; mixedSpread: number };
+const cfg = args[2] ? JSON.parse(args[2]) as { shift?: Record<string, number>; spread?: Record<string, number> } : null;
+const E = BALANCE.awards.estimate as { mixedShift: Record<string, number>; mixedSpread: Record<string, number> };
 if (cfg?.shift) Object.assign(E.mixedShift, cfg.shift);
-if (cfg?.spread !== undefined) E.mixedSpread = cfg.spread;
+if (cfg?.spread) Object.assign(E.mixedSpread, cfg.spread);
 const GROUPS = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
 const MAJOR = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'];
 const lgCat = (lg: string) => (MAJOR.includes(lg) ? lg : 'rest');
@@ -51,7 +51,7 @@ console.log(rows.join('\n'));
 // 2. 포지션군 전체(추정 리그) 평균 · 상위 20명 평균: mine 저장본마다 내 리그 뺀 풀, all 은 같은 리그 묶음(내 리그 X 뺀 것)으로 맞춤
 const top = (xs: number[], n: number) => mean([...xs].sort((a, b) => b - a).slice(0, n));
 const g2: string[] = [];
-const gsum: Record<string, { dm: number; dt: number }> = {};
+const gsum: Record<string, { dm: number; dt: number; am: number; at: number; em: number; et: number }> = {};
 for (const gp of [...GROUPS, '전체']) {
   const dm: number[] = []; const dt: number[] = []; const em: number[] = []; const et: number[] = []; const am: number[] = []; const at: number[] = [];
   for (const sn of snaps.filter((x) => x.mode === 'mine')) {
@@ -64,7 +64,7 @@ for (const gp of [...GROUPS, '전체']) {
     em.push(mean(est)); et.push(top(est, 20)); am.push(engM); at.push(engT);
     dm.push(mean(est) - engM); dt.push(top(est, 20) - engT);
   }
-  gsum[gp] = { dm: mean(dm), dt: mean(dt) };
+  gsum[gp] = { dm: mean(dm), dt: mean(dt), am: mean(am), at: mean(at), em: mean(em), et: mean(et) } as never;
   g2.push(`| ${gp} | ${f2(mean(am))} | ${f2(mean(em))} | ${f2(mean(dm))} | ${f2(mean(at))} | ${f2(mean(et))} | ${f2(mean(dt))} |`);
 }
 console.log('\n| 군 | 평균 엔진 | 평균 추정 | 차 | 상위20 엔진 | 상위20 추정 | 차 |\n|---|---|---|---|---|---|---|');

@@ -318,7 +318,8 @@ export function buildResumes(state: GameState, natRec: TournamentRec | null = nu
           // C.81d: 내 리그가 엔진 기록이면 다른 리그 추정 평점을 엔진 척도로 (섞인 표에서 한쪽으로 쏠리지 않게)
           if (myEngine) {
             const E = A().estimate;
-            raw.avg = E.ratingBase + (raw.avg - E.ratingBase) * E.mixedSpread + (E.mixedShift[posGroup(p.position)] ?? 0);
+            const g = posGroup(p.position);
+            raw.avg = E.ratingBase + (raw.avg - E.ratingBase) * (E.mixedSpread[g] ?? 1) + (E.mixedShift[g] ?? 0);
           }
         }
         if (raw.apps / Math.max(1, ctx.row?.played ?? 1) < Math.min(A().minShare, A().youngMinShare)) continue;
