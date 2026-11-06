@@ -682,11 +682,15 @@ export function updateOffball(s: SimState, a: Agent): void {
       }
     }
   }
-  if (attacking) attackTarget(s, a, dir, bnx, bny);
-  else defendTarget(s, a, dir, bnx, bny);
+  // C.81j: bnx·bny 는 받는 쪽에서 같은 식으로 다시 구한다 (공 위치는 그사이 그대로 — 실수 인자 상자 없이)
+  void bnx;
+  void bny;
+  if (attacking) attackTarget(s, a, dir);
+  else defendTarget(s, a, dir);
 }
 
-function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
+  const bnx = normX(s.ball.x, dir), bny = normY(s.ball.y, dir);
   ensureErrors(s, a);
   const shortHanded = manDiff(s, a.team) < 0;
   slotTargetS(s, a, shortHanded ? ENGINE.referee.shortAttackShift : 1);
@@ -1407,7 +1411,8 @@ const TIERS_ALL: readonly (readonly Line[])[] = [TIER_123];
 const TIERS_DEF: readonly (readonly Line[])[] = [[3], [2]];
 const TIERS_MID: readonly (readonly Line[])[] = [[2], [3]];
 const TIERS_ATT: readonly (readonly Line[])[] = [[1, 2], [3]];
-function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+function defendTarget(s: SimState, a: Agent, dir: 1 | -1): void {
+  const bnx = normX(s.ball.x, dir), bny = normY(s.ball.y, dir);
   const t = effectiveTactics(s, a.team);
   const b = s.ball;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
