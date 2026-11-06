@@ -25,9 +25,9 @@ describe('C.80t 게겐다움', () => {
   });
 
   it('티키 → 게겐 칸: 짧은 패스·공 지키기 +2, 게겐 쪽·다른 실행은 0', () => {
-    expect(ENGINE.matchup.tikitaka!.gegenpress).toEqual({ short: 2.5, keep: 2 }); // C.81s 짧은 패스 2 → 2.5 (게겐>티키 +0.47 → +0.38)
+    expect(ENGINE.matchup.tikitaka!.gegenpress).toEqual({ short: 2, keep: 2 }); // C.81s 2 → 2.5 (게겐>티키 +0.47 → +0.38) → C.81t 2.5 → 2 (리바운드 런 뒤 +0.336 → +0.40)
     const s = state('tikitaka', 'gegenpress');
-    expect(matchupPts(s, 0, 'short')).toBe(2.5);
+    expect(matchupPts(s, 0, 'short')).toBe(2);
     expect(matchupPts(s, 0, 'keep')).toBe(2);
     expect(matchupPts(s, 0, 'air')).toBe(0);
     expect(matchupPts(s, 1, 'short')).toBe(0);
