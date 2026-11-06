@@ -11,6 +11,6 @@ describe('C.81b 묶음 마무리 보정 2', () => {
     expect(ENGINE.matchup.balanced).toEqual({ tikitaka: { long: -10 } });
     expect(ENGINE.keeper.saveBase).toBe(2.02); // C.81s 1.93 → 2.02
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.39); // C.81h 0.3 → 0.32 (윙어 마무리 0.92 뒤 장면 ④ 1대1 골 0.253) → C.81s 0.39 (saveBase 2.02 뒤 0.254)
-    expect(ENGINE.rating.center.CM).toBe(2.46); // C.81r: 평점 가중 뒤 군 평균 유지로 center 다시 맞춤
+    expect(ENGINE.rating.center.CM).toBe(2.51); // C.81r: 평점 가중 뒤 군 평균 유지로 center 다시 맞춤(2.46) → C.81s 2.51 (engine:check CM 6.70 경계)
   });
 });
