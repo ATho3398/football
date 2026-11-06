@@ -9669,6 +9669,16 @@ C 의 "GK 옆 위치를 공–골 가운데 선 위로"(스위퍼 8 m 앞에서 
 - 확인(`scripts/c81f-capture.mjs`, `docs/captures/c81f/` before_/after_ × 폰 390·360 · PC 1280): 머리 끝 − 도구 줄 아래 = 가상 선수 홈 −67 → +38px(360: −67 → +35, PC −70 → +85) · 선수 −50 → +38px · 네모 사진 홈 3 → 19px · 선수 −2 → 14px. 머리말 높이 +20px(홈)·+30px(선수) — 폰 홈 첫 화면 구성(머리말 → 알림 → 다음 경기 카드)은 그대로, 다음 경기 카드 위끝 807 → 827px(전후 모두 독 아래, 알림 아래에 있음).
 - 17차 재설계 K12 머리말에 같은 규칙 메모(`docs/ui-requests/17-full/02_공통컴포넌트.md`).
 
+### C.81k 53단계_배포 확인 시간 줄이기·배포 도구 버전 (마스터 AD `docs/session-prompts/C.81k.md`, 근거 main 푸시마다 배포까지 약 70분 — 고친 게 사용자에게 늦게 감, GitHub 경고 Node 20 액션 종료·ubuntu-latest → 26 전환, Opus): **`balance:check`(한 job 51분)를 커리어 작업 8조각으로 동시에 돌리고 마지막 job 이 합쳐 기존과 같은 판정을 하게, `balance:engine:check`(11분)를 별도 job 으로 병렬로 — 브랜치 실측 전체 63분 → 10분 36초(run #361). 판정 기준·시드·표본 그대로, 막는 검사도 그대로(deploy 가 build·balance·engine 을 기다림)** (엔진·밸런스·세이브 무수정 — ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
+
+- 조각(`scripts/balance.ts`): 작업 목록(같은 명세는 한 번만, C.78l)을 만든 뒤 `SHARD=k/N` 이면 k, k+N, k+2N… 번째만 돌려 `SHARD_OUT` 에 (작업 열쇠, 결과)를 v8 구조 복제(worker postMessage 와 같은 방식)로 쓴다. `MERGE_DIR` 이면 조각 파일을 모두 읽어 결과를 채우고 커리어를 다시 돌리지 않은 채 기존 출력·가드를 그대로 한다. 조각의 작업 수가 지금 계획과 다르거나(환경 변수가 다른 조각) 빠진 작업이 하나라도 있으면 판정 없이 실패. 둘 다 없으면 예전과 같은 한 번 실행.
+- 워크플로(`pages.yml`): `balance-shard`(matrix 0~7, `COACH_MEASURE=0`, 조각 결과를 artifact 로 1일 보관) → `balance`(조각 8개 내려받아 `MERGE_DIR` 로 `balance:check`) · `engine`(`balance:engine:check`) · `build`(typecheck·test·build) 모두 병렬, `deploy` 는 셋을 기다린다. main 이 아닌 브랜치 수동 실행은 검사만 하고 배포 건너뜀(`if: github.ref == 'refs/heads/main'`), concurrency 줄은 main 은 `pages` 그대로(`cancel-in-progress: false` 유지)·다른 브랜치는 브랜치별 줄이라 main 배포를 기다리거나 막지 않는다.
+- 액션 버전(Node 24 지원 최신 메이저): checkout v4 → v7, setup-node v4 → v7, configure-pages v5 → v6, upload-pages-artifact v3 → v5, deploy-pages v4 → v5, upload-artifact v7, download-artifact v8. runner `ubuntu-latest` → `ubuntu-24.04` 고정. `android.yml` 도 같이(checkout v7·setup-node v7·setup-java v6·cache v6·upload-artifact v7·ubuntu-24.04) — 브랜치 빌드 run #13 통과(1분 44초). run #361 로그에 Node 20 경고 없음.
+- 대조(같은 판정인지): 기준선 run #358(C.81f, 한 job 에서 `balance:check` 51분 25초, 이후 `src`·`scripts` 변경 없음)의 `balance:check` 출력 92줄과 run #361 합치기 job 출력 92줄(진행 표시·`[조각 합치기]` 줄 빼고)이 **글자 하나까지 같다** — 표의 모든 평균·비율·가드 값, `[회귀 가드] 15/15 통과`. 로컬 작은 표본(SEEDS=3 등)에서도 한 번 실행 vs 3조각 합치기 79줄 동일(가드 9/15 — 작은 표본이라 실패도 같게).
+- 시간(전 → 후): balance:check 51분 25초 → 조각 4~7분(가장 긴 조각 7분 35초) + 합치기 18초. engine:check 11분 32초(balance 뒤 직렬) → 10분 32초(병렬, 이제 가장 긴 job). build 4분 37초 → 5분 49초(병렬이라 전체에 영향 없음). 전체(첫 job 시작 → 마지막 job 끝) 63분 50초(deploy 35초 포함) → 10분 36초(브랜치라 deploy 건너뜀 — main 실측은 아래). engine:check 는 목표 25분 안이라 나누지 않았다.
+- 같이 고침: 로컬에서 여러 조각을 한 머신에 동시에 돌리면 워커 묶음 파일(`node_modules/.cache/balance-harness/worker.mjs`)을 서로 덮어써 반쯤 쓴 파일을 읽은 조각이 멈췄다 — `scripts/balance/pool.ts` 가 따로 쓰고 한 번에 바꿔 넣는다(CI 는 조각마다 머신이 따로라 해당 없음).
+- 안 한 것: `~/.claude/settings.json` 에 `fastMode` 넣기 — 세션 권한 분류기가 막음.
+
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
 ### D.0 부록 C 피드백에 대한 결정 (1단계 코드 변경 요청)
