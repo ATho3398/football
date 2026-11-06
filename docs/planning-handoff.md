@@ -1413,8 +1413,12 @@
   - (끝) 역할별 평점 쏠림 보정 C.81r main cddb976 배포 완료(run 379), draft_.
   - 묶음 마무리 보정 3 C.81s `session_01YVaigKeeTyaU5F77HJb5mL` — 19:05 main b5a3484(엔진 91) 푸시, **CI 성공 확인 뒤 draft_**.
   - (끝) 엔진 묶음 B C.81h main dd4f3df 배포 완료(run 42182487322), draft_.
+  - (19:08 AD가 엶, 사용자 "묻지 말고 다 해") **C.81t** 엔진 묶음 D 세컨볼 구조·윙어 골·득점 가운데 `session_01YVaigLTKbh6RD6Lq3HJYE4`(Fable) · **C.81u** 역할 평점 2 다른 대형·수비 기록 칸 `session_01YVaigLWGx1rERQvCLHtn9Q`(Opus) · **C.81v** 대표팀·결과 화면 후속 `session_01YVaigGr11GshT6mmseEBYq`(Opus) · **C.81w** 다른 리그 득점 2 `session_01YVaigGwLy8zgQdnsMMeXt7`(Opus) · **C.81x** 엔진 구조 속도 Float64Array `session_01YVaigGDvqcwkeDLdyNWNgF`(Fable). 지시문 docs/session-prompts/C.81t~x.md.
+  - C.81q 챔스 자리 수 후속(실제 배정 PL·라리가·세리에·분데스 4·리그앙 3) 진행 중 — 같은 세션 `session_01YVaigL6F5qWykwBkNEBJLS`.
+  - C.81t·C.81u 가 끝나면 상성·득점 다시 확인(필요하면 마무리 보정 4). 디자인 대기 항목(버튼·12px·라임 규칙·대진표 화면)은 17차 디자인 오면 UI 구현.
 - **다음 할 일**: (16:43 AD가 이미 엶 → 아래 "16:43" 줄 참고) 마무리 보정 3 C.81s — 상성 960(41000+51000) 전 행 ±0.05 · 비점유 3행 합 ≥ −0.08 · 순환 G>T>D>B 양수 · 게겐>티키 +0.35~0.45 · **티키>직선 ≥ +0.03**(C.81i 측정 −0.01, C.81g 전 값) · **게겐 행 Δ −0.056** · **직선>버스 +0.14** · quick 600 득점 1.48±0.05 가운데 · 이동 거리 <14.1 · 기준표 최신(scripts/diag/c81g-960.json 기반). C.81r(평점)과 엔진 번호·파일 충돌 주의(rebase). 지시문 틀 docs/session-prompts/C.81b.md · C.81g.md.
-- 시작 처리: ① AD(`session_01YVaigGhehXaRqBVTGBzTwo`)에 "AE 준비 완료 + ID"(later, 답장 불필요) ② AD 제목 앞 `draft_` ③ 실행 중 세션 3개에 "보고는 AE(ID)로, 마스터 브랜치 claude/planning-ae, 답장 불필요" ④ list_triggers — persistent_session_id 가 AD 인 것(예 trig_01L6rDRKhpR4AZxcDHqWjsWL 17:15 점검) delete 후 AE 로 다시 예약 ⑤ 8.70에 기록·푸시.
+- **AE 는 AD가 create_session 으로 직접 열었다(사용자 "권한 묻지 말고 다 해", 고속 모드는 앱에서만 — 감수).** 사용자에게 아무것도 요청하지 않는다.
+- 시작 처리: ① AD(`session_01YVaigGhehXaRqBVTGBzTwo`)에 "AE 준비 완료 + ID"(later, 답장 불필요) ② AD 제목 앞 `draft_` ③ 실행 중 세션 전부(위 목록 — C.81s(CI 대기)·C.81q·C.81t·u·v·w·x)에 "보고는 AE(ID)로, 마스터 브랜치 claude/planning-ae, 답장 불필요" ④ list_triggers — persistent_session_id 가 AD 인 것(예 trig_01L6rDRKhpR4AZxcDHqWjsWL 17:15 점검) delete 후 AE 로 다시 예약 ⑤ 8.70에 기록·푸시.
 - 끝난 세션: CI 성공(Actions) 확인 뒤 제목 `draft_`. 사용자 보고는 **무엇이 바뀌었는지 내용으로**, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST).
 - (11/06 16:43 KST, AD) **엔진 묶음 B main dd4f3df**(엔진 89, 3h36m, Fable): 리바운드 골 2.4→3.0~3.2%(더 센 조합 3.9%는 xG 0.05 슛 늘고 득점 +0.12라 안 씀 — 슛 순간 골 앞 공격 인원 구조 없이는 4% 불가) · 롱패스 10.9→12.4% · 윙어 골 28.4→26.7% · 평점 중심 CAM 2.25·ST 2.63. 안 된 것: 게겐>직선 +0.05→−0.08(롱패스 가중) · 티키>직선 +0.02 · 득점 1.54. → 묶음 A·B·C 모두 들어감 → **마무리 보정 3 C.81s 엶**(아래 줄). C.81h CI는 세션이 확인.
 - (11/06 16:43 KST) **C.81s 시작 `session_01YVaigKeeTyaU5F77HJb5mL`**(마무리 보정 3). 8.69 실행 중 세션 목록 갱신.
@@ -1426,3 +1430,4 @@
 - (11/06 18:50 KST) **역할 평점 보정 배포 완료**(run 379 cddb976, 엔진 90), 세션 draft_. 진행: C.81s · C.81q 챔스 자리 후속.
 - (11/06 19:05 KST) **사용자 "보고"** → 11/04 13:37 이후 보고. **마지막 보고 시각: 2026-11-06 19:05 KST.** 상태: 사이트 cddb976(C.81r, 엔진 90, BALANCE 99, SAVE 62) · 진행 C.81s(최종 960 38%, CM 평점 경계 손보는 중)·C.81q 챔스 자리 후속(브랜치 검사 2회 실패 뒤 3회째) · AE 미개설.
 - (11/06 19:06 KST) **마무리 보정 3 main b5a3484**(엔진 91, 2h23m): GK 기본 선방 1.93→2.02·1대1 선방 0.32→0.39 → 득점 1.54→1.50 · 상성 칸 3개(티키→게겐 짧은 패스 2.5 · 게겐→직선 태클4·공중3·공 지키기1 새 행 · 직선→블록 공중+1) → 게겐>티키 +0.38 · 티키>직선 +0.10 · 직선>블록 +0.07 · 게겐>직선 −0.07→+0.06 · 순환 +0.62(네 고리 양수) · 비점유 3행 합 −0.065 · 게겐 행 −0.047 · CM 평점 중심 2.51. 안 된 것: 득점 1.50(가운데보다 +0.02, 1대1 밖 레버 필요) · 윙어 골 27.8%(상한 28 근처) · c81a 대비 균형 행 −0.055·버스 +0.07(기준표 몫). CI 대기.
+- (11/06 19:08 KST) **사용자 "내 권한 묻지 말고 걍 다 해, 남은 거 싹 다 허용"** → automation.md 0번 규칙 추가 · 남은 후보 전부 엶: C.81t·u·v·w·x(8.69 목록) · AE 직접 엶(아래).
