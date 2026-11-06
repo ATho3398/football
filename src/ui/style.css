@@ -2906,3 +2906,5 @@ body { overflow-wrap: break-word; }
 .mo-opts .po-choice--row.is-selected .po-choice__name { display: block; -webkit-line-clamp: unset; }
 .mo-opts .po-choice--row .po-choice__main { row-gap: 4px; }
 .mo-opts .po-choice--row.po-choice--play .po-choice__card { display: inline-block; }
+/* C.81n 후속: 고른 줄(라임 바탕)에서 "약점 공략" 칩이 바탕색과 같아 안 보이던 것 — 위험·오프사이드 칩처럼 어두운 칩으로 */
+.po-choice.is-selected .po-exploit { background: var(--on-brand); color: var(--brand); }
