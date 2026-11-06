@@ -123,12 +123,23 @@ const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x
 interface Raw { apps: number; goals: number; assists: number; avg: number; clu: number | null; est: boolean }
 
 /** 추정 기록 (엔진 기록이 없을 때): 선발·벤치·그 밖 출전 비율, 포지션군 경기당 골·도움, 평점 */
+/** 5분위 점 [u = 0, .25, .5, .75, 1] 사이 선형 보간 */
+function quantileAt(q: readonly number[], u: number): number {
+  const x = clamp(u, 0, 1) * (q.length - 1);
+  const i = Math.min(q.length - 2, Math.floor(x));
+  return q[i]! + (q[i + 1]! - q[i]!) * (x - i);
+}
+
 function estimate(seed: string, season: number, id: string, position: Position, ovr: number, starter: 0 | 1 | 2, ctx: TeamCtx): Raw {
   const E = BALANCE.awards.estimate;
   const G = BALANCE.goals;
   const rng = createRng(hashSeed(`${seed}:aw-est:${season}:${id}`));
   const played = ctx.row?.played ?? 0;
-  const apps = Math.round(played * Math.min(1, E.share[starter]! * (0.88 + rng() * 0.17)));
+  // C.81w: 출전 몫 = 엔진 실측 포지션군 × (선발·벤치·그 밖) 분포(shareQ 5분위 사이 선형) — 없으면 옛 일괄 share × (0.88~1.05)
+  const q = E.shareQ[posGroup(position)]?.[starter];
+  const u = rng();
+  const sh = q ? quantileAt(q, u) : E.share[starter]! * (0.88 + u * 0.17);
+  const apps = Math.round(played * Math.min(1, sh));
   const rate = G.rates[posGroup(position)] ?? [0, 0, 0];
   const rel = ovr - ctx.rating;
   const k = clamp(1 + rel * G.ovrK, 0.5, 1.8);

@@ -164,7 +164,7 @@ describe('세이브 (디자인 119 · 149)', () => {
 
 describe('버전', () => {
   it('PATCH_LABEL · STAGE_LABEL 형식', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]*단계$/);
   });
 });

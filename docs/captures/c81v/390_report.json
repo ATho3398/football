@@ -1,0 +1,31 @@
+{
+ "W": 390,
+ "H": 844,
+ "errors": [],
+ "screens": {
+  "1_대표팀-준비-전술칸": {
+   "wide": 0
+  },
+  "1b_대표팀-준비-전술칸-위치": {
+   "wide": 0
+  },
+  "1c_대표팀-준비-내포지션-대표팀포메이션": {
+   "wide": 0
+  }
+ },
+ "notes": {
+  "prepCover": {
+   "rowBottom": 432,
+   "barTop": 772,
+   "covered": false
+  },
+  "prepPos": {
+   "info": "LW\n        숙련 100 · OVR 83",
+   "pitch": "4-4-2, 내 위치 LW"
+  },
+  "prep": {
+   "natLine": "대표팀 전술감독 고정 · 클럽 전술은 쓰지 않아요",
+   "tacOpen": false
+  }
+ }
+}

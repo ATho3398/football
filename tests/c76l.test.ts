@@ -18,7 +18,7 @@ afterEach(() => setWideForTest(null));
 
 describe('C.76l 239 리그 고르기 (새 흐름: 시작 팀 리그 = 맨 앞 · 해제 불가)', () => {
   it('PATCH_LABEL · 접힘 줄 = 리그 n개 진행 + [고르기], 펼치면 묶음 3칸 · 14개 리그 · 대륙·부 묶음', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     const vm = newGameVM(form());
     const shut = newGameView(vm, undefined, NEW_GAME_UI);
     expect(shut).toContain(`리그 ${DEFAULT_LEAGUES.length}개 진행`);

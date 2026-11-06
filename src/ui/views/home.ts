@@ -24,7 +24,7 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   const chips: (string | { label: string; soft?: boolean })[] = [
     ...(n && vm.day
       ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, `${vm.round}/${vm.rounds}R`]
-      : [{ label: '시즌 종료', soft: true }]),
+      : [{ label: vm.summerWait ?? '시즌 종료', soft: true }]),
     // C.76g (디자인 228): 부상 중이면 남은 날 라임 칩
     ...(vm.injuryDays ? [{ label: `부상 · ${vm.injuryDays}일 남음`, soft: true }] : []),
     // 부상 칩이 있으면 포인트 칩은 빼서 3칸(디자인 228) — 포인트는 바로 아래 배너에도 있음.

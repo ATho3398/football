@@ -7,7 +7,7 @@ import { addDays, daysBetween } from '../src/calendar';
 import { clubSeasonOver, isVacationDay, newGame, playRound, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
 import { cupsPending } from '../src/cups';
 import {
-  advanceTournament, drawTournament, ensureNational, myNationAlive, natTournamentAlive, settleMyTournamentMatch, tournamentRecord, tournamentState, type NatMatch,
+  advanceTournament, drawTournament, ensureNational, myNationAlive, natTournamentAlive, settleMyTournamentMatch, tournamentEndDate, tournamentRecord, tournamentState, type NatMatch,
 } from '../src/national';
 import { MIGRATIONS, needsMigration } from '../src/saveMigrations';
 import { deserialize, restoreWithInfo, serialize } from '../src/save';
@@ -122,9 +122,13 @@ describe('소집 흐름: 클럽 시즌 끝 → 휴가 → 소집일 → 조별 3
     // 경기: 날짜 순으로 내 경기 보고 (대회 이름 · 단계), 그날까지 다른 나라 경기는 하루 끝에 빠른 계산
     const labels: string[] = [];
     let before = 0;
+    let lastReport: unknown = null;
     while (g.phase === 'season') {
       const r = playRound(g, { engine: 'quick' });
       if (!r.nat) throw new Error(`대표팀 경기가 아님: ${r.round}`);
+      // C.81v: 탈락 뒤에는 내 경기 없이 남은 경기 날짜까지 하루씩 → 시즌 끝에 마지막 경기 보고를 다시 돌려준다
+      if (r === lastReport) break;
+      lastReport = r;
       labels.push(r.nat.label);
       if (nat.live) {
         const played = Object.keys(nat.live.played).length;
@@ -153,8 +157,18 @@ describe('소집 흐름: 클럽 시즌 끝 → 휴가 → 소집일 → 조별 3
     expect(g.lastSeasonSummary!.nat).toEqual(expect.objectContaining({ label: '2019 아시안컵', reach: rec.reach, called: true }));
     expect(nat.honors.at(-1)).toEqual(expect.objectContaining({ comp: 'asian', year: 2019, reach: rec.reach }));
     expect(g.inbox!.items.some((x) => x.key === `natcup:${live.id}` && x.title.includes(rec.reach))).toBe(true);
-    // 시즌은 내 마지막 대회 경기 날 끝났다 (남은 다른 나라 경기는 한꺼번에)
-    expect(g.calendar.date).toBe(played.at(-1)!.date);
+    // C.81v: 시즌은 대회 마지막 경기(결승) 날 끝났다 — 탈락 뒤 남은 경기도 그 날짜에(기다림 waitAfterOut 안), 소식은 경기 날짜로
+    const end = tournamentEndDate(live);
+    expect(daysBetween(played.at(-1)!.date, end)).toBeLessThanOrEqual(N.waitAfterOut);
+    // 내 경기로 끝나면(결승) 그날, 하루 끝으로 끝나면(탈락 뒤) 다음 날 아침
+    expect(g.calendar.date).toBe(played.at(-1)!.date === end ? end : addDays(end, 1));
+    if (rec.reach !== '우승') {
+      const news = g.inbox!.items.filter((x) => x.key?.startsWith(`natnews:${live.id}:`));
+      expect(news.length).toBeGreaterThan(0);
+      expect(news.at(-1)!.title).toContain(' 우승');
+      expect(news.at(-1)!.date).toBe(end);
+      expect(news.every((x) => daysBetween(played.at(-1)!.date, x.date) >= 0)).toBe(true);
+    }
   }, 120_000);
 
   it('대회 도중 저장·불러오기 (SAVE_FORMAT_VERSION 62): 조별 1차전 뒤 왕복해도 같은 대회 결과 · 옛 형식(61) 세이브는 이전 뒤 대회 없음', () => {

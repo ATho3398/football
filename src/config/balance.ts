@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 100;
+export const BALANCE_VERSION = 102;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1744,7 +1744,14 @@ export const BALANCE = {
      * 경기당 골·도움 = goals.rates[군] × (1 + (OVR − 팀 레이팅) × goals.ovrK, 0.5~1.8) × 팀 득점 비(0.5~1.8) × (0.7~1.3),
      * 평균 평점 = ratingBase + (OVR − 팀 레이팅) × ratingRel + (OVR − 75) × ratingOvr + (팀 득실 비 − 1) × ratingTeam ± ratingJitter
      */
-    estimate: { share: [0.95, 0.4, 0.06] as readonly number[], ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
+    estimate: { share: [0.95, 0.4, 0.06] as readonly number[],
+      /**
+       * C.81w: 출전 몫 분포 (포지션군 → [선발, 벤치, 그 밖](pickLineup) 각 [5, 25, 50, 75, 95%] 분위, 선수·시즌 시드 u 로 선형 보간). 옛 일괄 share [0.95, 0.4, 0.06] 은
+       * 벤치 전원이 후보 문턱(0.3)을 넘어 ST·WING 후보가 엔진보다 많고(팀당 2.1 대 1.7) FB·CM 은 적어(벤치·그 밖 출전 0.8·0.27 을 0.4·0.06 으로) 리그 × 포지션 평균이 어긋났다.
+       * 측정 = 같은 시드 전부 엔진 저장본 다른 리그 실제 출전 / 팀 경기 (scripts/diag/c81w-share.ts)
+       */
+      shareQ: {"GK":[[0.46,0.79,0.95,1,1],[0,0,0.04,0.18,0.53],[0,0,0,0,0.03]],"CB":[[0.53,0.76,0.84,0.89,0.97],[0.03,0.32,0.5,0.65,0.88],[0,0,0.03,0.2,0.52]],"FB":[[0.61,0.82,0.92,0.97,1],[0.32,0.63,0.8,0.89,0.97],[0,0.03,0.21,0.39,0.7]],"CDM":[[0.55,0.78,0.87,0.94,1],[0.03,0.33,0.58,0.78,0.93],[0,0,0.02,0.26,0.61]],"CM":[[0.61,0.87,0.93,0.97,1],[0.24,0.68,0.87,0.95,1],[0,0,0.13,0.42,0.76]],"CAM":[[0.66,0.87,0.92,0.97,1],[0.06,0.42,0.68,0.87,0.97],[0,0,0.03,0.16,0.57]],"WING":[[0.58,0.82,0.92,0.97,1],[0,0.22,0.61,0.85,0.97],[0,0,0,0.03,0.56]],"ST":[[0.5,0.74,0.84,0.91,0.97],[0,0.16,0.34,0.61,0.87],[0,0,0,0.05,0.39]]} as Record<string, readonly (readonly number[])[]>,
+      ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
       /**
        * C.81d '내 리그만 엔진': 내 리그는 엔진 기록, 다른 리그는 추정 기록이 한 이력서 표에 섞일 때 다른 리그 추정 평점을 엔진 척도로.
        * C.81m: 일괄 −0.33 → 포지션군별 avg = ratingBase + (추정 − ratingBase) × mixedSpread + mixedShift + 정규 잡음 × mixedJitter.
@@ -1874,14 +1881,22 @@ export const BALANCE = {
    * 맞춤 = 같은 시드 전부 엔진 저장본의 리그 × 포지션군 시즌 골·도움 평균과 리그 상위 10명 (scripts/diag/c81q-*). 옛(C.76c): OVR 상위 14명 · 컵 가중
    */
   otherScorers: {
-    scorerWeight: { GK: 0, CB: 0.83, FB: 0.4, CDM: 0.63, CM: 1.56, CAM: 3.65, WING: 3.32, ST: 8.8 } as Record<string, number>,
-    assistWeight: { GK: 0.04, CB: 0.18, FB: 0.6, CDM: 1.35, CM: 2.2, CAM: 3.43, WING: 3.68, ST: 6.75 } as Record<string, number>,
-    assistChance: 0.75,
+    scorerWeight: { GK: 0, CB: 0.691, FB: 0.395, CDM: 0.678, CM: 1.545, CAM: 3.275, WING: 3.075, ST: 8.035 } as Record<string, number>,
+    assistWeight: { GK: 0.04, CB: 0.159, FB: 0.599, CDM: 1.336, CM: 2.155, CAM: 3.096, WING: 3.233, ST: 6.259 } as Record<string, number>,
+    assistChance: 0.732,
     share: [0.95, 0.4, 0.06] as readonly number[],
-    ovrK: 0.048,
-    ovrKAssist: 0.066,
-    /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1) */
-    goalScale: { pl: 0.94, laliga: 1, seriea: 0.91, bundesliga: 0.9, ligue1: 0.88, championship: 0.73 } as Record<string, number>,
+    /** C.81w: 출전 몫 = awards.estimate.shareQ 평균(포지션군 × 선발·벤치·그 밖) × shareK[구분] (없으면 옛 share) */
+    shareK: [1, 1, 1] as readonly number[] | undefined,
+    ovrK: 0.0851,
+    ovrKAssist: 0.1198,
+    /** C.81w: 리그 × 포지션군 [골, 도움] 가중 배수 (빅5 = 리그 id, 그 밖 리그 = rest, 없으면 1) — 같은 시드 전부 엔진 리그 × 포지션 평균 맞춤 */
+    leagueMul: { pl: { CB: [0.869, 1], FB: [0.917, 0.676], CDM: [0.702, 1.063], CM: [1.073, 1.109], CAM: [1.032, 1.077], WING: [0.817, 0.936], ST: [0.996, 1.141] }, laliga: { CB: [1.008, 1], FB: [0.97, 0.994], CDM: [0.889, 1.088], CM: [0.917, 1.041], CAM: [1.053, 1.147], WING: [1.123, 1.098], ST: [0.943, 1.047] }, seriea: { CB: [0.923, 1], FB: [0.983, 1.229], CDM: [1.243, 1.294], CM: [1.012, 1.038], CAM: [0.92, 1.021], WING: [0.966, 0.987], ST: [0.95, 0.885] }, ligue1: { CB: [0.942, 1], FB: [1.003, 1.059], CDM: [1.056, 0.92], CM: [1.158, 1.14], CAM: [1.008, 0.993], WING: [1.005, 1.016], ST: [1.072, 1.145] }, rest: { CB: [0.995, 1], FB: [0.868, 0.885], CM: [0.709, 0.629], CAM: [0.763, 0.726], WING: [0.777, 0.717], ST: [0.763, 0.678], CDM: [0.701, 0.707] }, bundesliga: { CB: [0.905, 1], FB: [1.114, 1.067], CDM: [1.327, 1.146], CM: [1.159, 1.218], CAM: [1.185, 1.171], WING: [1.262, 1.27], ST: [1.201, 1.201] } } as Record<string, Record<string, readonly number[]>>,
+    /** C.81w: 골 OVR 가중의 (OVR − 선발 평균) 상한 — 스타 몰아주기(득점왕 쏠림) 막기 (없으면 상한 없음) */
+    relCap: 5 as number | undefined,
+    /** C.81w: 빠른 진행 다른 리그 점수의 레이팅 차 효과 배율 (1 = 내 리그 빠른 진행과 같음) — 상위 팀 독주를 엔진에 맞춤 (빅5 1위 팀 경기당 득점 2.75 → 2.52, 엔진 2.52) */
+    diffScale: 0.827 as number | undefined,
+    /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1). C.81w diffScale 뒤 같은 총 골로 재조정 */
+    goalScale: { pl: 0.963, laliga: 1.027, seriea: 0.938, bundesliga: 0.915, ligue1: 0.893, championship: 0.737 } as Record<string, number>,
   },
   // ── 대표팀 · 국제 대회 (10번·18.12, 45c단계, 부록 C.76d) ──
   national: {
@@ -1930,6 +1945,8 @@ export const BALANCE = {
     startAfter: 21, gap: 4, koGap: 4,
     /** 대회 소집일 = 첫 조별 경기 campDays 일 전 (C.81l: 소집되면 클럽 시즌 끝 → 휴가 → 소집일부터 대표팀 훈련·경기를 달력 위에서 치른다) */
     campDays: 7,
+    /** 내 나라가 떨어진 뒤 남은 대회 경기를 기다리는 최대 날 (C.81v): 마지막 대회 경기가 내 마지막 경기 + waitAfterOut 일 안이면 그 날짜에 진행·소식(휴가), 넘으면 그날 하루 끝에 몰아서(소식 날짜는 경기 날짜) */
+    waitAfterOut: 18,
     /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
     tournamentBonus: 0.05,
     /** 세이브에 남기는 지난 대회 수 (조·대진 표) */

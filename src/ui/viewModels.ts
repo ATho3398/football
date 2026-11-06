@@ -3,7 +3,7 @@
 
 import { avgRatingText, ratingText } from '../avgRating';
 import { clipClass, findClips } from '../highlightClips';
-import { HL_CLASS_KO, MY_GOAL_BADGE_KO, myGoalBadge, type HighlightClass } from '../highlightClass';
+import { clipTextMyFirst, HL_CLASS_KO, MY_GOAL_BADGE_KO, myGoalBadge, type HighlightClass } from '../highlightClass';
 import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
@@ -13,7 +13,7 @@ import { type OthersMode, isNeutralMatch, matchCompLabel, myMatchConditions, myS
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
-import { ensureNational, natId, natLabel, natRoster, nationFromId } from '../national';
+import { ensureNational, NAT_COMP_KO, natId, natLabel, natRoster, nationFromId, natTournamentAlive, tournamentEndDate } from '../national';
 import { FOOT_KO } from '../body';
 import { formMul, TAGS } from '../tags';
 import { ENGINE } from '../engine/config';
@@ -97,6 +97,7 @@ import {
 } from '../engine/tactics';
 import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
 import { pensText, scoreText } from '../text';
+import type { DecisionWithRisk, RiskLevel } from './momentNumbers';
 
 /** 다른 경기 계산 설정 이름 (C.81d) */
 export const OTHERS_KO: Record<OthersMode, string> = { mine: '내 리그만 엔진', all: '전부 엔진', quick: '전부 빠른 진행' };
@@ -265,6 +266,8 @@ function pointsBanner(g: GameState): BannerVM | null {
 // ── 홈 (I.3, 디자인 22·25) ──
 
 export interface HomeVM {
+  /** 여름 기다림 (C.81v): 클럽 시즌은 끝났고 내 경기 없이 남은 대표팀 대회·컵 경기 날짜를 기다리는 휴가 — 머리말 칩 "휴가 · 아시안컵 결승 6/26" */
+  summerWait?: string;
   /** 머리말 왼쪽 위 ‹ 초기화면으로 (C.73d): 경기 중이 아니면 main 이 켠다 */
   exit?: boolean;
   /** 지금 챕터 이름 (22.1, C.73a): "도약 챕터" */
@@ -471,8 +474,9 @@ export function homeVM(g: GameState): HomeVM {
   const inj = injuryBanner(g);
   if (inj) banners.push(inj);
   let next: HomeVM['next'] = null;
-  if (g.phase === 'season') {
-    const fx = nextFixture(g)!;
+  // C.81v: 클럽 시즌이 끝난 여름에 내 경기 없이 남은 컵·대표팀 대회 경기 날짜를 기다리는 동안은 다음 경기가 없다
+  const fx = g.phase === 'season' ? nextFixture(g) : null;
+  if (fx) {
     const my = teamById(g.league, p.teamId);
     const opp = teamById(g.league, fx.opponentId);
     if (!inj && p.suspended > 0) {
@@ -489,6 +493,10 @@ export function homeVM(g: GameState): HomeVM {
       ...(fx.nat ? { cup: { label: `${natLabel(fx.nat)} · ${teamById(g.league, natId(ensureNational(g).nation)).nameKo} 대표팀`, comp: 'nat' as const } } : {}),
     };
   }
+  const live = g.phase === 'season' && !fx ? g.national?.live : undefined;
+  const summerWait = g.phase !== 'season' || fx ? undefined
+    : live && natTournamentAlive(g) ? `휴가 · ${NAT_COMP_KO[live.comp]} 결승 ${tournamentEndDate(live).slice(5).replace('-', '/').replace(/^0/, '')}`
+    : '휴가 · 남은 컵 경기';
   const slump = g.phase === 'season' ? slumpBanner(g) : null;
   if (slump) banners.push(slump);
   const pts = pointsBanner(g);
@@ -496,6 +504,7 @@ export function homeVM(g: GameState): HomeVM {
   const s = p.season;
   const avg = averageRating(s);
   return {
+    ...(summerWait ? { summerWait } : {}),
     chapter: `${CHAPTER_KO[currentChapter(g)]} 챕터`,
     ...((() => { const r = raceRank(g); return r ? { race: r } : {}; })()),
     money: g.money?.candidates.length ?? 0,
@@ -1133,7 +1142,8 @@ export interface MatchResultVM {
   seasonOver: boolean;
   points: number;
   /** 내 결정 기록 (E.11, I.17 10번): 분, 장면, 고른 선택지, 확률, 결과, 평점 변화 */
-  decisions: { minute: string; scene: string; choice: string; label: string; p: string; result: 'success' | 'fail' | 'neutral'; delta: string; flow: string }[];
+  /** choice: 카드·맡김만 글자 (C.81v: 안전·균형·도박 글자 대신 risk = 결정 순간과 같은 위험 등급 칩, 직접 고른 판정 있는 선택지만) */
+  decisions: { minute: string; scene: string; choice: string; risk?: RiskLevel; label: string; p: string; result: 'success' | 'fail' | 'neutral'; delta: string; flow: string }[];
   /** 결정 기록 줄을 누르면 그 장면 리플레이 (방금 치른 경기의 재생 데이터가 있을 때) */
   decisionReplay: boolean;
   /** 이 경기에 쓴 카드 (C.36) */
@@ -1144,7 +1154,7 @@ export interface MatchResultVM {
   cupBanner: CupBannerVM | null;
 }
 
-const CHOICE_KO = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드', delegate: '맡김' } as const;
+const CHOICE_KO = { safe: '', balanced: '', gamble: '', card: '카드', delegate: '맡김' } as const;
 
 export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | null {
   const m = g.lastMatch;
@@ -1240,13 +1250,13 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     opp, scoreLine: `${scoreText(res.goalsFor, res.goalsAgainst)}${m.nat?.pens ? ` (${pensText(m.nat.pens)})` : ''}${m.cup?.pens ? ` (${pensText(m.home ? [m.cup.pens[0], m.cup.pens[1]] : [m.cup.pens[1], m.cup.pens[0]])})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, ...(m.engine ? { formEngine: true } : {}), chips, banners, highlights, report,
     hasAvgMap: !!r, sceneCount: r ? selectScenes(r).length : 0, my, myMore,
-    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => { const k = clipClass(c, mySide); return { kind: k, label: HL_CLASS_KO[k], minute: `${c.minute}'`, text: c.text, ...(c.badge && k === 'goal' ? { badge: MY_GOAL_BADGE_KO[c.badge] } : {}) }; }),
+    clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => { const k = clipClass(c, mySide); return { kind: k, label: HL_CLASS_KO[k], minute: `${c.minute}'`, text: clipTextMyFirst(c.text, mySide), ...(c.badge && k === 'goal' ? { badge: MY_GOAL_BADGE_KO[c.badge] } : {}) }; }),
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
     decisionReplay: !!r?.decisions?.length,
     cardUses: (m.cardUses ?? []).map((u) => ({ text: `${u.minute}' ${u.name}${u.auto ? ' (자동)' : ''}`, result: u.result, minute: `${u.minute}'`, name: u.name, auto: !!u.auto })),
     decisions: (m.decisions ?? []).map((d) => ({
-      minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], label: d.card ? (d.choice === 'card' ? `${d.card} · ${d.label}` : `${d.label} + 🃏 ${d.card}`) : d.label,
+      minute: `${d.minute}'`, scene: SCENE_LABEL[d.scene], choice: CHOICE_KO[d.choice], ...((d as DecisionWithRisk).risk ? { risk: (d as DecisionWithRisk).risk! } : {}), label: d.card ? (d.choice === 'card' ? `${d.card} · ${d.label}` : `${d.label} + 🃏 ${d.card}`) : d.label,
       p: d.p === null ? '-' : `${Math.round(d.p * 100)}%`, result: d.seen?.result ?? d.result, flow: d.seen?.flow ?? '',
       delta: `${d.delta > 0 ? '+' : d.delta < 0 ? '−' : '±'}${Math.abs(d.delta).toFixed(2)}`,
     })),

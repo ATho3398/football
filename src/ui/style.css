@@ -2919,3 +2919,9 @@ body { overflow-wrap: break-word; }
 .mr-clip.is-concede .dec-main small { color: var(--away); }
 .mr-clip.is-best .dec-main small { color: var(--mine); }
 .mr-clip__badge { font-style: normal; font-weight: 700; padding: 0 5px; margin-left: 4px; border-radius: 4px; background: var(--brand-soft); color: var(--brand-ink); }
+
+/* C.81v: 결정 결과·결과 화면 결정 기록의 위험 등급 칩 (결정 순간과 같은 칩) · 대표팀 경기 준비 전술 한 줄 */
+.oc-choice__t .po-risk { align-self: flex-start; margin-top: 4px; }
+.dec-main b .po-risk { margin-left: 6px; vertical-align: middle; height: 18px; }
+.prep-nat-tactic { gap: 6px; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
+.prep-nat-tactic b { white-space: nowrap; }
