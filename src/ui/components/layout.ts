@@ -78,7 +78,7 @@ export interface HeroPanelProps {
 }
 
 /** 미페 머리말 이름 칸 폭(폰 390: left 16 ~ right 130)과 글자 크기: 풀 50 · compact 36 → 최소 24px (B-apply 2절) */
-export const HERO_NAME = { width: 244, full: 50, compact: 36, min: 24 } as const;
+export const HERO_NAME = { width: 244, full: 50, compact: 36, min: 24, slack: 2 } as const;
 
 /** Black Han Sans 글자 폭 근사(em): 한글 0.83 · 공백 0.3 · 라틴·숫자 0.56 · 그 밖 0.5. 실측 손흥민 50px = 125px, 바스티안 슈바인슈타이거 ≈ 25.8px에서 244px */
 export function heroNameEm(name: string): number {
@@ -87,11 +87,11 @@ export function heroNameEm(name: string): number {
   return w;
 }
 
-/** 이름이 칸에 맞는 글자 크기 (정수 px, base → min). 화면에서는 그린 뒤 실제 폭으로 한 번 더 맞춘다 (main.ts fitHeroNames) */
+/** 이름이 칸에 맞는 글자 크기 (정수 px, base → min). 근사 em이 실폭과 1px 안쪽으로 붙어 slack 2px를 빼고 잰다(C.75u, 율리안 린트너 46→45). 화면에서는 그린 뒤 실제 폭으로 한 번 더 맞춘다 (main.ts fitHeroNames) */
 export function heroNameSize(name: string, compact = false, width: number = HERO_NAME.width): number {
   const base = compact ? HERO_NAME.compact : HERO_NAME.full;
   const em = heroNameEm(name);
-  return em <= 0 ? base : Math.max(HERO_NAME.min, Math.min(base, Math.floor(width / em)));
+  return em <= 0 ? base : Math.max(HERO_NAME.min, Math.min(base, Math.floor((width - HERO_NAME.slack) / em)));
 }
 
 /** 글자 머리말 판별 (bundle.js HeroPanel): 숫자·기호·단위 한 글자 말고 다른 글자가 있으면 글자 값 (48px 한 줄, compact 22px) */
@@ -110,7 +110,7 @@ function faceHero(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square')}">${
+  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square po-hero--photo')}">${
     kit ? `<span class="${cx('po-hero__kit po-num', kit.length > 1 && 'is-two')}" aria-hidden="true">${esc(kit)}</span>` : ''}<img class="${cx('po-hero__face', !p.cutout && 'is-square')}" src="${esc(p.face!)}" alt="${esc(name)}"><span class="po-hero__line" aria-hidden="true"></span><span class="po-hero__slab" aria-hidden="true"></span><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div><div class="po-hero__who">${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}<span class="po-hero__name" data-fit="${p.compact ? HERO_NAME.compact : HERO_NAME.full}" style="font-size:${size}px;line-height:${Math.round(size * 1.08)}px">${esc(name)}</span>${chips}</div>${
     p.value != null ? `<div class="po-hero__num"><span class="po-hero__value po-num">${esc(p.value)}</span>${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${p.children ?? ''}</section>`;
@@ -130,7 +130,7 @@ export function HeroPanel(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text')}"><div class="${cx('po-hero__bar', !p.back && 'is-noback')}">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
+  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text')}"><div class="${cx('po-hero__bar', !p.back && 'is-noback')}">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="${cx('po-hero__right', p.rightHtml == null && 'is-text', p.rightHtml == null && Array.from(p.right ?? '').length >= 10 && 'is-long')}">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}${
     val != null ? `<div class="${cx('po-hero__num', p.unit && 'has-unit')}"><span class="po-hero__value po-num">${esc(val)}</span>${p.total != null ? `<span class="po-hero__total po-num">/ ${p.total}</span>` : ''}${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${
     pct != null && p.progress !== false ? `<div class="po-hero__progress"><span class="po-hero__track"><i style="width:${pct}%"></i></span><span class="po-num">${pct}%</span></div>` : ''}${
@@ -151,11 +151,12 @@ export function SectionTitle(p: SectionTitleProps): string {
 
 const BANNER_ICON: Record<string, IconName> = { injury: 'injury', warning: 'danger', info: 'info', success: 'check' };
 
-export interface BannerProps { tone?: 'injury' | 'warning' | 'info' | 'success'; title: string; children?: string; action?: string; onAction?: Action }
+/** icon: 아이콘 바꾸기 (C.76l 도감 album) · fill: 라임 낮은 면 (240B 새 포토카드 배너) */
+export interface BannerProps { tone?: 'injury' | 'warning' | 'info' | 'success'; title: string; children?: string; action?: string; onAction?: Action; icon?: IconName; fill?: boolean }
 
 export function Banner(p: BannerProps): string {
   const tone = p.tone ?? 'info';
-  return `<div class="${cx('po-banner', `po-banner--${tone}`)}" role="${tone === 'injury' || tone === 'warning' ? 'alert' : 'status'}"><span class="po-banner__icon">${Icon({ name: BANNER_ICON[tone]!, size: 18 })}</span><div class="po-banner__body"><b>${esc(p.title)}</b>${
+  return `<div class="${cx('po-banner', `po-banner--${tone}`, p.fill && 'po-banner--fill')}" role="${tone === 'injury' || tone === 'warning' ? 'alert' : 'status'}"><span class="po-banner__icon">${Icon({ name: p.icon ?? BANNER_ICON[tone]!, size: 18 })}</span><div class="po-banner__body"><b>${esc(p.title)}</b>${
     p.children ? `<p>${esc(p.children)}</p>` : ''}</div>${p.action ? `<button type="button" class="po-banner__action"${actAttrs(p.onAction ?? {})}>${esc(p.action)}</button>` : ''}</div>`;
 }
 

@@ -60,7 +60,7 @@ export const ROLES: Record<string, Role> = {
   // ST (ST, CF)
   poacher: r('poacher', 0.04, 0, 0.7, 0, 0.3, p({ shoot: 1.4, dribble: 0.8 })),
   targetMan: r('targetMan', 0, 0, 0.45, 0.3, 0.4, p({ header: 1.4, hold: 1.2 })),
-  falseNine: r('falseNine', -0.1, 0, 0.35, 0.7, 0.5, p({ pass: 1.3, shoot: 0.9 }), ['between']),
+  falseNine: r('falseNine', -0.1, 0, 0.35, 0.5, 0.5, p({ pass: 1.3, shoot: 0.9 }), ['between']), // C.76y: run 0.5·shoot 1 은 슈팅만 늘고 득점 그대로라 되돌림 (미해결 4)
   advancedForward: r('advancedForward', 0.05, 0, 0.9, 0, 0.4, p({ shoot: 1.2 })),
   // CAM
   classic10: r('classic10', 0, 0, 0.3, 0.6, 0.3, p({ pass: 1.4, forward: 1.1 })),
@@ -70,20 +70,20 @@ export const ROLES: Record<string, Role> = {
   enganche: r('enganche', -0.02, 0, 0.1, 0.4, 0.1, p({ hold: 1.3, pass: 1.3 }), ['demand', 'exempt']),
   // CM
   boxToBox: r('boxToBox', 0, 0, 0.6, 0.4, 0.8, p()),
-  deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.1, 0.6, 0.4, p({ pass: 1.4, long: 1.2 })),
-  mezzala: r('mezzala', 0.06, 0.15, 0.6, 0.2, 0.5, p({ shoot: 1.1, dribble: 1.1 })),
+  deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.25, 0.6, 0.4, p({ pass: 1.4, long: 1.2 })),
+  mezzala: r('mezzala', 0.06, 0.15, 0.5, 0.2, 0.5, p({ shoot: 1.1, dribble: 1.1 })), // C.76y: run 0.6 → 0.5 (미해결 4)
   carrier: r('carrier', 0, 0, 0.3, 0.4, 0.5, p({ carry: 1.4 })),
   holdingCM: r('holdingCM', -0.06, 0, 0.1, 0.3, 0.7, p({ safe: 1.2 })),
   // CDM
   anchor: r('anchor', -0.04, 0, 0.1, 0.4, 0.6, p({ safe: 1.2 })),
   ballWinner: r('ballWinner', 0, 0, 0.2, 0.2, 0.9, p()),
-  regista: r('regista', -0.06, 0, 0, 0.9, 0.1, p({ pass: 1.4, long: 1.3 }), ['demand', 'exempt']),
+  regista: r('regista', -0.06, 0, 0, 0.9, 0.4, p({ pass: 1.4, long: 1.3 }), ['demand', 'exempt']), // C.80v: press 0.1 → 0.4 (역할 대비 −0.13 → −0.08)
   halfBack: r('halfBack', -0.1, 0, 0, 0.6, 0.4, p({ safe: 1.2 }), ['between']),
   // 풀백 (LB, RB, LWB, RWB)
   attackingFullback: r('attackingFullback', 0.1, 0.2, 0.7, 0.1, 0.5, p({ cross: 1.4 })),
   defensiveFullback: r('defensiveFullback', -0.04, 0, 0.2, 0.2, 0.7, p({ safe: 1.2 })),
   invertedFullback: r('invertedFullback', 0.02, -0.3, 0.3, 0.6, 0.5, p({ pass: 1.2 }), ['between']),
-  completeWingback: r('completeWingback', 0.14, 0.25, 0.8, 0.1, 0.6, p({ cross: 1.3, dribble: 1.1 })),
+  completeWingback: r('completeWingback', 0.14, 0.25, 0.7, 0.1, 0.6, p({ cross: 1.3, dribble: 1.1 })), // C.80v: run 0.8 → 0.7 (−0.125 → −0.02)
   // CB
   stopper: r('stopper', 0.02, 0, 0, 0, 0.7, p({ clear: 1.2 })),
   ballPlayingCB: r('ballPlayingCB', -0.02, 0, 0.1, 0.2, 0.5, p({ forward: 1.3 })),
@@ -121,7 +121,7 @@ export const ROLE_DESC_KO: Record<string, string> = {
   crackWinger: '공을 달라고 하고 1대1로 계속 제쳐요. 수비 복귀는 덜 해요.', raumdeuter: '수비 사이 빈 공간을 찾아 박스 안으로 스며들어요.',
   wideMid: '측면을 오르내리며 압박과 복귀를 성실히 해요.',
   poacher: '박스 안에 머물며 마무리에 집중해요.', targetMan: '앞에서 버티며 공중볼과 롱볼을 받아 줘요.',
-  falseNine: '상대 수비와 미드 사이로 내려와 받아 연결해요.', advancedForward: '수비 라인을 계속 깨고 뒷공간으로 달려요.',
+  falseNine: '상대 수비와 미드 사이로 내려와 받아 연결해요. 윙 포워드·공격형 미드와 함께 쓰는 역할이에요.', advancedForward: '수비 라인을 계속 깨고 뒷공간으로 달려요.',
   classic10: '공을 받아 킬패스로 기회를 만들어요.', shadowStriker: '공격수 뒤 빈 공간에서 박스로 뛰어들어요.',
   freeRole: '자리에 얽매이지 않고 빈 공간을 찾아 다녀요. 수비 부담이 적어요.', boxCrasher: '늦게 박스로 침투하고 중거리도 노려요.',
   enganche: '라인 사이에 서서 공을 요구하고 지켜요. 수비 부담이 적어요.',
@@ -158,13 +158,9 @@ export const ROLE_KEYS: Record<string, (keyof FieldAttributes)[]> = {
 };
 
 /** E3.6 까지의 역할 id → 새 id (E.21 1번, 세이브 변환). 나머지 id 는 그대로 */
-export const LEGACY_ROLE_IDS: Record<string, string> = {
+const LEGACY_ROLE_IDS: Record<string, string> = {
   winger: 'classicWinger', insideForward: 'wingForward', linkUp: 'falseNine', playmaker: 'classic10', advanced8: 'mezzala', dlpDm: 'regista',
 };
-
-export function migrateRoleId(id: string | null): string | null {
-  return id === null ? null : LEGACY_ROLE_IDS[id] ?? id;
-}
 
 export function hasModule(role: Role, m: RoleModule): boolean {
   return role.modules.includes(m);

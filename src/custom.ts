@@ -87,13 +87,6 @@ export function customRaise(attrs: FieldAttributes, a: FieldAttribute, steps: nu
   return out;
 }
 
-/** 키가 바뀌면 상한을 넘은 능력치를 상한으로 (돌려받은 포인트는 남은 포인트로) */
-export function clampToCaps(attrs: FieldAttributes, height: number): FieldAttributes {
-  const out = { ...attrs };
-  for (const a of FIELD_ATTRIBUTES) out[a] = Math.min(out[a], Math.max(BALANCE.custom.base, customCap(a, height)));
-  return out;
-}
-
 /** 포지션 OVR 우선 자동 배분 (OVR 기여 / 비용 이 가장 큰 칸부터, 측정과 [자동 배분] 버튼) */
 export function autoCustom(pos: FieldPosition, budget: number, height: number, from: FieldAttributes = baseAttributes()): FieldAttributes {
   const out = { ...from };

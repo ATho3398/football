@@ -10,14 +10,19 @@ import type { FieldPosition } from '../positions';
 import type { FieldAttributes } from '../attributes';
 import type { Body } from '../body';
 import { proficiencyPenalty } from '../proficiency';
-import { ENGINE } from './config';
-import { teamSetupFromRoster } from './setup';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import { npcInjuredOut, startStamina, teamSetupFromRoster } from './setup';
+import type { NpcCond } from '../npcFit';
+import type { ManagerStyle } from '../../data/managers';
 import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
-import { buildResult, createMatch } from './sim';
+import { applyHalftimeTactics, buildResult, createMatch } from './sim';
 import { buildReplay, captureFrame, type Replay, type ReplayFrame } from '../replay';
-import type { EngineResult, PlayerSpec, PlayerStats, TeamSetup } from './types';
-import type { Moment, MomentChoice, MomentControl } from './moments';
+import type { EngineResult, PlayerSpec, PlayerStats, Tactics, TeamSetup } from './types';
+import { redrawNow, type Moment, type MomentChoice, type MomentControl } from './moments';
 import type { CardInput } from './cards';
+import { directiveReward } from './directive';
 import type { MatchSim } from './sim';
 
 export const MY_ID = 'me';
@@ -43,6 +48,8 @@ export interface MyPlayerInput {
   shirt?: number;
   /** 경고·퇴장 배율 (다혈질) */
   cardMul?: number;
+  /** 판단 스탯 생활 페널티 (C.75i, life.lifeJudgePenalty): 시야·침착성에서 뺀다. 없으면 0 */
+  judgePen?: number;
 }
 
 export interface EngineMatchInput {
@@ -51,6 +58,8 @@ export interface EngineMatchInput {
   myRating: number;
   oppRating: number;
   home: boolean;
+  /** 중립 경기 (컵·챔스 결승, 대표팀 대회, C.79o): 엔진 홈 이점 없음 */
+  neutral?: boolean;
   me: MyPlayerInput;
   plan: MyMatchPlan;
   difficulty: Difficulty;
@@ -72,12 +81,14 @@ export interface EngineMatchInput {
   env?: Partial<MatchEnv>;
   /** 동료 호흡·상대 분석·패스 받는 빈도 (C.74c). 없으면 호흡 0·관계 보통·리포트 없음 */
   rapport?: RapportInput;
+  /** NPC 피로·부상 (C.77m): 동료·상대 선수 그날 아침 컨디션. 없으면 모두 피로 0 */
+  npcCond?: NpcCond;
+  /** 감독 기용 성향 [내 팀, 상대] (C.79i). 없으면 실용 */
+  styles?: [ManagerStyle, ManagerStyle];
 }
 
-/** 경기 시작 스태미나 = 100 − 피로 × staminaPerFatigue (E.16) */
-export function startStamina(fatigue: number): number {
-  return Math.max(30, 100 - fatigue * ENGINE.match.staminaPerFatigue);
-}
+/** 경기 시작 스태미나 (E.16): setup.ts 로 옮김 (C.77m NPC 공통) */
+export { startStamina };
 
 /** 내 선수가 들어갈 슬롯: 같은 포지션군 중 OVR 이 가장 낮은 선수 자리, 없으면 GK 를 뺀 가장 낮은 선수 */
 function mySlot(setup: TeamSetup, pos: FieldPosition): number {
@@ -97,13 +108,20 @@ export function proficientAttrs(attrs: FieldAttributes, proficiency = 100): Fiel
   return out;
 }
 
+/** 판단 스탯 생활 페널티 (C.75i): 엔진이 판단에 쓰는 시야·침착성(judgementOf)만 낮춘다. 0 이면 그대로 */
+export function judgeAttrs(attrs: FieldAttributes, pen: number): FieldAttributes {
+  if (pen <= 0) return attrs;
+  return { ...attrs, vision: Math.max(1, attrs.vision - pen), composure: Math.max(1, attrs.composure - pen) };
+}
+
 export function buildMyMatch(m: EngineMatchInput) {
   const t = m.myTactics;
   const myRoster = t ? withSlots(m.myRoster, t) : m.myRoster;
-  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, undefined, m.leagueAvg, false);
-  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, undefined, m.leagueAvg);
+  const c = m.npcCond;
+  const mySetup = teamSetupFromRoster(myRoster, m.myRating, m.oppRating, m.worldSeed, npcInjuredOut(myRoster, c), m.leagueAvg, false, c, m.styles?.[0] ?? 'neutral');
+  const oppSetup = teamSetupFromRoster(m.oppRoster, m.oppRating, m.myRating, m.worldSeed, npcInjuredOut(m.oppRoster, c), m.leagueAvg, true, c, m.styles?.[1] ?? 'neutral');
   const meSpec: PlayerSpec = {
-    id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: proficientAttrs(m.me.attributes, m.me.proficiency),
+    id: MY_ID, name: '나', slot: -1, position: t ? slotPos(t, t.mySlot) : m.me.position, attrs: judgeAttrs(proficientAttrs(m.me.attributes, m.me.proficiency), m.me.judgePen ?? 0),
     stamina: startStamina(m.me.fatigue), form: m.me.form, isMe: true,
     ...(m.me.body ? { body: m.me.body } : {}), ...(m.me.shirt !== undefined ? { shirt: m.me.shirt } : {}),
     ...(m.me.cardMul && m.me.cardMul !== 1 ? { cardMul: m.me.cardMul } : {}),
@@ -135,6 +153,7 @@ export function buildMyMatch(m: EngineMatchInput) {
     difficulty: m.difficulty,
     seed: m.seed,
     bigMatch: m.bigMatch ?? false,
+    ...(m.neutral ? { neutral: true } : {}),
     ...(m.plan.minutes ? { myMinutes: m.plan.minutes } : {}),
     ...(m.control ? { control: m.control } : {}),
     ...(m.cards?.deck.length && m.plan.minutes ? { cards: m.cards } : {}),
@@ -165,9 +184,12 @@ export function toMatchResult(r: EngineResult, side: 0 | 1, started: boolean, di
     return { goalsFor, goalsAgainst, outcome, started: false, minutes: 0, goals: 0, assists: 0, rating: null, mom: false, xp };
   }
   const R = BALANCE.rating;
-  const rating = Math.round(Math.min(R.max, Math.max(R.min, my.rating + BALANCE.difficulty[difficulty].rating)) * 10) / 10;
-  const mom = rating >= R.momMin && outcome !== 'loss';
-  const xp = matchXp(rating, outcome, mom, minutes, bigMatch, difficulty);
+  const base = Math.round(Math.min(R.max, Math.max(R.min, my.rating + BALANCE.difficulty[difficulty].rating)) * 10) / 10;
+  const mom = base >= R.momMin && outcome !== 'loss';
+  // 지시 카드 보상 (F.4, C.75i): 독단 성공 → 평점 사후 가산·XP 배수 (엔진 평점 계산 밖의 "카드 보상", MOM 판정은 가산 전 평점)
+  const dr = directiveReward(r.cards);
+  const rating = dr?.rating ? Math.round(Math.min(R.max, base + dr.rating) * 10) / 10 : base;
+  const xp = Math.round(matchXp(base, outcome, mom, minutes, bigMatch, difficulty) * (dr?.xpMul ?? 1));
   return { goalsFor, goalsAgainst, outcome, started, minutes, goals: my.goals, assists: my.assists, rating, mom, xp };
 }
 
@@ -214,6 +236,11 @@ export class MyMatchRun {
     return null;
   }
 
+  /** 리셋 즉발 (C.75h): 멈춘 결정 순간에서 리셋 카드를 바로 쓰고 패·카드 선택지를 다시 계산한다. 못 쓰면 false */
+  resetNow(hand: number): boolean {
+    return redrawNow(this.sim.state, hand);
+  }
+
   /** 결정 확정 후 그 틱을 마저 진행한다 */
   resolve(choice: MomentChoice): void {
     const s = this.sim.state;
@@ -236,6 +263,16 @@ export class MyMatchRun {
       frames.push(captureFrame(s));
       this.next += ENGINE.time.frameInterval;
     }
+  }
+
+  /**
+   * 하프타임 전술 확정 (C.75k, E.19): 멈춘 순간이 하프타임이면 내 팀 전술을 바꾸고(null = 변경 없음, 난수를 쓰지 않아 자동과 같다) 후반을 이어 간다
+   */
+  halftime(tactics: Tactics | null, label?: string): void {
+    const s = this.sim.state;
+    if (s.moments.pending?.type !== 'halftime') return;
+    if (tactics) applyHalftimeTactics(s, this.side, tactics, label);
+    this.resolve('delegate');
   }
 
   /** 남은 결정은 맡기고 끝까지 돌린 뒤 결과 */

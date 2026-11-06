@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { activePreset, choosePreset, dayPlan, endDay, isMatchDay, myMatchDates, newGame, playOthers, playRound, presetWeekPlan, recommendPreset, setPresetAuto, type GameState } from '../src/game';
 import { addCustomPreset, BASE_PRESETS, deleteCustomPreset, presetById, updateCustomPreset, weekStart } from '../src/training';
 import { addDays, daysBetween } from '../src/calendar';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { SAVE_FORMAT_VERSION } from '../src/game';
 import { clubKo } from '../src/league';
 import { homeVM, presetsVM } from '../src/ui/viewModels';
@@ -74,11 +74,12 @@ describe('훈련 프리셋 (C.52)', () => {
     if (busyWeek) expect(recommendPreset(g, busyWeek).id).toBe('busy');
     const quiet = dates.find((d, i) => i > 0 && daysBetween(dates[i - 1]!, d) >= 7 && weekStart(d) !== weekStart(dates[i - 1]!) && weekStart(d) !== weekStart(dates[i + 1] ?? addDays(d, 30)));
     if (quiet) {
-      g.player.fatigue = 50;
+      // C.77m: 문턱 체력 65·85 → 50·75 (피로 50 초과 = 회복 중심, 25 이하 = 기술 집중)
+      g.player.fatigue = 60;
       expect(recommendPreset(g, quiet).id).toBe('recovery');
       g.player.fatigue = 0;
       expect(recommendPreset(g, quiet).id).toBe('focus');
-      g.player.fatigue = 25;
+      g.player.fatigue = 40;
       expect(recommendPreset(g, quiet).id).toBe('balance');
     }
     g.player.injury = { grade: 'minor', weeksTotal: 1, daysTotal: 5, daysLeft: 5, date: g.calendar.date, season: g.league.season, round: 1, permanent: {} };
@@ -110,14 +111,14 @@ describe('훈련 프리셋 (C.52)', () => {
     expect(presetEditSheet(presetEditVM(g, ids[0]!))).toContain('data-act="preset-slot" data-v="6"');
   });
 
-  it('세이브 30 → 31: 프리셋 기본값(균형·자동)', () => {
+  it('프리셋 왕복 그대로, 옛 세이브(30)는 이어 할 수 없음', () => {
     const g = toSeason('c52-f');
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 30;
-    for (const k of ['preset', 'presetWeek', 'presetAuto', 'presetManual', 'customPresets', 'presetSeq']) delete raw.training[k];
-    const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(43);
-    expect(back.training).toMatchObject({ preset: 'balance', presetAuto: true, customPresets: [] });
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
+    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(back.training).toEqual(g.training);
     playRound(back, { engine: 'quick' });
   });
 });

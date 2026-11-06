@@ -1,0 +1,58 @@
+import type { LeagueData } from './types';
+
+// 사우디 프로리그 2018-19 (45d6, 부록 C.75s): 실제 참가 16팀 (14 → 16팀 확대 첫 시즌, 우승 알나스르, 강등 오호드·알바틴·알카디시아).
+// 레이팅은 PL 척도(맨시티 85 ~ 허더즈필드 67)에 맞춘 상대 전력 추정치: 알힐랄·알나스르(2019 ACL 우승 전력) ≈ PL 하위~챔피언십 상위(71), 강등권 58~59.
+// 팀·도시·홈구장·개막 감독은 위키백과 "2018–19 Saudi Pro League" 표 기준(2026-10-20 확인). 팀 색은 대표 색만 넣고 확실하지 않은 팀은 비워 둔다.
+
+export const LEAGUE: LeagueData = {
+  id: 'saudi',
+  name: 'Saudi Professional League',
+  nameKo: '사우디 프로리그',
+  country: 'Saudi Arabia',
+  tier: 1,
+  season: '2018-19',
+  calendar: 'autumn-spring',
+  teams: [
+    { id: 'saudi:hil', name: 'Al-Hilal', nameKo: '알힐랄', rating: 71, city: 'Riyadh', colors: { primary: '#005BAC', secondary: '#FFFFFF' },
+      manager: 'Jorge Jesus', managerKo: '조르즈 제즈스', stadium: 'King Saud University Stadium', stadiumKo: '킹 사우드 대학교 스타디움' },
+    { id: 'saudi:nas', name: 'Al-Nassr', nameKo: '알나스르', rating: 71, city: 'Riyadh', colors: { primary: '#FFE400', secondary: '#1E3C96' },
+      manager: 'José Daniel Carreño', managerKo: '호세 다니엘 카레뇨', stadium: 'King Fahd International Stadium', stadiumKo: '킹 파드 국제경기장' },
+    { id: 'saudi:ahl', name: 'Al-Ahli', nameKo: '알아흘리', rating: 68, city: 'Jeddah', colors: { primary: '#006633', secondary: '#FFFFFF' },
+      manager: 'Pablo Guede', managerKo: '파블로 게데', stadium: 'King Abdullah Sports City', stadiumKo: '킹 압둘라 스포츠 시티' },
+    { id: 'saudi:itt', name: 'Al-Ittihad', nameKo: '알이티하드', rating: 67, city: 'Jeddah', colors: { primary: '#FFD700', secondary: '#000000' },
+      manager: 'Ramón Díaz', managerKo: '라몬 디아스', stadium: 'King Abdullah Sports City', stadiumKo: '킹 압둘라 스포츠 시티' },
+    { id: 'saudi:taa', name: 'Al-Taawoun', nameKo: '알타아원', rating: 65, city: 'Buraidah',
+      manager: 'Pedro Emanuel', managerKo: '페드루 에마누엘', stadium: 'King Abdullah Sport City Stadium', stadiumKo: '킹 압둘라 스포츠 시티 스타디움' },
+    { id: 'saudi:sha', name: 'Al-Shabab', nameKo: '알샤바브', rating: 65, city: 'Riyadh', colors: { primary: '#FFFFFF', secondary: '#000000' },
+      manager: 'Marius Șumudică', managerKo: '마리우스 슈무디커', stadium: 'King Fahd International Stadium', stadiumKo: '킹 파드 국제경기장' },
+    { id: 'saudi:weh', name: 'Al-Wehda', nameKo: '알웨흐다', rating: 63, city: 'Mecca', colors: { primary: '#D71920', secondary: '#FFFFFF' },
+      manager: 'Fábio Carille', managerKo: '파비우 카릴리', stadium: 'King Abdul Aziz Stadium', stadiumKo: '킹 압둘아지즈 스타디움' },
+    { id: 'saudi:fai', name: 'Al-Faisaly', nameKo: '알파이살리', rating: 63, city: 'Harmah',
+      manager: 'Mircea Rednic', managerKo: '미르체아 레드니크', stadium: "Al-Majma'ah Sports City", stadiumKo: '알마즈마아 스포츠 시티' },
+    { id: 'saudi:fat', name: 'Al-Fateh', nameKo: '알파테흐', rating: 62, city: 'Al-Hasa', colors: { primary: '#0055A5', secondary: '#FFFFFF' },
+      manager: 'Fathi Al-Jabal', managerKo: '파티 알자발', stadium: 'Prince Abdullah bin Jalawi Stadium', stadiumKo: '프린스 압둘라 빈 잘라위 스타디움' },
+    { id: 'saudi:ett', name: 'Al-Ettifaq', nameKo: '알이티파크', rating: 62, city: 'Dammam', colors: { primary: '#008542', secondary: '#D71920' },
+      manager: 'Leonardo Ramos', managerKo: '레오나르도 라모스', stadium: 'Prince Mohamed bin Fahd Stadium', stadiumKo: '프린스 무함마드 빈 파드 스타디움' },
+    { id: 'saudi:fay', name: 'Al-Fayha', nameKo: '알파이하', rating: 61, city: "Al Majma'ah", colors: { primary: '#F47920', secondary: '#1E3C96' },
+      manager: 'Gustavo Costas', managerKo: '구스타보 코스타스', stadium: 'King Salman Sport City Stadium', stadiumKo: '킹 살만 스포츠 시티 스타디움' },
+    { id: 'saudi:rae', name: 'Al-Raed', nameKo: '알라에드', rating: 61, city: 'Buraidah', colors: { primary: '#D71920', secondary: '#000000' },
+      manager: 'Besnik Hasi', managerKo: '베스니크 하시', stadium: 'King Abdullah Sport City Stadium', stadiumKo: '킹 압둘라 스포츠 시티 스타디움' },
+    { id: 'saudi:haz', name: 'Al-Hazem', nameKo: '알하젬', rating: 60, city: 'Ar Rass',
+      manager: 'Daniel Isăilă', managerKo: '다니엘 이서일러', stadium: 'Al-Hazem Club Stadium', stadiumKo: '알하젬 클럽 스타디움' },
+    { id: 'saudi:qad', name: 'Al-Qadsiah', nameKo: '알카디시아', rating: 59, city: 'Khobar', colors: { primary: '#FFD100', secondary: '#D71920' },
+      manager: 'Aleksandar Stanojević', managerKo: '알렉산다르 스타노예비치', stadium: 'Prince Saud bin Jalawi Stadium', stadiumKo: '프린스 사우드 빈 잘라위 스타디움' },
+    { id: 'saudi:bat', name: 'Al-Batin', nameKo: '알바틴', rating: 59, city: 'Hafar al-Batin',
+      manager: 'Franky Vercauteren', managerKo: '프랑키 베르카우테런', stadium: 'Al-Batin Club Stadium', stadiumKo: '알바틴 클럽 스타디움' },
+    { id: 'saudi:ohd', name: 'Ohod', nameKo: '오호드', rating: 58, city: 'Medina', colors: { primary: '#D71920', secondary: '#FFFFFF' },
+      manager: 'Francisco Arce', managerKo: '프란시스코 아르세', stadium: 'Prince Mohammed bin Abdul Aziz Stadium', stadiumKo: '프린스 무함마드 빈 압둘아지즈 스타디움' },
+  ],
+  derbies: [
+    ['saudi:hil', 'saudi:nas', '리야드 더비'],
+    ['saudi:ahl', 'saudi:itt', '제다 더비'],
+    ['saudi:hil', 'saudi:itt', '사우디 클라시코'],
+    ['saudi:sha', 'saudi:hil', '리야드 더비'],
+    ['saudi:sha', 'saudi:nas', '리야드 더비'],
+    ['saudi:taa', 'saudi:rae', '부라이다 더비'],
+    ['saudi:ett', 'saudi:qad', '동부 더비'],
+  ],
+};

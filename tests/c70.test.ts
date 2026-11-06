@@ -16,7 +16,7 @@ function toMatchDay(g: GameState): void {
 const son = () => newGame({ mode: 'real', playerId: 'son', seed: 'c70', difficulty: 'normal' });
 
 describe('홈 v3 (161)', () => {
-  it('머리말 = 저장·설정만, 칩 n/38R · 찍을 포인트, 내 선수 결정 한 줄', () => {
+  it('머리말 = 저장·설정만, 칩 n/38R · 찍을 포인트 (C.77q: 직접/자동 줄은 설정 · 경기 준비로)', () => {
     const g = son();
     g.player.unspentPoints = 12;
     g.guide.unlocked.push('growth');
@@ -26,8 +26,8 @@ describe('홈 v3 (161)', () => {
     expect(html).not.toContain('data-to="finance"');
     expect(html).toMatch(/>1\/38R</);
     expect(html).toContain('찍을 포인트 12P');
-    expect(html).toContain('hm-ctl');
-    expect(html).toContain('data-act="ctl-mode"');
+    expect(html).not.toContain('hm-ctl');
+    expect(html).not.toContain('data-act="ctl-mode"');
   });
   it('오늘 훈련 = 날짜 머리 + 이번 주 프리셋 줄, 카드 덱 한 줄', () => {
     const g = son();
@@ -38,10 +38,12 @@ describe('홈 v3 (161)', () => {
     expect(r).toContain('프리셋 바꾸기');
     expect(deckHomeSection({ active: 0, count: 8, unusable: 0, picks: 0 })).toContain('hm-deck');
   });
-  it('재정 코치 후보는 독 재정 칸 · 접힌 더보기 배지로', () => {
-    const vm: DockVM = { screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: true, points: 0, more: false, inbox: 1, finance: 2 };
+  it('코치 후보는 독 훈련 칸 배지(C.77q), 접힌 더보기 배지 = 인박스', () => {
+    const vm: DockVM = { screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: true, points: 0, more: false, inbox: 1, coach: 2 };
     const html = dock(vm);
-    expect(html).toContain('<b class="po-dock__badge po-num">3</b>');
+    expect(html).toContain('<b class="po-dock__badge po-num">2</b>');
+    expect(html).toContain('<b class="po-dock__badge po-num">1</b>');
+    expect(html).not.toContain('<b class="po-dock__badge po-num">3</b>');
   });
 });
 

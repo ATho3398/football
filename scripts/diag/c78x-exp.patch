@@ -1,0 +1,89 @@
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index beed765..e0b0e52 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -1033,6 +1033,8 @@ export const ENGINE = {
+     pressureDist: 3,
+     /** 패스 실패 시 인터셉트로 끝나는 비중 (나머지는 루즈볼/아웃) */
+     interceptShare: 0.4,
++    airLaneExp: 0,
++    failLossExp: 0,
+     /** 루즈볼이 된 실패 패스의 착지 오차 σ (m) */
+     looseError: 6,
+ 
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index 1c6620d..d407187 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -139,10 +139,12 @@ export function laneRisk(s: SimState, a: Agent, tx: number, ty: number): LaneInf
+ export function laneRiskAt(s: SimState, team: 0 | 1, fx: number, fy: number, tx: number, ty: number): LaneInfo {
+   let risk = 0;
+   const cutters: LaneInfo['cutters'] = [];
++  const airX = (PR as any).airLaneExp >= 2 && Math.hypot(tx - fx, ty - fy) > PR.airPass;
+   for (const o of s.agents) {
+     if (!o.onPitch || o.team === team) continue;
+     const [d, t] = segDist(o.x, o.y, fx, fy, tx, ty);
+     if (d >= PR.laneWidth || t <= 0.05) continue;
++    if (airX && t >= ((PR as any).airLaneExp >= 3 ? 0.3 : 0.19) && t <= ((PR as any).airLaneExp >= 3 ? 0.7 : 0.81)) continue;
+     const prox = 1 - d / PR.laneWidth;
+     const w = (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * prox;
+     risk += w;
+@@ -662,16 +664,32 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+       value = Math.max(value, judgedP(shotModel(s, r, false, at, lead).value, shotModel(s, averageSelf(r), false, at, lead).value));
+     }
+     const lossR = loss(rx, ry);
++    // 실험 E3: 실패 = 차단(레인 수비수 자리) 몫 + 빗나감(목표점) 몫
++    let lossF = lossR;
++    let iShare = 0;
++    const ex3 = (PR as any).failLossExp;
++    if (ex3 >= 1 && (ex3 >= 2 || d0 > PR.airPass)) {
++      const tot = lane.cutters.reduce((t, x) => t + x.w, 0);
++      if (tot > 0) {
++        iShare = Math.min(1, PR.interceptShare + tot * 0.3);
++        let li = 0;
++        for (const x of lane.cutters) {
++          const [cx, cy] = toNorm(a.x + (tx - a.x) * x.t, a.y + (ty - a.y) * x.t, dir);
++          li += (x.w / tot) * loss(cx, cy);
++        }
++        lossF = iShare * li + (1 - iShare) * lossR;
++      }
++    }
+     value = value * (1 - pLoseR) + pLoseR * lossR;
+     // 받을 선수가 오프사이드 위치로 보이면 그 확률만큼 상대 프리킥 (E.7, E.10)
+     const pOff = offsideRisk(s, a, r);
+     const uOf = (pj: number) => {
+-      const u = pj * value + (1 - pj) * lossR;
++      const u = pj * value + (1 - pj) * lossF;
+       return pOff > 0 ? (1 - pOff) * u + pOff * lossR : u;
+     };
+     // 롱패스 실패분의 세컨드볼 (C.78c ②): 비행 실패(빗나감·루즈볼)는 착지점 근처에 떨어진다 — 먼저 닿는 팀 몫만큼 그 자리 가치 (실행과 같은 규칙). 원터치 판도 같은 항
+     const landGain = O.landShare > 0 && d0 > PR.airPass ? landingShare(s, a.team, tx, ty, d0 / B.airSpeed, a) * O.landKeep * (positionValue(rx, ry) - lossR) : 0;
+-    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * landGain;
++    let u = uOf(pj) + (1 - judgedP(pFlight, flightP(ppAv))) * (1 - iShare) * landGain;
+     const forward = rx > ax + 0.03;
+     // 팀 빌드업 성향 (E.18 A5): 롱볼·최전방 직행은 직선형, 나머지 짧은 패스·백패스는 점유형일수록
+     const direct = d0 >= TA.longBall || ((r.pos === 'ST' || r.pos === 'CF') && a.line <= 2 && (rx - ax) * L >= TA.directForward);
+@@ -692,7 +710,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+       const pF = flightP(ppA * oneTouchMul(a, ot.speed, ot.pr));
+       const pO = pF * aerial;
+       const pjO = judgedP(pO, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)) * aerial);
+-      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * landGain : 0);
++      const uO = uOf(pjO) + (landGain ? (1 - judgedP(pF, flightP(ppAv * oneTouchMul(av, ot.speed, ot.pr)))) * (1 - iShare) * landGain : 0);
+       ot.out.push({ type, p: pO, u: weight(uO, passW) + cBonus(pjO, rx - ax), x: tx, y: ty, receiver: r.idx, value, pFlight: pF, ...(gkWins >= 0 ? { keeper: gkWins } : {}), ot: true });
+     }
+   }
+@@ -1195,6 +1213,14 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
+       r -= x.w;
+       if (r <= 0) { pick = x; break; }
+     }
++    if ((PR as any).airLaneExp >= 1 && air && pick.t < 0.19) {
++      // 실험: 공중 패스 발밑 차단 = 맞고 튐 (루즈볼)
++      fl.outcome = 'loose';
++      fl.toX = a.x + (c.x - a.x) * pick.t + randn(s.seed, s.tick, a.idx, Purpose.Loose, 2) * 6;
++      fl.toY = a.y + (c.y - a.y) * pick.t + randn(s.seed, s.tick, a.idx, Purpose.Loose, 3) * 6;
++      fl.dur = Math.max(0.2, dist(a.x, a.y, fl.toX, fl.toY) / 12);
++      return fl;
++    }
+     fl.outcome = 'intercept';
+     fl.interceptor = pick.idx;
+     fl.toX = a.x + (c.x - a.x) * pick.t;

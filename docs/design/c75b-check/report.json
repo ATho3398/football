@@ -1,0 +1,243 @@
+{
+ "before-2c": {
+  "cores": 2,
+  "errors": [],
+  "wallMs": 147682,
+  "calcMs": 139849,
+  "played": 56,
+  "runs": 9,
+  "perMatch": 2497,
+  "firstMatchDays": [
+   2333,
+   5429,
+   1178
+  ],
+  "myDayAvg": 1485,
+  "matches": 398,
+  "stops": [
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "season"
+  ],
+  "pool": null,
+  "fp": "f5dfa96a"
+ },
+ "ab-before-1": {
+  "cores": 2,
+  "errors": [],
+  "wallMs": 153496,
+  "calcMs": 145549,
+  "played": 56,
+  "runs": 9,
+  "perMatch": 2599,
+  "firstMatchDays": [
+   2370,
+   6069,
+   1568
+  ],
+  "myDayAvg": 1548,
+  "matches": 398,
+  "stops": [
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "season"
+  ],
+  "pool": null,
+  "saves": {
+   "n": 187,
+   "ms": 4156
+  },
+  "fp": "f5dfa96a"
+ },
+ "ab-before-2": {
+  "cores": 2,
+  "errors": [],
+  "wallMs": 172840,
+  "calcMs": 164631,
+  "played": 56,
+  "runs": 9,
+  "perMatch": 2940,
+  "firstMatchDays": [
+   2234,
+   6636,
+   1715
+  ],
+  "myDayAvg": 1762,
+  "matches": 398,
+  "stops": [
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "season"
+  ],
+  "pool": null,
+  "saves": {
+   "n": 188,
+   "ms": 4582
+  },
+  "fp": "f5dfa96a"
+ },
+ "ab-after-1": {
+  "cores": 2,
+  "errors": [],
+  "wallMs": 154345,
+  "calcMs": 146279,
+  "played": 56,
+  "runs": 9,
+  "perMatch": 2612,
+  "firstMatchDays": [
+   8,
+   6476,
+   1409
+  ],
+  "myDayAvg": 1585,
+  "matches": 398,
+  "stops": [
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "season"
+  ],
+  "pool": {
+   "size": 2,
+   "spawned": 2,
+   "fails": 0,
+   "jobs": 398,
+   "main": 0,
+   "prefetched": 430,
+   "hits": 396,
+   "misses": 2,
+   "wasted": 26,
+   "warmMs": 1541,
+   "busyMs": 290843
+  },
+  "saves": {
+   "n": 78,
+   "ms": 3175
+  },
+  "fp": "f5dfa96a"
+ },
+ "ab-after-2": {
+  "cores": 2,
+  "errors": [],
+  "wallMs": 158766,
+  "calcMs": 150164,
+  "played": 56,
+  "runs": 9,
+  "perMatch": 2682,
+  "firstMatchDays": [
+   16,
+   6356,
+   3140
+  ],
+  "myDayAvg": 1734,
+  "matches": 398,
+  "stops": [
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "home",
+   "season"
+  ],
+  "pool": {
+   "size": 2,
+   "spawned": 2,
+   "fails": 0,
+   "jobs": 398,
+   "main": 0,
+   "prefetched": 431,
+   "hits": 397,
+   "misses": 1,
+   "wasted": 26,
+   "warmMs": 1719,
+   "busyMs": 299321
+  },
+  "saves": {
+   "n": 78,
+   "ms": 5331
+  },
+  "fp": "f5dfa96a"
+ },
+ "fps-before-4": {
+  "rate": 4,
+  "dpr": 2,
+  "errors": [],
+  "startMs": 6151,
+  "frames": 557,
+  "fps": 55.5,
+  "p50": 16.7,
+  "p95": 33.3,
+  "p99": 33.4,
+  "over50": 0,
+  "over33": 0,
+  "screen": "screen screen-replay"
+ },
+ "fps-before-6": {
+  "rate": 6,
+  "dpr": 2,
+  "errors": [],
+  "startMs": 9072,
+  "frames": 392,
+  "fps": 39,
+  "p50": 33.2,
+  "p95": 33.4,
+  "p99": 50,
+  "over50": 3,
+  "over33": 14,
+  "screen": "screen screen-replay"
+ },
+ "fps-after-4": {
+  "rate": 4,
+  "dpr": 2,
+  "errors": [],
+  "startMs": 6456,
+  "frames": 557,
+  "fps": 55.4,
+  "p50": 16.7,
+  "p95": 33.3,
+  "p99": 33.4,
+  "over50": 0,
+  "over33": 3,
+  "screen": "screen screen-replay"
+ },
+ "fps-after-6": {
+  "rate": 6,
+  "dpr": 2,
+  "errors": [],
+  "startMs": 9167,
+  "frames": 386,
+  "fps": 38.3,
+  "p50": 33.2,
+  "p95": 50,
+  "p99": 50.1,
+  "over50": 4,
+  "over33": 24,
+  "screen": "screen screen-replay"
+ }
+}

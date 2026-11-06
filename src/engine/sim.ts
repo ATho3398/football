@@ -1,29 +1,45 @@
 // 경기 시뮬 루프 (E.2, E.3): 10Hz 물리, 0.3~0.8초 간격 의사결정
 
+import { fieldOf, onOf } from './lists';
 import { bodyMods } from '../body';
 import { FIELD_ATTRIBUTES, type FieldAttributes, type GkAttributes } from '../attributes';
 import { FORMATION_SLOTS } from '../formations';
-import { ENGINE } from './config';
-import { resolveEnv } from './env';
-import { resolveRapport } from './rapport';
-import { lineOf } from './formation';
-import { caught, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
-import { computeRatings } from './rating';
+import { stackDrainMul, stackOver } from './stack';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as env_ from './env';
+const { resolveEnv } = env_;
+import * as rapport_ from './rapport';
+const { resolveRapport } = rapport_;
+import * as formation_ from './formation';
+const { lineOf } = formation_;
+import { caught, deepCut, defendDuels, execute, keeperHands, resolveFlight, shoot, takeCorner, takeFreeKick, takePenalty } from './actions';
+import * as rating_ from './rating';
+const { computeRatings } = rating_;
 import { checkAdvantage, contactFouls, giveCard, issuePendingCards } from './referee';
 import { aiSubs, myMinutes } from './subs';
-import { event, kickoffPositions, nearestTaker, setOwner, setRestart } from './core';
-import { refreshErrors, updateOffball } from './offball';
-import { candidates, choose, judgementOf } from './onball';
-import { aerialMoment, autoCardDecide, duelMoment, initMoments, onballMoment, setPieceMoment, settleMoment, takeMoment, type Moment, type MomentChoice } from './moments';
+import { event, kickoffPositions, kickoffTaker, nearestTaker, penaltyTaker, setOwner, setRestart } from './core';
+import { keeperFlightDue, refreshErrors, transitionTick, updateOffball, updateSituations } from './offball';
+import { candidates, choose, judgementOf, notePassive } from './onball';
+import { aerialMoment, autoCardDecide, duelMoment, halftimeMoment, initMoments, intentShot, onballMoment, setPieceMoment, settleMoment, slipPick, takeMoment, type Moment, type MomentChoice } from './moments';
 import { AUTO_REACT, cardReport, cardsFinish, cardsTick, checkWatch, consumeCombos, initCards, prepCands, startWatch, tagsOf, type ActionMod, type CardUse } from './cards';
 import type { Candidate } from './onball';
-import { initPhysics, moveAgent } from './physics';
-import { aiAdjust } from './tactics';
-import { attackDir, clamp, dist, L, outOfPlay, toPitch, W } from './pitch';
-import { Purpose, rand } from './rng';
-import { defaultRole, roleById } from './roles';
-import { emptyPlayerStats, emptyTeamStats, type Agent, type SimState } from './state';
-import type { EngineInput, EngineResult, Frame, PlayerSpec, TeamSetup } from './types';
+import * as physics_ from './physics';
+const { burstCap, clearFeed, initPhysics, moveAgentMV, perceiveFeed, setMove } = physics_;
+import * as tactics_ from './tactics';
+const { aiAdjust, TENDENCY } = tactics_;
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, L, outOfPlay, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
+import * as roles_ from './roles';
+const { defaultRole, roleById } = roles_;
+import { type Agent, type SimState } from './state';
+import { fitGaps } from './fit';
+import * as state_ from './state';
+const { emptyPlayerStats, emptyTeamStats } = state_;
+import type { EngineInput, EngineResult, Frame, PlayerSpec, Tactics, TeamSetup } from './types';
 
 const T = ENGINE.time;
 const B = ENGINE.ball;
@@ -40,7 +56,8 @@ export function curveAttr(x: number): number {
 function curveAttrs<T extends object>(a: T): T {
   const out = {} as Record<string, number>;
   for (const [k, v] of Object.entries(a)) out[k] = curveAttr(v as number);
-  return out as T;
+  // C.81e 계산 속도: 키를 하나씩 붙인 객체는 V8 이 사전(느린) 모드로 둔다 — 같은 키 순서·같은 값으로 펼쳐 빠른 모드 객체로 (능력치는 경기 내내 수백 번 읽힌다)
+  return { ...out } as T;
 }
 
 /** GK 의 필드 능력치 (이동, 패스에 쓴다): 킥은 패스, 나머지는 보통 수준 */
@@ -77,6 +94,26 @@ export interface MatchSim {
   step(): void;
 }
 
+/**
+ * 실수 필드 표현 고정 (C.81e 계산 속도, 값 불변): 0 같은 정수로 시작해 나중에 실수가 들어가는 필드는 V8 이 첫 경기 중에 객체 모양을 바꾸고
+ * 그 사이 여러 모양을 본 읽기 자리가 느린 경로(megamorphic)로 굳는다. 만들자마자 실수를 한 번 넣었다가 원래 값으로 되돌려 처음부터 실수 표현으로 둔다
+ */
+function fixDoubles(o: object, keys: readonly string[]): void {
+  const r = o as Record<string, unknown>;
+  for (const k of keys) {
+    const v = r[k];
+    r[k] = 0.5;
+    r[k] = v;
+  }
+}
+/** 선수 객체에서 정수로만 쓰는 필드 (표현 고정에서 뺀다) */
+const AGENT_INT = new Set(['idx', 'team', 'line', 'tvIdx', 'errTick', 'errDone', 'carryN', 'shotPath', 'trackIdx', 'stepOutIdx']);
+let agentDoubles: string[] | null = null;
+const STATE_DOUBLES = ['t', 'elapsed', 'halfEnd', 'bsx', 'bsy', 'possSince', 'possStartT', 'elapsed75', 'nextSubCheck'] as const;
+const BALL_DOUBLES = ['x', 'y', 'z', 'vx', 'vy'] as const;
+const TEAM_DOUBLES = ['phase', 'counterUntil', 'wonAt', 'lostAt', 'lineAtLoss', 'brokeAt', 'coverUntil', 'sitSince', 'sitCandSince'] as const;
+const STATS_DOUBLES = ['distance', 'distance75', 'rating'] as const;
+
 function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup, home: boolean): Agent {
   const slots = setup.customSlots ?? FORMATION_SLOTS[setup.formation];
   const slot = slots[spec.slot] ?? slots[0]!;
@@ -88,16 +125,22 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     // 줄 소속: 커스텀 칸은 칸의 줄(E.5.1), 아니면 포지션
     idx, id: spec.id, team, spec, attrs, gk, pos, line: spec.slot >= 0 && slot.line !== undefined ? slot.line : lineOf(pos),
     role: roleById(spec.role) ?? defaultRole(pos, attrs),
-    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, urgent: false,
-    maxSpeed: 0, accel: 0, turnKeep: 0, stamina: spec.stamina, judgement: 0, cooldown: 0, nextOffball: 0,
-    runUntil: 0, errX: 0, errY: 0, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
+    sx: slot.x, sy: slot.y, x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, tvx: 0, tvy: 0, tvIdx: -1, tvwx: 1, tvwy: 1, hx: team === 0 ? 1 : -1, hy: 0, hMx: NaN, hMy: NaN, hA: 0, thUx: NaN, thUy: NaN, thHx: NaN, thHy: NaN, thStep: NaN, thRx: 0, thRy: 0, urgent: false,
+    maxSpeed: 0, accel: 0, turnKeep: 0, pivotT: 0, burstSec: 0, drainAttr: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
+    runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
-    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0 }, gotBy: 'gain', lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0,
+    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0, card: undefined, relief: undefined, risky: undefined, riskLost: undefined, passive: undefined, passiveW: undefined, passiveSeq: undefined, passivePoss: undefined, passiveCtr: undefined }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
+    pre: null, otMul: 1, otUntil: -1,
+    // C.81e 계산 속도: 나중에 붙던 속성을 처음부터 (하프타임에 모든 선수 객체 모양이 바뀌어 최적화 코드가 버려지던 것 — 값·판정 같음)
+    intent: null, cardBoost: undefined,
   };
   initPhysics(a);
   // 홈 이점 (E.18 A7): 판단 품질 + homeJudgement, 듀얼 로짓 + homeDuel (능력치 가산 없음)
   a.judgement = judgementOf(a) + (home ? ENGINE.match.homeJudgement : 0);
   a.duelEdge = home ? ENGINE.match.homeDuel : 0;
+  agentDoubles ??= Object.keys(a).filter((k) => typeof (a as unknown as Record<string, unknown>)[k] === 'number' && !AGENT_INT.has(k));
+  fixDoubles(a, agentDoubles);
+  fixDoubles(a.stats, STATS_DOUBLES);
   return a;
 }
 
@@ -118,25 +161,46 @@ export function createState(input: EngineInput): SimState {
     agents, bench,
     ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null },
     bsx: L / 2, bsy: W / 2,
-    teams: setups.map((setup) => ({
+    teams: setups.map((setup, team) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
+      stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
     })) as SimState['teams'],
     possTeam: 0, possSince: 0, restart: null, lastPass: null, events: [],
-    advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100],
+    advantage: null, pendingCards: [], exemptPass: false, lastOwner: -1, lastWasShot: false, nextSubCheck: 0, done: false, offsideX: [0.5, 0.5], lastShotT: [-100, -100], boxLand: null,
     possOrigin: 'kickoff', possStartT: 0, snap75: false, elapsed75: 0,
     moments: initMoments(input.control), forcedDuel: null, cards: initCards(input.cards, input.seed),
     env: resolveEnv(input.env),
     rapport: resolveRapport(input.rapport),
+    onVer: 0, manVer: -1, manD0: 0,
   };
+  fixDoubles(s, STATE_DOUBLES);
+  fixDoubles(s.ball, BALL_DOUBLES);
+  for (const tm of s.teams) fixDoubles(tm, TEAM_DOUBLES);
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
   event(s, 'kickoff', 0, []);
   return s;
 }
 
+/** 재개 키커 다시 고르기 (C.78k): 종류별 원래 선정 규칙 (킥오프 = 가장 앞선 선수, PK = 지정 키커, 그 밖 = 공에 가장 가까운 선수). 없으면 −1 */
+function pickTaker(s: SimState, r: NonNullable<SimState['restart']>): number {
+  if (r.type === 'kickoff') return kickoffTaker(s, r.team)?.idx ?? -1;
+  if (r.type === 'penalty') return penaltyTaker(s, r.team);
+  return nearestTaker(s, r.type, r.team, r.x, r.y);
+}
+
+/** 키커가 경기장에 있는가 (교체·퇴장으로 빠졌으면 false) */
+function takerReady(s: SimState, r: NonNullable<SimState['restart']>): boolean {
+  const t = s.agents[r.taker];
+  return !!t && t.onPitch && t.team === r.team;
+}
+
 function executeRestart(s: SimState): void {
   const r = s.restart!;
+  // 키커가 빠졌으면 (C.78k) 같은 팀에서 다시 고른다. 고를 사람이 없을 때만 재개를 버린다
+  if (!takerReady(s, r)) r.taker = pickTaker(s, r);
   const taker = s.agents[r.taker];
   s.restart = null;
   for (const a of s.agents) a.paceCap = 0;
@@ -183,11 +247,16 @@ function executeSetPiece(s: SimState): void {
 function restartDue(s: SimState): boolean {
   const r = s.restart!;
   const R = ENGINE.restart;
-  let taker = s.agents[r.taker];
-  if (!taker || !taker.onPitch) {
-    executeRestart(s);
-    return false;
+  // 키커가 교체·퇴장으로 빠졌다 (C.78k): 재개는 그대로 두고 같은 팀 대체 키커가 공으로 간다 (PK 는 지정 키커 규칙)
+  if (!takerReady(s, r)) {
+    const pick = pickTaker(s, r);
+    if (pick < 0) {
+      executeRestart(s);
+      return false;
+    }
+    r.taker = pick;
   }
+  let taker = s.agents[r.taker]!;
   if (dist(taker.x, taker.y, r.x, r.y) < R.takerReach) return runRestart(s);
   r.at0 ??= r.at;
   if (s.t >= r.at0 + R.lateMax) {
@@ -213,14 +282,34 @@ function restartDue(s: SimState): boolean {
 
 /** 소유자 결정. 내 선수이고 덱이 있으면 (C.36) 패시브를 얹고, 자동 모드 카드 기회면 F.5 규칙으로 카드를 쓴다 */
 function decide(s: SimState, a: Agent): void {
+  // 원터치 (C.78b): 받는 순간 미리 정한 행동을 그대로 실행 (판단·기록은 그때 끝났다)
+  if (a.pre) {
+    const c = a.pre;
+    a.pre = null;
+    if (c.type !== 'holdup') a.backToGoal = false;
+    return execute(s, a, c);
+  }
   const cands = candidates(s, a);
+  // 몰고 가다 슛 둘째 단 (C.75k, 직접 모드에서 고른 의도만): 슛 후보가 있으면 그 슛
+  const forced = a.intent ? intentShot(s, a, cands) : null;
+  if (a.intent) a.intent = null;
+  if (forced) {
+    if (s.cards) return runMine(s, a, forced, null, null, true);
+    a.backToGoal = false;
+    return execute(s, a, forced);
+  }
   if (s.cards && a.spec.isMe) {
     prepCands(s, a, cands);
     const r = autoCardDecide(s, a, cands);
+    const c = r ? r.cand : slipPick(s, a, cands, choose(s, a, cands));
+    notePassive(s, a, c, cands);
     if (r) return runMine(s, a, r.cand, r.mod, r.use, true);
-    return runMine(s, a, choose(s, a, cands), null, null, false);
+    return runMine(s, a, c, null, null, false);
   }
-  const c = choose(s, a, cands);
+  // 판단 미끄러짐 (C.75h B안): 내 선수만
+  const c = a.spec.isMe ? slipPick(s, a, cands, choose(s, a, cands)) : choose(s, a, cands);
+  // 소극적 백패스 (C.77s A1): 평점 기록만 (선택은 그대로)
+  notePassive(s, a, c, cands);
   if (c.type !== 'holdup') a.backToGoal = false;
   execute(s, a, c);
 }
@@ -287,7 +376,7 @@ function updateLooseBall(s: SimState): void {
 
 function nearestOpponentDist(s: SimState, a: Agent): number {
   let bd = Infinity;
-  for (const o of s.agents) if (o.onPitch && o.team !== a.team) bd = Math.min(bd, dist(o.x, o.y, a.x, a.y));
+  for (const o of onOf(s, (1 - a.team) as 0 | 1)) bd = Math.min(bd, dist(o.x, o.y, a.x, a.y));
   return bd;
 }
 
@@ -314,21 +403,88 @@ function ballOut(s: SimState): void {
 
 function startSecondHalf(s: SimState): void {
   s.half = 2;
+  // 시계가 되돌아가는 폭 (전반 추가시간)
+  const back = s.t - T.halfSeconds;
   s.t = T.halfSeconds;
   const added2 = 60 * (T.addedSecond[0] + Math.floor(rand(s.seed, 1, 0, Purpose.Added) * (T.addedSecond[1] - T.addedSecond[0] + 1)));
   s.halfEnd = 2 * T.halfSeconds + added2;
   for (const a of s.agents) {
     a.runUntil = 0;
+    a.giveGoT = -1;
+    a.giveGo = false;
+    a.exitRun = false;
+    a.supportRun = false;
+    a.gapY = -1;
+    a.vacRun = false;
+    a.overlap = false;
     // C.45: 시계가 전반 추가시간(예 2840초)에서 2700초로 돌아가므로 전반에 잡아 둔 시각들도 비운다.
     // 그대로 두면 오프더볼 갱신이 전반 끝 시각까지 멈춰 후반 시작 뒤 최대 2분 넘게 제자리에 서 있는 선수가 생긴다
     a.nextOffball = 0;
+    a.errT = -Infinity;
     a.beatenUntil = 0;
     a.duelNext = 0;
     a.laneUntil = 0;
+    a.trackIdx = -1;
+    a.trackUntil = 0;
+    a.trackOut = -1;
+    a.stepOutIdx = -1;
+    a.stepOutUntil = 0;
+    // C.78k: 원터치(미리 정한 행동·실행 배수), 몰고 가다 슛 의도, 측정용 몰고 가기·돌파 시각, 소극적 백패스 소유 순번(possStartT 가 후반 시각과 겹칠 수 있다)
+    a.pre = null;
+    a.otUntil = -1;
+    a.intent = null;
+    a.lastMoveT = -100;
+    a.dribbleT = -100;
+    a.carryN = 0;
+    a.rt.passivePoss = undefined;
+    a.rt.passiveSeq = undefined;
+    a.rt.passiveCtr = undefined;
     a.stamina = Math.min(100, a.stamina + ENGINE.physics.halftimeRecover * s.env.recover);
+    a.burst = burstCap(a);
+    a.burstOut = false;
   }
+  resetHalfClocks(s, back);
   kickoffPositions(s, 1);
   setRestart(s, 'kickoff', 1, L / 2, W / 2, 0);
+}
+
+/**
+ * 하프타임 시각 초기화 (C.78k): 시계(s.t)가 전반 추가시간(예 2840초)에서 2700초로 돌아가므로, s.t 로 잰 "이 시각까지 유효"·"마지막으로 ~한 시각"을
+ * 경기 시작 때 값으로 되돌린다. 그대로 두면 후반 초반 최대 약 2분 동안 전반 끝 사건이 방금 일어난 일로 읽힌다
+ * (리바운드 슛·결정 순간 분류, 원터치 배수, 돌파 후 커버, 역압박·역습·전환 수비 창, 어시스트 후보 패스 등).
+ * 하프타임은 경기 중단이라 진행 중이던 결정 순간·카드 판정도 여기서 닫는다 (경기 끝과 같은 방식). 카드 드로우 일정만 경기 시간으로 이어 간다
+ */
+function resetHalfClocks(s: SimState, back: number): void {
+  s.lastShotT = [-100, -100];
+  s.boxLand = null;
+  s.lastPass = null;
+  s.possSince = s.t;
+  s.possStartT = s.t;
+  for (const tm of s.teams) {
+    tm.counterUntil = 0;
+    tm.counterPressers = [];
+    tm.wonAt = -100;
+    tm.lostAt = -100;
+    tm.lineAtLoss = -1;
+    tm.brokeAt = -100;
+    tm.coverUntil = 0;
+    tm.coverAgent = -1;
+    tm.sitSince = s.t;
+    tm.sitCandSince = s.t;
+  }
+  settleMoment(s, true);
+  const ms = s.moments;
+  ms.lastStopT = -100;
+  ms.relief = null;
+  const cs = s.cards;
+  if (cs) {
+    cardsFinish(s);
+    cs.lastOccT = -100;
+    cs.lastTackleT = -100;
+    cs.react = null;
+    for (const c of cs.combos) c.armedT = s.t;
+    if (cs.started) cs.nextDraw -= back;
+  }
 }
 
 function finish(s: SimState): void {
@@ -342,12 +498,13 @@ function finish(s: SimState): void {
 export function step(s: SimState): void {
   if (s.done || s.moments.pending) return;
   const dt = T.dt;
+  boxLandTick(s);
 
   checkAdvantage(s);
   if (s.restart && s.pendingCards.length) issuePendingCards(s);
   const fr = s.input.forceRed;
   if (fr && Math.abs(s.t - fr.minute * 60) < dt / 2) {
-    const victim = s.agents.find((a) => a.onPitch && a.team === fr.team && a.line === 2 && !a.spec.isMe);
+    const victim = onOf(s, fr.team).find((a) => a.line === 2 && !a.spec.isMe);
     if (victim) giveCard(s, victim, 'red');
   }
   aiSubs(s);
@@ -358,15 +515,35 @@ export function step(s: SimState): void {
   stepBody(s);
 }
 
+/** 측정용 (C.81a): 크로스·컷백 비행이 끝나는 순간 상대 박스 안 그 팀 필드 선수 수 (찬 선수 포함) */
+function boxLandTick(s: SimState): void {
+  const w = s.boxLand;
+  if (!w) return;
+  if (w.fl === null) {
+    if (s.ball.flight) w.fl = s.ball.flight;
+    else s.boxLand = null;
+    return;
+  }
+  if (s.ball.flight === w.fl) return;
+  const dir = attackDir(w.team, s.half);
+  let n = 0;
+  for (const a of fieldOf(s, w.team)) if (inOppBox(a.x, a.y, dir)) n++;
+  s.teams[w.team].stats.boxAtLand += n;
+  s.teams[w.team].stats.boxLandN++;
+  s.boxLand = null;
+}
+
 /** 오프더볼, 소유자 결정, 수비 태클, 이동·공·시계 (세트피스 결정 순간 뒤에는 여기서 이어 간다) */
 function stepBody(s: SimState): void {
   const dt = T.dt;
   // 오프더볼 목표 갱신 (선수마다 엇갈리게)
   // GK 는 루즈볼이면 chaseRefresh 초마다 다시 본다 (C.28 루즈볼 추격)
   const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
+  updateSituations(s);
+  transitionTick(s);
   for (const a of s.agents) {
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh)) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || keeperFlightDue(s, a)) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));
@@ -394,6 +571,21 @@ function stepBody(s: SimState): void {
   // 공중볼 카드 장면 (C.40): 이번 틱에 뜬 공중볼 (공은 이미 떠 있고, 고른 카드는 경합 때 붙는다)
   if (s.cards && aerialMoment(s) && pauseOrDecide(s)) return;
   stepTail(s);
+}
+
+/**
+ * 하프타임 전술 변경 (C.75k, E.19): 내 팀 전술(성향·세부 전술)을 바꾼다. aiAdjust 가 setup.tactics 에서 다시 만들므로 둘 다 바꾼다.
+ * 역할·포메이션은 바꾸지 않는다. 결정 기록에 한 줄 남긴다
+ */
+export function applyHalftimeTactics(s: SimState, team: 0 | 1, tactics: Tactics, label = '하프타임 전술 변경'): void {
+  const T = s.teams[team];
+  T.setup.tactics = { ...tactics };
+  T.tactics = { ...tactics };
+  const ms = s.moments;
+  ms.log.push({
+    id: ms.nextId++, minute: Math.floor(s.t / 60) + 1, scene: 'halftime', choice: 'balanced', label, p: null, result: 'neutral', delta: 0,
+    e: Math.round(s.elapsed * 10) / 10, stake: 0,
+  });
 }
 
 /** 정책이 있으면(자동 측정·봇) 바로 확정해 실행하고 false, 없으면(직접 모드 화면) 멈추고 true */
@@ -431,6 +623,7 @@ function applyChoice(s: SimState, choice: MomentChoice): void {
   }
   if (m.type === 'onball') {
     const o = s.agents[s.ball.owner]!;
+    if (r.cand) notePassive(s, o, r.cand, (m as Moment & { cands?: Candidate[] }).cands ?? []);
     if (r.cand && s.cards) runMine(s, o, r.cand, r.mod, r.use, true, r.down);
     else if (r.cand) {
       if (r.cand.type !== 'holdup') o.backToGoal = false;
@@ -447,6 +640,11 @@ function applyChoice(s: SimState, choice: MomentChoice): void {
 /** 멈춘 틱 이어서: 결정 실행 후 이동·공·시계 (세트피스면 재개 실행 뒤 그 틱의 나머지 전부) */
 function resume(s: SimState, choice: MomentChoice): void {
   if (!s.moments.pending) return;
+  // 하프타임 (C.75k): 틱은 이미 끝났다. 전술은 확정 전에 applyHalftimeTactics 로 (변경 없음·맡기기 = 그대로 이어감, 난수 안 씀)
+  if (s.moments.pending.type === 'halftime') {
+    takeMoment(s, choice);
+    return;
+  }
   const sp = s.moments.pending.type === 'setPiece';
   applyChoice(s, choice);
   if (sp) stepBody(s);
@@ -459,10 +657,32 @@ function stepTail(s: SimState): void {
   settleMoment(s);
 
   // 이동
+  // 팀 몫 (C.81e: 팀마다 한 번 — 곱하는 순서 그대로라 같은 값)
+  const t0 = s.teams[0];
+  const t1 = s.teams[1];
+  const PH = ENGINE.physics;
+  const td0 = (PH.pressDrainBase + PH.pressDrainPer * t0.tactics.pressing) * (t0.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1);
+  const td1 = (PH.pressDrainBase + PH.pressDrainPer * t1.tactics.pressing) * (t1.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1);
+  const envDrain = s.env.drain;
+  const envRecover = s.env.recover;
   for (const a of s.agents) {
     if (!a.onPitch) continue;
-    // 압박 전술의 스태미나 소모 × (0.95 + 0.15 × pressing) (E.19 ③)
-    moveAgent(a, dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, (0.95 + 0.15 * s.teams[a.team].tactics.pressing) * s.env.drain, s.env.recover);
+    // 압박 전술의 스태미나 소모 × (pressDrainBase + pressDrainPer × pressing) (E.19 ③, C.76s 0.85 + 0.35p)
+    // C.77a 가설 1: 게겐프레싱 팀 × gegenDrain, 역압박 가담 중 × counterDrain
+    const tm = a.team === 0 ? t0 : t1;
+    const drain = (a.team === 0 ? td0 : td1)
+      * (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx) ? PH.counterDrain : 1)
+      // 공격 몰빵 억제 (C.80q ②): 상대 소유 중 자기 골 쪽으로 복귀하는 공격 포지션 선수 체력 소모 ×
+      * (tm.stackOver > 0 ? stackDrainMul(s, a) : 1);
+    // 공 가진 선수는 사람을 따라가지 않는다 (C.77x 목표 속도)
+    if (a.idx === b.owner) clearFeed(a);
+    else if (a.tvIdx >= 0) perceiveFeed(a, s.agents[a.tvIdx]!, dt);
+    // C.80l: 게겐프레싱 팀은 지친 강도 감소에 gegenFatigue × 지친 비율^gegenFatigueExp 를 더한다 (0 = 끔)
+    const gegen = tm.tactics.tendency === 'gegenpress';
+    // C.81e: 인자를 칸에 담아 넘긴다 (moveAgent 와 같은 값 — 실수 인자 상자 만들기 없이)
+    setMove(dt, a.idx === b.owner ? ENGINE.onball.carrySpeed : 1, drain * envDrain, envRecover, a.idx === b.owner ? NaN : b.x, b.y,
+      gegen ? TENDENCY.gegenFatigue : 0, TENDENCY.gegenFatigueExp);
+    moveAgentMV(a);
   }
 
   // 공
@@ -486,6 +706,8 @@ function stepTail(s: SimState): void {
     const fl = b.flight;
     const [px, py] = [b.x, b.y];
     resolveFlight(s);
+    // 깊은 블록 비행 중 가로채기 (C.76p): 패스 선에 들어간 수비수 옆을 공이 지나면 1회 판정
+    if (b.flight === fl && fl.outcome === 'receive') deepCut(s, px, py);
     // 빗나간 땅볼 패스가 박스 안 GK 옆을 지나가면 GK 가 처리한다 (C.28)
     if (b.flight === fl && fl.outcome === 'loose' && !fl.air && !s.restart) keeperHands(s, dist(fl.fromX, fl.fromY, fl.toX, fl.toY) / Math.max(0.05, fl.dur), px, py);
   } else if (!s.restart) {
@@ -509,10 +731,14 @@ function stepTail(s: SimState): void {
   s.t += dt;
   s.elapsed += dt;
   s.tick++;
-  if (s.t >= s.halfEnd) {
+  // 슛이 날아가는 중에는 휘슬을 미룬다 (C.77t: 선방·골 판정 전에 전반이 끝나 유효 슈팅이 사라지던 것)
+  const shotInAir = s.ball.flight?.kind === 'shot' && (s.ball.flight.outcome === 'shot' || s.ball.flight.outcome === 'goal');
+  if (s.t >= s.halfEnd && !shotInAir) {
     if (s.half === 1) {
       event(s, 'halftime', 0, []);
       startSecondHalf(s);
+      // 하프타임 전술 변경 (C.75k, E.19): 직접 모드 화면만 멈춘다 (자동·정책 있는 경기는 그대로)
+      halftimeMoment(s);
     } else finish(s);
   }
 }

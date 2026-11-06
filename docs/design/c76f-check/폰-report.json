@@ -1,0 +1,46 @@
+{
+ "W": 390,
+ "H": 844,
+ "errors": [],
+ "screens": {
+  "결정순간-기본": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-고름": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정결과-재생중": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정결과": {
+   "wide": 0,
+   "hidden": []
+  },
+  "하프타임-기본": {
+   "wide": 0,
+   "hidden": []
+  },
+  "하프타임-총공세": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "panel": {
+  "panelScroll": true,
+  "delegateBottom": 830,
+  "vh": 844,
+  "feed": 0
+ },
+ "half": {
+  "sheetScroll": false,
+  "ok": "이 전술로 후반"
+ },
+ "got": {
+  "moment": true,
+  "outcome": true,
+  "half": true
+ }
+}

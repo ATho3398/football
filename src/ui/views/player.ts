@@ -3,8 +3,9 @@
 
 import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Icon, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
 import { BALANCE } from '../../config/balance';
+import { yellowBanRule } from '../../discipline';
 import { heroFaceOf } from '../faces';
-import { isWide, skin } from '../skin';
+import { isLandPhone, isWide, skin } from '../skin';
 import type { MarketVM } from '../transferVM';
 import { attrGrid } from './attrGrid';
 import type { HistoryRowVM, PlayerVM } from '../viewModels';
@@ -28,9 +29,9 @@ function yellowPips(n: number, every: number): string {
   return Array.from({ length: every }, (_, i) => `<i class="pip${i < n ? ' on' : ''}"></i>`).join('');
 }
 
-/** 미페 머리말을 쓰는지 (C.58, 홈 C.57과 같은 규칙): B 테마 + 폰 폭 + 내 선수 사진이 있을 때 */
+/** 미페 머리말을 쓰는지 (C.58, 홈 C.57과 같은 규칙 · C.74e PC 도): B 테마 + 내 선수 사진이 있을 때, 가로 폰 빼고 */
 export function playerFace(vm: PlayerVM): { src: string; cutout: boolean } | null {
-  if (skin() !== 'b' || isWide()) return null;
+  if (skin() !== 'b' || isLandPhone()) return null;
   return heroFaceOf(vm.face);
 }
 
@@ -47,11 +48,13 @@ export interface PlayerParts {
   legendOpen?: boolean;
   /** 기록 탭 맨 위 기록 도전 (C.74b) */
   records?: string;
+  /** 에이전트 섹션 html (C.77q, 계약 탭) */
+  agent?: string;
 }
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const c = vm.condition;
-  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellows}/${c.yellowEvery}`, soft: true }, { label: vm.chapter, soft: true }];
+  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}`, soft: true }, { label: vm.chapter, soft: true }];
   const face = playerFace(vm);
   // 디자인 B 93·134·136: 사진이 있으면 compact 미페 머리말(290px), 없으면 compact 머리말(디자인 A 93)
   const hero = face
@@ -68,7 +71,8 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
     if (t === 'body') return parts.body;
     if (t === 'pos') return posTab(vm, !!parts.legendOpen);
     if (t === 'record') return `${parts.records ?? ''}${recordTab(vm)}`;
-    return parts.market ? contractSection(parts.market) : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
+    // C.77q: 에이전트(재정 › 생활·투자에서 옮김)는 계약 아래
+    return parts.market ? contractSection(parts.market) + (parts.agent ?? '') : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
   };
   // PC 2열 (C.61 디자인 121·153): 왼쪽 = 프로필 줄 + 능력치 늘, 오른쪽 = 탭 4개(몸·태그 · 포지션 · 기록 · 계약). 능력치 탭이면 오른쪽은 몸·태그
   if (isWide()) {
@@ -100,7 +104,7 @@ function posTab(vm: PlayerVM, open: boolean): string {
   const metN = cups.filter((c) => c.met).length;
   const cupHead = `<button type="button" class="pl-leg__row pl-leg__fold" data-act="legend-more" aria-expanded="${open}">
       <span class="pl-leg__icon">${Icon({ name: metN ? 'star' : 'lock', size: 16 })}</span>
-      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 아직 열리지 않은 대회예요</small></span>
+      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 수상 기록으로 판정해요</small></span>
       <span class="pl-leg__more small">${open ? '접기' : '펼치기'}${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${open ? -90 : 90}deg)` })}</span></button>`;
   const cupRows = open ? `<div class="opts pl-leg__list">${cups.map((l, i) => OptionRow({
     icon: l.met ? 'star' : 'lock', title: `${i === 0 ? '' : i === 1 ? '그리고 ' : '또는 '}${l.label}`,
@@ -135,12 +139,13 @@ function recordTab(vm: PlayerVM): string {
   return `${seasonMatchesSection(vm.matches)}
     ${SectionTitle({ title: '경고와 출장' })}
     ${panel(`
-      <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
-      <span class="muted small">옐로카드 ${c.yellowEvery}장이 쌓이면 다음 1경기에 나올 수 없어요.</span>
+      <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}</b></span></div>
+      <span class="muted small">리그 옐로 ${yellowBanRule()} 출장 정지 (시즌마다 새로).</span>
       ${ban}`)}
     ${SectionTitle({ title: '호흡 좋은 동료', action: `패스 성공 최대 +${Math.round(BALANCE.chemistry.maxPass * 100)}%` })}
     ${panel(vm.chem.length
-      ? `<ul class="chem-list">${vm.chem.map((m) => `<li><b class="chem-list__name">${esc(m.name)} <small class="muted">${esc(m.position)}</small></b><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small">+${m.bonus}%</b></li>`).join('')}</ul>
+      // C.76j (디자인 232): 얼굴 · 이름 · 포지션 · 케미 단계 · 막대 · +% | 오른쪽 함께 뛴 분 (패스·합작 골은 기록이 없어 분으로)
+      ? `<div class="chem-head small muted"><span>동료 · 케미</span><span>함께 뛴 시간</span></div><ul class="chem-list chem-list--b">${vm.chem.map((m) => `<li>${Avatar({ size: 36, name: m.name })}<span class="chem-list__main"><b class="chem-list__name">${esc(m.name)} <i class="po-num muted">${esc(m.position)}</i></b><span class="chem-list__line"><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small chem-list__bonus">+${m.bonus}%</b></span></span><span class="chem-list__min"><b class="po-num">${m.minutes}</b><small>분</small></span></li>`).join('')}</ul>
         <span class="muted small">같이 뛴 시간만큼 쌓이고 시즌이 지나도 남아요. 이적하면 처음부터예요.</span>`
       : '<span class="muted small">같이 뛴 시간만큼 동료와 호흡이 쌓여요. 호흡이 좋은 동료와는 패스가 조금 더 잘 맞아요.</span>')}
     ${SectionTitle({ title: '위상과 레벨', action: `누적 XP ${vm.totalXp}` })}

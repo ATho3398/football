@@ -1,0 +1,18 @@
+{
+  "appId": "io.github.atho3398.playerone",
+  "appName": "PLAYER ONE",
+  "webDir": "android-shell",
+  "backgroundColor": "#16171b",
+  "android": {
+    "backgroundColor": "#16171b"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  },
+  "server": {
+    "url": "https://atho3398.github.io/football/",
+    "errorPath": "offline.html"
+  }
+}

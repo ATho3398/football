@@ -1,25 +1,48 @@
 // 행동 실행과 결과 판정: 패스, 드리블 돌파, 태클, 슛, 크로스, 클리어링, 공중볼, 세이브
 
-import { weakFootMul } from '../body';
-import { ENGINE } from './config';
-import { event, looseBall, reaction, setOwner, setRestart } from './core';
-import { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } from './duel';
-import { catchProb, claimProb, keeperOf, keeperZone, saveProb } from './keeper';
-import { updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, receivesBack, shotModel, type Candidate } from './onball';
+import { fieldOf, onOf } from './lists';
+import { shotFootMul, shotWeakShare, weakFootMul } from '../body';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import { event, looseBall, reaction, receiveTime, setOwner, setRestart } from './core';
+import { fitPts, matchupPts } from './fit';
+import * as duel_ from './duel';
+const { aerialScore, aerialWin, dribbleProb, duelTail, receiveWin } = duel_;
+import { type ShotCtx } from './keeper';
+import * as keeper_ from './keeper';
+const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
+import { ballRank, inOwnBox, updateOffball } from './offball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
+import { stackLinkMul } from './stack';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
-import { attackDir, clamp, dist, inOppBox, inOwnDanger, L, oppGoal, positionValue, segDist, toNorm, W } from './pitch';
-import { landingVelocity } from './physics';
-import { LONG_SHOT_FROM } from './env';
-import { exploitMul } from './rapport';
-import { Purpose, rand, randn } from './rng';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, normX, normY, oppGoal, ownGoal, positionValue, SEG, segDist, segDistS, toNorm, W } = pitch_;
+import * as physics_ from './physics';
+const { duelEdgeOf, landingVelocity, tiredRatio } = physics_;
+import * as env_ from './env';
+const { LONG_SHOT_FROM } = env_;
+import * as rapport_ from './rapport';
+const { exploitMul } = rapport_;
+import * as probe_ from './probe';
+const { probe, probeShot, probeShotEnd } = probe_;
+import * as rng_ from './rng';
+const { Purpose, rand, randn } = rng_;
 import type { Agent, BallReserve, Flight, SimState } from './state';
+import { mkFlight } from './state';
+
+/** 선방률 지표의 거리 기준 (C.76q): 이보다 먼 유효 슈팅만 farOnTarget·farSaves 로 센다 */
+const FAR_SAVE_FROM = 12;
+/** 상황 구간 (C.78r): 거리 경계(박스 선 16.5 · 25 m)와 GK 자리 잡음 기준(슛 순간 덮는 정도) — 지표만, 판정에 안 쓴다 */
+const FAR_BIN_D = [16.5, 25];
+const FAR_BIN_SET = 0.9;
 
 const PR = ENGINE.prob;
 const B = ENGINE.ball;
 const K = ENGINE.keeper;
+const RC = ENGINE.receive;
 const G = ENGINE.pitch.goalWidth;
 
 function r(s: SimState, a: number, p: number, k = 0): number {
@@ -41,6 +64,8 @@ function launch(s: SimState, a: Agent, fl: Flight): void {
 
 export function execute(s: SimState, a: Agent, c: Candidate): void {
   const team = s.teams[a.team];
+  // 위험 감수 실패 (C.77s A2): 이 선택 뒤 상대 진영에서 잃으면 감점 완화
+  a.rt.risky = riskyAction(s, a, c);
   switch (c.type) {
     case 'pass':
     case 'through':
@@ -64,6 +89,7 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       const fl = makePass(s, a, c);
       const receiver = s.agents[c.receiver]!;
       const offside = fl.outcome === 'receive' && isOffside(s, a, receiver);
+      if (probe.long && dist(a.x, a.y, c.x, c.y) >= 30) probe.long(s, offside ? 'offside' : `launch:${fl.air ? 'air' : 'ground'}:${fl.outcome}`, c.p);
       s.exemptPass = false;
       if (offside) {
         callOffside(s, a, receiver);
@@ -117,8 +143,8 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
   if (r(s, a.idx, Purpose.Tackle, 7) < c.p) return false;
   let def: Agent | null = null;
   let bd: number = ENGINE.prob.pressureDist;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || s.t < o.beatenUntil) continue;
+  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+    if (s.t < o.beatenUntil) continue;
     // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에 가장 먼저 닿는 수비수(실효 거리), 유지는 지금 위치에서 가장 가까운 수비수
     const d = c.type === 'carry' ? carryReachDist(s, o, a, c.x, c.y) : dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
@@ -159,8 +185,8 @@ function tackleWon(s: SimState, att: Agent, def: Agent, tackle = true): void {
 function callCover(s: SimState, beaten: Agent, x: number, y: number): void {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of s.agents) {
-    if (o === beaten || !o.onPitch || o.team !== beaten.team || o.line === 0 || s.t < o.beatenUntil) continue;
+  for (const o of fieldOf(s, beaten.team)) {
+    if (o === beaten || s.t < o.beatenUntil) continue;
     const d = dist(o.x, o.y, x, y);
     if (d < bd) {
       bd = d;
@@ -234,7 +260,7 @@ function behindOwner(s: SimState, o: Agent, d: Agent): boolean {
 
 /**
  * 수비수의 1대1 판단 (E.23): 공 소유자 duelRange m 안의 수비수는 판단 간격마다 태클 / 따라붙기 / 패스길 막기 중 하나를 고른다.
- * 태클 U = P × 탈취 가치 − (1 − P) × (돌파 허용 + 파울 비용), 따라붙기 U = jockeyValue (지연: 동료가 돌아올 시간), 패스길 막기 U = laneW × 가장 위험한 패스 대상 가치 상승분 − 돌파 허용 위험.
+ * 태클 U = P × 탈취 가치 − (1 − P) × (돌파 허용 + 파울 비용), 따라붙기 U = jockeyFar/jockeyNear (지연: 동료가 돌아올 시간, 공이 우리 골에 가까우면 작다 — C.75c), 패스길 막기 U = laneW × 가장 위험한 패스 대상 가치 상승분 − 돌파 허용 위험.
  * P = 1 − 드리블 성공 (태클·수비 포지셔닝·마킹·속도 대 드리블), 뒤에서 하는 태클은 P × behindTackle, 파울 × behindFoul.
  * 공격 판단과 같은 효용 단위·softmax 온도 구조 (판단 = 수비 포지셔닝·침착성·태클)
  */
@@ -253,7 +279,7 @@ export function defendDuels(s: SimState): void {
     let pWin = odds.pWin;
     let pFoul = odds.pFoul;
     const us = odds.us;
-    const tau = O_TEMP(judge);
+    const tau = O_TEMP(judge) * (1 + ENGINE.onball.tiredTemp * tiredRatio(d));
     const mx = Math.max(...us);
     const ws = us.map((u) => Math.exp(((u - mx) * ENGINE.onball.utilityScale) / tau));
     let x = r(s, d.idx, Purpose.Tackle) * (ws[0]! + ws[1]! + ws[2]!);
@@ -313,34 +339,43 @@ function tacticalFoul(s: SimState, d: Agent, o: Agent): void {
   if (d.onPitch && d.stats.yellows === y0 && !red && !s.pendingCards.some((c) => c.agent === d.idx) && r(s, d.idx, Purpose.Cards, 2) < 0.7) giveCard(s, d, 'yellow');
 }
 
-/** 수비수 d 가 지금 소유자 o 와 1대1 판단을 하는가 (defendDuels 와 결정 순간이 같은 조건을 쓴다) */
+/**
+ * 수비수 d 가 지금 소유자 o 와 1대1 판단을 하는가 (defendDuels 와 결정 순간이 같은 조건을 쓴다).
+ * C.75c: 2 m 안이어도 압박자(공에 가장 가까운 필드 선수)·돌파 후 커버·역압박 첫째만 판단한다 (둘째는 커버)
+ */
 export function duelEligible(s: SimState, o: Agent, d: Agent): boolean {
   if (!d.onPitch || d.team === o.team || d.line === 0 || s.t < d.beatenUntil || s.t < d.duelNext) return false;
-  return dist(d.x, d.y, o.x, o.y) <= ENGINE.defense.duelRange;
+  if (dist(d.x, d.y, o.x, o.y) > ENGINE.defense.duelRange) return false;
+  const tm = s.teams[d.team];
+  if (tm.coverAgent === d.idx && s.t < tm.coverUntil) return true;
+  if (tm.counterPressers[0] === d.idx && s.t < tm.counterUntil) return true;
+  return ballRank(s, d, o.x, o.y) === 0;
 }
 
 /** 1대1 판단의 확률과 효용 [태클, 따라붙기, 패스길 막기] (E.23). beaten = 돌파 허용 비용 */
 export function duelOdds(s: SimState, o: Agent, d: Agent): { pWin: number; pFoul: number; beaten: number; us: [number, number, number] } {
   const D = ENGINE.defense;
   const dirA = attackDir(o.team, s.half);
-  const [ax, ay] = toNorm(o.x, o.y, dirA);
+  const ax = normX(o.x, dirA), ay = normY(o.y, dirA);
   const here = positionValue(ax, ay);
   const inBox = inOppBox(o.x, o.y, dirA);
   // 돌파 허용 비용: 소유자가 carryDist 앞으로 나간 자리 가치 − 지금 가치 (박스 안이면 슛 기회)
-  const [nx2, ny2] = toNorm(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), o.y, dirA);
+  const nx2 = normX(clamp(o.x + dirA * ENGINE.onball.carryDist, 1, L - 1), dirA), ny2 = normY(o.y, dirA);
   const beaten = Math.max(0, positionValue(nx2, ny2) - here) + D.beatenBase;
   const behind = behindOwner(s, o, d);
   // 카드 패시브 (C.36, 내 선수만): 태클 성공 %p. 없으면 그대로
-  const pWin = clamp((1 - dribbleProb(o, d)) * (behind ? D.behindTackle : 1) + (d.cardBoost?.tackle ?? 0), 0.02, 0.98);
+  const pWin = clamp((1 - dribbleProb(o, d, 0, fitPts(s, o.team, 'run') - fitPts(s, d.team, 'tackle'))) * (behind ? D.behindTackle : 1) + (d.cardBoost?.tackle ?? 0), 0.02, 0.98);
   const pFoul = clamp(ENGINE.referee.tackleFoul * (behind ? D.behindFoul : 1) * foulFactor(s, o, o.x, o.y, d), 0, 1);
   // 탈취 가치: 상대 공격 가치가 사라지고 우리 공격이 시작된다 (루즈볼이면 절반)
-  const [dx, dy] = toNorm(o.x, o.y, attackDir(d.team, s.half));
+  const dx = normX(o.x, attackDir(d.team, s.half)), dy = normY(o.y, attackDir(d.team, s.half));
   const gain = (here + positionValue(dx, dy)) * (PR.tackleKeep + (1 - PR.tackleKeep) * 0.5);
   const foulCost = inBox ? ENGINE.setPiece.penaltyBase - here : D.foulCost;
   const uTackle = pWin * gain - (1 - pWin) * (beaten + pFoul * foulCost);
   const lane = shadowValue(s, o, d) - here;
   const uLane = D.laneW * Math.max(0, lane) - D.laneRisk * beaten;
-  return { pWin, pFoul, beaten, us: [uTackle, D.jockeyValue, uLane] };
+  const dgx = (attackDir(d.team, s.half) > 0 ? 0 : L), dgy = W / 2;
+  const jockey = dist(o.x, o.y, dgx, dgy) < D.jockeyNearDist || inOwnBox(d.team, s.half, o.x, o.y) ? D.jockeyNear : D.jockeyFar;
+  return { pWin, pFoul, beaten, us: [uTackle, jockey, uLane] };
 }
 
 /** 판단 온도 (onball 과 같은 식) */
@@ -352,11 +387,11 @@ function O_TEMP(j: number): number {
 /** 소유자 팀의 가장 위험한 패스 대상(공보다 수비 골에 가까운 선수 중 위치 가치 최대)의 가치 */
 function shadowValue(s: SimState, o: Agent, d: Agent): number {
   const dirA = attackDir(o.team, s.half);
-  const [ox] = toNorm(o.x, o.y, dirA);
+  const ox = normX(o.x, dirA);
   let best = 0;
-  for (const m of s.agents) {
-    if (!m.onPitch || m.team !== o.team || m === o || m.line === 0) continue;
-    const [mx, my] = toNorm(m.x, m.y, dirA);
+  for (const m of fieldOf(s, o.team)) {
+    if (m === o) continue;
+    const mx = normX(m.x, dirA), my = normY(m.y, dirA);
     if (mx <= ox || dist(m.x, m.y, o.x, o.y) > ENGINE.onball.passMaxDist) continue;
     best = Math.max(best, positionValue(mx, my));
   }
@@ -387,11 +422,12 @@ function recordShot(s: SimState, a: Agent, penalty = false): void {
   s.lastShotT[a.team] = s.t;
 }
 
-export function shoot(s: SimState, a: Agent, header: boolean): void {
+/** inSpeed: 헤더면 들어온 크로스 공 속도 (m/s, C.77z 헤더 공 속도) */
+export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number): void {
   // 상대 슈팅 카드 장면 (C.40): 직접 모드에서 몸으로 막기 카드가 있으면 슛 전에 멈춘다 (결정 뒤 sim 이 같은 틱에 다시 부른다)
   if (s.cards && !header && oppShotMoment(s, a)) return;
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const m = shotModel(s, a, header);
   // 카드 (C.36): 내 슛 보정(유효 %p·선방·블록 배수), 상대 슛이면 내 몸으로 막기. 카드가 없으면 그대로
   const cm = s.cards ? shotCardMod(s, a) : null;
@@ -420,9 +456,21 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
   s.lastWasShot = true;
   s.exemptPass = false;
 
+  // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
+  // 약발 (C.78h laneSide): 찰 쪽 구석으로 차는 발 (판단 shotModel 과 같은 쪽·같은 기대 구석). 끄면 골 가운데 방향 (옛 동작)
+  const gk = keeperOf(s, (1 - a.team) as 0 | 1);
+  const side = m.side || (farSide(gk, gy) ?? (r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1));
+  // 약발 (C.79q): 몸 방향 기준 발, 시간이 있으면 주발로 옮겨 찬다 (판단 shotModel 과 같은 함수·같은 급함)
+  const footY = (PR.laneSide > 0 ? gy + side * m.ctx.corner * (G / 2 - 0.3) : gy) - a.y;
+  const rush = shotRush(s, a, m.pressure);
+  const ot = shotOneTouch(s, a);
+  const foot = header ? 1 : shotFootMul(a.body, a.hx, a.hy, gx - a.x, footY, rush, ot);
+  // 진단 기록용 약발 몫 (C.79q, 블록 포함)
+  const pm = probe.shot ? { ...m, ...(header ? {} : { weak: shotWeakShare(a.body, a.hx, a.hy, gx - a.x, footY, rush, ot), rush }) } : m;
   // 블록
   if (r(s, a.idx, Purpose.Block) < m.pBlock) {
-    const blocker = bb ? bb.me : s.agents.filter((o) => o.onPitch && o.team !== a.team && o.line !== 0)
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'block', pm, gx, m.side ? m.ctx.ty : gy, m.speed);
+    const blocker = bb ? bb.me : fieldOf(s, (1 - a.team) as 0 | 1).filter((o) => true)
       .sort((x, y) => dist(x.x, x.y, a.x, a.y) - dist(y.x, y.y, a.x, a.y))[0];
     event(s, 'block', a.team, [a.id, blocker?.id ?? '']);
     if (blocker) blocker.stats.blocks++;
@@ -437,34 +485,39 @@ export function shoot(s: SimState, a: Agent, header: boolean): void {
     return;
   }
 
-  // 약발 (C.45): 헤더가 아니면 유효 슈팅 확률 × 약발 배율 (골 방향이 약발 쪽일 때)
-  const foot = header ? 1 : weakFootMul(a.body, dir, gx - a.x, gy - a.y);
   // 상대 분석 (C.74c): 슈팅이 리포트 약점이면 유효 슈팅 × 약점 공략
   const onTarget = r(s, a.idx, Purpose.Shot) < m.pOn * foot * (s.rapport ? exploitMul(s, a, 'shoot') : 1);
-  const side = r(s, a.idx, Purpose.Shot, 1) < 0.5 ? -1 : 1;
-  const speed = m.speed * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
+  // GK 반대편 구석 (C.77t): GK 가 골대 가운데에서 비켜 있으면 먼 쪽을 노린다 (판단용 shotModel 과 같은 규칙) — 위에서 정함 (C.78h: 두 슛 길이 다르면 shotModel 이 고른 쪽)
+  // 헤더 공 속도 (C.77z, timeModel 1): 크로스가 빠를수록 빠르다 (능력치 무관)
+  const base = header && K.timeModel && inSpeed ? m.speed * clamp(1 + K.headerCrossW * (inSpeed / ENGINE.ball.airSpeed - 1), 0.8, 1.2) : m.speed;
+  const speed = base * (0.9 + 0.2 * r(s, a.idx, Purpose.Shot, 2));
   if (onTarget) {
     team.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     // 구석일수록 막기 어렵다. 능력치가 높으면 구석으로
-    // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번)
-    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1);
+    // 구석은 능력치와 무관 (마무리 능력은 마무리 배수 한 곳에서, E.20 7번). 쫓기며 쏘면 구석을 못 노린다 (C.76k, 압박 × cornerPressure)
+    const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
     const ty = gy + side * corner * (G / 2 - 0.3);
-    shotFlight(s, a, {
+    // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
+    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] > 0 ? 1 : 0 };
+    const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
+    if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', pm, gx, ty, speed, shot);
+    shotFlight(s, a, mkFlight({
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: ty, t0: s.t, dur: Math.max(0.15, m.d / speed), air: header,
-      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d: m.d, header, ...(cm?.save ? { cardSave: cm.save } : {}) },
-    });
+      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
+    }));
     event(s, 'shot', a.team, [a.id], { onTarget: 1, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
     return;
   }
   // 빗나감: 골라인 밖으로 → 골킥
   const missY = gy + side * (G / 2 + 0.5 + r(s, a.idx, Purpose.Shot, 4) * 6);
+  if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'miss', pm, gx + dir * 3, missY, speed);
   s.ball.owner = -1;
   s.ball.reserve = null;
-  s.ball.flight = {
+  s.ball.flight = mkFlight({
     kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: missY, t0: s.t, dur: Math.max(0.15, (m.d + 3) / speed), air: true,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
-  };
+  });
   event(s, 'shot', a.team, [a.id], { onTarget: 0, xg: Math.round(m.xg * 100) / 100, d: Math.round(m.d) });
 }
 
@@ -479,6 +532,8 @@ function shotFlight(s: SimState, a: Agent, fl: Flight): void {
   const uy = fl.toY - fl.fromY;
   const len2 = ux * ux + uy * uy;
   const k = gk && len2 > 1 ? ((gk.x - fl.fromX) * ux + (gk.y - fl.fromY) * uy) / len2 : 1;
+  // GK 도달 항 (C.77t): 몸을 날리기 전, 슛 순간 GK 위치로 잰다 (C.77z: 슛 1건 자료 그대로)
+  if (!sh.penalty && sh.ctx) sh.cover = coverOf(sh.ctx);
   if (gk && !sh.penalty && k > 0.05 && k < 1 - 0.3 / Math.sqrt(len2)) {
     sh.goalX = fl.toX;
     sh.goalY = fl.toY;
@@ -506,9 +561,23 @@ function shotArrives(s: SimState, fl: Flight): void {
   const sh = fl.shot!;
   const dir = attackDir(shooter.team, s.half);
   // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
-  const pSave = saveProb(gk, sh.speed, sh.corner, sh.d) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  // GK 도달 항 (C.77t): 슛 순간 GK 가 슛 선에서 멀면 선방 × cover
+  // C.77z: 판단과 같은 식 saveChance(슛 순간 자료 — 막기 어려움 × 덮는 정도)
+  const pSave = (sh.ctx ? saveChance(sh.ctx) : saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1)) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  // 선방률 지표 (C.76q, 미해결 6): 12 m 밖 유효 슈팅만 따로 센다 (1대1·PK 제외)
+  const far = !sh.penalty && sh.d >= FAR_SAVE_FROM;
+  const bin = far ? (sh.d >= FAR_BIN_D[1]! ? 2 : sh.d >= FAR_BIN_D[0]! ? 1 : 0) * 2 + ((sh.cover ?? 1) >= FAR_BIN_SET ? 0 : 1) : -1;
+  if (far) {
+    s.teams[shooter.team].stats.farOnTarget++;
+    s.teams[shooter.team].stats.farBinOn[bin]!++;
+  }
   if (!sh.penalty && r(s, shooter.idx, Purpose.Save) < (sh.cardSave ? clamp(pSave + sh.cardSave, 0.02, 0.98) : pSave)) {
     s.teams[defTeam].stats.saves++;
+    if (probe.shot) probeShotEnd(sh, 'save');
+    if (far) {
+      s.teams[shooter.team].stats.farSaves++;
+      s.teams[shooter.team].stats.farBinSaves[bin]!++;
+    }
     if (gk) gk.stats.saves++;
     event(s, 'save', defTeam, [gk?.id ?? '', shooter.id]);
     // 날씨 (C.74a): 젖은 공 캐치 × gkCatch (놓치면 쳐내기·리바운드)
@@ -523,8 +592,8 @@ function shotArrives(s: SimState, fl: Flight): void {
       setRestart(s, 'corner', shooter.team, dir > 0 ? L : 0, s.ball.y < W / 2 ? 0 : W, 'auto');
       return;
     }
-    const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * 2.4;
-    looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * 7, Math.sin(ang) * 7, defTeam, gk?.idx ?? -1);
+    const ang = (r(s, shooter.idx, Purpose.Save, 3) - 0.5) * K.parrySpread;
+    looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * K.parrySpeed, Math.sin(ang) * K.parrySpeed, defTeam, gk?.idx ?? -1);
     // 쳐낸 공은 잠깐 다시 손으로 못 잡는다 (C.28): 그 뒤에는 루즈볼 추격으로 다시 잡으러 간다
     if (gk) s.ball.handBlock = { idx: gk.idx, until: s.t + K.handBlock };
     return;
@@ -534,6 +603,7 @@ function shotArrives(s: SimState, fl: Flight): void {
     s.ball.flight = { ...fl, fromX: s.ball.x, fromY: s.ball.y, toX: sh.goalX, toY: sh.goalY, t0: s.t, dur: Math.max(0.05, sh.rest ?? 0.1), outcome: 'goal' };
     return;
   }
+  if (probe.shot) probeShotEnd(sh, 'goal');
   goal(s, shooter);
 }
 
@@ -552,7 +622,7 @@ function goal(s: SimState, scorer: Agent): void {
     home: s.teams[0].stats.goals, away: s.teams[1].stats.goals,
   });
   s.lastPass = null;
-  for (const o of s.agents) if (o.onPitch && o.team !== scorer.team) o.rt.conceded++;
+  for (const o of onOf(s, (1 - scorer.team) as 0 | 1)) o.rt.conceded++;
   setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, 'auto');
   celebration(s, scorer);
 }
@@ -565,7 +635,7 @@ function celebration(s: SimState, scorer: Agent): void {
   const R = ENGINE.restart;
   const u = (k: number): number => rand(s.seed, s.tick, scorer.idx, Purpose.Restart, 20 + k);
   const dir = attackDir(scorer.team, s.half);
-  const [gx] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0);
   const cy = scorer.y < W / 2 ? 0 : W;
   const d = dist(scorer.x, scorer.y, gx, cy) || 1;
   const run = Math.min(R.celebrateRun[0] + (R.celebrateRun[1] - R.celebrateRun[0]) * u(0), Math.max(0, d - 3));
@@ -588,9 +658,10 @@ function celebration(s: SimState, scorer: Agent): void {
 function countBox(s: SimState, a: Agent): void {
   const dir = attackDir(a.team, s.half);
   let n = 0;
-  for (const o of s.agents) if (o.onPitch && o.team === a.team && o !== a && inOppBox(o.x, o.y, dir)) n++;
+  for (const o of onOf(s, a.team)) if (o !== a && inOppBox(o.x, o.y, dir)) n++;
   s.teams[a.team].stats.boxAtCross += n;
   s.teams[a.team].stats.boxCrossN++;
+  s.boxLand = { fl: null, team: a.team };
 }
 
 function cross(s: SimState, a: Agent, c: Candidate): void {
@@ -617,20 +688,22 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   // 약발 (C.45): 크로스 오차 ÷ 약발 배율
   // 날씨 (C.74a): 강풍 크로스 오차 × longError
   const err = (((100 - a.attrs.crossing) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y)) * s.env.longError;
-  const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err, 0.5, L - 0.5);
-  const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err, 0.5, W - 0.5);
+  // 공격 몰빵 억제 (C.80q ①): 1 − 연계 배수 확률로 크로스 오차 × stackCap.linkCrossErr (판단 p 에 같은 배수, 안 걸리면 난수도 안 뽑는다)
+  const link = stackLinkMul(s, a);
+  const errX = link < 1 && r(s, a.idx, Purpose.Cross, 7) >= link ? ENGINE.stackCap.linkCrossErr : 1;
+  const tx = clamp(c.x + randn(s.seed, s.tick, a.idx, Purpose.Cross, 0) * err * errX, 0.5, L - 0.5);
+  const ty = clamp(c.y + randn(s.seed, s.tick, a.idx, Purpose.Cross, 1) * err * errX, 0.5, W - 0.5);
   const d = dist(a.x, a.y, tx, ty);
-  launch(s, a, {
+  launch(s, a, mkFlight({
     kind: 'cross', fromX: a.x, fromY: a.y, toX: tx, toY: ty, t0: s.t, dur: Math.max(0.4, d / ENGINE.ball.airSpeed), air: true,
     passer: a.idx, receiver: c.receiver, outcome: 'aerial', interceptor: -1, fromCross: true,
     ...(s.cards && a.spec.isMe && crossCardEdge(s, a) ? { cardEdge: crossCardEdge(s, a) } : {}),
-  });
+  }));
   // 헤더 경합 (E.22 B): 대상과 착지점에 가장 가까운 수비 필드 선수가 바로 뛰어든다
   if (target?.onPitch) updateOffball(s, target);
   let def: Agent | null = null;
   let dd = Infinity;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
     const od = dist(o.x, o.y, tx, ty);
     if (od < dd) {
       dd = od;
@@ -664,10 +737,10 @@ export function longBall(s: SimState, a: Agent, x0: number, y0: number, kind: 'c
   const tx = clamp(x + randn(s.seed, s.tick, a.idx, Purpose.Clear, 0) * err, -1, L + 1);
   const ty = clamp(y + randn(s.seed, s.tick, a.idx, Purpose.Clear, 1) * err, -1, W + 1);
   const d = dist(a.x, a.y, tx, ty);
-  launch(s, a, {
+  launch(s, a, mkFlight({
     kind, fromX: a.x, fromY: a.y, toX: tx, toY: ty, t0: s.t, dur: Math.max(0.5, d / ENGINE.ball.airSpeed), air: true,
     passer: a.idx, receiver: -1, outcome: 'aerial', interceptor: -1,
-  });
+  }));
 }
 
 /** 착지점 공중볼 (E.8): GK 처리 → 양 팀 최고 점수 선수 경합 → 이긴 쪽 헤더/컨트롤/걷어내기 */
@@ -690,8 +763,16 @@ function resolveAerial(s: SimState, fl: Flight): void {
   }
   let bestA: Agent | null = null;
   let bestD: Agent | null = null;
+  let nA = 0;
+  let nD = 0;
   for (const a of s.agents) {
-    if (!a.onPitch || a.line === 0 || dist(a.x, a.y, b.x, b.y) > R) continue;
+    if (!a.onPitch || a.line === 0) continue;
+    const d = dist(a.x, a.y, b.x, b.y);
+    if (d <= PR.aerialCrowdR) {
+      if (a.team === att) nA++;
+      else nD++;
+    }
+    if (d > R) continue;
     if (a.team === att) {
       if (!bestA || aerialScore(a) > aerialScore(bestA)) bestA = a;
     } else if (!bestD || aerialScore(a) > aerialScore(bestD)) bestD = a;
@@ -714,7 +795,11 @@ function resolveAerial(s: SimState, fl: Flight): void {
       foul(s, defFoul ? bestD : bestA, defFoul ? bestA : bestD, b.x, b.y);
       return;
     }
-    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD)) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) + bestA.duelEdge - bestD.duelEdge))));
+    // 밀집 (C.78d ①): 크로스 착지점 aerialCrowdR m 안 수비가 공격보다 많으면 한 명마다 로짓 −aerialCrowd (둘째 수비가 헤더를 방해·먼저 닿음)
+    const crowd = fl.fromCross ? PR.aerialCrowd * Math.max(0, nD - nA) : 0;
+    // 전술 적합도 (C.80e): 크로스가 아닌 공중볼(롱볼·걷어낸 공) 경합에 직선 air 보너스. 상대 성향별 보정(C.80p)은 크로스에도
+    const fitAir = fl.fromCross ? matchupPts(s, bestA.team, 'air') - matchupPts(s, bestD.team, 'air') : fitPts(s, bestA.team, 'air') - fitPts(s, bestD.team, 'air');
+    const pA0 = duelTail(1 / (1 + Math.exp(-((aerialScore(bestA) - aerialScore(bestD) + fitAir) / PR.aerialScale + (fl.fromCross ? PR.aerialAttackBonus : 0) - crowd + duelEdgeOf(bestA) - duelEdgeOf(bestD)))));
     // 카드 (C.36): 크로스 보정(라보나·얼리 크로스) + 내 선수 공중볼(공중 장악·헤더 카드). 카드가 없으면 그대로
     const edge = s.cards ? (fl.cardEdge ?? 0) + airCardEdge(s, bestA, true, !!fl.fromCross) - airCardEdge(s, bestD, false, !!fl.fromCross) : 0;
     // 날씨 (C.74a): 강풍 크로스는 공격 쪽 경합 × crossWin
@@ -740,13 +825,13 @@ function resolveAerial(s: SimState, fl: Flight): void {
       s.teams[att].stats.passesCompleted++;
       s.lastPass = { passer: passer.idx, receiver: winner.idx, t: s.t };
     }
-    const [gx, gy] = oppGoal(dirAtt);
+    const gx = (dirAtt > 0 ? L : 0), gy = W / 2;
     if (inOppBox(b.x, b.y, dirAtt) && dist(b.x, b.y, gx, gy) < PR.headerMaxDist) {
       // 헤더는 공이 있는 자리에서 (판정은 착지점 기준, 선수는 옮기지 않는다, C.24)
       const [wx, wy] = [winner.x, winner.y];
       winner.x = b.x;
       winner.y = b.y;
-      shoot(s, winner, true);
+      shoot(s, winner, true, Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) / Math.max(0.05, fl.dur));
       winner.x = wx;
       winner.y = wy;
       return;
@@ -773,10 +858,38 @@ function resolveAerial(s: SimState, fl: Flight): void {
   const wideOut = Math.abs(b.y - W / 2) > W / 4 ? Math.sign(b.y - W / 2) * dirDef * 0.3 : 0;
   const ang = randn(s.seed, s.tick, winner.idx, Purpose.Header, 3) * ((ENGINE.restart.clearSpreadDeg * Math.PI) / 180) + wideOut;
   looseBall(s, b.x, b.y, 0, 0, def, winner.idx);
-  s.ball.flight = {
+  s.ball.flight = mkFlight({
     kind: 'clear', fromX: b.x, fromY: b.y, toX: b.x + dirDef * Math.cos(ang) * len, toY: clamp(b.y + Math.sin(ang) * len, -2, W + 2),
     t0: s.t, dur: len / 16, air: true, passer: winner.idx, receiver: -1, outcome: 'loose', interceptor: -1,
-  };
+  });
+}
+
+/**
+ * 깊은 블록 비행 중 가로채기 판정 (C.76p 44h-c 가설 1): 오프볼이 패스 선에 보낸 선수(tm.cutIdx) 옆 offball.deepCutRadius m 안을
+ * 공이 이 틱에 지났으면(이전 위치 (px, py) → 지금 위치 선분) 한 비행에 1회 deepCutP × 능력 배율로 가로챈다. 성공하면 true
+ */
+export function deepCut(s: SimState, px: number, py: number): boolean {
+  const b = s.ball;
+  const fl = b.flight;
+  if (!fl || fl.outcome !== 'receive') return false;
+  const O = ENGINE.offball;
+  for (const tm of s.teams) {
+    if (tm.cutFlight !== fl || tm.cutIdx < 0) continue;
+    const a = s.agents[tm.cutIdx];
+    if (!a || !a.onPitch) {
+      tm.cutIdx = -1;
+      continue;
+    }
+    if (segDistS(a.x, a.y, px, py, b.x, b.y) > O.deepCutRadius) continue;
+    // 판정은 한 비행에 1회: cutFlight 는 남기고 cutIdx 만 −1 (오프볼이 같은 비행에 다시 보내지 않게)
+    tm.cutIdx = -1;
+    const p = O.deepCutP * (1 + (O.deepCutSkill * (a.attrs.interception - 60)) / 100);
+    if (r(s, a.idx, Purpose.Intercept, 2) < p) {
+      giveBall(s, a, 'intercept');
+      return true;
+    }
+  }
+  return false;
 }
 
 /** 비행 중인 공 갱신과 도착 처리 */
@@ -796,6 +909,7 @@ export function resolveFlight(s: SimState): void {
       shotArrives(s, fl);
       return;
     case 'goal':
+      if (probe.shot) probeShotEnd(fl.shot, 'goal');
       goal(s, passer);
       return;
     case 'aerial':
@@ -803,26 +917,37 @@ export function resolveFlight(s: SimState): void {
       return;
     case 'receive': {
       const rc = s.agents[fl.receiver]!;
+      const longP = probe.long && Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30 ? probe.long : undefined;
+      if (longP && !(rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4)) longP(s, 'arrive:far', dist(rc.x, rc.y, b.x, b.y));
       if (rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4) {
         // 롱볼은 착지점에서 수비수와 경합
         if (fl.air) {
           const [def, dd] = nearestOppOf(s, rc);
-          if (def && dd < PR.longContest) {
+          // 먼 경합 (C.80g ②-2): longContest 밖 airContestFar 안 수비수는 늦게 닿아 받는 쪽 보정 airContestBias
+          if (def && dd < PR.longContest + PR.airContestFar) {
             s.teams[0].stats.aerials++;
             s.teams[1].stats.aerials++;
             rc.stats.aerialDuels++;
             def.stats.aerialDuels++;
-            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def)) {
+            if (r(s, rc.idx, Purpose.Aerial, 1) >= aerialWin(rc, def, fitPts(s, rc.team, 'air') - fitPts(s, def.team, 'air'), dd < PR.longContest ? 0 : PR.airContestBias)) {
               def.stats.aerialsWon++;
+              longP?.(s, 'arrive:airLost', dd);
               giveBall(s, def, 'gain');
               return;
             }
             rc.stats.aerialsWon++;
           }
-        } else if (inOppBox(b.x, b.y, attackDir(rc.team, s.half))) {
+        } else {
           // 박스 안 땅볼 패스 수신 경합 (C.29 fix2 가설 B): contestDist 안 수비수가 있으면 받는 선수와 듀얼. 지면 수비 소유(tackleKeep) 또는 루즈볼
-          const [def, dd] = nearestOppOf(s, rc);
-          if (def && dd < PR.contestDist && r(s, rc.idx, Purpose.Control, 3) >= receiveWin(rc, def)) {
+          // 박스 밖 땅볼 롱패스 (C.80g ②-1): contestOutFrom m 이상이면 contestOutDist 안 수비수와 같은 경합. 전환 창 패스(fl.transition)는 면제
+          const inBox = inOppBox(b.x, b.y, attackDir(rc.team, s.half));
+          const cd = inBox ? PR.contestDist : PR.contestOut > 0 && !fl.transition && dist(fl.fromX, fl.fromY, fl.toX, fl.toY) >= PR.contestOutFrom ? PR.contestOutDist : 0;
+          const [def, dd] = cd > 0 ? nearestOppOf(s, rc) : [null, Infinity];
+          const pRecv = def && dd < cd ? receiveWin(rc, def) : 1;
+          const lostRecv = def !== null && dd < cd && r(s, rc.idx, Purpose.Control, 3) >= pRecv;
+          if (probe.receive && def && dd < cd) probe.receive(s, rc, def, dd, inBox, pRecv, !lostRecv);
+          if (def && lostRecv) {
+            longP?.(s, 'arrive:groundLost', dd);
             def.stats.tackles++;
             def.stats.tacklesWon++;
             s.teams[def.team].stats.tackles++;
@@ -836,6 +961,7 @@ export function resolveFlight(s: SimState): void {
             return;
           }
         }
+        longP?.(s, 'arrive:ok');
         giveBall(s, rc, 'receive', fl);
         return;
       }
@@ -870,7 +996,8 @@ function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight,
   const b = s.ball;
   const res: BallReserve = { idx: a.idx, until: s.t + B.reserveTime, kind, from, ...(fl ? { fl } : {}) };
   const d = dist(a.x, a.y, b.x, b.y);
-  if (d <= B.snapReceive) {
+  // 침투 패스를 달리며 받기 (C.78b receive.runOn): 공과 나란히 달려 runSnap m 안이면 굴려 보내지 않고 바로 받는다 (멈춰 공을 기다리지 않게)
+  if (d <= B.snapReceive || (fl?.through && ENGINE.receive.runOn > 0 && d <= ENGINE.receive.runSnap && Math.hypot(a.vx, a.vy) >= 3)) {
     caught(s, a, res);
     return;
   }
@@ -884,6 +1011,8 @@ function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight,
   b.reserve = res;
   a.tx = b.x;
   a.ty = b.y;
+  a.tvx = a.tvy = 0;
+  a.tvIdx = -1;
   a.urgent = true;
 }
 
@@ -902,6 +1031,9 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
     case 'win':
       a.gotBy = 'receive';
       a.carryN = 0;
+      // C.78e: 받는 틱에 공을 받은 선수 발밑으로 (C.78b runOn 은 2.5 m 안에서 바로 받는다 — 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
+      b.x = a.x;
+      b.y = a.y;
       a.dribbleT = -100;
       return;
     case 'gain':
@@ -926,7 +1058,62 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       }
       s.lastPass = { passer: passer.idx, receiver: a.idx, t: s.t };
       if ((fl.toX - fl.fromX) * attackDir(passer.team, s.half) > 8) passer.rt.forward++;
+      if (RC.timeModel > 0 || RC.oneTouch > 0) firstTouch(s, a, fl);
+      // C.78m: 판단(첫 터치·미리 정하기)은 그대로 두고 받는 틱 끝에 공을 받은 선수 발밑으로 (C.78e win 분기와 같은 종류 — runOn 2.5 m 안 바로 받기에서 비행 끝점에 남겨 두면 다음 틱에 3 m 넘게 튀었다, 순간이동 가드)
+      b.x = a.x;
+      b.y = a.y;
     }
+  }
+}
+
+/**
+ * 첫 터치 (C.78b, 로드맵 5단계 2차): 패스 수신의 정지 시간을 첫 터치·공 속도·압박·몸 방향·달리는 중으로 차등(timeModel),
+ * 압박 반대쪽(또는 달리던 쪽)으로 공을 받아 놓고, 땅볼이면 날아오는 동안 미리 정한 원터치 행동을 다음 틱에 실행한다(oneTouch)
+ */
+function firstTouch(s: SimState, a: Agent, fl: Flight): void {
+  const speed = (fl.aimD ?? Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY)) / Math.max(0.05, fl.dur);
+  const [opp, dNear] = nearestOppOf(s, a);
+  const pr = Math.max(0, 1 - dNear / RC.pressDist);
+  const sp = Math.hypot(a.vx, a.vy);
+  if (RC.timeModel > 0) {
+    // 전술 적합도 (C.80e): 공중 롱볼 첫 터치 = 직선 touch 보너스
+    const t = receiveTime(s, a, speed, a.backToGoal, fl.air ? fitPts(s, a.team, 'touch') : 0);
+    // 컷백·레이오프는 원래 빠르게 (반응 시간)
+    a.cooldown = fl.quick ? Math.min(a.cooldown, t) : t;
+    // 받아 놓기: 달리며 받으면 진행 방향으로, 압박이 있으면 그 반대쪽(공격 방향으로 기움)으로 turnAway m
+    if (sp >= 3) {
+      a.tx = clamp(a.x + a.vx * a.cooldown, 1, L - 1);
+      a.ty = clamp(a.y + a.vy * a.cooldown, 1, W - 1);
+    } else if (opp && pr > 0) {
+      const dir = attackDir(a.team, s.half);
+      let ux = (a.x - opp.x) / Math.max(0.1, dNear) + 0.5 * dir;
+      let uy = (a.y - opp.y) / Math.max(0.1, dNear);
+      const n = Math.hypot(ux, uy) || 1;
+      ux /= n;
+      uy /= n;
+      a.tx = clamp(a.x + ux * RC.turnAway, 1, L - 1);
+      a.ty = clamp(a.y + uy * RC.turnAway, 1, W - 1);
+    }
+  }
+  // 미리 정하기: 땅볼만. 내 선수는 뺀다(직접 모드 결정 순간 화면·카드와 겹치지 않게, 자동·맡기기·직접 결과가 같아야 한다)
+  if (RC.oneTouch > 0 && !fl.air && a.line !== 0 && !a.spec.isMe) {
+    const c = preDecide(s, a, speed, a.cooldown);
+    if (c) {
+      a.pre = c;
+      a.cooldown = 0;
+      if (c.type === 'shoot') {
+        a.otMul = oneTouchMul(a, speed, pr);
+        a.otUntil = s.t + 0.25;
+      }
+      return;
+    }
+  }
+  // 돌아서기 (C.78e ②): 원터치가 아니고 등지고 받았어도 turnFree m 안에 상대가 없으면 정지 시간(등짐 비용 포함) 동안 돌아서 앞을 보고 다음 결정을 한다
+  // (줄 사이에서 받은 공격수를 CB 가 따라오지 않으면 돌아서 전진할 시간을 얻는다)
+  if (RC.turnFree > 0 && a.backToGoal && dNear >= RC.turnFree) {
+    a.backToGoal = false;
+    a.hx = attackDir(a.team, s.half);
+    a.hy = 0;
   }
 }
 
@@ -940,7 +1127,7 @@ export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s
   for (const gk of s.agents) {
     if (!gk.onPitch || gk.line !== 0) continue;
     // 이번 틱에 공이 지나간 길 (빠른 공은 틱당 3 m 가까이 움직인다)에서 가장 가까운 거리
-    const [gd, gt] = segDist(gk.x, gk.y, fromX, fromY, b.x, b.y);
+    const gd = segDistS(gk.x, gk.y, fromX, fromY, b.x, b.y), gt = SEG.t;
     if (gd > K.handRange) continue;
     const [cx, cy] = [fromX + (b.x - fromX) * gt, fromY + (b.y - fromY) * gt];
     if (b.handBlock && b.handBlock.idx === gk.idx && s.t < b.handBlock.until) continue;
@@ -977,8 +1164,7 @@ export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s
 function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
     const d = dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
       bd = d;
@@ -1003,7 +1189,7 @@ export function takeCorner(s: SimState, a: Agent): boolean {
 /** 직접 프리킥: 30 m 이내, 골문이 보이면 슛 (벽 블록 확률), 측면이면 크로스. 아니면 일반 판단 */
 export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean {
   const dir = attackDir(a.team, s.half);
-  const [gx, gy] = oppGoal(dir);
+  const gx = (dir > 0 ? L : 0), gy = W / 2;
   const d = dist(a.x, a.y, gx, gy);
   const central = Math.abs(a.y - gy) < 15;
   // 카드 직접 프리킥 (C.36): 키커 보정에 direct 가 있으면 슛을 고른다 (벽 블록 배수, 유효 %p, 선방 보정)
@@ -1015,7 +1201,9 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
     t.stats.shots++;
     s.lastWasShot = true;
     event(s, 'freeKick', a.team, [a.id], { direct: 1 });
-    if (r(s, a.idx, Purpose.FreeKick) < ENGINE.setPiece.wallBlock * (cm?.direct ? cm.blockMul : 1)) {
+    const wall = ENGINE.setPiece.wallBlock * (cm?.direct ? cm.blockMul : 1);
+    if (r(s, a.idx, Purpose.FreeKick) < wall) {
+      if (probe.shot) probeShot(s, a, 'fk', 'block', { xg: null, pOn: directFkOn(a, d), pBlock: wall, d }, gx, gy, ENGINE.ball.shotSpeed);
       event(s, 'block', a.team, [a.id]);
       const ang = r(s, a.idx, Purpose.FreeKick, 1) * Math.PI * 2;
       bounceAt(s, a, a.x + dir * 9, a.y, Math.cos(ang) * 6, Math.sin(ang) * 6, (1 - a.team) as 0 | 1, -1);
@@ -1029,17 +1217,24 @@ export function takeFreeKick(s: SimState, a: Agent, indirect: boolean): boolean 
       t.stats.shotsOnTarget++;
       a.stats.shotsOnTarget++;
       const corner = clamp(r(s, a.idx, Purpose.FreeKick, 4) * PR.cornerRange, 0, 1);
-      shotFlight(s, a, {
+      const ctx: ShotCtx = {
+        fx: a.x, fy: a.y, svx: a.vx, svy: a.vy, d, header: false, press3: 0, pressure: 0, tx: gx, ty: gy + side * corner * (G / 2 - 0.3), corner, speed,
+        ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), lead: 0,
+      };
+      const shot = { speed, corner, d, header: false, ctx, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) };
+      if (probe.shot) probeShot(s, a, 'fk', 'onTarget', { xg: null, pOn, pBlock: wall, d }, gx, gy + side * corner * (G / 2 - 0.3), speed, shot);
+      shotFlight(s, a, mkFlight({
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * corner * (G / 2 - 0.3), t0: s.t, dur: d / speed, air: true,
-        passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner, d, header: false, ...(cm?.direct && cm.save ? { cardSave: cm.save } : {}) },
-      });
+        passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
+      }));
     } else {
+      if (probe.shot) probeShot(s, a, 'fk', 'miss', { xg: null, pOn, pBlock: wall, d }, gx + dir * 3, gy, speed);
       s.ball.owner = -1;
       s.ball.reserve = null;
-      s.ball.flight = {
+      s.ball.flight = mkFlight({
         kind: 'shot', fromX: a.x, fromY: a.y, toX: gx + dir * 3, toY: gy + side * (G / 2 + 1 + r(s, a.idx, Purpose.FreeKick, 5) * 4),
         t0: s.t, dur: (d + 3) / speed, air: true, passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1,
-      };
+      });
     }
     return true;
   }
@@ -1066,11 +1261,14 @@ function bounceAt(s: SimState, a: Agent, x: number, y: number, vx: number, vy: n
   const b = s.ball;
   b.owner = -1;
   b.reserve = null;
-  b.flight = {
+  b.flight = mkFlight({
     kind: 'shot', fromX: a.x, fromY: a.y, toX: x, toY: y, t0: s.t, dur: Math.max(0.1, d / ENGINE.ball.shotSpeed), air: false,
     passer: a.idx, receiver: -1, outcome: 'loose', interceptor: -1, after: { vx, vy, team: lastTeam, touch: lastTouch },
-  };
+  });
 }
+
+/** 측정용 PK xG (probe 기록, 판정에는 쓰지 않는다) */
+const PK_XG = 0.76;
 
 /** PK (E.10): 키커의 슈팅과 침착성, GK 선방 */
 /** PK 성공 확률 (E.10). on = 카드 보정 %p (C.36) */
@@ -1099,19 +1297,26 @@ export function takePenalty(s: SimState, a: Agent): void {
     a.stats.shotsOnTarget++;
     s.lastPass = null;
     // 공이 골문까지 날아간 뒤 골 (재생에서 공이 골문에 들어가는 장면이 보이게, 판정은 이미 끝났다)
-    const [gx, gy] = oppGoal(dir);
+    const gx = (dir > 0 ? L : 0), gy = W / 2;
     const side = r(s, a.idx, Purpose.Penalty, 3) < 0.5 ? -1 : 1;
     const speed = ENGINE.ball.shotSpeed;
     const d = dist(a.x, a.y, gx, gy);
+    const shot = { speed, corner: 1, d, header: false, penalty: true };
+    if (probe.shot) probeShot(s, a, 'pk', 'onTarget', { xg: PK_XG, pOn: p, pBlock: 0, d }, gx, gy + side * (G / 2 - 0.6), speed, shot);
     s.ball.owner = -1;
     s.ball.reserve = null;
-    s.ball.flight = {
+    s.ball.flight = mkFlight({
       kind: 'shot', fromX: a.x, fromY: a.y, toX: gx, toY: gy + side * (G / 2 - 0.6), t0: s.t, dur: d / speed, air: false,
-      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot: { speed, corner: 1, d, header: false, penalty: true },
-    };
+      passer: a.idx, receiver: -1, outcome: 'shot', interceptor: -1, shot,
+    });
     return;
   }
+  const pkProbe = (outcome: 'save' | 'miss'): void => {
+    const gx = (dir > 0 ? L : 0), gy = W / 2;
+    probeShot(s, a, 'pk', outcome, { xg: PK_XG, pOn: p, pBlock: 0, d: dist(a.x, a.y, gx, gy) }, gx, gy, ENGINE.ball.shotSpeed);
+  };
   if (r(s, a.idx, Purpose.Penalty, 1) < SP.penaltySaveShare) {
+    if (probe.shot) pkProbe('save');
     t.stats.shotsOnTarget++;
     a.stats.shotsOnTarget++;
     s.teams[def].stats.saves++;
@@ -1121,5 +1326,6 @@ export function takePenalty(s: SimState, a: Agent): void {
     bounceAt(s, a, a.x + dir * 9, a.y, -dir * Math.cos(ang) * 6, Math.sin(ang) * 6, def, gk?.idx ?? -1);
     return;
   }
+  if (probe.shot) pkProbe('miss');
   setRestart(s, 'goalKick', def, dir > 0 ? L - 5.5 : 5.5, W / 2, 'auto');
 }

@@ -4,7 +4,7 @@ import { BALANCE } from '../src/config/balance';
 import { dayPlan, endDay, isMatchDay, newGame, playOthers, playRound, SAVE_FORMAT_VERSION, startNextSeason } from '../src/game';
 import { healDays, injuryChance, rollInjury } from '../src/injury';
 import { createRng } from '../src/rng';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { daysBetween } from '../src/calendar';
 
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
@@ -12,23 +12,27 @@ const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v
 describe('부상 확률 (부록 D.2)', () => {
   const p = { attributes: flat(50), age: 25, fatigue: 0 };
 
-  it('0.02 × 출전 비율 × 난이도 × 피로 × 신체 × 나이', () => {
+  it('기본 × 출전 비율 × 난이도 × 피로 × 신체 × 나이', () => {
+    // C.77n: 기본 0.02 → 0.019, 30세 이상 × 1.3 → 1.1 (balance.ts injury 를 읽는다)
+    const I = BALANCE.injury;
+    const b = I.base;
     // 신체 보정 = 1.3 - 0.6 × 0.5 = 1.0
-    expect(injuryChance(p, 90, 'normal')).toBeCloseTo(0.02);
-    expect(injuryChance(p, 45, 'normal')).toBeCloseTo(0.01);
+    expect(injuryChance(p, 90, 'normal')).toBeCloseTo(b, 6);
+    expect(injuryChance(p, 45, 'normal')).toBeCloseTo(b / 2, 6);
     expect(injuryChance(p, 0, 'normal')).toBe(0);
-    expect(injuryChance(p, 90, 'easy')).toBeCloseTo(0.014);
-    expect(injuryChance(p, 90, 'hard')).toBeCloseTo(0.026);
-    expect(injuryChance({ ...p, fatigue: 30 }, 90, 'normal')).toBeCloseTo(0.02);
-    expect(injuryChance({ ...p, fatigue: 55 }, 90, 'normal')).toBeCloseTo(0.03);
-    expect(injuryChance({ ...p, attributes: flat(100) }, 90, 'normal')).toBeCloseTo(0.014);
-    expect(injuryChance({ ...p, age: 30 }, 90, 'normal')).toBeCloseTo(0.026);
+    expect(injuryChance(p, 90, 'easy')).toBeCloseTo(b * BALANCE.difficulty.easy.injury, 6);
+    expect(injuryChance(p, 90, 'hard')).toBeCloseTo(b * BALANCE.difficulty.hard.injury, 6);
+    // C.77m: 피로 보정 문턱 30 → 60, 기울기 0.02 → 0.01 (피로 80 이면 × 1.2)
+    expect(injuryChance({ ...p, fatigue: 60 }, 90, 'normal')).toBeCloseTo(b, 6);
+    expect(injuryChance({ ...p, fatigue: 80 }, 90, 'normal')).toBeCloseTo(b * 1.2, 6);
+    expect(injuryChance({ ...p, attributes: flat(100) }, 90, 'normal')).toBeCloseTo(b * 0.7, 6);
+    expect(injuryChance({ ...p, age: 30 }, 90, 'normal')).toBeCloseTo(b * I.ageMultiplier, 6);
   });
 });
 
 describe('부상 등급과 영구 하락', () => {
   function rolls(age: number, n: number) {
-    const out = { minor: 0, major: 0, seasonEnding: 0, permanent: 0, weeks: { minor: [99, 0], major: [99, 0] } };
+    const out = { minor: 0, moderate: 0, major: 0, seasonEnding: 0, permanent: 0, weeks: { minor: [99, 0], moderate: [99, 0], major: [99, 0] } };
     const pl = newGame({ mode: 'prospect', position: 'CB', seed: 'inj', difficulty: 'normal' }).player;
     for (let i = 0; i < n; i++) {
       pl.age = age;
@@ -55,21 +59,23 @@ describe('부상 등급과 영구 하락', () => {
     return out;
   }
 
-  it('경상 70% (1~3주) / 중상 27% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20%', () => {
+  it('경상 60% (1~3주) / 중등도 15% (4~7주, C.77w) / 중상 22% (8~16주) / 시즌아웃 3%, 영구 하락은 중상 이상의 20% · 중등도는 그 절반', () => {
     const n = 4000;
     const r = rolls(25, n);
-    expect(r.minor / n).toBeCloseTo(0.7, 1);
-    expect(r.major / n).toBeCloseTo(0.27, 1);
+    expect(r.minor / n).toBeCloseTo(0.6, 1);
+    expect(r.moderate / n).toBeCloseTo(0.15, 1);
+    expect(r.major / n).toBeCloseTo(0.22, 1);
     expect(r.seasonEnding / n).toBeCloseTo(0.03, 1);
     expect(r.weeks.minor).toEqual([1, 3]);
+    expect(r.weeks.moderate).toEqual([4, 7]);
     expect(r.weeks.major).toEqual([8, 16]);
-    expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.2, 1);
+    expect(r.permanent / (r.major + r.seasonEnding + BALANCE.injury.permanent.moderateMul * r.moderate)).toBeCloseTo(0.2, 1);
   });
 
   it('30세 이상은 영구 하락 확률 × 1.5', () => {
     const n = 4000;
     const r = rolls(31, n);
-    expect(r.permanent / (r.major + r.seasonEnding)).toBeCloseTo(0.3, 1);
+    expect(r.permanent / (r.major + r.seasonEnding + BALANCE.injury.permanent.moderateMul * r.moderate)).toBeCloseTo(0.3, 1);
   });
 });
 
@@ -118,20 +124,16 @@ describe('부상 진행', () => {
 });
 
 describe('세이브 변환 2 → 3', () => {
-  it('부상 필드를 채운다', () => {
+  it('부상 필드 세이브 왕복, 옛 세이브(2)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig3', difficulty: 'normal' });
     while (s.phase === 'season') playRound(s, { engine: 'quick' });
     const old = JSON.parse(serialize(s));
     old.saveFormat = 2;
-    delete old.player.injury;
-    for (const st of [old.player.season, ...old.player.history]) {
-      delete st.injuries;
-      delete st.injuredWeeks;
-    }
-    const loaded = deserialize(JSON.stringify(old));
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
+    const loaded = deserialize(serialize(s));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.player.injury).toBeNull();
-    expect(loaded.player.history[0]).toMatchObject({ injuries: 0, injuredWeeks: 0 });
+    expect(loaded.player.injury).toEqual(s.player.injury);
+    expect(loaded.player.history[0]).toMatchObject({ injuries: s.player.history[0]!.injuries, injuredWeeks: s.player.history[0]!.injuredWeeks });
     startNextSeason(loaded);
     playRound(loaded);
   });

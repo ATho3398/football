@@ -8,9 +8,12 @@ import { INBOX_CAT_KO, inboxList, isPending, pushInbox, unreadCount, type InboxC
 import { rivalOf } from '../rival';
 import { teamById } from '../league';
 import { adviceCardVM } from './viewModels';
+import { eventById, type Effect } from '../events';
+import { moneyShort, myWage } from '../money';
+import { BALANCE } from '../config/balance';
 
 export const CAT_ICON: Record<InboxCat, IconName> = {
-  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target', money: 'coin',
+  event: 'info', media: 'chat', club: 'home', manager: 'player', rival: 'target', transfer: 'swap', contract: 'edit', tag: 'star', advice: 'tactic', life: 'face', team: 'combo', goal: 'target', money: 'coin', national: 'world',
 };
 
 /** 옛 알림 칸(C.37·C.42·C.47·C.48·C.62)을 인박스로 옮긴다 (화면을 그리기 전에 부른다, 같은 알림은 key 로 한 번만) */
@@ -53,17 +56,70 @@ export interface InboxRowVM {
   id: number; cat: string; icon: IconName; when: string; title: string; body: string; unread: boolean; pending: boolean;
   /** 답할 것: 남은 기한 / 답함: 고른 것 */
   status: string;
+  /** C.76i (디자인 193): 줄 칩 "답 필요 · n일 남음" / "답함 · 고른 것" */
+  chip: string;
+  /** C.76i (디자인 197 ②): 가장 최근 면담 결과 줄 = 남은 보상 경기 · 지금 신뢰도 칩 */
+  tags?: { label: string; brand: boolean }[];
   link?: InboxItem['link'];
 }
+
+/** 면담 결과 칩: 아직 남은 면담 보상(경기 수 · 훈련 XP 일 수) + 지금 신뢰도 */
+function meetTags(g: GameState): { label: string; brand: boolean }[] {
+  const m = g.manager;
+  if (!m) return [];
+  const k = m.perks;
+  const left = Math.max(k.slot ?? 0, k.start ?? 0, k.chance ?? 0);
+  const days = k.effortUntil ? daysBetween(g.calendar.date, k.effortUntil) + 1 : 0;
+  return [
+    ...(left > 0 ? [{ label: `남은 ${left}경기`, brand: true }] : []),
+    ...(days > 0 ? [{ label: `훈련 XP · ${days}일 남음`, brand: true }] : []),
+    { label: `신뢰도 ${Math.round(m.trust)}`, brand: false },
+  ];
+}
+
+/** 옛 링크 → 새 위치 (C.77q): 코치 후보·스태프 소식의 재정 링크는 훈련 › 코치·스태프로 */
+function linkOf(x: InboxItem): InboxItem['link'] {
+  const l = x.link;
+  if (l?.to === 'finance' && (x.key?.startsWith('cand:') || x.key?.startsWith('staff-end:'))) return { ...l, to: 'staff' };
+  return l;
+}
+
+const lastMeetId = (g: GameState) => g.inbox?.items.filter((i) => i.key?.startsWith('meet:')).at(-1)?.id;
 
 function rowOf(g: GameState, x: InboxItem): InboxRowVM {
   const pending = isPending(x);
   const left = x.due ? daysBetween(g.calendar.date, x.due) : 0;
-  const status = pending ? (left > 0 ? `답할 것 · ${left}일 남음` : '답할 것 · 오늘까지') : x.answer ? `${x.answer.auto ? '기본 선택' : '답함'} · ${x.answer.label}` : '';
+  const status = pending ? (left > 0 ? `답할 것 · ${left}일 남음` : '답할 것 · 오늘까지') : x.answer ? `${x.answer.auto ? (x.answer.text.startsWith('자동 진행') ? '자동 진행 답' : '기본 선택') : '답함'} · ${x.answer.label}` : '';
   return {
     id: x.id, cat: INBOX_CAT_KO[x.cat], icon: CAT_ICON[x.cat], when: dateLabel(x.date), title: x.title, body: x.answer ? x.answer.text : x.body,
-    unread: !x.read || pending, pending, status, ...(x.link ? { link: x.link } : {}),
+    unread: !x.read || pending, pending, status, ...(x.link ? { link: linkOf(x) } : {}),
+    ...(x.key?.startsWith('meet:') && x.id === lastMeetId(g) ? { tags: meetTags(g) } : {}),
+    chip: pending ? (left > 0 ? `답 필요 · ${left}일 남음` : '답 필요 · 오늘까지') : x.answer ? `${x.answer.auto ? '기본 선택' : '답함'} · ${x.answer.label}` : '',
   };
+}
+
+/** 효과 미리보기 5칸 (C.76i 디자인 194): 신뢰도 · 폼 · 위상·팬 · 돈 · 체력. 값은 이벤트 효과 그대로(신뢰도 배율 등은 반영 전 값) */
+export interface FxVM { label: string; value: string; tone: 'up' | 'down' | '' }
+
+export function effectsFx(g: GameState, effects: readonly Effect[]): FxVM[] {
+  let trust = 0, form = 0, rep = 0, money = 0, stamina = 0;
+  const w = myWage(g);
+  for (const e of effects) {
+    if ('trust' in e) trust += e.trust;
+    else if ('form' in e) form += Math.round(e.form * 100);
+    else if ('rep' in e) rep += e.rep;
+    else if ('fatigue' in e) stamina -= e.fatigue;
+    else if ('money' in e) money += Math.sign(e.money) * Math.max(BALANCE.wealth.eventMinUnit, Math.round(Math.abs(w * e.money) / 10) * 10);
+  }
+  const n = (v: number) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
+  const tone = (v: number): FxVM['tone'] => (v > 0 ? 'up' : v < 0 ? 'down' : '');
+  return [
+    { label: '신뢰도', value: n(trust), tone: tone(trust) },
+    { label: '폼', value: n(form), tone: tone(form) },
+    { label: '위상·팬', value: n(rep), tone: tone(rep) },
+    { label: '돈', value: money ? `${money > 0 ? '+' : ''}${moneyShort(money)}` : '0', tone: tone(money) },
+    { label: '체력', value: n(stamina), tone: tone(stamina) },
+  ];
 }
 
 export interface InboxVM { rows: InboxRowVM[]; unread: number; todo: number; filter: 'all' | 'todo' | 'info' }
@@ -81,8 +137,12 @@ export function homeInboxVM(g: GameState, n = 3): { rows: InboxRowVM[]; unread: 
 
 export interface InboxDetailVM {
   id: number; cat: string; icon: IconName; when: string; title: string; body: string; pending: boolean; status: string;
-  choices: { id: string; label: string; desc: string; disabled?: string }[];
+  choices: { id: string; label: string; desc: string; disabled?: string; /** 기한이 지나면 넘어가는 기본 선택 */ def?: boolean; fx: FxVM[] | null }[];
   answer?: InboxItem['answer'];
+  /** 답한 선택의 효과 5칸 */
+  answerFx?: FxVM[] | null;
+  /** 다음 답할 것 (답한 뒤 한 줄) */
+  next?: { id: number; title: string; left: string } | null;
   link?: InboxItem['link'];
 }
 
@@ -90,22 +150,33 @@ export function inboxDetailVM(g: GameState, id: number): InboxDetailVM | null {
   const x = g.inbox?.items.find((i) => i.id === id);
   if (!x) return null;
   const r = rowOf(g, x);
-  return { ...r, body: x.body, choices: x.choices ?? [], ...(x.answer ? { answer: x.answer } : {}) };
+  const d = x.ev ? eventById(x.ev) : undefined;
+  const fxOf = (cid: string) => { const c = d?.choices?.find((y) => y.id === cid); return c ? effectsFx(g, c.effects) : null; };
+  const def = d?.fallback ?? d?.choices?.at(-1)?.id;
+  const nx = x.answer ? inboxList(g, 'todo').filter((y) => y.id !== x.id).sort((a, b) => (a.due ?? '').localeCompare(b.due ?? ''))[0] : undefined;
+  const nl = nx?.due ? daysBetween(g.calendar.date, nx.due) : 0;
+  return {
+    ...r, body: x.body, choices: (x.choices ?? []).map((c) => ({ ...c, def: !!d && c.id === def, fx: fxOf(c.id) })),
+    ...(x.answer ? { answer: x.answer, answerFx: fxOf(x.answer.id), next: nx ? { id: nx.id, title: nx.title, left: nl > 0 ? `${nl}일 남음` : '오늘까지' } : null } : {}),
+  };
 }
 
 /** 홈 라이벌 카드 (20.5) */
-export interface RivalCardVM { name: string; team: string; teamId: string; pos: string; age: number; ovr: number; rep: number; myRep: number; me: { ga: number; avg: string }; them: { ga: number; avg: string; apps: number }; est: boolean; lead: number; record: string }
+export interface RivalCardVM { name: string; team: string; teamId: string; pos: string; age: number; ovr: number; rep: number; myRep: number; me: { ga: number; avg: string; apps: number; goals: number; assists: number }; them: { ga: number; avg: string; apps: number; goals: number | null; assists: number | null }; est: boolean; lead: number; record: string }
 
 export function rivalCardVM(g: GameState): RivalCardVM | null {
   if (g.phase !== 'season') return null;
   const r = rivalOf(g);
   if (!r) return null;
+  const st = g.playerStats?.[r.id];
   const h = g.rival?.history ?? [];
   const w = h.filter((x) => x[5] > 0).length;
   const l = h.filter((x) => x[5] < 0).length;
   return {
     name: r.name, team: r.team, teamId: r.teamId, pos: r.pos, age: r.age, ovr: r.ovr, rep: r.rep, myRep: r.myRep,
-    me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-' }, them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps }, est: r.est,
+    // C.76g (디자인 195 비교 표): 경기·골·도움 따로. 추정 라이벌은 골+도움만 있어 골·도움은 null(—)
+    me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-', apps: g.player.season.apps, goals: g.player.season.goals, assists: g.player.season.assists },
+    them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps, goals: st && !r.est ? st[1] : null, assists: st && !r.est ? st[2] : null }, est: r.est,
     lead: r.me.ga - r.ga, record: h.length ? `지난 비교 ${w}승 ${h.length - w - l}무 ${l}패` : '첫 시즌',
   };
 }

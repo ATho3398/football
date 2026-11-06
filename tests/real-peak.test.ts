@@ -3,7 +3,7 @@ import { FIELD_ATTRIBUTES, type FieldAttributes } from '../src/attributes';
 import { BALANCE } from '../src/config/balance';
 import { emptySeasonStats, newGame, playRound, SAVE_FORMAT_VERSION } from '../src/game';
 import { playerOvr, realPeakTarget, xpToLevel } from '../src/growth';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { initialProficiency } from '../src/proficiency';
 import type { PlayerState } from '../src/types';
 
@@ -39,25 +39,26 @@ describe('실제 선수 정점 목표 (부록 D.7 #1)', () => {
   });
 });
 
-describe('세이브 변환 3 → 4', () => {
-  it('실제 선수 세이브에 정점 목표를 채운다', () => {
+describe('세이브 정점 목표', () => {
+  it('실제 선수 정점 목표는 왕복 그대로, 옛 세이브(3)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'real', playerId: 'kane', seed: 'mig4', difficulty: 'normal' });
     const expected = s.player.peakTarget;
     playRound(s);
-    const old = JSON.parse(serialize(s));
-    old.saveFormat = 3;
-    delete old.player.peakTarget;
-    const loaded = deserialize(JSON.stringify(old));
+    const loaded = deserialize(serialize(s));
     expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
     expect(loaded.player.peakTarget).toBe(expected);
-  });
-
-  it('가상 유망주 세이브는 그대로 열린다', () => {
-    const s = newGame({ mode: 'prospect', position: 'CB', seed: 'mig4', difficulty: 'normal' });
     const old = JSON.parse(serialize(s));
     old.saveFormat = 3;
-    const loaded = deserialize(JSON.stringify(old));
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
+  });
+
+  it('가상 유망주 세이브는 그대로 열린다, 옛 세이브(3)는 이어 할 수 없음', () => {
+    const s = newGame({ mode: 'prospect', position: 'CB', seed: 'mig4', difficulty: 'normal' });
+    const loaded = deserialize(serialize(s));
     expect(loaded.player.peakTarget).toBeUndefined();
     playRound(loaded);
+    const old = JSON.parse(serialize(s));
+    old.saveFormat = 3;
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
   });
 });

@@ -104,6 +104,17 @@ export function addOwned(col: CardCollection, id: string): void {
   if (!col.fresh.includes(id)) col.fresh.push(id);
 }
 
+/** 지시 카드 3장 (D.11 6번, C.75i): 첫 경기 뒤 1장씩 준다 (옛 세이브도). 덱에 넣는 것은 내가 고른다. 새로 준 장수 */
+export const DIRECTIVE_IDS = ['dirFollow', 'dirSolo', 'dirTrust'] as const;
+export function grantDirectives(col: CardCollection): number {
+  let n = 0;
+  for (const id of DIRECTIVE_IDS) if (!col.owned[id]) {
+    addOwned(col, id);
+    n++;
+  }
+  return n;
+}
+
 /** 선택권 받기 */
 export function takePick(col: CardCollection, idx: number, option: number): string | null {
   const pk = col.picks[idx];

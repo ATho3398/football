@@ -12,6 +12,7 @@ import { ROLE_NAMES_KO } from '../../engine/roles';
 import { BottomSheet, Button, GameCard, HeroPanel, Icon, SectionTitle, Tabs, esc, type GameCardData } from '../components';
 import { actionRow, panel } from './common';
 import { cardArtPos, cardArtUrl, defaultArtPos } from '../cardArt';
+import type { AnimCard } from '../packAnim/types';
 
 const ROLE_KO = { play: '4번째 선택지', boost: '이번 턴 확률', passive: '남은 경기 장착', combo: '다음 장면', soften: '이번 턴', redraw: '패 바꾸기' } as const;
 const KIND_KO = { play: '플레이', setPiece: '세트피스', passive: '패시브', combo: '콤보', manage: '관리', signature: '시그니처', directive: '지시' } as const;
@@ -90,6 +91,22 @@ export function gameCardData(def: CardDef, o: { uses?: number; met?: boolean; is
   };
 }
 
+/** 팩 개봉·선택권 공개 연출 (C.76o) 카드 한 장: 앞면 = GameCard full. NEW = 처음 얻음, dup = 이미 가진 카드 */
+export function animCard(def: CardDef, o: { isNew: boolean; dup: boolean }): AnimCard {
+  return { id: def.id, name: def.name, rarity: def.rarity, isNew: o.isNew, dup: o.dup, sub: KIND_KO[def.kind], html: GameCard({ card: gameCardData(def, { isNew: o.isNew }), size: 'full' }) };
+}
+
+/** 설정의 연출 미리보기 (C.76o): 일반 2장 + 고른 희귀도 1장 (전설 카드가 없으면 있는 가장 높은 것) */
+export function demoAnimCards(r: CardDef['rarity']): AnimCard[] {
+  const commons = CARDS.filter((c) => c.rarity === 'common').slice(0, 2);
+  const top = CARDS.find((c) => c.rarity === r && !commons.includes(c)) ?? CARDS.find((c) => c.rarity === 'epic') ?? CARDS[0]!;
+  return [
+    animCard(commons[0]!, { isNew: false, dup: true }),
+    animCard(top, { isNew: true, dup: false }),
+    animCard(commons[1]!, { isNew: false, dup: false }),
+  ];
+}
+
 /** 카드 그림 (C.48): cardArtUrl 한 함수로 정한다. 위치 우선순위(C.68c): 사용자 위치(정식·간략 같이) > 기본 위치표(full·mini) > 가운데 */
 export function cardArtOf(id: string): Pick<GameCardData, 'art' | 'artPos' | 'artPosMini' | 'artSquare'> {
   const art = cardArtUrl(id);
@@ -111,6 +128,12 @@ function cardVM(g: GameState, def: CardDef, deck: string[], role: string | undef
     inDeck, owned: col.owned[def.id] ?? 0, problem, addBlock: canAdd(col, deck, def.id), fresh, mastery,
     card: gameCardData(def, { uses: mastery, met: problem === null, isNew: fresh, count: inDeck }),
   };
+}
+
+/** 카드 한 장 상세 (C.77q 상점·팩 결과): 지금 경기에 쓰는 덱 기준. 없는 카드 id 면 null */
+export function cardDetailVM(g: GameState, id: string, role: string | undefined): DeckCardVM | null {
+  const def = cardById(id);
+  return def ? cardVM(g, def, g.cards.decks[g.cards.active] ?? [], role) : null;
 }
 
 export function deckVM(g: GameState, set: number, role: string | undefined): DeckVM {
@@ -156,6 +179,7 @@ function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
     chips: [vm.picks.length > 1 ? `${vm.picks.length}번 남음` : '이번 1번', { label: rare, soft: true }],
   });
   return `${hero}<div class="body">
+    ${pickBand(vm.picks.map((x) => x.label), rare)}
     <p class="small muted">고른 카드는 가진 카드로 들어가요 · 덱에 넣는 건 덱 편집에서</p>
     <div class="gc-pick">${p.options.map((o, i) => `<div class="gc-pick__item">${GameCard({ card: o.card, size: 'mini', act: 'pick-sel', data: { v: String(i) }, state: i === k ? 'selected' : o.problem ? 'disabled' : 'normal', ...(o.problem ? { reason: shortReason(o.problem) } : {}) })}</div>`).join('')}</div>
     <div class="panel pick-detail"><div class="pick-detail__head"><b>${esc(c.name)}</b><small>${RARITY_KO[c.rarity]} · ${esc(c.kind)} · ${esc(c.role)}</small></div>
@@ -167,6 +191,13 @@ function pickView(vm: DeckVM, sel: number, back: 'home' | 'prep'): string {
       <p class="small muted pick-hint">선택은 덱 화면 위에 남아요 · 언제든 돌아와서 골라요</p>
     </div>
   </div>`;
+}
+
+/** 보상 띠 (C.76j 디자인 210): 어느 보상의 3택 1인지 · 남은 선택권 칸(지금 칸 라임) */
+function pickBand(labels: string[], rare: string): string {
+  const n = labels.length;
+  return `<div class="pick-band"><span class="pick-band__icon">${Icon({ name: 'target', size: 18 })}</span><span class="grow"><small>보상 · 1/${n}</small><b>${esc(labels[0] ?? '')} → ${esc(rare)} 카드 3택 1</b></span>${
+    n > 1 ? `<span class="pick-band__pips" aria-hidden="true">${labels.slice(0, 8).map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : ''}</div>`;
 }
 
 /** 카드 상세 시트 (full): 효과·조건·못 쓰는 이유와 빼기/넣기 */

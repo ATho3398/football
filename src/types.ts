@@ -65,7 +65,7 @@ export type PlayerData = FieldPlayerData | GoalkeeperData;
 // ── 게임 진행 상태 (1단계) ──
 
 
-export type InjuryGrade = 'minor' | 'major' | 'seasonEnding';
+export type InjuryGrade = 'minor' | 'moderate' | 'major' | 'seasonEnding';
 
 /** 부상 (7.3) */
 export interface Injury {
@@ -154,6 +154,16 @@ export interface PlayerState {
   level: number;
   unspentPoints: number;
   fatigue: number;
+  /** 시즌 누적 부하 (C.77n, 부상 확률 가산) · 지난 시즌까지 마모 (노쇠 가산). 없으면 0 */
+  load?: number;
+  wear?: number;
+  /**
+   * 게겐프레싱 비용 (C.78t): 시즌 누적 피로(경기 날 피로에 더한다, 시즌 끝 0) · 이번 시즌 게겐 클럽 출전 분 · 게겐 시즌 수(노쇠 앞당김).
+   * 없으면 0
+   */
+  seasonFatigue?: number;
+  gegenMin?: number;
+  gegenSeasons?: number;
   reputation: number;
   /** 현재 부상. 없으면 null */
   injury: Injury | null;
@@ -222,9 +232,11 @@ export interface Honors {
   worldCups: number;
   /** 챔스 우승 (C.67b). 옛 세이브에는 없다 */
   ucl?: number;
+  /** 최고 개인상 (C.76n 레전더리 조건 4a): 시즌 → 받은 개수 (더 베스트 · 리그 올해의 선수 · 야신 · 올해의 수비수 · 월드컵 골든볼). 옛 세이브에는 없다 */
+  top?: Record<number, number>;
 }
 
-export type BadgeId = 'goals500' | 'titles5' | 'oneClub10';
+export type BadgeId = 'goals500' | 'titles5' | 'oneClub10' | 'worldCup' | 'ballonDor';
 
 export interface Badge {
   id: BadgeId;

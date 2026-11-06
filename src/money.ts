@@ -273,7 +273,7 @@ export function moneySeasonStart(state: GameState, endedSeason: number): void {
   if (gone.length) {
     pushInbox(state, {
       cat: 'money', title: '스태프 계약 종료', key: `staff-end:${season}`,
-      body: `${gone.map((s) => `${STAFF_ROLE_KO[s.role]} ${s.name}`).join(', ')} — 계약이 끝나 팀을 떠났어요.`, link: { to: 'finance', label: '재정 보기' },
+      body: `${gone.map((s) => `${STAFF_ROLE_KO[s.role]} ${s.name}`).join(', ')} — 계약이 끝나 팀을 떠났어요.`, link: { to: 'staff', label: '스태프 보기' },
     });
   }
 }
@@ -370,8 +370,8 @@ function arriveCandidates(state: GameState, date: IsoDate): void {
   m.candUntil = addDays(date, S().keepDays - 1);
   pushInbox(state, {
     cat: 'money', title: `코치 후보 ${n}명 도착`, key: `cand:${m.seq}`, date,
-    body: `${m.candidates.map((c) => `${staffLine(c)}`).join(' / ')}. ${S().keepDays}일 안에 재정 화면에서 고용할 수 있어요.`,
-    link: { to: 'finance', label: '후보 보기' },
+    body: `${m.candidates.map((c) => `${staffLine(c)}`).join(' / ')}. ${S().keepDays}일 안에 훈련 › 스태프에서 고용할 수 있어요.`,
+    link: { to: 'staff', label: '후보 보기' },
   });
 }
 

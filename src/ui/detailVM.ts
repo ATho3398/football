@@ -7,7 +7,9 @@ import { coachOf } from '../club';
 import { GK_ATTRIBUTES, type GkAttribute } from '../attributes';
 import { bmiOf, FOOT_KO } from '../body';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
+import { futureDebut, LEGEND_BY_ID } from '../legends';
 import { derbyOf } from '../derby';
+import { npcBanLeft } from '../npcBan';
 import { DETAILS, LEVEL_NAMES_KO, tendencyLevels, TENDENCY_NAMES_KO, type Detail } from '../engine/tactics';
 import { TEAM_TACTICS } from '../engine/teamData';
 import { npcStanding } from '../worldStats';
@@ -47,7 +49,7 @@ export interface TeamDetailVM {
   /** 베스트 11 (로스터 자동 선발과 같은 규칙) */
   slots: FormationSlotProps[];
   squad: SquadGroupVM[]; squadSize: number;
-  /** 주요 선수: OVR 상위 3 + 팀 득점 1위 */
+  /** 주요 선수: OVR 상위 3 + 팀 득점 1위 + 출장 정지 선수 (C.80a) */
   key: (SquadRowVM & { note: string })[];
   matches: TeamMatchVM[];
   finance: { budget: string; wages: string };
@@ -55,7 +57,7 @@ export interface TeamDetailVM {
   /** 우리 팀과의 이번 시즌 상대 전적 (다른 팀일 때만) */
   vsMe: TeamMatchVM[];
   /** 감독·홈구장 (C.62, 2018-19 개막 기준). 데이터 없는 구단은 null */
-  manager: { name: string; style: string; stadium: string } | null;
+  manager: { name: string; style: string; stadium: string; /** 경질 뒤 새 감독 (C.63) · 부임 시즌 (C.76j 디자인 199) */ fresh?: { since: string } } | null;
 }
 
 const SHORT_DETAIL: Record<Detail, string> = { lineHeight: '라인', pressing: '압박', style: '빌드업', width: '폭' };
@@ -113,6 +115,16 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
     .filter((x) => x.goals > 0).sort((a, b) => b.goals - a.goals)[0];
   const top = rows.filter((r) => !r.me).slice(0, 3).map((r) => ({ ...r, note: `OVR ${r.ovr}` }));
   const key = scorer && !top.some((t) => t.id === scorer.p.id) ? [...top, { ...rowOf(scorer.p), note: `팀 득점 1위 · ${scorer.goals}골` }] : top.map((t) => (scorer && t.id === scorer.p.id ? { ...t, note: `OVR ${t.ovr} · 팀 득점 1위 ${scorer.goals}골` } : t));
+  // 출장 정지 (C.80a): 주요 선수 칸에 이어 붙이고(이미 있으면 메모만 덧붙임), 메모 = 남은 경기 · 리그 옐로 누적
+  for (const p of players) {
+    const left = npcBanLeft(g.npcBan, p.id);
+    if (left <= 0) continue;
+    const b = g.npcBan![p.id]!;
+    const note = `출장 정지 ${left}경기 · 옐로 ${b[0]}장${b[2] ? ` · 퇴장 ${b[2]}` : ''}`;
+    const k = key.find((x) => x.id === p.id);
+    if (k) k.note = `${k.note} · ${note}`;
+    else key.push({ ...rowOf(p), note });
+  }
   const ratings = [...L.teams].sort((a, b) => b.rating - a.rating);
   const all = teamMatches(g, teamId);
   const d = mine ? null : derbyOf(g.player.teamId, teamId);
@@ -134,7 +146,7 @@ export function teamDetailVM(g: GameState, teamId: string): TeamDetailVM | null 
     finance: { budget: valueLabel(remainingBudget(g, teamId, L.season)), wages: valueLabel(wageBill(g.rosters, teamId, team.rating)) },
     derby: d ? d.name : null,
     vsMe: mine ? [] : all.filter((m) => m.oppId === g.player.teamId),
-    manager: md ? { name: md.nameKo, style: MANAGER_STYLE_KO[md.style], stadium: md.stadiumKo } : null,
+    manager: md ? { name: md.nameKo, style: MANAGER_STYLE_KO[md.style], stadium: md.stadiumKo, ...(g.coaches?.[teamId] ? { fresh: { since: seasonLabel(g.coaches[teamId]!.since) } } : {}) } : null,
   };
 }
 
@@ -155,12 +167,14 @@ export interface PersonDetailVM {
   attrs: AttrGroupVM[]; keyNote: string;
   body: { height: string; weight: string; foot: string; weakFoot: string };
   /** 몸·태그 탭 신체 칸 (C.71a 디자인 169): 숫자 그대로, 몸 정보가 없으면 null */
-  bodyN: { height: number; weight: number; bmi: string; weakFoot: number } | null;
+  bodyN: { height: number; weight: number; bmi: string; weakFoot: number; foot: 'left' | 'right' } | null;
   youth: string;
   /** 유스 구단 id (리그 팀이면 누르면 팀 상세) */
   youthId: string | null; youthLeague: boolean;
   posOvrs: { pos: string; ovr: number; main: boolean }[];
   history: { season: string; apps: number; goals: number; assists: number; avg: string }[];
+  /** 미래 스타 (C.75y): 게임 리그에 들어오기 전 실제 경력 (위키 리그 출전·골) */
+  priorCareer: { years: string; team: string; apps: number; goals: number }[];
 }
 
 const GK_NAMES_KO: Record<GkAttribute, string> = { shotStopping: '선방', handling: '핸들링', commandOfArea: '공중볼 장악', distribution: '배급' };
@@ -220,10 +234,19 @@ export function personDetailVM(g: GameState, id: string): PersonDetailVM | null 
     body: b
       ? { height: `${b.height}cm`, weight: `${b.weight}kg`, foot: FOOT_KO[b.foot], weakFoot: `${b.weakFoot}/5` }
       : { height: '—', weight: '—', foot: '—', weakFoot: '—' },
-    bodyN: b ? { height: b.height, weight: b.weight, bmi: bmiOf(b).toFixed(1), weakFoot: b.weakFoot } : null,
+    bodyN: b ? { height: b.height, weight: b.weight, bmi: bmiOf(b).toFixed(1), weakFoot: b.weakFoot, foot: b.foot } : null,
     youth: youthName, youthId: youthId || null, youthLeague: L.teams.some((t) => t.id === youthId),
-    posOvrs, history,
+    posOvrs, history, priorCareer: priorCareerOf(id),
   };
+}
+
+/** 미래 스타 실제 경력 중 게임 등장 시즌 전에 시작한 줄 (C.75y) */
+function priorCareerOf(id: string): PersonDetailVM['priorCareer'] {
+  const l = LEGEND_BY_ID.get(id);
+  if (!l?.career) return [];
+  const from = futureDebut(l) ?? Infinity;
+  return l.career.filter(([years]) => Number(years.slice(0, 4)) < from || (Number(years.slice(0, 4)) === from && !years.includes('–')))
+    .map(([years, team, apps, goals]) => ({ years, team, apps, goals }));
 }
 
 /** 이 팀이 리그 팀인지 (리그 밖 클럽은 상세 없음) */

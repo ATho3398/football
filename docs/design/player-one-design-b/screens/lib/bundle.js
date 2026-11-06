@@ -40,6 +40,14 @@
     career: 'M4 8h16v12H4z M9 8V5h6v3 M4 13h16',
     world: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18',
     lock: 'M6 11h12v9H6z M9 11V8a3 3 0 0 1 6 0v3',
+    sun: 'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8',
+    cloud: 'M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.2 4.5 4.5 0 0 0 7 18z',
+    rain: 'M7 14h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 5.2 4.5 4.5 0 0 0 7 14z M8 17l-1 3 M12 17l-1 3 M16 17l-1 3',
+    snow: 'M7 13h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 4.2 4.5 4.5 0 0 0 7 13z M8 17h.01 M12 19h.01 M16 17h.01 M10 21h.01 M14 21h.01',
+    wind: 'M3 9h11a3 3 0 1 0-3-3 M3 15h15a3 3 0 1 1-3 3 M3 12h7',
+    fog: 'M7 11h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 2.2 4.5 4.5 0 0 0 7 11z M4 15h16 M6 19h12',
+    whistle: 'M3 11a5 5 0 1 0 10 0a5 5 0 1 0-10 0z M13 9h8v4h-6 M8 11h.01 M7 4l1 2.5',
+    album: 'M4 4h11v16H4z M15 7l5 1.5-3.5 12-3-.9 M7 8h5 M7 11h3',
     inbox: 'M4 6h16v12H4z M4 7l8 6 8-6',
     coin: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M8.5 9l1.6 6 1.9-4.5 1.9 4.5 1.6-6 M7.5 12h9',
     running: 'M12 3a9 9 0 1 0 9 9 M12 7v5l3 2',
@@ -670,7 +678,8 @@
     if (props.face) {
       /* B 테마 · 미페 머리말: 등번호(라임) + 투명 미페(원본 색 그대로) + 사선 검정 면 + 이름·OVR */
       var kit = props.kit != null ? String(props.kit) : '';
-      return h('section', { className: cx('po-hero po-hero--face', props.compact && 'po-hero--compact', props.className) },
+      var nm = props.name || '', maxF = props.compact ? 36 : 50, nf = Math.max(24, Math.min(maxF, Math.floor(232 / Math.max(1, Array.from(nm).reduce(function (w, ch) { return w + (/[ㄱ-힝]/.test(ch) ? 1 : ch === ' ' ? 0.35 : 0.62); }, 0)))));
+      return h('section', { className: cx('po-hero po-hero--face', props.compact && 'po-hero--compact', props.photo && 'po-hero--photo', props.className) },
         kit && h('span', { className: cx('po-hero__kit', kit.length > 1 && 'is-two'), 'aria-hidden': true }, kit),
         h('img', { className: 'po-hero__face', src: props.face, alt: props.name || '' }),
         h('span', { className: 'po-hero__line', 'aria-hidden': true }), h('span', { className: 'po-hero__slab', 'aria-hidden': true }),
@@ -680,7 +689,7 @@
           h('span', { className: 'po-hero__right' }, props.right)),
         h('div', { className: 'po-hero__who' },
           props.eyebrow && h('span', { className: 'po-hero__eyebrow' }, props.eyebrow),
-          h('span', { className: 'po-hero__name' }, props.name),
+          h('span', { className: 'po-hero__name', style: nf < maxF ? { fontSize: nf + 'px', lineHeight: Math.round(nf * 1.1) + 'px' } : undefined }, props.name),
           props.chips && h('div', { className: 'po-hero__chips' }, props.chips.map(function (c, i) {
             var ch = typeof c === 'string' ? { label: c } : c;
             return h('span', { key: i, className: cx('po-hero__chip', ch.soft && 'is-soft') }, ch.label);
@@ -1129,7 +1138,7 @@
       var me = players.filter(function (p) { return p.me; })[0], f = props.ball ? px(props.ball) : me ? px([me.x, me.y]) : [0, PH / 2];
       vy = Math.max(0, Math.min(PH - vh, f[1] - vh / 2));
     }
-    var zoom = PW / vw, k = ({ md: 1, lg: 1.2, xl: 1.4 }[props.size || 'md'] || 1) / Math.pow(zoom, 0.62);
+    var zoom = PW / vw, k = ({ sm: 0.72, md: 1, lg: 1.2, xl: 1.4 }[props.size || 'md'] || 1) / Math.pow(zoom, 0.62);
     var fs = 2.15 * k;
     var box = [vx, vy, vw, vh];
     var lab = layoutLabelsH(players, props.ball, props.names || 'all', k, fs, props.collide, box);

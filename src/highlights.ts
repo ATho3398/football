@@ -125,7 +125,8 @@ export function selectScenes(r: Replay): Scene[] {
     .map((x) => ({ key: x.e, team: x.team, kind: 'me', label: x.text, weight: x.xg ?? 0 })) : [];
   const oppAttacks: Cand[] = shots.filter((x) => x.team === opp).map((x) => ({ key: x.e, team: x.team, kind: 'opponent', label: x.text, weight: x.xg ?? 0 }));
   // 직접 모드 결정 순간 (I.4: 결정 순간도 장면이 된다): 카드를 쓴 결정 먼저(pending 34 ④, C.36), 그다음 중요도 큰 순으로 최대 maxDecisions 개
-  const decisions: Cand[] = (r.decisions ?? []).map((d) => ({
+  // 하프타임 전술 변경 기록(C.75k)은 장면이 아니다
+  const decisions: Cand[] = (r.decisions ?? []).filter((d) => d.scene !== 'halftime').map((d) => ({
     key: d.e, team: my, kind: 'decision', label: `${SCENE_LABEL[d.scene]} · ${d.card ? `🃏 ${d.card} · ` : ''}${d.label}`, weight: d.stake + (d.card ? 100 : 0), minute: d.minute,
   }));
   const rest: Cand[] = shots.map((x) => ({ key: x.e, team: x.team, kind: 'shot', label: x.text, weight: x.xg ?? 0 }));
@@ -145,6 +146,18 @@ export function selectScenes(r: Replay): Scene[] {
   };
   take(goals.sort((a, b) => a.key - b.key));
   take(decisions.sort(byWeight), HL.maxDecisions);
+  // 결정 장면 1칸 보장 (C.78k, 마스터 AA): 골이 칸을 다 채웠거나 시간대가 겹쳐 결정 장면이 하나도 못 들어갔으면
+  // 가장 낮은 우선순위 골 1개(상대 골 먼저, 그 안에서 이른 것)를 빼고 들어갈 수 있는 가장 중요한 결정 장면을 넣는다
+  if (decisions.length && !chosen.some((c) => c.kind === 'decision')) {
+    const order = chosen.filter((c) => c.kind === 'goal').sort((a, b) => (a.team === my ? 1 : 0) - (b.team === my ? 1 : 0) || a.key - b.key);
+    for (const g of order) {
+      const rest = chosen.filter((c) => c !== g);
+      const d = decisions.find((c) => rest.every((x) => Math.abs(x.key - c.key) >= HL.gap));
+      if (!d) continue;
+      chosen.splice(chosen.indexOf(g), 1, d);
+      break;
+    }
+  }
   // 상대 주요 공격 1~2개 자리를 남긴다 (상대 전술 확인용)
   const oppSlots = Math.min(2, oppAttacks.length);
   const reserve = Math.max(0, HL.maxScenes - oppSlots);

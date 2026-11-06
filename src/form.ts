@@ -4,14 +4,6 @@ import { BALANCE } from './config/balance';
 
 export type FormLevel = 'veryGood' | 'good' | 'normal' | 'bad' | 'veryBad';
 
-export const FORM_NAMES_KO: Record<FormLevel, string> = {
-  veryGood: '매우 좋음', good: '좋음', normal: '보통', bad: '나쁨', veryBad: '매우 나쁨',
-};
-
-export const FORM_ICONS: Record<FormLevel, string> = {
-  veryGood: '⏫', good: '🔼', normal: '⏺', bad: '🔽', veryBad: '⏬',
-};
-
 /** 출전 경기 평점 기록. 최근 N경기만 남긴다 */
 export function pushRating(recent: number[], rating: number): number[] {
   return [...recent, rating].slice(-BALANCE.form.games);

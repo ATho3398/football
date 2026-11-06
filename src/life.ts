@@ -6,13 +6,12 @@ import { BALANCE } from './config/balance';
 import { createRng, hashSeed } from './rng';
 import { tagAt, tagHas } from './tags';
 import { addTag } from './startClub';
-import { A_GRADE_PLAYERS } from '../data/players';
+import { REAL_PLAYER_BY_ID } from '../data/players';
 import { LEGEND_BY_ID } from './legends';
 import type { GameState } from './game';
 import type { DayPlan } from './training';
 
 export type LifeKey = 'home' | 'adapt' | 'team' | 'mental';
-export const LIFE_KEYS: readonly LifeKey[] = ['home', 'adapt', 'team', 'mental'];
 
 /** 생활 하루 행동 (훈련과 같은 칸) */
 export const LIFE_KINDS = ['family', 'language', 'teamMeal', 'therapy', 'trip', 'media'] as const;
@@ -40,12 +39,12 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 /** 내 국적: 커스텀 선택 > 실제 선수·레전드 데이터 > 유망주 기본(한국) */
 export function myNationality(p: GameState['player']): string {
   if (p.nationality) return p.nationality;
-  const real = p.realPlayerId ? A_GRADE_PLAYERS.find((d) => d.id === p.realPlayerId)?.nationality : undefined;
+  const real = p.realPlayerId ? REAL_PLAYER_BY_ID.get(p.realPlayerId)?.nationality : undefined;
   return real ?? (p.legendId ? LEGEND_BY_ID.get(p.legendId)?.nationality : undefined) ?? 'Korea Republic';
 }
 
-/** 외국인 선수 (잉글랜드 리그에서 잉글랜드 국적이 아님) */
-export const isForeign = (p: GameState['player']): boolean => myNationality(p) !== 'England';
+/** 외국인 선수: 내 리그 국가 국적이 아님 (C.75m, 옛 세이브·국가 없음 = 잉글랜드) */
+export const isForeign = (state: Pick<GameState, 'player' | 'league'>): boolean => myNationality(state.player) !== (state.league.country ?? 'England');
 
 /** 새 팀 적응도·팀 관계 시작값 */
 function teamStart(state: GameState, first: boolean): { adapt: number; team: number } {
@@ -54,7 +53,7 @@ function teamStart(state: GameState, first: boolean): { adapt: number; team: num
   const loyal = tagAt(p, 'loyalReturn', p.teamId);
   // 첫 시즌 실제 선수는 이미 그 구단에서 뛰던 선수
   const settled = first && !!(p.realPlayerId || p.legendId);
-  const foreign = isForeign(p);
+  const foreign = isForeign(state);
   const adapt = loyal || settled ? (loyal ? A.loyalStart : A.settledStart) : foreign ? A.foreignStart : A.domesticStart;
   const team = loyal ? L().team.loyalTeam : settled ? L().start.team : L().team.newTeam;
   return { adapt, team };
@@ -135,6 +134,19 @@ export function lifeRecoveryMul(state: Pick<GameState, 'life'>): number {
   return l && l.mental >= L().effects.mentalHigh ? L().effects.mentalRecovery : 1;
 }
 
+/**
+ * 판단 스탯 생활 페널티 (C.75i, BALANCE.life.judge): 엔진 입력의 내 시야·침착성에서 뺄 값 (0~99 척도, 0 이상).
+ * 정신 상태(100 − 멘탈 피로)가 from 미만이면 비례, 외국인은 적응도도 같은 식, 합 최대 max. 엔진 코드는 그대로 (입력만)
+ */
+export function lifeJudgePenalty(state: GameState): number {
+  if (!state.life) return 0;
+  const J = L().judge;
+  const l = state.life;
+  let pen = Math.max(0, J.from - (100 - l.mental)) * J.per;
+  if (isForeign(state)) pen += Math.max(0, J.from - l.adapt) * J.per;
+  return Math.round(Math.min(J.max, pen) * 10) / 10;
+}
+
 /** 하루 행동 결과 (dayStep): 효과를 걸고 한 줄 */
 export function lifeAction(state: GameState, kind: LifeKind, date: string): string {
   const A = L().actions;
@@ -182,6 +194,7 @@ export function lifeHints(state: GameState): string[] {
   if (l.home < E.low) out.push('집 생각이 많아요 · 가족과 시간');
   if (l.adapt < E.low) out.push('아직 낯설어요 · 외국어 공부');
   if (l.team < E.low) out.push('라커룸이 서먹해요 · 동료와 식사');
+  if (lifeJudgePenalty(state) > 0) out.push('집중이 흐트러져요 · 경기 중 판단(시야·침착성)이 조금 무뎌져요');
   return out;
 }
 

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { newGame, rebuildRosters, SAVE_FORMAT_VERSION } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { LEGEND_ROWS, LEGEND_RETIRED_BY, REAL_RETIRED_2018_2020 } from '../data/players/legends';
 import { A_GRADE_PLAYERS } from '../data/players';
-import { LEGENDS, legendGap, legendPeak, legendRosterPlayer, legendSpawns } from '../src/legends';
+import { LEGENDS, legendPlacement, legendGap, legendPeak, legendRosterPlayer, legendSpawns } from '../src/legends';
 import { initialTeams } from '../src/league';
 import { naturalOvr } from '../src/roster';
 import { withinRules } from '../src/squad';
@@ -21,7 +21,7 @@ const TEAMS = initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }));
 describe('레전드 팩 (C.47, pending 63)', () => {
   it('명단 117명, 모두 2020년까지 은퇴 (그 뒤 은퇴자 제외), 2018~2020 은퇴 실제 선수는 일반 로스터에서 빠짐', () => {
     expect(LEGEND_ROWS.length).toBe(117);
-    expect(LEGENDS.every((l) => l.retired <= LEGEND_RETIRED_BY)).toBe(true);
+    expect(LEGENDS.every((l) => l.retired <= LEGEND_RETIRED_BY || l.group === 'bvb' || l.group === 'ext')).toBe(true); // C.75x 도르트문트 · C.75w 추가 명단만 예외
     expect(LEGENDS.some((l) => l.id === 'lg-xavi' && l.retired === 2019)).toBe(true);
     expect(A_GRADE_PLAYERS.some((p) => p.id in REAL_RETIRED_2018_2020)).toBe(false);
     expect(new Set(LEGENDS.map((l) => l.id)).size).toBe(LEGENDS.length);
@@ -34,7 +34,8 @@ describe('레전드 팩 (C.47, pending 63)', () => {
     expect(off.legends).toBeUndefined();
     const on = newGame({ mode: 'prospect', position: 'ST', seed: 'c47-pack', difficulty: 'normal', legends: true });
     const lg = Object.values(on.rosters).flatMap((r) => r.players.filter((p) => p.legend));
-    expect(lg.length).toBe(117);
+    // C.75x: 117 + 도르트문트 21 (미래 스타는 따로, C.75y) · C.75w: + 53, 팀당 상한을 넘친 선수는 리그 밖에서 기다린다
+    expect(lg.length).toBe(LEGENDS.length - legendPlacement('c47-pack', initialTeams().map((t) => ({ id: t.id, rating: t.baseRating }))).abroad.length);
     for (const p of lg) {
       expect(p.age).toBeGreaterThanOrEqual(15);
       expect(p.age).toBeLessThanOrEqual(22);
@@ -53,7 +54,7 @@ describe('레전드 팩 (C.47, pending 63)', () => {
   it('시작 OVR = 전성기 − 나이별 모자람 (전성기 OVR 88~96), 30세 근처에 전성기에 닿는다', () => {
     for (const l of LEGENDS) {
       const peak = legendPeak(l).ovr;
-      expect(peak).toBeGreaterThanOrEqual(BALANCE.legends.minPeak);
+      expect(peak).toBeGreaterThanOrEqual(l.group ? BALANCE.legends.groupMinPeak : BALANCE.legends.minPeak);
       expect(peak).toBeLessThanOrEqual(BALANCE.legends.maxPeak);
       const p = legendRosterPlayer(l, 'c47-gap', 2018);
       expect(Math.abs(naturalOvr(p) - (peak - legendGap(p.age)))).toBeLessThanOrEqual(1);
@@ -183,17 +184,17 @@ describe('커리어 태그 효과 (C.47, pending 64): 그 구단에 있을 때�
   });
 });
 
-describe('세이브 26 → 27 (C.47)', () => {
-  it('레전드 팩 끔으로 변환, 왕복 그대로', () => {
+describe('세이브 (C.47)', () => {
+  it('왕복 그대로, 옛 세이브(26)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c47-mig', difficulty: 'normal' });
+    const back = deserialize(serialize(g));
+    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(back.saveFormat).toBe(61);
+    expect(back.legends).toBe(g.legends);
+    expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 26;
-    delete raw.legends;
-    const back = deserialize(JSON.stringify(raw));
-    expect(SAVE_FORMAT_VERSION).toBe(43);
-    expect(back.saveFormat).toBe(43);
-    expect(back.legends).toBe(false);
-    expect(JSON.stringify(back.rosters)).toBe(JSON.stringify(g.rosters));
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });
 

@@ -10,7 +10,7 @@ import type { GameState } from './game';
 import { reputationTier } from './growth';
 import { pushInbox } from './inbox';
 import { addLife } from './life';
-import { book, ensureMoney, flowsIn, flowsOut, moneyLabel, myWage, type Deal, type MoneyState } from './money';
+import { book, ensureMoney, flowsIn, flowsOut, moneyLabel, myWage, type MoneyState } from './money';
 import { createRng, hashSeed, type Rng } from './rng';
 
 const W = () => BALANCE.wealth;

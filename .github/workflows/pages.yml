@@ -14,7 +14,8 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # C.80x: 진행 중 CI 는 끝까지 돌리고 새 푸시는 최신 1개만 대기 (연속 푸시로 계속 취소되던 문제)
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,22 +29,30 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      # 2026-10-23 사용자 승인: 움직임 먼저, 밸런스는 로드맵 마지막 단계에서 맞춘다.
-      # 그때까지 밸런스 두 단계는 결과만 로그에 남기고 배포를 막지 않는다(마지막 단계에서 되돌림).
-      - run: npm run balance:check
-        continue-on-error: true
-        env:
-          COACH_MEASURE: '0'
-      - run: npm run balance:engine:check
-        continue-on-error: true
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
+  # C.78l: 밸런스 점검은 build 와 따로 병렬로 돈다 (커리어 시뮬은 워커 병렬, 가드 표는 실행 요약 화면).
+  # C.78r(로드맵 마지막 단계): 2026-10-23 부터 보고만(continue-on-error) 하던 두 단계를 다시 배포 차단으로 — deploy 가 balance 를 기다린다.
+  balance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run balance:check
+        env:
+          COACH_MEASURE: '0'
+      - run: npm run balance:engine:check
+
   deploy:
-    needs: build
+    needs: [build, balance]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

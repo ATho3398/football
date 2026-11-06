@@ -1,7 +1,7 @@
 // 다른 팀·다른 선수 상세 (C.53, pending 82 4번) — 6차 디자인 157 `팀상세` · 158 `선수상세-다른선수`.
 // 읽기 전용: 편집 버튼([찍기]·[꾸미기]·[이적 요청])이 없다. 팀 이름·선수 이름을 누르면 서로 오간다
 
-import { Avatar, Button, Crest, esc, FinChip, FormationPitch, HeroPanel, Icon, SectionTitle, TacticChip, Tabs, TierBadge } from '../components';
+import { Avatar, Button, Crest, esc, FinChip, FootPair, FormationPitch, HeroPanel, Icon, SectionTitle, TacticChip, Tabs, TierBadge } from '../components';
 import { TIER_KO, type FinanceTier } from '../../finance';
 import type { LeftPersonVM, PersonDetailVM, PersonTab, SquadRowVM, TeamDetailVM, TeamMatchVM, TeamTab } from '../detailVM';
 import type { FormMark } from '../prepVM';
@@ -15,6 +15,14 @@ export function tierBars(tier: FinanceTier, label?: string): string {
 }
 
 /** 팀 이름 링크 (리그 팀만) */
+/** 감독 줄 (C.76j 디자인 199): 호루라기 · "감독" · 이름 · 성향 칩 · 기본 전술 칩 / 한 줄 설명. 경질 뒤 새 감독이면 라임 "새 감독" 칩 */
+function coachRow(vm: TeamDetailVM): string {
+  const m = vm.manager;
+  if (!m) return `<div class="panel dt-coach"><span class="dt-coach__icon">${Icon({ name: 'whistle', size: 18 })}</span><span class="grow"><small class="muted">감독</small><b>감독 정보 없음</b></span></div>`;
+  const line = m.fresh ? `${m.fresh.since} 시즌 부임 · 주전 경쟁은 원점부터 다시예요` : `${m.style} 성향 · 홈구장 ${m.stadium || '정보 없음'}`;
+  return `<div class="panel dt-coach${m.fresh ? ' is-new' : ''}" role="group" aria-label="감독 ${esc(m.name)}"><span class="dt-coach__icon">${Icon({ name: 'whistle', size: 18 })}</span><span class="grow"><small class="muted">감독</small><span class="dt-coach__name"><b>${esc(m.name)}</b>${m.fresh ? '<span class="dt-coach__new">새 감독</span>' : ''}<span class="dt-coach__chip">${esc(m.style)}</span>${vm.tendencyKo !== "—" ? `<span class="dt-coach__chip">${esc(vm.tendencyKo)}</span>` : ''}</span><small class="muted">${esc(line)}</small></span></div>`;
+}
+
 export function teamLink(id: string, name: string, cls = ''): string {
   return `<button type="button" class="dt-link ${cls}" data-act="team-open" data-v="${esc(id)}">${esc(name)}</button>`;
 }
@@ -50,7 +58,8 @@ export function teamDetailView(vm: TeamDetailVM, tab: TeamTab, back: boolean): s
   const r = vm.record;
   const gd = r.gf - r.ga;
   // C.71a (디자인 168): 정체 = 가운데 큰 엠블럼 · 이름 · 재정 등급 + 감독 줄(C.62~63 그대로)
-  const ident = `<div class="panel dt-ident">${Crest({ name: vm.name, team: vm.id, size: 56 })}<b>${esc(vm.name)}</b><small>${tierBars(vm.tier, vm.tierKo)} ${vm.manager ? `감독 ${esc(vm.manager.name)}(${esc(vm.manager.style)}) · ${esc(vm.manager.stadium)}` : '감독·홈구장 정보 없음'}</small></div>`;
+  const ident = `<div class="panel dt-ident">${Crest({ name: vm.name, team: vm.id, size: 56 })}<b>${esc(vm.name)}</b><small>${tierBars(vm.tier, vm.tierKo)} ${vm.manager?.stadium ? esc(vm.manager.stadium) : ''}</small></div>
+    ${coachRow(vm)}`;
   const tiles = `<div class="dt-tiles">
     <div class="dt-tile"><small>순위</small><b class="po-num">${vm.rank}위</b><span>승점 ${r.points}</span></div>
     <div class="dt-tile"><small>전력</small><b class="po-num">${vm.rating.toFixed(1)}</b><span>리그 ${vm.ratingRank}위</span></div>
@@ -113,8 +122,7 @@ export function personDetailView(vm: PersonDetailVM, tab: PersonTab, back: boole
         <div><small>등번호</small><b class="po-num">${vm.shirt ?? '—'}</b></div>
         <div><small>키</small><b class="po-num">${n.height}<i>cm</i></b></div>
         <div><small>몸무게</small><b class="po-num">${n.weight}<i>kg</i></b><span>BMI ${n.bmi}</span></div>
-        <div><small>주발</small><b>${esc(vm.body.foot)}</b></div>
-        <div><small>약발</small><b class="po-num">${n.weakFoot}</b><span>${'●'.repeat(n.weakFoot)}${'○'.repeat(5 - n.weakFoot)}</span></div>
+        <div class="bs-feet"><small>주발 · 약발</small>${FootPair({ foot: n.foot, weakFoot: n.weakFoot })}<span>${esc(vm.body.foot)} 주발 · 약발 ${n.weakFoot}${n.weakFoot >= 5 ? ' 양발' : ''}</span></div>
       </div>`
       : panel('<p class="small muted">몸 정보가 없는 선수예요.</p>');
     const youth = vm.youthId && vm.youth !== '—'
@@ -129,6 +137,7 @@ export function personDetailView(vm: PersonDetailVM, tab: PersonTab, back: boole
   } else if (tab === 'record') {
     body = `${SectionTitle({ title: '이번 시즌', action: '리그 경기' })}${statTiles([{ value: s.apps, label: '출전' }, { value: s.goals, label: '골', hi: true }, { value: s.assists, label: '도움' }, { value: s.avg, label: '평균 평점' }])}
       ${SectionTitle({ title: '지난 시즌' })}${vm.history.length ? panel(`<div class="table-wrap"><table class="tbl"><tr><th>시즌</th><th>경기</th><th>골</th><th>도움</th><th>평점</th></tr>${vm.history.map((h) => `<tr><td>${h.season}</td><td>${h.apps}</td><td>${h.goals}</td><td>${h.assists}</td><td>${h.avg}</td></tr>`).join('')}</table></div>`) : '<p class="small muted">이 게임에서 끝난 시즌 기록이 아직 없어요.</p>'}
+      ${vm.priorCareer.length ? `${SectionTitle({ title: '이전 경력 · 실제 기록' })}${panel(`<div class="table-wrap"><table class="tbl"><tr><th>기간</th><th class="l">팀</th><th>리그 경기</th><th>골</th></tr>${vm.priorCareer.map((c) => `<tr><td>${esc(c.years)}</td><td class="l">${esc(c.team)}</td><td>${c.apps}</td><td>${c.goals}</td></tr>`).join('')}</table></div><p class="small muted">게임 리그에 들어오기 전 실제 경력이에요(위키백과 리그 기록).</p>`)}` : ''}
       <p class="small muted">다른 팀 경기를 빠른 진행(통계)으로 계산했으면 그 경기 기록은 빠져요.</p>`;
   } else {
     body = `${SectionTitle({ title: '계약' })}${panel(`<div class="kv"><span>소속</span>${vm.teamId ? teamLink(vm.teamId, vm.team) : `<b>${esc(vm.team)}</b>`}</div>${vm.clubTier ? `<div class="kv"><span>재정 등급</span>${tierBars(vm.clubTier, vm.clubTierKo)}</div>` : ''}<div class="kv"><span>주급(추정)</span><b class="po-num">${esc(vm.wage)}</b></div><div class="kv"><span>계약 마지막 시즌</span><b class="po-num">${esc(vm.until)}</b></div><div class="kv"><span>몸값</span><b class="po-num">${esc(vm.value)}</b></div><div class="kv"><span>바이아웃</span><b class="muted">—</b></div>`)}
@@ -152,7 +161,7 @@ export function leftPersonView(vm: LeftPersonVM, back: boolean): string {
     eyebrow: `${vm.name} · ${vm.pos} · ${vm.age}세 · 마지막 OVR`, value: vm.ovr,
     chips: ['리그 밖', { label: `${vm.from} → ${vm.to}`, soft: true }],
   });
-  const empty = `<div class="panel empty-state dt-left">${Icon({ name: 'world', size: 28 })}<b>리그 밖 선수예요</b><p class="small muted">${esc(vm.to)}${euro(vm.to)} 옮겨 리그를 떠났어요. 이 게임은 리그 20팀 선수만 능력치·기록·계약을 따라가서, 떠난 뒤 정보는 보여 줄 수 없어요.</p></div>`;
+  const empty = `<div class="panel empty-state dt-left">${Icon({ name: 'world', size: 28 })}<b>리그 밖 선수예요</b><p class="small muted">${esc(vm.to)}${euro(vm.to)} 옮겨 리그를 떠났어요. 이 게임은 내 리그 팀 선수만 능력치·기록·계약을 따라가서, 떠난 뒤 정보는 보여 줄 수 없어요.</p></div>`;
   const kv = (k: string, v: string) => `<div class="kv"><span>${k}</span>${v}</div>`;
   const info = panel([
     kv('마지막 소속', vm.fromId ? teamLink(vm.fromId, vm.from) : `<b>${esc(vm.from)}</b>`),

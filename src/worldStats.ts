@@ -4,10 +4,11 @@
 // 수치는 BALANCE.world
 
 import { BALANCE } from './config/balance';
+import { npcGlobalHonors } from './awards';
 import { MY_ID } from './engine/adapter';
 import { npcReputation } from './finance';
 import { pushInbox } from './inbox';
-import { sortedTable, teamById } from './league';
+import { gamesPerTeam, sortedTable, teamById } from './league';
 import { isU21 } from './squad';
 import type { GameState, PlayerTotals, SeasonArchive } from './game';
 
@@ -128,11 +129,11 @@ export function awardsFromTotals(players: Record<string, PlayerTotals>): NonNull
 // ── NPC 위상 (C.63a 라이벌이 OVR 로 대신하던 것) ──
 
 /** 시즌 기록 점수 (출전 perfMinApps 미만이면 0) */
-function perfScore(t: PlayerTotals | undefined): number {
+function perfScore(t: PlayerTotals | undefined, games: number): number {
   const S = W().standing;
   if (!t || t[0] < S.perfMinApps) return 0;
   const [apps, goals, assists, r10] = t;
-  const v = (r10 / apps / 10 - S.perfAvg) * S.perfPerRating + ((goals + assists) / apps) * 38 * S.perfPerGa38;
+  const v = (r10 / apps / 10 - S.perfAvg) * S.perfPerRating + ((goals + assists) / apps) * games * S.perfPerGa38;
   return Math.max(-S.perfMin, Math.min(S.perfMax, v));
 }
 
@@ -142,6 +143,8 @@ export function npcHonors(g: GameState, id: string): number {
   let n = 0;
   for (const s of (g.archive ?? []).slice(-S.honorSeasons)) for (const [, who] of s.aw ?? []) if (who === id) n++;
   if (g.phase !== 'season') for (const a of seasonAwards(g)) if (a.id === id) n++;
+  // 개인 시상 (C.76n): 발롱도르 · 더 베스트 · 골든보이 · 골든부츠 (같은 최근 시즌 범위)
+  n += npcGlobalHonors(g, id, g.league.season - S.honorSeasons + (g.phase === 'season' ? 0 : 1));
   return n;
 }
 
@@ -154,7 +157,9 @@ export function npcStanding(g: GameState, id: string, ovr: number): number {
   const cur = g.playerStats?.[id];
   const last = g.archive?.at(-1)?.players[id];
   const w = cur ? Math.min(1, cur[0] / S.curFullApps) : 0;
-  const perf = perfScore(cur) * w + perfScore(last) * (1 - w);
+  // 시즌 경기 수 (C.75m): 리그별 (PL 38)
+  const games = gamesPerTeam(g.league);
+  const perf = perfScore(cur, games) * w + perfScore(last, games) * (1 - w);
   const honor = Math.min(S.honorMax, npcHonors(g, id) * S.honorRep);
   return Math.round(Math.max(0, Math.min(BALANCE.reputation.max, npcReputation(ovr) + perf + honor)));
 }

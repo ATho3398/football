@@ -4,7 +4,7 @@ import { createMatch } from '../src/engine/sim';
 import { newGame, playRound, startNextSeason } from '../src/game';
 import { primaryItems, recordLine } from '../src/matchRecord';
 import { createTeamRoster } from '../src/roster';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { matchResultVM, seasonMatchesVM } from '../src/ui/viewModels';
 
 describe('경기 기록 확장 (부록 C.30)', () => {
@@ -76,18 +76,12 @@ describe('경기 기록 확장 (부록 C.30)', () => {
     expect(vm.myMore.length).toBe(8);
   });
 
-  it('옛 세이브(형식 10)는 빈 기록으로 바뀌고, 다음 시즌에는 목록을 비운다', () => {
+  it('옛 세이브(10)는 이어 할 수 없음, 다음 시즌에는 목록을 비운다', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'rec-mig', difficulty: 'normal' });
     playRound(g, { engine: 'quick' });
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 10;
-    delete raw.matchLog;
-    delete raw.player.season.rec;
-    delete raw.player.season.recApps;
-    const m = deserialize(JSON.stringify(raw));
-    expect(m.matchLog).toEqual([]);
-    expect(m.player.season.recApps).toBe(0);
-    expect(seasonMatchesVM(m).total).toBeNull();
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
     while (g.phase === 'season') playRound(g, { engine: 'quick' });
     expect(g.matchLog.length).toBe(g.league.schedule.length);
     startNextSeason(g);

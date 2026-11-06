@@ -8,7 +8,7 @@ import { createRng } from '../src/rng';
 import {
   attributesFromOvr, capVirtualAttributes, gkAttributesFromOvr, gkOvr, naturalOvr, pickLineup, posGroup, rosterRating,
 } from '../src/roster';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { withinRules } from '../src/squad';
 
 function playSeason(s: GameState) {
@@ -201,22 +201,23 @@ describe('로스터 시즌 갱신과 저장 (23번)', () => {
     // 세이브 크기: 로스터 480명을 담지 않으므로 작다 (C.30: 이번 시즌 경기 목록이 한 시즌 최대 약 15KB 더해진다.
     // C.41: 지난 시즌 보존 기록(archive)이 시즌당 더해진다 — 전체 엔진이면 약 55KB, 저장은 gzip 이라 약 11KB.
     // C.67b: 이번 시즌 컵·챔스 대진(챔스 조별 48경기 날짜 · FA컵) 약 5KB.
-    // C.73a: 챕터 이벤트 배율로 이번 시즌 인박스 이벤트가 바뀌어 약 0.3KB, 시즌 끝부터 챕터 기록 약 1KB)
-    expect(json.length).toBeLessThan(98_000);
+    // C.73a: 챕터 이벤트 배율로 이번 시즌 인박스 이벤트가 바뀌어 약 0.3KB, 시즌 끝부터 챕터 기록 약 1KB.
+    // C.76d: 대표팀 소집·경기 기록·지난 대회 조/대진 표 약 1~3KB.
+    // C.76n: 개인 시상 결과(발롱도르 후보 30 + 다른 상 5줄씩) · 발표 날짜 · 기사 약 5KB.
+    // C.76t: 47b 리그 상(PFA · FWA · 영플레이어 · 챔스 · 올해의 팀 11 + FIFPRO 11) · 이달의 선수 · 기사 약 6KB.
+    // C.77m: NPC 피로(최근 경기를 뛰어 아직 회복 중인 NPC 의 [피로, 날], 다 회복하면 지운다) 약 2KB)
+    // C.78h(엔진 47, 마스터 AA 승인 2026-10-24): 118,712 — 시즌 기록 내용 차이(+0.2%) → 119,000
+    // C.79i: NPC 평점·연속 선발 기록(뛴 선수 [직전, 평균, 경기 수, 연속 선발], 마지막 경기 뒤 42일까지) 약 2KB → 120,837 → 122,000
+    // C.79q(엔진 62, 슛 발 판정): main(C.80a NPC 출장 정지 포함) 121,930 → 123,013 — 경기 결과가 바뀐 시즌 기록·카드·정지 내용 차이(+0.9%) → 124,000
+    expect(json.length).toBeLessThan(124_000);
   });
 
-  it('형식 4 세이브를 열면 지난 시즌 수만큼 갱신한 로스터가 생긴다', () => {
+  it('옛 세이브(4)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'LW', seed: 'mig', difficulty: 'normal' });
     playSeason(s);
     const raw = JSON.parse(serialize(s));
-    delete raw.roster;
     raw.saveFormat = 4;
-    const loaded = deserialize(JSON.stringify(raw));
-    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.roster.updates).toBe(1);
-    // 옛 형식 세이브에는 이적이 없었다 (C.42): 이적 기록 없이 다시 만든다
-    expect(loaded.rosters).toEqual(rebuildRosters('mig', undefined, 1, s.npcs));
-    expect(loaded.transfers).toEqual([]);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 
   it('20시즌 뒤에도 팀 레이팅이 장기 평균에서 크게 벗어나지 않는다', () => {

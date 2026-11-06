@@ -96,7 +96,7 @@ describe('이 단계 랜덤', () => {
   const base = initialCustomForm();
   it('그 단계 값만 바뀌고 같은 key 면 같은 결과', () => {
     const keys: Record<number, (keyof CustomForm)[]> = {
-      1: ['age', 'position'], 2: ['height', 'weight', 'foot', 'weakFoot'], 3: ['nationality', 'appearance', 'facePhoto', 'hair'], 4: ['tags'], 5: ['attrs'], 6: ['startKind', 'startClub', 'youthClub'],
+      1: ['age', 'position', 'nationality', 'appearance', 'facePhoto', 'hair'], 2: ['height', 'weight', 'foot', 'weakFoot'], 3: ['facePhoto', 'hair'], 4: ['tags'], 5: ['attrs'], 6: ['startKind', 'startClub', 'youthClub'],
     };
     for (let st = 1; st <= 6; st++) {
       const r = randomStep(base, '이름', st, `k${st}`);

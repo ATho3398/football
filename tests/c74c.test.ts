@@ -6,7 +6,7 @@ import { MY_ID, playMyMatch } from '../src/engine/adapter';
 import { resolveRapport } from '../src/engine/rapport';
 import { myScoutReport, newGame, playRound, roundMatch, SAVE_FORMAT_VERSION, selectableRealPlayers, type GameState } from '../src/game';
 import { chemAfterMatch, chemFrac, chemPassMul, chemSeasonEnd, ensureChem, markerOf, passTargetMul, rapportInput, scoutReport, topChemMates } from '../src/rapport';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { prepVM } from '../src/ui/prepVM';
 import { playerVM } from '../src/ui/viewModels';
 import { prepView } from '../src/ui/views/prep';
@@ -48,9 +48,10 @@ describe('엔진 (호흡 0·관계 보통·리포트 없음 = 이전 엔진)', (
   it('호흡·패스 받는 빈도·리포트는 결정적이고 기준과 다르다', () => {
     const g = game();
     const rp = { chem: all(g, chemPassMul(full)), toMe: all(g, passTargetMul(100, full)) };
-    const a = playMyMatch({ ...input(g, 22), rapport: rp });
-    const b = playMyMatch({ ...input(g, 22), rapport: rp });
-    const base = playMyMatch(input(g, 22));
+    // C.78h(엔진 47, 슛 레인 + C.78g 병합): 시드 22·23 은 호흡을 켜도 팀 기록이 같아 24 로(24~27 은 다름) — 시드만
+    const a = playMyMatch({ ...input(g, 24), rapport: rp });
+    const b = playMyMatch({ ...input(g, 24), rapport: rp });
+    const base = playMyMatch(input(g, 24));
     expect(b.engine.teamStats).toEqual(a.engine.teamStats);
     expect(a.engine.teamStats).not.toEqual(base.engine.teamStats);
   });
@@ -83,16 +84,15 @@ describe('동료 호흡', () => {
     expect(Object.keys(ensureChem(g).mins)).toHaveLength(0);
   });
 
-  it('playRound 뒤 호흡이 쌓이고 세이브 왕복, 41 세이브는 호흡 없이 43 으로', () => {
+  it('playRound 뒤 호흡이 쌓이고 세이브 왕복, 41 세이브는 이어 할 수 없음', () => {
     const g = game('c74c-r');
     for (let i = 0; i < 2; i++) playRound(g);
     const back = deserialize(serialize(g));
     expect(back.chem).toEqual(g.chem);
-    expect(SAVE_FORMAT_VERSION).toBe(43);
+    expect(SAVE_FORMAT_VERSION).toBe(61);
     const old = JSON.parse(serialize(g));
     old.saveFormat = 41;
-    delete old.chem;
-    expect(migrate(old).saveFormat).toBe(43);
+    expect(() => restore(old)).toThrow(SaveFormatError);
   });
 });
 
@@ -152,8 +152,8 @@ describe('화면', () => {
   });
 
   it('버전', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.7[4-9]/);
-    expect(STAGE_LABEL).toMatch(/^4\d단계$/);
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(22);
     expect(BALANCE_VERSION).toBeGreaterThanOrEqual(53);
   });

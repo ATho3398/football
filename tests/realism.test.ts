@@ -36,7 +36,10 @@ describe('E3.5 A1 판단 단위 (골 = 1)', () => {
 });
 
 describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
-  const r = createMatch(input(31)).runToEnd();
+  // C.78d(엔진 44, 깊은 블록 밀집·역습 지원): 시드 31 은 버티기·컷백 0 이라 36(버티기 1·컷백 1, 31~37 중 36·37)으로 — 장면은 그대로 있고 시드만 바뀜
+  // C.78e(엔진 45): 36 은 버티기 0 이라 37(버티기 2·컷백 4). 31~44 버티기 평균 1.5(엔진 44 1.1), 0 인 시드 36·38·43 — 장면은 그대로
+  // C.78h(엔진 46, 슛 레인): 37 은 버티기·컷백 0(33 도 버티기 0)이라 35(버티기 2·컷백 3). 31~46 버티기 0 은 33·34·37 — 장면은 그대로
+  const r = createMatch(input(35)).runToEnd();
   it('공이 살아 있는 시간이 실제 경기 시간보다 짧고 스로인·골킥이 나온다', () => {
     expect(r.liveSeconds).toBeLessThan(r.duration * 0.8);
     for (const t of r.teamStats) {
@@ -45,7 +48,9 @@ describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
     }
   });
   it('컷백·버티기가 나오고 재개 대기 시간은 범위 안 (골 후 킥오프 45~75초)', () => {
-    const tot = (k: 'cutbacks' | 'holdups') => r.teamStats[0][k] + r.teamStats[1][k];
+    // C.78c(착지점 몫): 시드 31 경기의 버티기가 0 이 되어 33 경기를 더해 본다 (31~40 중 0 은 31·32·35·36 — 동작 존재 확인, 시드만)
+    const r33 = createMatch(input(33)).runToEnd();
+    const tot = (k: 'cutbacks' | 'holdups') => r.teamStats[0][k] + r.teamStats[1][k] + r33.teamStats[0][k] + r33.teamStats[1][k];
     expect(tot('holdups')).toBeGreaterThan(0);
     const s = createState(input(32));
     let checked = 0;
@@ -65,7 +70,7 @@ describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
     }
     expect(checked).toBe(5);
   });
-  it('공을 잃으면 역압박: 최대 3명, (3 + 2 × pressing)초 안', () => {
+  it('공을 잃으면 역압박: 최대 3명, (counterBase + 2 × pressing)초 안', () => {
     const s = createState(input(33));
     while (s.t < 120) step(s);
     const team = s.possTeam;
@@ -75,7 +80,7 @@ describe('E3.5 A2~A4 공격 전개, 전환, 중단 시간', () => {
     const tm = s.teams[team];
     expect(tm.counterPressers.length).toBeLessThanOrEqual(3);
     if (tm.counterPressers.length) {
-      expect(tm.counterUntil - s.t).toBeCloseTo(3 + 2 * tm.tactics.pressing, 5);
+      expect(tm.counterUntil - s.t).toBeCloseTo(ENGINE.offball.counterBase + ENGINE.offball.counterPerPress * tm.tactics.pressing, 5);
     }
   });
 });
@@ -106,7 +111,8 @@ describe('E3.5 A5, A8 전술 엔진 층 (E.19)', () => {
   it('성향 기본값과 세부 전술 단계', () => {
     expect(tacticsOf('tikitaka')).toEqual({ tendency: 'tikitaka', lineHeight: 0.65, pressing: 0.8, style: 0.85, width: 1.15 });
     expect(tacticsOf('block')).toEqual({ tendency: 'block', lineHeight: 0.35, pressing: 0.3, style: 0.2, width: 0.85 });
-    expect(levelOf('lineHeight', 0.6)).toBe(2);
+    expect(levelOf('lineHeight', 0.6)).toBe(3);
+    expect(tacticsOf('block', { lineHeight: 0 })).toEqual({ tendency: 'block', lineHeight: 0.2, pressing: 0.3, style: 0.2, width: 0.85 });
     expect(TENDENCIES).toHaveLength(6);
   });
   it('실제 팀은 데이터 성향·포메이션·style, 가상 팀은 레이팅 구간별 성향과 레이팅 비례 style', () => {
@@ -138,9 +144,9 @@ describe('E3.5 A5, A8 전술 엔진 층 (E.19)', () => {
     s.teams[0].stats.goals = 0;
     s.teams[1].stats.goals = 1;
     aiAdjust(s);
-    expect(s.teams[0].tactics.lineHeight).toBe(LEVELS.lineHeight[2]);
+    expect(s.teams[0].tactics.lineHeight).toBe(LEVELS.lineHeight[3]);
     expect(s.teams[0].tactics.pressing).toBe(LEVELS.pressing[2]);
-    expect(s.teams[1].tactics.lineHeight).toBe(LEVELS.lineHeight[0]);
+    expect(s.teams[1].tactics.lineHeight).toBe(LEVELS.lineHeight[1]);
     expect(s.teams[1].tactics.pressing).toBe(LEVELS.pressing[1]);
   });
   it('전술 결정성: 같은 시드 + 같은 전술 = 같은 결과, 전술이 다르면 결과가 다르다', () => {

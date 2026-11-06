@@ -1,18 +1,19 @@
 // 부상 (7.3, 부록 D.2): 출전 경기마다 판정, 등급 추첨, 영구 하락
 
 import { injuryMul, type Tagged } from './tags';
+import { loadInjuryMul } from './load';
 import { BALANCE, type Difficulty } from './config/balance';
 import { PHYSICAL, randInt, type AttributeDelta } from './growth';
 import type { Rng } from './rng';
 import type { Injury, InjuryGrade, PlayerState } from './types';
 
 export const INJURY_NAMES_KO: Record<InjuryGrade, string> = {
-  minor: '경상', major: '중상', seasonEnding: '시즌아웃',
+  minor: '경상', moderate: '중등도', major: '중상', seasonEnding: '시즌아웃',
 };
 
 /** 이번 경기에서 다칠 확률. fatigue 는 경기 시작 때 피로 */
 export function injuryChance(
-  p: Pick<PlayerState, 'attributes' | 'age' | 'fatigue'> & Tagged, minutes: number, difficulty: Difficulty,
+  p: Pick<PlayerState, 'attributes' | 'age' | 'fatigue'> & { load?: number } & Tagged, minutes: number, difficulty: Difficulty,
 ): number {
   const I = BALANCE.injury;
   if (minutes <= 0) return 0;
@@ -20,14 +21,16 @@ export function injuryChance(
   const physical = I.physicalBase - (I.physicalSlope * (p.attributes.strength + p.attributes.stamina)) / 2 / 100;
   const age = p.age >= I.ageFrom ? I.ageMultiplier : 1;
   // 장단점 (C.45): 유리몸 ×1.5, 철강왕 ×0.6
-  return I.base * Math.min(1, minutes / 90) * BALANCE.difficulty[difficulty].injury * fatigue * physical * age * injuryMul(p);
+  // 시즌 누적 부하 (C.77n): 경기 전 이번 시즌 누적 부하가 load.injuryFrom 을 넘은 만큼 가산 (내 선수·NPC 같은 식)
+  return I.base * Math.min(1, minutes / 90) * BALANCE.difficulty[difficulty].injury * fatigue * physical * age * injuryMul(p) * loadInjuryMul(p.load);
 }
 
 function rollGrade(rng: Rng): InjuryGrade {
   const G = BALANCE.injury.grades;
   const r = rng();
   if (r < G.minor.chance) return 'minor';
-  if (r < G.minor.chance + G.major.chance) return 'major';
+  if (r < G.minor.chance + G.moderate.chance) return 'moderate';
+  if (r < G.minor.chance + G.moderate.chance + G.major.chance) return 'major';
   return 'seasonEnding';
 }
 
@@ -35,8 +38,9 @@ function rollGrade(rng: Rng): InjuryGrade {
 function rollPermanent(p: PlayerState, grade: InjuryGrade, rng: Rng): AttributeDelta {
   const P = BALANCE.injury.permanent;
   const delta: AttributeDelta = {};
+  // 중등도는 chance × moderateMul (C.77w)
   if (grade === 'minor') return delta;
-  const chance = P.chance * (p.age >= P.ageFrom ? P.ageMultiplier : 1);
+  const chance = P.chance * (p.age >= P.ageFrom ? P.ageMultiplier : 1) * (grade === 'moderate' ? P.moderateMul : 1);
   if (rng() >= chance) return delta;
   const pool = [...PHYSICAL];
   const n = randInt(rng, P.attrs[0], P.attrs[1]);

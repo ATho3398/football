@@ -10,13 +10,13 @@ import type { Body } from '../body';
 import type { MatchEnv } from './env';
 import type { RapportInput } from './rapport';
 
-/** 전술 성향 6종 (E.19 ①) */
+/** 전술 성향 7종 (E.19 ①, C.76k 버스 세우기) */
 export type Tendency = 'balanced' | 'tikitaka' | 'gegenpress' | 'counter' | 'direct' | 'block';
 
 export interface Tactics {
   /** 전술 성향: 세부 전술 기본값과 고유 행동 (E.19) */
   tendency: Tendency;
-  /** 수비 라인 0~1 (0.35 / 0.5 / 0.65) */
+  /** 수비 라인 0~1 (0.2 매우 낮음 / 0.35 / 0.5 / 0.65, C.76k) */
   lineHeight: number;
   /** 0~1 */
   pressing: number;
@@ -156,9 +156,21 @@ export interface TeamStats {
   /** 크로스·컷백 순간 상대 박스 안 우리 선수 수 합 / 횟수 */
   boxAtCross: number;
   boxCrossN: number;
+  /** 측정용 (C.81a): 크로스·컷백 공이 떨어지는(비행이 끝나는) 순간 상대 박스 안 우리 필드 선수 수 합 · 표본 수 */
+  boxAtLand: number;
+  boxLandN: number;
   /** (E.23) 수비수가 판단해서 시도한 태클 (1대1 경합 제외), 몰고 가기·유지 실패로 잃은 소유 */
   tackleAttempts: number;
   dispossessed: number;
+  /** (C.76q) 12 m 밖(PK 제외) 유효 슈팅 도착 / 그중 선방 — 미해결 6 선방률 지표 */
+  farOnTarget: number;
+  farSaves: number;
+  /**
+   * (C.78r) 12 m 밖 유효 슈팅을 슛 상황 구간으로 나눈 도착 / 선방 — 선택 효과를 뺀 선방률 가드(구간별 선방률 × 고정 가중).
+   * 구간 = 거리(12~16.5 · 16.5~25 · 25 m+) × GK 자리(슛 순간 덮는 정도 ≥ 0.9 자리 잡음 · 미만), 순서 [거리 * 2 + (자리 잡음 ? 0 : 1)]
+   */
+  farBinOn: number[];
+  farBinSaves: number[];
 }
 
 export interface PlayerStats {

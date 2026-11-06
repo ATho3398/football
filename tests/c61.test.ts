@@ -24,12 +24,12 @@ afterEach(() => setWideForTest(null));
 
 describe('독 칸 배열 하나 (C.61)', () => {
   it('PC 9칸은 폰 독 순서에서 만든다: 홈 · 덱 · 전술 + 폰 나머지 ([다음] 5번째 가운데) + 더보기 자리에 월드 · 설정 · 저장 (C.66)', () => {
-    expect(DOCK_PHONE).toEqual(['home', 'player', 'prog', 'schedule', 'more']);
-    // C.69 (디자인 201): 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] | 훈련·일정 · 월드 · 재정 · 설정 · 저장
-    expect(DOCK_PC).toEqual(['home', 'player', 'deck', 'tactics', 'inbox', 'prog', 'schedule', 'world', 'finance', 'settings', 'saves']);
+    // C.77q: 폰 독 순서 + 더보기 칸 펼침
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
+    expect(DOCK_PC).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog', 'player', 'shop', 'deck', 'tactics', 'settings', 'saves']);
     expect(DOCK_PC.indexOf('prog')).toBe(5);
-    // 폰을 6칸(월드 추가)으로 바꿔도 PC는 같은 11칸
-    expect(dockPc(['home', 'player', 'prog', 'schedule', 'world', 'more'])).toEqual(DOCK_PC);
+    // 폰 칸을 바꿔도 PC는 같은 칸 묶음(더보기 없음)
+    expect(dockPc(['home', 'schedule', 'prog', 'player', 'shop', 'world', 'more']).slice().sort()).toEqual(DOCK_PC.slice().sort());
     const vm: DockVM = { screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: true, points: 0, more: false };
     const html = dock(vm);
     expect(html.match(/po-dock--pc/g)?.length).toBe(1);
@@ -46,18 +46,20 @@ describe('폭 판정', () => {
 });
 
 describe('PC 2열 화면 (디자인 120 · 121 · 153 · 123)', () => {
-  it('홈 120: 폰은 1열 그대로, PC는 왼쪽 다음 경기 · 오른쪽 선수 카드 · 4칸 · 내 상태', () => {
+  it('홈 120 → 204(C.76g): 폰은 1열 그대로, PC는 왼쪽 다음 경기 · 내 상태 · 오른쪽 선수 카드 · 4칸 · 시즌 목표', () => {
     const g = son();
     const phone = homeView(homeVM(g));
     expect(phone).not.toContain('pc2');
     setWideForTest(true);
-    const pc = homeView(homeVM(g));
+    const pc = homeView(homeVM(g), '', '', '', '', '<i id="goals"></i>');
     expect(pc).toContain('pc2 hm-pc');
     const r = pc.slice(pc.indexOf('pc2__r'));
     expect(r).toContain('po-pcard');
-    expect(r).toContain('내 상태');
-    expect(pc.slice(0, pc.indexOf('pc2__r'))).toContain('next-card');
-    expect(pc).not.toContain('po-hero--face'); // PC 홈 = 일반 B 머리말
+    expect(r).toContain('id="goals"');
+    const l = pc.slice(0, pc.indexOf('pc2__r'));
+    expect(l).toContain('next-card');
+    expect(l).toContain('내 상태');
+    expect(pc).not.toContain('po-hero--face'); // 사진 없는 실제 선수(테스트엔 facepack 없음) = 일반 B 머리말 (C.74e: 사진 있으면 PC 도 미페)
   });
   it('선수 121 · 153: PC는 왼쪽 능력치 늘 + 오른쪽 탭 4개(능력치 탭이면 몸·태그)', () => {
     const g = son();

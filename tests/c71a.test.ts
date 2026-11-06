@@ -66,7 +66,8 @@ describe('C.71a U7-c1', () => {
     const vm = playerVM(g);
     const base = { tab: 'pos' as const, body: '', market: null, points: 0, retired: false };
     const closed = playerView(vm, base);
-    expect(closed).toContain('대회 조건 4개');
+    // C.76n 4a: 최고 개인상 줄이 더해져 5개
+    expect(closed).toContain('대회 조건 5개');
     expect(closed).not.toContain('pl-leg__list');
     expect(playerView(vm, { ...base, legendOpen: true })).toContain('pl-leg__list');
   });

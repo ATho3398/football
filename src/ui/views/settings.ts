@@ -2,18 +2,20 @@
 // + 위 이동 칩. 꾸미기 = 화면 스타일 한 줄 + 하위 화면 4개(선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지, 뒤로 가기 · 위 이동 칩 4).
 // 페이스온 이미지는 이 브라우저(IndexedDB)에만 남는다
 
-import { A_GRADE_PLAYERS } from '../../../data/players';
+import { A_GRADE_PLAYERS, REAL_PLAYER_BY_ID, ALL_REAL_PLAYERS } from '../../../data/players';
 import { realAppearance } from '../../appearance';
 import { BALANCE } from '../../config/balance';
 import type { GameState } from '../../game';
 import { clubKo, teamById } from '../../league';
+import { GOAL_SPLASH_PREF_KO, loadGoalSplashPref } from '../goalSplash/model';
+import { PACK_ANIM_PREF_KO, RARITY_KO as PACK_RARITY_KO, loadPackAnimPref } from '../packAnim/model';
 import { Avatar, Banner, Button, Crest, esc, HeroPanel, Icon, PixelTile, SectionTitle, Switch, Tabs, TextField, type IconName } from '../components';
 import {
-  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, heroFaceOf, faceOnKeys, faceOnUrls, faceStats, repoCrest, squareLayout, type FaceRef, type FaceSlot,
+  AGE_SLOT_KO, AGE_SLOTS, ageSlot, ALL_CLUBS, clubOf, defaultFaceSrc, faceOnCutout, heroFaceOf, faceOnKeys, faceOnUrls, faceStats, photoCredits, repoCrest, squareLayout, type FaceRef, type FaceSlot,
 } from '../faces';
 import { myFace, type VersionVM } from '../viewModels';
 import type { LookVM } from './body';
-import { panel, pc2, versionFooter } from './common';
+import { panel, pc2, updateCheckRow, versionFooter } from './common';
 import {
   pitchNames, PITCH_NAMES_KO, pitchOrient, PITCH_ORIENT_KO, pitchSize, PITCH_SIZE_KO, pitchView, PITCH_VIEW_KO,
 } from '../pitch/renderer';
@@ -29,9 +31,20 @@ import { CARDS } from '../../config/cards';
 
 const CARDS_N = (): number => CARDS.length;
 import { isWide, skin, SKIN_KO } from '../skin';
-import { PATCH_LABEL } from '../../version';
+import { PATCH_LABEL, STAGE_LABEL } from '../../version';
 
 /** 설정 → 선수 이름 (부록 C.44a): 검색어, 팀 거르기('' 전체, 'x' 리그 밖), 고른 선수 id */
+
+/** 다른 경기 계산 3단계 (C.81d) */
+const OTHERS_TAB = { mine: '내 리그만 엔진', all: '전부 엔진', quick: '전부 빠른 진행' } as const;
+/** 단계마다 한 줄: 무엇을 엔진으로 · 속도 · 다른 리그 기록 정밀도 */
+function othersLines(otherLeagues: number): [keyof typeof OTHERS_TAB, string][] {
+  return [
+    ['mine', `기본. 내 리그 다른 팀 경기는 22명 엔진(득점·도움 순위 그대로)${otherLeagues ? `, 고른 다른 리그 ${otherLeagues}개는 점수 확률 + 득점자 추첨으로 바로 — 다른 리그 출전·평점은 추정이에요` : ''}.`],
+    ['all', `다른 리그${otherLeagues ? ` ${otherLeagues}개` : ''}까지 전부 엔진. 다른 리그 출전·평점까지 실제 기록이지만 날짜 넘김이 가장 느려요(한 주기 몇 초 ~ 수십 초).`],
+    ['quick', '느린 기기용. 내 리그 다른 팀 경기도 통계로 바로 — 가장 빠르지만 득점 순위는 내 경기와 득점자 추첨만 남아요.'],
+  ];
+}
 export interface NameUI { q: string; team: string; sel: string | null }
 
 /** 이름 고치기 칸 (설정·선수 화면 공용, 디자인 71): 풀네임 · 경기 화면 라벨, 별명·짧은 이름 TextField, [되돌리기][저장] */
@@ -239,7 +252,7 @@ export function lookupEntry(g: GameState | null, key: string): Entry | null {
     const n = g.npcs.find((x) => x.id === id);
     if (n) return { key, name: n.nameKo, sub: `${clubKo(n.club)} · ${n.position} · ${n.age}세`, face: { id, age: n.age, appearance: realAppearance(id, '') } };
   }
-  const d = A_GRADE_PLAYERS.find((p) => p.id === id);
+  const d = REAL_PLAYER_BY_ID.get(id);
   if (d) {
     const age = BALANCE.newGame.startYear - d.birthYear;
     return { key, name: d.nameKo, sub: `${clubKo(d.club)} · ${d.position} · ${age}세`, face: { id, age, appearance: realAppearance(id, d.nationality) } };
@@ -272,7 +285,7 @@ function playerEntries(g: GameState | null, q: string): Entry[] {
     }
     if (has(g.player.name, qq)) push(lookupEntry(g, `p:${myFace(g).id}`));
   }
-  for (const p of A_GRADE_PLAYERS) if (has(p.nameKo, qq) || has(p.name, qq)) push(lookupEntry(g, `p:${p.id}`));
+  for (const p of ALL_REAL_PLAYERS) if (has(p.nameKo, qq) || has(p.name, qq)) push(lookupEntry(g, `p:${p.id}`));
   return out.filter((e) => !e.mine || has(e.name, qq)).slice(0, 40);
 }
 
@@ -403,7 +416,7 @@ export function cropStyle(c: { zoom: number; x: number; y: number; slot: FaceSlo
 export type SetPage = 'main' | 'names' | 'pixel' | 'faceon' | 'cardart';
 export type SetSec = 'play' | 'view' | 'look' | 'saves' | 'pack';
 /** 설정 화면 상태: 보고 있는 화면, 펼친 섹션 (하나만, null = 모두 접힘) */
-export interface SetUI { page: SetPage; open: SetSec | null }
+export interface SetUI { page: SetPage; open: SetSec | null; /** 사진·로고 출처 목록 펼침 (C.77u) */ credits?: boolean }
 export const SET_UI_DEFAULT: SetUI = { page: 'main', open: 'play' };
 
 const SECTIONS: { id: SetSec; label: string; title: string }[] = [
@@ -426,7 +439,26 @@ function section(id: SetSec, sub: string, open: boolean, body: string, locked = 
 }
 
 const DIFF_KO: Record<string, string> = { easy: '쉬움', normal: '보통', hard: '어려움' };
+
+/** 다른 경기 미리 계산 보관 상태 (C.76m): 화면이 렌더 직전에 넣는다. null = 워커 없음(메인 스레드) */
+let precompute: { ready: number; total: number } | null = null;
+export function setPrecomputeStatus(s: { ready: number; total: number } | null): void {
+  precompute = s;
+}
 const STOP_KO: Record<string, string> = { all: '모든 순간', important: '중요한 순간만', critical: '결정적 순간만' };
+
+/** 사진·로고 출처 (C.77u): 한 줄 안내 + 펼치면 매니페스트의 문서·라이선스 목록 (펼칠 때만 그린다) */
+function creditsBlock(open: boolean): string {
+  const list = photoCredits();
+  const clubs = list.filter((c) => c.kind === 'clubs').length;
+  const head = `<div class="kv"><span>사진·로고 출처</span>${Button({ variant: 'ghost', size: 'sm', act: 'set-credits', children: open ? '목록 닫기' : `출처 목록 (${list.length})` })}</div>
+    <p class="small muted set-credits__lead">사진·로고 출처: 위키백과/위키미디어 커먼즈. 선수 사진은 배경을 지우고 작게 줄였어요. 각 파일의 라이선스를 따르며, 구단 로고는 대부분 비자유 저작물이라 개인 용도로만 써요.</p>`;
+  if (!open) return head;
+  const link = (href: string | undefined, text: string) => (href ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text));
+  const row = (c: (typeof list)[number]) => `<li>${link(c.page, c.title)}<small class="muted">${[c.license ? link(c.filePage, c.license) : c.filePage ? link(c.filePage, '파일') : '', c.artist ? esc(c.artist) : ''].filter(Boolean).join(' · ')}</small></li>`;
+  return `${head}<div class="set-credits"><b class="small">구단 로고 ${clubs}</b><ul>${list.filter((c) => c.kind === 'clubs').map(row).join('')}</ul>
+    <b class="small">선수 사진 ${list.length - clubs}</b><ul>${list.filter((c) => c.kind === 'players').map(row).join('')}</ul></div>`;
+}
 
 function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: boolean, ca: CardArtUI): string {
   const hero = HeroPanel({
@@ -439,13 +471,15 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     ? `<div class="kv"><span>내 선수 결정</span><span class="muted small">${g.control.mode === 'direct' ? '결정 순간마다 멈춰요' : '엔진이 대신 결정해요'}</span></div>
       ${Tabs({ items: [{ id: 'direct', label: '직접' }, { id: 'auto', label: '자동' }], value: g.control.mode, act: 'ctl-mode', fill: true, label: '직접/자동' })}
       ${g.control.mode === 'direct' ? `<div class="kv"><span>정지 빈도</span></div>${Tabs({ items: [{ id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' }], value: g.control.stop, act: 'ctl-stop', fill: true, label: '정지 빈도' })}` : ''}
-      <div class="kv"><span>다른 경기 계산</span></div>${Tabs({ items: [{ id: 'engine', label: '전체 엔진' }, { id: 'quick', label: '빠른 진행' }], value: g.options.quickOthers ? 'quick' : 'engine', act: 'opt-quick', fill: true, label: '다른 경기 계산' })}
-      <p class="small muted">${g.options.quickOthers ? '느린 기기용: 다른 팀 경기를 통계로 바로 계산해요. 득점 순위는 내 경기만 남아요.' : '다른 팀 경기도 22명 엔진으로 계산해요. 경기 날 [계속]이 몇 초 걸릴 수 있어요.'}</p>
+      <div class="kv"><span>다른 경기 계산</span></div>${Tabs({ items: (['mine', 'all', 'quick'] as const).map((id) => ({ id, label: OTHERS_TAB[id] })), value: g.options.others, act: 'opt-quick', fill: true, label: '다른 경기 계산' })}
+      <ul class="small muted set-others">${othersLines(g.otherLeagues?.length ?? 0).map(([id, t]) => `<li${id === g.options.others ? ' class="is-on"' : ''}><b>${OTHERS_TAB[id]}</b> — ${t}</li>`).join('')}</ul>
+      <p class="small muted">${g.options.others === 'quick' ? '' : `홈·다른 화면에 있거나 내 경기를 보는 동안 앞으로 3일치 엔진 경기를 미리 계산해 두어 날짜 넘김이 빨라져요(같은 결과).${precompute ? ` 지금 미리 계산 ${precompute.ready}/${precompute.total}경기.` : ' 이 기기는 워커가 없어 미리 계산하지 않아요.'}`}</p>
       <div class="kv set-kv"><span>난이도</span><span><b>${DIFF_KO[g.difficulty] ?? g.difficulty}</b><small class="muted"> · 새 게임에서 정해요</small></span></div>`
     : '<p class="small muted">경기 진행 설정은 게임을 시작하거나 불러오면 보여요.</p>';
-  const playSub = g ? [g.control.mode === 'direct' ? '직접' : '자동', ...(g.control.mode === 'direct' ? [STOP_KO[g.control.stop] ?? ''] : []), g.options.quickOthers ? '빠른 진행' : '전체 엔진', DIFF_KO[g.difficulty] ?? ''].join(' · ') : '게임 밖';
+  const playSub = g ? [g.control.mode === 'direct' ? '직접' : '자동', ...(g.control.mode === 'direct' ? [STOP_KO[g.control.stop] ?? ''] : []), OTHERS_TAB[g.options.others], DIFF_KO[g.difficulty] ?? ''].join(' · ') : '게임 밖';
   const pv = `<div class="kv"><span>선수 표시</span></div>${Tabs({ items: (['number', 'face', 'character'] as const).map((k) => ({ id: k, label: PITCH_VIEW_KO[k] })), value: pitchView(), act: 'pv-set', fill: true, label: '선수 표시' })}
-    <div class="kv"><span>방향</span><small class="muted">세로 = 내 팀이 아래→위</small></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+    <div class="set-orient"><div class="kv"><b>경기 화면 방향</b><small class="muted">결정 순간 · 하이라이트</small></div>${Tabs({ items: (['landscape', 'portrait'] as const).map((k) => ({ id: k, label: PITCH_ORIENT_KO[k] })), value: pitchOrient(), act: 'po-orient', fill: true, label: '경기 화면 방향' })}
+      <p class="small muted">${PITCH_ORIENT_KO.landscape} = 폰을 세로로 들어도 피치는 가로(왼쪽 → 오른쪽 공격). ${PITCH_ORIENT_KO.portrait} = 세로 피치(내 팀이 아래 → 위).</p></div>
     <div class="kv"><span>선수 크기</span></div>${Tabs({ items: (['normal', 'large', 'xlarge'] as const).map((k) => ({ id: k, label: PITCH_SIZE_KO[k] })), value: pitchSize(), act: 'po-size', fill: true, label: '선수 크기' })}
     <div class="kv"><span>이름 표시</span></div>${Tabs({ items: (['all', 'mine', 'off'] as const).map((k) => ({ id: k, label: PITCH_NAMES_KO[k] })), value: pitchNames(), act: 'po-names', fill: true, label: '이름 표시' })}
     <p class="small muted">이 기기에 저장돼요. 경기 결과에는 영향이 없어요. 경기 화면의 [보기]로도 바꿔요.</p>`;
@@ -454,12 +488,18 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
   const links = SET_PAGES.map((pg) => `<button type="button" class="set-link" data-act="set-page" data-v="${pg.id}"><span class="set-link__icon">${Icon({ name: pg.icon, size: 18 })}</span><span class="grow"><b>${pg.label}</b><small>${esc(counts[pg.id])}</small></span><span class="set-link__go">편집${Icon({ name: 'chevron-right', size: 16 })}</span></button>`).join('');
   const look = `<div class="kv"><span>화면 스타일</span></div>${Tabs({ items: (['b', 'a'] as const).map((k) => ({ id: k, label: SKIN_KO[k] })), value: skin(), act: 'skin-set', fill: true, label: '화면 스타일' })}
     <p class="small muted">B = 꺾인 모서리·이탤릭 숫자(기본) · A = 둥근 알약 모양. 색과 화면 내용은 같아요. 이 기기에 저장돼요.</p>
+    <div class="kv"><span>팩 개봉 연출</span></div>${Tabs({ items: (['full', 'short', 'off'] as const).map((k) => ({ id: k, label: PACK_ANIM_PREF_KO[k] })), value: loadPackAnimPref(), act: 'pack-anim-set', fill: true, label: '팩 개봉 연출' })}
+    <p class="small muted">카드팩·카드 선택권을 열 때 연출이에요. 움직임 줄이기를 켠 기기는 '전체'도 짧게 보여요. 결과·확률과는 무관해요.</p>
+    <div class="kv"><span>골 연출</span></div>${Tabs({ items: (['on', 'off'] as const).map((k) => ({ id: k, label: GOAL_SPLASH_PREF_KO[k] })), value: loadGoalSplashPref(), act: 'goal-splash-set', fill: true, label: '골 연출' })}
+    <p class="small muted">우리 팀 골이 들어가면 'GOAL!'이 날아와요(약 1.6초, 탭하면 닫혀요). 움직임 줄이기를 켠 기기는 가운데에서 잠깐 떠요.</p>
+    <div class="kv"><span>연출 미리보기</span><small class="muted">카드·세이브는 그대로예요</small></div><div class="btn-row even">${(['common', 'rare', 'epic', 'legendary'] as const).map((r) => Button({ variant: 'secondary', size: 'sm', act: 'pack-anim-demo', data: { v: r }, children: PACK_RARITY_KO[r] })).join('')}${Button({ variant: 'secondary', size: 'sm', act: 'pack-anim-demo', data: { v: 'legendary', k: 'pick' }, children: '선택권' })}</div>
     <small class="set-links__label">하위 화면</small><div class="set-links">${links}</div>`;
-  const lookSub = `스타일 ${SKIN_KO[skin()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
+  const lookSub = `스타일 ${SKIN_KO[skin()]} · 팩 연출 ${PACK_ANIM_PREF_KO[loadPackAnimPref()]} · 골 연출 ${GOAL_SPLASH_PREF_KO[loadGoalSplashPref()]} · 선수 이름 · 경기 아이콘 · 페이스온 · 카드 이미지`;
   const saves = `<div class="kv"><span>세이브 관리</span>${Button({ variant: 'secondary', size: 'sm', icon: 'disk', act: 'go', data: { to: 'saves' }, children: '저장·불러오기·파일' })}</div>
     <div class="kv"><span>첫 플레이 안내</span>${Button({ variant: 'ghost', size: 'sm', act: 'tips-reset', children: '안내 다시 보기' })}</div>${
     // C.73d: 초기화면(타이틀)으로. 자동 저장 뒤 나간다. 경기 중에는 숨긴다
-    g && !locked ? `<div class="kv"><span>초기화면</span>${Button({ variant: 'secondary', size: 'sm', icon: 'home', act: 'to-title', children: '초기화면으로' })}</div>` : ''}`;
+    g && !locked ? `<div class="kv"><span>초기화면</span>${Button({ variant: 'secondary', size: 'sm', icon: 'home', act: 'to-title', children: '초기화면으로' })}</div>` : ''}
+    ${creditsBlock(!!set.credits)}`;
   const st = faceStats();
   const pack = `<p class="small">내가 올린 이미지(카드 이미지 포함, <b>cards/</b> 폴더)를 zip 하나로 내보내 다른 기기에서 가져올 수 있어요. 직접 만든 zip도 돼요: <b>players/선수이름.png</b>(나이대 칸은 <b>선수이름@young</b>·<b>@prime</b>·<b>@veteran</b>), <b>clubs/구단이름.png</b>. 이름은 한글·영문 모두 돼요.</p>
     <div class="btn-row even">${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'download', act: 'facepack-export', disabled: st.faceOn === 0 && userArtCount() === 0, children: 'zip 내보내기' })}${Button({ variant: 'secondary', size: 'sm', block: true, icon: 'upload', act: 'facepack-import', children: 'zip 가져오기' })}</div>`;
@@ -468,11 +508,11 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     const cur: SetSec = set.open ?? 'play';
     const bodies: Record<SetSec, [string, string, boolean?]> = {
       play: [playSub, play, locked && !!g], view: [pvSub, pv], look: [lookSub, look],
-      saves: [`세이브 관리 · 첫 플레이 안내 다시 보기${g && !locked ? ' · 초기화면으로' : ''}`, saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
+      saves: [`세이브 관리 · 첫 플레이 안내 다시 보기${g && !locked ? ' · 초기화면으로' : ''} · 사진·로고 출처`, saves], pack: [`이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, pack],
     };
     const [sub, body, lk] = bodies[cur];
     return `${hero}<div class="body set-body">${pc2(setNav('main', cur), `${locked ? Banner({ tone: 'warning', title: '경기 중이에요', children: '경기 진행 설정은 경기가 끝나면 바꿀 수 있어요. 화면 보기·꾸미기는 지금도 돼요.' }) : ''}${
-      section(cur, sub, true, body, lk ?? false)}<input type="file" id="fp-file" accept=".zip,application/zip" hidden>${versionFooter(version)}`, 'set-pc')}</div>${cardArtOverlay(ca)}`;
+      section(cur, sub, true, body, lk ?? false)}<input type="file" id="fp-file" accept=".zip,application/zip" hidden>${updateCheckRow(PATCH_LABEL, STAGE_LABEL)}${versionFooter(version)}`, 'set-pc')}</div>${cardArtOverlay(ca)}`;
   }
   return `${hero}<div class="body set-body">
     ${jump}
@@ -480,10 +520,10 @@ function mainPage(g: GameState | null, set: SetUI, version: VersionVM, locked: b
     ${section('play', playSub, open('play'), play, locked && !!g)}
     ${section('view', pvSub, open('view'), pv)}
     ${section('look', lookSub, open('look'), look)}
-    ${section('saves', '세이브 관리 · 첫 플레이 안내 다시 보기', open('saves'), saves)}
+    ${section('saves', '세이브 관리 · 첫 플레이 안내 다시 보기 · 사진·로고 출처', open('saves'), saves)}
     ${section('pack', `이미지 묶음 내보내기 · 가져오기 · 내 이미지 ${st.faceOn}건 · 내 그림 ${userArtCount()}장`, open('pack'), pack)}
     <input type="file" id="fp-file" accept=".zip,application/zip" hidden>
-    ${versionFooter(version)}
+    ${updateCheckRow(PATCH_LABEL, STAGE_LABEL)}${versionFooter(version)}
   </div>${cardArtOverlay(ca)}`;
 }
 

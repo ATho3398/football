@@ -5,6 +5,7 @@
 import type { FieldAttribute } from '../attributes';
 import type { SceneId } from '../engine/moments';
 import { SIGNATURE_CARDS } from '../signatureCards';
+import { BALANCE } from './balance';
 
 export type CardKind = 'play' | 'setPiece' | 'passive' | 'combo' | 'manage' | 'signature' | 'directive';
 export type CardGroup = 'common' | 'attack' | 'midfield' | 'defense';
@@ -64,7 +65,8 @@ export type CardEffect =
   | { type: 'discardDraw'; n: number }
   | { type: 'oppProbDelta'; value: number; note?: string }
   | { type: 'roleOnly'; role: string; text: string }
-  | { type: 'directive'; text: string };
+  /** 지시 카드 (F.4, C.75i): follow = 엔진 1순위 선택지 그대로(경기 뒤 신뢰 +), solo = 개인 가치 최대 선택지(성공 평점·XP, 실패 신뢰 −), trust = 신뢰 높을 때만 */
+  | { type: 'directive'; mode: 'follow' | 'solo' | 'trust'; text: string };
 
 export interface CardDef {
   id: string;
@@ -87,11 +89,13 @@ export interface CardDef {
   mastery: boolean;
   /** 시작 덱 포지션군 (F.0 11번) */
   starter?: Exclude<CardGroup, 'common'>[];
-  /** 지시 카드: 효과는 5단계 */
+  /** 아직 닫힌 카드 (지금은 없음, C.75i 에서 지시 카드가 열림) */
   inactiveUntil?: '5단계';
 }
 
 const R = (v: number) => v / 100;
+/** 확률 카드(확률·패시브·콤보·관리의 +%p) 강화 배수 (C.75h, 16.3·F.5 개정): 표 수치 × probMul, 1%p 단위 반올림 */
+const P = (v: number) => Math.round(v * BALANCE.cards.probMul) / 100;
 
 /** 공용 18장 */
 const COMMON: CardDef[] = [
@@ -114,27 +118,27 @@ const COMMON: CardDef[] = [
     condition: '직접 프리킥 25 m 이상, 슈팅 75', mastery: false,
     effects: [{ type: 'addOption', base: 'shoot', label: '무회전 프리킥', probDelta: R(-10), saveDelta: R(-15), ratingSuccess: 0.4, when: { minDist: 22 } }] },
   { id: 'penSpecial', name: '페널티 스페셜', kind: 'setPiece', group: 'common', rarity: 'rare', scenes: ['penalty'], positions: [], requires: { composure: 70 },
-    condition: 'PK, 침착성 70', mastery: true, effects: [{ type: 'probDelta', option: 'shoot', value: R(10), duration: 'once' }] },
+    condition: 'PK, 침착성 70', mastery: true, effects: [{ type: 'probDelta', option: 'shoot', value: P(10), duration: 'once' }] },
   { id: 'panenka', name: '파넨카', kind: 'setPiece', group: 'common', rarity: 'epic', scenes: ['penalty'], positions: [], requires: {},
     condition: 'PK', mastery: false, downside: '실패 시 평점 −0.8',
     effects: [{ type: 'addOption', base: 'shoot', label: '파넨카', probDelta: R(-10), ratingSuccess: 1.0, ratingFail: -0.8, note: 'GK가 먼저 움직이면(60%) 선방 불가, 위상 보너스' }] },
   { id: 'fkCross', name: '프리킥 크로스', kind: 'setPiece', group: 'common', rarity: 'common', scenes: ['freeKick'], positions: [], requires: { crossing: 65 },
-    condition: '측면 프리킥, 크로스 65', mastery: true, effects: [{ type: 'probDelta', option: 'cross', value: R(10), duration: 'once' }] },
+    condition: '측면 프리킥, 크로스 65', mastery: true, effects: [{ type: 'probDelta', option: 'cross', value: P(10), duration: 'once' }] },
   { id: 'spDefense', name: '세트피스 수비', kind: 'setPiece', group: 'common', rarity: 'common', scenes: ['oppCorner', 'oppFreeKick'], positions: [], requires: {},
-    condition: '상대 코너/프리킥', mastery: true, effects: [{ type: 'probDelta', option: 'header', value: R(10), duration: 'once' }] },
+    condition: '상대 코너/프리킥', mastery: true, effects: [{ type: 'probDelta', option: 'header', value: P(10), duration: 'once' }] },
   { id: 'calmFinish', name: '침착한 마무리', kind: 'passive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: { shooting: 60 },
-    condition: '슈팅 65 (시작 덱 60)', starter: ['attack'], mastery: true, effects: [{ type: 'probDelta', option: 'shoot', value: R(5), duration: 'rest', box: true, note: '박스 안 유효 슈팅' }] },
+    condition: '슈팅 65 (시작 덱 60)', starter: ['attack'], mastery: true, effects: [{ type: 'probDelta', option: 'shoot', value: P(5), duration: 'rest', box: true, note: '박스 안 유효 슈팅' }] },
   { id: 'aerialCommand', name: '공중 장악', kind: 'passive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: { heading: 65 },
-    condition: '헤더 65', mastery: true, effects: [{ type: 'probDelta', option: 'header', value: R(6), duration: 'rest' }] },
+    condition: '헤더 65', mastery: true, effects: [{ type: 'probDelta', option: 'header', value: P(6), duration: 'rest' }] },
   { id: 'pacing', name: '체력 안배', kind: 'passive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
     condition: '-', mastery: true, downside: '드리블 −3%p',
     effects: [{ type: 'fatigueMult', value: 0.85 }, { type: 'probDelta', option: 'dribble', value: R(-3), duration: 'rest' }] },
   { id: 'momentum', name: '기세', kind: 'combo', group: 'common', rarity: 'rare', scenes: [], positions: [], requires: {},
-    condition: '-', mastery: true, effects: [{ type: 'nextSceneBonus', if: '돌파 성공 후 소유 유지', on: 'dribbleWon', option: 'shoot', value: R(8) }] },
+    condition: '-', mastery: true, effects: [{ type: 'nextSceneBonus', if: '돌파 성공 후 소유 유지', on: 'dribbleWon', option: 'shoot', value: P(8) }] },
   { id: 'counterStart', name: '카운터 시작', kind: 'combo', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '-', starter: ['midfield'], mastery: true, effects: [{ type: 'nextSceneBonus', if: '태클/인터셉트 성공', on: 'ballWon', option: 'keyPass', value: R(8) }] },
+    condition: '-', starter: ['midfield'], mastery: true, effects: [{ type: 'nextSceneBonus', if: '태클/인터셉트 성공', on: 'ballWon', option: 'keyPass', value: P(8) }] },
   { id: 'focus', name: '집중', kind: 'manage', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '-', starter: ['attack', 'midfield', 'defense'], mastery: true, effects: [{ type: 'probDelta', value: R(8), duration: 'once', note: '이번 턴 선택지 하나' }] },
+    condition: '-', starter: ['attack', 'midfield', 'defense'], mastery: true, effects: [{ type: 'probDelta', value: P(8), duration: 'once', note: '이번 턴 선택지 하나' }] },
   { id: 'composed', name: '침착', kind: 'manage', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
     condition: '-', starter: ['attack', 'midfield', 'defense'], mastery: false, effects: [{ type: 'failureSoftener', value: 0.5 }] },
   { id: 'reset', name: '리셋', kind: 'manage', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
@@ -153,7 +157,7 @@ const ATTACK: CardDef[] = [
   { id: 'lineRunner', name: '오프사이드 라인 타기', kind: 'passive', group: 'attack', rarity: 'rare', scenes: [], positions: ATTACK_POS, requires: { offTheBall: 70 },
     condition: '공격 위치선정 70', mastery: false, effects: [{ type: 'probDelta', value: 0, duration: 'rest', note: '내가 받는 침투 패스의 오프사이드 확률 × 0.7' }] },
   { id: 'dribbleExpert', name: '돌파 전문', kind: 'passive', group: 'attack', rarity: 'common', scenes: [], positions: ATTACK_POS, requires: { dribbling: 60 },
-    condition: '드리블 65 (시작 덱 60)', starter: ['attack'], mastery: true, effects: [{ type: 'probDelta', option: 'dribble', value: R(5), duration: 'rest' }] },
+    condition: '드리블 65 (시작 덱 60)', starter: ['attack'], mastery: true, effects: [{ type: 'probDelta', option: 'dribble', value: P(5), duration: 'rest' }] },
   { id: 'divingHeader', name: '다이빙 헤더', kind: 'play', group: 'attack', rarity: 'rare', scenes: ['aerial'], positions: ATTACK_POS, requires: { heading: 65 },
     condition: '낮은 크로스 공중볼, 박스 안, 헤더 65', mastery: false, downside: '착지 후 1.5초 행동 불가',
     effects: [{ type: 'addOption', base: 'header', label: '다이빙 헤더', probDelta: R(8), ratingSuccess: 0.2, ratingFail: -0.1 }] },
@@ -188,11 +192,11 @@ const MIDFIELD: CardDef[] = [
     effects: [{ type: 'addOption', base: 'shoot', label: '세컨드볼 발리', probDelta: R(-10), saveDelta: R(-10), ratingSuccess: 0.4 }] },
   { id: 'tempo', name: '템포 조절', kind: 'passive', group: 'midfield', rarity: 'common', scenes: [], positions: MID_POS, requires: { shortPassing: 60 },
     condition: '숏패스 60', starter: ['midfield'], mastery: true,
-    effects: [{ type: 'probDelta', option: 'safe', value: R(5), duration: 'rest' }, { type: 'fatigueMult', value: 0.95 }] },
+    effects: [{ type: 'probDelta', option: 'safe', value: P(5), duration: 'rest' }, { type: 'fatigueMult', value: 0.95 }] },
   { id: 'midControl', name: '중원 장악', kind: 'passive', group: 'midfield', rarity: 'common', scenes: [], positions: ['CM', 'CDM'], requires: {},
-    condition: 'CM/CDM', mastery: true, effects: [{ type: 'probDelta', option: 'tackle', value: R(5), duration: 'rest', note: '중원 경합·탈취' }] },
+    condition: 'CM/CDM', mastery: true, effects: [{ type: 'probDelta', option: 'tackle', value: P(5), duration: 'rest', note: '중원 경합·탈취' }] },
   { id: 'chainPress', name: '연속 압박', kind: 'combo', group: 'midfield', rarity: 'common', scenes: [], positions: MID_POS, requires: { workRate: 60 },
-    condition: '노력 60', mastery: true, effects: [{ type: 'nextSceneBonus', if: '압박 성공', on: 'tackleWon', option: 'tackle', value: R(8) }] },
+    condition: '노력 60', mastery: true, effects: [{ type: 'nextSceneBonus', if: '압박 성공', on: 'tackleWon', option: 'tackle', value: P(8) }] },
 ];
 
 /** 수비 8장 (CB/풀백) */
@@ -211,7 +215,7 @@ const DEFENSE: CardDef[] = [
     condition: '공격 코너, 헤더 65 (시작 덱 60)', starter: ['defense'], mastery: false,
     effects: [{ type: 'addOption', base: 'header', label: '세트피스 가담 헤더', probDelta: R(5), ratingSuccess: 0.3 }] },
   { id: 'ironWall', name: '철벽 수비', kind: 'passive', group: 'defense', rarity: 'common', scenes: [], positions: DEF_POS, requires: {},
-    condition: '수비 포지션', starter: ['defense'], mastery: true, effects: [{ type: 'probDelta', option: 'tackle', value: R(5), duration: 'rest', note: '수비 1대1·태클' }] },
+    condition: '수비 포지션', starter: ['defense'], mastery: true, effects: [{ type: 'probDelta', option: 'tackle', value: P(5), duration: 'rest', note: '수비 1대1·태클' }] },
   { id: 'offsideTrap', name: '오프사이드 트랩 지휘', kind: 'play', group: 'defense', rarity: 'rare', scenes: ['lineCall'], positions: ['CB'], requires: { defensivePositioning: 70 },
     condition: '상대 전진 패스 준비 장면(lineCall), CB, 수비 포지셔닝 70', mastery: false, downside: '라인이 어긋나면 뒷공간 허용',
     effects: [{ type: 'addOption', base: 'lineCall', label: '라인 2 m 올리기', judge: { defensivePositioning: 1 }, ratingSuccess: 0.2, ratingFail: -0.3 }] },
@@ -278,14 +282,15 @@ const SIGNATURE: CardDef[] = SIGNATURE_CARDS.map((c) => ({
   effects: [{ type: 'roleOnly' as const, role: c.role, text: c.effect }, { type: 'addOption' as const, label: c.name, ...SIG_FX[c.role]!, note: c.effect }],
 }));
 
-/** 지시 3장 (데이터만, 효과는 5단계 신뢰도와 함께, D.11 6번) */
+/** 지시 3장 (D.11 6번, C.75i): 직접 모드 소유 결정 순간에만. 신뢰도·평점·XP 보상은 경기 뒤 (BALANCE.cards.directive) */
 const DIRECTIVE: CardDef[] = [
   { id: 'dirFollow', name: '지시 이행', kind: 'directive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '내가 정한 슬롯 역할대로', mastery: false, inactiveUntil: '5단계', effects: [{ type: 'directive', text: '팀 결과와 신뢰도 +' }] },
+    condition: '엔진이 고를 1순위 선택지대로', mastery: false, effects: [{ type: 'directive', mode: 'follow', text: '4번째 선택지 "지시 이행" · 경기 뒤 신뢰도 +1 (경기당 +3까지)' }] },
   { id: 'dirSolo', name: '독단', kind: 'directive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '역할을 벗어난 개인 플레이', mastery: false, inactiveUntil: '5단계', effects: [{ type: 'directive', text: '성공 시 평점 +0.8, XP × 1.3 / 실패 시 신뢰도 −5' }] },
+    condition: '1순위가 아닌 개인 플레이(슛·돌파)', mastery: false, effects: [{ type: 'directive', mode: 'solo', text: '4번째 선택지 "독단" · 성공 시 평점 +0.8, XP × 1.3 / 실패 시 신뢰도 −5' }] },
   { id: 'dirTrust', name: '감독의 신뢰', kind: 'directive', group: 'common', rarity: 'common', scenes: [], positions: [], requires: {},
-    condition: '신뢰도 높을 때만', mastery: false, inactiveUntil: '5단계', effects: [{ type: 'directive', text: '신뢰도 연동 (5단계)' }] },
+    condition: '감독 신뢰도 70 이상일 때만', mastery: false,
+    effects: [{ type: 'directive', mode: 'trust', text: '' }, { type: 'probDelta', value: R(5), duration: 'once' }] },
 ];
 
 export const CARDS: readonly CardDef[] = [...COMMON, ...ATTACK, ...MIDFIELD, ...DEFENSE, ...SIGNATURE, ...DIRECTIVE];

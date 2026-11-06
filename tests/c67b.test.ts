@@ -5,7 +5,7 @@ import { daysBetween, weekday } from '../src/calendar';
 import { BALANCE } from '../src/config/balance';
 import { cupAchievements, groupTable, myCupMatches, uclEntrants, uclMatches, uclReachLabel } from '../src/cups';
 import { calendarOf, endSeason, newGame, playRound, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { autoSheetVM, cupsWorldVM, homeVM } from '../src/ui/viewModels';
 import { cupsSection } from '../src/ui/views/screens';
 
@@ -89,7 +89,8 @@ describe('챔스 한 시즌', () => {
 
   it('챔스 결승에 오르면 리그가 끝나도 시즌이 이어지고, 결승을 치른 뒤 끝난다', () => {
     let found = false;
-    for (const seed of ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8']) {
+    // C.77m: 피로 수치가 바뀌어 내 선수 출전이 달라져 u1~u8 에선 결승에 못 감 → 결승에 가는 u16 을 앞에 (시드 교체, 검사 내용 그대로)
+    for (const seed of ['u16', 'u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8']) {
       const g = real(seed);
       for (let s = 0; s < 2 && !found; s++) {
         while (g.phase === 'season') playRound(g, { engine: 'quick' });
@@ -180,15 +181,12 @@ describe('화면 (디자인 없음)', () => {
 });
 
 describe('세이브 37', () => {
-  it('왕복 그대로 · 36 세이브(챔스 없음)는 이번 시즌 챔스 없이 진행', () => {
+  it('왕복 그대로 · 옛 세이브(36)는 이어 할 수 없음', () => {
     const g = real('c67b-save');
-    expect(SAVE_FORMAT_VERSION).toBe(43);
+    expect(SAVE_FORMAT_VERSION).toBe(61);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 36;
-    delete raw.cups.ucl;
-    const old = deserialize(JSON.stringify(raw));
-    for (let k = 0; k < 6; k++) playRound(old, { engine: 'quick' });
-    expect(old.cups!.ucl ?? null).toBeNull();
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });

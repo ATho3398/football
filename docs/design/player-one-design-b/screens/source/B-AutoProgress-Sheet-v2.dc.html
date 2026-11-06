@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>자동진행-시트-v2</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/playerone/tokens.css">
+<link rel="stylesheet" href="ds/playerone/components/bundle.css">
+<script src="ds/playerone/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#16171b}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-0); color: var(--ink); font-family: var(--font-sans);">
+<x-import component-from-global-scope="PlayerOne.HeroPanel" title="홈" on-back="{{no}}" compact="{{yes}}" right="" eyebrow="2018-19 시즌 · 9월 16일 (일)" value="9.16" chips="{{heroChips}}"></x-import><div style="display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px;">
+<section style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 6px; background: var(--surface-1); ">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <span style="font-size: 13px; font-weight: 800;">다음 경기 <span style="font-weight: 600; color: var(--ink-muted);">· 리그 6R · 원정</span></span>
+        <span style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">9월 22일 (토)</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;">
+        <span style="display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 800;"><x-import component-from-global-scope="PlayerOne.Crest" name="토트넘 홋스퍼" size="{{i24}}"></x-import><span style="white-space: nowrap;">토트넘 홋스퍼</span></span>
+        <span style="font-size: 12px; font-weight: 700; color: var(--ink-faint);">vs</span>
+        <span style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; font-size: 15px; font-weight: 800; color: var(--away);"><span style="white-space: nowrap;">사우샘프턴</span><x-import component-from-global-scope="PlayerOne.Crest" name="사우샘프턴" size="{{i24}}" color="var(--away)"></x-import></span>
+      </div>
+      <div style="display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: var(--ink-muted);">
+        <span>전력 <b style="font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--ink);">80.7</b></span>
+        <span style="display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-3);"><i style="width: 53.3%; background: var(--team-home);"></i><i style="flex: 1; background: var(--away);"></i></span>
+        <span><b style="font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--away);">70.8</b></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 4px; background: var(--surface-2);">
+        <x-import component-from-global-scope="PlayerOne.TacticChip" size="xs" tactic="gegen" formation="4-2-3-1"></x-import><span style="font-size: 11px; font-weight: 700; color: var(--ink-faint);">vs</span><x-import component-from-global-scope="PlayerOne.TacticChip" size="xs" tactic="balanced" formation="4-2-3-1" away="{{yes}}"></x-import>
+        <span style="margin-left: auto;"><x-import component-from-global-scope="PlayerOne.Button" size="sm" variant="ghost" icon="tactic">전술</x-import></span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; color: var(--ink-muted);">
+        <span>내 선수 결정 · <b style="color: var(--ink);">{{decideText}}</b></span>
+        <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{decideTabs}}" value="{{decide}}" label="내 선수 결정"></x-import>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><div style="grid-column: 1 / -1;"><x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon-right="chevron-right">계속 · 계획대로 진행</x-import></div><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="clock">하루 진행</x-import><x-import component-from-global-scope="PlayerOne.Button" variant="secondary" block="{{yes}}" icon="ff">자동 진행</x-import></div>
+    </section><section style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 6px; background: var(--surface-1);">
+      <span style="position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 4px; background: var(--surface-3); color: var(--brand-ink);"><x-import component-from-global-scope="PlayerOne.Icon" name="rest" size="{{i20}}"></x-import></span>
+      <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">오늘 훈련</span>
+        <b style="font-size: 15px; font-weight: 800;">휴식</b>
+        <span style="font-size: 12px; color: var(--ink-muted);">체력 +6 · XP +0 · 이번 주 훈련 XP 2/6</span>
+        <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--ink-faint);"><x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{i12}}"></x-import>경기 다음 날은 휴식으로 고정돼요</span>
+      </span>
+      <x-import component-from-global-scope="PlayerOne.Icon" name="chevron-right" size="{{i18}}"></x-import>
+    </section><section style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 6px; background: var(--surface-1);">
+      <div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 13px; font-weight: 800;">내 상태</span><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">경고 <b style="color: var(--ink);">2/5</b></span></div>
+      <div style="display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">체력</span>
+        <span style="position: relative; height: 10px; border-radius: 3px; background: var(--surface-3); overflow: hidden;"><i style="position: absolute; inset: 0 22% 0 0; border-radius: 3px; background: var(--fatigue-low);"></i></span>
+        <b style="font-family: var(--font-display); font-weight: 700; font-size: 16px;">78</b>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: var(--ink-faint); margin: -6px 0 0 44px; padding-right: 26px;"><span>100 · 가득</span><span>50</span><span>0 · 못 뜀</span></div>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <x-import component-from-global-scope="PlayerOne.FormIndicator" level="{{four}}" show-label="{{yes}}"></x-import>
+        <span style="font-size: 12px; font-weight: 700; color: var(--ink-muted);">평점 보정 <b style="color: var(--success);">+0.17</b></span>
+      </div>
+    </section><section style="display: flex; flex-direction: column; gap: 10px;">
+      <x-import component-from-global-scope="PlayerOne.PlayerCard" player="{{me}}" variant="compact"></x-import>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+        <sc-for list="{{season}}" as="s" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 0; border-radius: 4px; background: var(--surface-1);"><b style="font-family: var(--font-display); font-weight: 700; font-size: 18px; color: {{s.ink}};">{{s.v}}</b><span style="font-size: 11px; font-weight: 700; color: var(--ink-muted);">{{s.l}}</span></div>
+        </sc-for>
+      </div>
+    </section><p style="margin: 4px 0 0; text-align: center; font-size: 11px; line-height: 16px; font-weight: 600; color: var(--ink-faint);">버전 C.44a · 엔진 19 · 밸런스 31 · 2026-10-17 배포 (커밋 c064b8d)</p>
+</div><div style="position: absolute; inset: 0; z-index: 6; background: var(--scrim);"></div><div style="position: absolute; left: 0; right: 0; bottom: {{sheetBottom}}; z-index: 7;"><x-import component-from-global-scope="PlayerOne.BottomSheet" inline="{{yes}}" eyebrow="자동 진행 · 8월 13일 (월)" title="어디까지 진행할까요?"><div style="display: flex; flex-direction: column; gap: 14px;">
+  <span style="font-size: 12px; line-height: 17px; color: var(--ink-muted); word-break: keep-all;">내 경기도 재생 없이 계산해요. 포인트는 쌓아 두고, 답이 필요한 일(이적 제안 등)이 생기면 멈춰요.</span>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <b style="font-size: 13px;">경기 수</b>
+    <x-import component-from-global-scope="PlayerOne.Tabs" variant="segment" items="{{counts}}" value="" label="경기 수"></x-import>
+    <div style="display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px;"><x-import component-from-global-scope="PlayerOne.TextField" label="직접 입력" value="4" hint="1~44경기 · 리그·챔스·컵 합쳐서"></x-import><span style="padding-bottom: 32px; font-size: 13px; font-weight: 700; color: var(--ink-muted);">경기</span></div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <b style="font-size: 13px;">다음 중요 경기 직전까지</b>
+    <x-import component-from-global-scope="PlayerOne.OptionRow" icon="star" title="북런던 더비 · 아스널전" desc="9월 1일 (토) · 홈 · 그 전까지 2경기" tag="2경기" radio="{{yes}}"></x-import><x-import component-from-global-scope="PlayerOne.OptionRow" icon="trophy" title="챔피언스리그 · 조별 1차전" desc="9월 18일 (화) · 원정 · 인터 밀란전 · 그 전까지 4경기" tag="4경기" radio="{{yes}}" selected="{{yes}}"></x-import><x-import component-from-global-scope="PlayerOne.OptionRow" icon="trophy" title="FA컵 · 3라운드" desc="1월 5일 (토) · 상대는 추첨 뒤 · 그 전까지 25경기" tag="25경기" radio="{{yes}}"></x-import>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line);">
+      <span style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{notyet}}" as="n" hint-placeholder-count="4"><span style="height: 24px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; border-radius: 3px; background: var(--surface-2); color: var(--ink-faint); font-size: 11px; font-weight: 700;"><x-import component-from-global-scope="PlayerOne.Icon" name="lock" size="{{i12}}"></x-import>{{n}}</span></sc-for></span>
+      <span style="font-size: 11px; color: var(--ink-faint);">아직 없음 · 국가대표는 커리어 단계가 오르면 생겨요</span>
+    </div>
+  </div>
+  <x-import component-from-global-scope="PlayerOne.Button" size="lg" block="{{yes}}" icon="ff">4경기 자동 진행 · 챔스 직전까지</x-import>
+</div></x-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dockBadges = {}, dockLocked = [];
+    const me = { name: '손흥민', age: 26, position: 'LW', ovr: 83, tier: 'key', tierScore: 500, level: 0, team: '토트넘 홋스퍼' };
+    const season = [{ v: 5, l: '출전', ink: 'var(--ink)' }, { v: 1, l: '골', ink: 'var(--brand-ink)' }, { v: 2, l: '도움', ink: 'var(--ink)' }, { v: '7.08', l: '평균 평점', ink: 'var(--ink)' }];
+    const decideTabs = [{ id: 'manual', label: '직접' }, { id: 'auto', label: '자동' }];
+    return { dockBadges, dockLocked, yes: true, no: false, four: 4, i12: 12, i18: 18, i20: 20, i24: 24, me, season, decideTabs, decide: 'auto', decideText: '엔진이 대신 골라요', heroChips: ['경기까지 6일', { label: '리그 6/38R', soft: true }], sheetBottom: '0px', counts: [{ id: '1', label: '1' }, { id: '3', label: '3' }, { id: '5', label: '5' }, { id: '10', label: '10' }, { id: 'end', label: '시즌 끝 · 44' }], notyet: ['국가대표 A매치', '국대 토너먼트'], i12: 12 };
+  }
+}
+</script>
+</body>
+</html>

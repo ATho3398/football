@@ -29,9 +29,9 @@ export function FeedItem(p: FeedItemProps): string {
 
 // ── Tactic chips (ScoreBar 가 쓰는 하위 컴포넌트) ──
 
-export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block';
-const TSTYLES: Record<TacticStyle, string> = { balanced: '균형', tikitaka: '티키타카', gegen: '게겐프레싱', counter: '역습', direct: '직선', block: '수비 블록' };
-const TSTYLE_ICON: Record<TacticStyle, IconName> = { balanced: 't-balanced', tikitaka: 't-tikitaka', gegen: 't-gegen', counter: 't-counter', direct: 't-direct', block: 't-block' };
+export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block' | 'bus';
+const TSTYLES: Record<TacticStyle, string> = { balanced: '균형', tikitaka: '티키타카', gegen: '게겐프레싱', counter: '역습', direct: '직선', block: '수비 블록', bus: '버스 세우기' };
+const TSTYLE_ICON: Record<TacticStyle, IconName> = { balanced: 't-balanced', tikitaka: 't-tikitaka', gegen: 't-gegen', counter: 't-counter', direct: 't-direct', block: 't-block', bus: 't-bus' };
 
 export function TacticEmblem(p: { tactic: TacticStyle; size?: number; away?: boolean; on?: boolean }): string {
   const size = p.size ?? 40;
@@ -100,6 +100,8 @@ export interface SceneStripProps {
   minute: string | number;
   /** onLive / onHighlight / onSettings 대신 동작. onSettings 가 없으면 톱니를 숨긴다 (설정 항목이 없을 때) */
   onLive?: Action; onHighlight?: Action; onSettings?: Action;
+  /** [여기서부터 실시간] 숨김 (하이라이트 클립 재생, C.77o: 클립 밖 프레임이 없다) */
+  noLive?: boolean;
   settingsOn?: boolean;
   idPrefix?: string;
 }
@@ -116,7 +118,7 @@ function sceneStrip(p: SceneStripProps, solo: boolean): string {
     : view === 'transition' ? `<span><b>장면 전환</b> · 다음 <span class="po-num">${idx + 1}/${total}</span></span>`
     : view ? `<span><b>하이라이트</b> · 장면 <span class="po-num">${idx}/${total}</span>${sc.minute != null ? ` · <span class="po-num">${esc(sc.minute)}'</span>` : ''}${sc.label ? ` ${esc(sc.label)}` : ''}</span>`
     : '';
-  const acts = `${view === 'highlight' || view === 'transition'
+  const acts = `${(view === 'highlight' || view === 'transition') && !p.noLive
     ? `<button type="button" class="po-strip__btn"${actAttrs(p.onLive ?? {})}${view === 'transition' ? ' disabled' : ''}>${Icon({ name: 'play', size: 11, filled: true })}여기서부터 실시간</button>` : ''}${
     view === 'live' ? `<button type="button" class="po-strip__btn"${actAttrs(p.onHighlight ?? {})}>${Icon({ name: 'video', size: 11 })}하이라이트로 돌아가기</button>` : ''}${
     p.onSettings ? `<button type="button" class="${cx('po-strip__gear', p.settingsOn && 'is-on')}" aria-label="경기 설정"${actAttrs(p.onSettings)}>${Icon({ name: 'settings', size: 17 })}</button>` : ''}`;
@@ -214,6 +216,8 @@ export interface ChoiceButtonProps extends Action {
   deltaSource?: string;
   success: { text: string; rating: string };
   fail: { text: string; rating: string };
+  /** 기대 평점 (C.77s A3): 성공 뒤 이어질 공격 몫까지 넣은 값, 성공·실패 줄 옆 한 줄 */
+  ev?: string;
   offside?: 'low' | 'mid' | 'high';
   /** 상대 분석 리포트 약점을 노리는 선택지 (C.74c): "약점 공략" 칩 (접은 줄에도 보인다) */
   exploit?: boolean;
@@ -246,7 +250,8 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
     : `<span class="po-choice__prob">${d ? `<s class="po-num">${p.chance}%</s>` : ''}<b class="${cx('po-num', d > 0 && 'is-up', d < 0 && 'is-down')}">${shown}<small>%</small></b>${
       d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar"><i style="width:${shown}%"></i></span></span>`;
   return `<button type="button" class="${cx('po-choice', `po-choice--${p.kind}`, p.kind === 'play' && `po-rarity--${p.rarity ?? 'rare'}`, p.compact && 'po-choice--compact', p.collapsed && 'po-choice--row', p.certain && 'is-certain', p.selected && 'is-selected')}"${actAttrs(p)} aria-pressed="${!!p.selected}"${p.disabled ? ' disabled' : ''}>
-    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}</span></span>${prob}</button>`;
+    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}${
+      p.ev ? `<span class="po-out po-out--ev">${Icon({ name: 'chance', size: 14, strokeWidth: 3 })}<span>기대 평점</span><b class="po-num">${esc(p.ev)}</b></span>` : ''}</span></span>${prob}</button>`;
 }
 
 // ── ResultSplash (결정 결과, 5차 82~84): 도장(성공/실패) + 제목 + 설명 + 평점 ──

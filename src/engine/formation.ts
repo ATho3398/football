@@ -1,8 +1,11 @@
 // 팀 전술 층 (E.5): 슬롯 위치 + phase 시프트 + 블록 쏠림 + 역할 오프셋
 
 import type { Position } from '../types';
-import { ENGINE } from './config';
-import { attackDir, clamp, toNorm } from './pitch';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { attackDir, clamp, normX, normY, toNorm } = pitch_;
 import type { Agent, Line, SimState } from './state';
 
 export function lineOf(pos: Position): Line {
@@ -22,10 +25,14 @@ export function teamPhase(s: SimState, team: 0 | 1): number {
 
 /** 수적 열세/우세 보정 (E.10). 퇴장으로 인원이 다르면 */
 export function manDiff(s: SimState, team: 0 | 1): number {
-  let own = 0;
-  let opp = 0;
-  for (const a of s.agents) if (a.onPitch) (a.team === team ? own++ : opp++);
-  return own - opp;
+  // C.81e: onPitch 가 바뀌지 않았으면 지난 값 (onVer 는 onPitch 를 바꾸는 곳마다 오른다)
+  if (s.manVer !== s.onVer) {
+    let d = 0;
+    for (const a of s.agents) if (a.onPitch) d += a.team === 0 ? 1 : -1;
+    s.manD0 = d;
+    s.manVer = s.onVer;
+  }
+  return team === 0 ? s.manD0 : -s.manD0;
 }
 
 /** 공 위치 (팀 기준 정규화) */
@@ -42,9 +49,19 @@ export function smoothBallNorm(s: SimState, team: 0 | 1): [number, number] {
  * 슬롯 목표 (팀 기준 정규화). phase 보간, 블록 쏠림, 역할 오프셋(공격 시)을 더한다
  */
 export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number, number] {
+  slotTargetS(s, a, attackShiftScale);
+  return [SLOT.x, SLOT.y];
+}
+
+/** slotTarget 을 배열 없이 (C.81e): 결과는 SLOT.x·SLOT.y (바로 다음에 읽는다) */
+export const SLOT = { x: 0, y: 0 };
+export function slotTargetS(s: SimState, a: Agent, attackShiftScale = 1): void {
   const F = ENGINE.formation;
   const phase = teamPhase(s, a.team);
-  const [bx, by] = smoothBallNorm(s, a.team);
+  // smoothBallNorm 과 같은 식
+  const sdir = attackDir(a.team, s.half);
+  const bx = normX(s.bsx, sdir);
+  const by = normY(s.bsy, sdir);
   let x = a.sx;
   let y = a.sy;
   if (phase >= 0) x += F.attackShift[a.line] * phase * attackShiftScale;
@@ -53,11 +70,13 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
     // 압박 전술: 수비 시 중원·공격 줄을 올리거나 내린다 (E.19 ③)
     if (a.line >= 2) x += F.pressBlock * (s.teams[a.team].tactics.pressing - 0.55) * -phase;
   }
-  x += F.blockX * (bx - 0.5);
+  // 압박 전술 (C.76s): 수비 시 블록이 공을 더 따라간다 (pressFollow)
+  const follow = phase < 0 ? 1 + F.pressFollow * (s.teams[a.team].tactics.pressing - 0.55) * -phase : 1;
+  x += F.blockX * follow * (bx - 0.5);
   if (phase < 0 && a.line !== 0) {
     // 수비 블록: 가로로 좁히고 공 쪽으로 쏠린다
     const k = -phase;
-    y = 0.5 + (y - 0.5) * (1 - (1 - F.defendWidth) * k) + (F.blockY + (F.defendBlockY - F.blockY) * k) * (by - 0.5);
+    y = 0.5 + (y - 0.5) * (1 - (1 - F.defendWidth) * k) + (F.blockY + (F.defendBlockY - F.blockY) * k) * follow * (by - 0.5);
   } else y += F.blockY * (by - 0.5);
   if (phase > 0 && a.line !== 0) {
     // 공격 폭 (E.19 ③): 슬롯 y 의 중앙 기준 간격 배수
@@ -71,5 +90,6 @@ export function slotTarget(s: SimState, a: Agent, attackShiftScale = 1): [number
   if (Math.abs(a.sy - 0.5) > 0.25 && Math.sign(a.sy - 0.5) !== Math.sign(by - 0.5)) {
     y += (0.5 - a.sy) * F.narrowFar * Math.abs(by - 0.5) * 2;
   }
-  return [clamp(x, 0.01, 0.99), clamp(y, 0.03, 0.97)];
+  SLOT.x = clamp(x, 0.01, 0.99);
+  SLOT.y = clamp(y, 0.03, 0.97);
 }

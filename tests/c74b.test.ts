@@ -8,7 +8,7 @@ import { addDays, daysBetween } from '../src/calendar';
 import { BALANCE } from '../src/config/balance';
 import { returnOfferDays } from '../src/injury';
 import { initRecords, recordTracks, recordsAfterMatch, shownTracks, takeFreshRecords } from '../src/records';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { injuryReturnVM, recordRowsVM, trainingOptionsVM, trainingVM } from '../src/ui/viewModels';
 import { injuryReturnSheet, recordsSection } from '../src/ui/views/home';
 import { trainingSheet } from '../src/ui/views/training';
@@ -152,26 +152,24 @@ describe('C.74b 기록 추적·도전 과제', () => {
     expect(recordTracks(g).some((x) => x.kind === 'club')).toBe(false);
   });
 
-  it('세이브 41 → 42: 이미 넘은 이정표는 보상 없이 달성, 왕복', () => {
+  it('왕복 그대로, 옛 세이브(41)는 이어 할 수 없음', () => {
     const g = game('mig42');
     g.player.history.push({ ...g.player.season, goals: 60, assists: 12, apps: 120, season: 2017, age: 25, teamId: g.player.teamId, leaguePosition: 5, achievementXp: 0, ovr: 80, reputation: 300 });
+    const back = deserialize(serialize(g));
+    expect(back.saveFormat).toBe(61);
+    expect(back.records).toEqual(g.records);
+    expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 41;
-    delete raw.records;
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(43);
-    expect(back.records!.done).toEqual(expect.arrayContaining(['cg:10', 'cg:25', 'cg:50', 'ca:10', 'cs:50', 'cs:100']));
-    expect(back.records!.done).not.toContain('cg:100');
-    expect(recordsAfterMatch(back)).toEqual([]);
-    expect(serialize(deserialize(serialize(back)))).toBe(serialize(back));
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });
 
 describe('C.74b 버전', () => {
   it('버전 라벨 · 밸런스 블록', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.74/);
-    expect(STAGE_LABEL).toBe('43단계');
+    expect(PATCH_LABEL).toMatch(/^C\.([7-9]\d|7[4-9])/);
+    expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
     expect(BALANCE.travelDay.allowed).toEqual(['video', 'recovery']);
   });
 });

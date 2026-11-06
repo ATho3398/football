@@ -1,12 +1,13 @@
 // 결정 순간 화면 (E.11, I.5·I.17 3번, E4 최소판): 직접 모드에서 내 선수 결정 순간마다 경기가 멈춘다.
 // 피치에는 직전 결정 뒤부터 이 순간까지를 1× 로 보여 주고 마지막 0.5초는 슬로모션으로 멈춘 뒤, 선택지 방향 화살표를 그린다.
-// 패널: 선택지 3개(안전/균형/도박, 성공 확률, 성공/실패 결과, 평점 변화, 오프사이드 위험) → 패 카드 자리(3단계) → [맡기기] [확정].
+// 패널: 선택지 최대 5개(C.75v, 라벨 = 성공 확률 구간 안전 50%+/균형 25%+/도박, 성공 확률, 성공/실패 결과, 평점 변화, 오프사이드 위험) → 패 카드 자리(3단계) → [맡기기] [확정].
 // E5 최소(부록 C.35): 모바일은 패널을 바텀시트로, [확정]·[맡기기] 뒤에는 결과 구간 재생 → 결과 띠(outcomeView).
 // 카드(C.36, I.17 3·4번): 패 카드 줄. 확률 카드를 누르면 선택지 확률이 "+8 카드"로 바뀌어 보이고, 플레이 카드를 누르면 4번째 선택지가 카드 색 테두리로 생긴다.
 // 다시 누르면 취소. 쓸 수 없는 카드는 회색에 이유.
 
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
+import { ENGINE } from '../../engine/config';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
 import { Button, ChoiceButton, Crest, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type FeedKind, type GameCardData } from '../components';
 import { cardById } from '../../config/cards';
@@ -30,9 +31,10 @@ export interface MomentVM {
   last: DecisionRecord | null;
   /** 이번 경기 멈춘 횟수 (지금 포함) */
   count: number;
+  /** PC 피치 아래 "최근 흐름" (218, C.76f): 이 순간 직전 경기 이벤트 피드 몇 줄 (오래된 것 먼저). 없으면 칸에 안내 글 */
+  feed?: { minute: string; text: string; kind: FeedKind; mine: boolean }[];
 }
 
-const KIND_KO: Record<MomentOption['kind'], string> = { safe: '안전', balanced: '균형', gamble: '도박', card: '카드' };
 const STOP_ITEMS: { id: StopLevel; label: string }[] = [
   { id: 'all', label: '모든 순간' }, { id: 'important', label: '중요한 순간만' }, { id: 'critical', label: '결정적 순간만' },
 ];
@@ -40,12 +42,11 @@ const STOP_ITEMS: { id: StopLevel; label: string }[] = [
 export const KIND_COLOR: Record<MomentOption['kind'], string> = { safe: '#5ee0ff', balanced: '#d6ff3c', gamble: '#ff9a3d', card: '#b685ff' };
 
 const signedR = (x: number) => signed(x, 2);
+/** 직전 결정 결과 낱말 (없으면 빈칸) */
+const resultKo = (l: DecisionRecord | null) => (l ? (l.result === 'success' ? '성공' : l.result === 'fail' ? '실패' : '보통') : '');
+/** 몰고 가다 슛 줄 이름 (240A): 2단 행동을 그대로 "몰고 가기 → 슛" */
+const CHAIN_NAME = '몰고 가기 → 슛';
 const pctOf = (p: number | null) => (p === null ? null : Math.round(Math.max(0, Math.min(0.99, p)) * 100));
-
-export function lastResultText(r: DecisionRecord): string {
-  const res = r.result === 'success' ? '성공' : r.result === 'fail' ? '실패' : '결과 보통';
-  return `${r.minute}' ${SCENE_LABEL[r.scene]} · ${r.label} → ${res} (평점 ${signedR(r.delta)})`;
-}
 
 /** 지금 화면에 보이는 선택지: 기본 3개 + 고른 플레이 카드가 연 4번째 */
 export function shownOptions(m: Moment, card: number | null): MomentOption[] {
@@ -74,9 +75,10 @@ function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { nam
   const delta = isCard && o.baseP !== undefined && o.p !== null ? Math.round((o.p - o.baseP) * 100) : Math.round(dp * 100);
   const chance = pctOf(base);
   return ChoiceButton({
-    act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.label, chance,
+    act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.chain ? CHAIN_NAME : o.label, chance,
     ...(chance !== null && delta ? { chanceDelta: Math.max(-chance, Math.min(99 - chance, delta)), deltaSource: '카드' } : {}),
-    success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: signedR(o.down) },
+    success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: `${signedR(o.down)}${o.passive ? ` · 소극적 ${signedR(o.passive)}` : ''}` },
+    ...(o.ev !== undefined ? { ev: signedR(o.ev) } : {}),
     ...(o.offside ? { offside: o.offside } : {}), ...(o.exploit ? { exploit: true } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
   });
 }
@@ -127,7 +129,11 @@ export function momentView(vm: MomentVM): string {
   const shown = shownOptions(m, vm.card);
   const mc = vm.card === null ? null : m.cards.find((c) => c.hand === vm.card) ?? null;
   const look = mc ? cardLook(mc.id, mc.name) : null;
-  const opts = shown.map((o, i) => choice(o, i, sel === i, i < m.options.length ? mc?.deltas?.[i] ?? 0 : 0, look)).join('');
+  const row = (o: MomentOption, i: number) => choice(o, i, sel === i, i < m.options.length ? mc?.deltas?.[i] ?? 0 : 0, look);
+  // 240A: 몰고 가다 슛(2단 행동)은 위 칸들 아래 따로 한 줄 + 머리 글 (늘 도박 색)
+  const chained = shown.map((o, i) => [o, i] as const).filter(([o]) => o.chain);
+  const opts = shown.map((o, i) => (o.chain ? '' : row(o, i))).join('')
+    + (chained.length ? `<p class="mo-chainhead">몰고 가다 슛 · 2단 행동</p>${chained.map(([o, i]) => row(o, i)).join('')}` : '');
   const picked = sel === null ? null : shown[sel] ?? null;
   const pp = picked ? pctOf(picked.p === null ? null : picked.p + (sel! < m.options.length ? mc?.deltas?.[sel!] ?? 0 : 0)) : null;
   const confirm = picked ? `확정 · ${actionWord(picked.label)}${pp === null ? '' : ` ${pp}%`}` : '선택지를 고르세요';
@@ -135,18 +141,24 @@ export function momentView(vm: MomentVM): string {
   // 안내 한 줄 (189): 확실한 선택지를 뺐을 때 / 판정 없는 선택지가 있을 때
   const certain = shown.some((o) => o.p === null);
   const notes = [
-    m.sure ? `확실한 선택지(90%+)는 뺐어요${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''} · 맡기기가 할 일` : '',
+    // C.75v: 남은 선택지가 모두 낮으면 확실한 선택지 1개를 맨 위에 다시 넣는다 ("확실하게 지킬까 vs 모험")
+    m.sureBack ? `다른 선택지가 모두 ${Math.round(ENGINE.moments.sureBackBelow * 100)}% 미만이라 확실한 선택지(90%+) 1개를 맨 위에 넣었어요`
+      : m.sure ? `확실한 선택지(90%+)는 뺐어요${m.options.length < 3 ? ` · 남은 선택지 ${m.options.length}개` : ''} · 맡기기가 할 일` : '',
     certain ? '판정 없는 선택지는 "확정" — 바로 그렇게 돼요' : '',
   ].filter(Boolean);
+  // 슛을 못 고르는 이유 (C.75a): 등짐·각 막힘·거리 밖
+  const shotNote = m.shotNote && !shown.some((o) => o.action === 'shoot') ? `<p class="mo-note mo-shotnote">${Icon({ name: 'shot', size: 14 })}<span>${esc(m.shotNote)}</span></p>` : '';
   const note = notes.length ? `<p class="mo-note">${esc(notes.join(' · '))}</p>` : '';
   return `
-    <div class="moment mo-fold mo-v3">
+    <div class="moment mo-fold mo-v3${shown.length >= 4 ? ` mo-many mo-n${Math.min(5, shown.length)}` : ''}">
       ${scoreTop(vm.teams, m.score, m.side, m.minute, `${SCENE_LABEL[m.scene]} · 결정 순간 ${vm.count}${tension}`)}
       <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면', children: stageTools() })}</div>
+      ${belowStage(vm)}
       <div class="mo-panel" role="group" aria-label="결정 선택">
         <div class="mo-head"><b>어떻게 할까요?</b><span>누르면 피치에 방향이 보여요</span></div>
         ${note}
         <div class="mo-opts">${opts}</div>
+        ${shotNote}
         ${handCards(vm)}
         ${moreSettings(vm)}
         <div class="mo-actions">
@@ -165,12 +177,28 @@ function stageTools(): string {
   return `<span class="mo-dir" aria-hidden="true">공격 방향 ${Icon({ name: 'chevron-right', size: 12, strokeWidth: 2.6 })}</span><span class="mo-zoom" role="group" aria-label="피치 확대">${btn('zoom', '확대', 'search')}${btn('full', '전체')}</span>`;
 }
 
+/** PC 피치 아래 2칸 (218, C.76f): 최근 흐름 · 직전 결정. 폰은 CSS 로 숨기고 직전 결정은 아래 묶음(171)에 그대로 */
+function belowStage(vm: MomentVM): string {
+  const l = vm.last;
+  const feed = vm.feed?.length
+    ? vm.feed.map((f, i, a) => FeedItem({ minute: f.minute, text: f.text, kind: f.kind, mine: f.mine && i === a.length - 1, faint: i < a.length - 1 })).join('')
+    : '<p class="mo-below__empty">경기 흐름을 모으는 중이에요</p>';
+  const res = resultKo(l);
+  const choice = l ? (l.choice === 'delegate' ? '맡기기' : l.label) : '';
+  return `<div class="mo-below">
+      <div class="mo-below__box mo-below__flow"><small>최근 흐름</small>${feed}</div>
+      <div class="mo-below__box mo-below__last"><small>직전 결정</small>${l
+        ? `<b><span class="po-num">${l.minute}'</span> ${esc(SCENE_LABEL[l.scene])} · ${esc(choice)}</b><span>→ ${res} <b class="po-num ${l.delta > 0 ? 'up' : l.delta < 0 ? 'down' : ''}">${signedR(l.delta)}</b></span>`
+        : '<p class="mo-below__empty">이번 경기 첫 결정이에요</p>'}</div>
+    </div>`;
+}
+
 /** 아래 묶음 (171): 직전 결정 · 정지 빈도 · 자동 전환. [확정] 줄 위, 스크롤로 내려서 본다 */
 function moreSettings(vm: MomentVM): string {
   const l = vm.last;
-  const res = l ? (l.result === 'success' ? '성공' : l.result === 'fail' ? '실패' : '보통') : '';
+  const res = resultKo(l);
   const last = l
-    ? `<div class="mo-more__row"><b>직전 결정</b><span class="po-num">${l.minute}' ${esc(SCENE_LABEL[l.scene])}</span></div>
+    ? `<div class="mo-more__row mo-more__lastrow"><b>직전 결정</b><span class="po-num">${l.minute}' ${esc(SCENE_LABEL[l.scene])}</span></div>
       <div class="mo-last"><span class="mo-last__chip">${esc(l.label)}</span><span class="mo-last__arrow">→ ${res}</span><b class="po-num ${l.delta > 0 ? 'up' : l.delta < 0 ? 'down' : ''}">${signedR(l.delta)}</b></div>`
     : '';
   return `<div class="mo-more">
@@ -440,7 +468,7 @@ export function outcomeView(vm: OutcomeVM): string {
     : '';
   const cardNote = vm.shown && vm.card ? `<p class="oc-cardnote">${Icon({ name: 'card', size: 16 })}<span>${esc(vm.card)} 카드를 썼어요 · 패에서 빠졌어요</span></p>` : '';
   // 190 재생 중: 실제 속도 줄 (흐른 시간 / 구간 길이, OutcomePitch 가 글자만 바꾼다)
-  const playing = vm.shown ? '' : `<div class="oc-playing">${Icon({ name: 'play', size: 14 })}<span>실제 속도로 결과를 보는 중…</span><span class="po-num" id="oc-time">0:00</span></div>`;
+  const playing = vm.shown ? '' : `<div class="oc-playing">${Icon({ name: 'play', size: 14 })}<span>실제 속도로 결과를 보는 중…</span><span class="po-num" id="oc-time">0:00</span><span class="oc-playing__bar" aria-hidden="true"><i id="oc-bar"></i></span></div>`;
   return `
     <div class="moment mo-fold mo-outcome mo-v3">
       ${scoreTop(vm.teams, score, m.side, m.minute, scene, 'oc-score')}
@@ -511,6 +539,8 @@ export class OutcomePitch {
       drawFrame(ctx, w, h, f, this.players, undefined, this.side, el, zoom ? { view: { cx: center, len, cy } } : { center, portrait });
       const t = document.getElementById('oc-time');
       if (t) t.textContent = `${clock(Math.min(el, span))} / ${clock(span)}`;
+      const bar = document.getElementById('oc-bar');
+      if (bar) bar.style.width = `${span > 0 ? Math.min(100, (el / span) * 100) : 100}%`;
       if (end) {
         if (!this.done) {
           this.done = true;

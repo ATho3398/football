@@ -2,13 +2,14 @@
 // 팀당 24명. 실제 A등급 선수는 소속팀 슬롯을 차지하고 나머지는 가상 선수로 채운다.
 // 로스터는 월드 시드로 재생성한다. 세이브에는 시즌 갱신 횟수만 담고 불러올 때 다시 만든다 (save.ts).
 
-import { A_GRADE_PLAYERS } from '../data/players';
+import { A_GRADE_PLAYERS, ALL_REAL_PLAYERS } from '../data/players';
 import { FAMOUS_FULL_NAMES, NAME_POOLS, NAME_POOLS_V1, type NamePool } from '../data/names';
 import { realAppearance, rollAppearance, type Appearance } from './appearance';
 import { FIELD_ATTRIBUTES, GK_ATTRIBUTES, type FieldAttributes, type GkAttribute, type GkAttributes, type GkType } from './attributes';
 import { BALANCE } from './config/balance';
 import { FORMATION_SLOTS, FORMATIONS, type Formation, type FormationSlot } from './formations';
-import { agingRate, randInt, skillTier } from './growth';
+import { agingRate, agingRateShifted, randInt, skillTier } from './growth';
+import { wearAging } from './load';
 import { CLUB_TO_TEAM } from './league';
 import { growNpc, shiftOvr, type NpcState } from './npc';
 import { attributeOvrWeight, positionOvr, positionOvrExact, profileOf, type FieldPosition } from './positions';
@@ -242,10 +243,6 @@ export function setNamePoolVersion(v: number | undefined): void {
   namePoolVersion = v === 1 ? 1 : 2;
 }
 
-export function getNamePoolVersion(): NamePoolVersion {
-  return namePoolVersion;
-}
-
 /** 비교용 이름 키: 악센트·대소문자 무시 */
 export function nameKey(name: string): string {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -350,6 +347,11 @@ export function makeFiller(id: string, teamId: string, position: Position, ovr: 
   return p;
 }
 
+/** 다른 고른 리그의 실제 선수가 이적시장 빈자리를 채운다 (C.76c, 45b). 계약·충성도는 id·시즌 시드 (재생성 때 같은 값) */
+export function realFiller(n: NpcState, season: number, worldSeed: string): RosterPlayer {
+  return realEntry(n, season, rngFor(worldSeed, 'real-fill', n.id, season));
+}
+
 function realEntry(n: NpcState, season: number, rng: Rng): RosterPlayer {
   return {
     id: n.id,
@@ -379,7 +381,7 @@ function rollAge(rng: Rng): number {
 
 // ── 등번호 (부록 C.45, pending 54 7) ──
 
-const REAL_SHIRT = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p.shirtNumber]));
+const REAL_SHIRT = new Map(ALL_REAL_PLAYERS.map((p) => [p.id, p.shirtNumber]));
 
 /** 포지션 관례 등번호 (앞에서부터 비어 있는 번호) */
 const SHIRT_PREF: Record<PosGroup, readonly number[]> = {
@@ -440,12 +442,18 @@ function selectionScore(p: RosterPlayer, pos: Position): number {
   return ovr - (NEAR[slot].includes(own) ? R.nearGroupPenalty : R.outOfGroupPenalty);
 }
 
-/** 슬롯별로 OVR 이 높은 선수가 선발 (23번). 선택 점수 내림차순 탐욕 배정. 벤치 7명은 포지션군별 */
-export function pickLineup(roster: TeamRoster, exclude: ReadonlySet<string> = new Set()): Lineup {
+/**
+ * 슬롯별로 OVR 이 높은 선수가 선발 (23번). 선택 점수 내림차순 탐욕 배정. 벤치 7명은 포지션군별.
+ * penalty: 선수별 선택 점수 감점 (C.77m NPC 피로 로테이션). 팀 레이팅(rating)은 감점 없는 슬롯 OVR 평균
+ */
+export function pickLineup(roster: TeamRoster, exclude: ReadonlySet<string> = new Set(), penalty?: (id: string) => number): Lineup {
   const slots = roster.customSlots ?? FORMATION_SLOTS[roster.formation];
   const pool = roster.players.filter((p) => !exclude.has(p.id));
   const pairs: { pi: number; si: number; score: number }[] = [];
-  pool.forEach((p, pi) => slots.forEach((s, si) => pairs.push({ pi, si, score: selectionScore(p, s.pos) })));
+  pool.forEach((p, pi) => {
+    const pen = penalty?.(p.id) ?? 0;
+    slots.forEach((s, si) => pairs.push({ pi, si, score: selectionScore(p, s.pos) - pen }));
+  });
   // 같은 점수면 선수 순서, 슬롯 순서 (결정성)
   pairs.sort((a, b) => b.score - a.score || a.pi - b.pi || a.si - b.si);
   const usedP = new Set<number>();
@@ -643,27 +651,35 @@ export function createRosters(worldSeed: string, season: number, teams: TeamTarg
     const reals = npcs.filter((n) => !n.retired && CLUB_TO_TEAM[n.club] === t.id);
     out[t.id] = createTeamRoster(t, worldSeed, season, reals);
   }
-  for (const t of teams) {
-    const add = legends.filter((l) => l.teamId === t.id);
+  addLegendSpawns(out, legends, worldSeed, season - 1, Object.fromEntries(teams.map((t) => [t.id, t.rating])), 200);
+  return out;
+}
+
+/**
+ * 레전드 팩 선수를 소속 팀 로스터에 더하고 인원 규칙을 맞춘다 (C.47). 미래 스타(C.75x)는 데뷔 시즌에 같은 길로.
+ * 보충 신인 번호는 rookieBase + j (시즌 갱신 신인 0~·100~ 과 겹치지 않게)
+ */
+export function addLegendSpawns(rosters: Rosters, spawns: readonly LegendSpawn[], worldSeed: string, rookieSeason: number, ratings: Record<string, number>, rookieBase = 300): void {
+  for (const teamId of Object.keys(rosters)) {
+    const add = spawns.filter((l) => l.teamId === teamId);
     if (!add.length) continue;
-    const r = out[t.id]!;
+    const r = rosters[teamId]!;
     r.players = [...r.players, ...add.map((l) => ({ ...l.player }))];
-    normalizeSquad(r, (pos, j) => makeRookie(t.id, pos, t.rating, worldSeed, season - 1, 200 + j));
+    normalizeSquad(r, (pos, j) => makeRookie(teamId, pos, ratings[teamId] ?? 70, worldSeed, rookieSeason, rookieBase + j));
     assignShirts(r);
   }
-  return out;
 }
 
 // ── 시즌 갱신 (5.6 성장/노화, 은퇴 보충) ──
 
 /** 가상 필드 선수 성장: NPC 성장 곡선(growNpc)을 그대로 쓴다 */
-function growVirtualField(p: RosterPlayer, worldSeed: string, season: number): RosterPlayer {
+function growVirtualField(p: RosterPlayer, worldSeed: string, season: number, wear = 0, gegen = 0): RosterPlayer {
   const n: NpcState = {
     id: p.id, name: p.name, nameKo: p.nameKo, club: '', position: p.position as FieldPosition, age: p.age,
     potentialTier: p.potentialTier, peakOvr: p.peakOvr, peakAge: p.peakAge, attributes: { ...p.attributes! },
     lastChange: 0, retired: false,
   };
-  const g = growNpc(n, worldSeed, season);
+  const g = growNpc(n, worldSeed, season, wear, gegen);
   return { ...p, age: g.age, attributes: g.attributes };
 }
 
@@ -683,9 +699,10 @@ function growVirtualGk(p: RosterPlayer, worldSeed: string, season: number): Rost
   return { ...p, age: p.age + 1, gk: { ...p.gk!, attrs } };
 }
 
-function retires(p: RosterPlayer, rng: Rng): boolean {
+function retires(p: RosterPlayer, rng: Rng, shift = 0): boolean {
   if (p.age >= BALANCE.retirement.forcedAge) return true;
-  return rng() < agingRate(BALANCE.roster.retireChance, p.age);
+  // 시즌 누적 마모 (C.77n): 은퇴 확률 곡선도 노쇠와 같이 shift 시즌 앞당겨 읽는다
+  return rng() < agingRateShifted(BALANCE.roster.retireChance, p.age, shift);
 }
 
 /** 은퇴 자리 보충: 같은 포지션의 가상 신인. 전성기 OVR 은 팀 장기 평균 레이팅 근처 */
@@ -707,7 +724,7 @@ function makeRookie(teamId: string, position: Position, baseRating: number, worl
  * 가상 선수 성장/노화 → 은퇴(가상: 확률, 실제: NpcState.retired) → 신인 보충 → 재계약
  */
 export function updateRostersForSeason(
-  rosters: Rosters, worldSeed: string, season: number, baseRatings: Record<string, number>, npcs: NpcState[],
+  rosters: Rosters, worldSeed: string, season: number, baseRatings: Record<string, number>, npcs: NpcState[], wearOf: (id: string) => number = () => 0, gegenOf: (id: string) => number = () => 0,
 ): Rosters {
   const R = BALANCE.roster;
   const byId = new Map(npcs.map((n) => [n.id, n]));
@@ -724,8 +741,10 @@ export function updateRostersForSeason(
         retired = !n || n.retired;
         next = n ? { ...p, age: n.age, attributes: { ...n.attributes } } : p;
       } else {
-        next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season);
-        retired = retires(next, rng);
+        const wear = wearOf(p.id);
+        const gegen = gegenOf(p.id);
+        next = p.gk ? growVirtualGk(p, worldSeed, season) : growVirtualField(p, worldSeed, season, wear, gegen);
+        retired = retires(next, rng, wearAging(wear, next.age, gegen).shift);
       }
       if (retired) {
         players.push(makeRookie(teamId, p.position, baseRatings[teamId] ?? 70, worldSeed, season, k++));

@@ -2,7 +2,7 @@
 
 import { BALANCE, type Difficulty } from './config/balance';
 import { randInt } from './growth';
-import { poisson, expectedGoals } from './league';
+import { expectedGoals, scorePair } from './league';
 import { DEFENDER_POSITIONS, type FieldPosition } from './positions';
 import { gaussian, type Rng } from './rng';
 
@@ -13,6 +13,8 @@ export interface MatchInput {
   teamRating: number;
   oppRating: number;
   home: boolean;
+  /** 중립 경기 (컵·챔스 결승, 대표팀 대회, C.79o): 홈 이점 없음 */
+  neutral?: boolean;
   difficulty: Difficulty;
   bigMatch?: boolean;
   /** 폼 보정 (7.2). 평점에 그대로 더한다 */
@@ -73,7 +75,7 @@ export function matchXp(rating: number, outcome: MatchOutcome, mom: boolean, min
 export function positionCenter(position: FieldPosition, share: number, dampen: number): number {
   const M = BALANCE.match;
   const R = BALANCE.rating;
-  const lambda = M.baseGoals + M.homeBonus / 2;
+  const lambda = (M.baseGoals * (1 + Math.exp(M.homeRating * M.goalsK))) / 2;
   const pGoal = Math.min(M.maxInvolvement, M.scorerShare[position] * share);
   const pAssist = Math.min(M.maxInvolvement, M.assistShare[position] * share);
   let c = lambda * (pGoal * R.goal + (1 - pGoal) * pAssist * R.assist);
@@ -95,8 +97,9 @@ export function simulateMatch(input: MatchInput, rng: Rng): MatchResult {
 
   // 팀 득점. 내 선수는 출전 시간만큼 팀 전력에 작게 반영
   const ownRating = input.teamRating + (input.ovr - input.teamRating) * share * BALANCE.league.myPlayerInfluence;
-  const goalsFor = poisson(rng, expectedGoals(ownRating, input.oppRating, input.home));
-  const goalsAgainst = poisson(rng, expectedGoals(input.oppRating, ownRating, !input.home));
+  const [goalsFor, goalsAgainst] = scorePair(rng,
+    expectedGoals(ownRating, input.oppRating, input.home && !input.neutral),
+    expectedGoals(input.oppRating, ownRating, !input.home && !input.neutral));
   const outcome: MatchOutcome = goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw';
 
   if (minutes === 0) {
