@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 95;
+export const BALANCE_VERSION = 96;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1745,7 +1745,11 @@ export const BALANCE = {
        */
       mixedShift: { GK: -0.33, CB: -0.33, FB: -0.33, CDM: -0.33, CM: -0.33, CAM: -0.33, WING: -0.33, ST: -0.33 } as Record<string, number>,
       /** C.81m: 섞인 표 추정 평점 퍼짐 (포지션군별) = ratingBase 중심으로 (avg − ratingBase) × mixedSpread (1 = 그대로) */
-      mixedSpread: { GK: 1, CB: 1, FB: 1, CDM: 1, CM: 1, CAM: 1, WING: 1, ST: 1 } as Record<string, number> },
+      mixedSpread: { GK: 1, CB: 1, FB: 1, CDM: 1, CM: 1, CAM: 1, WING: 1, ST: 1 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 평점 잡음 (포지션군별 표준편차, 선수·시즌 시드) — 엔진은 같은 OVR 이라도 시즌 평점이 퍼진다 */
+      mixedJitter: { GK: 0, CB: 0, FB: 0, CDM: 0, CM: 0, CAM: 0, WING: 0, ST: 0 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 리그 실점 항목(def) 배수 — 빠른 진행 점수 확률은 상위 팀 독주가 엔진보다 커서 상위 팀 수비수 def 가 부푼다 (1 = 그대로) */
+      mixedDef: 1 },
     /** 투표단 가중치 (이력서 항목 표준점수) · 노이즈(표준편차, 후보 안 종합 점수 표준편차 단위) · 성향 */
     juries: {
       journalist: { w: { out: 0.75, rat: 0.7, def: 0.4, tro: 2.6, nat: 0.9, clu: 0.9, sto: 0.8, fam: 0.3, tal: 0 }, noise: 0.6 },

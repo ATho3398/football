@@ -9,10 +9,12 @@ import { BALANCE } from '../../src/config/balance';
 const args = process.argv.slice(2).filter((a) => a !== '--');
 const dir = args[0]!;
 const maxS = Number(args[1] ?? 99);
-const cfg = args[2] ? JSON.parse(args[2]) as { shift?: Record<string, number>; spread?: Record<string, number> } : null;
-const E = BALANCE.awards.estimate as { mixedShift: Record<string, number>; mixedSpread: Record<string, number> };
+const cfg = args[2] ? JSON.parse(args[2]) as { shift?: Record<string, number>; spread?: Record<string, number>; jitter?: Record<string, number>; def?: number } : null;
+const E = BALANCE.awards.estimate as { mixedShift: Record<string, number>; mixedSpread: Record<string, number>; mixedJitter: Record<string, number>; mixedDef: number };
 if (cfg?.shift) Object.assign(E.mixedShift, cfg.shift);
 if (cfg?.spread) Object.assign(E.mixedSpread, cfg.spread);
+if (cfg?.jitter) Object.assign(E.mixedJitter, cfg.jitter);
+if (cfg?.def !== undefined) E.mixedDef = cfg.def;
 const GROUPS = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
 const MAJOR = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'];
 const lgCat = (lg: string) => (MAJOR.includes(lg) ? lg : 'rest');
@@ -70,6 +72,25 @@ for (const gp of [...GROUPS, '전체']) {
 console.log('\n| 군 | 평균 엔진 | 평균 추정 | 차 | 상위20 엔진 | 상위20 추정 | 차 |\n|---|---|---|---|---|---|---|');
 console.log(g2.join('\n'));
 out.gsum = gsum;
+// 2b. 포지션군별 평점 ~ OVR 회귀 (엔진 = all 저장본 모든 리그, 추정 = mine 저장본 다른 리그): 기울기 · 잔차 표준편차 · 평균 (ovr = tal − (21 − 나이) × talentAge)
+const ovrOf = (r: Snap['rs'][number]) => (r.age === null ? r.tal : r.tal - (21 - r.age) * BALANCE.awards.resume.talentAge);
+const reg = (xs: [number, number][]) => {
+  const mx = mean(xs.map((p) => p[0])); const my = mean(xs.map((p) => p[1]));
+  const b = xs.reduce((t, p) => t + (p[0] - mx) * (p[1] - my), 0) / xs.reduce((t, p) => t + (p[0] - mx) ** 2, 0);
+  const r = Math.sqrt(mean(xs.map((p) => (p[1] - my - b * (p[0] - mx)) ** 2)));
+  return { b, r, mx, my };
+};
+const regs: Record<string, unknown> = {};
+const g3: string[] = [];
+for (const gp of GROUPS) {
+  const e = reg(snaps.filter((x) => x.mode === 'all').flatMap((x) => x.rs.filter((r) => !r.me && r.group === gp).map((r) => [ovrOf(r), r.avg] as [number, number])));
+  const y = reg(snaps.filter((x) => x.mode === 'mine').flatMap((x) => x.rs.filter((r) => !r.me && r.lg !== x.my && r.group === gp).map((r) => [ovrOf(r), r.avg] as [number, number])));
+  regs[gp] = { e, y };
+  g3.push(`| ${gp} | ${e.b.toFixed(3)} / ${y.b.toFixed(3)} | ${f2(e.r)} / ${f2(y.r)} | ${f2(e.mx)} / ${f2(y.mx)} | ${f2(e.my)} / ${f2(y.my)} |`);
+}
+console.log('\n| 군 | 기울기 엔진/추정 | 잔차 sd 엔진/추정 | OVR 평균 엔진/추정 | 평점 평균 엔진/추정 |\n|---|---|---|---|---|');
+console.log(g3.join('\n'));
+out.regs = regs;
 // 3. 발롱도르 후보 (기자단 종합 점수, 노이즈 없음) 상위 10·30 리그 비율
 const ballon = (sn: Snap) => {
   const pool = sn.rs.filter((r) => eligible(def, r));
@@ -81,12 +102,27 @@ const ballon = (sn: Snap) => {
 };
 const share: Record<string, { t10: Record<string, number>; t30: Record<string, number>; n: number }> = {};
 for (const sn of snaps) {
-  const key = sn.mode === 'all' ? 'all' : `mine:${sn.my}`;
-  const S = (share[key] ??= { t10: {}, t30: {}, n: 0 });
-  S.n++;
-  ballon(sn).slice(0, 30).forEach(({ r }, k) => { const c = lgCat(r.lg); S.t30[c] = (S.t30[c] ?? 0) + 1; if (k < 10) S.t10[c] = (S.t10[c] ?? 0) + 1; });
+  const top = ballon(sn).slice(0, 30);
+  for (const key of sn.mode === 'all' ? ['all', `all:${sn.my}`] : [`mine:${sn.my}`]) {
+    const S = (share[key] ??= { t10: {}, t30: {}, n: 0 });
+    S.n++;
+    top.forEach(({ r }, k) => { const c = lgCat(r.lg); S.t30[c] = (S.t30[c] ?? 0) + 1; if (k < 10) S.t10[c] = (S.t10[c] ?? 0) + 1; });
+  }
 }
 console.log('\n| 발롱도르 후보 | 시즌 | ' + [...MAJOR, 'rest'].map((c) => `${c} 10/30`).join(' | ') + ' |\n|---|---|' + [...MAJOR, 'rest'].map(() => '---').join('|') + '|');
-for (const [k, S] of Object.entries(share)) console.log(`| ${k} | ${S.n} | ` + [...MAJOR, 'rest'].map((c) => `${f2((S.t10[c] ?? 0) / S.n)} / ${f2((S.t30[c] ?? 0) / S.n)}`).join(' | ') + ' |');
+for (const [k, S] of Object.entries(share).sort()) console.log(`| ${k} | ${S.n} | ` + [...MAJOR, 'rest'].map((c) => `${f2((S.t10[c] ?? 0) / S.n)} / ${f2((S.t30[c] ?? 0) / S.n)}`).join(' | ') + ' |');
 out.share = share;
 console.log('\nJSON ' + JSON.stringify(out));
+// 4. 리그마다 이름값(fam) 상위 30명의 이력서 항목 평균: 내 리그 / 다른 리그 × 모드 (쏠림 원인 — 우승 tro · 챔스 ucl · 실점 def · 기록 out · 평점 rat)
+const famAcc: Record<string, Record<string, number[]>> = {};
+for (const sn of snaps) {
+  const pool = sn.rs.filter((r) => eligible(def, r) && !r.me);
+  const byLg: Record<string, typeof pool> = {};
+  for (const r of pool) (byLg[r.lg] ??= []).push(r);
+  for (const r of Object.values(byLg).flatMap((rs) => [...rs].sort((a, b) => b.fam - a.fam).slice(0, 30))) {
+    const A = (famAcc[`${sn.mode}:${r.lg === sn.my ? '내 리그' : '다른 리그'}`] ??= {});
+    for (const x of ['share', 'tro', 'ucl', 'def', 'out', 'rat', 'goals', 'avg'] as const) (A[x] ??= []).push(r[x]);
+  }
+}
+console.log('\n| 이름값 상위 30 | 인원 | 출전 비중 | 우승 tro | 챔스 ucl | 실점 def | 기록 out | 평점 rat | 골 | 평점 |\n|---|---|---|---|---|---|---|---|---|---|');
+for (const [k, A] of Object.entries(famAcc).sort()) console.log(`| ${k} | ${A.share!.length} | ` + ['share', 'tro', 'ucl', 'def', 'out', 'rat', 'goals', 'avg'].map((x) => f2(mean(A[x]!))).join(' | ') + ' |');
