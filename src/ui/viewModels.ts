@@ -1,6 +1,7 @@
 // 뷰모델 (부록 H.2): 게임 상태 → 화면에 필요한 값. 화면 모듈(src/ui/views/)은 이 값만 받아 그린다.
 // 게임 로직(확률, 성장 계산)은 넣지 않고 기존 함수의 결과를 읽기만 한다
 
+import { avgRatingText, ratingText } from '../avgRating';
 import { CLIP_KO, findClips, type ClipKind } from '../highlightClips';
 import { pickLeagueOf, prospectTeamPick, leagueGroupOf } from './teamPickVM';
 import { rollCustom } from './customRandom';
@@ -45,7 +46,8 @@ import {
 import {
   costTier, isMaxed, legendaryConditions, nextReputationTier, playerOvr, pointCost, raiseBlock, reputationFloorTier, reputationTier, TIER_NAMES_KO, xpToLevel, type AttributeDelta,
 } from '../growth';
-import type { Scene } from '../highlights';
+import { selectScenes, type Scene } from '../highlights';
+import { minuteText } from '../engine/minute';
 import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlight, type SeasonHighlightKind } from '../seasonHighlights';
 import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
@@ -500,7 +502,7 @@ export function homeVM(g: GameState): HomeVM {
     season: seasonLabel(g.league.season), round: Math.min(g.league.round + 1, g.league.schedule.length), rounds: g.league.schedule.length,
     comp: g.phase === 'season' ? matchCompLabel(g) : '',
     phase: g.phase, banners, next, card: playerCardVM(g), condition: conditionVM(g),
-    stats: { apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, avg: avg === null ? '-' : avg.toFixed(2) },
+    stats: { apps: s.apps, starts: s.starts, goals: s.goals, assists: s.assists, avg: ratingText(avg) },
     version: versionVM(g),
     day: dayVM(g),
     points: visiblePoints(g),
@@ -905,7 +907,7 @@ export const DISPLAY_GROUPS: readonly { name: string; attrs: readonly FieldAttri
 function historyVM(g: GameState): HistoryRowVM[] {
   return g.player.history.map((r) => ({
     season: seasonLabel(r.season), age: r.age, ovr: r.ovr, apps: r.apps, goals: r.goals, assists: r.assists,
-    avg: r.apps ? (r.ratingSum / r.apps).toFixed(2) : '-', pos: r.leaguePosition,
+    avg: avgRatingText(r.ratingSum, r.apps), pos: r.leaguePosition,
   }));
 }
 
@@ -1114,6 +1116,8 @@ export interface MatchResultVM {
   highlights: FeedVM[];
   report: (TacticalReport & { my: TacticVM; opp: TacticVM; possession: number }) | null;
   hasAvgMap: boolean;
+  /** 하이라이트 다시보기 장면 수 = 재생 화면 장면 수 (C.81o: 같은 selectScenes 한 벌) */
+  sceneCount: number;
   /** 경기 후 하이라이트 3개 (24.6, C.77o): 세이브에 남은 클립. 불러온 뒤에도 다시 볼 수 있다 */
   clips?: { kind: ClipKind; label: string; minute: string; text: string }[];
   my: { label: string; value: string }[];
@@ -1220,7 +1224,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     const ext = m.cup ? cupRoster(g, m.opponentId).players.find((x) => x.id === id) : undefined;
     return ext ? { name: ext.nameKo, id: null } : { name: '—', id: null };
   };
-  const goals = (fx?.g ?? []).map(([min, side, sc, as]) => ({ minute: `${min}'`, ...who(sc)!, assist: who(as)?.name ?? null, assistMe: as === MY_ID, mine: side === mySide }));
+  const goals = (fx?.g ?? []).map(([min, side, sc, as, plus]) => ({ minute: `${minuteText(min, plus)}'`, ...who(sc)!, assist: who(as)?.name ?? null, assistMe: as === MY_ID, mine: side === mySide }));
   return {
     myTeam: teamById(g.league, natMe ?? g.player.teamId).nameKo, face: myFace(g),
     myTeamId: natMe ?? g.player.teamId, oppId: m.opponentId, goals,
@@ -1229,7 +1233,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
     opp, scoreLine: `${scoreText(res.goalsFor, res.goalsAgainst)}${m.nat?.pens ? ` (${pensText(m.nat.pens)})` : ''}${m.cup?.pens ? ` (${pensText(m.home ? [m.cup.pens[0], m.cup.pens[1]] : [m.cup.pens[1], m.cup.pens[0]])})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, ...(m.engine ? { formEngine: true } : {}), chips, banners, highlights, report,
-    hasAvgMap: !!r, my, myMore,
+    hasAvgMap: !!r, sceneCount: r ? selectScenes(r).length : 0, my, myMore,
     clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => ({ kind: c.kind, label: CLIP_KO[c.kind], minute: `${c.minute}'`, text: c.text })),
     xp: { gained: res.xp, value, max, level: g.player.level, levelsGained: m.levelsGained },
     seasonOver: g.phase !== 'season', points: visiblePoints(g),
@@ -1384,7 +1388,7 @@ export function otherLeagueVM(g: GameState, lg: OtherLeague): OtherLeagueVM {
     scorers: otherScorers(lg, 20).map(([id, name, teamId, goals, assists]) => {
       const st = lg.stats?.[id];
       const apps = st?.[2] ?? null;
-      return { id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists, apps, avg: apps ? ((st![3] ?? 0) / apps / 10).toFixed(2) : '-' };
+      return { id, name, teamId, team: teamId ? teamById(lg, teamId).nameKo : '', goals, assists, apps, avg: apps ? avgRatingText((st![3] ?? 0) / 10, apps) : '-' };
     }),
     engine: Object.values(lg.stats ?? {}).some((s) => s[2] !== undefined),
     last: last ? {
@@ -1408,7 +1412,7 @@ export function boardVM(g: GameState, kind: BoardKind, limit?: number, faces = r
   return leaderboard(g, kind, limit).map((r) => ({
     id: r.id, ...(r.teamId ? { teamId: r.teamId } : {}), face: r.me ? myFace(g) : faces.get(r.id) ?? { id: r.id },
     name: r.name, team: g.league.teams.find((t) => t.id === r.teamId)?.nameKo ?? '', apps: r.apps, goals: r.goals, assists: r.assists,
-    avg: r.apps ? r.avg.toFixed(2) : '-', me: r.me, rank: r.rank,
+    avg: r.apps ? ratingText(r.avg) : '-', me: r.me, rank: r.rank,
   }));
 }
 
@@ -1552,7 +1556,7 @@ export function seasonVM(g: GameState): SeasonVM | null {
   const A = BALANCE.growth.autoGrowth;
   return {
     season: seasonLabel(s.season), nextSeason: seasonLabel(s.season + 1), team: teamById(g.league, rec.teamId).nameKo, pos: s.leaguePosition,
-    apps: rec.apps, goals: rec.goals, assists: rec.assists, avg: rec.apps ? (rec.ratingSum / rec.apps).toFixed(2) : '-',
+    apps: rec.apps, goals: rec.goals, assists: rec.assists, avg: avgRatingText(rec.ratingSum, rec.apps),
     injuries: rec.injuries, injuredWeeks: rec.injuredWeeks,
     achievements: s.achievements, achievementXp: s.achievementXp, levelsGained: s.levelsGained,
     seasonGoals: s.goals ? {
@@ -1600,7 +1604,7 @@ function seasonSplits(g: GameState): { months: SplitRowVM[]; positions: SplitRow
     const rated = played.filter((e) => e.rating !== null);
     return {
       label, apps: played.length, goals: played.reduce((t, e) => t + e.goals, 0), assists: played.reduce((t, e) => t + e.assists, 0),
-      avg: rated.length ? (rated.reduce((t, e) => t + e.rating!, 0) / rated.length).toFixed(2) : '-',
+      avg: avgRatingText(rated.reduce((t, e) => t + e.rating!, 0), rated.length),
       w: xs.filter((e) => e.goalsFor > e.goalsAgainst).length, d: xs.filter((e) => e.goalsFor === e.goalsAgainst).length, l: xs.filter((e) => e.goalsFor < e.goalsAgainst).length,
     };
   };
@@ -1657,7 +1661,7 @@ export function retiredVM(g: GameState, legacy: { rank: number | null; legacy: L
     honors, hall,
     ending: { worth: moneyLabel(e.worth), asset: e.asset, charity: moneyLabel(e.charity), philanthropist: e.philanthropist, career: moneyLabel(careerNet(g), true) },
     card: playerCardVM(g), seasons: t.seasons, apps: t.apps, goals: t.goals, assists: t.assists,
-    avg: t.avgRating === null ? '-' : t.avgRating.toFixed(2), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,
+    avg: ratingText(t.avgRating), peakOvr: t.peakOvr, best: t.bestFinish === null ? '-' : `${t.bestFinish}위`,
     reputation: g.player.reputation, tierName: TIER_NAMES_KO[reputationTier(g.player.reputation, g.player.honors)], history: historyVM(g),
   };
 }
@@ -1686,7 +1690,7 @@ export function chapterReviewVM(g: GameState): ChapterReviewVM | null {
     id: c.id, name: CHAPTER_KO[c.id], theme: CHAPTER_THEME_KO[c.id],
     years: c.startSeason === c.endSeason ? `${seasonLabel(c.startSeason)}` : `${seasonLabel(c.startSeason)} ~ ${seasonLabel(c.endSeason)}`,
     ages: c.startAge === c.endAge ? `${c.startAge}세` : `${c.startAge}~${c.endAge}세`, seasons: c.seasons,
-    apps: c.apps, goals: c.goals, assists: c.assists, avg: c.apps ? (c.ratingSum / c.apps).toFixed(2) : '-', moms: c.moms,
+    apps: c.apps, goals: c.goals, assists: c.assists, avg: avgRatingText(c.ratingSum, c.apps), moms: c.moms,
     ovrFrom: c.startOvr, ovrTo: c.endOvr, repFrom: c.startRep, repTo: c.endRep, tierFrom: TIER_NAMES_KO[c.startTier], tierTo: TIER_NAMES_KO[c.endTier], tier: designTier(c.endTier),
     highlights: c.highlights.map((h) => ({ season: seasonLabel(h.season), text: h.text })),
     badges: c.badges.map((b) => BADGE_NAMES_KO[b as BadgeId] ?? b), trophies: c.trophies,

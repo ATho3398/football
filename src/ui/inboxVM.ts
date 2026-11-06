@@ -1,5 +1,6 @@
 // 인박스 화면 데이터 (20.4, 부록 C.63): 흩어진 알림(태그·포변 조언·면담 결과·이적 소식·제안·재계약)을 인박스로 모으고, 홈 카드·인박스 목록을 만든다
 
+import { ratingText } from '../avgRating';
 import type { IconName } from './components';
 import { dateLabel, daysBetween } from '../calendar';
 import type { GameState } from '../game';
@@ -175,8 +176,8 @@ export function rivalCardVM(g: GameState): RivalCardVM | null {
   return {
     name: r.name, team: r.team, teamId: r.teamId, pos: r.pos, age: r.age, ovr: r.ovr, rep: r.rep, myRep: r.myRep,
     // C.76g (디자인 195 비교 표): 경기·골·도움 따로. 추정 라이벌은 골+도움만 있어 골·도움은 null(—)
-    me: { ga: r.me.ga, avg: r.me.avg ? r.me.avg.toFixed(2) : '-', apps: g.player.season.apps, goals: g.player.season.goals, assists: g.player.season.assists },
-    them: { ga: r.ga, avg: r.avg ? r.avg.toFixed(2) : '-', apps: r.apps, goals: st && !r.est ? st[1] : null, assists: st && !r.est ? st[2] : null }, est: r.est,
+    me: { ga: r.me.ga, avg: r.me.avg ? ratingText(r.me.avg) : '-', apps: g.player.season.apps, goals: g.player.season.goals, assists: g.player.season.assists },
+    them: { ga: r.ga, avg: r.avg ? ratingText(r.avg) : '-', apps: r.apps, goals: st && !r.est ? st[1] : null, assists: st && !r.est ? st[2] : null }, est: r.est,
     lead: r.me.ga - r.ga, record: h.length ? `지난 비교 ${w}승 ${h.length - w - l}무 ${l}패` : '첫 시즌',
   };
 }

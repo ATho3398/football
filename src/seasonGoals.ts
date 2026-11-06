@@ -2,6 +2,7 @@
 // 진행 표시(홈 · 인박스), 시즌 끝 판정 → XP · 카드 3택 1 · 감독 신뢰도, 업적(시상 · 리그 우승 · 레전드 배지) 카드 선택권.
 // 목표 값은 내 위상·팀 수준(시즌 전 레이팅 순위)·지난 시즌 기록에서 정한다. 경기 결과에는 손대지 않는다 (엔진 밖)
 
+import { ratingText } from './avgRating';
 import { BALANCE } from './config/balance';
 import type { Rarity } from './config/cards';
 import { grantTierPick } from './cardCollection';
@@ -83,7 +84,7 @@ export function goalLabel(g: Pick<SeasonGoal, 'kind' | 'target'>): string {
 /** 지금 값 글 */
 export function valueLabel(kind: GoalKind, v: number | null): string {
   if (v === null) return kind === 'rating' ? '평점 -' : '순위 밖';
-  if (kind === 'rating') return v.toFixed(2);
+  if (kind === 'rating') return ratingText(v);
   if (kind === 'uclStage') return UCL_STAGE_KO[v] ?? '-';
   if (lowerIsBetter(kind)) return `${v}위`;
   return String(v);

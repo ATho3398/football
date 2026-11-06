@@ -126,7 +126,7 @@ describe('빠진 상태 화면', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.8/); // C.81k 뒤: 다음 패치가 라벨을 올린다 (c80g 와 같은 방식)
+    expect(PATCH_LABEL).toMatch(/^C\.81[a-z]$/); // C.81o 가 뒤에 merge 돼 'C.81o' 로 덮음
     expect(STAGE_LABEL).toBe('53단계');
   });
 });

@@ -90,7 +90,7 @@ describe('경기 결과 (170 · 160)', () => {
     const { matchResultView } = await import('../src/ui/views/matchResult');
     const base = {
       myTeam: '토트넘 홋스퍼', myTeamId: 'tot', opp: '첼시', oppId: 'che', face: { id: 'son', age: 26 }, scoreLine: '2\u00a0:\u00a01', outcome: 'win', outcomeKo: '승', comp: '리그 1R', round: 1,
-      rating: 7.5, chips: ['도움 1', '선발 90분'], hasAvgMap: false, highlights: [], banners: [], report: null, my: [], myMore: [], formBonus: 0, appearance: '선발 90분',
+      rating: 7.5, chips: ['도움 1', '선발 90분'], hasAvgMap: false, sceneCount: 0, highlights: [], banners: [], report: null, my: [], myMore: [], formBonus: 0, appearance: '선발 90분',
       decisions: [], decisionReplay: false, points: 0, seasonOver: false, xp: { value: 6, gained: 52, max: 272, level: 0, levelsGained: 0 },
       goals: [
         { minute: "8'", name: '해리 케인', id: 'kane', assist: null, mine: true },

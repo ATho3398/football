@@ -7,6 +7,7 @@ import type { NpcCond } from '../npcFit';
 import type { ManagerStyle } from '../../data/managers';
 import { npcTeamSetup } from './setup';
 import { createMatch } from './sim';
+import { matchMinute } from './minute';
 
 export interface NpcMatchInput {
   home: TeamRoster;
@@ -24,8 +25,8 @@ export interface NpcMatchInput {
   styles?: [ManagerStyle, ManagerStyle];
 }
 
-/** 골 기록: [분, 팀(0 홈·1 원정), 득점자 id, 도움 id(없으면 null)] */
-export type GoalRec = [number, 0 | 1, string, string | null];
+/** 골 기록: [분, 팀(0 홈·1 원정), 득점자 id, 도움 id(없으면 null), 추가시간 분(C.81o, 있을 때만 — 분은 45·90)] */
+export type GoalRec = [number, 0 | 1, string, string | null, number?];
 
 /**
  * 선수 기록: [id, 출전 분, 골, 도움, 평점 ×10 (정수), 이동 거리 m (정수, C.77m NPC 피로), 옐로 장수, 퇴장 1]
@@ -41,9 +42,19 @@ export interface NpcMatchResult {
 }
 
 /** 경기 시계(초) → 분 (1~90, 추가시간은 45·90) */
-function goalMinute(t: number, halfSeconds = 2700): number {
-  if (t < halfSeconds) return Math.min(45, Math.floor(t / 60) + 1);
-  return Math.min(90, Math.floor(t / 60) + 1);
+/** 골 기록 (C.81o): 하프타임 이벤트로 전·후반을 가려 추가시간 골을 "45+n"·"90+n"으로 (예전엔 45·90에서 자르고, 전반 추가시간 골을 46'·47'로 적었다) */
+function goalRecs(events: { t: number; type: string; team: 0 | 1; players: string[] }[]): GoalRec[] {
+  let half: 1 | 2 = 1;
+  const out: GoalRec[] = [];
+  for (const e of events) {
+    if (e.type === 'halftime') half = 2;
+    if (e.type !== 'goal') continue;
+    const [min, plus] = matchMinute(e.t, half);
+    const rec: GoalRec = [min, e.team, e.players[0]!, e.players[1] ?? null];
+    if (plus > 0) rec.push(plus);
+    out.push(rec);
+  }
+  return out;
 }
 
 /** 엔진 결과의 골 이벤트와 선수 기록을 요약한다 (다른 경기와 내 경기 공통) */
@@ -55,7 +66,7 @@ export function summarize(r: {
   return {
     hg: r.homeGoals,
     ag: r.awayGoals,
-    goals: r.events.filter((e) => e.type === 'goal').map((e) => [goalMinute(e.t), e.team, e.players[0]!, e.players[1] ?? null]),
+    goals: goalRecs(r.events),
     players: r.players.filter((p) => p.minutes > 0).map((p): PlayerLine => {
       const line: PlayerLine = [p.id, p.minutes, p.goals, p.assists, Math.round(p.rating * 10), Math.round(p.distance)];
       if (p.yellows || p.red) line.push(p.yellows ?? 0, p.red ? 1 : 0);
