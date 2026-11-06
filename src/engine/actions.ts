@@ -563,7 +563,9 @@ function shotArrives(s: SimState, fl: Flight): void {
   // 날씨 (C.74a): 빗속 중거리 슛은 위력↑ (선방 × longShotSave)
   // GK 도달 항 (C.77t): 슛 순간 GK 가 슛 선에서 멀면 선방 × cover
   // C.77z: 판단과 같은 식 saveChance(슛 순간 자료 — 막기 어려움 × 덮는 정도)
-  const pSave = (sh.ctx ? saveChance(sh.ctx) : saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1)) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1);
+  const pSave = (sh.ctx ? saveChance(sh.ctx) : saveProb(gk, sh.speed, sh.corner, sh.d, sh.header) * (sh.cover ?? 1)) * (!sh.header && !sh.penalty && sh.d >= LONG_SHOT_FROM ? s.env.longShotSave : 1)
+    // C.81h 세컨볼: 방금 쳐낸 GK 는 일어서는 중 (parryDownT 초 안 선방 × parryDownSave)
+    * (!sh.penalty && K.parryDownT > 0 && s.t - s.teams[defTeam].parryT < K.parryDownT ? K.parryDownSave : 1);
   // 선방률 지표 (C.76q, 미해결 6): 12 m 밖 유효 슈팅만 따로 센다 (1대1·PK 제외)
   const far = !sh.penalty && sh.d >= FAR_SAVE_FROM;
   const bin = far ? (sh.d >= FAR_BIN_D[1]! ? 2 : sh.d >= FAR_BIN_D[0]! ? 1 : 0) * 2 + ((sh.cover ?? 1) >= FAR_BIN_SET ? 0 : 1) : -1;
@@ -596,6 +598,9 @@ function shotArrives(s: SimState, fl: Flight): void {
     looseBall(s, s.ball.x - dir * 1, s.ball.y, -dir * Math.cos(ang) * K.parrySpeed, Math.sin(ang) * K.parrySpeed, defTeam, gk?.idx ?? -1);
     // 쳐낸 공은 잠깐 다시 손으로 못 잡는다 (C.28): 그 뒤에는 루즈볼 추격으로 다시 잡으러 간다
     if (gk) s.ball.handBlock = { idx: gk.idx, until: s.t + K.handBlock };
+    // C.81h 세컨볼: 쳐낸 공에 수비 팀 필드 선수는 parryDefHold 초 동안 늦게 반응한다 (컨트롤 × parryDefControl)
+    if (K.parryDefHold > 0) s.ball.defHold = { team: defTeam, until: s.t + K.parryDefHold };
+    s.teams[defTeam].parryT = s.t;
     return;
   }
   // 세이브 실패: 2단계 비행으로 골라인까지 (C.24)

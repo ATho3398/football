@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 86;
+export const ENGINE_VERSION = 87;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -663,8 +663,8 @@ export const ENGINE = {
     /** 윙어: 반대쪽 측면 공이면 먼 포스트 (골에서 m, 중앙에서 y 비율), 중앙 공이면 하프스페이스
      * C.80n (윙어 득점 비중 20% → 20~25%): 먼 포스트 8 m · 0.1 → 7 · 0.07 — 윙어 슛의 70% 가 자기 쪽 박스 측면(좁은 각도, xG 0.06)이라 먼 포스트 받는 자리를 골·중앙 쪽으로.
      * 하프스페이스 13 m · 0.13 은 티키 기본 윙어(윙포워드)만 세져 상성 960 티키 행 +0.11 ✗ 이라 그대로 */
-    backPostDepth: 7,
-    backPostSpread: 0.07,
+    backPostDepth: 7.5,
+    backPostSpread: 0.085,
     halfSpaceDepth: 17,
     halfSpaceSpread: 0.18,
     boxRunSpread: 0.12,
@@ -1017,7 +1017,7 @@ export const ENGINE = {
        * C.80w: 공중 롱패스(airPass m 넘는 패스·침투) 효용 가중(weight, 1 = 끔) — 착지 정확도(prob.longMiss)를 올려 판단 성공 확률이 같이 오르면
        * 롱패스 시도 비율이 목표(10~16%)를 넘으므로 판단 효용 가중만 같이 낮춘다(판단 보정 원칙, 실행 불변)
        */
-      longW: 0.25,
+      longW: 0.4,
       /**
        * C.80f: 티키 롱패스 감점 (사용자 2026-10-30 "짧은 패스는 조금 더 높게 주고 롱 패스에 조금 감점") — 티키타카 성향 패서의 tikiLongFrom m 넘는 패스 효용에서
        * tikiLong × 거리 가중(tikiLongFrom m 0 → tikiLongTo m 에서 1)을 뺀다. 판단 효용에만(실행 불변). 감점 안 함: 오픈 플레이 탈취 뒤 decide.possess.winOff 초 안(전환),
@@ -1061,6 +1061,12 @@ export const ENGINE = {
       wingCutShot: 0,
       wingCutFar: 24,
       wingCutCenter: 7,
+      /**
+       * C.81h 세컨볼: 리바운드 슛 선호 — 우리 팀 슛 뒤 reboundT 초 안에 상대 박스 안에서 쏘는 슛 효용에 rebound × 슛 레인(1 − 블록/shootLaneRef)을 더한다.
+       * 쳐낸 공을 잡은 공격수가 다시 패스하지 않고 바로 때리게(판단 효용에만, 실행·xG 불변). 0 = 끔
+       */
+      rebound: 0.1,
+      reboundT: 5,
     },
     /**
      * 점유 가치 (C.79m 식 + C.79u 전환 창, 사용자 2026-10-30 "짧은 패스는 점유 가치 높이는 패치, 티키타카에선 더 높게, 롱볼(직선)이나 수비(블록)에선 좀 낮추고").
@@ -1688,6 +1694,15 @@ export const ENGINE = {
     /** 쳐낸 공 속도 (m/s)·방향 퍼짐(rad, ± 절반) — C.80u 전에는 actions.ts 에 7 · 2.4 고정 */
     parrySpeed: 7,
     parrySpread: 2.4,
+    /**
+     * C.81h 세컨볼: GK 가 쳐낸 공(루즈)에 수비 팀 필드 선수가 반응하는 지연 — 쳐낸 순간부터 parryDefHold 초 동안 수비 팀 필드 선수의 루즈볼 컨트롤 확률 × parryDefControl
+     * (슛을 보던 수비는 튄 공에 한 박자 늦고, 따라 들어오던 공격수가 먼저 닿는다). 실행 레버(양 팀 같은 규칙). 0 = 끔
+     */
+    parryDefHold: 1.0,
+    parryDefControl: 0,
+    /** C.81h 세컨볼: 쳐낸 뒤 parryDownT 초 안에 같은 GK 에게 오는 유효 슈팅(PK 제외)의 선방 확률 × parryDownSave — 몸을 날린 GK 가 일어서는 사이 (실행 레버, 판단은 안 본다). 0 = 끔 */
+    parryDownT: 2.0,
+    parryDownSave: 0.6,
     /** 크로스/롱볼 처리: 박스 안이고 GK 와 claimRange 안이면 L((출전 범위 − 60)/12 + claimBias) */
     claimRange: 6,
     claimBias: -3,

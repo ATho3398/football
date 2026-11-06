@@ -936,7 +936,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // 판단 보정 (C.78p): 열린 찬스 슛 선호 — 효용에만, 실행·xG 는 그대로
       const sBias = shootBias(m, goalAngle(a.x, a.y, gx));
       // C.80n: 반대발 윙어 컷인 슛 가산 (효용에만, 각도 만들기 비교에는 안 넣음)
-      const wBias = wingCutBias(s, a, m);
+      const wBias = wingCutBias(s, a, m) + reboundBias(s, a, m);
       const u = weight(vj * O.shotScale + (1 - vj) * shotLoss, a.role.pref.shoot * longShot * tikiMul * gegenMul * risk) + sBias + wBias;
       out.push(mkCand({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value }));
       // 각도 만들기 (C.78h): 슛 길이 막혔으면(블록 > 0) 옆으로 laneCarry m 치는 몰기 — 그 자리 슛 가치(수비는 따라온다 — 압박·밀집은 지금 자리, 슛 길 콘·각도는 도착점, GK 는 laneCarryTime 초 동안 자리를 옮김)가 지금 슛보다 클 때만, 도착점 가치 = 그 슛 가치
@@ -971,7 +971,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
           otNow = null;
         }
         const tikiO = tac.tendency === 'tikitaka' && mO.xg < TENDENCY.tikiLowXg ? TENDENCY.tikiLowShot : 1;
-        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk) + shootBias(mO, goalAngle(a.x, a.y, gx)) + wingCutBias(s, a, mO);
+        const uO = weight(vjO * O.shotScale + (1 - vjO) * shotLoss, a.role.pref.shoot * longShot * tikiO * gegenMul * risk) + shootBias(mO, goalAngle(a.x, a.y, gx)) + wingCutBias(s, a, mO) + reboundBias(s, a, mO);
         ot.out.push(mkCand({ type: 'shoot', p: mO.xg, u: uO, x: gx, y: gy, receiver: -1, value: mO.value, ot: true }));
       }
     }
@@ -1031,6 +1031,13 @@ export function wingCutBias(s: SimState, a: Agent, m: ShotModel): number {
   const fd = clamp((DB.wingCutFar - m.d) / (DB.wingCutFar - DB.shootNear), 0, 1);
   const fl = clamp(1 - m.pBlock / DB.shootLaneRef, 0, 1);
   return DB.wingCutShot * fd * fl;
+}
+
+/** C.81h 세컨볼: 리바운드 슛 판단 가산 (decide.bias.rebound) — 우리 팀 슛 뒤 reboundT 초 안 · 상대 박스 안 · 슛 레인 가중. 판단 효용에만 */
+export function reboundBias(s: SimState, a: Agent, m: ShotModel): number {
+  const DB = ENGINE.decide.bias;
+  if (!DB.rebound || s.t - s.lastShotT[a.team] >= DB.reboundT || !inOppBox(a.x, a.y, attackDir(a.team, s.half))) return 0;
+  return DB.rebound * clamp(1 - m.pBlock / DB.shootLaneRef, 0, 1);
 }
 
 export function shootBias(m: ShotModel, angle: number): number {
