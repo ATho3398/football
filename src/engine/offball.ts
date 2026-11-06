@@ -15,7 +15,7 @@ const { arrivalTime, burstReady, effectiveMax, landingVelocity } = physics_;
 import * as formation_ from './formation';
 const { manDiff, SLOT, slotTargetS, teamPhase } = formation_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, normX, normY, ownGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, hypot, inOppBox, L, normX, normY, ownGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import * as roles_ from './roles';
@@ -428,7 +428,7 @@ export function keeperTarget(s: SimState, a: Agent): void {
   const arc = (d: number): void => {
     const rx = Math.max(0, (ref.x - gx) * dir);
     const ry = ref.y - gy;
-    const rd = Math.hypot(rx, ry);
+    const rd = hypot(rx, ry);
     a.tx = gx + dir * (rd > 0.1 ? (rx / rd) * d : d);
     a.ty = clamp(gy + (rd > 0.1 ? (ry / rd) * d : 0), gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
   };
@@ -552,7 +552,7 @@ export function updateOffball(s: SimState, a: Agent): void {
     a.ty = fl.toY;
     // 침투 패스는 달리며 받는다 (C.78b receive.runOn): 도착점에서 멈추지 않게 패스 방향으로 runOn m 더 (받는 판정은 도착점 4 m 안 그대로)
     if (ENGINE.receive.runOn > 0 && fl.outcome === 'receive' && fl.through) {
-      const d = Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) || 1;
+      const d = hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) || 1;
       a.tx = clamp(fl.toX + ((fl.toX - fl.fromX) / d) * ENGINE.receive.runOn, 1, L - 1);
       a.ty = clamp(fl.toY + ((fl.toY - fl.fromY) / d) * ENGINE.receive.runOn, 1, W - 1);
     }
@@ -914,7 +914,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (m && md <= O.checkMark) {
       const bx = owner!.x - a.x;
       const by = owner!.y - a.y;
-      const bl = Math.hypot(bx, by) || 1;
+      const bl = hypot(bx, by) || 1;
       // 공 방향에 수직인 두 방향 중 마커에서 멀어지는 쪽
       let px = -by / bl;
       let py = bx / bl;
@@ -1376,7 +1376,7 @@ function laneGuess(s: SimState, a: Agent, o: Agent, gx: number, gy: number): -1 
   for (let i_37 = 0, a_37 = [-1, 1] as const; i_37 < a_37.length; i_37++) { const sd = a_37[i_37]!;
     const dx = gx - o.x;
     const dy = gy + sd * cy - o.y;
-    const dd = Math.hypot(dx, dy) || 1;
+    const dd = hypot(dx, dy) || 1;
     let v = shotFootMul(o.body, o.hx, o.hy, dx, dy, rush, s.t < o.otUntil);
     // 몸 방향 (hx, hy: 단위 벡터, 움직이면 달리는 방향)
     v += O.laneFace * ((o.hx * dx + o.hy * dy) / dd);

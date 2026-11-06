@@ -19,7 +19,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { claimProb, coverOf, expectedSave, farSide, gkCtx, keeperOf, keeperZone, saveChance } = keeper_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, normX, normY, oppGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, hypot, inOppBox, L, normX, normY, oppGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import { offsideRisk } from './referee';
@@ -124,7 +124,7 @@ function nearestOpponent(s: SimState, a: Agent, x = a.x, y = a.y): number {
 export function receivesBack(fx: number, fy: number, tx: number, ty: number, dir: 1 | -1): boolean {
   const vx = fx - tx;
   const vy = fy - ty;
-  const n = Math.hypot(vx, vy) || 1;
+  const n = hypot(vx, vy) || 1;
   return (Math.acos(clamp((vx * dir) / n, -1, 1)) * 180) / Math.PI >= O.backAngle;
 }
 
@@ -575,7 +575,7 @@ export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLa
     if (!o.onPitch || o.line === 0 || o === except) continue;
     const best = o.team === team ? tOwn : tOpp;
     // 도착 시간은 직선 거리 / max(최대 속력, 지금 속력)보다 짧을 수 없다 — 그 하한이 이미 지금 최솟값보다 크면 계산하지 않는다 (결과 같음)
-    if (AM && Number.isFinite(best) && Math.max(tLand, (dist(o.x, o.y, x, y) - PR.aerialRadius) / Math.max(o.maxSpeed, Math.hypot(o.vx, o.vy))) > best + 1e-6) continue;
+    if (AM && Number.isFinite(best) && Math.max(tLand, (dist(o.x, o.y, x, y) - PR.aerialRadius) / Math.max(o.maxSpeed, hypot(o.vx, o.vy))) > best + 1e-6) continue;
     const t = Math.max(tLand, AM ? arrivalTime(o, x, y, PR.aerialRadius) : Math.max(0, dist(o.x, o.y, x, y) - PR.aerialRadius) / o.maxSpeed);
     if (o.team === team) { if (t < tOwn) tOwn = t; } else if (t < tOpp) tOpp = t;
   }
@@ -1180,11 +1180,11 @@ export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean
   const lp = s.lastPass;
   if (c.type === 'through' && lp && lp.receiver === a.idx && lp.passer === c.receiver && s.agents[c.receiver]?.giveGo && ENGINE.offball.giveGoChance > 0) return true;
   const dir = attackDir(a.team, s.half);
-  const sp = Math.hypot(a.vx, a.vy);
+  const sp = hypot(a.vx, a.vy);
   const [fx, fy] = a.backToGoal ? [-dir, 0] : sp > 0.5 ? [a.vx / sp, a.vy / sp] : [dir, 0];
   const dx = c.x - a.x;
   const dy = c.y - a.y;
-  const d = Math.hypot(dx, dy) || 1;
+  const d = hypot(dx, dy) || 1;
   const ang = (Math.acos(clamp((dx * fx + dy * fy) / d, -1, 1)) * 180) / Math.PI;
   const v = (a.attrs.vision - 50) / 50;
   let p = 1;

@@ -10,7 +10,7 @@ const BU = ENGINE.physics.burst;
 import { effectiveTactics, pressLevel } from './offball';
 import { oneTouchMul, preDecide } from './onball';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, L, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, hypot, L, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand } = rng_;
 import * as tactics_ from './tactics';
@@ -57,9 +57,9 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
 export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean, touchFit = 0): number {
   const R = ENGINE.receive;
   let dNear = Infinity;
-  for (let i_1 = 0, a_1 = fieldOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!; dNear = Math.min(dNear, Math.hypot(o.x - a.x, o.y - a.y)); }
+  for (let i_1 = 0, a_1 = fieldOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!; dNear = Math.min(dNear, hypot(o.x - a.x, o.y - a.y)); }
   const pr = Math.max(0, 1 - dNear / R.pressDist);
-  const run = clamp(Math.hypot(a.vx, a.vy) / 5, 0, 1);
+  const run = clamp(hypot(a.vx, a.vy) / 5, 0, 1);
   return clamp(R.base - (R.touchSkill * (a.attrs.ballControl + touchFit - 70)) / 100 + (R.ballSpeed * Math.max(0, speed - 12)) / 10 + R.press * pr
     + (back ? R.back : 0) - R.run * run + reaction(a) * R.reactMul, R.min, R.max);
 }
@@ -67,7 +67,7 @@ export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean,
 export function setOwner(s: SimState, a: Agent): void {
   const b = s.ball;
   // 수신 정지 시간 (C.78b): 공을 잡는 순간 공 속도 (비행 중이면 비행 속도, 굴러가면 지금 속도)
-  const inSpeed = ENGINE.receive.timeModel > 0 ? (b.flight ? Math.hypot(b.flight.toX - b.flight.fromX, b.flight.toY - b.flight.fromY) / Math.max(0.05, b.flight.dur) : Math.hypot(b.vx, b.vy)) : 0;
+  const inSpeed = ENGINE.receive.timeModel > 0 ? (b.flight ? hypot(b.flight.toX - b.flight.fromX, b.flight.toY - b.flight.fromY) / Math.max(0.05, b.flight.dur) : hypot(b.vx, b.vy)) : 0;
   recordLoss(s, a.team);
   a.rt.risky = false;
   // 결정 결과는 첫 소유 변경에서 끝난다 (C.75a 실패 완화는 그때까지만)
@@ -214,7 +214,7 @@ function transitionMoment(s: SimState, lost: 0 | 1): void {
     a.nextOffball = s.t;
     if (a.hx * dir < TR.startFace) continue;
     const v = TR.startRun * a.maxSpeed;
-    const sp = Math.hypot(a.vx, a.vy);
+    const sp = hypot(a.vx, a.vy);
     if (sp >= v) continue;
     a.vx = a.hx * v;
     a.vy = a.hy * v;
@@ -224,7 +224,7 @@ function transitionMoment(s: SimState, lost: 0 | 1): void {
 /** 수신 압박 비율 (preDecide 와 같은 식): pressDist m 안 가장 가까운 상대 필드 선수가 가까울수록 1 */
 function pressureNear(s: SimState, a: Agent): number {
   let d = Infinity;
-  for (let i_11 = 0, a_11 = fieldOf(s, (1 - a.team) as 0 | 1); i_11 < a_11.length; i_11++) { const o = a_11[i_11]!; d = Math.min(d, Math.hypot(o.x - a.x, o.y - a.y)); }
+  for (let i_11 = 0, a_11 = fieldOf(s, (1 - a.team) as 0 | 1); i_11 < a_11.length; i_11++) { const o = a_11[i_11]!; d = Math.min(d, hypot(o.x - a.x, o.y - a.y)); }
   return Math.max(0, 1 - d / ENGINE.receive.pressDist);
 }
 

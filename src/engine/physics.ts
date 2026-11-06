@@ -340,8 +340,10 @@ export function arrivalTime(a: Agent, x: number, y: number, reach = 0): number {
   } else {
     const pt = pivotTime(a);
     v0 = Math.max(0, vp);
-    // 몸 방향과 갈 방향 사이 각
-    let ang = Math.acos(Math.max(-1, Math.min(1, sp > P.faceSpeed ? vp / sp : a.hx * ux + a.hy * uy)));
+    // 몸 방향과 갈 방향 사이 각. C.81j: 각은 아래 '남은 몸 돌리기'(GK 아님, 90° 넘음)에만 쓴다 — 코사인이 0 이상이면 acos ≤ 90° 라
+    // 그 조건이 거짓이므로 acos 를 건너뛴다 (반대로 달리는 중이면 코사인 < 0 이라 늘 구한다, 같은 값)
+    const cosA = Math.max(-1, Math.min(1, sp > P.faceSpeed ? vp / sp : a.hx * ux + a.hy * uy));
+    let ang = a.line !== 0 && !(cosA >= 0) ? Math.acos(cosA) : 0;
     if (sp > P.faceSpeed && vp < 0) {
       // 반대쪽으로 달리는 중: 감속하며 몸을 돌린다 (그동안 멀어지는 거리를 더한다)
       const brake = acc0 * P.reverseBrake * a.turnKeep;

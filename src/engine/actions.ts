@@ -19,7 +19,7 @@ import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
 import { oppShotMoment } from './moments';
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, inOwnDanger, L, normX, normY, oppGoal, ownGoal, positionValue, SEG, segDist, segDistS, toNorm, W } = pitch_;
+const { attackDir, clamp, dist, hypot, inOppBox, inOwnDanger, L, normX, normY, oppGoal, ownGoal, positionValue, SEG, segDist, segDistS, toNorm, W } = pitch_;
 import * as physics_ from './physics';
 const { duelEdgeOf, landingVelocity, tiredRatio } = physics_;
 import * as env_ from './env';
@@ -831,7 +831,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
       const [wx, wy] = [winner.x, winner.y];
       winner.x = b.x;
       winner.y = b.y;
-      shoot(s, winner, true, Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) / Math.max(0.05, fl.dur));
+      shoot(s, winner, true, hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) / Math.max(0.05, fl.dur));
       winner.x = wx;
       winner.y = wy;
       return;
@@ -917,7 +917,7 @@ export function resolveFlight(s: SimState): void {
       return;
     case 'receive': {
       const rc = s.agents[fl.receiver]!;
-      const longP = probe.long && Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30 ? probe.long : undefined;
+      const longP = probe.long && hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30 ? probe.long : undefined;
       if (longP && !(rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4)) longP(s, 'arrive:far', dist(rc.x, rc.y, b.x, b.y));
       if (rc.onPitch && dist(rc.x, rc.y, b.x, b.y) < 4) {
         // 롱볼은 착지점에서 수비수와 경합
@@ -997,7 +997,7 @@ function giveBall(s: SimState, a: Agent, kind: BallReserve['kind'], fl?: Flight,
   const res: BallReserve = { idx: a.idx, until: s.t + B.reserveTime, kind, from, ...(fl ? { fl } : {}) };
   const d = dist(a.x, a.y, b.x, b.y);
   // 침투 패스를 달리며 받기 (C.78b receive.runOn): 공과 나란히 달려 runSnap m 안이면 굴려 보내지 않고 바로 받는다 (멈춰 공을 기다리지 않게)
-  if (d <= B.snapReceive || (fl?.through && ENGINE.receive.runOn > 0 && d <= ENGINE.receive.runSnap && Math.hypot(a.vx, a.vy) >= 3)) {
+  if (d <= B.snapReceive || (fl?.through && ENGINE.receive.runOn > 0 && d <= ENGINE.receive.runSnap && hypot(a.vx, a.vy) >= 3)) {
     caught(s, a, res);
     return;
   }
@@ -1050,7 +1050,7 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       passer.stats.passesCompleted++;
       s.teams[passer.team].stats.passesCompleted++;
       a.stats.received++;
-      if (Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30) s.teams[a.team].stats.longCompleted++;
+      if (hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) >= 30) s.teams[a.team].stats.longCompleted++;
       if (fl.through) {
         a.stats.throughReceived++;
         s.teams[a.team].stats.throughReceived++;
@@ -1071,10 +1071,10 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
  * 압박 반대쪽(또는 달리던 쪽)으로 공을 받아 놓고, 땅볼이면 날아오는 동안 미리 정한 원터치 행동을 다음 틱에 실행한다(oneTouch)
  */
 function firstTouch(s: SimState, a: Agent, fl: Flight): void {
-  const speed = (fl.aimD ?? Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY)) / Math.max(0.05, fl.dur);
+  const speed = (fl.aimD ?? hypot(fl.toX - fl.fromX, fl.toY - fl.fromY)) / Math.max(0.05, fl.dur);
   const [opp, dNear] = nearestOppOf(s, a);
   const pr = Math.max(0, 1 - dNear / RC.pressDist);
-  const sp = Math.hypot(a.vx, a.vy);
+  const sp = hypot(a.vx, a.vy);
   if (RC.timeModel > 0) {
     // 전술 적합도 (C.80e): 공중 롱볼 첫 터치 = 직선 touch 보너스
     const t = receiveTime(s, a, speed, a.backToGoal, fl.air ? fitPts(s, a.team, 'touch') : 0);
@@ -1088,7 +1088,7 @@ function firstTouch(s: SimState, a: Agent, fl: Flight): void {
       const dir = attackDir(a.team, s.half);
       let ux = (a.x - opp.x) / Math.max(0.1, dNear) + 0.5 * dir;
       let uy = (a.y - opp.y) / Math.max(0.1, dNear);
-      const n = Math.hypot(ux, uy) || 1;
+      const n = hypot(ux, uy) || 1;
       ux /= n;
       uy /= n;
       a.tx = clamp(a.x + ux * RC.turnAway, 1, L - 1);

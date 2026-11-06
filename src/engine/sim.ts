@@ -543,7 +543,7 @@ function stepBody(s: SimState): void {
   transitionTick(s);
   for (let i_15 = 0, a_15 = s.agents; i_15 < a_15.length; i_15++) { const a = a_15[i_15]!;
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || keeperFlightDue(s, a)) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || (a.line === 0 && keeperFlightDue(s, a))) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));
