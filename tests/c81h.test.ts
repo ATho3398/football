@@ -52,12 +52,19 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
     // 쳐냄은 경기당 약 2회라 없는 시드도 있다 — 처음 쳐냄이 나오는 시드까지 (11~16)
     let sim = match(11);
     let sawHold = false;
+    let halfChecked = false;
     let parryMax = -100;
     for (let seed = 11; seed <= 16 && !sawHold; seed++) {
     sim = match(seed);
     parryMax = -100;
     while (!sim.state.done) {
       sim.step();
+      // 하프타임에 되돌림 (resetHalfClocks): 후반 첫 틱에는 -100 (C.81t: 경기 끝 단언은 후반에 쳐냄이 없는 시드에만 맞아 하프타임 기준으로)
+      if (!halfChecked && sim.state.half === 2) {
+        halfChecked = true;
+        expect(sim.state.teams[0].parryT).toBe(-100);
+        expect(sim.state.teams[1].parryT).toBe(-100);
+      }
       parryMax = Math.max(parryMax, sim.state.teams[0].parryT, sim.state.teams[1].parryT);
       const h = sim.state.ball.defHold;
       if (h) {
@@ -70,7 +77,6 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
     }
     expect(sawHold).toBe(true);
     expect(parryMax).toBeGreaterThan(0);
-    // 하프타임·경기 끝에 되돌림 (resetHalfClocks)
-    expect(sim.state.teams[0].parryT).toBe(-100);
+    expect(halfChecked).toBe(true);
   });
 });
