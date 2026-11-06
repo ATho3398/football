@@ -23,8 +23,8 @@ export function FeedItem(p: FeedItemProps): string {
   const kind = p.kind ?? 'normal';
   const faint = p.faint || kind === 'throwin' || kind === 'goalkick';
   return `<div class="${cx('po-feed', `po-feed--${kind}`, p.mine && 'is-mine', faint && 'is-faint')}"><span class="po-feed__min po-num">${p.minute != null ? `${esc(p.minute)}'` : ''}</span><span class="po-feed__icon">${
-    Icon({ name: FEED[kind], size: kind === 'goal' ? 20 : 16 })}</span><span class="po-feed__text">${p.lead ?? ''}${esc(p.text)}${
-    p.score ? `<b class="po-feed__score po-num">${esc(p.score)}</b>` : ''}</span>${p.mine ? '<span class="po-feed__tag">나</span>' : ''}</div>`;
+    Icon({ name: FEED[kind], size: kind === 'goal' ? 20 : 16 })}</span><span class="po-feed__text"><span class="po-feed__t">${p.lead ?? ''}${esc(p.text)}</span>${
+    p.score ? `<b class="po-feed__score po-num score-cell">${esc(p.score)}</b>` : ''}</span>${p.mine ? '<span class="po-feed__tag">나</span>' : ''}</div>`;
 }
 
 // ── Tactic chips (ScoreBar 가 쓰는 하위 컴포넌트) ──
@@ -172,7 +172,7 @@ export function ScoreBar(p: ScoreBarProps): string {
   const tactics = p.homeTactic || p.awayTactic
     ? `<div class="po-score__tactics">${p.homeTactic ? TacticChip({ size: 'xs', ...p.homeTactic }) : '<span></span>'}${p.awayTactic ? TacticChip({ size: 'xs', away: true, ...p.awayTactic }) : '<span></span>'}</div>`
     : '';
-  return `<div class="${cx('po-score', p.paused && 'is-paused', view && 'po-score--strip')}">${strip}<div class="po-score__teams"><span class="po-score__team"><span class="po-score__id">${Crest({ name: p.home, size: 22 })}<span>${esc(p.home)}</span></span>${redTag(p.homeRed)}</span><span class="po-score__board"><b class="po-num"${id('h')}>${p.homeScore}</b><i>-</i><b class="po-num"${id('a')}>${p.awayScore}</b></span><span class="po-score__team po-score__team--away"><span class="po-score__id"><span>${esc(p.away)}</span>${
+  return `<div class="${cx('po-score', p.paused && 'is-paused', view && 'po-score--strip')}">${strip}<div class="po-score__teams"><span class="po-score__team"><span class="po-score__id">${Crest({ name: p.home, size: 22 })}<span>${esc(p.home)}</span></span>${redTag(p.homeRed)}</span><span class="po-score__board"><b class="po-num"${id('h')}>${p.homeScore}</b><i>:</i><b class="po-num"${id('a')}>${p.awayScore}</b></span><span class="po-score__team po-score__team--away"><span class="po-score__id"><span>${esc(p.away)}</span>${
     Crest({ name: p.away, size: 22, color: 'var(--away)' })}</span>${redTag(p.awayRed)}</span></div><div class="po-score__row"><span class="${cx('po-score__min', p.status && !p.ff && 'has-status', p.ff && 'is-ff')}">${lead}<span class="po-num"${id('clock')}>${esc(p.minute)}'</span>${
     p.minuteTo != null ? `<span class="po-num po-score__to">→ ${esc(p.minuteTo)}'</span>` : ''}${p.ff ? '<span>빨리 감기</span>' : p.status ? `<span>${esc(p.status)}</span>` : ''}</span>${speed}</div>${tactics}</div>`;
 }

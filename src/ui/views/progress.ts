@@ -4,6 +4,7 @@
 import { BottomSheet, Button, Icon, Switch, esc } from '../components';
 import { AUTO_PREFS_DEFAULT, type AutoPrefs } from '../autoPrefs';
 import type { AutoSheetVM } from '../viewModels';
+import { scoreText } from '../../text';
 
 export function autoSheet(vm: AutoSheetVM, count: number, prefs: AutoPrefs = AUTO_PREFS_DEFAULT): string {
   const n = Math.max(1, Math.min(vm.remaining, count));
@@ -64,6 +65,6 @@ export interface AutoResultLine { label: string; opp: string; gf: number; ga: nu
 export function autoResultsHtml(list: AutoResultLine[]): string {
   return list.slice(-4).map((r) => {
     const o = r.gf > r.ga ? ['win', '승'] : r.gf < r.ga ? ['loss', '패'] : ['draw', '무'];
-    return `<li><span class="po-num">${esc(r.label)}</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num">${r.gf}-${r.ga} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
+    return `<li><span class="po-num">${esc(r.label)}</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num score-cell">${scoreText(r.gf, r.ga)} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
   }).join('');
 }

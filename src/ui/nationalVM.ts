@@ -3,6 +3,7 @@ import { BALANCE } from '../config/balance';
 import { CONFED_KO, nationOf } from '../../data/nations';
 import { calendarOf, type GameState } from '../game';
 import { dateLabel, daysBetween } from '../calendar';
+import { pensText, scoreText } from '../text';
 import { reputationTier, playerOvr, TIER_NAMES_KO } from '../growth';
 import { callChance, ensureNational, myTournament, NAT_COMP_KO, natId, natLabel, natWindows, nextWorldCupYear, type NatMatch, type TournamentRec } from '../national';
 
@@ -45,7 +46,7 @@ export interface NationalVM {
 function fixtureVM(g: GameState, m: NatMatch): NatFixtureVM {
   const played = m.gf !== undefined;
   const opp = nationOf(m.opp);
-  const pens = m.pens ? ` (승부차기 ${m.pens[0]}-${m.pens[1]})` : '';
+  const pens = m.pens ? ` (${pensText(m.pens)})` : '';
   const outcome = !played ? null : m.gf! > m.ga! || (m.pens && m.pens[0] > m.pens[1]) ? 'win' : m.gf! < m.ga! || m.pens ? 'loss' : 'draw';
   const line = !played ? '' : (m.min ?? 0) > 0
     ? [`${m.started ? '선발' : '교체'} ${m.min}분`, [m.g ? `${m.g}골` : '', m.a ? `${m.a}도움` : ''].filter(Boolean).join(' '), m.r != null ? `평점 ${m.r.toFixed(1)}` : ''].filter(Boolean).join(' · ')
@@ -53,7 +54,7 @@ function fixtureVM(g: GameState, m: NatMatch): NatFixtureVM {
   void g;
   return {
     date: dateLabel(m.date), label: natLabel(m), opp: opp.nameKo, oppId: natId(m.opp),
-    venue: m.comp === 'friendly' ? (m.home ? '홈' : '원정') : '중립', score: played ? `${m.gf}-${m.ga}${pens}` : null, outcome, line,
+    venue: m.comp === 'friendly' ? (m.home ? '홈' : '원정') : '중립', score: played ? `${scoreText(m.gf!, m.ga!)}${pens}` : null, outcome, line,
   };
 }
 
@@ -62,7 +63,7 @@ function tournamentVM(t: TournamentRec, me: string): NatTournamentVM {
     name: r.name,
     ties: r.ties.map((x) => ({
       a: nationOf(x.a).nameKo, aId: natId(x.a), b: nationOf(x.b).nameKo, bId: natId(x.b),
-      score: `${x.ga}-${x.gb}${x.pens ? ` (PK ${x.pens[0]}-${x.pens[1]})` : ''}`, w: nationOf(x.winner).nameKo, me: x.a === me || x.b === me,
+      score: `${scoreText(x.ga, x.gb)}${x.pens ? ` (${pensText(x.pens)})` : ''}`, w: nationOf(x.winner).nameKo, me: x.a === me || x.b === me,
     })),
   }));
   const koTeams = new Set(t.ko[0]?.ties.flatMap((x) => [x.a, x.b]) ?? []);

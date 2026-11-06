@@ -2,6 +2,7 @@
 // 연출을 따로 만들지 않고 엔진 위치를 그대로 그린다. 보간과 이벤트 문구는 순수 함수 (24.5). 세이브에 담지 않는다.
 
 import type { DecisionRecord } from './engine/moments';
+import { scoreText } from './text';
 import type { EngineResult, MatchEvent, PlayerSpec, Tactics, TeamSetup, TeamStats } from './engine/types';
 import type { RestartType, SimState } from './engine/state';
 
@@ -115,11 +116,11 @@ export function replayEvents(events: MatchEvent[], players: ReplayPlayer[], team
     let big = false;
     switch (ev.type) {
       case 'kickoff': text = '경기 시작'; break;
-      case 'halftime': text = `전반 종료 ${score[0]} : ${score[1]}`; break;
-      case 'fulltime': text = `경기 종료 ${score[0]} : ${score[1]}`; break;
+      case 'halftime': text = `전반 종료 ${scoreText(score[0], score[1])}`; break;
+      case 'fulltime': text = `경기 종료 ${scoreText(score[0], score[1])}`; break;
       case 'goal': {
         score = [Number(ev.params?.home ?? score[0]), Number(ev.params?.away ?? score[1])];
-        text = `골! ${nm(ev.players[0])} (${team})${ev.players[1] ? ` · 도움 ${nm(ev.players[1])}` : ''} — ${score[0]} : ${score[1]}`;
+        text = `골! ${nm(ev.players[0])} (${team})${ev.players[1] ? ` · 도움 ${nm(ev.players[1])}` : ''} — ${scoreText(score[0], score[1])}`;
         big = true;
         break;
       }

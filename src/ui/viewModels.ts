@@ -93,6 +93,7 @@ import {
   type Detail, type Level,
 } from '../engine/tactics';
 import { ROLE_DESC_KO, ROLE_NAMES_KO } from '../engine/roles';
+import { pensText, scoreText } from '../text';
 
 /** 다른 경기 계산 설정 이름 (C.81d) */
 export const OTHERS_KO: Record<OthersMode, string> = { mine: '내 리그만 엔진', all: '전부 엔진', quick: '전부 빠른 진행' };
@@ -1027,8 +1028,8 @@ export function feedKind(x: ReplayEvent, side: 0 | 1): FeedKind {
 
 export function feedVM(r: Replay, x: ReplayEvent, myId: string | undefined): FeedVM {
   const mine = !!myId && x.players.includes(myId);
-  const score = x.score ? `${x.score[0]}-${x.score[1]}` : undefined;
-  const text = x.score ? x.text.replace(/ — \d+ : \d+$/, '') : x.text;
+  const score = x.score ? scoreText(x.score[0], x.score[1]) : undefined;
+  const text = x.score ? x.text.replace(/ — \d+\s:\s\d+$/u, '') : x.text;
   return { e: x.e, minute: x.type === 'kickoff' || x.type === 'halftime' || x.type === 'fulltime' ? undefined : x.minute, text, kind: feedKind(x, r.side), mine, ...(score ? { score } : {}) };
 }
 
@@ -1226,7 +1227,7 @@ export function matchResultVM(g: GameState, r: Replay | null): MatchResultVM | n
     cupBanner: cupBannerVM(g),
     env: m.cond ? { weather: m.cond.weather, line: WEATHER_LINE[m.cond.weather] ?? `${WEATHER_KO[m.cond.weather]} · 날씨 영향 없음`, referee: m.cond.referee } : null,
     round: m.round, comp: m.nat ? m.nat.label : m.cup ? `${compNameKo(m.cup.comp, g.league.id)} ${m.cup.stage}` : `리그 ${m.round}R`,
-    opp, scoreLine: `${res.goalsFor}-${res.goalsAgainst}${m.nat?.pens ? ` (승부차기 ${m.nat.pens[0]}-${m.nat.pens[1]})` : ''}${m.cup?.pens ? ` (승부차기 ${m.home ? m.cup.pens[0] : m.cup.pens[1]}-${m.home ? m.cup.pens[1] : m.cup.pens[0]})` : ''}`, outcome: res.outcome, outcomeKo,
+    opp, scoreLine: `${scoreText(res.goalsFor, res.goalsAgainst)}${m.nat?.pens ? ` (${pensText(m.nat.pens)})` : ''}${m.cup?.pens ? ` (${pensText(m.home ? [m.cup.pens[0], m.cup.pens[1]] : [m.cup.pens[1], m.cup.pens[0]])})` : ''}`, outcome: res.outcome, outcomeKo,
     rating: res.rating, appearance, formBonus: res.minutes > 0 ? m.formBonus : 0, ...(m.engine ? { formEngine: true } : {}), chips, banners, highlights, report,
     hasAvgMap: !!r, my, myMore,
     clips: (findClips(g.clips, m.season, m.round)?.clips ?? []).map((c) => ({ kind: c.kind, label: CLIP_KO[c.kind], minute: `${c.minute}'`, text: c.text })),
@@ -1277,7 +1278,7 @@ function logRowVM(g: GameState, e: MatchLogEntry): MatchLogRowVM {
     : [e.started ? '선발' : `교체 ${e.minutes}분`, e.goals ? `골 ${e.goals}` : '', e.assists ? `도움 ${e.assists}` : '', e.mom ? 'MOM' : '']
       .filter(Boolean).join(' · ');
   return {
-    round: e.round, opp: teamById(g.league, e.opponentId).nameKo, venue: e.home ? '홈' : '원정', score: `${e.goalsFor}-${e.goalsAgainst}`, outcome,
+    round: e.round, opp: teamById(g.league, e.opponentId).nameKo, venue: e.home ? '홈' : '원정', score: scoreText(e.goalsFor, e.goalsAgainst), outcome,
     rating: e.rating === null ? '-' : e.rating.toFixed(1), head,
     line: e.minutes === 0 ? '' : e.rec ? recordLine(e.rec, e.position) : '기록 없음',
     hl: e.hl ?? [], decisions: e.dec?.length ?? 0,
@@ -2085,8 +2086,8 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
   const me = g.player.teamId;
   const name = (id: string) => teamById(g.league, id).nameKo;
   const tie = (t: CupTie, date: string, note = ''): CupTieVM => ({
-    date: dateLabel(date), h: name(t.h), a: name(t.a), hId: t.h, aId: t.a, score: t.hg === undefined ? null : `${t.hg}-${t.ag}`,
-    note: [note, t.p ? `승부차기 ${t.p[0]}-${t.p[1]}` : ''].filter(Boolean).join(' · '), w: t.w ? name(t.w) : null, me: t.h === me || t.a === me,
+    date: dateLabel(date), h: name(t.h), a: name(t.a), hId: t.h, aId: t.a, score: t.hg === undefined ? null : scoreText(t.hg, t.ag!),
+    note: [note, t.p ? pensText(t.p) : ''].filter(Boolean).join(' · '), w: t.w ? name(t.w) : null, me: t.h === me || t.a === me,
     pens: t.p ? [t.p[0], t.p[1]] : null,
   });
   const u = cups?.ucl ?? null;
@@ -2111,10 +2112,10 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
           const t2 = st.l2[i]!;
           // 표시는 1차전 홈 기준: 합계 · 1차전 · 2차전(2차전 홈 = 1차전 원정이라 뒤집어 적음) · 승부차기
           const v = tie(t1, t1.d!);
-          const leg2 = t2.hg === undefined ? dateLabel(t2.d!) : `${t2.ag}-${t2.hg}`;
+          const leg2 = t2.hg === undefined ? dateLabel(t2.d!) : scoreText(t2.ag!, t2.hg);
           return {
-            ...v, score: t2.hg === undefined ? null : `${t1.hg! + t2.ag!}-${t1.ag! + t2.hg!}`,
-            note: [`1차전 ${t1.hg === undefined ? dateLabel(t1.d!) : `${t1.hg}-${t1.ag}`}`, `2차전 ${leg2}`, t2.p ? `승부차기 ${t2.p[1]}-${t2.p[0]}` : ''].filter(Boolean).join(' · '),
+            ...v, score: t2.hg === undefined ? null : scoreText(t1.hg! + t2.ag!, t1.ag! + t2.hg!),
+            note: [`1차전 ${t1.hg === undefined ? dateLabel(t1.d!) : scoreText(t1.hg, t1.ag!)}`, `2차전 ${leg2}`, t2.p ? pensText([t2.p[1], t2.p[0]]) : ''].filter(Boolean).join(' · '),
             w: t2.w ? name(t2.w) : null,
             legs: {
               l1: t1.hg === undefined ? null : [t1.hg, t1.ag!], l2: t2.hg === undefined ? null : [t2.ag!, t2.hg],

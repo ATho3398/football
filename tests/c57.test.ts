@@ -143,8 +143,8 @@ describe('자동 진행 (디자인 61~64) · 새 기능 안내 (65)', () => {
   it('레이어 카드: n / m경기 · 최근 결과 · 순위·쌓인 포인트 · 중단', () => {
     expect(autoLayerHtml()).toContain('auto-layer__results');
     const r = autoResultsHtml([{ label: '2R', opp: '풀럼', gf: 3, ga: 1, rating: 7.4 }, { label: '3R', opp: '맨유', gf: 0, ga: 1, rating: 6.3 }]);
-    expect(r).toContain('3-1 승');
-    expect(r).toContain('0-1 패');
+    expect(r).toContain('3\u00a0:\u00a01 승');
+    expect(r).toContain('0\u00a0:\u00a01 패');
   });
   it('새 기능 Modal 꼬리표', () => {
     expect(Modal({ title: '이제 팀 전술을 내가 정해요', badge: '새 기능', icon: 'star' })).toContain('po-modal__badge');
