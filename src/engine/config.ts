@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 88;
+export const ENGINE_VERSION = 89;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1485,16 +1485,32 @@ export const ENGINE = {
     base: 6.0,
     pass: 0.02,
     forwardPass: 0.05,
-    keyPass: 0.15,
+    /**
+     * 패스 개수 체감 (C.81r, 역할별 평점 쏠림): 안전 패스(전진 아닌 성공 패스)는 포지션군 passKnee 개까지 pass, 넘는 몫은 × passTail.
+     * 전진 패스는 forwardKnee 개까지 forwardPass, 넘는 몫은 × forwardTail. 없는 군(GK · CM, CDM 안전 패스)은 체감 없음.
+     * 무릎은 역할 표본(c81r-role-parts 810경기 × 31역할)에서 같은 군 역할 차가 가장 작아지는 값을 반올림 — 공 요구 역할(엔간체·레지스타·인버티드 풀백)이 패스 개수만으로 평점을 쓸어 담지 않게
+     */
+    passKnee: { CB: 5, FB: 5, CAM: 20, WING: 18, ST: 45 } as Record<string, number>,
+    passTail: 0.3 as number,
+    forwardKnee: { CB: 20, FB: 15, CDM: 18, CAM: 8, WING: 5, ST: 10 } as Record<string, number>,
+    forwardTail: 0.2 as number,
+    /** C.81r: 0.15 → 0.11 (엔간체·프리롤 키패스 몫이 역할 차의 큰 부분) */
+    keyPass: 0.11,
     onTarget: 0.1,
     /** 골·도움은 scale 을 곱해 평점 약 +1.0 / +0.6 (C.26). 골이 된 슈팅은 유효 슈팅으로 따로 세지 않는다 */
     goal: 1.1,
     assist: 0.65,
     dribble: 0.1,
-    tackle: 0.1,
-    interception: 0.08,
+    /** C.81r: 태클 0.1 → 0.14 · 인터셉트 0.08 → 0.1 (수비 행동 가중 상향, 하프백·홀딩 같은 수비형 역할) */
+    tackle: 0.14,
+    interception: 0.1,
     aerial: 0.05,
-    lost: -0.04,
+    /** 수비 행동 (C.81r): 슛 블록 · 걷어내기 · 위험 지역 걷어내기 추가분 */
+    block: 0.05,
+    clearance: 0.04,
+    dangerClear: 0,
+    /** C.81r: −0.04 → −0.06 (공 요구 역할의 잦은 상실이 패스 몫에 묻히지 않게) */
+    lost: -0.06,
     dangerLost: -0.1,
     /** 상대 진영 마지막 1/3 에서의 공 상실은 lost × 이 비율 (C.26) */
     attackLostFactor: 0.5,
@@ -1555,7 +1571,18 @@ export const ENGINE = {
     // C.80u(엔진 82, 세트피스 헤더·1대1 보정 + 롱패스 병합 뒤): engine:check ST 6.73(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 ST 6.70(맞춤 2.56) — 가드 밖 ST 만 2.45 → 2.53(§9.12.7)
     // C.81a(엔진 85, 크로스 박스 인원·saveBase 1.89): engine:check GK 6.70(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 GK 6.67(맞춤 1.77) — 가드 밖 GK 만 1.58 → 1.68(§9.12.7)
     // C.81b(엔진 86, edgeZone 18·saveBase 1.93·균형 점유 가치 0.02): engine:check CM 6.70(가드 6.3~6.7 ✗) — 가드 밖 CM 만 2.35 → 2.43(scale 0.9 로 약 −0.07, §9.12.7)
-    center: { GK: 1.68, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.43, CAM: 2.1, WING: 1.06, ST: 2.53 } as Record<string, number>,
+    // C.81r(엔진 89, 역할별 평점 쏠림 — 패스 체감·수비 가중·roleCenter): `rating-parts 720 … 20000`(역할 포함) 에서 8군 평균을 바꾸기 전 값 그대로 두게 다시 맞춤(c81r-role-opt) — 군 평균 유지, σ 0.834 → 0.786
+    center: { GK: 1.72, CB: 1.15, FB: 0.61, CDM: 1.77, CM: 2.46, CAM: 1.66, WING: 0.81, ST: 2.11 } as Record<string, number>,
+    /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0 */
+    roleCenter: {
+      stopper: 0.01, ballPlayingCB: -0.01, coverCB: -0.09, libero: 0.09,
+      attackingFullback: 0, defensiveFullback: -0.09, invertedFullback: 0.1, completeWingback: -0.02,
+      anchor: 0.12, ballWinner: 0.06, regista: 0, halfBack: -0.18,
+      boxToBox: 0.08, deepPlaymaker: 0.02, mezzala: 0.04, carrier: 0.06, holdingCM: -0.2,
+      classic10: -0.17, shadowStriker: -0.09, freeRole: 0.19, boxCrasher: -0.07, enganche: 0.14,
+      classicWinger: -0.18, wingForward: 0.2, crackWinger: 0.02, raumdeuter: 0.11, wideMid: -0.14,
+      poacher: -0.1, targetMan: 0.02, falseNine: 0.08, advancedForward: 0,
+    } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },

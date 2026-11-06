@@ -11,6 +11,7 @@ describe('C.81b 묶음 마무리 보정 2', () => {
     expect(ENGINE.matchup.balanced).toEqual({ tikitaka: { long: -10 } });
     expect(ENGINE.keeper.saveBase).toBe(1.93);
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.3);
-    expect(ENGINE.rating.center.CM).toBe(2.43);
+    // C.81r: 평점 가중(패스 체감·수비·roleCenter) 뒤 군 평균 유지로 center 다시 맞춤 2.43 → 2.46
+    expect(ENGINE.rating.center.CM).toBe(2.46);
   });
 });
