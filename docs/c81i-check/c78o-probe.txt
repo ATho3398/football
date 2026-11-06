@@ -1,0 +1,8 @@
+CB important +0: 정지 10 1대1 0 같음 true
+CB important +1: 정지 9 1대1 0 같음 true
+CB important +2: 정지 11 1대1 2 같음 true
+CB important +3: 정지 5 1대1 1 같음 true
+CB important +4: 정지 7 1대1 0 같음 true
+CB important +5: 정지 7 1대1 0 같음 true
+CB important +6: 정지 13 1대1 1 같음 true
+CB all +1: 정지 10 1대1 1 같음 true
