@@ -91,9 +91,9 @@ async function toPrep() {
   return false;
 }
 async function playPrep() {
-  const n0 = await page.evaluate(() => globalThis.__matchPerf.length);
+  const n0 = await page.evaluate(() => (globalThis.__matchPerf?.length ?? 0));
   await act('prep-start');
-  await page.waitForFunction((k) => globalThis.__matchPerf.length > k, n0, { timeout: 180000, polling: 100 });
+  await page.waitForFunction((k) => (globalThis.__matchPerf?.length ?? 0) > k, n0, { timeout: 180000, polling: 100 });
   await page.waitForTimeout(1500); await dismiss(); await top();
 }
 
@@ -162,12 +162,12 @@ if (want('moment')) {
   await page.waitForTimeout(300); await dismiss();
   if (await has('[data-act="ctl-mode"][data-v="direct"]')) await act('ctl-mode', '[data-v="direct"]');
   if (await has('[data-act="ctl-stop"][data-v="all"]')) await act('ctl-stop', '[data-v="all"]');
-  const n0 = await page.evaluate(() => globalThis.__matchPerf.length);
+  const n0 = await page.evaluate(() => (globalThis.__matchPerf?.length ?? 0));
   await act('prep-start');
   let picked = 0;
   const chips = [];
   for (let loop = 0; loop < 300; loop++) {
-    const done = await page.evaluate((k) => globalThis.__matchPerf.length > k || !!document.querySelector('main.screen-match'), n0);
+    const done = await page.evaluate((k) => (globalThis.__matchPerf?.length ?? 0) > k || !!document.querySelector('main.screen-match'), n0);
     if (done) break;
     await page.waitForSelector('[data-act="mo-confirm"], [data-act="oc-skip"], [data-act="ht-keep"], main.screen-match', { timeout: 180_000 }).catch(() => null);
     await page.waitForTimeout(400);
@@ -195,7 +195,7 @@ if (want('moment')) {
     // 결과 재생 중(실제 속도)과 결과 판 모두 위험 칩이 보인다 — 재생 중 한 장
     if (picked === 1) { await page.waitForTimeout(600); await shot('3_결정결과-재생중'); }
   }
-  await page.waitForFunction((k) => globalThis.__matchPerf.length > k, n0, { timeout: 180000 }).catch(() => null);
+  await page.waitForFunction((k) => (globalThis.__matchPerf?.length ?? 0) > k, n0, { timeout: 180000 }).catch(() => null);
   await page.waitForTimeout(1500); await dismiss(); await top();
   await shot('3c_결과화면');
   const dec = page.locator('.dec-row:not(.mr-clip)').first();
