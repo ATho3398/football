@@ -7,7 +7,7 @@ import { BALANCE } from './config/balance';
 import { addDays, daysBetween, isoDate, leagueCalendar, nearestSaturday, weekday, type IsoDate } from './calendar';
 import { FA_CUP_EXTRA, UCL_EXTRA } from '../data/outsideClubs';
 import { allLeagueData, DOMESTIC_CUP_KO, leagueData, UEFA_COUNTRIES } from '../data/leagues';
-import { canonicalClub, leagueOfClub } from '../data/clubAlias';
+import { aliasOf, canonicalClub, leagueOfClub } from '../data/clubAlias';
 import { leagueTeamById, simulateScore, teamById } from './league';
 import { calendarKind, leagueTeamRoster } from './otherLeagues';
 import { createTeamRoster, posGroup, type TeamRoster } from './roster';
@@ -473,11 +473,19 @@ export function uclEntrants(state: GameState): string[] {
   const prev = state.archive?.at(-1);
   const prevTop = prev && prev.season === lg.season - 1 ? prev.table.map((r) => r[0]) : null;
   const out: string[] = [];
-  const push = (id: string) => { if (out.length < 32 && !out.includes(id)) out.push(id); };
-  // 내 리그(1부): 지난 시즌 상위 (첫 시즌 = PL 은 2017-18 실제, 다른 리그는 레이팅 상위)
+  const n = new Map<string, number>();
+  const has = (id: string) => out.includes(id) || (aliasOf(id) !== undefined && out.includes(aliasOf(id)!));
+  const push = (id: string, lid?: string) => {
+    if (out.length >= 32 || has(id)) return;
+    out.push(id);
+    if (lid) n.set(lid, (n.get(lid) ?? 0) + 1);
+  };
+  const full = (lid: string) => (n.get(lid) ?? 0) >= uclSlots(lid);
+  // 내 리그(1부): 지난 시즌 상위 자리 수 (첫 시즌 = PL 은 2017-18 실제, 다른 리그는 레이팅 상위)
   if (lg.tier === 1) {
     const first = lg.id === 'pl' ? [...BALANCE.cups.ucl.firstSeason] : [...lg.teams].sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id)).map((t) => t.id);
-    (prevTop ?? first).slice(0, Math.max(4, uclSlots(lg.id))).forEach(push);
+    const k = lg.id in BALANCE.cups.ucl.slots ? uclSlots(lg.id) : Math.max(4, uclSlots(lg.id));
+    (prevTop ?? first).slice(0, k).forEach((id) => push(id, lg.id));
   }
   // 고른 다른 리그의 지난 시즌 순위 (같은 시즌 번호 − 1 일 때만, 첫 시즌·옛 달력 = 없음)
   const pastTop = new Map<string, string[]>();
@@ -485,27 +493,32 @@ export function uclEntrants(state: GameState): string[] {
     const p = o.past?.at(-1);
     if (o.id !== lg.id && p && p.season === lg.season - 1) pastTop.set(o.id, p.top);
   }
-  const fromPast = (lid: string): string | null => pastTop.get(lid)?.find((id) => !out.includes(id)) ?? null;
-  // PL 상위 4: 다른 리그로 고른 PL 의 지난 시즌 순위, 없으면 2017-18 실제
-  if (lg.id !== 'pl') for (let k = 0; k < 4; k++) push(fromPast('pl') ?? BALANCE.cups.ucl.firstSeason[k]!);
+  const fromPast = (lid: string): string | null => pastTop.get(lid)?.find((id) => !has(id)) ?? null;
+  // PL: 다른 리그로 고른 PL 의 지난 시즌 순위, 없으면 2017-18 실제
+  if (lg.id !== 'pl') for (let k = 0; k < uclSlots('pl'); k++) push(fromPast('pl') ?? BALANCE.cups.ucl.firstSeason[k]!, 'pl');
+  // 외부 명단 순서대로, 리그마다 자리 수까지 (지난 시즌 기록이 있으면 그 순위로 바꿔 넣는다)
   for (const x of UCL_EXTRA) {
     const c = canonicalClub(x, ids);
     const cl = leagueOfClub(c);
-    if (cl === lg.id) continue;
-    push((cl && fromPast(cl)) ?? c);
+    if (cl === lg.id || (cl && full(cl))) continue;
+    push((cl && fromPast(cl)) ?? c, cl);
   }
-  // 모자라면 유럽 리그 1부 팀 레이팅 순 (내 리그·이미 든 팀 제외)
-  if (out.length < 32) {
-    const extra = allLeagueData().filter((d) => d.id !== lg.id && d.tier === 1 && UEFA_COUNTRIES.has(d.country))
-      .flatMap((d) => d.teams).sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id));
-    for (const t of extra) push(t.id);
-  }
+  // 모자라면 자리 수 표에 없는 유럽 리그 1부 팀 레이팅 순, 그래도 모자라면 자리가 남은 리그 (내 리그·이미 든 팀 제외)
+  const fill = (pred: (lid: string) => boolean) => {
+    if (out.length >= 32) return;
+    const extra = allLeagueData().filter((d) => d.id !== lg.id && d.tier === 1 && UEFA_COUNTRIES.has(d.country) && pred(d.id))
+      .flatMap((d) => d.teams.map((t) => ({ t, lid: d.id }))).sort((a, b) => b.t.rating - a.t.rating || a.t.id.localeCompare(b.t.id));
+    for (const { t, lid } of extra) if (!full(lid)) push(t.id, lid);
+  };
+  fill((lid) => !(lid in BALANCE.cups.ucl.slots));
+  fill(() => true);
   return out;
 }
 
-/** 리그의 챔스 자리 수 (C.81q) = 외부 명단(UCL_EXTRA)에 든 그 리그 클럽 수, PL = 4 */
+/** 리그의 챔스 자리 수 (C.81q): 실제 배정표(BALANCE.cups.ucl.slots, 2018-19), 표에 없는 리그 = 외부 명단(UCL_EXTRA)에 든 그 리그 클럽 수 */
 export function uclSlots(leagueId: string): number {
-  if (leagueId === 'pl') return 4;
+  const t = (BALANCE.cups.ucl.slots as Record<string, number>)[leagueId];
+  if (t !== undefined) return t;
   return UCL_EXTRA.filter((x) => leagueOfClub(x) === leagueId).length;
 }
 

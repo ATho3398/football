@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 99;
+export const BALANCE_VERSION = 100;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -1847,6 +1847,8 @@ export const BALANCE = {
      */
     ucl: {
       firstSeason: ['mci', 'mun', 'tot', 'liv'] as readonly string[],
+      /** 리그별 챔스 자리 수 (C.81q, 2018-19 실제 배정): 내 리그·고른 다른 리그 모두 지난 시즌 순위로 자른다. 표에 없는 리그 = 외부 명단 클럽 수 */
+      slots: { pl: 4, laliga: 4, seriea: 4, bundesliga: 4, ligue1: 3 } as Readonly<Record<string, number>>,
       groupWeeks: [[0, 9, 18], [0, 10, 2], [0, 10, 23], [0, 11, 6], [0, 11, 27], [0, 12, 11]] as [number, number, number][],
       /** 16강·8강·4강 [1차전, 2차전] 주 */
       koWeeks: [[[1, 2, 12], [1, 3, 5]], [[1, 4, 9], [1, 4, 16]], [[1, 4, 30], [1, 5, 7]]] as [number, number, number][][],
@@ -1861,7 +1863,7 @@ export const BALANCE = {
     cupForm: true,
     cupTrust: true,
     /** 업적 XP (5.3): 챔스 우승/준우승/4강/8강, 국내 컵 우승, 트레블(리그 + 국내 컵 + 챔스) */
-    xp: { uclWin: 400, uclFinal: 250, uclSemi: 150, uclQuarter: 80, faWin: 150, treble: 500 },
+    xp: { uclWin: 360, uclFinal: 225, uclSemi: 135, uclQuarter: 72, faWin: 150, treble: 500 },
     /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */
     minGap: 3, minGapLoose: 2,
     /** 승부차기 간이 판정: 홈(또는 첫 팀) 승률 = 0.5 + 레이팅 차 × ratingK, [min, max] */
@@ -2162,7 +2164,7 @@ export const BALANCE = {
         Atlanta: 'usa_s', Orlando: 'usa_s', Frisco: 'usa_s', Houston: 'usa_s', 'Los Angeles': 'usa_s', Carson: 'usa_s', 'San Jose': 'usa_s',
       } as Record<string, string>,
       /** 리그 데이터에 없는 챔스 외부 클럽 → 나라 */
-      outside: { 'x:zen': 'Russia', 'x:gal': 'Turkey', 'x:cel': 'Scotland', 'x:sha': 'Ukraine', 'x:bru': 'Belgium' } as Record<string, string>,
+      outside: { 'x:zen': 'Russia', 'x:gal': 'Turkey', 'x:cel': 'Scotland', 'x:sha': 'Ukraine', 'x:bru': 'Belgium', 'x:lok': 'Russia', 'x:csk': 'Russia' } as Record<string, string>,
     },
     /** 실행 배율 (크기 = 실행 성공률 ±3~8%). 키는 MatchEnv */
     effects: {

@@ -106,7 +106,7 @@ describe('중복 정리 (C.76c 5번)', () => {
     expect(canonicalClub('x:zen', ['pl', 'laliga'])).toBe('x:zen');
   });
 
-  it('챔스 출전: PL 만 = 옛 32팀 그대로, 라리가를 고르면 라리가 클럽은 리그 id, 내 리그가 라리가면 상위 6 + PL 상위 4 + 외부', () => {
+  it('챔스 출전: PL 만 = 옛 32팀 그대로, 라리가를 고르면 라리가 클럽은 리그 id, 내 리그가 라리가면 상위 4 + PL 상위 4 + 외부', () => {
     const pl = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-u1', difficulty: 'normal' });
     expect(uclEntrants(pl)).toContain('x:bar');
     const both = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-u1', difficulty: 'normal', leagues: ['pl', 'laliga'] });
@@ -116,9 +116,9 @@ describe('중복 정리 (C.76c 5번)', () => {
     const e = uclEntrants(la);
     expect(e).toHaveLength(32);
     expect(new Set(e).size).toBe(32);
-    // C.81q: 내 리그 자리 수 = 외부 명단의 라리가 자리 수 (6)
-    expect(e.filter((id) => leagueOfTeam(id) === 'laliga' || leagueOfClub(id) === 'laliga')).toHaveLength(6);
-    expect(e.slice(6, 10)).toEqual(BALANCE.cups.ucl.firstSeason);
+    // C.81q: 내 리그 자리 수 = 실제 배정표 라리가 4
+    expect(e.filter((id) => leagueOfTeam(id) === 'laliga' || leagueOfClub(id) === 'laliga')).toHaveLength(4);
+    expect(e.slice(4, 8)).toEqual(BALANCE.cups.ucl.firstSeason);
     expect(la.cups?.ucl?.groups.flat()).toHaveLength(32);
   });
 });
