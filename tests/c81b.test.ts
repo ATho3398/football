@@ -10,7 +10,7 @@ describe('C.81b 묶음 마무리 보정 2', () => {
     expect(ENGINE.matchup.block!.gegenpress).toEqual({ air: 2, keep: 2 });
     expect(ENGINE.matchup.balanced).toEqual({ tikitaka: { long: -10 } });
     expect(ENGINE.keeper.saveBase).toBe(1.93);
-    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.3);
+    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.32); // C.81h 0.3 → 0.32 (윙어 마무리 0.92 뒤 장면 ④ 1대1 골 0.253)
     expect(ENGINE.rating.center.CM).toBe(2.43);
   });
 });

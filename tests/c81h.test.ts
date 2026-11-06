@@ -51,8 +51,10 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
   it('경기 중 쳐낸 시각이 기록되고(parryT), 수비 지연은 하프타임·재개에서 비워진다', () => {
     const sim = match(11);
     let sawHold = false;
+    let parryMax = -100;
     while (!sim.state.done) {
       sim.step();
+      parryMax = Math.max(parryMax, sim.state.teams[0].parryT, sim.state.teams[1].parryT);
       const h = sim.state.ball.defHold;
       if (h) {
         sawHold = true;
@@ -62,6 +64,8 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
       }
     }
     expect(sawHold).toBe(true);
-    expect(Math.max(sim.state.teams[0].parryT, sim.state.teams[1].parryT)).toBeGreaterThan(0);
+    expect(parryMax).toBeGreaterThan(0);
+    // 하프타임·경기 끝에 되돌림 (resetHalfClocks)
+    expect(sim.state.teams[0].parryT).toBe(-100);
   });
 });
