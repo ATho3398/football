@@ -90,7 +90,8 @@ describe('챔스 한 시즌', () => {
   it('챔스 결승에 오르면 리그가 끝나도 시즌이 이어지고, 결승을 치른 뒤 끝난다', () => {
     let found = false;
     // C.77m: 피로 수치가 바뀌어 내 선수 출전이 달라져 u1~u8 에선 결승에 못 감 → 결승에 가는 u16 을 앞에 (시드 교체, 검사 내용 그대로)
-    for (const seed of ['u16', 'u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8']) {
+    // C.81q: 챔스 자리 수를 실제 배정으로 바꿔 u16 에선 결승에 못 감 → 결승에 가는 u23 을 앞에 (시드 교체, 검사 내용 그대로)
+    for (const seed of ['u23', 'u16', 'u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7', 'u8']) {
       const g = real(seed);
       for (let s = 0; s < 2 && !found; s++) {
         while (g.phase === 'season') playRound(g, { engine: 'quick' });
