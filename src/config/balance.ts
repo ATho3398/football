@@ -1743,7 +1743,9 @@ export const BALANCE = {
        * 측정(c81d-awards, 6개 리그 시즌 끝 발롱도르 후보 풀): 전부 엔진 후보 평균 평점 6.20~6.29 · 추정 6.52~6.64 → 차이 약 0.33.
        * 보정 없으면 내 리그(엔진) 후보가 평점 표준점수에서 밀려 발롱도르 후보 30인이 다른 리그로 쏠린다. 전부 엔진·전부 빠른 진행은 섞이지 않아 안 쓴다
        */
-      mixedRatingShift: -0.33 },
+      mixedShift: { GK: -0.33, CB: -0.33, FB: -0.33, CDM: -0.33, CM: -0.33, CAM: -0.33, WING: -0.33, ST: -0.33 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 평점 퍼짐 = ratingBase 중심으로 (avg − ratingBase) × mixedSpread (1 = 그대로) */
+      mixedSpread: 1 },
     /** 투표단 가중치 (이력서 항목 표준점수) · 노이즈(표준편차, 후보 안 종합 점수 표준편차 단위) · 성향 */
     juries: {
       journalist: { w: { out: 0.75, rat: 0.7, def: 0.4, tro: 2.6, nat: 0.9, clu: 0.9, sto: 0.8, fam: 0.3, tal: 0 }, noise: 0.6 },
