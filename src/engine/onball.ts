@@ -383,6 +383,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   if (ENGINE.keeper.timeModel && press3 > 1) pOn = Math.max(PR.shotMin, pOn - ENGINE.keeper.shotCrowd * (press3 - 1));
   pOn *= angle;
   pOn *= finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot');
+  // C.81h: 윙어 발 슛 유효 슈팅 배수 (판단·실행 같은 값)
+  if (!header && (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM')) pOn *= PR.wingFinish;
   // 원터치 슛 (C.78b): 판단(미리 정하기)과 실행(다음 틱 shoot)이 같은 배수
   if (!header && !at) pOn *= otOf(s, a);
   // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
