@@ -109,7 +109,7 @@ let nearA: Agent | null = null;
 function nearestOpponent(s: SimState, a: Agent, x = a.x, y = a.y): number {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_1 = 0, a_1 = onOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!;
     const d = dist(o.x, o.y, x, y);
     if (d < bd) {
       bd = d;
@@ -132,7 +132,7 @@ export function receivesBack(fx: number, fy: number, tx: number, ty: number, dir
 function nearestOutfield(s: SimState, a: Agent, x: number, y: number): number {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_2 = 0, a_2 = fieldOf(s, (1 - a.team) as 0 | 1); i_2 < a_2.length; i_2++) { const o = a_2[i_2]!;
     const d = dist(o.x, o.y, x, y);
     if (d < bd) {
       bd = d;
@@ -162,7 +162,7 @@ export function laneRisk(s: SimState, a: Agent, tx: number, ty: number): LaneInf
 export function laneRiskAt(s: SimState, team: 0 | 1, fx: number, fy: number, tx: number, ty: number): LaneInfo {
   let risk = 0;
   const cutters: LaneInfo['cutters'] = [];
-  for (const o of onOf(s, (1 - team) as 0 | 1)) {
+  for (let i_3 = 0, a_3 = onOf(s, (1 - team) as 0 | 1); i_3 < a_3.length; i_3++) { const o = a_3[i_3]!;
     // segDist 와 같은 식 (C.81e: 배열 없이)
     const sdx = tx - fx;
     const sdy = ty - fy;
@@ -226,7 +226,7 @@ export function lossCost(nx: number, ny: number): number {
 /** 유지하는 동안 빼앗길 확률: 3 m 안 상대마다 holdLose × (1 − 거리/3) 를 독립으로 합성 (압박 수비수 수와 거리) */
 export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
   let keep = 1;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_4 = 0, a_4 = onOf(s, (1 - a.team) as 0 | 1); i_4 < a_4.length; i_4++) { const o = a_4[i_4]!;
     const d = dist(o.x, o.y, x, y);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
   }
@@ -240,7 +240,7 @@ export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
  */
 export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who: Agent = a): number {
   let keep = 1;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_5 = 0, a_5 = onOf(s, (1 - a.team) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!;
     const d = carryReachDist(s, o, a, cx, cy);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (o.line === 0 ? O.carryGk : 1) * (1 - d / PR.pressureDist);
   }
@@ -342,7 +342,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   // GK 시야 가림 (C.79a): 슛 길 콘 안 선 위치 ≥ screenFrom 상대 필드 선수
   let sN = 0;
   let sP = 0;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_6 = 0, a_6 = fieldOf(s, (1 - a.team) as 0 | 1); i_6 < a_6.length; i_6++) { const o = a_6[i_6]!;
     const od = follow ? dist(o.x, o.y, a.x, a.y) : dist(o.x, o.y, px, py);
     if (od <= 3) press3++;
     if (header) continue;
@@ -504,7 +504,7 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
   let bestW = 0;
   const all: { r: Agent; pWin: number; value: number; w: number }[] = [];
   const crossSide = Math.sign(normY(a.y, dir) - 0.5);
-  for (const r of boxTeammates(s, a, dir)) {
+  for (let i_7 = 0, a_7 = boxTeammates(s, a, dir); i_7 < a_7.length; i_7++) { const r = a_7[i_7]!;
     const dd = nearestOpponent(s, r), def = nearA;
     let pWin = def && dd < PR.aerialRadius + 1 ? aerialWin(r, def, matchupPts(s, r.team, 'air') - matchupPts(s, def.team, 'air')) : 0.85;
     if (gk && dist(gk.x, gk.y, r.x, r.y) < ENGINE.keeper.claimRange) pWin *= 1 - claimProb(gk);
@@ -518,7 +518,7 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
   if (roll === undefined || all.length < 2) return best;
   const tot = all.reduce((t, c) => t + c.w, 0);
   let x = roll * tot;
-  for (const c of all) {
+  for (let i_8 = 0, a_8 = all; i_8 < a_8.length; i_8++) { const c = a_8[i_8]!;
     x -= c.w;
     if (x <= 0) return { r: c.r, pWin: c.pWin, value: c.value };
   }
@@ -529,7 +529,7 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
 /** 타깃 ST: 헤더 + 근력이 가장 높은 공격수 (직선 성향, E.19) */
 function targetForward(s: SimState, a: Agent): Agent | null {
   let best: Agent | null = null;
-  for (const o of onOf(s, a.team)) {
+  for (let i_9 = 0, a_9 = onOf(s, a.team); i_9 < a_9.length; i_9++) { const o = a_9[i_9]!;
     if (o.line !== 3) continue;
     if (!best || o.attrs.heading + o.attrs.strength > best.attrs.heading + best.attrs.strength) best = o;
   }
@@ -571,7 +571,7 @@ export function landingShare(s: SimState, team: 0 | 1, x: number, y: number, tLa
   const AM = ENGINE.physics.arrivalModel > 0;
   let tOwn = Infinity;
   let tOpp = Infinity;
-  for (const o of s.agents) {
+  for (let i_10 = 0, a_10 = s.agents; i_10 < a_10.length; i_10++) { const o = a_10[i_10]!;
     if (!o.onPitch || o.line === 0 || o === except) continue;
     const best = o.team === team ? tOwn : tOpp;
     // 도착 시간은 직선 거리 / max(최대 속력, 지금 속력)보다 짧을 수 없다 — 그 하한이 이미 지금 최솟값보다 크면 계산하지 않는다 (결과 같음)
@@ -602,32 +602,32 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   // 전환 위험 (E.20 2번): 상실 지점보다 상대 골 쪽에 있는 우리 필드 선수가 많을수록 역습 손해가 크다
   const mates: Agent[] = [];
   const mateNx: number[] = [];
-  for (const o of fieldOf(s, a.team)) {
+  for (let i_11 = 0, a_11 = fieldOf(s, a.team); i_11 < a_11.length; i_11++) { const o = a_11[i_11]!;
     mates.push(o);
     mateNx.push(normX(o.x, dir));
   }
   const loss = (nx: number, ny: number): number => {
     let ahead = 0;
-    for (const x of mateNx) if (x > nx + 1e-6) ahead++;
+    for (let i_12 = 0, a_12 = mateNx; i_12 < a_12.length; i_12++) { const x = a_12[i_12]!; if (x > nx + 1e-6) ahead++; }
     return lossCost(nx, ny) - O.transitionRisk * (ahead / 10);
   };
   // 패스 수신 지원도: 받는 선수 15 m 안 동료 수 (패스한 선수 포함)
   const support = (r: Agent, tx: number, ty: number): number => {
     let n = 0;
-    for (const o of mates) if (o !== r && dist(o.x, o.y, tx, ty) <= O.supportDist) n++;
+    for (let i_13 = 0, a_13 = mates; i_13 < a_13.length; i_13++) { const o = a_13[i_13]!; if (o !== r && dist(o.x, o.y, tx, ty) <= O.supportDist) n++; }
     return O.supportBase + (1 - O.supportBase) * Math.min(1, n / O.supportNeed);
   };
   const lossHere = loss(ax, ay);
   // 뒤 공간 (C.78g): 상대 필드 선수의 정규화 x (받는 곳보다 골 쪽 인원)
   const SP = ENGINE.transition;
   const oppNx: number[] = [];
-  if (SP.space > 0 || SP.counterBonus > 0) for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) oppNx.push(normX(o.x, dir));
+  if (SP.space > 0 || SP.counterBonus > 0) for (let i_14 = 0, a_14 = fieldOf(s, (1 - a.team) as 0 | 1); i_14 < a_14.length; i_14++) { const o = a_14[i_14]!; oppNx.push(normX(o.x, dir)); }
   // 역습 상황 보너스 (C.78g, 사용자 "역습 상황에 보상 점수를 좀 더"): 오픈 플레이 탈취 뒤 counterTime 초 동안, 공보다 앞(우리 쪽)에 남은 상대 몫 × 상대 라인 뒤 열린 공간 몫.
   // 전진 후보의 효용에 counterBonus × 이 값 × 전진(정규화) × 판단 성공 확률을 더한다(상한 counterCap) — 성공 확률·실행은 그대로, 고를 이유만
   let counterK = 0;
   if (SP.counterBonus > 0 && s.possTeam === a.team && s.possOrigin === 'open' && s.t - s.teams[a.team].wonAt <= SP.counterTime && oppNx.length) {
     let up = 0;
-    for (const x of oppNx) if (x < ax) up++;
+    for (let i_15 = 0, a_15 = oppNx; i_15 < a_15.length; i_15++) { const x = a_15[i_15]!; if (x < ax) up++; }
     counterK = (up / oppNx.length) * clamp(1 - offsideLine(s, a.team), 0, 1);
   }
   const cBonus = (pj: number, fwd: number) => (counterK > 0 && fwd > 0 ? Math.min(SP.counterCap, SP.counterBonus * counterK * fwd * pj) : 0);
@@ -672,7 +672,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const dSwitchOn = DB.directSwitch > 0 && tac.tendency === 'direct' && settledDeep(s, a);
 
   // 패스 / 침투 패스
-  for (const r of onOf(s, a.team)) {
+  for (let i_16 = 0, a_16 = onOf(s, a.team); i_16 < a_16.length; i_16++) { const r = a_16[i_16]!;
     if (r === a) continue;
     const d0 = dist(a.x, a.y, r.x, r.y);
     if (d0 > O.passMaxDist || d0 < 3) continue;
@@ -743,7 +743,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     // 뒤 공간 가치 (C.78g): 크게 앞으로 가는 패스를 받는 곳보다 골 쪽 상대가 적으면, 받은 뒤 빈 곳으로 몰고 갈 자리의 가치 (성공 확률은 그대로)
     if (SP.space > 0 && rx - ax >= SP.spaceFwd && rx < SP.spaceStop) {
       let behind = 0;
-      for (const x of oppNx) if (x > rx) behind++;
+      for (let i_17 = 0, a_17 = oppNx; i_17 < a_17.length; i_17++) { const x = a_17[i_17]!; if (x > rx) behind++; }
       if (behind < SP.spaceBack) value = Math.max(value, positionValue(Math.min(SP.spaceStop, rx + (SP.spaceRun * (1 - behind / SP.spaceBack)) / L), ry) * supR);
     }
     // 받는 자리에서 슛을 노릴 수 있으면 그 기대값도 가치로 본다 (같은 골 단위, 슛은 지원과 무관). 골을 등지고 받는 패스는 바로 슛할 수 없다 (E.18 A2)
@@ -762,7 +762,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       if (tot > 0) {
         iShare = Math.min(1, PR.interceptShare + tot * 0.3);
         let li = 0;
-        for (const x of lane.cutters) {
+        for (let i_18 = 0, a_18 = lane.cutters; i_18 < a_18.length; i_18++) { const x = a_18[i_18]!;
           const cx = normX(a.x + (tx - a.x) * x.t, dir), cy = normY(a.y + (ty - a.y) * x.t, dir);
           li += (x.w / tot) * loss(cx, cy);
         }
@@ -823,7 +823,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       if (tikiLongOn && d0 > DB.tikiLongFrom) tikiLongs.push({ c: ot.out[ot.out.length - 1]!, pen: tikiLongs[tikiLongs.length - 1]!.pen });
     }
   }
-  if (tikiShort) for (const t of tikiLongs) t.c.u -= t.pen;
+  if (tikiShort) for (let i_19 = 0, a_19 = tikiLongs; i_19 < a_19.length; i_19++) { const t = a_19[i_19]!; t.c.u -= t.pen; }
 
   if (O.backModel > 0) {
     backValue(s, a, out, dir);
@@ -832,7 +832,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
 
   // 포스트플레이 (E.18 A2): 등지고 받은 ST/CF 의 버티기와 레이오프
   if (a.backToGoal && (a.pos === 'ST' || a.pos === 'CF')) {
-    for (const r of onOf(s, a.team)) {
+    for (let i_20 = 0, a_20 = onOf(s, a.team); i_20 < a_20.length; i_20++) { const r = a_20[i_20]!;
       if (r === a || r.line < 2) continue;
       const d = dist(a.x, a.y, r.x, r.y);
       if (d > O.layoffDist || d < 2) continue;
@@ -864,7 +864,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
 
   if (!isGk) {
     // 몰고 가기 / 드리블 돌파: 앞쪽에 수비수가 가까우면 돌파 (E.8 드리블 1대1)
-    for (const ang of [0, 0.6, -0.6]) {
+    for (let i_21 = 0, a_21 = [0, 0.6, -0.6]; i_21 < a_21.length; i_21++) { const ang = a_21[i_21]!;
       const ux = Math.cos(ang) * dir;
       const uy = Math.sin(ang);
       const cx = clamp(a.x + ux * O.carryDist, 1, L - 1);
@@ -873,7 +873,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       let def: Agent | null = null;
       let second = false;
       let dd = Infinity;
-      for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+      for (let i_22 = 0, a_22 = fieldOf(s, (1 - a.team) as 0 | 1); i_22 < a_22.length; i_22++) { const o = a_22[i_22]!;
         if (s.t < o.beatenUntil) continue;
         const ox = o.x - a.x;
         const oy = o.y - a.y;
@@ -891,7 +891,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       // 뒤 공간 가치 (C.78g): 몰고 간 자리보다 골 쪽 상대가 적으면 그 앞 빈 곳까지 계속 몰고 갈 자리의 가치 (패스와 같은 식, spaceCarry 0 = 끔)
       if (SP.space > 0 && SP.spaceCarry > 0 && dir * ux > 0.5 && nx < SP.spaceStop) {
         let behind = 0;
-        for (const x of oppNx) if (x > nx) behind++;
+        for (let i_23 = 0, a_23 = oppNx; i_23 < a_23.length; i_23++) { const x = a_23[i_23]!; if (x > nx) behind++; }
         if (behind < SP.spaceBack) pv = Math.max(pv, positionValue(Math.min(SP.spaceStop, nx + (SP.spaceCarry * SP.spaceRun * (1 - behind / SP.spaceBack)) / L), ny));
       }
       // 몰고 가서 슛 (C.79e 실험 carryShot, 0 = 끔): 앞을 막는 수비가 없고 도착점이 슛 거리면 도착점의 슛 가치(carryShotTime 초 뒤, GK 는 그동안 자리를 옮김 — laneCarry 와 같은 식)와
@@ -941,7 +941,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
       out.push(mkCand({ type: 'shoot', p: m.xg, u, x: gx, y: gy, receiver: -1, value: m.value }));
       // 각도 만들기 (C.78h): 슛 길이 막혔으면(블록 > 0) 옆으로 laneCarry m 치는 몰기 — 그 자리 슛 가치(수비는 따라온다 — 압박·밀집은 지금 자리, 슛 길 콘·각도는 도착점, GK 는 laneCarryTime 초 동안 자리를 옮김)가 지금 슛보다 클 때만, 도착점 가치 = 그 슛 가치
       if (O.laneCarry > 0 && m.pBlock > 0) {
-        for (const sd of [-1, 1]) {
+        for (let i_24 = 0, a_24 = [-1, 1]; i_24 < a_24.length; i_24++) { const sd = a_24[i_24]!;
           const cx = clamp(a.x + dir * O.laneCarryFwd, 1, L - 1);
           const cy = clamp(a.y + sd * O.laneCarry, 1, W - 1);
           const nx = normX(cx, dir), ny = normY(cy, dir);
@@ -1010,8 +1010,8 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
   const holdU = weight((1 - pLose) * here * holdFresh(s, a) + pLose * lossHere, mPoss * safeRisk * a.role.pref.hold) + possK * DP.hold * (1 - pLose);
   out.push(mkCand({ type: 'hold', p: 1 - pLose, u: holdU, x: a.x, y: a.y, receiver: -1, value: here }));
   // 판단 보정 (C.78p): 슛 밖 행동은 상황 함수 1 (기본값 0 = 끔)
-  for (const c of out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];
-  if (ot) for (const c of ot.out) if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type];
+  for (let i_25 = 0, a_25 = out; i_25 < a_25.length; i_25++) { const c = a_25[i_25]!; if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type]; }
+  if (ot) for (let i_26 = 0, a_26 = ot.out; i_26 < a_26.length; i_26++) { const c = a_26[i_26]!; if (c.type !== 'shoot') c.u += ENGINE.decide.bias[c.type]; }
   return out;
 }
 
@@ -1049,11 +1049,11 @@ export function shootBias(m: ShotModel, angle: number): number {
  */
 function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: Candidate[]): void {
   let fwdBest = 0;
-  for (const c of out) {
+  for (let i_27 = 0, a_27 = out; i_27 < a_27.length; i_27++) { const c = a_27[i_27]!;
     if ((c.type === 'pass' || c.type === 'through') && (c.x - a.x) * dir >= O.backFwd) fwdBest = Math.max(fwdBest, c.p * c.value);
   }
   let n25 = 0;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) if (dist(o.x, o.y, a.x, a.y) < 2.5) n25++;
+  for (let i_28 = 0, a_28 = onOf(s, (1 - a.team) as 0 | 1); i_28 < a_28.length; i_28++) { const o = a_28[i_28]!; if (dist(o.x, o.y, a.x, a.y) < 2.5) n25++; }
   const press = Math.min(1, pressureAt(s, a) + O.backEscapeExtra * Math.max(0, n25 - 1));
   const tm = s.teams[a.team];
   const tac = tm.tactics;
@@ -1062,7 +1062,7 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: 
   const costW = 1 + (attackTendency(tac.tendency) ? O.backTendCost : 0) + (lead <= 0 && s.t / 60 >= O.backLateMin ? O.backLateCost : 0);
   // 전환 대상 동료(공 반대 측면·자유) 는 후보마다 같다 — 한 번만 (C.78b 계산 줄이기, 결과 같음)
   let mates: Agent[] | null = null;
-  for (const c of out) {
+  for (let i_29 = 0, a_29 = out; i_29 < a_29.length; i_29++) { const c = a_29[i_29]!;
     if (c.type !== 'pass' || (c.x - a.x) * dir >= -2) continue;
     // 원터치 판(C.78b): 같은 받는 선수·자리의 다루기 판에서 압박 탈출·보존·전환·인지 오차는 같다 — 기회 비용만 이 목록의 전진 기대값으로
     const same = prev?.find((x) => x.back && x.receiver === c.receiver && x.type === 'pass' && x.x === c.x && x.y === c.y);
@@ -1075,7 +1075,7 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: 
     }
     if (!mates) {
       mates = [];
-      for (const m of fieldOf(s, a.team)) {
+      for (let i_30 = 0, a_30 = fieldOf(s, a.team); i_30 < a_30.length; i_30++) { const m = a_30[i_30]!;
         if (m === a) continue;
         if ((m.y - a.y) * (W / 2 - a.y) <= 0 || Math.abs(m.y - a.y) < O.backSwitchDy) continue;
         if (nearestOpponent(s, m) < O.backSwitchFree) continue;
@@ -1089,7 +1089,7 @@ function backValue(s: SimState, a: Agent, out: Candidate[], dir: 1 | -1, prev?: 
     const keep = O.backKeep * Math.min(1, room / O.backKeepRoom) * keepW;
     // 반대편 전환: 받는 자리에서 공 반대 측면 동료에게 열린 길
     let swBest = 0;
-    for (const m of mates) {
+    for (let i_31 = 0, a_31 = mates; i_31 < a_31.length; i_31++) { const m = a_31[i_31]!;
       if (m === r) continue;
       swBest = Math.max(swBest, 1 - Math.min(1, laneRiskAt(s, a.team, c.x, c.y, m.x, m.y).risk));
     }
@@ -1111,7 +1111,7 @@ export function settledDeep(s: SimState, a: Agent): boolean {
   const ax = normX(a.x, dir);
   if (ax < DB.directSwitchFromX) return false;
   let behind = 0;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) if (normX(o.x, dir) > ax) behind++;
+  for (let i_32 = 0, a_32 = fieldOf(s, (1 - a.team) as 0 | 1); i_32 < a_32.length; i_32++) { const o = a_32[i_32]!; if (normX(o.x, dir) > ax) behind++; }
   return behind >= DB.directSwitchBehind;
 }
 
@@ -1120,7 +1120,7 @@ function behindCount(s: SimState, a: Agent): number {
   const dir = attackDir(a.team, s.half);
   const ax = normX(a.x, dir);
   let n = 0;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) if (normX(o.x, dir) > ax) n++;
+  for (let i_33 = 0, a_33 = fieldOf(s, (1 - a.team) as 0 | 1); i_33 < a_33.length; i_33++) { const o = a_33[i_33]!; if (normX(o.x, dir) > ax) n++; }
   return n;
 }
 
@@ -1131,7 +1131,7 @@ function oppSettled(s: SimState, a: Agent): boolean {
   const dir = attackDir(a.team, s.half);
   let t = 0;
   let n = 0;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) { t += normX(o.x, dir); n++; }
+  for (let i_34 = 0, a_34 = fieldOf(s, (1 - a.team) as 0 | 1); i_34 < a_34.length; i_34++) { const o = a_34[i_34]!; t += normX(o.x, dir); n++; }
   return n > 0 && t / n >= DB.directScanDeepX;
 }
 
@@ -1286,7 +1286,7 @@ export function choose(s: SimState, a: Agent, cands: Candidate[], pre = false): 
   const vis = cands.filter((c, k) => visible(s, a, c, k));
   const pool0 = vis.length ? vis : cands;
   let maxU = -Infinity;
-  for (const c of pool0) maxU = Math.max(maxU, c.u);
+  for (let i_35 = 0, a_35 = pool0; i_35 < a_35.length; i_35++) { const c = a_35[i_35]!; maxU = Math.max(maxU, c.u); }
   // 가치 비례 gap·온도 (C.77i, 44h-f3b): 효용 스케일이 작은 중원에서는 gap·τ 를 그 자리 가치 / 기준점(골 scaleRefDist m 중앙) 가치에 비례해 줄인다.
   // 기준점보다 앞(vScale ≥ 1)은 그대로. 실수 후보(isMistake)는 절대 gap 그대로
   const vScale = positionValue(normX(a.x, attackDir(a.team, s.half)), normY(a.y, attackDir(a.team, s.half))) / positionValue(1 - O.scaleRefDist / L, 0.5);
@@ -1327,7 +1327,7 @@ export function preDecide(s: SimState, a: Agent, speed: number, tCtrl: number): 
   const ctrl = candidates(s, a, ot);
   const k = RC.ctrlCost * clamp(1 - (dNear - RC.ctrlClose * tCtrl) / RC.pressDist, 0, 1);
   const lossHere = lossCost(normX(a.x, attackDir(a.team, s.half)), normY(a.y, attackDir(a.team, s.half)));
-  for (const c of ctrl) c.u = (1 - k) * c.u + k * lossHere;
+  for (let i_36 = 0, a_36 = ctrl; i_36 < a_36.length; i_36++) { const c = a_36[i_36]!; c.u = (1 - k) * c.u + k * lossHere; }
   const pool = [...ot.out, ...ctrl];
   const c = choose(s, a, pool, true);
   if (!c.ot) return null;
@@ -1345,7 +1345,7 @@ function recordDecision(s: SimState, a: Agent, cands: Candidate[], chosen: Candi
   if (band < 0) return;
   const u = chosen.u;
   let above = 0;
-  for (const c of cands) if (c.u > u) above++;
+  for (let i_37 = 0, a_37 = cands; i_37 < a_37.length; i_37++) { const c = a_37[i_37]!; if (c.u > u) above++; }
   s.teams[a.team].stats.decisions[band * 3 + Math.min(2, above)]!++;
 }
 
@@ -1402,7 +1402,7 @@ export function makePass(s: SimState, a: Agent, c: Candidate): Flight {
   if (total > 0 && rand(s.seed, s.tick, a.idx, Purpose.Intercept) < Math.min(1, PR.interceptShare + total * 0.3)) {
     let r = rand(s.seed, s.tick, a.idx, Purpose.Intercept, 1) * total;
     let pick = lane.cutters[0]!;
-    for (const x of lane.cutters) {
+    for (let i_38 = 0, a_38 = lane.cutters; i_38 < a_38.length; i_38++) { const x = a_38[i_38]!;
       r -= x.w;
       if (r <= 0) { pick = x; break; }
     }

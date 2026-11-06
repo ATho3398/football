@@ -143,7 +143,7 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
   if (r(s, a.idx, Purpose.Tackle, 7) < c.p) return false;
   let def: Agent | null = null;
   let bd: number = ENGINE.prob.pressureDist;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_1 = 0, a_1 = onOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!;
     if (s.t < o.beatenUntil) continue;
     // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에 가장 먼저 닿는 수비수(실효 거리), 유지는 지금 위치에서 가장 가까운 수비수
     const d = c.type === 'carry' ? carryReachDist(s, o, a, c.x, c.y) : dist(o.x, o.y, a.x, a.y);
@@ -185,7 +185,7 @@ function tackleWon(s: SimState, att: Agent, def: Agent, tackle = true): void {
 function callCover(s: SimState, beaten: Agent, x: number, y: number): void {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of fieldOf(s, beaten.team)) {
+  for (let i_2 = 0, a_2 = fieldOf(s, beaten.team); i_2 < a_2.length; i_2++) { const o = a_2[i_2]!;
     if (o === beaten || s.t < o.beatenUntil) continue;
     const d = dist(o.x, o.y, x, y);
     if (d < bd) {
@@ -271,7 +271,7 @@ export function defendDuels(s: SimState): void {
   // 내 선수 결정 순간에서 고른 1대1 행동 (E.11): 그 선수만 고른 행동으로, 한 번만
   const forced = s.forcedDuel;
   s.forcedDuel = null;
-  for (const d of s.agents) {
+  for (let i_3 = 0, a_3 = s.agents; i_3 < a_3.length; i_3++) { const d = a_3[i_3]!;
     if (!duelEligible(s, o, d)) continue;
     const judge = defJudgement(d);
     d.duelNext = s.t + D.duelInterval * (1.5 - judge);
@@ -389,7 +389,7 @@ function shadowValue(s: SimState, o: Agent, d: Agent): number {
   const dirA = attackDir(o.team, s.half);
   const ox = normX(o.x, dirA);
   let best = 0;
-  for (const m of fieldOf(s, o.team)) {
+  for (let i_4 = 0, a_4 = fieldOf(s, o.team); i_4 < a_4.length; i_4++) { const m = a_4[i_4]!;
     if (m === o) continue;
     const mx = normX(m.x, dirA), my = normY(m.y, dirA);
     if (mx <= ox || dist(m.x, m.y, o.x, o.y) > ENGINE.onball.passMaxDist) continue;
@@ -622,7 +622,7 @@ function goal(s: SimState, scorer: Agent): void {
     home: s.teams[0].stats.goals, away: s.teams[1].stats.goals,
   });
   s.lastPass = null;
-  for (const o of onOf(s, (1 - scorer.team) as 0 | 1)) o.rt.conceded++;
+  for (let i_5 = 0, a_5 = onOf(s, (1 - scorer.team) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!; o.rt.conceded++; }
   setRestart(s, 'kickoff', (1 - scorer.team) as 0 | 1, L / 2, W / 2, 'auto');
   celebration(s, scorer);
 }
@@ -649,7 +649,7 @@ function celebration(s: SimState, scorer: Agent): void {
     scorer: scorer.idx, t: s.t, until: s.t + R.celebrate[0] + (R.celebrate[1] - R.celebrate[0]) * u(2),
     cx: clamp(scorer.x + ((gx - scorer.x) / d) * run, 2, L - 2), cy: clamp(scorer.y + ((cy - scorer.y) / d) * run, 2, W - 2), joiners,
   };
-  for (const o of s.agents) if (o.onPitch) updateOffball(s, o);
+  for (let i_6 = 0, a_6 = s.agents; i_6 < a_6.length; i_6++) { const o = a_6[i_6]!; if (o.onPitch) updateOffball(s, o); }
 }
 
 // ── 크로스, 롱볼, 공중볼 ──
@@ -658,7 +658,7 @@ function celebration(s: SimState, scorer: Agent): void {
 function countBox(s: SimState, a: Agent): void {
   const dir = attackDir(a.team, s.half);
   let n = 0;
-  for (const o of onOf(s, a.team)) if (o !== a && inOppBox(o.x, o.y, dir)) n++;
+  for (let i_7 = 0, a_7 = onOf(s, a.team); i_7 < a_7.length; i_7++) { const o = a_7[i_7]!; if (o !== a && inOppBox(o.x, o.y, dir)) n++; }
   s.teams[a.team].stats.boxAtCross += n;
   s.teams[a.team].stats.boxCrossN++;
   s.boxLand = { fl: null, team: a.team };
@@ -703,7 +703,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   if (target?.onPitch) updateOffball(s, target);
   let def: Agent | null = null;
   let dd = Infinity;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_8 = 0, a_8 = fieldOf(s, (1 - a.team) as 0 | 1); i_8 < a_8.length; i_8++) { const o = a_8[i_8]!;
     const od = dist(o.x, o.y, tx, ty);
     if (od < dd) {
       dd = od;
@@ -765,7 +765,7 @@ function resolveAerial(s: SimState, fl: Flight): void {
   let bestD: Agent | null = null;
   let nA = 0;
   let nD = 0;
-  for (const a of s.agents) {
+  for (let i_9 = 0, a_9 = s.agents; i_9 < a_9.length; i_9++) { const a = a_9[i_9]!;
     if (!a.onPitch || a.line === 0) continue;
     const d = dist(a.x, a.y, b.x, b.y);
     if (d <= PR.aerialCrowdR) {
@@ -873,7 +873,7 @@ export function deepCut(s: SimState, px: number, py: number): boolean {
   const fl = b.flight;
   if (!fl || fl.outcome !== 'receive') return false;
   const O = ENGINE.offball;
-  for (const tm of s.teams) {
+  for (let i_10 = 0, a_10 = s.teams; i_10 < a_10.length; i_10++) { const tm = a_10[i_10]!;
     if (tm.cutFlight !== fl || tm.cutIdx < 0) continue;
     const a = s.agents[tm.cutIdx];
     if (!a || !a.onPitch) {
@@ -1124,7 +1124,7 @@ function firstTouch(s: SimState, a: Agent, fl: Flight): void {
 export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s.ball.y): boolean {
   const b = s.ball;
   if (sp > K.handMaxSpeed || b.reserve) return false;
-  for (const gk of s.agents) {
+  for (let i_11 = 0, a_11 = s.agents; i_11 < a_11.length; i_11++) { const gk = a_11[i_11]!;
     if (!gk.onPitch || gk.line !== 0) continue;
     // 이번 틱에 공이 지나간 길 (빠른 공은 틱당 3 m 가까이 움직인다)에서 가장 가까운 거리
     const gd = segDistS(gk.x, gk.y, fromX, fromY, b.x, b.y), gt = SEG.t;
@@ -1164,7 +1164,7 @@ export function keeperHands(s: SimState, sp: number, fromX = s.ball.x, fromY = s
 function nearestOppOf(s: SimState, a: Agent): [Agent | null, number] {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_12 = 0, a_12 = fieldOf(s, (1 - a.team) as 0 | 1); i_12 < a_12.length; i_12++) { const o = a_12[i_12]!;
     const d = dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
       bd = d;

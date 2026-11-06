@@ -68,7 +68,7 @@ export function probeShot(
 ): void {
   let press3 = 0;
   let gk: Agent | null = null;
-  for (const o of s.agents) {
+  for (let i_1 = 0, a_1 = s.agents; i_1 < a_1.length; i_1++) { const o = a_1[i_1]!;
     if (!o.onPitch || o.team === a.team) continue;
     if (o.line === 0) gk = o;
     else if (Math.hypot(o.x - a.x, o.y - a.y) <= 3) press3++;
