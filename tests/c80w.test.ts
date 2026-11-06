@@ -61,9 +61,10 @@ describe('C.80w 롱패스 착지 정확도', () => {
 
   it('상성 칸: 직선 → 티키·게겐, 균형·블록 → 티키 롱패스만 감점, 반대쪽은 0', () => {
     expect(matchupPts(state('direct', 'tikitaka'), 0, 'long')).toBe(-15);
-    // C.81g: 직선 → 게겐 롱패스 −12 → −6 · 직선 → 블록 짧은 패스 +3 (롱패스 0)
+    // C.81g: 직선 → 게겐 롱패스 −12 → −6 · 직선 → 블록 공 지키기·짧은 패스 +1 (롱패스 0)
     expect(matchupPts(state('direct', 'gegenpress'), 0, 'long')).toBe(-6);
-    expect(matchupPts(state('direct', 'block'), 0, 'short')).toBe(3);
+    expect(matchupPts(state('direct', 'block'), 0, 'short')).toBe(1);
+    expect(matchupPts(state('direct', 'block'), 0, 'keep')).toBe(1);
     expect(matchupPts(state('direct', 'block'), 0, 'long')).toBe(0);
     expect(matchupPts(state('block', 'direct'), 0, 'short')).toBe(0);
     expect(matchupPts(state('balanced', 'tikitaka'), 0, 'long')).toBe(-10);

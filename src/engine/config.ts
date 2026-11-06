@@ -1797,8 +1797,8 @@ export const ENGINE = {
       gegenpress: { short: 2, keep: 2 },
     },
     // C.80w: 롱볼 착지 정확도(prob.longMiss) 뒤 직선>티키 +0.20·직선>게겐 +0.19 · 균형·블록(버스)>티키 +0.13~0.14 (상성 960) — 그 칸의 롱패스 능력치 점수만 되돌림
-    // C.81g: 직선 → 게겐 롱패스 −12 → −6 (게겐>직선 +0.17 → +0.05) · 직선 → 블록(버스 포함) 공 지키기 +2 (직선>블록 +0.03 → +0.05), 960 = 시드 41000·51000 각 480
-    direct: { tikitaka: { long: -15 }, gegenpress: { long: -6 }, block: { short: 0, tackle: 0, keep: 0, air: 0 } },
+    // C.81g: 직선 → 게겐 롱패스 −12 → −6 (게겐>직선 +0.17 → +0.05) · 직선 → 블록(버스 포함) 공 지키기·짧은 패스 +1 (직선>블록 +0.03 → +0.06), 960 = 시드 41000·51000 각 480
+    direct: { tikitaka: { long: -15 }, gegenpress: { long: -6 }, block: { keep: 1, short: 1 } },
     balanced: { tikitaka: { long: -10 } },
     // C.81b: 블록 → 게겐 칸 공 지키기·공중 +2 (블록>게겐 −0.01 → +0.10, 960 = 시드 41000·51000 각 480)
     block: { tikitaka: { long: -7 }, gegenpress: { air: 2, keep: 2 } },
