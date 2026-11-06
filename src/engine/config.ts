@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 91;
+export const ENGINE_VERSION = 92;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -677,7 +677,7 @@ export const ENGINE = {
     shotRushDepth: 7,
     /**
      * 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안 + 슛 뒤 reboundRunT 초 안 루즈볼(추격자 아닌 선수)일 때, 골 reboundRunR m 안 2선·공격수(슈터 제외) 중
-     * 골 앞 reboundRunDepth m 자리(옆은 자기 y 를 중앙 ± reboundRunSpread m 로)에 가까운 reboundRun 명이 그 자리로 전력. reboundRunOffside 1 = 오프사이드 라인 안으로 제한. 0 = 끔
+     * 골 앞 reboundRunDepth m 자리(옆은 자기 y 를 중앙 ± reboundRunSpread m 로)에 가까운 reboundRun 명이 그 자리로 전력. reboundRunOffside 1 = 오프사이드 라인 안으로 제한. 루즈일 때는 공 경로에서 먼저 닿는 점으로(reboundRunIntercept 1, 0 = 골 앞 자리). reboundRun 0 = 끔
      */
     reboundRun: 3,
     reboundRunR: 24,
@@ -685,6 +685,7 @@ export const ENGINE = {
     reboundRunSpread: 4.5,
     reboundRunT: 2.5,
     reboundRunOffside: 1,
+    reboundRunIntercept: 1,
     /**
      * 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 이 공이 상대 진영 wideFromX(정규화)를 넘으면 역할 자리로 — 반대쪽 측면 공 = 먼 포스트, 같은 쪽 = 오버랩(소유자 앞 overlapAhead m, 터치라인 wideTouch)
      * 또는 언더랩(소유자 앞 underlapAhead m 이상·하프스페이스; 풀백이 공을 가졌거나 소유자보다 wideFbAhead m 뒤까지 바깥으로 올라와 있거나 소유자가 터치라인 wideTouch 밖이면),
@@ -1743,7 +1744,7 @@ export const ENGINE = {
     parryDefHold: 1.0,
     parryDefControl: 0,
     /** C.81h 세컨볼: 쳐낸 뒤 parryDownT 초 안에 같은 GK 에게 오는 유효 슈팅(PK 제외)의 선방 확률 × parryDownSave — 몸을 날린 GK 가 일어서는 사이 (실행 레버, 판단은 안 본다). 0 = 끔 */
-    parryDownT: 2.0,
+    parryDownT: 3.0, // C.81t: 2.0 → 3.0 (리바운드 슛이 쳐낸 뒤 평균 2.2 s 에 나와 창 밖이었다 — 리바운드 골 3.7 → 4.4%, 2400경기)
     parryDownSave: 0.6,
     /** 크로스/롱볼 처리: 박스 안이고 GK 와 claimRange 안이면 L((출전 범위 − 60)/12 + claimBias) */
     claimRange: 6,

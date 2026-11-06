@@ -13,14 +13,16 @@ function match(seed: number) {
 }
 
 describe('C.81t 세컨볼 구조: 리바운드 대비 런', () => {
-  it('상수: 리바운드 대비 런 켬 (명수·반경·깊이·옆 폭·루즈 창·오프사이드 제한)', () => {
+  it('상수: 리바운드 대비 런 켬 (명수·반경·깊이·옆 폭·루즈 창·오프사이드 제한·마중) · GK 일어서기 3.0 s', () => {
     const O = ENGINE.offball;
+    expect(ENGINE.keeper.parryDownT).toBe(3.0);
     expect(O.reboundRun).toBe(3);
     expect(O.reboundRunR).toBe(24);
     expect(O.reboundRunDepth).toBe(7);
     expect(O.reboundRunSpread).toBe(4.5);
     expect(O.reboundRunT).toBe(2.5);
     expect(O.reboundRunOffside).toBe(1);
+    expect(O.reboundRunIntercept).toBe(1);
   });
 
   it('우리 유효 슈팅이 날아가는 동안 골 24 m 안 2선·공격수(슈터 제외) 중 가까운 n명은 골 앞 자리로 전력(urgent)', () => {
@@ -54,14 +56,15 @@ describe('C.81t 세컨볼 구조: 리바운드 대비 런', () => {
 
   it('끄면(reboundRun 0) 같은 시드 경기가 켠 것과 달라진다(움직임이 실제로 작동)', () => {
     const on = match(3).runToEnd();
-    const prev = ENGINE.offball.reboundRun;
-    ENGINE.offball.reboundRun = 0;
+    const O = ENGINE.offball as { reboundRun: number };
+    const prev = O.reboundRun;
+    O.reboundRun = 0;
     try {
       const off = match(3).runToEnd();
-      const sig = (r: ReturnType<typeof on.constructor> | typeof on) => r.players.map((p) => p.distance).join(',');
+      const sig = (r: typeof on) => r.players.map((p) => p.distance).join(',');
       expect(sig(off)).not.toBe(sig(on));
     } finally {
-      ENGINE.offball.reboundRun = prev;
+      O.reboundRun = prev;
     }
   });
 });

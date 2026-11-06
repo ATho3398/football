@@ -14,10 +14,10 @@ function match(seed: number) {
 }
 
 describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
-  it('상수: 수비 반응 지연 1.0 s × 0 · GK 일어서기 2.0 s × 0.6 · 리바운드 슛 선호 0.1(5 s) · 롱패스 가중 0.4 · 윙어 마무리 0.92', () => {
+  it('상수: 수비 반응 지연 1.0 s × 0 · GK 일어서기 3.0 s(C.81t, 2.0 에서) × 0.6 · 리바운드 슛 선호 0.1(5 s) · 롱패스 가중 0.4 · 윙어 마무리 0.92', () => {
     expect(ENGINE.keeper.parryDefHold).toBe(1.0);
     expect(ENGINE.keeper.parryDefControl).toBe(0);
-    expect(ENGINE.keeper.parryDownT).toBe(2.0);
+    expect(ENGINE.keeper.parryDownT).toBe(3.0); // C.81t: 2.0 → 3.0
     expect(ENGINE.keeper.parryDownSave).toBe(0.6);
     expect(ENGINE.decide.bias.rebound).toBe(0.1);
     expect(ENGINE.decide.bias.reboundT).toBe(5);

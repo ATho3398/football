@@ -621,6 +621,51 @@ export function updateOffball(s: SimState, a: Agent): void {
     return;
   }
 
+  // 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안(유효 슈팅·빗나감 비행) 과 슛 뒤 reboundRunT 초 안 공이 루즈일 때(쳐낸 공·막힌 공),
+  // 골 reboundRunR m 안 2선·공격수(슈터 제외) 중 가까운 reboundRun 명이 골 앞으로 전력 — 쳐낸 순간 골 앞 공격 인원이 0.8명으로 구조적으로 적었다(엔진관리자26·C.81h).
+  // 비행 중 목표 = 골 앞 reboundRunDepth m 자리(옆은 자기 y 를 중앙 ± reboundRunSpread m 안으로). 루즈일 때 목표 = 공 경로에서 자기가 공보다 먼저 닿는 첫 점
+  // (reboundRunIntercept 1, 굴러 나오는 공을 멈출 곳에서 기다리지 않고 마중) — 없으면 골 앞 자리. 공격만(수비는 같은 규칙 없음). 루즈볼 추격(chasers) 분기보다 앞
+  if (O.reboundRun > 0 && a.line >= 2 && !s.restart) {
+    const ourShot = fl && fl.kind === 'shot' && s.agents[fl.passer]?.team === a.team ? fl.passer : -1;
+    const afterShot = b.owner < 0 && !fl && !b.reserve && s.t - s.lastShotT[a.team] < O.reboundRunT;
+    if (ourShot >= 0 || afterShot) {
+      const gx = dir > 0 ? L : 0;
+      if (dist(a.x, a.y, gx, W / 2) < O.reboundRunR) {
+        // 순위 기준점: 비행 중은 골 앞 자리, 루즈면 공
+        const sx = afterShot ? b.x : gx - dir * O.reboundRunDepth, sy = afterShot ? b.y : W / 2;
+        const da = dist(a.x, a.y, sx, sy);
+        let closer = 0;
+        for (let i_13 = 0, a_13 = onOf(s, a.team); i_13 < a_13.length; i_13++) { const o = a_13[i_13]!;
+          if (o === a || o.line < 2 || o.idx === ourShot || dist(o.x, o.y, gx, W / 2) >= O.reboundRunR) continue;
+          const d = dist(o.x, o.y, sx, sy);
+          if (d < da || (d === da && o.idx < a.idx)) closer++;
+        }
+        if (closer < O.reboundRun) {
+          let hit = false;
+          if (afterShot && O.reboundRunIntercept > 0) {
+            for (let t = 0; t <= O.reboundRunT; t += 0.2) {
+              const p = ballPathAt(s, t);
+              if (p.air) continue;
+              if (arrival(a, p.x, p.y, true) <= t) {
+                a.tx = clamp(p.x, 0.5, L - 0.5);
+                a.ty = clamp(p.y, 0.5, W - 0.5);
+                hit = true;
+                break;
+              }
+            }
+          }
+          if (!hit) {
+            const nx = O.reboundRunOffside > 0 ? Math.min(1 - O.reboundRunDepth / L, offsideLine(s, a.team) - 0.5 / L) : 1 - O.reboundRunDepth / L;
+            a.tx = pitchX(nx, dir);
+            a.ty = W / 2 + clamp(a.y - W / 2, -O.reboundRunSpread, O.reboundRunSpread);
+          }
+          a.urgent = true;
+          return;
+        }
+      }
+    }
+  }
+
   // 루즈볼: 팀별 가장 가까운 chasers 명이 쫓는다
   const loose = b.owner < 0 && (!fl || fl.outcome === 'loose');
   // 동료에게 굴러가는 공 (C.24)은 쫓지 않는다
@@ -679,33 +724,6 @@ export function updateOffball(s: SimState, a: Agent): void {
         a.ty = (a.y + W / 2) / 2;
         a.urgent = true;
         return;
-      }
-    }
-  }
-  // 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안(유효 슈팅·빗나감 비행) 과 슛 뒤 reboundRunT 초 안 공이 루즈일 때(쳐낸 공·막힌 공, 추격자가 아닌 선수),
-  // 골 reboundRunR m 안 2선·공격수(슈터 제외) 중 골 앞 reboundRunDepth m 자리에 가까운 reboundRun 명이 그 자리로 전력 — 쳐낸 순간 골 앞 공격 인원이 0.8명으로
-  // 구조적으로 적었다(엔진관리자26·C.81h). 공격만(수비는 같은 규칙 없음). 옆은 자기 y 를 중앙 ± reboundRunSpread m 안으로
-  if (O.reboundRun > 0 && a.line >= 2 && !s.restart) {
-    const ourShot = fl && fl.kind === 'shot' && s.agents[fl.passer]?.team === a.team ? fl.passer : -1;
-    const afterShot = b.owner < 0 && !fl && s.t - s.lastShotT[a.team] < O.reboundRunT;
-    if (ourShot >= 0 || afterShot) {
-      const gx = dir > 0 ? L : 0;
-      if (dist(a.x, a.y, gx, W / 2) < O.reboundRunR) {
-        const sx = gx - dir * O.reboundRunDepth;
-        const da = dist(a.x, a.y, sx, W / 2);
-        let closer = 0;
-        for (let i_13 = 0, a_13 = onOf(s, a.team); i_13 < a_13.length; i_13++) { const o = a_13[i_13]!;
-          if (o === a || o.line < 2 || o.idx === ourShot || dist(o.x, o.y, gx, W / 2) >= O.reboundRunR) continue;
-          const d = dist(o.x, o.y, sx, W / 2);
-          if (d < da || (d === da && o.idx < a.idx)) closer++;
-        }
-        if (closer < O.reboundRun) {
-          const nx = O.reboundRunOffside > 0 ? Math.min(1 - O.reboundRunDepth / L, offsideLine(s, a.team) - 0.5 / L) : 1 - O.reboundRunDepth / L;
-          a.tx = pitchX(nx, dir);
-          a.ty = W / 2 + clamp(a.y - W / 2, -O.reboundRunSpread, O.reboundRunSpread);
-          a.urgent = true;
-          return;
-        }
       }
     }
   }
