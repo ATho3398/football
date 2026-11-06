@@ -92,12 +92,19 @@ describe('하루 단위 진행 (25.1~25.2 5·7번)', () => {
     const cal = calendarOf(g);
     let n = 0;
     while (g.phase === 'season') {
-      // C.67a: 컵 경기도 playRound 한 번 (리그 경기만 센다)
-      if (!playRound(g, { engine: 'quick' }).cup) n++;
+      // C.67a: 컵 경기도 playRound 한 번 (리그 경기만 센다). C.81l: 시즌이 남은 컵 경기 날짜에 하루 끝으로 끝나면 마지막 playRound 는 경기 없이 돌아온다
+      const r0 = g.league.round;
+      if (!playRound(g, { engine: 'quick' }).cup && g.league.round > r0) n++;
     }
     expect(n).toBe(38);
-    // 컵 결승에 올랐으면 결승 날에 끝난다
-    expect(g.calendar.date).toBe(g.cups!.fa!.rounds[4]!.some((t) => t.h === g.player.teamId || t.a === g.player.teamId) ? g.cups!.fa!.dates[4] : cal.final);
+    expect(g.league.round).toBe(38);
+    // C.81l: 시즌은 마지막 컵 경기 날짜 뒤에 끝난다 — 내가 그 결승을 뛰면 그날, 아니면 그 경기를 하루 끝에 치른 다음 날 (리그 최종 라운드 뒤)
+    const fa = g.cups!.fa!;
+    const uclFinal = g.cups!.ucl?.ko[3]?.l1[0];
+    const lastCup = [fa.dates[4]!, ...(uclFinal?.d ? [uclFinal.d] : [])].sort().at(-1)!;
+    const mineLast = fa.rounds[4]!.some((t) => t.h === g.player.teamId || t.a === g.player.teamId) && fa.dates[4] === lastCup;
+    expect(daysBetween(cal.final, lastCup)).toBeGreaterThan(0);
+    expect(g.calendar.date).toBe(mineLast ? lastCup : addDays(lastCup, 1));
     expect(g.league.schedule.flat().every((f) => f.homeGoals !== undefined)).toBe(true);
     expect(g.league.table.every((r) => r.played === 38)).toBe(true);
   });
@@ -163,7 +170,7 @@ describe('세이브 17 → 18 (부록 C.38)', () => {
   it('세이브 왕복 뒤 이어서 진행, 옛 세이브(17)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig18', difficulty: 'normal' });
     for (let k = 0; k < 5; k++) playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 17;
     expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);

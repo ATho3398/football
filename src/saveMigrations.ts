@@ -32,6 +32,9 @@ export const MIGRATIONS: Record<number, (save: RawSave) => RawSave> = {
     const others = rest.others === 'mine' || rest.others === 'all' || rest.others === 'quick' ? rest.others : quickOthers === true ? 'quick' : 'mine';
     return { ...s, options: { ...rest, others } };
   },
+  // 61 → 62 (C.81l): 대표팀 상태에 달력 위 여름 대회(national.live)·소집 판정(national.summer)이 생겼다. 둘 다 없으면 "진행 중인 대회 없음"이라
+  // 옛 세이브는 그대로 — 단, 옛 흐름(시즌 끝 한꺼번에)으로 저장된 세이브에 대회 경기 열쇠(t:)가 남아 있어도 새 흐름과 겹치지 않는다 (열쇠에 대회 id)
+  61: (s) => s,
 };
 
 /** 형식 번호가 이전할 수 없을 만큼 옛것(이전 코드가 없던 시절)이거나 지금보다 새것 */

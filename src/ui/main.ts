@@ -23,7 +23,7 @@ import { applySkin, isLandPhone, isWide, LANDPHONE_QUERY, setSkin, WIDE_QUERY } 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
-  acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, myLeagueQuick, otherLeaguesEngine, playOthers, randomSeed, playRound, retire, roundMatch,
+  acceptMyOffer, applyOther, campDay, canChangePosition, clubSeasonOver, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, myLeagueQuick, otherLeaguesEngine, playOthers, randomSeed, playRound, retire, roundMatch,
   nextCampDate, startNextSeason, todaysOthers, upcomingOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
@@ -1361,7 +1361,8 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       }
       // [계속]: 휴가가 시작한 날과 끝난 날(훈련 재개)에도 멈춘다 (25.3 5번: 휴가 중 [계속]은 휴장 끝까지 한 번에)
       const vac = isVacationDay(g, g.calendar.date);
-      if (mode === 'continue' && days > 0 && vac !== wasVacation) break;
+      // C.81l: 클럽 시즌이 끝난 여름(남은 컵 경기 날짜·대표팀 대회 소집일까지)은 휴가 시작·끝에 멈추지 않고 다음 일정까지
+      if (mode === 'continue' && days > 0 && vac !== wasVacation && !clubSeasonOver(g)) break;
       wasVacation = vac;
       ui.toast = { kind: 'info', title, body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
       render();

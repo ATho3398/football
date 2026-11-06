@@ -363,8 +363,8 @@ export function dayVM(g: GameState): DayVM | null {
   // 컵 (C.67): 내 컵 경기 (치른 것 + 추첨된 것)
   const cupDays = new Map<string, { home: boolean; opp: string; label: string; neutral?: boolean }>();
   for (const c of myCupMatches(g)) cupDays.set(c.date, { home: c.home, opp: c.opponentId, label: c.label, neutral: isNeutralMatch({ cup: c }) });
-  // 대표팀 (C.76d): 소집된 A매치 주간 경기
-  for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && m.key.startsWith('w:')) cupDays.set(m.date, { home: m.home, opp: natId(m.opp), label: natLabel(m), neutral: isNeutralMatch({ nat: m }) });
+  // 대표팀 (C.76d): 소집된 A매치 주간 경기 · 달력 위 여름 대회 경기 (C.81l)
+  for (const m of g.national?.fixtures ?? []) if (m.season === g.league.season && (m.key.startsWith('w:') || m.key.startsWith('t:'))) cupDays.set(m.date, { home: m.home, opp: natId(m.opp), label: natLabel(m), neutral: isNeutralMatch({ nat: m }) });
   for (const [d, c] of cupDays) myDates.set(d, { home: c.home, opp: c.opp, r: -1, neutral: c.neutral });
   const breakDays = new Map<string, keyof typeof BREAK_KO>();
   for (const b of cal.breaks) for (let k = -1; k <= 0; k++) breakDays.set(addDays(b.date, k + 1), b.kind);
