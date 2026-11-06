@@ -6834,6 +6834,33 @@ pending 125 b(76 · 77-5 · 77-10). 브랜치 `claude/c74b-travel-records`. `PAT
 - **안 된 것**: ① 득점 1.50 — 관문 안이지만 1.48 가운데보다 0.02 위. 1대1 장면 가드 때문에 saveBase 를 더 올려도 1.50 에서 평평하다(위 표). 더 내리려면 1대1 밖 레버(슛 선택·박스 안 경합)가 필요 ② 균형 행 −0.055(c81a 대비, 기준표에서 이미 −0.04 · 이번 Δ −0.02) · 버스 행 +0.07(c81a 대비, 기준표 그대로) — 기준표 대비로는 ±0.05 안 ③ 윙어 골 27.8%(2400경기) 로 26.7 보다 +1.1%p — 목표 20~28 상한 근처.
 - 재현: 기준표 `c78s-matrix 480 seed=41000|51000 out=c81s-base-{41,51}.json` → `c81b-merge.cjs` · 칸 후보 `c78s-matrix 480 seed=… only=gegenpress/direct,… keeper.saveBase=2.02 keeper.oneOnOne.drop=0.39 matchup.gegenpress.direct.tackle=4 …`(측정기 `scripts/engine/job.ts` 가 `matchup.<우리>.<상대>.<실행>` 없는 칸도 만든다) · 칸 표 `node scripts/diag/c81s-show.cjs 파일 [기준]` · 장면 ④ `npx vite-node scripts/diag/c81s-scene4.ts -- 2.02:0.39` · 이동 거리 `S0=11 S1=70 c80m-dist`(없는 칸 경로도 만듦). 측정 보조 세션 1개(시드 51000 쪽, draft_c81s-meas — 끝나고 보관).
 
+### C.81u2 53단계_역할 평점 2 후속: 대형 문맥 칸 (마스터 AE 후속 지시, 앞 단계 C.81u "안 된 것", Opus): **평점 계산만(경기 결과 지문 그대로). C.81u 홀드아웃에서 남은 2칸 — 4-2-3-1 원톱 펄스 나인(CAM 뒤 원톱) +0.36 · 3-5-2 하프백(백3 앞) −0.36 — 을 역할 보정에 문맥 칸 2개(`역할@cam` · `역할@cb3`)를 더해 +0.14 · −0.15 로. 홀드아웃 유의 칸(SE 2배 넘게 0.15 밖) 2 → 0, 최대 |차| 0.36 → 0.30(잡음 칸). 투톱·문맥은 시작 대형으로 센다** (ENGINE_VERSION 92 → **93**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
+
+- 표·값: `docs/engine-roles.md` C.81u2 절. 코드 `rating.ts shapeCtx`·`groupMates`(선발 포지션 기준) · `ENGINE.rating.roleCenter` `@cam`·`@cb3` · center CDM 1.96 · ST 2.11. 측정기 `c81u-role-fit.ts` (PAIR=1 CTX=1 FIT=1).
+- **안 된 것**: 홀드아웃 최대 |차| 0.30 > 0.15(전력 −5 펄스 나인, SE 0.11 잡음 칸 — 유의 칸 0). 평점 σ 는 C.81u 그대로 하한 쪽(0.72, 가드 0.7 아래로 안 내려감).
+
+| 관문 | C.81u | C.81u2 |
+|---|---|---|
+| 홀드아웃 최대 \|차\| · 유의 칸 | 0.36 · 2 | 0.30 · 0 |
+| engine:check 평점 가드 | GK 6.56 · CB 6.65 · FB 6.64 · CDM 6.52 · CM 6.65 · CAM 6.61 · WING 6.64 · ST 6.66 · σ 0.72 | GK 6.56 · CB 6.65 · FB 6.64 · CDM 6.52 · CM 6.65 · CAM 6.61 · WING 6.64 · ST 6.66 · σ 0.72 · ST 무득점 6.04 ✓ (순간이동 0) |
+| typecheck · test | ✓ 1437 | ✓ 1439 (PATCH_LABEL 형식 테스트가 `C.81u2` 같은 끝 숫자를 허용하게) |
+
+### C.81u 53단계_역할 평점 2: 수비 기록 칸 · 대형·전력·전술 무관 보정 (마스터 AD→AE `docs/session-prompts/C.81u.md`, 앞 단계 C.81r, Opus): **평점 계산만 고쳤다 — 경기 결과·골 시각은 한 비트도 안 바뀜(지문 1168/1168). ① 새 경기 기록 칸(세기만): 압박 성공(상대 공 가진 선수 3 m 안 → 3초 안 팀 탈취) · 오프사이드 유도(수비 줄) · 라인 유지 시간(상대 소유 중 수비 줄 평균 x 4 m 안), 평점에 소폭(0.015 · 0.02 · 분당 0.005) ② 4-4-2·3-5-2·4-2-3-1·4-3-1-2 · 전력 ±5 · 게겐·블록·직선 10조건에서 역할 평점 차를 재 보니 미드 둘 대형 CM(딥라잉·홀딩 +0.4~0.5, 메짤라 −0.58)과 원톱/투톱 ST(펄스 나인 −0.40 ↔ +0.32)가 크게 갈렸다 → CM 전진 패스 체감(무릎 18) · 역할 보정(roleCenter)을 10조건 평균으로 · 투톱 ST 는 따로(`역할@2`). 맞춘 표본 최대 차 0.58 → 0.26(SE 2배 넘게 0.15 밖 8칸 → 0), 새 시드 홀드아웃 0.57 → 0.36(9칸 → 2칸) ③ 와이드 미드필더 800경기 × 3시드 +0.04(±0.08 안) → 무변경** (ENGINE_VERSION 91 → **92**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 의 평점 식·세기만, 세이브 필드 없음)
+
+- 측정·표: `docs/engine-roles.md` C.81u 절. 측정기 `scripts/diag/c81u-role-cond.ts`(조건별 성분) · `c81u-role-fit.ts`(표·다시 맞춤) · `c81u-parts.ts`(성분 분해) · `c81u-center.ts`(8군 평균 유지).
+- 코드: `sim.ts defenseTally`(상대 소유 오픈 플레이 틱마다 압박 시각·라인 유지 시간) · `core.ts` 탈취 순간 압박 성공 · `referee.callOffside` 오프사이드 유도 · `rating.ts` 성분 `pressWon`·`offsideWon`·`lineMin`·`mates`(같은 군 필드 선수 수) · `ENGINE.rating` 새 칸 · CM `forwardKnee` 18 · roleCenter(+`역할@2`) · center 다시 맞춤.
+- **안 된 것**: 최대 |차| ≤ 0.15 는 홀드아웃에서 못 맞춤(0.36). 두 표본 모두 같은 방향으로 남은 칸 2개 — 4-2-3-1 원톱 펄스 나인 +0.38/+0.36, 3-5-2 하프백 −0.20/−0.36(대형 구조 차, 상수·투톱 보정으로 못 잡음). 나머지 0.15 넘는 칸은 칸 SE 0.07 잡음 폭.
+
+| 관문 | 기준 | main(엔진 91) | C.81u |
+|---|---|---|---|
+| 지문 | 경기 결과·골 시각 같음 | — | 1168/1168 ✓ |
+| 조건별 역할 차(맞춘 표본) | ≤ 0.15 | 0.58 | 0.26(유의 0칸) |
+| 〃 (홀드아웃) | ≤ 0.15 | 0.57 | 0.36(유의 2칸) ✗ |
+| 와이드 미드필더 | ±0.08 | +0.04 | +0.04 ✓ |
+| 일반 표본 8군 평균 | main 그대로 | — | ±0.01 · σ 0.80 → 0.76 |
+| engine:check 평점 가드 | 군 6.3~6.7 · σ 0.7~0.9 | — | GK 6.56 · CB 6.65 · FB 6.64 · CDM 6.52 · CM 6.65 · CAM 6.61 · WING 6.64 · ST 6.66 · σ 0.72 · ST 무득점 6.03 ✓ (순간이동 0) — σ 는 CM 전진 패스 무릎으로 하한 쪽 |
+| typecheck · test | 통과 | — | ✓ · 1437개 ✓ (main C.81x 병합 뒤) |
+
 ### C.81h 53단계_엔진 묶음 B: 세컨볼 골·롱패스/윙어 여유 (마스터 AD `docs/session-prompts/C.81h.md`, 근거 엔진관리자26 `docs/engine-diagnosis-em26.md` 리바운드 병목 = 쳐낸 순간 골 앞 6 m 공격 0.8 대 수비 2.2 · C.81b 남은 경계 항목 롱패스 비율 10.9%(하한)·윙어 골 28%(상한), Fable): **① 세컨볼 골 — 수치 3개(병렬 묶음 C.81g·C.81i 와 동시): 쳐낸 공에 수비 필드 선수가 한 박자 늦게 반응 `keeper.parryDefHold` 1.0 s(그동안 루즈볼 컨트롤 × `parryDefControl` 0 — 슛을 보던 수비는 튄 공에 늦고 따라 들어온 공격수가 먼저 닿는다, 양 팀 같은 규칙) · 몸을 날린 GK 는 `keeper.parryDownT` 2.0 s 동안 선방 × `parryDownSave` 0.6(일어서는 중, 실행만 — 판단은 GK 자리를 안 본다는 C.78p 원칙 유지) · 리바운드 슛 선호 `decide.bias.rebound` 0.1(우리 슛 뒤 `reboundT` 5 s 안 상대 박스 안 슛 효용 +0.1 × 슛 레인, 판단만). 리바운드 골 2.4 → 3.0~3.2%(quick 표준 표본 2400경기, 176 → 235골(묶음 C 병합 전)·225골(병합 뒤); 목표 3~6 안, 4% 근처는 미달) — 엔진관리자26 표본 600경기는 리바운드 3개만 넣은 값 2.5 → 3.8%, 최종 값(롱패스·윙어 포함) 2.4% 로 ±8골 잡음 폭 ② 롱패스 비율 여유: 공중 롱패스 판단 가중 `decide.bias.longW` 0.25 → 0.4(10.9 → 12.4%, 목표 10~16 가운데; 티키 롱패스 감점 C.80h · 직선 전환 롱볼 C.79d 그대로) ③ 윙어 골 비중 여유: 윙어(LW·RW·LM·RM) 발 슛 유효 슈팅 배수 `prob.wingFinish` 0.92(판단·실행 같은 값 — shotModel 한 곳; 28.3 → 26.9%). 먼 포스트 자리(`backPostDepth`·`backPostSpread` 7 → 7.5 · 0.07 → 0.085)는 2400경기 28.3 → 28.0 으로 효과 없어 되돌림 ④ 장면 ④ 1대1 골이 슈터 RW 라 0.259 → 0.242 로 내려가 `keeper.oneOnOne.drop` 0.3 → 0.32(0.253) ⑤ engine:check 경량 평점 가드(6.3~6.7)에서 CAM 6.74 · ST 6.73 → 평점 중심 `rating.center.CAM` 2.1 → 2.25 · `ST` 2.53 → 2.63(리바운드 슛 선호·득점 +0.04 로 박스 안 2선·ST 평점이 올라감). 득점 총량은 1.505 → 1.541(2400경기, 묶음 C 병합 뒤)·quick 600 1.54 로 묶음 관문(1.43~1.60) 안이라 saveBase 그대로(묶음 마무리 보정 세션 몫)** (ENGINE_VERSION 88(C.81g 묶음 A 87 · C.81i 묶음 C 88, merge 순서) → **89**; BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로)
 
 - 리바운드 측정(진단 스크립트 `scripts/diag/em26-box-rebound.ts`, 4-2-3-1 균형 75:75, 시드 41000~44000 × 75 = 300경기 / ~48000 × 75 = 600경기, `node scripts/diag/em26-rep.cjs`). 쳐낸 공(패리 루즈)의 흐름과 리바운드 경로(같은 팀 슛 5초 안) 골 비중:
@@ -10006,6 +10033,33 @@ C 의 "GK 옆 위치를 공–골 가운데 선 위로"(스위퍼 8 m 앞에서 
 - **경기 준비 (`prepVM`·`views/prep.ts`)**: 대표팀 경기면 `natFixed` — 전술 칸 = 아이콘 + "대표팀 전술" + "감독 고정 · 클럽 전술은 쓰지 않아요", 전술 칩·세부 줄·[바꾸기]·잠금 안내 없음, 내 포지션 칸의 [포메이션]·[역할 바꾸기]도 숨김(`tacticsOpen` 거짓).
 - **위험 등급 칩 통일**: `components/match.ts RiskChip` 하나를 결정 순간 선택지·결정 결과("내 선택" 아래)·결과 화면 "내 결정 기록" 줄이 같이 쓴다. 결정 결과에서 고른 선택지의 `riskLevel`(C.81n 같은 계산)을 결정 기록에 `risk` 로 적어 결과 화면이 읽는다(직접 고른 판정 있는 선택지만 — 맡김·판정 없음·옛 기록은 칩 없음, 카드는 "카드 · " 글자 유지). "안전·균형·도박"은 결정 순간 확률 막대 제목에만 남는다.
 - **확인**: typecheck · test 통과(`tests/c81v.test.ts` 4개: 탈락 뒤 결승 날까지 하루씩 — 휴가·내 경기 없음·지난 날짜 경기만 결과·소식 날짜 = 그날·시즌 끝 = 결승 다음 날 아침·홈 다음 경기 없음 칩 / 기다림 0일로 몰아 치기 — 떨어진 날 시즌 끝·소식 날짜 = 경기 날짜 / 대표팀 준비 natFixed / RiskChip 모양. `tests/c81l.test.ts` 소집 흐름은 새 시즌 끝 날짜로) · build 통과. 캡처 `scripts/c81v-capture.mjs` + 세이브 `scripts/c81v-save.ts` → `docs/captures/c81v/`(360·390·1280): 대표팀 준비 전술 칸 · 탈락 다음 날 홈·대회 탭 → [계속] 한 번에 결승 다음 날 시즌 끝 · 인박스 8강·4강·결승 소식(경기 날짜) · 결정 결과 위험 칩(재생 중·결과) · 결과 화면 결정 기록 칩 · 확인만: 리플레이 재생 중 득점 피드 · 리그 우승 축하 오버레이 배경.
+
+### C.81x 53단계_엔진 구조 속도: 선수 실수 필드 Float64Array (마스터 AD `docs/session-prompts/C.81x.md`, 앞 단계 C.81e·C.81j "남은 큰 덩어리 = 선수 이동·몸 돌리기, 더 줄이려면 선수 실수 필드를 Float64Array 로 옮기는 구조 변경", Fable): **구조 변경을 실제로 재 보니 이득이 없어 엔진을 바꾸지 않았다(경기 계산 시간·결과 모두 그대로). 선수 실수 필드를 Float64Array 구조체 배열로 옮겨도 이동 루프 시간이 같다(마이크로 실험 0~4%) — V8 이 선수 객체의 실수 필드를 이미 제자리 상자(Double 표현)로 두어 "실수 필드 상자 읽기"는 병목이 아니었다. 남은 큰 몫은 이동·몸 돌리기의 수식 자체(나눗셈 약 10개·제곱근 5개의 의존 사슬 ≈ 호출당 100 ns, atan2·cos·sin) 라 결과 비트를 지키면서 −25% 는 나올 수 없다. 더 줄이려면 결과가 바뀌는(ENGINE 번호가 오르는) 패치여야 한다** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 무수정, 측정 스크립트만 추가)
+
+- **안 된 것(먼저)**: 목표(Chromium 워커 320 ms 이하 · Node −25%)를 못 했다. 지시된 구조 변경은 아래 세 측정이 모두 "이득 없음"이라 700곳 넘는 `a.x`·`a.y` 참조를 바꾸는 큰 전환을 하지 않았다(바꿔도 같은 시간, 코드만 어려워짐). 엔진 코드 변경이 없으므로 지문·전후 ms 표는 기준값과 같다.
+- 왜 이득이 없나 (세 가지 직접 측정, 모두 `scripts/diag/c81x-*`):
+  1. **마이크로 실험** (`c81x-soa-micro.mjs`): `moveAgentMV`·`turnHeadMV` 와 같은 식·같은 분기를 선수 객체(실수 필드 약 30개, AoS)와 Float64Array 구조체 배열(SoA)로 각각 132만 번(22명 × 6만 틱, 경기 1회 호출 수와 같음) 돌림 — **AoS 106 ms · SoA 106 ms(차 0~4%)**, 검사합 같음. 호출당 80 ns 로 실제 엔진의 약 100 ns 와 같은 자리.
+  2. **실수 필드 저장이 상자를 새로 만드는가** (`c81x-store-alloc.ts`): 경기 6000틱 뒤 실제 선수 객체 `a.x`·`a.stats.distance`·공 `b.x` 에 5천만 번 실수를 저장 — **GC 0~1회(새 HeapNumber 없음)**. 즉 C.81e 의 `fixDoubles` 로 필드가 이미 Double 표현이라 저장은 제자리에 쓰고, 읽기는 포인터 한 번 더 따라가는 정도라 Float64Array 와 같다.
+  3. **실제 엔진 시제품**: 물리 필드 32개를 `a.f`(Float64Array)로 옮기고 `physics.ts` 는 배열을 직접, 나머지 700곳은 프로토타입 접근자(getter/setter)로 읽게 한 시제품 — 지문 `c81j-fp.ts` **cf7f8284225b1550 동일**(결과 불변 확인)이지만 시간은 **674~1194 ms 대 기준 511~523 ms(+30~130%)**: 접근자 경로가 필드 읽기보다 훨씬 느려, 전환은 700곳을 모두 배열 색인으로 고쳐야만 "같은 시간"이 된다(1번 실험). 되돌림.
+- 그럼 시간은 어디에 가나 (기준 main b5a3484, Node 22, 4코어 VM):
+  - CPU 프로파일 20경기 자기 시간 ms/경기(`c81x-profsum.mjs`): moveAgentMV **114(17%)** · turnHeadMV 39(6%) · defendTarget 35 · stepBody 31 · updateOffball 26 · GC 25 · stepTail 25 · arrivalTime 21 · candidates 20 · attackTarget 14 · lineMatchPlan 13 · randn 8 · slotTargetS 8 · trackPlan 8 — 위 둘이 23%, 나머지는 1~5% 씩 평평. turnHeadMV 는 줄별 틱의 77% 가 `atan2`·`atan2`·`cos`·`sin` 네 줄. moveAgentMV 는 호출당 약 100 ns = 나눗셈 약 10개 + 제곱근 5개(각 15~20 사이클)의 의존 사슬 ≈ 80 ns 바닥 — `(dx / d) * corr` 를 `dx * (corr / d)` 로 바꾸는 식의 재배열은 비트가 달라져 못 쓴다.
+  - V8 계층·최적화 상태(`node --prof`): 뜨거운 함수 전부 TurboFan 최적화 코드(`*`)에서 돈다. 비최적화 코드 틱 없음. 경기별 deopt(`--trace-deopt`) 1~2번째 경기 86·29회 뒤 8번째부터 경기당 0~2회(희귀 분기 첫 실행 "insufficient feedback"·`s.restart` 모양 "wrong map")라 반복 비용 아님. 메가모픽 IC 는 LoadIC 1.9% + KeyedLoadIC_Megamorphic 1.4%(`mkFlight` 안 읽기·역할/전술 표 키 조회·`ENGINE.decide.bias[type]`) — 고쳐도 3% 안.
+  - V8 플래그 실험(40경기 온 평균): 기본 517·521 · `--no-maglev` 515 · 인라인 누적 한도 2000 513 · 함수 한도 1200 514 · 둘 다(1200·3000) 495 — 모두 ±5% 잡음 폭(C.81j 의 "인라인 한도 −6%" 와 같은 크기). 인라인 추적(`--trace-turbo-inlining`)으로 moveAgentMV 안의 desiredSpeed·effectiveMax·effectiveAccel·burstCap·clamp 가 이미 인라인됨을 확인.
+  - 할당(`c81x-allocprof.mjs`, 죽은 객체 포함 표본): 경기당 약 300 MB 가 50곳 넘게 흩어짐(최대 자리 moveAgentMV 15 MB 5%, defendTarget 14 MB, updateOffball 13 MB, candidates 12+9 MB, defendDuels 10+3 MB…). GC 는 2~3% 라 한 곳을 없애도 1% 안.
+- 결론과 다음 후보(결과가 바뀌는 패치, 사용자 결정 필요 없음 — 마스터가 엔진 패치로 열 때 ENGINE 번호·상성 960·장면 관문 그대로): ① 몸 돌리기 삼각함수 근사(`turnHeadMV` 의 atan2·cos·sin → 다항 근사, 66만 호출 × 약 45 ns ≈ 경기당 30 ms, −6%) ② 서 있는 선수(목표 도착·속도 0·목표 속도 0) 이동 계산 건너뛰기 — 체력·순간 체력 회복만 남기면 비트가 바뀌므로 결과 변경으로 분류 ③ 오프볼 갱신 간격(`time.offballInterval`)·판단 후보 수 조정(판단 품질에 걸림). 결과 불변으로 남은 것은 `s.restart` 객체 모양 고정(`mkFlight` 식)·`lineMatchPlan().drop` Set → 선수별 플래그 같은 1% 안 항목뿐이라 열지 않는 편이 낫다.
+- 기준 측정(이번 main, 변경 없음 — `c81e-bench` 100경기 2회 · `c81e-bench-worker` + `c81e-worker-bench.mjs` 100경기 2회):
+
+| 경기 1회 계산 (다른 팀 경기 `createMatch(...).runToEnd()`, 100경기) | main b5a3484 (= C.81x) |
+|---|---|
+| Node 온 평균 / 중앙값 | 492 · 498 ms / 483 · 491 ms |
+| Node 첫 경기(냉) | 1,064 · 1,056 ms |
+| Node GC | 2.2 · 2.0% |
+| Chromium 153 Web Worker 온 평균 / 중앙값 (PC 워커) | 383 · 368 ms / 369 · 362 ms |
+| Chromium Web Worker 첫 경기(냉) | 994 · 868 ms |
+
+  (C.81j 표의 워커 429 ms 와 다른 것은 기계·회차 차 — 같은 날 같은 빌드도 ±5%.) 결과 불변 지문 `scripts/diag/c81j-fp.ts` 기준 **cf7f8284225b1550**(c74a 0c1b26ec41bdf831 · 재생 83c5d2fb82280946 · 상성 45259276b45757e1 · 다른 경기 92202bc334311037) — 엔진 무수정이라 그대로.
+- 관문: typecheck · test · build · `balance:engine:check` 통과(엔진 무수정). 새 화면: 없음.
+- 재현: `node scripts/diag/c81x-soa-micro.mjs` · `npx esbuild scripts/diag/c81x-store-alloc.ts --bundle --platform=node --format=esm --outfile=/tmp/sa.mjs && node /tmp/sa.mjs` · 프로파일 `node --cpu-prof <c81e-bench 번들> 20` → `node scripts/diag/c81x-profsum.mjs <cpuprofile> 20 moveAgentMV turnHeadMV` · 할당 `BENCH=<번들> OUT=/tmp/a.heapprofile node scripts/diag/c81x-allocprof.mjs x 15` → `c81x-profsum.mjs /tmp/a.heapprofile 15`.
 
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 

@@ -129,7 +129,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     maxSpeed: 0, accel: 0, turnKeep: 0, pivotT: 0, burstSec: 0, drainAttr: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
-    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0, card: undefined, relief: undefined, risky: undefined, riskLost: undefined, passive: undefined, passiveW: undefined, passiveSeq: undefined, passivePoss: undefined, passiveCtr: undefined }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
+    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0, card: undefined, relief: undefined, risky: undefined, riskLost: undefined, passive: undefined, passiveW: undefined, passiveSeq: undefined, passivePoss: undefined, passiveCtr: undefined, pressT: -100, pressWon: 0, offWon: 0, lineT: 0 }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
     pre: null, otMul: 1, otUntil: -1,
     // C.81e 계산 속도: 나중에 붙던 속성을 처음부터 (하프타임에 모든 선수 객체 모양이 바뀌어 최적화 코드가 버려지던 것 — 값·판정 같음)
     intent: null, cardBoost: undefined,
@@ -654,6 +654,30 @@ function resume(s: SimState, choice: MomentChoice): void {
   else stepTail(s);
 }
 
+/**
+ * 수비 기록 (C.81u, 평점 칸 — 세기만): 상대가 공을 가진 오픈 플레이 틱마다
+ * ① 공 가진 선수 rating.pressRadius m 안의 필드 선수는 pressT = 지금 (탈취 순간 core.gainBall 이 pressWindow 초 안이면 압박 성공)
+ * ② 수비 줄(line 1) 선수 중 줄 평균 x 에서 rating.lineTol m 안이면 lineT += dt (라인 유지 시간). 난수·위치·판단은 건드리지 않는다
+ */
+function defenseTally(s: SimState, dt: number): void {
+  const R = ENGINE.rating;
+  const o = s.agents[s.ball.owner]!;
+  const def = 1 - o.team;
+  const r2 = R.pressRadius * R.pressRadius;
+  let sx = 0, n = 0;
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const a = ag[i]!;
+    if (!a.onPitch || a.team !== def || a.line === 0) continue;
+    const dx = a.x - o.x, dy = a.y - o.y;
+    if (dx * dx + dy * dy <= r2) a.rt.pressT = s.t;
+    if (a.line === 1) { sx += a.x; n++; }
+  }
+  if (n < 2) return;
+  const mx = sx / n;
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const a = ag[i]!;
+    if (a.onPitch && a.team === def && a.line === 1 && Math.abs(a.x - mx) <= R.lineTol) a.rt.lineT = (a.rt.lineT ?? 0) + dt;
+  }
+}
+
 function stepTail(s: SimState): void {
   const dt = T.dt;
   const b = s.ball;
@@ -719,6 +743,7 @@ function stepTail(s: SimState): void {
   if (!s.restart && b.owner < 0 && !b.flight && outOfPlay(b.x, b.y)) ballOut(s);
 
   if (!s.restart) s.teams[s.possTeam].stats.possessionTicks++;
+  if (!s.restart && b.owner >= 0) defenseTally(s, dt);
   const k = Math.min(1, dt / ENGINE.formation.ballSmoothing);
   s.bsx += (b.x - s.bsx) * k;
   s.bsy += (b.y - s.bsy) * k;

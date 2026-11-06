@@ -172,7 +172,7 @@ describe('세이브 46', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });

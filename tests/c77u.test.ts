@@ -93,6 +93,6 @@ describe('사진·로고 출처 (C.77u)', () => {
 
   it('패치 라벨', () => {
     // C.77w 뒤에도 깨지지 않게: 라벨 형식만 본다 (최신 소절은 패치마다 바뀐다)
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*\d?$/);
   });
 });

@@ -17,7 +17,7 @@ const vm = { moment: M, teams: d.teams, selected: null, card: null, stop: 'impor
 
 describe('C.76f 결정 순간 (218 · 240A · 236A)', () => {
   it('버전', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/단계$/);
   });
   it('몰고 가다 슛은 머리 글 아래 따로 한 줄, 이름 "몰고 가기 → 슛", 도박 색 · 확정 단추는 "슛"', () => {

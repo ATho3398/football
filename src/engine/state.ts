@@ -132,6 +132,9 @@ export interface Agent {
     risky?: boolean; riskLost?: number;
     /** 소극적 백패스 (C.77s A1): 횟수, 허용을 넘긴 가중 합, 같은 소유 순번(passivePoss = 그 소유의 possStartT), 역습 허용을 쓴 소유 */
     passive?: number; passiveW?: number; passiveSeq?: number; passivePoss?: number; passiveCtr?: number;
+    /** 수비 기록 (C.81u, 세기만 — 판단·실행에 안 쓴다): 마지막으로 상대 공 가진 선수 pressRadius m 안에 있던 시각, 그 뒤 pressWindow 초 안 팀 탈취 수(압박 성공),
+     *  오프사이드 유도(수비 줄 선수), 상대 소유 중 수비 줄 평균 x 에서 lineTol m 안에 있던 시간(초, 라인 유지) */
+    pressT?: number; pressWon?: number; offWon?: number; lineT?: number;
   };
   /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
   cardBoost?: { tackle: number; air: number };

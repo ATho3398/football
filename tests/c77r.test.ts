@@ -158,6 +158,6 @@ describe('오프라인 PWA: 서비스 워커 파일 목록 (C.77r)', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*\d?$/);
   });
 });

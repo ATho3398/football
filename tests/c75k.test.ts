@@ -129,7 +129,7 @@ describe('C.75k 몰고 가다 슛', () => {
 
 describe('C.75k 버전', () => {
   it('PATCH_LABEL · STAGE_LABEL', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/); // 다음 패치가 덮어씀 (C.75t 병합)
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*\d?$/); // 다음 패치가 덮어씀 (C.75t 병합)
     expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });
