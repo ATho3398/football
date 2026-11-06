@@ -1,7 +1,8 @@
 // C.81q 맞춤: 같은 시드 새 게임 다른 리그 빠른 진행 한 시즌의 리그 묶음 × 포지션군 골·도움 평균 · 리그 상위 10 을 엔진(c81q-engine.ts JSON)에 맞춘다.
 // 포지션 가중은 곱셈 고정점 반복, ovrK · ovrKAssist · assistChance 는 상위 10 · 총 도움으로. 실행: npx vite-node scripts/diag/c81q-fit.ts -- <engine.json> [reps=2] [iters=6]
 import { readFileSync } from 'node:fs';
-import { newGame, type GameState } from '../../src/game';
+import { newGame, playRound, startNextSeason, type GameState } from '../../src/game';
+import { autoAllocate } from '../../src/growth';
 import { buildResumes } from '../../src/awards';
 import { BALANCE } from '../../src/config/balance';
 import { finishOtherSeason, resetScorerPool, type OtherLeague } from '../../src/otherLeagues';
@@ -11,6 +12,8 @@ const args = process.argv.slice(2).filter((a) => a !== '--');
 const eng = JSON.parse(readFileSync(args[0]!, 'utf8')) as { pid: string; s: number; my: string; rs: { lg: string; group: string; goals: number; assists: number }[] }[];
 const reps = Number(args[1] ?? 2);
 const iters = Number(args[2] ?? 6);
+/** seasons > 0: 새 게임 하네스 대신 전부 빠른 진행으로 실제 시즌을 seasons 개 치른 이력서 (시즌 중 이적·로스터 변화 포함) */
+const seasons = Number(args[3] ?? 0);
 const MAJOR = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'];
 const cat = (lg: string) => (MAJOR.includes(lg) ? lg : 'rest');
 const G = ['CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
@@ -47,6 +50,21 @@ for (const pid of pids) for (let r = 0; r < reps; r++) {
 const C = BALANCE.otherScorers as unknown as { scorerWeight: Record<string, number>; assistWeight: Record<string, number>; assistChance: number; share: number[]; ovrK: number; ovrKAssist: number };
 function run() {
   resetScorerPool();
+  if (seasons > 0) {
+    const out: { rs: Row[] }[] = [];
+    for (const pid of pids) for (let r = 0; r < reps; r++) {
+      const g: GameState = newGame({ mode: 'real', playerId: pid, seed: `c81m-a-${pid}${r ? `-r${r}` : ''}`, difficulty: 'normal', leagues: [...DEFAULT_LEAGUES] } as never);
+      g.options = { ...(g.options ?? {}), others: 'quick' } as never;
+      for (let s = 0; s < seasons && g.phase !== 'retired'; s++) {
+        while (g.phase === 'season') { playRound(g, { engine: 'quick', others: 'quick' } as never); autoAllocate(g.player); }
+        if (g.phase !== 'offseason') break;
+        const my = (g.league as { id: string }).id;
+        out.push({ rs: buildResumes(g).filter((x) => !x.me && x.lg !== my) as Row[] });
+        if (s + 1 < seasons) startNextSeason(g);
+      }
+    }
+    return agg(out);
+  }
   return agg(games.map(({ g, my, init }) => {
     g.otherLeagues = JSON.parse(init) as OtherLeague[];
     for (const lg of g.otherLeagues) finishOtherSeason(g.worldSeed, lg, g.npcs);
