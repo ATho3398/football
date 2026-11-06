@@ -19,25 +19,25 @@ concurrency:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
           cache: gradle
-      # ubuntu-latest 러너에는 Android SDK 가 깔려 있다(ANDROID_HOME). 빠진 플랫폼·빌드 도구는 Gradle 이 받는다
+      # ubuntu-24.04 러너에는 Android SDK 가 깔려 있다(ANDROID_HOME). 빠진 플랫폼·빌드 도구는 Gradle 이 받는다
       - run: npm ci
       - run: npx cap sync android
       # 서명 키: 저장소 시크릿 없이 디버그 키를 Actions 캐시에 두고 매번 같은 키로 서명한다(덮어 설치가 되게). 키는 커밋하지 않는다.
       # 캐시가 지워지면(7일 넘게 안 쓰면) 새 키가 생겨 덮어 설치가 안 된다 — 그때는 [내보내기]로 백업 뒤 지우고 새로 설치
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.android/debug.keystore
           key: po-android-debug-keystore-v1
@@ -56,7 +56,7 @@ jobs:
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk "out/player-one-${{ github.run_number }}.apk"
           ls -l out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: player-one-apk
           path: out/*.apk

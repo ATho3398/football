@@ -18,6 +18,7 @@ import {
 } from '../pitch/renderer';
 import { isLandPhone, isWide } from '../skin';
 import { pitchViewButton } from './common';
+import { riskLevel, shownChance, shownEv } from '../momentNumbers';
 
 export interface MomentVM {
   moment: Moment;
@@ -68,17 +69,19 @@ function scoreTop(teams: [string, string], score: [number, number], side: 0 | 1,
     </div>`;
 }
 
-/** 선택지 → ChoiceButton (compact). dp = 확률 카드 변화, 카드 선택지는 바탕 행동 대비 */
+/** 선택지 → ChoiceButton (compact). dp = 확률 카드 변화, 카드 선택지는 바탕 행동 대비. 숫자는 momentNumbers 한 곳에서 (C.81n) */
 function choice(o: MomentOption, i: number, on: boolean, dp: number, card: { name: string; rarity: GameCardData['rarity'] } | null): string {
   const isCard = o.kind === 'card';
   const base = isCard && o.baseP !== undefined && o.p !== null ? o.baseP : o.p;
-  const delta = isCard && o.baseP !== undefined && o.p !== null ? Math.round((o.p - o.baseP) * 100) : Math.round(dp * 100);
   const chance = pctOf(base);
+  const shown = shownChance(o, dp);
+  const delta = chance === null || shown === null ? 0 : shown - chance;
+  const risk = riskLevel(o);
   return ChoiceButton({
     act: 'mo-pick', data: { v: i }, compact: true, collapsed: true, certain: chance === null, selected: on, kind: o.kind === 'card' ? 'play' : o.kind, name: o.chain ? CHAIN_NAME : o.label, chance,
-    ...(chance !== null && delta ? { chanceDelta: Math.max(-chance, Math.min(99 - chance, delta)), deltaSource: '카드' } : {}),
+    ...(chance !== null && delta ? { chanceDelta: delta, deltaSource: '카드' } : {}),
     success: { text: o.success, rating: signedR(o.up) }, fail: { text: o.fail, rating: `${signedR(o.down)}${o.passive ? ` · 소극적 ${signedR(o.passive)}` : ''}` },
-    ...(o.ev !== undefined ? { ev: signedR(o.ev) } : {}),
+    ev: signedR(shownEv(o, dp)), ...(risk ? { risk } : {}),
     ...(o.offside ? { offside: o.offside } : {}), ...(o.exploit ? { exploit: true } : {}), ...(isCard && card ? { card: card.name, rarity: card.rarity } : {}),
   });
 }
@@ -135,7 +138,7 @@ export function momentView(vm: MomentVM): string {
   const opts = shown.map((o, i) => (o.chain ? '' : row(o, i))).join('')
     + (chained.length ? `<p class="mo-chainhead">몰고 가다 슛 · 2단 행동</p>${chained.map(([o, i]) => row(o, i)).join('')}` : '');
   const picked = sel === null ? null : shown[sel] ?? null;
-  const pp = picked ? pctOf(picked.p === null ? null : picked.p + (sel! < m.options.length ? mc?.deltas?.[sel!] ?? 0 : 0)) : null;
+  const pp = picked ? shownChance(picked, sel! < m.options.length ? mc?.deltas?.[sel!] ?? 0 : 0) : null;
   const confirm = picked ? `확정 · ${actionWord(picked.label)}${pp === null ? '' : ` ${pp}%`}` : '선택지를 고르세요';
   const tension = m.minute >= 75 && Math.abs(m.score[0] - m.score[1]) <= 1 ? ' · 접전 막판' : '';
   // 안내 한 줄 (189): 확실한 선택지를 뺐을 때 / 판정 없는 선택지가 있을 때

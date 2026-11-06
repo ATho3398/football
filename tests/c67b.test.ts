@@ -98,7 +98,9 @@ describe('챔스 한 시즌', () => {
         if (fin && (fin.h === g.player.teamId || fin.a === g.player.teamId)) {
           found = true;
           expect(fin.hg).toBeDefined();
-          expect(g.calendar.date).toBe(fin.d);
+          // C.81l: 같은 날 남은 다른 컵 결승을 하루 끝에 치르면 다음 날 끝난다 (여름 대회 소집이면 그 뒤)
+          expect(daysBetween(fin.d!, g.calendar.date)).toBeGreaterThanOrEqual(0);
+          expect(daysBetween(fin.d!, g.calendar.date)).toBeLessThanOrEqual(g.national?.tournaments.at(-1)?.called ? 60 : 1);
           expect(g.lastMatch!.cup!.stage).toBe('결승');
         }
         if (!found) startNextSeason(g);
@@ -183,7 +185,7 @@ describe('화면 (디자인 없음)', () => {
 describe('세이브 37', () => {
   it('왕복 그대로 · 옛 세이브(36)는 이어 할 수 없음', () => {
     const g = real('c67b-save');
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 36;

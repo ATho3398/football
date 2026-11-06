@@ -143,6 +143,33 @@ export function dock(vm: DockVM): string {
   return `<nav class="nav dock-bar" aria-label="주요 메뉴">${row}${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
 }
 
+/**
+ * 은퇴한 세이브 독 (C.81p, 17차 1단계 수정 요청 31번): 쓸 수 있는 칸만 — 커리어 요약 · 선수(기록 보기) · [새 게임] · 저장 · 설정.
+ * 은퇴하면 진행 화면(홈·훈련·상점·덱·전술…)이 모두 커리어 요약으로 돌아가므로 그 칸은 없다. 모양은 독 v3 그대로(새 디자인 전 최소 구현)
+ */
+export const RETIRED_DOCK = ['summary', 'player', 'prog', 'saves', 'settings'] as const;
+export function retiredDock(screen: string): string {
+  const items: Record<Exclude<(typeof RETIRED_DOCK)[number], 'prog'>, DockItem> = {
+    summary: { label: '커리어', icon: 'trophy', act: 'go', data: { to: 'retired' }, on: screen === 'retired' || screen === 'season' },
+    player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: screen === 'player' },
+    saves: { label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: screen === 'saves' },
+    settings: { label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: screen === 'settings' },
+  };
+  const attrs = (act: string, data?: Record<string, string>) => ` data-act="${act}"${Object.entries(data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}`;
+  const cell = (id: (typeof RETIRED_DOCK)[number]): string => {
+    if (id === 'prog') {
+      return `<button type="button" class="po-dock__go po-dock__next is-continue" data-act="go" data-to="new" aria-label="다음 · 새 게임"><span class="po-dock__goicon">${Icon({ name: 'plus', size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">새 게임</span></span></button>`;
+    }
+    const it = items[id];
+    return `<button type="button" class="${cx('po-dock__item', it.on && 'is-on')}"${attrs(it.act, it.data)}${it.on ? ' aria-current="page"' : ''}><span class="po-dock__icon">${
+      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
+  };
+  const ids = [...RETIRED_DOCK];
+  const phone = ids.map((id) => `minmax(0, ${id === 'prog' ? 1.9 : 1}fr)`).join(' ');
+  const bar = (pc: boolean) => `<div class="${cx('po-dock po-dock--v3 po-dock--retired', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${pc ? dockColumns(ids as DockId[], 176) : phone}">${ids.map(cell).join('')}</div>`;
+  return `<nav class="nav dock-bar" aria-label="주요 메뉴 · 은퇴">${bar(false)}${bar(true)}</nav>`;
+}
+
 /** 더보기 펼침 줄 (C.63c): 폰 독에 없는 칸 + 인박스, 가로 스크롤 · 스냅 · 처음/끝 흐림. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
 function dockMoreRow(_vm: DockVM, all: Record<string, DockItem>): string {
   const ids = DOCK_MORE.filter((id) => !DOCK_PHONE.includes(id));
@@ -200,10 +227,10 @@ export function seasonMatchesSection(vm: SeasonMatchesVM, title = '시즌 경기
   const total = vm.total
     ? `<div class="chips">${recordChips(vm.total.primary)}</div>${moreRecords(vm.total.more)}
        <p class="small muted">합계는 기록이 남은 ${vm.recApps}경기 기준이에요.</p>`
-    : '<p class="muted small">아직 남은 경기 기록이 없어요.</p>';
+    : '<p class="muted small">아직 경기 기록이 없어요. 첫 경기를 뛰면 여기에 쌓여요.</p>';
   const rows = vm.rows.map((r) => `<div class="mlog">
       <div class="kv"><b class="small">${r.round}R ${esc(r.opp)} <small class="muted">${r.venue}</small></b>
-        <span class="small"><b class="po-num ${r.outcome === 'win' ? 'up' : r.outcome === 'loss' ? 'down' : ''}">${esc(r.score)}</b> · 평점 <b class="po-num">${esc(r.rating)}</b></span></div>
+        <span class="small score-cell"><b class="po-num ${r.outcome === 'win' ? 'up' : r.outcome === 'loss' ? 'down' : ''}">${esc(r.score)}</b> · 평점 <b class="po-num">${esc(r.rating)}</b></span></div>
       <div class="small muted">${esc(r.head)}${r.line ? ` · ${esc(r.line)}` : ''}</div>
       ${r.hl.length || r.decisions ? `<ul class="mlog-hl small">${r.hl.map((h) => `<li>${esc(h)}</li>`).join('')}${r.decisions ? `<li class="muted">내 결정 ${r.decisions}번</li>` : ''}</ul>` : ''}
       ${r.replay ? Button({ variant: 'ghost', size: 'sm', icon: 'play', act: 'replay-open', data: { v: r.replay }, children: '다시 보기' }) : ''}

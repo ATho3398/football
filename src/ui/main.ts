@@ -23,7 +23,7 @@ import { applySkin, isLandPhone, isWide, LANDPHONE_QUERY, setSkin, WIDE_QUERY } 
 import type { FieldAttribute } from '../attributes';
 import type { Difficulty } from '../config/balance';
 import {
-  acceptMyOffer, applyOther, campDay, canChangePosition, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, myLeagueQuick, otherLeaguesEngine, playOthers, randomSeed, playRound, retire, roundMatch,
+  acceptMyOffer, applyOther, campDay, canChangePosition, clubSeasonOver, endDay, isVacationDay, setDayTraining, trainingLine, isMatchDay, myMatchPosition, newGame, otherJob, myLeagueQuick, otherLeaguesEngine, playOthers, randomSeed, playRound, retire, roundMatch,
   nextCampDate, startNextSeason, todaysOthers, upcomingOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
@@ -67,7 +67,7 @@ import {
   allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { dock, dockMoreSheet, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
+import { dock, dockMoreSheet, retiredDock, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
 import { homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
@@ -135,6 +135,7 @@ import { proficientOvr } from '../proficiency';
 import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonTab, type TeamTab } from './detailVM';
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
+import { scoreText } from '../text';
 
 type TrainTab = 'pre' | 'cal' | 'g' | 'staff';
 type Screen = 'title' | 'new' | 'home' | 'match' | 'moment' | 'replay' | 'allocate' | 'player' | 'world' | 'season' | 'saves' | 'retired' | 'tactics' | 'deck' | 'offers' | 'contract' | 'settings' | 'schedule' | 'prep' | 'team' | 'person' | 'meeting' | 'inbox' | 'finance' | 'shop' | 'chapter' | 'dex' | 'showroom' | 'national' | 'awards';
@@ -333,6 +334,8 @@ const app = document.getElementById('app')!;
 const NAV_SCREENS: Screen[] = ['home', 'player', 'world'];
 /** 하단 독을 숨기는 화면 (C.44: 게임 중 모든 화면에 고정) */
 const NAV_HIDDEN: Screen[] = ['title', 'new', 'retired', 'chapter'];
+/** 은퇴한 세이브에서 독이 보이는 화면 (C.81p) */
+const RETIRED_NAV: Screen[] = ['retired', 'season', 'player', 'saves', 'settings'];
 
 /** 진행 중인 경기 화면 (C.39): 직접 모드 경기가 결정 순간에 멈춰 있으면 결정 화면, 경기 재생 중이면 재생 화면 */
 function liveScreen(): Screen | null {
@@ -420,7 +423,7 @@ function cupsView(g: GameState): string {
 /** 방금 치른 내 경기 리플레이를 최근 5경기에 넣는다 */
 async function keepReplay(g: GameState, r: Replay, rep: { season: number; round: number; opponentId: string; result: { goalsFor: number; goalsAgainst: number }; cup?: { comp: CompId; stage: string }; nat?: { label: string } }): Promise<void> {
   const { season, round } = rep;
-  const label = `${rep.nat ? rep.nat.label : rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${rep.result.goalsFor}-${rep.result.goalsAgainst}`;
+  const label = `${rep.nat ? rep.nat.label : rep.cup ? `${compNameKo(rep.cup.comp, g.league.id)} ${rep.cup.stage}` : `${round}R`} ${teamById(g.league, rep.opponentId)?.nameKo ?? ''} ${scoreText(rep.result.goalsFor, rep.result.goalsAgainst)}`;
   // 경기 후 하이라이트 3개 (24.6, C.77o): 클립 구간 프레임만 세이브에 (최근 CLIP.keep 경기)
   const mc = makeMatchClips(r, { season, round, label });
   if (mc) g.clips = withClips(g.clips, mc);
@@ -528,7 +531,7 @@ function screenHtml(): string {
     default: break;
   }
   if (!g) return titleScreen();
-  if (g.phase === 'retired' && !['retired', 'season', 'saves', 'player', 'chapter'].includes(ui.screen)) return retiredView(retiredVM(g));
+  if (g.phase === 'retired' && !['retired', 'season', 'saves', 'player', 'chapter', 'settings'].includes(ui.screen)) return retiredView(retiredVM(g));
   switch (ui.screen) {
     case 'home': {
       const canPos = canChangePosition(g);
@@ -754,7 +757,8 @@ function render(): void {
   // 시즌 이름 (C.76c): 3~12월 리그가 내 리그면 "2018" (C.76m: 통일 전 세이브의 진행 중 춘추제 시즌만)
   setSeasonLabelKind(g ? calendarKind(g.league) : 'autumn-spring');
   if (ui.screen === 'settings') setPrecomputeStatus(enginePool?.parallel ? enginePool.planned : typeof Worker === 'undefined' ? null : { ready: 0, total: 0 });
-  const nav = g && !NAV_HIDDEN.includes(ui.screen) && !(g.phase === 'retired') ? dock(dockVM(g)) : '';
+  // 은퇴 (C.81p): 진행 칸 없는 은퇴 독 — 커리어 요약 · 선수 · [새 게임] · 저장 · 설정
+  const nav = !g ? '' : g.phase === 'retired' ? (RETIRED_NAV.includes(ui.screen) ? retiredDock(ui.screen) : '') : !NAV_HIDDEN.includes(ui.screen) ? dock(dockVM(g)) : '';
   const live = liveScreen();
   const band = g && live && live !== ui.screen ? liveBand(live) : '';
   const m = ui.modal;
@@ -871,7 +875,7 @@ function dockVM(g: GameState): DockVM {
 function liveBand(to: Screen): string {
   const lv = ui.live;
   const m = lv?.run.pending ?? lv?.oc?.vm.moment;
-  const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${m.score[0]}-${m.score[1]} ${lv.teams[1]}` : '경기 중';
+  const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${scoreText(m.score[0], m.score[1])} ${lv.teams[1]}` : '경기 중';
   const sub = lv && m?.type === 'halftime' ? '하프타임 · 후반 전술을 정하면 이어서 해요' : lv && m ? '결정 순간에서 멈췄어요 · 돌아가면 이어서 해요' : to === 'replay' ? '경기 재생 중 · 돌아가면 이어서 봐요' : '';
   return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><span class="grow"><b>${esc(head)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="live-back">경기로 돌아가기${Icon({ name: 'chevron-right', size: 14, strokeWidth: 2.6 })}</b></button>`;
 }
@@ -1361,7 +1365,8 @@ async function advanceDays(g: GameState, mode: 'one' | 'continue'): Promise<void
       }
       // [계속]: 휴가가 시작한 날과 끝난 날(훈련 재개)에도 멈춘다 (25.3 5번: 휴가 중 [계속]은 휴장 끝까지 한 번에)
       const vac = isVacationDay(g, g.calendar.date);
-      if (mode === 'continue' && days > 0 && vac !== wasVacation) break;
+      // C.81l: 클럽 시즌이 끝난 여름(남은 컵 경기 날짜·대표팀 대회 소집일까지)은 휴가 시작·끝에 멈추지 않고 다음 일정까지
+      if (mode === 'continue' && days > 0 && vac !== wasVacation && !clubSeasonOver(g)) break;
       wasVacation = vac;
       ui.toast = { kind: 'info', title, body: `${dateLabel(g.calendar.date)} · ${g.league.round}/${g.league.schedule.length}라운드`, ...stop };
       render();
@@ -3790,7 +3795,7 @@ function migrationFailed(e: unknown, oldDone: string): void {
   } else if (e instanceof SaveFormatError) {
     const newer = typeof e.found === 'number' && e.found > SAVE_FORMAT_VERSION;
     showToast({ kind: 'info', title: e.message, body: newer ? '앱을 최신 버전으로 업데이트한 뒤 이어 해 주세요.' : `현재 버전에서는 이어 할 수 없어 ${oldDone}. 새 게임으로 시작해 주세요.` }, 4200);
-  } else showToast((e as Error)?.message || '불러오지 못했어요');
+  } else showToast({ kind: 'info', title: '불러오지 못했어요', body: '세이브가 깨졌거나 이 게임의 파일이 아니에요. 다른 슬롯이나 파일로 다시 해 보세요.' }, 4200); // C.81p 빈 상태: 실패 문구
 }
 
 function downloadBytes(bytes: Uint8Array, name: string, type: string): void {

@@ -143,7 +143,7 @@ describe('경기 결과 (디자인 117 · 155)', () => {
     const html = matchResultView(vm);
     expect(html).toContain('mr-rewatch');
     expect(html.indexOf('mr-rewatch')).toBeLessThan(html.indexOf('보상'));
-    expect(html).toContain(`하이라이트 ${vm.highlights.length}장면`);
+    expect(html).toContain(`하이라이트 ${vm.sceneCount}장면`); // C.81o: 재생 화면과 같은 selectScenes 장면 수
     const fake = { ...vm, decisions: Array.from({ length: 5 }, () => vm.decisions[0] ?? { minute: "16'", scene: '슈팅 찬스', choice: '안전', label: '백패스', p: '88%', result: 'success' as const, delta: '+0.02', flow: '' }) };
     expect(matchResultView(fake).match(/dec-row/g)?.length).toBe(3);
     expect(matchResultView(fake)).toContain('2개 더 보기');

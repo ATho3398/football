@@ -1,0 +1,84 @@
+{
+ "W": 1440,
+ "H": 900,
+ "errors": [],
+ "screens": {
+  "01_경기결과": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "02_선수기록": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "03_일정": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "04_월드": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "06_인박스": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "07_홈": {
+   "hScroll": false,
+   "splitWords": [
+    "허친슨(번리)"
+   ],
+   "wrappedScores": []
+  },
+  "05_대회_groups": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "05_대회_ko": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "05_대회_fa": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "08_일정_후반": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "09_선수기록_후반": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "11_은퇴_요약": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "12_은퇴_선수": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "13_은퇴_선수기록": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  },
+  "14_은퇴_저장": {
+   "hScroll": false,
+   "splitWords": [],
+   "wrappedScores": []
+  }
+ }
+}

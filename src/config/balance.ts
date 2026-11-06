@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 96;
+export const BALANCE_VERSION = 98;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -635,6 +635,13 @@ export const BALANCE = {
   } satisfies Record<Difficulty, { label: string; xp: number; rating: number; injury: number }>,
 
   // ── NPC 성장 (5.6, B.6) ──
+  /** 화면 표시 규칙 (C.81n, 판정·성장에는 안 쓴다) */
+  display: {
+    /** 결정 순간 위험 등급: 실패 시 평점 손실(화면의 실패 평점, 절댓값) ≤ low 낮음 · ≤ mid 보통 · 그 위 높음 */
+    risk: { low: 0.02, mid: 0.05 },
+    /** 내 선수 잠재력 범위 (B6): 반폭 = youngAge 이하 youngHalf → settledAge 이상 settledHalf (사이는 직선) */
+    potential: { youngAge: 17, youngHalf: 6, settledAge: 27, settledHalf: 1 },
+  },
   npc: {
     peakOvr: {
       normal: [60, 72],
@@ -1904,6 +1911,8 @@ export const BALANCE = {
     wcQuota: { UEFA: 13, CONMEBOL: 5, AFC: 5, CAF: 5, CONCACAF: 4, OFC: 0 },
     /** 대회 경기 날짜: 리그 최종 라운드 + startAfter 일부터 조별 gap 일 간격, 녹아웃 koGap 일 간격 */
     startAfter: 21, gap: 4, koGap: 4,
+    /** 대회 소집일 = 첫 조별 경기 campDays 일 전 (C.81l: 소집되면 클럽 시즌 끝 → 휴가 → 소집일부터 대표팀 훈련·경기를 달력 위에서 치른다) */
+    campDays: 7,
     /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
     tournamentBonus: 0.05,
     /** 세이브에 남기는 지난 대회 수 (조·대진 표) */
