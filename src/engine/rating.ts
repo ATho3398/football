@@ -15,8 +15,10 @@ export interface RatingParts {
   group: string;
   /** 역할 id (C.81r 역할별 정규화 roleCenter). 없으면 보정 없음 */
   role?: string;
-  /** 같은 팀 같은 포지션군 필드 선수 수(자기 포함, C.81u). 2 이상이고 roleCenter 에 `역할@2` 가 있으면 그 값 (투톱의 ST 역할 차) */
+  /** 같은 팀 같은 포지션군 선발 수(시작 대형, 자기 포함, C.81u). 2 이상이고 roleCenter 에 `역할@2` 가 있으면 그 값 (투톱의 ST 역할 차) */
   mates?: number;
+  /** 대형 문맥 (C.81u2): 'cam' = 원톱 ST 뒤에 CAM 있음, 'cb3' = 백3(CB 셋 이상) 앞 CDM. roleCenter 에 `역할@문맥` 이 있으면 그 값 */
+  ctx?: string;
   passes: number;
   forward: number;
   keyPasses: number;
@@ -70,12 +72,26 @@ export function isNoContrib(p: Pick<RatingParts, 'group' | 'goals' | 'assists' |
   return ATTACK_GROUPS.has(p.group) && p.goals + p.assists + p.keyPasses + p.onTarget + p.dribbles === 0;
 }
 
-/** 같은 팀 같은 포지션군 필드 선수 수 (경기장 위, 자기 포함, C.81u) */
+/** 같은 팀 같은 포지션군 선발 수 (시작 대형 = 선발 포지션, 자기 군 기준 — 늦은 전술 변경·교체와 무관, C.81u) */
 function groupMates(s: SimState, a: Agent): number {
   const g = posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position);
   let n = 0;
-  for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!; if (m.team === a.team && m.onPitch && posGroup(m.spec.slot >= 0 ? m.pos : m.spec.position) === g) n++; }
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!; if (m.team === a.team && m.enteredAt === 0 && posGroup(m.stats.position) === g) n++; }
   return n;
+}
+
+/** 대형 문맥 (C.81u2): 원톱 ST + 같은 팀 CAM → 'cam' · CDM + 같은 팀 CB 셋 이상 → 'cb3' (시작 대형 = 선발 포지션 기준) */
+function shapeCtx(s: SimState, a: Agent): string | null {
+  const g = posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position);
+  if (g !== 'ST' && g !== 'CDM') return null;
+  let st = 0, cam = 0, cb = 0;
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!;
+    if (m.team !== a.team || m.enteredAt !== 0) continue;
+    const mg = posGroup(m.stats.position);
+    if (mg === 'ST') st++; else if (mg === 'CAM') cam++; else if (mg === 'CB') cb++;
+  }
+  if (g === 'ST') return st === 1 && cam >= 1 ? 'cam' : null;
+  return cb >= 3 ? 'cb3' : null;
 }
 
 /** final: 경기 종료 평점이면 true (무기여 감점은 경기 중 결정 평점 변화에 섞지 않는다) */
@@ -90,6 +106,7 @@ export function ratingParts(s: SimState, a: Agent, duration: number, final = fal
     group: posGroup(a.spec.slot >= 0 ? a.pos : a.spec.position),
     role: a.role.id,
     ...(groupMates(s, a) >= 2 ? { mates: groupMates(s, a) } : {}),
+    ...(shapeCtx(s, a) ? { ctx: shapeCtx(s, a)! } : {}),
     passes: st.passesCompleted,
     forward: rt.forward,
     keyPasses: st.keyPasses,
@@ -162,7 +179,8 @@ export function ratingDelta(p: RatingParts, R: RatingConfig = ENGINE.rating): nu
 export function ratingFromParts(p: RatingParts, R: RatingConfig = ENGINE.rating): number {
   // 역할별 정규화 (C.81r): 같은 포지션군 안에서 역할에 따라 남는 평균 차를 roleCenter 로 뺀다 (center 와 같은 원리, 행동 델타 단위)
   // 같은 군 둘 이상(투톱 등)이면 `역할@2` 값이 있을 때 그것 (C.81u: 원톱·투톱에서 ST 역할 차가 뒤집힌다)
-  const rc = p.role ? ((p.mates && p.mates >= 2 ? R.roleCenter[`${p.role}@2`] : undefined) ?? R.roleCenter[p.role] ?? 0) : 0;
+  // 대형 문맥 (C.81u2): `역할@cam`(CAM 뒤 원톱) · `역할@cb3`(백3 앞 CDM)
+  const rc = p.role ? ((p.mates && p.mates >= 2 ? R.roleCenter[`${p.role}@2`] : undefined) ?? (p.ctx ? R.roleCenter[`${p.role}@${p.ctx}`] : undefined) ?? R.roleCenter[p.role] ?? 0) : 0;
   const rating = R.mean + R.scale * (ratingDelta(p, R) - (R.center[p.group] ?? 0.5) - rc);
   return Math.round(clamp(rating, R.min, R.max) * 10) / 10;
 }

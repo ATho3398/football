@@ -12,6 +12,12 @@ const gen = (JSON.parse(readFileSync(f, 'utf8')) as GenRow[]).filter((r) => r.te
 // 옛 표본(같은 군 인원 칸 전)이면 같은 경기·팀 선발의 같은 군 수로 채운다
 const all = JSON.parse(readFileSync(f, 'utf8')) as (GenRow & { m: number })[];
 for (const r of gen as (GenRow & { m: number })[]) if (r.mates === undefined) { const n = all.filter((x) => x.m === r.m && x.team === r.team && x.starter && x.group === r.group).length; if (n >= 2) r.mates = n; }
+// 대형 문맥 (C.81u2): 원톱 ST + CAM → 'cam', CDM + CB 셋 이상 → 'cb3'
+for (const r of gen as (GenRow & { m: number })[]) if (r.ctx === undefined && (r.group === 'ST' || r.group === 'CDM')) {
+  const cnt = (g: string) => all.filter((x) => x.m === r.m && x.team === r.team && x.starter && x.group === g).length;
+  const c = r.group === 'ST' ? (cnt('ST') === 1 && cnt('CAM') >= 1 ? 'cam' : null) : cnt('CB') >= 3 ? 'cb3' : null;
+  if (c) r.ctx = c;
+}
 type R_ = typeof ENGINE.rating;
 const G = ['GK', 'CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);

@@ -35,6 +35,26 @@ describe('C.81u 수비 기록 칸', () => {
     expect(ratingFromParts({ ...blank({ group: 'CB' }), role: 'libero', mates: 2 })).toBe(ratingFromParts({ ...blank({ group: 'CB' }), role: 'libero' }));
   });
 
+  it('대형 문맥 (C.81u2): CAM 뒤 원톱 ST 는 `역할@cam`, 백3 앞 CDM 은 `역할@cb3`', () => {
+    const st = blank({ group: 'ST', passes: 30, forward: 8 });
+    expect(R.roleCenter['falseNine@cam']!).toBeGreaterThan(R.roleCenter.falseNine!);
+    expect(ratingFromParts({ ...st, role: 'falseNine', ctx: 'cam' })).toBeLessThan(ratingFromParts({ ...st, role: 'falseNine' }));
+    const cdm = blank({ group: 'CDM', passes: 40, forward: 10, tackles: 3 });
+    expect(R.roleCenter['halfBack@cb3']!).toBeLessThan(R.roleCenter.halfBack!);
+    expect(ratingFromParts({ ...cdm, role: 'halfBack', ctx: 'cb3' })).toBeGreaterThan(ratingFromParts({ ...cdm, role: 'halfBack' }));
+    // 문맥 군 안 역할 평균은 0 근처
+    for (const [k, roles] of [['cam', ['poacher', 'targetMan', 'falseNine', 'advancedForward']], ['cb3', ['anchor', 'ballWinner', 'regista', 'halfBack']]] as const) {
+      expect(Math.abs(roles.reduce((a, r) => a + R.roleCenter[`${r}@${k}`]!, 0) / roles.length)).toBeLessThan(0.02);
+    }
+  });
+
+  it('경기 문맥: 4-2-3-1 ST 는 cam, 3-5-2 CDM 은 cb3, 4-3-3 은 문맥 없음', () => {
+    const run = (f: '4-2-3-1' | '3-5-2' | '4-3-3') => runMatchJob({ ...job, home: std('a', 81001, 75, f), away: std('b', 81001, 75, f) }).players.filter((p) => p.starter && p.team === 0);
+    expect(run('4-2-3-1').find((p) => p.parts!.group === 'ST')!.parts!.ctx).toBe('cam');
+    expect(run('3-5-2').find((p) => p.parts!.group === 'CDM')!.parts!.ctx).toBe('cb3');
+    expect(run('4-3-3').every((p) => !p.parts!.ctx)).toBe(true);
+  });
+
   it('경기에서 센다: 수비 줄은 라인 유지 시간·오프사이드 유도, 누군가는 압박 성공', () => {
     const m = runMatchJob(job);
     const st = m.players.filter((p) => p.starter);

@@ -8,7 +8,7 @@ import { isNoContrib, ratingFromParts, type RatingParts } from '../../src/engine
 type Row = { c: string; g: string; role: string; seed: number; min: number; parts: RatingParts };
 const files = process.argv.slice(2).filter((a) => a !== '--');
 const rows = files.flatMap((f) => JSON.parse(readFileSync(f, 'utf8')) as Row[])
-  .map((r) => ({ ...r, c: r.c ?? 'base', p: { ...r.parts, role: r.role, ...(r.g === 'ST' && ['f442', 'f352', 'f4312'].includes(r.c) ? { mates: 2 } : {}), ...(r.min >= 45 && isNoContrib(r.parts) ? { noContrib: 1 } : {}) } as RatingParts }));
+  .map((r) => ({ ...r, c: r.c ?? 'base', p: { ...r.parts, role: r.role, ...(r.g === 'ST' && ['f442', 'f352', 'f4312'].includes(r.c) ? { mates: 2 } : {}), ...(r.g === 'ST' && r.c === 'f4231' ? { ctx: 'cam' } : {}), ...(r.g === 'CDM' && r.c === 'f352' ? { ctx: 'cb3' } : {}), ...(r.min >= 45 && isNoContrib(r.parts) ? { noContrib: 1 } : {}) } as RatingParts }));
 type R_ = typeof ENGINE.rating;
 let R: R_ = { ...ENGINE.rating, ...(process.env.RJSON ? JSON.parse(process.env.RJSON) : {}) };
 if (process.env.OLD) R = { ...R, pressWon: 0, offsideWon: 0, lineMin: 0 };
@@ -38,14 +38,16 @@ const roleG = new Map(rows.map((r) => [r.role, r.g]));
 let after = before;
 if (process.env.FIT) {
   const rc: Record<string, number> = { ...R.roleCenter };
-  const PAIR = new Set(process.env.PAIR ? ['f442', 'f352', 'f4312'] : []);
+  // 문맥별 조건 묶음 (C.81u2): 군 → { 문맥 키: 조건 목록 }. 문맥 조건은 기본 값 맞춤에서 뺀다
+  const CTX: Record<string, Record<string, string[]>> = process.env.PAIR ? { ST: { '2': ['f442', 'f352', 'f4312'], ...(process.env.CTX ? { cam: ['f4231'] } : {}) }, ...(process.env.CTX ? { CDM: { cb3: ['f352'] } } : {}) } : {};
   for (const [role, g] of roleG) {
-    const pairable = g === 'ST' && PAIR.size > 0;
-    const ds = conds.filter((c) => !pairable || !PAIR.has(c)).map((c) => before.get(`${c}|${role}`)).filter((x) => x).map((x) => x!.d);
+    const ctxs = CTX[g] ?? {};
+    const inCtx = new Set(Object.values(ctxs).flat());
+    const ds = conds.filter((c) => !inCtx.has(c)).map((c) => before.get(`${c}|${role}`)).filter((x) => x).map((x) => x!.d);
     rc[role] = Math.round(((R.roleCenter[role] ?? 0) + avg(ds) / R.scale) * 100) / 100;
-    if (pairable) {
-      const dp = conds.filter((c) => PAIR.has(c)).map((c) => before.get(`${c}|${role}`)).filter((x) => x).map((x) => x!.d);
-      rc[`${role}@2`] = Math.round(((R.roleCenter[`${role}@2`] ?? R.roleCenter[role] ?? 0) + avg(dp) / R.scale) * 100) / 100;
+    for (const [k, cs] of Object.entries(ctxs)) {
+      const dp = cs.filter((c) => conds.includes(c)).map((c) => before.get(`${c}|${role}`)).filter((x) => x).map((x) => x!.d);
+      if (dp.length) rc[`${role}@${k}`] = Math.round(((R.roleCenter[`${role}@${k}`] ?? R.roleCenter[role] ?? 0) + avg(dp) / R.scale) * 100) / 100;
     }
   }
   R = { ...R, roleCenter: rc };
