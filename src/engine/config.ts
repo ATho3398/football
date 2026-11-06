@@ -1580,8 +1580,8 @@ export const ENGINE = {
     // C.81a(엔진 85, 크로스 박스 인원·saveBase 1.89): engine:check GK 6.70(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 GK 6.67(맞춤 1.77) — 가드 밖 GK 만 1.58 → 1.68(§9.12.7)
     // C.81b(엔진 86, edgeZone 18·saveBase 1.93·균형 점유 가치 0.02): engine:check CM 6.70(가드 6.3~6.7 ✗) — 가드 밖 CM 만 2.35 → 2.43(scale 0.9 로 약 −0.07, §9.12.7)
     // C.81h(엔진 89, 세컨볼·윙어 마무리): engine:check 경량 가드로 CAM 2.1 → 2.25 · ST 2.53 → 2.63
-    // C.81r(엔진 90, 역할별 평점 쏠림 — 패스 체감·수비 가중·roleCenter): `rating-parts 720 … 20000`(역할 포함) 에서 8군 평균을 바꾸기 전 값 그대로 두게 다시 맞춤(c81r-role-opt) — 군 평균 유지, σ 0.834 → 0.786
-    center: { GK: 1.72, CB: 1.15, FB: 0.61, CDM: 1.77, CM: 2.46, CAM: 1.66, WING: 0.81, ST: 2.11 } as Record<string, number>,
+    // C.81r(엔진 90, 역할별 평점 쏠림 — 패스 체감·수비 가중·roleCenter): `rating-parts 720 … 20000`(역할 포함) 에서 8군 평균을 바꾸기 전(main 엔진 89 설정) 값 그대로 두게 다시 맞춤(c81r-role-opt TARGET_JSON) — engine:check 군 평균 6.55~6.69 · σ 0.81
+    center: { GK: 1.72, CB: 1.15, FB: 0.62, CDM: 1.82, CM: 2.46, CAM: 1.84, WING: 0.79, ST: 2.17 } as Record<string, number>,
     /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0 */
     roleCenter: {
       stopper: 0.01, ballPlayingCB: -0.01, coverCB: -0.09, libero: 0.09,

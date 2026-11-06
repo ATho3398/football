@@ -29,7 +29,8 @@ function genStats(R: R_) {
   const mu = cellAvg(keys);
   return { mu, sd: Math.sqrt(cellAvg(keys, (x) => (x - mu) ** 2)), gm: Object.fromEntries(G.map((g) => [g, cellAvg(keys.filter((k) => k.endsWith(`:${g}`)))])) as Record<string, number> };
 }
-const target = genStats(R0).gm;
+// 목표 군 평균: 기본은 지금 설정, TARGET_JSON 이면 그 설정(예: 바꾸기 전 main 가중·center)으로 같은 표본을 잰 값
+const target = genStats(process.env.TARGET_JSON ? ({ ...R0, ...JSON.parse(process.env.TARGET_JSON) } as R_) : R0).gm;
 function refit(R: R_): R_ {
   const Rc = { ...R, center: { ...R.center } };
   for (let it = 0; it < 4; it++) { const g = genStats(Rc).gm; for (const k of G) Rc.center[k] = Rc.center[k]! + (g[k]! - target[k]!) / Rc.scale; }
@@ -127,5 +128,5 @@ const st0 = avg(gen.filter((r) => r.min >= 85 && r.group === 'ST' && r.goals ===
 console.log(`ST 풀타임 무득점(홈 선발) ${st0.toFixed(2)} (지금 ${avg(gen.filter((r) => r.min >= 85 && r.group === 'ST' && r.goals === 0).map((r) => ratingFromParts(r, R0))).toFixed(2)})`);
 console.log(JSON.stringify({ passKnee: R.passKnee, forwardKnee: R.forwardKnee, passTail: R.passTail, forwardTail: R.forwardTail, tackle: R.tackle, interception: R.interception, block: R.block, clearance: R.clearance, keyPass: R.keyPass, dribble: R.dribble, lost: R.lost, scale: R.scale }));
 console.log('center ' + JSON.stringify(Object.fromEntries(G.map((k) => [k, Math.round(Rf.center[k]! * 100) / 100]))));
-console.log(`일반 표본: 평균 ${gs.mu.toFixed(2)} σ ${gs.sd.toFixed(3)} (지금 ${genStats(R0).sd.toFixed(3)}) | ` + G.map((g) => `${g} ${gs.gm[g]!.toFixed(2)}/${target[g]!.toFixed(2)}`).join(' '));
+console.log(`일반 표본: 평균 ${gs.mu.toFixed(2)} σ ${gs.sd.toFixed(3)} (지금 ${genStats(R0).sd.toFixed(3)}${process.env.TARGET_JSON ? `, 목표 설정 ${genStats({ ...R0, ...JSON.parse(process.env.TARGET_JSON) } as R_).sd.toFixed(3)}` : ''}) | ` + G.map((g) => `${g} ${gs.gm[g]!.toFixed(2)}/${target[g]!.toFixed(2)}`).join(' '));
 for (const x of best.ds) console.log(`${x.g} ${x.role} ${x.d >= 0 ? '+' : ''}${x.d.toFixed(2)}`);
