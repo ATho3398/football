@@ -64,7 +64,7 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const repNote = vm.next ? `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점` : vm.isLegendary ? '최고 위상' : '레전더리는 업적 조건';
   const profile = `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
       <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>${esc(repNote)}</small></span>
-      <span class="pl-pot">잠재력 <b class="po-num">${esc(vm.potential)}</b><small>나이가 들수록 범위가 좁아져요</small></span>
+      <span class="pl-pot" title="나이가 들수록 범위가 좁아져요">잠재력 <b class="po-num">${esc(vm.potential)}</b></span>
       <span class="pl-lv"><small>Lv ${vm.level}</small><span class="pl-lv__bar" aria-hidden="true"><i style="width:${Math.round((vm.xp / Math.max(1, vm.xpMax)) * 100)}%"></i></span><small class="po-num">${vm.xp}/${vm.xpMax}</small></span>
     </div>${Button({ variant: 'secondary', size: 'sm', icon: 'edit', act: 'player-tab', data: { v: 'body', look: '1' }, children: '꾸미기' })}</div>`;
   const tabBody = (t: PlayerTab): string => {
