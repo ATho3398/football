@@ -5,7 +5,7 @@ import { teamSetupFromRoster } from '../../src/engine/setup';
 import { createMatch } from '../../src/engine/sim';
 import { createTeamRoster } from '../../src/roster';
 const ov = process.argv.slice(2).filter((x) => x.includes('='));
-for (const a of ov) { const [k, v] = a.split('='); const ks = k!.split('.'); let o = ENGINE; for (const q of ks.slice(0, -1)) o = o[q]; o[ks.at(-1)!] = Number(v); }
+for (const a of ov) { const [k, v] = a.split('='); const ks = k!.split('.'); let o = ENGINE; for (const q of ks.slice(0, -1)) o = (o[q] ??= {}); o[ks.at(-1)!] = Number(v); }
 const home = createTeamRoster({ id: 'h', rating: 76 }, 'eng-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 74 }, 'eng-a', 2018, []);
 let sum = 0, mx = 0; const tops = [];

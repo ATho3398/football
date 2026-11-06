@@ -265,6 +265,24 @@ export function applyOverrides(o: Record<string, number> | undefined): () => voi
       continue;
     }
     // 'tendency.' 로 시작하면 성향 고유 행동 상수 (E.19 ①, 측정용 C.32)
+    // 'matchup.<우리>.<상대>.<실행>' 은 없는 칸도 만든다 (C.81s, 측정용 — 끝나면 지움)
+    if (path.startsWith('matchup.')) {
+      const [, mine, opp, kind] = path.split('.') as [string, string, string, string];
+      const M = ENGINE.matchup as Record<string, Record<string, Record<string, number>>>;
+      const hadMine = mine in M;
+      const row = (M[mine] ??= {});
+      const hadOpp = opp in row;
+      const cell = (row[opp] ??= {});
+      const had = kind in cell;
+      const prev = cell[kind];
+      cell[kind] = v;
+      undo.push(() => {
+        if (had) cell[kind] = prev!; else delete cell[kind];
+        if (!hadOpp) delete row[opp];
+        if (!hadMine) delete M[mine];
+      });
+      continue;
+    }
     const tend = path.startsWith('tendency.');
     const keys = (tend ? path.slice('tendency.'.length) : path).split('.');
     let obj = (tend ? TENDENCY : ENGINE) as unknown as Record<string, unknown>;
