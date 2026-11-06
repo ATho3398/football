@@ -1872,12 +1872,12 @@ export const BALANCE = {
    * 맞춤 = 같은 시드 전부 엔진 저장본의 리그 × 포지션군 시즌 골·도움 평균과 리그 상위 10명 (scripts/diag/c81q-*). 옛(C.76c): OVR 상위 14명 · 컵 가중
    */
   otherScorers: {
-    scorerWeight: { GK: 0, CB: 0.78, FB: 0.4, CDM: 0.65, CM: 1.6, CAM: 3.5, WING: 3.6, ST: 8.8 } as Record<string, number>,
-    assistWeight: { GK: 0.05, CB: 0.2, FB: 0.66, CDM: 1.33, CM: 2.3, CAM: 3.65, WING: 3.95, ST: 6.75 } as Record<string, number>,
+    scorerWeight: { GK: 0, CB: 0.83, FB: 0.4, CDM: 0.63, CM: 1.56, CAM: 3.65, WING: 3.32, ST: 8.8 } as Record<string, number>,
+    assistWeight: { GK: 0.04, CB: 0.18, FB: 0.6, CDM: 1.35, CM: 2.2, CAM: 3.43, WING: 3.68, ST: 6.75 } as Record<string, number>,
     assistChance: 0.75,
     share: [0.95, 0.4, 0.06] as readonly number[],
-    ovrK: 0.036,
-    ovrKAssist: 0.052,
+    ovrK: 0.048,
+    ovrKAssist: 0.066,
     /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1) */
     goalScale: { pl: 0.94, laliga: 1, seriea: 0.91, bundesliga: 0.9, ligue1: 0.88, championship: 0.73 } as Record<string, number>,
   },

@@ -14,6 +14,7 @@ const reps = Number(args[1] ?? 2);
 const iters = Number(args[2] ?? 6);
 /** seasons > 0: 새 게임 하네스 대신 전부 빠른 진행으로 실제 시즌을 seasons 개 치른 이력서 (시즌 중 이적·로스터 변화 포함) */
 const seasons = Number(args[3] ?? 0);
+if (args[4]) Object.assign(BALANCE.otherScorers, JSON.parse(args[4]));
 const MAJOR = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'];
 const cat = (lg: string) => (MAJOR.includes(lg) ? lg : 'rest');
 const G = ['CB', 'FB', 'CDM', 'CM', 'CAM', 'WING', 'ST'];
