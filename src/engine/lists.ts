@@ -24,7 +24,7 @@ function lists(s: SimState): Lists {
   lastS = s;
   lastL = l;
   if (l.ver !== s.onVer) {
-    for (const t of [0, 1] as const) {
+    for (let i_1 = 0, a_1 = [0, 1] as const; i_1 < a_1.length; i_1++) { const t = a_1[i_1]!;
       l.on[t] = s.agents.filter((a) => a.onPitch && a.team === t);
       l.field[t] = s.agents.filter((a) => a.onPitch && a.team === t && a.line !== 0);
     }

@@ -272,7 +272,7 @@ export function bandKind(p: number | null, fallback: OptionKind = 'safe'): Optio
  */
 function relabel<T extends { o: MomentOption }>(xs: T[]): T[] {
   const sorted = [...xs].sort((x, y) => (y.o.p ?? 1) - (x.o.p ?? 1));
-  for (const x of sorted) x.o.kind = bandKind(x.o.p);
+  for (let i_1 = 0, a_1 = sorted; i_1 < a_1.length; i_1++) { const x = a_1[i_1]!; x.o.kind = bandKind(x.o.p); }
   return sorted;
 }
 
@@ -356,7 +356,7 @@ export function pickOptions(cands: Candidate[]): [Candidate | null, Candidate | 
   const used: Candidate[] = [];
   const best = (score: (c: Candidate) => number, ok: (c: Candidate) => boolean = () => true): Candidate | null => {
     let b: Candidate | null = null;
-    for (const c of cands) {
+    for (let i_2 = 0, a_2 = cands; i_2 < a_2.length; i_2++) { const c = a_2[i_2]!;
       if (!ok(c) || used.some((u) => sameAs(u, c))) continue;
       if (!b || score(c) > score(b)) b = c;
     }
@@ -392,7 +392,7 @@ function onballStake(s: SimState, a: Agent, cands: Candidate[]): number {
   const here = positionValue(ax, ay);
   let gain = 0;
   let xg = 0;
-  for (const c of cands) {
+  for (let i_3 = 0, a_3 = cands; i_3 < a_3.length; i_3++) { const c = a_3[i_3]!;
     if (c.type === 'shoot') xg = Math.max(xg, c.p);
     else gain = Math.max(gain, c.value - here);
   }
@@ -443,7 +443,7 @@ function onballVariants(s: SimState, a: Agent, scene: SceneId, cands: Candidate[
   const cs = s.cards;
   if (!cs) return [];
   const out: Variant[] = [];
-  for (const i of playable(s, a, scene)) {
+  for (let i_4 = 0, a_4 = playable(s, a, scene); i_4 < a_4.length; i_4++) { const i = a_4[i_4]!;
     const v = buildVariant(s, a, cardById(cs.hand[i]!)!, i, cands);
     if (v) out.push(v);
   }
@@ -509,9 +509,9 @@ export function onballMoment(s: SimState, a: Agent): boolean {
   const { cards, variants } = onballCards(s, a, scene, cands, ctx, adj);
   if (!enoughChoices(options, cards)) return false;
   // 도박 실패 완화 (C.75a): 보이는 실패 평점도 확률 배수로 (카드 선택지는 onballCards 에서, 몰고 가다 슛은 첫 단 확률로)
-  for (const o of options) o.down = round2(o.down * failFactor(o.chain ? o.chain.p : o.p));
+  for (let i_5 = 0, a_5 = options; i_5 < a_5.length; i_5++) { const o = a_5[i_5]!; o.down = round2(o.down * failFactor(o.chain ? o.chain.p : o.p)); }
   // 기대 평점 (C.77s A3): 카드에 보이는 값 (실패 평점 완화 뒤)
-  for (const o of [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]) o.ev = round2(optionValue(o));
+  for (let i_6 = 0, a_6 = [...options, ...cards.flatMap((mc) => (mc.option ? [mc.option] : []))]; i_6 < a_6.length; i_6++) { const o = a_6[i_6]!; o.ev = round2(optionValue(o)); }
   settleMoment(s, true);
   const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
   const shotNote = shotNoteOf(s, a, cands, [...options, ...cards.flatMap((mc) => (mc.usable && mc.option ? [mc.option] : []))], box);
@@ -549,7 +549,7 @@ function extraOptions(
   const floor = optionValue(mk(top)) - M.extraEvGap;
   const have = [...main];
   const out: { c: Candidate; o: MomentOption; v: number; tier: number }[] = [];
-  for (const c of pool) {
+  for (let i_7 = 0, a_7 = pool; i_7 < a_7.length; i_7++) { const c = a_7[i_7]!;
     if (have.some((x) => sameAs(x.c, c))) continue;
     const o = mk(c);
     const v = optionValue(o);
@@ -559,7 +559,7 @@ function extraOptions(
   const picked: { c: Candidate; o: MomentOption }[] = [];
   while (picked.length < room) {
     let best: (typeof out)[number] | null = null;
-    for (const x of out) {
+    for (let i_8 = 0, a_8 = out; i_8 < a_8.length; i_8++) { const x = a_8[i_8]!;
       if (have.some((h) => sameAs(h.c, x.c) || h.o.label === x.o.label)) continue;
       // 같은 행동 종류가 이미 extraTypeCap 줄이면 더 넣지 않는다 (백패스만 세 줄 같은 뻔한 목록 방지)
       if (have.filter((h) => h.c.type === x.c.type).length >= M.extraTypeCap) continue;
@@ -621,7 +621,7 @@ export function keepSlots(a: Agent, pool: Candidate[], picks: [Candidate | null,
 function carryShootOption(s: SimState, a: Agent, cands: Candidate[], adj: number): { o: MomentOption; ctx: OptionCtx } | null {
   const dir = attackDir(a.team, s.half);
   let best: { c: Candidate; pc: number; xg: number } | null = null;
-  for (const c of cands) {
+  for (let i_9 = 0, a_9 = cands; i_9 < a_9.length; i_9++) { const c = a_9[i_9]!;
     if (c.type !== 'carry' || (c.x - a.x) * dir < 1) continue;
     const xg = shotModel(s, a, false, { x: c.x, y: c.y }).xg;
     if (xg < M.shotKeepXg) continue;
@@ -648,7 +648,7 @@ export function intentShot(s: SimState, a: Agent, cands: Candidate[]): Candidate
     return null;
   }
   let best: Candidate | null = null;
-  for (const c of cands) if (c.type === 'shoot' && (!best || c.p > best.p)) best = c;
+  for (let i_10 = 0, a_10 = cands; i_10 < a_10.length; i_10++) { const c = a_10[i_10]!; if (c.type === 'shoot' && (!best || c.p > best.p)) best = c; }
   return best;
 }
 
@@ -684,7 +684,7 @@ function shotP(s: SimState, a: Agent, p: number): number {
   const pre = m.pOn;
   const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
   let on = 0;
-  for (const id of cs.passives) on += boostLike(cs, id, 'shoot', box);
+  for (let i_11 = 0, a_11 = cs.passives; i_11 < a_11.length; i_11++) { const id = a_11[i_11]!; on += boostLike(cs, id, 'shoot', box); }
   on = Math.min(BALANCE.cards.bonusCap, on);
   if (!on || pre <= 0) return p;
   return p * Math.min(1, pre + on) / pre;
@@ -693,7 +693,7 @@ function shotP(s: SimState, a: Agent, p: number): number {
 function boostLike(cs: NonNullable<SimState['cards']>, id: string, tag: 'shoot', box: boolean): number {
   const def = cardById(id)!;
   let v = 0;
-  for (const e of def.effects) if (e.type === 'probDelta' && e.option === tag && !(e.box && !box)) v += e.value;
+  for (let i_12 = 0, a_12 = def.effects; i_12 < a_12.length; i_12++) { const e = a_12[i_12]!; if (e.type === 'probDelta' && e.option === tag && !(e.box && !box)) v += e.value; }
   void cs;
   return v;
 }
@@ -713,7 +713,7 @@ function duelVariants(s: SimState, a: Agent, scene: SceneId, pWin: number): Duel
   const cs = s.cards;
   if (!cs) return [];
   const out: DuelVariant[] = [];
-  for (const i of playable(s, a, scene)) {
+  for (let i_13 = 0, a_13 = playable(s, a, scene); i_13 < a_13.length; i_13++) { const i = a_13[i_13]!;
     const def = cardById(cs.hand[i]!)!;
     const eff = def.effects.find((e) => e.type === 'addOption');
     if (!eff || eff.type !== 'addOption' || (eff.base !== 'tackle' && eff.base !== 'race' && eff.base !== 'foul')) continue;
@@ -743,7 +743,7 @@ export function duelMoment(s: SimState): boolean {
   const a = s.agents.find((x) => x.spec.isMe && x.onPitch);
   if (!a || a.team === o.team || !duelEligible(s, o, a)) return false;
   const da = dist(a.x, a.y, o.x, o.y);
-  for (const d of fieldOf(s, a.team)) if (d !== a && dist(d.x, d.y, o.x, o.y) < da) return false;
+  for (let i_14 = 0, a_14 = fieldOf(s, a.team); i_14 < a_14.length; i_14++) { const d = a_14[i_14]!; if (d !== a && dist(d.x, d.y, o.x, o.y) < da) return false; }
   const odds = duelOdds(s, o, a);
   const dirO = attackDir(o.team, s.half);
   const gx = (dirO > 0 ? L : 0), gy = W / 2;
@@ -855,7 +855,7 @@ export function aerialMoment(s: SimState): boolean {
   if (!list.length) return false;
   // 예상 경합 상대: 착지점에 가장 가까운 상대 필드 선수
   let opp: Agent | null = null;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_15 = 0, a_15 = fieldOf(s, (1 - a.team) as 0 | 1); i_15 < a_15.length; i_15++) { const o = a_15[i_15]!;
     if (!opp || dist(o.x, o.y, fl.toX, fl.toY) < dist(opp.x, opp.y, fl.toX, fl.toY)) opp = o;
   }
   const PR = ENGINE.prob;
@@ -898,7 +898,7 @@ export function oppShotMoment(s: SimState, shooter: Agent): boolean {
 function autoCardDuel(s: SimState, a: Agent, o: Agent, odds: ReturnType<typeof duelOdds>, scene: SceneId): void {
   const dv = duelVariants(s, a, scene, odds.pWin);
   const us: number[] = [...odds.us];
-  for (const v of dv) {
+  for (let i_16 = 0, a_16 = dv; i_16 < a_16.length; i_16++) { const v = a_16[i_16]!;
     if (v.pick === 3) us.push(TACTICAL_FOUL * odds.beaten - ENGINE.defense.foulCost);
     else {
       a.cardBoost ??= { tackle: 0, air: 0 };
@@ -945,7 +945,7 @@ function firstProbCard(s: SimState, a: Agent, scene: SceneId, tags: OptionTag[],
   const box = inOppBox(a.x, a.y, attackDir(a.team, s.half));
   const view = handView(s, a, scene, [{ tags, box }], [], false);
   const dead = view.some((v) => !v.usable && v.reason !== undefined && v.reason !== '이 장면에서는 못 써요' && v.reason !== NO_VARIANT && !v.reason.startsWith('패시브'));
-  for (const mc of view) {
+  for (let i_17 = 0, a_17 = view; i_17 < a_17.length; i_17++) { const mc = a_17[i_17]!;
     if (!mc.usable || mc.role === 'play') continue;
     if (mc.role === 'boost' && (kind === 'none' || !mc.deltas?.[0])) continue;
     if (mc.role === 'redraw' && !dead) continue;
@@ -953,7 +953,7 @@ function firstProbCard(s: SimState, a: Agent, scene: SceneId, tags: OptionTag[],
     const delta = kind === 'none' ? 0 : mc.role === 'boost' ? boostValue(cs, def, tags) : mc.role === 'passive' && kind === 'onball' ? Math.min(BALANCE.cards.bonusCap, passiveValue(cs, def, tags, box)) : 0;
     const use = playCard(s, a, mc.hand, scene, true);
     const mod = emptyMod(def.id);
-    for (const e of def.effects) if (e.type === 'failureSoftener') mod.soften = e.value;
+    for (let i_18 = 0, a_18 = def.effects; i_18 < a_18.length; i_18++) { const e = a_18[i_18]!; if (e.type === 'failureSoftener') mod.soften = e.value; }
     return { delta, mod, use };
   }
   return null;
@@ -1084,7 +1084,7 @@ function setPieceVariants(s: SimState, a: Agent, scene: SceneId, pPen: number): 
   const dir = attackDir(a.team, s.half);
   const gx = (dir > 0 ? L : 0), gy = W / 2;
   const d = dist(a.x, a.y, gx, gy);
-  for (const i of playable(s, a, scene)) {
+  for (let i_19 = 0, a_19 = playable(s, a, scene); i_19 < a_19.length; i_19++) { const i = a_19[i_19]!;
     const def = cardById(cs.hand[i]!)!;
     const eff = def.effects.find((e) => e.type === 'addOption');
     if (!eff || eff.type !== 'addOption' || eff.base !== 'shoot') continue;
@@ -1154,7 +1154,7 @@ export function takeMoment(s: SimState, choice: MomentChoice): {
     delta = idx >= 0 ? (mc.deltas?.[idx] ?? 0) : 0;
     use = playCard(s, a, mc.hand, m.scene, false);
     const def = cardById(mc.id)!;
-    for (const e of def.effects) if (e.type === 'failureSoftener') mod!.soften = e.value;
+    for (let i_20 = 0, a_20 = def.effects; i_20 < a_20.length; i_20++) { const e = a_20[i_20]!; if (e.type === 'failureSoftener') mod!.soften = e.value; }
   }
   if (m.type === 'setPiece') {
     if (useCardOpt) {
@@ -1302,7 +1302,7 @@ export function bestChoice(m: Moment, minGain = 0.02): MomentChoice {
   let best: { v: number; c: MomentChoice } = { v: v0 + minGain, c: i0 };
   // 확실한 선택지를 뺀 순간 (C.40): 남은 선택지가 그보다 못하면 맡긴다 (카드를 쓰는 편이 나으면 아래에서 바뀐다)
   if (m.delegateEv !== undefined && m.delegateEv > v0) best = { v: m.delegateEv + minGain, c: 'delegate' };
-  for (const mc of m.cards) {
+  for (let i_21 = 0, a_21 = m.cards; i_21 < a_21.length; i_21++) { const mc = a_21[i_21]!;
     if (!mc.usable) continue;
     if (mc.option) {
       const v = optionValue(mc.option);

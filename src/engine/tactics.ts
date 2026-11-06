@@ -290,7 +290,7 @@ export function widthCrossMul(width: number): number {
 export function aiAdjust(s: SimState): void {
   if (s.tick % 600 !== 0) return;
   const big = ENGINE.tactics.leadAdjustGoals;
-  for (const team of [0, 1] as const) {
+  for (let i_1 = 0, a_1 = [0, 1] as const; i_1 < a_1.length; i_1++) { const team = a_1[i_1]!;
     const T = s.teams[team];
     if (s.input.mode === 'live' && s.input.myTeam === team) continue;
     const opp = s.teams[team === 0 ? 1 : 0];

@@ -128,5 +128,5 @@ export function ratingFromParts(p: RatingParts, R: RatingConfig = ENGINE.rating)
 
 /** 경기 종료 후 출전한 모든 선수의 평점 */
 export function computeRatings(s: SimState, players: Agent[], duration: number): void {
-  for (const a of players) a.stats.rating = ratingFromParts(ratingParts(s, a, duration, true));
+  for (let i_1 = 0, a_1 = players; i_1 < a_1.length; i_1++) { const a = a_1[i_1]!; a.stats.rating = ratingFromParts(ratingParts(s, a, duration, true)); }
 }

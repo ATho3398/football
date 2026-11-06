@@ -28,7 +28,7 @@ export function manDiff(s: SimState, team: 0 | 1): number {
   // C.81e: onPitch 가 바뀌지 않았으면 지난 값 (onVer 는 onPitch 를 바꾸는 곳마다 오른다)
   if (s.manVer !== s.onVer) {
     let d = 0;
-    for (const a of s.agents) if (a.onPitch) d += a.team === 0 ? 1 : -1;
+    for (let i_1 = 0, a_1 = s.agents; i_1 < a_1.length; i_1++) { const a = a_1[i_1]!; if (a.onPitch) d += a.team === 0 ? 1 : -1; }
     s.manD0 = d;
     s.manVer = s.onVer;
   }

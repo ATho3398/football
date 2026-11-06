@@ -122,7 +122,7 @@ export interface NaturalInput {
   ovr: number;
   log: readonly { opponentId: string; minutes: number; started: boolean; goals: number; goalsAgainst: number; rating: number | null; round: number }[];
   /** 라운드별 내 경기 득점 기록 [분, 쪽(0 홈·1 원정), 득점자, 도움] 과 내 쪽 */
-  goals: (round: number) => { recs: readonly (readonly [number, 0 | 1, string, string | null])[]; side: 0 | 1 } | null;
+  goals: (round: number) => { recs: readonly (readonly [number, 0 | 1, string, string | null, number?])[]; side: 0 | 1 } | null;
   myId: string;
   isDerby: (opp: string) => boolean;
   /** 시즌 전 레이팅 순위 */
@@ -144,8 +144,8 @@ const sd = (xs: readonly number[]) => {
 };
 
 /** 80분 이후 내 결승골·동점골 수 (그 골 뒤 동점이거나, 앞서 나가 끝까지 이김) */
-export function lateDecisive(recs: readonly (readonly [number, 0 | 1, string, string | null])[], side: 0 | 1, myId: string, minute: number): number {
-  const sorted = [...recs].sort((a, b) => a[0] - b[0]);
+export function lateDecisive(recs: readonly (readonly [number, 0 | 1, string, string | null, number?])[], side: 0 | 1, myId: string, minute: number): number {
+  const sorted = [...recs].sort((a, b) => a[0] - b[0] || (a[4] ?? 0) - (b[4] ?? 0)); // 같은 분이면 추가시간 순 (C.81o)
   const fin = sorted.reduce((t, g) => t + (g[1] === side ? 1 : -1), 0);
   let diff = 0;
   let n = 0;

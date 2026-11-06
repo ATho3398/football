@@ -2,8 +2,10 @@
 // 연출을 따로 만들지 않고 엔진 위치를 그대로 그린다. 보간과 이벤트 문구는 순수 함수 (24.5). 세이브에 담지 않는다.
 
 import type { DecisionRecord } from './engine/moments';
+import { scoreText } from './text';
 import type { EngineResult, MatchEvent, PlayerSpec, Tactics, TeamSetup, TeamStats } from './engine/types';
 import type { RestartType, SimState } from './engine/state';
+import { matchMinute, minuteText } from './engine/minute';
 
 /** 재생용 위치 프레임. e = 경기 시작부터 흐른 시간(초, 추가시간 포함 단조 증가), t = 경기 시계(초) */
 export interface ReplayFrame {
@@ -88,17 +90,27 @@ export function replayPlayers(home: TeamSetup, away: TeamSetup): ReplayPlayer[] 
     const add = (p: PlayerSpec, number: number) => out.push({
       id: p.id, name: p.name ?? p.id, team: team as 0 | 1, number, position: p.position, isMe: p.isMe, gk: !!p.gk || p.position === 'GK',
     });
-    starters.forEach((p, i) => add(p, p.shirt ?? i + 1));
-    setup.bench.forEach((p, i) => add(p, p.shirt ?? 12 + i));
+    // 번호 겹침 없게 (C.81o): 실제 등번호를 먼저 잡고(내 선수 먼저), 등번호가 없거나 이미 쓴 번호면 슬롯 번호(선발 1~11 · 벤치 12~), 그것도 쓰였으면 비어 있는 가장 작은 번호
+    const all = [...starters.map((p, i) => ({ p, fallback: i + 1 })), ...setup.bench.map((p, i) => ({ p, fallback: 12 + i }))];
+    const used = new Set<number>();
+    const num = new Map<PlayerSpec, number>();
+    for (const x of [...all].sort((a, b) => Number(!!b.p.isMe) - Number(!!a.p.isMe))) {
+      if (x.p.shirt !== undefined && !used.has(x.p.shirt)) { used.add(x.p.shirt); num.set(x.p, x.p.shirt); }
+    }
+    for (const x of all) {
+      if (num.has(x.p)) continue;
+      let n = x.fallback;
+      if (used.has(n)) for (n = 1; used.has(n); n++);
+      used.add(n);
+      num.set(x.p, n);
+    }
+    for (const x of all) add(x.p, num.get(x.p)!);
   });
   return out;
 }
 
 function minuteLabel(t: number, half: 1 | 2): string {
-  const m = Math.floor(t / 60) + 1;
-  if (half === 1 && m > 45) return `45+${m - 45}`;
-  if (half === 2 && m > 90) return `90+${m - 90}`;
-  return `${m}`;
+  return minuteText(...matchMinute(t, half));
 }
 
 /** 이벤트 피드 문구 (21.5 이벤트 피드). 이름을 모르면 id 그대로 */
@@ -115,11 +127,11 @@ export function replayEvents(events: MatchEvent[], players: ReplayPlayer[], team
     let big = false;
     switch (ev.type) {
       case 'kickoff': text = '경기 시작'; break;
-      case 'halftime': text = `전반 종료 ${score[0]} : ${score[1]}`; break;
-      case 'fulltime': text = `경기 종료 ${score[0]} : ${score[1]}`; break;
+      case 'halftime': text = `전반 종료 ${scoreText(score[0], score[1])}`; break;
+      case 'fulltime': text = `경기 종료 ${scoreText(score[0], score[1])}`; break;
       case 'goal': {
         score = [Number(ev.params?.home ?? score[0]), Number(ev.params?.away ?? score[1])];
-        text = `골! ${nm(ev.players[0])} (${team})${ev.players[1] ? ` · 도움 ${nm(ev.players[1])}` : ''} — ${score[0]} : ${score[1]}`;
+        text = `골! ${nm(ev.players[0])} (${team})${ev.players[1] ? ` · 도움 ${nm(ev.players[1])}` : ''} — ${scoreText(score[0], score[1])}`;
         big = true;
         break;
       }

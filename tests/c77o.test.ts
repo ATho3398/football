@@ -110,12 +110,14 @@ describe('C.77o 24.6 경기 후 하이라이트 3개', () => {
       expect(ev.length > 0 || dec).toBe(true);
     }
   });
-  it('내 도움 골은 내 최고 순간 칸, 골 칸은 다른 골 (같은 장면 두 번 없음). 골이 하나뿐이면 골 칸', () => {
+  it('C.81o: 내 도움 골은 골 칸(배지 내 도움) — 내 최고 순간은 골이 아닌 내 장면만. 골이 하나뿐이어도 골 칸', () => {
     const ev = (e: number, type: 'goal' | 'shot', players: string[], extra: object = {}) => ({ e, minute: String(Math.floor(e / 60)), type, team: 0 as const, text: `${type}${e}`, big: type === 'goal', players, ...extra });
-    const syn = (events: ReturnType<typeof ev>[]) => ({ ...r, events, decisions: [] }) as Replay;
+    const syn = (events: ReturnType<typeof ev>[]) => ({ ...r, side: 0, events, decisions: [] }) as Replay;
     const two = pickClips(syn([ev(300, 'shot', ['x'], { xg: 0.3, onTarget: true }), ev(301, 'goal', ['x', r.players.find((p) => p.isMe)!.id]), ev(1200, 'shot', ['y'], { xg: 0.2, onTarget: true }), ev(1201, 'goal', ['y']), ev(2000, 'shot', ['z'], { xg: 0.4 })]));
-    expect(two.find((c) => c.kind === 'best')!.key).toBe(300);
-    expect(two.find((c) => c.kind === 'goal')!.key).toBe(1200);
+    const g = two.find((c) => c.kind === 'goal')!;
+    expect(g.key).toBe(300); // 내 도움 골이 골 칸 (내 골·도움 우선)
+    expect(g.badge).toBe('myAssist');
+    expect(two.some((c) => c.kind === 'best' && (c.key === 300 || c.key === 1200))).toBe(false); // 골은 내 최고 순간이 아니다
     expect(two.find((c) => c.kind === 'chance')!.key).toBe(2000);
     const one = pickClips(syn([ev(300, 'shot', ['x'], { xg: 0.3, onTarget: true }), ev(301, 'goal', ['x', r.players.find((p) => p.isMe)!.id])]));
     expect(one.map((c) => c.kind)).toEqual(['goal']);
@@ -181,7 +183,7 @@ describe('C.77o 24.6 경기 후 하이라이트 3개', () => {
 
 describe(`C.77o 세이브 형식 ${SAVE_FORMAT_VERSION}`, () => {
   it('clips 저장 왕복, 옛 세이브(56)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c77o-s', difficulty: 'normal' });
     const r: Replay = play(5);
     g.clips = withClips(g.clips, makeMatchClips(r, { season: 2018, round: 1, label: '1R' })!);

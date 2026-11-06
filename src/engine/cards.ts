@@ -163,7 +163,7 @@ const BASE_JUDGE: Record<string, Partial<Record<FieldAttribute, number>>> = {
 function weighted(a: Agent, w: Partial<Record<FieldAttribute, number>>): number {
   let sum = 0;
   let tw = 0;
-  for (const [k, v] of Object.entries(w) as [FieldAttribute, number][]) {
+  for (let i_1 = 0, a_1 = Object.entries(w) as [FieldAttribute, number][]; i_1 < a_1.length; i_1++) { const [k, v] = a_1[i_1]!;
     sum += a.attrs[k] * v;
     tw += v;
   }
@@ -181,7 +181,7 @@ export function masteryBonus(cs: CardState, def: CardDef): number {
   if (!def.mastery) return 0;
   const n = cs.mastery[def.id] ?? 0;
   let b = 0;
-  for (const [at, v] of C.mastery) if (n >= at) b = v;
+  for (let i_2 = 0, a_2 = C.mastery; i_2 < a_2.length; i_2++) { const [at, v] = a_2[i_2]!; if (n >= at) b = v; }
   return b;
 }
 
@@ -219,7 +219,7 @@ export function cardRole(def: CardDef): MomentCardRole {
 export function requirementProblem(def: CardDef, attrs: Record<string, number>, pos: string, role: string | undefined): string | null {
   if (def.inactiveUntil) return `${def.inactiveUntil}에 열려요`;
   if (def.positions.length && !def.positions.includes(pos)) return `${def.positions.join('/')} 포지션 카드`;
-  for (const [k, v] of Object.entries(def.requires)) if ((attrs[k] ?? 0) < (v as number)) return `능력치 요건 미달`;
+  for (let i_3 = 0, a_3 = Object.entries(def.requires); i_3 < a_3.length; i_3++) { const [k, v] = a_3[i_3]!; if ((attrs[k] ?? 0) < (v as number)) return `능력치 요건 미달`; }
   const ro = def.effects.find((e) => e.type === 'roleOnly');
   if (ro && ro.type === 'roleOnly' && ro.role !== role) return '그 역할일 때만';
   return null;
@@ -255,9 +255,9 @@ function probEffects(def: CardDef): ProbEffect[] {
 function passiveFor(s: SimState, tags: OptionTag[], box: boolean): number {
   const cs = s.cards!;
   let v = 0;
-  for (const id of cs.passives) {
+  for (let i_4 = 0, a_4 = cs.passives; i_4 < a_4.length; i_4++) { const id = a_4[i_4]!;
     const def = cardById(id)!;
-    for (const e of probEffects(def)) {
+    for (let i_5 = 0, a_5 = probEffects(def); i_5 < a_5.length; i_5++) { const e = a_5[i_5]!;
       if (!e.option || !tags.includes(e.option) || (e.box && !box)) continue;
       v += e.value + (e.value > 0 ? masteryBonus(cs, def) : 0);
     }
@@ -295,7 +295,7 @@ export function consumeCombos(s: SimState, a: Agent, tags: OptionTag[]): void {
 export function prepCands(s: SimState, a: Agent, cands: Candidate[]): void {
   const cs = s.cards;
   if (!cs || (!cs.passives.length && !cs.combos.length)) return;
-  for (const c of cands) {
+  for (let i_6 = 0, a_6 = cands; i_6 < a_6.length; i_6++) { const c = a_6[i_6]!;
     if (c.type === 'shoot' || c.type === 'cross') continue;
     const tags = tagsOf(s, a, c);
     const d = Math.min(C.bonusCap, passiveFor(s, tags, false) + comboFor(s, a, tags, false));
@@ -361,7 +361,7 @@ function pickBase(s: SimState, a: Agent, cands: Candidate[], eff: AddOption): Ca
     default: pool = [];
   }
   let best: Candidate | null = null;
-  for (const c of pool) if (!best || c.u > best.u) best = c;
+  for (let i_7 = 0, a_7 = pool; i_7 < a_7.length; i_7++) { const c = a_7[i_7]!; if (!best || c.u > best.u) best = c; }
   return best;
 }
 
@@ -439,7 +439,7 @@ export interface MomentCard {
 /** 태그가 맞는 1회 확률 카드 값 (집중은 어떤 선택지든) */
 export function boostValue(cs: CardState, def: CardDef, tags: OptionTag[]): number {
   let v = 0;
-  for (const e of probEffects(def)) {
+  for (let i_8 = 0, a_8 = probEffects(def); i_8 < a_8.length; i_8++) { const e = a_8[i_8]!;
     if (e.duration !== 'once') continue;
     if (e.option && !tags.includes(e.option)) continue;
     v += e.value + (e.value > 0 ? masteryBonus(cs, def) : 0);
@@ -450,7 +450,7 @@ export function boostValue(cs: CardState, def: CardDef, tags: OptionTag[]): numb
 /** 패시브를 지금 장착하면 이 태그 행동에 붙는 값 */
 export function passiveValue(cs: CardState, def: CardDef, tags: OptionTag[], box: boolean): number {
   let v = 0;
-  for (const e of probEffects(def)) if (e.option && tags.includes(e.option) && !(e.box && !box)) v += e.value + (e.value > 0 ? masteryBonus(cs, def) : 0);
+  for (let i_9 = 0, a_9 = probEffects(def); i_9 < a_9.length; i_9++) { const e = a_9[i_9]!; if (e.option && tags.includes(e.option) && !(e.box && !box)) v += e.value + (e.value > 0 ? masteryBonus(cs, def) : 0); }
   return v;
 }
 
@@ -472,7 +472,7 @@ export function cardText(def: CardDef): string {
   const ro = def.effects.find((e) => e.type === 'roleOnly');
   if (ro && ro.type === 'roleOnly') return ro.text;
   const out: string[] = [];
-  for (const e of def.effects) {
+  for (let i_10 = 0, a_10 = def.effects; i_10 < a_10.length; i_10++) { const e = a_10[i_10]!;
     switch (e.type) {
       case 'addOption': out.push(`4번째 선택지 "${e.label}"${e.probDelta ? ` ${pp(e.probDelta)}` : ''}${e.note ? ` · ${e.note}` : ''}`); break;
       case 'probDelta':
@@ -532,7 +532,7 @@ export function playCard(s: SimState, a: Agent, hand: number, scene: string, aut
   const role = cardRole(def);
   if (role === 'passive') equip(cs, a, id);
   else if (role === 'combo') {
-    for (const e of def.effects) if (e.type === 'nextSceneBonus') cs.combos.push({ id, on: e.on, ...(e.option ? { option: e.option } : {}), value: e.value + masteryBonus(cs, def), armedT: s.t });
+    for (let i_11 = 0, a_11 = def.effects; i_11 < a_11.length; i_11++) { const e = a_11[i_11]!; if (e.type === 'nextSceneBonus') cs.combos.push({ id, on: e.on, ...(e.option ? { option: e.option } : {}), value: e.value + masteryBonus(cs, def), armedT: s.t }); }
   } else if (role === 'redraw') {
     // 리셋: 쓸 수 없는 카드부터(없으면 맨 앞) 1장 버리고 1장 뽑는다. dead = 이 장면에서 못 쓰는 카드의 원래 패 위치 (리셋 즉발, C.75h)
     const moved = (dead ?? []).filter((k) => k !== hand).map((k) => (k > hand ? k - 1 : k));
@@ -548,7 +548,7 @@ export function playCard(s: SimState, a: Agent, hand: number, scene: string, aut
 function equip(cs: CardState, a: Agent, id: string): void {
   const def = cardById(id)!;
   cs.passives.push(id);
-  for (const e of def.effects) if (e.type === 'fatigueMult') a.drainMul *= e.value;
+  for (let i_12 = 0, a_12 = def.effects; i_12 < a_12.length; i_12++) { const e = a_12[i_12]!; if (e.type === 'fatigueMult') a.drainMul *= e.value; }
   const tk = passiveValue(cs, def, ['tackle'], false);
   const air = passiveValue(cs, def, ['header'], false);
   if (tk || air) {
