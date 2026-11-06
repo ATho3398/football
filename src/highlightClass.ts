@@ -26,3 +26,13 @@ export function myGoalBadge(players: readonly string[], me: string | undefined):
   if (!me) return null;
   return players[0] === me ? 'myGoal' : players[1] === me ? 'myAssist' : null;
 }
+
+/**
+ * 하이라이트 클립 골 문구의 점수를 내 팀 먼저로 (C.81v2): 재생 데이터 골 문구는 "골! … — 홈 : 원정"(스코어보드 순서)이라
+ * 결과 화면(머리 점수·득점 줄 = 내 팀 먼저)에서 원정 경기면 "— 0 : 2"처럼 뒤집혀 보였다. 내가 원정(side 1)이면 두 숫자를 바꾼다
+ */
+export function clipTextMyFirst(text: string, side: 0 | 1): string {
+  if (side === 0) return text;
+  // 점수는 scoreText(NBSP 둘레) 그대로의 간격을 지킨다
+  return text.replace(/—(\s)(\d+)(\s*:\s*)(\d+)$/, (_, sp: string, h: string, mid: string, a: string) => `—${sp}${a}${mid}${h}`);
+}

@@ -84,7 +84,7 @@ import {
 import { trainProficiency } from './proficiency';
 import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, cupsPending, ensureCups, myCupAlive, myCupDates, myCupMatches, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
 import { envField, matchConditions, type MatchConditions } from './matchEnv';
-import { ensureNational, NAT_COMP_KO, natId, natLabel, natMatchDates, natRoster, nationalDayEnd, nationalKickoff, nationalSeasonEnd, nationRating, natTournamentAlive, nextNatMatch, recordNatMatch, settleMyTournamentMatch, tournamentDayEnd, trimNational, type NatComp, type NatMatch, type NationalState } from './national';
+import { ensureNational, NAT_COMP_KO, natId, natLabel, natMatchDates, natRoster, nationalDayEnd, nationalKickoff, nationalSeasonEnd, nationRating, myNationOut, natTournamentAlive, nextNatMatch, recordNatMatch, settleMyTournamentMatch, tournamentDayEnd, trimNational, type NatComp, type NatMatch, type NationalState } from './national';
 import { chemAfterMatch, chemSeasonEnd, rapportInput, scoutReport, type ChemState, type ScoutReport } from './rapport';
 import type { NameOverrides } from './names';
 import { weatherInjuryMul, type WeatherKind } from './weather';
@@ -1127,7 +1127,8 @@ export function isVacationDay(state: GameState, date: IsoDate): boolean {
   if (clubSeasonOver(state)) {
     if (prev && daysBetween(prev, date) < V.afterMatch) return false;
     const live = state.national?.live;
-    return !live || !live.called || daysBetween(date, live.camp) > 0;
+    // C.81v: 내 나라가 떨어진 뒤(남은 다른 나라 경기를 그 날짜에 기다리는 동안)는 다시 휴가
+    return !live || !live.called || daysBetween(date, live.camp) > 0 || myNationOut(state, live);
   }
   if (!prev || !next) return false;
   if (daysBetween(prev, date) < V.afterMatch || daysBetween(date, next) < V.beforeMatch) return false;

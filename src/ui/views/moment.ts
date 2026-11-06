@@ -9,7 +9,7 @@ import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engi
 import { SCENE_LABEL } from '../../engine/moments';
 import { ENGINE } from '../../engine/config';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
-import { Button, ChoiceButton, Crest, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, signed, Tabs, type FeedKind, type GameCardData } from '../components';
+import { Button, ChoiceButton, Crest, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, RiskChip, signed, Tabs, type FeedKind, type GameCardData } from '../components';
 import { cardById } from '../../config/cards';
 import { gameCardData } from './deck';
 import {
@@ -18,7 +18,7 @@ import {
 } from '../pitch/renderer';
 import { isLandPhone, isWide } from '../skin';
 import { pitchViewButton } from './common';
-import { riskLevel, shownChance, shownEv } from '../momentNumbers';
+import { riskLevel, shownChance, shownEv, type RiskLevel } from '../momentNumbers';
 
 export interface MomentVM {
   moment: Moment;
@@ -445,8 +445,10 @@ export class MomentPitch {
 export interface OutcomeVM {
   moment: Moment;
   teams: [string, string];
-  /** "균형 · 드리블 돌파 (52%)" 또는 "맡기기 (엔진 판단)" */
+  /** "드리블 돌파 (52%)" 또는 "맡기기 (엔진 판단)" (C.81v: 안전·균형·도박 글자 대신 위험 등급 칩) */
   choice: string;
+  /** 고른 선택지의 위험 등급 (결정 순간 칩과 같은 값, 판정 없는 선택지·맡기기는 없음) */
+  risk?: RiskLevel;
   kind: MomentOption['kind'] | 'delegate';
   band: { tone: 'success' | 'fail' | 'neutral' | 'goal' | 'conceded'; title: string; flow: string; delta: string };
   /** 결과 카드 큰 글자 (선택지의 성공·실패 결과, 골이면 "골!") */
@@ -487,7 +489,7 @@ export function outcomeView(vm: OutcomeVM): string {
       ${scoreTop(vm.teams, score, m.side, m.minute, scene, 'oc-score')}
       <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 결과 재생', children: stageTools() })}</div>
       <div class="mo-panel oc-panel" aria-live="polite">
-        <div class="${cx('oc-choice', vm.card && 'is-card')}" style="--k:${vm.card ? 'var(--brand)' : color}"><span class="oc-choice__t"><small>내 선택</small><b>${esc(vm.choice)}</b></span>${vm.card ? '<span class="oc-cardtag">카드 사용</span>' : ''}</div>
+        <div class="${cx('oc-choice', vm.card && 'is-card')}" style="--k:${vm.card ? 'var(--brand)' : color}"><span class="oc-choice__t"><small>내 선택</small><b>${esc(vm.choice)}</b>${vm.risk ? RiskChip(vm.risk) : ''}</span>${vm.card ? '<span class="oc-cardtag">카드 사용</span>' : ''}</div>
         ${playing}${splash}${cardNote}${vm.shown && vm.lines?.length ? `<div class="oc-feed">${vm.lines.map((l, i) => FeedItem({ minute: l.minute, text: l.text, kind: l.kind, mine: l.mine, faint: i > 1 && !l.mine })).join('')}</div>` : ''}
         <div class="oc-actions">${vm.shown
           ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'oc-skip', children: '계속' })

@@ -261,6 +261,8 @@ export function callOffside(s: SimState, passer: Agent, receiver: Agent): void {
   s.teams[passer.team].stats.offsides++;
   event(s, 'offside', passer.team, [receiver.id]);
   const def = (1 - passer.team) as 0 | 1;
+  // 오프사이드 유도 (C.81u, 세기만): 수비 줄(line 1) 선수 모두 +1
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!; if (m.onPitch && m.team === def && m.line === 1) m.rt.offWon = (m.rt.offWon ?? 0) + 1; }
   setRestart(s, 'freeKick', def, clamp(receiver.x, 1, L - 1), clamp(receiver.y, 1, W - 1), 'offside');
   if (s.restart) s.restart.indirect = true;
   issuePendingCards(s);

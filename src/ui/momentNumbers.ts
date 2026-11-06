@@ -5,10 +5,12 @@
 // 판정 확률(엔진)은 그대로, 표시만 맞춘다.
 
 import { BALANCE } from '../config/balance';
-import type { MomentOption } from '../engine/moments';
+import type { DecisionRecord, MomentOption } from '../engine/moments';
 
 export type RiskLevel = 'low' | 'mid' | 'high';
 export const RISK_KO: Record<RiskLevel, string> = { low: '낮음', mid: '보통', high: '높음' };
+/** 결정 기록 + 화면이 보여 준 위험 등급 (C.81v): 직접 모드 결정 화면에서 채운다 (엔진은 읽지 않는다, 옛 기록엔 없음) */
+export type DecisionWithRisk = DecisionRecord & { risk?: RiskLevel };
 
 const r2 = (x: number) => Math.round(x * 100) / 100;
 

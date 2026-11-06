@@ -1,7 +1,7 @@
 // 경기 후 (I.6, 디자인 38): 스코어·평점, 하이라이트, 전술 리포트(21.5.2: 판정 카드 최대 2장 + 숫자 줄), 평균 위치 지도, XP.
 // 내 결정 기록 (E.11, I.17 10번, 직접 모드로 멈춘 순간). 카드·신뢰도는 아직 없는 기능이라 숨긴다
 
-import { Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
+import { Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, RiskChip, SectionTitle, StatChip, TacticChip } from '../components';
 import { formEffectLabel, type MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel, pc2 } from './common';
 import { isWide } from '../skin';
@@ -84,7 +84,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   const decShown = more.dec ? vm.decisions : vm.decisions.slice(0, DEC_PAGE);
   const decisions = vm.decisions.length
     ? `${SectionTitle({ title: '내 결정 기록', action: `${vm.decisions.length}번 멈춤` })}<div class="dec-list">${decShown.map((d, i) => `
-        <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="panel dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><small>${esc(d.scene)} · ${esc(d.p)}</small><b>${esc(d.choice)} · ${esc(d.label)}</b>${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
+        <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="panel dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><small>${esc(d.scene)} · ${esc(d.p)}</small><b>${d.choice ? `${esc(d.choice)} · ` : ''}${esc(d.label)}${d.risk ? RiskChip(d.risk) : ''}</b>${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
         <span class="dec-res"><span class="dec-res__k">${RES[d.result]}</span><b class="po-num">${esc(d.delta)}</b></span>${vm.decisionReplay ? `<span class="dec-play">${Icon({ name: 'restore', size: 16 })}</span>` : ''}</${tag}>`).join('')}</div>
         <p class="small muted dec-hint">${vm.decisionReplay ? '줄을 누르면 그 장면을 다시 봐요.' : ''}</p>${vm.decisions.length > DEC_PAGE ? Button({ variant: 'ghost', block: true, icon: more.dec ? 'chevron-up' : 'chevron-down', act: 'more', data: { v: 'dec' }, className: 'more-btn', children: more.dec ? '접기' : `${vm.decisions.length - DEC_PAGE}개 더 보기` }) : ''}`
     : '';

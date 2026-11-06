@@ -46,6 +46,8 @@ export interface PrepVM {
   opp: PrepTeamVM;
   teams: number;
   tacticsOpen: boolean;
+  /** 대표팀 경기 (C.81v): 클럽 전술을 쓰지 않는다 — 전술 칸은 "대표팀 전술 · 감독 고정" 한 줄, 전술·역할 바꾸기 없음 */
+  natFixed: boolean;
   /** 우리 전술 세부 한 줄 (라인·압박·빌드업 등) */
   tacticLine: string;
   /** 영상 분석 힌트 (훈련, 있을 때만) */
@@ -112,10 +114,11 @@ export function prepVM(g: GameState): PrepVM | null {
     home: fx.home,
     neutral: isNeutralMatch(fx),
     derby: d ? { name: d.name, big: d.big } : null,
-    my: team(my.id, my.rating, my.nameKo, myTacticVM(g)),
+    my: team(my.id, my.rating, my.nameKo, fx.nat ? undefined : myTacticVM(g)),
     opp: team(opp.id, opp.rating, opp.nameKo, teamTactic(opp.id)),
     teams: L.teams.length,
-    tacticsOpen: isUnlocked(g.guide, 'tactics'),
+    tacticsOpen: !fx.nat && isUnlocked(g.guide, 'tactics'),
+    natFixed: !!fx.nat,
     tacticLine: DETAILS.map((d) => `${SHORT_DETAIL[d]} ${LEVEL_NAMES_KO[d][t.levels[d]]}`).join(' · '),
     hint: g.training.hints[0] ?? null,
     slots, formation: myTacticVM(g).formation ?? '',

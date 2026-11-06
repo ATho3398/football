@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 91;
+export const ENGINE_VERSION = 93;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1500,7 +1500,7 @@ export const ENGINE = {
      */
     passKnee: { CB: 5, FB: 5, CAM: 20, WING: 18, ST: 45 } as Record<string, number>,
     passTail: 0.3 as number,
-    forwardKnee: { CB: 20, FB: 15, CDM: 18, CAM: 8, WING: 5, ST: 10 } as Record<string, number>,
+    forwardKnee: { CB: 20, FB: 15, CDM: 18, CM: 18, CAM: 8, WING: 5, ST: 10 } as Record<string, number>,
     forwardTail: 0.2 as number,
     /** C.81r: 0.15 → 0.11 (엔간체·프리롤 키패스 몫이 역할 차의 큰 부분) */
     keyPass: 0.11,
@@ -1517,6 +1517,17 @@ export const ENGINE = {
     block: 0.05,
     clearance: 0.04,
     dangerClear: 0,
+    /**
+     * 수비 기록 칸 (C.81u, 평점에 소폭 — 경기 행동은 세기만 하고 안 바뀐다):
+     * 압박 성공 = 상대 공 가진 선수 pressRadius m 안에 있던 뒤 pressWindow 초 안 팀 탈취(1회당 pressWon) ·
+     * 오프사이드 유도 = 수비 줄 선수 1회당 offsideWon · 라인 유지 = 상대 소유 중 수비 줄 평균 x 에서 lineTol m 안에 있던 분당 lineMin
+     */
+    pressRadius: 3,
+    pressWindow: 3,
+    lineTol: 4,
+    pressWon: 0.015 as number,
+    offsideWon: 0.02 as number,
+    lineMin: 0.005 as number,
     /** C.81r: −0.04 → −0.06 (공 요구 역할의 잦은 상실이 패스 몫에 묻히지 않게) */
     lost: -0.06,
     dangerLost: -0.1,
@@ -1582,16 +1593,25 @@ export const ENGINE = {
     // C.81h(엔진 89, 세컨볼·윙어 마무리): engine:check 경량 가드로 CAM 2.1 → 2.25 · ST 2.53 → 2.63
     // C.81r(엔진 90, 역할별 평점 쏠림 — 패스 체감·수비 가중·roleCenter): `rating-parts 720 … 20000`(역할 포함) 에서 8군 평균을 바꾸기 전(main 엔진 89 설정) 값 그대로 두게 다시 맞춤(c81r-role-opt TARGET_JSON) — engine:check 군 평균 6.55~6.69 · σ 0.81
     // C.81s(엔진 91, saveBase 2.02·상성 칸 + C.81r 병합 뒤): engine:check CM 6.70(가드 6.3~6.7 ✗, 반올림 경계) — 가드 밖 CM 만 2.46 → 2.51(약 −0.04, §9.12.7)
-    center: { GK: 1.72, CB: 1.15, FB: 0.62, CDM: 1.82, CM: 2.51, CAM: 1.84, WING: 0.79, ST: 2.17 } as Record<string, number>,
-    /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0 */
+    // C.81u(엔진 92, 수비 기록 칸 · CM 전진 패스 무릎 18 · 조건 평균 roleCenter): `rating-parts 720 … 20000` 에서 8군 평균을 main(엔진 91) 설정 값 그대로 두게 다시 맞춤(c81u-center) — σ 0.80 → 0.76
+    // C.81u2(엔진 93, 대형 문맥 roleCenter @cam·@cb3): 같은 방식으로 CDM 1.99 → 1.96 · ST 2.1 → 2.11
+    center: { GK: 1.72, CB: 1.34, FB: 0.76, CDM: 1.96, CM: 2.1, CAM: 1.85, WING: 0.85, ST: 2.11 } as Record<string, number>,
+    /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0.
+     *  C.81u: 대형(4-4-2·3-5-2·4-2-3-1·4-3-1-2)·전력 ±5·전술(게겐·블록·직선) 10조건 평균으로 다시 맞춤(c81u-role-cond 80경기 × 268칸). `역할@2` = 같은 군 둘 이상(투톱).
+     *  C.81u2: `역할@cam` = CAM 뒤 원톱 ST(4-2-3-1 조건으로 맞춤) · `역할@cb3` = 백3 앞 CDM(3-5-2 조건) — 문맥 조건은 기본 값 맞춤에서 뺐다 */
     roleCenter: {
-      stopper: 0.01, ballPlayingCB: -0.01, coverCB: -0.09, libero: 0.09,
-      attackingFullback: 0, defensiveFullback: -0.09, invertedFullback: 0.1, completeWingback: -0.02,
-      anchor: 0.12, ballWinner: 0.06, regista: 0, halfBack: -0.18,
-      boxToBox: 0.08, deepPlaymaker: 0.02, mezzala: 0.04, carrier: 0.06, holdingCM: -0.2,
-      classic10: -0.17, shadowStriker: -0.09, freeRole: 0.19, boxCrasher: -0.07, enganche: 0.14,
-      classicWinger: -0.18, wingForward: 0.2, crackWinger: 0.02, raumdeuter: 0.11, wideMid: -0.14,
-      poacher: -0.1, targetMan: 0.02, falseNine: 0.08, advancedForward: 0,
+      stopper: 0.05, ballPlayingCB: -0.05, coverCB: -0.11, libero: 0.11,
+      attackingFullback: -0.03, defensiveFullback: -0.09, invertedFullback: 0.14, completeWingback: -0.04,
+      anchor: 0.06, ballWinner: 0.01, regista: 0.03, halfBack: -0.1,
+      boxToBox: 0.07, deepPlaymaker: 0, mezzala: 0.01, carrier: 0.01, holdingCM: -0.1,
+      classic10: -0.08, shadowStriker: -0.11, freeRole: 0.21, boxCrasher: -0.15, enganche: 0.12,
+      classicWinger: -0.19, wingForward: 0.19, crackWinger: 0.02, raumdeuter: 0.14, wideMid: -0.14,
+      poacher: -0.08, targetMan: -0.03, falseNine: 0.11, advancedForward: 0.01,
+      // 투톱(같은 군 둘 이상)의 ST 역할 (C.81u)
+      'poacher@2': 0.09, 'targetMan@2': 0.23, 'falseNine@2': -0.29, 'advancedForward@2': -0.03,
+      // 대형 문맥 (C.81u2): CAM 뒤 원톱 ST · 백3 앞 CDM
+      'poacher@cam': -0.21, 'targetMan@cam': -0.14, 'falseNine@cam': 0.44, 'advancedForward@cam': -0.08,
+      'anchor@cb3': 0.2, 'ballWinner@cb3': 0.09, 'regista@cb3': 0.07, 'halfBack@cb3': -0.36,
     } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,

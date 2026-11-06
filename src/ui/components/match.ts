@@ -207,6 +207,12 @@ const OFFSIDE_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '중간', n: 2 }, h
 /** 위험 등급 (C.81n): 실패 시 평점 손실 크기 */
 const RISK_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '보통', n: 2 }, high: { l: '높음', n: 3 } } as const;
 
+/** 위험 등급 칩 (C.81n 결정 순간 → C.81v 결정 결과·결과 화면 결정 기록에도 같은 모양): "위험 낮음 ▮▯▯" */
+export function RiskChip(level: 'low' | 'mid' | 'high'): string {
+  const risk = RISK_STEP[level];
+  return `<span class="po-risk po-risk--${level}" title="실패하면 잃는 평점 크기">위험 ${risk.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= risk.n ? 'on' : ''}"></i>`).join('')}</span></span>`;
+}
+
 export interface ChoiceButtonProps extends Action {
   kind: ChoiceKind;
   name: string;
@@ -240,14 +246,13 @@ export interface ChoiceButtonProps extends Action {
 
 export function ChoiceButton(p: ChoiceButtonProps): string {
   const off = p.offside ? OFFSIDE_STEP[p.offside] : null;
-  const risk = p.risk ? RISK_STEP[p.risk] : null;
   const d = p.chanceDelta ?? 0;
   const shown = p.chance === null ? null : Math.max(0, Math.min(99, p.chance + d));
   // C.81n 후속 (AD): 줄 칩은 위험 등급 하나 — 안전·균형·도박(성공률 구간, 표시 전용)은 칩 대신 확률 막대 색과 막대 제목(title)으로만
   const tagHtml = `${
     p.exploit ? `<span class="po-exploit" title="상대 분석 리포트의 약점">${Icon({ name: 'target', size: 12, strokeWidth: 2.4 })}약점 공략</span>` : ''}${
     p.card ? `<span class="po-choice__card">${esc(p.card)}</span>` : ''}${
-    risk ? `<span class="po-risk po-risk--${p.risk}" title="실패하면 잃는 평점 크기">위험 ${risk.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= risk.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}${
+    p.risk ? RiskChip(p.risk) : ''}${
     off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}`;
   const tags = tagHtml ? `<span class="po-choice__tags">${tagHtml}</span>` : '';
   const band = p.band ?? `성공 확률 구간 ${CHOICE_KO[p.kind]}`;
