@@ -7,7 +7,7 @@ import { leagueData, PLAYABLE_LEAGUES } from '../data/leagues';
 import { CLUB_TO_TEAM, createLeague, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById, type LeagueState } from './league';
 import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar } from './calendar';
 import { createRng, hashSeed, type Rng } from './rng';
-import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
+import { createTeamRoster, naturalOvr, pickLineup, posGroup, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
 import { engineCards, npcBanAfterMatch, type NpcBanMap } from './npcBan';
@@ -107,25 +107,49 @@ function pickWeighted<T>(rng: Rng, items: readonly T[], w: (x: T) => number, ski
   return list.at(-1) ?? null;
 }
 
-/** 빠른 시뮬 한 경기의 득점자·도움을 리그 기록에 더한다 (컵 간이 경기와 같은 가중치, 난수는 점수와 따로) */
+/** 다른 리그 득점자 후보 (C.81q): 로스터마다 한 번 — 선발·벤치·그 밖(pickLineup, 시상 추정 출전과 같은 구분) 출전 몫 × 포지션군 × OVR(선발 평균 대비) 가중 */
+type ScorerPick = { p: TeamRoster['players'][number]; g: number; a: number };
+let SCORER_POOL = new WeakMap<TeamRoster, ScorerPick[]>();
+/** 진단(맞춤 스크립트): BALANCE.otherScorers 를 바꾼 뒤 후보 캐시를 비운다 */
+export function resetScorerPool(): void { SCORER_POOL = new WeakMap(); }
+function scorerPool(roster: TeamRoster): ScorerPick[] {
+  let hit = SCORER_POOL.get(roster);
+  if (hit) return hit;
+  const C = BALANCE.otherScorers;
+  const lu = pickLineup(roster);
+  const st = new Set(lu.slots.map((x) => x.playerId));
+  const bn = new Set(lu.bench);
+  const ovr = new Map(roster.players.map((p) => [p.id, naturalOvr(p)]));
+  const starters = roster.players.filter((p) => st.has(p.id));
+  const ref = starters.reduce((t, p) => t + ovr.get(p.id)!, 0) / Math.max(1, starters.length);
+  hit = roster.players.map((p) => {
+    const g = posGroup(p.position);
+    const share = C.share[st.has(p.id) ? 0 : bn.has(p.id) ? 1 : 2]!;
+    const rel = ovr.get(p.id)! - ref;
+    return { p, g: (C.scorerWeight[g] ?? 0) * share * Math.exp(rel * C.ovrK), a: (C.assistWeight[g] ?? 0) * share * Math.exp(rel * C.ovrKAssist) };
+  }).filter((x) => x.g > 0 || x.a > 0);
+  SCORER_POOL.set(roster, hit);
+  return hit;
+}
+
+/** 빠른 시뮬 한 경기의 득점자·도움을 리그 기록에 더한다 (난수는 점수와 따로). C.81q: 가중 = scorerPool (엔진 실측 포지션군·상위 득점 분포에 맞춤) */
 function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: string, hg: number, ag: number, rng: Rng, npcs?: readonly NpcState[]): void {
-  const C = BALANCE.cups;
+  const C = BALANCE.otherScorers;
   const stats = (lg.stats ??= {});
   const names = (lg.names ??= {});
   ([[home, hg], [away, ag]] as const).forEach(([id, n]) => {
     if (!n) return;
-    const roster = leagueTeamRoster(worldSeed, id, teamById(lg, id).rating, lg.season, npcs);
-    const lu = roster.players.map((p) => ({ p, g: posGroup(p.position), o: naturalOvr(p) })).sort((x, y) => y.o - x.o).slice(0, C.squadTop);
-    const bump = (x: (typeof lu)[number], k: 0 | 1) => {
+    const lu = scorerPool(leagueTeamRoster(worldSeed, id, teamById(lg, id).rating, lg.season, npcs));
+    const bump = (x: ScorerPick, k: 0 | 1) => {
       const t = (stats[x.p.id] ??= [0, 0]);
       t[k] = t[k]! + 1;
       names[x.p.id] ??= [x.p.nameKo, id];
     };
     for (let k = 0; k < n; k++) {
-      const sc = pickWeighted(rng, lu, (x) => C.scorerWeight[x.g]);
+      const sc = pickWeighted(rng, lu, (x) => x.g);
       if (!sc) continue;
       bump(sc, 0);
-      const as = rng() < C.assistChance ? pickWeighted(rng, lu, (x) => C.assistWeight[x.g], sc) : null;
+      const as = rng() < C.assistChance ? pickWeighted(rng, lu, (x) => x.a, sc) : null;
       if (as) bump(as, 1);
     }
   });

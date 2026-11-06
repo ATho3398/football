@@ -1862,9 +1862,22 @@ export const BALANCE = {
     /** 내 팀 없는 경기 득점자 가중치 (포지션군), 도움 확률·가중치 */
     scorerWeight: { GK: 0, CB: 0.6, FB: 0.5, CDM: 0.6, CM: 1.4, CAM: 2.6, WING: 3, ST: 5 },
     assistChance: 0.72,
-    /** 다른 리그 득점자 후보 = 로스터 OVR 상위 n 명 (otherLeagues.ts. 컵 득점자는 C.77w 부터 출전 명단에서) */
+    /** 옛 다른 리그 득점자 후보 = 로스터 OVR 상위 n 명 (C.81q 부터 otherScorers. 진단 c77w 만) */
     squadTop: 14,
     assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
+  },
+  /**
+   * 다른 리그 빠른 진행 득점자·도움 추첨 (C.81q, otherLeagues.ts): 그 경기 골마다 팀 로스터에서 가중 = 포지션군 × 출전 몫(pickLineup 선발·벤치·그 밖 — 시상 추정 출전 share 와 같은 구분)
+   * × exp((OVR − 선발 평균 OVR) × ovrK). 도움은 assistChance 확률로 득점자 뺀 나머지에서 assistWeight · ovrKAssist.
+   * 맞춤 = 같은 시드 전부 엔진 저장본의 리그 × 포지션군 시즌 골·도움 평균과 리그 상위 10명 (scripts/diag/c81q-*). 옛(C.76c): OVR 상위 14명 · 컵 가중
+   */
+  otherScorers: {
+    scorerWeight: { GK: 0, CB: 0.6, FB: 0.5, CDM: 0.6, CM: 1.4, CAM: 2.6, WING: 3, ST: 5 } as Record<string, number>,
+    assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 } as Record<string, number>,
+    assistChance: 0.72,
+    share: [0.95, 0.4, 0.06] as readonly number[],
+    ovrK: 0,
+    ovrKAssist: 0,
   },
   // ── 대표팀 · 국제 대회 (10번·18.12, 45c단계, 부록 C.76d) ──
   national: {
