@@ -1744,7 +1744,13 @@ export const BALANCE = {
      * 경기당 골·도움 = goals.rates[군] × (1 + (OVR − 팀 레이팅) × goals.ovrK, 0.5~1.8) × 팀 득점 비(0.5~1.8) × (0.7~1.3),
      * 평균 평점 = ratingBase + (OVR − 팀 레이팅) × ratingRel + (OVR − 75) × ratingOvr + (팀 득실 비 − 1) × ratingTeam ± ratingJitter
      */
-    estimate: { share: [0.95, 0.4, 0.06] as readonly number[], ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
+    estimate: { share: [0.95, 0.4, 0.06] as readonly number[],
+      /**
+       * C.81w: 출전 몫 분포 (포지션군 → [선발, 벤치, 그 밖](pickLineup) 각 [5, 25, 50, 75, 95%] 분위, 선수·시즌 시드 u 로 선형 보간). 옛 일괄 share [0.95, 0.4, 0.06] 은
+       * 벤치 전원이 후보 문턱(0.3)을 넘어 ST·WING 후보가 엔진보다 많고(팀당 2.1 대 1.7) FB·CM 은 적어(벤치·그 밖 출전 0.8·0.27 을 0.4·0.06 으로) 리그 × 포지션 평균이 어긋났다.
+       * 측정 = 같은 시드 전부 엔진 저장본 다른 리그 실제 출전 / 팀 경기 (scripts/diag/c81w-share.ts)
+       */
+      shareQ: {"GK":[[0.34,0.76,0.92,1,1],[0,0,0.05,0.21,0.66],[0,0,0,0,0]],"CB":[[0.5,0.79,0.84,0.89,1],[0.03,0.32,0.55,0.76,0.95],[0,0,0.03,0.18,0.53]],"FB":[[0.66,0.84,0.92,0.97,1],[0.47,0.68,0.84,0.92,1],[0,0.05,0.21,0.42,0.66]],"CDM":[[0.66,0.79,0.84,0.92,1],[0.03,0.45,0.61,0.84,0.97],[0,0,0,0.18,0.55]],"CM":[[0.63,0.87,0.92,1,1],[0.34,0.71,0.87,0.95,1],[0,0,0.18,0.5,0.82]],"CAM":[[0.76,0.87,0.92,0.97,1],[0.05,0.45,0.63,0.84,1],[0,0,0.05,0.21,0.66]],"WING":[[0.55,0.84,0.92,0.97,1],[0,0.16,0.55,0.82,1],[0,0,0,0.03,0.58]],"ST":[[0.5,0.79,0.87,0.92,1],[0,0.16,0.39,0.68,0.97],[0,0,0,0.08,0.39]]} as Record<string, readonly (readonly number[])[]>, ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
       /**
        * C.81d '내 리그만 엔진': 내 리그는 엔진 기록, 다른 리그는 추정 기록이 한 이력서 표에 섞일 때 다른 리그 추정 평점을 엔진 척도로.
        * C.81m: 일괄 −0.33 → 포지션군별 avg = ratingBase + (추정 − ratingBase) × mixedSpread + mixedShift + 정규 잡음 × mixedJitter.
@@ -1876,6 +1882,8 @@ export const BALANCE = {
     assistWeight: { GK: 0.04, CB: 0.18, FB: 0.6, CDM: 1.35, CM: 2.2, CAM: 3.43, WING: 3.68, ST: 6.75 } as Record<string, number>,
     assistChance: 0.75,
     share: [0.95, 0.4, 0.06] as readonly number[],
+    /** C.81w: 출전 몫 = awards.estimate.shareQ 평균(포지션군 × 선발·벤치·그 밖) × shareK[구분] (없으면 옛 share) */
+    shareK: [1, 1, 1] as readonly number[] | undefined,
     ovrK: 0.048,
     ovrKAssist: 0.066,
     /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1) */

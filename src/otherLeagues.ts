@@ -133,7 +133,10 @@ function scorerPool(roster: TeamRoster): ScorerPick[] {
   const ref = starters.reduce((t, p) => t + ovr.get(p.id)!, 0) / Math.max(1, starters.length);
   hit = roster.players.map((p) => {
     const g = posGroup(p.position);
-    const share = C.share[st.has(p.id) ? 0 : bn.has(p.id) ? 1 : 2]!;
+    const cls = st.has(p.id) ? 0 : bn.has(p.id) ? 1 : 2;
+    // C.81w: 출전 몫 = 시상 추정과 같은 포지션군 × 구분 분포의 평균(awards.estimate.shareQ) × shareK[구분] — 없으면 옛 share
+    const q = C.shareK ? BALANCE.awards.estimate.shareQ[g]?.[cls] : undefined;
+    const share = q ? C.shareK![cls]! * (q[0]! + 2 * (q[1]! + q[2]! + q[3]!) + q[4]!) / 8 : C.share[cls]!;
     const rel = ovr.get(p.id)! - ref;
     return { p, g: (C.scorerWeight[g] ?? 0) * share * Math.exp(rel * C.ovrK), a: (C.assistWeight[g] ?? 0) * share * Math.exp(rel * C.ovrKAssist) };
   }).filter((x) => x.g > 0 || x.a > 0);
