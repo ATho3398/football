@@ -2901,3 +2901,14 @@ body { overflow-wrap: break-word; }
 /* 탭 이름은 한 줄 ("몸· / 태그" 금지). 좁은 폰은 탭 사이를 줄여 들어가게 */
 .po-tab { white-space: nowrap; }
 @media (max-width: 380px) { .po-tabs--underline { gap: var(--space-2); } .po-tabs--underline .po-tab { font-size: 14px; } }
+
+/* C.81o 하이라이트 분류 색 (highlightClass 한 곳): 골 라임 · 실점 주황 · 결정적 장면 흰 · 내 최고 순간 시안, 내 골·내 도움 = 골 칸 안 배지 */
+.mr-clip { border-left: 3px solid transparent; }
+.mr-clip.is-goal { border-left-color: var(--brand); }
+.mr-clip.is-concede { border-left-color: var(--away); }
+.mr-clip.is-chance { border-left-color: var(--ink); }
+.mr-clip.is-best { border-left-color: var(--mine); }
+.mr-clip.is-goal .dec-main small { color: var(--brand-ink); }
+.mr-clip.is-concede .dec-main small { color: var(--away); }
+.mr-clip.is-best .dec-main small { color: var(--mine); }
+.mr-clip__badge { font-style: normal; font-weight: 700; padding: 0 5px; margin-left: 4px; border-radius: 4px; background: var(--brand-soft); color: var(--brand-ink); }

@@ -51,7 +51,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   const cl = vm.clips ?? [];
   const clips = cl.length
     ? `${SectionTitle({ title: '하이라이트 클립', action: `${cl.length}개 · 앞뒤 8초` })}<div class="dec-list mr-clips">${cl.map((c, i) => `
-        <button type="button" data-act="clip-play" data-v="${i}" aria-label="${esc(c.minute)} ${esc(c.label)} 다시 보기" class="panel dec-row dec-neutral mr-clip is-${c.kind}"><span class="po-num dec-min">${esc(c.minute)}</span><span class="dec-main"><small>${esc(c.label)}</small><b>${esc(c.text)}</b></span><span class="dec-play">${Icon({ name: 'play', size: 16 })}</span></button>`).join('')}</div>
+        <button type="button" data-act="clip-play" data-v="${i}" aria-label="${esc(c.minute)} ${esc(c.label)} 다시 보기" class="panel dec-row dec-neutral mr-clip is-${c.kind}"><span class="po-num dec-min">${esc(c.minute)}</span><span class="dec-main"><small>${esc(c.label)}${c.badge ? ` <i class="mr-clip__badge">${esc(c.badge)}</i>` : ''}</small><b>${esc(c.text)}</b></span><span class="dec-play">${Icon({ name: 'play', size: 16 })}</span></button>`).join('')}</div>
       ${cl.length > 1 ? Button({ variant: 'ghost', block: true, icon: 'play', act: 'clip-play', data: { v: 'all' }, children: `${cl.length}개 이어 보기` }) : ''}`
     : '';
   // 득점 (디자인 117 · 155): 우리 골 = 라임 면, 실점 = 주황 테두리. 이름을 누르면 선수 상세 (C.53)

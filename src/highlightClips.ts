@@ -2,6 +2,7 @@
 // 재생 데이터(Replay)만 읽는 순수 함수다. 엔진·결과·밸런스 무영향. 보관 개수는 화면·저장 설정이라 balance.ts 가 아니라 여기 둔다
 
 import type { Scene, SceneKind } from './highlights';
+import { classifyHighlight, HL_CLASS_KO, myGoalBadge, type HighlightClass, type MyGoalBadge } from './highlightClass';
 import type { Replay, ReplayEvent } from './replay';
 import { packReplay, unpackReplay, type PackedReplay } from './replayCodec';
 
@@ -17,7 +18,13 @@ export const CLIP = {
 } as const;
 
 export type ClipKind = 'goal' | 'chance' | 'best';
-export const CLIP_KO: Readonly<Record<ClipKind, string>> = { goal: '골', chance: '결정적 장면', best: '내 최고 순간' };
+/** 저장된 칸 이름 (실점은 화면에서 clipClass 로 가른다) */
+export const CLIP_KO: Readonly<Record<ClipKind, string>> = { goal: HL_CLASS_KO.goal, chance: HL_CLASS_KO.chance, best: HL_CLASS_KO.best };
+
+/** 화면 분류 (C.81o): 골 칸은 팀으로 골·실점, 나머지는 그대로 — 옛 세이브(실점도 kind 'goal')도 같은 결과 */
+export function clipClass(c: Pick<ClipInfo, 'kind' | 'team'>, side: 0 | 1): HighlightClass {
+  return classifyHighlight({ goal: c.kind === 'goal', team: c.team, mine: c.kind === 'best' }, side);
+}
 
 export interface ClipInfo {
   kind: ClipKind;
@@ -30,6 +37,8 @@ export interface ClipInfo {
   minute: string;
   /** 한 줄 (이벤트 피드 문구) */
   text: string;
+  /** 골 칸 안 배지 (C.81o): 내 골·내 도움. 옛 세이브는 없음 */
+  badge?: MyGoalBadge;
 }
 
 /** 세이브에 남는 한 경기 하이라이트 (GameState.clips, SAVE_FORMAT_VERSION 57) */
@@ -42,7 +51,7 @@ export interface MatchClips {
   data: PackedReplay;
 }
 
-interface Cand { key: number; team: 0 | 1; text: string; minute: string; w: number }
+interface Cand { key: number; team: 0 | 1; text: string; minute: string; w: number; badge?: MyGoalBadge }
 
 /** 골 직전 같은 팀 슈팅 (장면 핵심 = 슛 순간). 없으면 골 이벤트 시각 */
 function shotBefore(evs: ReplayEvent[], goal: ReplayEvent): number {
@@ -54,9 +63,9 @@ const byW = (a: Cand, b: Cand) => b.w - a.w || a.key - b.key;
 
 /**
  * 하이라이트 3개 고르기 (24.6). 같은 재생 데이터면 늘 같은 결과 (결정적).
- * - 골: 내가 넣은 골 > 내가 도운 골 > 우리 골 > 실점, 같은 등급이면 늦은 골. 내 골·도움이 최고 순간 칸으로 가면 다른 골
+ * - 골: 내가 넣은 골 > 내가 도운 골 > 우리 골 > 실점, 같은 등급이면 늦은 골. 내 골·도움은 골 칸 안 배지 (C.81o: 골 우선)
  * - 결정적 장면: 골이 아닌 슈팅 중 xG 가 가장 큰 것(유효 슈팅 가산). 없으면 중요도가 가장 큰 결정 순간
- * - 내 최고 평점 순간: 내 골 > 도움 > 결정 순간(평점 변화) > 선방·블록·유효 슈팅 > 슈팅. 앞 두 장면과 겹치면 다음 후보
+ * - 내 최고 순간: 골이 아닌 내 장면만 — 결정 순간(평점 변화) > 선방·블록·유효 슈팅 > 슈팅. 앞 두 장면과 겹치면 다음 후보 (C.81o)
  * 후보가 없으면 그 칸은 빠진다 (0~3개)
  */
 export function pickClips(r: Replay): ClipInfo[] {
@@ -67,11 +76,11 @@ export function pickClips(r: Replay): ClipInfo[] {
   const out: ClipInfo[] = [];
   const free = (key: number) => out.every((c) => Math.abs(c.key - key) >= CLIP.gap);
   const push = (kind: ClipKind, c: Cand) => {
-    out.push({ kind, key: c.key, start: Math.max(0, c.key - CLIP.pad), end: Math.min(r.duration, c.key + CLIP.pad), team: c.team, minute: c.minute, text: c.text });
+    out.push({ kind, key: c.key, start: Math.max(0, c.key - CLIP.pad), end: Math.min(r.duration, c.key + CLIP.pad), team: c.team, minute: c.minute, text: c.text, ...(c.badge ? { badge: c.badge } : {}) });
   };
 
   const goalC: Cand[] = goals.map((g) => ({
-    key: shotBefore(evs, g), team: g.team, text: g.text, minute: g.minute,
+    key: shotBefore(evs, g), team: g.team, text: g.text, minute: g.minute, ...(g.team === r.side && myGoalBadge(g.players, me) ? { badge: myGoalBadge(g.players, me)! } : {}),
     w: (me && g.players[0] === me ? 3 : me && g.players[1] === me ? 2 : g.team === r.side ? 1 : 0) * 1e4 + g.e,
   })).sort(byW);
   const decisions = (r.decisions ?? []).filter((d) => d.scene !== 'halftime');
@@ -80,9 +89,10 @@ export function pickClips(r: Replay): ClipInfo[] {
   if (me) {
     for (const x of evs) {
       if (!x.players.includes(me)) continue;
-      const base = { key: x.type === 'goal' ? shotBefore(evs, x) : x.e, team: x.team, text: x.text, minute: x.minute };
-      if (x.type === 'goal') mine.push({ ...base, w: x.players[0] === me ? 5 : x.players[1] === me ? 4 : 0 });
-      else if (x.type === 'save' || x.type === 'block') mine.push({ ...base, w: 2 });
+      const base = { key: x.e, team: x.team, text: x.text, minute: x.minute };
+      // 골은 골 칸 (C.81o: 내 골·도움도 골 우선) — 내 최고 순간 후보가 아니다. 골로 이어진 내 슈팅도 빼서 같은 장면이 두 번 안 나오게
+      if (x.type === 'goal' || goalShots.has(x.e)) continue;
+      if (x.type === 'save' || x.type === 'block') mine.push({ ...base, w: 2 });
       else if (x.type === 'shot') mine.push({ ...base, w: (x.onTarget ? 2 : 1) + (x.xg ?? 0) });
     }
     // 결정 순간: 그 뒤 실제 평점 변화가 클수록 (양수만)
@@ -90,9 +100,6 @@ export function pickClips(r: Replay): ClipInfo[] {
   }
   const mineSorted = mine.filter((c) => c.w > 0).sort(byW);
 
-  // 내 골·도움이 최고 순간이고 다른 골이 있으면: 최고 순간 = 내 골, 골 칸 = 다른 골 (같은 장면을 두 번 쓰지 않게)
-  const top = mineSorted[0];
-  if (top && top.w >= 4 && goalC.some((g) => Math.abs(g.key - top.key) >= CLIP.gap)) push('best', top);
   const g0 = goalC.find((g) => free(g.key));
   if (g0) push('goal', g0);
 
@@ -102,10 +109,8 @@ export function pickClips(r: Replay): ClipInfo[] {
   const ch = chanceC.sort(byW).find((c) => free(c.key)) ?? decC.sort(byW).find((c) => free(c.key));
   if (ch) push('chance', ch);
 
-  if (!out.some((c) => c.kind === 'best')) {
-    const best = mineSorted.find((c) => free(c.key));
-    if (best) push('best', best);
-  }
+  const best = mineSorted.find((c) => free(c.key));
+  if (best) push('best', best);
   return out.sort((a, b) => a.key - b.key);
 }
 
