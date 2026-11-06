@@ -316,12 +316,21 @@ export function buildResumes(state: GameState, natRec: TournamentRec | null = nu
           raw = estimate(state.worldSeed, lg.season, p.id, p.position, ovr, lineup.s.has(p.id) ? 0 : lineup.b.has(p.id) ? 1 : 2, ctx);
           if (quickGoals) { raw.goals = x?.[0] ?? 0; raw.assists = x?.[1] ?? 0; }
           // C.81d: 내 리그가 엔진 기록이면 다른 리그 추정 평점을 엔진 척도로 (섞인 표에서 한쪽으로 쏠리지 않게)
-          if (myEngine) raw.avg += A().estimate.mixedRatingShift;
+          if (myEngine) {
+            const E = A().estimate;
+            const g = posGroup(p.position);
+            const jit = E.mixedJitter[g] ?? 0;
+            raw.avg = E.ratingBase + (raw.avg - E.ratingBase) * (E.mixedSpread[g] ?? 1) + (E.mixedShift[g] ?? 0)
+              + (jit ? gaussian(createRng(hashSeed(`${state.worldSeed}:aw-mix:${lg.season}:${p.id}`))) * jit : 0);
+          }
         }
         if (raw.apps / Math.max(1, ctx.row?.played ?? 1) < Math.min(A().minShare, A().youngMinShare)) continue;
         const sto = story(p.age, ctx, Math.min(1, raw.apps / Math.max(1, ctx.row?.played ?? 1)), false);
+        const n0 = out.length;
         push({ id: p.id, name: p.nameKo, teamId: t.id, pos: p.position, age: p.age, nation: p.nationality, ovr }, raw, ctx, false,
           { cupGoals: cupGoals.get(p.id) ?? 0, uclGoals: uclGoals.get(p.id) ?? 0, natGoals: 0, fame: fameOf(p.id, ovr), ...sto });
+        // C.81m: 섞인 표에서 추정 리그 실점 항목을 엔진 척도로
+        if (myEngine && !engine && out.length > n0) out[n0]!.def *= A().estimate.mixedDef;
       }
     }
   }
