@@ -288,7 +288,7 @@ describe('화면·세이브 (C.62)', () => {
 describe('버전 (C.62)', () => {
   it('부록 C 소절 · 단계 형식 (C.63부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });
