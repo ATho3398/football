@@ -1,0 +1,21 @@
+<!-- @dsCard group="Cards" height=180 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>CardHand — preview</title></head>
+<body>
+<div id="root" style="padding:16px 0 0"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  var VC = {
+  fk: { id: 'fk', name: '프리킥 스페셜', type: 'setpiece', rarity: 'rare', level: 2, effect: { pre: '프리킥에서 직접 슈팅을 고르면 성공 확률이 ', hi: '+12%p', post: ' 올라가요.' }, condition: { text: '프리킥 능력치 60 이상', met: true, current: 64 } },
+  mom: { id: 'mom', name: '기세', type: 'combo', rarity: 'rare', level: 2, effect: { pre: '경합에 연속으로 성공할 때마다 성공 확률이 ', hi: '+5%p', post: '씩 쌓여요.' }, condition: { text: '결정력 55 이상', met: true, current: 58 } },
+  calm: { id: 'calm', name: '침착한 마무리', type: 'passive', rarity: 'common', level: 3, effect: { pre: '박스 안에서 슈팅할 때 성공 확률이 ', hi: '+6%p', post: ' 올라가요.' }, condition: { text: '침착성 50 이상', met: true, current: 55 } },
+  tackle: { id: 'tackle', name: '태클 타이밍', type: 'defense', rarity: 'common', level: 1, effect: { pre: '수비 경합에서 태클 성공 확률이 ', hi: '+8%p', post: ' 올라가요.' }, condition: { text: '태클 45 이상', met: true, current: 48 } },
+  focus: { id: 'focus', name: '집중', type: 'manage', rarity: 'common', level: 1, effect: { pre: '이번 경기 피로가 ', hi: '−10', post: ' 줄어요.' } },
+  pan: { id: 'pan', name: '파넨카', type: 'setpiece', rarity: 'epic', level: 1, effect: { pre: '페널티킥을 넣으면 평점이 ', hi: '+0.5', post: ' 더 올라가요.' }, condition: { text: '침착성 70 이상', met: false, current: 55 } }
+};
+render(h('div',{style:{width:390,background:'var(--surface-1)',borderRadius:'20px 20px 0 0'}}, h(P.CardHand,{cards:[VC.calm,VC.fk,VC.mom,Object.assign({},VC.pan,{disabled:true}),VC.focus],selectedId:'fk'})));
+</script>
+</body>
+</html>

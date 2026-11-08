@@ -1,0 +1,12 @@
+<!-- @dsCard group="Meters" height=80 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>CellGauge — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:358}},h(P.CellGauge,{label:'마무리',value:17,add:2})));
+</script>
+</body>
+</html>
