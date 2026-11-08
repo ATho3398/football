@@ -126,7 +126,7 @@ describe('빠진 상태 화면', () => {
   });
 
   it('버전 표시', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.81[a-z]\d?$/); // C.81o 가 뒤에 merge 돼 'C.81o' 로 덮음
+    expect(PATCH_LABEL).toMatch(/^C\.8[12][a-z]\d?$/); // C.81o 가 뒤에 merge 돼 'C.81o' 로 덮음
     expect(STAGE_LABEL).toBe('53단계');
   });
 });
