@@ -26,7 +26,8 @@ describe('C.81z 게겐 축 정리', () => {
     expect(ENGINE.matchup.gegenpress!.balanced).toEqual({ tackle: 2 });
     expect(ENGINE.matchup.gegenpress!.counter).toEqual({ tackle: 3, air: 2 });
     expect(ENGINE.matchup.gegenpress!.direct).toEqual({ tackle: 5, air: 4, keep: 2 }); // C.81t 그대로
-    expect(TENDENCY.gegenPressBreakMul).toBe(1.5);
+    expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -10, air: -8 });
+    expect(TENDENCY.gegenPressBreakMul).toBe(1); // 끔 (×1.5·3·5 모두 8초 상대 슈팅 무변화 — 부록 C.81z)
     expect(ENGINE.keeper.parryCorner).toBe(0.25);
     expect(ENGINE.prob.longMiss).toBe(0.5);
   });
@@ -44,12 +45,18 @@ describe('C.81z 게겐 축 정리', () => {
     expect(matchupPts(s3, 0, 'keep')).toBe(3);
     expect(matchupPts(s3, 0, 'air')).toBe(2);
     expect(matchupPts(s3, 1, 'keep')).toBe(0);
+    // 게겐 → 티키: 게겐 쪽 태클 −10·공중 −8, 티키 쪽은 짧은 패스·공 지키기 3
+    const s5 = match('gegenpress', 'tikitaka', 3).state;
+    expect(matchupPts(s5, 0, 'tackle')).toBe(-10);
+    expect(matchupPts(s5, 0, 'air')).toBe(-8);
+    expect(matchupPts(s5, 1, 'short')).toBe(3);
+    expect(matchupPts(s5, 1, 'tackle')).toBe(0);
     // 게겐끼리·균형끼리는 0
     const s4 = match('gegenpress', 'gegenpress', 3).state;
     expect(matchupPts(s4, 0, 'tackle')).toBe(0);
   });
 
-  it('게겐 뚫림 간격 배수: 끄면(1) 같은 시드 게겐 경기가 달라진다(배수가 실제로 걸림), 균형끼리는 그대로', () => {
+  it('게겐 뚫림 간격 배수: 켜면(3) 같은 시드 게겐 경기가 끔(1)과 달라진다(배수가 실제로 걸림), 균형끼리는 그대로', () => {
     const T = TENDENCY as { gegenPressBreakMul: number };
     const run = (a: Tendency, b: Tendency, seed: number) => {
       const r = match(a, b, seed).runToEnd();
@@ -60,7 +67,7 @@ describe('C.81z 게겐 축 정리', () => {
       const seeds = [1, 2, 3, 4, 5, 6];
       const on = seeds.map((k) => run('gegenpress', 'balanced', k));
       const same = seeds.map((k) => run('balanced', 'balanced', k));
-      T.gegenPressBreakMul = 1;
+      T.gegenPressBreakMul = 3;
       const off = seeds.map((k) => run('gegenpress', 'balanced', k));
       const same2 = seeds.map((k) => run('balanced', 'balanced', k));
       expect(same2).toEqual(same);
