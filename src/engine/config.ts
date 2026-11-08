@@ -1943,7 +1943,8 @@ export const ENGINE = {
    */
   matchup: {
     tikitaka: {
-      direct: { air: 2, short: 2, keep: 2, tackle: 2 },
+      // C.82g: 2 → 3 (뒤 공간 역습 마무리 뒤 티키>직선 +0.01 → −0.04, 순환 고리 음수 — 960)
+      direct: { air: 3, short: 3, keep: 3, tackle: 3 },
       // C.80t: 티키 → 게겐 칸 짧은 패스·공 지키기 +2 (게겐>티키 +0.52 → +0.42, 엔진관리자25 ✗1)
       // C.81s: 짧은 패스 2 → 2.5 (게겐>티키 +0.47 → +0.38)
       // C.81t: 2.5 → 2 (리바운드 런 뒤 게겐>티키 +0.336 → +0.40, 960)
@@ -1959,11 +1960,13 @@ export const ENGINE = {
     // C.81z: 게겐 → 균형 태클 2 · 게겐 → 역습 태클 3·공중 2 (엔진관리자27 경계 7 — 균형>게겐 +0.19 · 역습>게겐 +0.20 을 ±0.12 안으로, 설계 순환 밖 칸)
     // C.81z: 게겐 → 티키 태클 −7·공중 −5 (게겐>티키 +0.44 → +0.23, 960 — 관문 +0.20~0.30, 마스터 AE 결정). C.82b(세트피스 헤더) 병합 뒤 공중 감점이 세져 사다리:
     //   0 +0.44 · −3/−3 +0.33 · −6/0 +0.33 · −6/−5 +0.19 · −7/−5 +0.23 · −7/−6 +0.29 · −8/−6 +0.31 · −10/−8 +0.15 (병합 전 −10/−8 +0.23 · 롱패스 −15 는 효과 없음)
-    gegenpress: { direct: { tackle: 5, air: 4, keep: 2 }, balanced: { tackle: 2 }, counter: { tackle: 3, air: 2 }, tikitaka: { tackle: -9, air: -6 } },
+    // C.82g: 게겐 → 티키 −9/−6 → −10/−7 (뒤 공간 역습 마무리 뒤 게겐>티키 +0.23 → +0.31, 관문 +0.20~0.30 · ±0.3 칸)
+    gegenpress: { direct: { tackle: 5, air: 4, keep: 2 }, balanced: { tackle: 2 }, counter: { tackle: 3, air: 2 }, tikitaka: { tackle: -10, air: -7 } },
     balanced: { tikitaka: { long: -10 } },
     // C.81b: 블록 → 게겐 칸 공 지키기·공중 +2 (블록>게겐 −0.01 → +0.10, 960 = 시드 41000·51000 각 480)
     // C.81z: 블록 → 게겐 공 지키기 2 → 3 (엔진관리자27 9-1 — 순환 마지막 고리 블록>게겐 +0.01 을 ≥ +0.08 로)
-    block: { tikitaka: { long: -7 }, gegenpress: { air: 2, keep: 3 } },
+    // C.82g: 블록 → 게겐 공중 2 → 1 · 공 지키기 3 → 2 (뒤 공간 역습 마무리 뒤 블록>게겐 +0.24 → +0.36 ±0.3 칸, 버스>게겐 +0.19 → +0.25)
+    block: { tikitaka: { long: -7 }, gegenpress: { air: 1, keep: 2 } },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
 
   /**
