@@ -120,6 +120,15 @@ export function execute(s: SimState, a: Agent, c: Candidate): void {
       a.carryN++;
       a.tx = c.x;
       a.ty = c.y;
+      // 열린 몰기 질주 (C.82g): 앞을 막는 수비가 없는 전진 몰기는 목표를 carryRunOn m 더 앞에 — 목표 앞 감속 없이 달린다
+      if (ENGINE.onball.carryRunOn > 0 && c.opponent === undefined && goalSideOpp(s, a) <= ENGINE.onball.carryRunOnBack) {
+        const ux = c.x - a.x, uy = c.y - a.y;
+        const len = Math.sqrt(ux * ux + uy * uy);
+        if (len > 0.1 && ux * attackDir(a.team, s.half) > 0.5 * len) {
+          a.tx = clamp(c.x + (ux / len) * ENGINE.onball.carryRunOn, 1, L - 1);
+          a.ty = clamp(c.y + (uy / len) * ENGINE.onball.carryRunOn, 1, W - 1);
+        }
+      }
       a.urgent = true;
       a.cooldown = Math.max(ENGINE.onball.carryTime, reaction(a));
       return;
@@ -1051,6 +1060,8 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
       a.dribbleT = -100;
       // 등지고 받았는가 (몸 방향 = 공이 온 쪽): 공격 방향과 backAngle 이상이면 포스트플레이 후보 (E.18 A2)
       a.backToGoal = receivesBack(fl.fromX, fl.fromY, b.x, b.y, attackDir(a.team, s.half));
+      // 달려 들어가며 받기 (C.82g): 공격 방향으로 runFace m/s 이상 달리며 받으면 앞을 보고 있다
+      if (RC.runFace > 0 && a.backToGoal && a.vx * attackDir(a.team, s.half) >= RC.runFace && goalSideOpp(s, a) <= RC.runOnBack) a.backToGoal = false;
       if (fl.quick) a.cooldown = reaction(a);
       passer.stats.passesCompleted++;
       s.teams[passer.team].stats.passesCompleted++;
@@ -1071,6 +1082,17 @@ export function caught(s: SimState, a: Agent, res: BallReserve): void {
   }
 }
 
+/** a 보다 상대 골 쪽에 있는 상대 필드 선수 수 (C.82g: 뒤 공간으로 빠진 상황 판정) */
+function goalSideOpp(s: SimState, a: Agent): number {
+  const dir = attackDir(a.team, s.half);
+  let n = 0;
+  for (let i_g = 0, a_g = s.agents; i_g < a_g.length; i_g++) { const o = a_g[i_g]!;
+    if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+    if ((o.x - a.x) * dir > 0) n++;
+  }
+  return n;
+}
+
 /**
  * 첫 터치 (C.78b, 로드맵 5단계 2차): 패스 수신의 정지 시간을 첫 터치·공 속도·압박·몸 방향·달리는 중으로 차등(timeModel),
  * 압박 반대쪽(또는 달리던 쪽)으로 공을 받아 놓고, 땅볼이면 날아오는 동안 미리 정한 원터치 행동을 다음 틱에 실행한다(oneTouch)
@@ -1087,8 +1109,19 @@ function firstTouch(s: SimState, a: Agent, fl: Flight): void {
     a.cooldown = fl.quick ? Math.min(a.cooldown, t) : t;
     // 받아 놓기: 달리며 받으면 진행 방향으로, 압박이 있으면 그 반대쪽(공격 방향으로 기움)으로 turnAway m
     if (sp >= 3) {
-      a.tx = clamp(a.x + a.vx * a.cooldown, 1, L - 1);
-      a.ty = clamp(a.y + a.vy * a.cooldown, 1, W - 1);
+      let ext = 0;
+      // 달리며 받는 첫 터치 앞으로 (C.82g): 진행 방향 앞 runOnFree m 안에 상대가 없으면 runOnTouch m 더 앞에 (멈추지 않고 달린다)
+      if (RC.runOnTouch > 0 && goalSideOpp(s, a) <= RC.runOnBack) {
+        ext = RC.runOnTouch;
+        for (let i_f = 0, a_f = s.agents; i_f < a_f.length; i_f++) { const o = a_f[i_f]!;
+          if (!o.onPitch || o.team === a.team) continue;
+          const dx = o.x - a.x, dy = o.y - a.y;
+          const fwd = (dx * a.vx + dy * a.vy) / sp;
+          if (fwd > 0 && dx * dx + dy * dy < RC.runOnFree * RC.runOnFree) { ext = 0; break; }
+        }
+      }
+      a.tx = clamp(a.x + a.vx * a.cooldown + (a.vx / sp) * ext, 1, L - 1);
+      a.ty = clamp(a.y + a.vy * a.cooldown + (a.vy / sp) * ext, 1, W - 1);
     } else if (opp && pr > 0) {
       const dir = attackDir(a.team, s.half);
       let ux = (a.x - opp.x) / Math.max(0.1, dNear) + 0.5 * dir;

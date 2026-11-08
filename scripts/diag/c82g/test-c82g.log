@@ -1,0 +1,41 @@
+
+ RUN  v2.1.9 /home/user/football
+
+ ❯ tests/c82g.test.ts (4 tests | 2 failed) 4003ms
+   × C.82g 전환 구조: 공 앞 인원·높은 라인 비용 > 뒤에서 쫓는 수비: 몰고 가는 방향 뒤 3 m 상대는 좁히는 거리를 못 받아 실효 거리 = 실제 거리(3 m), 길 옆 상대는 그대로 22ms
+     → expected 6.468 to be close to 3, received difference is 3.468, but expected 0.0000049999999999999996
+   × C.82g 전환 구조: 공 앞 인원·높은 라인 비용 > 뒤에서 쫓는 수비 램프: 1 m 뒤 상대는 몰 거리의 절반만 덜어 실효 거리가 옛 값과 실제 거리 사이 8ms
+     → expected 1.4680000000000004 to be less than or equal to 1
+   ✓ C.82g 전환 구조: 공 앞 인원·높은 라인 비용 > 레버가 실제로 걸린다: 두 레버를 끄면 게겐 대 균형 경기가 달라지고, 같은 설정은 결정적 3970ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/c82g.test.ts > C.82g 전환 구조: 공 앞 인원·높은 라인 비용 > 뒤에서 쫓는 수비: 몰고 가는 방향 뒤 3 m 상대는 좁히는 거리를 못 받아 실효 거리 = 실제 거리(3 m), 길 옆 상대는 그대로
+AssertionError: expected 6.468 to be close to 3, received difference is 3.468, but expected 0.0000049999999999999996
+ ❯ tests/c82g.test.ts:80:23
+     78|       const dBeside0 = carryReachDist(s, beside, o, 76, 34);
+     79|       expect(dBehind0).toBeLessThan(3); // 옛 동작: 3 − 0.3 × 최고 속도
+     80|       expect(dBehind).toBeCloseTo(3, 5); // 몰고 가는 6 m 가 좁히는 거…
+       |                       ^
+     81|       expect(dBeside).toBeCloseTo(dBeside0, 9);
+     82|       expect(dBeside0).toBeLessThan(2.5);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/c82g.test.ts > C.82g 전환 구조: 공 앞 인원·높은 라인 비용 > 뒤에서 쫓는 수비 램프: 1 m 뒤 상대는 몰 거리의 절반만 덜어 실효 거리가 옛 값과 실제 거리 사이
+AssertionError: expected 1.4680000000000004 to be less than or equal to 1
+ ❯ tests/c82g.test.ts:103:18
+    101|       const d0 = carryReachDist(s, behind, o, 76, 34);
+    102|       expect(d1).toBeGreaterThan(d0);
+    103|       expect(d1).toBeLessThanOrEqual(1);
+       |                  ^
+    104|     } finally {
+    105|       ENGINE.onball.carryChase = K;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+   Start at  15:15:34
+   Duration  5.99s (transform 1.10s, setup 0ms, collect 1.45s, tests 4.00s, environment 0ms, prepare 100ms)
+
