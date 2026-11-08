@@ -54,7 +54,7 @@ if (who === 'alerts') {
 }
 const app = document.getElementById('app')!;
 app.className = 'has-nav app-home';
-app.innerHTML = `<main class="screen screen-home">${homeView(vm, '', '', vm.training ? todayRow(vm.training) : '', top)}</main>${dock({ screen: 'home', prog: g.phase === 'season' ? { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' } : { label: '시즌 요약', icon: 'trophy', act: 'go-tab', kind: 'season' }, tacticsOpen: false, points: g.player.unspentPoints, more: false })}`;
+app.innerHTML = `<main class="screen screen-home">${top + homeView(vm, { training: vm.training ? todayRow(vm.training) : '' })}</main>${dock({ screen: 'home', prog: g.phase === 'season' ? { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' } : { label: '시즌 요약', icon: 'trophy', act: 'go-tab', kind: 'season' }, tacticsOpen: false, points: g.player.unspentPoints, more: false })}`;
 await document.fonts.ready;
 for (const el of app.querySelectorAll<HTMLElement>('.po-hero__name[data-fit]')) {
   let size = Number(el.dataset.fit) || HERO_NAME.full;

@@ -46,19 +46,22 @@ describe('폭 판정', () => {
 });
 
 describe('PC 2열 화면 (디자인 120 · 121 · 153 · 123)', () => {
-  it('홈 120 → 204(C.76g): 폰은 1열 그대로, PC는 왼쪽 다음 경기 · 내 상태 · 오른쪽 선수 카드 · 4칸 · 시즌 목표', () => {
+  it('홈 120 → 204(C.76g) → 17차 S06-a(U17-b): 폰은 탭, PC는 3열 — 왼쪽 오늘(다음 경기 · 내 상태) · 가운데 시즌(목표) · 오른쪽 경쟁', () => {
     const g = son();
     const phone = homeView(homeVM(g));
-    expect(phone).not.toContain('pc2');
+    expect(phone).not.toContain('hm3');
+    expect(phone).toContain('data-act="home-tab"');
     setWideForTest(true);
-    const pc = homeView(homeVM(g), '', '', '', '', '<i id="goals"></i>');
-    expect(pc).toContain('pc2 hm-pc');
-    const r = pc.slice(pc.indexOf('pc2__r'));
-    expect(r).toContain('po-pcard');
-    expect(r).toContain('id="goals"');
-    const l = pc.slice(0, pc.indexOf('pc2__r'));
+    const pc = homeView(homeVM(g), { goals: '<i id="goals"></i>' });
+    expect(pc).toContain('class="hm3"');
+    expect(pc).not.toContain('data-act="home-tab"');
+    const l = pc.slice(0, pc.indexOf('<h2 class="hm3__h">시즌'));
     expect(l).toContain('next-card');
     expect(l).toContain('내 상태');
+    const m = pc.slice(pc.indexOf('<h2 class="hm3__h">시즌'), pc.indexOf('<h2 class="hm3__h">경쟁'));
+    expect(m).toContain('id="goals"');
+    expect(m).toContain('시즌 기록');
+    expect(pc.slice(pc.indexOf('<h2 class="hm3__h">경쟁'))).toContain('career-links');
     expect(pc).not.toContain('po-hero--face'); // 사진 없는 실제 선수(테스트엔 facepack 없음) = 일반 B 머리말 (C.74e: 사진 있으면 PC 도 미페)
   });
   it('선수 121 · 153: PC는 왼쪽 능력치 늘 + 오른쪽 탭 4개(능력치 탭이면 몸·태그)', () => {

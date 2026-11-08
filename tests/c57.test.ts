@@ -51,10 +51,13 @@ describe('홈 (디자인 86~89)', () => {
     expect(ha).toContain('po-hero--compact');
     setSkin('b');
     const h = homeView(homeVM(g));
-    expect(h).toMatch(/계속 · 계획대로 진행|경기 시작/);
+    // 17차 S06-a (U17-b): 진행은 독 [다음] 하나 — 카드에는 안내 한 줄 + [하루 진행] · [자동 진행], 내 상태는 체력 · 폼 · 부상 위험 3칸
+    expect(h).toMatch(/data-act="day-one"|아래 \[경기\]/);
+    expect(h).not.toContain('계속 · 계획대로 진행');
     expect(h).toContain('hm-power');
     expect(h).toContain('내 상태');
-    expect(h).toContain('100 · 가득');
+    expect(h).toContain('부상 위험');
+    expect(h).toMatch(/100<small>\/ 100/);
   });
 
   it('홈 vm: 등번호·소속·다음 경기 날짜', () => {

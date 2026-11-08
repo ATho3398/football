@@ -29,7 +29,7 @@ toMatchDay(g);
 g.player.fatigue = f;
 g.player.seasonFatigue = 0;
 const comp = competitionVM(g);
-const body = `<h3 style="padding:8px">피로 ${f}</h3>${homeView(homeVM(g), '', comp ? competitionSection(comp) : '')}<hr>${prepView(prepVM(g)!)}<hr>${result}`;
+const body = `<h3 style="padding:8px">피로 ${f}</h3>${homeView(homeVM(g), { compete: comp ? competitionSection(comp) : '' }, { tab: 'comp' })}<hr>${prepView(prepVM(g)!)}<hr>${result}`;
 const app = document.getElementById('app')!;
 app.className = 'app-home';
 app.innerHTML = `<main class="screen screen-home">${body}</main>`;

@@ -60,7 +60,7 @@ import { BADGE_NAMES_KO } from '../badges';
 import { BALANCE } from '../config/balance';
 import type { Appearance } from '../appearance';
 import {
-  checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
+  CHECKLIST, checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
 import { checklistPanel, firstMatchOverlay, guideResetLink } from './views/guide';
 import { PATCH_LABEL, STAGE_LABEL } from '../version';
@@ -72,7 +72,7 @@ import { drawAvgMap } from './views/avgMap';
 import { collectSheet, dock, dockMoreSheet, retiredDock, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
-import { homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
+import { homeView, type HomeTab, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
 import { takeFreshRecords } from '../records';
 import { goalsSection, homeInboxSection, inboxDetailBody, inboxDetailView, inboxView, rivalSection } from './views/inbox';
 import { collectNotices, goalsCardVM, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from './inboxVM';
@@ -186,6 +186,10 @@ const ui = {
   posSheet: null as string | null,
   /** 부상 복귀 선택 시트 (C.74b) */
   injSheet: false,
+  /** 홈 탭 (17차 S06, 폰): 오늘 · 시즌 · 경쟁 — 세이브 아님 */
+  homeTab: 'today' as HomeTab,
+  /** 배너가 붙어 접힌 다음 경기 카드를 폈는지 (17차 2절 29번) */
+  homeNextOpen: false,
   /** 하루 훈련 고르기 시트 (C.41): 날짜 */
   trainSheet: null as string | null,
   /** 하루 훈련 시트에서 고른 줄 (확정 전, C.57) */
@@ -558,8 +562,18 @@ function screenHtml(): string {
       const hin = homeInboxVM(g);
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
-      // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (기록·주전 경쟁·라이벌) → 안내·포변. C.76g (디자인 204): 시즌 목표는 다음 경기 바로 아래
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsLinkRow(recordRowsVM(g).length) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '', homeTodoRow(g.cards?.picks.length ?? 0) + seasonCompsSection(seasonCompsVM(g))) + guideResetLink() + sheet;
+      // 17차 S06 (U17-b): 조각은 탭(폰)·열(PC)로 나뉜다 — [오늘] 다음 경기 · 할 일 · 내 상태 · 가이드 · 알림 · 오늘 훈련 / [시즌] 대회 · 목표 · 시즌 기록 · 덱 · 기록 / [경쟁] 주전 경쟁 · 라이벌
+      return homeView(hvm, {
+        guide: (list ? checklistPanel(list, CHECKLIST.filter((c) => c.implemented).length) : '') + pos,
+        alerts: marketCard(mvm) + homeInboxSection(hin.rows, hin.unread),
+        training: hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '',
+        todo: homeTodoRow(g.cards?.picks.length ?? 0),
+        comps: seasonCompsSection(seasonCompsVM(g)),
+        goals: gl ? goalsSection(gl) : '',
+        links: deck + recordsLinkRow(recordRowsVM(g).length),
+        compete: (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''),
+        foot: guideResetLink(),
+      }, { tab: ui.homeTab, nextOpen: ui.homeNextOpen }) + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -1955,6 +1969,17 @@ app.addEventListener('click', (ev) => {
       return;
     case 'pos-pick':
       ui.posSheet = v ?? null;
+      render();
+      return;
+    case 'home-tab':
+      if (v === 'today' || v === 'season' || v === 'comp') {
+        ui.homeTab = v;
+        render();
+        window.scrollTo(0, 0);
+      }
+      return;
+    case 'home-next':
+      ui.homeNextOpen = !ui.homeNextOpen;
       render();
       return;
     case 'inj-return-open':

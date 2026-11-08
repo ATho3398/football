@@ -17,7 +17,7 @@ describe('C.74e PC 미페 머리말', () => {
     expect(homeFace(homeVM(g))).toEqual({ src: expect.stringContaining(`faces/default/${g.player.facePhoto}`), cutout: true });
     const h = homeView(homeVM(g));
     expect(h).toContain('po-hero--face');
-    expect(h).toContain('pc2 hm-pc');
+    expect(h).toContain('class="hm3"'); // 17차 S06-a PC 3열
     const p = playerView(playerVM(g), parts);
     expect(p).toContain('po-hero--face po-hero--compact');
     expect(p).toContain('pc2 pl-pc');

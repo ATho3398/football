@@ -210,3 +210,96 @@ button.po-prow { cursor: pointer; }
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { top: 26px; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hp: var(--hero-photo, 220px); top: 92px; bottom: auto; }
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hp: var(--hero-photo, 112px); top: 96px; bottom: auto; }
+
+/* ======================================================================
+   U17-b · 17차 S06 홈 3탭 (폰 [오늘][시즌][경쟁] · PC 3열) — 2절 S06
+   ====================================================================== */
+.hm-tabs { padding: 4px 16px 0; background: var(--surface-0); }
+.hm-tabs .po-tabs { margin: 0; }
+.home-body > .ver { margin-top: 4px; }
+/* 다음 경기 카드: 날씨·심판 + 전술 한 상자, 아래 안내 한 줄 + 작은 단추(진행은 독 [다음] 하나 — D3) */
+.hm-envbox { display: grid; gap: 6px; padding: 8px 10px; background: var(--surface-2); clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.hm-envbox .hm-env, .hm-envbox .hm-tac { padding: 0; background: none; border-radius: 0; }
+.hm-today { align-self: flex-start; display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; font-size: 12px; font-weight: 800; color: var(--brand-ink, var(--brand)); box-shadow: inset 0 0 0 1.5px var(--brand); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.hm-go { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.hm-go__hint { font-size: 12px; font-weight: 600; color: var(--ink-muted); min-width: 0; }
+.hm-go__btns { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.hm-go__btns .po-btn { min-height: 44px; }
+.hm-go__auto { color: var(--brand-ink, var(--brand)); }
+/* 접은 다음 경기 (2절 29번) */
+.next-card--folded { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; text-align: left; color: var(--ink); cursor: pointer; font-family: var(--font-sans); }
+.hm-fold__main { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.hm-fold__main small { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.hm-fold__main b { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; }
+.hm-fold__main b span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-fold__when { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+/* 내 상태 3칸: 체력 · 폼 · 부상 위험 */
+.hm-ctiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.hm-ct { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 8px 10px 10px; background: var(--surface-2); }
+.hm-ct__k { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.hm-ct__v { font-family: var(--font-display, inherit); font-size: 20px; line-height: 24px; font-weight: 800; color: var(--ink); font-style: italic; }
+.hm-ct__v small { margin-left: 2px; font-family: var(--font-sans); font-size: 12px; font-weight: 600; font-style: normal; color: var(--ink-muted); }
+.hm-ct__v.is-low, .hm-ct__v.fail { color: var(--fatigue-high, var(--danger)); }
+.hm-ct__v.is-mid, .hm-ct__v.warn { color: var(--warning); }
+.hm-ct > small { font-size: 12px; color: var(--ink-muted); overflow-wrap: anywhere; word-break: keep-all; }
+.hm-ct .hm-stamina__bar { height: 4px; }
+.hm-ct .po-form { font-size: 15px; font-weight: 800; }
+.hm-why { font-size: 12px; }
+.hm-record .tiles { margin-top: 2px; }
+
+/* PC 3열 (S06-a PC): 왼쪽 머리말 + 오늘 · 가운데 시즌 · 오른쪽 경쟁 · 알림 · 커리어 바로가기 */
+.hm3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 1240px; margin: 0 auto; padding: 16px 20px 24px; }
+.hm3__col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.hm3__in { display: flex; flex-direction: column; gap: 12px; }
+.hm3__h { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; font-size: 18px; font-weight: 800; color: var(--ink); }
+.hm3__h::before { content: ''; width: 22px; height: 5px; background: var(--brand); transform: skewX(-20deg); }
+.hm3__today .po-hero { margin: 0; border-radius: 0; }
+.hm3 .ver { text-align: left; }
+/* K12 홈 미페 머리말 큰 360 (U17-a 가 넘긴 것): 450 → 360, 2절 1번 도구 줄 아래 48~56px 유지(사진 270 · 아래 14 → 머리 위끝 ≈ 102px) */
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) { height: 360px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__face { width: 270px; height: 270px; left: -24px; bottom: 14px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__face.is-square { --hp: var(--hero-photo, 150px); top: 92px; bottom: auto; left: 16px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__kit { font-size: 380px; line-height: 350px; top: -6px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__kit.is-two { font-size: 260px; line-height: 300px; top: 20px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__slab { height: 160px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__line { bottom: 126px; width: 230px; height: 12px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__name { font-size: 44px; line-height: 48px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__value { font-size: 84px; line-height: 72px; }
+/* 홈 본문 글자 바닥 12px (0절 3번) · 누르는 영역 44px */
+:is(.home-body, .hm3, .po-sheet) :is(.hm-power span, .hm-env__hint, .hm-env__ref i, .vs, .hm-alert__eyebrow, .hm-train small, .ver, .link-btn, .po-chip__label, .gl-pick, .hm-comp small, .hm-comp span, .tile span, .mg-boss small, .mg-boss__trust small, .mg-row__name small, .mg-legend span, .advice-eyebrow, .hm-todo small, .po-option__tag, .hm-deck small, .rv-cmp span, .rv-head small, .rv-cmp__who span, .mg-log span, .mg-perk) { font-size: 12px; }
+:is(.home-body, .hm3) :is(.link-btn, .hm-preset__btn, .dt-link) { display: inline-flex; align-items: center; min-height: 44px; }
+:is(.home-body, .hm3) :is(.po-btn--sm, .po-banner__action) { min-height: 44px; }
+:is(.home-body, .hm3) .hm-alert__x { width: 44px; height: 44px; margin: -6px -6px 0 0; }
+/* 2절 2번: 소속 줄은 라임 사선 띠 아래 — 띠를 올린다(소속 줄 위끝 ≈ 246px, 띠 왼쪽 ≈ 206~218px) */
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__line { bottom: 146px; }
+/* 다음 경기 카드 날씨 한 줄: 날씨 이름 · 뜻을 한 줄로 */
+.hm-envbox .hm-env__w { flex-wrap: nowrap; }
+.hm-envbox .hm-env__hint { flex-basis: auto; padding-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-envbox .hm-env__ref i { border-radius: 0; clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%); }
+.hm-envbox .hm-env { gap: 4px 12px; }
+.hm-go__btns { flex-wrap: nowrap; }
+.hm-go:not(:has(.hm-go__hint)) .hm-go__btns { margin-left: 0; width: 100%; justify-content: space-between; }
+.rv-chip { font-size: 12px; }
+.home-body .next-card.next-card--folded { flex-direction: row; align-items: center; justify-content: flex-start; border: 0; padding: 10px 14px; }
+/* 첫 화면(2절 29번): 다음 경기 · 내 상태 3칸이 844 − 독 안 — 카드 안 간격을 줄인다 */
+.home-body.hm-tab-today { padding-top: 10px; gap: 10px; }
+.home-body .next-card, .home-body .hm-cond { gap: 8px; padding: 12px 14px; }
+.home-body .next-card .vs-row { margin: 0; }
+.hm-tabs .po-tab { min-height: 44px; }
+.home-body .hm-envbox { gap: 2px; padding: 6px 10px; }
+.home-body .hm-go { margin: -6px 0 -8px; }
+.hm-tabs { padding-top: 0; }
+.home-body.hm-tab-today { padding-top: 8px; gap: 8px; }
+.home-body .hm-ct { gap: 2px; padding: 6px 8px 8px; }
+.home-body .hm-cond .hm-head { min-height: 0; }
+:is(.home-body, .hm3) .link-btn { min-width: 44px; justify-content: center; padding-inline: 6px; }
+.home-body .next-card { gap: 6px; }
+@media (min-width: 1024px) {
+  #app.app-home:has(.hm3) { max-width: 1280px; }
+  .hm3 { padding: 16px 20px 24px; }
+}
+.pos-grid { display: grid; gap: 8px; }
+@media (min-width: 1024px) {
+  .pos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+  .pos-grid .po-option { min-height: 52px; padding-block: 6px; }
+}

@@ -50,7 +50,9 @@ describe('경기 준비 (C.51)', () => {
     const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c51-home', difficulty: 'normal' });
     toMatchDay(g);
     const html = homeView(homeVM(g));
-    expect(html).toContain('data-act="play"');
+    // 17차 S06-d (U17-b, D3 · 2절 25번): 경기 날 주 버튼은 독 [다음]=경기(act play) 하나 — 홈 카드는 안내 한 줄
+    expect(html).not.toContain('data-act="play"');
+    expect(html).toContain('경기는 아래 [경기]로 준비해요');
     expect(html).not.toContain('data-act="ctl-mode"');
   });
 
