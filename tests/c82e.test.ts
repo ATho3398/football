@@ -25,7 +25,7 @@ const run = (a: Tendency, b: Tendency, seed: number) => {
 };
 
 describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
-  it('상수: 엔진 100 · attackLineK 끔(0) · throughSeeSpace 끔(0)/40 m/6 s · gegenPressReach 1.5 · tikiLineDrop 삭제', () => {
+  it('상수: 엔진 100 · 게겐 → 티키 칸 −9/−6 · attackLineK 끔(0) · throughSeeSpace 끔(0)/40 m/6 s · gegenPressReach 1.5 · tikiLineDrop 삭제', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(100);
     expect(ENGINE.formation.attackLineK).toBe(0); // 0.6 은 상성 960 행 ±0.13 · 게겐>티키 +0.04 로 관문 ✗ (부록 C.82e)
     expect((ENGINE.formation as Record<string, unknown>).tikiLineDrop).toBeUndefined();
@@ -33,6 +33,7 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
     expect(ENGINE.onball.throughSeeSpaceFrom).toBe(40);
     expect(ENGINE.onball.throughSeeSpaceWin).toBe(6);
     expect(TENDENCY.gegenPressReach).toBe(1.5);
+    expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -9, air: -6 }); // 가담자 압박 거리로 게겐>티키 +0.23 → +0.37 → 칸 감점 −7/−5 → −9/−6 으로 +0.23
   });
 
   it('공격 국면 수비 줄: 라인 높음(0.65)은 매우 낮음(0.2)보다 슬롯 x 가 attackLineK × 0.45 앞, 중원·공격 줄은 그대로', () => {
