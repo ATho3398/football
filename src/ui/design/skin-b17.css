@@ -303,3 +303,312 @@ button.po-prow { cursor: pointer; }
   .pos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
   .pos-grid .po-option { min-height: 52px; padding-block: 6px; }
 }
+
+/* ===================== U17-c (C.83c) S08 경기 준비 · S09 결정 순간 · 하프타임 ===================== */
+/* 독 [다음] = 경기 (경기 준비 화면): 라임 면 없이 라임 테두리 — 라임 큰 면은 [경기 시작] 하나 (2절 25번) */
+.dock-bar .po-dock .po-dock__next.is-flat .po-dock__goicon { background: var(--surface-2) !important; color: var(--ink) !important; box-shadow: inset 0 0 0 2px var(--brand); }
+.dock-bar .po-dock .po-dock__next.is-flat .po-dock__goicon::before { background: var(--surface-2) !important; }
+
+/* S08 본문: 글자 바닥 12px · 누르는 영역 44px (2절 23·24번) */
+.prep-v17 .prep-sub, .prep-v17 .prep-note, .prep-v17 small, .prep-v17 .prep-form__m, .prep-v17 .prep-exploit-chip, .prep-v17 .po-tchip__name, .prep-v17 .po-tchip__form, .prep-v17 .prep-marker__pos { font-size: 12px; }
+.prep-v17 .prep-bar small, .prep-v17 .prep-bar span { font-size: 12px; }
+.prep-v17 .prep-form__m { min-width: 22px; height: 22px; line-height: 22px; }
+.prep-v17 .prep-link { min-height: 44px; margin: -12px 0; padding: 0 4px; font-size: 13px; }
+.prep-v17 .po-tab { min-height: 44px; }
+.prep-v17 .po-panel__fold { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px 0; }
+.prep-v17 .po-panel__summary { font-size: 13px; line-height: 1.5; color: var(--ink-muted); }
+.prep-v17 > .po-panel, .prep-v17 .prep-col > .po-panel { margin-bottom: 12px; }
+.prep-v17 .prep-start.po-panel--alert { box-shadow: inset 3px 0 0 var(--warning); }
+/* 정보 줄 (예상 계획 · 상성 · 적합도 · 공격 인원): 아이콘 칸 · 제목/설명 · 오른쪽 상태 칩 */
+.prep-rows { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.prep-irow { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.prep-irow__ic { display: grid; place-items: center; width: 32px; height: 32px; background: var(--surface-2); color: var(--ink); clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.prep-irow__t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prep-irow__t b { font-size: 14px; font-weight: 800; word-break: keep-all; }
+.prep-irow__t small { font-size: 12px; color: var(--ink-muted); line-height: 1.4; word-break: keep-all; }
+/* 덱 2줄 × 4장 (S08-b): 가로 넘김 대신 격자 */
+.prep-v17 .prep-deck { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; overflow: visible; margin: 0; padding: 0; scroll-snap-type: none; -webkit-mask-image: none; mask-image: none; }
+.prep-v17 .prep-deck__cell { width: auto; min-width: 0; flex: none; }
+.prep-v17 .prep-deck__cell .po-gcard { width: 100%; }
+/* 경기 변수 목록 */
+.prep-vars__list { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.prep-vars__list > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.prep-vars__list dt { font-size: 12px; color: var(--ink-muted); }
+.prep-vars__list dd { margin: 0; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.prep-vars__list dd b { font-size: 14px; }
+.prep-vars__list dd small { font-size: 12px; color: var(--ink-muted); word-break: keep-all; }
+/* 정지 빈도 3단계 뜻 (S08-d): 고른 줄 강조, 자동이면 흐림 */
+.prep-stops { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.prep-stops.is-dim { opacity: .45; }
+.prep-stop { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: 8px 12px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; text-align: left; cursor: pointer; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.prep-stop b { font-size: 14px; }
+.prep-stop small { font-size: 12px; color: var(--ink-muted); }
+.prep-stop.is-on { box-shadow: inset 3px 0 0 var(--brand); background: var(--surface-3); }
+.prep-stop.is-on b { color: var(--brand-ink); }
+/* 아래 고정 줄: 요약 한 줄 + [나중에] [경기 시작] */
+.prep-bottom.prep-bottom--v17 { display: flex; flex-direction: column; gap: 8px; grid-template-columns: none; }
+.prep-bottom__sum { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--ink-muted); min-width: 0; }
+.prep-bottom__sum b { color: var(--ink); white-space: nowrap; }
+.prep-bottom__sum span { margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prep-bottom__btns { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.prep-v17 .prep-pos .po-btn--link { align-self: flex-start; }
+/* PC 3열 (S08-a·b PC) */
+.prep-pc3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.prep-col { display: flex; flex-direction: column; min-width: 0; }
+.prep-col > .prep-card { margin-bottom: 12px; }
+@media (min-width: 1024px) { .prep-bottom.prep-bottom--v17 { flex-direction: row; align-items: center; } .prep-bottom--v17 .prep-bottom__sum { flex: 1; } .prep-bottom--v17 .prep-bottom__btns { flex: none; width: 520px; } }
+.prep-v17 .po-fslot__dot b, .prep-v17 .po-fslot__me, .prep-v17 .po-fslot__ovr { font-size: 12px; }
+.prep-v17 .po-mc__name { font-size: 12px; line-height: 1.15; white-space: normal; word-break: keep-all; }
+.screen-prep .po-hero__back, .screen-moment .po-hero__back { min-width: 44px; min-height: 44px; }
+
+/* S09 결정 순간: 위험 범례 · 성공/실패 줄은 모든 선택지, 기대 평점은 고른 줄만 (2절 6·7번) */
+.mo-legend { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px; font-size: 12px; line-height: 1.45; color: var(--ink-muted); word-break: keep-all; }
+.mo-legend b { color: var(--ink); }
+.mo-legend__bars { display: inline-flex; gap: 2px; padding-top: 3px; flex: none; }
+.mo-legend__bars i { width: 6px; height: 10px; background: var(--success); }
+.mo-legend__bars i:nth-child(2) { background: var(--warning); }
+.mo-legend__bars i:nth-child(3) { background: var(--fail); }
+.mo-opts .po-choice--row .po-choice__outcomes { display: flex !important; flex-wrap: wrap; flex-basis: 100%; column-gap: 12px; padding-top: 4px; }
+.mo-opts .po-choice--row:not(.is-selected) .po-out--ev { display: none; }
+.mo-opts .po-choice--row.is-selected .po-out--ev { flex-basis: 100%; margin-top: 4px; padding-top: 6px; border-top: 1px solid color-mix(in srgb, var(--on-brand) 25%, transparent); }
+.mo-opts .po-out, .mo-opts .po-out b { font-size: 12px; }
+/* 패 (2절 8번): 고른 카드 = 체크 배지(라임 테두리 아님) · 못 쓰는 카드 = 희귀 테두리 없이 흐리게 · 아래 이유 줄 */
+.mo-cards .po-card.is-selected::after, .mo-cards .po-card.is-selected .po-gc::after { box-shadow: none; }
+.mo-cards .po-card.is-selected::before { content: "✓"; position: absolute; top: -6px; right: -6px; z-index: 3; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: var(--on-brand); font-size: 13px; font-weight: 900; }
+.mo-cards .po-card.is-selected { position: relative; overflow: visible; }
+.mo-cards .po-card.is-disabled { --r: var(--line) !important; }
+.mo-cards .po-card.is-disabled::after, .mo-cards .po-card.is-disabled .po-gc::after { box-shadow: none !important; }
+.mo-cards { padding-top: 8px; }
+.mo-whys { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; }
+.mo-why { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.4; color: var(--ink-muted); word-break: keep-all; }
+.mo-why .po-icon { flex: none; margin-top: 1px; }
+.mo-why.is-ok .po-icon { color: var(--success); }
+.mo-why.is-off .po-icon { color: var(--fail); }
+.mo-why b { color: var(--ink); }
+.mo-why.is-on b { color: var(--brand-ink); }
+.mo-autosw { margin-top: 8px; }
+.mo-panel .po-tab { min-height: 44px; }
+/* S09-g 하프타임: 성향 칸 적합도 · 공격 인원 경고 */
+.ht-tend { display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; }
+.ht-fit { font-size: 12px; color: var(--ink-muted); text-align: center; white-space: nowrap; }
+.ht-fit.is-good { color: var(--success); } .ht-fit.is-bad { color: var(--fail); }
+.ht-warn { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; font-size: 12px; color: var(--warning); }
+.ht-v3 .po-tchip__name { font-size: 12px; }
+.ht-v3 .po-tab { min-height: 44px; }
+/* S09 결정 순간 · 결과 · 하프타임: 글자 바닥 12px · 누르는 영역 44px (적용 명세 4절) */
+.screen-moment :is(.mo-dir, .mo-head span, .mo-note, .po-risk, .po-exploit, .mo-chainhead, .oc-cardtag, .ht-chip, .ht-set small, .pv-btn, .po-card__reason, .po-mc__name, .oc-choice__t small, .mo-below small) { font-size: 12px; }
+.screen-moment .pv-btn--inline, .screen-moment .mo-zoom__b { height: 44px; min-width: 44px; padding: 0 12px; }
+.screen-moment .mo-autosw .po-switch { box-sizing: content-box; border: 8px solid transparent; background-clip: padding-box; }
+.screen-moment .ht-v3 .po-tab { height: 44px; min-height: 44px; }
+.screen-moment .ht-details > .ht-detail:first-child { grid-column: 1 / -1; }
+.prep-v17 :is(.prep-scout__note, .prep-exploit, .prep-stamina span, .prep-stamina > *) { font-size: 12px; }
+/* PC 경기 준비 3열 (S08 PC): 홈 3열처럼 넓게 */
+@media (min-width: 1024px) {
+  #app:has(.prep-pc3) { max-width: 1280px; }
+  .prep-v17:has(.prep-pc3) { max-width: 1240px; margin: 0 auto; padding: 16px 20px 24px; }
+  .prep-pc3 .prep-deck { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .prep-pc3 .prep-deck__cell .po-card { width: 100%; }
+}
+
+/* ---------- U17-d S10 경기 재생 (적용 명세 1절 S10 · 2절 S10) ----------
+   위 줄(하이라이트 장면 n/전체 · 큰 단추 하나) · 점수 "0 : 0" 한 덩어리 · 피치 · 장면 칸 4열(분류 색) · 해설 · 내 선수 · 점유율 · 아래 고정 조작 띠.
+   독 숨김(main.ts), 폰 844 안에 해설 1줄 이상 + 내 선수 줄이 띠 위(2절 32번). */
+.rp17 { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.rp17 .rp-top { order: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 8px; background: var(--surface-1); }
+.rp-top__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.rp-top__lead { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-top__lead .po-icon { color: var(--brand-ink); flex: none; }
+.rp-top__title { overflow: hidden; text-overflow: ellipsis; }
+.rp-top__title b { font-weight: 900; }
+.rp-top__btn { flex: none; min-height: 44px; }
+.rp-top__sub { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.rp-score__team { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.rp-score__team b { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-score__team.is-away { justify-content: flex-end; }
+.rp-score__team.is-away b { color: var(--away); }
+.rp-score__mid { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.rp-score__min { display: inline-flex; align-items: center; height: 26px; padding: 0 8px; font-size: 14px; font-weight: 800; color: var(--brand-ink); box-shadow: inset 0 0 0 1.5px var(--brand); transform: skewX(-8deg); }
+.rp-score__board { font-family: var(--font-display); font-style: italic; font-size: 32px; line-height: 1; font-weight: 900; white-space: nowrap; }
+.rp-score__tactics { display: flex; justify-content: space-between; gap: 8px; }
+.rp-score__tactics .po-tchip__name, .rp-score__tactics .po-tchip__form { font-size: 12px; }
+.rp-note { font-size: 12px; }
+.rp17 .pitch-wrap { position: relative; padding-top: 4px; }
+.rp17 .pv-btn { min-height: 44px; min-width: 44px; padding: 0 12px; font-size: 12px; }
+.rp17 .po-pitch-legend { font-size: 12px; min-height: 28px; flex-wrap: wrap; row-gap: 2px; }
+.rp17 .hl-panel { padding: 10px 12px; }
+.rp17 .hl-panel .kv b { font-size: 14px; } .rp17 .hl-panel .kv span { font-size: 12px; }
+.rp17 .scene-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.rp17 .scene-tile { position: relative; height: auto; min-height: 44px; padding: 4px 2px; gap: 0; overflow: visible; }
+.rp17 .scene-tiles { padding-top: 6px; }
+.rp17 .scene-tile[hidden] { display: none; }
+.rp17 .scene-tile .po-num { font-size: 14px; font-family: var(--font-display); font-style: italic; }
+.rp17 .scene-tile span:last-child { font-size: 12px; }
+.rp17 .scene-tile.done, .rp17 .scene-tile.on { background: var(--surface-2); }
+/* 2절 13번: 골 라임 · 실점 주황 · 결정적 장면 흰 · 내 최고 순간 시안 (라임은 테두리 · 글자만 — 큰 면은 [여기서부터 실시간] 하나) */
+.rp17 .scene-tile.is-goal { color: var(--brand-ink); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.rp17 .scene-tile.is-concede { color: var(--away); box-shadow: inset 0 0 0 1.5px var(--away); }
+.rp17 .scene-tile.is-chance { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.rp17 .scene-tile.is-best { color: var(--mine); box-shadow: inset 0 0 0 1.5px var(--mine); }
+.rp17 .scene-tile.on { outline: 2px solid var(--ink); outline-offset: 1px; color: var(--ink); padding-top: 10px; }
+.rp17 .scene-tile.on.is-goal { color: var(--brand-ink); }
+.rp17 .scene-tile.next { box-shadow: inset 0 0 0 1.5px var(--ink-muted); color: var(--ink-muted); }
+.scene-tile__now { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); padding: 0 4px; font-style: normal; font-size: 12px; line-height: 16px; font-weight: 800; background: var(--ink); color: var(--surface-0, #121317); white-space: nowrap; }
+.rp17 .tr-card small { font-size: 12px; }
+.rp17 .feed { min-height: 0; }
+.rp17 .me-row { padding: 8px 12px; border-left: 3px solid var(--mine); }
+.rp17 .slot-chip { font-size: 12px; }
+.rp17 .slot-chip.is-me { background: var(--mine); color: var(--on-mine, #06222b); }
+.rp17 .po-poss__label { font-size: 12px; }
+/* 아래 고정 조작 띠: 일시정지 · 1× · 2× · 4× · 건너뛰기 (높이 64, 칸 48) */
+.rp-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1.8fr; gap: 6px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--surface-1); box-shadow: 0 -1px 0 var(--line); }
+.rp-bar__btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; border: 0; background: var(--surface-2); color: var(--ink); font-family: var(--font-display); font-style: italic; font-size: 16px; font-weight: 900; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); cursor: pointer; }
+.rp-bar__btn.is-on { color: var(--brand-ink); box-shadow: inset 0 0 0 2px var(--brand); background: var(--surface-3); }
+.rp-bar__btn:disabled { opacity: .45; cursor: default; }
+.rp-bar__skip { font-family: var(--font-sans); font-style: normal; font-size: 14px; font-weight: 800; }
+/* S10-d 확인 모달 경고 아이콘 = warning 색 (2절 S10 사소) */
+.po-modal__icon--warning { background: var(--warning-soft); color: var(--warning); }
+@media (min-width: 1024px) {
+  .rp17 { padding-bottom: 24px; }
+  .rp17 .rp-top { border-radius: var(--b-r-lg, 16px); }
+  .rp17 .scene-tiles { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
+  .app-replay .rp17 .match-side { max-height: calc(100dvh - 104px); }
+  .rp-bar { left: auto; right: calc(max(0px, (100vw - 1180px) / 2) + 12px); bottom: 12px; width: 320px; padding: 8px; border-radius: var(--b-r-lg, 16px); box-shadow: inset 0 0 0 1px var(--line-strong); grid-template-columns: 1fr 1fr 1fr 1fr 1.6fr; }
+  .rp-bar__skip span { font-size: 13px; }
+}
+
+/* ---------- U17-d S11 경기 결과 (적용 명세 1절 S11 · 2절 S11) ---------- */
+.screen-match .po-hero__back { min-width: 44px; min-height: 44px; }
+.mr-v17 :is(.po-btn--sm, .po-banner__action, .cu-more, .rec-more > summary) { min-height: 44px; }
+.mr-v17 .rec-more > summary { display: flex; align-items: center; font-size: 13px; }
+.mr-v17 .mr-head--row .mr-team { min-height: 44px; }
+.mr-v17 :is(.mr-goal, .dec-row, .cu-row) .dt-link { display: inline-block; padding: 13px 0; margin: -13px 0; }
+.mr-v17 :is(.muted, .small, small, .po-poss__label, .cup-banner__kicker, .cup-banner__big small, .cu-row small, .mr-goal small, .mr-goal__me, .mr-goal__team, .mr-clip__badge) { font-size: max(12px, 1em); }
+.mr-v17 .cup-banner__kicker, .mr-v17 .cup-banner__big small, .mr-v17 .mr-goal small, .mr-v17 .cu-row small { font-size: 12px; }
+/* 결장 안내 */
+.mr-bench { margin: 10px 0; }
+.mr-bench .po-panel__title { font-size: 15px; }
+/* 하이라이트 한 판: 머리(아이콘 · 장면 수 · [다시보기]) + 클립 줄(왼쪽 막대 분류 색) + [n개 이어 보기] 링크 */
+.mr-hl { gap: 8px; margin: 10px 0; }
+.mr-hl__head { display: flex; align-items: center; gap: 12px; }
+.mr-hl__head .grow { min-width: 0; }
+.mr-hl__head small { color: var(--ink-muted); font-size: 12px; }
+.mr-hl__rewatch { flex: none; min-height: 44px; }
+.mr-hl .mr-clips { margin: 0; }
+.mr-hl .mr-clip { min-height: 56px; background: var(--surface-2); }
+.mr-hl .mr-clip .dec-main b { word-break: keep-all; overflow-wrap: anywhere; }
+.mr-hl__all { justify-content: center; }
+/* 득점 줄 (2절 25번): 우리 골 = 라임 테두리 + 점(라임 면은 머리말 한 번), 실점 = 주황 테두리. 점수 "1 : 0" 오른쪽 고정 칸 */
+.mr-v17 .mr-goal { background: var(--surface-1); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brand); min-height: 48px; }
+.mr-v17 .mr-goal .po-icon { color: var(--brand-ink); }
+.mr-v17 .mr-goal .mr-goal__who { word-break: keep-all; overflow-wrap: anywhere; }
+.mr-v17 .mr-goal .mr-goal__score { flex: none; white-space: nowrap; color: var(--brand-ink); }
+.mr-v17 .mr-goal.is-opp { box-shadow: inset 0 0 0 1.5px var(--away); }
+.mr-v17 .mr-goal.is-opp .mr-goal__score, .mr-v17 .mr-goal.is-opp .po-icon { color: var(--away); }
+.mr-v17 .mr-goal__me { background: var(--mine); color: var(--on-mine, #06222b); }
+/* 대회 배너 우승도 라임 테두리(면 아님) — 결과 화면 라임 큰 면은 머리말 하나 */
+.mr-v17 .cup-banner.is-won { background: var(--surface-1); color: var(--ink); border: 0; box-shadow: inset 0 0 0 1.5px var(--brand); }
+.mr-v17 .cup-banner.is-won .cup-banner__icon { background: var(--surface-3); color: var(--brand-ink); }
+.mr-v17 .cup-banner.is-won .cup-banner__kicker { color: var(--brand-ink); }
+/* 쓴 카드 · 전술 리포트 판 */
+.mr-report { margin: 10px 0; }
+.mr-report .po-panel__toggle { min-height: 44px; }
+.mr-report .po-panel__summary { font-size: 13px; color: var(--ink-muted); word-break: keep-all; }
+.mr-report__k { display: block; margin: 4px 0 6px; }
+/* PC 3열 */
+@media (min-width: 1024px) {
+  #app:has(.mr-pc3) { max-width: 1280px; }
+  .mr-v17:has(.mr-pc3) { max-width: 1240px; margin: 0 auto; padding: 16px 20px 24px; }
+  .mr-pc3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr); gap: 16px; align-items: start; }
+  .mr-col { display: flex; flex-direction: column; min-width: 0; }
+  .mr-col > :first-child { margin-top: 0; }
+  /* S11-f 우승 축하: 결과 위 가운데 460px 카드 + 어둡게 */
+  .celebrate { background: rgba(8, 9, 12, .78); display: grid; place-items: center; padding: 24px; }
+  .celebrate__inner { min-height: 0; width: 460px; max-width: 460px; max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--surface-0, #121317); box-shadow: 0 0 0 1px var(--line-strong), 0 24px 64px rgba(0, 0, 0, .5); }
+}
+.celebrate :is(small, .celebrate__art small) { font-size: 12px; }
+/* S11 머리말: 큰 평점 + 단위 "평점"(옆, 아래 맞춤) · 결장이면 "결장 · 사유" 글자 · 대회 줄은 단어 단위 줄바꿈 */
+.screen-match .po-hero__num.has-unit { flex-direction: row; align-items: flex-end; gap: 8px; }
+.screen-match .po-hero__unit { margin-bottom: .6em; font-size: 14px; white-space: nowrap; color: var(--ink) !important; letter-spacing: 0 !important; }
+.screen-match .po-hero__eyebrow { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+#app:has(.celebrate) > :is(.dock-bar, .po-dock, nav.dock) { display: none; }
+
+/* ================= U17-e 17차 S12 훈련 · S13 선수 ================= */
+/* 0절 3번 · 2절 24번: 훈련 · 선수 화면(시트 포함) 글자 바닥 12px */
+:is(.screen-schedule, .screen-player) :is(small, .small, .ag-name, .pr-day small, .tr-k, .tr-tag, .po-day__today, .cal-cup, .cal-wd, .pr-badge, .pr-chip, .po-fin, .ver, .pl-cc span, .pl-cc small, .tbl th, .tbl td) { font-size: 12px; }
+/* 누르는 영역 44px (2절 23번) */
+:is(.screen-schedule, .screen-player) :is(.po-btn--sm, .link-btn, .dt-link, .po-tab, .pr-edit, .po-switch) { min-height: 44px; }
+:is(.screen-schedule, .screen-player) .po-tabs--scroll .po-tab { min-width: 44px; }
+:is(.screen-schedule, .screen-player) .po-switch { min-width: 52px; }
+:is(.screen-schedule, .screen-player) .dt-link { display: inline-flex; align-items: center; }
+/* 훈련 탭 스태프 배지 */
+.screen-schedule .po-tabs .po-dotbadge { position: static; margin-left: 6px; transform: none; }
+/* 이번 주 계획 · 범례 */
+.tr-legend { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; }
+.tr-weekcard .tr-week { margin-top: 0; }
+/* 성장 탭 주간 XP */
+.tr-xp { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 6px 8px; }
+.tr-xp > b { font-size: 28px; font-weight: 900; font-style: italic; color: var(--ink); }
+.tr-xp .tr-bar { grid-column: 1 / -1; }
+/* 프리셋 칸 = 훈련일 순서 (요일 없음) · 줄 도구 [고치기][삭제] */
+.pr-day { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pr-day .po-icon { opacity: .9; }
+.pr-day.is-dim { opacity: .45; }
+.pr-row { position: relative; }
+.pr-tools { display: flex; gap: 8px; padding: 0 12px 12px; }
+.pr-tools .po-btn { flex: 1; }
+.pr-row:has(.pr-tools) .pr-edit { position: static; }
+.pr-chip--injury { color: var(--injury); box-shadow: inset 0 0 0 1.5px var(--injury); }
+/* 하루 훈련 시트 생활 4칸 (B4) · 기준선 50 */
+.tr-life { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0 4px; }
+.tr-life__tile { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--surface-2); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.tr-life__tile small { color: var(--ink-2); font-weight: 700; }
+.tr-life__tile b { font-size: 18px; font-style: italic; font-weight: 900; color: var(--brand-ink); }
+.tr-life__tile.is-low b { color: var(--warning); }
+.tr-life__bar { position: relative; height: 4px; background: var(--line); }
+.tr-life__bar i { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
+.tr-life__tile.is-low .tr-life__bar i { background: var(--warning); }
+.tr-life__bar em { position: absolute; left: 50%; top: -3px; width: 2px; height: 10px; background: var(--ink); opacity: .7; }
+.tr-life__hint { margin: 0 0 6px; }
+/* 스태프 [고용] · [해지] 44px */
+.tr-staff .po-btn { min-height: 44px; }
+/* S13 프로필 판 */
+.panel.pl-profile.pl-prof17 { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.pl-prof17 .pl-prof17__top { display: flex; width: 100%; align-items: center; gap: 10px; }
+.pl-prof17__top .pl-tier { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.pl-prof17 .pl-prof17__bars { display: grid; width: 100%; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pl-m17 { display: flex; flex-direction: column; gap: 6px; }
+.pl-m17__top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.pl-m17__top small { color: var(--ink-2); font-weight: 700; }
+.pl-m17__top b { font-size: 12px; color: var(--ink); }
+.pl-m17__bar { height: 6px; background: var(--line); }
+.pl-m17__bar i { display: block; height: 100%; background: var(--brand); }
+.pl-m17__bar.is-xp i { background: var(--brand); }
+.pl-prof17 .pl-prof17__note { display: flex; width: 100%; box-sizing: border-box; gap: 8px; margin: 0; padding: 10px 12px; background: var(--surface-2); color: var(--ink-2); font-size: 12px; line-height: 1.45; }
+.pl-prof17__note .po-icon { flex: none; margin-top: 2px; }
+.pl-prof17__note b { color: var(--ink); }
+.pl-prof17 .pl-prof17__pot { display: flex; width: 100%; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; margin: 0; padding-top: 8px; border-top: 1px solid var(--line); }
+.pl-prof17__pot span { font-weight: 800; color: var(--ink); }
+.pl-head__t { display: flex; flex-direction: column; gap: 2px; }
+.ag-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ag-head__key { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+/* 은퇴 단추 2개 · PC 커리어 요약 */
+.pl-ret__btns { display: flex; gap: 8px; }
+.pl-retsum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+/* 선수 머리말 칩: 한 줄에 다 보이게(말줄임 없음) — 칸이 모자라면 두 줄, 이름 묶음은 사선 아래 */
+.screen-player .po-hero--face .po-hero__chips { gap: 4px; }
+.screen-player .po-hero--face .po-hero__chip { flex: none; overflow: visible; text-overflow: clip; padding: 0 6px; }
+:is(.screen-schedule, .screen-player) :is(.tr-lifebox__chip, .po-tier--sm, .po-tier--sm b, .po-tag, .po-tag__name, .pl-stats small, .pl-stats span, .pl-stats i, .pl-pos__cell span, .pl-pos__cell em) { font-size: 12px; }
+.screen-player .po-tier--sm { height: 24px; }
+/* 주간 7칸이 44px 이상 되게 칸 사이를 좁힌다 */
+.screen-schedule .tr-week { gap: 2px; }
+.screen-schedule .tr-weekcard { padding-inline: 10px; }
+/* 2절 3번: 두 자리 등번호가 오른쪽에서 잘리지 않게(compact 머리말), OVR 은 등번호 밖 별도 칸 그대로 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit.is-two { font-size: 220px; line-height: 220px; right: 6px; top: 34px; letter-spacing: -6px; }
+/* 360 폭: 주간 7칸 44px 이상 — 카드 안쪽 여백을 더 줄이고 칸 사이 0 */
+@media (max-width: 380px) { .screen-schedule .tr-weekcard { padding-inline: 4px; } .screen-schedule .tr-week { gap: 1px; } }
+:is(.screen-schedule, .screen-player) .dt-link { min-width: 44px; }
+:is(.screen-schedule, .screen-player) .po-section__link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+.tr-weekcard { gap: 8px; }
+.tr-weekcard > :is(p, ul, .tr-foot) { margin: 0; }
+.pl-prof17 .pl-lv { display: block; min-width: 0; }

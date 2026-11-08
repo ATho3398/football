@@ -263,7 +263,7 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
     : shown === null
     ? '<span class="po-choice__prob"><b class="po-choice__none">판정 없음</b></span>'
     : `<span class="po-choice__prob">${d ? `<s class="po-num">${p.chance}%</s>` : ''}<b class="${cx('po-num', d > 0 && 'is-up', d < 0 && 'is-down')}">${shown}<small>%</small></b>${
-      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar" title="${band}"><i style="width:${shown}%"></i></span></span>`;
+      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}%p${p.deltaSource ? `<small> (${esc(p.deltaSource)})</small>` : ''}</span>` : ''}<span class="po-choice__probbar" title="${band}"><i style="width:${shown}%"></i></span></span>`;
   return `<button type="button" class="${cx('po-choice', `po-choice--${p.kind}`, p.kind === 'play' && `po-rarity--${p.rarity ?? 'rare'}`, p.compact && 'po-choice--compact', p.collapsed && 'po-choice--row', p.certain && 'is-certain', p.selected && 'is-selected')}"${actAttrs(p)} aria-pressed="${!!p.selected}"${p.disabled ? ' disabled' : ''}>
     <span class="po-choice__main"><span class="po-choice__name">${esc(p.name)}</span>${tags}<span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}${
       p.ev ? `<span class="po-out po-out--ev">${Icon({ name: 'chance', size: 14, strokeWidth: 3 })}<span>기대 평점</span><b class="po-num">${esc(p.ev)}</b></span>` : ''}</span></span>${prob}</button>`;

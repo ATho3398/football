@@ -257,11 +257,12 @@ export function positionSheet(options: PositionOptionVM[], pick: string, inSeaso
 /** 일정 (부록 C.38): 다음 일정 목록, 이번 달 달력 (다른 경기 계산 방식 고르기는 C.77q 에 설정 · 경기 준비만 남김) */
 export function calendarSection(d: DayVM): string {
   const list = d.upcoming.map((u) => `<li class="cal-item cal-${u.kind}${u.cup ? ' is-cup' : ''}"><span class="cal-date">${esc(u.date)}</span>${u.cup ? `<span class="cal-cup">${Icon({ name: 'trophy', size: 12 })}${esc(u.cup)}</span>` : ''}${u.team ? `<button type="button" class="dt-link grow" data-act="team-open" data-v="${esc(u.team)}">${esc(u.text)}</button>` : `<span class="grow">${esc(u.text)}</span>`}${u.sub ? `<span class="cal-tag">${esc(u.sub)}</span>` : ''}</li>`).join('');
-  const blanks = Array.from({ length: d.month.lead }, () => '<span class="cal-cell blank"></span>').join('');
+  // 17차 S12-c: 달력은 월요일 시작(훈련 주 = 월~일과 같게)
+  const blanks = Array.from({ length: (d.month.lead + 6) % 7 }, () => '<span class="cal-cell blank"></span>').join('');
   const cells = d.month.days.map((c) => `<span class="cal-cell${c.kind ? ` k-${c.kind}` : ''}${c.today ? ' today' : ''}${c.past ? ' past' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${c.d}${c.cup ? `<i class="cal-trophy">${Icon({ name: 'trophy', size: 10 })}</i>` : ''}${c.life ? `<small class="cal-life">${Icon({ name: PLAN_ICON[c.life], size: 10 })}${esc(c.lifeShort ?? '')}</small>` : ''}</span>`).join('');
   return `${SectionTitle({ title: '일정', action: d.month.title })}
     ${panel(`<ul class="cal-list">${list}</ul>
-      <div class="cal-grid" role="grid" aria-label="${esc(d.month.title)} 달력">${['일', '월', '화', '수', '목', '금', '토'].map((w) => `<span class="cal-wd">${w}</span>`).join('')}${blanks}${cells}</div>
+      <div class="cal-grid" role="grid" aria-label="${esc(d.month.title)} 달력">${['월', '화', '수', '목', '금', '토', '일'].map((w) => `<span class="cal-wd">${w}</span>`).join('')}${blanks}${cells}</div>
       <div class="legend small"><span><i class="k cal-home"></i>내 경기 (홈)</span><span><i class="k cal-away"></i>원정</span><span><i class="k cal-league"></i>다른 경기</span><span><i class="k cal-break"></i>휴식기</span>${d.month.days.some((c) => c.cup) ? `<span>${Icon({ name: 'trophy', size: 10 })} 컵·챔스</span>` : ''}${d.month.days.some((c) => c.life) ? '<span class="cal-life-key">생활(아이콘 + 두 글자)</span>' : ''}</div>
       <p class="small muted">다른 경기 계산(${d.othersKo})은 설정 › 경기 진행에서 바꿔요.</p>`)}`;
 }
@@ -269,7 +270,7 @@ export function calendarSection(d: DayVM): string {
 /** 훈련·일정 화면 (C.44 독): 오늘 훈련·주간 계획·게이지 + 일정·달력 */
 export function scheduleView(vm: HomeVM, training: string, calendar = true): string {
   const hero = HeroPanel({
-    title: '훈련·일정', back: false, compact: true,
+    title: '훈련', back: false, compact: true,
     eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
     value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false,
     chips: vm.day ? [vm.day.matchDay ? '오늘 경기' : `경기까지 ${vm.day.daysTo}일`, { label: `리그 ${vm.round}/${vm.rounds}R`, soft: true }] : [{ label: '시즌 종료', soft: true }],

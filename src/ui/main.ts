@@ -28,8 +28,8 @@ import {
   nextCampDate, startNextSeason, todaysOthers, upcomingOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
-import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
-import { gaugeSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet, weekPreview } from './views/training';
+import { addCustomPreset, deleteCustomPreset, presetById, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
+import { growthSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
 import { EnginePool, specKey } from './enginePool';
 import { myReplayOutput, type EngineJob, type MyReplayOut } from '../engine/jobs';
@@ -94,7 +94,7 @@ import { agentVM, financeVM, staffVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
 import { buyPack, buyShopCard, donate, donateBlocked, moveInvest, setLife, useTp, type InvestKind, type LifeItem, type TpKind } from '../wealth';
 import { holdMeeting, type MeetingChoice } from '../manager';
-import { prepView } from './views/prep';
+import { prepView, type PrepFold } from './views/prep';
 import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { celebrateView, matchResultView } from './views/matchResult';
@@ -137,6 +137,8 @@ import { proficientOvr } from '../proficiency';
 import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonTab, type TeamTab } from './detailVM';
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
+import type { Position } from '../types';
+import type { FieldAttributes } from '../attributes';
 import { scoreText } from '../text';
 
 type TrainTab = 'pre' | 'cal' | 'g' | 'staff';
@@ -190,6 +192,8 @@ const ui = {
   homeTab: 'today' as HomeTab,
   /** 배너가 붙어 접힌 다음 경기 카드를 폈는지 (17차 2절 29번) */
   homeNextOpen: false,
+  /** 경기 준비 접는 칸 (17차 S08, C.83c): 키가 없으면 기본값(폰 접음 · 직접 모드면 경기 변수 펼침) */
+  prepOpen: {} as PrepFold,
   /** 하루 훈련 고르기 시트 (C.41): 날짜 */
   trainSheet: null as string | null,
   /** 하루 훈련 시트에서 고른 줄 (확정 전, C.57) */
@@ -582,9 +586,10 @@ function screenHtml(): string {
       // 훈련·일정 탭 (C.52, 디자인 159): 훈련 프리셋 · 일정 · 게이지 · 코치·스태프(C.77q, 재정에서 옮김 — 비시즌에도 일정 · 코치·스태프 두 탭)
       const tab: TrainTab = tv || ui.trainTab === 'staff' ? ui.trainTab : 'cal';
       const coach = g.phase !== 'retired' ? (g.money?.candidates.length ?? 0) : 0;
-      const staffTab = { id: 'staff', label: coach ? `스태프 ${coach}` : '스태프' };
-      const tabs = g.phase === 'retired' ? '' : Tabs({ items: tv ? [{ id: 'pre', label: '훈련 프리셋' }, { id: 'cal', label: '일정' }, { id: 'g', label: '게이지' }, staffTab] : [{ id: 'cal', label: '일정' }, staffTab], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련·일정' });
-      const body = tab === 'staff' ? staffSection(staffVM(g)) : !tv ? '' : tab === 'pre' ? presetSection(tv.presets) + weekPreview(tv) : tab === 'g' ? gaugeSection(tv) : trainingSection(tv, false);
+      const staffTab = { id: 'staff', label: '스태프', ...(coach ? { badge: coach } : {}) };
+      // 17차 S12 (U17-e): 탭 = 이번 주(오늘 · 이번 주 계획 · 추천 · 프리셋) · 일정(다가오는 경기 · 달력) · 성장(게이지 · 주간 XP · 코치) · 스태프 — 탭 이름 = 내용(2절 19번)
+      const tabs = g.phase === 'retired' ? '' : Tabs({ items: tv ? [{ id: 'pre', label: '이번 주' }, { id: 'cal', label: '일정' }, { id: 'g', label: '성장' }, staffTab] : [{ id: 'cal', label: '일정' }, staffTab], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련' });
+      const body = tab === 'staff' ? staffSection(staffVM(g)) : !tv ? '' : tab === 'pre' ? trainingSection(tv, false) + presetSection(tv.presets) : tab === 'g' ? growthSection(tv) : '';
       const pSheet = tv && ui.presetSheet ? presetEditSheet(presetEditVM(g, ui.presetSheet.id, ui.presetSheet.draft, ui.presetSheet.sel)) : '';
       return scheduleView(hvm, tabs + body, tab === 'cal') + (tOpts ? trainingSheet({ ...tOpts, weakFoot: weakFootLine(g) }, ui.trainSheet!, ui.trainPick) : '') + pSheet;
     }
@@ -638,7 +643,7 @@ function screenHtml(): string {
       const lv = ui.live;
       if (lv?.oc) return outcomeView(lv.oc.vm);
       const m = lv?.run.pending;
-      if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side));
+      if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side, htOnPitch(m.side)));
       if (lv && m) {
         const log = lv.run.sim.state.moments.log;
         return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1, ...(lv.feed ? { feed: lv.feed } : {}) });
@@ -693,7 +698,7 @@ function screenHtml(): string {
       const vm = prepVM(g);
       if (vm && isMatchDay(g)) {
         const cs = ui.cardSheet?.from === 'view' ? vm.deck.cards.find((x) => x.id === ui.cardSheet!.id) : undefined;
-        return prepView(vm) + (cs ? cardSheet({ from: 'view', card: cs }, vm.deck.cards.length) : '');
+        return prepView(vm, ui.prepOpen) + (cs ? cardSheet({ from: 'view', card: cs }, vm.deck.cards.length) : '');
       }
       return homeView(homeVM(g));
     }
@@ -734,7 +739,8 @@ function guideHtml(g: GameState | null): { modal: string; tip: TopStripProps | n
   }
   if (ui.screen === 'replay' && ui.replay && !g.guide.firstMatchSeen) {
     ui.replay.hold = true;
-    return { modal: firstMatchOverlay(FIRST_MATCH_LINES), tip: null };
+    // 17차 2절 S10 사소: PC 는 해설이 오른쪽 열, 조작 띠는 오른쪽 아래
+    return { modal: firstMatchOverlay(isWide() ? FIRST_MATCH_LINES.map((l) => l.replace('아래 해설에', '오른쪽 해설에').replace('맨 아래 띠에', '오른쪽 아래 띠에')) : FIRST_MATCH_LINES), tip: null };
   }
   const id = TIP_SCREENS[ui.screen];
   const text = id ? tipFor(g.guide, id) : null;
@@ -779,14 +785,14 @@ function render(): void {
   setSeasonLabelKind(g ? calendarKind(g.league) : 'autumn-spring');
   if (ui.screen === 'settings') setPrecomputeStatus(enginePool?.parallel ? enginePool.planned : typeof Worker === 'undefined' ? null : { ready: 0, total: 0 });
   // 은퇴 (C.81p): 진행 칸 없는 은퇴 독 — 커리어 요약 · 선수 · [새 게임] · 저장 · 설정
-  const nav = !g ? '' : g.phase === 'retired' ? (RETIRED_NAV.includes(ui.screen) ? retiredDock(ui.screen) : '') : !NAV_HIDDEN.includes(ui.screen) ? dock(dockVM(g)) : '';
+  const nav = !g ? '' : g.phase === 'retired' ? (RETIRED_NAV.includes(ui.screen) ? retiredDock(ui.screen) : '') : !NAV_HIDDEN.includes(ui.screen) && ui.screen !== 'replay' ? dock(dockVM(g)) : ''; // 17차 0절 6번: 경기 재생은 독 숨김 (아래 고정 조작 띠)
   const live = liveScreen();
   const liveOther = !!(g && live && live !== ui.screen);
   const m = ui.modal;
   const guide = guideHtml(g);
   const modal = m
     ? Modal({
-      title: m.title, ...(m.body ? { children: m.body } : {}), ...(m.rows ? { rows: m.rows } : {}), icon: m.tone === 'danger' ? 'danger' : 'info', tone: m.tone ?? 'info', onClose: { act: 'modal-close' },
+      title: m.title, ...(m.body ? { children: m.body } : {}), ...(m.rows ? { rows: m.rows } : {}), icon: m.tone === 'danger' || m.tone === 'warning' ? 'danger' : 'info', tone: m.tone ?? 'info', onClose: { act: 'modal-close' },
       actions: [
         Button({ variant: 'secondary', block: true, act: m.cancel?.act ?? 'modal-close', ...(m.cancel?.data ? { data: m.cancel.data } : {}), children: m.cancel?.label ?? '취소' }),
         Button({ variant: m.tone === 'danger' ? 'danger' : 'primary', block: true, act: m.act, ...(m.data ? { data: m.data } : {}), children: m.confirm }),
@@ -880,7 +886,8 @@ function dockVM(g: GameState): DockVM {
   else if (marketPending(g)) {
     const n = (g.market?.offers?.length ?? 0) + (g.market?.renewal ? 1 : 0);
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
-  } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
+  } else if (isMatchDay(g) && ui.screen === 'prep') prog = { label: '경기', icon: 'match', act: 'prep-start', kind: 'match', flat: true };
+  else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
   else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
   return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g), coach: g.money?.candidates.length ?? 0 };
 }
@@ -930,6 +937,13 @@ function topStrip(g: GameState, liveTo: Screen | null, running: ToastProps | nul
   if (tip) c.guide = tip;
   const k = TOP_STRIP_ORDER.find((x) => c[x]);
   return k ? `<div class="${`top-strip top-strip--${k}`}">${TopStrip(c[k]!)}</div>` : '';
+}
+
+/** 하프타임 적합도 · 공격 인원 (17차 S09-g): 지금 뛰는 우리 필드 선수 (엔진 fitGaps 와 같은 입력) */
+function htOnPitch(side: 0 | 1): { pos: Position; attrs: FieldAttributes }[] | undefined {
+  const st = ui.live?.run.sim.state;
+  if (!st) return undefined;
+  return st.agents.filter((a) => a.team === side && a.onPitch && !a.gk).map((a) => ({ pos: a.pos as Position, attrs: a.spec.attrs }));
 }
 
 function livePlayers(g: GameState) {
@@ -1477,6 +1491,7 @@ async function openPrep(g: GameState): Promise<void> {
   ensureMyTicket(g);
   othersInBackground(g);
   ui.moreSheet = false;
+  ui.prepOpen = {};
   go('prep');
 }
 
@@ -1976,6 +1991,13 @@ app.addEventListener('click', (ev) => {
         ui.homeTab = v;
         render();
         window.scrollTo(0, 0);
+      }
+      return;
+    case 'prep-fold':
+      if (v === 'start' || v === 'scout' || v === 'vars') {
+        const was = document.querySelector(`.prep-${v === 'scout' ? 'scoutp' : v} .po-panel__toggle`)?.getAttribute('aria-expanded') === 'true';
+        ui.prepOpen = { ...ui.prepOpen, [v]: !was };
+        render();
       }
       return;
     case 'home-next':
@@ -2685,7 +2707,7 @@ app.addEventListener('click', (ev) => {
       const lv = ui.live;
       if (!g || !lv?.ht || lv.run.pending?.type !== 'halftime') return;
       const d = lv.ht.draft;
-      const vm = halftimeVM(d, lv.ht.base, lv.teams, lv.run.pending.score, lv.run.pending.side);
+      const vm = halftimeVM(d, lv.ht.base, lv.teams, lv.run.pending.score, lv.run.pending.side, htOnPitch(lv.run.pending.side));
       const change = act === 'ht-ok' && vm.changed;
       lv.run.halftime(change ? tacticsOf(d.tendency, d.levels) : null, change ? `하프타임 전술 변경 · ${vm.chips.join(' · ')}` : undefined);
       lv.ht = null;
@@ -3025,8 +3047,14 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'preset-del-ask':
+      // 17차 2절 30번: 프리셋 줄에서 바로 삭제 — 확인 모달
+      if (!g?.training || !v) return;
+      confirmModal({ title: '이 프리셋을 지울까요?', body: `'${presetById(g.training, v).name}' 프리셋을 지워요. 지금 쓰는 중이면 기본 '균형'으로 바뀌어요.`, tone: 'danger', confirm: '삭제', act: 'preset-del', data: { v } });
+      return;
     case 'preset-del':
       if (!g?.training || !v) return;
+      ui.modal = null;
       deleteCustomPreset(g.training, v);
       ui.presetSheet = null;
       autosave();
@@ -3561,18 +3589,35 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     case 'rp-skip':
+      if (!ui.replay) return;
+      // 17차 2절 S10 사소: 클립은 [건너뛰기] = 지금 클립만 넘기기 (마지막 클립이면 결과로), [결과로] = 클립 보기 끝
+      if (ui.replay.fixedScenes && !ui.replay.ended) {
+        if (!ui.replay.skipScene()) rewatchExit();
+        return;
+      }
+      if (ui.replay.ended) {
+        if (ui.rewatch) rewatchExit(); else go('match');
+        return;
+      }
+      // 17차 S10-d: 재생은 멈추고 확인 (warning) — 주 = 건너뛰기, 보조 = 계속 보기
+      ui.replay.paused = true;
+      confirmModal({
+        title: ui.rewatch ? '하이라이트를 끝낼까요?' : '경기 결과로 건너뛸까요?',
+        body: ui.rewatch ? '남은 장면을 보지 않고 결과 화면으로 돌아가요.' : '남은 경기를 보지 않고 결과 화면으로 가요. 결과는 같아요.',
+        confirm: '건너뛰기', act: 'rp-skip-ok', tone: 'warning', cancel: { label: '계속 보기', act: 'rp-resume' },
+      });
+      return;
+    case 'rp-resume':
+      ui.modal = null;
+      if (ui.replay && !ui.replay.ended) ui.replay.paused = false;
+      render();
+      return;
+    case 'rp-skip-ok':
+      ui.modal = null;
       if (ui.rewatch) {
         rewatchExit();
         return;
       }
-      if (ui.replay?.ended) {
-        go('match');
-        return;
-      }
-      ui.replay!.paused = true;
-      confirmModal({ title: '경기 결과로 건너뛸까요?', body: '남은 경기를 보지 않고 결과 화면으로 가요. 결과는 같아요.', confirm: '건너뛰기', act: 'rp-skip-ok' });
-      return;
-    case 'rp-skip-ok':
       // 건너뛰기는 경기 전체 (24.3, 디자인 17)
       ui.replay?.skip();
       go('match');

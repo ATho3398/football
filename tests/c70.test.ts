@@ -69,19 +69,21 @@ describe('경기 준비 v2 (166)', () => {
     toMatchDay(g);
     g.control.mode = 'direct';
     const vm = prepVM(g)!;
-    const html = prepView(vm);
+    const html = prepView(vm, { start: true }); // 17차 S08 (C.83c): 선발 가능성 패널은 폰에서 접힘 — 펼친 상태로 검사
     expect(html).toContain('prep-chance');
     expect(html).toContain('선발 가능성');
     expect(html).toContain(vm.condition.formLabel);
-    expect(html).toContain('정지 빈도 · 직접일 때');
+    // C.83c: 정지 빈도 3단계 뜻은 늘 보이고, 자동이면 흐림
+    expect(html).toContain('정지 빈도');
+    expect(html).not.toContain('prep-stops is-dim');
     g.control.mode = 'auto';
-    expect(prepView(prepVM(g)!)).not.toContain('정지 빈도 · 직접일 때');
+    expect(prepView(prepVM(g)!)).toContain('prep-stops is-dim');
   });
   it('체력이 낮으면 결장 사유 줄', () => {
     const g = son();
     toMatchDay(g);
     g.player.fatigue = 70;
-    const html = prepView(prepVM(g)!);
+    const html = prepView(prepVM(g)!, { start: true });
     expect(html).toContain('결장 사유');
     expect(html).toContain('벤치로 밀릴 수 있어요');
   });
@@ -107,7 +109,10 @@ describe('경기 결과 (170 · 160)', () => {
     expect(html).toContain('>1\u00a0:\u00a00<');
     expect(html).toContain('mr-goal__score score-cell">2\u00a0:\u00a01<');
     expect(html).toContain('mr-goal__me');
-    expect(html).toContain('cu-min');
-    expect(html).toContain('2장 더 보기');
+    // C.83d: 폰은 쓴 카드 · 전술 리포트 한 판을 접어 요약 한 줄 — 펼치면 분 칸 · [n장 더 보기]
+    expect(html).toContain('쓴 카드 5장 · 모두 자동');
+    const open = matchResultView(base as never, { rep: true });
+    expect(open).toContain('cu-min');
+    expect(open).toContain('2장 더 보기');
   });
 });

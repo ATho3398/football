@@ -97,7 +97,8 @@ export function halftimeView(vm: HalftimeVM): string {
     </div>`;
   const sets = vm.sets.map((x) => `<button type="button" class="${cx('ht-set', x.on && 'is-on')}" data-act="ht-set" data-v="${x.id}" aria-pressed="${x.on}">
       <span class="ht-set__radio" aria-hidden="true"></span><b>${esc(x.name)}</b><small>${esc(x.desc)}</small></button>`).join('');
-  const tends = vm.tendencies.map((t) => TacticChip({ tactic: t.style, selected: t.on, act: 'ht-tend', data: { v: t.id } })).join('');
+  // 17차 S09-g: 성향 칸마다 경기 준비와 같은 적합도("+6점")
+  const tends = vm.tendencies.map((t) => `<span class="ht-tend">${TacticChip({ tactic: t.style, selected: t.on, act: 'ht-tend', data: { v: t.id } })}${t.fit ? `<small class="${cx('ht-fit', t.fitTone && `is-${t.fitTone}`)}" title="적합도 ${esc(t.fit)}">${t.fitTone === 'none' ? '보정 –' : esc(t.fit)}</small>` : ''}</span>`).join('');
   const details = vm.details.map((d) => `<div class="ht-detail">
       <div class="ht-detail__l"><b>${esc(d.label)}</b>${d.changed ? '<span class="ht-changed">바뀜</span>' : ''}</div>
       ${Tabs({ variant: 'segment', fill: true, items: d.items, value: d.value, act: 'ht-level', data: { k: d.key }, label: d.label })}
@@ -113,13 +114,15 @@ export function halftimeView(vm: HalftimeVM): string {
         <p class="ht-sheet__sub">성향과 세부 전술을 바꾸거나 세트를 골라요.</p>
         ${SectionTitle({ title: '전술 세트' })}
         <div class="ht-sets">${sets}</div>
-        ${SectionTitle({ title: '전술 성향' })}
+        ${SectionTitle({ title: '전술 성향', ...(vm.tendencies.some((t) => t.fit) ? { action: '아래 숫자 = 적합도(경기 준비와 같은 값)' } : {}) })}
         <div class="ht-tends">${tends}</div>
+        ${vm.attackWarn ? `<p class="ht-warn">${Icon({ name: 'danger', size: 14 })}<span>${esc(vm.attackWarn)}</span></p>` : ''}
         ${SectionTitle({ title: '세부 전술' })}
         <div class="ht-details">${details}</div>
         <div class="ht-actions">
-          ${Button({ variant: 'secondary', size: 'lg', block: true, act: 'ht-keep', children: '변경 없이 후반' })}
-          ${Button({ size: 'lg', block: true, icon: 'check', act: 'ht-ok', disabled: !vm.changed, children: vm.changed ? '이 전술로 후반' : '바뀐 것 없음' })}
+          ${vm.changed
+            ? `${Button({ variant: 'secondary', size: 'lg', block: true, act: 'ht-keep', children: '변경 없이 후반' })}${Button({ size: 'lg', block: true, icon: 'check', act: 'ht-ok', children: '이 전술로 후반' })}`
+            : `${Button({ variant: 'secondary', size: 'lg', block: true, act: 'ht-ok', disabled: true, children: '바뀐 것 없음' })}${Button({ size: 'lg', block: true, icon: 'play', act: 'ht-keep', children: '변경 없이 후반' })}`}
         </div>
       </div>
     </div>`;

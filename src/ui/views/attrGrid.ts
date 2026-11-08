@@ -64,10 +64,12 @@ function cell(c: AttrCellVM, sel: string | null, acts: AttrActs = ALLOC_ACTS): s
 }
 
 /** 바둑판 모양 (C.58 디자인 93·113): 열 수(폰 4열 = AttrGrid), 범례를 위로, 테두리 범례 글자 */
-export interface AttrGridOpts { cols?: 3 | 4; legendTop?: boolean; keyLabel?: string; /** 범례에 "포인트 부족" (C.70 디자인 163) */ shortLegend?: boolean }
+export interface AttrGridOpts { cols?: 3 | 4; legendTop?: boolean; keyLabel?: string; /** 범례에 "포인트 부족" (C.70 디자인 163) */ shortLegend?: boolean; /** 17차 S13-a: 범례 뜻 · 묶음 핵심 이름 */ words?: boolean }
 
 export function attrGrid(groups: AttrGroupVM[], sel: string | null = null, acts?: AttrActs, o: AttrGridOpts = {}): string {
-  const legend = `<div class="ag-legend small"><span><i class="ag-sw ag-t5"></i>17+</span><span><i class="ag-sw ag-t4"></i>15+</span><span><i class="ag-sw ag-t3"></i>13+</span><span><i class="ag-sw ag-t2"></i>10+</span><span><i class="ag-sw ag-t1"></i>~9</span><span><i class="ag-sw key"></i>${esc(o.keyLabel ?? '포지션 핵심')}</span>${o.shortLegend ? '<span><i class="ag-sw short"></i>포인트 부족</span>' : ''}<span><i class="ag-sw bar"></i>막대 = 다음 칸까지</span></div>`;
-  return `<div class="ag${o.cols === 4 ? ' ag--4' : ''}">${o.legendTop ? legend : ''}${groups.map((g) => `<div class="ag-group"><h4 class="ag-head">${esc(g.name)}</h4><div class="ag-grid">${g.cells.map((c) => cell(c, sel, acts)).join('')}</div></div>`).join('')}
+  // 17차 S13-a: 범례에 뜻(최상 · 좋음 · 괜찮음 · 보통 · 약함), 묶음 머리 오른쪽에 그 묶음의 핵심 칸 이름
+  const w = o.words ? [' 최상', ' 좋음', ' 괜찮음', ' 보통', ' 약함'] : ['', '', '', '', ''];
+  const legend = `<div class="ag-legend small"><span><i class="ag-sw ag-t5"></i>17+${w[0]}</span><span><i class="ag-sw ag-t4"></i>15+${w[1]}</span><span><i class="ag-sw ag-t3"></i>13+${w[2]}</span><span><i class="ag-sw ag-t2"></i>10+${w[3]}</span><span><i class="ag-sw ag-t1"></i>~9${w[4]}</span><span><i class="ag-sw key"></i>${esc(o.keyLabel ?? '포지션 핵심')}</span>${o.shortLegend ? '<span><i class="ag-sw short"></i>포인트 부족</span>' : ''}<span><i class="ag-sw bar"></i>막대 = 다음 칸까지</span></div>`;
+  return `<div class="ag${o.cols === 4 ? ' ag--4' : ''}">${o.legendTop ? legend : ''}${groups.map((g) => `<div class="ag-group"><h4 class="ag-head">${esc(g.name)}${o.words && g.cells.some((c) => c.key) ? `<small class="ag-head__key">${esc(o.keyLabel ?? '핵심')} · ${esc(g.cells.filter((c) => c.key).map((c) => c.label).join(' · '))}</small>` : ''}</h4><div class="ag-grid">${g.cells.map((c) => cell(c, sel, acts)).join('')}</div></div>`).join('')}
     ${o.legendTop ? '' : legend}</div>`;
 }

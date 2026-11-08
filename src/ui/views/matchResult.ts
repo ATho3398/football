@@ -1,9 +1,9 @@
 // 경기 후 (I.6, 디자인 38): 스코어·평점, 하이라이트, 전술 리포트(21.5.2: 판정 카드 최대 2장 + 숫자 줄), 평균 위치 지도, XP.
 // 내 결정 기록 (E.11, I.17 10번, 직접 모드로 멈춘 순간). 카드·신뢰도는 아직 없는 기능이라 숨긴다
 
-import { Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, RiskChip, SectionTitle, StatChip, TacticChip } from '../components';
+import { Button, Crest, esc, HeroPanel, Icon, Meter, Panel, Pitch, PossessionBar, RiskChip, SectionTitle, StatChip, TacticChip } from '../components';
 import { formEffectLabel, type MatchResultVM } from '../viewModels';
-import { actionRow, banners, moreRecords, panel, pc2 } from './common';
+import { actionRow, banners, moreRecords, panel } from './common';
 import { isWide } from '../skin';
 import { personLink } from './detail';
 import { scoreText } from '../../text';
@@ -33,52 +33,52 @@ const ENV_ICON = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', he
 /** delta = 방금 경기 앞뒤 신뢰도·위상 변화 (C.72, 화면이 잰 값). 없거나 둘 다 0이면 줄을 숨긴다 */
 /** jersey = 유니폼 교환 패널 (C.76b, 요청할 수 있는 경기만) */
 export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null, jersey: JerseyPanelVM | null = null): string {
+  const wide = isWide();
+  const played = vm.rating !== null;
+  // 17차 S11: 머리말 = "대회 · 상대전 1 : 2 패" + 큰 평점(단위 "평점"). 결장이면 큰 자리에 "결장" 글자 + 사유(빈 라임 막대 대신, S11-a)
+  const benchKo = /부상/.test(vm.appearance) ? '부상' : /정지/.test(vm.appearance) ? '정지' : /휴가/.test(vm.appearance) ? '휴가' : '벤치';
   const hero = HeroPanel({
-    title: '경기 결과', right: vm.comp, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
-    eyebrow: `${vm.opp}전 ${vm.scoreLine} ${vm.outcomeKo} · 내 평점`,
-    value: vm.rating === null ? '-' : vm.rating.toFixed(1), pad: false, progress: false,
+    title: '경기 결과', back: { act: 'go', data: { to: 'home' } }, ...(wide ? { compact: true } : {}),
+    eyebrow: `${vm.comp} · ${vm.opp}전 ${vm.scoreLine}\u00a0${vm.outcomeKo}`,
+    value: played ? vm.rating!.toFixed(1) : '결장', unit: played ? '평점' : `· ${benchKo}`, pad: false, progress: false,
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
   });
-  // C.70 (디자인 170·160): 한 줄 = 엠블럼 · 우리 팀 | 점수 | 상대 · 엠블럼 (내 얼굴은 머리말 평점과 겹쳐 뺌)
+  // C.70 (디자인 170·160): 한 줄 = 엠블럼 · 우리 팀 | 점수 "1 : 2" | 상대 · 엠블럼
   const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score score-cell">${esc(vm.scoreLine)}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>${
     vm.env ? `<div class="mr-env-line"><span class="mr-env is-${vm.env.weather}">${Icon({ name: ENV_ICON[vm.env.weather], size: 16 })}<b>${esc(vm.env.line)}</b><span>· 심판 ${esc(vm.env.referee)}</span></span></div>` : ''}`;
-  // 경기가 끝나면 이 화면으로 바로 온다 (C.50 pending 82 2번). 하이라이트는 이 버튼으로만 — 디자인 155 (C.60): 머리 아래 패널
-  const rewatch = vm.hasAvgMap ? `<div class="panel mr-rewatch"><div class="mr-rewatch__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.sceneCount}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}</small></span></div>
-    ${Button({ block: true, icon: 'play', act: 'hl-rewatch', children: '하이라이트 다시보기' })}
-    <small class="muted">경기가 끝나면 이 화면으로 바로 와요. 다시보기가 끝나면 여기로 돌아와요.</small></div>` : '';
-  // 경기 후 하이라이트 3개 (24.6, P단계 C.77o): 골 · 결정적 장면 · 내 최고 순간, 앞뒤 8초. 세이브에 남아 불러온 뒤에도 본다.
-  // 새 디자인 전 최소 구현 — 결정 기록 줄(dec-row)과 같은 모양 (docs/ui-requests/c77o-highlight-clips.md)
+  // 결장 안내 (S11-a): 벤치 · 부상 · 정지 사유 한 줄 + 포인트 출처
+  const bench = played ? '' : Panel({ kind: 'info', icon: 'info', title: vm.appearance, className: 'mr-bench',
+    children: `<p class="small muted">이번 경기는 뛰지 않았어요. 팀 결과 · 하이라이트는 그대로 볼 수 있어요.</p>` });
+  // 하이라이트 한 판 (17차 S11-b): 다시보기 + 클립(골 · 결정적 장면 · 내 최고 순간 · 실점, highlightClass 색) + 이어 보기
   const cl = vm.clips ?? [];
-  const clips = cl.length
-    ? `${SectionTitle({ title: '하이라이트 클립', action: `${cl.length}개 · 앞뒤 8초` })}<div class="dec-list mr-clips">${cl.map((c, i) => `
-        <button type="button" data-act="clip-play" data-v="${i}" aria-label="${esc(c.minute)} ${esc(c.label)} 다시 보기" class="panel dec-row dec-neutral mr-clip is-${c.kind}"><span class="po-num dec-min">${esc(c.minute)}</span><span class="dec-main"><small>${esc(c.label)}${c.badge ? ` <i class="mr-clip__badge">${esc(c.badge)}</i>` : ''}</small><b>${esc(c.text)}</b></span><span class="dec-play">${Icon({ name: 'play', size: 16 })}</span></button>`).join('')}</div>
-      ${cl.length > 1 ? Button({ variant: 'ghost', block: true, icon: 'play', act: 'clip-play', data: { v: 'all' }, children: `${cl.length}개 이어 보기` }) : ''}`
+  const hlHead = vm.hasAvgMap
+    ? `<div class="mr-hl__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.sceneCount}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}${cl.length ? ` · 클립 ${cl.length}개 앞뒤 8초` : ''}</small></span>${
+      Button({ size: 'sm', variant: 'secondary', icon: 'play', act: 'hl-rewatch', className: 'mr-hl__rewatch', children: '다시보기' })}</div>`
+    : cl.length ? `<div class="mr-hl__head"><span class="mr-rewatch__icon">${Icon({ name: 'video', size: 20 })}</span><span class="grow"><b>하이라이트 클립 ${cl.length}개</b><small>클립마다 앞뒤 8초</small></span></div>` : '';
+  const clipRows = cl.map((c, i) => `
+        <button type="button" data-act="clip-play" data-v="${i}" aria-label="${esc(c.minute)} ${esc(c.label)} 다시 보기" class="panel dec-row dec-neutral mr-clip is-${c.kind}"><span class="po-num dec-min">${esc(c.minute)}</span><span class="dec-main"><small>${esc(c.label)}${c.badge ? ` <i class="mr-clip__badge">${esc(c.badge)}</i>` : ''}</small><b>${esc(c.text)}</b></span><span class="dec-play">${Icon({ name: 'play', size: 16 })}</span></button>`).join('');
+  const highlights = hlHead
+    ? `<section class="panel mr-hl mr-rewatch">${hlHead}${cl.length ? `<div class="dec-list mr-clips">${clipRows}</div>` : ''}${
+      cl.length > 1 ? Button({ variant: 'link', block: true, iconRight: 'play', act: 'clip-play', data: { v: 'all' }, className: 'mr-hl__all', children: `${cl.length}개 이어 보기` }) : ''}</section>`
     : '';
-  // 득점 (디자인 117 · 155): 우리 골 = 라임 면, 실점 = 주황 테두리. 이름을 누르면 선수 상세 (C.53)
+  // 득점 (디자인 117 · 155 → 17차 2절 25번): 우리 골 = 라임 테두리 + 점(면 아님), 실점 = 주황 테두리. 이름을 누르면 선수 상세 (C.53)
   const goals = vm.goals.length
     ? `${SectionTitle({ title: '득점', action: '누르면 선수 상세' })}<div class="mr-goals">${goalRows(vm.goals)}</div>`
     : '';
-  let report = '';
   const r = vm.report;
-  if (r) {
-    const verdicts = r.verdicts.map((v) => `<div class="verdict ${v.ok ? 'ok' : 'bad'}"><b>${v.ok ? '✓' : '✕'} ${esc(v.title)}</b><span>${esc(v.detail)}</span></div>`).join('');
-    const [, ...rows] = r.rows; // 점유율은 점유율 바로 보여 준다
-    report = `
-      ${SectionTitle({ title: '전술 리포트 · 평균 위치' })}
-      ${panel(`
+  const verdicts = r ? r.verdicts.map((v) => `<div class="verdict ${v.ok ? 'ok' : 'bad'}"><b>${v.ok ? '✓' : '✕'} ${esc(v.title)}</b><span>${esc(v.detail)}</span></div>`).join('') : '';
+  const reportBody = r ? `
         <div class="kv">${TacticChip({ size: 'sm', ...r.my })}${TacticChip({ size: 'sm', away: true, ...r.opp })}</div>
         ${PossessionBar({ home: r.possession })}
         ${verdicts}
-        ${rows.map((x) => cmpRow(x.label, x.own, x.opp)).join('')}
-        ${vm.hasAvgMap ? `<div class="divider"></div><div class="kv"><b class="small">평균 위치</b><span class="muted small" id="avg-dir">우리 공격 방향 →</span></div>${Pitch({ canvasId: 'avg-canvas', label: '양 팀 평균 위치' })}` : ''}
-      `, 'report')}`;
-  }
+        ${r.rows.slice(1).map((x) => cmpRow(x.label, x.own, x.opp)).join('')}
+        ${vm.hasAvgMap ? `<div class="divider"></div><div class="kv"><b class="small">평균 위치</b><span class="muted small" id="avg-dir">우리 공격 방향 →</span></div>${Pitch({ canvasId: 'avg-canvas', label: '양 팀 평균 위치' })}` : ''}` : '';
   const my = vm.my.length
     ? `${SectionTitle({ title: '내 기록', action: vm.appearance })}<div class="chips">${vm.my.map((m) => StatChip({ label: m.label, value: m.value })).join('')}${
       vm.formBonus ? StatChip({ label: vm.formEngine ? '폼 효과' : '폼 보정', value: formEffectLabel(vm.formBonus, !!vm.formEngine).replace(/^평점 보정 /, ''), tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
     : '';
   const RES = { success: '성공', fail: '실패', neutral: '보통' } as const;
-  // 줄을 누르면 그 장면 리플레이 (E5 최소, 부록 C.35). 디자인 117: 3줄 + 더 보기
+  // 줄을 누르면 그 장면 리플레이 (E5 최소, 부록 C.35). 디자인 117: 3줄 + 더 보기. 위험 칩은 C.81v 그대로
   const tag = vm.decisionReplay ? 'button' : 'div';
   const DEC_PAGE = 3;
   const decShown = more.dec ? vm.decisions : vm.decisions.slice(0, DEC_PAGE);
@@ -86,15 +86,23 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     ? `${SectionTitle({ title: '내 결정 기록', action: `${vm.decisions.length}번 멈춤` })}<div class="dec-list">${decShown.map((d, i) => `
         <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="panel dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><small>${esc(d.scene)} · ${esc(d.p)}</small><b>${d.choice ? `${esc(d.choice)} · ` : ''}${esc(d.label)}${d.risk ? RiskChip(d.risk) : ''}</b>${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
         <span class="dec-res"><span class="dec-res__k">${RES[d.result]}</span><b class="po-num">${esc(d.delta)}</b></span>${vm.decisionReplay ? `<span class="dec-play">${Icon({ name: 'restore', size: 16 })}</span>` : ''}</${tag}>`).join('')}</div>
-        <p class="small muted dec-hint">${vm.decisionReplay ? '줄을 누르면 그 장면을 다시 봐요.' : ''}</p>${vm.decisions.length > DEC_PAGE ? Button({ variant: 'ghost', block: true, icon: more.dec ? 'chevron-up' : 'chevron-down', act: 'more', data: { v: 'dec' }, className: 'more-btn', children: more.dec ? '접기' : `${vm.decisions.length - DEC_PAGE}개 더 보기` }) : ''}`
+        ${vm.decisionReplay ? '<p class="small muted dec-hint">줄을 누르면 그 장면을 다시 봐요.</p>' : ''}${vm.decisions.length > DEC_PAGE ? Button({ variant: 'ghost', block: true, icon: more.dec ? 'chevron-up' : 'chevron-down', act: 'more', data: { v: 'dec' }, className: 'more-btn', children: more.dec ? '접기' : `${vm.decisions.length - DEC_PAGE}개 더 보기` }) : ''}`
     : '';
-  // 쓴 카드도 3줄 + 더 보기 (C.60, 디자인 117 결정 기록과 같은 규칙)
+  // 쓴 카드도 3줄 + 더 보기 (C.60): 분 칸 · 카드 이름 (자동) · 결과
   const cuShown = more.cu ? vm.cardUses : vm.cardUses.slice(0, DEC_PAGE);
-  const cardUses = vm.cardUses.length
-    // C.70 (디자인 170·160): 분 칸 · 카드 이름 (자동) · 결과, [n장 더 보기]는 판 안 맨 아래
-    ? `${SectionTitle({ title: '쓴 카드', action: `${vm.cardUses.length}장` })}${panel(`<div class="dec-list">${cuShown.map((c) => `<div class="cu-row dec-${c.result}">${
+  const cuList = vm.cardUses.length
+    ? `<div class="dec-list">${cuShown.map((c) => `<div class="cu-row dec-${c.result}">${
       c.minute ? `<span class="po-num cu-min">${esc(c.minute)}</span><span class="grow">${esc(c.name ?? '')}${c.auto ? ' <small>(자동)</small>' : ''}</span>` : `<span>${esc(c.text)}</span>`}<b>${RES[c.result]}</b></div>`).join('')}</div>${
-      vm.cardUses.length > DEC_PAGE ? `<button type="button" class="cu-more" data-act="more" data-v="cu">${more.cu ? '접기' : `${vm.cardUses.length - DEC_PAGE}장 더 보기`}${Icon({ name: more.cu ? 'chevron-up' : 'chevron-down', size: 14 })}</button>` : ''}`, 'cu-panel')}`
+      vm.cardUses.length > DEC_PAGE ? `<button type="button" class="cu-more" data-act="more" data-v="cu">${more.cu ? '접기' : `${vm.cardUses.length - DEC_PAGE}장 더 보기`}${Icon({ name: more.cu ? 'chevron-up' : 'chevron-down', size: 14 })}</button>` : ''}`
+    : '';
+  // 쓴 카드 · 전술 리포트 한 판 (17차 S11-b): 폰은 접음(요약 한 줄), PC 는 오른쪽 열에 펼침
+  const sumParts = [vm.cardUses.length ? `쓴 카드 ${vm.cardUses.length}장${vm.cardUses.every((c) => c.auto) ? ' · 모두 자동' : ''}` : '쓴 카드 없음',
+    r ? `점유율 ${r.possession} : ${100 - r.possession}` : '', r?.verdicts[0] ? r.verdicts[0].title : ''].filter(Boolean);
+  const repOpen = wide || !!more.rep;
+  const report = r || vm.cardUses.length
+    ? Panel({ kind: 'info', title: vm.cardUses.length ? '쓴 카드 · 전술 리포트' : '전술 리포트 · 평균 위치', foldable: !wide, folded: !repOpen, onFold: { act: 'more', data: { v: 'rep' } },
+      summary: sumParts.join(' · '), className: 'mr-report', ...(wide ? { right: r ? '평균 위치' : '' } : {}),
+      children: `${cuList ? `<b class="small mr-report__k">쓴 카드</b>${cuList}` : ''}${r ? `${cuList ? '<div class="divider"></div>' : ''}${reportBody}` : ''}` })
     : '';
   const jx = jersey ? jerseyPanel(jersey) : '';
   const x = vm.xp;
@@ -103,30 +111,29 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   const next = vm.seasonOver
     ? Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'go', data: { to: 'season' }, children: '시즌 요약' })
     : Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'play', children: '다음 경기' });
-  const reward = `${SectionTitle({ title: '보상' })}
+  const reward = `${SectionTitle({ title: '보상', ...(x.levelsGained ? {} : { action: `레벨업까지 ${Math.max(0, x.max - x.value)}` }) })}
       ${panel(Meter({ value: x.value, gain: x.levelsGained ? 0 : x.gained, max: x.max, label: `XP +${x.gained} · Lv ${x.level}${x.levelsGained ? ' 레벨 업!' : ''}`, showValue: true, tone: 'xp' }) + deltaLine(delta))}`;
   const btns = `<div class="btn-col">
         ${vm.points > 0 && !vm.banners.some((b) => b.to === 'allocate') ? Button({ variant: 'ghost', block: true, icon: 'levelup', act: 'go', data: { to: 'allocate' }, children: `포인트 찍기 (${vm.points})` }) : ''}
         ${actionRow(home, next)}
       </div>`;
-  // PC 2열 (C.61, 폰 2,600px대 → 한 화면): 왼쪽 = 점수 · 하이라이트 · 득점 · 결정 · 쓴 카드, 오른쪽 = 내 기록 · 보상 · 버튼 · 전술 리포트·평균 위치
-  if (isWide()) {
-    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${clips}${cupBanner(vm.cupBanner)}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
+  // PC 3열 (17차 S11 PC): 왼쪽 = 점수 · 대회 · 하이라이트 · 득점 / 가운데 = 내 기록 · 배너 · 유니폼 교환 · 결정 · 보상 · 버튼 / 오른쪽 = 쓴 카드 · 전술 리포트 · 평균 위치(펼침)
+  if (wide) {
+    return `${hero}<div class="body mr-body mr-v17"><div class="mr-pc3"><div class="mr-col">${head}${bench}${cupBanner(vm.cupBanner)}${highlights}${goals}</div><div class="mr-col">${my}${banners(vm.banners)}${jx}${decisions}${reward}${btns}</div><div class="mr-col">${report}</div></div></div>`;
   }
   return `
     ${hero}
-    <div class="body">
+    <div class="body mr-v17">
       ${head}
-      ${rewatch}
-      ${clips}
+      ${bench}
       ${cupBanner(vm.cupBanner)}
-      ${banners(vm.banners)}
-      ${jx}
+      ${highlights}
       ${goals}
       ${decisions}
-      ${cardUses}
-      ${report}
       ${my}
+      ${banners(vm.banners)}
+      ${jx}
+      ${report}
       ${reward}
       ${btns}
     </div>`;

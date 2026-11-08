@@ -23,7 +23,12 @@ import { DETAILS, LEVEL_NAMES_KO, type Detail } from '../engine/tactics';
 import { proficiencyOf } from '../proficiency';
 import { ROLE_DESC_KO } from '../engine/roles';
 import type { FormationSlotProps } from './components';
-import { formLine, myTacticVM, teamTactic, type TacticVM } from './viewModels';
+import { envVM, formLine, injuryRiskOf, myTacticVM, teamTactic, type EnvVM, type TacticVM } from './viewModels';
+import { attackOf, fitVM, matchupOf, oppPlanOf, tacticFitPts, type AttackVM, type FitVM, type MatchupVM, type OppPlanVM } from './prepNumbers';
+import { ENGINE } from '../engine/config';
+import { posGroup } from '../roster';
+import { TENDENCY_NAMES_KO } from '../engine/tactics';
+import type { Position } from '../types';
 import { deckCardsVM, deckUnusable, myRoleId, type DeckCardVM } from './views/deck';
 
 export type FormMark = 'W' | 'D' | 'L';
@@ -68,6 +73,19 @@ export interface PrepVM {
   cupBadge: string | null;
   /** 상대 출장 정지 선수 (C.80a, 리그 경기만): "이름 (포지션)" */
   oppBans: string[];
+  /** 상대 예상 계획 (17차 S08, 엔진 teamPlan → underdogPlan 그대로). 대표팀 경기는 null */
+  oppPlan: OppPlanVM | null;
+  /** 상성 (ENGINE.matchup): 우리 성향 vs 상대 예상 성향. 대표팀 경기는 null */
+  matchup: (MatchupVM & { mineName: string; oppName: string }) | null;
+  /** 지금 성향 적합도 (엔진 fitOnly 식). 대표팀 경기는 null */
+  fit: FitVM | null;
+  /** 공격 인원 (ENGINE.stackCap) */
+  attack: AttackVM | null;
+  /** 경기 변수 (A5~A9): 날씨 · 심판 · 부상 위험 */
+  env: EnvVM;
+  injuryRisk: { pct: number; mul: number; why: string } | null;
+  /** 정지 빈도 3단계 뜻 (내 포지션군 중요도 기준 × 배수) */
+  stops: { id: 'all' | 'important' | 'critical'; label: string; th: number }[];
 }
 
 /** 전술 세부 짧은 이름 (디자인 156 "라인 높음 · 압박 높음 · 빌드업 혼합") */
@@ -142,6 +160,31 @@ export function prepVM(g: GameState): PrepVM | null {
     control: g.control,
     quick: g.options.others === 'quick',
     scout: myScoutReport(g),
+    ...extras(g, fx.nat ? null : { oppId: opp.id, oppRating: opp.rating, myRating: my.rating }, natPv ? null : (lineup as { pos: string; attrs?: import('../attributes').FieldAttributes }[]).map((x) => ({ pos: x.pos as Position, ...(x.attrs ? { attrs: x.attrs } : {}) })), pos),
     oppBans: fx.cup || fx.nat ? [] : (g.rosters[opp.id]?.players ?? []).filter((x) => npcBanLeft(g.npcBan, x.id) > 0).map((x) => `${x.nameKo} (${x.position})`),
+  };
+}
+
+const STOP_LABEL = { all: '모든 순간', important: '중요한 순간만', critical: '결정적 순간만' } as const;
+
+/** 17차 S08 추가 칸: 예상 계획 · 상성 · 적합도 · 공격 인원 · 경기 변수 · 정지 빈도 뜻 */
+function extras(
+  g: GameState, club: { oppId: string; oppRating: number; myRating: number } | null,
+  lineup: { pos: Position; attrs?: import('../attributes').FieldAttributes }[] | null, myPos: FieldPosition,
+): Pick<PrepVM, 'oppPlan' | 'matchup' | 'fit' | 'attack' | 'env' | 'injuryRisk' | 'stops'> {
+  const L = g.league;
+  const oppRoster = club ? g.rosters[club.oppId] : undefined;
+  const leagueAvg = L.teams.reduce((t, x) => t + x.rating, 0) / L.teams.length;
+  const oppPlan = club && oppRoster ? oppPlanOf(club.oppId, club.oppRating, club.myRating, oppRoster.formation, g.worldSeed, leagueAvg) : null;
+  const mine = g.tactics.tendency;
+  const matchup = oppPlan ? { ...matchupOf(mine, oppPlan.tendency), mineName: TENDENCY_NAMES_KO[mine], oppName: oppPlan.name } : null;
+  const th = ENGINE.moments.threshold[posGroup(myPos)] ?? 0.45;
+  return {
+    oppPlan, matchup,
+    fit: club && lineup ? fitVM(tacticFitPts(mine, lineup)) : null,
+    attack: lineup ? attackOf(lineup.map((x) => x.pos)) : null,
+    env: envVM(g),
+    injuryRisk: g.player.injury ? null : injuryRiskOf(g),
+    stops: (['all', 'important', 'critical'] as const).map((id) => ({ id, label: STOP_LABEL[id], th: Math.round(th * ENGINE.moments.stopMul[id] * 100) / 100 })),
   };
 }

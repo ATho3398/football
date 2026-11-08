@@ -4,7 +4,9 @@
 import { BottomSheet, Button, DayCell, Icon, SectionTitle, Switch, Tabs, TextField, esc, type IconName } from '../components';
 import type { DayPlan } from '../../training';
 import { PRESET_NAME_MAX } from '../../training';
-import type { PresetEditVM, PresetRowVM, PresetsVM, TrainingOptionVM, TrainingVM } from '../viewModels';
+import type { LifeStatVM, PresetEditVM, PresetRowVM, PresetsVM, TrainingOptionVM, TrainingVM } from '../viewModels';
+
+type LifeVM = { stats: LifeStatVM[]; hints: string[] };
 import { panel } from './common';
 import { isWide } from '../skin';
 import { isLifeKind } from '../../life';
@@ -88,12 +90,16 @@ export function trainingSection(vm: TrainingVM, gauge = true): string {
     ...(vm.eve ? ['<li>경기 전날 영상 분석 완료 · 시작 패 +1 (곧 적용돼요)</li>'] : []),
     ...(vm.formPenalty ? ['<li class="warn">휴식이 길어져 다음 경기 폼 −1. 회복 훈련을 하면 지워져요.</li>'] : []),
   ];
-  return `${panel(`${head}
-      ${weekRow(vm)}
+  // 17차 S12-a: 오늘 카드 → "이번 주 계획"(오늘부터 7칸, 요일은 여기서만) · 고정 범례 → 주간 XP · 프리셋 줄 (탭 이름 = 내용, 2절 19번)
+  const span = vm.week.length ? `${vm.week[0]!.md} (${vm.week[0]!.wd}) ~ ${vm.week[vm.week.length - 1]!.md} (${vm.week[vm.week.length - 1]!.wd})` : '';
+  return `${panel(head, 'tr-daycard')}
+    ${SectionTitle({ title: '이번 주 계획', action: span })}
+    ${panel(`${weekRow(vm)}
       <div class="tr-foot small muted"><span>칸을 누르면 그날만 바꿔요</span><span>이번 주 훈련 XP <b class="po-num">${num(vm.weekXp)}/${vm.cap}</b></span></div>
-      <p class="small muted pr-line">이번 주 프리셋 <b>${esc(vm.presets.activeName)}</b>${vm.presets.auto ? (vm.presets.manual ? ' · 이번 주만 직접 고름' : ' · 자동') : ' · 자동 끔'} · <button type="button" class="link-btn" data-act="train-tab" data-v="pre">프리셋 바꾸기</button></p>
+      <p class="small muted tr-legend">${Icon({ name: 'lock', size: 12 })}고정 = 경기 · 다음 날 휴식 · 원정 전날 이동일(영상·회복만)</p>
+      <p class="small muted pr-line">이번 주 프리셋 <b>${esc(vm.presets.activeName)}</b>${vm.presets.auto ? (vm.presets.manual ? ' · 이번 주만 직접 고름' : ' · 자동') : ' · 자동 끔'}</p>
       ${notes.length ? `<ul class="tr-notes small">${notes.join('')}</ul>` : ''}
-      ${vm.last ? `<p class="small muted">어제 · ${esc(vm.last)}</p>` : ''}`, 'tr-daycard')}
+      ${vm.last ? `<p class="small muted">어제 · ${esc(vm.last)}</p>` : ''}`, 'tr-weekcard')}
     ${gauge ? gaugeSection(vm) : ''}`;
 }
 
@@ -114,8 +120,23 @@ export function gaugeSection(vm: TrainingVM): string {
     <p class="small muted">기술 훈련을 하면 고른 묶음 +1칸. 다 차면 그 묶음에서 가장 낮은 능력치가 1/5칸 올라요(칸 수 = ${BALANCE.training.gauge.full} × 그 능력치의 포인트 비용, 묶음당 시즌 +${BALANCE.training.gauge.bundleSeasonMax}, 전체 +${vm.seasonMax}). [자동]이면 시즌 상한이 남은 묶음 중 내 포지션 OVR에 가장 크게 들어가는 묶음이 차요. 30세부터는 천천히 차요. 코치가 있으면 그 코치의 전문 능력치가 목표가 되고 더 빨리 차요(코치는 훈련 › 스태프 탭).</p>`;
 }
 
+/** 성장 탭 (17차 S12-e): 이번 주 훈련 XP · 주간 한도 → 기술 훈련 게이지(코치 효과는 게이지 칸 아래 줄) */
+export function growthSection(vm: TrainingVM): string {
+  const pct = Math.min(100, Math.round((vm.weekXp / Math.max(1, vm.cap)) * 100));
+  return `${SectionTitle({ title: '이번 주 훈련 XP', action: `한도 ${vm.cap}` })}
+    ${panel(`<div class="tr-xp"><b class="po-num">${num(vm.weekXp)}</b><small class="po-num">/ ${vm.cap}</small><span class="tr-bar" aria-hidden="true"><i style="width:${pct}%"></i></span></div>
+      <p class="small muted">훈련 XP는 한 주(월~일)에 ${vm.cap}까지 쌓여요. 넘친 몫은 버려져요 · 경기 XP는 따로예요.</p>`, 'tr-xpcard')}
+    ${gaugeSection(vm)}`;
+}
+
 /** 하루 훈련 고르기 (디자인 92·150): 줄을 고르고 아래 [○○으로]로 확정, [프리셋대로]는 그날 바꾼 것을 지운다 */
-export function trainingSheet(vm: { date: string; injured: boolean; travel?: boolean; options: TrainingOptionVM[]; weakFoot?: string }, dateIso: string, pick: string | null = null): string {
+/** 생활 4칸 (17차 S12-d · B4): 값 = 저장값, 막대 위 기준선 50, 아래 한 줄 = 코드 힌트(lifeHints) */
+function lifeTiles(l: LifeVM): string {
+  const tiles = l.stats.map((x) => `<div class="tr-life__tile${x.value < 50 ? ' is-low' : ''}"><small>${esc(x.label)}</small><b class="po-num">${x.value}</b><span class="tr-life__bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, x.value))}%"></i><em></em></span></div>`).join('');
+  return `<div class="tr-life" role="group" aria-label="생활 수치 (기준선 50)">${tiles}</div>${l.hints.length ? `<p class="small warn tr-life__hint">${esc(l.hints.join(' · '))}</p>` : '<p class="small muted tr-life__hint">생활 수치가 모두 괜찮아요 · 막대 위 눈금 = 기준선 50</p>'}`;
+}
+
+export function trainingSheet(vm: { date: string; injured: boolean; travel?: boolean; options: TrainingOptionVM[]; weakFoot?: string; life?: LifeVM | null }, dateIso: string, pick: string | null = null): string {
   const sel = vm.options.find((o) => o.kind === pick) ?? vm.options.find((o) => o.selected) ?? vm.options[0]!;
   const planned = vm.options.find((o) => o.planned);
   const row = (o: TrainingOptionVM) => `<button type="button" class="tr-opt${o.kind === sel.kind ? ' is-on' : ''}" role="radio" aria-checked="${o.kind === sel.kind}" data-act="train-pick" data-v="${o.kind}" data-date="${esc(dateIso)}">
@@ -125,7 +146,7 @@ export function trainingSheet(vm: { date: string; injured: boolean; travel?: boo
   const train = vm.options.filter((o) => !o.life);
   const life = vm.options.filter((o) => o.life);
   // C.76i (디자인 196): 생활 묶음 = 머리 칸(해 아이콘 · "생활 · 훈련 대신" · [하루 소모] 칩 · 한 줄 설명) + 생활 줄("하루" 칩)
-  const lifeBox = life.length ? `<div class="tr-lifebox lf-sec">${Icon({ name: 'sun', size: 18 })}<span class="grow"><b>생활 · 훈련 대신</b><small class="muted">하루를 통째로 써요. 그날 훈련 XP는 없고, 체력·멘탈이 돌아와요.</small></span><span class="tr-lifebox__chip">하루 소모</span></div>
+  const lifeBox = life.length ? `<div class="tr-lifebox lf-sec">${Icon({ name: 'sun', size: 18 })}<span class="grow"><b>생활 · 훈련 대신</b><small class="muted">하루를 통째로 써요. 그날 훈련 XP는 없고, 체력·멘탈이 돌아와요.</small></span><span class="tr-lifebox__chip">하루 소모</span></div>${vm.life ? lifeTiles(vm.life) : ''}
     <div class="tr-opts" role="radiogroup" aria-label="생활"><div class="tr-opts__head small"><span>생활</span><span>XP</span><span>체력</span></div>${life.map(row).join('')}</div>` : '';
   const trainList = `<div class="tr-opts" role="radiogroup" aria-label="훈련"><div class="tr-opts__head small"><span>훈련</span><span>XP</span><span>체력</span></div>${train.map(row).join('')}</div>`;
   const label = sel.name.replace(/ \(기본\)$/, '');
@@ -144,14 +165,15 @@ export function trainingSheet(vm: { date: string; injured: boolean; travel?: boo
 
 function presetRow(r: PresetRowVM): string {
   const badge = r.active ? '<span class="pr-badge is-on">지금</span>' : r.recommended ? '<span class="pr-badge">추천</span>' : '';
-  const cells = r.week.map((d) => `<span class="pr-day tr-${d.kind}${d.fixed ? ' is-fixed' : ''}${d.today ? ' is-today' : ''}" title="${esc(d.wd)}"><small>${esc(d.wd)}</small><b class="tr-k">${esc(d.short)}</b></span>`).join('');
+  // 17차 2절 19번: 프리셋 = 훈련일 순서 7칸(요일은 이번 주 계획에서만). 칸 = n번째 훈련일 · 아이콘 · 두 글자
+  const cells = r.slots.map((d, i) => `<span class="pr-day tr-${d.kind}${i >= r.used ? ' is-dim' : ''}" title="${i + 1}번째 훈련일"><small class="po-num">${i + 1}</small>${Icon({ name: PLAN_ICON[d.kind], size: 14 })}<b class="tr-k">${esc(d.short)}</b></span>`).join('');
   return `<div class="pr-row${r.active ? ' is-on' : ''}">
     <button type="button" class="pr-pick" role="radio" aria-checked="${r.active}" data-act="preset-pick" data-v="${esc(r.id)}">
       <span class="pr-head"><i class="radio${r.active ? ' on' : ''}" aria-hidden="true"></i><b>${esc(r.name)}</b>${badge}</span>
       <span class="pr-desc">${esc(r.desc)}</span>
       <span class="pr-week" aria-hidden="true">${cells}</span>
     </button>
-    ${r.custom ? `<button type="button" class="pr-edit" data-act="preset-edit" data-v="${esc(r.id)}" aria-label="${esc(r.name)} 고치기">${Icon({ name: 'edit', size: 14 })}고치기</button>` : ''}
+    ${r.custom ? `<span class="pr-tools">${Button({ variant: 'secondary', size: 'sm', icon: 'edit', act: 'preset-edit', data: { v: r.id }, className: 'pr-edit', children: '고치기' })}${Button({ variant: 'ghost', size: 'sm', icon: 'close', act: 'preset-del-ask', data: { v: r.id }, className: 'pr-del', children: '삭제' })}</span>` : ''}
   </div>`;
 }
 
@@ -175,7 +197,7 @@ export function presetSection(vm: PresetsVM): string {
     ${SectionTitle({ title: '내 프리셋', action: vm.custom.length ? `${vm.custom.length}개 · 무제한` : '무제한' })}
     ${vm.custom.length ? `<div class="pr-list" role="radiogroup" aria-label="내 프리셋">${vm.custom.map(presetRow).join('')}</div>` : ''}
     <div class="pr-new">${Button({ variant: 'secondary', size: 'lg', block: true, icon: 'plus', act: 'preset-edit', data: { v: '' }, children: '새 프리셋 만들기' })}</div>
-    <p class="small muted pr-note">경기 다음 날 휴식·경기 전날 영상 분석은 프리셋과 상관없이 그대로예요(흐린 칸). 주간 계획 칸을 누르면 그날만 바꿔요.</p>`;
+    <p class="small muted pr-note">프리셋 칸은 훈련일 순서예요(1 = 그 주 첫 훈련일). 경기 날·경기 다음 날 휴식·원정 전날 이동일은 건너뛰고 나머지 날만 차례로 채워요. 흐린 칸은 훈련일이 많은 주에만 써요.</p>`;
 }
 
 /** 내 프리셋 만들기·고치기 시트 (C.71a 디자인 167): 이름 + 훈련일 7칸(칸을 누르고 아래 종류에서 고름) + 요약 칸, 고치기면 [삭제] */

@@ -1,0 +1,259 @@
+{
+  "W": 390,
+  "H": 844,
+  "errors": [],
+  "screens": {
+    "S11-a_결장벤치": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "챔피언스리그 · 조별 2차전 11px (cup-banner__kicker)",
+        "A조 · 2/6경기 10px ()",
+        "(도움 율렌 토레스) 10.8333px ()",
+        "(도움 리스 바턴) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "TH토트넘 홋스퍼 129×32 (mr-team dt-link)",
+        "샤흐타르 도네츠크샤 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "시버 스메츠 59×19 (dt-link )"
+      ],
+      "stageH": null
+    },
+    "S11-b_출전": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "챔피언스리그 · 조별 2차전 11px (cup-banner__kicker)",
+        "A조 · 2/6경기 10px ()",
+        "(도움 율렌 토레스) 10.8333px ()",
+        "(도움 리스 바턴) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "TH토트넘 홋스퍼 129×32 (mr-team dt-link)",
+        "샤흐타르 도네츠크샤 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "시버 스메츠 59×19 (dt-link )"
+      ],
+      "stageH": null
+    },
+    "S11-b_출전_전체": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "챔피언스리그 · 조별 2차전 11px (cup-banner__kicker)",
+        "A조 · 2/6경기 10px ()",
+        "(도움 율렌 토레스) 10.8333px ()",
+        "(도움 리스 바턴) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "TH토트넘 홋스퍼 129×32 (mr-team dt-link)",
+        "샤흐타르 도네츠크샤 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "시버 스메츠 59×19 (dt-link )"
+      ],
+      "stageH": null
+    },
+    "S11-c_더보기펼침": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "챔피언스리그 · 조별 2차전 11px (cup-banner__kicker)",
+        "A조 · 2/6경기 10px ()",
+        "(도움 율렌 토레스) 10.8333px ()",
+        "(도움 리스 바턴) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "TH토트넘 홋스퍼 129×32 (mr-team dt-link)",
+        "샤흐타르 도네츠크샤 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "시버 스메츠 59×19 (dt-link )"
+      ],
+      "stageH": null
+    },
+    "S10-f_첫경기오버레이": {
+      "overflow": 31,
+      "small": [
+        "보기 · 등번호 11px (pv-btn)",
+        "상대 10px ()",
+        "2 10px ()",
+        "3 10px ()",
+        "4 10px ()",
+        "5 10px ()",
+        "6 10px ()",
+        "7 10px ()",
+        "여기서부터 실시간 11px (po-strip__btn)",
+        "코너킥 준비 11px ()",
+        "게겐프레싱 11px (po-tchip__name)",
+        "4-2-3-1 11px (po-tchip__form po-num)",
+        "수비 블록 11px (po-tchip__name)",
+        "5-3-2 11px (po-tchip__form po-num)"
+      ],
+      "tap": [
+        "선수 표시 바꾸기 76×23 (pv-btn)",
+        "여기서부터 실시간 114×26 (po-strip__btn)",
+        "일시정지 36×28 (po-speed__btn)",
+        "1× 36×28 (po-speed__btn is-on)",
+        "2× 36×28 (po-speed__btn)",
+        "4× 36×28 (po-speed__btn)",
+        "건너뛰기 36×28 (po-speed__btn)"
+      ],
+      "stageH": null
+    },
+    "S10-a_하이라이트": {
+      "overflow": 0,
+      "small": [
+        "보기 · 등번호 11px (pv-btn)",
+        "상대 10px ()",
+        "2 10px ()",
+        "3 10px ()",
+        "4 10px ()",
+        "5 10px ()",
+        "6 10px ()",
+        "7 10px ()",
+        "여기서부터 실시간 11px (po-strip__btn)",
+        "게겐프레싱 11px (po-tchip__name)",
+        "4-2-3-1 11px (po-tchip__form po-num)",
+        "수비 블록 11px (po-tchip__name)",
+        "5-3-2 11px (po-tchip__form po-num)",
+        "LW 11px (slot-chip)"
+      ],
+      "tap": [
+        "선수 표시 바꾸기 76×23 (pv-btn)",
+        "여기서부터 실시간 114×26 (po-strip__btn)",
+        "일시정지 36×28 (po-speed__btn)",
+        "1× 36×28 (po-speed__btn is-on)",
+        "2× 36×28 (po-speed__btn)",
+        "4× 36×28 (po-speed__btn)",
+        "건너뛰기 36×28 (po-speed__btn)"
+      ],
+      "stageH": null
+    },
+    "S10-b_실시간": {
+      "overflow": 0,
+      "small": [
+        "보기 · 등번호 11px (pv-btn)",
+        "상대 10px ()",
+        "기회 10px ()",
+        "골 10px ()",
+        "4 10px ()",
+        "5 10px ()",
+        "6 10px ()",
+        "7 10px ()",
+        "하이라이트로 돌아가기 11px (po-strip__btn)",
+        "골 세리머니 11px ()",
+        "게겐프레싱 11px (po-tchip__name)",
+        "4-2-3-1 11px (po-tchip__form po-num)",
+        "수비 블록 11px (po-tchip__name)",
+        "5-3-2 11px (po-tchip__form po-num)"
+      ],
+      "tap": [
+        "선수 표시 바꾸기 76×23 (pv-btn)",
+        "하이라이트로 돌아가기 133×26 (po-strip__btn)",
+        "일시정지 36×28 (po-speed__btn)",
+        "1× 36×28 (po-speed__btn)",
+        "2× 36×28 (po-speed__btn)",
+        "4× 36×28 (po-speed__btn is-on)",
+        "건너뛰기 36×28 (po-speed__btn)"
+      ],
+      "stageH": null
+    },
+    "S10-d_건너뛰기확인": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "챔피언스리그 · 조별 2차전 11px (cup-banner__kicker)",
+        "A조 · 2/6경기 10px ()",
+        "(도움 율렌 토레스) 10.8333px ()",
+        "(도움 리스 바턴) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "TH토트넘 홋스퍼 129×32 (mr-team dt-link)",
+        "샤흐타르 도네츠크샤 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "시버 스메츠 59×19 (dt-link )"
+      ],
+      "stageH": null
+    },
+    "S10-e_클립2of3": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "챔피언스리그 · 조별 2차전 11px (cup-banner__kicker)",
+        "A조 · 2/6경기 10px ()",
+        "(도움 율렌 토레스) 10.8333px ()",
+        "(도움 리스 바턴) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "TH토트넘 홋스퍼 129×32 (mr-team dt-link)",
+        "샤흐타르 도네츠크샤 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "시버 스메츠 59×19 (dt-link )"
+      ],
+      "stageH": null
+    },
+    "S11-f_우승축하": {
+      "overflow": 0,
+      "small": [
+        "경기가 끝나면 이 화면으로 바 11px (muted)",
+        "결정적 장면 11px ()",
+        "골 11px ()",
+        "내 최고 순간 11px ()",
+        "CAM · OVR 80 · 내 11.6667px ()",
+        "성공 10px ()",
+        "ST · OVR 84 11.6667px ()",
+        "LW · OVR 83 11.6667px ()",
+        "(도움 라힘 스털링) 10.8333px ()",
+        "(도움 르로이 사네) 10.8333px ()",
+        "(도움 리오 무어) 10.8333px ()",
+        "(자동) 10.8333px ()",
+        "점유율 11px (po-poss__label)"
+      ],
+      "tap": [
+        "뒤로 34×34 (po-hero__back)",
+        "MC맨체스터 시티 129×32 (mr-team dt-link)",
+        "토트넘 홋스퍼TH 129×32 (mr-team mr-team--opp dt-link)",
+        "도감 보기 72×28 (po-banner__action)",
+        "세르히오 아구에로 93×19 (dt-link )",
+        "핀 라이언스 59×19 (dt-link )"
+      ],
+      "stageH": null
+    }
+  }
+}

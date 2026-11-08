@@ -99,7 +99,7 @@ describe('C.56 결정 순간 한 화면 (77~79)', () => {
     expect(h).toContain('is-selected');
     expect(h).toContain('<s class="po-num">65%</s>');
     expect(h).toContain('73<small>%</small>');
-    expect(h).toContain('▲+8');
+    expect(h).toContain('▲8%p<small> (카드)</small>'); // 17차 2절 사소: "▲4%p (카드)"
   });
   it('확정 버튼 = 고른 선택지 행동 + 확률, 패 = 카드 그림 한 줄(C.66), 정지 빈도는 한 화면 아래', () => {
     const h = momentView({ moment: M, teams: ['토트넘 홋스퍼', '레스터 시티'], selected: 0, card: null, stop: 'important', last: null, count: 1 });
