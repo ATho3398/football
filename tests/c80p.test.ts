@@ -27,7 +27,7 @@ describe('C.80p 상대 성향별 보정', () => {
 
   it('티키가 직선을 상대할 때만 걸리고 반대쪽(직선 팀)·다른 상대에는 0', () => {
     const s = state('tikitaka', 'direct');
-    expect(matchupPts(s, 0, 'air')).toBe(2);
+    expect(matchupPts(s, 0, 'air')).toBe(5); // C.82f: 2 → 5
     expect(matchupPts(s, 0, 'short')).toBe(2);
     expect(matchupPts(s, 0, 'long')).toBe(0);
     expect(matchupPts(s, 1, 'air')).toBe(0);
