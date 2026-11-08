@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 95;
+export const ENGINE_VERSION = 96;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1161,7 +1161,8 @@ export const ENGINE = {
      * C.80w: 공중 롱패스(airPass m 넘는 패스) 착지 정확도 — 비행 실패 확률(빗나감·차단) × longMiss (1 = 끔).
      * passProbability 에 걸려 판단(본인·평균 선수)과 실행(makePass)이 같은 값을 본다 (엔진관리자25 ✗7: 성공률 36.7%, 실패 대부분이 비행 빗나감)
      */
-    longMiss: 0.6,
+    // C.81z: 0.6 → 0.5 (엔진관리자27 경계 9 — 롱패스 성공률 49.0% → 50~55)
+    longMiss: 0.5,
     laneWidth: 1.8,
     laneBase: 0.25,
     laneIntercept: 0.15,
@@ -1752,8 +1753,8 @@ export const ENGINE = {
     catchBase: 0.2, // C.80u: 0.3 → 0.2 (쳐내기 ↑, 리바운드 골은 거의 무변화 — 부록 C.80u)
     catchSkill: 0.5,
     /** 쳐낸 공이 코너가 될 확률 */
-    /** C.76w 가설 2: 0.5 → 0.35 (쳐낸 공이 코너 대신 리바운드로 남는다) */
-    parryCorner: 0.35,
+    /** C.76w 가설 2: 0.5 → 0.35 (쳐낸 공이 코너 대신 리바운드로 남는다). C.81z: 0.35 → 0.25 (엔진관리자27 경계 8 — 리바운드 골 4 → 5% 근처, 코너 대신 루즈볼) */
+    parryCorner: 0.25,
     /** 쳐낸 공 속도 (m/s)·방향 퍼짐(rad, ± 절반) — C.80u 전에는 actions.ts 에 7 · 2.4 고정 */
     parrySpeed: 7,
     parrySpread: 2.4,
@@ -1874,7 +1875,8 @@ export const ENGINE = {
       // C.80t: 티키 → 게겐 칸 짧은 패스·공 지키기 +2 (게겐>티키 +0.52 → +0.42, 엔진관리자25 ✗1)
       // C.81s: 짧은 패스 2 → 2.5 (게겐>티키 +0.47 → +0.38)
       // C.81t: 2.5 → 2 (리바운드 런 뒤 게겐>티키 +0.336 → +0.40, 960)
-      gegenpress: { short: 2, keep: 2 },
+      // C.81z: 짧은 패스·공 지키기 2 → 3 (엔진관리자27 ✗1 — 게겐>티키 +0.40 을 +0.20~0.30 으로; 관문 하한 +0.34 → +0.20, 마스터 AE 결정)
+      gegenpress: { short: 3, keep: 3 },
     },
     // C.80w: 롱볼 착지 정확도(prob.longMiss) 뒤 직선>티키 +0.20·직선>게겐 +0.19 · 균형·블록(버스)>티키 +0.13~0.14 (상성 960) — 그 칸의 롱패스 능력치 점수만 되돌림
     // C.81g: 직선 → 게겐 롱패스 −12 → −6 (게겐>직선 +0.17 → +0.05) · 직선 → 블록(버스 포함) 공 지키기·짧은 패스 +1 (직선>블록 +0.03 → +0.06), 960 = 시드 41000·51000 각 480
@@ -1882,10 +1884,12 @@ export const ENGINE = {
     direct: { tikitaka: { long: -15 }, gegenpress: { long: -6 }, block: { keep: 1, short: 1, air: 1 } },
     // C.81s: 게겐 → 직선 태클·공중·공 지키기 (게겐>직선 −0.07 → +0.06; 직선 → 게겐 롱패스 −10~−14 는 −0.01~−0.12 로 둔함)
     // C.81t: 태클 4·공중 3·공 지키기 1 → 5·4·2 (리바운드 런 뒤 게겐>직선 −0.01 → +0.08, 960)
-    gegenpress: { direct: { tackle: 5, air: 4, keep: 2 } },
+    // C.81z: 게겐 → 균형 태클 2 · 게겐 → 역습 태클 3·공중 2 (엔진관리자27 경계 7 — 균형>게겐 +0.19 · 역습>게겐 +0.20 을 ±0.12 안으로, 설계 순환 밖 칸)
+    gegenpress: { direct: { tackle: 5, air: 4, keep: 2 }, balanced: { tackle: 2 }, counter: { tackle: 3, air: 2 } },
     balanced: { tikitaka: { long: -10 } },
     // C.81b: 블록 → 게겐 칸 공 지키기·공중 +2 (블록>게겐 −0.01 → +0.10, 960 = 시드 41000·51000 각 480)
-    block: { tikitaka: { long: -7 }, gegenpress: { air: 2, keep: 2 } },
+    // C.81z: 블록 → 게겐 공 지키기 2 → 3 (엔진관리자27 9-1 — 순환 마지막 고리 블록>게겐 +0.01 을 ≥ +0.08 로)
+    block: { tikitaka: { long: -7 }, gegenpress: { air: 2, keep: 3 } },
   } as Record<string, Record<string, Partial<Record<'air' | 'short' | 'keep' | 'tackle' | 'long' | 'run' | 'touch', number>>>>,
 
   /**

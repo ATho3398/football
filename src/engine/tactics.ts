@@ -194,6 +194,11 @@ export const TENDENCY = {
   gegenMax: 3,
   /** 게겐 역압박 가담 확률 가산 (C.80t, 엔진관리자25 ✗6 — 게겐 가담이 균형과 같아짐): 게겐이면 offball.counterJoin 에 더한다. 0 = 끔 */
   gegenJoin: 0.35,
+  /**
+   * 게겐 역압박 뚫림 간격 배수 (C.81z, 엔진관리자27 ✗6 — 게겐이 공을 잃은 뒤 8초 상대 슈팅 2.7%(균형 3.0)로 "뒤 공간 비용"이 없음):
+   * 게겐이면 offball.pressBreakGap(상대 소유자·착지점이 가담자 모두보다 이만큼 우리 골 쪽이면 뚫림) × 이 값 — 뚫린 것을 늦게 인정해 가담자가 자리를 더 오래 비운다. 1 = 끔
+   */
+  gegenPressBreakMul: 1.5,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
   /**
