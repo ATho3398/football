@@ -1,6 +1,7 @@
 // 전개 하이라이트 (24.3 개정, 2026-10-15): 경기당 장면 6~8개, 각 10~15초를 실제 속도로 재생한다.
 // 장면은 공격이 시작되는 순간부터 보여 주고, 장면 사이에는 시계만 넘어간다. 엔진 결과(재생 데이터)만 읽는 순수 함수다.
 
+import { classifyHighlight, type HighlightClass } from './highlightClass';
 import { L, W } from './engine/pitch';
 import type { Replay, ReplayEvent, ReplayFrame } from './replay';
 import { SCENE_LABEL } from './engine/moments';
@@ -111,6 +112,14 @@ function shotBefore(evs: ReplayEvent[], goal: ReplayEvent): number {
  * 장면 선택 (24.3): 골 → 결정적 기회 → 내 선수가 관여한 장면 → 상대 주요 공격 1~2개, 같은 시간대(20초 안) 중복 없이 최대 8개.
  * 6개가 안 되면 나머지 슈팅을 xG 순으로 채운다. 같은 재생 데이터면 늘 같은 장면이 나온다 (결정적)
  */
+/** 장면 → 하이라이트 분류 (C.81o, highlightClass 한 곳): 골 장면은 골·실점, 기회 → 결정적 장면, 내 장면 → 내 최고 순간. 결정·상대 공격·슈팅은 분류 밖(null) */
+export function sceneClass(sc: Pick<Scene, 'kind' | 'team'>, side: 0 | 1): HighlightClass | null {
+  if (sc.kind === 'goal') return classifyHighlight({ goal: true, team: sc.team }, side);
+  if (sc.kind === 'chance') return 'chance';
+  if (sc.kind === 'me') return 'best';
+  return null;
+}
+
 export function selectScenes(r: Replay): Scene[] {
   const evs = r.events;
   const me = r.players.find((p) => p.isMe)?.id;

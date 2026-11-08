@@ -2,6 +2,7 @@
 // 챕터마다 시즌 목표 섞기(seasonGoals) · 이벤트 분류 배율(events) · 챕터 끝 카드 선택권 1회를 바꾸고,
 // 챕터가 바뀌는 시즌 종료(또는 은퇴) 뒤 챕터 리뷰를 한 번 보여 준다. XP·성장 수치는 바꾸지 않는다 (엔진 밖)
 
+import { avgRatingText } from './avgRating';
 import { BALANCE } from './config/balance';
 import type { Rarity } from './config/cards';
 import { grantTierPick } from './cardCollection';
@@ -204,7 +205,7 @@ export function chaptersFromHistory(state: GameState): ChaptersState {
     const hl: ChapterHighlight[] = [];
     if (r.leaguePosition === 1) { rec.trophies.push(`${r.season} 리그 우승`); hl.push({ season: r.season, text: '리그 우승', score: 10 }); }
     if (r.goals + r.assists >= 15) hl.push({ season: r.season, text: `한 시즌 ${r.goals}골 ${r.assists}도움`, score: 6 + (r.goals + r.assists) / 10 });
-    else if (r.apps > 0) hl.push({ season: r.season, text: `${r.apps}경기 평점 ${(r.ratingSum / r.apps).toFixed(2)}`, score: r.ratingSum / r.apps });
+    else if (r.apps > 0) hl.push({ season: r.season, text: `${r.apps}경기 평점 ${avgRatingText(r.ratingSum, r.apps)}`, score: r.ratingSum / r.apps });
     const bs = (p.badges ?? []).filter((b) => b.season === r.season);
     rec.badges.push(...bs.map((b) => b.id));
     hl.push(...bs.map((b) => ({ season: r.season, text: `레전드 배지 · ${BADGE_NAMES_KO[b.id] ?? b.id}`, score: 12 })));

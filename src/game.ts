@@ -82,9 +82,9 @@ import {
   type DayPlan, type TrainingDayResult, type TrainingKind, type TrainingState,
 } from './training';
 import { trainProficiency } from './proficiency';
-import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, ensureCups, myCupAlive, myCupDates, myCupMatches, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
+import { createCups, cupAchievements, cupOutcome, cupRoster, cupsDayEnd, cupsFinish, cupsPending, ensureCups, myCupAlive, myCupDates, myCupMatches, myCupTie, reachLabel, uclReachLabel, type CompId, type CupsState, type MyCupTie } from './cups';
 import { envField, matchConditions, type MatchConditions } from './matchEnv';
-import { ensureNational, NAT_COMP_KO, natId, natLabel, natMatchDates, natRoster, nationalDayEnd, nationalSeasonEnd, nationRating, nextNatMatch, recordNatMatch, trimNational, type NatComp, type NatMatch, type NationalState } from './national';
+import { ensureNational, NAT_COMP_KO, natId, natLabel, natMatchDates, natRoster, nationalDayEnd, nationalKickoff, nationalSeasonEnd, nationRating, myNationOut, natTournamentAlive, nextNatMatch, recordNatMatch, settleMyTournamentMatch, tournamentDayEnd, trimNational, type NatComp, type NatMatch, type NationalState } from './national';
 import { chemAfterMatch, chemSeasonEnd, rapportInput, scoutReport, type ChemState, type ScoutReport } from './rapport';
 import type { NameOverrides } from './names';
 import { weatherInjuryMul, type WeatherKind } from './weather';
@@ -97,7 +97,7 @@ import {
 } from './transfer';
 
 /** 세이브 필드 구조가 바뀌면 올린다 (밸런스 수치 변경과 구분) */
-export const SAVE_FORMAT_VERSION = 61;
+export const SAVE_FORMAT_VERSION = 62;
 
 export type Phase = 'season' | 'offseason' | 'retired';
 
@@ -1123,9 +1123,32 @@ export function isVacationDay(state: GameState, date: IsoDate): boolean {
   if (state.phase !== 'season') return true;
   const V = BALANCE.training.vacation;
   const { prev, next } = matchGaps(state, date);
+  // C.81l: 클럽 시즌이 끝난 뒤 여름 — 마지막 경기 afterMatch 일 뒤부터 휴가. 달력 위 대회에 소집됐으면 소집일(camp)부터 대표팀 훈련·경기
+  if (clubSeasonOver(state)) {
+    if (prev && daysBetween(prev, date) < V.afterMatch) return false;
+    const live = state.national?.live;
+    // C.81v: 내 나라가 떨어진 뒤(남은 다른 나라 경기를 그 날짜에 기다리는 동안)는 다시 휴가
+    return !live || !live.called || daysBetween(date, live.camp) > 0 || myNationOut(state, live);
+  }
   if (!prev || !next) return false;
   if (daysBetween(prev, date) < V.afterMatch || daysBetween(date, next) < V.beforeMatch) return false;
   return calendarOf(state).breaks.some((b) => b.kind === 'international' && daysBetween(prev, b.date) > 0 && daysBetween(b.date, next) > 0);
+}
+
+/** 클럽 시즌이 끝났다: 리그 최종 라운드를 치렀고 내 컵 경기도 더 없다 (C.81l: 여름 — 남은 컵 경기 날짜·대표팀 대회는 그 뒤) */
+export function clubSeasonOver(state: GameState): boolean {
+  return state.phase === 'season' && state.league.round >= state.league.schedule.length && !myCupAlive(state);
+}
+
+/**
+ * 내 경기 뒤·하루 끝의 시즌 끝 판정 (C.81l): 클럽 시즌이 끝나면 이번 여름 대회 소집 판정(한 번, 소집되면 달력 위 대회) →
+ * 남은 컵 경기(내 팀 없는 결승 등)는 그 날짜에 치르고(cupsDayEnd), 달력 위 대회에 내 경기가 남았으면 기다린다 → 모두 끝나면 시즌 끝
+ */
+function seasonEndCheck(state: GameState): void {
+  if (!clubSeasonOver(state)) return;
+  nationalKickoff(state, calendarOf(state).final);
+  if (cupsPending(state) || natTournamentAlive(state)) return;
+  endSeason(state);
 }
 
 /** 그 날 부상 중인지 (오늘 부상에서 날짜만큼 지난 값) */
@@ -1529,6 +1552,8 @@ export function endDay(state: GameState): TrainingDayResult {
   // 컵 (C.67): 오늘 내 팀 없는 컵 경기 간이 계산 · 단계가 끝났으면 다음 추첨 (옛 세이브는 여기서 처음 만든다)
   ensureCups(state);
   cupsDayEnd(state, ended);
+  // 달력 위 대표팀 대회 (C.81l): 오늘까지 다른 나라 경기 빠른 계산 · 다음 대진이 정해지면 내 경기를 일정에
+  tournamentDayEnd(state, ended);
   state.calendar.date = addDays(ended, 1);
   // 개인 시상 (C.76n): 발표 날짜가 된 상 (발롱도르 후보 8월 · 발롱도르·코파·야신·뮐러 10월 · 골든보이 11월 · 더 베스트 12월)
   awardsDayEnd(state, ended);
@@ -1545,11 +1570,9 @@ export function endDay(state: GameState): TrainingDayResult {
   // 쉬는 라운드 (C.76c): 내 경기가 없는 라운드는 그 라운드 경기가 다 끝나면 넘긴다 (마지막 라운드가 쉬는 라운드여도 시즌이 끝난다)
   const L = state.league;
   while (L.round < L.schedule.length && myRoundFrom(state, L.round) !== L.round && L.schedule[L.round]!.every((f) => f.homeGoals !== undefined)) L.round++;
-  // 리그가 끝났고 내 컵 경기도 더 없으면 (결승 뒤 우승 확정·탈락이 하루 끝에 정해진 경우) 시즌 끝 (C.67)
-  if (state.league.round >= state.league.schedule.length && !myCupAlive(state)) {
-    endSeason(state);
-    refreshUnlocks(state);
-  }
+  // 리그가 끝났고 내 컵 경기도 더 없으면 (결승 뒤 우승 확정·탈락이 하루 끝에 정해진 경우) 시즌 끝 (C.67) — 남은 컵 경기·달력 위 대회가 있으면 그 뒤 (C.81l)
+  seasonEndCheck(state);
+  if (state.phase !== 'season') refreshUnlocks(state);
   return r;
 }
 
@@ -1740,9 +1763,14 @@ export function playRound(state: GameState, opts: PlayOptions = {}): MatchReport
   if (state.phase !== 'season') throw new Error('시즌 중이 아님');
   lastEngine = opts.engine ?? 'agent';
   const how = opts.others ?? 'quick';
-  while (!isMatchDay(state)) {
+  while (state.phase === 'season' && !isMatchDay(state)) {
     playOthers(state, how);
     endDay(state);
+  }
+  // C.81l: 내 경기가 더 없이 시즌이 끝났으면(남은 컵 경기 날짜·대회 탈락 뒤 하루 끝) 마지막 경기 보고를 돌려준다
+  if (state.phase !== 'season') {
+    if (!state.lastMatch) throw new Error('시즌 중이 아님');
+    return state.lastMatch;
   }
   playOthers(state, how);
   const report = playMyRound(state, opts);
@@ -1971,7 +1999,7 @@ function playMyRound(state: GameState, opts: PlayOptions): MatchReport {
   recordsAfterMatch(state);
 
   // 리그가 끝나도 내 팀 컵 경기(결승)가 남았으면 시즌 끝을 미룬다 (C.67)
-  if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
+  seasonEndCheck(state);
   refreshUnlocks(state);
   return report;
 }
@@ -2087,7 +2115,7 @@ function playMyCup(state: GameState, opts: PlayOptions, mc: MyCupTie): MatchRepo
   if (photos) report.newPhotos = photos;
   const pool = jerseyPool(engineOut?.engine.players, engineOut?.side ?? 0, MY_ID);
   if (pool) report.jerseyPool = pool;
-  if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
+  seasonEndCheck(state);
   refreshUnlocks(state);
   return report;
 }
@@ -2148,7 +2176,7 @@ function natRoundMatch(state: GameState, m: NatMatch, opts: { cards?: boolean } 
     myRoster: natRoster(state, nat.nation), oppRoster: natRoster(state, m.opp),
     myRating: myR, oppRating: oppR, home: m.home, ...(isNeutralMatch({ nat: m }) ? { neutral: true } : {}),
     me: { position: pos, attributes: player.attributes, fatigue, form: natForm(state), proficiency: engineProficiency(player, pos), body: player.body, shirt: myShirt(state), cardMul: cardMul(player), ...judgePenField(state) },
-    plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:natengine:${m.key}`), worldSeed: seed, leagueAvg: (myR + oppR) / 2,
+    plan, difficulty: state.difficulty, seed: hashSeed(`${seed}:natengine:${m.key}`), worldSeed: seed, leagueAvg: (myR + oppR) / 2, nearestSlot: true,
     ...(NAT_BIG(m) ? { bigMatch: true } : {}),
     ...(opts.cards !== false && state.cards ? { cards: { ...cardInput(state.cards), trust: trustOf(state) } } : {}),
     ...envField(env),
@@ -2194,6 +2222,9 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
     );
   }
   recordNatMatch(state, m, { gf: result.goalsFor, ga: result.goalsAgainst, minutes: result.minutes, started: result.started, goals: result.goals, assists: result.assists, rating: result.rating, mom: result.mom, injured });
+  // 달력 위 대회 (C.81l): 대회 결과에 기록 (녹아웃 무승부면 승부차기 판정 → m.pens, 결과 화면에)
+  const live = nat.live;
+  if (live && m.key.startsWith(`t:${live.id}:`) && live.played[m.key.slice(live.id.length + 3)] === undefined) settleMyTournamentMatch(state, live, m, result.goalsFor, result.goalsAgainst);
   if (result.minutes > 0) player.recentRatings = pushRating(player.recentRatings, result.rating ?? 0);
   let injury: Injury | undefined;
   if (!injured && result.minutes > 0) {
@@ -2245,12 +2276,12 @@ function playMyNational(state: GameState, opts: PlayOptions, m: NatMatch, summer
   if (photos) report.newPhotos = photos;
   if (summer) return report;
   state.lastMatch = report;
-  if (league.round >= league.schedule.length && !myCupAlive(state)) endSeason(state);
+  seasonEndCheck(state);
   refreshUnlocks(state);
   return report;
 }
 
-/** 시즌 끝 여름 대표팀 (C.76d): 대회 또는 6월 평가전. 내 경기 사이 날짜만큼 부상·피로 회복 */
+/** 시즌 끝 여름 대표팀 (C.76d): 대회(달력 위에서 치르던 것은 남은 다른 나라 경기만, C.81l) 또는 6월 평가전. 한꺼번에 치르는 내 경기는 사이 날짜만큼 부상·피로 회복 */
 function nationalSummer(state: GameState): ReturnType<typeof nationalSeasonEnd> {
   const final = calendarOf(state).final;
   let last = final;

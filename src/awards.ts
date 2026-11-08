@@ -123,12 +123,23 @@ const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x
 interface Raw { apps: number; goals: number; assists: number; avg: number; clu: number | null; est: boolean }
 
 /** 추정 기록 (엔진 기록이 없을 때): 선발·벤치·그 밖 출전 비율, 포지션군 경기당 골·도움, 평점 */
+/** 5분위 점 [u = 0, .25, .5, .75, 1] 사이 선형 보간 */
+function quantileAt(q: readonly number[], u: number): number {
+  const x = clamp(u, 0, 1) * (q.length - 1);
+  const i = Math.min(q.length - 2, Math.floor(x));
+  return q[i]! + (q[i + 1]! - q[i]!) * (x - i);
+}
+
 function estimate(seed: string, season: number, id: string, position: Position, ovr: number, starter: 0 | 1 | 2, ctx: TeamCtx): Raw {
   const E = BALANCE.awards.estimate;
   const G = BALANCE.goals;
   const rng = createRng(hashSeed(`${seed}:aw-est:${season}:${id}`));
   const played = ctx.row?.played ?? 0;
-  const apps = Math.round(played * Math.min(1, E.share[starter]! * (0.88 + rng() * 0.17)));
+  // C.81w: 출전 몫 = 엔진 실측 포지션군 × (선발·벤치·그 밖) 분포(shareQ 5분위 사이 선형) — 없으면 옛 일괄 share × (0.88~1.05)
+  const q = E.shareQ[posGroup(position)]?.[starter];
+  const u = rng();
+  const sh = q ? quantileAt(q, u) : E.share[starter]! * (0.88 + u * 0.17);
+  const apps = Math.round(played * Math.min(1, sh));
   const rate = G.rates[posGroup(position)] ?? [0, 0, 0];
   const rel = ovr - ctx.rating;
   const k = clamp(1 + rel * G.ovrK, 0.5, 1.8);
@@ -316,12 +327,21 @@ export function buildResumes(state: GameState, natRec: TournamentRec | null = nu
           raw = estimate(state.worldSeed, lg.season, p.id, p.position, ovr, lineup.s.has(p.id) ? 0 : lineup.b.has(p.id) ? 1 : 2, ctx);
           if (quickGoals) { raw.goals = x?.[0] ?? 0; raw.assists = x?.[1] ?? 0; }
           // C.81d: 내 리그가 엔진 기록이면 다른 리그 추정 평점을 엔진 척도로 (섞인 표에서 한쪽으로 쏠리지 않게)
-          if (myEngine) raw.avg += A().estimate.mixedRatingShift;
+          if (myEngine) {
+            const E = A().estimate;
+            const g = posGroup(p.position);
+            const jit = E.mixedJitter[g] ?? 0;
+            raw.avg = E.ratingBase + (raw.avg - E.ratingBase) * (E.mixedSpread[g] ?? 1) + (E.mixedShift[g] ?? 0)
+              + (jit ? gaussian(createRng(hashSeed(`${state.worldSeed}:aw-mix:${lg.season}:${p.id}`))) * jit : 0);
+          }
         }
         if (raw.apps / Math.max(1, ctx.row?.played ?? 1) < Math.min(A().minShare, A().youngMinShare)) continue;
         const sto = story(p.age, ctx, Math.min(1, raw.apps / Math.max(1, ctx.row?.played ?? 1)), false);
+        const n0 = out.length;
         push({ id: p.id, name: p.nameKo, teamId: t.id, pos: p.position, age: p.age, nation: p.nationality, ovr }, raw, ctx, false,
           { cupGoals: cupGoals.get(p.id) ?? 0, uclGoals: uclGoals.get(p.id) ?? 0, natGoals: 0, fame: fameOf(p.id, ovr), ...sto });
+        // C.81m: 섞인 표에서 추정 리그 실점 항목을 엔진 척도로
+        if (myEngine && !engine && out.length > n0) out[n0]!.def *= A().estimate.mixedDef;
       }
     }
   }

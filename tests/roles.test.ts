@@ -34,7 +34,8 @@ describe('역할 31개 (E.6, E.21 1번)', () => {
     expect(has('space')).toEqual(['freeRole', 'raumdeuter', 'shadowStriker']);
     expect(has('between')).toEqual(['falseNine', 'halfBack', 'invertedFullback', 'libero']);
     expect(has('demand')).toEqual(['crackWinger', 'enganche', 'regista']);
-    expect(has('exempt')).toEqual(['crackWinger', 'enganche', 'freeRole', 'regista']);
+    // C.81i: 레지스타는 수비 면제(exempt)를 뺐다 (역할 대비 −0.09/−0.26 → −0.05/−0.06)
+    expect(has('exempt')).toEqual(['crackWinger', 'enganche', 'freeRole']);
   });
 
   it('시그니처 카드 31장은 역할마다 1장, 모두 희귀, 10경기 해금 (데이터만)', () => {
@@ -164,7 +165,7 @@ describe('포메이션 8종과 커스텀 (E.5, E.5.1)', () => {
 
 describe('세이브 12 → 13 (E.21 1번)', () => {
   it('전술 역할·커스텀 세이브 왕복, 옛 세이브(12)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const g = game('CM', 'roles-mig');
     const back = deserialize(serialize(g));
     expect(back.tactics.custom).toEqual(g.tactics.custom);

@@ -1,0 +1,124 @@
+{
+ "W": 1280,
+ "H": 800,
+ "errors": [],
+ "screens": {
+  "홈-선수카드-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "선수-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-위험-기대평점": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "potential": {
+  "home": "잠재력 87~91",
+  "player": "87~91"
+ },
+ "got": {
+  "moment": 2,
+  "card": false,
+  "mismatch": [],
+  "rows": [
+   [
+    {
+     "name": "조지 리스터에게 백패스",
+     "chain": false,
+     "chance": 88,
+     "up": 0.02,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    },
+    {
+     "name": "뱅자맹 디아라 1대1 돌파",
+     "chain": false,
+     "chance": 59,
+     "up": 0.09,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.04,
+     "risk": "low"
+    },
+    {
+     "name": "해리 케인 쪽 크로스",
+     "chain": false,
+     "chance": 33,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    },
+    {
+     "name": "크리스티안 에릭센에게 침투 패스",
+     "chain": false,
+     "chance": 28,
+     "up": 0.11,
+     "down": -0.01,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    },
+    {
+     "name": "곤살루 페드로자에게 침투 패스",
+     "chain": false,
+     "chance": 19,
+     "up": 0.11,
+     "down": -0.01,
+     "passive": 0,
+     "ev": 0.01,
+     "risk": "low"
+    }
+   ],
+   [
+    {
+     "name": "크리스티안 에릭센에게 침투 패스",
+     "chain": false,
+     "chance": 65,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.06,
+     "risk": "low"
+    },
+    {
+     "name": "시오 로에게 침투 패스",
+     "chain": false,
+     "chance": 47,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.04,
+     "risk": "low"
+    },
+    {
+     "name": "루이스 프라이스 1대1 돌파",
+     "chain": false,
+     "chance": 43,
+     "up": 0.09,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.03,
+     "risk": "low"
+    },
+    {
+     "name": "아산 콜리 쪽 크로스",
+     "chain": false,
+     "chance": 33,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    }
+   ]
+  ]
+ }
+}

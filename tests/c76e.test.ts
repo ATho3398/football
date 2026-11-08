@@ -9,7 +9,7 @@ import { PATCH_LABEL, STAGE_LABEL } from '../src/version';
 
 describe('C.76e 버전', () => {
   it('PATCH_LABEL · STAGE_LABEL', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*$/); // C.76e 배포 때 'C.76e' · '44단계', 뒤로는 형식만
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]*\d?$/); // C.76e 배포 때 'C.76e' · '44단계', 뒤로는 형식만
     expect(STAGE_LABEL).toMatch(/^\d+단계$/);
   });
 });

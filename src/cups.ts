@@ -7,13 +7,14 @@ import { BALANCE } from './config/balance';
 import { addDays, daysBetween, isoDate, leagueCalendar, nearestSaturday, weekday, type IsoDate } from './calendar';
 import { FA_CUP_EXTRA, UCL_EXTRA } from '../data/outsideClubs';
 import { allLeagueData, DOMESTIC_CUP_KO, leagueData, UEFA_COUNTRIES } from '../data/leagues';
-import { canonicalClub, OUTSIDE_TO_LEAGUE } from '../data/clubAlias';
-import { leagueOfTeam, leagueTeamById, simulateScore, teamById } from './league';
+import { aliasOf, canonicalClub, leagueOfClub } from '../data/clubAlias';
+import { leagueTeamById, simulateScore, teamById } from './league';
 import { calendarKind, leagueTeamRoster } from './otherLeagues';
 import { createTeamRoster, posGroup, type TeamRoster } from './roster';
 import { createRng, hashSeed, type Rng } from './rng';
 import type { GoalRec } from './engine/npcMatch';
 import type { GameState } from './game';
+import { pushInbox } from './inbox';
 import { dayNum, type NpcLine } from './npcFit';
 import { lineupLines, npcQuickMatch, quickLines } from './npcQuick';
 
@@ -353,28 +354,90 @@ function quickFit(state: GameState, t: CupTie, date: IsoDate, key: string, lines
 const isMine = (state: GameState, t: CupTie): boolean => t.h === state.player.teamId || t.a === state.player.teamId;
 const played = (t: CupTie): boolean => t.hg !== undefined;
 
-/** 하루 끝 (endDay): 오늘 열리는 내 팀 없는 컵 경기를 간이 계산하고, 단계가 끝났으면 다음 단계를 추첨한다 */
+/**
+ * 하루 끝 (endDay): 오늘(또는 지난 날짜인데 아직 안 치른) 내 팀 없는 컵 경기를 간이 계산하고, 단계가 끝났으면 다음 단계를 추첨한다.
+ * C.81l: 리그가 끝난 뒤 남은 경기(결승 등)도 시즌 끝에 몰지 않고 그 날짜에 여기서 치른다 (시즌 끝은 cupsPending 이 거짓이 될 때까지 미룬다) · 내 팀이 없는
+ * 단계가 끝나면 인박스 "컵" 소식
+ */
 export function cupsDayEnd(state: GameState, date: IsoDate): void {
   const cups = state.cups;
   if (!cups || cups.season !== state.league.season) return;
   const fa = cups.fa;
   if (fa && !fa.winner) {
     const s = currentStage(fa);
-    if (fa.dates[s] === date) {
+    if (daysBetween(fa.dates[s]!, date) >= 0) {
       fa.rounds[s]!.forEach((t, i) => {
         if (!t.w && !isMine(state, t)) quickTie(state, fa, s, i);
       });
+      faNews(state, fa, s);
       advance(state, fa);
     }
   }
   const u = cups.ucl;
   if (u && !u.winner) {
-    for (const m of uclMatches(u)) if (m.t.d === date && !played(m.t) && !isMine(state, m.t)) uclQuick(state, u, m);
+    for (const m of uclMatches(u)) if (m.t.d && daysBetween(m.t.d, date) >= 0 && !played(m.t) && !isMine(state, m.t)) uclQuick(state, u, m);
     uclAdvance(state, u);
+    uclNews(state, u);
   }
 }
 
-/** 시즌 끝: 남은 경기를 모두 간이 계산해 우승 팀까지 정한다 (내 팀이 이미 탈락했거나 시즌이 끝날 때) */
+/** 아직 안 끝난 컵이 있다 (C.81l): 시즌 끝을 마지막 컵 경기 날짜까지 미룬다 (내 팀이 떨어졌어도 결승까지 그 날짜에) */
+export function cupsPending(state: GameState): boolean {
+  const cups = state.cups;
+  if (!cups || cups.season !== state.league.season) return false;
+  return (!!cups.fa && !cups.fa.winner) || (!!cups.ucl && !cups.ucl.winner);
+}
+
+// ── 컵 소식 (C.81l): 내 팀이 없는 단계가 끝나면 그 날 인박스. 내 팀이 뛴 단계는 결과 화면이 있으니 뺀다 ──
+
+const teamKo = (state: GameState, id: string): string => teamById(state.league, id).nameKo;
+const tieLine = (state: GameState, t: CupTie): string => `${teamKo(state, t.h)} ${t.hg}-${t.ag}${t.p ? ` (PK ${t.p[0]}-${t.p[1]})` : ''} ${teamKo(state, t.a)}`;
+
+function faNews(state: GameState, fa: CupComp, s: number): void {
+  const round = fa.rounds[s]!;
+  if (round.some((t) => !t.w || isMine(state, t))) return;
+  const name = compNameKo('fa', state.league.id);
+  const stage = stageName(fa, s);
+  const final = round.length === 1;
+  pushInbox(state, {
+    key: `cupnews:fa:${state.league.season}:${s}`, cat: 'cup',
+    title: final ? `${name} 결승 — ${teamKo(state, round[0]!.w!)} 우승` : `${name} ${stage} 결과`,
+    body: final ? `${tieLine(state, round[0]!)}. ${teamKo(state, round[0]!.w!)}가 ${name}을 들어 올렸어요.` : `${round.map((t) => tieLine(state, t)).join(' · ')}. ${round.map((t) => teamKo(state, t.w!)).join('·')} 진출.`,
+    link: { to: 'world', label: '월드' },
+  });
+}
+
+function uclNews(state: GameState, u: UclComp): void {
+  const season = state.league.season;
+  const me = state.player.teamId;
+  const inGroups = u.groups.some((g) => g.includes(me));
+  // 조별리그 끝 → 16강 진출 팀 (내 팀이 조별에 없을 때만)
+  if (u.ko.length && !inGroups) {
+    const teams = u.ko[0]!.l1.flatMap((t) => [t.h, t.a]);
+    pushInbox(state, {
+      key: `cupnews:ucl:${season}:groups`, cat: 'cup', title: '챔스 조별리그 끝 — 16강 진출 팀',
+      body: `${teams.map((t) => teamKo(state, t)).join(' · ')}.`, link: { to: 'world', label: '월드' },
+    });
+  }
+  u.ko.forEach((st, s) => {
+    const fin = s === 3;
+    const legs: [CupTie[], string][] = fin ? [[st.l1, '']] : [[st.l1, ' 1차전'], [st.l2, ' 2차전']];
+    legs.forEach(([ties, leg], k) => {
+      if (!ties.length || ties.some((t) => !played(t) || isMine(state, t))) return;
+      const w = fin ? ties[0]!.w : null;
+      pushInbox(state, {
+        key: `cupnews:ucl:${season}:${s}:${k}`, cat: 'cup',
+        title: fin ? `챔스 결승 — ${teamKo(state, w!)} 우승` : `챔스 ${KO_NAMES[s]}${leg} 결과`,
+        body: fin
+          ? `${tieLine(state, ties[0]!)}. ${teamKo(state, w!)}가 유럽 정상에 올랐어요.`
+          : `${ties.map((t) => tieLine(state, t)).join(' · ')}.${k === 1 ? ` ${ties.map((t) => teamKo(state, t.w!)).join('·')} 진출.` : ''}`,
+        link: { to: 'world', label: '월드' },
+      });
+    });
+  });
+}
+
+/** 시즌 끝 안전망: 남은 경기를 모두 간이 계산해 우승 팀까지 정한다 (C.81l 부터는 날짜마다 cupsDayEnd 가 치러 보통 남는 게 없다) */
 export function cupsFinish(state: GameState): void {
   const cups = state.cups;
   if (!cups || cups.season !== state.league.season) return;
@@ -398,35 +461,65 @@ export function cupsFinish(state: GameState): void {
 
 /**
  * 챔스 출전: 지난 시즌 리그 상위 4팀 (첫 시즌 = 2017-18 실제 순위) + 외부 28팀.
- * C.76c (45b): 외부 클럽이 고른 리그 팀이면 그 리그 팀 id. 내 리그가 PL 이 아니면 내 리그(1부) 상위 4 + PL 상위 4 + 외부 클럽(내 리그 팀 제외)을
+ * C.76c (45b): 외부 클럽이 고른 리그 팀이면 그 리그 팀 id. 내 리그가 PL 이 아니면 내 리그(1부) 상위 + PL 상위 4 + 외부 클럽(내 리그 팀 제외)을
  * 32팀까지(모자라면 유럽 리그 팀 레이팅 순으로 채움). 유럽 밖 리그(사우디·K·J·브라질·MLS)는 챔스 없음 (빈 목록)
+ * C.81q: 고른 다른 리그도 내 리그처럼 지난 시즌 실제(빠른 진행·엔진) 순위 상위가 나간다 — 외부 명단에서 그 리그 클럽 자리 수(uclSlots)만큼
+ * 지난 시즌 순위 순으로 바꿔 넣는다 (첫 시즌 = 지금 명단). 내 리그 자리 수도 같은 uclSlots (최소 4)
  */
 export function uclEntrants(state: GameState): string[] {
   const lg = state.league;
   const ids = state.leagueIds ?? [lg.id];
-  const prev = state.archive?.at(-1);
-  const prevTop = prev && prev.season === lg.season - 1 ? prev.table.slice(0, 4).map((r) => r[0]) : null;
-  if (lg.id === 'pl') return [...(prevTop ?? BALANCE.cups.ucl.firstSeason), ...UCL_EXTRA.map((x) => canonicalClub(x, ids))];
   if (!UEFA_COUNTRIES.has(lg.country)) return [];
+  const prev = state.archive?.at(-1);
+  const prevTop = prev && prev.season === lg.season - 1 ? prev.table.map((r) => r[0]) : null;
   const out: string[] = [];
-  const push = (id: string) => { if (out.length < 32 && !out.includes(id)) out.push(id); };
-  // 내 리그(1부): 지난 시즌 상위 4 (첫 시즌 = 레이팅 상위 4)
-  if (lg.tier === 1) (prevTop ?? [...lg.teams].sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id)).slice(0, 4).map((t) => t.id)).forEach(push);
-  // PL 상위 4: 다른 리그로 고른 PL 의 지난 시즌 순위, 없으면 2017-18 실제
-  const pl = state.otherLeagues?.find((o) => o.id === 'pl');
-  (pl?.past?.at(-1)?.top.slice(0, 4) ?? BALANCE.cups.ucl.firstSeason).forEach(push);
+  const n = new Map<string, number>();
+  const has = (id: string) => out.includes(id) || (aliasOf(id) !== undefined && out.includes(aliasOf(id)!));
+  const push = (id: string, lid?: string) => {
+    if (out.length >= 32 || has(id)) return;
+    out.push(id);
+    if (lid) n.set(lid, (n.get(lid) ?? 0) + 1);
+  };
+  const full = (lid: string) => (n.get(lid) ?? 0) >= uclSlots(lid);
+  // 내 리그(1부): 지난 시즌 상위 자리 수 (첫 시즌 = PL 은 2017-18 실제, 다른 리그는 레이팅 상위)
+  if (lg.tier === 1) {
+    const first = lg.id === 'pl' ? [...BALANCE.cups.ucl.firstSeason] : [...lg.teams].sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id)).map((t) => t.id);
+    const k = lg.id in BALANCE.cups.ucl.slots ? uclSlots(lg.id) : Math.max(4, uclSlots(lg.id));
+    (prevTop ?? first).slice(0, k).forEach((id) => push(id, lg.id));
+  }
+  // 고른 다른 리그의 지난 시즌 순위 (같은 시즌 번호 − 1 일 때만, 첫 시즌·옛 달력 = 없음)
+  const pastTop = new Map<string, string[]>();
+  for (const o of state.otherLeagues ?? []) {
+    const p = o.past?.at(-1);
+    if (o.id !== lg.id && p && p.season === lg.season - 1) pastTop.set(o.id, p.top);
+  }
+  const fromPast = (lid: string): string | null => pastTop.get(lid)?.find((id) => !has(id)) ?? null;
+  // PL: 다른 리그로 고른 PL 의 지난 시즌 순위, 없으면 2017-18 실제
+  if (lg.id !== 'pl') for (let k = 0; k < uclSlots('pl'); k++) push(fromPast('pl') ?? BALANCE.cups.ucl.firstSeason[k]!, 'pl');
+  // 외부 명단 순서대로, 리그마다 자리 수까지 (지난 시즌 기록이 있으면 그 순위로 바꿔 넣는다)
   for (const x of UCL_EXTRA) {
     const c = canonicalClub(x, ids);
-    if (leagueOfTeam(OUTSIDE_TO_LEAGUE[x] ?? x) === lg.id) continue;
-    push(c);
+    const cl = leagueOfClub(c);
+    if (cl === lg.id || (cl && full(cl))) continue;
+    push((cl && fromPast(cl)) ?? c, cl);
   }
-  // 모자라면 유럽 리그 1부 팀 레이팅 순 (내 리그·이미 든 팀 제외)
-  if (out.length < 32) {
-    const extra = allLeagueData().filter((d) => d.id !== lg.id && d.tier === 1 && UEFA_COUNTRIES.has(d.country))
-      .flatMap((d) => d.teams).sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id));
-    for (const t of extra) push(t.id);
-  }
+  // 모자라면 자리 수 표에 없는 유럽 리그 1부 팀 레이팅 순, 그래도 모자라면 자리가 남은 리그 (내 리그·이미 든 팀 제외)
+  const fill = (pred: (lid: string) => boolean) => {
+    if (out.length >= 32) return;
+    const extra = allLeagueData().filter((d) => d.id !== lg.id && d.tier === 1 && UEFA_COUNTRIES.has(d.country) && pred(d.id))
+      .flatMap((d) => d.teams.map((t) => ({ t, lid: d.id }))).sort((a, b) => b.t.rating - a.t.rating || a.t.id.localeCompare(b.t.id));
+    for (const { t, lid } of extra) if (!full(lid)) push(t.id, lid);
+  };
+  fill((lid) => !(lid in BALANCE.cups.ucl.slots));
+  fill(() => true);
   return out;
+}
+
+/** 리그의 챔스 자리 수 (C.81q): 실제 배정표(BALANCE.cups.ucl.slots, 2018-19), 표에 없는 리그 = 외부 명단(UCL_EXTRA)에 든 그 리그 클럽 수 */
+export function uclSlots(leagueId: string): number {
+  const t = (BALANCE.cups.ucl.slots as Record<string, number>)[leagueId];
+  if (t !== undefined) return t;
+  return UCL_EXTRA.filter((x) => leagueOfClub(x) === leagueId).length;
 }
 
 

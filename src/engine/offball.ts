@@ -15,7 +15,7 @@ const { arrivalTime, burstReady, effectiveMax, landingVelocity } = physics_;
 import * as formation_ from './formation';
 const { manDiff, SLOT, slotTargetS, teamPhase } = formation_;
 import * as pitch_ from './pitch';
-const { attackDir, clamp, dist, inOppBox, L, normX, normY, ownGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
+const { attackDir, clamp, dist, hypot, inOppBox, L, normX, normY, ownGoal, pitchX, pitchY, positionValue, SEG, segDist, segDistS, toNorm, toPitch, W } = pitch_;
 import * as rng_ from './rng';
 const { Purpose, rand, randn } = rng_;
 import * as roles_ from './roles';
@@ -95,7 +95,7 @@ function rawSituation(s: SimState, def: 0 | 1): DefSit | null {
   let defNear6 = 0;
   let attNear = 1;
   let mateNear = false;
-  for (const o of s.agents) {
+  for (let i_1 = 0, a_1 = s.agents; i_1 < a_1.length; i_1++) { const o = a_1[i_1]!;
     if (!o.onPitch || o.line === 0) continue;
     if (o.team === def) {
       if (normX(o.x, dDir) > bnx + 0.03) ahead++;
@@ -117,7 +117,7 @@ function rawSituation(s: SimState, def: 0 | 1): DefSit | null {
 
 /** 틱마다 두 팀의 수비 상황을 갱신한다 (sitHold 초 히스테리시스, G·H·E·우리 공은 즉시) */
 export function updateSituations(s: SimState): void {
-  for (const team of [0, 1] as const) {
+  for (let i_2 = 0, a_2 = [0, 1] as const; i_2 < a_2.length; i_2++) { const team = a_2[i_2]!;
     const tm = s.teams[team];
     const raw = rawSituation(s, team);
     if (raw === null || raw === tm.sit) {
@@ -152,7 +152,7 @@ export function offsideLine(s: SimState, team: 0 | 1): number {
   const dir = attackDir(team, s.half);
   let first = 0;
   let second = 0;
-  for (const o of onOf(s, (1 - team) as 0 | 1)) {
+  for (let i_3 = 0, a_3 = onOf(s, (1 - team) as 0 | 1); i_3 < a_3.length; i_3++) { const o = a_3[i_3]!;
     const nx = normX(o.x, dir);
     if (nx > first) {
       second = first;
@@ -187,14 +187,14 @@ function defensiveLine(s: SimState, team: 0 | 1): number {
  */
 export function transitionTick(s: SimState): void {
   if (O.lineHold <= 0 && O.pressBreak <= 0) return;
-  for (const team of [0, 1] as const) {
+  for (let i_4 = 0, a_4 = [0, 1] as const; i_4 < a_4.length; i_4++) { const team = a_4[i_4]!;
     const tm = s.teams[team];
     if (O.lineHold > 0 && tm.lineAtLoss < 0 && s.t - tm.lostAt < 1) {
       // 잃는 순간 수비 줄의 실제 자리 (정규화 x 평균)
       const d = attackDir(team, s.half);
       let sum = 0;
       let n = 0;
-      for (const a of onOf(s, team)) if (a.line === 1) { sum += normX(a.x, d); n++; }
+      for (let i_5 = 0, a_5 = onOf(s, team); i_5 < a_5.length; i_5++) { const a = a_5[i_5]!; if (a.line === 1) { sum += normX(a.x, d); n++; } }
       tm.lineAtLoss = n ? sum / n : 0;
     }
     if (O.pressBreak <= 0 || s.t >= tm.counterUntil || !tm.counterPressers.length) continue;
@@ -212,7 +212,7 @@ export function transitionTick(s: SimState): void {
     if (!tm.counterPressers.every((i) => normX(s.agents[i]!.x, dir) > x! + gap)) continue;
     tm.counterUntil = s.t;
     tm.brokeAt = s.t;
-    for (const i of tm.counterPressers) {
+    for (let i_6 = 0, a_6 = tm.counterPressers; i_6 < a_6.length; i_6++) { const i = a_6[i_6]!;
       const a = s.agents[i]!;
       a.recoverUrgent = true;
       a.nextOffball = s.t;
@@ -231,7 +231,7 @@ function setTarget(a: Agent, nx: number, ny: number, dir: 1 | -1, urgent: boolea
 export function ballRank(s: SimState, a: Agent, bx: number, by: number): number {
   const d = dist(a.x, a.y, bx, by);
   let rank = 0;
-  for (const o of fieldOf(s, a.team)) {
+  for (let i_7 = 0, a_7 = fieldOf(s, a.team); i_7 < a_7.length; i_7++) { const o = a_7[i_7]!;
     if (o === a) continue;
     if (dist(o.x, o.y, bx, by) < d) rank++;
   }
@@ -247,7 +247,7 @@ const rankIdx: number[] = [];
 function rankFill(s: SimState, team: 0 | 1, bx: number, by: number): void {
   if (rankD.length < s.agents.length) rankD = new Float64Array(s.agents.length * 2);
   rankIdx.length = 0;
-  for (const o of fieldOf(s, team)) {
+  for (let i_8 = 0, a_8 = fieldOf(s, team); i_8 < a_8.length; i_8++) { const o = a_8[i_8]!;
     rankD[o.idx] = dist(o.x, o.y, bx, by);
     rankIdx.push(o.idx);
   }
@@ -256,7 +256,7 @@ function rankFill(s: SimState, team: 0 | 1, bx: number, by: number): void {
 function rankOf(a: Agent): number {
   const d = rankD[a.idx]!;
   let rank = 0;
-  for (const i of rankIdx) if (i !== a.idx && rankD[i]! < d) rank++;
+  for (let i_9 = 0, a_9 = rankIdx; i_9 < a_9.length; i_9++) { const i = a_9[i_9]!; if (i !== a.idx && rankD[i]! < d) rank++; }
   return rank;
 }
 
@@ -264,7 +264,7 @@ function rankOf(a: Agent): number {
 function nearestTo(s: SimState, team: 0 | 1, x: number, y: number): Agent | null {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of fieldOf(s, team)) {
+  for (let i_10 = 0, a_10 = fieldOf(s, team); i_10 < a_10.length; i_10++) { const o = a_10[i_10]!;
     const d = dist(o.x, o.y, x, y);
     if (d < bd) {
       bd = d;
@@ -317,6 +317,57 @@ function arrival(a: Agent, x: number, y: number, ready = false): number {
  * GK 루즈볼 추격 (C.28): 공 경로에서 GK 가 닿는 첫 점이 처리 구역 안(자기 박스, 스위퍼는 박스 밖 sweepRange 까지)이고,
  * 그 시각이 가장 빠른 상대보다 chaseMargin 초 이상 빠르고 가장 빠른 동료(필드)보다 늦지 않으면 그 점. 아니면 null
  */
+/**
+ * 공 경로 칸 (C.81j 계산 속도, 값 불변): keeperChase 의 경로 점을 객체 배열 대신 숫자 배열에 담는다 — ballPathAt 과 같은 식
+ */
+let PX = new Float64Array(64), PY = new Float64Array(64), PSP = new Float64Array(64);
+let PAIR = new Uint8Array(64), PFLY = new Uint8Array(64);
+/** ballPathAt(s, t) 를 칸 i 에 (같은 식) */
+function ballPathInto(s: SimState, t: number, i: number): void {
+  const b = s.ball;
+  const fl = b.flight;
+  let x = b.x, y = b.y, vx = b.vx, vy = b.vy;
+  if (fl) {
+    const left = Math.max(0, fl.t0 + fl.dur - s.t);
+    if (t < left) {
+      const k = clamp((s.t + t - fl.t0) / fl.dur, 0, 1);
+      PX[i] = fl.fromX + (fl.toX - fl.fromX) * k;
+      PY[i] = fl.fromY + (fl.toY - fl.fromY) * k;
+      PSP[i] = dist(fl.fromX, fl.fromY, fl.toX, fl.toY) / Math.max(0.05, fl.dur);
+      PAIR[i] = fl.air ? 1 : 0;
+      return;
+    }
+    x = fl.toX;
+    y = fl.toY;
+    const lv = landingVelocity(fl);
+    vx = lv[0];
+    vy = lv[1];
+    t -= left;
+  }
+  const sp = Math.sqrt(vx * vx + vy * vy);
+  PAIR[i] = 0;
+  if (sp < 1e-6) {
+    PX[i] = x;
+    PY[i] = y;
+    PSP[i] = 0;
+    return;
+  }
+  const dec = ENGINE.ball.groundDecel;
+  const tt = Math.min(t, sp / dec);
+  const d = sp * tt - 0.5 * dec * tt * tt;
+  PX[i] = x + (vx / sp) * d;
+  PY[i] = y + (vy / sp) * d;
+  PSP[i] = sp - dec * tt;
+}
+
+/** 경로 칸 0..n-1 에서 o 가 공보다 먼저 닿는 첫 시각 (공중에 떠 있는 동안은 못 닿는다) */
+function firstReach(o: Agent, n: number, step: number): number {
+  for (let i = 0; i < n; i++) {
+    if (!PAIR[i] && !PFLY[i] && arrival(o, PX[i]!, PY[i]!) <= i * step) return i * step;
+  }
+  return Infinity;
+}
+
 function keeperChase(s: SimState, a: Agent): [number, number] | null {
   const b = s.ball;
   const fl = b.flight;
@@ -325,31 +376,28 @@ function keeperChase(s: SimState, a: Agent): [number, number] | null {
   const range = sweepRange(a);
   const step = 0.1;
   const n = Math.round(K.chaseHorizon / step);
-  const path: { x: number; y: number; sp: number; air: boolean; fly?: boolean }[] = [];
-  for (let i = 0; i <= n; i++) {
-    const p = ballPathAt(s, i * step);
-    if (p.x < 0 || p.x > L || p.y < 0 || p.y > W) break;
-    // 비행 중인 공은 필드 선수가 잡지 못한다 (착지 뒤부터). 땅볼은 GK 만 박스 안에서 처리한다 (sim keeperHands)
-    if (fl && i * step < fl.t0 + fl.dur - s.t) (p as (typeof path)[number]).fly = true;
-    path.push(p);
+  if (PX.length < n + 1) {
+    PX = new Float64Array(n + 1); PY = new Float64Array(n + 1); PSP = new Float64Array(n + 1);
+    PAIR = new Uint8Array(n + 1); PFLY = new Uint8Array(n + 1);
   }
-  // 가장 이른 도착 (공보다 먼저 그 점에 닿는 첫 시각). 공중에 떠 있는 동안은 못 닿는다
-  const first = (o: Agent): number => {
-    for (let i = 0; i < path.length; i++) {
-      const p = path[i]!;
-      if (!p.air && !p.fly && arrival(o, p.x, p.y) <= i * step) return i * step;
-    }
-    return Infinity;
-  };
+  let len = 0;
+  for (let i = 0; i <= n; i++) {
+    ballPathInto(s, i * step, len);
+    const px = PX[len]!, py = PY[len]!;
+    if (px < 0 || px > L || py < 0 || py > W) break;
+    // 비행 중인 공은 필드 선수가 잡지 못한다 (착지 뒤부터). 땅볼은 GK 만 박스 안에서 처리한다 (sim keeperHands)
+    PFLY[len] = fl && i * step < fl.t0 + fl.dur - s.t ? 1 : 0;
+    len++;
+  }
   // 우리 팀 패스(백패스·수비 사이 패스)가 빗나간 것이면 GK 는 이미 공을 보고 있었다
   const ready = b.kick?.team === a.team && b.lastTeam === a.team;
   let gi = -1;
-  for (let i = 0; i < path.length; i++) {
-    const p = path[i]!;
+  for (let i = 0; i < len; i++) {
+    const px = PX[i]!, py = PY[i]!, sp = PSP[i]!;
     // 자기 박스 안은 손(백패스는 발로 막기)이라 빠른 공도, 박스 밖은 보통 컨트롤 속도까지
-    const box = keeperZone(s, a, p.x, p.y, 0);
-    if (p.air || (p.fly && !box) || (box ? p.sp > K.handMaxSpeed : p.sp >= ENGINE.ball.controlMaxSpeed) || !keeperZone(s, a, p.x, p.y, range)) continue;
-    if (arrival(a, p.x, p.y, ready) <= i * step) {
+    const box = keeperZone(s, a, px, py, 0);
+    if (PAIR[i] || (PFLY[i] && !box) || (box ? sp > K.handMaxSpeed : sp >= ENGINE.ball.controlMaxSpeed) || !keeperZone(s, a, px, py, range)) continue;
+    if (arrival(a, px, py, ready) <= i * step) {
       gi = i;
       break;
     }
@@ -357,12 +405,12 @@ function keeperChase(s: SimState, a: Agent): [number, number] | null {
   if (gi < 0) return null;
   const tg = gi * step;
   const margin = s.teams[a.team].gkChase ? K.chaseKeep : K.chaseMargin;
-  for (const o of s.agents) {
+  for (let i_11 = 0, a_11 = s.agents; i_11 < a_11.length; i_11++) { const o = a_11[i_11]!;
     if (!o.onPitch || o === a) continue;
-    const to = first(o);
+    const to = firstReach(o, len, step);
     if (o.team !== a.team ? to < tg + margin : to < tg) return null;
   }
-  return [path[gi]!.x, path[gi]!.y];
+  return [PX[gi]!, PY[gi]!];
 }
 
 export function keeperTarget(s: SimState, a: Agent): void {
@@ -380,7 +428,7 @@ export function keeperTarget(s: SimState, a: Agent): void {
   const arc = (d: number): void => {
     const rx = Math.max(0, (ref.x - gx) * dir);
     const ry = ref.y - gy;
-    const rd = Math.hypot(rx, ry);
+    const rd = hypot(rx, ry);
     a.tx = gx + dir * (rd > 0.1 ? (rx / rd) * d : d);
     a.ty = clamp(gy + (rd > 0.1 ? (ry / rd) * d : 0), gy - ENGINE.pitch.goalWidth / 2 - 1, gy + ENGINE.pitch.goalWidth / 2 + 1);
   };
@@ -504,7 +552,7 @@ export function updateOffball(s: SimState, a: Agent): void {
     a.ty = fl.toY;
     // 침투 패스는 달리며 받는다 (C.78b receive.runOn): 도착점에서 멈추지 않게 패스 방향으로 runOn m 더 (받는 판정은 도착점 4 m 안 그대로)
     if (ENGINE.receive.runOn > 0 && fl.outcome === 'receive' && fl.through) {
-      const d = Math.hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) || 1;
+      const d = hypot(fl.toX - fl.fromX, fl.toY - fl.fromY) || 1;
       a.tx = clamp(fl.toX + ((fl.toX - fl.fromX) / d) * ENGINE.receive.runOn, 1, L - 1);
       a.ty = clamp(fl.toY + ((fl.toY - fl.fromY) / d) * ENGINE.receive.runOn, 1, W - 1);
     }
@@ -573,6 +621,51 @@ export function updateOffball(s: SimState, a: Agent): void {
     return;
   }
 
+  // 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안(유효 슈팅·빗나감 비행) 과 슛 뒤 reboundRunT 초 안 공이 루즈일 때(쳐낸 공·막힌 공),
+  // 골 reboundRunR m 안 2선·공격수(슈터 제외) 중 가까운 reboundRun 명이 골 앞으로 전력 — 쳐낸 순간 골 앞 공격 인원이 0.8명으로 구조적으로 적었다(엔진관리자26·C.81h).
+  // 비행 중 목표 = 골 앞 reboundRunDepth m 자리(옆은 자기 y 를 중앙 ± reboundRunSpread m 안으로). 루즈일 때 목표 = 공 경로에서 자기가 공보다 먼저 닿는 첫 점
+  // (reboundRunIntercept 1, 굴러 나오는 공을 멈출 곳에서 기다리지 않고 마중) — 없으면 골 앞 자리. 공격만(수비는 같은 규칙 없음). 루즈볼 추격(chasers) 분기보다 앞
+  if (O.reboundRun > 0 && a.line >= 2 && !s.restart) {
+    const ourShot = fl && fl.kind === 'shot' && s.agents[fl.passer]?.team === a.team ? fl.passer : -1;
+    const afterShot = b.owner < 0 && !fl && !b.reserve && s.t - s.lastShotT[a.team] < O.reboundRunT;
+    if (ourShot >= 0 || afterShot) {
+      const gx = dir > 0 ? L : 0;
+      if (dist(a.x, a.y, gx, W / 2) < O.reboundRunR) {
+        // 순위 기준점: 비행 중은 골 앞 자리, 루즈면 공
+        const sx = afterShot ? b.x : gx - dir * O.reboundRunDepth, sy = afterShot ? b.y : W / 2;
+        const da = dist(a.x, a.y, sx, sy);
+        let closer = 0;
+        for (let i_13 = 0, a_13 = onOf(s, a.team); i_13 < a_13.length; i_13++) { const o = a_13[i_13]!;
+          if (o === a || o.line < 2 || o.idx === ourShot || dist(o.x, o.y, gx, W / 2) >= O.reboundRunR) continue;
+          const d = dist(o.x, o.y, sx, sy);
+          if (d < da || (d === da && o.idx < a.idx)) closer++;
+        }
+        if (closer < O.reboundRun) {
+          let hit = false;
+          if (afterShot && O.reboundRunIntercept > 0) {
+            for (let t = 0; t <= O.reboundRunT; t += 0.2) {
+              const p = ballPathAt(s, t);
+              if (p.air) continue;
+              if (arrival(a, p.x, p.y, true) <= t) {
+                a.tx = clamp(p.x, 0.5, L - 0.5);
+                a.ty = clamp(p.y, 0.5, W - 0.5);
+                hit = true;
+                break;
+              }
+            }
+          }
+          if (!hit) {
+            const nx = O.reboundRunOffside > 0 ? Math.min(1 - O.reboundRunDepth / L, offsideLine(s, a.team) - 0.5 / L) : 1 - O.reboundRunDepth / L;
+            a.tx = pitchX(nx, dir);
+            a.ty = W / 2 + clamp(a.y - W / 2, -O.reboundRunSpread, O.reboundRunSpread);
+          }
+          a.urgent = true;
+          return;
+        }
+      }
+    }
+  }
+
   // 루즈볼: 팀별 가장 가까운 chasers 명이 쫓는다
   const loose = b.owner < 0 && (!fl || fl.outcome === 'loose');
   // 동료에게 굴러가는 공 (C.24)은 쫓지 않는다
@@ -619,7 +712,7 @@ export function updateOffball(s: SimState, a: Agent): void {
       const sx = gx - dir * O.shotRushDepth;
       const da = dist(a.x, a.y, sx, W / 2);
       let closer = 0;
-      for (const o of onOf(s, a.team)) {
+      for (let i_12 = 0, a_12 = onOf(s, a.team); i_12 < a_12.length; i_12++) { const o = a_12[i_12]!;
         if (o === a || o.line < 2 || o.idx === b.owner || !inOppBox(o.x, o.y, dir)) continue;
         const d = dist(o.x, o.y, sx, W / 2);
         if (d < da || (d === da && o.idx < a.idx)) closer++;
@@ -634,11 +727,15 @@ export function updateOffball(s: SimState, a: Agent): void {
       }
     }
   }
-  if (attacking) attackTarget(s, a, dir, bnx, bny);
-  else defendTarget(s, a, dir, bnx, bny);
+  // C.81j: bnx·bny 는 받는 쪽에서 같은 식으로 다시 구한다 (공 위치는 그사이 그대로 — 실수 인자 상자 없이)
+  void bnx;
+  void bny;
+  if (attacking) attackTarget(s, a, dir);
+  else defendTarget(s, a, dir);
 }
 
-function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
+  const bnx = normX(s.ball.x, dir), bny = normY(s.ball.y, dir);
   ensureErrors(s, a);
   const shortHanded = manDiff(s, a.team) < 0;
   slotTargetS(s, a, shortHanded ? ENGINE.referee.shortAttackShift : 1);
@@ -866,7 +963,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
     if (m && md <= O.checkMark) {
       const bx = owner!.x - a.x;
       const by = owner!.y - a.y;
-      const bl = Math.hypot(bx, by) || 1;
+      const bl = hypot(bx, by) || 1;
       // 공 방향에 수직인 두 방향 중 마커에서 멀어지는 쪽
       let px = -by / bl;
       let py = bx / bl;
@@ -899,7 +996,7 @@ function overlapReady(s: SimState, a: Agent, dir: 1 | -1, bnx: number): number {
   const anx = normX(a.x, dir);
   let rest = 0;
   let high = 0;
-  for (const o of s.agents) {
+  for (let i_13 = 0, a_13 = s.agents; i_13 < a_13.length; i_13++) { const o = a_13[i_13]!;
     if (!o.onPitch || o.line === 0) continue;
     const onx = normX(o.x, dir);
     if (o.team === a.team) {
@@ -909,7 +1006,7 @@ function overlapReady(s: SimState, a: Agent, dir: 1 | -1, bnx: number): number {
   }
   if (rest < high + O.fbOverlapRest) return 0;
   const px = pitchX(Math.min(0.97, anx + O.fbOverlapAhead / L), dir), py = pitchY(0.5 + side * O.wideTouch, dir);
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) if (dist(o.x, o.y, px, py) < O.fbOverlapFree) return 0;
+  for (let i_14 = 0, a_14 = onOf(s, (1 - a.team) as 0 | 1); i_14 < a_14.length; i_14++) { const o = a_14[i_14]!; if (dist(o.x, o.y, px, py) < O.fbOverlapFree) return 0; }
   const w = sideWinger(s, a);
   return w && !hasModule(w.role, 'exempt') && dist(w.x, w.y, a.x, a.y) <= O.fbTrackDist ? O.fbOverlapTracked : 1;
 }
@@ -919,7 +1016,7 @@ function sideWinger(s: SimState, a: Agent): Agent | null {
   const side = a.sy < 0.5 ? -1 : 1;
   let w: Agent | null = null;
   let wd = Infinity;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_15 = 0, a_15 = onOf(s, (1 - a.team) as 0 | 1); i_15 < a_15.length; i_15++) { const o = a_15[i_15]!;
     if (!WIDE_POS.has(o.pos) || Math.sign(o.sy - 0.5) !== -side) continue;
     const d = dist(o.x, o.y, a.x, a.y);
     if (d < wd) { wd = d; w = o; }
@@ -931,7 +1028,7 @@ function sideWinger(s: SimState, a: Agent): Agent | null {
 function overlapToTrack(s: SimState, a: Agent): Agent | null {
   if (O.fbOverlap <= 0 || !WIDE_POS.has(a.pos) || hasModule(a.role, 'exempt')) return null;
   const side = a.sy < 0.5 ? -1 : 1;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_16 = 0, a_16 = onOf(s, (1 - a.team) as 0 | 1); i_16 < a_16.length; i_16++) { const o = a_16[i_16]!;
     if (!o.overlap || s.t >= o.runUntil || Math.sign(o.sy - 0.5) !== -side) continue;
     if (dist(o.x, o.y, a.x, a.y) <= O.fbTrackDist * 1.5) return o;
   }
@@ -951,7 +1048,7 @@ function wideMidSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, bny: numb
     if (ballSide !== side) return [Math.min(cap, 1 - O.backPostDepth / L), 0.5 - ballSide * O.backPostSpread];
     const onx = normX(owner.x, dir), ony = normY(owner.y, dir);
     let fb: Agent | null = null;
-    for (const o of onOf(s, a.team)) if (o.line === 1 && (o.pos === 'LB' || o.pos === 'RB' || o.pos === 'LWB' || o.pos === 'RWB') && Math.sign(o.sy - 0.5) === side) fb = o;
+    for (let i_17 = 0, a_17 = onOf(s, a.team); i_17 < a_17.length; i_17++) { const o = a_17[i_17]!; if (o.line === 1 && (o.pos === 'LB' || o.pos === 'RB' || o.pos === 'LWB' || o.pos === 'RWB') && Math.sign(o.sy - 0.5) === side) fb = o; }
     const fbOut = !!fb && fb !== owner && (() => { const fx = normX(fb.x, dir), fy = normY(fb.y, dir); return fx >= onx - O.wideFbAhead / L && Math.abs(fy - 0.5) >= Math.abs(normY(a.y, dir) - 0.5); })();
     // 같은 쪽: 풀백이 공을 가졌거나 바깥으로 올라와 있거나 소유자가 터치라인을 쓰면 언더랩, 아니면 역할대로 (안쪽 역할 = 언더랩)
     const under = owner === fb || fbOut || Math.abs(ony - 0.5) >= O.wideTouch || INSIDE_WIDE.has(a.role.id);
@@ -967,7 +1064,7 @@ function wideMidSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, bny: numb
 function nearestFieldOpp(s: SimState, a: Agent): [Agent | null, number] {
   let best: Agent | null = null;
   let bd = Infinity;
-  for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+  for (let i_18 = 0, a_18 = fieldOf(s, (1 - a.team) as 0 | 1); i_18 < a_18.length; i_18++) { const o = a_18[i_18]!;
     const d = dist(o.x, o.y, a.x, a.y);
     if (d < bd) {
       bd = d;
@@ -981,7 +1078,7 @@ function nearestFieldOpp(s: SimState, a: Agent): [Agent | null, number] {
 function laneRisk(s: SimState, from: Agent, tx: number, ty: number): { risk: number } {
   const PR = ENGINE.prob;
   let risk = 0;
-  for (const o of onOf(s, (1 - from.team) as 0 | 1)) {
+  for (let i_19 = 0, a_19 = onOf(s, (1 - from.team) as 0 | 1); i_19 < a_19.length; i_19++) { const o = a_19[i_19]!;
     const d = segDistS(o.x, o.y, from.x, from.y, tx, ty), t = SEG.t;
     if (d >= PR.laneWidth || t <= 0.05) continue;
     risk += (PR.laneBase + (PR.laneIntercept * o.attrs.interception) / 100) * (1 - d / PR.laneWidth);
@@ -1004,18 +1101,18 @@ function gapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): { runner: number; ny: n
   const cached = c.plan[team];
   if (cached !== undefined) return cached;
   let plan: { runner: number; ny: number } | null = null;
-  for (const cb of onOf(s, (1 - team) as 0 | 1)) {
+  for (let i_20 = 0, a_20 = onOf(s, (1 - team) as 0 | 1); i_20 < a_20.length; i_20++) { const cb = a_20[i_20]!;
     if (cb.pos !== 'CB' || !cb.stepOutGo || cb.stepOutIdx < 0) continue;
     let lx = 0;
     let n = 0;
-    for (const o of onOf(s, cb.team)) if (o.line === 1 && o !== cb) { lx += normX(o.x, dir); n++; }
+    for (let i_21 = 0, a_21 = onOf(s, cb.team); i_21 < a_21.length; i_21++) { const o = a_21[i_21]!; if (o.line === 1 && o !== cb) { lx += normX(o.x, dir); n++; } }
     if (!n) continue;
     lx /= n;
     const cnx = normX(cb.x, dir), cny = normY(cb.y, dir);
     if ((lx - cnx) * L < O.gapOpen) continue;
     const px = pitchX(lx, dir), py = pitchY(cny, dir);
     let best: number = O.gapReach;
-    for (const a of onOf(s, team)) {
+    for (let i_22 = 0, a_22 = onOf(s, team); i_22 < a_22.length; i_22++) { const a = a_22[i_22]!;
       if (a.line < 2 || a.idx === s.ball.owner || a.idx === cb.stepOutIdx || s.t < a.runUntil) continue;
       const t = arrival(a, px, py);
       if (t < best) {
@@ -1042,7 +1139,7 @@ function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
   let best: Agent | null = null;
   let bestDrop: number = O.swapDrop;
   let spot: [number, number] = [0, 0];
-  for (const o of onOf(s, team)) {
+  for (let i_23 = 0, a_23 = onOf(s, team); i_23 < a_23.length; i_23++) { const o = a_23[i_23]!;
     if (o.line < 2 || s.t < o.runUntil || s.ball.owner === o.idx) continue;
     slotTargetS(s, o);
     const sx = SLOT.x, sy = SLOT.y;
@@ -1057,7 +1154,7 @@ function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
   if (best) {
     const px = pitchX(spot[0], dir), py = pitchY(spot[1], dir);
     let bd: number = O.swapRange;
-    for (const o of onOf(s, team)) {
+    for (let i_24 = 0, a_24 = onOf(s, team); i_24 < a_24.length; i_24++) { const o = a_24[i_24]!;
       if (o === best || o.line !== best.line || s.t < o.runUntil || s.ball.owner === o.idx) continue;
       const d = dist(o.x, o.y, px, py);
       if (d < bd) {
@@ -1074,7 +1171,7 @@ function swapPlan(s: SimState, team: 0 | 1, dir: 1 | -1): SwapPlan | null {
 function oppLineX(s: SimState, team: 0 | 1, dir: 1 | -1, line: number): number | null {
   let t = 0;
   let n = 0;
-  for (const o of onOf(s, (1 - team) as 0 | 1)) {
+  for (let i_25 = 0, a_25 = onOf(s, (1 - team) as 0 | 1); i_25 < a_25.length; i_25++) { const o = a_25[i_25]!;
     if (o.line !== line) continue;
     t += normX(o.x, dir);
     n++;
@@ -1086,7 +1183,7 @@ function oppLineX(s: SimState, team: 0 | 1, dir: 1 | -1, line: number): number |
 function ownLineX(s: SimState, a: Agent, dir: 1 | -1, line: number): number | null {
   let t = 0;
   let n = 0;
-  for (const o of onOf(s, a.team)) {
+  for (let i_26 = 0, a_26 = onOf(s, a.team); i_26 < a_26.length; i_26++) { const o = a_26[i_26]!;
     if (o.line !== line || o === a) continue;
     t += normX(o.x, dir);
     n++;
@@ -1136,7 +1233,7 @@ function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, l
     const px = normX(x, dir), py = normY(y, dir);
     if (px > line - 0.5 / L) continue;
     let near: number = RM.spaceCap;
-    for (const o of onOf(s, (1 - a.team) as 0 | 1)) near = Math.min(near, dist(o.x, o.y, x, y));
+    for (let i_27 = 0, a_27 = onOf(s, (1 - a.team) as 0 | 1); i_27 < a_27.length; i_27++) { const o = a_27[i_27]!; near = Math.min(near, dist(o.x, o.y, x, y)); }
     const score = near + RM.spaceForward * (px - nx) * L;
     if (score > bestScore) {
       bestScore = score;
@@ -1149,11 +1246,11 @@ function findSpace(s: SimState, a: Agent, dir: 1 | -1, nx: number, ny: number, l
 /** ④ 커버 재배분 (E.6 D.13): 수비 의무를 면제받은 동료(중원·공격 줄)의 자리 쪽 y 로 가장 가까운 중원 동료 1명이 옮긴다 */
 function coverShiftY(s: SimState, a: Agent, ny: number): number {
   if (a.line !== 2 || exemptOf(s, a)) return ny;
-  for (const e of onOf(s, a.team)) {
+  for (let i_28 = 0, a_28 = onOf(s, a.team); i_28 < a_28.length; i_28++) { const e = a_28[i_28]!;
     if (e.line < 2 || !exemptOf(s, e)) continue;
     let pick: Agent | null = null;
     let pd = Infinity;
-    for (const o of onOf(s, a.team)) {
+    for (let i_29 = 0, a_29 = onOf(s, a.team); i_29 < a_29.length; i_29++) { const o = a_29[i_29]!;
       if (o.line !== 2 || o === e || exemptOf(s, o)) continue;
       const d = Math.abs(o.sy - e.sy) + Math.abs(o.sx - e.sx) * 0.5;
       if (d < pd - 1e-9) {
@@ -1167,7 +1264,7 @@ function coverShiftY(s: SimState, a: Agent, ny: number): number {
 }
 
 function unmarked(s: SimState, a: Agent): boolean {
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) if (dist(o.x, o.y, a.x, a.y) < ENGINE.referee.freeMark) return false;
+  for (let i_30 = 0, a_30 = onOf(s, (1 - a.team) as 0 | 1); i_30 < a_30.length; i_30++) { const o = a_30[i_30]!; if (dist(o.x, o.y, a.x, a.y) < ENGINE.referee.freeMark) return false; }
   return true;
 }
 
@@ -1175,7 +1272,7 @@ function unmarked(s: SimState, a: Agent): boolean {
 function isFreeman(s: SimState, a: Agent, owner: Agent): boolean {
   if (!unmarked(s, a)) return false;
   const d = dist(a.x, a.y, owner.x, owner.y);
-  for (const o of fieldOf(s, a.team)) {
+  for (let i_31 = 0, a_31 = fieldOf(s, a.team); i_31 < a_31.length; i_31++) { const o = a_31[i_31]!;
     if (o === a || o === owner) continue;
     if (dist(o.x, o.y, owner.x, owner.y) < d && unmarked(s, o)) return false;
   }
@@ -1188,14 +1285,14 @@ function freeSpot(s: SimState, a: Agent, owner: Agent): [number, number] | null 
   const dir = attackDir(a.team, s.half);
   let best: [number, number] | null = null;
   let bestScore = -Infinity;
-  for (const r of [R.freeMin, (R.freeMin + R.freeMax) / 2, R.freeMax]) {
+  for (let i_32 = 0, a_32 = [R.freeMin, (R.freeMin + R.freeMax) / 2, R.freeMax]; i_32 < a_32.length; i_32++) { const r = a_32[i_32]!;
     for (let k = 0; k < 12; k++) {
       const ang = (k / 12) * Math.PI * 2;
       const x = owner.x + Math.cos(ang) * r;
       const y = owner.y + Math.sin(ang) * r;
       if (x < 2 || x > L - 2 || y < 2 || y > W - 2) continue;
       let near = Infinity;
-      for (const o of onOf(s, (1 - a.team) as 0 | 1)) near = Math.min(near, dist(o.x, o.y, x, y));
+      for (let i_33 = 0, a_33 = onOf(s, (1 - a.team) as 0 | 1); i_33 < a_33.length; i_33++) { const o = a_33[i_33]!; near = Math.min(near, dist(o.x, o.y, x, y)); }
       if (near < R.freeSpace) continue;
       const score = near + 0.15 * (x - owner.x) * dir - 0.05 * dist(x, y, a.x, a.y);
       if (score > bestScore) {
@@ -1255,7 +1352,7 @@ function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, ballGoal: number): Agen
   const opp = (a.team === 0 ? 1 : 0) as 0 | 1;
   const oline = offsideLine(s, opp);
   const odir = attackDir(opp, s.half);
-  for (const o of s.agents) {
+  for (let i_34 = 0, a_34 = s.agents; i_34 < a_34.length; i_34++) { const o = a_34[i_34]!;
     // C.78e ②: 공을 가졌거나 받는 중인 공격수도 판단한다 (줄 사이 수신 — 따라 나가 붙을지)
     if (!o.onPitch || o.team === a.team || o.line !== 3 || (O.stepOutMidLead <= 0 && o.idx === s.ball.owner)) continue;
     const ahead = (oline - normX(o.x, odir)) * L;
@@ -1297,7 +1394,7 @@ function stepOutPick(s: SimState, a: Agent, dir: 1 | -1, ballGoal: number): Agen
 function deepNine(s: SimState, team: 0 | 1): boolean {
   if (RM.nineDeepGap <= 0) return false;
   let st: Agent | null = null;
-  for (const o of onOf(s, team)) {
+  for (let i_35 = 0, a_35 = onOf(s, team); i_35 < a_35.length; i_35++) { const o = a_35[i_35]!;
     if ((o.pos !== 'ST' && o.pos !== 'CF')) continue;
     if (st) return false;
     st = o;
@@ -1319,16 +1416,16 @@ function laneGuess(s: SimState, a: Agent, o: Agent, gx: number, gy: number): -1 
   let rush = 1;
   if (s.t >= o.otUntil) {
     let nd = Infinity;
-    for (const q of onOf(s, a.team)) nd = Math.min(nd, dist(q.x, q.y, o.x, o.y));
+    for (let i_36 = 0, a_36 = onOf(s, a.team); i_36 < a_36.length; i_36++) { const q = a_36[i_36]!; nd = Math.min(nd, dist(q.x, q.y, o.x, o.y)); }
     rush = Math.max(0, 1 - nd / ENGINE.prob.pressureDist);
   }
   let best: -1 | 1 = 1;
   let bestV = -Infinity;
   let bestC = -Infinity;
-  for (const sd of [-1, 1] as const) {
+  for (let i_37 = 0, a_37 = [-1, 1] as const; i_37 < a_37.length; i_37++) { const sd = a_37[i_37]!;
     const dx = gx - o.x;
     const dy = gy + sd * cy - o.y;
-    const dd = Math.hypot(dx, dy) || 1;
+    const dd = hypot(dx, dy) || 1;
     let v = shotFootMul(o.body, o.hx, o.hy, dx, dy, rush, s.t < o.otUntil);
     // 몸 방향 (hx, hy: 단위 벡터, 움직이면 달리는 방향)
     v += O.laneFace * ((o.hx * dx + o.hy * dy) / dd);
@@ -1359,7 +1456,8 @@ const TIERS_ALL: readonly (readonly Line[])[] = [TIER_123];
 const TIERS_DEF: readonly (readonly Line[])[] = [[3], [2]];
 const TIERS_MID: readonly (readonly Line[])[] = [[2], [3]];
 const TIERS_ATT: readonly (readonly Line[])[] = [[1, 2], [3]];
-function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): void {
+function defendTarget(s: SimState, a: Agent, dir: 1 | -1): void {
+  const bnx = normX(s.ball.x, dir), bny = normY(s.ball.y, dir);
   const t = effectiveTactics(s, a.team);
   const b = s.ball;
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
@@ -1658,8 +1756,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
   const tiers: readonly (readonly Line[])[] = O.lineTiers <= 0 ? TIERS_ALL : asDef ? TIERS_DEF : a.line === 2 ? TIERS_MID : TIERS_ATT;
   let mark: Agent | null = null;
   let best = 14;
-  for (const tier of tiers) {
-    for (const o of s.agents) {
+  for (let i_38 = 0, a_38 = tiers; i_38 < a_38.length; i_38++) { const tier = a_38[i_38]!;
+    for (let i_39 = 0, a_39 = s.agents; i_39 < a_39.length; i_39++) { const o = a_39[i_39]!;
       // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
       if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || (tier !== TIER_123 && !tier.includes(o.line))) continue;
       if (focusHeld && o === focus) continue;
@@ -1766,8 +1864,8 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
   let threat: Agent | null = focusThreat(s, a.team);
   if (!threat) {
     let tv = -Infinity;
-    for (const pass of [true, false]) {
-      for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+    for (let i_40 = 0, a_40 = [true, false]; i_40 < a_40.length; i_40++) { const pass = a_40[i_40]!;
+      for (let i_41 = 0, a_41 = fieldOf(s, (1 - a.team) as 0 | 1); i_41 < a_41.length; i_41++) { const o = a_41[i_41]!;
         if (o === owner) continue;
         if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
         const v = positionValue(normX(o.x, oppDir), normY(o.y, oppDir));
@@ -1797,7 +1895,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     // 박스 안 2선 마크 (C.76w, 미해결 8·11): 박스 + boxManSlack m 안에 마커 없는 다른 상대(줄 ≥ 2 전부 — CAM·CM 침투자 포함, 공 가까이는 압박자·커버 몫)가 있으면
     // 둘째는 위협 1위 더블팀 대신 그중 위협도 1위를 골 쪽 stMark 로 마크하고, boxManMax 명까지 위협 순으로 1명씩 붙는다. 없을 때(또는 boxManMax 0 = 끔)만 지금처럼 더블팀
     const others: Agent[] = [];
-    for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+    for (let i_42 = 0, a_42 = onOf(s, (1 - a.team) as 0 | 1); i_42 < a_42.length; i_42++) { const o = a_42[i_42]!;
       if (o === owner || o === t || o.line < 2) continue;
       if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.boxManSlack || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.boxManSlack) continue;
       if (dist(o.x, o.y, b.x, b.y) <= nearBall) continue;
@@ -1843,7 +1941,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     if (isDeepBlock(s, a.team) && rest.length) {
       let t2: Agent | null = null;
       let tv = -Infinity;
-      for (const o of onOf(s, (1 - a.team) as 0 | 1)) {
+      for (let i_43 = 0, a_43 = onOf(s, (1 - a.team) as 0 | 1); i_43 < a_43.length; i_43++) { const o = a_43[i_43]!;
         if (o === owner || o === t || (o.pos !== 'ST' && o.pos !== 'CF')) continue;
         if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.deepSecondStZone || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.deepSecondStZone) continue;
         const v = positionValue(normX(o.x, oppDir), normY(o.y, oppDir));
@@ -1862,7 +1960,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
     }
     // 덮는 자리 앞에 사람 (C.76w (b)): 박스 안 미마크 상대(위협 순)에게 남은 수비수 중 가장 가까운 1명씩, boxManMax 명까지 골 쪽 stMark
     let marks = 0;
-    for (const u of others) {
+    for (let i_44 = 0, a_44 = others; i_44 < a_44.length; i_44++) { const u = a_44[i_44]!;
       if (marks >= manMax || !rest.length) break;
       if (u === deepT2) continue;
       const m = rest.slice().sort((x, y) => dist(x.x, x.y, u.x, u.y) - dist(y.x, y.y, u.x, u.y) || x.idx - y.idx)[0]!;
@@ -1884,7 +1982,7 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
   ];
   // 자리 순서대로, 아직 배정되지 않은 수비수 중 가장 가까운 선수
   const free = rest.slice().sort((x, y) => x.idx - y.idx);
-  for (const [sx, sy] of spots) {
+  for (let i_45 = 0, a_45 = spots; i_45 < a_45.length; i_45++) { const [sx, sy] = a_45[i_45]!;
     if (!free.length) break;
     let k = 0;
     for (let i = 1; i < free.length; i++) if (dist(free[i]!.x, free[i]!.y, sx, sy) < dist(free[k]!.x, free[k]!.y, sx, sy)) k = i;
@@ -1929,7 +2027,7 @@ export function focusThreat(s: SimState, defTeam: 0 | 1): Agent | null {
   const gx = (attackDir(defTeam, s.half) > 0 ? 0 : L), gy = W / 2;
   let best: Agent | null = null;
   let bv = 0;
-  for (const o of onOf(s, (1 - defTeam) as 0 | 1)) {
+  for (let i_46 = 0, a_46 = onOf(s, (1 - defTeam) as 0 | 1); i_46 < a_46.length; i_46++) { const o = a_46[i_46]!;
     if (o.line < 2 || o.idx === s.ball.owner) continue;
     const v = threatValue(o, gx, gy);
     if (v > bv) {
@@ -1952,7 +2050,7 @@ function shadowTarget(s: SimState, owner: Agent, defDir: 1 | -1): Agent | null {
   const oppDir = (-defDir) as 1 | -1;
   let best: Agent | null = null;
   let bv = -Infinity;
-  for (const o of fieldOf(s, owner.team)) {
+  for (let i_47 = 0, a_47 = fieldOf(s, owner.team); i_47 < a_47.length; i_47++) { const o = a_47[i_47]!;
     if (o === owner) continue;
     if (dist(o.x, o.y, gx, gy) > bd - 2 || dist(o.x, o.y, owner.x, owner.y) > ENGINE.onball.passMaxDist) continue;
     // 위협 가중 (C.76a): 마무리 좋은 선수로 가는 패스 길을 먼저 막는다
@@ -1972,9 +2070,9 @@ function shadowTarget(s: SimState, owner: Agent, defDir: 1 | -1): Agent | null {
 function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: number): [number, number] | null {
   const gx = (dir > 0 ? 0 : L), gy = W / 2;
   let top: Agent | null = null;
-  for (const pass of [true, false]) {
+  for (let i_48 = 0, a_48 = [true, false]; i_48 < a_48.length; i_48++) { const pass = a_48[i_48]!;
     let bd = Infinity;
-    for (const o of fieldOf(s, (1 - a.team) as 0 | 1)) {
+    for (let i_49 = 0, a_49 = fieldOf(s, (1 - a.team) as 0 | 1); i_49 < a_49.length; i_49++) { const o = a_49[i_49]!;
       if (o === owner) continue;
       if (pass ? o.pos !== 'ST' && o.pos !== 'CF' : o.line !== 3) continue;
       const d = dist(o.x, o.y, gx, gy);
@@ -1991,7 +2089,7 @@ function screenSpot(s: SimState, a: Agent, owner: Agent, dir: 1 | -1, lineX: num
   let nx = normX(px, dir), ny = normY(py, dir);
   nx = Math.max(nx, lineX + O.screenGap / L);
   const qx = pitchX(nx, dir), qy = pitchY(ny, dir);
-  for (const o of onOf(s, a.team)) {
+  for (let i_50 = 0, a_50 = onOf(s, a.team); i_50 < a_50.length; i_50++) { const o = a_50[i_50]!;
     if (o === a || (o.pos !== 'CDM' && o.role.id !== 'holdingCM')) continue;
     if (dist(o.x, o.y, qx, qy) < dist(a.x, a.y, qx, qy)) return null;
   }
@@ -2007,13 +2105,13 @@ function counterStayer(s: SimState, a: Agent): boolean {
   if (!c) stayCache.set(s, (c = { tick: -1, top: [-1, -1], far: [-1, -1] }));
   if (c.tick !== s.tick) {
     c.tick = s.tick;
-    for (const team of [0, 1] as const) {
+    for (let i_51 = 0, a_51 = [0, 1] as const; i_51 < a_51.length; i_51++) { const team = a_51[i_51]!;
       let top: Agent | null = null;
       let far: Agent | null = null;
-      for (const o of onOf(s, team)) {
+      for (let i_52 = 0, a_52 = onOf(s, team); i_52 < a_52.length; i_52++) { const o = a_52[i_52]!;
         if (o.line === 3 && (!top || o.sx > top.sx || (o.sx === top.sx && o.idx < top.idx))) top = o;
       }
-      for (const o of onOf(s, team)) {
+      for (let i_53 = 0, a_53 = onOf(s, team); i_53 < a_53.length; i_53++) { const o = a_53[i_53]!;
         if (TENDENCY.counterStay < 2 || o === top || !WIDE_ATT.has(o.pos)) continue;
         if (!far || Math.abs(o.y - s.ball.y) > Math.abs(far.y - s.ball.y) + 1e-9) far = o;
       }
@@ -2030,7 +2128,7 @@ function exemptOf(s: SimState, a: Agent): boolean {
 
 /** 팀의 가장 앞 공격수 (슬롯 x 기준, 같으면 idx) */
 function isTopForward(s: SimState, a: Agent): boolean {
-  for (const o of onOf(s, a.team)) {
+  for (let i_54 = 0, a_54 = onOf(s, a.team); i_54 < a_54.length; i_54++) { const o = a_54[i_54]!;
     if (o === a || o.line !== 3) continue;
     if (o.sx > a.sx || (o.sx === a.sx && o.idx < a.idx)) return false;
   }
@@ -2070,7 +2168,7 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
   let second: Agent | null = null;
   let bt = Infinity;
   let bt2 = Infinity;
-  for (const o of fieldOf(s, team)) {
+  for (let i_55 = 0, a_55 = fieldOf(s, team); i_55 < a_55.length; i_55++) { const o = a_55[i_55]!;
     if (o === marker || exemptOf(s, o)) continue;
     const t = arrival(o, fl.toX, fl.toY);
     if (t < bt || (t === bt && pick && o.idx < pick.idx)) {
@@ -2085,7 +2183,7 @@ function closeDownPick(s: SimState, team: 0 | 1, gx: number, gy: number): CloseD
   }
   // 비행 중 인계 (C.77b 가설 2 ②): 수신자를 추적 중인 선수가 있으면 도착 시간과 무관하게 그 추적자가 담당 (추적자 + 수신자 압박 2명이 되지 않게)
   if (O.trackHandoff > 0 && O.trackMax > 0) {
-    for (const o of onOf(s, team)) {
+    for (let i_56 = 0, a_56 = onOf(s, team); i_56 < a_56.length; i_56++) { const o = a_56[i_56]!;
       if (o.trackIdx !== rcv.idx || o === marker || exemptOf(s, o)) continue;
       if (pick !== o) {
         if (second === o) second = pick;
@@ -2140,7 +2238,7 @@ function deepCutPick(s: SimState, team: 0 | 1, gx: number, gy: number): { a: Age
   const marker = threatMarker(s, team);
   let pick: { a: Agent; x: number; y: number } | null = null;
   let bt = Infinity;
-  for (const o of fieldOf(s, team)) {
+  for (let i_57 = 0, a_57 = fieldOf(s, team); i_57 < a_57.length; i_57++) { const o = a_57[i_57]!;
     if (o === cd.pick || o === cd.second || o === marker || exemptOf(s, o)) continue;
     const d = segDistS(o.x, o.y, b.x, b.y, fl.toX, fl.toY), t = SEG.t;
     if (d > O.deepCutReach || t <= 0.02 || t >= 0.98) continue;
@@ -2199,7 +2297,7 @@ export function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
   // 뚫린 역압박 가담자(C.78a ①, 뚫린 뒤 restWindow 초)는 복귀가 먼저 — 마크에 배정하지 않는다 (C.80c, 장면 ⑨)
   const pressing = s.t < tm.counterUntil || (O.pressBreak > 0 && s.t - tm.brokeAt <= O.restWindow) ? tm.counterPressers : [];
   const free = fieldOf(s, team).filter((a) => !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) >= 2);
-  for (const o of cands) {
+  for (let i_58 = 0, a_58 = cands; i_58 < a_58.length; i_58++) { const o = a_58[i_58]!;
     if (!free.length) break;
     const px = clamp(o.x + o.vx * 0.5, 0.3, L - 0.3);
     const py = clamp(o.y + o.vy * 0.5, 0.3, W - 0.3);
@@ -2208,7 +2306,7 @@ export function gegenMarkPlan(s: SimState, team: 0 | 1): Map<number, MarkJob> {
     const my = py + ((owner.y - py) / od) * G.gegenMarkGap;
     let best: Agent | null = null;
     let bt = Infinity;
-    for (const d of free) {
+    for (let i_59 = 0, a_59 = free; i_59 < a_59.length; i_59++) { const d = a_59[i_59]!;
       const t = arrivalTime(d, mx, my, 0.5);
       if (t < bt || (t === bt && best && d.idx < best.idx)) { bt = t; best = d; }
     }
@@ -2239,7 +2337,7 @@ export function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
   const pressing = s.t < tm.counterUntil ? tm.counterPressers : [];
   const gm = TENDENCY.gegenMarkN > 0 ? gegenMarkPlan(s, team) : null;
   const free = onOf(s, team).filter((a) => (a.line === 1 || (a.line === 2 && normX(a.x, dir) < bnx)) && !pressing.includes(a.idx) && !(tm.coverAgent === a.idx && s.t < tm.coverUntil) && !exemptOf(s, a) && ballRank(s, a, b.x, b.y) > 0 && !(gm && gm.has(a.idx)));
-  for (const o of threats) {
+  for (let i_60 = 0, a_60 = threats; i_60 < a_60.length; i_60++) { const o = a_60[i_60]!;
     if (!free.length) break;
     const px = clamp(o.x + o.vx, 0.3, L - 0.3);
     const py = clamp(o.y + o.vy, 0.3, W - 0.3);
@@ -2250,7 +2348,7 @@ export function restPlan(s: SimState, team: 0 | 1): Map<number, RestJob> {
     const my = py + uy * 1.5;
     let best: Agent | null = null;
     let bt = Infinity;
-    for (const d of free) {
+    for (let i_61 = 0, a_61 = free; i_61 < a_61.length; i_61++) { const d = a_61[i_61]!;
       const t = arrivalTime(d, mx, my, 0.5);
       if (t < bt || (t === bt && best && d.idx < best.idx)) { bt = t; best = d; }
     }
@@ -2303,7 +2401,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   let ln = 0;
   let defs = 0;
   rankFill(s, team, b.x, b.y);
-  for (const o of onOf(s, team)) {
+  for (let i_62 = 0, a_62 = onOf(s, team); i_62 < a_62.length; i_62++) { const o = a_62[i_62]!;
     if (o.line !== 1) continue;
     lx += normX(o.x, dir);
     ln++;
@@ -2314,7 +2412,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   // 비행 중 패서 (C.79k 결함 ①, lineMatchFlight 1): 공이 떠 있으면 공을 보낸 선수를 소유자로 쳐서 공격 줄에서 뺀다 (안 빼면 패스할 때마다 초과가 1 늘어난다)
   const passer = O.lineMatchFlight > 0 && !owner && b.flight && b.flight.passer >= 0 ? s.agents[b.flight.passer] : null;
   let atts = 0;
-  for (const o of fieldOf(s, (1 - team) as 0 | 1)) if (o !== owner && o !== passer && normX(o.x, dir) < band) atts++;
+  for (let i_63 = 0, a_63 = fieldOf(s, (1 - team) as 0 | 1); i_63 < a_63.length; i_63++) { const o = a_63[i_63]!; if (o !== owner && o !== passer && normX(o.x, dir) < band) atts++; }
   const surplus = atts - defs;
   // 문턱 lineMatchMin(기본 2): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
   const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
@@ -2324,7 +2422,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
   const cands: Agent[] = [];
   rankFill(s, team, b.x, b.y);
-  for (const o of onOf(s, team)) {
+  for (let i_64 = 0, a_64 = onOf(s, team); i_64 < a_64.length; i_64++) { const o = a_64[i_64]!;
     if (o.line !== 2 || exemptOf(s, o)) continue;
     if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
     if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
@@ -2334,7 +2432,7 @@ function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
   }
   cands.sort((x, y) => Number(prev.drop.has(y.idx)) - Number(prev.drop.has(x.idx)) || normX(x.x, dir) - normX(y.x, dir) || x.idx - y.idx);
   const drop = new Set<number>();
-  for (const o of cands.slice(0, need)) drop.add(o.idx);
+  for (let i_65 = 0, a_65 = cands.slice(0, need); i_65 < a_65.length; i_65++) { const o = a_65[i_65]!; drop.add(o.idx); }
   return (e.plan = { drop, surplus });
 }
 
@@ -2356,9 +2454,9 @@ function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<num
   const threat = focusThreat(s, team);
   const nearBall = O.plan.coverBehind + O.stMark;
   const tracked = new Set<number>();
-  for (const o of onOf(s, team)) if (o.trackIdx >= 0) tracked.add(o.trackIdx);
+  for (let i_66 = 0, a_66 = onOf(s, team); i_66 < a_66.length; i_66++) { const o = a_66[i_66]!; if (o.trackIdx >= 0) tracked.add(o.trackIdx); }
   const others: Agent[] = [];
-  for (const o of fieldOf(s, (1 - team) as 0 | 1)) {
+  for (let i_67 = 0, a_67 = fieldOf(s, (1 - team) as 0 | 1); i_67 < a_67.length; i_67++) { const o = a_67[i_67]!;
     if (o === owner || o === threat) continue;
     if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.boxManSlack || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.boxManSlack) continue;
     if (dist(o.x, o.y, b.x, b.y) <= nearBall) continue;
@@ -2373,7 +2471,7 @@ function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<num
   const tm = s.teams[team];
   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
   const free: Agent[] = [];
-  for (const o of onOf(s, team)) {
+  for (let i_68 = 0, a_68 = onOf(s, team); i_68 < a_68.length; i_68++) { const o = a_68[i_68]!;
     if (o.line !== 2 || exemptOf(s, o) || o.trackIdx >= 0) continue;
     if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
     if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
@@ -2382,11 +2480,11 @@ function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<num
     free.push(o);
   }
   const plan = new Map<number, number>();
-  for (const u of targets) {
+  for (let i_69 = 0, a_69 = targets; i_69 < a_69.length; i_69++) { const u = a_69[i_69]!;
     if (plan.size >= O.boxMatchMax || !free.length) break;
     let best: Agent | null = null;
     let bd: number = O.boxMatchReach;
-    for (const d of free) {
+    for (let i_70 = 0, a_70 = free; i_70 < a_70.length; i_70++) { const d = a_70[i_70]!;
       const dd = dist(d.x, d.y, u.x, u.y);
       if (dd < bd || (dd === bd && best && d.idx < best.idx)) { bd = dd; best = d; }
     }
@@ -2407,10 +2505,10 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
   const att = owner ? owner.team : s.possTeam;
   const ours: Agent[] = [];
-  for (const o of onOf(s, team)) if (o.line === 2) ours.push(o);
+  for (let i_71 = 0, a_71 = onOf(s, team); i_71 < a_71.length; i_71++) { const o = a_71[i_71]!; if (o.line === 2) ours.push(o); }
   const release = (a: Agent) => { a.trackIdx = -1; a.trackOut = -1; };
   if (att === team || s.restart) {
-    for (const a of ours) if (a.trackIdx >= 0) release(a);
+    for (let i_72 = 0, a_72 = ours; i_72 < a_72.length; i_72++) { const a = a_72[i_72]!; if (a.trackIdx >= 0) release(a); }
     return;
   }
   const zone = O.trackZone;
@@ -2445,7 +2543,7 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   // ① 기존 배정 점검
   const tracked = new Set<number>();
   let n = 0;
-  for (const a of ours) {
+  for (let i_73 = 0, a_73 = ours; i_73 < a_73.length; i_73++) { const a = a_73[i_73]!;
     if (a.trackIdx < 0) continue;
     const r = s.agents[a.trackIdx];
     if (!r || r.idx === b.owner || busy(a)) { release(a); continue; }
@@ -2460,31 +2558,31 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
   if (n >= O.trackMax) return;
   // ② 새 대상 (위협 순)
   const runners: Agent[] = [];
-  for (const o of s.agents) if (!tracked.has(o.idx) && isRunner(o, 0)) runners.push(o);
+  for (let i_74 = 0, a_74 = s.agents; i_74 < a_74.length; i_74++) { const o = a_74[i_74]!; if (!tracked.has(o.idx) && isRunner(o, 0)) runners.push(o); }
   if (!runners.length) return;
   runners.sort((x, y) => threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
   // ③ 후보 추적자 (한가한 CDM/CM)
   const cands: Agent[] = [];
-  for (const a of ours) {
+  for (let i_75 = 0, a_75 = ours; i_75 < a_75.length; i_75++) { const a = a_75[i_75]!;
     if (a.trackIdx >= 0) continue;
     if (!(a.pos === 'CDM' || a.role.id === 'holdingCM' || a.pos === 'CM')) continue;
     if (busy(a)) continue;
     cands.push(a);
   }
-  for (const r of runners) {
+  for (let i_76 = 0, a_76 = runners; i_76 < a_76.length; i_76++) { const r = a_76[i_76]!;
     if (n >= O.trackMax || !cands.length) break;
     const side = Math.sign(r.y - W / 2) || 1;
     let pick: Agent | null = null;
     let bd = Infinity;
     // 침투자 쪽 CDM 이 trackCdmMax 안이면 그 CDM (CDM 이 하나뿐이면 그 CDM)
     const cdms = cands.filter((a) => a.pos === 'CDM' || a.role.id === 'holdingCM');
-    for (const a of cdms) {
+    for (let i_77 = 0, a_77 = cdms; i_77 < a_77.length; i_77++) { const a = a_77[i_77]!;
       if (cdms.length > 1 && (Math.sign(a.y - W / 2) || 1) !== side) continue;
       const d = dist(a.x, a.y, r.x, r.y);
       if (d <= O.trackCdmMax && (d < bd || (d === bd && pick && a.idx < pick.idx)) && canReach(a, r)) { bd = d; pick = a; }
     }
     if (!pick) {
-      for (const a of cands) {
+      for (let i_78 = 0, a_78 = cands; i_78 < a_78.length; i_78++) { const a = a_78[i_78]!;
         const d = dist(a.x, a.y, r.x, r.y);
         if (d <= O.trackPickMax && (d < bd || (d === bd && pick && a.idx < pick.idx)) && canReach(a, r)) { bd = d; pick = a; }
       }
@@ -2537,7 +2635,7 @@ function threatMarker(s: SimState, team: 0 | 1): Agent | null {
   if (!threat) return null;
   let marker: Agent | null = null;
   let best = Infinity;
-  for (const o of onOf(s, team)) {
+  for (let i_79 = 0, a_79 = onOf(s, team); i_79 < a_79.length; i_79++) { const o = a_79[i_79]!;
     if (o.pos !== 'CB') continue;
     const d = dist(o.x, o.y, threat.x, threat.y);
     if (d < best) { best = d; marker = o; }
@@ -2606,7 +2704,7 @@ const spCache = new StateMap<[SpPlan | null, SpPlan | null]>();
 function spPlan(s: SimState, team: 0 | 1): SpPlan {
   const r = s.restart!;
   let on = 0;
-  for (const o of s.agents) if (o.onPitch) on++;
+  for (let i_80 = 0, a_80 = s.agents; i_80 < a_80.length; i_80++) { const o = a_80[i_80]!; if (o.onPitch) on++; }
   let cache = spCache.get(s);
   if (!cache) spCache.set(s, (cache = [null, null]));
   const c = cache[team];

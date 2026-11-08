@@ -142,7 +142,7 @@ describe('이벤트 엔진·인박스 (20.3·20.4)', () => {
   it('세이브 33: 왕복, 32 세이브는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c63-save', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const back = deserialize(serialize(g));
     expect(back.inbox?.items.length).toBe(g.inbox?.items.length);
     expect(back.events?.slots).toEqual(g.events?.slots);
@@ -314,7 +314,7 @@ describe('모바일 독 (C.63c)', () => {
 describe('버전 (C.63)', () => {
   it('부록 C 소절 · 단계 형식 (C.64부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

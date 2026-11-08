@@ -132,6 +132,9 @@ export interface Agent {
     risky?: boolean; riskLost?: number;
     /** 소극적 백패스 (C.77s A1): 횟수, 허용을 넘긴 가중 합, 같은 소유 순번(passivePoss = 그 소유의 possStartT), 역습 허용을 쓴 소유 */
     passive?: number; passiveW?: number; passiveSeq?: number; passivePoss?: number; passiveCtr?: number;
+    /** 수비 기록 (C.81u, 세기만 — 판단·실행에 안 쓴다): 마지막으로 상대 공 가진 선수 pressRadius m 안에 있던 시각, 그 뒤 pressWindow 초 안 팀 탈취 수(압박 성공),
+     *  오프사이드 유도(수비 줄 선수), 상대 소유 중 수비 줄 평균 x 에서 lineTol m 안에 있던 시간(초, 라인 유지) */
+    pressT?: number; pressWon?: number; offWon?: number; lineT?: number;
   };
   /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
   cardBoost?: { tackle: number; air: number };
@@ -237,6 +240,8 @@ export interface Ball {
   kick: { kind: FlightKind; team: 0 | 1; receiver: number } | null;
   /** 이 GK 는 이 시각까지 손 처리 불가 (쳐낸 공·놓친 공, C.28) */
   handBlock: { idx: number; until: number } | null;
+  /** C.81h: GK 가 쳐낸 뒤 수비 팀(team) 필드 선수의 루즈볼 컨트롤이 until 까지 × keeper.parryDefControl */
+  defHold: { team: 0 | 1; until: number } | null;
 }
 
 export interface BallReserve {
@@ -288,6 +293,8 @@ export interface TeamState {
   coverAgent: number;
   /** GK 가 루즈볼을 쫓는 중 (C.28): 필드 추격자를 1명 줄인다 */
   gkChase: boolean;
+  /** C.81h: 이 팀 GK 가 마지막으로 쳐낸 시각 (keeper.parryDownT 창) */
+  parryT: number;
   /** 깊은 블록 비행 중 가로채기 (C.76p): 이 비행(cutFlight)의 패스 선에 들어간 선수 idx. 판정은 한 비행에 1회(판정 뒤 cutIdx −1, cutFlight 는 유지) */
   cutFlight: Flight | null;
   cutIdx: number;

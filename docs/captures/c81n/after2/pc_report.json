@@ -1,0 +1,70 @@
+{
+ "W": 1280,
+ "H": 800,
+ "errors": [],
+ "screens": {
+  "홈-선수카드-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "선수-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-위험-기대평점": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-카드-4번째": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "potential": {
+  "home": "잠재력 82~86",
+  "player": "82~86"
+ },
+ "got": {
+  "moment": 1,
+  "card": {
+   "before": 3,
+   "after": 4
+  },
+  "mismatch": [],
+  "rows": [
+   [
+    {
+     "name": "파페 시에게 침투 패스",
+     "chain": false,
+     "chance": 87,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.09,
+     "risk": "low"
+    },
+    {
+     "name": "애슐리 해리슨에게 백패스",
+     "chain": false,
+     "chance": 80,
+     "up": 0.02,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.01,
+     "risk": "low"
+    },
+    {
+     "name": "케네스 람브레흐츠에게 침투 패스",
+     "chain": false,
+     "chance": 78,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.08,
+     "risk": "low"
+    }
+   ]
+  ],
+  "cut": []
+ }
+}

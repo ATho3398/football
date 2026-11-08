@@ -1,0 +1,113 @@
+{
+ "W": 390,
+ "H": 844,
+ "errors": [],
+ "screens": {
+  "홈-선수카드-잠재력": {
+   "wide": 0,
+   "hidden": [
+    "rail:안내 다시 보기"
+   ]
+  },
+  "선수-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-위험-기대평점": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-카드-4번째": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "potential": {
+  "home": "잠재력 88~92",
+  "player": "88~92"
+ },
+ "got": {
+  "moment": 2,
+  "card": {
+   "before": 3,
+   "after": 4
+  },
+  "mismatch": [],
+  "rows": [
+   [
+    {
+     "name": "크리스티안 에릭센에게 전진 패스",
+     "chain": false,
+     "chance": 89,
+     "up": 0.05,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.04,
+     "risk": "low"
+    },
+    {
+     "name": "헨리크 오베르고르에게 전진 패스",
+     "chain": false,
+     "chance": 78,
+     "up": 0.05,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.03,
+     "risk": "low"
+    },
+    {
+     "name": "해리 케인 쪽 크로스",
+     "chain": false,
+     "chance": 53,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.05,
+     "risk": "low"
+    },
+    {
+     "name": "조니 헌트에게 침투 패스",
+     "chain": false,
+     "chance": 28,
+     "up": 0.11,
+     "down": -0.01,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    }
+   ],
+   [
+    {
+     "name": "메이슨 램에게 백패스",
+     "chain": false,
+     "chance": 82,
+     "up": 0.02,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.01,
+     "risk": "low"
+    },
+    {
+     "name": "윌리엄 롭슨 1대1 돌파",
+     "chain": false,
+     "chance": 50,
+     "up": 0.09,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.03,
+     "risk": "low"
+    },
+    {
+     "name": "슛",
+     "chain": false,
+     "chance": 6,
+     "up": 0.99,
+     "down": 0,
+     "passive": 0,
+     "ev": 0.06,
+     "risk": "low"
+    }
+   ]
+  ]
+ }
+}

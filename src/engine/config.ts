@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 86;
+export const ENGINE_VERSION = 95;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -93,8 +93,9 @@ export const ENGINE = {
     pressDrainPer: 0.75,
     /** C.77a 가설 1(44h-h): 역압박 가담 중(counterPressers, 역압박 창 안) 스태미나 소모 배수 — 3명이 4초 전력 질주하는 비용, 모든 팀 공통 */
     counterDrain: 1.5,
-    /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율) */
-    fatigueIntensity: 0.35,
+    /** 지친 정도에 따른 조깅·러닝 강도 감소 (스태미나 0 일 때 비율).
+     *  C.81i: 0.35 → 0.4 — 이동 거리 테스트(76:74 시드 11~70) 평균 14.15 → 13.96 km 로 기준 < 14.1 복귀. 게겐 대 티키 40경기 필드 평균 게겐 11.38 · 균형 11.20(우위 +0.18, 전 +0.12) 유지, 게겐 한 선수 최다 13.92 → 13.35 */
+    fatigueIntensity: 0.4,
     /** 지친 선수의 최대 속도 비율 (스태미나 0 일 때, staminaLowFrom 에서 1) */
     tiredMaxFloor: 0.85,
     /** 스태미나 0 일 때 역압박 가담·긴급 복귀 판단 확률 배율 (staminaLowFrom 에서 1) */
@@ -675,6 +676,17 @@ export const ENGINE = {
     shotRushR: 20,
     shotRushDepth: 7,
     /**
+     * 리바운드 대비 런 (C.81t 세컨볼 구조): 우리 슛이 날아가는 동안 + 슛 뒤 reboundRunT 초 안 루즈볼(추격자 아닌 선수)일 때, 골 reboundRunR m 안 2선·공격수(슈터 제외) 중
+     * 골 앞 reboundRunDepth m 자리(옆은 자기 y 를 중앙 ± reboundRunSpread m 로)에 가까운 reboundRun 명이 그 자리로 전력. reboundRunOffside 1 = 오프사이드 라인 안으로 제한. 루즈일 때는 공 경로에서 먼저 닿는 점으로(reboundRunIntercept 1, 0 = 골 앞 자리). reboundRun 0 = 끔
+     */
+    reboundRun: 3,
+    reboundRunR: 24,
+    reboundRunDepth: 7,
+    reboundRunSpread: 4.5,
+    reboundRunT: 2.5,
+    reboundRunOffside: 1,
+    reboundRunIntercept: 1,
+    /**
      * 측면 미드 도착 (C.78e ①): 중원 줄 LM/RM 이 공이 상대 진영 wideFromX(정규화)를 넘으면 역할 자리로 — 반대쪽 측면 공 = 먼 포스트, 같은 쪽 = 오버랩(소유자 앞 overlapAhead m, 터치라인 wideTouch)
      * 또는 언더랩(소유자 앞 underlapAhead m 이상·하프스페이스; 풀백이 공을 가졌거나 소유자보다 wideFbAhead m 뒤까지 바깥으로 올라와 있거나 소유자가 터치라인 wideTouch 밖이면),
      * 중앙 공 = 넓은 역할은 깊이 잡은 측면·안쪽 역할은 하프스페이스. 도착 예상이 wideLate 초보다 늦으면 전력. wideArrive 0 = 끔
@@ -1017,7 +1029,7 @@ export const ENGINE = {
        * C.80w: 공중 롱패스(airPass m 넘는 패스·침투) 효용 가중(weight, 1 = 끔) — 착지 정확도(prob.longMiss)를 올려 판단 성공 확률이 같이 오르면
        * 롱패스 시도 비율이 목표(10~16%)를 넘으므로 판단 효용 가중만 같이 낮춘다(판단 보정 원칙, 실행 불변)
        */
-      longW: 0.25,
+      longW: 0.4,
       /**
        * C.80f: 티키 롱패스 감점 (사용자 2026-10-30 "짧은 패스는 조금 더 높게 주고 롱 패스에 조금 감점") — 티키타카 성향 패서의 tikiLongFrom m 넘는 패스 효용에서
        * tikiLong × 거리 가중(tikiLongFrom m 0 → tikiLongTo m 에서 1)을 뺀다. 판단 효용에만(실행 불변). 감점 안 함: 오픈 플레이 탈취 뒤 decide.possess.winOff 초 안(전환),
@@ -1061,6 +1073,12 @@ export const ENGINE = {
       wingCutShot: 0,
       wingCutFar: 24,
       wingCutCenter: 7,
+      /**
+       * C.81h 세컨볼: 리바운드 슛 선호 — 우리 팀 슛 뒤 reboundT 초 안에 상대 박스 안에서 쏘는 슛 효용에 rebound × 슛 레인(1 − 블록/shootLaneRef)을 더한다.
+       * 쳐낸 공을 잡은 공격수가 다시 패스하지 않고 바로 때리게(판단 효용에만, 실행·xG 불변). 0 = 끔
+       */
+      rebound: 0.1,
+      reboundT: 5,
     },
     /**
      * 점유 가치 (C.79m 식 + C.79u 전환 창, 사용자 2026-10-30 "짧은 패스는 점유 가치 높이는 패치, 티키타카에선 더 높게, 롱볼(직선)이나 수비(블록)에선 좀 낮추고").
@@ -1204,6 +1222,8 @@ export const ENGINE = {
     finishMin: 0.8,
     /** C.76a 가설 3 (1.25 → 1.18) 은 같은 시드 scoring 30골+ 2.80 → 2.70 으로 효과 없어 되돌림 (몰림은 배수 상한이 아니라 강팀 ST 자리의 1대1 수) */
     finishMax: 1.25,
+    /** C.81h: 윙어(LW·RW·LM·RM) 발 슛(헤더 제외)의 유효 슈팅 배수 — 판단·실행 같은 값(shotModel). 윙어 골 비중 28%(상한) → 25~27. 1 = 끔 */
+    wingFinish: 0.92,
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
     /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②). C.78p: 0.665 → 0.62 — 판단 보정과 짝(0.58·0.60 은 장면 ④ 1대1 골 < 0.25) */
@@ -1484,16 +1504,43 @@ export const ENGINE = {
     base: 6.0,
     pass: 0.02,
     forwardPass: 0.05,
-    keyPass: 0.15,
+    /**
+     * 패스 개수 체감 (C.81r, 역할별 평점 쏠림): 안전 패스(전진 아닌 성공 패스)는 포지션군 passKnee 개까지 pass, 넘는 몫은 × passTail.
+     * 전진 패스는 forwardKnee 개까지 forwardPass, 넘는 몫은 × forwardTail. 없는 군(GK · CM, CDM 안전 패스)은 체감 없음.
+     * 무릎은 역할 표본(c81r-role-parts 810경기 × 31역할)에서 같은 군 역할 차가 가장 작아지는 값을 반올림 — 공 요구 역할(엔간체·레지스타·인버티드 풀백)이 패스 개수만으로 평점을 쓸어 담지 않게
+     */
+    passKnee: { CB: 5, FB: 5, CAM: 20, WING: 18, ST: 45 } as Record<string, number>,
+    passTail: 0.3 as number,
+    forwardKnee: { CB: 20, FB: 15, CDM: 18, CM: 18, CAM: 8, WING: 5, ST: 10 } as Record<string, number>,
+    forwardTail: 0.2 as number,
+    /** C.81r: 0.15 → 0.11 (엔간체·프리롤 키패스 몫이 역할 차의 큰 부분) */
+    keyPass: 0.11,
     onTarget: 0.1,
     /** 골·도움은 scale 을 곱해 평점 약 +1.0 / +0.6 (C.26). 골이 된 슈팅은 유효 슈팅으로 따로 세지 않는다 */
     goal: 1.1,
     assist: 0.65,
     dribble: 0.1,
-    tackle: 0.1,
-    interception: 0.08,
+    /** C.81r: 태클 0.1 → 0.14 · 인터셉트 0.08 → 0.1 (수비 행동 가중 상향, 하프백·홀딩 같은 수비형 역할) */
+    tackle: 0.14,
+    interception: 0.1,
     aerial: 0.05,
-    lost: -0.04,
+    /** 수비 행동 (C.81r): 슛 블록 · 걷어내기 · 위험 지역 걷어내기 추가분 */
+    block: 0.05,
+    clearance: 0.04,
+    dangerClear: 0,
+    /**
+     * 수비 기록 칸 (C.81u, 평점에 소폭 — 경기 행동은 세기만 하고 안 바뀐다):
+     * 압박 성공 = 상대 공 가진 선수 pressRadius m 안에 있던 뒤 pressWindow 초 안 팀 탈취(1회당 pressWon) ·
+     * 오프사이드 유도 = 수비 줄 선수 1회당 offsideWon · 라인 유지 = 상대 소유 중 수비 줄 평균 x 에서 lineTol m 안에 있던 분당 lineMin
+     */
+    pressRadius: 3,
+    pressWindow: 3,
+    lineTol: 4,
+    pressWon: 0.015 as number,
+    offsideWon: 0.02 as number,
+    lineMin: 0.005 as number,
+    /** C.81r: −0.04 → −0.06 (공 요구 역할의 잦은 상실이 패스 몫에 묻히지 않게) */
+    lost: -0.06,
     dangerLost: -0.1,
     /** 상대 진영 마지막 1/3 에서의 공 상실은 lost × 이 비율 (C.26) */
     attackLostFactor: 0.5,
@@ -1554,15 +1601,37 @@ export const ENGINE = {
     // C.80u(엔진 82, 세트피스 헤더·1대1 보정 + 롱패스 병합 뒤): engine:check ST 6.73(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 ST 6.70(맞춤 2.56) — 가드 밖 ST 만 2.45 → 2.53(§9.12.7)
     // C.81a(엔진 85, 크로스 박스 인원·saveBase 1.89): engine:check GK 6.70(가드 6.3~6.7 ✗) → `rating-parts 600` + `c78r-rating-fit` 그 표본 GK 6.67(맞춤 1.77) — 가드 밖 GK 만 1.58 → 1.68(§9.12.7)
     // C.81b(엔진 86, edgeZone 18·saveBase 1.93·균형 점유 가치 0.02): engine:check CM 6.70(가드 6.3~6.7 ✗) — 가드 밖 CM 만 2.35 → 2.43(scale 0.9 로 약 −0.07, §9.12.7)
-    center: { GK: 1.68, CB: 0.96, FB: 0.61, CDM: 2.76, CM: 2.43, CAM: 2.1, WING: 1.06, ST: 2.53 } as Record<string, number>,
+    // C.81h(엔진 89, 세컨볼·윙어 마무리): engine:check 경량 가드로 CAM 2.1 → 2.25 · ST 2.53 → 2.63
+    // C.81r(엔진 90, 역할별 평점 쏠림 — 패스 체감·수비 가중·roleCenter): `rating-parts 720 … 20000`(역할 포함) 에서 8군 평균을 바꾸기 전(main 엔진 89 설정) 값 그대로 두게 다시 맞춤(c81r-role-opt TARGET_JSON) — engine:check 군 평균 6.55~6.69 · σ 0.81
+    // C.81s(엔진 91, saveBase 2.02·상성 칸 + C.81r 병합 뒤): engine:check CM 6.70(가드 6.3~6.7 ✗, 반올림 경계) — 가드 밖 CM 만 2.46 → 2.51(약 −0.04, §9.12.7)
+    // C.81u(엔진 92, 수비 기록 칸 · CM 전진 패스 무릎 18 · 조건 평균 roleCenter): `rating-parts 720 … 20000` 에서 8군 평균을 main(엔진 91) 설정 값 그대로 두게 다시 맞춤(c81u-center) — σ 0.80 → 0.76
+    // C.81u2(엔진 93, 대형 문맥 roleCenter @cam·@cb3): 같은 방식으로 CDM 1.99 → 1.96 · ST 2.1 → 2.11
+    center: { GK: 1.72, CB: 1.34, FB: 0.76, CDM: 1.96, CM: 2.1, CAM: 1.85, WING: 0.85, ST: 2.11 } as Record<string, number>,
+    /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0.
+     *  C.81u: 대형(4-4-2·3-5-2·4-2-3-1·4-3-1-2)·전력 ±5·전술(게겐·블록·직선) 10조건 평균으로 다시 맞춤(c81u-role-cond 80경기 × 268칸). `역할@2` = 같은 군 둘 이상(투톱).
+     *  C.81u2: `역할@cam` = CAM 뒤 원톱 ST(4-2-3-1 조건으로 맞춤) · `역할@cb3` = 백3 앞 CDM(3-5-2 조건) — 문맥 조건은 기본 값 맞춤에서 뺐다 */
+    roleCenter: {
+      stopper: 0.05, ballPlayingCB: -0.05, coverCB: -0.11, libero: 0.11,
+      attackingFullback: -0.03, defensiveFullback: -0.09, invertedFullback: 0.14, completeWingback: -0.04,
+      anchor: 0.06, ballWinner: 0.01, regista: 0.03, halfBack: -0.1,
+      boxToBox: 0.07, deepPlaymaker: 0, mezzala: 0.01, carrier: 0.01, holdingCM: -0.1,
+      classic10: -0.08, shadowStriker: -0.11, freeRole: 0.21, boxCrasher: -0.15, enganche: 0.12,
+      classicWinger: -0.19, wingForward: 0.19, crackWinger: 0.02, raumdeuter: 0.14, wideMid: -0.14,
+      poacher: -0.08, targetMan: -0.03, falseNine: 0.11, advancedForward: 0.01,
+      // 투톱(같은 군 둘 이상)의 ST 역할 (C.81u)
+      'poacher@2': 0.09, 'targetMan@2': 0.23, 'falseNine@2': -0.29, 'advancedForward@2': -0.03,
+      // 대형 문맥 (C.81u2): CAM 뒤 원톱 ST · 백3 앞 CDM
+      'poacher@cam': -0.21, 'targetMan@cam': -0.14, 'falseNine@cam': 0.44, 'advancedForward@cam': -0.08,
+      'anchor@cb3': 0.2, 'ballWinner@cb3': 0.09, 'regista@cb3': 0.07, 'halfBack@cb3': -0.36,
+    } as Record<string, number>,
     scale: 0.9,
     mean: 6.5,
   },
 
   // ── 골키퍼 (E.9) ──
   keeper: {
-    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). C.79x: 거리 보정(distAdj, 12~16.5 m −0.09)으로 슛이 12~16.5 m 로 몰려 quick 600 1.46 → 1.65 라 총량 보정 +0.11 → 1.77(C.79q 병합 뒤) + 1대1(oneOnOne) 만 −0.13 으로 장면 ④ 유지(헤더·12 m 안 경합 슛 선방은 같이 오른다, 부록 C.79x). C.80o: 병렬 묶음(C.80k~n) 뒤 득점 총량 마무리 +0.01 → 1.78(quick 600 1.52 → 약 1.48~1.50, distAdjV −0.13 과 함께). C.80w: 롱볼 착지 정확도(prob.longMiss 0.6)로 롱볼이 덜 끊겨 상대 역습이 줄며 quick 600 1.50 → 1.37 이라 총량 보정 −0.03 → 1.75(1.76 은 1.44). C.80u(롱패스 C.80w 병합 뒤): 세트피스 헤더 GK 반응(headerReactSet 0.6)·코너 CB 3·헤더 0.65 득점 상승 되돌림 +0.07 → 1.82(병합 전 1.78 → 1.85 와 같은 폭) — 1대1 은 oneOnOne.drop 0.16 → 0.24 로 장면 ④ 유지. C.81b: 묶음 마무리 — 두 번째 미드 박스 자리 edgeZone 12 → 17~18 · 균형 점유 가치 0.02 로 quick 600 1.51 → 1.58 이라 +0.04 → 1.93(quick 600 1.45 — 1.92 는 1.47 이지만 이동 거리 테스트 표본 평균 14.21 km 로 한도 14.2 를 넘음). */
-    saveBase: 1.93,
+    /** pSave = clamp(saveBase − saveDelta × δ + saveSkill × (선방 − saveCenter)/100, 0.05, 0.95). C.29: 슛 선택(mistakeShotGap) 뒤 1.77 → 1.75. C.31: 1.75 → 1.70 (선방률 약 68, 유효 슈팅 득점 전환 약 32%). C.76a: closeW·shotFree 를 켜면 1.74~1.78 로 되돌린다(0.01 = 득점 −0.067); 둘 다 꺼서 1.70 유지. C.76k: 수신자 압박 뒤 1.60. C.76p: shotFree 0.30 켜며 1.62(closeW 는 0 유지) C.76q: PK 빈도(박스 파울 0.04 → 0.08) 쌍 보정으로 +0.02 → 1.64 (C.76p 가설 3 coneWidth 는 되돌려 보정 없음)  C.76s: 지친 선수의 패스·경합·판단 흐트러짐(가설 2)으로 quick 600 득점 1.34 → 1.24 라 총량 보정 −0.02 → 1.62(E.23 4번). C.76z: 압박 없는 롱 백패스를 실수 후보에서 빼니(onball isMistake) 공격이 덜 끊겨 quick 600 득점 1.27 → 1.49 라 총량 보정 +0.02 → 1.64(E.23 4번). C.77d: C.77b 병합 뒤 quick 600 1.28(1.30 아래, C.77b 가 "다음 패치가 1.63 으로" 기록)이라 총량 보정 −0.01 → 1.63(E.23 4번). C.77t: GK 도달 항(reach·cover)으로 모양을 바꾼 뒤 총량 되돌리기 +0.03 → 1.66(quick 600 1.68 → 1.33 · 1.66 → 1.42 · 1.65 → 1.55, 같은 시드 scoring 1.68 → 30골+ 0.10 · 1.66 → 0.30 · 1.65 → 0.50 — 둘을 같이 맞추는 값이 없어 quick 쪽 1.66, 부록 C.77t; 마스터 승인, 이번만 0.01 단위 규칙 밖). C.79x: 거리 보정(distAdj, 12~16.5 m −0.09)으로 슛이 12~16.5 m 로 몰려 quick 600 1.46 → 1.65 라 총량 보정 +0.11 → 1.77(C.79q 병합 뒤) + 1대1(oneOnOne) 만 −0.13 으로 장면 ④ 유지(헤더·12 m 안 경합 슛 선방은 같이 오른다, 부록 C.79x). C.80o: 병렬 묶음(C.80k~n) 뒤 득점 총량 마무리 +0.01 → 1.78(quick 600 1.52 → 약 1.48~1.50, distAdjV −0.13 과 함께). C.80w: 롱볼 착지 정확도(prob.longMiss 0.6)로 롱볼이 덜 끊겨 상대 역습이 줄며 quick 600 1.50 → 1.37 이라 총량 보정 −0.03 → 1.75(1.76 은 1.44). C.80u(롱패스 C.80w 병합 뒤): 세트피스 헤더 GK 반응(headerReactSet 0.6)·코너 CB 3·헤더 0.65 득점 상승 되돌림 +0.07 → 1.82(병합 전 1.78 → 1.85 와 같은 폭) — 1대1 은 oneOnOne.drop 0.16 → 0.24 로 장면 ④ 유지. C.81b: 묶음 마무리 — 두 번째 미드 박스 자리 edgeZone 12 → 17~18 · 균형 점유 가치 0.02 로 quick 600 1.51 → 1.58 이라 +0.04 → 1.93(quick 600 1.45 — 1.92 는 1.47 이지만 이동 거리 테스트 표본 평균 14.21 km 로 한도 14.2 를 넘음). C.81s: 묶음 A·B·C 뒤 마무리 — quick 600 1.54 → 1.50 으로 +0.09 → 2.02(1대1 drop 0.39 로 장면 ④ 유지; 1대1 보정 없이 1.97 이면 1.48 이지만 장면 ④ 0.237 ✗). */
+    saveBase: 2.02,
     saveCenter: 75,
     /** 판단용 xG 의 리그 평균 GK (E.18 A1): 선방 / 핸들링 (동레이팅 75 팀 선발 GK 평균) */
     leagueShotStopping: 76,
@@ -1657,7 +1726,7 @@ export const ENGINE = {
      * 슈터 마무리(슈팅 0.5 + 침착 0.5) 가 finCenter 보다 높을수록 − fin/100 × 차. center·finCenter = 75:75 리그 평균(선발 GK 71.7 · 슛 가중 슈터 70.7).
      * maxD 12.5: 장면 ④ 1대1(12.04 m)이 들어가고, 16.5 m 까지 넓히면 12 m 밖 자유 슛(대개 상한)에 보정만 먹어 총량이 거꾸로 오른다(c79z 1.63~1.67)
      */
-    /* C.80u: drop 0.16 → 0.24 (saveBase 1.86 뒤 1대1 골 0.219 → 0.263). C.81a: saveBase 1.89 뒤 장면 ④ 1대1 골 0.247(< 0.25) → drop 0.27. C.81b: saveBase 1.93 뒤 0.242 → drop 0.3(0.259) */ oneOnOne: { drop: 0.3, gk: 0.3, center: 72, fin: 0.2, finCenter: 71, maxD: 12.5 },
+    /* C.80u: drop 0.16 → 0.24 (saveBase 1.86 뒤 1대1 골 0.219 → 0.263). C.81a: saveBase 1.89 뒤 장면 ④ 1대1 골 0.247(< 0.25) → drop 0.27. C.81b: saveBase 1.93 뒤 0.242 → drop 0.3(0.259). C.81h: 윙어 마무리 0.92(장면 슈터 RW) 뒤 0.242 → drop 0.32(0.253). C.81s: saveBase 2.02 뒤 drop 0.39(0.254) */ oneOnOne: { drop: 0.39, gk: 0.3, center: 72, fin: 0.2, finCenter: 71, maxD: 12.5 },
     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
     openOn: 0.95,
     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
@@ -1688,6 +1757,15 @@ export const ENGINE = {
     /** 쳐낸 공 속도 (m/s)·방향 퍼짐(rad, ± 절반) — C.80u 전에는 actions.ts 에 7 · 2.4 고정 */
     parrySpeed: 7,
     parrySpread: 2.4,
+    /**
+     * C.81h 세컨볼: GK 가 쳐낸 공(루즈)에 수비 팀 필드 선수가 반응하는 지연 — 쳐낸 순간부터 parryDefHold 초 동안 수비 팀 필드 선수의 루즈볼 컨트롤 확률 × parryDefControl
+     * (슛을 보던 수비는 튄 공에 한 박자 늦고, 따라 들어오던 공격수가 먼저 닿는다). 실행 레버(양 팀 같은 규칙). 0 = 끔
+     */
+    parryDefHold: 1.0,
+    parryDefControl: 0,
+    /** C.81h 세컨볼: 쳐낸 뒤 parryDownT 초 안에 같은 GK 에게 오는 유효 슈팅(PK 제외)의 선방 확률 × parryDownSave — 몸을 날린 GK 가 일어서는 사이 (실행 레버, 판단은 안 본다). 0 = 끔 */
+    parryDownT: 3.0, // C.81t: 2.0 → 3.0 (리바운드 슛이 쳐낸 뒤 평균 2.2 s 에 나와 창 밖이었다 — 리바운드 골 3.7 → 4.4%, 2400경기)
+    parryDownSave: 0.6,
     /** 크로스/롱볼 처리: 박스 안이고 GK 와 claimRange 안이면 L((출전 범위 − 60)/12 + claimBias) */
     claimRange: 6,
     claimBias: -3,
@@ -1794,10 +1872,17 @@ export const ENGINE = {
     tikitaka: {
       direct: { air: 2, short: 2, keep: 2, tackle: 2 },
       // C.80t: 티키 → 게겐 칸 짧은 패스·공 지키기 +2 (게겐>티키 +0.52 → +0.42, 엔진관리자25 ✗1)
+      // C.81s: 짧은 패스 2 → 2.5 (게겐>티키 +0.47 → +0.38)
+      // C.81t: 2.5 → 2 (리바운드 런 뒤 게겐>티키 +0.336 → +0.40, 960)
       gegenpress: { short: 2, keep: 2 },
     },
     // C.80w: 롱볼 착지 정확도(prob.longMiss) 뒤 직선>티키 +0.20·직선>게겐 +0.19 · 균형·블록(버스)>티키 +0.13~0.14 (상성 960) — 그 칸의 롱패스 능력치 점수만 되돌림
-    direct: { tikitaka: { long: -15 }, gegenpress: { long: -12 } },
+    // C.81g: 직선 → 게겐 롱패스 −12 → −6 (게겐>직선 +0.17 → +0.05) · 직선 → 블록(버스 포함) 공 지키기·짧은 패스 +1 (직선>블록 +0.03 → +0.06), 960 = 시드 41000·51000 각 480
+    // C.81s: 직선 → 블록(버스 포함) 공중 +1 (직선>블록 −0.01 → +0.07; 짧은 패스 1.5·2 · 태클 1 은 이동 거리 테스트 한 선수 최다 15.45~15.52 km ✗)
+    direct: { tikitaka: { long: -15 }, gegenpress: { long: -6 }, block: { keep: 1, short: 1, air: 1 } },
+    // C.81s: 게겐 → 직선 태클·공중·공 지키기 (게겐>직선 −0.07 → +0.06; 직선 → 게겐 롱패스 −10~−14 는 −0.01~−0.12 로 둔함)
+    // C.81t: 태클 4·공중 3·공 지키기 1 → 5·4·2 (리바운드 런 뒤 게겐>직선 −0.01 → +0.08, 960)
+    gegenpress: { direct: { tackle: 5, air: 4, keep: 2 } },
     balanced: { tikitaka: { long: -10 } },
     // C.81b: 블록 → 게겐 칸 공 지키기·공중 +2 (블록>게겐 −0.01 → +0.10, 960 = 시드 41000·51000 각 480)
     block: { tikitaka: { long: -7 }, gegenpress: { air: 2, keep: 2 } },
@@ -1816,7 +1901,8 @@ export const ENGINE = {
     link: 0.05,
     /** 연계 배수 기본 몫: 걸리면(m ≥ 1) 연계 배수 = max(0, 1 − linkBase − link × m) — C.80z 0.12 → 0.17 (공격 5명 커스텀 2-2-2-1-3 이 −0.2~−0.4 로 남아서) */
     linkBase: 0.17,
-    drain: 1,
+    /** 수비 전환 체력 소모 배수 1 + drain × m — C.81g 1 → 4 (공격 5명·ST 2명 커스텀 2-2-2-1-3(초과 1)이 칸 4-4-2 상대 −0.36 → −0.70) */
+    drain: 4,
     linkFromX: 0.5,
     /** 크로스 실행: 1 − 연계 배수 확률로 크로스 오차 × linkCrossErr (판단은 성공 확률 × 연계 배수) */
     linkCrossErr: 3,

@@ -2,7 +2,10 @@
 // ① 소집: 리그 A매치 휴식기마다 위상 티어 확률(+ 대표팀보다 잘하면 가산)로 소집 → 인박스 알림, 평가전 2경기(금·화)를 내 경기 일정에 넣는다.
 //    소집 기간에는 휴가가 없고(대표팀 훈련 = 평소 훈련 계획), 휴식기 주말이라 클럽 경기와 겹치지 않는다.
 // ② 경기: 내 경기는 클럽 경기처럼 엔진(game.ts playMyNational), 나머지는 빠른 판정. 대표팀 전력 = 국가 레이팅 표(data/nations.ts) + 내 선수.
-// ③ 대회: 월드컵(4년, 2018 끝난 상태 → 2022)·대륙컵(실제 주기 근사)은 시즌이 끝난 여름(6~7월)에 조별 + 녹아웃 약식으로 한 번에 치른다.
+// ③ 대회: 월드컵(4년, 2018 끝난 상태 → 2022)·대륙컵(실제 주기 근사)은 시즌이 끝난 여름(6~7월)에 조별 + 녹아웃.
+//    C.81l: 클럽 시즌이 끝나는 날(리그 최종 + 내 컵 끝) 소집을 판정해 **소집되면 달력 위에서**(휴가 → 소집일 → 조별 3경기 → 녹아웃) 내 경기는
+//    클럽 경기처럼(준비·결정 순간·엔진·결과), 다른 경기는 그 날짜에 빠른 계산(nat.live 에 결과를 쌓아 세이브). 내 나라가 떨어지거나 우승하면
+//    남은 경기는 시즌 끝에 한꺼번에. 소집 안 되면(또는 본선 탈락) 지금처럼 시즌 끝에 결과만 뉴스로.
 //    대회가 없는 해 6월에는 평가전 2경기. 업적 XP(18.12)·월드컵 우승 기록(honors.worldCups → 8.2 배지)은 시즌 끝 업적에 같이 들어간다.
 
 import { BALANCE } from './config/balance';
@@ -12,13 +15,16 @@ import { addDays, daysBetween, type IsoDate } from './calendar';
 import { expectedGoals, scorePair } from './league';
 import { createRng, gaussian, hashSeed, type Rng } from './rng';
 import { createTeamRoster, type TeamRoster } from './roster';
+import { npcInjuredOut, teamSetupFromRoster } from './engine/setup';
+import { slotsOf } from './formations';
+import { nearestSlotIndex } from './engine/slotPick';
 import { reputationTier, playerOvr } from './growth';
 import { myNationality } from './life';
 import { pushInbox } from './inbox';
 import { NAME_POOLS, PLAYER_EXTRA_POOLS } from '../data/names';
 import { randomNameFor } from './identity';
 import type { GameState } from './game';
-import type { Tier } from './types';
+import type { Position, Tier } from './types';
 
 export type NatComp = 'friendly' | 'wc' | 'euro' | 'copa' | 'asian' | 'afcon' | 'gold' | 'ofc';
 export type TournamentComp = Exclude<NatComp, 'friendly'>;
@@ -93,6 +99,54 @@ export interface NationalState {
   /** 대회 성적 한 줄 기록 (통산, 표 없이) */
   honors: { comp: TournamentComp; year: number; reach: string; xp: number }[];
   seq: number;
+  /** 진행 중인 여름 대회 (C.81l, SAVE_FORMAT_VERSION 62): 소집돼 달력 위에서 치르는 동안만. 시즌 끝에 기록(tournaments)으로 옮기고 지운다 */
+  live?: TournamentLive;
+  /** 이번 여름 대회 소집 판정 (C.81l): 클럽 시즌이 끝나는 날 한 번 (대회가 있는 해만). 시즌 끝 처리가 같은 판정을 쓴다 */
+  summer?: { year: number; called: boolean };
+}
+
+/** 치른 대회 경기 결과: [앞 팀 골, 뒤 팀 골] 또는 승부차기까지 [골, 골, [앞 팀, 뒤 팀]] */
+export type TResult = [number, number] | [number, number, [number, number]];
+
+/** 진행 중인 여름 대회 (C.81l): 조 편성·날짜는 추첨 때 정하고, 결과는 경기 열쇠별로 쌓는다. 녹아웃 대진은 결과에서 다시 만든다 (tournamentState) */
+export interface TournamentLive {
+  id: string;
+  comp: TournamentComp;
+  year: number;
+  qualified: boolean;
+  /** 내가 소집돼 내 나라 경기를 직접 치르는지 */
+  called: boolean;
+  /** 조 편성 (A조부터) */
+  groups: string[][];
+  /** 첫 조별 경기 날 · 대표팀 소집일 (휴가 끝) */
+  start: IsoDate;
+  camp: IsoDate;
+  /** 경기 열쇠 ("g0:1:0:2" 조별 · "k1:3" 녹아웃) → 결과 */
+  played: Record<string, TResult>;
+}
+
+/** 대회 경기 하나 (조별·녹아웃, 결과에서 만든 목록) */
+export interface TMatch {
+  key: string;
+  a: string;
+  b: string;
+  stage: string;
+  date: IsoDate;
+  ko: boolean;
+  res?: TResult;
+}
+
+/** 지금까지 결과로 만든 대회 상태 */
+export interface TournamentView {
+  matches: TMatch[];
+  /** 조별 순위표 (조 순서) */
+  tables: GroupRow[][];
+  /** 녹아웃 단계 (아직 안 치른 경기는 ga·gb −1, winner '') */
+  ko: { name: string; ties: KoTie[] }[];
+  /** 아직 떨어지지 않은 팀 (조별이면 전부, 녹아웃이면 지금 단계에 남은 팀) */
+  alive: string[];
+  champion: string | null;
+  done: boolean;
 }
 
 export const emptyNatCareer = (): NatCareer => ({ apps: 0, starts: 0, minutes: 0, goals: 0, assists: 0, ratingSum: 0, moms: 0 });
@@ -206,10 +260,10 @@ export function nextNatMatch(state: GameState): NatMatch | null {
   return best;
 }
 
-/** 이번 시즌 내 대표팀 경기 날짜 (치른 것 + 잡힌 것) */
+/** 이번 시즌 내 대표팀 경기 날짜 (치른 것 + 잡힌 것): A매치 주간 평가전 + 달력 위 여름 대회 경기 (C.81l). 시즌 끝 한꺼번에 치른 경기는 빼고 */
 export function natMatchDates(state: GameState): IsoDate[] {
   if (!state.national) return [];
-  return state.national.fixtures.filter((m) => m.season === state.league.season && m.comp === 'friendly' && m.key.startsWith('w:')).map((m) => m.date);
+  return state.national.fixtures.filter((m) => m.season === state.league.season && (m.key.startsWith('w:') || m.key.startsWith('t:'))).map((m) => m.date);
 }
 
 /** 대회·평가전 이름 한 줄: "A매치 평가전" · "월드컵 16강" */
@@ -338,20 +392,28 @@ export type PlayMine = (m: NatMatch, my: number, opp: number) => { gf: number; g
 
 export interface TournamentRun { rec: TournamentRec; mine: NatMatch[] }
 
+/** 대회 해 전력 표 (참가국 → 레이팅 + 대회 해 흔들림). 조 편성·순위 동률·빠른 계산이 같이 쓴다 */
+function liveStrengths(state: GameState, live: Pick<TournamentLive, 'groups' | 'year'>): Map<string, number> {
+  return new Map(live.groups.flat().map((t) => [t, nationRating(t, state.worldSeed, live.year)]));
+}
+
+/** 경기 전력: 내 나라는 내가 뛰면 myBoost 가산 (빠른 판정, 지금과 같은 식) */
+function liveStrength(state: GameState, live: TournamentLive, str: Map<string, number>, t: string): number {
+  const base = str.get(t) ?? nationRating(t, state.worldSeed, live.year);
+  return base + (live.called && t === myNation(state).name ? myBoost(state, base) : 0);
+}
+
 /**
- * 대회 하나를 처음부터 끝까지 치른다. myIn = 내가 소집돼 뛰는지 (내 나라 경기는 playMine 으로, 아니면 빠른 판정).
- * 그날 순서대로 (조별 1~3차전 → 녹아웃) 내 경기를 부르므로 부상·피로가 다음 경기에 이어진다
+ * 대회 추첨 (C.81l): 참가국 → 전력 순 포트(조 수만큼씩)에서 한 팀씩 조에 (시드는 지금과 같다). 날짜 = 리그 최종 라운드 + startAfter 일부터
+ * 조별 gap 일 간격, 소집일 = 첫 경기 campDays 일 전. 경기 결과는 비어 있다
  */
-export function runTournament(state: GameState, comp: TournamentComp, year: number, finalDate: IsoDate, myIn: boolean, play: PlayMine): TournamentRun {
+export function drawTournament(state: GameState, comp: TournamentComp, year: number, finalDate: IsoDate, called: boolean): TournamentLive {
   const T = N().tournaments[comp];
   const seed = state.worldSeed;
   const me = myNation(state).name;
   const teams = participants(seed, comp, year);
-  const qualified = teams.includes(me);
   const rng = createRng(hashSeed(`${seed}:tourney:${comp}:${year}`));
   const str = new Map(teams.map((t) => [t, nationRating(t, seed, year)]));
-  const strength = (t: string) => str.get(t)! + (t === me && myIn ? myBoost(state, str.get(t)!) : 0);
-  // 조 편성: 전력 순 포트(조 수만큼씩)에서 한 팀씩
   const G = T.groups;
   const sorted = [...teams].sort((a, b) => str.get(b)! - str.get(a)!);
   const groups: string[][] = Array.from({ length: G }, () => []);
@@ -363,46 +425,48 @@ export function runTournament(state: GameState, comp: TournamentComp, year: numb
     }
     potTeams.forEach((t, g) => groups[g]!.push(t));
   }
-  const mine: NatMatch[] = [];
-  const nat = ensureNational(state);
-  const id = `${comp}${year}`;
   const start = addDays(finalDate, N().startAfter);
-  const play1 = (a: string, b: string, stage: string, date: IsoDate, knockout: boolean): { ga: number; gb: number; pens?: [number, number]; winner: string } => {
-    let ga: number;
-    let gb: number;
-    const mineSide = myIn && (a === me || b === me);
-    if (mineSide) {
-      const opp = a === me ? b : a;
-      const m: NatMatch = { key: `t:${id}:${mine.length}`, date, comp, stage, opp, home: a === me, seq: 200 + (++nat.seq % 800), season: state.league.season };
-      mine.push(m);
-      const r = play(m, strength(me), strength(opp));
-      [ga, gb] = a === me ? [r.gf, r.ga] : [r.ga, r.gf];
-    } else {
-      [ga, gb] = neutralScore(rng, strength(a), strength(b));
-    }
-    if (!knockout || ga !== gb) return { ga, gb, winner: ga >= gb ? a : b };
-    const aWins = pensWinner(rng, strength(a), strength(b));
-    const pens = pensScore(rng, aWins);
-    if (mineSide) mine.at(-1)!.pens = a === me ? pens : [pens[1], pens[0]];
-    return { ga, gb, pens, winner: aWins ? a : b };
-  };
-  // 조별 1회전: (0-1, 2-3), (0-2, 1-3), (0-3, 1-2)
-  const tables = groups.map((g) => g.map((team) => ({ team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 })));
-  const ROUNDS = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
+  return { id: `${comp}${year}`, comp, year, qualified: teams.includes(me), called: called && teams.includes(me), groups, start, camp: addDays(start, -N().campDays), played: {} };
+}
+
+/** 경기 결과의 승자 (녹아웃: 무승부면 승부차기) */
+const winnerOf = (a: string, b: string, r: TResult): string => (r[0] !== r[1] ? (r[0] > r[1] ? a : b) : r[2] && r[2][0] > r[2][1] ? a : b);
+
+/** 조별 1회전 짝: (0-1, 2-3), (0-2, 1-3), (0-3, 1-2) */
+const ROUNDS = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]] as const;
+
+/**
+ * 지금까지 결과로 대회 상태를 만든다: 조별 경기 목록·순위표 → (조별이 다 끝나면) 녹아웃 진출 시드 → 앞 단계가 다 끝날 때마다 다음 단계 대진.
+ * 순수 함수(세이브에는 결과만 있고 대진은 여기서 다시 만든다) — 날짜 순 목록이라 하루 끝 진행·한꺼번에 진행이 같은 순서로 치른다
+ */
+export function tournamentState(state: GameState, live: TournamentLive): TournamentView {
+  const T = N().tournaments[live.comp];
+  const str = liveStrengths(state, live);
+  const G = live.groups.length;
+  const matches: TMatch[] = [];
+  const tables = live.groups.map((g) => g.map((team) => ({ team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 })));
   const add = (row: GroupRow, f: number, a: number) => {
     row.p++; row.gf += f; row.ga += a;
     if (f > a) { row.w++; row.pts += 3; } else if (f === a) { row.d++; row.pts++; } else row.l++;
   };
+  let groupDone = true;
   ROUNDS.forEach((pairs, md) => {
-    const date = addDays(start, md * N().gap);
-    groups.forEach((g, gi) => pairs.forEach(([i, j]) => {
-      if (g[i!] === undefined || g[j!] === undefined) return;
-      const r = play1(g[i!]!, g[j!]!, `조별 ${md + 1}차전`, date, false);
-      add(tables[gi]![i!]!, r.ga, r.gb);
-      add(tables[gi]![j!]!, r.gb, r.ga);
+    const date = addDays(live.start, md * N().gap);
+    live.groups.forEach((g, gi) => pairs.forEach(([i, j]) => {
+      const a = g[i];
+      const b = g[j];
+      if (a === undefined || b === undefined) return;
+      const key = `g${gi}:${md}:${i}:${j}`;
+      const res = live.played[key];
+      matches.push({ key, a, b, stage: `조별 ${md + 1}차전`, date, ko: false, ...(res ? { res } : {}) });
+      if (!res) { groupDone = false; return; }
+      add(tables[gi]![i]!, res[0], res[1]);
+      add(tables[gi]![j]!, res[1], res[0]);
     }));
   });
   const ranked = tables.map((t) => rankRows(t, str));
+  const ko: TournamentView['ko'] = [];
+  if (!groupDone) return { matches, tables: ranked, ko, alive: live.groups.flat(), champion: null, done: false };
   // 녹아웃 진출: 조 1·2위 + (자리가 남으면) 성적 좋은 3위
   const K = T.ko;
   let seeds: string[];
@@ -416,31 +480,179 @@ export function runTournament(state: GameState, comp: TournamentComp, year: numb
     const pos = bracketOrder(K);
     seeds = pos.map((p) => order[p]!);
   }
-  const ko: TournamentRec['ko'] = [];
   let alive = seeds;
-  let date = addDays(start, 3 * N().gap);
-  while (alive.length >= 2) {
+  let date = addDays(live.start, 3 * N().gap);
+  for (let r = 0; alive.length >= 2; r++) {
     const name = KO_NAME[alive.length] ?? `${alive.length}강`;
     const ties: KoTie[] = [];
     const next: string[] = [];
+    const left: string[] = [];
+    let complete = true;
     for (let i = 0; i + 1 < alive.length; i += 2) {
       const a = alive[i]!;
       const b = alive[i + 1]!;
-      const r = play1(a, b, name, date, true);
-      ties.push({ a, b, ga: r.ga, gb: r.gb, ...(r.pens ? { pens: r.pens } : {}), winner: r.winner });
-      next.push(r.winner);
+      const key = `k${r}:${i / 2}`;
+      const res = live.played[key];
+      matches.push({ key, a, b, stage: name, date, ko: true, ...(res ? { res } : {}) });
+      if (res) {
+        const w = winnerOf(a, b, res);
+        ties.push({ a, b, ga: res[0], gb: res[1], ...(res[2] ? { pens: res[2] } : {}), winner: w });
+        next.push(w);
+        left.push(w);
+      } else {
+        complete = false;
+        ties.push({ a, b, ga: -1, gb: -1, winner: '' });
+        left.push(a, b);
+      }
     }
     ko.push({ name, ties });
+    if (!complete) return { matches, tables: ranked, ko, alive: left, champion: null, done: false };
     alive = next;
     date = addDays(date, N().koGap);
   }
-  const champion = alive[0]!;
-  const reach = !qualified ? '예선 탈락' : reachOf(me, champion, ko);
-  const rec: TournamentRec = {
-    id, comp, year, qualified, called: myIn, reach, champion,
-    groups: ranked.map((t, g) => ({ name: `${String.fromCharCode(65 + g)}조`, table: t })), ko,
+  return { matches, tables: ranked, ko, alive, champion: alive[0]!, done: true };
+}
+
+/** 내 대표팀 경기 열쇠 ("t:wc2022:k0:3") */
+const myKey = (live: TournamentLive, m: TMatch): string => `t:${live.id}:${m.key}`;
+
+/** 내 나라 경기의 NatMatch (없으면 만들어 일정에 넣는다). 날짜 순을 지킨다 */
+function ensureMyFixture(state: GameState, live: TournamentLive, m: TMatch): NatMatch {
+  const nat = ensureNational(state);
+  const key = myKey(live, m);
+  const hit = nat.fixtures.find((x) => x.key === key);
+  if (hit) return hit;
+  const me = myNation(state).name;
+  const fx: NatMatch = { key, date: m.date, comp: live.comp, stage: m.stage, opp: m.a === me ? m.b : m.a, home: m.a === me, seq: 200 + (++nat.seq % 800), season: state.league.season };
+  let at = nat.fixtures.length;
+  while (at > 0 && nat.fixtures[at - 1]!.gf === undefined && daysBetween(fx.date, nat.fixtures[at - 1]!.date) > 0) at--;
+  nat.fixtures.splice(at, 0, fx);
+  return fx;
+}
+
+/** 내 나라의 아직 안 치른 대회 경기를 일정에 넣는다 (조별은 추첨 때, 녹아웃은 대진이 정해질 때마다) */
+export function ensureMyFixtures(state: GameState, live: TournamentLive, view = tournamentState(state, live)): void {
+  if (!live.called) return;
+  const me = myNation(state).name;
+  for (const m of view.matches) if (!m.res && (m.a === me || m.b === me)) ensureMyFixture(state, live, m);
+}
+
+/** 내 나라 경기가 아닌 경기 빠른 계산 (경기 열쇠 시드): 중립 경기 점수, 녹아웃 무승부면 승부차기 */
+function quickTMatch(state: GameState, live: TournamentLive, str: Map<string, number>, m: TMatch): void {
+  const rng = createRng(hashSeed(`${state.worldSeed}:tmatch:${live.id}:${m.key}`));
+  const sa = liveStrength(state, live, str, m.a);
+  const sb = liveStrength(state, live, str, m.b);
+  const [ga, gb] = neutralScore(rng, sa, sb);
+  live.played[m.key] = m.ko && ga === gb ? [ga, gb, pensScore(rng, pensWinner(rng, sa, sb))] : [ga, gb];
+}
+
+/**
+ * 내 대회 경기 결과를 기록한다 (내 쪽 기준 점수). 녹아웃 무승부면 승부차기를 판정해 m.pens 에도 적는다.
+ * 돌려주는 값: 승부차기 · 내 나라가 이겼는지
+ */
+export function settleMyTournamentMatch(state: GameState, live: TournamentLive, m: NatMatch, gf: number, ga: number): { pens?: [number, number]; won: boolean } {
+  const key = m.key.slice(`t:${live.id}:`.length);
+  const me = myNation(state).name;
+  let res: TResult = m.home ? [gf, ga] : [ga, gf];
+  const ko = key.startsWith('k');
+  if (ko && gf === ga) {
+    const str = liveStrengths(state, live);
+    const rng = createRng(hashSeed(`${state.worldSeed}:tpens:${live.id}:${key}`));
+    const a = m.home ? me : m.opp;
+    const b = m.home ? m.opp : me;
+    const aWins = pensWinner(rng, liveStrength(state, live, str, a), liveStrength(state, live, str, b));
+    const pens = pensScore(rng, aWins);
+    res = [res[0], res[1], pens];
+    m.pens = m.home ? pens : [pens[1], pens[0]];
+  }
+  live.played[key] = res;
+  const won = winnerOf(m.home ? me : m.opp, m.home ? m.opp : me, res) === me;
+  return { ...(m.pens ? { pens: m.pens } : {}), won };
+}
+
+/**
+ * 대회를 진행한다: until 날짜까지(null = 끝까지)의 안 치른 경기를 날짜 순으로 — 내 나라 경기(소집됐을 때)는 play 콜백으로 치르고(없으면 게임 루프가
+ * 그날 치르도록 남겨 둔다), 나머지는 빠른 계산. 단계가 끝나 다음 대진이 생기면 이어서. 끝나면 내 다음 경기를 일정에 넣는다
+ */
+export function advanceTournament(state: GameState, live: TournamentLive, until: IsoDate | null, play?: PlayMine): TournamentView {
+  const me = myNation(state).name;
+  const str = liveStrengths(state, live);
+  let view = tournamentState(state, live);
+  for (let guard = 0; guard < 16 && !view.done; guard++) {
+    let progressed = false;
+    for (const m of view.matches) {
+      if (m.res || (until !== null && daysBetween(m.date, until) < 0)) continue;
+      if (live.called && (m.a === me || m.b === me)) {
+        if (!play) continue;
+        const fx = ensureMyFixture(state, live, m);
+        const r = play(fx, liveStrength(state, live, str, me), liveStrength(state, live, str, m.a === me ? m.b : m.a));
+        settleMyTournamentMatch(state, live, fx, r.gf, r.ga);
+      } else quickTMatch(state, live, str, m);
+      progressed = true;
+    }
+    if (!progressed) break;
+    view = tournamentState(state, live);
+  }
+  ensureMyFixtures(state, live, view);
+  return view;
+}
+
+/** 내 나라가 아직 대회에 남아 있다 (소집됐을 때만 뜻이 있다): 조별 진행 중이거나 지금 녹아웃 단계에 남아 있고, 우승이 정해지지 않았다 */
+export function myNationAlive(state: GameState, live: TournamentLive, view = tournamentState(state, live)): boolean {
+  return !view.done && view.alive.includes(myNation(state).name);
+}
+
+/** 대회 마지막 경기(결승) 날짜: 조별 3회 뒤 녹아웃 단계마다 koGap 일 */
+export function tournamentEndDate(live: Pick<TournamentLive, 'comp' | 'start'>): IsoDate {
+  const rounds = Math.max(1, Math.round(Math.log2(N().tournaments[live.comp].ko)));
+  return addDays(live.start, 3 * N().gap + (rounds - 1) * N().koGap);
+}
+
+/** 내 나라가 치른 마지막 대회 경기 날짜 (없으면 null) */
+function myLastTournamentDate(state: GameState, live: TournamentLive): IsoDate | null {
+  const prefix = `t:${live.id}:`;
+  const mine = (state.national?.fixtures ?? []).filter((m) => m.key.startsWith(prefix) && m.gf !== undefined);
+  return mine.at(-1)?.date ?? null;
+}
+
+/**
+ * 달력 위 대회가 시즌 끝을 미룬다 (C.81l → C.81v): 내 나라가 남아 있으면 내 경기를, 떨어졌으면 남은 다른 나라 경기(결승까지)를 그 날짜에 —
+ * 단 내 마지막 경기 뒤 waitAfterOut 일 안에 대회가 끝날 때만 (넘으면 거짓 → 시즌 끝 처리가 남은 경기를 몰아서, 소식은 경기 날짜로)
+ */
+export function natTournamentAlive(state: GameState): boolean {
+  const live = state.national?.live;
+  if (!live || !live.called || live.year !== state.league.season + 1) return false;
+  const view = tournamentState(state, live);
+  if (view.done) return false;
+  if (myNationAlive(state, live, view)) return true;
+  const last = myLastTournamentDate(state, live);
+  return !!last && daysBetween(last, tournamentEndDate(live)) <= N().waitAfterOut;
+}
+
+/** 소집된 대회에서 내 나라가 떨어졌다 (그 뒤 빈 날짜는 휴가, C.81v) */
+export function myNationOut(state: GameState, live: TournamentLive): boolean {
+  return live.called && !myNationAlive(state, live);
+}
+
+/** 대회 기록 (끝났으면 우승·성적, 진행 중이면 champion '' · reach '진행 중'): 화면·시즌 끝 기록이 같이 쓴다 */
+export function tournamentRecord(state: GameState, live: TournamentLive, view = tournamentState(state, live)): TournamentRec {
+  const me = myNation(state).name;
+  const reach = !live.qualified ? '예선 탈락' : view.done ? reachOf(me, view.champion!, view.ko) : '진행 중';
+  return {
+    id: live.id, comp: live.comp, year: live.year, qualified: live.qualified, called: live.called, reach, champion: view.champion ?? '',
+    groups: view.tables.map((t, g) => ({ name: `${String.fromCharCode(65 + g)}조`, table: t })), ko: view.ko,
   };
-  return { rec, mine };
+}
+
+/**
+ * 대회 하나를 처음부터 끝까지 한꺼번에 치른다 (소집 안 된 해·시즌 끝 처리·테스트). myIn = 내가 소집돼 뛰는지 (내 나라 경기는 playMine 으로).
+ * 날짜 순서대로 (조별 1~3차전 → 녹아웃) 내 경기를 부르므로 부상·피로가 다음 경기에 이어진다
+ */
+export function runTournament(state: GameState, comp: TournamentComp, year: number, finalDate: IsoDate, myIn: boolean, play: PlayMine): TournamentRun {
+  const live = drawTournament(state, comp, year, finalDate, myIn);
+  const before = new Set(ensureNational(state).fixtures);
+  const view = advanceTournament(state, live, null, play);
+  return { rec: tournamentRecord(state, live, view), mine: ensureNational(state).fixtures.filter((m) => !before.has(m)) };
 }
 
 function reachOf(me: string, champion: string, ko: TournamentRec['ko']): string {
@@ -449,6 +661,84 @@ function reachOf(me: string, champion: string, ko: TournamentRec['ko']): string 
     if (ko[k]!.ties.some((t) => t.a === me || t.b === me)) return ko[k]!.name === '결승' ? '준우승' : ko[k]!.name;
   }
   return '조별 탈락';
+}
+
+/** 소집 판정 (대회): 본선에 오른 나라 + 긴 부상 아님 + 확률(callup + tournamentBonus). 시드는 해마다 하나 (6월 평가전과 같은 시드 줄) */
+function tournamentCallup(state: GameState, comp: TournamentComp, year: number): { qualified: boolean; called: boolean } {
+  const me = myNation(state);
+  const rng = createRng(hashSeed(`${state.worldSeed}:summer:${year}`));
+  const injuredLong = !!state.player.injury && state.player.injury.daysLeft > N().startAfter;
+  const qualified = participants(state.worldSeed, comp, year).includes(me.name);
+  return { qualified, called: qualified && !injuredLong && rng() < callChance(state, N().tournamentBonus) };
+}
+
+/**
+ * 클럽 시즌이 끝나는 날 (C.81l, game.ts: 리그 최종 라운드 + 내 컵 경기가 다 끝난 하루 끝·경기 뒤): 이번 여름 대회 소집 판정을 한 번 하고,
+ * 소집되면 대회를 추첨해 달력 위에 올린다 (조별 3경기를 내 일정에, 인박스 소집 알림). 소집 안 되면 시즌 끝에 결과만 (nationalSeasonEnd)
+ */
+export function nationalKickoff(state: GameState, finalDate: IsoDate): TournamentLive | null {
+  const nat = ensureNational(state);
+  const year = state.league.season + 1;
+  if (nat.summer?.year === year) return nat.live ?? null;
+  const me = myNation(state);
+  const comp = myTournament(me, year);
+  if (!comp) return null;
+  const { called } = tournamentCallup(state, comp, year);
+  nat.summer = { year, called };
+  if (!called) return null;
+  const live = drawTournament(state, comp, year, finalDate, true);
+  nat.live = live;
+  const view = tournamentState(state, live);
+  ensureMyFixtures(state, live, view);
+  const name = `${year} ${NAT_COMP_KO[comp]}`;
+  const mine = view.matches.filter((m) => m.a === me.name || m.b === me.name);
+  const grp = live.groups.findIndex((g) => g.includes(me.name));
+  pushInbox(state, {
+    key: `natcall:t:${live.id}`, cat: 'national', title: `${name} 대표팀 소집`,
+    body: `${me.nameKo} 대표팀 최종 명단에 들었어요. 클럽 시즌이 끝나면 휴가, ${live.camp.slice(5).replace('-', '/')} 소집. ${String.fromCharCode(65 + grp)}조 — ${mine.map((m) => `${m.date.slice(5).replace('-', '/')} ${nationOf(m.a === me.name ? m.b : m.a).nameKo}전`).join(' · ')}. 경기는 클럽 경기처럼 직접 치러요.`,
+    link: { to: 'national', label: '대표팀' },
+  });
+  return live;
+}
+
+/** 하루 끝 (endDay, 날짜 = 끝난 날): 달력 위 대회의 그날까지 다른 나라 경기를 빠른 계산하고, 대진이 정해지면 내 다음 경기를 일정에 넣는다.
+ * 내 나라가 떨어진 뒤 끝난 단계는 인박스 소식 (C.81v) */
+export function tournamentDayEnd(state: GameState, date: IsoDate): void {
+  const live = state.national?.live;
+  if (!live || !live.called || live.year !== state.league.season + 1) return;
+  const view = advanceTournament(state, live, date);
+  tournamentNews(state, live, view);
+}
+
+/**
+ * 대회 소식 (C.81v, 컵 소식 C.81l 과 같은 꼴): 소집된 대회에서 내 나라가 없는 단계가 끝나면 그 경기 날짜로 인박스 "대표팀" 소식 —
+ * 조별 탈락이면 조별리그 끝(녹아웃 진출국), 내 나라가 없는 녹아웃 단계는 결과, 결승은 우승국. 내 나라가 뛴 단계는 결과 화면이 있으니 뺀다
+ */
+export function tournamentNews(state: GameState, live: TournamentLive, view = tournamentState(state, live)): void {
+  if (!live.called) return;
+  const me = myNation(state).name;
+  const name = `${live.year} ${NAT_COMP_KO[live.comp]}`;
+  const ko = (t: string) => nationOf(t).nameKo;
+  const dateOf = (prefix: string) => view.matches.filter((m) => m.key.startsWith(prefix)).map((m) => m.date).sort().at(-1)!;
+  const link = { to: 'national', label: '대표팀' } as const;
+  const first = view.ko[0];
+  if (first && !first.ties.some((t) => t.a === me || t.b === me)) {
+    pushInbox(state, {
+      key: `natnews:${live.id}:groups`, cat: 'national', date: dateOf('g'), title: `${name} 조별리그 끝 — ${first.name} 진출국`,
+      body: `${first.ties.flatMap((t) => [t.a, t.b]).map(ko).join(' · ')}.`, link,
+    });
+  }
+  view.ko.forEach((round, r) => {
+    if (round.ties.some((t) => !t.winner) || round.ties.some((t) => t.a === me || t.b === me)) return;
+    const line = (t: KoTie) => `${ko(t.a)} ${t.ga} : ${t.gb}${t.pens ? ` (PK ${t.pens[0]} : ${t.pens[1]})` : ''} ${ko(t.b)}`;
+    const final = round.ties.length === 1;
+    pushInbox(state, {
+      key: `natnews:${live.id}:k${r}`, cat: 'national', date: dateOf(`k${r}:`),
+      title: final ? `${name} 결승 — ${ko(round.ties[0]!.winner)} 우승` : `${name} ${round.name} 결과`,
+      body: final ? `${line(round.ties[0]!)}. ${ko(round.ties[0]!.winner)}가 ${name}을 들어 올렸어요.` : `${round.ties.map(line).join(' · ')}. ${round.ties.map((t) => ko(t.winner)).join('·')} 진출.`,
+      link,
+    });
+  });
 }
 
 /** 대회 성적 → 업적 (18.12): 소집된 대회만 */
@@ -472,7 +762,8 @@ export interface NatSeasonEnd {
 }
 
 /**
- * 시즌 끝 여름 (endSeason): 내 나라 대회가 있는 해면 그 대회(소집 판정 → 조별 + 녹아웃), 없으면 6월 평가전 2경기(소집 판정).
+ * 시즌 끝 여름 (endSeason): 내 나라 대회가 있는 해면 그 대회 — 달력 위에서 진행하던 대회(nat.live)는 남은 경기를 한꺼번에 치러 기록으로,
+ * 아니면(소집 안 됨·본선 탈락·옛 흐름) 소집 판정(클럽 시즌 끝 판정이 있으면 그것) 뒤 조별 + 녹아웃을 한꺼번에. 없으면 6월 평가전 2경기(소집 판정).
  * year = 시즌이 끝나는 해 (2018-19 시즌 → 2019). finalDate = 리그 최종 라운드 날짜
  */
 export function nationalSeasonEnd(state: GameState, finalDate: IsoDate, play: PlayMine): NatSeasonEnd {
@@ -481,34 +772,44 @@ export function nationalSeasonEnd(state: GameState, finalDate: IsoDate, play: Pl
   const year = state.league.season + 1;
   const comp = myTournament(me, year);
   const out: NatSeasonEnd = { achievements: [], tournament: null, matches: [] };
-  const rng = createRng(hashSeed(`${state.worldSeed}:summer:${year}`));
-  const injuredLong = !!state.player.injury && state.player.injury.daysLeft > N().startAfter;
   if (comp) {
-    const qualified = participants(state.worldSeed, comp, year).includes(me.name);
-    const called = qualified && !injuredLong && rng() < callChance(state, N().tournamentBonus);
-    const run = runTournament(state, comp, year, finalDate, called, play);
-    nat.fixtures.push(...run.mine);
-    out.matches = run.mine;
-    out.tournament = run.rec;
-    nat.tournaments.push(run.rec);
+    let live = nat.live && nat.live.year === year ? nat.live : null;
+    if (!live) {
+      const q = tournamentCallup(state, comp, year);
+      const called = nat.summer?.year === year ? nat.summer.called : q.called;
+      live = drawTournament(state, comp, year, finalDate, called);
+    }
+    const view = advanceTournament(state, live, null, play);
+    // C.81v: 탈락 뒤 기다림이 길어 몰아서 치른 남은 단계도 소식은 경기 날짜로 (소집된 대회만)
+    tournamentNews(state, live, view);
+    const rec = tournamentRecord(state, live, view);
+    const prefix = `t:${live.id}:`;
+    const mine = nat.fixtures.filter((m) => m.key.startsWith(prefix));
+    delete nat.live;
+    const { qualified, called } = live;
+    out.matches = mine;
+    out.tournament = rec;
+    nat.tournaments.push(rec);
     while (nat.tournaments.length > N().keepTournaments) nat.tournaments.shift();
-    const ach = called ? tournamentAchievement(comp, run.rec.reach) : null;
+    const ach = called ? tournamentAchievement(comp, rec.reach) : null;
     if (ach) out.achievements.push(ach);
-    if (called || qualified) nat.honors.push({ comp, year, reach: called ? run.rec.reach : `${run.rec.reach} (미소집)`, xp: ach?.xp ?? 0 });
+    if (called || qualified) nat.honors.push({ comp, year, reach: called ? rec.reach : `${rec.reach} (미소집)`, xp: ach?.xp ?? 0 });
     const name = `${year} ${NAT_COMP_KO[comp]}`;
     pushInbox(state, {
-      key: `natcup:${run.rec.id}`, cat: 'national', title: `${name} ${!qualified ? '본선 진출 실패' : called ? run.rec.reach : '소집 안 됨'}`,
+      key: `natcup:${rec.id}`, cat: 'national', title: `${name} ${!qualified ? '본선 진출 실패' : called ? rec.reach : '소집 안 됨'}`,
       body: !qualified
-        ? `${me.nameKo}는 ${name} 본선에 오르지 못했어요. 우승은 ${nationOf(run.rec.champion).nameKo}.`
+        ? `${me.nameKo}는 ${name} 본선에 오르지 못했어요. 우승은 ${nationOf(rec.champion).nameKo}.`
         : called
-          ? `${me.nameKo} 대표로 ${name}에 나갔어요 — ${run.rec.reach}. ${run.mine.filter((m) => (m.min ?? 0) > 0).length}경기 ${run.mine.reduce((t, m) => t + (m.g ?? 0), 0)}골. 우승 ${nationOf(run.rec.champion).nameKo}.`
-          : `${name} 대표팀 명단에 들지 못했어요. ${me.nameKo} ${run.rec.reach}, 우승 ${nationOf(run.rec.champion).nameKo}.`,
+          ? `${me.nameKo} 대표로 ${name}에 나갔어요 — ${rec.reach}. ${mine.filter((m) => (m.min ?? 0) > 0).length}경기 ${mine.reduce((t, m) => t + (m.g ?? 0), 0)}골. 우승 ${nationOf(rec.champion).nameKo}.`
+          : `${name} 대표팀 명단에 들지 못했어요. ${me.nameKo} ${rec.reach}, 우승 ${nationOf(rec.champion).nameKo}.`,
       link: { to: 'national', label: '대표팀' },
     });
     return out;
   }
   // 대회가 없는 해: 6월 평가전
   const J = N().june;
+  const rng = createRng(hashSeed(`${state.worldSeed}:summer:${year}`));
+  const injuredLong = !!state.player.injury && state.player.injury.daysLeft > N().startAfter;
   const called = !injuredLong && rng() < callChance(state);
   if (!called) return out;
   const opps: string[] = [];
@@ -527,4 +828,24 @@ export function nationalSeasonEnd(state: GameState, finalDate: IsoDate, play: Pl
 /** 세이브 크기: 경기 기록은 최근 maxFixtures 개 */
 export function trimNational(nat: NationalState, max = 240): void {
   if (nat.fixtures.length > max) nat.fixtures.splice(0, nat.fixtures.length - max);
+}
+
+/**
+ * 대표팀 경기 준비 "내 포지션" 그림 (C.81v3): 엔진(natRoundMatch → buildMyMatch)과 같은 계산 — 대표팀 로스터의 포메이션과 선발
+ * (teamSetupFromRoster, 감독 성향 실용·부상 결장 없음), 내 자리 = 내 주 포지션 칸 → 없으면 가장 가까운 칸(C.81y slotPick.nearestSlotIndex, 엔진 어댑터 nearestSlot 과 같은 함수).
+ * 클럽 전술·포메이션은 쓰지 않는다. 엔진은 읽기만 한다
+ */
+export function natPreviewLineup(state: GameState, oppNation: string): { formation: string; slots: { pos: Position; x: number; y: number; me: boolean }[]; myPos: Position } {
+  const nat = ensureNational(state);
+  const roster = natRoster(state, nat.nation);
+  const myR = nationRating(nat.nation);
+  const oppR = nationRating(oppNation);
+  const setup = teamSetupFromRoster(roster, myR, oppR, state.worldSeed, npcInjuredOut(roster, undefined), (myR + oppR) / 2, false, undefined, 'neutral');
+  const slots = roster.customSlots ?? slotsOf(roster.formation);
+  const mine = setup.lineup[nearestSlotIndex(setup.lineup, slots, state.player.position as Position)]!.slot;
+  return {
+    formation: roster.formation,
+    slots: setup.lineup.filter((p) => p.slot >= 0).map((p) => ({ pos: slots[p.slot]!.pos, x: slots[p.slot]!.x, y: slots[p.slot]!.y, me: p.slot === mine })),
+    myPos: slots[mine]!.pos,
+  };
 }

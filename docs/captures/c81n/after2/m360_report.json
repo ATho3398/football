@@ -1,0 +1,76 @@
+{
+ "W": 360,
+ "H": 780,
+ "errors": [],
+ "screens": {
+  "홈-선수카드-잠재력": {
+   "wide": 0,
+   "hidden": [
+    "off:개인 시상",
+    "rail:안내 다시 보기"
+   ]
+  },
+  "선수-잠재력": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결정순간-위험-기대평점": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "potential": {
+  "home": "잠재력 88~92",
+  "player": "88~92"
+ },
+ "got": {
+  "moment": 1,
+  "card": false,
+  "mismatch": [],
+  "rows": [
+   [
+    {
+     "name": "도미닉 웨이드 쪽 크로스",
+     "chain": false,
+     "chance": 70,
+     "up": 0.11,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.07,
+     "risk": "low"
+    },
+    {
+     "name": "파울루 칼라두 1대1 돌파",
+     "chain": false,
+     "chance": 65,
+     "up": 0.09,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.05,
+     "risk": "low"
+    },
+    {
+     "name": "도미닉 웨이드에게 전진 패스",
+     "chain": false,
+     "chance": 61,
+     "up": 0.05,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    },
+    {
+     "name": "해리 케인에게 전진 패스",
+     "chain": false,
+     "chance": 54,
+     "up": 0.05,
+     "down": -0.02,
+     "passive": 0,
+     "ev": 0.02,
+     "risk": "low"
+    }
+   ]
+  ],
+  "cut": []
+ }
+}

@@ -41,7 +41,7 @@ function specOf(p: RosterPlayer, slot: number, stamina = 100): PlayerSpec {
 export function fillRoles(setup: TeamSetup, slotPos: (slot: number) => PlayerSpec['position']): void {
   const taken = new Set(setup.lineup.map((p) => p.role).filter((r): r is string => !!r));
   const filled: PlayerSpec[] = [];
-  for (const p of [...setup.lineup].sort((a, b) => a.slot - b.slot)) {
+  for (let i_1 = 0, a_1 = [...setup.lineup].sort((a, b) => a.slot - b.slot); i_1 < a_1.length; i_1++) { const p = a_1[i_1]!;
     if (p.role) continue;
     p.role = recommendedRole(setup.tactics.tendency, slotPos(p.slot), p.attrs, taken).id;
     taken.add(p.role);
@@ -92,7 +92,7 @@ export function npcAbsences(roster: TeamRoster, worldSeed: string, matchSeed: nu
   const players = roster.players;
   let gks = players.filter((x) => x.position === 'GK').length;
   let left = players.length;
-  for (const x of players) {
+  for (let i_2 = 0, a_2 = players; i_2 < a_2.length; i_2++) { const x = a_2[i_2]!;
     if (left <= BALANCE.roster.npcAbsentMin) break;
     const gk = x.position === 'GK';
     if (gk && gks <= 1) continue;
@@ -114,7 +114,7 @@ export function npcInjuredOut(roster: TeamRoster, cond: NpcCond | undefined, int
   const players = roster.players;
   let gks = players.filter((x) => x.position === 'GK' && !into.has(x.id)).length;
   let left = players.length - players.filter((x) => into.has(x.id)).length;
-  for (const x of players) {
+  for (let i_3 = 0, a_3 = players; i_3 < a_3.length; i_3++) { const x = a_3[i_3]!;
     if (into.has(x.id) || cond[x.id]?.[1] !== 1) continue;
     if (left <= BALANCE.roster.npcAbsentMin) break;
     const gk = x.position === 'GK';

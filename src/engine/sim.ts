@@ -55,7 +55,7 @@ export function curveAttr(x: number): number {
 
 function curveAttrs<T extends object>(a: T): T {
   const out = {} as Record<string, number>;
-  for (const [k, v] of Object.entries(a)) out[k] = curveAttr(v as number);
+  for (let i_1 = 0, a_1 = Object.entries(a); i_1 < a_1.length; i_1++) { const [k, v] = a_1[i_1]!; out[k] = curveAttr(v as number); }
   // C.81e 계산 속도: 키를 하나씩 붙인 객체는 V8 이 사전(느린) 모드로 둔다 — 같은 키 순서·같은 값으로 펼쳐 빠른 모드 객체로 (능력치는 경기 내내 수백 번 읽힌다)
   return { ...out } as T;
 }
@@ -63,7 +63,7 @@ function curveAttrs<T extends object>(a: T): T {
 /** GK 의 필드 능력치 (이동, 패스에 쓴다): 킥은 패스, 나머지는 보통 수준 */
 export function gkFieldAttributes(gk: GkAttributes): FieldAttributes {
   const out = {} as FieldAttributes;
-  for (const a of FIELD_ATTRIBUTES) out[a] = 45;
+  for (let i_2 = 0, a_2 = FIELD_ATTRIBUTES; i_2 < a_2.length; i_2++) { const a = a_2[i_2]!; out[a] = 45; }
   out.shortPassing = gk.distribution;
   out.longPassing = gk.distribution;
   out.vision = Math.round((gk.distribution + 50) / 2);
@@ -100,7 +100,7 @@ export interface MatchSim {
  */
 function fixDoubles(o: object, keys: readonly string[]): void {
   const r = o as Record<string, unknown>;
-  for (const k of keys) {
+  for (let i_3 = 0, a_3 = keys; i_3 < a_3.length; i_3++) { const k = a_3[i_3]!;
     const v = r[k];
     r[k] = 0.5;
     r[k] = v;
@@ -129,7 +129,7 @@ function makeAgent(spec: PlayerSpec, team: 0 | 1, idx: number, setup: TeamSetup,
     maxSpeed: 0, accel: 0, turnKeep: 0, pivotT: 0, burstSec: 0, drainAttr: 0, stamina: spec.stamina, burst: 100, burstOut: false, judgement: 0, cooldown: 0, nextOffball: 0,
     runUntil: 0, giveGoT: -1, giveGo: false, exitRun: false, supportRun: false, gapY: -1, vacRun: false, overlap: false, errX: 0, errY: 0, errTick: -1, errDone: -1, errT: -Infinity, beatenUntil: 0, onPitch: spec.slot >= 0, sprinting: false, backToGoal: false, recoverUrgent: false, minRun: false, drainMul: 1, duelEdge: 0, body: bodyMods(spec.body),
     stats: { ...emptyPlayerStats(spec.id, team, pos), slot: spec.slot }, enteredAt: 0, leftAt: null,
-    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0, card: undefined, relief: undefined, risky: undefined, riskLost: undefined, passive: undefined, passiveW: undefined, passiveSeq: undefined, passivePoss: undefined, passiveCtr: undefined }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
+    rt: { forward: 0, lost: 0, dangerLost: 0, attackLost: 0, conceded: 0, card: undefined, relief: undefined, risky: undefined, riskLost: undefined, passive: undefined, passiveW: undefined, passiveSeq: undefined, passivePoss: undefined, passiveCtr: undefined, pressT: -100, pressWon: 0, offWon: 0, lineT: 0 }, gotBy: 'gain', ballT: 0, lastMoveT: -100, carryN: 0, dribbleT: -100, shotPath: 6, duelNext: 0, laneUntil: 0, paceCap: 0, trackIdx: -1, trackUntil: 0, trackOut: -1, stepOutIdx: -1, stepOutGo: false, stepOutUntil: 0,
     pre: null, otMul: 1, otUntil: -1,
     // C.81e 계산 속도: 나중에 붙던 속성을 처음부터 (하프타임에 모든 선수 객체 모양이 바뀌어 최적화 코드가 버려지던 것 — 값·판정 같음)
     intent: null, cardBoost: undefined,
@@ -150,20 +150,20 @@ export function createState(input: EngineInput): SimState {
   const setups = [input.home, input.away] as const;
   const home = (team: number) => !input.neutral && team === 0;
   setups.forEach((setup, team) => {
-    for (const spec of setup.lineup) agents.push(makeAgent(spec, team as 0 | 1, agents.length, setup, home(team)));
+    for (let i_4 = 0, a_4 = setup.lineup; i_4 < a_4.length; i_4++) { const spec = a_4[i_4]!; agents.push(makeAgent(spec, team as 0 | 1, agents.length, setup, home(team))); }
   });
   setups.forEach((setup, team) => {
-    for (const spec of setup.bench) bench[team]!.push(makeAgent({ ...spec, slot: -1 }, team as 0 | 1, -1, setup, home(team)));
+    for (let i_5 = 0, a_5 = setup.bench; i_5 < a_5.length; i_5++) { const spec = a_5[i_5]!; bench[team]!.push(makeAgent({ ...spec, slot: -1 }, team as 0 | 1, -1, setup, home(team))); }
   });
   const added1 = 60 * (T.addedFirst[0] + Math.floor(rand(input.seed, 0, 0, Purpose.Added) * (T.addedFirst[1] - T.addedFirst[0] + 1)));
   const s: SimState = {
     input, seed: input.seed >>> 0, t: 0, elapsed: 0, tick: 0, half: 1, halfEnd: T.halfSeconds + added1,
     agents, bench,
-    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null },
+    ball: { x: L / 2, y: W / 2, z: 0, vx: 0, vy: 0, owner: -1, flight: null, lastTouch: -1, lastTeam: 0, reserve: null, kick: null, handBlock: null, defHold: null },
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup, team) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, parryT: -100, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
       fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
       stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
     })) as SimState['teams'],
@@ -177,7 +177,7 @@ export function createState(input: EngineInput): SimState {
   };
   fixDoubles(s, STATE_DOUBLES);
   fixDoubles(s.ball, BALL_DOUBLES);
-  for (const tm of s.teams) fixDoubles(tm, TEAM_DOUBLES);
+  for (let i_6 = 0, a_6 = s.teams; i_6 < a_6.length; i_6++) { const tm = a_6[i_6]!; fixDoubles(tm, TEAM_DOUBLES); }
   kickoffPositions(s, 0);
   setRestart(s, 'kickoff', 0, L / 2, W / 2, 0);
   event(s, 'kickoff', 0, []);
@@ -203,7 +203,7 @@ function executeRestart(s: SimState): void {
   if (!takerReady(s, r)) r.taker = pickTaker(s, r);
   const taker = s.agents[r.taker];
   s.restart = null;
-  for (const a of s.agents) a.paceCap = 0;
+  for (let i_7 = 0, a_7 = s.agents; i_7 < a_7.length; i_7++) { const a = a_7[i_7]!; a.paceCap = 0; }
   if (!taker || !taker.onPitch) return;
   setOwner(s, taker);
   taker.cooldown = 0;
@@ -359,12 +359,14 @@ function updateLooseBall(s: SimState): void {
   // 공 컨트롤 시도 (E.4)
   let winner: Agent | null = null;
   let bestRoll = Infinity;
-  for (const a of s.agents) {
+  for (let i_8 = 0, a_8 = s.agents; i_8 < a_8.length; i_8++) { const a = a_8[i_8]!;
     if (!a.onPitch || dist(a.x, a.y, b.x, b.y) > (b.reserve ? B.reserveSteal : B.controlDist)) continue;
     if (b.reserve && (a.team === s.agents[b.reserve.idx]!.team || a.idx === b.reserve.from)) continue;
     const pressure = nearestOpponentDist(s, a) < 2 ? 0.1 : 0;
     // 날씨 (C.74a): 젖은·언 공 컨트롤 × touch
-    const p = (B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure) * s.env.touch;
+    let p = (B.controlBase + (B.controlSlope * a.attrs.ballControl) / 100 - B.controlSpeedPenalty * (sp / 10) - pressure) * s.env.touch;
+    // C.81h 세컨볼: GK 가 쳐낸 직후 수비 팀 필드 선수는 한 박자 늦는다
+    if (b.defHold && a.team === b.defHold.team && a.line !== 0 && s.t < b.defHold.until) p *= ENGINE.keeper.parryDefControl;
     const roll = rand(s.seed, s.tick, a.idx, Purpose.Control);
     if (roll < p && roll / p < bestRoll) {
       bestRoll = roll / p;
@@ -376,7 +378,7 @@ function updateLooseBall(s: SimState): void {
 
 function nearestOpponentDist(s: SimState, a: Agent): number {
   let bd = Infinity;
-  for (const o of onOf(s, (1 - a.team) as 0 | 1)) bd = Math.min(bd, dist(o.x, o.y, a.x, a.y));
+  for (let i_9 = 0, a_9 = onOf(s, (1 - a.team) as 0 | 1); i_9 < a_9.length; i_9++) { const o = a_9[i_9]!; bd = Math.min(bd, dist(o.x, o.y, a.x, a.y)); }
   return bd;
 }
 
@@ -408,7 +410,7 @@ function startSecondHalf(s: SimState): void {
   s.t = T.halfSeconds;
   const added2 = 60 * (T.addedSecond[0] + Math.floor(rand(s.seed, 1, 0, Purpose.Added) * (T.addedSecond[1] - T.addedSecond[0] + 1)));
   s.halfEnd = 2 * T.halfSeconds + added2;
-  for (const a of s.agents) {
+  for (let i_10 = 0, a_10 = s.agents; i_10 < a_10.length; i_10++) { const a = a_10[i_10]!;
     a.runUntil = 0;
     a.giveGoT = -1;
     a.giveGo = false;
@@ -456,11 +458,12 @@ function startSecondHalf(s: SimState): void {
  */
 function resetHalfClocks(s: SimState, back: number): void {
   s.lastShotT = [-100, -100];
+  s.teams[0].parryT = s.teams[1].parryT = -100;
   s.boxLand = null;
   s.lastPass = null;
   s.possSince = s.t;
   s.possStartT = s.t;
-  for (const tm of s.teams) {
+  for (let i_11 = 0, a_11 = s.teams; i_11 < a_11.length; i_11++) { const tm = a_11[i_11]!;
     tm.counterUntil = 0;
     tm.counterPressers = [];
     tm.wonAt = -100;
@@ -482,7 +485,7 @@ function resetHalfClocks(s: SimState, back: number): void {
     cs.lastOccT = -100;
     cs.lastTackleT = -100;
     cs.react = null;
-    for (const c of cs.combos) c.armedT = s.t;
+    for (let i_12 = 0, a_12 = cs.combos; i_12 < a_12.length; i_12++) { const c = a_12[i_12]!; c.armedT = s.t; }
     if (cs.started) cs.nextDraw -= back;
   }
 }
@@ -491,7 +494,7 @@ function finish(s: SimState): void {
   s.done = true;
   settleMoment(s, true);
   if (s.cards) cardsFinish(s);
-  for (const a of s.agents) a.leftAt ??= s.elapsed;
+  for (let i_13 = 0, a_13 = s.agents; i_13 < a_13.length; i_13++) { const a = a_13[i_13]!; a.leftAt ??= s.elapsed; }
   event(s, 'fulltime', 0, []);
 }
 
@@ -527,7 +530,7 @@ function boxLandTick(s: SimState): void {
   if (s.ball.flight === w.fl) return;
   const dir = attackDir(w.team, s.half);
   let n = 0;
-  for (const a of fieldOf(s, w.team)) if (inOppBox(a.x, a.y, dir)) n++;
+  for (let i_14 = 0, a_14 = fieldOf(s, w.team); i_14 < a_14.length; i_14++) { const a = a_14[i_14]!; if (inOppBox(a.x, a.y, dir)) n++; }
   s.teams[w.team].stats.boxAtLand += n;
   s.teams[w.team].stats.boxLandN++;
   s.boxLand = null;
@@ -541,9 +544,9 @@ function stepBody(s: SimState): void {
   const looseNow = s.ball.owner < 0 && !s.restart && (!s.ball.flight || s.ball.flight.outcome === 'loose');
   updateSituations(s);
   transitionTick(s);
-  for (const a of s.agents) {
+  for (let i_15 = 0, a_15 = s.agents; i_15 < a_15.length; i_15++) { const a = a_15[i_15]!;
     if (!a.onPitch || a.idx === s.ball.owner) continue;
-    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || keeperFlightDue(s, a)) {
+    if (s.t >= a.nextOffball || (looseNow && a.line === 0 && a.nextOffball - s.t > ENGINE.keeper.chaseRefresh) || (a.line === 0 && keeperFlightDue(s, a))) {
       refreshErrors(s, a);
       updateOffball(s, a);
       a.nextOffball = s.t + T.offballInterval * (0.7 + 0.6 * rand(s.seed, s.tick, a.idx, Purpose.Offball, 2));
@@ -553,7 +556,7 @@ function stepBody(s: SimState): void {
 
   // 소유자 결정, 수비 태클
   const b = s.ball;
-  for (const a of s.agents) if (a.cooldown > 0) a.cooldown -= dt;
+  for (let i_16 = 0, a_16 = s.agents; i_16 < a_16.length; i_16++) { const a = a_16[i_16]!; if (a.cooldown > 0) a.cooldown -= dt; }
   if (b.owner >= 0 && !s.restart) {
     const o = s.agents[b.owner]!;
     // 내 선수 결정 순간 (E.11): 멈출 순간이면 여기서 멈추고 resolve 가 나머지 틱을 이어서 한다
@@ -651,6 +654,30 @@ function resume(s: SimState, choice: MomentChoice): void {
   else stepTail(s);
 }
 
+/**
+ * 수비 기록 (C.81u, 평점 칸 — 세기만): 상대가 공을 가진 오픈 플레이 틱마다
+ * ① 공 가진 선수 rating.pressRadius m 안의 필드 선수는 pressT = 지금 (탈취 순간 core.gainBall 이 pressWindow 초 안이면 압박 성공)
+ * ② 수비 줄(line 1) 선수 중 줄 평균 x 에서 rating.lineTol m 안이면 lineT += dt (라인 유지 시간). 난수·위치·판단은 건드리지 않는다
+ */
+function defenseTally(s: SimState, dt: number): void {
+  const R = ENGINE.rating;
+  const o = s.agents[s.ball.owner]!;
+  const def = 1 - o.team;
+  const r2 = R.pressRadius * R.pressRadius;
+  let sx = 0, n = 0;
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const a = ag[i]!;
+    if (!a.onPitch || a.team !== def || a.line === 0) continue;
+    const dx = a.x - o.x, dy = a.y - o.y;
+    if (dx * dx + dy * dy <= r2) a.rt.pressT = s.t;
+    if (a.line === 1) { sx += a.x; n++; }
+  }
+  if (n < 2) return;
+  const mx = sx / n;
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const a = ag[i]!;
+    if (a.onPitch && a.team === def && a.line === 1 && Math.abs(a.x - mx) <= R.lineTol) a.rt.lineT = (a.rt.lineT ?? 0) + dt;
+  }
+}
+
 function stepTail(s: SimState): void {
   const dt = T.dt;
   const b = s.ball;
@@ -665,7 +692,7 @@ function stepTail(s: SimState): void {
   const td1 = (PH.pressDrainBase + PH.pressDrainPer * t1.tactics.pressing) * (t1.tactics.tendency === 'gegenpress' ? TENDENCY.gegenDrain : 1);
   const envDrain = s.env.drain;
   const envRecover = s.env.recover;
-  for (const a of s.agents) {
+  for (let i_17 = 0, a_17 = s.agents; i_17 < a_17.length; i_17++) { const a = a_17[i_17]!;
     if (!a.onPitch) continue;
     // 압박 전술의 스태미나 소모 × (pressDrainBase + pressDrainPer × pressing) (E.19 ③, C.76s 0.85 + 0.35p)
     // C.77a 가설 1: 게겐프레싱 팀 × gegenDrain, 역압박 가담 중 × counterDrain
@@ -716,6 +743,7 @@ function stepTail(s: SimState): void {
   if (!s.restart && b.owner < 0 && !b.flight && outOfPlay(b.x, b.y)) ballOut(s);
 
   if (!s.restart) s.teams[s.possTeam].stats.possessionTicks++;
+  if (!s.restart && b.owner >= 0) defenseTally(s, dt);
   const k = Math.min(1, dt / ENGINE.formation.ballSmoothing);
   s.bsx += (b.x - s.bsx) * k;
   s.bsy += (b.y - s.bsy) * k;
@@ -723,7 +751,7 @@ function stepTail(s: SimState): void {
   if (!s.snap75 && s.t >= 75 * 60) {
     s.snap75 = true;
     s.elapsed75 = s.elapsed;
-    for (const a of [...s.agents, ...s.bench[0], ...s.bench[1]]) a.stats.distance75 = a.stats.distance;
+    for (let i_18 = 0, a_18 = [...s.agents, ...s.bench[0], ...s.bench[1]]; i_18 < a_18.length; i_18++) { const a = a_18[i_18]!; a.stats.distance75 = a.stats.distance; }
   }
 
   if (s.cards) cardsTick(s);

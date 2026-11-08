@@ -1,0 +1,226 @@
+{
+  "errors": [],
+  "steps": [
+    {
+      "step": "loaded",
+      "date": "2019-06-02",
+      "phase": "season",
+      "screen": "has-nav app-home",
+      "live": {
+        "id": "asian2019",
+        "played": 0
+      },
+      "mine": [
+        "2019-06-02 조별 1차전 China ---",
+        "2019-06-06 조별 2차전 Jordan ---",
+        "2019-06-10 조별 3차전 Yemen ---"
+      ],
+      "last": null
+    },
+    {
+      "step": "play 조별1차전",
+      "ok": true,
+      "clicks": 1,
+      "date": "2019-06-03",
+      "phase": "season",
+      "screen": "has-nav app-match",
+      "live": {
+        "id": "asian2019",
+        "played": 12
+      },
+      "mine": [
+        "2019-06-02 조별 1차전 China 1-2",
+        "2019-06-06 조별 2차전 Jordan ---",
+        "2019-06-10 조별 3차전 Yemen ---"
+      ],
+      "last": {
+        "comp": "asian",
+        "stage": "조별 1차전",
+        "label": "아시안컵 조별 1차전",
+        "g": [
+          [
+            9,
+            1,
+            "v:n:China:21",
+            "v:n:China:19"
+          ],
+          [
+            23,
+            1,
+            "v:n:China:7",
+            "v:n:China:21"
+          ],
+          [
+            39,
+            0,
+            "v:n:Korea Republic:14",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "step": "play 조별2차전",
+      "ok": true,
+      "clicks": 1,
+      "date": "2019-06-07",
+      "phase": "season",
+      "screen": "has-nav app-match",
+      "live": {
+        "id": "asian2019",
+        "played": 24
+      },
+      "mine": [
+        "2019-06-02 조별 1차전 China 1-2",
+        "2019-06-06 조별 2차전 Jordan 1-1",
+        "2019-06-10 조별 3차전 Yemen ---"
+      ],
+      "last": {
+        "comp": "asian",
+        "stage": "조별 2차전",
+        "label": "아시안컵 조별 2차전",
+        "g": [
+          [
+            63,
+            1,
+            "v:n:Jordan:21",
+            "v:n:Jordan:20"
+          ],
+          [
+            82,
+            0,
+            "v:n:Korea Republic:16",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "step": "play 조별3차전",
+      "ok": true,
+      "clicks": 1,
+      "date": "2019-06-11",
+      "phase": "season",
+      "screen": "has-nav app-match",
+      "live": {
+        "id": "asian2019",
+        "played": 36
+      },
+      "mine": [
+        "2019-06-02 조별 1차전 China 1-2",
+        "2019-06-06 조별 2차전 Jordan 1-1",
+        "2019-06-10 조별 3차전 Yemen 5-1",
+        "2019-06-14 16강 Australia ---"
+      ],
+      "last": {
+        "comp": "asian",
+        "stage": "조별 3차전",
+        "label": "아시안컵 조별 3차전",
+        "g": [
+          [
+            2,
+            1,
+            "v:n:Yemen:22",
+            null
+          ],
+          [
+            6,
+            0,
+            "v:n:Korea Republic:21",
+            "v:n:Korea Republic:13"
+          ],
+          [
+            16,
+            0,
+            "v:n:Korea Republic:22",
+            "v:n:Korea Republic:13"
+          ],
+          [
+            18,
+            0,
+            "me",
+            "v:n:Korea Republic:21"
+          ],
+          [
+            42,
+            0,
+            "v:n:Korea Republic:13",
+            "v:n:Korea Republic:19"
+          ],
+          [
+            50,
+            0,
+            "v:n:Korea Republic:14",
+            "me"
+          ]
+        ]
+      }
+    },
+    {
+      "step": "play 16강",
+      "ok": true,
+      "clicks": 2,
+      "date": "2019-06-14",
+      "phase": "offseason",
+      "screen": "has-nav app-match",
+      "live": null,
+      "mine": [
+        "2019-06-02 조별 1차전 China 1-2",
+        "2019-06-06 조별 2차전 Jordan 1-1",
+        "2019-06-10 조별 3차전 Yemen 5-1",
+        "2019-06-14 16강 Australia 0-2"
+      ],
+      "last": {
+        "comp": "asian",
+        "stage": "16강",
+        "label": "아시안컵 16강",
+        "g": [
+          [
+            48,
+            0,
+            "v:n:Australia:4",
+            "v:n:Australia:21"
+          ],
+          [
+            83,
+            0,
+            "v:n:Australia:22",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "step": "end",
+      "date": "2019-06-14",
+      "phase": "offseason",
+      "screen": "has-nav app-match",
+      "live": null,
+      "mine": [
+        "2019-06-02 조별 1차전 China 1-2",
+        "2019-06-06 조별 2차전 Jordan 1-1",
+        "2019-06-10 조별 3차전 Yemen 5-1",
+        "2019-06-14 16강 Australia 0-2"
+      ],
+      "last": {
+        "comp": "asian",
+        "stage": "16강",
+        "label": "아시안컵 16강",
+        "g": [
+          [
+            48,
+            0,
+            "v:n:Australia:4",
+            "v:n:Australia:21"
+          ],
+          [
+            83,
+            0,
+            "v:n:Australia:22",
+            null
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -27,7 +27,7 @@ export function bestBench(s: SimState, team: 0 | 1, pos: Agent['pos']): Agent | 
   const g = posGroup(pos);
   let best: Agent | null = null;
   let bestScore = -Infinity;
-  for (const b of s.bench[team]) {
+  for (let i_1 = 0, a_1 = s.bench[team]; i_1 < a_1.length; i_1++) { const b = a_1[i_1]!;
     if (b.leftAt !== null || b.onPitch) continue;
     // 내 선수는 출전 구간 시작 전에는 AI 교체로 들어가지 않는다 (C.78b: 70분 투입 계획인데 60분 AI 교체로 먼저 들어가던 것)
     if (b.spec.isMe && (!s.input.myMinutes || s.t / 60 < s.input.myMinutes.start)) continue;
@@ -69,7 +69,7 @@ export function substitute(s: SimState, out: Agent, inA: Agent, at?: SubSlot): v
   out.leftAt = s.elapsed;
   // 2선 추적 (C.77b): 나가는 선수의 배정은 풀고, 그 선수를 따라붙던 동료도 푼다 (들어오는 선수는 −1 로 시작)
   out.trackIdx = -1;
-  for (const o of s.agents) if (o.trackIdx === out.idx) { o.trackIdx = -1; o.trackOut = -1; }
+  for (let i_2 = 0, a_2 = s.agents; i_2 < a_2.length; i_2++) { const o = a_2[i_2]!; if (o.trackIdx === out.idx) { o.trackIdx = -1; o.trackOut = -1; } }
   inA.idx = s.agents.length;
   s.agents.push(inA);
   s.bench[out.team] = s.bench[out.team].filter((b) => b !== inA);
@@ -108,7 +108,7 @@ export function aiSubs(s: SimState): void {
   const minute = s.t / 60;
   if (minute < SB.fromMin || minute > SB.toMin) return;
   s.nextSubCheck = s.t + SB.checkEvery;
-  for (const team of [0, 1] as const) {
+  for (let i_3 = 0, a_3 = [0, 1] as const; i_3 < a_3.length; i_3++) { const team = a_3[i_3]!;
     if (availableSubs(s, team) <= 0) continue;
     const tired = s.agents
       .filter((a) => a.onPitch && a.team === team && a.line !== 0 && !a.spec.isMe)

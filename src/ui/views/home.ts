@@ -24,7 +24,7 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
   const chips: (string | { label: string; soft?: boolean })[] = [
     ...(n && vm.day
       ? [vm.day.matchDay ? (n.out ? '오늘 결장' : '오늘 경기') : `경기까지 ${vm.day.daysTo}일`, `${vm.round}/${vm.rounds}R`]
-      : [{ label: '시즌 종료', soft: true }]),
+      : [{ label: vm.summerWait ?? '시즌 종료', soft: true }]),
     // C.76g (디자인 228): 부상 중이면 남은 날 라임 칩
     ...(vm.injuryDays ? [{ label: `부상 · ${vm.injuryDays}일 남음`, soft: true }] : []),
     // 부상 칩이 있으면 포인트 칩은 빼서 3칸(디자인 228) — 포인트는 바로 아래 배너에도 있음.
@@ -166,15 +166,18 @@ export function positionChangeSection(current: string, prof: number, advice = fa
     ${OptionRow({ icon: 'player', title: `지금 주 포지션 ${current}`, desc: `숙련도 ${prof}. 바꾸면 새 포지션 OVR로 선발과 평점을 따져요. 비용은 숙련도 페널티뿐이에요.`, right: Button({ variant: 'secondary', size: 'sm', act: 'pos-open', children: '요청' }) })}`;
 }
 
+const signedOvr = (d: number) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '±0');
+
 export function positionSheet(options: PositionOptionVM[], pick: string, inSeason = false): string {
   const cur = options.find((o) => o.current)!;
   const sel = options.find((o) => o.pos === pick) ?? cur;
   return BottomSheet({
-    eyebrow: inSeason ? '포변 조언 기간' : '비시즌', title: '주 포지션 변경 요청', subtitle: '항상 허용돼요. 숙련도가 낮은 포지션은 OVR이 낮아지고, 그 포지션으로 뛸수록 숙련도가 올라요.',
+    eyebrow: inSeason ? '포변 조언 기간' : '비시즌', title: '주 포지션 변경 요청', subtitle: `${inSeason ? '포변 조언 기간이라 시즌 중에도 바꿀 수 있어요.' : '비시즌에는 언제든 바꿀 수 있어요(시즌 중에는 포변 조언 기간에만).'} 감독 허락은 필요 없고, 숙련도가 낮은 포지션은 OVR이 낮아져요. 그 포지션으로 뛸수록 숙련도가 올라요.`,
     onClose: { act: 'sheet-close' },
     children: options.map((o) => OptionRow({
       act: 'pos-pick', data: { v: o.pos }, radio: true, selected: o.pos === sel.pos, title: `${o.pos} · ${o.ko}`,
-      desc: `숙련도 ${o.prof}${o.penalty ? ` · OVR −${o.penalty}` : ''}`, ...(o.current ? { tag: '지금' } : {}), right: `<b class="po-num">${o.ovr}</b>`,
+      // C.81o: "OVR −6"(숙련 감점만)인데 88→80 처럼 실제 차이가 달라 보였다 → 지금과의 OVR 차이(포지션 능력치 차이 포함)를 보이고, 숙련 감점은 그 안의 몫으로
+      desc: o.current ? `숙련도 ${o.prof}` : `숙련도 ${o.prof} · 지금보다 OVR ${signedOvr(o.ovr - cur.ovr)}${o.penalty ? ` (숙련 감점 −${Math.round(o.penalty)} 포함)` : ''}`, ...(o.current ? { tag: '지금' } : {}), right: `<b class="po-num">${o.ovr}</b>`,
     })).join(''),
     footer: Button({ size: 'lg', block: true, act: 'pos-change', data: { v: sel.pos }, disabled: sel.current, children: sel.current ? '바꿀 포지션을 골라요' : `${sel.pos}로 변경 · OVR ${cur.ovr} → ${sel.ovr}` }),
   });

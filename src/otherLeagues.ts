@@ -4,10 +4,10 @@
 
 import { BALANCE } from './config/balance';
 import { leagueData, PLAYABLE_LEAGUES } from '../data/leagues';
-import { CLUB_TO_TEAM, createLeague, nextSeasonLeague, recordResult, simulateScore, sortedTable, teamById, type LeagueState } from './league';
+import { CLUB_TO_TEAM, createLeague, nextSeasonLeague, recordResult, scorePair, simulateScore, sortedTable, teamById, type LeagueState } from './league';
 import { addDays, daysBetween, leagueCalendar, type IsoDate, type SeasonCalendar } from './calendar';
 import { createRng, hashSeed, type Rng } from './rng';
-import { createTeamRoster, naturalOvr, posGroup, type TeamRoster } from './roster';
+import { createTeamRoster, naturalOvr, pickLineup, posGroup, type TeamRoster } from './roster';
 import type { NpcState } from './npc';
 import type { NpcMatchInput, NpcMatchResult } from './engine/npcMatch';
 import { engineCards, npcBanAfterMatch, type NpcBanMap } from './npcBan';
@@ -107,25 +107,71 @@ function pickWeighted<T>(rng: Rng, items: readonly T[], w: (x: T) => number, ski
   return list.at(-1) ?? null;
 }
 
-/** 빠른 시뮬 한 경기의 득점자·도움을 리그 기록에 더한다 (컵 간이 경기와 같은 가중치, 난수는 점수와 따로) */
+/** 다른 리그 빠른 진행 한 경기 점수 (C.81q): 레이팅 간이 계산 × 리그 득점 배율(otherScorers.goalScale — 엔진 리그별 경기당 골에 맞춤, 없으면 1 = simulateScore 그대로) */
+function otherScore(rng: Rng, lg: LeagueState, home: string, away: string): [number, number] {
+  const hr = teamById(lg, home).rating;
+  const ar = teamById(lg, away).rating;
+  const C = BALANCE.otherScorers;
+  const k = C.goalScale[lg.id] ?? 1;
+  const d = C.diffScale ?? 1;
+  if (k === 1 && d === 1) return simulateScore(rng, hr, ar);
+  // C.81w: 레이팅 차 효과 × diffScale — 빠른 진행은 상위 팀 독주가 엔진보다 커서(1위 팀 경기당 득점 2.7~2.9 대 2.2~2.5) 리그 득점왕이 엔진보다 4~6골 많았다
+  const M = BALANCE.match;
+  const xg = (own: number, opp: number, home: boolean) => M.baseGoals * Math.exp(((own - opp) * d + (home ? M.homeRating : 0)) * M.goalsK);
+  return scorePair(rng, xg(hr, ar, true) * k, xg(ar, hr, false) * k);
+}
+
+/** 다른 리그 득점자 후보 (C.81q): 로스터마다 한 번 — 선발·벤치·그 밖(pickLineup, 시상 추정 출전과 같은 구분) 출전 몫 × 포지션군 × OVR(선발 평균 대비) 가중 */
+const BIG5 = ['pl', 'laliga', 'seriea', 'bundesliga', 'ligue1'];
+type ScorerPick = { p: TeamRoster['players'][number]; g: number; a: number };
+let SCORER_POOL = new WeakMap<TeamRoster, ScorerPick[]>();
+/** 진단(맞춤 스크립트): BALANCE.otherScorers 를 바꾼 뒤 후보 캐시를 비운다 */
+export function resetScorerPool(): void { SCORER_POOL = new WeakMap(); }
+function scorerPool(roster: TeamRoster, lgId: string): ScorerPick[] {
+  let hit = SCORER_POOL.get(roster);
+  if (hit) return hit;
+  const C = BALANCE.otherScorers;
+  // C.81w: 리그 × 포지션군 [골, 도움] 배수 (빅5 는 리그 id, 그 밖은 'rest')
+  const LM = C.leagueMul?.[lgId] ?? C.leagueMul?.[BIG5.includes(lgId) ? '' : 'rest'];
+  const lu = pickLineup(roster);
+  const st = new Set(lu.slots.map((x) => x.playerId));
+  const bn = new Set(lu.bench);
+  const ovr = new Map(roster.players.map((p) => [p.id, naturalOvr(p)]));
+  const starters = roster.players.filter((p) => st.has(p.id));
+  const ref = starters.reduce((t, p) => t + ovr.get(p.id)!, 0) / Math.max(1, starters.length);
+  hit = roster.players.map((p) => {
+    const g = posGroup(p.position);
+    const cls = st.has(p.id) ? 0 : bn.has(p.id) ? 1 : 2;
+    // C.81w: 출전 몫 = 시상 추정과 같은 포지션군 × 구분 분포의 평균(awards.estimate.shareQ) × shareK[구분] — 없으면 옛 share
+    const q = C.shareK ? BALANCE.awards.estimate.shareQ[g]?.[cls] : undefined;
+    const share = q ? C.shareK![cls]! * (q[0]! + 2 * (q[1]! + q[2]! + q[3]!) + q[4]!) / 8 : C.share[cls]!;
+    const rel = ovr.get(p.id)! - ref;
+    // C.81w: 골 OVR 가중의 (OVR − 선발 평균)은 relCap 에서 멈춘다 — 엔진에선 팀 평균보다 훨씬 높은 스타(음바페·호날두)도 20~30골인데 빠른 진행은 36~48골을 몰아갔다
+    const lm = LM?.[g];
+    return { p, g: (C.scorerWeight[g] ?? 0) * (lm?.[0] ?? 1) * share * Math.exp(Math.min(rel, C.relCap ?? Infinity) * C.ovrK), a: (C.assistWeight[g] ?? 0) * (lm?.[1] ?? 1) * share * Math.exp(rel * C.ovrKAssist) };
+  }).filter((x) => x.g > 0 || x.a > 0);
+  SCORER_POOL.set(roster, hit);
+  return hit;
+}
+
+/** 빠른 시뮬 한 경기의 득점자·도움을 리그 기록에 더한다 (난수는 점수와 따로). C.81q: 가중 = scorerPool (엔진 실측 포지션군·상위 득점 분포에 맞춤) */
 function addScorers(worldSeed: string, lg: OtherLeague, home: string, away: string, hg: number, ag: number, rng: Rng, npcs?: readonly NpcState[]): void {
-  const C = BALANCE.cups;
+  const C = BALANCE.otherScorers;
   const stats = (lg.stats ??= {});
   const names = (lg.names ??= {});
   ([[home, hg], [away, ag]] as const).forEach(([id, n]) => {
     if (!n) return;
-    const roster = leagueTeamRoster(worldSeed, id, teamById(lg, id).rating, lg.season, npcs);
-    const lu = roster.players.map((p) => ({ p, g: posGroup(p.position), o: naturalOvr(p) })).sort((x, y) => y.o - x.o).slice(0, C.squadTop);
-    const bump = (x: (typeof lu)[number], k: 0 | 1) => {
+    const lu = scorerPool(leagueTeamRoster(worldSeed, id, teamById(lg, id).rating, lg.season, npcs), lg.id);
+    const bump = (x: ScorerPick, k: 0 | 1) => {
       const t = (stats[x.p.id] ??= [0, 0]);
       t[k] = t[k]! + 1;
       names[x.p.id] ??= [x.p.nameKo, id];
     };
     for (let k = 0; k < n; k++) {
-      const sc = pickWeighted(rng, lu, (x) => C.scorerWeight[x.g]);
+      const sc = pickWeighted(rng, lu, (x) => x.g);
       if (!sc) continue;
       bump(sc, 0);
-      const as = rng() < C.assistChance ? pickWeighted(rng, lu, (x) => C.assistWeight[x.g], sc) : null;
+      const as = rng() < C.assistChance ? pickWeighted(rng, lu, (x) => x.a, sc) : null;
       if (as) bump(as, 1);
     }
   });
@@ -230,9 +276,7 @@ function syncOne(worldSeed: string, start: OtherLeague, upto: IsoDate, done: (lg
       lg.schedule[r]!.forEach((f, i) => {
         if (f.homeGoals !== undefined) return;
         if (daysBetween(dates[i]!, upto) < 0) { left++; return; }
-        const [hg, ag] = simulateScore(
-          createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), teamById(lg, f.home).rating, teamById(lg, f.away).rating,
-        );
+        const [hg, ag] = otherScore(createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), lg, f.home, f.away);
         recordResult(lg, f, hg, ag);
         // 득점자 (C.76c): 따로 시드라 점수·순위는 C.75m 과 같다
         if (hg + ag) addScorers(worldSeed, lg, f.home, f.away, hg, ag, createRng(hashSeed(`${worldSeed}:olg-g:${lg.id}:${lg.season}:${r}:${i}`)), npcs);
@@ -260,7 +304,7 @@ export function finishOtherSeason(worldSeed: string, lg: OtherLeague, npcs?: rea
     const r = lg.round;
     lg.schedule[r]!.forEach((f, i) => {
       if (f.homeGoals !== undefined) return;
-      const [hg, ag] = simulateScore(createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), teamById(lg, f.home).rating, teamById(lg, f.away).rating);
+      const [hg, ag] = otherScore(createRng(hashSeed(`${worldSeed}:olg:${lg.id}:${lg.season}:${r}:${i}`)), lg, f.home, f.away);
       recordResult(lg, f, hg, ag);
       if (hg + ag) addScorers(worldSeed, lg, f.home, f.away, hg, ag, createRng(hashSeed(`${worldSeed}:olg-g:${lg.id}:${lg.season}:${r}:${i}`)), npcs);
       n++;

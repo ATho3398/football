@@ -116,6 +116,7 @@ describe('중복 정리 (C.76c 5번)', () => {
     const e = uclEntrants(la);
     expect(e).toHaveLength(32);
     expect(new Set(e).size).toBe(32);
+    // C.81q: 내 리그 자리 수 = 실제 배정표 라리가 4
     expect(e.filter((id) => leagueOfTeam(id) === 'laliga' || leagueOfClub(id) === 'laliga')).toHaveLength(4);
     expect(e.slice(4, 8)).toEqual(BALANCE.cups.ucl.firstSeason);
     expect(la.cups?.ucl?.groups.flat()).toHaveLength(32);
@@ -344,13 +345,13 @@ describe('도감 번호 (C.76c 6번)', () => {
 
 describe('세이브 49 (C.76c)', () => {
   it('옛 세이브(48)는 이어 할 수 없음, 같은 형식 PL 세이브 = 그대로', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c76c-v', difficulty: 'normal' });
     const old = JSON.parse(serialize(g));
     old.saveFormat = 48;
     expect(() => restore(old)).toThrow(SaveFormatError);
     const back = deserialize(serialize(g));
-    expect(back.saveFormat).toBe(61);
+    expect(back.saveFormat).toBe(62);
     expect(back.league.id).toBe('pl');
     expect(back.leagueIds).toEqual(['pl']);
     expect(back.myLeagues).toBeUndefined();

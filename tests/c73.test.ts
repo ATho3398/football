@@ -146,7 +146,7 @@ describe('챕터 기록 · 리뷰 · 카드 선택권 (pending 119 ②③)', () 
 
 describe('세이브 40 (SAVE_FORMAT_VERSION)', () => {
   it('챕터 기록이 세이브 왕복에 남고, 옛 세이브(39)는 이어 할 수 없음', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const g = prospect('c73-save');
     g.player.age = 20;
     playSeason(g);
@@ -162,7 +162,7 @@ describe('세이브 40 (SAVE_FORMAT_VERSION)', () => {
 describe('버전', () => {
   it('버전 라벨', () => {
     // 다음 패치(C.74~)에서는 형식만 본다
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

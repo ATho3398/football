@@ -7,6 +7,7 @@ import { TENDENCY } from '../../src/engine/tactics';
 import { fillRoles, npcTeamSetup, teamSetupFromRoster } from '../../src/engine/setup';
 import { managerOf } from '../../data/managers';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
+import { ROLES, type RoleModule } from '../../src/engine/roles';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
 import { customSlots, FORMATION_SLOTS, type Formation, type FormationSlot } from '../../src/formations';
@@ -243,7 +244,45 @@ export function applyOverrides(o: Record<string, number> | undefined): () => voi
   if (!o) return () => {};
   const undo: (() => void)[] = [];
   for (const [path, v] of Object.entries(o)) {
+    // 'role.<id>.<dx|dy|run|drop|press>' · 'role.<id>.pref.<항목>' · 'role.<id>.module.<모듈>'(1 켬 / 0 끔) 은 역할 표 (C.81i, 측정용)
+    if (path.startsWith('role.')) {
+      const [, id, k1, k2] = path.split('.') as [string, string, string, string | undefined];
+      const role = ROLES[id];
+      if (!role) throw new Error(`역할 없음: ${path}`);
+      if (k1 === 'module') {
+        const m = k2 as RoleModule;
+        const prev = role.modules;
+        (role as { modules: readonly RoleModule[] }).modules = v > 0 ? [...new Set([...prev, m])] : prev.filter((x) => x !== m);
+        undo.push(() => ((role as { modules: readonly RoleModule[] }).modules = prev));
+        continue;
+      }
+      const obj = (k1 === 'pref' ? role.pref : role) as unknown as Record<string, unknown>;
+      const last = k1 === 'pref' ? k2! : k1;
+      if (typeof obj[last] !== 'number') throw new Error(`숫자 상수가 아님: ${path}`);
+      const prev = obj[last];
+      obj[last] = v;
+      undo.push(() => (obj[last] = prev));
+      continue;
+    }
     // 'tendency.' 로 시작하면 성향 고유 행동 상수 (E.19 ①, 측정용 C.32)
+    // 'matchup.<우리>.<상대>.<실행>' 은 없는 칸도 만든다 (C.81s, 측정용 — 끝나면 지움)
+    if (path.startsWith('matchup.')) {
+      const [, mine, opp, kind] = path.split('.') as [string, string, string, string];
+      const M = ENGINE.matchup as Record<string, Record<string, Record<string, number>>>;
+      const hadMine = mine in M;
+      const row = (M[mine] ??= {});
+      const hadOpp = opp in row;
+      const cell = (row[opp] ??= {});
+      const had = kind in cell;
+      const prev = cell[kind];
+      cell[kind] = v;
+      undo.push(() => {
+        if (had) cell[kind] = prev!; else delete cell[kind];
+        if (!hadOpp) delete row[opp];
+        if (!hadMine) delete M[mine];
+      });
+      continue;
+    }
     const tend = path.startsWith('tendency.');
     const keys = (tend ? path.slice('tendency.'.length) : path).split('.');
     let obj = (tend ? TENDENCY : ENGINE) as unknown as Record<string, unknown>;

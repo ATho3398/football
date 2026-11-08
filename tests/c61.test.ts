@@ -130,7 +130,7 @@ describe('PC 설정 152 · 새 게임 커스텀 151', () => {
 
 describe('버전', () => {
   it('PATCH_LABEL · STAGE_LABEL 형식 (C.61 뒤에는 다음 패치 값)', () => {
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

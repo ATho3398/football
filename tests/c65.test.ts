@@ -151,7 +151,7 @@ describe('세이브 35 (C.65)', () => {
   it('왕복, 옛 세이브(34)는 이어 할 수 없음', () => {
     const g = prospect('ST', 'c65-save');
     playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(61);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const back = deserialize(serialize(g));
     expect(back.goals).toEqual(g.goals);
     const raw = JSON.parse(serialize(g));
@@ -163,7 +163,7 @@ describe('세이브 35 (C.65)', () => {
 describe('버전 (C.65)', () => {
   it('부록 C 소절 · 단계 형식 (C.66부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

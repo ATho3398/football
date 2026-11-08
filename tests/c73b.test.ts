@@ -38,7 +38,7 @@ describe('시즌 하이라이트 3 (22.2 끝)', () => {
     expect(h.map((x) => x.kind)).toEqual(['best', 'goal', 'crisis']);
     expect(h[0]!.text).toContain('A전 평점 8.9');
     expect(h[0]!.text).toContain('MOM');
-    expect(h[1]!.text).toBe('B전 2골 · 2-1 승 · 승부를 가른 골');
+    expect(h[1]!.text).toBe('B전 2골 · 2\u00a0:\u00a01 승 · 승부를 가른 골');
     expect(h[2]!.text).toBe('부상으로 2경기 결장 (3~4R)');
   });
 
@@ -150,7 +150,7 @@ describe('은퇴 후 (18.11): 명예의 전당 · 새 게임 보너스', () => {
 describe('버전', () => {
   it('버전 라벨', () => {
     // 다음 패치(C.74~)에서는 형식만 본다
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });
