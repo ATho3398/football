@@ -1,0 +1,4 @@
+
+> football-career@0.1.0 balance:quick
+> vite-node scripts/balance-quick.ts -- keeper.parryDownSave=0.4 keeper.catchSkill=0.4 prob.crossFarWing=0.7
+
