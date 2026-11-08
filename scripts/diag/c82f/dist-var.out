@@ -5,3 +5,6 @@
 60시드 경기별 최다 평균 13.716 km · 한 선수 최다 14.82 km
 
 == physics.tiredMaxFloor=0.8
+60시드 경기별 최다 평균 13.999 km · 한 선수 최다 15.26 km
+시드 62 CDM  15.26
+== physics.fatigueIntensity=0.45 physics.tiredMaxFloor=0.8
