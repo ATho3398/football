@@ -36,6 +36,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.prob.shotFree).toBe(0.15);
     expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.11, -0.11, 0.02, 0.02, 0]);
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55);
+    expect(ENGINE.keeper.oneOnOne.freeR).toBe(4); // 3.5 m 앞 수비는 1대1 아님 (장면 ㉘)
   });
 
   it('직접 고른 역할 표시: 진단·시트에서 준 역할만 rolePicked, 성향 추천(fillRoles)은 아님', () => {
