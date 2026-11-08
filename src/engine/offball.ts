@@ -1756,20 +1756,31 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1): void {
   const tiers: readonly (readonly Line[])[] = O.lineTiers <= 0 ? TIERS_ALL : asDef ? TIERS_DEF : a.line === 2 ? TIERS_MID : TIERS_ATT;
   let mark: Agent | null = null;
   let best = 14;
+  // 줄 사이 수신자 마크 가중 (C.82d): 우리 줄 2 가 수비 라인~중원 존 사이에 선 상대 줄 2·3 을 먼저, 더 붙어서 마크한다 (pocketMark 0 = 끔)
+  const pocketOn = O.pocketMark > 0 && a.line === 2 && !dropped && owner !== null && owner.team !== a.team;
+  const pocketHi = lineX + midGap + O.pocketSlack / L;
+  let markPocket = false;
   for (let i_38 = 0, a_38 = tiers; i_38 < a_38.length; i_38++) { const tier = a_38[i_38]!;
     for (let i_39 = 0, a_39 = s.agents; i_39 < a_39.length; i_39++) { const o = a_39[i_39]!;
       // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
       if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || (tier !== TIER_123 && !tier.includes(o.line))) continue;
       if (focusHeld && o === focus) continue;
-      const d = dist(o.x, o.y, zx, zy);
+      let d = dist(o.x, o.y, zx, zy);
+      let inPocket = false;
+      if (pocketOn && o.line >= 2) {
+        const onx = normX(o.x, dir);
+        inPocket = onx > lineX && onx < pocketHi;
+        if (inPocket) d *= O.pocketPull;
+      }
       if (d < best) {
         best = d;
         mark = o;
+        markPocket = inPocket;
       }
     }
     if (mark) break;
   }
-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) { mark = focus; markPocket = false; }
   // CB 따라나옴 (C.77d 가설 2): 줄 사이로 내려온 상대 공격수를 따라 나갈지 가장 가까운 CB 가 판단한다 (나가기로 하면 그 선수를 라인 앞까지 마크)
   const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, ballGoal) : null;
   if (stepOut) mark = stepOut;
@@ -1809,7 +1820,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1): void {
       fwy = 0.5;
     } else {
       // 깊은 블록 밀집 (C.78d ①): 중원 줄은 존(밀집 자리) 위주 — 마크 비중 compactMark
-      const w = a.line === 3 ? 0.3 : compacted ? O.compactMark : 0.65;
+      const w = a.line === 3 ? 0.3 : compacted ? O.compactMark : markPocket ? O.pocketMark : 0.65;
       nx = nx * (1 - w) + mnx * w;
       ny = ny * (1 - w) + mny * w;
       fwx = w;

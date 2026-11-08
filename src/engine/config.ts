@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 97;
+export const ENGINE_VERSION = 98;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -300,6 +300,19 @@ export const ENGINE = {
     styleSupport: 0.5,
     /** 팀 phase: 소유 후 이 시간이 지나면 공격 대형 (초) */
     attackPhaseDelay: 2.5,
+    /**
+     * 중원 줄 공격 자리 상한 (C.82d, 엔진 묶음 E5): 공격 국면에서 줄 2(수미·중미·공미·측면 미드) 슬롯 x + attackShift 가 이 값(정규화)을 넘지 않는다 — 역할 dx·침투·최종 ⅓ 역할 자리는 그 뒤에 그대로.
+     * 공미 슬롯(4-2-3-1·4-3-1-2 0.58)은 시프트 0.25 를 더하면 0.83 으로 최전방(0.78~0.86)과 같은 깊이에 서서 "제3의 스트라이커"가 됐다(4-2-3-1 CAM 골 31%·4-3-1-2 행 +0.6~0.9).
+     * 0 = 끔
+     */
+    midAttackCap: 0.72,
+    /**
+     * 중앙 중원이 많은 대형은 상한이 더 낮다: 실효 상한 = midAttackCap − midAttackCapPer × max(0, 중앙 중원 수 − midAttackCapN).
+     * 중앙 중원 = 줄 2 중 슬롯 |y − 0.5| ≤ midCentralY (4-4-2 2명 · 4-2-3-1·4-3-3·4-1-4-1·3-5-2·5-3-2 3명 · 4-3-1-2 4명 · 커스텀 3-2-2-2-1 5명). 0 = 끔
+     */
+    midAttackCapPer: 0.1,
+    midAttackCapN: 3,
+    midCentralY: 0.25,
   },
 
   // ── 팀 전술 성향 (E.18 A5, E.19) ──
@@ -523,6 +536,14 @@ export const ENGINE = {
     boxMatch: 0,
     boxMatchMax: 3,
     boxMatchReach: 25,
+    /**
+     * 줄 사이 수신자 마크 가중 (C.82d, 엔진 묶음 E5 — 4-3-1-2 CAM 과강·4-2-3-1 CAM 오픈 플레이 골, 0 = 끔): 상대가 공을 가진 동안 우리 줄 2(내려앉지 않은) 선수의 존 마크 후보 중
+     * 우리 수비 라인(lineX)과 중원 존(lineX + midGap + pocketSlack m) 사이에 선 상대 줄 2·3 선수(줄 사이 수신자)는 후보 거리 × pocketPull 로 먼저 고르고,
+     * 그 선수를 마크하면 존 자리와 마크 자리 사이 비중을 평소 0.65 대신 pocketMark 로 (더 붙는다). 집중 대상(ST) 우선·CB 따라나옴·밀집(compactMark)은 그대로.
+     */
+    pocketMark: 0,
+    pocketPull: 0.6,
+    pocketSlack: 3,
     trackCdmMax: 9,
     trackPickMax: 12,
     trackHold: 0.7,
