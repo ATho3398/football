@@ -2,3 +2,4 @@
 > football-career@0.1.0 balance:quick
 > vite-node scripts/balance-quick.ts --
 
+  측정: 50/600 (13초)     측정: 100/600 (20초)   

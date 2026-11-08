@@ -26,15 +26,15 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.keeper.catchSkill).toBe(0.4);
     expect(ENGINE.physics.fatigueIntensity).toBe(0.45);
     expect(ENGINE.roles.classicWingerCross).toBe(20);
-    expect(ENGINE.prob.stFinish).toBe(1.15);
+    expect(ENGINE.prob.stFinish).toBe(1.3);
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 5, short: 2, keep: 2, tackle: 4 }); // 960 티키>직선 −0.01 → +0.055
     expect(ENGINE.matchup.tikitaka!.counter).toEqual({ tackle: 3, air: 2 }); // 960 티키>역습 −0.29 → −0.12
     // 총량: 1대1 보정 ↑ + 슛 쪽 레버(shotFree·거리 보정) (부록 C.82f 표)
-    expect(ENGINE.keeper.saveBase).toBe(2.02); // 상한 포화로 안 움직여 그대로
-    expect(ENGINE.prob.shotFree).toBe(0.15);
-    expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.11, -0.11, 0.02, 0.02, 0]);
+    expect(ENGINE.keeper.saveBase).toBe(2.0); // 2.02 → 2.00 (freeR 4 뒤 총량 +0.03 몫)
+    expect(ENGINE.prob.shotFree).toBe(0.30); // 총량 레버로 0.15 까지 재 봤으나 freeR 4 뒤 되돌림
+    expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.13, -0.13, 0.02, 0.02, 0]);
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55);
     expect(ENGINE.keeper.oneOnOne.freeR).toBe(4); // 3.5 m 앞 수비는 1대1 아님 (장면 ㉘)
   });
