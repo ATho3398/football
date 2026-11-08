@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 96;
+export const ENGINE_VERSION = 97;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1917,6 +1917,9 @@ export const ENGINE = {
     stN: 3,
     /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) — C.80z 2 → 3 (최전방 3명 대형 2-2-2-1-3·1-3-2-1-3 이 두 상대 모두 −0.5 넘게 지도록) */
     stW: 3,
+    /** 뒷문 비움 (C.82a, 엔진관리자27 1-1): ST·CF 가 cbSt 명 이상인데 CB 가 cbMin 명보다 적으면 초과 m ≥ cbMin − CB (0 = 끔). 표준 대형은 CB 2명 이상이라 안 걸린다. 커스텀 2-3-1-1-3(CB 0·ST 2) 대 4-4-2 +0.50 → −0.69 (400경기) */
+    cbMin: 1,
+    cbSt: 2,
   },
 
   tacticFit: {
