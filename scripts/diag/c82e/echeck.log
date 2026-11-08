@@ -2,3 +2,4 @@
 > football-career@0.1.0 balance:engine:check
 > vite-node scripts/balance-engine.ts -- --light --check
 
+  경기: 50/1824 (207초)     경기: 100/1824 (215초)     경기: 150/1824 (222초)     경기: 200/1824 (229초)   
