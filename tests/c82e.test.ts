@@ -25,9 +25,9 @@ const run = (a: Tendency, b: Tendency, seed: number) => {
 };
 
 describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
-  it('상수: 엔진 100 · attackLineK 0.6 · throughSeeSpace 끔(0)/40 m/6 s · gegenPressReach 1.5 · tikiLineDrop 삭제', () => {
+  it('상수: 엔진 100 · attackLineK 끔(0) · throughSeeSpace 끔(0)/40 m/6 s · gegenPressReach 1.5 · tikiLineDrop 삭제', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(100);
-    expect(ENGINE.formation.attackLineK).toBe(0.6);
+    expect(ENGINE.formation.attackLineK).toBe(0); // 0.6 은 상성 960 행 ±0.13 · 게겐>티키 +0.04 로 관문 ✗ (부록 C.82e)
     expect((ENGINE.formation as Record<string, unknown>).tikiLineDrop).toBeUndefined();
     expect(ENGINE.onball.throughSeeSpace).toBe(0); // 켜도 게겐 전환 xG 가 안 움직이고 라인 낮은 수비만 올라 끔 (부록 C.82e)
     expect(ENGINE.onball.throughSeeSpaceFrom).toBe(40);
@@ -43,13 +43,22 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
     const cb = s.agents.find((a) => a.team === 0 && a.line === 1)!;
     const cm = s.agents.find((a) => a.team === 0 && a.line === 2)!;
     const at = (lh: number, a: typeof cb) => { s.teams[0].tactics.lineHeight = lh; slotTargetS(s, a); return SLOT.x; };
-    const hiCb = at(0.65, cb), loCb = at(0.2, cb), midCb = at(0.5, cb);
-    expect(hiCb - loCb).toBeCloseTo(ENGINE.formation.attackLineK * 0.45, 6);
-    expect(hiCb - midCb).toBeCloseTo(ENGINE.formation.attackLineK * 0.15, 6);
-    expect(at(0.65, cm)).toBeCloseTo(at(0.2, cm), 9);
-    // 수비 국면(phase −1)에는 안 걸린다
-    s.possTeam = 1;
-    expect(at(0.65, cb)).toBeCloseTo(at(0.2, cb), 9);
+    const F = ENGINE.formation as { attackLineK: number };
+    const was = F.attackLineK;
+    try {
+      // 끔(0): 라인 높이와 무관
+      expect(at(0.65, cb)).toBeCloseTo(at(0.2, cb), 9);
+      F.attackLineK = 0.6;
+      const hiCb = at(0.65, cb), loCb = at(0.2, cb), midCb = at(0.5, cb);
+      expect(hiCb - loCb).toBeCloseTo(0.6 * 0.45, 6);
+      expect(hiCb - midCb).toBeCloseTo(0.6 * 0.15, 6);
+      expect(at(0.65, cm)).toBeCloseTo(at(0.2, cm), 9);
+      // 수비 국면(phase −1)에는 안 걸린다
+      s.possTeam = 1;
+      expect(at(0.65, cb)).toBeCloseTo(at(0.2, cb), 9);
+    } finally {
+      F.attackLineK = was;
+    }
   });
 
   it('게겐 역압박 가담자 압박 거리: 창 안 가담자는 1.5배 멀리서 같은 압력, 창 밖·비가담·다른 성향은 1', () => {
@@ -74,7 +83,7 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
     expect(pressureAt(s, o)).toBe(0);
   });
 
-  it('레버 세 개가 실제로 걸린다(공간 시야는 끔 → 켬): 켜고 끄면 같은 시드 게겐 경기가 달라지고, 가담자 배수는 균형끼리 경기를 안 바꾸며, 결정성 유지', () => {
+  it('레버 세 개가 실제로 걸린다(라인 K·공간 시야는 끔 → 켬): 켜고 끄면 같은 시드 게겐 경기가 달라지고, 가담자 배수는 균형끼리 경기를 안 바꾸며, 결정성 유지', () => {
     const F = ENGINE.formation as { attackLineK: number };
     const O = ENGINE.onball as { throughSeeSpace: number };
     const T = TENDENCY as { gegenPressReach: number };
@@ -87,7 +96,7 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
       expect(seeds.map((k) => run('balanced', 'balanced', k))).toEqual(same);
       expect(seeds.map((k) => run('gegenpress', 'balanced', k)).some((v, i) => v !== on[i])).toBe(true);
       T.gegenPressReach = was[2];
-      F.attackLineK = 0;
+      F.attackLineK = 0.6; // 끔(0) → 켜면 달라진다
       expect(seeds.map((k) => run('gegenpress', 'balanced', k)).some((v, i) => v !== on[i])).toBe(true);
       F.attackLineK = was[0];
       O.throughSeeSpace = 0.06; // 끔(0) → 켜면 달라진다 (코드가 살아 있음)
