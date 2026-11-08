@@ -1510,3 +1510,4 @@
   3. UI: 17차 2·3단계 디자인 오면 UI_5(`session_01Jep69tcqmNVqesWrwWp8cP`)가 적용 명세 → U17 방식으로 하나씩.
 - 시작 처리: ① AE(`session_01YVaigGKpnpQtRAv8gToCJ6`)에 "AF 준비 완료 + ID"(later, 답장 불필요) ② AE 제목 앞 `draft_` ③ UI_5 에 보고처 AF(later) ④ 예약 이전 ⑤ 8.73 기록·푸시.
 - 사용자 보고는 **무엇이 바뀌었는지 내용으로**, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). 사용자에게 아무것도 요청하지 않는다(automation 0번).
+- (11/09 07:43 KST) **AF 시작 `session_01YVaigHq3Uo2LLh43wuodre`**(AE 가 create_session 으로 엶). AE 는 AF 준비 완료 알림 오면 끝.
