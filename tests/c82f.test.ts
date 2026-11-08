@@ -29,8 +29,10 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.prob.stFinish).toBe(1.15);
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
-    // 총량: saveBase + 1대1 보정 짝 (부록 C.82f 표)
-    expect(ENGINE.keeper.saveBase).toBe(2.26);
+    // 총량: 1대1 보정 ↑ + 슛 쪽 레버(shotFree·거리 보정) (부록 C.82f 표)
+    expect(ENGINE.keeper.saveBase).toBe(2.02); // 상한 포화로 안 움직여 그대로
+    expect(ENGINE.prob.shotFree).toBe(0.12);
+    expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.11, -0.11, 0.02, 0.02, 0]);
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55);
   });
 

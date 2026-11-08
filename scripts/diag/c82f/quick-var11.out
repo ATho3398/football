@@ -1,0 +1,25 @@
+== sf20 keeper.parryDownSave=0.4 keeper.catchSkill=0.4 physics.fatigueIntensity=0.45 keeper.oneOnOne.drop=0.55 prob.stFinish=1.15 keeper.saveBase=2.02 prob.shotFree=0.2 15:38:46
+  득점                             1.60   목표 1.35 ± 0.1 ✗
+  슈팅                             14.8   목표 약 12 ✗
+  유효 슈팅                           5.1   목표 약 4.2 ✗
+  득점 비율 ST                         34   목표 32~40 (C.76x 재정의) ✓
+  득점 비율 윙어                         27   목표 20~28 ✓
+  득점 비율 미드                         28   목표 24~32 (C.76x 재정의) ✓
+  득점 비율 수비                         11   목표 8~14 ✓
+  슈팅 비율 ST                         33   목표 30~35 ✓
+  골 경로: 세트피스(PK 포함) %              27   목표 25~30 ✓  (코너 11 · 프리킥 8 · PK 7)
+  골 경로: 리바운드 %                      5   목표 3~6 ✓
+  PK (팀당)                        0.15   목표 0.11~0.16 (경기당 0.22~0.32, C.76q) ✓
+== sf12 keeper.parryDownSave=0.4 keeper.catchSkill=0.4 physics.fatigueIntensity=0.45 keeper.oneOnOne.drop=0.55 prob.stFinish=1.15 keeper.saveBase=2.02 prob.shotFree=0.12 15:41:07
+  득점                             1.54   목표 1.35 ± 0.1 ✗
+  슈팅                             14.8   목표 약 12 ✗
+  유효 슈팅                           5.0   목표 약 4.2 ✗
+  득점 비율 ST                         33   목표 32~40 (C.76x 재정의) ✓
+  득점 비율 윙어                         26   목표 20~28 ✓
+  득점 비율 미드                         30   목표 24~32 (C.76x 재정의) ✓
+  득점 비율 수비                         11   목표 8~14 ✓
+  슈팅 비율 ST                         33   목표 30~35 ✓
+  골 경로: 세트피스(PK 포함) %              27   목표 25~30 ✓  (코너 11 · 프리킥 8 · PK 8)
+  골 경로: 리바운드 %                      5   목표 3~6 ✓
+  PK (팀당)                        0.15   목표 0.11~0.16 (경기당 0.22~0.32, C.76q) ✓
+QVAR11DONE
