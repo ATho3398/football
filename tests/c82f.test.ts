@@ -25,7 +25,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.keeper.parryDownSave).toBe(0.4);
     expect(ENGINE.keeper.catchSkill).toBe(0.4);
     expect(ENGINE.physics.fatigueIntensity).toBe(0.45);
-    expect(ENGINE.roles.classicWingerCross).toBe(10);
+    expect(ENGINE.roles.classicWingerCross).toBe(20);
     expect(ENGINE.prob.stFinish).toBe(1.15);
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
