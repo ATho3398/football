@@ -25,12 +25,12 @@ const run = (a: Tendency, b: Tendency, seed: number) => {
 };
 
 describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
-  it('상수: 엔진 100 · attackLineK 0.6 · throughSeeSpace 0.03/35 m/6 s · gegenPressReach 1.5 · tikiLineDrop 삭제', () => {
+  it('상수: 엔진 100 · attackLineK 0.6 · throughSeeSpace 끔(0)/40 m/6 s · gegenPressReach 1.5 · tikiLineDrop 삭제', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(100);
     expect(ENGINE.formation.attackLineK).toBe(0.6);
     expect((ENGINE.formation as Record<string, unknown>).tikiLineDrop).toBeUndefined();
-    expect(ENGINE.onball.throughSeeSpace).toBe(0.03);
-    expect(ENGINE.onball.throughSeeSpaceFrom).toBe(35);
+    expect(ENGINE.onball.throughSeeSpace).toBe(0); // 켜도 게겐 전환 xG 가 안 움직이고 라인 낮은 수비만 올라 끔 (부록 C.82e)
+    expect(ENGINE.onball.throughSeeSpaceFrom).toBe(40);
     expect(ENGINE.onball.throughSeeSpaceWin).toBe(6);
     expect(TENDENCY.gegenPressReach).toBe(1.5);
   });
@@ -74,7 +74,7 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
     expect(pressureAt(s, o)).toBe(0);
   });
 
-  it('레버 세 개가 실제로 걸린다: 켜고 끄면 같은 시드 게겐 경기가 달라지고, 가담자 배수는 균형끼리 경기를 안 바꾸며, 결정성 유지', () => {
+  it('레버 세 개가 실제로 걸린다(공간 시야는 끔 → 켬): 켜고 끄면 같은 시드 게겐 경기가 달라지고, 가담자 배수는 균형끼리 경기를 안 바꾸며, 결정성 유지', () => {
     const F = ENGINE.formation as { attackLineK: number };
     const O = ENGINE.onball as { throughSeeSpace: number };
     const T = TENDENCY as { gegenPressReach: number };
@@ -90,7 +90,7 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
       F.attackLineK = 0;
       expect(seeds.map((k) => run('gegenpress', 'balanced', k)).some((v, i) => v !== on[i])).toBe(true);
       F.attackLineK = was[0];
-      O.throughSeeSpace = 0;
+      O.throughSeeSpace = 0.06; // 끔(0) → 켜면 달라진다 (코드가 살아 있음)
       expect(seeds.map((k) => run('gegenpress', 'balanced', k)).some((v, i) => v !== on[i])).toBe(true);
       O.throughSeeSpace = was[1];
       expect(seeds.map((k) => run('gegenpress', 'balanced', k))).toEqual(on);
