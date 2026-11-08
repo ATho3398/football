@@ -18,9 +18,9 @@ describe('C.76y 역할 파라미터 (미해결 4)', () => {
     expect(f.dx).toBe(-0.1);
     expect(hasModule(f, 'between')).toBe(true);
   });
-  it('메짤라: 침투 0.5 (박스투박스 0.6 보다 낮고 늦은 침투 문턱 이상), 나머지 그대로', () => {
+  it('메짤라: 침투 0.4 (C.82c2, 박스투박스 0.6 보다 낮고 늦은 침투 문턱 이상), 나머지 그대로', () => {
     const m = ROLES.mezzala!;
-    expect(m.run).toBe(0.5);
+    expect(m.run).toBe(0.4);
     expect(m.run).toBeLessThan(ROLES.boxToBox!.run);
     expect(m.run).toBeGreaterThanOrEqual(ENGINE.offball.lateRunRun);
     expect(m.dx).toBe(0.06);
