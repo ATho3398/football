@@ -35,8 +35,8 @@ function cbPasses(longMiss: number) {
 }
 
 describe('C.80w 롱패스 착지 정확도', () => {
-  it('상수: longMiss 0.55 (C.81z 0.6 → 0.55) · longW 0.25 · saveBase 1.89 (C.80w 1.75 + C.80u 세트피스 헤더 되돌림 0.07 + C.81a 박스 인원 되돌림 0.07)', () => {
-    expect(ENGINE.prob.longMiss).toBe(0.55); // C.81z 0.6 → 0.55 (롱패스 성공률 49 → 50~55%; 0.5 는 이동 거리 14.13 km ✗)
+  it('상수: longMiss 0.54 (C.81z 0.6 → 0.54) · longW 0.25 · saveBase 1.89 (C.80w 1.75 + C.80u 세트피스 헤더 되돌림 0.07 + C.81a 박스 인원 되돌림 0.07)', () => {
+    expect(ENGINE.prob.longMiss).toBe(0.54); // C.81z 0.6 → 0.54 (롱패스 성공률 49 → 50~55%; 0.5 는 이동 거리 평균 14.13 km ✗ · 0.55~0.59 는 한 선수 최다 15.4~15.8 ✗)
     expect(ENGINE.decide.bias.longW).toBe(0.4); // C.81h 0.25 → 0.4 (롱패스 비율 10.9 → 12.5%)
     expect(ENGINE.keeper.saveBase).toBe(2.02); // C.81b 1.93 → C.81s 2.02
   });
