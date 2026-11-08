@@ -1,0 +1,32 @@
+
+> football-career@0.1.0 balance:scoring
+> vite-node scripts/balance-scoring.ts -- 10
+
+
+✓ 최다 득점 팀 골: 97 (목표 85~105) — liv 95, liv 92, mci 102, tot 88, mci 106, tot 89, liv 104, mci 97, liv 93, mun 108
+✓ 최다 실점 팀 실점: 78 (목표 60~85) — bou 69, car 78, cry 78, whu 73, cry 81, car 85, cry 77, car 78, bur 76, car 81
+✓ 리그 시즌당 30골 이상 선수 수: 0.50 (목표 0.5~2 (10시즌 이상, pending 24 ①)) — 0, 1, 1, 0, 2, 0, 0, 0, 1, 0
+✓ 득점왕 골 중앙값: 28.0 (목표 25~35 (개별 40골대 허용))
+✓ 득점왕 골 평균 (참고): 29.4 (목표 참고) — v:eve:21 24, v:mun:19 36, kane 32, v:lei:21 29, kane 39, kane 24, aguero 27, v:eve:21 27, aubameyang 30, firmino 26
+✓ 우승팀 승점: 88 (목표 85~100) — liv 82, che 85, mci 91, tot 83, mci 92, liv 83, liv 95, mci 96, liv 90, mun 87
+✓ 케인 시즌 골: 24 (목표 득점왕 범위 22~38 (45 이상 멈춤)) — 22, 20, 32, 28, 39, 24, 19, 26, 17, 11
+✓ 리그 경기당 팀 득점: 1.42 (목표 1.3~1.5 (C.29 fix, pending 20))
+✓ 케인 경기당 슈팅 (토트넘 경기 기준): 4.1 (목표 약 4.8 (3.5~6))
+✗ 득점 상위 10명 중 ST/CF 수 (참고): 7.1 (목표 약 5~6) — v:eve:21 24(ST) aubameyang 24(ST) kane 22(ST) v:cry:21 21(ST) v:lei:21 21(ST) v:whu:21 21(ST) hazard 20(LW) aguero 19(ST) v:che:19 17(ST) v:wol:22 17(ST) | v:mun:19 36(ST) aubameyang 29(RW) v:lei:21 22(ST) aguero 20(RW) v:che:19 20(ST) kane 20(ST) salah 19(LW) firmino 18(CM) v:bou:22 18(ST) v:cry:22 17(ST) | kane 32(ST) v:mun:19 23(ST) aguero 23(ST) v:eve:21 23(ST) v:wol:21 23(ST) v:che:19 20(ST) aubameyang 19(ST) v:mci:17 18(ST) v:bou:21 17(ST) v:new:22 17(CM) | v:lei:21 29(ST) kane 28(CAM) v:cry:22 27(ST) v:whu:21 25(ST) aguero 23(ST) v:sou:21 21(ST) firmino 21(ST) hazard 19(LW) v:che:19 17(CM) salah 17(LW) | kane 39(ST) v:lei:21 30(ST) mane 22(LW) aguero 21(ST) firmino 20(CM) v:whu:21 20(ST) v:eve:22 17(ST) v:mun:19 17(ST) v:new:22 16(ST) v:wol:21 15(ST) | kane 24(ST) aubameyang 23(ST) v:lei:21 23(ST) eriksen 23(CAM) v:wol:22 22(ST) v:mun:19 19(CM) v:che:19 19(ST) hazard 18(RW) salah 18(RW) aguero 18(ST) | aguero 27(ST) v:che:19 26(ST) v:mun:19 26(RW) salah 26(RW) aubameyang 22(CAM) v:liv:17 20(ST) kane 19(ST) rashford 19(LW) v:lei:21 19(ST) hazard 17(CM) | v:eve:21 27(ST) kane 26(ST) aubameyang 24(ST) v:mun:19 23(RW) v:wol:22 22(ST) salah 21(LW) aguero 19(ST) v:lei:21 19(ST) v:liv:17 18(ST) eriksen 17(CAM) | aubameyang 30(ST) salah 25(LW) rashford 24(LW) firmino 22(ST) v:wol:21 20(ST) v:mun:20 20(CM) v:sou:21 19(ST) v:cry:21 18(ST) kane 17(ST) v:whu:21 17(ST) | firmino 26(ST) v:mun:19 25(ST) aubameyang 25(ST) rashford 24(RW) v:lei:21 22(ST) aguero 21(ST) v:eve:21 20(ST) v:bha:21 19(ST) v:whu:21 17(ST) salah 17(LW)
+✓ 득점 상위 10명 중 CAM 수 (기록): 0.4 (목표 ≤ 1 참고 (C.76x, 관문 아님))
+✓ 득점 상위 10 ST/CF 시즌 선발 수 (기록): 30.5 (목표 약 33~37 (C.77c 결장 모델, 관문 아님)) — 평균 출전 85분
+✓ 포지션군 MID 시즌 최다 득점자 골 (기록): 19.5 (목표 ≤ 22 참고 (C.76x, 관문 아님)) — v:mun:20 14, firmino 18, v:new:22 17, kane 28, firmino 20, eriksen 23, aubameyang 22, eriksen 17, v:mun:20 20, v:eve:16 16
+최다 득점 팀 최대 108 (참고 ≤120)
+MID 최다 득점자 ↔ 그 팀 ST 최다 득점 (시즌별, C.76x): v:mun:20 14 ↔ mun v:mun:19 17 | firmino 18 ↔ liv v:liv:17 10 | v:new:22 17 ↔ new v:new:21 8 | kane 28 ↔ tot v:tot:19 10 | firmino 20 ↔ liv v:liv:17 13 | eriksen 23 ↔ tot kane 24 | aubameyang 22 ↔ ars v:ars:21 13 | eriksen 17 ↔ tot kane 26 | v:mun:20 20 ↔ mun v:mun:19 14 | v:eve:16 16 ↔ eve v:eve:21 20
+상위 10 ST/CF 출전 (시즌별, C.77c): v:eve:21 24골 31선발/33출전 85분 aubameyang 24골 30선발/34출전 83분 kane 22골 38선발/38출전 83분 v:cry:21 21골 33선발/33출전 90분 v:lei:21 21골 33선발/33출전 89분 v:whu:21 21골 32선발/32출전 90분 aguero 19골 24선발/26출전 79분 v:che:19 17골 25선발/35출전 72분 v:wol:22 17골 32선발/34출전 86분 | v:mun:19 36골 29선발/32출전 84분 v:lei:21 22골 36선발/36출전 90분 v:che:19 20골 28선발/29출전 88분 kane 20골 28선발/30출전 81분 v:bou:22 18골 31선발/31출전 89분 v:cry:22 17골 34선발/34출전 90분 | kane 32골 35선발/35출전 84분 v:mun:19 23골 23선발/23출전 90분 aguero 23골 23선발/25출전 81분 v:eve:21 23골 29선발/32출전 85분 v:wol:21 23골 38선발/38출전 89분 v:che:19 20골 33선발/35출전 87분 aubameyang 19골 27선발/31출전 81분 v:mci:17 18골 20선발/20출전 83분 v:bou:21 17골 38선발/38출전 88분 | v:lei:21 29골 36선발/36출전 90분 v:cry:22 27골 37선발/37출전 90분 v:whu:21 25골 31선발/35출전 83분 aguero 23골 25선발/27출전 82분 v:sou:21 21골 32선발/32출전 89분 firmino 21골 18선발/35출전 62분 | kane 39골 38선발/38출전 83분 v:lei:21 30골 36선발/36출전 90분 aguero 21골 23선발/29출전 78분 v:whu:21 20골 27선발/27출전 90분 v:eve:22 17골 27선발/36출전 74분 v:mun:19 17골 23선발/31출전 75분 v:new:22 16골 29선발/31출전 86분 v:wol:21 15골 35선발/35출전 90분 | kane 24골 35선발/35출전 86분 aubameyang 23골 32선발/34출전 86분 v:lei:21 23골 37선발/37출전 90분 v:wol:22 22골 35선발/35출전 89분 v:che:19 19골 30선발/33출전 85분 aguero 18골 24선발/30출전 78분 | aguero 27골 25선발/26출전 87분 v:che:19 26골 32선발/37출전 80분 v:liv:17 20골 27선발/28출전 80분 kane 19골 26선발/33출전 73분 v:lei:21 19골 34선발/35출전 88분 | v:eve:21 27골 32선발/33출전 88분 kane 26골 36선발/36출전 84분 aubameyang 24골 35선발/38출전 85분 v:wol:22 22골 33선발/34출전 87분 aguero 19골 27선발/27출전 89분 v:lei:21 19골 33선발/33출전 90분 v:liv:17 18골 27선발/27출전 80분 | aubameyang 30골 32선발/35출전 82분 firmino 22골 25선발/26출전 88분 v:wol:21 20골 38선발/38출전 90분 v:sou:21 19골 32선발/34출전 86분 v:cry:21 18골 36선발/36출전 89분 kane 17골 24선발/25출전 84분 v:whu:21 17골 31선발/31출전 89분 | firmino 26골 28선발/29출전 84분 v:mun:19 25골 31선발/31출전 90분 aubameyang 25골 26선발/34출전 76분 v:lei:21 22골 35선발/35출전 90분 aguero 21골 21선발/21출전 90분 v:eve:21 20골 32선발/32출전 89분 v:bha:21 19골 37선발/37출전 90분 v:whu:21 17골 34선발/35출전 88분
+상위 10 ST/CF 시즌 선발 (C.77n): 챔스 팀 27.0 (26명) · 나머지 32.6 (45명)
+NPC 컵·부하 (C.77n, 시즌 평균): 챔스 간이 경기 34.8(4팀) · 팀당 부상 챔스 팀 9.4 / 나머지 7.5 · 챔스 팀 리그 선발 피로 50 초과 45.1%
+주전(팀 부하 상위 11명) 시즌 부하 평균 (C.77n): tot 37.5 · liv 36.1 · hud 33.8 · che 31.4 · mci 30.9 · ful 30.8 · mun 30.6 · eve 30.3 · whu 30.2 · bou 30.0 · wol 29.9 · ars 29.8 · sou 29.5 · bur 29.5 · cry 29.3 · wat 29.1 · car 28.9 · lei 28.5 · bha 27.3 · new 26.0
+NPC 피로 (C.77m, 시즌 평균 20팀 합): 부상 157.2회 · 부상 결장 선수-경기 665 · 선발 아침 피로 평균 38.1 · 피로 50 넘은 선발 38.3%
+포지션군 FW 시즌 최다 득점자: 평균 29.4 · 최대 39 — v:eve:21 24, v:mun:19 36, kane 32, v:lei:21 29, kane 39, kane 24, aguero 27, v:eve:21 27, aubameyang 30, firmino 26
+포지션군 WING 시즌 최다 득점자: 평균 22.3 · 최대 29 — hazard 20, aubameyang 29, mane 17, hazard 19, mane 22, hazard 18, v:mun:19 26, v:mun:19 23, salah 25, rashford 24
+포지션군 MID 시즌 최다 득점자: 평균 19.5 · 최대 28 — v:mun:20 14, firmino 18, v:new:22 17, kane 28, firmino 20, eriksen 23, aubameyang 22, eriksen 17, v:mun:20 20, v:eve:16 16
+포지션군 DEF 시즌 최다 득점자: 평균 6.1 · 최대 10 — v:wol:3 5, v:eve:8 8, v:lei:22 7, v:ars:3 4, v:new:6 5, v:eve:7 4, v:lei:20 8, v:eve:3 6, v:lei:21 10, v:lei:7 4
+실제 시즌 골 경로 % (패스/돌파·몰고/코너/프리킥/PK/리바운드/그 밖): 57 / 3 / 7 / 8 / 12 / 4 / 9
+
+10시즌 740초 — 득점 분포 통과
