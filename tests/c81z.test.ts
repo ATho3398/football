@@ -19,7 +19,7 @@ function match(a: Tendency, b: Tendency, seed: number) {
 }
 
 describe('C.81z 게겐 축 정리', () => {
-  it('상수: 엔진 96 · 상성 칸 4개 · 게겐 뚫림 간격 배수 1.5 · parryCorner 0.25 · longMiss 0.5', () => {
+  it('상수: 엔진 96 · 상성 칸 5개 · 게겐 뚫림 간격 배수 끔(1) · parryCorner 0.35 유지 · longMiss 0.55', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(96);
     expect(ENGINE.matchup.tikitaka!.gegenpress).toEqual({ short: 3, keep: 3 });
     expect(ENGINE.matchup.block!.gegenpress).toEqual({ air: 2, keep: 3 });
@@ -28,8 +28,8 @@ describe('C.81z 게겐 축 정리', () => {
     expect(ENGINE.matchup.gegenpress!.direct).toEqual({ tackle: 5, air: 4, keep: 2 }); // C.81t 그대로
     expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -10, air: -8 });
     expect(TENDENCY.gegenPressBreakMul).toBe(1); // 끔 (×1.5·3·5 모두 8초 상대 슈팅 무변화 — 부록 C.81z)
-    expect(ENGINE.keeper.parryCorner).toBe(0.25);
-    expect(ENGINE.prob.longMiss).toBe(0.5);
+    expect(ENGINE.keeper.parryCorner).toBe(0.35); // 0.25 는 리바운드 골 무변화 · 이동 거리·장면 ⑱ ✗ 라 되돌림
+    expect(ENGINE.prob.longMiss).toBe(0.55);
   });
 
   it('게겐 → 균형·역습 칸: 그 짝에서만 게겐 쪽 태클(·공중) 점수, 상대 쪽·다른 실행은 0', () => {
