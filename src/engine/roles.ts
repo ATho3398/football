@@ -52,7 +52,7 @@ const r = (id: string, dx: number, dy: number, run: number, drop: number, press:
 /** 역할 표 (E.6). 값은 초안이고 역할 반응 점검으로 보정한다 */
 export const ROLES: Record<string, Role> = {
   // 윙 (LW, RW, LM, RM)
-  classicWinger: r('classicWinger', 0, 0.35, 0.7, 0.1, 0.4, p({ cross: 1.2, dribble: 1.1 })), // C.82c: cross 1.4 → 1.2 · run 0.5 → 0.7 (em27 처방 ③ 0.65 는 이동 거리 테스트 한 선수 15.91 km ✗ — 궤적 잡음이라 통과하는 0.7)
+  classicWinger: r('classicWinger', 0, 0.35, 0.5, 0.1, 0.4, p({ cross: 1.4, dribble: 1.1 })), // C.82c: cross 1.2·run 0.65/0.7 을 재 봤지만 크로스 4.2회 그대로 · 역할 대비 0.00/−0.16 · −0.23/−0.12(두 시드 잡음 폭 0.2) — 효과 없음, 되돌림
   wingForward: r('wingForward', 0.05, -0.1, 0.8, 0.1, 0.4, p({ shoot: 1.3 })),
   crackWinger: r('crackWinger', 0.02, 0.15, 0.3, 0.4, 0.2, p({ dribble: 1.5 }), ['demand', 'exempt']),
   raumdeuter: r('raumdeuter', 0.05, -0.2, 0.7, 0.1, 0.5, p({ shoot: 1.2, dribble: 0.6 }), ['space']),
