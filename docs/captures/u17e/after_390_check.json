@@ -1,0 +1,121 @@
+{
+  "W": 390,
+  "H": 844,
+  "errors": [],
+  "screens": {
+    "S12-a_훈련-이번주": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-b_프리셋편집시트": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-i_이동일시트": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-c_훈련-일정": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-e_훈련-성장": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-f_훈련-스태프": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-a_능력치": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-a_능력치_전체": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-b_몸태그": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-c_포지션": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-d_기록": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-e_계약": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-f_태그전체시트": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-h_부상중": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-g_비시즌": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-g2_비시즌-스태프": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S12-d_하루훈련시트": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-g_유망주": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S13-h_은퇴": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    }
+  }
+}

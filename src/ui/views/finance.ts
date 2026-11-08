@@ -15,8 +15,9 @@ const kv = (rows: { label: string; value: string }[], cls = '') =>
 
 function staffCard(s: StaffRowVM, mode: 'staff' | 'cand'): string {
   const btn = mode === 'cand'
-    ? Button({ size: 'sm', act: 'fn-hire', data: { v: s.id }, disabled: !!s.blocked, children: '고용' })
-    : Button({ size: 'sm', variant: s.leaving ? 'secondary' : 'ghost', act: 'fn-leave', data: { v: s.id }, children: s.leaving ? '해지 취소' : '해지' });
+    // 17차 2절 23번: K1 버튼 1종 · 누르는 영역 44px — [고용] 보조(라임 주 버튼은 화면에 하나), [해지] 보조
+    ? Button({ variant: 'secondary', act: 'fn-hire', data: { v: s.id }, disabled: !!s.blocked, children: '고용' })
+    : Button({ variant: 'secondary', act: 'fn-leave', data: { v: s.id }, children: s.leaving ? '해지 취소' : '해지' });
   return `<div class="fn-staff${s.leaving ? ' is-leaving' : ''}">
     <div class="fn-staff__top">${TierBadge({ tier: designTier(s.tier), size: 'sm' })}<b>${esc(s.role)} ${esc(s.name)}</b>${btn}</div>
     <small>${esc(s.effect)}${s.attrs ? ` · ${esc(s.attrs)}` : ''}</small>
@@ -111,7 +112,7 @@ const fold = (head: string, body: string) => `<details class="fn-fold"><summary>
 
 /** 에이전트 줄 (C.76i 디자인 220): 지금 = 라임 테두리 · 다른 쪽 [바꾸기] */
 const agentRow = (name: string, desc: string, cur: boolean) => `<div class="fn-opt${cur ? ' is-cur' : ''}"><div class="fn-opt__top"><b>${esc(name)}</b>${
-  cur ? '<small class="up">지금</small>' : Button({ size: 'sm', variant: 'ghost', act: 'fn-agent', children: '바꾸기' })}</div><small class="muted">${esc(desc)}</small></div>`;
+  cur ? '<small class="up">지금</small>' : Button({ variant: 'secondary', act: 'fn-agent', children: '바꾸기' })}</div><small class="muted">${esc(desc)}</small></div>`;
 
 function lifeTab(vm: FinanceVM): [string, string] {
   const life = vm.life.map((l) => `${SectionTitle({ title: l.title, action: `${l.cur} · 연 ${l.yearly}` })}

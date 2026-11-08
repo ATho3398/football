@@ -701,7 +701,11 @@ export interface TrainingVM {
 }
 
 export interface PresetDayVM { wd: string; short: string; kind: DayPlan; fixed: boolean; today: boolean }
-export interface PresetRowVM { id: string; name: string; desc: string; week: PresetDayVM[]; active: boolean; recommended: boolean; custom: boolean }
+export interface PresetRowVM {
+  id: string; name: string; desc: string; week: PresetDayVM[]; active: boolean; recommended: boolean; custom: boolean;
+  /** 17차 2절 19번: 훈련일 순서 7칸 (요일 없음) · 이번 주 훈련일 수(그 뒤 칸은 흐리게) */
+  slots: { kind: TrainingKind; short: string }[]; used: number;
+}
 export interface PresetsVM {
   auto: boolean;
   /** 이번 주에 직접 고름 (그 주만 유지) */
@@ -710,12 +714,20 @@ export interface PresetsVM {
   activeName: string;
   /** "8.20~8.26" */
   weekLabel: string;
-  rec: { id: string; name: string; chips: { label: string; tone: 'neutral' | 'warn' | 'good' }[]; line: string; applied: boolean };
+  rec: { id: string; name: string; chips: { label: string; tone: 'neutral' | 'warn' | 'good' | 'injury' }[]; line: string; applied: boolean };
   base: PresetRowVM[];
   custom: PresetRowVM[];
 }
 
 const md = (d: string) => `${+d.slice(5, 7)}.${+d.slice(8, 10)}`;
+
+/** 부상이 다음 내 경기 날까지 이어지는지 (훈련 추천 칩) */
+function missesNext(g: GameState): boolean {
+  const inj = g.player.injury;
+  if (!inj) return false;
+  const next = myMatchDate(g);
+  return !next || daysBetween(g.calendar.date, next) < inj.daysLeft;
+}
 
 export function presetsVM(g: GameState): PresetsVM {
   const t = g.training;
@@ -730,6 +742,7 @@ export function presetsVM(g: GameState): PresetsVM {
       id: p.id, name: p.name, desc: custom ? `${sum || '훈련일 없음'} · 내가 만듦` : `${p.desc} · ${sum || '이번 주 훈련일 없음'}`, custom,
       week: week.map((d) => ({ wd: '일월화수목금토'[weekdayOf(d.date)]!, short: TRAINING_SHORT_KO[d.kind], kind: d.kind, fixed: d.fixed, today: d.date === today })),
       active: p.id === activeId, recommended: p.id === rec.id,
+      slots: p.slots.map((k) => ({ kind: k, short: TRAINING_SHORT_KO[k] })), used: free,
     };
   };
   const wk = presetWeekPlan(g, activeId, today);
@@ -742,7 +755,8 @@ export function presetsVM(g: GameState): PresetsVM {
       chips: [
         { label: rec.matches.length ? `경기 ${rec.matches.length}번 · ${days}` : '경기 없음', tone: 'neutral' },
         { label: `체력 ${rec.condition}`, tone: rec.condition < BALANCE.training.presets.lowCondition ? 'warn' : 'neutral' },
-        { label: rec.injured ? '부상 중' : '부상 없음', tone: rec.injured ? 'warn' : 'good' },
+        // 17차 2절 S12 사소: 부상 칩 = 부상색, 다음 경기까지 못 나으면 "다음 경기 결장"
+        { label: rec.injured ? (missesNext(g) ? '부상 · 다음 경기 결장' : '부상 중') : '부상 없음', tone: rec.injured ? 'injury' : 'good' },
       ],
     },
     base: BASE_PRESETS.map((p) => row(p, false)),
@@ -826,7 +840,21 @@ export function trainingVM(g: GameState): TrainingVM | null {
 }
 
 /** 하루 훈련 고르기 (바텀시트) */
-export function trainingOptionsVM(g: GameState, date: string): { date: string; injured: boolean; travel: boolean; options: TrainingOptionVM[] } | null {
+/** 생활 4수치 (17차 B4, 2절 15번): 저장값 하나(g.life), 0~100 · 높을수록 좋음(멘탈 = 100 − 멘탈 피로) · 기준선 50 */
+export interface LifeStatVM { key: 'home' | 'adapt' | 'team' | 'mental'; label: string; value: number }
+export function lifeStatsVM(g: GameState): { stats: LifeStatVM[]; hints: string[] } | null {
+  const l = g.life;
+  if (!l) return null;
+  return {
+    stats: [
+      { key: 'home', label: '가정', value: Math.round(l.home) }, { key: 'adapt', label: '적응', value: Math.round(l.adapt) },
+      { key: 'team', label: '팀 관계', value: Math.round(l.team) }, { key: 'mental', label: '멘탈', value: Math.round(100 - l.mental) },
+    ],
+    hints: lifeHints(g),
+  };
+}
+
+export function trainingOptionsVM(g: GameState, date: string): { date: string; injured: boolean; travel: boolean; options: TrainingOptionVM[]; life: ReturnType<typeof lifeStatsVM> } | null {
   const kind = dayPlan(g, date);
   if (kind === 'match' || kind === 'vacation' || isRestLocked(g, date)) return null;
   const injured = kind === 'rehab' || (kind === 'rest' && !!g.player.injury);
@@ -837,7 +865,7 @@ export function trainingOptionsVM(g: GameState, date: string): { date: string; i
   const travel = !injured && isTravelDay(g, date);
   const kinds: TrainingKind[] = injured ? ['recovery', 'rest'] : travel ? [...BALANCE.travelDay.allowed] : [...TRAINING_KINDS, ...life];
   return {
-    date: dateLabel(date), injured, travel,
+    date: dateLabel(date), injured, travel, life: injured || travel ? null : lifeStatsVM(g),
     options: kinds.map((k) => injured && k === 'recovery'
       ? { kind: k, name: '재활 (기본)', desc: PLAN_DESC.rehab, xp: planXp('rehab'), fatigue: planFatigue('rehab'), planned: true, selected: kind === 'rehab' }
       : { kind: k, name: TRAINING_NAMES_KO[k], desc: TRAINING_DESC_KO[k], xp: planXp(k), fatigue: planFatigue(k), planned: !injured && k === planned, selected: kind === k, ...(isLifeKind(k) ? { life: true } : {}) }),

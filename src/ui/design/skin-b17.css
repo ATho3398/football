@@ -532,3 +532,83 @@ button.po-prow { cursor: pointer; }
 .screen-match .po-hero__unit { margin-bottom: .6em; font-size: 14px; white-space: nowrap; color: var(--ink) !important; letter-spacing: 0 !important; }
 .screen-match .po-hero__eyebrow { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
 #app:has(.celebrate) > :is(.dock-bar, .po-dock, nav.dock) { display: none; }
+
+/* ================= U17-e 17차 S12 훈련 · S13 선수 ================= */
+/* 0절 3번 · 2절 24번: 훈련 · 선수 화면(시트 포함) 글자 바닥 12px */
+:is(.screen-schedule, .screen-player) :is(small, .small, .ag-name, .pr-day small, .tr-k, .tr-tag, .po-day__today, .cal-cup, .cal-wd, .pr-badge, .pr-chip, .po-fin, .ver, .pl-cc span, .pl-cc small, .tbl th, .tbl td) { font-size: 12px; }
+/* 누르는 영역 44px (2절 23번) */
+:is(.screen-schedule, .screen-player) :is(.po-btn--sm, .link-btn, .dt-link, .po-tab, .pr-edit, .po-switch) { min-height: 44px; }
+:is(.screen-schedule, .screen-player) .po-tabs--scroll .po-tab { min-width: 44px; }
+:is(.screen-schedule, .screen-player) .po-switch { min-width: 52px; }
+:is(.screen-schedule, .screen-player) .dt-link { display: inline-flex; align-items: center; }
+/* 훈련 탭 스태프 배지 */
+.screen-schedule .po-tabs .po-dotbadge { position: static; margin-left: 6px; transform: none; }
+/* 이번 주 계획 · 범례 */
+.tr-legend { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; }
+.tr-weekcard .tr-week { margin-top: 0; }
+/* 성장 탭 주간 XP */
+.tr-xp { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 6px 8px; }
+.tr-xp > b { font-size: 28px; font-weight: 900; font-style: italic; color: var(--ink); }
+.tr-xp .tr-bar { grid-column: 1 / -1; }
+/* 프리셋 칸 = 훈련일 순서 (요일 없음) · 줄 도구 [고치기][삭제] */
+.pr-day { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pr-day .po-icon { opacity: .9; }
+.pr-day.is-dim { opacity: .45; }
+.pr-row { position: relative; }
+.pr-tools { display: flex; gap: 8px; padding: 0 12px 12px; }
+.pr-tools .po-btn { flex: 1; }
+.pr-row:has(.pr-tools) .pr-edit { position: static; }
+.pr-chip--injury { color: var(--injury); box-shadow: inset 0 0 0 1.5px var(--injury); }
+/* 하루 훈련 시트 생활 4칸 (B4) · 기준선 50 */
+.tr-life { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0 4px; }
+.tr-life__tile { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--surface-2); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.tr-life__tile small { color: var(--ink-2); font-weight: 700; }
+.tr-life__tile b { font-size: 18px; font-style: italic; font-weight: 900; color: var(--brand-ink); }
+.tr-life__tile.is-low b { color: var(--warning); }
+.tr-life__bar { position: relative; height: 4px; background: var(--line); }
+.tr-life__bar i { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
+.tr-life__tile.is-low .tr-life__bar i { background: var(--warning); }
+.tr-life__bar em { position: absolute; left: 50%; top: -3px; width: 2px; height: 10px; background: var(--ink); opacity: .7; }
+.tr-life__hint { margin: 0 0 6px; }
+/* 스태프 [고용] · [해지] 44px */
+.tr-staff .po-btn { min-height: 44px; }
+/* S13 프로필 판 */
+.panel.pl-profile.pl-prof17 { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.pl-prof17 .pl-prof17__top { display: flex; width: 100%; align-items: center; gap: 10px; }
+.pl-prof17__top .pl-tier { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.pl-prof17 .pl-prof17__bars { display: grid; width: 100%; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pl-m17 { display: flex; flex-direction: column; gap: 6px; }
+.pl-m17__top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.pl-m17__top small { color: var(--ink-2); font-weight: 700; }
+.pl-m17__top b { font-size: 12px; color: var(--ink); }
+.pl-m17__bar { height: 6px; background: var(--line); }
+.pl-m17__bar i { display: block; height: 100%; background: var(--brand); }
+.pl-m17__bar.is-xp i { background: var(--brand); }
+.pl-prof17 .pl-prof17__note { display: flex; width: 100%; box-sizing: border-box; gap: 8px; margin: 0; padding: 10px 12px; background: var(--surface-2); color: var(--ink-2); font-size: 12px; line-height: 1.45; }
+.pl-prof17__note .po-icon { flex: none; margin-top: 2px; }
+.pl-prof17__note b { color: var(--ink); }
+.pl-prof17 .pl-prof17__pot { display: flex; width: 100%; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; margin: 0; padding-top: 8px; border-top: 1px solid var(--line); }
+.pl-prof17__pot span { font-weight: 800; color: var(--ink); }
+.pl-head__t { display: flex; flex-direction: column; gap: 2px; }
+.ag-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ag-head__key { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+/* 은퇴 단추 2개 · PC 커리어 요약 */
+.pl-ret__btns { display: flex; gap: 8px; }
+.pl-retsum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+/* 선수 머리말 칩: 한 줄에 다 보이게(말줄임 없음) — 칸이 모자라면 두 줄, 이름 묶음은 사선 아래 */
+.screen-player .po-hero--face .po-hero__chips { gap: 4px; }
+.screen-player .po-hero--face .po-hero__chip { flex: none; overflow: visible; text-overflow: clip; padding: 0 6px; }
+:is(.screen-schedule, .screen-player) :is(.tr-lifebox__chip, .po-tier--sm, .po-tier--sm b, .po-tag, .po-tag__name, .pl-stats small, .pl-stats span, .pl-stats i, .pl-pos__cell span, .pl-pos__cell em) { font-size: 12px; }
+.screen-player .po-tier--sm { height: 24px; }
+/* 주간 7칸이 44px 이상 되게 칸 사이를 좁힌다 */
+.screen-schedule .tr-week { gap: 2px; }
+.screen-schedule .tr-weekcard { padding-inline: 10px; }
+/* 2절 3번: 두 자리 등번호가 오른쪽에서 잘리지 않게(compact 머리말), OVR 은 등번호 밖 별도 칸 그대로 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit.is-two { font-size: 220px; line-height: 220px; right: 6px; top: 34px; letter-spacing: -6px; }
+/* 360 폭: 주간 7칸 44px 이상 — 카드 안쪽 여백을 더 줄이고 칸 사이 0 */
+@media (max-width: 380px) { .screen-schedule .tr-weekcard { padding-inline: 4px; } .screen-schedule .tr-week { gap: 1px; } }
+:is(.screen-schedule, .screen-player) .dt-link { min-width: 44px; }
+:is(.screen-schedule, .screen-player) .po-section__link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+.tr-weekcard { gap: 8px; }
+.tr-weekcard > :is(p, ul, .tr-foot) { margin: 0; }
+.pl-prof17 .pl-lv { display: block; min-width: 0; }

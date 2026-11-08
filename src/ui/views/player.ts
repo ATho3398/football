@@ -67,11 +67,7 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
     : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${eyebrowTail}`, value: vm.ovr, unit: 'OVR', pad: false, progress: false, chips });
   // 프로필 줄 (디자인 93): 얼굴 · 위상 배지 + 다음 티어까지 · 레벨 막대 · [꾸미기](몸·태그 탭의 "내 모습")
   const repNote = vm.next ? `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점` : vm.isLegendary ? '최고 위상' : '레전더리는 업적 조건';
-  const profile = ret ? retiredProfile(vm, ret) : `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
-      <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>${esc(repNote)}</small></span>
-      <span class="pl-pot" title="나이가 들수록 범위가 좁아져요">잠재력 <b class="po-num">${esc(vm.potential)}</b></span>
-      <span class="pl-lv"><small>Lv ${vm.level}</small><span class="pl-lv__bar" aria-hidden="true"><i style="width:${Math.round((vm.xp / Math.max(1, vm.xpMax)) * 100)}%"></i></span><small class="po-num">${vm.xp}/${vm.xpMax}</small></span>
-    </div>${Button({ variant: 'secondary', size: 'sm', icon: 'edit', act: 'player-tab', data: { v: 'body', look: '1' }, children: '꾸미기' })}</div>`;
+  const profile = ret ? retiredProfile(vm, ret) : profileCard(vm, repNote, !face);
   const tabBody = (t: PlayerTab): string => {
     if (t === 'attrs') return attrsTab(vm, parts);
     if (t === 'body') return parts.body;
@@ -84,7 +80,9 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   if (isWide()) {
     const right = parts.tab === 'attrs' ? 'body' : parts.tab;
     const tabsR = Tabs({ items: PLAYER_TABS.filter((t) => t.id !== 'attrs'), value: right, variant: 'underline', fill: true, act: 'player-tab', label: '선수' });
-    return `${hero}<div class="body pl-body">${pc2(`${profile}${tabBody('attrs')}`, `${tabsR}${tabBody(right)}`, 'pl-pc')}</div>`;
+    // 17차 2절 31번: 은퇴면 오른쪽 맨 위 = 커리어 요약 요약(시즌 · 경기 · 골 · 도움 · 시즌별)
+    const sum = ret ? `${SectionTitle({ title: '커리어 요약', action: `${ret.seasons}시즌` })}<div class="pl-retsum">${[['경기', ret.apps], ['골', ret.goals], ['도움', ret.assists], ['최종 위상', vm.tierName]].map(([k, v]) => `<div class="pl-cc"><small>${k}</small><b class="po-num">${esc(String(v))}</b></div>`).join('')}</div>${panel(historyTable(vm.history))}` : '';
+    return `${hero}<div class="body pl-body">${pc2(`${profile}${tabBody('attrs')}`, `${sum}${tabsR}${tabBody(right)}`, 'pl-pc')}</div>`;
   }
   const tabs = Tabs({ items: PLAYER_TABS, value: parts.tab, variant: 'underline', fill: true, act: 'player-tab', label: '선수' });
   return `${hero}<div class="body pl-body">${profile}${tabs}${tabBody(parts.tab)}</div>`;
@@ -93,10 +91,10 @@ export function playerView(vm: PlayerVM, parts: PlayerParts): string {
 /** 능력치 탭 (디자인 93): 안내 줄 + [nP 찍기] · 범례 · 묶음 7개 4열 */
 function attrsTab(vm: PlayerVM, parts: PlayerParts): string {
   const alloc = !parts.retired && parts.points > 0
-    ? Button({ size: 'sm', icon: 'plus', act: 'go', data: { to: 'allocate' }, children: `${parts.points}P 찍기` })
+    ? Button({ icon: 'plus', act: 'go', data: { to: 'allocate' }, children: `${parts.points}P 찍기` })
     : '';
-  return `<div class="pl-head"><span class="small"><b>1~20</b> · 이번 시즌 변화 표시</span>${alloc}</div>
-    ${attrGrid(vm.attrs, null, undefined, { cols: 4, legendTop: true, keyLabel: `${vm.position} 핵심` })}`;
+  return `<div class="pl-head"><span class="pl-head__t"><b>능력치 1~20</b><small class="muted">막대 = 다음 칸까지 · 숫자 옆 ±1 = 이번 시즌 변화</small></span>${alloc}</div>
+    ${attrGrid(vm.attrs, null, undefined, { cols: 4, legendTop: true, keyLabel: `${vm.position} 핵심`, words: true })}`;
 }
 
 /** 포지션 탭 (디자인 94 → C.71a 디자인 182, 1,300px 이하): 포지션별 OVR · 숙련도 4열 → 레전더리 조건(위상 줄 + 대회 조건 4줄은 한 줄로 접기) → 레전드 배지 2칸 */
@@ -133,6 +131,21 @@ function posTab(vm: PlayerVM, open: boolean): string {
     <div class="pl-badges">${vm.badges.map(badge).join('')}</div>`;
 }
 
+/** 프로필 판 (17차 S13-a): 위상 배지 + 다음 위상까지 · [꾸미기](링크) → 위상 · 레벨 막대 2칸(값·단위 옆) → 레벨 뜻 한 줄 → 잠재력 범위(B6, 나이 들수록 좁아짐) */
+function profileCard(vm: PlayerVM, repNote: string, avatar: boolean): string {
+  const bar = (label: string, val: number, max: number, text: string, tone: string) => `<div class="pl-m17"><span class="pl-m17__top"><small>${esc(label)}</small><b class="po-num">${esc(text)}</b></span><span class="pl-m17__bar ${tone}" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, Math.round((val / Math.max(1, max)) * 100)))}%"></i></span></div>`;
+  const rep = vm.next
+    ? bar('위상', vm.reputation - vm.next.from, vm.next.cut - vm.next.from, `${vm.reputation - vm.next.from} / ${vm.next.cut - vm.next.from}`, 'is-rep')
+    : bar('위상', 1, 1, `${vm.reputation}점`, 'is-rep');
+  const lv = bar(`Lv ${vm.level} → ${vm.level + 1}`, vm.xp, vm.xpMax, `${vm.xp} / ${vm.xpMax}`, 'is-xp');
+  return `<div class="panel profile-row pl-profile pl-prof17">
+      <div class="pl-prof17__top">${avatar ? Avatar({ size: 44, face: vm.face, name: vm.name, ring: true }) : ''}<span class="pl-tier grow">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>${esc(repNote)}</small></span>${Button({ variant: 'link', icon: 'edit', act: 'player-tab', data: { v: 'body', look: '1' }, children: '꾸미기' })}</div>
+      <div class="pl-prof17__bars">${rep}<span class="pl-lv">${lv}</span></div>
+      <p class="pl-prof17__note">${Icon({ name: 'info', size: 14 })}<span><b>레벨</b> = 이 게임에서 쌓은 성장(XP) · OVR·위상과 별개라 실제 선수도 Lv 0에서 시작해요.</span></p>
+      <p class="pl-pot pl-prof17__pot"><span>잠재력 <b class="po-num">${esc(vm.potential)}</b></span><small>범위로 보여요 · 나이가 들수록 좁아져요</small></p>
+    </div>`;
+}
+
 /** 은퇴한 선수의 커리어 합계 (시즌별 기록 합) */
 function retiredLine(vm: PlayerVM): { seasons: number; apps: number; goals: number; assists: number } {
   const h = vm.history;
@@ -145,7 +158,7 @@ function retiredProfile(vm: PlayerVM, r: ReturnType<typeof retiredLine>): string
       <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>은퇴 · 최종 위상</small></span>
       <small class="pl-ret__line">${r.seasons}시즌 · ${r.apps}경기 · ${r.goals}골 · ${r.assists}도움 · ${vm.age}세 은퇴</small>
     </div></div>
-    ${Button({ variant: 'secondary', block: true, icon: 'trophy', act: 'go', data: { to: 'retired' }, children: '커리어 요약 보기' })}`;
+    <div class="btn-row even pl-ret__btns">${Button({ variant: 'secondary', block: true, icon: 'trophy', act: 'go', data: { to: 'retired' }, children: '커리어 요약' })}${Button({ variant: 'secondary', block: true, icon: 'plus', act: 'go', data: { to: 'new' }, children: '새 게임' })}</div>`;
 }
 
 /** 기록 탭 (디자인 95): 시즌 합계 · 경기별 · 경고와 출장 · 위상과 레벨 · 시즌별. 은퇴(C.81p)면 경고·위상·레벨 칸 대신 최종 위상 한 줄 */
@@ -195,7 +208,7 @@ export function contractSection(vm: MarketVM): string {
   return `${SectionTitle({ title: '계약', action: `${c.until} · 남은 ${c.yearsLeft}시즌` })}
     <div class="pl-contract">
       <div class="pl-cc"><small>소속</small><b>${Crest({ name: c.team, size: 18 })} ${esc(c.team)}</b><span>${FinChip(vm.tier, true)} 팀 전력 ${vm.rating}</span></div>
-      <div class="pl-cc"><small>주급</small><b class="po-num">${esc(c.wage)}</b><span>연 ${esc(c.annual)} · 보여 주기만 해요</span></div>
+      <div class="pl-cc"><small>주급</small><b class="po-num">${esc(c.wage)}</b><span>연 ${esc(c.annual)}</span></div>
       <div class="pl-cc"><small>몸값</small><b class="po-num">${esc(vm.value)}</b><span>남은 ${c.yearsLeft}시즌 기준 · OVR·나이·위상으로 계산</span></div>
       <div class="pl-cc is-line"><small>바이아웃</small><b class="po-num">${esc(c.buyout)}</b><span>이 금액 이상 제안은 구단이 거절하지 못해요</span></div>
     </div>
@@ -206,6 +219,6 @@ export function contractSection(vm: MarketVM): string {
     ${reqBox}
     ${Button({ size: 'lg', block: true, variant: req.ok ? 'primary' : 'secondary', icon: req.ok ? 'swap' : 'lock', act: 'transfer-request', disabled: !req.ok, children: '이적 요청' })}
     ${vm.moves.length ? `<p class="small muted">커리어 이적: ${vm.moves.map((m) => `${esc(m.season)} ${esc(m.text)}`).join(' · ')}</p>` : ''}
-    <span class="muted small">선발·출전 시간이 부족하거나 위상이 팀 수준을 넘으면 요청할 수 있어요. 연봉은 보여 주기만 해요(돈은 재정 단계).</span>`;
+    <span class="muted small">선발·출전 시간이 부족하거나 위상이 팀 수준을 넘으면 요청할 수 있어요.</span>`;
 }
 

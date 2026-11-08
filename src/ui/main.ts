@@ -28,8 +28,8 @@ import {
   nextCampDate, startNextSeason, todaysOthers, upcomingOthers, type GameState,
 } from '../game';
 import { addDays, dateLabel, daysBetween } from '../calendar';
-import { addCustomPreset, deleteCustomPreset, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
-import { gaugeSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet, weekPreview } from './views/training';
+import { addCustomPreset, deleteCustomPreset, presetById, updateCustomPreset, type TrainingKind, type TrainingState } from '../training';
+import { growthSection, presetEditSheet, presetSection, todayRow, trainingSection, trainingSheet } from './views/training';
 import { playNpcMatch } from '../engine/npcMatch';
 import { EnginePool, specKey } from './enginePool';
 import { myReplayOutput, type EngineJob, type MyReplayOut } from '../engine/jobs';
@@ -586,9 +586,10 @@ function screenHtml(): string {
       // 훈련·일정 탭 (C.52, 디자인 159): 훈련 프리셋 · 일정 · 게이지 · 코치·스태프(C.77q, 재정에서 옮김 — 비시즌에도 일정 · 코치·스태프 두 탭)
       const tab: TrainTab = tv || ui.trainTab === 'staff' ? ui.trainTab : 'cal';
       const coach = g.phase !== 'retired' ? (g.money?.candidates.length ?? 0) : 0;
-      const staffTab = { id: 'staff', label: coach ? `스태프 ${coach}` : '스태프' };
-      const tabs = g.phase === 'retired' ? '' : Tabs({ items: tv ? [{ id: 'pre', label: '훈련 프리셋' }, { id: 'cal', label: '일정' }, { id: 'g', label: '게이지' }, staffTab] : [{ id: 'cal', label: '일정' }, staffTab], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련·일정' });
-      const body = tab === 'staff' ? staffSection(staffVM(g)) : !tv ? '' : tab === 'pre' ? presetSection(tv.presets) + weekPreview(tv) : tab === 'g' ? gaugeSection(tv) : trainingSection(tv, false);
+      const staffTab = { id: 'staff', label: '스태프', ...(coach ? { badge: coach } : {}) };
+      // 17차 S12 (U17-e): 탭 = 이번 주(오늘 · 이번 주 계획 · 추천 · 프리셋) · 일정(다가오는 경기 · 달력) · 성장(게이지 · 주간 XP · 코치) · 스태프 — 탭 이름 = 내용(2절 19번)
+      const tabs = g.phase === 'retired' ? '' : Tabs({ items: tv ? [{ id: 'pre', label: '이번 주' }, { id: 'cal', label: '일정' }, { id: 'g', label: '성장' }, staffTab] : [{ id: 'cal', label: '일정' }, staffTab], value: tab, variant: 'underline', fill: true, act: 'train-tab', label: '훈련' });
+      const body = tab === 'staff' ? staffSection(staffVM(g)) : !tv ? '' : tab === 'pre' ? trainingSection(tv, false) + presetSection(tv.presets) : tab === 'g' ? growthSection(tv) : '';
       const pSheet = tv && ui.presetSheet ? presetEditSheet(presetEditVM(g, ui.presetSheet.id, ui.presetSheet.draft, ui.presetSheet.sel)) : '';
       return scheduleView(hvm, tabs + body, tab === 'cal') + (tOpts ? trainingSheet({ ...tOpts, weakFoot: weakFootLine(g) }, ui.trainSheet!, ui.trainPick) : '') + pSheet;
     }
@@ -3046,8 +3047,14 @@ app.addEventListener('click', (ev) => {
       render();
       return;
     }
+    case 'preset-del-ask':
+      // 17차 2절 30번: 프리셋 줄에서 바로 삭제 — 확인 모달
+      if (!g?.training || !v) return;
+      confirmModal({ title: '이 프리셋을 지울까요?', body: `'${presetById(g.training, v).name}' 프리셋을 지워요. 지금 쓰는 중이면 기본 '균형'으로 바뀌어요.`, tone: 'danger', confirm: '삭제', act: 'preset-del', data: { v } });
+      return;
     case 'preset-del':
       if (!g?.training || !v) return;
+      ui.modal = null;
       deleteCustomPreset(g.training, v);
       ui.presetSheet = null;
       autosave();
