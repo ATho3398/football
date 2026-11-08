@@ -513,7 +513,9 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
     const value = shotModel(s, r, true).value * r.role.pref.header;
     // C.80n: 먼 쪽(크로스 반대 측면) 윙어 고르기 가중 — 대상 고르기에만 (돌려주는 가치·실행 불변)
     const farWing = (r.pos === 'LW' || r.pos === 'RW' || r.pos === 'LM' || r.pos === 'RM') && Math.sign(r.sy - 0.5) !== crossSide;
-    const w = pWin * value * (farWing ? PR.crossFarWing : 1);
+    // C.82b: 세트피스(roll 을 주면) 대상 고르기에 CB·ST 가중 — 대상 고르기에만 (돌려주는 가치·실행 불변). 코너 골이 미드로 새는 몫을 줄인다
+    const spW = roll !== undefined && (r.pos === 'CB' || r.pos === 'ST' || r.pos === 'CF') ? PR.setPieceTargetW : 1;
+    const w = pWin * value * (farWing ? PR.crossFarWing : 1) * spW;
     all.push({ r, pWin, value, w });
     if (!best || w > bestW) { best = { r, pWin, value }; bestW = w; }
   }

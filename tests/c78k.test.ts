@@ -224,7 +224,8 @@ describe('C.78k ⑤ 경기 중 부상 퇴장 (myMinutes.end < 90)', () => {
   });
 
   it('교체권 없이 빠지면 퇴장과 같은 재배치 (같은 줄 간격, 수적 열세 소모)', () => {
-    const { input: inp, myId } = myInput(42, 'lineup', { start: 0, end: 30 });
+    // C.82b(엔진 96): 시드 42 는 내 선수가 28분 경고 → AI 교체 예약으로 바뀌어(교체권 0 전제가 안 섬) 43 으로
+    const { input: inp, myId } = myInput(43, 'lineup', { start: 0, end: 30 });
     const s = createState(inp);
     runTo(s, 29 * 60);
     s.teams[0].subsLeft = 0;

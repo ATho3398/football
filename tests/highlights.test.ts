@@ -21,10 +21,11 @@ describe('전개 하이라이트 (24.3 개정)', () => {
   // C.79q(엔진 62, 슛 발 판정): 106 의 첫 장면이 같은 이유로 깨져 107 로 (107~110 통과)
   // C.79x(엔진 65, 거리별·1대1 선방): 107 의 첫 장면이 같은 이유로 깨져 108 로 (108~115 통과)
   // C.80o(엔진 75, 선방·직선 전환 수치): 108 의 첫 장면이 같은 이유로 깨져 109 로 (109·110·112~115 통과, 111 ✗)
-  const r = replayOf(109);
+  // C.81z(엔진 98, 롱패스 착지 0.54·상성 칸, C.82a·b 병합 뒤): 109 의 첫 장면이 같은 이유로 깨져 111 로 (111~115 통과)
+  const r = replayOf(111);
   const scenes = selectScenes(r);
   it('같은 경기면 장면 선택과 장면 시각이 늘 같다 (결정적)', () => {
-    expect(selectScenes(replayOf(109))).toEqual(scenes);
+    expect(selectScenes(replayOf(111))).toEqual(scenes);
     expect(selectScenes(r)).toEqual(scenes);
   });
   it('장면 6~8개, 각 10~15초, 시간 순, 같은 시간대(20초 안) 중복 없음', () => {

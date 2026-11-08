@@ -208,7 +208,8 @@ export function transitionTick(s: SimState): void {
       x = normX(b.flight.toX, dir);
     }
     if (x === null) continue;
-    const gap = O.pressBreakGap / L;
+    // 게겐 뚫림 간격 배수 (C.81z, TENDENCY.gegenPressBreakMul): 게겐은 뚫림을 늦게 인정해 가담자가 자리를 더 오래 비운다
+    const gap = (O.pressBreakGap * (tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenPressBreakMul : 1)) / L;
     if (!tm.counterPressers.every((i) => normX(s.agents[i]!.x, dir) > x! + gap)) continue;
     tm.counterUntil = s.t;
     tm.brokeAt = s.t;
