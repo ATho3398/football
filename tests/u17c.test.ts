@@ -37,10 +37,16 @@ describe('S08 경기 준비 — 상대 예상 계획 · 상성 = 엔진 (2절 11
     }
   });
   it('상성 칸 = ENGINE.matchup 표 (우리 → 상대, 상대 → 우리)', () => {
+    // 값은 엔진 표에서 읽는다 (표가 바뀌어도 화면 = 표)
+    const KO: Record<string, string> = { long: '롱패스', air: '공중볼', touch: '퍼스트 터치', short: '짧은 패스', keep: '공 지키기', run: '돌파', tackle: '태클' };
+    const sgn = (v: number) => (v > 0 ? `\\+${v}` : `−${-v}`);
+    const row = (ENGINE.matchup.tikitaka?.direct ?? {}) as Record<string, number>;
+    const back = (ENGINE.matchup.direct?.tikitaka ?? {}) as Record<string, number>;
     const m = matchupOf('tikitaka', 'direct');
-    expect(m.mine).toBe('공중볼·짧은 패스·공 지키기·태클 +3');
-    expect(m.theirs).toContain('롱패스 −15');
-    expect(m.tone).toBe('up');
+    for (const [k, v] of Object.entries(row)) if (v) expect(m.mine).toMatch(new RegExp(`${KO[k]}[^+−]*${sgn(v)}`));
+    for (const [k, v] of Object.entries(back)) if (v) expect(m.theirs).toMatch(new RegExp(`${KO[k]}[^+−]*${sgn(v)}`));
+    const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
+    expect(m.tone).toBe(sum(row) > sum(back) ? 'up' : sum(row) < sum(back) ? 'down' : 'flat');
     expect(matchupOf('balanced', 'balanced')).toMatchObject({ mine: null, theirs: null, tone: 'flat' });
   });
   it('적합도 = 엔진 fitOnly 식(gain × fitGaps, ±cap) · 균형·블록은 보정 없음', () => {
