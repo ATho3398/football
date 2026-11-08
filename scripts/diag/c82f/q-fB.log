@@ -1,0 +1,5 @@
+
+> football-career@0.1.0 balance:quick
+> vite-node scripts/balance-quick.ts -- keeper.parryDownSave=0.4 keeper.catchSkill=0.4 physics.fatigueIntensity=0.45 keeper.oneOnOne.drop=0.6 keeper.saveBase=2.17
+
+  측정: 50/600 (31초)     측정: 100/600 (43초)     측정: 150/600 (54초)     측정: 200/600 (65초)     측정: 250/600 (77초)     측정: 300/600 (87초)     측정: 350/600 (98초)     측정: 400/600 (110초)   
