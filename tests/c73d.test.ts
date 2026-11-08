@@ -17,10 +17,11 @@ describe('C.73d 초기화면으로', () => {
   it('홈 머리말 왼쪽 위 ‹ = to-title (경기 중이 아닐 때만)', () => {
     const g = son();
     const on = homeView({ ...homeVM(g), exit: true });
-    expect(on).toMatch(/class="po-hero__back"[^>]*data-act="to-title"/);
+    // 17차 U17-a: ‹ 는 도구 줄(K13) 맨 왼쪽
+    expect(on).toMatch(/class="po-toolbar__btn po-toolbar__back"[^>]*data-act="to-title"/);
     const off = homeView({ ...homeVM(g), exit: false });
     expect(off).not.toContain('data-act="to-title"');
-    expect(off).toContain('po-hero__noback');
+    expect(off).not.toContain('po-toolbar__back');
   });
 
   it('설정 세이브 섹션에 [초기화면으로], 경기 중·게임 밖에는 없음', () => {

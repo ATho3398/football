@@ -2,14 +2,14 @@
 // 캘린더·주전 경쟁·신뢰도·전술 버튼은 아직 없는 기능이라 숨긴다 (I.19)
 
 import {
-  BottomSheet, Button, Crest, OptionRow, FormIndicator, HeroPanel, IconButton, Icon, PlayerCard, SectionTitle, TacticChip, esc, staminaOf, type IconName,
+  BottomSheet, Button, Crest, OptionRow, FormIndicator, HeroPanel, IconButton, Icon, ToolBar, PlayerCard, SectionTitle, TacticChip, esc, staminaOf, type IconName,
 } from '../components';
 import { BALANCE } from '../../config/balance';
 import { heroFaceOf } from '../faces';
 import { isLandPhone, isWide, skin } from '../skin';
 import type { DayVM, EnvVM, HomeVM, InjuryReturnVM, PositionOptionVM, RecordTrackVM, TrialVM } from '../viewModels';
 import type { WeatherKind } from '../../weather';
-import { banners, panel, pc2, startNotice, statTiles, versionFooter } from './common';
+import { banners, careerLinks, panel, pc2, startNotice, statTiles, versionFooter } from './common';
 import { PLAN_ICON } from './training';
 
 /** 미페 머리말을 쓰는지 (C.57 → C.74e PC 도): B 테마 + 내 선수 사진(페이스온 > facepack > 기본 사진)이 있을 때. A 테마·사진 없음·가로 폰(한 줄 머리말, C.74e 범위 밖)은 일반 머리말 */
@@ -37,31 +37,29 @@ function heroChips(vm: HomeVM): (string | { label: string; soft?: boolean })[] {
 
 export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top = '', goals = '', after = ''): string {
   const n = vm.next;
-  // C.70 (디자인 161): 날짜 옆은 저장·설정. C.76g (디자인 197·211): 안 읽은 인박스가 있으면 알림 종(배지), 코치 후보가 있으면 호루라기(배지, C.77q: 훈련 › 스태프로)
-  const tools = (vm.inbox ? IconButton({ act: 'go', data: { to: 'inbox' }, name: 'bell', label: `알림 ${vm.inbox}`, variant: 'ghost', badge: vm.inbox }) : '')
-    + (vm.money ? IconButton({ act: 'go', data: { to: 'staff' }, name: 'whistle', label: `코치 후보 ${vm.money}`, variant: 'ghost', badge: vm.money }) : '')
-    + IconButton({ act: 'go', data: { to: 'saves' }, name: 'disk', label: '저장', variant: 'ghost' }) + IconButton({ act: 'go', data: { to: 'settings' }, name: 'settings', label: '설정', variant: 'ghost' })
-    // 포토카드 도감 (C.75t, C.76g 디자인 240B album 아이콘)
-    + IconButton({ act: 'go', data: { to: 'dex' }, name: 'album', label: '포토카드 도감', variant: 'ghost' })
-    // 진열실 (C.76b): 트로피 · 유니폼
-    + IconButton({ act: 'go', data: { to: 'showroom' }, name: 'trophy', label: '진열실', variant: 'ghost' })
-    // 대표팀 (C.76d)
-    + IconButton({ act: 'go', data: { to: 'national' }, name: 'world', label: '대표팀', variant: 'ghost' })
-    // 개인 시상 (C.76n): 발롱도르 · 역대 수상자
-    + IconButton({ act: 'go', data: { to: 'awards' }, name: 'star', label: '개인 시상', variant: 'ghost' });
+  // 도구 줄 (17차 S03-c, K13 ToolBar): < · 날짜 글자 · 알림 · 코치 후보 · 저장 · 설정 — 아이콘 10개 → 4개.
+  // 도감 · 진열실 · 대표팀 · 시상은 더보기 격자(폰)와 홈 오른쪽 열 "커리어 바로가기"(PC)로 옮겼다
+  const tools = ToolBar({
+    back: vm.exit ? { act: 'to-title' } : false,
+    date: vm.day ? `${vm.day.short} (${vm.day.weekdayKo.slice(0, 1)})` : '비시즌',
+    items: [
+      { icon: 'bell', label: '알림', act: 'go', data: { to: 'inbox' }, ...(vm.inbox ? { badge: vm.inbox } : {}) },
+      { icon: 'whistle', label: '코치 후보', act: 'go', data: { to: 'staff' }, ...(vm.money ? { badge: vm.money } : {}) },
+      { icon: 'disk', label: '저장', act: 'go', data: { to: 'saves' } },
+      { icon: 'settings', label: '설정', act: 'go', data: { to: 'settings' } },
+    ],
+  });
   const face = homeFace(vm);
-  // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음
-  const back = vm.exit ? { act: 'to-title' } as const : false;
+  // C.73d: 왼쪽 위 ‹ = 초기화면으로(확인 시트 → 자동 저장). 경기 중·결정 순간에는 없음 (17차: 도구 줄 맨 왼쪽)
   // C.57 (디자인 B 86·132): 사진이 있으면 미페 머리말(등번호 · 사진 · 이름 · OVR), 없으면 C.39 작은 머리말(날짜 한 줄)
   const hero = face
     ? HeroPanel({
-      title: '홈', back, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.card.name,
+      title: '홈', toolbar: tools, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.card.name,
       eyebrow: vm.trial ? `${vm.team} · 1군 테스트 ${vm.trial.games}/${vm.trial.need}` : `${vm.team} · ${vm.card.position}`,
-      rightHtml: `<span class="hm-date">${esc(vm.day ? vm.day.short : '비시즌')}${vm.day ? ` (${esc(vm.day.weekdayKo.slice(0, 1))})` : ''}</span>${tools}`,
       value: vm.card.ovr, unit: `OVR · ${vm.card.position}`, chips: heroChips(vm),
     })
     : HeroPanel({
-      title: '홈', back, compact: true, rightHtml: tools,
+      title: '홈', compact: true, toolbar: tools,
       eyebrow: vm.day ? `${vm.season} 시즌 · ${vm.day.full}` : `${vm.season} 시즌 · 비시즌`,
       value: vm.day ? vm.day.short : '비시즌', pad: false, progress: false, chips: heroChips(vm),
     });
@@ -111,7 +109,7 @@ export function homeView(vm: HomeVM, extra = '', notice = '', training = '', top
   const head = `${vm.trial ? trialStrip(vm.trial) : ''}${banners(vm.banners)}${top}${startNotice(vm.version)}${life}${next}${after}`;
   const main = `${head}${goals}${training}${notice}${extra}`;
   // PC 2열 (C.61 디자인 120 → C.76g 디자인 204): 왼쪽 = 알림 · 다음 경기 · 오늘 훈련 · 기록 도전 … · 내 상태, 오른쪽 = 선수 카드 · 이번 시즌 4칸 · 시즌 목표 · 버전
-  if (isWide()) return `${hero}<div class="body home-body">${pc2(`${head}${training}${notice}${extra}${cond}`, `${card}${tiles}${goals}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
+  if (isWide()) return `${hero}<div class="body home-body">${pc2(`${head}${training}${notice}${extra}${cond}`, `${card}${tiles}${goals}${careerLinks()}${versionFooter(vm.version)}`, 'hm-pc')}</div>`;
   return `
     ${hero}
     <div class="body home-body">

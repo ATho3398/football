@@ -37,10 +37,10 @@ describe('독 v3 (201)', () => {
   const vm = (p: Partial<DockVM> = {}): DockVM => ({ screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' }, tacticsOpen: true, points: 0, more: false, inbox: 3, ...p });
   it('PC 11칸: 홈 · 선수 · 덱 · 전술 · 인박스 | [다음] | 훈련·일정 · 월드 · 재정 · 설정 · 저장', () => {
     // C.77q 메뉴 정리
-    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'more']); // 17차 U17-a 독 v4: 상점은 더보기 첫 칸
     expect(DOCK_PC).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog', 'player', 'shop', 'deck', 'tactics', 'settings', 'saves']);
     expect(dockPc(DOCK_PHONE).indexOf('prog')).toBe(5);
-    expect(DOCK_MORE).toEqual(['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves']);
+    expect(DOCK_MORE).toEqual(['shop', 'inbox', 'finance', 'world', 'deck', 'tactics', 'national', 'awards', 'collection', 'settings', 'saves']); // 17차 U17-a 더보기 격자 11칸
     const h = dock(vm());
     expect(h).toContain('po-dock--v3');
     expect(h).toContain('data-to="finance"');

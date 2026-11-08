@@ -10,6 +10,7 @@ import { homeView } from '../src/ui/views/home';
 import { HeroPanel } from '../src/ui/components';
 import { ICON_PATHS } from '../src/ui/components/iconPaths';
 import { setWideForTest } from '../src/ui/skin';
+import { dock } from '../src/ui/views/common';
 import { PATCH_LABEL } from '../src/version';
 
 const son = () => newGame({ mode: 'real', playerId: 'son', seed: 'c76g-son', difficulty: 'normal' });
@@ -32,12 +33,16 @@ describe('C.76g 공통 컴포넌트', () => {
 describe('C.76g 홈', () => {
   it('머리말 도구: 안 읽은 인박스 → 알림 종 배지, 코치 후보 → 호루라기 배지(C.77q: 훈련 › 코치·스태프), 도감 = album', () => {
     const vm = homeVM(son());
-    expect(homeView({ ...vm, inbox: 0, money: 0 })).not.toContain('data-to="inbox"');
+    // 17차 U17-a 도구 줄(K13): 알림 · 코치 후보 · 저장 · 설정 4개는 늘 있고, 배지만 바뀐다. 도감(album)은 더보기 격자 [수집]으로
+    const quiet = homeView({ ...vm, inbox: 0, money: 0 });
+    expect(quiet).toContain('aria-label="알림"');
+    expect(quiet).not.toContain('po-toolbar__badge');
     const html = homeView({ ...vm, inbox: 3, money: 2 });
     expect(html).toContain('aria-label="알림 3"');
     expect(html).toContain('aria-label="코치 후보 2"');
     expect(html).toContain('data-to="staff"');
-    expect(html).toContain(ICON_PATHS.album.slice(0, 20));
+    expect(html).not.toContain('data-to="dex"');
+    expect(dock({ screen: 'home', prog: { label: '계속', icon: 'chevron-right', act: 'day-continue' }, tacticsOpen: true, points: 0, more: true })).toContain(ICON_PATHS.album.slice(0, 20));
   });
   it('부상 칩 (228) · 시즌 목표는 다음 경기 바로 아래 (204)', () => {
     const g = son();

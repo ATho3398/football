@@ -18,6 +18,7 @@ import './design/bundle.css';
 import './design/skin-b.css';
 import './style.css';
 import './design/season.css';
+import './design/skin-b17.css';
 import { applySkin, isLandPhone, isWide, LANDPHONE_QUERY, setSkin, WIDE_QUERY } from './skin';
 
 import type { FieldAttribute } from '../attributes';
@@ -61,14 +62,14 @@ import type { Appearance } from '../appearance';
 import {
   checklistItems, FIRST_MATCH_LINES, isUnlocked, markDone, pendingIntro, refreshUnlocks, resetTips, tipFor, type FeatureId, type TipId,
 } from '../unlocks';
-import { checklistPanel, firstMatchOverlay, guideResetLink, tipBubble } from './views/guide';
+import { checklistPanel, firstMatchOverlay, guideResetLink } from './views/guide';
 import { PATCH_LABEL, STAGE_LABEL } from '../version';
-import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, Tabs, Toast, type ToastProps } from './components';
+import { Banner, Button, esc, HERO_NAME, HeroPanel, Icon, Modal, Tabs, Toast, TopStrip, TOP_STRIP_ORDER, type ToastProps, type TopStripProps } from './components';
 import {
   allocateVM, autoSheetVM, RARITY_KO, cupsWorldVM, homeVM, visiblePoints as homePoints, myFace, positionOptionsVM, matchResultVM, newGameVM, playerVM, replayStaticVM, retiredVM, chapterReviewVM, savesVM, seasonLabel, seasonVM, versionVM, worldVM,
 } from './viewModels';
 import { drawAvgMap } from './views/avgMap';
-import { dock, dockMoreSheet, retiredDock, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
+import { collectSheet, dock, dockMoreSheet, retiredDock, pitchViewSheet, roJosa, routeOf, type DockVM } from './views/common';
 import { autoLayerHtml, autoResultsHtml, autoSheet, type AutoResultLine } from './views/progress';
 import { isPortraitPitch, setMomentZoom, setPitchFaceResolver, setPitchKitClashResolver, setPitchNameResolver, setPitchNames, setPitchOrient, setPitchPixelResolver, setPitchSize, setPitchTeams, setPitchView, setPitchWeather } from './pitch/renderer';
 import { homeView, injuryReturnSheet, positionChangeSection, positionSheet, recordsLinkRow, recordsSection, scheduleView } from './views/home';
@@ -120,7 +121,7 @@ import { declineOffer, declineOffers, midWindowKo, windowKo, marketPending, rene
 import { jerseyPanelVM, showroomVM } from './jerseyVM';
 import { showroomView } from './views/showroom';
 import { requestJersey, showcasePut, showcaseTake } from '../jerseys';
-import { feedKind, setSeasonLabelKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
+import { feedKind, trialVM, setSeasonLabelKind, injuryReturnVM, presetEditVM, recordRowsVM, replayIndex, halftimeSets, halftimeVM, tacticsVM, trainingOptionsVM, type HalftimeDraft, type TacticsDraftUI } from './viewModels';
 import { customized, defaultSlot, moveSlot, slotPos, startCustom, withFormation, withTendency, type MyTactics } from '../myTactics';
 import { nearestCell } from '../formations';
 import { OUTSIDE_CLUBS } from '../../data/outsideClubs';
@@ -235,6 +236,8 @@ const ui = {
   legacy: null as null | { rank: number | null; legacy: LegacyStore },
   /** 독 더보기 시트 (모바일) */
   moreSheet: false,
+  /** 수집 고르기 시트 (17차 S03, 2절 28번): 도감 · 진열실 */
+  collectSheet: false,
   /** 더보기 줄을 끝까지 민 상태 (C.72 디자인 Dock `is-end`): 다시 그려도 위치를 지킨다 */
   moreEnd: false,
   /** 이적 제안 화면 펼친 제안 (C.60, 디자인 97) · 월드·결과 "더 보기" 펼침 (C.60) · 카드 획득 고른 칸 (디자인 85) */
@@ -550,14 +553,13 @@ function screenHtml(): string {
       if (ui.lvUp && hvm.points > 0) hvm.banners = hvm.banners.map((b) => (b.to === 'allocate' ? { ...b, title: `Lv ${ui.lvUp!.level} · 포인트 +${ui.lvUp!.plus}`, body: `레벨이 올랐어요. 찍을 포인트가 ${hvm.points}P가 됐어요.` } : b));
       // C.57 (디자인 133): 닫을 수 있는 알림(태그·구단 거절 소식·포변 조언)이 둘 이상이면 위에 "알림 n · 모두 닫기"
       const mvm = marketVM(g);
-      // 감독 면담 (C.62): 열린 면담 띠(닫기 없음). 알림(태그·포변 조언·면담 결과·이적 소식)은 인박스로 (C.63, 홈에는 안 읽은 것 3개)
+      // 감독 면담 (C.62 → 17차 S03-c): 열린 면담은 위 띠(TopStrip interview, topStrip). 알림(태그·포변 조언·면담 결과·이적 소식)은 인박스로 (C.63, 홈에는 안 읽은 것 3개)
       const comp = competitionVM(g);
-      const meetBand = comp?.meeting ? Banner({ tone: 'info', title: '감독이 면담하자고 해요', children: comp.hint, action: '면담하기', onAction: { act: 'go', data: { to: 'meeting' } } }) : '';
       const hin = homeInboxVM(g);
       const rv = rivalCardVM(g);
       const gl = goalsCardVM(g);
       // C.70 (디자인 161): 다음 경기 → 오늘 훈련 → 카드 덱 → (기록·주전 경쟁·라이벌) → 안내·포변. C.76g (디자인 204): 시즌 목표는 다음 경기 바로 아래
-      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsLinkRow(recordRowsVM(g).length) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, meetBand + marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '', homeTodoRow(g.cards?.picks.length ?? 0) + seasonCompsSection(seasonCompsVM(g))) + guideResetLink() + sheet;
+      return homeView(hvm, (list ? checklistPanel(list) : '') + pos, recordsLinkRow(recordRowsVM(g).length) + (comp ? competitionSection(comp) : '') + (rv ? rivalSection(rv) : ''), (hvm.training ? todayRow(hvm.training, hvm.day?.full ?? '') : '') + deck, marketCard(mvm) + homeInboxSection(hin.rows, hin.unread), gl ? goalsSection(gl) : '', homeTodoRow(g.cards?.picks.length ?? 0) + seasonCompsSection(seasonCompsVM(g))) + guideResetLink() + sheet;
     }
     case 'schedule': {
       const hvm = homeVM(g);
@@ -700,8 +702,8 @@ const INTRO_HEAD: Partial<Record<FeatureId, { title: string; cta: string }>> = {
 };
 
 /** 첫 플레이 안내 (21.4): 공개 소개 → 첫 경기 오버레이 → 말풍선 순으로 한 번에 하나만 */
-function guideHtml(g: GameState | null): { modal: string; tip: string } {
-  if (!g || ui.modal || g.phase === 'retired') return { modal: '', tip: '' };
+function guideHtml(g: GameState | null): { modal: string; tip: TopStripProps | null } {
+  if (!g || ui.modal || g.phase === 'retired') return { modal: '', tip: null };
   const intro = NAV_SCREENS.includes(ui.screen) ? pendingIntro(g.guide) : null;
   if (intro) {
     return {
@@ -713,16 +715,20 @@ function guideHtml(g: GameState | null): { modal: string; tip: string } {
             Button({ block: true, act: 'intro-ok', data: { id: intro.id, go: intro.id }, children: INTRO_HEAD[intro.id]!.cta })]
           : [Button({ block: true, act: 'intro-ok', data: { id: intro.id }, children: '확인' })],
       }),
-      tip: '',
+      tip: null,
     };
   }
   if (ui.screen === 'replay' && ui.replay && !g.guide.firstMatchSeen) {
     ui.replay.hold = true;
-    return { modal: firstMatchOverlay(FIRST_MATCH_LINES), tip: '' };
+    return { modal: firstMatchOverlay(FIRST_MATCH_LINES), tip: null };
   }
   const id = TIP_SCREENS[ui.screen];
   const text = id ? tipFor(g.guide, id) : null;
-  return { modal: '', tip: id && text ? tipBubble(id, text) : '' };
+  // 첫 방문 안내 (17차 S03-c): 위 띠 guide — 띠를 누르거나 ✕ = 이 안내 닫기, [안내 끄기] = 모든 안내 끄기
+  return {
+    modal: '',
+    tip: id && text ? { kind: 'guide', title: text, action: '안내 끄기', onAction: { act: 'tips-off' }, onTap: { act: 'tip-close', data: { v: id } }, onClose: { act: 'tip-close', data: { v: id } } } : null,
+  };
 }
 
 /**
@@ -761,7 +767,7 @@ function render(): void {
   // 은퇴 (C.81p): 진행 칸 없는 은퇴 독 — 커리어 요약 · 선수 · [새 게임] · 저장 · 설정
   const nav = !g ? '' : g.phase === 'retired' ? (RETIRED_NAV.includes(ui.screen) ? retiredDock(ui.screen) : '') : !NAV_HIDDEN.includes(ui.screen) ? dock(dockVM(g)) : '';
   const live = liveScreen();
-  const band = g && live && live !== ui.screen ? liveBand(live) : '';
+  const liveOther = !!(g && live && live !== ui.screen);
   const m = ui.modal;
   const guide = guideHtml(g);
   const modal = m
@@ -773,28 +779,21 @@ function render(): void {
       ],
     })
     : guide.modal;
-  const toast = ui.toast ? `<div class="toast-wrap${ui.toast.kind === 'levelup' ? ' is-bottom' : ''}">${Toast(ui.toast)}</div>` : '';
-  // C.63c: 진행 중 띠(중단 단추가 있는 토스트)는 머리말을 덮지 않게 화면을 그만큼 내린다
+  // 진행 중 띠 (17차 S03-c): [중단] 단추가 있는 진행 알림은 토스트가 아니라 위 띠(running). 다른 토스트는 자리 하나 = 독 위 16px (K10)
   const bandToast = ui.toast?.onAction?.act === 'sim-stop';
+  const toast = ui.toast && !bandToast ? `<div class="toast-wrap is-bottom">${Toast(ui.toast)}</div>` : '';
   document.documentElement.classList.toggle('is-landphone', isLandPhone());
   // C.66b: 피치가 가로면(기본) 결정 순간 피치 칸을 피치 비율에 맞춘다 (세로 피치 42% 고정 칸의 빈칸 없앰)
   document.documentElement.classList.toggle('is-pitch-portrait', isPortraitPitch());
-  app.className = `${nav ? 'has-nav ' : ''}${band ? 'match-lock ' : ''}${bandToast ? 'has-band-toast ' : ''}app-${ui.screen}`;
+  app.className = `${nav ? 'has-nav ' : ''}${liveOther ? 'match-lock ' : ''}app-${ui.screen}`;
   const pv = (ui.pvSheet ? pitchViewSheet() : '')
     + (ui.autoSheet && g && g.phase === 'season' ? autoSheet(autoSheetVM(g), ui.autoCount, ui.autoPrefs) : '')
     + (ui.moreSheet && g && isWide() && !isLandPhone() ? dockMoreSheet(isUnlocked(g.guide, 'tactics')) : '')
+    + (ui.collectSheet && g ? collectSheet() : '')
     + celebrateHtml(g);
-  // 새 버전 (C.77r → C.80x): 새 배포가 나오면 늘 위에 고정 배너. [업데이트] 한 번 = 저장 → 새 버전으로 → 새로고침.
-  // 실시간 경기 중에는 배너만(단추는 경기가 끝난 결과 화면부터). 진행 띠·모달이 떠 있을 때는 잠깐 숨긴다
-  const us = updateState();
-  const upd = us.available && !us.later && !bandToast && !m
-    ? `<div class="sw-update">${Banner({
-      tone: 'success', icon: 'info', title: `새 버전이 나왔어요 · ${versionName(us.remote)}`,
-      children: us.applying ? '저장하고 새 버전을 받는 중…' : live ? '경기가 끝나면 업데이트할 수 있어요' : us.remote && us.remote.save !== SAVE_FORMAT_VERSION ? '누르면 저장한 뒤 바뀌어요 · 세이브는 새 버전으로 자동으로 옮겨져요' : '누르면 저장한 뒤 바로 바뀌어요',
-      ...(us.applying || live ? {} : { action: '업데이트', onAction: { act: 'sw-reload' } }),
-    })}${us.applying ? '' : Button({ variant: 'ghost', size: 'sm', act: 'sw-later', children: '나중에' })}</div>`
-    : '';
-  app.innerHTML = `${band}<main class="screen screen-${ui.screen}">${guide.tip}${screenHtml()}</main>${nav}${pv}${modal}${toast}${upd}`;
+  // 위 띠 1종 (17차 S03-c, K9): 경기 중 > 자동 진행 > 면담 > 1군 테스트 > 새 버전 > 안내 — 한 번에 하나, 머리말 위 흐름 안(덮지 않음)
+  const strip = g ? topStrip(g, liveOther ? live : null, bandToast ? ui.toast : null, guide.tip, !!m) : '';
+  app.innerHTML = `${strip}<main class="screen screen-${ui.screen}">${screenHtml()}</main>${nav}${pv}${modal}${toast}`;
   fitHeroNames();
   bindDockMore();
   if (ui.screen === 'replay' && ui.replay) ui.replay.attach();
@@ -872,13 +871,51 @@ function dockVM(g: GameState): DockVM {
   return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g), coach: g.money?.candidates.length ?? 0 };
 }
 
-/** "경기 중 · 돌아가기" 띠 (C.39, C.54 디자인 60): 다른 화면 위에. 첫 줄 = 분·스코어, 둘째 줄 = 상태, 오른쪽 [경기로 돌아가기] */
-function liveBand(to: Screen): string {
-  const lv = ui.live;
-  const m = lv?.run.pending ?? lv?.oc?.vm.moment;
-  const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${scoreText(m.score[0], m.score[1])} ${lv.teams[1]}` : '경기 중';
-  const sub = lv && m?.type === 'halftime' ? '하프타임 · 후반 전술을 정하면 이어서 해요' : lv && m ? '결정 순간에서 멈췄어요 · 돌아가면 이어서 해요' : to === 'replay' ? '경기 재생 중 · 돌아가면 이어서 봐요' : '';
-  return `<button type="button" class="live-band" data-act="live-return"><span class="live-dot" aria-hidden="true"></span><span class="grow"><b>${esc(head)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><b class="live-back">경기로 돌아가기${Icon({ name: 'chevron-right', size: 14, strokeWidth: 2.6 })}</b></button>`;
+/** 위 띠를 그릴 화면: 게임 화면(독이 있는 화면)과 경기 화면 밖. 첫 화면·새 게임·커리어 요약에는 없음 */
+const STRIP_SCREENS_OFF: Screen[] = ['title', 'new', 'chapter'];
+
+/**
+ * 위 띠 1종 (17차 S03-c, K9 TopStrip): 경기 중(C.39 띠) · 자동 진행(C.63c 진행 토스트) · 면담(C.62 홈 띠) · 1군 테스트(C.45) · 새 버전(C.77r 배너) · 첫 방문 안내(21.4 말풍선)를
+ * 한 모양으로 합쳤다. 겹치면 TOP_STRIP_ORDER 앞쪽 하나만. 눌렀을 때 하는 일은 옛 띠와 같다
+ */
+function topStrip(g: GameState, liveTo: Screen | null, running: ToastProps | null, tip: TopStripProps | null, modalOpen: boolean): string {
+  if (STRIP_SCREENS_OFF.includes(ui.screen)) return '';
+  const c: Partial<Record<(typeof TOP_STRIP_ORDER)[number], TopStripProps>> = {};
+  if (liveTo) {
+    const lv = ui.live;
+    const m = lv?.run.pending ?? lv?.oc?.vm.moment;
+    const head = lv && m ? `경기 중 · ${m.minute}' ${lv.teams[0]} ${scoreText(m.score[0], m.score[1])} ${lv.teams[1]}` : '경기 중';
+    const sub = lv && m?.type === 'halftime' ? '하프타임 · 후반 전술을 정하면 이어서 해요' : lv && m ? '하루 진행·자동 진행·덱·저장은 잠겨요' : liveTo === 'replay' ? '경기 재생 중 · 돌아가면 이어서 봐요' : '';
+    c.live = { kind: 'live', title: head, ...(sub ? { text: sub } : {}), action: '경기로', onAction: { act: 'live-return' }, onTap: { act: 'live-return' } };
+  }
+  if (running) c.running = { kind: 'running', title: running.title, ...(running.body ? { text: running.body } : {}), action: running.action ?? '중단', onAction: running.onAction ?? { act: 'sim-stop' } };
+  const inGame = g.phase !== 'retired' && !NAV_HIDDEN.includes(ui.screen);
+  if (inGame && ui.screen !== 'meeting' && ui.screen !== 'moment' && ui.screen !== 'replay') {
+    const comp = competitionVM(g);
+    if (comp?.meeting) c.interview = { kind: 'interview', title: '감독이 면담하자고 해요', ...(comp.hint ? { text: comp.hint } : {}), action: '면담', onAction: { act: 'go', data: { to: 'meeting' } } };
+  }
+  // 1군 테스트: 홈은 머리말 아래 자세한 칸(trialStrip)이 있어 다른 화면에서만
+  if (inGame && ui.screen !== 'home' && ui.screen !== 'moment' && ui.screen !== 'replay') {
+    const t = trialVM(g);
+    if (t) {
+      const left = Math.max(0, t.need - t.games);
+      c.test = { kind: 'test', title: `1군 테스트 ${t.games}/${t.need} · 평균 평점 ${t.pass.toFixed(1)} 이상`, text: `남은 ${left}경기${t.avg != null ? ` · 지금 ${t.avg.toFixed(1)}` : ''}`, onTap: { act: 'go-tab', data: { v: 'home' } } };
+    }
+  }
+  // 새 버전 (C.77r → C.80x): [업데이트] 한 번 = 저장 → 새 버전으로 → 새로고침. 실시간 경기 중에는 띠만, 모달이 떠 있을 때는 잠깐 숨긴다
+  const us = updateState();
+  if (us.available && !us.later && !modalOpen) {
+    const live = liveScreen();
+    c.update = {
+      kind: 'update', title: `새 버전이 나왔어요 · ${versionName(us.remote)}`,
+      text: us.applying ? '저장하고 새 버전을 받는 중…' : live ? '경기가 끝나면 업데이트할 수 있어요' : us.remote && us.remote.save !== SAVE_FORMAT_VERSION ? '누르면 저장한 뒤 바뀌어요 · 세이브는 새 버전으로 자동으로 옮겨져요' : '누르면 저장한 뒤 바로 바뀌어요',
+      ...(us.applying || live ? {} : { action: '업데이트', onAction: { act: 'sw-reload' } }),
+      ...(us.applying ? {} : { secondary: { label: '나중에', act: 'sw-later' } }),
+    };
+  }
+  if (tip) c.guide = tip;
+  const k = TOP_STRIP_ORDER.find((x) => c[x]);
+  return k ? `<div class="${`top-strip top-strip--${k}`}">${TopStrip(c[k]!)}</div>` : '';
 }
 
 function livePlayers(g: GameState) {
@@ -1935,6 +1972,7 @@ app.addEventListener('click', (ev) => {
       return;
     }
     case 'sheet-close':
+      ui.collectSheet = false;
       ui.injSheet = false;
       ui.posSheet = null;
       ui.trainSheet = null;
@@ -2153,6 +2191,7 @@ app.addEventListener('click', (ev) => {
     case 'go':
     case 'go-tab': {
       ui.moreSheet = false;
+      ui.collectSheet = false;
       if (ui.cardSheet?.from === 'view') ui.cardSheet = null;
       if (ui.screen === 'new') readFormInputs();
       const to = redirectScreen((act === 'go-tab' ? v : el.dataset.to) ?? 'home', el.dataset.tab);
@@ -3575,6 +3614,11 @@ app.addEventListener('click', (ev) => {
       ui.moreEnd = false;
       render();
       return;
+    case 'collect-open':
+      ui.moreSheet = false;
+      ui.collectSheet = true;
+      render();
+      return;
     case 'noop':
       return;
     case 'raise': {
@@ -3673,7 +3717,8 @@ app.addEventListener('click', (ev) => {
         const ok = await saveGame(slot, g);
         if (ok) await copyReplays('auto', slot);
         render();
-        showToast(ok ? { kind: 'info', title: '저장했어요', body: `${Math.round(performance.now() - t0)} ms` } : '저장하지 못했어요 (브라우저 저장소를 쓸 수 없음)');
+        // K10 (17차 S00): 성공 · 오류 토스트
+        showToast(ok ? { kind: 'success', title: '저장했어요', body: `${Math.round(performance.now() - t0)} ms` } : { kind: 'error', title: '저장하지 못했어요', body: '브라우저 저장소를 쓸 수 없어요' });
       })();
       return;
     }

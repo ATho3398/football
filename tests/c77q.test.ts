@@ -18,18 +18,18 @@ afterEach(() => setWideForTest(null));
 
 describe('C.77q 독 재배치', () => {
   it('폰 = 홈 · 훈련 · [다음] · 선수 · 상점 · 더보기, 더보기 줄 = 인박스 · 재정 · 월드 · 덱 · 전술 · 설정 · 저장', () => {
-    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
-    expect(DOCK_MORE).toEqual(['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves']);
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'more']); // 17차 U17-a 독 v4: 상점은 더보기 첫 칸
+    expect(DOCK_MORE).toEqual(['shop', 'inbox', 'finance', 'world', 'deck', 'tactics', 'national', 'awards', 'collection', 'settings', 'saves']); // 17차 U17-a 더보기 격자 11칸
   });
   it('PC = 폰 순서 + 더보기 칸 펼침 (더보기 없음)', () => {
     expect(DOCK_PC).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog', 'player', 'shop', 'deck', 'tactics', 'settings', 'saves']);
     expect(DOCK_PC).not.toContain('more');
   });
-  it('상점 칸 → 상점 화면, 상점 화면에서 켜짐 · 더보기는 안 켜짐', () => {
+  it('상점 칸 → 상점 화면, 상점 화면에서 켜짐 · 폰은 상점이 더보기 안이라 더보기가 켜짐 (17차 U17-a)', () => {
     const html = dock(dvm('shop'));
     expect(html).toContain('data-to="shop"');
     expect(html).toMatch(/is-on"[^>]*data-act="go" data-to="shop"/);
-    expect(html).not.toMatch(/is-on"[^>]*data-act="dock-more"/);
+    expect(html).toMatch(/is-on"[^>]*data-act="dock-more"/);
   });
   it('코치 후보 배지는 훈련 칸', () => {
     const html = dock(dvm('home', { coach: 2 }));

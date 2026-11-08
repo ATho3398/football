@@ -25,7 +25,7 @@ afterEach(() => setWideForTest(null));
 describe('독 칸 배열 하나 (C.61)', () => {
   it('PC 9칸은 폰 독 순서에서 만든다: 홈 · 덱 · 전술 + 폰 나머지 ([다음] 5번째 가운데) + 더보기 자리에 월드 · 설정 · 저장 (C.66)', () => {
     // C.77q: 폰 독 순서 + 더보기 칸 펼침
-    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'more']); // 17차 U17-a 독 v4: 상점은 더보기 첫 칸
     expect(DOCK_PC).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog', 'player', 'shop', 'deck', 'tactics', 'settings', 'saves']);
     expect(DOCK_PC.indexOf('prog')).toBe(5);
     // 폰 칸을 바꿔도 PC는 같은 칸 묶음(더보기 없음)
