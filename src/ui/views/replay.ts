@@ -4,10 +4,10 @@
 // 화면 모듈은 뷰모델만 받아 HTML 을 만들고(부록 H.2), 캔버스와 자주 바뀌는 값은 ReplayPlayer 가 갱신한다.
 
 import { HL, possessionSummary, sceneClass, selectScenes, type Scene } from '../../highlights';
-import { HL_CLASS_SHORT } from '../../highlightClass';
+import { HL_CLASS_KO, type HighlightClass } from '../../highlightClass';
 import { clockLabel, frameAt, frameIndex, interpolateFrame, scoreAt, settledFrames, SPEEDS, type Replay, type ReplayFrame } from '../../replay';
 import {
-  Avatar, Button, esc, FeedItem, Icon, Pitch, PitchLegend, PossessionBar, ScoreBar, StatChip, type ScoreView,
+  Avatar, Button, Crest, esc, FeedItem, Icon, Pitch, PitchLegend, PossessionBar, StatChip, TacticChip,
 } from '../components';
 import { replayLiveVM, sceneName, type FeedVM, type ReplayStaticVM } from '../viewModels';
 import { pitchViewButton } from './common';
@@ -23,7 +23,7 @@ export interface ReplayVM extends ReplayStaticVM {
   mode: ReplayMode;
   /** 지금 장면 번호 (1부터)와 장면 수 */
   scene: number;
-  scenes: { minute: string; label: string; key: number }[];
+  scenes: SceneTile[];
   sceneLabel: string;
   /** 지금 시점 (흐른 시간 e). 실시간에서는 이 시점까지 지나간 장면만 칸을 연다 (C.81o) */
   at: number;
@@ -35,14 +35,23 @@ export interface ReplayVM extends ReplayStaticVM {
 
 const SCENE_SHORT: Record<Scene['kind'], string> = { goal: '골', chance: '기회', decision: '내 결정', me: '내 장면', opponent: '상대', shot: '슈팅' };
 
-export function sceneTiles(r: Replay, scenes: Scene[]): { minute: string; label: string; key: number }[] {
+/** 장면 칸 (17차 S10, 2절 13번): 이름은 결과 화면 클립과 같은 긴 이름("결정적 장면"·"내 최고 순간"), 색은 분류 — 골 라임 · 실점 주황 · 결정적 장면 흰 · 내 최고 순간 시안 */
+export type SceneTile = { minute: string; label: string; key: number; cls: HighlightClass | 'decision' | 'other' };
+
+export function sceneTiles(r: Replay, scenes: Scene[]): SceneTile[] {
   // C.81o: 골·실점·기회·내 장면 이름은 highlightClass 한 곳
-  const labelOf = (sc: Scene) => { const c = sceneClass(sc, r.side); return c ? HL_CLASS_SHORT[c] : SCENE_SHORT[sc.kind]; };
   return scenes.map((sc) => {
-    if (sc.kind === 'decision') return { minute: `${sc.minute ?? ''}'`, label: SCENE_SHORT.decision, key: sc.key };
+    if (sc.kind === 'decision') return { minute: `${sc.minute ?? ''}'`, label: SCENE_SHORT.decision, key: sc.key, cls: 'decision' as const };
     const ev = r.events.find((x) => x.e >= sc.key - 0.01 && (x.type === 'shot' || x.type === 'goal'));
-    return { minute: ev ? `${ev.minute}'` : '', label: labelOf(sc), key: sc.key };
+    const c = sceneClass(sc, r.side);
+    return { minute: ev ? minuteText(ev.minute) : '', label: c ? HL_CLASS_KO[c] : SCENE_SHORT[sc.kind], key: sc.key, cls: c ?? 'other' };
   });
+}
+
+/** 분 표기 (minute.ts, 2절 12번): 이미 "90+3'"처럼 만든 글자면 그대로, 숫자면 "n'" */
+function minuteText(m: number | string): string {
+  const t = String(m);
+  return t.endsWith("'") ? t : `${t}'`;
 }
 
 /** 장면 칸 하나 (C.81o): 실시간은 지금 시점(at)까지 지나간 장면만 연다 — 아직 안 일어난 골·실점이 미리 보이지 않게 */
@@ -54,57 +63,77 @@ export function sceneTileClass(vm: Pick<ReplayVM, 'mode' | 'scene' | 'at'>, n: n
 const tileInner = (s: { minute: string; label: string }, n: number, open: boolean) =>
   `<span class="po-num">${open ? esc(s.minute) : '·'}</span><span>${open ? esc(s.label) : n}</span>`;
 
+/** 실시간 칸 (2절 18번): 지나간 장면만 그린다 — 아직 안 온 칸은 자리도 숨김 */
+function tileHtml(vm: ReplayVM, s: SceneTile, i: number): string {
+  const n = i + 1;
+  const cls = sceneTileClass(vm, n, s.key);
+  const open = vm.mode === 'live' ? cls === 'done' : n <= vm.scene || cls === 'done';
+  const hide = vm.mode === 'live' && !open;
+  return `<div class="scene-tile ${cls}${open ? ` is-${s.cls}` : ''}" data-key="${s.key}" data-cls="${s.cls}"${hide ? ' hidden' : ''}>${n === vm.scene && cls === 'on' ? '<i class="scene-tile__now">보는 중</i>' : ''}${tileInner(s, n, open)}</div>`;
+}
+
 export function replayView(vm: ReplayVM): string {
   const ended = vm.mode === 'ended';
-  const view: ScoreView | undefined = ended ? undefined : vm.mode === 'live' ? 'live' : vm.mode === 'transition' ? 'transition' : 'highlight';
   const total = vm.scenes.length;
-  const score = ScoreBar({
-    idPrefix: 'rp', home: vm.home, away: vm.away, homeScore: 0, awayScore: 0, minute: '0',
-    ...(vm.homeTactic ? { homeTactic: vm.homeTactic } : {}), ...(vm.awayTactic ? { awayTactic: vm.awayTactic } : {}),
-    ...(view ? { view } : {}),
-    scene: { index: vm.mode === 'transition' ? vm.scene : vm.scene, total, ...(vm.mode === 'scene' ? { label: vm.sceneLabel } : {}) },
-    ...(vm.transition ? { minuteTo: vm.transition.to } : {}),
-    speed: ended ? false : `${vm.speed}×`, speeds: SPEEDS.map((s) => `${s}×`), paused: vm.paused,
-    onSpeed: { act: 'rp-speed' }, onPause: { act: 'rp-toggle' }, onSkip: { act: 'rp-skip' },
-    onLive: { act: 'rp-live' }, onHighlight: { act: 'rp-highlight' }, ...(vm.clips ? { noLive: true } : {}),
-  });
+  const cur = vm.scenes[vm.scene - 1];
+  // 17차 S10 위 줄: 하이라이트 장면 n/전체 · 실시간 · 클립 n/전체 · 분류 — 오른쪽 큰 단추 하나
+  const lead = vm.mode === 'live' ? '<i class="po-live"></i>' : Icon({ name: 'video', size: 16 });
+  const title = vm.clips
+    ? `<b>클립</b> <span class="po-num">${vm.scene}/${total}</span>${cur ? ` · ${esc(cur.label)}` : ''}`
+    : vm.mode === 'live' ? `<b>실시간</b> · <span class="po-num" id="rp-strip-min">0'</span>`
+    : vm.mode === 'transition' ? `<b>장면 전환</b> · 다음 <span class="po-num">${vm.scene + 1}/${total}</span>`
+    : ended ? '<b>경기 종료</b>'
+    : `<b>하이라이트</b> · 장면 <span class="po-num">${vm.scene}/${total}</span>`;
+  const sub = vm.mode === 'scene' || vm.clips ? `${cur?.minute ? `${esc(cur.minute)} ` : ''}${esc(vm.sceneLabel)}` : vm.mode === 'transition' && vm.transition ? `${esc(vm.transition.from)}' → ${esc(vm.transition.to)}'` : '';
+  const topBtn = vm.clips
+    ? Button({ variant: 'secondary', size: 'sm', iconRight: 'chevron-right', act: 'rp-result', className: 'rp-top__btn', children: '결과로' })
+    : vm.mode === 'live' ? Button({ variant: 'secondary', size: 'sm', icon: 'video', act: 'rp-highlight', className: 'rp-top__btn', children: '하이라이트로' })
+    : vm.mode === 'scene' || vm.mode === 'transition' ? Button({ size: 'sm', icon: 'play', act: 'rp-live', className: 'rp-top__btn', ...(vm.mode === 'transition' ? { disabled: true } : {}), children: '여기서부터 실시간' })
+    : '';
+  const tac = (t: ReplayVM['homeTactic'], away = false) => (t ? TacticChip({ size: 'xs', ...(away ? { away: true } : {}), ...t }) : '<span></span>');
+  // 점수 (0절 5번): "0 : 0" 한 덩어리 — 분 칩 옆, 줄바꿈 없음
+  const head = `<header class="rp-top">
+      <div class="rp-top__row"><span class="rp-top__lead">${lead}<span class="rp-top__title">${title}</span></span>${topBtn}</div>
+      ${sub ? `<small class="rp-top__sub">${sub}</small>` : ''}
+      <div class="rp-score"><span class="rp-score__team">${Crest({ name: vm.home, size: 24 })}<b>${esc(vm.home)}</b></span><span class="rp-score__mid"><span class="rp-score__min po-num" id="rp-clock">0'</span><b class="rp-score__board po-num score-cell"><span id="rp-h">0</span> : <span id="rp-a">0</span></b></span><span class="rp-score__team is-away"><b>${esc(vm.away)}</b>${Crest({ name: vm.away, size: 24, color: 'var(--away)' })}</span></div>
+      <div class="rp-score__tactics">${tac(vm.homeTactic)}${tac(vm.awayTactic, true)}</div>
+      <span class="po-strip__note rp-note" id="rp-note" hidden>${Icon({ name: 'throwin', size: 14 })}<span id="rp-note-text"></span></span>
+    </header>`;
   const overlay = vm.transition ? `<div class="tr-clock po-num">${esc(vm.transition.from)}' ${Icon({ name: 'arrow-flat', size: 22 })} ${esc(vm.transition.to)}'</div>` : '';
-  const legendLeft = vm.mode === 'transition' ? '<i class="dot faint"></i>다음 장면으로 넘어가는 중 · 약 1초'
-    : vm.mode === 'live' ? `<i class="dot"></i>실시간 · 실제 속도 ${vm.speed}×`
+  const legendLeft = vm.mode === 'transition' ? '<i class="dot faint"></i>다음 장면으로 · 약 1초'
+    : vm.mode === 'live' ? `<i class="dot"></i>실시간 · ${vm.speed}×`
     : ended ? '<i class="dot faint"></i>경기 종료'
-    : `<i class="dot"></i>장면 ${vm.scene} · 실제 속도 ${vm.speed}×`;
+    : `<i class="dot"></i>장면 ${vm.scene} · ${vm.speed}×`;
   const tiles = total
-    ? `<div class="panel hl-panel"><div class="kv small"><b>${vm.clips ? '하이라이트 클립' : '오늘의 하이라이트'}</b><span class="muted">${vm.clips ? `${total}개 · 클립당 약 16초 (앞뒤 8초)` : `${total}장면 · 약 ${Math.round(total * 13)}초 · 장면당 10~15초`}</span></div>
-      <div class="scene-tiles" style="grid-template-columns:repeat(${total},minmax(0,1fr))">${vm.scenes.map((s, i) => {
-        const n = i + 1;
-        const cls = sceneTileClass(vm, n, s.key);
-        const open = vm.mode === 'live' ? cls === 'done' : n <= vm.scene || cls === 'done';
-        return `<div class="scene-tile ${cls}" data-key="${s.key}">${tileInner(s, n, open)}</div>`;
-      }).join('')}</div></div>`
+    ? `<div class="panel hl-panel"><div class="kv small"><b>${vm.clips ? '하이라이트 클립' : '오늘의 하이라이트'}</b><span class="muted">${vm.clips ? `${total}개 · 클립당 약 16초` : `${total}장면 · 약 ${Math.round(total * 13)}초`}</span></div>
+      <div class="scene-tiles">${vm.scenes.map((s, i) => tileHtml(vm, s, i)).join('')}</div></div>`
     : '';
   const trCard = vm.transition
     ? `<div class="tr-card"><span class="tr-card__icon">${Icon({ name: 'ff', size: 18 })}</span><span><small>${esc(vm.transition.from)}' ~ ${esc(vm.transition.to)}' 요약</small><b>${esc(vm.transition.summary)}</b></span></div>`
     : '';
   const me = vm.me
-    ? `<div class="me-row">${Avatar({ size: 44, ring: true })}<div class="grow"><span class="me-row__name">${esc(vm.me.name)} <span class="slot-chip">${esc(vm.me.position)}</span></span><span id="rp-my" class="chips"></span></div></div>`
+    ? `<div class="me-row">${Avatar({ size: 44, ring: true })}<div class="grow"><span class="me-row__name">${esc(vm.me.name)} <span class="slot-chip">${esc(vm.me.position)}</span><span class="slot-chip is-me">나</span></span><span id="rp-my" class="chips"></span></div></div>`
     : '';
-  // 1024px 이상은 2단(왼쪽 피치, 오른쪽 점수·피드·기록), 모바일은 한 줄로 기존 순서 그대로 (부록 C.23, style.css)
+  // 아래 고정 띠 (17차 S10): 일시정지 · 1× · 2× · 4× · 건너뛰기 — 높이 64, 누르는 영역 44 이상. 클립은 [건너뛰기] = 지금 클립만 (2절 S10 사소)
+  const bar = ended ? '' : `<nav class="rp-bar" aria-label="재생 조작"><button type="button" class="rp-bar__btn" data-act="rp-toggle" aria-label="${vm.paused ? '재생' : '일시정지'}">${Icon({ name: vm.paused ? 'play' : 'pause', size: 18 })}</button>${
+    SPEEDS.map((s) => `<button type="button" class="rp-bar__btn${vm.speed === s ? ' is-on' : ''}" data-act="rp-speed" data-v="${s}" aria-pressed="${vm.speed === s}"${vm.mode === 'transition' ? ' disabled' : ''}><span class="po-num">${s}×</span></button>`).join('')}<button type="button" class="rp-bar__btn rp-bar__skip" data-act="rp-skip">${Icon({ name: 'skip', size: 16 })}<span>${vm.clips && vm.scene < total ? '다음 클립' : '건너뛰기'}</span></button></nav>`;
+  // 1024px 이상은 2단(왼쪽 피치, 오른쪽 점수·피드·기록), 모바일은 한 줄로 (부록 C.23 → 17차 S10)
   return `
-    <div class="match">
+    <div class="match rp17${vm.clips ? ' is-clips' : ''}${ended ? ' is-ended' : ''}">
       <div class="match-main">
+        ${head}
         <div class="pitch-wrap">${Pitch({ canvasId: 'rp-canvas', label: '경기장', children: overlay })}${pitchViewButton()}</div>
         ${PitchLegend(`<span id="rp-legend">${legendLeft}</span>`)}
         ${tiles}
       </div>
       <div class="match-side">
-        <div class="m-score">${score}</div>
         ${trCard}
         <div id="rp-feed" class="feed"></div>
         ${me}
         <div class="poss-wrap" id="rp-poss">${PossessionBar({ home: 50 })}</div>
         ${ended ? `<div class="btn-col">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'rp-result', children: '결과 보기' })}</div>` : ''}
       </div>
-    </div>`;
+    </div>${bar}`;
 }
 
 interface Extra extends FeedVM {
@@ -218,6 +247,19 @@ export class ReplayPlayer {
     closeGoalSplash();
   }
 
+  /** 클립 [다음 클립] (17차 2절 S10 사소): 지금 클립만 넘기고 다음 클립 처음으로. 마지막 클립이면 false (화면이 결과로) */
+  skipScene(): boolean {
+    const next = this.scenes[this.idx + 1];
+    if (!next) return false;
+    closeGoalSplash();
+    this.idx++;
+    this.e = next.start;
+    this.mode = 'scene';
+    this.camSnap = true;
+    this.onChange();
+    return true;
+  }
+
   /** [여기서부터 실시간]: 지금 시점부터 끊김 없이 실제 속도로 */
   goLive(): void {
     if (this.fixedScenes) return;
@@ -244,7 +286,8 @@ export class ReplayPlayer {
     tiles.forEach((el, i) => {
       const s = list[i];
       if (!s || el.classList.contains('done') || s.key > at + 0.01) return;
-      el.classList.add('done');
+      el.classList.add('done', `is-${s.cls}`);
+      el.hidden = false;
       el.innerHTML = tileInner(s, i + 1, true);
     });
   }
@@ -346,14 +389,15 @@ export class ReplayPlayer {
       set('rp-note-text', label ?? '');
     }
     // 빨리 감기 배속 = 고른 배속 × 재개 대기 배율 (C.81o: 예전엔 2×·4×를 골라도 "4×"로 보였다)
-    if (label) set('rp-legend', `경기 중단 · ${label}${this.ffFactor() > 1 ? ` · 빨리 감기 ${this.speed * HL.deadBallFf}×` : ''}`);
+    // 17차 2절 18번: 상태 문구의 배속 = 고른 배속 (재개 대기 빨리 감기는 "빨리 감기"만)
+    if (label) set('rp-legend', `경기 중단 · ${label}${this.ffFactor() > 1 ? ' · 빨리 감기' : ''}`);
     const key = `${live.feed.length}:${this.mode}:${live.possession}:${label}`;
     if (key !== this.shown) {
       this.shown = key;
       const feed = document.getElementById('rp-feed');
       const lines = [...live.feed].sort((a, b) => (a.e ?? 0) - (b.e ?? 0));
       // 넓은 화면(2단, 가로 폰 포함 C.66)은 오른쪽 칸에 더 많이 (부록 C.23)
-      const keep = isWide() ? 10 : 3;
+      const keep = isWide() ? 10 : 2; // 17차 S10: 폰 844 안에 해설 · 내 선수 줄이 아래 띠 위로
       if (feed) feed.innerHTML = lines.length ? lines.slice(-keep).map((x) => FeedItem(x)).join('') : FeedItem({ text: '킥오프를 기다리는 중', kind: 'normal' });
       const poss = document.getElementById('rp-poss');
       if (poss) poss.innerHTML = PossessionBar({ home: this.replay.side === 0 ? live.possession : 100 - live.possession });

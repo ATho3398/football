@@ -409,3 +409,126 @@ button.po-prow { cursor: pointer; }
   .prep-pc3 .prep-deck { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .prep-pc3 .prep-deck__cell .po-card { width: 100%; }
 }
+
+/* ---------- U17-d S10 경기 재생 (적용 명세 1절 S10 · 2절 S10) ----------
+   위 줄(하이라이트 장면 n/전체 · 큰 단추 하나) · 점수 "0 : 0" 한 덩어리 · 피치 · 장면 칸 4열(분류 색) · 해설 · 내 선수 · 점유율 · 아래 고정 조작 띠.
+   독 숨김(main.ts), 폰 844 안에 해설 1줄 이상 + 내 선수 줄이 띠 위(2절 32번). */
+.rp17 { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.rp17 .rp-top { order: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 8px; background: var(--surface-1); }
+.rp-top__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.rp-top__lead { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-top__lead .po-icon { color: var(--brand-ink); flex: none; }
+.rp-top__title { overflow: hidden; text-overflow: ellipsis; }
+.rp-top__title b { font-weight: 900; }
+.rp-top__btn { flex: none; min-height: 44px; }
+.rp-top__sub { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.rp-score__team { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.rp-score__team b { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-score__team.is-away { justify-content: flex-end; }
+.rp-score__team.is-away b { color: var(--away); }
+.rp-score__mid { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.rp-score__min { display: inline-flex; align-items: center; height: 26px; padding: 0 8px; font-size: 14px; font-weight: 800; color: var(--brand-ink); box-shadow: inset 0 0 0 1.5px var(--brand); transform: skewX(-8deg); }
+.rp-score__board { font-family: var(--font-display); font-style: italic; font-size: 32px; line-height: 1; font-weight: 900; white-space: nowrap; }
+.rp-score__tactics { display: flex; justify-content: space-between; gap: 8px; }
+.rp-score__tactics .po-tchip__name, .rp-score__tactics .po-tchip__form { font-size: 12px; }
+.rp-note { font-size: 12px; }
+.rp17 .pitch-wrap { position: relative; padding-top: 4px; }
+.rp17 .pv-btn { min-height: 44px; min-width: 44px; padding: 0 12px; font-size: 12px; }
+.rp17 .po-pitch-legend { font-size: 12px; min-height: 28px; flex-wrap: wrap; row-gap: 2px; }
+.rp17 .hl-panel { padding: 10px 12px; }
+.rp17 .hl-panel .kv b { font-size: 14px; } .rp17 .hl-panel .kv span { font-size: 12px; }
+.rp17 .scene-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.rp17 .scene-tile { position: relative; height: auto; min-height: 44px; padding: 4px 2px; gap: 0; overflow: visible; }
+.rp17 .scene-tiles { padding-top: 6px; }
+.rp17 .scene-tile[hidden] { display: none; }
+.rp17 .scene-tile .po-num { font-size: 14px; font-family: var(--font-display); font-style: italic; }
+.rp17 .scene-tile span:last-child { font-size: 12px; }
+.rp17 .scene-tile.done, .rp17 .scene-tile.on { background: var(--surface-2); }
+/* 2절 13번: 골 라임 · 실점 주황 · 결정적 장면 흰 · 내 최고 순간 시안 (라임은 테두리 · 글자만 — 큰 면은 [여기서부터 실시간] 하나) */
+.rp17 .scene-tile.is-goal { color: var(--brand-ink); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.rp17 .scene-tile.is-concede { color: var(--away); box-shadow: inset 0 0 0 1.5px var(--away); }
+.rp17 .scene-tile.is-chance { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.rp17 .scene-tile.is-best { color: var(--mine); box-shadow: inset 0 0 0 1.5px var(--mine); }
+.rp17 .scene-tile.on { outline: 2px solid var(--ink); outline-offset: 1px; color: var(--ink); padding-top: 10px; }
+.rp17 .scene-tile.on.is-goal { color: var(--brand-ink); }
+.rp17 .scene-tile.next { box-shadow: inset 0 0 0 1.5px var(--ink-muted); color: var(--ink-muted); }
+.scene-tile__now { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); padding: 0 4px; font-style: normal; font-size: 12px; line-height: 16px; font-weight: 800; background: var(--ink); color: var(--surface-0, #121317); white-space: nowrap; }
+.rp17 .tr-card small { font-size: 12px; }
+.rp17 .feed { min-height: 0; }
+.rp17 .me-row { padding: 8px 12px; border-left: 3px solid var(--mine); }
+.rp17 .slot-chip { font-size: 12px; }
+.rp17 .slot-chip.is-me { background: var(--mine); color: var(--on-mine, #06222b); }
+.rp17 .po-poss__label { font-size: 12px; }
+/* 아래 고정 조작 띠: 일시정지 · 1× · 2× · 4× · 건너뛰기 (높이 64, 칸 48) */
+.rp-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1.8fr; gap: 6px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--surface-1); box-shadow: 0 -1px 0 var(--line); }
+.rp-bar__btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; border: 0; background: var(--surface-2); color: var(--ink); font-family: var(--font-display); font-style: italic; font-size: 16px; font-weight: 900; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); cursor: pointer; }
+.rp-bar__btn.is-on { color: var(--brand-ink); box-shadow: inset 0 0 0 2px var(--brand); background: var(--surface-3); }
+.rp-bar__btn:disabled { opacity: .45; cursor: default; }
+.rp-bar__skip { font-family: var(--font-sans); font-style: normal; font-size: 14px; font-weight: 800; }
+/* S10-d 확인 모달 경고 아이콘 = warning 색 (2절 S10 사소) */
+.po-modal__icon--warning { background: var(--warning-soft); color: var(--warning); }
+@media (min-width: 1024px) {
+  .rp17 { padding-bottom: 24px; }
+  .rp17 .rp-top { border-radius: var(--b-r-lg, 16px); }
+  .rp17 .scene-tiles { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
+  .app-replay .rp17 .match-side { max-height: calc(100dvh - 104px); }
+  .rp-bar { left: auto; right: calc(max(0px, (100vw - 1180px) / 2) + 12px); bottom: 12px; width: 320px; padding: 8px; border-radius: var(--b-r-lg, 16px); box-shadow: inset 0 0 0 1px var(--line-strong); grid-template-columns: 1fr 1fr 1fr 1fr 1.6fr; }
+  .rp-bar__skip span { font-size: 13px; }
+}
+
+/* ---------- U17-d S11 경기 결과 (적용 명세 1절 S11 · 2절 S11) ---------- */
+.screen-match .po-hero__back { min-width: 44px; min-height: 44px; }
+.mr-v17 :is(.po-btn--sm, .po-banner__action, .cu-more, .rec-more > summary) { min-height: 44px; }
+.mr-v17 .rec-more > summary { display: flex; align-items: center; font-size: 13px; }
+.mr-v17 .mr-head--row .mr-team { min-height: 44px; }
+.mr-v17 :is(.mr-goal, .dec-row, .cu-row) .dt-link { display: inline-block; padding: 13px 0; margin: -13px 0; }
+.mr-v17 :is(.muted, .small, small, .po-poss__label, .cup-banner__kicker, .cup-banner__big small, .cu-row small, .mr-goal small, .mr-goal__me, .mr-goal__team, .mr-clip__badge) { font-size: max(12px, 1em); }
+.mr-v17 .cup-banner__kicker, .mr-v17 .cup-banner__big small, .mr-v17 .mr-goal small, .mr-v17 .cu-row small { font-size: 12px; }
+/* 결장 안내 */
+.mr-bench { margin: 10px 0; }
+.mr-bench .po-panel__title { font-size: 15px; }
+/* 하이라이트 한 판: 머리(아이콘 · 장면 수 · [다시보기]) + 클립 줄(왼쪽 막대 분류 색) + [n개 이어 보기] 링크 */
+.mr-hl { gap: 8px; margin: 10px 0; }
+.mr-hl__head { display: flex; align-items: center; gap: 12px; }
+.mr-hl__head .grow { min-width: 0; }
+.mr-hl__head small { color: var(--ink-muted); font-size: 12px; }
+.mr-hl__rewatch { flex: none; min-height: 44px; }
+.mr-hl .mr-clips { margin: 0; }
+.mr-hl .mr-clip { min-height: 56px; background: var(--surface-2); }
+.mr-hl .mr-clip .dec-main b { word-break: keep-all; overflow-wrap: anywhere; }
+.mr-hl__all { justify-content: center; }
+/* 득점 줄 (2절 25번): 우리 골 = 라임 테두리 + 점(라임 면은 머리말 한 번), 실점 = 주황 테두리. 점수 "1 : 0" 오른쪽 고정 칸 */
+.mr-v17 .mr-goal { background: var(--surface-1); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brand); min-height: 48px; }
+.mr-v17 .mr-goal .po-icon { color: var(--brand-ink); }
+.mr-v17 .mr-goal .mr-goal__who { word-break: keep-all; overflow-wrap: anywhere; }
+.mr-v17 .mr-goal .mr-goal__score { flex: none; white-space: nowrap; color: var(--brand-ink); }
+.mr-v17 .mr-goal.is-opp { box-shadow: inset 0 0 0 1.5px var(--away); }
+.mr-v17 .mr-goal.is-opp .mr-goal__score, .mr-v17 .mr-goal.is-opp .po-icon { color: var(--away); }
+.mr-v17 .mr-goal__me { background: var(--mine); color: var(--on-mine, #06222b); }
+/* 대회 배너 우승도 라임 테두리(면 아님) — 결과 화면 라임 큰 면은 머리말 하나 */
+.mr-v17 .cup-banner.is-won { background: var(--surface-1); color: var(--ink); border: 0; box-shadow: inset 0 0 0 1.5px var(--brand); }
+.mr-v17 .cup-banner.is-won .cup-banner__icon { background: var(--surface-3); color: var(--brand-ink); }
+.mr-v17 .cup-banner.is-won .cup-banner__kicker { color: var(--brand-ink); }
+/* 쓴 카드 · 전술 리포트 판 */
+.mr-report { margin: 10px 0; }
+.mr-report .po-panel__toggle { min-height: 44px; }
+.mr-report .po-panel__summary { font-size: 13px; color: var(--ink-muted); word-break: keep-all; }
+.mr-report__k { display: block; margin: 4px 0 6px; }
+/* PC 3열 */
+@media (min-width: 1024px) {
+  #app:has(.mr-pc3) { max-width: 1280px; }
+  .mr-v17:has(.mr-pc3) { max-width: 1240px; margin: 0 auto; padding: 16px 20px 24px; }
+  .mr-pc3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.05fr); gap: 16px; align-items: start; }
+  .mr-col { display: flex; flex-direction: column; min-width: 0; }
+  .mr-col > :first-child { margin-top: 0; }
+  /* S11-f 우승 축하: 결과 위 가운데 460px 카드 + 어둡게 */
+  .celebrate { background: rgba(8, 9, 12, .78); display: grid; place-items: center; padding: 24px; }
+  .celebrate__inner { min-height: 0; width: 460px; max-width: 460px; max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--surface-0, #121317); box-shadow: 0 0 0 1px var(--line-strong), 0 24px 64px rgba(0, 0, 0, .5); }
+}
+.celebrate :is(small, .celebrate__art small) { font-size: 12px; }
+/* S11 머리말: 큰 평점 + 단위 "평점"(옆, 아래 맞춤) · 결장이면 "결장 · 사유" 글자 · 대회 줄은 단어 단위 줄바꿈 */
+.screen-match .po-hero__num.has-unit { flex-direction: row; align-items: flex-end; gap: 8px; }
+.screen-match .po-hero__unit { margin-bottom: .6em; font-size: 14px; white-space: nowrap; color: var(--ink) !important; letter-spacing: 0 !important; }
+.screen-match .po-hero__eyebrow { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+#app:has(.celebrate) > :is(.dock-bar, .po-dock, nav.dock) { display: none; }

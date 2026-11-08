@@ -109,7 +109,10 @@ describe('경기 결과 (170 · 160)', () => {
     expect(html).toContain('>1\u00a0:\u00a00<');
     expect(html).toContain('mr-goal__score score-cell">2\u00a0:\u00a01<');
     expect(html).toContain('mr-goal__me');
-    expect(html).toContain('cu-min');
-    expect(html).toContain('2장 더 보기');
+    // C.83d: 폰은 쓴 카드 · 전술 리포트 한 판을 접어 요약 한 줄 — 펼치면 분 칸 · [n장 더 보기]
+    expect(html).toContain('쓴 카드 5장 · 모두 자동');
+    const open = matchResultView(base as never, { rep: true });
+    expect(open).toContain('cu-min');
+    expect(open).toContain('2장 더 보기');
   });
 });
