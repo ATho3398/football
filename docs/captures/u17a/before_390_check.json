@@ -1,0 +1,93 @@
+{
+  "W": 390,
+  "H": 844,
+  "errors": [],
+  "checks": {
+    "01_홈_안내띠": {
+      "overflow": 0,
+      "small": [
+        "홈 11px (po-dock__label)",
+        "훈련 11px (po-dock__label)",
+        "선수 11px (po-dock__label)",
+        "상점 11px (po-dock__label)",
+        "2 10px (po-dock__badge po-num)",
+        "더보기 11px (po-dock__label)"
+      ],
+      "tapSmall": []
+    },
+    "02_홈_도구줄": {
+      "overflow": 0,
+      "small": [
+        "홈 11px (po-dock__label)",
+        "훈련 11px (po-dock__label)",
+        "선수 11px (po-dock__label)",
+        "상점 11px (po-dock__label)",
+        "2 10px (po-dock__badge po-num)",
+        "더보기 11px (po-dock__label)"
+      ],
+      "tapSmall": []
+    },
+    "03_더보기격자": {
+      "overflow": 0,
+      "small": [
+        "2 10px (po-dock__badge po-num)",
+        "인박스 11px (po-dock__label)",
+        "재정 11px (po-dock__label)",
+        "월드 11px (po-dock__label)",
+        "덱 11px (po-dock__label)",
+        "전술 11px (po-dock__label)",
+        "설정 11px (po-dock__label)",
+        "저장 11px (po-dock__label)",
+        "홈 11px (po-dock__label)",
+        "훈련 11px (po-dock__label)",
+        "선수 11px (po-dock__label)",
+        "상점 11px (po-dock__label)",
+        "더보기 11px (po-dock__label)"
+      ],
+      "tapSmall": []
+    },
+    "04_수집시트": {
+      "overflow": 0,
+      "small": [
+        "2 10px (po-dock__badge po-num)",
+        "인박스 11px (po-dock__label)",
+        "재정 11px (po-dock__label)",
+        "월드 11px (po-dock__label)",
+        "덱 11px (po-dock__label)",
+        "전술 11px (po-dock__label)",
+        "설정 11px (po-dock__label)",
+        "저장 11px (po-dock__label)",
+        "홈 11px (po-dock__label)",
+        "훈련 11px (po-dock__label)",
+        "선수 11px (po-dock__label)",
+        "상점 11px (po-dock__label)",
+        "더보기 11px (po-dock__label)"
+      ],
+      "tapSmall": []
+    },
+    "05_선수_독": {
+      "overflow": 0,
+      "small": [
+        "홈 11px (po-dock__label)",
+        "훈련 11px (po-dock__label)",
+        "선수 11px (po-dock__label)",
+        "상점 11px (po-dock__label)",
+        "2 10px (po-dock__badge po-num)",
+        "더보기 11px (po-dock__label)"
+      ],
+      "tapSmall": []
+    },
+    "07_토스트자리": {
+      "overflow": 0,
+      "small": [
+        "홈 11px (po-dock__label)",
+        "훈련 11px (po-dock__label)",
+        "선수 11px (po-dock__label)",
+        "상점 11px (po-dock__label)",
+        "2 10px (po-dock__badge po-num)",
+        "더보기 11px (po-dock__label)"
+      ],
+      "tapSmall": []
+    }
+  }
+}

@@ -12712,6 +12712,39 @@ C 의 "GK 옆 위치를 공–골 가운데 선 위로"(스위퍼 8 m 앞에서 
 - 관문: typecheck · test · build · `balance:engine:check` 통과(엔진 무수정). 새 화면: 없음.
 - 재현: `node scripts/diag/c81x-soa-micro.mjs` · `npx esbuild scripts/diag/c81x-store-alloc.ts --bundle --platform=node --format=esm --outfile=/tmp/sa.mjs && node /tmp/sa.mjs` · 프로파일 `node --cpu-prof <c81e-bench 번들> 20` → `node scripts/diag/c81x-profsum.mjs <cpuprofile> 20 moveAgentMV turnHeadMV` · 할당 `BENCH=<번들> OUT=/tmp/a.heapprofile node scripts/diag/c81x-allocprof.mjs x 15` → `c81x-profsum.mjs /tmp/a.heapprofile 15`.
 
+
+### C.83a 53단계_U17-a 17차 1단계 적용: 컴포넌트·독·더보기 격자 (마스터 AE `docs/session-prompts/U17-a.md`, 근거 적용 명세 `docs/ui-requests/17-1-apply.md` 1절 S00·S03 · 2절 S00·S03 · 3절 U17-a, 디자인 `docs/design/player-one-design-b17-1/` S00-a · S03-a·b·c, Opus): **17차 재설계의 바탕 — 새 공통 컴포넌트 7종(칩 · 카드 패널 · 표 · 위 띠 · 빈 상태 · 도구 줄 · 선수 줄)과 기존 컴포넌트 추가분(텍스트 링크 단추 · 성공/오류 토스트 · 시트 ✕ · 막대 값·단위 · 머리말 도구 줄 자리)을 넣고, 폰 독을 5칸(홈 · 훈련 · [다음] · 선수 · 더보기, [다음] 정가운데)으로, 더보기를 독 위 2줄 격자 11칸(상점 · 인박스 · 재정 · 월드 · 덱 · 전술 / 대표팀 · 시상 · 수집 · 설정 · 저장)으로, 홈 머리말 아이콘 10개를 도구 줄 4개(알림 · 코치 후보 · 저장 · 설정)로 바꿨다. 경기 중 · 자동 진행 · 면담 · 1군 테스트 · 새 버전 · 첫 방문 안내 띠 6가지는 위 띠 한 모양으로 합쳐 머리말 위 흐름 안에 한 번에 하나만 보이고, 토스트는 늘 독 위 16px 한 자리에 뜬다** (ENGINE_VERSION·BALANCE_VERSION·SAVE_FORMAT_VERSION 그대로 — 화면만, 세이브 필드 없음)
+
+- 새 컴포넌트(`src/ui/components/kit.ts`, 디자인 bundle.js 17차 블록을 HTML 문자열 함수로): `Chip`(info · filter · status, 톤 7) · `Panel`(info · task · alert, 접기 foldable/folded/summary, 접으면 요약 한 줄만) · `DataTable`(내 줄 시안 막대 · 구간 줄 up/down · "n개 더 보기") · `TopStrip`(live · running · interview · test · update · guide, 우선순위 `TOP_STRIP_ORDER`) · `EmptyState`(compact 포함) · `ToolBar`(< · 날짜 글자 · 아이콘 최대 4, 배지 99+) · `PlayerRow`(사진 없음 = 꺾인 판 + 첫 글자, "나" 표 · 순위 · 값·단위).
+- 기존 컴포넌트 추가분: `Button variant="link"`(K1 텍스트 링크, 누르는 높이 44px) · `Toast kind success/error`(저장 성공·실패 토스트에 씀) · `BottomSheet` ✕(onClose 가 있으면 오른쪽 위 ✕ 항상, `closable: false`면 없음 — PC 오른쪽 420px 패널은 C.61 그대로) · `Meter unit/legend`(막대 옆 값·단위, 아래 범례 한 줄) · `HeroPanel toolbar`(머리말 맨 위 줄을 도구 줄로).
+- CSS(`src/ui/design/skin-b17.css`, style.css · season.css 뒤): 디자인 bundle.css 17차 추가분(1,063 → 1,216줄) + 2절 바로잡기 — 새 컴포넌트·독·도구 줄·시트 안 글자 12px 이상(독 배지 10 → 12px, "나" 표 11 → 12px, 머리말 칩 10.5 → 12px, AttrTile 이름·변화 · DayCell 12px), 누르는 칸 44px(꺾인 단추는 바깥 칸 44px + 안쪽 꺾인 면). 옛 클래스(`.dock-more__scroll` · `.live-band` · `.tip` · `.sw-update` …)는 지우지 않음 — 2·3단계 화면 보호.
+- 독 v4(`views/common.ts`): `DOCK_PHONE` 5칸 · `DOCK_MORE` 11칸(`DOCK_MORE_COLS` 6 → 2줄 6 · 5) · `DOCK_PC` 12칸 고정(`dockPc` 는 옛 이름만 남김). 수집 칸 → 도감 · 진열실 고르는 작은 시트(`collectSheet`, K5). PC 독에 없는 대표팀 · 시상 · 도감 · 진열실은 PC 홈 오른쪽 열 "커리어 바로가기"(`careerLinks`). [다음] 4자 이상(시즌 요약)은 폰 15px(`is-long`), PC 는 상태와 상관없이 19px. 답하기 = 라임 면(디자인 v4).
+- 위 띠(`main.ts topStrip`): 옛 경기 중 띠(C.39) · 진행 중 토스트(C.63c, [중단]) · 홈 면담 배너(C.62) · 새 버전 배너(C.77r/C.80x, [업데이트][나중에]) · 첫 방문 말풍선(21.4, [안내 끄기] · ✕)을 `TopStrip` 하나로. 누르면 하는 일은 옛 띠와 같다(경기로 = live-return, 중단 = sim-stop …). 경기 중 · 진행 중 띠는 스크롤해도 위에 붙고(sticky), 나머지는 흐름 안. 1군 테스트 띠는 홈에 자세한 칸(C.45 trialStrip)이 있어 다른 화면에서만.
+- 2절 1번(미페 머리말 위 여백): 도구 줄·제목 아래 → 머리 끝 48~56px(C.81f 8px 규칙보다 큰 쪽). 누끼 사진 상자를 10px 내리고(아래는 사선 면 뒤), 네모 사진은 위끝 64 → 92px · 230 → 220px(선수 화면 60 → 96px · 128 → 112px), 선수 화면 머리말 320 → 340px(사진이 사선 면 뒤로 더 숨지 않게). `scripts/c81f-capture.mjs` 실측 머리 끝 − 줄 아래: 가상 선수 홈 34 → 50px · 선수 34 → 50px · 손흥민(네모) 홈 19 → 52px · 선수 14 → 49px (390), 1280 은 52~55px.
+- 테스트: `tests/u17a.test.ts` 13개(독 5칸 · 격자 11칸 · PC 12칸 · 더보기 배지 합 · [다음] 7상태 · 수집 시트 · 커리어 바로가기 · 새 컴포넌트 7종 · 추가 props). 옛 독·홈 도구 줄을 고정하던 c44 · c61 · c63 · c69 · c70 · c73d · c76g · c77q 8건은 새 배치로 기대값만 바꿈.
+
+2절 확인(캡처 `docs/captures/u17a/`, `scripts/u17a-capture.mjs` · 검사 `*_check.json`):
+
+| 2절 | 규칙 | 결과 |
+|---|---|---|
+| 1번 | 도구 줄·제목 → 여백 48~56px → 미페 | ✓ (위 실측 49~55px) |
+| 5번 | PC [다음] 글자 19px | ✓ (시즌 요약 · 진행 중 · 경기 중 포함) |
+| 22번 | 더보기 배지 = 안 칸 합 · PC 인박스 배지 · PC 배지 = 아이콘 오른쪽 위 | ✓ (`moreBadge`, PC 칸 사이 12px · 배지 오른쪽 위로 글자 안 덮음) |
+| 23번 | K1 버튼 1종 + 링크 · 누르는 영역 44px | ✓ 이번 범위(독 · 도구 줄 · 위 띠 · 시트 ✕ · 격자 · 링크) — S12 [고용]·[해지] · S13 [바꾸기] · 둥근 입력칸은 각 화면 패치 |
+| 24번 | 12px 이상 | ✓ 이번 범위(독 · 도구 줄 · 띠 · 시트 · 머리말 칩 · AttrTile · DayCell). 덱 카드·피치 이름표·S13-f 는 해당 화면 패치 |
+| 26번 | 둥근 알약 없음 · 위험 3칸 · Pitch | ✓ 새 컴포넌트 모두 꺾인 모양. 위험 3칸은 C.81n, 피치는 U17-c |
+| 27번 | 시트 ✕ · PC 420 · 모달 유지 · 막대 값·단위 옆 · 토스트 독 위 16px | ✓ (피치 이름표 규칙은 C.75 계열 그대로 — U17-c·d 에서 "항상 마커 아래" 확인) |
+| 28번 | PC [다음] 7상태 · 답하기 배지 숫자 · 수집 고르기 시트 · 더보기 저장 칸(11칸 6 · 5) | ✓ |
+| 코치 아이콘 | 호루라기 유지 | ✓ (`whistle`) |
+
+검사(4절, 새 컴포넌트 안 — 독 · 도구 줄 · 위 띠 · 시트 · 커리어 바로가기 · 토스트): 가로 넘침 0 · 페이지 오류 0 · 12px 미만 글자 전 6~13개(독 글자 11px · 배지 10px) → 후 0 · 누르는 영역 44px 미만 0 — 폰 390 · 360 · PC 1280 모두. 가로 폰(844×390) 레일 · 더보기 세로 줄도 오류 0.
+
+안 한 것 / 다음 패치로:
+- K12 머리말 2단(미페 큰 360 · compact 236) 크기 변경은 홈(U17-b) · 선수(U17-e) 화면을 바꿀 때 — 이번에는 단위 클래스와 글자 바닥 · 2절 1번 위 여백만.
+- 새 컴포넌트(Chip · Panel · DataTable · EmptyState · PlayerRow)는 만들어만 두고 화면에는 U17-b~e 에서 붙인다(지금 화면은 옛 모양 그대로).
+- 상점 "새 카드가 들어온 주" 배지: 코드에 그 값이 없어 `DockVM.shop` 자리만(0). 면담 띠 [면담] = 면담 화면.
+- 홈 "알림"은 늘 보임(배지만 바뀜) — 디자인 S06-a 그대로. 홈 첫 화면 구성(다음 경기 · 내 상태가 844 − 독 안)은 U17-b.
+
 ## 부록 D. 부록 C 결정 사항과 4단계 명세
 
 ### C.81m 53단계_다른 리그 추정 평점 리그별 실측 보정 (마스터 AD `docs/session-prompts/C.81m.md`, 근거 C.81d "섞인 시상 표 추정 평점 일괄 −0.33 — 표본 시즌 6개라 방향만 본 것", Opus): **'내 리그만 엔진'에서 다른 리그 추정 평점을 일괄 −0.33 대신 포지션군별로 엔진 척도에 맞춘다 — avg = 6.62 + (추정 − 6.62) × 퍼짐 + 이동 + 정규 잡음 × σ(선수·시즌 시드). 엔진은 포지션마다 평균이 달라(CDM 5.6 · CM 5.7 · CAM 5.8 · ST 6.1 · GK 6.3 · CB 6.4 · WING 6.4 · FB 6.6) 같은 OVR 에서도 시즌 평점이 퍼지는데(잔차 0.30~0.56), 추정은 포지션 차 없이 6.4~6.5 · 잔차 0.17 이라 일괄 이동으로는 CDM·CM 은 0.5 높고 FB 는 0.45 낮으며 상위 20명은 FB −0.96 · CB −0.55 였다. 8개 포지션군 모두 평균·상위 20명 평균이 엔진과 ±0.05 안. 추정 리그 실점 항목(def)은 × 0.67(빠른 진행 점수 확률은 상위 팀 독주가 엔진보다 커서 부풂)** (BALANCE_VERSION 97(C.81n) → **98**, merge 순서; ENGINE_VERSION·SAVE_FORMAT_VERSION 그대로 — `src/engine` 무수정, 세이브 필드 없음)
