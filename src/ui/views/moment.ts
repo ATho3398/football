@@ -8,8 +8,9 @@
 import type { DecisionRecord, Moment, MomentOption, StopLevel } from '../../engine/moments';
 import { SCENE_LABEL } from '../../engine/moments';
 import { ENGINE } from '../../engine/config';
+import { BALANCE } from '../../config/balance';
 import { interpolateFrame, type ReplayFrame, type ReplayPlayer } from '../../replay';
-import { Button, ChoiceButton, Crest, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, RiskChip, signed, Tabs, type FeedKind, type GameCardData } from '../components';
+import { Button, ChoiceButton, Crest, Switch, cx, esc, FeedItem, GameCard, Icon, Pitch, ResultSplash, RiskChip, signed, Tabs, type FeedKind, type GameCardData } from '../components';
 import { cardById } from '../../config/cards';
 import { gameCardData } from './deck';
 import {
@@ -131,8 +132,10 @@ function handCards(vm: MomentVM): string {
       state: on ? 'selected' : c.usable ? 'normal' : 'disabled', ...(c.usable ? {} : { reason: shortWhy(c.reason) }),
     })}</div>`;
   }).join('');
+  // 17차 S09-c: 패 아래 카드마다 쓸 수 있는지 / 못 쓰는 이유 한 줄 (말줄임 없음)
+  const whys = m.cards.map((c) => `<li class="${cx('mo-why', c.usable ? 'is-ok' : 'is-off', vm.card === c.hand && 'is-on')}">${Icon({ name: c.usable ? 'check' : 'close', size: 14, strokeWidth: 3 })}<span><b>${esc(c.name)}</b> ${esc(c.usable ? (vm.card === c.hand ? `사용 중 · ${c.text}` : c.text) : c.reason ?? '못 씀')}</span></li>`).join('');
   return `<div class="mo-hand"><div class="mo-hand__head"><span>내 패 <b class="po-num">${n}</b></span><span class="muted mo-hand__info">${info}</span></div>
-    <div class="mo-cards" role="list" aria-label="내 패">${cards}</div></div>`;
+    <div class="mo-cards" role="list" aria-label="내 패">${cards}</div><ul class="mo-whys">${whys}</ul></div>`;
 }
 
 export function momentView(vm: MomentVM): string {
@@ -149,7 +152,7 @@ export function momentView(vm: MomentVM): string {
     + (chained.length ? `<p class="mo-chainhead">몰고 가다 슛 · 2단 행동</p>${chained.map(([o, i]) => row(o, i)).join('')}` : '');
   const picked = sel === null ? null : shown[sel] ?? null;
   const pp = picked ? shownChance(picked, sel! < m.options.length ? mc?.deltas?.[sel!] ?? 0 : 0) : null;
-  const confirm = picked ? `확정 · ${actionWord(picked.label)}${pp === null ? '' : ` ${pp}%`}` : '선택지를 고르세요';
+  const confirm = picked ? `확정 · ${actionWord(picked.label)}${pp === null ? '' : ` ${pp}%`}` : '선택지를 골라 주세요';
   const tension = m.minute >= 75 && Math.abs(m.score[0] - m.score[1]) <= 1 ? ' · 접전 막판' : '';
   // 안내 한 줄 (189): 확실한 선택지를 뺐을 때 / 판정 없는 선택지가 있을 때
   const certain = shown.some((o) => o.p === null);
@@ -168,7 +171,8 @@ export function momentView(vm: MomentVM): string {
       <div class="pitch-wrap mo-stage">${Pitch({ canvasId: 'mo-canvas', label: '결정 순간 정지 화면', children: stageTools() })}</div>
       ${belowStage(vm)}
       <div class="mo-panel" role="group" aria-label="결정 선택">
-        <div class="mo-head"><b>어떻게 할까요?</b><span>누르면 피치에 방향이 보여요</span></div>
+        <div class="mo-head"><b>어떻게 할까요?</b><span>누르면 피치에 길이 보여요</span></div>
+        ${riskLegend()}
         ${note}
         <div class="mo-opts">${opts}</div>
         ${shotNote}
@@ -180,6 +184,12 @@ export function momentView(vm: MomentVM): string {
         </div>
       </div>
     </div>`;
+}
+
+/** 위험 범례 (17차 S09-a, 2절 6번): 위험 = 실패하면 잃는 평점 크기 (BALANCE.display.risk) */
+function riskLegend(): string {
+  const R = BALANCE.display.risk;
+  return `<p class="mo-legend"><span class="mo-legend__bars" aria-hidden="true"><i></i><i></i><i></i></span><span><b>위험</b> = 실패하면 잃는 평점 크기(낮음 ≤${R.low.toFixed(2)} · 보통 ≤${R.mid.toFixed(2)} · 높음) · <b>성공 확률</b>은 오른쪽 숫자</span></p>`;
 }
 
 /** 피치 위 도구 (189): 왼쪽 "공격 방향 ›" 표시, 오른쪽 [확대][전체] (폰 세로 가로 피치에서만 보인다, CSS) */
@@ -218,7 +228,7 @@ function moreSettings(vm: MomentVM): string {
       ${last}
       <div class="mo-more__row"><b>정지 빈도 · 다음 순간부터</b><span>이번 순간 중요도 <b class="po-num">${vm.moment.stake.toFixed(2)}</b></span></div>
       ${Tabs({ items: STOP_ITEMS, value: vm.stop, act: 'mo-stop', fill: true, label: '정지 빈도' })}
-      <button type="button" class="mo-autorow" data-act="mo-auto"><b>자동으로 전환</b><span>남은 경기는 엔진이 결정</span></button>
+      ${Switch({ label: '자동으로 전환', desc: '켜면 남은 경기는 엔진이 결정해요 · 하프타임에 다시 끌 수 있어요', on: false, act: 'mo-auto', className: 'mo-autosw' })}
     </div>`;
 }
 

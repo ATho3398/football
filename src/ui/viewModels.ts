@@ -18,6 +18,7 @@ import { FOOT_KO } from '../body';
 import { formMul, TAGS } from '../tags';
 import { ENGINE } from '../engine/config';
 import { stackCount, stackPenalty } from '../engine/stack';
+import { attackOf, fitVM, tacticFitPts } from './prepNumbers';
 import { SCENE_LABEL } from '../engine/moments';
 import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, displayDelta, FIELD_ATTRIBUTES, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from '../attributes';
 import { adviceOpen, adviceText } from '../aptitude';
@@ -196,7 +197,7 @@ function conditionVM(g: GameState): ConditionVM {
 }
 
 /** 내 상태 부상 위험 칸 (17차 S06): 엔진 부상 판정 식 그대로 — 다음 경기 90분 기준, 날씨는 경기 날 정해져 뺀다 */
-function injuryRiskOf(g: GameState): NonNullable<ConditionVM['risk']> {
+export function injuryRiskOf(g: GameState): NonNullable<ConditionVM['risk']> {
   const p = g.player;
   const mul = injuryRiskMul(g);
   const now = injuryChance(p, 90, g.difficulty) * mul;
@@ -2073,7 +2074,9 @@ export interface HalftimeVM {
   teams: [string, string];
   score: [number, number];
   side: 0 | 1;
-  tendencies: { id: Tendency; style: TacticStyle; name: string; on: boolean }[];
+  tendencies: { id: Tendency; style: TacticStyle; name: string; on: boolean; /** 적합도 "+6점" (17차 S09-g, 경기 준비와 같은 식) */ fit?: string; fitTone?: 'good' | 'ok' | 'bad' | 'none' }[];
+  /** 공격 인원 경고 (17차 S09-g): 기준 이상이면 한 줄 */
+  attackWarn?: string | null;
   /** changed = 경기 전 전술과 다름 (237 "바뀜" 표시) */
   details: { key: Detail; label: string; items: { id: string; label: string }[]; value: string; changed: boolean }[];
   sets: { id: number; name: string; desc: string; on: boolean }[];
@@ -2090,11 +2093,20 @@ export function halftimeSets(base: Pick<HalftimeDraft, 'tendency' | 'levels'>): 
   ];
 }
 
-export function halftimeVM(draft: HalftimeDraft, base: Pick<HalftimeDraft, 'tendency' | 'levels'>, teams: [string, string], score: [number, number], side: 0 | 1): HalftimeVM {
+export function halftimeVM(
+  draft: HalftimeDraft, base: Pick<HalftimeDraft, 'tendency' | 'levels'>, teams: [string, string], score: [number, number], side: 0 | 1,
+  /** 지금 뛰는 우리 필드 선수 (적합도 · 공격 인원, 엔진 sim 상태 그대로) */
+  onPitch?: { pos: Position; attrs: FieldAttributes }[],
+): HalftimeVM {
   const lv = (d: Detail) => LEVEL_NAMES_KO[d][draft.levels[d]];
+  const atk = onPitch ? attackOf(onPitch.map((x) => x.pos)) : null;
   return {
     teams, score, side,
-    tendencies: TENDENCIES.map((id) => ({ id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], on: id === draft.tendency })),
+    tendencies: TENDENCIES.map((id) => {
+      const f = onPitch ? fitVM(tacticFitPts(id, onPitch)) : null;
+      return { id, style: tacticStyle(id), name: TENDENCY_NAMES_KO[id], on: id === draft.tendency, ...(f ? { fit: f.pts === null ? '보정 없음' : f.text, fitTone: f.tone } : {}) };
+    }),
+    attackWarn: atk?.warn ? `공격 인원 ${atk.n}명 · ${atk.text}` : null,
     details: DETAILS.map((d) => ({ key: d, label: DETAIL_NAMES_KO[d], items: LEVEL_NAMES_KO[d].map((label, i) => ({ id: LEVEL_ID[i]!, label })), value: LEVEL_ID[draft.levels[d]]!, changed: draft.levels[d] !== base.levels[d] })),
     sets: halftimeSets(base).map((x, i) => ({ id: i, name: x.name, desc: x.desc, on: draft.set === i })),
     changed: draft.tendency !== base.tendency || DETAILS.some((d) => draft.levels[d] !== base.levels[d]),

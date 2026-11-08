@@ -94,7 +94,7 @@ import { agentVM, financeVM, staffVM } from './financeVM';
 import { hireStaff, startScout, toggleLeave, ensureMoney } from '../money';
 import { buyPack, buyShopCard, donate, donateBlocked, moveInvest, setLife, useTp, type InvestKind, type LifeItem, type TpKind } from '../wealth';
 import { holdMeeting, type MeetingChoice } from '../manager';
-import { prepView } from './views/prep';
+import { prepView, type PrepFold } from './views/prep';
 import { prepVM } from './prepVM';
 import { proficiencyOf, requestPositionChange } from '../proficiency';
 import { celebrateView, matchResultView } from './views/matchResult';
@@ -137,6 +137,8 @@ import { proficientOvr } from '../proficiency';
 import { hasTeamDetail, leftPersonVM, personDetailVM, teamDetailVM, type PersonTab, type TeamTab } from './detailVM';
 import { leftPersonView, personDetailView, teamDetailView } from './views/detail';
 import type { FieldPosition } from '../positions';
+import type { Position } from '../types';
+import type { FieldAttributes } from '../attributes';
 import { scoreText } from '../text';
 
 type TrainTab = 'pre' | 'cal' | 'g' | 'staff';
@@ -190,6 +192,8 @@ const ui = {
   homeTab: 'today' as HomeTab,
   /** 배너가 붙어 접힌 다음 경기 카드를 폈는지 (17차 2절 29번) */
   homeNextOpen: false,
+  /** 경기 준비 접는 칸 (17차 S08, C.83c): 키가 없으면 기본값(폰 접음 · 직접 모드면 경기 변수 펼침) */
+  prepOpen: {} as PrepFold,
   /** 하루 훈련 고르기 시트 (C.41): 날짜 */
   trainSheet: null as string | null,
   /** 하루 훈련 시트에서 고른 줄 (확정 전, C.57) */
@@ -638,7 +642,7 @@ function screenHtml(): string {
       const lv = ui.live;
       if (lv?.oc) return outcomeView(lv.oc.vm);
       const m = lv?.run.pending;
-      if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side));
+      if (lv && m?.type === 'halftime' && lv.ht) return halftimeView(halftimeVM(lv.ht.draft, lv.ht.base, lv.teams, m.score, m.side, htOnPitch(m.side)));
       if (lv && m) {
         const log = lv.run.sim.state.moments.log;
         return momentView({ moment: m, teams: lv.teams, selected: lv.sel, card: lv.card, stop: g.control.stop, last: log.at(-1) ?? null, count: log.length + 1, ...(lv.feed ? { feed: lv.feed } : {}) });
@@ -693,7 +697,7 @@ function screenHtml(): string {
       const vm = prepVM(g);
       if (vm && isMatchDay(g)) {
         const cs = ui.cardSheet?.from === 'view' ? vm.deck.cards.find((x) => x.id === ui.cardSheet!.id) : undefined;
-        return prepView(vm) + (cs ? cardSheet({ from: 'view', card: cs }, vm.deck.cards.length) : '');
+        return prepView(vm, ui.prepOpen) + (cs ? cardSheet({ from: 'view', card: cs }, vm.deck.cards.length) : '');
       }
       return homeView(homeVM(g));
     }
@@ -880,7 +884,8 @@ function dockVM(g: GameState): DockVM {
   else if (marketPending(g)) {
     const n = (g.market?.offers?.length ?? 0) + (g.market?.renewal ? 1 : 0);
     prog = { label: '답하기', icon: 'chat', act: 'day-continue', kind: 'answer', ...(n ? { badge: n } : {}) };
-  } else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
+  } else if (isMatchDay(g) && ui.screen === 'prep') prog = { label: '경기', icon: 'match', act: 'prep-start', kind: 'match', flat: true };
+  else if (isMatchDay(g)) prog = { label: '경기', icon: 'match', act: 'play', kind: 'match' };
   else prog = { label: '계속', icon: 'chevron-right', act: 'day-continue', kind: 'continue' };
   return { screen: ui.screen, prog, tacticsOpen: isUnlocked(g.guide, 'tactics'), points: g.phase === 'retired' ? 0 : homePoints(g), more: ui.moreSheet, inbox: unreadCount(g), coach: g.money?.candidates.length ?? 0 };
 }
@@ -930,6 +935,13 @@ function topStrip(g: GameState, liveTo: Screen | null, running: ToastProps | nul
   if (tip) c.guide = tip;
   const k = TOP_STRIP_ORDER.find((x) => c[x]);
   return k ? `<div class="${`top-strip top-strip--${k}`}">${TopStrip(c[k]!)}</div>` : '';
+}
+
+/** 하프타임 적합도 · 공격 인원 (17차 S09-g): 지금 뛰는 우리 필드 선수 (엔진 fitGaps 와 같은 입력) */
+function htOnPitch(side: 0 | 1): { pos: Position; attrs: FieldAttributes }[] | undefined {
+  const st = ui.live?.run.sim.state;
+  if (!st) return undefined;
+  return st.agents.filter((a) => a.team === side && a.onPitch && !a.gk).map((a) => ({ pos: a.pos as Position, attrs: a.spec.attrs }));
 }
 
 function livePlayers(g: GameState) {
@@ -1477,6 +1489,7 @@ async function openPrep(g: GameState): Promise<void> {
   ensureMyTicket(g);
   othersInBackground(g);
   ui.moreSheet = false;
+  ui.prepOpen = {};
   go('prep');
 }
 
@@ -1976,6 +1989,13 @@ app.addEventListener('click', (ev) => {
         ui.homeTab = v;
         render();
         window.scrollTo(0, 0);
+      }
+      return;
+    case 'prep-fold':
+      if (v === 'start' || v === 'scout' || v === 'vars') {
+        const was = document.querySelector(`.prep-${v === 'scout' ? 'scoutp' : v} .po-panel__toggle`)?.getAttribute('aria-expanded') === 'true';
+        ui.prepOpen = { ...ui.prepOpen, [v]: !was };
+        render();
       }
       return;
     case 'home-next':
@@ -2685,7 +2705,7 @@ app.addEventListener('click', (ev) => {
       const lv = ui.live;
       if (!g || !lv?.ht || lv.run.pending?.type !== 'halftime') return;
       const d = lv.ht.draft;
-      const vm = halftimeVM(d, lv.ht.base, lv.teams, lv.run.pending.score, lv.run.pending.side);
+      const vm = halftimeVM(d, lv.ht.base, lv.teams, lv.run.pending.score, lv.run.pending.side, htOnPitch(lv.run.pending.side));
       const change = act === 'ht-ok' && vm.changed;
       lv.run.halftime(change ? tacticsOf(d.tendency, d.levels) : null, change ? `하프타임 전술 변경 · ${vm.chips.join(' · ')}` : undefined);
       lv.ht = null;

@@ -44,7 +44,9 @@ export type DockProg = 'continue' | 'running' | 'match' | 'live' | 'locked' | 'a
 export interface DockVM {
   screen: string;
   /** 진행 칸: 지금 누르면 하는 일 */
-  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean; kind?: DockProg; badge?: number };
+  prog: { label: string; icon: IconName; act: string; data?: Record<string, string>; live?: boolean; kind?: DockProg; badge?: number;
+    /** 라임 면 없이 (17차 2절 25번: 경기 준비 화면 — 라임 큰 면은 [경기 시작] 하나, 독 [경기]는 같은 동작) */
+    flat?: boolean };
   tacticsOpen: boolean;
   /** 남은 포인트 (선수 칸 배지) */
   points: number;
@@ -153,7 +155,7 @@ function dockCell(id: DockId, vm: DockVM, items: ReturnType<typeof dockItems>, e
     const p = vm.prog;
     const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
     const busy = kind === 'running';
-    return `<button type="button" class="${cx('po-dock__go po-dock__next', `is-${kind}`, dockLabelLong(p.label) && 'is-long')}"${dockAttrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''}${kind === 'locked' ? ' disabled' : ''} aria-label="다음 · ${esc(p.label)}${p.badge ? ` · ${p.badge}` : ''}"><span class="po-dock__goicon">${
+    return `<button type="button" class="${cx('po-dock__go po-dock__next', `is-${kind}`, dockLabelLong(p.label) && 'is-long', p.flat && 'is-flat')}"${dockAttrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''}${kind === 'locked' ? ' disabled' : ''} aria-label="다음 · ${esc(p.label)}${p.badge ? ` · ${p.badge}` : ''}"><span class="po-dock__goicon">${
       kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${p.badge ? `<b class="po-dock__badge po-num">${badgeText(p.badge)}</b>` : ''}</span></button>`;
   }
   const it: DockItem = id === 'more'

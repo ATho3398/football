@@ -1,0 +1,73 @@
+{
+  "W": 390,
+  "H": 844,
+  "errors": [],
+  "screens": {
+    "S08-a_첫경기": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S08-b_시즌중": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S08-b_시즌중_전체": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S08-d_직접모드": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": null
+    },
+    "S09-a_고르기전": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 194
+    },
+    "S09-a_고르기전_전체": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 194
+    },
+    "S09-b_고름": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 194
+    },
+    "S09-c_카드": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 194
+    },
+    "S09-d_결과재생": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 270
+    },
+    "S09-e_결과": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 194
+    },
+    "S09-g_하프타임": {
+      "overflow": 0,
+      "small": [],
+      "tap": [],
+      "stageH": 133
+    }
+  }
+}
