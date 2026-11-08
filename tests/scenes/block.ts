@@ -84,7 +84,8 @@ function buildRun(def: Tend, N: number) {
 /** ⑱ 블록 대 지공: 버스가 허용하는 슛이 균형 수비보다 적고(xG 도) 박스 밖 비율이 높다 */
 export function sceneBlockBuild(): SceneOut {
   // C.78e: 40 → 120 시드 (경기당 슛 0.4~0.6 이라 40 시드는 슛 수 차이 잡음 ±0.16, 120 시드 xG/슛 차이 잡음 약 ±0.02)
-  const N = 120;
+  // C.81z(엔진 96, 롱패스 착지 0.54): 120 시드에서 박스 밖 비율이 버스 0.048 대 균형 0.130 으로 0.002 차 미달(0.55 는 0.062 대 0.132 ✓, main 0.044 대 0.096) — 박스 밖 비율은 슛 60개 남짓의 비율이라 잡음 ±0.04 → 240 시드(0.096 대 0.136)
+  const N = 240;
   const bus = buildRun('bus', N);
   const bal = buildRun('balanced', N);
   return {
