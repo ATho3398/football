@@ -26,7 +26,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.keeper.catchSkill).toBe(0.4);
     expect(ENGINE.physics.fatigueIntensity).toBe(0.45);
     expect(ENGINE.roles.classicWingerCross).toBe(20);
-    expect(ENGINE.prob.stFinish).toBe(1.3);
+    expect(ENGINE.prob.stFinish).toBe(1.2); // 병합 전 1.3 → C.82g 병합 뒤 1.2
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 5, short: 2, keep: 2, tackle: 4 }); // 960 티키>직선 −0.01 → +0.055
