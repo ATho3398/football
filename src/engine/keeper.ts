@@ -165,7 +165,8 @@ export function saveChance(c: ShotCtx): number {
   }
   const adj = c.header ? 0 : distAdj(c.d);
   // 1대1 (C.79x): 거리 보정과 같이 상한 0.95 뒤에 더한다 (근거리 1대1 도 대개 상한 — 안에서 더하면 saveBase 상향을 못 되돌린다)
-  const post = adj + (c.gk ? oneOnOneAdj(c) : 0);
+  // C.82b: 세트피스 헤더(코너·프리킥 뒤 15초 안) 선방 −headerSaveSet — headerReactSet 은 헤더가 가깝고 느려 다이빙 시간이 이미 0 이라 포화(0·0.6·1.2 코너 효율 같음)
+  const post = adj + (c.gk ? oneOnOneAdj(c) : 0) - (c.header && c.setPiece ? K.headerSaveSet : 0);
   const one = (extra: number): number => {
     const [cover, avail] = timeTerms(c, extra);
     const delta = K.speedW * (c.speed / 30) + K.cornerW * c.corner + K.distW * (1 - clamp(avail / K.availRef, 0, 1));
