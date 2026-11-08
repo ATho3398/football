@@ -1,0 +1,14 @@
+<!-- @dsCard group="Overlays" height=260 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Modal — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'flex',gap:16,flexWrap:'wrap'}},
+  h(P.Modal,{inline:true,icon:'skip',tone:'warning',title:'경기를 건너뛸까요?',actions:[h(P.Button,{key:1,variant:'secondary'},'취소'),h(P.Button,{key:2},'건너뛰기')]},'남은 시간은 자동으로 진행되고 카드는 쓰지 않아요.')));
+</script>
+</body>
+</html>

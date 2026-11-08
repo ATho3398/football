@@ -1,0 +1,18 @@
+<!-- @dsCard group="Match" height=510 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ChoiceButton — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:8,width:358}},
+  h(P.ChoiceButton,{kind:'safe',name:'옆으로 패스',chance:82,success:{text:'점유 유지',rating:0.1},fail:{text:'차단',rating:-0.2}}),
+  h(P.ChoiceButton,{kind:'balanced',name:'드리블 돌파',chance:48,success:{text:'박스 진입',rating:0.4},fail:{text:'뺏김',rating:-0.3}}),
+  h(P.ChoiceButton,{kind:'gamble',name:'침투 패스',chance:31,offside:'mid',selected:true,success:{text:'1대1 찬스',rating:0.6},fail:{text:'오프사이드',rating:-0.25}}),
+  h('div',{style:{font:'700 12px var(--font-sans)',color:'var(--ink-muted)',marginTop:8}},'compact'),
+  h(P.ChoiceButton,{compact:true,kind:'balanced',name:'드리블 돌파',chance:48,chanceDelta:6,success:{text:'박스 진입',rating:0.4},fail:{text:'뺏김',rating:-0.3}})));
+</script>
+</body>
+</html>

@@ -21,7 +21,7 @@ const fp = (r: ReturnType<ReturnType<typeof createMatch>['runToEnd']>) => `${r.h
 
 describe('C.82f 묶음 E 마무리 보정 5', () => {
   it('상수: 엔진 103 · 리바운드 parryDownSave 0.4 · catchSkill 0.4 · 지친 감속 0.45 · 정통 윙어 크로스 가산 · 세트피스 ST 가중 3(효과 없음, CB 와 같은 값)', () => {
-    expect(ENGINE_VERSION).toBeGreaterThanOrEqual(103);
+    expect(ENGINE_VERSION).toBeGreaterThanOrEqual(104);
     expect(ENGINE.keeper.parryDownSave).toBe(0.4);
     expect(ENGINE.keeper.catchSkill).toBe(0.4);
     expect(ENGINE.physics.fatigueIntensity).toBe(0.45);
@@ -32,7 +32,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 5, short: 2, keep: 2, tackle: 4 }); // 960 티키>직선 −0.01 → +0.055
     expect(ENGINE.matchup.tikitaka!.counter).toEqual({ tackle: 3, air: 2 }); // 960 티키>역습 −0.29 → −0.12
     // 총량: 1대1 보정 ↑ + 슛 쪽 레버(shotFree·거리 보정) (부록 C.82f 표)
-    expect(ENGINE.keeper.saveBase).toBe(2.0); // 2.02 → 2.00 (freeR 4 뒤 총량 +0.03 몫)
+    expect(ENGINE.keeper.saveBase).toBe(2.11); // C.82g 2.11 유지 (C.82f 는 1대1·ST 배수로 총량)
     expect(ENGINE.prob.shotFree).toBe(0.30); // 총량 레버로 0.15 까지 재 봤으나 freeR 4 뒤 되돌림
     expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.13, -0.13, 0.02, 0.02, 0]);
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55);

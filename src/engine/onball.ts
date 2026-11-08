@@ -265,7 +265,16 @@ export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who
 /** 상대 o 가 몰고 가는 길(a → (cx, cy))에 닿는 실효 거리: 길까지 거리 − 몰고 가는 동안 좁히는 거리 (돌파당한 수비수는 좁히지 못한다) */
 export function carryReachDist(s: SimState, o: Agent, a: Agent, cx: number, cy: number): number {
   const d = segDistS(o.x, o.y, a.x, a.y, cx, cy);
-  const close = s.t < o.beatenUntil ? 0 : O.carryClose * o.maxSpeed;
+  let close = s.t < o.beatenUntil ? 0 : O.carryClose * o.maxSpeed;
+  // 뒤에서 쫓는 수비 (C.82g): 몰고 가는 방향으로 carrier 뒤에 있으면 몰고 가는 동안 그만큼 멀어진다
+  if (O.carryChase > 0 && close > 0) {
+    const ux = cx - a.x, uy = cy - a.y;
+    const len = Math.sqrt(ux * ux + uy * uy);
+    if (len > 0.1) {
+      const proj = ((o.x - a.x) * ux + (o.y - a.y) * uy) / len;
+      if (proj < 0) close -= O.carryChase * len * Math.min(1, -proj / O.carryChaseRamp);
+    }
+  }
   return Math.max(0, d - close);
 }
 
