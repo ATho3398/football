@@ -33,6 +33,8 @@ export interface PlayerSpec {
   slot: number;
   position: Position;
   role?: string;
+  /** C.82f: 직접 고른 역할(사용자 전술 시트·진단 roles). 성향 추천(fillRoles·teamRoles 추천)·기본 역할은 false/없음 — 역할 전용 상수(roles.classicWingerCross)는 이 경우에만 */
+  rolePicked?: boolean;
   attrs: FieldAttributes;
   /** GK 만 */
   gk?: { attrs: GkAttributes; type: GkType };

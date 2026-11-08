@@ -503,6 +503,11 @@ export function finishMult(t: FieldAttributes, kind: 'shot' | 'long' | 'header' 
   return clamp(1 + PR.finishPerPoint * (finishSkill(t, kind) - PR.skillCenter), PR.finishMin, PR.finishMax);
 }
 
+/** C.82f: 크로스에 쓰는 크로스 능력치 — 직접 고른 정통 윙어는 roles.classicWingerCross 가산 (판단 accOf · 실행 오차 같은 값) */
+export function crossingOf(a: Agent): number {
+  return a.attrs.crossing + (a.rolePicked && a.role.id === 'classicWinger' ? ENGINE.roles.classicWingerCross : 0);
+}
+
 /** 같은 팀 동료 중 상대 박스 안 */
 function boxTeammates(s: SimState, a: Agent, dir: 1 | -1): Agent[] {
   return fieldOf(s, a.team).filter((o) => o !== a && inOppBox(o.x, o.y, dir));
@@ -1003,7 +1008,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     if (ax >= PR.crossMinX && (ay < PR.crossWide || ay > 1 - PR.crossWide)) {
       const ct = crossTarget(s, a);
       if (ct) {
-        const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (who.attrs.crossing - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
+        const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (crossingOf(who) - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
         // 공격 몰빵 억제 (C.80q ①): 연계 배수 — 실행(actions cross)은 1 − 배수 확률로 크로스가 크게 빗나간다
         const link = stackLinkMul(s, a);
         const p = accOf(a) * ct.pWin * link;

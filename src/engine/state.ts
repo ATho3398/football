@@ -26,6 +26,8 @@ export interface Agent {
   pos: Position;
   line: Line;
   role: Role;
+  /** C.82f: 직접 고른 역할인가 (spec.rolePicked) — 정통 윙어 전용 상수는 기본 역할 경로와 분리해 여기에만 걸린다 */
+  rolePicked: boolean;
   /** 포메이션 슬롯 기본 위치 (정규화) */
   sx: number;
   sy: number;

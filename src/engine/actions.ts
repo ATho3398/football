@@ -13,7 +13,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, pressReachOf, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
+import { carryReachDist, crossingOf, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, pressReachOf, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
 import { stackLinkMul } from './stack';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
@@ -692,7 +692,7 @@ function cross(s: SimState, a: Agent, c: Candidate): void {
   }
   // 약발 (C.45): 크로스 오차 ÷ 약발 배율
   // 날씨 (C.74a): 강풍 크로스 오차 × longError
-  const err = (((100 - a.attrs.crossing) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y)) * s.env.longError;
+  const err = (((100 - crossingOf(a)) * PR.crossError) / weakFootMul(a.body, attackDir(a.team, s.half), c.x - a.x, c.y - a.y)) * s.env.longError;
   // 공격 몰빵 억제 (C.80q ①): 1 − 연계 배수 확률로 크로스 오차 × stackCap.linkCrossErr (판단 p 에 같은 배수, 안 걸리면 난수도 안 뽑는다)
   const link = stackLinkMul(s, a);
   const errX = link < 1 && r(s, a.idx, Purpose.Cross, 7) >= link ? ENGINE.stackCap.linkCrossErr : 1;
