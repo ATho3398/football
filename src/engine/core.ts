@@ -1,14 +1,25 @@
 // 시뮬 공용 동작: 이벤트 기록, 소유 변경, 리스타트 준비
 
-import { ENGINE } from './config';
-import { effectiveTactics } from './offball';
-import { attackDir, clamp, dist, L, toPitch, W } from './pitch';
-import { Purpose, rand } from './rng';
-import { TENDENCY } from './tactics';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import { fieldOf, onOf } from './lists';
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as physics_ from './physics';
+const { burstReady, tiredRatio } = physics_;
+const BU = ENGINE.physics.burst;
+import { effectiveTactics, pressLevel } from './offball';
+import { oneTouchMul, preDecide } from './onball';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, hypot, L, toPitch, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
+import * as tactics_ from './tactics';
+const { TENDENCY } = tactics_;
 import type { Agent, RestartType, SimState } from './state';
 import type { MatchEvent } from './types';
 
 const T = ENGINE.time;
+const TR = ENGINE.transition;
 
 export function event(s: SimState, type: MatchEvent['type'], team: 0 | 1, players: string[], params?: MatchEvent['params']): void {
   s.events.push({ t: Math.round(s.t * 10) / 10, type, team, players, ...(params ? { params } : {}) });
@@ -25,20 +36,40 @@ function recordLoss(s: SimState, newTeam: 0 | 1): void {
   if (!lo || lo.team === newTeam) return;
   lo.rt.lost++;
   const nx = attackDir(lo.team, s.half) > 0 ? lo.x / L : 1 - lo.x / L;
+  // 위험 감수 실패 (C.77s A2): 전진·침투·크로스·돌파 뒤 상대 진영이면 절반 (마지막 1/3 은 attackLost 로 이미 절반, 겹치지 않음)
+  const risk = !!lo.rt.risky && nx > 0.5 && nx <= 2 / 3;
   if (nx < 1 / 3) lo.rt.dangerLost++;
   else if (nx > 2 / 3) lo.rt.attackLost++;
+  else if (risk) lo.rt.riskLost = (lo.rt.riskLost ?? 0) + 1;
   // 직접 모드 도박 실패 완화 (C.75a): 고른 선택지 바로 뒤 내 공 상실이면 감점 일부를 되돌린다
   const rl = s.moments.relief;
   if (rl && lo.spec.isMe && s.t - rl.t <= ENGINE.moments.reliefWindow) {
     const R = ENGINE.rating;
-    const cost = nx < 1 / 3 ? R.dangerLost : nx > 2 / 3 ? R.lost * R.attackLostFactor : R.lost;
+    const cost = nx < 1 / 3 ? R.dangerLost : nx > 2 / 3 ? R.lost * R.attackLostFactor : risk ? R.lost * R.riskLostFactor : R.lost;
     lo.rt.relief = (lo.rt.relief ?? 0) - rl.k * cost;
   }
 }
 
+/**
+ * 수신 정지 시간 (C.78b receive.timeModel 1): 첫 터치(볼 컨트롤)·공 속도·압박(pressDist m 안 가장 가까운 상대 필드 선수)·몸 방향·달리는 중으로 min~max 초.
+ * 패스 수신은 actions firstTouch 가, 그 밖의 소유(가로채기·루즈볼·태클)는 setOwner 가 부른다
+ */
+export function receiveTime(s: SimState, a: Agent, speed: number, back: boolean, touchFit = 0): number {
+  const R = ENGINE.receive;
+  let dNear = Infinity;
+  for (let i_1 = 0, a_1 = fieldOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!; dNear = Math.min(dNear, hypot(o.x - a.x, o.y - a.y)); }
+  const pr = Math.max(0, 1 - dNear / R.pressDist);
+  const run = clamp(hypot(a.vx, a.vy) / 5, 0, 1);
+  return clamp(R.base - (R.touchSkill * (a.attrs.ballControl + touchFit - 70)) / 100 + (R.ballSpeed * Math.max(0, speed - 12)) / 10 + R.press * pr
+    + (back ? R.back : 0) - R.run * run + reaction(a) * R.reactMul, R.min, R.max);
+}
+
 export function setOwner(s: SimState, a: Agent): void {
   const b = s.ball;
+  // 수신 정지 시간 (C.78b): 공을 잡는 순간 공 속도 (비행 중이면 비행 속도, 굴러가면 지금 속도)
+  const inSpeed = ENGINE.receive.timeModel > 0 ? (b.flight ? hypot(b.flight.toX - b.flight.fromX, b.flight.toY - b.flight.fromY) / Math.max(0.05, b.flight.dur) : hypot(b.vx, b.vy)) : 0;
   recordLoss(s, a.team);
+  a.rt.risky = false;
   // 결정 결과는 첫 소유 변경에서 끝난다 (C.75a 실패 완화는 그때까지만)
   s.moments.relief = null;
   s.lastOwner = a.idx;
@@ -46,22 +77,42 @@ export function setOwner(s: SimState, a: Agent): void {
   b.owner = a.idx;
   b.flight = null;
   b.reserve = null;
+  b.defHold = null;
   b.kick = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.lastTouch = a.idx;
   b.lastTeam = a.team;
-  if (s.possTeam !== a.team) {
+  const gained = s.possTeam !== a.team;
+  if (gained) {
     s.possTeam = a.team;
     s.possSince = s.t;
     s.possOrigin = 'open';
     s.possStartT = s.t;
     turnover(s, (1 - a.team) as 0 | 1, true);
+    // 압박 성공 (C.81u, 세기만): 직전 상대 소유 중 공 가진 선수 곁(pressRadius)에 있던 우리 선수 — pressWindow 초 안이면 +1
+    for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!;
+      if (m.team === a.team && m.onPitch && (m.rt.pressT ?? -100) >= s.t - ENGINE.rating.pressWindow) { m.rt.pressWon = (m.rt.pressWon ?? 0) + 1; m.rt.pressT = -100; }
+    }
     const nx = attackDir(a.team, s.half) > 0 ? b.x / L : 1 - b.x / L;
     if (nx > 0.5) s.teams[a.team].stats.oppHalfWins++;
   }
-  a.cooldown = ENGINE.ball.receiveTime + reaction(a) * 0.5;
+  a.cooldown = ENGINE.receive.timeModel > 0 ? receiveTime(s, a, inSpeed, false) : ENGINE.ball.receiveTime + reaction(a) * 0.5;
+  if (a.pre) a.pre = null;
+  // 뺏은 선수는 첫 판단 정지 없음 (C.78g): 오픈 플레이 탈취 순간 미리 정하기(C.78b) — 바로 하는 행동(원터치 패스·침투·슛)이면 정지 없이, 다루기면 정지 시간 뒤
+  if (gained && TR.winPre > 0 && ENGINE.receive.oneTouch > 0 && a.line !== 0 && !a.spec.isMe) {
+    const c = preDecide(s, a, inSpeed, a.cooldown);
+    if (c) {
+      a.pre = c;
+      a.cooldown = 0;
+      if (c.type === 'shoot') {
+        a.otMul = oneTouchMul(a, inSpeed, pressureNear(s, a));
+        a.otUntil = s.t + 0.25;
+      }
+    }
+  }
   a.gotBy = 'gain';
+  a.ballT = s.t;
   a.lastMoveT = -100;
   a.carryN = 0;
   a.dribbleT = -100;
@@ -76,40 +127,120 @@ export function setOwner(s: SimState, a: Agent): void {
 export function turnover(s: SimState, team: 0 | 1, open: boolean): void {
   const O = ENGINE.offball;
   const tm = s.teams[team];
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team) continue;
-    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a);
+  for (let i_2 = 0, a_2 = onOf(s, team); i_2 < a_2.length; i_2++) { const a = a_2[i_2]!;
+    a.recoverUrgent = rand(s.seed, s.tick, a.idx, Purpose.Offball, 5) < (O.recoverJudge + (O.recoverWork * a.attrs.workRate) / 100) * tiredness(a)
+      * (BU.recoverFloor + (1 - BU.recoverFloor) * burstReady(a));
   }
   tm.counterPressers = [];
   tm.counterUntil = 0;
   if (!open) return;
   s.teams[team === 0 ? 1 : 0].wonAt = s.t;
-  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록은 역압박 없이 즉시 복귀
+  // 전환 수비 (C.78a): 상실 시각·라인 기록 초기화, 탈취 팀 출구·제한 침투 (G2)
+  tm.lostAt = s.t;
+  tm.lineAtLoss = -1;
+  tm.brokeAt = -100;
+  if (O.exitRun > 0) exitRuns(s, team === 0 ? 1 : 0);
+  transitionMoment(s, team);
+  // 성향 (E.19, E.20 4번): 게겐프레싱 +1초·최대 3명, 역습·수비 블록(버스 포함)은 역압박 없이 즉시 복귀
   const tendency = tm.tactics.tendency;
   if (tendency === 'counter' || tendency === 'block') return;
   const b = s.ball;
   const near = s.agents
     .filter((a) => a.onPitch && a.team === team && a.line !== 0 && dist(a.x, a.y, b.x, b.y) <= O.counterRadius)
     .sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y));
-  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.counterMax;
-  for (const a of near) {
+  const max = manDiffCount(s, team) < 0 ? ENGINE.referee.shortCounterMax : tendency === 'gegenpress' ? TENDENCY.gegenMax : O.plan.sit.H.pressers[pressLevel(s, team)]!;
+  for (let i_3 = 0, a_3 = near; i_3 < a_3.length; i_3++) { const a = a_3[i_3]!;
     if (tm.counterPressers.length >= max) break;
-    const p = (O.counterJoin + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a);
+    const p = (O.counterJoin + (tendency === 'gegenpress' ? TENDENCY.gegenJoin : 0) + O.counterJoinPress * a.role.press + (O.counterJoinWork * a.attrs.workRate) / 100) * tiredness(a) * burstReady(a);
     if (rand(s.seed, s.tick, a.idx, Purpose.Offball, 6) < p) tm.counterPressers.push(a.idx);
   }
   if (tm.counterPressers.length) tm.counterUntil = s.t + O.counterBase + O.counterPerPress * effectiveTactics(s, team).pressing + (tendency === 'gegenpress' ? TENDENCY.gegenExtra : 0);
 }
 
+/**
+ * 탈취 팀 출구 (C.78a ⑤, G2): 최전방(슬롯 x 가장 앞 공격 줄 = 전진 패스 받을 출구)은 그대로 두고, 공보다 앞의 공격 줄·측면(LM/RM/WB) 선수 중
+ * 빈 곳(가장 가까운 상대 거리 × (0.5 + 침투 성향)) 순 exitRunners 명만 1회 침투한다. 난수 없음 (모두에게 침투를 늘리지 않는다 — C.77f 교훈)
+ */
+function exitRuns(s: SimState, win: 0 | 1): void {
+  const O = ENGINE.offball;
+  const dir = attackDir(win, s.half);
+  const bnx = dir > 0 ? s.ball.x / L : 1 - s.ball.x / L;
+  let top: Agent | null = null;
+  for (let i_4 = 0, a_4 = onOf(s, win); i_4 < a_4.length; i_4++) { const a = a_4[i_4]!; if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a; }
+  const cands = s.agents.filter((a) => {
+    if (!a.onPitch || a.team !== win || a === top || a.idx === s.ball.owner || a.line === 0) return false;
+    if (!(a.line === 3 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB')) return false;
+    const nx = dir > 0 ? a.x / L : 1 - a.x / L;
+    return nx > bnx;
+  });
+  // 빈 곳에 있는 선수부터 (가장 가까운 상대 필드 선수까지 거리 × 침투 성향) — 상대 수비가 적은 쪽이 뛴다
+  const room = (a: Agent) => {
+    let d = 40;
+    for (let i_5 = 0, a_5 = fieldOf(s, (1 - win) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!; d = Math.min(d, dist(o.x, o.y, a.x, a.y)); }
+    return d * (0.5 + a.role.run);
+  };
+  cands.sort((x, y) => room(y) - room(x) || x.idx - y.idx);
+  const exits = cands.slice(0, O.exitRunners);
+  for (let i_6 = 0, a_6 = exits; i_6 < a_6.length; i_6++) { const a = a_6[i_6]!;
+    a.runUntil = s.t + O.runSeconds;
+    a.exitRun = true;
+  }
+  // 역습 지원 (C.78d ②): 블록·역습이 자기 절반에서 뺏으면 공에 가장 가까운 2선(중원·측면, 공 앞뒤 무관) supportRunners 명이 측면 길로 달린다
+  const n = O.supportRun > 0 && bnx < 0.5 ? TENDENCY.supportRunners[s.teams[win].tactics.tendency] ?? 0 : 0;
+  if (!n) return;
+  const b = s.ball;
+  const sup = onOf(s, win).filter((a) => a !== top && a.idx !== b.owner && !exits.includes(a) && (a.line === 2 || a.pos === 'LM' || a.pos === 'RM' || a.pos === 'LWB' || a.pos === 'RWB'));
+  sup.sort((x, y) => dist(x.x, x.y, b.x, b.y) - dist(y.x, y.y, b.x, b.y) || x.idx - y.idx);
+  for (let i_7 = 0, a_7 = sup.slice(0, n); i_7 < a_7.length; i_7++) { const a = a_7[i_7]!;
+    a.runUntil = s.t + O.supportSeconds;
+    a.supportRun = true;
+  }
+}
+
+/**
+ * 전환 순간 (C.78g): ① 뺏긴 팀 필드 선수는 다음 오프더볼 판단이 lossMin~lossMax 초 늦다(판단력·수비 위치선정 — 잃기 전 목표로 계속 움직이며 다시 본다)
+ * ② 뺏은 팀 최전방·출구·지원 침투는 바로 다시 판단하고, 앞을 보고 있던 선수는 공격 방향으로 이미 달리며 출발한다. 난수 없음
+ */
+function transitionMoment(s: SimState, lost: 0 | 1): void {
+
+  if (TR.lossDelay > 0) {
+    for (let i_8 = 0, a_8 = fieldOf(s, lost); i_8 < a_8.length; i_8++) { const a = a_8[i_8]!;
+      const q = clamp(((a.judgement * 100 + a.attrs.defensivePositioning) / 2 - TR.lossRef0) / (TR.lossRef1 - TR.lossRef0), 0, 1);
+      a.nextOffball = Math.max(a.nextOffball, s.t) + TR.lossMax - (TR.lossMax - TR.lossMin) * q;
+    }
+  }
+  if (TR.startRun <= 0) return;
+  const win = (1 - lost) as 0 | 1;
+  const dir = attackDir(win, s.half);
+  let top: Agent | null = null;
+  for (let i_9 = 0, a_9 = onOf(s, win); i_9 < a_9.length; i_9++) { const a = a_9[i_9]!; if (a.line === 3 && (!top || a.sx > top.sx || (a.sx === top.sx && a.idx < top.idx))) top = a; }
+  for (let i_10 = 0, a_10 = onOf(s, win); i_10 < a_10.length; i_10++) { const a = a_10[i_10]!;
+    if (a.idx === s.ball.owner || !(a === top || a.exitRun || a.supportRun)) continue;
+    a.nextOffball = s.t;
+    if (a.hx * dir < TR.startFace) continue;
+    const v = TR.startRun * a.maxSpeed;
+    const sp = hypot(a.vx, a.vy);
+    if (sp >= v) continue;
+    a.vx = a.hx * v;
+    a.vy = a.hy * v;
+  }
+}
+
+/** 수신 압박 비율 (preDecide 와 같은 식): pressDist m 안 가장 가까운 상대 필드 선수가 가까울수록 1 */
+function pressureNear(s: SimState, a: Agent): number {
+  let d = Infinity;
+  for (let i_11 = 0, a_11 = fieldOf(s, (1 - a.team) as 0 | 1); i_11 < a_11.length; i_11++) { const o = a_11[i_11]!; d = Math.min(d, hypot(o.x - a.x, o.y - a.y)); }
+  return Math.max(0, 1 - d / ENGINE.receive.pressDist);
+}
+
 /** 지친 선수는 역압박 가담·긴급 복귀를 덜 한다 (E.20 5번): 스태미나 staminaLowFrom 아래에서 비례, 0 이면 tiredFloor */
 function tiredness(a: Agent): number {
-  const P = ENGINE.physics;
-  if (a.stamina >= P.staminaLowFrom) return 1;
-  return P.tiredFloor + (1 - P.tiredFloor) * (a.stamina / P.staminaLowFrom);
+  return 1 - (1 - ENGINE.physics.tiredFloor) * tiredRatio(a);
 }
 
 function manDiffCount(s: SimState, team: 0 | 1): number {
   let d = 0;
-  for (const a of s.agents) if (a.onPitch) d += a.team === team ? 1 : -1;
+  for (let i_12 = 0, a_12 = s.agents; i_12 < a_12.length; i_12++) { const a = a_12[i_12]!; if (a.onPitch) d += a.team === team ? 1 : -1; }
   return d;
 }
 
@@ -132,8 +263,7 @@ export function looseBall(s: SimState, x: number, y: number, vx: number, vy: num
 /** 킥오프 키커: 그 팀에서 가장 앞선 필드 선수 (슬롯 기준) */
 export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
   let best: Agent | null = null;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team || a.line === 0) continue;
+  for (let i_13 = 0, a_13 = fieldOf(s, team); i_13 < a_13.length; i_13++) { const a = a_13[i_13]!;
     if (!best || a.sx > best.sx) best = a;
   }
   return best;
@@ -143,11 +273,11 @@ export function kickoffTaker(s: SimState, team: 0 | 1): Agent | null {
 export function kickoffPositions(s: SimState, team: 0 | 1): void {
   const taker = kickoffTaker(s, team);
   let mate: Agent | null = null;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team || a.line === 0 || a === taker) continue;
+  for (let i_14 = 0, a_14 = fieldOf(s, team); i_14 < a_14.length; i_14++) { const a = a_14[i_14]!;
+    if (a === taker) continue;
     if (!mate || a.sx > mate.sx) mate = a;
   }
-  for (const a of s.agents) {
+  for (let i_15 = 0, a_15 = s.agents; i_15 < a_15.length; i_15++) { const a = a_15[i_15]!;
     if (!a.onPitch) continue;
     const dir = attackDir(a.team, s.half);
     const nx = Math.min(a.sx * 0.9, 0.46);
@@ -157,12 +287,16 @@ export function kickoffPositions(s: SimState, team: 0 | 1): void {
     a.vx = a.vy = 0;
     a.tx = a.x;
     a.ty = a.y;
+    a.tvx = a.tvy = 0;
+    a.tvIdx = -1;
+    a.hx = dir;
+    a.hy = 0;
     a.paceCap = 0;
   }
 }
 
 /** 범위 [lo, hi] 안 대기 시간 (시드) */
-export function restartWait(s: SimState, range: readonly [number, number], k = 0): number {
+function restartWait(s: SimState, range: readonly [number, number], k = 0): number {
   return range[0] + (range[1] - range[0]) * rand(s.seed, s.tick, 0, Purpose.Restart, k);
 }
 
@@ -193,12 +327,25 @@ export function delayRestart(s: SimState, range: readonly [number, number], k: n
 export function nearestTaker(s: SimState, type: RestartType, team: 0 | 1, x: number, y: number): number {
   let pick = -1;
   let bd = Infinity;
-  for (const a of s.agents) {
-    if (!a.onPitch || a.team !== team) continue;
+  for (let i_16 = 0, a_16 = onOf(s, team); i_16 < a_16.length; i_16++) { const a = a_16[i_16]!;
     if (type === 'goalKick' ? a.line !== 0 : a.line === 0) continue;
     const d = dist(a.x, a.y, x, y);
     if (d < bd) {
       bd = d;
+      pick = a.idx;
+    }
+  }
+  return pick;
+}
+
+/** 지정 PK 키커 (C.76q, 미해결 13): 경기장의 필드 선수 중 (슈팅 + 침착성) 최고 (penaltyProb 와 같은 식), 같으면 앞 번호 */
+export function penaltyTaker(s: SimState, team: 0 | 1): number {
+  let pick = -1;
+  let best = -Infinity;
+  for (let i_17 = 0, a_17 = fieldOf(s, team); i_17 < a_17.length; i_17++) { const a = a_17[i_17]!;
+    const v = a.attrs.shooting + a.attrs.composure;
+    if (v > best) {
+      best = v;
       pick = a.idx;
     }
   }
@@ -214,12 +361,13 @@ export function setRestart(s: SimState, type: RestartType, team: 0 | 1, x: numbe
   b.reserve = null;
   b.kick = null;
   b.handBlock = null;
+  b.defHold = null;
   b.vx = b.vy = 0;
   b.z = 0;
   b.x = clamp(x, 0, L);
   b.y = clamp(y, 0, W);
   let pick = taker ?? -1;
-  if (pick < 0) pick = type === 'kickoff' ? (kickoffTaker(s, team)?.idx ?? -1) : nearestTaker(s, type, team, b.x, b.y);
+  if (pick < 0) pick = type === 'kickoff' ? (kickoffTaker(s, team)?.idx ?? -1) : type === 'penalty' ? penaltyTaker(s, team) : nearestTaker(s, type, team, b.x, b.y);
   if (type !== 'kickoff') recordLoss(s, team);
   s.moments.relief = null;
   if (s.possTeam !== team) turnover(s, s.possTeam, false);

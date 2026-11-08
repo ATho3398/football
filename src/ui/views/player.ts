@@ -3,6 +3,7 @@
 
 import { Avatar, Button, Crest, esc, FinChip, HeroPanel, Icon, Meter, OptionRow, SectionTitle, Tabs, TierBadge } from '../components';
 import { BALANCE } from '../../config/balance';
+import { yellowBanRule } from '../../discipline';
 import { heroFaceOf } from '../faces';
 import { isLandPhone, isWide, skin } from '../skin';
 import type { MarketVM } from '../transferVM';
@@ -47,28 +48,37 @@ export interface PlayerParts {
   legendOpen?: boolean;
   /** 기록 탭 맨 위 기록 도전 (C.74b) */
   records?: string;
+  /** 에이전트 섹션 html (C.77q, 계약 탭) */
+  agent?: string;
 }
 
 export function playerView(vm: PlayerVM, parts: PlayerParts): string {
   const c = vm.condition;
-  const chips = [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellows}/${c.yellowEvery}`, soft: true }, { label: vm.chapter, soft: true }];
+  const ret = parts.retired ? retiredLine(vm) : null;
+  // 은퇴 (C.81p, 수정 요청 31번): 현역 값(나이 · 폼 · 옐로 · 다음 위상까지 · 레벨 막대)은 빼고 커리어 요약 줄
+  const chips = ret
+    ? [`${vm.age}세 은퇴`, `${ret.seasons}시즌`, { label: `위상 ${vm.tierName}`, soft: true }]
+    : [`위상 ${vm.tierName} · ${vm.reputation}점`, `폼 ${['최악', '나쁨', '보통', '좋음', '최고'][c.form - 1]}`, { label: `옐로 ${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}`, soft: true }, { label: vm.chapter, soft: true }];
+  const eyebrowTail = ret ? '은퇴' : `${vm.age}세`;
   const face = playerFace(vm);
   // 디자인 B 93·134·136: 사진이 있으면 compact 미페 머리말(290px), 없으면 compact 머리말(디자인 A 93)
   const hero = face
-    ? HeroPanel({ title: '선수', back: false, compact: true, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.name, eyebrow: `${vm.team} · ${vm.position} · ${vm.age}세`, value: vm.ovr, unit: 'OVR', chips })
-    : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${vm.age}세`, value: vm.ovr, unit: 'OVR', pad: false, progress: false, chips });
+    ? HeroPanel({ title: '선수', back: false, compact: true, face: face.src, cutout: face.cutout, kit: vm.kit, name: vm.name, eyebrow: `${vm.team} · ${vm.position} · ${eyebrowTail}`, value: vm.ovr, unit: 'OVR', chips })
+    : HeroPanel({ title: '선수', right: vm.team, back: false, compact: true, eyebrow: `${vm.name} · ${vm.position} · ${eyebrowTail}`, value: vm.ovr, unit: 'OVR', pad: false, progress: false, chips });
   // 프로필 줄 (디자인 93): 얼굴 · 위상 배지 + 다음 티어까지 · 레벨 막대 · [꾸미기](몸·태그 탭의 "내 모습")
   const repNote = vm.next ? `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점` : vm.isLegendary ? '최고 위상' : '레전더리는 업적 조건';
-  const profile = `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
+  const profile = ret ? retiredProfile(vm, ret) : `<div class="panel profile-row pl-profile">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
       <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>${esc(repNote)}</small></span>
+      <span class="pl-pot" title="나이가 들수록 범위가 좁아져요">잠재력 <b class="po-num">${esc(vm.potential)}</b></span>
       <span class="pl-lv"><small>Lv ${vm.level}</small><span class="pl-lv__bar" aria-hidden="true"><i style="width:${Math.round((vm.xp / Math.max(1, vm.xpMax)) * 100)}%"></i></span><small class="po-num">${vm.xp}/${vm.xpMax}</small></span>
     </div>${Button({ variant: 'secondary', size: 'sm', icon: 'edit', act: 'player-tab', data: { v: 'body', look: '1' }, children: '꾸미기' })}</div>`;
   const tabBody = (t: PlayerTab): string => {
     if (t === 'attrs') return attrsTab(vm, parts);
     if (t === 'body') return parts.body;
     if (t === 'pos') return posTab(vm, !!parts.legendOpen);
-    if (t === 'record') return `${parts.records ?? ''}${recordTab(vm)}`;
-    return parts.market ? contractSection(parts.market) : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
+    if (t === 'record') return `${parts.records ?? ''}${recordTab(vm, parts.retired)}`;
+    // C.77q: 에이전트(재정 › 생활·투자에서 옮김)는 계약 아래
+    return parts.market ? contractSection(parts.market) + (parts.agent ?? '') : '<p class="small muted">은퇴한 선수는 계약이 없어요.</p>';
   };
   // PC 2열 (C.61 디자인 121·153): 왼쪽 = 프로필 줄 + 능력치 늘, 오른쪽 = 탭 4개(몸·태그 · 포지션 · 기록 · 계약). 능력치 탭이면 오른쪽은 몸·태그
   if (isWide()) {
@@ -100,7 +110,7 @@ function posTab(vm: PlayerVM, open: boolean): string {
   const metN = cups.filter((c) => c.met).length;
   const cupHead = `<button type="button" class="pl-leg__row pl-leg__fold" data-act="legend-more" aria-expanded="${open}">
       <span class="pl-leg__icon">${Icon({ name: metN ? 'star' : 'lock', size: 16 })}</span>
-      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 아직 열리지 않은 대회예요</small></span>
+      <span class="grow"><b>대회 조건 ${cups.length}개 ${metN ? `· ${metN}개 달성` : '잠김'}</b><small>(${cups[0]?.label ?? ''} 그리고 ${cups.slice(1).map((c) => c.label.replace(/ 이상$/, '')).join('·')} 중 하나) · 수상 기록으로 판정해요</small></span>
       <span class="pl-leg__more small">${open ? '접기' : '펼치기'}${Icon({ name: 'chevron-right', size: 14, style: `transform:rotate(${open ? -90 : 90}deg)` })}</span></button>`;
   const cupRows = open ? `<div class="opts pl-leg__list">${cups.map((l, i) => OptionRow({
     icon: l.met ? 'star' : 'lock', title: `${i === 0 ? '' : i === 1 ? '그리고 ' : '또는 '}${l.label}`,
@@ -123,8 +133,23 @@ function posTab(vm: PlayerVM, open: boolean): string {
     <div class="pl-badges">${vm.badges.map(badge).join('')}</div>`;
 }
 
-/** 기록 탭 (디자인 95): 시즌 합계 · 경기별 · 경고와 출장 · 위상과 레벨 · 시즌별 */
-function recordTab(vm: PlayerVM): string {
+/** 은퇴한 선수의 커리어 합계 (시즌별 기록 합) */
+function retiredLine(vm: PlayerVM): { seasons: number; apps: number; goals: number; assists: number } {
+  const h = vm.history;
+  return { seasons: h.length, apps: h.reduce((a, r) => a + r.apps, 0), goals: h.reduce((a, r) => a + r.goals, 0), assists: h.reduce((a, r) => a + r.assists, 0) };
+}
+
+/** 은퇴 프로필 줄 (C.81p): 얼굴 · 최종 위상 · 커리어 합계 → [커리어 요약 보기]. 레벨 막대·다음 위상까지는 없다. [새 게임]은 독 가운데 키 하나(라임 주 버튼 1개) */
+function retiredProfile(vm: PlayerVM, r: ReturnType<typeof retiredLine>): string {
+  return `<div class="panel profile-row pl-profile pl-profile--retired">${Avatar({ size: 56, face: vm.face, name: vm.name, ring: true })}<div class="grow">
+      <span class="pl-tier">${TierBadge({ tier: vm.tier, score: vm.reputation, size: 'sm' })}<small>은퇴 · 최종 위상</small></span>
+      <small class="pl-ret__line">${r.seasons}시즌 · ${r.apps}경기 · ${r.goals}골 · ${r.assists}도움 · ${vm.age}세 은퇴</small>
+    </div></div>
+    ${Button({ variant: 'secondary', block: true, icon: 'trophy', act: 'go', data: { to: 'retired' }, children: '커리어 요약 보기' })}`;
+}
+
+/** 기록 탭 (디자인 95): 시즌 합계 · 경기별 · 경고와 출장 · 위상과 레벨 · 시즌별. 은퇴(C.81p)면 경고·위상·레벨 칸 대신 최종 위상 한 줄 */
+function recordTab(vm: PlayerVM, retired = false): string {
   const c = vm.condition;
   const ban = vm.suspended > 0
     ? `<div class="ban-row"><i class="redcard"></i><span class="grow"><b>출장 정지 ${vm.suspended}경기 남음</b></span>${vm.nextOpp ? `<span class="fail small">${esc(vm.nextOpp)}전 결장</span>` : ''}</div>`
@@ -132,15 +157,23 @@ function recordTab(vm: PlayerVM): string {
   const rep = vm.next
     ? Meter({ value: vm.reputation - vm.next.from, max: vm.next.cut - vm.next.from, label: `${vm.next.name}까지 ${vm.next.cut - vm.reputation}점`, showValue: true, tone: 'brand' })
     : `<p class="muted small">${vm.isLegendary ? '최고 위상 티어예요.' : '월드클래스예요. 레전더리는 점수가 아니라 포지션 탭의 업적 조건으로 열려요.'}</p>`;
+  if (retired) {
+    return `${seasonMatchesSection(vm.matches, '마지막 시즌 경기 기록')}
+    ${SectionTitle({ title: '최종 위상', action: `누적 XP ${vm.totalXp}` })}
+    ${panel(`<div class="kv">${TierBadge({ tier: vm.tier, score: vm.reputation })}<span class="small muted">은퇴할 때 위상 · Lv ${vm.level}</span></div>`)}
+    ${SectionTitle({ title: '시즌별' })}
+    ${panel(historyTable(vm.history))}`;
+  }
   return `${seasonMatchesSection(vm.matches)}
     ${SectionTitle({ title: '경고와 출장' })}
     ${panel(`
-      <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellows}/${c.yellowEvery}</b></span></div>
-      <span class="muted small">옐로카드 ${c.yellowEvery}장이 쌓이면 다음 1경기에 나올 수 없어요.</span>
+      <div class="kv"><b>경고 누적</b><span class="pips">${yellowPips(c.yellows, c.yellowEvery)}<b class="po-num">${c.yellowEvery ? `${c.yellows}/${c.yellowEvery}` : c.yellows}</b></span></div>
+      <span class="muted small">리그 옐로 ${yellowBanRule()} 출장 정지 (시즌마다 새로).</span>
       ${ban}`)}
     ${SectionTitle({ title: '호흡 좋은 동료', action: `패스 성공 최대 +${Math.round(BALANCE.chemistry.maxPass * 100)}%` })}
     ${panel(vm.chem.length
-      ? `<ul class="chem-list">${vm.chem.map((m) => `<li><b class="chem-list__name">${esc(m.name)} <small class="muted">${esc(m.position)}</small></b><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small">+${m.bonus}%</b></li>`).join('')}</ul>
+      // C.76j (디자인 232): 얼굴 · 이름 · 포지션 · 케미 단계 · 막대 · +% | 오른쪽 함께 뛴 분 (패스·합작 골은 기록이 없어 분으로)
+      ? `<div class="chem-head small muted"><span>동료 · 케미</span><span>함께 뛴 시간</span></div><ul class="chem-list chem-list--b">${vm.chem.map((m) => `<li>${Avatar({ size: 36, name: m.name })}<span class="chem-list__main"><b class="chem-list__name">${esc(m.name)} <i class="po-num muted">${esc(m.position)}</i></b><span class="chem-list__line"><small class="muted">${esc(m.label)}</small><span class="chem-list__bar" aria-hidden="true"><i style="width:${Math.min(100, Math.round((m.minutes / BALANCE.chemistry.fullMinutes) * 100))}%"></i></span><b class="po-num small chem-list__bonus">+${m.bonus}%</b></span></span><span class="chem-list__min"><b class="po-num">${m.minutes}</b><small>분</small></span></li>`).join('')}</ul>
         <span class="muted small">같이 뛴 시간만큼 쌓이고 시즌이 지나도 남아요. 이적하면 처음부터예요.</span>`
       : '<span class="muted small">같이 뛴 시간만큼 동료와 호흡이 쌓여요. 호흡이 좋은 동료와는 패스가 조금 더 잘 맞아요.</span>')}
     ${SectionTitle({ title: '위상과 레벨', action: `누적 XP ${vm.totalXp}` })}

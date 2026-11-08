@@ -4,6 +4,7 @@
 import { BottomSheet, Button, Icon, Switch, esc } from '../components';
 import { AUTO_PREFS_DEFAULT, type AutoPrefs } from '../autoPrefs';
 import type { AutoSheetVM } from '../viewModels';
+import { scoreText } from '../../text';
 
 export function autoSheet(vm: AutoSheetVM, count: number, prefs: AutoPrefs = AUTO_PREFS_DEFAULT): string {
   const n = Math.max(1, Math.min(vm.remaining, count));
@@ -32,7 +33,7 @@ export function autoSheet(vm: AutoSheetVM, count: number, prefs: AutoPrefs = AUT
   const sw = (k: keyof AutoPrefs, label: string, desc: string) => Switch({ label, desc, on: prefs[k], act: 'auto-pref', data: { k }, className: 'auto-pref' });
   const settings = `<h4 class="ag-head auto-h2">진행 설정</h4><div class="auto-prefs">
       ${sw('alloc', '포인트 추천 배분 자동 적용', '레벨업 포인트를 포인트 화면 [자동 배분]과 같은 규칙으로 바로 찍어요.')}
-      ${sw('event', '선택 이벤트가 오면 멈춤', '답이 필요한 인박스 이벤트가 새로 오면 멈춰요. 끄면 기한이 지나 기본 선택으로 넘어가요.')}
+      ${sw('event', '선택 이벤트가 오면 멈춤', '답이 필요한 인박스 이벤트가 새로 오면 멈춰요. 끄면 기한이 지나 기본 선택으로 넘어가요. 인터뷰는 멈추지 않고 손해가 가장 적은 답을 골라요.')}
       ${sw('injury', '부상당하면 멈춤', '내 선수가 새로 다치면 멈춰요.')}
     </div><p class="small muted">이적 제안·재계약처럼 답해야 하는 일은 늘 멈춰요. [중단]은 그날까지 끝내고 멈춰요.</p>`;
   return BottomSheet({
@@ -50,6 +51,7 @@ export function autoLayerHtml(): string {
   return `<div class="auto-layer__box" role="status" aria-live="polite">
     <div class="auto-layer__head"><span class="live-dot" aria-hidden="true"></span><b class="auto-layer__title">자동 경기 진행 중</b></div>
     <div class="auto-layer__count"><b class="po-num auto-layer__n">0</b><span class="po-num auto-layer__m">/ 0경기</span></div>
+    <span class="auto-layer__chip" hidden>${Icon({ name: 'trophy', size: 14, strokeWidth: 2.4 })}<b></b></span>
     <span class="auto-layer__meta small"></span>
     <span class="auto-layer__bar" aria-hidden="true"><i></i></span>
     <ul class="auto-layer__results"></ul>
@@ -57,12 +59,12 @@ export function autoLayerHtml(): string {
     ${Button({ variant: 'secondary', block: true, icon: 'stop', act: 'sim-stop', className: 'auto-layer__stop', children: '중단' })}</div>`;
 }
 
-/** 레이어 한 줄 결과 (최근 2경기) */
+/** 레이어 한 줄 결과 (최근 4경기, C.76j 디자인 215: 앞에 "리그 3R"처럼 대회 + 라운드) */
 export interface AutoResultLine { label: string; opp: string; gf: number; ga: number; rating: number | null }
 
 export function autoResultsHtml(list: AutoResultLine[]): string {
-  return list.slice(-2).map((r) => {
+  return list.slice(-4).map((r) => {
     const o = r.gf > r.ga ? ['win', '승'] : r.gf < r.ga ? ['loss', '패'] : ['draw', '무'];
-    return `<li><span class="po-num">${esc(r.label)}</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num">${r.gf}-${r.ga} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
+    return `<li><span class="po-num">${esc(r.label)}</span><b class="grow">${esc(r.opp)} <em class="is-${o[0]} po-num score-cell">${scoreText(r.gf, r.ga)} ${o[1]}</em></b><span>내 평점 <b class="po-num">${r.rating != null ? r.rating.toFixed(1) : '-'}</b></span></li>`;
   }).join('');
 }

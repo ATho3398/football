@@ -8,7 +8,7 @@ import { positionOvr } from '../src/positions';
 import {
   afterTeamMatch, distancePenalty, engineProficiency, gainProficiency, initialProficiency, initialProfLog, positionDistance, positionPenalty, proficiencyPenalty, requestPositionChange,
 } from '../src/proficiency';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import type { PlayerState, SeasonRecord } from '../src/types';
 
 const flat = (v: number) => Object.fromEntries(FIELD_ATTRIBUTES.map((a) => [a, v])) as FieldAttributes;
@@ -148,33 +148,25 @@ describe('레전드 배지 (부록 D.4)', () => {
   });
 });
 
-describe('세이브 변환 7 → 8', () => {
-  it('숙련도를 채우고 배지는 빈 목록 (실제 선수는 서브 포지션 70)', () => {
+describe('옛 세이브 (7)', () => {
+  it('옛 세이브(7)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'real', playerId: 'kane', seed: 'mig8', difficulty: 'normal' });
-    const expected = s.player.proficiency;
     const old = JSON.parse(serialize(s));
     old.saveFormat = 7;
-    delete old.player.proficiency;
-    delete old.player.badges;
-    const loaded = deserialize(JSON.stringify(old));
-    expect(loaded.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(loaded.player.proficiency).toEqual(expected);
-    expect(loaded.player.proficiency[loaded.player.position as 'ST']).toBe(100);
-    expect(loaded.player.badges).toEqual([]);
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
   });
 });
 
-describe('세이브 변환 18 → 19 (C.39)', () => {
-  it('숙련도 값은 그대로, 진행 기록만 추가 (100이면 달성, 출전 수는 이번 시즌 경기 목록)', () => {
+describe('세이브 (C.39)', () => {
+  it('숙련도·진행 기록은 왕복 그대로, 옛 세이브(18)는 이어 할 수 없음', () => {
     const s = newGame({ mode: 'prospect', position: 'ST', seed: 'mig19', difficulty: 'normal' });
     s.player.proficiency.CF = 63.5;
     s.matchLog = [{ round: 1, opponentId: 'x', home: true, goalsFor: 0, goalsAgainst: 0, minutes: 90, started: true, goals: 0, assists: 0, rating: 6, mom: false, position: 'CF', rec: null }];
+    const loaded = deserialize(serialize(s));
+    expect(loaded.player.proficiency.CF).toBe(63.5);
+    expect(loaded.player.profLog).toEqual(s.player.profLog);
     const old = JSON.parse(serialize(s));
     old.saveFormat = 18;
-    delete old.player.profLog;
-    const loaded = deserialize(JSON.stringify(old));
-    expect(loaded.player.proficiency.CF).toBe(63.5);
-    expect(loaded.player.profLog!.CF).toEqual({ apps: 1, idle: 0, peak: false });
-    expect(loaded.player.profLog!.ST!.peak).toBe(true);
+    expect(() => deserialize(JSON.stringify(old))).toThrow(SaveFormatError);
   });
 });

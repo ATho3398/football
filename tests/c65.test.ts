@@ -5,7 +5,7 @@ import { cardById } from '../src/config/cards';
 import { newGame, playRound, SAVE_FORMAT_VERSION, type GameState } from '../src/game';
 import { inboxList } from '../src/inbox';
 import { ensureManager } from '../src/manager';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { ensureGoals, goalLabel, goalProgress, goalsSeasonEnd, hasLeagueStats, makeGoals, type SeasonGoal } from '../src/seasonGoals';
 import { goalsCardVM } from '../src/ui/inboxVM';
 import { goalsResultPanel, goalsSection } from '../src/ui/views/inbox';
@@ -148,25 +148,22 @@ describe('시즌 끝 판정과 보상', () => {
 });
 
 describe('세이브 35 (C.65)', () => {
-  it('왕복, 34 세이브(목표 없음) → 불러온 뒤 이번 시즌 목표를 만든다', () => {
+  it('왕복, 옛 세이브(34)는 이어 할 수 없음', () => {
     const g = prospect('ST', 'c65-save');
     playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(45);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const back = deserialize(serialize(g));
     expect(back.goals).toEqual(g.goals);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 34;
-    delete raw.goals;
-    const old = deserialize(JSON.stringify(raw));
-    expect(old.goals).toBeUndefined();
-    expect(ensureGoals(old)!.list).toHaveLength(3);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });
 
 describe('버전 (C.65)', () => {
   it('부록 C 소절 · 단계 형식 (C.66부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

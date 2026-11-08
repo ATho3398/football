@@ -12,7 +12,7 @@ import { posGroup } from '../src/roster';
 import { CARDS, cardById, starterDeck } from '../src/config/cards';
 import { groupOfPosition } from '../src/cardCollection';
 import { setEnvironmentFixed } from '../src/weather';
-import { newShape, shaped, shapeLine } from './moment-shape';
+import { newShape, optionLine, shaped, shapeLine } from './moment-shape';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -104,4 +104,5 @@ for (const [id, u] of Object.entries(use).sort((a, b) => b[1].bot / b[1].inDeck 
   console.log(`${cardById(id)?.name ?? id} | ${u.inDeck} | ${f(u.auto / u.inDeck)} (${u.auto ? Math.round((100 * u.autoOk) / u.auto) : '-'}%) | ${f(u.bot / u.inDeck)} (${u.bot ? Math.round((100 * u.botOk) / u.bot) : '-'}%)`);
 }
 console.log(`봇 결정 순간 모양 (C.75a): ${shapeLine(shape, rows.length)}`);
+console.log(`봇 선택지 모양 (C.75v): ${optionLine(shape)}`);
 process.exit(0);

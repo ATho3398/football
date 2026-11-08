@@ -1,7 +1,7 @@
 // 신체·양발 (pending 47 1, 부록 C.45): 키·몸무게·주발·약발 생성과 엔진 실행 배율.
 // 가상 선수 신체는 선수 id 시드(`body:<id>`)로 따로 뽑아 기존 시드 흐름(로스터·경기)을 건드리지 않는다
 
-import { A_GRADE_PLAYERS } from '../data/players';
+import { REAL_PLAYER_BY_ID } from '../data/players';
 import { REAL_WEAK_FOOT } from '../data/players/weakFoot';
 import { BALANCE } from './config/balance';
 import { posGroup } from './roster';
@@ -57,7 +57,7 @@ export function rollBody(id: string, position: Position, rng: Rng = createRng(ha
   return { height, weight, foot, weakFoot };
 }
 
-const REAL_BY_ID = new Map(A_GRADE_PLAYERS.map((p) => [p.id, p]));
+const REAL_BY_ID = REAL_PLAYER_BY_ID;
 
 /** 실제 선수 신체 (데이터의 2018-19 키·몸무게·주발 + 약발 표). 데이터가 없으면 undefined */
 export function realBody(id: string): Body | undefined {
@@ -124,4 +124,31 @@ export function weakFootMul(m: BodyMods, dir: 1 | -1, dx: number, dy: number, pa
   const B = BALANCE.body;
   const share = clamp((Math.abs(lat) - B.weakFrom) / (B.weakFull - B.weakFrom), 0, 1);
   return 1 - near * share * (1 - B.weakFootMul[m.weakFoot - 1]!);
+}
+
+/**
+ * 슛을 차는 발 (C.79q): 슛 방향 (dx, dy) 이 몸 방향 (hx, hy) 의 오른쪽이면 왼발(인사이드로 감아 차기), 왼쪽이면 오른발 —
+ * 공격 방향이 아니라 몸 방향 기준이라, 안으로 치고 들어오는 인버티드 윙어(오른쪽 왼발잡이)는 파 포스트를 주발로 감아 찬다.
+ * 몸 뒤쪽으로 차면 완전히 돌아 차야 한다(가로 1). 시간이 있으면(압박·원터치 rush 0~1 가 작을수록) 공을 주발 쪽으로 옮겨 놓고
+ * 차므로 약발 몫이 shotSet 만큼 준다. 급할 때(rush 1)는 몸 방향 그대로의 발. 원터치가 아니면 발밑 공이라 약발 시작 각도가 shotCarry 만큼 넓다.
+ * 0 = 아무 발이나 ~ 1 = 완전히 약발
+ */
+export function shotWeakShare(m: BodyMods, hx: number, hy: number, dx: number, dy: number, rush: number, oneTouch = false): number {
+  if (m.weakFoot >= 5) return 0;
+  const d = Math.hypot(dx, dy);
+  if (d < 1e-6) return 0;
+  // y 는 공격 방향 왼쪽이 0 이라, 몸 방향 × 슛 방향 > 0 = 몸 방향의 오른쪽
+  const lat = (hx * dy - hy * dx) / d;
+  const need: MainFoot = lat > 0 ? 'left' : 'right';
+  if (need === m.foot) return 0;
+  const B = BALANCE.body;
+  const al = hx * dx + hy * dy < 0 ? 1 : Math.abs(lat);
+  // 발밑 공(원터치 아님)은 주발 인사이드로 몸 반대쪽까지 감아 찬다: 약발이 시작하는 가로 성분이 shotCarry 만큼 넓다
+  const w = oneTouch ? 0 : B.shotCarry;
+  return clamp((al - B.weakFrom - w) / (B.weakFull - B.weakFrom), 0, 1) * (1 - B.shotSet * (1 - clamp(rush, 0, 1)));
+}
+
+/** 슛 약발 정확도 배율 (C.79q, shotWeakShare 를 약발 등급 배율로) — 판단 xG·실행·수비 슛 레인 읽기가 같은 함수 */
+export function shotFootMul(m: BodyMods, hx: number, hy: number, dx: number, dy: number, rush: number, oneTouch = false): number {
+  return 1 - shotWeakShare(m, hx, hy, dx, dy, rush, oneTouch) * (1 - BALANCE.body.weakFootMul[m.weakFoot - 1]!);
 }

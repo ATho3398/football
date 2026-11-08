@@ -1,11 +1,16 @@
 // 심판 (E.10): 파울, 어드밴티지, 카드와 퇴장(수적 열세), 오프사이드
 
-import { ENGINE } from './config';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import { fieldOf, onOf } from './lists';
+import * as config_ from './config';
+const { ENGINE } = config_;
 import { delayRestart, event, setRestart } from './core';
-import { attackDir, clamp, dist, inOppBox, L, positionValue, toNorm, W } from './pitch';
-import { Purpose, rand } from './rng';
+import * as pitch_ from './pitch';
+const { attackDir, clamp, dist, inOppBox, L, normX, normY, positionValue, toNorm, W } = pitch_;
+import * as rng_ from './rng';
+const { Purpose, rand } = rng_;
 import type { Agent, CardType, SimState } from './state';
-import { bestBench, emergencyKeeper, substitute } from './subs';
+import { availableSubs, bestBench, emergencyKeeper, substitute } from './subs';
 
 const R = ENGINE.referee;
 const N = 0.5;
@@ -19,21 +24,26 @@ function r(s: SimState, a: number, p: number, k = 0): number {
 /** 퇴장: 슬롯 제거, 같은 줄 선수들의 y 간격을 균등하게 다시 나눈다. GK 퇴장이면 GK 교체 또는 필드 선수가 GK */
 export function sendOff(s: SimState, a: Agent): void {
   a.onPitch = false;
+  s.onVer++;
   a.leftAt = s.elapsed;
   a.stats.red = true;
   s.teams[a.team].stats.reds++;
   if (s.ball.owner === a.idx) s.ball.owner = -1;
+  playerLost(s, a);
+}
+
+/**
+ * 교체 없이 한 명이 빠졌다 (퇴장, 교체권 없는 부상 — C.78k): GK 면 벤치 GK 교체(공격수 1명 대신) 또는 필드 선수 GK,
+ * 아니면 같은 줄 간격을 다시 나눈다. 그 뒤 수적 열세 재배치
+ */
+export function playerLost(s: SimState, a: Agent): void {
   if (a.line === 0) {
-    const gk = s.teams[a.team].subsLeft > 0 ? bestBench(s, a.team, 'GK') : null;
-    const out = s.agents.filter((x) => x.onPitch && x.team === a.team && x.line !== 0 && !x.spec.isMe).sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
+    const gk = availableSubs(s, a.team) > 0 ? bestBench(s, a.team, 'GK') : null;
+    const out = fieldOf(s, a.team).filter((x) => !x.spec.isMe).sort((x, y) => y.line - x.line || y.sx - x.sx)[0];
     if (gk && gk.gk && out) {
-      // 공격수 1명을 빼고 벤치 GK 투입 (빠진 자리는 GK 슬롯으로)
+      // 공격수 1명을 빼고 벤치 GK 를 빠진 GK 자리에 (C.78k: 나가는 공격수의 포지션·줄은 그대로 두고, 새 GK 가 GK 포지션·슬롯을 받는다)
       const outLine = out.line;
-      out.pos = 'GK';
-      out.line = 0;
-      out.sx = 0.04;
-      out.sy = 0.5;
-      substitute(s, out, gk);
+      substitute(s, out, gk, { pos: 'GK', line: 0, sx: 0.04, sy: 0.5, slot: a.stats.slot });
       respace(s, a.team, outLine);
     } else emergencyKeeper(s, a.team);
     shortHanded(s, a.team);
@@ -48,14 +58,15 @@ export function sendOff(s: SimState, a: Agent): void {
  * 커버할 공간이 넓어 스태미나 소모 × shortDrain
  */
 function shortHanded(s: SimState, team: 0 | 1): void {
-  const own = s.agents.filter((x) => x.onPitch && x.team === team);
-  for (const x of own) x.drainMul = R.shortDrain;
+  const own = onOf(s, team).filter((x) => true);
+  for (let i_1 = 0, a_1 = own; i_1 < a_1.length; i_1++) { const x = a_1[i_1]!; x.drainMul = R.shortDrain; }
   if (manDiffOf(s, team) >= 0) return;
   const att = own.filter((x) => x.line === 3).sort((x, y) => x.sx - y.sx);
   if (att.length >= 2) {
     // 가장 덜 전진한 공격수를 중원으로
     const m = att[0]!;
     m.line = 2;
+    s.onVer++;
     m.sx = R.dropToMidX;
     respace(s, team, 3);
     respace(s, team, 2);
@@ -72,12 +83,12 @@ function shortHanded(s: SimState, team: 0 | 1): void {
 
 function manDiffOf(s: SimState, team: 0 | 1): number {
   let d = 0;
-  for (const x of s.agents) if (x.onPitch) d += x.team === team ? 1 : -1;
+  for (let i_2 = 0, a_2 = s.agents; i_2 < a_2.length; i_2++) { const x = a_2[i_2]!; if (x.onPitch) d += x.team === team ? 1 : -1; }
   return d;
 }
 
 function respace(s: SimState, team: 0 | 1, line: number): void {
-  const mates = s.agents.filter((x) => x.onPitch && x.team === team && x.line === line).sort((x, y) => x.sy - y.sy);
+  const mates = onOf(s, team).filter((x) => x.line === line).sort((x, y) => x.sy - y.sy);
   mates.forEach((m, i) => (m.sy = 0.08 + (0.84 * (i + 1)) / (mates.length + 1)));
 }
 
@@ -102,7 +113,7 @@ export function giveCard(s: SimState, a: Agent, card: CardType): void {
 export function issuePendingCards(s: SimState): void {
   const cards = s.pendingCards;
   s.pendingCards = [];
-  for (const c of cards) giveCard(s, s.agents[c.agent]!, c.card);
+  for (let i_3 = 0, a_3 = cards; i_3 < a_3.length; i_3++) { const c = a_3[i_3]!; giveCard(s, s.agents[c.agent]!, c.card); }
 }
 
 function rollCard(s: SimState, fouler: Agent): CardType | null {
@@ -145,12 +156,12 @@ export function foul(s: SimState, fouler: Agent, victim: Agent, x: number, y: nu
 
   const team = victim.team;
   const dir = attackDir(team, s.half);
-  const [nx, ny] = toNorm(x, y, dir);
+  const nx = normX(x, dir), ny = normY(y, dir);
   const inBox = inOppBox(x, y, dir);
   // 어드밴티지 조건: 피해 팀이 소유, 이어 가는 가치 > 프리킥 가치
   const owner = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (!inBox && owner && owner.team === team && card !== 'red') {
-    const [ox, oy] = toNorm(owner.x, owner.y, dir);
+    const ox = normX(owner.x, dir), oy = normY(owner.y, dir);
     const playOn = positionValue(ox, oy) * (ox > 0.66 ? 1.22 : 1);
     const fk = positionValue(nx, ny) * (nx > 0.7 ? 1.33 : 1);
     const bias = R.advantageBias * (nx > 0.66 ? R.advantageFinalThird : 1) * s.env.advantage;
@@ -200,8 +211,7 @@ export function checkAdvantage(s: SimState): void {
 export function contactFouls(s: SimState): boolean {
   const o = s.ball.owner >= 0 ? s.agents[s.ball.owner]! : null;
   if (!o || s.restart) return false;
-  for (const d of s.agents) {
-    if (!d.onPitch || d.team === o.team || d.line === 0) continue;
+  for (let i_4 = 0, a_4 = fieldOf(s, (1 - o.team) as 0 | 1); i_4 < a_4.length; i_4++) { const d = a_4[i_4]!;
     if (dist(d.x, d.y, o.x, o.y) > R.contactDist) continue;
     if (r(s, d.idx, Purpose.Foul, 5) < R.contactFoulRate * foulFactor(s, o, o.x, o.y, d)) return foul(s, d, o, o.x, o.y);
   }
@@ -211,16 +221,15 @@ export function contactFouls(s: SimState): boolean {
 // ── 오프사이드 ──
 
 /** 받을 선수가 오프사이드 위치인가 (E.10): 상대 진영, 공과 뒤에서 두 번째 상대보다 상대 골 쪽 */
-export function offsideMargin(s: SimState, passer: Agent, receiver: Agent): number {
+function offsideMargin(s: SimState, passer: Agent, receiver: Agent): number {
   const dir = attackDir(passer.team, s.half);
-  const [rx] = toNorm(receiver.x, receiver.y, dir);
+  const rx = normX(receiver.x, dir);
   if (rx <= N) return -1;
-  const [bx] = toNorm(s.ball.x, s.ball.y, dir);
+  const bx = normX(s.ball.x, dir);
   let first = 0;
   let second = 0;
-  for (const o of s.agents) {
-    if (!o.onPitch || o.team === passer.team) continue;
-    const nx = toNorm(o.x, o.y, dir)[0];
+  for (let i_5 = 0, a_5 = onOf(s, (1 - passer.team) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!;
+    const nx = normX(o.x, dir);
     if (nx > first) {
       second = first;
       first = nx;
@@ -252,6 +261,8 @@ export function callOffside(s: SimState, passer: Agent, receiver: Agent): void {
   s.teams[passer.team].stats.offsides++;
   event(s, 'offside', passer.team, [receiver.id]);
   const def = (1 - passer.team) as 0 | 1;
+  // 오프사이드 유도 (C.81u, 세기만): 수비 줄(line 1) 선수 모두 +1
+  for (let i = 0, ag = s.agents; i < ag.length; i++) { const m = ag[i]!; if (m.onPitch && m.team === def && m.line === 1) m.rt.offWon = (m.rt.offWon ?? 0) + 1; }
   setRestart(s, 'freeKick', def, clamp(receiver.x, 1, L - 1), clamp(receiver.y, 1, W - 1), 'offside');
   if (s.restart) s.restart.indirect = true;
   issuePendingCards(s);

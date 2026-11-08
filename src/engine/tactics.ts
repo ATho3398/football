@@ -2,25 +2,41 @@
 // 전술은 선수의 움직임과 판단 방식만 바꾼다. 결과는 능력치와 위치에서 나온다 (E.15.1). 시너지·상성 보너스 표는 없다.
 
 import type { FieldAttributes } from '../attributes';
-import { FORMATION_SLOTS, FORMATIONS, type Formation } from '../formations';
+import { FORMATIONS, type Formation } from '../formations';
 import { createRng, hashSeed } from '../rng';
 import type { Position } from '../types';
-import { ENGINE } from './config';
-import { clamp } from './pitch';
-import { defaultRole, ROLE_KEYS, ROLE_OPTIONS, ROLES, type Role } from './roles';
+// 가져온 값은 지역 상수로 (C.78f: vitest 는 가져온 이름을 쓸 때마다 모듈 객체 접근자를 거쳐 경기 계산이 약 25% 느려진다)
+import * as config_ from './config';
+const { ENGINE } = config_;
+import * as pitch_ from './pitch';
+const { clamp } = pitch_;
+import { type Role } from './roles';
+import * as roles_ from './roles';
+const { defaultRole, ROLE_KEYS, ROLE_OPTIONS, ROLES } = roles_;
 import type { SimState } from './state';
 import { TEAM_STYLE, TEAM_TACTICS } from './teamData';
 import type { Tactics, Tendency } from './types';
 
+/** 성향 6종 (C.78s H1: 버스 세우기는 성향이 아니라 수비 블록의 라인 '매우 낮음' — pending 146) */
 export const TENDENCIES: readonly Tendency[] = ['balanced', 'tikitaka', 'gegenpress', 'counter', 'direct', 'block'];
 
 export const TENDENCY_NAMES_KO: Record<Tendency, string> = {
   balanced: '균형', tikitaka: '티키타카', gegenpress: '게겐프레싱', counter: '역습', direct: '직선(롱볼)', block: '수비 블록',
 };
 
-/** 세부 전술 3단계 값 (E.19 ③). 빌드업은 짧게 / 혼합 / 직선 순 */
+/** 성향 한 줄 설명 (전술 화면·하프타임 안내용, C.76k) */
+export const TENDENCY_DESC_KO: Record<Tendency, string> = {
+  balanced: '라인·압박·빌드업·폭 모두 보통',
+  tikitaka: '높은 라인에서 짧은 패스로 돌리다 확실한 기회만 쏜다',
+  gegenpress: '공을 잃으면 바로 되찾는 전방 압박',
+  counter: '하프라인 부근에 좁게 모여 기다리다 뺏자마자 빠른 윙어·ST 에게',
+  direct: '타깃 ST 에게 롱볼, 세컨드볼과 크로스',
+  block: '내려서 두 줄 블록. 라인 매우 낮음 = 박스 앞 버스 세우기',
+};
+
+/** 세부 전술 단계 값 (E.19 ③). 라인은 4단(C.76k '매우 낮음' = 박스 앞 20 m), 나머지는 3단. 빌드업은 짧게 / 혼합 / 직선 순 */
 export const LEVELS = {
-  lineHeight: [0.35, 0.5, 0.65],
+  lineHeight: [0.2, 0.35, 0.5, 0.65],
   pressing: [0.3, 0.55, 0.8],
   style: [0.85, 0.5, 0.2],
   width: [0.85, 1.0, 1.15],
@@ -29,20 +45,28 @@ export type Detail = keyof typeof LEVELS;
 export const DETAILS: readonly Detail[] = ['lineHeight', 'pressing', 'style', 'width'];
 export const DETAIL_NAMES_KO: Record<Detail, string> = { lineHeight: '수비 라인', pressing: '압박', style: '빌드업', width: '공격 폭' };
 /** 단계 이름 (I.16 세그먼트): 빌드업은 짧게 / 혼합 / 직선, 폭은 좁게 / 보통 / 넓게 */
-export const LEVEL_NAMES_KO: Record<Detail, [string, string, string]> = {
-  lineHeight: ['낮음', '보통', '높음'], pressing: ['낮음', '보통', '높음'], style: ['짧게', '혼합', '직선'], width: ['좁게', '보통', '넓게'],
+export const LEVEL_NAMES_KO: Record<Detail, readonly string[]> = {
+  lineHeight: ['매우 낮음', '낮음', '보통', '높음'], pressing: ['낮음', '보통', '높음'], style: ['짧게', '혼합', '직선'], width: ['좁게', '보통', '넓게'],
 };
-/** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게) */
-export type Level = 0 | 1 | 2;
+/** 0 낮음(빌드업 짧게, 폭 좁게) / 1 보통 / 2 높음(빌드업 직선, 폭 넓게). 라인만 0 매우 낮음 / 1 낮음 / 2 보통 / 3 높음 (C.76k) */
+export type Level = 0 | 1 | 2 | 3;
+/** 세부 전술의 마지막 단계 번호 (라인 3, 나머지 2) */
+function levelMax(detail: Detail): Level {
+  return (LEVELS[detail].length - 1) as Level;
+}
+/** 단계 번호가 그 세부 전술에 있는가 (세이브 검사용) */
+export function validLevel(detail: Detail, v: unknown): v is Level {
+  return Number.isInteger(v) && (v as number) >= 0 && (v as number) < LEVELS[detail].length;
+}
 
-/** 성향별 세부 전술 기본값 [라인, 압박, 빌드업, 폭] (E.19 ①) */
+/** 성향별 세부 전술 기본값 [라인, 압박, 빌드업, 폭] (E.19 ①). 라인은 4단이라 보통 = 2 */
 const TENDENCY_LEVELS: Record<Tendency, [Level, Level, Level, Level]> = {
-  balanced: [1, 1, 1, 1],
-  tikitaka: [2, 2, 0, 2],
-  gegenpress: [2, 2, 1, 1],
-  counter: [0, 0, 2, 1],
-  direct: [1, 1, 2, 2],
-  block: [0, 0, 2, 0],
+  balanced: [2, 1, 1, 1],
+  tikitaka: [3, 2, 0, 2],
+  gegenpress: [3, 2, 1, 1],
+  counter: [2, 1, 1, 1],
+  direct: [2, 1, 1, 2],
+  block: [1, 0, 2, 0],
 };
 
 /** 성향의 세부 전술 기본 단계 (E.19 ①) */
@@ -54,12 +78,14 @@ export function tendencyLevels(tendency: Tendency): Record<Detail, Level> {
 export function tacticsOf(tendency: Tendency, levels?: Partial<Record<Detail, Level>>): Tactics {
   const [l, p, b, w] = TENDENCY_LEVELS[tendency];
   const lv = { lineHeight: l, pressing: p, style: b, width: w, ...levels };
+  // 3단 세부 전술에 단계 3 이 오면 마지막 단계로 (라인만 4단, C.76k)
+  const at = (d: Detail): number => LEVELS[d][Math.min(lv[d], LEVELS[d].length - 1)]!;
   return {
     tendency,
-    lineHeight: LEVELS.lineHeight[lv.lineHeight],
-    pressing: LEVELS.pressing[lv.pressing],
-    style: LEVELS.style[lv.style],
-    width: LEVELS.width[lv.width],
+    lineHeight: at('lineHeight'),
+    pressing: at('pressing'),
+    style: at('style'),
+    width: at('width'),
   };
 }
 
@@ -106,7 +132,7 @@ export function roleFit(roleId: string, a: FieldAttributes): number {
 }
 
 /** 팀에 한 명만 두는 추천 역할 (내려와서 연결하는 ST): 투톱 둘 다 내려오면 박스에 아무도 없다 (부록 C.32) */
-export const SOLO_ROLES: ReadonlySet<string> = new Set(['falseNine']);
+const SOLO_ROLES: ReadonlySet<string> = new Set(['falseNine']);
 
 /**
  * 슬롯 기본 역할: 성향 추천 역할 중 능력치 적합도가 높은 것, 추천이 없으면 능력치로 (E.19 ②).
@@ -132,6 +158,9 @@ export interface TeamPlan {
   tactics: Tactics;
 }
 
+/** 데이터 없는 중위 팀의 성향 후보 (C.78s H1): 옛 7종 순서 그대로 — 마지막 '버스' 칸은 블록 + 라인 매우 낮음 (시드 추첨 결과를 바꾸지 않게) */
+const MID_POOL: readonly (Tendency | 'bus')[] = [...TENDENCIES, 'bus'];
+
 /**
  * 팀 데이터 전술 (E.19 AI 팀 전술): 실제 팀은 데이터의 성향·포메이션, 빌드업은 E.18 A5 연속 값.
  * 데이터가 없는 팀은 시드로 성향을 고른다 (레이팅이 리그 평균 +3 이상 / −3 이하 / 그 사이). 포메이션은 로스터 값
@@ -140,15 +169,18 @@ export function teamPlan(teamId: string, rating: number, formation: Formation, w
   const T = ENGINE.tactics;
   const data = TEAM_TACTICS[teamId];
   let tendency: Tendency;
+  let bus = false;
   if (data) tendency = data.tendency;
   else {
     const rng = createRng(hashSeed(`${worldSeed}:tendency:${teamId}`));
-    const pool: readonly Tendency[] = rating >= leagueAvg + 3 ? ['tikitaka', 'gegenpress', 'balanced']
-      : rating <= leagueAvg - 3 ? ['block', 'direct', 'counter'] : TENDENCIES;
-    tendency = pool[Math.floor(rng() * pool.length)]!;
+    const pool: readonly (Tendency | 'bus')[] = rating >= leagueAvg + 3 ? ['tikitaka', 'gegenpress', 'balanced']
+      : rating <= leagueAvg - 3 ? ['block', 'direct', 'counter'] : MID_POOL;
+    const pick = pool[Math.floor(rng() * pool.length)]!;
+    bus = pick === 'bus';
+    tendency = bus ? 'block' : (pick as Tendency);
   }
   const style = TEAM_STYLE[teamId] ?? clamp(0.5 + T.stylePerRating * (rating - leagueAvg), T.styleMin, T.styleMax);
-  return { tendency, formation: data?.formation ?? formation, tactics: { ...tacticsOf(tendency), style } };
+  return { tendency, formation: data?.formation ?? formation, tactics: { ...tacticsOf(tendency, bus ? { lineHeight: 0 } : undefined), style } };
 }
 
 /** 성향 고유 행동의 수치 (E.19 ①, 세부 전술로 표현되지 않는 부분). 배수는 E.20 4번에서 축소 (1.15 → 1.08, 1.2 → 1.1, 1.25 → 1.12, 역압박 +1초, 가담 최대 3명) */
@@ -160,20 +192,101 @@ export const TENDENCY = {
   /** 게겐프레싱: 역압박 +초, 최대 인원, 탈취 후 전진 패스·슛 효용 배수와 시간 */
   gegenExtra: 1,
   gegenMax: 3,
+  /** 게겐 역압박 가담 확률 가산 (C.80t, 엔진관리자25 ✗6 — 게겐 가담이 균형과 같아짐): 게겐이면 offball.counterJoin 에 더한다. 0 = 끔 */
+  gegenJoin: 0.35,
+  /**
+   * 게겐 역압박 뚫림 간격 배수 (C.81z, 엔진관리자27 ✗6 — 게겐이 공을 잃은 뒤 8초 상대 슈팅 2.7%(균형 3.0)로 "뒤 공간 비용"이 없음):
+   * 게겐이면 offball.pressBreakGap(상대 소유자·착지점이 가담자 모두보다 이만큼 우리 골 쪽이면 뚫림) × 이 값 — 뚫린 것을 늦게 인정해 가담자가 자리를 더 오래 비운다. 1 = 끔.
+   * 측정(transition 200, TRANS_WIN=8): ×1.5 · ×3 · ×5 모두 잃은 뒤 8초 상대 슈팅 2.6~2.7%(균형 2.8~3.0)로 안 움직이고 게겐>티키만 +0.05 → 끔(1)으로 둔다(코드 유지, 부록 C.81z 안 된 것)
+   */
+  gegenPressBreakMul: 1,
+  /**
+   * 게겐 역압박 가담자 압박 실효 거리 배수 (C.82e, 진단 `scripts/diag/c82e-rewin.ts`): 역압박 창 안의 가담자는 공 근처 상대에게 거리 d 를 d / gegenPressReach 로 압박한다 —
+   * 패스 성공 확률의 압박 항·유지/몰기 상실 확률·압박 상실 수비수 찾기 모두(판단·실행 같은 값). 5초 재탈취가 균형과 같던(28.6 대 29.2%) 이유: 재탈취의 84% 가 상대 첫 패스 실패 루즈볼인데
+   * 상대 첫 패스는 잃은 뒤 0.73 s 에 나가고 첫 가담자는 0.92 s(26%)에야 2 m 안 — 가담자가 첫 패스에 압력을 못 줬다. 1 = 끔
+   */
+  gegenPressReach: 1.5,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
-  /** 역습: 탈취 후 전진·침투 패스 효용 배수와 시간, 수비 시 남는 최전방 x (정규화) */
+  /**
+   * 게겐 수신 후보 선제 마크 (C.80c, 사용자 2026-10-30 "2명이 소유자 압박하는 동안 나머지는 공 받을 후보를 미리 마크", 근거 엔진관리자23 c79y ③):
+   * 상대 소유자(필드 선수) 주변 gegenMarkRadius m 안 가까운 순 gegenMarkN 명의 패스 후보를, 압박·역압박·커버·면제가 아닌 게겐 선수가
+   * 공 쪽 gegenMarkGap m 에서 미리 마크(닿을 수 있는 선수만: 도착 ≤ gegenMarkSlack 초), 공이 우리 골 gegenMarkFrom m 밖일 때만. 0 = 끔.
+   * gegenMarkWindow w — >0 이면 잃은 뒤 w 초 안에서만 (0 = 수비 전반)
+   */
+  gegenMarkN: 6,
+  gegenMarkRadius: 25,
+  gegenMarkGap: 1.5,
+  gegenMarkSlack: 3,
+  gegenMarkFrom: 30,
+  gegenMarkWindow: 0,
+  /** 게겐프레싱 팀 전원 스태미나 소모 배수 (C.77a 가설 1, 44h-h: 압박 높음 배수와 곱해짐 — 많이 뛰는 대가가 후반에 오게).
+   *  C.80l: 1.15 → 1.08 — 선발 대부분이 40~60분에 바닥나 남은 시간을 바닥 체력으로 뛰었다(한 선수 15~16 km 꼬리). 대가는 gegenFatigue(바닥 근처 대형 이동 감속)로 */
+  gegenDrain: 1.08,
+  /**
+   * 게겐프레싱 팀의 지친 강도 추가 감소 (C.80l): 스태미나 staminaLowFrom 아래, 긴급하지 않은 이동(대형 자리·조깅·러닝·먼 이동)의 속도를
+   * × (1 − physics.fatigueIntensity × r − gegenFatigue × r^gegenFatigueExp) 로, r = 지친 비율(0 → 1, 스태미나 0). 압박·추격 등 긴급 질주는 그대로.
+   * 게겐 선수는 40~60분에 스태미나가 바닥나 그 뒤에도 대형 이동을 조깅·러닝으로 해 한 선수 15~16 km 꼬리가 났다. 0 = 끔
+   */
+  gegenFatigue: 0.35,
+  gegenFatigueExp: 3,
+  /** 블록 탈취 후 전진·침투 패스 효용 배수와 시간 (C.78d ②) */
   counterWinMul: 1.12,
   counterWinTime: 6,
-  counterStayX: 0.48,
+  /**
+   * 역습 (C.78s H2, pending 146 사용자 정의 "라인 올리고 1·2선 하프라인 부근 좁게, 탈취 뒤 빠른 윙어·ST"): 라인 보통·압박 보통·빌드업 혼합이지만
+   * 공이 우리 기준 counterPressX(정규화)까지 넘어오기 전에는 압박하지 않는다. 수비-중원 간격 counterGap m.
+   * 수비 때 최전방 + 공 먼 쪽 윙어(counterStay 2)는 counterStayX 이상에 남는다(면제와 같은 규칙, 빈자리는 커버 재배분).
+   * 측정(240경기, 대 균형): 공격 줄도 중원 + 8 m 로 묶으면 −0.2, 빌드업 직선 −0.1, 잔류 0명 −0.15 — 그래서 공격 줄은 묶지 않고 빌드업은 혼합
+   */
+  counterPressX: 0.55,
+  counterGap: 10,
+  counterStay: 2,
+  counterStayX: 0.52,
+  /** 블록 라인 매우 낮음(옛 버스): 남는 최전방 x (정규화) */
+  busStayX: 0.48,
   /** 직선: 타깃 ST 롱볼 효용 배수, 크로스 효용 배수, 세컨드볼 위치 (착지점 뒤 m) */
   directTargetMul: 1.1,
   directCrossMul: 1.08,
   directSecond: [10, 15] as [number, number],
-  /** 수비 블록: 수비-중원 간격 상한 (m), 수비 라인 상한 (박스 경계, m) */
-  blockGap: 12,
-  blockLineMax: 16.5,
+  /**
+   * 수비 블록 라인 단계표 (C.78s H1, pending 146 "버스 = 블록의 라인 낮음"): 블록의 수비 라인 상한·수비-중원 간격 상한(m)·하프라인 부근 잔류 최전방 수·
+   * 밀집 폭 배수·풀백 오버래핑 배수를 라인 단계(0 매우 낮음 ~ 3 높음)로 정한다. 단계 0 = 옛 버스 세우기(C.76k: 14 m · 8 m · 1명 · 0.5 · 0.3), 1 = 옛 블록.
+   * 2·3 은 옛 블록과 같다(박스 경계 상한 — 라인을 올려도 블록은 블록)
+   */
+  blockByLine: [
+    { lineMax: 14, gap: 8, stay: 1, compactW: 0.5, fbOverlap: 0.3 },
+    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+    { lineMax: 16.5, gap: 12, stay: 0, compactW: 0.55, fbOverlap: 0.5 },
+  ] as readonly BlockRow[],
+  /** 깊은 블록 밀집 (C.78d ①, ENGINE.offball.compact): 수비·중원 줄 가로 폭 배수 (슬롯 간격 × 이 값). 블록은 blockByLine */
+  compactW: { counter: 0.65 } as Partial<Record<Tendency, number>>,
+  /** 탈취 뒤 역습 지원 인원 (C.78d ②, ENGINE.offball.supportRun): 블록 1 · 역습 2 */
+  supportRunners: { block: 1, counter: 2 } as Partial<Record<Tendency, number>>,
+  /** 풀백 오버래핑 성향 배수 (C.78i ②, ENGINE.offball.fbOverlap): 없으면 1 */
+  fbOverlapTend: { counter: 0.7, tikitaka: 1.15, gegenpress: 1.2, direct: 0.9 } as Partial<Record<Tendency, number>>,
 };
+
+/** 블록 라인 단계 한 줄 (C.78s H1) */
+export interface BlockRow { lineMax: number; gap: number; stay: number; compactW: number; fbOverlap: number }
+
+/** 수비 블록이면 지금 라인 단계의 줄 (경기 중 조정으로 라인이 바뀌면 같이 바뀐다), 아니면 null */
+export function blockRow(t: Tactics): BlockRow | null {
+  return t.tendency === 'block' ? TENDENCY.blockByLine[levelOf('lineHeight', t.lineHeight)]! : null;
+}
+/** 깊은 밀집 폭 배수 (블록은 라인 단계, 역습은 성향 값), 밀집하지 않는 성향은 undefined */
+export function compactWOf(t: Tactics): number | undefined {
+  return blockRow(t)?.compactW ?? TENDENCY.compactW[t.tendency];
+}
+/** 풀백 오버래핑 성향 배수 */
+export function fbOverlapOf(t: Tactics): number {
+  return blockRow(t)?.fbOverlap ?? TENDENCY.fbOverlapTend[t.tendency] ?? 1;
+}
+/** 블록이 수비 때 하프라인 부근에 남기는 최전방 수 (라인 단계, 역습은 offball counterStayer) */
+export function stayForwards(t: Tactics): number {
+  return blockRow(t)?.stay ?? 0;
+}
 
 /** 공격 폭 → 측면 선수 크로스 효용 배수 (좁게 0.9 / 보통 1.0 / 넓게 1.1) */
 export function widthCrossMul(width: number): number {
@@ -183,33 +296,32 @@ export function widthCrossMul(width: number): number {
 /**
  * 경기 중 AI 조정 (E.19): 70분 이후 1골 차로 지고 있으면 라인과 압박을 한 단계 올리고, 1골 차로 이기고 있으면 라인을 한 단계 내린다.
  * 2골 이상 차이는 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위, C.29 fix2).
+ * 뒤질 때 올리기는 상대가 underdogGap 이상 강하면 하지 않는다 (C.76k 사용자 확정 ②: 약팀은 강팀에게 지고 있어도 내려앉은 채로. 강팀이 약팀에게 질 때·비등할 때만 올린다).
  * 모든 팀에 같은 규칙 (직접 모드의 내 팀은 E4 이후 사용자가 바꾼다)
  */
 export function aiAdjust(s: SimState): void {
   if (s.tick % 600 !== 0) return;
   const big = ENGINE.tactics.leadAdjustGoals;
-  for (const team of [0, 1] as const) {
+  for (let i_1 = 0, a_1 = [0, 1] as const; i_1 < a_1.length; i_1++) { const team = a_1[i_1]!;
     const T = s.teams[team];
     if (s.input.mode === 'live' && s.input.myTeam === team) continue;
+    const opp = s.teams[team === 0 ? 1 : 0];
     const base = T.setup.tactics;
-    const diff = T.stats.goals - s.teams[team === 0 ? 1 : 0].stats.goals;
-    const step = (d: Detail, by: number) => LEVELS[d][clamp(levelOf(d, base[d]) + by, 0, 2)]!;
+    const diff = T.stats.goals - opp.stats.goals;
+    const underdog = opp.setup.rating - T.setup.rating >= ENGINE.tactics.underdogGap;
+    const step = (d: Detail, by: number) => LEVELS[d][clamp(levelOf(d, base[d]) + by, 0, levelMax(d))]!;
     T.tactics = { ...base };
-    // 점수 차 (C.29 fix2): 2골 이상이면 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위)
-    if (diff <= -big || diff >= big) {
+    // 점수 차 (C.29 fix2): 2골 이상이면 시간과 관계없이 라인·압박 한 단계 (앞서면 아래, 뒤지면 위 — 약팀은 위로 안 올림)
+    if (diff >= big || (diff <= -big && !underdog)) {
       const by = diff > 0 ? -1 : 1;
       T.tactics.lineHeight = step('lineHeight', by);
       T.tactics.pressing = step('pressing', by);
     } else if (s.t < 70 * 60) continue;
-    else if (diff === -1) {
+    else if (diff === -1 && !underdog) {
       T.tactics.lineHeight = step('lineHeight', 1);
       T.tactics.pressing = step('pressing', 1);
     } else if (diff === 1) T.tactics.lineHeight = step('lineHeight', -1);
   }
-}
-
-export function formationSlots(f: Formation) {
-  return FORMATION_SLOTS[f];
 }
 
 export { FORMATIONS };

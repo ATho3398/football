@@ -7,7 +7,7 @@ import {
 } from '../src/game';
 import { defaultPlan, gaugeNeed, initTraining, lowestInBundle, takeXp, techDay, weekStart } from '../src/training';
 import {
-  deserialize, exportSave, importSave, initSaves, listSaves, loadGame, loadReplays, migrate, resetSaveCache, saveGame, saveReplays, serialize,
+  deserialize, exportSave, importSave, initSaves, listSaves, loadGame, loadReplays, restore, SaveFormatError, resetSaveCache, saveGame, saveReplays, serialize,
 } from '../src/save';
 import { memoryBackend, setStoreBackend } from '../src/saveStore';
 import { packReplay, unpackReplay } from '../src/replayCodec';
@@ -24,7 +24,7 @@ function toMatchDay(g: GameState): void {
 }
 
 describe('훈련 (25.3, 부록 C.41)', () => {
-  it('기본 주간 계획 (C.44): 경기 다음 날 휴식(고정), 전날 영상, 나머지 기술. 7일 주 체력 회복 합계 26.5, 훈련 XP 3.5 (C.43 과 같게)', () => {
+  it('기본 주간 계획 (C.44): 경기 다음 날 휴식(고정), 전날 영상, 나머지 기술. 7일 주 체력 회복 합계 21 (C.77m: 26.5 → 21 = fatigue.weeklyRecovery), 훈련 XP 3.5 (C.43 과 같게)', () => {
     expect(defaultPlan(1, 6)).toBe('rest');
     expect(defaultPlan(2, 5)).toBe('tech');
     expect(defaultPlan(3, 4)).toBe('tech');
@@ -34,7 +34,7 @@ describe('훈련 (25.3, 부록 C.41)', () => {
     expect(defaultPlan(2, 1)).toBe('video');
     expect(defaultPlan(1, 1)).toBe('rest');
     const week = [1, 2, 3, 4, 5, 6].map((d) => defaultPlan(d, 7 - d));
-    expect(week.reduce((t, k) => t + T.kinds[k].fatigue, 0)).toBeCloseTo(26.5, 6);
+    expect(week.reduce((t, k) => t + T.kinds[k].fatigue, 0)).toBeCloseTo(21, 6);
     expect(week.reduce((t, k) => t + T.kinds[k].xp, 0)).toBeCloseTo(3.5, 6);
   });
 
@@ -155,40 +155,23 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     resetSaveCache();
   });
 
-  it('19 → 20: 훈련 상태·보존 기록 추가, 조언 기간 라운드 → 30일', () => {
+  it('훈련 상태 왕복, 옛 형식(19·18)은 이어 할 수 없음 (C.77r)', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig20', difficulty: 'normal' });
     for (let k = 0; k < 3; k++) playRound(g, { engine: 'quick' });
-    const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 19;
-    delete raw.training;
-    delete raw.archive;
-    raw.player.advice = { kind: 'coach', group: 'CB', pos: 'CB', from: 'ST', season: 2017, untilSeason: 2018, untilRound: 4 };
-    const back = deserialize(JSON.stringify(raw));
+    const back = deserialize(serialize(g));
     expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(45);
-    expect(back.training.focus).toBe('auto');
-    expect(back.archive).toEqual([]);
-    expect(back.player.advice).toMatchObject({ untilDays: BALANCE.aptitude.advice.windowDays });
-    expect((back.player.advice as unknown as Record<string, unknown>).untilRound).toBeUndefined();
+    expect(SAVE_FORMAT_VERSION).toBe(62);
+    expect(back.training).toEqual(g.training);
     playRound(back, { engine: 'quick' });
     expect(back.league.round).toBe(4);
+    for (const v of [19, 18]) {
+      const raw = JSON.parse(serialize(g));
+      raw.saveFormat = v;
+      expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    }
   });
 
-  it('18 → 20 연속 변환', () => {
-    const g = newGame({ mode: 'prospect', position: 'CM', seed: 'mig18-20', difficulty: 'normal' });
-    for (let k = 0; k < 2; k++) playRound(g, { engine: 'quick' });
-    const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 18;
-    delete raw.training;
-    delete raw.archive;
-    delete raw.player.profLog;
-    const back = migrate(raw);
-    expect(back.saveFormat).toBe(45);
-    expect(back.player.profLog).toBeDefined();
-    expect(back.training).toBeDefined();
-  });
-
-  it('IndexedDB(메모리 대역) 저장·불러오기, 압축, 옛 localStorage 세이브는 처음 한 번 옮긴다', async () => {
+  it('IndexedDB(메모리 대역) 저장·불러오기, 압축, 옛 localStorage 세이브는 지운다 (C.77r)', async () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'store', difficulty: 'normal' });
     playRound(g, { engine: 'quick' });
     // 옛 세이브 (localStorage)
@@ -203,9 +186,7 @@ describe('세이브 (25.4, 부록 C.41)', () => {
     ls.set('football-career:2', JSON.stringify({ meta: { slot: '2', savedAt: '2026-10-01T00:00:00Z', name: 'old', season: 2018, round: 1, age: 17 }, state: old }));
     await initSaves();
     expect(ls.size).toBe(0);
-    expect(listSaves()[2]?.name).toBe('old');
-    const loadedOld = await loadGame('2');
-    expect(loadedOld?.saveFormat).toBe(45);
+    expect(listSaves()[2]).toBeNull();
     expect(await saveGame('1', g)).toBe(true);
     const meta = listSaves()[1]!;
     expect(meta.size).toBeLessThan(serialize(g).length / 3);

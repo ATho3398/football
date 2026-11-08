@@ -1,0 +1,19 @@
+{
+  "W": 1280,
+  "H": 800,
+  "errors": [],
+  "fps": {
+    "legendary": {
+      "fps": 59.9,
+      "worstMs": 16.8,
+      "sec": 8.5
+    },
+    "common": {
+      "fps": 59.8,
+      "worstMs": 16.8,
+      "sec": 2.4
+    }
+  },
+  "skipToResults": 1,
+  "overlayLeft": 0
+}

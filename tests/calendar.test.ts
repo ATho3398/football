@@ -7,11 +7,11 @@ import {
 } from '../src/game';
 import { playNpcMatch, summarize } from '../src/engine/npcMatch';
 import { createMatch, frameOf } from '../src/engine/sim';
-import { teamSetupFromRoster } from '../src/engine/setup';
+import { npcTeamSetup } from '../src/engine/setup';
 import { runJob } from '../src/engine/jobs';
 import { playMyMatch } from '../src/engine/adapter';
 import { roundMatch } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { planFatigue } from '../src/training';
 
 describe('일정 생성 (25.1~25.2 6번, 부록 C.38)', () => {
@@ -92,12 +92,19 @@ describe('하루 단위 진행 (25.1~25.2 5·7번)', () => {
     const cal = calendarOf(g);
     let n = 0;
     while (g.phase === 'season') {
-      // C.67a: 컵 경기도 playRound 한 번 (리그 경기만 센다)
-      if (!playRound(g, { engine: 'quick' }).cup) n++;
+      // C.67a: 컵 경기도 playRound 한 번 (리그 경기만 센다). C.81l: 시즌이 남은 컵 경기 날짜에 하루 끝으로 끝나면 마지막 playRound 는 경기 없이 돌아온다
+      const r0 = g.league.round;
+      if (!playRound(g, { engine: 'quick' }).cup && g.league.round > r0) n++;
     }
     expect(n).toBe(38);
-    // 컵 결승에 올랐으면 결승 날에 끝난다
-    expect(g.calendar.date).toBe(g.cups!.fa!.rounds[4]!.some((t) => t.h === g.player.teamId || t.a === g.player.teamId) ? g.cups!.fa!.dates[4] : cal.final);
+    expect(g.league.round).toBe(38);
+    // C.81l: 시즌은 마지막 컵 경기 날짜 뒤에 끝난다 — 내가 그 결승을 뛰면 그날, 아니면 그 경기를 하루 끝에 치른 다음 날 (리그 최종 라운드 뒤)
+    const fa = g.cups!.fa!;
+    const uclFinal = g.cups!.ucl?.ko[3]?.l1[0];
+    const lastCup = [fa.dates[4]!, ...(uclFinal?.d ? [uclFinal.d] : [])].sort().at(-1)!;
+    const mineLast = fa.rounds[4]!.some((t) => t.h === g.player.teamId || t.a === g.player.teamId) && fa.dates[4] === lastCup;
+    expect(daysBetween(cal.final, lastCup)).toBeGreaterThan(0);
+    expect(g.calendar.date).toBe(mineLast ? lastCup : addDays(lastCup, 1));
     expect(g.league.schedule.flat().every((f) => f.homeGoals !== undefined)).toBe(true);
     expect(g.league.table.every((r) => r.played === 38)).toBe(true);
   });
@@ -114,9 +121,10 @@ describe('전 경기 엔진 (25.1~25.2 4번)', () => {
     // 프레임을 매 틱 기록하며 돌린다
     const m = job.input;
     const sim = createMatch({
-      home: teamSetupFromRoster(m.home, m.homeRating, m.awayRating, m.worldSeed, undefined, m.leagueAvg),
-      away: teamSetupFromRoster(m.away, m.awayRating, m.homeRating, m.worldSeed, undefined, m.leagueAvg),
-      mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false,
+      // C.77c: 다른 경기 선발은 결장 추첨을 거친 npcTeamSetup (playNpcMatch 와 같은 함수)
+      home: npcTeamSetup(m.home, m.homeRating, m.awayRating, m.worldSeed, m.seed, m.leagueAvg),
+      away: npcTeamSetup(m.away, m.awayRating, m.homeRating, m.worldSeed, m.seed, m.leagueAvg),
+      mode: 'auto', difficulty: 'normal', seed: m.seed, bigMatch: false, ...(m.env ? { env: m.env } : {}),
     });
     const frames = [];
     while (!sim.state.done) {
@@ -159,29 +167,22 @@ describe('전 경기 엔진 (25.1~25.2 4번)', () => {
 });
 
 describe('세이브 17 → 18 (부록 C.38)', () => {
-  it('라운드 기반 세이브: 이번 라운드 첫 경기 날로, 부상 주 → 일, 선수 기록·설정 추가', () => {
+  it('세이브 왕복 뒤 이어서 진행, 옛 세이브(17)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'mig18', difficulty: 'normal' });
     for (let k = 0; k < 5; k++) playRound(g, { engine: 'quick' });
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 17;
-    delete raw.calendar;
-    delete raw.playerStats;
-    delete raw.options;
-    // 옛 라운드 방식: 이번 라운드의 다른 경기는 아직 없다
-    for (const f of raw.league.schedule[raw.league.round]) { delete f.homeGoals; delete f.awayGoals; }
-    raw.player.injury = { grade: 'minor', weeksTotal: 3, weeksLeft: 2, season: 2018, round: 5, permanent: {} };
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(SAVE_FORMAT_VERSION).toBe(45);
-    const cal = calendarOf(back);
-    expect(back.calendar.date).toBe(cal.roundDates[back.league.round]);
-    expect(back.player.injury).toMatchObject({ daysLeft: 14, daysTotal: 21 });
-    expect(back.playerStats).toEqual({});
-    expect(back.options).toEqual({ quickOthers: false });
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
+    expect(back.calendar).toEqual(g.calendar);
+    expect(back.playerStats).toEqual(g.playerStats);
+    expect(back.options).toEqual(g.options);
     // 이어서 진행할 수 있다
+    const before = back.calendar.date;
     playRound(back, { engine: 'quick' });
-    expect(back.league.round).toBe(6);
-    expect(daysBetween(cal.roundDates[5]!, back.calendar.date)).toBeGreaterThan(0);
+    expect(back.league.round).toBe(g.league.round + 1);
+    expect(daysBetween(before, back.calendar.date)).toBeGreaterThan(0);
     expect(addDays(back.calendar.date, 0)).toBe(back.calendar.date);
   });
 });

@@ -1,7 +1,7 @@
 // 도트 선수 아이콘 화면 쪽 (부록 C.45): 게임 상태에서 선수 인물·경기 유니폼을 골라 레이어 이미지 주소로 바꾼다.
 // 경기 화면(캐릭터 보기)과 설정 → 경기 아이콘 미리보기가 같이 쓴다. 겉모습만(경기 결과·시드와 무관)
 
-import { A_GRADE_PLAYERS } from '../../data/players';
+import { REAL_PLAYER_BY_ID } from '../../data/players';
 import { REAL_PIXEL_LOOK } from '../../data/players/pixelLook';
 import { PIXEL_PEOPLE } from '../../data/pixelPack';
 import { realAppearance, type Appearance } from '../appearance';
@@ -38,7 +38,7 @@ export function whoOf(g: GameState, id: string, isMe = false): Who {
   }
   const hit = index.map.get(id);
   if (hit) return hit;
-  const d = A_GRADE_PLAYERS.find((p) => p.id === id);
+  const d = REAL_PLAYER_BY_ID.get(id);
   return d ? { id, appearance: realAppearance(id, d.nationality), ...(clubOf(d.club)?.id ? { teamId: clubOf(d.club)!.id } : {}) } : { id };
 }
 

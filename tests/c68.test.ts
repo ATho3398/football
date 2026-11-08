@@ -10,7 +10,7 @@ import {
   scoutBlocked, signingBonus, staffRecoveryMul, staffSlots, startScout, toggleLeave, type Staff,
 } from '../src/money';
 import { createRng } from '../src/rng';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { gaugeNeed, techDay } from '../src/training';
 import { financeVM } from '../src/ui/financeVM';
 import { financeView } from '../src/ui/views/finance';
@@ -140,7 +140,8 @@ describe('코치 효과 (D.13 재설계)', () => {
     expect(coachBoost(g, p, 'passing')).toBeNull();
     // 한계 (일반 75): 넘으면 효과 없음
     ensureMoney(g).staff = [coach('normal', ['shooting'])];
-    p.attributes.shooting = 76;
+    // C.81o: 한계는 화면 1~20 값으로 판정 (일반 75 → 화면 15, 내부 77 = 화면 15 까지 받음, 78 = 화면 16 못 받음)
+    p.attributes.shooting = 78;
     expect(coachBoost(g, p, 'finishing')).toBeNull();
     p.attributes.shooting = 60;
     ensureMoney(g).staff = [coach('legendary', ['shooting'], 'a'), coach('worldClass', ['shooting'], 'b')];
@@ -205,7 +206,7 @@ describe('의료 효과', () => {
 });
 
 describe('재정 화면·세이브 38', () => {
-  it('VM·화면이 그려지고, 세이브 왕복 · 37 세이브(재정 없음)는 잔고 0 으로 시작', () => {
+  it('VM·화면이 그려지고, 세이브 왕복 · 옛 세이브(37)는 이어 할 수 없음', () => {
     const g = prospect('c68-ui');
     advance(g, 10);
     startScout(g);
@@ -215,15 +216,14 @@ describe('재정 화면·세이브 38', () => {
     const html = financeView(vm);
     expect(html).toContain('재정');
     expect(html).toContain('코치 모집');
-    expect(SAVE_FORMAT_VERSION).toBe(45);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     expect(deserialize(serialize(g)).money).toEqual(g.money);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 37;
-    delete raw.money;
-    const old = deserialize(JSON.stringify(raw));
-    expect(old.money).toBeUndefined();
-    advance(old, 8);
-    expect(ensureMoney(old).cash).toBeGreaterThan(0);
-    expect(flowsIn(ensureMoney(old).season)).toBeGreaterThan(0);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    const back = deserialize(serialize(g));
+    advance(back, 8);
+    expect(ensureMoney(back).cash).toBeGreaterThan(0);
+    expect(flowsIn(ensureMoney(back).season)).toBeGreaterThan(0);
   });
 });

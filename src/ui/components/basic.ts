@@ -18,6 +18,24 @@ export function Icon(p: IconProps): string {
   return `<svg class="${cx('po-icon', p.className)}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${p.strokeWidth ?? 2}" stroke-linecap="round" stroke-linejoin="round" ${aria}${p.style ? ` style="${p.style}"` : ''}><path d="${ICON_PATHS[p.name]}"/></svg>`;
 }
 
+// ── FootPair (C.75x) ──
+
+export interface FootPairProps { foot: 'left' | 'right'; weakFoot: number; /** 주발 숫자 (데이터에 없으면 5) */ main?: number; size?: number; className?: string }
+
+/** 양발 발자국 두 개 (왼발 · 오른발): 각 발자국 안에 그 발 숫자 1~5. 주발 = 강조색(lime) 채움, 약발 = 흐린 테두리 */
+export function FootPair(p: FootPairProps): string {
+  const size = p.size ?? 34;
+  const main = p.main ?? 5;
+  const one = (side: 'left' | 'right') => {
+    const isMain = side === p.foot;
+    const n = isMain ? main : p.weakFoot;
+    const flip = side === 'left' ? ' transform="matrix(-1 0 0 1 24 0)"' : '';
+    return `<svg class="${cx('po-foot', isMain && 'is-main')}" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS.foot}"${flip}/><text x="${side === 'left' ? 11.8 : 12.2}" y="18.3" text-anchor="middle">${n}</text></svg>`;
+  };
+  const label = `주발 ${p.foot === 'left' ? '왼발' : '오른발'} ${main} · 약발 ${p.weakFoot}`;
+  return `<span class="${cx('po-feet', p.className)}" role="img" aria-label="${label}">${one('left')}${one('right')}</span>`;
+}
+
 // ── Button ──
 
 export interface ButtonProps extends Action {
@@ -179,15 +197,17 @@ export function StatBar(p: StatBarProps): string {
 
 // ── PlayerCard ──
 
-export interface PlayerCardData { name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore?: number; level: number; xp?: number; xpMax?: number; team: string; avatar?: string; crest?: string; face?: FaceRef }
+export interface PlayerCardData { name: string; age: number; position: string; ovr: number; tier: DesignTier; tierScore?: number; level: number; xp?: number; xpMax?: number; team: string; avatar?: string; crest?: string; face?: FaceRef; /** 잠재력 범위 표시 "78~84" (C.81n, 내 선수만) */ potential?: string }
 export interface PlayerCardProps { player: PlayerCardData; variant?: 'full' | 'compact' }
+
+const pot = (p: PlayerCardData) => (p.potential ? `<div class="po-pcard__pot">잠재력 <b class="po-num">${esc(p.potential)}</b></div>` : '');
 
 export function PlayerCard(props: PlayerCardProps): string {
   const p = props.player;
   if (props.variant === 'compact') {
-    return `<div class="${cx('po-pcard', 'po-pcard--compact', `po-tierframe--${p.tier}`)}">${Avatar({ src: p.avatar, name: p.name, size: 48, face: p.face })}<div class="po-pcard__main"><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${esc(p.position)} · ${p.age}세 · ${esc(p.team)}</div></div><div class="po-pcard__ovrbox"><b class="po-num">${p.ovr}</b><small>OVR</small></div></div>`;
+    return `<div class="${cx('po-pcard', 'po-pcard--compact', `po-tierframe--${p.tier}`)}">${Avatar({ src: p.avatar, name: p.name, size: 48, face: p.face })}<div class="po-pcard__main"><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${esc(p.position)} · ${p.age}세 · ${esc(p.team)}</div>${pot(p)}</div><div class="po-pcard__ovrbox"><b class="po-num">${p.ovr}</b><small>OVR</small></div></div>`;
   }
   return `<div class="${cx('po-pcard', `po-tierframe--${p.tier}`)}"><div class="po-pcard__top"><div class="po-pcard__ovr"><b class="po-num">${p.ovr}</b><span class="po-pcard__pos">${esc(p.position)}</span></div>${
-    Avatar({ src: p.avatar, name: p.name, size: 96, shape: 'square', face: p.face })}<div class="po-pcard__side">${Crest({ name: p.team, src: p.crest, size: 28 })}<span class="po-pcard__lv">LV<b class="po-num">${p.level}</b></span></div></div><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${p.age}세 · ${esc(p.team)}</div><div class="po-pcard__tier">${
+    Avatar({ src: p.avatar, name: p.name, size: 96, shape: 'square', face: p.face })}<div class="po-pcard__side">${Crest({ name: p.team, src: p.crest, size: 28 })}<span class="po-pcard__lv">LV<b class="po-num">${p.level}</b></span></div></div><div class="po-pcard__name">${esc(p.name)}</div><div class="po-pcard__meta">${p.age}세 · ${esc(p.team)}</div>${pot(p)}<div class="po-pcard__tier">${
     TierBadge({ tier: p.tier, score: p.tierScore, size: 'sm' })}</div>${p.xp != null ? Meter({ value: p.xp, max: p.xpMax, label: 'XP', showValue: true, tone: 'xp', className: 'po-pcard__xp' }) : ''}</div>`;
 }

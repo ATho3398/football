@@ -1,0 +1,34 @@
+{
+ "W": 390,
+ "H": 844,
+ "errors": [],
+ "screens": {
+  "결과-교환요청": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결과-교환성공": {
+   "wide": 0,
+   "hidden": []
+  },
+  "결과-교환거절": {
+   "wide": 0,
+   "hidden": []
+  },
+  "도감-유니폼표시": {
+   "wide": 0,
+   "hidden": [
+    "rail:No.00384\n    \n    라힘",
+    "rail:No.00186\n    \n    케빈"
+   ]
+  },
+  "진열실": {
+   "wide": 0,
+   "hidden": []
+  }
+ },
+ "results": [
+  true,
+  false
+ ]
+}

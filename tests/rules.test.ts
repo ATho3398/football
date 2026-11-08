@@ -149,7 +149,8 @@ describe('내 선수 출전 구간과 어댑터 (E.14, E.16)', () => {
   const base = {
     myRoster: home, oppRoster: away, myRating: 75, oppRating: 75, home: true,
     me: { position: 'ST' as const, attributes: home.players.find((p) => p.position === 'ST')!.attributes!, fatigue: 0, form: 0 },
-    difficulty: 'normal' as const, seed: 77, worldSeed: 'w',
+    // C.76a: 시드 77 은 엔진 28 에서 내 선수가 90분에 두 번째 경고로 퇴장(86분)해 선발 90분 가정이 깨져 78 로 (엔진 결과 무관 어댑터 테스트)
+    difficulty: 'normal' as const, seed: 78, worldSeed: 'w',
   };
 
   it('선발 90분 / 70분 교체 투입 / 30분 부상 교체 아웃', () => {
@@ -207,7 +208,9 @@ describe('playRound 엔진 연결 (E3)', () => {
   });
 
   it('엔진으로 여러 라운드 연속 진행 (피로는 이동 거리에서, 기록 누적)', () => {
-    const g = newGame({ mode: 'real', playerId: 'kane', seed: 'e3-run', difficulty: 'normal' });
+    // C.78e(엔진 45, 마스터 Z 승인): e3-run 은 6라운드 피로 100(상한) 이라 c78e-run-0(45, 6경기)으로 — e3-run·c78e-run-0~4 중 2개가 100(엔진 44 e3-run 84), 피로가 상한 가까이 쌓이는 진행은 마지막 단계 항목
+    // C.80g(엔진 68): c78e-run-0 이 6라운드 피로 100(상한) — c78e-run-0~4·e3-run 피로 100 · 100 · 63 · 35 · 80 · 100 → c78e-run-4(6경기 출장, 80)
+    const g = newGame({ mode: 'real', playerId: 'kane', seed: 'c78e-run-4', difficulty: 'normal' });
     // C.67b: 챔스 경기도 playRound 한 번 — 리그 6라운드까지
     while (g.league.round < 6) playRound(g);
     expect(g.league.round).toBe(6);

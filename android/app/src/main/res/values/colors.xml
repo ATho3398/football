@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PLAYER ONE (C.77v): 웹 manifest 의 background_color·theme_color 와 같은 색 -->
+    <color name="po_bg">#16171B</color>
+</resources>

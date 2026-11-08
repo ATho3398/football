@@ -1,7 +1,8 @@
 // 이적·계약 화면 (18.10, 부록 C.42): 홈 알림 카드, 이적 제안, 재계약, 선수 화면 계약·이적 요청, 월드 이적 소식.
 // 인박스(5-2)가 아직 없어 제안은 홈 알림 카드로 알린다. 카드·박스는 C.39 바둑판(.ag-cell)·GameCard 톤
 
-import { Avatar, Banner, Button, Crest, FinChip, HeroPanel, Icon, OfferCard, OptionRow, SectionTitle, TagChip, TransferRow, esc, type FinTierKo } from '../components';
+import { ro } from '../../transfer';
+import { Banner, Button, Crest, FinChip, HeroPanel, Icon, OfferCard, OptionRow, SectionTitle, TagChip, TransferRow, esc, type FinTierKo } from '../components';
 import type { MarketVM, NewsVM, OfferVM } from '../transferVM';
 import { actionRow, panel } from './common';
 import { TAGS } from '../../tags';
@@ -55,7 +56,7 @@ function refusedLines(vm: MarketVM): string {
 
 /** OfferCard (디자인 97 · 145, C.60): 팀 이름 → 팀 상세(C.53), 재정 등급 · 이적료 · 친정 표시 · 지금과 비교 한 줄 */
 function offerCard(o: OfferVM, selected: boolean, freeFee = false): string {
-  const note = [`전력 ${signed(o.diff)}`, o.wagePct ? `지금보다 주급 ${o.wagePct > 0 ? '+' : '−'}${Math.abs(o.wagePct)}%` : '주급 그대로', o.repLoss ? `약팀 이적 · 위상 약 −${o.repLoss}` : ''].filter(Boolean).join(' · ');
+  const note = [o.prospect ? '유망주 계약 · 잠재력을 보고 낸 저연봉 장기 계약' : '', `전력 ${signed(o.diff)}`, o.wagePct ? `지금보다 주급 ${o.wagePct > 0 ? '+' : '−'}${Math.abs(o.wagePct)}%` : '주급 그대로', o.repLoss ? `약팀 이적 · 위상 약 −${o.repLoss}` : ''].filter(Boolean).join(' · ');
   return OfferCard({
     offer: {
       club: o.team, league: o.league ? '리그' : '리그 밖', ...(o.league ? { rank: o.rank } : {}), strength: o.rating, apps: o.start, starts: o.startPct,
@@ -135,6 +136,7 @@ export function contractView(vm: MarketVM, years: number | null): string {
   const sel = years ?? r.years[Math.floor(r.years.length / 2)]!;
   return `${hero}<div class="body">
     ${SectionTitle({ title: '연장', action: `주급 ${r.wage} · 연 ${r.annual}` })}
+    ${r.prospect ? '<p class="small muted">유망주 계약 · 잠재력을 보고 낸 저연봉 장기 계약</p>' : ''}
     <div class="opts">${r.years.map((y) => OptionRow({ act: 'renew-years', data: { v: String(y) }, radio: true, selected: y === sel, title: `${y}년`, desc: `${esc(vm.contract.team)}에서 ${y}시즌 더` })).join('')}</div>
     ${Button({ size: 'lg', block: true, act: 'renew', data: { v: String(sel) }, children: `${sel}년 재계약` })}
     ${SectionTitle({ title: 'FA 이적' })}
@@ -164,8 +166,8 @@ export function newsSection(vm: NewsVM | null, more: Record<string, boolean> = {
       ${rows.length > NEWS_PAGE ? moreBtn(key, !!more[key], `${title.split(' · ')[0]} ${rows.length - NEWS_PAGE}명 더 보기`) : ''}`;
   };
   return `${SectionTitle({ title: vm.title, action: `${vm.count}명` })}
-    ${group('xin', '리그 안 · 프리미어리그로', vm.rows.filter((r) => r.into))}
-    ${group('xout', '리그 밖 · 해외·하부 리그로', vm.rows.filter((r) => !r.into))}
+    ${group('xin', `리그 안 · ${vm.league ?? '프리미어리그'}${ro(vm.league ?? '프리미어리그')}`, vm.rows.filter((r) => r.into))}
+    ${group('xout', vm.toOther ? '리그 밖 · 다른 리그·해외·하부 리그로' : '리그 밖 · 해외·하부 리그로', vm.rows.filter((r) => !r.into))}
     <p class="small muted">막대 = 도착 팀 재정 등급 · 몸값은 이적 때 값(계약이 끝난 선수는 자유계약). 시안 테두리 = 내 팀 관련. 팀 전력은 로스터 라인업 평균이라 이적이 바로 반영돼요.</p>`;
 }
 

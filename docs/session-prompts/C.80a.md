@@ -1,0 +1,6 @@
+너는 게임 시스템 코드 세션 "53단계_NPC 출장 정지 (C.80a)"이다(Opus 5.5, 노력도 높음). 마스터 AD(session_01YVaigGhehXaRqBVTGBzTwo, 브랜치 claude/planning-ad). 한국어, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). docs/automation.md를 따른다. 브랜치 `claude/c80a-npc-ban` — origin/main 최신에서, main 푸시 전 merge.
+
+근거: 외부 피드백 R7(사용자 "추천대로 ㄱㄱ", 10/30 03:1x) — NPC는 출장 정지가 없다: `player.suspended`(types.ts:176-177)·game.ts:1769-1779(레드 1경기·리그 옐로 5장마다 1경기, balance.ts:351-356)는 내 선수만. NPC 상태 `NpcFit`·`NpcCond`(npcFit.ts:18-29)에 카드·정지 칸 없음, 엔진 NPC 출력 `PlayerLine`(engine/npcMatch.ts:31)에 카드 없음(엔진 내부 state.ts:349는 셈), 빠른 경기 경로는 카드 자체 없음(game-design.md:1281). 컵·UCL 카드는 일부러 안 셈(:4662·:4689) — 그 규칙 그대로. 징계 규칙(D.9-15 레드 1경기·옐로 5장 누적 1경기)은 **유지**(사용자 결정).
+- 할 일: ① 엔진 NPC 출력에 선수별 옐로·레드 ② 빠른 경기 경로에 카드 굴림(엔진 평균 카드율·포지션·성향 가중으로, 결정적 난수) ③ NPC 상태에 리그 옐로 누적·정지 남은 경기 → NPC 선발(selection.ts)이 정지 선수 제외 ④ 화면: 상대 미리보기·팀 상세에 정지 표시(있는 칸 재사용, 새 화면 금지) ⑤ SAVE_FORMAT_VERSION +1(이전 코드 금지 — 옛 세이브 안내 뒤 삭제), BALANCE_VERSION +1.
+- 관문: 시즌 NPC 정지 수(팀당 시즌 평균, 실축 PL 팀당 레드 약 2·옐로 정지 2~4 근처) · NPC 선발 안정성·출전 분 가드 · 세이브 크기 증가 기록 · typecheck · test · balance:check(60분 넘으면 CI) · engine:check(엔진 판단·실행 불변 — 출력 칸만, 지문 불변 확인).
+- 통과하면 승인 없이 main 푸시. PATCH_LABEL 'C.80a', STAGE '53단계', 부록 C.80a. 예산 2.5시간·12달러.

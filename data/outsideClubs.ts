@@ -12,7 +12,7 @@ export const OUTSIDE_CLUBS: readonly OutsideClub[] = [
   { id: 'x:bar', name: 'FC Barcelona', nameKo: '바르셀로나', rating: 86 },
   { id: 'x:rma', name: 'Real Madrid', nameKo: '레알 마드리드', rating: 85 },
   { id: 'x:juv', name: 'Juventus', nameKo: '유벤투스', rating: 85 },
-  { id: 'x:bay', name: 'Bayern München', nameKo: '바이에른 뮌헨', rating: 84 },
+  { id: 'x:bay', name: 'Bayern Munich', nameKo: '바이에른 뮌헨', rating: 84 },
   { id: 'x:psg', name: 'Paris Saint-Germain', nameKo: '파리 생제르맹', rating: 84 },
   { id: 'x:atm', name: 'Atlético Madrid', nameKo: '아틀레티코 마드리드', rating: 82 },
   { id: 'x:bvb', name: 'Borussia Dortmund', nameKo: '도르트문트', rating: 80 },
@@ -59,12 +59,18 @@ export const CUP_ONLY_CLUBS: readonly OutsideClub[] = [
   { id: 'x:tsg', name: 'Hoffenheim', nameKo: '호펜하임', rating: 75 },
   { id: 'x:sha', name: 'Shakhtar Donetsk', nameKo: '샤흐타르 도네츠크', rating: 74 },
   { id: 'x:bru', name: 'Club Brugge', nameKo: '클럽 브뤼헤', rating: 71 },
+  // C.81q: 리그 자리 수를 실제 배정으로 자른 뒤 2018-19 본선의 나머지 4팀
+  { id: 'x:lok', name: 'Lokomotiv Moscow', nameKo: '로코모티프 모스크바', rating: 72 },
+  { id: 'x:csk', name: 'CSKA Moscow', nameKo: 'CSKA 모스크바', rating: 72 },
+  { id: 'x:yb', name: 'Young Boys', nameKo: '영 보이스', rating: 70 },
+  { id: 'x:plz', name: 'Viktoria Plzeň', nameKo: '빅토리아 플젠', rating: 69 },
 ];
 
 /** 챔스 외부 28팀 (C.67b): 리그 밖 유럽 클럽 + 컵 전용 5 (잉글랜드 하부 클럽 제외) */
 export const UCL_EXTRA: readonly string[] = [
-  'x:bar', 'x:rma', 'x:juv', 'x:bay', 'x:psg', 'x:atm', 'x:bvb', 'x:nap', 'x:int', 'x:rom', 'x:mil', 'x:b04', 'x:sev', 'x:ol', 'x:ajx', 'x:fcp',
-  'x:slb', 'x:vil', 'x:zen', 'x:asm', 'x:gal', 'x:cel', 'x:psv', 'x:val', 'x:s04', 'x:tsg', 'x:sha', 'x:bru',
+  // C.81q: 2018-19 실제 배정(라리가·세리에·분데스 4 · 리그앙 3, BALANCE.cups.ucl.slots)에 맞춘 본선 28팀 — 리그 순서는 첫 시즌 진출 순(자리 수로 자름)
+  'x:bar', 'x:rma', 'x:juv', 'x:bay', 'x:psg', 'x:atm', 'x:bvb', 'x:nap', 'x:int', 'x:rom', 'x:s04', 'x:tsg', 'x:val', 'x:ol', 'x:asm',
+  'x:ajx', 'x:fcp', 'x:slb', 'x:zen', 'x:gal', 'x:cel', 'x:psv', 'x:sha', 'x:bru', 'x:lok', 'x:csk', 'x:yb', 'x:plz',
 ];
 
 /** FA컵 하부 가상 팀 (리그 밖 잉글랜드 클럽, 레이팅 순) */

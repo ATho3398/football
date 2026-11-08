@@ -1,11 +1,15 @@
 // 경기 후 (I.6, 디자인 38): 스코어·평점, 하이라이트, 전술 리포트(21.5.2: 판정 카드 최대 2장 + 숫자 줄), 평균 위치 지도, XP.
 // 내 결정 기록 (E.11, I.17 10번, 직접 모드로 멈춘 순간). 카드·신뢰도는 아직 없는 기능이라 숨긴다
 
-import { Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, SectionTitle, StatChip, TacticChip } from '../components';
-import type { MatchResultVM } from '../viewModels';
+import { Button, Crest, esc, HeroPanel, Icon, Meter, Pitch, PossessionBar, RiskChip, SectionTitle, StatChip, TacticChip } from '../components';
+import { formEffectLabel, type MatchResultVM } from '../viewModels';
 import { actionRow, banners, moreRecords, panel, pc2 } from './common';
 import { isWide } from '../skin';
 import { personLink } from './detail';
+import { scoreText } from '../../text';
+import { jerseyPanel } from './showroom';
+import type { JerseyPanelVM } from '../jerseyVM';
+import type { CupBannerVM, CelebrateVM } from '../seasonVM';
 
 function cmpRow(label: string, own: string, opp: string): string {
   const a = parseFloat(own) || 0;
@@ -20,14 +24,15 @@ function goalRows(goals: MatchResultVM['goals']): string {
   let m = 0, o = 0;
   return goals.map((x) => {
     if (x.mine) m++; else o++;
-    return `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num mr-goal__min">${esc(x.minute)}</span>${Icon({ name: 'ball', size: 16 })}<span class="grow">${x.mine ? '골! ' : '실점 · '}${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? ` <small>(도움 ${esc(x.assist)})</small>` : ''} <b class="po-num mr-goal__score">${m}-${o}</b></span>${x.id === 'me' ? '<span class="mr-goal__me">나</span>' : x.assistMe ? '<span class="mr-goal__me">나</span>' : ''}</div>`;
+    return `<div class="mr-goal${x.mine ? ' is-mine' : ' is-opp'}"><span class="po-num mr-goal__min">${esc(x.minute)}</span>${Icon({ name: 'ball', size: 16 })}<span class="grow mr-goal__who">${x.mine ? '골! ' : '실점 · '}${x.id ? personLink(x.id, x.name) : `<b>${esc(x.name)}</b>`}${x.assist ? ` <small>(도움 ${esc(x.assist)})</small>` : ''}</span>${x.id === 'me' || x.assistMe ? '<span class="mr-goal__me">나</span>' : ''}<b class="po-num mr-goal__score score-cell">${scoreText(m, o)}</b></div>`;
   }).join('');
 }
 
 const ENV_ICON = { clear: 'sun', cloudy: 'cloud', rain: 'rain', wind: 'wind', heat: 'heat', snow: 'snow' } as const;
 
 /** delta = 방금 경기 앞뒤 신뢰도·위상 변화 (C.72, 화면이 잰 값). 없거나 둘 다 0이면 줄을 숨긴다 */
-export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null): string {
+/** jersey = 유니폼 교환 패널 (C.76b, 요청할 수 있는 경기만) */
+export function matchResultView(vm: MatchResultVM, more: Record<string, boolean> = {}, delta: { trust: number | null; rep: number } | null = null, jersey: JerseyPanelVM | null = null): string {
   const hero = HeroPanel({
     title: '경기 결과', right: vm.comp, back: { act: 'go', data: { to: 'home' } }, ...(isWide() ? { compact: true } : {}),
     eyebrow: `${vm.opp}전 ${vm.scoreLine} ${vm.outcomeKo} · 내 평점`,
@@ -35,12 +40,20 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     chips: vm.chips.map((c, i) => (i === vm.chips.length - 1 ? { label: c, soft: true } : c)),
   });
   // C.70 (디자인 170·160): 한 줄 = 엠블럼 · 우리 팀 | 점수 | 상대 · 엠블럼 (내 얼굴은 머리말 평점과 겹쳐 뺌)
-  const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score">${esc(vm.scoreLine.replace('-', ' - '))}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>${
+  const head = `<div class="panel mr-head mr-head--row"><button type="button" class="mr-team dt-link" data-act="team-open" data-v="${esc(vm.myTeamId)}">${Crest({ name: vm.myTeam, team: vm.myTeamId, size: 28 })}<small>${esc(vm.myTeam)}</small></button><b class="po-num mr-score score-cell">${esc(vm.scoreLine)}</b><button type="button" class="mr-team mr-team--opp dt-link" data-act="team-open" data-v="${esc(vm.oppId)}"><small>${esc(vm.opp)}</small>${Crest({ name: vm.opp, team: vm.oppId, size: 28, color: 'var(--away)' })}</button></div>${
     vm.env ? `<div class="mr-env-line"><span class="mr-env is-${vm.env.weather}">${Icon({ name: ENV_ICON[vm.env.weather], size: 16 })}<b>${esc(vm.env.line)}</b><span>· 심판 ${esc(vm.env.referee)}</span></span></div>` : ''}`;
   // 경기가 끝나면 이 화면으로 바로 온다 (C.50 pending 82 2번). 하이라이트는 이 버튼으로만 — 디자인 155 (C.60): 머리 아래 패널
-  const rewatch = vm.hasAvgMap ? `<div class="panel mr-rewatch"><div class="mr-rewatch__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.highlights.length}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}</small></span></div>
+  const rewatch = vm.hasAvgMap ? `<div class="panel mr-rewatch"><div class="mr-rewatch__head"><span class="mr-rewatch__icon">${Icon({ name: 'restore', size: 20 })}</span><span class="grow"><b>하이라이트 ${vm.sceneCount}장면</b><small>골 ${vm.goals.length} · 내 결정 ${vm.decisions.length}</small></span></div>
     ${Button({ block: true, icon: 'play', act: 'hl-rewatch', children: '하이라이트 다시보기' })}
     <small class="muted">경기가 끝나면 이 화면으로 바로 와요. 다시보기가 끝나면 여기로 돌아와요.</small></div>` : '';
+  // 경기 후 하이라이트 3개 (24.6, P단계 C.77o): 골 · 결정적 장면 · 내 최고 순간, 앞뒤 8초. 세이브에 남아 불러온 뒤에도 본다.
+  // 새 디자인 전 최소 구현 — 결정 기록 줄(dec-row)과 같은 모양 (docs/ui-requests/c77o-highlight-clips.md)
+  const cl = vm.clips ?? [];
+  const clips = cl.length
+    ? `${SectionTitle({ title: '하이라이트 클립', action: `${cl.length}개 · 앞뒤 8초` })}<div class="dec-list mr-clips">${cl.map((c, i) => `
+        <button type="button" data-act="clip-play" data-v="${i}" aria-label="${esc(c.minute)} ${esc(c.label)} 다시 보기" class="panel dec-row dec-neutral mr-clip is-${c.kind}"><span class="po-num dec-min">${esc(c.minute)}</span><span class="dec-main"><small>${esc(c.label)}${c.badge ? ` <i class="mr-clip__badge">${esc(c.badge)}</i>` : ''}</small><b>${esc(c.text)}</b></span><span class="dec-play">${Icon({ name: 'play', size: 16 })}</span></button>`).join('')}</div>
+      ${cl.length > 1 ? Button({ variant: 'ghost', block: true, icon: 'play', act: 'clip-play', data: { v: 'all' }, children: `${cl.length}개 이어 보기` }) : ''}`
+    : '';
   // 득점 (디자인 117 · 155): 우리 골 = 라임 면, 실점 = 주황 테두리. 이름을 누르면 선수 상세 (C.53)
   const goals = vm.goals.length
     ? `${SectionTitle({ title: '득점', action: '누르면 선수 상세' })}<div class="mr-goals">${goalRows(vm.goals)}</div>`
@@ -62,7 +75,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   }
   const my = vm.my.length
     ? `${SectionTitle({ title: '내 기록', action: vm.appearance })}<div class="chips">${vm.my.map((m) => StatChip({ label: m.label, value: m.value })).join('')}${
-      vm.formBonus ? StatChip({ label: '폼 보정', value: `${vm.formBonus > 0 ? '+' : '−'}${Math.abs(vm.formBonus).toFixed(2)}`, tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
+      vm.formBonus ? StatChip({ label: vm.formEngine ? '폼 효과' : '폼 보정', value: formEffectLabel(vm.formBonus, !!vm.formEngine).replace(/^평점 보정 /, ''), tone: vm.formBonus > 0 ? 'success' : 'fail' }) : ''}</div>${moreRecords(vm.myMore)}`
     : '';
   const RES = { success: '성공', fail: '실패', neutral: '보통' } as const;
   // 줄을 누르면 그 장면 리플레이 (E5 최소, 부록 C.35). 디자인 117: 3줄 + 더 보기
@@ -71,7 +84,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
   const decShown = more.dec ? vm.decisions : vm.decisions.slice(0, DEC_PAGE);
   const decisions = vm.decisions.length
     ? `${SectionTitle({ title: '내 결정 기록', action: `${vm.decisions.length}번 멈춤` })}<div class="dec-list">${decShown.map((d, i) => `
-        <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="panel dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><small>${esc(d.scene)} · ${esc(d.p)}</small><b>${esc(d.choice)} · ${esc(d.label)}</b>${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
+        <${tag} ${vm.decisionReplay ? `type="button" data-act="dec-replay" data-v="${i}" aria-label="${esc(d.minute)} ${esc(d.scene)} 장면 다시 보기" ` : ''}class="panel dec-row dec-${d.result}"><span class="po-num dec-min">${esc(d.minute)}</span><span class="dec-main"><small>${esc(d.scene)} · ${esc(d.p)}</small><b>${d.choice ? `${esc(d.choice)} · ` : ''}${esc(d.label)}${d.risk ? RiskChip(d.risk) : ''}</b>${d.flow ? `<small class="dec-flow">${esc(d.flow)}</small>` : ''}</span>
         <span class="dec-res"><span class="dec-res__k">${RES[d.result]}</span><b class="po-num">${esc(d.delta)}</b></span>${vm.decisionReplay ? `<span class="dec-play">${Icon({ name: 'restore', size: 16 })}</span>` : ''}</${tag}>`).join('')}</div>
         <p class="small muted dec-hint">${vm.decisionReplay ? '줄을 누르면 그 장면을 다시 봐요.' : ''}</p>${vm.decisions.length > DEC_PAGE ? Button({ variant: 'ghost', block: true, icon: more.dec ? 'chevron-up' : 'chevron-down', act: 'more', data: { v: 'dec' }, className: 'more-btn', children: more.dec ? '접기' : `${vm.decisions.length - DEC_PAGE}개 더 보기` }) : ''}`
     : '';
@@ -83,6 +96,7 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       c.minute ? `<span class="po-num cu-min">${esc(c.minute)}</span><span class="grow">${esc(c.name ?? '')}${c.auto ? ' <small>(자동)</small>' : ''}</span>` : `<span>${esc(c.text)}</span>`}<b>${RES[c.result]}</b></div>`).join('')}</div>${
       vm.cardUses.length > DEC_PAGE ? `<button type="button" class="cu-more" data-act="more" data-v="cu">${more.cu ? '접기' : `${vm.cardUses.length - DEC_PAGE}장 더 보기`}${Icon({ name: more.cu ? 'chevron-up' : 'chevron-down', size: 14 })}</button>` : ''}`, 'cu-panel')}`
     : '';
+  const jx = jersey ? jerseyPanel(jersey) : '';
   const x = vm.xp;
   // 맨 아래 두 버튼 (C.39): [홈으로] + [다음 경기](주), 시즌 마지막 경기면 [홈으로] + [시즌 요약]
   const home = Button({ variant: 'secondary', size: 'lg', block: true, icon: 'home', act: 'go', data: { to: 'home' }, children: '홈으로' });
@@ -97,14 +111,17 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
       </div>`;
   // PC 2열 (C.61, 폰 2,600px대 → 한 화면): 왼쪽 = 점수 · 하이라이트 · 득점 · 결정 · 쓴 카드, 오른쪽 = 내 기록 · 보상 · 버튼 · 전술 리포트·평균 위치
   if (isWide()) {
-    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${banners(vm.banners)}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
+    return `${hero}<div class="body mr-body">${pc2(`${head}${rewatch}${clips}${cupBanner(vm.cupBanner)}${banners(vm.banners)}${jx}${goals}${decisions}${cardUses}`, `${my}${reward}${btns}${report}`, 'mr-pc')}</div>`;
   }
   return `
     ${hero}
     <div class="body">
       ${head}
       ${rewatch}
+      ${clips}
+      ${cupBanner(vm.cupBanner)}
       ${banners(vm.banners)}
+      ${jx}
       ${goals}
       ${decisions}
       ${cardUses}
@@ -115,6 +132,13 @@ export function matchResultView(vm: MatchResultVM, more: Record<string, boolean>
     </div>`;
 }
 
+/** 214 대회 배너: 왼쪽 막대(진출·순위·합계 라임 · 승부차기 주황 · 탈락 빨강), 우승은 라임 면 · 오른쪽 큰 숫자 */
+export function cupBanner(b: CupBannerVM | null): string {
+  if (!b) return '';
+  return `<div class="cup-banner is-${b.tone}" role="status"><span class="cup-banner__icon">${Icon({ name: b.icon, size: 18 })}</span><span class="cup-banner__body"><small class="cup-banner__kicker">${esc(b.kicker)}</small><b>${esc(b.title)}</b>${b.body ? `<span>${esc(b.body)}</span>` : ''}</span>${
+    b.big ? `<span class="cup-banner__big"><b class="po-num">${esc(b.big)}</b><small>${esc(b.bigLabel ?? '')}</small></span>` : ''}</div>`;
+}
+
 const sgn = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
 
 /** 보상 "신뢰도 +n · 위상 +n" 줄 (디자인 170, C.72) */
@@ -122,4 +146,19 @@ function deltaLine(d: { trust: number | null; rep: number } | null): string {
   if (!d) return '';
   const parts = [d.trust ? `신뢰도 ${sgn(d.trust)}` : '', d.rep ? `위상 ${sgn(d.rep)}` : ''].filter(Boolean);
   return parts.length ? `<p class="small muted mr-delta">${parts.join(' · ')}</p>` : '';
+}
+
+/** 207 우승 축하: 경기 결과 뒤 한 장 — 위 절반 라임 면(우승 칩 · 트로피 자리 · 대회 · 큰 제목 · 한 줄), 아래 내 시즌 기록 4칸 + 줄 · [계속]. 독 없음 */
+export function celebrateView(vm: CelebrateVM): string {
+  return `<div class="celebrate" role="dialog" aria-modal="true" aria-label="${esc(vm.title)}"><div class="celebrate__inner">
+    <div class="celebrate__top"><div class="celebrate__bar"><span class="celebrate__chip">우승</span><b class="po-num">${esc(vm.season)}</b></div>
+      <div class="celebrate__art">${Icon({ name: 'trophy', size: 44 })}<small>트로피</small></div>
+      <p class="celebrate__sub">${esc(vm.sub)}</p><h2 class="celebrate__title">${esc(vm.title)}</h2><p class="celebrate__line">${esc(vm.line)}</p></div>
+    <div class="celebrate__bottom">
+      <div class="cup-head"><h3 class="cup-head__t">내 시즌 기록</h3><span class="cup-head__r">${esc(vm.scope)}</span></div>
+      <div class="celebrate__tiles">${vm.tiles.map((t) => `<div class="celebrate__tile${t.hi ? ' is-hi' : ''}"><b class="po-num">${esc(t.value)}</b><small>${esc(t.label)}</small></div>`).join('')}</div>
+      <div class="panel celebrate__rows">${vm.rows.map((r) => `<div class="kv"><span class="muted">${esc(r.label)}</span><b>${esc(r.value)}</b></div>`).join('')}</div>
+      <div class="celebrate__foot">${Button({ size: 'lg', block: true, iconRight: 'chevron-right', act: 'celebrate-close', children: '계속' })}
+      <small class="muted">[계속]을 누르면 경기 결과로 돌아가요 · 트로피는 선수 → 기록에 쌓여요</small></div>
+    </div></div></div>`;
 }

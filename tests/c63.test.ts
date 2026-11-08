@@ -10,7 +10,7 @@ import { addTrust, ensureManager, scaleDelta } from '../src/manager';
 import { pickRival, rivalOf, rivalVerdict } from '../src/rival';
 import { coachAfterMatch, coachOf, isCaptain, setCaptain } from '../src/club';
 import { fill, josa } from '../src/text';
-import { deserialize, migrate, serialize } from '../src/save';
+import { deserialize, restore, SaveFormatError, serialize } from '../src/save';
 import { collectNotices, homeInboxVM, inboxDetailVM, inboxVM, rivalCardVM } from '../src/ui/inboxVM';
 import { homeInboxSection, inboxDetailView, inboxView, rivalSection } from '../src/ui/views/inbox';
 import { teamDetailVM } from '../src/ui/detailVM';
@@ -139,19 +139,17 @@ describe('이벤트 엔진·인박스 (20.3·20.4)', () => {
     expect(inboxDetailView(inboxDetailVM(g, c.id)!, null)).toContain('data-act="inbox-answer"');
   });
 
-  it('세이브 33: 왕복, 32 세이브 이식(인박스 없음 → 처음 쓸 때)', () => {
+  it('세이브 33: 왕복, 32 세이브는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'CM', seed: 'c63-save', difficulty: 'normal' });
     for (let i = 0; i < 3; i++) playRound(g, { engine: 'quick' });
-    expect(SAVE_FORMAT_VERSION).toBe(45);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const back = deserialize(serialize(g));
     expect(back.inbox?.items.length).toBe(g.inbox?.items.length);
     expect(back.events?.slots).toEqual(g.events?.slots);
     const raw = JSON.parse(serialize(g));
     delete raw.inbox; delete raw.events; delete raw.rival;
     raw.saveFormat = 32;
-    const old = migrate(raw);
-    playRound(old, { engine: 'quick' });
-    expect(old.events).toBeTruthy();
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 });
 
@@ -264,7 +262,8 @@ describe('경기 외 생활 (pending 47 4번, C.63 b)', () => {
     Object.assign(l, { home: 10, adapt: 10, team: 10, mental: 95 });
     expect(lifeForm(g)).toBe(-BALANCE.life.effects.formMax);
     expect(lifeRecoveryMul(g)).toBe(BALANCE.life.effects.mentalRecovery);
-    expect(lifeHints(g).length).toBe(4);
+    // C.75i: 멘탈 피로가 높으면 판단 힌트("집중이 흐트러져요")도
+    expect(lifeHints(g).length).toBe(5);
     Object.assign(l, { home: 90, team: 90, adapt: 90, mental: 10 });
     expect(lifeForm(g)).toBeGreaterThan(0);
   });
@@ -301,8 +300,8 @@ describe('경기 외 생활 (pending 47 4번, C.63 b)', () => {
 
 describe('모바일 독 (C.63c)', () => {
   it('더보기 = 독 옆 펼침 줄(인박스 포함, 끌어 넘김) — 순서는 C.66 에서 홈 · 선수 · [다음]', () => {
-    expect(DOCK_PHONE).toEqual(['home', 'player', 'prog', 'schedule', 'more']);
-    expect(DOCK_PC.slice(0, 6)).toEqual(['home', 'player', 'deck', 'tactics', 'inbox', 'prog']);
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
+    expect(DOCK_PC.slice(0, 6)).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog']);
     const vm = { screen: 'home', prog: { label: '진행 중', icon: 'running' as const, act: 'noop', kind: 'running' as const }, tacticsOpen: false, points: 0, more: true, inbox: 2 };
     const html = dock(vm);
     expect(html).toContain('dock-more__scroll');
@@ -315,7 +314,7 @@ describe('모바일 독 (C.63c)', () => {
 describe('버전 (C.63)', () => {
   it('부록 C 소절 · 단계 형식 (C.64부터는 그 패치 테스트에서 값)', async () => {
     const { PATCH_LABEL, STAGE_LABEL } = await import('../src/version');
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

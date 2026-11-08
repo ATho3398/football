@@ -11,4 +11,4 @@
 # 프로젝트 안내
 
 - 기획서: `docs/game-design.md`. 개발 순서와 현황은 17번(로드맵), 단계별 명세는 부록 D(1.6단계 D.6 포함), 부록 E(2단계 경기 엔진), 부록 F(3단계 카드). 부록 A는 설정 분리 원칙.
-- 밸런스 수치는 모두 `src/config/balance.ts` 에 둔다. 수치를 바꾸면 `BALANCE_VERSION` 을 올린다. 세이브 구조를 바꾸면 `src/game.ts` 의 `SAVE_FORMAT_VERSION` 을 올린다.
+- 밸런스 수치는 모두 `src/config/balance.ts` 에 둔다. 수치를 바꾸면 `BALANCE_VERSION` 을 올린다. 세이브 구조를 바꾸면 `src/game.ts` 의 `SAVE_FORMAT_VERSION` 을 올린다. **세이브 이전(migration)을 반드시 만든다**(사용자 2026-11-04, 2026-10-22 "이전 없음" 규칙 폐기) — `SAVE_FORMAT_VERSION` 을 올리는 패치는 이전 단계(옛 형식 → 새 형식)와 그 버전 예시 세이브 테스트를 같이 넣는다. 이전 코드가 생기기 전 형식(59 미만)만 "이어 할 수 없음" 안내 뒤 지운다.

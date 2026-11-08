@@ -1,0 +1,474 @@
+diff --git a/src/engine/actions.ts b/src/engine/actions.ts
+index 2215217..b945e87 100644
+--- a/src/engine/actions.ts
++++ b/src/engine/actions.ts
+@@ -488,7 +488,7 @@ export function shoot(s: SimState, a: Agent, header: boolean, inSpeed?: number):
+     const corner = clamp(r(s, a.idx, Purpose.Shot, 3) * PR.cornerRange, 0, 1) * (1 - PR.cornerPressure * m.pressure);
+     const ty = gy + side * corner * (G / 2 - 0.3);
+     // 슛 1건 자료 (C.77z): 판단 자료(m.ctx)에 실제 값(뽑은 구석·공 속도, 상대 GK 위치·속도·능력·키)을 넣어 같은 식(saveChance)으로 판정한다
+-    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0 };
++    const ctx: ShotCtx = { ...m.ctx, ty, corner, speed, ...gkCtx(gk), lead: 0, screen: m.screens[side < 0 ? 0 : 1] > 0 ? 1 : 0 };
+     const shot = { speed, corner, d: m.d, header, ctx, ...(cm?.save ? { cardSave: cm.save } : {}) };
+     if (probe.shot) probeShot(s, a, header ? 'header' : 'foot', 'onTarget', m, gx, ty, speed, shot);
+     shotFlight(s, a, {
+diff --git a/src/engine/config.ts b/src/engine/config.ts
+index 1f55411..5a60aa7 100644
+--- a/src/engine/config.ts
++++ b/src/engine/config.ts
+@@ -502,6 +502,21 @@ export const ENGINE = {
+     decoyZone: 12,
+     decoySpeed: 1,
+     lineTiers: 0,
++    /**
++     * 줄 인원 맞춤 내려앉기 (C.79e 실험, pending 147 ①, 0 = 끔): 상대 공격 줄(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽 상대, 소유자 제외) 인원이 우리 수비 줄(압박 아닌 줄 1)
++     * 인원보다 많으면 그 차만큼 줄 2 가 수비 줄로 내려와 줄 1 처럼 행동한다. lineMatchMan 1 이면 초과 인원만큼 박스 안 미마크 상대 마크(boxManMax)도 늘린다
++     */
++    lineMatch: 0,
++    lineMatchBand: 8,
++    lineMatchMin: 1,
++    lineMatchMan: 1,
++    /**
++     * 박스 수 맞춤 마크 (C.79e 실험, pending 147 ①·C.78q 가설 2, 0 = 끔): 우리 박스(+boxManSlack) 안 마커 없는 상대(집중 대상·공 근처·추적 중·boxDefense 몫 제외)에게
++     * 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 골 쪽 stMark 로 붙인다. 줄 1 배치는 그대로
++     */
++    boxMatch: 0,
++    boxMatchMax: 3,
++    boxMatchReach: 25,
+     trackCdmMax: 9,
+     trackPickMax: 12,
+     trackHold: 0.7,
+@@ -912,6 +927,11 @@ export const ENGINE = {
+      * 공을 지키는 능력(드리블·볼 컨트롤) 10 마다 실패 × exp(−carrySkill)
+      */
+     carryClose: 0.3,
++    /** 몰고 가기 실패에서 GK 의 몫 (C.79e 실험, 1 = 필드 선수와 같음 = 지금): GK 가 길에 닿는 실효 거리의 상실 확률에 곱한다 (GK 는 돌파·태클 1대1에 없다) */
++    carryGk: 1,
++    /** 몰고 가서 슛 (C.79e 실험, 0 = 끔): 앞을 막는 수비 없는 전진 몰기의 도착점이 슛 거리면 자리 가치 = max(자리 가치, 도착점 슛 가치 × carryShot), 슛 가치는 carryShotTime 초 뒤 GK 자리로 */
++    carryShot: 0,
++    carryShotTime: 1,
+     carrySkill: 0.3,
+     holdTime: 1.0,
+     /**
+@@ -1471,6 +1491,13 @@ export const ENGINE = {
+     reactSkill: 0.4,
+     driftMax: 6,
+     headerReact: 0,
++    /**
++     * GK 시야 가림 (C.79a 코드, C.79e 실험 스위치 — 기본 screenReact 0 = 끔): 슛 길 콘(prob.coneWidth) 안에 슈터보다 골 쪽(슛 선 위치 ≥ screenFrom) 상대 필드 선수가
++     * 1명 이상이면 GK 반응 시간 + screenReact × 가중. 가중은 실행 1, 판단(shotModel) screenJudge — C.79e "가림의 판단 몫만 낮추기"(1 = C.79a 와 같은 판단=실행)
++     */
++    screenReact: 0,
++    screenFrom: 0.4,
++    screenJudge: 1,
+     /** 빈 골 유효 슈팅 (C.77z): 가운데(구석 0) 슛 선을 GK 가 덮는 정도 c0 이면 유효 슈팅 확률 += (openOn × 각도 − 유효) × (1 − c0) */
+     openOn: 0.95,
+     /** 빈 골 보정 거리 감쇠 (C.78n, 엔진관리자10 가설 3): openOn × clamp(1 − (d − openFrom)/openSpan, openFloor, 1) — 먼 거리 "빈 골" 슛은 빗나갈 수 있다. openSpan 0 = 꺼짐 */
+diff --git a/src/engine/keeper.ts b/src/engine/keeper.ts
+index c3812ad..49cdd41 100644
+--- a/src/engine/keeper.ts
++++ b/src/engine/keeper.ts
+@@ -77,6 +77,8 @@ export interface ShotCtx {
+   body: number;
+   /** 판단용: 슛까지 남은 시간 (초, 패스가 가는 동안 GK 가 자리를 옮긴다) */
+   lead: number;
++  /** GK 시야 가림 (C.79a): 슛 길 콘 안 골 쪽(선 위치 ≥ screenFrom) 상대 필드 선수가 1명 이상이면 가중(실행 1 · 판단 screenJudge) — 반응 + screenReact × 가중. 없으면 0 */
++  screen?: number;
+ }
+ 
+ /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
+@@ -106,7 +108,8 @@ function timeTerms(c: ShotCtx): [number, number] {
+   if (!g) return [1, K.availRef];
+   const [e, k] = segDist(g.x, g.y, c.fx, c.fy, c.tx, c.ty);
+   const tBall = (k * dist(c.fx, c.fy, c.tx, c.ty)) / Math.max(1, c.speed);
+-  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0);
++  // 가림 몫 (C.79e 실험): c.screen 은 가중 — 실행 1, 판단 screenJudge (판단 몫만 낮추기)
++  const react = reactOf(c.stop) + (c.header ? K.headerReact : 0) + (c.screen ? K.screenReact * c.screen : 0);
+   // 슛 선 쪽으로 움직이던 GK 는 반응 시간 동안 그만큼 더 간다 (반대로 움직이면 잃는다)
+   let drift = 0;
+   if (e > 1e-6) {
+diff --git a/src/engine/offball.ts b/src/engine/offball.ts
+index b4f1d05..aa1b9bf 100644
+--- a/src/engine/offball.ts
++++ b/src/engine/offball.ts
+@@ -1299,6 +1299,9 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+ 
+   const [gx0, gy0] = ownGoal(dir);
+   const boxZone = dist(b.x, b.y, gx0, gy0) < O.boxZone;
++  // 줄 인원 맞춤 (C.79e 실험): 내려온 줄 2 선수는 아래에서 줄 1 처럼 행동한다
++  const dropped = lineMatchPlan(s, a.team).drop.has(a.idx);
++  const asDef = a.line === 1 || dropped;
+   // 비행 중 수신자 압박 (C.76k 단계 B): 상대 패스가 우리 골 closeDownZone 안으로 떠 있으면 착지점에 가장 빨리 닿는 1명이 미리 나간다
+   // 깊은 블록 (C.76p 가설 2): 간격 deepCloseDownGap, 수신자가 ST/CF 면 둘째도 착지점 골 쪽 deepCloseDownSecond m
+   if (!owner && a.line !== 0) {
+@@ -1416,7 +1419,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   }
+ 
+   // 줄 사이 수신 (C.78d ①): 밀집 중 상대 소유자가 우리 수비 줄과 중원 줄 사이(+holdSlack m)면 압박 1명·커버 1명만 반응하고 나머지 중원은 밀집 자리(공 쪽으로 좁힌 줄)를 지킨다 — 한 번에 1명, 옆이 메움
+-  if (O.compact > 0 && a.line === 2 && owner && owner.team !== a.team && !exemptOf(s, a)) {
++  if (O.compact > 0 && a.line === 2 && !dropped && owner && owner.team !== a.team && !exemptOf(s, a)) {
+     const tac2 = s.teams[a.team].tactics;
+     const cw2 = compactWOf(tac2);
+     if (cw2 !== undefined && bnx * L < O.compactFrom) {
+@@ -1448,17 +1451,33 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   }
+ 
+   // 2선 침투자 추적 (C.77b 44h-i, §9.15 가설 1): 압박 다음, 면제·스크린·줄 2 존 마크 앞. 줄 2 추적자만, 수비 줄(boxDefense)은 그대로
+-  if (a.line === 2 && O.trackMax > 0) {
++  if (a.line === 2 && !dropped && O.trackMax > 0) {
+     trackPlan(s, a.team, gx0, gy0);
+     if (a.trackIdx >= 0 && trackTarget(s, a, dir, gx0, gy0)) return;
+   }
+ 
++  // 박스 수 맞춤 마크 (C.79e 실험): 추적 다음, 줄 2 존 마크 앞 — 마커 없는 박스 안 상대에게 골 쪽 밀착
++  if (a.line === 2 && !dropped && O.boxMatch > 0) {
++    const u0 = boxMatchPlan(s, a.team, gx0, gy0).get(a.idx);
++    if (u0 !== undefined) {
++      const u = s.agents[u0]!;
++      ensureErrors(s, a);
++      const gd2 = dist(u.x, u.y, gx0, gy0) || 1;
++      a.tx = clamp(u.x + ((gx0 - u.x) / gd2) * O.stMark + a.errX * O.markSigma, 0.3, L - 0.3);
++      a.ty = clamp(u.y + ((gy0 - u.y) / gd2) * O.stMark + a.errY * O.markSigma, 0.3, W - 0.3);
++      feedFrom(a, u);
++      a.urgent = dist(a.tx, a.ty, a.x, a.y) > 3;
++      a.minRun = false;
++      return;
++    }
++  }
++
+   ensureErrors(s, a);
+   // 박스 앞 수비 블록 (E.20 3번): 수비수는 ST 마크 1명과 박스 안 공간 덮기
+   // 상대 ST/CF 가 박스 안에 있으면 stMarkZoneBox 부터 (C.29 fix2 가설 B)
+   const ballGoal = dist(b.x, b.y, gx0, gy0);
+   const markZone = ballGoal < Math.max(O.boxZone, O.stMarkZone) || (ballGoal < O.stMarkZoneBox && oppStrikerInBox(s, a.team, dir));
+-  if (a.line === 1 && markZone && boxDefense(s, a, dir, boxZone)) return;
++  if (asDef && markZone && boxDefense(s, a, dir, boxZone)) return;
+ 
+   let [nx, ny] = slotTarget(s, a);
+   const tac = s.teams[a.team].tactics;
+@@ -1470,7 +1489,8 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   // 역습 (C.78s H2): 수비-중원 counterGap m — 2선이 올린 라인 바로 앞, 하프라인 부근에 모인다
+   const ctr = tendency === 'counter';
+   const midGap = br ? Math.min(F.midGap, br.gap / L) : ctr ? Math.min(F.midGap, TENDENCY.counterGap / L) : F.midGap;
+-  if (a.line === 2) nx = Math.min(nx, lineX + midGap);
++  if (dropped) nx = Math.min(nx, lineX);
++  else if (a.line === 2) nx = Math.min(nx, lineX + midGap);
+   else if (a.line === 3) nx = Math.min(nx, lineX + F.attGap);
+   // 블록 라인 매우 낮음 (C.76k 버스, 역습 출구): 최전방 1명은 하프라인 부근에 남는다
+   if (stayForwards(tac) > 0 && a.line === 3 && isTopForward(s, a)) nx = Math.max(nx, TENDENCY.busStayX);
+@@ -1501,17 +1521,17 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   const compacted = cw !== undefined && bnx * L < O.compactFrom;
+   if (compacted) {
+     ny = clamp(0.5 + (a.sy - 0.5) * cw + (bny - 0.5) * O.compactFollow, 0.05, 0.95);
+-    if (a.line === 2 && tendency !== 'counter') nx = lineX + midGap;
++    if (a.line === 2 && !dropped && tendency !== 'counter') nx = lineX + midGap;
+   }
+   // CDM 스크린 (E.22 A): 공과 상대 최전방 사이 중앙 길목. 홀딩 CM 도 같이 (E3.7 역할 반응: 수비 역할의 수비 효과)
+-  if ((a.pos === 'CDM' || a.role.id === 'holdingCM') && owner && owner.team !== a.team) {
++  if ((a.pos === 'CDM' || a.role.id === 'holdingCM') && !dropped && owner && owner.team !== a.team) {
+     const spot = screenSpot(s, a, owner, dir, lineX);
+     if (spot) {
+       setTarget(a, spot[0], spot[1], dir, false);
+       return;
+     }
+   }
+-  if (a.line === 1) {
++  if (asDef) {
+     // 수비 라인 동기화. 오차는 수비 포지셔닝과 마킹
+     const sigma = ((100 - (a.attrs.defensivePositioning + a.attrs.marking) / 2) * O.markSigma) / L;
+     nx = lineX + a.errX * sigma;
+@@ -1527,7 +1547,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+   // 우리 줄 1 → [상대 줄 3, 그다음 줄 2] · 우리 줄 2 → [상대 줄 2, 그다음 줄 3] · 우리 줄 3 → [상대 줄 1·2, 그다음 줄 3]. 첫 단계에 14 m 안 상대가 있으면 그 안에서만,
+   // 없을 때만 다음 단계(대형이 달라 짝이 남을 때의 인계). focus(대개 ST) 쏠림은 우리 줄 1 에만 — 줄 2 는 focus 가 자기 첫 단계(줄 2)일 때만 (지금까지는 줄과 무관하게 가장 가까운 상대·focus 라 줄 2 가 ST 로 쏠리고 상대 2선은 비었다, 미해결 8)
+   // **지금은 끔(lineTiers 0, 부록 C.77b)**: 켜면(1) CAM 골은 그대로(gap 120 0.33/0.35 → 0.33/0.32)인데 줄 2 가 ST 에서 빠져 ST 골 0.34/0.31 → 0.38/0.36·quick ST 31 → 34 로 같은 시드 scoring 30골+ 1.80 → 2.40 ✗ (C.76w 와 같은 "ST 풀림" 통로)
+-  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : a.line === 1 ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
++  const tiers: Line[][] = O.lineTiers <= 0 ? [[1, 2, 3]] : asDef ? [[3], [2]] : a.line === 2 ? [[2], [3]] : [[1, 2], [3]];
+   let mark: Agent | null = null;
+   let best = 14;
+   for (const tier of tiers) {
+@@ -1543,7 +1563,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+     }
+     if (mark) break;
+   }
+-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || a.line === 1 || tiers[0]!.includes(focus.line))) mark = focus;
++  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) mark = focus;
+   // CB 따라나옴 (C.77d 가설 2): 줄 사이로 내려온 상대 공격수를 따라 나갈지 가장 가까운 CB 가 판단한다 (나가기로 하면 그 선수를 라인 앞까지 마크)
+   const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, lineX, ballGoal) : null;
+   if (stepOut) mark = stepOut;
+@@ -1566,7 +1586,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: numb
+     // 목표 속도 (C.77x): 목표 중 마크 자리를 따르는 몫(줄 1: y 반, x 는 마크 자리를 고른 때만 · 줄 2·3: 섞는 비율)만큼 마크 상대의 속도
+     let fwx: number;
+     let fwy: number;
+-    if (a.line === 1) {
++    if (asDef) {
+       ny = ny * 0.5 + mny * 0.5;
+       // 라인 뒤로만 (마크 쪽으로 내려섬). 따라 나가기로 했으면 마크 자리까지 라인 앞으로, 최대 stepOutMax m
+       const nx0 = nx;
+@@ -1613,7 +1633,8 @@ function oppStrikerInBox(s: SimState, team: 0 | 1, dir: 1 | -1): boolean {
+ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean {
+   const b = s.ball;
+   const [gx, gy] = ownGoal(dir);
+-  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && o.line === 1 && ballRank(s, o, b.x, b.y) >= 2);
++  const lm = lineMatchPlan(s, a.team);
++  const defs = s.agents.filter((o) => o.onPitch && o.team === a.team && (o.line === 1 || lm.drop.has(o.idx)) && ballRank(s, o, b.x, b.y) >= 2);
+   if (!defs.includes(a)) return false;
+   const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
+   const oppDir = (-dir) as 1 | -1;
+@@ -1662,7 +1683,9 @@ function boxDefense(s: SimState, a: Agent, dir: 1 | -1, cover: boolean): boolean
+     others.sort((x, y) => Number(y.line === 2) - Number(x.line === 2) || threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
+     // 엘리트 가드 (C.76w 가설 3): 집중 대상의 마무리 계수 ≥ focusDoubleMin 이면 2선 마크보다 더블팀이 먼저다 (2선 마크로 ST 가 풀리자 같은 시드 scoring 30골+ 1.6 → 3.3~4.1)
+     // 깊은 블록 밀집 (C.78d ①): 버스·블록·역습(낮은 블록)은 남는 수비가 많으니 박스 안 미마크 상대를 deepBoxMan 명까지 맡는다 (박스 안 사람 앞에 사람)
+-    const manMax = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
++    const manMax0 = compactWOf(s.teams[a.team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
++    // 줄 인원 맞춤 (C.79e 실험, lineMatchMan 1): 초과 인원만큼 박스 안 미마크 상대 마크 인원을 늘린다
++    const manMax = O.lineMatch > 0 && O.lineMatchMan > 0 && lm.surplus > 0 ? Math.max(manMax0, lm.surplus) : manMax0;
+     const second = (abil >= O.focusDoubleMin || !others.length || !manMax) && inBox && !ballNear ? defs.filter((o) => o !== marker).sort(near)[0] : undefined;
+     const gd = dist(t.x, t.y, gx, gy) || 1;
+     const focus = isFocus ? O.focusMark * (1 - O.focusTight * abil) : 1;
+@@ -2097,6 +2120,119 @@ function canReach(a: Agent, r: Agent): boolean {
+   return arrivalTime(a, px, py, 1) <= arrivalTime(r, px, py) + O.trackReachSlack;
+ }
+ 
++// 줄 인원 맞춤 내려앉기 (C.79e 실험 스위치, pending 147 ①, 기본 lineMatch 0 = 끔): 상대가 공을 가졌을 때 상대 공격 줄 인원(우리 수비 줄 평균 x + lineMatchBand m 안쪽·골 쪽의 상대, 소유자 제외)이
++// 우리 수비 줄 인원(압박 아닌 줄 1)보다 많으면 그 차만큼 줄 2 선수(바쁘지 않은 선수 중 가장 깊은 순, 이미 내려온 선수 우선)가 수비 줄로 내려와 줄 1 처럼 행동한다
++// (boxDefense 마크·덮기, 라인 동기화, 존 마크). 전술 무관 공통 규칙, 판단에 보이는 상대 위치만 쓴다. 차가 0 이면 유지, 음수면 올라간다 (히스테리시스)
++interface LineMatch { drop: Set<number>; surplus: number }
++const NO_MATCH: LineMatch = { drop: new Set<number>(), surplus: 0 };
++const lineMatchCache = new WeakMap<SimState, { tick: number; plan: LineMatch }[]>();
++function lineMatchPlan(s: SimState, team: 0 | 1): LineMatch {
++  if (O.lineMatch <= 0) return NO_MATCH;
++  let cache = lineMatchCache.get(s);
++  if (!cache) lineMatchCache.set(s, (cache = [{ tick: -1, plan: NO_MATCH }, { tick: -1, plan: NO_MATCH }]));
++  const e = cache[team]!;
++  if (e.tick === s.tick) return e.plan;
++  const prev = e.tick === s.tick - 1 ? e.plan : NO_MATCH;
++  e.tick = s.tick;
++  const b = s.ball;
++  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
++  const att = owner ? owner.team : s.possTeam;
++  if (att === team || s.restart) return (e.plan = NO_MATCH);
++  const dir = attackDir(team, s.half);
++  let lx = 0;
++  let ln = 0;
++  let defs = 0;
++  for (const o of s.agents) {
++    if (!o.onPitch || o.team !== team || o.line !== 1) continue;
++    lx += toNorm(o.x, o.y, dir)[0];
++    ln++;
++    if (ballRank(s, o, b.x, b.y) >= 2) defs++;
++  }
++  if (!ln) return (e.plan = NO_MATCH);
++  const band = lx / ln + O.lineMatchBand / L;
++  let atts = 0;
++  for (const o of s.agents) if (o.onPitch && o.team !== team && o.line !== 0 && o !== owner && toNorm(o.x, o.y, dir)[0] < band) atts++;
++  const surplus = atts - defs;
++  // 문턱 lineMatchMin(기본 1): 초과가 문턱 이상이면 초과 전부, 문턱 − 1 이면 유지, 그 아래면 올라간다
++  const need = surplus >= O.lineMatchMin ? surplus : surplus >= O.lineMatchMin - 1 ? prev.drop.size : 0;
++  if (need <= 0) return (e.plan = { drop: NO_MATCH.drop, surplus });
++  const tm = s.teams[team];
++  const [gx, gy] = ownGoal(dir);
++  const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
++  const cands: Agent[] = [];
++  for (const o of s.agents) {
++    if (!o.onPitch || o.team !== team || o.line !== 2 || exemptOf(s, o)) continue;
++    if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
++    if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
++    if (cd.pick === o || cd.second === o) continue;
++    if (ballRank(s, o, b.x, b.y) < 2) continue;
++    cands.push(o);
++  }
++  cands.sort((x, y) => Number(prev.drop.has(y.idx)) - Number(prev.drop.has(x.idx)) || toNorm(x.x, x.y, dir)[0] - toNorm(y.x, y.y, dir)[0] || x.idx - y.idx);
++  const drop = new Set<number>();
++  for (const o of cands.slice(0, need)) drop.add(o.idx);
++  return (e.plan = { drop, surplus });
++}
++
++// 박스 수 맞춤 마크 (C.79e 실험 스위치 boxMatch, pending 147 ①·C.78q 가설 2, 기본 0 = 끔): 우리 박스(+boxManSlack m) 안의 상대 중 마커가 없는 선수(위협 1위·공 근처·추적 중·boxDefense 가 맡을 manMax 명 제외)에게
++// 바쁘지 않은 줄 2 선수(boxMatchReach m 안, 가까운 순)를 1명씩 boxMatchMax 명까지 붙인다 — 골 쪽 stMark 밀착. 줄 1 의 배치(집중 대상 마크·더블팀·덮는 자리)는 그대로(ST 풀림 통로를 건드리지 않는다)
++const boxMatchCache = new WeakMap<SimState, { tick: number; plan: Map<number, number> }[]>();
++const NO_BOX_MATCH = new Map<number, number>();
++function boxMatchPlan(s: SimState, team: 0 | 1, gx: number, gy: number): Map<number, number> {
++  if (O.boxMatch <= 0) return NO_BOX_MATCH;
++  let cache = boxMatchCache.get(s);
++  if (!cache) boxMatchCache.set(s, (cache = [{ tick: -1, plan: NO_BOX_MATCH }, { tick: -1, plan: NO_BOX_MATCH }]));
++  const e = cache[team]!;
++  if (e.tick === s.tick) return e.plan;
++  e.tick = s.tick;
++  const b = s.ball;
++  const owner = b.owner >= 0 ? s.agents[b.owner]! : null;
++  const att = owner ? owner.team : s.possTeam;
++  if (att === team || s.restart) return (e.plan = NO_BOX_MATCH);
++  const threat = focusThreat(s, team);
++  const nearBall = O.plan.coverBehind + O.stMark;
++  const tracked = new Set<number>();
++  for (const o of s.agents) if (o.onPitch && o.team === team && o.trackIdx >= 0) tracked.add(o.trackIdx);
++  const others: Agent[] = [];
++  for (const o of s.agents) {
++    if (!o.onPitch || o.team === team || o === owner || o === threat || o.line === 0) continue;
++    if (Math.abs(o.x - gx) > ENGINE.pitch.boxDepth + O.boxManSlack || Math.abs(o.y - gy) > ENGINE.pitch.boxWidth / 2 + O.boxManSlack) continue;
++    if (dist(o.x, o.y, b.x, b.y) <= nearBall) continue;
++    others.push(o);
++  }
++  if (!others.length) return (e.plan = NO_BOX_MATCH);
++  // boxDefense 의 others 순서·manMax 와 같게: 그 수만큼은 줄 1 이 맡는다 (줄 2 ≥ 2 먼저, 위협 순)
++  others.sort((x, y) => Number(y.line === 2) - Number(x.line === 2) || threatValue(y, gx, gy) - threatValue(x, gx, gy) || x.idx - y.idx);
++  const manMax = compactWOf(s.teams[team].tactics) !== undefined ? Math.max(O.boxManMax, O.deepBoxMan) : O.boxManMax;
++  const targets = others.filter((o) => !tracked.has(o.idx)).slice(manMax);
++  if (!targets.length) return (e.plan = NO_BOX_MATCH);
++  const tm = s.teams[team];
++  const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
++  const free: Agent[] = [];
++  for (const o of s.agents) {
++    if (!o.onPitch || o.team !== team || o.line !== 2 || exemptOf(s, o) || o.trackIdx >= 0) continue;
++    if (s.t < tm.counterUntil && tm.counterPressers.includes(o.idx)) continue;
++    if (tm.coverAgent === o.idx && s.t < tm.coverUntil) continue;
++    if (cd.pick === o || cd.second === o) continue;
++    if (ballRank(s, o, b.x, b.y) < 2) continue;
++    free.push(o);
++  }
++  const plan = new Map<number, number>();
++  for (const u of targets) {
++    if (plan.size >= O.boxMatchMax || !free.length) break;
++    let best: Agent | null = null;
++    let bd: number = O.boxMatchReach;
++    for (const d of free) {
++      const dd = dist(d.x, d.y, u.x, u.y);
++      if (dd < bd || (dd === bd && best && d.idx < best.idx)) { bd = dd; best = d; }
++    }
++    if (!best) continue;
++    free.splice(free.indexOf(best), 1);
++    plan.set(best.idx, u.idx);
++  }
++  return (e.plan = plan);
++}
++
+ const trackCache = new WeakMap<SimState, number[]>();
+ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
+   let cache = trackCache.get(s);
+@@ -2128,8 +2264,10 @@ function trackPlan(s: SimState, team: 0 | 1, gx: number, gy: number): void {
+   const t = effectiveTactics(s, team);
+   const cd = owner ? NO_CLOSE : closeDownPlan(s, team, gx, gy);
+   const second2 = sitPressers(s, team) >= 2;
++  const lm = lineMatchPlan(s, team);
+   const busy = (a: Agent): boolean => {
+     if (hasModule(a.role, 'exempt')) return true;
++    if (lm.drop.has(a.idx)) return true;
+     if (s.t < tm.counterUntil && tm.counterPressers.includes(a.idx)) return true;
+     if (tm.coverAgent === a.idx && s.t < tm.coverUntil) return true;
+     if (cd.pick === a || cd.second === a) return true;
+diff --git a/src/engine/onball.ts b/src/engine/onball.ts
+index c604891..63381b3 100644
+--- a/src/engine/onball.ts
++++ b/src/engine/onball.ts
+@@ -212,7 +212,7 @@ export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who
+   for (const o of s.agents) {
+     if (!o.onPitch || o.team === a.team) continue;
+     const d = carryReachDist(s, o, a, cx, cy);
+-    if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
++    if (d < PR.pressureDist) keep *= 1 - O.holdLose * (o.line === 0 ? O.carryGk : 1) * (1 - d / PR.pressureDist);
+   }
+   const skill = who.attrs.dribbling * 0.5 + who.attrs.ballControl * 0.5;
+   return clamp((1 - keep) * Math.exp((-O.carrySkill * (skill - PR.skillCenter)) / 10), 0, 0.95);
+@@ -265,6 +265,8 @@ export interface ShotModel {
+   ctx: ShotCtx;
+   /** 찰 쪽 (C.78h laneSide): ±1 = 두 슛 길이 달라 고른 쪽, 0 = 옛 규칙(GK 반대편, 가운데면 실행이 무작위) */
+   side: -1 | 0 | 1;
++  /** GK 시야 가림 (C.79a): 왼쪽(−1)·오른쪽(+1) 슛 길 콘 안 골 쪽 상대 필드 선수 수 — 실행은 찬 쪽 값을 ctx.screen 에 넣는다 */
++  screens: [number, number];
+ }
+ 
+ function goalAngle(x: number, y: number, gx: number): number {
+@@ -300,6 +302,9 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+   let bP = 0;
+   let dN = 0;
+   let dP = 0;
++  // GK 시야 가림 (C.79a): 슛 길 콘 안 선 위치 ≥ screenFrom 상대 필드 선수
++  let sN = 0;
++  let sP = 0;
+   for (const o of s.agents) {
+     if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+     const od = follow ? dist(o.x, o.y, a.x, a.y) : dist(o.x, o.y, px, py);
+@@ -308,8 +313,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     if (lane) {
+       const [cn, tn] = segDist(o.x, o.y, px, py, gx, gy - cy);
+       if (cn < PR.coneWidth && tn > 0.02 && tn < 0.95) bN++;
++      if (cn < PR.coneWidth && tn >= K.screenFrom && tn < 1) sN++;
+       const [cp, tp] = segDist(o.x, o.y, px, py, gx, gy + cy);
+       if (cp < PR.coneWidth && tp > 0.02 && tp < 0.95) bP++;
++      if (cp < PR.coneWidth && tp >= K.screenFrom && tp < 1) sP++;
+       // 밀집 블록도 그 쪽 슛 길 denseLaneW m 안 수비만 (C.78h: 골 쪽이어도 길에서 먼 수비는 몸을 못 던진다)
+       if (PR.denseLaneW > 0 && od <= PR.denseR) {
+         if (cn < PR.denseLaneW && tn > 0) dN++;
+@@ -318,6 +325,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     } else {
+       const [cd, ct] = segDist(o.x, o.y, px, py, gx, gy);
+       if (cd < PR.coneWidth && ct > 0.02 && ct < 0.95) blockers++;
++      if (cd < PR.coneWidth && ct >= K.screenFrom && ct < 1) {
++        sN++;
++        sP++;
++      }
+     }
+     if (od <= PR.denseR && dist(o.x, o.y, gx, gy) < d) dense++;
+     if (PR.shotFree > 0 && od < nearField) nearField = od;
+@@ -351,13 +362,17 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+     fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure,
+     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
+     gk: gk ? { x: gk.x, y: gk.y, vx: gk.vx, vy: gk.vy } : null, stop: K.leagueShotStopping, body: 0, lead,
++    screen: (far ?? 1) < 0 ? sN : sP,
+   };
+   // 빈 골 (C.77z): 가운데로 차도 GK 가 못 닿으면 구석을 노릴 필요가 없다 — 유효 슈팅 확률이 openOn 쪽으로
+   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)
+   const openD = K.openSpan > 0 ? Math.min(1, Math.max(K.openFloor, 1 - (d - K.openFrom) / K.openSpan)) : 1;
+   if (K.timeModel && gk) pOn += Math.max(0, K.openOn * openD * angle - pOn) * (1 - coverOf({ ...ctx, ty: gy, corner: 0 }));
+   const cornerMul = 1 - PR.cornerPressure * pressure;
+-  const saveOf = (sd: number) => (K.timeModel ? expectedSave({ ...ctx, ty: gy + sd * cy }, gy, sd, cornerMul) : saveChance({ ...ctx, ty: gy + sd * cy }));
++  const saveOf = (sd: number) => {
++    const c = { ...ctx, ty: gy + sd * cy, screen: sd < 0 ? sN : sP };
++    return K.timeModel ? expectedSave(c, gy, sd, cornerMul) : saveChance(c);
++  };
+   let pBlock: number;
+   let foot: number;
+   let pGoal: number;
+@@ -385,6 +400,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+         side = -1; pBlock = pbN; foot = fN; pGoal = gN; blockers = bN;
+       }
+       ctx.ty = gy + side * cy;
++      ctx.screen = (side < 0 ? sN : sP) > 0 ? K.screenJudge : 0;
+     }
+   } else {
+     pBlock = Math.min(PR.blockMax, blockers * PR.blockPer + denseB);
+@@ -397,7 +413,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+   // 리바운드: 선방 → 쳐내기 → 코너가 아니면 공격 팀이 reboundOwn 확률로 골 앞(8 m)에서 다시 잡는다
+   const parry = 1 - clamp(K.catchBase + (K.catchSkill * K.leagueHandling) / 100, 0, 1);
+   const rebound = (1 - pBlock) * pOn * foot * (1 - pGoal) * parry * (1 - K.parryCorner) * K.reboundOwn * positionValue(1 - 8 / L, 0.5);
+-  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx, side };
++  return { d, pOn, pBlock, pGoal, xg, value: xg + rebound, speed, blockers, pressure, foot, ctx, side, screens: [sN, sP] };
+ }
+ 
+ /**
+@@ -406,10 +422,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
+  */
+ export function shotExec(s: SimState, a: Agent, header = false): { goal: number; pSave: number; cover: number; m: ShotModel } {
+   const m = shotModel(s, a, header);
+-  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)) };
+   const [gx, gy] = oppGoal(attackDir(a.team, s.half));
+   const lane = PR.laneSide > 0 && !header;
+   const sd = m.side || (farSide(keeperOf(s, (1 - a.team) as 0 | 1), gy) ?? 1);
++  const ctx = { ...m.ctx, ...gkCtx(keeperOf(s, (1 - a.team) as 0 | 1)), screen: m.screens[sd < 0 ? 0 : 1] > 0 ? 1 : 0 };
+   const foot = header ? 1 : lane ? weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy + sd * m.ctx.corner * (G / 2 - 0.3) - a.y) : weakFootMul(a.body, attackDir(a.team, s.half), gx - a.x, gy - a.y);
+   const pSave = ENGINE.keeper.timeModel ? expectedSave(ctx, gy, sd, 1 - PR.cornerPressure * m.pressure) : saveChance(ctx);
+   return { goal: (1 - m.pBlock) * m.pOn * foot * (1 - pSave), pSave, cover: coverOf(ctx), m };
+@@ -785,6 +801,14 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
+         for (const x of oppNx) if (x > nx) behind++;
+         if (behind < SP.spaceBack) pv = Math.max(pv, positionValue(Math.min(SP.spaceStop, nx + (SP.spaceCarry * SP.spaceRun * (1 - behind / SP.spaceBack)) / L), ny));
+       }
++      // 몰고 가서 슛 (C.79e 실험 carryShot, 0 = 끔): 앞을 막는 수비가 없고 도착점이 슛 거리면 도착점의 슛 가치(carryShotTime 초 뒤, GK 는 그동안 자리를 옮김 — laneCarry 와 같은 식)와
++      // 그 슛의 판단 보정을 자리 가치 대신 본다 — 지금 자리 3% 슛보다 7 m 더 몰고 간 뒤의 슛이 낫다는 것을 판단이 안다 (판단만, 실행·성공 확률 불변)
++      let shotV = 0;
++      if (O.carryShot > 0 && !def && dir * ux > 0.5 && dist(cx, cy, gx0, gy0) <= PR.shotMaxDist && nx > 0.6) {
++        const mT = shotModel(s, a, false, { x: cx, y: cy }, O.carryShotTime, true);
++        shotV = (mT.value * O.shotScale + shootBias(mT, goalAngle(cx, cy, gx0))) * O.carryShot;
++        pv = Math.max(pv, shotV);
++      }
+       const value = pv * (1 - qEnd) + qEnd * loss(nx, ny);
+       if (def) {
+         // 수비 자세 (E.23): 수비수는 바깥쪽으로 몬다. 중앙 쪽으로 꺾는 돌파는 어렵고 바깥쪽은 조금 쉽다

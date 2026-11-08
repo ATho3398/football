@@ -20,14 +20,21 @@
     "balance:cards": "vite-node scripts/balance-cards.ts --",
     "balance:aptitude": "vite-node scripts/balance-aptitude.ts --",
     "balance:training": "vite-node scripts/balance-training.ts --",
+    "balance:prospect": "vite-node scripts/balance-prospect.ts --",
     "balance:transfer": "vite-node scripts/balance-transfer.ts --",
     "balance:custom": "vite-node scripts/balance-custom.ts --",
     "balance:goals": "vite-node scripts/balance-goals.ts --",
     "balance:weather": "vite-node scripts/balance-weather.ts --",
     "balance:chemistry": "vite-node scripts/balance-chemistry.ts --",
-    "facepack": "vite-node scripts/facepack/fetch.ts --"
+    "balance:jerseys": "vite-node scripts/balance-jerseys.ts --",
+    "facepack": "vite-node scripts/facepack/fetch.ts --",
+    "dex:append": "vite-node scripts/dex-append.ts",
+    "save:fixture": "vite-node scripts/save-fixture.ts --"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "@types/node": "^22.20.5",
     "typescript": "^5.6.0",
     "vite": "^5.4.21",

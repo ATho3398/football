@@ -30,7 +30,8 @@ describe('엔진 다듬기 (C.24)', () => {
   });
 
   it('골 뒤: 세리머니가 있고, 선수들은 킥오프 직전까지 걸어서 돌아온다', () => {
-    const s = createState(input(21));
+    // C.80i(엔진 70): 시드 21 경기에 골이 없어져 22 로 (21~25 중 22·23·24 에 골)
+    const s = createState(input(22));
     let found = false;
     while (!s.done && !found) {
       step(s);

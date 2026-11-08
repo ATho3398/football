@@ -8,10 +8,6 @@ import { createRng, hashSeed } from './rng';
 export const APPEARANCES = ['eastAsian', 'white', 'irish', 'black', 'latinMideast'] as const;
 export type Appearance = (typeof APPEARANCES)[number];
 
-export const APPEARANCE_KO: Readonly<Record<Appearance, string>> = {
-  eastAsian: '동양계', white: '백인', irish: '아일랜드계', black: '흑인', latinMideast: '라틴·중동계',
-};
-
 /** 국적 분포에서 뽑는다. key 가 같으면 늘 같은 결과 */
 export function rollAppearance(key: string, nationality: string): Appearance {
   const A = BALANCE.appearance;

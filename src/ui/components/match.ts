@@ -23,15 +23,15 @@ export function FeedItem(p: FeedItemProps): string {
   const kind = p.kind ?? 'normal';
   const faint = p.faint || kind === 'throwin' || kind === 'goalkick';
   return `<div class="${cx('po-feed', `po-feed--${kind}`, p.mine && 'is-mine', faint && 'is-faint')}"><span class="po-feed__min po-num">${p.minute != null ? `${esc(p.minute)}'` : ''}</span><span class="po-feed__icon">${
-    Icon({ name: FEED[kind], size: kind === 'goal' ? 20 : 16 })}</span><span class="po-feed__text">${p.lead ?? ''}${esc(p.text)}${
-    p.score ? `<b class="po-feed__score po-num">${esc(p.score)}</b>` : ''}</span>${p.mine ? '<span class="po-feed__tag">나</span>' : ''}</div>`;
+    Icon({ name: FEED[kind], size: kind === 'goal' ? 20 : 16 })}</span><span class="po-feed__text"><span class="po-feed__t">${p.lead ?? ''}${esc(p.text)}</span>${
+    p.score ? `<b class="po-feed__score po-num score-cell">${esc(p.score)}</b>` : ''}</span>${p.mine ? '<span class="po-feed__tag">나</span>' : ''}</div>`;
 }
 
 // ── Tactic chips (ScoreBar 가 쓰는 하위 컴포넌트) ──
 
-export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block';
-const TSTYLES: Record<TacticStyle, string> = { balanced: '균형', tikitaka: '티키타카', gegen: '게겐프레싱', counter: '역습', direct: '직선', block: '수비 블록' };
-const TSTYLE_ICON: Record<TacticStyle, IconName> = { balanced: 't-balanced', tikitaka: 't-tikitaka', gegen: 't-gegen', counter: 't-counter', direct: 't-direct', block: 't-block' };
+export type TacticStyle = 'balanced' | 'tikitaka' | 'gegen' | 'counter' | 'direct' | 'block' | 'bus';
+const TSTYLES: Record<TacticStyle, string> = { balanced: '균형', tikitaka: '티키타카', gegen: '게겐프레싱', counter: '역습', direct: '직선', block: '수비 블록', bus: '버스 세우기' };
+const TSTYLE_ICON: Record<TacticStyle, IconName> = { balanced: 't-balanced', tikitaka: 't-tikitaka', gegen: 't-gegen', counter: 't-counter', direct: 't-direct', block: 't-block', bus: 't-bus' };
 
 export function TacticEmblem(p: { tactic: TacticStyle; size?: number; away?: boolean; on?: boolean }): string {
   const size = p.size ?? 40;
@@ -100,6 +100,8 @@ export interface SceneStripProps {
   minute: string | number;
   /** onLive / onHighlight / onSettings 대신 동작. onSettings 가 없으면 톱니를 숨긴다 (설정 항목이 없을 때) */
   onLive?: Action; onHighlight?: Action; onSettings?: Action;
+  /** [여기서부터 실시간] 숨김 (하이라이트 클립 재생, C.77o: 클립 밖 프레임이 없다) */
+  noLive?: boolean;
   settingsOn?: boolean;
   idPrefix?: string;
 }
@@ -116,7 +118,7 @@ function sceneStrip(p: SceneStripProps, solo: boolean): string {
     : view === 'transition' ? `<span><b>장면 전환</b> · 다음 <span class="po-num">${idx + 1}/${total}</span></span>`
     : view ? `<span><b>하이라이트</b> · 장면 <span class="po-num">${idx}/${total}</span>${sc.minute != null ? ` · <span class="po-num">${esc(sc.minute)}'</span>` : ''}${sc.label ? ` ${esc(sc.label)}` : ''}</span>`
     : '';
-  const acts = `${view === 'highlight' || view === 'transition'
+  const acts = `${(view === 'highlight' || view === 'transition') && !p.noLive
     ? `<button type="button" class="po-strip__btn"${actAttrs(p.onLive ?? {})}${view === 'transition' ? ' disabled' : ''}>${Icon({ name: 'play', size: 11, filled: true })}여기서부터 실시간</button>` : ''}${
     view === 'live' ? `<button type="button" class="po-strip__btn"${actAttrs(p.onHighlight ?? {})}>${Icon({ name: 'video', size: 11 })}하이라이트로 돌아가기</button>` : ''}${
     p.onSettings ? `<button type="button" class="${cx('po-strip__gear', p.settingsOn && 'is-on')}" aria-label="경기 설정"${actAttrs(p.onSettings)}>${Icon({ name: 'settings', size: 17 })}</button>` : ''}`;
@@ -170,7 +172,7 @@ export function ScoreBar(p: ScoreBarProps): string {
   const tactics = p.homeTactic || p.awayTactic
     ? `<div class="po-score__tactics">${p.homeTactic ? TacticChip({ size: 'xs', ...p.homeTactic }) : '<span></span>'}${p.awayTactic ? TacticChip({ size: 'xs', away: true, ...p.awayTactic }) : '<span></span>'}</div>`
     : '';
-  return `<div class="${cx('po-score', p.paused && 'is-paused', view && 'po-score--strip')}">${strip}<div class="po-score__teams"><span class="po-score__team"><span class="po-score__id">${Crest({ name: p.home, size: 22 })}<span>${esc(p.home)}</span></span>${redTag(p.homeRed)}</span><span class="po-score__board"><b class="po-num"${id('h')}>${p.homeScore}</b><i>-</i><b class="po-num"${id('a')}>${p.awayScore}</b></span><span class="po-score__team po-score__team--away"><span class="po-score__id"><span>${esc(p.away)}</span>${
+  return `<div class="${cx('po-score', p.paused && 'is-paused', view && 'po-score--strip')}">${strip}<div class="po-score__teams"><span class="po-score__team"><span class="po-score__id">${Crest({ name: p.home, size: 22 })}<span>${esc(p.home)}</span></span>${redTag(p.homeRed)}</span><span class="po-score__board"><b class="po-num"${id('h')}>${p.homeScore}</b><i>:</i><b class="po-num"${id('a')}>${p.awayScore}</b></span><span class="po-score__team po-score__team--away"><span class="po-score__id"><span>${esc(p.away)}</span>${
     Crest({ name: p.away, size: 22, color: 'var(--away)' })}</span>${redTag(p.awayRed)}</span></div><div class="po-score__row"><span class="${cx('po-score__min', p.status && !p.ff && 'has-status', p.ff && 'is-ff')}">${lead}<span class="po-num"${id('clock')}>${esc(p.minute)}'</span>${
     p.minuteTo != null ? `<span class="po-num po-score__to">→ ${esc(p.minuteTo)}'</span>` : ''}${p.ff ? '<span>빨리 감기</span>' : p.status ? `<span>${esc(p.status)}</span>` : ''}</span>${speed}</div>${tactics}</div>`;
 }
@@ -201,8 +203,15 @@ export function PitchLegend(left: string): string {
 
 export type ChoiceKind = 'safe' | 'balanced' | 'gamble' | 'play';
 const CHOICE_KO: Record<ChoiceKind, string> = { safe: '안전', balanced: '균형', gamble: '도박', play: '플레이 카드' };
-const CHOICE_ICON: Record<ChoiceKind, IconName> = { safe: 'safe', balanced: 'balanced', gamble: 'gamble', play: 'newchoice' };
 const OFFSIDE_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '중간', n: 2 }, high: { l: '높음', n: 3 } } as const;
+/** 위험 등급 (C.81n): 실패 시 평점 손실 크기 */
+const RISK_STEP = { low: { l: '낮음', n: 1 }, mid: { l: '보통', n: 2 }, high: { l: '높음', n: 3 } } as const;
+
+/** 위험 등급 칩 (C.81n 결정 순간 → C.81v 결정 결과·결과 화면 결정 기록에도 같은 모양): "위험 낮음 ▮▯▯" */
+export function RiskChip(level: 'low' | 'mid' | 'high'): string {
+  const risk = RISK_STEP[level];
+  return `<span class="po-risk po-risk--${level}" title="실패하면 잃는 평점 크기">위험 ${risk.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= risk.n ? 'on' : ''}"></i>`).join('')}</span></span>`;
+}
 
 export interface ChoiceButtonProps extends Action {
   kind: ChoiceKind;
@@ -214,6 +223,12 @@ export interface ChoiceButtonProps extends Action {
   deltaSource?: string;
   success: { text: string; rating: string };
   fail: { text: string; rating: string };
+  /** 기대 평점 (C.77s A3): 성공 뒤 이어질 공격 몫까지 넣은 값, 성공·실패 줄 옆 한 줄 */
+  ev?: string;
+  /** 확률 막대 제목 (C.81n 후속): 성공 확률 구간 설명 "안전 · 성공 50% 이상" */
+  band?: string;
+  /** 위험 등급 (C.81n): 실패 시 평점 손실 ≤0.02 낮음 · ≤0.05 보통 · 그 위 높음. 판정 없는 선택지는 없음 */
+  risk?: 'low' | 'mid' | 'high';
   offside?: 'low' | 'mid' | 'high';
   /** 상대 분석 리포트 약점을 노리는 선택지 (C.74c): "약점 공략" 칩 (접은 줄에도 보인다) */
   exploit?: boolean;
@@ -233,10 +248,14 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
   const off = p.offside ? OFFSIDE_STEP[p.offside] : null;
   const d = p.chanceDelta ?? 0;
   const shown = p.chance === null ? null : Math.max(0, Math.min(99, p.chance + d));
-  const tags = `<span class="po-choice__tags"><span class="po-kind po-kind--${p.kind}">${Icon({ name: CHOICE_ICON[p.kind], size: 12, strokeWidth: 2.4 })}${CHOICE_KO[p.kind]}</span>${
+  // C.81n 후속 (AD): 줄 칩은 위험 등급 하나 — 안전·균형·도박(성공률 구간, 표시 전용)은 칩 대신 확률 막대 색과 막대 제목(title)으로만
+  const tagHtml = `${
     p.exploit ? `<span class="po-exploit" title="상대 분석 리포트의 약점">${Icon({ name: 'target', size: 12, strokeWidth: 2.4 })}약점 공략</span>` : ''}${
     p.card ? `<span class="po-choice__card">${esc(p.card)}</span>` : ''}${
-    off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}</span>`;
+    p.risk ? RiskChip(p.risk) : ''}${
+    off ? `<span class="po-offside po-offside--${p.offside}" title="오프사이드 위험">${Icon({ name: 'offside', size: 12, strokeWidth: 2.2 })}오프사이드 ${off.l}<span class="po-offside__bars" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i <= off.n ? 'on' : ''}"></i>`).join('')}</span></span>` : ''}`;
+  const tags = tagHtml ? `<span class="po-choice__tags">${tagHtml}</span>` : '';
+  const band = p.band ?? `성공 확률 구간 ${CHOICE_KO[p.kind]}`;
   const out = (cls: 'ok' | 'bad', icon: IconName, o: { text: string; rating: string }) =>
     `<span class="po-out po-out--${cls}">${Icon({ name: icon, size: 14, strokeWidth: 3 })}<span>${esc(o.text)}</span><b class="po-num">${esc(o.rating)}</b></span>`;
   const prob = p.certain
@@ -244,9 +263,10 @@ export function ChoiceButton(p: ChoiceButtonProps): string {
     : shown === null
     ? '<span class="po-choice__prob"><b class="po-choice__none">판정 없음</b></span>'
     : `<span class="po-choice__prob">${d ? `<s class="po-num">${p.chance}%</s>` : ''}<b class="${cx('po-num', d > 0 && 'is-up', d < 0 && 'is-down')}">${shown}<small>%</small></b>${
-      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar"><i style="width:${shown}%"></i></span></span>`;
+      d ? `<span class="${cx('po-choice__delta po-num', d > 0 ? 'is-up' : 'is-down')}">${d > 0 ? '▲' : '▼'}${d > 0 ? '+' : '−'}${Math.abs(d)}${p.deltaSource ? `<small> ${esc(p.deltaSource)}</small>` : ''}</span>` : ''}<span class="po-choice__probbar" title="${band}"><i style="width:${shown}%"></i></span></span>`;
   return `<button type="button" class="${cx('po-choice', `po-choice--${p.kind}`, p.kind === 'play' && `po-rarity--${p.rarity ?? 'rare'}`, p.compact && 'po-choice--compact', p.collapsed && 'po-choice--row', p.certain && 'is-certain', p.selected && 'is-selected')}"${actAttrs(p)} aria-pressed="${!!p.selected}"${p.disabled ? ' disabled' : ''}>
-    <span class="po-choice__main">${tags}<span class="po-choice__name">${esc(p.name)}</span><span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}</span></span>${prob}</button>`;
+    <span class="po-choice__main"><span class="po-choice__name">${esc(p.name)}</span>${tags}<span class="po-choice__outcomes">${out('ok', 'check', p.success)}${p.certain ? '' : out('bad', 'close', p.fail)}${
+      p.ev ? `<span class="po-out po-out--ev">${Icon({ name: 'chance', size: 14, strokeWidth: 3 })}<span>기대 평점</span><b class="po-num">${esc(p.ev)}</b></span>` : ''}</span></span>${prob}</button>`;
 }
 
 // ── ResultSplash (결정 결과, 5차 82~84): 도장(성공/실패) + 제목 + 설명 + 평점 ──

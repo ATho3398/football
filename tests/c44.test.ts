@@ -72,7 +72,8 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
     const d = vm.targets.find((t) => t.id === 'derby')!;
     expect(d.available).toBe(true);
     expect(d.next!.left).toBe(6);
-    expect(vm.targets.filter((t) => !t.available).map((t) => t.id)).toEqual(['aMatch', 'nationsCup']);
+    // C.76d: 국가대표 A매치는 대표팀이 생겨 열림 (토너먼트는 시즌 끝 여름 자동)
+    expect(vm.targets.filter((t) => !t.available).map((t) => t.id)).toEqual(['nationsCup']);
     const html = autoSheet(vm, 5);
     expect(html).toContain('아직 없음');
     expect(html).toContain('5경기 자동 진행');
@@ -88,8 +89,9 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
     const bar = (cls: string) => html.split(cls)[1]!.split('</div>')[0]!;
     const labels = (h: string) => [...h.matchAll(/class="po-dock__(?:go)?label">([^<]+)</g)].map((m) => m[1]!);
     // C.66: 홈 = 맨 왼쪽 일반 칸, [다음](진행) 키가 PC 9칸·모바일 5칸 모두 가운데
-    expect(labels(bar('dock-phone'))).toEqual(['홈', '선수', '계속', '훈련·일정', '더보기']);
-    expect(labels(bar('dock-wide'))).toEqual(['홈', '선수', '덱', '전술', '인박스', '계속', '훈련·일정', '월드', '재정', '설정', '저장']);
+    // C.77q 메뉴 정리: 폰 = 홈 · 훈련 · [다음] · 선수 · 상점 · 더보기, PC = 같은 순서 + 더보기 칸 펼침
+    expect(labels(bar('dock-phone'))).toEqual(['홈', '훈련', '계속', '선수', '상점', '더보기']);
+    expect(labels(bar('dock-wide'))).toEqual(['홈', '훈련', '인박스', '재정', '월드', '계속', '선수', '상점', '덱', '전술', '설정', '저장']);
     expect(html).toContain('data-act="day-continue"');
     expect(html).toContain('is-locked');
   });

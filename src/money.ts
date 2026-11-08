@@ -2,7 +2,7 @@
 // 생활비, 스태프 슬롯·코치 모집(다음 주 후보)·고용·해지, 코치 효과(D.13 재설계: 기술 훈련 게이지·XP 배율), 의료 효과(부상 확률·기간·회복).
 // 금액은 모두 만 원 정수 (기존 주급 wageFor 와 같은 단위), 표시는 moneyLabel. 돈으로 능력치를 직접 사지 않는다 (19.1). 수치는 BALANCE.money / staff
 
-import { ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from './attributes';
+import { attrDisplay, ATTRIBUTE_GROUPS, ATTRIBUTE_NAMES_KO, GROUP_NAMES, type AttributeGroup, type FieldAttribute } from './attributes';
 import { addDays, daysBetween, weekday, type IsoDate } from './calendar';
 import { BALANCE } from './config/balance';
 import { NAME_POOLS_V1 } from '../data/names';
@@ -273,7 +273,7 @@ export function moneySeasonStart(state: GameState, endedSeason: number): void {
   if (gone.length) {
     pushInbox(state, {
       cat: 'money', title: '스태프 계약 종료', key: `staff-end:${season}`,
-      body: `${gone.map((s) => `${STAFF_ROLE_KO[s.role]} ${s.name}`).join(', ')} — 계약이 끝나 팀을 떠났어요.`, link: { to: 'finance', label: '재정 보기' },
+      body: `${gone.map((s) => `${STAFF_ROLE_KO[s.role]} ${s.name}`).join(', ')} — 계약이 끝나 팀을 떠났어요.`, link: { to: 'staff', label: '스태프 보기' },
     });
   }
 }
@@ -370,8 +370,8 @@ function arriveCandidates(state: GameState, date: IsoDate): void {
   m.candUntil = addDays(date, S().keepDays - 1);
   pushInbox(state, {
     cat: 'money', title: `코치 후보 ${n}명 도착`, key: `cand:${m.seq}`, date,
-    body: `${m.candidates.map((c) => `${staffLine(c)}`).join(' / ')}. ${S().keepDays}일 안에 재정 화면에서 고용할 수 있어요.`,
-    link: { to: 'finance', label: '후보 보기' },
+    body: `${m.candidates.map((c) => `${staffLine(c)}`).join(' / ')}. ${S().keepDays}일 안에 훈련 › 스태프에서 고용할 수 있어요.`,
+    link: { to: 'staff', label: '후보 보기' },
   });
 }
 
@@ -382,6 +382,14 @@ export function staffLine(s: Staff): string {
 
 export const attrShort = (a: FieldAttribute): string => ATTRIBUTE_NAMES_KO[a].replace(/\(.*\)$/, '');
 
+/**
+ * 코치 한계 (C.81o, 17차 검수 16번): 화면 능력치는 1~20 이라 한계도 1~20 값으로 보이고 판정한다
+ * (설정 limit 은 내부 0~99 값 75·80·85·90·94 → 화면 15·16·17·18·19). 판정도 화면 값으로 해서 "15 이하만"과 실제가 같게
+ */
+export function coachLimitShown(tier: Tier): number {
+  return attrDisplay(BALANCE.staff.coach.limit[tier]);
+}
+
 /** 스태프 효과 설명 한 줄 */
 export function staffEffect(s: Pick<Staff, 'role' | 'tier' | 'attrs'>): string {
   const C = S().coach;
@@ -390,7 +398,7 @@ export function staffEffect(s: Pick<Staff, 'role' | 'tier' | 'attrs'>): string {
   switch (s.role) {
     case 'coach': {
       const g = s.attrs?.length ? GROUP_NAMES.find((x) => (ATTRIBUTE_GROUPS[x] as readonly string[]).includes(s.attrs![0]!)) : undefined;
-      return `${g ? `${BUNDLE_NAMES_KO[g]} ` : ''}기술 훈련 효과 +${pct(C.boost[s.tier])} · 능력치 ${C.limit[s.tier]} 이하만`;
+      return `${g ? `${BUNDLE_NAMES_KO[g]} ` : ''}기술 훈련 효과 +${pct(C.boost[s.tier])} · 능력치 ${coachLimitShown(s.tier)} 이하만`;
     }
     case 'doctor': return `부상 확률 −${pct(D.doctor[s.tier])}`;
     case 'physio': return `부상 기간 −${pct(D.physio[s.tier])}`;
@@ -442,7 +450,7 @@ export function coachBoost(state: Pick<GameState, 'money'>, p: Pick<PlayerState,
   for (const s of active(state)) {
     if (s.role !== 'coach') continue;
     for (const a of s.attrs ?? []) {
-      if (!inG.includes(a) || p.attributes[a] > C.limit[s.tier] || p.attributes[a] >= max) continue;
+      if (!inG.includes(a) || attrDisplay(p.attributes[a]) > coachLimitShown(s.tier) || p.attributes[a] >= max) continue;
       elig.set(a, (elig.get(a) ?? 0) + C.boost[s.tier]);
     }
   }

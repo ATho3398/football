@@ -4,14 +4,16 @@
 //       npx vite-node scripts/diag/polish-b.ts -- cells [경기수=40] [대형번호|base ...]   커스텀 대형(custom-sweep 번호) 대 균형 4-4-2 (C.33 진단, 미해결 5번)
 //       npx vite-node scripts/diag/polish-b.ts -- role [경기수=40] <포메이션> <슬롯> <역할 ...>   홈 슬롯 역할만 바꿔 균형 상대와 (C.33 진단, 미해결 4번)
 // 엔진 코드는 건드리지 않는다. 결정 순간에 candidates()/choose() 를 같은 틱에서 다시 계산해 "슛이 효용 1위였는가"를 본다.
+import { NEUTRAL_MODS } from '../../src/body';
 import { ENGINE } from '../../src/engine/config';
 import { createMatch } from '../../src/engine/sim';
 import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
-import { candidates, choose } from '../../src/engine/onball';
+import { candidates, choose, shotModel } from '../../src/engine/onball';
 import { tacticsOf, type Level } from '../../src/engine/tactics';
 import type { Tendency } from '../../src/engine/types';
-import { attackDir, dist, inOppBox, oppGoal, toNorm } from '../../src/engine/pitch';
+import { attackDir, dist, inOppBox, L, oppGoal, segDist, toNorm } from '../../src/engine/pitch';
 import { keeperOf, saveProb } from '../../src/engine/keeper';
+import { effectiveMax } from '../../src/engine/physics';
 import type { Flight } from '../../src/engine/state';
 import type { Agent, SimState } from '../../src/engine/state';
 import type { TeamSetup } from '../../src/engine/types';
@@ -42,6 +44,8 @@ interface Side {
   n: number; goals: number; shots: number; sot: number; xg: number; saves: number; poss: number; passes: number; passOk: number;
   long: number; longByOrigin: Record<string, number>; drib: number; dribOk: number; through: number; fouls: number; foulBy: Record<string, number>;
   byGroup: Record<string, { shots: number; goals: number; xg: number }>;
+  /** 7대: 포지션군 × (거리 구간 | 경로 | 자유/압박 | 헤더 | 줄) 교차 슈팅/골/xG — 미해결 11 분포 축 분해 */
+  byGroupKey: Record<string, { shots: number; goals: number; xg: number }>;
   byDist: { shots: number; sot: number; goals: number; xg: number }[];
   // 결정 분석
   dec: number; decMistake: number; shootExists: number; shootBest: number; shootChosen: number; shootChosenNotBest: number; shootChosenGap: number[];
@@ -52,28 +56,42 @@ interface Side {
   thrAtt: number; thrRecv: number; thrRecvDist: number[]; thrShot3: number; thrGoals: number;
   byGot: Record<string, { shots: number; goals: number; xg: number }>;
   byGotST: Record<string, { shots: number; goals: number; xg: number }>;
+  /** 6대: 공을 '얻은(gain)' 횟수를 상대가 잃은 방식@잃은 지점(상대 골에서 m)으로 — 버스 실점 원인(깊은 블록 앞 소유 상실) 분해 */
+  gains: Record<string, number>;
+  /** 6대(pending 142 압박 비용): 15분 시간대별 득점/실점/슈팅/피슈팅, 판단 실수(1위 밖 선택)/결정, 선발 평균 스태미나·최고 속도 비율(effectiveMax/maxSpeed), 이동 거리(km) */
+  byTime: Record<string, { gf: number; ga: number; sf: number; sa: number; dec: number; decMistake: number; stamina: number; speed: number; nSamp: number; dist: number }>;
+  /** 6대: 슛 순간 슛 모델 성분 평균 — 콘 안 수비(blockers)·압박(pressure)·pBlock·pOn·슈터 3 m 안 상대 수. 거리 구간별(0/11/16.5/20 m) */
+  shotComp: Record<string, { n: number; blockers: number; pressure: number; pBlock: number; pOn: number; near3: number; goals: number }>;
+  /** 6대: 얻은 뒤 슈팅/골/xG 를 같은 키로 */
+  byGain: Record<string, { shots: number; goals: number; xg: number }>;
   /** 슛 순간 슈터 5 m 안 상대 수, 박스 안 상대 수 (C.29 진단: 수비 인원이 슛 질에 반영되는가) */
   crowd: { n: number; near5: number; boxDef: number; boxDefL1: number; boxDefL2: number; boxAtt: number; xgByNear: Record<string, { n: number; xg: number; goals: number }>; xgByBoxDiff: Record<string, { n: number; xg: number; goals: number }> };
+  /** 1대1 (5대, 미해결 12): 20 m 안·슈터 3 m 안 상대 필드 선수 0·슛 길(콘) 수비 0 인 슛. 골/선방/빗나감 분해, 판정 pOn·리그 GK pSave 평균 */
+  ovo: { n: number; on: number; goals: number; pOn: number; pSave: number; xg: number; n12: number; on12: number; goals12: number; nH: number; n12f: number; on12f: number; goals12f: number };
+  /** 1대1 분해 (5대 재진단 C.76a): 키 `pos:ST`·`got:through`·`counter`·`d12` 별 횟수/골 */
+  ovoBy: Record<string, { n: number; goals: number }>;
+  /** 수비 시 실제 수비 라인 (5대, 사용자 20:40 지시): 공을 안 가진 틱마다 수비 줄(line 1) 평균 x 를 자기 골에서 m 로. 점수 상황별(tied/behind1/behind2+/ahead) */
+  lineBy: Record<string, { n: number; sum: number }>;
   /** 줄별(1 수비·2 중원·3 공격) 슈팅/골/xG (C.33 진단) */
   byLine: Record<string, { shots: number; goals: number; xg: number }>;
   /** 박스 안에서 패스를 받는 순간 가장 가까운 상대 거리 (C.29 진단: 마크 중인 선수에게 패스가 들어가는가) */
   recvBox: { n: number; dsum: number; within15: number; within25: number; stN: number; stWithin15: number; shots3: number; shots3Within15: number };
   /** 골 직전 점수 차(득점 팀 기준)별 골·슈팅 (C.29 재진단: 크게 앞선 뒤에도 계속 넣는가) */
   byLead: Record<string, { goals: number; shots: number }>;
-  offsides: number; distKm: number; stamina75: number; nAgents: number;
+  offsides: number; distKm: number; stamina75: number; nAgents: number; subs: number; subsLate: number; distFull: number; nFull: number; sprints: number;
   passBins: { n: number; ok: number }[]; saveJudged: number; saveActual: number; saveN: number; gkSs: number[];
   oppHalfWins: number; ints: number; tackleAtt: number; disp: number; counterShots: number; goalKicks: number; corners: number;
 }
 const side = (): Side => ({
   n: 0, goals: 0, shots: 0, sot: 0, xg: 0, saves: 0, poss: 0, passes: 0, passOk: 0, long: 0, longByOrigin: {}, drib: 0, dribOk: 0, through: 0, fouls: 0, foulBy: {},
-  byGroup: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
+  byGroup: {}, byGroupKey: {}, byDist: DBINS.map(() => ({ shots: 0, sot: 0, goals: 0, xg: 0 })),
   dec: 0, decMistake: 0, shootExists: 0, shootBest: 0, shootChosen: 0, shootChosenNotBest: 0, shootChosenGap: [0, 0, 0], shotXgChosen: [], shotXgWhenBest: [], bestTypeWhenShoot: {},
   typeMatch: 0, typeMismatch: 0, pathMine: {}, pathEngine: [0, 0, 0, 0, 0, 0, 0], goalPathEngine: [0, 0, 0, 0, 0, 0, 0], stShotsFromReceiveSec: [], stShotDist: [],
-  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, crowd: { n: 0, near5: 0, boxDef: 0, boxDefL1: 0, boxDefL2: 0, boxAtt: 0, xgByNear: {}, xgByBoxDiff: {} }, byLine: {}, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
+  thrAtt: 0, thrRecv: 0, thrRecvDist: [], thrShot3: 0, thrGoals: 0, byGot: {}, byGotST: {}, gains: {}, byGain: {}, shotComp: {}, byTime: {}, crowd: { n: 0, near5: 0, boxDef: 0, boxDefL1: 0, boxDefL2: 0, boxAtt: 0, xgByNear: {}, xgByBoxDiff: {} }, ovo: { n: 0, on: 0, goals: 0, pOn: 0, pSave: 0, xg: 0, n12: 0, on12: 0, goals12: 0, nH: 0, n12f: 0, on12f: 0, goals12f: 0 }, ovoBy: {}, lineBy: {}, byLine: {}, recvBox: { n: 0, dsum: 0, within15: 0, within25: 0, stN: 0, stWithin15: 0, shots3: 0, shots3Within15: 0 }, byLead: {}, offsides: 0, distKm: 0, stamina75: 0, nAgents: 0, subs: 0, subsLate: 0, distFull: 0, nFull: 0, sprints: 0, passBins: PBINS.map(() => ({ n: 0, ok: 0 })), saveJudged: 0, saveActual: 0, saveN: 0, gkSs: [], oppHalfWins: 0, ints: 0, tackleAtt: 0, disp: 0, counterShots: 0, goalKicks: 0, corners: 0,
 });
 const PBINS = [0, 10, 20, 30, 40, 50];
 const pbin = (d: number) => { let b = 0; while (b + 1 < PBINS.length && d >= PBINS[b + 1]!) b++; return b; };
-const LEAGUE_GK = { gk: { attrs: { shotStopping: ENGINE.keeper.leagueShotStopping, handling: ENGINE.keeper.leagueHandling, distribution: 70, commandOfArea: 70 }, type: 'classic' } } as unknown as Agent;
+const LEAGUE_GK = { gk: { attrs: { shotStopping: ENGINE.keeper.leagueShotStopping, handling: ENGINE.keeper.leagueHandling, distribution: 70, commandOfArea: 70 }, type: 'classic' }, body: NEUTRAL_MODS } as unknown as Agent;
 const inc = (r: Record<string, number>, k: string, v = 1) => (r[k] = (r[k] ?? 0) + v);
 
 /** 한 경기를 틱 단위로 돌리며 분석. 홈이 '관심 팀'(index 0) */
@@ -82,19 +100,28 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
   const s = m.state;
   const G = ENGINE.onball.plausibleGap;
   // 소유 추적 (경로 분류): 선수별 공을 얻은 방식·시각·몰고 가기·돌파 횟수
-  const got = new Map<Agent, { how: string; t: number; carries: number; dribbles: number; detail: string }>();
+  const got = new Map<Agent, { how: string; t: number; carries: number; dribbles: number; detail: string; src?: string }>();
+  let lastFl: Flight | null = null;
+  let lastOwner = -1;
   const recvMark = new Map<Agent, number>();
+  const ovoLast = new Map<Agent, { t: number; d: number; hdr: boolean }>();
+  const ovoKeys = new Map<Agent, string[]>();
+  const shotCompKeys = new Map<Agent, string[]>();
+  const groupKeys = new Map<Agent, string[]>();
+  const distPrev = new Map<Agent, number>();
+  let pendingMistake = false;
   let prevOwner = -1;
   let prevRestart = s.restart;
   let prevEv = 0;
   let prevStats = s.teams.map((t) => ({ ...t.stats }));
-  let prevPl = new Map<Agent, { dribbles: number; dribblesWon: number; passes: number; shots: number; tackles: number; fouls: number; aerialDuels: number }>();
-  const snapPl = () => new Map(s.agents.map((a) => [a, { dribbles: a.stats.dribbles, dribblesWon: a.stats.dribblesWon, passes: a.stats.passes, shots: a.stats.shots, tackles: a.stats.tackles, fouls: a.stats.fouls, aerialDuels: a.stats.aerialDuels }]));
+  let prevPl = new Map<Agent, { dribbles: number; dribblesWon: number; passes: number; shots: number; tackles: number; fouls: number; aerialDuels: number; tacklesWon: number; interceptions: number }>();
+  const snapPl = () => new Map(s.agents.map((a) => [a, { dribbles: a.stats.dribbles, dribblesWon: a.stats.dribblesWon, passes: a.stats.passes, shots: a.stats.shots, tackles: a.stats.tackles, fouls: a.stats.fouls, aerialDuels: a.stats.aerialDuels, tacklesWon: a.stats.tacklesWon, interceptions: a.stats.interceptions }]));
   prevPl = snapPl();
   let pending: { a: Agent; type: string; isShoot: boolean } | null = null;
   while (!s.done) {
     // 결정 직전: 같은 틱의 후보와 선택을 재계산
     pending = null;
+    pendingMistake = false;
     const b = s.ball;
     if (b.owner >= 0 && !s.restart) {
       const o = s.agents[b.owner]!;
@@ -109,7 +136,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
           let best = cs[0]!;
           for (const x of cs) if (x.u > maxU) { maxU = x.u; best = x; }
           S.dec++;
-          if (c.u < maxU - G) S.decMistake++;
+          if (c.u < maxU - G) { S.decMistake++; pendingMistake = true; }
           const sh = cs.find((x) => x.type === 'shoot');
           if (sh) {
             S.shootExists++;
@@ -131,6 +158,33 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
     const flBefore: Flight | null = b.flight;
     m.step();
     const newEv = s.events.slice(prevEv);
+    // 6대: 시간대(15분 단위, 경기 시간 s.elapsed 초 기준) — 스태미나·속도 비율은 50틱마다 선발 필드 선수 평균, 이동 거리는 틱마다 누적
+    const band = `${Math.min(5, Math.floor(s.elapsed / 900)) * 15}`;
+    const BT = (t: 0 | 1) => (out[t]!.byTime[band] ??= { gf: 0, ga: 0, sf: 0, sa: 0, dec: 0, decMistake: 0, stamina: 0, speed: 0, nSamp: 0, dist: 0 });
+    if (s.tick % 50 === 0) {
+      for (const t of [0, 1] as const) {
+        const v = BT(t); let n = 0;
+        for (const a of s.agents) if (a.onPitch && a.team === t && a.line !== 0 && a.enteredAt === 0) { v.stamina += a.stamina; v.speed += effectiveMax(a) / a.maxSpeed; n++; }
+        if (n) { v.nSamp++; (v as { _n?: number })._n = ((v as { _n?: number })._n ?? 0) + n; }
+      }
+    }
+    for (const t of [0, 1] as const) { const v = BT(t); let d = 0; for (const a of s.agents) if (a.onPitch && a.team === t) d += a.stats.distance - (distPrev.get(a) ?? a.stats.distance); v.dist += d / 1000; }
+    for (const a of s.agents) distPrev.set(a, a.stats.distance);
+    if (pending) { const v = BT(pending.a.team); const [pnx] = toNorm(pending.a.x, pending.a.y, attackDir(pending.a.team, s.half)); if (pnx > 0.5) { v.dec++; if (pendingMistake) v.decMistake++; } }
+    // 실제 수비 라인 (5대): 공을 안 가진 팀의 수비 줄 평균 x (자기 골에서 m), 점수 상황별
+    if (!s.restart && s.ball.owner >= 0) {
+      const dT = (1 - s.possTeam) as 0 | 1;
+      const dirD = attackDir(dT, s.half);
+      const defs = s.agents.filter((o) => o.onPitch && o.team === dT && o.line === 1);
+      if (defs.length) {
+        const mx = defs.reduce((acc, o) => acc + o.x, 0) / defs.length;
+        const lineM = dirD > 0 ? mx : L - mx;
+        const diff = s.teams[dT].stats.goals - s.teams[(1 - dT) as 0 | 1].stats.goals;
+        const st = diff === 0 ? 'tied' : diff === -1 ? 'behind1' : diff <= -2 ? 'behind2+' : 'ahead';
+        const SD = out[dT]!;
+        for (const k of ['all', st]) { const v = (SD.lineBy[k] ??= { n: 0, sum: 0 }); v.n++; v.sum += lineM; }
+      }
+    }
     // 비행 시작/종료 추적: 패스 거리별 성공률, 침투 패스, 슈팅 선방 확률(판단용 대 실제)
     if (b.flight && b.flight !== flBefore) {
       const fl = b.flight;
@@ -155,7 +209,22 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
       if (how === 'receive' && flBefore && flBefore.receiver === o.idx) detail = flBefore.through ? 'through' : flBefore.quick ? 'cutback/layoff' : flBefore.fromCross ? 'cross' : flBefore.kind === 'long' ? 'longpass' : 'pass';
       else if (how === 'receive' && flBefore && flBefore.fromCross) detail = 'cross';
       if (detail === 'through') { const S = out[o.team]!; S.thrRecv++; const [gx, gy] = oppGoal(attackDir(o.team, s.half)); S.thrRecvDist.push(dist(o.x, o.y, gx, gy)); }
-      got.set(o, { how, t: s.t, carries: 0, dribbles: 0, detail });
+      let src: string | undefined;
+      if (how === 'gain') {
+        const loser = (1 - o.team) as 0 | 1;
+        const pp0 = prevPl.get(o);
+        if (s.t - s.lastShotT[o.team] < 5) src = 'rebound';
+        else if (pp0 && o.stats.tacklesWon > pp0.tacklesWon) src = 'tackle';
+        else if (pp0 && o.stats.interceptions > pp0.interceptions) src = 'intercept';
+        else if (lastFl && s.agents[lastFl.passer]?.team === loser && s.t - lastFl.t0 < 4) src = lastFl.kind === 'clear' ? 'clearFail' : lastFl.kind === 'long' ? 'longFail' : lastFl.kind === 'cross' ? 'crossFail' : lastFl.kind === 'shot' ? 'shotLoose' : 'passFail';
+        else if (lastOwner >= 0 && s.agents[lastOwner]!.team === loser) src = 'dispossess';
+        else src = 'loose';
+        const [ggx, ggy] = oppGoal(attackDir(o.team, s.half));
+        const gd = dist(o.x, o.y, ggx, ggy);
+        src = `${src}@${gd <= 25 ? '≤25' : gd <= 40 ? '25-40' : '40+'}`;
+        inc(out[o.team]!.gains, src);
+      }
+      got.set(o, { how, t: s.t, carries: 0, dribbles: 0, detail, ...(src ? { src } : {}) });
       if (how === 'receive' && inOppBox(o.x, o.y, attackDir(o.team, s.half)) && o.line !== 0) {
         let nd = Infinity;
         for (const q of s.agents) if (q.onPitch && q.team !== o.team && q.line !== 0) nd = Math.min(nd, dist(q.x, q.y, o.x, o.y));
@@ -180,6 +249,7 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
       const leadKey = (team: 0 | 1, goalEvent: boolean) => { const g = s.teams[team].stats.goals - (goalEvent ? 1 : 0); const o = s.teams[1 - team]!.stats.goals; const m = g - o; return m <= -1 ? '뒤짐' : m === 0 ? '동점' : m === 1 ? '+1' : m === 2 ? '+2' : '+3이상'; };
       if (e.type === 'shot') {
         { const lk = leadKey(e.team, false); (S.byLead[lk] ??= { goals: 0, shots: 0 }).shots++; }
+        { BT(e.team).sf++; BT((1 - e.team) as 0 | 1).sa++; }
         const a = s.agents.find((x) => x.id === e.players[0])!;
         const xg = Number(e.params?.xg ?? 0);
         const d = Number(e.params?.d ?? 0);
@@ -188,6 +258,32 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         const gk = (S.byGroup[group(a.pos)] ??= { shots: 0, goals: 0, xg: 0 });
         gk.shots++; gk.xg += xg;
         const db = S.byDist[dbin(d)]!; db.shots++; db.xg += xg; if (on) db.sot++;
+        // 1대1 (5대): 20 m 안, 슈터 3 m 안 상대 필드 선수 0, 슛 길 콘(coneWidth) 안 수비 0. 헤더 구분은 이벤트에 없어 비헤더 모델로 판정값을 센다
+        if (d <= 20) {
+          const dirA = attackDir(a.team, s.half); const [gx1, gy1] = oppGoal(dirA);
+          let near3 = 0, cone = 0;
+          for (const o of s.agents) {
+            if (!o.onPitch || o.team === a.team || o.line === 0) continue;
+            if (dist(o.x, o.y, a.x, a.y) <= 3) near3++;
+            const [cd, ct] = segDist(o.x, o.y, a.x, a.y, gx1, gy1);
+            if (cd < ENGINE.prob.coneWidth && ct > 0.02 && ct < 0.95) cone++;
+          }
+          if (near3 === 0 && cone === 0) {
+            const gk1 = keeperOf(s, (1 - a.team) as 0 | 1);
+            S.ovo.n++; S.ovo.xg += xg; if (on) S.ovo.on++;
+            S.ovo.pOn += shotModel(s, a).pOn; S.ovo.pSave += saveProb(gk1, ENGINE.ball.shotSpeed, 0.5, d);
+            // 헤더 구분 (C.76a): 방금 뜬 슛 비행의 header 플래그 (GK 근거리 항·1대1 보너스는 헤더 제외라 따로 센다)
+            const hdr = s.ball.flight?.kind === 'shot' && s.ball.flight.passer === a.idx ? !!s.ball.flight.shot?.header : false;
+            if (hdr) S.ovo.nH++;
+            if (d <= 12) { S.ovo.n12++; if (on) S.ovo.on12++; if (!hdr) { S.ovo.n12f++; if (on) S.ovo.on12f++; } }
+            {
+              const g0 = got.get(a); const keys = [`pos:${group(a.pos)}`, `got:${g0?.detail ?? 'other'}`, `${group(a.pos)}:${g0?.detail ?? 'other'}`, `${group(a.pos)}:${d <= 12 ? 'd12' : 'd20'}:${g0?.detail ?? 'other'}`, ...(g0?.src ? [`${group(a.pos)}:${g0.src}`] : []), d <= 12 ? 'd12' : 'd12-20', `${d <= 12 ? 'd12' : 'd20'}:${group(a.pos)}`, `${d <= 12 ? 'd12' : 'd20'}:${g0?.detail ?? 'other'}`, g0 ? (s.t - g0.t < 2 ? 'fast<2s' : s.t - g0.t < 4 ? 'mid2-4s' : 'slow4s+') : 'nogot', s.possOrigin === 'open' && s.t - s.possStartT < 10 ? 'counter' : 'settled'];
+              for (const k of keys) (S.ovoBy[k] ??= { n: 0, goals: 0 }).n++;
+              ovoKeys.set(a, keys);
+            }
+            ovoLast.set(a, { t: s.t, d, hdr });
+          }
+        }
         const g = got.get(a);
         let path = 'other';
         if (g) {
@@ -201,9 +297,30 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
           if (group(a.pos) === 'ST') { S.stShotsFromReceiveSec.push(dt); S.stShotDist.push(d); }
         }
         inc(S.pathMine, path);
+        {
+          // 7대: 포지션군 교차 키 (거리·경로·자유/압박·헤더·줄). 자유 = 슈터 3 m 안 상대 필드 선수 0 (콘은 안 봄)
+          const dirA = attackDir(a.team, s.half); let near3 = 0;
+          for (const o of s.agents) { if (!o.onPitch || o.team === a.team || o.line === 0) continue; if (dist(o.x, o.y, a.x, a.y) <= 3) near3++; }
+          const hdr = s.ball.flight?.kind === 'shot' && s.ball.flight.passer === a.idx ? !!s.ball.flight.shot?.header : false;
+          const grp = group(a.pos);
+          const keys = [`${grp}:d${DBINS[dbin(d)]}`, `${grp}:${path}`, `${grp}:${near3 === 0 ? 'free' : 'press'}`, `${grp}:${hdr ? 'header' : 'foot'}`, `${grp}:line${a.line}`, `${grp}:${g?.detail ?? 'other'}`, `${grp}:pos=${a.pos}`, `${grp}:all`];
+          for (const k of keys) { const v = (S.byGroupKey[k] ??= { shots: 0, goals: 0, xg: 0 }); v.shots++; v.xg += xg; }
+          groupKeys.set(a, keys);
+        }
         S.pathEngine[a.shotPath]!++;
         const bg = (S.byGot[g?.detail ?? 'other'] ??= { shots: 0, goals: 0, xg: 0 }); bg.shots++; bg.xg += xg;
         if (group(a.pos) === 'ST') { const bs = (S.byGotST[g?.detail ?? 'other'] ??= { shots: 0, goals: 0, xg: 0 }); bs.shots++; bs.xg += xg; }
+        if (g?.src) { const bgn = (S.byGain[g.src] ??= { shots: 0, goals: 0, xg: 0 }); bgn.shots++; bgn.xg += xg; }
+        {
+          const sm = shotModel(s, a);
+          let n3 = 0;
+          for (const o of s.agents) if (o.onPitch && o.team !== a.team && o.line !== 0 && dist(o.x, o.y, a.x, a.y) <= 3) n3++;
+          for (const k of ['all', `d${DBINS[dbin(d)]}`]) {
+            const v = (S.shotComp[k] ??= { n: 0, blockers: 0, pressure: 0, pBlock: 0, pOn: 0, near3: 0, goals: 0 });
+            v.n++; v.blockers += sm.blockers; v.pressure += sm.pressure; v.pBlock += sm.pBlock; v.pOn += sm.pOn; v.near3 += n3;
+          }
+          shotCompKeys.set(a, ['all', `d${DBINS[dbin(d)]}`]);
+        }
         { const nd = recvMark.get(a); if (nd !== undefined && g && s.t - g.t < 3) { S.recvBox.shots3++; if (nd <= 1.5) S.recvBox.shots3Within15++; } }
         {
           const dirA = attackDir(a.team, s.half);
@@ -224,11 +341,15 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
         if (g?.detail === 'through' && s.t - g.t < 3) S.thrShot3++;
       } else if (e.type === 'goal') {
         { const lk = leadKey(e.team, true); (S.byLead[lk] ??= { goals: 0, shots: 0 }).goals++; }
+        { BT(e.team).gf++; BT((1 - e.team) as 0 | 1).ga++; }
         const a = s.agents.find((x) => x.id === e.players[0])!;
         S.goals++;
+        { for (const k of shotCompKeys.get(a) ?? []) if (S.shotComp[k]) S.shotComp[k]!.goals++; shotCompKeys.delete(a); }
+        { for (const k of groupKeys.get(a) ?? []) (S.byGroupKey[k] ??= { shots: 0, goals: 0, xg: 0 }).goals++; groupKeys.delete(a); }
+        { const o1 = ovoLast.get(a); if (o1 && s.t - o1.t < 4) { S.ovo.goals++; for (const k of ovoKeys.get(a) ?? []) (S.ovoBy[k] ??= { n: 0, goals: 0 }).goals++; if (o1.d <= 12) { S.ovo.goals12++; if (!o1.hdr) S.ovo.goals12f++; } ovoLast.delete(a); } }
         (S.byGroup[group(a.pos)] ??= { shots: 0, goals: 0, xg: 0 }).goals++;
         S.goalPathEngine[a.shotPath]!++;
-        const gg = got.get(a); if (gg) { (S.byGot[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.detail === 'through') S.thrGoals++; if (group(a.pos) === 'ST') (S.byGotST[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
+        const gg = got.get(a); if (gg) { (S.byGot[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.detail === 'through') S.thrGoals++; if (group(a.pos) === 'ST') (S.byGotST[gg.detail] ??= { shots: 0, goals: 0, xg: 0 }).goals++; if (gg.src) (S.byGain[gg.src] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
         { const dirA = attackDir(a.team, s.half); let near5 = 0, boxDef = 0, boxAtt = 0; for (const o of s.agents) { if (!o.onPitch || o.line === 0) continue; if (o.team === a.team) { if (inOppBox(o.x, o.y, dirA)) boxAtt++; continue; } if (dist(o.x, o.y, a.x, a.y) <= 5) near5++; if (inOppBox(o.x, o.y, dirA)) boxDef++; } const k = near5 >= 3 ? '3+' : String(near5); (S.crowd.xgByNear[k] ??= { n: 0, xg: 0, goals: 0 }).goals++; const bd = boxAtt - boxDef; const kb = bd <= -2 ? '≤-2' : bd >= 2 ? '≥+2' : String(bd); (S.crowd.xgByBoxDiff[kb] ??= { n: 0, xg: 0, goals: 0 }).goals++; (S.byLine[String(a.line)] ??= { shots: 0, goals: 0, xg: 0 }).goals++; }
         // 거리 구간: 직전 슈팅 이벤트
         const sh = [...s.events].reverse().find((x) => x.type === 'shot' && x.players[0] === a.id);
@@ -256,6 +377,8 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
       }
     }
     prevOwner = b.owner;
+    if (b.owner >= 0) lastOwner = b.owner;
+    if (b.flight) lastFl = b.flight;
     prevRestart = s.restart;
     prevEv = s.events.length;
     prevStats = s.teams.map((t) => ({ ...t.stats }));
@@ -265,7 +388,8 @@ function analyze(home: TeamSetup, away: TeamSetup, seed: number, out: [Side, Sid
     const S = out[t]!; const st = s.teams[t].stats;
     S.n++; S.poss += st.possessionTicks / (s.teams[0].stats.possessionTicks + s.teams[1].stats.possessionTicks);
     S.offsides += st.offsides;
-    for (const a of s.agents) if (a.team === t && a.onPitch) { S.distKm += a.stats.distance / 1000; S.stamina75 += a.stamina; S.nAgents++; }
+    for (const a of s.agents) if (a.team === t && a.onPitch) { S.distKm += a.stats.distance / 1000; S.stamina75 += a.stamina; S.nAgents++; if (a.enteredAt <= 0) { S.distFull += a.stats.distance / 1000; S.nFull++; S.sprints += a.stats.sprints; } }
+    for (const e of s.events) if (e.type === 'sub' && e.team === t) { S.subs++; if (e.t >= s.elapsed * (75 / 90)) S.subsLate++; }
     S.oppHalfWins += st.oppHalfWins; S.ints += st.interceptions; S.tackleAtt += st.tackleAttempts; S.disp += st.dispossessed; S.counterShots += st.counterShots; S.goalKicks += st.goalKicks; S.corners += st.corners;
     S.passes += st.passes; S.passOk += st.passesCompleted; S.long += st.longPasses; S.drib += st.dribbles; S.dribOk += st.dribblesWon; S.through += st.throughReceived;
   }
@@ -279,6 +403,10 @@ function report(label: string, out: [Side, Side]): void {
     const other = out[1 - i]!;
     console.log(`[팀 ${i}] 득점 ${q(S.goals)} 슈팅 ${q(S.shots)} 유효 ${q(S.sot)} xG/슛 ${(S.xg / S.shots).toFixed(3)} 유효률 ${(100 * S.sot / S.shots).toFixed(0)}% 유효→골 ${(100 * S.goals / S.sot).toFixed(0)}% | 상대 GK 선방률 ${(100 * other.saves / S.sot).toFixed(1)}% | 점유 ${(100 * S.poss / n).toFixed(1)}% 패스 ${q(S.passes)} 성공 ${(100 * S.passOk / S.passes).toFixed(1)}% 롱 ${(100 * S.long / S.passes).toFixed(1)}% 드리블 ${q(S.drib)}/${(100 * S.dribOk / S.drib).toFixed(0)}% 침투수신 ${q(S.through)} 파울 ${q(S.fouls)}`);
     console.log(`  포지션별 슈팅/골/xG: ${Object.entries(S.byGroup).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
+    for (const grp of ['ST', 'WING', 'MID', 'DEF']) {
+      const es = Object.entries(S.byGroupKey).filter(([k]) => k.startsWith(grp + ':')).sort((a, b) => b[1].goals - a[1].goals);
+      if (es.length) console.log(`  ${grp} 교차(7대) 슈팅/골/xG·골률%: ${es.map(([k, v]) => `${k.slice(grp.length + 1)} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}·${(100 * v.goals / Math.max(1, v.shots)).toFixed(0)}`).join(' · ')}`);
+    }
     console.log(`  거리별 슈팅(유효률/골/xG): ${S.byDist.map((d, k) => `${DBINS[k]}m~ ${q(d.shots)}(${(100 * d.sot / Math.max(1, d.shots)).toFixed(0)}%/${q(d.goals)}/${(d.xg / Math.max(1, d.shots)).toFixed(3)})`).join(' · ')}`);
     console.log(`  결정(상대 진영) ${q(S.dec)}/경기, 1위 밖 선택 ${(100 * S.decMistake / S.dec).toFixed(0)}% · 슛 후보 있음 ${q(S.shootExists)}, 그중 슛이 1위 ${(100 * S.shootBest / S.shootExists).toFixed(0)}%, 슛 선택 ${q(S.shootChosen)} (1위 아닌데 선택 ${q(S.shootChosenNotBest)} = ${(100 * S.shootChosenNotBest / Math.max(1, S.shootChosen)).toFixed(0)}%; 효용 차 ≤gap/≤2gap/>2gap = ${S.shootChosenGap.join('/')})`);
     const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
@@ -287,12 +415,19 @@ function report(label: string, out: [Side, Side]): void {
     console.log(`  슈팅 경로(엔진, 패스/몰고·돌파/코너/FK/PK/리바운드/그밖): ${S.pathEngine.map((v) => (100 * v / S.shots).toFixed(0)).join('/')} · 골 경로: ${S.goalPathEngine.map((v) => (100 * v / Math.max(1, S.goals)).toFixed(0)).join('/')}`);
     console.log(`  롱패스 출처(경기당): ${Object.entries(S.longByOrigin).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${q(v)}`).join(' · ')}`);
     console.log(`  파울 원인(경기당): ${Object.entries(S.foulBy).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${q(v)}`).join(' · ')}`);
-    console.log(`  오프사이드 ${q(S.offsides)} · 선발 끝까지 뛴 선수 이동 거리 평균 ${(S.distKm / Math.max(1, S.nAgents)).toFixed(2)} km, 경기 끝 스태미나 평균 ${(S.stamina75 / Math.max(1, S.nAgents)).toFixed(1)}`);
+    console.log(`  오프사이드 ${q(S.offsides)} · 선발 끝까지 뛴 선수 이동 거리 평균 ${(S.distKm / Math.max(1, S.nAgents)).toFixed(2)} km, 경기 끝 스태미나 평균 ${(S.stamina75 / Math.max(1, S.nAgents)).toFixed(1)} · 처음부터 끝까지 뛴 선발 ${(S.nFull / S.n).toFixed(1)}명 이동 ${(S.distFull / Math.max(1, S.nFull)).toFixed(2)} km · 스프린트 ${(S.sprints / Math.max(1, S.nFull)).toFixed(1)}회 · 교체 ${(S.subs / S.n).toFixed(2)}/경기(75분+ ${(S.subsLate / S.n).toFixed(2)}) (C.76s)`);
     console.log(`  상대 진영 탈취 ${q(S.oppHalfWins)} 인터셉트 ${q(S.ints)} 태클 시도 ${q(S.tackleAtt)} 소유 상실(몰고·유지 실패) ${q(S.disp)} 역습 슈팅 ${q(S.counterShots)} 골킥 ${q(S.goalKicks)} 코너 ${q(S.corners)}`);
     console.log(`  침투 패스: 시도 ${q(S.thrAtt)} 수신 ${q(S.thrRecv)} (${(100 * S.thrRecv / Math.max(1, S.thrAtt)).toFixed(0)}%), 받은 곳 골까지 평균 ${mean(S.thrRecvDist).toFixed(1)} m, 받고 3초 안 슛 ${q(S.thrShot3)}, 침투로 받은 뒤 골 ${q(S.thrGoals)} (${(100 * S.thrGoals / Math.max(1, S.goals)).toFixed(0)}% of 골)`);
     console.log(`  얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGot).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
+    console.log(`  시간대별(6대, 15분; 득점/실점 · 슈팅/피슈팅 · 판단 실수%(상대 진영 결정) · 선발 스태미나 · 최고 속도 비율 · 이동 km): ${Object.entries(S.byTime).sort((a, b) => Number(a[0]) - Number(b[0])).map(([k, v]) => { const nn = (v as { _n?: number })._n ?? 1; return `${k}' ${q(v.gf)}/${q(v.ga)} · ${q(v.sf)}/${q(v.sa)} · ${(100 * v.decMistake / Math.max(1, v.dec)).toFixed(0)}% · ${(v.stamina / nn).toFixed(1)} · ${(v.speed / nn).toFixed(3)} · ${q(v.dist)}`; }).join(' | ')}`);
+    console.log(`  슛 순간 슛 모델 성분(6대, 거리 구간별 n/경기 · 콘 안 수비 · 압박 · pBlock · pOn · 3 m 안 상대 · 골률%): ${Object.entries(S.shotComp).sort().map(([k, v]) => `${k} ${q(v.n)} · ${(v.blockers / v.n).toFixed(2)} · ${(v.pressure / v.n).toFixed(2)} · ${(v.pBlock / v.n).toFixed(3)} · ${(v.pOn / v.n).toFixed(3)} · ${(v.near3 / v.n).toFixed(2)} · ${(100 * v.goals / v.n).toFixed(1)}%`).join(' | ')}`);
+    console.log(`  얻은(gain) 횟수/경기 — 상대가 잃은 방식@잃은 지점(상대 골에서 m) (6대): ${Object.entries(S.gains).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${q(v)}`).join(' · ')}`);
+    console.log(`  얻은 뒤 슈팅/골/xG (같은 키, 6대): ${Object.entries(S.byGain).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  ST 얻은 방식별 슈팅/골/xG: ${Object.entries(S.byGotST).sort((a, b) => b[1].shots - a[1].shots).map(([k, v]) => `${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  슛 순간 수비 밀집: 슈터 5 m 안 상대 평균 ${(S.crowd.near5 / Math.max(1, S.crowd.n)).toFixed(2)}명, 박스 안 상대 평균 ${(S.crowd.boxDef / Math.max(1, S.crowd.n)).toFixed(2)}명(수비 줄 ${(S.crowd.boxDefL1 / Math.max(1, S.crowd.n)).toFixed(2)} / 중원 줄 ${(S.crowd.boxDefL2 / Math.max(1, S.crowd.n)).toFixed(2)}), 박스 안 우리 공격 평균 ${(S.crowd.boxAtt / Math.max(1, S.crowd.n)).toFixed(2)}명 · 5 m 안 상대 수별 슛(xG/실제 골률): ${Object.entries(S.crowd.xgByNear).sort().map(([k, v]) => `${k}명 ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`).join(' · ')}`);
+    { const v = S.ovo; const pc = (x: number, d0: number) => (100 * x / Math.max(1, d0)).toFixed(1); console.log(`  1대1 슛(20 m 안·3 m 안 수비 0·슛 길 수비 0) ${q(v.n)}/경기: 골 ${pc(v.goals, v.n)}% · 선방 ${pc(v.on - v.goals, v.n)}% · 빗나감 ${pc(v.n - v.on, v.n)}% (xG ${(v.xg / Math.max(1, v.n)).toFixed(3)}, 판정 pOn ${pc(v.pOn, v.n)}%, 리그 GK pSave(구석 0.5) ${pc(v.pSave, v.n)}%) · 12 m 안 ${q(v.n12)}: 골 ${pc(v.goals12, v.n12)}% · 선방 ${pc(v.on12 - v.goals12, v.n12)}% · 빗나감 ${pc(v.n12 - v.on12, v.n12)}% · 헤더 제외 12 m 안 ${q(v.n12f)}: 골 ${pc(v.goals12f, v.n12f)}% · 선방 ${pc(v.on12f - v.goals12f, v.n12f)}% · 빗나감 ${pc(v.n12f - v.on12f, v.n12f)}% (1대1 중 헤더 ${pc(v.nH, v.n)}%)`); }
+    console.log(`  1대1 분해(회/경기, 골률%): ${Object.entries(S.ovoBy).sort().map(([k, v]) => `${k} ${q(v.n)} (${(100 * v.goals / Math.max(1, v.n)).toFixed(0)}%)`).join(' · ')}`);
+    console.log(`  수비 시 실제 수비 라인(자기 골에서 m, 점수 상황별 틱 비중%): ${Object.entries(S.lineBy).sort().map(([k, v]) => `${k} ${(v.sum / Math.max(1, v.n)).toFixed(1)} m (${(100 * v.n / Math.max(1, S.lineBy['all']?.n ?? 1)).toFixed(0)}%)`).join(' · ')}`);
     console.log(`  박스 안 (우리 공격 − 상대 수비) 인원 차별 슛/경기(xG/실제 골률): ${['≤-2', '-1', '0', '1', '≥+2'].filter((k) => S.crowd.xgByBoxDiff[k]).map((k) => { const v = S.crowd.xgByBoxDiff[k]!; return `${k} ${q(v.n)} (${(v.xg / v.n).toFixed(3)}/${(v.goals / v.n).toFixed(3)})`; }).join(' · ')} · 줄별 슈팅/골/xG: ${Object.entries(S.byLine).sort().map(([k, v]) => `줄${k} ${q(v.shots)}/${q(v.goals)}/${(v.xg / Math.max(1, v.shots)).toFixed(3)}`).join(' · ')}`);
     console.log(`  박스 안 패스 수신 ${q(S.recvBox.n)}/경기: 받는 순간 가장 가까운 상대 평균 ${(S.recvBox.dsum / Math.max(1, S.recvBox.n)).toFixed(2)} m, 1.5 m 안 ${(100 * S.recvBox.within15 / Math.max(1, S.recvBox.n)).toFixed(0)}%, 2.5 m 안 ${(100 * S.recvBox.within25 / Math.max(1, S.recvBox.n)).toFixed(0)}% · ST 수신 ${q(S.recvBox.stN)} (1.5 m 안 ${(100 * S.recvBox.stWithin15 / Math.max(1, S.recvBox.stN)).toFixed(0)}%) · 받고 3초 안 슛 ${q(S.recvBox.shots3)} (그중 1.5 m 안에서 받은 것 ${(100 * S.recvBox.shots3Within15 / Math.max(1, S.recvBox.shots3)).toFixed(0)}%)`);
     // 진단 지표 (C.30, pending 20·21): "박스 수신 1.5 m 안 ≥30%" 대신 "ST 박스 안 수신/경기 ≤12"

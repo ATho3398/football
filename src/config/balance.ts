@@ -6,7 +6,7 @@ import type { FieldAttribute } from '../attributes';
 import type { Tier } from '../types';
 
 /** 수치를 바꾸면 올린다. 새 게임 시작 시 세이브에 기록된다. */
-export const BALANCE_VERSION = 55;
+export const BALANCE_VERSION = 102;
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -153,7 +153,12 @@ export const BALANCE = {
     /** 레전더리 컷은 월드클래스와 같다. 점수만으로는 오르지 않고 아래 업적 조건도 채워야 한다 (8.1, 부록 C.23) */
     tierCuts: { normal: 0, special: 250, topClass: 550, worldClass: 900, legendary: 900 } satisfies Record<Tier, number>,
     /** 레전더리 조건: 발롱도르 ballonDorMin 회 이상 그리고 (트레블 또는 월드컵 우승 또는 발롱도르 ballonDorAlt 회 이상) */
-    legendary: { ballonDorMin: 1, ballonDorAlt: 3 },
+    /**
+     * 레전더리 업적 조건 (8.1, C.76n 4a 개정): [발롱도르 ≥ ballonDorMin 또는 최고 개인상 ≥ topMin] 그리고
+     * (트레블 · 월드컵 우승 · 발롱도르 ≥ ballonDorAlt · 최고 개인상 ≥ topAlt 중 하나). 최고 개인상 = 더 베스트 · 리그 올해의 선수(47b) ·
+     * 포지션 상(야신 · 올해의 수비수) · 월드컵 골든볼, 시즌당 최대 topPerSeason 개
+     */
+    legendary: { ballonDorMin: 1, ballonDorAlt: 3, topMin: 3, topAlt: 6, topPerSeason: 2 },
   },
 
   // ── 실력 티어 (B.5): OVR 하한 ──
@@ -245,7 +250,16 @@ export const BALANCE = {
     subMinutes: { min: 15, max: 30 },
     baseGoals: 1.35,
     goalsK: 0.05,
-    homeBonus: 0.25,
+    /**
+     * 빠른 경기 홈 이점 (C.79o): 홈 팀 득점 기대값만 레이팅 +homeRating 으로 계산(원정 득점은 그대로). 옛 골 덧셈 +0.25 와
+     * 같은 크기(전 리그 홈 승/무/패 44/22/34)에 맞췄다. 중립 경기(컵·챔스 결승, 대표팀 대회)에는 붙이지 않는다
+     */
+    homeRating: 3.4,
+    /**
+     * 빠른 경기 무승부 보정 (C.80b): Dixon-Coles 저득점 보정 ρ(`scorePair`). 독립 포아송은 무승부 21.7%(실축 PL 23~26%)라
+     * −0.17 로 0-0·1-1 만 올린다 — 팀 득점 평균·홈/원정 득점 분포는 그대로(정확 계산 전 리그 42.4/25.2/32.4, 0-0 4.7 → 6.4%). 0 = 옛 독립 포아송
+     */
+    drawRho: -0.17,
     scorerShare: {
       ST: 0.3, CF: 0.22, LW: 0.15, RW: 0.15, CAM: 0.12, CM: 0.06, LM: 0.1, RM: 0.1,
       CDM: 0.03, LB: 0.03, RB: 0.03, LWB: 0.03, RWB: 0.03, CB: 0.04,
@@ -299,20 +313,32 @@ export const BALANCE = {
   // ── 부상 (7.3, 부록 D.2) ──
   // 출전 경기마다 확률 = base × 출전 비율 × 난이도 배율 × 피로 보정 × 신체 보정 × 나이 보정
   injury: {
-    base: 0.02,
-    /** 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint */
-    fatigueFrom: 30,
-    fatiguePerPoint: 0.02,
+    // C.77n (CI 280 balance:check 부상 풀타임 환산 0.86 ✗, 30세 이상 0.97 — C.77m 피로 상향 몫): 0.02 → 0.019. 0.018 이면 부상이 줄어 레전더리 30세까지 월드클래스 10/48 = 0.208 ✗(CI 281) → 0.019 = 9/48
+    base: 0.019,
+    /**
+     * 피로 보정 = 1 + max(0, 피로 - fatigueFrom) × fatiguePerPoint.
+     * C.77m: 피로 수치 상향(경기 22 → 30, 회복 ↓)으로 경기 전 피로 평균 약 4 → 26 이라 30·0.02 그대로면 balance:check 부상 풀타임 환산 ✗(같은 시드 진단 0.83 → 1.06).
+     * 문턱 30 → 60(penaltyFrom 50 보다 위 = "지친 몸"), 기울기 0.02 → 0.01 → 0.83(기준선과 같음, `scripts/diag/injury-per38.ts`). 피로 80 이면 × 1.2
+     */
+    fatigueFrom: 60,
+    fatiguePerPoint: 0.01,
     /** 신체 보정 = physicalBase - physicalSlope × (근력 + 체력) / 2 / 100 */
     physicalBase: 1.3,
     physicalSlope: 0.6,
     /** 나이 보정: 이 나이 이상이면 × ageMultiplier */
     ageFrom: 30,
-    ageMultiplier: 1.3,
-    /** 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks */
+    // C.77n: 1.3 → 1.1 (30세 이상 부상 풀타임 환산 1.04 → 가드 0.4~0.8 안. 30세 이상만이라 30세까지 성장·위상 가드는 그대로)
+    ageMultiplier: 1.1,
+    /**
+     * 등급 추첨 확률(합 1)과 기간(주). 시즌아웃은 남은 시즌 전체, 최소 minWeeks.
+     * C.77w: 3~8주 빈 구간에 중등도(4~7주)를 넣었다 — 옛 경상 70% · 중상 27% · 시즌아웃 3% → 60 / 15 / 22 / 3.
+     * 첫 배분 60 / 21 / 16 / 3(기대 결장 −7%)은 CI run 290 balance:check "레전더리 30세까지 월드클래스 도달" 0.229 ✗(0.1~0.2) — 긴 부상(8주+)이 줄어 성장 시간이 늘었다.
+     * 중상 비율을 되돌린 60 / 15 / 22 / 3 + 중등도 영구 하락 ×0.5 로 같은 가드 9/48 = 0.188(옛 등급과 같음), 부상 1건 평균 5.38주(옛 5.44) — `scripts/diag/legend30.ts`
+     */
     grades: {
-      minor: { chance: 0.7, weeks: [1, 3] as [number, number] },
-      major: { chance: 0.27, weeks: [8, 16] as [number, number] },
+      minor: { chance: 0.6, weeks: [1, 3] as [number, number] },
+      moderate: { chance: 0.15, weeks: [4, 7] as [number, number] },
+      major: { chance: 0.22, weeks: [8, 16] as [number, number] },
       seasonEnding: { chance: 0.03, minWeeks: 20 },
     },
     /** 부상 중 주당 재활 XP (출전 대신) */
@@ -326,15 +352,34 @@ export const BALANCE = {
       ageMultiplier: 1.5,
       attrs: [1, 2] as [number, number],
       drop: [1, 3] as [number, number],
+      /** 중등도(4~7주, C.77w) 영구 하락 확률 = chance × moderateMul (0 이면 중상 이상만) */
+      moderateMul: 0.5,
     },
   },
 
   // ── 징계 (부록 E.10) ──
   discipline: {
-    /** 시즌 옐로 누적 이 장수마다 출장 정지 */
-    yellowBanEvery: 5,
-    /** 퇴장/누적 시 출장 정지 경기 수 */
+    /**
+     * 리그 옐로 누적 출장 정지 (C.80d, 실제 PL 규칙): [누적 장수, 이 시즌 진행 비율(리그 몇 번째 경기 ÷ 전체) 안에 채워야 정지, 정지 경기 수].
+     * 5장(19/38 경기 안) 1경기 · 10장(32/38 안) 2경기 · 15장 3경기. 옛 "5장마다 1경기"는 엔진 옐로가 실축 수준(팀당 시즌 약 70장)이 되자 팀당 시즌 정지 8회
+     */
+    yellowBans: [[5, 19 / 38, 1], [10, 32 / 38, 2], [15, 1, 3]] as [number, number, number][],
+    /** 퇴장 시 출장 정지 경기 수 */
     banMatches: 1,
+    /**
+     * NPC 출장 정지 (C.80a): 같은 규칙을 NPC 에도(리그 경기만). 엔진 경기는 엔진 카드, 빠른 경기(엔진 없음)는 출전 명단에 카드 굴림.
+     * 굴림 수치 = 엔진 NPC 리그 경기 측정(scripts/c80a-cards.ts, 380경기): 90분당 옐로·레드 × 포지션군 배율 × 팀 성향 배율
+     */
+    npc: {
+      on: true,
+      /** 90분당 옐로·레드 (엔진 전체 평균). C.80d: 엔진 카드 몫을 올려(팀당 경기 옐로 0.93 → 1.84·레드 0.041 → 0.075) 0.0842·0.0037 → 0.1674·0.0068 */
+      yellow90: 0.1674,
+      red90: 0.0068,
+      /** 포지션군 배율 = 그 군 옐로율 ÷ 전체 (레드도 같은 배율 — 레드 표본이 작아 파울 많은 자리에 비례). C.80d: C.80a·C.80d 측정(각 380경기) 평균 */
+      group: { GK: 0, CB: 0.91, FB: 0.62, CDM: 1.4, CM: 1.82, CAM: 1.62, WING: 0.94, ST: 1.27 } as Record<string, number>,
+      /** 팀 성향 배율 = 그 성향 옐로율 ÷ 전체. C.80d: 두 측정 평균 */
+      tendency: { block: 0.94, balanced: 0.94, counter: 0.86, gegenpress: 1.15, direct: 1.23, tikitaka: 0.97 } as Record<string, number>,
+    },
   },
 
   // ── 캘린더 (25.1~25.2 6번, 부록 C.38): 2018-19 프리미어리그 패턴. 날짜는 [다음 해면 1, 월, 일] ──
@@ -354,23 +399,104 @@ export const BALANCE = {
     /** 5번째 주중 라운드 후보 (시드로 하나) */
     extraMidweek: [[1, 4, 23], [0, 9, 25], [0, 10, 30]] as [number, number, number][],
     fifthMidweekChance: 0.5,
+    /**
+     * 다른 리그 달력 (C.75m): PL 은 위 패턴 그대로, 다른 리그는 주말을 채우고 모자라면 수요일 주중 라운드를 고르게 더한다.
+     * 날짜는 [다음 해면 1, 월, 일]. 춘추제 = 8월~5월 (시즌 S = S년 8월 ~ S+1년 5월), 춘추가 아닌 리그(K·J·브라질·MLS) = 그해 3~12월
+     */
+    leagues: {
+      'autumn-spring': { opening: [0, 8, 11], final: [1, 5, 19], breaks: [[0, 9, 8], [0, 10, 13], [0, 11, 17], [1, 3, 23]] },
+      'spring-autumn': { opening: [0, 3, 3], final: [0, 12, 1], breaks: [[0, 3, 24], [0, 6, 9], [0, 9, 8], [0, 10, 13], [0, 11, 17]] },
+    } as Record<'autumn-spring' | 'spring-autumn', { opening: [number, number, number]; final: [number, number, number]; breaks: [number, number, number][] }>,
+    /** 끝난 다른 리그는 다음 시즌 개막 이 날 수 전에 새 시즌으로 넘어간다 (그 전까지 순위표는 지난 시즌 최종) */
+    rolloverLeadDays: 30,
   },
 
   // ── 피로 (7.1) ──
   fatigue: {
     max: 100,
-    /** 90분 출전 시 증가량 */
-    perMatch90: 22,
     /**
-     * 주간 회복량. 하루 단위 진행(부록 C.38)에서는 하루가 끝날 때마다 ÷ 7 씩 회복한다(경기 날 포함, 7일 간격이면 지금 주간 값과 같다).
+     * 90분 출전 시 증가량 (기준 거리 ENGINE.match.fatigueRefDistance 를 뛰면). C.77m(pending 142a, 사용자 "경기당 피로도 늘리고"): 22 → 30.
+     * 주 1경기 기본 훈련 주(회복 21)면 주전은 주 +9 쯤 쌓여 몇 주 연속이면 penaltyFrom 50 을 넘고, 주 2경기면 주 +40 쯤 빨리 쌓인다
+     */
+    perMatch90: 30,
+    /**
+     * 주간 회복량 = 기본 훈련 주(휴식 5.5 + 기술 3 × 4 + 영상 3.5 = 21) 합계. C.77m: 25 → 21 (훈련날 회복 ↓ 와 같이).
+     * NPC 는 하루 ÷ 7 씩 (경기 날 포함), 내 선수는 그날 훈련 회복(training.kinds) — 여름 대표팀 사이·세이브 공백은 이 값 ÷ 7.
      * 부상 중인 날은 noMatchWeekRecovery ÷ 7
      */
-    weeklyRecovery: 25,
+    weeklyRecovery: 21,
     noMatchWeekRecovery: 40,
     /** 이 값을 넘으면 평점/선발 확률 페널티 */
     penaltyFrom: 50,
     ratingPenaltyPerPoint: 0.02,
     startPenaltyPerPoint: 0.01,
+    /**
+     * NPC 피로 (C.77m, pending 142a): 내 선수와 같은 규칙(경기 뒤 거리 비례 피로·하루 weeklyRecovery ÷ 7 회복·피로 부상)을 NPC 에도.
+     * 선발 점수 −(피로 − penaltyFrom) × selectPerPoint (OVR 점수) → 지친 주전 대신 벤치 로테이션, 경기 시작 스태미나 = startStamina(피로).
+     * 부상 확률 = injury 와 같은 식(난이도 보통·태그 없음) × injuryMul. on = false 면 NPC 피로·부상 없음(C.77c 이전과 같은 선발).
+     * cup — NPC 끼리 컵·챔스 간이 경기 피로 (C.77n, pending 142b): 레이팅 간이 계산 경기도 pickLineup(그날 컨디션)으로 선발 11명을 뽑아
+     * 90분·기준 거리 피로와 부상 판정만 더한다(엔진 없이). 결과(스코어)는 그대로. npc.cup = false 면 C.77m 과 같다
+     */
+    // cupSubs (C.77w, 옛 cupMinutes 70 대신): 간이 경기 교체 투입 분. GK·필드 선발은 90분, 교체 수만큼 필드 선발이 이 분에 나가고 벤치 선수가 남은 분을 뛴다
+    //   (나가는 순서 cupSubOrder 포지션군 앞쪽부터, 같으면 피로 높은 쪽 — 공격수가 먼저 쉰다). 피로·부하 = 기준 거리 × 분/90.
+    //   옛 C.77n: 선발 11명 70분(교체·로테이션 몫을 뺀 근사, 90 이면 챔스 팀 ST 리그 선발 28.3 · 30골+ 0.40 관문 ✗)
+    // cupRestFrom: 간이 컵 경기 선발 감점 시작 피로 (리그는 penaltyFrom 50) — 지친 주전은 리그보다 컵에서 먼저 쉰다(컵 로테이션).
+    //   C.77n 조정 2: 70분만으로는 챔스 팀 ST 리그 선발 29.4 · 30골+ 0.20 (관문 ✗)
+    npc: {
+      on: true, selectPerPoint: 0.3, injuryMul: 1, cup: true, cupRestFrom: 25,
+      cupSubs: [60, 68, 75] as number[],
+      cupSubOrder: ['ST', 'WING', 'CAM', 'CM', 'FB', 'CDM', 'CB'] as string[],
+    },
+  },
+
+  // ── 시즌 누적 부하 (C.77n, pending 142b — 게겐 대가: 피로↑ → 부상↑ → 선수 생명↓, 내 선수·NPC 같은 함수 src/load.ts) ──
+  // 경기 부하 = 출전 분/90 × 이동 거리/기준 거리 × 팀 성향 계수 (간이 경기는 거리 = 기준). 표준 90분 1경기 = 1.
+  // 실축 근거: 고강도 압박 팀(클롭 리버풀·랑닉 계열)은 팀 고강도 질주 거리가 리그 평균보다 10~20% 많고, 연간 출전 분·주 2경기 누적이
+  // 근육 부상의 가장 큰 위험 인자(UEFA 부상 연구 — 4일 미만 간격 경기에서 부상률 상승). 노쇠 가산은 근거가 약해 작게(0.5~1시즌) 둔다.
+  load: {
+    on: true,
+    /** 팀 성향 계수 (조정 손잡이 ①: 게겐 1.15 = 고강도 질주 +15%) */
+    tendency: { balanced: 1, tikitaka: 1.05, gegenpress: 1.15, counter: 0.95, direct: 0.95, block: 0.9, bus: 0.85 } as Record<string, number>,
+    /**
+     * 부상 확률 × (1 + max(0, 시즌 누적 부하 − injuryFrom) × injuryPerPoint) (손잡이 ②). 25 면 내 선수 부상 풀타임 환산 0.833 → 0.846
+     * (가드 0.4~0.8 여유 없음) → 35: 보통 주전(시즌 끝 28~33)은 가산 없음, 게겐·챔스 고부하(40~50)만 시즌 막판 ×1.04~1.12
+     */
+    injuryFrom: 35,
+    injuryPerPoint: 0.008,
+    /** 시즌 끝: 마모 += max(0, 시즌 부하 − wearFrom) (손잡이 ③: 리그 주전 평균 ≈ 32 → 거의 0, 게겐 주전 ≈ 37 → +7, 챔스 게겐 ≈ 55 → +25) */
+    wearFrom: 30,
+    /** 노쇠: 노화 나이 + min(maxShift, 마모 × agePerWear) 시즌(소수는 곡선 보간), 하락 속도 × (1 + min(maxRate, 마모 × ratePerWear)) (손잡이 ④) */
+    /** 노쇠 가산은 이 나이부터 (C.77n CI 280: 29세 이하에도 걸면 실제 선수 정점 여지 적중 0.72 ✗ — 정점 전 성장은 건드리지 않는다) */
+    wearAgeFrom: 30,
+    agePerWear: 0.02,
+    maxShift: 1,
+    ratePerWear: 0.0015,
+    maxRate: 0.1,
+  },
+
+  // ── 게겐프레싱 비용 (C.78t, pending 146 ② 사용자 "둘 다") — 게임 시스템 쪽, 엔진 판단 코드는 그대로 ──
+  // 실축 근거: 클롭 도르트문트 2기(2012~15)·리버풀 2020~21 시즌 후반 부상·경기력 하락, 로이스·괴체·헨더슨 등 고강도 압박 주전의 이른 노쇠.
+  // ① 시즌 누적 피로: 게겐 팀(경기 전술 성향 gegenpress) 클럽 경기에서 뛴 분마다 쌓이고, 뛰지 않은 클럽 경기(벤치·결장)마다 회복.
+  //    경기 직전 컨디션 피로(fatigue) 에 더해 같은 통로(선발 확률·평점 페널티·엔진 시작 스태미나)로만 들어간다. 부상 확률은 시즌 부하(load)가 이미 맡아 더하지 않는다.
+  //    내 선수만(NPC 피로는 주간 회복 모델 npcFit 이라 시즌 기록이 없고, 넣으면 엔진 측정 리그 선발이 바뀐다). 시즌 끝 0.
+  //    수치: 게겐 주전 풀타임(리그 38 + 컵 ~8) 이면 전반기 끝 ≈ 25, 후반기 상한 cap 에 닿아 경기 날 피로 ≈ 24 + 40 → penaltyFrom 50 을 넘는다.
+  //    로테이션 4경기에 1번 쉬면 (3 × 1.4 − 6) < 0 이라 거의 쌓이지 않는다
+  // ② 선수 생명: 시즌 게겐 클럽 출전 seasonMinutes 분 이상 = 게겐 시즌 1. careerShift [게겐 시즌 이상, 노화 앞당김 시즌] — 3시즌 −1년, 5시즌 −2년.
+  //    노쇠 곡선(aging·은퇴 확률)을 앞당겨 읽는다 — load.wearAgeFrom(30) 부터 이동 × careerWindow 시즌 동안(급한 하락 구간이 1~2년 일찍).
+  //    C.78t 1차(28세부터 · 끝까지): balance 정점 여지 0.72 ✗ · 36−30 CB/CM −3.1 ✗ · ST/CAM −2.8 ✗(main −2.3 · −1.8) → 지금 방식. 마모 이동(load.maxShift 1)과 따로 더해 maxTotalShift 3 상한(게겐 이동이 마모에 먹히지 않게).
+  //    내 선수·NPC(실제·가상, GameState.npcLoad 3·4번째 칸) 모두
+  gegenCost: {
+    on: true,
+    tendency: 'gegenpress',
+    perMatch90: 1.4,
+    /** 게겐으로 뛰지 않은 클럽 경기(벤치·결장, 또는 다른 성향 경기)마다 회복 — 전술을 바꿔도 같은 속도로 빠진다 */
+    restRecovery: 6,
+    cap: 40,
+    seasonMinutes: 1500,
+    careerShift: [[3, 1], [5, 2]] as [number, number][],
+    maxTotalShift: 3,
+    /** 게겐 이동을 거는 기간 = wearAgeFrom(30) 부터 이동 × careerWindow 시즌 미만 (3시즌 → 30~31세, 5시즌 → 30~32세). C.78t 2(2시즌): balance 18/19 — 36−30 ST/CAM −2.1 ✗(main −1.8) → 1.5 */
+    careerWindow: 1.5,
   },
 
   // ── 훈련과 휴가 (25.3, 부록 C.41): 경기가 없는 날 훈련 1개. fatigue = 그날 피로 회복량 (+면 줄어듦) ──
@@ -378,29 +504,32 @@ export const BALANCE = {
     kinds: {
       // C.44: 경기 다음 날 휴식 고정 → 기본 주(경기 1개) 기술 훈련 3일 → 4일. 주 합계를 C.43 과 같게 (XP 3.5, 피로 회복 26.5, 게이지 칸 비율):
       // xp 1.0 → 0.75, fatigue 3.5 → 4.0, gauge.full 30 → 40
-      tech: { xp: 0.75, fatigue: 4.0 },
-      intense: { xp: 1.5, fatigue: 2 },
-      position: { xp: 0.5, fatigue: 4 },
-      setpiece: { xp: 0.5, fatigue: 4 },
-      video: { xp: 0.5, fatigue: 4.5 },
-      recovery: { xp: 0, fatigue: 5.5 },
-      rest: { xp: 0, fatigue: 6 },
+      // C.77m (pending 142a, 사용자 "훈련 피로 늘리고"): 훈련날 회복 ↓ — 기본 주 회복 26.5 → 21 (기술 4 → 3, 휴식 6 → 5.5, 영상 4.5 → 3.5, 나머지 −0.5~1)
+      tech: { xp: 0.75, fatigue: 3.0 },
+      intense: { xp: 1.5, fatigue: 1 },
+      position: { xp: 0.5, fatigue: 3 },
+      setpiece: { xp: 0.5, fatigue: 3 },
+      video: { xp: 0.5, fatigue: 3.5 },
+      recovery: { xp: 0, fatigue: 5 },
+      rest: { xp: 0, fatigue: 5.5 },
       /** 약발 훈련 (C.45): 기술 훈련과 같은 XP·회복, 게이지는 BALANCE.weakFoot */
-      weakFoot: { xp: 0.75, fatigue: 4.0 },
+      weakFoot: { xp: 0.75, fatigue: 3.0 },
       // 생활 하루 행동 (pending 47 4번, C.63 b): 훈련 대신. XP 없음, 회복은 휴식~회복 훈련 사이. 효과는 BALANCE.life.actions
-      family: { xp: 0, fatigue: 5 },
-      language: { xp: 0, fatigue: 4.5 },
-      teamMeal: { xp: 0, fatigue: 4.5 },
-      therapy: { xp: 0, fatigue: 5 },
-      trip: { xp: 0, fatigue: 6 },
-      media: { xp: 0, fatigue: 4 },
+      family: { xp: 0, fatigue: 4.5 },
+      language: { xp: 0, fatigue: 3.5 },
+      teamMeal: { xp: 0, fatigue: 3.5 },
+      therapy: { xp: 0, fatigue: 4.5 },
+      trip: { xp: 0, fatigue: 5.5 },
+      media: { xp: 0, fatigue: 3 },
     },
     /**
      * 훈련 프리셋 자동 추천 (C.52, pending 82 6번): 주가 바뀔 때(월요일) 이번 주 경기 수·경기 간격·체력(100 − 피로)·부상으로 고른다.
      * 부상 중 → 회복 중심, 경기 2번 이상 또는 경기 간격 busyGap 일 이하 → 경기 많은 주, 체력 lowCondition 미만 → 회복 중심,
      * 경기 1번 이하이고 체력 freshCondition 이상 → 기술 집중, 그 밖 → 균형
      */
-    presets: { lowCondition: 65, freshCondition: 85, busyGap: 3 },
+    // C.77m: 피로 수치 상향으로 주 1경기 주전 아침 피로가 평균 약 24 → 회복 중심 문턱을 체력 65 → 50(= 100 − fatigue.penaltyFrom),
+    // 기술 집중 85 → 75 로 (그대로면 회복 중심 주가 늘어 훈련 XP 시즌 119 → 101, 30세 OVR −0.8)
+    presets: { lowCondition: 50, freshCondition: 75, busyGap: 3 },
     /** 훈련 XP 주간(월~일) 상한. 재활 XP 도 여기에 든다. 고령 감쇠·난이도 배율은 상한 뒤에 곱한다 */
     weeklyXpCap: 6,
     /**
@@ -506,6 +635,13 @@ export const BALANCE = {
   } satisfies Record<Difficulty, { label: string; xp: number; rating: number; injury: number }>,
 
   // ── NPC 성장 (5.6, B.6) ──
+  /** 화면 표시 규칙 (C.81n, 판정·성장에는 안 쓴다) */
+  display: {
+    /** 결정 순간 위험 등급: 실패 시 평점 손실(화면의 실패 평점, 절댓값) ≤ low 낮음 · ≤ mid 보통 · 그 위 높음 */
+    risk: { low: 0.02, mid: 0.05 },
+    /** 내 선수 잠재력 범위 (B6): 반폭 = youngAge 이하 youngHalf → settledAge 이상 settledHalf (사이는 직선) */
+    potential: { youngAge: 17, youngHalf: 6, settledAge: 27, settledHalf: 1 },
+  },
   npc: {
     peakOvr: {
       normal: [60, 72],
@@ -575,6 +711,16 @@ export const BALANCE = {
     seasonFormSd: 1.5,
     /** 계약이 끝나고 이적하지 않은 선수는 재계약 1~4년 (이적은 transfer, 18.6) */
     renewYears: { min: 1, max: 4 },
+    /**
+     * NPC 경기당 결장 확률 (C.77c, 엔진관리자8 §9.15.9 권장 A): 부상 약 0.04 + 로테이션 약 0.04 → 시즌 출전 약 35경기(현실 득점왕급 33~37).
+     * (worldSeed, 경기 시드, 선수 id) 로 결정적 추첨, 결장 선수는 pickLineup 에서 빠지고 벤치가 대신 선발. 득점 확률과 무관한 현실 조건이라 결과 할당이 아니다.
+     * NPC 누적 피로·부상이 없어서 둔 임시 대체 — pending 142(NPC 피로·컵 일정·부상)에서 교체한다. 내 선수·내 팀 출전 규칙(부상·벤치 결장)과 무관.
+     * 측정(`balance:scoring` 리그 시즌)과 본편 다른 경기(npcMatch)가 같은 함수를 쓴다.
+     * C.77m (pending 142a): NPC 피로·피로 부상(fatigue.npc)이 출전율을 대신해 0.08 → 0 (끔). 같은 시드 scoring 10시즌: 상위 10 ST 선발 34.2 · 30골+ 1.20
+     */
+    npcAbsentP: 0,
+    /** 결장 추첨 뒤 남겨 두는 최소 인원 (선발 11 + 교체 3). 마지막 남은 GK 는 결장하지 않는다 */
+    npcAbsentMin: 14,
   },
 
   // ── 이적과 계약 (18.6 NPC 점수 모델, 18.10 내 선수, 부록 C.42). 수치는 모두 초안 ──
@@ -603,7 +749,14 @@ export const BALANCE = {
     newContract: { min: 1, max: 5 },
     newLoyalty: { keep: 0.5, mean: 30, sd: 10 },
     /** 빈자리 보충 (리그 밖 클럽에서 오는 가상 선수): OVR = min(나간 선수 OVR + N(offset, sd), 팀 레이팅 + overTeam), 나이 min~max */
-    fill: { offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29 },
+    fill: {
+      offset: -1, sd: 2, overTeam: 4, minAge: 21, maxAge: 29,
+      /**
+       * 다른 고른 리그의 실제 선수로 보충 (C.76c, 45b: 이적 시장 = 고른 리그 전체): 확률 realShare, 같은 포지션군 · OVR 이 보충 OVR ± realGap · realMaxAge 세 이하,
+       * 지금 팀 레이팅 ≤ 받는 팀 레이팅 + realFromGap (강팀에서 약팀으로 내려오지 않게). 다른 리그를 고르지 않으면 없음 (PL 만 고른 게임은 그대로)
+       */
+      realShare: 0.35, realGap: 3, realMaxAge: 31, realFromGap: 2,
+    },
     /**
      * 내 선수 (18.10): 비시즌 제안 3~5개 = 관심 상위. 관심 = −|유효 OVR − 팀 레이팅 − fitOffset| × fit + 필요도 × 5 + 위상 / repDiv + N(0, noiseSd).
      * 유효 OVR = OVR + (youthAge − 나이) × youthPerYear (어린 선수는 잠재력을 본다). 18.6 의 야망 항 (OVR − 팀 레이팅) × 3 을 팀 입장의 "수준 맞음"으로 뒤집었다
@@ -622,6 +775,20 @@ export const BALANCE = {
       club: { feeMin: 0.8, feeMax: 1.5, base: 0.55, slope: 1.2, top3: 0.3, minP: 0.05 },
       /** 바이아웃 = 계약할 때 몸값(그 계약 연수 기준) × buyoutMul */
       buyoutMul: 1.8,
+      /**
+       * 다른 리그 제안 (C.76c, 45b: 이적 시장 = 고른 리그 전체): 비시즌(여름 창)에만, 고른 다른 리그 중 내 리그와 달력이 같은 리그 팀에서
+       * 관심 상위 [최소, 최대]개를 내 리그 제안에 더한다 (남은 계약 단계별). 받아들이면 다음 시즌부터 그 리그가 내 리그
+       */
+      abroad: { last: [1, 2], one: [0, 1], more: [0, 1] } as Record<'last' | 'one' | 'more', [number, number]>,
+    },
+    /**
+     * 유망주 계약 — 로열로드 (C.78u, pending 144): maxAge 세 이하면 팀이 잠재력·위상을 보고 유효 OVR 을 더 올려 본다 (강팀 제안 커트라인 완화).
+     * 가산 = 실제 선수 (정점 목표 − OVR) × peakWeight · 가상 유망주 tierBoost[잠재력] + 위상 / repDiv, 최대 maxBoost (offers.youthPerYear 나이 가산에 더한다).
+     * 그 팀 레이팅 ≥ OVR + 나이 가산 + minGap 이면 "유망주 계약": 주급 × wageMul, 계약 years[최소, 최대]년 (재계약도 지금 팀이 그만큼 강하면 같은 조건)
+     */
+    prospect: {
+      maxAge: 22, peakWeight: 0.5, repDiv: 100, maxBoost: 12, minGap: 4, wageMul: 0.7, years: [4, 5] as [number, number],
+      tierBoost: { normal: 0, special: 2, topClass: 5, worldClass: 8, legendary: 10 } satisfies Record<Tier, number>,
     },
     /** 임대 (18.10): 21세 이하 + 출전 시간 비율 0.4 미만이면 임대 제안 1~2개 (예상 선발 확률이 가장 높은 팀), 1시즌 */
     loan: { maxAge: 21, maxShare: 0.4, offers: [1, 2] as [number, number] },
@@ -775,8 +942,15 @@ export const BALANCE = {
     bonusDraws: 3,
     handMax: 6,
     passiveSlots: 2,
-    /** 한 행동에 붙는 카드 확률 보너스 합계 상한 (F.0 2번, E.15.1) */
-    bonusCap: 0.15,
+    /** 한 행동에 붙는 카드 확률 보너스 합계 상한 (F.0 2번, E.15.1). C.75h 0.15 → 0.20 (카드 강화, 직접 − 자동 격차) */
+    bonusCap: 0.2,
+    /** 확률 카드(확률·패시브·콤보·집중의 +%p) 배수 (C.75h): 표 수치 R(5)/R(8)/R(10) → R(8)/R(12)/R(15) */
+    probMul: 1.5,
+    /**
+     * 자동 경기 결정 순간 카드 (C.75h, 16.3·F.5 개정): false 면 자동 경기와 직접 모드 맡기기·정지 안 한 순간은 결정 순간 카드
+     * (확률·플레이·세트피스·반응·시그니처)를 쓰지 않고, 패시브만 킥오프 때 덱에서 자동 장착한다. true = C.36~C.75 규칙 (측정 비교용)
+     */
+    autoMoments: false,
     /** 판정 능력치(judge)를 바꾸는 카드: 성공 확률 += judgeK × (판정 능력치 − 기본 판정 능력치)/100, ±judgeMax 안 */
     judgeK: 0.6,
     judgeMax: 0.1,
@@ -791,6 +965,11 @@ export const BALANCE = {
     pickOptions: 3,
     seasonEpicChance: 0.2,
     signatureUnlock: 10,
+    /**
+     * 지시 카드 (F.4·D.11 6번, C.75i): 경기 뒤 "카드 보상" (엔진 판정 밖). 지시 이행 장당 신뢰 +followTrust (경기당 +followMax),
+     * 독단 성공 평점 +soloRating (MatchResult 사후 가산)·XP × soloXpMul, 실패 신뢰 −soloFailTrust. 감독의 신뢰는 신뢰도 trustMin 이상일 때만
+     */
+    directive: { followTrust: 1, followMax: 3, soloRating: 0.8, soloXpMul: 1.3, soloFailTrust: 5, trustMin: 70 },
   },
   // ── 신체·양발 (pending 47 1, 부록 C.45): 키·몸무게·주발·약발. 생성 분포와 엔진 실행 배율 (판단 구조는 그대로) ──
   body: {
@@ -820,6 +999,10 @@ export const BALANCE = {
      */
     weakFrom: 0.25,
     weakFull: 0.75,
+    /** 슛 (C.79q): 시간이 있으면(압박·원터치 없음) 공을 주발 쪽으로 옮겨 찬다 — 약발 몫 × (1 − shotSet × (1 − 급함)) */
+    shotSet: 0.8,
+    /** 슛 (C.79q): 발밑 공(원터치 아님)은 주발 인사이드로 몸 반대쪽까지 감아 찬다 — 약발이 시작하는 가로 성분 weakFrom + shotCarry */
+    shotCarry: 0.4,
     /** 패스는 거리로도 섞는다: passFrom m 이하 짧은 패스는 몸을 돌려 차므로 0, passFull m 이상은 전부 (C.45 첫 측정: 짧은 옆 패스까지 걸면 패스 성공률 −3%p) */
     passFrom: 12,
     passFull: 30,
@@ -952,6 +1135,26 @@ export const BALANCE = {
     },
   },
 
+  // ── 포토카드 도감 (C.75t): 카드 테두리 = OVR 등급 (카드 희귀도 색 재사용) ──
+  photocards: {
+    grade: { legend: 88, epic: 82, rare: 75 },
+  },
+
+  // ── 유니폼 교환 · 진열실 (C.76b, 46b): 성공 확률 = 위상 티어 기본값 + 상대 멘탈 + 오늘 평점 + 관계, [min, max] 로 자른다 ──
+  jerseys: {
+    /** 내 위상 티어별 기본 확률 */
+    base: { normal: 0.29, special: 0.42, topClass: 0.57, worldClass: 0.76, legendary: 0.87 },
+    /** 상대 멘탈 = (침착성 + 리더십) / 2. center 보다 1 높을 때마다 +perPoint (침착하고 너그러운 선수일수록 잘 바꿔 준다), ±cap. GK 는 center */
+    mental: { center: 68, perPoint: 0.004, cap: 0.08 },
+    /** 오늘 내 평점: center 보다 1 높을 때마다 +perPoint, ±cap */
+    rating: { center: 6.6, perPoint: 0.06, cap: 0.09 },
+    /** 관계: 더비 상대 · 큰 더비 추가 · 내 라이벌 · 같은 국적 · 내가 뛰었던 팀 */
+    derby: -0.15, bigDerby: -0.04, rival: -0.08, sameNation: 0.08, formerClub: 0.06,
+    min: 0.03, max: 0.95,
+    /** 진열 칸 수: 집 단계(BALANCE.wealth.houses 순서: 숙소 · 월세 · 아파트 · 고급 주택 · 저택 · 성) */
+    showroomSlots: [2, 4, 6, 10, 16, 24],
+  },
+
   // ── 레전드 팩 (pending 63, C.47): 2018-19 세계에 15~22세로. 시작 OVR = 전성기 OVR − startGap(나이), 전성기 나이 peakAge ──
   legends: {
     minAge: 15,
@@ -973,7 +1176,7 @@ export const BALANCE = {
     maxPeak: 96,
     /** 도르트문트 레전드·미래 스타 (C.75x) 전성기 하한: 데이터 그대로 쓰도록 낮게 */
     groupMinPeak: 78,
-    /** 3판 (C.75w, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
+    /** 3판 (C.76b, 191명) 팀당 시작 레전드 상한: 넘치면 리그 밖에서 시작해 다음 시즌부터 시즌마다 arrivalsPerSeason 명씩 이적으로 들어온다 */
     maxPerTeam: 10,
     arrivalsPerSeason: 4,
     loyalty: 70,
@@ -1137,6 +1340,8 @@ export const BALANCE = {
       bundesliga: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
       ligue1: { min: 18, max: 30, u21Extra: 0, nonHomegrownMax: 99 },
     } as Record<'pl' | 'championship' | 'laliga' | 'seriea' | 'bundesliga' | 'ligue1', { min: number; max: number; u21Extra: number; nonHomegrownMax: number }>,
+    /** 표에 없는 리그 (C.76c, 45b: 2. 분데스리가·에레디비시·프리메이라·사우디·K리그1·J1·브라질·MLS): 게임 기본 규칙, 비자국 육성 상한 없음 */
+    defaultRule: { min: 18, max: 25, u21Extra: 5, nonHomegrownMax: 99 },
     /** 21세 이하 = 그 시즌 나이 ≤ u21Age (2018-19 PL 은 1997-01-01 이후 출생) */
     u21Age: 21,
     /** 시즌 시작 생성: 기본 24명(23번 포지션 구성) + 21세 이하 유망주 extraU21 [최소, 최대] → 24~27, 평균 25.5 */
@@ -1216,7 +1421,7 @@ export const BALANCE = {
     involvementMax: 3,
     /** 감독 기억 감쇠: 출전 경기마다 신뢰도가 50 쪽으로 이만큼 (비율) 돌아온다 (오래된 인상은 옅어짐, 추천안) */
     reversion: 0.04,
-    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) − 피로 70 이상 fatigueMinus (화면 분해) */
+    /** 선발 점수 = 슬롯 OVR + 태그 + (신뢰도 − 50) × trustPerPoint + 폼(최근 평점 폼 × formScale, ±formMax) (fatigueFrom·fatigueMinus 는 C.79n 부터 안 씀 — 화면 피로 칸도 실제 선발 식 myFatigueTerm) */
     trustPerPoint: 0.06, formScale: 5, formMax: 1.5, fatigueFrom: 70, fatigueMinus: 2,
     /** 경쟁자 (NPC) 신뢰도 고정 */
     npcTrust: 60,
@@ -1250,6 +1455,43 @@ export const BALANCE = {
       /** 포지션 제안을 따르면 */
       posTrust: 3,
     },
+  },
+
+  // ── 감독 성향별 선수 기용 (부록 C.79i, pending 143): 선발 점수 = 슬롯 OVR + 아래 항(OVR 단위). NPC 선발(pickLineup 의 penalty)과 내 선발 확률(startChance)이 같이 쓴다 ──
+  selection: {
+    /**
+     * 실용(neutral) 기본 항 — 마스터 초안 가중(오버롤 0.55 · 최근 5 0.15 · 직전 0.05 · 피로 0.15 · 감독 관계 0.07 · 케미 0.03)을 OVR 단위로 옮긴 것.
+     * 기준을 기존 보정된 값에 맞췄다: 최근 5경기 폼 = 기존 formTerm(평점 1점당 1.5, ±1.5 — 내 선발 확률·출전 가드 그대로),
+     * 직전 평점 = 그 1/3 (0.05/0.15) 기울기 0.5·±0.75, 피로 = 기존 NPC 선발 감점(50 넘은 1점당 0.3 ≈ 0.15/0.55), 감독 관계 = 기존 trustPerPoint.
+     * 케미(내 선수만, 동료 호흡 상위 3명 평균 0~1) × chemMax. NPC 평점은 경기 뒤 지수 평균(formAlpha ≈ 최근 5경기 창)으로 담고, formMinGames 경기 전에는 0
+     */
+    formPerPoint: 1.5, formMax: 1.5, lastPerPoint: 0.5, lastMax: 0.75, chemMax: 0.6, formAlpha: 0.33, formMinGames: 3,
+    /** NPC 평점 기록 보관: 마지막 경기 뒤 이 날수가 지나면 지운다 (세이브 크기) */
+    formKeepDays: 42,
+    /** 출전 분이 이 값 이상이면 선발로 센다 (연속 선발) */
+    startMinutes: 46,
+    /**
+     * 성향별 배율·추가 항 (pending 143 초안 비율 그대로): ovr = (자연 OVR − 팀 레이팅) × ovr 를 더함(+면 스타, −면 오버롤 덜 봄),
+     * form·last·fatigue·trust = 실용 항 배율, youth = youthAge 이하 가산(+약한 상대 youthWeakOpp: 상대가 youthWeakGap 이상 낮을 때),
+     * streak = 연속 선발 streakFrom 경기째부터 1경기당 감점, keep = 직전 경기 선발 가산(주전 고정)
+     *  스타 중용: 평점 0.08/0.15 → ×0.53. 초안 오버롤 +0.36·피로 ×0.47 은 리그 시즌 측정에서 토트넘이 선발을 거의 안 바꿈(경기당 0.65명,
+     *    후반 선발 아침 피로 65 — 기준 48) → 오버롤 +0.25 · 피로 ×0.8 (지친 스타도 결국 쉰다)
+     *  경쟁형: 오버롤 0.40/0.55 → −0.27, 최근 5 0.25/0.15 → ×1.67, 직전 0.15/0.05 → ×3
+     *  로테이션: 피로 0.30/0.15 → ×2, 3경기 연속 선발부터 −1.2/경기
+     *  엄격: 감독 관계 0.15/0.07 → ×2.1, 직전 평점 ×2 (훈련 태도 대신 — 태도 데이터 없음)
+     *  유망주: 23세 이하 +1.5, 약한 상대(3 이상 낮음) +1.5 더 (컵 구분은 선발 입력에 없어 약팀전만)
+     *  주전 고정: 직전 경기 선발 +0.6, 폼 ×0.7, 피로 ×0.85 (첫 측정 +1.0·×0.7 은 선발 교체 경기당 3.5 → 2.1명, 후반 피로 +6 으로 과함)
+     */
+    styles: {
+      neutral: { ovr: 0, form: 1, last: 1, fatigue: 1, trust: 1, youth: 0, streak: 0, keep: 0 },
+      star: { ovr: 0.25, form: 0.53, last: 0.5, fatigue: 0.8, trust: 1, youth: 0, streak: 0, keep: 0 },
+      competitive: { ovr: -0.27, form: 1.67, last: 3, fatigue: 1, trust: 1, youth: 0, streak: 0, keep: 0 },
+      rotation: { ovr: 0, form: 1, last: 1, fatigue: 2, trust: 1, youth: 0, streak: 1.2, keep: 0 },
+      strict: { ovr: 0, form: 1, last: 2, fatigue: 1, trust: 2.1, youth: 0, streak: 0, keep: 0 },
+      youth: { ovr: 0, form: 1, last: 1, fatigue: 1, trust: 1, youth: 1.5, streak: 0, keep: 0 },
+      steady: { ovr: 0, form: 0.7, last: 0.7, fatigue: 0.85, trust: 1, youth: 0, streak: 0, keep: 0.6 },
+    } as Record<string, { ovr: number; form: number; last: number; fatigue: number; trust: number; youth: number; streak: number; keep: number }>,
+    youthAge: 23, youthWeakOpp: 1.5, youthWeakGap: 3, streakFrom: 3,
   },
 
   // ── 이벤트 엔진·인박스·라이벌·구단 (20번, 부록 C.63) ──
@@ -1368,6 +1610,11 @@ export const BALANCE = {
       low: 35, high: 80, lowForm: { home: -0.05, adapt: -0.05, team: -0.05 }, highForm: { home: 0.02, team: 0.03 },
       mentalHigh: 70, mentalForm: -0.06, mentalMax: 85, mentalMaxForm: -0.12, mentalLow: 15, mentalLowForm: 0.02, mentalRecovery: 0.9, formMax: 0.15,
     },
+    /**
+     * 판단 스탯 생활 영향 (pending 43 ⑦·474, C.75i): 엔진 입력의 내 시야·침착성에서 뺀다 (0~99 척도, 엔진 코드는 그대로).
+     * 정신 상태(100 − 멘탈 피로)가 from 미만이면 (from − 정신 상태) × per, 외국인은 적응도도 같은 식, 합 최대 max
+     */
+    judge: { from: 40, per: 0.125, max: 5 },
     /** 생활 이벤트 시즌 상한 (pending 47 질문 ④: 쉬움 1, 보통 2, 어려움 3) */
     eventsPerSeason: { easy: 1, normal: 2, hard: 3 },
     /** 태그 (5-2 몫): 리더 = 팀 불화 이벤트 확률 × leaderDiscord, 문제아 = 인터뷰 실언 확률 × troubleSlip, 스타 플레이어 = 빅클럽 루머 × starRumour */
@@ -1448,6 +1695,142 @@ export const BALANCE = {
     archive: { fullSeasons: 3, keepTop: 20 },
   },
   /**
+   * 개인 시상 (C.76n, 47a단계, docs/awards-design.md): 시즌 끝에 선수 시즌 이력서를 만들고, 상마다 투표단(기자·선수·감독주장·팬)이 투표해 정한다.
+   * 이력서 항목 (모든 상 공유): out 공격 포인트(포지션 보정 골·도움, 시즌 환산) · rat 평점·출전 · def 팀 실점 덜 함(수비·GK) · tro 팀 트로피(리그·국내 컵·챔스, 출전 비중) ·
+   * nat 대표팀 대회 · clu 결정적 순간(결승골·80분 뒤 동점/역전골·해트트릭 × 경기 무게) · sto 서사(득점왕·기록·10대/35세·약팀 돌풍·이적 첫 시즌·부상 복귀) ·
+   * fam 인기(위상) · tal 재능(OVR + 어린 나이). out·rat·def·tro 는 리그 수준 계수를 곱한다. 투표자는 항목 표준점수(대상 선수 안) × 투표단 가중치 + 노이즈로 순위를 매겨 points 를 준다.
+   * 엔진 기록이 없으면(빠른 진행) 출전·평점·골·도움을 OVR·팀 성적으로 추정하고, 결정적 순간은 골 × clutchPerGoal.
+   */
+  awards: {
+    /** 리그 수준 계수. 표에 없는 리그는 otherCoef */
+    leagueCoef: {
+      pl: 1, laliga: 1, seriea: 1, bundesliga: 1, ligue1: 1, eredivisie: 0.8, primeira: 0.8,
+      championship: 0.6, bundesliga2: 0.58, brasileirao: 0.6, saudi: 0.52, mls: 0.52, jleague1: 0.52, kleague1: 0.5,
+    } as Record<string, number>,
+    otherCoef: 0.5,
+    /** 골든부츠 계수 (유럽 골든슈 실제 규칙): 5대 리그 2 · 포르투갈·네덜란드 1.5 · 그 외 유럽 1. 표에 없는 리그(아시아·남미·MLS·사우디)는 제외. europe 자격(골든보이)도 이 표 */
+    bootCoef: { pl: 2, laliga: 2, seriea: 2, bundesliga: 2, ligue1: 2, eredivisie: 1.5, primeira: 1.5, championship: 1, bundesliga2: 1 } as Record<string, number>,
+    /** 후보 자격: 출전 / 팀이 치른 리그 경기 ≥ minShare (나이 제한 상은 youngMinShare) */
+    minShare: 0.45, youngMinShare: 0.3,
+    resume: {
+      goal: { GK: 0, CB: 1.5, FB: 1.4, CDM: 1.3, CM: 1.2, CAM: 1.1, WING: 1, ST: 1 } as Record<string, number>,
+      assist: { GK: 0, CB: 1, FB: 1, CDM: 1, CM: 0.9, CAM: 0.8, WING: 0.75, ST: 0.7 } as Record<string, number>,
+      rating: { GK: 30, CB: 26, FB: 24, CDM: 22, CM: 18, CAM: 15, WING: 12, ST: 12 } as Record<string, number>,
+      ratingBase: 6.6,
+      apps: 10,
+      /** 팀 경기당 실점이 리그 평균보다 적은 만큼 × 이 값 × 출전 비율 */
+      cleanSheet: { GK: 20, CB: 15, FB: 10, CDM: 5, CM: 0, CAM: 0, WING: 0, ST: 0 } as Record<string, number>,
+      /** 팀 트로피: 리그 1~4위 · 국내 컵 우승 · 챔스 [그 밖, 8강, 4강, 준우승, 우승]. 출전 비율 / fullShare 만큼 (최대 1) */
+      league: [14, 8, 5, 3] as readonly number[], cup: 4, ucl: [0, 3, 6, 10, 16] as readonly number[], fullShare: 0.8,
+      /** 챔스 시즌 최우수 선수 (47b) 이력서 ucl = (챔스 단계 점수 + uclIn) × 출전 비중 + 챔스 골 × uclGoal */
+      uclIn: 2, uclGoal: 1,
+      /** 대표팀 대회 (그 여름 대회 기록이 있는 나라): [8강, 4강, 준우승, 우승] */
+      wc: [2, 4, 7, 12] as readonly number[], continental: [0, 1, 3, 6] as readonly number[],
+      /** 결정적 순간 점수 (골 하나): 결승골 · 80분 뒤 동점 · 80분 뒤 역전/앞서는 골 · 해트트릭 · 결승골 도움. 경기 무게: 더비 +0.3 · 상위 6팀 상대 +0.2, 컵 단계 */
+      clutch: {
+        winner: 1, lateEqualizer: 1, lateGoAhead: 1.5, hatTrick: 1, winnerAssist: 0.4, lateMin: 80,
+        derby: 0.3, topOpp: 0.2, topRank: 6,
+        fa: { early: 1, semi: 1.6, final: 2.5 }, ucl: { group: 1.2, ko: [1.5, 1.7, 2], final: 3 },
+      },
+      /** 엔진 골 기록이 없을 때 골 하나당 결정적 순간 */
+      clutchPerGoal: 0.6,
+      /** 서사: 리그 득점 1위 · 시즌 기록(38경기 환산 recordGoals 골 이상) · 10대(≤19)·어린(≤21)·베테랑(≥34) · 약팀 돌풍(예상 순위보다 3계단 넘게 높음, 계단당, 최대) · 이적 첫 시즌 · 부상 복귀(8주+) */
+      story: { topScorer: 1, record: 2, recordGoals: 34, teen: 1, young: 0.5, veteran: 0.8, underdogPer: 0.4, underdogMax: 2, newClub: 0.5, comeback: 0.8, comebackWeeks: 8 },
+      /** 재능 = OVR + (21 − 나이) × talentAge */
+      talentAge: 1.5,
+    },
+    /**
+     * 기록 추정 (엔진 기록이 없을 때): 출전 비율 = share [선발, 벤치, 그 밖] × (0.88~1.05) (엔진 한 시즌 측정: 주전 0.95),
+     * 경기당 골·도움 = goals.rates[군] × (1 + (OVR − 팀 레이팅) × goals.ovrK, 0.5~1.8) × 팀 득점 비(0.5~1.8) × (0.7~1.3),
+     * 평균 평점 = ratingBase + (OVR − 팀 레이팅) × ratingRel + (OVR − 75) × ratingOvr + (팀 득실 비 − 1) × ratingTeam ± ratingJitter
+     */
+    estimate: { share: [0.95, 0.4, 0.06] as readonly number[],
+      /**
+       * C.81w: 출전 몫 분포 (포지션군 → [선발, 벤치, 그 밖](pickLineup) 각 [5, 25, 50, 75, 95%] 분위, 선수·시즌 시드 u 로 선형 보간). 옛 일괄 share [0.95, 0.4, 0.06] 은
+       * 벤치 전원이 후보 문턱(0.3)을 넘어 ST·WING 후보가 엔진보다 많고(팀당 2.1 대 1.7) FB·CM 은 적어(벤치·그 밖 출전 0.8·0.27 을 0.4·0.06 으로) 리그 × 포지션 평균이 어긋났다.
+       * 측정 = 같은 시드 전부 엔진 저장본 다른 리그 실제 출전 / 팀 경기 (scripts/diag/c81w-share.ts)
+       */
+      shareQ: {"GK":[[0.46,0.79,0.95,1,1],[0,0,0.04,0.18,0.53],[0,0,0,0,0.03]],"CB":[[0.53,0.76,0.84,0.89,0.97],[0.03,0.32,0.5,0.65,0.88],[0,0,0.03,0.2,0.52]],"FB":[[0.61,0.82,0.92,0.97,1],[0.32,0.63,0.8,0.89,0.97],[0,0.03,0.21,0.39,0.7]],"CDM":[[0.55,0.78,0.87,0.94,1],[0.03,0.33,0.58,0.78,0.93],[0,0,0.02,0.26,0.61]],"CM":[[0.61,0.87,0.93,0.97,1],[0.24,0.68,0.87,0.95,1],[0,0,0.13,0.42,0.76]],"CAM":[[0.66,0.87,0.92,0.97,1],[0.06,0.42,0.68,0.87,0.97],[0,0,0.03,0.16,0.57]],"WING":[[0.58,0.82,0.92,0.97,1],[0,0.22,0.61,0.85,0.97],[0,0,0,0.03,0.56]],"ST":[[0.5,0.74,0.84,0.91,0.97],[0,0.16,0.34,0.61,0.87],[0,0,0,0.05,0.39]]} as Record<string, readonly (readonly number[])[]>,
+      ratingBase: 6.62, ratingRel: 0.03, ratingOvr: 0.02, ratingTeam: 0.35, ratingJitter: 0.15, ratingMin: 6, ratingMax: 8.2,
+      /**
+       * C.81d '내 리그만 엔진': 내 리그는 엔진 기록, 다른 리그는 추정 기록이 한 이력서 표에 섞일 때 다른 리그 추정 평점을 엔진 척도로.
+       * C.81m: 일괄 −0.33 → 포지션군별 avg = ratingBase + (추정 − ratingBase) × mixedSpread + mixedShift + 정규 잡음 × mixedJitter.
+       * 측정(scripts/diag/c81m-*, 같은 시드 전부 엔진 10시즌 대 내 리그만 40시즌): 엔진은 포지션마다 평균이 다르고(CDM 5.6 ~ FB 6.6) 같은 OVR 에서도 시즌 평점이 퍼진다(잔차 0.3~0.56)
+       * — 추정은 포지션 차 없이 6.4~6.5, 잔차 0.17. 퍼짐 = 평점~OVR 기울기 비, 이동 = 평균 맞춤, 잡음 = 포지션별 상위 20명 평균 맞춤.
+       * 전부 엔진·전부 빠른 진행은 섞이지 않아 안 쓴다
+       */
+      mixedShift: { GK: -0.2, CB: -0.06, FB: 0.1, CDM: -0.81, CM: -0.8, CAM: -0.67, WING: -0.1, ST: -0.38 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 평점 퍼짐 (포지션군별) = ratingBase 중심으로 (avg − ratingBase) × mixedSpread (1 = 그대로) */
+      mixedSpread: { GK: 0.45, CB: 0.85, FB: 0.85, CDM: 1.15, CM: 1.12, CAM: 0.94, WING: 0.77, ST: 1.16 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 평점 잡음 (포지션군별 표준편차, 선수·시즌 시드) — 엔진은 같은 OVR 이라도 시즌 평점이 퍼진다 */
+      mixedJitter: { GK: 0.25, CB: 0.43, FB: 0.56, CDM: 0.72, CM: 0.44, CAM: 0.41, WING: 0.39, ST: 0.37 } as Record<string, number>,
+      /** C.81m: 섞인 표 추정 리그 실점 항목(def) 배수 — 빠른 진행 점수 확률은 상위 팀 독주가 엔진보다 커서 상위 팀 수비수 def 가 부푼다 (1 = 그대로) */
+      mixedDef: 0.67 },
+    /** 투표단 가중치 (이력서 항목 표준점수) · 노이즈(표준편차, 후보 안 종합 점수 표준편차 단위) · 성향 */
+    juries: {
+      journalist: { w: { out: 0.75, rat: 0.7, def: 0.4, tro: 2.6, nat: 0.9, clu: 0.9, sto: 0.8, fam: 0.3, tal: 0 }, noise: 0.6 },
+      players: { w: { out: 1, rat: 1.4, def: 0.9, tro: 0.5, nat: 0.3, clu: 0.4, sto: 0.1, fam: 0.1, tal: 0 }, noise: 0.45 },
+      coach: { w: { out: 1, rat: 1, def: 0.6, tro: 1, nat: 0.9, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 }, noise: 0.5 },
+      fan: { w: { out: 1.3, rat: 0.3, def: 0.1, tro: 0.6, nat: 0.5, clu: 0.8, sto: 0.3, fam: 1.4, tal: 0 }, noise: 0.6 },
+    } as Record<'journalist' | 'players' | 'coach' | 'fan', { w: Record<string, number>; noise: number }>,
+    /** 기자단: 그 상을 지난해 받은 선수 감점 (새 얼굴 선호). 감독·주장: 같은 리그·국적 가점. 팬: 공격수(ST·윙·CAM) 가점 (표준점수 단위) */
+    fatigue: 0.5, sameLeague: 0.15, sameNation: 0.15, fanAttacker: 0.25,
+    /**
+     * 상 정의 (데이터 표, 47b 상은 여기에 더한다): vote = 투표단 비율(없으면 formula 상), voters = 투표단마다 투표자 수, points = 순위별 점수,
+     * nominees = 후보 수(이력서 종합 상위), maxAge = 시즌 시작 나이 상한, europe = 골든부츠 표 리그만, groups = 포지션군, w = 가중치 덮어쓰기,
+     * wc = 월드컵 상(월드컵 대회 이력서로, 월드컵 해만), top = 최고 개인상(레전더리 조건 4a, 시즌당 최대 growth 의 topPerSeason),
+     * due = 발표 [월, 일] (시즌 끝나는 해, 없으면 시즌 끝 바로), xp = 순위별 XP, rep = 1위 위상, pick = 1위 카드 선택권 희귀도 비율 (발롱도르는 goals.awardPick).
+     * rep 은 모두 0: 발롱도르 +20 · 더 베스트 +10 · 그 밖 +5~8 이면 balance 가드 "레전더리 30세까지 900+" 가 10/48 = 0.208(≤ 0.2)로 시드 하나(legendary-26, 887 → 905)를 넘긴다
+     * (C.68a 코치 · C.74b 기록 · C.76d 대표팀과 같은 경계 시드). 0 이면 9/48 = 기준선 그대로 (`scripts/diag/c76n-legend.ts`). 발롱도르 위상은 레전드 배지 +30 으로
+     */
+    defs: {
+      ballonDor: { ko: '발롱도르', vote: { journalist: 1 }, voters: 100, points: [6, 4, 3, 2, 1], nominees: 30, due: [10, 28], nomineesDue: [8, 8], xp: [500, 180, 100], rep: 0 },
+      theBest: { ko: '더 베스트', vote: { coach: 0.5, journalist: 0.25, fan: 0.25 }, voters: 100, points: [5, 3, 1], nominees: 12, due: [12, 16], xp: [250, 90, 50], rep: 0, pick: { epic: 1 }, top: true },
+      kopa: { ko: '코파 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, maxAge: 21, youth: true, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 } },
+      yashin: { ko: '야신 트로피', vote: { journalist: 1 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['GK'], w: { out: 0, rat: 1.2, def: 1.6, tro: 1, nat: 0.5, clu: 0, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 }, top: true },
+      defender: { ko: 'UEFA 올해의 수비수', vote: { journalist: 0.5, coach: 0.5 }, voters: 60, points: [5, 3, 1], nominees: 10, groups: ['CB', 'FB', 'CDM'], europe: true, w: { out: 0.3, rat: 1.2, def: 1.6, tro: 1.3, nat: 0.5, clu: 0.3, sto: 0.3, fam: 0.2, tal: 0 }, due: [10, 28], xp: [150], rep: 0, pick: { epic: 1 }, top: true },
+      goldenBoy: { ko: '골든보이', vote: { journalist: 1 }, voters: 40, points: [5, 3, 1], nominees: 20, maxAge: 21, youth: true, europe: true, w: { out: 1, rat: 0.9, def: 0.4, tro: 0.6, nat: 0.4, clu: 0.6, sto: 0.6, fam: 0.2, tal: 1 }, due: [11, 18], xp: [150], rep: 0, pick: { epic: 1 } },
+      goldenBoot: { ko: '골든부츠', formula: 'boot', europe: true, xp: [150], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      muller: { ko: '게르트 뮐러 트로피', formula: 'goals', due: [10, 28], xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      // 월드컵 상 (월드컵이 열린 여름, 대회 끝 = 시즌 끝 바로): 대회 기록은 내 경기 엔진 + 다른 선수 = 나라 골·실점을 그 나라 대표팀 명단에 나눈 추정
+      wcBall: { ko: '월드컵 골든볼', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 10, w: { out: 1, rat: 1, def: 0.4, tro: 1.6, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [200], rep: 0, pick: { epic: 1 }, top: true },
+      wcBoot: { ko: '월드컵 골든부트', wc: true, formula: 'wcBoot', xp: [120], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      wcGlove: { ko: '월드컵 골든글러브', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [120], rep: 0, pick: { epic: 1 } },
+      wcYoung: { ko: '월드컵 영플레이어', wc: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 8, maxAge: 21, youth: true, w: { out: 1, rat: 1, def: 0.4, tro: 1, nat: 0, clu: 0.6, sto: 0, fam: 0.2, tal: 0.6 }, xp: [100], rep: 0, pick: { rare: 1 } },
+      // ── 47b (C.76t): 리그 · 시즌 중 상 ──
+      // 리그 상 (scope league = 고른 리그마다 따로, 결과 키 '상@리그'). PL 은 PFA(선수단) · FWA(기자단) 둘, 다른 리그는 리그 공식 1개(선수단 + 기자단).
+      // 리그 올해의 선수는 최고 개인상(topKey 같은 상은 한 시즌 둘 받아도 1). 시즌 끝 바로 발표, 보상 희귀 선택권
+      pfa: { ko: 'PFA 올해의 선수', scope: 'league', leagues: ['pl'], vote: { players: 1 }, wj: { players: { out: 1.2, rat: 1.1, def: 0.55, tro: 0.9, nat: 0, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 } }, voters: 100, points: [5, 3, 1], nominees: 6, xp: [150, 60, 30], rep: 0, pick: { rare: 1 }, top: true, topKey: 'lgPoty' },
+      fwa: { ko: 'FWA 올해의 선수', scope: 'league', leagues: ['pl'], vote: { journalist: 1 }, voters: 100, points: [5, 3, 1], nominees: 6, xp: [150, 60, 30], rep: 0, pick: { rare: 1 }, top: true, topKey: 'lgPoty' },
+      lgPoty: { ko: '올해의 선수', koLeague: true, scope: 'league', notLeagues: ['pl'], vote: { players: 0.5, journalist: 0.5 }, wj: { players: { out: 1.2, rat: 1.1, def: 0.55, tro: 0.9, nat: 0, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 } }, voters: 100, points: [5, 3, 1], nominees: 6, xp: [150, 60, 30], rep: 0, pick: { rare: 1 }, top: true, topKey: 'lgPoty' },
+      lgYoung: { ko: '영플레이어', koLeague: true, koByLeague: { pl: 'PFA 영플레이어' }, scope: 'league', vote: { players: 1 }, wj: { players: { out: 1.2, rat: 1.1, def: 0.55, tro: 0.9, nat: 0, clu: 0.6, sto: 0.2, fam: 0.2, tal: 0 } }, voters: 100, points: [5, 3, 1], nominees: 6, maxAge: 22, youth: true, xp: [100, 40, 20], rep: 0, pick: { rare: 1 } },
+      // 올해의 팀 (4-3-3 포지션 슬롯 투표 xiSlots, 선수단): 리그별 + FIFPRO 월드 11(전체, 더 베스트와 같이 12월). 보상 = 배지(올해의 팀 선정 횟수, 시상 화면 머리말)
+      toty: { ko: '올해의 팀', koLeague: true, koByLeague: { pl: 'PFA 올해의 팀' }, scope: 'league', xi: true, vote: { players: 1 }, voters: 60, xp: [0], rep: 0 },
+      fifpro: { ko: 'FIFPRO 월드 11', xi: true, vote: { players: 1 }, voters: 100, due: [12, 16], xp: [0], rep: 0 },
+      // 챔스 시즌 최우수 선수 (챔스에 나간 팀 선수, 감독 · 기자단): 챔스 성적(ucl = 단계 점수 × 출전 + 챔스 골) 중심. 시즌 끝(결승 뒤) 바로
+      uclBest: { ko: '챔스 시즌 최우수 선수', ucl: true, vote: { coach: 0.5, journalist: 0.5 }, voters: 60, points: [5, 3, 1], nominees: 8, w: { out: 0.6, rat: 0.7, def: 0.3, tro: 0, ucl: 2.4, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [150, 60, 30], rep: 0, pick: { rare: 0.5, epic: 0.5 } },
+      // 대륙컵 상 (유로 · 코파 · 아시안컵 · 네이션스컵 · 골드컵 — 내 나라 대륙 대회가 열린 여름, 월드컵 상과 같은 대회 이력서)
+      contBall: { ko: '골든볼', cont: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 10, w: { out: 1, rat: 1, def: 0.4, tro: 1.6, nat: 0, clu: 0.8, sto: 0.2, fam: 0.3, tal: 0 }, xp: [120], rep: 0, pick: { rare: 1 } },
+      contBoot: { ko: '골든부트', cont: true, formula: 'wcBoot', xp: [80], rep: 0, pick: { rare: 1 } },
+      contGlove: { ko: '골든글러브', cont: true, vote: { journalist: 1 }, voters: 50, points: [5, 3, 1], nominees: 6, groups: ['GK'], w: { out: 0, rat: 1, def: 1.6, tro: 1.4, nat: 0, clu: 0, sto: 0, fam: 0.2, tal: 0 }, xp: [80], rep: 0, pick: { rare: 1 } },
+      // 이달의 선수 (리그별 매달, 기자단 + 팬): 그달 경기(골 · 도움 · 결정적 순간은 엔진 기록, 없으면 시즌 비율 × 그달 팀 득점) + 팀 그달 승점. 보상 XP 만. 시상 표에는 넣지 않고 globalAwards.months
+      potm: { ko: '이달의 선수', monthly: true, scope: 'league', vote: { journalist: 0.5, fan: 0.5 }, voters: 40, points: [3, 2, 1], nominees: 6, w: { out: 1.6, rat: 0.6, def: 0.5, tro: 0.8, nat: 0, clu: 0.8, sto: 0, fam: 0.4, tal: 0 }, xp: [60], rep: 0 },
+    } as Record<string, AwardDef>,
+    /** 역대 수상자: 가장 최근 시즌은 발롱도르 후보 전체 · 다른 상 keepLatest 줄, 그 앞 시즌은 상마다 keepRows 줄 */
+    keepRows: 3, keepLatest: 5,
+    /** NPC 위상 (world.standing 수상 개수): 발롱도르는 이만큼, 나머지 개인상은 1개 */
+    standingBallonDor: 2,
+    /** 파워 랭킹 기사: 매달 1일, 리그 이 라운드를 지난 뒤부터 */
+    powerFromRound: 8,
+    /** 올해의 팀 4-3-3 슬롯 [이름, 포지션군, 자리 수] · 슬롯마다 후보 = 자리 수 × xiPool (선수단 종합 점수 상위) */
+    xiSlots: [['GK', ['GK'], 1], ['FB', ['FB'], 2], ['CB', ['CB'], 2], ['MID', ['CDM', 'CM', 'CAM'], 3], ['FWD', ['WING', 'ST'], 3]] as readonly (readonly [string, readonly string[], number])[],
+    xiPool: 4,
+    /** 이달의 선수: 그달 리그 경기가 팀 수 × potmMinRounds 경기(라운드) 이상인 달만 · 그달 추정 출전 potmMinApps 이상 · 기록은 지난 시즌까지 남김 */
+    potmMinRounds: 2, potmMinApps: 2, potmKeepSeasons: 2,
+    /** 이달의 선수: 지난달 그 리그 수상자 감점 (모든 투표단, 표준점수 단위 — 한 선수 독식 방지) · 홈 레이스 칩은 이 순위 안일 때만 */
+    potmFatigue: 1.6, raceChipMax: 30,
+  },
+  /**
    * 챔스/컵 (18.7, pending 108, 부록 C.67). 국내 컵(FA컵) = 단판 녹아웃 32팀(리그 20 + 하부 가상 12).
    * 단계 날짜 = 목표일([다음 해?, 월, 일])에 가장 가까운 토요일부터 찾아, 리그 경기와 minGap 일 이상 떨어진 첫 날 (토·일 → 그 주 화·수 → 앞뒤 주)
    */
@@ -1464,6 +1847,8 @@ export const BALANCE = {
      */
     ucl: {
       firstSeason: ['mci', 'mun', 'tot', 'liv'] as readonly string[],
+      /** 리그별 챔스 자리 수 (C.81q, 2018-19 실제 배정): 내 리그·고른 다른 리그 모두 지난 시즌 순위로 자른다. 표에 없는 리그 = 외부 명단 클럽 수 */
+      slots: { pl: 4, laliga: 4, seriea: 4, bundesliga: 4, ligue1: 3 } as Readonly<Record<string, number>>,
       groupWeeks: [[0, 9, 18], [0, 10, 2], [0, 10, 23], [0, 11, 6], [0, 11, 27], [0, 12, 11]] as [number, number, number][],
       /** 16강·8강·4강 [1차전, 2차전] 주 */
       koWeeks: [[[1, 2, 12], [1, 3, 5]], [[1, 4, 9], [1, 4, 16]], [[1, 4, 30], [1, 5, 7]]] as [number, number, number][][],
@@ -1478,7 +1863,7 @@ export const BALANCE = {
     cupForm: true,
     cupTrust: true,
     /** 업적 XP (5.3): 챔스 우승/준우승/4강/8강, 국내 컵 우승, 트레블(리그 + 국내 컵 + 챔스) */
-    xp: { uclWin: 400, uclFinal: 250, uclSemi: 150, uclQuarter: 80, faWin: 150, treble: 500 },
+    xp: { uclWin: 360, uclFinal: 225, uclSemi: 135, uclQuarter: 72, faWin: 150, treble: 500 },
     /** 팀마다 경기 사이 최소 간격 (일, 3 = 이틀 쉼). 자리가 없으면 minGapLoose */
     minGap: 3, minGapLoose: 2,
     /** 승부차기 간이 판정: 홈(또는 첫 팀) 승률 = 0.5 + 레이팅 차 × ratingK, [min, max] */
@@ -1486,9 +1871,86 @@ export const BALANCE = {
     /** 내 팀 없는 경기 득점자 가중치 (포지션군), 도움 확률·가중치 */
     scorerWeight: { GK: 0, CB: 0.6, FB: 0.5, CDM: 0.6, CM: 1.4, CAM: 2.6, WING: 3, ST: 5 },
     assistChance: 0.72,
-    /** 득점자 후보 = 로스터 OVR 상위 n 명 (주전 + 자주 뛰는 교체) */
+    /** 옛 다른 리그 득점자 후보 = 로스터 OVR 상위 n 명 (C.81q 부터 otherScorers. 진단 c77w 만) */
     squadTop: 14,
     assistWeight: { GK: 0.05, CB: 0.4, FB: 1.6, CDM: 1, CM: 2.4, CAM: 3.6, WING: 3.4, ST: 1.8 },
+  },
+  /**
+   * 다른 리그 빠른 진행 득점자·도움 추첨 (C.81q, otherLeagues.ts): 그 경기 골마다 팀 로스터에서 가중 = 포지션군 × 출전 몫(pickLineup 선발·벤치·그 밖 — 시상 추정 출전 share 와 같은 구분)
+   * × exp((OVR − 선발 평균 OVR) × ovrK). 도움은 assistChance 확률로 득점자 뺀 나머지에서 assistWeight · ovrKAssist.
+   * 맞춤 = 같은 시드 전부 엔진 저장본의 리그 × 포지션군 시즌 골·도움 평균과 리그 상위 10명 (scripts/diag/c81q-*). 옛(C.76c): OVR 상위 14명 · 컵 가중
+   */
+  otherScorers: {
+    scorerWeight: { GK: 0, CB: 0.691, FB: 0.395, CDM: 0.678, CM: 1.545, CAM: 3.275, WING: 3.075, ST: 8.035 } as Record<string, number>,
+    assistWeight: { GK: 0.04, CB: 0.159, FB: 0.599, CDM: 1.336, CM: 2.155, CAM: 3.096, WING: 3.233, ST: 6.259 } as Record<string, number>,
+    assistChance: 0.732,
+    share: [0.95, 0.4, 0.06] as readonly number[],
+    /** C.81w: 출전 몫 = awards.estimate.shareQ 평균(포지션군 × 선발·벤치·그 밖) × shareK[구분] (없으면 옛 share) */
+    shareK: [1, 1, 1] as readonly number[] | undefined,
+    ovrK: 0.0851,
+    ovrKAssist: 0.1198,
+    /** C.81w: 리그 × 포지션군 [골, 도움] 가중 배수 (빅5 = 리그 id, 그 밖 리그 = rest, 없으면 1) — 같은 시드 전부 엔진 리그 × 포지션 평균 맞춤 */
+    leagueMul: { pl: { CB: [0.869, 1], FB: [0.917, 0.676], CDM: [0.702, 1.063], CM: [1.073, 1.109], CAM: [1.032, 1.077], WING: [0.817, 0.936], ST: [0.996, 1.141] }, laliga: { CB: [1.008, 1], FB: [0.97, 0.994], CDM: [0.889, 1.088], CM: [0.917, 1.041], CAM: [1.053, 1.147], WING: [1.123, 1.098], ST: [0.943, 1.047] }, seriea: { CB: [0.923, 1], FB: [0.983, 1.229], CDM: [1.243, 1.294], CM: [1.012, 1.038], CAM: [0.92, 1.021], WING: [0.966, 0.987], ST: [0.95, 0.885] }, ligue1: { CB: [0.942, 1], FB: [1.003, 1.059], CDM: [1.056, 0.92], CM: [1.158, 1.14], CAM: [1.008, 0.993], WING: [1.005, 1.016], ST: [1.072, 1.145] }, rest: { CB: [0.995, 1], FB: [0.868, 0.885], CM: [0.709, 0.629], CAM: [0.763, 0.726], WING: [0.777, 0.717], ST: [0.763, 0.678], CDM: [0.701, 0.707] }, bundesliga: { CB: [0.905, 1], FB: [1.114, 1.067], CDM: [1.327, 1.146], CM: [1.159, 1.218], CAM: [1.185, 1.171], WING: [1.262, 1.27], ST: [1.201, 1.201] } } as Record<string, Record<string, readonly number[]>>,
+    /** C.81w: 골 OVR 가중의 (OVR − 선발 평균) 상한 — 스타 몰아주기(득점왕 쏠림) 막기 (없으면 상한 없음) */
+    relCap: 5 as number | undefined,
+    /** C.81w: 빠른 진행 다른 리그 점수의 레이팅 차 효과 배율 (1 = 내 리그 빠른 진행과 같음) — 상위 팀 독주를 엔진에 맞춤 (빅5 1위 팀 경기당 득점 2.75 → 2.52, 엔진 2.52) */
+    diffScale: 0.827 as number | undefined,
+    /** 리그 득점 배율 (빠른 진행 다른 리그 점수의 기대 골 ×): 같은 시드 전부 엔진 리그별 경기당 골 ÷ 빠른 진행 (없는 리그 = 1). C.81w diffScale 뒤 같은 총 골로 재조정 */
+    goalScale: { pl: 0.963, laliga: 1.027, seriea: 0.938, bundesliga: 0.915, ligue1: 0.893, championship: 0.737 } as Record<string, number>,
+  },
+  // ── 대표팀 · 국제 대회 (10번·18.12, 45c단계, 부록 C.76d) ──
+  national: {
+    /**
+     * 소집 확률 (18.12): 위상 티어별 (스페셜 30% · 탑클래스 70% · 월드클래스 이상 95%, 그 아래 일반은 낮게).
+     * 대표팀 레이팅보다 내 OVR 이 높으면 1점당 + ovrBonus (약한 나라는 잘하는 선수를 더 부른다), 최대 max
+     */
+    callup: { normal: 0.04, special: 0.3, topClass: 0.7, worldClass: 0.95, legendary: 0.95, ovrBonus: 0.03, max: 0.97, minAge: 17 },
+    /** A매치 주간 = 리그 A매치 휴식기 주말(토) 기준: 소집 발표 announce 일 전, 경기 [금, 화] = 토요일 + 이 날 */
+    window: { announce: 5, matchDays: [-1, 3] as readonly number[] },
+    /** 비시즌 6월 A매치 (대회가 없는 해): 평가전 n 경기, 날짜 = 리그 최종 라운드 + 이 날 */
+    june: { matches: 2, days: [19, 23] as readonly number[] },
+    /** 대표팀 선발: 내 OVR − 대표팀 레이팅 차 1점당 + startK, 기준 startBase, [startMin, startMax]. 선발이 아니면 교체 subChance (subMinutes 분) */
+    startBase: 0.55, startK: 0.07, startMin: 0.1, startMax: 0.95, subChance: 0.6, subMinutes: [15, 35] as readonly number[],
+    /** 내가 뛰면 대표팀 전력 + (내 OVR − 레이팅) / myShare (빠른 판정, 양수만) */
+    myShare: 11,
+    /** 평가전 상대: 대표팀 레이팅 ± friendlyGap 안에서 시드로 */
+    friendlyGap: 8,
+    /** 대회 해 전력 흔들림 (표준편차, 대회마다 시드) · 예선 통과 판정 흔들림 */
+    formSd: 1.5, qualSd: 3,
+    /**
+     * 경기 XP 배율: 컵 경기와 같은 규칙 (리그 경기 XP × matchXpScale × 이 값, C.67 성장 가드). 업적 XP 는 위상 증가에 넣지 않는다.
+     * 회귀 가드는 대표팀 끔으로 판정 (scripts/balance.ts NATIONAL, C.76d — 레전더리 30세 900+ 경계 시드 하나), 켬은 측정 줄
+     */
+    matchXpMul: 0.35,
+    /** 업적 XP (18.12): 월드컵 우승/준우승/4강/8강, 대륙컵 우승 */
+    xp: { wcWin: 600, wcFinal: 350, wcSemi: 200, wcQuarter: 100, continentalWin: 250 },
+    /** 승부차기 간이 판정 (컵과 같은 식) */
+    pens: { ratingK: 0.01, min: 0.3, max: 0.7 },
+    /**
+     * 대회 (실제 주기 근사, 여름 = 그해 6~7월 · 시즌 끝 뒤): from 해부터 every 년마다 + extra 해. teams 참가 · groups 조(4팀 1회전) →
+     * 녹아웃 ko 팀 (조 1·2위 + 성적 좋은 3위). 참가국 = 대륙 레이팅 + 흔들림 상위 (월드컵은 대륙별 quota)
+     */
+    tournaments: {
+      wc: { confed: null, from: 2022, every: 4, extra: [] as readonly number[], teams: 32, groups: 8, ko: 16 },
+      euro: { confed: 'UEFA', from: 2020, every: 4, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      copa: { confed: 'CONMEBOL', from: 2024, every: 4, extra: [2019, 2021] as readonly number[], teams: 12, groups: 3, ko: 8 },
+      asian: { confed: 'AFC', from: 2019, every: 4, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      afcon: { confed: 'CAF', from: 2019, every: 2, extra: [] as readonly number[], teams: 24, groups: 6, ko: 16 },
+      gold: { confed: 'CONCACAF', from: 2019, every: 2, extra: [] as readonly number[], teams: 16, groups: 4, ko: 8 },
+      ofc: { confed: 'OFC', from: 2024, every: 4, extra: [] as readonly number[], teams: 4, groups: 1, ko: 2 },
+    },
+    /** 월드컵 대륙별 본선 자리 (합 32, 약식) */
+    wcQuota: { UEFA: 13, CONMEBOL: 5, AFC: 5, CAF: 5, CONCACAF: 4, OFC: 0 },
+    /** 대회 경기 날짜: 리그 최종 라운드 + startAfter 일부터 조별 gap 일 간격, 녹아웃 koGap 일 간격 */
+    startAfter: 21, gap: 4, koGap: 4,
+    /** 대회 소집일 = 첫 조별 경기 campDays 일 전 (C.81l: 소집되면 클럽 시즌 끝 → 휴가 → 소집일부터 대표팀 훈련·경기를 달력 위에서 치른다) */
+    campDays: 7,
+    /** 내 나라가 떨어진 뒤 남은 대회 경기를 기다리는 최대 날 (C.81v): 마지막 대회 경기가 내 마지막 경기 + waitAfterOut 일 안이면 그 날짜에 진행·소식(휴가), 넘으면 그날 하루 끝에 몰아서(소식 날짜는 경기 날짜) */
+    waitAfterOut: 18,
+    /** 대회 소집은 대회 직전 위상으로 한 번 (확률은 callup 과 같고 + tournamentBonus) */
+    tournamentBonus: 0.05,
+    /** 세이브에 남기는 지난 대회 수 (조·대진 표) */
+    keepTournaments: 6,
   },
   // ── 개인 재정 (19번, 5-7 a, C.68a) ──
   /**
@@ -1629,6 +2091,83 @@ export const BALANCE = {
       london: [0.85, 0.9, 1.4, 0.7], south: [0.95, 1.4, 1.1, 0.5], midlands: [1, 0.9, 1, 1.1], northwest: [1.3, 1.1, 0.7, 1.1],
       northeast: [0.95, 1.3, 0.5, 1.5], yorkshire: [1.1, 1.1, 0.7, 1.4], wales: [1.35, 1.3, 0.7, 0.9], europe: [1, 1, 1.2, 1],
     } as Record<string, [number, number, number, number]>,
+    /**
+     * 나라·지역 기후 (부록 C.79p): 잉글랜드·웨일스 밖 구단의 월별 가중을 실제 기후 평년값에서 만든다 (위 month·region 은 잉글랜드 전용, 그대로).
+     * normals = 대표 관측소 월 평년값 [1~12월]: hi 평균 최고기온 °C, lo 평균 최저기온 °C, pd 강수일, unit = 강수일 기준 mm, sun 월 일조 시간.
+     * 출처 = 영어 위키백과 각 도시 기후 표(Weather box, 2026-10-30 조회)와 그 원 출처(각국 기상청·NOAA 등). 남반구는 관측값 그대로라 계절이 반대로 나온다.
+     * 환산 (model): 비 = rainK × 강수일(≥1 mm 환산)/월 일수 × 100 · 폭염 = heatK × (hi − heatT)+ · 눈·한파 = coldK × (coldT − lo)+ (각각 cap 까지) ·
+     * 강풍 = 잉글랜드 month 의 강풍 가중 (평년값 표에 바람 일수가 없어서, 남반구는 6개월 밀어서) · 나머지(최소 minRest)를 맑음:흐림 =
+     * f:(1−f) 로 나눔, f = sunBase + sunK × 하루 일조 시간 (sunMax 까지). 상수는 런던 히스로 평년값이 위 잉글랜드 month 표와 비슷해지게 맞췄다.
+     * 강수일 기준 환산 = 1 − unitK × log10(1 / unit) (unitK = 베를린 ≥0.1 mm 연 162일 대 ≥1 mm 112일 → 0.31)
+     */
+    climate: {
+      model: { rainK: 0.75, heatT: 18, heatK: 2.2, coldT: 5.5, coldK: 3.5, cap: 60, minRest: 15, sunBase: 0.3, sunK: 0.05, sunMax: 0.85, unitK: 0.31 },
+      normals: {
+      // 런던 히스로 · London 기후 표 · Met Office 1991–2020 (공식 보정용, 잉글랜드 경기에는 안 씀)
+      calLondon: { hi: [8.4, 9, 11.7, 15, 18.4, 21.6, 23.9, 23.4, 20.2, 15.8, 11.5, 8.8], lo: [2.7, 2.7, 4.1, 6, 9.1, 12, 14.2, 14.1, 11.6, 8.8, 5.3, 3.1], pd: [11.5, 9.5, 8.5, 8.8, 8, 8.3, 7.9, 8.4, 7.9, 10.8, 11.2, 10.8], unit: 1, sun: [61.1, 78.8, 124.5, 176.7, 207.5, 208.4, 217.8, 202.1, 157.1, 115.2, 70.7, 55] },
+      // 빌바오 공항 · Bilbao · AEMET 1991–2020 (강수일 ≥1 mm, AEMET 기준)
+      spain_n: { hi: [13.5, 14.2, 16.6, 18.1, 21, 23.5, 25.4, 26.3, 24.5, 21.5, 16.6, 14.1], lo: [5.3, 5.1, 6.7, 8.1, 11, 13.8, 15.8, 16.1, 13.9, 11.6, 8.3, 6.1], pd: [12.8, 11.1, 10.5, 12, 10.3, 7.2, 7.4, 7.4, 8.9, 10.7, 13.7, 12.4], unit: 1, sun: [81, 96, 136, 144, 177, 180, 186, 183, 162, 130, 84, 81] },
+      // 마드리드 레티로 공원 · Madrid · AEMET 1991–2020 (일조 1981–2010)
+      spain: { hi: [10, 12.2, 16.2, 18.9, 23.2, 28.9, 32.8, 32, 26.5, 19.7, 13.5, 10.3], lo: [3, 3.7, 6.3, 8.2, 11.9, 16.5, 19.5, 19.3, 15.5, 11.1, 6.4, 3.7], pd: [5.5, 5.1, 5.4, 6.7, 6.8, 3.3, 1.5, 1.5, 3.5, 7.2, 6.7, 5.9], unit: 1, sun: [149, 158, 211, 230, 268, 315, 355, 332, 259, 199, 144, 124] },
+      // 밀라노 리나테 공항 · Template:Milan weatherbox · NOAA NCEI 1991–2020
+      italy_n: { hi: [7.3, 10, 15.5, 19.3, 23.9, 28.1, 30.7, 29.9, 25.5, 19, 12.4, 7.4], lo: [-0.4, 0.6, 4.4, 8.4, 12.8, 17.2, 19.3, 18.8, 14.9, 10.2, 5.3, 0.6], pd: [4.7, 4.5, 5.4, 7.2, 8.4, 6.6, 4.5, 5.5, 5.1, 6.6, 8.3, 5.7], unit: 1, sun: [101.4, 127.7, 188.5, 197.4, 236.3, 269.6, 312.2, 262.3, 199.3, 142.5, 95.1, 85.1] },
+      // 로마 우르베 공항 · Rome · 1991–2020
+      italy: { hi: [12.6, 13.8, 16.8, 20, 24.8, 29.5, 32.6, 32.7, 27.9, 22.8, 17.1, 13.2], lo: [3.2, 3.4, 5.6, 8.3, 12.5, 16.7, 19.3, 19.5, 15.9, 12.1, 7.7, 4.2], pd: [7.5, 7.4, 6.9, 7.4, 5.5, 3.4, 2.2, 2.2, 6, 7.3, 8.8, 9.4], unit: 1, sun: [155.9, 171.9, 203.1, 221.1, 276.5, 298.8, 337.6, 320.2, 237.9, 200.6, 153.3, 146.9] },
+      // 프랑크푸르트 공항 · Frankfurt · DWD 1991–2020 (강수일 ≥0.1 mm)
+      germany: { hi: [4.9, 6.6, 11.4, 16.5, 20.4, 23.9, 26.1, 25.7, 20.8, 14.8, 8.9, 5.5], lo: [0.5, 0.4, 2.2, 5.4, 9.3, 12.8, 14.8, 14.4, 10.6, 6.7, 3.2, 0.4], pd: [15.2, 13.5, 13.5, 12.3, 13.5, 12.3, 13.9, 12.8, 11.6, 14.2, 15, 16.4], unit: 0.1, sun: [52, 79, 136, 192, 219, 227, 235, 225, 165, 104, 51, 40] },
+      // 파리 르부르제 공항 · Climate of Paris · NOAA
+      france: { hi: [6.5, 7.6, 10.6, 14.2, 17.9, 21.4, 23.6, 23.4, 20.9, 16.4, 10, 7], lo: [1.3, 1.5, 3.1, 5, 8.3, 11.2, 12.5, 12.7, 11, 7.7, 3.7, 1.9], pd: [10, 10, 11, 9, 10.5, 9, 7.5, 8, 8, 9, 10, 10], unit: 1, sun: [55.6, 87.5, 129.4, 172.8, 201.4, 218.8, 239.1, 221.1, 172.3, 125.9, 75.2, 50.6] },
+      // 마르세유 마리냔 공항 · Marseille · Météo-France 1991–2020
+      france_s: { hi: [11.8, 12.8, 16.4, 19.3, 23.5, 27.9, 30.7, 30.5, 25.9, 21.3, 15.7, 12.4], lo: [3.6, 3.7, 6.5, 9.4, 13.3, 17.2, 19.7, 19.4, 15.9, 12.6, 7.7, 4.4], pd: [5.1, 4.6, 4.2, 5.8, 4.4, 2.8, 1.4, 2.7, 4.8, 5.9, 7, 4.7], unit: 1, sun: [147.9, 173.1, 234.7, 250.8, 298.6, 337.8, 372.2, 333.8, 263.7, 196.1, 150.8, 138.1] },
+      // 암스테르담 스히폴 공항 · Amsterdam · KNMI 1991–2020
+      netherlands: { hi: [6.2, 6.9, 10.1, 14.3, 17.8, 20.3, 22.5, 22.4, 19.2, 14.7, 10, 6.9], lo: [1.2, 1, 2.8, 5.2, 8.6, 11.3, 13.5, 13.4, 11, 7.7, 4.5, 1.5], pd: [12.2, 10.8, 9.7, 8.6, 8.9, 9.7, 10.9, 11.6, 10.9, 12.4, 13.4, 14.1], unit: 1, sun: [69, 94.3, 146, 197.7, 230.7, 217.2, 225.4, 203.5, 154.2, 116.9, 66.8, 58.2] },
+      // 포르투 세하 두 필라르 · Porto · Météo Climat 1991–2020 (일조는 퐁타이냐스 1961–1990)
+      portugal: { hi: [13.9, 15.4, 17.8, 18.3, 20.5, 23.5, 25.1, 25.6, 23.6, 20.6, 16.8, 16.8], lo: [6.2, 6.5, 8.8, 10.4, 13.3, 15.4, 17, 17, 15.2, 12.8, 9.7, 7.6], pd: [10.6, 8.7, 7.5, 9.1, 9.5, 5.2, 2.5, 2.9, 7.4, 11.9, 10.7, 11.2], unit: 1, sun: [124, 129, 192, 217, 258, 274, 308, 295, 224, 184, 139, 124] },
+      // 리야드 구공항 · Riyadh · NOAA 1991–2020
+      saudi: { hi: [20.1, 23.6, 27.8, 33.6, 39.4, 42.7, 43.4, 43.6, 40.4, 35.2, 27.5, 22.2], lo: [9.2, 11.5, 15.2, 20.7, 26.1, 28.4, 29.4, 29.5, 26.2, 21.3, 15.5, 10.8], pd: [2.1, 1, 2.7, 3.4, 0.8, 0, 0, 0.1, 0, 0.3, 1.7, 1.9], unit: 1, sun: [252.1, 233.5, 252.1, 259.4, 312.7, 355.1, 354.2, 347.8, 324.2, 309.5, 262.5, 244.2] },
+      // 제다 · Jeddah · NOAA 1991–2020
+      saudi_w: { hi: [28.8, 29.8, 31.7, 34.5, 37.1, 38.3, 39.4, 38.7, 37.4, 36.6, 33.3, 30.6], lo: [18.8, 19, 20.2, 22.8, 25, 25.8, 27.6, 28.6, 27.3, 25, 22.9, 20.6], pd: [1.1, 0.3, 0.4, 0.2, 0.1, 0, 0.1, 0.2, 0, 0.4, 1.9, 0.7], unit: 1, sun: [236, 232.2, 261, 273.7, 300.8, 295.8, 300.3, 278.3, 252.7, 265.5, 246.1, 236.2] },
+      // 서울 · Template:Seoul weatherbox · 기상청 1991–2020
+      korea: { hi: [2.1, 5.1, 11, 17.9, 23.6, 27.6, 29, 30, 26.2, 20.2, 11.9, 4.2], lo: [-5.5, -3.2, 1.9, 8, 13.5, 18.7, 22.3, 22.9, 17.7, 10.6, 3.5, -3.4], pd: [3.3, 3.4, 4.7, 6.5, 6.8, 7.6, 13.3, 11.8, 6.5, 4.8, 6.4, 4.2], unit: 1, sun: [169.6, 170.8, 198.2, 206.3, 223, 189.1, 123.6, 156.1, 179.7, 206.5, 157.3, 162.9] },
+      // 도쿄 기타노마루 공원 · Tokyo · JMA 1991–2020 (강수일 ≥0.5 mm)
+      japan: { hi: [9.8, 10.9, 14.2, 19.4, 23.6, 26.1, 29.9, 31.3, 27.5, 22, 16.7, 12], lo: [1.2, 2.1, 5, 9.8, 14.6, 18.5, 22.4, 23.5, 20.3, 14.8, 8.8, 3.8], pd: [5.3, 6.1, 10.3, 10.9, 11.1, 12.8, 12, 9.4, 12.3, 11.8, 8.2, 5.8], unit: 0.5, sun: [192.6, 170.4, 175.3, 178.8, 179.6, 124.2, 151.4, 174.2, 126.7, 129.4, 149.8, 174.4] },
+      // 상파울루 미란치 지 산타나 · São Paulo · INMET (일조 1981–2010)
+      brazil: { hi: [28.6, 29, 28, 26.6, 23.4, 22.9, 22.9, 24.5, 25.2, 26.5, 26.9, 28.3], lo: [19.4, 19.6, 18.9, 17.5, 14.7, 13.5, 12.8, 13.3, 14.9, 16.5, 17.3, 18.7], pd: [17, 14, 13, 6, 6, 5, 4, 4, 7, 10, 11, 13], unit: 1, sun: [139.1, 153.5, 161.6, 169.3, 167.6, 160, 169, 173.1, 144.5, 157.9, 152.8, 145.1] },
+      // 리우데자네이루 사우지 · Rio de Janeiro · INMET 1981–2010 (강수·일조 1961–1990)
+      brazil_n: { hi: [31.5, 32.2, 31.2, 30, 27.8, 26.7, 26.4, 27, 26.7, 28.2, 29.4, 30.3], lo: [24.1, 24.4, 24, 23, 20.7, 19.3, 18.7, 19.1, 19.6, 21.1, 22.3, 23.2], pd: [11, 7, 8, 9, 6, 6, 4, 5, 7, 9, 10, 11], unit: 1, sun: [211.9, 201.3, 206.4, 181, 186.3, 175.1, 188.6, 184.8, 146.2, 152.1, 168.5, 179.6] },
+      // 시카고 오헤어 공항 · Template:Chicago weatherbox · NOAA 1991–2020 (강수일 ≥0.01 in)
+      usa: { hi: [-0.2, 2.1, 8.3, 15, 21.4, 26.9, 29.2, 28.1, 24.2, 17.1, 9.1, 2.6], lo: [-7.3, -5.7, -0.6, 4.6, 10.3, 16, 19.1, 18.4, 13.9, 7.4, 1.2, -4.2], pd: [11, 9.4, 10.8, 12.3, 12.5, 11.1, 9.7, 9.4, 8.5, 10.5, 10, 10.6], unit: 0.25, sun: [135.8, 136.2, 187, 215.3, 281.9, 311.4, 318.4, 283, 226.6, 193.2, 113.3, 106.3] },
+      // 휴스턴 부시 공항 · Template:Houston weatherbox · NOAA 1991–2020 (강수일 ≥0.01 in, 일조 1961–1990)
+      usa_s: { hi: [17.7, 19.9, 23.3, 26.7, 30.5, 33.5, 34.7, 34.9, 32.4, 28.2, 22.6, 18.5], lo: [6.5, 8.7, 12, 15.4, 19.9, 23.2, 24.3, 24.1, 21.4, 16.1, 10.8, 7.6], pd: [10, 8.8, 8.8, 7.3, 8.6, 10, 9.1, 8.5, 8.4, 7.7, 7.6, 9.6], unit: 0.25, sun: [143.4, 155, 192.5, 209.8, 249.2, 281.3, 293.9, 270.5, 236.5, 228.8, 168.3, 148.7] },
+      // 상트페테르부르크 · Template:Saint Petersburg weatherbox · Pogoda.ru.net 1991–2020 (비 온 날, 양 무관)
+      russia: { hi: [-2.5, -2.4, 2.3, 9.5, 16.3, 20.5, 23.3, 21.4, 15.9, 8.7, 2.8, -0.5], lo: [-7.2, -7.6, -4, 1.7, 7.2, 12.2, 15.3, 13.9, 9.4, 4.1, -0.9, -4.5], pd: [9, 7, 10, 13, 16, 18, 17, 17, 20, 20, 16, 10], unit: 0.1, sun: [18.9, 45.5, 120.5, 177.9, 255.6, 254.3, 267.7, 228.1, 134.8, 61.8, 23, 8.1] },
+      // 이스탄불 키레치부르누 · Istanbul · 1991–2020 (강수일·일조 1981–2010, ≥0.1 mm)
+      turkey: { hi: [8.8, 9.4, 12, 16.1, 21, 25.7, 28, 28.2, 24.6, 19.9, 15, 10.7], lo: [3.6, 3.5, 4.9, 8.1, 12.8, 17.4, 20.3, 21.2, 17.4, 13.6, 9.2, 5.5], pd: [16.9, 15.2, 13.2, 10, 7.4, 7, 4.7, 5.1, 8.1, 12.3, 13.9, 17.5], unit: 0.1, sun: [68.2, 89.6, 142.6, 180, 248, 297.6, 319.3, 288.3, 234, 158.1, 93, 62] },
+      // 글래스고 페이즐리 · Template:Glasgow weatherbox · Met Office 1991–2020
+      scotland: { hi: [7.2, 7.8, 9.8, 13, 16.1, 18.4, 19.8, 19.3, 16.7, 13, 9.6, 7.4], lo: [2.1, 2.2, 3.2, 5.1, 7.4, 10.3, 12.1, 11.9, 9.9, 6.8, 4.2, 2.1], pd: [17.7, 14.7, 13.8, 12.3, 12.1, 12.1, 13.3, 13.9, 13.9, 16.2, 17.3, 16.9], unit: 1, sun: [38.6, 67.3, 104.3, 141.4, 186.8, 155.6, 151.5, 145.5, 114.6, 86.3, 53.9, 33.7] },
+      // 하르키우 (샤흐타르 2018-19 홈) · Kharkiv · Pogoda.ru.net 1991–2020 (비 온 날, 양 무관)
+      ukraine: { hi: [-2.1, -0.8, 5.2, 14.7, 21.4, 25.2, 27.4, 26.8, 20.5, 12.6, 4.3, -0.7], lo: [-6.8, -6.6, -1.9, 4.8, 10.7, 14.7, 16.6, 15.4, 10.2, 4.4, -0.8, -5.1], pd: [10, 8, 10, 13, 14, 15, 13, 10, 12, 13, 13, 12], unit: 0.1, sun: [44, 68, 131, 187, 267, 289, 308, 286, 205, 123, 55, 36] },
+      // 브뤼셀 위클 · Brussels · RMI 1991–2020 (강수일 ≥0.1 mm)
+      belgium: { hi: [6.1, 7.1, 10.9, 15, 18.4, 21.2, 23.2, 23, 19.5, 14.9, 9.9, 6.6], lo: [1.4, 1.5, 3.5, 6, 9.2, 12, 14.1, 13.9, 11.3, 8.1, 4.6, 2.1], pd: [18.9, 16.9, 15.7, 13.1, 14.7, 14.1, 14.3, 14.3, 14.1, 16.1, 18.3, 19.4], unit: 0.1, sun: [59.1, 72.9, 125.8, 171.3, 198.3, 199.3, 203.2, 192.4, 154.5, 112.6, 65.8, 48.6] },
+      } as Record<string, { hi: number[]; lo: number[]; pd: number[]; unit: number; sun: number[] }>,
+      /** 나라 → 지역 (normals 키). 표에 없는 나라(잉글랜드·웨일스 포함)는 잉글랜드 방식 그대로 */
+      country: {
+        Spain: 'spain', Italy: 'italy', Germany: 'germany', France: 'france', Netherlands: 'netherlands', Portugal: 'portugal',
+        'Saudi Arabia': 'saudi', 'Korea Republic': 'korea', Japan: 'japan', Brazil: 'brazil', 'United States': 'usa',
+        Russia: 'russia', Turkey: 'turkey', Scotland: 'scotland', Ukraine: 'ukraine', Belgium: 'belgium',
+      } as Record<string, string>,
+      /** 같은 나라 안 두 번째 지역: 구단 연고 도시 → 지역 (스페인 북부 대서양, 이탈리아 북부 포 평원, 프랑스 남부 지중해, 사우디 서부 홍해, 브라질 열대 해안, 미국 남부) */
+      city: {
+        Bilbao: 'spain_n', 'San Sebastián': 'spain_n', 'Vitoria-Gasteiz': 'spain_n', Eibar: 'spain_n', Vigo: 'spain_n',
+        Turin: 'italy_n', Milan: 'italy_n', Bergamo: 'italy_n', Bologna: 'italy_n', Sassuolo: 'italy_n', Udine: 'italy_n', Ferrara: 'italy_n', Parma: 'italy_n', Verona: 'italy_n',
+        Marseille: 'france_s', Monaco: 'france_s', Nice: 'france_s', Montpellier: 'france_s', 'Nîmes': 'france_s', Toulouse: 'france_s',
+        Jeddah: 'saudi_w', Mecca: 'saudi_w', Medina: 'saudi_w',
+        'Rio de Janeiro': 'brazil_n', Salvador: 'brazil_n', Recife: 'brazil_n', Fortaleza: 'brazil_n',
+        Atlanta: 'usa_s', Orlando: 'usa_s', Frisco: 'usa_s', Houston: 'usa_s', 'Los Angeles': 'usa_s', Carson: 'usa_s', 'San Jose': 'usa_s',
+      } as Record<string, string>,
+      /** 리그 데이터에 없는 챔스 외부 클럽 → 나라 */
+      outside: { 'x:zen': 'Russia', 'x:gal': 'Turkey', 'x:cel': 'Scotland', 'x:sha': 'Ukraine', 'x:bru': 'Belgium', 'x:lok': 'Russia', 'x:csk': 'Russia' } as Record<string, string>,
+    },
     /** 실행 배율 (크기 = 실행 성공률 ±3~8%). 키는 MatchEnv */
     effects: {
       clear: {}, cloudy: {},
@@ -1679,3 +2218,40 @@ export const BALANCE = {
 } as const;
 
 export type Balance = typeof BALANCE;
+
+/** 개인 시상 상 정의 (C.76n, BALANCE.awards.defs) */
+export interface AwardDef {
+  ko: string;
+  vote?: Partial<Record<'journalist' | 'players' | 'coach' | 'fan', number>>;
+  formula?: 'boot' | 'goals' | 'wcBoot';
+  /** 47b: 'league' = 고른 리그마다 (결과 키 '상@리그'), leagues/notLeagues = 리그 제한, koLeague = 이름 앞에 리그 이름, koByLeague = 리그별 이름 */
+  scope?: 'league';
+  leagues?: readonly string[];
+  notLeagues?: readonly string[];
+  koLeague?: boolean;
+  koByLeague?: Record<string, string>;
+  /** 투표단별 가중치 덮어쓰기 (w 보다 먼저, 47b 리그 상 선수단: 평점 · 수비 쏠림 대신 실적 중심) */
+  wj?: Partial<Record<'journalist' | 'players' | 'coach' | 'fan', Record<string, number>>>;
+  /** 최고 개인상 묶음 (같은 키 상은 한 시즌 1회로 센다) */
+  topKey?: string;
+  /** 올해의 팀 (포지션 슬롯 투표) · 챔스 · 대륙컵 · 이달의 선수 */
+  xi?: boolean;
+  ucl?: boolean;
+  cont?: boolean;
+  monthly?: boolean;
+  voters?: number;
+  points?: readonly number[];
+  nominees?: number;
+  nomineesDue?: readonly [number, number];
+  maxAge?: number;
+  youth?: boolean;
+  europe?: boolean;
+  groups?: readonly string[];
+  wc?: boolean;
+  top?: boolean;
+  w?: Record<string, number>;
+  due?: readonly [number, number];
+  xp: readonly number[];
+  rep: number;
+  pick?: Record<string, number>;
+}

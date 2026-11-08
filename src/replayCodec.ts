@@ -79,3 +79,75 @@ export function unpackReplay(p: PackedReplay): Replay {
   }
   return { ...p.base, frames };
 }
+
+/**
+ * 워커 → 메인 전달용 무손실 재생 데이터 (C.81c): 프레임을 Float64Array 한 장에 담아 복사 없이 넘긴다(transfer).
+ * packReplay 와 달리 반올림하지 않는다 — 풀어낸 프레임은 엔진이 만든 값과 비트 단위로 같다 (메인 스레드에서 직접 계산한 것과 같은 재생·하이라이트)
+ * 프레임마다: e, t, 공x, 공y, 공z, 공 가진 선수(+1, 0 없음), 선수 수, (선수 번호, x, y) × 선수 수
+ */
+export interface WireReplay {
+  base: Omit<Replay, 'frames'>;
+  /** 원래 키 순서 (풀어낸 객체도 같은 순서) */
+  order: string[];
+  ids: string[];
+  n: number;
+  buf: Float64Array;
+  restarts: [number, string][];
+}
+
+export function toWireReplay(r: Replay): WireReplay {
+  const { frames, ...base } = r;
+  const ids: string[] = [];
+  const idx = new Map<string, number>();
+  const id = (s: string) => {
+    let k = idx.get(s);
+    if (k === undefined) {
+      k = ids.length;
+      ids.push(s);
+      idx.set(s, k);
+    }
+    return k;
+  };
+  let len = 0;
+  for (const f of frames) len += 7 + 3 * f.players.length;
+  const buf = new Float64Array(len);
+  const restarts: [number, string][] = [];
+  let i = 0;
+  frames.forEach((f, fi) => {
+    buf[i++] = f.e; buf[i++] = f.t; buf[i++] = f.ball.x; buf[i++] = f.ball.y; buf[i++] = f.ball.z;
+    buf[i++] = f.carrier === null ? 0 : id(f.carrier) + 1;
+    buf[i++] = f.players.length;
+    for (const p of f.players) {
+      buf[i++] = id(p.id); buf[i++] = p.x; buf[i++] = p.y;
+    }
+    if (f.restart !== undefined) restarts.push([fi, f.restart]);
+  });
+  return { base, order: Object.keys(r), ids, n: frames.length, buf, restarts };
+}
+
+export function fromWireReplay(w: WireReplay): Replay {
+  const frames: ReplayFrame[] = new Array(w.n);
+  const restart = new Map(w.restarts);
+  const d = w.buf;
+  const ids = w.ids;
+  let i = 0;
+  for (let f = 0; f < w.n; f++) {
+    const e = d[i++]!, t = d[i++]!, x = d[i++]!, y = d[i++]!, z = d[i++]!;
+    const c = d[i++]!;
+    const n = d[i++]!;
+    const players: ReplayFrame['players'] = new Array(n);
+    for (let k = 0; k < n; k++) {
+      const j = d[i++]!;
+      const px = d[i++]!;
+      players[k] = { id: ids[j]!, x: px, y: d[i++]! };
+    }
+    const fr: ReplayFrame = { e, t, ball: { x, y, z }, carrier: c ? ids[c - 1]! : null, players };
+    const rs = restart.get(f);
+    if (rs !== undefined) fr.restart = rs as ReplayFrame['restart'];
+    frames[f] = fr;
+  }
+  const out: Record<string, unknown> = {};
+  const base = w.base as unknown as Record<string, unknown>;
+  for (const k of w.order) out[k] = k === 'frames' ? frames : base[k];
+  return out as unknown as Replay;
+}

@@ -2,7 +2,7 @@
 // 결과는 작업 순서대로 돌려준다. 작업마다 시드가 정해져 있으므로 워커 수와 상관없이 결과가 같다.
 
 import { build } from 'esbuild';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, unlinkSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +14,10 @@ let bundled: Promise<string> | null = null;
 
 function bundle(): Promise<string> {
   bundled ??= (async () => {
-    const out = resolve(here, '../../node_modules/.cache/engine-harness/worker.mjs');
+    // C.81z: 측정 2개를 동시에 돌리면 같은 번들 파일을 서로 덮어 써 워커가 반쯤 쓰인 파일을 읽고 조용히 끝났다(0/480 대기) → 프로세스별 파일, 끝나면 지움
+    const out = resolve(here, `../../node_modules/.cache/engine-harness/worker-${process.pid}.mjs`);
     mkdirSync(dirname(out), { recursive: true });
+    process.on('exit', () => { try { unlinkSync(out); } catch { /* 없음 */ } });
     await build({
       entryPoints: [join(here, 'worker.ts')], bundle: true, platform: 'node', format: 'esm', outfile: out,
       logLevel: 'warning', target: 'node20',
@@ -73,6 +75,8 @@ export async function runJobs<T extends JobOut = JobOut>(jobs: Job[], opts: { wo
         } else feed(w);
       });
       w.on('error', (e) => finish(e));
+      // C.81z: 워커가 소리 없이 끝나면(측정 중 1회 450/480 에서 영원히 대기) 매달리지 않고 실패로 끝낸다
+      w.on('exit', (code) => { if (done < jobs.length) finish(new Error(`워커 종료 (code ${code}) — ${done}/${jobs.length}`)); });
       feed(w);
       feed(w);
     }

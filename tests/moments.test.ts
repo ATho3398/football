@@ -6,7 +6,7 @@ import { SCENE_LABEL, type MomentPolicy, type SceneId } from '../src/engine/mome
 import { ATTACK_MAX, customProblem, presetCells } from '../src/formations';
 import { newGame, playRound, roundMatch, selectableRealPlayers, type GameState } from '../src/game';
 import { posGroup } from '../src/roster';
-import { migrate } from '../src/save';
+import { restore, SaveFormatError } from '../src/save';
 
 function game(group: string, seed = 'mom'): GameState {
   const p = selectableRealPlayers().find((x) => posGroup(x.position) === group)!;
@@ -48,9 +48,18 @@ describe('결정 순간 (E.11, C.34)', () => {
       let m = run.advance();
       let k = 0;
       while (m) {
-        expect(m.options.length).toBeGreaterThanOrEqual(1);
-        expect(m.options.length).toBeLessThanOrEqual(3);
-        expect(new Set(m.options.map((o) => o.kind)).size).toBe(m.options.length);
+        if (m.type === 'halftime') {
+          // 하프타임 전술 변경 (C.75k): 변경 없이 이어 간다
+          run.halftime(null);
+          m = run.advance();
+          continue;
+        }
+        // 몰고 가다 슛 (C.75k)은 마지막 줄, 선택지 최대 maxOptions (C.75v), 같은 이름 줄 없음
+        const main = m.options.filter((o) => !o.chain);
+        expect(main.length).toBeGreaterThanOrEqual(1);
+        expect(m.options.length).toBeLessThanOrEqual(ENGINE.moments.maxOptions);
+        expect(m.options.length - main.length).toBeLessThanOrEqual(1);
+        expect(new Set(m.options.map((o) => o.label)).size).toBe(m.options.length);
         for (const o of m.options) if (o.p !== null) expect(o.p).toBeGreaterThanOrEqual(0), expect(o.p).toBeLessThanOrEqual(1);
         expect(SCENE_LABEL[m.scene]).toBeTruthy();
         seen.push(`${m.minute}:${m.scene}`);
@@ -87,7 +96,10 @@ describe('결정 순간 (E.11, C.34)', () => {
     // C.45: 직접 모드 "맡기기"가 자동 경기와 늘 같지는 않다(1대1 수비 장면, 기존 동작 — 부록 C.45 기록). 그래서 비교 대상은
     // 화면에서 끝낸 경기 결과 그 자체와, 같은 화면 결과를 넣은 다른 세이브
     const run = new MyMatchRun({ ...rm.input, control: { mode: 'direct', stop: 'important' } });
-    while (run.advance()) run.resolve('delegate');
+    while (run.advance()) {
+      if (run.pending?.type === 'halftime') run.halftime(null);
+      else run.resolve('delegate');
+    }
     const out = run.finish();
     const r1 = playRound(g1, { engineOut: out });
     const r2 = playRound(g2, { engineOut: out });
@@ -121,7 +133,7 @@ describe('카드 데이터 76장 (F.4, C.34)', () => {
 });
 
 describe('커스텀 포메이션 공격 줄 최대 4명 (C.34 임시 규칙)', () => {
-  it('공격 줄 5명 이상은 놓을 수 없고, 옛 세이브의 그런 대형은 프리셋으로 되돌린다', () => {
+  it('공격 줄 5명 이상은 놓을 수 없고, 옛 세이브(13)는 이어 할 수 없다', () => {
     const c = presetCells('4-3-3');
     // 중원 셋을 2선 공격 칸으로 → 공격 6명
     const mids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter((i) => c[i]! >= 10 && c[i]! < 20).slice(0, 3);
@@ -132,10 +144,6 @@ describe('커스텀 포메이션 공격 줄 최대 4명 (C.34 임시 규칙)', (
     const g = game('ST', 'mig');
     const raw = JSON.parse(JSON.stringify({ ...g, rosters: undefined }));
     raw.saveFormat = 13;
-    delete raw.control;
-    raw.tactics = { ...raw.tactics, custom: heavy };
-    const s = migrate(raw);
-    expect(s.control).toEqual({ mode: 'direct', stop: 'important' });
-    expect(s.tactics.custom).toBeNull();
+    expect(() => restore(raw)).toThrow(SaveFormatError);
   });
 });

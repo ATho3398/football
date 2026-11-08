@@ -1,0 +1,28 @@
+{
+ "W": 390,
+ "H": 844,
+ "rate": 1,
+ "dpr": 2,
+ "sec": 8,
+ "errors": [],
+ "clipCount": 3,
+ "backToResult": true,
+ "full": {
+  "frames": 481,
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.8,
+  "over34": 0,
+  "canvasMsP50": 0.2,
+  "canvasMsP95": 0.5
+ },
+ "clip": {
+  "frames": 481,
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.8,
+  "over34": 0,
+  "canvasMsP50": 0.2,
+  "canvasMsP95": 0.5
+ }
+}

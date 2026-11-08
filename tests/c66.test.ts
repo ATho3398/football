@@ -15,7 +15,8 @@ describe('독 [다음] 키 (C.66)', () => {
     expect(DOCK_PHONE[0]).toBe('home');
     expect(DOCK_PHONE.indexOf('prog')).toBe(2);
     expect(DOCK_PC[0]).toBe('home');
-    expect(DOCK_PC.indexOf('prog')).toBe((DOCK_PC.length - 1) / 2);
+    // C.77q: PC 12칸(왼 5 · 오 6) — 열 너비(dockColumns)가 양쪽 합을 같게 맞춰 [다음]이 가운데
+    expect(DOCK_PC.indexOf('prog')).toBe(5);
     const h = dock(vm({ screen: 'home' }));
     expect(h).not.toContain('po-dock__home');
     expect(h.match(/po-dock__next/g)?.length).toBe(2);

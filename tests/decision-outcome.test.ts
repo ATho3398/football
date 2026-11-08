@@ -64,7 +64,8 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
 
   it('실제 경기: 결정마다 구간이 결정 시점에서 시작해 6초(골이면 골 프레임까지) 안, 하이라이트에 결정 장면', () => {
     const p = selectableRealPlayers().find((x) => posGroup(x.position) === 'ST')!;
-    const g: GameState = newGame({ mode: 'real', playerId: p.id, seed: `oc-${p.id}`, difficulty: 'normal' });
+    // C.77k(엔진 39): oc-<id> 는 하이라이트 결정 장면 0개라 시드 교체 (장면 시드 의존). C.78d(엔진 44): c77k-oc-1 도 0개라 c78d-oc-0 으로 (0·2 통과, 1 은 0개)
+    const g: GameState = newGame({ mode: 'real', playerId: p.id, seed: 'c78d-oc-0', difficulty: 'normal' });
     let rm = roundMatch(g);
     for (let k = 0; k < 6 && !rm.plan.started; k++) {
       playRound(g);
@@ -77,6 +78,12 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
     let n = 0;
     let k = 0;
     while (m) {
+      if (m.type === 'halftime') {
+        // 하프타임 전술 변경 (C.75k): 변경 없이 이어 간다
+        run.halftime(null);
+        m = run.advance();
+        continue;
+      }
       const startIdx = run.frames.length - 1;
       const e0 = run.frames[startIdx]!.e;
       const ev0 = s.events.length;
@@ -84,7 +91,7 @@ describe('결정 결과 구간 (E5 최소, C.35)', () => {
       const opt = choice === 'delegate' ? null : m.options[choice]!;
       run.resolve(choice);
       const next = run.advance();
-      const o = decisionOutcome({ frames: run.frames, startIdx, events: s.events.slice(ev0), players: ps, type: m.type === 'react' ? 'duel' : m.type, action: opt?.action ?? null, side: m.side });
+      const o = decisionOutcome({ frames: run.frames, startIdx, events: s.events.slice(ev0), players: ps, type: m.type === 'react' ? 'duel' : m.type as 'onball' | 'duel' | 'setPiece', action: opt?.action ?? null, side: m.side });
       expect(o.from).toBe(e0);
       expect(o.to).toBeGreaterThanOrEqual(o.from);
       expect(o.to - o.from).toBeLessThanOrEqual(OUTCOME.maxSpan + OUTCOME.goalTail + 1e-6);

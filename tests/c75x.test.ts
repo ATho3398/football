@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
 import { autoMarket, newGame, playRound, rebuildRosters, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { BVB_LEGENDS, FUTURE_STARS, LEGEND_RETIRED_BY } from '../data/players/legends';
 import { A_GRADE_PLAYERS } from '../data/players';
 import { futureAge, futureDebut, futureEntry, LEGEND_PACK, LEGENDS, legendPeak, legendSpawns, packRealExcludes, selectableLegends, upcomingFutureStars, waitingFutureStars } from '../src/legends';
@@ -63,13 +63,13 @@ describe('미래 스타 팩 (C.75y: 레전드 팩과 따로, 구현 리그 첫 �
     expect(waitingFutureStars().length).toBe(9);
     expect(upcomingFutureStars(2018).map((l) => l.id)).toEqual(['fs-garnacho', 'fs-haaland', 'fs-mainoo', 'fs-wirtz']);
     // 리그가 추가되면 그 리그 첫 시즌 (예: 분데스리가 → 홀란 2019-20 도르트문트)
-    expect(futureEntry(FUTURE_STARS.find((l) => l.id === 'fs-haaland')!, ['pl', 'bundesliga'])).toEqual({ league: 'bundesliga', season: 2019, team: 'x:bvb' });
+    expect(futureEntry(FUTURE_STARS.find((l) => l.id === 'fs-haaland')!, ['pl', 'bundesliga'])).toEqual({ league: 'bundesliga', season: 2019, team: 'bundesliga:bvb' });
     // 실제 경력 표가 있다
     for (const l of FUTURE_STARS) expect(l.career!.length, l.id).toBeGreaterThan(0);
   });
 
   it('등장 전에는 없고 첫 시즌 시작에 그 팀으로 들어온다 (rebuild 와 같음), 시작은 낮고 성장한다', () => {
-    const ws = 'c75y-fs';
+    const ws = 'c76c-fs';
     const opt = { on: false, future: true };
     const r0 = rebuildRosters(ws, undefined, 0, undefined, [], opt);
     expect([...ids(r0)].filter((id) => id.startsWith('fs-'))).toEqual([]);
@@ -125,23 +125,14 @@ describe('새 게임·플레이·세이브 (C.75x·C.75y)', () => {
     expect(hd.priorCareer.at(-1)).toMatchObject({ years: '2020–2022', apps: 67, goals: 62 });
   }, 60_000);
 
-  it('옛 세이브: 43(판 없음) = 1판, 44(C.75x 2판) = 도르트문트 그대로·미래 스타 끔', () => {
+  it('옛 세이브(43·44)는 이어 할 수 없음', () => {
     const g = newGame({ mode: 'prospect', position: 'ST', seed: 'c75x-mig', difficulty: 'normal', legends: true });
     const raw = JSON.parse(serialize(g));
-    delete raw.legendPack;
     raw.saveFormat = 43;
-    const back = deserialize(JSON.stringify(raw));
-    expect(back.saveFormat).toBe(SAVE_FORMAT_VERSION);
-    expect(back.legendPack).toBeUndefined();
-    expect(ids(back.rosters).has('lg-hummels')).toBe(false);
-    expect(ids(back.rosters).has('lg-zidane')).toBe(true);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
     const raw44 = JSON.parse(serialize(g));
     raw44.saveFormat = 44;
-    raw44.legendPack = 2; // C.75x 세이브는 2판
-    const b44 = deserialize(JSON.stringify(raw44));
-    expect(b44.legendPack).toBe(2);
-    expect(b44.futureStars).toBeUndefined();
-    expect(ids(b44.rosters).has('lg-hummels')).toBe(true);
+    expect(() => deserialize(JSON.stringify(raw44))).toThrow(SaveFormatError);
   });
 
   it('새 게임 화면: 레전드 탭(도르트문트 포함)과 미래 스타 탭(등장 4 + 리그 추가 후 9)', () => {

@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest';
+import { playMyMatch } from '../src/engine/adapter';
+import { ENGINE } from '../src/engine/config';
+import { bandKind, bestChoice, type Moment, type MomentPolicy } from '../src/engine/moments';
+import type { Candidate } from '../src/engine/onball';
+import { newGame, roundMatch, selectableRealPlayers } from '../src/game';
+import { posGroup } from '../src/roster';
+import { PATCH_LABEL } from '../src/version';
+
+const M = ENGINE.moments;
+const sameAs = (x: Candidate, y: Candidate) => x.type === y.type && x.receiver === y.receiver && Math.abs(x.x - y.x) < 0.5 && Math.abs(x.y - y.y) < 0.5;
+
+/** 직접 모드 봇 경기에서 소유 정지를 모은다 (선수 기본 덱, 모든 순간) */
+function collect(groups: string[], seeds: number, prefix = 'c75v', from = 0): (Moment & { cands?: Candidate[] })[] {
+  const seen: (Moment & { cands?: Candidate[] })[] = [];
+  const pol: MomentPolicy = (m) => {
+    if (m.type === 'onball') seen.push(m as Moment & { cands?: Candidate[] });
+    return bestChoice(m);
+  };
+  for (const grp of groups) {
+    for (let k = from; k < seeds; k++) {
+      const p = selectableRealPlayers().find((x) => posGroup(x.position) === grp)!;
+      const g = newGame({ mode: 'real', playerId: p.id, seed: `${prefix}-${k}-${p.id}`, difficulty: 'normal' });
+      const rm = roundMatch(g);
+      playMyMatch({ ...rm.input, control: { mode: 'direct', stop: 'all', policy: pol } });
+    }
+  }
+  return seen;
+}
+
+describe('C.75v 결정 순간 선택지 라벨·확실한 선택지·최대 5개', () => {
+  it('라벨 = 성공 확률 구간: 50% 이상 안전, 25~50% 균형, 25% 미만 도박, 판정 없음은 기본값', () => {
+    expect(bandKind(0.13)).toBe('gamble');
+    expect(bandKind(0.25)).toBe('balanced');
+    expect(bandKind(0.49)).toBe('balanced');
+    expect(bandKind(0.5)).toBe('safe');
+    expect(bandKind(0.95)).toBe('safe');
+    expect(bandKind(null)).toBe('safe');
+    expect(bandKind(null, 'balanced')).toBe('balanced');
+    expect(M.labelBands).toEqual({ safe: 0.5, balanced: 0.25 });
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/); // 병렬 패치끼리 라벨이 바뀌어도 통과 (C.76c 병합)
+  });
+
+  // CDM 시드는 C.76a(엔진 28, 위협 가중 수비) 뒤 c75v-0~2 에 sureBack 장면이 없어져 c76b-0~2(2장면) 로
+  // C.76p(엔진 30, 깊은 블록 밀집·1대1 보너스) 뒤 c76b-0~2 에도 없어져 c76p 시드로
+  // C.76q(엔진 31, PK·saveBase 1.64) 뒤 c76p 에도 없어져 (C.76q 는 c76b-1·c76b-7 을 더했음) sureBack 이 있는 c76b-1·c76b-7(각 1장면)을 더한다 (CDM·CM 64경기에 2장면뿐인 드문 장면)
+  // C.76s(엔진 32, 피로 → 경합·판단·패스) 뒤 다시 없어져 sureBack 이 있는 c76u-0~2(1장면, c76u-1)로
+  // C.76w(엔진 33, 코너 상수 3개) 뒤 c76u-0~2 에 없어져 c76x-0~3(1장면, c76x-3; c76w-0~7·c76z-0~11 은 0장면)으로
+  // C.76z(엔진 34, 압박 없는 롱 백패스 실수 후보 제외·saveBase 1.64) 뒤 c76x-0~3 에 없어져 c76z-0~5(2장면, c76z-2·c76z-5)로
+  // C.77b(엔진 36, 2선 추적 + C.76z·C.77c 병합) 뒤 c76z-0~5 에 없어져 c77d-0~6(2장면, c77d-5·c77d-6; c77b-0~11 은 0장면)으로
+  // C.77g(엔진 38, 게겐 체력 비용) 뒤 c77d-0~6 에 없어져 c77g-12~19(4장면, c77g-14·c77g-19; c77g-0~11 은 0장면)로
+  // C.77t(엔진 40, GK 도달 항) 뒤 c77g-12~19 에 없어져 c77t-0~6(3장면) → 휘슬 미룸·saveBase 1.65 뒤 c77t-7(1장면, 7~29 중 7·16·21·29)으로
+  // C.78b(엔진 42, 수신·첫 터치 + x·y·z·78a 켬) 뒤 c77t-7 에 없어져 c78b-6~7(2장면; c78b-0~29 중 6·7·12·21·22·25 — 장면은 그대로 있고 시드만 바뀜)로
+  // C.78c(엔진 43, 착지점 몫 — 롱볼·걷어내기 판단) 뒤 c78b-6~7 에 없어져 c78c-22(1장면; c78c-0~29 중 22 — 장면은 그대로 있고 시드만 바뀜)로
+  // C.78d(엔진 44, 깊은 블록 밀집·역습 지원) 뒤 c78c-22 에 없어져 c78d-5(1장면; c78d-0~5 중 5)로 → C.78c 속도·원터치 착지점 몫 병합 뒤 c78d-22(1장면; c78d-0~22 중 22)로
+  // C.78e(엔진 45, 측면 미드 도착·CB 따라나옴·빈자리 침투·돌아서기) 뒤 c78d-5 에 없어져 c78e-12(1장면; c78e-0~19 중 12·19 — 장면은 그대로 있고 시드만 바뀜)로
+  // C.78g(엔진 46, 전환 순간·역습 보너스) 뒤 c78e-12 에 없어져 c78g-9(1장면; c78g-0~19 중 9·15 — 장면은 그대로 있고 시드만 바뀜)로
+  // C.78h(엔진 47, 슛 레인 + C.78g 병합) 뒤 c78g-9 에 없어져 c78h-8(1장면; c78h-0~15 중 8·10)을 더한다 — c78g-9 는 남김(장면은 그대로 있고 시드만 바뀜)
+  // C.78i(엔진 48, 면제선 0.62·풀백 오버래핑) 뒤 c78g-9·c78h-8 에 없어져 c78i-2(2장면; c78i-0~15 중 2·5·7)를 더한다 — 앞 시드는 남김(장면은 그대로 있고 시드만 바뀜)
+  const all = [...collect(['ST', 'WING', 'CM', 'FB'], 2), ...collect(['CDM'], 10, 'c78g', 9), ...collect(['CDM'], 9, 'c78h', 8), ...collect(['CDM'], 3, 'c78i', 2), ...collect(['CDM'], 16, 'c78m', 15), ...collect(['CDM'], 1, 'c79b'), ...collect(['CDM'], 4, 'c79e', 2), ...collect(['CDM'], 6, 'c79k', 5), ...collect(['CDM'], 23, 'c80f', 22), ...collect(['CDM'], 1, 'c80o')]; // C.78m(엔진 51): 앞 시드들에 sureBack 정지가 없어짐(궤적 변화) → c78m-15 CDM(1회) 추가. C.79b(엔진 57, 블록 자기 ⅓ 롱볼 실패 비용): 다시 없어져 c79b-0 CDM(1회; c79b-0~2 중 0·2) 추가. C.79e(엔진 59, 줄 인원 맞춤 내려앉기): 또 없어져 c79e-2~3 CDM(각 1회; c79e-0~29 중 2·3 …) 추가. C.79k(엔진 60, 비행 중 패서 제외): 또 없어져 c79k-5 CDM(1회; c79k-0~19 중 5·9·11·12) 추가. C.80f(엔진 65, 티키 롱패스 판단 감점): 또 없어져 c80f-22 CDM 추가(c80f-0~63 중 22·37·44·47·57). C.80o(엔진 75, 선방·직선 전환 수치): 또 없어져 c80o-0 CDM 추가(c80o-0~23 중 0·3·4·5·9·13·23)
+
+  it('소유 정지: 최대 5개 · 같은 후보/같은 이름 줄 없음 · 확률 순(몰고 가다 슛은 끝) · 라벨은 구간', () => {
+    expect(all.length).toBeGreaterThan(20);
+    let five = 0;
+    for (const m of all) {
+      expect(m.options.length).toBeLessThanOrEqual(M.maxOptions);
+      expect(new Set(m.options.map((o) => o.label)).size).toBe(m.options.length);
+      const cs = m.cands!;
+      const picked = m.options.filter((o) => !o.chain).map((o) => cs[o.ref]!);
+      for (let i = 0; i < picked.length; i++) for (let j = i + 1; j < picked.length; j++) expect(sameAs(picked[i]!, picked[j]!)).toBe(false);
+      const ps = m.options.filter((o) => !o.chain).map((o) => o.p!);
+      expect([...ps].sort((a, b) => b - a)).toEqual(ps);
+      const ci = m.options.findIndex((o) => o.chain);
+      if (ci >= 0) expect(ci).toBe(m.options.length - 1);
+      for (const o of m.options) expect(o.kind).toBe(bandKind(o.p));
+      if (m.options.length === 5) five++;
+    }
+    // 5개 장면이 실제로 나온다 (뻔한 것으로 채우지는 않지만 고를 거리가 있으면)
+    expect(five).toBeGreaterThan(0);
+  });
+
+  it('확실한 선택지 다시 넣기(B): 나머지가 모두 30% 미만일 때만, 맨 위 1개, 90% 초과, 안전, 확실한 것은 90% 이상', () => {
+    for (const m of all) {
+      // 90% 초과로 보이는 줄은 확실한 선택지뿐 (상대 분석·동료 호흡 배율은 거르기 뒤에 붙어 90%를 조금 넘을 수 있다, C.74c)
+      const over = m.options.filter((o) => o.p !== null && o.p > M.maxP + 1e-9 && !o.exploit && o.action !== 'pass' && o.action !== 'through');
+      if (!m.sureBack) {
+        expect(over.length).toBe(0);
+        continue;
+      }
+      expect(m.sure).toBe(true);
+      expect(m.options[0]!.p!).toBeGreaterThan(M.maxP - 0.01);
+      expect(m.options[0]!.kind).toBe('safe');
+      for (const o of m.options.slice(1)) expect(o.p!).toBeLessThan(M.sureBackBelow);
+    }
+  });
+
+  it('B 조건이 맞는 정지는 늘 다시 넣는다: 확실한 것을 뺐고 남은 선택지가 모두 30% 미만이면 sureBack', () => {
+    // CDM c78i-2 시드에 발동 장면이 있다 (C.76a 전에는 c75v-2: 전진 패스 98% / 침투 패스 10%)
+    expect(all.filter((m) => m.sureBack).length).toBeGreaterThan(0);
+    for (const m of all) {
+      if (!m.sure) continue;
+      const rest = m.options.filter((o) => !o.chain && !(m.sureBack && o === m.options[0]));
+      if (rest.length && rest.every((o) => (o.p ?? 1) < M.sureBackBelow)) expect(m.sureBack).toBe(true);
+    }
+  });
+});

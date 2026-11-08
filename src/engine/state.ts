@@ -1,5 +1,6 @@
 // 엔진 내부 상태. 시뮬 함수들이 공유한다 (전역 상태 없음)
 
+import type { FitTendency } from './fit';
 import type { FieldAttributes, GkAttributes, GkType } from '../attributes';
 import type { Position } from '../types';
 import type { MomentState } from './moments';
@@ -9,6 +10,8 @@ import type { BodyMods } from '../body';
 import type { MatchEnv } from './env';
 import type { Rapport } from './rapport';
 import type { EngineInput, MatchEvent, PlayerSpec, PlayerStats, Tactics, TeamStats } from './types';
+import type { ShotCtx } from './keeper';
+import type { Candidate } from './onball';
 
 /** 0 GK, 1 수비, 2 중원, 3 공격 */
 export type Line = 0 | 1 | 2 | 3;
@@ -33,11 +36,42 @@ export interface Agent {
   /** 이동 목표와 목표 속도 */
   tx: number;
   ty: number;
+  /** 목표의 속도 (C.77x 이동 제어기 앞먹임): 사람을 따라가는 목표(추적·마크·압박)면 그 사람의 인지된 속도, 그 밖에는 0. 목표 점도 이 속도로 움직인다 */
+  tvx: number;
+  tvy: number;
+  /** 따라가는 사람 idx (−1 없음). 목표 속도는 그 사람의 속도를 feedLag 초 늦게 따라간다(인지 지연) */
+  tvIdx: number;
+  /** 목표 속도에 곱하는 x·y 비율 (존 마크는 섞는 몫만, 그 밖 1) */
+  tvwx: number;
+  tvwy: number;
+  /** 몸 방향 단위 벡터 (C.77x 뒤돌기): 빠르게 움직이면 속도 방향, 느리면 마지막 방향 그대로 */
+  hx: number;
+  hy: number;
+  /** turnHead 몸 각도 기억 (C.78c 속도): hx·hy 가 이 값이면 atan2(hy, hx) = hA — 결과는 같다 */
+  hMx: number;
+  hMy: number;
+  hA: number;
+  /** turnHead 지난 입력·결과 (C.81e 계산 속도): 입력이 모두 같으면 결과도 같다 */
+  thUx: number;
+  thUy: number;
+  thHx: number;
+  thHy: number;
+  thStep: number;
+  thRx: number;
+  thRy: number;
   urgent: boolean;
   maxSpeed: number;
   accel: number;
   turnKeep: number;
+  /** 선수마다 고정 (C.81e 계산 속도, initPhysics): 180° 몸 돌리기 시간 · 연속 스프린트 초 · 스태미나 소모 능력치 항 */
+  pivotT: number;
+  burstSec: number;
+  drainAttr: number;
   stamina: number;
+  /** 순간 체력 0~100 (C.78w 2단 체력, physics.burst) */
+  burst: number;
+  /** 순간 체력 바닥 상태 (C.78w): 0 에 닿으면 켜지고 burst.outUntil 까지 차야 꺼진다 — 그동안 러닝 상한 */
+  burstOut: boolean;
   /** 판단 품질 0~1 (E.7) */
   judgement: number;
   /** 다음 온더볼 결정까지 남은 시간 */
@@ -46,9 +80,27 @@ export interface Agent {
   nextOffball: number;
   /** 침투 종료 시각 */
   runUntil: number;
+  /** 주고 달리기 (C.77y): 마지막으로 굴린 패스(lastPass.t) · 지금 침투가 2:1 달리기인가 */
+  giveGoT: number;
+  giveGo: boolean;
+  /** 탈취 뒤 출구 침투 중 (C.78a ⑤ G2): 달리는 동안 골 쪽 안쪽 길로 */
+  exitRun: boolean;
+  /** 탈취 뒤 역습 지원 달리기 중 (C.78d ②): 달리는 동안 측면 길로 */
+  supportRun: boolean;
+  /** CB 빈자리 침투 중 (C.78e ②): 달리는 동안 이 y(정규화)로, 아니면 −1 */
+  gapY: number;
+  /** 펄스 나인 빈자리 침투 중 (C.80r): 9번이 내려온 순간 시작한 2선 침투 — 달리는 동안 중앙 쪽 길(roles.nineVacateLane)로 */
+  vacRun: boolean;
+  /** 풀백 오버래핑 중 (C.78i ②): 달리는 동안 공 앞 측면 길로 */
+  overlap: boolean;
   /** 수비 위치 오차 (오프더볼 갱신마다 새로) */
   errX: number;
   errY: number;
+  /** 오차를 새로 뽑을 틱 / 마지막으로 뽑은 틱 (C.75l: 읽을 때만 계산, 같은 값) */
+  errTick: number;
+  errDone: number;
+  /** 오차를 마지막으로 새로 뽑은 시각 (C.77x errHold 동안 유지) */
+  errT: number;
   /** 제쳐진 뒤 이 시각까지 태클 불가 */
   beatenUntil: number;
   onPitch: boolean;
@@ -59,6 +111,10 @@ export interface Agent {
   leftAt: number | null;
   /** 상대 골을 등지고 받았다 (포스트플레이 후보, E.18 A2). 다음 결정 후 해제 */
   backToGoal: boolean;
+  /** 원터치 (C.78b): 받는 순간 미리 정한 행동(다음 결정에서 그대로 실행), 원터치 슛 실행 배수와 그 유효 시각 */
+  pre: Candidate | null;
+  otMul: number;
+  otUntil: number;
   /** 소유를 잃었을 때 긴급 복귀를 판단했는가 (확률 0.6 + 0.4 × 노력/100, 소유가 바뀔 때마다 새로, E.18 A3) */
   recoverUrgent: boolean;
   /** 복귀: 러닝 이상으로 달린다 (목표가 자기 골 쪽 10 m 이상) */
@@ -70,9 +126,20 @@ export interface Agent {
   /** 듀얼 로짓 보정 (홈 이점, E.18 A7) */
   duelEdge: number;
   /** 평점 계산용 내부 기록 (E.12) */
-  rt: { forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number; relief?: number };
+  rt: {
+    forward: number; lost: number; dangerLost: number; attackLost: number; conceded: number; card?: number; relief?: number;
+    /** 위험 감수 실패 (C.77s A2): 마지막 선택이 전진·침투 패스·크로스·돌파인가, 그 뒤 상대 진영(마지막 1/3 앞)에서 잃은 횟수 */
+    risky?: boolean; riskLost?: number;
+    /** 소극적 백패스 (C.77s A1): 횟수, 허용을 넘긴 가중 합, 같은 소유 순번(passivePoss = 그 소유의 possStartT), 역습 허용을 쓴 소유 */
+    passive?: number; passiveW?: number; passiveSeq?: number; passivePoss?: number; passiveCtr?: number;
+    /** 수비 기록 (C.81u, 세기만 — 판단·실행에 안 쓴다): 마지막으로 상대 공 가진 선수 pressRadius m 안에 있던 시각, 그 뒤 pressWindow 초 안 팀 탈취 수(압박 성공),
+     *  오프사이드 유도(수비 줄 선수), 상대 소유 중 수비 줄 평균 x 에서 lineTol m 안에 있던 시간(초, 라인 유지) */
+    pressT?: number; pressWon?: number; offWon?: number; lineT?: number;
+  };
   /** 카드 패시브 보정 (C.36, 내 선수만): 태클 성공·공중볼 승리 확률 %p. 없으면 0 */
   cardBoost?: { tackle: number; air: number };
+  /** 공을 잡은 시각 (C.78k 유지 가치 감소: 서 있는 동안 줄어든다) */
+  ballT: number;
   /** 측정용 (E.22 0번 골 경로): 공을 얻은 방식과 마지막 몰고 가기·돌파 시각 */
   gotBy: 'receive' | 'gain';
   lastMoveT: number;
@@ -84,8 +151,21 @@ export interface Agent {
   /** 수비 1대1 판단 (E.23): 다음 판단 시각, 패스길 막기 유지 시각 */
   duelNext: number;
   laneUntil: number;
+  /** 2선 침투자 추적 (C.77b 44h-i): 따라붙는 상대 idx(−1 없음), 배정 유지 시각(trackHold), 침투자가 존 밖으로 나간 시각(−1 = 안) */
+  trackIdx: number;
+  trackUntil: number;
+  trackOut: number;
+  /** CB 따라나옴 판단 (C.77d 가설 2): 판단한 상대 idx(−1 없음), 따라 나가는가, 결정 유지 시각 */
+  stepOutIdx: number;
+  stepOutGo: boolean;
+  stepOutUntil: number;
   /** 긴급하지 않을 때 이동 속도 상한 (m/s, 0 이면 없음). 골 뒤 세리머니·걸어서 복귀 (C.24) */
   paceCap: number;
+  /**
+   * 몰고 가다 슛 의도 (C.75k, 직접 모드 2단 행동): 몰고 가기 뒤 이 선수의 다음 결정에서 슛 후보가 있으면 슛을 고른다.
+   * until 이 지나거나 팀 소유가 바뀌면(poss = 그때 possStartT) 버린다. 직접 모드 결정에서만 생긴다 (자동·맡기기 경로는 없음)
+   */
+  intent?: { type: 'shoot'; until: number; poss: number } | null;
 }
 
 export type FlightKind = 'pass' | 'long' | 'cross' | 'shot' | 'clear';
@@ -110,6 +190,8 @@ export interface Flight {
   through?: boolean;
   /** 노린 패스 거리 m (측정용, C.31) */
   aimD?: number;
+  /** 전환 창 패스 (C.80g): 박스 밖 땅볼 롱패스 수신 경합(contestOut) 면제 — 찰 때 정한다 (onball transitionWindow) */
+  transition?: boolean;
   /** 컷백/레이오프: 받는 선수가 반응 시간만에 다음 결정 (원터치, E.18 A2) */
   quick?: boolean;
   /** 크로스였으면 true (크로스 성공 집계) */
@@ -120,10 +202,26 @@ export interface Flight {
   shot?: { speed: number; corner: number; d: number; header: boolean; penalty?: boolean;
     /** 2단계 비행 (C.24): 세이브 실패 시 골라인 도착점과 남은 비행 시간 */
     goalX?: number; goalY?: number; rest?: number;
+    /** GK 도달 항 (C.77t): 슛 순간 GK 위치로 잰 cover, 선방 확률에 곱한다 */
+    cover?: number;
     /** 카드 선방 보정 (C.36): 상대 GK 선방 확률에 더한다 */
-    cardSave?: number };
+    cardSave?: number;
+    /** 슛 1건 자료 (C.77z): 슛 순간 실제 값 — 선방은 판단과 같은 식 saveChance(ctx) */
+    ctx?: ShotCtx };
   /** 카드 크로스 보정 (C.36): 착지 공중볼에서 공격 쪽 승리 확률에 더한다 */
   cardEdge?: number;
+}
+
+/**
+ * 비행 객체를 늘 같은 모양(같은 키 순서, 없는 선택 키는 undefined)으로 (C.81e 계산 속도: 만드는 곳마다 키가 달라 V8 이 공 비행 읽기를 느린 경로로 하던 것).
+ * 읽는 값은 그대로다(없는 키 = undefined)
+ */
+export function mkFlight(f: Flight): Flight {
+  return {
+    kind: f.kind, fromX: f.fromX, fromY: f.fromY, toX: f.toX, toY: f.toY, t0: f.t0, dur: f.dur, air: f.air, passer: f.passer, receiver: f.receiver,
+    outcome: f.outcome, interceptor: f.interceptor, through: f.through, aimD: f.aimD, transition: f.transition, quick: f.quick, fromCross: f.fromCross,
+    after: f.after, shot: f.shot, cardEdge: f.cardEdge,
+  };
 }
 
 export interface Ball {
@@ -142,6 +240,8 @@ export interface Ball {
   kick: { kind: FlightKind; team: 0 | 1; receiver: number } | null;
   /** 이 GK 는 이 시각까지 손 처리 불가 (쳐낸 공·놓친 공, C.28) */
   handBlock: { idx: number; until: number } | null;
+  /** C.81h: GK 가 쳐낸 뒤 수비 팀(team) 필드 선수의 루즈볼 컨트롤이 until 까지 × keeper.parryDefControl */
+  defHold: { team: 0 | 1; until: number } | null;
 }
 
 export interface BallReserve {
@@ -184,12 +284,35 @@ export interface TeamState {
   counterPressers: number[];
   /** 마지막으로 오픈 플레이에서 공을 빼앗은 시각 (게겐프레싱·역습 고유 행동, E.19) */
   wonAt: number;
+  /** 전환 수비 (C.78a): 마지막 열린 경기 상실 시각 · 그 순간 수비 라인(−1 = 아직 안 잼) · 역압박이 뚫린 시각 */
+  lostAt: number;
+  lineAtLoss: number;
+  brokeAt: number;
   /** 돌파 후 커버 (E.22 A): 이 시각까지 이 선수가 돌파한 상대의 진행 방향을 막는다 */
   coverUntil: number;
   coverAgent: number;
   /** GK 가 루즈볼을 쫓는 중 (C.28): 필드 추격자를 1명 줄인다 */
   gkChase: boolean;
+  /** C.81h: 이 팀 GK 가 마지막으로 쳐낸 시각 (keeper.parryDownT 창) */
+  parryT: number;
+  /** 깊은 블록 비행 중 가로채기 (C.76p): 이 비행(cutFlight)의 패스 선에 들어간 선수 idx. 판정은 한 비행에 1회(판정 뒤 cutIdx −1, cutFlight 는 유지) */
+  cutFlight: Flight | null;
+  cutIdx: number;
+  /** 수비 상황 판정 (C.75c): 지금 상황과 그 시작 시각, 바뀌려는 후보와 그 시작 시각. '-' = 우리 공 */
+  sit: DefSit;
+  sitSince: number;
+  sitCand: DefSit;
+  sitCandSince: number;
+  /** 전술 적합도 (C.80e, fit.ts): 성향별 핵심 능력치 차이 − 리그 보통 (점수, 킥오프 선발 기준) */
+  fit: Record<FitTendency, number>;
+  /** 공격 몰빵 초과 인원 (C.80q, stack.ts): 킥오프 선발 공격 포지션 인원 − n + 1 (0 = 안 걸림) */
+  stackOver: number;
+  /** 중앙 중원 인원 (C.82d): 킥오프 선발 줄 2 중 슬롯 y 가 중앙(|y − 0.5| ≤ formation.midCentralY) 인 선수 수 — 중원 줄 공격 자리 상한에 쓴다 */
+  centralMids: number;
 }
+
+/** 수비 상황 (C.75c, pending 41): A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박 */
+export type DefSit = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | '-';
 
 export interface SimState {
   input: EngineInput;
@@ -238,6 +361,8 @@ export interface SimState {
   offsideX: [number, number];
   /** 팀별 마지막 슈팅 시각 (측정용: 리바운드 경로) */
   lastShotT: [number, number];
+  /** 측정용 (C.81a): 착지 순간 박스 인원을 셀 크로스·컷백 비행 (fl null = 방금 찼음, 다음 스텝에 비행을 붙인다) */
+  boxLand: { fl: unknown; team: 0 | 1 } | null;
   /** 내 선수 결정 순간 (E.11, E4): 진행 상태와 기록. 자동 모드면 쓰지 않는다 */
   moments: MomentState;
   /** 결정 순간에서 고른 1대1 행동 (다음 defendDuels 한 번에만) */
@@ -248,6 +373,13 @@ export interface SimState {
   env: MatchEnv;
   /** 동료 호흡·상대 분석·패스 받는 빈도 (C.74c). 없으면 null (호흡 0·관계 보통·리포트 없음 = 이전 엔진) */
   rapport: Rapport | null;
+  /**
+   * 계산 속도 (C.81e, 결과 불변): 선수 onPitch·line 이 바뀌거나 선수가 들어올 때마다 1 오른다 — manDiff 캐시(manVer·manD0 = 그때 팀 0 기준 인원 차)와
+   * 선수 목록 캐시(lists.ts). **onPitch·line 을 바꾸는 코드(테스트 포함)는 s.onVer++ 를 같이 한다**
+   */
+  onVer: number;
+  manVer: number;
+  manD0: number;
 }
 
 export function emptyTeamStats(): TeamStats {
@@ -257,7 +389,7 @@ export function emptyTeamStats(): TeamStats {
     dribbles: 0, dribblesWon: 0, crosses: 0, crossesCompleted: 0, aerials: 0, saves: 0,
     throwIns: 0, goalKicks: 0, longPasses: 0, longCompleted: 0, longPSum: 0, throughPasses: 0, throughReceived: 0, counterShots: 0, goalKickShots: 0,
     centralShots: 0, oppHalfWins: 0, keyPasses: 0, cutbacks: 0, layoffs: 0, holdups: 0, holdupsWon: 0,
-    shotPaths: [0, 0, 0, 0, 0, 0, 0], goalPaths: [0, 0, 0, 0, 0, 0, 0], decisions: [0, 0, 0, 0, 0, 0, 0, 0, 0], boxAtCross: 0, boxCrossN: 0, tackleAttempts: 0, dispossessed: 0,
+    shotPaths: [0, 0, 0, 0, 0, 0, 0], goalPaths: [0, 0, 0, 0, 0, 0, 0], decisions: [0, 0, 0, 0, 0, 0, 0, 0, 0], boxAtCross: 0, boxCrossN: 0, boxAtLand: 0, boxLandN: 0, tackleAttempts: 0, dispossessed: 0, farOnTarget: 0, farSaves: 0, farBinOn: [0, 0, 0, 0, 0, 0], farBinSaves: [0, 0, 0, 0, 0, 0],
   };
 }
 

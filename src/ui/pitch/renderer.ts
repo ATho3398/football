@@ -155,7 +155,7 @@ export interface LabelBox { id: string; text: string; x: number; y: number; w: n
  */
 export function layoutLabels(
   items: readonly LabelItem[], measure: (text: string, me: boolean) => { w: number; h: number },
-  place: { below: (rr: number) => number; gap: number; width: number; height: number },
+  place: { below: (rr: number) => number; gap: number; width: number; height: number; /** 위 자리는 쓰지 않는다 (평균 위치, C.81o) */ belowOnly?: boolean },
 ): LabelBox[] {
   const order = [...items].sort((a, b) => (a.me !== b.me ? (a.me ? -1 : 1) : a.carrier !== b.carrier ? (a.carrier ? -1 : 1) : a.dist - b.dist));
   const boxes: LabelBox[] = [];
@@ -175,7 +175,7 @@ export function layoutLabels(
     const free = (b: LabelBox) => !boxes.some((o) => hit(o, b)) && !marks.some((o) => o.id !== p.id && hit(o, b));
     let got: LabelBox | null = null;
     for (const t of texts) {
-      for (const up of [false, true]) {
+      for (const up of place.belowOnly ? [false] : [false, true]) {
         const b = spot(t, up);
         if (free(b)) {
           got = b;
@@ -293,7 +293,7 @@ interface Placed { id: string; info: ReplayPlayer; x: number; y: number; carrier
 /** 마커들을 겹침 순서(상대 → 우리 → 공 가진 선수 → 내 선수)로 그리고, 그 순서대로 이름 라벨 */
 function drawMarkers(
   ctx: CanvasRenderingContext2D, w: number, h: number, list: Placed[], renderer: MarkerRenderer, mySide: 0 | 1, r: number, pulse: number,
-  scope?: ReadonlyMap<string, ReplayPlayer>, ball?: [number, number],
+  scope?: ReadonlyMap<string, ReplayPlayer>, ball?: [number, number], belowOnly = false,
 ): void {
   const rank = (p: Placed) => (p.info.isMe ? 3 : p.carrier ? 2 : p.info.team === mySide ? 1 : 0);
   const sorted = [...list].sort((a, b) => rank(a) - rank(b));
@@ -321,7 +321,7 @@ function drawMarkers(
     ctx.font = `${me ? 800 : 600} ${size}px ${PALETTE.font}`;
     return { w: Math.ceil(ctx.measureText(text).width + 8), h: size + 4 };
   };
-  const boxes = layoutLabels(items, measure, { below: (rr) => renderer.labelBelow?.(rr) ?? below, gap: 2, width: w, height: h });
+  const boxes = layoutLabels(items, measure, { below: (rr) => renderer.labelBelow?.(rr) ?? below, gap: 2, width: w, height: h, belowOnly });
   for (const b of boxes) drawLabelBox(ctx, b, r);
 }
 
@@ -394,8 +394,10 @@ export function drawFrame(
   const proj: PitchProjection = oy ? { portrait: full.portrait, toScreen: (x, y) => { const [sx, sy] = full.toScreen(x, y); return [sx, sy - oy]; } } : full;
   const r = markerRadius(Math.min(w, fullH * (PITCH_L / PITCH_W)));
   const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
-  drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  // 230B (C.76f): 날씨는 선수 원·이름표·화살표 아래 (선수·공 위로는 덮지 않는다), 왼쪽 아래 꼬리표만 맨 위
   drawSky(ctx, w, h, time);
+  drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  drawWeatherTag(ctx, h);
   return proj;
 }
 
@@ -414,7 +416,8 @@ export function pitchWeather(): PitchWeather {
 }
 
 function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  const tint = weather === 'rain' ? 'rgba(70,130,190,0.10)' : weather === 'snow' ? 'rgba(235,242,255,0.10)' : weather === 'heat' ? 'rgba(255,190,90,0.05)' : weather === 'cloudy' ? 'rgba(0,0,0,0.06)' : '';
+  // 230B: 비 = 젖은 잔디 살짝 어둡게(16%)
+  const tint = weather === 'rain' ? 'rgba(8,16,26,0.16)' : weather === 'snow' ? 'rgba(235,242,255,0.10)' : weather === 'heat' ? 'rgba(255,190,90,0.05)' : weather === 'cloudy' ? 'rgba(0,0,0,0.06)' : '';
   if (!tint) return;
   ctx.fillStyle = tint;
   ctx.fillRect(0, 0, w, h);
@@ -434,7 +437,7 @@ function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, time: numb
   ctx.save();
   if (weather === 'rain') {
     // 비: 기울어진 짧은 선, 빠르게 떨어진다
-    ctx.strokeStyle = 'rgba(190,220,255,0.35)';
+    ctx.strokeStyle = 'rgba(200,225,255,0.28)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i < SKY_N.rain; i++) {
@@ -448,7 +451,7 @@ function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, time: numb
     ctx.stroke();
   } else if (weather === 'snow') {
     // 눈: 천천히 흔들리며 내리는 점
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
     for (let i = 0; i < SKY_N.snow; i++) {
       const v = 22 + 26 * hash01(i, 1);
       const y = ((hash01(i, 3) * (h + 20) + time * v) % (h + 20)) - 10;
@@ -459,19 +462,43 @@ function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, time: numb
       ctx.fill();
     }
   } else {
-    // 강풍: 옅은 가로 줄이 흘러간다
-    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-    ctx.lineWidth = 1;
+    // 강풍 (230B): 가는 물결 줄 6개가 바람 방향(왼→오)으로 흘러간다
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    for (let i = 0; i < 14; i++) {
-      const len = 30 + 40 * hash01(i, 2);
-      const x = ((hash01(i, 0) * (w + len) + time * (160 + 80 * hash01(i, 1))) % (w + len)) - len;
-      const y = hash01(i, 3) * h;
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + len, y + 2);
+    for (let i = 0; i < 6; i++) {
+      const len = 70 + 50 * hash01(i, 2);
+      const x0 = ((hash01(i, 0) * (w + len) + time * (120 + 60 * hash01(i, 1))) % (w + len)) - len;
+      const y0 = (0.1 + 0.8 * hash01(i, 3)) * h;
+      for (let k = 0; k <= 12; k++) {
+        const x = x0 + (len * k) / 12;
+        const y = y0 + Math.sin(k * 0.9 + time * 2 + i) * 3;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
     }
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** 피치 왼쪽 아래 날씨 꼬리표 (230B): 이름 · 핵심 효과. 맑음·흐림은 없음 */
+const WEATHER_TAG: Partial<Record<PitchWeather, string>> = { rain: '비 · 미끄러움', snow: '눈 · 한파', wind: '강풍 · 롱볼 흔들림', heat: '폭염 · 빨리 지침' };
+
+function drawWeatherTag(ctx: CanvasRenderingContext2D, h: number): void {
+  const t = WEATHER_TAG[weather];
+  if (!t) return;
+  ctx.save();
+  ctx.font = `700 11px ${PALETTE.font}`;
+  const tw = ctx.measureText(t).width;
+  const x = 8;
+  const y = h - 8 - 22;
+  ctx.fillStyle = 'rgba(18,19,23,0.78)';
+  ctx.fillRect(x, y, tw + 16, 22);
+  ctx.fillStyle = '#f3f4f6';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(t, x + 8, y + 11);
   ctx.restore();
 }
 
@@ -543,8 +570,10 @@ function drawZoomed(
   };
   const r = markerRadius(w);
   const pulse = (Math.sin(time * Math.PI * 1.6) + 1) / 2;
-  drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  // 230B (C.76f): 날씨는 선수 원·이름표·화살표 아래 (선수·공 위로는 덮지 않는다), 왼쪽 아래 꼬리표만 맨 위
   drawSky(ctx, w, h, time);
+  drawPlayersAndBall(ctx, w, h, frame, players, renderer, mySide, r, pulse, proj);
+  drawWeatherTag(ctx, h);
   return proj;
 }
 
@@ -556,14 +585,18 @@ export function drawAveragePositions(
   drawPitch(ctx, w, h);
   const proj = pitchProjection(w, h, mySide === 0 ? 1 : -1);
   const r = markerRadius(Math.min(w, h * (PITCH_L / PITCH_W)));
+  // 가로 피치 (C.81o): pitchProjection 은 가로일 때 돌리지 않는다 → 원정(mySide 1)이면 180도 돌려 "우리 공격 방향 →"과 맞춘다
+  // (예전엔 원정 경기에서 우리 팀이 왼쪽으로 공격하게 그려져 우리 GK 자리에 상대 GK가 있었다)
+  const flip = !proj.portrait && mySide === 1;
   const list: Placed[] = [];
   for (const a of avg) {
     const info = players.get(a.id);
     if (!info) continue;
-    const [x, y] = proj.toScreen(a.x, a.y);
+    const [x, y] = proj.toScreen(flip ? PITCH_L - a.x : a.x, flip ? PITCH_W - a.y : a.y);
     list.push({ id: a.id, info, x, y, carrier: false });
   }
-  drawMarkers(ctx, w, h, list, renderer, mySide, r, 0);
+  // 평균 위치 이름표는 늘 마커 아래 (C.81o, 17차 검수 17번)
+  drawMarkers(ctx, w, h, list, renderer, mySide, r, 0, undefined, undefined, true);
 }
 
 export function playerMap(r: Replay): Map<string, ReplayPlayer> {
@@ -829,9 +862,6 @@ export const faceRenderer: MarkerRenderer = {
 let matchTeams: readonly [string, string] | null = null;
 export function setPitchTeams(teams: readonly [string, string] | null): void {
   matchTeams = teams;
-}
-export function pitchTeams(): readonly [string, string] | null {
-  return matchTeams;
 }
 
 /** 마커 → 겹쳐 그릴 16px 이미지 주소들(아래 → 위). 화면이 정한다 (선수 인물 + 경기 유니폼). 없으면 등번호 */

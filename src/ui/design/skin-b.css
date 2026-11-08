@@ -62,11 +62,11 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) .po-hero--compact.po-hero--text .po-hero__value { color: var(--on-brand); font-size: 22px; }
 
 /* 미페 머리말 (face): 등번호 + 투명 미페 + 사선 검정 면 */
-:where(html[data-skin="b"]) .po-hero--face { flex: none; padding: 0; height: 430px; border-bottom: 0; background: var(--surface-1); }
+:where(html[data-skin="b"]) .po-hero--face { flex: none; padding: 0; height: 450px; border-bottom: 0; background: var(--surface-1); }
 :where(html[data-skin="b"]) .po-hero--face::before, :where(html[data-skin="b"]) .po-hero--face::after { display: none; }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__kit { position: absolute; z-index: 0; right: -24px; top: -40px; font-family: var(--font-display); font-weight: 800; font-size: 480px; line-height: 440px; color: var(--brand); white-space: nowrap; }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__kit.is-two { font-size: 330px; right: -10px; top: 0; }
-:where(html[data-skin="b"]) .po-hero--face .po-hero__face { position: absolute; z-index: 1; left: -36px; bottom: 64px; width: 380px; height: 380px; object-fit: contain; object-position: bottom; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__kit { position: absolute; z-index: 0; right: -24px; top: -20px; font-family: var(--font-display); font-weight: 800; font-size: 480px; line-height: 440px; color: var(--brand); white-space: nowrap; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__kit.is-two { font-size: 330px; right: -10px; top: 20px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face { position: absolute; z-index: 1; left: -36px; bottom: 30px; width: 356px; height: 356px; box-sizing: border-box; padding-top: 26px; object-fit: contain; object-position: bottom; } /* C.81f: 위에서부터 도구 줄(8~56) → 여유 8px → 사진(64~) → 사진 안 머리 위 여백 26px(C.81p: 7% 는 머리말 폭 기준이라 PC 1232px 에서 86px → 사진이 사선 면 뒤로 숨었다. 폰 390 의 7% ≈ 26px 로 고정). 예전 380px·bottom 64 는 사진 위끝이 머리말 밖(−14px)이라 머리가 도구 줄 뒤에 깔렸다 */
 :where(html[data-skin="b"]) .po-hero--face .po-hero__slab { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 186px; background: var(--surface-0); clip-path: polygon(0 22%, 100% 50%, 100% 100%, 0 100%); }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__line { position: absolute; z-index: 2; left: 0; bottom: 148px; width: 250px; height: 14px; background: var(--brand); transform: skewY(6.4deg); transform-origin: left; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__bar { position: absolute; z-index: 3; left: var(--space-4); right: var(--space-4); top: 8px; }
@@ -76,14 +76,17 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) .po-hero--face .po-hero__eyebrow { margin: 0; max-width: none; font-size: 13px; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__name { font-family: var(--font-head); font-size: 50px; line-height: 54px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__chips { margin-top: 6px; max-width: none; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__chips { flex-wrap: nowrap; gap: 5px; min-width: 0; width: calc(100% + 36px); max-width: none; } /* C.75u: 칩은 한 줄 — 2줄이면 아래 붙은 이름 묶음이 위로 밀려 사선·등번호에 겹친다. 줄은 OVR 앞까지(+36px), 그래도 넘치면 칩마다 줄임 */
+:where(html[data-skin="b"]) .po-hero--face .po-hero__chip { display: block; flex: 0 1 auto; min-width: 0; padding: 0 7px; font-size: 10.5px; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__title { justify-self: start; max-width: 100%; height: 32px; padding: 0 12px; line-height: 32px; background: var(--surface-0); clip-path: var(--skew-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* C.75u: 제목이 얼굴 사진(머리카락)에 겹쳐도 읽히게 검정 받침 */
 :where(html[data-skin="b"]) .po-hero--face .po-hero__num { position: absolute; z-index: 3; right: var(--space-4); bottom: 22px; height: auto; flex-direction: column; align-items: flex-end; gap: 2px; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__value { color: var(--ink); font-size: 96px; line-height: 80px; white-space: nowrap; }
 :where(html[data-skin="b"]) .po-hero--face .po-hero__unit { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: .12em; color: var(--ink-muted); }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact { display: block; height: 290px; border-radius: 0; } /* C.58: compact 격자(요청 5)를 끈다 — 자식은 모두 절대 위치 */
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { font-size: 320px; line-height: 300px; top: -24px; }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { width: 250px; height: 250px; bottom: 40px; left: -20px; }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__slab { height: 140px; }
-:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__line { bottom: 120px; width: 190px; height: 10px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact { display: block; height: 320px; border-radius: 0; } /* C.58: compact 격자(요청 5)를 끈다 — 자식은 모두 절대 위치 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { font-size: 320px; line-height: 300px; top: 6px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { width: 260px; height: 260px; bottom: 0; left: -20px; } /* C.81f: 머리말 290 → 320, 사진 위끝 60px(도구 줄 아래 52 + 8) · 아래는 사선 면 뒤로 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__slab { height: 180px; clip-path: polygon(0 22%, 100% 44%, 100% 100%, 0 100%); } /* C.75u: 140 → 180 · 오른쪽 50% → 44% — 눈썹 줄(소속·포지션·나이)까지 검정 면 안에 들어오게 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__line { bottom: 150px; width: 190px; height: 10px; } /* C.75u: 120 → 150, 사선 면 윗변에 맞춤 */
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__name { font-size: 36px; line-height: 40px; }
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__value { font-size: 72px; line-height: 62px; color: var(--ink); }
 :where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__who { bottom: 14px; }
@@ -146,3 +149,42 @@ html[data-skin="b"] { --skew: polygon(5% 0, 100% 0, 95% 100%, 0 100%); --skew-sm
 :where(html[data-skin="b"]) :where(.po-btn, .po-hero__back, .po-tabs--segment .po-tab):focus-visible { outline: 2px solid var(--focus); outline-offset: -5px; }
 :where(html[data-skin="b"]) :where(.po-btn--ghost):focus-visible { outline-offset: 2px; }
 :where(html[data-skin="b"]) :where(.po-dock__item, .po-dock__go, .po-dock__home):focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* ── C.76g U8-b (디자인 통합 2부 bundle.css 추가분 · 203 · 202) ── */
+/* HeroPanel compact: 소속 줄 왼쪽 정렬 (2부 다듬기). 칩 두 줄(flex-wrap)은 C.75u 한 줄 규칙이 우선이라 옮기지 않음 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__eyebrow { align-self: flex-start; text-align: left; }
+/* Banner B 안내띠 (203): 바탕은 늘 surface-1 · 오른쪽 모서리 4px · 왼쪽 3px 막대 색으로 종류(안내 라임 · 성공 초록 · 경고 주황 · 부상 빨강) · 아이콘 18px 막대와 같은 색(칸 없음) · 꺾인 회색 단추 28px */
+:where(html[data-skin="b"]) .po-banner { --bn: var(--brand); background: var(--surface-1); border-left: 3px solid var(--bn); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 12px 14px 12px 12px; gap: 10px; }
+:where(html[data-skin="b"]) .po-banner--success { --bn: var(--success); }
+:where(html[data-skin="b"]) .po-banner--warning { --bn: var(--warning); }
+:where(html[data-skin="b"]) .po-banner--injury { --bn: var(--injury); }
+:where(html[data-skin="b"]) .po-banner .po-banner__icon { width: 22px; height: 22px; border-radius: 0; background: none; color: var(--bn); align-self: start; }
+:where(html[data-skin="b"]) .po-banner--info .po-banner__icon { color: var(--brand-ink); }
+:where(html[data-skin="b"]) .po-banner__body b { font-size: 13px; line-height: 19px; }
+:where(html[data-skin="b"]) .po-banner__action { height: 28px; border-radius: 0; background: var(--surface-3); clip-path: var(--skew-sm); padding: 0 14px; }
+:where(html[data-skin="b"]) .po-banner__body, :where(html[data-skin="b"]) .po-toast__body { word-break: keep-all; overflow-wrap: anywhere; }
+/* Toast B: 왼쪽 3px 막대(레벨업은 판 전체가 라임이라 없음), info 아이콘 라임 */
+:where(html[data-skin="b"]) .po-toast { border-radius: 0 var(--radius-md) var(--radius-md) 0; border-left: 3px solid var(--brand); }
+:where(html[data-skin="b"]) .po-toast--levelup { border-left: 0; border-radius: var(--radius-md); }
+:where(html[data-skin="b"]) .po-toast--info .po-toast__icon { color: var(--brand-ink); }
+:where(html[data-skin="b"]) .po-toast__icon { border-radius: var(--radius-sm); }
+:where(html[data-skin="b"]) .po-toast__action { border-radius: 0; clip-path: var(--skew-sm); }
+
+/* ── C.76l U8-c (239 리그 고르기 · 233/234 배지): 칩·배지는 기울임, 묶음 칸·줄은 B 모서리 ── */
+:where(html[data-skin="b"]) .ng-lg__chip.is-mine, :where(html[data-skin="b"]) .ng-badge { transform: skewX(-8deg); font-style: italic; }
+:where(html[data-skin="b"]) .ng-lpack__cell { clip-path: none; }
+/* 240B 새 포토카드 배너: 라임 낮은 면 + 라임 막대 · 아이콘 = 라임 네모 칸(검정 album) · [도감 보기] 라임 글자 */
+:where(html[data-skin="b"]) .po-banner--fill { background: color-mix(in srgb, var(--brand) 14%, var(--surface-1)); align-items: center; }
+:where(html[data-skin="b"]) .po-banner--fill .po-banner__icon { width: 30px; height: 30px; align-self: center; display: grid; place-items: center; background: var(--brand); color: var(--on-brand); border-radius: var(--radius-sm); }
+:where(html[data-skin="b"]) .po-banner--fill .po-banner__action { color: var(--brand-ink); }
+/* 새 게임 · 도감 일반 머리말 칩: 한 줄 우선 (C.75u 규칙을 일반 B 머리말에도) — 넘치면 칩마다 말줄임 */
+:where(html[data-skin="b"]) #app:has(.ng-body) .po-hero:not(.po-hero--face) .po-hero__chips { flex-wrap: nowrap; min-width: 0; }
+:where(html[data-skin="b"]) #app:has(.pc-body) .po-hero:not(.po-hero--face) .po-hero__chips { flex-wrap: nowrap; min-width: 0; }
+:where(html[data-skin="b"]) #app:has(.ng-body) .po-hero:not(.po-hero--face) .po-hero__chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 26px; }
+:where(html[data-skin="b"]) #app:has(.pc-body) .po-hero:not(.po-hero--face) .po-hero__chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 26px; }
+:where(html[data-skin="b"]) #app:has(.ng-body) .po-hero:not(.po-hero--face) .po-hero__chip:first-child { flex: none; max-width: 60%; }
+:where(html[data-skin="b"]) #app:has(.pc-body) .po-hero:not(.po-hero--face) .po-hero__chip:first-child { flex: none; max-width: 60%; }
+/* 229 인종 칩: 꺾인 세그먼트 칸 (고른 칸 라임) */
+:where(html[data-skin="b"]) .ng-looks .cu-chips { gap: 4px; padding: 4px; background: var(--surface-2); border-radius: var(--radius-sm); align-self: flex-start; }
+:where(html[data-skin="b"]) .ng-looks .cu-chip { min-height: 32px; padding: 4px 14px; border-radius: 0; clip-path: var(--skew-sm); background: transparent; }
+:where(html[data-skin="b"]) .ng-looks .cu-chip.is-on { background: var(--brand); }

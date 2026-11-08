@@ -4,18 +4,32 @@
 import { FIELD_ATTRIBUTES, type FieldAttribute, type GkAttributes } from '../../src/attributes';
 import { ENGINE } from '../../src/engine/config';
 import { TENDENCY } from '../../src/engine/tactics';
-import { fillRoles, teamSetupFromRoster } from '../../src/engine/setup';
+import { fillRoles, npcTeamSetup, teamSetupFromRoster } from '../../src/engine/setup';
+import { managerOf } from '../../data/managers';
 import { ratingParts, type RatingParts } from '../../src/engine/rating';
+import { ROLES, type RoleModule } from '../../src/engine/roles';
 import { createMatch } from '../../src/engine/sim';
 import type { PlayerStats, Tactics, TeamSetup, TeamStats } from '../../src/engine/types';
-import { customSlots, FORMATION_SLOTS, type Formation } from '../../src/formations';
-import { attackDir, dist, toNorm } from '../../src/engine/pitch';
+import { customSlots, FORMATION_SLOTS, type Formation, type FormationSlot } from '../../src/formations';
+import { attackDir, dist, L, toNorm } from '../../src/engine/pitch';
 import type { MatchSim } from '../../src/engine/sim';
 import type { EngineResult } from '../../src/engine/types';
 import { newGame, playRound, rebuildRosters } from '../../src/game';
 import { autoAllocate } from '../../src/growth';
 import { createTeamRoster, rosterRating, teamRatings, type Rosters } from '../../src/roster';
+import { BALANCE } from '../../src/config/balance';
+import { buildSchedule } from '../../src/league';
+import { addDays, daysBetween, seasonCalendar } from '../../src/calendar';
+import { tuesdayOf } from '../../src/cups';
+import { npcQuickMatch } from '../../src/npcQuick';
+import type { NpcLoadMap } from '../../src/load';
+import { createRng, hashSeed } from '../../src/rng';
+import { dayNum, npcAfterMatch, npcConditions, npcInjuredOn, type NpcCond, type NpcFitMap } from '../../src/npcFit';
 import { setEnvironmentFixed } from '../../src/weather';
+import { transRun, type TransOut } from './transProbe';
+import { gegenRun, type GegenOut } from './gegenProbe';
+import { blockRun, type BlockOut } from './blockProbe';
+import { boxRun, type BoxOut } from './boxProbe';
 
 // 측정은 맑음·보통 심판 고정 (부록 C.74a): 기존 기준 그대로 비교
 setEnvironmentFixed(true);
@@ -33,11 +47,15 @@ export interface TeamSpec {
   roles?: Record<number, string>;
   /** 커스텀 포메이션 칸 (E.5.1, GK -1). formation 대신 쓴다 */
   cells?: number[];
+  /** 진단용 슬롯 직접 지정 (C.80s): cells 대신 쓴다 */
+  slots?: FormationSlot[];
 }
 
 /** 추적 선수 요약 (E3.7 역할 반응): 위치는 그 팀 공격 방향 정규화 */
 export interface TrackOut {
   samples: number;
+  /** 그 측면 상대 풀백 (C.78i): 오버래핑 시작 횟수 · 상대 공격 시 평균 x(상대 공격 방향) · 상대 진영 ⅓ 비율 · 크로스 · 슈팅 */
+  opFb?: { overlaps: number; ax: number; f3: number; crosses: number; shots: number };
   /** 평균 위치 (전체 / 공격 시 / 수비 시) */
   x: number; y: number; ax: number; ay: number; dx: number; dy: number;
   attSamples: number;
@@ -75,6 +93,18 @@ export interface MatchJob {
   parts?: boolean;
   /** 이 슬롯 선수의 위치·터치·침투를 추적한다 (E3.7 역할 반응) */
   track?: { team: 0 | 1; slot: number };
+  /** 전환 측정 (C.78a transProbe): 잃은 순간 배치·8초 결과·추적 배정 시점 */
+  trans?: boolean;
+  /** 게겐 상성 분해 (C.78c gegenProbe): 탈취 높이·압박 회피 롱볼·뒤 공간 패스·골 출처 */
+  gegen?: boolean;
+  /** 깊은 블록 분해 (C.78d blockProbe): 허용 슛 위치·xG·블록 · 수비 모양 · 줄 사이 수신 · 자기 ⅓ 탈취 뒤 역습 */
+  block?: boolean;
+  /** 박스 수신 분해 (C.78p boxProbe): 박스로 가는 패스·박스 수신 수비 거리·받은 뒤 3초·12 m 안 슛 앞 장면, 박스 안 수비 인원별 */
+  box?: boolean;
+  /** 패스 거리 분포 (C.79m): 팀별 패스(침투·컷백·레이오프 포함, 크로스 제외) 노린 거리 0·10·20·30·40 m 칸 시도 수 */
+  pdist?: boolean;
+  /** 점유 가치 분해 탐침 (엔진관리자20 c79u): 팀별 오픈 플레이 상실 위치(자기 ⅓·중간·상대 ⅓) · 탈취 뒤 6초 안 패스(수·공중·성공) · 30 m+ 패스(수·성공·공중볼 경합) · 소유 길이 */
+  c79u?: boolean;
 }
 
 export interface SeasonJob {
@@ -96,7 +126,20 @@ export interface LeagueMatchJob {
   overrides?: Record<string, number>;
 }
 
-export type Job = MatchJob | SeasonJob | LeagueMatchJob;
+/**
+ * 실제 선수 리그 한 시즌 (C.77m, pending 142a): 380경기를 실제 달력(seasonCalendar) 날짜 순서로 한 작업에서 이어 치르며 NPC 피로·부상(npcFit)을 쌓는다.
+ * 경기 시드는 LeagueMatchJob 과 같은 (홈, 원정) 순번 seed0 + k 라서 BALANCE.fatigue.npc.on = false 면 경기별 결과가 그대로다
+ */
+export interface LeagueSeasonJob {
+  kind: 'leagueSeason';
+  worldSeed: string;
+  /** 팀 id 순서 (시드 순번용, LeagueMatchJob 의 이중 반복과 같은 순서) */
+  ids: string[];
+  seed0: number;
+  overrides?: Record<string, number>;
+}
+
+export type Job = MatchJob | SeasonJob | LeagueMatchJob | LeagueSeasonJob;
 
 export type CompactPlayer = Omit<PlayerStats, 'id'> & { starter: boolean; parts?: RatingParts };
 
@@ -112,6 +155,27 @@ export interface MatchOut {
   elapsed75: number;
   ms: number;
   track?: TrackOut;
+  trans?: TransOut;
+  gegen?: GegenOut;
+  block?: BlockOut;
+  box?: BoxOut;
+  pdist?: [number[], number[]];
+  /** 5 m 단위 패스 거리 (0~5 … 25~30 · 30+, C.80f) */
+  pdist5?: [number[], number[]];
+  c79u?: C79uOut[];
+}
+
+export interface C79uOut {
+  /** 오픈 플레이 상실 수: 자기 ⅓ · 중간 ⅓ · 상대 ⅓ (상실한 팀 기준 정규화 x) */
+  lossZone: [number, number, number];
+  /** 탈취 뒤 6초 안 패스: 수 · 공중(30 m+) 수 · 받음(receive) 수 · 공중 받음 수 */
+  tr: [number, number, number, number];
+  /** 30 m+ 패스 전체: 수 · 받음 · 공중볼 경합(aerial) · 가로챔(intercept) */
+  lg: [number, number, number, number];
+  /** 모든 패스: 수 · 받음 */
+  all: [number, number];
+  /** 오픈 플레이 소유 횟수 · 소유 시간 합(초) · 10초 이상 소유 수 */
+  poss: [number, number, number];
 }
 
 export interface SeasonOut {
@@ -134,23 +198,91 @@ export interface LeagueMatchOut {
   scorers: Record<string, number>;
   /** 득점한 선수 id → 포지션 (E.22 0번 득점 상위 10명 포지션) */
   pos: Record<string, string>;
+  /** 득점한 선수 id → 팀 id (C.76x: MID 최다 득점자 ↔ 그 팀 ST 득점 짝) */
+  team?: Record<string, string>;
   /** 슈팅한 선수 id → 슈팅 수 */
   shots: Record<string, number>;
   /** 팀 슈팅·골 경로 합 (양 팀) */
   shotPaths: number[];
   goalPaths: number[];
+  /** 출전한 선수 id → [선발 1/0, 출전 분] (C.77c: 출전 수·선발 수·평균 출전 분 기록) */
+  apps?: Record<string, [number, number]>;
 }
 
-export type JobOut = MatchOut | SeasonOut | LeagueMatchOut;
+/** 리그 시즌 결과 (C.77m): 경기별 결과 + NPC 피로·부상 기록 */
+export interface LeagueSeasonOut {
+  kind: 'leagueSeason';
+  matches: LeagueMatchOut[];
+  fit: {
+    /** 부상 횟수 · 부상 결장 선수-경기 수 */
+    injuries: number;
+    injuredOut: number;
+    /** 선발 선수-경기 수 · 그중 경기 날 아침 피로가 penaltyFrom 을 넘은 수 · 선발 아침 피로 합 */
+    starts: number;
+    startsOver: number;
+    startFatigue: number;
+    /** C.79i: 팀별 [선발 선수-경기, 선발 아침 피로 합, 시즌 후반(마지막 1/3) 선발, 그 피로 합] */
+    teams?: Record<string, [number, number, number, number]>;
+    /** C.77n: 챔스 팀(상위 4) — 챔스 간이 경기 수 · 그 팀 선수 부상(리그·챔스 합) · 리그 선발 · 그중 아침 피로 50 초과 */
+    uclMatches?: number;
+    uclInjuries?: number;
+    uclStarts?: number;
+    uclStartsOver?: number;
+    /** C.77n: 시즌 끝 선수 부하 [팀 id, 부하] (부하 10 이상만, 성향별 비교) */
+    loads?: [string, number][];
+  };
+  /** 챔스 팀 id */
+  ucl?: string[];
+}
+
+export type JobOut = MatchOut | SeasonOut | LeagueMatchOut | LeagueSeasonOut;
 
 /** 균형 전술 (E.19 균형: 라인 보통 / 압박 보통 / 빌드업 혼합 / 폭 보통) */
 export const BALANCED: Partial<Tactics> = { tendency: 'balanced', lineHeight: 0.5, pressing: 0.55, style: 0.5, width: 1 };
 
-function applyOverrides(o: Record<string, number> | undefined): () => void {
+export function applyOverrides(o: Record<string, number> | undefined): () => void {
   if (!o) return () => {};
   const undo: (() => void)[] = [];
   for (const [path, v] of Object.entries(o)) {
+    // 'role.<id>.<dx|dy|run|drop|press>' · 'role.<id>.pref.<항목>' · 'role.<id>.module.<모듈>'(1 켬 / 0 끔) 은 역할 표 (C.81i, 측정용)
+    if (path.startsWith('role.')) {
+      const [, id, k1, k2] = path.split('.') as [string, string, string, string | undefined];
+      const role = ROLES[id];
+      if (!role) throw new Error(`역할 없음: ${path}`);
+      if (k1 === 'module') {
+        const m = k2 as RoleModule;
+        const prev = role.modules;
+        (role as { modules: readonly RoleModule[] }).modules = v > 0 ? [...new Set([...prev, m])] : prev.filter((x) => x !== m);
+        undo.push(() => ((role as { modules: readonly RoleModule[] }).modules = prev));
+        continue;
+      }
+      const obj = (k1 === 'pref' ? role.pref : role) as unknown as Record<string, unknown>;
+      const last = k1 === 'pref' ? k2! : k1;
+      if (typeof obj[last] !== 'number') throw new Error(`숫자 상수가 아님: ${path}`);
+      const prev = obj[last];
+      obj[last] = v;
+      undo.push(() => (obj[last] = prev));
+      continue;
+    }
     // 'tendency.' 로 시작하면 성향 고유 행동 상수 (E.19 ①, 측정용 C.32)
+    // 'matchup.<우리>.<상대>.<실행>' 은 없는 칸도 만든다 (C.81s, 측정용 — 끝나면 지움)
+    if (path.startsWith('matchup.')) {
+      const [, mine, opp, kind] = path.split('.') as [string, string, string, string];
+      const M = ENGINE.matchup as Record<string, Record<string, Record<string, number>>>;
+      const hadMine = mine in M;
+      const row = (M[mine] ??= {});
+      const hadOpp = opp in row;
+      const cell = (row[opp] ??= {});
+      const had = kind in cell;
+      const prev = cell[kind];
+      cell[kind] = v;
+      undo.push(() => {
+        if (had) cell[kind] = prev!; else delete cell[kind];
+        if (!hadOpp) delete row[opp];
+        if (!hadMine) delete M[mine];
+      });
+      continue;
+    }
     const tend = path.startsWith('tendency.');
     const keys = (tend ? path.slice('tendency.'.length) : path).split('.');
     let obj = (tend ? TENDENCY : ENGINE) as unknown as Record<string, unknown>;
@@ -167,10 +299,11 @@ function applyOverrides(o: Record<string, number> | undefined): () => void {
   return () => undo.reverse().forEach((f) => f());
 }
 
-function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup {
+export function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): TeamSetup {
   const roster = createTeamRoster({ id: t.id, rating: t.rating }, t.seed, 2018, []);
   if (t.formation) roster.formation = t.formation;
   if (t.cells) roster.customSlots = customSlots(t.cells);
+  if (t.slots) roster.customSlots = t.slots;
   const setup = teamSetupFromRoster(roster, rosterRating(roster), oppRating, worldSeed);
   const before = setup.tactics.tendency;
   if (t.tactics === 'balanced') setup.tactics = { ...setup.tactics, ...BALANCED };
@@ -204,10 +337,26 @@ function trackRun(sim: MatchSim, team: 0 | 1, slot: number): (r: EngineResult) =
   const acc = { n: 0, x: 0, y: 0, an: 0, ax: 0, ay: 0, dx: 0, dy: 0, wide: 0, box: 0, f3: 0, touches: 0, runs: 0, space: 0 };
   let lastOwner = -1;
   const runSeen = new Map<number, number>();
+  const fb = { overlaps: 0, an: 0, ax: 0, f3: 0, slot: -1 };
+  let fbWas = false;
   while (!s.done) {
     sim.step();
     const a = s.agents.find((o) => o.onPitch && o.team === team && o.stats.slot === slot);
     if (!a) continue;
+    // 그 측면 상대 풀백 (상대 정규화 y 는 반대: 슬롯 y 반대쪽)
+    const f = s.agents.find((o) => o.onPitch && o.team !== team && (o.pos === 'LB' || o.pos === 'RB' || o.pos === 'LWB' || o.pos === 'RWB') && Math.sign(o.sy - 0.5) === -Math.sign(a.sy - 0.5));
+    if (f) {
+      fb.slot = f.stats.slot;
+      const on = f.overlap && s.t < f.runUntil;
+      if (on && !fbWas) fb.overlaps++;
+      fbWas = on;
+      if (s.tick % 10 === 0 && !s.restart && s.possTeam !== team) {
+        const fx = toNorm(f.x, f.y, attackDir(f.team, s.half))[0];
+        fb.an++;
+        fb.ax += fx;
+        if (fx > 2 / 3) fb.f3++;
+      }
+    }
     if (s.ball.owner === a.idx && lastOwner !== a.idx) acc.touches++;
     lastOwner = s.ball.owner;
     if (a.runUntil > s.t && runSeen.get(a.idx) !== a.runUntil) {
@@ -240,7 +389,9 @@ function trackRun(sim: MatchSim, team: 0 | 1, slot: number): (r: EngineResult) =
     const dn = Math.max(1, acc.n - acc.an);
     const p = r.players.find((x) => x.team === team && x.slot === slot);
     const { id: _id, ...stats } = p ?? r.players[0]!;
+    const fp = r.players.find((x) => x.team !== team && x.slot === fb.slot);
     return {
+      opFb: { overlaps: fb.overlaps, ax: fb.ax / Math.max(1, fb.an), f3: fb.f3 / Math.max(1, fb.an), crosses: fp?.crosses ?? 0, shots: fp?.shots ?? 0 },
       samples: acc.n, x: acc.x / n, y: acc.y / n, ax: acc.ax / an, ay: acc.ay / an, dx: acc.dx / dn, dy: acc.dy / dn, attSamples: acc.an,
       wide: acc.wide / n, box: acc.box / n, final3: acc.f3 / n, touches: acc.touches, runs: acc.runs, space: acc.space / an, stats,
     };
@@ -261,6 +412,75 @@ export function runMatchJob(j: MatchJob): MatchOut {
       ...(j.forceRed ? { forceRed: j.forceRed } : {}),
     });
     const track = j.track ? trackRun(sim, j.track.team, j.track.slot) : undefined;
+    const trans = j.trans ? transRun(sim) : undefined;
+    const gegen = j.gegen ? gegenRun(sim) : undefined;
+    const block = j.block ? blockRun(sim) : undefined;
+    const box = j.box ? boxRun(sim) : undefined;
+    let pdist: [number[], number[]] | undefined;
+    let pdist5: [number[], number[]] | undefined;
+    if (j.pdist && !j.c79u) {
+      pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      pdist5 = [[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]];
+      const s0 = sim.state;
+      let seen: unknown = null;
+      while (!s0.done) {
+        if (s0.moments.pending) sim.resolve('delegate');
+        else sim.step();
+        const fl = s0.ball.flight;
+        if (fl && fl !== seen && fl.aimD !== undefined && fl.passer >= 0 && !fl.fromCross) {
+          seen = fl;
+          pdist[s0.agents[fl.passer]!.team]![Math.min(4, Math.floor(fl.aimD / 10))]!++;
+          pdist5[s0.agents[fl.passer]!.team]![Math.min(6, Math.floor(fl.aimD / 5))]!++;
+        }
+      }
+    }
+    let c79u: C79uOut[] | undefined;
+    if (j.c79u) {
+      if (j.pdist) pdist = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      const mk = (): C79uOut => ({ lossZone: [0, 0, 0], tr: [0, 0, 0, 0], lg: [0, 0, 0, 0], all: [0, 0], poss: [0, 0, 0] });
+      c79u = [mk(), mk()];
+      const s0 = sim.state;
+      let prevPoss = s0.possTeam, prevOrigin = s0.possOrigin, prevStart = s0.possStartT;
+      let seen: unknown = null;
+      const pending: { fl: { outcome: string; aimD?: number; passer: number }; team: 0 | 1; trans: boolean }[] = [];
+      const flush = (cur: unknown) => {
+        for (let i = pending.length - 1; i >= 0; i--) {
+          const q = pending[i]!;
+          if (q.fl === cur) continue;
+          const o = c79u![q.team]!;
+          const d = q.fl.aimD ?? 0;
+          const recv = q.fl.outcome === 'receive' ? 1 : 0;
+          o.all[0]++; o.all[1] += recv;
+          if (q.trans) { o.tr[0]++; if (d > 30) o.tr[1]++; o.tr[2] += recv; if (d > 30) o.tr[3] += recv; }
+          if (d > 30) { o.lg[0]++; o.lg[1] += recv; if (q.fl.outcome === 'aerial') o.lg[2]++; if (q.fl.outcome === 'intercept') o.lg[3]++; }
+          pending.splice(i, 1);
+        }
+      };
+      while (!s0.done) {
+        if (s0.moments.pending) sim.resolve('delegate');
+        else sim.step();
+        if (s0.possTeam !== prevPoss || s0.possStartT !== prevStart) {
+          // 소유가 바뀜: 이전 소유(오픈 플레이)의 길이, 새 소유가 오픈 플레이 탈취면 잃은 팀의 상실 위치
+          if (prevOrigin === 'open') { const o = c79u[prevPoss]!; const len = s0.t - prevStart; o.poss[0]++; o.poss[1] += len; if (len >= 10) o.poss[2]++; }
+          if (s0.possOrigin === 'open' && s0.possTeam !== prevPoss) {
+            const loser = prevPoss;
+            const nx = attackDir(loser, s0.half) > 0 ? s0.ball.x / L : 1 - s0.ball.x / L;
+            c79u[loser]!.lossZone[nx < 1 / 3 ? 0 : nx < 2 / 3 ? 1 : 2]++;
+          }
+          prevPoss = s0.possTeam; prevOrigin = s0.possOrigin; prevStart = s0.possStartT;
+        }
+        const fl = s0.ball.flight;
+        flush(fl);
+        if (fl && fl !== seen && fl.aimD !== undefined && fl.passer >= 0 && !fl.fromCross) {
+          seen = fl;
+          const team = s0.agents[fl.passer]!.team;
+          if (pdist) pdist[team]![Math.min(4, Math.floor(fl.aimD / 10))]!++;
+          const trans = s0.possOrigin === 'open' && s0.t - s0.teams[team].wonAt <= 6;
+          pending.push({ fl: fl as never, team, trans });
+        }
+      }
+      flush(null);
+    }
     const r = sim.runToEnd();
     const st = sim.state;
     const byId = new Map([...st.agents, ...st.bench[0], ...st.bench[1]].map((a) => [a.id, a]));
@@ -277,6 +497,13 @@ export function runMatchJob(j: MatchJob): MatchOut {
       elapsed75: r.elapsed75,
       ms,
       ...(track ? { track: track(r) } : {}),
+      ...(trans ? { trans } : {}),
+      ...(gegen ? { gegen } : {}),
+      ...(block ? { block } : {}),
+      ...(box ? { box } : {}),
+      ...(pdist ? { pdist } : {}),
+      ...(pdist5 ? { pdist5 } : {}),
+      ...(c79u ? { c79u } : {}),
     };
   } finally {
     restore();
@@ -303,39 +530,160 @@ export function runSeasonJob(j: SeasonJob): SeasonOut {
 
 const worlds = new Map<string, { rosters: Rosters; ratings: Record<string, number> }>();
 
+function leagueWorld(worldSeed: string): { rosters: Rosters; ratings: Record<string, number> } {
+  let w = worlds.get(worldSeed);
+  if (!w) {
+    const rosters = rebuildRosters(worldSeed, undefined, 0);
+    w = { rosters, ratings: teamRatings(rosters) };
+    worlds.set(worldSeed, w);
+  }
+  return w;
+}
+
 export function runLeagueMatchJob(j: LeagueMatchJob): LeagueMatchOut {
   const restore = applyOverrides(j.overrides);
   try {
-    let w = worlds.get(j.worldSeed);
-    if (!w) {
-      const rosters = rebuildRosters(j.worldSeed, undefined, 0);
-      w = { rosters, ratings: teamRatings(rosters) };
-      worlds.set(j.worldSeed, w);
-    }
+    return playLeagueMatch(j).out;
+  } finally {
+    restore();
+  }
+}
+
+/** 리그 한 경기 (cond = NPC 피로·부상, C.77m). 엔진 결과도 돌려준다 (피로 쌓기용) */
+function playLeagueMatch(j: Omit<LeagueMatchJob, 'kind'>, cond?: NpcCond): { out: LeagueMatchOut; r: EngineResult; starters: Set<string> } {
+  {
+    const w = leagueWorld(j.worldSeed);
     const ids = Object.keys(w.ratings);
-    const leagueAvg = ids.reduce((t, id) => t + w!.ratings[id]!, 0) / ids.length;
+    const leagueAvg = ids.reduce((t, id) => t + w.ratings[id]!, 0) / ids.length;
     const rh = w.ratings[j.home]!;
     const ra = w.ratings[j.away]!;
-    const home = teamSetupFromRoster(w.rosters[j.home]!, rh, ra, j.worldSeed, undefined, leagueAvg);
-    const away = teamSetupFromRoster(w.rosters[j.away]!, ra, rh, j.worldSeed, undefined, leagueAvg);
+    // C.77c·C.77m: 결장 추첨·피로·부상을 거친 선발 — 본편 다른 경기(npcMatch.ts)와 같은 함수
+    // 감독 기용 성향 (C.79i): 본편과 같이 팀 감독 데이터 (없으면 실용)
+    const home = npcTeamSetup(w.rosters[j.home]!, rh, ra, j.worldSeed, j.seed, leagueAvg, cond, managerOf(j.home)?.style ?? 'neutral');
+    const away = npcTeamSetup(w.rosters[j.away]!, ra, rh, j.worldSeed, j.seed, leagueAvg, cond, managerOf(j.away)?.style ?? 'neutral');
     const r = createMatch({ home, away, mode: 'auto', difficulty: 'normal', seed: j.seed, bigMatch: false }).runToEnd();
     const scorers: Record<string, number> = {};
     const pos: Record<string, string> = {};
+    const team: Record<string, string> = {};
     const shots: Record<string, number> = {};
+    const apps: Record<string, [number, number]> = {};
+    const starters = new Set([...home.lineup, ...away.lineup].map((p) => p.id));
     for (const p of r.players) {
-      if (p.goals) {
-        scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
-        pos[p.id] = p.position;
-      }
+      if (p.goals) scorers[p.id] = (scorers[p.id] ?? 0) + p.goals;
       if (p.shots) shots[p.id] = (shots[p.id] ?? 0) + p.shots;
+      if (p.goals || p.minutes > 0 || starters.has(p.id)) {
+        pos[p.id] = p.position;
+        team[p.id] = p.team === 0 ? j.home : j.away;
+        apps[p.id] = [starters.has(p.id) ? 1 : 0, p.minutes];
+      }
     }
     const add = (k: 'shotPaths' | 'goalPaths') => r.teamStats[0][k].map((v, i) => v + r.teamStats[1][k][i]!);
-    return { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths') };
+    return { out: { kind: 'league', home: j.home, away: j.away, homeGoals: r.homeGoals, awayGoals: r.awayGoals, scorers, pos, team, shots, shotPaths: add('shotPaths'), goalPaths: add('goalPaths'), apps }, r, starters };
+  }
+}
+
+/**
+ * 측정용 챔스 일정 (C.77n): 상위 4팀(cups.ucl.firstSeason — 본편 첫 시즌 출전 팀)의 조별 6경기 + 녹아웃(16강 85% · 8강·4강 각 50% 진출,
+ * 홈·원정 2경기, 결승은 리그 뒤라 뺌). 날짜 = 그 주 화·수 중 그 팀 리그 경기와 cups.minGap 일 이상 떨어진 날(안 되면 minGapLoose, 1)
+ */
+export function harnessUcl(worldSeed: string, ids: readonly string[], schedule: readonly { home: string; away: string }[][], dates: readonly (readonly string[])[]): { team: string; date: string; k: number }[] {
+  const C = BALANCE.cups;
+  const out: { team: string; date: string; k: number }[] = [];
+  C.ucl.firstSeason.filter((t) => ids.includes(t)).forEach((team, ti) => {
+    const busy = new Set<string>();
+    schedule.forEach((round, r) => round.forEach((f, i) => { if (f.home === team || f.away === team) busy.add(dates[r]![i]!); }));
+    const pick = (tue: string, first: number): string => {
+      const days = first ? [addDays(tue, 1), tue] : [tue, addDays(tue, 1)];
+      const free = (d: string, gap: number) => { for (let k = -(gap - 1); k <= gap - 1; k++) if (busy.has(addDays(d, k))) return false; return true; };
+      for (const gap of [C.minGap, C.minGapLoose, 1]) for (const d of [...days, addDays(tue, 2)]) if (free(d, gap)) return d;
+      return days[0]!;
+    };
+    let k = 0;
+    const add = (d: string) => { busy.add(d); out.push({ team, date: d, k: k++ }); };
+    C.ucl.groupWeeks.forEach((w, md) => add(pick(tuesdayOf(2018, w), (ti + md) % 2)));
+    const rng = createRng(hashSeed(`${worldSeed}:hucl-reach:${team}`));
+    const reach = [0.85, 0.5, 0.5];
+    for (let s2 = 0; s2 < C.ucl.koWeeks.length; s2++) {
+      if (rng() >= reach[s2]!) break;
+      for (const w of C.ucl.koWeeks[s2]!) add(pick(tuesdayOf(2018, w), ti % 2));
+    }
+  });
+  return out;
+}
+
+export function runLeagueSeasonJob(j: LeagueSeasonJob): LeagueSeasonOut {
+  // 측정 기준선 (C.77n): C77N_OFF=1 이면 컵 간이 피로·누적 부하를 끈 C.77m 경로 (워커도 같은 환경 변수)
+  if (process.env.C77N_OFF === '1') {
+    (BALANCE.fatigue.npc as { cup: boolean }).cup = false;
+    (BALANCE.load as { on: boolean }).on = false;
+  }
+  const restore = applyOverrides(j.overrides);
+  try {
+    const w = leagueWorld(j.worldSeed);
+    const seeds = new Map<string, number>();
+    let k = j.seed0;
+    for (const h of j.ids) for (const a of j.ids) if (h !== a) seeds.set(`${h}:${a}`, k++);
+    const schedule = buildSchedule(j.ids, createRng(hashSeed(`${j.worldSeed}:season-schedule`)));
+    const cal = seasonCalendar(j.worldSeed, 2018, schedule);
+    const fixtures = schedule.flatMap((round, r) => round.map((f, i) => ({ f, date: cal.fixtureDates[r]![i]!, r, i })));
+    fixtures.sort((x, y) => daysBetween(y.date, x.date) || x.r - y.r || x.i - y.i);
+    const map: NpcFitMap = {};
+    const load: NpcLoadMap = {};
+    const fit = { injuries: 0, injuredOut: 0, starts: 0, startsOver: 0, startFatigue: 0, uclMatches: 0, uclInjuries: 0, uclStarts: 0, uclStartsOver: 0 };
+    const matches: LeagueMatchOut[] = [];
+    const teams: Record<string, [number, number, number, number]> = {};
+    const lateDay = dayNum(fixtures[Math.floor((fixtures.length * 2) / 3)]!.date);
+    // C.77n (pending 142b): 상위 4팀 챔스 주중 경기(간이) — 본편 cups.ts 간이 경기와 같은 npcQuickMatch
+    const ucl = BALANCE.fatigue.npc.cup ? harnessUcl(j.worldSeed, j.ids, schedule, cal.fixtureDates) : [];
+    const uclTeams = new Set(ucl.map((x) => x.team));
+    const teamOf = new Map<string, string>();
+    for (const id of j.ids) for (const p of w.rosters[id]!.players) teamOf.set(p.id, id);
+    const events = [...fixtures.map((x) => ({ date: x.date, f: x.f as typeof x.f | null, u: null as (typeof ucl)[number] | null })), ...ucl.map((u) => ({ date: u.date, f: null, u }))];
+    events.sort((x, y) => daysBetween(y.date, x.date) || (x.f ? 0 : 1) - (y.f ? 0 : 1));
+    const countNew = (day: number, run: () => void) => {
+      const before = new Set(Object.entries(map).filter(([, v]) => npcInjuredOn(v, day + 1)).map(([id]) => id));
+      run();
+      for (const [id, v] of Object.entries(map)) if (!before.has(id) && npcInjuredOn(v, day + 1)) {
+        fit.injuries++;
+        if (uclTeams.has(teamOf.get(id)!)) fit.uclInjuries++;
+      }
+    };
+    for (const { f: fx, u, date } of events) {
+      const day = dayNum(date);
+      if (u) {
+        fit.uclMatches++;
+        countNew(day, () => npcQuickMatch(map, load, [w.rosters[u.team]!], day, j.worldSeed, hashSeed(`${j.worldSeed}:hucl:${u.team}:${u.k}`)));
+        continue;
+      }
+      const f = fx!;
+      const seed = seeds.get(`${f.home}:${f.away}`)!;
+      const rosters = [w.rosters[f.home]!, w.rosters[f.away]!];
+      const cond = npcConditions(map, rosters, day);
+      const { out, r, starters } = playLeagueMatch({ worldSeed: j.worldSeed, home: f.home, away: f.away, seed }, cond);
+      for (const id of starters) {
+        const fa = cond?.[id]?.[0] ?? 0;
+        const tt = (teams[teamOf.get(id)!] ??= [0, 0, 0, 0]);
+        tt[0]++; tt[1] += fa;
+        if (day >= lateDay) { tt[2]++; tt[3] += fa; }
+        fit.starts++;
+        fit.startFatigue += fa;
+        if (fa > BALANCE.fatigue.penaltyFrom) fit.startsOver++;
+        if (uclTeams.has(teamOf.get(id)!)) {
+          fit.uclStarts++;
+          if (fa > BALANCE.fatigue.penaltyFrom) fit.uclStartsOver++;
+        }
+      }
+      for (const ro of rosters) for (const p of ro.players) if (cond?.[p.id]?.[1] === 1) fit.injuredOut++;
+      countNew(day, () => npcAfterMatch(map, rosters, r.players, day, j.worldSeed, seed, load));
+      matches.push(out);
+    }
+    const loads = Object.entries(load).filter(([, v]) => v[0] >= 10).map(([id, v]) => [teamOf.get(id) ?? '?', v[0]] as [string, number]);
+    return { kind: 'leagueSeason', matches, fit: { ...fit, loads, teams }, ucl: [...uclTeams] };
   } finally {
     restore();
   }
 }
 
 export function runJob(j: Job): JobOut {
-  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : runLeagueMatchJob(j);
+  return j.kind === 'match' ? runMatchJob(j) : j.kind === 'season' ? runSeasonJob(j) : j.kind === 'leagueSeason' ? runLeagueSeasonJob(j) : runLeagueMatchJob(j);
 }

@@ -59,11 +59,11 @@ describe('E3.5 2차 1번: 판단용 P = 본인 50% + 리그 평균 50%', () => {
 });
 
 describe('E3.5 2차 7번: 슈팅 결과 = 기회의 질 × 마무리 배수', () => {
-  it('마무리 배수는 70 에서 1, 능력치당 0.012, 0.8~1.25 로 자른다', () => {
+  it('마무리 배수는 70 에서 1, 능력치당 0.014 (C.75l), 0.8~1.25 로 자른다', () => {
     const base = createState(input(73)).agents[9]!.attrs;
     const at = (v: number) => ({ ...base, shooting: v, composure: v, bigMatch: v });
     expect(finishMult(at(70), 'shot')).toBeCloseTo(1, 10);
-    expect(finishMult(at(80), 'shot')).toBeCloseTo(1.12, 10);
+    expect(finishMult(at(80), 'shot')).toBeCloseTo(1.14, 10);
     expect(finishMult(at(99), 'shot')).toBe(ENGINE.prob.finishMax);
     expect(finishMult(at(40), 'shot')).toBe(ENGINE.prob.finishMin);
   });

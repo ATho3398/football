@@ -1,7 +1,7 @@
 // C.67a (39단계 5-6 a): 대회 틀 · FA컵(32팀 단판, 승부차기 간이 판정) · 일정 편입(컵 주말, 팀마다 경기 사이 2일 이상) ·
 // 내 팀 없는 경기 레이팅 간이 계산 · 내 컵 경기 전 엔진 · 결승이 남으면 시즌 끝 미룸 · 휴가 예외 · 가족 휴가 결장 · 세이브 36 이식
 import { describe, expect, it } from 'vitest';
-import { daysBetween, weekday } from '../src/calendar';
+import { addDays, daysBetween, weekday } from '../src/calendar';
 import { BALANCE } from '../src/config/balance';
 import { compTeams, faDates, reachLabel, stageName, teamReach } from '../src/cups';
 import { applyEffects } from '../src/events';
@@ -9,7 +9,7 @@ import {
   calendarOf, dayPlan, endDay, isMatchDay, isVacationDay, myMatchDates, newGame, nextFixture, playOthers, playRound, roundMatch, SAVE_FORMAT_VERSION,
   startNextSeason, type GameState,
 } from '../src/game';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { autoSheetVM, homeVM, matchResultVM } from '../src/ui/viewModels';
 
 const real = (seed: string): GameState => newGame({ mode: 'real', playerId: 'salah', seed, difficulty: 'normal' });
@@ -101,8 +101,19 @@ describe('한 시즌 진행', () => {
       const late = g.cups!.ucl?.ko.some((st) => [...st.l1, ...st.l2].some((t) => (t.h === g.player.teamId || t.a === g.player.teamId) && t.d! > calendarOf(g).final));
       if (late || (final.h !== g.player.teamId && final.a !== g.player.teamId)) continue;
       found = true;
-      expect(g.calendar.date).toBe(fa.dates[4]);
-      expect(g.lastMatch!.cup!.stage).toBe('결승');
+      // C.81l: 여름 대표팀 대회에 소집됐으면 시즌은 그 대회의 내 마지막 경기 날에 끝난다 (그 전에는 결승 날)
+      const nat = g.national?.live ? null : g.national?.tournaments.at(-1);
+      const tour = nat?.called ? g.national!.fixtures.filter((m) => m.key.startsWith(`t:${nat.id}:`)) : [];
+      if (tour.length) {
+        expect(g.calendar.date).toBe(tour.at(-1)!.date);
+        expect(g.lastMatch!.nat).toBeDefined();
+      } else {
+        // 챔스 결승(내 팀 없음)이 FA컵 결승보다 늦으면 그 다음 날 (C.81l)
+        const uclFinal = g.cups!.ucl?.ko[3]?.l1[0]?.d;
+        const later = uclFinal && uclFinal > fa.dates[4]! ? addDays(uclFinal, 1) : fa.dates[4];
+        expect(g.calendar.date).toBe(later);
+        expect(g.lastMatch!.cup!.stage).toBe('결승');
+      }
       break;
     }
     expect(found).toBe(true);
@@ -139,7 +150,9 @@ describe('내 컵 경기 (화면 연결)', () => {
     expect(rep.cup!.stage).toBe('32강');
     const vm = matchResultVM(g, null)!;
     expect(vm.comp).toBe('FA컵 32강');
-    expect(vm.banners.some((b) => b.title.includes('FA컵'))).toBe(true);
+    // C.76j (디자인 214): 컵 결과는 일반 배너가 아니라 대회 배너 하나
+    expect(vm.cupBanner!.kicker).toContain('FA컵');
+    expect(vm.banners.some((b) => b.title.includes('FA컵'))).toBe(false);
     // 다음 날 휴식 고정 (경기 다음 날 규칙이 컵 경기에도)
     expect(dayPlan(g)).toBe('rest');
     expect(myMatchDates(g)).toContain(g.cups!.fa!.dates[0]);
@@ -181,37 +194,12 @@ describe('가족 휴가 결장 (pending 102 ⑨)', () => {
 });
 
 describe('세이브 36', () => {
-  it('왕복 그대로 · 옛 세이브(35)는 컵 없이 불러와 32강 전이면 다음 하루 진행 때 만든다', () => {
+  it('왕복 그대로 · 옛 세이브(35)는 이어 할 수 없음', () => {
     const g = real('c67-save');
-    expect(SAVE_FORMAT_VERSION).toBe(45);
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     expect(deserialize(serialize(g)).cups).toEqual(g.cups);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 35;
-    delete raw.cups;
-    const old = deserialize(JSON.stringify(raw));
-    expect(old.cups).toBeUndefined();
-    playOthers(old, 'quick');
-    if (!isMatchDay(old)) endDay(old);
-    else playRound(old, { engine: 'quick' });
-    expect(old.cups!.fa!.rounds[0]).toHaveLength(16);
-  });
-
-  it('32강 날짜가 지난 옛 세이브는 이번 시즌 컵 없음, 다음 시즌부터', () => {
-    const g = real('c67-late');
-    while (g.calendar.date < '2019-01-10') {
-      if (isMatchDay(g)) playRound(g, { engine: 'quick' });
-      else { playOthers(g, 'quick'); endDay(g); }
-    }
-    const raw = JSON.parse(serialize(g));
-    raw.saveFormat = 35;
-    delete raw.cups;
-    const old = deserialize(JSON.stringify(raw));
-    if (isMatchDay(old)) playRound(old, { engine: 'quick' });
-    else { playOthers(old, 'quick'); endDay(old); }
-    expect(old.cups!.fa).toBeNull();
-    expect(nextFixture(old)!.cup).toBeUndefined();
-    while (old.phase === 'season') playRound(old, { engine: 'quick' });
-    startNextSeason(old);
-    expect(old.cups!.fa).not.toBeNull();
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
   });
 });

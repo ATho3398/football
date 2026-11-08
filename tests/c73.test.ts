@@ -5,7 +5,7 @@ import { cardById } from '../src/config/cards';
 import { chapterEventMul, chapterOf, chapterReviewed, chaptersFromHistory, pendingChapterReview } from '../src/chapters';
 import { newGame, playRound, retire, SAVE_FORMAT_VERSION, startNextSeason, type GameState } from '../src/game';
 import { EVENTS } from '../data/events';
-import { deserialize, serialize } from '../src/save';
+import { deserialize, SaveFormatError, serialize } from '../src/save';
 import { makeGoals } from '../src/seasonGoals';
 import { chapterReviewVM, homeVM, playerVM, seasonVM } from '../src/ui/viewModels';
 import { chapterView, seasonView } from '../src/ui/views/screens';
@@ -145,8 +145,8 @@ describe('챕터 기록 · 리뷰 · 카드 선택권 (pending 119 ②③)', () 
 });
 
 describe('세이브 40 (SAVE_FORMAT_VERSION)', () => {
-  it('챕터 기록이 세이브 왕복에 남고, 옛 세이브(39)는 지난 시즌 기록으로 채운다', () => {
-    expect(SAVE_FORMAT_VERSION).toBe(45);
+  it('챕터 기록이 세이브 왕복에 남고, 옛 세이브(39)는 이어 할 수 없음', () => {
+    expect(SAVE_FORMAT_VERSION).toBe(62);
     const g = prospect('c73-save');
     g.player.age = 20;
     playSeason(g);
@@ -154,19 +154,15 @@ describe('세이브 40 (SAVE_FORMAT_VERSION)', () => {
     expect(back.chapters).toEqual(g.chapters);
     const raw = JSON.parse(serialize(g));
     raw.saveFormat = 39;
-    delete raw.chapters;
-    const old = deserialize(JSON.stringify(raw));
-    expect(old.chapters!.review).toBeNull();
-    expect(old.chapters!.list.map((c) => c.id)).toEqual(['prospect']);
-    expect(old.chapters!.list[0]!.apps).toBe(g.player.history[0]!.apps);
-    expect(chaptersFromHistory(old).list[0]!.done).toBe(true);
+    expect(() => deserialize(JSON.stringify(raw))).toThrow(SaveFormatError);
+    expect(chaptersFromHistory(back).list[0]!.done).toBe(true);
   });
 });
 
 describe('버전', () => {
   it('버전 라벨', () => {
     // 다음 패치(C.74~)에서는 형식만 본다
-    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?$/);
+    expect(PATCH_LABEL).toMatch(/^C\.\d+[a-z]?\d?$/);
     expect(STAGE_LABEL).toMatch(/^\d+[a-z]?단계$/);
   });
 });

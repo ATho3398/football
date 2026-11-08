@@ -4,7 +4,7 @@
 // 수치는 BALANCE.events.coach / captain
 
 import { BALANCE } from './config/balance';
-import { MANAGER_STYLE_KO, managerOf, type ManagerData, type ManagerStyle } from '../data/managers';
+import { managerOf, type ManagerData, type ManagerStyle } from '../data/managers';
 import { sortedTable, teamById } from './league';
 import { pushInbox } from './inbox';
 import { startTrust } from './manager';
@@ -26,7 +26,7 @@ export const COACH_POOL: readonly (Omit<ManagerData, 'stadiumKo'>)[] = [
   { name: 'Sam Allardyce', nameKo: '샘 앨러다이스', style: 'strict' },
   { name: 'Chris Hughton', nameKo: '크리스 휴턴', style: 'steady' },
   { name: 'Frank Lampard', nameKo: '프랭크 램파드', style: 'youth' },
-  { name: 'Carlo Ancelotti', nameKo: '카를로 안첼로티', style: 'steady' },
+  { name: 'Carlo Ancelotti', nameKo: '카를로 안첼로티', style: 'rotation' },
   { name: 'Graham Potter', nameKo: '그레이엄 포터', style: 'neutral' },
   { name: 'Dean Smith', nameKo: '딘 스미스', style: 'neutral' },
 ];
@@ -41,13 +41,15 @@ export function coachOf(state: Pick<GameState, 'coaches'>, teamId: string): Mana
   return base;
 }
 
-export function coachName(state: Pick<GameState, 'coaches'>, teamId: string): string {
-  return coachOf(state, teamId)?.nameKo ?? '감독';
+/** 두 팀 감독 기용 성향 (C.79i, 엔진 입력 styles). 둘 다 실용이면 붙이지 않는다 (입력·미리 계산 키 그대로) */
+export function coachStylesField(state: Pick<GameState, 'coaches'>, a: string, b: string): { styles?: [ManagerStyle, ManagerStyle] } {
+  const sa = coachOf(state, a)?.style ?? 'neutral';
+  const sb = coachOf(state, b)?.style ?? 'neutral';
+  return sa === 'neutral' && sb === 'neutral' ? {} : { styles: [sa, sb] };
 }
 
-export function coachLabel(state: Pick<GameState, 'coaches'>, teamId: string): string {
-  const m = coachOf(state, teamId);
-  return m ? `${m.nameKo} · ${MANAGER_STYLE_KO[m.style]}` : '감독 정보 없음';
+export function coachName(state: Pick<GameState, 'coaches'>, teamId: string): string {
+  return coachOf(state, teamId)?.nameKo ?? '감독';
 }
 
 /** 최근 n경기 승 수 (내 경기 기록) */
@@ -139,9 +141,4 @@ export function captainSeasonStart(state: GameState): void {
     state.captain = null;
     pushInbox(state, { cat: 'club', title: '주장 완장을 내려놓았어요', body: `감독 신뢰도 ${Math.round(trust)} · 감독이 새 주장을 정했어요. 신뢰를 되찾으면 다시 기회가 와요.` });
   }
-}
-
-/** 주장 시즌 수 (since 부터) */
-export function captainSeasons(state: GameState): number {
-  return isCaptain(state) ? state.league.season - state.captain!.since + 1 : 0;
 }
