@@ -5,7 +5,7 @@ import type { MatchJob, MatchOut } from '../engine/job';
 import { runJobs } from '../engine/pool';
 import { std } from '../engine/suite';
 import { createRng, hashSeed } from '../../src/rng';
-import { cellExists, customLabel, customProblem, customSlots, GRID_LANES, GRID_ROWS, presetCells } from '../../src/formations';
+import { type Formation, cellExists, customLabel, customProblem, customSlots, GRID_LANES, GRID_ROWS, presetCells } from '../../src/formations';
 
 const nums: number[] = [];
 const overrides: Record<string, number> = {};
@@ -53,7 +53,7 @@ async function play(list: number[][], n: number, base: number, label: string): P
 
 if (DETAIL) {
   const ids = DETAIL.split(',');
-  const list = ids.map((id) => (id === 'base' ? presetCells('4-4-2') : forms[Number(id)]!));
+  const list = ids.map((id) => (id === 'base' ? presetCells('4-4-2') : id.startsWith('p:') ? presetCells(id.slice(2) as Formation) : forms[Number(id)]!));
   const jobs: MatchJob[] = [];
   const seed0 = Number(process.env.SEED0 ?? 71000); // 엔진관리자18: 다른 시드 묶음으로 독립 재측정
   // C.80q: OPP=custom 이면 상대도 칸으로 옮긴 4-4-2 (같은 경로끼리 비교, 엔진관리자25 커스텀 4-4-2 −0.32)
