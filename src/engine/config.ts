@@ -1364,8 +1364,10 @@ export const ENGINE = {
     aerialAttackBonus: -1.0,
     /** 공격수가 이긴 공중볼을 박스 안 이 거리 안이면 헤더 슈팅 */
     headerMaxDist: 14,
-    /** C.82b: 세트피스 크로스(코너·측면 프리킥) 대상 고르기에서 CB·ST 가중 (대상 고르기에만, 1 = 끔) */
+    /** C.82b: 세트피스 크로스(코너·측면 프리킥) 대상 고르기에서 CB 가중 (대상 고르기에만, 1 = 끔). C.82f: ST·CF 는 setPieceTargetWst 로 분리 */
     setPieceTargetW: 3,
+    /** C.82f(묶음 E 마무리): 세트피스 대상 고르기 ST·CF 가중 — CB 와 분리해 세트피스 골 몫을 수비수에서 ST 로 옮기는 레버(득점 비율 ST 29 → 32~40) */
+    setPieceTargetWst: 3,
     /** 수비 걷어내기 거리 (m) */
     clearDist: [15, 30] as [number, number],
     clearCorner: 0.35,
