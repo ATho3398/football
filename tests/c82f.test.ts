@@ -29,6 +29,8 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.prob.stFinish).toBe(1.15);
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
+    expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 5, short: 2, keep: 2, tackle: 4 }); // 960 티키>직선 −0.01 → +0.055
+    expect(ENGINE.matchup.tikitaka!.counter).toEqual({ tackle: 3, air: 2 }); // 960 티키>역습 −0.29 → −0.12
     // 총량: 1대1 보정 ↑ + 슛 쪽 레버(shotFree·거리 보정) (부록 C.82f 표)
     expect(ENGINE.keeper.saveBase).toBe(2.02); // 상한 포화로 안 움직여 그대로
     expect(ENGINE.prob.shotFree).toBe(0.15);

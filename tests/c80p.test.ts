@@ -20,9 +20,9 @@ function state(a: Tendency, b: Tendency) {
 
 describe('C.80p 상대 성향별 보정', () => {
   it('표: 티키 → 직선 칸만 공중·짧은 패스·공 지키기·태클 +2 (능력치 점수), 티키 행은 그 칸과 게겐 칸(C.80t) (C.80w 롱패스 칸은 c80w 테스트)', () => {
-    expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 2, short: 2, keep: 2, tackle: 2 });
+    expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 5, short: 2, keep: 2, tackle: 4 }); // C.82f: 공중 2 → 5 · 태클 2 → 4 (티키>직선 −0.01 → +0.055)
     expect(Object.keys(ENGINE.matchup).sort()).toEqual(['balanced', 'block', 'direct', 'gegenpress', 'tikitaka']); // C.81s: 게겐 → 직선 칸
-    expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct', 'gegenpress']); // C.80t: 티키 → 게겐 칸 추가
+    expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct', 'counter', 'gegenpress']); // C.80t: 티키 → 게겐 칸 추가 · C.82f: 티키 → 역습 칸
   });
 
   it('티키가 직선을 상대할 때만 걸리고 반대쪽(직선 팀)·다른 상대에는 0', () => {
