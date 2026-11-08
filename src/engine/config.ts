@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 100;
+export const ENGINE_VERSION = 102;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -305,6 +305,19 @@ export const ENGINE = {
     styleSupport: 0.5,
     /** 팀 phase: 소유 후 이 시간이 지나면 공격 대형 (초) */
     attackPhaseDelay: 2.5,
+    /**
+     * 중원 줄 공격 자리 상한 (C.82d, 엔진 묶음 E5): 공격 국면에서 줄 2(수미·중미·공미·측면 미드) 슬롯 x + attackShift 가 이 값(정규화)을 넘지 않는다 — 역할 dx·침투·최종 ⅓ 역할 자리는 그 뒤에 그대로.
+     * 공미 슬롯(4-2-3-1·4-3-1-2 0.58)은 시프트 0.25 를 더하면 0.83 으로 최전방(0.78~0.86)과 같은 깊이에 서서 "제3의 스트라이커"가 됐다(4-2-3-1 CAM 골 31%·4-3-1-2 행 +0.6~0.9).
+     * 0 = 끔
+     */
+    midAttackCap: 0.735,
+    /**
+     * 중앙 중원이 많은 대형은 상한이 더 낮다: 실효 상한 = midAttackCap − midAttackCapPer × max(0, 중앙 중원 수 − midAttackCapN).
+     * 중앙 중원 = 줄 2 중 슬롯 |y − 0.5| ≤ midCentralY (4-4-2 2명 · 4-2-3-1·4-3-3·4-1-4-1·3-5-2·5-3-2 3명 · 4-3-1-2 4명 · 커스텀 3-2-2-2-1 5명). 0 = 끔
+     */
+    midAttackCapPer: 0.1,
+    midAttackCapN: 3,
+    midCentralY: 0.25,
   },
 
   // ── 팀 전술 성향 (E.18 A5, E.19) ──
@@ -528,6 +541,14 @@ export const ENGINE = {
     boxMatch: 0,
     boxMatchMax: 3,
     boxMatchReach: 25,
+    /**
+     * 줄 사이 수신자 마크 가중 (C.82d, 엔진 묶음 E5 — 4-3-1-2 CAM 과강·4-2-3-1 CAM 오픈 플레이 골, 0 = 끔): 상대가 공을 가진 동안 우리 줄 2(내려앉지 않은) 선수의 존 마크 후보 중
+     * 우리 수비 라인(lineX)과 중원 존(lineX + midGap + pocketSlack m) 사이에 선 상대 줄 2·3 선수(줄 사이 수신자)는 후보 거리 × pocketPull 로 먼저 고르고,
+     * 그 선수를 마크하면 존 자리와 마크 자리 사이 비중을 평소 0.65 대신 pocketMark 로 (더 붙는다). 집중 대상(ST) 우선·CB 따라나옴·밀집(compactMark)은 그대로.
+     */
+    pocketMark: 0,
+    pocketPull: 0.6,
+    pocketSlack: 3,
     trackCdmMax: 9,
     trackPickMax: 12,
     trackHold: 0.7,
@@ -1625,7 +1646,8 @@ export const ENGINE = {
     // C.81s(엔진 91, saveBase 2.02·상성 칸 + C.81r 병합 뒤): engine:check CM 6.70(가드 6.3~6.7 ✗, 반올림 경계) — 가드 밖 CM 만 2.46 → 2.51(약 −0.04, §9.12.7)
     // C.81u(엔진 92, 수비 기록 칸 · CM 전진 패스 무릎 18 · 조건 평균 roleCenter): `rating-parts 720 … 20000` 에서 8군 평균을 main(엔진 91) 설정 값 그대로 두게 다시 맞춤(c81u-center) — σ 0.80 → 0.76
     // C.81u2(엔진 93, 대형 문맥 roleCenter @cam·@cb3): 같은 방식으로 CDM 1.99 → 1.96 · ST 2.1 → 2.11
-    center: { GK: 1.72, CB: 1.34, FB: 0.76, CDM: 1.96, CM: 2.1, CAM: 1.85, WING: 0.85, ST: 2.11 } as Record<string, number>,
+    // C.82d(엔진 101, 중원 줄 공격 자리 상한): CAM 골·슈팅이 줄어 8군 중 CAM 만 6.57 → 6.23(가드 6.3~6.7 ✗) — CAM 1.85 → 1.55 는 main 병합·상한 0.735 뒤 6.74 로 넘쳐 1.72 (두 측정 사이 보간), 나머지 군은 가드 안 그대로
+    center: { GK: 1.72, CB: 1.34, FB: 0.76, CDM: 1.96, CM: 2.1, CAM: 1.72, WING: 0.85, ST: 2.11 } as Record<string, number>,
     /** 역할별 정규화 (C.81r): 같은 포지션군 안 역할 평균 차의 나머지 (행동 델타 단위, center 에 더해 뺀다). 군 안 역할 평균은 0.
      *  C.81u: 대형(4-4-2·3-5-2·4-2-3-1·4-3-1-2)·전력 ±5·전술(게겐·블록·직선) 10조건 평균으로 다시 맞춤(c81u-role-cond 80경기 × 268칸). `역할@2` = 같은 군 둘 이상(투톱).
      *  C.81u2: `역할@cam` = CAM 뒤 원톱 ST(4-2-3-1 조건으로 맞춤) · `역할@cb3` = 백3 앞 CDM(3-5-2 조건) — 문맥 조건은 기본 값 맞춤에서 뺐다 */

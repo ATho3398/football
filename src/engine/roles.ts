@@ -52,7 +52,7 @@ const r = (id: string, dx: number, dy: number, run: number, drop: number, press:
 /** 역할 표 (E.6). 값은 초안이고 역할 반응 점검으로 보정한다 */
 export const ROLES: Record<string, Role> = {
   // 윙 (LW, RW, LM, RM)
-  classicWinger: r('classicWinger', 0, 0.35, 0.5, 0.1, 0.4, p({ cross: 1.4, dribble: 1.1 })), // C.82c: cross 1.2·run 0.65/0.7 을 재 봤지만 크로스 4.2회 그대로 · 역할 대비 0.00/−0.16 · −0.23/−0.12(두 시드 잡음 폭 0.2) — 효과 없음, 되돌림
+  classicWinger: r('classicWinger', 0, 0.35, 0.5, 0.1, 0.4, p({ cross: 1.4, dribble: 1.1 })), // C.82c: cross 1.2·run 0.65/0.7 · C.82c2: dy 0.35 → 0.25(정통 윙어 −0.10/−0.03 ✓ 이지만 와이드 미드필더 +0.01/+0.06 → −0.13/−0.16 ✗) 을 재 봤지만 크로스 4.2회 그대로 · 역할 대비 0.00/−0.16 · −0.23/−0.12(두 시드 잡음 폭 0.2) — 효과 없음, 되돌림
   wingForward: r('wingForward', 0.05, -0.1, 0.8, 0.1, 0.4, p({ shoot: 1.3 })),
   crackWinger: r('crackWinger', 0.02, 0.15, 0.3, 0.4, 0.2, p({ dribble: 1.5 }), ['demand', 'exempt']),
   raumdeuter: r('raumdeuter', 0.05, -0.2, 0.7, 0.1, 0.5, p({ shoot: 1.2, dribble: 0.6 }), ['space']),
@@ -71,7 +71,7 @@ export const ROLES: Record<string, Role> = {
   // CM
   boxToBox: r('boxToBox', 0, 0, 0.6, 0.4, 0.8, p()),
   deepPlaymaker: r('deepPlaymaker', -0.06, 0, 0.25, 0.6, 0.5, p({ pass: 1.4, long: 1.2 })), // C.81i: press 0.4 → 0.5 (역할 대비 −0.13/−0.10 → −0.09/+0.06)
-  mezzala: r('mezzala', 0.06, 0.15, 0.5, 0.2, 0.5, p({ shoot: 1.1, dribble: 1.1 })), // C.76y: run 0.6 → 0.5 (미해결 4)
+  mezzala: r('mezzala', 0.06, 0.15, 0.4, 0.2, 0.5, p({ shoot: 1.1, dribble: 1.1 })), // C.76y: run 0.6 → 0.5 (미해결 4). C.82c2: 0.5 → 0.4 (역할 대비 +0.14/+0.14 → +0.12/+0.04)
   carrier: r('carrier', 0, 0, 0.2, 0.4, 0.5, p({ carry: 1.25 })), // C.82c: carry 1.4 → 1.25 · run 0.3 → 0.2 (역할 대비 +0.115 → −0.03 — carry 만으로는 +0.15 그대로, 침투 50 → 32회가 레버)
   holdingCM: r('holdingCM', -0.06, 0, 0.1, 0.3, 0.7, p({ safe: 1.2 })),
   // CDM

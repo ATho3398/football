@@ -307,6 +307,8 @@ export interface TeamState {
   fit: Record<FitTendency, number>;
   /** 공격 몰빵 초과 인원 (C.80q, stack.ts): 킥오프 선발 공격 포지션 인원 − n + 1 (0 = 안 걸림) */
   stackOver: number;
+  /** 중앙 중원 인원 (C.82d): 킥오프 선발 줄 2 중 슬롯 y 가 중앙(|y − 0.5| ≤ formation.midCentralY) 인 선수 수 — 중원 줄 공격 자리 상한에 쓴다 */
+  centralMids: number;
 }
 
 /** 수비 상황 (C.75c, pending 41): A 정돈 / B 역습 복귀 / C 수적 열세 / D 측면 트랩 / E 박스 1대1 / F 크로스 / G 루즈볼 / H 역압박 */
