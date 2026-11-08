@@ -45,6 +45,7 @@ describe('C.82d 중원 줄 공격 자리 상한', () => {
   it('켜져 있다 (0 < midAttackCap < 최전방 슬롯 0.76)', () => {
     expect(F.midAttackCap).toBeGreaterThan(0);
     expect(F.midAttackCap).toBeLessThan(0.76);
+    expect(F.midAttackCap).toBeGreaterThan(0.73); // 4-1-4-1 줄 2(0.48 + 0.25 = 0.73) 에 닿지 않게
   });
 
   it('공격 국면: 4-2-3-1 CAM 슬롯 0.58 + 시프트 0.25 = 0.83 이 상한에서 멈춘다 (역할 dx 0 인 클래식 10번 기준), 끄면 0.83', () => {

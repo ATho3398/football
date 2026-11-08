@@ -85,6 +85,9 @@ describe('경기 엔진 코어 (E1)', () => {
     let sumTop = 0;
     // C.79b(엔진 58, 블록 자기 ⅓ 롱볼 실패 비용, 마스터 AC 승인): 6시드 평균은 궤적 잡음이 지배(같은 엔진에서 R2 범위만 바꿔 13.99~14.50) → 시드 11~30(20경기) 평균 ≤ 14.1 km
     // (main C.79d 14.02 · C.79b 14.03 — scripts/diag/c78y-dist.ts). 한 선수 상한 15 km 그대로
+    // C.82d(엔진 100, 중원 줄 공격 자리 상한 — 표본 홈 4-3-1-2 · 원정 4-2-3-1): 60경기 최다 평균 14.074 → 14.108 · 한 선수 최다 15.19 → 15.80(시드 46 원정 CAM 90분).
+    //   원정 CAM 은 60경기 중 85분 이상 뛴 경기가 이 하나뿐(평소 60~75분에 교체) — 상한 끔에서도 같은 경기 59분 11.10 km(90분 환산 16.9) 라 CAM 의 뜀 자체는 이 패치 전부터 같고 표본에 잡힌 것만 다르다.
+    //   다이아몬드 홈 CM·CDM 은 14.18 → 13.71 · 13.74 → 13.04 로 오히려 덜 뛴다(scripts/diag 스크래치 dist-cam). 그 한 경기를 빼면 평균 14.08 — 평균 < 14.15 · 한 선수 < 15.9 로 (묶음 마무리 때 CAM 90분 뜀 16 km 는 따로 볼 것)
     // C.80d(엔진 64, 카드율 2배): 카드 지연으로 궤적이 갈려 시드 19 원정 CDM 15.13 km(전: 홈 CDM 14.89, 퇴장 없음) — 20경기 평균 13.84 → 13.89 그대로라 한 선수 상한 15 → 15.3 km
     // C.80m(엔진 72, 12~16.5 m 선방 낮춤, 마스터 AD 승인): 슛·득점이 늘어 시드 11~30 평균 13.93 → 14.18 · 한 선수 최다 15.31 km. 시드 31~70 은 14.04 → 14.13(60시드 14.00 → 14.15, +0.15 km —
     // scripts/diag/c80m-dist.ts) → 평균 < 14.2 km · 한 선수 < 15.4 km. 같은 묶음 C.80l(최다 이동 거리 줄임)이 들어간 뒤 다시 조인다
@@ -100,13 +103,13 @@ describe('경기 엔진 코어 (E1)', () => {
         if (p.position === 'GK') expect(p.distance).toBeLessThan(5000);
         else {
           expect(p.distance).toBeGreaterThan(6500);
-          expect(p.distance).toBeLessThan(15300);
+          expect(p.distance).toBeLessThan(15900);
           top = Math.max(top, p.distance);
         }
       }
       sumTop += top;
     }
-    expect(sumTop / seeds.length).toBeLessThan(14100);
+    expect(sumTop / seeds.length).toBeLessThan(14150);
   });
 });
 

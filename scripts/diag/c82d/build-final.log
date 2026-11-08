@@ -1,0 +1,33 @@
+
+> football-career@0.1.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 259 modules transformed.
+rendering chunks...
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /home/user/football/src/ui/cardArt.ts is dynamically imported by /home/user/football/src/ui/faces.ts, /home/user/football/src/ui/faces.ts but also statically imported by /home/user/football/src/ui/main.ts, /home/user/football/src/ui/views/cardArtSettings.ts, /home/user/football/src/ui/views/deck.ts, /home/user/football/src/ui/views/settings.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                            1.03 kB │ gzip:   0.53 kB
+dist/assets/Poppins-500-C8OXljZJ.woff2                     7.75 kB
+dist/assets/Poppins-700-Qrb0O0WB.woff2                     7.82 kB
+dist/assets/Poppins-800-Bd8-pIP1.woff2                     7.82 kB
+dist/assets/Poppins-600-zEkxB9Mr.woff2                     8.00 kB
+dist/assets/BarlowCondensed-800-italic-Cnej2eWp.woff2     23.78 kB
+dist/assets/BarlowCondensed-700-italic-DjyOzRJ7.woff2     23.80 kB
+dist/assets/BarlowCondensed-600-italic--kVCEDSl.woff2     23.90 kB
+dist/assets/BlackHanSans-BYiuQoTk.woff2                  130.71 kB
+dist/assets/worker-BxW4zemw.js                           566.41 kB
+dist/assets/PretendardVariable-CJuje-Rk.woff2          2,057.69 kB
+dist/assets/index-CGRFnhPm.css                           326.10 kB │ gzip:  55.88 kB
+dist/assets/zip-DM8AZgnP.js                                2.33 kB │ gzip:   1.07 kB
+dist/assets/index-CpGBICKK.js                          1,636.33 kB │ gzip: 642.03 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.28s
+exit 0
