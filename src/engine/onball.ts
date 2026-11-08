@@ -38,6 +38,14 @@ import { stackLinkMul } from './stack';
 
 const O = ENGINE.onball;
 const PR = ENGINE.prob;
+
+/** C.82h: ST·CF 발 슛 유효 슈팅 배수 — stFinishShare 1 이면 초과분(stFinish − 1)을 그 팀 필드 위 ST·CF 수로 나눈다(ST 1명 대형 1.2 · 2명 1.1). 판단·실행 같은 값 */
+export function stFinishOf(s: SimState, a: Agent): number {
+  if (!PR.stFinishShare) return PR.stFinish;
+  let n = 0;
+  for (let i = 0, f = fieldOf(s, a.team); i < f.length; i++) { const o = f[i]!; if (o.pos === 'ST' || o.pos === 'CF') n++; }
+  return 1 + (PR.stFinish - 1) / Math.max(1, n);
+}
 const TA = ENGINE.tactics;
 const B = ENGINE.ball;
 const G = ENGINE.pitch.goalWidth;
@@ -351,6 +359,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   let dense = 0;
   // 1대1 조건용: 가장 가까운 상대 필드 선수 거리 (GK 는 뺀다 — 나온 GK 는 세이브 식이 맡고, 압박 항 pressure 는 그대로 GK 포함)
   let nearField = Infinity;
+  // C.82h: 가장 가까운 골 쪽 상대 필드 선수 거리 (1대1 판정 oneOnOne.freeFront — 뒤에서 쫓는 수비는 세지 않는다)
+  let nearFront = Infinity;
   // 3 m 안 상대 필드 선수 (C.77z 슛 1건 자료)
   let press3 = 0;
   // 슛 레인 (C.78h): 두 구석 쪽 슛 길(기대 구석 = 실행 구석 분포의 평균)마다 콘 안 수비
@@ -388,8 +398,10 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
         sP++;
       }
     }
-    if (od <= PR.denseR && dist(o.x, o.y, gx, gy) < d) dense++;
+    const front = dist(o.x, o.y, gx, gy) < d;
+    if (od <= PR.denseR && front) dense++;
     if (PR.shotFree > 0 && od < nearField) nearField = od;
+    if (front && od < nearFront) nearFront = od;
   }
   let pOn: number;
   let speed: number;
@@ -408,7 +420,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   // C.81h: 윙어 발 슛 유효 슈팅 배수 (판단·실행 같은 값)
   if (!header && (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM')) pOn *= PR.wingFinish;
   // C.82f: ST·CF 발 슛 유효 슈팅 배수 (판단·실행 같은 값)
-  if (!header && (a.pos === 'ST' || a.pos === 'CF')) pOn *= PR.stFinish;
+  if (!header && (a.pos === 'ST' || a.pos === 'CF')) pOn *= stFinishOf(s, a);
   // 원터치 슛 (C.78b): 판단(미리 정하기)과 실행(다음 틱 shoot)이 같은 배수
   if (!header && !at) pOn *= otOf(s, a);
   // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
@@ -421,7 +433,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const gk = keeperOf(s, (1 - a.team) as 0 | 1);
   const far = farSide(gk, gy);
   const ctx: ShotCtx = {
-    fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure, nearField,
+    fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure, nearField, nearFront,
     // C.80u: 세트피스(코너·프리킥 뒤 15초 안) 헤더면 GK 반응 headerReactSet — 판단·실행 같은 값
     setPiece: header && s.t - s.possStartT < 15 && (s.possOrigin === 'corner' || s.possOrigin === 'freeKick'),
     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,

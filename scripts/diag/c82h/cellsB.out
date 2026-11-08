@@ -1,0 +1,6 @@
+B tikitaka > direct 0.009 ± 0.043 n 960 22:14:45
+B direct > block 0.117 ± 0.052 n 960 22:14:45
+B direct > block@0020 0.076 ± 0.051 n 960 22:14:45
+B counter > block -0.174 ± 0.059 n 960 22:14:45
+B counter > block@0020 -0.124 ± 0.057 n 960 22:14:45
+CELLDONE B 22:14:45

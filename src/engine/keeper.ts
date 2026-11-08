@@ -68,6 +68,8 @@ export interface ShotCtx {
   press3: number;
   /** C.82f: 가장 가까운 상대 필드 선수 거리 m (GK 제외) — 1대1 판정(oneOnOne.freeR 안에 있으면 1대1 아님). 없으면(PK·프리킥) 제한 없음 */
   nearField?: number;
+  /** C.82h: 가장 가까운 골 쪽(슈터보다 골에 가까운) 상대 필드 선수 거리 m — oneOnOne.freeFront 1 이면 freeR 판정에 이 값을 쓴다(뒤에서 쫓는 수비는 1대1 을 깨지 않는다) */
+  nearFront?: number;
   pressure: number;
   /** 노린 골라인 점 · 구석 0~1 */
   tx: number;
@@ -151,7 +153,9 @@ export function distAdj(d: number): number {
 export function oneOnOneAdj(c: ShotCtx): number {
   const O = K.oneOnOne;
   // C.82f: 가장 가까운 상대 필드 선수가 freeR m 안이면 1대1 이 아니다 (3 m 조건 press3 는 그대로) — drop 0.55 에서 3.5 m 앞 수비가 길을 막아도 늘 쏘던 장면 ㉘ 복구. 판단·실행 같은 값
-  if (c.header || c.press3 > 0 || (c.nearField ?? Infinity) < O.freeR || c.d >= O.maxD) return 0;
+  // C.82h: freeFront 1 이면 골 쪽 상대만(nearFront) — 뒤에서 쫓는 수비가 3~4 m 에 있어도 1대1(C.82g 뒤 공간 역습 마무리의 게겐 비용 복구)
+  const near = (O.freeFront ? c.nearFront ?? c.nearField : c.nearField) ?? Infinity;
+  if (c.header || c.press3 > 0 || near < O.freeR || c.d >= O.maxD) return 0;
   const g = c.gk1 ?? O.center;
   const f = c.fin ?? O.finCenter;
   return -O.drop + (O.gk * (g - O.center)) / 100 - (O.fin * (f - O.finCenter)) / 100;

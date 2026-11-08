@@ -1,0 +1,5 @@
+scripts/diag/c82h/cellGB2-960.json: 1칸 × 960경기
+tackle 2 gegenpress > balanced -0.200 ± 0.054 n 960
+scripts/diag/c82h/cellGB4-960.json: 1칸 × 960경기
+tackle 4 gegenpress > balanced -0.251 ± 0.053 n 960
+CELLGBDONE 19:43:59

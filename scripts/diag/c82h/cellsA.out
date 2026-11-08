@@ -1,0 +1,9 @@
+A tikitaka > direct 0.168 ± 0.047 n 960 21:52:24
+A direct > block 0.177 ± 0.052 n 960 21:52:24
+A counter > block -0.114 ± 0.055 n 960 21:52:24
+A counter > block@0020 -0.039 ± 0.055 n 960 21:52:24
+A tikitaka > block -0.222 ± 0.045 n 960 21:52:24
+A tikitaka > block@0020 -0.274 ± 0.046 n 960 21:52:24
+A gegenpress > balanced -0.117 ± 0.051 n 960 21:52:24
+A gegenpress > counter -0.122 ± 0.056 n 960 21:52:24
+CELLDONE A 21:52:24

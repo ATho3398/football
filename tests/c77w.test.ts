@@ -18,13 +18,13 @@ function match(seed: number) {
 
 describe('C.77w 측정 훅', () => {
   it('훅을 켜도 같은 시드 같은 결과 · 슛 기록 수 = 경기 통계 슛 수 · 유효 슈팅 결과가 모두 정해진다', () => {
-    const off = match(4244).runToEnd(); // C.81b(엔진 86): 4242 는 막힌 슛이 없어 4243 으로 (시드 의존 전제조건). C.81z(엔진 96, 롱패스 착지·상성 칸): 4243 도 막힌 슛 0 이라 4244 로(4243~4262 중 4243·4246 만 0)
+    const off = match(4245).runToEnd(); // C.82h(엔진 105): 4244 는 막힌 슛 0 이라 4245 로(4244~4263 중 4244·4246·4252 만 0). // C.81b(엔진 86): 4242 는 막힌 슛이 없어 4243 으로 (시드 의존 전제조건). C.81z(엔진 96, 롱패스 착지·상성 칸): 4243 도 막힌 슛 0 이라 4244 로(4243~4262 중 4243·4246 만 0)
     const shots: ShotProbe[] = [];
     let decisions = 0;
     probe.shot = (_s, p) => void shots.push(p);
     probe.decide = () => void decisions++;
     try {
-      const on = match(4244).runToEnd();
+      const on = match(4245).runToEnd();
       expect(JSON.stringify(on.teamStats)).toBe(JSON.stringify(off.teamStats));
       expect(on.events.length).toBe(off.events.length);
       expect(shots.length).toBe(on.teamStats[0].shots + on.teamStats[1].shots);

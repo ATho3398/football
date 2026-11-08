@@ -29,16 +29,16 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.prob.stFinish).toBe(1.2); // 병합 전 1.3 → C.82g 병합 뒤 1.2
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
-    expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 7, short: 3, keep: 3, tackle: 6 }); // C.82g 병합 뒤 960 티키>직선 0.00 → (부록)
+    expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 9, short: 3, keep: 3, tackle: 7 }); // C.82f 7/6 → C.82h 9/7 (960 티키>직선 −0.03 순환 ✗)
     expect(ENGINE.matchup.gegenpress!.block).toEqual({ tackle: 6, air: 4 }); // 블록>게겐 +0.45 → (부록)
-    expect(ENGINE.matchup.gegenpress!.counter).toEqual({ tackle: 6, air: 4 }); // 역습>게겐 +0.35 → +0.19
-    expect(ENGINE.matchup.direct!.block).toEqual({ keep: 2, short: 2, air: 3 }); // 직선>블록 −0.07 → +0.03
+    expect(ENGINE.matchup.gegenpress!.counter).toEqual({ tackle: 8, air: 6 }); // C.82f 6/4(역습>게겐 +0.35 → +0.19) → C.82h 8/6
+    expect(ENGINE.matchup.direct!.block).toEqual({ keep: 3, short: 3, air: 4 }); // C.82f 2/2/3(직선>블록 −0.07 → +0.03) → C.82h 3/3/4
     expect(ENGINE.matchup.tikitaka!.counter).toEqual({ tackle: 3, air: 2 }); // 960 티키>역습 −0.29 → −0.12
     // 총량: 1대1 보정 ↑ + 슛 쪽 레버(shotFree·거리 보정) (부록 C.82f 표)
     expect(ENGINE.keeper.saveBase).toBe(2.11); // C.82g 2.11 유지 (C.82f 는 1대1·ST 배수로 총량)
-    expect(ENGINE.prob.shotFree).toBe(0.30); // 총량 레버로 0.15 까지 재 봤으나 freeR 4 뒤 되돌림
+    expect(ENGINE.prob.shotFree).toBe(0.15); // C.82f 0.30(총량 레버로 0.15 까지 재 봤으나 freeR 4 뒤 되돌림) → C.82h 0.15(freeFront 뒤 총량)
     expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.13, -0.13, 0.02, 0.02, 0]);
-    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55);
+    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.5); // C.82f 0.55 → C.82h 0.5 (freeFront 뒤 총량)
     expect(ENGINE.keeper.oneOnOne.freeR).toBe(4); // 3.5 m 앞 수비는 1대1 아님 (장면 ㉘)
   });
 
