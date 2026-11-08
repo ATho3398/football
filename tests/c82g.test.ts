@@ -47,7 +47,7 @@ const of = (s: SimState, team: 0 | 1, pos: string, k = 0) => s.agents.filter((a)
 describe('C.82g 전환 구조: 공 앞 인원·높은 라인 비용', () => {
   it('상수: 엔진 103 · carryChase 1/램프 2 m · runOnTouch 4 m/앞 5 m/골 쪽 ≤ 3 · runFace·carryRunOn 끔 · 라인 레버(attackLineK·throughSeeSpace) 그대로 끔', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(103);
-    expect(ENGINE.onball.carryChase).toBe(1);
+    expect(ENGINE.onball.carryChase).toBe(0.3); // 1 은 장면 ⑬ 슛 0.5 → 0.3 (뒤 3 m CB 를 무시하고 몰다 잡힘)
     expect(ENGINE.onball.carryChaseRamp).toBe(2);
     expect(ENGINE.receive.runOnTouch).toBe(4);
     expect(ENGINE.receive.runOnFree).toBe(5);
@@ -58,7 +58,7 @@ describe('C.82g 전환 구조: 공 앞 인원·높은 라인 비용', () => {
     expect(ENGINE.onball.throughSeeSpace).toBe(0);
   });
 
-  it('뒤에서 쫓는 수비: 몰고 가는 방향 뒤 3 m 상대는 몰 거리 6 m 만큼 멀어져 실효 거리가 실제 거리보다 크고, 길 옆 상대는 그대로', () => {
+  it('뒤에서 쫓는 수비: 몰고 가는 방향 뒤 3 m 상대는 몰 거리 6 m 의 carryChase 몫만큼 덜 좁혀 실효 거리가 옛 값보다 크고, 길 옆 상대는 그대로', () => {
     const s = scene((x) => {
       const o = of(x, 0, 'ST');
       [o.x, o.y] = [70, 34];
@@ -78,8 +78,8 @@ describe('C.82g 전환 구조: 공 앞 인원·높은 라인 비용', () => {
       const dBehind0 = carryReachDist(s, behind, o, 76, 34);
       const dBeside0 = carryReachDist(s, beside, o, 76, 34);
       expect(dBehind0).toBeLessThan(3); // 옛 동작: 3 − 0.3 × 최고 속도
-      expect(dBehind).toBeGreaterThan(3); // 몰고 가는 6 m 가 좁히는 거리(≈ 2.3 m)보다 커 그만큼 더 멀어진다 (3 + 6 − 2.3 ≈ 6.5)
-      expect(dBehind).toBeCloseTo(3 + 6 - ENGINE.onball.carryClose * behind.maxSpeed, 5);
+      expect(dBehind).toBeGreaterThan(dBehind0);
+      expect(dBehind).toBeCloseTo(3 - (ENGINE.onball.carryClose * behind.maxSpeed - K * 6), 5); // 3 − (2.25 − 1.8) ≈ 2.55
       expect(dBeside).toBeCloseTo(dBeside0, 9);
       expect(dBeside0).toBeLessThan(2.5);
     } finally {
@@ -87,7 +87,7 @@ describe('C.82g 전환 구조: 공 앞 인원·높은 라인 비용', () => {
     }
   });
 
-  it('뒤에서 쫓는 수비 램프: 1 m 뒤 상대는 몰 거리의 절반만 덜어 실효 거리가 옛 값과 실제 거리 사이', () => {
+  it('뒤에서 쫓는 수비 램프: 2 m 뒤(램프 끝) 상대는 몰 거리 몫을 다 덜고, 1 m 뒤는 절반만', () => {
     const s = scene((x) => {
       const o = of(x, 0, 'ST');
       [o.x, o.y] = [70, 34];
@@ -95,15 +95,19 @@ describe('C.82g 전환 구조: 공 앞 인원·높은 라인 비용', () => {
     });
     const o = s.agents[s.ball.owner]!;
     const behind = of(s, 1, 'CB');
+    [behind.x, behind.y] = [68, 34];
+    const d2 = carryReachDist(s, behind, o, 76, 34);
     [behind.x, behind.y] = [69, 34];
     const d1 = carryReachDist(s, behind, o, 76, 34);
     const O = ENGINE.onball as { carryChase: number };
     const K = O.carryChase;
+    const close = ENGINE.onball.carryClose * behind.maxSpeed;
     try {
       O.carryChase = 0;
       const d0 = carryReachDist(s, behind, o, 76, 34);
-      expect(d1).toBeGreaterThan(d0);
-      expect(d1).toBeCloseTo(1 + 3 - ENGINE.onball.carryClose * behind.maxSpeed, 5); // 램프 절반 = 몰 거리 6 m 의 절반 3 m 만 덜어 낸다
+      expect(d2).toBeGreaterThan(d0);
+      expect(d2).toBeCloseTo(Math.max(0, 2 - (close - K * 6)), 5); // 2 m 뒤 = 램프 끝: 몰 거리 6 m × 0.3 을 다 덜어 낸다
+      expect(d1).toBeCloseTo(Math.max(0, 1 - (close - K * 6 * 0.5)), 5); // 1 m 뒤 = 절반
     } finally {
       O.carryChase = K;
     }
