@@ -15,8 +15,8 @@ function match(seed: number) {
 }
 
 describe('C.76q PK·선방률 지표', () => {
-  it('박스 안 파울 배율 0.08 (PK 경기당 약 0.28)', () => {
-    expect(ENGINE.referee.boxFoulFactor).toBe(0.08);
+  it('박스 안 파울 배율 0.055 (C.82b: 0.08 → 0.055, PK 팀당 0.20 → 0.16)', () => {
+    expect(ENGINE.referee.boxFoulFactor).toBe(0.055);
   });
 
   it('지정 PK 키커 = 경기장 필드 선수 중 슈팅 + 침착성 최고 (공과의 거리 무관)', () => {

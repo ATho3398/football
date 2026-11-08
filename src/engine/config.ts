@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 96;
+export const ENGINE_VERSION = 98;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -1328,6 +1328,8 @@ export const ENGINE = {
     aerialAttackBonus: -1.0,
     /** 공격수가 이긴 공중볼을 박스 안 이 거리 안이면 헤더 슈팅 */
     headerMaxDist: 14,
+    /** C.82b: 세트피스 크로스(코너·측면 프리킥) 대상 고르기에서 CB·ST 가중 (대상 고르기에만, 1 = 끔) */
+    setPieceTargetW: 3,
     /** 수비 걷어내기 거리 (m) */
     clearDist: [15, 30] as [number, number],
     clearCorner: 0.35,
@@ -1688,6 +1690,8 @@ export const ENGINE = {
     headerReact: 0,
     /** C.80u: 세트피스 헤더(코너·프리킥 뒤 15초 안)의 GK 반응 가산 (초) — headerReact 대신 */
     headerReactSet: 0.6,
+    /** C.82b: 세트피스 헤더 유효 슈팅 선방 감점 (상한 0.95 뒤에 뺀다, 판단·실행 같은 saveChance). 진단 c82b-corner: 세트피스 헤더 유효당 골 7%(실축 약 30%) — 반응 가산은 포화 */
+    headerSaveSet: 0.2,
     /**
      * GK 시야 가림 (C.79a 코드, C.79e 실험 스위치 — 기본 screenReact 0 = 끔): 슛 길 콘(prob.coneWidth) 안에 슈터보다 골 쪽(슛 선 위치 ≥ screenFrom) 상대 필드 선수가
      * 1명 이상이면 GK 반응 시간 + screenReact × 가중. 가중은 실행 1, 판단(shotModel) screenJudge — C.79e "가림의 판단 몫만 낮추기"(1 = C.79a 와 같은 판단=실행)
@@ -1831,7 +1835,7 @@ export const ENGINE = {
     contactFoulRate: 0.0065,
     contactDist: 1.0,
     /** 수비수가 자기 박스 안에서는 파울을 조심한다 (파울 확률 배율). E.22 B: 0.004 → 0.06 (PK 팀당 경기당 약 0.13, 세트피스 골 비중). C.29: 0.04 (파울 상수를 올려도 PK 유지). C.76q: 0.04 → 0.08 (PK 0.136/경기 → 현실 0.25~0.3, 미해결 13) */
-    boxFoulFactor: 0.08,
+    boxFoulFactor: 0.055, // C.82b: 0.08 → 0.055 (PK 팀당 0.20 → 0.16, 목표 0.11~0.16 — 세트피스 헤더 골 증가분 총량 일부 상쇄)
     /** 경고를 받은 선수의 파울 확률 배율, 두 번째 경고를 실제로 줄 확률. C.80d: 0.5·0.5 → 0.7·0.3 (옐로가 2배라 경고 누적 퇴장이 직접 레드보다 훨씬 많아지지 않게 — 실축 약 반반) */
     bookedCare: 0.7,
     secondYellow: 0.3,
@@ -1919,6 +1923,9 @@ export const ENGINE = {
     stN: 3,
     /** 최전방 몰빵 초과를 몇 배로 셀지: m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1)) — C.80z 2 → 3 (최전방 3명 대형 2-2-2-1-3·1-3-2-1-3 이 두 상대 모두 −0.5 넘게 지도록) */
     stW: 3,
+    /** 뒷문 비움 (C.82a, 엔진관리자27 1-1): ST·CF 가 cbSt 명 이상인데 CB 가 cbMin 명보다 적으면 초과 m ≥ cbMin − CB (0 = 끔). 표준 대형은 CB 2명 이상이라 안 걸린다. 커스텀 2-3-1-1-3(CB 0·ST 2) 대 4-4-2 +0.50 → −0.69 (400경기) */
+    cbMin: 1,
+    cbSt: 2,
   },
 
   tacticFit: {

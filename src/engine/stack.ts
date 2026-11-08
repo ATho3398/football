@@ -5,17 +5,19 @@ import { ENGINE } from './config';
 import { attackDir, toNorm, normX } from './pitch';
 import type { Agent, SimState } from './state';
 
-type StackCfg = { readonly n: number; readonly stN: number; readonly link: number; readonly linkBase: number; readonly stW: number; readonly drain: number; readonly groups: readonly string[] };
+type StackCfg = { readonly n: number; readonly stN: number; readonly link: number; readonly linkBase: number; readonly stW: number; readonly cbMin: number; readonly cbSt: number; readonly drain: number; readonly groups: readonly string[] };
 
 /** 공격 포지션 인원 (GK 포함 목록을 줘도 된다) */
 export function stackCount(positions: readonly Position[], cfg: StackCfg = ENGINE.stackCap): number {
   return positions.filter((p) => cfg.groups.includes(posGroup(p))).length;
 }
 
-/** 초과 인원 m = max(공격 포지션 − n + 1, ST·CF − stN + 1, 0) */
+/** 초과 인원 m = max(공격 포지션 − n + 1, stW × (ST·CF − stN + 1), 뒷문 비움 cbMin − CB(ST·CF ≥ cbSt 일 때), 0) */
 export function stackOver(positions: readonly Position[], cfg: StackCfg = ENGINE.stackCap): number {
   const st = positions.filter((p) => posGroup(p) === 'ST').length;
-  return Math.max(0, stackCount(positions, cfg) - cfg.n + 1, cfg.stW * (st - cfg.stN + 1));
+  const cb = positions.filter((p) => posGroup(p) === 'CB').length;
+  const back = cfg.cbMin > 0 && st >= cfg.cbSt ? cfg.cbMin - cb : 0;
+  return Math.max(0, stackCount(positions, cfg) - cfg.n + 1, cfg.stW * (st - cfg.stN + 1), back);
 }
 
 /** 연계 배수 max(0, 1 − linkBase − link × m) · 수비 전환 체력 소모 배수 1 + drain × m (표시·테스트용 순수 함수) */
