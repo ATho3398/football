@@ -53,29 +53,40 @@ export interface DockVM {
   inbox?: number;
   /** 코치 후보 수 (C.70 재정 칸 배지 → C.77q 코치·스태프가 훈련으로 옮겨 훈련 칸 배지) */
   coach?: number;
+  /** 상점 새 카드 (17차 S03: 더보기 배지에 합산) — 지금 코드에 값이 없어 0 */
+  shop?: number;
 }
 
-export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves' | 'inbox' | 'finance' | 'shop';
+export type DockId = 'prog' | 'player' | 'home' | 'schedule' | 'world' | 'more' | 'deck' | 'tactics' | 'settings' | 'saves' | 'inbox' | 'finance' | 'shop'
+  | 'national' | 'awards' | 'collection';
 /**
- * 폰 독 (C.66 → C.77q 사용자 "메뉴 정리"): 홈 · 훈련 · [다음] · 선수 · 상점 · 더보기. 가로 폰은 위→아래 레일, 더보기는 레일 옆 펼침 줄(dockMoreRow)
+ * 폰 독 v4 (17차 S03, 사용자 결정 D3): 홈 · 훈련 · [다음] · 선수 · 더보기 — [다음] 정가운데(열 1 · 1 · 1.9 · 1 · 1).
+ * 상점은 더보기 첫 칸. 가로 폰은 위→아래 레일, 더보기는 레일 옆 펼침(dockMoreRow)
  */
-export const DOCK_PHONE: DockId[] = ['home', 'schedule', 'prog', 'player', 'shop', 'more'];
-/** 더보기 펼침 줄 순서 (C.69 디자인 201 → C.77q): 인박스 · 재정 · 월드 · 덱 · 전술 · 설정 · 저장 */
-export const DOCK_MORE: DockId[] = ['inbox', 'finance', 'world', 'deck', 'tactics', 'settings', 'saves'];
+export const DOCK_PHONE: DockId[] = ['home', 'schedule', 'prog', 'player', 'more'];
 /**
- * PC 한 줄 (C.61 → C.69 디자인 201 → C.77q): 폰 독과 같은 순서에 더보기 칸을 펼쳐 붙인다(더보기 없음).
- * [다음] 왼쪽 = 폰 왼쪽 칸 + 더보기 줄 앞 3칸(인박스 · 재정 · 월드), 오른쪽 = 폰 오른쪽 칸 + 나머지(덱 · 전술 · 설정 · 저장). 열 너비는 dockColumns 가 양쪽을 맞춘다
+ * 더보기 격자 (17차 S03 + 적용 명세 2절 28번 저장 칸): 독 위 2줄 6 · 5칸, 끌기 없음.
+ * 상점 · 인박스 · 재정 · 월드 · 덱 · 전술 / 대표팀 · 시상 · 수집(도감·진열실) · 설정 · 저장
  */
-export function dockPc(phone: readonly DockId[]): DockId[] {
-  const k = phone.indexOf('prog');
-  const left = phone.slice(0, k).filter((x) => x !== 'more');
-  const right = phone.slice(k + 1).filter((x) => x !== 'more');
-  const rest = DOCK_MORE.filter((x) => !phone.includes(x));
-  return [...left, ...rest.slice(0, 3), 'prog', ...right, ...rest.slice(3)];
+export const DOCK_MORE: DockId[] = ['shop', 'inbox', 'finance', 'world', 'deck', 'tactics', 'national', 'awards', 'collection', 'settings', 'saves'];
+/** 더보기 격자 한 줄 칸 수 (2줄 6 · 5) */
+export const DOCK_MORE_COLS = 6;
+/**
+ * PC 12칸 (17차 S03-b): 홈 · 훈련 · 인박스 · 재정 · 월드 | [다음] 176px | 선수 · 상점 · 덱 · 전술 · 설정 · 저장 — 더보기 없음.
+ * 대표팀 · 시상 · 수집은 홈 오른쪽 열 "커리어 바로가기"(careerLinks)
+ */
+export const DOCK_PC: DockId[] = ['home', 'schedule', 'inbox', 'finance', 'world', 'prog', 'player', 'shop', 'deck', 'tactics', 'settings', 'saves'];
+/** PC 독 (옛 이름 유지): 17차부터 칸은 DOCK_PC 하나로 고정 — 폰 칸 배열과 상관없다 */
+export function dockPc(_phone: readonly DockId[] = DOCK_PHONE): DockId[] {
+  return [...DOCK_PC];
 }
-export const DOCK_PC: DockId[] = dockPc(DOCK_PHONE);
-/** 더보기 칸이 켜지는 화면 = 모바일 독에 없는 칸 */
-const MORE_SCREENS: Record<string, DockId> = { deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves', inbox: 'inbox', finance: 'finance' };
+/** PC 독에 없는 커리어 칸 (홈 오른쪽 열 바로가기) */
+export const CAREER_LINKS: DockId[] = ['national', 'awards', 'collection'];
+/** 더보기 칸이 켜지는 화면 = 폰 독에 없는 칸 */
+const MORE_SCREENS: Record<string, DockId> = {
+  shop: 'shop', deck: 'deck', tactics: 'tactics', world: 'world', settings: 'settings', saves: 'saves', inbox: 'inbox', finance: 'finance',
+  national: 'national', awards: 'awards', dex: 'collection', showroom: 'collection',
+};
 
 /** 이동 목적지 (C.77q 메뉴 정리): 화면 + 그 화면 탭 */
 export interface Route { screen: string; trainTab?: 'pre' | 'cal' | 'g' | 'staff'; playerTab?: string }
@@ -103,42 +114,62 @@ export function dockColumns(ids: DockId[], keyPx: number): string {
   return ids.map((id, i) => (id === 'prog' ? `${keyPx}px` : `minmax(0, ${+((1 / (i < h ? left : right)) * 6).toFixed(3)}fr)`)).join(' ');
 }
 
-export function dock(vm: DockVM): string {
+const badgeText = (n: number): string => (n > 99 ? '99+' : String(n));
+const dockAttrs = (act: string, data?: Record<string, string>) => ` data-act="${esc(act)}"${Object.entries(data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}`;
+
+/** 독 칸 정의 (폰·PC·더보기 격자 공통) */
+function dockItems(vm: DockVM): Record<Exclude<DockId, 'prog' | 'more'>, DockItem> {
   const s = vm.screen;
-  const phone = new Set(DOCK_PHONE);
-  const items: Record<Exclude<DockId, 'prog'>, DockItem> = {
+  return {
     inbox: { label: '인박스', icon: 'inbox', act: 'go', data: { to: 'inbox' }, on: s === 'inbox', ...(vm.inbox ? { badge: vm.inbox } : {}) },
     finance: { label: '재정', icon: 'coin', act: 'go', data: { to: 'finance' }, on: s === 'finance' },
-    shop: { label: '상점', icon: 'card', act: 'go', data: { to: 'shop' }, on: s === 'shop' },
+    shop: { label: '상점', icon: 'card', act: 'go', data: { to: 'shop' }, on: s === 'shop', ...(vm.shop ? { badge: vm.shop } : {}) },
     home: { label: '홈', icon: 'home', act: 'go-tab', data: { v: 'home' }, on: s === 'home' },
     player: { label: '선수', icon: 'player', act: 'go-tab', data: { v: 'player' }, on: s === 'player' || s === 'allocate', ...(vm.points ? { badge: vm.points } : {}) },
     schedule: { label: '훈련', icon: 'train', act: 'go-tab', data: { v: 'schedule' }, on: s === 'schedule', ...(vm.coach ? { badge: vm.coach } : {}) },
     world: { label: '월드', icon: 'world', act: 'go-tab', data: { v: 'world' }, on: s === 'world' },
-    // 접힌 더보기 칸 배지 = 펼침 줄 칸 배지 합 (201: 인박스 안 읽음)
-    more: { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[s] && !phone.has(MORE_SCREENS[s]!)), ...(!vm.more && vm.inbox ? { badge: vm.inbox } : {}) },
     deck: { label: '덱', icon: 'deck', act: 'go-tab', data: { v: 'deck' }, on: s === 'deck' },
     tactics: { label: '전술', icon: 'tactic', act: 'tac-open', on: s === 'tactics', lock: !vm.tacticsOpen },
+    national: { label: '대표팀', icon: 'plane', act: 'go', data: { to: 'national' }, on: s === 'national' },
+    awards: { label: '시상', icon: 'star', act: 'go', data: { to: 'awards' }, on: s === 'awards' },
+    // 수집 (2절 28번): 도감 · 진열실 고르는 작은 시트(K5)
+    collection: { label: '수집', icon: 'album', act: 'collect-open', on: s === 'dex' || s === 'showroom' },
     settings: { label: '설정', icon: 'settings', act: 'go-tab', data: { v: 'settings' }, on: s === 'settings' },
     saves: { label: '저장', icon: 'disk', act: 'go-tab', data: { v: 'saves' }, on: s === 'saves' },
   };
-  const attrs = (act: string, data?: Record<string, string>) => ` data-act="${act}"${Object.entries(data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}`;
-  const badge = (n?: number) => (n ? `<b class="po-dock__badge po-num">${n}</b>` : '');
-  const p = vm.prog;
-  const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
-  const cell = (id: DockId): string => {
-    if (id === 'prog') {
-      const busy = kind === 'running';
-      return `<button type="button" class="po-dock__go po-dock__next is-${kind}"${attrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''}${kind === 'locked' ? ' disabled' : ''} aria-label="다음 · ${esc(p.label)}"><span class="po-dock__goicon">${
-        kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${badge(p.badge)}</span></button>`;
-    }
-    const it = items[id];
-    return `<button type="button" class="${cx('po-dock__item', it.on && 'is-on', it.lock && 'is-locked')}"${attrs(it.act, it.data)}${it.lock ? ' disabled' : ''}${it.on ? ' aria-current="page"' : ''}><span class="po-dock__icon">${
-      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : badge(it.badge)}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
-  };
-  // 열 너비 (201): 폰 [다음] 1.9fr · 나머지 1fr, PC 양쪽 같은 몫 + [다음] 176px
+}
+
+/** 더보기 칸 배지 = 격자 안 칸 배지 합 (2절 22번). 폰 독에 이미 있는 칸은 뺀다 */
+export function moreBadge(vm: DockVM): number {
+  const items = dockItems(vm);
+  return DOCK_MORE.filter((id) => !DOCK_PHONE.includes(id)).reduce((a, id) => a + (id === 'prog' || id === 'more' ? 0 : items[id].badge ?? 0), 0);
+}
+
+/** [다음] 글자 4자 이상(시즌 요약)은 15px (S03 "칸 폭 120px에서 넘치지 않게") */
+export const dockLabelLong = (label: string): boolean => Array.from(label.replace(/\s/g, '')).length >= 4;
+
+function dockCell(id: DockId, vm: DockVM, items: ReturnType<typeof dockItems>, extraCls = ''): string {
+  if (id === 'prog') {
+    const p = vm.prog;
+    const kind: DockProg = p.kind ?? (p.live ? 'live' : 'continue');
+    const busy = kind === 'running';
+    return `<button type="button" class="${cx('po-dock__go po-dock__next', `is-${kind}`, dockLabelLong(p.label) && 'is-long')}"${dockAttrs(p.act, p.data)}${busy ? ' aria-disabled="true"' : ''}${kind === 'locked' ? ' disabled' : ''} aria-label="다음 · ${esc(p.label)}${p.badge ? ` · ${p.badge}` : ''}"><span class="po-dock__goicon">${
+      kind === 'live' ? '<i class="po-dock__live"></i>' : ''}${Icon({ name: p.icon, size: 22, strokeWidth: 2.4 })}<span class="po-dock__golabel">${esc(p.label)}</span>${p.badge ? `<b class="po-dock__badge po-num">${badgeText(p.badge)}</b>` : ''}</span></button>`;
+  }
+  const it: DockItem = id === 'more'
+    ? { label: '더보기', icon: 'menu', act: 'dock-more', on: vm.more || (!!MORE_SCREENS[vm.screen] && !DOCK_PHONE.includes(MORE_SCREENS[vm.screen]!)), ...(!vm.more && moreBadge(vm) ? { badge: moreBadge(vm) } : {}) }
+    : items[id];
+  return `<button type="button" class="${cx('po-dock__item', extraCls, it.on && 'is-on', it.lock && 'is-locked')}"${dockAttrs(it.act, it.data)}${it.lock ? ' disabled' : ''}${it.on && id !== 'more' ? ' aria-current="page"' : ''}${
+    id === 'more' ? ` aria-expanded="${vm.more}"` : ''}${it.badge ? ` aria-label="${esc(`${it.label} ${it.badge}`)}"` : ''}><span class="po-dock__icon">${
+    Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : it.badge ? `<b class="po-dock__badge po-num">${badgeText(it.badge)}</b>` : ''}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
+}
+
+export function dock(vm: DockVM): string {
+  const items = dockItems(vm);
+  // 열 너비: 폰 1 · 1 · 1.9 · 1 · 1 ([다음] 정가운데), PC 양쪽 같은 몫 + [다음] 176px
   const cols = (ids: DockId[], pc: boolean) => (pc ? dockColumns(ids, 176) : ids.map((id) => `minmax(0, ${id === 'prog' ? 1.9 : 1}fr)`).join(' '));
-  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock po-dock--v3', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${cols(ids, pc)}">${ids.map((id) => cell(id)).join('')}</div>`;
-  // 더보기 (C.63c → C.66): 시트 대신 독 옆(가로 폰 = 레일 오른쪽 세로 줄, 세로 태블릿 = 독 위 한 줄)으로 펼침, 배경을 막지 않음
+  const bar = (ids: DockId[], pc: boolean) => `<div class="${cx('po-dock po-dock--v3 po-dock--v4', pc ? 'po-dock--pc dock-wide' : 'dock-phone')}" style="grid-template-columns: ${cols(ids, pc)}">${ids.map((id) => dockCell(id, vm, items)).join('')}</div>`;
+  // 더보기 (17차 S03): 독 위 2줄 격자(가로 폰 = 레일 옆 세로 줄), 배경을 막지 않음
   const row = vm.more ? dockMoreRow(vm, items) : '';
   return `<nav class="nav dock-bar" aria-label="주요 메뉴">${row}${bar(DOCK_PHONE, false)}${bar(DOCK_PC, true)}</nav>`;
 }
@@ -170,15 +201,28 @@ export function retiredDock(screen: string): string {
   return `<nav class="nav dock-bar" aria-label="주요 메뉴 · 은퇴">${bar(false)}${bar(true)}</nav>`;
 }
 
-/** 더보기 펼침 줄 (C.63c): 폰 독에 없는 칸 + 인박스, 가로 스크롤 · 스냅 · 처음/끝 흐림. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
-function dockMoreRow(_vm: DockVM, all: Record<string, DockItem>): string {
+/** 더보기 격자 (17차 S03): 폰 독에 없는 칸 11개, 2줄 6 · 5. 칸을 고르거나 [더보기]·바깥을 누르면 접힘 */
+function dockMoreRow(vm: DockVM, items: ReturnType<typeof dockItems>): string {
   const ids = DOCK_MORE.filter((id) => !DOCK_PHONE.includes(id));
-  const cells = ids.map((id) => {
-    const it = all[id]!;
-    return `<button type="button" class="${cx('po-dock__item', 'dock-more__item', it.on && 'is-on', it.lock && 'is-locked')}" data-act="${esc(it.act)}"${Object.entries(it.data ?? {}).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('')}${it.lock ? ' disabled' : ''}><span class="po-dock__icon">${
-      Icon({ name: it.icon, size: 22, strokeWidth: it.on ? 2.4 : 2 })}${it.lock ? `<span class="po-dock__lock">${Icon({ name: 'lock', size: 10, strokeWidth: 2.6 })}</span>` : it.badge ? `<b class="po-dock__badge po-num">${it.badge}</b>` : ''}</span><span class="po-dock__label">${esc(it.label)}</span></button>`;
-  }).join('');
-  return `<div class="dock-more" role="menu" aria-label="더보기"><div class="dock-more__scroll at-start">${cells}</div></div>`;
+  return `<div class="dock-more dock-more--grid" role="menu" aria-label="더보기"><div class="dock-more__scroll dock-more__grid" style="--more-cols:${DOCK_MORE_COLS}">${
+    ids.map((id) => dockCell(id, vm, items, 'dock-more__item')).join('')}</div></div>`;
+}
+
+/** 수집 고르기 시트 (2절 28번, K5): 포토카드 도감 · 진열실 */
+export function collectSheet(): string {
+  return BottomSheet({
+    eyebrow: '수집', title: '무엇을 볼까요', onClose: { act: 'sheet-close' }, className: 'collect-sheet',
+    children: OptionRow({ act: 'go', data: { to: 'dex' }, icon: 'album', title: '포토카드 도감', desc: '모은 선수 포토카드' })
+      + OptionRow({ act: 'go', data: { to: 'showroom' }, icon: 'trophy', title: '진열실', desc: '트로피 · 교환한 유니폼' }),
+  });
+}
+
+/** 커리어 바로가기 (17차 S03-b, PC): PC 독에 없는 대표팀 · 시상 · 수집을 홈 오른쪽 열에서 */
+export function careerLinks(): string {
+  const it = (act: string, data: Record<string, string>, icon: IconName, label: string) =>
+    `<button type="button" class="career-link"${dockAttrs(act, data)}>${Icon({ name: icon, size: 18 })}<span>${esc(label)}</span></button>`;
+  return `<section class="po-panel po-panel--info career-links"><header class="po-panel__head"><span class="po-panel__titles"><b class="po-panel__title">커리어 바로가기</b></span></header><div class="career-links__row">${
+    it('go', { to: 'national' }, 'plane', '대표팀') + it('go', { to: 'awards' }, 'star', '시상') + it('go', { to: 'dex' }, 'album', '도감') + it('go', { to: 'showroom' }, 'trophy', '진열실')}</div></section>`;
 }
 
 /** 모바일 더보기 시트: 독에 없는 칸 (C.50: 월드 추가, C.54: DOCK_PHONE 에 있는 칸은 뺀다) */

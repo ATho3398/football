@@ -4,3 +4,7 @@ mx41 done 18:17:26
 mx51 done 18:36:14
 scripts/diag/c82f-960.json: 21칸 × 960경기
 merge done 18:36:15
+test done 18:43:59 rc=0
+echeck done 18:53:34 rc=0
+build done 18:53:41 rc=0
+CHAINDONE

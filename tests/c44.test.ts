@@ -90,7 +90,8 @@ describe('자동 진행 시트·독·홈 더비 배지 (C.44)', () => {
     const labels = (h: string) => [...h.matchAll(/class="po-dock__(?:go)?label">([^<]+)</g)].map((m) => m[1]!);
     // C.66: 홈 = 맨 왼쪽 일반 칸, [다음](진행) 키가 PC 9칸·모바일 5칸 모두 가운데
     // C.77q 메뉴 정리: 폰 = 홈 · 훈련 · [다음] · 선수 · 상점 · 더보기, PC = 같은 순서 + 더보기 칸 펼침
-    expect(labels(bar('dock-phone'))).toEqual(['홈', '훈련', '계속', '선수', '상점', '더보기']);
+    // 17차 U17-a 독 v4: 폰 5칸 (상점은 더보기 격자 첫 칸)
+    expect(labels(bar('dock-phone'))).toEqual(['홈', '훈련', '계속', '선수', '더보기']);
     expect(labels(bar('dock-wide'))).toEqual(['홈', '훈련', '인박스', '재정', '월드', '계속', '선수', '상점', '덱', '전술', '설정', '저장']);
     expect(html).toContain('data-act="day-continue"');
     expect(html).toContain('is-locked');

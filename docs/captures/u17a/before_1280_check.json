@@ -1,0 +1,35 @@
+{
+  "W": 1280,
+  "H": 800,
+  "errors": [],
+  "checks": {
+    "01_홈_안내띠": {
+      "overflow": 0,
+      "small": [
+        "2 10px (po-dock__badge po-num)"
+      ],
+      "tapSmall": []
+    },
+    "02_홈_도구줄": {
+      "overflow": 0,
+      "small": [
+        "2 10px (po-dock__badge po-num)"
+      ],
+      "tapSmall": []
+    },
+    "05_선수_독": {
+      "overflow": 0,
+      "small": [
+        "2 10px (po-dock__badge po-num)"
+      ],
+      "tapSmall": []
+    },
+    "07_토스트자리": {
+      "overflow": 0,
+      "small": [
+        "2 10px (po-dock__badge po-num)"
+      ],
+      "tapSmall": []
+    }
+  }
+}

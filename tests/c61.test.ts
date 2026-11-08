@@ -25,7 +25,7 @@ afterEach(() => setWideForTest(null));
 describe('독 칸 배열 하나 (C.61)', () => {
   it('PC 9칸은 폰 독 순서에서 만든다: 홈 · 덱 · 전술 + 폰 나머지 ([다음] 5번째 가운데) + 더보기 자리에 월드 · 설정 · 저장 (C.66)', () => {
     // C.77q: 폰 독 순서 + 더보기 칸 펼침
-    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'shop', 'more']);
+    expect(DOCK_PHONE).toEqual(['home', 'schedule', 'prog', 'player', 'more']); // 17차 U17-a 독 v4: 상점은 더보기 첫 칸
     expect(DOCK_PC).toEqual(['home', 'schedule', 'inbox', 'finance', 'world', 'prog', 'player', 'shop', 'deck', 'tactics', 'settings', 'saves']);
     expect(DOCK_PC.indexOf('prog')).toBe(5);
     // 폰 칸을 바꿔도 PC는 같은 칸 묶음(더보기 없음)
@@ -46,19 +46,22 @@ describe('폭 판정', () => {
 });
 
 describe('PC 2열 화면 (디자인 120 · 121 · 153 · 123)', () => {
-  it('홈 120 → 204(C.76g): 폰은 1열 그대로, PC는 왼쪽 다음 경기 · 내 상태 · 오른쪽 선수 카드 · 4칸 · 시즌 목표', () => {
+  it('홈 120 → 204(C.76g) → 17차 S06-a(U17-b): 폰은 탭, PC는 3열 — 왼쪽 오늘(다음 경기 · 내 상태) · 가운데 시즌(목표) · 오른쪽 경쟁', () => {
     const g = son();
     const phone = homeView(homeVM(g));
-    expect(phone).not.toContain('pc2');
+    expect(phone).not.toContain('hm3');
+    expect(phone).toContain('data-act="home-tab"');
     setWideForTest(true);
-    const pc = homeView(homeVM(g), '', '', '', '', '<i id="goals"></i>');
-    expect(pc).toContain('pc2 hm-pc');
-    const r = pc.slice(pc.indexOf('pc2__r'));
-    expect(r).toContain('po-pcard');
-    expect(r).toContain('id="goals"');
-    const l = pc.slice(0, pc.indexOf('pc2__r'));
+    const pc = homeView(homeVM(g), { goals: '<i id="goals"></i>' });
+    expect(pc).toContain('class="hm3"');
+    expect(pc).not.toContain('data-act="home-tab"');
+    const l = pc.slice(0, pc.indexOf('<h2 class="hm3__h">시즌'));
     expect(l).toContain('next-card');
     expect(l).toContain('내 상태');
+    const m = pc.slice(pc.indexOf('<h2 class="hm3__h">시즌'), pc.indexOf('<h2 class="hm3__h">경쟁'));
+    expect(m).toContain('id="goals"');
+    expect(m).toContain('시즌 기록');
+    expect(pc.slice(pc.indexOf('<h2 class="hm3__h">경쟁'))).toContain('career-links');
     expect(pc).not.toContain('po-hero--face'); // 사진 없는 실제 선수(테스트엔 facepack 없음) = 일반 B 머리말 (C.74e: 사진 있으면 PC 도 미페)
   });
   it('선수 121 · 153: PC는 왼쪽 능력치 늘 + 오른쪽 탭 4개(능력치 탭이면 몸·태그)', () => {

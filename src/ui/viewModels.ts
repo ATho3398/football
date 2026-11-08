@@ -9,7 +9,7 @@ import { rollCustom } from './customRandom';
 import { goalLabel, SOURCE_KO, TIER_KO, valueLabel } from '../seasonGoals';
 import { CHAPTER_IDS, CHAPTER_KO, CHAPTER_THEME_KO, currentChapter, pendingChapterReview, type ChapterId } from '../chapters';
 import { topChemMates, type ChemMateVM } from '../rapport';
-import { type OthersMode, isNeutralMatch, matchCompLabel, myMatchConditions, myShirt, rosterLeagues, venueKo, weekFreeDays } from '../game';
+import { type OthersMode, injuryRiskMul, isNeutralMatch, matchCompLabel, myMatchConditions, myShirt, rosterLeagues, venueKo, weekFreeDays } from '../game';
 import { forecastOpen, WEATHER_HINT, WEATHER_KO, WEATHER_LINE, type WeatherKind } from '../weather';
 import { refereeTraits } from '../referees';
 import { compNameKo, cupNameKo, cupRoster, GROUP_LETTERS, groupTable, KO_NAMES, myCupMatches, reachLabel, stageName, uclReachLabel, type CompId, type CupTie } from '../cups';
@@ -53,7 +53,7 @@ import { SEASON_HL_KO, seasonHighlights3, type SeasonHighlight, type SeasonHighl
 import {
   ALL_ITEMS, primaryItems, recordLine, recordRows, type MatchLogEntry, type MatchRecord, type RecordRowVM,
 } from '../matchRecord';
-import { INJURY_NAMES_KO } from '../injury';
+import { INJURY_NAMES_KO, injuryChance, returnOfferDays } from '../injury';
 import { shownTracks } from '../records';
 import { CLUB_TO_TEAM, clubKo, initialTeams, leagueOfTeam, leaguePosition, leagueTeamById, sortedTable, teamById, type LeagueState } from '../league';
 import { DEFAULT_LEAGUES, leagueCatalog, leagueData } from '../../data/leagues';
@@ -153,6 +153,15 @@ export interface ConditionVM {
   seasonFatigue?: number;
   /** 생활 힌트 (C.63 b): 숨은 생활 지표를 숫자 없이 문장으로 */
   life?: string[];
+  /**
+   * 부상 위험 (17차 S06 내 상태 3칸, A7): 다음 경기 풀타임 부상 확률 = 엔진 판정과 같은 식(`injuryChance` × 팀 닥터 · 조기 복귀 배율, 날씨 뺌).
+   * mul = 같은 선수가 피로·누적 부하 0 일 때(보통)의 몇 배. 부상 중이면 없음
+   */
+  risk?: { pct: number; mul: number; why: string };
+  /** 부상 중이면 남은 날 (내 상태 부상 위험 칸 "부상 중") */
+  injured?: number;
+  /** 나이 (부상 위험 근거 줄) */
+  age: number;
 }
 
 /**
@@ -181,7 +190,19 @@ function conditionVM(g: GameState): ConditionVM {
     yellows: p.season.yellows,
     yellowEvery: nextYellowBan(p.season.yellows, seasonFrac(g.league.round, g.league.schedule.length)),
     life: lifeHints(g),
+    age: p.age,
+    ...(p.injury ? { injured: p.injury.daysLeft } : { risk: injuryRiskOf(g) }),
   };
+}
+
+/** 내 상태 부상 위험 칸 (17차 S06): 엔진 부상 판정 식 그대로 — 다음 경기 90분 기준, 날씨는 경기 날 정해져 뺀다 */
+function injuryRiskOf(g: GameState): NonNullable<ConditionVM['risk']> {
+  const p = g.player;
+  const mul = injuryRiskMul(g);
+  const now = injuryChance(p, 90, g.difficulty) * mul;
+  const calm = injuryChance({ ...p, fatigue: 0, load: 0 }, 90, g.difficulty);
+  const why = [`체력 ${Math.max(0, Math.min(100, 100 - Math.round(p.fatigue)))}`, ...((p.load ?? 0) > 0 ? [`누적 부하 ${Math.round(p.load!)}`] : []), ...(mul !== 1 ? [`배율 ×${Math.round(mul * 100) / 100}`] : []), `${p.age}세`].join(' · ');
+  return { pct: Math.round(now * 1000) / 10, mul: calm > 0 ? Math.round((now / calm) * 10) / 10 : 1, why };
 }
 
 export interface PlayerCardVM {
@@ -249,12 +270,14 @@ function injuryBanner(g: GameState): BannerVM | null {
     return {
       tone: 'injury', title: `복귀 시점을 골라요 · ${inj.daysLeft}일 남음`,
       body: `조기 복귀하면 오늘부터 뛰지만 ${BALANCE.injuryReturn.reinjuryDays}일 동안 부상 확률 ×${BALANCE.injuryReturn.reinjuryMul}. 완전 회복은 복귀 예정 ${returnLabel(g)}.`,
-      action: '고르기', act: 'inj-return-open',
+      action: '복귀 시점 고르기', act: 'inj-return-open',
     };
   }
   return {
     tone: 'injury', title: `부상 (${INJURY_NAMES_KO[inj.grade]}) · ${inj.daysLeft}일 남음`,
     body: `복귀 예정 ${returnLabel(g)}. 부상 중에는 경기에 나가지 못하고 재활(XP 주 ${BALANCE.injury.rehabXp})만 해요. 휴식으로 바꾸면 XP 대신 회복이 하루 +${BALANCE.training.restHealBonus}일 빨라요.`,
+    // 17차 2절 29번: 고를 수 있는 부상이면 처음부터 [복귀 시점 고르기] (막바지 전에는 시트가 언제 고르는지 알려 줌)
+    ...(!inj.ret && g.phase === 'season' && returnOfferDays(inj) !== null ? { action: '복귀 시점 고르기', act: 'inj-return-open' } : {}),
   };
 }
 
@@ -2159,12 +2182,20 @@ export function cupsWorldVM(g: GameState): CupsWorldVM {
 }
 
 /** 부상 복귀 선택 시트 (C.74b, pending 77-5) */
-export interface InjuryReturnVM { daysLeft: number; grade: string; back: string; risk: number; riskDays: number }
+export interface InjuryReturnVM {
+  daysLeft: number; grade: string; back: string; risk: number; riskDays: number;
+  /** 아직 고를 때가 아님 (17차 2절 29번: 부상 배너 [복귀 시점 고르기]로 미리 열면) — 남은 날이 이 값 이하가 되면 고를 수 있어요 */
+  wait?: number;
+}
 
 export function injuryReturnVM(g: GameState): InjuryReturnVM | null {
   const inj = g.player.injury;
-  if (!inj || inj.ret !== 'ask' || g.phase !== 'season') return null;
-  return { daysLeft: inj.daysLeft, grade: INJURY_NAMES_KO[inj.grade], back: returnLabel(g), risk: BALANCE.injuryReturn.reinjuryMul, riskDays: BALANCE.injuryReturn.reinjuryDays };
+  if (!inj || g.phase !== 'season') return null;
+  const base = { daysLeft: inj.daysLeft, grade: INJURY_NAMES_KO[inj.grade], back: returnLabel(g), risk: BALANCE.injuryReturn.reinjuryMul, riskDays: BALANCE.injuryReturn.reinjuryDays };
+  if (inj.ret === 'ask') return base;
+  // 묻기 전(17차 2절 29번): 고를 수 있는 부상이면 시트를 미리 보여 주되 단추는 잠금 — 선택 규칙(C.74b)은 그대로
+  const at = inj.ret ? null : returnOfferDays(inj);
+  return at === null ? null : { ...base, wait: at };
 }
 
 /** 기록 추적 (C.74b, pending 77-10): 홈·선수 화면 1~3줄 */

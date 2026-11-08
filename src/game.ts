@@ -1387,7 +1387,7 @@ function myRole(state: GameState): string | undefined {
 }
 
 /** 부상 확률 배율: 팀 닥터 (C.68a) × 조기 복귀 재부상 위험 (C.74b, 위험 창 안에서만) */
-function injuryRiskMul(state: GameState): number {
+export function injuryRiskMul(state: GameState): number {
   const r = state.player.reinjury;
   return injuryChanceMul(state) * (r && daysBetween(state.calendar.date, r.until) > 0 ? r.mul : 1);
 }

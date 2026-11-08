@@ -7,7 +7,7 @@ describe('C.81b 묶음 마무리 보정 2', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(86);
     expect(ENGINE.offball.edgeZone).toBe(18);
     expect(ENGINE.decide.possess.balanced).toBe(0.02);
-    expect(ENGINE.matchup.block!.gegenpress).toEqual({ air: 0, keep: 1 }); // C.81z keep 2 → 3 (블록>게겐 +0.01 → ≥ +0.08) → C.82g 0/1 (+0.36 → ±0.3 안)
+    expect(ENGINE.matchup.block!.gegenpress).toEqual({ air: 0, keep: 0 }); // C.82f: 1 → 0 (C.82g 병합 뒤 블록>게겐 +0.45) // C.81z keep 2 → 3 (블록>게겐 +0.01 → ≥ +0.08) → C.82g 0/1 (+0.36 → ±0.3 안)
     expect(ENGINE.matchup.balanced).toEqual({ tikitaka: { long: -10 } });
     expect(ENGINE.keeper.saveBase).toBe(2.11); // C.81s 1.93 → 2.02 → C.82g 2.11(뒤 공간 역습 마무리로 오른 총량 되돌림) · C.82f 유지
     expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55); // C.81h 0.3 → 0.32 · C.81s 0.39 · C.82g 0.44 · C.82f 0.55 (득점 비율 ST 레버, 자유 반경 4 m)

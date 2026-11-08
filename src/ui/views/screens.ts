@@ -331,7 +331,8 @@ function realBody(vm: NewGameVM, u: NewGameUI): { left: string; right: string } 
     <button type="button" class="ng-sortbtn${open ? ' is-open' : ''}" data-act="ng-sort" aria-expanded="${open}" aria-label="정렬">${Icon({ name: 'sliders', size: 16 })}<span>${sortLabel}</span>${Icon({ name: 'chevron-down', size: 14 })}</button>${menu}</div>`;
   const sheet = open && legendTab ? BottomSheet({
     eyebrow: `레전드 ${vm.legendList.length}명`, title: '정렬', onClose: { act: 'ng-sort-close' },
-    children: `<button type="button" class="ng-sheet-x" data-act="ng-sort-close">${Icon({ name: 'close', size: 16 })}닫기</button>${sortRows(true, sortV)}`,
+    // 17차 U17-a: 닫기는 시트 ✕(K5)로 — 옛 "닫기" 글자 단추(.ng-sheet-x)는 뺌
+    children: sortRows(true, sortV),
   }) : '';
   const groups = Tabs({ items: [{ id: 'all', label: '전체' }, { id: 'fw', label: '공격' }, { id: 'mf', label: '미드' }, { id: 'df', label: '수비' }], value: u.rgroup, variant: 'segment', fill: true, act: 'ng-real', data: { k: 'rgroup' }, label: '포지션군' });
   const row = (p: Row) => `<button type="button" class="real-row ng-row${p.id === vm.realId ? ' is-on' : ''}" data-act="form" data-k="realId" data-v="${p.id}">${Avatar({ size: 40, face: { id: p.id, age: p.age }, name: p.name })}<span class="grow"><b class="ng-row__name">${esc(p.name)}</b><small class="ng-row__meta">${legendTab ? `<span class="ng-badge${p.bvb ? ' is-bvb' : ''}">${p.bvb ? '도르트문트' : '레전드'}</span>` : ''}${esc(p.club)} · ${p.age}세 · ${p.position}${p.youthKo ? ` · 유스 ${esc(p.youthKo)}` : ''}</small></span>${

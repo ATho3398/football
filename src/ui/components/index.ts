@@ -6,3 +6,4 @@ export * from './match';
 export * from './gameCard';
 export * from './forms';
 export * from './rows';
+export * from './kit';

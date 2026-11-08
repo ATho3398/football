@@ -1,0 +1,305 @@
+/* 17차 1단계 공통 층 (U17-a, 디자인 player-one-design-b17-1 · 적용 명세 docs/ui-requests/17-1-apply.md)
+   - 앞부분: 디자인 bundle.css 17차 추가분(1,063 → 1,216줄)을 옮김. 새 컴포넌트(Chip · Panel · DataTable · TopStrip · EmptyState · ToolBar · PlayerRow) 클래스는 새 이름이라 테마와 상관없이 켠다.
+   - 2절 바로잡기: 글자 바닥 12px(배지·"나" 표 포함), 누르는 영역 44px(꺾인 모양 단추는 바깥 칸 44px + 안쪽 면).
+   - 독 v4 · 더보기 격자 · 위 띠 · 토스트 자리 · 시트 ✕.
+   style.css · season.css 뒤에 읽어 옛 화면별 규칙보다 이긴다(옛 클래스는 그대로 남김 — 2·3단계 화면 보호). */
+
+/* ---------- K1 텍스트 링크 ---------- */
+.po-btn--link { clip-path: none; background: transparent; color: var(--brand-ink); min-height: 44px; padding: 0 4px; gap: 4px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: none; }
+.po-btn--link:hover { text-decoration: underline; }
+
+/* ---------- K2 Chip ---------- */
+.po-xchip { position: relative; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 0; font-family: var(--font-sans); font-size: 12px; font-weight: 700; white-space: nowrap; flex: none; transform: skewX(-8deg); }
+.po-xchip > * { transform: skewX(8deg); }
+.po-xchip__value { font-family: var(--font-display); font-style: italic; font-size: 14px; }
+.po-xchip--info { background: var(--surface-2); color: var(--ink-muted); }
+.po-xchip--info .po-xchip__value { color: var(--ink); }
+.po-xchip--status { height: 22px; padding: 0 7px; font-size: 12px; font-weight: 800; background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; color: var(--ink-muted); }
+.po-xchip--filter { height: 32px; padding: 0 12px; background: var(--surface-2); color: var(--ink-muted); cursor: pointer; font-size: 13px; }
+/* 누르는 칩: 겉 32px, 누르는 칸 44px */
+.po-xchip--filter::before { content: ""; position: absolute; inset: -6px -2px; }
+.po-xchip--filter.is-on { background: var(--brand); color: var(--on-brand); }
+.po-xchip--success { color: var(--success); } .po-xchip--fail { color: var(--fail); } .po-xchip--warning { color: var(--warning); } .po-xchip--injury { color: var(--injury); } .po-xchip--brand { color: var(--brand-ink); } .po-xchip--mine { color: var(--mine); }
+.po-xchip--info.po-xchip--success, .po-xchip--info.po-xchip--fail, .po-xchip--info.po-xchip--warning, .po-xchip--info.po-xchip--brand { background: var(--surface-2); }
+
+/* ---------- K4 Panel ---------- */
+.po-panel { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 6px; background: var(--surface-1); }
+.po-panel__head { display: flex; align-items: center; gap: 10px; min-height: 24px; }
+.po-panel__toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; margin: -10px 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.po-panel__icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; background: var(--surface-3); color: var(--ink); clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.po-panel__titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.po-panel__eyebrow { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.po-panel__title { font-size: 15px; line-height: 21px; font-weight: 800; word-break: keep-all; }
+.po-panel__right { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.po-panel__fold { flex: none; display: grid; place-items: center; width: 28px; height: 28px; color: var(--ink-muted); }
+.po-panel__close { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px 0; border: 0; background: transparent; color: var(--ink-faint); cursor: pointer; }
+.po-panel__summary { font-size: 13px; line-height: 19px; color: var(--ink-muted); word-break: keep-all; }
+.po-panel__action { display: flex; gap: 8px; }
+.po-panel--task { box-shadow: inset 4px 0 0 var(--brand); padding-left: 18px; }
+.po-panel--alert { background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--line-strong, var(--line)); }
+.po-panel.is-folded { gap: 4px; padding-top: 12px; padding-bottom: 12px; }
+
+/* ---------- K7 DataTable ---------- */
+.po-table { display: flex; flex-direction: column; border-radius: 6px; background: var(--surface-1); overflow: hidden; }
+.po-table__row { display: grid; align-items: center; column-gap: 8px; min-height: 40px; padding: 0 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.po-table__head { min-height: 32px; border-top: 0; background: var(--surface-2); font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.po-table__cell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-table__cell.is-right { text-align: right; } .po-table__cell.is-center { text-align: center; }
+.po-table__cell.po-num { font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 15px; }
+.po-table__cell.is-strong { font-weight: 800; color: var(--ink); }
+.po-table__row.is-mine { box-shadow: inset 3px 0 0 var(--mine); background: rgba(94, 224, 255, .07); font-weight: 800; }
+.po-table__row.is-up { box-shadow: inset 3px 0 0 var(--brand); }
+.po-table__row.is-down { box-shadow: inset 3px 0 0 var(--fail); }
+.po-table.is-dense .po-table__row { min-height: 34px; }
+.po-table__more { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--brand-ink); font-family: var(--font-sans); font-size: 13px; font-weight: 800; cursor: pointer; }
+
+/* ---------- K8 Meter 값·단위 옆 · 범례 아래 ---------- */
+.po-meter__row { display: flex; align-items: center; gap: 8px; }
+.po-meter__row > .po-meter__track { flex: 1; min-width: 0; }
+.po-meter__side { flex: none; font-size: 15px; font-weight: 700; }
+.po-meter__side small { margin-left: 2px; font-family: var(--font-sans); font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.po-meter__legend { margin: 4px 0 0; font-size: 12px; line-height: 16px; color: var(--ink-muted); }
+
+/* ---------- K9 TopStrip ---------- */
+.po-strip { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 2px 4px 2px 14px; background: var(--surface-2); box-shadow: inset 0 -2px 0 var(--brand); flex: none; box-sizing: border-box; }
+.po-strip__tap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.po-strip__icon { display: grid; place-items: center; color: var(--brand-ink); flex: none; }
+.po-strip__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--fail); flex: none; }
+.po-strip__text { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 12px; line-height: 16px; color: var(--ink-muted); word-break: keep-all; }
+.po-strip__text b { font-size: 14px; line-height: 19px; font-weight: 800; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 안내 · 새 버전 문장은 길어 단어 단위 줄바꿈 */
+.po-strip--guide .po-strip__text b, .po-strip--update .po-strip__text b { white-space: normal; }
+/* 꺾인 단추: 바깥 칸 44px(누르는 영역) + 안쪽 꺾인 면 32px */
+.po-strip__action, .po-strip__later { position: relative; flex: none; display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 12px; border: 0; background: transparent; color: var(--on-brand); font-family: var(--font-sans); font-size: 12px; font-weight: 800; white-space: nowrap; cursor: pointer; isolation: isolate; }
+.po-strip__action::before { content: ""; position: absolute; z-index: -1; inset: 6px 0; background: var(--brand); clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.po-strip__later { padding: 0 6px; color: var(--ink-muted); }
+.po-strip__close { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: var(--ink-faint); cursor: pointer; }
+.po-strip--running .po-strip__action, .po-strip--guide .po-strip__action, .po-strip--update .po-strip__action { color: var(--ink); }
+.po-strip--running .po-strip__action::before, .po-strip--guide .po-strip__action::before, .po-strip--update .po-strip__action::before { background: var(--surface-3); }
+.po-strip--test { box-shadow: inset 0 -2px 0 var(--warning); } .po-strip--test .po-strip__icon { color: var(--warning); }
+.po-strip--interview .po-strip__icon { color: var(--warning); }
+.po-strip--live .po-strip__dot { margin-left: 3px; }
+/* 자리: 머리말 위 흐름 안(덮지 않음). 경기 중 · 진행 중은 스크롤해도 위에 붙음 */
+.top-strip { flex: none; width: 100%; z-index: 30; background: var(--surface-0); }
+.top-strip--live, .top-strip--running { position: sticky; top: 0; }
+.top-strip .po-strip { padding-top: calc(2px + env(safe-area-inset-top, 0px)); }
+@media (min-width: 1024px) {
+  .top-strip { padding: 8px 0 0; }
+  .top-strip .po-strip { max-width: 1200px; margin: 0 auto; padding-top: 2px; }
+}
+
+/* ---------- K10 Toast: 성공 · 오류, 자리 하나 = 독 위 16px ---------- */
+.po-toast--success .po-toast__icon { background: var(--brand); color: var(--on-brand); }
+.po-toast--error { box-shadow: inset 0 0 0 1.5px var(--fail), var(--shadow-sheet); }
+.po-toast--error .po-toast__icon { background: var(--fail-soft); color: var(--fail); }
+:where(html[data-skin="b"]) .po-toast { border-radius: 4px; }
+.toast-wrap.is-bottom { top: auto; bottom: calc(72px + 16px + env(safe-area-inset-bottom, 0px)); animation: po-toastin .3s ease; }
+#app:not(.has-nav) .toast-wrap.is-bottom { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 1024px) { .has-nav .toast-wrap.is-bottom { bottom: calc(64px + 16px); } }
+@media (orientation: landscape) and (max-height: 520px) { .toast-wrap.is-bottom { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ---------- K11 EmptyState ---------- */
+.po-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 20px; text-align: center; border-radius: 6px; background: var(--surface-1); }
+.po-empty__icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 4px; background: var(--surface-2); color: var(--ink-muted); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.po-empty__title { font-size: 15px; font-weight: 800; word-break: keep-all; }
+.po-empty__text { font-size: 13px; line-height: 19px; color: var(--ink-muted); word-break: keep-all; max-width: 300px; }
+.po-empty__action { margin-top: 6px; }
+.po-empty.is-compact { flex-direction: row; text-align: left; padding: 14px; gap: 12px; }
+.po-empty.is-compact .po-empty__icon { width: 36px; height: 36px; margin: 0; flex: none; }
+.po-empty__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.po-empty.is-compact .po-empty__action { margin-top: 0; flex: none; }
+
+/* ---------- K13 ToolBar ---------- */
+.po-toolbar { display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px; background: rgba(15, 16, 19, .86); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); box-sizing: border-box; }
+.po-toolbar__btn { position: relative; display: grid; place-items: center; width: 44px; height: 44px; flex: none; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.po-toolbar__btn.is-on { color: var(--brand-ink); }
+.po-toolbar__date { padding: 0 6px; font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 16px; color: var(--ink); white-space: nowrap; }
+.po-toolbar__sp { flex: 1; min-width: 0; }
+.po-toolbar__badge { position: absolute; top: 2px; right: 1px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--fail); color: #fff; font-size: 12px; line-height: 18px; font-weight: 700; text-align: center; box-sizing: border-box; }
+[data-theme="light"] .po-toolbar { background: rgba(255, 255, 255, .9); }
+/* 머리말 맨 위 줄 자리: 뒤로·제목·오른쪽 대신 도구 줄 하나 */
+.po-hero__bar.po-hero__bar--tools { display: block; height: auto; padding: 0; }
+.po-hero__bar--tools .po-toolbar { width: 100%; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__bar.po-hero__bar--tools { top: 6px; }
+.po-hero.has-toolbar:not(.po-hero--face) .po-hero__bar--tools { grid-column: 1 / -1; margin-bottom: 4px; }
+
+/* ---------- K14 PlayerRow ---------- */
+.po-prow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px 12px; border: 0; background: transparent; color: var(--ink); font-family: var(--font-sans); text-align: left; box-sizing: border-box; }
+button.po-prow { cursor: pointer; }
+.po-prow + .po-prow { border-top: 1px solid var(--line); }
+.po-prow__rank { width: 20px; text-align: center; font-family: var(--font-display); font-style: italic; font-weight: 700; font-size: 15px; color: var(--ink-muted); flex: none; }
+.po-prow__photo { width: 40px; height: 40px; flex: none; overflow: hidden; background: var(--surface-3); clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); display: grid; place-items: center; }
+.po-prow__photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.po-prow__ini { font-family: var(--font-head); font-size: 17px; color: var(--ink-muted); }
+.po-prow__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.po-prow__name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 14px; font-weight: 800; }
+.po-prow__nm { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-prow__me { flex: none; font-style: normal; height: 18px; padding: 0 5px; background: var(--mine); color: var(--on-mine, #062a33); font-size: 12px; line-height: 18px; font-weight: 800; }
+.po-prow__badge { flex: none; height: 18px; padding: 0 5px; background: var(--surface-3); color: var(--ink-muted); font-size: 12px; line-height: 18px; font-weight: 800; }
+.po-prow__meta { font-size: 12px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.po-prow__value { flex: none; display: flex; align-items: baseline; gap: 2px; }
+.po-prow__value b { font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 20px; }
+.po-prow__value small { font-size: 12px; color: var(--ink-muted); }
+.po-prow__go { color: var(--ink-faint); flex: none; }
+.po-prow.is-mine { box-shadow: inset 3px 0 0 var(--mine); }
+.po-prow.is-selected { box-shadow: inset 0 0 0 2px var(--brand); }
+.po-prow.is-dim { opacity: .5; }
+
+/* ---------- K12 머리말 단위 · 글자 바닥 12px (AttrTile · 머리말 칩 · DayCell) ---------- */
+.po-hero__unitsm { align-self: flex-end; margin: 0 0 6px 6px; font-family: var(--font-sans); font-size: 13px; font-weight: 800; letter-spacing: 0; }
+.po-hero--compact .po-hero__unitsm { margin-bottom: 3px; font-size: 12px; }
+.po-attr__name, .po-attr__delta, .po-attr__add { font-size: 12px; }
+.po-hero__chip, .po-hero--face .po-hero__chip { font-size: 12px; }
+.po-day__dow, .po-day__label { font-size: 12px; }
+
+/* ---------- K5 시트: 오른쪽 위 ✕ 항상 (PC 오른쪽 420px 패널은 style.css C.61) ---------- */
+.po-sheet__x { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: var(--ink); cursor: pointer; z-index: 2; isolation: isolate; }
+.po-sheet__x::before { content: ""; position: absolute; z-index: -1; inset: 4px; background: var(--surface-3); clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.po-sheet.has-x > .po-sheet__head { padding-right: 48px; }
+.po-sheet.has-x:not(:has(.po-sheet__head)) > .po-sheet__body { padding-top: 40px; }
+
+/* ---------- K13 독 v4 (S03): 폰 5칸 [다음] 정가운데 · 더보기 2줄 격자 · PC 12칸 ---------- */
+.po-dock__label { font-size: 12px; }
+.dock-bar .po-dock__badge { min-width: 18px; height: 18px; padding: 0 4px; font-size: 12px; line-height: 18px; }
+/* [다음] 7상태: 4자 이상(시즌 요약)은 15px · 아이콘 18 */
+.dock-bar .po-dock--v4:not(.po-dock--pc) .po-dock__next.is-long .po-dock__golabel { font-size: 15px; letter-spacing: -0.02em; }
+.dock-bar .po-dock--v4:not(.po-dock--pc) .po-dock__next.is-long .po-dock__goicon .po-icon { width: 18px; height: 18px; }
+.dock-bar .po-dock--v4 .po-dock__next.is-running { cursor: default; }
+/* 답하기 (S03-a): 라임 면 + 말풍선, 배지 = 응답 필요 수 */
+:where(html[data-skin="b"]) .dock-bar .po-dock--v4 .po-dock__next.is-answer .po-dock__goicon { background: var(--brand); color: var(--on-brand); }
+.dock-bar .po-dock__item[aria-expanded="true"] .po-dock__label { color: var(--brand-ink); }
+
+/* 더보기 격자: 독 위 2줄 6 · 5칸, 끌기 없음, 배경을 막지 않음 */
+@media (max-width: 1023px) and (orientation: portrait), (max-width: 1023px) and (min-height: 521px) {
+  .dock-bar .dock-more.dock-more--grid { height: auto; padding: 8px 4px 16px; }
+  .dock-bar .dock-more--grid .dock-more__grid { display: grid; grid-template-columns: repeat(var(--more-cols, 6), minmax(0, 1fr)); grid-auto-rows: 58px; gap: 2px 0; height: auto; padding: 0; overflow: visible; -webkit-mask-image: none; mask-image: none; scroll-snap-type: none; }
+  .dock-bar .dock-more--grid .dock-more__item { position: relative; flex: none; width: auto; height: 58px; min-height: 44px; justify-content: center; gap: 4px; padding: 0; border-radius: 0; }
+  .dock-bar .dock-more--grid .dock-more__item .po-dock__badge { left: calc(50% + 4px); }
+  .dock-bar .dock-more--grid .dock-more__item.is-on::before { top: 0; }
+}
+/* 가로 폰: 레일 옆 세로 줄(C.66) 그대로 — 칸이 11개라 스크롤 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .dock-bar .dock-more--grid .dock-more__grid { display: flex; flex-direction: column; }
+}
+
+/* PC 12칸: 1200px 가운데 · [다음] 176px · 글자 19px(2절 5번 — 상태와 상관없이) · 배지는 아이콘 오른쪽 위(2절 22번) */
+@media (min-width: 1024px), (orientation: landscape) and (max-height: 520px) {
+  :where(html[data-skin="b"]) .dock-bar .po-dock--v4.po-dock--pc { padding: 0 max(12px, calc(50% - 600px)); }
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__item { gap: 12px; }
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__label { font-size: 13px; }
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__icon { width: 22px; flex: none; }
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__item .po-dock__badge { top: -9px; left: auto; right: -10px; }
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__next .po-dock__golabel,
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__next:is(.is-long, .is-season, .is-running, .is-live) .po-dock__golabel { font-size: 19px; letter-spacing: 0; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__label { font-size: 12px; }
+  .dock-bar .po-dock--v4.po-dock--pc .po-dock__item { gap: 11px; }
+}
+
+/* ---------- 커리어 바로가기 (PC 홈 오른쪽 열): 대표팀 · 시상 · 도감 · 진열실 ---------- */
+.career-links__row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.career-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 56px; padding: 6px 4px; border: 0; background: var(--surface-2); color: var(--ink); font-family: var(--font-sans); font-size: 12px; font-weight: 700; cursor: pointer; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.career-link:hover { color: var(--brand-ink); }
+
+/* ---------- 2절 1번: 미페 머리말 위 여백 — [도구 줄 · 제목] 아래 48~56px 뒤에 머리(C.81f 8px 규칙보다 큰 쪽) ----------
+   누끼는 사진 상자를 내리고(아래는 사선 면 뒤), 네모 사진은 위끝을 내리고 크기를 줄여 이름 줄과 겹치지 않게 */
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face { bottom: 20px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact { height: 340px; } /* 선수 화면: 사진을 사선 면 뒤로 더 숨기지 않게 머리말을 20px 늘린다 */
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face { bottom: 4px; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__kit { top: 26px; }
+:where(html[data-skin="b"]) .po-hero--face .po-hero__face.is-square { --hp: var(--hero-photo, 220px); top: 92px; bottom: auto; }
+:where(html[data-skin="b"]) .po-hero--face.po-hero--compact .po-hero__face.is-square { --hp: var(--hero-photo, 112px); top: 96px; bottom: auto; }
+
+/* ======================================================================
+   U17-b · 17차 S06 홈 3탭 (폰 [오늘][시즌][경쟁] · PC 3열) — 2절 S06
+   ====================================================================== */
+.hm-tabs { padding: 4px 16px 0; background: var(--surface-0); }
+.hm-tabs .po-tabs { margin: 0; }
+.home-body > .ver { margin-top: 4px; }
+/* 다음 경기 카드: 날씨·심판 + 전술 한 상자, 아래 안내 한 줄 + 작은 단추(진행은 독 [다음] 하나 — D3) */
+.hm-envbox { display: grid; gap: 6px; padding: 8px 10px; background: var(--surface-2); clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.hm-envbox .hm-env, .hm-envbox .hm-tac { padding: 0; background: none; border-radius: 0; }
+.hm-today { align-self: flex-start; display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; font-size: 12px; font-weight: 800; color: var(--brand-ink, var(--brand)); box-shadow: inset 0 0 0 1.5px var(--brand); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+.hm-go { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.hm-go__hint { font-size: 12px; font-weight: 600; color: var(--ink-muted); min-width: 0; }
+.hm-go__btns { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.hm-go__btns .po-btn { min-height: 44px; }
+.hm-go__auto { color: var(--brand-ink, var(--brand)); }
+/* 접은 다음 경기 (2절 29번) */
+.next-card--folded { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; text-align: left; color: var(--ink); cursor: pointer; font-family: var(--font-sans); }
+.hm-fold__main { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.hm-fold__main small { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.hm-fold__main b { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; }
+.hm-fold__main b span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-fold__when { flex: none; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+/* 내 상태 3칸: 체력 · 폼 · 부상 위험 */
+.hm-ctiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.hm-ct { display: grid; align-content: start; gap: 4px; min-width: 0; padding: 8px 10px 10px; background: var(--surface-2); }
+.hm-ct__k { font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.hm-ct__v { font-family: var(--font-display, inherit); font-size: 20px; line-height: 24px; font-weight: 800; color: var(--ink); font-style: italic; }
+.hm-ct__v small { margin-left: 2px; font-family: var(--font-sans); font-size: 12px; font-weight: 600; font-style: normal; color: var(--ink-muted); }
+.hm-ct__v.is-low, .hm-ct__v.fail { color: var(--fatigue-high, var(--danger)); }
+.hm-ct__v.is-mid, .hm-ct__v.warn { color: var(--warning); }
+.hm-ct > small { font-size: 12px; color: var(--ink-muted); overflow-wrap: anywhere; word-break: keep-all; }
+.hm-ct .hm-stamina__bar { height: 4px; }
+.hm-ct .po-form { font-size: 15px; font-weight: 800; }
+.hm-why { font-size: 12px; }
+.hm-record .tiles { margin-top: 2px; }
+
+/* PC 3열 (S06-a PC): 왼쪽 머리말 + 오늘 · 가운데 시즌 · 오른쪽 경쟁 · 알림 · 커리어 바로가기 */
+.hm3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; max-width: 1240px; margin: 0 auto; padding: 16px 20px 24px; }
+.hm3__col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.hm3__in { display: flex; flex-direction: column; gap: 12px; }
+.hm3__h { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; font-size: 18px; font-weight: 800; color: var(--ink); }
+.hm3__h::before { content: ''; width: 22px; height: 5px; background: var(--brand); transform: skewX(-20deg); }
+.hm3__today .po-hero { margin: 0; border-radius: 0; }
+.hm3 .ver { text-align: left; }
+/* K12 홈 미페 머리말 큰 360 (U17-a 가 넘긴 것): 450 → 360, 2절 1번 도구 줄 아래 48~56px 유지(사진 270 · 아래 14 → 머리 위끝 ≈ 102px) */
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) { height: 360px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__face { width: 270px; height: 270px; left: -24px; bottom: 14px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__face.is-square { --hp: var(--hero-photo, 150px); top: 92px; bottom: auto; left: 16px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__kit { font-size: 380px; line-height: 350px; top: -6px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__kit.is-two { font-size: 260px; line-height: 300px; top: 20px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__slab { height: 160px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__line { bottom: 126px; width: 230px; height: 12px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__name { font-size: 44px; line-height: 48px; }
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__value { font-size: 84px; line-height: 72px; }
+/* 홈 본문 글자 바닥 12px (0절 3번) · 누르는 영역 44px */
+:is(.home-body, .hm3, .po-sheet) :is(.hm-power span, .hm-env__hint, .hm-env__ref i, .vs, .hm-alert__eyebrow, .hm-train small, .ver, .link-btn, .po-chip__label, .gl-pick, .hm-comp small, .hm-comp span, .tile span, .mg-boss small, .mg-boss__trust small, .mg-row__name small, .mg-legend span, .advice-eyebrow, .hm-todo small, .po-option__tag, .hm-deck small, .rv-cmp span, .rv-head small, .rv-cmp__who span, .mg-log span, .mg-perk) { font-size: 12px; }
+:is(.home-body, .hm3) :is(.link-btn, .hm-preset__btn, .dt-link) { display: inline-flex; align-items: center; min-height: 44px; }
+:is(.home-body, .hm3) :is(.po-btn--sm, .po-banner__action) { min-height: 44px; }
+:is(.home-body, .hm3) .hm-alert__x { width: 44px; height: 44px; margin: -6px -6px 0 0; }
+/* 2절 2번: 소속 줄은 라임 사선 띠 아래 — 띠를 올린다(소속 줄 위끝 ≈ 246px, 띠 왼쪽 ≈ 206~218px) */
+:where(html[data-skin="b"]) .hm-hero .po-hero--face:not(.po-hero--compact) .po-hero__line { bottom: 146px; }
+/* 다음 경기 카드 날씨 한 줄: 날씨 이름 · 뜻을 한 줄로 */
+.hm-envbox .hm-env__w { flex-wrap: nowrap; }
+.hm-envbox .hm-env__hint { flex-basis: auto; padding-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-envbox .hm-env__ref i { border-radius: 0; clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%); }
+.hm-envbox .hm-env { gap: 4px 12px; }
+.hm-go__btns { flex-wrap: nowrap; }
+.hm-go:not(:has(.hm-go__hint)) .hm-go__btns { margin-left: 0; width: 100%; justify-content: space-between; }
+.rv-chip { font-size: 12px; }
+.home-body .next-card.next-card--folded { flex-direction: row; align-items: center; justify-content: flex-start; border: 0; padding: 10px 14px; }
+/* 첫 화면(2절 29번): 다음 경기 · 내 상태 3칸이 844 − 독 안 — 카드 안 간격을 줄인다 */
+.home-body.hm-tab-today { padding-top: 10px; gap: 10px; }
+.home-body .next-card, .home-body .hm-cond { gap: 8px; padding: 12px 14px; }
+.home-body .next-card .vs-row { margin: 0; }
+.hm-tabs .po-tab { min-height: 44px; }
+.home-body .hm-envbox { gap: 2px; padding: 6px 10px; }
+.home-body .hm-go { margin: -6px 0 -8px; }
+.hm-tabs { padding-top: 0; }
+.home-body.hm-tab-today { padding-top: 8px; gap: 8px; }
+.home-body .hm-ct { gap: 2px; padding: 6px 8px 8px; }
+.home-body .hm-cond .hm-head { min-height: 0; }
+:is(.home-body, .hm3) .link-btn { min-width: 44px; justify-content: center; padding-inline: 6px; }
+.home-body .next-card { gap: 6px; }
+@media (min-width: 1024px) {
+  #app.app-home:has(.hm3) { max-width: 1280px; }
+  .hm3 { padding: 16px 20px 24px; }
+}
+.pos-grid { display: grid; gap: 8px; }
+@media (min-width: 1024px) {
+  .pos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+  .pos-grid .po-option { min-height: 52px; padding-block: 6px; }
+}

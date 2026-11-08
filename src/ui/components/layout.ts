@@ -75,6 +75,8 @@ export interface HeroPanelProps {
   name?: string;
   /** OVR 아래 작은 글자 ("OVR · LW") */
   unit?: string;
+  /** K13 도구 줄 (17차 S03, ToolBar HTML): 있으면 뒤로·제목·오른쪽 줄 대신 이 줄을 머리말 맨 위에 */
+  toolbar?: string;
 }
 
 /** 미페 머리말 이름 칸 폭(폰 390: left 16 ~ right 130)과 글자 크기: 풀 50 · compact 36 → 최소 24px (B-apply 2절) */
@@ -110,8 +112,9 @@ function faceHero(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square po-hero--photo')}">${
-    kit ? `<span class="${cx('po-hero__kit po-num', kit.length > 1 && 'is-two')}" aria-hidden="true">${esc(kit)}</span>` : ''}<img class="${cx('po-hero__face', !p.cutout && 'is-square')}" src="${esc(p.face!)}" alt="${esc(name)}"><span class="po-hero__line" aria-hidden="true"></span><span class="po-hero__slab" aria-hidden="true"></span><div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div><div class="po-hero__who">${
+  return `<section class="${cx('po-hero po-hero--face', p.compact && 'po-hero--compact', !p.cutout && 'is-square po-hero--photo', p.toolbar && 'has-toolbar')}">${
+    kit ? `<span class="${cx('po-hero__kit po-num', kit.length > 1 && 'is-two')}" aria-hidden="true">${esc(kit)}</span>` : ''}<img class="${cx('po-hero__face', !p.cutout && 'is-square')}" src="${esc(p.face!)}" alt="${esc(name)}"><span class="po-hero__line" aria-hidden="true"></span><span class="po-hero__slab" aria-hidden="true"></span>${
+    p.toolbar ? `<div class="po-hero__bar po-hero__bar--tools">${p.toolbar}</div>` : `<div class="po-hero__bar">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="po-hero__right">${p.rightHtml ?? esc(p.right ?? '')}</span></div>`}<div class="po-hero__who">${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}<span class="po-hero__name" data-fit="${p.compact ? HERO_NAME.compact : HERO_NAME.full}" style="font-size:${size}px;line-height:${Math.round(size * 1.08)}px">${esc(name)}</span>${chips}</div>${
     p.value != null ? `<div class="po-hero__num"><span class="po-hero__value po-num">${esc(p.value)}</span>${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${p.children ?? ''}</section>`;
 }
@@ -130,7 +133,10 @@ export function HeroPanel(p: HeroPanelProps): string {
       return `<span class="${cx('po-hero__chip', ch.soft && 'is-soft')}">${esc(ch.label)}</span>`;
     }).join('')}</div>`
     : '';
-  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text')}"><div class="${cx('po-hero__bar', !p.back && 'is-noback')}">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="${cx('po-hero__right', p.rightHtml == null && 'is-text', p.rightHtml == null && Array.from(p.right ?? '').length >= 10 && 'is-long')}">${p.rightHtml ?? esc(p.right ?? '')}</span></div>${
+  const bar = p.toolbar
+    ? `<div class="po-hero__bar po-hero__bar--tools">${p.toolbar}</div>`
+    : `<div class="${cx('po-hero__bar', !p.back && 'is-noback')}">${back}<span class="po-hero__title">${esc(p.title)}</span><span class="${cx('po-hero__right', p.rightHtml == null && 'is-text', p.rightHtml == null && Array.from(p.right ?? '').length >= 10 && 'is-long')}">${p.rightHtml ?? esc(p.right ?? '')}</span></div>`;
+  return `<section class="${cx('po-hero', p.compact && 'po-hero--compact', isText && 'po-hero--text', p.toolbar && 'has-toolbar')}">${bar}${
     p.eyebrow ? `<span class="po-hero__eyebrow">${esc(p.eyebrow)}</span>` : ''}${
     val != null ? `<div class="${cx('po-hero__num', p.unit && 'has-unit')}"><span class="po-hero__value po-num">${esc(val)}</span>${p.total != null ? `<span class="po-hero__total po-num">/ ${p.total}</span>` : ''}${p.unit ? `<span class="po-hero__unit">${esc(p.unit)}</span>` : ''}</div>` : ''}${
     pct != null && p.progress !== false ? `<div class="po-hero__progress"><span class="po-hero__track"><i style="width:${pct}%"></i></span><span class="po-num">${pct}%</span></div>` : ''}${
@@ -160,26 +166,29 @@ export function Banner(p: BannerProps): string {
     p.children ? `<p>${esc(p.children)}</p>` : ''}</div>${p.action ? `<button type="button" class="po-banner__action"${actAttrs(p.onAction ?? {})}>${esc(p.action)}</button>` : ''}</div>`;
 }
 
-const TOAST_ICON: Record<string, IconName> = { levelup: 'levelup', badge: 'star', card: 'combo', info: 'info' };
+const TOAST_ICON: Record<string, IconName> = { levelup: 'levelup', badge: 'star', card: 'combo', info: 'info', success: 'check', error: 'risk' };
 
-export interface ToastProps { kind?: 'levelup' | 'badge' | 'card' | 'info'; title: string; body?: string; action?: string; onAction?: Action }
+/** K10 (17차 S00): success · error 추가. 자리는 하나 = 독 위 16px (main.ts .toast-wrap) */
+export interface ToastProps { kind?: 'levelup' | 'badge' | 'card' | 'info' | 'success' | 'error'; title: string; body?: string; action?: string; onAction?: Action }
 
 export function Toast(p: ToastProps): string {
   const kind = p.kind ?? 'info';
-  return `<div class="${cx('po-toast', `po-toast--${kind}`)}" role="status"><span class="po-toast__icon">${Icon({ name: TOAST_ICON[kind]!, size: 22 })}</span><div class="po-toast__body"><b>${esc(p.title)}</b>${
+  return `<div class="${cx('po-toast', `po-toast--${kind}`)}" role="${kind === 'error' ? 'alert' : 'status'}"><span class="po-toast__icon">${Icon({ name: TOAST_ICON[kind]!, size: 22 })}</span><div class="po-toast__body"><b>${esc(p.title)}</b>${
     p.body ? `<span>${esc(p.body)}</span>` : ''}</div>${p.action ? `<button type="button" class="po-toast__action"${actAttrs(p.onAction ?? {})}>${esc(p.action)}</button>` : ''}</div>`;
 }
 
 // ── BottomSheet / Modal (겹침 바깥을 누르면 onClose 동작) ──
 
-export interface BottomSheetProps { title?: string; eyebrow?: string; subtitle?: string; children?: string; footer?: string; open?: boolean; inline?: boolean; onClose?: Action }
+/** closable (K5, 17차 S00): 오른쪽 위 ✕ 닫기. onClose 가 있으면 기본으로 붙는다(false 면 없음 — 고르기가 꼭 필요한 시트). PC 는 오른쪽 420px 패널(CSS) */
+export interface BottomSheetProps { title?: string; eyebrow?: string; subtitle?: string; children?: string; footer?: string; open?: boolean; inline?: boolean; onClose?: Action; closable?: boolean; className?: string }
 
 export function BottomSheet(p: BottomSheetProps): string {
   if (p.open === false) return '';
   const head = p.title || p.eyebrow
     ? `<div class="po-sheet__head">${p.eyebrow ? `<span class="po-sheet__eyebrow">${esc(p.eyebrow)}</span>` : ''}${p.title ? `<b>${esc(p.title)}</b>` : ''}${p.subtitle ? `<p>${esc(p.subtitle)}</p>` : ''}</div>`
     : '';
-  const sheet = `<div class="po-sheet" role="dialog" aria-modal="${!p.inline}"${p.title ? ` aria-label="${esc(p.title)}"` : ''}><span class="po-sheet__grip" aria-hidden="true"></span>${head}<div class="po-sheet__body">${p.children ?? ''}</div>${
+  const x = p.onClose?.act && p.closable !== false ? `<button type="button" class="po-sheet__x" aria-label="닫기"${actAttrs(p.onClose)}>${Icon({ name: 'close', size: 18 })}</button>` : '';
+  const sheet = `<div class="${cx('po-sheet', x && 'has-x', p.className)}" role="dialog" aria-modal="${!p.inline}"${p.title ? ` aria-label="${esc(p.title)}"` : ''}><span class="po-sheet__grip" aria-hidden="true"></span>${x}${head}<div class="po-sheet__body">${p.children ?? ''}</div>${
     p.footer ? `<div class="po-sheet__foot">${p.footer}</div>` : ''}</div>`;
   return p.inline ? sheet : `<div class="po-overlay po-overlay--sheet" data-overlay="1"${actAttrs(p.onClose ?? {})}>${sheet}</div>`;
 }

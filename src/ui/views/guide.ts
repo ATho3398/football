@@ -23,9 +23,10 @@ export function firstMatchOverlay(lines: readonly string[]): string {
 }
 
 /** 첫 시즌 체크리스트 (공개 순서, 열린 항목만) */
-export function checklistPanel(items: { id: string; label: string; done: boolean }[]): string {
+export function checklistPanel(items: { id: string; label: string; done: boolean }[], total = items.length): string {
   const n = items.filter((i) => i.done).length;
-  return `${SectionTitle({ title: '첫 시즌 가이드', action: `${n}/${items.length}` })}
+  // 17차 2절 S06 사소: 분모는 가이드 전체 항목 수로 고정(열린 항목이 늘 때 0/1 → 1/2 → 1/3 처럼 바뀌지 않게)
+  return `${SectionTitle({ title: '첫 시즌 가이드', action: `${n}/${Math.max(total, items.length)}` })}
     <div class="opts">${items.map((i) => OptionRow({
       icon: i.done ? 'check' : 'dot', title: i.label, desc: i.done ? '완료' : '아직 안 했어요',
       right: `<b class="po-num small${i.done ? ' hi' : ' muted'}">${i.done ? '완료' : '할 일'}</b>`, disabled: i.done,

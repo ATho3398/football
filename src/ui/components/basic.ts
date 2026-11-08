@@ -39,7 +39,8 @@ export function FootPair(p: FootPairProps): string {
 // ── Button ──
 
 export interface ButtonProps extends Action {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  /** link = K1 텍스트 링크 ("더 보기 ›", 17차 S00) */
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
   size?: 'sm' | 'md' | 'lg';
   block?: boolean;
   icon?: IconName;
@@ -133,7 +134,11 @@ export function StatChip(p: StatChipProps): string {
 
 // ── Meters ──
 
-export interface MeterProps { value: number; max?: number; gain?: number; label?: string; showValue?: boolean; tone?: 'brand' | 'xp' | 'mine' | 'warning'; size?: 'md' | 'lg'; className?: string }
+export interface MeterProps { value: number; max?: number; gain?: number; label?: string; showValue?: boolean; tone?: 'brand' | 'xp' | 'mine' | 'warning'; size?: 'md' | 'lg'; className?: string;
+  /** K8 (17차 S00): 막대 옆 값·단위 ("88 / 100"). 줄 값이 있으면 막대 바로 옆에 붙는다 */
+  unit?: string;
+  /** K8 범례: 막대 바로 아래 한 줄 */
+  legend?: string }
 
 export function Meter(p: MeterProps): string {
   const max = p.max ?? 100;
@@ -143,8 +148,10 @@ export function Meter(p: MeterProps): string {
     ? `<div class="po-meter__head"><span class="po-meter__label">${esc(p.label ?? '')}</span>${
       p.showValue ? `<span class="po-num po-meter__value">${p.value}${p.gain ? ` +${p.gain}` : ''} / ${max}</span>` : ''}</div>`
     : '';
-  return `<div class="${cx('po-meter', `po-meter--${p.tone ?? 'brand'}`, p.size === 'lg' && 'po-meter--lg', p.className)}">${head}<div class="po-meter__track" role="meter" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${p.value}"${p.label ? ` aria-label="${esc(p.label)}"` : ''}><div class="po-meter__fill" style="width:${pct}%"></div>${
-    gain > 0 ? `<div class="po-meter__gain" style="left:${pct}%;width:${gain}%"></div>` : ''}</div></div>`;
+  const track = `<div class="po-meter__track" role="meter" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${p.value}"${p.label ? ` aria-label="${esc(p.label)}"` : ''}><div class="po-meter__fill" style="width:${pct}%"></div>${
+    gain > 0 ? `<div class="po-meter__gain" style="left:${pct}%;width:${gain}%"></div>` : ''}</div>`;
+  const side = p.unit != null ? `<div class="po-meter__row">${track}<span class="po-meter__side po-num">${esc(p.value)}<small>${esc(p.unit)}</small></span></div>` : track;
+  return `<div class="${cx('po-meter', `po-meter--${p.tone ?? 'brand'}`, p.size === 'lg' && 'po-meter--lg', p.className)}">${head}${side}${p.legend ? `<p class="po-meter__legend">${esc(p.legend)}</p>` : ''}</div>`;
 }
 
 export interface FatigueGaugeProps { /** 내부 피로 0~100 (표시는 체력 = 100 − 피로, C.44) */ value: number; compact?: boolean }

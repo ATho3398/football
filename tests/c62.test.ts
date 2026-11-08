@@ -252,7 +252,7 @@ describe('화면·세이브 (C.62)', () => {
     const vm = competitionVM(g)!;
     expect(vm.rows).toHaveLength(3);
     expect(vm.log.length).toBeGreaterThan(0);
-    const html = homeView(homeVM(g), '', competitionSection(vm));
+    const html = homeView(homeVM(g), { compete: competitionSection(vm) }, { tab: 'comp' });
     expect(html).toContain('주전 경쟁 · ');
     expect(html).toContain('감독 신뢰도');
     expect(html).toContain('선발 확률');

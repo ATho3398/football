@@ -22,9 +22,11 @@ describe('홈 v3 (161)', () => {
     g.guide.unlocked.push('growth');
     const html = homeView(homeVM(g));
     expect(html).toContain('data-to="saves"');
-    expect(html).not.toContain('data-to="inbox"');
+    // 17차 U17-a 도구 줄(K13): < · 날짜 · 알림 · 코치 후보 · 저장 · 설정
+    expect(html).toContain('data-to="inbox"');
+    expect(html.match(/po-toolbar__btn"/g)).toHaveLength(4);
     expect(html).not.toContain('data-to="finance"');
-    expect(html).toMatch(/>1\/38R</);
+    expect(html).toMatch(/>다음 1R</); // 17차 2절 S06 사소: 머리말 칩 "다음 nR"
     expect(html).toContain('찍을 포인트 12P');
     expect(html).not.toContain('hm-ctl');
     expect(html).not.toContain('data-act="ctl-mode"');
