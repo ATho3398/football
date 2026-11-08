@@ -1,0 +1,4 @@
+scripts/diag/c82f/cellB-960.json: 2칸 × 960경기
+tikitaka > direct 0.055 ± 0.045 n 960
+tikitaka > counter -0.123 ± 0.056 n 960
+CELLSDONE

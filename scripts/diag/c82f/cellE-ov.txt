@@ -1,0 +1,1 @@
+matchup.gegenpress.block.tackle=6 matchup.gegenpress.block.air=4 matchup.block.gegenpress.keep=0 matchup.gegenpress.counter.tackle=6 matchup.gegenpress.counter.air=4 matchup.direct.block.keep=2 matchup.direct.block.short=2 matchup.direct.block.air=3 matchup.tikitaka.direct.air=7 matchup.tikitaka.direct.tackle=6

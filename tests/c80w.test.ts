@@ -38,7 +38,7 @@ describe('C.80w 롱패스 착지 정확도', () => {
   it('상수: longMiss 0.54 (C.81z 0.6 → 0.54) · longW 0.25 · saveBase 1.89 (C.80w 1.75 + C.80u 세트피스 헤더 되돌림 0.07 + C.81a 박스 인원 되돌림 0.07)', () => {
     expect(ENGINE.prob.longMiss).toBe(0.54); // C.81z 0.6 → 0.54 (롱패스 성공률 49 → 50~55%; 0.5 는 이동 거리 평균 14.13 km ✗ · 0.55~0.59 는 한 선수 최다 15.4~15.8 ✗)
     expect(ENGINE.decide.bias.longW).toBe(0.4); // C.81h 0.25 → 0.4 (롱패스 비율 10.9 → 12.5%)
-    expect(ENGINE.keeper.saveBase).toBe(2.11); // C.81b 1.93 → C.81s 2.02 → C.82g 2.11
+    expect(ENGINE.keeper.saveBase).toBe(2.11); // C.81b 1.93 → C.81s 2.02 → C.82g 2.11 (C.82f 는 2.11 유지)
   });
 
   it('30 m 넘는 패스만 비행 실패 × longMiss, 짧은 패스는 그대로 (판단 p 와 실행 pFlight 같은 값에서)', () => {
@@ -63,10 +63,10 @@ describe('C.80w 롱패스 착지 정확도', () => {
     expect(matchupPts(state('direct', 'tikitaka'), 0, 'long')).toBe(-15);
     // C.81g: 직선 → 게겐 롱패스 −12 → −6 · 직선 → 블록 공 지키기·짧은 패스 +1 (롱패스 0)
     expect(matchupPts(state('direct', 'gegenpress'), 0, 'long')).toBe(-6);
-    expect(matchupPts(state('direct', 'block'), 0, 'short')).toBe(1);
-    expect(matchupPts(state('direct', 'block'), 0, 'keep')).toBe(1);
+    expect(matchupPts(state('direct', 'block'), 0, 'short')).toBe(2); // C.82f 1 → 2 (C.82g 병합 뒤 직선>블록 −0.07)
+    expect(matchupPts(state('direct', 'block'), 0, 'keep')).toBe(2); // C.82f 1 → 2
     expect(matchupPts(state('direct', 'block'), 0, 'long')).toBe(0);
-    expect(matchupPts(state('direct', 'block'), 0, 'air')).toBe(1); // C.81s
+    expect(matchupPts(state('direct', 'block'), 0, 'air')).toBe(3); // C.81s 1 → C.82f 3
     expect(matchupPts(state('gegenpress', 'direct'), 0, 'tackle')).toBe(5); // C.81s 게겐 → 직선 태클 4 · 공중 3 · 공 지키기 1 → C.81t 5·4·2 (리바운드 런 뒤 게겐>직선 −0.01 → +0.08)
     expect(matchupPts(state('gegenpress', 'direct'), 0, 'air')).toBe(4);
     expect(matchupPts(state('gegenpress', 'direct'), 0, 'keep')).toBe(2);

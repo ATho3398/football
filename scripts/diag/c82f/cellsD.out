@@ -1,0 +1,8 @@
+scripts/diag/c82f/cellD-960.json: 6칸 × 960경기
+gegenpress > block -0.304 ± 0.051 n 960
+gegenpress > counter -0.194 ± 0.060 n 960
+gegenpress > direct -0.154 ± 0.049 n 960
+direct > block 0.034 ± 0.053 n 960
+tikitaka > direct -0.015 ± 0.047 n 960
+gegenpress > tikitaka 0.228 ± 0.049 n 960
+CELLSDDONE

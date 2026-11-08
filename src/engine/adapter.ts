@@ -16,7 +16,7 @@ const { ENGINE } = config_;
 import { npcInjuredOut, startStamina, teamSetupFromRoster } from './setup';
 import type { NpcCond } from '../npcFit';
 import type { ManagerStyle } from '../../data/managers';
-import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics } from '../myTactics';
+import { engineTactics, formationLabel, slotPos, teamRoles, withSlots, type MyTactics, chosenRole } from '../myTactics';
 import { nearestSlotIndex } from './slotPick';
 import { FORMATION_SLOTS } from '../formations';
 import { applyHalftimeTactics, buildResult, createMatch } from './sim';
@@ -136,8 +136,10 @@ export function buildMyMatch(m: EngineMatchInput) {
     if (t.custom) mySetup.formationName = formationLabel(t);
     const bySlot = new Map(mySetup.lineup.map((p) => [p.slot, p]));
     const roles = teamRoles(t, Array.from({ length: 11 }, (_, i) => (i === t.mySlot && m.plan.started ? meSpec.attrs : bySlot.get(i)?.gk ? undefined : bySlot.get(i)?.attrs)));
-    for (let i_2 = 0, a_2 = mySetup.lineup; i_2 < a_2.length; i_2++) { const p = a_2[i_2]!; p.role = roles[p.slot]; }
+    // C.82f: 시트에서 직접 고른 역할만 rolePicked (성향 추천 역할은 기본 역할 경로)
+    for (let i_2 = 0, a_2 = mySetup.lineup; i_2 < a_2.length; i_2++) { const p = a_2[i_2]!; p.role = roles[p.slot]; p.rolePicked = chosenRole(t, p.slot) !== null; }
     meSpec.role = roles[t.mySlot];
+    meSpec.rolePicked = chosenRole(t, t.mySlot) !== null;
   }
   if (m.plan.minutes) {
     if (m.plan.started) {

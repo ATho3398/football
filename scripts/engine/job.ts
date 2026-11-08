@@ -314,7 +314,7 @@ export function buildTeam(t: TeamSpec, oppRating: number, worldSeed: string): Te
     for (const p of setup.lineup) delete p.role;
     fillRoles(setup, (slot) => slots[slot]!.pos);
   }
-  if (t.roles) for (const p of setup.lineup) if (t.roles[p.slot]) p.role = t.roles[p.slot];
+  if (t.roles) for (const p of setup.lineup) if (t.roles[p.slot]) { p.role = t.roles[p.slot]; p.rolePicked = true; } // C.82f: 진단에서 준 역할 = 직접 고른 역할
   return setup;
 }
 

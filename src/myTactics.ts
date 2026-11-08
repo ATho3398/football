@@ -133,7 +133,7 @@ export function roleAllowed(pos: Position, roleId: string): boolean {
 }
 
 /** 직접 고른 역할 (그 슬롯에 맞을 때만) */
-function chosenRole(t: MyTactics, slot: number): string | null {
+export function chosenRole(t: MyTactics, slot: number): string | null {
   const r = t.roles[slot];
   return r && roleAllowed(slotPos(t, slot), r) ? r : null;
 }

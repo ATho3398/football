@@ -1,0 +1,4 @@
+scripts/diag/c82f/cellE-960.json: 2칸 × 960경기
+gegenpress > block -0.182 ± 0.049 n 960
+tikitaka > direct 0.009 ± 0.047 n 960
+CELLSDDONE

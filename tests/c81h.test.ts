@@ -18,7 +18,7 @@ describe('C.81h 세컨볼 골 · 롱패스 · 윙어', () => {
     expect(ENGINE.keeper.parryDefHold).toBe(1.0);
     expect(ENGINE.keeper.parryDefControl).toBe(0);
     expect(ENGINE.keeper.parryDownT).toBe(3.0); // C.81t: 2.0 → 3.0
-    expect(ENGINE.keeper.parryDownSave).toBe(0.6);
+    expect(ENGINE.keeper.parryDownSave).toBe(0.4); // C.82f: 0.6 → 0.4 (엔진관리자28 처방 ② — 리바운드 골 4 → 5%)
     expect(ENGINE.decide.bias.rebound).toBe(0.1);
     expect(ENGINE.decide.bias.reboundT).toBe(5);
     expect(ENGINE.decide.bias.longW).toBe(0.4);

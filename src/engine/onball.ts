@@ -407,6 +407,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   pOn *= finishMult(t, header ? 'header' : d >= PR.longShotFrom ? 'long' : 'shot');
   // C.81h: 윙어 발 슛 유효 슈팅 배수 (판단·실행 같은 값)
   if (!header && (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM')) pOn *= PR.wingFinish;
+  // C.82f: ST·CF 발 슛 유효 슈팅 배수 (판단·실행 같은 값)
+  if (!header && (a.pos === 'ST' || a.pos === 'CF')) pOn *= PR.stFinish;
   // 원터치 슛 (C.78b): 판단(미리 정하기)과 실행(다음 틱 shoot)이 같은 배수
   if (!header && !at) pOn *= otOf(s, a);
   // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
@@ -419,7 +421,7 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   const gk = keeperOf(s, (1 - a.team) as 0 | 1);
   const far = farSide(gk, gy);
   const ctx: ShotCtx = {
-    fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure,
+    fx: px, fy: py, svx: a.vx, svy: a.vy, d, header, press3, pressure, nearField,
     // C.80u: 세트피스(코너·프리킥 뒤 15초 안) 헤더면 GK 반응 headerReactSet — 판단·실행 같은 값
     setPiece: header && s.t - s.possStartT < 15 && (s.possOrigin === 'corner' || s.possOrigin === 'freeKick'),
     tx: gx, ty: gy + (far ?? 1) * cy, corner, speed,
@@ -512,6 +514,11 @@ export function finishMult(t: FieldAttributes, kind: 'shot' | 'long' | 'header' 
   return clamp(1 + PR.finishPerPoint * (finishSkill(t, kind) - PR.skillCenter), PR.finishMin, PR.finishMax);
 }
 
+/** C.82f: 크로스에 쓰는 크로스 능력치 — 직접 고른 정통 윙어는 roles.classicWingerCross 가산 (판단 accOf · 실행 오차 같은 값) */
+export function crossingOf(a: Agent): number {
+  return a.attrs.crossing + (a.rolePicked && a.role.id === 'classicWinger' ? ENGINE.roles.classicWingerCross : 0);
+}
+
 /** 같은 팀 동료 중 상대 박스 안 */
 function boxTeammates(s: SimState, a: Agent, dir: 1 | -1): Agent[] {
   return fieldOf(s, a.team).filter((o) => o !== a && inOppBox(o.x, o.y, dir));
@@ -536,7 +543,7 @@ export function crossTarget(s: SimState, a: Agent, roll?: number): { r: Agent; p
     // C.80n: 먼 쪽(크로스 반대 측면) 윙어 고르기 가중 — 대상 고르기에만 (돌려주는 가치·실행 불변)
     const farWing = (r.pos === 'LW' || r.pos === 'RW' || r.pos === 'LM' || r.pos === 'RM') && Math.sign(r.sy - 0.5) !== crossSide;
     // C.82b: 세트피스(roll 을 주면) 대상 고르기에 CB·ST 가중 — 대상 고르기에만 (돌려주는 가치·실행 불변). 코너 골이 미드로 새는 몫을 줄인다
-    const spW = roll !== undefined && (r.pos === 'CB' || r.pos === 'ST' || r.pos === 'CF') ? PR.setPieceTargetW : 1;
+    const spW = roll === undefined ? 1 : r.pos === 'CB' ? PR.setPieceTargetW : r.pos === 'ST' || r.pos === 'CF' ? PR.setPieceTargetWst : 1; // C.82f: ST·CF 가중 분리
     const w = pWin * value * (farWing ? PR.crossFarWing : 1) * spW;
     all.push({ r, pWin, value, w });
     if (!best || w > bestW) { best = { r, pWin, value }; bestW = w; }
@@ -1012,7 +1019,7 @@ export function candidates(s: SimState, a: Agent, ot?: OtReq): Candidate[] {
     if (ax >= PR.crossMinX && (ay < PR.crossWide || ay > 1 - PR.crossWide)) {
       const ct = crossTarget(s, a);
       if (ct) {
-        const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (who.attrs.crossing - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
+        const accOf = (who: Agent) => clamp(PR.crossBase + (PR.crossSkill * (crossingOf(who) - PR.skillCenter)) / 100 - PR.pressurePenalty * pressure, 0.2, 1);
         // 공격 몰빵 억제 (C.80q ①): 연계 배수 — 실행(actions cross)은 1 − 배수 확률로 크로스가 크게 빗나간다
         const link = stackLinkMul(s, a);
         const p = accOf(a) * ct.pWin * link;

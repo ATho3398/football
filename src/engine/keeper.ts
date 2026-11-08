@@ -66,6 +66,8 @@ export interface ShotCtx {
   setPiece?: boolean;
   /** 3 m 안 상대 필드 선수 수 · 압박 0~1 (pressureAt) */
   press3: number;
+  /** C.82f: 가장 가까운 상대 필드 선수 거리 m (GK 제외) — 1대1 판정(oneOnOne.freeR 안에 있으면 1대1 아님). 없으면(PK·프리킥) 제한 없음 */
+  nearField?: number;
   pressure: number;
   /** 노린 골라인 점 · 구석 0~1 */
   tx: number;
@@ -148,7 +150,8 @@ export function distAdj(d: number): number {
  */
 export function oneOnOneAdj(c: ShotCtx): number {
   const O = K.oneOnOne;
-  if (c.header || c.press3 > 0 || c.d >= O.maxD) return 0;
+  // C.82f: 가장 가까운 상대 필드 선수가 freeR m 안이면 1대1 이 아니다 (3 m 조건 press3 는 그대로) — drop 0.55 에서 3.5 m 앞 수비가 길을 막아도 늘 쏘던 장면 ㉘ 복구. 판단·실행 같은 값
+  if (c.header || c.press3 > 0 || (c.nearField ?? Infinity) < O.freeR || c.d >= O.maxD) return 0;
   const g = c.gk1 ?? O.center;
   const f = c.fin ?? O.finCenter;
   return -O.drop + (O.gk * (g - O.center)) / 100 - (O.fin * (f - O.finCenter)) / 100;
