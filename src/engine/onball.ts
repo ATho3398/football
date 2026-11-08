@@ -145,8 +145,21 @@ function nearestOutfield(s: SimState, a: Agent, x: number, y: number): number {
 
 /** 압박 0~1 (가장 가까운 수비수 거리 기준, E.8) */
 export function pressureAt(s: SimState, a: Agent, x = a.x, y = a.y): number {
-  const d = nearestOpponent(s, a, x, y);
-  return Math.max(0, 1 - d / PR.pressureDist);
+  // C.82e: 게겐 역압박 가담자는 실효 거리 d / gegenPressReach (1 이면 nearestOpponent 와 같은 값)
+  let bd = Infinity;
+  for (let i_1 = 0, a_1 = onOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!;
+    const d = dist(o.x, o.y, x, y) / pressReachOf(s, o);
+    if (d < bd) bd = d;
+  }
+  return Math.max(0, 1 - bd / PR.pressureDist);
+}
+
+/** C.82e: 수비수 o 가 공 근처 상대에게 주는 압박의 실효 거리 배수 — 게겐 역압박 가담자(창 안)는 TENDENCY.gegenPressReach, 그 밖 1 */
+export function pressReachOf(s: SimState, o: Agent): number {
+  const g = TENDENCY.gegenPressReach;
+  if (g === 1) return 1;
+  const tm = s.teams[o.team];
+  return tm.tactics.tendency === 'gegenpress' && s.t < tm.counterUntil && tm.counterPressers.includes(o.idx) ? g : 1;
 }
 
 export interface LaneInfo {
@@ -227,7 +240,7 @@ export function lossCost(nx: number, ny: number): number {
 export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
   let keep = 1;
   for (let i_4 = 0, a_4 = onOf(s, (1 - a.team) as 0 | 1); i_4 < a_4.length; i_4++) { const o = a_4[i_4]!;
-    const d = dist(o.x, o.y, x, y);
+    const d = dist(o.x, o.y, x, y) / pressReachOf(s, o);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (1 - d / PR.pressureDist);
   }
   return 1 - keep;
@@ -241,7 +254,7 @@ export function loseProb(s: SimState, a: Agent, x = a.x, y = a.y): number {
 export function carryLoseProb(s: SimState, a: Agent, cx: number, cy: number, who: Agent = a): number {
   let keep = 1;
   for (let i_5 = 0, a_5 = onOf(s, (1 - a.team) as 0 | 1); i_5 < a_5.length; i_5++) { const o = a_5[i_5]!;
-    const d = carryReachDist(s, o, a, cx, cy);
+    const d = carryReachDist(s, o, a, cx, cy) / pressReachOf(s, o);
     if (d < PR.pressureDist) keep *= 1 - O.holdLose * (o.line === 0 ? O.carryGk : 1) * (1 - d / PR.pressureDist);
   }
   // 전술 적합도 (C.80e): 티키 압박 속 키핑
@@ -1207,7 +1220,15 @@ export function visible(s: SimState, a: Agent, c: Candidate, k: number): boolean
       ? DB.directSwitchScan * (DB.directScanOpen >= 1 || oppSettled(s, a) ? 1 : DB.directScanOpen) : 0;
     p *= clamp(O.scanBase + scanAdd + O.scanSlope * v, 0.05, 1);
   }
-  if (c.type === 'through') p *= clamp(O.throughSeeBase + O.throughSeeSlope * v, 0.05, 1);
+  if (c.type === 'through') {
+    let see = O.throughSeeBase + O.throughSeeSlope * v;
+    // C.82e ⑥: 오픈 플레이 탈취 직후(같은 소유, throughSeeSpaceWin 초 안)는 상대 라인 뒤 공간(오프사이드 라인 → 상대 골라인 m)에 비례해 침투가 더 보인다 — 높은 라인의 비용
+    if (O.throughSeeSpace > 0 && s.possOrigin === 'open' && s.t - s.teams[a.team].wonAt <= O.throughSeeSpaceWin) {
+      const space = (1 - offsideLine(s, a.team)) * L;
+      if (space > O.throughSeeSpaceFrom) see += O.throughSeeSpace * (space - O.throughSeeSpaceFrom);
+    }
+    p *= clamp(see, 0.05, 1);
+  }
   return p >= 1 || rand(s.seed, s.tick, a.idx, Purpose.Vision, k) < p;
 }
 

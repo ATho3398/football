@@ -1,0 +1,15 @@
+<!-- @dsCard group="Match" height=270 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>ScoreBar — preview</title></head>
+<body>
+<div id="root" style="padding:16px 0"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:12,width:390}},
+  h(P.ScoreBar,{home:'리버사이드 FC',away:'노스게이트',homeScore:1,awayScore:0,minute:63,speed:'2×'}),
+  h(P.ScoreBar,{home:'리버사이드 FC',away:'노스게이트',homeScore:1,awayScore:0,minute:71,speed:'2×',awayRed:1})));
+</script>
+</body>
+</html>

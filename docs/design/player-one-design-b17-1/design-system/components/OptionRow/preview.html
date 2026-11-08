@@ -1,0 +1,12 @@
+<!-- @dsCard group="Tactics" height=200 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>OptionRow — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{display:'grid',gap:8,width:358}},h(P.OptionRow,{title:'골잡이',desc:'박스 안에서 마무리에 집중해요.',right:h(P.FitBadge,{fit:'ok'}),radio:true,selected:true,onClick:function(){}}),h(P.OptionRow,{title:'타깃맨',desc:'등지고 공을 지켜 2선에게 내줘요.',right:h(P.FitBadge,{fit:'bad'}),radio:true,onClick:function(){}})));
+</script>
+</body>
+</html>

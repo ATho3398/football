@@ -166,14 +166,10 @@ export function offsideLine(s: SimState, team: 0 | 1): number {
 function defensiveLine(s: SimState, team: 0 | 1): number {
   const t = effectiveTactics(s, team);
   const bx = normX(s.ball.x, attackDir(team, s.half));
-  const phase = teamPhase(s, team);
-  // C.80p: 티키타카 성향은 공격 국면(phase ≥ 0, 우리 소유)에 수비 라인을 tikiLineDrop(라인 높이 단위) 낮춰 뒷공간 커버 깊이를 남긴다 —
-  //   잃은 뒤 상대 전환 롱볼 대응. 수비 국면 내림은 측정에서 티키를 더 약하게 해(960 0.15: 티키>직선 −0.15 → −0.29) 공격 국면만
-  const drop = phase >= 0 && F.tikiLineDrop > 0 && s.teams[team].tactics.tendency === 'tikitaka' ? F.tikiLineDrop : 0;
-  let nx = F.lineBase + (t.lineHeight - drop - 0.5) * F.lineRange + F.blockX * (bx - 0.5);
-  if (phase < 0) nx += F.defendShift[1] * -phase;
-  else nx += F.attackShift[1] * phase;
-  if (phase < 0) nx = Math.min(nx, bx - F.lineBehindBall / L);
+  // C.82e ⑦: 이 함수는 defendTarget(우리가 공을 안 가졌을 때, teamPhase = −1) 안에서만 불린다 — 옛 phase ≥ 0 분기(C.80p tikiLineDrop · attackShift × phase)는
+  //   절대 안 걸려 지웠다(엔진관리자28 ⑦). 공격 국면 수비 줄 높이는 formation.attackLineK(slotTargetS)가 맡는다
+  let nx = F.lineBase + (t.lineHeight - 0.5) * F.lineRange + F.blockX * (bx - 0.5) + F.defendShift[1];
+  nx = Math.min(nx, bx - F.lineBehindBall / L);
   // 역압박 중 라인 유지 (C.78a ② G1): 잃는 순간의 높이(상한 lineHold)에서 내려오지 않는다. 뚫리면(pressBreak) 역압박이 끝나 지금처럼 내려온다
   const tm = s.teams[team];
   if (O.lineHold > 0 && tm.lineAtLoss >= 0 && s.t < tm.counterUntil && tm.counterPressers.length > 0) nx = Math.max(nx, Math.min(tm.lineAtLoss, O.lineHold));
@@ -1757,20 +1753,31 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1): void {
   const tiers: readonly (readonly Line[])[] = O.lineTiers <= 0 ? TIERS_ALL : asDef ? TIERS_DEF : a.line === 2 ? TIERS_MID : TIERS_ATT;
   let mark: Agent | null = null;
   let best = 14;
+  // 줄 사이 수신자 마크 가중 (C.82d): 우리 줄 2 가 수비 라인~중원 존 사이에 선 상대 줄 2·3 을 먼저, 더 붙어서 마크한다 (pocketMark 0 = 끔)
+  const pocketOn = O.pocketMark > 0 && a.line === 2 && !dropped && owner !== null && owner.team !== a.team;
+  const pocketHi = lineX + midGap + O.pocketSlack / L;
+  let markPocket = false;
   for (let i_38 = 0, a_38 = tiers; i_38 < a_38.length; i_38++) { const tier = a_38[i_38]!;
     for (let i_39 = 0, a_39 = s.agents; i_39 < a_39.length; i_39++) { const o = a_39[i_39]!;
       // 공 가진 선수는 압박자·커버가 맡는다 (C.75c: 존 마크가 소유자를 따라 들어와 셋째 사람이 되던 것)
       if (!o.onPitch || o.team === a.team || o.line === 0 || o.idx === s.ball.owner || (tier !== TIER_123 && !tier.includes(o.line))) continue;
       if (focusHeld && o === focus) continue;
-      const d = dist(o.x, o.y, zx, zy);
+      let d = dist(o.x, o.y, zx, zy);
+      let inPocket = false;
+      if (pocketOn && o.line >= 2) {
+        const onx = normX(o.x, dir);
+        inPocket = onx > lineX && onx < pocketHi;
+        if (inPocket) d *= O.pocketPull;
+      }
       if (d < best) {
         best = d;
         mark = o;
+        markPocket = inPocket;
       }
     }
     if (mark) break;
   }
-  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) mark = focus;
+  if (focus && !focusHeld && dist(focus.x, focus.y, zx, zy) < 14 && (O.lineTiers <= 0 || asDef || tiers[0]!.includes(focus.line))) { mark = focus; markPocket = false; }
   // CB 따라나옴 (C.77d 가설 2): 줄 사이로 내려온 상대 공격수를 따라 나갈지 가장 가까운 CB 가 판단한다 (나가기로 하면 그 선수를 라인 앞까지 마크)
   const stepOut = a.line === 1 && O.stepOutMax > 0 ? stepOutPick(s, a, dir, ballGoal) : null;
   if (stepOut) mark = stepOut;
@@ -1810,7 +1817,7 @@ function defendTarget(s: SimState, a: Agent, dir: 1 | -1): void {
       fwy = 0.5;
     } else {
       // 깊은 블록 밀집 (C.78d ①): 중원 줄은 존(밀집 자리) 위주 — 마크 비중 compactMark
-      const w = a.line === 3 ? 0.3 : compacted ? O.compactMark : 0.65;
+      const w = a.line === 3 ? 0.3 : compacted ? O.compactMark : markPocket ? O.pocketMark : 0.65;
       nx = nx * (1 - w) + mnx * w;
       ny = ny * (1 - w) + mny * w;
       fwx = w;

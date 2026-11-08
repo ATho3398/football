@@ -1,0 +1,16 @@
+<!-- @dsCard group="Forms" height=260 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Stepper — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:358,display:'grid',gap:12}},
+    h(P.Stepper,{label:'나이',value:21,unit:'세',min:15,max:23,sub:'배분 포인트 +21',subTone:'gain'}),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+      h(P.Stepper,{label:'키',value:190,unit:'cm',min:160,max:200,size:'sm',sub:'속도 상한 14 · 공중 상한 16',subTone:'warn'}),
+      h(P.Stepper,{label:'몸무게',value:87,unit:'kg',min:64,max:87,range:'64~87kg',size:'sm',sub:'BMI 24.1'}))));
+</script>
+</body>
+</html>

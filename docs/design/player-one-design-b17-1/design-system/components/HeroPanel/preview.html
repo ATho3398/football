@@ -1,0 +1,13 @@
+<!-- @dsCard group="Layout" height=290 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>HeroPanel — preview</title></head>
+<body>
+<div id="root" style="padding:0"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{width:390}}, h(P.HeroPanel,{title:'덱 편집',right:'12주차',eyebrow:'경기 덱',value:9,total:12,chips:['같은 카드 최대 2장','세트피스 1/2',{label:'빈 슬롯 3',soft:true}]})));
+</script>
+</body>
+</html>

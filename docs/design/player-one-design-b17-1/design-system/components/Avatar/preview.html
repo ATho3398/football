@@ -1,0 +1,13 @@
+<!-- @dsCard group="Identity" height=110 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Avatar — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'flex',gap:16,alignItems:'center'}}, h(P.Avatar,{size:72}), h(P.Avatar,{size:56,ring:true}), h(P.Avatar,{size:72,shape:'square',src:'/_blob/248419e8061b4feae8d4c68ea8d3927e',name:'김민준'}), h(P.Avatar,{size:40})));
+</script>
+</body>
+</html>

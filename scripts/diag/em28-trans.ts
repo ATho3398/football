@@ -11,27 +11,29 @@ import { writeFileSync } from 'node:fs';
 
 const args = process.argv.slice(2).filter((a) => a !== '--');
 const ov: Record<string, number> = {};
-let n = 100, seed0 = 41000, out = '', form = '4-4-2', tac = 'gegenpress', vs = 'balanced';
+let n = 100, seed0 = 41000, out = '', form = '4-4-2', tac = 'gegenpress', vs = 'balanced', lh = -1, pr = -1; // C.82e: lh=·pr= 대상 팀 라인·압박 단계 덮어쓰기
 for (const a of args) {
   if (a.startsWith('seed=')) seed0 = Number(a.slice(5));
   else if (a.startsWith('out=')) out = a.slice(4);
   else if (a.startsWith('form=')) form = a.slice(5);
   else if (a.startsWith('tac=')) tac = a.slice(4);
   else if (a.startsWith('vs=')) vs = a.slice(3);
+  else if (a.startsWith('lh=')) lh = Number(a.slice(3));
+  else if (a.startsWith('pr=')) pr = Number(a.slice(3));
   else if (a.includes('=')) { const [k, v] = a.split('='); ov[k] = Number(v); }
   else if (/^\d+$/.test(a)) n = Number(a);
 }
 const restore = applyOverrides(ov);
 const WIN = 15, W8 = 8;
 // 집계: 대상 팀(me)이 잃은 에피소드 / 상대(op)가 잃은 에피소드, 상실 구역 0(자기 ⅓)·1(가운데)·2(상대 ⅓)
-const zone = () => ({ n: 0, reWin5: 0, broke: 0, brokeShot: 0, brokeXg: 0, seqShot8: 0, seqShot15: 0, seqXg15: 0, seqGoal15: 0, anyShot8: 0, prog8: 0, prog15: 0, reach30: 0, behind: 0, oppAhead: 0, numUp: 0, numUpShot: 0, seqLen: 0, setPiece: 0, space: 0, fpN: 0, fpDt: 0, fpGain: 0, fpFwd10: 0, fpLong: 0, fpThr: 0, fpOk: 0, fpClear: 0, fpBack: 0, carry: 0, pN: [0, 0, 0, 0], pShot: [0, 0, 0, 0], pRe: [0, 0, 0, 0] });
+const zone = () => ({ n: 0, reWin5: 0, broke: 0, brokeShot: 0, brokeXg: 0, seqShot8: 0, seqShot15: 0, seqXg15: 0, seqGoal15: 0, off15: 0, anyShot8: 0, prog8: 0, prog15: 0, reach30: 0, behind: 0, oppAhead: 0, numUp: 0, numUpShot: 0, seqLen: 0, setPiece: 0, space: 0, fpN: 0, fpDt: 0, fpGain: 0, fpFwd10: 0, fpLong: 0, fpThr: 0, fpOk: 0, fpClear: 0, fpBack: 0, carry: 0, pN: [0, 0, 0, 0], pShot: [0, 0, 0, 0], pRe: [0, 0, 0, 0] });
 const side = () => ({ z: [zone(), zone(), zone()], shotsAgainst: 0, xgAgainst: 0, goalsAgainst: 0, transShots: 0, transXg: 0 });
 const R: any = { matches: 0, tac, vs, ov, me: side(), op: side(), gd: 0 };
 
 for (let k = 0; k < n; k++) {
   const seed = seed0 + k;
   const meHome = k % 2 === 1;
-  const A = { id: `va${seed}`, rating: 75, seed: `eng-a-75-${seed}`, formation: form, tactics: tacticsOf(tac) };
+  const A = { id: `va${seed}`, rating: 75, seed: `eng-a-75-${seed}`, formation: form, tactics: tacticsOf(tac, { ...(lh >= 0 ? { lineHeight: lh } : {}), ...(pr >= 0 ? { pressing: pr } : {}) }) };
   const B = { id: `vb${seed}`, rating: 75, seed: `eng-b-75-${seed}`, formation: '4-4-2', tactics: tacticsOf(vs) };
   const ws = `w${seed}`;
   const home = meHome ? A : B, away = meHome ? B : A;
@@ -45,7 +47,7 @@ for (let k = 0; k < n; k++) {
     sim.step();
     const t = s.t;
     // 새 이벤트
-    const shots: any[] = [], goals: number[] = [];
+    const shots: any[] = [], goals: number[] = [], offs: number[] = [];
     for (; evN < s.events.length; evN++) {
       const e = s.events[evN];
       if (e.type === 'shot') {
@@ -53,6 +55,7 @@ for (let k = 0; k < n; k++) {
         const S = e.team === meT ? R.op : R.me; // me 가 맞은 슛 → me.shotsAgainst
         S.shotsAgainst++; S.xgAgainst += e.params?.xg ?? 0;
       }
+      if (e.type === 'offside') offs.push(e.team);
       if (e.type === 'goal') { goals.push(e.team); (e.team === meT ? R.op : R.me).goalsAgainst++; }
     }
     if (s.possTeam !== prevPoss) {
@@ -73,7 +76,7 @@ for (let k = 0; k < n; k++) {
         const p = Math.min(3, s.t < tmL.counterUntil ? tmL.counterPressers.length : 0);
         const space = (1 - offsideLine(s, 1 - loser)) * L;
         eps.push({ p, space, loser, opp: 1 - loser, t0: t, half: s.half, z: bnx < 1 / 3 ? 0 : bnx < 2 / 3 ? 1 : 2, d0, minD: d0, minD8: d0, gx, gy, behind, oppAhead,
-          open: true, end: -1, reWin5: false, setPiece: false, shot8: false, shot15: false, xg15: 0, goal15: false, anyShot8: false, brokeAt: -1 });
+          open: true, end: -1, reWin5: false, off15: false, setPiece: false, shot8: false, shot15: false, xg15: 0, goal15: false, anyShot8: false, brokeAt: -1 });
       }
       prevPoss = s.possTeam;
     }
@@ -88,6 +91,7 @@ for (let k = 0; k < n; k++) {
         if (dt <= W8) ep.shot8 = true;
       }
       if (goals.includes(ep.opp) && ep.shot15) ep.goal15 = true;
+      if (offs.includes(ep.opp)) ep.off15 = true;
       if (s.half !== ep.half || (s.possTeam !== ep.opp && s.possTeam >= 0)) {
         ep.open = false; ep.end = dt;
         if (dt <= 5 && s.possTeam === ep.loser) ep.reWin5 = true;
@@ -122,6 +126,7 @@ for (let k = 0; k < n; k++) {
     if (ep.shot8) Z.seqShot8++;
     if (ep.shot15) { Z.seqShot15++; Z.seqXg15 += ep.xg15; S.transShots++; S.transXg += ep.xg15; }
     if (ep.goal15) Z.seqGoal15++;
+    if (ep.off15) Z.off15++;
     if (ep.anyShot8) Z.anyShot8++;
     Z.prog8 += ep.d0 - ep.minD8; Z.prog15 += ep.d0 - ep.minD;
     if (ep.minD < 30 && ep.d0 >= 30) Z.reach30++;

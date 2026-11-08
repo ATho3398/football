@@ -13,7 +13,7 @@ import { type ShotCtx } from './keeper';
 import * as keeper_ from './keeper';
 const { catchProb, claimProb, coverOf, farSide, gkCtx, keeperOf, keeperZone, saveChance, saveProb } = keeper_;
 import { ballRank, inOwnBox, updateOffball } from './offball';
-import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
+import { carryReachDist, crossTarget, finishMult, leadTempoMul, makePass, oneTouchMul, preDecide, pressReachOf, receivesBack, riskyAction, shotModel, shotOneTouch, shotRush, type Candidate } from './onball';
 import { stackLinkMul } from './stack';
 import { callOffside, foul, foulFactor, giveCard, isOffside } from './referee';
 import { airCardEdge, blockCardBonus, crossCardEdge, shotCardMod } from './cards';
@@ -146,7 +146,7 @@ function pressureLoss(s: SimState, a: Agent, c: Candidate): boolean {
   for (let i_1 = 0, a_1 = onOf(s, (1 - a.team) as 0 | 1); i_1 < a_1.length; i_1++) { const o = a_1[i_1]!;
     if (s.t < o.beatenUntil) continue;
     // 판단 P 와 같은 범위 (GK 포함). 몰고 가기는 가는 길에 가장 먼저 닿는 수비수(실효 거리), 유지는 지금 위치에서 가장 가까운 수비수
-    const d = c.type === 'carry' ? carryReachDist(s, o, a, c.x, c.y) : dist(o.x, o.y, a.x, a.y);
+    const d = (c.type === 'carry' ? carryReachDist(s, o, a, c.x, c.y) : dist(o.x, o.y, a.x, a.y)) / pressReachOf(s, o);
     if (d < bd) {
       bd = d;
       def = o;

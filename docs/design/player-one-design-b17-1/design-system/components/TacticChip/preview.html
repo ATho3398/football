@@ -1,0 +1,12 @@
+<!-- @dsCard group="Tactics" height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>TacticChip — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{display:'grid',gap:12,width:358}},h('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}},['balanced','tikitaka','gegen','counter','direct','block'].map(function(s,i){return h(P.TacticChip,{key:s,tactic:s,fit:['good','ok','bad'][i%3],selected:s==='counter',onClick:function(){}});})),h('div',{style:{display:'flex',gap:16}},h(P.TacticChip,{tactic:'counter',formation:'4-2-3-1',size:'sm'}),h(P.TacticChip,{tactic:'gegen',team:'리버풀',formation:'4-3-3',size:'sm',away:true}))));
+</script>
+</body>
+</html>
