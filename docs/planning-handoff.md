@@ -1511,3 +1511,7 @@
 - 시작 처리: ① AE(`session_01YVaigGKpnpQtRAv8gToCJ6`)에 "AF 준비 완료 + ID"(later, 답장 불필요) ② AE 제목 앞 `draft_` ③ UI_5 에 보고처 AF(later) ④ 예약 이전 ⑤ 8.73 기록·푸시.
 - 사용자 보고는 **무엇이 바뀌었는지 내용으로**, 끝에 `명령 시각 / 답변 시각 / 걸린 시간`(KST). 사용자에게 아무것도 요청하지 않는다(automation 0번).
 - (11/09 07:43 KST) **AF 시작 `session_01YVaigHq3Uo2LLh43wuodre`**(AE 가 create_session 으로 엶). AE 는 AF 준비 완료 알림 오면 끝.
+
+### 8.73 마스터 세션 AF (2026-11-09 07:43 KST~, `session_01YVaigHq3Uo2LLh43wuodre`, 브랜치 `claude/planning-af`)
+- (11/09 07:45 KST) **AF 시작 처리**: ① AE 에 "AF 준비 완료 + ID"(later) ② AE 제목 `draft_AE_…` ③ UI_5 에 보고처 AF(later) ④ 예약 이전: AE 대상 trig_01Lb6jPtyax9EpmHbftwJX8Y(08:30) 삭제 완료 → AF 점검 trig_01Hqf2NkUiHMbpyQfyHs9W7J(10:00 KST) 새로 걺 ⑤ AF 제목 `AF_축구 커리어 게임 마스터`.
+- (11/09 07:45 KST) **C.82i 표준 대형 균형 시작 `session_01YVaigKuA6Sn12m1Gsvt38S`**(Fable, 혼자 진행, 지시문 docs/session-prompts/C.82i.md): 표준 대형 상호 최대 +0.51 → ≤ +0.35(후보 1대1 drop 도 팀 ST 수로 나누기 · stFinishShare 세게 · ST 1명 대형 몫) + 장면 ④ 1대1 골 경계 · 티키>직선 +0.01 · 커스텀 2-4-1-3 +0.335 같이, 총량 1.48~1.52. 사용량 경고 상태라 다른 세션은 C.82i 뒤 하나씩(다음: 8.72 2번 묶음 F 남은 구조). **사이트 = aa100e8(엔진 105).**
