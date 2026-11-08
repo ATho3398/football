@@ -8,7 +8,7 @@ import { createMatch } from '../src/engine/sim';
 import { fillRoles, teamSetupFromRoster } from '../src/engine/setup';
 import { FORMATION_SLOTS } from '../src/formations';
 import { createTeamRoster } from '../src/roster';
-import { chosenRole, defaultTactics } from '../src/myTactics';
+import { chosenRole, makeTactics } from '../src/myTactics';
 
 const home = createTeamRoster({ id: 'h', rating: 75 }, 'c82f-h', 2018, []);
 const away = createTeamRoster({ id: 'a', rating: 75 }, 'c82f-a', 2018, []);
@@ -26,11 +26,12 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.keeper.catchSkill).toBe(0.4);
     expect(ENGINE.physics.fatigueIntensity).toBe(0.45);
     expect(ENGINE.roles.classicWingerCross).toBe(10);
+    expect(ENGINE.prob.stFinish).toBe(1.15);
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
     // 총량: saveBase + 1대1 보정 짝 (부록 C.82f 표)
-    expect(ENGINE.keeper.saveBase).toBe(__SAVEBASE__);
-    expect(ENGINE.keeper.oneOnOne.drop).toBe(__DROP__);
+    expect(ENGINE.keeper.saveBase).toBe(2.26);
+    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.55);
   });
 
   it('직접 고른 역할 표시: 진단·시트에서 준 역할만 rolePicked, 성향 추천(fillRoles)은 아님', () => {
@@ -90,7 +91,9 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
   });
 
   it('전술 시트: 직접 고른 역할만 chosenRole, 추천 자리는 null', () => {
-    const t = defaultTactics();
-    expect(t.roles.every((_, i) => chosenRole(t, i) === null)).toBe(true);
+    const t = makeTactics('balanced', '4-3-3', 'ST');
+    expect(t.roles.every((_: string | null, i: number) => chosenRole(t, i) === null)).toBe(true);
+    t.roles[8] = 'classicWinger';
+    expect(chosenRole(t, 8)).toBe('classicWinger');
   });
 });
