@@ -1,0 +1,12 @@
+<!-- @dsCard group="Player" height=190 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>AttrTile — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:358}},h(P.AttrGrid,{columns:4,editable:true,groups:[{name:'마무리',items:[{name:'슈팅',value:17,progress:.8,keyAttr:true,cost:8,ovrDelta:.3},{name:'중거리 슛',value:17,progress:.6,cost:8,ovrDelta:.2,selected:true,add:1},{name:'헤더',value:12,progress:.8,cost:2,ovrDelta:.1},{name:'태클',value:8,progress:.2,cost:5}]}]})));
+</script>
+</body>
+</html>

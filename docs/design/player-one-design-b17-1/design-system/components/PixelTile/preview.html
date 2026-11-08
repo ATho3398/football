@@ -1,0 +1,25 @@
+<!-- @dsCard group="Media" height=230 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PixelTile — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement, T = P.PixelTile;
+  var k = {kit:'#c8102e'};
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{display:'grid',gap:14}},
+    h('div',{style:{display:'flex',gap:8}},
+      h(T,{scale:3,label:'자동',isDefault:true,selected:true,sprite:Object.assign({skin:'#6b4a35',hair:'none'},k)}),
+      h(T,{scale:3,label:'검은 머리',sprite:Object.assign({skin:'#e8b894',hair:'#1b1410'},k)}),
+      h(T,{scale:3,label:'금발',sprite:Object.assign({skin:'#f1c9a5',hair:'#e8c45a'},k)}),
+      h(T,{scale:3,label:'긴 머리',sprite:Object.assign({skin:'#c99673',hair:'#3a2618',hairStyle:'long'},k)}),
+      h(T,{scale:3,label:'곱슬',sprite:Object.assign({skin:'#4a3022',hair:'#120c09',hairStyle:'curly'},k)})),
+    h('div',{style:{display:'flex',gap:6}},
+      h(T,{scale:2,label:'C01',selected:true,isDefault:true,sprite:{kind:'kit',kit:'#c8102e'}}),
+      h(T,{scale:2,label:'C05',sprite:{kind:'kit',kit:'#16171b',kit2:'#f3f4f6'}}),
+      h(T,{scale:2,label:'S01',sprite:{kind:'kit',kit:'#111111',kit2:'#f3f4f6',pattern:'stripe'}}),
+      h(T,{scale:2,label:'S13',sprite:{kind:'kit',kit:'#1f8a4c',kit2:'#f3f4f6',pattern:'hoop'}}),
+      h(T,{scale:4,label:'64px',sprite:{skin:'#e8b894',hair:'#7a4b2a',kit:'#6cabdd'}}))));
+</script>
+</body>
+</html>

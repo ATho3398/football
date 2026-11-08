@@ -1,0 +1,16 @@
+<!-- @dsCard group="Forms" height=300 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>PointBar — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  var it = function (a, w, t) { return [{label:'기본',value:100,base:true},{label:'나이',value:a},{label:'약발',value:w},{label:'태그',value:t}]; };
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{style:{width:358,display:'grid',gap:10}},
+    h(P.PointBar,{left:74,total:109,items:it(21,-12,0)}),
+    h(P.PointBar,{left:0,total:74,items:it(21,-12,-35)}),
+    h(P.PointBar,{left:-6,total:74,items:it(21,-12,-35)})));
+</script>
+</body>
+</html>
