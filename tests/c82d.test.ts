@@ -58,15 +58,31 @@ describe('C.82d 중원 줄 공격 자리 상한', () => {
     expect(on).toBeCloseTo(F.midAttackCap + dx, 5);
   });
 
-  it('4-3-1-2: CAM 은 상한, CM(0.44 + 0.25 = 0.69) 은 상한보다 낮으면 그대로 · ST(줄 3) 는 상한과 무관', () => {
+  it('중앙 중원 수: 4-4-2·3-4-3 2명 · 4-3-3·4-2-3-1·4-1-4-1·3-5-2·5-3-2 3명 · 4-3-1-2 4명', () => {
+    const expected: Record<Formation, number> = { '4-4-2': 2, '3-4-3': 2, '4-3-3': 3, '4-2-3-1': 3, '4-1-4-1': 3, '3-5-2': 3, '5-3-2': 3, '4-3-1-2': 4 };
+    for (const f of Object.keys(expected) as Formation[]) expect(state(f, '4-4-2').teams[0].centralMids, f).toBe(expected[f]);
+  });
+
+  it('4-3-1-2(중앙 중원 4명): 실효 상한 = midAttackCap − midAttackCapPer — CAM·CM 모두 그 아래로, ST(줄 3) 는 상한과 무관', () => {
     const s = state('4-3-1-2', '4-4-2');
     attacking(s);
+    const cap = F.midAttackCap - F.midAttackCapPer * (s.teams[0].centralMids - F.midAttackCapN);
+    expect(cap).toBeLessThan(F.midAttackCap);
     for (const a of s.agents) {
       if (a.team !== 0 || a.line === 0) continue;
       const on = slotTarget(s, a)[0];
       const off = withCap(0, () => slotTarget(s, a)[0]);
       if (a.line !== 2) expect(on).toBe(off);
-      else expect(on).toBeCloseTo(Math.min(off, F.midAttackCap + a.role.dx), 5);
+      else expect(on).toBeCloseTo(Math.min(off, Math.max(a.sx, cap) + a.role.dx), 5);
+    }
+  });
+
+  it('4-4-2(중앙 중원 2명)는 상한에 닿지 않는다 — 공격 국면 자리가 켬/끔 같다', () => {
+    const s = state('4-4-2', '4-3-1-2');
+    attacking(s);
+    for (const a of s.agents) {
+      if (a.team !== 0 || a.line === 0) continue;
+      expect(slotTarget(s, a)[0]).toBe(withCap(0, () => slotTarget(s, a)[0]));
     }
   });
 
