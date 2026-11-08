@@ -166,14 +166,10 @@ export function offsideLine(s: SimState, team: 0 | 1): number {
 function defensiveLine(s: SimState, team: 0 | 1): number {
   const t = effectiveTactics(s, team);
   const bx = normX(s.ball.x, attackDir(team, s.half));
-  const phase = teamPhase(s, team);
-  // C.80p: 티키타카 성향은 공격 국면(phase ≥ 0, 우리 소유)에 수비 라인을 tikiLineDrop(라인 높이 단위) 낮춰 뒷공간 커버 깊이를 남긴다 —
-  //   잃은 뒤 상대 전환 롱볼 대응. 수비 국면 내림은 측정에서 티키를 더 약하게 해(960 0.15: 티키>직선 −0.15 → −0.29) 공격 국면만
-  const drop = phase >= 0 && F.tikiLineDrop > 0 && s.teams[team].tactics.tendency === 'tikitaka' ? F.tikiLineDrop : 0;
-  let nx = F.lineBase + (t.lineHeight - drop - 0.5) * F.lineRange + F.blockX * (bx - 0.5);
-  if (phase < 0) nx += F.defendShift[1] * -phase;
-  else nx += F.attackShift[1] * phase;
-  if (phase < 0) nx = Math.min(nx, bx - F.lineBehindBall / L);
+  // C.82e ⑦: 이 함수는 defendTarget(우리가 공을 안 가졌을 때, teamPhase = −1) 안에서만 불린다 — 옛 phase ≥ 0 분기(C.80p tikiLineDrop · attackShift × phase)는
+  //   절대 안 걸려 지웠다(엔진관리자28 ⑦). 공격 국면 수비 줄 높이는 formation.attackLineK(slotTargetS)가 맡는다
+  let nx = F.lineBase + (t.lineHeight - 0.5) * F.lineRange + F.blockX * (bx - 0.5) + F.defendShift[1];
+  nx = Math.min(nx, bx - F.lineBehindBall / L);
   // 역압박 중 라인 유지 (C.78a ② G1): 잃는 순간의 높이(상한 lineHold)에서 내려오지 않는다. 뚫리면(pressBreak) 역압박이 끝나 지금처럼 내려온다
   const tm = s.teams[team];
   if (O.lineHold > 0 && tm.lineAtLoss >= 0 && s.t < tm.counterUntil && tm.counterPressers.length > 0) nx = Math.max(nx, Math.min(tm.lineAtLoss, O.lineHold));

@@ -64,8 +64,11 @@ export function slotTargetS(s: SimState, a: Agent, attackShiftScale = 1): void {
   const by = normY(s.bsy, sdir);
   let x = a.sx;
   let y = a.sy;
-  if (phase >= 0) x += F.attackShift[a.line] * phase * attackShiftScale;
-  else {
+  if (phase >= 0) {
+    x += F.attackShift[a.line] * phase * attackShiftScale;
+    // C.82e ⑤: 공격 국면 수비 줄은 라인 높이를 따른다 (높은 라인 전술은 소유 중에도 높게 — 잃었을 때 뒤 공간이 그만큼 넓다)
+    if (a.line === 1 && F.attackLineK > 0) x += F.attackLineK * (s.teams[a.team].tactics.lineHeight - 0.5) * phase;
+  } else {
     x += F.defendShift[a.line] * -phase;
     // 압박 전술: 수비 시 중원·공격 줄을 올리거나 내린다 (E.19 ③)
     if (a.line >= 2) x += F.pressBlock * (s.teams[a.team].tactics.pressing - 0.55) * -phase;

@@ -1,7 +1,7 @@
 // 경기 엔진 상수 (부록 E). 모든 값은 초기값이며 `npm run balance:engine`(E.15 통계 목표)으로 보정한다.
 // 기획서 초기값과 다르게 정한 값은 부록 C.9 이후에 기록한다.
 
-export const ENGINE_VERSION = 99;
+export const ENGINE_VERSION = 100;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -263,6 +263,11 @@ export const ENGINE = {
     /** 줄별 x 시프트: [GK, 수비, 중원, 공격] */
     defendShift: [0, -0.06, -0.08, -0.1] as [number, number, number, number],
     attackShift: [0, 0.14, 0.25, 0.1] as [number, number, number, number],
+    /**
+     * C.82e ⑤ (엔진관리자28 처방 ⑤): 공격 국면(우리 소유, phase > 0) 수비 줄 x += attackLineK × (lineHeight − 0.5) × phase — 지금까지 공격 국면 수비 줄은 라인 높이를
+     * 전혀 안 봐서 게겐·티키(라인 0.65)와 균형(0.5)의 소유 중 오프사이드 라인이 40.1 대 40.9 m 로 같았다. 0.6 = 높음 +0.09(약 9 m 슬롯, 실측 라인 +5 m), 매우 낮음 −0.18. 0 = 끔
+     */
+    attackLineK: 0.6,
     blockX: 0.45,
     /** C.76s 44h-c2: 압박 전술일수록 블록이 공을 더 따라 움직인다 — 수비 시 blockX·blockY × (1 + pressFollow × (pressing − 0.55)) (압박 높음 = 더 뛰고 더 닳는다) */
     pressFollow: 3.0,
@@ -287,8 +292,6 @@ export const ENGINE = {
     /** C.76k: 0.2 → 0.3 (단계당 약 3 → 4.7 m: 매우 낮음 20 m · 낮음 23.6 · 보통 29.4 · 높음 34) — 약팀이 실제로 내려앉게 */
     lineRange: 0.3,
     lineBehindBall: 4,
-    /** C.80p: 티키타카 성향 공격 국면(우리 소유) 수비 라인 내림(라인 높이 단위, 0.15 = 한 단계) — 잃은 뒤 전환 롱볼 뒷공간 커버. 0 = 끔 */
-    tikiLineDrop: 0,
     /** 수비 라인 최소 깊이 (정규화) */
     lineMin: 0.11,
     /** 수비 시 중원/공격 줄은 수비 라인에서 이 간격 안으로 (블록 간격) */
@@ -910,6 +913,14 @@ export const ENGINE = {
     scanSlope: 0.4,
     throughSeeBase: 0.5,
     throughSeeSlope: 0.4,
+    /**
+     * C.82e ⑥ (엔진관리자28 처방 ⑥, 게겐 "뒤 공간 비용"): 오픈 플레이로 공을 빼앗은 뒤 throughSeeSpaceWin 초 안(같은 소유)이면 침투 패스가 보일 확률에
+     * throughSeeSpace × max(0, 상대 라인 뒤 공간 m − throughSeeSpaceFrom) 을 더한다 — 상대(잃은 팀) 오프사이드 라인에서 그 골라인까지 거리가 클수록(라인 높은 팀일수록) 전환 침투가 더 자주 보인다.
+     * 지금까지는 라인을 5 m 올려도 상대가 그 공간을 쓰는 비율(침투 첫 패스 10%)이 안 바뀌어 높은 라인의 비용이 없었다. 0 = 끔
+     */
+    throughSeeSpace: 0.03,
+    throughSeeSpaceFrom: 35,
+    throughSeeSpaceWin: 6,
     /** 유지 시 빼앗길 확률: 3 m 안 수비수마다 holdLose × (1 − 거리/3) (독립 합성) */
     holdLose: 0.5,
     /** 드리블(공 몰고 전진) 거리 (m) */
