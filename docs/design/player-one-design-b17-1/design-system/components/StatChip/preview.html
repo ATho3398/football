@@ -1,0 +1,13 @@
+<!-- @dsCard group="Status" height=66 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>StatChip — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, h(P.StatChip,{icon:'ball',label:'골',value:1,tone:'mine'}), h(P.StatChip,{label:'슈팅',value:3}), h(P.StatChip,{label:'XP',value:'+34',tone:'brand'}), h(P.StatChip,{icon:'card',label:'경고',value:1,tone:'warning'}), h(P.StatChip,{icon:'check',label:'돌파',value:'2/3',tone:'success'}), h(P.StatChip,{icon:'close',label:'패스 실패',value:2,tone:'fail'})));
+</script>
+</body>
+</html>

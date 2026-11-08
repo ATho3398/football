@@ -1,0 +1,13 @@
+<!-- @dsCard group="Identity" height=90 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Crest — preview</title></head>
+<body>
+<div id="root" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'flex',gap:16,alignItems:'center'}}, h(P.Crest,{name:'리버사이드 FC',size:40}), h(P.Crest,{name:'노스게이트',size:40,color:'var(--away)'}), h(P.Crest,{src:'/_blob/21deb0edfdc36e67fdf4bf74f634aee1',name:'기본 엠블럼',size:40}), h(P.Crest,{name:'리버사이드 FC',size:22})));
+</script>
+</body>
+</html>

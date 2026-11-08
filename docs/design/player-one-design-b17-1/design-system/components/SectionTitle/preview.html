@@ -1,0 +1,13 @@
+<!-- @dsCard group="Layout" height=100 -->
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>SectionTitle — preview</title></head>
+<body>
+<div id="root" style="padding:16px"></div>
+<script>
+  var P = window.PlayerOne, h = React.createElement;
+  function render(el) { ReactDOM.createRoot(document.getElementById('root')).render(el); }
+  render(h('div',{style:{display:'grid',gap:16,width:358}}, h(P.SectionTitle,{title:'내 덱',action:'탭하면 빼기'}), h(P.SectionTitle,{title:'카드 풀',action:'탭해서 넣기'})));
+</script>
+</body>
+</html>
