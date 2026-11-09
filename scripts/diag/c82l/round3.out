@@ -5,3 +5,5 @@ scripts/diag/c82l/wing-FBm3-47000.log:| 와이드 미드필더 | -0.10 | 0.09 | 
 scripts/diag/c82l/wing-FBm3-57000.log:| 정통 윙어 | +0.06 | 0.09 | +0.03 | 1.75 | 1.69
 scripts/diag/c82l/wing-FBm3-57000.log:| 와이드 미드필더 | -0.01 | 0.09 | -0.03 | 1.
 Terminated
+scripts/diag/c82l/wing.sh: line 6: 10938 Killed                  SEED=$s npx vite-node scripts/diag/role-pair.ts -- 400 WING "$@" > $D/wing-$TAG-$s.log 2>&1
+WINGDONE FBp3 12:06:23
