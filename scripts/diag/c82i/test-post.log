@@ -1,0 +1,145 @@
+
+ RUN  v2.1.9 /home/user/football
+
+ ✓ tests/c82i.test.ts (6 tests) 5129ms
+   ✓ C.82i 묶음 F3: 표준 대형 균형 > 결정성: 같은 설정 두 번 같은 지문 · 4-3-3 대 4-1-4-1 경기는 share 를 끄면 달라진다(레버가 살아 있음) 5094ms
+ ✓ tests/c82h.test.ts (4 tests) 5426ms
+   ✓ C.82h 묶음 F2: 게겐 뒤 공간 비용 복구 · ST 2명 대형 이득 > 결정성: 같은 설정 두 번 같은 지문 · 4-4-2 경기는 stFinishShare 를 끄면 달라진다(레버가 살아 있음) 5409ms
+ ✓ tests/c79x.test.ts (3 tests) 39ms
+ ✓ tests/c81b.test.ts (1 test) 2ms
+ ✓ tests/c82f.test.ts (5 tests) 8496ms
+   ✓ C.82f 묶음 E 마무리 보정 5 > 기본 역할 경기는 가산 상수를 켜고 꺼도 비트 단위로 같다 (기본 역할 경로와 분리) · 직접 고른 정통 윙어 경기는 달라진다 · 결정성 8478ms
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ① 추적 간격 일정 (2단계 이동·도착 시간)
+[scene chase] gap0=2.236 gapMean=2.236 gapMax=2.236 gapMin=2.236 gapEnd=2.236 gapSwing=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ② 급정지 반응 시간·지나친 거리 (2단계)
+[scene stop] gapAtTurn=2.236 reactTime=1.200 maxPast=2.553 gapAfter1s=2.808
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ③ 뒤도는 느린 CB 불리 (2단계, 5단계 높은 라인 비용)
+[scene highLine] slowArriveGap=0.838 slowDistBehind=6.704 evenArriveGap=0.423 evenDistBehind=3.613
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ④ GK 대응 시간 — 가운데/비킴, 느린 횡패스/빠른 컷백, 빈 골문·1대1·밀집 (4단계) [motion on]
+[scene keeper motion on] slowCover=1.000 slowSave=0.438 slowOff=0.764 slowMoved=5.155 fastCover=0.278 fastSave=0.149 fastOff=7.175 fastMoved=2.674 setCover=1.000 setSave=0.361 centerSave=0.820 asideSave=0.257 emptyGoal=0.950 oneOnOneGoal=0.269 crowdGoal=0.020
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ④ GK 대응 시간 — 가운데/비킴, 느린 횡패스/빠른 컷백, 빈 골문·1대1·밀집 (4단계) [motion off]
+[scene keeper motion off] slowCover=1.000 slowSave=0.438 slowOff=0.759 slowMoved=5.161 fastCover=0.281 fastSave=0.150 fastOff=7.173 fastMoved=2.680 setCover=1.000 setSave=0.361 centerSave=0.820 asideSave=0.257 emptyGoal=0.950 oneOnOneGoal=0.269 crowdGoal=0.020
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑤ 막힘/열림에 따라 백패스 비율·이유가 다름 (3단계) [motion on]
+[scene backpass motion on] blockedBack=0.787 blockedSide=0.000 blockedFwd=0.098 blockedMistake=0.000 blockedNoFwd=0.000 blockedRisk=0.787 blockedEscape=0.000 blockedKeep=0.787 openBack=0.003 openSide=0.000 openFwd=0.975 openMistake=0.000 openNoFwd=0.000 openRisk=0.003 openEscape=0.000 openKeep=0.003
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑤ 막힘/열림에 따라 백패스 비율·이유가 다름 (3단계) [motion off]
+[scene backpass motion off] blockedBack=0.785 blockedSide=0.000 blockedFwd=0.100 blockedMistake=0.000 blockedNoFwd=0.000 blockedRisk=0.785 blockedEscape=0.000 blockedKeep=0.785 openBack=0.003 openSide=0.000 openFwd=0.975 openMistake=0.000 openNoFwd=0.000 openRisk=0.003 openEscape=0.000 openKeep=0.003
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑥ 판단용 도착 시간 = 실제 이동 (2단계, 오차 ≤ 0.2초)
+[scene arrival] maxErr=0.072 meanErr=0.031
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계) [motion on]
+[scene giveGo motion on] runRate=0.485 targetBehind=6.000 passerAdvance=2.819 returnThrough=1.000 returnP=0.757
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계) [motion off]
+[scene giveGo motion off] runRate=0.485 targetBehind=6.000 passerAdvance=2.819 returnThrough=1.000 returnP=0.566
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계) [motion on]
+[scene check motion on] p0=0.344 pEnd=0.970 pNoCheck=0.344 sepEnd=1.348 sepNoCheck=1.200 moved=3.867 movedNoCheck=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계) [motion off]
+[scene check motion off] p0=0.344 pEnd=0.970 pNoCheck=0.344 sepEnd=1.889 sepNoCheck=1.200 moved=3.867 movedNoCheck=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑨ 역압박 3명 가담 뒤 뚫림 — 뒤 공간·복귀 시간 (5단계) [xyz on]
+[scene pressBreak xyz on] detect3=0.100 turn3=0.400 back3=3.700 room3=3.824 space3=50.986 detect1=0.100 room1=9.980 space1=50.722
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑨ 역압박 3명 가담 뒤 뚫림 — 뒤 공간·복귀 시간 (5단계) [xyz off]
+[scene pressBreak xyz off] detect3=0.100 turn3=0.400 back3=3.900 room3=9.698 space3=51.300 detect1=0.100 room1=10.005 space1=50.561
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑩ 높은 라인 + 느린 CB 대 빠른 ST 뒤공간 패스 (5단계) [xyz on]
+[scene slowLine xyz on] pSlow=0.928 pFast=0.774 hasThrough=1.000 marginSlow=1.000 marginFast=0.600
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑩ 높은 라인 + 느린 CB 대 빠른 ST 뒤공간 패스 (5단계) [xyz off]
+[scene slowLine xyz off] pSlow=0.685 pFast=0.627 hasThrough=1.000 marginSlow=0.600 marginFast=0.400
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑪ 몰빵 대형 잃은 직후 상대 역습 슛 기회 (5단계) [xyz on]
+[scene allIn xyz on] chanceAllIn=0.075 freeAllIn=2.500 chanceFour=0.039 freeFour=0.167
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑪ 몰빵 대형 잃은 직후 상대 역습 슛 기회 (5단계) [xyz off]
+[scene allIn xyz off] chanceAllIn=0.063 freeAllIn=2.500 chanceFour=0.038 freeFour=0.167
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑫ 2:1 원터치 리턴 — 받는 순간 리턴, 패서가 마커 뒤에서 받음 (5단계 2차) [xyz·78a on]
+[scene oneTwo xyz·78a on] returnRate=0.917 returnDelay=0.223 behindRate=0.727 oneTouch=0.792 otBehind=0.684 gapGot=6.868
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑫ 2:1 원터치 리턴 — 받는 순간 리턴, 패서가 마커 뒤에서 받음 (5단계 2차) [xyz·78a off]
+[scene oneTwo xyz·78a off] returnRate=0.500 returnDelay=1.100 behindRate=1.000 oneTouch=0.167 otBehind=1.000 gapGot=9.797
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑬ 뒤 공간 침투 수신 → 슛까지 시간 (쫓아오는 CB 대비, 5단계 2차) [xyz·78a on]
+[scene runIn xyz·78a on] shotRate=0.400 shotTime=1.275 shotGap=2.551 recvSpeed=4.103
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑬ 뒤 공간 침투 수신 → 슛까지 시간 (쫓아오는 CB 대비, 5단계 2차) [xyz·78a off]
+[scene runIn xyz·78a off] shotRate=0.900 shotTime=2.278 shotGap=2.910 recvSpeed=4.039
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑭ 등지고 압박 속 수신 — 정지 시간 길고 공 지키기·백패스 이유 압박 탈출 (5단계 2차) [xyz·78a on]
+[scene backPress xyz·78a on] stopBack=1.100 stopFree=0.683 timeBack=0.840 timeFree=0.700 safeRate=0.700 backs=5.000 escapeShare=1.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑭ 등지고 압박 속 수신 — 정지 시간 길고 공 지키기·백패스 이유 압박 탈출 (5단계 2차) [xyz·78a off]
+[scene backPress xyz·78a off] stopBack=1.100 stopFree=0.683 timeBack=0.960 timeFree=0.700 safeRate=0.700 backs=0.000 escapeShare=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑮ 깊은 블록 상대 게겐 압박 — 상대가 건너뛰어 높은 탈취 작음 (C.78c, 기록)
+[scene deepPress] press=3.000 long=0.200 regain=0.150 regainHigh=0.100 regainH=40.421
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑯ 압박받은 CB 가 롱볼로 높은 라인 뒤로 건너뜀 — 판단이 착지 경합을 봄 (C.78c)
+[scene longEscape] longOn=0.435 longOff=0.425 toStOn=0.435 toStOff=0.425 q=0.689 tSt=2.400 tDef=3.381 behind=1.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑰ 티키 빌드업 상대 게겐 압박 — 높은 탈취 많음 (C.78c, 기록)
+[scene buildPress] press=3.000 long=0.368 regain=0.000 regainHigh=0.000 regainH=99.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑱ 블록 대 지공 — 버스가 허용하는 슛이 균형 수비보다 뚜렷하게 좋은 찬스가 아니다 (C.78d, C.78e 120시드)
+[scene blockBuild] busShots=0.496 busOut=0.101 busBlocked=0.101 busXg=0.035 busXgShot=0.071 balShots=0.396 balOut=0.147 balBlocked=0.105 balXg=0.028 balXgShot=0.071
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑲ 블록 탈취 뒤 역습 — 지원 인원 버스 1·역습 2, 지원 대상이 앞으로 달림 (C.78d)
+[scene blockCounter] busSup=1.000 busExit=1.000 busRun3=21.156 busShot=0.000 busF3=0.433 ctrSup=2.000 ctrRun3=21.155 ctrShot=0.000 ctrF3=0.500 busRun3Off=9.653 busShotOff=0.000 ctrRun3Off=8.416 ctrShotOff=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑳ 줄 사이 수신자에게 수비 1명 튀어나감·옆이 메움 (C.78d)
+[scene betweenLines] received=0.950 pressers=1.000 multi=0.000 near0=4.543 near1=1.574 gapMax=7.696 pressersOff=1.263 multiOff=0.211 near1Off=1.429 gapMaxOff=7.433
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉑ 반대쪽 측면 크로스 때 LM/RM 먼 포스트 도착 시각 (C.78e)
+[scene wideArrive] lmT=2.408 lmArr=1.000 lmEnd=11.028 lwT=2.508 lwArr=1.000 lwEnd=11.973 lmOffT=3.608 lmOffArr=1.000 lmOffEnd=25.154
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉒ 펄스 나인 내려옴 → CB 따라감 → 2선 빈자리 침투 패스 (C.78e)
+[scene nineFollow] got=1.000 follow=0.733 run=0.600 pass=0.233 shot=0.167 turn=0.533 runOff=0.400 passOff=0.200 shotOff=0.100
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉓ 펄스 나인 내려옴 → CB 안 따라감 → 돌아서 전진 (C.78e)
+[scene nineHold] turnHold=0.417 faceHold=0.783 fwdHold=0.450 followHold=0.000 faceNoTurn=0.017 fwdNoTurn=0.383 turnGo=0.550 faceGo=0.783 fwdGo=0.600 followGo=0.900 followNear=0.150 followFar=0.600 followNearOff=0.267
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉖ 박스 앞 오른발 공격수 정면 — 수비가 주발로 찰 구석 쪽 슛 길에 섬 (C.78h)
+[scene laneRight] same=0.983 sameLow=0.717 lat=0.117 gap=1.400 off=0.000 sameOff=0.000 gapOff=1.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉗ 왼발 공격수 같은 자리 — 수비가 레인 반대쪽에 섬 (C.78h)
+[scene laneLeft] same=0.983 sameRight=0.983 lat=0.117 gap=1.400 off=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉘ 레인 막힘 → 공격수가 옆으로 한 번 치고 각도 만듦 (C.78h)
+[scene laneAngle] shoot=0.350 side=0.637 pbHere=0.150 pbThere=0.000 shootOpen=0.988 sideOpen=0.000 sideOff=0.000 shootOff=0.900
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉔ 게겐 대 버스 — 버스가 자기 ⅓ 에서 뺏으면 첫 행동 빠름·뺏긴 팀 늦게 모임·4초 전진 (C.78g)
+[scene gegenBus] adv=10.481 advOff=5.876 fwd=23.214 fwdOff=23.489 first=0.136 firstOff=0.845 near1=0.512 near1Off=2.462 keep=0.700 keepOff=0.850 half=0.400 halfOff=0.237
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉕ 균형 대 균형 — 잃은 팀이 덜 올라와 있으면 전환 순간 효과 작음 (C.78g)
+[scene balancedSwing] adv=5.429 advOff=5.077 fwd=-0.608 fwdOff=0.065 first=0.488 firstOff=0.949 keep=0.838 keepOff=0.887 half=0.725 halfOff=0.738
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉙ 크랙형 윙어 높이 남음 → 상대 풀백 오버래핑 → 그 측면 진입·크로스 (C.78i)
+[scene wingerOverlap] start=0.875 startClassic=0.425 startOff=0.000 flank=0.275 flankClassic=0.100 flankOff=0.050 lbGot=0.225 lbGotClassic=0.050 lbGotOff=0.000 cross=0.075 crossClassic=0.025 crossOff=0.025 lbGap=35.566 lbGapOff=52.614 rwDepth=63.565 rwDepthClassic=57.250
+
+ ✓ tests/scenes/scenes.test.ts (39 tests) 15074ms
+   ✓ 기준 장면 > ⑱ 블록 대 지공 — 버스가 허용하는 슛이 균형 수비보다 뚜렷하게 좋은 찬스가 아니다 (C.78d, C.78e 120시드) 7090ms
+   ✓ 기준 장면 > ⑲ 블록 탈취 뒤 역습 — 지원 인원 버스 1·역습 2, 지원 대상이 앞으로 달림 (C.78d) 731ms
+   ✓ 기준 장면 > ㉒ 펄스 나인 내려옴 → CB 따라감 → 2선 빈자리 침투 패스 (C.78e) 328ms
+   ✓ 기준 장면 > ㉓ 펄스 나인 내려옴 → CB 안 따라감 → 돌아서 전진 (C.78e) 1670ms
+   ✓ 기준 장면 > ㉖ 박스 앞 오른발 공격수 정면 — 수비가 주발로 찰 구석 쪽 슛 길에 섬 (C.78h) 527ms
+   ✓ 기준 장면 > ㉗ 왼발 공격수 같은 자리 — 수비가 레인 반대쪽에 섬 (C.78h) 406ms
+   ✓ 기준 장면 > ㉘ 레인 막힘 → 공격수가 옆으로 한 번 치고 각도 만듦 (C.78h) 693ms
+   ✓ 기준 장면 > ㉔ 게겐 대 버스 — 버스가 자기 ⅓ 에서 뺏으면 첫 행동 빠름·뺏긴 팀 늦게 모임·4초 전진 (C.78g) 730ms
+   ✓ 기준 장면 > ㉕ 균형 대 균형 — 잃은 팀이 덜 올라와 있으면 전환 순간 효과 작음 (C.78g) 666ms
+   ✓ 기준 장면 > ㉙ 크랙형 윙어 높이 남음 → 상대 풀백 오버래핑 → 그 측면 진입·크로스 (C.78i) 531ms
+
+ Test Files  6 passed (6)
+      Tests  58 passed (58)
+   Start at  00:52:34
+   Duration  22.34s (transform 1.20s, setup 0ms, collect 3.96s, tests 34.16s, environment 1ms, prepare 275ms)
+

@@ -1,0 +1,4 @@
+scripts/diag/c82i/cellTB3-960.json: 2칸 × 960경기
+air 3 tikitaka > block -0.150 ± 0.044 n 960
+air 3 tikitaka > block@0020 -0.228 ± 0.046 n 960
+CELLTBDONE 00:56:45

@@ -42,9 +42,22 @@ const PR = ENGINE.prob;
 /** C.82h: ST·CF 발 슛 유효 슈팅 배수 — stFinishShare 1 이면 초과분(stFinish − 1)을 그 팀 필드 위 ST·CF 수로 나눈다(ST 1명 대형 1.2 · 2명 1.1). 판단·실행 같은 값 */
 export function stFinishOf(s: SimState, a: Agent): number {
   if (!PR.stFinishShare) return PR.stFinish;
+  return 1 + (PR.stFinish - 1) / Math.max(1, frontCount(s, a.team));
+}
+/** C.82i: 표준 대형별 유효 슈팅 배수(prob.formFinish) — 프리셋 대형(커스텀 슬롯 없음)만, 표에 없으면 1 */
+export function formFinishOf(s: SimState, team: 0 | 1): number {
+  const t = team === 0 ? s.input.home : s.input.away;
+  if (t.customSlots) return 1;
+  return PR.formFinish[t.formation] ?? 1;
+}
+/** C.82i: 분배 인원 — prob.frontLine > 0 이면 슬롯 x(sx) ≥ frontLine 인 필드 선수 수(최전방 인원), 0 이면 ST·CF 수(C.82h). 판단·실행 같은 값 */
+export function frontCount(s: SimState, team: 0 | 1): number {
   let n = 0;
-  for (let i = 0, f = fieldOf(s, a.team); i < f.length; i++) { const o = f[i]!; if (o.pos === 'ST' || o.pos === 'CF') n++; }
-  return 1 + (PR.stFinish - 1) / Math.max(1, n);
+  for (let i = 0, f = fieldOf(s, team); i < f.length; i++) {
+    const o = f[i]!;
+    if (PR.frontLine > 0 ? o.sx >= PR.frontLine : o.pos === 'ST' || o.pos === 'CF') n++;
+  }
+  return n;
 }
 const TA = ENGINE.tactics;
 const B = ENGINE.ball;
@@ -421,6 +434,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
   if (!header && (a.pos === 'LW' || a.pos === 'RW' || a.pos === 'LM' || a.pos === 'RM')) pOn *= PR.wingFinish;
   // C.82f: ST·CF 발 슛 유효 슈팅 배수 (판단·실행 같은 값)
   if (!header && (a.pos === 'ST' || a.pos === 'CF')) pOn *= stFinishOf(s, a);
+  // C.82i: 표준 대형별 배수(prob.formFinish) — 판단·실행 같은 값
+  pOn *= formFinishOf(s, a.team);
   // 원터치 슛 (C.78b): 판단(미리 정하기)과 실행(다음 틱 shoot)이 같은 배수
   if (!header && !at) pOn *= otOf(s, a);
   // 1대1 보너스 (C.76a, 미해결 12): 헤더가 아니고 슛 길 콘 안 수비 0·pressureDist 안 상대 필드 선수 0 이면 "수비가 없다"는 정확도 가산 (20 m 안, 가까울수록 크게).
@@ -444,6 +459,8 @@ export function shotModel(s: SimState, a: Agent, header = false, at?: { x: numbe
     // 1대1 (C.79x keeper.oneOnOne): 슈터 마무리 · 리그 GK 1대1 능력 — 실행은 gk1 만 실제 GK 로
     fin: t.shooting * 0.5 + t.composure * 0.5,
     gk1: K.oneOnOne.center,
+    // C.82i: 1대1 drop 분배(oneOnOne.share) 인원 — 실행(actions shoot)은 m.ctx 를 그대로 쓴다
+    front: frontCount(s, a.team),
   };
   // 빈 골 (C.77z): 가운데로 차도 GK 가 못 닿으면 구석을 노릴 필요가 없다 — 유효 슈팅 확률이 openOn 쪽으로
   // C.78n: 빈 골 보정은 거리로 줄어든다 (먼 거리 가운데 슛은 빈 골이어도 빗나간다, openSpan 0 = 꺼짐)

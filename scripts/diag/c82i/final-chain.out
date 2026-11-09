@@ -1,0 +1,14 @@
+start 23:50:59
+quick done 23:52:06 1.52 ST 35
+dist done 23:52:31 60시드 경기별 최다 평균 13.802 km · 한 선수 최다 14.95 km
+mx41 done 00:10:53
+mx51 done 00:29:18
+scripts/diag/c82i-960.json: 21칸 × 960경기
+merge done 00:29:18
+wing done 00:36:19
+custom done 00:38:30
+trans done 00:41:16
+test done 00:45:28 rc=0 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯  Test Files  2 failed | 199 passed (201)       Tests  2 failed | 1606 passed (1608) 
+echeck done 00:49:58 rc=0
+build done 00:50:04 rc=0
+CHAINDONE

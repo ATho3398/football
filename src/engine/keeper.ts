@@ -92,6 +92,8 @@ export interface ShotCtx {
   fin?: number;
   /** 1대1 GK 능력 (C.79x): 선방 0.5 + 출전 범위 0.25 + 민첩 0.25 (판단 = 리그 값 oneOnOne.center). 없으면 center */
   gk1?: number;
+  /** C.82i: 슈터 팀 최전방 인원(onball frontCount) — oneOnOne.share 가 drop 을 분배한다. 없으면(프리킥) 2명 = 분배 없음 */
+  front?: number;
 }
 
 /** GK 반응 시간 (초, C.77z): reactBase − reactSkill × (선방 − saveCenter)/100, 0 아래는 0 */
@@ -158,7 +160,9 @@ export function oneOnOneAdj(c: ShotCtx): number {
   if (c.header || c.press3 > 0 || near < O.freeR || c.d >= O.maxD) return 0;
   const g = c.gk1 ?? O.center;
   const f = c.fin ?? O.finCenter;
-  return -O.drop + (O.gk * (g - O.center)) / 100 - (O.fin * (f - O.finCenter)) / 100;
+  // C.82i: drop 을 팀 최전방 인원으로 분배 — 2명 대형 그대로, 1명 대형 (1 + share), 3명 (1 − share) (인원 1~4 로 잘라 커스텀 몰빵 대형도 음수 안 됨)
+  const mul = O.share && c.front !== undefined ? 1 + O.share * (2 - Math.min(4, Math.max(1, c.front))) : 1;
+  return -O.drop * mul + (O.gk * (g - O.center)) / 100 - (O.fin * (f - O.finCenter)) / 100;
 }
 
 /**

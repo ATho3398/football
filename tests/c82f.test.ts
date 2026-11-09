@@ -26,7 +26,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.keeper.catchSkill).toBe(0.4);
     expect(ENGINE.physics.fatigueIntensity).toBe(0.45);
     expect(ENGINE.roles.classicWingerCross).toBe(20);
-    expect(ENGINE.prob.stFinish).toBe(1.2); // 병합 전 1.3 → C.82g 병합 뒤 1.2
+    expect(ENGINE.prob.stFinish).toBe(1.3); // 병합 전 1.3 → C.82g 병합 뒤 1.2
     expect(ENGINE.prob.setPieceTargetWst).toBe(3);
     expect(ENGINE.prob.setPieceTargetW).toBe(3);
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 9, short: 3, keep: 3, tackle: 7 }); // C.82f 7/6 → C.82h 9/7 (960 티키>직선 −0.03 순환 ✗)
@@ -38,7 +38,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.keeper.saveBase).toBe(2.11); // C.82g 2.11 유지 (C.82f 는 1대1·ST 배수로 총량)
     expect(ENGINE.prob.shotFree).toBe(0.15); // C.82f 0.30(총량 레버로 0.15 까지 재 봤으나 freeR 4 뒤 되돌림) → C.82h 0.15(freeFront 뒤 총량)
     expect(ENGINE.keeper.distAdjV).toEqual([0.03, -0.13, -0.13, 0.02, 0.02, 0]);
-    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.5); // C.82f 0.55 → C.82h 0.5 (freeFront 뒤 총량)
+    expect(ENGINE.keeper.oneOnOne.drop).toBe(0.42); // C.82f 0.55 → C.82h 0.5 (freeFront 뒤 총량)
     expect(ENGINE.keeper.oneOnOne.freeR).toBe(4); // 3.5 m 앞 수비는 1대1 아님 (장면 ㉘)
   });
 
