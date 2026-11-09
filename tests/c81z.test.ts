@@ -26,7 +26,7 @@ describe('C.81z 게겐 축 정리', () => {
     expect(ENGINE.matchup.gegenpress!.balanced).toEqual({ tackle: 2, air: 13 }); // C.82h: 공중 10 (균형>게겐 +0.24 → +0.12, 태클은 레버 죽음) · C.82k: 13 (풀백 라인 비례 뒤 +0.23 → +0.11)
     expect(ENGINE.matchup.gegenpress!.counter).toEqual({ tackle: 4, air: 2 }); // C.82l: 8/6 → 4/2 (게겐 전용 비용 뒤 게겐>역습 +0.10 → −0.11) · C.82h: 6/4 → 8/6 (역습>게겐 +0.26 → +0.12) · C.82f: 3/2 → 6/4 (C.82g 병합 뒤 역습>게겐 +0.35)
     expect(ENGINE.matchup.gegenpress!.direct).toEqual({ tackle: 3, air: 3, keep: 2 }); // C.82l: 5/4 → 3/3 (게겐>직선 +0.04 → −0.07) · C.81t 5/4
-    expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -6, air: -2 }); // C.82j: −10/−6 → −6/−2 (공 쪽 풀백 전방 잔류 뒤 게겐>티키 +0.11 → +0.27). C.82b 병합 뒤 −10/−8 +0.15 → −7/−5 +0.23 → C.82e −9/−6 → C.82g −10/−7 (+0.31 → +0.20~0.30) → C.82e 가담자 압박 거리로 +0.37 이 돼 −9/−6 +0.23
+    expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -9, air: -5 }); // C.82l: −6/−2 → −9/−5 (게겐 전용 비용 뒤 게겐>티키 +0.50 → +0.27) · C.82j: −10/−6 → −6/−2 (공 쪽 풀백 전방 잔류 뒤 게겐>티키 +0.11 → +0.27). C.82b 병합 뒤 −10/−8 +0.15 → −7/−5 +0.23 → C.82e −9/−6 → C.82g −10/−7 (+0.31 → +0.20~0.30) → C.82e 가담자 압박 거리로 +0.37 이 돼 −9/−6 +0.23
     expect(TENDENCY.gegenPressBreakMul).toBe(1); // 끔 (×1.5·3·5 모두 8초 상대 슈팅 무변화 — 부록 C.81z)
     expect(ENGINE.keeper.parryCorner).toBe(0.35); // 0.25 는 리바운드 골 무변화 · 이동 거리·장면 ⑱ ✗ 라 되돌림
     expect(ENGINE.prob.longMiss).toBe(0.54);
