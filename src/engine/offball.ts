@@ -1018,7 +1018,7 @@ export function frontStayFbGap(s: SimState, team: 0 | 1, third: boolean, fb?: Ag
  * roles.classicWingerFbGap m 를 더한다 (음수 = 더 올라가 오버랩 짝, 양수 = 덜 올라가 윙어 공간). 0 = 끔
  */
 export function classicWingerFbGap(s: SimState, fb: Agent): number {
-  const g = ENGINE.roles.classicWingerFbGap;
+  const g: number = ENGINE.roles.classicWingerFbGap;
   if (g === 0) return 0;
   const side = fb.sy < 0.5;
   for (let i_31 = 0, a_31 = onOf(s, fb.team); i_31 < a_31.length; i_31++) { const o = a_31[i_31]!;
