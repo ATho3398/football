@@ -35,6 +35,8 @@ const side = () => ({
   shot15: 0, xg15: 0, ballGain3: 0, numUp3: 0,
   posLoss: {}, posSnap: {},
   lossBandN: [0, 0, 0, 0], lossBandBehind: [0, 0, 0, 0], lossBandShot: [0, 0, 0, 0], lossGk: 0, lossGkBehind: 0, lossWide: 0, lossWideBehind: 0,
+  // C.82j: 70~87 m·GK 제외 상실 순간 공과 잃은 팀 기준 오프사이드 라인(상대 뒤에서 둘째) 거리 — 라인 2 m 안(라인에서 가로채임) 수, 라인 뒤 x 차 합, 잃은 선수 포지션별 수
+  lossLineN: 0, lossAtLine: 0, lossLineD: 0, loserPos: {}, posLossSust: {}, lossSustN: 0, posLossLate: {}, lossLateN: 0, lossEnterDt: 0,
   // 라인 뒤 수신 (탈취 팀이 15 s 창 안 잃은 팀 라인 뒤에서 받음)
   rbN: 0, rbT: 0, rbL3: 0, rbBack: 0, rbFirst: { shot: 0, pass: 0, through: 0, carry: 0, lost: 0, none: 0 }, rbFirstT: 0, rbPassFwd: 0, rbMateShot3: 0, rbD: 0, rbGap: 0, rbGoalSide: 0, rbShot6: 0, rbXg6: 0, rbLost6: 0, rbPass6: 0, rbMinGap: 0, rbDribble: 0,
   // 득실·전체 전환
@@ -56,8 +58,14 @@ for (let k = 0; k < n; k++) {
   let evN = s.events.length;
   let ep: any = null;
   let nextSnap = 0;
+  let lastOwn = -1;
+  let possSince0 = 0;
+  let enterT = -1; // C.82j: 지금 소유에서 공이 상대 ⅓ 에 처음 들어간 시각
   while (!s.done) {
+    if (s.ball.owner >= 0) lastOwn = s.ball.owner;
+    possSince0 = s.possSince;
     sim.step();
+    if (s.possTeam === prevPoss && enterT < 0 && s.possTeam >= 0 && toNorm(s.ball.x, s.ball.y, attackDir(s.possTeam, s.half))[0] >= 2 / 3) enterT = s.t;
     const t = s.t;
     const shots: any[] = [];
     for (; evN < s.events.length; evN++) {
@@ -202,17 +210,26 @@ for (let k = 0; k < n; k++) {
           const winner = s.ball.owner;
           if (band <= 1 && !gk) {
             const S0 = loser === meT ? R.me : R.op;
+            { const lineL = offsideLine(s, loser); S0.lossLineN++; S0.lossLineD += (lineL - bnx) * L; if ((lineL - bnx) * L <= 2) S0.lossAtLine++;
+              const lp = s.lastPass; const lo = lp && s.t - lp.t < 1.5 ? s.agents[lp.passer] : null; const key = lastOwn >= 0 && s.agents[lastOwn].team === loser ? s.agents[lastOwn].pos + (lo && lo.team === loser && lo.idx === lastOwn ? '패스' : '') : '?'; S0.loserPos[key] = (S0.loserPos[key] ?? 0) + 1; }
+            const sust = t - possSince0 >= 6; // C.82j: 지속 공격(소유 6 s 이상) 분리
+            if (sust) S0.lossSustN++;
+            const late = enterT >= 0 && t - enterT >= 3; // C.82j: 상대 ⅓ 진입 뒤 3 s 이상 지난 상실
+            if (late) S0.lossLateN++; if (enterT >= 0) S0.lossEnterDt += t - enterT;
             for (const a of s.agents) {
               if (!a.onPitch || a.line === 0 || a.team !== loser) continue;
               const [ax] = toNorm(a.x, a.y, dir);
               const P = (S0.posLoss[a.pos] ??= [0, 0, 0, 0]); // n, behind, sum offset m, running
               P[0]++; if (ax < bnx) P[1]++; P[2] += (ax - bnx) * L; if (t < a.runUntil) P[3]++;
+              if (sust) { const Q = (S0.posLossSust[a.pos] ??= [0, 0, 0, 0]); Q[0]++; if (ax < bnx) Q[1]++; Q[2] += (ax - bnx) * L; }
+              if (late) { const Q = (S0.posLossLate[a.pos] ??= [0, 0, 0, 0]); Q[0]++; if (ax < bnx) Q[1]++; Q[2] += (ax - bnx) * L; }
             }
           }
           ep = { dumpIdx: -1, dumpNext: 0, dumpUntil: 0, winner, band, gk, wide, rb: null, loser, opp, t0: t, half: s.half, behind, bl, ahead, tgtAhead, oppAhead, lossX: bnx * L, lineAtLoss: (1 - lineW0) * L, lineW0, bxW0, beyondMax: 0, runnersMax: 0, fp: null, shot15: false, xg15: 0, g3: false, ballGain3: 0, numUp3: 0 };
         }
       }
       prevPoss = s.possTeam;
+      enterT = -1;
     }
     // 전환 슛(같은 소유 15 s, 전 구역) 은 em28 이 재므로 여기선 생략
   }

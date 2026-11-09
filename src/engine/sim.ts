@@ -164,7 +164,7 @@ export function createState(input: EngineInput): SimState {
     bsx: L / 2, bsy: W / 2,
     teams: setups.map((setup, team) => ({
       setup: { teamId: setup.teamId, tactics: setup.tactics, rating: setup.rating },
-      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, coverUntil: 0, coverAgent: -1, gkChase: false, parryT: -100, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
+      tactics: { ...setup.tactics }, stats: emptyTeamStats(), phase: 0, subsLeft: 3, counterUntil: 0, counterPressers: [] as number[], wonAt: -100, lostAt: -100, lineAtLoss: -1, brokeAt: -100, frontFbSide: 0 as -1 | 0 | 1, coverUntil: 0, coverAgent: -1, gkChase: false, parryT: -100, cutFlight: null, cutIdx: -1, sit: '-' as const, sitSince: 0, sitCand: '-' as const, sitCandSince: 0,
       fit: fitGaps(agents.filter((a) => a.team === team && a.onPitch && !a.gk).map((a) => ({ attrs: a.spec.attrs, pos: a.pos }))),
       stackOver: stackOver(agents.filter((a) => a.team === team && a.onPitch).map((a) => a.pos)),
       centralMids: agents.filter((a) => a.team === team && a.onPitch && a.line === 2 && Math.abs(a.sy - 0.5) <= ENGINE.formation.midCentralY).length,

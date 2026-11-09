@@ -974,8 +974,53 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
       urgent = true;
     }
   }
-  void bny;
+  // 공격 국면 전방 잔류 (C.82j): 동료가 상대 ⅓ 에서 공을 갖고 있으면 ST·CF 와 플랫 4 의 측면 미드(LM·RM)는 공보다 앞, 공 쪽 풀백·윙백 1명은 공 높이까지 — 목표 x 의 바닥만 올린다(오프사이드 라인 1 m 안쪽 상한)
+  // 윙어(LW·RW)는 뺀다: 4-2-3-1(슬롯 0.58)·4-3-3 의 윙어는 공 뒤에서 연결하는 몫이라 바닥을 올리면 그 대형 득점이 −0.2 (상호표 4-2-3-1 행 −0.03 → −0.17)
+  // 우리 패스가 날아가는 중이면 받는 선수를 소유자로, 도착점을 공으로 본다 (패스마다 자리를 놓고 내려가지 않게 — 측면 도착 wOwner 와 같은 규칙)
+  const fOwner = wOwner && wOwner.team === a.team && wOwner !== a ? wOwner : null;
+  const fbx = owner ? bnx : fl ? normX(fl.toX, dir) : bnx;
+  const fby = owner ? bny : fl ? normY(fl.toY, dir) : bny;
+  if (O.frontStay > 0 && fOwner && fbx >= O.frontStayFbFromX) {
+    const cap = line - 1 / L;
+    let floor = -1;
+    const third = fbx >= O.frontStayFromX;
+    if (third && (a.pos === 'ST' || a.pos === 'CF' || (O.frontStayWide > 0 && (a.pos === 'LM' || a.pos === 'RM'))) && a.role.drop < O.frontStayDrop) floor = Math.min(cap, fbx + O.frontStayAhead / L);
+    // 공 쪽 풀백: 가운데 ⅓ 에서는 공 frontStayFbTrail m 뒤를 따라오다가(미리 올라와 있어야 상대 ⅓ 에서 공 높이에 닿는다) 상대 ⅓ 에서는 공 − frontStayFbBehind m
+    else if (!running && FB_POS.has(a.pos) && !hasModule(a.role, 'between')) {
+      const fbSide = frontStayFb(s, a, dir, fbx, fby);
+      if (fbSide === 1) floor = Math.min(cap, fbx - (third ? O.frontStayFbBehind : O.frontStayFbTrail) / L);
+      else if (fbSide === 2 && O.frontStayFbFar > 0) floor = Math.min(cap, fbx - O.frontStayFbFar / L);
+    }
+    if (floor > nx) {
+      if ((floor - normX(a.x, dir)) * L > O.frontStayUrgent) urgent = true;
+      nx = floor;
+    }
+  }
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/**
+ * 전방 잔류 풀백 (C.82j): 1 = a 가 공 쪽 측면 풀백, 2 = 반대쪽 풀백, 0 = 안 올라감.
+ * 공 쪽은 팀 상태 frontFbSide — 공 y 가 중앙 띠(|y − 0.5| ≥ frontStayFlip) 밖으로 나갔을 때만 그쪽으로 바뀐다(가운데를 오가는 공에 두 풀백이 번갈아 뛰지 않게; 아직 0 이면 공 y 부호).
+ * 남은 수비(같은 줄 다른 수비 + CDM, 공보다 우리 골 쪽 — 뒤에 남은 반대쪽 풀백도 센다)가 높이 남은 상대 최전방 줄(줄 3, 공보다 우리 골 쪽) + frontStayRest 보다 적으면 0.
+ * 같은 측면 풀백이 여럿이면(커스텀) s.agents 순서 첫 번째만
+ */
+export function frontStayFb(s: SimState, a: Agent, dir: 1 | -1, bnx: number, bny: number): 0 | 1 | 2 {
+  const tm = s.teams[a.team];
+  if (Math.abs(bny - 0.5) >= O.frontStayFlip || tm.frontFbSide === 0) tm.frontFbSide = bny < 0.5 ? -1 : 1;
+  const mySide = a.sy < 0.5 ? -1 : 1;
+  let rest = 0;
+  let high = 0;
+  for (let i_30 = 0, a_30 = s.agents; i_30 < a_30.length; i_30++) { const o = a_30[i_30]!;
+    if (!o.onPitch || o.line === 0) continue;
+    if (o.team === a.team) {
+      if (o === a) continue;
+      if (FB_POS.has(o.pos) && (o.sy < 0.5 ? -1 : 1) === mySide && o.idx < a.idx) return 0;
+      if ((o.line === 1 || o.pos === 'CDM') && normX(o.x, dir) < bnx) rest++;
+    } else if (o.line === 3 && normX(o.x, dir) < bnx) high++;
+  }
+  if (rest < high + O.frontStayRest) return 0;
+  return mySide === tm.frontFbSide ? 1 : 2;
 }
 
 const FB_POS = new Set(['LB', 'RB', 'LWB', 'RWB']);

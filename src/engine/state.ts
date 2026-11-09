@@ -290,6 +290,8 @@ export interface TeamState {
   lostAt: number;
   lineAtLoss: number;
   brokeAt: number;
+  /** 전방 잔류 풀백 쪽 (C.82j): 공이 중앙 띠(frontStayFlip)를 벗어난 쪽으로만 바뀐다 (−1 왼쪽 · 1 오른쪽 · 0 아직) */
+  frontFbSide: -1 | 0 | 1;
   /** 돌파 후 커버 (E.22 A): 이 시각까지 이 선수가 돌파한 상대의 진행 방향을 막는다 */
   coverUntil: number;
   coverAgent: number;

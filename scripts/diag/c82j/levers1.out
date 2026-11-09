@@ -1,0 +1,41 @@
+## E1 formation.attackShift.1=0.3 01:13:41
+  == E1 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 508(경기당 25.4) · 공 뒤 인원 7.40 · ST 50% · 측면(LM/RM/LW/RW) 49% · CM(CM/CAM/CDM) 79% · FB 93% · CB 98%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 50% 0.5m · RM 47% -3.2m · LM 51% -4.0m · CM 79% -11.2m · LB 93% -18.8m · RB 94% -19.1m · CB 98% -24.8m
+  == E1 op(balanced) 경기 20 · 70~87 m GK 제외 상실 418(경기당 20.9) · 공 뒤 인원 7.77 · ST 52% · 측면(LM/RM/LW/RW) 56% · CM(CM/CAM/CDM) 86% · FB 95% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 52% 0.6m · LM 56% -2.6m · RM 57% -3.0m · CM 86% -10.6m · LB 94% -13.5m · RB 95% -13.8m · CB 99% -23.5m
+## E2 offball.runChance=0.14 01:13:56
+  == E2 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 564(경기당 28.2) · 공 뒤 인원 7.99 · ST 57% · 측면(LM/RM/LW/RW) 63% · CM(CM/CAM/CDM) 84% · FB 97% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 57% -0.8m · LM 63% -8.0m · RM 62% -8.4m · CM 84% -14.2m · LB 97% -30.6m · RB 97% -30.8m · CB 99% -39.6m
+  == E2 op(balanced) 경기 20 · 70~87 m GK 제외 상실 499(경기당 25.0) · 공 뒤 인원 8.03 · ST 56% · 측면(LM/RM/LW/RW) 61% · CM(CM/CAM/CDM) 87% · FB 98% · CB 100%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 56% -0.2m · RM 64% -6.5m · LM 59% -6.5m · CM 87% -13.4m · RB 98% -28.0m · LB 98% -28.3m · CB 100% -39.3m
+## E3 offball.checkDist=0 01:14:09
+  == E3 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 565(경기당 28.3) · 공 뒤 인원 7.86 · ST 54% · 측면(LM/RM/LW/RW) 59% · CM(CM/CAM/CDM) 84% · FB 98% · CB 98%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 54% 0.2m · RM 58% -6.3m · LM 61% -7.0m · CM 84% -13.4m · LB 98% -30.0m · RB 99% -30.1m · CB 98% -38.5m
+  == E3 op(balanced) 경기 20 · 70~87 m GK 제외 상실 483(경기당 24.1) · 공 뒤 인원 7.77 · ST 51% · 측면(LM/RM/LW/RW) 57% · CM(CM/CAM/CDM) 84% · FB 97% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 51% 1.2m · RM 57% -4.5m · LM 58% -4.6m · CM 84% -11.1m · LB 96% -26.2m · RB 98% -26.3m · CB 99% -37.5m
+## E4 formation.midAttackCap=0.9 01:14:22
+  == E4 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 590(경기당 29.5) · 공 뒤 인원 7.68 · ST 53% · 측면(LM/RM/LW/RW) 55% · CM(CM/CAM/CDM) 81% · FB 97% · CB 98%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 53% -0.3m · LM 55% -5.4m · RM 55% -5.4m · CM 81% -13.1m · RB 97% -27.8m · LB 98% -28.8m · CB 98% -37.9m
+  == E4 op(balanced) 경기 20 · 70~87 m GK 제외 상실 465(경기당 23.2) · 공 뒤 인원 7.92 · ST 55% · 측면(LM/RM/LW/RW) 60% · CM(CM/CAM/CDM) 83% · FB 98% · CB 100%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 55% 0.1m · LM 59% -6.4m · RM 61% -6.5m · CM 83% -12.7m · RB 97% -27.5m · LB 98% -28.2m · CB 100% -38.7m
+## E5 offball.dropDist=0 01:14:36
+  == E5 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 568(경기당 28.4) · 공 뒤 인원 7.62 · ST 53% · 측면(LM/RM/LW/RW) 53% · CM(CM/CAM/CDM) 79% · FB 97% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 53% 0.2m · RM 53% -5.1m · LM 54% -5.2m · CM 79% -11.7m · RB 97% -28.5m · LB 98% -28.7m · CB 99% -37.5m
+  == E5 op(balanced) 경기 20 · 70~87 m GK 제외 상실 517(경기당 25.9) · 공 뒤 인원 7.68 · ST 52% · 측면(LM/RM/LW/RW) 54% · CM(CM/CAM/CDM) 83% · FB 96% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 52% 0.9m · LM 53% -4.4m · RM 55% -4.5m · CM 83% -10.9m · LB 96% -26.0m · RB 97% -26.0m · CB 99% -37.8m
+## E6 offball.wideDepth=0 01:14:50
+  == E6 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 547(경기당 27.4) · 공 뒤 인원 7.56 · ST 52% · 측면(LM/RM/LW/RW) 53% · CM(CM/CAM/CDM) 80% · FB 96% · CB 98%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 52% 0.9m · LM 53% -4.3m · RM 52% -4.4m · CM 80% -12.4m · RB 97% -27.3m · LB 95% -28.3m · CB 98% -37.2m
+  == E6 op(balanced) 경기 20 · 70~87 m GK 제외 상실 475(경기당 23.7) · 공 뒤 인원 7.87 · ST 54% · 측면(LM/RM/LW/RW) 58% · CM(CM/CAM/CDM) 84% · FB 97% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 54% 0.5m · RM 58% -5.1m · LM 59% -5.3m · CM 84% -12.4m · RB 97% -26.9m · LB 97% -27.3m · CB 99% -38.3m
+## E8 formation.midAttackCap=0.9 formation.attackShift.2=0.4 01:15:05
+  == E8 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 558(경기당 27.9) · 공 뒤 인원 7.44 · ST 54% · 측면(LM/RM/LW/RW) 52% · CM(CM/CAM/CDM) 69% · FB 97% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 54% -0.3m · LM 51% -5.1m · RM 53% -5.5m · CM 69% -9.5m · LB 97% -29.4m · RB 98% -29.6m · CB 99% -38.5m
+  == E8 op(balanced) 경기 20 · 70~87 m GK 제외 상실 481(경기당 24.0) · 공 뒤 인원 7.18 · ST 48% · 측면(LM/RM/LW/RW) 51% · CM(CM/CAM/CDM) 64% · FB 97% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 48% 1.2m · LM 51% -3.4m · RM 50% -3.4m · CM 64% -6.3m · RB 97% -26.5m · LB 98% -26.7m · CB 99% -37.6m
+## E9 offball.fbOverlapChance=1 offball.fbOverlapSeconds=10 01:15:19
+  == E9 me(gegenpress) 경기 20 · 70~87 m GK 제외 상실 538(경기당 26.9) · 공 뒤 인원 7.46 · ST 54% · 측면(LM/RM/LW/RW) 52% · CM(CM/CAM/CDM) 78% · FB 89% · CB 98%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 54% 0.0m · LM 52% -5.3m · RM 52% -5.6m · CM 78% -11.1m · LB 88% -25.4m · RB 91% -26.1m · CB 98% -37.9m
+  == E9 op(balanced) 경기 20 · 70~87 m GK 제외 상실 475(경기당 23.8) · 공 뒤 인원 7.83 · ST 53% · 측면(LM/RM/LW/RW) 61% · CM(CM/CAM/CDM) 87% · FB 91% · CB 99%
+     상실 포지션별 공 뒤 % · 평균 x 차 m: ST 53% 0.4m · RM 62% -6.7m · LM 61% -6.9m · CM 87% -13.4m · LB 89% -24.7m · RB 92% -26.1m · CB 99% -38.7m
+LEVERDONE

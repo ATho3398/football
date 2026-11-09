@@ -3,7 +3,7 @@
 
 import type { Formation } from '../formations';
 
-export const ENGINE_VERSION = 106;
+export const ENGINE_VERSION = 107;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -278,7 +278,7 @@ export const ENGINE = {
   formation: {
     /** 줄별 x 시프트: [GK, 수비, 중원, 공격] */
     defendShift: [0, -0.06, -0.08, -0.1] as [number, number, number, number],
-    attackShift: [0, 0.14, 0.25, 0.1] as [number, number, number, number],
+    attackShift: [0, 0.14, 0.25, 0.1] as [number, number, number, number], // C.82j: 수비 줄 0.25 를 재봤다(공 뒤 인원 60경기 7.77 → 7.68, 전방 잔류와 함께 7.48) — 표준 대형 상호표에서 ST 2명 대형이 모두 이득(5-3-2>3-4-3 +0.59, 4-2-3-1>4-1-4-1 +0.21 → −0.07)이라 되돌림
     /**
      * C.82e ⑤ (엔진관리자28 처방 ⑤): 공격 국면(우리 소유, phase > 0) 수비 줄 x += attackLineK × (lineHeight − 0.5) × phase — 지금까지 공격 국면 수비 줄은 라인 높이를
      * 전혀 안 봐서 게겐·티키(라인 0.65)와 균형(0.5)의 소유 중 오프사이드 라인이 40.1 대 40.9 m 로 같았다. 0.6 = 높음 +0.09(약 9 m 슬롯, 실측 라인 +4 m), 매우 낮음 −0.18. 0 = 끔.
@@ -737,6 +737,34 @@ export const ENGINE = {
     wideFromX: 0.45,
     /** 넓게 머무는 자리의 깊이: 오프사이드 라인 wideDepth m 뒤 (윙어처럼 마지막 줄을 잡는다) */
     wideDepth: 2,
+    /**
+     * 공격 국면 전방 잔류 (C.82j, 엔진 묶음 F4): 동료 소유자가 공을 상대 ⅓(공 x ≥ frontStayFromX, 정규화)에서 갖고 있을 때
+     * ① ST·CF 와 플랫 4 의 측면 미드(LM·RM)는 드롭 역할(drop ≥ frontStayDrop — 펄스 나인·타깃맨 제외 안 됨(0.3)·엔간체 등)이 아니면 목표 x 를 공보다 frontStayAhead m 앞 이상으로
+     *    (윙어 LW·RW 는 제외 — 4-2-3-1 슬롯 0.58·4-3-3 0.7 의 윙어는 공 뒤에서 연결하는 몫이라 바닥을 올리면 그 대형 득점 −0.2)
+     *    (오프사이드 라인 1 m 안쪽 상한) — 받으러 나오기(check)·지원 간격·드롭으로 공 뒤까지 내려온 자리만 올린다(침투·최종 ⅓ 역할·측면 도착 자리는 이미 앞)
+     * ② 공 쪽 풀백·윙백 1명(LB/RB/LWB/RWB 중 공과 같은 측면, 줄 사이 역할 제외, 침투·오버래핑 중 아님)은 목표 x 를 공 − frontStayFbBehind m 이상으로(공 높이까지 올라온다) —
+     *    공이 가운데 ⅓(x ≥ frontStayFbFromX)이면 공 frontStayFbTrail m 뒤를 따라와 미리 올라와 있는다(슬롯에서 출발하면 25~30 m 라 상실 전에 못 닿는다).
+     *    반대쪽 풀백은 frontStayFbFar > 0 이면 공 그만큼 뒤까지(0 = 규칙 없음, 슬롯대로). 공 쪽은 공 y 가 중앙 띠(|y − 0.5| ≥ frontStayFlip) 밖으로 나갔을 때만 바뀐다(팀 상태 frontFbSide).
+     *    둘 다 남은 수비(같은 줄 다른 수비 + CDM, 공보다 우리 골 쪽) ≥ 높이 남은 상대 최전방 줄(줄 3, 공보다 우리 골 쪽) + frontStayRest 일 때만
+     *    (오버래핑 조건과 같되 상대 중원 블록은 안 센다; 여유 1 = 상대 ST 2명이면 뒤에 3명(반대쪽 풀백 + CB 2)이 남아야 하므로 공 쪽 1명만 올라간다 — 여유 0 은 ST 2명 대형이 상호표에서 일괄 이득(5-3-2 행 +0.10 → +0.29))
+     * 우리 패스가 날아가는 중이면 받는 선수를 소유자로, 도착점을 공으로 본다(패스마다 자리를 놓고 내려가지 않게)
+     * 올릴 거리가 frontStayUrgent m 를 넘으면 전력으로. 0 = 끔. 출하는 ② 풀백만(frontStayDrop 0 · frontStayWide 0) — ① 은 표준 대형 상호표를 깨고 지표를 안 움직여 레버로만 남김
+     * C.82g 가 남긴 "상대 ⅓ 상실 시 공 뒤 인원" — 70~87 m·GK 제외 새 정의 기준 7.77(게겐 60경기): 수치 레버(수비 줄 공격 시프트 ×2 −0.1~−0.3 · 침투 ×4 +0.3 · 받으러 나오기 끔 +0.2 · 중원 상한 0 · 드롭 끔 −0.06 · 측면 깊이 0 −0.12)로는 0.3 안.
+     * 풀백 간격은 trail 10·far 15·behind 0 이 −0.05, trail 3·far 8·behind −3(공보다 3 m 앞 = 오버랩 자리) + 수비 줄 시프트 0.25 가 −0.29(7.48). 상실의 58% 가 상대 ⅓ 진입 3 s 안(직행 공을 ST 가 받자마자 잃음 — ST 가 잃은 선수의 41%)이라
+     * 팀이 아직 올라오기 전이고, 진입 3 s 뒤 상실만 보면 6.69 → 6.36(ST 43 · 측면 34 · CM 67 · FB 94 → 80 %) 로 실제 축구 짐작(ST 20~30 · 측면 35~40 · CM 75 · FB 85)에 가깝다
+     */
+    frontStay: 1,
+    frontStayFromX: 0.667,
+    frontStayAhead: 2,
+    frontStayDrop: 0, // 0 = ① 끔(출하). 0.5 로 켜면 ST·CF 바닥 — 공 뒤 인원은 안 움직이고(ST 55 → 54 %) ST 1명 대형 득점이 −0.1(4-2-3-1>4-1-4-1 +0.21 → +0.09, 6쌍 400경기)
+    frontStayWide: 0, // 1 = 플랫 4 의 LM·RM 도 ① 바닥 — 측면 54 % 로 −3 %p 뿐이고 4-4-2·4-1-4-1 이 5-3-2·3-5-2 에 +0.2~0.3 더 지게 됨(전환에 측면 미드가 늦음) → 0
+    frontStayFbBehind: -3,
+    frontStayFbFromX: 0.45,
+    frontStayFbTrail: 3,
+    frontStayFbFar: 0, // 0 = 반대쪽 풀백 규칙 없음 (8·15 는 ST 2명 대형이 1명 대형 상대로 일괄 이득 — 상대 ST 수에 따라 풀백 2명이 올라가는 비대칭)
+    frontStayFlip: 0.12,
+    frontStayRest: 1,
+    frontStayUrgent: 5,
     wideLate: 1,
     overlapAhead: 8,
     underlapAhead: 6,
@@ -1321,7 +1349,7 @@ export const ENGINE = {
     /** 배수를 곱한 유효 슈팅 확률 상한 */
     shotCap: 0.9,
     /** C.31: 패스 곡선 뒤 유효 슈팅 약 4.2 로 0.71 → 0.665 (선방 saveBase 와 묶음, pending 24 ②). C.78p: 0.665 → 0.62 — 판단 보정과 짝(0.58·0.60 은 장면 ④ 1대1 골 < 0.25) */
-    shotBase: 0.61, // C.82i: 0.62 → 0.61 — 총량 레버(drop 0.42 위에서 quick 600 1.56 → 1.52; 0.60 은 1.45). 장면 ④ 1대1 골은 ST 배수 1.15(2명 대형) 덕에 0.253 → 0.3 대라 여유
+    shotBase: 0.63, // C.82j: 0.61 → 0.63 — 공 쪽 풀백 전방 잔류 뒤 quick 1200 1.46 → 1.49 (1대1 drop 0.48 도 1.49 이지만 ST 38 로 상한 쪽이라 shotBase) // C.82i: 0.62 → 0.61 — 총량 레버(drop 0.42 위에서 quick 600 1.56 → 1.52; 0.60 은 1.45). 장면 ④ 1대1 골은 ST 배수 1.15(2명 대형) 덕에 0.253 → 0.3 대라 여유
     shotPerM: 0.015,
     shotPressure: 0.15,
     /**
