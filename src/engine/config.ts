@@ -3,7 +3,7 @@
 
 import type { Formation } from '../formations';
 
-export const ENGINE_VERSION = 108;
+export const ENGINE_VERSION = 109;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──

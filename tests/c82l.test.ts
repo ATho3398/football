@@ -34,12 +34,12 @@ const TW = TENDENCY as unknown as { gegenFirstPass: number; gegenBreakDelay: num
 const RW = ENGINE.roles as unknown as { classicWingerFbGap: number };
 
 describe('C.82l 묶음 F6: 게겐 전용 비용 · 재탈취 · 정통 윙어', () => {
-  it('상수: 엔진 109 · 첫 패스 압박 __FP__ (창 2 s) · 복귀 지연 __BD__ s · 라인 유지 연장 __LH__ s · 정통 윙어 쪽 풀백 __FBG__ m', () => {
+  it('상수: 엔진 109 · 첫 패스 압박 0.04 (창 2 s) · 복귀 지연 0 s(레버만) · 라인 유지 연장 3 s · 정통 윙어 쪽 풀백 __FBG__ m', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(109);
-    expect(TENDENCY.gegenFirstPass).toBe(__FP__);
+    expect(TENDENCY.gegenFirstPass).toBe(0.04);
     expect(TENDENCY.gegenFirstPassWin).toBe(2);
-    expect(TENDENCY.gegenBreakDelay).toBe(__BD__);
-    expect(TENDENCY.gegenLineHoldExtra).toBe(__LH__);
+    expect(TENDENCY.gegenBreakDelay).toBe(0);
+    expect(TENDENCY.gegenLineHoldExtra).toBe(3);
     expect(ENGINE.roles.classicWingerFbGap).toBe(__FBG__);
   });
 
@@ -125,6 +125,6 @@ describe('C.82l 묶음 F6: 게겐 전용 비용 · 재탈취 · 정통 윙어', 
     const b = fp(sim('balanced', 'balanced', 19, true).runToEnd());
     expect(fp(sim('balanced', 'balanced', 19, true).runToEnd())).toBe(b);
     const g = RW.classicWingerFbGap;
-    try { RW.classicWingerFbGap = 0; expect(fp(sim('balanced', 'balanced', 19, true).runToEnd())).not.toBe(b); } finally { RW.classicWingerFbGap = g; }
+    if (g !== 0) { try { RW.classicWingerFbGap = 0; expect(fp(sim('balanced', 'balanced', 19, true).runToEnd())).not.toBe(b); } finally { RW.classicWingerFbGap = g; } }
   });
 });

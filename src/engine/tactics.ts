@@ -211,7 +211,7 @@ export const TENDENCY = {
    * gegenFirstPass × 역압박 가담자 수(창 안, 상한 gegenMax)를 뺀다 — 판단(후보 확률)·실행(같은 p 로 굴림) 같은 값. 가담 인원·창·거리 레버가 5 s 재탈취를 못 움직인 이유(상대 첫 패스가
    * 잃은 뒤 0.7~0.8 s 에 나가 가담자가 닿기 전)라 첫 패스 자체에 가담자 수를 건다. 0 = 끔
    */
-  gegenFirstPass: 0,
+  gegenFirstPass: 0.04,
   gegenFirstPassWin: 2,
   /**
    * 게겐 역압박 뚫린 뒤 가담자 복귀 지연 초 (C.82l — 부록 C.82k 안 된 것 ①, 게겐 전용 비용): 뚫림(pressBreak)이 확정되면 가담자는 바로 다시 판단하는 대신
@@ -221,7 +221,7 @@ export const TENDENCY = {
   /**
    * 게겐 역압박 뚫린 뒤 라인 유지 연장 초 (C.82l, 같은 뿌리): 뚫린 뒤에도 수비 줄이 잃는 순간의 높이(lineHold 상한)에서 이만큼 더 안 내려온다 — 뒤 공간을 게겐만 더 내준다. 0 = 끔
    */
-  gegenLineHoldExtra: 0,
+  gegenLineHoldExtra: 3,
   gegenWinMul: 1.08,
   gegenWinTime: 4,
   /**
