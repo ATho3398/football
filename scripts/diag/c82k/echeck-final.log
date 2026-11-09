@@ -1,0 +1,4 @@
+
+> football-career@0.1.0 balance:engine:check
+> vite-node scripts/balance-engine.ts -- --light --check
+
