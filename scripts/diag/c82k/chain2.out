@@ -1,0 +1,4 @@
+test rc=1 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯  Test Files  4 failed | 199 passed (203)       Tests  4 failed | 1613 passed (1617) 
+echeck rc=0
+build rc=0
+CHAIN2DONE

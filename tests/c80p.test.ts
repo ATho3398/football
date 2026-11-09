@@ -22,7 +22,7 @@ describe('C.80p 상대 성향별 보정', () => {
   it('표: 티키 → 직선 칸만 공중·짧은 패스·공 지키기·태클 +2 (능력치 점수), 티키 행은 그 칸과 게겐 칸(C.80t) (C.80w 롱패스 칸은 c80w 테스트)', () => {
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 9, short: 3, keep: 3, tackle: 7 }); // C.82h: 공중 9 · 태클 7 (960 티키>직선 −0.03 순환 ✗) · C.82g 2 → 3 · C.82f: 공중 → 7 · 태클 → 6 (C.82g 병합 뒤 960 티키>직선 0.00) (티키>직선 −0.01 → +0.055)
     expect(Object.keys(ENGINE.matchup).sort()).toEqual(['balanced', 'block', 'bus', 'counter', 'direct', 'gegenpress', 'tikitaka']); // C.81s: 게겐 → 직선 칸 · C.82h: 역습 → 블록 칸 · C.82i: 버스 전용 키 bus
-    expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct', 'counter', 'block', 'gegenpress']); // C.80t: 티키 → 게겐 칸 추가 · C.82f: 티키 → 역습 칸 · C.82h: 티키 → 블록 칸
+    expect(Object.keys(ENGINE.matchup.tikitaka!)).toEqual(['direct', 'counter', 'block', 'gegenpress', 'balanced']); // C.80t: 티키 → 게겐 칸 추가 · C.82f: 티키 → 역습 칸 · C.82h: 티키 → 블록 칸 · C.82k: 티키 → 균형 칸
   });
 
   it('티키가 직선을 상대할 때만 걸리고 반대쪽(직선 팀)·다른 상대에는 0', () => {
