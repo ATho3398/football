@@ -39,7 +39,7 @@ describe('C.81z 게겐 축 정리', () => {
     expect(matchupPts(s1, 1, 'tackle')).toBe(0);
     const s2 = match('gegenpress', 'counter', 3).state;
     expect(matchupPts(s2, 0, 'tackle')).toBe(4); // C.82f 3 → 6 · C.82h 8 · C.82l 4
-    expect(matchupPts(s2, 0, 'air')).toBe(6); // C.82f 2 → 4 · C.82h 6
+    expect(matchupPts(s2, 0, 'air')).toBe(2); // C.82f 2 → 4 · C.82h 6 · C.82l 2
     expect(matchupPts(s2, 1, 'tackle')).toBe(0);
     const s3 = match('block', 'gegenpress', 3).state;
     expect(matchupPts(s3, 0, 'keep')).toBe(0); // C.82g 1 → C.82f 0 (게겐 → 블록 칸으로 옮김)
@@ -49,8 +49,8 @@ describe('C.81z 게겐 축 정리', () => {
     expect(matchupPts(s3, 1, 'air')).toBe(4);
     // 게겐 → 티키: 게겐 쪽 태클 −6·공중 −2(C.82j), 티키 쪽은 짧은 패스·공 지키기 3
     const s5 = match('gegenpress', 'tikitaka', 3).state;
-    expect(matchupPts(s5, 0, 'tackle')).toBe(-6);
-    expect(matchupPts(s5, 0, 'air')).toBe(-2);
+    expect(matchupPts(s5, 0, 'tackle')).toBe(-9); // C.82l −6 → −9
+    expect(matchupPts(s5, 0, 'air')).toBe(-5); // C.82l −2 → −5
     expect(matchupPts(s5, 1, 'short')).toBe(3);
     expect(matchupPts(s5, 1, 'tackle')).toBe(0);
     // 게겐끼리·균형끼리는 0
