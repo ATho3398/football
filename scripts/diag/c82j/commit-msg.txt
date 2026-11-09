@@ -1,4 +1,4 @@
-C.82j: 공격 국면 전방 잔류 — 공 쪽 풀백이 공 높이(+3 m)까지(offball.frontStay, 팀 상태 frontFbSide) · "공 뒤 인원" 70~87 m·GK 제외 재정의(7.77 → 7.71, 진입 3 s 뒤 6.69 → 6.58) · ST·측면 바닥은 레버로만(frontStayDrop 0·frontStayWide 0 — 상호표를 깨고 지표 안 움직임) · formFinish 그대로 · c76w 시드 95~97 · 엔진 107
+C.82j: 공격 국면 전방 잔류 — 공 쪽 풀백이 공 높이(+3 m)까지(offball.frontStay, 팀 상태 frontFbSide) · "공 뒤 인원" 70~87 m·GK 제외 재정의(7.77 → 7.71, 진입 3 s 뒤 6.69 → 6.58) · ST·측면 바닥은 레버로만(frontStayDrop 0·frontStayWide 0 — 상호표를 깨고 지표 안 움직임) · formFinish 그대로(상호표 최대 +0.297 ✓) · shotBase 0.61 → 0.63(quick 1200 1.46 → 1.49, 600 1.50) · 게겐 → 티키 태클 −10 → −6·공중 −6 → −2(960 게겐>티키 +0.11 → +0.27) · 시드 의존 테스트 6개 이동 · 부록 C.82j · 엔진 107
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01YVaigJ8kqi1VR8ofpL5yaT

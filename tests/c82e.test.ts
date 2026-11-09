@@ -33,7 +33,7 @@ describe('C.82e 게겐 뒷공간 비용·재탈취', () => {
     expect(ENGINE.onball.throughSeeSpaceFrom).toBe(40);
     expect(ENGINE.onball.throughSeeSpaceWin).toBe(6);
     expect(TENDENCY.gegenPressReach).toBe(1.5);
-    expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -10, air: -6 }); // C.82g −9/−6 → −10/−7. C.82e: 가담자 압박 거리로 게겐>티키 +0.23 → +0.37 → 칸 감점 −7/−5 → −9/−6 으로 +0.23
+    expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -6, air: -2 }); // C.82j: −10/−6 → −6/−2. C.82g −9/−6 → −10/−7. C.82e: 가담자 압박 거리로 게겐>티키 +0.23 → +0.37 → 칸 감점 −7/−5 → −9/−6 으로 +0.23
   });
 
   it('공격 국면 수비 줄: 라인 높음(0.65)은 매우 낮음(0.2)보다 슬롯 x 가 attackLineK × 0.45 앞, 중원·공격 줄은 그대로', () => {
