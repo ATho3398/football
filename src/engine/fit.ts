@@ -70,9 +70,20 @@ export function fitPts(s: SimState, team: 0 | 1, kind: FitKind): number {
 
 /** 상대 성향별 직접 보정 (C.80p): ENGINE.matchup[우리 성향][상대 성향][kind] 능력치 점수 (없으면 0) */
 export function matchupPts(s: SimState, team: 0 | 1, kind: FitKind): number {
-  const mine = s.teams[team].tactics.tendency;
-  const opp = s.teams[team === 0 ? 1 : 0].tactics.tendency;
-  return ENGINE.matchup[mine]?.[opp]?.[kind] ?? 0;
+  const mt = s.teams[team].tactics;
+  const ot = s.teams[team === 0 ? 1 : 0].tactics;
+  const mine = mt.tendency;
+  const opp = ot.tendency;
+  // C.82i: 버스(block + 라인 매우 낮음) 전용 키 — [bus][상대 bus/성향] → [bus][상대 성향] → [block][상대 bus] → [block][상대 성향]
+  const mk = matchupKey(mt);
+  const ok = matchupKey(ot);
+  const M = ENGINE.matchup;
+  return M[mk]?.[ok]?.[kind] ?? M[mk]?.[opp]?.[kind] ?? M[mine]?.[ok]?.[kind] ?? M[mine]?.[opp]?.[kind] ?? 0;
+}
+
+/** C.82i: 상성 표 키 — 성향 block 이고 수비 라인 < tacticFit.busLine 이면 'bus', 아니면 성향 이름 */
+export function matchupKey(t: { tendency: string; lineHeight: number }): string {
+  return t.tendency === 'block' && t.lineHeight < ENGINE.tacticFit.busLine ? 'bus' : t.tendency;
 }
 
 function fitOnly(s: SimState, team: 0 | 1, kind: FitKind): number {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ENGINE, ENGINE_VERSION } from '../src/engine/config';
 import { oneOnOneAdj, type ShotCtx } from '../src/engine/keeper';
 import { formFinishOf, frontCount, stFinishOf } from '../src/engine/onball';
+import { matchupKey, matchupPts } from '../src/engine/fit';
 import { createMatch } from '../src/engine/sim';
 import { teamSetupFromRoster } from '../src/engine/setup';
 import { createTeamRoster } from '../src/roster';
@@ -102,6 +103,22 @@ describe('C.82i 묶음 F3: 표준 대형 균형', () => {
     const c = createMatch({ home: h, away: w, mode: 'auto', difficulty: 'normal', seed: 3, bigMatch: false, neutral: true }).state;
     expect(formFinishOf(c, 0)).toBe(1); // 커스텀 슬롯(같은 모양이라도) — 표 안 씀
     expect(formFinishOf(c, 1)).toBe(1.08);
+  });
+
+  it('버스 전용 상성 키(마스터 AF 추가 관문): block + 라인 0.2 → bus 칸(균형 공중 −4·태클 −2 · 역습 −2·−1), 라인 0.35 블록은 block 칸(균형 상대 0), 없는 짝은 block 칸으로 내려간다', () => {
+    const M = ENGINE.matchup as Record<string, Record<string, Record<string, number>>>;
+    expect(ENGINE.tacticFit.busLine).toBe(0.3);
+    expect(M.bus!.balanced!.air).toBe(-4);
+    expect(M.bus!.counter!.tackle).toBe(-1);
+    expect(matchupKey({ tendency: 'block', lineHeight: 0.2 })).toBe('bus');
+    expect(matchupKey({ tendency: 'block', lineHeight: 0.35 })).toBe('block');
+    expect(matchupKey({ tendency: 'counter', lineHeight: 0.2 })).toBe('counter');
+    const st = (a: [string, number], b: [string, number]) => ({ teams: [{ tactics: { tendency: a[0], lineHeight: a[1] } }, { tactics: { tendency: b[0], lineHeight: b[1] } }] }) as unknown as Parameters<typeof matchupPts>[0];
+    expect(matchupPts(st(['block', 0.2], ['balanced', 0.5]), 0, 'air')).toBe(-4);
+    expect(matchupPts(st(['block', 0.2], ['counter', 0.5]), 0, 'tackle')).toBe(-1);
+    expect(matchupPts(st(['block', 0.35], ['balanced', 0.5]), 0, 'air')).toBe(0); // 블록(라인 낮음)은 그대로
+    expect(matchupPts(st(['block', 0.2], ['tikitaka', 0.65]), 0, 'long')).toBe(M.block!.tikitaka!.long); // bus 에 없는 짝 → block 칸
+    expect(matchupPts(st(['balanced', 0.5], ['block', 0.2]), 0, 'air')).toBe(0); // 균형 → 버스: 균형 행에 block·bus 칸 없음
   });
 
   it('결정성: 같은 설정 두 번 같은 지문 · 4-3-3 대 4-1-4-1 경기는 share 를 끄면 달라진다(레버가 살아 있음)', () => {

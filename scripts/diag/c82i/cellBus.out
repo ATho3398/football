@@ -1,0 +1,4 @@
+scripts/diag/c82i/cellBus-960.json: 2칸 × 960경기
+balanced > block@0020 -0.051 ± 0.049 n 960
+counter > block@0020 0.099 ± 0.057 n 960
+CELLBUSDONE 01:12:47

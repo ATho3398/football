@@ -1,0 +1,5 @@
+typecheck done rc=0
+test done 01:20:13 rc=0 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯  Test Files  1 failed | 200 passed (201)       Tests  1 failed | 1608 passed (1609) 
+echeck done 01:24:51 rc=0
+build done 01:24:57 rc=0
+GATESDONE
