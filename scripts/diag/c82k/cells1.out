@@ -1,3 +1,18 @@
 BG16 balanced > gegenpress 0.009 ± 0.052 n 960 matchup.gegenpress.balanced.air=16
 BG20 balanced > gegenpress 0.078 ± 0.053 n 960 matchup.gegenpress.balanced.air=20
 BT16 balanced > tikitaka 0.304 ± 0.046 n 960 matchup.balanced.tikitaka.long=-16
+[eval]:1
+const L=(f)=>JSON.parse(require("fs").readFileSync(f));const gd=(r)=>(r.gf-r.ga)/r.n;for (const r of L(process.argv[1])) { const u=r.unit, mu=u.reduce((a,b)=>a+b,0)/u.length, se=Math.sqrt(u.reduce((a,b)=>a+(b-mu)**2,0)/u.length/u.length); console.log("BTtk", r.a,">",r.b,gd(r).toFixed(3),"±",se.toFixed(3),"n",r.n, "matchup.tikitaka.balanced.tackle=3
+                                                                                                                                                                                                                                                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Expected ',', got '<eof>'
+
+SyntaxError: Invalid or unexpected token
+    at makeContextifyScript (node:internal/vm:185:14)
+    at compileScript (node:internal/process/execution:383:10)
+    at evalTypeScript (node:internal/process/execution:256:22)
+    at node:internal/main/eval_string:74:3
+
+Node.js v22.23.4
+DB5 direct > block 0.070 ± 0.053 n 960 matchup.direct.block.air=5
+DB6 direct > block 0.083 ± 0.054 n 960 matchup.direct.block.air=6
+CELLSDONE

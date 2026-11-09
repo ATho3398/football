@@ -23,7 +23,7 @@ describe('C.81z 게겐 축 정리', () => {
     expect(ENGINE_VERSION).toBeGreaterThanOrEqual(98); // 96 → merge 순서(C.82a 96 · C.82b 97) → 98
     expect(ENGINE.matchup.tikitaka!.gegenpress).toEqual({ short: 3, keep: 3 });
     expect(ENGINE.matchup.block!.gegenpress).toEqual({ air: 0, keep: 0 }); // C.82f: 1 → 0 // C.82g 2/3 → 0/1 (블록>게겐 +0.36 → ±0.3 안)
-    expect(ENGINE.matchup.gegenpress!.balanced).toEqual({ tackle: 2, air: 10 }); // C.82h: 공중 10 (균형>게겐 +0.24 → +0.12, 태클은 레버 죽음)
+    expect(ENGINE.matchup.gegenpress!.balanced).toEqual({ tackle: 2, air: 13 }); // C.82h: 공중 10 (균형>게겐 +0.24 → +0.12, 태클은 레버 죽음) · C.82k: 13 (풀백 라인 비례 뒤 +0.23 → +0.11)
     expect(ENGINE.matchup.gegenpress!.counter).toEqual({ tackle: 8, air: 6 }); // C.82h: 6/4 → 8/6 (역습>게겐 +0.26 → +0.12) · C.82f: 3/2 → 6/4 (C.82g 병합 뒤 역습>게겐 +0.35)
     expect(ENGINE.matchup.gegenpress!.direct).toEqual({ tackle: 5, air: 4, keep: 2 }); // C.81t 그대로
     expect(ENGINE.matchup.gegenpress!.tikitaka).toEqual({ tackle: -6, air: -2 }); // C.82j: −10/−6 → −6/−2 (공 쪽 풀백 전방 잔류 뒤 게겐>티키 +0.11 → +0.27). C.82b 병합 뒤 −10/−8 +0.15 → −7/−5 +0.23 → C.82e −9/−6 → C.82g −10/−7 (+0.31 → +0.20~0.30) → C.82e 가담자 압박 거리로 +0.37 이 돼 −9/−6 +0.23
@@ -35,7 +35,7 @@ describe('C.81z 게겐 축 정리', () => {
   it('게겐 → 균형·역습 칸: 그 짝에서만 게겐 쪽 태클(·공중) 점수, 상대 쪽·다른 실행은 0', () => {
     const s1 = match('gegenpress', 'balanced', 3).state;
     expect(matchupPts(s1, 0, 'tackle')).toBe(2);
-    expect(matchupPts(s1, 0, 'air')).toBe(10); // C.82h 0 → 10 (균형>게겐 +0.24 → +0.12)
+    expect(matchupPts(s1, 0, 'air')).toBe(13); // C.82h 0 → 10 (균형>게겐 +0.24 → +0.12) · C.82k 13 (+0.23 → +0.11)
     expect(matchupPts(s1, 1, 'tackle')).toBe(0);
     const s2 = match('gegenpress', 'counter', 3).state;
     expect(matchupPts(s2, 0, 'tackle')).toBe(8); // C.82f 3 → 6 · C.82h 8

@@ -5,7 +5,8 @@ import { frontStayFb, frontStayFbGap, offsideLine, updateOffball } from '../src/
 import { attackDir, L, normX, normY } from '../src/engine/pitch';
 import { createMatch } from '../src/engine/sim';
 import { teamSetupFromRoster } from '../src/engine/setup';
-import { tacticsOf, type Tendency } from '../src/engine/tactics';
+import { tacticsOf } from '../src/engine/tactics';
+import type { Tendency } from '../src/engine/types';
 import { createTeamRoster } from '../src/roster';
 
 const home = createTeamRoster({ id: 'h', rating: 75 }, 'c82k-h', 2018, []);
@@ -50,7 +51,7 @@ describe('C.82k 묶음 F5: 풀백 전진 높이 = 라인 높이 비례', () => {
     const m = sim();
     const s = m.state;
     const seen = [0, 0];
-    while (!s.done && s.t < 2400 && (seen[0] < 10 || seen[1] < 10)) {
+    while (!s.done && s.t < 2400 && (seen[0]! < 10 || seen[1]! < 10)) {
       m.step();
       if (s.restart || s.ball.owner < 0 || s.ball.flight) continue;
       const owner = s.agents[s.ball.owner]!;
@@ -69,7 +70,7 @@ describe('C.82k 묶음 F5: 풀백 전진 높이 = 라인 높이 비례', () => {
         const gap = frontStayFbGap(s, team, true);
         expect(gap).toBeCloseTo(team === 0 ? -3 : 0, 6);
         expect(normX(a.tx, dir), `${team ? '균형' : '게겐'} ${a.pos} t=${s.t.toFixed(1)}`).toBeGreaterThanOrEqual(Math.min(cap, bnx - gap / L) - tol);
-        seen[team]++;
+        seen[team] = (seen[team] ?? 0) + 1;
       }
     }
     expect(seen[0]).toBeGreaterThanOrEqual(10);

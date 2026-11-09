@@ -32,7 +32,7 @@ describe('C.82f 묶음 E 마무리 보정 5', () => {
     expect(ENGINE.matchup.tikitaka!.direct).toEqual({ air: 9, short: 3, keep: 3, tackle: 7 }); // C.82f 7/6 → C.82h 9/7 (960 티키>직선 −0.03 순환 ✗)
     expect(ENGINE.matchup.gegenpress!.block).toEqual({ tackle: 6, air: 4 }); // 블록>게겐 +0.45 → (부록)
     expect(ENGINE.matchup.gegenpress!.counter).toEqual({ tackle: 8, air: 6 }); // C.82f 6/4(역습>게겐 +0.35 → +0.19) → C.82h 8/6
-    expect(ENGINE.matchup.direct!.block).toEqual({ keep: 3, short: 3, air: 4 }); // C.82f 2/2/3(직선>블록 −0.07 → +0.03) → C.82h 3/3/4
+    expect(ENGINE.matchup.direct!.block).toEqual({ keep: 3, short: 3, air: 5 }); // C.82f 2/2/3(직선>블록 −0.07 → +0.03) → C.82h 3/3/4 → C.82k 3/3/5(직선>블록 −0.06 → +0.07)
     expect(ENGINE.matchup.tikitaka!.counter).toEqual({ tackle: 3, air: 2 }); // 960 티키>역습 −0.29 → −0.12
     // 총량: 1대1 보정 ↑ + 슛 쪽 레버(shotFree·거리 보정) (부록 C.82f 표)
     expect(ENGINE.keeper.saveBase).toBe(2.11); // C.82g 2.11 유지 (C.82f 는 1대1·ST 배수로 총량)
