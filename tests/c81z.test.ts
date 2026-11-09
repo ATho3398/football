@@ -38,7 +38,7 @@ describe('C.81z 게겐 축 정리', () => {
     expect(matchupPts(s1, 0, 'air')).toBe(13); // C.82h 0 → 10 (균형>게겐 +0.24 → +0.12) · C.82k 13 (+0.23 → +0.11)
     expect(matchupPts(s1, 1, 'tackle')).toBe(0);
     const s2 = match('gegenpress', 'counter', 3).state;
-    expect(matchupPts(s2, 0, 'tackle')).toBe(8); // C.82f 3 → 6 · C.82h 8
+    expect(matchupPts(s2, 0, 'tackle')).toBe(4); // C.82f 3 → 6 · C.82h 8 · C.82l 4
     expect(matchupPts(s2, 0, 'air')).toBe(6); // C.82f 2 → 4 · C.82h 6
     expect(matchupPts(s2, 1, 'tackle')).toBe(0);
     const s3 = match('block', 'gegenpress', 3).state;

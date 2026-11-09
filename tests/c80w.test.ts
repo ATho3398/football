@@ -67,7 +67,7 @@ describe('C.80w 롱패스 착지 정확도', () => {
     expect(matchupPts(state('direct', 'block'), 0, 'keep')).toBe(3); // C.82f 1 → 2 · C.82h 3
     expect(matchupPts(state('direct', 'block'), 0, 'long')).toBe(0);
     expect(matchupPts(state('direct', 'block'), 0, 'air')).toBe(5); // C.81s 1 → C.82f 3 → C.82h 4 → C.82k 5
-    expect(matchupPts(state('gegenpress', 'direct'), 0, 'tackle')).toBe(5); // C.81s 게겐 → 직선 태클 4 · 공중 3 · 공 지키기 1 → C.81t 5·4·2 (리바운드 런 뒤 게겐>직선 −0.01 → +0.08)
+    expect(matchupPts(state('gegenpress', 'direct'), 0, 'tackle')).toBe(3); // C.82l 3 · C.81s 게겐 → 직선 태클 4 · 공중 3 · 공 지키기 1 → C.81t 5·4·2 (리바운드 런 뒤 게겐>직선 −0.01 → +0.08)
     expect(matchupPts(state('gegenpress', 'direct'), 0, 'air')).toBe(4);
     expect(matchupPts(state('gegenpress', 'direct'), 0, 'keep')).toBe(2);
     expect(matchupPts(state('direct', 'gegenpress'), 0, 'tackle')).toBe(0);
