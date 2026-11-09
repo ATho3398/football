@@ -1521,3 +1521,4 @@
 - (11/09 10:10 KST) **C.82j 공격 국면 전방 잔류·플랫 4 와이드 미드 가담 시작**(Fable, 지시문 docs/session-prompts/C.82j.md): 공 뒤 인원 지표 70~87 m·GK 제외로 → ST·측면 전방 잔류 · formFinish 임시 보정 줄이기 · 여유 있으면 5초 재탈취·높은 라인 실점 비용.
 - (11/09 10:09 KST) C.82j 세션 `session_01YVaigJ8kqi1VR8ofpL5yaT`. AF 점검 예약 trig_01MgRyanQ6F1L7GnnxFnmkHs 를 12:30 으로 옮기고 C.82i CI 확인 + C.82j 진행으로 문구 갱신. C.82i 세션은 자기 CI 확인 예약(trig_01PphkswMN7PiTLdKSofALiD 10:33) 있음. **사이트 = 85b7b15(엔진 106, CI 확인 대기).**
 - (11/09 10:27 KST) **C.82i 보충 main 03cd7c8**(엔진 106 그대로): 버스 전용 상성 키(fit.matchupKey 'bus' = block·수비 라인 < busLine 0.3) + 버스→균형 공중 −4·태클 −2 · 버스→역습 −2/−1 → 버스 행 Δ(C.82e 대비) +0.07→**+0.04 ✓**, 다른 행 ±0.02. 85b7b15 CI run 412 성공. 03cd7c8 CI 는 그 세션이 확인. C.82j 에 main 병합·새 기준표 주의 알림. **사이트 = 03cd7c8(CI 대기).**
+- (11/09 12:31 KST) **12:30 점검**: C.82i CI run 412(85b7b15)·413(03cd7c8) 모두 성공 → 세션 draft_. **사이트 = 03cd7c8(엔진 106).** C.82j 진행 중(2h23m, 대화 9만) — 표준 대형 28쌍 표 측정 중·테스트 작성. 다음 점검 14:00(trig_01NU7fWn5ySMbvsCLnE3eCjv).
