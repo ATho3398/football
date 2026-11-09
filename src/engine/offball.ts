@@ -988,7 +988,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
     // 공 쪽 풀백: 가운데 ⅓ 에서는 공 frontStayFbTrail m 뒤를 따라오다가(미리 올라와 있어야 상대 ⅓ 에서 공 높이에 닿는다) 상대 ⅓ 에서는 공 − frontStayFbBehind m
     else if (!running && FB_POS.has(a.pos) && !hasModule(a.role, 'between')) {
       const fbSide = frontStayFb(s, a, dir, fbx, fby);
-      if (fbSide === 1) floor = Math.min(cap, fbx - (third ? O.frontStayFbBehind : O.frontStayFbTrail) / L);
+      if (fbSide === 1) floor = Math.min(cap, fbx - frontStayFbGap(s, a.team, third) / L);
       else if (fbSide === 2 && O.frontStayFbFar > 0) floor = Math.min(cap, fbx - O.frontStayFbFar / L);
     }
     if (floor > nx) {
@@ -997,6 +997,15 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
     }
   }
   setTarget(a, nx, ny, dir, urgent);
+}
+
+/**
+ * 공 쪽 풀백이 따라오는 공 뒤 거리 m (C.82k): 상대 ⅓ 이면 frontStayFbBehind · 가운데 ⅓ 이면 frontStayFbTrail,
+ * 여기에 frontStayFbLineK × (frontStayFbLineRef − 실효 라인 높이) 를 더한다 — 라인 높은 팀(0.65)은 그대로 공 +3 m, 균형(0.5) 공 높이, 블록(0.35) 3 m 뒤, 버스(0.2) 6 m 뒤
+ */
+export function frontStayFbGap(s: SimState, team: 0 | 1, third: boolean): number {
+  const base = third ? O.frontStayFbBehind : O.frontStayFbTrail;
+  return O.frontStayFbLineK > 0 ? base + O.frontStayFbLineK * (O.frontStayFbLineRef - effectiveTactics(s, team).lineHeight) : base;
 }
 
 /**

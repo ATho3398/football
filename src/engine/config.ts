@@ -3,7 +3,7 @@
 
 import type { Formation } from '../formations';
 
-export const ENGINE_VERSION = 107;
+export const ENGINE_VERSION = 108;
 
 export const ENGINE = {
   // ── 좌표, 시간 (E.3) ──
@@ -759,6 +759,13 @@ export const ENGINE = {
     frontStayDrop: 0, // 0 = ① 끔(출하). 0.5 로 켜면 ST·CF 바닥 — 공 뒤 인원은 안 움직이고(ST 55 → 54 %) ST 1명 대형 득점이 −0.1(4-2-3-1>4-1-4-1 +0.21 → +0.09, 6쌍 400경기)
     frontStayWide: 0, // 1 = 플랫 4 의 LM·RM 도 ① 바닥 — 측면 54 % 로 −3 %p 뿐이고 4-4-2·4-1-4-1 이 5-3-2·3-5-2 에 +0.2~0.3 더 지게 됨(전환에 측면 미드가 늦음) → 0
     frontStayFbBehind: -3,
+    /**
+     * C.82k (엔진 묶음 F5): 풀백이 올라가는 높이를 그 팀 수비 라인 높이에 비례 — 공 뒤 거리(상대 ⅓ frontStayFbBehind · 가운데 ⅓ frontStayFbTrail)에
+     * frontStayFbLineK × (frontStayFbLineRef − 실효 라인 높이) m 를 더한다. 기준 0.65(높음) = 게겐·티키는 C.82j 그대로(공 +3 m), 균형·역습·직선(0.5)은 공 높이(0 m), 블록(0.35) 3 m 뒤, 버스(0.2) 6 m 뒤.
+     * C.82j 가 모든 팀의 풀백을 공 +3 m 까지 올려 뒤 공간 비용을 모두 치르게 했고 게겐만의 비용이 묽어졌다(균형이 맞는 전환 xG 0.259 → 0.295, 전환 xG 비 1.27 → 1.07). 0 = 끔(C.82j 동작)
+     */
+    frontStayFbLineK: 20,
+    frontStayFbLineRef: 0.65,
     frontStayFbFromX: 0.45,
     frontStayFbTrail: 3,
     frontStayFbFar: 0, // 0 = 반대쪽 풀백 규칙 없음 (8·15 는 ST 2명 대형이 1명 대형 상대로 일괄 이득 — 상대 ST 수에 따라 풀백 2명이 올라가는 비대칭)

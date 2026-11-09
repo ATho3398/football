@@ -1,7 +1,7 @@
 // C.82j (53단계, 엔진 묶음 F4): 공격 국면 전방 잔류 — 최전방·측면 미드는 공보다 앞, 공 쪽 풀백은 공 높이까지 · 결정성
 import { describe, expect, it } from 'vitest';
 import { ENGINE, ENGINE_VERSION } from '../src/engine/config';
-import { frontStayFb, offsideLine, updateOffball } from '../src/engine/offball';
+import { frontStayFb, frontStayFbGap, offsideLine, updateOffball } from '../src/engine/offball';
 import { attackDir, L, normX, normY } from '../src/engine/pitch';
 import { createMatch } from '../src/engine/sim';
 import { teamSetupFromRoster } from '../src/engine/setup';
@@ -69,7 +69,7 @@ describe('C.82j 묶음 F4: 공격 국면 전방 잔류', () => {
           if (side === 0 || (side === 2 && O.frontStayFbFar <= 0)) continue;
           updateOffball(s, a);
           if (s.t < a.runUntil) continue; // 갱신에서 오버래핑을 시작했으면 다른 규칙
-          const want = side === 1 ? Math.min(cap, bnx - O.frontStayFbBehind / L) : Math.min(cap, bnx - O.frontStayFbFar / L);
+          const want = side === 1 ? Math.min(cap, bnx - frontStayFbGap(s, team, true) / L) : Math.min(cap, bnx - O.frontStayFbFar / L); // C.82k: 라인 높이 비례 거리
           expect(normX(a.tx, dir), `${a.pos} ${side === 1 ? '공 쪽' : '반대쪽'} t=${s.t.toFixed(1)}`).toBeGreaterThanOrEqual(want - tol);
           if (side === 1) fbNear++; else fbFar++;
         }
