@@ -1,0 +1,3 @@
+scripts/diag/c82i/cellBus2-960.json: 1칸 × 960경기
+counter > block@0020 -0.120 ± 0.058 n 960
+CELLBUS2DONE 01:15:19
