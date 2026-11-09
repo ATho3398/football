@@ -338,3 +338,307 @@ stdout | tests/engine.test.ts > 결정과 듀얼 (E2) > 여러 경기 평균이 
  ✓ tests/c72.test.ts (7 tests) 177ms
  ✓ tests/c75z.test.ts (9 tests) 379ms
  ✓ tests/c77u.test.ts (6 tests) 17ms
+ ✓ tests/c48.test.ts (8 tests) 2390ms
+   ✓ 계약 중 이적 제안 빈도 (C.48, pending 78) > 남은 계약 시즌으로 단계: 0~1 last · 2 one · 3+ more, 이적 명단이면 last 395ms
+   ✓ 계약 중 이적 제안 빈도 (C.48, pending 78) > 새 계약·재계약·이적 수락 때 바이아웃이 생기고 세이브 왕복 그대로 1333ms
+ ✓ tests/c44.test.ts (8 tests) 3412ms
+   ✓ 자동 진행 시트·독·홈 더비 배지 (C.44) > 다음 더비: 날짜·그 전까지 경기 수·남은 더비, 없는 대회는 회색 3392ms
+ ✓ tests/c77s.test.ts (6 tests) 2159ms
+   ✓ C.77s 평점 규칙 > 엔진 경기: 소극적 백패스를 세고, 허용 횟수를 넘긴 선수만 감점된다 (선택은 그대로) 2128ms
+ ✓ tests/c82e.test.ts (4 tests) 17407ms
+   ✓ C.82e 게겐 뒷공간 비용·재탈취 > 레버 세 개가 실제로 걸린다(라인 K·공간 시야는 끔 → 켬): 켜고 끄면 같은 시드 게겐 경기가 달라지고, 가담자 배수는 균형끼리 경기를 안 바꾸며, 결정성 유지 17393ms
+ ✓ tests/u17e.test.ts (9 tests) 1915ms
+   ✓ U17-e S13 선수 > 은퇴: [커리어 요약] · [새 게임] 단추, PC 오른쪽 = 커리어 요약 요약 1310ms
+ ✓ tests/highlights.test.ts (6 tests) 876ms
+   ✓ 전개 하이라이트 (24.3 개정) > 같은 경기면 장면 선택과 장면 시각이 늘 같다 (결정적) 766ms
+ ✓ tests/name-pools.test.ts (7 tests) 2642ms
+   ✓ 이름 풀 2판 (C.45 8번) > 풀에서 나오는 모든 조합이 게임 데이터 실제 선수(A_GRADE_PLAYERS) 이름과 같지 않다 (흔한 성이라 겹치는 조합은 다음 성으로 넘긴다) 1045ms
+   ✓ 이름 풀 2판 (C.45 8번) > 2판에서 실제로 나오는 이름은 실제 선수·유명 선수 풀네임을 피한다 923ms
+   ✓ 이름 풀 판과 결정성 (C.45 8번) > 1판·2판 로스터는 이름(name·nameKo)과 외형(appearance) 말고 모두 같다 (rng 호출 수 동일) 376ms
+ ✓ tests/c81u.test.ts (6 tests) 4100ms
+   ✓ C.81u 수비 기록 칸 > 경기 문맥: 4-2-3-1 ST 는 cam, 3-5-2 CDM 은 cb3, 4-3-3 은 문맥 없음 2644ms
+   ✓ C.81u 수비 기록 칸 > 경기에서 센다: 수비 줄은 라인 유지 시간·오프사이드 유도, 누군가는 압박 성공 500ms
+   ✓ C.81u 수비 기록 칸 > 세기만 한다: 압박 반경·라인 폭을 바꿔도 경기 결과·골 시각이 같다 951ms
+ ✓ tests/c76j.test.ts (6 tests) 2512ms
+   ✓ 205 월드 컵·챔스 묶음 > 조별 중엔 조별 기본 · 묶음 3개 · 순위 칸 · 16강 진출권 범례 347ms
+   ✓ 205 월드 컵·챔스 묶음 > 녹아웃: 1·2차전·합계 칸 · 국내 컵 라운드 칩 776ms
+   ✓ 208 · 210 · 211 · 212 · 224 > 시즌 하이라이트 카드 · 시즌 목표 결과 패널 1040ms
+ ✓ tests/c82d.test.ts (7 tests) 109ms
+ ✓ tests/c75c.test.ts (6 tests) 2473ms
+   ✓ C.75c 수비 계획 (44c-a) > 결정성: 같은 시드 두 번 같은 결과 2431ms
+ ✓ tests/c76f.test.ts (8 tests) 15ms
+ ✓ tests/c77b.test.ts (4 tests) 7838ms
+   ✓ C.77b 2선 침투자 좁은 추적 > 같은 시드면 같은 결과 (결정성) 2454ms
+   ✓ C.77b 2선 침투자 좁은 추적 > 추적자는 줄 2 CDM/CM 만, 대상은 상대 줄 2 만, 배정 순간 거리는 trackPickMax 안 (불변식) · trackMax 0 이면 배정 없음 3938ms
+   ✓ C.77b 2선 침투자 좁은 추적 > 존 22 m 안 상대 줄 2 가 있는 틱 중 추적자가 붙은 비율 ≥ 30% (§9.15.7 진단 일치 기준) 1444ms
+ ✓ tests/c80w.test.ts (3 tests) 93ms
+ ✓ tests/c81z.test.ts (3 tests) 18626ms
+   ✓ C.81z 게겐 축 정리 > 게겐 뚫림 간격 배수: 켜면(3) 같은 시드 게겐 경기가 끔(1)과 달라진다(배수가 실제로 걸림), 균형끼리는 그대로 18551ms
+ ✓ tests/c82k.test.ts (4 tests) 3072ms
+   ✓ C.82k 묶음 F5: 풀백 전진 높이 = 라인 높이 비례 > 게겐 대 균형: 공 쪽 풀백 목표 x ≥ min(라인 − 1 m, 공 − 거리) — 게겐은 공 +3 m, 균형은 공 높이(두 팀 모두 장면 확인) 396ms
+   ✓ C.82k 묶음 F5: 풀백 전진 높이 = 라인 높이 비례 > 결정성: 같은 시드 두 번 같고, K 를 끄면(C.82j 동작) 달라진다 2665ms
+ ✓ tests/c75a.test.ts (5 tests) 7479ms
+   ✓ C.75a 결정 순간 다듬기 (E-0) > 직접 모드(카드 덱): 고를 거리 2개 미만 정지 없음 · 맡기기는 자동과 같다(카드 없음) 7474ms
+ ✓ tests/c82h.test.ts (4 tests) 6175ms
+   ✓ C.82h 묶음 F2: 게겐 뒤 공간 비용 복구 · ST 2명 대형 이득 > 결정성: 같은 설정 두 번 같은 지문 · 4-4-2 경기는 stFinishShare 를 끄면 달라진다(레버가 살아 있음) 6154ms
+ ✓ tests/c69.test.ts (6 tests) 8ms
+ ✓ tests/c77w.test.ts (3 tests) 3234ms
+   ✓ C.77w 측정 훅 > 훅을 켜도 같은 시드 같은 결과 · 슛 기록 수 = 경기 통계 슛 수 · 유효 슈팅 결과가 모두 정해진다 3060ms
+ ✓ tests/c76g.test.ts (5 tests) 4207ms
+   ✓ C.76g 홈 > 시즌 목표 줄 보상 = XP · 카드 선택권 칩 · TP (204), 라이벌 비교 표 (195), 주전 경쟁 감독 줄 (198) 3956ms
+ ✓ tests/c78t.test.ts (5 tests) 371ms
+   ✓ C.78t 시즌 누적 피로 (내 선수) > 게겐 팀(토트넘) 내 선수: 뛰면 쌓이고 경기 피로에 더해진다, 비게겐 전술이면 쌓이지 않는다 353ms
+ ✓ tests/c81y.test.ts (70 tests) 307ms
+ ✓ tests/c71a.test.ts (5 tests) 41ms
+ ✓ tests/c77z.test.ts (4 tests) 140ms
+ ✓ tests/c81h.test.ts (3 tests) 1728ms
+   ✓ C.81h 세컨볼 골 · 롱패스 · 윙어 > 경기 중 쳐낸 시각이 기록되고(parryT), 수비 지연은 하프타임·재개에서 비워진다 1715ms
+ ✓ tests/c83d.test.ts (5 tests) 6ms
+ ✓ tests/match-record.test.ts (5 tests) 6328ms
+   ✓ 경기 기록 확장 (부록 C.30) > 포지션별 6개, 한 줄 요약 2420ms
+   ✓ 경기 기록 확장 (부록 C.30) > 엔진 경기는 경기 목록·시즌 합계·세이브에 남고, 빠른 경기는 기록 없음 1951ms
+   ✓ 경기 기록 확장 (부록 C.30) > 경기 결과 화면: 6개 + 전체 보기 754ms
+   ✓ 경기 기록 확장 (부록 C.30) > 옛 세이브(10)는 이어 할 수 없음, 다음 시즌에는 목록을 비운다 1181ms
+ ✓ tests/c59.test.ts (7 tests) 773ms
+ ✓ tests/c81q.test.ts (5 tests) 692ms
+   ✓ 챔스 진출 구조 (C.81q) > 첫 시즌: 다른 리그는 지금 명단 그대로 353ms
+ ✓ tests/c66.test.ts (6 tests) 6ms
+ ✓ tests/gk-loose-ball.test.ts (4 tests) 56ms
+ ✓ tests/leagues-championship.test.ts (6 tests) 35ms
+ ✓ tests/c77d.test.ts (3 tests) 3306ms
+   ✓ C.77d 펄스 나인 미끼·2선 인계 > 가설 2: 따라나옴은 CB 만, 대상은 상대 공격 줄, 같은 시드 같은 결과, stepOutMax 0 이면 판단 없음 3199ms
+ ✓ tests/leagues-laliga.test.ts (6 tests) 61ms
+ ✓ tests/leagues-seriea.test.ts (6 tests) 67ms
+ ✓ tests/leagues-bundesliga2.test.ts (6 tests) 27ms
+ ✓ tests/leagues-eredivisie.test.ts (6 tests) 66ms
+ ✓ tests/c78w.test.ts (4 tests) 206ms
+ ✓ tests/c76z.test.ts (4 tests) 2992ms
+   ✓ C.76z 롱 백패스는 실수 후보가 아니다 > 결정성: 같은 시드 두 번 돌리면 같은 결과 2714ms
+ ✓ tests/rating-recalibration.test.ts (5 tests) 86ms
+ ✓ tests/c76o-packanim.test.ts (7 tests) 5ms
+ ✓ tests/c81t.test.ts (3 tests) 3170ms
+   ✓ C.81t 세컨볼 구조: 리바운드 대비 런 > 우리 유효 슈팅이 날아가는 동안 골 24 m 안 2선·공격수(슈터 제외) 중 가까운 n명은 골 앞 자리로 전력(urgent) 1089ms
+   ✓ C.81t 세컨볼 구조: 리바운드 대비 런 > 끄면(reboundRun 0) 같은 시드 경기가 켠 것과 달라진다(움직임이 실제로 작동) 2080ms
+ ✓ tests/c53.test.ts (5 tests) 100ms
+ ✓ tests/c77c.test.ts (6 tests) 2690ms
+   ✓ C.77c NPC 결장 추첨 > playNpcMatch: 같은 입력이면 같은 결과 (결정성 유지) 2639ms
+ ✓ tests/real-peak.test.ts (5 tests) 4192ms
+   ✓ 세이브 정점 목표 > 실제 선수 정점 목표는 왕복 그대로, 옛 세이브(3)는 이어 할 수 없음 2428ms
+   ✓ 세이브 정점 목표 > 가상 유망주 세이브는 그대로 열린다, 옛 세이브(3)는 이어 할 수 없음 1563ms
+ ✓ tests/c76e.test.ts (5 tests) 19ms
+ ✓ tests/replay.test.ts (5 tests) 187ms
+ ✓ tests/c78a.test.ts (3 tests) 5645ms
+   ✓ C.78a 전환 수비 > 전환 측정 훅을 돌려도 같은 시드 같은 결과 · 상실을 센다 3349ms
+   ✓ C.78a 전환 수비 > 전환 상수를 켜면 결정적이고 결과가 달라진다 2287ms
+ ✓ tests/c80i.test.ts (3 tests) 34ms
+ ✓ tests/c79n.test.ts (4 tests) 299ms
+ ✓ tests/faces.test.ts (6 tests) 170ms
+ ✓ tests/c81a.test.ts (3 tests) 1942ms
+   ✓ C.81a 박스 인원 · 리바운드 > 착지 순간 박스 인원을 센다 (표본 수 ≤ 크로스·컷백 수, 평균 0~10) 1938ms
+ ✓ tests/leagues-jleague1.test.ts (5 tests) 17ms
+ ✓ tests/c51.test.ts (4 tests) 10420ms
+   ✓ 경기 준비 (C.51) > 최근 폼은 지난 라운드 결과에서 (오래된 것 → 최근, 최대 5) 8377ms
+   ✓ 경기 준비 (C.51) > 경기 준비는 상태를 바꾸지 않는다 (같은 세이브·같은 설정 → 같은 결과) 1660ms
+ ✓ tests/leagues-kleague1.test.ts (5 tests) 18ms
+ ✓ tests/c81r.test.ts (4 tests) 4ms
+ ✓ tests/leagues-bundesliga.test.ts (5 tests) 62ms
+ ✓ tests/leagues-ligue1.test.ts (5 tests) 44ms
+ ✓ tests/c76s.test.ts (4 tests) 3643ms
+   ✓ C.76s 게겐 대가·밀집 블록 > 게겐프레싱 경기는 끝까지 진행되고 같은 시드면 같은 결과(결정성), 이동 거리·스프린트 집계가 남는다 2694ms
+   ✓ C.76s 게겐 대가·밀집 블록 > 균형 팀끼리도 끝까지 진행되고 결정적이다 946ms
+ ✓ tests/c77t.test.ts (5 tests) 3038ms
+   ✓ C.77t GK 도달 항 > 같은 시드 경기는 결정적이다 3006ms
+ ✓ tests/leagues-brasileirao.test.ts (5 tests) 21ms
+ ✓ tests/leagues-primeira.test.ts (5 tests) 53ms
+ ✓ tests/polish.test.ts (4 tests) 3627ms
+   ✓ 엔진 다듬기 (C.24) > 순간이동 없음: 선수 틱당 1 m, 공 3 m 초과 이동 0회, 킥오프 때 전원 자기 진영 3200ms
+   ✓ 엔진 다듬기 (C.24) > 골 뒤: 세리머니가 있고, 선수들은 킥오프 직전까지 걸어서 돌아온다 420ms
+ ✓ tests/form.test.ts (6 tests) 3911ms
+   ✓ 폼 (부록 D.1) > 경기를 치르면 출전 경기 평점이 쌓인다 614ms
+   ✓ 세이브 형식 > 옛 세이브(1)는 이어 할 수 없음, 지금 형식은 불러와 이어 한다 3191ms
+ ✓ tests/c78u.test.ts (4 tests) 902ms
+   ✓ 유망주 계약 — 로열로드 (C.78u, pending 144) > 잠재력 상위 19세 OVR 67: 상위 6팀 제안이 오고, 유망주 계약은 저연봉·4~5년 824ms
+ ✓ tests/c81w.test.ts (4 tests) 901ms
+   ✓ 시상 추정 출전 몫 분포 (C.81w) > 추정 리그 이력서 풀: 팀당 ST 후보가 벤치 전원(옛 2.1명)이 아니라 엔진처럼 2명 아래, FB 는 3명 이상 517ms
+   ✓ 다른 리그 빠른 진행 점수 (C.81w) > diffScale < 1: 빅5 1위 팀 경기당 득점이 엔진 범위(2.2~2.7) 372ms
+ ✓ tests/c50.test.ts (3 tests) 3093ms
+   ✓ 선수 이름 한국 통용 표기 (C.50) > 옛 세이브(29)는 이어 할 수 없음, 지금 형식 왕복은 통용 표기 그대로 (NPC·내 선수) 332ms
+   ✓ 경기 결과 화면 [하이라이트 다시보기] (C.50) > 재생 기록이 있으면 버튼, 없으면 없음 2758ms
+ ✓ tests/c81v2.test.ts (6 tests) 4340ms
+   ✓ 결과 화면 하이라이트 클립 골 점수 = 득점 줄 점수 (실제 경기, 엔진) > 원정 경기에서 골 클립 점수가 내 팀 먼저 (득점 줄과 같은 점수가 있다) 4337ms
+ ✓ tests/c80p.test.ts (3 tests) 32ms
+ ✓ tests/c79x.test.ts (3 tests) 52ms
+ ✓ tests/c80g.test.ts (4 tests) 22ms
+ ✓ tests/c77k.test.ts (2 tests) 197ms
+ ✓ tests/c79s.test.ts (5 tests) 83ms
+ ✓ tests/c49.test.ts (4 tests) 326ms
+ ✓ tests/c80e.test.ts (4 tests) 73ms
+ ✓ tests/c79q.test.ts (6 tests) 3ms
+ ✓ tests/c75u.test.ts (6 tests) 22ms
+ ✓ tests/leagues-saudi.test.ts (3 tests) 30ms
+ ✓ tests/leagues-mls.test.ts (3 tests) 37ms
+ ✓ tests/c74e.test.ts (3 tests) 498ms
+ ✓ tests/c76p.test.ts (3 tests) 4475ms
+   ✓ C.76p 깊은 블록 밀집 비용 > 버스·블록 팀 경기는 끝까지 진행되고 같은 시드면 같은 결과(결정성), 가로채기 집계가 남는다 3147ms
+   ✓ C.76p 깊은 블록 밀집 비용 > 균형 팀끼리는 깊은 블록 분기가 돌지 않는다 (경기 끝까지 진행, 결정성) 1326ms
+ ✓ tests/c75f.test.ts (3 tests) 1745ms
+   ✓ 공격 포지션 무기여 경기 감점 (C.75f, E-3) > 경기 종료 평점에서 무기여 공격수는 감점이 붙는다 (45분 이상) 1743ms
+ ✓ tests/c76q.test.ts (3 tests) 4078ms
+   ✓ C.76q PK·선방률 지표 > 12 m 밖 선방 집계: farSaves ≤ farOnTarget ≤ 유효 슈팅 4044ms
+ ✓ tests/c78b.test.ts (3 tests) 53ms
+ ✓ tests/c81m.test.ts (2 tests) 13086ms
+   ✓ C.81m 섞인 표 추정 평점 포지션별 보정 > 내 리그 엔진 + 다른 리그 추정: 다른 리그만 avg = B + (추정 − B) × 퍼짐 + 이동 (+ 잡음), def × 배수 · 내 리그는 그대로 13082ms
+ ✓ tests/generate.test.ts (5 tests) 158ms
+ ✓ tests/c78m.test.ts (1 test) 57ms
+ ✓ tests/version.test.ts (5 tests) 422ms
+   ✓ 버전 표시 (21.5.1) > 새 게임은 시작 패치를 기록하고 저장/불러오기 후에도 유지 315ms
+ ✓ tests/c80d.test.ts (3 tests) 16ms
+ ✓ tests/c76y.test.ts (3 tests) 2430ms
+   ✓ C.76y 역할 파라미터 (미해결 4) > 펄스 나인 팀 경기는 결정적이다 (같은 시드 같은 결과) 2427ms
+ ✓ tests/c55.test.ts (4 tests) 10ms
+ ✓ tests/c82a.test.ts (4 tests) 4ms
+ ✓ tests/c80t.test.ts (2 tests) 11ms
+ ✓ tests/c73d.test.ts (2 tests) 357ms
+ ✓ tests/positions.test.ts (5 tests) 5ms
+ ✓ tests/c79o.test.ts (3 tests) 17ms
+ ✓ tests/c81b.test.ts (1 test) 2ms
+ ✓ tests/c80b.test.ts (2 tests) 53ms
+ ✓ tests/c66c.test.ts (1 test) 216ms
+ ✓ tests/nativeApp.test.ts (3 tests) 2ms
+ ✓ tests/harness.test.ts (1 test) 8145ms
+   ✓ 측정 병렬 실행 (E.18) > 워커 1개 / 3개 / 메인 스레드 결과가 같다 8144ms
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ① 추적 간격 일정 (2단계 이동·도착 시간)
+[scene chase] gap0=2.236 gapMean=2.236 gapMax=2.236 gapMin=2.236 gapEnd=2.236 gapSwing=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ② 급정지 반응 시간·지나친 거리 (2단계)
+[scene stop] gapAtTurn=2.236 reactTime=1.200 maxPast=2.553 gapAfter1s=2.808
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ③ 뒤도는 느린 CB 불리 (2단계, 5단계 높은 라인 비용)
+[scene highLine] slowArriveGap=0.838 slowDistBehind=6.704 evenArriveGap=0.423 evenDistBehind=3.613
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ④ GK 대응 시간 — 가운데/비킴, 느린 횡패스/빠른 컷백, 빈 골문·1대1·밀집 (4단계) [motion on]
+[scene keeper motion on] slowCover=1.000 slowSave=0.438 slowOff=0.764 slowMoved=5.155 fastCover=0.278 fastSave=0.149 fastOff=7.175 fastMoved=2.674 setCover=1.000 setSave=0.361 centerSave=0.820 asideSave=0.257 emptyGoal=0.950 oneOnOneGoal=0.280 crowdGoal=0.023
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ④ GK 대응 시간 — 가운데/비킴, 느린 횡패스/빠른 컷백, 빈 골문·1대1·밀집 (4단계) [motion off]
+[scene keeper motion off] slowCover=1.000 slowSave=0.438 slowOff=0.759 slowMoved=5.161 fastCover=0.281 fastSave=0.150 fastOff=7.173 fastMoved=2.680 setCover=1.000 setSave=0.361 centerSave=0.820 asideSave=0.257 emptyGoal=0.950 oneOnOneGoal=0.280 crowdGoal=0.023
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑤ 막힘/열림에 따라 백패스 비율·이유가 다름 (3단계) [motion on]
+[scene backpass motion on] blockedBack=0.787 blockedSide=0.000 blockedFwd=0.098 blockedMistake=0.000 blockedNoFwd=0.000 blockedRisk=0.787 blockedEscape=0.000 blockedKeep=0.787 openBack=0.003 openSide=0.000 openFwd=0.975 openMistake=0.000 openNoFwd=0.000 openRisk=0.003 openEscape=0.000 openKeep=0.003
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑤ 막힘/열림에 따라 백패스 비율·이유가 다름 (3단계) [motion off]
+[scene backpass motion off] blockedBack=0.785 blockedSide=0.000 blockedFwd=0.100 blockedMistake=0.000 blockedNoFwd=0.000 blockedRisk=0.785 blockedEscape=0.000 blockedKeep=0.785 openBack=0.003 openSide=0.000 openFwd=0.975 openMistake=0.000 openNoFwd=0.000 openRisk=0.003 openEscape=0.000 openKeep=0.003
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑥ 판단용 도착 시간 = 실제 이동 (2단계, 오차 ≤ 0.2초)
+[scene arrival] maxErr=0.072 meanErr=0.031
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계) [motion on]
+[scene giveGo motion on] runRate=0.485 targetBehind=6.000 passerAdvance=2.819 returnThrough=1.000 returnP=0.757
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑦ 2:1 — 패스 직후 패서가 마커 뒤로 달리고 리턴 패스 후보가 생김 (3단계) [motion off]
+[scene giveGo motion off] runRate=0.485 targetBehind=6.000 passerAdvance=2.819 returnThrough=1.000 returnP=0.566
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계) [motion on]
+[scene check motion on] p0=0.344 pEnd=0.970 pNoCheck=0.344 sepEnd=1.348 sepNoCheck=1.200 moved=3.867 movedNoCheck=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑧ 받으러 나오기 — 마커가 붙으면 수신 각도를 만든다 (3단계) [motion off]
+[scene check motion off] p0=0.344 pEnd=0.970 pNoCheck=0.344 sepEnd=1.889 sepNoCheck=1.200 moved=3.867 movedNoCheck=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑨ 역압박 3명 가담 뒤 뚫림 — 뒤 공간·복귀 시간 (5단계) [xyz on]
+[scene pressBreak xyz on] detect3=0.100 turn3=0.400 back3=3.700 room3=3.824 space3=50.986 detect1=0.100 room1=9.980 space1=50.722
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑨ 역압박 3명 가담 뒤 뚫림 — 뒤 공간·복귀 시간 (5단계) [xyz off]
+[scene pressBreak xyz off] detect3=0.100 turn3=0.400 back3=4.000 room3=9.698 space3=51.300 detect1=0.100 room1=10.005 space1=50.561
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑩ 높은 라인 + 느린 CB 대 빠른 ST 뒤공간 패스 (5단계) [xyz on]
+[scene slowLine xyz on] pSlow=0.928 pFast=0.774 hasThrough=1.000 marginSlow=1.000 marginFast=0.600
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑩ 높은 라인 + 느린 CB 대 빠른 ST 뒤공간 패스 (5단계) [xyz off]
+[scene slowLine xyz off] pSlow=0.685 pFast=0.627 hasThrough=1.000 marginSlow=0.600 marginFast=0.400
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑪ 몰빵 대형 잃은 직후 상대 역습 슛 기회 (5단계) [xyz on]
+[scene allIn xyz on] chanceAllIn=0.072 freeAllIn=2.500 chanceFour=0.038 freeFour=0.167
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑪ 몰빵 대형 잃은 직후 상대 역습 슛 기회 (5단계) [xyz off]
+[scene allIn xyz off] chanceAllIn=0.060 freeAllIn=2.500 chanceFour=0.037 freeFour=0.167
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑫ 2:1 원터치 리턴 — 받는 순간 리턴, 패서가 마커 뒤에서 받음 (5단계 2차) [xyz·78a on]
+[scene oneTwo xyz·78a on] returnRate=0.917 returnDelay=0.223 behindRate=0.727 oneTouch=0.792 otBehind=0.684 gapGot=6.868
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑫ 2:1 원터치 리턴 — 받는 순간 리턴, 패서가 마커 뒤에서 받음 (5단계 2차) [xyz·78a off]
+[scene oneTwo xyz·78a off] returnRate=0.500 returnDelay=1.100 behindRate=1.000 oneTouch=0.167 otBehind=1.000 gapGot=9.797
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑬ 뒤 공간 침투 수신 → 슛까지 시간 (쫓아오는 CB 대비, 5단계 2차) [xyz·78a on]
+[scene runIn xyz·78a on] shotRate=0.400 shotTime=1.275 shotGap=2.551 recvSpeed=4.103
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑬ 뒤 공간 침투 수신 → 슛까지 시간 (쫓아오는 CB 대비, 5단계 2차) [xyz·78a off]
+[scene runIn xyz·78a off] shotRate=0.900 shotTime=2.278 shotGap=2.910 recvSpeed=4.039
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑭ 등지고 압박 속 수신 — 정지 시간 길고 공 지키기·백패스 이유 압박 탈출 (5단계 2차) [xyz·78a on]
+[scene backPress xyz·78a on] stopBack=1.100 stopFree=0.683 timeBack=0.840 timeFree=0.700 safeRate=0.700 backs=5.000 escapeShare=1.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑭ 등지고 압박 속 수신 — 정지 시간 길고 공 지키기·백패스 이유 압박 탈출 (5단계 2차) [xyz·78a off]
+[scene backPress xyz·78a off] stopBack=1.100 stopFree=0.683 timeBack=0.960 timeFree=0.700 safeRate=0.700 backs=0.000 escapeShare=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑮ 깊은 블록 상대 게겐 압박 — 상대가 건너뛰어 높은 탈취 작음 (C.78c, 기록)
+[scene deepPress] press=3.000 long=0.150 regain=0.350 regainHigh=0.150 regainH=37.872
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑯ 압박받은 CB 가 롱볼로 높은 라인 뒤로 건너뜀 — 판단이 착지 경합을 봄 (C.78c)
+[scene longEscape] longOn=0.435 longOff=0.425 toStOn=0.435 toStOff=0.425 q=0.689 tSt=2.400 tDef=3.381 behind=1.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑰ 티키 빌드업 상대 게겐 압박 — 높은 탈취 많음 (C.78c, 기록)
+[scene buildPress] press=3.000 long=0.368 regain=0.000 regainHigh=0.000 regainH=99.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑱ 블록 대 지공 — 버스가 허용하는 슛이 균형 수비보다 뚜렷하게 좋은 찬스가 아니다 (C.78d, C.78e 120시드)
+[scene blockBuild] busShots=0.504 busOut=0.099 busBlocked=0.107 busXg=0.048 busXgShot=0.095 balShots=0.467 balOut=0.134 balBlocked=0.107 balXg=0.045 balXgShot=0.097
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑲ 블록 탈취 뒤 역습 — 지원 인원 버스 1·역습 2, 지원 대상이 앞으로 달림 (C.78d)
+[scene blockCounter] busSup=1.000 busExit=1.000 busRun3=21.156 busShot=0.000 busF3=0.433 ctrSup=2.000 ctrRun3=21.155 ctrShot=0.000 ctrF3=0.500 busRun3Off=9.653 busShotOff=0.000 ctrRun3Off=8.416 ctrShotOff=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ⑳ 줄 사이 수신자에게 수비 1명 튀어나감·옆이 메움 (C.78d)
+[scene betweenLines] received=0.950 pressers=1.000 multi=0.000 near0=4.543 near1=1.574 gapMax=7.696 pressersOff=1.263 multiOff=0.211 near1Off=1.429 gapMaxOff=7.433
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉑ 반대쪽 측면 크로스 때 LM/RM 먼 포스트 도착 시각 (C.78e)
+[scene wideArrive] lmT=2.408 lmArr=1.000 lmEnd=11.028 lwT=2.508 lwArr=1.000 lwEnd=11.973 lmOffT=3.617 lmOffArr=1.000 lmOffEnd=25.154
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉒ 펄스 나인 내려옴 → CB 따라감 → 2선 빈자리 침투 패스 (C.78e)
+[scene nineFollow] got=1.000 follow=0.733 run=0.600 pass=0.233 shot=0.167 turn=0.533 runOff=0.400 passOff=0.200 shotOff=0.100
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉓ 펄스 나인 내려옴 → CB 안 따라감 → 돌아서 전진 (C.78e)
+[scene nineHold] turnHold=0.417 faceHold=0.783 fwdHold=0.450 followHold=0.000 faceNoTurn=0.017 fwdNoTurn=0.383 turnGo=0.550 faceGo=0.783 fwdGo=0.600 followGo=0.900 followNear=0.150 followFar=0.600 followNearOff=0.267
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉖ 박스 앞 오른발 공격수 정면 — 수비가 주발로 찰 구석 쪽 슛 길에 섬 (C.78h)
+[scene laneRight] same=0.983 sameLow=0.717 lat=0.117 gap=1.400 off=0.000 sameOff=0.000 gapOff=1.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉗ 왼발 공격수 같은 자리 — 수비가 레인 반대쪽에 섬 (C.78h)
+[scene laneLeft] same=0.983 sameRight=0.983 lat=0.117 gap=1.400 off=0.000
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉘ 레인 막힘 → 공격수가 옆으로 한 번 치고 각도 만듦 (C.78h)
+[scene laneAngle] shoot=0.350 side=0.637 pbHere=0.150 pbThere=0.000 shootOpen=0.988 sideOpen=0.000 sideOff=0.000 shootOff=0.900
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉔ 게겐 대 버스 — 버스가 자기 ⅓ 에서 뺏으면 첫 행동 빠름·뺏긴 팀 늦게 모임·4초 전진 (C.78g)
+[scene gegenBus] adv=8.234 advOff=4.189 fwd=26.611 fwdOff=26.438 first=0.128 firstOff=0.845 near1=0.388 near1Off=2.425 keep=0.688 keepOff=0.762 half=0.300 halfOff=0.212
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉕ 균형 대 균형 — 잃은 팀이 덜 올라와 있으면 전환 순간 효과 작음 (C.78g)
+[scene balancedSwing] adv=5.459 advOff=4.067 fwd=-0.612 fwdOff=0.299 first=0.488 firstOff=0.949 keep=0.850 keepOff=0.900 half=0.762 halfOff=0.725
+
+stdout | tests/scenes/scenes.test.ts > 기준 장면 > ㉙ 크랙형 윙어 높이 남음 → 상대 풀백 오버래핑 → 그 측면 진입·크로스 (C.78i)
+[scene wingerOverlap] start=0.850 startClassic=0.475 startOff=0.000 flank=0.375 flankClassic=0.250 flankOff=0.125 lbGot=0.350 lbGotClassic=0.200 lbGotOff=0.025 cross=0.075 crossClassic=0.025 crossOff=0.025 lbGap=27.078 lbGapOff=36.712 rwDepth=63.667 rwDepthClassic=55.460
+
+ ✓ tests/scenes/scenes.test.ts (39 tests) 19127ms
+   ✓ 기준 장면 > ⑱ 블록 대 지공 — 버스가 허용하는 슛이 균형 수비보다 뚜렷하게 좋은 찬스가 아니다 (C.78d, C.78e 120시드) 9324ms
+   ✓ 기준 장면 > ⑲ 블록 탈취 뒤 역습 — 지원 인원 버스 1·역습 2, 지원 대상이 앞으로 달림 (C.78d) 850ms
+   ✓ 기준 장면 > ㉒ 펄스 나인 내려옴 → CB 따라감 → 2선 빈자리 침투 패스 (C.78e) 337ms
+   ✓ 기준 장면 > ㉓ 펄스 나인 내려옴 → CB 안 따라감 → 돌아서 전진 (C.78e) 1837ms
+   ✓ 기준 장면 > ㉖ 박스 앞 오른발 공격수 정면 — 수비가 주발로 찰 구석 쪽 슛 길에 섬 (C.78h) 767ms
+   ✓ 기준 장면 > ㉗ 왼발 공격수 같은 자리 — 수비가 레인 반대쪽에 섬 (C.78h) 464ms
+   ✓ 기준 장면 > ㉘ 레인 막힘 → 공격수가 옆으로 한 번 치고 각도 만듦 (C.78h) 913ms
+   ✓ 기준 장면 > ㉔ 게겐 대 버스 — 버스가 자기 ⅓ 에서 뺏으면 첫 행동 빠름·뺏긴 팀 늦게 모임·4초 전진 (C.78g) 919ms
+   ✓ 기준 장면 > ㉕ 균형 대 균형 — 잃은 팀이 덜 올라와 있으면 전환 순간 효과 작음 (C.78g) 788ms
+   ✓ 기준 장면 > ㉙ 크랙형 윙어 높이 남음 → 상대 풀백 오버래핑 → 그 측면 진입·크로스 (C.78i) 667ms
+
+ Test Files  204 passed (204)
+      Tests  1622 passed (1622)
+   Start at  13:53:30
+   Duration  415.08s (transform 8.69s, setup 0ms, collect 266.40s, tests 893.65s, environment 36ms, prepare 14.50s)
+
+TEST2DONE rc=0  Test Files  204 passed (204)       Tests  1622 passed (1622) 
