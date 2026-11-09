@@ -1,3 +1,4 @@
 start 13:43:06
 typecheck done rc=0
 test done 13:49:41 rc=0 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯  Test Files  3 failed | 201 passed (204)       Tests  3 failed | 1619 passed (1622) 
+echeck done 13:58:13 rc=0
