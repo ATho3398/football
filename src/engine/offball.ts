@@ -172,7 +172,9 @@ function defensiveLine(s: SimState, team: 0 | 1): number {
   nx = Math.min(nx, bx - F.lineBehindBall / L);
   // 역압박 중 라인 유지 (C.78a ② G1): 잃는 순간의 높이(상한 lineHold)에서 내려오지 않는다. 뚫리면(pressBreak) 역압박이 끝나 지금처럼 내려온다
   const tm = s.teams[team];
-  if (O.lineHold > 0 && tm.lineAtLoss >= 0 && s.t < tm.counterUntil && tm.counterPressers.length > 0) nx = Math.max(nx, Math.min(tm.lineAtLoss, O.lineHold));
+  // 게겐 뚫린 뒤 라인 유지 연장 (C.82l, TENDENCY.gegenLineHoldExtra): 뚫려 역압박이 끝난 뒤에도 그만큼 더 잃는 순간 높이에 머문다 — 게겐만의 뒤 공간 비용
+  const holdOn = s.t < tm.counterUntil || (TENDENCY.gegenLineHoldExtra > 0 && tm.tactics.tendency === 'gegenpress' && tm.brokeAt >= 0 && s.t - tm.brokeAt <= TENDENCY.gegenLineHoldExtra);
+  if (O.lineHold > 0 && tm.lineAtLoss >= 0 && holdOn && tm.counterPressers.length > 0) nx = Math.max(nx, Math.min(tm.lineAtLoss, O.lineHold));
   return clamp(nx, F.lineMin, 0.7);
 }
 
@@ -209,10 +211,12 @@ export function transitionTick(s: SimState): void {
     if (!tm.counterPressers.every((i) => normX(s.agents[i]!.x, dir) > x! + gap)) continue;
     tm.counterUntil = s.t;
     tm.brokeAt = s.t;
+    // 게겐 복귀 지연 (C.82l, TENDENCY.gegenBreakDelay): 게겐 가담자는 뚫린 뒤 이만큼 뒤에야 다시 판단한다 (그동안 옛 목표로 계속 뛴다) — 균형은 즉시
+    const delay = tm.tactics.tendency === 'gegenpress' ? TENDENCY.gegenBreakDelay : 0;
     for (let i_6 = 0, a_6 = tm.counterPressers; i_6 < a_6.length; i_6++) { const i = a_6[i_6]!;
       const a = s.agents[i]!;
       a.recoverUrgent = true;
-      a.nextOffball = s.t;
+      a.nextOffball = s.t + delay;
     }
   }
 }
@@ -988,7 +992,7 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
     // 공 쪽 풀백: 가운데 ⅓ 에서는 공 frontStayFbTrail m 뒤를 따라오다가(미리 올라와 있어야 상대 ⅓ 에서 공 높이에 닿는다) 상대 ⅓ 에서는 공 − frontStayFbBehind m
     else if (!running && FB_POS.has(a.pos) && !hasModule(a.role, 'between')) {
       const fbSide = frontStayFb(s, a, dir, fbx, fby);
-      if (fbSide === 1) floor = Math.min(cap, fbx - frontStayFbGap(s, a.team, third) / L);
+      if (fbSide === 1) floor = Math.min(cap, fbx - frontStayFbGap(s, a.team, third, a) / L);
       else if (fbSide === 2 && O.frontStayFbFar > 0) floor = Math.min(cap, fbx - O.frontStayFbFar / L);
     }
     if (floor > nx) {
@@ -1003,9 +1007,24 @@ function attackTarget(s: SimState, a: Agent, dir: 1 | -1): void {
  * 공 쪽 풀백이 따라오는 공 뒤 거리 m (C.82k): 상대 ⅓ 이면 frontStayFbBehind · 가운데 ⅓ 이면 frontStayFbTrail,
  * 여기에 frontStayFbLineK × (frontStayFbLineRef − 실효 라인 높이) 를 더한다 — 라인 높은 팀(0.65)은 그대로 공 +3 m, 균형(0.5) 공 높이, 블록(0.35) 3 m 뒤, 버스(0.2) 6 m 뒤
  */
-export function frontStayFbGap(s: SimState, team: 0 | 1, third: boolean): number {
+export function frontStayFbGap(s: SimState, team: 0 | 1, third: boolean, fb?: Agent): number {
   const base = third ? O.frontStayFbBehind : O.frontStayFbTrail;
-  return O.frontStayFbLineK > 0 ? base + O.frontStayFbLineK * (O.frontStayFbLineRef - effectiveTactics(s, team).lineHeight) : base;
+  const gap = O.frontStayFbLineK > 0 ? base + O.frontStayFbLineK * (O.frontStayFbLineRef - effectiveTactics(s, team).lineHeight) : base;
+  return fb ? gap + classicWingerFbGap(s, fb) : gap;
+}
+
+/**
+ * 정통 윙어 쪽 풀백 예외 (C.82l, 부록 C.82k 안 된 것 ③): 같은 측면에 직접 고른 정통 윙어(rolePicked · classicWinger)가 뛰고 있으면 공 쪽 풀백의 공 뒤 거리에
+ * roles.classicWingerFbGap m 를 더한다 (음수 = 더 올라가 오버랩 짝, 양수 = 덜 올라가 윙어 공간). 0 = 끔
+ */
+export function classicWingerFbGap(s: SimState, fb: Agent): number {
+  const g = ENGINE.roles.classicWingerFbGap;
+  if (g === 0) return 0;
+  const side = fb.sy < 0.5;
+  for (let i_31 = 0, a_31 = onOf(s, fb.team); i_31 < a_31.length; i_31++) { const o = a_31[i_31]!;
+    if (o.rolePicked && o.role.id === 'classicWinger' && (o.sy < 0.5) === side) return g;
+  }
+  return 0;
 }
 
 /**

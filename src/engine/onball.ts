@@ -175,6 +175,19 @@ export function pressureAt(s: SimState, a: Agent, x = a.x, y = a.y): number {
   return Math.max(0, 1 - bd / PR.pressureDist);
 }
 
+/**
+ * C.82l: 게겐 첫 패스 압박 항 — a 의 팀이 오픈 플레이로 뺏은 뒤 TENDENCY.gegenFirstPassWin 초 안이고 상대(게겐)의 역압박 창이 열려 있으면
+ * gegenFirstPass × 가담자 수(상한 gegenMax). 그 밖 0. 판단(passProbability)·실행(같은 p) 같은 값
+ */
+export function gegenFirstPassPen(s: SimState, a: Agent): number {
+  const k = TENDENCY.gegenFirstPass;
+  if (k <= 0) return 0;
+  const opp = s.teams[(1 - a.team) as 0 | 1];
+  if (opp.tactics.tendency !== 'gegenpress' || s.t >= opp.counterUntil || !opp.counterPressers.length) return 0;
+  if (s.possTeam !== a.team || s.possOrigin !== 'open' || s.t - s.teams[a.team].wonAt > TENDENCY.gegenFirstPassWin) return 0;
+  return k * Math.min(opp.counterPressers.length, TENDENCY.gegenMax);
+}
+
 /** C.82e: 수비수 o 가 공 근처 상대에게 주는 압박의 실효 거리 배수 — 게겐 역압박 가담자(창 안)는 TENDENCY.gegenPressReach, 그 밖 1 */
 export function pressReachOf(s: SimState, o: Agent): number {
   const g = TENDENCY.gegenPressReach;
@@ -226,7 +239,8 @@ export function passProbability(s: SimState, a: Agent, tx: number, ty: number, k
   // 거리 감쇠: 숏패스 구간(25 m)까지 passPerM, 그 너머는 longPerM (롱패스 정확도)
   // 받는 선수 압박(마크)도 패스 난이도다: 좋은 패서는 마크 반대쪽으로 넣는다 (능력치가 줄이는 실패에 포함, E.20 5번)
   // 지친 선수는 패스도 흐트러진다 (C.76s 가설 2)
-  const p = passDistBase(d) - laneRisk - PR.pressurePenalty * pressure - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a);
+  // 게겐 첫 패스 압박 (C.82l): 상대 게겐 역압박 창 안·우리가 뺏은 직후면 가담자 수 × gegenFirstPass 를 뺀다 (판단·실행 같은 값)
+  const p = passDistBase(d) - laneRisk - PR.pressurePenalty * pressure - receiverPenalty + formBonus(a) - PR.tiredPass * tiredRatio(a) - gegenFirstPassPen(s, a);
   // 원터치 (C.78b): 받는 순간 바로 차면 × 원터치 배수 (판단 중일 때만, 끄면 1)
   // 공격 몰빵 억제 (C.80q ①): 공격 진영 패스 × 연계 배수 (판단·실행 같은 값, 안 걸리면 1)
   return passSkillApply(p, skill) * stackLinkMul(s, a);
